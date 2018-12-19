@@ -11,7 +11,7 @@ import (
 	"github.com/ethereum/go-ethereum/rpc"
 )
 
-// DoubleSHA256 is a consensus engine implementing PoW with qkchash algo.
+// DoubleSHA256 is a consensus engine implementing PoW with double-sha256 algo.
 type DoubleSHA256 struct {
 	hashrate metrics.Meter
 }
