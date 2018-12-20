@@ -28,9 +28,9 @@ import (
 	"math/big"
 	"os"
 
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/common/math"
-	"github.com/ethereum/go-ethereum/crypto/sha3"
+	"github.com/QuarkChain/goquarkchain/common"
+	"github.com/QuarkChain/goquarkchain/common/math"
+	"github.com/QuarkChain/goquarkchain/crypto/sha3"
 	"github.com/ethereum/go-ethereum/rlp"
 )
 
