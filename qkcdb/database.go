@@ -116,7 +116,11 @@ func (db *LDBDatabase) Put(key []byte, value []byte) error {
 }
 
 func (db *LDBDatabase) Has(key []byte) (bool, error) {
-	return db.db.Has(db.ro, key)
+	_, err := db.Get(key)
+	if err != nil {
+		return false, err
+	}
+	return true, nil
 }
 
 // Get returns the given key if it's present.
@@ -365,26 +369,22 @@ func (db *LDBDatabase) meter(refresh time.Duration) {
 }
 
 func (db *LDBDatabase) NewBatch() Batch {
-	return &ldbBatch{db: db.db, /*ro: db.ro,*/ wo: db.wo, w: new(gorocksdb.WriteBatch)}
+	return &ldbBatch{db: db.db, /*ro: db.ro,*/ wo: db.wo, w: gorocksdb.NewWriteBatch()}
 }
 
 type ldbBatch struct {
-	db *gorocksdb.DB
-	// ro   *gorocksdb.ReadOptions
+	db   *gorocksdb.DB
 	wo   *gorocksdb.WriteOptions
 	w    *gorocksdb.WriteBatch
-	size int
 }
 
 func (b *ldbBatch) Put(key, value []byte) error {
 	b.w.Put(key, value)
-	b.size += len(value)
 	return nil
 }
 
 func (b *ldbBatch) Delete(key []byte) error {
 	b.w.Delete(key)
-	b.size += 1
 	return nil
 }
 
@@ -393,10 +393,9 @@ func (b *ldbBatch) Write() error {
 }
 
 func (b *ldbBatch) ValueSize() int {
-	return b.size
+	return b.w.Count()
 }
 
 func (b *ldbBatch) Reset() {
-	// b.w.Reset()
-	// b.size = 0
+	b.w.Clear()
 }

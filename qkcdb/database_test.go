@@ -32,7 +32,6 @@ import (
 
 func newTestLDB() (*qkcdb.LDBDatabase, func()) {
 	dirname, err := ioutil.TempDir(os.TempDir(), "qkcdb_test_")
-	// fmt.Println("------------", dirname)
 	if err != nil {
 		panic("failed to create test file: " + err.Error())
 	}
@@ -152,6 +151,45 @@ func testPutGet(db qkcdb.Database, t *testing.T) {
 		data, err := db.Get([]byte(v))
 		if err == nil && len(data) > 0 {
 			t.Fatalf("got deleted value %q", v)
+		}
+	}
+}
+
+func Test_batch(t *testing.T) {
+	db, remove := newTestLDB()
+	defer remove()
+	batch := db.NewBatch()
+	testBatchPutGet(db, batch, t)
+}
+
+func testBatchPutGet(db qkcdb.Database, batch qkcdb.Batch, t *testing.T) {
+	t.Parallel()
+	test_values := testData()
+
+	for k, v := range test_values {
+		batch.Put([]byte(k), []byte(v))
+	}
+	if batch.ValueSize() != len(test_values) {
+		t.Fatalf("batch operation put error.")
+	}
+
+	batch.Reset()
+	if batch.ValueSize() != 0 {
+		t.Fatalf("clean rocksdb falied, %d", batch.ValueSize())
+	}
+	
+	for k, v := range test_values {
+		batch.Put([]byte(k), []byte(v))
+	}
+	batch.Write()
+
+	for k, v := range test_values {
+		data, err := db.Get([]byte(k))
+		if err != nil {
+			t.Fatalf("After batch write, db get error: %v", err)
+		}
+		if string(data) != v {
+			t.Fatalf("After batch write, not exist, real : %v,return : %v", v, string(data))
 		}
 	}
 }
