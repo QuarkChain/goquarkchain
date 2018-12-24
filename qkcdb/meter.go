@@ -42,7 +42,7 @@ import (
 //  "rocksdb.block-cache-capacity"
 //  "rocksdb.block-cache-usage"
 //  "rocksdb.block-cache-pinned-usage"s
-// TODO We need to disassemble the monitor data from gorocksdb.	
+// TODO We need to disassemble the monitor data from gorocksdb.
 func (db *LDBDatabase) GetProperty(name string) (value string, err error) {
 
 	const prefix = "rocksdb."
