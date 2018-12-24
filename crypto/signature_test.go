@@ -22,9 +22,9 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/common/hexutil"
-	"github.com/ethereum/go-ethereum/common/math"
+	"github.com/QuarkChain/goquarkchain/common"
+	"github.com/QuarkChain/goquarkchain/common/hexutil"
+	"github.com/QuarkChain/goquarkchain/common/math"
 )
 
 var (
