@@ -8,7 +8,7 @@ jobs:
       - restore_cache:
           keys:
             - gomod-cache-{{ checksum "go.sum" }}
-        # only test specific files for now
+      # only test specific files for now
       - run: cd consensus && go test ./...
       - save_cache:
           key: go-mod-v1-{{ checksum "go.sum" }}
