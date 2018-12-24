@@ -1,18 +1,18 @@
-// Copyright 2014 The go-ethereum Authors
-// This file is part of the go-ethereum library.
+// Copyright 2014 The goquarkchain Authors
+// This file is part of the goquarkchain library.
 //
-// The go-ethereum library is free software: you can redistribute it and/or modify
+// The goquarkchain library is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Lesser General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 //
-// The go-ethereum library is distributed in the hope that it will be useful,
+// The goquarkchain library is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU Lesser General Public License for more details.
 //
 // You should have received a copy of the GNU Lesser General Public License
-// along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
+// along with the goquarkchain library. If not, see <http://www.gnu.org/licenses/>.
 
 // +build !js
 
@@ -28,7 +28,7 @@ import (
 
 	"github.com/QuarkChain/goquarkchain/log"
 	"github.com/QuarkChain/goquarkchain/metrics"
-	"github.com/syndtr/goleveldb/leveldb/errors"
+	"github.com/QuarkChain/goquarkchain/qkcdb/errors"
 )
 
 const (
@@ -39,7 +39,7 @@ var OpenFileLimit = 64
 
 type LDBDatabase struct {
 	fn string        // filename for reporting
-	db *gorocksdb.DB // LevelDB instance
+	db *gorocksdb.DB // RocksDB instance
 	ro *gorocksdb.ReadOptions
 	wo *gorocksdb.WriteOptions
 
@@ -57,7 +57,7 @@ type LDBDatabase struct {
 	log log.Logger // Contextual logger tracking the database path
 }
 
-// NewLDBDatabase returns a LevelDB wrapped object.
+// NewLDBDatabase returns a rocksdb wrapped object.
 func NewLDBDatabase(file string, cache int, handles int) (*LDBDatabase, error) {
 	logger := log.New("database", file)
 
@@ -82,14 +82,14 @@ func NewLDBDatabase(file string, cache int, handles int) (*LDBDatabase, error) {
 	logger.Info("Allocated cache and file handles", "cache", cache, "handles", handles)
 
 	// Open the db and recover any potential corruptions
-	/*db, err := leveldb.OpenFile(file, &opt.Options{
+	/*db, err := rocksdb.OpenFile(file, &opt.Options{
 		OpenFilesCacheCapacity: handles,
 		BlockCacheCapacity:     cache / 2 * opt.MiB,
 		WriteBuffer:            cache / 4 * opt.MiB, // Two of these are used internally
 		Filter:                 filter.NewBloomFilter(10),
 	})
 	if _, corrupted := err.(*errors.ErrCorrupted); corrupted {
-		db, err = leveldb.RecoverFile(file, nil)
+		db, err = rocksdb.RecoverFile(file, nil)
 	}
 	*/
 	// (Re)check for errors and abort if opening of the db failed
@@ -139,6 +139,10 @@ func (db *LDBDatabase) Get(key []byte) ([]byte, error) {
 func (db *LDBDatabase) Delete(key []byte) error {
 	return db.db.Delete(db.wo, key)
 }
+
+/*func (db *LDBDatabase) GetProperty(name string) string {
+	return db.db.GetProperty(name)
+}*/
 
 /*func (db *LDBDatabase) NewIterator() iterator.Iterator {
 	return db.db.NewIterator(db.ro)
@@ -193,23 +197,37 @@ func (db *LDBDatabase) Meter(prefix string) {
 	go db.meter(3 * time.Second)
 }
 
-// meter periodically retrieves internal leveldb counters and reports them to
+// meter periodically retrieves internal rocksdb	 counters and reports them to
 // the metrics subsystem.
 //
 // This is how a stats table look like (currently):
-//   Compactions
-//    Level |   Tables   |    Size(MB)   |    Time(sec)  |    Read(MB)   |   Write(MB)
-//   -------+------------+---------------+---------------+---------------+---------------
-//      0   |          0 |       0.00000 |       1.27969 |       0.00000 |      12.31098
-//      1   |         85 |     109.27913 |      28.09293 |     213.92493 |     214.26294
-//      2   |        523 |    1000.37159 |       7.26059 |      66.86342 |      66.77884
-//      3   |        570 |    1113.18458 |       0.00000 |       0.00000 |       0.00000
+// rocksdb.state:
+// ** Compaction Stats [default] **
+// Level    Files   Size     Score Read(GB)  Rn(GB) Rnp1(GB) Write(GB) Wnew(GB) Moved(GB) W-Amp Rd(MB/s) Wr(MB/s) Comp(sec) Comp(cnt) Avg(sec) KeyIn KeyDrop
+//----------------------------------------------------------------------------------------------------------------------------------------------------------
+// Sum      0/0    0.00 KB   0.0      0.0     0.0      0.0       0.0      0.0       0.0   0.0      0.0      0.0         0         0    0.000       0      0
+// Int      0/0    0.00 KB   0.0      0.0     0.0      0.0       0.0      0.0       0.0   0.0      0.0      0.0         0         0    0.000       0      0
+// Uptime(secs): 0.0 total, 0.0 interval
+// Flush(GB): cumulative 0.000, interval 0.000
+// AddFile(GB): cumulative 0.000, interval 0.000
+// AddFile(Total Files): cumulative 0, interval 0
+// AddFile(L0 Files): cumulative 0, interval 0
+// AddFile(Keys): cumulative 0, interval 0
+// Cumulative compaction: 0.00 GB write, 0.00 MB/s write, 0.00 GB read, 0.00 MB/s read, 0.0 seconds
+// Interval compaction: 0.00 GB write, 0.00 MB/s write, 0.00 GB read, 0.00 MB/s read, 0.0 seconds
+// Stalls(count): 0 level0_slowdown, 0 level0_slowdown_with_compaction, 0 level0_numfiles, 0 level0_numfiles_with_compaction, 0 stop for pending_compaction_bytes, 0 slowdown for pending_compaction_bytes, 0 memtable_compaction, 0 memtable_slowdown, interval 0 total count
 //
-// This is how the write delay look like (currently):
-// DelayN:5 Delay:406.604657ms Paused: false
+//** File Read Latency Histogram By Level [default] **
 //
-// This is how the iostats look like (currently):
-// Read(MB):3895.04860 Write(MB):3654.64712
+//** DB Stats **
+// Uptime(secs): 0.0 total, 0.0 interval
+// Cumulative writes: 0 writes, 0 keys, 0 commit groups, 0.0 writes per commit group, ingest: 0.00 GB, 0.00 MB/s
+// Cumulative WAL: 0 writes, 0 syncs, 0.00 writes per sync, written: 0.00 GB, 0.00 MB/s
+// Cumulative stall: 00:00:0.000 H:M:S, 0.0 percent
+// Interval writes: 0 writes, 0 keys, 0 commit groups, 0.0 writes per commit group, ingest: 0.00 MB, 0.00 MB/s
+// Interval WAL: 0 writes, 0 syncs, 0.00 writes per sync, written: 0.00 MB, 0.00 MB/s
+// Interval stall: 00:00:0.000 H:M:S, 0.0 percent
+// TODO qkcdb's monitor module needs to be improved
 func (db *LDBDatabase) meter(refresh time.Duration) {
 	// Create the counters to store current and previous compaction values
 	compactions := make([][]float64, 2)
@@ -233,12 +251,12 @@ func (db *LDBDatabase) meter(refresh time.Duration) {
 	// Iterate ad infinitum and collect the stats
 	for i := 1; errc == nil && merr == nil; i++ {
 		// Retrieve the database stats
-		stats := db.db.GetProperty("leveldb.stats")
-		/*if err != nil {
+		stats, err := db.GetProperty("rocksdb.stats")
+		if err != nil {
 			db.log.Error("Failed to read database stats", "err", err)
 			merr = err
 			continue
-		}*/
+		}
 		// Find the compaction table, skip the header
 		lines := strings.Split(stats, "\n")
 		for len(lines) > 0 && strings.TrimSpace(lines[0]) != "Compactions" {
@@ -282,18 +300,17 @@ func (db *LDBDatabase) meter(refresh time.Duration) {
 		}
 
 		// Retrieve the write delay statistic
-		writedelay := db.db.GetProperty("leveldb.writedelay")
-		/*if err != nil {
+		writedelay, err := db.GetProperty("rocksdb.writedelay")
+		if err != nil {
 			db.log.Error("Failed to read database write delay statistic", "err", err)
 			merr = err
 			continue
-		}*/
+		}
 		var (
 			delayN        int64
 			delayDuration string
 			duration      time.Duration
 			paused        bool
-			err           error
 		)
 		if n, err := fmt.Sscanf(writedelay, "DelayN:%d Delay:%s Paused:%t", &delayN, &delayDuration, &paused); n != 3 || err != nil {
 			db.log.Error("Write delay statistic not found")
@@ -322,12 +339,12 @@ func (db *LDBDatabase) meter(refresh time.Duration) {
 		delaystats[0], delaystats[1] = delayN, duration.Nanoseconds()
 
 		// Retrieve the database iostats.
-		ioStats := db.db.GetProperty("leveldb.iostats")
-		/*if err != nil {
+		ioStats, err := db.GetProperty("rocksdb.iostats")
+		if err != nil {
 			db.log.Error("Failed to read database iostats", "err", err)
 			merr = err
 			continue
-		}*/
+		}
 		var nRead, nWrite float64
 		parts := strings.Split(ioStats, " ")
 		if len(parts) < 2 {
@@ -373,9 +390,9 @@ func (db *LDBDatabase) NewBatch() Batch {
 }
 
 type ldbBatch struct {
-	db   *gorocksdb.DB
-	wo   *gorocksdb.WriteOptions
-	w    *gorocksdb.WriteBatch
+	db *gorocksdb.DB
+	wo *gorocksdb.WriteOptions
+	w  *gorocksdb.WriteBatch
 }
 
 func (b *ldbBatch) Put(key, value []byte) error {
