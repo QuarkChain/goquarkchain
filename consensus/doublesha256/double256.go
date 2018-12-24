@@ -78,7 +78,7 @@ func (d *DoubleSHA256) APIs(chain consensus.ChainReader) []rpc.API {
 
 // Hashrate returns the current mining hashrate of a PoW consensus engine.
 func (d *DoubleSHA256) Hashrate() float64 {
-	return q.hashrate.Rate1()
+	return d.hashrate.Rate1()
 }
 
 // New returns a DoubleSHA256 scheme.
