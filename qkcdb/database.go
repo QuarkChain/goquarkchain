@@ -71,7 +71,7 @@ func NewLDBDatabase(file string, cache int) (*LDBDatabase, error) {
 	}
 	opts := gorocksdb.NewDefaultOptions()
 	// ubuntu 16.04 max files descriptors 524288
-	opts.SetMaxFileOpeningThreads(4096)
+	opts.SetMaxFileOpeningThreads(100000)
 	// 128 MiB
 	opts.SetMaxTotalWalSize(uint64(cache * 1024 * 1024))
 	// sets the maximum number of write buffers that are built up in memory.
