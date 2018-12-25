@@ -13,6 +13,10 @@ const (
 	cacheEntryCnt = 1024 * 64
 )
 
+var (
+	cacheSeed = []byte{}
+)
+
 type qkcCache struct {
 	ls  []uint64
 	set map[uint64]struct{}
