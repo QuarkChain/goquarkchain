@@ -38,7 +38,7 @@ func (q *QKCHash) Author(header *types.Header) (common.Address, error) {
 
 // VerifyHeader checks whether a header conforms to the consensus rules.
 func (q *QKCHash) VerifyHeader(chain ethconsensus.ChainReader, header *types.Header, seal bool) error {
-	// Short circuit if the header is known, or it's parent not
+	// Short-circuit if the header is known, or parent not
 	number := header.Number.Uint64()
 	if chain.GetHeader(header.Hash(), number) != nil {
 		return nil
