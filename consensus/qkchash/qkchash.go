@@ -1,7 +1,6 @@
 package qkchash
 
 import (
-	"errors"
 	"math/big"
 
 	"github.com/QuarkChain/goquarkchain/consensus"
@@ -14,19 +13,10 @@ import (
 	"github.com/ethereum/go-ethereum/rpc"
 )
 
-// Various error messages to mark blocks invalid. These should be private to
-// prevent engine specific errors from being referenced in the remainder of the
-// codebase, inherently breaking if the engine is swapped out. Please put common
-// error types into the consensus package.
-var (
-	errInvalidDifficulty = errors.New("non-positive difficulty")
-	errInvalidMixDigest  = errors.New("invalid mix digest")
-	errInvalidPoW        = errors.New("invalid proof-of-work")
-)
-
 // QKCHash is a consensus engine implementing PoW with qkchash algo.
 type QKCHash struct {
-	hashrate metrics.Meter
+	commonEngine *consensus.CommonEngine
+	hashrate     metrics.Meter
 	// For reusing existing functions
 	ethash *ethash.Ethash
 }
@@ -38,16 +28,7 @@ func (q *QKCHash) Author(header *types.Header) (common.Address, error) {
 
 // VerifyHeader checks whether a header conforms to the consensus rules.
 func (q *QKCHash) VerifyHeader(chain ethconsensus.ChainReader, header *types.Header, seal bool) error {
-	// Short-circuit if the header is known, or parent not
-	number := header.Number.Uint64()
-	if chain.GetHeader(header.Hash(), number) != nil {
-		return nil
-	}
-	parent := chain.GetHeader(header.ParentHash, number-1)
-	if parent == nil {
-		return ethconsensus.ErrUnknownAncestor
-	}
-	return consensus.VerifyHeader(chain, header, parent, q)
+	return q.commonEngine.VerifyHeader(chain, header, seal, q)
 }
 
 // VerifyHeaders is similar to VerifyHeader, but verifies a batch of headers
@@ -55,15 +36,7 @@ func (q *QKCHash) VerifyHeader(chain ethconsensus.ChainReader, header *types.Hea
 // a results channel to retrieve the async verifications (the order is that of
 // the input slice).
 func (q *QKCHash) VerifyHeaders(chain ethconsensus.ChainReader, headers []*types.Header, seals []bool) (chan<- struct{}, <-chan error) {
-	// TODO: verify concurrently, and support aborting
-	errorsOut := make(chan error, len(headers))
-	go func() {
-		for _, h := range headers {
-			err := q.VerifyHeader(chain, h, true /*seal flag not used*/)
-			errorsOut <- err
-		}
-	}()
-	return nil, errorsOut
+	return q.commonEngine.VerifyHeaders(chain, headers, seals, q)
 }
 
 // VerifyUncles verifies that the given block's uncles conform to the consensus
@@ -109,7 +82,8 @@ func (q *QKCHash) Close() error {
 // New returns a QKCHash scheme.
 func New() *QKCHash {
 	return &QKCHash{
-		hashrate: metrics.NewMeter(),
-		ethash:   &ethash.Ethash{},
+		commonEngine: &consensus.CommonEngine{},
+		hashrate:     metrics.NewMeter(),
+		ethash:       &ethash.Ethash{},
 	}
 }
