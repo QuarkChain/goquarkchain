@@ -63,11 +63,10 @@ func (d *DoubleSHA256) VerifySeal(chain ethconsensus.ChainReader, header *types.
 	nonceBytes := make([]byte, 8)
 	// Note it's big endian here
 	binary.BigEndian.PutUint64(nonceBytes, header.Nonce.Uint64())
-	hash := d.SealHash(header).Bytes()
-	bytes := append(hash, nonceBytes...)
+	hashNonceBytes := append(d.SealHash(header).Bytes(), nonceBytes...)
 
 	target := new(big.Int).Div(maxUint256, header.Difficulty)
-	hashOnce := sha256.Sum256(bytes)
+	hashOnce := sha256.Sum256(hashNonceBytes)
 	result := sha256.Sum256(hashOnce[:])
 	if new(big.Int).SetBytes(result[:]).Cmp(target) > 0 {
 		return consensus.ErrInvalidPoW
