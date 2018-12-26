@@ -1,6 +1,7 @@
 package qkchash
 
 import (
+	"errors"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -9,6 +10,16 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/ethereum/go-ethereum/rpc"
+)
+
+// Various error messages to mark blocks invalid. These should be private to
+// prevent engine specific errors from being referenced in the remainder of the
+// codebase, inherently breaking if the engine is swapped out. Please put common
+// error types into the consensus package.
+var (
+	errInvalidDifficulty = errors.New("non-positive difficulty")
+	errInvalidMixDigest  = errors.New("invalid mix digest")
+	errInvalidPoW        = errors.New("invalid proof-of-work")
 )
 
 // QKCHash is a consensus engine implementing PoW with qkchash algo.
@@ -41,12 +52,6 @@ func (q *QKCHash) VerifyUncles(chain consensus.ChainReader, block *types.Block) 
 	return nil
 }
 
-// VerifySeal checks whether the crypto seal on a header is valid according to
-// the consensus rules of the given engine.
-func (q *QKCHash) VerifySeal(chain consensus.ChainReader, header *types.Header) error {
-	panic("not implemented")
-}
-
 // Prepare initializes the consensus fields of a block header according to the
 // rules of a particular engine. The changes are executed inline.
 func (q *QKCHash) Prepare(chain consensus.ChainReader, header *types.Header) error {
@@ -56,12 +61,6 @@ func (q *QKCHash) Prepare(chain consensus.ChainReader, header *types.Header) err
 // Finalize runs any post-transaction state modifications (e.g. block rewards)
 // and assembles the final block.
 func (q *QKCHash) Finalize(chain consensus.ChainReader, header *types.Header, state *state.StateDB, txs []*types.Transaction, uncles []*types.Header, receipts []*types.Receipt) (*types.Block, error) {
-	panic("not implemented")
-}
-
-// Seal generates a new block for the given input block with the local miner's
-// seal place on top.
-func (q *QKCHash) Seal(chain consensus.ChainReader, block *types.Block, stop <-chan struct{}) (*types.Block, error) {
 	panic("not implemented")
 }
 
@@ -83,5 +82,7 @@ func (q *QKCHash) Hashrate() float64 {
 
 // New returns a QKCHash scheme.
 func New() *QKCHash {
-	return nil
+	return &QKCHash{
+		hashrate: metrics.NewMeter(),
+	}
 }
