@@ -14,8 +14,10 @@ func TestSealAndVerifySeal(t *testing.T) {
 	header := &types.Header{Number: big.NewInt(1), Difficulty: big.NewInt(10)}
 	q := New()
 
-	block, err := q.Seal(nil, types.NewBlockWithHeader(header), nil)
+	resultsCh := make(chan *types.Block)
+	err := q.Seal(nil, types.NewBlockWithHeader(header), resultsCh, nil)
 	assert.NoError(err, "should have no problem sealing the block")
+	block := <-resultsCh
 
 	// Correct
 	header.Nonce = types.EncodeNonce(block.Nonce())

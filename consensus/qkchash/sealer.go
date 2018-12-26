@@ -12,7 +12,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"
-	"github.com/ethereum/go-ethereum/consensus/ethash"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
 )
@@ -24,20 +23,24 @@ var (
 
 // SealHash returns the hash of a block prior to it being sealed.
 func (q *QKCHash) SealHash(header *types.Header) common.Hash {
-	e := &ethash.Ethash{}
-	return e.SealHash(header)
+	return q.ethash.SealHash(header)
 }
 
 // Seal generates a new block for the given input block with the local miner's
 // seal place on top.
-func (q *QKCHash) Seal(chain consensus.ChainReader, block *types.Block, stop <-chan struct{}) (*types.Block, error) {
+func (q *QKCHash) Seal(
+	chain consensus.ChainReader,
+	block *types.Block,
+	results chan<- *types.Block,
+	stop <-chan struct{}) error {
+
 	abort := make(chan struct{})
 	found := make(chan *types.Block)
 
 	// Random number generator.
 	seed, err := crand.Int(crand.Reader, big.NewInt(math.MaxInt64))
 	if err != nil {
-		return nil, err
+		return err
 	}
 	randGen := rand.New(rand.NewSource(seed.Int64()))
 
@@ -52,15 +55,22 @@ func (q *QKCHash) Seal(chain consensus.ChainReader, block *types.Block, stop <-c
 		}(i, uint64(randGen.Int63()))
 	}
 
-	var result *types.Block
-	select {
-	case <-stop:
-		close(abort)
-	case result = <-found:
-		close(abort)
-	}
-	pend.Wait()
-	return result, nil
+	go func() {
+		var result *types.Block
+		select {
+		case <-stop:
+			close(abort)
+		case result = <-found:
+			select {
+			case results <- result:
+			default:
+				log.Warn("Sealing result is not read by miner", "mode", "local", "sealhash", q.SealHash(block.Header()))
+			}
+			close(abort)
+		}
+		pend.Wait()
+	}()
+	return nil
 }
 
 // VerifySeal checks whether the crypto seal on a header is valid according to
