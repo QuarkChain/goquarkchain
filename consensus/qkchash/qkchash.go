@@ -59,7 +59,7 @@ func (q *QKCHash) VerifyHeaders(chain ethconsensus.ChainReader, headers []*types
 	errorsOut := make(chan error, len(headers))
 	go func() {
 		for _, h := range headers {
-			err := q.VerifyHeader(chain, h /*seal flag not used*/, true)
+			err := q.VerifyHeader(chain, h, true /*seal flag not used*/)
 			errorsOut <- err
 		}
 	}()

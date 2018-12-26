@@ -29,22 +29,36 @@ func TestVerifyHeaderAndHeaders(t *testing.T) {
 	cr := mock_consensus.NewMockChainReader(ctrl)
 	// No short-circuit
 	cr.EXPECT().GetHeader(header.Hash(), uint64(2)).Return(nil).AnyTimes()
-	// Return parents
 	cr.EXPECT().GetHeader(parent.Hash(), uint64(1)).Return(parent).AnyTimes()
 	err := q.VerifyHeader(cr, header, true)
 	assert.NoError(err)
 
 	// Reuse headers to test verifying a list of them
 	var headers []*types.Header
-	for i := 0; i <= 5; i++ {
-		headers = append(headers, header)
+	for i := 1; i <= 5; i++ {
+		// Add one bad block
+		h := *header
+		if i == 5 {
+			h.Nonce = types.EncodeNonce(123123)
+			cr.EXPECT().GetHeader(h.Hash(), uint64(2)).Return(nil)
+		}
+		headers = append(headers, &h)
 	}
+
 	abort, errorCh := q.VerifyHeaders(cr, headers, nil)
 	assert.Nil(abort)
-	for i := 0; i <= 5; i++ {
+
+	errCnt, noErrCnt := 0, 0
+	for i := 1; i <= 5; i++ {
 		err := <-errorCh
-		assert.NoError(err)
+		if err != nil {
+			errCnt++
+		} else {
+			noErrCnt++
+		}
 	}
+	assert.Equal(4, noErrCnt)
+	assert.Equal(1, errCnt)
 }
 
 func sealBlock(t *testing.T, q *QKCHash, h *types.Header) {
