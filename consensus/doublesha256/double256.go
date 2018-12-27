@@ -20,6 +20,8 @@ var (
 )
 
 // DoubleSHA256 is a consensus engine implementing PoW with double-sha256 algo.
+// See the interface definition:
+// https://github.com/ethereum/go-ethereum/blob/9e9fc87e70accf2b81be8772ab2ab0c914e95666/consensus/consensus.go#L111
 type DoubleSHA256 struct {
 	commonEngine *consensus.CommonEngine
 	// For reusing existing functions
