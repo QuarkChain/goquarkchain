@@ -2,7 +2,6 @@ package qkchash
 
 import (
 	"bytes"
-	"encoding/binary"
 	"math/big"
 
 	"github.com/QuarkChain/goquarkchain/consensus"
@@ -39,12 +38,7 @@ func (q *QKCHash) VerifySeal(chain ethconsensus.ChainReader, header *types.Heade
 		return consensus.ErrInvalidDifficulty
 	}
 
-	// TODO: cache should be block number specific in the future
-	qkcCache := generateQKCCache(cacheEntryCnt, cacheSeed)
-
-	nonceBytes := make([]byte, 8)
-	binary.LittleEndian.PutUint64(nonceBytes, header.Nonce.Uint64())
-	digest, result := qkcHash(q.SealHash(header).Bytes(), nonceBytes, qkcCache)
+	digest, result := q.hashAlgo(q.SealHash(header).Bytes(), header.Nonce.Uint64())
 
 	if !bytes.Equal(header.MixDigest[:], digest) {
 		return consensus.ErrInvalidMixDigest

@@ -58,7 +58,7 @@ func (d *DoubleSHA256) VerifySeal(chain ethconsensus.ChainReader, header *types.
 		return consensus.ErrInvalidDifficulty
 	}
 
-	target := new(big.Int).Div(maxUint256, header.Difficulty)
+	target := new(big.Int).Div(two256, header.Difficulty)
 	_, result := hashAlgo(d.SealHash(header).Bytes(), header.Nonce.Uint64())
 	if new(big.Int).SetBytes(result[:]).Cmp(target) > 0 {
 		return consensus.ErrInvalidPoW
