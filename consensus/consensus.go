@@ -158,7 +158,7 @@ func (c *CommonEngine) Seal(
 		go func(id int, nonce uint64) {
 			defer pend.Done()
 			c.mine(block, id, nonce, abort, found)
-		}(i, uint64(randGen.Int63()))
+		}(i, uint64(randGen.Uint64()))
 	}
 
 	go func() {
