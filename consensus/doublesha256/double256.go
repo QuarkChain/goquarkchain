@@ -16,8 +16,8 @@ import (
 )
 
 var (
-	// maxUint256 is a big integer representing 2^256-1
-	maxUint256 = new(big.Int).Exp(big.NewInt(2), big.NewInt(256), big.NewInt(0))
+	// two256 is a big integer representing 2^256
+	two256 = new(big.Int).Exp(big.NewInt(2), big.NewInt(256), big.NewInt(0))
 )
 
 // DoubleSHA256 is a consensus engine implementing PoW with double-sha256 algo.
@@ -65,7 +65,7 @@ func (d *DoubleSHA256) VerifySeal(chain ethconsensus.ChainReader, header *types.
 	binary.BigEndian.PutUint64(nonceBytes, header.Nonce.Uint64())
 	hashNonceBytes := append(d.SealHash(header).Bytes(), nonceBytes...)
 
-	target := new(big.Int).Div(maxUint256, header.Difficulty)
+	target := new(big.Int).Div(two256, header.Difficulty)
 	hashOnce := sha256.Sum256(hashNonceBytes)
 	result := sha256.Sum256(hashOnce[:])
 	if new(big.Int).SetBytes(result[:]).Cmp(target) > 0 {

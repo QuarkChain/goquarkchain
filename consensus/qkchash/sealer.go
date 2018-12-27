@@ -18,8 +18,8 @@ import (
 )
 
 var (
-	// maxUint256 is a big integer representing 2^256-1
-	maxUint256 = new(big.Int).Exp(big.NewInt(2), big.NewInt(256), big.NewInt(0))
+	// two256 is a big integer representing 2^256
+	two256 = new(big.Int).Exp(big.NewInt(2), big.NewInt(256), big.NewInt(0))
 )
 
 // SealHash returns the hash of a block prior to it being sealed.
@@ -91,7 +91,7 @@ func (q *QKCHash) VerifySeal(chain ethconsensus.ChainReader, header *types.Heade
 	if !bytes.Equal(header.MixDigest[:], digest) {
 		return consensus.ErrInvalidMixDigest
 	}
-	target := new(big.Int).Div(maxUint256, header.Difficulty)
+	target := new(big.Int).Div(two256, header.Difficulty)
 	if new(big.Int).SetBytes(result).Cmp(target) > 0 {
 		return consensus.ErrInvalidPoW
 	}
@@ -102,7 +102,7 @@ func (q *QKCHash) mine(block *types.Block, id int, startNonce uint64, abort chan
 	var (
 		header = block.Header()
 		hash   = q.SealHash(header).Bytes()
-		target = new(big.Int).Div(maxUint256, header.Difficulty)
+		target = new(big.Int).Div(two256, header.Difficulty)
 		//TODO: number   = header.Number.Uint64()
 		attempts = int64(0)
 		nonce    = startNonce
