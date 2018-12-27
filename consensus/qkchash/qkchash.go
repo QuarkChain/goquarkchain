@@ -1,6 +1,7 @@
 package qkchash
 
 import (
+	"encoding/binary"
 	"math/big"
 
 	"github.com/QuarkChain/goquarkchain/consensus"
@@ -9,16 +10,16 @@ import (
 	"github.com/ethereum/go-ethereum/consensus/ethash"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/ethereum/go-ethereum/rpc"
 )
 
 // QKCHash is a consensus engine implementing PoW with qkchash algo.
 type QKCHash struct {
 	commonEngine *consensus.CommonEngine
-	hashrate     metrics.Meter
 	// For reusing existing functions
 	ethash *ethash.Ethash
+	// TODO: in the future cache may depend on block height
+	cache qkcCache
 }
 
 // Author returns coinbase address.
@@ -71,7 +72,7 @@ func (q *QKCHash) APIs(chain ethconsensus.ChainReader) []rpc.API {
 
 // Hashrate returns the current mining hashrate of a PoW consensus engine.
 func (q *QKCHash) Hashrate() float64 {
-	return q.hashrate.Rate1()
+	return q.commonEngine.Hashrate()
 }
 
 // Close terminates any background threads maintained by the consensus engine.
@@ -79,11 +80,26 @@ func (q *QKCHash) Close() error {
 	return nil
 }
 
+func (q *QKCHash) hashAlgo(hash []byte, nonce uint64) (digest, result []byte) {
+	// TOOD: cache may depend on block, so a LRU-stype cache could be helpful
+	if len(q.cache.ls) == 0 {
+		q.cache = generateQKCCache(cacheEntryCnt, cacheSeed)
+	}
+	nonceBytes := make([]byte, 8)
+	binary.LittleEndian.PutUint64(nonceBytes, nonce)
+	digest, result = qkcHash(hash, nonceBytes, q.cache)
+	return
+}
+
 // New returns a QKCHash scheme.
 func New() *QKCHash {
-	return &QKCHash{
-		commonEngine: &consensus.CommonEngine{},
-		hashrate:     metrics.NewMeter(),
-		ethash:       &ethash.Ethash{},
+	q := &QKCHash{
+		ethash: &ethash.Ethash{},
 	}
+	spec := consensus.MiningSpec{
+		Name:     "QKCHash",
+		HashAlgo: q.hashAlgo,
+	}
+	q.commonEngine = consensus.NewCommonEngine(spec)
+	return q
 }

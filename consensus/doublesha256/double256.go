@@ -11,7 +11,6 @@ import (
 	"github.com/ethereum/go-ethereum/consensus/ethash"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/ethereum/go-ethereum/rpc"
 )
 
@@ -23,7 +22,6 @@ var (
 // DoubleSHA256 is a consensus engine implementing PoW with double-sha256 algo.
 type DoubleSHA256 struct {
 	commonEngine *consensus.CommonEngine
-	hashrate     metrics.Meter
 	// For reusing existing functions
 	ethash *ethash.Ethash
 }
@@ -60,14 +58,8 @@ func (d *DoubleSHA256) VerifySeal(chain ethconsensus.ChainReader, header *types.
 		return consensus.ErrInvalidDifficulty
 	}
 
-	nonceBytes := make([]byte, 8)
-	// Note it's big endian here
-	binary.BigEndian.PutUint64(nonceBytes, header.Nonce.Uint64())
-	hashNonceBytes := append(d.SealHash(header).Bytes(), nonceBytes...)
-
 	target := new(big.Int).Div(two256, header.Difficulty)
-	hashOnce := sha256.Sum256(hashNonceBytes)
-	result := sha256.Sum256(hashOnce[:])
+	_, result := hashAlgo(d.SealHash(header).Bytes(), header.Nonce.Uint64())
 	if new(big.Int).SetBytes(result[:]).Cmp(target) > 0 {
 		return consensus.ErrInvalidPoW
 	}
@@ -88,7 +80,7 @@ func (d *DoubleSHA256) Finalize(chain ethconsensus.ChainReader, header *types.He
 
 // SealHash returns the hash of a block prior to it being sealed.
 func (d *DoubleSHA256) SealHash(header *types.Header) common.Hash {
-	return d.ethash.SealHash(header)
+	return d.commonEngine.SealHash(header)
 }
 
 // Seal generates a new block for the given input block with the local miner's
@@ -99,7 +91,7 @@ func (d *DoubleSHA256) Seal(
 	results chan<- *types.Block,
 	stop <-chan struct{}) error {
 
-	return nil
+	return d.commonEngine.Seal(chain, block, results, stop)
 }
 
 // CalcDifficulty is the difficulty adjustment algorithm. It returns the difficulty
@@ -115,7 +107,7 @@ func (d *DoubleSHA256) APIs(chain ethconsensus.ChainReader) []rpc.API {
 
 // Hashrate returns the current mining hashrate of a PoW consensus engine.
 func (d *DoubleSHA256) Hashrate() float64 {
-	return d.hashrate.Rate1()
+	return d.commonEngine.Hashrate()
 }
 
 // Close terminates any background threads maintained by the consensus engine.
@@ -123,11 +115,25 @@ func (d *DoubleSHA256) Close() error {
 	return nil
 }
 
+func hashAlgo(hash []byte, nonce uint64) (digest, result []byte) {
+	nonceBytes := make([]byte, 8)
+	// Note it's big endian here
+	binary.BigEndian.PutUint64(nonceBytes, nonce)
+	hashNonceBytes := append(hash, nonceBytes...)
+
+	hashOnce := sha256.Sum256(hashNonceBytes)
+	resultArray := sha256.Sum256(hashOnce[:])
+	result = resultArray[:]
+	return // digest default to nil
+}
+
 // New returns a DoubleSHA256 scheme.
 func New() *DoubleSHA256 {
+	spec := consensus.MiningSpec{
+		Name:     "DoubleSHA256",
+		HashAlgo: hashAlgo,
+	}
 	return &DoubleSHA256{
-		commonEngine: &consensus.CommonEngine{},
-		hashrate:     metrics.NewMeter(),
-		ethash:       &ethash.Ethash{},
+		commonEngine: consensus.NewCommonEngine(spec),
 	}
 }
