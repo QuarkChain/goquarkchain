@@ -58,14 +58,8 @@ func (d *DoubleSHA256) VerifySeal(chain ethconsensus.ChainReader, header *types.
 		return consensus.ErrInvalidDifficulty
 	}
 
-	nonceBytes := make([]byte, 8)
-	// Note it's big endian here
-	binary.BigEndian.PutUint64(nonceBytes, header.Nonce.Uint64())
-	hashNonceBytes := append(d.SealHash(header).Bytes(), nonceBytes...)
-
-	target := new(big.Int).Div(two256, header.Difficulty)
-	hashOnce := sha256.Sum256(hashNonceBytes)
-	result := sha256.Sum256(hashOnce[:])
+	target := new(big.Int).Div(maxUint256, header.Difficulty)
+	_, result := hashAlgo(d.SealHash(header).Bytes(), header.Nonce.Uint64())
 	if new(big.Int).SetBytes(result[:]).Cmp(target) > 0 {
 		return consensus.ErrInvalidPoW
 	}
@@ -121,22 +115,23 @@ func (d *DoubleSHA256) Close() error {
 	return nil
 }
 
+func hashAlgo(hash []byte, nonce uint64) (digest, result []byte) {
+	nonceBytes := make([]byte, 8)
+	// Note it's big endian here
+	binary.BigEndian.PutUint64(nonceBytes, nonce)
+	hashNonceBytes := append(hash, nonceBytes...)
+
+	hashOnce := sha256.Sum256(hashNonceBytes)
+	resultArray := sha256.Sum256(hashOnce[:])
+	result = resultArray[:]
+	return // digest default to nil
+}
+
 // New returns a DoubleSHA256 scheme.
 func New() *DoubleSHA256 {
 	spec := consensus.MiningSpec{
-		Name: "DoubleSHA256",
-		HashAlgo: func(hash []byte, nonce uint64) (digest, result []byte) {
-			nonceBytes := make([]byte, 8)
-			// Note it's big endian here
-			binary.BigEndian.PutUint64(nonceBytes, nonce)
-			hashNonceBytes := append(hash, nonceBytes...)
-
-			hashOnce := sha256.Sum256(hashNonceBytes)
-			resultArray := sha256.Sum256(hashOnce[:])
-			result = resultArray[:]
-			return // digest default to nil
-
-		},
+		Name:     "DoubleSHA256",
+		HashAlgo: hashAlgo,
 	}
 	return &DoubleSHA256{
 		commonEngine: consensus.NewCommonEngine(spec),

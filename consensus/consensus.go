@@ -8,6 +8,7 @@ import (
 	"math/big"
 	"math/rand"
 	"runtime"
+	"strings"
 	"sync"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -193,7 +194,7 @@ func (c *CommonEngine) mine(
 		attempts = int64(0)
 		nonce    = startNonce
 	)
-	logger := log.New("miner."+c.spec.Name, id)
+	logger := log.New("miner."+strings.ToLower(c.spec.Name), id)
 	logger.Trace("Started search for new nonces", "minerName", c.spec.Name, "startNonce", startNonce)
 search:
 	for {
