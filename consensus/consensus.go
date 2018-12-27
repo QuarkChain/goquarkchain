@@ -21,8 +21,8 @@ import (
 )
 
 var (
-	// maxUint256 is a big integer representing 2^256-1
-	maxUint256 = new(big.Int).Exp(big.NewInt(2), big.NewInt(256), big.NewInt(0))
+	// two256 is a big integer representing 2^256
+	two256 = new(big.Int).Exp(big.NewInt(2), big.NewInt(256), big.NewInt(0))
 )
 
 // Various error messages to mark blocks invalid. These should be private to
@@ -190,7 +190,7 @@ func (c *CommonEngine) mine(
 	var (
 		header   = block.Header()
 		hash     = c.SealHash(header).Bytes()
-		target   = new(big.Int).Div(maxUint256, header.Difficulty)
+		target   = new(big.Int).Div(two256, header.Difficulty)
 		attempts = int64(0)
 		nonce    = startNonce
 	)
