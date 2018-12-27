@@ -10,15 +10,16 @@ import (
 	"runtime"
 	"sync"
 
+	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/consensus"
+	ethconsensus "github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
 )
 
 var (
-	// maxUint256 is a big integer representing 2^256-1
-	maxUint256 = new(big.Int).Exp(big.NewInt(2), big.NewInt(256), big.NewInt(0))
+	// two256 is a big integer representing 2^256
+	two256 = new(big.Int).Exp(big.NewInt(2), big.NewInt(256), big.NewInt(0))
 )
 
 // SealHash returns the hash of a block prior to it being sealed.
@@ -29,7 +30,7 @@ func (q *QKCHash) SealHash(header *types.Header) common.Hash {
 // Seal generates a new block for the given input block with the local miner's
 // seal place on top.
 func (q *QKCHash) Seal(
-	chain consensus.ChainReader,
+	chain ethconsensus.ChainReader,
 	block *types.Block,
 	results chan<- *types.Block,
 	stop <-chan struct{}) error {
@@ -75,9 +76,9 @@ func (q *QKCHash) Seal(
 
 // VerifySeal checks whether the crypto seal on a header is valid according to
 // the consensus rules of the given engine.
-func (q *QKCHash) VerifySeal(chain consensus.ChainReader, header *types.Header) error {
+func (q *QKCHash) VerifySeal(chain ethconsensus.ChainReader, header *types.Header) error {
 	if header.Difficulty.Sign() <= 0 {
-		return errInvalidDifficulty
+		return consensus.ErrInvalidDifficulty
 	}
 
 	// TODO: cache should be block number specific in the future
@@ -88,11 +89,11 @@ func (q *QKCHash) VerifySeal(chain consensus.ChainReader, header *types.Header) 
 	digest, result := qkcHash(q.SealHash(header).Bytes(), nonceBytes, qkcCache)
 
 	if !bytes.Equal(header.MixDigest[:], digest) {
-		return errInvalidMixDigest
+		return consensus.ErrInvalidMixDigest
 	}
-	target := new(big.Int).Div(maxUint256, header.Difficulty)
+	target := new(big.Int).Div(two256, header.Difficulty)
 	if new(big.Int).SetBytes(result).Cmp(target) > 0 {
-		return errInvalidPoW
+		return consensus.ErrInvalidPoW
 	}
 	return nil
 }
@@ -101,7 +102,7 @@ func (q *QKCHash) mine(block *types.Block, id int, startNonce uint64, abort chan
 	var (
 		header = block.Header()
 		hash   = q.SealHash(header).Bytes()
-		target = new(big.Int).Div(maxUint256, header.Difficulty)
+		target = new(big.Int).Div(two256, header.Difficulty)
 		//TODO: number   = header.Number.Uint64()
 		attempts = int64(0)
 		nonce    = startNonce
