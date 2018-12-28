@@ -35,7 +35,7 @@ const (
 	writePauseWarningThrottler = 1 * time.Minute
 )
 
-type LDBDatabase struct {
+type RDBDatabase struct {
 	fn string        // filename for reporting
 	db *gorocksdb.DB // RocksDB instance
 	ro *gorocksdb.ReadOptions
@@ -55,14 +55,14 @@ type LDBDatabase struct {
 	log log.Logger // Contextual logger tracking the database path
 }
 
-// NewLDBDatabase returns a rocksdb wrapped object.
+// NewRDBDatabase returns a rocksdb wrapped object.
 // sets the maximum total wal size in bytes.
 // Once write-ahead logs exceed this size,
 // we will start forcing the flush of column families whose memtables are backed by the oldest live
 // WAL file (i.e. the ones that are causing all the space amplification).
 // If set to 0 (default),
 // we will dynamically choose the WAL size limit to be [sum of all write_buffer_size * //max_write_buffer_number] * 4 Default: 0
-func NewLDBDatabase(file string, cache int) (*LDBDatabase, error) {
+func NewRDBDatabase(file string, cache int) (*RDBDatabase, error) {
 	logger := log.New("database", file)
 
 	// Ensure we have some minimal caching and file guarantees
@@ -71,7 +71,7 @@ func NewLDBDatabase(file string, cache int) (*LDBDatabase, error) {
 	}
 	opts := gorocksdb.NewDefaultOptions()
 	// ubuntu 16.04 max files descriptors 524288
-	opts.SetMaxFileOpeningThreads(100000)
+	opts.SetMaxFileOpeningThreads(1024)
 	// 128 MiB
 	opts.SetMaxTotalWalSize(uint64(cache * 1024 * 1024))
 	// sets the maximum number of write buffers that are built up in memory.
@@ -90,10 +90,9 @@ func NewLDBDatabase(file string, cache int) (*LDBDatabase, error) {
 	ro := gorocksdb.NewDefaultReadOptions()
 	wo := gorocksdb.NewDefaultWriteOptions()
 
-	// fmt.Println("Allocated cache and file handles", "cache", cache, "file: ", file, "error: ", err)
 	logger.Info("Allocated cache and file handles", "cache", cache)
 
-	return &LDBDatabase{
+	return &RDBDatabase{
 		fn:  file,
 		db:  db,
 		ro:  ro,
@@ -103,16 +102,19 @@ func NewLDBDatabase(file string, cache int) (*LDBDatabase, error) {
 }
 
 // Path returns the path to the database directory.
-func (db *LDBDatabase) Path() string {
+func (db *RDBDatabase) Path() string {
 	return db.fn
 }
 
 // Put puts the given key / value to the queue
-func (db *LDBDatabase) Put(key []byte, value []byte) error {
+func (db *RDBDatabase) Put(key []byte, value []byte) error {
+	if len(key) == 0 || len(value) == 0 {
+		return errors.New("failed to put data, key or value can't be empty")
+	}
 	return db.db.Put(db.wo, key, value)
 }
 
-func (db *LDBDatabase) Has(key []byte) (bool, error) {
+func (db *RDBDatabase) Has(key []byte) (bool, error) {
 	_, err := db.Get(key)
 	if err != nil {
 		return false, err
@@ -121,31 +123,37 @@ func (db *LDBDatabase) Has(key []byte) (bool, error) {
 }
 
 // Get returns the given key if it's present.
-func (db *LDBDatabase) Get(key []byte) ([]byte, error) {
+func (db *RDBDatabase) Get(key []byte) ([]byte, error) {
+	if len(key) == 0 {
+		return nil, errors.New("failed to get data from database, key can't be empty")
+	}
 	dat, err := db.db.Get(db.ro, key)
 	if err != nil {
 		return nil, err
+	}
+	if dat.Size() == 0 {
+		return nil, errors.New("failed to get data from rocksdb, return empty data")
 	}
 	return dat.Data(), nil
 }
 
 // Delete deletes the key from the queue and database
-func (db *LDBDatabase) Delete(key []byte) error {
+func (db *RDBDatabase) Delete(key []byte) error {
 	return db.db.Delete(db.wo, key)
 }
 
-func (db *LDBDatabase) NewIterator() *gorocksdb.Iterator {
+func (db *RDBDatabase) NewIterator() *gorocksdb.Iterator {
 	return db.db.NewIterator(db.ro)
 }
 
 // NewIteratorWithPrefix returns a iterator to iterate over subset of database content with a particular prefix.
-func (db *LDBDatabase) NewIteratorWithPrefix(prefix []byte) *gorocksdb.Iterator {
+func (db *RDBDatabase) NewIteratorWithPrefix(prefix []byte) *gorocksdb.Iterator {
 	it := db.NewIterator()
 	it.Seek(prefix)
 	return it
 }
 
-func (db *LDBDatabase) Close() {
+func (db *RDBDatabase) Close() {
 	// Stop the metrics collection to avoid internal database races
 	db.quitLock.Lock()
 	defer db.quitLock.Unlock()
@@ -166,12 +174,8 @@ func (db *LDBDatabase) Close() {
 	}
 }
 
-func (db *LDBDatabase) LDB() *gorocksdb.DB {
-	return db.db
-}
-
 // Meter configures the database metrics collectors and
-func (db *LDBDatabase) Meter(prefix string) {
+func (db *RDBDatabase) Meter(prefix string) {
 	// Initialize all the metrics collector at the requested prefix
 	db.compTimeMeter = metrics.NewRegisteredMeter(prefix+"compact/time", nil)
 	db.compReadMeter = metrics.NewRegisteredMeter(prefix+"compact/input", nil)
@@ -220,7 +224,7 @@ func (db *LDBDatabase) Meter(prefix string) {
 // Interval WAL: 0 writes, 0 syncs, 0.00 writes per sync, written: 0.00 MB, 0.00 MB/s
 // Interval stall: 00:00:0.000 H:M:S, 0.0 percent
 // TODO qkcdb's monitor module needs to be improved
-func (db *LDBDatabase) meter(refresh time.Duration) {
+func (db *RDBDatabase) meter(refresh time.Duration) {
 	// Create the counters to store current and previous compaction values
 	compactions := make([][]float64, 2)
 	for i := 0; i < 2; i++ {
@@ -377,34 +381,34 @@ func (db *LDBDatabase) meter(refresh time.Duration) {
 	errc <- merr
 }
 
-func (db *LDBDatabase) NewBatch() Batch {
-	return &ldbBatch{db: db.db, /*ro: db.ro,*/ wo: db.wo, w: gorocksdb.NewWriteBatch()}
+func (db *RDBDatabase) NewBatch() Batch {
+	return &rdbBatch{db: db.db, /*ro: db.ro,*/ wo: db.wo, w: gorocksdb.NewWriteBatch()}
 }
 
-type ldbBatch struct {
+type rdbBatch struct {
 	db *gorocksdb.DB
 	wo *gorocksdb.WriteOptions
 	w  *gorocksdb.WriteBatch
 }
 
-func (b *ldbBatch) Put(key, value []byte) error {
+func (b *rdbBatch) Put(key, value []byte) error {
 	b.w.Put(key, value)
 	return nil
 }
 
-func (b *ldbBatch) Delete(key []byte) error {
+func (b *rdbBatch) Delete(key []byte) error {
 	b.w.Delete(key)
 	return nil
 }
 
-func (b *ldbBatch) Write() error {
+func (b *rdbBatch) Write() error {
 	return b.db.Write(b.wo, b.w)
 }
 
-func (b *ldbBatch) ValueSize() int {
+func (b *rdbBatch) ValueSize() int {
 	return b.w.Count()
 }
 
-func (b *ldbBatch) Reset() {
+func (b *rdbBatch) Reset() {
 	b.w.Clear()
 }
