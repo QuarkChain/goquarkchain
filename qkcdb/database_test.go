@@ -52,6 +52,7 @@ func testData() map[string]string {
 	test_values["23"] = "12"
 	test_values["。A"] = "a3#8"
 	test_values["ac"] = "a3<9"
+	test_values[""] = "搜索"
 
 	return test_values
 }
@@ -69,15 +70,15 @@ func testPutGet(db qkcdb.Database, t *testing.T) {
 
 	for k, v := range test_values {
 		err := db.Put([]byte(k), []byte(v))
-		if err != nil {
+		if len(k)*len(k) != 0 && err != nil || len(k)*len(v) == 0 && err == nil {
+			fmt.Println(len(k), len(v))
 			t.Fatalf("put failed: %v", err)
 		}
 	}
 
-	for k, v := range test_values {
+	for k, _ := range test_values {
 		data, err := db.Get([]byte(k))
-		// fmt.Println("db.Get: ", "key: ", k, "data: ", string(data))
-		if err != nil || v != string(data) {
+		if len(k)*len(data) != 0 && err != nil || len(k)*len(data) == 0 && err == nil {
 			t.Fatalf("get failed: %v", err)
 		}
 	}
@@ -89,64 +90,32 @@ func testPutGet(db qkcdb.Database, t *testing.T) {
 
 	for k, v := range test_values {
 		err := db.Put([]byte(k), []byte(v))
-		if err != nil {
+		if len(k)*len(v) != 0 && err != nil || len(k)*len(v) == 0 && err == nil {
 			t.Fatalf("put failed: %v", err)
 		}
 	}
 
 	for k, v := range test_values {
 		data, err := db.Get([]byte(k))
-		if err != nil {
+		if len(k)*len(data) != 0 && err != nil || len(k)*len(data) == 0 && err == nil {
 			t.Fatalf("get failed: %v", err)
 		}
-		if !bytes.Equal(data, []byte(v)) {
-			t.Fatalf("get returned wrong result, got %q expected %q", string(data), v)
-		}
-	}
-
-	for _, v := range test_values {
-		err := db.Put([]byte(v), []byte("?"))
-		if err != nil {
-			t.Fatalf("put override failed: %v", err)
-		}
-	}
-
-	for _, v := range test_values {
-		data, err := db.Get([]byte(v))
-		if err != nil {
-			t.Fatalf("get failed: %v", err)
-		}
-		if !bytes.Equal(data, []byte("?")) {
+		if len(k) != 0 && !bytes.Equal(data, []byte(v)) {
 			t.Fatalf("get returned wrong result, got %q expected ?", string(data))
 		}
 	}
 
-	for _, v := range test_values {
-		orig, err := db.Get([]byte(v))
+	for k, _ := range test_values {
+		err := db.Delete([]byte(k))
 		if err != nil {
-			t.Fatalf("get failed: %v", err)
-		}
-		orig[0] = byte(0xff)
-		data, err := db.Get([]byte(v))
-		if err != nil {
-			t.Fatalf("get failed: %v", err)
-		}
-		if !bytes.Equal(data, []byte("?")) {
-			t.Fatalf("get returned wrong result, got %q expected ?", string(data))
+			t.Fatalf("delete %q failed: %v", k, err)
 		}
 	}
 
-	for _, v := range test_values {
-		err := db.Delete([]byte(v))
-		if err != nil {
-			t.Fatalf("delete %q failed: %v", v, err)
-		}
-	}
-
-	for _, v := range test_values {
-		data, err := db.Get([]byte(v))
-		if err == nil && len(data) > 0 {
-			t.Fatalf("got deleted value %q", v)
+	for k, _ := range test_values {
+		data, err := db.Get([]byte(k))
+		if len(k)*len(data) != 0 && err != nil || len(k)*len(data) == 0 && err == nil {
+			t.Fatalf("got deleted value %q", data)
 		}
 	}
 }
@@ -181,10 +150,10 @@ func testBatchPutGet(db qkcdb.Database, batch qkcdb.Batch, t *testing.T) {
 
 	for k, v := range test_values {
 		data, err := db.Get([]byte(k))
-		if err != nil {
+		if len(k)*len(data) != 0 && err != nil || len(k)*len(data) == 0 && err == nil {
 			t.Fatalf("After batch write, db get error: %v", err)
 		}
-		if string(data) != v {
+		if len(k) != 0 && string(data) != v {
 			t.Fatalf("After batch write, not exist, real : %v,return : %v", v, string(data))
 		}
 	}
@@ -243,8 +212,7 @@ func testParallelPutGet(db qkcdb.Database, t *testing.T) {
 	for i := 0; i < n; i++ {
 		go func(key string) {
 			defer pending.Done()
-			data, err := db.Get([]byte(key))
-			fmt.Println("key: ", key, "value: ", string(data))
+			_, err := db.Get([]byte(key))
 			if err == nil {
 				panic("get succeeded")
 			}
