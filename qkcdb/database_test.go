@@ -30,12 +30,12 @@ import (
 	"github.com/QuarkChain/goquarkchain/qkcdb"
 )
 
-func newTestLDB() (*qkcdb.LDBDatabase, func()) {
+func newTestLDB() (*qkcdb.RDBDatabase, func()) {
 	dirname, err := ioutil.TempDir(os.TempDir(), "qkcdb_test_")
 	if err != nil {
 		panic("failed to create test file: " + err.Error())
 	}
-	db, err := qkcdb.NewLDBDatabase(dirname, 0)
+	db, err := qkcdb.NewRDBDatabase(dirname, 0)
 	if err != nil {
 		panic("failed to create test database: " + err.Error())
 	}
@@ -50,7 +50,7 @@ func testData() map[string]string {
 	var test_values = make(map[string]string)
 	test_values["1"] = "a"
 	test_values["23"] = "12"
-	test_values[""] = "a3#8"
+	test_values["。A"] = "a3#8"
 	test_values["ac"] = "a3<9"
 
 	return test_values
@@ -60,10 +60,6 @@ func TestLDB_PutGet(t *testing.T) {
 	db, remove := newTestLDB()
 	defer remove()
 	testPutGet(db, t)
-}
-
-func TestMemoryDB_PutGet(t *testing.T) {
-	testPutGet(qkcdb.NewMemDatabase(), t)
 }
 
 func testPutGet(db qkcdb.Database, t *testing.T) {
@@ -200,10 +196,6 @@ func TestLDB_ParallelPutGet(t *testing.T) {
 	testParallelPutGet(db, t)
 }
 
-func TestMemoryDB_ParallelPutGet(t *testing.T) {
-	testParallelPutGet(qkcdb.NewMemDatabase(), t)
-}
-
 func testParallelPutGet(db qkcdb.Database, t *testing.T) {
 	const n = 8
 	var pending sync.WaitGroup
@@ -247,15 +239,16 @@ func testParallelPutGet(db qkcdb.Database, t *testing.T) {
 	}
 	pending.Wait()
 
-	/*pending.Add(n)
+	pending.Add(n)
 	for i := 0; i < n; i++ {
 		go func(key string) {
 			defer pending.Done()
-			_, err := db.Get([]byte(key))
+			data, err := db.Get([]byte(key))
+			fmt.Println("key: ", key, "value: ", string(data))
 			if err == nil {
 				panic("get succeeded")
 			}
 		}(strconv.Itoa(i))
 	}
-	pending.Wait()*/
+	pending.Wait()
 }
