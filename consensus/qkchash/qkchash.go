@@ -16,6 +16,7 @@ import (
 // QKCHash is a consensus engine implementing PoW with qkchash algo.
 // See the interface definition:
 // https://github.com/ethereum/go-ethereum/blob/9e9fc87e70accf2b81be8772ab2ab0c914e95666/consensus/consensus.go#L111
+// Implements consensus.Pow
 type QKCHash struct {
 	commonEngine *consensus.CommonEngine
 	// For reusing existing functions
@@ -82,15 +83,15 @@ func (q *QKCHash) Close() error {
 	return nil
 }
 
-func (q *QKCHash) hashAlgo(hash []byte, nonce uint64) (digest, result []byte) {
+func (q *QKCHash) hashAlgo(hash []byte, nonce uint64) consensus.MiningResult {
 	// TOOD: cache may depend on block, so a LRU-stype cache could be helpful
 	if len(q.cache.ls) == 0 {
 		q.cache = generateQKCCache(cacheEntryCnt, cacheSeed)
 	}
 	nonceBytes := make([]byte, 8)
 	binary.LittleEndian.PutUint64(nonceBytes, nonce)
-	digest, result = qkcHash(hash, nonceBytes, q.cache)
-	return
+	digest, result := qkcHash(hash, nonceBytes, q.cache)
+	return consensus.MiningResult{Digest: digest, Result: result, Nonce: nonce}
 }
 
 // New returns a QKCHash scheme.
