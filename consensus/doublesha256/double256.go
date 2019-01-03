@@ -22,6 +22,7 @@ var (
 // DoubleSHA256 is a consensus engine implementing PoW with double-sha256 algo.
 // See the interface definition:
 // https://github.com/ethereum/go-ethereum/blob/9e9fc87e70accf2b81be8772ab2ab0c914e95666/consensus/consensus.go#L111
+// Implements consensus.Pow
 type DoubleSHA256 struct {
 	commonEngine *consensus.CommonEngine
 	// For reusing existing functions
@@ -61,8 +62,8 @@ func (d *DoubleSHA256) VerifySeal(chain ethconsensus.ChainReader, header *types.
 	}
 
 	target := new(big.Int).Div(two256, header.Difficulty)
-	_, result := hashAlgo(d.SealHash(header).Bytes(), header.Nonce.Uint64())
-	if new(big.Int).SetBytes(result[:]).Cmp(target) > 0 {
+	miningRes := hashAlgo(d.SealHash(header).Bytes(), header.Nonce.Uint64())
+	if new(big.Int).SetBytes(miningRes.Result).Cmp(target) > 0 {
 		return consensus.ErrInvalidPoW
 	}
 	return nil
@@ -117,7 +118,7 @@ func (d *DoubleSHA256) Close() error {
 	return nil
 }
 
-func hashAlgo(hash []byte, nonce uint64) (digest, result []byte) {
+func hashAlgo(hash []byte, nonce uint64) consensus.MiningResult {
 	nonceBytes := make([]byte, 8)
 	// Note it's big endian here
 	binary.BigEndian.PutUint64(nonceBytes, nonce)
@@ -125,8 +126,7 @@ func hashAlgo(hash []byte, nonce uint64) (digest, result []byte) {
 
 	hashOnce := sha256.Sum256(hashNonceBytes)
 	resultArray := sha256.Sum256(hashOnce[:])
-	result = resultArray[:]
-	return // digest default to nil
+	return consensus.MiningResult{Result: resultArray[:], Nonce: nonce} // digest default to nil
 }
 
 // New returns a DoubleSHA256 scheme.
