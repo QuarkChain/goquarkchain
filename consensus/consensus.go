@@ -44,7 +44,7 @@ type MiningWork struct {
 
 // MiningResult represents the found digest and result bytes.
 type MiningResult struct {
-	Digest []byte
+	Digest common.Hash
 	Result []byte
 	Nonce  uint64
 }
@@ -70,6 +70,12 @@ type PoW interface {
 	ethconsensus.PoW
 
 	FindNonce(work MiningWork, results chan<- MiningResult, stop <-chan struct{}) error
+	Name() string
+}
+
+// Name returns the consensus engine's name.
+func (c *CommonEngine) Name() string {
+	return c.spec.Name
 }
 
 // SealHash returns the hash of a block prior to it being sealed.
@@ -220,7 +226,7 @@ func (c *CommonEngine) Seal(
 		case result = <-found:
 			header = types.CopyHeader(header)
 			header.Nonce = types.EncodeNonce(result.Nonce)
-			header.MixDigest = common.BytesToHash(result.Digest)
+			header.MixDigest = result.Digest
 			select {
 			case results <- block.WithSeal(header):
 			default:

@@ -1,11 +1,14 @@
 package main
 
 import (
+	"context"
+	"errors"
+	"flag"
 	"fmt"
 	"log"
 	"math/big"
-	"math/rand"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/QuarkChain/goquarkchain/consensus"
@@ -13,6 +16,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/consensus/qkchash"
 	"github.com/ethereum/go-ethereum/common"
 	ethlog "github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/rpc"
 )
 
 const (
@@ -26,10 +30,14 @@ var (
 		6: qkchash.New(), 7: qkchash.New(),
 	}
 
-	// Global var, configured through cmd flags
-	host     = "localhost"
-	jrpcPort = 38391
-	timeout  = 10 * time.Second
+	jrpcCli *rpc.Client
+
+	// Flags
+	shardList  = flag.String("shards", "", "comma-separated string indicating shards")
+	host       = flag.String("host", "localhost", "remote host of a quarkchain cluster")
+	port       = flag.Int("port", 38391, "remote JSONRPC port of a quarkchain cluster")
+	rpcTimeout = flag.Int("timeout", 10, "timeout in seconds for RPC calls")
+	gethlogLvl = flag.String("gethloglvl", "info", "log level of geth")
 )
 
 // Wrap mining result, because the global receiver need to differentiate between workers
@@ -59,7 +67,7 @@ func (w worker) fetch() {
 	handleWork := func() {
 		work, err := fetchWorkRPC(w.shardID)
 		if err != nil {
-			log.Print("WARN: Failed to fetch work", err)
+			log.Print("WARN: Failed to fetch work: ", err)
 			return
 		}
 
@@ -129,6 +137,18 @@ func (w worker) log(msgLevel, msgTemplate string, args ...interface{}) {
 	)
 }
 
+func getJRPCCli() *rpc.Client {
+	if jrpcCli == nil {
+		var err error
+		url := fmt.Sprintf("http://%s:%d", *host, *port)
+		jrpcCli, err = rpc.Dial(url)
+		if err != nil {
+			log.Fatal("ERROR: failed to get JRPC client: ", err)
+		}
+	}
+	return jrpcCli
+}
+
 func shardRepr(optShardID *uint32) string {
 	if optShardID == nil {
 		return "R"
@@ -136,47 +156,113 @@ func shardRepr(optShardID *uint32) string {
 	return strconv.FormatUint(uint64(*optShardID), 10)
 }
 
-func fetchWorkRPC(shardID *uint32) (consensus.MiningWork, error) {
-	// TODO: mock
-	hex := fmt.Sprintf("0x51aa9d598cc3c628757b818cf9ba5cae7623a8f9630c85cc7d437d790b16175%d", rand.Intn(10))
-	height := 123123123 + rand.Intn(2)
+func fetchWorkRPC(shardID *uint32) (work consensus.MiningWork, err error) {
+	cli := getJRPCCli()
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(*rpcTimeout)*time.Second)
+	defer cancel()
+
+	var shardIDArg interface{}
+	if shardID != nil {
+		shardIDArg = "0x" + strconv.FormatUint(uint64(*shardID), 16)
+	}
+	ret := make([]string, 3)
+	err = cli.CallContext(
+		ctx,
+		&ret,
+		"getWork",
+		shardIDArg,
+	)
+	if err != nil {
+		return work, err
+	}
+
+	headerHash := common.HexToHash(ret[0])
+	height := new(big.Int).SetBytes(common.FromHex(ret[1]))
+	diff := new(big.Int).SetBytes(common.FromHex(ret[2]))
 	return consensus.MiningWork{
-		HeaderHash: common.HexToHash(hex),
-		Number:     big.NewInt(int64(height)),
-		Difficulty: big.NewInt(123123123),
+		HeaderHash: headerHash,
+		Number:     height,
+		Difficulty: diff,
 	}, nil
 }
 
-func submitWorkRPC(shardID *uint32, res consensus.MiningResult) error {
-	// TODO: implement
+func submitWorkRPC(shardID *uint32, work consensus.MiningWork, res consensus.MiningResult) error {
+	cli := getJRPCCli()
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(*rpcTimeout)*time.Second)
+	defer cancel()
+
+	var shardIDArg interface{}
+	if shardID != nil {
+		shardIDArg = "0x" + strconv.FormatUint(uint64(*shardID), 16)
+	}
+	var success bool
+	err := cli.CallContext(
+		ctx,
+		&success,
+		"submitWork",
+		shardIDArg,
+		work.HeaderHash.Hex(),
+		"0x"+strconv.FormatUint(res.Nonce, 16),
+		res.Digest.Hex(),
+	)
+	if err != nil {
+		return err
+	}
+	if !success {
+		return errors.New("submit work failed")
+	}
 	return nil
 }
 
 func main() {
-	// TODO: configure ethlog level
+	flag.Parse()
+
+	lvl, err := ethlog.LvlFromString(*gethlogLvl)
+	if err != nil {
+		log.Fatal("ERROR: invalid geth log level: ", err)
+	}
 	ethlog.Root().SetHandler(ethlog.LvlFilterHandler(
-		ethlog.Lvl(ethlog.LvlInfo),
-		ethlog.StdoutHandler,
-	))
+		lvl, ethlog.StdoutHandler))
+
+	if *shardList == "" {
+		log.Fatal("ERROR: empty shard list")
+	}
+	shards := []uint32{}
+	for _, shardStr := range strings.Split(*shardList, ",") {
+		s, err := strconv.Atoi(shardStr)
+		if err != nil {
+			log.Fatal("ERROR: invalid shard ID")
+		}
+		shards = append(shards, uint32(s))
+	}
 
 	var workers []worker
-	// TODO: Mock
-	shards := []uint32{5}
-
+	var infoSummary []string
 	// Init global channels and workers
 	submitWorkCh := make(chan result, len(shards))
 	abortCh := make(chan struct{})
+	// TODO: support specifying root chain when necessary
 	for _, shardID := range shards {
 		shardID := shardID
+		pow, ok := shardToPoW[shardID]
+		if !ok {
+			log.Fatalf("ERROR: unsupported shard / mining algorithm")
+		}
 		w := worker{
 			shardID:      &shardID,
-			pow:          shardToPoW[shardID],
+			pow:          pow,
 			fetchWorkCh:  make(chan consensus.MiningWork),
 			submitWorkCh: submitWorkCh,
 			abortCh:      abortCh,
 		}
 		workers = append(workers, w)
+		infoSummary = append(infoSummary, fmt.Sprintf("[%s] %s", shardRepr(w.shardID), pow.Name()))
 	}
+
+	// Information summary
+	fmt.Printf("QuarkChain Mining\n\tShards:\t%s\n", strings.Join(infoSummary, ", "))
+	fmt.Printf("\tHost:\t%s\n\tPort:\t%d\n", *host, *port)
+	fmt.Printf("\tGeth Log Level:\t%s\n\tRPC Timeout:\t%d sec\n\n", *gethlogLvl, *rpcTimeout)
 
 	// Start fetching and mining
 	for _, w := range workers {
@@ -189,8 +275,8 @@ func main() {
 		select {
 		case res := <-submitWorkCh:
 			w, mRes, mWork := res.worker, res.res, res.work
-			if err := submitWorkRPC(w.shardID, mRes); err != nil {
-				w.log("WARN", "Failed to submit work: %v\n", err)
+			if err := submitWorkRPC(w.shardID, mWork, mRes); err != nil {
+				w.log("WARN", "failed to submit work: %v\n", err)
 			} else {
 				w.log("INFO", "submitted work, height: %s\n", mWork.Number.String())
 			}

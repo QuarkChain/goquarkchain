@@ -92,6 +92,11 @@ func (q *QKCHash) FindNonce(
 	return q.commonEngine.FindNonce(work, results, stop)
 }
 
+// Name returns the consensus engine's name.
+func (q *QKCHash) Name() string {
+	return q.commonEngine.Name()
+}
+
 func (q *QKCHash) hashAlgo(hash []byte, nonce uint64) consensus.MiningResult {
 	// TOOD: cache may depend on block, so a LRU-stype cache could be helpful
 	if len(q.cache.ls) == 0 {
@@ -100,7 +105,7 @@ func (q *QKCHash) hashAlgo(hash []byte, nonce uint64) consensus.MiningResult {
 	nonceBytes := make([]byte, 8)
 	binary.LittleEndian.PutUint64(nonceBytes, nonce)
 	digest, result := qkcHash(hash, nonceBytes, q.cache)
-	return consensus.MiningResult{Digest: digest, Result: result, Nonce: nonce}
+	return consensus.MiningResult{Digest: common.BytesToHash(digest), Result: result, Nonce: nonce}
 }
 
 // New returns a QKCHash scheme.
