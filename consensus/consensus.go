@@ -264,7 +264,6 @@ search:
 			miningRes := c.spec.HashAlgo(hash, nonce)
 			if new(big.Int).SetBytes(miningRes.Result).Cmp(target) <= 0 {
 				// Nonce found
-
 				select {
 				case found <- miningRes:
 					logger.Trace("Nonce found and reported", "minerName", c.spec.Name, "attempts", nonce-startNonce, "nonce", nonce)

@@ -83,6 +83,15 @@ func (q *QKCHash) Close() error {
 	return nil
 }
 
+// FindNonce finds the desired nonce and mixhash for a given block header.
+func (q *QKCHash) FindNonce(
+	work consensus.MiningWork,
+	results chan<- consensus.MiningResult,
+	stop <-chan struct{},
+) error {
+	return q.commonEngine.FindNonce(work, results, stop)
+}
+
 func (q *QKCHash) hashAlgo(hash []byte, nonce uint64) consensus.MiningResult {
 	// TOOD: cache may depend on block, so a LRU-stype cache could be helpful
 	if len(q.cache.ls) == 0 {
