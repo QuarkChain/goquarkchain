@@ -32,8 +32,7 @@ var (
 	timeout  = 10 * time.Second
 )
 
-// Wrap mining result, because the global receiver need to differentiate between
-// workers
+// Wrap mining result, because the global receiver need to differentiate between workers
 type result struct {
 	worker *worker
 	res    consensus.MiningResult
