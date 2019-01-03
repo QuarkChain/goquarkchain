@@ -118,6 +118,15 @@ func (d *DoubleSHA256) Close() error {
 	return nil
 }
 
+// FindNonce finds the desired nonce and mixhash for a given block header.
+func (d *DoubleSHA256) FindNonce(
+	work consensus.MiningWork,
+	results chan<- consensus.MiningResult,
+	stop <-chan struct{},
+) error {
+	return d.commonEngine.FindNonce(work, results, stop)
+}
+
 func hashAlgo(hash []byte, nonce uint64) consensus.MiningResult {
 	nonceBytes := make([]byte, 8)
 	// Note it's big endian here
