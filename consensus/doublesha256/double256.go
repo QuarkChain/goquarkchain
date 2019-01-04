@@ -127,6 +127,11 @@ func (d *DoubleSHA256) FindNonce(
 	return d.commonEngine.FindNonce(work, results, stop)
 }
 
+// Name returns the consensus engine's name.
+func (d *DoubleSHA256) Name() string {
+	return d.commonEngine.Name()
+}
+
 func hashAlgo(hash []byte, nonce uint64) consensus.MiningResult {
 	nonceBytes := make([]byte, 8)
 	// Note it's big endian here
@@ -135,7 +140,11 @@ func hashAlgo(hash []byte, nonce uint64) consensus.MiningResult {
 
 	hashOnce := sha256.Sum256(hashNonceBytes)
 	resultArray := sha256.Sum256(hashOnce[:])
-	return consensus.MiningResult{Result: resultArray[:], Nonce: nonce} // digest default to nil
+	return consensus.MiningResult{
+		Digest: common.Hash{},
+		Result: resultArray[:],
+		Nonce:  nonce,
+	}
 }
 
 // New returns a DoubleSHA256 scheme.

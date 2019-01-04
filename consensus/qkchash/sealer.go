@@ -39,7 +39,7 @@ func (q *QKCHash) VerifySeal(chain ethconsensus.ChainReader, header *types.Heade
 	}
 
 	miningRes := q.hashAlgo(q.SealHash(header).Bytes(), header.Nonce.Uint64())
-	if !bytes.Equal(header.MixDigest[:], miningRes.Digest) {
+	if !bytes.Equal(header.MixDigest[:], miningRes.Digest.Bytes()) {
 		return consensus.ErrInvalidMixDigest
 	}
 	target := new(big.Int).Div(two256, header.Difficulty)
