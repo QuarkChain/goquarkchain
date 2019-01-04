@@ -221,8 +221,7 @@ func main() {
 	if err != nil {
 		log.Fatal("ERROR: invalid geth log level: ", err)
 	}
-	ethlog.Root().SetHandler(ethlog.LvlFilterHandler(
-		lvl, ethlog.StdoutHandler))
+	ethlog.Root().SetHandler(ethlog.LvlFilterHandler(lvl, ethlog.StdoutHandler))
 
 	if *shardList == "" {
 		log.Fatal("ERROR: empty shard list")
@@ -246,7 +245,7 @@ func main() {
 		shardID := shardID
 		pow, ok := shardToPoW[shardID]
 		if !ok {
-			log.Fatalf("ERROR: unsupported shard / mining algorithm")
+			log.Fatal("ERROR: unsupported shard / mining algorithm")
 		}
 		w := worker{
 			shardID:      &shardID,
