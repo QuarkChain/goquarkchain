@@ -30,7 +30,7 @@ func fnv64(a, b uint64) uint64 {
 
 // generateQKCCache is a simpler implementation for generating cache for qkchash.
 // Can be improved using a balanced tree.
-func generateQKCCache(cnt int, seed []byte) qkcCache {
+func generateCache(cnt int, seed []byte) qkcCache {
 	ls := []uint64{}
 	set := make(map[uint64]struct{})
 	for i := uint32(0); i < uint32(cnt/8); i++ {
