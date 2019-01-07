@@ -12,6 +12,7 @@ jobs:
             - go-mod-v2-{{ checksum "go.sum" }}
       # Only test specific files for now
       - run: cd consensus/qkchash/native && make && cd -
+      - run: go vet ./...
       - run: cd consensus && go test ./...
       - save_cache:
           key: go-mod-v2-{{ checksum "go.sum" }}
