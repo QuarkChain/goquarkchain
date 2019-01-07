@@ -32,8 +32,8 @@ func fnv64(a, b uint64) uint64 {
 	return a*0x100000001b3 ^ b
 }
 
-// generateQKCCache generates cache for qkchash. Will also generate underlying cache
-// in native cpp impl if needed.
+// generateCache generates cache for qkchash. Will also generate underlying cache
+// in native c++ impl if needed.
 func generateCache(cnt int, seed []byte, genNativeCache bool) qkcCache {
 	ls := []uint64{}
 	set := make(map[uint64]struct{})
