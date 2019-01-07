@@ -20,7 +20,6 @@ func TestGenerateCache(t *testing.T) {
 	assert.Nil(t, cache.ls)
 	assert.Nil(t, cache.set)
 	assert.NotNil(t, cache.nativeCache)
-	cache.nativeCache.Destroy()
 }
 
 func TestQKCHash(t *testing.T) {
@@ -42,9 +41,6 @@ func TestQKCHash(t *testing.T) {
 	}
 	for _, tc := range testcases {
 		cache = generateCache(cacheEntryCnt, nil, tc.useNative)
-		if cache.nativeCache != nil {
-			defer cache.nativeCache.Destroy()
-		}
 
 		digest, result, err := tc.qkcHashAlgo([]byte{}, []byte{}, cache)
 		assert.NoError(err)

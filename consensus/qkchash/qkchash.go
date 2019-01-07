@@ -100,10 +100,6 @@ func (q *QKCHash) Name() string {
 }
 
 func (q *QKCHash) hashAlgo(hash []byte, nonce uint64) (res consensus.MiningResult, err error) {
-	// TOOD: cache may depend on block, so a LRU-stype cache could be helpful
-	if len(q.cache.ls) == 0 {
-		q.cache = generateCache(cacheEntryCnt, cacheSeed, q.useNative)
-	}
 	nonceBytes := make([]byte, 8)
 	binary.LittleEndian.PutUint64(nonceBytes, nonce)
 
@@ -125,6 +121,8 @@ func New(useNative bool) *QKCHash {
 	q := &QKCHash{
 		ethash:    &ethash.Ethash{},
 		useNative: useNative,
+		// TOOD: cache may depend on block, so a LRU-stype cache could be helpful
+		cache: generateCache(cacheEntryCnt, cacheSeed, useNative),
 	}
 	spec := consensus.MiningSpec{
 		Name:     "QKCHash",

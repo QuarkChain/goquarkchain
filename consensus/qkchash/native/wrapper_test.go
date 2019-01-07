@@ -6,12 +6,9 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestCacheCreateAndDestroy(t *testing.T) {
+func TestCacheCreate(t *testing.T) {
 	cache := NewCache([]uint64{})
 	assert.NotNil(t, cache.ptr)
-
-	cache.Destroy()
-	assert.Nil(t, cache.ptr)
 }
 
 func TestHash(t *testing.T) {
@@ -30,7 +27,6 @@ func TestHash(t *testing.T) {
 		rawCache[i] = uint64(i * 2)
 	}
 	c = NewCache(rawCache)
-	defer c.Destroy()
 
 	seed := [8]uint64{}
 	for i := 0; i < len(seed); i++ {
