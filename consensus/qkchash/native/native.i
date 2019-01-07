@@ -1,6 +1,5 @@
 %module native
 %include "stdint.i"
-%include "std_string.i"
 %include "typemaps.i"
 
 %{
