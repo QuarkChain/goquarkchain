@@ -60,7 +60,7 @@ func generateCache(cnt int, seed []byte, genNativeCache bool) qkcCache {
 	return qkcCache{ls, set, nil}
 }
 
-//qkcHashNative calls the native c++ implementation through SWIG.
+// qkcHashNative calls the native c++ implementation through SWIG.
 func qkcHashNative(hash, nonceBytes []byte, cache qkcCache) (digest []byte, result []byte, err error) {
 	// Combine header+nonce into a seed
 	seed := crypto.Keccak512(append(hash, nonceBytes...))
@@ -81,7 +81,7 @@ func qkcHashNative(hash, nonceBytes []byte, cache qkcCache) (digest []byte, resu
 	return digest, result, nil
 }
 
-//qkcHashGo is the Go implementation.
+// qkcHashGo is the Go implementation.
 func qkcHashGo(hash, nonceBytes []byte, cache qkcCache) (digest []byte, result []byte, err error) {
 	const mixBytes = 128
 	// Copy the cache since modification is needed
