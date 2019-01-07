@@ -1,6 +1,9 @@
 package native
 
-import "errors"
+import (
+	"errors"
+	"runtime"
+)
 
 // Cache is the type of cache in native qkchash impl.
 type Cache = *cache
@@ -9,19 +12,17 @@ type cache struct {
 	ptr *uintptr
 }
 
-// Destroy calls the underlying cpp func to free the memory.
-func (c *cache) Destroy() {
-	if c.ptr == nil {
-		panic("destroy non-existent native cache")
-	}
-	Cache_destroy(*c.ptr)
-	c.ptr = nil
-}
-
 // NewCache creates the qkchash cache for cpp impl.
 func NewCache(rawCache []uint64) Cache {
 	nativeCache := Cache_create(rawCache)
-	return &cache{&nativeCache}
+	ret := &cache{&nativeCache}
+	runtime.SetFinalizer(ret, func(c *cache) {
+		if c.ptr != nil {
+			Cache_destroy(*c.ptr)
+			c.ptr = nil
+		}
+	})
+	return ret
 }
 
 // Hash wraps the native qkchash algorithm.
