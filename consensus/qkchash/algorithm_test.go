@@ -7,8 +7,8 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestGenerateQKCCache(t *testing.T) {
-	cache := generateQKCCache(cacheEntryCnt, nil)
+func TestGenerateCache(t *testing.T) {
+	cache := generateCache(cacheEntryCnt, nil)
 	assert.Equal(t, cacheEntryCnt, len(cache.ls))
 	for i := 1; i < len(cache.ls); i++ {
 		assert.True(t, cache.ls[i-1] < cache.ls[i])
@@ -18,7 +18,7 @@ func TestGenerateQKCCache(t *testing.T) {
 
 func TestQKCHash(t *testing.T) {
 	assert := assert.New(t)
-	cache := generateQKCCache(cacheEntryCnt, nil)
+	cache := generateCache(cacheEntryCnt, nil)
 	digest, result := qkcHash([]byte{}, []byte{}, cache)
 	assert.Equal(
 		"be3913b35b8815a61146f4d8dcce89a2bd8a262698c7263a56abe14b8e29595c",

@@ -100,7 +100,7 @@ func (q *QKCHash) Name() string {
 func (q *QKCHash) hashAlgo(hash []byte, nonce uint64) consensus.MiningResult {
 	// TOOD: cache may depend on block, so a LRU-stype cache could be helpful
 	if len(q.cache.ls) == 0 {
-		q.cache = generateQKCCache(cacheEntryCnt, cacheSeed)
+		q.cache = generateCache(cacheEntryCnt, cacheSeed)
 	}
 	nonceBytes := make([]byte, 8)
 	binary.LittleEndian.PutUint64(nonceBytes, nonce)
