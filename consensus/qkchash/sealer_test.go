@@ -12,7 +12,7 @@ func TestSealAndVerifySeal(t *testing.T) {
 	assert := assert.New(t)
 
 	header := &types.Header{Number: big.NewInt(1), Difficulty: big.NewInt(10)}
-	q := New()
+	q := New(false)
 
 	resultsCh := make(chan *types.Block)
 	err := q.Seal(nil, types.NewBlockWithHeader(header), resultsCh, nil)

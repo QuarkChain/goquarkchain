@@ -23,6 +23,8 @@ type QKCHash struct {
 	ethash *ethash.Ethash
 	// TODO: in the future cache may depend on block height
 	cache qkcCache
+	// A flag indicating which impl (c++ native or go) to use
+	useNative bool
 }
 
 // Author returns coinbase address.
@@ -97,21 +99,32 @@ func (q *QKCHash) Name() string {
 	return q.commonEngine.Name()
 }
 
-func (q *QKCHash) hashAlgo(hash []byte, nonce uint64) consensus.MiningResult {
+func (q *QKCHash) hashAlgo(hash []byte, nonce uint64) (res consensus.MiningResult, err error) {
 	// TOOD: cache may depend on block, so a LRU-stype cache could be helpful
 	if len(q.cache.ls) == 0 {
-		q.cache = generateCache(cacheEntryCnt, cacheSeed)
+		q.cache = generateCache(cacheEntryCnt, cacheSeed, q.useNative)
 	}
 	nonceBytes := make([]byte, 8)
 	binary.LittleEndian.PutUint64(nonceBytes, nonce)
-	digest, result := qkcHash(hash, nonceBytes, q.cache)
-	return consensus.MiningResult{Digest: common.BytesToHash(digest), Result: result, Nonce: nonce}
+
+	var digest, result []byte
+	if q.useNative {
+		digest, result, err = qkcHashNative(hash, nonceBytes, q.cache)
+	} else {
+		digest, result, err = qkcHashGo(hash, nonceBytes, q.cache)
+	}
+	if err != nil {
+		return res, err
+	}
+	res = consensus.MiningResult{Digest: common.BytesToHash(digest), Result: result, Nonce: nonce}
+	return res, nil
 }
 
 // New returns a QKCHash scheme.
-func New() *QKCHash {
+func New(useNative bool) *QKCHash {
 	q := &QKCHash{
-		ethash: &ethash.Ethash{},
+		ethash:    &ethash.Ethash{},
+		useNative: useNative,
 	}
 	spec := consensus.MiningSpec{
 		Name:     "QKCHash",

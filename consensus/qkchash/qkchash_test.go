@@ -15,7 +15,7 @@ func TestVerifyHeaderAndHeaders(t *testing.T) {
 	defer ctrl.Finish()
 
 	assert := assert.New(t)
-	q := New()
+	q := New(false)
 
 	parent := &types.Header{Number: big.NewInt(1), Difficulty: big.NewInt(10), Time: big.NewInt(42)}
 	header := &types.Header{
