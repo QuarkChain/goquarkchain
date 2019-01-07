@@ -6,7 +6,7 @@
 #include "qkchash.h"
 %}
 
-/* Translate between go slice and c++ pointer . */
+/* Translate between go slice and c pointer . */
 %typemap(gotype) (uint64_t *cache_ptr, uint32_t cache_size) %{[]uint64%}
 %typemap(in) (uint64_t *cache_ptr, uint32_t cache_size) {
    $1 = ($1_ltype)$input.array;

@@ -52,7 +52,7 @@ type MiningResult struct {
 // MiningSpec contains a PoW algo's basic info and hash algo
 type MiningSpec struct {
 	Name     string
-	HashAlgo func(hash []byte, nonce uint64) MiningResult
+	HashAlgo func(hash []byte, nonce uint64) (MiningResult, error)
 }
 
 // CommonEngine contains the common parts for consensus engines, where engine-specific
@@ -267,7 +267,11 @@ search:
 				c.hashrate.Mark(attempts)
 				attempts = 0
 			}
-			miningRes := c.spec.HashAlgo(hash, nonce)
+			miningRes, err := c.spec.HashAlgo(hash, nonce)
+			if err != nil {
+				logger.Warn("Failed to run hash algo", "miner", c.spec.Name, "error", err)
+				continue // Continue the for loop. Nonce not incremented
+			}
 			if new(big.Int).SetBytes(miningRes.Result).Cmp(target) <= 0 {
 				// Nonce found
 				select {

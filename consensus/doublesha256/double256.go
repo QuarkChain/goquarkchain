@@ -62,7 +62,7 @@ func (d *DoubleSHA256) VerifySeal(chain ethconsensus.ChainReader, header *types.
 	}
 
 	target := new(big.Int).Div(two256, header.Difficulty)
-	miningRes := hashAlgo(d.SealHash(header).Bytes(), header.Nonce.Uint64())
+	miningRes, _ := hashAlgo(d.SealHash(header).Bytes(), header.Nonce.Uint64())
 	if new(big.Int).SetBytes(miningRes.Result).Cmp(target) > 0 {
 		return consensus.ErrInvalidPoW
 	}
@@ -132,7 +132,7 @@ func (d *DoubleSHA256) Name() string {
 	return d.commonEngine.Name()
 }
 
-func hashAlgo(hash []byte, nonce uint64) consensus.MiningResult {
+func hashAlgo(hash []byte, nonce uint64) (consensus.MiningResult, error) {
 	nonceBytes := make([]byte, 8)
 	// Note it's big endian here
 	binary.BigEndian.PutUint64(nonceBytes, nonce)
@@ -144,7 +144,7 @@ func hashAlgo(hash []byte, nonce uint64) consensus.MiningResult {
 		Digest: common.Hash{},
 		Result: resultArray[:],
 		Nonce:  nonce,
-	}
+	}, nil
 }
 
 // New returns a DoubleSHA256 scheme.

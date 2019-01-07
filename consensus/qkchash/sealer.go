@@ -38,7 +38,10 @@ func (q *QKCHash) VerifySeal(chain ethconsensus.ChainReader, header *types.Heade
 		return consensus.ErrInvalidDifficulty
 	}
 
-	miningRes := q.hashAlgo(q.SealHash(header).Bytes(), header.Nonce.Uint64())
+	miningRes, err := q.hashAlgo(q.SealHash(header).Bytes(), header.Nonce.Uint64())
+	if err != nil {
+		return err
+	}
 	if !bytes.Equal(header.MixDigest[:], miningRes.Digest.Bytes()) {
 		return consensus.ErrInvalidMixDigest
 	}
