@@ -33,5 +33,5 @@ Usage of goqkcminer:
 Misc:
 
 1. `ethash` is not supported, due to:
-    a. Need to adapt the consensus engine interface from go-ethereum to our own consensus module, because in go-ethereum CPU mining is tightly coupled with the block format while we modified a lot of it. For double-SHA256 and qkchash mining it's solved by only using the header hash, difficulty and block height parameters. Check [`FindNonce`](https://github.com/QuarkChain/goquarkchain/blob/e44e64f8b482b893c797d84e63fd70eb05f0c837/consensus/consensus.go#L72) method for more details
-    b. Most people are running GPU for mining ethash right now, so supporting CPU mining doesn't really help
+    1. Need to adapt the consensus engine interface from go-ethereum to our own consensus module, because in go-ethereum CPU mining is tightly coupled with the block format while we modified a lot of it. For double-SHA256 and qkchash mining it's solved by only using the header hash, difficulty and block height parameters. Check [`FindNonce`](https://github.com/QuarkChain/goquarkchain/blob/e44e64f8b482b893c797d84e63fd70eb05f0c837/consensus/consensus.go#L72) method for more details
+    2. Most people are running GPU for mining ethash right now, so supporting CPU mining doesn't really help
