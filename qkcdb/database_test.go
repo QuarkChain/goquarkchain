@@ -47,14 +47,14 @@ func newTestLDB() (*qkcdb.RDBDatabase, func()) {
 }
 
 func testData() map[string]string {
-	var test_values = make(map[string]string)
-	test_values["1"] = "a"
-	test_values["23"] = "12"
-	test_values["。A"] = "a3#8"
-	test_values["ac"] = "a3<9"
-	test_values[""] = "搜索"
+	var testValues = make(map[string]string)
+	testValues["1"] = "a"
+	testValues["23"] = "12"
+	testValues["。A"] = "a3#8"
+	testValues["ac"] = "a3<9"
+	testValues[""] = "搜索"
 
-	return test_values
+	return testValues
 }
 
 func TestLDB_PutGet(t *testing.T) {
@@ -66,17 +66,16 @@ func TestLDB_PutGet(t *testing.T) {
 func testPutGet(db qkcdb.Database, t *testing.T) {
 	t.Parallel()
 
-	test_values := testData()
+	testValues := testData()
 
-	for k, v := range test_values {
+	for k, v := range testValues {
 		err := db.Put([]byte(k), []byte(v))
 		if len(k)*len(k) != 0 && err != nil || len(k)*len(v) == 0 && err == nil {
-			fmt.Println(len(k), len(v))
 			t.Fatalf("put failed: %v", err)
 		}
 	}
 
-	for k, _ := range test_values {
+	for k := range testValues {
 		data, err := db.Get([]byte(k))
 		if len(k)*len(data) != 0 && err != nil || len(k)*len(data) == 0 && err == nil {
 			t.Fatalf("get failed: %v", err)
@@ -88,14 +87,14 @@ func testPutGet(db qkcdb.Database, t *testing.T) {
 		t.Fatalf("expect to return a not found error")
 	}
 
-	for k, v := range test_values {
+	for k, v := range testValues {
 		err := db.Put([]byte(k), []byte(v))
 		if len(k)*len(v) != 0 && err != nil || len(k)*len(v) == 0 && err == nil {
 			t.Fatalf("put failed: %v", err)
 		}
 	}
 
-	for k, v := range test_values {
+	for k, v := range testValues {
 		data, err := db.Get([]byte(k))
 		if len(k)*len(data) != 0 && err != nil || len(k)*len(data) == 0 && err == nil {
 			t.Fatalf("get failed: %v", err)
@@ -105,14 +104,14 @@ func testPutGet(db qkcdb.Database, t *testing.T) {
 		}
 	}
 
-	for k, _ := range test_values {
+	for k := range testValues {
 		err := db.Delete([]byte(k))
 		if err != nil {
 			t.Fatalf("delete %q failed: %v", k, err)
 		}
 	}
 
-	for k, _ := range test_values {
+	for k := range testValues {
 		data, err := db.Get([]byte(k))
 		if len(k)*len(data) != 0 && err != nil || len(k)*len(data) == 0 && err == nil {
 			t.Fatalf("got deleted value %q", data)
@@ -129,12 +128,12 @@ func Test_batch(t *testing.T) {
 
 func testBatchPutGet(db qkcdb.Database, batch qkcdb.Batch, t *testing.T) {
 	t.Parallel()
-	test_values := testData()
+	testValues := testData()
 
-	for k, v := range test_values {
+	for k, v := range testValues {
 		batch.Put([]byte(k), []byte(v))
 	}
-	if batch.ValueSize() != len(test_values) {
+	if batch.ValueSize() != len(testValues) {
 		t.Fatalf("batch operation put error.")
 	}
 
@@ -143,12 +142,12 @@ func testBatchPutGet(db qkcdb.Database, batch qkcdb.Batch, t *testing.T) {
 		t.Fatalf("clean rocksdb falied, %d", batch.ValueSize())
 	}
 
-	for k, v := range test_values {
+	for k, v := range testValues {
 		batch.Put([]byte(k), []byte(v))
 	}
 	batch.Write()
 
-	for k, v := range test_values {
+	for k, v := range testValues {
 		data, err := db.Get([]byte(k))
 		if len(k)*len(data) != 0 && err != nil || len(k)*len(data) == 0 && err == nil {
 			t.Fatalf("After batch write, db get error: %v", err)
