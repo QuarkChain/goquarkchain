@@ -35,10 +35,24 @@ var (
 	ErrInvalidPoW        = errors.New("invalid proof-of-work")
 )
 
+// MiningWork represents the params of mining work.
+type MiningWork struct {
+	HeaderHash common.Hash
+	Number     *big.Int
+	Difficulty *big.Int
+}
+
+// MiningResult represents the found digest and result bytes.
+type MiningResult struct {
+	Digest common.Hash
+	Result []byte
+	Nonce  uint64
+}
+
 // MiningSpec contains a PoW algo's basic info and hash algo
 type MiningSpec struct {
 	Name     string
-	HashAlgo func(hash []byte, nonce uint64) (digest []byte, result []byte)
+	HashAlgo func(hash []byte, nonce uint64) (MiningResult, error)
 }
 
 // CommonEngine contains the common parts for consensus engines, where engine-specific
@@ -48,6 +62,20 @@ type CommonEngine struct {
 	hashrate metrics.Meter
 	// For reusing existing functions
 	ethash *ethash.Ethash
+}
+
+// PoW is the quarkchain version of PoW consensus engine, with a conveninent method for
+// remote miners.
+type PoW interface {
+	ethconsensus.PoW
+
+	FindNonce(work MiningWork, results chan<- MiningResult, stop <-chan struct{}) error
+	Name() string
+}
+
+// Name returns the consensus engine's name.
+func (c *CommonEngine) Name() string {
+	return c.spec.Name
 }
 
 // SealHash returns the hash of a block prior to it being sealed.
@@ -131,17 +159,15 @@ func (c *CommonEngine) VerifyHeaders(
 	return nil, errorsOut
 }
 
-// Seal generates a new block for the given input block with the local miner's
-// seal place on top.
-func (c *CommonEngine) Seal(
-	chain ethconsensus.ChainReader,
-	block *types.Block,
-	results chan<- *types.Block,
+// FindNonce finds the desired nonce and mixhash for a given block header.
+func (c *CommonEngine) FindNonce(
+	work MiningWork,
+	results chan<- MiningResult,
 	stop <-chan struct{},
 ) error {
 
 	abort := make(chan struct{})
-	found := make(chan *types.Block)
+	found := make(chan MiningResult)
 
 	// Random number generator.
 	seed, err := crand.Int(crand.Reader, big.NewInt(math.MaxInt64))
@@ -157,21 +183,17 @@ func (c *CommonEngine) Seal(
 		pend.Add(1)
 		go func(id int, nonce uint64) {
 			defer pend.Done()
-			c.mine(block, id, nonce, abort, found)
+			c.mine(work, id, nonce, abort, found)
 		}(i, uint64(randGen.Uint64()))
 	}
 
 	go func() {
-		var result *types.Block
+		var result MiningResult
 		select {
 		case <-stop:
 			close(abort)
 		case result = <-found:
-			select {
-			case results <- result:
-			default:
-				log.Warn("Sealing result is not read by miner", "mode", "local", "sealhash", c.SealHash(block.Header()))
-			}
+			results <- result
 			close(abort)
 		}
 		pend.Wait()
@@ -179,18 +201,54 @@ func (c *CommonEngine) Seal(
 	return nil
 }
 
-func (c *CommonEngine) mine(
+// Seal generates a new block for the given input block with the local miner's
+// seal place on top.
+func (c *CommonEngine) Seal(
+	chain ethconsensus.ChainReader,
 	block *types.Block,
+	results chan<- *types.Block,
+	stop <-chan struct{},
+) error {
+
+	abort := make(chan struct{})
+	found := make(chan MiningResult)
+	header := block.Header()
+	work := MiningWork{HeaderHash: c.SealHash(header), Number: header.Number, Difficulty: header.Difficulty}
+	if err := c.FindNonce(work, found, abort); err != nil {
+		return err
+	}
+	// Convert found header to block
+	go func() {
+		var result MiningResult
+		select {
+		case <-stop:
+			close(abort)
+		case result = <-found:
+			header = types.CopyHeader(header)
+			header.Nonce = types.EncodeNonce(result.Nonce)
+			header.MixDigest = result.Digest
+			select {
+			case results <- block.WithSeal(header):
+			default:
+				log.Warn("Sealing result is not read by miner", "mode", "local", "sealhash", work.HeaderHash)
+			}
+			close(abort)
+		}
+	}()
+	return nil
+}
+
+func (c *CommonEngine) mine(
+	work MiningWork,
 	id int,
 	startNonce uint64,
 	abort chan struct{},
-	found chan *types.Block,
+	found chan MiningResult,
 ) {
 
 	var (
-		header   = block.Header()
-		hash     = c.SealHash(header).Bytes()
-		target   = new(big.Int).Div(two256, header.Difficulty)
+		hash     = work.HeaderHash.Bytes()
+		target   = new(big.Int).Div(two256, work.Difficulty)
 		attempts = int64(0)
 		nonce    = startNonce
 	)
@@ -209,15 +267,15 @@ search:
 				c.hashrate.Mark(attempts)
 				attempts = 0
 			}
-			digest, result := c.spec.HashAlgo(hash, nonce)
-			if new(big.Int).SetBytes(result).Cmp(target) <= 0 {
+			miningRes, err := c.spec.HashAlgo(hash, nonce)
+			if err != nil {
+				logger.Warn("Failed to run hash algo", "miner", c.spec.Name, "error", err)
+				continue // Continue the for loop. Nonce not incremented
+			}
+			if new(big.Int).SetBytes(miningRes.Result).Cmp(target) <= 0 {
 				// Nonce found
-				header = types.CopyHeader(header)
-				header.Nonce = types.EncodeNonce(nonce)
-				header.MixDigest = common.BytesToHash(digest)
-
 				select {
-				case found <- block.WithSeal(header):
+				case found <- miningRes:
 					logger.Trace("Nonce found and reported", "minerName", c.spec.Name, "attempts", nonce-startNonce, "nonce", nonce)
 				case <-abort:
 					logger.Trace("Nonce nonce found but discarded", "minerName", c.spec.Name, "attempts", nonce-startNonce, "nonce", nonce)
