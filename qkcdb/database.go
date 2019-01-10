@@ -2,10 +2,10 @@ package qkcdb
 
 import (
 	"errors"
-	"github.com/ethereum/go-ethereum/ethdb"
+	"sync"
+
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/tecbot/gorocksdb"
-	"sync"
 )
 
 type RDBDatabase struct {
@@ -21,12 +21,6 @@ type RDBDatabase struct {
 }
 
 // NewRDBDatabase returns a rocksdb wrapped object.
-// sets the maximum total wal size in bytes.
-// Once write-ahead logs exceed this size,
-// we will start forcing the flush of column families whose memtables are backed by the oldest live
-// WAL file (i.e. the ones that are causing all the space amplification).
-// If set to 0 (default),
-// we will dynamically choose the WAL size limit to be [sum of all write_buffer_size * //max_write_buffer_number] * 4 Default: 0
 func NewRDBDatabase(file string, cache int) (*RDBDatabase, error) {
 	logger := log.New("database", file)
 
@@ -139,8 +133,8 @@ func (db *RDBDatabase) Close() {
 	}
 }
 
-func (db *RDBDatabase) NewBatch() ethdb.Batch {
-	return &rdbBatch{db: db.db, /*ro: db.ro,*/ wo: db.wo, w: gorocksdb.NewWriteBatch()}
+func (db *RDBDatabase) NewBatch() Batch {
+	return &rdbBatch{db: db.db /*ro: db.ro,*/, wo: db.wo, w: gorocksdb.NewWriteBatch()}
 }
 
 type rdbBatch struct {
