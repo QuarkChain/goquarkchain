@@ -1,21 +1,3 @@
-// Copyright 2014 The go-ethereum Authors
-// This file is part of the go-ethereum library.
-//
-// The go-ethereum library is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Lesser General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// The go-ethereum library is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Lesser General Public License for more details.
-//
-// You should have received a copy of the GNU Lesser General Public License
-// along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
-
-// +build !js
-
 package qkcdb_test
 
 import (
@@ -30,7 +12,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/qkcdb"
 )
 
-func newTestLDB() (*qkcdb.RDBDatabase, func()) {
+func newTestRDB() (*qkcdb.RDBDatabase, func()) {
 	dirname, err := ioutil.TempDir(os.TempDir(), "qkcdb_test_")
 	if err != nil {
 		panic("failed to create test file: " + err.Error())
@@ -57,8 +39,8 @@ func testData() map[string]string {
 	return testValues
 }
 
-func TestLDB_PutGet(t *testing.T) {
-	db, remove := newTestLDB()
+func TestRDB_PutGet(t *testing.T) {
+	db, remove := newTestRDB()
 	defer remove()
 	testPutGet(db, t)
 }
@@ -120,7 +102,7 @@ func testPutGet(db qkcdb.Database, t *testing.T) {
 }
 
 func Test_batch(t *testing.T) {
-	db, remove := newTestLDB()
+	db, remove := newTestRDB()
 	defer remove()
 	batch := db.NewBatch()
 	testBatchPutGet(db, batch, t)
@@ -158,8 +140,8 @@ func testBatchPutGet(db qkcdb.Database, batch qkcdb.Batch, t *testing.T) {
 	}
 }
 
-func TestLDB_ParallelPutGet(t *testing.T) {
-	db, remove := newTestLDB()
+func TestRDB_ParallelPutGet(t *testing.T) {
+	db, remove := newTestRDB()
 	defer remove()
 	testParallelPutGet(db, t)
 }
