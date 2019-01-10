@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"sort"
 
+	"github.com/QuarkChain/goquarkchain/consensus/qkchash/native"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 )
@@ -17,9 +18,12 @@ var (
 	cacheSeed = []byte{}
 )
 
+// qkcCache is the union type of cache for qkchash algo.
+// Note in Go impl, `nativeCache` will be empty.
 type qkcCache struct {
-	ls  []uint64
-	set map[uint64]struct{}
+	ls          []uint64
+	set         map[uint64]struct{}
+	nativeCache native.Cache
 }
 
 // fnv64 is an algorithm inspired by the FNV hash, which in some cases is used as
@@ -28,9 +32,9 @@ func fnv64(a, b uint64) uint64 {
 	return a*0x100000001b3 ^ b
 }
 
-// generateQKCCache is a simpler implementation for generating cache for qkchash.
-// Can be improved using a balanced tree.
-func generateQKCCache(cnt int, seed []byte) qkcCache {
+// generateCache generates cache for qkchash. Will also generate underlying cache
+// in native c++ impl if needed.
+func generateCache(cnt int, seed []byte, genNativeCache bool) qkcCache {
 	ls := []uint64{}
 	set := make(map[uint64]struct{})
 	for i := uint32(0); i < uint32(cnt/8); i++ {
@@ -46,12 +50,39 @@ func generateQKCCache(cnt int, seed []byte) qkcCache {
 			}
 		}
 	}
+
+	if genNativeCache {
+		return qkcCache{nil, nil, native.NewCache(ls)}
+	}
+
+	// Sort is needed for Go impl
 	sort.Slice(ls, func(i, j int) bool { return ls[i] < ls[j] })
-	return qkcCache{ls, set}
+	return qkcCache{ls, set, nil}
 }
 
-// qkcHash runs the order-statistics-based hash algorithm.
-func qkcHash(hash, nonceBytes []byte, cache qkcCache) (digest []byte, result []byte) {
+// qkcHashNative calls the native c++ implementation through SWIG.
+func qkcHashNative(hash, nonceBytes []byte, cache qkcCache) (digest []byte, result []byte, err error) {
+	// Combine header+nonce into a seed
+	seed := crypto.Keccak512(append(hash, nonceBytes...))
+	var seedArray [8]uint64
+	for i := 0; i < 8; i++ {
+		seedArray[i] = binary.LittleEndian.Uint64(seed[i*8:])
+	}
+	hashRes, err := native.Hash(cache.nativeCache, seedArray)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	digest = make([]byte, common.HashLength)
+	for i, val := range hashRes {
+		binary.LittleEndian.PutUint64(digest[i*8:], val)
+	}
+	result = crypto.Keccak256(append(seed, digest...))
+	return digest, result, nil
+}
+
+// qkcHashGo is the Go implementation.
+func qkcHashGo(hash, nonceBytes []byte, cache qkcCache) (digest []byte, result []byte, err error) {
 	const mixBytes = 128
 	// Copy the cache since modification is needed
 	cacheLs := make([]uint64, len(cache.ls))
@@ -120,5 +151,5 @@ func qkcHash(hash, nonceBytes []byte, cache qkcCache) (digest []byte, result []b
 		binary.LittleEndian.PutUint64(digest[i*8:], val)
 	}
 	result = crypto.Keccak256(append(seed, digest...))
-	return digest, result
+	return digest, result, nil
 }
