@@ -1,32 +1,19 @@
 package qkcdb
 
+import (
+	"github.com/ethereum/go-ethereum/ethdb"
+	_ "github.com/ethereum/go-ethereum/ethdb"
+)
+
 // Putter wraps the database write operation supported by both batches and regular databases.
-type Putter interface {
-	Put(key []byte, value []byte) error
-}
+type Putter ethdb.Putter
 
 // Deleter wraps the database delete operation supported by both batches and regular databases.
-type Deleter interface {
-	Delete(key []byte) error
-}
+type Deleter ethdb.Deleter
 
 // Database wraps all database operations. All methods are safe for concurrent use.
-type Database interface {
-	Putter
-	Deleter
-	Get(key []byte) ([]byte, error)
-	Has(key []byte) (bool, error)
-	Close()
-	NewBatch() Batch
-}
+type Database ethdb.Database
 
 // Batch is a write-only database that commits changes to its host database
 // when Write is called. Batch cannot be used concurrently.
-type Batch interface {
-	Putter
-	Deleter
-	ValueSize() int // amount of data in the batch
-	Write() error
-	// Reset resets the batch for reuse
-	Reset()
-}
+type Batch ethdb.Batch
