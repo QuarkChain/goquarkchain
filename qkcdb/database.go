@@ -2,6 +2,7 @@ package qkcdb
 
 import (
 	"errors"
+	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/tecbot/gorocksdb"
 	"sync"
@@ -138,7 +139,7 @@ func (db *RDBDatabase) Close() {
 	}
 }
 
-func (db *RDBDatabase) NewBatch() Batch {
+func (db *RDBDatabase) NewBatch() ethdb.Batch {
 	return &rdbBatch{db: db.db, /*ro: db.ro,*/ wo: db.wo, w: gorocksdb.NewWriteBatch()}
 }
 
