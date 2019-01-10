@@ -2,7 +2,6 @@ package qkcdb
 
 import (
 	"github.com/ethereum/go-ethereum/ethdb"
-	_ "github.com/ethereum/go-ethereum/ethdb"
 )
 
 // Putter wraps the database write operation supported by both batches and regular databases.
