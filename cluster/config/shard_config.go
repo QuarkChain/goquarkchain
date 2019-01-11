@@ -18,22 +18,22 @@ var (
 		Difficulty:         10000,
 		GasLimit:           30000 * 400,
 		Nonce:              0,
-		Alloc:              nil,
+		Alloc:              make(map[string]float64),
 	}
 )
 
 type ShardGenesis struct {
-	RootHeight         uint                     `json:"ROOT_HEIGHT"`
-	Version            int                      `json:"VERSION"`
-	Height             int                      `json:"HEIGHT"`
-	HashPrevMinorBlock common.Hash              `json:"HASH_PREV_MINOR_BLOCK"`
-	HashMerkleRoot     common.Hash              `json:"HASH_MERKLE_ROOT"`
-	ExtraData          []byte                   `json:"EXTRA_DATA"`
-	Timestamp          uint64                   `json:"TIMESTAMP"`
-	Difficulty         int                      `json:"DIFFICULTY"`
-	GasLimit           int                      `json:"GAS_LIMIT"`
-	Nonce              int                      `json:"NONCE"`
-	Alloc              map[qcommon.QAddress]int `json:"ALLOC"`
+	RootHeight         int                `json:"ROOT_HEIGHT"`
+	Version            int                `json:"VERSION"`
+	Height             int                `json:"HEIGHT"`
+	HashPrevMinorBlock common.Hash        `json:"HASH_PREV_MINOR_BLOCK"`
+	HashMerkleRoot     common.Hash        `json:"HASH_MERKLE_ROOT"`
+	ExtraData          []byte             `json:"EXTRA_DATA"`
+	Timestamp          uint64             `json:"TIMESTAMP"`
+	Difficulty         int                `json:"DIFFICULTY"`
+	GasLimit           int                `json:"GAS_LIMIT"`
+	Nonce              int                `json:"NONCE"`
+	Alloc              map[string]float64 `json:"ALLOC"`
 }
 
 type ShardConfig struct {
@@ -42,17 +42,17 @@ type ShardConfig struct {
 	ConsensusConfig *POWConfig    `json:"CONSENSUS_CONFIG"` // POWconfig
 	Genesis         *ShardGenesis `json:"GENESIS"`          // ShardGenesis
 	// TODO coinbase address shuild to be redesigned.
-	CoinbaseAddress                    qcommon.QAddress `json:"COINBASE_ADDRESS"`
-	CoinbaseAmount                     float64          `json:"COINBASE_AMOUNT"` // default 5 * 10^18
-	GasLimitEmaDenominator             int              `json:"GAS_LIMIT_EMA_DENOMINATOR"`
-	GasLimitAdjustmentFactor           int              `json:"GAS_LIMIT_ADJUSTMENT_FACTOR"`
-	GasLimitMinimum                    int              `json:"GAS_LIMIT_MINIMUM"`
-	GasLimitMaximum                    uint64           `json:"GAS_LIMIT_MAXIMUM"`
-	GasLimitUsageAdjustmentNumerator   int              `json:"GAS_LIMIT_USAGE_ADJUSTMENT_NUMERATOR"`
-	GasLimitUsageAdjustmentDenominator int              `json:"GAS_LIMIT_USAGE_ADJUSTMENT_DENOMINATOR"`
-	DifficultyAdjustmentCutoffTime     int              `json:"DIFFICULTY_ADJUSTMENT_CUTOFF_TIME"`
-	DifficultyAdjustmentFactor         int              `json:"DIFFICULTY_ADJUSTMENT_FACTOR"`
-	ExtraShardBlocksInRootBlock        int              `json:"EXTRA_SHARD_BLOCKS_IN_ROOT_BLOCK"`
+	CoinbaseAddress                    string  `json:"COINBASE_ADDRESS"`
+	CoinbaseAmount                     float64 `json:"COINBASE_AMOUNT"` // default 5 * 10^18
+	GasLimitEmaDenominator             int     `json:"GAS_LIMIT_EMA_DENOMINATOR"`
+	GasLimitAdjustmentFactor           int     `json:"GAS_LIMIT_ADJUSTMENT_FACTOR"`
+	GasLimitMinimum                    int     `json:"GAS_LIMIT_MINIMUM"`
+	GasLimitMaximum                    uint64  `json:"GAS_LIMIT_MAXIMUM"`
+	GasLimitUsageAdjustmentNumerator   int     `json:"GAS_LIMIT_USAGE_ADJUSTMENT_NUMERATOR"`
+	GasLimitUsageAdjustmentDenominator int     `json:"GAS_LIMIT_USAGE_ADJUSTMENT_DENOMINATOR"`
+	DifficultyAdjustmentCutoffTime     int     `json:"DIFFICULTY_ADJUSTMENT_CUTOFF_TIME"`
+	DifficultyAdjustmentFactor         int     `json:"DIFFICULTY_ADJUSTMENT_FACTOR"`
+	ExtraShardBlocksInRootBlock        int     `json:"EXTRA_SHARD_BLOCKS_IN_ROOT_BLOCK"`
 	rootConfig                         *RootConfig
 }
 
@@ -60,7 +60,7 @@ func NewShardConfig() *ShardConfig {
 	sharding := &ShardConfig{
 		ConsensusType:                      NONE,
 		ConsensusConfig:                    nil,
-		CoinbaseAddress:                    qcommon.BytesToQAddress([]byte{0}),
+		CoinbaseAddress:                    qcommon.BytesToQAddress([]byte{0}).Hex(),
 		CoinbaseAmount:                     5 * math.Pow10(18),
 		GasLimitEmaDenominator:             1024,
 		GasLimitAdjustmentFactor:           1024,
@@ -73,6 +73,9 @@ func NewShardConfig() *ShardConfig {
 		ExtraShardBlocksInRootBlock:        3,
 		Genesis:                            &DefaultShardGenesis,
 	}
+	// TODO should to be deleted, just for test
+	qaddress := qcommon.BytesToQAddress([]byte{0})
+	sharding.Genesis.Alloc[qaddress.Hex()] = math.Pow10(24)
 	return sharding
 }
 

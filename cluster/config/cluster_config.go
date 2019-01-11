@@ -38,7 +38,7 @@ var (
 		ConsensusConfig:             nil,
 		Genesis:                     nil,
 		// TODO shuld replace with the real address realization.
-		CoinbaseAddress:                qcom.QAddress{},
+		CoinbaseAddress:                qcom.BytesToQAddress([]byte{0}).Hex(),
 		CoinbaseAmount:                 120 * math.Pow10(18),
 		DifficultyAdjustmentCutoffTime: 40,
 		DifficultyAdjustmentFactor:     1024,
@@ -52,14 +52,14 @@ var (
 		LogLevel:                 "info",
 		StartSimulatedMining:     false,
 		Clean:                    false,
-		GenesisDir:               nil,
+		GenesisDir:               "/dev/null",
 		Quarkchain:               nil,
 		Master:                   nil,
 		SlaveList:                nil,
 		SimpleNetwork:            nil,
 		P2p:                      nil,
 		Monitoring:               nil,
-		jsonFilepath:             nil,
+		jsonFilepath:             "",
 	}
 	DfaultMonitoring = MonitoringConfig{
 		NetworkName:      "",
@@ -113,7 +113,7 @@ type SimpleNetwork struct {
 type RootGenesis struct {
 	Version        int         `json:"VERSION"`
 	Height         int         `json:"HEIGHT"`
-	ShardSize      uint        `json:"SHARD_SIZE"`
+	ShardSize      int         `json:"SHARD_SIZE"`
 	HashPrevBlock  common.Hash `json:"HASH_PREV_BLOCK"`
 	HashMerkleRoot common.Hash `json:"HASH_MERKLE_ROOT"`
 	Timestamp      uint64      `json:"TIMESTAMP"`
@@ -124,14 +124,14 @@ type RootGenesis struct {
 type RootConfig struct {
 	// To ignore super old blocks from peers
 	// This means the network will fork permanently after a long partitio
-	MaxStaleRootBlockHeightDiff    int           `json:"MAX_STALE_ROOT_BLOCK_HEIGHT_DIFF"`
-	ConsensusType                  int           `json:"CONSENSUS_TYPE"`
-	ConsensusConfig                *POWConfig    `json:"CONSENSUS_CONFIG"`
-	Genesis                        *RootGenesis  `json:"GENESIS"`
-	CoinbaseAddress                qcom.QAddress `json:"COINBASE_ADDRESS"`
-	CoinbaseAmount                 float64       `json:"COINBASE_AMOUNT"`
-	DifficultyAdjustmentCutoffTime int           `json:"DIFFICULTY_ADJUSTMENT_CUTOFF_TIME"`
-	DifficultyAdjustmentFactor     int           `json:"DIFFICULTY_ADJUSTMENT_FACTOR"`
+	MaxStaleRootBlockHeightDiff    int          `json:"MAX_STALE_ROOT_BLOCK_HEIGHT_DIFF"`
+	ConsensusType                  int          `json:"CONSENSUS_TYPE"`
+	ConsensusConfig                *POWConfig   `json:"CONSENSUS_CONFIG"`
+	Genesis                        *RootGenesis `json:"GENESIS"`
+	CoinbaseAddress                string       `json:"COINBASE_ADDRESS"`
+	CoinbaseAmount                 float64      `json:"COINBASE_AMOUNT"`
+	DifficultyAdjustmentCutoffTime int          `json:"DIFFICULTY_ADJUSTMENT_CUTOFF_TIME"`
+	DifficultyAdjustmentFactor     int          `json:"DIFFICULTY_ADJUSTMENT_FACTOR"`
 }
 
 func NewRootConfig() *RootConfig {
@@ -141,7 +141,7 @@ func NewRootConfig() *RootConfig {
 		ConsensusConfig:             nil,
 		Genesis:                     &DefaultRootGenesis,
 		// TODO address serialization type shuld to be replaced
-		CoinbaseAddress:                qcom.BytesToQAddress([]byte{0}),
+		CoinbaseAddress:                qcom.BytesToQAddress([]byte{0}).Hex(),
 		CoinbaseAmount:                 120 * math.Pow10(18),
 		DifficultyAdjustmentCutoffTime: 40,
 		DifficultyAdjustmentFactor:     1024,
@@ -181,16 +181,16 @@ func NewClusterConfig() ClusterConfig {
 		JsonRpcPort:              38291,
 		PrivateJsonRpcPort:       38291,
 		EnableTransactionHistory: false,
-		DbPathRoot:               "./db",
+		DbPathRoot:               "./data",
 		LogLevel:                 "info",
 		StartSimulatedMining:     false,
 		Clean:                    false,
-		GenesisDir:               nil,
+		GenesisDir:               "/dev/null",
 		Quarkchain:               NewQuarkChainConfig(),
 		Master:                   &DefaultMasterConfig,
 		SimpleNetwork:            &DefaultSimpleNetwork,
-		P2p:                      nil,
-		jsonFilepath:             nil,
+		P2p:                      &DefaultP2PConfig,
+		jsonFilepath:             "",
 		Monitoring:               &DfaultMonitoring,
 	}
 	slave := &DefaultSlaveonfig
@@ -256,20 +256,20 @@ type MonitoringConfig struct {
 }
 
 type QuarkChainConfig struct {
-	ShardSize                         uint                  `json:"SHARD_SIZE"`
-	MaxNeighbors                      int                   `json:"MAX_NEIGHBORS"`
-	NetworkId                         uint                  `json:"NETWORK_ID"`
-	TransactionQueueSizeLimitPerShard int                   `json:"TRANSACTION_QUEUE_SIZE_LIMIT_PER_SHARD"`
-	BlockExtraDataSizeLimit           int                   `json:"BLOCK_EXTRA_DATA_SIZE_LIMIT"`
-	GuardianPublicKey                 string                `json:"GUARDIAN_PUBLIC_KEY"`
-	GuardianPrivateKey                []byte                `json:"GUARDIAN_PRIVATE_KEY"`
-	P2pProtocolVersion                int                   `json:"P2P_PROTOCOL_VERSION"`
-	P2pCommandSizeLimit               int                   `json:"P2P_COMMAND_SIZE_LIMIT"`
-	SkipRootDifficultyCheck           bool                  `json:"SKIP_ROOT_DIFFICULTY_CHECK"`
-	SkipMinorDifficultyCheck          bool                  `json:"SKIP_MINOR_DIFFICULTY_CHECK"`
-	Root                              *RootConfig           `json:"ROOT"`
-	ShardList                         map[uint]*ShardConfig `json:"SHARD_LIST"`
-	RewardTaxRate                     float32               `json:"REWARD_TAX_RATE"`
+	ShardSize                         int            `json:"SHARD_SIZE"`
+	MaxNeighbors                      int            `json:"MAX_NEIGHBORS"`
+	NetworkId                         int            `json:"NETWORK_ID"`
+	TransactionQueueSizeLimitPerShard int            `json:"TRANSACTION_QUEUE_SIZE_LIMIT_PER_SHARD"`
+	BlockExtraDataSizeLimit           int            `json:"BLOCK_EXTRA_DATA_SIZE_LIMIT"`
+	GuardianPublicKey                 string         `json:"GUARDIAN_PUBLIC_KEY"`
+	GuardianPrivateKey                []byte         `json:"GUARDIAN_PRIVATE_KEY"`
+	P2pProtocolVersion                int            `json:"P2P_PROTOCOL_VERSION"`
+	P2pCommandSizeLimit               int            `json:"P2P_COMMAND_SIZE_LIMIT"`
+	SkipRootDifficultyCheck           bool           `json:"SKIP_ROOT_DIFFICULTY_CHECK"`
+	SkipMinorDifficultyCheck          bool           `json:"SKIP_MINOR_DIFFICULTY_CHECK"`
+	Root                              *RootConfig    `json:"ROOT"`
+	ShardList                         []*ShardConfig `json:"SHARD_LIST"`
+	RewardTaxRate                     float32        `json:"REWARD_TAX_RATE"`
 	cachedGuardianPrivateKey          []byte
 	// local_accounts []
 }
@@ -288,7 +288,7 @@ func NewQuarkChainConfig() *QuarkChainConfig {
 		SkipRootDifficultyCheck:           false,
 		SkipMinorDifficultyCheck:          false,
 		Root:          NewRootConfig(),
-		ShardList:     make(map[uint]*ShardConfig),
+		ShardList:     make([]*ShardConfig, DefaultQuatrain.ShardSize),
 		RewardTaxRate: 0.5,
 	}
 	quark.Root.ConsensusType = POW_SIMULATE
@@ -310,16 +310,16 @@ func NewQuarkChainConfig() *QuarkChainConfig {
 /*func (q *QuarkChainConfig) rewardTaxRate() uint {}*/
 
 // Return the root block height at which the shard shall be created
-func (q *QuarkChainConfig) GetGenesisRootHeight(shard_id uint) int {
-	if shard, ok := q.ShardList[shard_id]; ok {
-		return shard.Genesis.Height
+func (q *QuarkChainConfig) GetGenesisRootHeight(shardId int) int {
+	if q.ShardSize <= shardId {
+		return -1
 	}
-	return -1
+	return q.ShardList[shardId].Genesis.Height
 }
 
 // Return a list of ids for shards that have GENESIS
-func (q *QuarkChainConfig) GetGenesisShardIds() []uint {
-	var result []uint
+func (q *QuarkChainConfig) GetGenesisShardIds() []int {
+	var result []int
 	for shardId := range q.ShardList {
 		result = append(result[:], shardId)
 	}
@@ -327,8 +327,8 @@ func (q *QuarkChainConfig) GetGenesisShardIds() []uint {
 }
 
 // Return a list of ids of the shards that have been initialized before a certain root height
-func (q *QuarkChainConfig) GetInitializedShardIdsBeforeRootHeight(rootHeight uint) []uint {
-	var result []uint
+func (q *QuarkChainConfig) GetInitializedShardIdsBeforeRootHeight(rootHeight int) []int {
+	var result []int
 	for shardId, config := range q.ShardList {
 		if config.Genesis != nil && config.Genesis.RootHeight < rootHeight {
 			result = append(result[:], shardId)
@@ -337,13 +337,20 @@ func (q *QuarkChainConfig) GetInitializedShardIdsBeforeRootHeight(rootHeight uin
 	return result
 }
 
+func (q *QuarkChainConfig) GetShardConfigById(shardId int) *ShardConfig {
+	if q.ShardSize <= shardId {
+		return nil
+	}
+	return q.ShardList[shardId]
+}
+
 // TODO need to add guardian_public_key function
 /*func (q *QuarkChainConfig) GuardianPublicKey() {}*/
 
 // TODO need to add guardian_private_key funcion
 /*func (q *QuarkChainConfig) GuardianPrivateKey() {}*/
 
-func (q *QuarkChainConfig) Update(shardSize, rootBlockTime, minorBlockTime uint) {
+func (q *QuarkChainConfig) Update(shardSize, rootBlockTime, minorBlockTime int) {
 	q.ShardSize = shardSize
 	if q.Root == nil {
 		q.Root = NewRootConfig()
@@ -363,7 +370,7 @@ func (q *QuarkChainConfig) Update(shardSize, rootBlockTime, minorBlockTime uint)
 		s.ConsensusConfig = &DefaultPowConfig
 		s.ConsensusConfig.TargetBlockTime = minorBlockTime
 		// TODO address serialization type shuld to be replaced
-		s.CoinbaseAddress = qcom.BytesToQAddress([]byte{byte(i)})
+		s.CoinbaseAddress = qcom.BytesToQAddress([]byte{byte(i)}).Hex()
 		q.ShardList[i] = s
 	}
 }
