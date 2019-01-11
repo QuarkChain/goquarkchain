@@ -2,15 +2,17 @@ version: 2
 jobs:
   build:
     docker:
-      - image: circleci/golang:1.11
+      - image: ninjaahhh/circleci-goquarkchain:v0.0.1
     steps:
       - checkout
       - restore_cache:
           keys:
-            - go-mod-v1-{{ checksum "go.sum" }}
-      # only test specific files for now
-      - run: cd consensus && go test ./...
+            - go-mod-v2-{{ checksum "go.sum" }}
+      # Build qkchash c++
+      - run: cd consensus/qkchash/native && make && cd -
+      - run: go vet ./...
+      - run: go test ./...
       - save_cache:
-          key: go-mod-v1-{{ checksum "go.sum" }}
+          key: go-mod-v2-{{ checksum "go.sum" }}
           paths:
             - "/go/pkg/mod"
