@@ -2,10 +2,8 @@ version: 2
 jobs:
   build:
     docker:
-      - image: circleci/golang:1.11
+      - image: ninjaahhh/circleci-goquarkchain:v0.0.1
     steps:
-      # Dep, TODO: will roll my own image later if necessary
-      - run: sudo apt-get update && sudo apt-get install swig
       - checkout
       - restore_cache:
           keys:
