@@ -22,7 +22,7 @@ var (
 		TargetBlockTime: 10,
 		RemoteMine:      false,
 	}
-	DefaultRootGenesisConfig = RootGenesis{
+	DefaultRootGenesis = RootGenesis{
 		Version:        0,
 		Height:         0,
 		ShardSize:      32,
@@ -101,7 +101,7 @@ var (
 )
 
 type POWConfig struct {
-	TargetBlockTime uint `json:"TARGET_BLOCK_TIME"`
+	TargetBlockTime int  `json:"TARGET_BLOCK_TIME"`
 	RemoteMine      bool `json:"REMOTE_MINE"`
 }
 
@@ -139,7 +139,7 @@ func NewRootConfig() *RootConfig {
 		MaxStaleRootBlockHeightDiff: 60,
 		ConsensusType:               NONE,
 		ConsensusConfig:             nil,
-		Genesis:                     &DefaultRootGenesisConfig,
+		Genesis:                     &DefaultRootGenesis,
 		// TODO address serialization type shuld to be replaced
 		CoinbaseAddress:                qcom.BytesToQAddress([]byte{0}),
 		CoinbaseAmount:                 120 * math.Pow10(18),
@@ -201,8 +201,15 @@ func NewClusterConfig() ClusterConfig {
 	return cluster
 }
 
-func (c *ClusterConfig) Update() {
+func (c *ClusterConfig) GetP2p() *P2PConfig {
+	if c.P2p != nil {
+		return c.P2p
+	}
+	return nil
+}
 
+func (c *ClusterConfig) GetDbPathRoot() string {
+	return c.DbPathRoot
 }
 
 func (c *ClusterConfig) GetSlaveConfig(id string) *SlaveConfig {
@@ -249,26 +256,26 @@ type MonitoringConfig struct {
 }
 
 type QuarkChainConfig struct {
-	ShardSize                         uint           `json:"SHARD_SIZE"`
-	MaxNeighbors                      int            `json:"MAX_NEIGHBORS"`
-	NetworkId                         uint           `json:"NETWORK_ID"`
-	TransactionQueueSizeLimitPerShard int            `json:"TRANSACTION_QUEUE_SIZE_LIMIT_PER_SHARD"`
-	BlockExtraDataSizeLimit           int            `json:"BLOCK_EXTRA_DATA_SIZE_LIMIT"`
-	GuardianPublicKey                 string         `json:"GUARDIAN_PUBLIC_KEY"`
-	GuardianPrivateKey                []byte         `json:"GUARDIAN_PRIVATE_KEY"`
-	P2pProtocolVersion                int            `json:"P2P_PROTOCOL_VERSION"`
-	P2pCommandSizeLimit               int            `json:"P2P_COMMAND_SIZE_LIMIT"`
-	SkipRootDifficultyCheck           bool           `json:"SKIP_ROOT_DIFFICULTY_CHECK"`
-	SkipMinorDifficultyCheck          bool           `json:"SKIP_MINOR_DIFFICULTY_CHECK"`
-	Root                              *RootConfig    `json:"ROOT"`
-	ShardList                         []*ShardConfig `json:"SHARD_LIST"`
-	RewardTaxRate                     float32        `json:"REWARD_TAX_RATE"`
+	ShardSize                         uint                  `json:"SHARD_SIZE"`
+	MaxNeighbors                      int                   `json:"MAX_NEIGHBORS"`
+	NetworkId                         uint                  `json:"NETWORK_ID"`
+	TransactionQueueSizeLimitPerShard int                   `json:"TRANSACTION_QUEUE_SIZE_LIMIT_PER_SHARD"`
+	BlockExtraDataSizeLimit           int                   `json:"BLOCK_EXTRA_DATA_SIZE_LIMIT"`
+	GuardianPublicKey                 string                `json:"GUARDIAN_PUBLIC_KEY"`
+	GuardianPrivateKey                []byte                `json:"GUARDIAN_PRIVATE_KEY"`
+	P2pProtocolVersion                int                   `json:"P2P_PROTOCOL_VERSION"`
+	P2pCommandSizeLimit               int                   `json:"P2P_COMMAND_SIZE_LIMIT"`
+	SkipRootDifficultyCheck           bool                  `json:"SKIP_ROOT_DIFFICULTY_CHECK"`
+	SkipMinorDifficultyCheck          bool                  `json:"SKIP_MINOR_DIFFICULTY_CHECK"`
+	Root                              *RootConfig           `json:"ROOT"`
+	ShardList                         map[uint]*ShardConfig `json:"SHARD_LIST"`
+	RewardTaxRate                     float32               `json:"REWARD_TAX_RATE"`
 	cachedGuardianPrivateKey          []byte
 	// local_accounts []
 }
 
 func NewQuarkChainConfig() *QuarkChainConfig {
-	quarkchain := &QuarkChainConfig{
+	quark := &QuarkChainConfig{
 		ShardSize:                         8,
 		MaxNeighbors:                      32,
 		NetworkId:                         3, // testnet_porsche 3
@@ -281,24 +288,60 @@ func NewQuarkChainConfig() *QuarkChainConfig {
 		SkipRootDifficultyCheck:           false,
 		SkipMinorDifficultyCheck:          false,
 		Root:          NewRootConfig(),
-		ShardList:     make([]*ShardConfig, DefaultQuatrain.ShardSize),
+		ShardList:     make(map[uint]*ShardConfig),
 		RewardTaxRate: 0.5,
 	}
-	quarkchain.Root.ConsensusType = POW_SIMULATE
-	quarkchain.Root.ConsensusConfig = &DefaultPowConfig
-	quarkchain.Root.ConsensusConfig.TargetBlockTime = 10
-	quarkchain.Root.Genesis.ShardSize = DefaultQuatrain.ShardSize
+	quark.Root.ConsensusType = POW_SIMULATE
+	quark.Root.ConsensusConfig = &DefaultPowConfig
+	quark.Root.ConsensusConfig.TargetBlockTime = 10
+	quark.Root.Genesis.ShardSize = DefaultQuatrain.ShardSize
 	for i := DefaultQuatrain.ShardSize - 1; i >= 0; i-- {
 		s := NewShardConfig()
-		s.SetRootConfig(quarkchain.Root)
+		s.SetRootConfig(quark.Root)
 		s.ConsensusType = POW_SIMULATE
 		s.ConsensusConfig = &DefaultPowConfig
 		s.ConsensusConfig.TargetBlockTime = 3
-		quarkchain.ShardList = append(quarkchain.ShardList[:], s)
+		quark.ShardList[i] = s
 	}
-
-	return quarkchain
+	return quark
 }
+
+// TODO need to add reward_tax_rate function
+/*func (q *QuarkChainConfig) rewardTaxRate() uint {}*/
+
+// Return the root block height at which the shard shall be created
+func (q *QuarkChainConfig) GetGenesisRootHeight(shard_id uint) int {
+	if shard, ok := q.ShardList[shard_id]; ok {
+		return shard.Genesis.Height
+	}
+	return -1
+}
+
+// Return a list of ids for shards that have GENESIS
+func (q *QuarkChainConfig) GetGenesisShardIds() []uint {
+	var result []uint
+	for shardId := range q.ShardList {
+		result = append(result[:], shardId)
+	}
+	return result
+}
+
+// Return a list of ids of the shards that have been initialized before a certain root height
+func (q *QuarkChainConfig) GetInitializedShardIdsBeforeRootHeight(rootHeight uint) []uint {
+	var result []uint
+	for shardId, config := range q.ShardList {
+		if config.Genesis != nil && config.Genesis.RootHeight < rootHeight {
+			result = append(result[:], shardId)
+		}
+	}
+	return result
+}
+
+// TODO need to add guardian_public_key function
+/*func (q *QuarkChainConfig) GuardianPublicKey() {}*/
+
+// TODO need to add guardian_private_key funcion
+/*func (q *QuarkChainConfig) GuardianPrivateKey() {}*/
 
 func (q *QuarkChainConfig) Update(shardSize, rootBlockTime, minorBlockTime uint) {
 	q.ShardSize = shardSize

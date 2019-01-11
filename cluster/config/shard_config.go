@@ -6,18 +6,30 @@ import (
 	"math"
 )
 
-var DefaultShardConfig = ShardConfig{
-	ConsensusType: NONE,
-}
+var (
+	DefaultShardGenesis = ShardGenesis{
+		RootHeight:         0,
+		Version:            0,
+		Height:             0,
+		HashPrevMinorBlock: common.BytesToHash([]byte{0}),
+		HashMerkleRoot:     common.BytesToHash([]byte{0}),
+		ExtraData:          []byte("It was the best of times, it was the worst of times, ... - Charles Dickens"),
+		Timestamp:          DefaultRootGenesis.Timestamp,
+		Difficulty:         10000,
+		GasLimit:           30000 * 400,
+		Nonce:              0,
+		Alloc:              nil,
+	}
+)
 
 type ShardGenesis struct {
-	RootHeight         int                      `json:"ROOT_HEIGHT"`
+	RootHeight         uint                     `json:"ROOT_HEIGHT"`
 	Version            int                      `json:"VERSION"`
 	Height             int                      `json:"HEIGHT"`
 	HashPrevMinorBlock common.Hash              `json:"HASH_PREV_MINOR_BLOCK"`
 	HashMerkleRoot     common.Hash              `json:"HASH_MERKLE_ROOT"`
 	ExtraData          []byte                   `json:"EXTRA_DATA"`
-	Timestamp          int                      `json:"TIMESTAMP"`
+	Timestamp          uint64                   `json:"TIMESTAMP"`
 	Difficulty         int                      `json:"DIFFICULTY"`
 	GasLimit           int                      `json:"GAS_LIMIT"`
 	Nonce              int                      `json:"NONCE"`
@@ -26,9 +38,10 @@ type ShardGenesis struct {
 
 type ShardConfig struct {
 	// Only set when CONSENSUS_TYPE is not NONE
-	ConsensusType                      int              `json:"CONSENSUS_TYPE"`
-	ConsensusConfig                    *POWConfig       `json:"CONSENSUS_CONFIG"` // POWconfig
-	Genesis                            *ShardGenesis    `json:"GENESIS"`          // ShardGenesis
+	ConsensusType   int           `json:"CONSENSUS_TYPE"`
+	ConsensusConfig *POWConfig    `json:"CONSENSUS_CONFIG"` // POWconfig
+	Genesis         *ShardGenesis `json:"GENESIS"`          // ShardGenesis
+	// TODO coinbase address shuild to be redesigned.
 	CoinbaseAddress                    qcommon.QAddress `json:"COINBASE_ADDRESS"`
 	CoinbaseAmount                     float64          `json:"COINBASE_AMOUNT"` // default 5 * 10^18
 	GasLimitEmaDenominator             int              `json:"GAS_LIMIT_EMA_DENOMINATOR"`
@@ -44,7 +57,7 @@ type ShardConfig struct {
 }
 
 func NewShardConfig() *ShardConfig {
-	shardconfig := &ShardConfig{
+	sharding := &ShardConfig{
 		ConsensusType:                      NONE,
 		ConsensusConfig:                    nil,
 		CoinbaseAddress:                    qcommon.BytesToQAddress([]byte{0}),
@@ -58,9 +71,9 @@ func NewShardConfig() *ShardConfig {
 		DifficultyAdjustmentCutoffTime:     7,
 		DifficultyAdjustmentFactor:         512,
 		ExtraShardBlocksInRootBlock:        3,
-		Genesis:                            &ShardGenesis{},
+		Genesis:                            &DefaultShardGenesis,
 	}
-	return shardconfig
+	return sharding
 }
 
 func (s *ShardConfig) SetRootConfig(value *RootConfig) {
@@ -69,4 +82,19 @@ func (s *ShardConfig) SetRootConfig(value *RootConfig) {
 
 func (s *ShardConfig) GetRootConfig() *RootConfig {
 	return s.rootConfig
+}
+
+func (s *ShardConfig) MaxBlocksPerShardInOneRootBlock() int {
+	return int(s.rootConfig.ConsensusConfig.TargetBlockTime/s.ExtraShardBlocksInRootBlock) + s.ExtraShardBlocksInRootBlock
+}
+
+//Max_stale_minor_block_height_diff
+func (s *ShardConfig) MaxStaleMinorBlockHeightDiff() int {
+	return int(s.rootConfig.MaxStaleRootBlockHeightDiff *
+		s.rootConfig.ConsensusConfig.TargetBlockTime /
+		s.ConsensusConfig.TargetBlockTime)
+}
+
+func (s *ShardConfig) MaxMinorBlocksInMemory() int {
+	return s.MaxStaleMinorBlockHeightDiff() * 2
 }
