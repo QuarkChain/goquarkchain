@@ -1,8 +1,6 @@
 package config
 
 import (
-	qcom "github.com/QuarkChain/goquarkchain/common"
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
 	"math"
 )
@@ -26,8 +24,8 @@ var (
 		Version:        0,
 		Height:         0,
 		ShardSize:      32,
-		HashPrevBlock:  common.BytesToHash([]byte{0}),
-		HashMerkleRoot: common.BytesToHash([]byte{0}),
+		HashPrevBlock:  "",
+		HashMerkleRoot: "",
 		Timestamp:      1519147489,
 		Difficulty:     1000000,
 		Nonce:          0,
@@ -38,7 +36,7 @@ var (
 		ConsensusConfig:             nil,
 		Genesis:                     nil,
 		// TODO shuld replace with the real address realization.
-		CoinbaseAddress:                qcom.BytesToQAddress([]byte{0}).Hex(),
+		CoinbaseAddress:                "",
 		CoinbaseAmount:                 120 * math.Pow10(18),
 		DifficultyAdjustmentCutoffTime: 40,
 		DifficultyAdjustmentFactor:     1024,
@@ -111,14 +109,14 @@ type SimpleNetwork struct {
 }
 
 type RootGenesis struct {
-	Version        int         `json:"VERSION"`
-	Height         int         `json:"HEIGHT"`
-	ShardSize      int         `json:"SHARD_SIZE"`
-	HashPrevBlock  common.Hash `json:"HASH_PREV_BLOCK"`
-	HashMerkleRoot common.Hash `json:"HASH_MERKLE_ROOT"`
-	Timestamp      uint64      `json:"TIMESTAMP"`
-	Difficulty     uint64      `json:"DIFFICULTY"`
-	Nonce          int         `json:"NONCE"`
+	Version        int    `json:"VERSION"`
+	Height         int    `json:"HEIGHT"`
+	ShardSize      int    `json:"SHARD_SIZE"`
+	HashPrevBlock  string `json:"HASH_PREV_BLOCK"`
+	HashMerkleRoot string `json:"HASH_MERKLE_ROOT"`
+	Timestamp      uint64 `json:"TIMESTAMP"`
+	Difficulty     uint64 `json:"DIFFICULTY"`
+	Nonce          int    `json:"NONCE"`
 }
 
 type RootConfig struct {
@@ -141,7 +139,7 @@ func NewRootConfig() *RootConfig {
 		ConsensusConfig:             nil,
 		Genesis:                     &DefaultRootGenesis,
 		// TODO address serialization type shuld to be replaced
-		CoinbaseAddress:                qcom.BytesToQAddress([]byte{0}).Hex(),
+		CoinbaseAddress:                "",
 		CoinbaseAmount:                 120 * math.Pow10(18),
 		DifficultyAdjustmentCutoffTime: 40,
 		DifficultyAdjustmentFactor:     1024,
@@ -370,7 +368,7 @@ func (q *QuarkChainConfig) Update(shardSize, rootBlockTime, minorBlockTime int) 
 		s.ConsensusConfig = &DefaultPowConfig
 		s.ConsensusConfig.TargetBlockTime = minorBlockTime
 		// TODO address serialization type shuld to be replaced
-		s.CoinbaseAddress = qcom.BytesToQAddress([]byte{byte(i)}).Hex()
+		s.CoinbaseAddress = ""
 		q.ShardList[i] = s
 	}
 }

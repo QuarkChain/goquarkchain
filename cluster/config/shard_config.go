@@ -1,8 +1,6 @@
 package config
 
 import (
-	qcommon "github.com/QuarkChain/goquarkchain/common"
-	"github.com/ethereum/go-ethereum/common"
 	"math"
 )
 
@@ -11,8 +9,8 @@ var (
 		RootHeight:         0,
 		Version:            0,
 		Height:             0,
-		HashPrevMinorBlock: common.BytesToHash([]byte{0}),
-		HashMerkleRoot:     common.BytesToHash([]byte{0}),
+		HashPrevMinorBlock: "",
+		HashMerkleRoot:     "",
 		ExtraData:          []byte("It was the best of times, it was the worst of times, ... - Charles Dickens"),
 		Timestamp:          DefaultRootGenesis.Timestamp,
 		Difficulty:         10000,
@@ -26,8 +24,8 @@ type ShardGenesis struct {
 	RootHeight         int                `json:"ROOT_HEIGHT"`
 	Version            int                `json:"VERSION"`
 	Height             int                `json:"HEIGHT"`
-	HashPrevMinorBlock common.Hash        `json:"HASH_PREV_MINOR_BLOCK"`
-	HashMerkleRoot     common.Hash        `json:"HASH_MERKLE_ROOT"`
+	HashPrevMinorBlock string             `json:"HASH_PREV_MINOR_BLOCK"`
+	HashMerkleRoot     string             `json:"HASH_MERKLE_ROOT"`
 	ExtraData          []byte             `json:"EXTRA_DATA"`
 	Timestamp          uint64             `json:"TIMESTAMP"`
 	Difficulty         int                `json:"DIFFICULTY"`
@@ -60,7 +58,7 @@ func NewShardConfig() *ShardConfig {
 	sharding := &ShardConfig{
 		ConsensusType:                      NONE,
 		ConsensusConfig:                    nil,
-		CoinbaseAddress:                    qcommon.BytesToQAddress([]byte{0}).Hex(),
+		CoinbaseAddress:                    "",
 		CoinbaseAmount:                     5 * math.Pow10(18),
 		GasLimitEmaDenominator:             1024,
 		GasLimitAdjustmentFactor:           1024,
@@ -74,8 +72,7 @@ func NewShardConfig() *ShardConfig {
 		Genesis:                            &DefaultShardGenesis,
 	}
 	// TODO should to be deleted, just for test
-	qaddress := qcommon.BytesToQAddress([]byte{0})
-	sharding.Genesis.Alloc[qaddress.Hex()] = math.Pow10(24)
+	sharding.Genesis.Alloc["0x0000000000000000000000000000000000000000000000000000000000000000"] = math.Pow10(24)
 	return sharding
 }
 
