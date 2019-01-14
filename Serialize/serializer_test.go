@@ -37,7 +37,7 @@ func (e *serializableStruct) Deserialize(bb *ByteBuffer) error {
 type structForTest struct {
 	From               *[]byte
 	To                 *[]byte    `json:"to"                 ser:"nil"`
-	IgnoredField       int        `json:"to"                 ser:"-"`
+	IgnoredField       int        `json:"ignore"             ser:"-"`
 	privateField       int   //private field will be ignored
 }
 
