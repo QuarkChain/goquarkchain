@@ -13,19 +13,19 @@ func Serialize(w *[]byte, val interface{}) error {
 	if err != nil {
 		return err
 	}
+
 	return ti.serializer(rval, w)
 }
 
 // SerializeToBytes returns the serialize result of val.
 func SerializeToBytes(val interface{}) ([]byte, error) {
-	w := make([]byte,0,1)
+	w := make([]byte, 0, 1)
 	if err := Serialize(&w, val); err != nil {
 		return nil, err
 	}
 
 	return w, nil
 }
-
 
 func makeSerializer(typ reflect.Type, ts tags) (serializer, error) {
 	kind := typ.Kind()
@@ -65,7 +65,7 @@ func serializeSerializableInterface(val reflect.Value, w *[]byte) error {
 	return val.Addr().Interface().(Serializable).Serialize(w)
 }
 
-func prefillByteArray(size int, barray []byte) ([]byte, error){
+func prefillByteArray(size int, barray []byte) ([]byte, error) {
 	len := len(barray)
 	if len > size {
 		return nil, errors.New("barray len is larger then expected size")
@@ -76,7 +76,7 @@ func prefillByteArray(size int, barray []byte) ([]byte, error){
 
 	bytes := make([]byte, size, size)
 	var startIndex = size - len
-	copy(bytes[startIndex:], barray )
+	copy(bytes[startIndex:], barray)
 	return bytes, nil
 }
 
@@ -96,13 +96,13 @@ func serializeUint(val reflect.Value, w *[]byte) error {
 	case kind == reflect.Uint:
 		//As Uint would be 32/64 bit, so
 		var bi big.Int
-		serializeBigInt(bi.SetUint64(val.Uint()),w)
+		serializeBigInt(bi.SetUint64(val.Uint()), w)
 		break
 	default:
 		err = fmt.Errorf("ser: invalid Uint type: %s", val.Type().Name())
 		break
 	}
-	if err == nil{
+	if err == nil {
 		*w = append(*w, bytes...)
 	}
 
@@ -171,7 +171,7 @@ func serializeByteArray(val reflect.Value, w *[]byte) error {
 	return nil
 }
 
-func writeListLen(val reflect.Value, w *[]byte) error{
+func writeListLen(val reflect.Value, w *[]byte) error {
 	var byteSize int = 1
 	var err error = nil
 	if reflect.PtrTo(val.Type()).Implements(serializableListInterface) {
@@ -185,12 +185,13 @@ func writeListLen(val reflect.Value, w *[]byte) error{
 	sizeBytes := uint2ByteArray(uint64(val.Len()))
 	sizeBytes, err = prefillByteArray(byteSize, sizeBytes)
 	if err != nil {
-		return  nil
+		return nil
 	}
 
 	*w = append(*w, sizeBytes...)
 	return nil
 }
+
 //serializePrependedSizeBytes
 func serializeByteSlice(val reflect.Value, w *[]byte) error {
 	err := writeListLen(val, w)
@@ -210,7 +211,7 @@ func serializeList(val reflect.Value, w *[]byte) error {
 		return err
 	}
 
-	if val.Kind() == reflect.Slice{
+	if val.Kind() == reflect.Slice {
 		err = writeListLen(val, w)
 		if err != nil {
 			return err
@@ -247,7 +248,7 @@ func serializeString(val reflect.Value, w *[]byte) error {
 
 	sizeBytes, err := prefillByteArray(4, uint2ByteArray(uint64(val.Len())))
 	if err != nil {
-		return  nil
+		return nil
 	}
 
 	*w = append(*w, sizeBytes...)

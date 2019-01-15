@@ -23,11 +23,11 @@ func (e *serializableStruct) Serialize(w *[]byte) error {
 }
 
 func (e *serializableStruct) Deserialize(bb *ByteBuffer) error {
-	if e == nil{
+	if e == nil {
 
 	} else if bb.remaining() == 4 {
 		e = nil
-	}else {
+	} else {
 		e.val = 1
 	}
 
@@ -35,10 +35,10 @@ func (e *serializableStruct) Deserialize(bb *ByteBuffer) error {
 }
 
 type structForTest struct {
-	From               *[]byte
-	To                 *[]byte    `json:"to"                 ser:"nil"`
-	IgnoredField       int        `json:"ignore"             ser:"-"`
-	privateField       int   //private field will be ignored
+	From         *[]byte
+	To           *[]byte `json:"to"                 ser:"nil"`
+	IgnoredField int     `json:"ignore"             ser:"-"`
+	privateField int     //private field will be ignored
 }
 
 func newStructForTest(from, to *[]byte) structForTest {
@@ -166,11 +166,10 @@ var serdata = []testDataForSerialize{
 	{val: (*[10]string)(nil), output: "00000000000000000000000000000000000000000000000000000000000000000000000000000000"},
 	{val: (*[]struct{ uint })(nil), output: "00"},
 
-
 	// interfaces
 	// Serializer
 	{val: (*serializableStruct)(nil), output: ""},
-	{val: &serializableStruct{val:0xFFFF}, output: "FFFF"},
+	{val: &serializableStruct{val: 0xFFFF}, output: "FFFF"},
 	{val: &serializableStruct{1, errors.New("test error")}, error: "test error"},
 
 	// int is not support

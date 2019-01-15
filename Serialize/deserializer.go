@@ -8,7 +8,7 @@ import (
 )
 
 var (
-	errNoPointer     = errors.New("deser: interface given to Deserialize must be a pointer")
+	errNoPointer          = errors.New("deser: interface given to Deserialize must be a pointer")
 	errDeserializeIntoNil = errors.New("deser: pointer given to Deserialize must not be nil")
 )
 
@@ -93,7 +93,7 @@ func deserializeUint(bb *ByteBuffer, val reflect.Value) error {
 	if err == nil {
 		var ui uint64 = 0
 		for i := 0; i < len(bytes); i++ {
-			 ui = ui << 8 | uint64(bytes[i])
+			ui = ui<<8 | uint64(bytes[i])
 		}
 		val.SetUint(ui)
 	}
@@ -156,7 +156,7 @@ func deserializeByteArray(bb *ByteBuffer, val reflect.Value) error {
 	}
 
 	bytes, err := bb.getBytes(val.Len())
-	if err == nil{
+	if err == nil {
 		reflect.Copy(val, reflect.ValueOf(bytes))
 	}
 
@@ -175,6 +175,7 @@ func getByteSize(val reflect.Value) (int, error) {
 
 	return byteSize, nil
 }
+
 //deserializePrependedSizeBytes
 func deserializeByteSlice(bb *ByteBuffer, val reflect.Value) error {
 	byteSize, e := getByteSize(val)
@@ -183,7 +184,7 @@ func deserializeByteSlice(bb *ByteBuffer, val reflect.Value) error {
 	}
 
 	bytes, err := bb.getVarBytes(byteSize)
-	if err == nil{
+	if err == nil {
 		val.SetBytes(bytes)
 	}
 
@@ -211,7 +212,7 @@ func deserializeList(bb *ByteBuffer, val reflect.Value) error {
 		newv := reflect.MakeSlice(val.Type(), vlen, vlen)
 		reflect.Copy(newv, val)
 		val.Set(newv)
-	} else if val.Kind() == reflect.Array{
+	} else if val.Kind() == reflect.Array {
 		vlen = val.Len()
 	}
 
@@ -233,7 +234,7 @@ func deserializeStruct(bb *ByteBuffer, val reflect.Value) error {
 	for _, f := range fields {
 		err := f.info.deserializer(bb, val.Field(f.index))
 		if err != nil {
-			return fmt.Errorf("deser: %s for %v%s", err.Error() , val.Type(), "."+val.Type().Field(f.index).Name)
+			return fmt.Errorf("deser: %s for %v%s", err.Error(), val.Type(), "."+val.Type().Field(f.index).Name)
 		}
 	}
 
