@@ -9,7 +9,6 @@ import (
 	"testing"
 )
 
-
 type testDataForDeserialize struct {
 	input string
 	ptr   interface{}
@@ -58,7 +57,7 @@ var deserdata = []testDataForDeserialize{
 	{input: "020505", ptr: new(uint), value: uint(0x0505)},
 	{input: "080505050505050505", ptr: new(uint), value: uint(0x0505050505050505)},
 
-	{input: "00000000000000000000000000000001", ptr: new(Uint128), value:*newUint128(1)},
+	{input: "00000000000000000000000000000001", ptr: new(Uint128), value: *newUint128(1)},
 	{input: "00000000000000000000000000000080", ptr: new(Uint128), value: *newUint128(128)},
 	{input: "0000000000000000FFFFFFFFFFFFFFFF", ptr: new(Uint128), value: *newUint128(0xFFFFFFFFFFFFFFFF)},
 	{input: "05", ptr: new(Uint128), error: "deser: buffer is shorter than expected"},
@@ -76,7 +75,7 @@ var deserdata = []testDataForDeserialize{
 	// arrays
 	{input: "0102030405", ptr: new([5]uint8), value: [5]uint8{1, 2, 3, 4, 5}},
 	{input: "0000000100000002000000030000000400000005", ptr: new([5]uint32), value: [5]uint32{1, 2, 3, 4, 5}},
-	{input: "", ptr: new([0]uint), value: [0]uint{}},// zero sized arrays
+	{input: "", ptr: new([0]uint), value: [0]uint{}}, // zero sized arrays
 	{input: "0102", ptr: new([5]uint8), error: "deser: buffer is shorter than expected"},
 
 	// byte slices
@@ -178,59 +177,16 @@ func runTests(t *testing.T, deserialize func([]byte, interface{}) error) {
 
 func TestDeserialize(t *testing.T) {
 	runTests(t, func(input []byte, into interface{}) error {
-		return Deserialize(&ByteBuffer{input,0}, into)
-	})
-}
-/*
-func TestDeserializeWithNonByteReader(t *testing.T) {
-	runTests(t, func(input []byte, into interface{}) error {
-		return Deserialize(newPlainReader(input), into)
+		return Deserialize(&ByteBuffer{input, 0}, into)
 	})
 }
 
-type testDeserializer struct{ called bool }
-
-func (t *testDeserializer) DeserializeRLP(s *Stream) error {
-	if _, err := s.Uint(); err != nil {
-		return err
-	}
-	t.called = true
-	return nil
-}
-
-func TestDeserializeDeserializer(t *testing.T) {
-	var s struct {
-		T1 testDeserializer
-		T2 *testDeserializer
-		T3 **testDeserializer
-	}
-	if err := Deserialize(bytes.NewReader(unhex("C3010203")), &s); err != nil {
-		t.Fatalf("Deserialize error: %v", err)
-	}
-
-	if !s.T1.called {
-		t.Errorf("DeserializeRLP was not called for (non-pointer) testDeserializer")
-	}
-
-	if s.T2 == nil {
-		t.Errorf("*testDeserializer has not been allocated")
-	} else if !s.T2.called {
-		t.Errorf("DeserializeRLP was not called for *testDeserializer")
-	}
-
-	if s.T3 == nil || *s.T3 == nil {
-		t.Errorf("**testDeserializer has not been allocated")
-	} else if !(*s.T3).called {
-		t.Errorf("DeserializeRLP was not called for **testDeserializer")
-	}
-}
-*/
 func ExampleDeserialize() {
 	input, _ := hex.DecodeString("010a0000001400000006666F6F626172")
 
 	type example struct {
 		A       uint
-		B    	uint32
+		B       uint32
 		private uint // private fields are ignored
 		String  string
 	}
@@ -250,7 +206,7 @@ func ExampleDeserialize_structTagNilAndIgnore() {
 	// In this example, we'll use the "nil" struct tag to change
 	// how a pointer-typed field is deserialized. The input contains an RLP
 	// list of one element, an empty string.
-	input := []byte{0x00,0x01,0x03,0x04,0x05,0x06}
+	input := []byte{0x00, 0x01, 0x03, 0x04, 0x05, 0x06}
 
 	s := new(structForTest)
 	Deserialize(&ByteBuffer{input, 0}, &s)
@@ -297,7 +253,7 @@ func BenchmarkDeserialize(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 		var s []uint
-		bb := &ByteBuffer{enc,0}
+		bb := &ByteBuffer{enc, 0}
 		if err := Deserialize(bb, &s); err != nil {
 			b.Fatalf("Deserialize error: %v", err)
 		}
@@ -312,7 +268,7 @@ func BenchmarkDeserializeIntSliceReuse(b *testing.B) {
 
 	var s []uint
 	for i := 0; i < b.N; i++ {
-		bb := &ByteBuffer{enc,0}
+		bb := &ByteBuffer{enc, 0}
 		if err := Deserialize(bb, &s); err != nil {
 			b.Fatalf("Deserialize error: %v", err)
 		}

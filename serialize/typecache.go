@@ -80,7 +80,7 @@ type field struct {
 
 func structFields(typ reflect.Type) (fields []field, err error) {
 	for i := 0; i < typ.NumField(); i++ {
-		if f := typ.Field(i);f.PkgPath == "" { // exported
+		if f := typ.Field(i); f.PkgPath == "" { // exported
 			tags, err := parseStructTag(typ, i)
 			if err != nil {
 				return nil, err
