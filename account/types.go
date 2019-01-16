@@ -9,24 +9,42 @@ var (
 	ErrGenIdentityKey = errors.New("ErrGenIdentityKey")
 )
 
-//ShardKeyType shardKey type uint32
-type ShardKeyType uint32
+//ShardKey shardKey type uint32
+type ShardKey uint32
 
 //DefaultKeyStoreDirectory default keystore dir
-const DefaultKeyStoreDirectory = "./keystore/"
+const (
+	DefaultKeyStoreDirectory = "./keystore/"
+	kdfParamsPrf="prf"
+	kdfParamsPrfValue="hmac-sha256"
+	kdfParamsPrfDkLen="dklen"
+	kdfParamsPrfDkLenValue=32
+	kdfParamsC="c"
+	kdfParamsCValue=262144
+	kdfParamsSalt="salt"
+
+	cryptoKDF="pbkdf2"
+	cryptoCipher="aes-128-ctr"
+	cryptoVersion=1
+
+	jsonVersion=3
+
+)
 
 const (
 	//RecipientLength recipient length
 	RecipientLength = 20
 	//KeyLength key length
 	KeyLength = 32
+	//FullShardKeyLength
+	FullShardKeyLength=4
 )
 
-//RecipientType recipient type
-type RecipientType [RecipientLength]byte
+//Recipient recipient type
+type Recipient [RecipientLength]byte
 
 //SetBytes set bytes to it's value
-func (a *RecipientType) SetBytes(b []byte) {
+func (a *Recipient) SetBytes(b []byte) {
 	if len(b) > len(a) {
 		b = b[len(b)-RecipientLength:]
 	}
@@ -34,22 +52,22 @@ func (a *RecipientType) SetBytes(b []byte) {
 }
 
 //Bytes return it's bytes
-func (a RecipientType) Bytes() []byte {
+func (a Recipient) Bytes() []byte {
 	return a[:]
 }
 
-//BytesToIdentityRecipient trans bytes to RecipientType
-func BytesToIdentityRecipient(b []byte) RecipientType {
-	var a RecipientType
+//BytesToIdentityRecipient trans bytes to Recipient
+func BytesToIdentityRecipient(b []byte) Recipient {
+	var a Recipient
 	a.SetBytes(b)
 	return a
 }
 
-//KeyType key type
-type KeyType [KeyLength]byte
+//Key key type
+type Key [KeyLength]byte
 
 //SetBytes set bytes to it's value
-func (a *KeyType) SetBytes(b []byte) {
+func (a *Key) SetBytes(b []byte) {
 	if len(b) > len(a) {
 		b = b[len(b)-KeyLength:]
 	}
@@ -57,13 +75,13 @@ func (a *KeyType) SetBytes(b []byte) {
 }
 
 //Bytes return it's bytes
-func (a KeyType) Bytes() []byte {
+func (a Key) Bytes() []byte {
 	return a[:]
 }
 
-//BytesToIdentityKey trans bytes to KeyType
-func BytesToIdentityKey(b []byte) KeyType {
-	var a KeyType
+//BytesToIdentityKey trans bytes to Key
+func BytesToIdentityKey(b []byte) Key {
+	var a Key
 	a.SetBytes(b)
 	return a
 }

@@ -24,7 +24,7 @@ func CheckAddressUnitTest(data AddressTestStruct) bool {
 	tAddress := Address{}
 	switch data.Type {
 	case "empty":
-		tAddress = CreatEmptyAddress(ShardKeyType(data.FullShardKey)) //test creatEmptyAccount
+		tAddress = CreatEmptyAddress(ShardKey(data.FullShardKey)) //test creatEmptyAccount
 	case "bs":
 		bs, err := hex.DecodeString(data.TKey)
 		if err != nil {
@@ -43,7 +43,7 @@ func CheckAddressUnitTest(data AddressTestStruct) bool {
 			return false
 		}
 		tIdentity, err := CreatIdentityFromKey(BytesToIdentityKey(tkey))
-		tAddress = CreatAddressFromIdentity(tIdentity, ShardKeyType(data.FullShardKey))
+		tAddress = CreatAddressFromIdentity(tIdentity, ShardKey(data.FullShardKey))
 	}
 
 	if tAddress.IsEmpty() != data.IsEmpty { //checkIsEmpty
@@ -55,7 +55,7 @@ func CheckAddressUnitTest(data AddressTestStruct) bool {
 		fmt.Println("toHex is not match")
 		return false
 	}
-	fullShardID, err := tAddress.GetFullShardID(ShardKeyType(data.FullSizeData)) //checkFullSizeData
+	fullShardID, err := tAddress.GetFullShardID(ShardKey(data.FullSizeData)) //checkFullSizeData
 	if err != nil {
 		fmt.Println("GetFullShardID err", err)
 		return false
@@ -67,7 +67,7 @@ func CheckAddressUnitTest(data AddressTestStruct) bool {
 	}
 
 	tBranch := Branch{
-		Value: ShardKeyType(data.BranchData),
+		Value: ShardKey(data.BranchData),
 	}
 	addressInBranch := tAddress.AddressInBranch(tBranch) //check address's toHex depend addressInBranch
 	toHex = addressInBranch.ToHex()
@@ -76,7 +76,7 @@ func CheckAddressUnitTest(data AddressTestStruct) bool {
 		return false
 	}
 
-	addressInShard := tAddress.AddressInShard(ShardKeyType(data.TShard)) //checkShardIDInBranch
+	addressInShard := tAddress.AddressInShard(ShardKey(data.TShard)) //checkShardIDInBranch
 	toHex = addressInShard.ToHex()
 	if hex.EncodeToString(toHex) != data.ShardToHex {
 		fmt.Printf("addressInShard is not match : unexcepted %s,excepted %s\n", hex.EncodeToString(toHex), data.ShardToHex)
@@ -110,5 +110,5 @@ func TestAddress(t *testing.T) {
 		}
 		count++
 	}
-	fmt.Println("success test num:", count)
+	fmt.Println("TestAddress:success test num:", count)
 }

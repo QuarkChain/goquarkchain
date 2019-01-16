@@ -6,40 +6,40 @@ import (
 
 //Branch branch include it's value
 type Branch struct {
-	Value ShardKeyType
+	Value ShardKey
 }
 
 //NewBranch new branch with value
-func NewBranch(value ShardKeyType) Branch {
+func NewBranch(value ShardKey) Branch {
 	return Branch{
 		Value: value,
 	}
 }
 
 //GetChainID get branch's chainID
-func (Self *Branch) GetChainID() ShardKeyType {
+func (Self *Branch) GetChainID() ShardKey {
 	return Self.Value >> 16
 }
 
 //GetShardSize get branch's shardSize
-func (Self *Branch) GetShardSize() ShardKeyType {
+func (Self *Branch) GetShardSize() ShardKey {
 	branchValue := Self.Value & ((1 << 16) - 1)
 	return 1 << (IntLeftMostBit(branchValue) - 1)
 }
 
 //GetFullShardID get branch's fullShardId
-func (Self *Branch) GetFullShardID() ShardKeyType {
+func (Self *Branch) GetFullShardID() ShardKey {
 	return Self.Value
 }
 
 //GetShardID get branch branch's shardID
-func (Self *Branch) GetShardID() ShardKeyType {
+func (Self *Branch) GetShardID() ShardKey {
 	branchValue := Self.Value & ((1 << 16) - 1)
 	return branchValue ^ Self.GetShardSize()
 }
 
 //IsInBranch check shardKey is in current branch
-func (Self *Branch) IsInBranch(fullShardKey ShardKeyType) bool {
+func (Self *Branch) IsInBranch(fullShardKey ShardKey) bool {
 	chainIDMatch := (fullShardKey >> 16) == Self.GetChainID()
 	if chainIDMatch == false {
 		return false
@@ -48,7 +48,7 @@ func (Self *Branch) IsInBranch(fullShardKey ShardKeyType) bool {
 }
 
 //CreatBranch create branch depend shardSize and shardID
-func CreatBranch(shardSize ShardKeyType, shardID ShardKeyType) (Branch, error) {
+func CreatBranch(shardSize ShardKey, shardID ShardKey) (Branch, error) {
 	if IsP2(shardSize) == false {
 		return Branch{}, errors.New("shardSize is not correct")
 	}

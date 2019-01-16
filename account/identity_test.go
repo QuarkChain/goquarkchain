@@ -49,6 +49,6 @@ func TestIdentity(t *testing.T) {
 		}
 		count++
 	}
-	fmt.Println("success test num:", count)
+	fmt.Println("TestIdentity:success test num:", count)
 
 }

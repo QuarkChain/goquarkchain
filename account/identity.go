@@ -7,17 +7,17 @@ import (
 	"encoding/binary"
 	"fmt"
 	"github.com/ethereum/go-ethereum/crypto"
-	"strings"
+	"math/big"
 )
 
 //Identity include recipient and key
 type Identity struct {
-	Recipient RecipientType
-	Key       KeyType
+	Recipient Recipient
+	Key       Key
 }
 
 //NewIdentity new identity include recipient and key
-func NewIdentity(recipient RecipientType, key KeyType) Identity {
+func NewIdentity(recipient Recipient, key Key) Identity {
 	return Identity{
 		Recipient: recipient,
 		Key:       key,
@@ -30,6 +30,7 @@ func CreatRandomIdentity() (Identity, error) {
 	if err != nil {
 		return Identity{}, ErrGenIdentityKey
 	}
+
 	key := crypto.FromECDSA(sk)
 	if len(key) != KeyLength {
 		return Identity{}, fmt.Errorf("privateKey To Bytes falied: unexceptd %d ,excepted 32", len(key))
@@ -42,17 +43,17 @@ func CreatRandomIdentity() (Identity, error) {
 }
 
 //CreatIdentityFromKey creat identity from key
-func CreatIdentityFromKey(key KeyType) (Identity, error) {
-	keys := key.Bytes()
-	realKey := make([]byte, 8)
-	realKey = append(realKey, keys...)
-	sk, err := ecdsa.GenerateKey(crypto.S256(), strings.NewReader(string(realKey)))
-	if err != nil {
-		return Identity{}, ErrGenIdentityKey
-	}
+func CreatIdentityFromKey(key Key) (Identity, error) {
+	keyValue:=big.NewInt(0)
+	keyValue.SetBytes(key.Bytes())
+	sk := new(ecdsa.PrivateKey)
+	sk.PublicKey.Curve = crypto.S256()
+	sk.D = keyValue
+	sk.PublicKey.X, sk.PublicKey.Y =  crypto.S256().ScalarBaseMult(keyValue.Bytes())
 	if len(crypto.FromECDSAPub(&sk.PublicKey)) != 2*KeyLength+1 {
 		return Identity{}, fmt.Errorf("fromECDSAPub len is not match :unexcepted %d,excepted %d", len(crypto.FromECDSAPub(&sk.PublicKey)), 2*KeyLength+1)
 	}
+
 	recipient := crypto.Keccak256(crypto.FromECDSAPub(&sk.PublicKey)[1:]) //"0x04"+64
 	if len(recipient) != KeyLength {
 		return Identity{}, fmt.Errorf("recipient len is not match:unexceptd %d,exceptd 65", len(recipient))
@@ -61,14 +62,13 @@ func CreatIdentityFromKey(key KeyType) (Identity, error) {
 }
 
 //GetDefaultFullShardKey get identity's default fullShardKey
-func (Self *Identity) GetDefaultFullShardKey() (ShardKeyType, error) {
-	var fullShardKey ShardKeyType
+func (Self *Identity) GetDefaultFullShardKey() (ShardKey, error) {
+	var fullShardKey ShardKey
 	r := Self.Recipient
-	real := []byte{0x00, 0x00}
-	real = append(real, r[0:1]...)
-	real = append(real, r[10:11]...)
-
-	buffer := bytes.NewBuffer(real)
+	realShardKey := []byte{0x00, 0x00}
+	realShardKey = append(realShardKey, r[0:1]...)
+	realShardKey = append(realShardKey, r[10:11]...)
+	buffer := bytes.NewBuffer(realShardKey)
 	err := binary.Read(buffer, binary.BigEndian, &fullShardKey)
 	if err != nil {
 		return fullShardKey, err
@@ -77,11 +77,11 @@ func (Self *Identity) GetDefaultFullShardKey() (ShardKeyType, error) {
 }
 
 //GetRecipient Get it's recipient
-func (Self *Identity) GetRecipient() RecipientType {
+func (Self *Identity) GetRecipient() Recipient {
 	return Self.Recipient
 }
 
 //GetKey get it's key
-func (Self *Identity) GetKey() KeyType {
+func (Self *Identity) GetKey() Key {
 	return Self.Key
 }

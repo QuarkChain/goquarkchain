@@ -39,6 +39,7 @@ type CryptoJSON struct {
 	MAC          string                 `json:"mac"`
 	Version      int                    `json:"version"`
 }
+
 type cipherParamsJSON struct {
 	IV string `json:"iv"`
 }
@@ -52,15 +53,17 @@ func newAccount(identity Identity, address Address) Account {
 }
 
 //NewAccountWithKey create new account with key
-func NewAccountWithKey(key KeyType) (Account, error) {
+func NewAccountWithKey(key Key) (Account, error) {
 	identity, err := CreatIdentityFromKey(key)
 	if err != nil {
 		return Account{}, err
 	}
+
 	defaultFullShardKey, err := identity.GetDefaultFullShardKey()
 	if err != nil {
 		return Account{}, err
 	}
+
 	address := CreatAddressFromIdentity(identity, defaultFullShardKey)
 	return newAccount(identity, address), nil
 }
@@ -71,10 +74,12 @@ func NewAccountWithoutKey() (Account, error) {
 	if err != nil {
 		return Account{}, err
 	}
+
 	defaultFullShardKey, err := identity.GetDefaultFullShardKey()
 	if err != nil {
 		return Account{}, err
 	}
+
 	address := CreatAddressFromIdentity(identity, defaultFullShardKey)
 	return newAccount(identity, address), nil
 }
@@ -85,12 +90,14 @@ func Load(path string, password string) (Account, error) {
 	if err != nil {
 		return Account{}, err
 	}
+
 	var keystoreJSONData EncryptedKeyJSON
 	err = json.Unmarshal(jsonData, &keystoreJSONData)
 	key, err := DecodeKeyStoreJSON(keystoreJSONData, password)
 	if err != nil {
 		return Account{}, err
 	}
+
 	account, err := NewAccountWithKey(BytesToIdentityKey(key))
 	if err != nil {
 		return Account{}, err
@@ -104,40 +111,42 @@ func Load(path string, password string) (Account, error) {
 //DecodeKeyStoreJSON decode key with password ,return plainText to create account
 func DecodeKeyStoreJSON(keystoreJSONData EncryptedKeyJSON, password string) ([]byte, error) {
 	kdfParams := keystoreJSONData.Crypto.KDFParams
-	c := ensureInt(kdfParams["c"])
-	salt, err := hex.DecodeString(kdfParams["salt"].(string))
+	c := ensureInt(kdfParams[kdfParamsC])
+	salt, err := hex.DecodeString(kdfParams[kdfParamsSalt].(string))
 	if err != nil {
 		return []byte{}, err
 	}
-	dkLen := ensureInt(kdfParams["dklen"])
 
+	dkLen := ensureInt(kdfParams[kdfParamsPrfDkLen])
 	derivedKey := pbkdf2.Key([]byte(password), salt, c, dkLen, sha256.New)
 	if len(derivedKey) < 32 { // derived key must be at least 32 bytes long
 		return []byte{}, errors.New("derivedkey<32")
 	}
+
 	iv, err := hex.DecodeString(keystoreJSONData.Crypto.CipherParams.IV)
 	if err != nil {
 		return []byte{}, err
 	}
+
 	cipherText, err := hex.DecodeString(keystoreJSONData.Crypto.CipherText)
 	if err != nil {
 		return []byte{}, err
 	}
+
 	mac := crypto.Keccak256(derivedKey[16:32], cipherText)
 	macJSON, err := hex.DecodeString(keystoreJSONData.Crypto.MAC)
 	if err != nil {
 		return []byte{}, errors.New("decode Mac failed")
 	}
-
 	if !bytes.Equal(mac, macJSON) {
 		return []byte{}, errors.New("mac is not match")
 	}
+
 	plainText, err := aesCTRXOR(derivedKey[:16], cipherText, iv)
 	if err != nil {
 		return []byte{}, err
 	}
 	return plainText, nil
-
 }
 
 //Dump dump a keystore file with it's password
@@ -150,6 +159,7 @@ func (Self *Account) Dump(password string, includeAddress bool, write bool, dire
 		address := Self.Address()
 		keystoreJSON.Address = address
 	}
+
 	data, err := json.Marshal(keystoreJSON)
 	if err != nil {
 		return []byte{}, err
@@ -158,6 +168,7 @@ func (Self *Account) Dump(password string, includeAddress bool, write bool, dire
 		if directory == "" {
 			directory = DefaultKeyStoreDirectory
 		}
+
 		filepath := directory + Self.ID.String() + ".json"
 		err := writeKeyFile(filepath, data)
 		if err != nil {
@@ -173,17 +184,19 @@ func (Self *Account) MakeKeyStoreJSON(password string) (EncryptedKeyJSON, error)
 	if _, err := io.ReadFull(rand.Reader, salt); err != nil {
 		return EncryptedKeyJSON{}, errors.New("get salt failed")
 	}
+
 	kdfParams := make(map[string]interface{}, 5)
-	kdfParams["prf"] = "hmac-sha256"
-	kdfParams["dklen"] = 32
-	kdfParams["c"] = 262144
-	kdfParams["salt"] = hex.EncodeToString(salt)
-	derivedKey := pbkdf2.Key([]byte(password), salt, 262144, 32, sha256.New)
+	kdfParams[kdfParamsPrf] =kdfParamsPrfValue
+	kdfParams[kdfParamsPrfDkLen] = kdfParamsPrfDkLenValue
+	kdfParams[kdfParamsC] = kdfParamsCValue
+	kdfParams[kdfParamsSalt] = hex.EncodeToString(salt)
+	derivedKey := pbkdf2.Key([]byte(password), salt, kdfParamsCValue, kdfParamsPrfDkLenValue, sha256.New)
 	encKey := derivedKey[:16]
 	cipherParams := make([]byte, 16)
 	if _, err := io.ReadFull(rand.Reader, cipherParams); err != nil {
 		return EncryptedKeyJSON{}, errors.New("get cipherparams failed")
 	}
+
 	cipherText, err := aesCTRXOR(encKey, Self.Identity.Key.Bytes(), cipherParams)
 	if err != nil {
 		return EncryptedKeyJSON{}, errors.New("aes error")
@@ -191,22 +204,21 @@ func (Self *Account) MakeKeyStoreJSON(password string) (EncryptedKeyJSON, error)
 
 	mac := crypto.Keccak256(derivedKey[16:32], cipherText)
 	cryptoData := CryptoJSON{
-		Cipher:     "aes-128-ctr",
+		Cipher:     cryptoCipher,
 		CipherText: hex.EncodeToString(cipherText),
 		CipherParams: cipherParamsJSON{
 			IV: hex.EncodeToString(cipherParams),
 		},
-		KDF:       "pbkdf2",
+		KDF:       cryptoKDF,
 		KDFParams: kdfParams,
 		MAC:       hex.EncodeToString(mac),
-		Version:   1,
+		Version:   cryptoVersion,
 	}
 	return EncryptedKeyJSON{
 		ID:      Self.ID.String(),
 		Crypto:  cryptoData,
-		Version: 3,
+		Version: jsonVersion,
 	}, nil
-
 }
 
 //Address return it's real address

@@ -87,7 +87,7 @@ func TestAccount(t *testing.T) {
 		}
 		count++
 	}
-	fmt.Println("success test num:", count)
+	fmt.Println("TestAccount:success test num:", count)
 }
 
 //1.dump file

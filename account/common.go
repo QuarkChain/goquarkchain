@@ -19,18 +19,18 @@ func Uint32ToBytes(n uint32) []byte {
 }
 
 //IsP2 is check num is 2^x
-func IsP2(shardSize ShardKeyType) bool {
+func IsP2(shardSize ShardKey) bool {
 	return (shardSize & (shardSize - 1)) == 0
 }
 
 //IntLeftMostBit left most bit
-func IntLeftMostBit(v ShardKeyType) ShardKeyType {
+func IntLeftMostBit(v ShardKey) ShardKey {
 	b := 0
 	for v != 0 {
 		v /= 2
 		b++
 	}
-	return ShardKeyType(b)
+	return ShardKey(b)
 }
 
 func writeTemporaryKeyFile(file string, content []byte) (string, error) {

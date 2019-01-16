@@ -39,31 +39,31 @@ type BranchTestStruct struct {
 }
 
 func CheckBranchUnitTest(data BranchTestStruct) bool {
-	tempBranch, err := CreatBranch(ShardKeyType(data.Size), ShardKeyType(data.Key)) //create branch depend on special size ans key
+	tempBranch, err := CreatBranch(ShardKey(data.Size), ShardKey(data.Key)) //create branch depend on special size ans key
 	if err != nil {
 		fmt.Printf("CreatBranch err %v\n", err)
 		return false
 	}
-	if tempBranch.GetChainID() != ShardKeyType(data.ChainID) { //checkGetChainID
+	if tempBranch.GetChainID() != ShardKey(data.ChainID) { //checkGetChainID
 		fmt.Printf("chainId is not match: unexcepted %d,except %d\n", tempBranch.GetChainID(), data.ChainID)
 		return false
 	}
-	if tempBranch.GetShardSize() != ShardKeyType(data.GetSize) { //checkGetShardSize
+	if tempBranch.GetShardSize() != ShardKey(data.GetSize) { //checkGetShardSize
 		fmt.Printf("ShardSze is not match: unexcepted %d,excepted %d\n", tempBranch.GetShardSize(), data.GetSize)
 		return false
 	}
 
-	if tempBranch.GetShardID() != ShardKeyType(data.ShardID) { //checkGetShardID
+	if tempBranch.GetShardID() != ShardKey(data.ShardID) { //checkGetShardID
 		fmt.Printf("shardid is not match: unexcepted %d,excepted %d\n", tempBranch.GetShardID(), data.ShardID)
 		return false
 	}
 
-	if tempBranch.IsInBranch(ShardKeyType(data.TestIsInBranch)) != data.IsInBranch { //checkIsInBranch
-		fmt.Printf("isInBranch is not match: unexcepted %t,excepted %t\n", tempBranch.IsInBranch(ShardKeyType(data.TestIsInBranch)), data.IsInBranch)
+	if tempBranch.IsInBranch(ShardKey(data.TestIsInBranch)) != data.IsInBranch { //checkIsInBranch
+		fmt.Printf("isInBranch is not match: unexcepted %t,excepted %t\n", tempBranch.IsInBranch(ShardKey(data.TestIsInBranch)), data.IsInBranch)
 		return false
 	}
 
-	if tempBranch.GetFullShardID() != ShardKeyType(data.FullShardID) { //checkGetFullShardID
+	if tempBranch.GetFullShardID() != ShardKey(data.FullShardID) { //checkGetFullShardID
 		fmt.Printf("full shard id is not match: unexcepted %d,excepted %d\n", tempBranch.GetFullShardID(), data.FullShardID)
 		return false
 	}
@@ -93,5 +93,5 @@ func TestBranch(t *testing.T) {
 		}
 		count++
 	}
-	fmt.Println("success test num:", count)
+	fmt.Println("TestBranch:success test num:", count)
 }
