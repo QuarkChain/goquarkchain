@@ -10,9 +10,10 @@ jobs:
             - go-mod-v2-{{ checksum "go.sum" }}
       # Build qkchash c++
       - run: cd consensus/qkchash/native && make && cd -
+      # Get linter bin and run it
+      - run: go get -u github.com/golang/lint/golint && ./lint.sh
       - run: go vet ./...
       - run: go test ./...
-      - run: ./lint.sh
       - save_cache:
           key: go-mod-v2-{{ checksum "go.sum" }}
           paths:
