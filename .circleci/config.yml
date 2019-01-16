@@ -10,6 +10,7 @@ jobs:
             - go-mod-v2-{{ checksum "go.sum" }}
       # Build qkchash c++
       - run: cd consensus/qkchash/native && make && cd -
+      - run: ./lint.sh
       - run: go vet ./...
       - run: go test ./...
       - save_cache:

@@ -8,6 +8,7 @@ import (
 	"github.com/tecbot/gorocksdb"
 )
 
+// RDBDatabase wraps rocksdb.
 type RDBDatabase struct {
 	fn string        // filename for reporting
 	db *gorocksdb.DB // RocksDB instance
@@ -73,6 +74,7 @@ func (db *RDBDatabase) Put(key []byte, value []byte) error {
 	return db.db.Put(db.wo, key, value)
 }
 
+// Has checks key existence.
 func (db *RDBDatabase) Has(key []byte) (bool, error) {
 	_, err := db.Get(key)
 	if err != nil {
@@ -101,6 +103,7 @@ func (db *RDBDatabase) Delete(key []byte) error {
 	return db.db.Delete(db.wo, key)
 }
 
+// NewIterator returns a new iterator.
 func (db *RDBDatabase) NewIterator() *gorocksdb.Iterator {
 	return db.db.NewIterator(db.ro)
 }
@@ -112,6 +115,7 @@ func (db *RDBDatabase) NewIteratorWithPrefix(prefix []byte) *gorocksdb.Iterator 
 	return it
 }
 
+// Close will close the db instance.
 func (db *RDBDatabase) Close() {
 	// Stop the metrics collection to avoid internal database races
 	db.quitLock.Lock()
@@ -133,6 +137,7 @@ func (db *RDBDatabase) Close() {
 	}
 }
 
+// NewBatch returns a new DB batch.
 func (db *RDBDatabase) NewBatch() Batch {
 	return &rdbBatch{db: db.db /*ro: db.ro,*/, wo: db.wo, w: gorocksdb.NewWriteBatch()}
 }
