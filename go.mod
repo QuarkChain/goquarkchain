@@ -19,7 +19,9 @@ require (
 	github.com/syndtr/goleveldb v0.0.0-20181128100959-b001fa50d6b2 // indirect
 	github.com/tecbot/gorocksdb v0.0.0-20180907100951-214b6b7bc0f0
 	golang.org/x/crypto v0.0.0-20190103213133-ff983b9c42bc // indirect
+	golang.org/x/lint v0.0.0-20181217174547-8f45f776aaf1 // indirect
 	golang.org/x/net v0.0.0-20181217023233-e147a9138326 // indirect
 	golang.org/x/sys v0.0.0-20181221143128-b4a75ba826a6 // indirect
+	golang.org/x/tools v0.0.0-20190116231616-b258f6da2383 // indirect
 	gopkg.in/check.v1 v1.0.0-20180628173108-788fd7840127 // indirect
 )
