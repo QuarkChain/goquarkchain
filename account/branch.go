@@ -1,0 +1,56 @@
+package account
+
+import (
+	"errors"
+)
+
+//Branch branch include it's value
+type Branch struct {
+	Value ShardKey
+}
+
+//NewBranch new branch with value
+func NewBranch(value ShardKey) Branch {
+	return Branch{
+		Value: value,
+	}
+}
+
+//GetChainID get branch's chainID
+func (Self *Branch) GetChainID() ShardKey {
+	return Self.Value >> 16
+}
+
+//GetShardSize get branch's shardSize
+func (Self *Branch) GetShardSize() ShardKey {
+	branchValue := Self.Value & ((1 << 16) - 1)
+	return 1 << (IntLeftMostBit(branchValue) - 1)
+}
+
+//GetFullShardID get branch's fullShardId
+func (Self *Branch) GetFullShardID() ShardKey {
+	return Self.Value
+}
+
+//GetShardID get branch branch's shardID
+func (Self *Branch) GetShardID() ShardKey {
+	branchValue := Self.Value & ((1 << 16) - 1)
+	return branchValue ^ Self.GetShardSize()
+}
+
+//IsInBranch check shardKey is in current branch
+func (Self *Branch) IsInBranch(fullShardKey ShardKey) bool {
+	chainIDMatch := (fullShardKey >> 16) == Self.GetChainID()
+	if chainIDMatch == false {
+		return false
+	}
+	return (fullShardKey & (Self.GetShardSize() - 1)) == Self.GetShardID()
+}
+
+//CreatBranch create branch depend shardSize and shardID
+func CreatBranch(shardSize ShardKey, shardID ShardKey) (Branch, error) {
+	if IsP2(shardSize) == false {
+		return Branch{}, errors.New("shardSize is not correct")
+	}
+	return NewBranch(shardSize | shardID), nil
+}
