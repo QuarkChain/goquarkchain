@@ -36,7 +36,7 @@ type ShardGenesis struct {
 
 type ShardConfig struct {
 	// Only set when CONSENSUS_TYPE is not NONE
-	ConsensusType   string        `json:"CONSENSUS_TYPE"`
+	ConsensusType   int           `json:"CONSENSUS_TYPE"`
 	ConsensusConfig *POWConfig    `json:"CONSENSUS_CONFIG"` // POWconfig
 	Genesis         *ShardGenesis `json:"GENESIS"`          // ShardGenesis
 	// TODO coinbase address shuild to be redesigned.
@@ -56,7 +56,7 @@ type ShardConfig struct {
 
 func NewShardConfig() *ShardConfig {
 	sharding := &ShardConfig{
-		ConsensusType:                      DefaultConsensusJSONType.NONE,
+		ConsensusType:                      NONE,
 		ConsensusConfig:                    nil,
 		CoinbaseAddress:                    "",
 		CoinbaseAmount:                     5 * math.Pow10(18),

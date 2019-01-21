@@ -5,26 +5,20 @@ import (
 	"math"
 )
 
+const (
+	NONE = iota
+	POW_ETHASH
+	POW_SHA3SHA3
+	POW_SIMULATE
+	POW_QKCHASH
+)
+
 var (
 	HOST                  = "127.0.0.1"
 	PORT             uint = 38291
 	DefaultPowConfig      = POWConfig{
 		TargetBlockTime: 10,
 		RemoteMine:      false,
-	}
-	DefaultConsensusJSONType = ConsensusJSONType{
-		NONE:             "",
-		POW_ETHASH:       "POW_ETHASH",
-		POW_DOUBLESHA256: "POW_DOUBLESHA256",
-		POW_SIMULATE:     "POW_SIMULATE",
-		POW_QKCHASH:      "POW_QKCHASH",
-	}
-	DefaultConsensusType = ConsensusType{
-		NONE:             0,
-		POW_ETHASH:       1,
-		POW_DOUBLESHA256: 2,
-		POW_SIMULATE:     3,
-		POW_QKCHASH:      4,
 	}
 	DefaultRootGenesis = RootGenesis{
 		Version:        0,
@@ -38,7 +32,7 @@ var (
 	}
 	DefaultRootConfig = RootConfig{
 		MaxStaleRootBlockHeightDiff: 60,
-		ConsensusType:               DefaultConsensusJSONType.NONE,
+		ConsensusType:               NONE,
 		ConsensusConfig:             nil,
 		Genesis:                     nil,
 		// TODO shuld replace with the real address realization.
@@ -114,22 +108,6 @@ type SimpleNetwork struct {
 	BootstrapPort uint   `json:"BOOT_STRAP_PORT"`
 }
 
-type ConsensusJSONType struct {
-	NONE             string
-	POW_ETHASH       string
-	POW_DOUBLESHA256 string
-	POW_SIMULATE     string
-	POW_QKCHASH      string
-}
-
-type ConsensusType struct {
-	NONE             uint
-	POW_ETHASH       uint
-	POW_DOUBLESHA256 uint
-	POW_SIMULATE     uint
-	POW_QKCHASH      uint
-}
-
 type RootGenesis struct {
 	Version        int    `json:"VERSION"`
 	Height         int    `json:"HEIGHT"`
@@ -145,7 +123,7 @@ type RootConfig struct {
 	// To ignore super old blocks from peers
 	// This means the network will fork permanently after a long partitio
 	MaxStaleRootBlockHeightDiff    int          `json:"MAX_STALE_ROOT_BLOCK_HEIGHT_DIFF"`
-	ConsensusType                  string       `json:"CONSENSUS_TYPE"`
+	ConsensusType                  int       `json:"CONSENSUS_TYPE"`
 	ConsensusConfig                *POWConfig   `json:"CONSENSUS_CONFIG"`
 	Genesis                        *RootGenesis `json:"GENESIS"`
 	CoinbaseAddress                string       `json:"COINBASE_ADDRESS"`
@@ -157,7 +135,7 @@ type RootConfig struct {
 func NewRootConfig() *RootConfig {
 	return &RootConfig{
 		MaxStaleRootBlockHeightDiff: 60,
-		ConsensusType:               DefaultConsensusJSONType.NONE,
+		ConsensusType:               NONE,
 		ConsensusConfig:             nil,
 		Genesis:                     &DefaultRootGenesis,
 		// TODO address serialization type shuld to be replaced
@@ -311,14 +289,14 @@ func NewQuarkChainConfig() *QuarkChainConfig {
 		ShardList:                         make([]*ShardConfig, DefaultQuatrain.ShardSize),
 		RewardTaxRate:                     0.5,
 	}
-	quark.Root.ConsensusType = DefaultConsensusJSONType.POW_SIMULATE
+	quark.Root.ConsensusType = POW_SIMULATE
 	quark.Root.ConsensusConfig = &DefaultPowConfig
 	quark.Root.ConsensusConfig.TargetBlockTime = 10
 	quark.Root.Genesis.ShardSize = DefaultQuatrain.ShardSize
 	for i := DefaultQuatrain.ShardSize - 1; i >= 0; i-- {
 		s := NewShardConfig()
 		s.SetRootConfig(quark.Root)
-		s.ConsensusType = DefaultConsensusJSONType.POW_SIMULATE
+		s.ConsensusType = POW_SIMULATE
 		s.ConsensusConfig = &DefaultPowConfig
 		s.ConsensusConfig.TargetBlockTime = 3
 		quark.ShardList[i] = s
@@ -375,7 +353,7 @@ func (q *QuarkChainConfig) Update(shardSize, rootBlockTime, minorBlockTime int) 
 	if q.Root == nil {
 		q.Root = NewRootConfig()
 	}
-	q.Root.ConsensusType = DefaultConsensusJSONType.POW_SIMULATE
+	q.Root.ConsensusType = POW_SIMULATE
 	if q.Root.ConsensusConfig == nil {
 		q.Root.ConsensusConfig = &DefaultPowConfig
 	}
@@ -386,7 +364,7 @@ func (q *QuarkChainConfig) Update(shardSize, rootBlockTime, minorBlockTime int) 
 	for i := q.ShardSize - 1; i >= 0; i-- {
 		s := NewShardConfig()
 		s.SetRootConfig(q.Root)
-		s.ConsensusType = DefaultConsensusJSONType.POW_SIMULATE
+		s.ConsensusType = POW_SIMULATE
 		s.ConsensusConfig = &DefaultPowConfig
 		s.ConsensusConfig.TargetBlockTime = minorBlockTime
 		// TODO address serialization type shuld to be replaced
