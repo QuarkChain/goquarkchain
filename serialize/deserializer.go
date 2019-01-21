@@ -80,10 +80,10 @@ func deserializeUint(bb *ByteBuffer, val reflect.Value) error {
 	var err error
 	switch {
 	case kind > reflect.Uint && kind <= reflect.Uintptr:
-		bytes, err = bb.getBytes(val.Type().Bits() / 8)
+		bytes, err = bb.GetBytes(val.Type().Bits() / 8)
 		break
 	case kind == reflect.Uint:
-		bytes, err = bb.getVarBytes(1)
+		bytes, err = bb.GetVarBytes(1)
 		break
 	default:
 		err = fmt.Errorf("deser: invalid Uint type: %s", val.Type().Name())
@@ -102,7 +102,7 @@ func deserializeUint(bb *ByteBuffer, val reflect.Value) error {
 }
 
 func deserializeFixSizeBigUint(bb *ByteBuffer, val *big.Int, size int) error {
-	bytes, err := bb.getBytes(size)
+	bytes, err := bb.GetBytes(size)
 	if err == nil {
 		val.SetBytes(bytes)
 	}
@@ -115,7 +115,7 @@ func deserializeBigIntNoPtr(bb *ByteBuffer, val reflect.Value) error {
 }
 
 func deserializeBigInt(bb *ByteBuffer, val reflect.Value) error {
-	bytes, err := bb.getVarBytes(1)
+	bytes, err := bb.GetVarBytes(1)
 	if err != nil {
 		return err
 	}
@@ -131,7 +131,7 @@ func deserializeBigInt(bb *ByteBuffer, val reflect.Value) error {
 }
 
 func deserializeBool(bb *ByteBuffer, val reflect.Value) error {
-	b, err := bb.getBytes(1)
+	b, err := bb.GetBytes(1)
 	if err == nil {
 		switch b[0] {
 		case 0x00:
@@ -155,7 +155,7 @@ func deserializeByteArray(bb *ByteBuffer, val reflect.Value) error {
 		return fmt.Errorf("deser: invalid byte array type: [%d]%s", val.Len(), val.Kind())
 	}
 
-	bytes, err := bb.getBytes(val.Len())
+	bytes, err := bb.GetBytes(val.Len())
 	if err == nil {
 		reflect.Copy(val, reflect.ValueOf(bytes))
 	}
@@ -183,7 +183,7 @@ func deserializeByteSlice(bb *ByteBuffer, val reflect.Value) error {
 		return e
 	}
 
-	bytes, err := bb.getVarBytes(byteSize)
+	bytes, err := bb.GetVarBytes(byteSize)
 	if err == nil {
 		val.SetBytes(bytes)
 	}
@@ -242,7 +242,7 @@ func deserializeStruct(bb *ByteBuffer, val reflect.Value) error {
 }
 
 func deserializeString(bb *ByteBuffer, val reflect.Value) error {
-	b, err := bb.getVarBytes(4)
+	b, err := bb.GetVarBytes(4)
 	if err != nil {
 		return err
 	}
@@ -260,7 +260,7 @@ func makePtrDeserialize(typ reflect.Type, ts tags) (deserializer, error) {
 
 	deser := func(bb *ByteBuffer, val reflect.Value) error {
 		if ts.nilOK {
-			b, err := bb.getUInt8()
+			b, err := bb.GetUInt8()
 			if err != nil {
 				return err
 			}
