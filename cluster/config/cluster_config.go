@@ -42,9 +42,9 @@ var (
 		DifficultyAdjustmentFactor:     1024,
 	}
 	DefaultClusterConfig = ClusterConfig{
-		P2pPort:                  38291,
-		JsonRpcPort:              38291,
-		PrivateJsonRpcPort:       38291,
+		P2Port:                   38291,
+		JsonRPCPort:              38291,
+		PrivateJsonRPCPort:       38291,
 		EnableTransactionHistory: false,
 		DbPathRoot:               "./db",
 		LogLevel:                 "info",
@@ -55,7 +55,7 @@ var (
 		Master:                   nil,
 		SlaveList:                nil,
 		SimpleNetwork:            nil,
-		P2p:                      nil,
+		P2P:                      nil,
 		Monitoring:               nil,
 		jsonFilepath:             "",
 	}
@@ -85,7 +85,7 @@ var (
 		BootNodes:        "",
 		PrivKey:          "",
 		MaxPeers:         25,
-		Upnp:             false,
+		UPnP:             false,
 		AllowDialInRatio: 1.0,
 		PreferredNodes:   "",
 	}
@@ -123,7 +123,7 @@ type RootConfig struct {
 	// To ignore super old blocks from peers
 	// This means the network will fork permanently after a long partitio
 	MaxStaleRootBlockHeightDiff    int          `json:"MAX_STALE_ROOT_BLOCK_HEIGHT_DIFF"`
-	ConsensusType                  int       `json:"CONSENSUS_TYPE"`
+	ConsensusType                  int          `json:"CONSENSUS_TYPE"`
 	ConsensusConfig                *POWConfig   `json:"CONSENSUS_CONFIG"`
 	Genesis                        *RootGenesis `json:"GENESIS"`
 	CoinbaseAddress                string       `json:"COINBASE_ADDRESS"`
@@ -151,9 +151,9 @@ func (r *RootConfig) MaxRootBlocksInMemory() int {
 }
 
 type ClusterConfig struct {
-	P2pPort                  uint              `json:"P2P_PORT"`
-	JsonRpcPort              uint              `json:"JSON_RPC_PORT"`
-	PrivateJsonRpcPort       uint              `json:"PRIVATE_JSON_RPC_PORT"`
+	P2Port                   uint              `json:"P2P_PORT"`
+	JsonRPCPort              uint              `json:"JSON_RPC_PORT"`
+	PrivateJsonRPCPort       uint              `json:"PRIVATE_JSON_RPC_PORT"`
 	EnableTransactionHistory bool              `json:"ENABLE_TRANSACTION_HISTORY"`
 	DbPathRoot               string            `json:"DB_PATH_ROOT"`
 	LogLevel                 string            `json:"LOG_LEVEL"`
@@ -164,7 +164,7 @@ type ClusterConfig struct {
 	Master                   *MasterConfig     `json:"MASTER"`
 	SlaveList                []*SlaveConfig    `json:"SLAVE_LIST"`
 	SimpleNetwork            *SimpleNetwork    `json:"SIMPLE_NETWORK"`
-	P2p                      *P2PConfig        `json:"P2P"`
+	P2P                      *P2PConfig        `json:"P2P"`
 	Monitoring               *MonitoringConfig `json:"MONITORING"`
 	// TODO KafkaSampleLogger
 	//kafka_logger string
@@ -175,9 +175,9 @@ type ClusterConfig struct {
 
 func NewClusterConfig() ClusterConfig {
 	cluster := ClusterConfig{
-		P2pPort:                  38291,
-		JsonRpcPort:              38291,
-		PrivateJsonRpcPort:       38291,
+		P2Port:                   38291,
+		JsonRPCPort:              38291,
+		PrivateJsonRPCPort:       38291,
 		EnableTransactionHistory: false,
 		DbPathRoot:               "./data",
 		LogLevel:                 "info",
@@ -187,7 +187,7 @@ func NewClusterConfig() ClusterConfig {
 		Quarkchain:               NewQuarkChainConfig(),
 		Master:                   &DefaultMasterConfig,
 		SimpleNetwork:            &DefaultSimpleNetwork,
-		P2p:                      &DefaultP2PConfig,
+		P2P:                      &DefaultP2PConfig,
 		jsonFilepath:             "",
 		Monitoring:               &DfaultMonitoring,
 	}
@@ -200,8 +200,8 @@ func NewClusterConfig() ClusterConfig {
 }
 
 func (c *ClusterConfig) GetP2p() *P2PConfig {
-	if c.P2p != nil {
-		return c.P2p
+	if c.P2P != nil {
+		return c.P2P
 	}
 	return nil
 }
@@ -239,7 +239,7 @@ type P2PConfig struct {
 	BootNodes        string  `json:"BOOT_NODES"` // comma separated encodes format: encode://PUBKEY@IP:PORT
 	PrivKey          string  `json:"PRIV_KEY"`
 	MaxPeers         uint    `json:"MAX_PEERS"`
-	Upnp             bool    `json:"UPNP"`
+	UPnP             bool    `json:"UPNP"`
 	AllowDialInRatio float32 `json:"ALLOW_DIAL_IN_RATIO"`
 	PreferredNodes   string  `json:"PREFERRED_NODES"`
 }
@@ -268,7 +268,6 @@ type QuarkChainConfig struct {
 	Root                              *RootConfig    `json:"ROOT"`
 	ShardList                         []*ShardConfig `json:"SHARD_LIST"`
 	RewardTaxRate                     float32        `json:"REWARD_TAX_RATE"`
-	cachedGuardianPrivateKey          []byte
 	// local_accounts []
 }
 
