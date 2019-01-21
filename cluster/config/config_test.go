@@ -26,7 +26,7 @@ func TestClusterConfig(t *testing.T) {
 	if slaveList == nil {
 		t.Fatalf("slave should not to be empty.")
 	}
-	p2p := data.GetP2p()
+	p2p := data.GetP2P()
 	if p2p == nil {
 		t.Fatalf("")
 	}

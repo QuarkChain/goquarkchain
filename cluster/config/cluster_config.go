@@ -75,8 +75,8 @@ var (
 		BlockExtraDataSizeLimit:           1024,
 		GuardianPublicKey:                 "ab856abd0983a82972021e454fcf66ed5940ed595b0898bcd75cbe2d0a51a00f5358b566df22395a2a8bf6c022c1d51a2c3defe654e91a8d244947783029694d",
 		GuardianPrivateKey:                nil,
-		P2pProtocolVersion:                0,
-		P2pCommandSizeLimit:               (1 << 32) - 1,
+		P2ProtocolVersion:                 0,
+		P2PCommandSizeLimit:               (1 << 32) - 1,
 		SkipRootDifficultyCheck:           false,
 		SkipMinorDifficultyCheck:          false,
 		RewardTaxRate:                     0.5,
@@ -199,7 +199,7 @@ func NewClusterConfig() ClusterConfig {
 	return cluster
 }
 
-func (c *ClusterConfig) GetP2p() *P2PConfig {
+func (c *ClusterConfig) GetP2P() *P2PConfig {
 	if c.P2P != nil {
 		return c.P2P
 	}
@@ -261,8 +261,8 @@ type QuarkChainConfig struct {
 	BlockExtraDataSizeLimit           int            `json:"BLOCK_EXTRA_DATA_SIZE_LIMIT"`
 	GuardianPublicKey                 string         `json:"GUARDIAN_PUBLIC_KEY"`
 	GuardianPrivateKey                []byte         `json:"GUARDIAN_PRIVATE_KEY"`
-	P2pProtocolVersion                int            `json:"P2P_PROTOCOL_VERSION"`
-	P2pCommandSizeLimit               int            `json:"P2P_COMMAND_SIZE_LIMIT"`
+	P2ProtocolVersion                 int            `json:"P2P_PROTOCOL_VERSION"`
+	P2PCommandSizeLimit               int            `json:"P2P_COMMAND_SIZE_LIMIT"`
 	SkipRootDifficultyCheck           bool           `json:"SKIP_ROOT_DIFFICULTY_CHECK"`
 	SkipMinorDifficultyCheck          bool           `json:"SKIP_MINOR_DIFFICULTY_CHECK"`
 	Root                              *RootConfig    `json:"ROOT"`
@@ -280,8 +280,8 @@ func NewQuarkChainConfig() *QuarkChainConfig {
 		BlockExtraDataSizeLimit:           1024,
 		GuardianPublicKey:                 "ab856abd0983a82972021e454fcf66ed5940ed595b0898bcd75cbe2d0a51a00f5358b566df22395a2a8bf6c022c1d51a2c3defe654e91a8d244947783029694d",
 		GuardianPrivateKey:                nil,
-		P2pProtocolVersion:                0,
-		P2pCommandSizeLimit:               (1 << 32) - 1,
+		P2ProtocolVersion:                 0,
+		P2PCommandSizeLimit:               (1 << 32) - 1,
 		SkipRootDifficultyCheck:           false,
 		SkipMinorDifficultyCheck:          false,
 		Root:                              NewRootConfig(),
