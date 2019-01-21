@@ -3,34 +3,30 @@ package account
 import (
 	"crypto/aes"
 	"crypto/cipher"
+	"crypto/ecdsa"
+	"encoding/binary"
+	"github.com/ethereum/go-ethereum/crypto"
 	"io/ioutil"
+	"math/bits"
 	"os"
 	"path/filepath"
 )
 
 //Uint32ToBytes trans uint32 num to bytes
 func Uint32ToBytes(n uint32) []byte {
-	return []byte{
-		byte(n >> 24),
-		byte(n >> 16),
-		byte(n >> 8),
-		byte(n),
-	}
+	Bytes := make([]byte, 4)
+	binary.BigEndian.PutUint32(Bytes, n)
+	return Bytes
 }
 
 //IsP2 is check num is 2^x
-func IsP2(shardSize ShardKey) bool {
+func IsP2(shardSize uint32) bool {
 	return (shardSize & (shardSize - 1)) == 0
 }
 
 //IntLeftMostBit left most bit
-func IntLeftMostBit(v ShardKey) ShardKey {
-	b := 0
-	for v != 0 {
-		v /= 2
-		b++
-	}
-	return ShardKey(b)
+func IntLeftMostBit(v uint32) uint32 {
+	return uint32(32 - bits.LeadingZeros32(v))
 }
 
 func writeTemporaryKeyFile(file string, content []byte) (string, error) {
@@ -77,4 +73,11 @@ func aesCTRXOR(key, inText, iv []byte) ([]byte, error) {
 	outText := make([]byte, len(inText))
 	stream.XORKeyStream(outText, inText)
 	return outText, err
+}
+
+//PublicKeyToRecipient publicKey to recipient
+func PublicKeyToRecipient(p ecdsa.PublicKey) (Recipient, error) {
+	recipient := crypto.Keccak256(crypto.FromECDSAPub(&p)[1:])
+	recipientType, err := BytesToIdentityRecipient(recipient[(len(recipient) - RecipientLength):])
+	return recipientType, err
 }

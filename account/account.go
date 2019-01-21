@@ -98,7 +98,11 @@ func Load(path string, password string) (Account, error) {
 		return Account{}, err
 	}
 
-	account, err := NewAccountWithKey(BytesToIdentityKey(key))
+	keyTypeData,err:=BytesToIdentityKey(key)
+	if err!=nil{
+		return Account{},err
+	}
+	account, err := NewAccountWithKey(keyTypeData)
 	if err != nil {
 		return Account{}, err
 	}
