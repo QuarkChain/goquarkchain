@@ -195,7 +195,7 @@ func NewClusterConfig() ClusterConfig {
 	slave.Port = 38000
 	slave.Id = "S0"
 	// slave.ShardMaskList = []
-	cluster.SlaveList = append(cluster.SlaveList[:], slave)
+	cluster.SlaveList = append(cluster.SlaveList, slave)
 	return cluster
 }
 
@@ -318,7 +318,7 @@ func (q *QuarkChainConfig) GetGenesisRootHeight(shardId int) int {
 func (q *QuarkChainConfig) GetGenesisShardIds() []int {
 	var result []int
 	for shardId := range q.ShardList {
-		result = append(result[:], shardId)
+		result = append(result, shardId)
 	}
 	return result
 }
@@ -328,7 +328,7 @@ func (q *QuarkChainConfig) GetInitializedShardIdsBeforeRootHeight(rootHeight int
 	var result []int
 	for shardId, config := range q.ShardList {
 		if config.Genesis != nil && config.Genesis.RootHeight < rootHeight {
-			result = append(result[:], shardId)
+			result = append(result, shardId)
 		}
 	}
 	return result
