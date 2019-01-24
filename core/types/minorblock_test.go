@@ -88,8 +88,8 @@ func TestMinorBlockHeaderSerializing(t *testing.T) {
 	check("Root", blockMeta.Root[:], common.FromHex("a40920ae6f758f88c61b405f9fc39fdd6274666462b14e3887522166e6537a97"))
 	check("TxHash", blockMeta.TxHash[:], common.FromHex("297d6ae9803346cdb059a671dea7e37b684dcabfa767f2d872026ad0a3aba495"))
 	check("ReceiptHash", blockMeta.ReceiptHash[:], common.FromHex("df227f34313c2bc4a4a986817ea46437f049873f2fca8e2b89b1ecd0f9e67a28"))
-	check("GasUsed", *blockMeta.GasUsed, serialize.Uint256{big.NewInt(100)})
-	check("CrossShardGasUsed", *blockMeta.CrossShardGasUsed, serialize.Uint256{big.NewInt(300)})
+	check("GasUsed", *blockMeta.GasUsed, serialize.Uint256{Value: big.NewInt(100)})
+	check("CrossShardGasUsed", *blockMeta.CrossShardGasUsed, serialize.Uint256{Value: big.NewInt(300)})
 	check("bmserialize", bytes, blocMetaEnc)
 
 	signer := NewEIP155Signer(1)

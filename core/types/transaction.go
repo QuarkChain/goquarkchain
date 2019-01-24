@@ -44,9 +44,9 @@ type txdata struct {
 	Amount          *big.Int           `json:"value"              gencodec:"required"`
 	Payload         []byte             `json:"input"              gencodec:"required"`
 	FromFullShardId uint32             `json:"fromfullshardid"    gencodec:"required"`
-	ToFullShardId   uint32             `json:"fromfullshardid"    gencodec:"required"`
-	NetworkId       uint32             `json:"fromfullshardid"    gencodec:"required"`
-	Version         uint32             `json:"fromfullshardid"    gencodec:"required"`
+	ToFullShardId   uint32             `json:"tofullshardid"      gencodec:"required"`
+	NetworkId       uint32             `json:"networkId"          gencodec:"required"`
+	Version         uint32             `json:"version"            gencodec:"required"`
 	// Signature values
 	V *big.Int `json:"v"             gencodec:"required"`
 	R *big.Int `json:"r"             gencodec:"required"`
@@ -117,8 +117,8 @@ type txdataUnsigned struct {
 	Amount          *big.Int           `json:"value"              gencodec:"required"`
 	Payload         []byte             `json:"input"              gencodec:"required"`
 	FromFullShardId uint32             `json:"fromfullshardid"    gencodec:"required"`
-	ToFullShardId   uint32             `json:"fromfullshardid"    gencodec:"required"`
-	NetworkId       uint32             `json:"fromfullshardid"    gencodec:"required"`
+	ToFullShardId   uint32             `json:"tofullshardid"      gencodec:"required"`
+	NetworkId       uint32             `json:"networkid"          gencodec:"required"`
 }
 
 func (tx *EvmTransaction) getUnsignedHash() common.Hash {
