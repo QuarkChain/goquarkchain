@@ -248,7 +248,7 @@ func serializeString(val reflect.Value, w *[]byte) error {
 	s := val.String()
 
 	sizeBytes := make([]byte, 4, 4)
-	binary.LittleEndian.PutUint32(sizeBytes, uint32(val.Len()))
+	binary.BigEndian.PutUint32(sizeBytes, uint32(val.Len()))
 
 	*w = append(*w, sizeBytes...)
 	*w = append(*w, s...)
