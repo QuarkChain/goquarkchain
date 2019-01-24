@@ -9,11 +9,11 @@ import (
 //Address include recipient and fullShardKey
 type Address struct {
 	Recipient    Recipient
-	FullShardKey ShardKey
+	FullShardKey uint32
 }
 
 //NewAddress new address with recipient and fullShardKey
-func NewAddress(recipient Recipient, fullShardKey ShardKey) Address {
+func NewAddress(recipient Recipient, fullShardKey uint32) Address {
 	return Address{
 		Recipient:    recipient,
 		FullShardKey: fullShardKey,
@@ -23,13 +23,13 @@ func NewAddress(recipient Recipient, fullShardKey ShardKey) Address {
 //ToHex return bytes included recipient and fullShardKey
 func (Self *Address) ToHex() []byte {
 	address := Self.Recipient.Bytes()
-	shardKey := Uint32ToBytes(uint32(Self.FullShardKey))
+	shardKey := Uint32ToBytes(Self.FullShardKey)
 	address = append(address, shardKey...)
 	return address
 }
 
 //GetFullShardID get fullShardID depend shardSize
-func (Self *Address) GetFullShardID(shardSize ShardKey) (uint32, error) {
+func (Self *Address) GetFullShardID(shardSize uint32) (uint32, error) {
 	if IsP2(shardSize) == false {
 		return 0, fmt.Errorf("shardSize is not right shardSize:%d", shardSize)
 	}
@@ -40,7 +40,7 @@ func (Self *Address) GetFullShardID(shardSize ShardKey) (uint32, error) {
 }
 
 //AddressInShard return address depend new fullShardKey
-func (Self *Address) AddressInShard(fullShardKey ShardKey) Address {
+func (Self *Address) AddressInShard(fullShardKey uint32) Address {
 	return NewAddress(Self.Recipient, fullShardKey)
 }
 
@@ -53,12 +53,12 @@ func (Self *Address) AddressInBranch(branch Branch) Address {
 }
 
 //CreatAddressFromIdentity creat address from identity
-func CreatAddressFromIdentity(identity Identity, fullShardKey ShardKey) Address {
+func CreatAddressFromIdentity(identity Identity, fullShardKey uint32) Address {
 	return NewAddress(identity.Recipient, fullShardKey)
 }
 
 //CreatRandomAccountWithFullShardKey creat random account with fullShardKey
-func CreatRandomAccountWithFullShardKey(fullShardKey ShardKey) (Address, error) {
+func CreatRandomAccountWithFullShardKey(fullShardKey uint32) (Address, error) {
 	identity, err := CreatRandomIdentity()
 	if err != nil {
 		return Address{}, err
@@ -66,7 +66,7 @@ func CreatRandomAccountWithFullShardKey(fullShardKey ShardKey) (Address, error) 
 	return CreatAddressFromIdentity(identity, fullShardKey), nil
 }
 
-//CreatRandonAccountWitouthFullShardKey creat random account without fullShardKey
+//CreatRandomAccountWithoutFullShardKey creat random account without fullShardKey
 func CreatRandomAccountWithoutFullShardKey() (Address, error) {
 	identity, err := CreatRandomIdentity()
 	if err != nil {
@@ -81,9 +81,10 @@ func CreatRandomAccountWithoutFullShardKey() (Address, error) {
 }
 
 //CreatEmptyAddress creat empty address from fullShardKey
-func CreatEmptyAddress(fullShardKey ShardKey) Address {
+func CreatEmptyAddress(fullShardKey uint32) Address {
 	zeroBytes := make([]byte, RecipientLength)
-	return NewAddress(BytesToIdentityRecipient(zeroBytes), fullShardKey)
+	recipient,_:=BytesToIdentityRecipient(zeroBytes)
+	return NewAddress(recipient, fullShardKey)
 }
 
 //CreatAddressFromBS creat address from bytes
@@ -98,7 +99,8 @@ func CreatAddressFromBS(bs []byte) (Address, error) {
 	if err != nil {
 		return Address{}, err
 	}
-	return NewAddress(BytesToIdentityRecipient(bs[0:RecipientLength]), ShardKey(x)), nil
+	recipient,_:=BytesToIdentityRecipient(bs[0:RecipientLength])
+	return NewAddress(recipient, x), nil
 }
 
 //IsEmpty check address is empty

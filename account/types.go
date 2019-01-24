@@ -9,8 +9,6 @@ var (
 	ErrGenIdentityKey = errors.New("ErrGenIdentityKey")
 )
 
-//ShardKey shardKey type uint32
-type ShardKey uint32
 
 //DefaultKeyStoreDirectory default keystore dir
 const (
@@ -32,11 +30,8 @@ const (
 )
 
 const (
-	//RecipientLength recipient length
 	RecipientLength = 20
-	//KeyLength key length
 	KeyLength = 32
-	//FullShardKeyLength
 	FullShardKeyLength=4
 )
 
@@ -44,11 +39,15 @@ const (
 type Recipient [RecipientLength]byte
 
 //SetBytes set bytes to it's value
-func (a *Recipient) SetBytes(b []byte) {
+func (a *Recipient) SetBytes(b []byte)error {
 	if len(b) > len(a) {
 		b = b[len(b)-RecipientLength:]
 	}
-	copy(a[RecipientLength-len(b):], b)
+	if len(a)!=len(b){
+		return errors.New("recipient SetBytes:length is wrong")
+	}
+	copy(a[:], b)
+	return nil
 }
 
 //Bytes return it's bytes
@@ -57,21 +56,22 @@ func (a Recipient) Bytes() []byte {
 }
 
 //BytesToIdentityRecipient trans bytes to Recipient
-func BytesToIdentityRecipient(b []byte) Recipient {
+func BytesToIdentityRecipient(b []byte) (Recipient ,error){
 	var a Recipient
-	a.SetBytes(b)
-	return a
+	err:=a.SetBytes(b)
+	return a,err
 }
 
 //Key key type
 type Key [KeyLength]byte
 
 //SetBytes set bytes to it's value
-func (a *Key) SetBytes(b []byte) {
-	if len(b) > len(a) {
-		b = b[len(b)-KeyLength:]
+func (a *Key) SetBytes(b []byte)error {
+	if len(a)!=len(b){
+		return errors.New("key setBytes length is wrong")
 	}
-	copy(a[KeyLength-len(b):], b)
+	copy(a[:], b)
+	return nil
 }
 
 //Bytes return it's bytes
@@ -80,8 +80,8 @@ func (a Key) Bytes() []byte {
 }
 
 //BytesToIdentityKey trans bytes to Key
-func BytesToIdentityKey(b []byte) Key {
+func BytesToIdentityKey(b []byte) (Key,error) {
 	var a Key
-	a.SetBytes(b)
-	return a
+	err:=a.SetBytes(b)
+	return a,err
 }

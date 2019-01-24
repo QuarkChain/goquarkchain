@@ -38,8 +38,13 @@ func CreatRandomIdentity() (Identity, error) {
 	if len(crypto.FromECDSAPub(&sk.PublicKey)) != 2*KeyLength+1 {
 		return Identity{}, fmt.Errorf("fromECDSAPub len is not match :unexcepted %d,excepted 65", len(crypto.FromECDSAPub(&sk.PublicKey)))
 	}
+
 	recipient := crypto.Keccak256(crypto.FromECDSAPub(&sk.PublicKey)[1:])
-	return NewIdentity(BytesToIdentityRecipient(recipient[(len(recipient)-RecipientLength):]), BytesToIdentityKey(key)), nil
+	if len(recipient) != KeyLength {
+		return Identity{}, fmt.Errorf("recipient len is not match:unexceptd %d,exceptd 32", len(recipient))
+	}
+	return newIdentity(recipient,key)
+
 }
 
 //CreatIdentityFromKey creat identity from key
@@ -56,14 +61,27 @@ func CreatIdentityFromKey(key Key) (Identity, error) {
 
 	recipient := crypto.Keccak256(crypto.FromECDSAPub(&sk.PublicKey)[1:]) //"0x04"+64
 	if len(recipient) != KeyLength {
-		return Identity{}, fmt.Errorf("recipient len is not match:unexceptd %d,exceptd 65", len(recipient))
+		return Identity{}, fmt.Errorf("recipient len is not match:unexceptd %d,exceptd 32", len(recipient))
 	}
-	return NewIdentity(BytesToIdentityRecipient(recipient[len(recipient)-RecipientLength:]), BytesToIdentityKey(key.Bytes())), nil
+
+	return newIdentity(recipient,key.Bytes())
 }
 
+func newIdentity(recipient []byte,key []byte)(Identity,error){
+	recipientType,err:=BytesToIdentityRecipient(recipient[(len(recipient)-RecipientLength):])
+	if err!=nil{
+		return Identity{},err
+	}
+
+	keyType,err:=BytesToIdentityKey(key)
+	if err!=nil{
+		return Identity{},err
+	}
+	return NewIdentity(recipientType,keyType), nil
+}
 //GetDefaultFullShardKey get identity's default fullShardKey
-func (Self *Identity) GetDefaultFullShardKey() (ShardKey, error) {
-	var fullShardKey ShardKey
+func (Self *Identity) GetDefaultFullShardKey() (uint32, error) {
+	var fullShardKey uint32
 	r := Self.Recipient
 	realShardKey := []byte{0x00, 0x00}
 	realShardKey = append(realShardKey, r[0:1]...)

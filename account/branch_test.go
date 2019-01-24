@@ -39,31 +39,31 @@ type BranchTestStruct struct {
 }
 
 func CheckBranchUnitTest(data BranchTestStruct) bool {
-	tempBranch, err := CreatBranch(ShardKey(data.Size), ShardKey(data.Key)) //create branch depend on special size ans key
+	tempBranch, err := CreatBranch(data.Size, data.Key) //create branch depend on special size ans key
 	if err != nil {
 		fmt.Printf("CreatBranch err %v\n", err)
 		return false
 	}
-	if tempBranch.GetChainID() != ShardKey(data.ChainID) { //checkGetChainID
+	if tempBranch.GetChainID() != data.ChainID{ //checkGetChainID
 		fmt.Printf("chainId is not match: unexcepted %d,except %d\n", tempBranch.GetChainID(), data.ChainID)
 		return false
 	}
-	if tempBranch.GetShardSize() != ShardKey(data.GetSize) { //checkGetShardSize
+	if tempBranch.GetShardSize() != data.GetSize{ //checkGetShardSize
 		fmt.Printf("ShardSze is not match: unexcepted %d,excepted %d\n", tempBranch.GetShardSize(), data.GetSize)
 		return false
 	}
 
-	if tempBranch.GetShardID() != ShardKey(data.ShardID) { //checkGetShardID
+	if tempBranch.GetShardID() != data.ShardID { //checkGetShardID
 		fmt.Printf("shardid is not match: unexcepted %d,excepted %d\n", tempBranch.GetShardID(), data.ShardID)
 		return false
 	}
 
-	if tempBranch.IsInBranch(ShardKey(data.TestIsInBranch)) != data.IsInBranch { //checkIsInBranch
-		fmt.Printf("isInBranch is not match: unexcepted %t,excepted %t\n", tempBranch.IsInBranch(ShardKey(data.TestIsInBranch)), data.IsInBranch)
+	if tempBranch.IsInBranch(data.TestIsInBranch) != data.IsInBranch { //checkIsInBranch
+		fmt.Printf("isInBranch is not match: unexcepted %t,excepted %t\n", tempBranch.IsInBranch(data.TestIsInBranch), data.IsInBranch)
 		return false
 	}
 
-	if tempBranch.GetFullShardID() != ShardKey(data.FullShardID) { //checkGetFullShardID
+	if tempBranch.GetFullShardID() != data.FullShardID { //checkGetFullShardID
 		fmt.Printf("full shard id is not match: unexcepted %d,excepted %d\n", tempBranch.GetFullShardID(), data.FullShardID)
 		return false
 	}
