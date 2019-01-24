@@ -1,18 +1,4 @@
-// Copyright 2014 The go-ethereum Authors
-// This file is part of the go-ethereum library.
-//
-// The go-ethereum library is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Lesser General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// The go-ethereum library is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Lesser General Public License for more details.
-//
-// You should have received a copy of the GNU Lesser General Public License
-// along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
+// Modified from go-ethereum under GNU Lesser General Public License
 
 package types
 
@@ -22,6 +8,8 @@ import (
 	"io"
 	"unsafe"
 
+	"github.com/QuarkChain/goquarkchain/account"
+	"github.com/QuarkChain/goquarkchain/serialize"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/rlp"
@@ -52,10 +40,10 @@ type Receipt struct {
 	Logs              []*Log `json:"logs"              gencodec:"required"`
 
 	// Implementation fields (don't reorder!)
-	TxHash              common.Hash    `json:"transactionHash" gencodec:"required"`
-	ContractAddress     common.Address `json:"contractAddress"`
-	ContractFullShardId uint32 `json:"contractFullShardId"`
-	GasUsed             uint64         `json:"gasUsed" gencodec:"required"`
+	TxHash              common.Hash       `json:"transactionHash" gencodec:"required"`
+	ContractAddress     account.Recipient `json:"contractAddress"`
+	ContractFullShardId uint32            `json:"contractFullShardId"`
+	GasUsed             uint64            `json:"gasUsed" gencodec:"required"`
 }
 
 type receiptMarshaling struct {
@@ -65,23 +53,35 @@ type receiptMarshaling struct {
 	GasUsed           hexutil.Uint64
 }
 
-// receiptRLP is the consensus encoding of a receipt.
-type receiptRLP struct {
+// receiptSer is the serialize .
+type receiptSer struct {
 	PostStateOrStatus []byte
 	CumulativeGasUsed uint64
+	PrevGasUsed       uint64
 	Bloom             Bloom
-	Logs              []*Log
+	ContractAddress   account.Address
+	Logs              Logs
+}
+
+// receiptRLP is the consensus encoding of a receipt.
+type receiptRLP struct {
+	PostStateOrStatus   []byte
+	CumulativeGasUsed   uint64
+	Bloom               Bloom
+	Logs                []*Log
+	ContractAddress     account.Recipient
+	ContractFullShardId uint32
 }
 
 type receiptStorageRLP struct {
-	PostStateOrStatus []byte
-	CumulativeGasUsed uint64
-	Bloom             Bloom
-	TxHash            common.Hash
-	ContractAddress   common.Address
+	PostStateOrStatus   []byte
+	CumulativeGasUsed   uint64
+	Bloom               Bloom
+	TxHash              common.Hash
+	ContractAddress     account.Recipient
 	ContractFullShardId uint32
-	Logs              []*LogForStorage
-	GasUsed           uint64
+	Logs                []*LogForStorage
+	GasUsed             uint64
 }
 
 // NewReceipt creates a barebone transaction receipt, copying the init fields.
@@ -95,10 +95,43 @@ func NewReceipt(root []byte, failed bool, cumulativeGasUsed uint64) *Receipt {
 	return r
 }
 
+// Deserialize deserialize the QKC minor block
+func (r *Receipt) Deserialize(bb *serialize.ByteBuffer) error {
+	var rs receiptSer
+	if err := serialize.Deserialize(bb, &rs); err != nil {
+		return err
+	}
+	if err := r.setStatus(rs.PostStateOrStatus); err != nil {
+		return err
+	}
+
+	r.CumulativeGasUsed, r.Bloom, r.Logs, r.GasUsed, r.ContractAddress, r.ContractFullShardId = rs.CumulativeGasUsed, rs.Bloom, rs.Logs, rs.CumulativeGasUsed-rs.PrevGasUsed, rs.ContractAddress.Recipient, rs.ContractAddress.FullShardKey
+	return nil
+}
+
+// Serialize serialize the QKC minor block.
+func (r *Receipt) Serialize(w *[]byte) error {
+	return serialize.Serialize(w, receiptSer{
+		r.statusEncoding(),
+		r.CumulativeGasUsed,
+		r.CumulativeGasUsed - r.GasUsed,
+		r.Bloom,
+		account.Address{r.ContractAddress, r.ContractFullShardId},
+		r.Logs,
+	})
+}
+
 // EncodeRLP implements rlp.Encoder, and flattens the consensus fields of a receipt
 // into an RLP stream. If no post state is present, byzantium fork is assumed.
 func (r *Receipt) EncodeRLP(w io.Writer) error {
-	return rlp.Encode(w, &receiptRLP{r.statusEncoding(), r.CumulativeGasUsed, r.Bloom, r.Logs})
+	return rlp.Encode(w,
+		&receiptRLP{
+			r.statusEncoding(),
+			r.CumulativeGasUsed,
+			r.Bloom,
+			r.Logs,
+			r.ContractAddress,
+			r.ContractFullShardId})
 }
 
 // DecodeRLP implements rlp.Decoder, and loads the consensus fields of a receipt
@@ -111,7 +144,7 @@ func (r *Receipt) DecodeRLP(s *rlp.Stream) error {
 	if err := r.setStatus(dec.PostStateOrStatus); err != nil {
 		return err
 	}
-	r.CumulativeGasUsed, r.Bloom, r.Logs = dec.CumulativeGasUsed, dec.Bloom, dec.Logs
+	r.CumulativeGasUsed, r.Bloom, r.Logs, r.ContractAddress, r.ContractFullShardId = dec.CumulativeGasUsed, dec.Bloom, dec.Logs, dec.ContractAddress, dec.ContractFullShardId
 	return nil
 }
 
@@ -202,7 +235,7 @@ type Receipts []*Receipt
 func (r Receipts) Len() int { return len(r) }
 
 // GetRlp returns the RLP encoding of one receipt from the list.
-func (r Receipts) GetRlp(i int) []byte {
+func (r Receipts) Bytes(i int) []byte {
 	bytes, err := rlp.EncodeToBytes(r[i])
 	if err != nil {
 		panic(err)

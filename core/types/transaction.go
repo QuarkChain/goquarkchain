@@ -1,30 +1,25 @@
-// Copyright 2014 The go-ethereum Authors
-// This file is part of the go-ethereum library.
-//
-// The go-ethereum library is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Lesser General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// The go-ethereum library is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Lesser General Public License for more details.
-//
-// You should have received a copy of the GNU Lesser General Public License
-// along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
+// Modified from go-ethereum under GNU Lesser General Public License
 
 package types
 
 import (
 	"container/heap"
 	"errors"
+	"fmt"
+	"github.com/QuarkChain/goquarkchain/account"
+	"github.com/QuarkChain/goquarkchain/serialize"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto/sha3"
+	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/rlp"
 	"io"
 	"math/big"
 	"sync/atomic"
+)
 
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/rlp"
+const (
+	InvalidTxType = iota
+	EvmTx
 )
 
 //go:generate gencodec -type txdata -field-override txdataMarshaling -out gen_tx_json.go
@@ -33,63 +28,60 @@ var (
 	ErrInvalidSig = errors.New("invalid transaction v, r, s values")
 )
 
-type Transaction struct {
+type EvmTransaction struct {
 	data txdata
 	// caches
 	hash atomic.Value
 	size atomic.Value
 	from atomic.Value
 }
-/*        ('from_full_shard_id', BigEndianInt(4)),
-        ('to_full_shard_id', BigEndianInt(4)),
-        ('network_id', big_endian_int),
-        ('version', big_endian_int),*/
+
 type txdata struct {
-	AccountNonce      uint64          `json:"nonce"              gencodec:"required"`
-	Price             *big.Int        `json:"gasPrice"           gencodec:"required"`
-	GasLimit          uint64          `json:"gas"                gencodec:"required"`
-	Recipient         *common.Address `json:"to"                 rlp:"nil"` // nil means contract creation
-	Amount            *big.Int        `json:"value"              gencodec:"required"`
-	Payload           []byte
-	FromFullShardId   uint32          `json:"fromfullshardid"    gencodec:"required"`
-	ToFullShardId     uint32          `json:"fromfullshardid"    gencodec:"required"`
-	NetworkId         uint32          `json:"fromfullshardid"    gencodec:"required"`
-	Version           uint32          `json:"fromfullshardid"    gencodec:"required"`
+	AccountNonce    uint64             `json:"nonce"              gencodec:"required"`
+	Price           *big.Int           `json:"gasPrice"           gencodec:"required"`
+	GasLimit        uint64             `json:"gas"                gencodec:"required"`
+	Recipient       *account.Recipient `json:"to"                 rlp:"nil"` // nil means contract creation
+	Amount          *big.Int           `json:"value"              gencodec:"required"`
+	Payload         []byte             `json:"input"              gencodec:"required"`
+	FromFullShardId uint32             `json:"fromfullshardid"    gencodec:"required"`
+	ToFullShardId   uint32             `json:"fromfullshardid"    gencodec:"required"`
+	NetworkId       uint32             `json:"fromfullshardid"    gencodec:"required"`
+	Version         uint32             `json:"fromfullshardid"    gencodec:"required"`
 	// Signature values
-	V *big.Int `json:"v" gencodec:"required"`
-	R *big.Int `json:"r" gencodec:"required"`
-	S *big.Int `json:"s" gencodec:"required"`
+	V *big.Int `json:"v"             gencodec:"required"`
+	R *big.Int `json:"r"             gencodec:"required"`
+	S *big.Int `json:"s"             gencodec:"required"`
 
 	// This is only used when marshaling to JSON.
-	Hash *common.Hash `json:"hash" rlp:"-"`
+	Hash *common.Hash `json:"hash"              rlp:"-"`
 }
 
-func NewTransaction(nonce uint64, to common.Address, amount *big.Int, gasLimit uint64, gasPrice *big.Int, fromFullShardId uint32, toFullShardId uint32, networkId uint32, version uint32, data []byte) *Transaction {
-	return newTransaction(nonce, &to, amount, gasLimit, gasPrice, fromFullShardId, toFullShardId, networkId, version, data)
+func NewEvmTransaction(nonce uint64, to account.Recipient, amount *big.Int, gasLimit uint64, gasPrice *big.Int, fromFullShardId uint32, toFullShardId uint32, networkId uint32, version uint32, data []byte) *EvmTransaction {
+	return newEvmTransaction(nonce, &to, amount, gasLimit, gasPrice, fromFullShardId, toFullShardId, networkId, version, data)
 }
 
-func NewContractCreation(nonce uint64, amount *big.Int, gasLimit uint64, gasPrice *big.Int, fromFullShardId uint32, toFullShardId uint32, networkId uint32, version uint32, data []byte) *Transaction {
-	return newTransaction(nonce, nil, amount, gasLimit, gasPrice, fromFullShardId, toFullShardId, networkId, version, data)
+func NewEvmContractCreation(nonce uint64, amount *big.Int, gasLimit uint64, gasPrice *big.Int, fromFullShardId uint32, toFullShardId uint32, networkId uint32, version uint32, data []byte) *EvmTransaction {
+	return newEvmTransaction(nonce, nil, amount, gasLimit, gasPrice, fromFullShardId, toFullShardId, networkId, version, data)
 }
 
-func newTransaction(nonce uint64, to *common.Address, amount *big.Int, gasLimit uint64, gasPrice *big.Int, fromFullShardId uint32, toFullShardId uint32, networkId uint32, version uint32,  data []byte) *Transaction {
+func newEvmTransaction(nonce uint64, to *account.Recipient, amount *big.Int, gasLimit uint64, gasPrice *big.Int, fromFullShardId uint32, toFullShardId uint32, networkId uint32, version uint32, data []byte) *EvmTransaction {
 	if len(data) > 0 {
 		data = common.CopyBytes(data)
 	}
 	d := txdata{
-		AccountNonce:        nonce,
-		Recipient:           to,
-		Payload:             data,
-		Amount:              new(big.Int),
-		GasLimit:            gasLimit,
-		Price:               new(big.Int),
-		FromFullShardId:     fromFullShardId,
-		ToFullShardId:       toFullShardId,
-		NetworkId:           networkId,
-		Version:             version,
-		V:                   new(big.Int),
-		R:                   new(big.Int),
-		S:                   new(big.Int),
+		AccountNonce:    nonce,
+		Recipient:       to,
+		Payload:         data,
+		Amount:          new(big.Int),
+		GasLimit:        gasLimit,
+		Price:           new(big.Int),
+		FromFullShardId: fromFullShardId,
+		ToFullShardId:   toFullShardId,
+		NetworkId:       networkId,
+		Version:         version,
+		V:               new(big.Int),
+		R:               new(big.Int),
+		S:               new(big.Int),
 	}
 	if amount != nil {
 		d.Amount.Set(amount)
@@ -98,35 +90,16 @@ func newTransaction(nonce uint64, to *common.Address, amount *big.Int, gasLimit 
 		d.Price.Set(gasPrice)
 	}
 
-	return &Transaction{data: d}
-}
-
-// ChainId which is the NetworkId in QuackChain
-func (tx *Transaction) ChainId() *big.Int {
-	return new(big.Int).SetUint64(uint64(tx.data.NetworkId))
-}
-
-// Protected returns whether the transaction is protected from replay protection.
-func (tx *Transaction) Protected() bool {
-	return isProtectedV(tx.data.V)
-}
-
-func isProtectedV(V *big.Int) bool {
-	if V.BitLen() <= 8 {
-		v := V.Uint64()
-		return v != 27 && v != 28
-	}
-	// anything not 27 or 28 is considered protected
-	return true
+	return &EvmTransaction{data: d}
 }
 
 // EncodeRLP implements rlp.Encoder
-func (tx *Transaction) EncodeRLP(w io.Writer) error {
+func (tx *EvmTransaction) EncodeRLP(w io.Writer) error {
 	return rlp.Encode(w, &tx.data)
 }
 
 // DecodeRLP implements rlp.Decoder
-func (tx *Transaction) DecodeRLP(s *rlp.Stream) error {
+func (tx *EvmTransaction) DecodeRLP(s *rlp.Stream) error {
 	_, size, _ := s.Kind()
 	err := s.Decode(&tx.data)
 	if err == nil {
@@ -136,41 +109,69 @@ func (tx *Transaction) DecodeRLP(s *rlp.Stream) error {
 	return err
 }
 
-func (tx *Transaction) Data() []byte             { return common.CopyBytes(tx.data.Payload) }
-func (tx *Transaction) Gas() uint64              { return tx.data.GasLimit }
-func (tx *Transaction) GasPrice() *big.Int       { return new(big.Int).Set(tx.data.Price) }
-func (tx *Transaction) Value() *big.Int          { return new(big.Int).Set(tx.data.Amount) }
-func (tx *Transaction) Nonce() uint64            { return tx.data.AccountNonce }
-func (tx *Transaction) CheckNonce() bool         { return true }
-func (tx *Transaction) FromFullShardId() uint32  { return tx.data.FromFullShardId}
-func (tx *Transaction) ToFullShardId() uint32    { return tx.data.ToFullShardId}
-func (tx *Transaction) NetworkId() uint32        { return tx.data.NetworkId}
-func (tx *Transaction) Version() uint32          { return tx.data.Version}
+type txdataUnsigned struct {
+	AccountNonce    uint64             `json:"nonce"              gencodec:"required"`
+	Price           *big.Int           `json:"gasPrice"           gencodec:"required"`
+	GasLimit        uint64             `json:"gas"                gencodec:"required"`
+	Recipient       *account.Recipient `json:"to"                 rlp:"nil"` // nil means contract creation
+	Amount          *big.Int           `json:"value"              gencodec:"required"`
+	Payload         []byte             `json:"input"              gencodec:"required"`
+	FromFullShardId uint32             `json:"fromfullshardid"    gencodec:"required"`
+	ToFullShardId   uint32             `json:"fromfullshardid"    gencodec:"required"`
+	NetworkId       uint32             `json:"fromfullshardid"    gencodec:"required"`
+}
+
+func (tx *EvmTransaction) getUnsignedHash() common.Hash {
+	unsigntx := txdataUnsigned{
+		AccountNonce:    tx.data.AccountNonce,
+		Price:           tx.data.Price,
+		GasLimit:        tx.data.GasLimit,
+		Recipient:       tx.data.Recipient,
+		Amount:          tx.data.Amount,
+		Payload:         tx.data.Payload,
+		FromFullShardId: tx.data.FromFullShardId,
+		ToFullShardId:   tx.data.ToFullShardId,
+		NetworkId:       tx.data.NetworkId,
+	}
+
+	return rlpHash(unsigntx)
+}
+
+func (tx *EvmTransaction) Data() []byte            { return common.CopyBytes(tx.data.Payload) }
+func (tx *EvmTransaction) Gas() uint64             { return tx.data.GasLimit }
+func (tx *EvmTransaction) GasPrice() *big.Int      { return new(big.Int).Set(tx.data.Price) }
+func (tx *EvmTransaction) Value() *big.Int         { return new(big.Int).Set(tx.data.Amount) }
+func (tx *EvmTransaction) Nonce() uint64           { return tx.data.AccountNonce }
+func (tx *EvmTransaction) CheckNonce() bool        { return true }
+func (tx *EvmTransaction) FromFullShardId() uint32 { return tx.data.FromFullShardId }
+func (tx *EvmTransaction) ToFullShardId() uint32   { return tx.data.ToFullShardId }
+func (tx *EvmTransaction) NetworkId() uint32       { return tx.data.NetworkId }
 
 // To returns the recipient address of the transaction.
 // It returns nil if the transaction is a contract creation.
-func (tx *Transaction) To() *common.Address {
+func (tx *EvmTransaction) To() *account.Recipient {
 	if tx.data.Recipient == nil {
 		return nil
 	}
+
 	to := *tx.data.Recipient
 	return &to
 }
 
 // Hash hashes the RLP encoding of tx.
 // It uniquely identifies the transaction.
-func (tx *Transaction) Hash() common.Hash {
+func (tx *EvmTransaction) Hash() common.Hash {
 	if hash := tx.hash.Load(); hash != nil {
 		return hash.(common.Hash)
 	}
-	v := RlpHash(tx)
+	v := rlpHash(tx)
 	tx.hash.Store(v)
 	return v
 }
 
 // Size returns the true RLP encoded storage size of the transaction, either by
 // encoding and returning it, or returning a previsouly cached value.
-func (tx *Transaction) Size() common.StorageSize {
+func (tx *EvmTransaction) Size() common.StorageSize {
 	if size := tx.size.Load(); size != nil {
 		return size.(common.StorageSize)
 	}
@@ -181,11 +182,9 @@ func (tx *Transaction) Size() common.StorageSize {
 }
 
 // AsMessage returns the transaction as a core.Message.
-//
 // AsMessage requires a signer to derive the sender.
-//
 // XXX Rename message to something less arbitrary?
-func (tx *Transaction) AsMessage(s Signer) (Message, error) {
+func (tx *EvmTransaction) AsMessage(s Signer) (Message, error) {
 	msg := Message{
 		nonce:           tx.data.AccountNonce,
 		gasLimit:        tx.data.GasLimit,
@@ -205,41 +204,142 @@ func (tx *Transaction) AsMessage(s Signer) (Message, error) {
 
 // WithSignature returns a new transaction with the given signature.
 // This signature needs to be formatted as described in the yellow paper (v+27).
-func (tx *Transaction) WithSignature(signer Signer, sig []byte) (*Transaction, error) {
+func (tx *EvmTransaction) WithSignature(signer Signer, sig []byte) (*EvmTransaction, error) {
 	r, s, v, err := signer.SignatureValues(tx, sig)
 	if err != nil {
 		return nil, err
 	}
-	cpy := &Transaction{data: tx.data}
+	cpy := &EvmTransaction{data: tx.data}
 	cpy.data.R, cpy.data.S, cpy.data.V = r, s, v
 	return cpy, nil
 }
 
 // Cost returns amount + gasprice * gaslimit.
-func (tx *Transaction) Cost() *big.Int {
+func (tx *EvmTransaction) Cost() *big.Int {
 	total := new(big.Int).Mul(tx.data.Price, new(big.Int).SetUint64(tx.data.GasLimit))
 	total.Add(total, tx.data.Amount)
 	return total
 }
 
-func (tx *Transaction) RawSignatureValues() (*big.Int, *big.Int, *big.Int) {
+func (tx *EvmTransaction) RawSignatureValues() (*big.Int, *big.Int, *big.Int) {
 	return tx.data.V, tx.data.R, tx.data.S
 }
 
-// Transactions is a Transaction slice type for basic sorting.
+func rlpHash(x interface{}) (h common.Hash) {
+	hw := sha3.NewKeccak256()
+	rlp.Encode(hw, x)
+	hw.Sum(h[:0])
+	return h
+}
+
+type Transaction struct {
+	TxType uint8
+	EvmTx  *EvmTransaction
+
+	hash atomic.Value
+}
+
+func (tx *Transaction) Serialize(w *[]byte) error {
+	*w = append(*w, tx.TxType)
+
+	switch tx.TxType {
+	case EvmTx:
+		bytes, err := rlp.EncodeToBytes(tx.EvmTx)
+		if err != nil {
+			return err
+		}
+		serialize.Serialize(w, uint32(len(bytes)))
+		*w = append(*w, bytes...)
+		return nil
+	default:
+		return fmt.Errorf("ser: Transacton type %d is not supported", tx.TxType)
+	}
+}
+
+func (tx *Transaction) Deserialize(bb *serialize.ByteBuffer) error {
+	txType, err := bb.GetUInt8()
+	if err != nil {
+		return err
+	}
+
+	switch txType {
+	case EvmTx:
+		tx.TxType = txType
+		bytes, err := bb.GetVarBytes(4)
+		if err != nil {
+			return err
+		}
+
+		if tx.EvmTx == nil {
+			tx.EvmTx = new(EvmTransaction)
+		}
+		return rlp.DecodeBytes(bytes, tx.EvmTx)
+	default:
+		return fmt.Errorf("deser: Transacton type %d is not supported", tx.TxType)
+	}
+}
+
+// Hash return the hash of the transaction it contained
+func (tx *Transaction) Hash() (h common.Hash) {
+	if tx.TxType == EvmTx {
+		return tx.EvmTx.Hash()
+	}
+
+	log.Error(fmt.Sprintf("do not support tx type %d", tx.TxType))
+	return *new(common.Hash)
+}
+
+func (tx *Transaction) getNonce() uint64 {
+	if tx.TxType == EvmTx {
+		return tx.EvmTx.data.AccountNonce
+	}
+
+	//todo verify the default value when have more type of tx
+	return 0
+}
+
+func (tx *Transaction) getPrice() *big.Int {
+	if tx.TxType == EvmTx {
+		return tx.EvmTx.data.Price
+	}
+
+	//todo verify the default value when have more type of tx
+	return big.NewInt(0)
+}
+
+func (tx *Transaction) Sender(signer Signer) account.Recipient {
+	if tx.TxType == EvmTx {
+		addr, err := Sender(signer, tx.EvmTx)
+		if err != nil {
+			log.Error(err.Error(), tx)
+			return *new(account.Recipient)
+		}
+
+		return addr
+	} else {
+		log.Error(fmt.Sprintf("do not support tx type %d", tx.TxType))
+		return *new(account.Recipient)
+	}
+}
+
+// Transactions is a EvmTransaction slice type for basic sorting.
 type Transactions []*Transaction
+
+//GetLenByteSize implement SerializableList interface in serialize/utils.go
+func (Transactions) GetLenByteSize() int {
+	return 4
+}
 
 // Len returns the length of s.
 func (s Transactions) Len() int { return len(s) }
 
-// Swap swaps the i'th and the j'th element in s.
-func (s Transactions) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
-
-// GetRlp implements Rlpable and returns the i'th element of s in rlp.
-func (s Transactions) GetRlp(i int) []byte {
-	enc, _ := rlp.EncodeToBytes(s[i])
+func (s Transactions) Bytes(i int) []byte {
+	enc, _ := serialize.SerializeToBytes(s[i]) //todo error handle?
 	return enc
 }
+
+// Swap swaps the i'th and the j'th element in s.
+func (s Transactions) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
 
 // TxDifference returns a new set which is the difference between a and b.
 func TxDifference(a, b Transactions) Transactions {
@@ -265,7 +365,7 @@ func TxDifference(a, b Transactions) Transactions {
 type TxByNonce Transactions
 
 func (s TxByNonce) Len() int           { return len(s) }
-func (s TxByNonce) Less(i, j int) bool { return s[i].data.AccountNonce < s[j].data.AccountNonce }
+func (s TxByNonce) Less(i, j int) bool { return s[i].getNonce() < s[j].getNonce() }
 func (s TxByNonce) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
 
 // TxByPrice implements both the sort and the heap interface, making it useful
@@ -273,7 +373,7 @@ func (s TxByNonce) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
 type TxByPrice Transactions
 
 func (s TxByPrice) Len() int           { return len(s) }
-func (s TxByPrice) Less(i, j int) bool { return s[i].data.Price.Cmp(s[j].data.Price) > 0 }
+func (s TxByPrice) Less(i, j int) bool { return s[i].getPrice().Cmp(s[j].getPrice()) > 0 }
 func (s TxByPrice) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
 
 func (s *TxByPrice) Push(x interface{}) {
@@ -292,9 +392,9 @@ func (s *TxByPrice) Pop() interface{} {
 // transactions in a profit-maximizing sorted order, while supporting removing
 // entire batches of transactions for non-executable accounts.
 type TransactionsByPriceAndNonce struct {
-	txs    map[common.Address]Transactions // Per account nonce-sorted list of transactions
-	heads  TxByPrice                       // Next transaction for each unique account (price heap)
-	signer Signer                          // Signer for the set of transactions
+	txs    map[account.Recipient]Transactions // Per account nonce-sorted list of transactions
+	heads  TxByPrice                          // Next transaction for each unique account (price heap)
+	signer Signer                             // Signer for the set of transactions
 }
 
 // NewTransactionsByPriceAndNonce creates a transaction set that can retrieve
@@ -302,13 +402,13 @@ type TransactionsByPriceAndNonce struct {
 //
 // Note, the input map is reowned so the caller should not interact any more with
 // if after providing it to the constructor.
-func NewTransactionsByPriceAndNonce(signer Signer, txs map[common.Address]Transactions) *TransactionsByPriceAndNonce {
+func NewTransactionsByPriceAndNonce(signer Signer, txs map[account.Recipient]Transactions) *TransactionsByPriceAndNonce {
 	// Initialize a price based heap with the head transactions
 	heads := make(TxByPrice, 0, len(txs))
 	for from, accTxs := range txs {
 		heads = append(heads, accTxs[0])
 		// Ensure the sender address is from the signer
-		acc, _ := Sender(signer, accTxs[0])
+		acc := accTxs[0].Sender(signer)
 		txs[acc] = accTxs[1:]
 		if from != acc {
 			delete(txs, from)
@@ -334,7 +434,7 @@ func (t *TransactionsByPriceAndNonce) Peek() *Transaction {
 
 // Shift replaces the current best head with the next one from the same account.
 func (t *TransactionsByPriceAndNonce) Shift() {
-	acc, _ := Sender(t.signer, t.heads[0])
+	acc := t.heads[0].Sender(t.signer)
 	if txs, ok := t.txs[acc]; ok && len(txs) > 0 {
 		t.heads[0], t.txs[acc] = txs[0], txs[1:]
 		heap.Fix(&t.heads, 0)
@@ -350,46 +450,59 @@ func (t *TransactionsByPriceAndNonce) Pop() {
 	heap.Pop(&t.heads)
 }
 
+type CrossShardTransactionDeposit struct {
+	TxHash   common.Hash
+	From     account.Address
+	To       account.Address
+	Value    *serialize.Uint256
+	GasPrice *serialize.Uint256
+}
+
+type CrossShardTransactionList []CrossShardTransactionDeposit
+
+func (CrossShardTransactionList) GetLenByteSize() int {
+	return 4
+}
+
 // Message is a fully derived transaction and implements core.Message
 //
 // NOTE: In a future PR this will be removed.
 type Message struct {
-	to                *common.Address
-	from              common.Address
-	nonce             uint64
-	amount            *big.Int
-	gasLimit          uint64
-	gasPrice          *big.Int
-	data              []byte
-	checkNonce        bool
-	fromFullShardId   uint32
-	toFullShardId     uint32
+	to              *account.Recipient
+	from            account.Recipient
+	nonce           uint64
+	amount          *big.Int
+	gasLimit        uint64
+	gasPrice        *big.Int
+	data            []byte
+	checkNonce      bool
+	fromFullShardId uint32
+	toFullShardId   uint32
 }
 
-func NewMessage(from common.Address, to *common.Address, nonce uint64, amount *big.Int, gasLimit uint64, gasPrice *big.Int, data []byte, checkNonce bool, fromShardId, toShardId uint32) Message {
+func NewMessage(from account.Recipient, to *account.Recipient, nonce uint64, amount *big.Int, gasLimit uint64, gasPrice *big.Int, data []byte, checkNonce bool, fromShardId, toShardId uint32) Message {
 	return Message{
-		from:              from,
-		to:                to,
-		nonce:             nonce,
-		amount:            amount,
-		gasLimit:          gasLimit,
-		gasPrice:          gasPrice,
-		data:              data,
-		checkNonce:        checkNonce,
-		fromFullShardId:   fromShardId,
-		toFullShardId:     toShardId,
+		from:            from,
+		to:              to,
+		nonce:           nonce,
+		amount:          amount,
+		gasLimit:        gasLimit,
+		gasPrice:        gasPrice,
+		data:            data,
+		checkNonce:      checkNonce,
+		fromFullShardId: fromShardId,
+		toFullShardId:   toShardId,
 	}
 }
 
-func (m Message) From() common.Address         { return m.from }
-func (m Message) To() *common.Address          { return m.to }
-func (m Message) GasPrice() *big.Int           { return m.gasPrice }
-func (m Message) Value() *big.Int              { return m.amount }
-func (m Message) Gas() uint64                  { return m.gasLimit }
-func (m Message) Nonce() uint64                { return m.nonce }
-func (m Message) Data() []byte                 { return m.data }
-func (m Message) CheckNonce() bool             { return m.checkNonce }
-func (m Message) FromFullShardId() uint32      { return m.fromFullShardId }
-func (m Message) ToFullShardId() uint32        { return m.toFullShardId }
-
-
+func (m Message) From() account.Recipient { return m.from }
+func (m Message) To() *account.Recipient  { return m.to }
+func (m Message) GasPrice() *big.Int      { return m.gasPrice }
+func (m Message) Value() *big.Int         { return m.amount }
+func (m Message) Gas() uint64             { return m.gasLimit }
+func (m Message) Nonce() uint64           { return m.nonce }
+func (m Message) Data() []byte            { return m.data }
+func (m Message) CheckNonce() bool        { return m.checkNonce }
+func (m Message) IsCrosShard() bool       { return m.fromFullShardId != m.toFullShardId }
+func (m Message) FromFullShardId() uint32 { return m.fromFullShardId }
+func (m Message) ToFullShardId() uint32   { return m.toFullShardId }

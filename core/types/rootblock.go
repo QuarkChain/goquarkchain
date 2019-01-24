@@ -1,39 +1,24 @@
-// Copyright 2014 The go-ethereum Authors
-// This file is part of the go-ethereum library.
-//
-// The go-ethereum library is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Lesser General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// The go-ethereum library is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Lesser General Public License for more details.
-//
-// You should have received a copy of the GNU Lesser General Public License
-// along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
+// Modified from go-ethereum under GNU Lesser General Public License
 
-// package rootchain contains data types related to Ethereum consensus.
 package types
 
 import (
-	"encoding/binary"
+	"crypto/ecdsa"
 	"errors"
-	"io"
+	"github.com/QuarkChain/goquarkchain/account"
+	"github.com/QuarkChain/goquarkchain/serialize"
+	"github.com/ethereum/go-ethereum/crypto"
 	"math/big"
 	"sync/atomic"
 	"time"
 	"unsafe"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/rlp"
 )
 
 type ShardInfo struct {
-	ShardSize     uint32
-	ReshardVote   bool
+	ShardSize   uint32
+	ReshardVote bool
 }
 
 func Create(shardSize uint32, reshardVote bool) (*ShardInfo, error) {
@@ -41,44 +26,82 @@ func Create(shardSize uint32, reshardVote bool) (*ShardInfo, error) {
 		return nil, errors.New("shard size should be power of 2")
 	}
 
-	return &ShardInfo{ShardSize:shardSize, ReshardVote:reshardVote}, nil
+	return &ShardInfo{ShardSize: shardSize, ReshardVote: reshardVote}, nil
 }
 
 // RootBlockHeader represents a root block header in the QuarkChain.
 type RootBlockHeader struct {
-	Version         uint32             `json:"version"          gencodec:"required"`
-	Number          *big.Int           `json:"number"           gencodec:"required"`
-	ShardInfo       ShardInfo          `json:"shardinfo"        gencodec:"required"`
-	ParentHash      common.Hash        `json:"parentHash"       gencodec:"required"`
-	Root            common.Hash        `json:"stateRoot"        gencodec:"required"`
-	Coinbase        common.Address     `json:"miner"            gencodec:"required"`
-	CoinbaseAmount  *big.Int           `json:"coinbaseAmount"   gencodec:"required"`
-	Time            *big.Int           `json:"timestamp"        gencodec:"required"`
-	Difficulty      *big.Int           `json:"difficulty"       gencodec:"required"`
-	Nonce           types.BlockNonce   `json:"nonce"`
-	Extra           []byte             `json:"extraData"        gencodec:"required"`
-	MixDigest       common.Hash        `json:"mixHash"`
-	Signature       [65]byte           `json:"signature"        gencodec:"required"`   //todo
+	Version         uint32                           `json:"version"          gencodec:"required"`
+	Number          uint32                           `json:"number"           gencodec:"required"`
+	ParentHash      common.Hash                      `json:"parentHash"       gencodec:"required"`
+	MinorHeaderHash common.Hash                      `json:"transactionsRoot" gencodec:"required"`
+	Coinbase        account.Address                  `json:"miner"            gencodec:"required"`
+	CoinbaseAmount  *serialize.Uint256               `json:"coinbaseAmount"   gencodec:"required"`
+	Time            uint64                           `json:"timestamp"        gencodec:"required"`
+	Difficulty      *big.Int                         `json:"difficulty"       gencodec:"required"`
+	Nonce           uint64                           `json:"nonce"`
+	Extra           *serialize.LimitedSizeByteSlice2 `json:"extraData"        gencodec:"required"`
+	MixDigest       common.Hash                      `json:"mixHash"`
+	Signature       [65]byte                         `json:"signature"        gencodec:"required"` //todo
+}
+
+type rootBlockHeaderForHash struct {
+	Version         uint32
+	Number          uint32
+	ParentHash      common.Hash
+	MinorHeaderHash common.Hash
+	Coinbase        account.Address
+	CoinbaseAmount  *serialize.Uint256
+	Time            uint64
+	Difficulty      *big.Int
+	Nonce           uint64
+	Extra           *serialize.LimitedSizeByteSlice2
+	MixDigest       common.Hash
 }
 
 // Hash returns the block hash of the header, which is simply the keccak256 hash of its
 // RLP encoding.
 func (h *RootBlockHeader) Hash() common.Hash {
-	return RlpHash(h)
+	header := rootBlockHeaderForHash{
+		Version:         h.Version,
+		Number:          h.Number,
+		ParentHash:      h.ParentHash,
+		MinorHeaderHash: h.MinorHeaderHash,
+		Coinbase:        h.Coinbase,
+		CoinbaseAmount:  h.CoinbaseAmount,
+		Time:            h.Time,
+		Difficulty:      h.Difficulty,
+		Nonce:           h.Nonce,
+		Extra:           h.Extra,
+		MixDigest:       h.MixDigest,
+	}
+
+	return serHash(header)
 }
 
 // Size returns the approximate memory used by all internal contents. It is used
 // to approximate and limit the memory consumption of various caches.
 func (h *RootBlockHeader) Size() common.StorageSize {
 	return common.StorageSize(unsafe.Sizeof(*h)) + common.StorageSize(len(h.Signature)) +
-		common.StorageSize(len(h.Extra)+
-			(h.Difficulty.BitLen()+h.Number.BitLen()+h.Time.BitLen() + h.CoinbaseAmount.BitLen())/8)
+		common.StorageSize(len(*h.Extra)+(h.Difficulty.BitLen())/8)
+}
+
+func (h *RootBlockHeader) SignWithPrivateKey(prv *ecdsa.PrivateKey) error {
+	hash := h.Hash()
+	sig, err := crypto.Sign(hash[:], prv)
+	if err != nil {
+		return err
+	}
+
+	copy(h.Signature[:], sig)
+	return nil
 }
 
 // Block represents an entire block in the QuarkChain.
 type RootBlock struct {
-	header              *RootBlockHeader
-	minorBlockHeaders   MinorBlockHeaders
+	header            *RootBlockHeader
+	minorBlockHeaders MinorBlockHeaders
+	trackingdata      serialize.LimitedSizeByteSlice2
 
 	// caches
 	hash atomic.Value
@@ -96,27 +119,30 @@ type RootBlock struct {
 
 // "external" block encoding. used for eth protocol, etc.
 type extrootblock struct {
-	Header                *RootBlockHeader
-	MinorBlockHeaders     MinorBlockHeaders
+	Header            *RootBlockHeader
+	MinorBlockHeaders MinorBlockHeaders
+	Trackingdata      serialize.LimitedSizeByteSlice2
 }
-
 
 // NewBlock creates a new block. The input data is copied,
 // changes to header and to the field values will not affect the
 // block.
 //
-// The values of TxHash, UncleHash, ReceiptHash and Bloom in header
+// The values of MinorHeaderHash, ReceiptHash and Bloom in header
 // are ignored and set to values derived from the given txs, uncles
 // and receipts.
-func NewRootBlock(header *RootBlockHeader, mbHeaders MinorBlockHeaders) *RootBlock {
+func NewRootBlock(header *RootBlockHeader, mbHeaders MinorBlockHeaders, trackingdata serialize.LimitedSizeByteSlice2) *RootBlock {
 	b := &RootBlock{header: CopyRootBlockHeader(header), td: new(big.Int)}
 
 	if len(mbHeaders) == 0 {
-		b.header.Root = EmptyRootHash
+		b.header.MinorHeaderHash = EmptyRootHash
 	} else {
-		b.header.Root = DeriveSha(MinorBlockHeaders(mbHeaders))
+		b.header.MinorHeaderHash = DeriveSha(MinorBlockHeaders(mbHeaders))
 		b.minorBlockHeaders = make(MinorBlockHeaders, len(mbHeaders))
 		copy(b.minorBlockHeaders, mbHeaders)
+	}
+	if trackingdata != nil && len(trackingdata) > 0 {
+		copy(b.trackingdata, trackingdata)
 	}
 
 	return b
@@ -133,21 +159,15 @@ func NewRootBlockWithHeader(header *RootBlockHeader) *RootBlock {
 // modifying a header variable.
 func CopyRootBlockHeader(h *RootBlockHeader) *RootBlockHeader {
 	cpy := *h
-	if cpy.Time = new(big.Int); h.Time != nil {
-		cpy.Time.Set(h.Time)
-	}
-	if cpy.CoinbaseAmount = new(big.Int); h.CoinbaseAmount != nil {
-		cpy.CoinbaseAmount.Set(h.CoinbaseAmount)
+	if cpy.CoinbaseAmount = new(serialize.Uint256); h.CoinbaseAmount != nil {
+		cpy.CoinbaseAmount.Value.Set(h.CoinbaseAmount.Value)
 	}
 	if cpy.Difficulty = new(big.Int); h.Difficulty != nil {
 		cpy.Difficulty.Set(h.Difficulty)
 	}
-	if cpy.Number = new(big.Int); h.Number != nil {
-		cpy.Number.Set(h.Number)
-	}
-	if len(h.Extra) > 0 {
-		cpy.Extra = make([]byte, len(h.Extra))
-		copy(cpy.Extra, h.Extra)
+	if len(*h.Extra) > 0 {
+		*cpy.Extra = make(serialize.LimitedSizeByteSlice2, len(*h.Extra))
+		copy(*cpy.Extra, *h.Extra)
 	}
 	cpy.Signature = [65]byte{}
 	copy(cpy.Signature[:], h.Signature[:])
@@ -155,27 +175,30 @@ func CopyRootBlockHeader(h *RootBlockHeader) *RootBlockHeader {
 	return &cpy
 }
 
-// DecodeRLP decodes the QuarkChain
-func (b *RootBlock) DecodeRLP(s *rlp.Stream) error {
+// Deserialize deserialize the QKC root block
+func (b *RootBlock) Deserialize(bb *serialize.ByteBuffer) error {
 	var eb extrootblock
-	_, size, _ := s.Kind()
-	if err := s.Decode(&eb); err != nil {
+	startIndex := bb.GetOffset()
+	if err := serialize.Deserialize(bb, &eb); err != nil {
 		return err
 	}
-	b.header, b.minorBlockHeaders = eb.Header, eb.MinorBlockHeaders
-	b.size.Store(common.StorageSize(rlp.ListSize(size)))
+	b.header, b.minorBlockHeaders, b.trackingdata = eb.Header, eb.MinorBlockHeaders, eb.Trackingdata
+	b.size.Store(common.StorageSize(bb.GetOffset() - startIndex))
 	return nil
 }
 
-// EncodeRLP serializes b into the QuarkChain RLP block format.
-func (b *RootBlock) EncodeRLP(w io.Writer) error {
-	return rlp.Encode(w, extrootblock{
-		Header:               b.header,
-		MinorBlockHeaders:    b.minorBlockHeaders,
+// Serialize serialize the QKC root block.
+func (b *RootBlock) Serialize(w *[]byte) error {
+	offset := len(*w)
+	err := serialize.Serialize(w, extrootblock{
+		Header:            b.header,
+		MinorBlockHeaders: b.minorBlockHeaders,
+		Trackingdata:      b.trackingdata,
 	})
-}
 
-// TODO: copies
+	b.size.Store(common.StorageSize(len(*w) - offset))
+	return err
+}
 
 func (b *RootBlock) MinorBlockHeaders() MinorBlockHeaders { return b.minorBlockHeaders }
 
@@ -185,36 +208,33 @@ func (b *RootBlock) MinorBlockHeader(hash common.Hash) *MinorBlockHeader {
 			return minorBlockHeader
 		}
 	}
+
 	return nil
 }
 
-func (b *RootBlock) Version() uint32          { return b.header.Version }
-func (b *RootBlock) Number() *big.Int         { return new(big.Int).Set(b.header.Number) }
-func (b *RootBlock) NumberU64() uint64        { return b.header.Number.Uint64() }
-func (b *RootBlock) ShardInfo() ShardInfo     { return b.header.ShardInfo    }
-func (b *RootBlock) ParentHash() common.Hash  { return b.header.ParentHash }
-func (b *RootBlock) Root() common.Hash        { return b.header.Root }
-func (b *RootBlock) Coinbase() common.Address { return b.header.Coinbase }
-func (b *RootBlock) CoinbaseAmount() *big.Int     { return b.header.CoinbaseAmount }
-func (b *RootBlock) Time() *big.Int       { return new(big.Int).Set(b.header.Time) }
-func (b *RootBlock) Difficulty() *big.Int { return new(big.Int).Set(b.header.Difficulty) }
-func (b *RootBlock) Nonce() uint64            { return binary.BigEndian.Uint64(b.header.Nonce[:]) }
-func (b *RootBlock) Extra() []byte            { return common.CopyBytes(b.header.Extra) }
-func (b *RootBlock) MixDigest() common.Hash   { return b.header.MixDigest }
-func (b *RootBlock) Signature() [65]byte             { return b.header.Signature }
+func (b *RootBlock) Version() uint32              { return b.header.Version }
+func (b *RootBlock) Number() uint32               { return b.header.Number }
+func (b *RootBlock) ParentHash() common.Hash      { return b.header.ParentHash }
+func (b *RootBlock) MinorHeaderHash() common.Hash { return b.header.MinorHeaderHash }
+func (b *RootBlock) Coinbase() account.Address    { return b.header.Coinbase }
+func (b *RootBlock) CoinbaseAmount() *big.Int     { return new(big.Int).Set(b.header.CoinbaseAmount.Value) }
+func (b *RootBlock) Time() uint64                 { return b.header.Time }
+func (b *RootBlock) Difficulty() *big.Int         { return new(big.Int).Set(b.header.Difficulty) }
+func (b *RootBlock) Nonce() uint64                { return b.header.Nonce }
+func (b *RootBlock) Extra() []byte                { return common.CopyBytes(*b.header.Extra) }
+func (b *RootBlock) MixDigest() common.Hash       { return b.header.MixDigest }
+func (b *RootBlock) Signature() [65]byte          { return b.header.Signature }
 
 func (b *RootBlock) Header() *RootBlockHeader { return CopyRootBlockHeader(b.header) }
 
-// Size returns the true RLP encoded storage size of the block, either by encoding
-// and returning it, or returning a previsouly cached value.
 func (b *RootBlock) Size() common.StorageSize {
 	if size := b.size.Load(); size != nil {
 		return size.(common.StorageSize)
 	}
-	c := writeCounter(0)
-	rlp.Encode(&c, b)
-	b.size.Store(common.StorageSize(c))
-	return common.StorageSize(c)
+
+	bytes, _ := serialize.SerializeToBytes(b)
+	b.size.Store(common.StorageSize(len(bytes)))
+	return common.StorageSize(len(bytes))
 }
 
 // WithSeal returns a new block with the data from b but the header replaced with
@@ -223,8 +243,9 @@ func (b *RootBlock) WithSeal(header *RootBlockHeader) *RootBlock {
 	cpy := *header
 
 	return &RootBlock{
-		header:              &cpy,
-		minorBlockHeaders:   b.minorBlockHeaders,
+		header:            &cpy,
+		minorBlockHeaders: b.minorBlockHeaders,
+		trackingdata:      b.trackingdata,
 	}
 }
 
@@ -233,9 +254,11 @@ func (b *RootBlock) WithBody(minorBlockHeaders MinorBlockHeaders, uncles []*Root
 	block := &RootBlock{
 		header:            CopyRootBlockHeader(b.header),
 		minorBlockHeaders: make(MinorBlockHeaders, len(minorBlockHeaders)),
+		trackingdata:      make(serialize.LimitedSizeByteSlice2, len(b.trackingdata)),
 	}
-	copy(block.minorBlockHeaders, minorBlockHeaders)
 
+	copy(block.minorBlockHeaders, minorBlockHeaders)
+	copy(block.trackingdata, b.trackingdata)
 	return block
 }
 
