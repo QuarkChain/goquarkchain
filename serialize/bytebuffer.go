@@ -53,7 +53,7 @@ func (bb *ByteBuffer) GetUInt16() (uint16, error) {
 		return 0, err
 	}
 
-	return binary.LittleEndian.Uint16(bytes), nil
+	return binary.BigEndian.Uint16(bytes), nil
 }
 
 func (bb *ByteBuffer) GetUInt32() (uint32, error) {
@@ -62,7 +62,7 @@ func (bb *ByteBuffer) GetUInt32() (uint32, error) {
 		return 0, err
 	}
 
-	return binary.LittleEndian.Uint32(bytes), nil
+	return binary.BigEndian.Uint32(bytes), nil
 }
 
 func (bb *ByteBuffer) GetUInt64() (uint64, error) {
@@ -71,7 +71,7 @@ func (bb *ByteBuffer) GetUInt64() (uint64, error) {
 		return 0, err
 	}
 
-	return binary.LittleEndian.Uint64(bytes), nil
+	return binary.BigEndian.Uint64(bytes), nil
 }
 
 func (bb *ByteBuffer) getLen(byteSize int) (int, error) {
