@@ -25,7 +25,7 @@ func (e *serializableStruct) Serialize(w *[]byte) error {
 func (e *serializableStruct) Deserialize(bb *ByteBuffer) error {
 	if e == nil {
 
-	} else if bb.remaining() == 4 {
+	} else if bb.Remaining() == 4 {
 		e = nil
 	} else {
 		e.val = 1

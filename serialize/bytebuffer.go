@@ -1,12 +1,21 @@
 package serialize
 
 import (
+	"encoding/binary"
 	"fmt"
 )
 
 type ByteBuffer struct {
 	data     []byte
 	position int
+}
+
+func NewByteBuffer(bytes []byte) ByteBuffer {
+	return ByteBuffer{bytes, 0}
+}
+
+func (bb ByteBuffer) GetOffset() int {
+	return bb.position
 }
 
 func (bb *ByteBuffer) checkSpace(space int) error {
@@ -17,7 +26,7 @@ func (bb *ByteBuffer) checkSpace(space int) error {
 	return nil
 }
 
-func (bb *ByteBuffer) getBytes(size int) ([]byte, error) {
+func (bb *ByteBuffer) GetBytes(size int) ([]byte, error) {
 	err := bb.checkSpace(size)
 	if err != nil {
 		return nil, err
@@ -29,8 +38,8 @@ func (bb *ByteBuffer) getBytes(size int) ([]byte, error) {
 	return bytes, nil
 }
 
-func (bb *ByteBuffer) getUInt8() (uint8, error) {
-	bytes, err := bb.getBytes(1)
+func (bb *ByteBuffer) GetUInt8() (uint8, error) {
+	bytes, err := bb.GetBytes(1)
 	if err != nil {
 		return 0, err
 	}
@@ -38,52 +47,39 @@ func (bb *ByteBuffer) getUInt8() (uint8, error) {
 	return uint8(bytes[0]), nil
 }
 
-func (bb *ByteBuffer) getUInt16() (uint16, error) {
-	bytes, err := bb.getBytes(2)
+func (bb *ByteBuffer) GetUInt16() (uint16, error) {
+	bytes, err := bb.GetBytes(2)
 	if err != nil {
 		return 0, err
 	}
-	var val uint16 = 0
-	for _, b := range bytes {
-		val = val<<8 | uint16(b)
-	}
 
-	return val, nil
+	return binary.LittleEndian.Uint16(bytes), nil
 }
 
-func (bb *ByteBuffer) getUInt32() (uint32, error) {
-	bytes, err := bb.getBytes(4)
+func (bb *ByteBuffer) GetUInt32() (uint32, error) {
+	bytes, err := bb.GetBytes(4)
 	if err != nil {
 		return 0, err
 	}
-	var val uint32 = 0
-	for _, b := range bytes {
-		val = val<<8 | uint32(b)
-	}
 
-	return val, nil
+	return binary.LittleEndian.Uint32(bytes), nil
 }
 
-func (bb *ByteBuffer) getUInt64() (uint64, error) {
-	bytes, err := bb.getBytes(8)
+func (bb *ByteBuffer) GetUInt64() (uint64, error) {
+	bytes, err := bb.GetBytes(8)
 	if err != nil {
 		return 0, err
 	}
 
-	var val uint64 = 0
-	for _, b := range bytes {
-		val = val<<8 | uint64(b)
-	}
-
-	return val, nil
+	return binary.LittleEndian.Uint64(bytes), nil
 }
 
 func (bb *ByteBuffer) getLen(byteSize int) (int, error) {
 	if byteSize < 1 {
-		return 0, fmt.Errorf("deser: bytesize in getVarBytes should larger than 0")
+		return 0, fmt.Errorf("deser: bytesize in GetVarBytes should larger than 0")
 	}
 
-	b, err := bb.getBytes(byteSize)
+	b, err := bb.GetBytes(byteSize)
 	if err != nil {
 		return 0, err
 	}
@@ -96,15 +92,15 @@ func (bb *ByteBuffer) getLen(byteSize int) (int, error) {
 	return size, nil
 }
 
-func (bb *ByteBuffer) getVarBytes(byteSize int) ([]byte, error) {
+func (bb *ByteBuffer) GetVarBytes(byteSize int) ([]byte, error) {
 	size, err := bb.getLen(byteSize)
 	if err != nil {
 		return nil, err
 	}
 
-	return bb.getBytes(size)
+	return bb.GetBytes(size)
 }
 
-func (bb *ByteBuffer) remaining() int {
+func (bb *ByteBuffer) Remaining() int {
 	return len(bb.data) - bb.position
 }

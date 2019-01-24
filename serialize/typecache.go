@@ -1,4 +1,4 @@
-// Modified from pyethereum under GNU Lesser General Public License
+// Modified from go-ethereum under GNU Lesser General Public License
 
 package serialize
 

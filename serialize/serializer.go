@@ -1,6 +1,7 @@
 package serialize
 
 import (
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"math/big"
@@ -246,10 +247,8 @@ func serializeStruct(val reflect.Value, w *[]byte) error {
 func serializeString(val reflect.Value, w *[]byte) error {
 	s := val.String()
 
-	sizeBytes, err := prefillByteArray(4, uint2ByteArray(uint64(val.Len())))
-	if err != nil {
-		return nil
-	}
+	sizeBytes := make([]byte, 4, 4)
+	binary.LittleEndian.PutUint32(sizeBytes, uint32(val.Len()))
 
 	*w = append(*w, sizeBytes...)
 	*w = append(*w, s...)
