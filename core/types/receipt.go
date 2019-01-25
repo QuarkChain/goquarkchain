@@ -116,7 +116,7 @@ func (r *Receipt) Serialize(w *[]byte) error {
 		r.CumulativeGasUsed,
 		r.CumulativeGasUsed - r.GasUsed,
 		r.Bloom,
-		account.Address{r.ContractAddress, r.ContractFullShardId},
+		account.Address{Recipient: r.ContractAddress, FullShardKey: r.ContractFullShardId},
 		r.Logs,
 	})
 }
