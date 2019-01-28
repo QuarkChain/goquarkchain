@@ -31,7 +31,7 @@ func CheckAddressUnitTest(data AddressTestStruct) bool {
 			fmt.Println("decodeString bs failed:err", err)
 			return false
 		}
-		tAddress, err = CreatAddressFromBS(bs) //create address from bs
+		tAddress, err = CreatAddressFromBytes(bs) //create address from bs
 		if err != nil {
 			fmt.Println("create address from bs failed err", err)
 			return false

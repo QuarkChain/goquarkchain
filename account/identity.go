@@ -10,13 +10,13 @@ import (
 	"math/big"
 )
 
-//Identity include recipient and key
+// Identity include recipient and key
 type Identity struct {
 	Recipient Recipient
 	Key       Key
 }
 
-//NewIdentity new identity include recipient and key
+// NewIdentity new identity include recipient and key
 func NewIdentity(recipient Recipient, key Key) Identity {
 	return Identity{
 		Recipient: recipient,
@@ -24,7 +24,7 @@ func NewIdentity(recipient Recipient, key Key) Identity {
 	}
 }
 
-//CreatRandomIdentity create a random identity
+// CreatRandomIdentity create a random identity
 func CreatRandomIdentity() (Identity, error) {
 	sk, err := ecdsa.GenerateKey(crypto.S256(), rand.Reader)
 	if err != nil {
@@ -47,7 +47,7 @@ func CreatRandomIdentity() (Identity, error) {
 
 }
 
-//CreatIdentityFromKey creat identity from key
+// CreatIdentityFromKey creat identity from key
 func CreatIdentityFromKey(key Key) (Identity, error) {
 	keyValue:=big.NewInt(0)
 	keyValue.SetBytes(key.Bytes())
@@ -79,7 +79,7 @@ func newIdentity(recipient []byte,key []byte)(Identity,error){
 	}
 	return NewIdentity(recipientType,keyType), nil
 }
-//GetDefaultFullShardKey get identity's default fullShardKey
+// GetDefaultFullShardKey get identity's default fullShardKey
 func (Self *Identity) GetDefaultFullShardKey() (uint32, error) {
 	var fullShardKey uint32
 	r := Self.Recipient
@@ -94,12 +94,12 @@ func (Self *Identity) GetDefaultFullShardKey() (uint32, error) {
 	return fullShardKey, nil
 }
 
-//GetRecipient Get it's recipient
+// GetRecipient Get it's recipient
 func (Self *Identity) GetRecipient() Recipient {
 	return Self.Recipient
 }
 
-//GetKey get it's key
+// GetKey get it's key
 func (Self *Identity) GetKey() Key {
 	return Self.Key
 }

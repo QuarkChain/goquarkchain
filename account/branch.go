@@ -4,41 +4,41 @@ import (
 	"errors"
 )
 
-//Branch branch include it's value
+// Branch branch include it's value
 type Branch struct {
 	Value uint32
 }
 
-//NewBranch new branch with value
+// NewBranch new branch with value
 func NewBranch(value uint32) Branch {
 	return Branch{
 		Value: value,
 	}
 }
 
-//GetChainID get branch's chainID
+// GetChainID get branch's chainID
 func (Self *Branch) GetChainID() uint32 {
 	return Self.Value >> 16
 }
 
-//GetShardSize get branch's shardSize
+// GetShardSize get branch's shardSize
 func (Self *Branch) GetShardSize() uint32 {
 	branchValue := Self.Value & ((1 << 16) - 1)
 	return 1 << (IntLeftMostBit(branchValue) - 1)
 }
 
-//GetFullShardID get branch's fullShardId
+// GetFullShardID get branch's fullShardId
 func (Self *Branch) GetFullShardID() uint32 {
 	return Self.Value
 }
 
-//GetShardID get branch branch's shardID
+// GetShardID get branch branch's shardID
 func (Self *Branch) GetShardID() uint32 {
 	branchValue := Self.Value & ((1 << 16) - 1)
 	return branchValue ^ Self.GetShardSize()
 }
 
-//IsInBranch check shardKey is in current branch
+// IsInBranch check shardKey is in current branch
 func (Self *Branch) IsInBranch(fullShardKey uint32) bool {
 	chainIDMatch := (fullShardKey >> 16) == Self.GetChainID()
 	if chainIDMatch == false {
@@ -47,7 +47,7 @@ func (Self *Branch) IsInBranch(fullShardKey uint32) bool {
 	return (fullShardKey & (Self.GetShardSize() - 1)) == Self.GetShardID()
 }
 
-//CreatBranch create branch depend shardSize and shardID
+// CreatBranch create branch depend shardSize and shardID
 func CreatBranch(shardSize uint32, shardID uint32) (Branch, error) {
 	if IsP2(shardSize) == false {
 		return Branch{}, errors.New("shardSize is not correct")
