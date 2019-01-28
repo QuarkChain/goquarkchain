@@ -5,12 +5,12 @@ import (
 )
 
 var (
-	//ErrGenIdentityKey error info : err generate identity key
+	// ErrGenIdentityKey error info : err generate identity key
 	ErrGenIdentityKey = errors.New("ErrGenIdentityKey")
 )
 
 
-//DefaultKeyStoreDirectory default keystore dir
+// DefaultKeyStoreDirectory default keystore dir
 const (
 	DefaultKeyStoreDirectory = "./keystore/"
 	kdfParamsPrf="prf"
@@ -35,10 +35,10 @@ const (
 	FullShardKeyLength=4
 )
 
-//Recipient recipient type
+// Recipient recipient type
 type Recipient [RecipientLength]byte
 
-//SetBytes set bytes to it's value
+// SetBytes set bytes to it's value
 func (a *Recipient) SetBytes(b []byte)error {
 	if len(b) > len(a) {
 		b = b[len(b)-RecipientLength:]
@@ -50,22 +50,22 @@ func (a *Recipient) SetBytes(b []byte)error {
 	return nil
 }
 
-//Bytes return it's bytes
+// Bytes return it's bytes
 func (a Recipient) Bytes() []byte {
 	return a[:]
 }
 
-//BytesToIdentityRecipient trans bytes to Recipient
+// BytesToIdentityRecipient trans bytes to Recipient
 func BytesToIdentityRecipient(b []byte) (Recipient ,error){
 	var a Recipient
 	err:=a.SetBytes(b)
 	return a,err
 }
 
-//Key key type
+// Key key type
 type Key [KeyLength]byte
 
-//SetBytes set bytes to it's value
+// SetBytes set bytes to it's value
 func (a *Key) SetBytes(b []byte)error {
 	if len(a)!=len(b){
 		return errors.New("key setBytes length is wrong")
@@ -74,12 +74,12 @@ func (a *Key) SetBytes(b []byte)error {
 	return nil
 }
 
-//Bytes return it's bytes
+// Bytes return it's bytes
 func (a Key) Bytes() []byte {
 	return a[:]
 }
 
-//BytesToIdentityKey trans bytes to Key
+// BytesToIdentityKey trans bytes to Key
 func BytesToIdentityKey(b []byte) (Key,error) {
 	var a Key
 	err:=a.SetBytes(b)

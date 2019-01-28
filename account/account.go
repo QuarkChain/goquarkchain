@@ -21,7 +21,7 @@ type Account struct {
 	ID         uuid.UUID
 }
 
-//EncryptedKeyJSON keystore file included
+// EncryptedKeyJSON keystore file included
 type EncryptedKeyJSON struct {
 	Address string     `json:"address"`
 	Crypto  CryptoJSON `json:"crypto"`
@@ -29,7 +29,7 @@ type EncryptedKeyJSON struct {
 	Version int        `json:"version"`
 }
 
-//CryptoJSON crypto data for keystore file
+// CryptoJSON crypto data for keystore file
 type CryptoJSON struct {
 	Cipher       string                 `json:"cipher"`
 	CipherText   string                 `json:"ciphertext"`
@@ -52,7 +52,7 @@ func newAccount(identity Identity, address Address) Account {
 	}
 }
 
-//NewAccountWithKey create new account with key
+// NewAccountWithKey create new account with key
 func NewAccountWithKey(key Key) (Account, error) {
 	identity, err := CreatIdentityFromKey(key)
 	if err != nil {
@@ -68,7 +68,7 @@ func NewAccountWithKey(key Key) (Account, error) {
 	return newAccount(identity, address), nil
 }
 
-//NewAccountWithoutKey new account without key,use random key
+// NewAccountWithoutKey new account without key,use random key
 func NewAccountWithoutKey() (Account, error) {
 	identity, err := CreatRandomIdentity()
 	if err != nil {
@@ -84,7 +84,7 @@ func NewAccountWithoutKey() (Account, error) {
 	return newAccount(identity, address), nil
 }
 
-//Load load a keystore file with password
+// Load load a keystore file with password
 func Load(path string, password string) (Account, error) {
 	jsonData, err := ioutil.ReadFile(path)
 	if err != nil {
@@ -112,7 +112,7 @@ func Load(path string, password string) (Account, error) {
 	return account, nil
 }
 
-//DecodeKeyStoreJSON decode key with password ,return plainText to create account
+// DecodeKeyStoreJSON decode key with password ,return plainText to create account
 func DecodeKeyStoreJSON(keystoreJSONData EncryptedKeyJSON, password string) ([]byte, error) {
 	kdfParams := keystoreJSONData.Crypto.KDFParams
 	c := ensureInt(kdfParams[kdfParamsC])
@@ -153,7 +153,7 @@ func DecodeKeyStoreJSON(keystoreJSONData EncryptedKeyJSON, password string) ([]b
 	return plainText, nil
 }
 
-//Dump dump a keystore file with it's password
+// Dump dump a keystore file with it's password
 func (Self *Account) Dump(password string, includeAddress bool, write bool, directory string) ([]byte, error) {
 	keystoreJSON, err := Self.MakeKeyStoreJSON(password)
 	if err != nil {
@@ -182,7 +182,7 @@ func (Self *Account) Dump(password string, includeAddress bool, write bool, dire
 	return data, nil
 }
 
-//MakeKeyStoreJSON make encrypt Json depend on it's password
+// MakeKeyStoreJSON make encrypt Json depend on it's password
 func (Self *Account) MakeKeyStoreJSON(password string) (EncryptedKeyJSON, error) {
 	salt := make([]byte, 16)
 	if _, err := io.ReadFull(rand.Reader, salt); err != nil {
@@ -225,17 +225,17 @@ func (Self *Account) MakeKeyStoreJSON(password string) (EncryptedKeyJSON, error)
 	}, nil
 }
 
-//Address return it's real address
+// Address return it's real address
 func (Self *Account) Address() string {
 	return hex.EncodeToString(Self.QKCAddress.ToHex())
 }
 
-//PrivateKey return it's key
+// PrivateKey return it's key
 func (Self *Account) PrivateKey() string {
 	return hex.EncodeToString(Self.Identity.Key.Bytes())
 }
 
-//UUID return it's uuid
+// UUID return it's uuid
 func (Self *Account) UUID() uuid.UUID {
 	return Self.ID
 }
