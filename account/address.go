@@ -87,7 +87,7 @@ func CreatEmptyAddress(fullShardKey uint32) Address {
 	return NewAddress(recipient, fullShardKey)
 }
 
-// CreatAddressFromBS creat address from bytes
+// CreatAddressFromBytes creat address from bytes
 func CreatAddressFromBytes(bs []byte) (Address, error) {
 	if len(bs) != RecipientLength+FullShardKeyLength {
 		return Address{}, fmt.Errorf("bs length excepted %d,unexcepted %d",RecipientLength+FullShardKeyLength,len(bs))
