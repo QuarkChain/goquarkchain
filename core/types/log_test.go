@@ -12,7 +12,7 @@ func TestLogSerializing(t *testing.T) {
 	logEnc := common.FromHex("d3f86deb4a2bbf85048b3e790460c40dbab1f62102a40920ae6f758f88c61b405f9fc39fdd6274666462b14e3887522166e6537a97297d6ae9803346cdb059a671dea7e37b684dcabfa767f2d872026ad0a3aba49500000003010203000000000000000adf227f34313c2bc4a4a986817ea46437f049873f2fca8e2b89b1ecd0f9e67a2800000064df227f34313c2bc4a4a986817ea46437f049873f2fca8e2b89b1ecd0f9e67a28000000c8")
 	var log Log
 	bb := serialize.NewByteBuffer(logEnc)
-	if err := serialize.Deserialize(&bb, &log); err != nil {
+	if err := serialize.Deserialize(bb, &log); err != nil {
 		t.Fatal("Deserialize error: ", err)
 	}
 
