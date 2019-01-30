@@ -98,9 +98,9 @@ func Load(path string, password string) (Account, error) {
 		return Account{}, err
 	}
 
-	keyTypeData,err:=BytesToIdentityKey(key)
-	if err!=nil{
-		return Account{},err
+	keyTypeData, err := BytesToIdentityKey(key)
+	if err != nil {
+		return Account{}, err
 	}
 	account, err := NewAccountWithKey(keyTypeData)
 	if err != nil {
@@ -190,7 +190,7 @@ func (Self *Account) MakeKeyStoreJSON(password string) (EncryptedKeyJSON, error)
 	}
 
 	kdfParams := make(map[string]interface{}, 5)
-	kdfParams[kdfParamsPrf] =kdfParamsPrfValue
+	kdfParams[kdfParamsPrf] = kdfParamsPrfValue
 	kdfParams[kdfParamsPrfDkLen] = kdfParamsPrfDkLenValue
 	kdfParams[kdfParamsC] = kdfParamsCValue
 	kdfParams[kdfParamsSalt] = hex.EncodeToString(salt)
