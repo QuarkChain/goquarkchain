@@ -43,18 +43,30 @@ func CreatRandomIdentity() (Identity, error) {
 	if len(recipient) != KeyLength {
 		return Identity{}, fmt.Errorf("recipient len is not match:unexceptd %d,exceptd 32", len(recipient))
 	}
+<<<<<<< HEAD
 	return newIdentity(recipient,key)
+=======
+	return newIdentity(recipient, key)
+>>>>>>> 08842181cc246dd74f95cd30a4ddc23474a35c80
 
 }
 
 // CreatIdentityFromKey creat identity from key
 func CreatIdentityFromKey(key Key) (Identity, error) {
+<<<<<<< HEAD
 	keyValue:=big.NewInt(0)
+=======
+	keyValue := big.NewInt(0)
+>>>>>>> 08842181cc246dd74f95cd30a4ddc23474a35c80
 	keyValue.SetBytes(key.Bytes())
 	sk := new(ecdsa.PrivateKey)
 	sk.PublicKey.Curve = crypto.S256()
 	sk.D = keyValue
+<<<<<<< HEAD
 	sk.PublicKey.X, sk.PublicKey.Y =  crypto.S256().ScalarBaseMult(keyValue.Bytes())
+=======
+	sk.PublicKey.X, sk.PublicKey.Y = crypto.S256().ScalarBaseMult(keyValue.Bytes())
+>>>>>>> 08842181cc246dd74f95cd30a4ddc23474a35c80
 	if len(crypto.FromECDSAPub(&sk.PublicKey)) != 2*KeyLength+1 {
 		return Identity{}, fmt.Errorf("fromECDSAPub len is not match :unexcepted %d,excepted %d", len(crypto.FromECDSAPub(&sk.PublicKey)), 2*KeyLength+1)
 	}
@@ -64,6 +76,7 @@ func CreatIdentityFromKey(key Key) (Identity, error) {
 		return Identity{}, fmt.Errorf("recipient len is not match:unexceptd %d,exceptd 32", len(recipient))
 	}
 
+<<<<<<< HEAD
 	return newIdentity(recipient,key.Bytes())
 }
 
@@ -79,6 +92,17 @@ func newIdentity(recipient []byte,key []byte)(Identity,error){
 	}
 	return NewIdentity(recipientType,keyType), nil
 }
+=======
+	return newIdentity(recipient, key.Bytes())
+}
+
+func newIdentity(recipient []byte, key []byte) (Identity, error) {
+	recipientType := BytesToIdentityRecipient(recipient[(len(recipient) - RecipientLength):])
+	keyType := BytesToIdentityKey(key)
+	return NewIdentity(recipientType, keyType), nil
+}
+
+>>>>>>> 08842181cc246dd74f95cd30a4ddc23474a35c80
 // GetDefaultFullShardKey get identity's default fullShardKey
 func (Self *Identity) GetDefaultFullShardKey() (uint32, error) {
 	var fullShardKey uint32

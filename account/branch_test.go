@@ -44,11 +44,19 @@ func CheckBranchUnitTest(data BranchTestStruct) bool {
 		fmt.Printf("CreatBranch err %v\n", err)
 		return false
 	}
+<<<<<<< HEAD
 	if tempBranch.GetChainID() != data.ChainID{ //checkGetChainID
 		fmt.Printf("chainId is not match: unexcepted %d,except %d\n", tempBranch.GetChainID(), data.ChainID)
 		return false
 	}
 	if tempBranch.GetShardSize() != data.GetSize{ //checkGetShardSize
+=======
+	if tempBranch.GetChainID() != data.ChainID { //checkGetChainID
+		fmt.Printf("chainId is not match: unexcepted %d,except %d\n", tempBranch.GetChainID(), data.ChainID)
+		return false
+	}
+	if tempBranch.GetShardSize() != data.GetSize { //checkGetShardSize
+>>>>>>> 08842181cc246dd74f95cd30a4ddc23474a35c80
 		fmt.Printf("ShardSze is not match: unexcepted %d,excepted %d\n", tempBranch.GetShardSize(), data.GetSize)
 		return false
 	}
@@ -94,4 +102,8 @@ func TestBranch(t *testing.T) {
 		count++
 	}
 	fmt.Println("TestBranch:success test num:", count)
+<<<<<<< HEAD
 }
+=======
+}
+>>>>>>> 08842181cc246dd74f95cd30a4ddc23474a35c80
