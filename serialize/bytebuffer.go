@@ -10,8 +10,9 @@ type ByteBuffer struct {
 	position int
 }
 
-func NewByteBuffer(bytes []byte) ByteBuffer {
-	return ByteBuffer{bytes, 0}
+func NewByteBuffer(bytes []byte) *ByteBuffer {
+	bb := ByteBuffer{bytes, 0}
+	return &bb
 }
 
 func (bb ByteBuffer) GetOffset() int {
