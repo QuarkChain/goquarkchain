@@ -12,7 +12,6 @@ func TestClusterConfig(t *testing.T) {
 	if err != nil {
 		t.Fatalf("cluster struct marshal error: %v", err)
 	}
-
 	data := &config.ClusterConfig{}
 	err = json.Unmarshal(jsCluster, data)
 	if err != nil {
@@ -22,9 +21,9 @@ func TestClusterConfig(t *testing.T) {
 		t.Fatalf("db path root error")
 	}
 
-	slaveList := data.GetSlaveConfig("S0")
-	if slaveList == nil {
-		t.Fatalf("slave should not to be empty.")
+	_, err = data.GetSlaveConfig("S0")
+	if err != nil {
+		t.Fatalf("slave should not to be empty: %v", err)
 	}
 	p2p := data.GetP2P()
 	if p2p == nil {
@@ -35,13 +34,14 @@ func TestClusterConfig(t *testing.T) {
 	if quarkchain.ShardSize != 4 {
 		t.Fatalf("quarkchain update function set shard size failed, shard size: %d", quarkchain.ShardSize)
 	}
-	for i := quarkchain.ShardSize - 1; i >= 0; i-- {
+	for i := 0; i < int(quarkchain.ShardSize); i++ {
 		if quarkchain.GetGenesisRootHeight(i) != 0 {
 			t.Fatalf("genesis height is not equal to 0.")
 		}
 	}
 	shardIds := quarkchain.GetGenesisShardIds()
-	if len(shardIds) != 8 {
+	if len(shardIds) != 4 {
+		t.Fatalf("shard id list is not enough.")
 	} else {
 		for i := 0; i < len(shardIds); i++ {
 			if shardIds[i] != i {
