@@ -97,6 +97,8 @@ func (h *RootBlockHeader) SignWithPrivateKey(prv *ecdsa.PrivateKey) error {
 	return nil
 }
 
+func (h *RootBlockHeader) NumberUI64() uint64 { return uint64(h.Number) }
+
 // Block represents an entire block in the QuarkChain.
 type RootBlock struct {
 	header            *RootBlockHeader
@@ -135,7 +137,7 @@ func NewRootBlock(header *RootBlockHeader, mbHeaders MinorBlockHeaders, tracking
 	b := &RootBlock{header: CopyRootBlockHeader(header), td: new(big.Int)}
 
 	if len(mbHeaders) == 0 {
-		b.header.MinorHeaderHash = EmptyRootHash
+		b.header.MinorHeaderHash = EmptyHash
 	} else {
 		b.header.MinorHeaderHash = DeriveSha(MinorBlockHeaders(mbHeaders))
 		b.minorBlockHeaders = make(MinorBlockHeaders, len(mbHeaders))
@@ -159,8 +161,8 @@ func NewRootBlockWithHeader(header *RootBlockHeader) *RootBlock {
 // modifying a header variable.
 func CopyRootBlockHeader(h *RootBlockHeader) *RootBlockHeader {
 	cpy := *h
-	if cpy.CoinbaseAmount = new(serialize.Uint256); h.CoinbaseAmount != nil {
-		cpy.CoinbaseAmount.Value.Set(h.CoinbaseAmount.Value)
+	if cpy.CoinbaseAmount = new(serialize.Uint256); h.CoinbaseAmount != nil && h.CoinbaseAmount.Value != nil {
+		cpy.CoinbaseAmount.Value = new(big.Int).Set(h.CoinbaseAmount.Value)
 	}
 	if cpy.Difficulty = new(big.Int); h.Difficulty != nil {
 		cpy.Difficulty.Set(h.Difficulty)
@@ -212,8 +214,11 @@ func (b *RootBlock) MinorBlockHeader(hash common.Hash) *MinorBlockHeader {
 	return nil
 }
 
+func (b *RootBlock) TrackingData() serialize.LimitedSizeByteSlice2 { return b.trackingdata }
+
 func (b *RootBlock) Version() uint32              { return b.header.Version }
 func (b *RootBlock) Number() uint32               { return b.header.Number }
+func (b *RootBlock) NumberU64() uint64            { return uint64(b.header.Number) }
 func (b *RootBlock) ParentHash() common.Hash      { return b.header.ParentHash }
 func (b *RootBlock) MinorHeaderHash() common.Hash { return b.header.MinorHeaderHash }
 func (b *RootBlock) Coinbase() account.Address    { return b.header.Coinbase }
@@ -250,7 +255,7 @@ func (b *RootBlock) WithSeal(header *RootBlockHeader) *RootBlock {
 }
 
 // WithBody returns a new block with the given minorBlockHeaders contents.
-func (b *RootBlock) WithBody(minorBlockHeaders MinorBlockHeaders, uncles []*RootBlockHeader) *RootBlock {
+func (b *RootBlock) WithBody(minorBlockHeaders MinorBlockHeaders, trackingdata serialize.LimitedSizeByteSlice2) *RootBlock {
 	block := &RootBlock{
 		header:            CopyRootBlockHeader(b.header),
 		minorBlockHeaders: make(MinorBlockHeaders, len(minorBlockHeaders)),
@@ -258,7 +263,7 @@ func (b *RootBlock) WithBody(minorBlockHeaders MinorBlockHeaders, uncles []*Root
 	}
 
 	copy(block.minorBlockHeaders, minorBlockHeaders)
-	copy(block.trackingdata, b.trackingdata)
+	copy(block.trackingdata, trackingdata)
 	return block
 }
 

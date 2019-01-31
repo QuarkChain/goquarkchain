@@ -112,7 +112,7 @@ func NewMinorBlock(header *MinorBlockHeader, meta *MinorBlockMeta, txs []*Transa
 
 	// TODO: panic if len(txs) != len(receipts)
 	if len(txs) == 0 {
-		b.meta.TxHash = EmptyRootHash
+		b.meta.TxHash = EmptyHash
 	} else {
 		b.meta.TxHash = DeriveSha(Transactions(txs))
 		b.transactions = make(Transactions, len(txs))
@@ -120,7 +120,7 @@ func NewMinorBlock(header *MinorBlockHeader, meta *MinorBlockMeta, txs []*Transa
 	}
 
 	if len(receipts) == 0 {
-		b.meta.ReceiptHash = EmptyRootHash
+		b.meta.ReceiptHash = EmptyHash
 	} else {
 		b.meta.ReceiptHash = DeriveSha(Receipts(receipts))
 		b.header.Bloom = CreateBloom(receipts)
@@ -147,13 +147,13 @@ func CopyMinorBlockHeader(h *MinorBlockHeader) *MinorBlockHeader {
 	if cpy.Difficulty = new(big.Int); h.Difficulty != nil {
 		cpy.Difficulty.Set(h.Difficulty)
 	}
-	if cpy.CoinbaseAmount = new(serialize.Uint256); h.CoinbaseAmount != nil {
-		cpy.CoinbaseAmount.Value.Set(h.CoinbaseAmount.Value)
+	if cpy.CoinbaseAmount = new(serialize.Uint256); h.CoinbaseAmount != nil && h.CoinbaseAmount.Value != nil {
+		cpy.CoinbaseAmount.Value = new(big.Int).Set(h.CoinbaseAmount.Value)
 	}
-	if cpy.GasLimit = new(serialize.Uint256); h.GasLimit != nil {
-		cpy.GasLimit.Value.Set(h.GasLimit.Value)
+	if cpy.GasLimit = new(serialize.Uint256); h.GasLimit != nil && h.GasLimit.Value != nil {
+		cpy.GasLimit.Value = new(big.Int).Set(h.GasLimit.Value)
 	}
-	if len(*h.Extra) > 0 {
+	if h.Extra != nil && len(*h.Extra) > 0 {
 		*cpy.Extra = make(serialize.LimitedSizeByteSlice2, len(*h.Extra)) //todo verify
 		copy(*cpy.Extra, *h.Extra)
 	}
@@ -163,11 +163,11 @@ func CopyMinorBlockHeader(h *MinorBlockHeader) *MinorBlockHeader {
 
 func CopyMinorBlockMeta(m *MinorBlockMeta) *MinorBlockMeta {
 	cpy := *m
-	if cpy.GasUsed = new(serialize.Uint256); m.GasUsed != nil {
-		cpy.GasUsed.Value.Set(m.GasUsed.Value)
+	if cpy.GasUsed = new(serialize.Uint256); m.GasUsed != nil && m.GasUsed.Value != nil {
+		cpy.GasUsed.Value = new(big.Int).Set(m.GasUsed.Value)
 	}
-	if cpy.CrossShardGasUsed = new(serialize.Uint256); m.CrossShardGasUsed != nil {
-		cpy.CrossShardGasUsed.Value.Set(m.CrossShardGasUsed.Value)
+	if cpy.CrossShardGasUsed = new(serialize.Uint256); m.CrossShardGasUsed != nil && m.CrossShardGasUsed.Value != nil {
+		cpy.CrossShardGasUsed.Value = new(big.Int).Set(m.CrossShardGasUsed.Value)
 	}
 	return &cpy
 }
@@ -211,7 +211,7 @@ func (b *MinorBlock) Transaction(hash common.Hash) *Transaction {
 	return nil
 }
 
-func (b *MinorBlock) Trackingdata() serialize.LimitedSizeByteSlice2 { return b.trackingdata }
+func (b *MinorBlock) TrackingData() serialize.LimitedSizeByteSlice2 { return b.trackingdata }
 
 //header properties
 func (b *MinorBlock) Version() uint32                { return b.header.Version }
@@ -240,6 +240,7 @@ func (b *MinorBlock) CrossShardGasUsed() *big.Int {
 }
 
 func (b *MinorBlock) Header() *MinorBlockHeader { return CopyMinorBlockHeader(b.header) }
+func (b *MinorBlock) Meta() *MinorBlockMeta     { return CopyMinorBlockMeta(b.meta) }
 
 // Size returns the true RLP encoded storage size of the block, either by encoding
 // and returning it, or returning a previsouly cached value.
@@ -267,15 +268,15 @@ func (b *MinorBlock) WithSeal(header *MinorBlockHeader, meta *MinorBlockMeta) *M
 }
 
 // WithBody returns a new block with the given transaction and uncle contents.
-func (b *MinorBlock) WithBody(transactions []*Transaction) *MinorBlock {
+func (b *MinorBlock) WithBody(transactions []*Transaction, trackingData serialize.LimitedSizeByteSlice2) *MinorBlock {
 	block := &MinorBlock{
 		header:       CopyMinorBlockHeader(b.header),
 		meta:         CopyMinorBlockMeta(b.meta),
 		transactions: make([]*Transaction, len(transactions)),
-		trackingdata: make(serialize.LimitedSizeByteSlice2, len(b.trackingdata)),
+		trackingdata: make(serialize.LimitedSizeByteSlice2, len(trackingData)),
 	}
 	copy(block.transactions, transactions)
-	copy(block.trackingdata, b.trackingdata)
+	copy(block.trackingdata, trackingData)
 	return block
 }
 
