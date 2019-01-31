@@ -76,15 +76,8 @@ func aesCTRXOR(key, inText, iv []byte) ([]byte, error) {
 }
 
 // PublicKeyToRecipient publicKey to recipient
-<<<<<<< HEAD
-func PublicKeyToRecipient(p ecdsa.PublicKey) (Recipient, error) {
-	recipient := crypto.Keccak256(crypto.FromECDSAPub(&p)[1:])
-	recipientType, err := BytesToIdentityRecipient(recipient[(len(recipient) - RecipientLength):])
-	return recipientType, err
-=======
 func PublicKeyToRecipient(p ecdsa.PublicKey) Recipient {
 	recipient := crypto.Keccak256(crypto.FromECDSAPub(&p)[1:])
 	recipientType := BytesToIdentityRecipient(recipient[(len(recipient) - RecipientLength):])
 	return recipientType
->>>>>>> 08842181cc246dd74f95cd30a4ddc23474a35c80
 }

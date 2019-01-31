@@ -23,16 +23,7 @@ func CheckIdentityUnitTest(data IdentityTestStruct) bool {
 		fmt.Println("DecodeString failed err", err)
 		return false
 	}
-<<<<<<< HEAD
-	keyType, err := BytesToIdentityKey(key)
-	if err != nil {
-		fmt.Println("BytesToIdentityKey err")
-		return false
-	}
-
-=======
 	keyType := BytesToIdentityKey(key)
->>>>>>> 08842181cc246dd74f95cd30a4ddc23474a35c80
 	identity, err := CreatIdentityFromKey(keyType)
 	if err := checkPublicToRecipient(keyType, identity.Recipient); err != nil {
 		fmt.Println("checkPublicToRecipient err", err)
@@ -58,14 +49,7 @@ func checkPublicToRecipient(key Key, recipient Recipient) error {
 	sk.D = keyValue
 	sk.PublicKey.X, sk.PublicKey.Y = crypto.S256().ScalarBaseMult(keyValue.Bytes())
 
-<<<<<<< HEAD
-	recipientData, err := PublicKeyToRecipient(sk.PublicKey)
-	if err != nil {
-		return err
-	}
-=======
 	recipientData := PublicKeyToRecipient(sk.PublicKey)
->>>>>>> 08842181cc246dd74f95cd30a4ddc23474a35c80
 	if bytes.Equal(recipientData.Bytes(), recipient.Bytes()) {
 		return nil
 	}
@@ -93,8 +77,6 @@ func TestIdentity(t *testing.T) {
 	}
 	fmt.Println("TestIdentity:success test num:", count)
 }
-<<<<<<< HEAD
-=======
 
 type TestBytesTo struct {
 	recipient         []byte
@@ -138,4 +120,3 @@ func TestBytesToIdentityKey(t *testing.T) {
 	}
 
 }
->>>>>>> 08842181cc246dd74f95cd30a4ddc23474a35c80
