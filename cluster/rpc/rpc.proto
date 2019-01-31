@@ -3,9 +3,7 @@ syntax = "proto3";
 package rpc;
 
 service CommonOp {
-    // 服务端（master）等待slave完成与其连接
     rpc Ping(Request) returns (Response) {}
-    // 当所有的slave都启动完成后，master向所有的slave发送配置slave的配置列表
     rpc ConnectToSlaves(Request) returns (Response) {}
 	rpc AddRootBlock(Request) returns (Response) {}
 	rpc GetEcoInfoList(Request) returns (Response) {}
@@ -76,13 +74,13 @@ service SlaveServerSideOp {
     rpc BatchAddXshardTxList(stream Request) returns (Response) {}
 }
 
-// 请求数据
+// request data
 message Request {
 	int64 op = 1; 	// option id
 	bytes data = 5;	// 数据内容
 }
 
-// 响应数据
+// response data
 message Response {
     int64 rpc_id = 2;
 	bytes data = 1;

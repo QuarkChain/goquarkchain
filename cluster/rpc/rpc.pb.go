@@ -22,7 +22,7 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.ProtoPackageIsVersion3 // please upgrade the proto package
 
-// 请求数据
+// request data
 type Request struct {
 	Op                   int64    `protobuf:"varint,1,opt,name=op,proto3" json:"op,omitempty"`
 	Data                 []byte   `protobuf:"bytes,5,opt,name=data,proto3" json:"data,omitempty"`
@@ -70,7 +70,7 @@ func (m *Request) GetData() []byte {
 	return nil
 }
 
-// 响应数据
+// response data
 type Response struct {
 	RpcId                int64    `protobuf:"varint,2,opt,name=rpc_id,json=rpcId,proto3" json:"rpc_id,omitempty"`
 	Data                 []byte   `protobuf:"bytes,1,opt,name=data,proto3" json:"data,omitempty"`
@@ -192,9 +192,7 @@ const _ = grpc.SupportPackageIsVersion4
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type CommonOpClient interface {
-	// 服务端（master）等待slave完成与其连接
 	Ping(ctx context.Context, in *Request, opts ...grpc.CallOption) (*Response, error)
-	// 当所有的slave都启动完成后，master向所有的slave发送配置slave的配置列表
 	ConnectToSlaves(ctx context.Context, in *Request, opts ...grpc.CallOption) (*Response, error)
 	AddRootBlock(ctx context.Context, in *Request, opts ...grpc.CallOption) (*Response, error)
 	GetEcoInfoList(ctx context.Context, in *Request, opts ...grpc.CallOption) (*Response, error)
@@ -497,9 +495,7 @@ func (c *commonOpClient) SubmitWork(ctx context.Context, in *Request, opts ...gr
 
 // CommonOpServer is the server API for CommonOp service.
 type CommonOpServer interface {
-	// 服务端（master）等待slave完成与其连接
 	Ping(context.Context, *Request) (*Response, error)
-	// 当所有的slave都启动完成后，master向所有的slave发送配置slave的配置列表
 	ConnectToSlaves(context.Context, *Request) (*Response, error)
 	AddRootBlock(context.Context, *Request) (*Response, error)
 	GetEcoInfoList(context.Context, *Request) (*Response, error)
