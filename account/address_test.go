@@ -42,11 +42,7 @@ func CheckAddressUnitTest(data AddressTestStruct) bool {
 			fmt.Println("decodeString tKey failed err", err)
 			return false
 		}
-		keyType, err := BytesToIdentityKey(tkey)
-		if err != nil {
-			fmt.Println("BytesToIdentityKey failed")
-			return false
-		}
+		keyType := BytesToIdentityKey(tkey)
 		tIdentity, err := CreatIdentityFromKey(keyType)
 		tAddress = CreatAddressFromIdentity(tIdentity, data.FullShardKey)
 	}

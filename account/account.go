@@ -98,7 +98,7 @@ func Load(path string, password string) (Account, error) {
 		return Account{}, err
 	}
 
-	keyTypeData, err := BytesToIdentityKey(key)
+	keyTypeData := BytesToIdentityKey(key)
 	if err != nil {
 		return Account{}, err
 	}

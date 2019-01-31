@@ -37,15 +37,11 @@ const (
 type Recipient [RecipientLength]byte
 
 // SetBytes set bytes to it's value
-func (a *Recipient) SetBytes(b []byte) error {
+func (a *Recipient) SetBytes(b []byte) {
 	if len(b) > len(a) {
 		b = b[len(b)-RecipientLength:]
 	}
-	if len(a) != len(b) {
-		return errors.New("recipient SetBytes:length is wrong")
-	}
-	copy(a[:], b)
-	return nil
+	copy(a[RecipientLength-len(b):], b)
 }
 
 // Bytes return it's bytes
@@ -54,22 +50,21 @@ func (a Recipient) Bytes() []byte {
 }
 
 // BytesToIdentityRecipient trans bytes to Recipient
-func BytesToIdentityRecipient(b []byte) (Recipient, error) {
+func BytesToIdentityRecipient(b []byte) Recipient {
 	var a Recipient
-	err := a.SetBytes(b)
-	return a, err
+	a.SetBytes(b)
+	return a
 }
 
 // Key key type
 type Key [KeyLength]byte
 
 // SetBytes set bytes to it's value
-func (a *Key) SetBytes(b []byte) error {
-	if len(a) != len(b) {
-		return errors.New("key setBytes length is wrong")
+func (a *Key) SetBytes(b []byte) {
+	if len(b) > len(a) {
+		b = b[len(b)-KeyLength:]
 	}
-	copy(a[:], b)
-	return nil
+	copy(a[KeyLength-len(b):], b)
 }
 
 // Bytes return it's bytes
@@ -78,8 +73,8 @@ func (a Key) Bytes() []byte {
 }
 
 // BytesToIdentityKey trans bytes to Key
-func BytesToIdentityKey(b []byte) (Key, error) {
+func BytesToIdentityKey(b []byte) Key {
 	var a Key
-	err := a.SetBytes(b)
-	return a, err
+	a.SetBytes(b)
+	return a
 }

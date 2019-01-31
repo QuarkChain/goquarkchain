@@ -68,15 +68,8 @@ func CreatIdentityFromKey(key Key) (Identity, error) {
 }
 
 func newIdentity(recipient []byte, key []byte) (Identity, error) {
-	recipientType, err := BytesToIdentityRecipient(recipient[(len(recipient) - RecipientLength):])
-	if err != nil {
-		return Identity{}, err
-	}
-
-	keyType, err := BytesToIdentityKey(key)
-	if err != nil {
-		return Identity{}, err
-	}
+	recipientType := BytesToIdentityRecipient(recipient[(len(recipient) - RecipientLength):])
+	keyType := BytesToIdentityKey(key)
 	return NewIdentity(recipientType, keyType), nil
 }
 

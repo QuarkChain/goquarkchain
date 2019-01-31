@@ -83,7 +83,7 @@ func CreatRandomAccountWithoutFullShardKey() (Address, error) {
 // CreatEmptyAddress creat empty address from fullShardKey
 func CreatEmptyAddress(fullShardKey uint32) Address {
 	zeroBytes := make([]byte, RecipientLength)
-	recipient, _ := BytesToIdentityRecipient(zeroBytes)
+	recipient := BytesToIdentityRecipient(zeroBytes)
 	return NewAddress(recipient, fullShardKey)
 }
 
@@ -99,7 +99,7 @@ func CreatAddressFromBytes(bs []byte) (Address, error) {
 	if err != nil {
 		return Address{}, err
 	}
-	recipient, _ := BytesToIdentityRecipient(bs[0:RecipientLength])
+	recipient := BytesToIdentityRecipient(bs[0:RecipientLength])
 	return NewAddress(recipient, x), nil
 }
 
