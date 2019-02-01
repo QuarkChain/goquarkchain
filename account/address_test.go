@@ -42,11 +42,7 @@ func CheckAddressUnitTest(data AddressTestStruct) bool {
 			fmt.Println("decodeString tKey failed err", err)
 			return false
 		}
-		keyType,err:=BytesToIdentityKey(tkey)
-		if err!=nil{
-			fmt.Println("BytesToIdentityKey failed")
-			return false
-		}
+		keyType := BytesToIdentityKey(tkey)
 		tIdentity, err := CreatIdentityFromKey(keyType)
 		tAddress = CreatAddressFromIdentity(tIdentity, data.FullShardKey)
 	}
@@ -72,7 +68,7 @@ func CheckAddressUnitTest(data AddressTestStruct) bool {
 	}
 
 	tBranch := Branch{
-		Value:data.BranchData,
+		Value: data.BranchData,
 	}
 	addressInBranch := tAddress.AddressInBranch(tBranch) //check address's toHex depend addressInBranch
 	toHex = addressInBranch.ToHex()

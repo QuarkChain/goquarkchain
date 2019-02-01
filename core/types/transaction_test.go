@@ -14,7 +14,7 @@ import (
 
 // The values in those tests are from the EvmTransaction Tests
 var (
-	reciept, _ = account.BytesToIdentityRecipient(common.Hex2Bytes("b94f5374fce5edbc8e2a8697c15331677e6ebf0b"))
+	reciept    = account.BytesToIdentityRecipient(common.Hex2Bytes("b94f5374fce5edbc8e2a8697c15331677e6ebf0b"))
 	emptyEvmTx = NewEvmTransaction(
 		0,
 		reciept,
@@ -81,7 +81,7 @@ func decodeTx(data []byte) (*EvmTransaction, error) {
 
 func publicKey2Recipient(pk *ecdsa.PublicKey) account.Recipient {
 	pubBytes := crypto.FromECDSAPub(pk)
-	recipient, _ := account.BytesToIdentityRecipient(crypto.Keccak256(pubBytes[1:])[12:])
+	recipient := account.BytesToIdentityRecipient(crypto.Keccak256(pubBytes[1:])[12:])
 	return recipient
 }
 

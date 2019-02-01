@@ -26,4 +26,4 @@ func DeriveSha(list DerivableList) common.Hash {
 	return trie.Hash()
 }
 
-var EmptyRootHash = new(trie.Trie).Hash()
+var EmptyHash = new(trie.Trie).Hash()
