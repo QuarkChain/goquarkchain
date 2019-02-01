@@ -5,16 +5,14 @@ import (
 	"errors"
 	"fmt"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/connectivity"
 	"reflect"
 	"sync"
 	"time"
 )
 
 var (
-	conns = make(map[string]*grpc.ClientConn)
-	mu    sync.Mutex
-	run   uint32 = 0
-
+	conns    = make(map[string]*grpc.ClientConn)
 	rpcFuncs = map[int64]opType{
 		1:  {name: "Ping"},
 		2:  {name: "ConnectToSlaves"},
@@ -46,7 +44,6 @@ var (
 		28: {name: "GetWork"},
 		29: {name: "SubmitWork"},
 	}
-	rpcTimeout = 10
 )
 
 type opType struct {
@@ -55,7 +52,24 @@ type opType struct {
 	name string
 }
 
-func preCheck(op int64, ty int8) bool {
+type RPClient struct {
+	run     uint32
+	mu      sync.Mutex
+	timeout uint16
+	conns   *map[string]*grpc.ClientConn
+	funcs   *map[int64]opType
+}
+
+func NewRPCLient() *RPClient {
+	return &RPClient{
+		run:     0,
+		conns:   &conns,
+		funcs:   &rpcFuncs,
+		timeout: 500,
+	}
+}
+
+func ClusterOpCheck(op int64, ty int8) bool {
 	if opType, exist := rpcFuncs[op];
 		exist && opType.ty == ty {
 		return true
@@ -63,37 +77,37 @@ func preCheck(op int64, ty int8) bool {
 	return false
 }
 
-func GetMasterServerSideOp(target string, req *Request) (response *Response, err error) {
+func (c *RPClient) GetMasterServerSideOp(target string, req *Request) (response *Response, err error) {
 
-	if !preCheck(req.Op, 1) {
+	if !ClusterOpCheck(req.Op, 1) {
 		return nil, errors.New(fmt.Sprintf("%s don't belong to master server grpc functions", rpcFuncs[req.Op].name))
 	}
-	conn, err := GetConn(target)
+	conn, err := c.GetConn(target)
 	if err != nil {
 		return
 	}
 
 	client := NewMasterServerSideOpClient(conn)
-	return grpcOp(req, reflect.ValueOf(client))
+	return c.grpcOp(req, reflect.ValueOf(client))
 }
 
-func GetSlaveSideOp(target string, req *Request) (response *Response, err error) {
+func (c *RPClient) GetSlaveSideOp(target string, req *Request) (response *Response, err error) {
 
-	if !preCheck(req.Op, 0) {
+	if !ClusterOpCheck(req.Op, 0) {
 		return nil, errors.New(fmt.Sprintf("%s don't belong to slave server grpc functions", rpcFuncs[req.Op].name))
 	}
-	conn, err := GetConn(target)
+	conn, err := c.GetConn(target)
 	if err != nil {
 		return
 	}
 
 	client := NewSlaveServerSideOpClient(conn)
-	return grpcOp(req, reflect.ValueOf(client))
+	return c.grpcOp(req, reflect.ValueOf(client))
 }
 
-func grpcOp(req *Request, ele reflect.Value) (response *Response, err error) {
+func (c *RPClient) grpcOp(req *Request, ele reflect.Value) (response *Response, err error) {
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(rpcTimeout)*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(c.timeout)*time.Second)
 	defer cancel()
 
 	rs := ele.MethodByName(rpcFuncs[req.Op].name).Call([]reflect.Value{reflect.ValueOf(ctx)})
@@ -106,37 +120,41 @@ func grpcOp(req *Request, ele reflect.Value) (response *Response, err error) {
 	if err = stream.Send(req); err != nil {
 		return
 	}
-
+	if err = stream.CloseSend(); err != nil {
+		return
+	}
 	if response, err = stream.CloseAndRecv(); err != nil {
 		return
 	}
 	return
 }
 
-func AddConn(target string) error {
+func (c *RPClient) addConn(target string) error {
 	var (
 		conn *grpc.ClientConn
 		err  error
 	)
-	mu.Lock()
-	if _, ok := conns[target]; !ok {
-		// TODO add certificate or enciphered data
-		var opts []grpc.DialOption
-		opts = append(opts, grpc.WithInsecure())
-		conn, err = grpc.Dial(target, opts...)
-		// defer conn.Close()
-		if err == nil {
-			conns[target] = conn
-		}
+	c.mu.Lock()
+	delete(conns, target)
+	// TODO add certificate or enciphered data
+	var opts []grpc.DialOption
+	opts = append(opts, grpc.WithInsecure())
+	conn, err = grpc.Dial(target, opts...)
+	// defer conn.Close()
+	if err == nil {
+		conns[target] = conn
 		fmt.Println("create new connection", target)
+	} else {
+		conn.Close()
 	}
-	mu.Unlock()
+	c.mu.Unlock()
 	return err
 }
 
-func GetConn(target string) (conn *grpc.ClientConn, err error) {
-	if conn = conns[target]; conn == nil {
-		if err = AddConn(target); err != nil {
+func (c *RPClient) GetConn(target string) (*grpc.ClientConn, error) {
+	if conn, ok := conns[target]; !ok ||
+		(ok && conn.GetState() > connectivity.TransientFailure) {
+		if err := c.addConn(target); err != nil {
 			return nil, err
 		}
 	}
