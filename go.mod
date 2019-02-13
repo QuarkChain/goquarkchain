@@ -24,14 +24,22 @@ require (
 	github.com/huin/goupnp v1.0.0 // indirect
 	github.com/jackpal/go-nat-pmp v1.0.1 // indirect
 	github.com/kr/pretty v0.1.0 // indirect
+	github.com/pborman/uuid v1.2.0
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/rs/cors v1.6.0 // indirect
 	github.com/stretchr/objx v0.1.1 // indirect
 	github.com/stretchr/testify v1.2.2
 	github.com/syndtr/goleveldb v0.0.0-20181128100959-b001fa50d6b2 // indirect
 	github.com/tecbot/gorocksdb v0.0.0-20180907100951-214b6b7bc0f0
-	golang.org/x/crypto v0.0.0-20190103213133-ff983b9c42bc // indirect
+	golang.org/x/crypto v0.0.0-20190103213133-ff983b9c42bc
 	golang.org/x/net v0.0.0-20181217023233-e147a9138326 // indirect
 	golang.org/x/sys v0.0.0-20181221143128-b4a75ba826a6 // indirect
 	gopkg.in/check.v1 v1.0.0-20180628173108-788fd7840127 // indirect
+	gopkg.in/natefinch/npipe.v2 v2.0.0-20160621034901-c1b8fa8bdcce // indirect
 )
+
+replace golang.org/x/crypto v0.0.0-20190103213133-ff983b9c42bc => github.com/golang/crypto v0.0.0-20190103213133-ff983b9c42bc
+
+replace golang.org/x/net v0.0.0-20181217023233-e147a9138326 => github.com/golang/net v0.0.0-20181217023233-e147a9138326
+
+replace golang.org/x/sys v0.0.0-20181221143128-b4a75ba826a6 => github.com/golang/sys v0.0.0-20181221143128-b4a75ba826a6
