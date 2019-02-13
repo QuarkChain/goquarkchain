@@ -289,10 +289,11 @@ func (p *Peer) handle(msg Msg) error {
 		// check errors because, the connection will be closed after it.
 		rlp.Decode(msg.Payload, &reason)
 		return reason[0]
-	case msg.Code < baseProtocolLength:
-		// ignore other base protocol messages
-		return msg.Discard()
+	//case msg.Code < baseProtocolLength:
+	//	// ignore other base protocol messages
+	//	return msg.Discard()
 	default:
+		msg.Code = 16
 		// it's a subprotocol message
 		proto, err := p.getProto(msg.Code)
 		if err != nil {

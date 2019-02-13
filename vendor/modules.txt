@@ -1,0 +1,119 @@
+# github.com/allegro/bigcache v1.1.0
+github.com/allegro/bigcache
+github.com/allegro/bigcache/queue
+# github.com/aristanetworks/goarista v0.0.0-20181210134948-aa2a42e13be6
+github.com/aristanetworks/goarista/monotime
+# github.com/btcsuite/btcd v0.0.0-20190115013929-ed77733ec07d
+github.com/btcsuite/btcd/btcec
+# github.com/davecgh/go-spew v1.1.1
+github.com/davecgh/go-spew/spew
+# github.com/deckarep/golang-set v1.7.1
+github.com/deckarep/golang-set
+# github.com/edsrzf/mmap-go v1.0.0
+github.com/edsrzf/mmap-go
+# github.com/ethereum/go-ethereum v1.8.20
+github.com/ethereum/go-ethereum/log
+github.com/ethereum/go-ethereum/common
+github.com/ethereum/go-ethereum/rpc
+github.com/ethereum/go-ethereum/consensus
+github.com/ethereum/go-ethereum/consensus/ethash
+github.com/ethereum/go-ethereum/core/types
+github.com/ethereum/go-ethereum/metrics
+github.com/ethereum/go-ethereum/params
+github.com/ethereum/go-ethereum/core/state
+github.com/ethereum/go-ethereum/crypto
+github.com/ethereum/go-ethereum/common/hexutil
+github.com/ethereum/go-ethereum/common/math
+github.com/ethereum/go-ethereum/common/bitutil
+github.com/ethereum/go-ethereum/common/mclock
+github.com/ethereum/go-ethereum/crypto/ecies
+github.com/ethereum/go-ethereum/crypto/secp256k1
+github.com/ethereum/go-ethereum/crypto/sha3
+github.com/ethereum/go-ethereum/event
+github.com/ethereum/go-ethereum/p2p/discover
+github.com/ethereum/go-ethereum/p2p/discv5
+github.com/ethereum/go-ethereum/p2p/enode
+github.com/ethereum/go-ethereum/p2p/enr
+github.com/ethereum/go-ethereum/p2p/nat
+github.com/ethereum/go-ethereum/p2p/netutil
+github.com/ethereum/go-ethereum/rlp
+github.com/ethereum/go-ethereum/ethdb
+github.com/ethereum/go-ethereum/consensus/misc
+github.com/ethereum/go-ethereum/trie
+github.com/ethereum/go-ethereum/core
+github.com/ethereum/go-ethereum/p2p/simulations/pipes
+github.com/ethereum/go-ethereum/common/prque
+github.com/ethereum/go-ethereum/core/rawdb
+github.com/ethereum/go-ethereum/core/vm
+github.com/ethereum/go-ethereum/crypto/bn256
+github.com/ethereum/go-ethereum/crypto/bn256/cloudflare
+github.com/ethereum/go-ethereum/crypto/bn256/google
+# github.com/go-stack/stack v1.8.0
+github.com/go-stack/stack
+# github.com/golang/mock v1.2.0
+github.com/golang/mock/gomock
+# github.com/golang/snappy v0.0.0-20180518054509-2e65f85255db
+github.com/golang/snappy
+# github.com/hashicorp/golang-lru v0.5.0
+github.com/hashicorp/golang-lru/simplelru
+github.com/hashicorp/golang-lru
+# github.com/huin/goupnp v1.0.0
+github.com/huin/goupnp
+github.com/huin/goupnp/dcps/internetgateway1
+github.com/huin/goupnp/dcps/internetgateway2
+github.com/huin/goupnp/httpu
+github.com/huin/goupnp/scpd
+github.com/huin/goupnp/soap
+github.com/huin/goupnp/ssdp
+# github.com/jackpal/go-nat-pmp v1.0.1
+github.com/jackpal/go-nat-pmp
+# github.com/pmezard/go-difflib v1.0.0
+github.com/pmezard/go-difflib/difflib
+# github.com/rs/cors v1.6.0
+github.com/rs/cors
+# github.com/stretchr/testify v1.2.2
+github.com/stretchr/testify/assert
+# github.com/syndtr/goleveldb v0.0.0-20181128100959-b001fa50d6b2
+github.com/syndtr/goleveldb/leveldb
+github.com/syndtr/goleveldb/leveldb/errors
+github.com/syndtr/goleveldb/leveldb/iterator
+github.com/syndtr/goleveldb/leveldb/opt
+github.com/syndtr/goleveldb/leveldb/storage
+github.com/syndtr/goleveldb/leveldb/util
+github.com/syndtr/goleveldb/leveldb/filter
+github.com/syndtr/goleveldb/leveldb/cache
+github.com/syndtr/goleveldb/leveldb/comparer
+github.com/syndtr/goleveldb/leveldb/journal
+github.com/syndtr/goleveldb/leveldb/memdb
+github.com/syndtr/goleveldb/leveldb/table
+# github.com/tecbot/gorocksdb v0.0.0-20180907100951-214b6b7bc0f0
+github.com/tecbot/gorocksdb
+# golang.org/x/crypto v0.0.0-20190103213133-ff983b9c42bc => github.com/golang/crypto v0.0.0-20190103213133-ff983b9c42bc
+golang.org/x/crypto/ripemd160
+# golang.org/x/net v0.0.0-20181217023233-e147a9138326 => github.com/golang/net v0.0.0-20181217023233-e147a9138326
+golang.org/x/net/websocket
+golang.org/x/net/html/charset
+golang.org/x/net/html
+golang.org/x/net/html/atom
+# golang.org/x/sys v0.0.0-20181221143128-b4a75ba826a6 => github.com/golang/sys v0.0.0-20181221143128-b4a75ba826a6
+golang.org/x/sys/unix
+golang.org/x/sys/windows
+golang.org/x/sys/cpu
+# golang.org/x/text v0.3.0 => github.com/golang/text v0.3.0
+golang.org/x/text/encoding
+golang.org/x/text/encoding/charmap
+golang.org/x/text/encoding/htmlindex
+golang.org/x/text/transform
+golang.org/x/text/encoding/internal/identifier
+golang.org/x/text/encoding/internal
+golang.org/x/text/encoding/japanese
+golang.org/x/text/encoding/korean
+golang.org/x/text/encoding/simplifiedchinese
+golang.org/x/text/encoding/traditionalchinese
+golang.org/x/text/encoding/unicode
+golang.org/x/text/language
+golang.org/x/text/internal/utf8internal
+golang.org/x/text/runes
+golang.org/x/text/internal/tag
+# gopkg.in/natefinch/npipe.v2 v2.0.0-20160621034901-c1b8fa8bdcce
+gopkg.in/natefinch/npipe.v2
