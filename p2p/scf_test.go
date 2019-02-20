@@ -28,7 +28,8 @@ func TestConn_String(t *testing.T) {
 func FakeEnv() config.ClusterConfig {
 	return config.ClusterConfig{
 		P2P: &config.P2PConfig{
-			BootNodes: "enode://32d87c5cd4b31d81c5b010af42a2e413af253dc3a91bd3d53c6b2c45291c3de71633bf7793447a0d3ddde601f8d21668fca5b33324f14ebe7516eab0da8bab8f@192.168.79.128:38291",
+			BootNodes: "enode://32d87c5cd4b31d81c5b010af42a2e413af253dc3a91bd3d53c6b2c45291c3de71633bf7793447a0d3ddde601f8d21668fca5b33324f14ebe7516eab0da8bab8f@192.168.79.130:38291",
+			PrivKey:"3a28b5ba57c53603b0b07b56bba752f7784bf506fa95edc395f5cf6c7514fe94",
 		},
 	}
 }
@@ -40,7 +41,7 @@ func TestP2PManager_Start(t *testing.T) {
 	fmt.Println("err", err)
 	p2pManager.Start()
 	fmt.Println("end end")
-	time.Sleep(100 * time.Second)
+	time.Sleep(1000 * time.Second)
 }
 
 func TestDialTask_String(t *testing.T) {

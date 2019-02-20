@@ -19,7 +19,11 @@ package p2p
 import (
 	"errors"
 	"fmt"
+	"github.com/QuarkChain/goquarkchain/core/types"
+	"github.com/ethereum/go-ethereum/common"
 	"io"
+	"io/ioutil"
+	"math/big"
 	"net"
 	"sort"
 	"sync"
@@ -121,6 +125,7 @@ func NewPeer(id enode.ID, name string, caps []Cap) *Peer {
 	node := enode.SignNull(new(enr.Record), id)
 	conn := &conn{fd: pipe, transport: nil, node: node, caps: caps, name: name}
 	peer := newPeer(conn, nil)
+	fmt.Println("closed--2222222222222222")
 	close(peer.closed) // ensures Disconnect doesn't block
 	return peer
 }
@@ -176,6 +181,41 @@ func (p *Peer) Inbound() bool {
 	return p.rw.is(inboundConn)
 }
 
+func (p *Peer)SubProtocol()error{
+	hello,err:=HelloCmd{
+		Version:0,
+		NetWorkID:24,
+		PeerID:common.BytesToHash(p.ID().Bytes()),
+		PeerPort:38291,
+		RootBlockHeader:types.RootBlockHeader{
+			Version:0,
+			Number:0,
+			Time:1519147489,
+			ParentHash:common.Hash{},
+			MinorHeaderHash:common.Hash{},
+			Difficulty:big.NewInt(1000000000000),
+		},
+
+	}.SendMsg(0)
+	err=p.rw.WriteMsg(hello)
+	if err!=nil{
+		panic(err)
+	}else{
+		fmt.Println("发送了hello消息成功")
+	}
+
+	msg,err:=p.rw.ReadMsg()
+	qkcBody, err := ioutil.ReadAll(msg.Payload)
+	if err != nil {
+		return err
+	}
+	qkcMsg, err := DecodeQKCMsg(qkcBody)
+	if err != nil {
+		return err
+	}
+	log.Info("rev msg","qkcMsg op ",qkcMsg.op)
+	return nil
+}
 func newPeer(conn *conn, protocols []Protocol) *Peer {
 	protomap := matchProtocols(protocols, conn.caps, conn)
 	p := &Peer{
@@ -194,6 +234,7 @@ func (p *Peer) Log() log.Logger {
 	return p.log
 }
 
+
 func (p *Peer) run() (remoteRequested bool, err error) {
 	var (
 		writeStart = make(chan struct{}, 1)
@@ -201,9 +242,9 @@ func (p *Peer) run() (remoteRequested bool, err error) {
 		readErr    = make(chan error, 1)
 		reason     DiscReason // sent to the peer
 	)
-	p.wg.Add(2)
+	p.wg.Add(1)
 	go p.readLoop(readErr)
-	go p.pingLoop()
+	//go p.pingLoop()
 
 	// Start all protocol handlers.
 	writeStart <- struct{}{}
@@ -276,6 +317,7 @@ func (p *Peer) readLoop(errc chan<- error) {
 			return
 		}
 	}
+
 }
 
 func (p *Peer) handle(msg Msg) error {

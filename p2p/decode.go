@@ -2,25 +2,53 @@ package p2p
 
 import (
 	"encoding/binary"
-	"encoding/hex"
-	"fmt"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/serialize"
-	"github.com/ethereum/go-ethereum/common"
 )
 
-type HelloCmd struct {
-	Version         uint32
-	NetWorkID       uint32
-	PeerID          common.Hash
-	PeerIP          *serialize.Uint128
-	PeerPort        uint16
-	ChainMaskList   *Uint32_4
-	RootBlockHeader types.RootBlockHeader
+type Uint32Four []uint32
+func (Uint32Four) GetLenByteSize() int {
+	return 4
 }
-type Uint32_4 []uint32
 
-func (Uint32_4) GetLenByteSize() int {
+type  MinorBlockHeaderFour []types.MinorBlockHeader
+func (MinorBlockHeaderFour)GetLenByteSize()int{
+	return 4
+}
+
+type  MinorBlockFour []types.MinorBlock
+func (MinorBlockFour)GetLenByteSize()int{
+	return 4
+}
+
+type TransactionFour []types.Transaction
+func (TransactionFour)GetLenByteSize()int{
+	return 4
+}
+
+
+
+type Hash256Four []serialize.Uint256
+func (Hash256Four)GetLenByteSize()int{
+	return 4
+}
+
+type RootBlockHeaderFour []types.RootBlockHeader
+func (RootBlockHeaderFour)GetLenByteSize()int{
+	return 4
+}
+
+type RootBlockFour []types.RootBlock
+func (RootBlockFour)GetLenByteSize()int{
+	return 4
+}
+
+type P2PeerInfo struct {
+	Ip *serialize.Uint128
+	Port uint16
+}
+type PeerInfoFour []P2PeerInfo
+func(PeerInfoFour)GetLenByteSize()int{
 	return 4
 }
 
@@ -35,11 +63,11 @@ type metadata struct {
 	Branch uint32
 }
 
-func DecodeQKCMsg(msg []byte) (qkcMsg, error) {
+func DecodeQKCMsg(body []byte) (qkcMsg, error) {
 	var qkcmsg qkcMsg
 
-	metaBytes := msg[:4]
-	rawBytes := msg[4:]
+	metaBytes := body[:4]
+	rawBytes := body[4:]
 
 	var metaData metadata
 	err := serialize.DeserializeFromBytes(metaBytes, &metaData)
@@ -51,9 +79,26 @@ func DecodeQKCMsg(msg []byte) (qkcMsg, error) {
 	qkcmsg.ipcID = binary.BigEndian.Uint64(rawBytes[1:9])
 	qkcmsg.dataSize = uint32(len(rawBytes) - 9)
 	qkcmsg.data = make([]byte, qkcmsg.dataSize)
-	fmt.Println(hex.EncodeToString(qkcmsg.data))
 	copy(qkcmsg.data[:], rawBytes[9:])
-	fmt.Println(hex.EncodeToString(rawBytes[9:]))
-	fmt.Println(hex.EncodeToString(qkcmsg.data))
 	return qkcmsg, nil
+}
+
+func Encrypt(metadata metadata,op byte ,ipcID uint64,cmd interface{})([]byte,error){
+	aimbytes:=make([]byte,0)
+	metadataBytes,err:=serialize.SerializeToBytes(metadata)
+	if err!=nil{
+		return []byte{},err
+	}
+	aimbytes=append(aimbytes,metadataBytes...)
+	aimbytes=append(aimbytes,op)
+
+	rpcIDBytes := make([]byte, 8)
+	binary.BigEndian.PutUint64(rpcIDBytes, ipcID)
+	aimbytes=append(aimbytes,rpcIDBytes...)
+	cmdBytes,err:=serialize.SerializeToBytes(cmd)
+	if err!=nil{
+		return []byte{},err
+	}
+	aimbytes=append(aimbytes,cmdBytes...)
+	return aimbytes,nil
 }
