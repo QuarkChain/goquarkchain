@@ -3,26 +3,23 @@ package p2p
 import (
 	"bytes"
 	"crypto/cipher"
-	"crypto/ecdsa"
 	"crypto/hmac"
-	"crypto/rand"
 	"encoding/binary"
-	"encoding/hex"
 	"errors"
 	"fmt"
-	"github.com/QuarkChain/goquarkchain/serialize"
-	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/log"
-	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/golang/snappy"
 	"io"
 	"io/ioutil"
-	"math/big"
 	"net"
-	"strings"
 	"time"
 )
-func msgHandler(peer *Peer, ws MsgReadWriter) error {
+
+const   (
+	QKCProtocolName="quarkchain"
+	QKCProtocolVersion=1
+	QKCProtocolLength=1
+)
+func qkcMsgHandle(peer *Peer, ws MsgReadWriter) error {
 	go func(){
 		TestMsgSend(peer)
 	}()
@@ -41,69 +38,24 @@ func msgHandler(peer *Peer, ws MsgReadWriter) error {
 			return err
 		}
 
-		switch qkcMsg.op {
-		case 0:
-			var helloData HelloCmd
-			err := serialize.DeserializeFromBytes(qkcMsg.data, &helloData)
-			if err!=nil{
-				panic(err)
-			}
-			//sendMsg,err:=helloData.SendMsg(0)
-			//err=peer.rw.WriteMsg(sendMsg)
-		default:
-			for k:=0;k<=10;k++{
-				fmt.Println("有其他数据",qkcMsg.op)
-			}
+		if _,ok:=P2POPNONRPCMAP[qkcMsg.op];ok==false{
+			HandleFunc:=P2POPNONRPCMAP[qkcMsg.op]
+			HandleFunc(qkcMsg.op,qkcMsg.data)
+		}else if _,ok:=P2POPRPCMAP[qkcMsg.op];ok==false{
+			HandleFunc:=P2POPRPCMAP[qkcMsg.op]
+			HandleFunc.Func(qkcMsg.data)
+		}else{
+			//TODO future
 		}
 	}
-	return nil
 }
 func MyProtocol() Protocol {
 	return Protocol{
-		Name:    "quarkchain",
-		Version: 1,
-		Length:  1,
-		Run:     msgHandler,
+		Name:    QKCProtocolName,
+		Version: QKCProtocolVersion,
+		Length:  QKCProtocolLength,
+		Run:     qkcMsgHandle,
 	}
-}
-
-func getNodesFromConfig(configNodes string) ([]*enode.Node, error) {
-	if configNodes == "" {
-		return make([]*enode.Node, 0), nil
-	}
-
-	NodeList := strings.Split(configNodes, ",")
-	enodeList := make([]*enode.Node, 0, len(NodeList))
-	for _, url := range NodeList {
-		node, err := enode.ParseV4(url)
-		if err != nil {
-			return nil, err
-		} else {
-			log.Error("Node add", "url", url)
-		}
-		enodeList = append(enodeList, node)
-	}
-	return enodeList, nil
-}
-
-func getPrivateKeyFromConfig(configKey string) (*ecdsa.PrivateKey, error) {
-	if configKey == "" {
-		sk, err := ecdsa.GenerateKey(crypto.S256(), rand.Reader)
-		return sk, err
-	}
-	configKeyValue, err := hex.DecodeString(configKey)
-	if err != nil {
-		return nil, err
-	}
-	keyValue := new(big.Int).SetBytes(configKeyValue)
-	if err != nil {
-		return nil, err
-	}
-	sk := new(ecdsa.PrivateKey)
-	sk.PublicKey.Curve = crypto.S256()
-	sk.D = keyValue
-	sk.PublicKey.X, sk.PublicKey.Y = crypto.S256().ScalarBaseMult(keyValue.Bytes())
-	return sk, nil
 }
 
 type qkcRLPX struct {
@@ -193,8 +145,6 @@ func (self *qkcRLPX) readQKCMsg() (msg Msg, err error) {
 	return msg, nil
 }
 func (self *qkcRLPX) writeQKCMsg(msg Msg) error {
-	//ptype, _ := rlp.EncodeToBytes(msg.Code)
-
 	// if snappy is enabled, compress message now
 	if self.rw.snappy {
 		if msg.Size > maxUint24 {

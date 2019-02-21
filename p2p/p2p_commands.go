@@ -2,7 +2,6 @@ package p2p
 
 import (
 	"bytes"
-	"fmt"
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/serialize"
@@ -26,6 +25,7 @@ const (
 	GetMinorBlockHeaderListResponseMsg = 12
 	NewBlockMinorMsg                   = 13
 )
+
 func makeMsg(op byte,rpcID uint64,msg interface{})(Msg,error){
 	qkcBody,err:=Encrypt(metadata{},op,rpcID,msg)
 	if err!=nil{
@@ -149,12 +149,10 @@ func(Self NewBlockMinor)SendMsg(rpcID uint64)(Msg,error){
 }
 
 func TestMsgSend(peer *Peer){
-	fmt.Println("开始进入for循环")
 	for true{
 		time.Sleep(10*time.Second)
-		fmt.Println("开始干活")
-
-		//needSendMsg:=HelloCmd{Version:66,NetWorkID:27}.SendMsg()
+		//log.Info("===========================","hello","helloCmd")
+		//needSendMsg,err:=HelloCmd{Version:66,NetWorkID:27}.SendMsg(0)
 
 		//needSendMsg:=SendNew_Minor_Block_Header_List{
 		//	Root_Block_Header:types.RootBlockHeader{
@@ -216,4 +214,79 @@ func TestMsgSend(peer *Peer){
 		//	panic(err)
 		//}
 	}
+}
+
+type MsgHandleSt struct {
+	Res byte
+	Func func([]byte)
+}
+
+var (
+	P2POPNONRPCMAP = map[byte]func(byte,[]byte){
+		HELLO:HandleError,
+		NewMinorBlockHeaderListMsg:HandleNewMinorBlockHeaderList,
+		NewTransactionListMsg:HandleNewTransactionList,
+	}
+
+	P2POPRPCMAP=map[byte]MsgHandleSt{
+		GetPeerListRequestMsg:{
+			Res:GetPeerListResponseMsg,
+			Func:HandleGetPeerListRequest,
+		},
+		GetRootBlockHeaderListRequestMsg:{
+			Res:GetRootBlockHeaderListResponseMsg,
+			Func:HandleGetRootBlockHeaderListRequest,
+		},
+		GetRootBlockListRequestMsg:{
+			Res:GetRootBlockListResponseMsg,
+			Func:HandleGetRootBlockListRequest,
+		},
+	}
+	PeerShardOPRPCMAP=map[byte]MsgHandleSt{
+		GetMinorBlockListResponseMsg: {
+			Res:  GetMinorBlockListResponseMsg,
+			Func: HandleGetMinorBlockListRequest,
+		},
+		GetMinorBlockHeaderListRequestMsg: {
+			Res:  GetMinorBlockHeaderListResponseMsg,
+			Func: HandleGetMinorBlockHeaderListRequest,
+		},
+	}
+)
+
+//OP_NONRPC_MAP
+func HandleError(op byte,cmd []byte){
+
+}
+
+func HandleNewMinorBlockHeaderList(op byte,cmd []byte){
+
+}
+
+func HandleNewTransactionList(op byte,cmd []byte){
+
+}
+
+
+//OP_RPC_MAP
+
+func HandleGetPeerListRequest(cmd []byte){
+
+}
+
+func HandleGetRootBlockHeaderListRequest(cmd []byte){
+
+}
+func HandleGetRootBlockListRequest(cmd []byte){
+
+}
+
+
+//PeerShard
+
+func HandleGetMinorBlockHeaderListRequest(cmd []byte){
+
+}
+func HandleGetMinorBlockListRequest(cmd []byte){
+
 }

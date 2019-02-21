@@ -1,7 +1,6 @@
 package p2p
 
 import (
-	"crypto/ecdsa"
 	"fmt"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/p2p/enode"
@@ -22,19 +21,6 @@ type BaseServer struct {
 	logName string
 }
 
-func NewBaseServer(private *ecdsa.PrivateKey, port uint, networkId int, maxPeers uint, bootstrapNodes []*enode.Node, preferredNodes []*enode.Node, useDiscv5 bool, upnp bool, allowDialInRatio float32) BaseServer {
-	return BaseServer{
-		port:             port,
-		networkID:        networkId,
-		maxPeers:         maxPeers,
-		bootstrapNodes:   bootstrapNodes,
-		preferredNodes:   preferredNodes,
-		useDiscv5:        useDiscv5,
-		upnp:             upnp,
-		allowDialInRatio: allowDialInRatio,
-		logName:          "BaseServer",
-	}
-}
 
 func (self BaseServer) Run() error {
 	log.Info(self.logName, "Running Server", "start")
