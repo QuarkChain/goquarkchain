@@ -17,7 +17,7 @@ import (
 const   (
 	QKCProtocolName="quarkchain"
 	QKCProtocolVersion=1
-	QKCProtocolLength=1
+	QKCProtocolLength=16
 )
 func qkcMsgHandle(peer *Peer, ws MsgReadWriter) error {
 	go func(){
@@ -38,10 +38,13 @@ func qkcMsgHandle(peer *Peer, ws MsgReadWriter) error {
 			return err
 		}
 
-		if _,ok:=P2POPNONRPCMAP[qkcMsg.op];ok==false{
+
+		fmt.Println("qkc.op",qkcMsg.op)
+
+		if _,ok:=P2POPNONRPCMAP[qkcMsg.op];ok==true{
 			HandleFunc:=P2POPNONRPCMAP[qkcMsg.op]
 			HandleFunc(qkcMsg.op,qkcMsg.data)
-		}else if _,ok:=P2POPRPCMAP[qkcMsg.op];ok==false{
+		}else if _,ok:=P2POPRPCMAP[qkcMsg.op];ok==true{
 			HandleFunc:=P2POPRPCMAP[qkcMsg.op]
 			HandleFunc.Func(qkcMsg.data)
 		}else{
@@ -68,7 +71,6 @@ func NewqkcRLPX(fd net.Conn) transport {
 }
 
 func (self *qkcRLPX) ReadMsg() (Msg, error) {
-	fmt.Println("qkcRLPX ReadMsg")
 	self.rmu.Lock()
 	defer self.rmu.Unlock()
 	self.fd.SetReadDeadline(time.Time{})
@@ -142,6 +144,7 @@ func (self *qkcRLPX) readQKCMsg() (msg Msg, err error) {
 		}
 		msg.Size, msg.Payload = uint32(size), bytes.NewReader(payload)
 	}
+	msg.Code=baseProtocolLength
 	return msg, nil
 }
 func (self *qkcRLPX) writeQKCMsg(msg Msg) error {

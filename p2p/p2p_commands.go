@@ -2,10 +2,12 @@ package p2p
 
 import (
 	"bytes"
+	"fmt"
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/serialize"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/log"
 	"time"
 )
 
@@ -151,7 +153,7 @@ func(Self NewBlockMinor)SendMsg(rpcID uint64)(Msg,error){
 func TestMsgSend(peer *Peer){
 	for true{
 		time.Sleep(10*time.Second)
-		//log.Info("===========================","hello","helloCmd")
+		log.Info("===========================","hello","helloCmd")
 		//needSendMsg,err:=HelloCmd{Version:66,NetWorkID:27}.SendMsg(0)
 
 		//needSendMsg:=SendNew_Minor_Block_Header_List{
@@ -162,20 +164,23 @@ func TestMsgSend(peer *Peer){
 
 		//needSendMsg:=Send_New_Transaction_List{}.SendMsg()
 
-		//needSendMsg:=Send_Get_Peer_List_Request{
-		//	Max_Peers:20,
-		//}.SendMsg()
+		needSendMsg,err:=GetPeerListRequest{
+			MaxPeers:20,
+		}.SendMsg(0)
 
-		//one:=P2P_PeerInfo{
+		//one:=P2PeerInfo{
 		//	Ip:&serialize.Uint128{big.NewInt(100)},
 		//	Port:2222,
 		//}
-		//ans:=[]P2P_PeerInfo{}
+		//ans:=[]P2PeerInfo{}
 		//ans=append(ans,one)
-		//aa:=PeerInfo_4(ans)
-		//needSendMsg:=Send_Get_Peer_List_Response{
-		//		Peer_Info_List:&aa,
-		//}.SendMsg()
+		//aa:=PeerInfoFour(ans)
+		//needSendMsg,err:=GetPeerListResponse{
+		//		PeerInfoList:&aa,
+		//}.SendMsg(0)
+		//if err!=nil{
+		//	panic(err)
+		//}
 
 		//needSendMsg:=Send_GetRootBlockHeaderListRequest{
 		//	BlockHash:&serialize.Uint256{big.NewInt(1)},
@@ -208,11 +213,12 @@ func TestMsgSend(peer *Peer){
 		//if err!=nil{
 		//	panic(err)
 		//}
-		//err = peer.rw.WriteMsg(needSendMsg)
-		//if err!=nil{
-		//	fmt.Println("send err")
-		//	panic(err)
-		//}
+		err = peer.rw.WriteMsg(needSendMsg)
+		if err!=nil{
+			fmt.Println("send err")
+			panic(err)
+		}
+		break
 	}
 }
 

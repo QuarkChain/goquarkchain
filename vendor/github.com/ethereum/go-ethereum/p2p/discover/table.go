@@ -110,7 +110,6 @@ func newTable(t transport, db *enode.DB, bootnodes []*enode.Node) (*Table, error
 		rand:       mrand.New(mrand.NewSource(0)),
 		ips:        netutil.DistinctNetSet{Subnet: tableSubnet, Limit: tableIPLimit},
 	}
-	fmt.Println("bootNodes",bootnodes)
 	if err := tab.setFallbackNodes(bootnodes); err != nil {
 		return nil, err
 	}

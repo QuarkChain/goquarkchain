@@ -125,7 +125,6 @@ func NewPeer(id enode.ID, name string, caps []Cap) *Peer {
 	node := enode.SignNull(new(enr.Record), id)
 	conn := &conn{fd: pipe, transport: nil, node: node, caps: caps, name: name}
 	peer := newPeer(conn, nil)
-	fmt.Println("closed--2222222222222222")
 	close(peer.closed) // ensures Disconnect doesn't block
 	return peer
 }
@@ -182,6 +181,9 @@ func (p *Peer) Inbound() bool {
 }
 
 func (p *Peer)SubProtocol()error{
+	if _,ok:=p.Info().Protocols[QKCProtocolName];ok==false{
+		return nil
+	}
 	hello,err:=HelloCmd{
 		Version:0,
 		NetWorkID:24,
@@ -335,7 +337,6 @@ func (p *Peer) handle(msg Msg) error {
 	//	// ignore other base protocol messages
 	//	return msg.Discard()
 	default:
-		msg.Code = 16
 		// it's a subprotocol message
 		proto, err := p.getProto(msg.Code)
 		if err != nil {

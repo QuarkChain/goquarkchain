@@ -735,8 +735,6 @@ running:
 				if err=p.SubProtocol();err!=nil{
 					fmt.Println("SubProtocol failed")
 					panic(err)
-				}else{
-					fmt.Println("执行子协议成功，peer开始简历")
 				}
 				go srv.runPeer(p)
 				peers[c.node.ID()] = p
