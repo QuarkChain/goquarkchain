@@ -16,40 +16,35 @@ import (
 )
 
 var (
-	PManagerLog="P2PManager"
+	pManagerLog = "P2PManager"
 )
 
-
+// PManager p2p manager
 type PManager struct {
-	config         config.ClusterConfig
 	preferredNodes []*enode.Node
-	Server *Server
-
-	selfId []byte
-	log string
-
-	lock sync.RWMutex
-	stop chan struct{}
+	Server         *Server
+	selfID         []byte
+	log            string
+	lock           sync.RWMutex
+	stop           chan struct{}
 }
 
+//NewP2PManager new p2p manager
 func NewP2PManager(env config.ClusterConfig) (*PManager, error) {
-	config := Config{
-		Name:       "quarkchain",
-		MaxPeers:   10,
-		ListenAddr: ":38291",
-		Protocols:  []Protocol{MyProtocol()},
-	}
-
-	server:=&Server{
-		Config:config,
-		newTransport:NewqkcRLPX,
-
+	var err error
+	server := &Server{
+		Config: Config{
+			Name:       QKCProtocolName,
+			MaxPeers:   int(env.P2P.MaxPeers),
+			ListenAddr: fmt.Sprintf(":%v", env.P2Port),
+			Protocols:  []Protocol{QKCProtocol()},
+		},
+		newTransport: NewQKCRlp,
 	}
 	p2pManager := &PManager{
-		Server:server,
-		log:PManagerLog,
+		Server: server,
+		log:    pManagerLog,
 	}
-	var err error
 
 	p2pManager.Server.BootstrapNodes, err = getNodesFromConfig(env.P2P.BootNodes)
 	if err != nil {
@@ -67,31 +62,33 @@ func NewP2PManager(env config.ClusterConfig) (*PManager, error) {
 	}
 
 	//used in HelloCommand.peer_id
-	p2pManager.selfId = crypto.FromECDSAPub(&p2pManager.Server.PrivateKey.PublicKey)[1:33]
-	p2pManager.stop=make(chan struct{})
+	p2pManager.selfID = crypto.FromECDSAPub(&p2pManager.Server.PrivateKey.PublicKey)[1:33]
+	p2pManager.stop = make(chan struct{})
 	return p2pManager, nil
 }
 
-func (self *PManager) Start() {
-//	log.Info(self.log, "this server:enode", self.Server.NodeInfo().Enode)
-	err := self.Server.Start()
-	if err!=nil{
-		//TODO  panic
-		panic(err)
+//Start start p2p manager
+func (Self *PManager) Start() error {
+	log.Info(Self.log, "this server:Node", Self.Server.NodeInfo().Enode)
+	err := Self.Server.Start()
+	if err != nil {
+		log.Info(Self.log, "pManager start err", err)
+		return err
 	}
 	go func() {
 		for true {
-			Peers := self.Server.Peers()
-			fmt.Println("开始展示peer信息", "peer个数", len(Peers))
+			Peers := Self.Server.Peers()
+			log.Info(msgHandleLog, "==============", "===========")
+			log.Info(msgHandleLog, "peer number", len(Peers))
 			for _, v := range Peers {
-				fmt.Println("peerInfo", v.String())
+				log.Info(msgHandleLog, "peerInfo", v.String())
 			}
-			fmt.Println("结束展示peer信息")
-			time.Sleep(5 * time.Second)
+			log.Info(msgHandleLog, "==============", "===========")
+			time.Sleep(10 * time.Second)
 		}
 	}()
+	return nil
 }
-
 
 func getNodesFromConfig(configNodes string) ([]*enode.Node, error) {
 	if configNodes == "" {
@@ -104,8 +101,6 @@ func getNodesFromConfig(configNodes string) ([]*enode.Node, error) {
 		node, err := enode.ParseV4(url)
 		if err != nil {
 			return nil, err
-		} else {
-			log.Error("Node add", "url", url)
 		}
 		enodeList = append(enodeList, node)
 	}
@@ -132,18 +127,20 @@ func getPrivateKeyFromConfig(configKey string) (*ecdsa.PrivateKey, error) {
 	return sk, nil
 }
 
-func (self *PManager)Stop(){
-	close(self.stop)
+// Stop stop p2p manager
+func (Self *PManager) Stop() {
+	close(Self.stop)
 }
 
-func(self *PManager)Wait(){
-	self.lock.RLock()
-	if self.Server==nil{
-		self.lock.RUnlock()
+// Wait wait for p2p manager
+func (Self *PManager) Wait() {
+	Self.lock.RLock()
+	if Self.Server == nil {
+		Self.lock.RUnlock()
 		return
 	}
-	reStop:=self.stop
-	self.lock.RUnlock()
+	reStop := Self.stop
+	Self.lock.RUnlock()
 	<-reStop
 
 }

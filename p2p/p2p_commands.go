@@ -2,13 +2,11 @@ package p2p
 
 import (
 	"bytes"
-	"fmt"
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/serialize"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
-	"time"
 )
 
 const (
@@ -26,273 +24,250 @@ const (
 	GetMinorBlockHeaderListRequestMsg  = 11
 	GetMinorBlockHeaderListResponseMsg = 12
 	NewBlockMinorMsg                   = 13
+	MaxOPNum                           = 14
 )
 
-func makeMsg(op byte,rpcID uint64,msg interface{})(Msg,error){
-	qkcBody,err:=Encrypt(metadata{},op,rpcID,msg)
-	if err!=nil{
-		return Msg{},err
-	}
-	return Msg{Code: 16, Size: uint32(len(qkcBody)), Payload: bytes.NewReader(qkcBody)},nil
+//OPSerializerMap op and its struct
+var OPSerializerMap = map[byte]interface{}{
+	HELLO:                              HelloCmd{},
+	NewMinorBlockHeaderListMsg:         NewMinorBlockHeaderList{},
+	NewTransactionListMsg:              NewTransactionList{},
+	GetPeerListRequestMsg:              GetPeerListRequest{},
+	GetPeerListResponseMsg:             GetPeerListResponse{},
+	GetRootBlockHeaderListRequestMsg:   GetRootBlockHeaderListRequest{},
+	GetRootBlockHeaderListResponseMsg:  GetRootBlockHeaderListResponse{},
+	GetRootBlockListRequestMsg:         GetRootBlockListRequest{},
+	GetRootBlockListResponseMsg:        GetRootBlockListResponse{},
+	GetMinorBlockListRequestMsg:        GetMinorBlockListRequest{},
+	GetMinorBlockListResponseMsg:       GetMinorBlockListResponse{},
+	GetMinorBlockHeaderListRequestMsg:  GetMinorBlockHeaderListRequest{},
+	GetMinorBlockHeaderListResponseMsg: GetMinorBlockHeaderListResponse{},
+	NewBlockMinorMsg:                   NewBlockMinor{},
 }
+
+type msgHandleSt struct {
+	Res  byte
+	Func func([]byte)
+}
+
+var (
+	//OPNonRPCMap no return rpc op
+	OPNonRPCMap = map[byte]func(byte, []byte){
+		HELLO:                      handleError,
+		NewMinorBlockHeaderListMsg: handleNewMinorBlockHeaderList,
+		NewTransactionListMsg:      handleNewTransactionList,
+	}
+
+	//OpRPCMap have return rpc op
+	OpRPCMap = map[byte]msgHandleSt{
+		GetPeerListRequestMsg: {
+			Res:  GetPeerListResponseMsg,
+			Func: handleGetPeerListRequest,
+		},
+		GetRootBlockHeaderListRequestMsg: {
+			Res:  GetRootBlockHeaderListResponseMsg,
+			Func: handleGetRootBlockHeaderListRequest,
+		},
+		GetRootBlockListRequestMsg: {
+			Res:  GetRootBlockListResponseMsg,
+			Func: handleGetRootBlockListRequest,
+		},
+	}
+
+	//PeerShardOpRPCMap used in virtual connection between local shard and remote shard
+	PeerShardOpRPCMap = map[byte]msgHandleSt{
+		GetMinorBlockListResponseMsg: {
+			Res:  GetMinorBlockListResponseMsg,
+			Func: handleGetMinorBlockListRequest,
+		},
+		GetMinorBlockHeaderListRequestMsg: {
+			Res:  GetMinorBlockHeaderListResponseMsg,
+			Func: handleGetMinorBlockHeaderListRequest,
+		},
+	}
+)
+
+func makeMsg(op byte, rpcID uint64, msg interface{}) (Msg, error) {
+	qkcBody, err := Encrypt(metadata{}, op, rpcID, msg)
+	if err != nil {
+		return Msg{}, err
+	}
+	return Msg{Code: baseProtocolLength, Size: uint32(len(qkcBody)), Payload: bytes.NewReader(qkcBody)}, nil
+}
+
+//HelloCmd hello cmd struct
 type HelloCmd struct {
 	Version         uint32
 	NetWorkID       uint32
 	PeerID          common.Hash
 	PeerIP          *serialize.Uint128
 	PeerPort        uint16
-	ChainMaskList   *Uint32Four
+	ChainMaskList   *uint32Four
 	RootBlockHeader types.RootBlockHeader
-}
-func (Self HelloCmd)SendMsg(rpcID uint64)(Msg,error){
-	return makeMsg(HELLO,rpcID,Self)
 }
 
+func (Self HelloCmd) makeSendMsg(rpcID uint64) (Msg, error) {
+	return makeMsg(HELLO, rpcID, Self)
+}
+
+// NewMinorBlockHeaderList new minor block header list
 type NewMinorBlockHeaderList struct {
-	RootBlockHeader types.RootBlockHeader
+	RootBlockHeader      types.RootBlockHeader
 	MinorBlockHeaderList *MinorBlockHeaderFour
 }
-func (Self NewMinorBlockHeaderList)SendMsg(rpcID uint64) (Msg,error){
-	return makeMsg(NewMinorBlockHeaderListMsg,rpcID,Self)
+
+func (Self NewMinorBlockHeaderList) makeSendMsg(rpcID uint64) (Msg, error) {
+	return makeMsg(NewMinorBlockHeaderListMsg, rpcID, Self)
 }
 
+//NewTransactionList new transaction list
 type NewTransactionList struct {
 	TransactionList *TransactionFour
 }
-func (Self NewTransactionList)SendMsg(rpcID uint64)(Msg,error){
-	return makeMsg(NewTransactionListMsg,rpcID,Self)
+
+func (Self NewTransactionList) makeSendMsg(rpcID uint64) (Msg, error) {
+	return makeMsg(NewTransactionListMsg, rpcID, Self)
 }
 
+// GetPeerListRequest get peer list request
 type GetPeerListRequest struct {
 	MaxPeers uint32
 }
-func (Self GetPeerListRequest)SendMsg(rpcID uint64)(Msg,error)  {
-	return makeMsg(GetPeerListRequestMsg,rpcID,Self)
+
+func (Self GetPeerListRequest) makeSendMsg(rpcID uint64) (Msg, error) {
+	return makeMsg(GetPeerListRequestMsg, rpcID, Self)
 }
 
+//GetPeerListResponse get peer list response
 type GetPeerListResponse struct {
 	PeerInfoList *PeerInfoFour
 }
-func (Self GetPeerListResponse)SendMsg(rpcID uint64)(Msg,error)  {
-	return makeMsg(GetPeerListResponseMsg,rpcID,Self)
+
+func (Self GetPeerListResponse) makeSendMsg(rpcID uint64) (Msg, error) {
+	return makeMsg(GetPeerListResponseMsg, rpcID, Self)
 }
 
+// GetRootBlockHeaderListRequest get root block header list request
 type GetRootBlockHeaderListRequest struct {
 	BlockHash *serialize.Uint256
-	Limit uint32
+	Limit     uint32
 	Direction uint8
 }
-func (Self GetRootBlockHeaderListRequest)SendMsg(rpcID uint64)(Msg,error){
-	return makeMsg(GetRootBlockHeaderListRequestMsg,rpcID,Self)
+
+func (Self GetRootBlockHeaderListRequest) makeSendMsg(rpcID uint64) (Msg, error) {
+	return makeMsg(GetRootBlockHeaderListRequestMsg, rpcID, Self)
 }
 
+//GetRootBlockHeaderListResponse get root block header list response
 type GetRootBlockHeaderListResponse struct {
-	RootTip types.RootBlockHeader
+	RootTip         types.RootBlockHeader
 	BlockHeaderList *RootBlockHeaderFour
 }
-func (Self GetRootBlockHeaderListResponse)SendMsg(rpcID uint64)(Msg,error){
-	return makeMsg(GetRootBlockHeaderListResponseMsg,rpcID,Self)
+
+func (Self GetRootBlockHeaderListResponse) makeSendMsg(rpcID uint64) (Msg, error) {
+	return makeMsg(GetRootBlockHeaderListResponseMsg, rpcID, Self)
 }
 
+//GetRootBlockListRequest get root block list request
 type GetRootBlockListRequest struct {
 	RootBlockHashList *Hash256Four
 }
-func(Self GetRootBlockListRequest)SendMsg(rpcID uint64)(Msg,error){
-	return makeMsg(GetRootBlockListRequestMsg,rpcID,Self)
+
+func (Self GetRootBlockListRequest) makeSendMsg(rpcID uint64) (Msg, error) {
+	return makeMsg(GetRootBlockListRequestMsg, rpcID, Self)
 }
 
-
+//GetRootBlockListResponse get root block list response
 type GetRootBlockListResponse struct {
 	RootBlockList *RootBlockFour
 }
-func (Self GetRootBlockListResponse)SendMsg(rpcID uint64)(Msg,error){
-	return makeMsg(GetRootBlockListResponseMsg,rpcID,Self)
+
+func (Self GetRootBlockListResponse) makeSendMsg(rpcID uint64) (Msg, error) {
+	return makeMsg(GetRootBlockListResponseMsg, rpcID, Self)
 }
 
+// GetMinorBlockListRequest get minor block list request
 type GetMinorBlockListRequest struct {
 	MinorBlockHashList *Hash256Four
 }
-func(Self GetMinorBlockListRequest)SendMsg(rpcID uint64)(Msg,error){
-	return  makeMsg(GetMinorBlockListRequestMsg,rpcID,Self)
+
+func (Self GetMinorBlockListRequest) makeSendMsg(rpcID uint64) (Msg, error) {
+	return makeMsg(GetMinorBlockListRequestMsg, rpcID, Self)
 }
 
+//GetMinorBlockListResponse get minor block list response
 type GetMinorBlockListResponse struct {
 	MinorBlockList *MinorBlockFour
 }
-func (Self GetMinorBlockListResponse)SendMsg(rpcID uint64)(Msg,error){
-	return makeMsg(GetMinorBlockListResponseMsg,rpcID,Self)
+
+func (Self GetMinorBlockListResponse) makeSendMsg(rpcID uint64) (Msg, error) {
+	return makeMsg(GetMinorBlockListResponseMsg, rpcID, Self)
 }
 
+//GetMinorBlockHeaderListRequest get minor block header list request
 type GetMinorBlockHeaderListRequest struct {
 	BlockHash *serialize.Uint256
-	Branch account.Branch
-	Limit uint32
+	Branch    account.Branch
+	Limit     uint32
 	Direction uint8
 }
-func(Self GetMinorBlockHeaderListRequest)SendMsg(rpcID uint64)(Msg,error){
-	return makeMsg(GetMinorBlockHeaderListRequestMsg,rpcID,Self)
+
+func (Self GetMinorBlockHeaderListRequest) makeSendMsg(rpcID uint64) (Msg, error) {
+	return makeMsg(GetMinorBlockHeaderListRequestMsg, rpcID, Self)
 }
 
-
+//GetMinorBlockHeaderListResponse get minor block header list response
 type GetMinorBlockHeaderListResponse struct {
-	RootTip types.RootBlockHeader
-	ShardTip types.MinorBlockHeader
+	RootTip         types.RootBlockHeader
+	ShardTip        types.MinorBlockHeader
 	BlockHeaderList *MinorBlockHeaderFour
 }
-func(Self GetMinorBlockHeaderListResponse)SendMsg(rpcID uint64)(Msg,error){
-	return makeMsg(GetMinorBlockHeaderListResponseMsg,rpcID,Self)
+
+func (Self GetMinorBlockHeaderListResponse) makeSendMsg(rpcID uint64) (Msg, error) {
+	return makeMsg(GetMinorBlockHeaderListResponseMsg, rpcID, Self)
 }
 
+//NewBlockMinor new block minor
 type NewBlockMinor struct {
 	Block *types.MinorBlock
 }
-func(Self NewBlockMinor)SendMsg(rpcID uint64)(Msg,error){
-	return makeMsg(NewBlockMinorMsg,rpcID,Self)
+
+func (Self NewBlockMinor) makeSendMsg(rpcID uint64) (Msg, error) {
+	return makeMsg(NewBlockMinorMsg, rpcID, Self)
 }
 
-func TestMsgSend(peer *Peer){
-	for true{
-		time.Sleep(10*time.Second)
-		log.Info("===========================","hello","helloCmd")
-		//needSendMsg,err:=HelloCmd{Version:66,NetWorkID:27}.SendMsg(0)
+//OpNonRpcMap handle func
 
-		//needSendMsg:=SendNew_Minor_Block_Header_List{
-		//	Root_Block_Header:types.RootBlockHeader{
-		//		Difficulty:big.NewInt(12345),
-		//	},
-		//}.SendMsg()
-
-		//needSendMsg:=Send_New_Transaction_List{}.SendMsg()
-
-		needSendMsg,err:=GetPeerListRequest{
-			MaxPeers:20,
-		}.SendMsg(0)
-
-		//one:=P2PeerInfo{
-		//	Ip:&serialize.Uint128{big.NewInt(100)},
-		//	Port:2222,
-		//}
-		//ans:=[]P2PeerInfo{}
-		//ans=append(ans,one)
-		//aa:=PeerInfoFour(ans)
-		//needSendMsg,err:=GetPeerListResponse{
-		//		PeerInfoList:&aa,
-		//}.SendMsg(0)
-		//if err!=nil{
-		//	panic(err)
-		//}
-
-		//needSendMsg:=Send_GetRootBlockHeaderListRequest{
-		//	BlockHash:&serialize.Uint256{big.NewInt(1)},
-		//	Limit:3,
-		//	Direction:0,
-		//}.SendMsg()
-
-		//needSendMsg:=Send_GetRootBlockHeaderListResponse{
-		//	RootTip:types.RootBlockHeader{
-		//		Difficulty:big.NewInt(100),
-		//	},
-		//}.SendMsg()
-
-
-		//needSendMsg:=Send_GetRootBlockListRequest{
-		//}.SendMsg()
-
-		//needSendMsg:=Send_GetRootBlockListResponse{
-		//}.SendMsg()
-
-		//needSendMsg:=SendGetMinorBlockListRequest{}.SendMsg()
-
-		//needSendMsg:=GetMinorBlockListResponse{}.SendMsg()
-
-		//needSendMsg:=GetMinorBlockHeaderListRequest{}.SendMsg()
-
-		//needSendMsg:=GetMinorBlockHeaderListResponse{}.SendMsg()
-
-		//needSendMsg,err:= NewBlockMinor{}.SendMsg(0)
-		//if err!=nil{
-		//	panic(err)
-		//}
-		err = peer.rw.WriteMsg(needSendMsg)
-		if err!=nil{
-			fmt.Println("send err")
-			panic(err)
-		}
-		break
-	}
+func handleError(op byte, cmd []byte) {
+	log.Info(msgHandleLog, "handleError op", op)
 }
 
-type MsgHandleSt struct {
-	Res byte
-	Func func([]byte)
+func handleNewMinorBlockHeaderList(op byte, cmd []byte) {
+	log.Info(msgHandleLog, "handleNewMinorBlockHeaderList op", op)
 }
 
-var (
-	P2POPNONRPCMAP = map[byte]func(byte,[]byte){
-		HELLO:HandleError,
-		NewMinorBlockHeaderListMsg:HandleNewMinorBlockHeaderList,
-		NewTransactionListMsg:HandleNewTransactionList,
-	}
-
-	P2POPRPCMAP=map[byte]MsgHandleSt{
-		GetPeerListRequestMsg:{
-			Res:GetPeerListResponseMsg,
-			Func:HandleGetPeerListRequest,
-		},
-		GetRootBlockHeaderListRequestMsg:{
-			Res:GetRootBlockHeaderListResponseMsg,
-			Func:HandleGetRootBlockHeaderListRequest,
-		},
-		GetRootBlockListRequestMsg:{
-			Res:GetRootBlockListResponseMsg,
-			Func:HandleGetRootBlockListRequest,
-		},
-	}
-	PeerShardOPRPCMAP=map[byte]MsgHandleSt{
-		GetMinorBlockListResponseMsg: {
-			Res:  GetMinorBlockListResponseMsg,
-			Func: HandleGetMinorBlockListRequest,
-		},
-		GetMinorBlockHeaderListRequestMsg: {
-			Res:  GetMinorBlockHeaderListResponseMsg,
-			Func: HandleGetMinorBlockHeaderListRequest,
-		},
-	}
-)
-
-//OP_NONRPC_MAP
-func HandleError(op byte,cmd []byte){
-
+func handleNewTransactionList(op byte, cmd []byte) {
+	log.Info(msgHandleLog, "handleNewTransactionList op", op)
 }
 
-func HandleNewMinorBlockHeaderList(op byte,cmd []byte){
-
+//OpRPCMap handle func
+func handleGetPeerListRequest(cmd []byte) {
+	log.Info(msgHandleLog, "handleGetPeerListRequest", "")
 }
 
-func HandleNewTransactionList(op byte,cmd []byte){
-
+func handleGetRootBlockHeaderListRequest(cmd []byte) {
+	log.Info(msgHandleLog, "handleGetRootBlockHeaderListRequest", "")
 }
 
-
-//OP_RPC_MAP
-
-func HandleGetPeerListRequest(cmd []byte){
-
+func handleGetRootBlockListRequest(cmd []byte) {
+	log.Info(msgHandleLog, "handleGetRootBlockListRequest", "")
 }
-
-func HandleGetRootBlockHeaderListRequest(cmd []byte){
-
-}
-func HandleGetRootBlockListRequest(cmd []byte){
-
-}
-
 
 //PeerShard
 
-func HandleGetMinorBlockHeaderListRequest(cmd []byte){
-
+func handleGetMinorBlockHeaderListRequest(cmd []byte) {
+	log.Info(msgHandleLog, "handleGetMinorBlockHeaderListRequest", "")
 }
-func HandleGetMinorBlockListRequest(cmd []byte){
-
+func handleGetMinorBlockListRequest(cmd []byte) {
+	log.Info(msgHandleLog, "handleGetMinorBlockListRequest", "")
 }

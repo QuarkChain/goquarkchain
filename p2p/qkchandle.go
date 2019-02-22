@@ -6,53 +6,66 @@ import (
 	"crypto/hmac"
 	"encoding/binary"
 	"errors"
-	"fmt"
+	"github.com/QuarkChain/goquarkchain/core/types"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/golang/snappy"
 	"io"
 	"io/ioutil"
+	"math/big"
 	"net"
 	"time"
 )
 
-const   (
-	QKCProtocolName="quarkchain"
-	QKCProtocolVersion=1
-	QKCProtocolLength=16
+const (
+	QKCProtocolName    = "quarkchain"
+	QKCProtocolVersion = 1
+	QKCProtocolLength  = 16
 )
+
+var (
+	msgHandleLog = "qkcMsgHandle"
+)
+
 func qkcMsgHandle(peer *Peer, ws MsgReadWriter) error {
-	go func(){
-		TestMsgSend(peer)
-	}()
 	for {
 		msg, err := ws.ReadMsg()
 		if err != nil {
+			log.Error(msgHandleLog, "readMsg err", err)
 			return err
 		}
 
 		qkcBody, err := ioutil.ReadAll(msg.Payload)
 		if err != nil {
+			log.Error(msgHandleLog, "read payload failed err", err)
 			return err
 		}
 		qkcMsg, err := DecodeQKCMsg(qkcBody)
 		if err != nil {
+			log.Error(msgHandleLog, "decode qkc msg err", err)
+			return err
+		}
+		log.Info(msgHandleLog, "recv qkc op", qkcMsg.op, "rpcId", qkcMsg.rpcID, "metaData", qkcMsg.metaData)
+
+		if _, ok := OPSerializerMap[qkcMsg.op]; ok == false {
+			log.Error(msgHandleLog, "unExcepted op", qkcMsg.op)
 			return err
 		}
 
-
-		fmt.Println("qkc.op",qkcMsg.op)
-
-		if _,ok:=P2POPNONRPCMAP[qkcMsg.op];ok==true{
-			HandleFunc:=P2POPNONRPCMAP[qkcMsg.op]
-			HandleFunc(qkcMsg.op,qkcMsg.data)
-		}else if _,ok:=P2POPRPCMAP[qkcMsg.op];ok==true{
-			HandleFunc:=P2POPRPCMAP[qkcMsg.op]
+		if _, ok := OPNonRPCMap[qkcMsg.op]; ok == true {
+			HandleFunc := OPNonRPCMap[qkcMsg.op]
+			HandleFunc(qkcMsg.op, qkcMsg.data)
+		} else if _, ok := OpRPCMap[qkcMsg.op]; ok == true {
+			HandleFunc := OpRPCMap[qkcMsg.op]
 			HandleFunc.Func(qkcMsg.data)
-		}else{
+		} else {
 			//TODO future
 		}
 	}
 }
-func MyProtocol() Protocol {
+
+// QKCProtocol return qkc protocol
+func QKCProtocol() Protocol {
 	return Protocol{
 		Name:    QKCProtocolName,
 		Version: QKCProtocolVersion,
@@ -61,72 +74,73 @@ func MyProtocol() Protocol {
 	}
 }
 
-type qkcRLPX struct {
+type qkcRlp struct {
 	*rlpx
 }
 
-func NewqkcRLPX(fd net.Conn) transport {
+// NewQKCRlp new qkc rlp
+func NewQKCRlp(fd net.Conn) transport {
 	rlpx := newRLPX(fd).(*rlpx)
-	return &qkcRLPX{rlpx}
+	return &qkcRlp{rlpx}
 }
 
-func (self *qkcRLPX) ReadMsg() (Msg, error) {
-	self.rmu.Lock()
-	defer self.rmu.Unlock()
-	self.fd.SetReadDeadline(time.Time{})
+func (Self *qkcRlp) ReadMsg() (Msg, error) {
+	Self.rmu.Lock()
+	defer Self.rmu.Unlock()
+	Self.fd.SetReadDeadline(time.Time{})
 
-	return self.readQKCMsg()
+	return Self.readQKCMsg()
 }
 
-func (self *qkcRLPX) WriteMsg(msg Msg) error {
-	self.wmu.Lock()
-	defer self.wmu.Unlock()
-	self.fd.SetWriteDeadline(time.Now().Add(frameWriteTimeout))
-	return self.writeQKCMsg(msg)
+func (Self *qkcRlp) WriteMsg(msg Msg) error {
+	Self.wmu.Lock()
+	defer Self.wmu.Unlock()
+	Self.fd.SetWriteDeadline(time.Now().Add(frameWriteTimeout))
+	return Self.writeQKCMsg(msg)
 }
 
-func (self *qkcRLPX) readQKCMsg() (msg Msg, err error) {
+func (Self *qkcRlp) readQKCMsg() (msg Msg, err error) {
 	// read the header
-	headbuf := make([]byte, 32)
-	if _, err := io.ReadFull(self.rw.conn, headbuf); err != nil {
+	headBuf := make([]byte, 32)
+	if _, err := io.ReadFull(Self.rw.conn, headBuf); err != nil {
 		return msg, err
 	}
 
 	// verify header mac
-	shouldMAC := updateMAC(self.rw.ingressMAC, self.rw.macCipher, headbuf[:16])
-	if !hmac.Equal(shouldMAC, headbuf[16:]) {
+	shouldMAC := updateMAC(Self.rw.ingressMAC, Self.rw.macCipher, headBuf[:16])
+	if !hmac.Equal(shouldMAC, headBuf[16:]) {
 		return msg, errors.New("bad header MAC")
 	}
 
-	self.rw.dec.XORKeyStream(headbuf[:16], headbuf[:16]) // first half is now decrypted
-	fsize := binary.BigEndian.Uint32(headbuf[:4])
+	Self.rw.dec.XORKeyStream(headBuf[:16], headBuf[:16]) // first half is now decrypted
+	fSize := binary.BigEndian.Uint32(headBuf[:4])
 
-	framebuf := make([]byte, fsize)
-	if _, err := io.ReadFull(self.rw.conn, framebuf); err != nil {
+	frameBuf := make([]byte, fSize)
+	if _, err := io.ReadFull(Self.rw.conn, frameBuf); err != nil {
 		return msg, err
 	}
 
-	// read and validate frame MAC. we can re-use headbuf for that.
-	self.rw.ingressMAC.Write(framebuf)
-	fmacseed := self.rw.ingressMAC.Sum(nil)
-	if _, err := io.ReadFull(self.rw.conn, headbuf[:16]); err != nil {
+	// read and validate frame MAC. we can re-use headBuf for that.
+	Self.rw.ingressMAC.Write(frameBuf)
+	fMacSeed := Self.rw.ingressMAC.Sum(nil)
+	if _, err := io.ReadFull(Self.rw.conn, headBuf[:16]); err != nil {
 		return msg, err
 	}
-	shouldMAC = updateMAC(self.rw.ingressMAC, self.rw.macCipher, fmacseed)
-	if !hmac.Equal(shouldMAC, headbuf[:16]) {
+	shouldMAC = updateMAC(Self.rw.ingressMAC, Self.rw.macCipher, fMacSeed)
+	if !hmac.Equal(shouldMAC, headBuf[:16]) {
 		return msg, errors.New("bad frame MAC")
 	}
 
 	// decrypt frame content
-	self.rw.dec.XORKeyStream(framebuf, framebuf)
+	Self.rw.dec.XORKeyStream(frameBuf, frameBuf)
 
 	// decode message code
-	content := bytes.NewReader(framebuf[:fsize])
+	content := bytes.NewReader(frameBuf[:fSize])
 	msg.Size = uint32(content.Len())
 	msg.Payload = content
 
 	// if snappy is enabled, verify and decompress message
-	if self.rw.snappy {
+	if Self.rw.snappy {
 		payload, err := ioutil.ReadAll(msg.Payload)
 		if err != nil {
 			return msg, err
@@ -144,12 +158,13 @@ func (self *qkcRLPX) readQKCMsg() (msg Msg, err error) {
 		}
 		msg.Size, msg.Payload = uint32(size), bytes.NewReader(payload)
 	}
-	msg.Code=baseProtocolLength
+	msg.Code = baseProtocolLength
 	return msg, nil
 }
-func (self *qkcRLPX) writeQKCMsg(msg Msg) error {
+
+func (Self *qkcRlp) writeQKCMsg(msg Msg) error {
 	// if snappy is enabled, compress message now
-	if self.rw.snappy {
+	if Self.rw.snappy {
 		if msg.Size > maxUint24 {
 			return errPlainMessageTooLarge
 		}
@@ -160,19 +175,19 @@ func (self *qkcRLPX) writeQKCMsg(msg Msg) error {
 		msg.Size = uint32(len(payload))
 	}
 	// write header
-	headbuf := make([]byte, 32)
-	binary.BigEndian.PutUint32(headbuf, msg.Size)
+	headBuf := make([]byte, 32)
+	binary.BigEndian.PutUint32(headBuf, msg.Size)
 
-	self.rw.enc.XORKeyStream(headbuf[:16], headbuf[:16]) // first half is now encrypted
+	Self.rw.enc.XORKeyStream(headBuf[:16], headBuf[:16]) // first half is now encrypted
 	// write header MAC
-	copy(headbuf[16:], updateMAC(self.rw.egressMAC, self.rw.macCipher, headbuf[:16]))
-	if _, err := self.rw.conn.Write(headbuf); err != nil {
+	copy(headBuf[16:], updateMAC(Self.rw.egressMAC, Self.rw.macCipher, headBuf[:16]))
+	if _, err := Self.rw.conn.Write(headBuf); err != nil {
 		return err
 	}
 
 	// write encrypted frame, updating the egress MAC hash with
 	// the data written to conn.
-	tee := cipher.StreamWriter{S: self.rw.enc, W: io.MultiWriter(self.rw.conn, self.rw.egressMAC)}
+	tee := cipher.StreamWriter{S: Self.rw.enc, W: io.MultiWriter(Self.rw.conn, Self.rw.egressMAC)}
 	realBody, err := ioutil.ReadAll(msg.Payload)
 	if err != nil {
 		return err
@@ -186,8 +201,46 @@ func (self *qkcRLPX) writeQKCMsg(msg Msg) error {
 
 	// write frame MAC. egress MAC hash is up to date because
 	// frame content was written to it as well.
-	fmacseed := self.rw.egressMAC.Sum(nil)
-	mac := updateMAC(self.rw.egressMAC, self.rw.macCipher, fmacseed)
-	_, err = self.rw.conn.Write(mac)
+	fMacSeed := Self.rw.egressMAC.Sum(nil)
+	mac := updateMAC(Self.rw.egressMAC, Self.rw.macCipher, fMacSeed)
+	_, err = Self.rw.conn.Write(mac)
 	return err
+}
+
+func (Self *qkcRlp) doProtoHandshake(our *protoHandshake) (their *protoHandshake, err error) {
+	perHandshake, err := Self.rlpx.doProtoHandshake(our)
+	if err != nil {
+		return nil, err
+	}
+	hello, err := HelloCmd{
+		Version:   0,
+		NetWorkID: 24,
+		PeerID:    common.BytesToHash(our.ID),
+		PeerPort:  38291,
+		RootBlockHeader: types.RootBlockHeader{
+			Version:         0,
+			Number:          0,
+			Time:            1519147489,
+			ParentHash:      common.Hash{},
+			MinorHeaderHash: common.Hash{},
+			Difficulty:      big.NewInt(1000000000000),
+		},
+	}.makeSendMsg(0)
+	err = Self.WriteMsg(hello)
+	if err != nil {
+		return nil, err
+	}
+
+	msg, err := Self.ReadMsg()
+	qkcBody, err := ioutil.ReadAll(msg.Payload)
+	if err != nil {
+		return nil, err
+	}
+	qkcMsg, err := DecodeQKCMsg(qkcBody)
+	if err != nil {
+		return nil, err
+	}
+	log.Info(msgHandleLog, "hello exchange end op", qkcMsg.op)
+
+	return perHandshake, nil
 }

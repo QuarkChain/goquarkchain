@@ -1,34 +1,210 @@
 package p2p
 
 import (
-	"fmt"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
-	"github.com/ethereum/go-ethereum/log"
 	"testing"
+	"time"
 )
 
-func FakeEnv() config.ClusterConfig {
+func FakeEnv(port uint64) config.ClusterConfig {
 	return config.ClusterConfig{
+		P2Port: port,
 		P2P: &config.P2PConfig{
-			BootNodes: "enode://32d87c5cd4b31d81c5b010af42a2e413af253dc3a91bd3d53c6b2c45291c3de71633bf7793447a0d3ddde601f8d21668fca5b33324f14ebe7516eab0da8bab8f@192.168.79.130:38291",
-		//	0xab0edab8f4428b95d374503a6917d51838e1426b9e656aca2baffc1e5f359aea25347049351c74b08ffd5d4af6b7d896e48e85e145184c4206e133c48a91465b@47.92.244.48:38291
-			PrivKey:"3a28b5ba57c53603b0b07b56bba752f7784bf506fa95edc395f5cf6c7514fe94",
+			MaxPeers: 25,
+			PrivKey:  "3a28b5ba57c53603b0b07b56bba752f7784bf506fa95edc395f5cf6c7514fe94",
+		},
+	}
+}
+func FakeEnv2(port uint64, bootNodes string) config.ClusterConfig {
+	return config.ClusterConfig{
+		P2Port: port,
+		P2P: &config.P2PConfig{
+			MaxPeers:  25,
+			BootNodes: bootNodes,
 		},
 	}
 }
 
-func TestP2PManager_Start(t *testing.T) {
-	log.InitLog(5)
-	env := FakeEnv()
+func StartServer(env config.ClusterConfig, t *testing.T, flag bool) (*PManager, error) {
 	p2pManager, err := NewP2PManager(env)
-	if err!=nil{
-		t.Error("NewP2PManager err",err)
+	if err != nil {
+		t.Error("NewP2PManager err", err)
 	}
-	p2pManager.Start()
-	go func(){
-		//time.Sleep(20*time.Second)
-		fmt.Println("停止p2pManager")
-		//p2pManager.Stop()
-	}()
-	p2pManager.Wait()
+	err = p2pManager.Start()
+	if err != nil {
+		t.Error("p2pManager start failed err", err)
+	}
+	if flag == true {
+		p2pManager.Wait()
+	}
+
+	return p2pManager, nil
+}
+func TestServerMsgSend(t *testing.T) {
+	env1 := FakeEnv(38291)
+	bootNode := "enode://e948d976229cad7897a122d86cbb5d149178a84a5b839629e1fcf6af0981f164cb818e8c21371f5a278fcaa1a6ba5b79c77af5b2f9570e878767e9926fd8fcd6@127.0.0.1:38291"
+	env2 := FakeEnv2(38292, bootNode)
+
+	p1, err1 := StartServer(env1, t, false)
+	p2, err2 := StartServer(env2, t, false)
+	if err1 != nil || err2 != nil {
+		t.Error("err1", err1, "err2", err2)
+	}
+
+	select {
+	case <-time.After(1 * time.Second):
+		if len(p1.Server.Peers()) != 1 || len(p2.Server.Peers()) != 1 {
+			t.Error("connect failed ", "should peer is 1")
+		}
+		WriteMsgForTest(t, p1.Server.Peers()[0].rw)
+		time.Sleep(1 * time.Second)
+	}
+}
+
+func TestServerConnection(t *testing.T) {
+	env1 := FakeEnv(38293)
+	bootNode := "enode://e948d976229cad7897a122d86cbb5d149178a84a5b839629e1fcf6af0981f164cb818e8c21371f5a278fcaa1a6ba5b79c77af5b2f9570e878767e9926fd8fcd6@127.0.0.1:38293"
+	env2 := FakeEnv2(38294, bootNode)
+
+	p1, err1 := StartServer(env1, t, false)
+	p2, err2 := StartServer(env2, t, false)
+	if err1 != nil || err2 != nil {
+		t.Error("err1", err1, "err2", err2)
+	}
+
+	select {
+	case <-time.After(2 * time.Second):
+		if len(p1.Server.Peers()) != 1 && len(p2.Server.Peers()) != 1 {
+			t.Error("peer connect failed")
+		}
+		peer1 := p1.Server.Peers()[0]
+		peer2 := p2.Server.Peers()[0]
+		if peer1.LocalAddr().String() != peer2.RemoteAddr().String() {
+			t.Error("peer connect err", "ip is not correct")
+		}
+		if peer2.LocalAddr().String() != peer1.RemoteAddr().String() {
+			t.Error("peer connect err", "ip is not correct")
+		}
+
+		if p1.Server.NodeInfo().ID != peer2.ID().String() {
+			t.Error("peer connect err", "id is not correct")
+		}
+		if p2.Server.NodeInfo().ID != peer1.ID().String() {
+			t.Error("peer connect err", "id is not correct")
+		}
+	}
+}
+
+func WriteMsgForTest(t *testing.T, rw MsgReadWriter) {
+	cmd, err := HelloCmd{}.makeSendMsg(0)
+	if err != nil {
+		t.Error("HelloCmd makeSendMsg err", err)
+	}
+	if err := rw.WriteMsg(cmd); err != nil {
+		t.Error("Write HelloCmd Msg err", err)
+	}
+
+	cmd, err = NewMinorBlockHeaderList{}.makeSendMsg(0)
+	if err != nil {
+		t.Error("NewMinorBlockHeaderList makeSendMsg err", err)
+	}
+	if err := rw.WriteMsg(cmd); err != nil {
+		t.Error("Write NewMinorBlockHeaderList Msg err", err)
+	}
+
+	cmd, err = NewTransactionList{}.makeSendMsg(0)
+	if err != nil {
+		t.Error("NewTransactionList makeSendMsg err", err)
+	}
+	if err := rw.WriteMsg(cmd); err != nil {
+		t.Error("Write NewTransactionList Msg err", err)
+	}
+
+	cmd, err = GetPeerListRequest{}.makeSendMsg(0)
+	if err != nil {
+		t.Error("GetPeerListRequest makeSendMsg err", err)
+	}
+	if err := rw.WriteMsg(cmd); err != nil {
+		t.Error("Write GetPeerListRequest Msg err", err)
+	}
+
+	cmd, err = GetPeerListResponse{}.makeSendMsg(0)
+	if err != nil {
+		t.Error("GetPeerListResponse makeSendMsg err", err)
+	}
+	if err := rw.WriteMsg(cmd); err != nil {
+		t.Error("Write GetPeerListResponse Msg err", err)
+	}
+
+	cmd, err = GetRootBlockHeaderListRequest{}.makeSendMsg(0)
+	if err != nil {
+		t.Error("GetRootBlockHeaderListRequest makeSendMsg err", err)
+	}
+	if err := rw.WriteMsg(cmd); err != nil {
+		t.Error("Write GetRootBlockHeaderListRequest Msg err", err)
+	}
+
+	cmd, err = GetRootBlockHeaderListResponse{}.makeSendMsg(0)
+	if err != nil {
+		t.Error("GetRootBlockHeaderListResponse makeSendMsg err", err)
+	}
+	if err := rw.WriteMsg(cmd); err != nil {
+		t.Error("Write GetRootBlockHeaderListResponse Msg err", err)
+	}
+
+	cmd, err = GetRootBlockListRequest{}.makeSendMsg(0)
+	if err != nil {
+		t.Error("GetRootBlockListRequest makeSendMsg err", err)
+	}
+	if err := rw.WriteMsg(cmd); err != nil {
+		t.Error("Write GetRootBlockListRequest Msg err", err)
+	}
+
+	cmd, err = GetRootBlockListResponse{}.makeSendMsg(0)
+	if err != nil {
+		t.Error("GetRootBlockListResponse makeSendMsg err", err)
+	}
+	if err := rw.WriteMsg(cmd); err != nil {
+		t.Error("Write GetRootBlockListResponse Msg err", err)
+	}
+
+	cmd, err = GetMinorBlockListRequest{}.makeSendMsg(0)
+	if err != nil {
+		t.Error("GetMinorBlockListRequest makeSendMsg err", err)
+	}
+	if err := rw.WriteMsg(cmd); err != nil {
+		t.Error("Write GetMinorBlockListRequest Msg err", err)
+	}
+
+	cmd, err = GetMinorBlockListResponse{}.makeSendMsg(0)
+	if err != nil {
+		t.Error("GetMinorBlockListResponse makeSendMsg err", err)
+	}
+	if err := rw.WriteMsg(cmd); err != nil {
+		t.Error("Write GetMinorBlockListResponse Msg err", err)
+	}
+
+	cmd, err = GetMinorBlockHeaderListRequest{}.makeSendMsg(0)
+	if err != nil {
+		t.Error("GetMinorBlockHeaderListRequest makeSendMsg err", err)
+	}
+	if err := rw.WriteMsg(cmd); err != nil {
+		t.Error("Write GetMinorBlockHeaderListRequest Msg err", err)
+	}
+
+	cmd, err = GetMinorBlockHeaderListResponse{}.makeSendMsg(0)
+	if err != nil {
+		t.Error("GetMinorBlockHeaderListResponse makeSendMsg err", err)
+	}
+	if err := rw.WriteMsg(cmd); err != nil {
+		t.Error("Write GetMinorBlockHeaderListResponse Msg err", err)
+	}
+
+	cmd, err = NewBlockMinor{}.makeSendMsg(0)
+	if err != nil {
+		t.Error("NewBlockMinor makeSendMsg err", err)
+	}
+	if err := rw.WriteMsg(cmd); err != nil {
+		t.Error("Write NewBlockMinor Msg err", err)
+	}
 }

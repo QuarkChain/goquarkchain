@@ -10,9 +10,40 @@ import (
 )
 
 var (
-	typeCacheMutex sync.RWMutex
-	typeCache      = make(map[typekey]*typeinfo)
+//typeCacheMutex sync.RWMutex
+//typeCache      = make(map[typekey]*typeinfo)
 )
+
+type typeCacheMap struct {
+	m map[typekey]*typeinfo
+	sync.RWMutex
+}
+
+var typeCache = typeCacheMap{
+	m: make(map[typekey]*typeinfo),
+}
+
+func (m *typeCacheMap) Insert(i typekey, s *typeinfo) {
+	m.Lock()
+	m.m[i] = s
+	m.Unlock()
+}
+
+func (m *typeCacheMap) Get(i typekey) (s *typeinfo) {
+	m.RLock()
+	s, ok := m.m[i]
+	if ok {
+		m.RUnlock()
+		return s
+	}
+	m.RUnlock()
+	return nil
+}
+func (m *typeCacheMap) Delete(i typekey) {
+	m.Lock()
+	delete(m.m, i)
+	m.Unlock()
+}
 
 type typeinfo struct {
 	serializer
@@ -39,21 +70,19 @@ type deserializer func(*ByteBuffer, reflect.Value) error
 type serializer func(reflect.Value, *[]byte) error
 
 func cachedTypeInfo(typ reflect.Type, tags tags) (*typeinfo, error) {
-	typeCacheMutex.RLock()
-	info := typeCache[typekey{typ, tags}]
-	typeCacheMutex.RUnlock()
+	//info := typeCache[typekey{typ, tags}]
+	info := typeCache.Get(typekey{typ, tags})
 	if info != nil {
 		return info, nil
 	}
 	// not in the cache, need to generate info for this type.
-	typeCacheMutex.Lock()
-	defer typeCacheMutex.Unlock()
 	return cachedTypeInfo1(typ, tags)
 }
 
 func cachedTypeInfo1(typ reflect.Type, tags tags) (*typeinfo, error) {
 	key := typekey{typ, tags}
-	info := typeCache[key]
+	//info := typeCache[key]
+	info := typeCache.Get(key)
 	if info != nil {
 		// another goroutine got the write lock first
 		return info, nil
@@ -61,16 +90,18 @@ func cachedTypeInfo1(typ reflect.Type, tags tags) (*typeinfo, error) {
 	// put a dummy value into the cache before generating.
 	// if the generator tries to lookup itself, it will get
 	// the dummy value and won't call itself recursively.
-	typeCache[key] = new(typeinfo)
+	//	typeCache[key] = new(typeinfo)
 	info, err := genTypeInfo(typ, tags)
 	if err != nil {
 		// remove the dummy value if the generator fails
-		delete(typeCache, key)
+		//delete(typeCache, key)
+		typeCache.Delete(key)
 		return nil, err
 	}
 
-	*typeCache[key] = *info
-	return typeCache[key], err
+	//*typeCache[key] = *info
+	typeCache.Insert(key, info)
+	return info, err
 }
 
 type field struct {

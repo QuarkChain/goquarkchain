@@ -19,11 +19,7 @@ package p2p
 import (
 	"errors"
 	"fmt"
-	"github.com/QuarkChain/goquarkchain/core/types"
-	"github.com/ethereum/go-ethereum/common"
 	"io"
-	"io/ioutil"
-	"math/big"
 	"net"
 	"sort"
 	"sync"
@@ -180,44 +176,6 @@ func (p *Peer) Inbound() bool {
 	return p.rw.is(inboundConn)
 }
 
-func (p *Peer)SubProtocol()error{
-	if _,ok:=p.Info().Protocols[QKCProtocolName];ok==false{
-		return nil
-	}
-	hello,err:=HelloCmd{
-		Version:0,
-		NetWorkID:24,
-		PeerID:common.BytesToHash(p.ID().Bytes()),
-		PeerPort:38291,
-		RootBlockHeader:types.RootBlockHeader{
-			Version:0,
-			Number:0,
-			Time:1519147489,
-			ParentHash:common.Hash{},
-			MinorHeaderHash:common.Hash{},
-			Difficulty:big.NewInt(1000000000000),
-		},
-
-	}.SendMsg(0)
-	err=p.rw.WriteMsg(hello)
-	if err!=nil{
-		panic(err)
-	}else{
-		fmt.Println("发送了hello消息成功")
-	}
-
-	msg,err:=p.rw.ReadMsg()
-	qkcBody, err := ioutil.ReadAll(msg.Payload)
-	if err != nil {
-		return err
-	}
-	qkcMsg, err := DecodeQKCMsg(qkcBody)
-	if err != nil {
-		return err
-	}
-	log.Info("rev msg","qkcMsg op ",qkcMsg.op)
-	return nil
-}
 func newPeer(conn *conn, protocols []Protocol) *Peer {
 	protomap := matchProtocols(protocols, conn.caps, conn)
 	p := &Peer{
@@ -235,7 +193,6 @@ func newPeer(conn *conn, protocols []Protocol) *Peer {
 func (p *Peer) Log() log.Logger {
 	return p.log
 }
-
 
 func (p *Peer) run() (remoteRequested bool, err error) {
 	var (
