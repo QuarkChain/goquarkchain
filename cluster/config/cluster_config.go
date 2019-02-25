@@ -155,14 +155,14 @@ func NewQuarkChainConfig() *QuarkChainConfig {
 		ShardList:                         make([]*ShardConfig, 0),
 		RewardTaxRate:                     0.5,
 	}
-	quark.Root.ConsensusType = POW_SIMULATE
+	quark.Root.ConsensusType = PoWSimulate
 	quark.Root.ConsensusConfig = NewPOWConfig()
 	quark.Root.ConsensusConfig.TargetBlockTime = 10
 	quark.Root.Genesis.ShardSize = DefaultQuatrain.ShardSize
 	for i := 0; i < int(DefaultQuatrain.ShardSize); i++ {
 		s := NewShardConfig()
 		s.SetRootConfig(quark.Root)
-		s.ConsensusType = POW_SIMULATE
+		s.ConsensusType = PoWSimulate
 		s.ConsensusConfig = NewPOWConfig()
 		s.ConsensusConfig.TargetBlockTime = 3
 		quark.ShardList = append(quark.ShardList, s)
@@ -219,7 +219,7 @@ func (q *QuarkChainConfig) Update(shardSize, rootBlockTime, minorBlockTime uint6
 	if q.Root == nil {
 		q.Root = NewRootConfig()
 	}
-	q.Root.ConsensusType = POW_SIMULATE
+	q.Root.ConsensusType = PoWSimulate
 	if q.Root.ConsensusConfig == nil {
 		q.Root.ConsensusConfig = NewPOWConfig()
 	}
@@ -230,7 +230,7 @@ func (q *QuarkChainConfig) Update(shardSize, rootBlockTime, minorBlockTime uint6
 	for i := 0; i < int(q.ShardSize); i++ {
 		s := NewShardConfig()
 		s.SetRootConfig(q.Root)
-		s.ConsensusType = POW_SIMULATE
+		s.ConsensusType = PoWSimulate
 		s.ConsensusConfig = NewPOWConfig()
 		s.ConsensusConfig.TargetBlockTime = minorBlockTime
 		// TODO address serialization type shuld to be replaced
