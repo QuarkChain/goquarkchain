@@ -46,6 +46,44 @@ func (h *MinorBlockHeader) Hash() common.Hash {
 	return serHash(h)
 }
 
+type minorBlockHeaderForSealHash struct {
+	Version           uint32
+	Branch            account.Branch
+	Number            uint64
+	Coinbase          account.Address
+	CoinbaseAmount    *serialize.Uint256
+	ParentHash        common.Hash
+	PrevRootBlockHash common.Hash
+	GasLimit          *serialize.Uint256
+	MetaHash          common.Hash
+	Time              uint64
+	Difficulty        *big.Int
+	Bloom             Bloom
+	Extra             *serialize.LimitedSizeByteSlice2
+}
+
+// SealHash returns the block hash of the header, which is keccak256 hash of its
+// Serialize encoding for Seal.
+func (h *MinorBlockHeader) SealHash() common.Hash {
+	header := minorBlockHeaderForSealHash{
+		Version:           h.Version,
+		Branch:            h.Branch,
+		Number:            h.Number,
+		Coinbase:          h.Coinbase,
+		CoinbaseAmount:    h.CoinbaseAmount,
+		ParentHash:        h.ParentHash,
+		PrevRootBlockHash: h.PrevRootBlockHash,
+		GasLimit:          h.GasLimit,
+		MetaHash:          h.MetaHash,
+		Time:              h.Time,
+		Difficulty:        h.Difficulty,
+		Bloom:             h.Bloom,
+		Extra:             h.Extra,
+	}
+
+	return serHash(header)
+}
+
 // Size returns the approximate memory used by all internal contents. It is used
 // to approximate and limit the memory consumption of various caches.
 func (h *MinorBlockHeader) Size() common.StorageSize {
@@ -70,6 +108,24 @@ func (s MinorBlockHeaders) Bytes(i int) []byte {
 
 func (MinorBlockHeaders) GetLenByteSize() int {
 	return 4
+}
+
+// TxDifference returns a new set which is the difference between a and b.
+func MinorHeaderDifference(a, b MinorBlockHeaders) MinorBlockHeaders {
+	keep := make(MinorBlockHeaders, 0, len(a))
+
+	remove := make(map[common.Hash]struct{})
+	for _, header := range b {
+		remove[header.Hash()] = struct{}{}
+	}
+
+	for _, header := range a {
+		if _, ok := remove[header.Hash()]; !ok {
+			keep = append(keep, header)
+		}
+	}
+
+	return keep
 }
 
 // MinorBlock represents an entire block in the Ethereum blockchain.
@@ -105,7 +161,7 @@ type extminorblock struct {
 // changes to header and to the field values will not affect the
 // block.
 //
-// The values of MinorHeaderHash, ReceiptHash and Bloom in header
+// The values of Root, ReceiptHash and Bloom in header
 // are ignored and set to values derived from the given txs and receipts.
 func NewMinorBlock(header *MinorBlockHeader, meta *MinorBlockMeta, txs []*Transaction, receipts []*Receipt, trackingdata serialize.LimitedSizeByteSlice2) *MinorBlock {
 	b := &MinorBlock{header: CopyMinorBlockHeader(header), meta: CopyMinorBlockMeta(meta), td: new(big.Int)}
@@ -256,18 +312,17 @@ func (b *MinorBlock) Size() common.StorageSize {
 
 // WithSeal returns a new block with the data from b but the header replaced with
 // the sealed one.
-func (b *MinorBlock) WithSeal(header *MinorBlockHeader, meta *MinorBlockMeta) *MinorBlock {
+func (b *MinorBlock) WithSeal(header *MinorBlockHeader) *MinorBlock {
 	cpyheader := *header
-	cpymeta := *meta
 	return &MinorBlock{
 		header:       &cpyheader,
-		meta:         &cpymeta,
+		meta:         b.meta,
 		transactions: b.transactions,
 		trackingdata: b.trackingdata,
 	}
 }
 
-// WithBody returns a new block with the given transaction and uncle contents.
+// WithBody returns a new block with the given transaction and trackingData contents.
 func (b *MinorBlock) WithBody(transactions []*Transaction, trackingData serialize.LimitedSizeByteSlice2) *MinorBlock {
 	block := &MinorBlock{
 		header:       CopyMinorBlockHeader(b.header),

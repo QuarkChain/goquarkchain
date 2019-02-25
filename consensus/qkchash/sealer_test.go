@@ -4,30 +4,30 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestSealAndVerifySeal(t *testing.T) {
 	assert := assert.New(t)
 
-	header := &types.Header{Number: big.NewInt(1), Difficulty: big.NewInt(10)}
+	header := &types.RootBlockHeader{Number: 1, Difficulty: big.NewInt(10)}
 	for _, qkcHashNativeFlag := range []bool{true, false} {
 		q := New(qkcHashNativeFlag)
-
-		resultsCh := make(chan *types.Block)
-		err := q.Seal(nil, types.NewBlockWithHeader(header), resultsCh, nil)
+		rootBlock := types.NewRootBlockWithHeader(header)
+		resultsCh := make(chan types.IBlock)
+		err := q.Seal(nil, rootBlock, resultsCh, nil)
 		assert.NoError(err, "should have no problem sealing the block")
 		block := <-resultsCh
 
 		// Correct
-		header.Nonce = types.EncodeNonce(block.Nonce())
-		header.MixDigest = block.MixDigest()
+		header.Nonce = block.IHeader().GetNonce()
+		header.MixDigest = block.IHeader().GetMixDigest()
 		err = q.VerifySeal(nil, header)
 		assert.NoError(err, "should have correct nonce / mix digest")
 
 		// Wrong
-		header.Nonce = types.EncodeNonce(block.Nonce() - 1)
+		header.Nonce = block.IHeader().GetNonce() - 1
 		err = q.VerifySeal(nil, header)
 		assert.Error(err, "should have error because of the wrong nonce")
 	}

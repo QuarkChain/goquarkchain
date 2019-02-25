@@ -72,12 +72,12 @@ func (w worker) fetch() {
 		}
 
 		if lastFetchedWork != nil {
-			if lastFetchedWork.Number.Cmp(work.Number) == 1 {
-				w.log("WARN", "skip work with lower height, height: %s", work.Number.String())
+			if lastFetchedWork.Number > work.Number {
+				w.log("WARN", "skip work with lower height, height: %d", work.Number)
 				return
 			}
 			if lastFetchedWork.HeaderHash == work.HeaderHash {
-				w.log("INFO", "skip same work, height: %s", work.Number.String())
+				w.log("INFO", "skip same work, height: %d", work.Number)
 				return
 			}
 		}
@@ -112,7 +112,7 @@ func (w worker) work() {
 			return
 		case work := <-w.fetchWorkCh:
 			// If new work has equal or higher height, abort previous work
-			if currWork != nil && work.Number.Cmp(currWork.Number) >= 0 {
+			if currWork != nil && work.Number >= currWork.Number {
 				abortWorkCh <- struct{}{}
 			}
 
@@ -121,7 +121,7 @@ func (w worker) work() {
 				panic(err) // TODO: Send back err in an error channel
 			}
 			currWork = &work
-			w.log("INFO", "started new work, height: %s", work.Number.String())
+			w.log("INFO", "started new work, height: %d", work.Number)
 
 		case res := <-resultsCh:
 			w.submitWorkCh <- result{&w, res, *currWork}
@@ -177,7 +177,7 @@ func fetchWorkRPC(shardID *uint32) (work consensus.MiningWork, err error) {
 	}
 
 	headerHash := common.HexToHash(ret[0])
-	height := new(big.Int).SetBytes(common.FromHex(ret[1]))
+	height := new(big.Int).SetBytes(common.FromHex(ret[1])).Uint64()
 	diff := new(big.Int).SetBytes(common.FromHex(ret[2]))
 	return consensus.MiningWork{
 		HeaderHash: headerHash,
@@ -277,7 +277,7 @@ func main() {
 			if err := submitWorkRPC(w.shardID, mWork, mRes); err != nil {
 				w.log("WARN", "failed to submit work: %v\n", err)
 			} else {
-				w.log("INFO", "submitted work, height: %s\n", mWork.Number.String())
+				w.log("INFO", "submitted work, height: %d\n", mWork.Number)
 			}
 		}
 	}
