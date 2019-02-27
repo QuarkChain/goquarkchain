@@ -1,21 +1,25 @@
+// Modified from go-ethereum under GNU Lesser General Public License
 package rpc
 
 import (
 	"github.com/ethereum/go-ethereum/rpc"
 	"google.golang.org/grpc"
 	"net"
-	"strings"
 )
 
 func StartGRPCServer(grpcEndpoint string, apis []rpc.API) (net.Listener, *grpc.Server, error) {
 	handler := grpc.NewServer()
-	// register service
+	// regist rpc services
 	for _, api := range apis {
-		if strings.HasSuffix(_MasterServerSideOp_serviceDesc.ServiceName, api.Namespace) {
+		switch api.Namespace {
+		// regist master handle service
+		case _MasterServerSideOp_serviceDesc.ServiceName:
 			handler.RegisterService(&_MasterServerSideOp_serviceDesc, api.Service)
-		} else if strings.HasSuffix(_SlaveServerSideOp_serviceDesc.ServiceName, api.Namespace) {
+		// regist slave handle service
+		case _SlaveServerSideOp_serviceDesc.ServiceName:
 			handler.RegisterService(&_SlaveServerSideOp_serviceDesc, api.Service)
-		} else if strings.HasSuffix(_CommonOp_serviceDesc.ServiceName, api.Namespace) {
+		// regist common handle service
+		case _CommonOp_serviceDesc.ServiceName:
 			handler.RegisterService(&_CommonOp_serviceDesc, api.Service)
 		}
 	}

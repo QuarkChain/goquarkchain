@@ -1,3 +1,4 @@
+// Modified from go-ethereum under GNU Lesser General Public License
 package rpc
 
 import (
@@ -12,7 +13,8 @@ import (
 )
 
 var (
-	conns    = make(map[string]*grpc.ClientConn)
+	conns = make(map[string]*grpc.ClientConn)
+	// include all grpc funcs
 	rpcFuncs = map[int64]opType{
 		1:  {name: "Ping"},
 		2:  {name: "ConnectToSlaves"},
@@ -58,6 +60,9 @@ type RPClient struct {
 	timeout uint16
 	conns   *map[string]*grpc.ClientConn
 	funcs   *map[int64]opType
+
+	mstrTp  int8
+	slaveTp int8
 }
 
 func NewRPCLient() *RPClient {
@@ -66,10 +71,11 @@ func NewRPCLient() *RPClient {
 		conns:   &conns,
 		funcs:   &rpcFuncs,
 		timeout: 500,
+		mstrTp:  1,
 	}
 }
 
-func ClusterOpCheck(op int64, ty int8) bool {
+func (c *RPClient) checkOp(op int64, ty int8) bool {
 	if opType, exist := rpcFuncs[op];
 		exist && opType.ty == ty {
 		return true
@@ -77,28 +83,36 @@ func ClusterOpCheck(op int64, ty int8) bool {
 	return false
 }
 
-func (c *RPClient) GetMasterServerSideOp(target string, req *Request) (response *Response, err error) {
+func (c *RPClient) GetOpName(op int64) string {
+	opType, exist := rpcFuncs[op]
+	if exist {
+		return opType.name
+	}
+	return ""
+}
 
-	if !ClusterOpCheck(req.Op, 1) {
+func (c *RPClient) GetMasterServerSideOp(target string, req *Request) (*Response, error) {
+
+	if !c.checkOp(req.Op, c.mstrTp) {
 		return nil, errors.New(fmt.Sprintf("%s don't belong to master server grpc functions", rpcFuncs[req.Op].name))
 	}
 	conn, err := c.GetConn(target)
 	if err != nil {
-		return
+		return nil, err
 	}
 
 	client := NewMasterServerSideOpClient(conn)
 	return c.grpcOp(req, reflect.ValueOf(client))
 }
 
-func (c *RPClient) GetSlaveSideOp(target string, req *Request) (response *Response, err error) {
+func (c *RPClient) GetSlaveSideOp(target string, req *Request) (*Response, error) {
 
-	if !ClusterOpCheck(req.Op, 0) {
+	if !c.checkOp(req.Op, c.slaveTp) {
 		return nil, errors.New(fmt.Sprintf("%s don't belong to slave server grpc functions", rpcFuncs[req.Op].name))
 	}
 	conn, err := c.GetConn(target)
 	if err != nil {
-		return
+		return nil, err
 	}
 
 	client := NewSlaveServerSideOpClient(conn)
@@ -159,4 +173,14 @@ func (c *RPClient) GetConn(target string) (*grpc.ClientConn, error) {
 		}
 	}
 	return conns[target], nil
+}
+
+func (c *RPClient) Getfuncs(tp int8) map[int64]string {
+	var funcs = make(map[int64]string)
+	for op, rpcfunc := range *c.funcs {
+		if rpcfunc.ty == tp {
+			funcs[op] = rpcfunc.name
+		}
+	}
+	return funcs
 }

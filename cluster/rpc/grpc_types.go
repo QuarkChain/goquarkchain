@@ -1,3 +1,4 @@
+// Modified from go-ethereum under GNU Lesser General Public License
 package rpc
 
 import (
@@ -8,10 +9,13 @@ import (
 	"math/big"
 )
 
+// RPCs to initialize a cluster
+
 type Ping struct {
 	Id            serialize.LimitedSizeByteSlice4
 	ChainMaskList ChainMasks
-	RootTip       types.RootBlock `json:"root_tip" ser:"nil"`
+	// Initialize ShardState if not None
+	RootTip types.RootBlock `json:"root_tip" ser:"nil"`
 }
 
 // TODO if ChainMask type is defined replace uint16 with ChainMask
@@ -40,6 +44,7 @@ type SlaveInfo struct {
 	ChainMaskList ChainMasks                      `json:"chain_mask_list" gencodec:"required"`
 }
 
+// Master instructs a slave to connect to other slaves
 type ConnectToSlavesRequest struct {
 	SlaveInfoList SlaveInfos `json:"slave_info_list" gencodec:"required"`
 }
@@ -50,6 +55,8 @@ func (LargeBytes) GetLenByteSize() int {
 	return 4
 }
 
+// result_list must have the same size as salve_info_list in the request.
+// Empty result means success otherwise it would a serialized error message.
 type ConnectToSlavesResponse struct {
 	ResultList LargeBytes `json:"result_list" gencodec:"required"`
 }
@@ -59,6 +66,7 @@ type ArtificialTxConfig struct {
 	TargetMinorBlockTime uint32 `json:"target_minor_block_time" gencodec:"required"`
 }
 
+// Send mining instructions to slaves
 type MineRequest struct {
 	ArtificialTxConfig ArtificialTxConfig `json:"artificial_tx_config" gencodec:"required"`
 	Mining             bool               `json:"mining" gencodec:"required"`
@@ -68,6 +76,7 @@ type MineResponse struct {
 	ErrorCode uint32 `json:"error_code" gencodec:"required"`
 }
 
+// Generate transactions for loadtesting
 type GenTxRequest struct {
 	NumTxPerShard uint32            `json:"num_tx_per_shard" gencodec:"required"`
 	XShardPercent uint32            `json:"x_shard_percent" gencodec:"required"`
@@ -78,6 +87,12 @@ type GenTxResponse struct {
 	ErrorCode uint32 `json:"error_code" gencodec:"required"`
 }
 
+// Virtual connection management
+
+/*
+	Broadcast to the cluster and announce that a peer connection is created
+	Assume always succeed.
+*/
 type CreateClusterPeerConnectionRequest struct {
 	ClusterPeerId uint64 `json:"cluster_peer_id" gencodec:"required"`
 }
@@ -86,9 +101,15 @@ type CreateClusterPeerConnectionResponse struct {
 	ErrorCode uint32 `json:"error_code" gencodec:"required"`
 }
 
+/*
+	Broadcast to the cluster and announce that a peer connection is lost
+    As a contract, the master will not send traffic after the command.
+*/
 type DestroyClusterPeerConnectionCommand struct {
 	ClusterPeerId uint64 `json:"cluster_peer_id" gencodec:"required"`
 }
+
+// RPCs to lookup data from shards (master -> slaves)
 
 type GetMinorBlockRequest struct {
 	Branch         account.Branch `json:"branch" gencodec:"required"`
@@ -165,6 +186,10 @@ type GetTransactionListByAddressResponse struct {
 	Next      serialize.LimitedSizeByteSlice4 `json:"next" gencodec:"required"`
 }
 
+// RPCs to update blockchains
+// master -> slave
+
+// Add root block to each slave
 type AddRootBlockRequest struct {
 	RootBlock    types.RootBlock `json:"root_block" gencodec:"required"`
 	ExpectSwitch bool            `json:"expect_switch" gencodec:"required"`
@@ -175,6 +200,7 @@ type AddRootBlockResponse struct {
 	Switched  bool   `json:"switched" gencodec:"required"`
 }
 
+// Necessary information for master to decide the best block to mine
 type EcoInfo struct {
 	Branch                           account.Branch `json:"branch" gencodec:"required"`
 	Height                           uint64         `json:"height" gencodec:"required"`
@@ -208,6 +234,7 @@ type GetNextBlockToMineResponse struct {
 	Block     types.MinorBlock `json:"block" gencodec:"required"`
 }
 
+// For adding blocks mined through JRPC
 type AddMinorBlockRequest struct {
 	MinorBlockData serialize.LimitedSizeByteSlice4 `json:"minor_block_data" gencodec:"required"`
 }
@@ -227,6 +254,7 @@ type HeadersInfo struct {
 	HeaderList MinorBlockHeaders `json:"header_list" gencodec:"required"`
 }
 
+// To collect minor block headers to build a new root block
 type GetUnconfirmedHeadersRequest struct {
 }
 
@@ -314,6 +342,11 @@ type SyncMinorBlockListResponse struct {
 	ShardStats ShardStats `json:"shard_stats" ser:"nil"`
 }
 
+// slave -> master
+/*
+	Notify master about a successfully added minro block.
+	Piggyback the ShardStats in the same request.
+*/
 type AddMinorBlockHeaderRequest struct {
 	MinorBlockHeader types.MinorBlockHeader `json:"minor_block_header" gencodec:"required"`
 	TxCount          uint32                 `json:"tx_count" gencodec:"required"`
