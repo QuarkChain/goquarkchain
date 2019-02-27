@@ -10,7 +10,7 @@ const (
 	// PoWDoubleSha256 is the consensus type running double-sha256 algorithm.
 	PowDoubleSha256 = "POW_DOUBLESHA256"
 	// PoWSimulate is the simulated consensus type by simply sleeping.
-	PoWSimulate = "PoWSimulate"
+	PoWSimulate = "POW_SIMULATE"
 	// PoSQkchash is the consensus type running qkchash algorithm.
 	PoWQkchash = "POW_QKCHASH"
 
