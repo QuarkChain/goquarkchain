@@ -3,11 +3,16 @@ package config
 import "math"
 
 const (
-	NONE = iota
-	POW_ETHASH
-	POW_SHA3SHA3
-	POW_SIMULATE
-	POW_QKCHASH
+	// PoWNone is the default empty consensus type specifying no shard.
+	PoWNone = "NONE"
+	// PoWEthash is the consensus type running ethash algorithm.
+	PoWEthash = "POW_ETHASH"
+	// PoWDoubleSha256 is the consensus type running double-sha256 algorithm.
+	PowDoubleSha256 = "POW_DOUBLESHA256"
+	// PoWSimulate is the simulated consensus type by simply sleeping.
+	PoWSimulate = "PoWSimulate"
+	// PoSQkchash is the consensus type running qkchash algorithm.
+	PoWQkchash = "POW_QKCHASH"
 
 	SLAVE_PORT = 38000
 )
@@ -114,7 +119,7 @@ type RootConfig struct {
 	// To ignore super old blocks from peers
 	// This means the network will fork permanently after a long partitio
 	MaxStaleRootBlockHeightDiff    uint64       `json:"MAX_STALE_ROOT_BLOCK_HEIGHT_DIFF"`
-	ConsensusType                  uint32       `json:"CONSENSUS_TYPE"`
+	ConsensusType                  string       `json:"CONSENSUS_TYPE"`
 	ConsensusConfig                *POWConfig   `json:"CONSENSUS_CONFIG"`
 	Genesis                        *RootGenesis `json:"GENESIS"`
 	CoinbaseAddress                string       `json:"COINBASE_ADDRESS"`
@@ -126,7 +131,7 @@ type RootConfig struct {
 func NewRootConfig() *RootConfig {
 	return &RootConfig{
 		MaxStaleRootBlockHeightDiff: 60,
-		ConsensusType:               NONE,
+		ConsensusType:               PoWNone,
 		ConsensusConfig:             nil,
 		Genesis:                     &DefaultRootGenesis,
 		// TODO address serialization type shuld to be replaced
