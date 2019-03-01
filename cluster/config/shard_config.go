@@ -1,21 +1,22 @@
 package config
 
 import (
-	"math"
+	"github.com/ethereum/go-ethereum/common/math"
+	"math/big"
 )
 
 type ShardGenesis struct {
-	RootHeight         uint32             `json:"ROOT_HEIGHT"`
-	Version            uint32             `json:"VERSION"`
-	Height             uint32             `json:"HEIGHT"`
-	HashPrevMinorBlock string             `json:"HASH_PREV_MINOR_BLOCK"`
-	HashMerkleRoot     string             `json:"HASH_MERKLE_ROOT"`
-	ExtraData          []byte             `json:"EXTRA_DATA"`
-	Timestamp          uint64             `json:"TIMESTAMP"`
-	Difficulty         uint64             `json:"DIFFICULTY"`
-	GasLimit           uint64             `json:"GAS_LIMIT"`
-	Nonce              uint32             `json:"NONCE"`
-	Alloc              map[string]float64 `json:"ALLOC"`
+	RootHeight         uint32              `json:"ROOT_HEIGHT"`
+	Version            uint32              `json:"VERSION"`
+	Height             uint32              `json:"HEIGHT"`
+	HashPrevMinorBlock string              `json:"HASH_PREV_MINOR_BLOCK"`
+	HashMerkleRoot     string              `json:"HASH_MERKLE_ROOT"`
+	ExtraData          []byte              `json:"EXTRA_DATA"`
+	Timestamp          uint64              `json:"TIMESTAMP"`
+	Difficulty         uint64              `json:"DIFFICULTY"`
+	GasLimit           uint64              `json:"GAS_LIMIT"`
+	Nonce              uint32              `json:"NONCE"`
+	Alloc              map[string]*big.Int `json:"ALLOC"`
 }
 
 func NewShardGenesis() *ShardGenesis {
@@ -30,7 +31,7 @@ func NewShardGenesis() *ShardGenesis {
 		Difficulty:         10000,
 		GasLimit:           30000 * 400,
 		Nonce:              0,
-		Alloc:              make(map[string]float64),
+		Alloc:              make(map[string]*big.Int),
 	}
 }
 
@@ -72,7 +73,9 @@ func NewShardConfig() *ShardConfig {
 		Genesis:                            NewShardGenesis(),
 	}
 	// TODO should to be deleted, just for test
-	sharding.Genesis.Alloc["0x0000000000000000000000000000000000000000000000000000000000000000"] = math.Pow10(24)
+	valueHex := new(big.Int)
+	valueHex, _ = math.ParseBig256("1000000000000000000000000")
+	sharding.Genesis.Alloc["0x0000000000000000000000000000000000000000000000000000000000000000"] = valueHex
 	return sharding
 }
 

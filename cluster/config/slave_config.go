@@ -1,21 +1,20 @@
 package config
 
-import (
-	"github.com/QuarkChain/goquarkchain/cluster/shard"
-)
+import "github.com/QuarkChain/goquarkchain/core/types"
 
 type SlaveConfig struct {
 	Ip            string             `json:"IP"`   // DEFAULT_HOST
 	Port          uint64             `json:"PORT"` // 38392
 	Id            string             `json:"ID"`
-	ShardMaskList []*shard.ShardMask `json:"SHARD_MASK_LIST"`
+	ShardMaskList []*types.ChainMask `json:"SHARD_MASK_LIST"`
 }
 
 func NewSlaveConfig() *SlaveConfig {
-	return &SlaveConfig{
+	slaveConfig := SlaveConfig{
 		Ip:            HOST,
 		Port:          SLAVE_PORT,
 		Id:            "",
 		ShardMaskList: nil,
 	}
+	return &slaveConfig
 }
