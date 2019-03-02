@@ -30,6 +30,7 @@ import (
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
+	qkcParam "github.com/QuarkChain/goquarkchain/params"
 )
 
 var (
@@ -115,14 +116,14 @@ func IntrinsicGas(data []byte, contractCreation, homestead bool,to common.Addres
 		gas += z * params.TxDataZeroGas
 	}
 
-	//opcodes.CREATE[3]
-	if bytes.Equal(to.Bytes(),account.Recipient{}.Bytes()){
-		gas+=32000
+	// opcodes.CREATE[3]
+	if bytes.Equal(to.Bytes(),common.Address{}.Bytes()){
+		gas+=uint64(params.CreateGas)
 	}
 
-	//GTXXSHARDCOST
+	// GTXXSHARDCOST
 	if isCrossShard{
-		gas+=9000
+		gas+=uint64(qkcParam.GtxxShardCost)
 	}
 	return gas, nil
 }

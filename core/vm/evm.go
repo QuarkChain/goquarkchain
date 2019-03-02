@@ -17,6 +17,7 @@
 package vm
 
 import (
+	"errors"
 	"math/big"
 	"sync/atomic"
 	"time"
@@ -454,7 +455,7 @@ func (evm *EVM) create(caller ContractRef, codeAndHash *codeAndHash, gas uint64,
 func (evm *EVM) Create(caller ContractRef, code []byte, gas uint64, value *big.Int,isCrossShard bool) (ret []byte, contractAddr common.Address, leftOverGas uint64, err error) {
 	contractAddr = caller.Address()
 	if isCrossShard{
-		return nil,contractAddr,gas,nil
+		return nil,contractAddr,gas,errors.New("is cross shard tx ,not support create evm")
 	}
 	return evm.create(caller, &codeAndHash{code: code}, gas, value, contractAddr)
 }
