@@ -17,7 +17,6 @@
 package vm
 
 import (
-	"github.com/QuarkChain/goquarkchain/core/types"
 	"math/big"
 	"sync/atomic"
 	"time"
@@ -179,7 +178,7 @@ func (evm *EVM) Interpreter() Interpreter {
 // parameters. It also handles any necessary value transfer required and takes
 // the necessary steps to create accounts and reverses the state in case of an
 // execution error or failed value transfer.
-func (evm *EVM) Call(caller ContractRef, addr common.Address, input []byte, gas uint64, value *big.Int,crossData *types.CrossShardTransactionDeposit) (ret []byte, leftOverGas uint64, err error) {
+func (evm *EVM) Call(caller ContractRef, addr common.Address, input []byte, gas uint64, value *big.Int) (ret []byte, leftOverGas uint64, err error) {
 	if evm.vmConfig.NoRecursion && evm.depth > 0 {
 		return nil, gas, nil
 	}
@@ -213,17 +212,8 @@ func (evm *EVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 		evm.StateDB.CreateAccount(addr)
 	}
 
-	if crossData!=nil{
-		evm.StateDB.SubBalance(caller.Address(),value)
-		evm.StateDB.SetXShardList(*crossData)
-	}else{
-		evm.Transfer(evm.StateDB, caller.Address(), to.Address(), value)
-	}
+	evm.Transfer(evm.StateDB, caller.Address(), to.Address(), value)
 
-	if crossData!=nil{
-		//TODO ??
-		return nil,gas,nil
-	}
 	// Initialise a new contract and set the code that is to be used by the EVM.
 	// The contract is a scoped environment for this execution context only.
 	contract := NewContract(caller, to, value, gas)

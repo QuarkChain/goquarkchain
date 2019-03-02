@@ -238,7 +238,7 @@ func (st *StateTransition) TransitionDb(feeRate float32) (ret []byte, usedGas ui
 
 			gp:=new(serialize.Uint256)
 			gp.Value.Set(msg.GasPrice())
-			tt:=&types.CrossShardTransactionDeposit{
+			crossShardData:=&types.CrossShardTransactionDeposit{
 				TxHash:msg.TxHash(),
 				From:account.Address{
 					Recipient:account.Recipient(msg.From()),
@@ -251,9 +251,11 @@ func (st *StateTransition) TransitionDb(feeRate float32) (ret []byte, usedGas ui
 				Value:vv,
 				GasPrice:gp,
 			}
-			ret, st.gas, vmerr = evm.Call(sender, st.to(), st.data, st.gas, st.value,tt)
+			evm.StateDB.SubBalance(sender.Address(),st.value)
+			evm.StateDB.SetXShardList(*crossShardData)
+			return nil,st.gasUsed(),true,nil
 		}else{
-			ret, st.gas, vmerr = evm.Call(sender, st.to(), st.data, st.gas, st.value,nil)
+			ret, st.gas, vmerr = evm.Call(sender, st.to(), st.data, st.gas, st.value)
 		}
 
 	}
