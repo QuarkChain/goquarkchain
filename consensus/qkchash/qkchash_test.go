@@ -1,10 +1,10 @@
 package qkchash
 
 import (
-	"github.com/QuarkChain/goquarkchain/consensus"
 	"math/big"
 	"testing"
 
+	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"

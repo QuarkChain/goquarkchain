@@ -2,9 +2,9 @@ package qkchash
 
 import (
 	"encoding/binary"
-	"github.com/QuarkChain/goquarkchain/account"
 	"math/big"
 
+	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/common"
