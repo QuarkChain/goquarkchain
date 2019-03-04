@@ -702,7 +702,7 @@ func opCreate(pc *uint64, interpreter *EVMInterpreter, contract *Contract, memor
 	}
 
 	contract.UseGas(gas)
-	res, addr, returnGas, suberr := interpreter.evm.Create(contract, input, gas, value,false)
+	res, addr, returnGas, suberr := interpreter.evm.Create(contract, input, gas, value,false,0)//TODO : "isCrossShard == false" is ok?
 	// Push item on the stack based on the returned error. If the ruleset is
 	// homestead we must check for CodeStoreOutOfGasError (homestead only
 	// rule) and treat as an error, if the ruleset is frontier we must

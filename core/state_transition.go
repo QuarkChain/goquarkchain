@@ -226,7 +226,7 @@ func (st *StateTransition) TransitionDb(feeRate float32) (ret []byte, usedGas ui
 		vmerr error
 	)
 	if contractCreation {
-		ret, _, st.gas, vmerr = evm.Create(sender, st.data, st.gas, st.value,msg.IsCrosShard())
+		ret, _, st.gas, vmerr = evm.Create(sender, st.data, st.gas, st.value,msg.IsCrosShard(),msg.ToFullShardId())
 	} else {
 		// Increment the nonce for the next transaction
 		st.state.SetNonce(msg.From().ToAddress(), st.state.GetNonce(sender.Address())+1)
