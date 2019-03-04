@@ -19,6 +19,10 @@ type IHeader interface {
 	GetDifficulty() *big.Int
 	GetNonce() uint64
 	GetExtra() []byte
+	SetCoinbase(account.Address)
+	SetExtra([]byte)
+	SetDifficulty(*big.Int)
+	SetNonce(uint64)
 	GetMixDigest() common.Hash
 	ValidateHeader() error
 }
@@ -29,6 +33,11 @@ type IBlock interface {
 	NumberU64() uint64
 	IHeader() IHeader
 	WithMingResult(nonce uint64, mixDigest common.Hash) IBlock
+	HashItems() []IHashItem
+}
+
+type IHashItem interface {
+	Hash() common.Hash
 }
 
 func IsP2(v uint32) bool {

@@ -44,7 +44,7 @@ func TestLookupStorage(t *testing.T) {
 	}
 	// Insert all the transactions into the database, and verify contents
 	WriteMinorBlock(db, block)
-	WriteTxLookupEntries(db, block)
+	WriteLookupEntries(db, block)
 
 	for i, tx := range txs {
 		if txn, hash, number, index := ReadTransaction(db, tx.Hash()); txn == nil {
@@ -60,7 +60,7 @@ func TestLookupStorage(t *testing.T) {
 	}
 	// Delete the transactions and check purge
 	for i, tx := range txs {
-		DeleteTxLookupEntry(db, tx.Hash())
+		DeleteLookupEntry(db, tx.Hash())
 		if txn, _, _, _ := ReadTransaction(db, tx.Hash()); txn != nil {
 			t.Fatalf("tx #%d [%x]: deleted transaction returned: %v", i, tx.Hash(), txn)
 		}

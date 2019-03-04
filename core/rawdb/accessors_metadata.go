@@ -19,9 +19,9 @@ package rawdb
 import (
 	"encoding/binary"
 	"encoding/json"
+	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
-	"github.com/ethereum/go-ethereum/params"
 )
 
 // ReadDatabaseVersion retrieves the version number of the database.
@@ -37,12 +37,12 @@ func WriteDatabaseVersion(db DatabaseWriter, version uint32) {
 }
 
 // ReadChainConfig retrieves the consensus settings based on the given genesis hash.
-func ReadChainConfig(db DatabaseReader, hash common.Hash) *params.ChainConfig {
+func ReadChainConfig(db DatabaseReader, hash common.Hash) *config.QuarkChainConfig {
 	data, _ := db.Get(configKey(hash))
 	if len(data) == 0 {
 		return nil
 	}
-	var config params.ChainConfig
+	var config config.QuarkChainConfig
 	if err := json.Unmarshal(data, &config); err != nil {
 		log.Error("Invalid chain config JSON", "hash", hash, "err", err)
 		return nil
@@ -51,7 +51,7 @@ func ReadChainConfig(db DatabaseReader, hash common.Hash) *params.ChainConfig {
 }
 
 // WriteChainConfig writes the chain config settings to the database.
-func WriteChainConfig(db DatabaseWriter, hash common.Hash, cfg *params.ChainConfig) {
+func WriteChainConfig(db DatabaseWriter, hash common.Hash, cfg *config.QuarkChainConfig) {
 	if cfg == nil {
 		return
 	}

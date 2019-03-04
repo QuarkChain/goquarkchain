@@ -105,13 +105,6 @@ type Engine interface {
 	// rules of a particular engine. The changes are executed inline.
 	Prepare(chain ChainReader, header *types.IHeader) error
 
-	// Finalize runs any post-transaction state modifications (e.g. block rewards)
-	// and assembles the final block.
-	// Note: The block header and state database might be updated to reflect any
-	// consensus rules that happen at finalization (e.g. block rewards).
-	/*	Finalize(chain ChainReader, header *types.IHeader, state *state.StateDB, txs []*types.Transaction,
-		receipts []*types.Receipt) (*types.IBlock, error)*/ //TODO
-
 	// Seal generates a new sealing request for the given input block and pushes
 	// the result into the given channel.
 	//

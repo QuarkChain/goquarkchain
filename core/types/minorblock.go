@@ -2,6 +2,7 @@
 package types
 
 import (
+	"errors"
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/serialize"
 	"github.com/ethereum/go-ethereum/common"
@@ -33,11 +34,15 @@ type MinorBlockHeader struct {
 }
 
 type MinorBlockMeta struct {
-	Root              common.Hash        `json:"stateRoot"                  gencodec:"required"`
 	TxHash            common.Hash        `json:"transactionsRoot"           gencodec:"required"`
+	Root              common.Hash        `json:"stateRoot"                  gencodec:"required"`
 	ReceiptHash       common.Hash        `json:"receiptsRoot"               gencodec:"required"`
 	GasUsed           *serialize.Uint256 `json:"gasUsed"                    gencodec:"required"`
 	CrossShardGasUsed *serialize.Uint256 `json:"crossShardGasUsed"          gencodec:"required"`
+}
+
+func (m *MinorBlockMeta) Hash() common.Hash {
+	return serHash(m)
 }
 
 // Hash returns the block hash of the header, which is simply the keccak256 hash of its
@@ -89,6 +94,44 @@ func (h *MinorBlockHeader) SealHash() common.Hash {
 func (h *MinorBlockHeader) Size() common.StorageSize {
 	return common.StorageSize(unsafe.Sizeof(*h)) +
 		common.StorageSize(len(*h.Extra)+(h.Difficulty.BitLen())/8)
+}
+
+func (h *MinorBlockHeader) GetParentHash() common.Hash   { return h.ParentHash }
+func (h *MinorBlockHeader) GetCoinbase() account.Address { return h.Coinbase }
+func (h *MinorBlockHeader) GetTime() uint64              { return h.Time }
+func (h *MinorBlockHeader) GetDifficulty() *big.Int      { return new(big.Int).Set(h.Difficulty) }
+func (h *MinorBlockHeader) GetNonce() uint64             { return h.Nonce }
+func (h *MinorBlockHeader) GetExtra() []byte {
+	if h.Extra != nil {
+		return common.CopyBytes(*h.Extra)
+	}
+	return make([]byte, 0, 0)
+}
+func (h *MinorBlockHeader) GetMixDigest() common.Hash { return h.MixDigest }
+
+func (h *MinorBlockHeader) NumberU64() uint64 { return h.Number }
+
+func (h *MinorBlockHeader) ValidateHeader() error {
+	if h.Number < 1 {
+		return errors.New("unexpected height")
+	}
+	return nil
+}
+
+func (h *MinorBlockHeader) SetExtra(data []byte) {
+	copy(*h.Extra, data)
+}
+
+func (h *MinorBlockHeader) SetDifficulty(difficulty *big.Int) {
+	h.Difficulty = difficulty
+}
+
+func (h *MinorBlockHeader) SetNonce(nonce uint64) {
+	h.Nonce = nonce
+}
+
+func (h *MinorBlockHeader) SetCoinbase(addr account.Address) {
+	h.Coinbase = addr
 }
 
 // MinorBlockHeaders is a MinorBlockHeader slice type for basic sorting.
@@ -344,4 +387,36 @@ func (b *MinorBlock) Hash() common.Hash {
 	v := b.header.Hash()
 	b.hash.Store(v)
 	return v
+}
+func (b *MinorBlock) ValidateBlock() error {
+	if txHash := DeriveSha(b.transactions); txHash != b.meta.TxHash {
+		return errors.New("incorrect merkle root")
+	}
+
+	return nil
+}
+
+func (b *MinorBlock) NumberU64() uint64 {
+	return b.header.Number
+}
+
+func (b *MinorBlock) IHeader() IHeader {
+	return b.header
+}
+
+// WithMingResult returns a new block with the data from b and update nonce and mixDigest
+func (b *MinorBlock) WithMingResult(nonce uint64, mixDigest common.Hash) IBlock {
+	cpy := CopyMinorBlockHeader(b.header)
+	cpy.Nonce = nonce
+	cpy.MixDigest = mixDigest
+
+	return b.WithSeal(cpy)
+}
+
+func (b *MinorBlock) HashItems() []IHashItem {
+	items := make([]IHashItem, len(b.transactions), len(b.transactions))
+	for i, item := range b.transactions {
+		items[i] = item
+	}
+	return items
 }

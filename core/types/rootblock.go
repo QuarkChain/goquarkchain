@@ -138,6 +138,22 @@ func (h *RootBlockHeader) ValidateHeader() error {
 	return nil
 }
 
+func (h *RootBlockHeader) SetExtra(data []byte) {
+	copy(*h.Extra, data)
+}
+
+func (h *RootBlockHeader) SetDifficulty(difficulty *big.Int) {
+	h.Difficulty = difficulty
+}
+
+func (h *RootBlockHeader) SetNonce(nonce uint64) {
+	h.Nonce = nonce
+}
+
+func (h *RootBlockHeader) SetCoinbase(addr account.Address) {
+	h.Coinbase = addr
+}
+
 // Block represents an entire block in the QuarkChain.
 type RootBlock struct {
 	header            *RootBlockHeader
@@ -282,6 +298,13 @@ func (b *RootBlock) MixDigest() common.Hash       { return b.header.MixDigest }
 func (b *RootBlock) Signature() [65]byte          { return b.header.Signature }
 
 func (b *RootBlock) Header() *RootBlockHeader { return CopyRootBlockHeader(b.header) }
+func (b *RootBlock) HashItems() []IHashItem {
+	items := make([]IHashItem, len(b.minorBlockHeaders), len(b.minorBlockHeaders))
+	for i, item := range b.minorBlockHeaders {
+		items[i] = item
+	}
+	return items
+}
 
 func (b *RootBlock) Size() common.StorageSize {
 	if size := b.size.Load(); size != nil {

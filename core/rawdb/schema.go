@@ -64,9 +64,9 @@ var (
 	preimageHitCounter = metrics.NewRegisteredCounter("db/preimage/hits", nil)
 )
 
-// TxLookupEntry is a positional metadata to help looking up the data content of
+// LookupEntry is a positional metadata to help looking up the data content of
 // a transaction or receipt given only its hash.
-type TxLookupEntry struct {
+type LookupEntry struct {
 	BlockHash  common.Hash
 	BlockIndex uint64
 	Index      uint64
@@ -114,8 +114,8 @@ func blockReceiptsKey(number uint64, hash common.Hash) []byte {
 	return append(append(blockReceiptsPrefix, encodeBlockNumber(number)...), hash.Bytes()...)
 }
 
-// txLookupKey = txLookupPrefix + hash
-func txLookupKey(hash common.Hash) []byte {
+// lookupKey = txLookupPrefix + hash
+func lookupKey(hash common.Hash) []byte {
 	return append(txLookupPrefix, hash.Bytes()...)
 }
 
