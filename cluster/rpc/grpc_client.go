@@ -76,14 +76,14 @@ var (
 		OpGetTransactionReceipt:               {name: "GetTransactionReceipt"},
 		OpGetMine:                             {name: "GetMine"},
 		OpGenTx:                               {name: "GenTx"},
-		OpGetTransactionListByAddress: {name: "GetTransactionListByAddress"},
-		OpGetLogs:                     {name: "GetLogs"},
-		OpEstimateGas:                 {name: "EstimateGas"},
-		OpGetStorageAt:                {name: "GetStorageAt"},
-		OpGetCode:                     {name: "GetCode"},
-		OpGasPrice:                    {name: "GasPrice"},
-		OpGetWork:                     {name: "GetWork"},
-		OpSubmitWork:                  {name: "SubmitWork"},
+		OpGetTransactionListByAddress:         {name: "GetTransactionListByAddress"},
+		OpGetLogs:                             {name: "GetLogs"},
+		OpEstimateGas:                         {name: "EstimateGas"},
+		OpGetStorageAt:                        {name: "GetStorageAt"},
+		OpGetCode:                             {name: "GetCode"},
+		OpGasPrice:                            {name: "GasPrice"},
+		OpGetWork:                             {name: "GetWork"},
+		OpSubmitWork:                          {name: "SubmitWork"},
 	}
 )
 
