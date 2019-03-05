@@ -38,7 +38,7 @@ type structForTest struct {
 	From         *[]byte
 	To           *[]byte `json:"to"                 ser:"nil"`
 	IgnoredField int     `json:"ignore"             ser:"-"`
-	privateField int     //private field will be ignored
+	privateField int     //private field will be Ignored
 }
 
 func newStructForTest(from, to *[]byte) structForTest {
@@ -63,10 +63,8 @@ func newUint256(val uint64) *Uint256 {
 	return ui
 }
 
-type LargeBytes []byte
-
-func (*LargeBytes) GetLenByteSize() int {
-	return 4
+type LargeBytes struct {
+	Value []byte `bytesize:"4"`
 }
 
 var serdata = []testDataForSerialize{
@@ -130,9 +128,9 @@ var serdata = []testDataForSerialize{
 	{val: []byte{1, 2, 3}, output: "03010203"},
 
 	{val: &LargeBytes{}, output: "00000000"},
-	{val: &LargeBytes{0x7E}, output: "000000017E"},
-	{val: &LargeBytes{0x80}, output: "0000000180"},
-	{val: &LargeBytes{1, 2, 3}, output: "00000003010203"},
+	{val: &LargeBytes{[]byte{0x7E}}, output: "000000017E"},
+	{val: &LargeBytes{[]byte{0x80}}, output: "0000000180"},
+	{val: &LargeBytes{[]byte{1, 2, 3}}, output: "00000003010203"},
 
 	{val: "", output: "00000000"},
 	{val: "\x7E", output: "000000017E"},

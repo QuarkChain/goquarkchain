@@ -5,6 +5,7 @@ package serialize
 import (
 	"fmt"
 	"reflect"
+	"strconv"
 	"strings"
 	"sync"
 )
@@ -19,26 +20,28 @@ type typeinfo struct {
 	deserializer
 }
 
-// represents struct tags
-type tags struct {
-	// rlp:"nil" controls whether empty input results in a nil pointer.
-	nilOK bool
-	// rlp:"-" ignores fields.
-	ignored bool
+// represents struct Tags
+type Tags struct {
+	// ser:"nil" controls whether empty input results in a nil pointer.
+	NilOK bool
+	// ser:"-" ignores fields.
+	Ignored bool
+	// bytesize: number
+	ByteSize int
 }
 
 type typekey struct {
 	reflect.Type
-	// the key must include the struct tags because they
+	// the key must include the struct Tags because they
 	// might generate a different decoder.
-	tags
+	Tags
 }
 
-type deserializer func(*ByteBuffer, reflect.Value) error
+type deserializer func(*ByteBuffer, reflect.Value, Tags) error
 
-type serializer func(reflect.Value, *[]byte) error
+type serializer func(reflect.Value, *[]byte, Tags) error
 
-func cachedTypeInfo(typ reflect.Type, tags tags) (*typeinfo, error) {
+func cachedTypeInfo(typ reflect.Type, tags Tags) (*typeinfo, error) {
 	typeCacheMutex.RLock()
 	info := typeCache[typekey{typ, tags}]
 	typeCacheMutex.RUnlock()
@@ -51,7 +54,7 @@ func cachedTypeInfo(typ reflect.Type, tags tags) (*typeinfo, error) {
 	return cachedTypeInfo1(typ, tags)
 }
 
-func cachedTypeInfo1(typ reflect.Type, tags tags) (*typeinfo, error) {
+func cachedTypeInfo1(typ reflect.Type, tags Tags) (*typeinfo, error) {
 	key := typekey{typ, tags}
 	info := typeCache[key]
 	if info != nil {
@@ -76,6 +79,7 @@ func cachedTypeInfo1(typ reflect.Type, tags tags) (*typeinfo, error) {
 type field struct {
 	index int
 	info  *typeinfo
+	tags  Tags
 }
 
 func structFields(typ reflect.Type) (fields []field, err error) {
@@ -85,43 +89,60 @@ func structFields(typ reflect.Type) (fields []field, err error) {
 			if err != nil {
 				return nil, err
 			}
-			if tags.ignored {
+			if tags.Ignored {
 				continue
 			}
 			info, err := cachedTypeInfo1(f.Type, tags)
 			if err != nil {
 				return nil, err
 			}
-			fields = append(fields, field{i, info})
+			fields = append(fields, field{i, info, tags})
 		}
 	}
 
 	return fields, nil
 }
 
-func parseStructTag(typ reflect.Type, fi int) (tags, error) {
+func parseStructTag(typ reflect.Type, fi int) (Tags, error) {
 	f := typ.Field(fi)
-	var ts tags
+	var ts Tags
+	ts.ByteSize = 1
 	for _, t := range strings.Split(f.Tag.Get("ser"), ",") {
 		switch t = strings.TrimSpace(t); t {
 		case "":
 		case "-":
-			ts.ignored = true
+			ts.Ignored = true
 		case "nil": // nil equal to optional in PyQuackChain
-			ts.nilOK = true
+			ts.NilOK = true
 		default:
 			return ts, fmt.Errorf("ser: unknown struct tag %q on %v.%s", t, typ, f.Name)
 		}
 	}
+	// bytesize use to specify the bytesize of a slice,
+	// only slice is useful
+	if f.Type.Kind() == reflect.Slice {
+		for _, t := range strings.Split(f.Tag.Get("bytesize"), ",") {
+			t = strings.TrimSpace(t)
+			if t != "" {
+				num, err := strconv.Atoi(t)
+				if err != nil {
+					return ts, err
+				}
+
+				ts.ByteSize = num
+			}
+		}
+	}
+
 	return ts, nil
 }
 
-func genTypeInfo(typ reflect.Type, tags tags) (info *typeinfo, err error) {
+func genTypeInfo(typ reflect.Type, tags Tags) (info *typeinfo, err error) {
 	info = new(typeinfo)
-	if info.serializer, err = makeSerializer(typ, tags); err != nil {
+	if info.serializer, err = makeSerializer(typ); err != nil {
 		return nil, err
 	}
-	if info.deserializer, err = makeDeserializer(typ, tags); err != nil {
+	if info.deserializer, err = makeDeserializer(typ); err != nil {
 		return nil, err
 	}
 	return info, nil

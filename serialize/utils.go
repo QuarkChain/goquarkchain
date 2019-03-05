@@ -48,10 +48,6 @@ type Serializable interface {
 	Deserialize(bb *ByteBuffer) error
 }
 
-type SerializableList interface {
-	GetLenByteSize() int
-}
-
 func isUint(k reflect.Kind) bool {
 	return k >= reflect.Uint && k <= reflect.Uintptr
 }

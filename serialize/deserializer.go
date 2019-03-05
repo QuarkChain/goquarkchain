@@ -13,6 +13,10 @@ var (
 )
 
 func Deserialize(bb *ByteBuffer, val interface{}) error {
+	return DeserializeWithTags(bb, val, Tags{ByteSize: 1})
+}
+
+func DeserializeWithTags(bb *ByteBuffer, val interface{}, ts Tags) error {
 	if val == nil {
 		return errDeserializeIntoNil
 	}
@@ -26,12 +30,12 @@ func Deserialize(bb *ByteBuffer, val interface{}) error {
 		return errDeserializeIntoNil
 	}
 
-	info, err := cachedTypeInfo(rtyp.Elem(), tags{})
+	info, err := cachedTypeInfo(rtyp.Elem(), ts)
 	if err != nil {
 		return err
 	}
 
-	err = info.deserializer(bb, rval.Elem())
+	err = info.deserializer(bb, rval.Elem(), ts)
 	return err
 }
 
@@ -40,13 +44,13 @@ func DeserializeFromBytes(b []byte, val interface{}) error {
 	return Deserialize(&bb, val)
 }
 
-func makeDeserializer(typ reflect.Type, ts tags) (deserializer, error) {
+func makeDeserializer(typ reflect.Type) (deserializer, error) {
 	kind := typ.Kind()
 	switch {
 	//check Ptr first and add optional byte output if ts is nilok,
 	//then get serializer for typ.Elem() which is not a ptr
 	case kind == reflect.Ptr:
-		return makePtrDeserialize(typ, ts)
+		return deserializePtr, nil
 	case kind != reflect.Ptr && reflect.PtrTo(typ).Implements(serializableInterface):
 		return deserializeSerializableInterface, nil
 	case typ.AssignableTo(bigInt):
@@ -70,11 +74,11 @@ func makeDeserializer(typ reflect.Type, ts tags) (deserializer, error) {
 	}
 }
 
-func deserializeSerializableInterface(bb *ByteBuffer, val reflect.Value) error {
+func deserializeSerializableInterface(bb *ByteBuffer, val reflect.Value, ts Tags) error {
 	return val.Addr().Interface().(Serializable).Deserialize(bb)
 }
 
-func deserializeUint(bb *ByteBuffer, val reflect.Value) error {
+func deserializeUint(bb *ByteBuffer, val reflect.Value, ts Tags) error {
 	kind := val.Type().Kind()
 	var bytes []byte
 	var err error
@@ -110,7 +114,7 @@ func deserializeFixSizeBigUint(bb *ByteBuffer, val *big.Int, size int) error {
 	return err
 }
 
-func deserializeBigIntNoPtr(bb *ByteBuffer, val reflect.Value) error {
+func deserializeBigIntNoPtr(bb *ByteBuffer, val reflect.Value, ts Tags) error {
 	return deserializeBigInt(bb, val.Addr())
 }
 
@@ -130,7 +134,7 @@ func deserializeBigInt(bb *ByteBuffer, val reflect.Value) error {
 	return nil
 }
 
-func deserializeBool(bb *ByteBuffer, val reflect.Value) error {
+func deserializeBool(bb *ByteBuffer, val reflect.Value, ts Tags) error {
 	b, err := bb.GetBytes(1)
 	if err == nil {
 		switch b[0] {
@@ -147,7 +151,7 @@ func deserializeBool(bb *ByteBuffer, val reflect.Value) error {
 }
 
 // FixedSizeBytes
-func deserializeByteArray(bb *ByteBuffer, val reflect.Value) error {
+func deserializeByteArray(bb *ByteBuffer, val reflect.Value, ts Tags) error {
 	if val.Kind() != reflect.Array {
 		return fmt.Errorf("deser: invalid byte array type: %s", val.Kind())
 	}
@@ -177,13 +181,8 @@ func getByteSize(val reflect.Value) (int, error) {
 }
 
 //deserializePrependedSizeBytes
-func deserializeByteSlice(bb *ByteBuffer, val reflect.Value) error {
-	byteSize, e := getByteSize(val)
-	if e != nil {
-		return e
-	}
-
-	bytes, err := bb.GetVarBytes(byteSize)
+func deserializeByteSlice(bb *ByteBuffer, val reflect.Value, ts Tags) error {
+	bytes, err := bb.GetVarBytes(ts.ByteSize)
 	if err == nil {
 		val.SetBytes(bytes)
 	}
@@ -191,20 +190,15 @@ func deserializeByteSlice(bb *ByteBuffer, val reflect.Value) error {
 	return err
 }
 
-func deserializeList(bb *ByteBuffer, val reflect.Value) error {
-	typeinfo, err := cachedTypeInfo1(val.Type().Elem(), tags{})
+func deserializeList(bb *ByteBuffer, val reflect.Value, ts Tags) error {
+	typeinfo, err := cachedTypeInfo1(val.Type().Elem(), ts)
 	if err != nil {
 		return err
 	}
 
 	var vlen int = 0
 	if val.Kind() == reflect.Slice {
-		byteSize, err := getByteSize(val)
-		if err != nil {
-			return err
-		}
-
-		vlen, err = bb.getLen(byteSize)
+		vlen, err = bb.getLen(ts.ByteSize)
 		if err != nil {
 			return err
 		}
@@ -217,7 +211,7 @@ func deserializeList(bb *ByteBuffer, val reflect.Value) error {
 	}
 
 	for i := 0; i < vlen; i++ {
-		if err := typeinfo.deserializer(bb, val.Index(i)); err != nil {
+		if err := typeinfo.deserializer(bb, val.Index(i), Tags{ByteSize: 1}); err != nil {
 			return err
 		}
 	}
@@ -225,23 +219,23 @@ func deserializeList(bb *ByteBuffer, val reflect.Value) error {
 	return nil
 }
 
-func deserializeStruct(bb *ByteBuffer, val reflect.Value) error {
+func deserializeStruct(bb *ByteBuffer, val reflect.Value, ts Tags) error {
 	fields, err := structFields(val.Type())
 	if err != nil {
 		return err
 	}
 
 	for _, f := range fields {
-		err := f.info.deserializer(bb, val.Field(f.index))
+		err := f.info.deserializer(bb, val.Field(f.index), f.tags)
 		if err != nil {
-			return fmt.Errorf("deser: %s for %v%s", err.Error(), val.Type(), "."+val.Type().Field(f.index).Name)
+			return fmt.Errorf("%s for %v%s", err.Error(), val.Type(), "."+val.Type().Field(f.index).Name)
 		}
 	}
 
 	return nil
 }
 
-func deserializeString(bb *ByteBuffer, val reflect.Value) error {
+func deserializeString(bb *ByteBuffer, val reflect.Value, ts Tags) error {
 	b, err := bb.GetVarBytes(4)
 	if err != nil {
 		return err
@@ -251,39 +245,35 @@ func deserializeString(bb *ByteBuffer, val reflect.Value) error {
 	return nil
 }
 
-func makePtrDeserialize(typ reflect.Type, ts tags) (deserializer, error) {
-	t := typ.Elem()
-	typeinfo, err := cachedTypeInfo1(t, tags{})
+func deserializePtr(bb *ByteBuffer, val reflect.Value, ts Tags) error {
+	typ := val.Type()
+	typeinfo, err := cachedTypeInfo1(typ.Elem(), Tags{})
 	if err != nil {
-		return nil, err
-	}
-
-	deser := func(bb *ByteBuffer, val reflect.Value) error {
-		if ts.nilOK {
-			b, err := bb.GetUInt8()
-			if err != nil {
-				return err
-			}
-
-			if b == 0 {
-				// set the pointer to nil.
-				val.Set(reflect.Zero(typ))
-				return nil
-			}
-		}
-
-		newval := val
-		if val.IsNil() {
-			newval = reflect.New(t)
-		}
-
-		err = typeinfo.deserializer(bb, newval.Elem())
-		if err == nil {
-			val.Set(newval)
-		}
-
 		return err
 	}
 
-	return deser, err
+	if ts.NilOK {
+		b, err := bb.GetUInt8()
+		if err != nil {
+			return err
+		}
+
+		if b == 0 {
+			// set the pointer to nil.
+			val.Set(reflect.Zero(typ))
+			return nil
+		}
+	}
+
+	newval := val
+	if val.IsNil() {
+		newval = reflect.New(typ.Elem())
+	}
+
+	err = typeinfo.deserializer(bb, newval.Elem(), ts)
+	if err == nil {
+		val.Set(newval)
+	}
+
+	return err
 }
