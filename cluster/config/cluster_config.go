@@ -1,8 +1,10 @@
 package config
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/QuarkChain/goquarkchain/core/types"
 )
 
 var (
@@ -39,7 +41,7 @@ var (
 		P2PCommandSizeLimit:               (1 << 32) - 1,
 		SkipRootDifficultyCheck:           false,
 		SkipMinorDifficultyCheck:          false,
-		RewardTaxRate:                     0.5,
+		RewardTaxRate:                     Score{500, 1000},
 	}
 )
 
@@ -83,16 +85,20 @@ func NewClusterConfig() ClusterConfig {
 		GenesisDir:               "/dev/null",
 		Quarkchain:               NewQuarkChainConfig(),
 		Master:                   &DefaultMasterConfig,
+		SlaveList:                make([]*SlaveConfig, 0),
 		SimpleNetwork:            &DefaultSimpleNetwork,
 		P2P:                      &DefaultP2PConfig,
 		jsonFilepath:             "",
 		Monitoring:               &DfaultMonitoring,
 	}
-	slave := NewSlaveConfig()
-	slave.Port = SLAVE_PORT
-	slave.Id = fmt.Sprintf("S%d", 0)
-	// slave.ShardMaskList = []
-	cluster.SlaveList = append(cluster.SlaveList, slave)
+	for i := 0; i < DefaultNumSlaves; i++ {
+		slave := NewSlaveConfig()
+		slave.Port = SLAVE_PORT
+		slave.Id = fmt.Sprintf("S%d", i)
+		slave.ShardMaskList = append(slave.ShardMaskList, types.NewChainMask(uint32(i|DefaultNumSlaves)))
+		// slave.ShardMaskList = []
+		cluster.SlaveList = append(cluster.SlaveList, slave)
+	}
 	return cluster
 }
 
@@ -134,7 +140,7 @@ type QuarkChainConfig struct {
 	GenesisToken                      string         `json:"GENESIS_TOKEN"`
 	Root                              *RootConfig    `json:"ROOT"`
 	ShardList                         []*ShardConfig `json:"SHARD_LIST"`
-	RewardTaxRate                     float32        `json:"REWARD_TAX_RATE"`
+	RewardTaxRate                     Score          `json:"REWARD_TAX_RATE"`
 	// local_accounts []
 }
 
@@ -153,7 +159,7 @@ func NewQuarkChainConfig() *QuarkChainConfig {
 		SkipMinorDifficultyCheck:          false,
 		Root:                              NewRootConfig(),
 		ShardList:                         make([]*ShardConfig, 0),
-		RewardTaxRate:                     0.5,
+		RewardTaxRate:                     Score{500, 1000},
 	}
 	quark.Root.ConsensusType = PoWSimulate
 	quark.Root.ConsensusConfig = NewPOWConfig()
@@ -168,6 +174,85 @@ func NewQuarkChainConfig() *QuarkChainConfig {
 		quark.ShardList = append(quark.ShardList, s)
 	}
 	return quark
+}
+
+func (q QuarkChainConfig) MarshalJSON() ([]byte, error) {
+	type QuarkChainConfig struct {
+		ShardSize                         uint64         `json:"SHARD_SIZE"`
+		MaxNeighbors                      uint32         `json:"MAX_NEIGHBORS"`
+		NetworkId                         uint64         `json:"NETWORK_ID"`
+		TransactionQueueSizeLimitPerShard uint64         `json:"TRANSACTION_QUEUE_SIZE_LIMIT_PER_SHARD"`
+		BlockExtraDataSizeLimit           uint32         `json:"BLOCK_EXTRA_DATA_SIZE_LIMIT"`
+		GuardianPublicKey                 string         `json:"GUARDIAN_PUBLIC_KEY"`
+		GuardianPrivateKey                []byte         `json:"GUARDIAN_PRIVATE_KEY"`
+		P2ProtocolVersion                 uint32         `json:"P2P_PROTOCOL_VERSION"`
+		P2PCommandSizeLimit               uint32         `json:"P2P_COMMAND_SIZE_LIMIT"`
+		SkipRootDifficultyCheck           bool           `json:"SKIP_ROOT_DIFFICULTY_CHECK"`
+		SkipMinorDifficultyCheck          bool           `json:"SKIP_MINOR_DIFFICULTY_CHECK"`
+		GenesisToken                      string         `json:"GENESIS_TOKEN"`
+		Root                              *RootConfig    `json:"ROOT"`
+		ShardList                         []*ShardConfig `json:"SHARD_LIST"`
+		RewardTaxRate                     float64        `json:"REWARD_TAX_RATE"`
+	}
+	var enc = QuarkChainConfig{
+		ShardSize:                         q.ShardSize,
+		MaxNeighbors:                      q.MaxNeighbors,
+		NetworkId:                         q.NetworkId,
+		TransactionQueueSizeLimitPerShard: q.TransactionQueueSizeLimitPerShard,
+		BlockExtraDataSizeLimit:           q.BlockExtraDataSizeLimit,
+		GuardianPublicKey:                 q.GuardianPublicKey,
+		GuardianPrivateKey:                q.GuardianPrivateKey,
+		P2ProtocolVersion:                 q.P2ProtocolVersion,
+		P2PCommandSizeLimit:               q.P2PCommandSizeLimit,
+		SkipRootDifficultyCheck:           q.SkipRootDifficultyCheck,
+		SkipMinorDifficultyCheck:          q.SkipMinorDifficultyCheck,
+		GenesisToken:                      q.GenesisToken,
+		Root:                              q.Root,
+		ShardList:                         q.ShardList,
+	}
+
+	enc.RewardTaxRate = float64(q.RewardTaxRate.Numerator) / float64(q.RewardTaxRate.Denominator)
+	return json.Marshal(&enc)
+}
+
+func (q *QuarkChainConfig) UnmarshalJSON(input []byte) error {
+	type QuarkChainConfig struct {
+		ShardSize                         uint64         `json:"SHARD_SIZE"`
+		MaxNeighbors                      uint32         `json:"MAX_NEIGHBORS"`
+		NetworkId                         uint64         `json:"NETWORK_ID"`
+		TransactionQueueSizeLimitPerShard uint64         `json:"TRANSACTION_QUEUE_SIZE_LIMIT_PER_SHARD"`
+		BlockExtraDataSizeLimit           uint32         `json:"BLOCK_EXTRA_DATA_SIZE_LIMIT"`
+		GuardianPublicKey                 string         `json:"GUARDIAN_PUBLIC_KEY"`
+		GuardianPrivateKey                []byte         `json:"GUARDIAN_PRIVATE_KEY"`
+		P2ProtocolVersion                 uint32         `json:"P2P_PROTOCOL_VERSION"`
+		P2PCommandSizeLimit               uint32         `json:"P2P_COMMAND_SIZE_LIMIT"`
+		SkipRootDifficultyCheck           bool           `json:"SKIP_ROOT_DIFFICULTY_CHECK"`
+		SkipMinorDifficultyCheck          bool           `json:"SKIP_MINOR_DIFFICULTY_CHECK"`
+		GenesisToken                      string         `json:"GENESIS_TOKEN"`
+		Root                              *RootConfig    `json:"ROOT"`
+		ShardList                         []*ShardConfig `json:"SHARD_LIST"`
+		RewardTaxRate                     float64        `json:"REWARD_TAX_RATE"`
+	}
+	var dec QuarkChainConfig
+	if err := json.Unmarshal(input, &dec); err != nil {
+		return err
+	}
+	q.ShardSize = dec.ShardSize
+	q.MaxNeighbors = dec.MaxNeighbors
+	q.NetworkId = dec.NetworkId
+	q.TransactionQueueSizeLimitPerShard = dec.TransactionQueueSizeLimitPerShard
+	q.BlockExtraDataSizeLimit = dec.BlockExtraDataSizeLimit
+	q.GuardianPublicKey = dec.GuardianPublicKey
+	q.GuardianPrivateKey = dec.GuardianPrivateKey
+	q.P2ProtocolVersion = dec.P2ProtocolVersion
+	q.P2PCommandSizeLimit = dec.P2PCommandSizeLimit
+	q.SkipRootDifficultyCheck = dec.SkipRootDifficultyCheck
+	q.SkipMinorDifficultyCheck = dec.SkipMinorDifficultyCheck
+	q.GenesisToken = dec.GenesisToken
+	q.Root = dec.Root
+	q.ShardList = dec.ShardList
+	q.RewardTaxRate = Score{int64(dec.RewardTaxRate * 1000), 1000}
+	return nil
 }
 
 // TODO need to add reward_tax_rate function

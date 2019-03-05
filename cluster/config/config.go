@@ -1,6 +1,11 @@
 package config
 
-import "math"
+import (
+	"encoding/json"
+	"github.com/QuarkChain/goquarkchain/params"
+	"math"
+	"strings"
+)
 
 const (
 	// PoWNone is the default empty consensus type specifying no shard.
@@ -19,7 +24,7 @@ const (
 
 var (
 	QUARKSH_TO_JIAOZI = math.Pow10(18)
-
+	DefaultNumSlaves  = 4
 	DefaultPOSWConfig = POSWConfig{
 		Enabled:            false,
 		DiffDivider:        20,
@@ -45,7 +50,7 @@ var (
 		Errors:           "error",
 	}
 	DefaultP2PConfig = P2PConfig{
-		BootNodes:        "",
+		BootNodes:        params.MainnetBootnodes,
 		PrivKey:          "",
 		MaxPeers:         25,
 		UPnP:             false,
@@ -59,26 +64,13 @@ var (
 	DefaultMasterConfig = MasterConfig{
 		MasterToSlaveConnectRetryDelay: 1.0,
 	}
-	/*DefaultChainConfig = ChainConfig{
-		ChainId:           0,
-		ShardSize:         2,
-		DefaultChainToken: "TQKC",
-		ConsensusType:     NONE,
-		// Genesis:
-		CoinbaseAddress:                    "",
-		CoinbaseAmount:                     5 * QUARKSH_TO_JIAOZI,
-		GasLimitEmaDenominator:             1024,
-		GasLimitAdjustmentFactor:           1024,
-		GasLimitMinimum:                    5000,
-		GasLimitMaximum:                    1<<63 - 1,
-		GasLimitUsageAdjustmentNumerator:   3,
-		GasLimitUsageAdjustmentDenominator: 2,
-		DifficultyAdjustmentCutoffTime:     7,
-		DifficultyAdjustmentFactor:         512,
-		ExtraShardBlocksInRootBlock:        3,
-		PoswConfig:                         &DefaultPOSWConfig,
-	}*/
 )
+
+// descript the float type
+type Score struct {
+	Numerator   int64
+	Denominator int64
+}
 
 type POWConfig struct {
 	TargetBlockTime uint64 `json:"TARGET_BLOCK_TIME"`
@@ -158,12 +150,60 @@ type MasterConfig struct {
 // TODO move to P2P
 type P2PConfig struct {
 	// *new p2p module*
-	BootNodes        string  `json:"BOOT_NODES"` // comma separated encodes format: encode://PUBKEY@IP:PORT
-	PrivKey          string  `json:"PRIV_KEY"`
-	MaxPeers         uint64  `json:"MAX_PEERS"`
-	UPnP             bool    `json:"UPNP"`
-	AllowDialInRatio float32 `json:"ALLOW_DIAL_IN_RATIO"`
-	PreferredNodes   string  `json:"PREFERRED_NODES"`
+	BootNodes        []string `json:"BOOT_NODES"` // comma separated encodes format: encode://PUBKEY@IP:PORT
+	PrivKey          string   `json:"PRIV_KEY"`
+	MaxPeers         uint64   `json:"MAX_PEERS"`
+	UPnP             bool     `json:"UPNP"`
+	AllowDialInRatio float32  `json:"ALLOW_DIAL_IN_RATIO"`
+	PreferredNodes   string   `json:"PREFERRED_NODES"`
+}
+
+func (p P2PConfig) MarshalJSON() ([]byte, error) {
+	type P2PConfig struct {
+		BootNodes        string  `json:"BOOT_NODES"`
+		PrivKey          string  `json:"PRIV_KEY"`
+		MaxPeers         uint64  `json:"MAX_PEERS"`
+		UPnP             bool    `json:"UPNP"`
+		AllowDialInRatio float32 `json:"ALLOW_DIAL_IN_RATIO"`
+		PreferredNodes   string  `json:"PREFERRED_NODES"`
+	}
+	var enc = P2PConfig{
+		PrivKey:          p.PrivKey,
+		MaxPeers:         p.MaxPeers,
+		UPnP:             p.UPnP,
+		AllowDialInRatio: p.AllowDialInRatio,
+		PreferredNodes:   p.PreferredNodes,
+	}
+	for _, node := range p.BootNodes {
+		if enc.BootNodes == "" {
+			enc.BootNodes = node
+			continue
+		}
+		enc.BootNodes += "," + node
+	}
+	return json.Marshal(&enc)
+}
+
+func (p *P2PConfig) UnmarshalJSON(input []byte) error {
+	type P2PConfig struct {
+		BootNodes        string  `json:"BOOT_NODES"`
+		PrivKey          string  `json:"PRIV_KEY"`
+		MaxPeers         uint64  `json:"MAX_PEERS"`
+		UPnP             bool    `json:"UPNP"`
+		AllowDialInRatio float32 `json:"ALLOW_DIAL_IN_RATIO"`
+		PreferredNodes   string  `json:"PREFERRED_NODES"`
+	}
+	var dec P2PConfig
+	if err := json.Unmarshal(input, &dec); err != nil {
+		return err
+	}
+	p.BootNodes = strings.Split(dec.BootNodes, ",")
+	p.PrivKey = dec.PrivKey
+	p.MaxPeers = dec.MaxPeers
+	p.UPnP = dec.UPnP
+	p.AllowDialInRatio = dec.AllowDialInRatio
+	p.PreferredNodes = dec.PreferredNodes
+	return nil
 }
 
 type MonitoringConfig struct {
