@@ -6,12 +6,11 @@ import (
 )
 
 var (
-	serializableInterface     = reflect.TypeOf(new(Serializable)).Elem()
-	serializableListInterface = reflect.TypeOf(new(SerializableList)).Elem()
-	bigInt                    = reflect.TypeOf(big.Int{})
-	typUint128                = reflect.TypeOf(Uint128{})
-	typUint256                = reflect.TypeOf(Uint256{})
-	big0                      = big.NewInt(0)
+	serializableInterface = reflect.TypeOf(new(Serializable)).Elem()
+	bigInt                = reflect.TypeOf(big.Int{})
+	typUint128            = reflect.TypeOf(Uint128{})
+	typUint256            = reflect.TypeOf(Uint256{})
+	big0                  = big.NewInt(0)
 )
 
 type BigUint struct {

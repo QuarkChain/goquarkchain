@@ -167,19 +167,6 @@ func deserializeByteArray(bb *ByteBuffer, val reflect.Value, ts Tags) error {
 	return err
 }
 
-func getByteSize(val reflect.Value) (int, error) {
-	var byteSize int = 1
-	if reflect.PtrTo(val.Type()).Implements(reflect.TypeOf(new(SerializableList)).Elem()) {
-		if !val.CanAddr() {
-			return 0, fmt.Errorf("ser: unaddressable value of type %v, Serialize is pointer method", val.Type())
-		}
-
-		byteSize = val.Addr().Interface().(SerializableList).GetLenByteSize()
-	}
-
-	return byteSize, nil
-}
-
 //deserializePrependedSizeBytes
 func deserializeByteSlice(bb *ByteBuffer, val reflect.Value, ts Tags) error {
 	bytes, err := bb.GetVarBytes(ts.ByteSize)
