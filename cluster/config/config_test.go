@@ -33,6 +33,7 @@ func TestClusterConfig(t *testing.T) {
 	if err != nil {
 		t.Fatalf("cluster struct marshal error: %v", err)
 	}
+
 	var data config.ClusterConfig
 	err = json.Unmarshal(jsCluster, &data)
 	if err != nil {

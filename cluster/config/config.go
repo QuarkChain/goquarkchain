@@ -66,12 +66,6 @@ var (
 	}
 )
 
-// descript the float type
-type Score struct {
-	Numerator   int64
-	Denominator int64
-}
-
 type POWConfig struct {
 	TargetBlockTime uint64 `json:"TARGET_BLOCK_TIME"`
 	RemoteMine      bool   `json:"REMOTE_MINE"`

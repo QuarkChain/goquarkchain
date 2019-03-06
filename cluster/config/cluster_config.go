@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/QuarkChain/goquarkchain/core/types"
+	"math/big"
 )
 
 var (
@@ -41,7 +42,7 @@ var (
 		P2PCommandSizeLimit:               (1 << 32) - 1,
 		SkipRootDifficultyCheck:           false,
 		SkipMinorDifficultyCheck:          false,
-		RewardTaxRate:                     Score{500, 1000},
+		RewardTaxRate:                     big.NewRat(5, 10),
 	}
 )
 
@@ -93,10 +94,9 @@ func NewClusterConfig() ClusterConfig {
 	}
 	for i := 0; i < DefaultNumSlaves; i++ {
 		slave := NewSlaveConfig()
-		slave.Port = SLAVE_PORT
+		slave.Port = uint64(SLAVE_PORT + i)
 		slave.Id = fmt.Sprintf("S%d", i)
 		slave.ShardMaskList = append(slave.ShardMaskList, types.NewChainMask(uint32(i|DefaultNumSlaves)))
-		// slave.ShardMaskList = []
 		cluster.SlaveList = append(cluster.SlaveList, slave)
 	}
 	return cluster
@@ -140,7 +140,7 @@ type QuarkChainConfig struct {
 	GenesisToken                      string         `json:"GENESIS_TOKEN"`
 	Root                              *RootConfig    `json:"ROOT"`
 	ShardList                         []*ShardConfig `json:"SHARD_LIST"`
-	RewardTaxRate                     Score          `json:"REWARD_TAX_RATE"`
+	RewardTaxRate                     *big.Rat       `json:"REWARD_TAX_RATE"`
 	// local_accounts []
 }
 
@@ -159,7 +159,7 @@ func NewQuarkChainConfig() *QuarkChainConfig {
 		SkipMinorDifficultyCheck:          false,
 		Root:                              NewRootConfig(),
 		ShardList:                         make([]*ShardConfig, 0),
-		RewardTaxRate:                     Score{500, 1000},
+		RewardTaxRate:                     big.NewRat(5, 10),
 	}
 	quark.Root.ConsensusType = PoWSimulate
 	quark.Root.ConsensusConfig = NewPOWConfig()
@@ -210,8 +210,10 @@ func (q QuarkChainConfig) MarshalJSON() ([]byte, error) {
 		Root:                              q.Root,
 		ShardList:                         q.ShardList,
 	}
-
-	enc.RewardTaxRate = float64(q.RewardTaxRate.Numerator) / float64(q.RewardTaxRate.Denominator)
+	var ok bool
+	if enc.RewardTaxRate, ok = q.RewardTaxRate.Float64(); !ok {
+		return nil, errors.New(fmt.Sprintf("%v falied to turn to float64 type.", q.RewardTaxRate))
+	}
 	return json.Marshal(&enc)
 }
 
@@ -251,12 +253,14 @@ func (q *QuarkChainConfig) UnmarshalJSON(input []byte) error {
 	q.GenesisToken = dec.GenesisToken
 	q.Root = dec.Root
 	q.ShardList = dec.ShardList
-	q.RewardTaxRate = Score{int64(dec.RewardTaxRate * 1000), 1000}
+	var (
+		// precise to thousand quintile.
+		denom int64 = 1000
+		num         = int64(dec.RewardTaxRate * float64(denom))
+	)
+	q.RewardTaxRate = big.NewRat(num, denom)
 	return nil
 }
-
-// TODO need to add reward_tax_rate function
-/*func (q *QuarkChainConfig) rewardTaxRate() uint {}*/
 
 // Return the root block height at which the shard shall be created
 func (q *QuarkChainConfig) GetGenesisRootHeight(shardId int) uint32 {
@@ -292,12 +296,6 @@ func (q *QuarkChainConfig) GetShardConfigById(shardId uint64) *ShardConfig {
 	}
 	return q.ShardList[shardId]
 }
-
-// TODO need to add guardian_public_key function
-/*func (q *QuarkChainConfig) GuardianPublicKey() {}*/
-
-// TODO need to add guardian_private_key funcion
-/*func (q *QuarkChainConfig) GuardianPrivateKey() {}*/
 
 func (q *QuarkChainConfig) Update(shardSize, rootBlockTime, minorBlockTime uint64) {
 	q.ShardSize = shardSize
