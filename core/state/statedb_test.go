@@ -20,6 +20,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+	qkcaccount "github.com/QuarkChain/goquarkchain/account"
 	"math"
 	"math/big"
 	"math/rand"
@@ -27,12 +28,11 @@ import (
 	"strings"
 	"testing"
 	"testing/quick"
-	qkcaccount "github.com/QuarkChain/goquarkchain/account"
 
-	check "gopkg.in/check.v1"
+	"gopkg.in/check.v1"
 
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/QuarkChain/goquarkchain/core/types"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethdb"
 )
 
@@ -273,7 +273,7 @@ func newTestAction(addr common.Address, r *rand.Rand) testAction {
 			fn: func(a testAction, s *StateDB) {
 				data := make([]byte, 2)
 				binary.BigEndian.PutUint16(data, uint16(a.args[0]))
-				s.AddLog(&types.Log{Recipient:qkcaccount.Recipient(addr), Data: data})
+				s.AddLog(&types.Log{Recipient: qkcaccount.Recipient(addr), Data: data})
 			},
 			args: make([]int64, 1),
 		},
@@ -380,6 +380,7 @@ func (test *snapshotTest) checkEqual(state, checkstate *StateDB) error {
 		checkeq("GetCode", state.GetCode(addr), checkstate.GetCode(addr))
 		checkeq("GetCodeHash", state.GetCodeHash(addr), checkstate.GetCodeHash(addr))
 		checkeq("GetCodeSize", state.GetCodeSize(addr), checkstate.GetCodeSize(addr))
+		checkeq("GetFullShardID", state.GetFullShardID(addr), checkstate.GetFullShardID(addr))
 		// Check storage.
 		if obj := state.getStateObject(addr); obj != nil {
 			state.ForEachStorage(addr, func(key, value common.Hash) bool {

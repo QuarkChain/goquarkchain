@@ -80,6 +80,7 @@ type stateObject struct {
 	originStorage Storage // Storage cache of original entries to dedup rewrites
 	dirtyStorage  Storage // Storage entries that need to be flushed to disk
 
+	fullShardID uint32
 	// Cache flags.
 	// When an object is marked suicided it will be delete from the trie
 	// during the "update" phase of the state transition.
@@ -96,19 +97,23 @@ func (s *stateObject) empty() bool {
 // Account is the Ethereum consensus representation of accounts.
 // These objects are stored in the main account trie.
 type Account struct {
-	Nonce    uint64
-	Balance  *big.Int
-	Root     common.Hash // merkle root of the storage trie
-	CodeHash []byte
+	Nonce       uint64
+	Balance     *big.Int
+	Root        common.Hash // merkle root of the storage trie
+	CodeHash    []byte
+	FullShardID uint32
 }
 
 // newObject creates a state object.
-func newObject(db *StateDB, address common.Address, data Account) *stateObject {
+func newObject(db *StateDB, address common.Address, data Account, fullShardId uint32) *stateObject {
 	if data.Balance == nil {
 		data.Balance = new(big.Int)
 	}
 	if data.CodeHash == nil {
 		data.CodeHash = emptyCodeHash
+	}
+	if data.FullShardID == 0 {
+		data.FullShardID = fullShardId
 	}
 	return &stateObject{
 		db:            db,
@@ -117,6 +122,7 @@ func newObject(db *StateDB, address common.Address, data Account) *stateObject {
 		data:          data,
 		originStorage: make(Storage),
 		dirtyStorage:  make(Storage),
+		fullShardID:   fullShardId,
 	}
 }
 
@@ -297,7 +303,7 @@ func (self *stateObject) setBalance(amount *big.Int) {
 func (c *stateObject) ReturnGas(gas *big.Int) {}
 
 func (self *stateObject) deepCopy(db *StateDB) *stateObject {
-	stateObject := newObject(db, self.address, self.data)
+	stateObject := newObject(db, self.address, self.data, self.fullShardID)
 	if self.trie != nil {
 		stateObject.trie = db.db.CopyTrie(self.trie)
 	}
@@ -363,6 +369,18 @@ func (self *stateObject) setNonce(nonce uint64) {
 	self.data.Nonce = nonce
 }
 
+func (self *stateObject) SetFullShardID(fullShardId uint32) {
+	self.db.journal.append(fullShardIdChange{
+		account: &self.address,
+		prev:    self.fullShardID,
+	})
+	self.setFullShardID(fullShardId)
+}
+
+func (self *stateObject) setFullShardID(fullshardId uint32) {
+	self.fullShardID = fullshardId
+}
+
 func (self *stateObject) CodeHash() []byte {
 	return self.data.CodeHash
 }
@@ -373,6 +391,10 @@ func (self *stateObject) Balance() *big.Int {
 
 func (self *stateObject) Nonce() uint64 {
 	return self.data.Nonce
+}
+
+func (self *stateObject) FullShardID() uint32 {
+	return self.fullShardID
 }
 
 // Never called, but must be present to allow stateObject to be used

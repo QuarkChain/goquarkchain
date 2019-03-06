@@ -24,8 +24,8 @@ import (
 	"math/big"
 	"sort"
 
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/QuarkChain/goquarkchain/core/types"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rlp"
@@ -54,13 +54,9 @@ func (n *proofList) Put(key []byte, value []byte) error {
 
 type StateExtraData struct {
 	XShardReceiveGasUsed uint32
-	BlockFee uint64
-	XShardList []types.CrossShardTransactionDeposit
-	FullShardID uint32
-
-	QuarkChainConfig  *config.QuarkChainConfig
+	BlockFee             uint64
+	QuarkChainConfig     *config.QuarkChainConfig
 }
-
 
 // StateDBs within the ethereum protocol are used to store anything
 // within the merkle trie. StateDBs take care of caching and storing
@@ -74,6 +70,7 @@ type StateDB struct {
 	// This map holds 'live' objects, which will get modified while processing a state transition.
 	stateObjects      map[common.Address]*stateObject
 	stateObjectsDirty map[common.Address]struct{}
+	senderDisallow    map[common.Address]*stateObject
 
 	// DB error.
 	// State objects are used by the consensus core and VM which are
@@ -99,6 +96,10 @@ type StateDB struct {
 	nextRevisionId int
 
 	extraData StateExtraData
+
+	fullShardID uint32
+	xshardList  []types.CrossShardTransactionDeposit
+	qkcConfig   *config.QuarkChainConfig
 }
 
 // Create a new state from a given trie.
@@ -115,6 +116,7 @@ func New(root common.Hash, db Database) (*StateDB, error) {
 		logs:              make(map[common.Hash][]*types.Log),
 		preimages:         make(map[common.Hash][]byte),
 		journal:           newJournal(),
+		xshardList:        make([]types.CrossShardTransactionDeposit, 0),
 	}, nil
 }
 
@@ -145,6 +147,8 @@ func (self *StateDB) Reset(root common.Hash) error {
 	self.logs = make(map[common.Hash][]*types.Log)
 	self.logSize = 0
 	self.preimages = make(map[common.Hash][]byte)
+	self.fullShardID = 0
+	self.xshardList = make([]types.CrossShardTransactionDeposit, 0)
 	self.clearJournalAndRefund()
 	return nil
 }
@@ -231,6 +235,14 @@ func (self *StateDB) GetNonce(addr common.Address) uint64 {
 		return stateObject.Nonce()
 	}
 
+	return 0
+}
+
+func (self *StateDB) GetFullShardID(addr common.Address) uint32 {
+	stateObject := self.getStateObject(addr)
+	if stateObject != nil {
+		return stateObject.fullShardID
+	}
 	return 0
 }
 
@@ -437,7 +449,7 @@ func (self *StateDB) getStateObject(addr common.Address) (stateObject *stateObje
 		return nil
 	}
 	// Insert into the live set.
-	obj := newObject(self, addr, data)
+	obj := newObject(self, addr, data, data.FullShardID)
 	self.setStateObject(obj)
 	return obj
 }
@@ -459,7 +471,7 @@ func (self *StateDB) GetOrNewStateObject(addr common.Address) *stateObject {
 // the given address, it is overwritten and returned as the second return value.
 func (self *StateDB) createObject(addr common.Address) (newobj, prev *stateObject) {
 	prev = self.getStateObject(addr)
-	newobj = newObject(self, addr, Account{})
+	newobj = newObject(self, addr, Account{}, self.fullShardID)
 	newobj.setNonce(0) // sets the object to dirty
 	if prev == nil {
 		self.journal.append(createObjectChange{account: &addr})
@@ -517,6 +529,11 @@ func (self *StateDB) Copy() *StateDB {
 		logSize:           self.logSize,
 		preimages:         make(map[common.Hash][]byte),
 		journal:           newJournal(),
+		fullShardID:       self.fullShardID,
+		xshardList:        make([]types.CrossShardTransactionDeposit, 0),
+	}
+	for _, xshardTx := range self.xshardList {
+		state.xshardList = append(state.xshardList, xshardTx)
 	}
 	// Copy the dirty states, logs, and preimages
 	for addr := range self.journal.dirties {
@@ -678,18 +695,19 @@ func (s *StateDB) Commit(deleteEmptyObjects bool) (root common.Hash, err error) 
 	log.Debug("Trie cache stats after commit", "misses", trie.CacheMisses(), "unloads", trie.CacheUnloads())
 	return root, err
 }
-func (s *StateDB) GetExtraData() (StateExtraData) {
+
+func (s *StateDB) GetExtraData() StateExtraData {
 	return s.extraData
 }
+
 func (s *StateDB) SetXShardList(data types.CrossShardTransactionDeposit) () {
-	s.extraData.XShardList=append(s.extraData.XShardList,data)
+	s.xshardList = append(s.xshardList, data)
 }
 
-func (s *StateDB)SetFullShardID(fullShardId uint32){
-	s.extraData.FullShardID=fullShardId
+func (s *StateDB) AddBlockFee(fee uint64) {
+	s.extraData.BlockFee += fee
 }
 
-
-func (s *StateDB)AddBlockFee(fee uint64){
-	s.extraData.BlockFee+=fee
+func (s *StateDB) SetFullShardID(fullShardId uint32) {
+	s.fullShardID = fullShardId
 }

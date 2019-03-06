@@ -26,12 +26,13 @@ import (
 )
 
 type DumpAccount struct {
-	Balance  string            `json:"balance"`
-	Nonce    uint64            `json:"nonce"`
-	Root     string            `json:"root"`
-	CodeHash string            `json:"codeHash"`
-	Code     string            `json:"code"`
-	Storage  map[string]string `json:"storage"`
+	Balance     string            `json:"balance"`
+	Nonce       uint64            `json:"nonce"`
+	Root        string            `json:"root"`
+	CodeHash    string            `json:"codeHash"`
+	Code        string            `json:"code"`
+	Storage     map[string]string `json:"storage"`
+	FullShardID uint32            `json:"full_shard_key"`
 }
 
 type Dump struct {
@@ -53,14 +54,15 @@ func (self *StateDB) RawDump() Dump {
 			panic(err)
 		}
 
-		obj := newObject(nil, common.BytesToAddress(addr), data)
+		obj := newObject(nil, common.BytesToAddress(addr), data, data.FullShardID)
 		account := DumpAccount{
-			Balance:  data.Balance.String(),
-			Nonce:    data.Nonce,
-			Root:     common.Bytes2Hex(data.Root[:]),
-			CodeHash: common.Bytes2Hex(data.CodeHash),
-			Code:     common.Bytes2Hex(obj.Code(self.db)),
-			Storage:  make(map[string]string),
+			Balance:     data.Balance.String(),
+			Nonce:       data.Nonce,
+			Root:        common.Bytes2Hex(data.Root[:]),
+			CodeHash:    common.Bytes2Hex(data.CodeHash),
+			Code:        common.Bytes2Hex(obj.Code(self.db)),
+			Storage:     make(map[string]string),
+			FullShardID: obj.fullShardID,
 		}
 		storageIt := trie.NewIterator(obj.getTrie(self.db).NodeIterator(nil))
 		for storageIt.Next() {
