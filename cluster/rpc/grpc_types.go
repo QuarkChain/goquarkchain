@@ -19,7 +19,7 @@ type Ping struct {
 }
 
 // TODO if ChainMask type is defined replace uint16 with ChainMask
-type ChainMasks []uint16 // ChainMask
+type ChainMasks []types.ChainMask // ChainMask
 
 func (ChainMasks) GetLenByteSize() int {
 	return 4
@@ -40,7 +40,7 @@ type Pong struct {
 type SlaveInfo struct {
 	Id            serialize.LimitedSizeByteSlice4 `json:"id" gencodec:"required"`
 	Host          serialize.LimitedSizeByteSlice4 `json:"host" gencodec:"required"`
-	Port          uint16                          `json:"port" gencodec:"required"`
+	Port          uint64                          `json:"port" gencodec:"required"`
 	ChainMaskList ChainMasks                      `json:"chain_mask_list" gencodec:"required"`
 }
 
