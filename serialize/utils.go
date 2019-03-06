@@ -52,6 +52,18 @@ type SerializableList interface {
 	GetLenByteSize() int
 }
 
+type LimitedSizeByteSlice2 []byte
+
+func (LimitedSizeByteSlice2) GetLenByteSize() int {
+	return 2
+}
+
+type LimitedSizeByteSlice4 []byte
+
+func (LimitedSizeByteSlice4) GetLenByteSize() int {
+	return 4
+}
+
 func isUint(k reflect.Kind) bool {
 	return k >= reflect.Uint && k <= reflect.Uintptr
 }

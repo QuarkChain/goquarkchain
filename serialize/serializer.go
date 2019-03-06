@@ -111,6 +111,11 @@ func serializeUint(val reflect.Value, w *[]byte) error {
 }
 
 func serializeFixSizeBigUint(val *big.Int, size int, w *[]byte) error {
+	if val == nil {
+		bytes := make([]byte, size, size)
+		*w = append(*w, bytes...)
+		return nil
+	}
 	bytes, err := prefillByteArray(size, val.Bytes())
 	if err == nil {
 		*w = append(*w, bytes...)
