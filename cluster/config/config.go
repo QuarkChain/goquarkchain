@@ -3,7 +3,7 @@ package config
 import (
 	"encoding/json"
 	"github.com/QuarkChain/goquarkchain/params"
-	"math"
+	"math/big"
 	"strings"
 )
 
@@ -23,13 +23,13 @@ const (
 )
 
 var (
-	QUARKSH_TO_JIAOZI = math.Pow10(18)
+	QUARKSH_TO_JIAOZI = big.NewInt(1000000000000000000)
 	DefaultNumSlaves  = 4
 	DefaultPOSWConfig = POSWConfig{
 		Enabled:            false,
 		DiffDivider:        20,
 		WindowSize:         256,
-		TotalStakePerBlock: math.Pow10(9) * QUARKSH_TO_JIAOZI,
+		TotalStakePerBlock: new(big.Int).Mul(big.NewInt(9), QUARKSH_TO_JIAOZI),
 	}
 	DefaultRootGenesis = RootGenesis{
 		Version:        0,
@@ -82,7 +82,7 @@ type POSWConfig struct {
 	Enabled            bool
 	DiffDivider        uint32
 	WindowSize         uint32
-	TotalStakePerBlock float64
+	TotalStakePerBlock *big.Int
 }
 
 type SimpleNetwork struct {
@@ -109,7 +109,7 @@ type RootConfig struct {
 	ConsensusConfig                *POWConfig   `json:"CONSENSUS_CONFIG"`
 	Genesis                        *RootGenesis `json:"GENESIS"`
 	CoinbaseAddress                string       `json:"COINBASE_ADDRESS"`
-	CoinbaseAmount                 float64      `json:"COINBASE_AMOUNT"`
+	CoinbaseAmount                 *big.Int     `json:"COINBASE_AMOUNT"`
 	DifficultyAdjustmentCutoffTime uint32       `json:"DIFFICULTY_ADJUSTMENT_CUTOFF_TIME"`
 	DifficultyAdjustmentFactor     uint32       `json:"DIFFICULTY_ADJUSTMENT_FACTOR"`
 }
@@ -122,7 +122,7 @@ func NewRootConfig() *RootConfig {
 		Genesis:                     &DefaultRootGenesis,
 		// TODO address serialization type shuld to be replaced
 		CoinbaseAddress:                "",
-		CoinbaseAmount:                 120 * QUARKSH_TO_JIAOZI,
+		CoinbaseAmount:                 new(big.Int).Mul(big.NewInt(120), QUARKSH_TO_JIAOZI),
 		DifficultyAdjustmentCutoffTime: 40,
 		DifficultyAdjustmentFactor:     1024,
 	}
@@ -208,24 +208,3 @@ type MonitoringConfig struct {
 	PropagationTopic string `json:"PROPAGATION_TOPIC"`  // "block_propagation"
 	Errors           string `json:"ERRORS"`             // "error"
 }
-
-/*type ChainConfig struct {
-	ChainId                            uint32
-	ShardSize                          uint32
-	DefaultChainToken                  string
-	ConsensusType                      uint32
-	ConsensusConfig                    *POWConfig
-	Genesis                            *ShardGenesis
-	CoinbaseAddress                    string
-	CoinbaseAmount                     float64
-	GasLimitEmaDenominator             uint64
-	GasLimitAdjustmentFactor           float64
-	GasLimitMinimum                    uint64
-	GasLimitMaximum                    uint64
-	GasLimitUsageAdjustmentNumerator   uint32
-	GasLimitUsageAdjustmentDenominator uint32
-	DifficultyAdjustmentCutoffTime     uint32
-	DifficultyAdjustmentFactor         uint32
-	ExtraShardBlocksInRootBlock        uint32
-	PoswConfig                         *POSWConfig
-}*/
