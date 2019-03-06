@@ -133,17 +133,17 @@ type ShardConfig struct {
 	ConsensusConfig *POWConfig    `json:"CONSENSUS_CONFIG"` // POWconfig
 	Genesis         *ShardGenesis `json:"GENESIS"`          // ShardGenesis
 	// TODO coinbase address shuild to be redesigned.
-	CoinbaseAddress                    string  `json:"COINBASE_ADDRESS"`
-	CoinbaseAmount                     float64 `json:"COINBASE_AMOUNT"` // default 5 * 10^18
-	GasLimitEmaDenominator             uint64  `json:"GAS_LIMIT_EMA_DENOMINATOR"`
-	GasLimitAdjustmentFactor           uint64  `json:"GAS_LIMIT_ADJUSTMENT_FACTOR"`
-	GasLimitMinimum                    uint64  `json:"GAS_LIMIT_MINIMUM"`
-	GasLimitMaximum                    uint64  `json:"GAS_LIMIT_MAXIMUM"`
-	GasLimitUsageAdjustmentNumerator   uint32  `json:"GAS_LIMIT_USAGE_ADJUSTMENT_NUMERATOR"`
-	GasLimitUsageAdjustmentDenominator uint32  `json:"GAS_LIMIT_USAGE_ADJUSTMENT_DENOMINATOR"`
-	DifficultyAdjustmentCutoffTime     uint64  `json:"DIFFICULTY_ADJUSTMENT_CUTOFF_TIME"`
-	DifficultyAdjustmentFactor         uint64  `json:"DIFFICULTY_ADJUSTMENT_FACTOR"`
-	ExtraShardBlocksInRootBlock        uint64  `json:"EXTRA_SHARD_BLOCKS_IN_ROOT_BLOCK"`
+	CoinbaseAddress                    string   `json:"COINBASE_ADDRESS"`
+	CoinbaseAmount                     *big.Int `json:"COINBASE_AMOUNT"` // default 5 * 10^18
+	GasLimitEmaDenominator             uint64   `json:"GAS_LIMIT_EMA_DENOMINATOR"`
+	GasLimitAdjustmentFactor           uint64   `json:"GAS_LIMIT_ADJUSTMENT_FACTOR"`
+	GasLimitMinimum                    uint64   `json:"GAS_LIMIT_MINIMUM"`
+	GasLimitMaximum                    uint64   `json:"GAS_LIMIT_MAXIMUM"`
+	GasLimitUsageAdjustmentNumerator   uint32   `json:"GAS_LIMIT_USAGE_ADJUSTMENT_NUMERATOR"`
+	GasLimitUsageAdjustmentDenominator uint32   `json:"GAS_LIMIT_USAGE_ADJUSTMENT_DENOMINATOR"`
+	DifficultyAdjustmentCutoffTime     uint64   `json:"DIFFICULTY_ADJUSTMENT_CUTOFF_TIME"`
+	DifficultyAdjustmentFactor         uint64   `json:"DIFFICULTY_ADJUSTMENT_FACTOR"`
+	ExtraShardBlocksInRootBlock        uint64   `json:"EXTRA_SHARD_BLOCKS_IN_ROOT_BLOCK"`
 	rootConfig                         *RootConfig
 }
 
@@ -152,7 +152,7 @@ func NewShardConfig() *ShardConfig {
 		ConsensusType:                      PoWNone,
 		ConsensusConfig:                    nil,
 		CoinbaseAddress:                    "",
-		CoinbaseAmount:                     5 * QUARKSH_TO_JIAOZI,
+		CoinbaseAmount:                     new(big.Int).Mul(big.NewInt(5), QUARKSH_TO_JIAOZI),
 		GasLimitEmaDenominator:             1024,
 		GasLimitAdjustmentFactor:           1024,
 		GasLimitMinimum:                    5000,
