@@ -35,17 +35,12 @@ func TestRunOneTask(t *testing.T) {
 	s.Close()
 }
 
-func TestTaskRunByPriority(t *testing.T) {
+func TestRunTasksByPriority(t *testing.T) {
 	s := NewSynchronizer()
 	coldStarter := &trivialTask{prio: 999, executeSwitch: make(chan struct{})}
 
 	// Use cold starter to block the running goroutine.
 	s.AddTask(coldStarter)
-	// Release the cold starter later and let the synchronizer to sort tasks.
-	// go func() {
-	// time.Sleep(500 * time.Millisecond)
-	// coldStarter.executeSwitch <- struct{}{}
-	// }()
 
 	tasks := []*trivialTask{}
 	for i := uint(1); i <= 10; i++ {
@@ -54,6 +49,7 @@ func TestTaskRunByPriority(t *testing.T) {
 		s.AddTask(tt)
 	}
 
+	// Release the cold starter later and let the synchronizer to sort tasks.
 	coldStarter.executeSwitch <- struct{}{}
 
 	// Release switches according to priorities.
