@@ -25,12 +25,12 @@ import (
 	"math"
 	"math/big"
 
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/QuarkChain/goquarkchain/core/vm"
+	qkcParam "github.com/QuarkChain/goquarkchain/params"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
-	qkcParam "github.com/QuarkChain/goquarkchain/params"
 )
 
 var (
@@ -89,11 +89,7 @@ type Message interface {
 func IntrinsicGas(data []byte, contractCreation, homestead bool,to common.Address,isCrossShard bool) (uint64, error) {
 	// Set the starting gas for the raw transaction
 	var gas uint64
-	if contractCreation && homestead {
-		gas = params.TxGasContractCreation
-	} else {
-		gas = params.TxGas
-	}
+	gas = params.TxGas
 	// Bump the required gas by the amount of transactional data
 	if len(data) > 0 {
 		// Zero and non-zero bytes are priced differently
@@ -115,8 +111,7 @@ func IntrinsicGas(data []byte, contractCreation, homestead bool,to common.Addres
 		}
 		gas += z * params.TxDataZeroGas
 	}
-
-	// opcodes.CREATE[3]
+	//opcodes.CREATE[3]
 	if bytes.Equal(to.Bytes(),common.Address{}.Bytes()){
 		gas+=uint64(params.CreateGas)
 	}

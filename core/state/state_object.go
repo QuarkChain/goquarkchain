@@ -100,6 +100,7 @@ type Account struct {
 	Balance  *big.Int
 	Root     common.Hash // merkle root of the storage trie
 	CodeHash []byte
+	FullShardID uint32
 }
 
 // newObject creates a state object.
