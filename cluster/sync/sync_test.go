@@ -52,9 +52,9 @@ func TestRunTasksByPriority(t *testing.T) {
 	// Release the cold starter later and let the synchronizer to sort tasks.
 	coldStarter.executeSwitch <- struct{}{}
 
-	// Release switches according to priorities.
-	for i := 9; i >= 0; i-- {
-		tt := tasks[i]
+	// Release switches according to priorities: reverse order of the slice.
+	for i := 0; i < len(tasks); i++ {
+		tt := tasks[len(tasks)-i-1]
 		tt.executeSwitch <- struct{}{}
 	}
 	s.Close()
