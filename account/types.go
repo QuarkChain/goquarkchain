@@ -38,10 +38,10 @@ const (
 // Recipient recipient type
 type Recipient common.Address
 
-
-func (a Recipient)ToAddress()common.Address{
+func (a Recipient) ToAddress() common.Address {
 	return common.Address(a)
 }
+
 // SetBytes set bytes to it's value
 func (a *Recipient) SetBytes(b []byte) {
 	if len(b) > len(a) {
@@ -55,8 +55,7 @@ func (a Recipient) Bytes() []byte {
 	return common.Address(a).Bytes()
 }
 
-
-func (a Recipient)Big()*big.Int{
+func (a Recipient) Big() *big.Int {
 	return common.Address(a).Big()
 }
 

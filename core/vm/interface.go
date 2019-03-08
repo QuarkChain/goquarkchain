@@ -20,8 +20,8 @@ import (
 	"github.com/QuarkChain/goquarkchain/core/state"
 	"math/big"
 
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/QuarkChain/goquarkchain/core/types"
+	"github.com/ethereum/go-ethereum/common"
 )
 
 // StateDB is an EVM database for full state querying.
@@ -65,8 +65,8 @@ type StateDB interface {
 	AddPreimage(common.Hash, []byte)
 
 	ForEachStorage(common.Address, func(common.Hash, common.Hash) bool)
-	GetExtraData() (state.StateExtraData)
-	SetXShardList( data types.CrossShardTransactionDeposit )
+	GetExtraData() state.StateExtraData
+	SetXShardList(data types.CrossShardTransactionDeposit)
 	SetFullShardID(uint32)
 	AddBlockFee(uint64)
 }

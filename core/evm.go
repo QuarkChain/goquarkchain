@@ -20,9 +20,9 @@ import (
 	"math/big"
 
 	"github.com/QuarkChain/goquarkchain/core/types"
+	"github.com/QuarkChain/goquarkchain/core/vm"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"
-	"github.com/QuarkChain/goquarkchain/core/vm"
 )
 
 // ChainContext supports retrieving headers and consensus parameters from the
@@ -34,20 +34,22 @@ type ChainContext interface {
 	// GetHeader returns the hash corresponding to their hash.
 	GetHeader(common.Hash, uint64) *types.MinorBlockHeader
 }
-func NewEVMContext(msg types.Message,header *types.MinorBlockHeader,chain ChainContext,)vm.Context{
+
+func NewEVMContext(msg types.Message, header *types.MinorBlockHeader, chain ChainContext) vm.Context {
 	return vm.Context{
-		CanTransfer:CanTransfer,
-		Transfer:Transfer,
-		GetHash:GetHashFn(header,chain),
-		Origin:msg.From().ToAddress(),
-		Coinbase:header.Coinbase.Recipient.ToAddress(),
-		BlockNumber:big.NewInt(int64(header.Number)),
-		Time:big.NewInt(int64(header.Time)),
-		Difficulty:new(big.Int).Set(header.Difficulty),
-		GasLimit:header.GasLimit.Value.Uint64(),
-		GasPrice:new(big.Int).Set(msg.GasPrice()),
+		CanTransfer: CanTransfer,
+		Transfer:    Transfer,
+		GetHash:     GetHashFn(header, chain),
+		Origin:      msg.From().ToAddress(),
+		Coinbase:    header.Coinbase.Recipient.ToAddress(),
+		BlockNumber: big.NewInt(int64(header.Number)),
+		Time:        big.NewInt(int64(header.Time)),
+		Difficulty:  new(big.Int).Set(header.Difficulty),
+		GasLimit:    header.GasLimit.Value.Uint64(),
+		GasPrice:    new(big.Int).Set(msg.GasPrice()),
 	}
 }
+
 // GetHashFn returns a GetHashFunc which retrieves header hashes by number
 func GetHashFn(ref *types.MinorBlockHeader, chain ChainContext) func(n uint64) common.Hash {
 	var cache map[uint64]common.Hash
@@ -56,7 +58,7 @@ func GetHashFn(ref *types.MinorBlockHeader, chain ChainContext) func(n uint64) c
 		// If there's no hash cache yet, make one
 		if cache == nil {
 			cache = map[uint64]common.Hash{
-				ref.Number- 1: ref.ParentHash,
+				ref.Number - 1: ref.ParentHash,
 			}
 		}
 		// Try to fulfill the request from the cache

@@ -19,7 +19,9 @@ package state
 import (
 	"bytes"
 	"encoding/binary"
+	"encoding/hex"
 	"fmt"
+	qkcaccount "github.com/QuarkChain/goquarkchain/account"
 	"math"
 	"math/big"
 	"math/rand"
@@ -27,13 +29,13 @@ import (
 	"strings"
 	"testing"
 	"testing/quick"
-	qkcaccount "github.com/QuarkChain/goquarkchain/account"
 
 	check "gopkg.in/check.v1"
 
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/QuarkChain/goquarkchain/core/types"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethdb"
+	"github.com/ethereum/go-ethereum/rlp"
 )
 
 // Tests that updating a state trie does not leak any database writes prior to
@@ -273,7 +275,7 @@ func newTestAction(addr common.Address, r *rand.Rand) testAction {
 			fn: func(a testAction, s *StateDB) {
 				data := make([]byte, 2)
 				binary.BigEndian.PutUint16(data, uint16(a.args[0]))
-				s.AddLog(&types.Log{Recipient:qkcaccount.Recipient(addr), Data: data})
+				s.AddLog(&types.Log{Recipient: qkcaccount.Recipient(addr), Data: data})
 			},
 			args: make([]int64, 1),
 		},
@@ -435,4 +437,19 @@ func TestCopyOfCopy(t *testing.T) {
 	if got := sdb.Copy().Copy().GetBalance(addr).Uint64(); got != 42 {
 		t.Fatalf("2nd copy fail, expected 42, got %v", got)
 	}
+}
+
+func TestASD(t *testing.T) {
+	tempCode, err := hex.DecodeString("9c2b2a7dc3f6f88b908835d706c01c4e3e034f6305759155ee9ed16499f589b4")
+	tempRoot, err := hex.DecodeString("740e66df92fa567271aaf544242a38f719e6516202a3c20ff7bd6f3235d259b9")
+	ans := &stateObject{}
+	ans.data = Account{
+		Nonce:       1,
+		Balance:     big.NewInt(100000),
+		Root:        common.BytesToHash(tempCode),
+		CodeHash:    tempRoot,
+		FullShardID: 0,
+	}
+	data, err := rlp.EncodeToBytes(ans)
+	fmt.Println("dat", hex.EncodeToString(data), "err", err)
 }

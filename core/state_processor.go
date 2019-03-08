@@ -26,28 +26,28 @@ import (
 	"math/big"
 )
 
-func ApplyTransaction(config *params.ChainConfig, bc ChainContext, gp *core.GasPool, statedb *state.StateDB, header *types.MinorBlockHeader,tx *types.Transaction, usedGas *uint64, cfg vm.Config) (*types.Receipt, uint64, error) {
+func ApplyTransaction(config *params.ChainConfig, bc ChainContext, gp *core.GasPool, statedb *state.StateDB, header *types.MinorBlockHeader, tx *types.Transaction, usedGas *uint64, cfg vm.Config) (*types.Receipt, uint64, error) {
 	statedb.SetFullShardID(tx.EvmTx.ToFullShardId())
 
-	localFeeRate:=float32(1.0)
-	if qkcConfig:=statedb.GetExtraData().QuarkChainConfig;qkcConfig!=nil{
-		localFeeRate=localFeeRate-qkcConfig.RewardTaxRate
+	localFeeRate := float32(1.0)
+	if qkcConfig := statedb.GetExtraData().QuarkChainConfig; qkcConfig != nil {
+		localFeeRate = localFeeRate - qkcConfig.RewardTaxRate
 	}
 
-	msg,err:=tx.EvmTx.AsMessage(types.NewEIP155Signer(tx.EvmTx.NetworkId()))
-	if err!=nil{
-		return nil,0,err
+	msg, err := tx.EvmTx.AsMessage(types.NewEIP155Signer(tx.EvmTx.NetworkId()))
+	if err != nil {
+		return nil, 0, err
 	}
-	context:=NewEVMContext(msg,header,bc)
-	vmenv:=vm.NewEVM(context,statedb,config,cfg)
+	context := NewEVMContext(msg, header, bc)
+	vmenv := vm.NewEVM(context, statedb, config, cfg)
 
-	_,gas,failed,err:=ApplyMessage(vmenv,msg,gp,localFeeRate)
-	if err!=nil{
-		return nil,0,err
+	_, gas, failed, err := ApplyMessage(vmenv, msg, gp, localFeeRate)
+	if err != nil {
+		return nil, 0, err
 	}
 
 	var root []byte
-	if config.IsByzantium(big.NewInt(int64(header.Number))){
+	if config.IsByzantium(big.NewInt(int64(header.Number))) {
 		statedb.Finalise(true)
 	} else {
 		root = statedb.IntermediateRoot(config.IsEIP158(big.NewInt(int64(header.Number)))).Bytes()
@@ -62,8 +62,8 @@ func ApplyTransaction(config *params.ChainConfig, bc ChainContext, gp *core.GasP
 	// if the transaction created a contract, store the creation address in the receipt.
 	if msg.To() == nil {
 		//receipt.ContractAddress = account.BytesToIdentityRecipient(crypto.CreateAddress(vmenv.Context.Origin, tx.EvmTx.Nonce()).Bytes())
-		receipt.ContractAddress=account.Recipient(vm.CreateAddress(vmenv.Context.Origin,msg.ToFullShardId(),tx.EvmTx.Nonce()))
-		receipt.ContractFullShardId=tx.EvmTx.ToFullShardId()
+		receipt.ContractAddress = account.Recipient(vm.CreateAddress(vmenv.Context.Origin, msg.ToFullShardId(), tx.EvmTx.Nonce()))
+		receipt.ContractFullShardId = tx.EvmTx.ToFullShardId()
 	}
 	// Set the receipt logs and create a bloom for filtering
 	receipt.Logs = statedb.GetLogs(tx.Hash())

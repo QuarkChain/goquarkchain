@@ -24,8 +24,8 @@ import (
 	"math/big"
 	"sort"
 
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/QuarkChain/goquarkchain/core/types"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rlp"
@@ -54,13 +54,12 @@ func (n *proofList) Put(key []byte, value []byte) error {
 
 type StateExtraData struct {
 	XShardReceiveGasUsed uint32
-	BlockFee uint64
-	XShardList []types.CrossShardTransactionDeposit
-	FullShardID uint32
+	BlockFee             uint64
+	XShardList           []types.CrossShardTransactionDeposit
+	FullShardID          uint32
 
-	QuarkChainConfig  *config.QuarkChainConfig
+	QuarkChainConfig *config.QuarkChainConfig
 }
-
 
 // StateDBs within the ethereum protocol are used to store anything
 // within the merkle trie. StateDBs take care of caching and storing
@@ -678,18 +677,17 @@ func (s *StateDB) Commit(deleteEmptyObjects bool) (root common.Hash, err error) 
 	log.Debug("Trie cache stats after commit", "misses", trie.CacheMisses(), "unloads", trie.CacheUnloads())
 	return root, err
 }
-func (s *StateDB) GetExtraData() (StateExtraData) {
+func (s *StateDB) GetExtraData() StateExtraData {
 	return s.extraData
 }
-func (s *StateDB) SetXShardList(data types.CrossShardTransactionDeposit) () {
-	s.extraData.XShardList=append(s.extraData.XShardList,data)
+func (s *StateDB) SetXShardList(data types.CrossShardTransactionDeposit) {
+	s.extraData.XShardList = append(s.extraData.XShardList, data)
 }
 
-func (s *StateDB)SetFullShardID(fullShardId uint32){
-	s.extraData.FullShardID=fullShardId
+func (s *StateDB) SetFullShardID(fullShardId uint32) {
+	s.extraData.FullShardID = fullShardId
 }
 
-
-func (s *StateDB)AddBlockFee(fee uint64){
-	s.extraData.BlockFee+=fee
+func (s *StateDB) AddBlockFee(fee uint64) {
+	s.extraData.BlockFee += fee
 }

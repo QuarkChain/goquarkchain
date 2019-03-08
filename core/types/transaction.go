@@ -195,7 +195,7 @@ func (tx *EvmTransaction) AsMessage(s Signer) (Message, error) {
 		checkNonce:      true,
 		fromFullShardId: tx.data.FromFullShardId,
 		toFullShardId:   tx.data.ToFullShardId,
-		txHash:tx.Hash(),
+		txHash:          tx.Hash(),
 	}
 
 	var err error
@@ -479,7 +479,7 @@ type Message struct {
 	checkNonce      bool
 	fromFullShardId uint32
 	toFullShardId   uint32
-	txHash common.Hash
+	txHash          common.Hash
 }
 
 func NewMessage(from account.Recipient, to *account.Recipient, nonce uint64, amount *big.Int, gasLimit uint64, gasPrice *big.Int, data []byte, checkNonce bool, fromShardId, toShardId uint32) Message {
@@ -508,4 +508,4 @@ func (m Message) CheckNonce() bool        { return m.checkNonce }
 func (m Message) IsCrosShard() bool       { return m.fromFullShardId != m.toFullShardId }
 func (m Message) FromFullShardId() uint32 { return m.fromFullShardId }
 func (m Message) ToFullShardId() uint32   { return m.toFullShardId }
-func (m Message)TxHash()common.Hash{return m.txHash}
+func (m Message) TxHash() common.Hash     { return m.txHash }

@@ -26,13 +26,13 @@ import (
 	"math/big"
 	"strings"
 
+	qkcCore "github.com/QuarkChain/goquarkchain/core"
+	"github.com/QuarkChain/goquarkchain/core/state"
+	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/core"
-	qkcCore "github.com/QuarkChain/goquarkchain/core"
-	"github.com/QuarkChain/goquarkchain/core/state"
-	"github.com/QuarkChain/goquarkchain/core/types"
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
 
 	"github.com/QuarkChain/goquarkchain/core/vm"
@@ -51,9 +51,9 @@ type StateTest struct {
 
 // StateSubtest selects a specific configuration of a General State Test.
 type StateSubtest struct {
-	Fork  string
-	Index int
-	Path string
+	Fork   string
+	Index  int
+	Path   string
 	PyData map[string]map[string]string
 }
 
@@ -121,24 +121,26 @@ func (t *StateTest) Subtests() []StateSubtest {
 	var sub []StateSubtest
 	for fork, pss := range t.json.Post {
 		for i := range pss {
-			sub = append(sub, StateSubtest{fork, i,"",nil})
+			sub = append(sub, StateSubtest{fork, i, "", nil})
 		}
 	}
 	return sub
 }
 
 func TransFromBlock(block *ethTypes.Block) *types.MinorBlockHeader {
-	blockHeader:=block.Header()
-	coinbase:=account.NewAddress(account.Recipient(blockHeader.Coinbase),0)
+	blockHeader := block.Header()
+	coinbase := account.NewAddress(account.Recipient(blockHeader.Coinbase), 0)
 
-	gasLimit:=new(serialize.Uint256)
-	gasLimit.Value=big.NewInt(int64(blockHeader.GasLimit))
+	gasLimit := new(serialize.Uint256)
+	gasLimit.Value = big.NewInt(int64(blockHeader.GasLimit))
 	return &types.MinorBlockHeader{
-		Version:1,
-		Branch:account.Branch{Value:1},
-		Coinbase:coinbase,
-		GasLimit:gasLimit,
-		Difficulty:big.NewInt(blockHeader.Difficulty.Int64()),
+		Number:     blockHeader.Number.Uint64(),
+		Version:    1,
+		Branch:     account.Branch{Value: 1},
+		Coinbase:   coinbase,
+		GasLimit:   gasLimit,
+		Difficulty: big.NewInt(blockHeader.Difficulty.Int64()),
+		Time:       blockHeader.Time.Uint64(),
 	}
 }
 
@@ -149,27 +151,27 @@ func (t *StateTest) Run(subtest StateSubtest, vmconfig vm.Config) (*state.StateD
 		return nil, UnsupportedForkError{subtest.Fork}
 	}
 	block := t.genesis(config).ToBlock(nil)
-	header:=TransFromBlock(block)
+	header := TransFromBlock(block)
 	statedb := MakePreState(ethdb.NewMemDatabase(), t.json.Pre)
-
 	post := t.json.Post[subtest.Fork][subtest.Index]
 	msg, err := t.json.Tx.toMessage(post)
 	if err != nil {
 		return nil, err
 	}
 	context := qkcCore.NewEVMContext(*msg, header, nil)
-	//context.GetHash = vmTestBlockHash
 	evm := vm.NewEVM(context, statedb, config, vmconfig)
 
 	gaspool := new(core.GasPool)
 	gaspool.AddGas(block.GasLimit())
 	snapshot := statedb.Snapshot()
-	if _, _, _, err := qkcCore.ApplyMessage(evm, msg, gaspool,0.0); err != nil {
-		//panic(err)
+
+	if _, _, _, err := qkcCore.ApplyMessage(evm, msg, gaspool, 0.0); err != nil {
 		statedb.RevertToSnapshot(snapshot)
 	}
+
 	// Commit block
 	statedb.Commit(config.IsEIP158(block.Number()))
+
 	// Add 0-value mining reward. This only makes a difference in the cases
 	// where
 	// - the coinbase suicided, or
@@ -181,10 +183,9 @@ func (t *StateTest) Run(subtest StateSubtest, vmconfig vm.Config) (*state.StateD
 	// N.B: We need to do this in a two-step process, because the first Commit takes care
 	// of suicides, and we need to touch the coinbase _after_ it has potentially suicided.
 
-	if err:=CheckPyData(root,subtest,common.Hash(post.Root));err!=nil{
-		panic(err)
+	if err := CheckPyData(root, subtest, common.Hash(post.Root)); err != nil {
+		return statedb, err
 	}
-
 	return statedb, nil
 }
 
@@ -195,7 +196,6 @@ func (t *StateTest) gasLimit(subtest StateSubtest) uint64 {
 func MakePreState(db ethdb.Database, accounts core.GenesisAlloc) *state.StateDB {
 	sdb := state.NewDatabase(db)
 	statedb, _ := state.New(common.Hash{}, sdb)
-
 	for addr, a := range accounts {
 		statedb.SetCode(addr, a.Code)
 		statedb.SetNonce(addr, a.Nonce)
@@ -205,8 +205,7 @@ func MakePreState(db ethdb.Database, accounts core.GenesisAlloc) *state.StateDB 
 		}
 	}
 	// Commit and re-open to start with a clean state.
-
-	root, _ := statedb.Commit(true)
+	root, _ := statedb.Commit(false)
 	statedb, _ = state.New(root, sdb)
 	return statedb
 }
@@ -269,17 +268,17 @@ func (tx *stTransaction) toMessage(ps stPostState) (*types.Message, error) {
 		return nil, fmt.Errorf("invalid tx data %q", dataHex)
 	}
 
-
-	fromRecipient:=account.Recipient(from)
-	toRecipient:=&account.Recipient{}
-	if to!=nil{
-		toRecipient=new(account.Recipient)
+	fromRecipient := account.Recipient(from)
+	toRecipient := &account.Recipient{}
+	if to != nil {
+		toRecipient = new(account.Recipient)
 		toRecipient.SetBytes((*to).Bytes())
-	}else{
-		toRecipient=nil
+	} else {
+
+		toRecipient = nil
 	}
 
-	msg := types.NewMessage(fromRecipient, toRecipient, tx.Nonce, value, gasLimit, tx.GasPrice, data, true,0,0)
+	msg := types.NewMessage(fromRecipient, toRecipient, tx.Nonce, value, gasLimit, tx.GasPrice, data, true, 0, 0)
 	return &msg, nil
 }
 
@@ -290,17 +289,18 @@ func rlpHash(x interface{}) (h common.Hash) {
 	return h
 }
 
-func CheckPyData(root common.Hash,subtest StateSubtest,postRoot common.Hash)error  {
-	key:=fmt.Sprintf("../../../fixtures/GeneralStateTests/%s",subtest.Path)
+func CheckPyData(root common.Hash, subtest StateSubtest, postRoot common.Hash) error {
+	key := fmt.Sprintf("../../../fixtures/GeneralStateTests/%s", subtest.Path)
 
-	if _,ok:=subtest.PyData[key];ok==false{
+	if _, ok := subtest.PyData[key]; ok == false {
+
 		return errors.New("data is not enouh")
 	}
-	if _,ok:=subtest.PyData[key][postRoot.String()];!ok{
-		return errors.New("无该数据")
+	if _, ok := subtest.PyData[key][postRoot.String()]; !ok {
+		return errors.New("not this key")
 	}
 
-	if root.String()!=subtest.PyData[key][postRoot.String()]{
+	if root.String() != subtest.PyData[key][postRoot.String()] {
 		return errors.New("data is not match")
 	}
 	return nil

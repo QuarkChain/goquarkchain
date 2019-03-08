@@ -50,14 +50,14 @@ func TestState(t *testing.T) {
 	st.walk(t, stateTestDir, func(t *testing.T, name string, test *StateTest) {
 		for _, subtest := range test.Subtests() {
 			subtest := subtest
-			subtest.Path=name
-			subtest.PyData= pyData
+			subtest.Path = name
+			subtest.PyData = pyData
 			key := fmt.Sprintf("%s/%d", subtest.Fork, subtest.Index)
 			name := name + "/" + key
-			if isSkip(name){
+			if isSkip(name) {
 				continue
 			}
-			if _,ok:=mapForks[subtest.Fork];ok==false{
+			if _, ok := mapForks[subtest.Fork]; ok == false {
 				continue
 			}
 
