@@ -68,16 +68,16 @@ func NewP2PManager(env config.ClusterConfig) (*PManager, error) {
 }
 
 //Start start p2p manager
-func (Self *PManager) Start() error {
-	log.Info(Self.log, "this server:Node", Self.Server.NodeInfo().Enode)
-	err := Self.Server.Start()
+func (p *PManager) Start() error {
+	log.Info(p.log, "this server:Node", p.Server.NodeInfo().Enode)
+	err := p.Server.Start()
 	if err != nil {
-		log.Info(Self.log, "pManager start err", err)
+		log.Info(p.log, "pManager start err", err)
 		return err
 	}
 	go func() {
 		for true {
-			Peers := Self.Server.Peers()
+			Peers := p.Server.Peers()
 			log.Info(msgHandleLog, "==============", "===========")
 			log.Info(msgHandleLog, "peer number", len(Peers))
 			for _, v := range Peers {
@@ -128,19 +128,19 @@ func getPrivateKeyFromConfig(configKey string) (*ecdsa.PrivateKey, error) {
 }
 
 // Stop stop p2p manager
-func (Self *PManager) Stop() {
-	close(Self.stop)
+func (p *PManager) Stop() {
+	close(p.stop)
 }
 
 // Wait wait for p2p manager
-func (Self *PManager) Wait() {
-	Self.lock.RLock()
-	if Self.Server == nil {
-		Self.lock.RUnlock()
+func (p *PManager) Wait() {
+	p.lock.RLock()
+	if p.Server == nil {
+		p.lock.RUnlock()
 		return
 	}
-	reStop := Self.stop
-	Self.lock.RUnlock()
+	reStop := p.stop
+	p.lock.RUnlock()
 	<-reStop
 
 }

@@ -103,31 +103,31 @@ type HelloCmd struct {
 	PeerID          common.Hash
 	PeerIP          *serialize.Uint128
 	PeerPort        uint16
-	ChainMaskList   *uint32Four
+	ChainMaskList   []uint32 `bytesize:4`
 	RootBlockHeader types.RootBlockHeader
 }
 
-func (Self HelloCmd) makeSendMsg(rpcID uint64) (Msg, error) {
-	return makeMsg(HELLO, rpcID, Self)
+func (h HelloCmd) makeSendMsg(rpcID uint64) (Msg, error) {
+	return makeMsg(HELLO, rpcID, h)
 }
 
 // NewMinorBlockHeaderList new minor block header list
 type NewMinorBlockHeaderList struct {
 	RootBlockHeader      types.RootBlockHeader
-	MinorBlockHeaderList *MinorBlockHeaderFour
+	MinorBlockHeaderList []types.MinorBlockHeader `bytesize:4`
 }
 
-func (Self NewMinorBlockHeaderList) makeSendMsg(rpcID uint64) (Msg, error) {
-	return makeMsg(NewMinorBlockHeaderListMsg, rpcID, Self)
+func (n NewMinorBlockHeaderList) makeSendMsg(rpcID uint64) (Msg, error) {
+	return makeMsg(NewMinorBlockHeaderListMsg, rpcID, n)
 }
 
 //NewTransactionList new transaction list
 type NewTransactionList struct {
-	TransactionList *TransactionFour
+	TransactionList []types.Transaction `bytesize:4`
 }
 
-func (Self NewTransactionList) makeSendMsg(rpcID uint64) (Msg, error) {
-	return makeMsg(NewTransactionListMsg, rpcID, Self)
+func (n NewTransactionList) makeSendMsg(rpcID uint64) (Msg, error) {
+	return makeMsg(NewTransactionListMsg, rpcID, n)
 }
 
 // GetPeerListRequest get peer list request
@@ -135,17 +135,17 @@ type GetPeerListRequest struct {
 	MaxPeers uint32
 }
 
-func (Self GetPeerListRequest) makeSendMsg(rpcID uint64) (Msg, error) {
-	return makeMsg(GetPeerListRequestMsg, rpcID, Self)
+func (g GetPeerListRequest) makeSendMsg(rpcID uint64) (Msg, error) {
+	return makeMsg(GetPeerListRequestMsg, rpcID, g)
 }
 
 //GetPeerListResponse get peer list response
 type GetPeerListResponse struct {
-	PeerInfoList *PeerInfoFour
+	PeerInfoList []P2PeerInfo `bytesize:4`
 }
 
-func (Self GetPeerListResponse) makeSendMsg(rpcID uint64) (Msg, error) {
-	return makeMsg(GetPeerListResponseMsg, rpcID, Self)
+func (g GetPeerListResponse) makeSendMsg(rpcID uint64) (Msg, error) {
+	return makeMsg(GetPeerListResponseMsg, rpcID, g)
 }
 
 // GetRootBlockHeaderListRequest get root block header list request
@@ -155,54 +155,54 @@ type GetRootBlockHeaderListRequest struct {
 	Direction uint8
 }
 
-func (Self GetRootBlockHeaderListRequest) makeSendMsg(rpcID uint64) (Msg, error) {
-	return makeMsg(GetRootBlockHeaderListRequestMsg, rpcID, Self)
+func (g GetRootBlockHeaderListRequest) makeSendMsg(rpcID uint64) (Msg, error) {
+	return makeMsg(GetRootBlockHeaderListRequestMsg, rpcID, g)
 }
 
 //GetRootBlockHeaderListResponse get root block header list response
 type GetRootBlockHeaderListResponse struct {
 	RootTip         types.RootBlockHeader
-	BlockHeaderList *RootBlockHeaderFour
+	BlockHeaderList []types.RootBlockHeader `bytesize:4`
 }
 
-func (Self GetRootBlockHeaderListResponse) makeSendMsg(rpcID uint64) (Msg, error) {
-	return makeMsg(GetRootBlockHeaderListResponseMsg, rpcID, Self)
+func (g GetRootBlockHeaderListResponse) makeSendMsg(rpcID uint64) (Msg, error) {
+	return makeMsg(GetRootBlockHeaderListResponseMsg, rpcID, g)
 }
 
 //GetRootBlockListRequest get root block list request
 type GetRootBlockListRequest struct {
-	RootBlockHashList *Hash256Four
+	RootBlockHashList []serialize.Uint256 `bytesize:4`
 }
 
-func (Self GetRootBlockListRequest) makeSendMsg(rpcID uint64) (Msg, error) {
-	return makeMsg(GetRootBlockListRequestMsg, rpcID, Self)
+func (g GetRootBlockListRequest) makeSendMsg(rpcID uint64) (Msg, error) {
+	return makeMsg(GetRootBlockListRequestMsg, rpcID, g)
 }
 
 //GetRootBlockListResponse get root block list response
 type GetRootBlockListResponse struct {
-	RootBlockList *RootBlockFour
+	RootBlockList []types.RootBlock `bytesize:4`
 }
 
-func (Self GetRootBlockListResponse) makeSendMsg(rpcID uint64) (Msg, error) {
-	return makeMsg(GetRootBlockListResponseMsg, rpcID, Self)
+func (g GetRootBlockListResponse) makeSendMsg(rpcID uint64) (Msg, error) {
+	return makeMsg(GetRootBlockListResponseMsg, rpcID, g)
 }
 
 // GetMinorBlockListRequest get minor block list request
 type GetMinorBlockListRequest struct {
-	MinorBlockHashList *Hash256Four
+	MinorBlockHashList []serialize.Uint256 `bytesize:4`
 }
 
-func (Self GetMinorBlockListRequest) makeSendMsg(rpcID uint64) (Msg, error) {
-	return makeMsg(GetMinorBlockListRequestMsg, rpcID, Self)
+func (g GetMinorBlockListRequest) makeSendMsg(rpcID uint64) (Msg, error) {
+	return makeMsg(GetMinorBlockListRequestMsg, rpcID, g)
 }
 
 //GetMinorBlockListResponse get minor block list response
 type GetMinorBlockListResponse struct {
-	MinorBlockList *MinorBlockFour
+	MinorBlockList []types.MinorBlock `bytesize:4`
 }
 
-func (Self GetMinorBlockListResponse) makeSendMsg(rpcID uint64) (Msg, error) {
-	return makeMsg(GetMinorBlockListResponseMsg, rpcID, Self)
+func (g GetMinorBlockListResponse) makeSendMsg(rpcID uint64) (Msg, error) {
+	return makeMsg(GetMinorBlockListResponseMsg, rpcID, g)
 }
 
 //GetMinorBlockHeaderListRequest get minor block header list request
@@ -213,19 +213,19 @@ type GetMinorBlockHeaderListRequest struct {
 	Direction uint8
 }
 
-func (Self GetMinorBlockHeaderListRequest) makeSendMsg(rpcID uint64) (Msg, error) {
-	return makeMsg(GetMinorBlockHeaderListRequestMsg, rpcID, Self)
+func (g GetMinorBlockHeaderListRequest) makeSendMsg(rpcID uint64) (Msg, error) {
+	return makeMsg(GetMinorBlockHeaderListRequestMsg, rpcID, g)
 }
 
 //GetMinorBlockHeaderListResponse get minor block header list response
 type GetMinorBlockHeaderListResponse struct {
 	RootTip         types.RootBlockHeader
 	ShardTip        types.MinorBlockHeader
-	BlockHeaderList *MinorBlockHeaderFour
+	BlockHeaderList []types.MinorBlockHeader `bytesize:4`
 }
 
-func (Self GetMinorBlockHeaderListResponse) makeSendMsg(rpcID uint64) (Msg, error) {
-	return makeMsg(GetMinorBlockHeaderListResponseMsg, rpcID, Self)
+func (g GetMinorBlockHeaderListResponse) makeSendMsg(rpcID uint64) (Msg, error) {
+	return makeMsg(GetMinorBlockHeaderListResponseMsg, rpcID, g)
 }
 
 //NewBlockMinor new block minor
@@ -233,8 +233,8 @@ type NewBlockMinor struct {
 	Block *types.MinorBlock
 }
 
-func (Self NewBlockMinor) makeSendMsg(rpcID uint64) (Msg, error) {
-	return makeMsg(NewBlockMinorMsg, rpcID, Self)
+func (n NewBlockMinor) makeSendMsg(rpcID uint64) (Msg, error) {
+	return makeMsg(NewBlockMinorMsg, rpcID, n)
 }
 
 //OpNonRpcMap handle func

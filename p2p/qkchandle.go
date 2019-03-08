@@ -47,16 +47,14 @@ func qkcMsgHandle(peer *Peer, ws MsgReadWriter) error {
 		}
 		log.Info(msgHandleLog, "recv qkc op", qkcMsg.op, "rpcId", qkcMsg.rpcID, "metaData", qkcMsg.metaData)
 
-		if _, ok := OPSerializerMap[qkcMsg.op]; ok == false {
+		if _, ok := OPSerializerMap[qkcMsg.op]; !ok {
 			log.Error(msgHandleLog, "unExcepted op", qkcMsg.op)
 			return err
 		}
 
-		if _, ok := OPNonRPCMap[qkcMsg.op]; ok == true {
-			HandleFunc := OPNonRPCMap[qkcMsg.op]
+		if HandleFunc, ok := OPNonRPCMap[qkcMsg.op]; ok {
 			HandleFunc(qkcMsg.op, qkcMsg.data)
-		} else if _, ok := OpRPCMap[qkcMsg.op]; ok == true {
-			HandleFunc := OpRPCMap[qkcMsg.op]
+		} else if HandleFunc, ok := OpRPCMap[qkcMsg.op]; ok {
 			HandleFunc.Func(qkcMsg.data)
 		} else {
 			//TODO future
@@ -84,55 +82,55 @@ func NewQKCRlp(fd net.Conn) transport {
 	return &qkcRlp{rlpx}
 }
 
-func (Self *qkcRlp) ReadMsg() (Msg, error) {
-	Self.rmu.Lock()
-	defer Self.rmu.Unlock()
-	Self.fd.SetReadDeadline(time.Time{})
+func (q *qkcRlp) ReadMsg() (Msg, error) {
+	q.rmu.Lock()
+	defer q.rmu.Unlock()
+	q.fd.SetReadDeadline(time.Time{})
 
-	return Self.readQKCMsg()
+	return q.readQKCMsg()
 }
 
-func (Self *qkcRlp) WriteMsg(msg Msg) error {
-	Self.wmu.Lock()
-	defer Self.wmu.Unlock()
-	Self.fd.SetWriteDeadline(time.Now().Add(frameWriteTimeout))
-	return Self.writeQKCMsg(msg)
+func (q *qkcRlp) WriteMsg(msg Msg) error {
+	q.wmu.Lock()
+	defer q.wmu.Unlock()
+	q.fd.SetWriteDeadline(time.Now().Add(frameWriteTimeout))
+	return q.writeQKCMsg(msg)
 }
 
-func (Self *qkcRlp) readQKCMsg() (msg Msg, err error) {
+func (q *qkcRlp) readQKCMsg() (msg Msg, err error) {
 	// read the header
 	headBuf := make([]byte, 32)
-	if _, err := io.ReadFull(Self.rw.conn, headBuf); err != nil {
+	if _, err := io.ReadFull(q.rw.conn, headBuf); err != nil {
 		return msg, err
 	}
 
 	// verify header mac
-	shouldMAC := updateMAC(Self.rw.ingressMAC, Self.rw.macCipher, headBuf[:16])
+	shouldMAC := updateMAC(q.rw.ingressMAC, q.rw.macCipher, headBuf[:16])
 	if !hmac.Equal(shouldMAC, headBuf[16:]) {
 		return msg, errors.New("bad header MAC")
 	}
 
-	Self.rw.dec.XORKeyStream(headBuf[:16], headBuf[:16]) // first half is now decrypted
+	q.rw.dec.XORKeyStream(headBuf[:16], headBuf[:16]) // first half is now decrypted
 	fSize := binary.BigEndian.Uint32(headBuf[:4])
 
 	frameBuf := make([]byte, fSize)
-	if _, err := io.ReadFull(Self.rw.conn, frameBuf); err != nil {
+	if _, err := io.ReadFull(q.rw.conn, frameBuf); err != nil {
 		return msg, err
 	}
 
 	// read and validate frame MAC. we can re-use headBuf for that.
-	Self.rw.ingressMAC.Write(frameBuf)
-	fMacSeed := Self.rw.ingressMAC.Sum(nil)
-	if _, err := io.ReadFull(Self.rw.conn, headBuf[:16]); err != nil {
+	q.rw.ingressMAC.Write(frameBuf)
+	fMacSeed := q.rw.ingressMAC.Sum(nil)
+	if _, err := io.ReadFull(q.rw.conn, headBuf[:16]); err != nil {
 		return msg, err
 	}
-	shouldMAC = updateMAC(Self.rw.ingressMAC, Self.rw.macCipher, fMacSeed)
+	shouldMAC = updateMAC(q.rw.ingressMAC, q.rw.macCipher, fMacSeed)
 	if !hmac.Equal(shouldMAC, headBuf[:16]) {
 		return msg, errors.New("bad frame MAC")
 	}
 
 	// decrypt frame content
-	Self.rw.dec.XORKeyStream(frameBuf, frameBuf)
+	q.rw.dec.XORKeyStream(frameBuf, frameBuf)
 
 	// decode message code
 	content := bytes.NewReader(frameBuf[:fSize])
@@ -140,7 +138,7 @@ func (Self *qkcRlp) readQKCMsg() (msg Msg, err error) {
 	msg.Payload = content
 
 	// if snappy is enabled, verify and decompress message
-	if Self.rw.snappy {
+	if q.rw.snappy {
 		payload, err := ioutil.ReadAll(msg.Payload)
 		if err != nil {
 			return msg, err
@@ -162,9 +160,9 @@ func (Self *qkcRlp) readQKCMsg() (msg Msg, err error) {
 	return msg, nil
 }
 
-func (Self *qkcRlp) writeQKCMsg(msg Msg) error {
+func (q *qkcRlp) writeQKCMsg(msg Msg) error {
 	// if snappy is enabled, compress message now
-	if Self.rw.snappy {
+	if q.rw.snappy {
 		if msg.Size > maxUint24 {
 			return errPlainMessageTooLarge
 		}
@@ -178,16 +176,16 @@ func (Self *qkcRlp) writeQKCMsg(msg Msg) error {
 	headBuf := make([]byte, 32)
 	binary.BigEndian.PutUint32(headBuf, msg.Size)
 
-	Self.rw.enc.XORKeyStream(headBuf[:16], headBuf[:16]) // first half is now encrypted
+	q.rw.enc.XORKeyStream(headBuf[:16], headBuf[:16]) // first half is now encrypted
 	// write header MAC
-	copy(headBuf[16:], updateMAC(Self.rw.egressMAC, Self.rw.macCipher, headBuf[:16]))
-	if _, err := Self.rw.conn.Write(headBuf); err != nil {
+	copy(headBuf[16:], updateMAC(q.rw.egressMAC, q.rw.macCipher, headBuf[:16]))
+	if _, err := q.rw.conn.Write(headBuf); err != nil {
 		return err
 	}
 
 	// write encrypted frame, updating the egress MAC hash with
 	// the data written to conn.
-	tee := cipher.StreamWriter{S: Self.rw.enc, W: io.MultiWriter(Self.rw.conn, Self.rw.egressMAC)}
+	tee := cipher.StreamWriter{S: q.rw.enc, W: io.MultiWriter(q.rw.conn, q.rw.egressMAC)}
 	realBody, err := ioutil.ReadAll(msg.Payload)
 	if err != nil {
 		return err
@@ -201,14 +199,14 @@ func (Self *qkcRlp) writeQKCMsg(msg Msg) error {
 
 	// write frame MAC. egress MAC hash is up to date because
 	// frame content was written to it as well.
-	fMacSeed := Self.rw.egressMAC.Sum(nil)
-	mac := updateMAC(Self.rw.egressMAC, Self.rw.macCipher, fMacSeed)
-	_, err = Self.rw.conn.Write(mac)
+	fMacSeed := q.rw.egressMAC.Sum(nil)
+	mac := updateMAC(q.rw.egressMAC, q.rw.macCipher, fMacSeed)
+	_, err = q.rw.conn.Write(mac)
 	return err
 }
 
-func (Self *qkcRlp) doProtoHandshake(our *protoHandshake) (their *protoHandshake, err error) {
-	perHandshake, err := Self.rlpx.doProtoHandshake(our)
+func (q *qkcRlp) doProtoHandshake(our *protoHandshake) (their *protoHandshake, err error) {
+	perHandshake, err := q.rlpx.doProtoHandshake(our)
 	if err != nil {
 		return nil, err
 	}
@@ -226,12 +224,12 @@ func (Self *qkcRlp) doProtoHandshake(our *protoHandshake) (their *protoHandshake
 			Difficulty:      big.NewInt(1000000000000),
 		},
 	}.makeSendMsg(0)
-	err = Self.WriteMsg(hello)
+	err = q.WriteMsg(hello)
 	if err != nil {
 		return nil, err
 	}
 
-	msg, err := Self.ReadMsg()
+	msg, err := q.ReadMsg()
 	qkcBody, err := ioutil.ReadAll(msg.Payload)
 	if err != nil {
 		return nil, err
