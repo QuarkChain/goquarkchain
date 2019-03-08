@@ -103,7 +103,7 @@ type HelloCmd struct {
 	PeerID          common.Hash
 	PeerIP          *serialize.Uint128
 	PeerPort        uint16
-	ChainMaskList   []uint32 `bytesize:4`
+	ChainMaskList   []uint32 `bytesize:"4"`
 	RootBlockHeader types.RootBlockHeader
 }
 
@@ -114,7 +114,7 @@ func (h HelloCmd) makeSendMsg(rpcID uint64) (Msg, error) {
 // NewMinorBlockHeaderList new minor block header list
 type NewMinorBlockHeaderList struct {
 	RootBlockHeader      types.RootBlockHeader
-	MinorBlockHeaderList []types.MinorBlockHeader `bytesize:4`
+	MinorBlockHeaderList []types.MinorBlockHeader `bytesize:"4"`
 }
 
 func (n NewMinorBlockHeaderList) makeSendMsg(rpcID uint64) (Msg, error) {
@@ -123,7 +123,7 @@ func (n NewMinorBlockHeaderList) makeSendMsg(rpcID uint64) (Msg, error) {
 
 //NewTransactionList new transaction list
 type NewTransactionList struct {
-	TransactionList []types.Transaction `bytesize:4`
+	TransactionList []types.Transaction `bytesize:"4"`
 }
 
 func (n NewTransactionList) makeSendMsg(rpcID uint64) (Msg, error) {
@@ -141,7 +141,7 @@ func (g GetPeerListRequest) makeSendMsg(rpcID uint64) (Msg, error) {
 
 //GetPeerListResponse get peer list response
 type GetPeerListResponse struct {
-	PeerInfoList []P2PeerInfo `bytesize:4`
+	PeerInfoList []P2PeerInfo `bytesize:"4"`
 }
 
 func (g GetPeerListResponse) makeSendMsg(rpcID uint64) (Msg, error) {
@@ -162,7 +162,7 @@ func (g GetRootBlockHeaderListRequest) makeSendMsg(rpcID uint64) (Msg, error) {
 //GetRootBlockHeaderListResponse get root block header list response
 type GetRootBlockHeaderListResponse struct {
 	RootTip         types.RootBlockHeader
-	BlockHeaderList []types.RootBlockHeader `bytesize:4`
+	BlockHeaderList []types.RootBlockHeader `bytesize:"4"`
 }
 
 func (g GetRootBlockHeaderListResponse) makeSendMsg(rpcID uint64) (Msg, error) {
@@ -171,7 +171,7 @@ func (g GetRootBlockHeaderListResponse) makeSendMsg(rpcID uint64) (Msg, error) {
 
 //GetRootBlockListRequest get root block list request
 type GetRootBlockListRequest struct {
-	RootBlockHashList []serialize.Uint256 `bytesize:4`
+	RootBlockHashList []serialize.Uint256 `bytesize:"4"`
 }
 
 func (g GetRootBlockListRequest) makeSendMsg(rpcID uint64) (Msg, error) {
@@ -180,7 +180,7 @@ func (g GetRootBlockListRequest) makeSendMsg(rpcID uint64) (Msg, error) {
 
 //GetRootBlockListResponse get root block list response
 type GetRootBlockListResponse struct {
-	RootBlockList []types.RootBlock `bytesize:4`
+	RootBlockList []types.RootBlock `bytesize:"4"`
 }
 
 func (g GetRootBlockListResponse) makeSendMsg(rpcID uint64) (Msg, error) {
@@ -189,7 +189,7 @@ func (g GetRootBlockListResponse) makeSendMsg(rpcID uint64) (Msg, error) {
 
 // GetMinorBlockListRequest get minor block list request
 type GetMinorBlockListRequest struct {
-	MinorBlockHashList []serialize.Uint256 `bytesize:4`
+	MinorBlockHashList []serialize.Uint256 `bytesize:"4"`
 }
 
 func (g GetMinorBlockListRequest) makeSendMsg(rpcID uint64) (Msg, error) {
@@ -198,7 +198,7 @@ func (g GetMinorBlockListRequest) makeSendMsg(rpcID uint64) (Msg, error) {
 
 //GetMinorBlockListResponse get minor block list response
 type GetMinorBlockListResponse struct {
-	MinorBlockList []types.MinorBlock `bytesize:4`
+	MinorBlockList []types.MinorBlock `bytesize:"4"`
 }
 
 func (g GetMinorBlockListResponse) makeSendMsg(rpcID uint64) (Msg, error) {
@@ -221,7 +221,7 @@ func (g GetMinorBlockHeaderListRequest) makeSendMsg(rpcID uint64) (Msg, error) {
 type GetMinorBlockHeaderListResponse struct {
 	RootTip         types.RootBlockHeader
 	ShardTip        types.MinorBlockHeader
-	BlockHeaderList []types.MinorBlockHeader `bytesize:4`
+	BlockHeaderList []types.MinorBlockHeader `bytesize:"4"`
 }
 
 func (g GetMinorBlockHeaderListResponse) makeSendMsg(rpcID uint64) (Msg, error) {
