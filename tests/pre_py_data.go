@@ -2,7 +2,6 @@ package tests
 
 import (
 	"bufio"
-	"fmt"
 	"io"
 	"os"
 	"strings"
@@ -37,7 +36,6 @@ func lineData(str string) (string, string) {
 }
 
 func prePythonData() map[string]map[string]string {
-	fmt.Println("start")
 	preString := ""
 	ans := make(map[string]map[string]string)
 	f, err := os.Open(pyDataPath)
@@ -55,8 +53,6 @@ func prePythonData() map[string]map[string]string {
 			break
 		}
 		line = line[15:]
-		//	temp:=line
-		//	fmt.Println("line",temp,len(temp))
 		switch line[0] {
 		case '0':
 			first, second := lineData(line)
@@ -64,12 +60,10 @@ func prePythonData() map[string]map[string]string {
 				ans[preString] = make(map[string]string)
 			}
 			ans[preString][second] = first
-			//fmt.Println("preString",preString,len(preString),"second",len(second),second,"first",len(first),first)
 		default:
 			preString = line
 		}
 	}
-	//fmt.Println("end")
 	return ans
 }
 
