@@ -97,12 +97,12 @@ func TestMinorBlockHeaderSerializing(t *testing.T) {
 	transactionsEnc := common.FromHex("000000020100000063f86180808094b94f5374fce5edbc8e2a8697c15331677e6ebf0b8080808001801ca0fab2cc481eb33edacc4016fe35f30051014109cf0d227679003dd36534247845a019c29e2b33a1a8adf95dabf603cc62758775ce73c3d78098160818dcd7c0970d0100000069f86703018207d094b94f5374fce5edbc8e2a8697c15331677e6ebf0b0a8435353434808001801ca03ba243b74816362081890b8b680d303a5cce7803a12d8ce863723bcd1be94efba0399e91eb5b20c258a77f7045da3f2b84bc1c1f40e0c23bcc3df7bce05bea2ed8")
 	var trans Transactions
 	bb = serialize.NewByteBuffer(transactionsEnc)
-	if err := serialize.DeserializeWithTags(bb, &trans, serialize.Tags{ByteSize: 4}); err != nil {
+	if err := serialize.DeserializeWithTags(bb, &trans, serialize.Tags{ByteSizeOfSliceLen: 4}); err != nil {
 		t.Fatal("Deserialize error: ", err)
 	}
 
 	bytes = make([]byte, 0, 0)
-	err = serialize.SerializeWithTags(&bytes, trans, serialize.Tags{ByteSize: 4})
+	err = serialize.SerializeWithTags(&bytes, trans, serialize.Tags{ByteSizeOfSliceLen: 4})
 	if err != nil {
 		t.Fatal("Serialize error: ", err)
 	}

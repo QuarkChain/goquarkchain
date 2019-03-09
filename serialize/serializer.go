@@ -9,7 +9,7 @@ import (
 )
 
 func Serialize(w *[]byte, val interface{}) error {
-	return SerializeWithTags(w, val, Tags{ByteSize: 1})
+	return SerializeWithTags(w, val, Tags{ByteSizeOfSliceLen: 1})
 }
 
 func SerializeWithTags(w *[]byte, val interface{}, ts Tags) error {
@@ -181,10 +181,10 @@ func serializeByteArray(val reflect.Value, w *[]byte, ts Tags) error {
 	return nil
 }
 
-func writeListLen(val reflect.Value, w *[]byte, byteSize int) error {
+func writeListLen(val reflect.Value, w *[]byte, byteSizeOfSliceLen int) error {
 	var err error = nil
 	sizeBytes := uint2ByteArray(uint64(val.Len()))
-	sizeBytes, err = prefillByteArray(byteSize, sizeBytes)
+	sizeBytes, err = prefillByteArray(byteSizeOfSliceLen, sizeBytes)
 	if err != nil {
 		return nil
 	}
@@ -195,7 +195,7 @@ func writeListLen(val reflect.Value, w *[]byte, byteSize int) error {
 
 //serializePrependedSizeBytes
 func serializeByteSlice(val reflect.Value, w *[]byte, ts Tags) error {
-	err := writeListLen(val, w, ts.ByteSize)
+	err := writeListLen(val, w, ts.ByteSizeOfSliceLen)
 	if err != nil {
 		return nil
 	}
@@ -213,7 +213,7 @@ func serializeList(val reflect.Value, w *[]byte, ts Tags) error {
 	}
 
 	if val.Kind() == reflect.Slice {
-		err = writeListLen(val, w, ts.ByteSize)
+		err = writeListLen(val, w, ts.ByteSizeOfSliceLen)
 		if err != nil {
 			return err
 		}
@@ -221,7 +221,7 @@ func serializeList(val reflect.Value, w *[]byte, ts Tags) error {
 
 	vlen := val.Len()
 	for i := 0; i < vlen; i++ {
-		if err := typeinfo.serializer(val.Index(i), w, Tags{ByteSize: 1}); err != nil {
+		if err := typeinfo.serializer(val.Index(i), w, Tags{ByteSizeOfSliceLen: 1}); err != nil {
 			return err
 		}
 	}

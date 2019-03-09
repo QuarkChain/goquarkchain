@@ -26,8 +26,8 @@ type Tags struct {
 	NilOK bool
 	// ser:"-" ignores fields.
 	Ignored bool
-	// bytesize: number
-	ByteSize int
+	// bytesizeofslicelen: number
+	ByteSizeOfSliceLen int
 }
 
 type typekey struct {
@@ -106,7 +106,7 @@ func structFields(typ reflect.Type) (fields []field, err error) {
 func parseStructTag(typ reflect.Type, fi int) (Tags, error) {
 	f := typ.Field(fi)
 	var ts Tags
-	ts.ByteSize = 1
+	ts.ByteSizeOfSliceLen = 1
 	for _, t := range strings.Split(f.Tag.Get("ser"), ",") {
 		switch t = strings.TrimSpace(t); t {
 		case "":
@@ -118,10 +118,10 @@ func parseStructTag(typ reflect.Type, fi int) (Tags, error) {
 			return ts, fmt.Errorf("ser: unknown struct tag %q on %v.%s", t, typ, f.Name)
 		}
 	}
-	// bytesize use to specify the bytesize of a slice,
+	// bytesizeofslicelen use to specify the number of bytes used to save a slice len
 	// only slice is useful
 	if f.Type.Kind() == reflect.Slice {
-		for _, t := range strings.Split(f.Tag.Get("bytesize"), ",") {
+		for _, t := range strings.Split(f.Tag.Get("bytesizeofslicelen"), ",") {
 			t = strings.TrimSpace(t)
 			if t != "" {
 				num, err := strconv.Atoi(t)
@@ -129,7 +129,7 @@ func parseStructTag(typ reflect.Type, fi int) (Tags, error) {
 					return ts, err
 				}
 
-				ts.ByteSize = num
+				ts.ByteSizeOfSliceLen = num
 			}
 		}
 	}

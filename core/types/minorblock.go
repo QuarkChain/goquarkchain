@@ -28,7 +28,7 @@ type MinorBlockHeader struct {
 	Difficulty        *big.Int           `json:"difficulty"                 gencodec:"required"`
 	Nonce             uint64             `json:"nonce"`
 	Bloom             Bloom              `json:"logsBloom"                  gencodec:"required"`
-	Extra             []byte             `json:"extraData"                  gencodec:"required"   bytesize:"2"`
+	Extra             []byte             `json:"extraData"                  gencodec:"required"   bytesizeofslicelen:"2"`
 	MixDigest         common.Hash        `json:"mixHash"`
 }
 
@@ -93,8 +93,8 @@ type MinorBlock struct {
 type extminorblock struct {
 	Header       *MinorBlockHeader
 	Meta         *MinorBlockMeta
-	Txs          Transactions `bytesize:"4"`
-	Trackingdata []byte       `bytesize:"2"`
+	Txs          Transactions `bytesizeofslicelen:"4"`
+	Trackingdata []byte       `bytesizeofslicelen:"2"`
 }
 
 // NewBlock creates a new block. The input data is copied,

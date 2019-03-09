@@ -13,7 +13,7 @@ var (
 )
 
 func Deserialize(bb *ByteBuffer, val interface{}) error {
-	return DeserializeWithTags(bb, val, Tags{ByteSize: 1})
+	return DeserializeWithTags(bb, val, Tags{ByteSizeOfSliceLen: 1})
 }
 
 func DeserializeWithTags(bb *ByteBuffer, val interface{}, ts Tags) error {
@@ -169,7 +169,7 @@ func deserializeByteArray(bb *ByteBuffer, val reflect.Value, ts Tags) error {
 
 //deserializePrependedSizeBytes
 func deserializeByteSlice(bb *ByteBuffer, val reflect.Value, ts Tags) error {
-	bytes, err := bb.GetVarBytes(ts.ByteSize)
+	bytes, err := bb.GetVarBytes(ts.ByteSizeOfSliceLen)
 	if err == nil {
 		val.SetBytes(bytes)
 	}
@@ -185,7 +185,7 @@ func deserializeList(bb *ByteBuffer, val reflect.Value, ts Tags) error {
 
 	var vlen int = 0
 	if val.Kind() == reflect.Slice {
-		vlen, err = bb.getLen(ts.ByteSize)
+		vlen, err = bb.getLen(ts.ByteSizeOfSliceLen)
 		if err != nil {
 			return err
 		}
@@ -198,7 +198,7 @@ func deserializeList(bb *ByteBuffer, val reflect.Value, ts Tags) error {
 	}
 
 	for i := 0; i < vlen; i++ {
-		if err := typeinfo.deserializer(bb, val.Index(i), Tags{ByteSize: 1}); err != nil {
+		if err := typeinfo.deserializer(bb, val.Index(i), Tags{ByteSizeOfSliceLen: 1}); err != nil {
 			return err
 		}
 	}

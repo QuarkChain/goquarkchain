@@ -64,7 +64,7 @@ func newUint256(val uint64) *Uint256 {
 }
 
 type LargeBytes struct {
-	Value []byte `bytesize:"4"`
+	Value []byte `bytesizeofslicelen:"4"`
 }
 
 var serdata = []testDataForSerialize{

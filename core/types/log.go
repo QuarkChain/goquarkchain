@@ -22,7 +22,7 @@ type Log struct {
 	// list of topics provided by the contract.
 	Topics []common.Hash `json:"topics" gencodec:"required"`
 	// supplied by the contract, usually ABI-encoded
-	Data []byte `json:"data" gencodec:"required" bytesize:"4"`
+	Data []byte `json:"data" gencodec:"required" bytesizeofslicelen:"4"`
 
 	// Derived fields. These fields are filled in by the node
 	// but not secured by consensus.

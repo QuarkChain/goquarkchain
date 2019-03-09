@@ -40,7 +40,7 @@ type RootBlockHeader struct {
 	Time            uint64             `json:"timestamp"        gencodec:"required"`
 	Difficulty      *big.Int           `json:"difficulty"       gencodec:"required"`
 	Nonce           uint64             `json:"nonce"`
-	Extra           []byte             `json:"extraData"        gencodec:"required"   bytesize:"2"`
+	Extra           []byte             `json:"extraData"        gencodec:"required"   bytesizeofslicelen:"2"`
 	MixDigest       common.Hash        `json:"mixHash"`
 	Signature       [65]byte           `json:"signature"        gencodec:"required"`
 }
@@ -55,7 +55,7 @@ type rootBlockHeaderForHash struct {
 	Time            uint64
 	Difficulty      *big.Int
 	Nonce           uint64
-	Extra           []byte `bytesize:"2"`
+	Extra           []byte `bytesizeofslicelen:"2"`
 	MixDigest       common.Hash
 }
 
@@ -122,8 +122,8 @@ type RootBlock struct {
 // "external" block encoding. used for eth protocol, etc.
 type extrootblock struct {
 	Header            *RootBlockHeader
-	MinorBlockHeaders MinorBlockHeaders `bytesize:"4"`
-	Trackingdata      []byte            `bytesize:"2"`
+	MinorBlockHeaders MinorBlockHeaders `bytesizeofslicelen:"4"`
+	Trackingdata      []byte            `bytesizeofslicelen:"2"`
 }
 
 // NewBlock creates a new block. The input data is copied,
