@@ -31,18 +31,18 @@ func Create(shardSize uint32, reshardVote bool) (*ShardInfo, error) {
 
 // RootBlockHeader represents a root block header in the QuarkChain.
 type RootBlockHeader struct {
-	Version         uint32                           `json:"version"          gencodec:"required"`
-	Number          uint32                           `json:"number"           gencodec:"required"`
-	ParentHash      common.Hash                      `json:"parentHash"       gencodec:"required"`
-	MinorHeaderHash common.Hash                      `json:"transactionsRoot" gencodec:"required"`
-	Coinbase        account.Address                  `json:"miner"            gencodec:"required"`
-	CoinbaseAmount  *serialize.Uint256               `json:"coinbaseAmount"   gencodec:"required"`
-	Time            uint64                           `json:"timestamp"        gencodec:"required"`
-	Difficulty      *big.Int                         `json:"difficulty"       gencodec:"required"`
-	Nonce           uint64                           `json:"nonce"`
-	Extra           *serialize.LimitedSizeByteSlice2 `json:"extraData"        gencodec:"required"`
-	MixDigest       common.Hash                      `json:"mixHash"`
-	Signature       [65]byte                         `json:"signature"        gencodec:"required"` //todo
+	Version         uint32             `json:"version"          gencodec:"required"`
+	Number          uint32             `json:"number"           gencodec:"required"`
+	ParentHash      common.Hash        `json:"parentHash"       gencodec:"required"`
+	MinorHeaderHash common.Hash        `json:"transactionsRoot" gencodec:"required"`
+	Coinbase        account.Address    `json:"miner"            gencodec:"required"`
+	CoinbaseAmount  *serialize.Uint256 `json:"coinbaseAmount"   gencodec:"required"`
+	Time            uint64             `json:"timestamp"        gencodec:"required"`
+	Difficulty      *big.Int           `json:"difficulty"       gencodec:"required"`
+	Nonce           uint64             `json:"nonce"`
+	Extra           []byte             `json:"extraData"        gencodec:"required"   bytesizeofslicelen:"2"`
+	MixDigest       common.Hash        `json:"mixHash"`
+	Signature       [65]byte           `json:"signature"        gencodec:"required"`
 }
 
 type rootBlockHeaderForHash struct {
@@ -55,7 +55,7 @@ type rootBlockHeaderForHash struct {
 	Time            uint64
 	Difficulty      *big.Int
 	Nonce           uint64
-	Extra           *serialize.LimitedSizeByteSlice2
+	Extra           []byte `bytesizeofslicelen:"2"`
 	MixDigest       common.Hash
 }
 
@@ -83,7 +83,7 @@ func (h *RootBlockHeader) Hash() common.Hash {
 // to approximate and limit the memory consumption of various caches.
 func (h *RootBlockHeader) Size() common.StorageSize {
 	return common.StorageSize(unsafe.Sizeof(*h)) + common.StorageSize(len(h.Signature)) +
-		common.StorageSize(len(*h.Extra)+(h.Difficulty.BitLen())/8)
+		common.StorageSize(len(h.Extra)+(h.Difficulty.BitLen())/8)
 }
 
 func (h *RootBlockHeader) SignWithPrivateKey(prv *ecdsa.PrivateKey) error {
@@ -103,7 +103,7 @@ func (h *RootBlockHeader) NumberUI64() uint64 { return uint64(h.Number) }
 type RootBlock struct {
 	header            *RootBlockHeader
 	minorBlockHeaders MinorBlockHeaders
-	trackingdata      serialize.LimitedSizeByteSlice2
+	trackingdata      []byte
 
 	// caches
 	hash atomic.Value
@@ -122,8 +122,8 @@ type RootBlock struct {
 // "external" block encoding. used for eth protocol, etc.
 type extrootblock struct {
 	Header            *RootBlockHeader
-	MinorBlockHeaders MinorBlockHeaders
-	Trackingdata      serialize.LimitedSizeByteSlice2
+	MinorBlockHeaders MinorBlockHeaders `bytesizeofslicelen:"4"`
+	Trackingdata      []byte            `bytesizeofslicelen:"2"`
 }
 
 // NewBlock creates a new block. The input data is copied,
@@ -133,7 +133,7 @@ type extrootblock struct {
 // The values of MinorHeaderHash, ReceiptHash and Bloom in header
 // are ignored and set to values derived from the given txs, uncles
 // and receipts.
-func NewRootBlock(header *RootBlockHeader, mbHeaders MinorBlockHeaders, trackingdata serialize.LimitedSizeByteSlice2) *RootBlock {
+func NewRootBlock(header *RootBlockHeader, mbHeaders MinorBlockHeaders, trackingdata []byte) *RootBlock {
 	b := &RootBlock{header: CopyRootBlockHeader(header), td: new(big.Int)}
 
 	if len(mbHeaders) == 0 {
@@ -167,9 +167,9 @@ func CopyRootBlockHeader(h *RootBlockHeader) *RootBlockHeader {
 	if cpy.Difficulty = new(big.Int); h.Difficulty != nil {
 		cpy.Difficulty.Set(h.Difficulty)
 	}
-	if len(*h.Extra) > 0 {
-		*cpy.Extra = make(serialize.LimitedSizeByteSlice2, len(*h.Extra))
-		copy(*cpy.Extra, *h.Extra)
+	if len(h.Extra) > 0 {
+		cpy.Extra = make([]byte, len(h.Extra))
+		copy(cpy.Extra, h.Extra)
 	}
 	cpy.Signature = [65]byte{}
 	copy(cpy.Signature[:], h.Signature[:])
@@ -214,7 +214,7 @@ func (b *RootBlock) MinorBlockHeader(hash common.Hash) *MinorBlockHeader {
 	return nil
 }
 
-func (b *RootBlock) TrackingData() serialize.LimitedSizeByteSlice2 { return b.trackingdata }
+func (b *RootBlock) TrackingData() []byte { return b.trackingdata }
 
 func (b *RootBlock) Version() uint32              { return b.header.Version }
 func (b *RootBlock) Number() uint32               { return b.header.Number }
@@ -226,7 +226,7 @@ func (b *RootBlock) CoinbaseAmount() *big.Int     { return new(big.Int).Set(b.he
 func (b *RootBlock) Time() uint64                 { return b.header.Time }
 func (b *RootBlock) Difficulty() *big.Int         { return new(big.Int).Set(b.header.Difficulty) }
 func (b *RootBlock) Nonce() uint64                { return b.header.Nonce }
-func (b *RootBlock) Extra() []byte                { return common.CopyBytes(*b.header.Extra) }
+func (b *RootBlock) Extra() []byte                { return common.CopyBytes(b.header.Extra) }
 func (b *RootBlock) MixDigest() common.Hash       { return b.header.MixDigest }
 func (b *RootBlock) Signature() [65]byte          { return b.header.Signature }
 
@@ -255,11 +255,11 @@ func (b *RootBlock) WithSeal(header *RootBlockHeader) *RootBlock {
 }
 
 // WithBody returns a new block with the given minorBlockHeaders contents.
-func (b *RootBlock) WithBody(minorBlockHeaders MinorBlockHeaders, trackingdata serialize.LimitedSizeByteSlice2) *RootBlock {
+func (b *RootBlock) WithBody(minorBlockHeaders MinorBlockHeaders, trackingdata []byte) *RootBlock {
 	block := &RootBlock{
 		header:            CopyRootBlockHeader(b.header),
 		minorBlockHeaders: make(MinorBlockHeaders, len(minorBlockHeaders)),
-		trackingdata:      make(serialize.LimitedSizeByteSlice2, len(b.trackingdata)),
+		trackingdata:      make([]byte, len(b.trackingdata)),
 	}
 
 	copy(block.minorBlockHeaders, minorBlockHeaders)

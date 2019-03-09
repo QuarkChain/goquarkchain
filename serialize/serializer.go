@@ -9,13 +9,17 @@ import (
 )
 
 func Serialize(w *[]byte, val interface{}) error {
+	return SerializeWithTags(w, val, Tags{ByteSizeOfSliceLen: 1})
+}
+
+func SerializeWithTags(w *[]byte, val interface{}, ts Tags) error {
 	rval := reflect.ValueOf(val)
-	ti, err := cachedTypeInfo(rval.Type(), tags{})
+	ti, err := cachedTypeInfo(rval.Type(), ts)
 	if err != nil {
 		return err
 	}
 
-	return ti.serializer(rval, w)
+	return ti.serializer(rval, w, ts)
 }
 
 // SerializeToBytes returns the serialize result of val.
@@ -28,13 +32,13 @@ func SerializeToBytes(val interface{}) ([]byte, error) {
 	return w, nil
 }
 
-func makeSerializer(typ reflect.Type, ts tags) (serializer, error) {
+func makeSerializer(typ reflect.Type) (serializer, error) {
 	kind := typ.Kind()
 	switch {
 	//check Ptr first and add optional byte output if ts is nilok,
 	//then get serializer for typ.Elem() which is not a ptr
 	case kind == reflect.Ptr:
-		return makePtrSerialize(typ, ts)
+		return serializePtr, nil
 	case kind != reflect.Ptr && reflect.PtrTo(typ).Implements(serializableInterface):
 		return serializeSerializableInterface, nil
 	case typ.AssignableTo(bigInt):
@@ -58,7 +62,7 @@ func makeSerializer(typ reflect.Type, ts tags) (serializer, error) {
 	}
 }
 
-func serializeSerializableInterface(val reflect.Value, w *[]byte) error {
+func serializeSerializableInterface(val reflect.Value, w *[]byte, tags Tags) error {
 	if !val.CanAddr() {
 		return fmt.Errorf("ser: unaddressable value of type %v, Serialize is pointer method", val.Type())
 	}
@@ -86,7 +90,7 @@ func uint2ByteArray(ui uint64) []byte {
 	return bi.SetUint64(ui).Bytes()
 }
 
-func serializeUint(val reflect.Value, w *[]byte) error {
+func serializeUint(val reflect.Value, w *[]byte, ts Tags) error {
 	kind := val.Type().Kind()
 	var bytes []byte
 	var err error
@@ -124,7 +128,7 @@ func serializeFixSizeBigUint(val *big.Int, size int, w *[]byte) error {
 	return err
 }
 
-func serializeBigIntNoPtr(val reflect.Value, w *[]byte) error {
+func serializeBigIntNoPtr(val reflect.Value, w *[]byte, ts Tags) error {
 	i := val.Interface().(big.Int)
 	return serializeBigInt(&i, w)
 }
@@ -144,7 +148,7 @@ func serializeBigInt(i *big.Int, w *[]byte) error {
 	return nil
 }
 
-func serializeBool(val reflect.Value, w *[]byte) error {
+func serializeBool(val reflect.Value, w *[]byte, ts Tags) error {
 	if val.Bool() {
 		*w = append(*w, 0x01)
 	} else {
@@ -154,7 +158,7 @@ func serializeBool(val reflect.Value, w *[]byte) error {
 	return nil
 }
 
-func serializeByteArray(val reflect.Value, w *[]byte) error {
+func serializeByteArray(val reflect.Value, w *[]byte, ts Tags) error {
 	if val.Kind() != reflect.Array {
 		return fmt.Errorf("ser: invalid byte array type: %s", val.Kind())
 	}
@@ -177,19 +181,10 @@ func serializeByteArray(val reflect.Value, w *[]byte) error {
 	return nil
 }
 
-func writeListLen(val reflect.Value, w *[]byte) error {
-	var byteSize int = 1
+func writeListLen(val reflect.Value, w *[]byte, byteSizeOfSliceLen int) error {
 	var err error = nil
-	if reflect.PtrTo(val.Type()).Implements(serializableListInterface) {
-		// as the type SerializableList is fix number for a struct,
-		// we new a value to resolve nil CanAddr is false instead of use
-		//
-		v := reflect.New(val.Type())
-		byteSize = v.Interface().(SerializableList).GetLenByteSize()
-	}
-
 	sizeBytes := uint2ByteArray(uint64(val.Len()))
-	sizeBytes, err = prefillByteArray(byteSize, sizeBytes)
+	sizeBytes, err = prefillByteArray(byteSizeOfSliceLen, sizeBytes)
 	if err != nil {
 		return nil
 	}
@@ -199,8 +194,8 @@ func writeListLen(val reflect.Value, w *[]byte) error {
 }
 
 //serializePrependedSizeBytes
-func serializeByteSlice(val reflect.Value, w *[]byte) error {
-	err := writeListLen(val, w)
+func serializeByteSlice(val reflect.Value, w *[]byte, ts Tags) error {
+	err := writeListLen(val, w, ts.ByteSizeOfSliceLen)
 	if err != nil {
 		return nil
 	}
@@ -211,14 +206,14 @@ func serializeByteSlice(val reflect.Value, w *[]byte) error {
 }
 
 //PrependedSizeListSerializer
-func serializeList(val reflect.Value, w *[]byte) error {
-	typeinfo, err := cachedTypeInfo1(val.Type().Elem(), tags{})
+func serializeList(val reflect.Value, w *[]byte, ts Tags) error {
+	typeinfo, err := cachedTypeInfo1(val.Type().Elem(), ts)
 	if err != nil {
 		return err
 	}
 
 	if val.Kind() == reflect.Slice {
-		err = writeListLen(val, w)
+		err = writeListLen(val, w, ts.ByteSizeOfSliceLen)
 		if err != nil {
 			return err
 		}
@@ -226,7 +221,7 @@ func serializeList(val reflect.Value, w *[]byte) error {
 
 	vlen := val.Len()
 	for i := 0; i < vlen; i++ {
-		if err := typeinfo.serializer(val.Index(i), w); err != nil {
+		if err := typeinfo.serializer(val.Index(i), w, Tags{ByteSizeOfSliceLen: 1}); err != nil {
 			return err
 		}
 	}
@@ -234,14 +229,14 @@ func serializeList(val reflect.Value, w *[]byte) error {
 	return nil
 }
 
-func serializeStruct(val reflect.Value, w *[]byte) error {
+func serializeStruct(val reflect.Value, w *[]byte, ts Tags) error {
 	fields, err := structFields(val.Type())
 	if err != nil {
 		return err
 	}
 
 	for _, f := range fields {
-		if err := f.info.serializer(val.Field(f.index), w); err != nil {
+		if err := f.info.serializer(val.Field(f.index), w, f.tags); err != nil {
 			return err
 		}
 	}
@@ -249,7 +244,7 @@ func serializeStruct(val reflect.Value, w *[]byte) error {
 	return nil
 }
 
-func serializeString(val reflect.Value, w *[]byte) error {
+func serializeString(val reflect.Value, w *[]byte, ts Tags) error {
 	s := val.String()
 
 	sizeBytes := make([]byte, 4, 4)
@@ -260,32 +255,26 @@ func serializeString(val reflect.Value, w *[]byte) error {
 	return nil
 }
 
-//process pointer optional
-func makePtrSerialize(typ reflect.Type, ts tags) (serializer, error) {
-	typeinfo, err := cachedTypeInfo1(typ.Elem(), tags{})
+func serializePtr(val reflect.Value, w *[]byte, ts Tags) error {
+	typ := val.Type()
+	typeinfo, err := cachedTypeInfo1(typ.Elem(), ts)
 	if err != nil {
-		return nil, err
+		return err
 	}
-
-	ser := func(val reflect.Value, w *[]byte) error {
-		switch {
-		case val.IsNil() && ts.nilOK:
-			*w = append(*w, 0)
-			return nil
-		case val.IsNil() && typ.Implements(serializableInterface):
-			zero := reflect.New(typ.Elem())
-			return typeinfo.serializer(zero.Elem(), w)
-		case val.IsNil():
-			zero := reflect.Zero(typ.Elem())
-			return typeinfo.serializer(zero, w)
-		default:
-			if ts.nilOK {
-				*w = append(*w, 1)
-			}
-
-			return typeinfo.serializer(val.Elem(), w)
+	switch {
+	case val.IsNil() && ts.NilOK:
+		*w = append(*w, 0)
+		return nil
+	case val.IsNil() && typ.Implements(serializableInterface):
+		zero := reflect.New(typ.Elem())
+		return typeinfo.serializer(zero.Elem(), w, ts)
+	case val.IsNil():
+		zero := reflect.Zero(typ.Elem())
+		return typeinfo.serializer(zero, w, ts)
+	default:
+		if ts.NilOK {
+			*w = append(*w, 1)
 		}
+		return typeinfo.serializer(val.Elem(), w, ts)
 	}
-
-	return ser, err
 }
