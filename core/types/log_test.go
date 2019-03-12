@@ -27,7 +27,7 @@ func TestLogSerializing(t *testing.T) {
 		}
 	}
 
-	check("Recipient", common.Bytes2Hex(log.Recipient.Bytes()), "d3f86deb4a2bbf85048b3e790460c40dbab1f621")
+	check("Recipient", common.Bytes2Hex(log.Address.Bytes()), "d3f86deb4a2bbf85048b3e790460c40dbab1f621")
 	check("Topics", len(log.Topics), 2)
 	check("Topics[0]", common.Bytes2Hex(log.Topics[0].Bytes()), "a40920ae6f758f88c61b405f9fc39fdd6274666462b14e3887522166e6537a97")
 	check("Topics[1]", common.Bytes2Hex(log.Topics[1].Bytes()), "297d6ae9803346cdb059a671dea7e37b684dcabfa767f2d872026ad0a3aba495")
@@ -50,7 +50,7 @@ func TestLogSerializing(t *testing.T) {
 	}
 
 	check("Encode", common.Bytes2Hex(logRlpEnc), "f85d94d3f86deb4a2bbf85048b3e790460c40dbab1f621f842a0a40920ae6f758f88c61b405f9fc39fdd6274666462b14e3887522166e6537a97a0297d6ae9803346cdb059a671dea7e37b684dcabfa767f2d872026ad0a3aba49583010203")
-	check("rlp.Recipient", common.Bytes2Hex(logRlp.Recipient.Bytes()), "d3f86deb4a2bbf85048b3e790460c40dbab1f621")
+	check("rlp.Recipient", common.Bytes2Hex(logRlp.Address.Bytes()), "d3f86deb4a2bbf85048b3e790460c40dbab1f621")
 	check("rlp.Topics", len(logRlp.Topics), 2)
 	check("rlp.Topics[0]", common.Bytes2Hex(logRlp.Topics[0].Bytes()), "a40920ae6f758f88c61b405f9fc39fdd6274666462b14e3887522166e6537a97")
 	check("rlp.Topics[1]", common.Bytes2Hex(logRlp.Topics[1].Bytes()), "297d6ae9803346cdb059a671dea7e37b684dcabfa767f2d872026ad0a3aba495")
