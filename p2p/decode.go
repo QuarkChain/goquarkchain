@@ -25,7 +25,7 @@ type P2PeerInfo struct {
 // QKCMsg qkc msg struct
 type QKCMsg struct {
 	metaData metadata
-	op       byte
+	op       P2PCommandOp
 	rpcID    uint64
 	data     []byte
 }
@@ -53,40 +53,36 @@ func DecodeQKCMsg(body []byte) (QKCMsg, error) {
 	if err != nil {
 		return QKCMsg{}, err
 	}
-	// metaData
-	msg.metaData = metaData
-	// op
-	msg.op = rawBytes[0]
-	// rpcID
-	msg.rpcID = binary.BigEndian.Uint64(rawBytes[OPLength:PreP2PLength])
 
+	msg.metaData = metaData
+	msg.op = P2PCommandOp(rawBytes[0])
+	msg.rpcID = binary.BigEndian.Uint64(rawBytes[OPLength:PreP2PLength])
 	dataSize := uint32(len(rawBytes) - PreP2PLength)
-	// data
 	msg.data = make([]byte, dataSize)
 	copy(msg.data[:], rawBytes[PreP2PLength:])
 	return msg, nil
 }
 
 // Encrypt encrypt data to byte array
-func Encrypt(metadata metadata, op byte, ipcID uint64, cmd interface{}) ([]byte, error) {
+func Encrypt(metadata metadata, op P2PCommandOp, ipcID uint64, cmd interface{}) ([]byte, error) {
 	encryptBytes := make([]byte, 0)
 	metadataBytes, err := serialize.SerializeToBytes(metadata)
 	if err != nil {
-		return []byte{}, err
+		return nil, err
 	}
-	// append metadata
+
 	encryptBytes = append(encryptBytes, metadataBytes...)
-	// append op
-	encryptBytes = append(encryptBytes, op)
+	encryptBytes = append(encryptBytes, byte(op))
+
 	rpcIDBytes := make([]byte, RPCIDLength)
 	binary.BigEndian.PutUint64(rpcIDBytes, ipcID)
-	// append rpcId
+
 	encryptBytes = append(encryptBytes, rpcIDBytes...)
 	cmdBytes, err := serialize.SerializeToBytes(cmd)
 	if err != nil {
-		return []byte{}, err
+		return nil, err
 	}
-	// append cmd
+
 	encryptBytes = append(encryptBytes, cmdBytes...)
 	return encryptBytes, nil
 }

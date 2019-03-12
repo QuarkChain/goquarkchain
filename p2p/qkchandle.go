@@ -55,7 +55,7 @@ func qkcMsgHandle(peer *Peer, ws MsgReadWriter) error {
 		if HandleFunc, ok := OPNonRPCMap[qkcMsg.op]; ok {
 			HandleFunc(qkcMsg.op, qkcMsg.data)
 		} else if HandleFunc, ok := OpRPCMap[qkcMsg.op]; ok {
-			HandleFunc.Func(qkcMsg.data)
+			HandleFunc.handleFunc(qkcMsg.data)
 		} else {
 			//TODO future
 		}
@@ -210,7 +210,7 @@ func (q *qkcRlp) doProtoHandshake(our *protoHandshake) (their *protoHandshake, e
 	if err != nil {
 		return nil, err
 	}
-	hello, err := HelloCmd{
+	hello, err := makeMsg(Hello, 0, HelloCmd{
 		Version:   0,
 		NetWorkID: 24,
 		PeerID:    common.BytesToHash(our.ID),
@@ -223,7 +223,7 @@ func (q *qkcRlp) doProtoHandshake(our *protoHandshake) (their *protoHandshake, e
 			MinorHeaderHash: common.Hash{},
 			Difficulty:      big.NewInt(1000000000000),
 		},
-	}.makeSendMsg(0)
+	})
 	err = q.WriteMsg(hello)
 	if err != nil {
 		return nil, err

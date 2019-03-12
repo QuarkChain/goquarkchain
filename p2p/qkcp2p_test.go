@@ -96,7 +96,7 @@ func TestServerConnection(t *testing.T) {
 }
 
 func WriteMsgForTest(t *testing.T, rw MsgReadWriter) {
-	cmd, err := HelloCmd{}.makeSendMsg(0)
+	cmd, err := makeMsg(Hello, 0, HelloCmd{})
 	if err != nil {
 		t.Error("HelloCmd makeSendMsg err", err)
 	}
@@ -104,7 +104,7 @@ func WriteMsgForTest(t *testing.T, rw MsgReadWriter) {
 		t.Error("Write HelloCmd Msg err", err)
 	}
 
-	cmd, err = NewMinorBlockHeaderList{}.makeSendMsg(0)
+	cmd, err = makeMsg(NewMinorBlockHeaderListMsg, 0, NewMinorBlockHeaderList{})
 	if err != nil {
 		t.Error("NewMinorBlockHeaderList makeSendMsg err", err)
 	}
@@ -112,7 +112,7 @@ func WriteMsgForTest(t *testing.T, rw MsgReadWriter) {
 		t.Error("Write NewMinorBlockHeaderList Msg err", err)
 	}
 
-	cmd, err = NewTransactionList{}.makeSendMsg(0)
+	cmd, err = makeMsg(NewTransactionListMsg, 0, NewTransactionList{})
 	if err != nil {
 		t.Error("NewTransactionList makeSendMsg err", err)
 	}
@@ -120,7 +120,7 @@ func WriteMsgForTest(t *testing.T, rw MsgReadWriter) {
 		t.Error("Write NewTransactionList Msg err", err)
 	}
 
-	cmd, err = GetPeerListRequest{}.makeSendMsg(0)
+	cmd, err = makeMsg(GetPeerListRequestMsg, 0, GetPeerListRequest{})
 	if err != nil {
 		t.Error("GetPeerListRequest makeSendMsg err", err)
 	}
@@ -128,7 +128,7 @@ func WriteMsgForTest(t *testing.T, rw MsgReadWriter) {
 		t.Error("Write GetPeerListRequest Msg err", err)
 	}
 
-	cmd, err = GetPeerListResponse{}.makeSendMsg(0)
+	cmd, err = makeMsg(GetPeerListResponseMsg, 0, GetPeerListResponse{})
 	if err != nil {
 		t.Error("GetPeerListResponse makeSendMsg err", err)
 	}
@@ -136,7 +136,7 @@ func WriteMsgForTest(t *testing.T, rw MsgReadWriter) {
 		t.Error("Write GetPeerListResponse Msg err", err)
 	}
 
-	cmd, err = GetRootBlockHeaderListRequest{}.makeSendMsg(0)
+	cmd, err = makeMsg(GetRootBlockHeaderListRequestMsg, 0, GetRootBlockHeaderListRequest{})
 	if err != nil {
 		t.Error("GetRootBlockHeaderListRequest makeSendMsg err", err)
 	}
@@ -144,7 +144,7 @@ func WriteMsgForTest(t *testing.T, rw MsgReadWriter) {
 		t.Error("Write GetRootBlockHeaderListRequest Msg err", err)
 	}
 
-	cmd, err = GetRootBlockHeaderListResponse{}.makeSendMsg(0)
+	cmd, err = makeMsg(GetRootBlockHeaderListResponseMsg, 0, GetRootBlockHeaderListResponse{})
 	if err != nil {
 		t.Error("GetRootBlockHeaderListResponse makeSendMsg err", err)
 	}
@@ -152,7 +152,7 @@ func WriteMsgForTest(t *testing.T, rw MsgReadWriter) {
 		t.Error("Write GetRootBlockHeaderListResponse Msg err", err)
 	}
 
-	cmd, err = GetRootBlockListRequest{}.makeSendMsg(0)
+	cmd, err = makeMsg(GetRootBlockListRequestMsg, 0, GetRootBlockListRequest{})
 	if err != nil {
 		t.Error("GetRootBlockListRequest makeSendMsg err", err)
 	}
@@ -160,7 +160,7 @@ func WriteMsgForTest(t *testing.T, rw MsgReadWriter) {
 		t.Error("Write GetRootBlockListRequest Msg err", err)
 	}
 
-	cmd, err = GetRootBlockListResponse{}.makeSendMsg(0)
+	cmd, err = makeMsg(GetRootBlockListResponseMsg, 0, GetRootBlockListResponse{})
 	if err != nil {
 		t.Error("GetRootBlockListResponse makeSendMsg err", err)
 	}
@@ -168,7 +168,7 @@ func WriteMsgForTest(t *testing.T, rw MsgReadWriter) {
 		t.Error("Write GetRootBlockListResponse Msg err", err)
 	}
 
-	cmd, err = GetMinorBlockListRequest{}.makeSendMsg(0)
+	cmd, err = makeMsg(GetMinorBlockListRequestMsg, 0, GetMinorBlockListRequest{})
 	if err != nil {
 		t.Error("GetMinorBlockListRequest makeSendMsg err", err)
 	}
@@ -176,7 +176,7 @@ func WriteMsgForTest(t *testing.T, rw MsgReadWriter) {
 		t.Error("Write GetMinorBlockListRequest Msg err", err)
 	}
 
-	cmd, err = GetMinorBlockListResponse{}.makeSendMsg(0)
+	cmd, err = makeMsg(GetMinorBlockListResponseMsg, 0, GetMinorBlockListResponse{})
 	if err != nil {
 		t.Error("GetMinorBlockListResponse makeSendMsg err", err)
 	}
@@ -184,7 +184,7 @@ func WriteMsgForTest(t *testing.T, rw MsgReadWriter) {
 		t.Error("Write GetMinorBlockListResponse Msg err", err)
 	}
 
-	cmd, err = GetMinorBlockHeaderListRequest{}.makeSendMsg(0)
+	cmd, err = makeMsg(GetMinorBlockHeaderListRequestMsg, 0, GetMinorBlockHeaderListRequest{})
 	if err != nil {
 		t.Error("GetMinorBlockHeaderListRequest makeSendMsg err", err)
 	}
@@ -192,7 +192,7 @@ func WriteMsgForTest(t *testing.T, rw MsgReadWriter) {
 		t.Error("Write GetMinorBlockHeaderListRequest Msg err", err)
 	}
 
-	cmd, err = GetMinorBlockHeaderListResponse{}.makeSendMsg(0)
+	cmd, err = makeMsg(GetMinorBlockHeaderListResponseMsg, 0, GetMinorBlockHeaderListResponse{})
 	if err != nil {
 		t.Error("GetMinorBlockHeaderListResponse makeSendMsg err", err)
 	}
@@ -200,7 +200,7 @@ func WriteMsgForTest(t *testing.T, rw MsgReadWriter) {
 		t.Error("Write GetMinorBlockHeaderListResponse Msg err", err)
 	}
 
-	cmd, err = NewBlockMinor{}.makeSendMsg(0)
+	cmd, err = makeMsg(NewBlockMinorMsg, 0, NewBlockMinor{})
 	if err != nil {
 		t.Error("NewBlockMinor makeSendMsg err", err)
 	}

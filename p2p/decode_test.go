@@ -11,19 +11,19 @@ type CodeC struct {
 	Data     interface{}
 	RPCID    uint64
 	MetaData metadata
-	Op       byte
+	Op       P2PCommandOp
 }
 
 func GetTestCodeCTest() []CodeC {
 	allTestCase := make([]CodeC, 0)
-	for op := HELLO; op < MaxOPNum; op++ {
+	for op := Hello; op < MaxOPNum; op++ {
 		temp := CodeC{
-			Data:  OPSerializerMap[byte(op)],
+			Data:  OPSerializerMap[op],
 			RPCID: uint64(rand.Int()),
 			MetaData: metadata{
 				Branch: rand.Uint32(),
 			},
-			Op: byte(op),
+			Op: op,
 		}
 		allTestCase = append(allTestCase, temp)
 	}
@@ -33,7 +33,7 @@ func GetTestCodeCTest() []CodeC {
 func VerifySerializeData(t *testing.T, decodeMsg QKCMsg, v CodeC) error {
 	//Attention: not check the correctness of serialize data ,it is depend on serialize module,only check it for mistakes
 	switch decodeMsg.op {
-	case HELLO:
+	case Hello:
 		cmd := new(HelloCmd)
 		if err := serialize.DeserializeFromBytes(decodeMsg.data, &cmd); err != nil {
 			t.Fatal("deserialize from Bytes err", err)
