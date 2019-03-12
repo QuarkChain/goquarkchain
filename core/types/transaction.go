@@ -185,11 +185,13 @@ func (tx *EvmTransaction) Size() common.StorageSize {
 // AsMessage requires a signer to derive the sender.
 // XXX Rename message to something less arbitrary?
 func (tx *EvmTransaction) AsMessage(s Signer) (Message, error) {
+	msgTo := new(common.Address)
+	msgTo.SetBytes(tx.data.Recipient.Bytes())
 	msg := Message{
 		nonce:           tx.data.AccountNonce,
 		gasLimit:        tx.data.GasLimit,
 		gasPrice:        new(big.Int).Set(tx.data.Price),
-		to:              tx.data.Recipient,
+		to:              msgTo,
 		amount:          tx.data.Amount,
 		data:            tx.data.Payload,
 		checkNonce:      true,
@@ -198,8 +200,8 @@ func (tx *EvmTransaction) AsMessage(s Signer) (Message, error) {
 		txHash:          tx.Hash(),
 	}
 
-	var err error
-	msg.from, err = Sender(s, tx)
+	msgFrom, err := Sender(s, tx)
+	msg.from = msgFrom.ToAddress()
 	return msg, err
 }
 
@@ -469,8 +471,8 @@ func (CrossShardTransactionList) GetLenByteSize() int {
 //
 // NOTE: In a future PR this will be removed.
 type Message struct {
-	to              *account.Recipient
-	from            account.Recipient
+	to              *common.Address
+	from            common.Address
 	nonce           uint64
 	amount          *big.Int
 	gasLimit        uint64
@@ -482,7 +484,7 @@ type Message struct {
 	txHash          common.Hash
 }
 
-func NewMessage(from account.Recipient, to *account.Recipient, nonce uint64, amount *big.Int, gasLimit uint64, gasPrice *big.Int, data []byte, checkNonce bool, fromShardId, toShardId uint32) Message {
+func NewMessage(from common.Address, to *common.Address, nonce uint64, amount *big.Int, gasLimit uint64, gasPrice *big.Int, data []byte, checkNonce bool, fromShardId, toShardId uint32) Message {
 	return Message{
 		from:            from,
 		to:              to,
@@ -497,15 +499,15 @@ func NewMessage(from account.Recipient, to *account.Recipient, nonce uint64, amo
 	}
 }
 
-func (m Message) From() account.Recipient { return m.from }
-func (m Message) To() *account.Recipient  { return m.to }
+func (m Message) From() common.Address    { return m.from }
+func (m Message) To() *common.Address     { return m.to }
 func (m Message) GasPrice() *big.Int      { return m.gasPrice }
 func (m Message) Value() *big.Int         { return m.amount }
 func (m Message) Gas() uint64             { return m.gasLimit }
 func (m Message) Nonce() uint64           { return m.nonce }
 func (m Message) Data() []byte            { return m.data }
 func (m Message) CheckNonce() bool        { return m.checkNonce }
-func (m Message) IsCrosShard() bool       { return m.fromFullShardId != m.toFullShardId }
+func (m Message) IsCrossShard() bool      { return m.fromFullShardId != m.toFullShardId }
 func (m Message) FromFullShardId() uint32 { return m.fromFullShardId }
 func (m Message) ToFullShardId() uint32   { return m.toFullShardId }
 func (m Message) TxHash() common.Hash     { return m.txHash }

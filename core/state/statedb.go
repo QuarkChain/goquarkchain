@@ -680,7 +680,7 @@ func (s *StateDB) Commit(deleteEmptyObjects bool) (root common.Hash, err error) 
 func (s *StateDB) GetExtraData() StateExtraData {
 	return s.extraData
 }
-func (s *StateDB) SetXShardList(data types.CrossShardTransactionDeposit) {
+func (s *StateDB) AppendXShardList(data types.CrossShardTransactionDeposit) {
 	s.extraData.XShardList = append(s.extraData.XShardList, data)
 }
 

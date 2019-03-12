@@ -66,7 +66,7 @@ type StateDB interface {
 
 	ForEachStorage(common.Address, func(common.Hash, common.Hash) bool)
 	GetExtraData() state.StateExtraData
-	SetXShardList(data types.CrossShardTransactionDeposit)
+	AppendXShardList(data types.CrossShardTransactionDeposit)
 	SetFullShardID(uint32)
 	AddBlockFee(uint64)
 }

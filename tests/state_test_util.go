@@ -268,10 +268,9 @@ func (tx *stTransaction) toMessage(ps stPostState) (*types.Message, error) {
 		return nil, fmt.Errorf("invalid tx data %q", dataHex)
 	}
 
-	fromRecipient := account.Recipient(from)
-	toRecipient := &account.Recipient{}
+	fromRecipient := from
+	toRecipient := &common.Address{}
 	if to != nil {
-		toRecipient = new(account.Recipient)
 		toRecipient.SetBytes((*to).Bytes())
 	} else {
 

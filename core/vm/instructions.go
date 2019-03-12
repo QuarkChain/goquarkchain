@@ -19,7 +19,6 @@ package vm
 import (
 	"errors"
 	"fmt"
-	"github.com/QuarkChain/goquarkchain/account"
 	"math/big"
 
 	"github.com/QuarkChain/goquarkchain/core/types"
@@ -900,9 +899,9 @@ func makeLog(size int) executionFunc {
 
 		d := memory.Get(mStart.Int64(), mSize.Int64())
 		interpreter.evm.StateDB.AddLog(&types.Log{
-			Recipient: account.Recipient(contract.Address()),
-			Topics:    topics,
-			Data:      d,
+			Address: contract.Address(),
+			Topics:  topics,
+			Data:    d,
 			// This is a non-consensus field, but assigned here because
 			// core/state doesn't know the current block number.
 			BlockNumber: interpreter.evm.BlockNumber.Uint64(),

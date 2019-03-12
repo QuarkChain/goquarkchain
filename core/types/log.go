@@ -3,7 +3,6 @@
 package types
 
 import (
-	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/serialize"
 	"io"
 
@@ -19,7 +18,7 @@ import (
 type Log struct {
 	// Consensus fields:
 	// address of the contract that generated the event
-	Recipient account.Recipient `json:"address" gencodec:"required"`
+	Address common.Address `json:"address" gencodec:"required"`
 	// list of topics provided by the contract.
 	Topics []common.Hash `json:"topics" gencodec:"required"`
 	// supplied by the contract, usually ABI-encoded
@@ -57,13 +56,13 @@ type logMarshaling struct {
 }
 
 type rlpLog struct {
-	Recipient account.Recipient
-	Topics    []common.Hash
-	Data      []byte
+	Address common.Address
+	Topics  []common.Hash
+	Data    []byte
 }
 
 type rlpStorageLog struct {
-	Recipient   account.Recipient
+	Address     common.Address
 	Topics      []common.Hash
 	Data        []byte
 	BlockNumber uint64
@@ -75,7 +74,7 @@ type rlpStorageLog struct {
 
 // EncodeRLP implements rlp.Encoder.
 func (l *Log) EncodeRLP(w io.Writer) error {
-	return rlp.Encode(w, rlpLog{Recipient: l.Recipient, Topics: l.Topics, Data: l.Data})
+	return rlp.Encode(w, rlpLog{Address: l.Address, Topics: l.Topics, Data: l.Data})
 }
 
 // DecodeRLP implements rlp.Decoder.
@@ -83,7 +82,7 @@ func (l *Log) DecodeRLP(s *rlp.Stream) error {
 	var dec rlpLog
 	err := s.Decode(&dec)
 	if err == nil {
-		l.Recipient, l.Topics, l.Data = dec.Recipient, dec.Topics, dec.Data
+		l.Address, l.Topics, l.Data = dec.Address, dec.Topics, dec.Data
 	}
 	return err
 }
@@ -95,7 +94,7 @@ type LogForStorage Log
 // EncodeRLP implements rlp.Encoder.
 func (l *LogForStorage) EncodeRLP(w io.Writer) error {
 	return rlp.Encode(w, rlpStorageLog{
-		Recipient:   l.Recipient,
+		Address:     l.Address,
 		Topics:      l.Topics,
 		Data:        l.Data,
 		BlockNumber: l.BlockNumber,
@@ -112,7 +111,7 @@ func (l *LogForStorage) DecodeRLP(s *rlp.Stream) error {
 	err := s.Decode(&dec)
 	if err == nil {
 		*l = LogForStorage{
-			Recipient:   dec.Recipient,
+			Address:     dec.Address,
 			Topics:      dec.Topics,
 			Data:        dec.Data,
 			BlockNumber: dec.BlockNumber,

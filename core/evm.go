@@ -40,7 +40,7 @@ func NewEVMContext(msg types.Message, header *types.MinorBlockHeader, chain Chai
 		CanTransfer: CanTransfer,
 		Transfer:    Transfer,
 		GetHash:     GetHashFn(header, chain),
-		Origin:      msg.From().ToAddress(),
+		Origin:      msg.From(),
 		Coinbase:    header.Coinbase.Recipient.ToAddress(),
 		BlockNumber: big.NewInt(int64(header.Number)),
 		Time:        big.NewInt(int64(header.Time)),

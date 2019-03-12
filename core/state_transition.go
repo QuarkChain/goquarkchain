@@ -67,9 +67,9 @@ type StateTransition struct {
 
 // Message represents a message sent to a contract.
 type Message interface {
-	From() account.Recipient
+	From() common.Address
 	//FromFrontier() (common.Address, error)
-	To() *account.Recipient
+	To() *common.Address
 
 	GasPrice() *big.Int
 	Gas() uint64
@@ -78,17 +78,21 @@ type Message interface {
 	Nonce() uint64
 	CheckNonce() bool
 	Data() []byte
-	IsCrosShard() bool
+	IsCrossShard() bool
 	FromFullShardId() uint32
 	ToFullShardId() uint32
 	TxHash() common.Hash
 }
 
 // IntrinsicGas computes the 'intrinsic gas' for a message with the given data.
-func IntrinsicGas(data []byte, contractCreation, homestead bool, to *account.Recipient, isCrossShard bool) (uint64, error) {
+func IntrinsicGas(data []byte, contractCreation, isCrossShard bool) (uint64, error) {
 	// Set the starting gas for the raw transaction
 	var gas uint64
-	gas = params.TxGas
+	if contractCreation {
+		gas = params.TxGasContractCreation
+	} else {
+		gas = params.TxGas
+	}
 	// Bump the required gas by the amount of transactional data
 	if len(data) > 0 {
 		// Zero and non-zero bytes are priced differently
@@ -108,10 +112,6 @@ func IntrinsicGas(data []byte, contractCreation, homestead bool, to *account.Rec
 			return 0, vm.ErrOutOfGas
 		}
 		gas += z * params.TxDataZeroGas
-	}
-	//opcodes.CREATE[3]
-	if to == nil {
-		gas += uint64(params.CreateGas)
 	}
 
 	// GTXXSHARDCOST
@@ -150,7 +150,7 @@ func (st *StateTransition) to() common.Address {
 	if st.msg == nil || st.msg.To() == nil /* contract creation */ {
 		return common.Address{}
 	}
-	return (*st.msg.To()).ToAddress()
+	return *st.msg.To()
 }
 
 func (st *StateTransition) useGas(amount uint64) error {
@@ -164,7 +164,7 @@ func (st *StateTransition) useGas(amount uint64) error {
 
 func (st *StateTransition) buyGas() error {
 	mgval := new(big.Int).Mul(new(big.Int).SetUint64(st.msg.Gas()), st.gasPrice)
-	if st.state.GetBalance(st.msg.From().ToAddress()).Cmp(mgval) < 0 {
+	if st.state.GetBalance(st.msg.From()).Cmp(mgval) < 0 {
 		return errInsufficientBalanceForGas
 	}
 	if err := st.gp.SubGas(st.msg.Gas()); err != nil {
@@ -173,14 +173,14 @@ func (st *StateTransition) buyGas() error {
 	st.gas += st.msg.Gas()
 
 	st.initialGas = st.msg.Gas()
-	st.state.SubBalance(st.msg.From().ToAddress(), mgval)
+	st.state.SubBalance(st.msg.From(), mgval)
 	return nil
 }
 
 func (st *StateTransition) preCheck() error {
 	// Make sure this transaction's nonce is correct.
 	if st.msg.CheckNonce() {
-		nonce := st.state.GetNonce(st.msg.From().ToAddress())
+		nonce := st.state.GetNonce(st.msg.From())
 		if nonce < st.msg.Nonce() {
 			return core.ErrNonceTooHigh
 		} else if nonce > st.msg.Nonce() {
@@ -199,11 +199,10 @@ func (st *StateTransition) TransitionDb(feeRate float32) (ret []byte, usedGas ui
 	}
 	msg := st.msg
 	sender := vm.AccountRef(msg.From())
-	homestead := st.evm.ChainConfig().IsHomestead(st.evm.BlockNumber)
 	contractCreation := msg.To() == nil
 
 	// Pay intrinsic gas
-	gas, err := IntrinsicGas(st.data, contractCreation, homestead, msg.To(), st.msg.IsCrosShard())
+	gas, err := IntrinsicGas(st.data, contractCreation, st.msg.IsCrossShard())
 	if err != nil {
 		return nil, 0, false, err
 	}
@@ -219,11 +218,11 @@ func (st *StateTransition) TransitionDb(feeRate float32) (ret []byte, usedGas ui
 		vmerr error
 	)
 	if contractCreation {
-		ret, _, st.gas, vmerr = evm.Create(sender, st.data, st.gas, st.value, msg.IsCrosShard(), msg.ToFullShardId())
+		ret, _, st.gas, vmerr = evm.Create(sender, st.data, st.gas, st.value, msg.IsCrossShard(), msg.ToFullShardId())
 	} else {
 		// Increment the nonce for the next transaction
-		st.state.SetNonce(msg.From().ToAddress(), st.state.GetNonce(sender.Address())+1)
-		if msg.IsCrosShard() {
+		st.state.SetNonce(msg.From(), st.state.GetNonce(sender.Address())+1)
+		if msg.IsCrossShard() {
 			return st.handleCrosShardTx()
 		}
 		ret, st.gas, vmerr = evm.Call(sender, st.to(), st.data, st.gas, st.value)
@@ -240,12 +239,12 @@ func (st *StateTransition) TransitionDb(feeRate float32) (ret []byte, usedGas ui
 	}
 	st.refundGas()
 
-	FinalGasUsed := st.gasUsed()
-	if vmerr == nil && st.msg.IsCrosShard() { //success
-		FinalGasUsed -= uint64(qkcParam.GtxxShardCost)
+	finalGasUsed := st.gasUsed()
+	if vmerr == nil && st.msg.IsCrossShard() { //success
+		finalGasUsed -= uint64(qkcParam.GtxxShardCost)
 	}
 
-	fee := new(big.Int).Mul(new(big.Int).SetUint64(FinalGasUsed), st.gasPrice)
+	fee := new(big.Int).Mul(new(big.Int).SetUint64(finalGasUsed), st.gasPrice)
 	rateFee := fee //TODO *feeRate
 
 	if vmerr == nil {
@@ -269,7 +268,7 @@ func (st *StateTransition) refundGas() {
 
 	// Return ETH for remaining gas, exchanged at the original rate.
 	remaining := new(big.Int).Mul(new(big.Int).SetUint64(st.gas), st.gasPrice)
-	st.state.AddBalance(st.msg.From().ToAddress(), remaining)
+	st.state.AddBalance(st.msg.From(), remaining)
 
 	// Also return remaining gas to the block gas counter so it is
 	// available for the next transaction.
@@ -284,15 +283,15 @@ func (st *StateTransition) gasUsed() uint64 {
 func (st *StateTransition) handleCrosShardTx() (ret []byte, usedGas uint64, failed bool, err error) {
 	evm := st.evm
 	msg := st.msg
-	if !evm.CanTransfer(evm.StateDB, msg.From().ToAddress(), st.value) {
+	if !evm.CanTransfer(evm.StateDB, msg.From(), st.value) {
 		return nil, 0, false, vm.ErrInsufficientBalance
 	}
-	crosSHardValue := new(serialize.Uint256)
-	crosSHardValue.Value.Set(msg.Value())
+	crossSHardValue := new(serialize.Uint256)
+	crossSHardValue.Value.Set(msg.Value())
 
-	crosSHardGasPrice := new(serialize.Uint256)
-	crosSHardGasPrice.Value.Set(msg.GasPrice())
-	crosShardData := types.CrossShardTransactionDeposit{
+	crossSHardGasPrice := new(serialize.Uint256)
+	crossSHardGasPrice.Value.Set(msg.GasPrice())
+	crossShardData := types.CrossShardTransactionDeposit{
 		TxHash: msg.TxHash(),
 		From: account.Address{
 			Recipient:    account.Recipient(msg.From()),
@@ -302,10 +301,10 @@ func (st *StateTransition) handleCrosShardTx() (ret []byte, usedGas uint64, fail
 			Recipient:    account.Recipient(*msg.To()),
 			FullShardKey: msg.ToFullShardId(),
 		},
-		Value:    crosSHardValue,
-		GasPrice: crosSHardGasPrice,
+		Value:    crossSHardValue,
+		GasPrice: crossSHardGasPrice,
 	}
-	evm.StateDB.SubBalance(msg.From().ToAddress(), st.value)
-	evm.StateDB.SetXShardList(crosShardData)
+	evm.StateDB.SubBalance(msg.From(), st.value)
+	evm.StateDB.AppendXShardList(crossShardData)
 	return nil, st.gasUsed(), true, nil
 }
