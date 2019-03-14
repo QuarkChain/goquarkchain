@@ -15,11 +15,12 @@ func TestVerifyHeaderAndHeaders(t *testing.T) {
 	defer ctrl.Finish()
 
 	assert := assert.New(t)
+	diffCalculator := consensus.EthDifficultyCalculator{1, 1, big.NewInt(3)}
 
 	for _, qkcHashNativeFlag := range []bool{true, false} {
-		q := New(qkcHashNativeFlag)
+		q := New(qkcHashNativeFlag, &diffCalculator)
 
-		parent := &types.RootBlockHeader{Number: 1, Difficulty: big.NewInt(10), Time: 42}
+		parent := &types.RootBlockHeader{Number: 1, Difficulty: big.NewInt(3), Time: 42}
 		header := &types.RootBlockHeader{
 			Number:     2,
 			Difficulty: big.NewInt(3), // mock diff

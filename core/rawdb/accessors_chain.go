@@ -129,26 +129,31 @@ func HasHeader(db DatabaseReader, hash common.Hash, number uint64) bool {
 }
 
 // ReadHeader retrieves the block header corresponding to the hash.
-func ReadMinorBlockHeader(db DatabaseReader, hash common.Hash, number uint64) (*types.MinorBlockHeader, *types.MinorBlockMeta) {
+func ReadMinorBlockHeader(db DatabaseReader, hash common.Hash, number uint64) *types.MinorBlockHeader {
 	data, _ := db.Get(headerKey(number, hash))
 	if len(data) == 0 {
-		return nil, nil
+		return nil
 	}
 	header := new(types.MinorBlockHeader)
 	if err := serialize.Deserialize(serialize.NewByteBuffer(data), header); err != nil {
 		log.Error("Invalid block header Deserialize", "hash", hash, "err", err)
-		return nil, nil
+		return nil
 	}
-	data, _ = db.Get(metaKey(number, hash))
+	return header
+}
+
+// ReadHeader retrieves the block header corresponding to the hash.
+func ReadMinorBlockMeta(db DatabaseReader, hash common.Hash, number uint64) *types.MinorBlockMeta {
+	data, _ := db.Get(metaKey(number, hash))
 	if len(data) == 0 {
-		return nil, nil
+		return nil
 	}
 	meta := new(types.MinorBlockMeta)
 	if err := serialize.Deserialize(serialize.NewByteBuffer(data), meta); err != nil {
 		log.Error("Invalid block header Deserialize", "hash", hash, "err", err)
-		return nil, nil
+		return nil
 	}
-	return header, meta
+	return meta
 }
 
 func WriteMinorBlockHeader(db DatabaseWriter, header *types.MinorBlockHeader) {
@@ -408,8 +413,12 @@ func DeleteReceipts(db DatabaseDeleter, hash common.Hash, number uint64) {
 // Note, due to concurrent download of header and block body the header and thus
 // canonical hash can be stored in the database but the body data not (yet).
 func ReadMinorBlock(db DatabaseReader, hash common.Hash, number uint64) *types.MinorBlock {
-	header, meta := ReadMinorBlockHeader(db, hash, number)
+	header := ReadMinorBlockHeader(db, hash, number)
 	if header == nil {
+		return nil
+	}
+	meta := ReadMinorBlockMeta(db, hash, number)
+	if meta == nil {
 		return nil
 	}
 	transactions, trackingData := ReadMinorBlockBody(db, hash, number)
@@ -468,23 +477,23 @@ func DeleteRootBlock(db DatabaseDeleter, hash common.Hash, number uint64) {
 // FindCommonAncestor returns the last common ancestor of two block headers
 func FindCommonAncestor(db DatabaseReader, a, b *types.MinorBlockHeader) *types.MinorBlockHeader {
 	for bn := b.Number; a.Number > bn; {
-		a, _ = ReadMinorBlockHeader(db, a.ParentHash, a.Number-1)
+		a = ReadMinorBlockHeader(db, a.ParentHash, a.Number-1)
 		if a == nil {
 			return nil
 		}
 	}
 	for an := a.Number; an < b.Number; {
-		b, _ = ReadMinorBlockHeader(db, b.ParentHash, b.Number-1)
+		b = ReadMinorBlockHeader(db, b.ParentHash, b.Number-1)
 		if b == nil {
 			return nil
 		}
 	}
 	for a.Hash() != b.Hash() {
-		a, _ = ReadMinorBlockHeader(db, a.ParentHash, a.Number-1)
+		a = ReadMinorBlockHeader(db, a.ParentHash, a.Number-1)
 		if a == nil {
 			return nil
 		}
-		b, _ = ReadMinorBlockHeader(db, b.ParentHash, b.Number-1)
+		b = ReadMinorBlockHeader(db, b.ParentHash, b.Number-1)
 		if b == nil {
 			return nil
 		}

@@ -1,6 +1,7 @@
 package doublesha256
 
 import (
+	"github.com/QuarkChain/goquarkchain/consensus"
 	"math/big"
 	"testing"
 
@@ -10,10 +11,11 @@ import (
 
 func TestVerifySeal(t *testing.T) {
 	assert := assert.New(t)
+	diffCalculator := consensus.EthDifficultyCalculator{7, 512, big.NewInt(100000)}
 
 	header := &types.RootBlockHeader{Number: 1, Difficulty: big.NewInt(10)}
 	rootBlock := types.NewRootBlockWithHeader(header)
-	d := New()
+	d := New(&diffCalculator)
 
 	resultsCh := make(chan types.IBlock)
 	err := d.Seal(nil, rootBlock, resultsCh, nil)

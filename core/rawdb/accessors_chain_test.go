@@ -33,20 +33,19 @@ func TestMinorBlockHeaderStorage(t *testing.T) {
 	// Create a test header to move around the database and make sure it's really new
 	//todo init header and meta
 	header := &types.MinorBlockHeader{Number: uint64(42)}
-	meta := &types.MinorBlockMeta{}
-	if entry, m := ReadMinorBlockHeader(db, header.Hash(), header.Number); entry != nil || m != nil {
+	if entry := ReadMinorBlockHeader(db, header.Hash(), header.Number); entry != nil {
 		t.Fatalf("Non existent header returned: %v", entry)
 	}
 	// Write and verify the header in the database
-	WriteMinorBlockHeader(db, header, meta)
-	if entry, m := ReadMinorBlockHeader(db, header.Hash(), header.Number); entry == nil || m == nil {
+	WriteMinorBlockHeader(db, header)
+	if entry := ReadMinorBlockHeader(db, header.Hash(), header.Number); entry == nil {
 		t.Fatalf("Stored header not found")
 	} else if entry.Hash() != header.Hash() {
 		t.Fatalf("Retrieved header mismatch: have %v, want %v", entry, header)
 	}
 	// Delete the header and verify the execution
 	DeleteMinorBlockHeader(db, header.Hash(), header.Number)
-	if entry, m := ReadMinorBlockHeader(db, header.Hash(), header.Number); entry != nil || m != nil {
+	if entry := ReadMinorBlockHeader(db, header.Hash(), header.Number); entry != nil {
 		t.Fatalf("Deleted header returned: %v", entry)
 	}
 }
@@ -185,7 +184,7 @@ func TestMinorBlockStorage(t *testing.T) {
 	if entry := ReadMinorBlock(db, block.Hash(), block.Number()); entry != nil {
 		t.Fatalf("Non existent block returned: %v", entry)
 	}
-	if entry, _ := ReadMinorBlockHeader(db, block.Hash(), block.Number()); entry != nil {
+	if entry := ReadMinorBlockHeader(db, block.Hash(), block.Number()); entry != nil {
 		t.Fatalf("Non existent header returned: %v", entry)
 	}
 	if entry, _ := ReadMinorBlockBody(db, block.Hash(), block.Number()); entry != nil {
@@ -198,7 +197,7 @@ func TestMinorBlockStorage(t *testing.T) {
 	} else if entry.Hash() != block.Hash() {
 		t.Fatalf("Retrieved block mismatch: have %v, want %v", entry, block)
 	}
-	if entry, _ := ReadMinorBlockHeader(db, block.Hash(), block.Number()); entry == nil {
+	if entry := ReadMinorBlockHeader(db, block.Hash(), block.Number()); entry == nil {
 		t.Fatalf("Stored header not found")
 	} else if entry.Hash() != block.Header().Hash() {
 		t.Fatalf("Retrieved header mismatch: have %v, want %v", entry, block.Header())
@@ -213,7 +212,7 @@ func TestMinorBlockStorage(t *testing.T) {
 	if entry := ReadMinorBlock(db, block.Hash(), block.Number()); entry != nil {
 		t.Fatalf("Deleted block returned: %v", entry)
 	}
-	if entry, _ := ReadMinorBlockHeader(db, block.Hash(), block.Number()); entry != nil {
+	if entry := ReadMinorBlockHeader(db, block.Hash(), block.Number()); entry != nil {
 		t.Fatalf("Deleted header returned: %v", entry)
 	}
 	if entry, _ := ReadMinorBlockBody(db, block.Hash(), block.Number()); entry != nil {
@@ -264,7 +263,7 @@ func TestPartialMinorBlockStorage(t *testing.T) {
 	}, &types.MinorBlockMeta{Root: types.EmptyHash})
 
 	// Store a header and check that it's not recognized as a block
-	WriteMinorBlockHeader(db, block.Header(), block.Meta())
+	WriteMinorBlockHeader(db, block.Header())
 	if entry := ReadMinorBlock(db, block.Hash(), block.Number()); entry != nil {
 		t.Fatalf("Non existent block returned: %v", entry)
 	}
@@ -278,7 +277,8 @@ func TestPartialMinorBlockStorage(t *testing.T) {
 	DeleteBody(db, block.Hash(), block.Number())
 
 	// Store a header and a body separately and check reassembly
-	WriteMinorBlockHeader(db, block.Header(), block.Meta())
+	WriteMinorBlockHeader(db, block.Header())
+	WriteMinorBlockMeta(db, block.Header(), block.Meta())
 	WriteMinorBlockBody(db, block.Hash(), block.Number(), block.Transactions(), block.TrackingData())
 
 	if entry := ReadMinorBlock(db, block.Hash(), block.Number()); entry == nil {

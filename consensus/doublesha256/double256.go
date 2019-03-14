@@ -22,7 +22,8 @@ var (
 // https://github.com/ethereum/go-ethereum/blob/9e9fc87e70accf2b81be8772ab2ab0c914e95666/consensus/consensus.go#L111
 // Implements consensus.Pow
 type DoubleSHA256 struct {
-	commonEngine *consensus.CommonEngine
+	commonEngine   *consensus.CommonEngine
+	diffCalculator consensus.IDifficultyCalculator
 }
 
 // Author returns coinbase address.
@@ -60,7 +61,7 @@ func (d *DoubleSHA256) VerifySeal(chain consensus.ChainReader, header types.IHea
 
 // Prepare initializes the consensus fields of a block header according to the
 // rules of a particular engine. The changes are executed inline.
-func (d *DoubleSHA256) Prepare(chain consensus.ChainReader, header *types.IHeader) error {
+func (d *DoubleSHA256) Prepare(chain consensus.ChainReader, header types.IHeader) error {
 	panic("not implemented")
 }
 
@@ -78,7 +79,11 @@ func (d *DoubleSHA256) Seal(
 // CalcDifficulty is the difficulty adjustment algorithm. It returns the difficulty
 // that a new block should have.
 func (d *DoubleSHA256) CalcDifficulty(chain consensus.ChainReader, time uint64, parent types.IHeader) *big.Int {
-	panic("not implemented")
+	if d.diffCalculator == nil {
+		panic("diffCalculator is not existed")
+	}
+
+	return d.diffCalculator.CalculateDifficulty(parent, time)
 }
 
 // APIs returns the RPC APIs this consensus engine provides.
@@ -126,12 +131,13 @@ func hashAlgo(hash []byte, nonce uint64) (consensus.MiningResult, error) {
 }
 
 // New returns a DoubleSHA256 scheme.
-func New() *DoubleSHA256 {
+func New(diffCalculator consensus.IDifficultyCalculator) *DoubleSHA256 {
 	spec := consensus.MiningSpec{
 		Name:     "DoubleSHA256",
 		HashAlgo: hashAlgo,
 	}
 	return &DoubleSHA256{
-		commonEngine: consensus.NewCommonEngine(spec),
+		commonEngine:   consensus.NewCommonEngine(spec),
+		diffCalculator: diffCalculator,
 	}
 }

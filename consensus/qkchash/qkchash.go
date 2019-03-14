@@ -16,7 +16,8 @@ import (
 // https://github.com/ethereum/go-ethereum/blob/9e9fc87e70accf2b81be8772ab2ab0c914e95666/consensus/consensus.go#L111
 // Implements consensus.Pow
 type QKCHash struct {
-	commonEngine *consensus.CommonEngine
+	commonEngine   *consensus.CommonEngine
+	diffCalculator consensus.IDifficultyCalculator
 	// TODO: in the future cache may depend on block height
 	cache qkcCache
 	// A flag indicating which impl (c++ native or go) to use
@@ -43,14 +44,18 @@ func (q *QKCHash) VerifyHeaders(chain consensus.ChainReader, headers []types.IHe
 
 // Prepare initializes the consensus fields of a block header according to the
 // rules of a particular engine. The changes are executed inline.
-func (q *QKCHash) Prepare(chain consensus.ChainReader, header *types.IHeader) error {
+func (q *QKCHash) Prepare(chain consensus.ChainReader, header types.IHeader) error {
 	panic("not implemented")
 }
 
 // CalcDifficulty is the difficulty adjustment algorithm. It returns the difficulty
 // that a new block should have.
 func (q *QKCHash) CalcDifficulty(chain consensus.ChainReader, time uint64, parent types.IHeader) *big.Int {
-	return big.NewInt(3)
+	if q.diffCalculator == nil {
+		panic("diffCalculator is not existed")
+	}
+
+	return q.diffCalculator.CalculateDifficulty(parent, time)
 }
 
 // APIs returns the RPC APIs this consensus engine provides.
@@ -100,9 +105,10 @@ func (q *QKCHash) hashAlgo(hash []byte, nonce uint64) (res consensus.MiningResul
 }
 
 // New returns a QKCHash scheme.
-func New(useNative bool) *QKCHash {
+func New(useNative bool, diffCalculator consensus.IDifficultyCalculator) *QKCHash {
 	q := &QKCHash{
-		useNative: useNative,
+		diffCalculator: diffCalculator,
+		useNative:      useNative,
 		// TOOD: cache may depend on block, so a LRU-stype cache could be helpful
 		cache: generateCache(cacheEntryCnt, cacheSeed, useNative),
 	}

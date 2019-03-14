@@ -388,6 +388,9 @@ func (b *MinorBlock) ValidateBlock() error {
 	if txHash := DeriveSha(b.transactions); txHash != b.meta.TxHash {
 		return errors.New("incorrect merkle root")
 	}
+	if b.GasUsed().Cmp(b.GasLimit()) > 0 {
+		return errors.New("gasused larger than gaslimit")
+	}
 
 	return nil
 }

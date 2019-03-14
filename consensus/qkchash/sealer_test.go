@@ -1,6 +1,7 @@
 package qkchash
 
 import (
+	"github.com/QuarkChain/goquarkchain/consensus"
 	"math/big"
 	"testing"
 
@@ -10,10 +11,11 @@ import (
 
 func TestSealAndVerifySeal(t *testing.T) {
 	assert := assert.New(t)
+	diffCalculator := consensus.EthDifficultyCalculator{7, 512, big.NewInt(100000)}
 
 	header := &types.RootBlockHeader{Number: 1, Difficulty: big.NewInt(10)}
 	for _, qkcHashNativeFlag := range []bool{true, false} {
-		q := New(qkcHashNativeFlag)
+		q := New(qkcHashNativeFlag, &diffCalculator)
 		rootBlock := types.NewRootBlockWithHeader(header)
 		resultsCh := make(chan types.IBlock)
 		err := q.Seal(nil, rootBlock, resultsCh, nil)

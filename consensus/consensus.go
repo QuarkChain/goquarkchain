@@ -15,7 +15,6 @@ import (
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/ethereum/go-ethereum/params"
@@ -25,6 +24,21 @@ import (
 var (
 	// two256 is a big integer representing 2^256
 	two256 = new(big.Int).Exp(big.NewInt(2), big.NewInt(256), big.NewInt(0))
+	// ErrUnknownAncestor is returned when validating a block requires an ancestor
+	// that is unknown.
+	ErrUnknownAncestor = errors.New("unknown ancestor")
+
+	// ErrPrunedAncestor is returned when validating a block requires an ancestor
+	// that is known, but the state of which is not available.
+	ErrPrunedAncestor = errors.New("pruned ancestor")
+
+	// ErrFutureBlock is returned when a block's timestamp is in the future according
+	// to the current node.
+	ErrFutureBlock = errors.New("block in the future")
+
+	// ErrInvalidNumber is returned if a block's number doesn't equal it's parent's
+	// plus one.
+	ErrInvalidNumber = errors.New("invalid block number")
 )
 
 // Various error messages to mark blocks invalid. These should be private to
@@ -103,7 +117,7 @@ type Engine interface {
 
 	// Prepare initializes the consensus fields of a block header according to the
 	// rules of a particular engine. The changes are executed inline.
-	Prepare(chain ChainReader, header *types.IHeader) error
+	Prepare(chain ChainReader, header types.IHeader) error
 
 	// Seal generates a new sealing request for the given input block and pushes
 	// the result into the given channel.
@@ -164,7 +178,7 @@ func (c *CommonEngine) VerifyHeader(
 	}
 	parent := chain.GetHeader(header.GetParentHash(), number-1)
 	if parent == nil {
-		return consensus.ErrUnknownAncestor
+		return ErrUnknownAncestor
 	}
 
 	if uint64(len(header.GetExtra())) > params.MaximumExtraDataSize {
@@ -180,12 +194,8 @@ func (c *CommonEngine) VerifyHeader(
 		return fmt.Errorf("invalid difficulty: have %v, want %v", header.GetDifficulty(), expectedDiff)
 	}
 
-	// TODO: validate gas limit
-
-	// TODO: verify gas limit is within allowed bounds
-
 	if header.NumberU64()-parent.NumberU64() != 1 {
-		return consensus.ErrInvalidNumber
+		return ErrInvalidNumber
 	}
 
 	if err := cengine.VerifySeal(chain, header); err != nil {
