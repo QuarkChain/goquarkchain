@@ -1,19 +1,4 @@
-// Copyright 2018 The go-ethereum Authors
-// This file is part of the go-ethereum library.
-//
-// The go-ethereum library is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Lesser General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// The go-ethereum library is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Lesser General Public License for more details.
-//
-// You should have received a copy of the GNU Lesser General Public License
-// along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
-
+// Modified from go-ethereum under GNU Lesser General Public License
 package rawdb
 
 import (
@@ -27,13 +12,13 @@ import (
 )
 
 type minorBlockBody struct {
-	Transactions types.Transactions
-	Trackingdata serialize.LimitedSizeByteSlice2
+	Transactions types.Transactions `bytesize:"4"`
+	Trackingdata []byte             `bytesize:"2"`
 }
 
 type rootBlockBody struct {
-	MinorBlockHeaders types.MinorBlockHeaders
-	Trackingdata      serialize.LimitedSizeByteSlice2
+	MinorBlockHeaders types.MinorBlockHeaders `bytesize:"4"`
+	Trackingdata      []byte                  `bytesize:"2"`
 }
 
 // ReadCanonicalHash retrieves the hash assigned to a canonical block number.
@@ -166,7 +151,7 @@ func ReadMinorBlockHeader(db DatabaseReader, hash common.Hash, number uint64) (*
 	return header, meta
 }
 
-func WriteMinorBlockHeader(db DatabaseWriter, header *types.MinorBlockHeader, meta *types.MinorBlockMeta) {
+func WriteMinorBlockHeader(db DatabaseWriter, header *types.MinorBlockHeader) {
 	// Write the hash -> number mapping
 	var (
 		hash    = header.Hash()
@@ -186,12 +171,20 @@ func WriteMinorBlockHeader(db DatabaseWriter, header *types.MinorBlockHeader, me
 	if err := db.Put(key, data); err != nil {
 		log.Crit("Failed to store header", "err", err)
 	}
+}
+
+func WriteMinorBlockMeta(db DatabaseWriter, header *types.MinorBlockHeader, meta *types.MinorBlockMeta) {
+	// Write the hash -> number mapping
+	var (
+		hash   = header.Hash()
+		number = header.Number
+	)
 	// Write the encoded meta
-	data, err = serialize.SerializeToBytes(meta)
+	data, err := serialize.SerializeToBytes(meta)
 	if err != nil {
 		log.Crit("Failed to Serialize header", "err", err)
 	}
-	key = metaKey(number, hash)
+	key := metaKey(number, hash)
 	if err := db.Put(key, data); err != nil {
 		log.Crit("Failed to store header", "err", err)
 	}
@@ -267,7 +260,7 @@ func HasBody(db DatabaseReader, hash common.Hash, number uint64) bool {
 }
 
 // ReadBody retrieves the block body corresponding to the hash.
-func ReadMinorBlockBody(db DatabaseReader, hash common.Hash, number uint64) (types.Transactions, serialize.LimitedSizeByteSlice2) {
+func ReadMinorBlockBody(db DatabaseReader, hash common.Hash, number uint64) (types.Transactions, []byte) {
 	data, _ := db.Get(blockBodyKey(number, hash))
 	if len(data) == 0 {
 		return nil, nil
@@ -281,7 +274,7 @@ func ReadMinorBlockBody(db DatabaseReader, hash common.Hash, number uint64) (typ
 }
 
 // WriteBody storea a block body into the database.
-func WriteMinorBlockBody(db DatabaseWriter, hash common.Hash, number uint64, transactions types.Transactions, trackingData serialize.LimitedSizeByteSlice2) {
+func WriteMinorBlockBody(db DatabaseWriter, hash common.Hash, number uint64, transactions types.Transactions, trackingData []byte) {
 	data, err := serialize.SerializeToBytes(minorBlockBody{Transactions: transactions, Trackingdata: trackingData})
 	if err != nil {
 		log.Crit("Failed to serialize body", "err", err)
@@ -292,7 +285,7 @@ func WriteMinorBlockBody(db DatabaseWriter, hash common.Hash, number uint64, tra
 }
 
 // ReadRootBlockBody retrieves the block rootBlockBody corresponding to the hash.
-func ReadRootBlockBody(db DatabaseReader, hash common.Hash, number uint64) (types.MinorBlockHeaders, serialize.LimitedSizeByteSlice2) {
+func ReadRootBlockBody(db DatabaseReader, hash common.Hash, number uint64) (types.MinorBlockHeaders, []byte) {
 	data, _ := db.Get(blockBodyKey(number, hash))
 	if len(data) == 0 {
 		return nil, nil
@@ -306,7 +299,7 @@ func ReadRootBlockBody(db DatabaseReader, hash common.Hash, number uint64) (type
 }
 
 // WriteRootBlockBody storea a block rootBlockBody into the database.
-func WriteRootBlockBody(db DatabaseWriter, hash common.Hash, number uint64, minorHeaders types.MinorBlockHeaders, trackingData serialize.LimitedSizeByteSlice2) {
+func WriteRootBlockBody(db DatabaseWriter, hash common.Hash, number uint64, minorHeaders types.MinorBlockHeaders, trackingData []byte) {
 	data, err := serialize.SerializeToBytes(rootBlockBody{MinorBlockHeaders: minorHeaders, Trackingdata: trackingData})
 	if err != nil {
 		log.Crit("Failed to serialize rootBlockBody", "err", err)
@@ -429,7 +422,8 @@ func ReadMinorBlock(db DatabaseReader, hash common.Hash, number uint64) *types.M
 // WriteBlock serializes a block into the database, header and body separately.
 func WriteMinorBlock(db DatabaseWriter, block *types.MinorBlock) {
 	WriteMinorBlockBody(db, block.Hash(), block.Number(), block.Transactions(), block.TrackingData())
-	WriteMinorBlockHeader(db, block.Header(), block.Meta())
+	WriteMinorBlockHeader(db, block.Header())
+	WriteMinorBlockMeta(db, block.Header(), block.Meta())
 }
 
 // DeleteBlock removes all block data associated with a hash.

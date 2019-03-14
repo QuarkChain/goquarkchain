@@ -75,7 +75,7 @@ type rootBlockHeaderForSealHash struct {
 	Time            uint64
 	Difficulty      *big.Int
 	Nonce           uint64
-	Extra           *serialize.LimitedSizeByteSlice2
+	Extra           []byte `bytesizeofslicelen:"2"`
 	MixDigest       common.Hash
 }
 
@@ -122,7 +122,7 @@ func (h *RootBlockHeader) GetDifficulty() *big.Int      { return new(big.Int).Se
 func (h *RootBlockHeader) GetNonce() uint64             { return h.Nonce }
 func (h *RootBlockHeader) GetExtra() []byte {
 	if h.Extra != nil {
-		return common.CopyBytes(*h.Extra)
+		return common.CopyBytes(h.Extra)
 	}
 	return make([]byte, 0, 0)
 }
@@ -139,7 +139,7 @@ func (h *RootBlockHeader) ValidateHeader() error {
 }
 
 func (h *RootBlockHeader) SetExtra(data []byte) {
-	copy(*h.Extra, data)
+	copy(h.Extra, data)
 }
 
 func (h *RootBlockHeader) SetDifficulty(difficulty *big.Int) {

@@ -64,7 +64,7 @@ type minorBlockHeaderForSealHash struct {
 	Time              uint64
 	Difficulty        *big.Int
 	Bloom             Bloom
-	Extra             *serialize.LimitedSizeByteSlice2
+	Extra             []byte `bytesizeofslicelen:"2"`
 }
 
 // SealHash returns the block hash of the header, which is keccak256 hash of its
@@ -103,7 +103,7 @@ func (h *MinorBlockHeader) GetDifficulty() *big.Int      { return new(big.Int).S
 func (h *MinorBlockHeader) GetNonce() uint64             { return h.Nonce }
 func (h *MinorBlockHeader) GetExtra() []byte {
 	if h.Extra != nil {
-		return common.CopyBytes(*h.Extra)
+		return common.CopyBytes(h.Extra)
 	}
 	return make([]byte, 0, 0)
 }
@@ -119,7 +119,7 @@ func (h *MinorBlockHeader) ValidateHeader() error {
 }
 
 func (h *MinorBlockHeader) SetExtra(data []byte) {
-	copy(*h.Extra, data)
+	copy(h.Extra, data)
 }
 
 func (h *MinorBlockHeader) SetDifficulty(difficulty *big.Int) {
@@ -149,6 +149,23 @@ func (s MinorBlockHeaders) Bytes(i int) []byte {
 	return enc
 }
 
+// TxDifference returns a new set which is the difference between a and b.
+func MinorHeaderDifference(a, b MinorBlockHeaders) MinorBlockHeaders {
+	keep := make(MinorBlockHeaders, 0, len(a))
+
+	remove := make(map[common.Hash]struct{})
+	for _, header := range b {
+		remove[header.Hash()] = struct{}{}
+	}
+
+	for _, header := range a {
+		if _, ok := remove[header.Hash()]; !ok {
+			keep = append(keep, header)
+		}
+	}
+
+	return keep
+}
 
 // MinorBlock represents an entire block in the Ethereum blockchain.
 type MinorBlock struct {
