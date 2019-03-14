@@ -1,18 +1,4 @@
-// Copyright 2018 The go-ethereum Authors
-// This file is part of the go-ethereum library.
-//
-// The go-ethereum library is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Lesser General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// The go-ethereum library is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Lesser General Public License for more details.
-//
-// You should have received a copy of the GNU Lesser General Public License
-// along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
+// Modified from go-ethereum under GNU Lesser General Public License
 
 package rawdb
 
@@ -20,7 +6,6 @@ import (
 	"bytes"
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/core/types"
-	"github.com/QuarkChain/goquarkchain/serialize"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/rlp"
@@ -29,7 +14,7 @@ import (
 )
 
 var (
-	limitedSizeByes = serialize.LimitedSizeByteSlice2{'\x01', '\x02', '\x03'}
+	limitedSizeByes = []byte{'\x01', '\x02', '\x03'}
 	tx1             = types.Transaction{TxType: types.EvmTx, EvmTx: types.NewEvmTransaction(1, account.BytesToIdentityRecipient([]byte{0x11}), big.NewInt(111), 1111, big.NewInt(11111), 0, 1, 1, 0, []byte{0x11, 0x11, 0x11})}
 	tx2             = types.Transaction{TxType: types.EvmTx, EvmTx: types.NewEvmTransaction(2, account.BytesToIdentityRecipient([]byte{0x22}), big.NewInt(222), 2222, big.NewInt(22222), 0, 1, 1, 0, []byte{0x22, 0x22, 0x22})}
 	tx3             = types.Transaction{TxType: types.EvmTx, EvmTx: types.NewEvmTransaction(3, account.BytesToIdentityRecipient([]byte{0x33}), big.NewInt(333), 3333, big.NewInt(33333), 0, 1, 1, 0, []byte{0x33, 0x33, 0x33})}
@@ -143,7 +128,7 @@ func TestRootBlockStorage(t *testing.T) {
 
 	// Create a test block to move around the database and make sure it's really new
 	block := types.NewRootBlockWithHeader(&types.RootBlockHeader{
-		Extra:           &limitedSizeByes,
+		Extra:           limitedSizeByes,
 		ParentHash:      types.EmptyHash,
 		MinorHeaderHash: types.EmptyHash,
 	}).WithBody(headers, limitedSizeByes)
@@ -193,7 +178,7 @@ func TestMinorBlockStorage(t *testing.T) {
 
 	// Create a test block to move around the database and make sure it's really new
 	block := types.NewMinorBlockWithHeader(&types.MinorBlockHeader{
-		Extra:      &limitedSizeByes,
+		Extra:      limitedSizeByes,
 		ParentHash: types.EmptyHash,
 	}, &types.MinorBlockMeta{}).WithBody(txs, limitedSizeByes)
 
@@ -240,7 +225,7 @@ func TestMinorBlockStorage(t *testing.T) {
 func TestPartialRootBlockStorage(t *testing.T) {
 	db := ethdb.NewMemDatabase()
 	block := types.NewRootBlockWithHeader(&types.RootBlockHeader{
-		Extra:           &limitedSizeByes,
+		Extra:           limitedSizeByes,
 		MinorHeaderHash: types.EmptyHash,
 		ParentHash:      types.EmptyHash,
 	})
@@ -273,7 +258,7 @@ func TestPartialRootBlockStorage(t *testing.T) {
 func TestPartialMinorBlockStorage(t *testing.T) {
 	db := ethdb.NewMemDatabase()
 	block := types.NewMinorBlockWithHeader(&types.MinorBlockHeader{
-		Extra:      &limitedSizeByes,
+		Extra:      limitedSizeByes,
 		MetaHash:   types.EmptyHash,
 		ParentHash: types.EmptyHash,
 	}, &types.MinorBlockMeta{Root: types.EmptyHash})
