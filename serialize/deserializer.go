@@ -30,7 +30,7 @@ func DeserializeWithTags(bb *ByteBuffer, val interface{}, ts Tags) error {
 		return errDeserializeIntoNil
 	}
 
-	info, err := cachedTypeInfo(rtyp.Elem(), ts)
+	info, err := cachedTypeInfo(rtyp.Elem())
 	if err != nil {
 		return err
 	}
@@ -178,7 +178,7 @@ func deserializeByteSlice(bb *ByteBuffer, val reflect.Value, ts Tags) error {
 }
 
 func deserializeList(bb *ByteBuffer, val reflect.Value, ts Tags) error {
-	typeinfo, err := cachedTypeInfo1(val.Type().Elem(), ts)
+	typeinfo, err := cachedTypeInfo(val.Type().Elem())
 	if err != nil {
 		return err
 	}
@@ -234,7 +234,7 @@ func deserializeString(bb *ByteBuffer, val reflect.Value, ts Tags) error {
 
 func deserializePtr(bb *ByteBuffer, val reflect.Value, ts Tags) error {
 	typ := val.Type()
-	typeinfo, err := cachedTypeInfo1(typ.Elem(), Tags{})
+	typeinfo, err := cachedTypeInfo(typ.Elem())
 	if err != nil {
 		return err
 	}
