@@ -26,9 +26,12 @@ func (q *QKCHash) Seal(
 
 // VerifySeal checks whether the crypto seal on a header is valid according to
 // the consensus rules of the given engine.
-func (q *QKCHash) VerifySeal(chain consensus.ChainReader, header types.IHeader) error {
+func (q *QKCHash) VerifySeal(chain consensus.ChainReader, header types.IHeader, adjustedDiff *big.Int) error {
 	if header.GetDifficulty().Sign() <= 0 {
 		return consensus.ErrInvalidDifficulty
+	}
+	if adjustedDiff.Cmp(new(big.Int).SetUint64(0)) == 0 {
+		adjustedDiff = header.GetDifficulty()
 	}
 
 	miningRes, err := q.hashAlgo(header.SealHash().Bytes(), header.GetNonce())
@@ -38,7 +41,7 @@ func (q *QKCHash) VerifySeal(chain consensus.ChainReader, header types.IHeader) 
 	if !bytes.Equal(header.GetMixDigest().Bytes(), miningRes.Digest.Bytes()) {
 		return consensus.ErrInvalidMixDigest
 	}
-	target := new(big.Int).Div(two256, header.GetDifficulty())
+	target := new(big.Int).Div(two256, adjustedDiff)
 	if new(big.Int).SetBytes(miningRes.Result).Cmp(target) > 0 {
 		return consensus.ErrInvalidPoW
 	}

@@ -47,7 +47,7 @@ func (e *FackEngine) VerifyHeaders(chain ChainReader, headers []types.IHeader, s
 
 // VerifySeal checks whether the crypto seal on a header is valid according to
 // the consensus rules of the given engine.
-func (e *FackEngine) VerifySeal(chain ChainReader, header types.IHeader) error {
+func (e *FackEngine) VerifySeal(chain ChainReader, header types.IHeader, adjustedDiff *big.Int) error {
 	if header.NumberU64() == e.NumberToFail {
 		return e.Err
 	}

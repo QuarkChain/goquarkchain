@@ -46,12 +46,15 @@ func (d *DoubleSHA256) VerifyHeaders(chain consensus.ChainReader, headers []type
 
 // VerifySeal checks whether the crypto seal on a header is valid according to
 // the consensus rules of the given engine.
-func (d *DoubleSHA256) VerifySeal(chain consensus.ChainReader, header types.IHeader) error {
+func (d *DoubleSHA256) VerifySeal(chain consensus.ChainReader, header types.IHeader, adjustedDiff *big.Int) error {
 	if header.GetDifficulty().Sign() <= 0 {
 		return consensus.ErrInvalidDifficulty
 	}
+	if adjustedDiff.Cmp(new(big.Int).SetUint64(0)) == 0 {
+		adjustedDiff = header.GetDifficulty()
+	}
 
-	target := new(big.Int).Div(two256, header.GetDifficulty())
+	target := new(big.Int).Div(two256, adjustedDiff)
 	miningRes, _ := hashAlgo(header.SealHash().Bytes(), header.GetNonce())
 	if new(big.Int).SetBytes(miningRes.Result).Cmp(target) > 0 {
 		return consensus.ErrInvalidPoW
