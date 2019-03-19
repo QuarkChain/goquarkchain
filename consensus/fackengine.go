@@ -15,8 +15,8 @@ type FackEngine struct {
 // Author retrieves the Ethereum address of the account that minted the given
 // block, which may be different from the header's coinbase if a consensus
 // engine is based on signatures.
-func (e *FackEngine) Author(header types.IHeader) (recipient account.Recipient, err error) {
-	return header.GetCoinbase().Recipient, nil
+func (e *FackEngine) Author(header types.IHeader) (account.Address, error) {
+	return header.GetCoinbase(), nil
 }
 
 // VerifyHeader checks whether a header conforms to the consensus rules of a
