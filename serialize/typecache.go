@@ -44,12 +44,13 @@ func cachedTypeInfo(typ reflect.Type) (*typeinfo, error) {
 
 	typeCacheMutex.Lock()
 	defer typeCacheMutex.Unlock()
+
 	info, err := genTypeInfo(typ)
 	if err != nil {
 		return nil, err
 	}
 
-	*typeCache[typ] = *info
+	typeCache[typ] = info
 	return typeCache[typ], err
 }
 
