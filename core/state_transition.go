@@ -248,16 +248,8 @@ func (st *StateTransition) TransitionDb(feeRate float32) (ret []byte, usedGas ui
 	fee := new(big.Int).Mul(new(big.Int).SetUint64(finalGasUsed), st.gasPrice)
 	rateFee := fee //TODO *feeRate
 
-	//对应于 https://github.com/QuarkChain/pyquarkchain/blob/v2.3.3/quarkchain/evm/messages.py line 248 and 267
-	if vmerr == nil {
-		//合法的交易，evm执行成功
-		st.state.AddBalance(st.evm.Coinbase, rateFee)
-		st.state.AddBlockFee(rateFee.Uint64())
-	} else {
-		//合法的交易,evm执行失败
-		st.state.AddBalance(st.evm.Coinbase, rateFee)
-		st.state.AddBlockFee(fee.Uint64())
-	}
+	st.state.AddBalance(st.evm.Coinbase, rateFee)
+	st.state.AddBlockFee(rateFee.Uint64())
 
 	return ret, st.gasUsed(), vmerr != nil, err
 }
