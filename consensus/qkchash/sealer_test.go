@@ -25,12 +25,12 @@ func TestSealAndVerifySeal(t *testing.T) {
 		// Correct
 		header.Nonce = block.IHeader().GetNonce()
 		header.MixDigest = block.IHeader().GetMixDigest()
-		err = q.VerifySeal(nil, header)
+		err = q.VerifySeal(nil, header, big.NewInt(0))
 		assert.NoError(err, "should have correct nonce / mix digest")
 
 		// Wrong
 		header.Nonce = block.IHeader().GetNonce() - 1
-		err = q.VerifySeal(nil, header)
+		err = q.VerifySeal(nil, header, big.NewInt(0))
 		assert.Error(err, "should have error because of the wrong nonce")
 	}
 }

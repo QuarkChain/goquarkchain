@@ -4,9 +4,12 @@ import (
 	crand "crypto/rand"
 	"errors"
 	"fmt"
+	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/params"
 	"math"
 	"math/big"
 	"math/rand"
+	"reflect"
 	"runtime"
 	"strings"
 	"sync"
@@ -17,7 +20,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/metrics"
-	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rpc"
 )
 
@@ -181,7 +183,7 @@ func (c *CommonEngine) VerifyHeader(
 		return ErrUnknownAncestor
 	}
 
-	if uint64(len(header.GetExtra())) > params.MaximumExtraDataSize {
+	if uint32(len(header.GetExtra())) > chain.Config().BlockExtraDataSizeLimit {
 		return fmt.Errorf("extra-data too long: %d > %d", len(header.GetExtra()), params.MaximumExtraDataSize)
 	}
 
@@ -189,16 +191,20 @@ func (c *CommonEngine) VerifyHeader(
 		return errors.New("timestamp equals parent's")
 	}
 
-	expectedDiff := cengine.CalcDifficulty(chain, header.GetTime(), parent)
-	if expectedDiff.Cmp(header.GetDifficulty()) != 0 {
-		return fmt.Errorf("invalid difficulty: have %v, want %v", header.GetDifficulty(), expectedDiff)
+	adjustedDiff := new(big.Int).SetUint64(0)
+	if !chain.Config().SkipRootDifficultyCheck {
+		expectedDiff := cengine.CalcDifficulty(chain, header.GetTime(), parent)
+		if expectedDiff.Cmp(header.GetDifficulty()) != 0 {
+			return fmt.Errorf("invalid difficulty: have %v, want %v", header.GetDifficulty(), expectedDiff)
+		}
+		if reflect.TypeOf(header) == reflect.TypeOf(new(types.RootBlockHeader)) {
+			rootHeader := header.(*types.RootBlockHeader)
+			if crypto.VerifySignature(common.Hex2Bytes(chain.Config().GuardianPublicKey), rootHeader.Hash().Bytes(), rootHeader.Signature[:]) {
+				adjustedDiff = expectedDiff.Div(expectedDiff, new(big.Int).SetUint64(1000))
+			}
+		}
 	}
-
-	if header.NumberU64()-parent.NumberU64() != 1 {
-		return ErrInvalidNumber
-	}
-
-	if err := cengine.VerifySeal(chain, header); err != nil {
+	if err := cengine.VerifySeal(chain, header, adjustedDiff); err != nil {
 		return err
 	}
 

@@ -9,9 +9,9 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 )
 
-// ReadLookupEntry retrieves the positional metadata associated with a transaction
+// ReadBlockContentLookupEntry retrieves the positional metadata associated with a transaction
 // hash to allow retrieving the transaction or receipt by hash.
-func ReadLookupEntry(db DatabaseReader, hash common.Hash) (common.Hash, uint64, uint64) {
+func ReadBlockContentLookupEntry(db DatabaseReader, hash common.Hash) (common.Hash, uint64, uint64) {
 	data, _ := db.Get(lookupKey(hash))
 	if len(data) == 0 {
 		return common.Hash{}, 0, 0
@@ -24,10 +24,10 @@ func ReadLookupEntry(db DatabaseReader, hash common.Hash) (common.Hash, uint64, 
 	return entry.BlockHash, entry.BlockIndex, entry.Index
 }
 
-// WriteLookupEntries stores a positional metadata for every transaction from
+// WriteBlockContentLookupEntries stores a positional metadata for every transaction from
 // a block, enabling hash based transaction and receipt lookups.
-func WriteLookupEntries(db DatabaseWriter, block types.IBlock) {
-	for i, item := range block.HashItems() {
+func WriteBlockContentLookupEntries(db DatabaseWriter, block types.IBlock) {
+	for i, item := range block.Content() {
 		entry := LookupEntry{
 			BlockHash:  block.Hash(),
 			BlockIndex: block.NumberU64(),
@@ -43,15 +43,15 @@ func WriteLookupEntries(db DatabaseWriter, block types.IBlock) {
 	}
 }
 
-// DeleteLookupEntry removes all transaction data associated with a hash.
-func DeleteLookupEntry(db DatabaseDeleter, hash common.Hash) {
+// DeleteBlockContentLookupEntry removes all transaction data associated with a hash.
+func DeleteBlockContentLookupEntry(db DatabaseDeleter, hash common.Hash) {
 	db.Delete(lookupKey(hash))
 }
 
 // ReadMinorHeader retrieves a specific MinorHeader from the database, along with
 // its added positional metadata.
 func ReadMinorHeader(db DatabaseReader, hash common.Hash) (*types.MinorBlockHeader, common.Hash, uint64, uint64) {
-	blockHash, blockNumber, headerIndex := ReadLookupEntry(db, hash)
+	blockHash, blockNumber, headerIndex := ReadBlockContentLookupEntry(db, hash)
 	if blockHash == (common.Hash{}) {
 		return nil, common.Hash{}, 0, 0
 	}
@@ -66,7 +66,7 @@ func ReadMinorHeader(db DatabaseReader, hash common.Hash) (*types.MinorBlockHead
 // ReadTransaction retrieves a specific transaction from the database, along with
 // its added positional metadata.
 func ReadTransaction(db DatabaseReader, hash common.Hash) (*types.Transaction, common.Hash, uint64, uint64) {
-	blockHash, blockNumber, txIndex := ReadLookupEntry(db, hash)
+	blockHash, blockNumber, txIndex := ReadBlockContentLookupEntry(db, hash)
 	if blockHash == (common.Hash{}) {
 		return nil, common.Hash{}, 0, 0
 	}
@@ -81,7 +81,7 @@ func ReadTransaction(db DatabaseReader, hash common.Hash) (*types.Transaction, c
 // ReadReceipt retrieves a specific transaction receipt from the database, along with
 // its added positional metadata.
 func ReadReceipt(db DatabaseReader, hash common.Hash) (*types.Receipt, common.Hash, uint64, uint64) {
-	blockHash, blockNumber, receiptIndex := ReadLookupEntry(db, hash)
+	blockHash, blockNumber, receiptIndex := ReadBlockContentLookupEntry(db, hash)
 	if blockHash == (common.Hash{}) {
 		return nil, common.Hash{}, 0, 0
 	}

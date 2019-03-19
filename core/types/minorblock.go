@@ -42,51 +42,20 @@ type MinorBlockMeta struct {
 }
 
 func (m *MinorBlockMeta) Hash() common.Hash {
-	return serHash(m)
+	return serHash(*m, map[string]bool{})
 }
 
 // Hash returns the block hash of the header, which is simply the keccak256 hash of its
 // Serialize encoding.
 func (h *MinorBlockHeader) Hash() common.Hash {
-	return serHash(h)
-}
-
-type minorBlockHeaderForSealHash struct {
-	Version           uint32
-	Branch            account.Branch
-	Number            uint64
-	Coinbase          account.Address
-	CoinbaseAmount    *serialize.Uint256
-	ParentHash        common.Hash
-	PrevRootBlockHash common.Hash
-	GasLimit          *serialize.Uint256
-	MetaHash          common.Hash
-	Time              uint64
-	Difficulty        *big.Int
-	Bloom             Bloom
-	Extra             []byte `bytesizeofslicelen:"2"`
+	return serHash(*h, map[string]bool{})
 }
 
 // SealHash returns the block hash of the header, which is keccak256 hash of its
 // Serialize encoding for Seal.
 func (h *MinorBlockHeader) SealHash() common.Hash {
-	header := minorBlockHeaderForSealHash{
-		Version:           h.Version,
-		Branch:            h.Branch,
-		Number:            h.Number,
-		Coinbase:          h.Coinbase,
-		CoinbaseAmount:    h.CoinbaseAmount,
-		ParentHash:        h.ParentHash,
-		PrevRootBlockHash: h.PrevRootBlockHash,
-		GasLimit:          h.GasLimit,
-		MetaHash:          h.MetaHash,
-		Time:              h.Time,
-		Difficulty:        h.Difficulty,
-		Bloom:             h.Bloom,
-		Extra:             h.Extra,
-	}
-
-	return serHash(header)
+	excludeList := map[string]bool{"MixDigest": true, "Nonce": true}
+	return serHash(*h, excludeList)
 }
 
 // Size returns the approximate memory used by all internal contents. It is used
@@ -388,9 +357,6 @@ func (b *MinorBlock) ValidateBlock() error {
 	if txHash := DeriveSha(b.transactions); txHash != b.meta.TxHash {
 		return errors.New("incorrect merkle root")
 	}
-	if b.GasUsed().Cmp(b.GasLimit()) > 0 {
-		return errors.New("gasused larger than gaslimit")
-	}
 
 	return nil
 }
@@ -412,8 +378,8 @@ func (b *MinorBlock) WithMingResult(nonce uint64, mixDigest common.Hash) IBlock 
 	return b.WithSeal(cpy)
 }
 
-func (b *MinorBlock) HashItems() []IHashItem {
-	items := make([]IHashItem, len(b.transactions), len(b.transactions))
+func (b *MinorBlock) Content() []IHashable {
+	items := make([]IHashable, len(b.transactions), len(b.transactions))
 	for i, item := range b.transactions {
 		items[i] = item
 	}

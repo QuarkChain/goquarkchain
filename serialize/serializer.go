@@ -14,7 +14,7 @@ func Serialize(w *[]byte, val interface{}) error {
 
 func SerializeWithTags(w *[]byte, val interface{}, ts Tags) error {
 	rval := reflect.ValueOf(val)
-	ti, err := cachedTypeInfo(rval.Type(), ts)
+	ti, err := cachedTypeInfo(rval.Type())
 	if err != nil {
 		return err
 	}
@@ -207,7 +207,7 @@ func serializeByteSlice(val reflect.Value, w *[]byte, ts Tags) error {
 
 //PrependedSizeListSerializer
 func serializeList(val reflect.Value, w *[]byte, ts Tags) error {
-	typeinfo, err := cachedTypeInfo1(val.Type().Elem(), ts)
+	typeinfo, err := cachedTypeInfo(val.Type().Elem())
 	if err != nil {
 		return err
 	}
@@ -244,6 +244,24 @@ func serializeStruct(val reflect.Value, w *[]byte, ts Tags) error {
 	return nil
 }
 
+func SerializeStructWithout(val reflect.Value, w *[]byte, excludeList map[string]bool) error {
+	fields, err := structFields(val.Type())
+	if err != nil {
+		return err
+	}
+
+	for _, f := range fields {
+		if _, ok := excludeList[f.name]; ok {
+			continue
+		}
+		if err := f.info.serializer(val.Field(f.index), w, f.tags); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func serializeString(val reflect.Value, w *[]byte, ts Tags) error {
 	s := val.String()
 
@@ -257,7 +275,7 @@ func serializeString(val reflect.Value, w *[]byte, ts Tags) error {
 
 func serializePtr(val reflect.Value, w *[]byte, ts Tags) error {
 	typ := val.Type()
-	typeinfo, err := cachedTypeInfo1(typ.Elem(), ts)
+	typeinfo, err := cachedTypeInfo(typ.Elem())
 	if err != nil {
 		return err
 	}

@@ -12,7 +12,7 @@ import (
 
 var (
 	typeCacheMutex sync.RWMutex
-	typeCache      = make(map[typekey]*typeinfo)
+	typeCache      = make(map[reflect.Type]*typeinfo)
 )
 
 type typeinfo struct {
@@ -30,56 +30,40 @@ type Tags struct {
 	ByteSizeOfSliceLen int
 }
 
-type typekey struct {
-	reflect.Type
-	// the key must include the struct Tags because they
-	// might generate a different decoder.
-	Tags
-}
-
 type deserializer func(*ByteBuffer, reflect.Value, Tags) error
 
 type serializer func(reflect.Value, *[]byte, Tags) error
 
-func cachedTypeInfo(typ reflect.Type, tags Tags) (*typeinfo, error) {
+func cachedTypeInfo(typ reflect.Type) (*typeinfo, error) {
 	typeCacheMutex.RLock()
-	info := typeCache[typekey{typ, tags}]
+	info := typeCache[typ]
 	typeCacheMutex.RUnlock()
 	if info != nil {
 		return info, nil
 	}
-	// not in the cache, need to generate info for this type.
-	return cachedTypeInfo1(typ, tags)
-}
 
-func cachedTypeInfo1(typ reflect.Type, tags Tags) (*typeinfo, error) {
 	typeCacheMutex.Lock()
 	defer typeCacheMutex.Unlock()
-	key := typekey{typ, tags}
-	info := typeCache[key]
-	if info != nil {
-		// another goroutine got the write lock first
-		return info, nil
-	}
 	// put a dummy value into the cache before generating.
 	// if the generator tries to lookup itself, it will get
 	// the dummy value and won't call itself recursively.
-	typeCache[key] = new(typeinfo)
-	info, err := genTypeInfo(typ, tags)
+	typeCache[typ] = new(typeinfo)
+	info, err := genTypeInfo(typ)
 	if err != nil {
 		// remove the dummy value if the generator fails
-		delete(typeCache, key)
+		delete(typeCache, typ)
 		return nil, err
 	}
 
-	*typeCache[key] = *info
-	return typeCache[key], err
+	*typeCache[typ] = *info
+	return typeCache[typ], err
 }
 
 type field struct {
 	index int
 	info  *typeinfo
 	tags  Tags
+	name  string
 }
 
 func structFields(typ reflect.Type) (fields []field, err error) {
@@ -92,11 +76,11 @@ func structFields(typ reflect.Type) (fields []field, err error) {
 			if tags.Ignored {
 				continue
 			}
-			info, err := cachedTypeInfo1(f.Type, tags)
+			info, err := cachedTypeInfo(f.Type)
 			if err != nil {
 				return nil, err
 			}
-			fields = append(fields, field{i, info, tags})
+			fields = append(fields, field{i, info, tags, f.Name})
 		}
 	}
 
@@ -137,7 +121,7 @@ func parseStructTag(typ reflect.Type, fi int) (Tags, error) {
 	return ts, nil
 }
 
-func genTypeInfo(typ reflect.Type, tags Tags) (info *typeinfo, err error) {
+func genTypeInfo(typ reflect.Type) (info *typeinfo, err error) {
 	info = new(typeinfo)
 	if info.serializer, err = makeSerializer(typ); err != nil {
 		return nil, err

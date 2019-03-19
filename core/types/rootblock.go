@@ -31,70 +31,16 @@ type RootBlockHeader struct {
 	Signature       [65]byte           `json:"signature"        gencodec:"required"`
 }
 
-type rootBlockHeaderForHash struct {
-	Version         uint32
-	Number          uint32
-	ParentHash      common.Hash
-	MinorHeaderHash common.Hash
-	Coinbase        account.Address
-	CoinbaseAmount  *serialize.Uint256
-	Time            uint64
-	Difficulty      *big.Int
-	Nonce           uint64
-	Extra           []byte `bytesizeofslicelen:"2"`
-	MixDigest       common.Hash
-}
-
 // Hash returns the block hash of the header, which is simply the keccak256 hash of its
 // Serialize encoding.
 func (h *RootBlockHeader) Hash() common.Hash {
-	header := rootBlockHeaderForHash{
-		Version:         h.Version,
-		Number:          h.Number,
-		ParentHash:      h.ParentHash,
-		MinorHeaderHash: h.MinorHeaderHash,
-		Coinbase:        h.Coinbase,
-		CoinbaseAmount:  h.CoinbaseAmount,
-		Time:            h.Time,
-		Difficulty:      h.Difficulty,
-		Nonce:           h.Nonce,
-		Extra:           h.Extra,
-		MixDigest:       h.MixDigest,
-	}
-
-	return serHash(header)
-}
-
-type rootBlockHeaderForSealHash struct {
-	Version         uint32
-	Number          uint32
-	ParentHash      common.Hash
-	MinorHeaderHash common.Hash
-	Coinbase        account.Address
-	CoinbaseAmount  *serialize.Uint256
-	Time            uint64
-	Difficulty      *big.Int
-	Nonce           uint64
-	Extra           []byte `bytesizeofslicelen:"2"`
-	MixDigest       common.Hash
+	return serHash(*h, map[string]bool{"Signature": true})
 }
 
 // SealHash returns the block hash of the header, which is keccak256 hash of its
 // Serialize encoding for Seal.
 func (h *RootBlockHeader) SealHash() common.Hash {
-	header := rootBlockHeaderForSealHash{
-		Version:         h.Version,
-		Number:          h.Number,
-		ParentHash:      h.ParentHash,
-		MinorHeaderHash: h.MinorHeaderHash,
-		Coinbase:        h.Coinbase,
-		CoinbaseAmount:  h.CoinbaseAmount,
-		Time:            h.Time,
-		Difficulty:      h.Difficulty,
-		Extra:           h.Extra,
-	}
-
-	return serHash(header)
+	return serHash(*h, map[string]bool{"Signature": true, "MixDigest": true, "Nonce": true})
 }
 
 // Size returns the approximate memory used by all internal contents. It is used
@@ -298,8 +244,8 @@ func (b *RootBlock) MixDigest() common.Hash       { return b.header.MixDigest }
 func (b *RootBlock) Signature() [65]byte          { return b.header.Signature }
 
 func (b *RootBlock) Header() *RootBlockHeader { return CopyRootBlockHeader(b.header) }
-func (b *RootBlock) HashItems() []IHashItem {
-	items := make([]IHashItem, len(b.minorBlockHeaders), len(b.minorBlockHeaders))
+func (b *RootBlock) Content() []IHashable {
+	items := make([]IHashable, len(b.minorBlockHeaders), len(b.minorBlockHeaders))
 	for i, item := range b.minorBlockHeaders {
 		items[i] = item
 	}
