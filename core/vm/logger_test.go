@@ -17,7 +17,6 @@
 package vm
 
 import (
-	"github.com/QuarkChain/goquarkchain/core/types"
 	"math/big"
 	"testing"
 
@@ -42,13 +41,6 @@ func (d *dummyContractRef) AddBalance(amount *big.Int) {}
 func (d *dummyContractRef) SetBalance(*big.Int)        {}
 func (d *dummyContractRef) SetNonce(uint64)            {}
 func (d *dummyContractRef) Balance() *big.Int          { return new(big.Int) }
-func (d *dummyContractRef) AddBlockFee(data uint64)    {}
-func (d *dummyContractRef) SetXShardList(data types.CrossShardTransactionDeposit) {
-}
-func (d *dummyContractRef) SetFullShardID(data uint32) {}
-func (d *dummyContractRef) GetExtraData() state.StateExtraData {
-	return state.StateExtraData{}
-}
 
 type dummyStatedb struct {
 	state.StateDB
