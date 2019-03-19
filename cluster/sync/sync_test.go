@@ -3,6 +3,8 @@ package sync
 import (
 	"fmt"
 	"testing"
+
+	"github.com/QuarkChain/goquarkchain/cluster/root"
 )
 
 // For test purpose.
@@ -13,7 +15,7 @@ type trivialTask struct {
 	executeSwitch chan struct{}
 }
 
-func (t *trivialTask) Run() error {
+func (t *trivialTask) Run(_ root.PrimaryServer) error {
 	<-t.executeSwitch
 	return nil
 }
@@ -27,7 +29,7 @@ func (t *trivialTask) Priority() uint {
 }
 
 func TestRunOneTask(t *testing.T) {
-	s := NewSynchronizer()
+	s := NewSynchronizer(nil)
 	tt := &trivialTask{executeSwitch: make(chan struct{})}
 
 	s.AddTask(tt)
@@ -36,7 +38,7 @@ func TestRunOneTask(t *testing.T) {
 }
 
 func TestRunTasksByPriority(t *testing.T) {
-	s := NewSynchronizer()
+	s := NewSynchronizer(nil)
 	coldStarter := &trivialTask{prio: 999, executeSwitch: make(chan struct{})}
 
 	// Use cold starter to block the running goroutine.
