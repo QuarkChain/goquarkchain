@@ -70,7 +70,7 @@ func (h *RootBlockHeader) GetExtra() []byte {
 	if h.Extra != nil {
 		return common.CopyBytes(h.Extra)
 	}
-	return make([]byte, 0, 0)
+	return nil
 }
 func (h *RootBlockHeader) GetMixDigest() common.Hash { return h.MixDigest }
 
@@ -78,14 +78,14 @@ func (h *RootBlockHeader) NumberU64() uint64 { return uint64(h.Number) }
 
 func (h *RootBlockHeader) ValidateHeader() error {
 	number := uint64(h.Number)
-	if number < 1 {
+	if number < 0 {
 		return errors.New("unexpected height")
 	}
 	return nil
 }
 
 func (h *RootBlockHeader) SetExtra(data []byte) {
-	copy(h.Extra, data)
+	h.Extra = common.CopyBytes(data)
 }
 
 func (h *RootBlockHeader) SetDifficulty(difficulty *big.Int) {
@@ -157,6 +157,7 @@ func NewRootBlock(header *RootBlockHeader, mbHeaders MinorBlockHeaders, tracking
 		copy(b.minorBlockHeaders, mbHeaders)
 	}
 	if trackingdata != nil && len(trackingdata) > 0 {
+		b.trackingdata = make([]byte, len(trackingdata))
 		copy(b.trackingdata, trackingdata)
 	}
 

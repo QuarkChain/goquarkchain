@@ -44,18 +44,13 @@ func cachedTypeInfo(typ reflect.Type) (*typeinfo, error) {
 
 	typeCacheMutex.Lock()
 	defer typeCacheMutex.Unlock()
-	// put a dummy value into the cache before generating.
-	// if the generator tries to lookup itself, it will get
-	// the dummy value and won't call itself recursively.
-	typeCache[typ] = new(typeinfo)
+
 	info, err := genTypeInfo(typ)
 	if err != nil {
-		// remove the dummy value if the generator fails
-		delete(typeCache, typ)
 		return nil, err
 	}
 
-	*typeCache[typ] = *info
+	typeCache[typ] = info
 	return typeCache[typ], err
 }
 

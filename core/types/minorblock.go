@@ -74,21 +74,21 @@ func (h *MinorBlockHeader) GetExtra() []byte {
 	if h.Extra != nil {
 		return common.CopyBytes(h.Extra)
 	}
-	return make([]byte, 0, 0)
+	return nil
 }
 func (h *MinorBlockHeader) GetMixDigest() common.Hash { return h.MixDigest }
 
 func (h *MinorBlockHeader) NumberU64() uint64 { return h.Number }
 
 func (h *MinorBlockHeader) ValidateHeader() error {
-	if h.Number < 1 {
+	if h.Number < 0 {
 		return errors.New("unexpected height")
 	}
 	return nil
 }
 
 func (h *MinorBlockHeader) SetExtra(data []byte) {
-	copy(h.Extra, data)
+	h.Extra = common.CopyBytes(data)
 }
 
 func (h *MinorBlockHeader) SetDifficulty(difficulty *big.Int) {
@@ -118,7 +118,7 @@ func (s MinorBlockHeaders) Bytes(i int) []byte {
 	return enc
 }
 
-// TxDifference returns a new set which is the difference between a and b.
+// MinorHeaderDifference returns a new set which is the difference between a and b.
 func MinorHeaderDifference(a, b MinorBlockHeaders) MinorBlockHeaders {
 	keep := make(MinorBlockHeaders, 0, len(a))
 
@@ -191,6 +191,7 @@ func NewMinorBlock(header *MinorBlockHeader, meta *MinorBlockMeta, txs []*Transa
 	}
 
 	if trackingdata != nil && len(trackingdata) > 0 {
+		b.trackingdata = make([]byte, len(trackingdata))
 		copy(b.trackingdata, trackingdata)
 	}
 
