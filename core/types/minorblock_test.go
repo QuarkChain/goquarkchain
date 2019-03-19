@@ -101,7 +101,7 @@ func TestMinorBlockHeaderSerializing(t *testing.T) {
 		t.Fatal("Deserialize error: ", err)
 	}
 
-	bytes = make([]byte, 0, 0)
+	bytes = nil
 	err = serialize.SerializeWithTags(&bytes, trans, serialize.Tags{ByteSizeOfSliceLen: 4})
 	if err != nil {
 		t.Fatal("Serialize error: ", err)
