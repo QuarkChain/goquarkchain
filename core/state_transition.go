@@ -223,9 +223,10 @@ func (st *StateTransition) TransitionDb(feeRate float32) (ret []byte, usedGas ui
 		// Increment the nonce for the next transaction
 		st.state.SetNonce(msg.From(), st.state.GetNonce(sender.Address())+1)
 		if msg.IsCrossShard() {
-			return st.handleCrosShardTx()
+			ret, st.gas, vmerr = st.handleCrossShardTx()
+		} else {
+			ret, st.gas, vmerr = evm.Call(sender, st.to(), st.data, st.gas, st.value)
 		}
-		ret, st.gas, vmerr = evm.Call(sender, st.to(), st.data, st.gas, st.value)
 
 	}
 	if vmerr != nil {
@@ -247,10 +248,13 @@ func (st *StateTransition) TransitionDb(feeRate float32) (ret []byte, usedGas ui
 	fee := new(big.Int).Mul(new(big.Int).SetUint64(finalGasUsed), st.gasPrice)
 	rateFee := fee //TODO *feeRate
 
+	//对应于 https://github.com/QuarkChain/pyquarkchain/blob/v2.3.3/quarkchain/evm/messages.py line 248 and 267
 	if vmerr == nil {
+		//合法的交易，evm执行成功
 		st.state.AddBalance(st.evm.Coinbase, rateFee)
 		st.state.AddBlockFee(rateFee.Uint64())
 	} else {
+		//合法的交易,evm执行失败
 		st.state.AddBalance(st.evm.Coinbase, rateFee)
 		st.state.AddBlockFee(fee.Uint64())
 	}
@@ -280,11 +284,11 @@ func (st *StateTransition) gasUsed() uint64 {
 	return st.initialGas - st.gas
 }
 
-func (st *StateTransition) handleCrosShardTx() (ret []byte, usedGas uint64, failed bool, err error) {
+func (st *StateTransition) handleCrossShardTx() (ret []byte, usedGas uint64, err error) {
 	evm := st.evm
 	msg := st.msg
 	if !evm.CanTransfer(evm.StateDB, msg.From(), st.value) {
-		return nil, 0, false, vm.ErrInsufficientBalance
+		return nil, 0, vm.ErrInsufficientBalance
 	}
 	crossSHardValue := new(serialize.Uint256)
 	crossSHardValue.Value.Set(msg.Value())
@@ -306,5 +310,5 @@ func (st *StateTransition) handleCrosShardTx() (ret []byte, usedGas uint64, fail
 	}
 	evm.StateDB.SubBalance(msg.From(), st.value)
 	evm.StateDB.AppendXShardList(crossShardData)
-	return nil, st.gasUsed(), true, nil
+	return nil, st.gasUsed(), nil
 }

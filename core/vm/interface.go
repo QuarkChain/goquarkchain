@@ -17,7 +17,7 @@
 package vm
 
 import (
-	"github.com/QuarkChain/goquarkchain/core/state"
+	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"math/big"
 
 	"github.com/QuarkChain/goquarkchain/core/types"
@@ -65,10 +65,13 @@ type StateDB interface {
 	AddPreimage(common.Hash, []byte)
 
 	ForEachStorage(common.Address, func(common.Hash, common.Hash) bool)
-	GetExtraData() state.StateExtraData
+
+	GetXShardReceiveGasUsed() uint32
+	SetXShardReceiveGasUsed(uint32)
 	AppendXShardList(data types.CrossShardTransactionDeposit)
 	SetFullShardID(uint32)
 	AddBlockFee(uint64)
+	GetQuarkChainConfig() *config.QuarkChainConfig
 }
 
 // CallContext provides a basic interface for the EVM calling conventions. The EVM

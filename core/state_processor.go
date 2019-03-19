@@ -30,7 +30,7 @@ func ApplyTransaction(config *params.ChainConfig, bc ChainContext, gp *core.GasP
 	statedb.SetFullShardID(tx.EvmTx.ToFullShardId())
 
 	localFeeRate := float32(1.0)
-	if qkcConfig := statedb.GetExtraData().QuarkChainConfig; qkcConfig != nil {
+	if qkcConfig := statedb.GetQuarkChainConfig(); qkcConfig != nil {
 		localFeeRate = localFeeRate - qkcConfig.RewardTaxRate
 	}
 
