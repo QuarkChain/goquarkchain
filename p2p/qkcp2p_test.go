@@ -53,10 +53,10 @@ func TestServerMsgSend(t *testing.T) {
 
 	select {
 	case <-time.After(1 * time.Second):
-		if len(p1.Server.Peers()) != 1 || len(p2.Server.Peers()) != 1 {
+		if len(p1.server.Peers()) != 1 || len(p2.server.Peers()) != 1 {
 			t.Error("connect failed ", "should peer is 1")
 		}
-		WriteMsgForTest(t, p1.Server.Peers()[0].rw)
+		WriteMsgForTest(t, p1.server.Peers()[0].rw)
 		time.Sleep(1 * time.Second)
 	}
 }
@@ -74,11 +74,11 @@ func TestServerConnection(t *testing.T) {
 
 	select {
 	case <-time.After(2 * time.Second):
-		if len(p1.Server.Peers()) != 1 && len(p2.Server.Peers()) != 1 {
+		if len(p1.server.Peers()) != 1 && len(p2.server.Peers()) != 1 {
 			t.Error("peer connect failed")
 		}
-		peer1 := p1.Server.Peers()[0]
-		peer2 := p2.Server.Peers()[0]
+		peer1 := p1.server.Peers()[0]
+		peer2 := p2.server.Peers()[0]
 		if peer1.LocalAddr().String() != peer2.RemoteAddr().String() {
 			t.Error("peer connect err", "ip is not correct")
 		}
@@ -86,10 +86,10 @@ func TestServerConnection(t *testing.T) {
 			t.Error("peer connect err", "ip is not correct")
 		}
 
-		if p1.Server.NodeInfo().ID != peer2.ID().String() {
+		if p1.server.NodeInfo().ID != peer2.ID().String() {
 			t.Error("peer connect err", "id is not correct")
 		}
-		if p2.Server.NodeInfo().ID != peer1.ID().String() {
+		if p2.server.NodeInfo().ID != peer1.ID().String() {
 			t.Error("peer connect err", "id is not correct")
 		}
 	}
