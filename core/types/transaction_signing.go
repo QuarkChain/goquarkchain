@@ -9,7 +9,6 @@ import (
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/params"
 	"math/big"
 )
 
@@ -25,9 +24,8 @@ type sigCache struct {
 }
 
 // MakeSigner returns a Signer based on the given chain config and block number.
-func MakeSigner(config *params.ChainConfig) Signer {
-
-	return NewEIP155Signer(uint32(config.ChainID.Uint64()))
+func MakeSigner(networkId uint32) Signer {
+	return NewEIP155Signer(networkId)
 }
 
 // SignTx signs the transaction using the given signer and private key
