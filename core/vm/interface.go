@@ -70,6 +70,7 @@ type StateDB interface {
 	SetXShardReceiveGasUsed(uint32)
 	AppendXShardList(data types.CrossShardTransactionDeposit)
 	SetFullShardID(uint32)
+	GetFullShardID() uint32
 	AddBlockFee(uint64)
 	GetQuarkChainConfig() *config.QuarkChainConfig
 }

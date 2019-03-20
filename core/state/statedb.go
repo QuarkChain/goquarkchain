@@ -688,6 +688,10 @@ func (s *StateDB) SetFullShardID(fullShardId uint32) {
 	s.fullShardID = fullShardId
 }
 
+func (s *StateDB) GetFullShardID() uint32 {
+	return s.fullShardID
+}
+
 func (s *StateDB) AddBlockFee(fee uint64) {
 	s.blockFee += fee
 }
