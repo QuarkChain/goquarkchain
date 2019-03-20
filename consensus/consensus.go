@@ -74,7 +74,7 @@ type MiningSpec struct {
 }
 
 // ChainReader defines a small collection of methods needed to access the local
-// blockchain during header and/or uncle verification.
+// blockchain during header verification.
 type ChainReader interface {
 	// Config retrieves the blockchain's chain configuration.
 	Config() *config.QuarkChainConfig
@@ -97,10 +97,10 @@ type ChainReader interface {
 
 // Engine is an algorithm agnostic consensus engine.
 type Engine interface {
-	// Author retrieves the Ethereum address of the account that minted the given
+	// Author retrieves the address of the account that minted the given
 	// block, which may be different from the header's coinbase if a consensus
 	// engine is based on signatures.
-	Author(header types.IHeader) (recipient account.Recipient, err error)
+	Author(header types.IHeader) (account.Address, error)
 
 	// VerifyHeader checks whether a header conforms to the consensus rules of a
 	// given engine. Verifying the seal may be done optionally here, or explicitly
