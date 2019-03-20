@@ -31,7 +31,7 @@ const (
 	MaxOPNum
 )
 
-//OPSerializerMap op and its struct
+//OPSerializerMap Op and its struct
 var OPSerializerMap = map[P2PCommandOp]interface{}{
 	Hello:                              HelloCmd{},
 	NewMinorBlockHeaderListMsg:         NewMinorBlockHeaderList{},
@@ -90,14 +90,14 @@ type msgHandleSt struct {
 }
 
 var (
-	//OPNonRPCMap no return rpc op
+	//OPNonRPCMap no return rpc Op
 	OPNonRPCMap = map[P2PCommandOp]func(P2PCommandOp, []byte){
 		Hello:                      handleError,
 		NewMinorBlockHeaderListMsg: handleNewMinorBlockHeaderList,
 		NewTransactionListMsg:      handleNewTransactionList,
 	}
 
-	//OpRPCMap have return rpc op
+	//OpRPCMap have return rpc Op
 	OpRPCMap = map[P2PCommandOp]msgHandleSt{
 		GetPeerListRequestMsg: {
 			resp:       GetPeerListResponseMsg,
@@ -126,12 +126,12 @@ var (
 	}
 )
 
-func makeMsg(op P2PCommandOp, rpcID uint64, msg interface{}) (Msg, error) {
-	qkcBody, err := Encrypt(metadata{}, op, rpcID, msg)
+func MakeMsg(op P2PCommandOp, rpcID uint64, metadata Metadata, msg interface{}) (Msg, error) {
+	qkcBody, err := Encrypt(metadata, op, rpcID, msg)
 	if err != nil {
 		return Msg{}, err
 	}
-	return Msg{Code: baseProtocolLength, Size: uint32(len(qkcBody)), Payload: bytes.NewReader(qkcBody)}, nil
+	return Msg{Code: 0, Size: uint32(len(qkcBody)), Payload: bytes.NewReader(qkcBody)}, nil
 }
 
 //HelloCmd hello cmd struct
@@ -142,13 +142,13 @@ type HelloCmd struct {
 	PeerIP          *serialize.Uint128
 	PeerPort        uint16
 	ChainMaskList   []uint32 `bytesizeofslicelen:"4"`
-	RootBlockHeader types.RootBlockHeader
+	RootBlockHeader *types.RootBlockHeader
 }
 
 // NewMinorBlockHeaderList new minor block header list
 type NewMinorBlockHeaderList struct {
-	RootBlockHeader      types.RootBlockHeader
-	MinorBlockHeaderList []types.MinorBlockHeader `bytesizeofslicelen:"4"`
+	RootBlockHeader      *types.RootBlockHeader
+	MinorBlockHeaderList []*types.MinorBlockHeader `bytesizeofslicelen:"4"`
 }
 
 //NewTransactionList new transaction list
@@ -175,28 +175,28 @@ type GetRootBlockHeaderListRequest struct {
 
 //GetRootBlockHeaderListResponse get root block header list response
 type GetRootBlockHeaderListResponse struct {
-	RootTip         types.RootBlockHeader
-	BlockHeaderList []types.RootBlockHeader `bytesizeofslicelen:"4"`
+	RootTip         *types.RootBlockHeader
+	BlockHeaderList []*types.RootBlockHeader `bytesizeofslicelen:"4"`
 }
 
 //GetRootBlockListRequest get root block list request
 type GetRootBlockListRequest struct {
-	RootBlockHashList []serialize.Uint256 `bytesizeofslicelen:"4"`
+	RootBlockHashList []*serialize.Uint256 `bytesizeofslicelen:"4"`
 }
 
 //GetRootBlockListResponse get root block list response
 type GetRootBlockListResponse struct {
-	RootBlockList []types.RootBlock `bytesizeofslicelen:"4"`
+	RootBlockList []*types.RootBlock `bytesizeofslicelen:"4"`
 }
 
 // GetMinorBlockListRequest get minor block list request
 type GetMinorBlockListRequest struct {
-	MinorBlockHashList []serialize.Uint256 `bytesizeofslicelen:"4"`
+	MinorBlockHashList []*serialize.Uint256 `bytesizeofslicelen:"4"`
 }
 
 //GetMinorBlockListResponse get minor block list response
 type GetMinorBlockListResponse struct {
-	MinorBlockList []types.MinorBlock `bytesizeofslicelen:"4"`
+	MinorBlockList []*types.MinorBlock `bytesizeofslicelen:"4"`
 }
 
 //GetMinorBlockHeaderListRequest get minor block header list request
@@ -211,7 +211,7 @@ type GetMinorBlockHeaderListRequest struct {
 type GetMinorBlockHeaderListResponse struct {
 	RootTip         types.RootBlockHeader
 	ShardTip        types.MinorBlockHeader
-	BlockHeaderList []types.MinorBlockHeader `bytesizeofslicelen:"4"`
+	BlockHeaderList []*types.MinorBlockHeader `bytesizeofslicelen:"4"`
 }
 
 //NewBlockMinor new block minor
@@ -222,15 +222,15 @@ type NewBlockMinor struct {
 //OpNonRpcMap handle func
 
 func handleError(op P2PCommandOp, cmd []byte) {
-	log.Info(msgHandleLog, "handleError op", op)
+	log.Info(msgHandleLog, "handleError Op", op)
 }
 
 func handleNewMinorBlockHeaderList(op P2PCommandOp, cmd []byte) {
-	log.Info(msgHandleLog, "handleNewMinorBlockHeaderList op", op)
+	log.Info(msgHandleLog, "handleNewMinorBlockHeaderList Op", op)
 }
 
 func handleNewTransactionList(op P2PCommandOp, cmd []byte) {
-	log.Info(msgHandleLog, "handleNewTransactionList op", op)
+	log.Info(msgHandleLog, "handleNewTransactionList Op", op)
 }
 
 //OpRPCMap handle func

@@ -16,13 +16,14 @@ import (
 )
 
 var (
-	pManagerLog = "P2PManager"
+	pManagerLog     = "P2PManager"
+	QKCProtocolName = "quarkchain"
 )
 
 // PManager p2p manager
 type PManager struct {
 	preferredNodes []*enode.Node
-	server         *Server
+	Server         *Server
 	selfID         []byte
 	log            string
 	lock           sync.RWMutex
@@ -30,28 +31,29 @@ type PManager struct {
 }
 
 //NewP2PManager new p2p manager
-func NewP2PManager(env config.ClusterConfig) (*PManager, error) {
+func NewP2PManager(env config.ClusterConfig, protocol Protocol) (*PManager, error) {
 	var err error
 	server := &Server{
 		Config: Config{
 			Name:       QKCProtocolName,
 			MaxPeers:   int(env.P2P.MaxPeers),
 			ListenAddr: fmt.Sprintf(":%v", env.P2Port),
-			Protocols:  []Protocol{QKCProtocol()},
+			Protocols:  []Protocol{protocol},
 		},
 		newTransport: NewQKCRlp,
 	}
+
 	p2pManager := &PManager{
-		server: server,
+		Server: server,
 		log:    pManagerLog,
 	}
 
-	p2pManager.server.BootstrapNodes, err = getNodesFromConfig(env.P2P.BootNodes)
+	p2pManager.Server.BootstrapNodes, err = getNodesFromConfig(env.P2P.BootNodes)
 	if err != nil {
 		return nil, err
 	}
 
-	p2pManager.server.PrivateKey, err = getPrivateKeyFromConfig(env.P2P.PrivKey)
+	p2pManager.Server.PrivateKey, err = getPrivateKeyFromConfig(env.P2P.PrivKey)
 	if err != nil {
 		return nil, err
 	}
@@ -62,22 +64,23 @@ func NewP2PManager(env config.ClusterConfig) (*PManager, error) {
 	}
 
 	//used in HelloCommand.peer_id
-	p2pManager.selfID = crypto.FromECDSAPub(&p2pManager.server.PrivateKey.PublicKey)[1:33]
+	p2pManager.selfID = crypto.FromECDSAPub(&p2pManager.Server.PrivateKey.PublicKey)[1:33]
 	p2pManager.stop = make(chan struct{})
+
 	return p2pManager, nil
 }
 
 //Start start p2p manager
 func (p *PManager) Start() error {
-	log.Info(p.log, "this server:Node", p.server.NodeInfo().Enode)
-	err := p.server.Start()
+	log.Info(p.log, "this server:Node", p.Server.NodeInfo().Enode)
+	err := p.Server.Start()
 	if err != nil {
 		log.Info(p.log, "pManager start err", err)
 		return err
 	}
 	go func() {
 		for true {
-			Peers := p.server.Peers()
+			Peers := p.Server.Peers()
 			log.Info(msgHandleLog, "==============", "===========")
 			log.Info(msgHandleLog, "peer number", len(Peers))
 			for _, v := range Peers {
@@ -135,7 +138,7 @@ func (p *PManager) Stop() {
 // Wait wait for p2p manager
 func (p *PManager) Wait() {
 	p.lock.RLock()
-	if p.server == nil {
+	if p.Server == nil {
 		p.lock.RUnlock()
 		return
 	}
