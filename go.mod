@@ -4,7 +4,7 @@ require (
 	github.com/allegro/bigcache v1.1.0 // indirect
 	github.com/aristanetworks/goarista v0.0.0-20181210134948-aa2a42e13be6 // indirect
 	github.com/davecgh/go-spew v1.1.1
-	github.com/deckarep/golang-set v1.7.1 // indirect
+	github.com/deckarep/golang-set v1.7.1
 	github.com/edsrzf/mmap-go v1.0.0 // indirect
 	github.com/ethereum/go-ethereum v1.8.20
 	github.com/go-stack/stack v1.8.0 // indirect
