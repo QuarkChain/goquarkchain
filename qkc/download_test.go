@@ -25,6 +25,6 @@ func init() {
 func TestDownload(t *testing.T) {
 	env := fakeEnv(38291)
 	qkcManager, err := NewQKCManager(env)
-	qkcManager.Start()
+	go qkcManager.Start()
 	fmt.Println("err", err, "qkcManager", qkcManager)
 }

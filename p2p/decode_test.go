@@ -10,7 +10,7 @@ import (
 type codeC struct {
 	data     interface{}
 	rpcID    uint64
-	metaData metadata
+	metaData Metadata
 	op       P2PCommandOp
 }
 
@@ -20,7 +20,7 @@ func getTestCodeCTest() []codeC {
 		temp := codeC{
 			data:  OPSerializerMap[op],
 			rpcID: uint64(rand.Int()),
-			metaData: metadata{
+			metaData: Metadata{
 				Branch: rand.Uint32(),
 			},
 			op: op,
@@ -32,75 +32,75 @@ func getTestCodeCTest() []codeC {
 
 func verifySerializeData(t *testing.T, decodeMsg QKCMsg, v codeC) error {
 	//Attention: not check the correctness of serialize data ,it is depend on serialize module,only check it for mistakes
-	switch decodeMsg.op {
+	switch decodeMsg.Op {
 	case Hello:
 		cmd := new(HelloCmd)
-		if err := serialize.DeserializeFromBytes(decodeMsg.data, &cmd); err != nil {
+		if err := serialize.DeserializeFromBytes(decodeMsg.Data, &cmd); err != nil {
 			t.Fatal("deserialize from Bytes err", err)
 		}
 	case NewMinorBlockHeaderListMsg:
 		cmd := new(NewMinorBlockHeaderList)
-		if err := serialize.DeserializeFromBytes(decodeMsg.data, &cmd); err != nil {
+		if err := serialize.DeserializeFromBytes(decodeMsg.Data, &cmd); err != nil {
 			t.Fatal("deserialize from Bytes err", err)
 		}
 	case NewTransactionListMsg:
 		cmd := new(NewTransactionList)
-		if err := serialize.DeserializeFromBytes(decodeMsg.data, &cmd); err != nil {
+		if err := serialize.DeserializeFromBytes(decodeMsg.Data, &cmd); err != nil {
 			t.Fatal("deserialize from Bytes err", err)
 		}
 	case GetPeerListRequestMsg:
 		cmd := new(GetPeerListRequest)
-		if err := serialize.DeserializeFromBytes(decodeMsg.data, &cmd); err != nil {
+		if err := serialize.DeserializeFromBytes(decodeMsg.Data, &cmd); err != nil {
 			t.Fatal("deserialize from Bytes err", err)
 		}
 	case GetPeerListResponseMsg:
 		cmd := new(GetPeerListResponse)
-		if err := serialize.DeserializeFromBytes(decodeMsg.data, &cmd); err != nil {
+		if err := serialize.DeserializeFromBytes(decodeMsg.Data, &cmd); err != nil {
 			t.Fatal("deserialize from Bytes err", err)
 		}
 	case GetRootBlockHeaderListRequestMsg:
 		cmd := new(GetRootBlockHeaderListRequest)
-		if err := serialize.DeserializeFromBytes(decodeMsg.data, &cmd); err != nil {
+		if err := serialize.DeserializeFromBytes(decodeMsg.Data, &cmd); err != nil {
 			t.Fatal("deserialize from Bytes err", err)
 		}
 	case GetRootBlockHeaderListResponseMsg:
 		cmd := new(GetRootBlockHeaderListResponse)
-		if err := serialize.DeserializeFromBytes(decodeMsg.data, &cmd); err != nil {
+		if err := serialize.DeserializeFromBytes(decodeMsg.Data, &cmd); err != nil {
 			t.Fatal("deserialize from Bytes err", err)
 		}
 	case GetRootBlockListRequestMsg:
 		cmd := new(GetRootBlockListRequest)
-		if err := serialize.DeserializeFromBytes(decodeMsg.data, &cmd); err != nil {
+		if err := serialize.DeserializeFromBytes(decodeMsg.Data, &cmd); err != nil {
 			t.Fatal("deserialize from Bytes err", err)
 		}
 	case GetRootBlockListResponseMsg:
 		cmd := new(GetRootBlockListResponse)
-		if err := serialize.DeserializeFromBytes(decodeMsg.data, &cmd); err != nil {
+		if err := serialize.DeserializeFromBytes(decodeMsg.Data, &cmd); err != nil {
 			t.Fatal("deserialize from Bytes err", err)
 		}
 	case GetMinorBlockListRequestMsg:
 		cmd := new(GetMinorBlockListRequest)
-		if err := serialize.DeserializeFromBytes(decodeMsg.data, &cmd); err != nil {
+		if err := serialize.DeserializeFromBytes(decodeMsg.Data, &cmd); err != nil {
 			t.Fatal("deserialize from Bytes err", err)
 		}
 	case GetMinorBlockListResponseMsg:
 		cmd := new(GetMinorBlockListResponse)
-		if err := serialize.DeserializeFromBytes(decodeMsg.data, &cmd); err != nil {
+		if err := serialize.DeserializeFromBytes(decodeMsg.Data, &cmd); err != nil {
 			t.Fatal("deserialize from Bytes err", err)
 		}
 	case GetMinorBlockHeaderListRequestMsg:
 		cmd := new(GetMinorBlockHeaderListRequest)
-		if err := serialize.DeserializeFromBytes(decodeMsg.data, &cmd); err != nil {
+		if err := serialize.DeserializeFromBytes(decodeMsg.Data, &cmd); err != nil {
 			t.Fatal("deserialize from Bytes err", err)
 		}
 	case GetMinorBlockHeaderListResponseMsg:
 		cmd := new(GetMinorBlockHeaderListResponse)
-		if err := serialize.DeserializeFromBytes(decodeMsg.data, &cmd); err != nil {
+		if err := serialize.DeserializeFromBytes(decodeMsg.Data, &cmd); err != nil {
 			t.Fatal("deserialize from Bytes err", err)
 		}
 	case NewBlockMinorMsg:
 		cmd := new(NewBlockMinor)
-		if err := serialize.DeserializeFromBytes(decodeMsg.data, &cmd); err != nil {
+		if err := serialize.DeserializeFromBytes(decodeMsg.Data, &cmd); err != nil {
 			t.Fatal("deserialize from Bytes err", err)
 		}
 	default:
@@ -118,13 +118,13 @@ func TestEncryptAndDecode(t *testing.T) {
 		}
 
 		dataDecode, err := DecodeQKCMsg(dataEncrypt)
-		if dataDecode.op != v.op {
+		if dataDecode.Op != v.op {
 			t.Fatal("op is not correct")
 		}
-		if dataDecode.rpcID != v.rpcID {
+		if dataDecode.RpcID != v.rpcID {
 			t.Fatal("rpcID is not correct")
 		}
-		if reflect.DeepEqual(dataDecode.metaData, v.metaData) == false {
+		if reflect.DeepEqual(dataDecode.MetaData, v.metaData) == false {
 			t.Fatal("metaData is not correct")
 		}
 		if err = verifySerializeData(t, dataDecode, v); err != nil {
