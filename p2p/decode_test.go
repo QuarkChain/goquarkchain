@@ -7,30 +7,30 @@ import (
 	"testing"
 )
 
-type CodeC struct {
-	Data     interface{}
-	RPCID    uint64
-	MetaData metadata
-	Op       P2PCommandOp
+type codeC struct {
+	data     interface{}
+	rpcID    uint64
+	metaData metadata
+	op       P2PCommandOp
 }
 
-func GetTestCodeCTest() []CodeC {
-	allTestCase := make([]CodeC, 0)
+func getTestCodeCTest() []codeC {
+	allTestCase := make([]codeC, 0)
 	for op := Hello; op < MaxOPNum; op++ {
-		temp := CodeC{
-			Data:  OPSerializerMap[op],
-			RPCID: uint64(rand.Int()),
-			MetaData: metadata{
+		temp := codeC{
+			data:  OPSerializerMap[op],
+			rpcID: uint64(rand.Int()),
+			metaData: metadata{
 				Branch: rand.Uint32(),
 			},
-			Op: op,
+			op: op,
 		}
 		allTestCase = append(allTestCase, temp)
 	}
 	return allTestCase
 }
 
-func VerifySerializeData(t *testing.T, decodeMsg QKCMsg, v CodeC) error {
+func verifySerializeData(t *testing.T, decodeMsg QKCMsg, v codeC) error {
 	//Attention: not check the correctness of serialize data ,it is depend on serialize module,only check it for mistakes
 	switch decodeMsg.op {
 	case Hello:
@@ -110,25 +110,25 @@ func VerifySerializeData(t *testing.T, decodeMsg QKCMsg, v CodeC) error {
 
 }
 func TestEncryptAndDecode(t *testing.T) {
-	caseList := GetTestCodeCTest()
+	caseList := getTestCodeCTest()
 	for _, v := range caseList {
-		dataEncrypt, err := Encrypt(v.MetaData, v.Op, v.RPCID, v.Data)
+		dataEncrypt, err := Encrypt(v.metaData, v.op, v.rpcID, v.data)
 		if err != nil {
 			t.Fatal("Encrypt err", err)
 		}
 
 		dataDecode, err := DecodeQKCMsg(dataEncrypt)
-		if dataDecode.op != v.Op {
+		if dataDecode.op != v.op {
 			t.Fatal("op is not correct")
 		}
-		if dataDecode.rpcID != v.RPCID {
+		if dataDecode.rpcID != v.rpcID {
 			t.Fatal("rpcID is not correct")
 		}
-		if reflect.DeepEqual(dataDecode.metaData, v.MetaData) == false {
+		if reflect.DeepEqual(dataDecode.metaData, v.metaData) == false {
 			t.Fatal("metaData is not correct")
 		}
-		if err = VerifySerializeData(t, dataDecode, v); err != nil {
-			t.Fatal("verify serialize Data err", err)
+		if err = verifySerializeData(t, dataDecode, v); err != nil {
+			t.Fatal("verify serialize data err", err)
 		}
 	}
 }
