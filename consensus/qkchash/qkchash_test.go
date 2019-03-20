@@ -17,7 +17,7 @@ func TestVerifyHeaderAndHeaders(t *testing.T) {
 	defer ctrl.Finish()
 
 	assert := assert.New(t)
-	diffCalculator := consensus.EthDifficultyCalculator{1, 1, big.NewInt(3)}
+	diffCalculator := consensus.EthDifficultyCalculator{AdjustmentCutoff: 1, AdjustmentFactor: 1, MinimumDifficulty: big.NewInt(3)}
 
 	for _, qkcHashNativeFlag := range []bool{true, false} {
 		q := New(qkcHashNativeFlag, &diffCalculator)

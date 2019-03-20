@@ -10,7 +10,7 @@ import (
 
 func TestVerifySeal(t *testing.T) {
 	assert := assert.New(t)
-	diffCalculator := consensus.EthDifficultyCalculator{7, 512, big.NewInt(100000)}
+	diffCalculator := consensus.EthDifficultyCalculator{AdjustmentCutoff: 7, AdjustmentFactor: 512, MinimumDifficulty: big.NewInt(100000)}
 
 	header := &types.RootBlockHeader{Number: 1, Difficulty: big.NewInt(10)}
 	rootBlock := types.NewRootBlockWithHeader(header)
