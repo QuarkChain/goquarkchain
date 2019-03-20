@@ -93,8 +93,8 @@ func (bb *ByteBuffer) getLen(byteSize int) (int, error) {
 	return size, nil
 }
 
-func (bb *ByteBuffer) GetVarBytes(byteSize int) ([]byte, error) {
-	size, err := bb.getLen(byteSize)
+func (bb *ByteBuffer) GetVarBytes(byteSizeOfSliceLen int) ([]byte, error) {
+	size, err := bb.getLen(byteSizeOfSliceLen)
 	if err != nil {
 		return nil, err
 	}

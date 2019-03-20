@@ -91,7 +91,7 @@ func newRLPX(fd net.Conn) transport {
 func (t *rlpx) ReadMsg() (Msg, error) {
 	t.rmu.Lock()
 	defer t.rmu.Unlock()
-	t.fd.SetReadDeadline(time.Now().Add(frameReadTimeout))
+	t.fd.SetReadDeadline(time.Time{})
 	return t.rw.ReadMsg()
 }
 

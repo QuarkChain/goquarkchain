@@ -201,9 +201,8 @@ func (p *Peer) run() (remoteRequested bool, err error) {
 		readErr    = make(chan error, 1)
 		reason     DiscReason // sent to the peer
 	)
-	p.wg.Add(2)
+	p.wg.Add(1)
 	go p.readLoop(readErr)
-	go p.pingLoop()
 
 	// Start all protocol handlers.
 	writeStart <- struct{}{}
