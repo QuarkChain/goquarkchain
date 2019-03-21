@@ -30,6 +30,7 @@ import (
 
 	"gopkg.in/check.v1"
 
+	qkcaccount "github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethdb"
@@ -272,7 +273,7 @@ func newTestAction(addr common.Address, r *rand.Rand) testAction {
 			fn: func(a testAction, s *StateDB) {
 				data := make([]byte, 2)
 				binary.BigEndian.PutUint16(data, uint16(a.args[0]))
-				s.AddLog(&types.Log{Address: addr, Data: data})
+				s.AddLog(&types.Log{Recipient: qkcaccount.BytesToIdentityRecipient(addr.Bytes()), Data: data})
 			},
 			args: make([]int64, 1),
 		},

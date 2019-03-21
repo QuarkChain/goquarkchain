@@ -33,7 +33,7 @@ func ApplyTransaction(config *params.ChainConfig, bc ChainContext, gp *core.GasP
 	if qkcConfig := statedb.GetQuarkChainConfig(); qkcConfig != nil {
 		localFeeRate = localFeeRate - qkcConfig.RewardTaxRate
 	}
-	msg, err := tx.EvmTx.AsMessage(types.MakeSigner(config))
+	msg, err := tx.EvmTx.AsMessage(types.MakeSigner(tx.EvmTx.NetworkId()))
 	if err != nil {
 		return nil, 0, err
 	}
