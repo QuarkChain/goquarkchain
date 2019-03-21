@@ -17,10 +17,10 @@
 package core
 
 import (
+	"github.com/QuarkChain/goquarkchain/core/types"
 	"math/rand"
 	"testing"
 
-	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 )
 
@@ -44,8 +44,8 @@ func TestStrictTxListAdd(t *testing.T) {
 		t.Errorf("transaction count mismatch: have %d, want %d", len(list.txs.items), len(txs))
 	}
 	for i, tx := range txs {
-		if list.txs.items[tx.Nonce()] != tx {
-			t.Errorf("item %d: transaction mismatch: have %v, want %v", i, list.txs.items[tx.Nonce()], tx)
+		if list.txs.items[tx.EvmTx.Nonce()] != tx {
+			t.Errorf("item %d: transaction mismatch: have %v, want %v", i, list.txs.items[tx.EvmTx.Nonce()], tx)
 		}
 	}
 }
