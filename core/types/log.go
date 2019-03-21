@@ -3,7 +3,7 @@
 package types
 
 import (
-	"github.com/QuarkChain/goquarkchain/serialize"
+	"github.com/QuarkChain/goquarkchain/account"
 	"io"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -18,11 +18,11 @@ import (
 type Log struct {
 	// Consensus fields:
 	// address of the contract that generated the event
-	Address common.Address `json:"address" gencodec:"required"`
+	Recipient account.Recipient `json:"address" gencodec:"required"`
 	// list of topics provided by the contract.
 	Topics []common.Hash `json:"topics" gencodec:"required"`
 	// supplied by the contract, usually ABI-encoded
-	Data serialize.LimitedSizeByteSlice4 `json:"data" gencodec:"required"`
+	Data []byte `json:"data" gencodec:"required" bytesizeofslicelen:"4"`
 
 	// Derived fields. These fields are filled in by the node
 	// but not secured by consensus.
@@ -42,12 +42,6 @@ type Log struct {
 	Removed bool `json:"removed"  ser:"-"`
 }
 
-type Logs []*Log
-
-func (Logs) GetLenByteSize() int {
-	return 4
-}
-
 type logMarshaling struct {
 	Data        hexutil.Bytes
 	BlockNumber hexutil.Uint64
@@ -56,13 +50,13 @@ type logMarshaling struct {
 }
 
 type rlpLog struct {
-	Address common.Address
-	Topics  []common.Hash
-	Data    []byte
+	Recipient account.Recipient
+	Topics    []common.Hash
+	Data      []byte
 }
 
 type rlpStorageLog struct {
-	Address     common.Address
+	Recipient   account.Recipient
 	Topics      []common.Hash
 	Data        []byte
 	BlockNumber uint64
@@ -74,7 +68,7 @@ type rlpStorageLog struct {
 
 // EncodeRLP implements rlp.Encoder.
 func (l *Log) EncodeRLP(w io.Writer) error {
-	return rlp.Encode(w, rlpLog{Address: l.Address, Topics: l.Topics, Data: l.Data})
+	return rlp.Encode(w, rlpLog{Recipient: l.Recipient, Topics: l.Topics, Data: l.Data})
 }
 
 // DecodeRLP implements rlp.Decoder.
@@ -82,7 +76,7 @@ func (l *Log) DecodeRLP(s *rlp.Stream) error {
 	var dec rlpLog
 	err := s.Decode(&dec)
 	if err == nil {
-		l.Address, l.Topics, l.Data = dec.Address, dec.Topics, dec.Data
+		l.Recipient, l.Topics, l.Data = dec.Recipient, dec.Topics, dec.Data
 	}
 	return err
 }
@@ -94,7 +88,7 @@ type LogForStorage Log
 // EncodeRLP implements rlp.Encoder.
 func (l *LogForStorage) EncodeRLP(w io.Writer) error {
 	return rlp.Encode(w, rlpStorageLog{
-		Address:     l.Address,
+		Recipient:   l.Recipient,
 		Topics:      l.Topics,
 		Data:        l.Data,
 		BlockNumber: l.BlockNumber,
@@ -111,7 +105,7 @@ func (l *LogForStorage) DecodeRLP(s *rlp.Stream) error {
 	err := s.Decode(&dec)
 	if err == nil {
 		*l = LogForStorage{
-			Address:     dec.Address,
+			Recipient:   dec.Recipient,
 			Topics:      dec.Topics,
 			Data:        dec.Data,
 			BlockNumber: dec.BlockNumber,

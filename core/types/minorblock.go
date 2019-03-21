@@ -2,6 +2,7 @@
 package types
 
 import (
+	"errors"
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/serialize"
 	"github.com/ethereum/go-ethereum/common"
@@ -15,42 +16,91 @@ import (
 
 // MinorBlockHeader represents a minor block header in the QuarkChain.
 type MinorBlockHeader struct {
-	Version           uint32                           `json:"version"                    gencodec:"required"`
-	Branch            account.Branch                   `json:"branch"                     gencodec:"required"`
-	Number            uint64                           `json:"number"                     gencodec:"required"`
-	Coinbase          account.Address                  `json:"miner"                      gencodec:"required"`
-	CoinbaseAmount    *serialize.Uint256               `json:"coinbaseAmount"             gencodec:"required"`
-	ParentHash        common.Hash                      `json:"parentHash"                 gencodec:"required"`
-	PrevRootBlockHash common.Hash                      `json:"prevRootBlockHash"          gencodec:"required"`
-	GasLimit          *serialize.Uint256               `json:"gasLimit"                   gencodec:"required"`
-	MetaHash          common.Hash                      `json:"metaHash"                   gencodec:"required"`
-	Time              uint64                           `json:"timestamp"                  gencodec:"required"`
-	Difficulty        *big.Int                         `json:"difficulty"                 gencodec:"required"`
-	Nonce             uint64                           `json:"nonce"`
-	Bloom             Bloom                            `json:"logsBloom"                  gencodec:"required"`
-	Extra             *serialize.LimitedSizeByteSlice2 `json:"extraData"                  gencodec:"required"`
-	MixDigest         common.Hash                      `json:"mixHash"`
+	Version           uint32             `json:"version"                    gencodec:"required"`
+	Branch            account.Branch     `json:"branch"                     gencodec:"required"`
+	Number            uint64             `json:"number"                     gencodec:"required"`
+	Coinbase          account.Address    `json:"miner"                      gencodec:"required"`
+	CoinbaseAmount    *serialize.Uint256 `json:"coinbaseAmount"             gencodec:"required"`
+	ParentHash        common.Hash        `json:"parentHash"                 gencodec:"required"`
+	PrevRootBlockHash common.Hash        `json:"prevRootBlockHash"          gencodec:"required"`
+	GasLimit          *serialize.Uint256 `json:"gasLimit"                   gencodec:"required"`
+	MetaHash          common.Hash        `json:"metaHash"                   gencodec:"required"`
+	Time              uint64             `json:"timestamp"                  gencodec:"required"`
+	Difficulty        *big.Int           `json:"difficulty"                 gencodec:"required"`
+	Nonce             uint64             `json:"nonce"`
+	Bloom             Bloom              `json:"logsBloom"                  gencodec:"required"`
+	Extra             []byte             `json:"extraData"                  gencodec:"required"   bytesizeofslicelen:"2"`
+	MixDigest         common.Hash        `json:"mixHash"`
 }
 
 type MinorBlockMeta struct {
-	Root              common.Hash        `json:"stateRoot"                  gencodec:"required"`
 	TxHash            common.Hash        `json:"transactionsRoot"           gencodec:"required"`
+	Root              common.Hash        `json:"stateRoot"                  gencodec:"required"`
 	ReceiptHash       common.Hash        `json:"receiptsRoot"               gencodec:"required"`
 	GasUsed           *serialize.Uint256 `json:"gasUsed"                    gencodec:"required"`
 	CrossShardGasUsed *serialize.Uint256 `json:"crossShardGasUsed"          gencodec:"required"`
 }
 
+func (m *MinorBlockMeta) Hash() common.Hash {
+	return serHash(*m, map[string]bool{})
+}
+
 // Hash returns the block hash of the header, which is simply the keccak256 hash of its
 // Serialize encoding.
 func (h *MinorBlockHeader) Hash() common.Hash {
-	return serHash(h)
+	return serHash(*h, map[string]bool{})
+}
+
+// SealHash returns the block hash of the header, which is keccak256 hash of its
+// Serialize encoding for Seal.
+func (h *MinorBlockHeader) SealHash() common.Hash {
+	excludeList := map[string]bool{"MixDigest": true, "Nonce": true}
+	return serHash(*h, excludeList)
 }
 
 // Size returns the approximate memory used by all internal contents. It is used
 // to approximate and limit the memory consumption of various caches.
 func (h *MinorBlockHeader) Size() common.StorageSize {
 	return common.StorageSize(unsafe.Sizeof(*h)) +
-		common.StorageSize(len(*h.Extra)+(h.Difficulty.BitLen())/8)
+		common.StorageSize(len(h.Extra)+(h.Difficulty.BitLen())/8)
+}
+
+func (h *MinorBlockHeader) GetParentHash() common.Hash   { return h.ParentHash }
+func (h *MinorBlockHeader) GetCoinbase() account.Address { return h.Coinbase }
+func (h *MinorBlockHeader) GetTime() uint64              { return h.Time }
+func (h *MinorBlockHeader) GetDifficulty() *big.Int      { return new(big.Int).Set(h.Difficulty) }
+func (h *MinorBlockHeader) GetNonce() uint64             { return h.Nonce }
+func (h *MinorBlockHeader) GetExtra() []byte {
+	if h.Extra != nil {
+		return common.CopyBytes(h.Extra)
+	}
+	return nil
+}
+func (h *MinorBlockHeader) GetMixDigest() common.Hash { return h.MixDigest }
+
+func (h *MinorBlockHeader) NumberU64() uint64 { return h.Number }
+
+func (h *MinorBlockHeader) ValidateHeader() error {
+	if h.Number < 0 {
+		return errors.New("unexpected height")
+	}
+	return nil
+}
+
+func (h *MinorBlockHeader) SetExtra(data []byte) {
+	h.Extra = common.CopyBytes(data)
+}
+
+func (h *MinorBlockHeader) SetDifficulty(difficulty *big.Int) {
+	h.Difficulty = difficulty
+}
+
+func (h *MinorBlockHeader) SetNonce(nonce uint64) {
+	h.Nonce = nonce
+}
+
+func (h *MinorBlockHeader) SetCoinbase(addr account.Address) {
+	h.Coinbase = addr
 }
 
 // MinorBlockHeaders is a MinorBlockHeader slice type for basic sorting.
@@ -68,8 +118,22 @@ func (s MinorBlockHeaders) Bytes(i int) []byte {
 	return enc
 }
 
-func (MinorBlockHeaders) GetLenByteSize() int {
-	return 4
+// MinorHeaderDifference returns a new set which is the difference between a and b.
+func MinorHeaderDifference(a, b MinorBlockHeaders) MinorBlockHeaders {
+	keep := make(MinorBlockHeaders, 0, len(a))
+
+	remove := make(map[common.Hash]struct{})
+	for _, header := range b {
+		remove[header.Hash()] = struct{}{}
+	}
+
+	for _, header := range a {
+		if _, ok := remove[header.Hash()]; !ok {
+			keep = append(keep, header)
+		}
+	}
+
+	return keep
 }
 
 // MinorBlock represents an entire block in the Ethereum blockchain.
@@ -77,7 +141,7 @@ type MinorBlock struct {
 	header       *MinorBlockHeader
 	meta         *MinorBlockMeta
 	transactions Transactions
-	trackingdata serialize.LimitedSizeByteSlice2
+	trackingdata []byte
 
 	// caches
 	hash atomic.Value
@@ -97,17 +161,17 @@ type MinorBlock struct {
 type extminorblock struct {
 	Header       *MinorBlockHeader
 	Meta         *MinorBlockMeta
-	Txs          Transactions
-	Trackingdata serialize.LimitedSizeByteSlice2
+	Txs          Transactions `bytesizeofslicelen:"4"`
+	Trackingdata []byte       `bytesizeofslicelen:"2"`
 }
 
 // NewBlock creates a new block. The input data is copied,
 // changes to header and to the field values will not affect the
 // block.
 //
-// The values of MinorHeaderHash, ReceiptHash and Bloom in header
+// The values of Root, ReceiptHash and Bloom in header
 // are ignored and set to values derived from the given txs and receipts.
-func NewMinorBlock(header *MinorBlockHeader, meta *MinorBlockMeta, txs []*Transaction, receipts []*Receipt, trackingdata serialize.LimitedSizeByteSlice2) *MinorBlock {
+func NewMinorBlock(header *MinorBlockHeader, meta *MinorBlockMeta, txs []*Transaction, receipts []*Receipt, trackingdata []byte) *MinorBlock {
 	b := &MinorBlock{header: CopyMinorBlockHeader(header), meta: CopyMinorBlockMeta(meta), td: new(big.Int)}
 
 	// TODO: panic if len(txs) != len(receipts)
@@ -127,6 +191,7 @@ func NewMinorBlock(header *MinorBlockHeader, meta *MinorBlockMeta, txs []*Transa
 	}
 
 	if trackingdata != nil && len(trackingdata) > 0 {
+		b.trackingdata = make([]byte, len(trackingdata))
 		copy(b.trackingdata, trackingdata)
 	}
 
@@ -153,9 +218,9 @@ func CopyMinorBlockHeader(h *MinorBlockHeader) *MinorBlockHeader {
 	if cpy.GasLimit = new(serialize.Uint256); h.GasLimit != nil && h.GasLimit.Value != nil {
 		cpy.GasLimit.Value = new(big.Int).Set(h.GasLimit.Value)
 	}
-	if h.Extra != nil && len(*h.Extra) > 0 {
-		*cpy.Extra = make(serialize.LimitedSizeByteSlice2, len(*h.Extra)) //todo verify
-		copy(*cpy.Extra, *h.Extra)
+	if h.Extra != nil && len(h.Extra) > 0 {
+		cpy.Extra = make([]byte, len(h.Extra))
+		copy(cpy.Extra, h.Extra)
 	}
 
 	return &cpy //todo verify the copy for struct
@@ -211,7 +276,7 @@ func (b *MinorBlock) Transaction(hash common.Hash) *Transaction {
 	return nil
 }
 
-func (b *MinorBlock) TrackingData() serialize.LimitedSizeByteSlice2 { return b.trackingdata }
+func (b *MinorBlock) TrackingData() []byte { return b.trackingdata }
 
 //header properties
 func (b *MinorBlock) Version() uint32                { return b.header.Version }
@@ -226,7 +291,7 @@ func (b *MinorBlock) MetaHash() common.Hash          { return b.header.MetaHash 
 func (b *MinorBlock) Time() uint64                   { return b.header.Time }
 func (b *MinorBlock) Difficulty() *big.Int           { return new(big.Int).Set(b.header.Difficulty) }
 func (b *MinorBlock) Nonce() uint64                  { return b.header.Nonce }
-func (b *MinorBlock) Extra() []byte                  { return common.CopyBytes(*b.header.Extra) }
+func (b *MinorBlock) Extra() []byte                  { return common.CopyBytes(b.header.Extra) }
 func (b *MinorBlock) Bloom() Bloom                   { return b.header.Bloom }
 func (b *MinorBlock) MixDigest() common.Hash         { return b.header.MixDigest }
 
@@ -256,24 +321,23 @@ func (b *MinorBlock) Size() common.StorageSize {
 
 // WithSeal returns a new block with the data from b but the header replaced with
 // the sealed one.
-func (b *MinorBlock) WithSeal(header *MinorBlockHeader, meta *MinorBlockMeta) *MinorBlock {
+func (b *MinorBlock) WithSeal(header *MinorBlockHeader) *MinorBlock {
 	cpyheader := *header
-	cpymeta := *meta
 	return &MinorBlock{
 		header:       &cpyheader,
-		meta:         &cpymeta,
+		meta:         b.meta,
 		transactions: b.transactions,
 		trackingdata: b.trackingdata,
 	}
 }
 
 // WithBody returns a new block with the given transaction and uncle contents.
-func (b *MinorBlock) WithBody(transactions []*Transaction, trackingData serialize.LimitedSizeByteSlice2) *MinorBlock {
+func (b *MinorBlock) WithBody(transactions []*Transaction, trackingData []byte) *MinorBlock {
 	block := &MinorBlock{
 		header:       CopyMinorBlockHeader(b.header),
 		meta:         CopyMinorBlockMeta(b.meta),
 		transactions: make([]*Transaction, len(transactions)),
-		trackingdata: make(serialize.LimitedSizeByteSlice2, len(trackingData)),
+		trackingdata: make([]byte, len(trackingData)),
 	}
 	copy(block.transactions, transactions)
 	copy(block.trackingdata, trackingData)
@@ -289,4 +353,36 @@ func (b *MinorBlock) Hash() common.Hash {
 	v := b.header.Hash()
 	b.hash.Store(v)
 	return v
+}
+func (b *MinorBlock) ValidateBlock() error {
+	if txHash := DeriveSha(b.transactions); txHash != b.meta.TxHash {
+		return errors.New("incorrect merkle root")
+	}
+
+	return nil
+}
+
+func (b *MinorBlock) NumberU64() uint64 {
+	return b.header.Number
+}
+
+func (b *MinorBlock) IHeader() IHeader {
+	return b.header
+}
+
+// WithMingResult returns a new block with the data from b and update nonce and mixDigest
+func (b *MinorBlock) WithMingResult(nonce uint64, mixDigest common.Hash) IBlock {
+	cpy := CopyMinorBlockHeader(b.header)
+	cpy.Nonce = nonce
+	cpy.MixDigest = mixDigest
+
+	return b.WithSeal(cpy)
+}
+
+func (b *MinorBlock) Content() []IHashable {
+	items := make([]IHashable, len(b.transactions), len(b.transactions))
+	for i, item := range b.transactions {
+		items[i] = item
+	}
+	return items
 }

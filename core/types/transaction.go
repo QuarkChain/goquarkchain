@@ -328,11 +328,6 @@ func (tx *Transaction) Sender(signer Signer) account.Recipient {
 // Transactions is a EvmTransaction slice type for basic sorting.
 type Transactions []*Transaction
 
-//GetLenByteSize implement SerializableList interface in serialize/utils.go
-func (Transactions) GetLenByteSize() int {
-	return 4
-}
-
 // Len returns the length of s.
 func (s Transactions) Len() int { return len(s) }
 
@@ -459,12 +454,6 @@ type CrossShardTransactionDeposit struct {
 	To       account.Address
 	Value    *serialize.Uint256
 	GasPrice *serialize.Uint256
-}
-
-type CrossShardTransactionList []CrossShardTransactionDeposit
-
-func (CrossShardTransactionList) GetLenByteSize() int {
-	return 4
 }
 
 // Message is a fully derived transaction and implements core.Message

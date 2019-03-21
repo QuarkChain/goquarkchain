@@ -92,11 +92,11 @@ var deserdata = []testDataForDeserialize{
 	{input: "04010203", ptr: new([]byte), error: "deser: buffer is shorter than expected"},
 
 	//SerializableList interface
-	{input: "00000000", ptr: new(LargeBytes), value: LargeBytes{}},
-	{input: "000000017E", ptr: new(LargeBytes), value: LargeBytes{0x7E}},
-	{input: "0000000180", ptr: new(LargeBytes), value: LargeBytes{0x80}},
-	{input: "00000003010203", ptr: new(LargeBytes), value: LargeBytes{1, 2, 3}},
-	{input: "03010203", ptr: new(LargeBytes), error: "deser: buffer is shorter than expected"},
+	{input: "00000000", ptr: new(LargeBytes), value: LargeBytes{[]byte{}}},
+	{input: "000000017E", ptr: new(LargeBytes), value: LargeBytes{[]byte{0x7E}}},
+	{input: "0000000180", ptr: new(LargeBytes), value: LargeBytes{[]byte{0x80}}},
+	{input: "00000003010203", ptr: new(LargeBytes), value: LargeBytes{[]byte{1, 2, 3}}},
+	{input: "03010203", ptr: new(LargeBytes), error: "deser: buffer is shorter than expected for serialize.LargeBytes.Value"},
 
 	// byte arrays
 	{input: "00", ptr: new([0]byte), value: [0]byte{}},
@@ -118,7 +118,7 @@ var deserdata = []testDataForDeserialize{
 	// structs
 	{input: "0301020300", ptr: new(structForTest), value: newStructForTest(&[]byte{1, 2, 3}, nil)},
 	{input: "030102030103040506", ptr: new(structForTest), value: newStructForTest(&[]byte{1, 2, 3}, &[]byte{4, 5, 6})},
-	{input: "0301020303040506", ptr: new(structForTest), error: "deser: deser: buffer is shorter than expected for serialize.structForTest.To"},
+	{input: "0301020303040506", ptr: new(structForTest), error: "deser: buffer is shorter than expected for serialize.structForTest.To"},
 
 	// structs
 	{
@@ -187,7 +187,7 @@ func ExampleDeserialize() {
 	type example struct {
 		A       uint
 		B       uint32
-		private uint // private fields are ignored
+		private uint // private fields are Ignored
 		String  string
 	}
 
