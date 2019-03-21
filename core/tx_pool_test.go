@@ -1842,26 +1842,3 @@ func benchmarkPoolBatchInsert(b *testing.B, size int) {
 		pool.AddRemotes(batch)
 	}
 }
-saidt-test-1 52.82.49.188
-saidt-test-2 52.82.59.170
-saidt-test-3 52.82.36.80
-saidt-test-4 52.82.30.212
-saidt-test-5 52.82.47.255
-saidt-test-6 52.82.68.2
-saidt-test-7 52.82.67.143
-saidt-test-8 52.82.33.80
-
-saidi-test-72-1 52.82.59.232
-saidi-test-72-2 52.82.59.160
-saidi-test-72-3 52.83.130.32
-saidi-test-72-4 52.82.48.143
-
-saidi-test-72-5 52.82.42.67
-saidi-test-72-6 52.82.36.174
-saidi-test-72-7 52.82.34.123
-saidi-test-72-8 52.82.16.228
-
-saidi-test-72-9 52.82.70.237
-saidi-test-72-10 52.82.101.42
-saidi-test-72-11 52.82.30.141
-saidi-test-72-12 52.82.4.0
