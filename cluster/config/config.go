@@ -1,6 +1,11 @@
 package config
 
-import "math"
+import (
+	"encoding/json"
+	"github.com/QuarkChain/goquarkchain/params"
+	"math/big"
+	"strings"
+)
 
 const (
 	// PoWNone is the default empty consensus type specifying no shard.
@@ -18,13 +23,13 @@ const (
 )
 
 var (
-	QUARKSH_TO_JIAOZI = math.Pow10(18)
-
+	QUARKSH_TO_JIAOZI = big.NewInt(1000000000000000000)
+	DefaultNumSlaves  = 4
 	DefaultPOSWConfig = POSWConfig{
 		Enabled:            false,
 		DiffDivider:        20,
 		WindowSize:         256,
-		TotalStakePerBlock: math.Pow10(9) * QUARKSH_TO_JIAOZI,
+		TotalStakePerBlock: new(big.Int).Mul(big.NewInt(9), QUARKSH_TO_JIAOZI),
 	}
 	DefaultRootGenesis = RootGenesis{
 		Version:        0,
@@ -45,7 +50,7 @@ var (
 		Errors:           "error",
 	}
 	DefaultP2PConfig = P2PConfig{
-		BootNodes:        "",
+		BootNodes:        params.MainnetBootnodes,
 		PrivKey:          "",
 		MaxPeers:         25,
 		UPnP:             false,
@@ -59,25 +64,6 @@ var (
 	DefaultMasterConfig = MasterConfig{
 		MasterToSlaveConnectRetryDelay: 1.0,
 	}
-	/*DefaultChainConfig = ChainConfig{
-		ChainId:           0,
-		ShardSize:         2,
-		DefaultChainToken: "TQKC",
-		ConsensusType:     NONE,
-		// Genesis:
-		CoinbaseAddress:                    "",
-		CoinbaseAmount:                     5 * QUARKSH_TO_JIAOZI,
-		GasLimitEmaDenominator:             1024,
-		GasLimitAdjustmentFactor:           1024,
-		GasLimitMinimum:                    5000,
-		GasLimitMaximum:                    1<<63 - 1,
-		GasLimitUsageAdjustmentNumerator:   3,
-		GasLimitUsageAdjustmentDenominator: 2,
-		DifficultyAdjustmentCutoffTime:     7,
-		DifficultyAdjustmentFactor:         512,
-		ExtraShardBlocksInRootBlock:        3,
-		PoswConfig:                         &DefaultPOSWConfig,
-	}*/
 )
 
 type POWConfig struct {
@@ -96,7 +82,7 @@ type POSWConfig struct {
 	Enabled            bool
 	DiffDivider        uint32
 	WindowSize         uint32
-	TotalStakePerBlock float64
+	TotalStakePerBlock *big.Int
 }
 
 type SimpleNetwork struct {
@@ -123,7 +109,7 @@ type RootConfig struct {
 	ConsensusConfig                *POWConfig   `json:"CONSENSUS_CONFIG"`
 	Genesis                        *RootGenesis `json:"GENESIS"`
 	CoinbaseAddress                string       `json:"COINBASE_ADDRESS"`
-	CoinbaseAmount                 float64      `json:"COINBASE_AMOUNT"`
+	CoinbaseAmount                 *big.Int     `json:"COINBASE_AMOUNT"`
 	DifficultyAdjustmentCutoffTime uint32       `json:"DIFFICULTY_ADJUSTMENT_CUTOFF_TIME"`
 	DifficultyAdjustmentFactor     uint32       `json:"DIFFICULTY_ADJUSTMENT_FACTOR"`
 }
@@ -136,7 +122,7 @@ func NewRootConfig() *RootConfig {
 		Genesis:                     &DefaultRootGenesis,
 		// TODO address serialization type shuld to be replaced
 		CoinbaseAddress:                "",
-		CoinbaseAmount:                 120 * QUARKSH_TO_JIAOZI,
+		CoinbaseAmount:                 new(big.Int).Mul(big.NewInt(120), QUARKSH_TO_JIAOZI),
 		DifficultyAdjustmentCutoffTime: 40,
 		DifficultyAdjustmentFactor:     1024,
 	}
@@ -158,12 +144,60 @@ type MasterConfig struct {
 // TODO move to P2P
 type P2PConfig struct {
 	// *new p2p module*
-	BootNodes        string  `json:"BOOT_NODES"` // comma separated encodes format: encode://PUBKEY@IP:PORT
-	PrivKey          string  `json:"PRIV_KEY"`
-	MaxPeers         uint64  `json:"MAX_PEERS"`
-	UPnP             bool    `json:"UPNP"`
-	AllowDialInRatio float32 `json:"ALLOW_DIAL_IN_RATIO"`
-	PreferredNodes   string  `json:"PREFERRED_NODES"`
+	BootNodes        []string `json:"BOOT_NODES"` // comma separated encodes format: encode://PUBKEY@IP:PORT
+	PrivKey          string   `json:"PRIV_KEY"`
+	MaxPeers         uint64   `json:"MAX_PEERS"`
+	UPnP             bool     `json:"UPNP"`
+	AllowDialInRatio float32  `json:"ALLOW_DIAL_IN_RATIO"`
+	PreferredNodes   string   `json:"PREFERRED_NODES"`
+}
+
+func (p P2PConfig) MarshalJSON() ([]byte, error) {
+	type P2PConfig struct {
+		BootNodes        string  `json:"BOOT_NODES"`
+		PrivKey          string  `json:"PRIV_KEY"`
+		MaxPeers         uint64  `json:"MAX_PEERS"`
+		UPnP             bool    `json:"UPNP"`
+		AllowDialInRatio float32 `json:"ALLOW_DIAL_IN_RATIO"`
+		PreferredNodes   string  `json:"PREFERRED_NODES"`
+	}
+	var enc = P2PConfig{
+		PrivKey:          p.PrivKey,
+		MaxPeers:         p.MaxPeers,
+		UPnP:             p.UPnP,
+		AllowDialInRatio: p.AllowDialInRatio,
+		PreferredNodes:   p.PreferredNodes,
+	}
+	for _, node := range p.BootNodes {
+		if enc.BootNodes == "" {
+			enc.BootNodes = node
+			continue
+		}
+		enc.BootNodes += "," + node
+	}
+	return json.Marshal(&enc)
+}
+
+func (p *P2PConfig) UnmarshalJSON(input []byte) error {
+	type P2PConfig struct {
+		BootNodes        string  `json:"BOOT_NODES"`
+		PrivKey          string  `json:"PRIV_KEY"`
+		MaxPeers         uint64  `json:"MAX_PEERS"`
+		UPnP             bool    `json:"UPNP"`
+		AllowDialInRatio float32 `json:"ALLOW_DIAL_IN_RATIO"`
+		PreferredNodes   string  `json:"PREFERRED_NODES"`
+	}
+	var dec P2PConfig
+	if err := json.Unmarshal(input, &dec); err != nil {
+		return err
+	}
+	p.BootNodes = strings.Split(dec.BootNodes, ",")
+	p.PrivKey = dec.PrivKey
+	p.MaxPeers = dec.MaxPeers
+	p.UPnP = dec.UPnP
+	p.AllowDialInRatio = dec.AllowDialInRatio
+	p.PreferredNodes = dec.PreferredNodes
+	return nil
 }
 
 type MonitoringConfig struct {
@@ -174,24 +208,3 @@ type MonitoringConfig struct {
 	PropagationTopic string `json:"PROPAGATION_TOPIC"`  // "block_propagation"
 	Errors           string `json:"ERRORS"`             // "error"
 }
-
-/*type ChainConfig struct {
-	ChainId                            uint32
-	ShardSize                          uint32
-	DefaultChainToken                  string
-	ConsensusType                      uint32
-	ConsensusConfig                    *POWConfig
-	Genesis                            *ShardGenesis
-	CoinbaseAddress                    string
-	CoinbaseAmount                     float64
-	GasLimitEmaDenominator             uint64
-	GasLimitAdjustmentFactor           float64
-	GasLimitMinimum                    uint64
-	GasLimitMaximum                    uint64
-	GasLimitUsageAdjustmentNumerator   uint32
-	GasLimitUsageAdjustmentDenominator uint32
-	DifficultyAdjustmentCutoffTime     uint32
-	DifficultyAdjustmentFactor         uint32
-	ExtraShardBlocksInRootBlock        uint32
-	PoswConfig                         *POSWConfig
-}*/
