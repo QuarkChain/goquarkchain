@@ -33,8 +33,7 @@ func ApplyTransaction(config *params.ChainConfig, bc ChainContext, gp *core.GasP
 	if qkcConfig := statedb.GetQuarkChainConfig(); qkcConfig != nil {
 		localFeeRate = localFeeRate - qkcConfig.RewardTaxRate
 	}
-
-	msg, err := tx.EvmTx.AsMessage(types.NewEIP155Signer(tx.EvmTx.NetworkId()))
+	msg, err := tx.EvmTx.AsMessage(types.MakeSigner(config))
 	if err != nil {
 		return nil, 0, err
 	}
@@ -47,10 +46,10 @@ func ApplyTransaction(config *params.ChainConfig, bc ChainContext, gp *core.GasP
 	}
 
 	var root []byte
-	if config.IsByzantium(big.NewInt(int64(header.Number))) {
+	if config.IsByzantium(new(big.Int).SetUint64(header.Number)) {
 		statedb.Finalise(true)
 	} else {
-		root = statedb.IntermediateRoot(config.IsEIP158(big.NewInt(int64(header.Number)))).Bytes()
+		root = statedb.IntermediateRoot(config.IsEIP158(new(big.Int).SetUint64(header.Number))).Bytes()
 	}
 	*usedGas += gas
 
