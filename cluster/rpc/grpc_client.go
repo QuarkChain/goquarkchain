@@ -96,14 +96,14 @@ type opType struct {
 type RPClient struct {
 	mu      sync.Mutex
 	timeout time.Duration
-	conns   *map[string]*grpc.ClientConn
-	funcs   *map[int64]opType
+	conns   map[string]*grpc.ClientConn
+	funcs   map[int64]opType
 }
 
 func NewRPCLient() *RPClient {
 	return &RPClient{
-		conns:   &conns,
-		funcs:   &rpcFuncs,
+		conns:   conns,
+		funcs:   rpcFuncs,
 		timeout: 10 * time.Second,
 	}
 }
@@ -133,7 +133,6 @@ func (c *RPClient) GetMasterServerSideOp(target string, req *Request) (*Response
 	if err != nil {
 		return nil, err
 	}
-
 	client := NewMasterServerSideOpClient(conn)
 	return c.grpcOp(req, reflect.ValueOf(client))
 }
@@ -154,7 +153,7 @@ func (c *RPClient) GetSlaveSideOp(target string, req *Request) (*Response, error
 
 func (c *RPClient) grpcOp(req *Request, ele reflect.Value) (response *Response, err error) {
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(c.timeout)*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), c.timeout)
 	defer cancel()
 
 	rs := ele.MethodByName(rpcFuncs[req.Op].name).Call([]reflect.Value{reflect.ValueOf(ctx)})
@@ -210,7 +209,7 @@ func (c *RPClient) GetConn(target string) (*grpc.ClientConn, error) {
 
 func (c *RPClient) Getfuncs(serverType ServerType) map[int64]string {
 	var funcs = make(map[int64]string)
-	for op, rpcfunc := range *c.funcs {
+	for op, rpcfunc := range c.funcs {
 		if rpcfunc.serverType == serverType {
 			funcs[op] = rpcfunc.name
 		}
