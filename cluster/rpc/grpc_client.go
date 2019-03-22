@@ -12,39 +12,72 @@ import (
 	"time"
 )
 
+const (
+	_ = iota
+	OpPing
+	OpConnectToSlaves
+	OpAddRootBlock
+	OpGetEcoInfoList
+	OpGetNextBlockToMine
+	OpGetUnconfirmedHeaders
+	OpGetAccountData
+	OpAddTransaction
+	OpAddMinorBlockHeader
+	OpAddXshardTxList
+	OpSyncMinorBlockList
+	OpAddMinorBlock
+	OpCreateClusterPeerConnection
+	OpDestroyClusterPeerConnectionCommand
+	OpGetMinorBlock
+	OpGetTransaction
+	OpBatchAddXshardTxList
+	OpExecuteTransaction
+	OpGetTransactionReceipt
+	OpGetMine
+	OpGenTx
+	OpGetTransactionListByAddress
+	OpGetLogs
+	OpEstimateGas
+	OpGetStorageAt
+	OpGetCode
+	OpGasPrice
+	OpGetWork
+	OpSubmitWork
+)
+
 var (
 	conns = make(map[string]*grpc.ClientConn)
 	// include all grpc funcs
 	rpcFuncs = map[int64]opType{
-		1:  {name: "Ping"},
-		2:  {name: "ConnectToSlaves"},
-		3:  {name: "AddRootBlock"},
-		4:  {name: "GetEcoInfoList"},
-		5:  {name: "GetNextBlockToMine"},
-		6:  {name: "GetUnconfirmedHeaders"},
-		7:  {name: "GetAccountData"},
-		8:  {name: "AddTransaction"},
-		9:  {name: "AddMinorBlockHeader", ty: 1},
-		10: {name: "AddXshardTxList"},
-		11: {name: "SyncMinorBlockList"},
-		12: {name: "AddMinorBlock"},
-		13: {name: "CreateClusterPeerConnection"},
-		14: {name: "DestroyClusterPeerConnectionCommand", ty: -1},
-		15: {name: "GetMinorBlock"},
-		16: {name: "GetTransaction"},
-		17: {name: "BatchAddXshardTxList"},
-		18: {name: "ExecuteTransaction"},
-		19: {name: "GetTransactionReceipt"},
-		20: {name: "GetMine"},
-		21: {name: "GenTx"},
-		22: {name: "GetTransactionListByAddress"},
-		23: {name: "GetLogs"},
-		24: {name: "EstimateGas"},
-		25: {name: "GetStorageAt"},
-		26: {name: "GetCode"},
-		27: {name: "GasPrice"},
-		28: {name: "GetWork"},
-		29: {name: "SubmitWork"},
+		OpPing:                                {name: "Ping"},
+		OpConnectToSlaves:                     {name: "ConnectToSlaves"},
+		OpAddRootBlock:                        {name: "AddRootBlock"},
+		OpGetEcoInfoList:                      {name: "GetEcoInfoList"},
+		OpGetNextBlockToMine:                  {name: "GetNextBlockToMine"},
+		OpGetUnconfirmedHeaders:               {name: "GetUnconfirmedHeaders"},
+		OpGetAccountData:                      {name: "GetAccountData"},
+		OpAddTransaction:                      {name: "AddTransaction"},
+		OpAddMinorBlockHeader:                 {name: "AddMinorBlockHeader", ty: 1},
+		OpAddXshardTxList:                     {name: "AddXshardTxList"},
+		OpSyncMinorBlockList:                  {name: "SyncMinorBlockList"},
+		OpAddMinorBlock:                       {name: "AddMinorBlock"},
+		OpCreateClusterPeerConnection:         {name: "CreateClusterPeerConnection"},
+		OpDestroyClusterPeerConnectionCommand: {name: "DestroyClusterPeerConnectionCommand", ty: -1},
+		OpGetMinorBlock:                       {name: "GetMinorBlock"},
+		OpGetTransaction:                      {name: "GetTransaction"},
+		OpBatchAddXshardTxList:                {name: "BatchAddXshardTxList"},
+		OpExecuteTransaction:                  {name: "ExecuteTransaction"},
+		OpGetTransactionReceipt:               {name: "GetTransactionReceipt"},
+		OpGetMine:                             {name: "GetMine"},
+		OpGenTx:                               {name: "GenTx"},
+		OpGetTransactionListByAddress:         {name: "GetTransactionListByAddress"},
+		OpGetLogs:                             {name: "GetLogs"},
+		OpEstimateGas:                         {name: "EstimateGas"},
+		OpGetStorageAt:                        {name: "GetStorageAt"},
+		OpGetCode:                             {name: "GetCode"},
+		OpGasPrice:                            {name: "GasPrice"},
+		OpGetWork:                             {name: "GetWork"},
+		OpSubmitWork:                          {name: "SubmitWork"},
 	}
 )
 

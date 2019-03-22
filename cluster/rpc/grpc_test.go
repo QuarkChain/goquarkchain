@@ -39,9 +39,9 @@ func TestGRPCAPI(t *testing.T) {
 
 	// create rpc client and request AddMinorBlockHeader function
 	cli := NewRPCLient()
-	res, err := cli.GetMasterServerSideOp(target, &Request{Op: 9, Data: []byte(fmt.Sprintf("%s op request", cli.GetOpName(9)))})
+	res, err := cli.GetMasterServerSideOp(target, &Request{Op: OpAddMinorBlockHeader, Data: []byte(fmt.Sprintf("%s op request", cli.GetOpName(OpAddMinorBlockHeader)))})
 	if err != nil || res.ErrorCode != 0 {
-		t.Fatalf("request master function %s %v", cli.GetOpName(9), err)
+		t.Fatalf("request master function %s %v", cli.GetOpName(OpAddMinorBlockHeader), err)
 	}
 	// check rpc id is in order
 	if res.RpcId != rpcId {
@@ -49,7 +49,7 @@ func TestGRPCAPI(t *testing.T) {
 	}
 	rpcId = res.RpcId
 
-	if string(res.Data) != fmt.Sprintf("%s response", cli.GetOpName(9)) {
+	if string(res.Data) != fmt.Sprintf("%s response", cli.GetOpName(OpAddMinorBlockHeader)) {
 		t.Fatalf("response data %s is not the value of expection", string(res.Data))
 	}
 
