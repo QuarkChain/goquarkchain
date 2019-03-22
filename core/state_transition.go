@@ -241,7 +241,7 @@ func (st *StateTransition) TransitionDb(feeRate float32) (ret []byte, usedGas ui
 	st.refundGas()
 
 	finalGasUsed := st.gasUsed()
-	if vmerr == nil && st.msg.IsCrossShard() { //success
+	if st.msg.IsCrossShard() { 
 		finalGasUsed -= uint64(qkcParam.GtxxShardCost)
 	}
 
@@ -282,11 +282,11 @@ func (st *StateTransition) handleCrossShardTx() (ret []byte, usedGas uint64, err
 	if !evm.CanTransfer(evm.StateDB, msg.From(), st.value) {
 		return nil, 0, vm.ErrInsufficientBalance
 	}
-	crossSHardValue := new(serialize.Uint256)
-	crossSHardValue.Value.Set(msg.Value())
+	crossShardValue := new(serialize.Uint256)
+	crossShardValue.Value.Set(msg.Value())
 
-	crossSHardGasPrice := new(serialize.Uint256)
-	crossSHardGasPrice.Value.Set(msg.GasPrice())
+	crossShardGasPrice := new(serialize.Uint256)
+	crossShardGasPrice.Value.Set(msg.GasPrice())
 	crossShardData := types.CrossShardTransactionDeposit{
 		TxHash: msg.TxHash(),
 		From: account.Address{
@@ -297,8 +297,8 @@ func (st *StateTransition) handleCrossShardTx() (ret []byte, usedGas uint64, err
 			Recipient:    account.Recipient(*msg.To()),
 			FullShardKey: msg.ToFullShardId(),
 		},
-		Value:    crossSHardValue,
-		GasPrice: crossSHardGasPrice,
+		Value:    crossShardValue,
+		GasPrice: crossShardGasPrice,
 	}
 	evm.StateDB.SubBalance(msg.From(), st.value)
 	evm.StateDB.AppendXShardList(crossShardData)
