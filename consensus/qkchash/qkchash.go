@@ -16,7 +16,7 @@ import (
 // Implements consensus.Pow
 type QKCHash struct {
 	commonEngine   *consensus.CommonEngine
-	diffCalculator consensus.IDifficultyCalculator
+	diffCalculator consensus.DifficultyCalculator
 	// TODO: in the future cache may depend on block height
 	cache qkcCache
 	// A flag indicating which impl (c++ native or go) to use
@@ -99,7 +99,7 @@ func (q *QKCHash) hashAlgo(hash []byte, nonce uint64) (res consensus.MiningResul
 }
 
 // New returns a QKCHash scheme.
-func New(useNative bool, diffCalculator consensus.IDifficultyCalculator) *QKCHash {
+func New(useNative bool, diffCalculator consensus.DifficultyCalculator) *QKCHash {
 	q := &QKCHash{
 		diffCalculator: diffCalculator,
 		useNative:      useNative,

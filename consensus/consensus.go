@@ -95,6 +95,8 @@ func (c *CommonEngine) VerifyHeader(
 ) error {
 	// Short-circuit if the header is known, or parent not
 	number := header.NumberU64()
+	logger := log.New("engine")
+
 	if chain.GetHeader(header.Hash(), number) != nil {
 		return nil
 	}
@@ -115,7 +117,9 @@ func (c *CommonEngine) VerifyHeader(
 	if !chain.Config().SkipRootDifficultyCheck {
 		expectedDiff := cengine.CalcDifficulty(chain, header.GetTime(), parent)
 		if expectedDiff.Cmp(header.GetDifficulty()) != 0 {
-			return fmt.Errorf("invalid difficulty: have %v, want %v", header.GetDifficulty(), expectedDiff)
+			errMsg := fmt.Sprintf("invalid difficulty: have %v, want %v", header.GetDifficulty(), expectedDiff)
+			logger.Error(errMsg)
+			return errors.New(errMsg)
 		}
 		if reflect.TypeOf(header) == reflect.TypeOf(new(types.RootBlockHeader)) {
 			rootHeader := header.(*types.RootBlockHeader)
@@ -124,11 +128,8 @@ func (c *CommonEngine) VerifyHeader(
 			}
 		}
 	}
-	if err := cengine.VerifySeal(chain, header, adjustedDiff); err != nil {
-		return err
-	}
 
-	return nil
+	return cengine.VerifySeal(chain, header, adjustedDiff)
 }
 
 // VerifyHeaders is similar to VerifyHeader, but verifies a batch of headers

@@ -5,7 +5,7 @@ import (
 	"math/big"
 )
 
-type IDifficultyCalculator interface {
+type DifficultyCalculator interface {
 	CalculateDifficulty(parent types.IHeader, time uint64) *big.Int
 }
 
