@@ -12,6 +12,8 @@ import (
 	"time"
 )
 
+type ServerType int
+
 const (
 	_ = iota
 	OpPing
@@ -43,6 +45,10 @@ const (
 	OpGasPrice
 	OpGetWork
 	OpSubmitWork
+
+	MasterServer  = ServerType(1)
+	SlaveServer   = ServerType(0)
+	UnknownServer = ServerType(-1)
 )
 
 var (
@@ -57,12 +63,12 @@ var (
 		OpGetUnconfirmedHeaders:               {name: "GetUnconfirmedHeaders"},
 		OpGetAccountData:                      {name: "GetAccountData"},
 		OpAddTransaction:                      {name: "AddTransaction"},
-		OpAddMinorBlockHeader:                 {name: "AddMinorBlockHeader", ty: 1},
+		OpAddMinorBlockHeader:                 {name: "AddMinorBlockHeader", serverType: MasterServer},
 		OpAddXshardTxList:                     {name: "AddXshardTxList"},
 		OpSyncMinorBlockList:                  {name: "SyncMinorBlockList"},
 		OpAddMinorBlock:                       {name: "AddMinorBlock"},
 		OpCreateClusterPeerConnection:         {name: "CreateClusterPeerConnection"},
-		OpDestroyClusterPeerConnectionCommand: {name: "DestroyClusterPeerConnectionCommand", ty: -1},
+		OpDestroyClusterPeerConnectionCommand: {name: "DestroyClusterPeerConnectionCommand", serverType: UnknownServer},
 		OpGetMinorBlock:                       {name: "GetMinorBlock"},
 		OpGetTransaction:                      {name: "GetTransaction"},
 		OpBatchAddXshardTxList:                {name: "BatchAddXshardTxList"},
@@ -83,8 +89,8 @@ var (
 
 type opType struct {
 	// -1 useless, 0 SlaveServerSideOp funcs, 1 MasterServerSideOp funcs
-	ty   int8
-	name string
+	serverType ServerType
+	name       string
 }
 
 type RPClient struct {
@@ -93,9 +99,6 @@ type RPClient struct {
 	timeout uint16
 	conns   *map[string]*grpc.ClientConn
 	funcs   *map[int64]opType
-
-	mstrTp  int8
-	slaveTp int8
 }
 
 func NewRPCLient() *RPClient {
@@ -104,13 +107,12 @@ func NewRPCLient() *RPClient {
 		conns:   &conns,
 		funcs:   &rpcFuncs,
 		timeout: 500,
-		mstrTp:  1,
 	}
 }
 
-func (c *RPClient) checkOp(op int64, ty int8) bool {
+func (c *RPClient) checkOp(op int64, serverType ServerType) bool {
 	if opType, exist := rpcFuncs[op];
-		exist && opType.ty == ty {
+		exist && opType.serverType == serverType {
 		return true
 	}
 	return false
@@ -126,7 +128,7 @@ func (c *RPClient) GetOpName(op int64) string {
 
 func (c *RPClient) GetMasterServerSideOp(target string, req *Request) (*Response, error) {
 
-	if !c.checkOp(req.Op, c.mstrTp) {
+	if !c.checkOp(req.Op, MasterServer) {
 		return nil, errors.New(fmt.Sprintf("%s don't belong to master server grpc functions", rpcFuncs[req.Op].name))
 	}
 	conn, err := c.GetConn(target)
@@ -140,7 +142,7 @@ func (c *RPClient) GetMasterServerSideOp(target string, req *Request) (*Response
 
 func (c *RPClient) GetSlaveSideOp(target string, req *Request) (*Response, error) {
 
-	if !c.checkOp(req.Op, c.slaveTp) {
+	if !c.checkOp(req.Op, SlaveServer) {
 		return nil, errors.New(fmt.Sprintf("%s don't belong to slave server grpc functions", rpcFuncs[req.Op].name))
 	}
 	conn, err := c.GetConn(target)
@@ -208,10 +210,10 @@ func (c *RPClient) GetConn(target string) (*grpc.ClientConn, error) {
 	return conns[target], nil
 }
 
-func (c *RPClient) Getfuncs(tp int8) map[int64]string {
+func (c *RPClient) Getfuncs(serverType ServerType) map[int64]string {
 	var funcs = make(map[int64]string)
 	for op, rpcfunc := range *c.funcs {
-		if rpcfunc.ty == tp {
+		if rpcfunc.serverType == serverType {
 			funcs[op] = rpcfunc.name
 		}
 	}
