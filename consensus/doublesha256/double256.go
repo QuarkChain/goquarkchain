@@ -21,7 +21,7 @@ var (
 // Implements consensus.Pow
 type DoubleSHA256 struct {
 	commonEngine   *consensus.CommonEngine
-	diffCalculator consensus.IDifficultyCalculator
+	diffCalculator consensus.DifficultyCalculator
 }
 
 // Author returns coinbase address.
@@ -127,7 +127,7 @@ func hashAlgo(hash []byte, nonce uint64) (consensus.MiningResult, error) {
 }
 
 // New returns a DoubleSHA256 scheme.
-func New(diffCalculator consensus.IDifficultyCalculator) *DoubleSHA256 {
+func New(diffCalculator consensus.DifficultyCalculator) *DoubleSHA256 {
 	spec := consensus.MiningSpec{
 		Name:     "DoubleSHA256",
 		HashAlgo: hashAlgo,
