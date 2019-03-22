@@ -17,6 +17,7 @@
 package vm
 
 import (
+	"errors"
 	"math/big"
 	"sync/atomic"
 	"time"
@@ -24,6 +25,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/params"
+	"github.com/ethereum/go-ethereum/rlp"
 )
 
 // emptyCodeHash is used by create to ensure deployment is disallowed to already
@@ -211,7 +213,9 @@ func (evm *EVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 		}
 		evm.StateDB.CreateAccount(addr)
 	}
+
 	evm.Transfer(evm.StateDB, caller.Address(), to.Address(), value)
+
 	// Initialise a new contract and set the code that is to be used by the EVM.
 	// The contract is a scoped environment for this execution context only.
 	contract := NewContract(caller, to, value, gas)
@@ -448,9 +452,18 @@ func (evm *EVM) create(caller ContractRef, codeAndHash *codeAndHash, gas uint64,
 
 }
 
+// CreateAddress creates an ethereum address given the bytes and the nonce
+func CreateAddress(b common.Address, toFullShardID uint32, nonce uint64) common.Address {
+	data, _ := rlp.EncodeToBytes([]interface{}{b, toFullShardID, nonce})
+	return common.BytesToAddress(crypto.Keccak256(data)[12:])
+}
+
 // Create creates a new contract using code as deployment code.
-func (evm *EVM) Create(caller ContractRef, code []byte, gas uint64, value *big.Int) (ret []byte, contractAddr common.Address, leftOverGas uint64, err error) {
-	contractAddr = crypto.CreateAddress(caller.Address(), evm.StateDB.GetNonce(caller.Address()))
+func (evm *EVM) Create(caller ContractRef, code []byte, gas uint64, value *big.Int, isCrossShard bool) (ret []byte, contractAddr common.Address, leftOverGas uint64, err error) {
+	if isCrossShard {
+		return nil, contractAddr, gas, errors.New("is cross shard tx ,not support create evm")
+	}
+	contractAddr = CreateAddress(caller.Address(), evm.StateDB.GetFullShardID(), evm.StateDB.GetNonce(caller.Address()))
 	return evm.create(caller, &codeAndHash{code: code}, gas, value, contractAddr)
 }
 

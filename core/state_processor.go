@@ -17,42 +17,39 @@
 package core
 
 import (
-	"github.com/ethereum/go-ethereum/common"
+	"github.com/QuarkChain/goquarkchain/account"
+	"github.com/QuarkChain/goquarkchain/core/state"
+	"github.com/QuarkChain/goquarkchain/core/types"
+	"github.com/QuarkChain/goquarkchain/core/vm"
 	"github.com/ethereum/go-ethereum/core"
-	"github.com/ethereum/go-ethereum/core/state"
-	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/core/vm"
-	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/params"
+	"math/big"
 )
 
+func ApplyTransaction(config *params.ChainConfig, bc ChainContext, gp *core.GasPool, statedb *state.StateDB, header *types.MinorBlockHeader, tx *types.Transaction, usedGas *uint64, cfg vm.Config) (*types.Receipt, uint64, error) {
+	statedb.SetFullShardID(tx.EvmTx.ToFullShardId())
 
-
-// ApplyTransaction attempts to apply a transaction to the given state database
-// and uses the input parameters for its environment. It returns the receipt
-// for the transaction, gas used and an error if the transaction failed,
-// indicating the block was invalid.
-func ApplyTransaction(config *params.ChainConfig, bc ChainContext, author *common.Address, gp *core.GasPool, statedb *state.StateDB, header *types.Header, tx *types.Transaction, usedGas *uint64, cfg vm.Config) (*types.Receipt, uint64, error) {
-	msg, err := tx.AsMessage(types.MakeSigner(config, header.Number))
+	localFeeRate := float32(1.0)
+	if qkcConfig := statedb.GetQuarkChainConfig(); qkcConfig != nil {
+		localFeeRate = localFeeRate - qkcConfig.RewardTaxRate
+	}
+	msg, err := tx.EvmTx.AsMessage(types.MakeSigner(tx.EvmTx.NetworkId()))
 	if err != nil {
 		return nil, 0, err
 	}
-	// Create a new context to be used in the EVM environment
-	context := NewEVMContext(msg, header, bc, author)
-	// Create a new environment which holds all relevant information
-	// about the transaction and calling mechanisms.
+	context := NewEVMContext(msg, header, bc)
 	vmenv := vm.NewEVM(context, statedb, config, cfg)
-	// Apply the transaction to the current state (included in the env)
-	_, gas, failed, err := ApplyMessage(vmenv, msg, gp)
+
+	_, gas, failed, err := ApplyMessage(vmenv, msg, gp, localFeeRate)
 	if err != nil {
 		return nil, 0, err
 	}
-	// Update the state with pending changes
+
 	var root []byte
-	if config.IsByzantium(header.Number) {
+	if config.IsByzantium(new(big.Int).SetUint64(header.Number)) {
 		statedb.Finalise(true)
 	} else {
-		root = statedb.IntermediateRoot(config.IsEIP158(header.Number)).Bytes()
+		root = statedb.IntermediateRoot(config.IsEIP158(new(big.Int).SetUint64(header.Number))).Bytes()
 	}
 	*usedGas += gas
 
@@ -63,7 +60,8 @@ func ApplyTransaction(config *params.ChainConfig, bc ChainContext, author *commo
 	receipt.GasUsed = gas
 	// if the transaction created a contract, store the creation address in the receipt.
 	if msg.To() == nil {
-		receipt.ContractAddress = crypto.CreateAddress(vmenv.Context.Origin, tx.Nonce())
+		receipt.ContractAddress = account.Recipient(vm.CreateAddress(vmenv.Context.Origin, msg.ToFullShardId(), tx.EvmTx.Nonce()))
+		receipt.ContractFullShardId = tx.EvmTx.ToFullShardId()
 	}
 	// Set the receipt logs and create a bloom for filtering
 	receipt.Logs = statedb.GetLogs(tx.Hash())

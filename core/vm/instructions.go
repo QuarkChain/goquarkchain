@@ -19,11 +19,12 @@ package vm
 import (
 	"errors"
 	"fmt"
+	"github.com/QuarkChain/goquarkchain/account"
 	"math/big"
 
+	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/math"
-	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto/sha3"
 	"github.com/ethereum/go-ethereum/params"
 )
@@ -701,7 +702,8 @@ func opCreate(pc *uint64, interpreter *EVMInterpreter, contract *Contract, memor
 	}
 
 	contract.UseGas(gas)
-	res, addr, returnGas, suberr := interpreter.evm.Create(contract, input, gas, value)
+	//TODO:not support crossShard contract so this must be "false" .anything else question?
+	res, addr, returnGas, suberr := interpreter.evm.Create(contract, input, gas, value, false)
 	// Push item on the stack based on the returned error. If the ruleset is
 	// homestead we must check for CodeStoreOutOfGasError (homestead only
 	// rule) and treat as an error, if the ruleset is frontier we must
@@ -899,9 +901,9 @@ func makeLog(size int) executionFunc {
 
 		d := memory.Get(mStart.Int64(), mSize.Int64())
 		interpreter.evm.StateDB.AddLog(&types.Log{
-			Address: contract.Address(),
-			Topics:  topics,
-			Data:    d,
+			Recipient: account.BytesToIdentityRecipient(contract.Address().Bytes()),
+			Topics:    topics,
+			Data:      d,
 			// This is a non-consensus field, but assigned here because
 			// core/state doesn't know the current block number.
 			BlockNumber: interpreter.evm.BlockNumber.Uint64(),
