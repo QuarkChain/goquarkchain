@@ -3,86 +3,144 @@ syntax = "proto3";
 package rpc;
 
 service CommonOp {
-    rpc Ping(Request) returns (Response) {}
-    rpc ConnectToSlaves(Request) returns (Response) {}
-	rpc AddRootBlock(Request) returns (Response) {}
-	rpc GetEcoInfoList(Request) returns (Response) {}
-	rpc GetNextBlockToMine(Request) returns (Response) {}
-	rpc GetUnconfirmedHeaders(Request) returns (Response) {}
-	rpc GetAccountData(Request) returns (Response) {}
-	rpc AddTransaction(Request) returns (Response) {}
-	rpc AddMinorBlockHeader(Request) returns (Response) {}
-	rpc AddXshardTxList(Request) returns (Response) {}
-	rpc SyncMinorBlockList(Request) returns (Response) {}
-	rpc AddMinorBlock(Request) returns (Response) {}
-	rpc CreateClusterPeerConnection(Request) returns (Response) {}
-	rpc DestroyClusterPeerConnectionCommand(Request) returns (Response) {}
-	// get minor block request
-	rpc GetMinorBlock(Request) returns (Response) {}
-	rpc GetTransaction(Request) returns (Response) {}
-	rpc BatchAddXshardTxList(Request) returns (Response) {}
-	rpc ExecuteTransaction(Request) returns (Response) {}
-	rpc GetTransactionReceipt(Request) returns (Response) {}
-	rpc GetMine(Request) returns (Response) {}
-	rpc GenTx(Request) returns (Response) {}
-	rpc GetTransactionListByAddress(Request) returns (Response) {}
-	rpc GetLogs(Request) returns (Response) {}
-	rpc EstimateGas(Request) returns (Response) {}
-	rpc GetStorageAt(Request) returns (Response) {}
-	rpc GetCode(Request) returns (Response) {}
-	rpc GasPrice(Request) returns (Response) {}
-	rpc GetWork(Request) returns (Response) {}
-	rpc SubmitWork(Request) returns (Response) {}
+    rpc Ping (Request) returns (Response) {
+    }
+    rpc ConnectToSlaves (Request) returns (Response) {
+    }
+    rpc AddRootBlock (Request) returns (Response) {
+    }
+    rpc GetEcoInfoList (Request) returns (Response) {
+    }
+    rpc GetNextBlockToMine (Request) returns (Response) {
+    }
+    rpc GetUnconfirmedHeaders (Request) returns (Response) {
+    }
+    rpc GetAccountData (Request) returns (Response) {
+    }
+    rpc AddTransaction (Request) returns (Response) {
+    }
+    rpc AddMinorBlockHeader (Request) returns (Response) {
+    }
+    rpc AddXshardTxList (Request) returns (Response) {
+    }
+    rpc SyncMinorBlockList (Request) returns (Response) {
+    }
+    rpc AddMinorBlock (Request) returns (Response) {
+    }
+    rpc CreateClusterPeerConnection (Request) returns (Response) {
+    }
+    rpc DestroyClusterPeerConnectionCommand (Request) returns (Response) {
+    }
+    // get minor block request
+    rpc GetMinorBlock (Request) returns (Response) {
+    }
+    rpc GetTransaction (Request) returns (Response) {
+    }
+    rpc BatchAddXshardTxList (Request) returns (Response) {
+    }
+    rpc ExecuteTransaction (Request) returns (Response) {
+    }
+    rpc GetTransactionReceipt (Request) returns (Response) {
+    }
+    rpc GetMine (Request) returns (Response) {
+    }
+    rpc GenTx (Request) returns (Response) {
+    }
+    rpc GetTransactionListByAddress (Request) returns (Response) {
+    }
+    rpc GetLogs (Request) returns (Response) {
+    }
+    rpc EstimateGas (Request) returns (Response) {
+    }
+    rpc GetStorageAt (Request) returns (Response) {
+    }
+    rpc GetCode (Request) returns (Response) {
+    }
+    rpc GasPrice (Request) returns (Response) {
+    }
+    rpc GetWork (Request) returns (Response) {
+    }
+    rpc SubmitWork (Request) returns (Response) {
+    }
 }
 
 // master operation
 service MasterServerSideOp {
-    rpc AddMinorBlockHeader(stream Request) returns (Response) {}
+    rpc AddMinorBlockHeader (stream Request) returns (Response) {
+    }
 }
 
 // slave operation
 service SlaveServerSideOp {
     // APIs for master
-    rpc Ping(stream Request) returns (Response) {}
-    rpc ConnectToSlaves(stream Request) returns (Response) {}
-    rpc GetMine(stream Request) returns (Response) {}
-    rpc GenTx(stream Request) returns (Response) {}
-    rpc AddRootBlock(stream Request) returns (Response) {}
-    rpc GetEcoInfoList(stream Request) returns (Response) {}
-    rpc GetNextBlockToMine(stream Request) returns (Response) {}
-    rpc AddMinorBlock(stream Request) returns (Response) {}
-    rpc GetUnconfirmedHeaders(stream Request) returns (Response) {}
-    rpc GetAccountData(stream Request) returns (Response) {}
-    rpc AddTransaction(stream Request) returns (Response) {}
-    rpc CreateClusterPeerConnection(stream Request) returns (Response) {}
-    rpc DestroyClusterPeerConnectionCommand(stream Request) returns (Response) {}
-    rpc GetMinorBlock(stream Request) returns (Response) {}
-    rpc GetTransaction(stream Request) returns (Response) {}
-    rpc SyncMinorBlockList(stream Request) returns (Response) {}
-    rpc ExecuteTransaction(stream Request) returns (Response) {}
-    rpc GetTransactionReceipt(stream Request) returns (Response) {}
-    rpc GetTransactionListByAddress(stream Request) returns (Response) {}
-    rpc GetLogs(stream Request) returns (Response) {}
-    rpc EstimateGas(stream Request) returns (Response) {}
-    rpc GetStorageAt(stream Request) returns (Response) {}
-    rpc GetCode(stream Request) returns (Response) {}
-    rpc GasPrice(stream Request) returns (Response) {}
-    rpc GetWork(stream Request) returns (Response) {}
-    rpc SubmitWork(stream Request) returns (Response) {}
+    rpc Ping (stream Request) returns (Response) {
+    }
+    rpc ConnectToSlaves (stream Request) returns (Response) {
+    }
+    rpc GetMine (stream Request) returns (Response) {
+    }
+    rpc GenTx (stream Request) returns (Response) {
+    }
+    rpc AddRootBlock (stream Request) returns (Response) {
+    }
+    rpc GetEcoInfoList (stream Request) returns (Response) {
+    }
+    rpc GetNextBlockToMine (stream Request) returns (Response) {
+    }
+    rpc AddMinorBlock (stream Request) returns (Response) {
+    }
+    rpc GetUnconfirmedHeaders (stream Request) returns (Response) {
+    }
+    rpc GetAccountData (stream Request) returns (Response) {
+    }
+    rpc AddTransaction (stream Request) returns (Response) {
+    }
+    rpc CreateClusterPeerConnection (stream Request) returns (Response) {
+    }
+    rpc DestroyClusterPeerConnectionCommand (stream Request) returns (Response) {
+    }
+    rpc GetMinorBlock (stream Request) returns (Response) {
+    }
+    rpc GetTransaction (stream Request) returns (Response) {
+    }
+    rpc SyncMinorBlockList (stream Request) returns (Response) {
+    }
+    rpc ExecuteTransaction (stream Request) returns (Response) {
+    }
+    rpc GetTransactionReceipt (stream Request) returns (Response) {
+    }
+    rpc GetTransactionListByAddress (stream Request) returns (Response) {
+    }
+    rpc GetLogs (stream Request) returns (Response) {
+    }
+    rpc EstimateGas (stream Request) returns (Response) {
+    }
+    rpc GetStorageAt (stream Request) returns (Response) {
+    }
+    rpc GetCode (stream Request) returns (Response) {
+    }
+    rpc GasPrice (stream Request) returns (Response) {
+    }
+    rpc GetWork (stream Request) returns (Response) {
+    }
+    rpc SubmitWork (stream Request) returns (Response) {
+    }
     // APIs for neighbor slaves
-    rpc AddXshardTxList(stream Request) returns (Response) {}
-    rpc BatchAddXshardTxList(stream Request) returns (Response) {}
+    rpc AddXshardTxList (stream Request) returns (Response) {
+    }
+    rpc BatchAddXshardTxList (stream Request) returns (Response) {
+    }
 }
 
 // request data
 message Request {
-	int64 op = 1; 	// option id
-	bytes data = 5;	// 数据内容
+    int64 op = 1; // option id
+    bytes data = 5; // 数据内容
 }
 
 // response data
 message Response {
     int64 rpc_id = 2;
-	bytes data = 1;
-	int64 error_code = 3;
+    bytes data = 1;
+    int64 error_code = 3;
 }
