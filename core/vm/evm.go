@@ -463,7 +463,6 @@ func (evm *EVM) Create(caller ContractRef, code []byte, gas uint64, value *big.I
 	if isCrossShard {
 		return nil, contractAddr, gas, errors.New("is cross shard tx ,not support create evm")
 	}
-	//contractAddr=crypto.CreateAddress(caller.Address(),evm.StateDB.GetNonce(caller.Address()))
 	contractAddr = CreateAddress(caller.Address(), evm.StateDB.GetFullShardID(), evm.StateDB.GetNonce(caller.Address()))
 	return evm.create(caller, &codeAndHash{code: code}, gas, value, contractAddr)
 }

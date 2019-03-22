@@ -60,7 +60,6 @@ func ApplyTransaction(config *params.ChainConfig, bc ChainContext, gp *core.GasP
 	receipt.GasUsed = gas
 	// if the transaction created a contract, store the creation address in the receipt.
 	if msg.To() == nil {
-		//receipt.ContractAddress = account.BytesToIdentityRecipient(crypto.CreateAddress(vmenv.Context.Origin, tx.EvmTx.Nonce()).Bytes())
 		receipt.ContractAddress = account.Recipient(vm.CreateAddress(vmenv.Context.Origin, msg.ToFullShardId(), tx.EvmTx.Nonce()))
 		receipt.ContractFullShardId = tx.EvmTx.ToFullShardId()
 	}
