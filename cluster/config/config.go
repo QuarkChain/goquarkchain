@@ -1,8 +1,6 @@
 package config
 
 import (
-	"encoding/json"
-	"github.com/QuarkChain/goquarkchain/params"
 	"math/big"
 	"strings"
 )
@@ -50,7 +48,7 @@ var (
 		Errors:           "error",
 	}
 	DefaultP2PConfig = P2PConfig{
-		BootNodes:        params.MainnetBootnodes,
+		BootNodes:        "",
 		PrivKey:          "",
 		MaxPeers:         25,
 		UPnP:             false,
@@ -144,60 +142,16 @@ type MasterConfig struct {
 // TODO move to P2P
 type P2PConfig struct {
 	// *new p2p module*
-	BootNodes        []string `json:"BOOT_NODES"` // comma separated encodes format: encode://PUBKEY@IP:PORT
-	PrivKey          string   `json:"PRIV_KEY"`
-	MaxPeers         uint64   `json:"MAX_PEERS"`
-	UPnP             bool     `json:"UPNP"`
-	AllowDialInRatio float32  `json:"ALLOW_DIAL_IN_RATIO"`
-	PreferredNodes   string   `json:"PREFERRED_NODES"`
+	BootNodes        string  `json:"BOOT_NODES"` // comma separated encodes format: encode://PUBKEY@IP:PORT
+	PrivKey          string  `json:"PRIV_KEY"`
+	MaxPeers         uint64  `json:"MAX_PEERS"`
+	UPnP             bool    `json:"UPNP"`
+	AllowDialInRatio float32 `json:"ALLOW_DIAL_IN_RATIO"`
+	PreferredNodes   string  `json:"PREFERRED_NODES"`
 }
 
-func (p P2PConfig) MarshalJSON() ([]byte, error) {
-	type P2PConfig struct {
-		BootNodes        string  `json:"BOOT_NODES"`
-		PrivKey          string  `json:"PRIV_KEY"`
-		MaxPeers         uint64  `json:"MAX_PEERS"`
-		UPnP             bool    `json:"UPNP"`
-		AllowDialInRatio float32 `json:"ALLOW_DIAL_IN_RATIO"`
-		PreferredNodes   string  `json:"PREFERRED_NODES"`
-	}
-	var enc = P2PConfig{
-		PrivKey:          p.PrivKey,
-		MaxPeers:         p.MaxPeers,
-		UPnP:             p.UPnP,
-		AllowDialInRatio: p.AllowDialInRatio,
-		PreferredNodes:   p.PreferredNodes,
-	}
-	for _, node := range p.BootNodes {
-		if enc.BootNodes == "" {
-			enc.BootNodes = node
-			continue
-		}
-		enc.BootNodes += "," + node
-	}
-	return json.Marshal(&enc)
-}
-
-func (p *P2PConfig) UnmarshalJSON(input []byte) error {
-	type P2PConfig struct {
-		BootNodes        string  `json:"BOOT_NODES"`
-		PrivKey          string  `json:"PRIV_KEY"`
-		MaxPeers         uint64  `json:"MAX_PEERS"`
-		UPnP             bool    `json:"UPNP"`
-		AllowDialInRatio float32 `json:"ALLOW_DIAL_IN_RATIO"`
-		PreferredNodes   string  `json:"PREFERRED_NODES"`
-	}
-	var dec P2PConfig
-	if err := json.Unmarshal(input, &dec); err != nil {
-		return err
-	}
-	p.BootNodes = strings.Split(dec.BootNodes, ",")
-	p.PrivKey = dec.PrivKey
-	p.MaxPeers = dec.MaxPeers
-	p.UPnP = dec.UPnP
-	p.AllowDialInRatio = dec.AllowDialInRatio
-	p.PreferredNodes = dec.PreferredNodes
-	return nil
+func (s *P2PConfig) GetBootNodes() []string {
+	return strings.Split(s.BootNodes, ",")
 }
 
 type MonitoringConfig struct {
