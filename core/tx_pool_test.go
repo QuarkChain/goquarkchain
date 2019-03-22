@@ -586,7 +586,7 @@ func TestTransactionPostponing(t *testing.T) {
 		for j := 0; j < 100; j++ {
 			var tx *types.Transaction
 			if (i+j)%2 == 0 {
-				tx = transaction(uint64(j), 34000, key)
+				tx = transaction(uint64(j), 25000, key)
 			} else {
 				tx = transaction(uint64(j), 50000, key)
 			}

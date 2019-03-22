@@ -49,7 +49,7 @@ func ValidateTransaction(state vm.StateDB, tx *types.Transaction) error {
 		return ErrInsufficientFunds
 	}
 
-	totalGas, err := IntrinsicGas(tx.EvmTx.Data(), tx.EvmTx.To() == nil, tx.EvmTx.ToFullShardId() == tx.EvmTx.FromFullShardId())
+	totalGas, err := IntrinsicGas(tx.EvmTx.Data(), tx.EvmTx.To() == nil, tx.EvmTx.ToFullShardId() != tx.EvmTx.FromFullShardId())
 	if err != nil {
 		return err
 	}
