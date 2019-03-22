@@ -28,9 +28,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/QuarkChain/goquarkchain/core/state"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
@@ -43,7 +43,6 @@ var testTxPoolConfig TxPoolConfig
 
 func init() {
 	testTxPoolConfig = DefaultTxPoolConfig
-	testTxPoolConfig.Journal = ""
 }
 
 type testBlockChain struct {
@@ -587,7 +586,7 @@ func TestTransactionPostponing(t *testing.T) {
 		for j := 0; j < 100; j++ {
 			var tx *types.Transaction
 			if (i+j)%2 == 0 {
-				tx = transaction(uint64(j), 25000, key)
+				tx = transaction(uint64(j), 34000, key)
 			} else {
 				tx = transaction(uint64(j), 50000, key)
 			}
@@ -1579,7 +1578,10 @@ func TestTransactionReplacement(t *testing.T) {
 
 // Tests that local transactions are journaled to disk, but remote transactions
 // get discarded between restarts.
-func TestTransactionJournaling(t *testing.T)         { testTransactionJournaling(t, false) }
+
+//delete load txs from disk so not test this case
+//func TestTransactionJournaling(t *testing.T) { testTransactionJournaling(t, false) }
+
 func TestTransactionJournalingNoLocals(t *testing.T) { testTransactionJournaling(t, true) }
 
 func testTransactionJournaling(t *testing.T, nolocals bool) {
@@ -1603,8 +1605,6 @@ func testTransactionJournaling(t *testing.T, nolocals bool) {
 
 	config := testTxPoolConfig
 	config.NoLocals = nolocals
-	config.Journal = journal
-	config.Rejournal = time.Second
 
 	pool := NewTxPool(config, params.TestChainConfig, blockchain)
 
@@ -1664,7 +1664,6 @@ func testTransactionJournaling(t *testing.T, nolocals bool) {
 	// Bump the nonce temporarily and ensure the newly invalidated transaction is removed
 	statedb.SetNonce(crypto.PubkeyToAddress(local.PublicKey), 2)
 	pool.lockedReset(nil, nil)
-	time.Sleep(2 * config.Rejournal)
 	pool.Stop()
 
 	statedb.SetNonce(crypto.PubkeyToAddress(local.PublicKey), 1)

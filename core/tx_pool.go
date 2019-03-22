@@ -25,10 +25,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/QuarkChain/goquarkchain/core/state"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/prque"
-	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/metrics"
@@ -123,10 +123,8 @@ type blockChain interface {
 
 // TxPoolConfig are the configuration parameters of the transaction pool.
 type TxPoolConfig struct {
-	Locals    []common.Address // Addresses that should be treated by default as local
-	NoLocals  bool             // Whether local transaction handling should be disabled
-	Journal   string           // Journal of local transactions to survive node restarts
-	Rejournal time.Duration    // Time interval to regenerate the local transaction journal
+	Locals   []common.Address // Addresses that should be treated by default as local
+	NoLocals bool             // Whether local transaction handling should be disabled
 
 	PriceLimit uint64 // Minimum gas price to enforce for acceptance into the pool
 	PriceBump  uint64 // Minimum price bump percentage to replace an already existing transaction (nonce)
@@ -143,9 +141,6 @@ type TxPoolConfig struct {
 // DefaultTxPoolConfig contains the default configurations for the transaction
 // pool.
 var DefaultTxPoolConfig = TxPoolConfig{
-	Journal:   "transactions.rlp",
-	Rejournal: time.Hour,
-
 	PriceLimit: 1,
 	PriceBump:  10,
 
@@ -163,10 +158,7 @@ var DefaultTxPoolConfig = TxPoolConfig{
 // unreasonable or unworkable.
 func (config *TxPoolConfig) sanitize() TxPoolConfig {
 	conf := *config
-	if conf.Rejournal < time.Second {
-		log.Warn("Sanitizing invalid txpool journal time", "provided", conf.Rejournal, "updated", time.Second)
-		conf.Rejournal = time.Second
-	}
+
 	if conf.PriceLimit < 1 {
 		log.Warn("Sanitizing invalid txpool price limit", "provided", conf.PriceLimit, "updated", DefaultTxPoolConfig.PriceLimit)
 		conf.PriceLimit = DefaultTxPoolConfig.PriceLimit
@@ -201,8 +193,7 @@ type TxPool struct {
 	pendingState  *state.ManagedState // Pending state tracking virtual nonces
 	currentMaxGas uint64              // Current gas limit for transaction caps
 
-	locals  *accountSet // Set of local transaction to exempt from eviction rules
-	journal *txJournal  // Journal of local transaction to back up to disk
+	locals *accountSet // Set of local transaction to exempt from eviction rules
 
 	pending map[common.Address]*txList   // All currently processable transactions
 	queue   map[common.Address]*txList   // Queued but non-processable transactions
@@ -243,17 +234,6 @@ func NewTxPool(config TxPoolConfig, chainconfig *params.ChainConfig, chain block
 
 	pool.reset(nil, chain.CurrentBlock())
 
-	// If local transactions and journaling is enabled, load from disk
-	if !config.NoLocals && config.Journal != "" {
-		pool.journal = newTxJournal(config.Journal)
-
-		if err := pool.journal.load(pool.AddLocals); err != nil {
-			log.Warn("Failed to load transaction journal", "err", err)
-		}
-		if err := pool.journal.rotate(pool.local()); err != nil {
-			log.Warn("Failed to rotate transaction journal", "err", err)
-		}
-	}
 	// Subscribe events from blockchain
 	pool.chainHeadSub = pool.chain.SubscribeChainHeadEvent(pool.chainHeadCh)
 
@@ -278,9 +258,6 @@ func (pool *TxPool) loop() {
 
 	evict := time.NewTicker(evictionInterval)
 	defer evict.Stop()
-
-	journal := time.NewTicker(pool.config.Rejournal)
-	defer journal.Stop()
 
 	// Track the previous head headers for transaction reorgs
 	head := pool.chain.CurrentBlock()
@@ -332,16 +309,6 @@ func (pool *TxPool) loop() {
 				}
 			}
 			pool.mu.Unlock()
-
-		// Handle local transaction journal rotation
-		case <-journal.C:
-			if pool.journal != nil {
-				pool.mu.Lock()
-				if err := pool.journal.rotate(pool.local()); err != nil {
-					log.Warn("Failed to rotate local tx journal", "err", err)
-				}
-				pool.mu.Unlock()
-			}
 		}
 	}
 }
@@ -462,9 +429,6 @@ func (pool *TxPool) Stop() {
 	pool.chainHeadSub.Unsubscribe()
 	pool.wg.Wait()
 
-	if pool.journal != nil {
-		pool.journal.close()
-	}
 	log.Info("Transaction pool stopped")
 }
 
@@ -607,23 +571,7 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 	if !local && pool.gasPrice.Cmp(tx.EvmTx.GasPrice()) > 0 {
 		return ErrUnderpriced
 	}
-	// Ensure the transaction adheres to nonce ordering
-	if pool.currentState.GetNonce(from.ToAddress()) > tx.EvmTx.Nonce() {
-		return ErrNonceTooLow
-	}
-	// Transactor should have enough funds to cover the costs
-	// cost == V + GP * GL
-	if pool.currentState.GetBalance(from.ToAddress()).Cmp(tx.EvmTx.Cost()) < 0 {
-		return ErrInsufficientFunds
-	}
-	intrGas, err := IntrinsicGas(tx.EvmTx.Data(), tx.EvmTx.To() == nil, pool.homestead)
-	if err != nil {
-		return err
-	}
-	if tx.EvmTx.Gas() < intrGas {
-		return ErrIntrinsicGas
-	}
-	return nil
+	return ValidateTransaction(pool.currentState, tx)
 }
 
 // add validates a transaction and inserts it into the non-executable queue for
@@ -680,7 +628,6 @@ func (pool *TxPool) add(tx *types.Transaction, local bool) (bool, error) {
 		}
 		pool.all.Add(tx)
 		pool.priced.Put(tx)
-		pool.journalTx(from.ToAddress(), tx)
 
 		log.Trace("Pooled new executable transaction", "hash", hash, "from", from, "to", tx.EvmTx.To())
 
@@ -701,7 +648,6 @@ func (pool *TxPool) add(tx *types.Transaction, local bool) (bool, error) {
 			pool.locals.add(from.ToAddress())
 		}
 	}
-	pool.journalTx(from.ToAddress(), tx)
 
 	log.Trace("Pooled new future transaction", "hash", hash, "from", from, "to", tx.EvmTx.To())
 	return replace, nil
@@ -733,18 +679,6 @@ func (pool *TxPool) enqueueTx(hash common.Hash, tx *types.Transaction) (bool, er
 		pool.priced.Put(tx)
 	}
 	return old != nil, nil
-}
-
-// journalTx adds the specified transaction to the local disk journal if it is
-// deemed to have been sent from a local account.
-func (pool *TxPool) journalTx(from common.Address, tx *types.Transaction) {
-	// Only journal if it's enabled and the transaction is local
-	if pool.journal == nil || !pool.locals.contains(from) {
-		return
-	}
-	if err := pool.journal.insert(tx); err != nil {
-		log.Warn("Failed to journal local transaction", "err", err)
-	}
 }
 
 // promoteTx adds a transaction to the pending (processable) list of transactions
