@@ -94,19 +94,17 @@ type opType struct {
 }
 
 type RPClient struct {
-	run     uint32
 	mu      sync.Mutex
-	timeout uint16
+	timeout time.Duration
 	conns   *map[string]*grpc.ClientConn
 	funcs   *map[int64]opType
 }
 
 func NewRPCLient() *RPClient {
 	return &RPClient{
-		run:     0,
 		conns:   &conns,
 		funcs:   &rpcFuncs,
-		timeout: 500,
+		timeout: 10 * time.Second,
 	}
 }
 
