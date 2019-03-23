@@ -17,19 +17,16 @@
 package core
 
 import (
-	"time"
-
+	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/mclock"
-	"github.com/ethereum/go-ethereum/core"
-	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
+	"time"
 )
 
 // insertStats tracks and reports on block insertion.
 type insertStats struct {
 	queued, processed, ignored int
-	usedGas                    uint64
 	lastIndex                  int
 	startTime                  mclock.AbsTime
 }
@@ -40,7 +37,7 @@ const statsReportLimit = 8 * time.Second
 
 // report prints statistics if some number of blocks have been processed
 // or more than a few seconds have passed since the last message.
-func (st *insertStats) report(chain []*types.Block, index int, cache common.StorageSize) {
+func (st *insertStats) report(chain types.Blocks, index int) {
 	// Fetch the timings for the batch
 	var (
 		now     = mclock.Now()
@@ -49,22 +46,20 @@ func (st *insertStats) report(chain []*types.Block, index int, cache common.Stor
 	// If we're at the last block of the batch or report period reached, log
 	if index == len(chain)-1 || elapsed >= statsReportLimit {
 		// Count the number of transactions in this segment
-		var txs int
+		var hcount int
 		for _, block := range chain[st.lastIndex : index+1] {
-			txs += len(block.Transactions())
+			hcount += len(block.Content())
 		}
 		end := chain[index]
 
 		// Assemble the log context and send it to the logger
 		context := []interface{}{
-			"blocks", st.processed, "txs", txs, "mgas", float64(st.usedGas) / 1000000,
-			"elapsed", common.PrettyDuration(elapsed), "mgasps", float64(st.usedGas) * 1000 / float64(elapsed),
-			"number", end.Number(), "hash", end.Hash(),
+			"blocks", st.processed, "hcount", hcount, "elapsed", common.PrettyDuration(elapsed),
+			"number", end.NumberU64(), "hash", end.Hash(),
 		}
-		if timestamp := time.Unix(end.Time().Int64(), 0); time.Since(timestamp) > time.Minute {
+		if timestamp := time.Unix(int64(end.IHeader().GetTime()), 0); time.Since(timestamp) > time.Minute {
 			context = append(context, []interface{}{"age", common.PrettyAge(timestamp)}...)
 		}
-		context = append(context, []interface{}{"cache", cache}...)
 
 		if st.queued > 0 {
 			context = append(context, []interface{}{"queued", st.queued}...)
@@ -81,15 +76,15 @@ func (st *insertStats) report(chain []*types.Block, index int, cache common.Stor
 
 // insertIterator is a helper to assist during chain import.
 type insertIterator struct {
-	chain     types.Blocks
+	chain     []types.IBlock
 	results   <-chan error
 	index     int
-	validator core.Validator
+	validator Validator
 }
 
 // newInsertIterator creates a new iterator based on the given blocks, which are
 // assumed to be a contiguous chain.
-func newInsertIterator(chain types.Blocks, results <-chan error, validator core.Validator) *insertIterator {
+func newInsertIterator(chain types.Blocks, results <-chan error, validator Validator) *insertIterator {
 	return &insertIterator{
 		chain:     chain,
 		results:   results,
@@ -100,7 +95,7 @@ func newInsertIterator(chain types.Blocks, results <-chan error, validator core.
 
 // next returns the next block in the iterator, along with any potential validation
 // error for that block. When the end is reached, it will return (nil, nil).
-func (it *insertIterator) next() (*types.Block, error) {
+func (it *insertIterator) next() (types.IBlock, error) {
 	if it.index+1 >= len(it.chain) {
 		it.index = len(it.chain)
 		return nil, nil
@@ -109,11 +104,11 @@ func (it *insertIterator) next() (*types.Block, error) {
 	if err := <-it.results; err != nil {
 		return it.chain[it.index], err
 	}
-	return it.chain[it.index], it.validator.ValidateBody(it.chain[it.index])
+	return it.chain[it.index], it.validator.ValidateBlock(it.chain[it.index])
 }
 
 // current returns the current block that's being processed.
-func (it *insertIterator) current() *types.Block {
+func (it *insertIterator) current() types.IBlock {
 	if it.index < 0 || it.index+1 >= len(it.chain) {
 		return nil
 	}
@@ -121,7 +116,7 @@ func (it *insertIterator) current() *types.Block {
 }
 
 // previous returns the previous block was being processed, or nil
-func (it *insertIterator) previous() *types.Block {
+func (it *insertIterator) previous() types.IBlock {
 	if it.index < 1 {
 		return nil
 	}
@@ -129,7 +124,7 @@ func (it *insertIterator) previous() *types.Block {
 }
 
 // first returns the first block in the it.
-func (it *insertIterator) first() *types.Block {
+func (it *insertIterator) first() types.IBlock {
 	return it.chain[0]
 }
 
