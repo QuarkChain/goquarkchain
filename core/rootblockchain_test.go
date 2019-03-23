@@ -594,7 +594,7 @@ func testInsertNonceError(t *testing.T, full bool) {
 func TestReorgSideEvent(t *testing.T) {
 	var (
 		db    = ethdb.NewMemDatabase()
-		addr1 = account.Address{account.Recipient{1}, 0}
+		addr1 = account.Address{Recipient: account.Recipient{1}, FullShardKey: 0}
 		gspec = &Genesis{
 			qkcConfig: config.NewQuarkChainConfig(),
 		}
@@ -724,7 +724,9 @@ func TestBlockchainHeaderchainReorgConsistency(t *testing.T) {
 	genesis := NewGenesis(qkcconfig)
 	genesisBlock := genesis.MustCommitRootBlock(db)
 	engine := new(consensus.FakeEngine)
-	blocks := GenerateRootBlockChain(genesisBlock, engine, 64, func(i int, b *RootBlockGen) { b.SetCoinbase(account.Address{account.Recipient{1}, 1}) })
+	blocks := GenerateRootBlockChain(genesisBlock, engine, 64, func(i int, b *RootBlockGen) {
+		b.SetCoinbase(account.Address{Recipient: account.Recipient{1}, FullShardKey: 1})
+	})
 
 	// Generate a bunch of fork blocks, each side forking from the canonical chain
 	forks := make([]*types.RootBlock, len(blocks))
@@ -733,7 +735,9 @@ func TestBlockchainHeaderchainReorgConsistency(t *testing.T) {
 		if i > 0 {
 			parent = blocks[i-1]
 		}
-		fork := GenerateRootBlockChain(parent, engine, 1, func(i int, b *RootBlockGen) { b.SetCoinbase(account.Address{account.Recipient{2}, 1}) })
+		fork := GenerateRootBlockChain(parent, engine, 1, func(i int, b *RootBlockGen) {
+			b.SetCoinbase(account.Address{Recipient: account.Recipient{2}, FullShardKey: 1})
+		})
 		forks[i] = fork[0]
 	}
 	// Import the canonical and fork chain side by side, verifying the current block
@@ -769,7 +773,9 @@ func TestTrieForkGC(t *testing.T) {
 	genesis := NewGenesis(qkcconfig)
 	genesisBlock := genesis.MustCommitRootBlock(db)
 	engine := new(consensus.FakeEngine)
-	blocks := GenerateRootBlockChain(genesisBlock, engine, 2*triesInMemory, func(i int, b *RootBlockGen) { b.SetCoinbase(account.Address{account.Recipient{1}, 1}) })
+	blocks := GenerateRootBlockChain(genesisBlock, engine, 2*triesInMemory, func(i int, b *RootBlockGen) {
+		b.SetCoinbase(account.Address{Recipient: account.Recipient{1}, FullShardKey: 1})
+	})
 
 	// Generate a bunch of fork blocks, each side forking from the canonical chain
 	forks := make([]*types.RootBlock, len(blocks))
@@ -778,7 +784,9 @@ func TestTrieForkGC(t *testing.T) {
 		if i > 0 {
 			parent = blocks[i-1]
 		}
-		fork := GenerateRootBlockChain(parent, engine, 1, func(i int, b *RootBlockGen) { b.SetCoinbase(account.Address{account.Recipient{2}, 1}) })
+		fork := GenerateRootBlockChain(parent, engine, 1, func(i int, b *RootBlockGen) {
+			b.SetCoinbase(account.Address{Recipient: account.Recipient{2}, FullShardKey: 1})
+		})
 		forks[i] = fork[0]
 	}
 	// Import the canonical and fork chain side by side, forcing the trie cache to cache both
@@ -808,9 +816,15 @@ func TestLargeReorgTrieGC(t *testing.T) {
 	genesisBlock := genesis.MustCommitRootBlock(db)
 	engine := new(consensus.FakeEngine)
 
-	shared := GenerateRootBlockChain(genesisBlock, engine, 64, func(i int, b *RootBlockGen) { b.SetCoinbase(account.Address{account.Recipient{1}, 1}) })
-	original := GenerateRootBlockChain(shared[len(shared)-1], engine, 2*triesInMemory, func(i int, b *RootBlockGen) { b.SetCoinbase(account.Address{account.Recipient{2}, 1}) })
-	competitor := GenerateRootBlockChain(shared[len(shared)-1], engine, 2*triesInMemory+1, func(i int, b *RootBlockGen) { b.SetCoinbase(account.Address{account.Recipient{3}, 1}) })
+	shared := GenerateRootBlockChain(genesisBlock, engine, 64, func(i int, b *RootBlockGen) {
+		b.SetCoinbase(account.Address{Recipient: account.Recipient{1}, FullShardKey: 1})
+	})
+	original := GenerateRootBlockChain(shared[len(shared)-1], engine, 2*triesInMemory, func(i int, b *RootBlockGen) {
+		b.SetCoinbase(account.Address{Recipient: account.Recipient{2}, FullShardKey: 1})
+	})
+	competitor := GenerateRootBlockChain(shared[len(shared)-1], engine, 2*triesInMemory+1, func(i int, b *RootBlockGen) {
+		b.SetCoinbase(account.Address{Recipient: account.Recipient{3}, FullShardKey: 1})
+	})
 
 	// Import the shared chain and the original canonical one
 	diskdb := ethdb.NewMemDatabase()
@@ -847,7 +861,7 @@ func benchmarkLargeNumberOfValueToNonexisting(b *testing.B, numItems, numBlocks 
 	genesis := gspec.MustCommitRootBlock(db)
 
 	blockGenerator := func(i int, block *RootBlockGen) {
-		block.SetCoinbase(account.Address{account.Recipient{1}, 0})
+		block.SetCoinbase(account.Address{Recipient: account.Recipient{1}, FullShardKey: 0})
 		headers := make(types.MinorBlockHeaders, numItems, numItems)
 		for index := 0; index < numItems; index++ {
 			uniq := uint64(i*numItems + index)

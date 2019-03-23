@@ -25,21 +25,16 @@ import (
 	"github.com/ethereum/go-ethereum/ethdb"
 )
 
-func ExampleGenerateChain() {
+func ExampleGenerateRootBlockChain() {
 	var (
-		addr1        = account.Address{account.Recipient{1}, 0}
-		addr2        = account.Address{account.Recipient{2}, 0}
-		addr3        = account.Address{account.Recipient{3}, 0}
+		addr1        = account.Address{Recipient: account.Recipient{1}, FullShardKey: 0}
+		addr2        = account.Address{Recipient: account.Recipient{2}, FullShardKey: 0}
+		addr3        = account.Address{Recipient: account.Recipient{3}, FullShardKey: 0}
 		db           = ethdb.NewMemDatabase()
-		genesis      = Genesis{config.NewQuarkChainConfig()}
-		genesisBlock = genesis.MustCommitRootBlock(db)
 		qkcconfig    = config.NewQuarkChainConfig()
+		genesis      = Genesis{qkcConfig: qkcconfig}
+		genesisBlock = genesis.MustCommitRootBlock(db)
 		engine       = new(consensus.FakeEngine)
-		/*engine       = qkchash.New(true,
-		&consensus.EthDifficultyCalculator{
-			qkcconfig.Root.DifficultyAdjustmentCutoffTime,
-			qkcconfig.Root.DifficultyAdjustmentFactor,
-			new(big.Int).SetUint64(qkcconfig.Root.Genesis.Difficulty)})*/
 	)
 
 	chain := GenerateRootBlockChain(genesisBlock, engine, 5, func(i int, gen *RootBlockGen) {

@@ -17,7 +17,7 @@ import (
 )
 
 type Genesis struct {
-	qkcConfig *config.QuarkChainConfig `json:"config"`
+	qkcConfig *config.QuarkChainConfig
 }
 
 func NewGenesis(config *config.QuarkChainConfig) *Genesis {
@@ -56,7 +56,7 @@ func (g *Genesis) CreateMinorBlock(rootBlock *types.RootBlock, fullShardId uint3
 	}
 
 	statedb, _ := state.New(common.Hash{}, state.NewDatabase(db))
-	branch := account.Branch{fullShardId}
+	branch := account.Branch{Value: fullShardId}
 	genesis := g.qkcConfig.ShardList[fullShardId].Genesis
 
 	for addrStr, gAcc := range genesis.Alloc {
