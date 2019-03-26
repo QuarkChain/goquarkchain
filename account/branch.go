@@ -2,7 +2,7 @@ package account
 
 import (
 	"errors"
-	"github.com/Quarkchain/goquarkchain/common"
+	"github.com/QuarkChain/goquarkchain/common"
 )
 
 // Branch branch include it's value

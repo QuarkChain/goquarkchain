@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
-	"github.com/Quarkchain/goquarkchain/common"
+	"github.com/QuarkChain/goquarkchain/common"
 )
 
 // Address include recipient and fullShardKey
