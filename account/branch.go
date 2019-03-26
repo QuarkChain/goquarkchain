@@ -2,6 +2,7 @@ package account
 
 import (
 	"errors"
+	"github.com/QuarkChain/goquarkchain/common"
 )
 
 // Branch branch include it's value
@@ -49,7 +50,7 @@ func (Self *Branch) IsInBranch(fullShardKey uint32) bool {
 
 // CreatBranch create branch depend shardSize and shardID
 func CreatBranch(shardSize uint32, shardID uint32) (Branch, error) {
-	if IsP2(shardSize) == false {
+	if common.IsP2(shardSize) == false {
 		return Branch{}, errors.New("shardSize is not correct")
 	}
 	return NewBranch(shardSize | shardID), nil

@@ -19,11 +19,6 @@ func Uint32ToBytes(n uint32) []byte {
 	return Bytes
 }
 
-// IsP2 is check num is 2^x
-func IsP2(shardSize uint32) bool {
-	return (shardSize & (shardSize - 1)) == 0
-}
-
 // IntLeftMostBit left most bit
 func IntLeftMostBit(v uint32) uint32 {
 	return uint32(32 - bits.LeadingZeros32(v))
