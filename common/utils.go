@@ -15,3 +15,7 @@ func MasksHaveOverlap(m1, m2 uint32) bool {
 	bitMask := uint32((1 << (i1 - 1)) - 1)
 	return (m1 & bitMask) == (m2 & bitMask)
 }
+
+func IsP2(v uint64) bool {
+	return (v & (v - 1)) == 0
+}
