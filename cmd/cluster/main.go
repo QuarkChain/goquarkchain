@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/QuarkChain/goquarkchain/cmd/utils"
+	"github.com/QuarkChain/goquarkchain/internal/debug"
 	"github.com/elastic/gosigar"
 	"github.com/ethereum/go-ethereum/console"
 	"github.com/ethereum/go-ethereum/log"
@@ -67,9 +68,14 @@ func init() {
 	}
 	sort.Sort(cli.CommandsByName(app.Commands))
 
+	app.Flags = append(app.Flags, debug.Flags...)
 	app.Flags = append(app.Flags, usageFlags...)
 
 	app.Before = func(ctx *cli.Context) error {
+		logdir := ""
+		if err := debug.Setup(ctx, logdir); err != nil {
+			return err
+		}
 		// Cap the cache allowance and tune the garbage collector
 		var mem gosigar.Mem
 		if err := mem.Get(); err == nil {
@@ -93,6 +99,7 @@ func init() {
 	}
 
 	app.After = func(ctx *cli.Context) error {
+		debug.Exit()
 		console.Stdin.Close() // Resets terminal mode.
 		return nil
 	}
@@ -122,6 +129,7 @@ func cluster(ctx *cli.Context) error {
 // it unlocks any requested accounts, and starts the RPC/IPC interfaces and the
 // miner.
 func startService(ctx *cli.Context, stack *service.Node) {
+	debug.Memsize.Add("service", stack)
 
 	// Start up the node itself
 	utils.StartService(stack)
