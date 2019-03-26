@@ -4,7 +4,6 @@ package utils
 import (
 	"fmt"
 	"github.com/QuarkChain/goquarkchain/cluster/service"
-	"github.com/QuarkChain/goquarkchain/internal/debug"
 	"github.com/ethereum/go-ethereum/log"
 	"io"
 	"os"
@@ -50,7 +49,5 @@ func StartService(stack *service.Node) {
 				log.Warn("Already shutting down, interrupt more to panic.", "times", i-1)
 			}
 		}
-		debug.Exit() // ensure trace and CPU profile data is flushed.
-		debug.LoudPanic("boom")
 	}()
 }
