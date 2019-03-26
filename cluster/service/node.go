@@ -259,33 +259,33 @@ func (n *Node) startRPC(services map[reflect.Type]Service) error {
 			}
 		}
 	}
+	if err := n.startGRPC(n.svrEndpoint, grpcApis); err != nil {
+		return err
+	}
 	if n.GetModule() {
 		// Start the various API endpoints, terminating all in case of errors
 		if err := n.startInProc(apis); err != nil {
+			n.stopGRPC()
 			return err
 		}
 		if err := n.startIPC(apis); err != nil {
+			n.stopGRPC()
 			n.stopInProc()
 			return err
 		}
 		if err := n.startHTTP(n.httpEndpoint, apis, n.config.HTTPModules, n.config.HTTPCors, n.config.HTTPVirtualHosts, n.config.HTTPTimeouts); err != nil {
-			n.stopIPC()
+			n.stopGRPC()
 			n.stopInProc()
+			n.stopIPC()
 			return err
 		}
 		if err := n.startWS(n.wsEndpoint, apis, n.config.WSModules, n.config.WSOrigins, n.config.WSExposeAll); err != nil {
-			n.stopHTTP()
-			n.stopIPC()
+			n.stopGRPC()
 			n.stopInProc()
+			n.stopIPC()
+			n.stopHTTP()
 			return err
 		}
-	}
-	if err := n.startGRPC(n.svrEndpoint, grpcApis); err != nil {
-		n.stopHTTP()
-		n.stopIPC()
-		n.stopInProc()
-		n.stopGRPC()
-		return err
 	}
 	// All API endpoints started successfully
 	n.rpcAPIs = apis
