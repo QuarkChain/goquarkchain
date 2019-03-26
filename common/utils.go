@@ -1,14 +1,14 @@
 package common
 
-import "github.com/QuarkChain/goquarkchain/account"
+import "math/bits"
 
 /*
 	0b101, 0b11 -> True
 	0b101, 0b10 -> False
 */
 func MasksHaveOverlap(m1, m2 uint32) bool {
-	i1 := account.IntLeftMostBit(m1)
-	i2 := account.IntLeftMostBit(m2)
+	i1 := IntLeftMostBit(m1)
+	i2 := IntLeftMostBit(m2)
 	if i1 > i2 {
 		i1 = i2
 	}
@@ -18,4 +18,9 @@ func MasksHaveOverlap(m1, m2 uint32) bool {
 
 func IsP2(v uint32) bool {
 	return (v & (v - 1)) == 0
+}
+
+// IntLeftMostBit left most bit
+func IntLeftMostBit(v uint32) uint32 {
+	return uint32(32 - bits.LeadingZeros32(v))
 }

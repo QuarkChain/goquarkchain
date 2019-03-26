@@ -7,7 +7,6 @@ import (
 	"encoding/binary"
 	"github.com/ethereum/go-ethereum/crypto"
 	"io/ioutil"
-	"math/bits"
 	"os"
 	"path/filepath"
 )
@@ -17,11 +16,6 @@ func Uint32ToBytes(n uint32) []byte {
 	Bytes := make([]byte, 4)
 	binary.BigEndian.PutUint32(Bytes, n)
 	return Bytes
-}
-
-// IntLeftMostBit left most bit
-func IntLeftMostBit(v uint32) uint32 {
-	return uint32(32 - bits.LeadingZeros32(v))
 }
 
 func writeTemporaryKeyFile(file string, content []byte) (string, error) {

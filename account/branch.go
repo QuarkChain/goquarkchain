@@ -25,7 +25,7 @@ func (Self *Branch) GetChainID() uint32 {
 // GetShardSize get branch's shardSize
 func (Self *Branch) GetShardSize() uint32 {
 	branchValue := Self.Value & ((1 << 16) - 1)
-	return 1 << (IntLeftMostBit(branchValue) - 1)
+	return 1 << (common.IntLeftMostBit(branchValue) - 1)
 }
 
 // GetFullShardID get branch's fullShardId
