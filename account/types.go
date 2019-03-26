@@ -2,6 +2,8 @@ package account
 
 import (
 	"errors"
+	"github.com/ethereum/go-ethereum/common"
+	"math/big"
 )
 
 var (
@@ -34,7 +36,11 @@ const (
 )
 
 // Recipient recipient type
-type Recipient [RecipientLength]byte
+type Recipient common.Address
+
+func (a Recipient) ToAddress() common.Address {
+	return common.Address(a)
+}
 
 // SetBytes set bytes to it's value
 func (a *Recipient) SetBytes(b []byte) {
@@ -46,14 +52,16 @@ func (a *Recipient) SetBytes(b []byte) {
 
 // Bytes return it's bytes
 func (a Recipient) Bytes() []byte {
-	return a[:]
+	return common.Address(a).Bytes()
+}
+
+func (a Recipient) Big() *big.Int {
+	return common.Address(a).Big()
 }
 
 // BytesToIdentityRecipient trans bytes to Recipient
 func BytesToIdentityRecipient(b []byte) Recipient {
-	var a Recipient
-	a.SetBytes(b)
-	return a
+	return Recipient(common.BytesToAddress(b))
 }
 
 // Key key type

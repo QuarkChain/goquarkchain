@@ -60,7 +60,7 @@ type receiptSer struct {
 	PrevGasUsed       uint64
 	Bloom             Bloom
 	ContractAddress   account.Address
-	Logs              Logs
+	Logs              []*Log `bytesizeofslicelen:"4"`
 }
 
 // receiptRLP is the consensus encoding of a receipt.

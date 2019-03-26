@@ -68,7 +68,7 @@ func TestMinorBlockHeaderSerializing(t *testing.T) {
 	check("Difficulty", blockHeader.Difficulty, big.NewInt(6))
 	check("Nonce", blockHeader.Nonce, uint64(7))
 	check("Bloom", common.Bytes2Hex(blockHeader.Bloom[:]), "00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001")
-	check("Extra", common.Bytes2Hex(*blockHeader.Extra), "010203")
+	check("Extra", common.Bytes2Hex(blockHeader.Extra), "010203")
 	check("MixDigest", common.Bytes2Hex(blockHeader.MixDigest.Bytes()), "0000000000000000000000000000000000000000000000000000000000000004")
 	check("Hash", common.Bytes2Hex(blockHeader.Hash().Bytes()), "b274edca72087a960cff0dad483392ea36eb87d17dc8da40fe2ceb6616e559e8")
 	check("serialize", bytes, blocHeaderEnc)
@@ -85,8 +85,8 @@ func TestMinorBlockHeaderSerializing(t *testing.T) {
 		t.Fatal("Serialize error: ", err)
 	}
 
-	check("Root", blockMeta.Root[:], common.FromHex("a40920ae6f758f88c61b405f9fc39fdd6274666462b14e3887522166e6537a97"))
-	check("TxHash", blockMeta.TxHash[:], common.FromHex("297d6ae9803346cdb059a671dea7e37b684dcabfa767f2d872026ad0a3aba495"))
+	check("TxHash", blockMeta.TxHash[:], common.FromHex("a40920ae6f758f88c61b405f9fc39fdd6274666462b14e3887522166e6537a97"))
+	check("Root", blockMeta.Root[:], common.FromHex("297d6ae9803346cdb059a671dea7e37b684dcabfa767f2d872026ad0a3aba495"))
 	check("ReceiptHash", blockMeta.ReceiptHash[:], common.FromHex("df227f34313c2bc4a4a986817ea46437f049873f2fca8e2b89b1ecd0f9e67a28"))
 	check("GasUsed", *blockMeta.GasUsed, serialize.Uint256{Value: big.NewInt(100)})
 	check("CrossShardGasUsed", *blockMeta.CrossShardGasUsed, serialize.Uint256{Value: big.NewInt(300)})
@@ -97,11 +97,12 @@ func TestMinorBlockHeaderSerializing(t *testing.T) {
 	transactionsEnc := common.FromHex("000000020100000063f86180808094b94f5374fce5edbc8e2a8697c15331677e6ebf0b8080808001801ca0fab2cc481eb33edacc4016fe35f30051014109cf0d227679003dd36534247845a019c29e2b33a1a8adf95dabf603cc62758775ce73c3d78098160818dcd7c0970d0100000069f86703018207d094b94f5374fce5edbc8e2a8697c15331677e6ebf0b0a8435353434808001801ca03ba243b74816362081890b8b680d303a5cce7803a12d8ce863723bcd1be94efba0399e91eb5b20c258a77f7045da3f2b84bc1c1f40e0c23bcc3df7bce05bea2ed8")
 	var trans Transactions
 	bb = serialize.NewByteBuffer(transactionsEnc)
-	if err := serialize.Deserialize(bb, &trans); err != nil {
+	if err := serialize.DeserializeWithTags(bb, &trans, serialize.Tags{ByteSizeOfSliceLen: 4}); err != nil {
 		t.Fatal("Deserialize error: ", err)
 	}
 
-	bytes, err = serialize.SerializeToBytes(trans)
+	bytes = nil
+	err = serialize.SerializeWithTags(&bytes, trans, serialize.Tags{ByteSizeOfSliceLen: 4})
 	if err != nil {
 		t.Fatal("Serialize error: ", err)
 	}
