@@ -9,6 +9,7 @@ import (
 	"google.golang.org/grpc/connectivity"
 	"reflect"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -98,6 +99,7 @@ type RPClient struct {
 	timeout time.Duration
 	conns   map[string]*grpc.ClientConn
 	funcs   map[int64]opType
+	run     int64
 }
 
 func NewRPCLient() *RPClient {
@@ -105,6 +107,7 @@ func NewRPCLient() *RPClient {
 		conns:   conns,
 		funcs:   rpcFuncs,
 		timeout: 10 * time.Second,
+		run:     1,
 	}
 }
 
@@ -126,29 +129,41 @@ func (c *RPClient) GetOpName(op int64) string {
 
 func (c *RPClient) GetMasterServerSideOp(target string, req *Request) (*Response, error) {
 
-	if !c.checkOp(req.Op, MasterServer) {
-		return nil, errors.New(fmt.Sprintf("%s don't belong to master server grpc functions", rpcFuncs[req.Op].name))
+	if atomic.LoadInt64(&c.run) == 1 {
+		if !c.checkOp(req.Op, MasterServer) {
+			return nil, errors.New(fmt.Sprintf("%s don't belong to master server grpc functions", rpcFuncs[req.Op].name))
+		}
+		conn, err := c.GetConn(target)
+		if err != nil {
+			return nil, err
+		}
+		client := NewMasterServerSideOpClient(conn)
+		return c.grpcOp(req, reflect.ValueOf(client))
 	}
-	conn, err := c.GetConn(target)
-	if err != nil {
-		return nil, err
-	}
-	client := NewMasterServerSideOpClient(conn)
-	return c.grpcOp(req, reflect.ValueOf(client))
+	return nil, errors.New("client has closed")
 }
 
 func (c *RPClient) GetSlaveSideOp(target string, req *Request) (*Response, error) {
 
-	if !c.checkOp(req.Op, SlaveServer) {
-		return nil, errors.New(fmt.Sprintf("%s don't belong to slave server grpc functions", rpcFuncs[req.Op].name))
+	if atomic.LoadInt64(&c.run) == 1 {
+		if !c.checkOp(req.Op, SlaveServer) {
+			return nil, errors.New(fmt.Sprintf("%s don't belong to slave server grpc functions", rpcFuncs[req.Op].name))
+		}
+		conn, err := c.GetConn(target)
+		if err != nil {
+			return nil, err
+		}
+		client := NewSlaveServerSideOpClient(conn)
+		return c.grpcOp(req, reflect.ValueOf(client))
 	}
-	conn, err := c.GetConn(target)
-	if err != nil {
-		return nil, err
-	}
+	return nil, errors.New("client has closed")
+}
 
-	client := NewSlaveServerSideOpClient(conn)
-	return c.grpcOp(req, reflect.ValueOf(client))
+func (c *RPClient) Close() {
+	atomic.StoreInt64(&c.run, 0)
+	for _, client := range c.conns {
+		client.Close()
+	}
 }
 
 func (c *RPClient) grpcOp(req *Request, ele reflect.Value) (response *Response, err error) {
@@ -198,13 +213,16 @@ func (c *RPClient) addConn(target string) error {
 }
 
 func (c *RPClient) GetConn(target string) (*grpc.ClientConn, error) {
-	if conn, ok := conns[target]; !ok ||
-		(ok && conn.GetState() > connectivity.TransientFailure) {
-		if err := c.addConn(target); err != nil {
-			return nil, err
+	if atomic.LoadInt64(&c.run) == 1 {
+		if conn, ok := conns[target]; !ok ||
+			(ok && conn.GetState() > connectivity.TransientFailure) {
+			if err := c.addConn(target); err != nil {
+				return nil, err
+			}
 		}
+		return conns[target], nil
 	}
-	return conns[target], nil
+	return nil, errors.New("client has closed")
 }
 
 func (c *RPClient) Getfuncs(serverType ServerType) map[int64]string {
