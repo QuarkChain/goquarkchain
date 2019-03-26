@@ -7,10 +7,6 @@ import (
 	"reflect"
 )
 
-func IsP2(v uint32) bool {
-	return (v & (v - 1)) == 0
-}
-
 type writeCounter common.StorageSize
 
 func (c *writeCounter) Write(b []byte) (int, error) {
