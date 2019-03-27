@@ -2,9 +2,30 @@ package config_test
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
+	"github.com/naoina/toml"
+	"reflect"
 	"testing"
+	"unicode"
 )
+
+// These settings ensure that TOML keys use the same names as Go struct fields.
+var tomlSettings = toml.Config{
+	NormFieldName: func(rt reflect.Type, key string) string {
+		return key
+	},
+	FieldToKey: func(rt reflect.Type, field string) string {
+		return field
+	},
+	MissingField: func(rt reflect.Type, field string) error {
+		link := ""
+		if unicode.IsUpper(rune(rt.Name()[0])) && rt.PkgPath() != "main" {
+			link = fmt.Sprintf(", see https://godoc.org/%s#%s for available fields", rt.PkgPath(), rt.Name())
+		}
+		return fmt.Errorf("field '%s' is not defined in %s%s", field, rt.String(), link)
+	},
+}
 
 func TestClusterConfig(t *testing.T) {
 	cluster := config.NewClusterConfig()
@@ -12,8 +33,9 @@ func TestClusterConfig(t *testing.T) {
 	if err != nil {
 		t.Fatalf("cluster struct marshal error: %v", err)
 	}
-	data := &config.ClusterConfig{}
-	err = json.Unmarshal(jsCluster, data)
+
+	var data config.ClusterConfig
+	err = json.Unmarshal(jsCluster, &data)
 	if err != nil {
 		t.Fatalf("UnMarsshal cluster config error: %v", err)
 	}
@@ -35,7 +57,7 @@ func TestClusterConfig(t *testing.T) {
 		t.Fatalf("quarkchain update function set shard size failed, shard size: %d", quarkchain.ShardSize)
 	}
 	for i := 0; i < int(quarkchain.ShardSize); i++ {
-		if quarkchain.GetGenesisRootHeight(i) != 0 {
+		if quarkchain.GetGenesisRootHeight(uint32(i)) != 0 {
 			t.Fatalf("genesis height is not equal to 0.")
 		}
 	}

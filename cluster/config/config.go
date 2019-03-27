@@ -1,6 +1,9 @@
 package config
 
-import "math"
+import (
+	"math/big"
+	"strings"
+)
 
 const (
 	// PoWNone is the default empty consensus type specifying no shard.
@@ -18,13 +21,13 @@ const (
 )
 
 var (
-	QUARKSH_TO_JIAOZI = math.Pow10(18)
-
+	QUARKSH_TO_JIAOZI = big.NewInt(1000000000000000000)
+	DefaultNumSlaves  = 4
 	DefaultPOSWConfig = POSWConfig{
 		Enabled:            false,
 		DiffDivider:        20,
 		WindowSize:         256,
-		TotalStakePerBlock: math.Pow10(9) * QUARKSH_TO_JIAOZI,
+		TotalStakePerBlock: new(big.Int).Mul(big.NewInt(9), QUARKSH_TO_JIAOZI),
 	}
 	DefaultRootGenesis = RootGenesis{
 		Version:        0,
@@ -59,25 +62,6 @@ var (
 	DefaultMasterConfig = MasterConfig{
 		MasterToSlaveConnectRetryDelay: 1.0,
 	}
-	/*DefaultChainConfig = ChainConfig{
-		ChainId:           0,
-		ShardSize:         2,
-		DefaultChainToken: "TQKC",
-		ConsensusType:     NONE,
-		// Genesis:
-		CoinbaseAddress:                    "",
-		CoinbaseAmount:                     5 * QUARKSH_TO_JIAOZI,
-		GasLimitEmaDenominator:             1024,
-		GasLimitAdjustmentFactor:           1024,
-		GasLimitMinimum:                    5000,
-		GasLimitMaximum:                    1<<63 - 1,
-		GasLimitUsageAdjustmentNumerator:   3,
-		GasLimitUsageAdjustmentDenominator: 2,
-		DifficultyAdjustmentCutoffTime:     7,
-		DifficultyAdjustmentFactor:         512,
-		ExtraShardBlocksInRootBlock:        3,
-		PoswConfig:                         &DefaultPOSWConfig,
-	}*/
 )
 
 type POWConfig struct {
@@ -96,7 +80,7 @@ type POSWConfig struct {
 	Enabled            bool
 	DiffDivider        uint32
 	WindowSize         uint32
-	TotalStakePerBlock float64
+	TotalStakePerBlock *big.Int
 }
 
 type SimpleNetwork struct {
@@ -123,7 +107,7 @@ type RootConfig struct {
 	ConsensusConfig                *POWConfig   `json:"CONSENSUS_CONFIG"`
 	Genesis                        *RootGenesis `json:"GENESIS"`
 	CoinbaseAddress                string       `json:"COINBASE_ADDRESS"`
-	CoinbaseAmount                 float64      `json:"COINBASE_AMOUNT"`
+	CoinbaseAmount                 *big.Int     `json:"COINBASE_AMOUNT"`
 	DifficultyAdjustmentCutoffTime uint32       `json:"DIFFICULTY_ADJUSTMENT_CUTOFF_TIME"`
 	DifficultyAdjustmentFactor     uint32       `json:"DIFFICULTY_ADJUSTMENT_FACTOR"`
 }
@@ -136,7 +120,7 @@ func NewRootConfig() *RootConfig {
 		Genesis:                     &DefaultRootGenesis,
 		// TODO address serialization type shuld to be replaced
 		CoinbaseAddress:                "",
-		CoinbaseAmount:                 120 * QUARKSH_TO_JIAOZI,
+		CoinbaseAmount:                 new(big.Int).Mul(big.NewInt(120), QUARKSH_TO_JIAOZI),
 		DifficultyAdjustmentCutoffTime: 40,
 		DifficultyAdjustmentFactor:     1024,
 	}
@@ -166,6 +150,10 @@ type P2PConfig struct {
 	PreferredNodes   string  `json:"PREFERRED_NODES"`
 }
 
+func (s *P2PConfig) GetBootNodes() []string {
+	return strings.Split(s.BootNodes, ",")
+}
+
 type MonitoringConfig struct {
 	NetworkName      string `json:"NETWORK_NAME"`
 	ClusterId        string `json:"CLUSTER_ID"`
@@ -174,24 +162,3 @@ type MonitoringConfig struct {
 	PropagationTopic string `json:"PROPAGATION_TOPIC"`  // "block_propagation"
 	Errors           string `json:"ERRORS"`             // "error"
 }
-
-/*type ChainConfig struct {
-	ChainId                            uint32
-	ShardSize                          uint32
-	DefaultChainToken                  string
-	ConsensusType                      uint32
-	ConsensusConfig                    *POWConfig
-	Genesis                            *ShardGenesis
-	CoinbaseAddress                    string
-	CoinbaseAmount                     float64
-	GasLimitEmaDenominator             uint64
-	GasLimitAdjustmentFactor           float64
-	GasLimitMinimum                    uint64
-	GasLimitMaximum                    uint64
-	GasLimitUsageAdjustmentNumerator   uint32
-	GasLimitUsageAdjustmentDenominator uint32
-	DifficultyAdjustmentCutoffTime     uint32
-	DifficultyAdjustmentFactor         uint32
-	ExtraShardBlocksInRootBlock        uint32
-	PoswConfig                         *POSWConfig
-}*/
