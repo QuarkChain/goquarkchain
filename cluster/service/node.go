@@ -149,7 +149,6 @@ func (n *Node) Start() error {
 
 	// Otherwise copy and specialize the P2P configuration
 	services := make(map[reflect.Type]Service)
-	fmt.Println("-----", n.serviceFuncs)
 	for _, constructor := range n.serviceFuncs {
 		// Create a new context for the particular service
 		ctx := &ServiceContext{
@@ -163,7 +162,6 @@ func (n *Node) Start() error {
 		}
 		// Construct and save the service
 		service, err := constructor(ctx)
-		fmt.Println("------", service)
 		if err != nil {
 			return err
 		}
