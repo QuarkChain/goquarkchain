@@ -1,9 +1,8 @@
 package master
 
 import (
-	"fmt"
+	"context"
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
-	"io"
 	"sync"
 	"sync/atomic"
 )
@@ -18,18 +17,11 @@ func NewServerSideOp() *MasterServerSideOp {
 	}
 }
 
-func (m *MasterServerSideOp) AddMinorBlockHeader(stream rpc.MasterServerSideOp_AddMinorBlockHeaderServer) error {
-	for {
-		point, err := stream.Recv()
-		if err == io.EOF {
-			return stream.SendAndClose(&rpc.Response{
-			})
-		}
-		if err != nil {
-			return err
-		}
-		fmt.Println("master service", string(point.Data))
-	}
+func (m *MasterServerSideOp) AddMinorBlockHeader(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
+	return &rpc.Response{
+		RpcId:     m.addRpcId(),
+		ErrorCode: 0,
+	}, nil
 }
 
 func (m *MasterServerSideOp) addRpcId() int64 {
