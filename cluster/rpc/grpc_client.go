@@ -93,7 +93,7 @@ type opType struct {
 	name       string
 }
 
-type RPClient struct {
+type RPCClient struct {
 	mu      sync.Mutex
 	timeout time.Duration
 	conns   map[string]*grpc.ClientConn
@@ -101,8 +101,8 @@ type RPClient struct {
 	running bool
 }
 
-func NewRPCLient() *RPClient {
-	return &RPClient{
+func NewRPCLient() *RPCClient {
+	return &RPCClient{
 		conns:   conns,
 		funcs:   rpcFuncs,
 		timeout: 10 * time.Second,
@@ -110,7 +110,7 @@ func NewRPCLient() *RPClient {
 	}
 }
 
-func (c *RPClient) checkOp(op int64, serverType ServerType) bool {
+func (c *RPCClient) checkOp(op int64, serverType ServerType) bool {
 	if opType, exist := rpcFuncs[op];
 		exist && opType.serverType == serverType {
 		return true
@@ -118,7 +118,7 @@ func (c *RPClient) checkOp(op int64, serverType ServerType) bool {
 	return false
 }
 
-func (c *RPClient) GetOpName(op int64) string {
+func (c *RPCClient) GetOpName(op int64) string {
 	opType, exist := rpcFuncs[op]
 	if exist {
 		return opType.name
@@ -126,7 +126,7 @@ func (c *RPClient) GetOpName(op int64) string {
 	return ""
 }
 
-func (c *RPClient) GetMasterServerSideOp(target string, req *Request) (*Response, error) {
+func (c *RPCClient) GetMasterServerSideOp(target string, req *Request) (*Response, error) {
 
 	if c.running {
 		if !c.checkOp(req.Op, MasterServer) {
@@ -142,7 +142,7 @@ func (c *RPClient) GetMasterServerSideOp(target string, req *Request) (*Response
 	return nil, errors.New("client has closed")
 }
 
-func (c *RPClient) GetSlaveSideOp(target string, req *Request) (*Response, error) {
+func (c *RPCClient) GetSlaveSideOp(target string, req *Request) (*Response, error) {
 
 	if c.running {
 		if !c.checkOp(req.Op, SlaveServer) {
@@ -158,7 +158,7 @@ func (c *RPClient) GetSlaveSideOp(target string, req *Request) (*Response, error
 	return nil, errors.New("client has closed")
 }
 
-func (c *RPClient) Close() {
+func (c *RPCClient) Close() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.running = false
@@ -167,7 +167,7 @@ func (c *RPClient) Close() {
 	}
 }
 
-func (c *RPClient) grpcOp(req *Request, ele reflect.Value) (response *Response, err error) {
+func (c *RPCClient) grpcOp(req *Request, ele reflect.Value) (response *Response, err error) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), c.timeout)
 	defer cancel()
@@ -187,7 +187,7 @@ func (c *RPClient) grpcOp(req *Request, ele reflect.Value) (response *Response, 
 	return res, nil
 }
 
-func (c *RPClient) addConn(target string) error {
+func (c *RPCClient) addConn(target string) error {
 	var (
 		conn *grpc.ClientConn
 		err  error
@@ -209,7 +209,7 @@ func (c *RPClient) addConn(target string) error {
 	return err
 }
 
-func (c *RPClient) GetConn(target string) (*grpc.ClientConn, error) {
+func (c *RPCClient) GetConn(target string) (*grpc.ClientConn, error) {
 	if c.running {
 		if conn, ok := conns[target]; !ok ||
 			(ok && conn.GetState() > connectivity.TransientFailure) {
@@ -222,7 +222,7 @@ func (c *RPClient) GetConn(target string) (*grpc.ClientConn, error) {
 	return nil, errors.New("client has closed")
 }
 
-func (c *RPClient) Getfuncs(serverType ServerType) map[int64]string {
+func (c *RPCClient) Getfuncs(serverType ServerType) map[int64]string {
 	var funcs = make(map[int64]string)
 	for op, rpcfunc := range c.funcs {
 		if rpcfunc.serverType == serverType {
