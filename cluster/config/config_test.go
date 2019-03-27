@@ -57,7 +57,7 @@ func TestClusterConfig(t *testing.T) {
 		t.Fatalf("quarkchain update function set shard size failed, shard size: %d", quarkchain.ShardSize)
 	}
 	for i := 0; i < int(quarkchain.ShardSize); i++ {
-		if quarkchain.GetGenesisRootHeight(i) != 0 {
+		if quarkchain.GetGenesisRootHeight(uint32(i)) != 0 {
 			t.Fatalf("genesis height is not equal to 0.")
 		}
 	}
