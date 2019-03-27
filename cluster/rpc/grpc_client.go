@@ -98,7 +98,7 @@ type RPClient struct {
 	timeout time.Duration
 	conns   map[string]*grpc.ClientConn
 	funcs   map[int64]opType
-	running int64
+	running bool
 }
 
 func NewRPCLient() *RPClient {
@@ -106,7 +106,7 @@ func NewRPCLient() *RPClient {
 		conns:   conns,
 		funcs:   rpcFuncs,
 		timeout: 10 * time.Second,
-		running: 1,
+		running: true,
 	}
 }
 
@@ -128,7 +128,7 @@ func (c *RPClient) GetOpName(op int64) string {
 
 func (c *RPClient) GetMasterServerSideOp(target string, req *Request) (*Response, error) {
 
-	if c.running == 1 {
+	if c.running {
 		if !c.checkOp(req.Op, MasterServer) {
 			return nil, errors.New(fmt.Sprintf("%s don't belong to master server grpc functions", rpcFuncs[req.Op].name))
 		}
@@ -144,7 +144,7 @@ func (c *RPClient) GetMasterServerSideOp(target string, req *Request) (*Response
 
 func (c *RPClient) GetSlaveSideOp(target string, req *Request) (*Response, error) {
 
-	if c.running == 1 {
+	if c.running {
 		if !c.checkOp(req.Op, SlaveServer) {
 			return nil, errors.New(fmt.Sprintf("%s don't belong to slave server grpc functions", rpcFuncs[req.Op].name))
 		}
@@ -161,7 +161,7 @@ func (c *RPClient) GetSlaveSideOp(target string, req *Request) (*Response, error
 func (c *RPClient) Close() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	c.running = 0
+	c.running = false
 	for _, client := range c.conns {
 		client.Close()
 	}
@@ -172,23 +172,19 @@ func (c *RPClient) grpcOp(req *Request, ele reflect.Value) (response *Response, 
 	ctx, cancel := context.WithTimeout(context.Background(), c.timeout)
 	defer cancel()
 
-	rs := ele.MethodByName(rpcFuncs[req.Op].name).Call([]reflect.Value{reflect.ValueOf(ctx)})
+	var val []reflect.Value
+	val = append(val, reflect.ValueOf(ctx), reflect.ValueOf(req))
+	rs := ele.MethodByName(rpcFuncs[req.Op].name).Call(val)
 	if rs[1].Interface() != nil {
 		err = rs[1].Interface().(error)
 		return
 	}
 
-	stream := rs[0].Interface().(SlaveServerSideOp_PingClient)
-	if err = stream.Send(req); err != nil {
+	res := rs[0].Interface().(*Response)
+	if err != nil {
 		return
 	}
-	if err = stream.CloseSend(); err != nil {
-		return
-	}
-	if response, err = stream.CloseAndRecv(); err != nil {
-		return
-	}
-	return
+	return res, nil
 }
 
 func (c *RPClient) addConn(target string) error {
@@ -214,7 +210,7 @@ func (c *RPClient) addConn(target string) error {
 }
 
 func (c *RPClient) GetConn(target string) (*grpc.ClientConn, error) {
-	if c.running == 1 {
+	if c.running {
 		if conn, ok := conns[target]; !ok ||
 			(ok && conn.GetState() > connectivity.TransientFailure) {
 			if err := c.addConn(target); err != nil {

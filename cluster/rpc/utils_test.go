@@ -1,7 +1,7 @@
 package rpc
 
 import (
-	"io"
+	"context"
 	"sync"
 	"sync/atomic"
 )
@@ -17,19 +17,12 @@ func NewMasterTestOp() *MasterServerSideOp {
 }
 
 // master handle function
-func (t *MasterServerSideOp) AddMinorBlockHeader(stream MasterServerSideOp_AddMinorBlockHeaderServer) error {
-	for {
-		_, err := stream.Recv()
-		if err == io.EOF {
-			return stream.SendAndClose(&Response{
-				RpcId: t.addRpcId(),
-				Data:  []byte("AddMinorBlockHeader response"),
-			})
-		}
-		if err != nil {
-			return err
-		}
-	}
+func (m *MasterServerSideOp) AddMinorBlockHeader(ctx context.Context, req *Request) (*Response, error) {
+	return &Response{
+		RpcId:     m.addRpcId(),
+		Data:      []byte("AddMinorBlockHeader response"),
+		ErrorCode: 0,
+	}, nil
 }
 
 // rpc id atomic increase in every request

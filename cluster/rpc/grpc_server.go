@@ -18,9 +18,6 @@ func StartGRPCServer(grpcEndpoint string, apis []rpc.API) (net.Listener, *grpc.S
 		// regist slave handle service
 		case _SlaveServerSideOp_serviceDesc.ServiceName:
 			handler.RegisterService(&_SlaveServerSideOp_serviceDesc, api.Service)
-		// regist common handle service
-		case _CommonOp_serviceDesc.ServiceName:
-			handler.RegisterService(&_CommonOp_serviceDesc, api.Service)
 		}
 	}
 	var (
