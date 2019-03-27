@@ -31,7 +31,7 @@ func (c *ChainMask) GetMask() uint32 {
 
 func (c *ChainMask) ContainFullShardId(fullShardId uint32) bool {
 	chainId := fullShardId >> 16
-	bitMask := uint32((1 << (account.IntLeftMostBit(c.value) - 1)) - 1)
+	bitMask := uint32((1 << (common.IntLeftMostBit(c.value) - 1)) - 1)
 	return (bitMask & chainId) == (c.value & bitMask)
 }
 

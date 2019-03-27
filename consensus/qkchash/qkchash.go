@@ -4,13 +4,10 @@ import (
 	"encoding/binary"
 	"math/big"
 
+	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/consensus"
+	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/common"
-	ethconsensus "github.com/ethereum/go-ethereum/consensus"
-	"github.com/ethereum/go-ethereum/consensus/ethash"
-	"github.com/ethereum/go-ethereum/core/state"
-	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/rpc"
 )
 
 // QKCHash is a consensus engine implementing PoW with qkchash algo.
@@ -18,9 +15,8 @@ import (
 // https://github.com/ethereum/go-ethereum/blob/9e9fc87e70accf2b81be8772ab2ab0c914e95666/consensus/consensus.go#L111
 // Implements consensus.Pow
 type QKCHash struct {
-	commonEngine *consensus.CommonEngine
-	// For reusing existing functions
-	ethash *ethash.Ethash
+	commonEngine   *consensus.CommonEngine
+	diffCalculator consensus.DifficultyCalculator
 	// TODO: in the future cache may depend on block height
 	cache qkcCache
 	// A flag indicating which impl (c++ native or go) to use
@@ -28,12 +24,12 @@ type QKCHash struct {
 }
 
 // Author returns coinbase address.
-func (q *QKCHash) Author(header *types.Header) (common.Address, error) {
-	return header.Coinbase, nil
+func (q *QKCHash) Author(header types.IHeader) (account.Address, error) {
+	return header.GetCoinbase(), nil
 }
 
 // VerifyHeader checks whether a header conforms to the consensus rules.
-func (q *QKCHash) VerifyHeader(chain ethconsensus.ChainReader, header *types.Header, seal bool) error {
+func (q *QKCHash) VerifyHeader(chain consensus.ChainReader, header types.IHeader, seal bool) error {
 	return q.commonEngine.VerifyHeader(chain, header, seal, q)
 }
 
@@ -41,38 +37,24 @@ func (q *QKCHash) VerifyHeader(chain ethconsensus.ChainReader, header *types.Hea
 // concurrently. The method returns a quit channel to abort the operations and
 // a results channel to retrieve the async verifications (the order is that of
 // the input slice).
-func (q *QKCHash) VerifyHeaders(chain ethconsensus.ChainReader, headers []*types.Header, seals []bool) (chan<- struct{}, <-chan error) {
+func (q *QKCHash) VerifyHeaders(chain consensus.ChainReader, headers []types.IHeader, seals []bool) (chan<- struct{}, <-chan error) {
 	return q.commonEngine.VerifyHeaders(chain, headers, seals, q)
-}
-
-// VerifyUncles verifies that the given block's uncles conform to the consensus
-// rules of a given engine.
-func (q *QKCHash) VerifyUncles(chain ethconsensus.ChainReader, block *types.Block) error {
-	// For now QuarkChain won't verify uncles.
-	return nil
 }
 
 // Prepare initializes the consensus fields of a block header according to the
 // rules of a particular engine. The changes are executed inline.
-func (q *QKCHash) Prepare(chain ethconsensus.ChainReader, header *types.Header) error {
-	panic("not implemented")
-}
-
-// Finalize runs any post-transaction state modifications (e.g. block rewards)
-// and assembles the final block.
-func (q *QKCHash) Finalize(chain ethconsensus.ChainReader, header *types.Header, state *state.StateDB, txs []*types.Transaction, uncles []*types.Header, receipts []*types.Receipt) (*types.Block, error) {
+func (q *QKCHash) Prepare(chain consensus.ChainReader, header types.IHeader) error {
 	panic("not implemented")
 }
 
 // CalcDifficulty is the difficulty adjustment algorithm. It returns the difficulty
 // that a new block should have.
-func (q *QKCHash) CalcDifficulty(chain ethconsensus.ChainReader, time uint64, parent *types.Header) *big.Int {
-	return big.NewInt(3)
-}
+func (q *QKCHash) CalcDifficulty(chain consensus.ChainReader, time uint64, parent types.IHeader) *big.Int {
+	if q.diffCalculator == nil {
+		panic("diffCalculator is not existed")
+	}
 
-// APIs returns the RPC APIs this consensus engine provides.
-func (q *QKCHash) APIs(chain ethconsensus.ChainReader) []rpc.API {
-	panic("not implemented")
+	return q.diffCalculator.CalculateDifficulty(parent, time)
 }
 
 // Hashrate returns the current mining hashrate of a PoW consensus engine.
@@ -117,10 +99,10 @@ func (q *QKCHash) hashAlgo(hash []byte, nonce uint64) (res consensus.MiningResul
 }
 
 // New returns a QKCHash scheme.
-func New(useNative bool) *QKCHash {
+func New(useNative bool, diffCalculator consensus.DifficultyCalculator) *QKCHash {
 	q := &QKCHash{
-		ethash:    &ethash.Ethash{},
-		useNative: useNative,
+		diffCalculator: diffCalculator,
+		useNative:      useNative,
 		// TOOD: cache may depend on block, so a LRU-stype cache could be helpful
 		cache: generateCache(cacheEntryCnt, cacheSeed, useNative),
 	}

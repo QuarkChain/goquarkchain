@@ -4,7 +4,6 @@ package types
 
 import (
 	"github.com/QuarkChain/goquarkchain/account"
-	"github.com/QuarkChain/goquarkchain/serialize"
 	"io"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -23,7 +22,7 @@ type Log struct {
 	// list of topics provided by the contract.
 	Topics []common.Hash `json:"topics" gencodec:"required"`
 	// supplied by the contract, usually ABI-encoded
-	Data serialize.LimitedSizeByteSlice4 `json:"data" gencodec:"required"`
+	Data []byte `json:"data" gencodec:"required" bytesizeofslicelen:"4"`
 
 	// Derived fields. These fields are filled in by the node
 	// but not secured by consensus.
@@ -41,12 +40,6 @@ type Log struct {
 	// The Removed field is true if this log was reverted due to a chain reorganisation.
 	// You must pay attention to this field if you receive logs through a filter query.
 	Removed bool `json:"removed"  ser:"-"`
-}
-
-type Logs []*Log
-
-func (Logs) GetLenByteSize() int {
-	return 4
 }
 
 type logMarshaling struct {
