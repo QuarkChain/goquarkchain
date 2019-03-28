@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+	"github.com/QuarkChain/goquarkchain/common"
 )
 
 // Address include recipient and fullShardKey
@@ -30,7 +31,7 @@ func (Self *Address) ToHex() []byte {
 
 // GetFullShardID get fullShardID depend shardSize
 func (Self *Address) GetFullShardID(shardSize uint32) (uint32, error) {
-	if IsP2(shardSize) == false {
+	if common.IsP2(shardSize) == false {
 		return 0, fmt.Errorf("shardSize is not right shardSize:%d", shardSize)
 	}
 

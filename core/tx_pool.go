@@ -269,11 +269,11 @@ func (pool *TxPool) loop() {
 		case ev := <-pool.chainHeadCh:
 			if ev.Block != nil {
 				pool.mu.Lock()
-				if pool.chainconfig.IsHomestead(new(big.Int).SetUint64(ev.Block.Number())) {
+				if pool.chainconfig.IsHomestead(new(big.Int).SetUint64(ev.Block.NumberU64())) {
 					pool.homestead = true
 				}
-				pool.reset(head, ev.Block)
-				head = ev.Block
+				pool.reset(head, ev.Block.(*types.MinorBlock))
+				head = ev.Block.(*types.MinorBlock)
 
 				pool.mu.Unlock()
 			}

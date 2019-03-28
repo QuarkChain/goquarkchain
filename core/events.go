@@ -30,19 +30,19 @@ type PendingLogsEvent struct {
 }
 
 // NewMinedBlockEvent is posted when a block has been imported.
-type NewMinedBlockEvent struct{ Block *types.MinorBlock }
+type NewMinedBlockEvent struct{ Block types.IBlock }
 
 // RemovedLogsEvent is posted when a reorg happens
 type RemovedLogsEvent struct{ Logs []*types.Log }
 
 type ChainEvent struct {
-	Block *types.MinorBlock
+	Block types.IBlock
 	Hash  common.Hash
 	Logs  []*types.Log
 }
 
 type ChainSideEvent struct {
-	Block *types.MinorBlock
+	Block types.IBlock
 }
 
-type ChainHeadEvent struct{ Block *types.MinorBlock }
+type ChainHeadEvent struct{ Block types.IBlock }
