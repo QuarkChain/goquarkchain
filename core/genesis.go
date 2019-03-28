@@ -59,7 +59,7 @@ func (g *Genesis) CreateMinorBlock(rootBlock *types.RootBlock, fullShardId uint3
 	branch := account.Branch{Value: fullShardId}
 	genesis := g.qkcConfig.ShardList[fullShardId].Genesis
 
-	for addrStr, gAcc := range genesis.Alloc {
+	for addrStr, balance := range genesis.Alloc {
 		addr, err := account.CreatAddressFromBytes(common.Hex2Bytes(addrStr))
 		if err != nil {
 			return nil, err
@@ -67,12 +67,7 @@ func (g *Genesis) CreateMinorBlock(rootBlock *types.RootBlock, fullShardId uint3
 		//todo check full shard id
 		recipient := new(common.Address)
 		recipient.SetBytes(addr.Recipient.Bytes())
-		statedb.AddBalance(*recipient, gAcc.Balance)
-		statedb.SetCode(*recipient, gAcc.Code)
-		statedb.SetNonce(*recipient, gAcc.Nonce)
-		for key, value := range gAcc.Storage {
-			statedb.SetState(*recipient, key, value)
-		}
+		statedb.AddBalance(*recipient, balance)
 	}
 
 	meta := types.MinorBlockMeta{

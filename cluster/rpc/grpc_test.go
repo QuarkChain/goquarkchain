@@ -11,9 +11,9 @@ import (
 
 func testSlaveConfig(idx int) *config.SlaveConfig {
 	return &config.SlaveConfig{
-		Ip:            config.HOST,
-		Port:          uint64(config.SLAVE_PORT + idx),
-		Id:            "S" + string(idx),
+		IP:            "127.0.0.1",
+		Port:          uint64(config.SlavePort + idx),
+		ID:            "S" + string(idx),
 		ShardMaskList: nil,
 	}
 }
@@ -29,7 +29,7 @@ func TestGRPCAPI(t *testing.T) {
 			},
 		}
 		cfg            = testSlaveConfig(0)
-		hostport       = fmt.Sprintf("%s:%d", cfg.Ip, cfg.Port)
+		hostport       = fmt.Sprintf("%s:%d", cfg.IP, cfg.Port)
 		rpcID    int64 = 1
 	)
 
