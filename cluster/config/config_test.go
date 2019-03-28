@@ -55,8 +55,7 @@ func TestClusterConfig(t *testing.T) {
 	if err != nil {
 		t.Fatalf("slave should not to be empty: %v", err)
 	}
-	p2p := c.P2P
-	if p2p == nil {
+	if c.P2P == nil {
 		t.Fatalf("")
 	}
 	quarkchain := c.Quarkchain
