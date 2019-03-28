@@ -6,85 +6,9 @@ import (
 	"errors"
 	"fmt"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/connectivity"
 	"reflect"
 	"sync"
 	"time"
-)
-
-type ServerType int
-
-const (
-	_ = iota
-	OpPing
-	OpConnectToSlaves
-	OpAddRootBlock
-	OpGetEcoInfoList
-	OpGetNextBlockToMine
-	OpGetUnconfirmedHeaders
-	OpGetAccountData
-	OpAddTransaction
-	OpAddMinorBlockHeader
-	OpAddXshardTxList
-	OpSyncMinorBlockList
-	OpAddMinorBlock
-	OpCreateClusterPeerConnection
-	OpDestroyClusterPeerConnectionCommand
-	OpGetMinorBlock
-	OpGetTransaction
-	OpBatchAddXshardTxList
-	OpExecuteTransaction
-	OpGetTransactionReceipt
-	OpGetMine
-	OpGenTx
-	OpGetTransactionListByAddress
-	OpGetLogs
-	OpEstimateGas
-	OpGetStorageAt
-	OpGetCode
-	OpGasPrice
-	OpGetWork
-	OpSubmitWork
-
-	MasterServer  = ServerType(1)
-	SlaveServer   = ServerType(0)
-	UnknownServer = ServerType(-1)
-)
-
-var (
-	conns = make(map[string]*grpc.ClientConn)
-	// include all grpc funcs
-	rpcFuncs = map[int64]opType{
-		OpPing:                                {name: "Ping"},
-		OpConnectToSlaves:                     {name: "ConnectToSlaves"},
-		OpAddRootBlock:                        {name: "AddRootBlock"},
-		OpGetEcoInfoList:                      {name: "GetEcoInfoList"},
-		OpGetNextBlockToMine:                  {name: "GetNextBlockToMine"},
-		OpGetUnconfirmedHeaders:               {name: "GetUnconfirmedHeaders"},
-		OpGetAccountData:                      {name: "GetAccountData"},
-		OpAddTransaction:                      {name: "AddTransaction"},
-		OpAddMinorBlockHeader:                 {name: "AddMinorBlockHeader", serverType: MasterServer},
-		OpAddXshardTxList:                     {name: "AddXshardTxList"},
-		OpSyncMinorBlockList:                  {name: "SyncMinorBlockList"},
-		OpAddMinorBlock:                       {name: "AddMinorBlock"},
-		OpCreateClusterPeerConnection:         {name: "CreateClusterPeerConnection"},
-		OpDestroyClusterPeerConnectionCommand: {name: "DestroyClusterPeerConnectionCommand", serverType: UnknownServer},
-		OpGetMinorBlock:                       {name: "GetMinorBlock"},
-		OpGetTransaction:                      {name: "GetTransaction"},
-		OpBatchAddXshardTxList:                {name: "BatchAddXshardTxList"},
-		OpExecuteTransaction:                  {name: "ExecuteTransaction"},
-		OpGetTransactionReceipt:               {name: "GetTransactionReceipt"},
-		OpGetMine:                             {name: "GetMine"},
-		OpGenTx:                               {name: "GenTx"},
-		OpGetTransactionListByAddress:         {name: "GetTransactionListByAddress"},
-		OpGetLogs:                             {name: "GetLogs"},
-		OpEstimateGas:                         {name: "EstimateGas"},
-		OpGetStorageAt:                        {name: "GetStorageAt"},
-		OpGetCode:                             {name: "GetCode"},
-		OpGasPrice:                            {name: "GasPrice"},
-		OpGetWork:                             {name: "GetWork"},
-		OpSubmitWork:                          {name: "SubmitWork"},
-	}
 )
 
 type opType struct {
@@ -94,20 +18,23 @@ type opType struct {
 }
 
 type RPCClient struct {
-	mu      sync.Mutex
+	mu      sync.RWMutex
+	target  string
 	timeout time.Duration
-	conns   map[string]*grpc.ClientConn
+	conn    *grpc.ClientConn
 	funcs   map[int64]opType
-	running bool
 }
 
-func NewRPCLient() *RPCClient {
-	return &RPCClient{
-		conns:   conns,
+func NewRPCLient(target string) (*RPCClient, error) {
+	client := &RPCClient{
+		target:  target,
 		funcs:   rpcFuncs,
 		timeout: 10 * time.Second,
-		running: true,
 	}
+	if err := client.createConn(); err != nil {
+		return nil, err
+	}
+	return client, nil
 }
 
 func (c *RPCClient) checkOp(op int64, serverType ServerType) bool {
@@ -126,44 +53,32 @@ func (c *RPCClient) GetOpName(op int64) string {
 	return ""
 }
 
-func (c *RPCClient) GetMasterServerSideOp(target string, req *Request) (*Response, error) {
-
-	if c.running {
-		if !c.checkOp(req.Op, MasterServer) {
-			return nil, errors.New(fmt.Sprintf("%s don't belong to master server grpc functions", rpcFuncs[req.Op].name))
-		}
-		conn, err := c.GetConn(target)
-		if err != nil {
-			return nil, err
-		}
-		client := NewMasterServerSideOpClient(conn)
-		return c.grpcOp(req, reflect.ValueOf(client))
+func (c *RPCClient) GetMasterServerSideOp(req *Request) (*Response, error) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	if !c.checkOp(req.Op, MasterServer) {
+		return nil, errors.New(fmt.Sprintf("%s don't belong to master server grpc functions", rpcFuncs[req.Op].name))
 	}
-	return nil, errors.New("client has closed")
+	client := NewMasterServerSideOpClient(c.conn)
+	return c.grpcOp(req, reflect.ValueOf(client))
 }
 
 func (c *RPCClient) GetSlaveSideOp(target string, req *Request) (*Response, error) {
-
-	if c.running {
-		if !c.checkOp(req.Op, SlaveServer) {
-			return nil, errors.New(fmt.Sprintf("%s don't belong to slave server grpc functions", rpcFuncs[req.Op].name))
-		}
-		conn, err := c.GetConn(target)
-		if err != nil {
-			return nil, err
-		}
-		client := NewSlaveServerSideOpClient(conn)
-		return c.grpcOp(req, reflect.ValueOf(client))
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	if !c.checkOp(req.Op, SlaveServer) {
+		return nil, errors.New(fmt.Sprintf("%s don't belong to slave server grpc functions", rpcFuncs[req.Op].name))
 	}
-	return nil, errors.New("client has closed")
+	client := NewSlaveServerSideOpClient(c.conn)
+	return c.grpcOp(req, reflect.ValueOf(client))
 }
 
 func (c *RPCClient) Close() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	c.running = false
-	for _, client := range c.conns {
-		client.Close()
+	if c.conn != nil {
+		c.conn.Close()
+		c.conn = nil
 	}
 }
 
@@ -187,39 +102,18 @@ func (c *RPCClient) grpcOp(req *Request, ele reflect.Value) (response *Response,
 	return res, nil
 }
 
-func (c *RPCClient) addConn(target string) error {
+func (c *RPCClient) createConn() error {
 	var (
-		conn *grpc.ClientConn
+		opts = []grpc.DialOption{grpc.WithInsecure()}
 		err  error
 	)
 	c.mu.Lock()
-	delete(conns, target)
-	// TODO add certificate or enciphered data
-	var opts []grpc.DialOption
-	opts = append(opts, grpc.WithInsecure())
-	conn, err = grpc.Dial(target, opts...)
-	// defer conn.Close()
+	c.conn, err = grpc.Dial(c.target, opts...)
 	if err == nil {
-		conns[target] = conn
-		fmt.Println("create new connection", target)
-	} else {
-		conn.Close()
+		fmt.Println("create new connection", c.target)
 	}
 	c.mu.Unlock()
 	return err
-}
-
-func (c *RPCClient) GetConn(target string) (*grpc.ClientConn, error) {
-	if c.running {
-		if conn, ok := conns[target]; !ok ||
-			(ok && conn.GetState() > connectivity.TransientFailure) {
-			if err := c.addConn(target); err != nil {
-				return nil, err
-			}
-		}
-		return conns[target], nil
-	}
-	return nil, errors.New("client has closed")
 }
 
 func (c *RPCClient) Getfuncs(serverType ServerType) map[int64]string {

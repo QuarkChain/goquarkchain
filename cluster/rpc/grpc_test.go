@@ -38,8 +38,11 @@ func TestGRPCAPI(t *testing.T) {
 	}
 
 	// create rpc client and request AddMinorBlockHeader function
-	cli := NewRPCLient()
-	res, err := cli.GetMasterServerSideOp(target, &Request{Op: OpAddMinorBlockHeader, Data: []byte(fmt.Sprintf("%s op request", cli.GetOpName(OpAddMinorBlockHeader)))})
+	cli, err := NewRPCLient(target)
+	if err != nil {
+		t.Fatalf("create connection %v", err)
+	}
+	res, err := cli.GetMasterServerSideOp(&Request{Op: OpAddMinorBlockHeader, Data: []byte(fmt.Sprintf("%s op request", cli.GetOpName(OpAddMinorBlockHeader)))})
 	if err != nil || res.ErrorCode != 0 {
 		t.Fatalf("request master function %s %v", cli.GetOpName(OpAddMinorBlockHeader), err)
 	}
