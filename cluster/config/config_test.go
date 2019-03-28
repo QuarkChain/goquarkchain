@@ -10,6 +10,7 @@ import (
 	"unicode"
 
 	"github.com/naoina/toml"
+	"github.com/stretchr/testify/assert"
 )
 
 // These settings ensure that TOML keys use the same names as Go struct fields.
@@ -41,24 +42,24 @@ func TestClusterConfig(t *testing.T) {
 		t.Error("reward tax rate is not correctly marshalled")
 	}
 
-	var data ClusterConfig
-	err = json.Unmarshal(jsonConfig, &data)
+	var c ClusterConfig
+	err = json.Unmarshal(jsonConfig, &c)
 	if err != nil {
 		t.Fatalf("UnMarsshal cluster config error: %v", err)
 	}
-	if data.DbPathRoot != "./data" {
+	if c.DbPathRoot != "./data" {
 		t.Fatalf("db path root error")
 	}
 
-	_, err = data.GetSlaveConfig("S0")
+	_, err = c.GetSlaveConfig("S0")
 	if err != nil {
 		t.Fatalf("slave should not to be empty: %v", err)
 	}
-	p2p := data.P2P
+	p2p := c.P2P
 	if p2p == nil {
 		t.Fatalf("")
 	}
-	quarkchain := data.Quarkchain
+	quarkchain := c.Quarkchain
 	if quarkchain.RewardTaxRate.Cmp(new(big.Rat).SetFloat64(0.5)) != 0 {
 		t.Errorf("wrong marshaling of reward tax rate")
 	}
@@ -84,6 +85,25 @@ func TestClusterConfig(t *testing.T) {
 	}
 	initializeIds := quarkchain.GetInitializedShardIdsBeforeRootHeight(0)
 	if len(initializeIds) != 0 {
-		t.Fatalf("The list of ids should be empty.")
+		t.Fatalf("the list of ids should be empty.")
 	}
+}
+
+func TestSlaveConfig(t *testing.T) {
+	s := []byte(`{
+		"IP": "1.2.3.4",
+		"PORT": 123,
+		"ID": "S1",
+		"SHARD_MASK_LIST": [4]
+	}`)
+
+	assert := assert.New(t)
+
+	var sc SlaveConfig
+	assert.NoError(json.Unmarshal(s, &sc))
+	assert.Equal(uint32(4), sc.ShardMaskList[0].GetMask())
+
+	jsonConfig, err := json.Marshal(&sc)
+	assert.NoError(err)
+	assert.True(strings.Contains(string(jsonConfig), "MASK_LIST\":[4]"))
 }

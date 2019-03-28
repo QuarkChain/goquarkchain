@@ -10,23 +10,28 @@ import (
 )
 
 var (
-	GRPCPort             = 38591
-	SlavePort            = 38000
-	DefaultClusterConfig = ClusterConfig{
+	GRPCPort              = 38591
+	SlavePort             = 38000
+	skeletonClusterConfig = ClusterConfig{
 		P2PPort:                  38291,
 		JSONRPCPort:              38391,
 		PrivateJSONRPCPort:       38491,
 		EnableTransactionHistory: false,
-		DbPathRoot:               "./db",
+		DbPathRoot:               "./data",
 		LogLevel:                 "info",
 		StartSimulatedMining:     false,
 		Clean:                    false,
 		GenesisDir:               "/dev/null",
+		Quarkchain:               NewQuarkChainConfig(),
+		Master:                   &DefaultMasterConfig,
+		SimpleNetwork:            &DefaultSimpleNetwork,
+		P2P:                      &DefaultP2PConfig,
+		Monitoring:               &DefaultMonitoring,
 	}
-	DefaultQuarkChainConfig = QuarkChainConfig{
+	skeletonQuarkChainConfig = QuarkChainConfig{
 		ShardSize:                         8,
 		MaxNeighbors:                      32,
-		NetworkId:                         3,
+		NetworkID:                         3,
 		TransactionQueueSizeLimitPerShard: 10000,
 		BlockExtraDataSizeLimit:           1024,
 		GuardianPublicKey:                 "ab856abd0983a82972021e454fcf66ed5940ed595b0898bcd75cbe2d0a51a00f5358b566df22395a2a8bf6c022c1d51a2c3defe654e91a8d244947783029694d",
@@ -36,6 +41,7 @@ var (
 		SkipRootDifficultyCheck:           false,
 		SkipMinorDifficultyCheck:          false,
 		RewardTaxRate:                     new(big.Rat).SetFloat64(0.5),
+		Root:                              NewRootConfig(),
 	}
 )
 
@@ -62,32 +68,18 @@ type ClusterConfig struct {
 	// TODO KafkaSampleLogger
 }
 
-func NewClusterConfig() ClusterConfig {
-	cluster := ClusterConfig{
-		P2PPort:                  38291,
-		JSONRPCPort:              38291,
-		PrivateJSONRPCPort:       38291,
-		EnableTransactionHistory: false,
-		DbPathRoot:               "./data",
-		LogLevel:                 "info",
-		StartSimulatedMining:     false,
-		Clean:                    false,
-		GenesisDir:               "/dev/null",
-		Quarkchain:               NewQuarkChainConfig(),
-		Master:                   &DefaultMasterConfig,
-		SlaveList:                make([]*SlaveConfig, 0),
-		SimpleNetwork:            &DefaultSimpleNetwork,
-		P2P:                      &DefaultP2PConfig,
-		Monitoring:               &DefaultMonitoring,
-	}
+func NewClusterConfig() *ClusterConfig {
+	var ret ClusterConfig
+	ret = *&skeletonClusterConfig
+
 	for i := 0; i < DefaultNumSlaves; i++ {
 		slave := NewDefaultSlaveConfig()
 		slave.Port = uint64(SlavePort + i)
 		slave.ID = fmt.Sprintf("S%d", i)
 		slave.ShardMaskList = append(slave.ShardMaskList, types.NewChainMask(uint32(i|DefaultNumSlaves)))
-		cluster.SlaveList = append(cluster.SlaveList, slave)
+		ret.SlaveList = append(ret.SlaveList, slave)
 	}
-	return cluster
+	return &ret
 }
 
 func (c *ClusterConfig) GetSlaveConfig(id string) (*SlaveConfig, error) {
@@ -105,7 +97,7 @@ func (c *ClusterConfig) GetSlaveConfig(id string) (*SlaveConfig, error) {
 type QuarkChainConfig struct {
 	ShardSize                         uint64         `json:"SHARD_SIZE"`
 	MaxNeighbors                      uint32         `json:"MAX_NEIGHBORS"`
-	NetworkId                         uint64         `json:"NETWORK_ID"`
+	NetworkID                         uint64         `json:"NETWORK_ID"`
 	TransactionQueueSizeLimitPerShard uint64         `json:"TRANSACTION_QUEUE_SIZE_LIMIT_PER_SHARD"`
 	BlockExtraDataSizeLimit           uint32         `json:"BLOCK_EXTRA_DATA_SIZE_LIMIT"`
 	GuardianPublicKey                 string         `json:"GUARDIAN_PUBLIC_KEY"`
@@ -206,33 +198,20 @@ func (q *QuarkChainConfig) update(shardSize, rootBlockTime, minorBlockTime uint6
 }
 
 func NewQuarkChainConfig() *QuarkChainConfig {
-	c := &QuarkChainConfig{
-		ShardSize:                         8,
-		MaxNeighbors:                      32,
-		NetworkId:                         3, // testnet_porsche 3
-		TransactionQueueSizeLimitPerShard: 10000,
-		BlockExtraDataSizeLimit:           1024,
-		GuardianPublicKey:                 "ab856abd0983a82972021e454fcf66ed5940ed595b0898bcd75cbe2d0a51a00f5358b566df22395a2a8bf6c022c1d51a2c3defe654e91a8d244947783029694d",
-		GuardianPrivateKey:                nil,
-		P2PProtocolVersion:                0,
-		P2PCommandSizeLimit:               (1 << 32) - 1,
-		SkipRootDifficultyCheck:           false,
-		SkipMinorDifficultyCheck:          false,
-		Root:                              NewRootConfig(),
-		ShardList:                         make([]*ShardConfig, 0),
-		RewardTaxRate:                     new(big.Rat).SetFloat64(0.5),
-	}
-	c.Root.ConsensusType = PoWSimulate
-	c.Root.ConsensusConfig = NewPOWConfig()
-	c.Root.ConsensusConfig.TargetBlockTime = 10
-	c.Root.Genesis.ShardSize = DefaultQuarkChainConfig.ShardSize
-	for i := 0; i < int(DefaultQuarkChainConfig.ShardSize); i++ {
+	var ret QuarkChainConfig
+	ret = *&skeletonQuarkChainConfig
+
+	ret.Root.ConsensusType = PoWSimulate
+	ret.Root.ConsensusConfig = NewPOWConfig()
+	ret.Root.ConsensusConfig.TargetBlockTime = 10
+	ret.Root.Genesis.ShardSize = ret.ShardSize
+	for i := 0; i < int(ret.ShardSize); i++ {
 		s := NewShardConfig()
-		s.SetRootConfig(c.Root)
+		s.SetRootConfig(ret.Root)
 		s.ConsensusType = PoWSimulate
 		s.ConsensusConfig = NewPOWConfig()
 		s.ConsensusConfig.TargetBlockTime = 3
-		c.ShardList = append(c.ShardList, s)
+		ret.ShardList = append(ret.ShardList, s)
 	}
-	return c
+	return &ret
 }
