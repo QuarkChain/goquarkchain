@@ -11,23 +11,21 @@ const (
 	// PoWEthash is the consensus type running ethash algorithm.
 	PoWEthash = "POW_ETHASH"
 	// PoWDoubleSha256 is the consensus type running double-sha256 algorithm.
-	PowDoubleSha256 = "POW_DOUBLESHA256"
+	PoWDoubleSha256 = "POW_DOUBLESHA256"
 	// PoWSimulate is the simulated consensus type by simply sleeping.
 	PoWSimulate = "POW_SIMULATE"
-	// PoSQkchash is the consensus type running qkchash algorithm.
+	// PoWQkchash is the consensus type running qkchash algorithm.
 	PoWQkchash = "POW_QKCHASH"
-
-	SLAVE_PORT = 38000
 )
 
 var (
-	QUARKSH_TO_JIAOZI = big.NewInt(1000000000000000000)
+	QuarkashToJiaozi  = big.NewInt(1000000000000000000)
 	DefaultNumSlaves  = 4
 	DefaultPOSWConfig = POSWConfig{
 		Enabled:            false,
 		DiffDivider:        20,
 		WindowSize:         256,
-		TotalStakePerBlock: new(big.Int).Mul(big.NewInt(9), QUARKSH_TO_JIAOZI),
+		TotalStakePerBlock: new(big.Int).Mul(big.NewInt(9), QuarkashToJiaozi),
 	}
 	DefaultRootGenesis = RootGenesis{
 		Version:        0,
@@ -39,9 +37,9 @@ var (
 		Difficulty:     1000000,
 		Nonce:          0,
 	}
-	DfaultMonitoring = MonitoringConfig{
+	DefaultMonitoring = MonitoringConfig{
 		NetworkName:      "",
-		ClusterId:        HOST,
+		ClusterId:        "127.0.0.1",
 		KafkaRestAddress: "",
 		MinerTopic:       "qkc_miner",
 		PropagationTopic: "block_propagation",
@@ -56,8 +54,8 @@ var (
 		PreferredNodes:   "",
 	}
 	DefaultSimpleNetwork = SimpleNetwork{
-		BootstrapHost: HOST,
-		BootstrapPort: PORT,
+		BootstrapHost: "127.0.0.1",
+		BootstrapPort: 38291,
 	}
 	DefaultMasterConfig = MasterConfig{
 		MasterToSlaveConnectRetryDelay: 1.0,
@@ -101,7 +99,7 @@ type RootGenesis struct {
 
 type RootConfig struct {
 	// To ignore super old blocks from peers
-	// This means the network will fork permanently after a long partitio
+	// This means the network will fork permanently after a long partition
 	MaxStaleRootBlockHeightDiff    uint64       `json:"MAX_STALE_ROOT_BLOCK_HEIGHT_DIFF"`
 	ConsensusType                  string       `json:"CONSENSUS_TYPE"`
 	ConsensusConfig                *POWConfig   `json:"CONSENSUS_CONFIG"`
@@ -120,7 +118,7 @@ func NewRootConfig() *RootConfig {
 		Genesis:                     &DefaultRootGenesis,
 		// TODO address serialization type shuld to be replaced
 		CoinbaseAddress:                "",
-		CoinbaseAmount:                 new(big.Int).Mul(big.NewInt(120), QUARKSH_TO_JIAOZI),
+		CoinbaseAmount:                 new(big.Int).Mul(big.NewInt(120), QuarkashToJiaozi),
 		DifficultyAdjustmentCutoffTime: 40,
 		DifficultyAdjustmentFactor:     1024,
 	}

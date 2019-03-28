@@ -1,13 +1,15 @@
-package config_test
+package config
 
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/QuarkChain/goquarkchain/cluster/config"
-	"github.com/naoina/toml"
+	"math/big"
 	"reflect"
+	"strings"
 	"testing"
 	"unicode"
+
+	"github.com/naoina/toml"
 )
 
 // These settings ensure that TOML keys use the same names as Go struct fields.
@@ -28,18 +30,23 @@ var tomlSettings = toml.Config{
 }
 
 func TestClusterConfig(t *testing.T) {
-	cluster := config.NewClusterConfig()
-	jsCluster, err := json.Marshal(cluster)
+	cluster := NewClusterConfig()
+	jsonConfig, err := json.Marshal(cluster)
 	if err != nil {
 		t.Fatalf("cluster struct marshal error: %v", err)
 	}
 
-	var data config.ClusterConfig
-	err = json.Unmarshal(jsCluster, &data)
+	// Make sure reward tax rate is correctly marshalled
+	if !strings.Contains(string(jsonConfig), "\"REWARD_TAX_RATE\":0.5") {
+		t.Error("reward tax rate is not correctly marshalled")
+	}
+
+	var data ClusterConfig
+	err = json.Unmarshal(jsonConfig, &data)
 	if err != nil {
 		t.Fatalf("UnMarsshal cluster config error: %v", err)
 	}
-	if data.GetDbPathRoot() != "./data" {
+	if data.DbPathRoot != "./data" {
 		t.Fatalf("db path root error")
 	}
 
@@ -47,12 +54,16 @@ func TestClusterConfig(t *testing.T) {
 	if err != nil {
 		t.Fatalf("slave should not to be empty: %v", err)
 	}
-	p2p := data.GetP2P()
+	p2p := data.P2P
 	if p2p == nil {
 		t.Fatalf("")
 	}
 	quarkchain := data.Quarkchain
-	quarkchain.Update(4, 10, 10)
+	if quarkchain.RewardTaxRate.Cmp(new(big.Rat).SetFloat64(0.5)) != 0 {
+		t.Errorf("wrong marshaling of reward tax rate")
+	}
+
+	quarkchain.update(4, 10, 10)
 	if quarkchain.ShardSize != 4 {
 		t.Fatalf("quarkchain update function set shard size failed, shard size: %d", quarkchain.ShardSize)
 	}
@@ -75,5 +86,4 @@ func TestClusterConfig(t *testing.T) {
 	if len(initializeIds) != 0 {
 		t.Fatalf("The list of ids should be empty.")
 	}
-	// fmt.Println("cluster json: ", string(jsCluster))
 }
