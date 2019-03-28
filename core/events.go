@@ -17,8 +17,8 @@
 package core
 
 import (
+	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
 )
 
 // NewTxsEvent is posted when a batch of transactions enter the transaction pool.
@@ -30,19 +30,19 @@ type PendingLogsEvent struct {
 }
 
 // NewMinedBlockEvent is posted when a block has been imported.
-type NewMinedBlockEvent struct{ Block *types.Block }
+type NewMinedBlockEvent struct{ Block types.IBlock }
 
 // RemovedLogsEvent is posted when a reorg happens
 type RemovedLogsEvent struct{ Logs []*types.Log }
 
 type ChainEvent struct {
-	Block *types.Block
+	Block types.IBlock
 	Hash  common.Hash
 	Logs  []*types.Log
 }
 
 type ChainSideEvent struct {
-	Block *types.Block
+	Block types.IBlock
 }
 
-type ChainHeadEvent struct{ Block *types.Block }
+type ChainHeadEvent struct{ Block types.IBlock }
