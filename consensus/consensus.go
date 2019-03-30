@@ -4,25 +4,40 @@ import (
 	crand "crypto/rand"
 	"errors"
 	"fmt"
+
+	"github.com/QuarkChain/goquarkchain/core/types"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/metrics"
+
 	"math"
 	"math/big"
 	"math/rand"
+	"reflect"
 	"runtime"
 	"strings"
 	"sync"
-
-	"github.com/ethereum/go-ethereum/common"
-	ethconsensus "github.com/ethereum/go-ethereum/consensus"
-	"github.com/ethereum/go-ethereum/consensus/ethash"
-	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/log"
-	"github.com/ethereum/go-ethereum/metrics"
-	"github.com/ethereum/go-ethereum/params"
 )
 
 var (
 	// two256 is a big integer representing 2^256
 	two256 = new(big.Int).Exp(big.NewInt(2), big.NewInt(256), big.NewInt(0))
+	// ErrUnknownAncestor is returned when validating a block requires an ancestor
+	// that is unknown.
+	ErrUnknownAncestor = errors.New("unknown ancestor")
+
+	// ErrPrunedAncestor is returned when validating a block requires an ancestor
+	// that is known, but the state of which is not available.
+	ErrPrunedAncestor = errors.New("pruned ancestor")
+
+	// ErrFutureBlock is returned when a block's timestamp is in the future according
+	// to the current node.
+	ErrFutureBlock = errors.New("block in the future")
+
+	// ErrInvalidNumber is returned if a block's number doesn't equal it's parent's
+	// plus one.
+	ErrInvalidNumber = errors.New("invalid block number")
 )
 
 // Various error messages to mark blocks invalid. These should be private to
@@ -38,7 +53,7 @@ var (
 // MiningWork represents the params of mining work.
 type MiningWork struct {
 	HeaderHash common.Hash
-	Number     *big.Int
+	Number     uint64
 	Difficulty *big.Int
 }
 
@@ -60,27 +75,11 @@ type MiningSpec struct {
 type CommonEngine struct {
 	spec     MiningSpec
 	hashrate metrics.Meter
-	// For reusing existing functions
-	ethash *ethash.Ethash
-}
-
-// PoW is the quarkchain version of PoW consensus engine, with a conveninent method for
-// remote miners.
-type PoW interface {
-	ethconsensus.PoW
-
-	FindNonce(work MiningWork, results chan<- MiningResult, stop <-chan struct{}) error
-	Name() string
 }
 
 // Name returns the consensus engine's name.
 func (c *CommonEngine) Name() string {
 	return c.spec.Name
-}
-
-// SealHash returns the hash of a block prior to it being sealed.
-func (c *CommonEngine) SealHash(header *types.Header) common.Hash {
-	return c.ethash.SealHash(header)
 }
 
 // Hashrate returns the current mining hashrate of a PoW consensus engine.
@@ -90,51 +89,48 @@ func (c *CommonEngine) Hashrate() float64 {
 
 // VerifyHeader checks whether a header conforms to the consensus rules.
 func (c *CommonEngine) VerifyHeader(
-	chain ethconsensus.ChainReader,
-	header *types.Header,
+	chain ChainReader,
+	header types.IHeader,
 	seal bool,
-	cengine ethconsensus.Engine,
+	cengine Engine,
 ) error {
 	// Short-circuit if the header is known, or parent not
-	number := header.Number.Uint64()
+	number := header.NumberU64()
+	logger := log.New("engine")
+
 	if chain.GetHeader(header.Hash(), number) != nil {
 		return nil
 	}
-	parent := chain.GetHeader(header.ParentHash, number-1)
+	parent := chain.GetHeader(header.GetParentHash(), number-1)
 	if parent == nil {
-		return ethconsensus.ErrUnknownAncestor
+		return ErrUnknownAncestor
 	}
 
-	if uint64(len(header.Extra)) > params.MaximumExtraDataSize {
-		return fmt.Errorf("extra-data too long: %d > %d", len(header.Extra), params.MaximumExtraDataSize)
+	if uint32(len(header.GetExtra())) > chain.Config().BlockExtraDataSizeLimit {
+		return fmt.Errorf("extra-data too long: %d > %d", len(header.GetExtra()), chain.Config().BlockExtraDataSizeLimit)
 	}
 
-	if header.Time.Cmp(parent.Time) <= 0 {
+	if header.GetTime() < parent.GetTime() {
 		return errors.New("timestamp equals parent's")
 	}
 
-	expectedDiff := cengine.CalcDifficulty(chain, header.Time.Uint64(), parent)
-	if expectedDiff.Cmp(header.Difficulty) != 0 {
-		return fmt.Errorf("invalid difficulty: have %v, want %v", header.Difficulty, expectedDiff)
+	adjustedDiff := new(big.Int).SetUint64(0)
+	if !chain.Config().SkipRootDifficultyCheck {
+		expectedDiff := cengine.CalcDifficulty(chain, header.GetTime(), parent)
+		if expectedDiff.Cmp(header.GetDifficulty()) != 0 {
+			errMsg := fmt.Sprintf("invalid difficulty: have %v, want %v", header.GetDifficulty(), expectedDiff)
+			logger.Error(errMsg)
+			return errors.New(errMsg)
+		}
+		if reflect.TypeOf(header) == reflect.TypeOf(new(types.RootBlockHeader)) {
+			rootHeader := header.(*types.RootBlockHeader)
+			if crypto.VerifySignature(common.Hex2Bytes(chain.Config().GuardianPublicKey), rootHeader.Hash().Bytes(), rootHeader.Signature[:]) {
+				adjustedDiff = expectedDiff.Div(expectedDiff, new(big.Int).SetUint64(1000))
+			}
+		}
 	}
 
-	// TODO: validate gas limit
-
-	if header.GasUsed > header.GasLimit {
-		return fmt.Errorf("invalid gasUsed: have %d, gasLimit %d", header.GasUsed, header.GasLimit)
-	}
-
-	// TODO: verify gas limit is within allowed bounds
-
-	if heightDiff := new(big.Int).Sub(header.Number, parent.Number); heightDiff.Cmp(big.NewInt(1)) != 0 {
-		return ethconsensus.ErrInvalidNumber
-	}
-
-	if err := cengine.VerifySeal(chain, header); err != nil {
-		return err
-	}
-
-	return nil
+	return cengine.VerifySeal(chain, header, adjustedDiff)
 }
 
 // VerifyHeaders is similar to VerifyHeader, but verifies a batch of headers
@@ -142,10 +138,10 @@ func (c *CommonEngine) VerifyHeader(
 // a results channel to retrieve the async verifications (the order is that of
 // the input slice).
 func (c *CommonEngine) VerifyHeaders(
-	chain ethconsensus.ChainReader,
-	headers []*types.Header,
+	chain ChainReader,
+	headers []types.IHeader,
 	seals []bool,
-	cengine ethconsensus.Engine,
+	cengine Engine,
 ) (chan<- struct{}, <-chan error) {
 
 	// TODO: verify concurrently, and support aborting
@@ -204,16 +200,15 @@ func (c *CommonEngine) FindNonce(
 // Seal generates a new block for the given input block with the local miner's
 // seal place on top.
 func (c *CommonEngine) Seal(
-	chain ethconsensus.ChainReader,
-	block *types.Block,
-	results chan<- *types.Block,
+	block types.IBlock,
+	results chan<- types.IBlock,
 	stop <-chan struct{},
 ) error {
 
 	abort := make(chan struct{})
 	found := make(chan MiningResult)
-	header := block.Header()
-	work := MiningWork{HeaderHash: c.SealHash(header), Number: header.Number, Difficulty: header.Difficulty}
+	header := block.IHeader()
+	work := MiningWork{HeaderHash: header.SealHash(), Number: header.NumberU64(), Difficulty: header.GetDifficulty()}
 	if err := c.FindNonce(work, found, abort); err != nil {
 		return err
 	}
@@ -224,11 +219,8 @@ func (c *CommonEngine) Seal(
 		case <-stop:
 			close(abort)
 		case result = <-found:
-			header = types.CopyHeader(header)
-			header.Nonce = types.EncodeNonce(result.Nonce)
-			header.MixDigest = result.Digest
 			select {
-			case results <- block.WithSeal(header):
+			case results <- block.WithMingResult(result.Nonce, result.Digest):
 			default:
 				log.Warn("Sealing result is not read by miner", "mode", "local", "sealhash", work.HeaderHash)
 			}
@@ -252,7 +244,7 @@ func (c *CommonEngine) mine(
 		attempts = int64(0)
 		nonce    = startNonce
 	)
-	logger := log.New("miner."+strings.ToLower(c.spec.Name), id)
+	logger := log.New("miner", "spec", strings.ToLower(c.spec.Name), "id", id)
 	logger.Trace("Started search for new nonces", "minerName", c.spec.Name, "startNonce", startNonce)
 search:
 	for {
@@ -292,6 +284,5 @@ func NewCommonEngine(spec MiningSpec) *CommonEngine {
 	return &CommonEngine{
 		spec:     spec,
 		hashrate: metrics.NewMeter(),
-		ethash:   &ethash.Ethash{},
 	}
 }
