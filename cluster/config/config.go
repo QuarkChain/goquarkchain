@@ -1,6 +1,9 @@
 package config
 
-import "math"
+import (
+	"math/big"
+	"strings"
+)
 
 const (
 	// PoWNone is the default empty consensus type specifying no shard.
@@ -8,23 +11,21 @@ const (
 	// PoWEthash is the consensus type running ethash algorithm.
 	PoWEthash = "POW_ETHASH"
 	// PoWDoubleSha256 is the consensus type running double-sha256 algorithm.
-	PowDoubleSha256 = "POW_DOUBLESHA256"
+	PoWDoubleSha256 = "POW_DOUBLESHA256"
 	// PoWSimulate is the simulated consensus type by simply sleeping.
 	PoWSimulate = "POW_SIMULATE"
-	// PoSQkchash is the consensus type running qkchash algorithm.
+	// PoWQkchash is the consensus type running qkchash algorithm.
 	PoWQkchash = "POW_QKCHASH"
-
-	SLAVE_PORT = 38000
 )
 
 var (
-	QUARKSH_TO_JIAOZI = math.Pow10(18)
-
+	QuarkashToJiaozi  = big.NewInt(1000000000000000000)
+	DefaultNumSlaves  = 4
 	DefaultPOSWConfig = POSWConfig{
 		Enabled:            false,
 		DiffDivider:        20,
 		WindowSize:         256,
-		TotalStakePerBlock: math.Pow10(9) * QUARKSH_TO_JIAOZI,
+		TotalStakePerBlock: new(big.Int).Mul(big.NewInt(9), QuarkashToJiaozi),
 	}
 	DefaultRootGenesis = RootGenesis{
 		Version:        0,
@@ -36,9 +37,9 @@ var (
 		Difficulty:     1000000,
 		Nonce:          0,
 	}
-	DfaultMonitoring = MonitoringConfig{
+	DefaultMonitoring = MonitoringConfig{
 		NetworkName:      "",
-		ClusterId:        HOST,
+		ClusterId:        "127.0.0.1",
 		KafkaRestAddress: "",
 		MinerTopic:       "qkc_miner",
 		PropagationTopic: "block_propagation",
@@ -53,31 +54,12 @@ var (
 		PreferredNodes:   "",
 	}
 	DefaultSimpleNetwork = SimpleNetwork{
-		BootstrapHost: HOST,
-		BootstrapPort: PORT,
+		BootstrapHost: "127.0.0.1",
+		BootstrapPort: 38291,
 	}
 	DefaultMasterConfig = MasterConfig{
 		MasterToSlaveConnectRetryDelay: 1.0,
 	}
-	/*DefaultChainConfig = ChainConfig{
-		ChainId:           0,
-		ShardSize:         2,
-		DefaultChainToken: "TQKC",
-		ConsensusType:     NONE,
-		// Genesis:
-		CoinbaseAddress:                    "",
-		CoinbaseAmount:                     5 * QUARKSH_TO_JIAOZI,
-		GasLimitEmaDenominator:             1024,
-		GasLimitAdjustmentFactor:           1024,
-		GasLimitMinimum:                    5000,
-		GasLimitMaximum:                    1<<63 - 1,
-		GasLimitUsageAdjustmentNumerator:   3,
-		GasLimitUsageAdjustmentDenominator: 2,
-		DifficultyAdjustmentCutoffTime:     7,
-		DifficultyAdjustmentFactor:         512,
-		ExtraShardBlocksInRootBlock:        3,
-		PoswConfig:                         &DefaultPOSWConfig,
-	}*/
 )
 
 type POWConfig struct {
@@ -96,7 +78,7 @@ type POSWConfig struct {
 	Enabled            bool
 	DiffDivider        uint32
 	WindowSize         uint32
-	TotalStakePerBlock float64
+	TotalStakePerBlock *big.Int
 }
 
 type SimpleNetwork struct {
@@ -117,13 +99,13 @@ type RootGenesis struct {
 
 type RootConfig struct {
 	// To ignore super old blocks from peers
-	// This means the network will fork permanently after a long partitio
+	// This means the network will fork permanently after a long partition
 	MaxStaleRootBlockHeightDiff    uint64       `json:"MAX_STALE_ROOT_BLOCK_HEIGHT_DIFF"`
 	ConsensusType                  string       `json:"CONSENSUS_TYPE"`
 	ConsensusConfig                *POWConfig   `json:"CONSENSUS_CONFIG"`
 	Genesis                        *RootGenesis `json:"GENESIS"`
 	CoinbaseAddress                string       `json:"COINBASE_ADDRESS"`
-	CoinbaseAmount                 float64      `json:"COINBASE_AMOUNT"`
+	CoinbaseAmount                 *big.Int     `json:"COINBASE_AMOUNT"`
 	DifficultyAdjustmentCutoffTime uint32       `json:"DIFFICULTY_ADJUSTMENT_CUTOFF_TIME"`
 	DifficultyAdjustmentFactor     uint32       `json:"DIFFICULTY_ADJUSTMENT_FACTOR"`
 }
@@ -136,7 +118,7 @@ func NewRootConfig() *RootConfig {
 		Genesis:                     &DefaultRootGenesis,
 		// TODO address serialization type shuld to be replaced
 		CoinbaseAddress:                "",
-		CoinbaseAmount:                 120 * QUARKSH_TO_JIAOZI,
+		CoinbaseAmount:                 new(big.Int).Mul(big.NewInt(120), QuarkashToJiaozi),
 		DifficultyAdjustmentCutoffTime: 40,
 		DifficultyAdjustmentFactor:     1024,
 	}
@@ -166,6 +148,10 @@ type P2PConfig struct {
 	PreferredNodes   string  `json:"PREFERRED_NODES"`
 }
 
+func (s *P2PConfig) GetBootNodes() []string {
+	return strings.Split(s.BootNodes, ",")
+}
+
 type MonitoringConfig struct {
 	NetworkName      string `json:"NETWORK_NAME"`
 	ClusterId        string `json:"CLUSTER_ID"`
@@ -174,24 +160,3 @@ type MonitoringConfig struct {
 	PropagationTopic string `json:"PROPAGATION_TOPIC"`  // "block_propagation"
 	Errors           string `json:"ERRORS"`             // "error"
 }
-
-/*type ChainConfig struct {
-	ChainId                            uint32
-	ShardSize                          uint32
-	DefaultChainToken                  string
-	ConsensusType                      uint32
-	ConsensusConfig                    *POWConfig
-	Genesis                            *ShardGenesis
-	CoinbaseAddress                    string
-	CoinbaseAmount                     float64
-	GasLimitEmaDenominator             uint64
-	GasLimitAdjustmentFactor           float64
-	GasLimitMinimum                    uint64
-	GasLimitMaximum                    uint64
-	GasLimitUsageAdjustmentNumerator   uint32
-	GasLimitUsageAdjustmentDenominator uint32
-	DifficultyAdjustmentCutoffTime     uint32
-	DifficultyAdjustmentFactor         uint32
-	ExtraShardBlocksInRootBlock        uint32
-	PoswConfig                         *POSWConfig
-}*/

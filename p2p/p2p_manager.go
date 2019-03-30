@@ -37,7 +37,7 @@ func NewP2PManager(env config.ClusterConfig, protocol Protocol) (*PManager, erro
 		Config: Config{
 			Name:       QKCProtocolName,
 			MaxPeers:   int(env.P2P.MaxPeers),
-			ListenAddr: fmt.Sprintf(":%v", env.P2Port),
+			ListenAddr: fmt.Sprintf(":%v", env.P2PPort),
 			Protocols:  []Protocol{protocol},
 		},
 		newTransport: NewQKCRlp,
