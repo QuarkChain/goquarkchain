@@ -259,6 +259,10 @@ func (q *QuarkChainConfig) initAndValidate() {
 	}
 }
 
+func (q *QuarkChainConfig) GetShardConfigByFullShardID(fullShardID uint32) *ShardConfig {
+	return q.shards[fullShardID]
+}
+
 func (q *QuarkChainConfig) GetFullShardIdByFullShardKey(fullShardKey uint32) uint32 {
 	chainID := fullShardKey >> 16
 	shardSize := q.GetShardSizeByChainId(chainID)
