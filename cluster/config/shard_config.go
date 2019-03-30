@@ -1,13 +1,15 @@
 package config
 
 import (
+	"github.com/QuarkChain/goquarkchain/common"
+	"github.com/ethereum/go-ethereum/log"
 	"math/big"
 )
 
 type ShardGenesis struct {
-	RootHeight         uint32              `json:"ROOT_HEIGHT"`
+	RootHeight         uint64              `json:"ROOT_HEIGHT"`
 	Version            uint32              `json:"VERSION"`
-	Height             uint32              `json:"HEIGHT"`
+	Height             uint64              `json:"HEIGHT"`
 	HashPrevMinorBlock string              `json:"HASH_PREV_MINOR_BLOCK"`
 	HashMerkleRoot     string              `json:"HASH_MERKLE_ROOT"`
 	ExtraData          []byte              `json:"EXTRA_DATA"`
@@ -35,43 +37,21 @@ func NewShardGenesis() *ShardGenesis {
 }
 
 type ShardConfig struct {
-	// Only set when CONSENSUS_TYPE is not NONE
-	ConsensusType   string        `json:"CONSENSUS_TYPE"`
-	ConsensusConfig *POWConfig    `json:"CONSENSUS_CONFIG"` // POWconfig
-	Genesis         *ShardGenesis `json:"GENESIS"`          // ShardGenesis
-	// TODO coinbase address shuild to be redesigned.
-	CoinbaseAddress                    string   `json:"COINBASE_ADDRESS"`
-	CoinbaseAmount                     *big.Int `json:"COINBASE_AMOUNT"` // default 5 * 10^18
-	GasLimitEmaDenominator             uint64   `json:"GAS_LIMIT_EMA_DENOMINATOR"`
-	GasLimitAdjustmentFactor           uint64   `json:"GAS_LIMIT_ADJUSTMENT_FACTOR"`
-	GasLimitMinimum                    uint64   `json:"GAS_LIMIT_MINIMUM"`
-	GasLimitMaximum                    uint64   `json:"GAS_LIMIT_MAXIMUM"`
-	GasLimitUsageAdjustmentNumerator   uint32   `json:"GAS_LIMIT_USAGE_ADJUSTMENT_NUMERATOR"`
-	GasLimitUsageAdjustmentDenominator uint32   `json:"GAS_LIMIT_USAGE_ADJUSTMENT_DENOMINATOR"`
-	DifficultyAdjustmentCutoffTime     uint64   `json:"DIFFICULTY_ADJUSTMENT_CUTOFF_TIME"`
-	DifficultyAdjustmentFactor         uint64   `json:"DIFFICULTY_ADJUSTMENT_FACTOR"`
-	ExtraShardBlocksInRootBlock        uint64   `json:"EXTRA_SHARD_BLOCKS_IN_ROOT_BLOCK"`
-	rootConfig                         *RootConfig
+	ShardID    uint32
+	rootConfig *RootConfig
+	*ChainConfig
 }
 
-func NewShardConfig() *ShardConfig {
-	sharding := &ShardConfig{
-		ConsensusType:                      PoWNone,
-		ConsensusConfig:                    nil,
-		CoinbaseAddress:                    "",
-		CoinbaseAmount:                     new(big.Int).Mul(big.NewInt(5), QuarkashToJiaozi),
-		GasLimitEmaDenominator:             1024,
-		GasLimitAdjustmentFactor:           1024,
-		GasLimitMinimum:                    5000,
-		GasLimitMaximum:                    (1 << 63) - 1,
-		GasLimitUsageAdjustmentNumerator:   3,
-		GasLimitUsageAdjustmentDenominator: 2,
-		DifficultyAdjustmentCutoffTime:     7,
-		DifficultyAdjustmentFactor:         512,
-		ExtraShardBlocksInRootBlock:        3,
-		Genesis:                            NewShardGenesis(),
+func NewShardConfig(chainCfg *ChainConfig) *ShardConfig {
+
+	shardConfig := &ShardConfig{
+		ShardID:     0,
+		ChainConfig: new(ChainConfig),
 	}
-	return sharding
+	if err := common.DeepCopy(shardConfig.ChainConfig, chainCfg); err != nil {
+		log.Error("shard config deep copy", "error", err)
+	}
+	return shardConfig
 }
 
 func (s *ShardConfig) SetRootConfig(value *RootConfig) {
@@ -82,16 +62,21 @@ func (s *ShardConfig) GetRootConfig() *RootConfig {
 	return s.rootConfig
 }
 
-func (s *ShardConfig) MaxBlocksPerShardInOneRootBlock() uint64 {
-	return s.rootConfig.ConsensusConfig.TargetBlockTime/s.ExtraShardBlocksInRootBlock + s.ExtraShardBlocksInRootBlock
+func (s *ShardConfig) MaxBlocksPerShardInOneRootBlock() uint32 {
+	return s.rootConfig.ConsensusConfig.TargetBlockTime/
+		s.ConsensusConfig.TargetBlockTime + s.ExtraShardBlocksInRootBlock
 }
 
 func (s *ShardConfig) MaxStaleMinorBlockHeightDiff() uint64 {
 	return s.rootConfig.MaxStaleRootBlockHeightDiff *
-		s.rootConfig.ConsensusConfig.TargetBlockTime /
-		s.ConsensusConfig.TargetBlockTime
+		uint64(s.rootConfig.ConsensusConfig.TargetBlockTime) /
+		uint64(s.ConsensusConfig.TargetBlockTime)
 }
 
 func (s *ShardConfig) MaxMinorBlocksInMemory() uint64 {
 	return s.MaxStaleMinorBlockHeightDiff() * 2
+}
+
+func (s *ShardConfig) GetFullShardId() uint32 {
+	return (s.ChainID << 16) | s.ShardSize | s.ShardID
 }
