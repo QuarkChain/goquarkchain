@@ -11,19 +11,9 @@ import (
 	"math/big"
 )
 
-type minorBlockBody struct {
-	Transactions types.Transactions `bytesize:"4"`
-	Trackingdata []byte             `bytesize:"2"`
-}
-
-type rootBlockBody struct {
-	MinorBlockHeaders types.MinorBlockHeaders `bytesize:"4"`
-	Trackingdata      []byte                  `bytesize:"2"`
-}
-
 // ReadCanonicalHash retrieves the hash assigned to a canonical block number.
-func ReadCanonicalHash(db DatabaseReader, number uint64) common.Hash {
-	data, _ := db.Get(headerHashKey(number))
+func ReadCanonicalHash(db DatabaseReader, chainType ChainType, number uint64) common.Hash {
+	data, _ := db.Get(headerHashKey(chainType, number))
 	if len(data) == 0 {
 		return common.Hash{}
 	}
@@ -31,15 +21,15 @@ func ReadCanonicalHash(db DatabaseReader, number uint64) common.Hash {
 }
 
 // WriteCanonicalHash stores the hash assigned to a canonical block number.
-func WriteCanonicalHash(db DatabaseWriter, hash common.Hash, number uint64) {
-	if err := db.Put(headerHashKey(number), hash.Bytes()); err != nil {
+func WriteCanonicalHash(db DatabaseWriter, chainType ChainType, hash common.Hash, number uint64) {
+	if err := db.Put(headerHashKey(chainType, number), hash.Bytes()); err != nil {
 		log.Crit("Failed to store number to hash mapping", "err", err)
 	}
 }
 
 // DeleteCanonicalHash removes the number to hash canonical mapping.
-func DeleteCanonicalHash(db DatabaseDeleter, number uint64) {
-	if err := db.Delete(headerHashKey(number)); err != nil {
+func DeleteCanonicalHash(db DatabaseDeleter, chainType ChainType, number uint64) {
+	if err := db.Delete(headerHashKey(chainType, number)); err != nil {
 		log.Crit("Failed to delete number to hash mapping", "err", err)
 	}
 }
@@ -121,16 +111,16 @@ func WriteFastTrieProgress(db DatabaseWriter, count uint64) {
 }
 
 // HasHeader verifies the existence of a block header corresponding to the hash.
-func HasHeader(db DatabaseReader, hash common.Hash, number uint64) bool {
-	if has, err := db.Has(headerKey(number, hash)); !has || err != nil {
+func HasHeader(db DatabaseReader, hash common.Hash) bool {
+	if has, err := db.Has(headerKey(hash)); !has || err != nil {
 		return false
 	}
 	return true
 }
 
-// ReadHeader retrieves the block header corresponding to the hash.
-func ReadMinorBlockHeader(db DatabaseReader, hash common.Hash, number uint64) *types.MinorBlockHeader {
-	data, _ := db.Get(headerKey(number, hash))
+// ReadMinorBlockHeader retrieves the block header corresponding to the hash.
+func ReadMinorBlockHeader(db DatabaseReader, hash common.Hash) *types.MinorBlockHeader {
+	data, _ := db.Get(headerKey(hash))
 	if len(data) == 0 {
 		return nil
 	}
@@ -142,26 +132,11 @@ func ReadMinorBlockHeader(db DatabaseReader, hash common.Hash, number uint64) *t
 	return header
 }
 
-// ReadHeader retrieves the block header corresponding to the hash.
-func ReadMinorBlockMeta(db DatabaseReader, hash common.Hash, number uint64) *types.MinorBlockMeta {
-	data, _ := db.Get(metaKey(number, hash))
-	if len(data) == 0 {
-		return nil
-	}
-	meta := new(types.MinorBlockMeta)
-	if err := serialize.Deserialize(serialize.NewByteBuffer(data), meta); err != nil {
-		log.Error("Invalid block header Deserialize", "hash", hash, "err", err)
-		return nil
-	}
-	return meta
-}
-
 func WriteMinorBlockHeader(db DatabaseWriter, header *types.MinorBlockHeader) {
 	// Write the hash -> number mapping
 	var (
 		hash    = header.Hash()
-		number  = header.Number
-		encoded = encodeBlockNumber(number)
+		encoded = encodeBlockNumber(header.Number)
 	)
 	key := headerNumberKey(hash)
 	if err := db.Put(key, encoded); err != nil {
@@ -172,45 +147,25 @@ func WriteMinorBlockHeader(db DatabaseWriter, header *types.MinorBlockHeader) {
 	if err != nil {
 		log.Crit("Failed to Serialize header", "err", err)
 	}
-	key = headerKey(number, hash)
+	key = headerKey(hash)
 	if err := db.Put(key, data); err != nil {
 		log.Crit("Failed to store header", "err", err)
 	}
 }
 
-func WriteMinorBlockMeta(db DatabaseWriter, header *types.MinorBlockHeader, meta *types.MinorBlockMeta) {
-	// Write the hash -> number mapping
-	var (
-		hash   = header.Hash()
-		number = header.Number
-	)
-	// Write the encoded meta
-	data, err := serialize.SerializeToBytes(meta)
-	if err != nil {
-		log.Crit("Failed to Serialize header", "err", err)
-	}
-	key := metaKey(number, hash)
-	if err := db.Put(key, data); err != nil {
-		log.Crit("Failed to store header", "err", err)
-	}
-}
-
-// DeleteHeader removes all block header data associated with a hash.
-func DeleteMinorBlockHeader(db DatabaseDeleter, hash common.Hash, number uint64) {
-	if err := db.Delete(headerKey(number, hash)); err != nil {
+// DeleteMinorBlockHeader removes all block header data associated with a hash.
+func DeleteMinorBlockHeader(db DatabaseDeleter, hash common.Hash) {
+	if err := db.Delete(headerKey(hash)); err != nil {
 		log.Crit("Failed to delete header", "err", err)
-	}
-	if err := db.Delete(metaKey(number, hash)); err != nil {
-		log.Crit("Failed to delete meta", "err", err)
 	}
 	if err := db.Delete(headerNumberKey(hash)); err != nil {
 		log.Crit("Failed to delete hash to number mapping", "err", err)
 	}
 }
 
-// ReadHeader retrieves the block header corresponding to the hash.
-func ReadRootBlockHeader(db DatabaseReader, hash common.Hash, number uint64) *types.RootBlockHeader {
-	data, _ := db.Get(headerKey(number, hash))
+// ReadRootBlockHeader retrieves the block header corresponding to the hash.
+func ReadRootBlockHeader(db DatabaseReader, hash common.Hash) *types.RootBlockHeader {
+	data, _ := db.Get(headerKey(hash))
 	if len(data) == 0 {
 		return nil
 	}
@@ -228,8 +183,7 @@ func WriteRootBlockHeader(db DatabaseWriter, header *types.RootBlockHeader) {
 	// Write the hash -> number mapping
 	var (
 		hash    = header.Hash()
-		number  = header.NumberU64()
-		encoded = encodeBlockNumber(number)
+		encoded = encodeBlockNumber(header.NumberU64())
 	)
 	key := headerNumberKey(hash)
 	if err := db.Put(key, encoded); err != nil {
@@ -240,15 +194,15 @@ func WriteRootBlockHeader(db DatabaseWriter, header *types.RootBlockHeader) {
 	if err != nil {
 		log.Crit("Failed to Serialize header", "err", err)
 	}
-	key = headerKey(number, hash)
+	key = headerKey(hash)
 	if err := db.Put(key, data); err != nil {
 		log.Crit("Failed to store header", "err", err)
 	}
 }
 
-// DeleteHeader removes all block header data associated with a hash.
-func DeleteRootBlockHeader(db DatabaseDeleter, hash common.Hash, number uint64) {
-	if err := db.Delete(headerKey(number, hash)); err != nil {
+// DeleteRootBlockHeader removes all block header data associated with a hash.
+func DeleteRootBlockHeader(db DatabaseDeleter, hash common.Hash) {
+	if err := db.Delete(headerKey(hash)); err != nil {
 		log.Crit("Failed to delete header", "err", err)
 	}
 	if err := db.Delete(headerNumberKey(hash)); err != nil {
@@ -256,74 +210,76 @@ func DeleteRootBlockHeader(db DatabaseDeleter, hash common.Hash, number uint64) 
 	}
 }
 
-// HasBody verifies the existence of a block body corresponding to the hash.
-func HasBody(db DatabaseReader, hash common.Hash, number uint64) bool {
-	if has, err := db.Has(blockBodyKey(number, hash)); !has || err != nil {
+// HasBlock verifies the existence of a block body corresponding to the hash.
+func HasBlock(db DatabaseReader, hash common.Hash) bool {
+	if has, err := db.Has(blockKey(hash)); !has || err != nil {
 		return false
 	}
 	return true
 }
 
-// ReadBody retrieves the block body corresponding to the hash.
-func ReadMinorBlockBody(db DatabaseReader, hash common.Hash, number uint64) (types.Transactions, []byte) {
-	data, _ := db.Get(blockBodyKey(number, hash))
+// ReadMinorBlock retrieves the block body corresponding to the hash.
+func ReadMinorBlock(db DatabaseReader, hash common.Hash) *types.MinorBlock {
+	data, _ := db.Get(blockKey(hash))
 	if len(data) == 0 {
-		return nil, nil
+		return nil
 	}
-	body := new(minorBlockBody)
-	if err := serialize.Deserialize(serialize.NewByteBuffer(data), body); err != nil {
+	block := new(types.MinorBlock)
+	if err := serialize.Deserialize(serialize.NewByteBuffer(data), block); err != nil {
 		log.Error("Invalid block body Deserialize", "hash", hash, "err", err)
-		return nil, nil
+		return nil
 	}
-	return body.Transactions, body.Trackingdata
+	return block
 }
 
-// WriteBody storea a block body into the database.
-func WriteMinorBlockBody(db DatabaseWriter, hash common.Hash, number uint64, transactions types.Transactions, trackingData []byte) {
-	data, err := serialize.SerializeToBytes(minorBlockBody{Transactions: transactions, Trackingdata: trackingData})
+// WriteMinorBlock storea a block body into the database.
+func WriteMinorBlock(db DatabaseWriter, block *types.MinorBlock) {
+	WriteMinorBlockHeader(db, block.Header())
+	data, err := serialize.SerializeToBytes(block)
 	if err != nil {
 		log.Crit("Failed to serialize body", "err", err)
 	}
-	if err := db.Put(blockBodyKey(number, hash), data); err != nil {
+	if err := db.Put(blockKey(block.Hash()), data); err != nil {
 		log.Crit("Failed to store minor block body", "err", err)
 	}
 }
 
-// ReadRootBlockBody retrieves the block rootBlockBody corresponding to the hash.
-func ReadRootBlockBody(db DatabaseReader, hash common.Hash, number uint64) (types.MinorBlockHeaders, []byte) {
-	data, _ := db.Get(blockBodyKey(number, hash))
+// ReadRootBlock retrieves the block rootBlockBody corresponding to the hash.
+func ReadRootBlock(db DatabaseReader, hash common.Hash) *types.RootBlock {
+	data, _ := db.Get(blockKey(hash))
 	if len(data) == 0 {
-		return nil, nil
+		return nil
 	}
-	body := new(rootBlockBody)
-	if err := serialize.Deserialize(serialize.NewByteBuffer(data), body); err != nil {
+	block := new(types.RootBlock)
+	if err := serialize.Deserialize(serialize.NewByteBuffer(data), block); err != nil {
 		log.Error("Invalid block rootBlockBody Deserialize", "hash", hash, "err", err)
-		return nil, nil
+		return nil
 	}
-	return body.MinorBlockHeaders, body.Trackingdata
+	return block
 }
 
-// WriteRootBlockBody storea a block rootBlockBody into the database.
-func WriteRootBlockBody(db DatabaseWriter, hash common.Hash, number uint64, minorHeaders types.MinorBlockHeaders, trackingData []byte) {
-	data, err := serialize.SerializeToBytes(rootBlockBody{MinorBlockHeaders: minorHeaders, Trackingdata: trackingData})
+// WriteRootBlock storea a block rootBlockBody into the database.
+func WriteRootBlock(db DatabaseWriter, block *types.RootBlock) {
+	WriteRootBlockHeader(db, block.Header())
+	data, err := serialize.SerializeToBytes(block)
 	if err != nil {
-		log.Crit("Failed to serialize rootBlockBody", "err", err)
+		log.Crit("Failed to serialize RootBlock", "err", err)
 	}
-	if err := db.Put(blockBodyKey(number, hash), data); err != nil {
-		log.Crit("Failed to store block rootBlockBody", "err", err)
+	if err := db.Put(blockKey(block.Hash()), data); err != nil {
+		log.Crit("Failed to store RootBlock", "err", err)
 	}
 }
 
-// DeleteBody removes all block body data associated with a hash.
-func DeleteBody(db DatabaseDeleter, hash common.Hash, number uint64) {
-	if err := db.Delete(blockBodyKey(number, hash)); err != nil {
-		log.Crit("Failed to delete block body", "err", err)
+// DeleteBlock removes block data associated with a hash.
+func DeleteBlock(db DatabaseDeleter, hash common.Hash) {
+	if err := db.Delete(blockKey(hash)); err != nil {
+		log.Crit("Failed to delete block", "err", err)
 	}
 }
 
 // ReadTd retrieves a block's total difficulty corresponding to the hash.
-func ReadTd(db DatabaseReader, hash common.Hash, number uint64) *big.Int {
-	data, _ := db.Get(headerTDKey(number, hash))
+func ReadTd(db DatabaseReader, hash common.Hash) *big.Int {
+	data, _ := db.Get(headerTDKey(hash))
 	if len(data) == 0 {
 		return nil
 	}
@@ -336,36 +292,36 @@ func ReadTd(db DatabaseReader, hash common.Hash, number uint64) *big.Int {
 }
 
 // WriteTd stores the total difficulty of a block into the database.
-func WriteTd(db DatabaseWriter, hash common.Hash, number uint64, td *big.Int) {
+func WriteTd(db DatabaseWriter, hash common.Hash, td *big.Int) {
 	data, err := serialize.SerializeToBytes(td)
 	if err != nil {
 		log.Crit("Failed to Serialize block total difficulty", "err", err)
 	}
-	if err := db.Put(headerTDKey(number, hash), data); err != nil {
+	if err := db.Put(headerTDKey(hash), data); err != nil {
 		log.Crit("Failed to store block total difficulty", "err", err)
 	}
 }
 
 // DeleteTd removes all block total difficulty data associated with a hash.
-func DeleteTd(db DatabaseDeleter, hash common.Hash, number uint64) {
-	if err := db.Delete(headerTDKey(number, hash)); err != nil {
+func DeleteTd(db DatabaseDeleter, hash common.Hash) {
+	if err := db.Delete(headerTDKey(hash)); err != nil {
 		log.Crit("Failed to delete block total difficulty", "err", err)
 	}
 }
 
 // HasReceipts verifies the existence of all the transaction receipts belonging
 // to a block.
-func HasReceipts(db DatabaseReader, hash common.Hash, number uint64) bool {
-	if has, err := db.Has(blockReceiptsKey(number, hash)); !has || err != nil {
+func HasReceipts(db DatabaseReader, hash common.Hash) bool {
+	if has, err := db.Has(blockReceiptsKey(hash)); !has || err != nil {
 		return false
 	}
 	return true
 }
 
 // ReadReceipts retrieves all the transaction receipts belonging to a block.
-func ReadReceipts(db DatabaseReader, hash common.Hash, number uint64) types.Receipts {
+func ReadReceipts(db DatabaseReader, hash common.Hash) types.Receipts {
 	// Retrieve the flattened receipt slice
-	data, _ := db.Get(blockReceiptsKey(number, hash))
+	data, _ := db.Get(blockReceiptsKey(hash))
 	if len(data) == 0 {
 		return nil
 	}
@@ -383,7 +339,7 @@ func ReadReceipts(db DatabaseReader, hash common.Hash, number uint64) types.Rece
 }
 
 // WriteReceipts stores all the transaction receipts belonging to a block.
-func WriteReceipts(db DatabaseWriter, hash common.Hash, number uint64, receipts types.Receipts) {
+func WriteReceipts(db DatabaseWriter, hash common.Hash, receipts types.Receipts) {
 	// Convert the receipts into their storage form and serialize them
 	storageReceipts := make([]*types.ReceiptForStorage, len(receipts))
 	for i, receipt := range receipts {
@@ -394,106 +350,53 @@ func WriteReceipts(db DatabaseWriter, hash common.Hash, number uint64, receipts 
 		log.Crit("Failed to encode block receipts", "err", err)
 	}
 	// Store the flattened receipt slice
-	if err := db.Put(blockReceiptsKey(number, hash), bytes); err != nil {
+	if err := db.Put(blockReceiptsKey(hash), bytes); err != nil {
 		log.Crit("Failed to store block receipts", "err", err)
 	}
 }
 
 // DeleteReceipts removes all receipt data associated with a block hash.
-func DeleteReceipts(db DatabaseDeleter, hash common.Hash, number uint64) {
-	if err := db.Delete(blockReceiptsKey(number, hash)); err != nil {
+func DeleteReceipts(db DatabaseDeleter, hash common.Hash) {
+	if err := db.Delete(blockReceiptsKey(hash)); err != nil {
 		log.Crit("Failed to delete block receipts", "err", err)
 	}
 }
 
-// ReadBlock retrieves an entire block corresponding to the hash, assembling it
-// back from the stored header and body. If either the header or body could not
-// be retrieved nil is returned.
-//
-// Note, due to concurrent download of header and block body the header and thus
-// canonical hash can be stored in the database but the body data not (yet).
-func ReadMinorBlock(db DatabaseReader, hash common.Hash, number uint64) *types.MinorBlock {
-	header := ReadMinorBlockHeader(db, hash, number)
-	if header == nil {
-		return nil
-	}
-	meta := ReadMinorBlockMeta(db, hash, number)
-	if meta == nil {
-		return nil
-	}
-	transactions, trackingData := ReadMinorBlockBody(db, hash, number)
-	if transactions == nil {
-		return nil
-	}
-	return types.NewMinorBlockWithHeader(header, meta).WithBody(transactions, trackingData)
-}
-
-// WriteBlock serializes a block into the database, header and body separately.
-func WriteMinorBlock(db DatabaseWriter, block *types.MinorBlock) {
-	WriteMinorBlockBody(db, block.Hash(), block.Number(), block.Transactions(), block.TrackingData())
-	WriteMinorBlockHeader(db, block.Header())
-	WriteMinorBlockMeta(db, block.Header(), block.Meta())
-}
-
 // DeleteBlock removes all block data associated with a hash.
-func DeleteMinorBlock(db DatabaseDeleter, hash common.Hash, number uint64) {
-	DeleteReceipts(db, hash, number)
-	DeleteMinorBlockHeader(db, hash, number)
-	DeleteBody(db, hash, number)
-	DeleteTd(db, hash, number)
-}
-
-// ReadRootBlock retrieves an entire block corresponding to the hash, assembling it
-// back from the stored header and rootBlockBody. If either the header or rootBlockBody could not
-// be retrieved nil is returned.
-//
-// Note, due to concurrent download of header and block rootBlockBody the header and thus
-// canonical hash can be stored in the database but the rootBlockBody data not (yet).
-func ReadRootBlock(db DatabaseReader, hash common.Hash, number uint64) *types.RootBlock {
-	header := ReadRootBlockHeader(db, hash, number)
-	if header == nil {
-		return nil
-	}
-	minorHeaders, trackingData := ReadRootBlockBody(db, hash, number)
-	if minorHeaders == nil {
-		return nil
-	}
-	return types.NewRootBlockWithHeader(header).WithBody(minorHeaders, trackingData)
-}
-
-// WriteRootBlock serializes a block into the database, header and rootBlockBody separately.
-func WriteRootBlock(db DatabaseWriter, block *types.RootBlock) {
-	WriteRootBlockBody(db, block.Hash(), block.NumberU64(), block.MinorBlockHeaders(), block.TrackingData())
-	WriteRootBlockHeader(db, block.Header())
+func DeleteMinorBlock(db DatabaseDeleter, hash common.Hash) {
+	DeleteReceipts(db, hash)
+	DeleteMinorBlockHeader(db, hash)
+	DeleteBlock(db, hash)
+	DeleteTd(db, hash)
 }
 
 // DeleteRootBlock removes all block data associated with a hash.
-func DeleteRootBlock(db DatabaseDeleter, hash common.Hash, number uint64) {
-	DeleteRootBlockHeader(db, hash, number)
-	DeleteBody(db, hash, number)
-	DeleteTd(db, hash, number)
+func DeleteRootBlock(db DatabaseDeleter, hash common.Hash) {
+	DeleteRootBlockHeader(db, hash)
+	DeleteBlock(db, hash)
+	DeleteTd(db, hash)
 }
 
-// FindCommonAncestor returns the last common ancestor of two block headers
-func FindCommonAncestor(db DatabaseReader, a, b *types.MinorBlockHeader) *types.MinorBlockHeader {
+// FindCommonMinorAncestor returns the last common ancestor of two block headers
+func FindCommonMinorAncestor(db DatabaseReader, a, b *types.MinorBlockHeader) *types.MinorBlockHeader {
 	for bn := b.Number; a.Number > bn; {
-		a = ReadMinorBlockHeader(db, a.ParentHash, a.Number-1)
+		a = ReadMinorBlockHeader(db, a.ParentHash)
 		if a == nil {
 			return nil
 		}
 	}
 	for an := a.Number; an < b.Number; {
-		b = ReadMinorBlockHeader(db, b.ParentHash, b.Number-1)
+		b = ReadMinorBlockHeader(db, b.ParentHash)
 		if b == nil {
 			return nil
 		}
 	}
 	for a.Hash() != b.Hash() {
-		a = ReadMinorBlockHeader(db, a.ParentHash, a.Number-1)
+		a = ReadMinorBlockHeader(db, a.ParentHash)
 		if a == nil {
 			return nil
 		}
-		b = ReadMinorBlockHeader(db, b.ParentHash, b.Number-1)
+		b = ReadMinorBlockHeader(db, b.ParentHash)
 		if b == nil {
 			return nil
 		}
@@ -504,23 +407,23 @@ func FindCommonAncestor(db DatabaseReader, a, b *types.MinorBlockHeader) *types.
 // FindCommonRootAncestor returns the last common ancestor of two block headers
 func FindCommonRootAncestor(db DatabaseReader, a, b *types.RootBlockHeader) *types.RootBlockHeader {
 	for bn := b.NumberU64(); a.NumberU64() > bn; {
-		a = ReadRootBlockHeader(db, a.ParentHash, a.NumberU64()-1)
+		a = ReadRootBlockHeader(db, a.ParentHash)
 		if a == nil {
 			return nil
 		}
 	}
 	for an := a.NumberU64(); an < b.NumberU64(); {
-		b = ReadRootBlockHeader(db, b.ParentHash, b.NumberU64()-1)
+		b = ReadRootBlockHeader(db, b.ParentHash)
 		if b == nil {
 			return nil
 		}
 	}
 	for a.Hash() != b.Hash() {
-		a = ReadRootBlockHeader(db, a.ParentHash, a.NumberU64()-1)
+		a = ReadRootBlockHeader(db, a.ParentHash)
 		if a == nil {
 			return nil
 		}
-		b = ReadRootBlockHeader(db, b.ParentHash, b.NumberU64()-1)
+		b = ReadRootBlockHeader(db, b.ParentHash)
 		if b == nil {
 			return nil
 		}
