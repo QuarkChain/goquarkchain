@@ -48,11 +48,11 @@ var (
 	preimageHitCounter = metrics.NewRegisteredCounter("db/preimage/hits", nil)
 )
 
-type ChainType uint32
+type ChainType byte
 
 const (
-	ChainType_Root  = ChainType(0)
-	ChainType_Minor = ChainType(1)
+	ChainTypeRoot  = ChainType(0)
+	ChainTypeMinor = ChainType(1)
 )
 
 // LookupEntry is a positional metadata to help looking up the data content of
