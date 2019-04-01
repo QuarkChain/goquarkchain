@@ -5,14 +5,15 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
-	"github.com/QuarkChain/goquarkchain/cluster/config"
-	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/log"
-	"github.com/ethereum/go-ethereum/p2p/enode"
 	"math/big"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/QuarkChain/goquarkchain/cluster/config"
+	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/p2p/enode"
 )
 
 var (
@@ -36,7 +37,7 @@ func NewP2PManager(env config.ClusterConfig) (*PManager, error) {
 		Config: Config{
 			Name:       QKCProtocolName,
 			MaxPeers:   int(env.P2P.MaxPeers),
-			ListenAddr: fmt.Sprintf(":%v", env.P2Port),
+			ListenAddr: fmt.Sprintf(":%v", env.P2PPort),
 			Protocols:  []Protocol{QKCProtocol()},
 		},
 		newTransport: NewQKCRlp,
