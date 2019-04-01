@@ -108,8 +108,8 @@ type QuarkChainConfig struct {
 	GenesisToken                      string      `json:"GENESIS_TOKEN"`
 	Root                              *RootConfig `json:"ROOT"`
 	shards                            map[uint32]*ShardConfig
-	Chains                            map[uint32]*ChainConfig
-	RewardTaxRate                     *big.Rat
+	Chains                            map[uint32]*ChainConfig `json:"-"`
+	RewardTaxRate                     *big.Rat                `json:"-"`
 	chainIdToShardSize                map[uint32]uint32
 	chainIdToShardIds                 map[uint32][]uint32
 }
@@ -148,6 +148,7 @@ func (q *QuarkChainConfig) UnmarshalJSON(input []byte) error {
 			shardCfg := NewShardConfig(chainCfg)
 			shardCfg.SetRootConfig(q.Root)
 			shardCfg.ShardID = shardID
+			shardCfg.CoinbaseAddress = chainCfg.CoinbaseAddress
 			q.shards[shardCfg.GetFullShardId()] = shardCfg
 		}
 	}
@@ -209,8 +210,7 @@ func (q *QuarkChainConfig) Update(chainSize, shardSizePerChain, rootBlockTime, m
 			shardCfg := NewShardConfig(chainCfg)
 			shardCfg.SetRootConfig(q.Root)
 			shardCfg.ShardID = shardId
-			emptyAddr := account.CreatEmptyAddress(shardCfg.GetFullShardId())
-			shardCfg.CoinbaseAddress = string(emptyAddr.ToHex())
+			// shardCfg.CoinbaseAddress = account.CreatEmptyAddress(shardCfg.GetFullShardId())
 			q.shards[shardCfg.GetFullShardId()] = shardCfg
 		}
 	}
@@ -303,6 +303,7 @@ func NewQuarkChainConfig() *QuarkChainConfig {
 			shardCfg := NewShardConfig(cfg)
 			shardCfg.SetRootConfig(ret.Root)
 			shardCfg.ShardID = shardID
+			shardCfg.CoinbaseAddress = account.CreatEmptyAddress(shardCfg.GetFullShardId())
 			ret.shards[shardCfg.GetFullShardId()] = shardCfg
 		}
 	}

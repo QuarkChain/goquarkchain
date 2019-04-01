@@ -1,20 +1,22 @@
 package config
 
 import (
+	"encoding/json"
+	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/common"
+	ethcom "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
 	"math/big"
 )
 
 var (
-	DefaultChainConfig = ChainConfig{
+	skeletonChainConfig = ChainConfig{
 		ChainID:                            0,
 		ShardSize:                          2,
 		DefaultChainToken:                  "",
 		ConsensusType:                      PoWNone,
 		ConsensusConfig:                    nil,
 		Genesis:                            nil,
-		CoinbaseAddress:                    "",
 		CoinbaseAmount:                     new(big.Int).Mul(big.NewInt(120), QuarkashToJiaozi),
 		GasLimitEmaDenominator:             1024,
 		GasLimitAdjustmentFactor:           1024,
@@ -39,8 +41,8 @@ type ChainConfig struct {
 	ConsensusConfig *POWConfig    `json:"CONSENSUS_CONFIG"`
 	Genesis         *ShardGenesis `json:"GENESIS"`
 
-	CoinbaseAddress string   `json:"COINBASE_ADDRESS"`
-	CoinbaseAmount  *big.Int `json:"COINBASE_AMOUNT"`
+	CoinbaseAddress account.Address `json:"-"`
+	CoinbaseAmount  *big.Int        `json:"COINBASE_AMOUNT"`
 
 	// Gas Limit
 	GasLimitEmaDenominator             uint32      `json:"GAS_LIMIT_EMA_DENOMINATOR"`
@@ -57,10 +59,38 @@ type ChainConfig struct {
 
 func NewChainConfig() *ChainConfig {
 	chainCfg := new(ChainConfig)
-	if err := common.DeepCopy(chainCfg, &DefaultChainConfig); err != nil {
+	if err := common.DeepCopy(chainCfg, &skeletonChainConfig); err != nil {
 		log.Error("chain config copy from default", "error", err)
 	}
 	chainCfg.Genesis = NewShardGenesis()
 	chainCfg.PoswConfig = NewPOSWConfig()
 	return chainCfg
+}
+
+type ChainConfigAlias ChainConfig
+
+func (c *ChainConfig) MarshalJSON() ([]byte, error) {
+	addr := ethcom.ToHex(c.CoinbaseAddress.ToHex())
+	jsonConfig := struct {
+		ChainConfigAlias
+		CoinbaseAddress string `json:"COINBASE_ADDRESS"`
+	}{ChainConfigAlias(*c), addr}
+	return json.Marshal(jsonConfig)
+}
+
+func (c *ChainConfig) UnmarshalJSON(input []byte) error {
+	var jsonConfig struct {
+		ChainConfigAlias
+		CoinbaseAddress string `json:"COINBASE_ADDRESS"`
+	}
+	if err := json.Unmarshal(input, &jsonConfig); err != nil {
+		return err
+	}
+	*c = ChainConfig(jsonConfig.ChainConfigAlias)
+	address, err := account.CreatAddressFromBytes(ethcom.FromHex(jsonConfig.CoinbaseAddress))
+	if err != nil {
+		return err
+	}
+	c.CoinbaseAddress = address
+	return nil
 }
