@@ -8,12 +8,14 @@ import (
 )
 
 type MasterServerSideOp struct {
-	rpcId int64
-	mu    sync.RWMutex
+	rpcId  int64
+	mu     sync.RWMutex
+	master *MasterBackend
 }
 
-func NewServerSideOp() *MasterServerSideOp {
+func NewServerSideOp(master *MasterBackend) *MasterServerSideOp {
 	return &MasterServerSideOp{
+		master: master,
 	}
 }
 
