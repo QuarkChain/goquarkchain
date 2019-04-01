@@ -26,10 +26,10 @@ func testNodeConfig() *Config {
 
 func testSlaveConfig(idx int) *config.SlaveConfig {
 	return &config.SlaveConfig{
-		Ip:            config.HOST,
-		Port:          uint64(config.SLAVE_PORT + idx),
-		Id:            "S" + string(idx),
-		ShardMaskList: nil,
+		IP:            "127.0.0.1",
+		Port:          uint64(config.SlavePort + idx),
+		ID:            "S" + string(idx),
+		ChainMaskList: nil,
 	}
 }
 
