@@ -37,7 +37,7 @@ const statsReportLimit = 8 * time.Second
 
 // report prints statistics if some number of blocks have been processed
 // or more than a few seconds have passed since the last message.
-func (st *insertStats) report(chain types.Blocks, index int) {
+func (st *insertStats) report(chain []types.IBlock, index int) {
 	// Fetch the timings for the batch
 	var (
 		now     = mclock.Now()
@@ -45,7 +45,7 @@ func (st *insertStats) report(chain types.Blocks, index int) {
 	)
 	// If we're at the last block of the batch or report period reached, log
 	if index == len(chain)-1 || elapsed >= statsReportLimit {
-		// Count the number of transactions in this segment
+		// Count the number of content in this segment
 		var hcount int
 		for _, block := range chain[st.lastIndex : index+1] {
 			hcount += len(block.Content())
@@ -84,7 +84,7 @@ type insertIterator struct {
 
 // newInsertIterator creates a new iterator based on the given blocks, which are
 // assumed to be a contiguous chain.
-func newInsertIterator(chain types.Blocks, results <-chan error, validator Validator) *insertIterator {
+func newInsertIterator(chain []types.IBlock, results <-chan error, validator Validator) *insertIterator {
 	return &insertIterator{
 		chain:     chain,
 		results:   results,

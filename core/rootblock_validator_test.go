@@ -40,7 +40,7 @@ func TestValidateBlock(t *testing.T) {
 		rootBlocks       = GenerateRootBlockChain(genesisrootBlock, engine, 8, nil)
 	)
 	headers := make([]types.IHeader, len(rootBlocks))
-	blocks := make(types.Blocks, len(rootBlocks))
+	blocks := make([]types.IBlock, len(rootBlocks))
 	for i, block := range rootBlocks {
 		headers[i] = block.IHeader()
 		blocks[i] = block
@@ -95,7 +95,7 @@ func testHeaderConcurrentVerification(t *testing.T, threads int) {
 		rootBlocks       = GenerateRootBlockChain(genesisrootBlock, engine, 8, nil)
 	)
 	headers := make([]types.IHeader, len(rootBlocks))
-	blocks := make(types.Blocks, len(rootBlocks))
+	blocks := make([]types.IBlock, len(rootBlocks))
 	seals := make([]bool, len(rootBlocks))
 	for i, block := range rootBlocks {
 		headers[i] = block.IHeader()

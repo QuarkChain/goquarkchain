@@ -174,7 +174,7 @@ func testHeaderChainImport(chain []*types.RootBlockHeader, blockchain *RootBlock
 	return nil
 }
 
-func insertCdhain(done chan bool, blockchain *RootBlockChain, chain types.Blocks, t *testing.T) {
+func insertCdhain(done chan bool, blockchain *RootBlockChain, chain []types.IBlock, t *testing.T) {
 	_, err := blockchain.InsertChain(chain)
 	if err != nil {
 		fmt.Println(err)
@@ -569,7 +569,7 @@ func testInsertNonceError(t *testing.T, full bool) {
 
 			engine.NumberToFail = failNum
 			engine.Err = errors.New("fack engine expected fail")
-			blockchain.hc.engine = blockchain.engine
+			blockchain.headerChain.engine = blockchain.engine
 			failRes, err = blockchain.InsertHeaderChain(headers, 1)
 		}
 		// Check that the returned error indicates the failure
@@ -706,7 +706,7 @@ func TestCanonicalBlockRetrieval(t *testing.T) {
 			}
 		}(chain[i])
 
-		if _, err := blockchain.InsertChain(types.Blocks{chain[i]}); err != nil {
+		if _, err := blockchain.InsertChain([]types.IBlock{chain[i]}); err != nil {
 			t.Fatalf("failed to insert block %d: %v", i, err)
 		}
 	}
@@ -895,8 +895,8 @@ func benchmarkLargeNumberOfValueToNonexisting(b *testing.B, numItems, numBlocks 
 	}
 }
 
-func ToBlocks(rootBlocks []*types.RootBlock) types.Blocks {
-	blocks := make(types.Blocks, len(rootBlocks))
+func ToBlocks(rootBlocks []*types.RootBlock) []types.IBlock {
+	blocks := make([]types.IBlock, len(rootBlocks))
 	for i, block := range rootBlocks {
 		blocks[i] = block
 	}

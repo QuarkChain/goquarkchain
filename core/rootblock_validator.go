@@ -31,17 +31,17 @@ import (
 //
 // BlockValidator implements Validator.
 type RootBlockValidator struct {
-	config *config.QuarkChainConfig // Chain configuration options
-	bc     *RootBlockChain          // Canonical block chain
-	engine consensus.Engine         // Consensus engine used for validating
+	config     *config.QuarkChainConfig // config configuration options
+	blockChain *RootBlockChain          // blockChain block chain
+	engine     consensus.Engine         // engine engine used for validating
 }
 
 // NewBlockValidator returns a new block validator which is safe for re-use
 func NewRootBlockValidator(config *config.QuarkChainConfig, blockchain *RootBlockChain, engine consensus.Engine) *RootBlockValidator {
 	validator := &RootBlockValidator{
-		config: config,
-		engine: engine,
-		bc:     blockchain,
+		config:     config,
+		engine:     engine,
+		blockChain: blockchain,
 	}
 	return validator
 }
@@ -52,10 +52,10 @@ func NewRootBlockValidator(config *config.QuarkChainConfig, blockchain *RootBloc
 func (v *RootBlockValidator) ValidateBlock(block types.IBlock) error {
 	// Check whether the block's known, and if not, that it's linkable
 	if block == nil {
-		return errors.New("input block for ValidateBlock is nil")
+		panic("input block for ValidateBlock is nil")
 	}
 	if reflect.TypeOf(block) != reflect.TypeOf(new(types.RootBlock)) {
-		return errors.New("invalid type of block")
+		panic("invalid type of block")
 	}
 
 	rootBlock := block.(*types.RootBlock)
@@ -63,13 +63,13 @@ func (v *RootBlockValidator) ValidateBlock(block types.IBlock) error {
 	if rootBlock.NumberU64() < 1 {
 		return errors.New("unexpected height")
 	}
-	if v.bc.HasBlock(block.Hash()) {
+	if v.blockChain.HasBlock(block.Hash()) {
 		return ErrKnownBlock
 	}
 	// Header validity is known at this point, check the uncles and transactions
 	header := rootBlock.Header()
 
-	if err := v.engine.VerifyHeader(v.bc, header, true); err != nil {
+	if err := v.engine.VerifyHeader(v.blockChain, header, true); err != nil {
 		return err
 	}
 
@@ -86,7 +86,7 @@ func (v *RootBlockValidator) ValidateBlock(block types.IBlock) error {
 	var number uint64 = 0
 	var shardIdToMinNumberMap = make(map[uint32]uint64)
 	for _, mheader := range rootBlock.MinorBlockHeaders() {
-		if !v.bc.HasHeader(mheader.Hash()) {
+		if !v.blockChain.HasHeader(mheader.Hash()) {
 			return fmt.Errorf("minor block is not validated. %v-%d",
 				mheader.Coinbase.FullShardKey, mheader.Number)
 		}
@@ -116,7 +116,7 @@ func (v *RootBlockValidator) ValidateBlock(block types.IBlock) error {
 		return nil
 	}
 
-	preBlock := v.bc.GetBlock(header.ParentHash)
+	preBlock := v.blockChain.GetBlock(header.ParentHash)
 	if preBlock == nil {
 		return errors.New("parent block is missing")
 	}
