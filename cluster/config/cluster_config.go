@@ -132,7 +132,12 @@ func (q *QuarkChainConfig) UnmarshalJSON(input []byte) error {
 		return err
 	}
 	*q = QuarkChainConfig(jsonConfig.QuarkChainConfigAlias)
-	q.RewardTaxRate = new(big.Rat).SetFloat64(jsonConfig.RewardTaxRate)
+	rate := fmt.Sprintf("%f", jsonConfig.RewardTaxRate)
+	var success bool
+	q.RewardTaxRate, success = new(big.Rat).SetString(rate)
+	if !success {
+		return errors.New("failed to unmarshal reward tax rate")
+	}
 	return nil
 }
 
