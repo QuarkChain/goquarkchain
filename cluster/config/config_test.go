@@ -67,12 +67,9 @@ func TestClusterConfig(t *testing.T) {
 		t.Errorf("wrong marshaling of reward tax rate")
 	}
 
-	quarkchain.Update(chainSize, shardSizePerChain, 10, 10)
-	if quarkchain.GetShardSizeByChainId(1) != 4 {
-		t.Fatalf("quarkchain update function set shard size failed, shard size: %d", quarkchain.GetShardSizeByChainId(1))
-	}
 	shardIds := quarkchain.GetGenesisShardIds()
-	if len(shardIds) != int(chainSize*shardSizePerChain) {
+	// make sure the default chainsize and shardsize
+	if len(shardIds) != 2*3 {
 		t.Fatalf("shard id list is not enough.")
 	}
 	for _, fullShardId := range shardIds {
@@ -83,6 +80,10 @@ func TestClusterConfig(t *testing.T) {
 	initializeIds := quarkchain.GetInitializedShardIdsBeforeRootHeight(0)
 	if len(initializeIds) != 0 {
 		t.Fatalf("the list of ids should be empty.")
+	}
+	quarkchain.Update(chainSize, shardSizePerChain, 10, 10)
+	if quarkchain.GetShardSizeByChainId(1) != 4 {
+		t.Fatalf("quarkchain update function set shard size failed, shard size: %d", quarkchain.GetShardSizeByChainId(1))
 	}
 }
 

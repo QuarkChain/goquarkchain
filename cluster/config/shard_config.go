@@ -1,8 +1,6 @@
 package config
 
 import (
-	"github.com/QuarkChain/goquarkchain/common"
-	"github.com/ethereum/go-ethereum/log"
 	"math/big"
 )
 
@@ -46,10 +44,7 @@ func NewShardConfig(chainCfg *ChainConfig) *ShardConfig {
 
 	shardConfig := &ShardConfig{
 		ShardID:     0,
-		ChainConfig: new(ChainConfig),
-	}
-	if err := common.DeepCopy(shardConfig.ChainConfig, chainCfg); err != nil {
-		log.Error("shard config deep copy", "error", err)
+		ChainConfig: chainCfg,
 	}
 	return shardConfig
 }
