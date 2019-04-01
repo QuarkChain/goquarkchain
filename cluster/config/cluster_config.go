@@ -93,25 +93,25 @@ func (c *ClusterConfig) GetSlaveConfig(id string) (*SlaveConfig, error) {
 }
 
 type QuarkChainConfig struct {
-	ChainSize                         uint32                  `json:"CHAIN_SIZE"`
-	MaxNeighbors                      uint32                  `json:"MAX_NEIGHBORS"`
-	NetworkID                         uint64                  `json:"NETWORK_ID"`
-	TransactionQueueSizeLimitPerShard uint64                  `json:"TRANSACTION_QUEUE_SIZE_LIMIT_PER_SHARD"`
-	BlockExtraDataSizeLimit           uint32                  `json:"BLOCK_EXTRA_DATA_SIZE_LIMIT"`
-	GuardianPublicKey                 string                  `json:"GUARDIAN_PUBLIC_KEY"`
-	GuardianPrivateKey                []byte                  `json:"GUARDIAN_PRIVATE_KEY"`
-	P2PProtocolVersion                uint32                  `json:"P2P_PROTOCOL_VERSION"`
-	P2PCommandSizeLimit               uint32                  `json:"P2P_COMMAND_SIZE_LIMIT"`
-	SkipRootDifficultyCheck           bool                    `json:"SKIP_ROOT_DIFFICULTY_CHECK"`
-	SkipRootCoinbaseCheck             bool                    `json:"SKIP_ROOT_COINBASE_CHECK"`
-	SkipMinorDifficultyCheck          bool                    `json:"SKIP_MINOR_DIFFICULTY_CHECK"`
-	GenesisToken                      string                  `json:"GENESIS_TOKEN"`
-	Root                              *RootConfig             `json:"ROOT"`
-	shards                            map[uint32]*ShardConfig `json:"-"`
-	Chains                            map[uint32]*ChainConfig `json:"-"`
-	RewardTaxRate                     *big.Rat                `json:"-"`
-	chainIdToShardSize                map[uint32]uint32       `json:"-"`
-	chainIdToShardIds                 map[uint32][]uint32     `json:"-"`
+	ChainSize                         uint32      `json:"CHAIN_SIZE"`
+	MaxNeighbors                      uint32      `json:"MAX_NEIGHBORS"`
+	NetworkID                         uint64      `json:"NETWORK_ID"`
+	TransactionQueueSizeLimitPerShard uint64      `json:"TRANSACTION_QUEUE_SIZE_LIMIT_PER_SHARD"`
+	BlockExtraDataSizeLimit           uint32      `json:"BLOCK_EXTRA_DATA_SIZE_LIMIT"`
+	GuardianPublicKey                 string      `json:"GUARDIAN_PUBLIC_KEY"`
+	GuardianPrivateKey                []byte      `json:"GUARDIAN_PRIVATE_KEY"`
+	P2PProtocolVersion                uint32      `json:"P2P_PROTOCOL_VERSION"`
+	P2PCommandSizeLimit               uint32      `json:"P2P_COMMAND_SIZE_LIMIT"`
+	SkipRootDifficultyCheck           bool        `json:"SKIP_ROOT_DIFFICULTY_CHECK"`
+	SkipRootCoinbaseCheck             bool        `json:"SKIP_ROOT_COINBASE_CHECK"`
+	SkipMinorDifficultyCheck          bool        `json:"SKIP_MINOR_DIFFICULTY_CHECK"`
+	GenesisToken                      string      `json:"GENESIS_TOKEN"`
+	Root                              *RootConfig `json:"ROOT"`
+	shards                            map[uint32]*ShardConfig
+	Chains                            map[uint32]*ChainConfig
+	RewardTaxRate                     *big.Rat
+	chainIdToShardSize                map[uint32]uint32
+	chainIdToShardIds                 map[uint32][]uint32
 }
 
 type QuarkChainConfigAlias QuarkChainConfig
