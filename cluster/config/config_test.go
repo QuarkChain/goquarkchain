@@ -49,7 +49,7 @@ func TestClusterConfig(t *testing.T) {
 	var c ClusterConfig
 	err = json.Unmarshal(jsonConfig, &c)
 	if err != nil {
-		t.Fatalf("UnMarsshal cluster config error: %v", err)
+		t.Fatalf("UnMarshal cluster config error: %v", err)
 	}
 	if c.DbPathRoot != "./data" {
 		t.Fatalf("db path root error")
@@ -85,6 +85,13 @@ func TestClusterConfig(t *testing.T) {
 	if quarkchain.GetShardSizeByChainId(1) != 4 {
 		t.Fatalf("quarkchain update function set shard size failed, shard size: %d", quarkchain.GetShardSizeByChainId(1))
 	}
+}
+
+func TestMarshallingRationalNumber(t *testing.T) {
+	jsonSource := []byte(`{"REWARD_TAX_RATE": 0.333}`)
+	var c QuarkChainConfig
+	assert.NoError(t, json.Unmarshal(jsonSource, &c))
+	assert.Equal(t, c.RewardTaxRate.String(), "333/1000")
 }
 
 func TestSlaveConfig(t *testing.T) {
