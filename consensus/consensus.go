@@ -98,14 +98,16 @@ func (c *CommonEngine) VerifyHeader(
 	number := header.NumberU64()
 	logger := log.New("engine")
 
-	if chain.GetHeader(header.Hash(), number) != nil {
+	if chain.GetHeader(header.Hash()) != nil {
 		return nil
 	}
-	parent := chain.GetHeader(header.GetParentHash(), number-1)
+	parent := chain.GetHeader(header.GetParentHash())
 	if parent == nil {
 		return ErrUnknownAncestor
 	}
-
+	if parent.NumberU64() != number-1 {
+		return errors.New("incorrect block height")
+	}
 	if uint32(len(header.GetExtra())) > chain.Config().BlockExtraDataSizeLimit {
 		return fmt.Errorf("extra-data too long: %d > %d", len(header.GetExtra()), chain.Config().BlockExtraDataSizeLimit)
 	}

@@ -101,6 +101,8 @@ func (g *Genesis) CreateMinorBlock(rootBlock *types.RootBlock, fullShardId uint3
 		Extra:             extra,
 	}
 
+	statedb.Commit(false)
+	statedb.Database().TrieDB().Commit(meta.Root, true)
 	return types.NewMinorBlock(&header, &meta, make(types.Transactions, 0, 0), make(types.Receipts, 0, 0), nil), nil
 }
 
@@ -137,7 +139,7 @@ func SetupGenesisRootBlock(db ethdb.Database, genesis *Genesis) (*config.QuarkCh
 	}
 
 	// Just commit the new block if there is no stored genesis block.
-	stored := rawdb.ReadCanonicalHash(db, 0)
+	stored := rawdb.ReadCanonicalHash(db, rawdb.ChainTypeRoot, 0)
 	if (stored == common.Hash{}) {
 		block, err := genesis.CommitRootBlock(db)
 		return genesis.qkcConfig, block.Hash(), err
@@ -175,7 +177,7 @@ func SetupGenesisMinorBlock(db ethdb.Database, genesis *Genesis, rootBlock *type
 	}
 
 	// Just commit the new block if there is no stored genesis block.
-	stored := rawdb.ReadCanonicalHash(db, 0)
+	stored := rawdb.ReadCanonicalHash(db, rawdb.ChainTypeRoot, 0)
 	if (stored == common.Hash{}) {
 		block, err := genesis.CommitMinorBlock(db, rootBlock, fullShardId)
 		return genesis.qkcConfig, block.Hash(), err
@@ -211,9 +213,9 @@ func (g *Genesis) CommitRootBlock(db ethdb.Database) (*types.RootBlock, error) {
 	if block.Number() != 0 {
 		return nil, fmt.Errorf("can't commit genesis block with number > 0")
 	}
-	rawdb.WriteTd(db, block.Hash(), block.NumberU64(), block.Difficulty())
+	rawdb.WriteTd(db, block.Hash(), block.Difficulty())
 	rawdb.WriteRootBlock(db, block)
-	rawdb.WriteCanonicalHash(db, block.Hash(), block.NumberU64())
+	rawdb.WriteCanonicalHash(db, rawdb.ChainTypeRoot, block.Hash(), block.NumberU64())
 	rawdb.WriteHeadBlockHash(db, block.Hash())
 	rawdb.WriteHeadHeaderHash(db, block.Hash())
 
@@ -238,10 +240,10 @@ func (g *Genesis) CommitMinorBlock(db ethdb.Database, rootBlock *types.RootBlock
 	if block.Number() != 0 {
 		return nil, fmt.Errorf("can't commit genesis block with number > 0")
 	}
-	rawdb.WriteTd(db, block.Hash(), block.Number(), block.Difficulty())
+	rawdb.WriteTd(db, block.Hash(), block.Difficulty())
 	rawdb.WriteMinorBlock(db, block)
-	rawdb.WriteReceipts(db, block.Hash(), block.Number(), nil)
-	rawdb.WriteCanonicalHash(db, block.Hash(), block.Number())
+	rawdb.WriteReceipts(db, block.Hash(), nil)
+	rawdb.WriteCanonicalHash(db, rawdb.ChainTypeRoot, block.Hash(), block.Number())
 	rawdb.WriteHeadBlockHash(db, block.Hash())
 	rawdb.WriteHeadHeaderHash(db, block.Hash())
 

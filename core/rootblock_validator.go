@@ -63,7 +63,7 @@ func (v *RootBlockValidator) ValidateBlock(block types.IBlock) error {
 	if rootBlock.NumberU64() < 1 {
 		return errors.New("unexpected height")
 	}
-	if v.bc.HasBlock(block.Hash(), block.NumberU64()) {
+	if v.bc.HasBlock(block.Hash()) {
 		return ErrKnownBlock
 	}
 	// Header validity is known at this point, check the uncles and transactions
@@ -86,7 +86,7 @@ func (v *RootBlockValidator) ValidateBlock(block types.IBlock) error {
 	var number uint64 = 0
 	var shardIdToMinNumberMap = make(map[uint32]uint64)
 	for _, mheader := range rootBlock.MinorBlockHeaders() {
-		if !v.bc.HasHeader(mheader.Hash(), mheader.Number) {
+		if !v.bc.HasHeader(mheader.Hash()) {
 			return fmt.Errorf("minor block is not validated. %v-%d",
 				mheader.Coinbase.FullShardKey, mheader.Number)
 		}
@@ -116,7 +116,7 @@ func (v *RootBlockValidator) ValidateBlock(block types.IBlock) error {
 		return nil
 	}
 
-	preBlock := v.bc.GetBlock(header.ParentHash, header.NumberU64()-1)
+	preBlock := v.bc.GetBlock(header.ParentHash)
 	if preBlock == nil {
 		return errors.New("parent block is missing")
 	}

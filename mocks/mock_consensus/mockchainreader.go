@@ -64,17 +64,17 @@ func (mr *MockChainReaderMockRecorder) CurrentHeader() *gomock.Call {
 }
 
 // GetHeader mocks base method
-func (m *MockChainReader) GetHeader(hash common.Hash, number uint64) types.IHeader {
+func (m *MockChainReader) GetHeader(hash common.Hash) types.IHeader {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetHeader", hash, number)
+	ret := m.ctrl.Call(m, "GetHeader", hash)
 	ret0, _ := ret[0].(types.IHeader)
 	return ret0
 }
 
 // GetHeader indicates an expected call of GetHeader
-func (mr *MockChainReaderMockRecorder) GetHeader(hash, number interface{}) *gomock.Call {
+func (mr *MockChainReaderMockRecorder) GetHeader(hash interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetHeader", reflect.TypeOf((*MockChainReader)(nil).GetHeader), hash, number)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetHeader", reflect.TypeOf((*MockChainReader)(nil).GetHeader), hash)
 }
 
 // GetHeaderByNumber mocks base method
@@ -91,30 +91,16 @@ func (mr *MockChainReaderMockRecorder) GetHeaderByNumber(number interface{}) *go
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetHeaderByNumber", reflect.TypeOf((*MockChainReader)(nil).GetHeaderByNumber), number)
 }
 
-// GetHeaderByHash mocks base method
-func (m *MockChainReader) GetHeaderByHash(hash common.Hash) types.IHeader {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetHeaderByHash", hash)
-	ret0, _ := ret[0].(types.IHeader)
-	return ret0
-}
-
-// GetHeaderByHash indicates an expected call of GetHeaderByHash
-func (mr *MockChainReaderMockRecorder) GetHeaderByHash(hash interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetHeaderByHash", reflect.TypeOf((*MockChainReader)(nil).GetHeaderByHash), hash)
-}
-
 // GetBlock mocks base method
-func (m *MockChainReader) GetBlock(hash common.Hash, number uint64) types.IBlock {
+func (m *MockChainReader) GetBlock(hash common.Hash) types.IBlock {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetBlock", hash, number)
+	ret := m.ctrl.Call(m, "GetBlock", hash)
 	ret0, _ := ret[0].(types.IBlock)
 	return ret0
 }
 
 // GetBlock indicates an expected call of GetBlock
-func (mr *MockChainReaderMockRecorder) GetBlock(hash, number interface{}) *gomock.Call {
+func (mr *MockChainReaderMockRecorder) GetBlock(hash interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetBlock", reflect.TypeOf((*MockChainReader)(nil).GetBlock), hash, number)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetBlock", reflect.TypeOf((*MockChainReader)(nil).GetBlock), hash)
 }

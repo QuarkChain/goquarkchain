@@ -34,8 +34,8 @@ func TestVerifyHeaderAndHeaders(t *testing.T) {
 		cr := mock_consensus.NewMockChainReader(ctrl)
 		// No short-circuit
 		cr.EXPECT().Config().Return(config.NewQuarkChainConfig()).AnyTimes()
-		cr.EXPECT().GetHeader(header.Hash(), uint64(2)).Return(nil).AnyTimes()
-		cr.EXPECT().GetHeader(parent.Hash(), uint64(1)).Return(parent).AnyTimes()
+		cr.EXPECT().GetHeader(header.Hash()).Return(nil).AnyTimes()
+		cr.EXPECT().GetHeader(parent.Hash()).Return(parent).AnyTimes()
 		err := q.VerifyHeader(cr, header, true)
 		assert.NoError(err)
 
@@ -46,7 +46,7 @@ func TestVerifyHeaderAndHeaders(t *testing.T) {
 			h := *header
 			if i == 5 {
 				h.Nonce = 123123
-				cr.EXPECT().GetHeader(h.Hash(), uint64(2)).Return(nil)
+				cr.EXPECT().GetHeader(h.Hash()).Return(nil)
 			}
 			headers = append(headers, &h)
 		}
