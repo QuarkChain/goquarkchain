@@ -24,7 +24,7 @@ func TestLookupStorage(t *testing.T) {
 
 	// Check that no transactions entries are in a pristine database
 	for i, tx := range txs {
-		if txn, _, _, _ := ReadTransaction(db, tx.Hash()); txn != nil {
+		if txn, _, _ := ReadTransaction(db, tx.Hash()); txn != nil {
 			t.Fatalf("tx #%d [%x]: non existent transaction returned: %v", i, tx.Hash(), txn)
 		}
 	}
@@ -33,11 +33,11 @@ func TestLookupStorage(t *testing.T) {
 	WriteBlockContentLookupEntries(db, block)
 
 	for i, tx := range txs {
-		if txn, hash, number, index := ReadTransaction(db, tx.Hash()); txn == nil {
+		if txn, hash, index := ReadTransaction(db, tx.Hash()); txn == nil {
 			t.Fatalf("tx #%d [%x]: transaction not found", i, tx.Hash())
 		} else {
-			if hash != block.Hash() || number != block.Number() || index != uint64(i) {
-				t.Fatalf("tx #%d [%x]: positional metadata mismatch: have %x/%d/%d, want %x/%v/%v", i, tx.Hash(), hash, number, index, block.Hash(), block.Number(), i)
+			if hash != block.Hash() || index != uint64(i) {
+				t.Fatalf("tx #%d [%x]: positional metadata mismatch: have %x/%d, want %x/%v", i, tx.Hash(), hash, index, block.Hash(), i)
 			}
 			if tx.Hash() != txn.Hash() {
 				t.Fatalf("tx #%d [%x]: transaction mismatch: have %v, want %v", i, tx.Hash(), txn, tx)
@@ -47,7 +47,7 @@ func TestLookupStorage(t *testing.T) {
 	// Delete the transactions and check purge
 	for i, tx := range txs {
 		DeleteBlockContentLookupEntry(db, tx.Hash())
-		if txn, _, _, _ := ReadTransaction(db, tx.Hash()); txn != nil {
+		if txn, _, _ := ReadTransaction(db, tx.Hash()); txn != nil {
 			t.Fatalf("tx #%d [%x]: deleted transaction returned: %v", i, tx.Hash(), txn)
 		}
 	}

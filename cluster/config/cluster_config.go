@@ -281,7 +281,7 @@ func (q *QuarkChainConfig) GetShardSizeByChainId(ID uint32) uint32 {
 
 func NewQuarkChainConfig() *QuarkChainConfig {
 	var ret QuarkChainConfig
-	ret = *&skeletonQuarkChainConfig
+	ret = skeletonQuarkChainConfig
 
 	ret.Root.ConsensusType = PoWSimulate
 	ret.Root.ConsensusConfig = NewPOWConfig()
