@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/core/types"
-	"github.com/ethereum/go-ethereum/log"
 	"math/big"
 )
 
@@ -229,7 +228,7 @@ func (q *QuarkChainConfig) initAndValidate() {
 		realID := (chainID << 16) | shardSize | shardID
 		//fmt.Println("fullShardID=", fullShardId, "realID=", realID, "chainID=", chainID, "shardSize=", shardSize, "shardID=", shardID)
 		if fullShardId != realID {
-			log.Error("full_shard_id is not right", "target", realID, "actual", fullShardId)
+			panic(fmt.Sprintf("full_shard_id is not right, target=%d, actual=%d", realID, fullShardId))
 		} else {
 			q.chainIdToShardSize[chainID] = shardSize
 		}
@@ -237,24 +236,30 @@ func (q *QuarkChainConfig) initAndValidate() {
 			q.chainIdToShardIds[chainID] = make([]uint32, 0)
 		}
 		q.chainIdToShardIds[chainID] = append(q.chainIdToShardIds[chainID], shardID)
-
 	}
 	chainIDMap := make(map[uint32]uint32)
 	for chainID, shardIDs := range q.chainIdToShardIds {
 		chainIDMap[chainID] = chainID
 		shardSize := q.GetShardSizeByChainId(chainID)
 		if len(shardIDs) != int(shardSize) {
-			log.Error("shard_size length is not right", "target", shardSize, "actual", len(shardIDs))
+			panic(fmt.Sprintf("shard_size length is not right, target=%d, actual=%d", shardSize, len(shardIDs)))
 		}
 		for i := uint32(0); i < shardSize; i++ {
-			if i != shardIDs[i] {
-				log.Error("shard ids is not right", "target", i, "actual", shardIDs[i])
+			exist := false
+			for _, shardID := range shardIDs {
+				if i == shardID {
+					exist = true
+					break
+				}
+			}
+			if !exist {
+				panic(fmt.Sprintf("shard ids is not right, target=%d, actual=%d", i, shardIDs[i]))
 			}
 		}
 	}
 	for i := uint32(0); i < q.ChainSize; i++ {
 		if i != chainIDMap[i] {
-			log.Error("chain id is not right", "target", i, "actual", chainIDMap[i])
+			panic(fmt.Sprintf("chain id is not right, target=%d, actual=%d", i, chainIDMap[i]))
 		}
 	}
 }
@@ -271,20 +276,12 @@ func (q *QuarkChainConfig) GetFullShardIdByFullShardKey(fullShardKey uint32) uin
 }
 
 func (q *QuarkChainConfig) GetShardSizeByChainId(ID uint32) uint32 {
-	if q.chainIdToShardSize != nil {
-		return q.chainIdToShardSize[ID]
-	}
-	for fullShardID, shardCfg := range q.shards {
-		if fullShardID == ID {
-			return shardCfg.ShardSize
-		}
-	}
-	return 0
+	return q.chainIdToShardSize[ID]
 }
 
 func NewQuarkChainConfig() *QuarkChainConfig {
 	var ret QuarkChainConfig
-	ret = skeletonQuarkChainConfig
+	ret = *&skeletonQuarkChainConfig
 
 	ret.Root.ConsensusType = PoWSimulate
 	ret.Root.ConsensusConfig = NewPOWConfig()
