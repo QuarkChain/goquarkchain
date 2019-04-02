@@ -7,22 +7,22 @@ import (
 )
 
 type SlaveConfig struct {
-	IP            string             `json:"IP"`   // DEFAULT_HOST
+	IP            string             `json:"HOST"` // DEFAULT_HOST
 	Port          uint64             `json:"PORT"` // 38392
 	ID            string             `json:"ID"`
-	ShardMaskList []*types.ChainMask `json:"-"`
+	ChainMaskList []*types.ChainMask `json:"-"`
 }
 
 type SlaveConfigAlias SlaveConfig
 
 func (s *SlaveConfig) MarshalJSON() ([]byte, error) {
-	shardMaskList := make([]uint32, len(s.ShardMaskList))
-	for i, m := range s.ShardMaskList {
+	shardMaskList := make([]uint32, len(s.ChainMaskList))
+	for i, m := range s.ChainMaskList {
 		shardMaskList[i] = m.GetMask()
 	}
 	jsonConfig := struct {
 		SlaveConfigAlias
-		ShardMaskList []uint32 `json:"SHARD_MASK_LIST"`
+		ShardMaskList []uint32 `json:"CHAIN_MASK_LIST"`
 	}{SlaveConfigAlias(*s), shardMaskList}
 	return json.Marshal(jsonConfig)
 }
@@ -30,15 +30,15 @@ func (s *SlaveConfig) MarshalJSON() ([]byte, error) {
 func (s *SlaveConfig) UnmarshalJSON(input []byte) error {
 	var jsonConfig struct {
 		SlaveConfigAlias
-		ShardMaskList []uint32 `json:"SHARD_MASK_LIST"`
+		ChainMaskList []uint32 `json:"CHAIN_MASK_LIST"`
 	}
 	if err := json.Unmarshal(input, &jsonConfig); err != nil {
 		return err
 	}
 	*s = SlaveConfig(jsonConfig.SlaveConfigAlias)
-	s.ShardMaskList = make([]*types.ChainMask, len(jsonConfig.ShardMaskList))
-	for i, value := range jsonConfig.ShardMaskList {
-		s.ShardMaskList[i] = types.NewChainMask(value)
+	s.ChainMaskList = make([]*types.ChainMask, len(jsonConfig.ChainMaskList))
+	for i, value := range jsonConfig.ChainMaskList {
+		s.ChainMaskList[i] = types.NewChainMask(value)
 	}
 	return nil
 }
