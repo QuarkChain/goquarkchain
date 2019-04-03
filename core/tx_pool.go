@@ -324,21 +324,21 @@ func (pool *TxPool) lockedReset(oldHead, newHead *types.MinorBlock) {
 
 // reset retrieves the current state of the blockchain and ensures the content
 // of the transaction pool is valid with regard to the chain state.
-func (pool *TxPool) reset(oldBody, newBody *types.MinorBlock) {
+func (pool *TxPool) reset(oldBlock, newBlock *types.MinorBlock) {
 	// If we're reorging an old state, reinject all dropped transactions
 	var reinject types.Transactions
 	var oldHead *types.MinorBlockHeader
 	var newHead *types.MinorBlockHeader
-	if oldBody == nil {
+	if oldBlock == nil {
 		oldHead = nil
 	} else {
-		oldHead = oldBody.Header()
+		oldHead = oldBlock.Header()
 	}
 
-	if newBody == nil {
+	if newBlock == nil {
 		newHead = nil
 	} else {
-		newHead = newBody.Header()
+		newHead = newBlock.Header()
 	}
 
 	if oldHead != nil && oldHead.Hash() != newHead.ParentHash {
@@ -386,18 +386,18 @@ func (pool *TxPool) reset(oldBody, newBody *types.MinorBlock) {
 		}
 	}
 	// Initialize the internal state to the current head
-	if newBody == nil {
-		newBody = pool.chain.CurrentBlock() // Special case during testing
+	if newBlock == nil {
+		newBlock = pool.chain.CurrentBlock() // Special case during testing
 	}
 
-	statedb, err := pool.chain.StateAt(newBody.Meta().Root)
+	statedb, err := pool.chain.StateAt(newBlock.Meta().Root)
 	if err != nil {
 		log.Error("Failed to reset txpool state", "err", err)
 		return
 	}
 	pool.currentState = statedb
 	pool.pendingState = state.ManageState(statedb)
-	pool.currentMaxGas = newBody.Header().GasLimit.Value.Uint64()
+	pool.currentMaxGas = newBlock.Header().GasLimit.Value.Uint64()
 
 	// Inject any transactions discarded due to reorgs
 	log.Debug("Reinjecting stale transactions", "count", len(reinject))
