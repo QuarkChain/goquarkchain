@@ -72,8 +72,8 @@ service SlaveServerSideOp {
 
 // request data
 message Request {
-    int64 op = 1; // option id
-    bytes data = 5; // 数据内容
+    int64 op = 1;
+    bytes data = 5;
 }
 
 // response data
