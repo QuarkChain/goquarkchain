@@ -17,7 +17,7 @@ var (
 		ConsensusType:                      PoWNone,
 		ConsensusConfig:                    nil,
 		Genesis:                            nil,
-		CoinbaseAmount:                     new(big.Int).Mul(big.NewInt(120), QuarkashToJiaozi),
+		CoinbaseAmount:                     new(big.Int).Mul(big.NewInt(5), QuarkashToJiaozi),
 		GasLimitEmaDenominator:             1024,
 		GasLimitAdjustmentFactor:           1024,
 		GasLimitMinimum:                    5000,
