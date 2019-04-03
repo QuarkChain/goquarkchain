@@ -103,6 +103,10 @@ func New(conf *Config) (*Node, error) {
 	return node, nil
 }
 
+func (n *Node) SetModule(nModule bool) {
+	n.nModule = nModule
+}
+
 func (n *Node) GetModule() bool {
 	return n.nModule
 }
