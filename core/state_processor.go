@@ -52,8 +52,8 @@ func ValidateTransaction(state vm.StateDB, tx *types.Transaction) error {
 		return ErrIntrinsicGas
 	}
 
-	gasUsed := new(big.Int).Add(new(big.Int).SetUint64(state.GetGasUsed()), new(big.Int).SetUint64(tx.EvmTx.Gas()))
-	if gasUsed.Cmp(new(big.Int).SetUint64(state.GetGasLimit())) < 0 {
+	gasUsed := new(big.Int).Add(state.GetGasUsed(), new(big.Int).SetUint64(tx.EvmTx.Gas()))
+	if gasUsed.Cmp(state.GetGasLimit()) < 0 {
 		return errors.New("gas usage exceeds limit")
 	}
 	return nil

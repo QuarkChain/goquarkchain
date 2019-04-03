@@ -251,7 +251,7 @@ func (st *StateTransition) TransitionDb(feeRate float32) (ret []byte, usedGas ui
 	st.state.AddBalance(st.evm.Coinbase, rateFee)
 	st.state.AddBlockFee(rateFee.Uint64())
 
-	st.state.AddGasUsed(finalGasUsed)
+	st.state.AddGasUsed(new(big.Int).SetUint64(finalGasUsed))
 	return ret, st.gasUsed(), vmerr != nil, err
 }
 

@@ -93,8 +93,8 @@ type StateDB struct {
 	xShardList           []types.CrossShardTransactionDeposit
 	fullShardID          uint32
 	quarkChainConfig     *config.QuarkChainConfig
-	gasUsed              uint64
-	gasLimit             uint64
+	gasUsed              *big.Int
+	gasLimit             *big.Int
 }
 
 // Create a new state from a given trie.
@@ -702,18 +702,27 @@ func (s *StateDB) GetQuarkChainConfig() *config.QuarkChainConfig {
 	return s.quarkChainConfig
 }
 
-func (s *StateDB) GetGasUsed() uint64 {
+func (s *StateDB) GetGasUsed() *big.Int {
+	if s.gasUsed == nil {
+		return new(big.Int).SetUint64(0)
+	}
 	return s.gasUsed
 }
 
-func (s *StateDB) AddGasUsed(data uint64) {
-	s.gasUsed += data
+func (s *StateDB) AddGasUsed(data *big.Int) {
+	if s.gasUsed == nil {
+		s.gasUsed = new(big.Int).SetUint64(0)
+	}
+	s.gasUsed.Add(s.gasUsed, data)
 }
 
-func (s *StateDB) GetGasLimit() uint64 {
+func (s *StateDB) GetGasLimit() *big.Int {
+	if s.gasLimit == nil {
+		return new(big.Int).SetUint64(0)
+	}
 	return s.gasLimit
 }
 
-func (s *StateDB) SetGasLimit(data uint64) {
+func (s *StateDB) SetGasLimit(data *big.Int) {
 	s.gasLimit = data
 }
