@@ -22,8 +22,8 @@ import (
 	"math/big"
 	"sort"
 
+	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
 )
 
@@ -71,7 +71,7 @@ func (m *txSortedMap) Get(nonce uint64) *types.Transaction {
 // Put inserts a new transaction into the map, also updating the map's nonce
 // index. If a transaction already exists with the same nonce, it's overwritten.
 func (m *txSortedMap) Put(tx *types.Transaction) {
-	nonce := tx.Nonce()
+	nonce := tx.EvmTx.Nonce()
 	if m.items[nonce] == nil {
 		heap.Push(m.index, nonce)
 	}
@@ -240,7 +240,7 @@ func newTxList(strict bool) *txList {
 // Overlaps returns whether the transaction specified has the same nonce as one
 // already contained within the list.
 func (l *txList) Overlaps(tx *types.Transaction) bool {
-	return l.txs.Get(tx.Nonce()) != nil
+	return l.txs.Get(tx.EvmTx.Nonce()) != nil
 }
 
 // Add tries to insert a new transaction into the list, returning whether the
@@ -250,22 +250,22 @@ func (l *txList) Overlaps(tx *types.Transaction) bool {
 // thresholds are also potentially updated.
 func (l *txList) Add(tx *types.Transaction, priceBump uint64) (bool, *types.Transaction) {
 	// If there's an older better transaction, abort
-	old := l.txs.Get(tx.Nonce())
+	old := l.txs.Get(tx.EvmTx.Nonce())
 	if old != nil {
-		threshold := new(big.Int).Div(new(big.Int).Mul(old.GasPrice(), big.NewInt(100+int64(priceBump))), big.NewInt(100))
+		threshold := new(big.Int).Div(new(big.Int).Mul(old.EvmTx.GasPrice(), big.NewInt(100+int64(priceBump))), big.NewInt(100))
 		// Have to ensure that the new gas price is higher than the old gas
 		// price as well as checking the percentage threshold to ensure that
 		// this is accurate for low (Wei-level) gas price replacements
-		if old.GasPrice().Cmp(tx.GasPrice()) >= 0 || threshold.Cmp(tx.GasPrice()) > 0 {
+		if old.EvmTx.GasPrice().Cmp(tx.EvmTx.GasPrice()) >= 0 || threshold.Cmp(tx.EvmTx.GasPrice()) > 0 {
 			return false, nil
 		}
 	}
 	// Otherwise overwrite the old transaction with the current one
 	l.txs.Put(tx)
-	if cost := tx.Cost(); l.costcap.Cmp(cost) < 0 {
+	if cost := tx.EvmTx.Cost(); l.costcap.Cmp(cost) < 0 {
 		l.costcap = cost
 	}
-	if gas := tx.Gas(); l.gascap < gas {
+	if gas := tx.EvmTx.Gas(); l.gascap < gas {
 		l.gascap = gas
 	}
 	return true, old
@@ -296,7 +296,9 @@ func (l *txList) Filter(costLimit *big.Int, gasLimit uint64) (types.Transactions
 	l.gascap = gasLimit
 
 	// Filter out all the transactions above the account's funds
-	removed := l.txs.Filter(func(tx *types.Transaction) bool { return tx.Cost().Cmp(costLimit) > 0 || tx.Gas() > gasLimit })
+	removed := l.txs.Filter(func(tx *types.Transaction) bool {
+		return tx.EvmTx.Cost().Cmp(costLimit) > 0 || tx.EvmTx.Gas() > gasLimit
+	})
 
 	// If the list was strict, filter anything above the lowest nonce
 	var invalids types.Transactions
@@ -304,11 +306,11 @@ func (l *txList) Filter(costLimit *big.Int, gasLimit uint64) (types.Transactions
 	if l.strict && len(removed) > 0 {
 		lowest := uint64(math.MaxUint64)
 		for _, tx := range removed {
-			if nonce := tx.Nonce(); lowest > nonce {
+			if nonce := tx.EvmTx.Nonce(); lowest > nonce {
 				lowest = nonce
 			}
 		}
-		invalids = l.txs.Filter(func(tx *types.Transaction) bool { return tx.Nonce() > lowest })
+		invalids = l.txs.Filter(func(tx *types.Transaction) bool { return tx.EvmTx.Nonce() > lowest })
 	}
 	return removed, invalids
 }
@@ -324,13 +326,13 @@ func (l *txList) Cap(threshold int) types.Transactions {
 // the deletion (strict mode only).
 func (l *txList) Remove(tx *types.Transaction) (bool, types.Transactions) {
 	// Remove the transaction from the set
-	nonce := tx.Nonce()
+	nonce := tx.EvmTx.Nonce()
 	if removed := l.txs.Remove(nonce); !removed {
 		return false, nil
 	}
 	// In strict mode, filter out non-executable transactions
 	if l.strict {
-		return true, l.txs.Filter(func(tx *types.Transaction) bool { return tx.Nonce() > nonce })
+		return true, l.txs.Filter(func(tx *types.Transaction) bool { return tx.EvmTx.Nonce() > nonce })
 	}
 	return true, nil
 }
@@ -372,14 +374,14 @@ func (h priceHeap) Swap(i, j int) { h[i], h[j] = h[j], h[i] }
 
 func (h priceHeap) Less(i, j int) bool {
 	// Sort primarily by price, returning the cheaper one
-	switch h[i].GasPrice().Cmp(h[j].GasPrice()) {
+	switch h[i].EvmTx.GasPrice().Cmp(h[j].EvmTx.GasPrice()) {
 	case -1:
 		return true
 	case 1:
 		return false
 	}
 	// If the prices match, stabilize via nonces (high nonce is worse)
-	return h[i].Nonce() > h[j].Nonce()
+	return h[i].EvmTx.Nonce() > h[j].EvmTx.Nonce()
 }
 
 func (h *priceHeap) Push(x interface{}) {
@@ -449,7 +451,7 @@ func (l *txPricedList) Cap(threshold *big.Int, local *accountSet) types.Transact
 			continue
 		}
 		// Stop the discards if we've reached the threshold
-		if tx.GasPrice().Cmp(threshold) >= 0 {
+		if tx.EvmTx.GasPrice().Cmp(threshold) >= 0 {
 			save = append(save, tx)
 			break
 		}
@@ -489,7 +491,7 @@ func (l *txPricedList) Underpriced(tx *types.Transaction, local *accountSet) boo
 		return false
 	}
 	cheapest := []*types.Transaction(*l.items)[0]
-	return cheapest.GasPrice().Cmp(tx.GasPrice()) >= 0
+	return cheapest.EvmTx.GasPrice().Cmp(tx.EvmTx.GasPrice()) >= 0
 }
 
 // Discard finds a number of most underpriced transactions, removes them from the

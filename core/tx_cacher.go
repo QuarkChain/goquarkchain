@@ -17,9 +17,8 @@
 package core
 
 import (
+	"github.com/QuarkChain/goquarkchain/core/types"
 	"runtime"
-
-	"github.com/ethereum/go-ethereum/core/types"
 )
 
 // senderCacher is a concurrent transaction sender recoverer anc cacher.
@@ -62,7 +61,7 @@ func newTxSenderCacher(threads int) *txSenderCacher {
 func (cacher *txSenderCacher) cache() {
 	for task := range cacher.tasks {
 		for i := 0; i < len(task.txs); i += task.inc {
-			types.Sender(task.signer, task.txs[i])
+			types.Sender(task.signer, task.txs[i].EvmTx)
 		}
 	}
 }
@@ -92,7 +91,7 @@ func (cacher *txSenderCacher) recover(signer types.Signer, txs []*types.Transact
 // recoverFromBlocks recovers the senders from a batch of blocks and caches them
 // back into the same data structures. There is no validation being done, nor
 // any reaction to invalid signatures. That is up to calling code later.
-func (cacher *txSenderCacher) recoverFromBlocks(signer types.Signer, blocks []*types.Block) {
+func (cacher *txSenderCacher) recoverFromBlocks(signer types.Signer, blocks []*types.MinorBlock) {
 	count := 0
 	for _, block := range blocks {
 		count += len(block.Transactions())
