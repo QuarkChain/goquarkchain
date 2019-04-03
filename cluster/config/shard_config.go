@@ -8,7 +8,7 @@ import (
 )
 
 type ShardGenesis struct {
-	RootHeight         uint64                       `json:"ROOT_HEIGHT"`
+	RootHeight         uint32                       `json:"ROOT_HEIGHT"`
 	Version            uint32                       `json:"VERSION"`
 	Height             uint64                       `json:"HEIGHT"`
 	HashPrevMinorBlock string                       `json:"HASH_PREV_MINOR_BLOCK"`
