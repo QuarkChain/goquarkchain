@@ -17,7 +17,6 @@
 package core
 
 import (
-	"bytes"
 	"errors"
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/core/state"
@@ -35,11 +34,7 @@ func ValidateTransaction(state vm.StateDB, tx *types.Transaction) error {
 	}
 
 	var reqNonce uint64
-	if bytes.Equal(from.Bytes(), account.Recipient{}.Bytes()) { //need delete?
-		reqNonce = 0
-	} else {
-		reqNonce = state.GetNonce(from.ToAddress())
-	}
+	reqNonce = state.GetNonce(from.ToAddress())
 
 	if reqNonce > tx.EvmTx.Nonce() {
 		return ErrNonceTooLow
@@ -57,9 +52,9 @@ func ValidateTransaction(state vm.StateDB, tx *types.Transaction) error {
 		return ErrIntrinsicGas
 	}
 
-	blockLimit := new(big.Int).Add(new(big.Int).SetUint64(state.GetGasUsed()), new(big.Int).SetUint64(tx.EvmTx.Gas()))
-	if blockLimit.Cmp(new(big.Int).SetUint64(state.GetGasLimit())) < 0 {
-		return errors.New("gasLimit is too low")
+	gasUsed := new(big.Int).Add(new(big.Int).SetUint64(state.GetGasUsed()), new(big.Int).SetUint64(tx.EvmTx.Gas()))
+	if gasUsed.Cmp(new(big.Int).SetUint64(state.GetGasLimit())) < 0 {
+		return errors.New("gas usage exceeds limit")
 	}
 	return nil
 }
