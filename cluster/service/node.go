@@ -52,7 +52,7 @@ type Node struct {
 	wsListener net.Listener // Websocket RPC listener socket to server API requests
 	wsHandler  *rpc.Server  // Websocket RPC request handler to process the API requests
 
-	nModule     bool         // node module, true master type full functions start, false slave type just start part functions.
+	isMaster    bool         // node module, true master type full functions start, false slave type just start part functions.
 	svrEndpoint string       // GRPC endpoint (interface + port) to listen at (empty = grpc disabled)
 	svrListener net.Listener // GRPC listener socket to server API requests
 	svrHandler  *grpc.Server // GRPC request handler to process the API requests
@@ -97,18 +97,18 @@ func New(conf *Config) (*Node, error) {
 		wsEndpoint:        conf.WSEndpoint(),
 		svrEndpoint:       conf.GRPCEndpoint(),
 		eventmux:          new(event.TypeMux),
-		nModule:           true,
+		isMaster:          true,
 		log:               conf.Logger,
 	}
 	return node, nil
 }
 
-func (n *Node) SetModule(nModule bool) {
-	n.nModule = nModule
+func (n *Node) SetIsMaster(isMaster bool) {
+	n.isMaster = isMaster
 }
 
 func (n *Node) GetModule() bool {
-	return n.nModule
+	return n.isMaster
 }
 
 // Register injects a new service into the node's stack. The service created by
