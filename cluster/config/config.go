@@ -90,7 +90,7 @@ type SimpleNetwork struct {
 
 type RootGenesis struct {
 	Version        uint32 `json:"VERSION"`
-	Height         uint64 `json:"HEIGHT"`
+	Height         uint32 `json:"HEIGHT"`
 	HashPrevBlock  string `json:"HASH_PREV_BLOCK"`
 	HashMerkleRoot string `json:"HASH_MERKLE_ROOT"`
 	Timestamp      uint64 `json:"TIMESTAMP"`

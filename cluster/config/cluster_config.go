@@ -94,7 +94,7 @@ func (c *ClusterConfig) GetSlaveConfig(id string) (*SlaveConfig, error) {
 type QuarkChainConfig struct {
 	ChainSize                         uint32      `json:"CHAIN_SIZE"`
 	MaxNeighbors                      uint32      `json:"MAX_NEIGHBORS"`
-	NetworkID                         uint64      `json:"NETWORK_ID"`
+	NetworkID                         uint32      `json:"NETWORK_ID"`
 	TransactionQueueSizeLimitPerShard uint64      `json:"TRANSACTION_QUEUE_SIZE_LIMIT_PER_SHARD"`
 	BlockExtraDataSizeLimit           uint32      `json:"BLOCK_EXTRA_DATA_SIZE_LIMIT"`
 	GuardianPublicKey                 string      `json:"GUARDIAN_PUBLIC_KEY"`
