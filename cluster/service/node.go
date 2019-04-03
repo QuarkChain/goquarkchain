@@ -103,6 +103,10 @@ func New(conf *Config) (*Node, error) {
 	return node, nil
 }
 
+func (n *Node) GetModule() bool {
+	return n.nModule
+}
+
 // Register injects a new service into the node's stack. The service created by
 // the passed constructor must be unique in its type with regard to sibling ones.
 func (n *Node) Register(constructor ServiceConstructor) error {
@@ -180,18 +184,6 @@ func (n *Node) Start() error {
 			return convertFileLockError(err)
 		}
 	}
-	// Lastly start the configured RPC interfaces
-	if err := n.startRPC(services); err != nil {
-		for _, service := range services {
-			service.Stop()
-		}
-		// running.Stop()
-		return err
-	}
-	// Finish initializing the startup
-	n.services = services
-	n.server = running
-	n.stop = make(chan struct{})
 	// Start each of the services
 	var started []reflect.Type
 	for kind, service := range services {
@@ -207,15 +199,20 @@ func (n *Node) Start() error {
 		// Mark the service started for potential cleanup
 		started = append(started, kind)
 	}
+	// Lastly start the configured RPC interfaces
+	if err := n.startRPC(services); err != nil {
+		for _, service := range services {
+			service.Stop()
+		}
+		running.Stop()
+		return err
+	}
+	// Finish initializing the startup
+	n.services = services
+	n.server = running
+	n.stop = make(chan struct{})
+
 	return nil
-}
-
-func (n *Node) SetModule(md bool) {
-	n.nModule = md
-}
-
-func (n *Node) GetModule() bool {
-	return n.nModule
 }
 
 func (n *Node) openDataDir() error {
