@@ -2,18 +2,19 @@ package rpc
 
 import (
 	"fmt"
-	"github.com/QuarkChain/goquarkchain/cluster/config"
-	"github.com/ethereum/go-ethereum/rpc"
 	"reflect"
 	"testing"
+
+	"github.com/QuarkChain/goquarkchain/cluster/config"
+	"github.com/ethereum/go-ethereum/rpc"
 )
 
 func testSlaveConfig(idx int) *config.SlaveConfig {
 	return &config.SlaveConfig{
-		Ip:            config.HOST,
-		Port:          uint64(config.SLAVE_PORT + idx),
-		Id:            "S" + string(idx),
-		ShardMaskList: nil,
+		IP:            "127.0.0.1",
+		Port:          uint64(config.SlavePort + idx),
+		ID:            "S" + string(idx),
+		ChainMaskList: nil,
 	}
 }
 
@@ -27,27 +28,27 @@ func TestGRPCAPI(t *testing.T) {
 				Public:    false,
 			},
 		}
-		cfg          = testSlaveConfig(0)
-		target       = fmt.Sprintf("%s:%d", cfg.Ip, cfg.Port)
-		rpcId  int64 = 1
+		cfg            = testSlaveConfig(0)
+		hostport       = fmt.Sprintf("%s:%d", cfg.IP, cfg.Port)
+		rpcID    int64 = 1
 	)
 
-	listener, handler, err := StartGRPCServer(target, apis)
+	listener, handler, err := StartGRPCServer(hostport, apis)
 	if err != nil {
 		t.Fatalf("failed to create grpc server %v", err)
 	}
 
 	// create rpc client and request AddMinorBlockHeader function
-	cli := NewRPCLient()
-	res, err := cli.GetMasterServerSideOp(target, &Request{Op: OpAddMinorBlockHeader, Data: []byte(fmt.Sprintf("%s op request", cli.GetOpName(OpAddMinorBlockHeader)))})
+	cli := NewClient()
+	res, err := cli.Call(MasterServer, hostport, &Request{Op: OpAddMinorBlockHeader, Data: []byte(fmt.Sprintf("%s op request", cli.GetOpName(OpAddMinorBlockHeader)))})
 	if err != nil || res.ErrorCode != 0 {
 		t.Fatalf("request master function %s %v", cli.GetOpName(OpAddMinorBlockHeader), err)
 	}
 	// check rpc id is in order
-	if res.RpcId != rpcId {
+	if res.RpcId != rpcID {
 		t.Fatalf("rpc id %d not returned be order", res.RpcId)
 	}
-	rpcId = res.RpcId
+	rpcID = res.RpcId
 
 	if string(res.Data) != fmt.Sprintf("%s response", cli.GetOpName(OpAddMinorBlockHeader)) {
 		t.Fatalf("response data %s is not the value of expection", string(res.Data))

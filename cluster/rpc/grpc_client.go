@@ -1,18 +1,18 @@
-// Modified from go-ethereum under GNU Lesser General Public License
 package rpc
 
 import (
 	"context"
 	"errors"
-	"fmt"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/connectivity"
 	"reflect"
 	"sync"
 	"time"
+
+	"github.com/ethereum/go-ethereum/log"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/connectivity"
 )
 
-type ServerType int
+type serverType int
 
 const (
 	_ = iota
@@ -46,9 +46,9 @@ const (
 	OpGetWork
 	OpSubmitWork
 
-	MasterServer  = ServerType(1)
-	SlaveServer   = ServerType(0)
-	UnknownServer = ServerType(-1)
+	MasterServer  = serverType(1)
+	SlaveServer   = serverType(0)
+	UnknownServer = serverType(-1)
 )
 
 var (
@@ -76,89 +76,72 @@ var (
 		OpGetTransactionReceipt:               {name: "GetTransactionReceipt"},
 		OpGetMine:                             {name: "GetMine"},
 		OpGenTx:                               {name: "GenTx"},
-		OpGetTransactionListByAddress:         {name: "GetTransactionListByAddress"},
-		OpGetLogs:                             {name: "GetLogs"},
-		OpEstimateGas:                         {name: "EstimateGas"},
-		OpGetStorageAt:                        {name: "GetStorageAt"},
-		OpGetCode:                             {name: "GetCode"},
-		OpGasPrice:                            {name: "GasPrice"},
-		OpGetWork:                             {name: "GetWork"},
-		OpSubmitWork:                          {name: "SubmitWork"},
+		OpGetTransactionListByAddress: {name: "GetTransactionListByAddress"},
+		OpGetLogs:                     {name: "GetLogs"},
+		OpEstimateGas:                 {name: "EstimateGas"},
+		OpGetStorageAt:                {name: "GetStorageAt"},
+		OpGetCode:                     {name: "GetCode"},
+		OpGasPrice:                    {name: "GasPrice"},
+		OpGetWork:                     {name: "GetWork"},
+		OpSubmitWork:                  {name: "SubmitWork"},
 	}
 )
 
 type opType struct {
-	// -1 useless, 0 SlaveServerSideOp funcs, 1 MasterServerSideOp funcs
-	serverType ServerType
+	serverType serverType
 	name       string
 }
 
-type RPCClient struct {
-	mu      sync.Mutex
+// Client wraps the GRPC client.
+type Client interface {
+	Call(server serverType, hostport string, req *Request) (*Response, error)
+	GetOpName(int64) string
+}
+
+type rpcClient struct {
+	mu      sync.RWMutex
 	timeout time.Duration
 	conns   map[string]*grpc.ClientConn
 	funcs   map[int64]opType
 	running bool
+	logger  log.Logger
 }
 
-func NewRPCLient() *RPCClient {
-	return &RPCClient{
-		conns:   conns,
-		funcs:   rpcFuncs,
-		timeout: 10 * time.Second,
-		running: true,
+func (c *rpcClient) GetOpName(op int64) string {
+	return rpcFuncs[op].name
+}
+
+func (c *rpcClient) Call(server serverType, hostport string, req *Request) (*Response, error) {
+	c.mu.RLock()
+	running := c.running
+	c.mu.RUnlock()
+
+	if !running {
+		return nil, errors.New("client has closed")
 	}
-}
 
-func (c *RPCClient) checkOp(op int64, serverType ServerType) bool {
-	if opType, exist := rpcFuncs[op];
-		exist && opType.serverType == serverType {
-		return true
+	opType, ok := rpcFuncs[req.Op]
+	if !(ok && opType.serverType == server) {
+		return nil, errors.New("invalid op")
 	}
-	return false
-}
 
-func (c *RPCClient) GetOpName(op int64) string {
-	opType, exist := rpcFuncs[op]
-	if exist {
-		return opType.name
+	conn, err := c.getConn(hostport)
+	if err != nil {
+		return nil, err
 	}
-	return ""
-}
-
-func (c *RPCClient) GetMasterServerSideOp(target string, req *Request) (*Response, error) {
-
-	if c.running {
-		if !c.checkOp(req.Op, MasterServer) {
-			return nil, errors.New(fmt.Sprintf("%s don't belong to master server grpc functions", rpcFuncs[req.Op].name))
-		}
-		conn, err := c.GetConn(target)
-		if err != nil {
-			return nil, err
-		}
-		client := NewMasterServerSideOpClient(conn)
-		return c.grpcOp(req, reflect.ValueOf(client))
+	var client reflect.Value
+	switch server {
+	case MasterServer:
+		client = reflect.ValueOf(NewMasterServerSideOpClient(conn))
+	case SlaveServer:
+		client = reflect.ValueOf(NewSlaveServerSideOpClient(conn))
+	default:
+		return nil, errors.New("unrecognized server type")
 	}
-	return nil, errors.New("client has closed")
+	return c.grpcOp(req, client)
 }
 
-func (c *RPCClient) GetSlaveSideOp(target string, req *Request) (*Response, error) {
-
-	if c.running {
-		if !c.checkOp(req.Op, SlaveServer) {
-			return nil, errors.New(fmt.Sprintf("%s don't belong to slave server grpc functions", rpcFuncs[req.Op].name))
-		}
-		conn, err := c.GetConn(target)
-		if err != nil {
-			return nil, err
-		}
-		client := NewSlaveServerSideOpClient(conn)
-		return c.grpcOp(req, reflect.ValueOf(client))
-	}
-	return nil, errors.New("client has closed")
-}
-
-func (c *RPCClient) Close() {
+func (c *rpcClient) Close() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.running = false
@@ -167,67 +150,70 @@ func (c *RPCClient) Close() {
 	}
 }
 
-func (c *RPCClient) grpcOp(req *Request, ele reflect.Value) (response *Response, err error) {
+func (c *rpcClient) getConn(hostport string) (*grpc.ClientConn, error) {
+	c.mu.RLock()
+	running := c.running
+	conn, ok := conns[hostport]
+	c.mu.RUnlock()
 
+	if !running {
+		return nil, errors.New("client has closed")
+	}
+
+	// add new connection if not existing or has failed
+	// note that race may happen when adding duplicate connections
+	if !ok || conn.GetState() > connectivity.TransientFailure {
+		return c.addConn(hostport)
+	}
+
+	return conn, nil
+}
+
+func (c *rpcClient) grpcOp(req *Request, ele reflect.Value) (response *Response, err error) {
 	ctx, cancel := context.WithTimeout(context.Background(), c.timeout)
 	defer cancel()
 
-	var val []reflect.Value
-	val = append(val, reflect.ValueOf(ctx), reflect.ValueOf(req))
+	val := []reflect.Value{reflect.ValueOf(ctx), reflect.ValueOf(req)}
 	rs := ele.MethodByName(rpcFuncs[req.Op].name).Call(val)
 	if rs[1].Interface() != nil {
 		err = rs[1].Interface().(error)
-		return
+		return nil, err
 	}
 
 	res := rs[0].Interface().(*Response)
 	if err != nil {
-		return
+		return nil, err
 	}
 	return res, nil
 }
 
-func (c *RPCClient) addConn(target string) error {
+func (c *rpcClient) addConn(hostport string) (*grpc.ClientConn, error) {
 	var (
 		conn *grpc.ClientConn
 		err  error
 	)
 	c.mu.Lock()
-	delete(conns, target)
+	defer c.mu.Unlock()
+
+	delete(conns, hostport)
 	// TODO add certificate or enciphered data
-	var opts []grpc.DialOption
-	opts = append(opts, grpc.WithInsecure())
-	conn, err = grpc.Dial(target, opts...)
-	// defer conn.Close()
-	if err == nil {
-		conns[target] = conn
-		fmt.Println("create new connection", target)
-	} else {
-		conn.Close()
+	opts := []grpc.DialOption{grpc.WithInsecure()}
+	conn, err = grpc.Dial(hostport, opts...)
+	if err != nil {
+		return nil, err
 	}
-	c.mu.Unlock()
-	return err
+	conns[hostport] = conn
+	c.logger.Debug("Created new connection", "hostport", hostport)
+	return conn, nil
 }
 
-func (c *RPCClient) GetConn(target string) (*grpc.ClientConn, error) {
-	if c.running {
-		if conn, ok := conns[target]; !ok ||
-			(ok && conn.GetState() > connectivity.TransientFailure) {
-			if err := c.addConn(target); err != nil {
-				return nil, err
-			}
-		}
-		return conns[target], nil
+// NewClient returns a new GRPC client wrapper.
+func NewClient() Client {
+	return &rpcClient{
+		conns:   conns,
+		funcs:   rpcFuncs,
+		timeout: 10 * time.Second,
+		running: true,
+		logger:  log.New("rpcclient"),
 	}
-	return nil, errors.New("client has closed")
-}
-
-func (c *RPCClient) Getfuncs(serverType ServerType) map[int64]string {
-	var funcs = make(map[int64]string)
-	for op, rpcfunc := range c.funcs {
-		if rpcfunc.serverType == serverType {
-			funcs[op] = rpcfunc.name
-		}
-	}
-	return funcs
 }

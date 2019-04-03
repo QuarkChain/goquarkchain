@@ -1,12 +1,12 @@
-// Modified from go-ethereum under GNU Lesser General Public License
 package rpc
 
 import (
+	"math/big"
+
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/serialize"
 	"github.com/ethereum/go-ethereum/common"
-	"math/big"
 )
 
 // RPCs to initialize a cluster

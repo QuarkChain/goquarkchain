@@ -1,13 +1,13 @@
-// Modified from go-ethereum under GNU Lesser General Public License
 package rpc
 
 import (
+	"net"
+
 	"github.com/ethereum/go-ethereum/rpc"
 	"google.golang.org/grpc"
-	"net"
 )
 
-func StartGRPCServer(grpcEndpoint string, apis []rpc.API) (net.Listener, *grpc.Server, error) {
+func StartGRPCServer(hostport string, apis []rpc.API) (net.Listener, *grpc.Server, error) {
 	handler := grpc.NewServer()
 	// regist rpc services
 	for _, api := range apis {
@@ -24,7 +24,7 @@ func StartGRPCServer(grpcEndpoint string, apis []rpc.API) (net.Listener, *grpc.S
 		listener net.Listener
 		err      error
 	)
-	if listener, err = net.Listen("tcp", grpcEndpoint); err != nil {
+	if listener, err = net.Listen("tcp", hostport); err != nil {
 		return nil, nil, err
 	}
 	go handler.Serve(listener)

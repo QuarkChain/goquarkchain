@@ -30,7 +30,7 @@ require (
 	golang.org/x/net v0.0.0-20190227160552-c95aed5357e7 // indirect
 	golang.org/x/sync v0.0.0-20190227155943-e225da77a7e6 // indirect
 	golang.org/x/sys v0.0.0-20190222072716-a9d3bda3a223 // indirect
-	google.golang.org/grpc v1.19.0
+	google.golang.org/grpc v1.19.1
 	gopkg.in/check.v1 v1.0.0-20180628173108-788fd7840127
 	gopkg.in/natefinch/npipe.v2 v2.0.0-20160621034901-c1b8fa8bdcce // indirect
 )
