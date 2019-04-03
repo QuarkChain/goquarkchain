@@ -37,7 +37,6 @@ func TestClusterConfig(t *testing.T) {
 	)
 	cluster := NewClusterConfig()
 	jsonConfig, err := json.Marshal(cluster)
-	fmt.Println(string(jsonConfig))
 	if err != nil {
 		t.Fatalf("cluster struct marshal error: %v", err)
 	}
