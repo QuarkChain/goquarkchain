@@ -31,8 +31,12 @@ var tomlSettings = toml.Config{
 }
 
 func TestClusterConfig(t *testing.T) {
-	clusterConfig := NewClusterConfig()
-	jsonConfig, err := json.Marshal(clusterConfig)
+	var (
+		chainSize         uint32 = 2
+		shardSizePerChain uint32 = 4
+	)
+	cluster := NewClusterConfig()
+	jsonConfig, err := json.Marshal(cluster)
 	if err != nil {
 		t.Fatalf("cluster struct marshal error: %v", err)
 	}
@@ -45,7 +49,7 @@ func TestClusterConfig(t *testing.T) {
 	var c ClusterConfig
 	err = json.Unmarshal(jsonConfig, &c)
 	if err != nil {
-		t.Fatalf("UnMarshal cluster config error: %v", err)
+		t.Fatalf("UnMarsshal cluster config error: %v", err)
 	}
 	if c.DbPathRoot != "./data" {
 		t.Fatalf("db path root error")
@@ -63,36 +67,24 @@ func TestClusterConfig(t *testing.T) {
 		t.Errorf("wrong marshaling of reward tax rate")
 	}
 
-	quarkchain.update(4, 10, 10)
-	if quarkchain.ShardSize != 4 {
-		t.Fatalf("quarkchain update function set shard size failed, shard size: %d", quarkchain.ShardSize)
-	}
-	for i := 0; i < int(quarkchain.ShardSize); i++ {
-		if quarkchain.GetGenesisRootHeight(uint32(i)) != 0 {
-			t.Fatalf("genesis height is not equal to 0.")
-		}
-	}
 	shardIds := quarkchain.GetGenesisShardIds()
-	if len(shardIds) != 4 {
+	// make sure the default chainsize and shardsize
+	if len(shardIds) != 2*3 {
 		t.Fatalf("shard id list is not enough.")
-	} else {
-		for i := 0; i < len(shardIds); i++ {
-			if shardIds[i] != i {
-				t.Fatalf("shard id is mismatched, shard id: %d", i)
-			}
+	}
+	for _, fullShardId := range shardIds {
+		if quarkchain.GetGenesisRootHeight(fullShardId) != 0 {
+			t.Fatalf("genesis height is not equal to 0.")
 		}
 	}
 	initializeIds := quarkchain.GetInitializedShardIdsBeforeRootHeight(0)
 	if len(initializeIds) != 0 {
 		t.Fatalf("the list of ids should be empty.")
 	}
-}
-
-func TestMarshallingRationalNumber(t *testing.T) {
-	jsonSource := []byte(`{"REWARD_TAX_RATE": 0.333}`)
-	var c QuarkChainConfig
-	assert.NoError(t, json.Unmarshal(jsonSource, &c))
-	assert.Equal(t, c.RewardTaxRate.String(), "333/1000")
+	quarkchain.Update(chainSize, shardSizePerChain, 10, 10)
+	if quarkchain.GetShardSizeByChainId(1) != 4 {
+		t.Fatalf("quarkchain update function set shard size failed, shard size: %d", quarkchain.GetShardSizeByChainId(1))
+	}
 }
 
 func TestSlaveConfig(t *testing.T) {
@@ -100,16 +92,14 @@ func TestSlaveConfig(t *testing.T) {
 		"IP": "1.2.3.4",
 		"PORT": 123,
 		"ID": "S1",
-		"SHARD_MASK_LIST": [4]
+		"CHAIN_MASK_LIST": [4]
 	}`)
 
-	assert := assert.New(t)
-
 	var sc SlaveConfig
-	assert.NoError(json.Unmarshal(s, &sc))
-	assert.Equal(uint32(4), sc.ShardMaskList[0].GetMask())
+	assert.NoError(t, json.Unmarshal(s, &sc))
+	assert.Equal(t, uint32(4), sc.ChainMaskList[0].GetMask())
 
 	jsonConfig, err := json.Marshal(&sc)
-	assert.NoError(err)
-	assert.True(strings.Contains(string(jsonConfig), "MASK_LIST\":[4]"))
+	assert.NoError(t, err)
+	assert.True(t, strings.Contains(string(jsonConfig), "MASK_LIST\":[4]"))
 }

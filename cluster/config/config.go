@@ -19,18 +19,11 @@ const (
 )
 
 var (
-	QuarkashToJiaozi  = big.NewInt(1000000000000000000)
-	DefaultNumSlaves  = 4
-	DefaultPOSWConfig = POSWConfig{
-		Enabled:            false,
-		DiffDivider:        20,
-		WindowSize:         256,
-		TotalStakePerBlock: new(big.Int).Mul(big.NewInt(9), QuarkashToJiaozi),
-	}
+	QuarkashToJiaozi   = big.NewInt(1000000000000000000)
+	DefaultNumSlaves   = 4
 	DefaultRootGenesis = RootGenesis{
 		Version:        0,
 		Height:         0,
-		ShardSize:      32,
 		HashPrevBlock:  "",
 		HashMerkleRoot: "",
 		Timestamp:      1519147489,
@@ -39,7 +32,7 @@ var (
 	}
 	DefaultMonitoring = MonitoringConfig{
 		NetworkName:      "",
-		ClusterId:        "127.0.0.1",
+		ClusterID:        "127.0.0.1",
 		KafkaRestAddress: "",
 		MinerTopic:       "qkc_miner",
 		PropagationTopic: "block_propagation",
@@ -63,7 +56,7 @@ var (
 )
 
 type POWConfig struct {
-	TargetBlockTime uint64 `json:"TARGET_BLOCK_TIME"`
+	TargetBlockTime uint32 `json:"TARGET_BLOCK_TIME"`
 	RemoteMine      bool   `json:"REMOTE_MINE"`
 }
 
@@ -75,10 +68,19 @@ func NewPOWConfig() *POWConfig {
 }
 
 type POSWConfig struct {
-	Enabled            bool
-	DiffDivider        uint32
-	WindowSize         uint32
-	TotalStakePerBlock *big.Int
+	Enabled            bool     `json:"ENABLED"`
+	DiffDivider        uint32   `json:"DIFF_DIVIDER"`
+	WindowSize         uint32   `json:"WINDOW_SIZE"`
+	TotalStakePerBlock *big.Int `json:"TOTAL_STAKE_PER_BLOCK"`
+}
+
+func NewPOSWConfig() *POSWConfig {
+	return &POSWConfig{
+		Enabled:            false,
+		DiffDivider:        20,
+		WindowSize:         256,
+		TotalStakePerBlock: new(big.Int).Mul(big.NewInt(1000000000), QuarkashToJiaozi),
+	}
 }
 
 type SimpleNetwork struct {
@@ -89,7 +91,6 @@ type SimpleNetwork struct {
 type RootGenesis struct {
 	Version        uint32 `json:"VERSION"`
 	Height         uint32 `json:"HEIGHT"`
-	ShardSize      uint64 `json:"SHARD_SIZE"`
 	HashPrevBlock  string `json:"HASH_PREV_BLOCK"`
 	HashMerkleRoot string `json:"HASH_MERKLE_ROOT"`
 	Timestamp      uint64 `json:"TIMESTAMP"`
@@ -124,6 +125,10 @@ func NewRootConfig() *RootConfig {
 	}
 }
 
+func (r *RootConfig) MaxRootBlocksInMemory() uint64 {
+	return r.MaxStaleRootBlockHeightDiff * 2
+}
+
 // TODO need to wait SharInfo be realized.
 /*func (c *ClusterConfig) GetSlaveInfoList() []*SlaveConfig {}*/
 
@@ -154,7 +159,7 @@ func (s *P2PConfig) GetBootNodes() []string {
 
 type MonitoringConfig struct {
 	NetworkName      string `json:"NETWORK_NAME"`
-	ClusterId        string `json:"CLUSTER_ID"`
+	ClusterID        string `json:"CLUSTER_ID"`
 	KafkaRestAddress string `json:"KAFKA_REST_ADDRESS"` // REST API endpoint for logging to Kafka, IP[:PORT] format
 	MinerTopic       string `json:"MINER_TOPIC"`        // "qkc_miner"
 	PropagationTopic string `json:"PROPAGATION_TOPIC"`  // "block_propagation"

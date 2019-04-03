@@ -51,20 +51,19 @@ func (g *Genesis) CreateMinorBlock(rootBlock *types.RootBlock, fullShardId uint3
 	if db == nil {
 		db = ethdb.NewMemDatabase()
 	}
-	if g.qkcConfig.ShardList[fullShardId] == nil || g.qkcConfig.ShardList[fullShardId].Genesis == nil {
+	shardConfig := g.qkcConfig.GetShardConfigByFullShardID(fullShardId)
+	if shardConfig == nil {
+		return nil, fmt.Errorf("config for shard %d is missing", fullShardId)
+	}
+	genesis := shardConfig.Genesis
+	if genesis == nil {
 		return nil, fmt.Errorf("genesis config for shard %d is missing", fullShardId)
 	}
 
 	statedb, _ := state.New(common.Hash{}, state.NewDatabase(db))
 	branch := account.Branch{Value: fullShardId}
-	genesis := g.qkcConfig.ShardList[fullShardId].Genesis
 
-	for addrStr, balance := range genesis.Alloc {
-		addr, err := account.CreatAddressFromBytes(common.Hex2Bytes(addrStr))
-		if err != nil {
-			return nil, err
-		}
-		//todo check full shard id
+	for addr, balance := range genesis.Alloc {
 		recipient := new(common.Address)
 		recipient.SetBytes(addr.Recipient.Bytes())
 		statedb.AddBalance(*recipient, balance)
@@ -76,7 +75,7 @@ func (g *Genesis) CreateMinorBlock(rootBlock *types.RootBlock, fullShardId uint3
 	}
 
 	coinbaseAmount := new(serialize.Uint256)
-	coinbaseAmount.Value = new(big.Int).Div(new(big.Int).Mul(g.qkcConfig.ShardList[fullShardId].CoinbaseAmount,
+	coinbaseAmount.Value = new(big.Int).Div(new(big.Int).Mul(shardConfig.CoinbaseAmount,
 		g.qkcConfig.RewardTaxRate.Denom()), g.qkcConfig.RewardTaxRate.Num())
 
 	gasLimit := new(serialize.Uint256)

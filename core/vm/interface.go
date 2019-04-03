@@ -73,6 +73,10 @@ type StateDB interface {
 	GetFullShardID() uint32
 	AddBlockFee(uint64)
 	GetQuarkChainConfig() *config.QuarkChainConfig
+	GetGasUsed() *big.Int
+	AddGasUsed(*big.Int)
+	GetGasLimit() *big.Int
+	SetGasLimit(*big.Int)
 }
 
 // CallContext provides a basic interface for the EVM calling conventions. The EVM
