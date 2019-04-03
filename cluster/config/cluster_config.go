@@ -161,7 +161,7 @@ func (q *QuarkChainConfig) UnmarshalJSON(input []byte) error {
 }
 
 // Return the root block height at which the shard shall be created
-func (q *QuarkChainConfig) GetGenesisRootHeight(fullShardId uint32) uint64 {
+func (q *QuarkChainConfig) GetGenesisRootHeight(fullShardId uint32) uint32 {
 	return q.shards[fullShardId].Genesis.RootHeight
 }
 
@@ -175,7 +175,7 @@ func (q *QuarkChainConfig) GetGenesisShardIds() []uint32 {
 }
 
 // Return a list of ids of the shards that have been initialized before a certain root height
-func (q *QuarkChainConfig) GetInitializedShardIdsBeforeRootHeight(rootHeight uint64) []uint32 {
+func (q *QuarkChainConfig) GetInitializedShardIdsBeforeRootHeight(rootHeight uint32) []uint32 {
 	var result []uint32
 	for fullShardId, config := range q.shards {
 		if config.Genesis != nil && config.Genesis.RootHeight < rootHeight {
