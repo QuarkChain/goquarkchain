@@ -214,6 +214,7 @@ func (c *Config) GRPCEndpoint() string {
 func (c *Config) NodeName() string {
 	name := c.name()
 	// Backwards compatibility: previous versions used title-cased "Qkc", keep that.
+	name = strings.ToLower(name)
 	if name == "qkc" || name == "qkc-testnet" {
 		name = "QKC"
 	}
