@@ -73,10 +73,16 @@ func NewApp(gitCommit, usage string) *cli.App {
 // are the same for all commands.
 
 var (
+	// General settings
+	DataDirFlag = DirectoryFlag{
+		Name:  "datadir",
+		Usage: "Data directory for the databases and keystore",
+		Value: DirectoryString{service.DefaultDataDir()},
+	}
 	LogLevelFlag = cli.StringFlag{
 		Name:  "log_level",
 		Usage: "log level",
-		Value: config.DefaultClusterConfig.LogLevel,
+		Value: "info",
 	}
 	CleanFlag = cli.BoolFlag{
 		Name:  "clean",
@@ -91,25 +97,30 @@ var (
 		Usage: "gensis data dir",
 		Value: "../genesis_data",
 	}
-	NumShardsFlag = cli.Uint64Flag{
+	NumChainsFlag = cli.IntFlag{
+		Name:  "num_chains",
+		Usage: "chain number",
+		Value: 3,
+	}
+	NumShardsFlag = cli.IntFlag{
 		Name:  "num_shards",
 		Usage: "shard number",
-		Value: config.DefaultQuatrain.ShardSize,
+		Value: 2,
 	}
-	RootBlockIntervalSecFlag = cli.Uint64Flag{
+	RootBlockIntervalSecFlag = cli.IntFlag{
 		Name:  "root_block_interval_sec",
 		Usage: "interval time of root block",
 		Value: 10,
 	}
-	MinorBlockIntervalSecFlag = cli.Uint64Flag{
+	MinorBlockIntervalSecFlag = cli.IntFlag{
 		Name:  "minor_block_interval_sec",
 		Usage: "",
 		Value: 3,
 	}
-	NetworkIdFlag = cli.Uint64Flag{
+	NetworkIdFlag = cli.IntFlag{
 		Name:  "network_id",
 		Usage: "net work id",
-		Value: config.DefaultQuatrain.NetworkId,
+		Value: 3,
 	}
 	NumSlavesFlag = cli.IntFlag{
 		Name:  "num_slaves",
@@ -119,12 +130,12 @@ var (
 	PortStartFlag = cli.Uint64Flag{
 		Name:  "port_start",
 		Usage: "slave start port",
-		Value: config.SLAVE_PORT,
+		Value: 38000,
 	}
 	DbPathRootFlag = cli.StringFlag{
 		Name:  "db_path_root",
 		Usage: "Data directory for the databases and keystore",
-		Value: config.DefaultClusterConfig.DbPathRoot,
+		Value: "./data",
 	}
 	P2pFlag = cli.BoolFlag{
 		Name:  "p2p",
@@ -133,17 +144,7 @@ var (
 	P2pPortFlag = cli.Uint64Flag{
 		Name:  "p2p_port",
 		Usage: "p2p port",
-		Value: config.DefaultClusterConfig.P2Port,
-	}
-	JsonRpcPortFlag = cli.Uint64Flag{
-		Name:  "json_rpc_port",
-		Usage: "public json rpc port",
-		Value: config.DefaultClusterConfig.JsonRPCPort,
-	}
-	JsonRpcPrivatePortFlag = cli.Uint64Flag{
-		Name:  "json_rpc_private_port",
-		Usage: "private json rpc port",
-		Value: config.DefaultClusterConfig.PrivateJsonRPCPort,
+		Value: 38291,
 	}
 	EnableTransactionHistoryFlag = cli.BoolFlag{
 		Name:  "enable_transaction_history",
@@ -152,12 +153,12 @@ var (
 	SimpleNetworkBootstrapHostFlag = cli.StringFlag{
 		Name:  "simple_network_bootstrap_host",
 		Usage: "simple network bootstrap host",
-		Value: config.HOST,
+		Value: "127.0.0.1",
 	}
 	SimpleNetworkBootstrapPortFlag = cli.Uint64Flag{
 		Name:  "simple_network_bootstrap_port",
 		Usage: "simple network bootstrap port",
-		Value: config.PORT,
+		Value: 38291,
 	}
 	MaxPeersFlag = cli.Uint64Flag{
 		Name:  "max_peers",
@@ -176,15 +177,6 @@ var (
 		Name:  "privkey",
 		Usage: "if empty,will be automatically generated; but note that it will be lost upon node reboot",
 	}
-	MonitoringKafkaRestAddressFlag = cli.StringFlag{
-		Name:  "monitoring_kafka_rest_address",
-		Usage: "",
-	}
-	GrpcPortFlag = cli.Uint64Flag{
-		Name:  "rpc_port",
-		Usage: "grpc ",
-		Value: config.PORT,
-	}
 	ServiceFlag = cli.StringFlag{
 		Name:  "service",
 		Usage: "svrvice type,if has eight slaves,fill like(S0,S2,...S7)",
@@ -198,18 +190,18 @@ var (
 		Value: 1024,
 	}
 	// RPC settings
-	RPCEnabledFlag = cli.BoolFlag{
-		Name:  "rpc",
-		Usage: "Enable the HTTP-RPC server",
+	RPCDisabledFlag = cli.BoolFlag{
+		Name:  "rpcdisable",
+		Usage: "disable the public HTTP-RPC server",
 	}
 	RPCListenAddrFlag = cli.StringFlag{
 		Name:  "rpcaddr",
-		Usage: "HTTP-RPC server listening interface",
+		Usage: "public HTTP-RPC server listening interface",
 		Value: service.DefaultHTTPHost,
 	}
 	RPCPortFlag = cli.IntFlag{
 		Name:  "rpcport",
-		Usage: "HTTP-RPC server listening port",
+		Usage: "public HTTP-RPC server listening port",
 		Value: service.DefaultHTTPPort,
 	}
 	RPCCORSDomainFlag = cli.StringFlag{
@@ -224,12 +216,22 @@ var (
 	}
 	RPCApiFlag = cli.StringFlag{
 		Name:  "rpcapi",
-		Usage: "API's offered over the HTTP-RPC interface",
+		Usage: "API's offered over the public HTTP-RPC interface",
 		Value: "",
 	}
-	IPCDisabledFlag = cli.BoolFlag{
-		Name:  "ipcdisable",
-		Usage: "Disable the IPC-RPC server",
+	JsonRpcPortFlag = cli.Uint64Flag{
+		Name:  "json_rpc_port",
+		Usage: "public json rpc port",
+		Value: 38291,
+	}
+	JsonRpcPrivatePortFlag = cli.Uint64Flag{
+		Name:  "json_rpc_private_port",
+		Usage: "private json rpc port",
+		Value: 38491,
+	}
+	IPCEnableFlag = cli.BoolFlag{
+		Name:  "ipc",
+		Usage: "enable the IPC-RPC server",
 	}
 	IPCPathFlag = DirectoryFlag{
 		Name:  "ipcpath",
@@ -313,7 +315,7 @@ func splitAndTrim(input string) []string {
 // setHTTP creates the HTTP RPC listener interface string from the set
 // command line flags, returning empty if the HTTP endpoint is disabled.
 func setHTTP(ctx *cli.Context, cfg *service.Config) {
-	if ctx.GlobalBool(RPCEnabledFlag.Name) && cfg.HTTPHost == "" {
+	if !ctx.GlobalBool(RPCDisabledFlag.Name) && cfg.HTTPHost == "" {
 		cfg.HTTPHost = "127.0.0.1"
 		if ctx.GlobalIsSet(RPCListenAddrFlag.Name) {
 			cfg.HTTPHost = ctx.GlobalString(RPCListenAddrFlag.Name)
@@ -335,16 +337,16 @@ func setHTTP(ctx *cli.Context, cfg *service.Config) {
 }
 
 func setGRPC(ctx *cli.Context, cfg *service.Config) {
-	cfg.SvrPort = ctx.GlobalUint64(GrpcPortFlag.Name)
-	cfg.SvrHost = config.HOST
+	cfg.SvrPort = ctx.GlobalUint64(JsonRpcPortFlag.Name)
+	cfg.SvrHost = "127.0.0.1"
 }
 
 // setIPC creates an IPC path configuration from the set command line flags,
 // returning an empty string if IPC was explicitly disabled, or the set path.
 func setIPC(ctx *cli.Context, cfg *service.Config) {
-	checkExclusive(ctx, IPCDisabledFlag, IPCPathFlag)
+	checkExclusive(ctx, IPCEnableFlag, IPCPathFlag)
 	switch {
-	case ctx.GlobalBool(IPCDisabledFlag.Name):
+	case !ctx.GlobalBool(IPCEnableFlag.Name):
 		cfg.IPCPath = ""
 	case ctx.GlobalIsSet(IPCPathFlag.Name):
 		cfg.IPCPath = ctx.GlobalString(IPCPathFlag.Name)
@@ -384,16 +386,17 @@ func SetP2PConfig(ctx *cli.Context, cfg *p2p.Config) {
 func SetClusterConfig(ctx *cli.Context, cfg *config.ClusterConfig) {
 
 	// quarkchain.update
-	shardSize := ctx.GlobalUint64(NumShardsFlag.Name)
-	if !common.IsP2(shardSize) {
+	shardSize := ctx.GlobalInt(NumShardsFlag.Name)
+	if !common.IsP2(uint32(shardSize)) {
 		Fatalf("shard size must be pow of 2")
 	}
-	rootBlockTime := ctx.GlobalUint64(RootBlockIntervalSecFlag.Name)
-	minorBlockTime := ctx.GlobalUint64(MinorBlockIntervalSecFlag.Name)
-	cfg.Quarkchain.Update(shardSize, rootBlockTime, minorBlockTime)
+	chainSize := ctx.GlobalInt(NumChainsFlag.Name)
+	rootBlockTime := ctx.GlobalInt(RootBlockIntervalSecFlag.Name)
+	minorBlockTime := ctx.GlobalInt(MinorBlockIntervalSecFlag.Name)
+	cfg.Quarkchain.Update(uint32(chainSize), uint32(shardSize), uint32(rootBlockTime), uint32(minorBlockTime))
 
 	// quarkchain.network_id
-	cfg.Quarkchain.NetworkId = ctx.GlobalUint64(NetworkIdFlag.Name)
+	cfg.Quarkchain.NetworkID = uint32(ctx.GlobalInt(NetworkIdFlag.Name))
 
 	// cluster.clean
 	if ctx.GlobalBool(CleanFlag.Name) {
@@ -408,15 +411,15 @@ func SetClusterConfig(ctx *cli.Context, cfg *config.ClusterConfig) {
 
 	portStart := ctx.GlobalUint64(PortStartFlag.Name)
 	numSlaves := ctx.GlobalUint64(NumSlavesFlag.Name)
-	if !common.IsP2(numSlaves) {
+	if !common.IsP2(uint32(numSlaves)) {
 		Fatalf("slave size must be pow of 2")
 	}
 	cfg.SlaveList = make([]*config.SlaveConfig, 0)
 	for i := 0; i < int(numSlaves); i++ {
-		slaveConfig := config.NewSlaveConfig()
+		slaveConfig := config.NewDefaultSlaveConfig()
 		slaveConfig.Port = portStart + uint64(i)
-		slaveConfig.Id = fmt.Sprintf("S%d", i)
-		slaveConfig.ShardMaskList = append(slaveConfig.ShardMaskList, types.NewChainMask(uint32(i)|uint32(numSlaves)))
+		slaveConfig.ID = fmt.Sprintf("S%d", i)
+		slaveConfig.ChainMaskList = append(slaveConfig.ChainMaskList, types.NewChainMask(uint32(i)|uint32(numSlaves)))
 		cfg.SlaveList = append(cfg.SlaveList, slaveConfig)
 	}
 
@@ -424,17 +427,16 @@ func SetClusterConfig(ctx *cli.Context, cfg *config.ClusterConfig) {
 	cfg.LogLevel = ctx.GlobalString(LogLevelFlag.Name)
 	// cluster.db_path_root
 	cfg.DbPathRoot = ctx.GlobalString(DbPathRootFlag.Name)
-	cfg.P2Port = ctx.GlobalUint64(P2pPortFlag.Name)
-	cfg.JsonRPCPort = ctx.GlobalUint64(JsonRpcPortFlag.Name)
-	cfg.PrivateJsonRPCPort = ctx.GlobalUint64(JsonRpcPortFlag.Name)
+	cfg.P2PPort = ctx.GlobalUint64(P2pPortFlag.Name)
+	cfg.JSONRPCPort = ctx.GlobalUint64(JsonRpcPortFlag.Name)
+	cfg.PrivateJSONRPCPort = ctx.GlobalUint64(JsonRpcPortFlag.Name)
 	if ctx.GlobalBool(StartSimulatedMiningFlag.Name) {
 		cfg.StartSimulatedMining = true
 	}
 	if ctx.GlobalBool(EnableTransactionHistoryFlag.Name) {
 		cfg.EnableTransactionHistory = true
 	}
-	cfg.Quarkchain.NetworkId = ctx.GlobalUint64(NetworkIdFlag.Name)
-	cfg.Monitoring.KafkaRestAddress = ctx.GlobalString(MonitoringKafkaRestAddressFlag.Name)
+	cfg.Quarkchain.NetworkID = uint32(ctx.GlobalInt(NetworkIdFlag.Name))
 
 	if ctx.GlobalIsSet(P2pFlag.Name) {
 		cfg.SimpleNetwork = nil
@@ -460,10 +462,6 @@ func SetNodeConfig(ctx *cli.Context, cfg *service.Config) {
 	setHTTP(ctx, cfg)
 	setGRPC(ctx, cfg)
 	setDataDir(ctx, cfg)
-
-	if ctx.GlobalIsSet(DbPathRootFlag.Name) {
-		cfg.KeyStoreDir = ctx.GlobalString(DbPathRootFlag.Name) + "/keystore"
-	}
 }
 
 func setDataDir(ctx *cli.Context, cfg *service.Config) {
@@ -558,4 +556,15 @@ func MigrateFlags(action func(ctx *cli.Context) error) func(*cli.Context) error 
 		}
 		return action(ctx)
 	}
+}
+
+// MakeDataDir retrieves the currently requested data directory, terminating
+// if none (or the empty string) is specified. If the node is starting a testnet,
+// the a subdirectory of the specified datadir will be used.
+func MakeDataDir(ctx *cli.Context) string {
+	if path := ctx.GlobalString(DataDirFlag.Name); path != "" {
+		return path
+	}
+	Fatalf("Cannot determine default data directory, please set manually (--datadir)")
+	return ""
 }

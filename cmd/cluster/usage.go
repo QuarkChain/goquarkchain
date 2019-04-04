@@ -68,7 +68,6 @@ var AppHelpFlagGroups = []flagGroup{
 			utils.BootnodesFlag,
 			utils.UpnpFlag,
 			utils.PrivkeyFlag,
-			utils.MonitoringKafkaRestAddressFlag,
 		},
 	},
 }

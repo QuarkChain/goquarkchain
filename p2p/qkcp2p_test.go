@@ -1,14 +1,15 @@
 package p2p
 
 import (
-	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"testing"
 	"time"
+
+	"github.com/QuarkChain/goquarkchain/cluster/config"
 )
 
 func FakeEnv(port uint64) config.ClusterConfig {
 	return config.ClusterConfig{
-		P2Port: port,
+		P2PPort: port,
 		P2P: &config.P2PConfig{
 			MaxPeers: 25,
 			PrivKey:  "3a28b5ba57c53603b0b07b56bba752f7784bf506fa95edc395f5cf6c7514fe94",
@@ -17,7 +18,7 @@ func FakeEnv(port uint64) config.ClusterConfig {
 }
 func FakeEnv2(port uint64, bootNodes string) config.ClusterConfig {
 	return config.ClusterConfig{
-		P2Port: port,
+		P2PPort: port,
 		P2P: &config.P2PConfig{
 			MaxPeers:  25,
 			BootNodes: bootNodes,

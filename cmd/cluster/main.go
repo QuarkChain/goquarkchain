@@ -16,7 +16,6 @@ import (
 	"github.com/QuarkChain/goquarkchain/cmd/utils"
 	"github.com/QuarkChain/goquarkchain/internal/debug"
 	"github.com/elastic/gosigar"
-	"github.com/ethereum/go-ethereum/console"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/metrics"
 	"gopkg.in/urfave/cli.v1"
@@ -47,15 +46,23 @@ var (
 		utils.DbPathRootFlag,
 		utils.P2pFlag,
 		utils.P2pPortFlag,
-		utils.JsonRpcPortFlag,
-		utils.JsonRpcPrivatePortFlag,
-		utils.GrpcPortFlag,
+
 		utils.EnableTransactionHistoryFlag,
 		utils.MaxPeersFlag,
 		utils.BootnodesFlag,
 		utils.UpnpFlag,
 		utils.PrivkeyFlag,
-		utils.MonitoringKafkaRestAddressFlag,
+	}
+
+	rpcFlags = []cli.Flag{
+		utils.RPCDisabledFlag,
+		utils.RPCListenAddrFlag,
+		utils.RPCPortFlag,
+		utils.RPCApiFlag,
+		utils.IPCEnableFlag,
+		utils.IPCPathFlag,
+		utils.JsonRpcPortFlag,
+		utils.JsonRpcPrivatePortFlag,
 	}
 )
 
@@ -70,6 +77,7 @@ func init() {
 
 	app.Flags = append(app.Flags, debug.Flags...)
 	app.Flags = append(app.Flags, usageFlags...)
+	app.Flags = append(app.Flags, rpcFlags...)
 
 	app.Before = func(ctx *cli.Context) error {
 		logdir := ""
@@ -100,7 +108,6 @@ func init() {
 
 	app.After = func(ctx *cli.Context) error {
 		debug.Exit()
-		console.Stdin.Close() // Resets terminal mode.
 		return nil
 	}
 }
@@ -135,13 +142,13 @@ func startService(ctx *cli.Context, stack *service.Node) {
 	utils.StartService(stack)
 
 	if stack.GetModule() {
-		var master *master.Master
+		var master *master.MasterBackend
 		if err := stack.Service(&master); err != nil {
 			utils.Fatalf("master service not running %v", err)
 		}
 		// TODO add gasprice
 	} else {
-		var slave *slave.Slave
+		var slave *slave.SlaveBackend
 		if err := stack.Service(&slave); err != nil {
 			utils.Fatalf("slave service not running %v", err)
 		}

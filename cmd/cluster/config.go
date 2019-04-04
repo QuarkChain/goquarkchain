@@ -72,7 +72,7 @@ func defaultNodeConfig() service.Config {
 func makeConfigNode(ctx *cli.Context) (*service.Node, qkcConfig) {
 	// Load defaults.
 	cfg := qkcConfig{
-		Cluster: config.NewClusterConfig(),
+		Cluster: *config.NewClusterConfig(),
 		Service: defaultNodeConfig(),
 	}
 
@@ -98,7 +98,7 @@ func makeConfigNode(ctx *cli.Context) (*service.Node, qkcConfig) {
 	}
 
 	stack, err := service.New(&cfg.Service)
-	stack.SetModule(ServiceName == clientIdentifier)
+	stack.SetIsMaster(ServiceName == clientIdentifier)
 	if err != nil {
 		utils.Fatalf("Failed to create the protocol stack: %v", err)
 	}
@@ -110,7 +110,7 @@ func makeFullNode(ctx *cli.Context) *service.Node {
 
 	if !stack.GetModule() {
 		for _, slv := range cfg.Cluster.SlaveList {
-			if cfg.Service.Name == slv.Id {
+			if cfg.Service.Name == slv.ID {
 				utils.RegisterSlaveService(stack, slv)
 				break
 			}

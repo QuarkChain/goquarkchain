@@ -33,7 +33,7 @@ type PendingLogsEvent struct {
 type NewMinedBlockEvent struct{ Block types.IBlock }
 
 // RemovedLogsEvent is posted when a reorg happens
-type RemovedLogsEvent struct{ Logs []*types.Log }
+type RemovedLogsEvent struct{ Logs []types.Log }
 
 type ChainEvent struct {
 	Block types.IBlock

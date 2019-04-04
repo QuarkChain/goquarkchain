@@ -33,19 +33,19 @@ func TestMinorBlockHeaderStorage(t *testing.T) {
 	// Create a test header to move around the database and make sure it's really new
 	//todo init header and meta
 	header := &types.MinorBlockHeader{Number: uint64(42)}
-	if entry := ReadMinorBlockHeader(db, header.Hash(), header.Number); entry != nil {
+	if entry := ReadMinorBlockHeader(db, header.Hash()); entry != nil {
 		t.Fatalf("Non existent header returned: %v", entry)
 	}
 	// Write and verify the header in the database
 	WriteMinorBlockHeader(db, header)
-	if entry := ReadMinorBlockHeader(db, header.Hash(), header.Number); entry == nil {
+	if entry := ReadMinorBlockHeader(db, header.Hash()); entry == nil {
 		t.Fatalf("Stored header not found")
 	} else if entry.Hash() != header.Hash() {
 		t.Fatalf("Retrieved header mismatch: have %v, want %v", entry, header)
 	}
 	// Delete the header and verify the execution
-	DeleteMinorBlockHeader(db, header.Hash(), header.Number)
-	if entry := ReadMinorBlockHeader(db, header.Hash(), header.Number); entry != nil {
+	DeleteMinorBlockHeader(db, header.Hash())
+	if entry := ReadMinorBlockHeader(db, header.Hash()); entry != nil {
 		t.Fatalf("Deleted header returned: %v", entry)
 	}
 }
@@ -57,67 +57,20 @@ func TestRootBlockHeaderStorage(t *testing.T) {
 	// Create a test header to move around the database and make sure it's really new
 	//todo init header and meta
 	header := &types.RootBlockHeader{Number: uint32(42)}
-	if entry := ReadRootBlockHeader(db, header.Hash(), header.NumberU64()); entry != nil {
+	if entry := ReadRootBlockHeader(db, header.Hash()); entry != nil {
 		t.Fatalf("Non existent header returned: %v", entry)
 	}
 	// Write and verify the header in the database
 	WriteRootBlockHeader(db, header)
-	if entry := ReadRootBlockHeader(db, header.Hash(), header.NumberU64()); entry == nil {
+	if entry := ReadRootBlockHeader(db, header.Hash()); entry == nil {
 		t.Fatalf("Stored header not found")
 	} else if entry.Hash() != header.Hash() {
 		t.Fatalf("Retrieved header mismatch: have %v, want %v", entry, header)
 	}
 	// Delete the header and verify the execution
-	DeleteRootBlockHeader(db, header.Hash(), header.NumberU64())
-	if entry := ReadRootBlockHeader(db, header.Hash(), header.NumberU64()); entry != nil {
+	DeleteRootBlockHeader(db, header.Hash())
+	if entry := ReadRootBlockHeader(db, header.Hash()); entry != nil {
 		t.Fatalf("Deleted header returned: %v", entry)
-	}
-}
-
-// Tests block body storage and retrieval operations.
-func TestMinorBlockBodyStorage(t *testing.T) {
-	db := ethdb.NewMemDatabase()
-
-	hash := common.BytesToHash(common.FromHex("a40920ae6f758f88c61b405f9fc39fdd6274666462b14e3887522166e6537a97"))
-
-	if entry, _ := ReadMinorBlockBody(db, hash, 0); entry != nil {
-		t.Fatalf("Non existent body returned: %v", entry)
-	}
-	// Write and verify the body in the database
-	WriteMinorBlockBody(db, hash, 0, txs, limitedSizeByes)
-	if trans, trackingData := ReadMinorBlockBody(db, hash, 0); trans == nil {
-		t.Fatalf("Stored body not found")
-	} else if types.DeriveSha(trans) != types.DeriveSha(txs) {
-		t.Fatalf("Retrieved body mismatch: have %v, want %v", trans, txs)
-	} else if common.Bytes2Hex(trackingData) != common.Bytes2Hex(limitedSizeByes) {
-		t.Fatalf("Retrieved body mismatch: have %v, want %v", trackingData, limitedSizeByes)
-	}
-	// Delete the body and verify the execution
-	DeleteBody(db, hash, 0)
-	if entry, _ := ReadMinorBlockBody(db, hash, 0); entry != nil {
-		t.Fatalf("Deleted body returned: %v", entry)
-	}
-}
-
-func TestRootBlockBodyStorage(t *testing.T) {
-	db := ethdb.NewMemDatabase()
-
-	hash := common.BytesToHash(common.FromHex("a40920ae6f758f88c61b405f9fc39fdd6274666462b14e3887522166e6537a97"))
-
-	if entry, _ := ReadRootBlockBody(db, hash, 0); entry != nil {
-		t.Fatalf("Non existent body returned: %v", entry)
-	}
-	// Write and verify the body in the database
-	WriteRootBlockBody(db, hash, 0, headers, common.FromHex("010203"))
-	if hs, _ := ReadRootBlockBody(db, hash, 0); hs == nil {
-		t.Fatalf("Stored body not found")
-	} else if types.DeriveSha(hs) != types.DeriveSha(headers) {
-		t.Fatalf("Retrieved body mismatch: have %v, want %v", hs, headers)
-	}
-	// Delete the body and verify the execution
-	DeleteBody(db, hash, 0)
-	if entry, _ := ReadRootBlockBody(db, hash, 0); entry != nil {
-		t.Fatalf("Deleted body returned: %v", entry)
 	}
 }
 
@@ -132,42 +85,31 @@ func TestRootBlockStorage(t *testing.T) {
 		MinorHeaderHash: types.EmptyHash,
 	}).WithBody(headers, limitedSizeByes)
 
-	if entry := ReadRootBlock(db, block.Hash(), block.NumberU64()); entry != nil {
+	if entry := ReadRootBlock(db, block.Hash()); entry != nil {
 		t.Fatalf("Non existent block returned: %v", entry)
 	}
-	if entry := ReadRootBlockHeader(db, block.Hash(), block.NumberU64()); entry != nil {
+	if entry := ReadRootBlockHeader(db, block.Hash()); entry != nil {
 		t.Fatalf("Non existent header returned: %v", entry)
-	}
-	if entry, _ := ReadRootBlockBody(db, block.Hash(), block.NumberU64()); entry != nil {
-		t.Fatalf("Non existent body returned: %v", entry)
 	}
 	// Write and verify the block in the database
 	WriteRootBlock(db, block)
-	if entry := ReadRootBlock(db, block.Hash(), block.NumberU64()); entry == nil {
+	if entry := ReadRootBlock(db, block.Hash()); entry == nil {
 		t.Fatalf("Stored block not found")
 	} else if entry.Hash() != block.Hash() {
 		t.Fatalf("Retrieved block mismatch: have %v, want %v", entry, block)
 	}
-	if entry := ReadRootBlockHeader(db, block.Hash(), block.NumberU64()); entry == nil {
+	if entry := ReadRootBlockHeader(db, block.Hash()); entry == nil {
 		t.Fatalf("Stored header not found")
 	} else if entry.Hash() != block.Header().Hash() {
 		t.Fatalf("Retrieved header mismatch: have %v, want %v", entry, block.Header())
 	}
-	if entry, _ := ReadRootBlockBody(db, block.Hash(), block.NumberU64()); entry == nil {
-		t.Fatalf("Stored body not found")
-	} else if types.DeriveSha(headers) != types.DeriveSha(entry) {
-		t.Fatalf("Retrieved body mismatch: have %v, want %v", entry, headers)
-	}
 	// Delete the block and verify the execution
-	DeleteRootBlock(db, block.Hash(), block.NumberU64())
-	if entry := ReadRootBlock(db, block.Hash(), block.NumberU64()); entry != nil {
+	DeleteRootBlock(db, block.Hash())
+	if entry := ReadRootBlock(db, block.Hash()); entry != nil {
 		t.Fatalf("Deleted block returned: %v", entry)
 	}
-	if entry := ReadRootBlockHeader(db, block.Hash(), block.NumberU64()); entry != nil {
+	if entry := ReadRootBlockHeader(db, block.Hash()); entry != nil {
 		t.Fatalf("Deleted header returned: %v", entry)
-	}
-	if entry, _ := ReadRootBlockBody(db, block.Hash(), block.NumberU64()); entry != nil {
-		t.Fatalf("Deleted body returned: %v", entry)
 	}
 }
 
@@ -181,110 +123,31 @@ func TestMinorBlockStorage(t *testing.T) {
 		ParentHash: types.EmptyHash,
 	}, &types.MinorBlockMeta{}).WithBody(txs, limitedSizeByes)
 
-	if entry := ReadMinorBlock(db, block.Hash(), block.Number()); entry != nil {
+	if entry := ReadMinorBlock(db, block.Hash()); entry != nil {
 		t.Fatalf("Non existent block returned: %v", entry)
 	}
-	if entry := ReadMinorBlockHeader(db, block.Hash(), block.Number()); entry != nil {
+	if entry := ReadMinorBlockHeader(db, block.Hash()); entry != nil {
 		t.Fatalf("Non existent header returned: %v", entry)
-	}
-	if entry, _ := ReadMinorBlockBody(db, block.Hash(), block.Number()); entry != nil {
-		t.Fatalf("Non existent body returned: %v", entry)
 	}
 	// Write and verify the block in the database
 	WriteMinorBlock(db, block)
-	if entry := ReadMinorBlock(db, block.Hash(), block.Number()); entry == nil {
+	if entry := ReadMinorBlock(db, block.Hash()); entry == nil {
 		t.Fatalf("Stored block not found")
 	} else if entry.Hash() != block.Hash() {
 		t.Fatalf("Retrieved block mismatch: have %v, want %v", entry, block)
 	}
-	if entry := ReadMinorBlockHeader(db, block.Hash(), block.Number()); entry == nil {
+	if entry := ReadMinorBlockHeader(db, block.Hash()); entry == nil {
 		t.Fatalf("Stored header not found")
 	} else if entry.Hash() != block.Header().Hash() {
 		t.Fatalf("Retrieved header mismatch: have %v, want %v", entry, block.Header())
 	}
-	if entry, _ := ReadMinorBlockBody(db, block.Hash(), block.Number()); entry == nil {
-		t.Fatalf("Stored body not found")
-	} else if types.DeriveSha(txs) != types.DeriveSha(entry) {
-		t.Fatalf("Retrieved body mismatch: have %v, want %v", entry, txs)
-	}
 	// Delete the block and verify the execution
-	DeleteMinorBlock(db, block.Hash(), block.Number())
-	if entry := ReadMinorBlock(db, block.Hash(), block.Number()); entry != nil {
+	DeleteMinorBlock(db, block.Hash())
+	if entry := ReadMinorBlock(db, block.Hash()); entry != nil {
 		t.Fatalf("Deleted block returned: %v", entry)
 	}
-	if entry := ReadMinorBlockHeader(db, block.Hash(), block.Number()); entry != nil {
+	if entry := ReadMinorBlockHeader(db, block.Hash()); entry != nil {
 		t.Fatalf("Deleted header returned: %v", entry)
-	}
-	if entry, _ := ReadMinorBlockBody(db, block.Hash(), block.Number()); entry != nil {
-		t.Fatalf("Deleted body returned: %v", entry)
-	}
-}
-
-// Tests that partial block contents don't get reassembled into full blocks.
-func TestPartialRootBlockStorage(t *testing.T) {
-	db := ethdb.NewMemDatabase()
-	block := types.NewRootBlockWithHeader(&types.RootBlockHeader{
-		Extra:           limitedSizeByes,
-		MinorHeaderHash: types.EmptyHash,
-		ParentHash:      types.EmptyHash,
-	})
-	// Store a header and check that it's not recognized as a block
-	WriteRootBlockHeader(db, block.Header())
-	if entry := ReadRootBlock(db, block.Hash(), block.NumberU64()); entry != nil {
-		t.Fatalf("Non existent block returned: %v", entry)
-	}
-	DeleteRootBlockHeader(db, block.Hash(), block.NumberU64())
-
-	// Store a body and check that it's not recognized as a block
-	WriteRootBlockBody(db, block.Hash(), block.NumberU64(), block.MinorBlockHeaders(), block.TrackingData())
-	if entry := ReadRootBlock(db, block.Hash(), block.NumberU64()); entry != nil {
-		t.Fatalf("Non existent block returned: %v", entry)
-	}
-	DeleteBody(db, block.Hash(), block.NumberU64())
-
-	// Store a header and a body separately and check reassembly
-	WriteRootBlockHeader(db, block.Header())
-	WriteRootBlockBody(db, block.Hash(), block.NumberU64(), block.MinorBlockHeaders(), block.TrackingData())
-
-	if entry := ReadRootBlock(db, block.Hash(), block.NumberU64()); entry == nil {
-		t.Fatalf("Stored block not found")
-	} else if entry.Hash() != block.Hash() {
-		t.Fatalf("Retrieved block mismatch: have %v, want %v", entry, block)
-	}
-}
-
-// Tests that partial block contents don't get reassembled into full blocks.
-func TestPartialMinorBlockStorage(t *testing.T) {
-	db := ethdb.NewMemDatabase()
-	block := types.NewMinorBlockWithHeader(&types.MinorBlockHeader{
-		Extra:      limitedSizeByes,
-		MetaHash:   types.EmptyHash,
-		ParentHash: types.EmptyHash,
-	}, &types.MinorBlockMeta{Root: types.EmptyHash})
-
-	// Store a header and check that it's not recognized as a block
-	WriteMinorBlockHeader(db, block.Header())
-	if entry := ReadMinorBlock(db, block.Hash(), block.Number()); entry != nil {
-		t.Fatalf("Non existent block returned: %v", entry)
-	}
-	DeleteMinorBlockHeader(db, block.Hash(), block.Number())
-
-	// Store a body and check that it's not recognized as a block
-	WriteMinorBlockBody(db, block.Hash(), block.Number(), block.Transactions(), block.TrackingData())
-	if entry := ReadMinorBlock(db, block.Hash(), block.Number()); entry != nil {
-		t.Fatalf("Non existent block returned: %v", entry)
-	}
-	DeleteBody(db, block.Hash(), block.Number())
-
-	// Store a header and a body separately and check reassembly
-	WriteMinorBlockHeader(db, block.Header())
-	WriteMinorBlockMeta(db, block.Header(), block.Meta())
-	WriteMinorBlockBody(db, block.Hash(), block.Number(), block.Transactions(), block.TrackingData())
-
-	if entry := ReadMinorBlock(db, block.Hash(), block.Number()); entry == nil {
-		t.Fatalf("Stored block not found")
-	} else if entry.Hash() != block.Hash() {
-		t.Fatalf("Retrieved block mismatch: have %v, want %v", entry, block)
 	}
 }
 
@@ -294,19 +157,19 @@ func TestTdStorage(t *testing.T) {
 
 	// Create a test TD to move around the database and make sure it's really new
 	hash, td := common.Hash{}, big.NewInt(314)
-	if entry := ReadTd(db, hash, 0); entry != nil {
+	if entry := ReadTd(db, hash); entry != nil {
 		t.Fatalf("Non existent TD returned: %v", entry)
 	}
 	// Write and verify the TD in the database
-	WriteTd(db, hash, 0, td)
-	if entry := ReadTd(db, hash, 0); entry == nil {
+	WriteTd(db, hash, td)
+	if entry := ReadTd(db, hash); entry == nil {
 		t.Fatalf("Stored TD not found")
 	} else if entry.Cmp(td) != 0 {
 		t.Fatalf("Retrieved TD mismatch: have %v, want %v", entry, td)
 	}
 	// Delete the TD and verify the execution
-	DeleteTd(db, hash, 0)
-	if entry := ReadTd(db, hash, 0); entry != nil {
+	DeleteTd(db, hash)
+	if entry := ReadTd(db, hash); entry != nil {
 		t.Fatalf("Deleted TD returned: %v", entry)
 	}
 }
@@ -317,19 +180,22 @@ func TestCanonicalMappingStorage(t *testing.T) {
 
 	// Create a test canonical number and assinged hash to move around
 	hash, number := common.Hash{0: 0xff}, uint64(314)
-	if entry := ReadCanonicalHash(db, number); entry != (common.Hash{}) {
+	if entry := ReadCanonicalHash(db, ChainType(0), number); entry != (common.Hash{}) {
 		t.Fatalf("Non existent canonical mapping returned: %v", entry)
 	}
 	// Write and verify the TD in the database
-	WriteCanonicalHash(db, hash, number)
-	if entry := ReadCanonicalHash(db, number); entry == (common.Hash{}) {
+	WriteCanonicalHash(db, 0, hash, number)
+	if entry := ReadCanonicalHash(db, ChainType(0), number); entry == (common.Hash{}) {
 		t.Fatalf("Stored canonical mapping not found")
 	} else if entry != hash {
 		t.Fatalf("Retrieved canonical mapping mismatch: have %v, want %v", entry, hash)
 	}
+	if entry := ReadCanonicalHash(db, ChainType(1), number); entry != (common.Hash{}) {
+		t.Fatalf("Non existent canonical mapping returned: %v", entry)
+	}
 	// Delete the TD and verify the execution
-	DeleteCanonicalHash(db, number)
-	if entry := ReadCanonicalHash(db, number); entry != (common.Hash{}) {
+	DeleteCanonicalHash(db, ChainType(0), number)
+	if entry := ReadCanonicalHash(db, ChainType(0), number); entry != (common.Hash{}) {
 		t.Fatalf("Deleted canonical mapping returned: %v", entry)
 	}
 }
@@ -399,12 +265,12 @@ func TestBlockReceiptStorage(t *testing.T) {
 
 	// Check that no receipt entries are in a pristine database
 	hash := common.BytesToHash([]byte{0x03, 0x14})
-	if rs := ReadReceipts(db, hash, 0); len(rs) != 0 {
+	if rs := ReadReceipts(db, hash); len(rs) != 0 {
 		t.Fatalf("non existent receipts returned: %v", rs)
 	}
 	// Insert the receipt slice into the database and check presence
-	WriteReceipts(db, hash, 0, receipts)
-	if rs := ReadReceipts(db, hash, 0); len(rs) == 0 {
+	WriteReceipts(db, hash, receipts)
+	if rs := ReadReceipts(db, hash); len(rs) == 0 {
 		t.Fatalf("no receipts returned")
 	} else {
 		for i := 0; i < len(receipts); i++ {
@@ -417,8 +283,8 @@ func TestBlockReceiptStorage(t *testing.T) {
 		}
 	}
 	// Delete the receipt slice and check purge
-	DeleteReceipts(db, hash, 0)
-	if rs := ReadReceipts(db, hash, 0); len(rs) != 0 {
+	DeleteReceipts(db, hash)
+	if rs := ReadReceipts(db, hash); len(rs) != 0 {
 		t.Fatalf("deleted receipts returned: %v", rs)
 	}
 }
