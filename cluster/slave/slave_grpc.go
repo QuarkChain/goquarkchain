@@ -10,13 +10,13 @@ import (
 
 type SlaveServerSideOp struct {
 	rpcId int64
-	id    string
 	mu    sync.Mutex
+	slave *SlaveBackend
 }
 
-func NewServerSideOp(id string) *SlaveServerSideOp {
+func NewServerSideOp(slave *SlaveBackend) *SlaveServerSideOp {
 	return &SlaveServerSideOp{
-		id: id,
+		slave: slave,
 	}
 }
 
