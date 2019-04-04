@@ -1,80 +1,20 @@
 package config
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/QuarkChain/goquarkchain/account"
+	"github.com/QuarkChain/goquarkchain/core/types"
+	"math/big"
 )
 
 var (
-	HOST                        = "127.0.0.1"
-	PORT                 uint64 = 38291
-	GRPC_PORT                   = PORT + 200
-	DefaultClusterConfig        = ClusterConfig{
-		P2Port:                   38291,
-		JsonRPCPort:              38291,
-		PrivateJsonRPCPort:       38291,
-		EnableTransactionHistory: false,
-		DbPathRoot:               "./db",
-		LogLevel:                 "info",
-		StartSimulatedMining:     false,
-		Clean:                    false,
-		GenesisDir:               "/dev/null",
-		Quarkchain:               nil,
-		Master:                   nil,
-		SlaveList:                nil,
-		SimpleNetwork:            nil,
-		P2P:                      nil,
-		Monitoring:               nil,
-		jsonFilepath:             "",
-	}
-	DefaultQuatrain = QuarkChainConfig{
-		ShardSize:                         8,
-		MaxNeighbors:                      32,
-		NetworkId:                         3,
-		TransactionQueueSizeLimitPerShard: 10000,
-		BlockExtraDataSizeLimit:           1024,
-		GuardianPublicKey:                 "ab856abd0983a82972021e454fcf66ed5940ed595b0898bcd75cbe2d0a51a00f5358b566df22395a2a8bf6c022c1d51a2c3defe654e91a8d244947783029694d",
-		GuardianPrivateKey:                nil,
-		P2ProtocolVersion:                 0,
-		P2PCommandSizeLimit:               (1 << 32) - 1,
-		SkipRootDifficultyCheck:           false,
-		SkipMinorDifficultyCheck:          false,
-		RewardTaxRate:                     0.5,
-	}
-)
-
-func (r *RootConfig) MaxRootBlocksInMemory() uint64 {
-	return r.MaxStaleRootBlockHeightDiff * 2
-}
-
-type ClusterConfig struct {
-	P2Port                   uint64            `json:"P2P_PORT"`
-	JsonRPCPort              uint64            `json:"JSON_RPC_PORT"`
-	PrivateJsonRPCPort       uint64            `json:"PRIVATE_JSON_RPC_PORT"`
-	EnableTransactionHistory bool              `json:"ENABLE_TRANSACTION_HISTORY"`
-	DbPathRoot               string            `json:"DB_PATH_ROOT"`
-	LogLevel                 string            `json:"LOG_LEVEL"`
-	StartSimulatedMining     bool              `json:"START_SIMULATED_MINING"`
-	Clean                    bool              `json:"CLEAN"`
-	GenesisDir               string            `json:"GENESIS_DIR"`
-	Quarkchain               *QuarkChainConfig `json:"QUARKCHAIN"`
-	Master                   *MasterConfig     `json:"MASTER"`
-	SlaveList                []*SlaveConfig    `json:"SLAVE_LIST"`
-	SimpleNetwork            *SimpleNetwork    `json:"SIMPLE_NETWORK"`
-	P2P                      *P2PConfig        `json:"P2P"`
-	Monitoring               *MonitoringConfig `json:"MONITORING"`
-	// TODO KafkaSampleLogger
-	//kafka_logger string
-
-	// configuration path
-	jsonFilepath string
-}
-
-func NewClusterConfig() ClusterConfig {
-	cluster := ClusterConfig{
-		P2Port:                   38291,
-		JsonRPCPort:              38291,
-		PrivateJsonRPCPort:       38291,
+	SlavePort             = 38000
+	skeletonClusterConfig = ClusterConfig{
+		P2PPort:                  38291,
+		JSONRPCPort:              38391,
+		PrivateJSONRPCPort:       38491,
 		EnableTransactionHistory: false,
 		DbPathRoot:               "./data",
 		LogLevel:                 "info",
@@ -85,26 +25,58 @@ func NewClusterConfig() ClusterConfig {
 		Master:                   &DefaultMasterConfig,
 		SimpleNetwork:            &DefaultSimpleNetwork,
 		P2P:                      &DefaultP2PConfig,
-		jsonFilepath:             "",
-		Monitoring:               &DfaultMonitoring,
+		Monitoring:               &DefaultMonitoring,
 	}
-	slave := NewSlaveConfig()
-	slave.Port = SLAVE_PORT
-	slave.Id = fmt.Sprintf("S%d", 0)
-	// slave.ShardMaskList = []
-	cluster.SlaveList = append(cluster.SlaveList, slave)
-	return cluster
+	skeletonQuarkChainConfig = QuarkChainConfig{
+		ChainSize:                         3,
+		MaxNeighbors:                      32,
+		NetworkID:                         3,
+		TransactionQueueSizeLimitPerShard: 10000,
+		BlockExtraDataSizeLimit:           1024,
+		GuardianPublicKey:                 "ab856abd0983a82972021e454fcf66ed5940ed595b0898bcd75cbe2d0a51a00f5358b566df22395a2a8bf6c022c1d51a2c3defe654e91a8d244947783029694d",
+		GuardianPrivateKey:                nil,
+		P2PProtocolVersion:                0,
+		P2PCommandSizeLimit:               (1 << 32) - 1,
+		SkipRootDifficultyCheck:           false,
+		SkipRootCoinbaseCheck:             false,
+		SkipMinorDifficultyCheck:          false,
+		GenesisToken:                      "",
+		RewardTaxRate:                     new(big.Rat).SetFloat64(0.5),
+		Root:                              NewRootConfig(),
+	}
+)
+
+type ClusterConfig struct {
+	P2PPort                  uint64            `json:"P2P_PORT"`
+	JSONRPCPort              uint64            `json:"JSON_RPC_PORT"`
+	PrivateJSONRPCPort       uint64            `json:"PRIVATE_JSON_RPC_PORT"`
+	EnableTransactionHistory bool              `json:"ENABLE_TRANSACTION_HISTORY"`
+	DbPathRoot               string            `json:"DB_PATH_ROOT"`
+	LogLevel                 string            `json:"LOG_LEVEL"`
+	StartSimulatedMining     bool              `json:"START_SIMULATED_MINING"`
+	Clean                    bool              `json:"CLEAN"`
+	GenesisDir               string            `json:"GENESIS_DIR"`
+	Quarkchain               *QuarkChainConfig `json:"QUARKCHAIN"`
+	Master                   *MasterConfig     `json:"MASTER"`
+	SlaveList                []*SlaveConfig    `json:"SLAVE_LIST"`
+	SimpleNetwork            *SimpleNetwork    `json:"SIMPLE_NETWORK,omitempty"`
+	P2P                      *P2PConfig        `json:"P2P,omitempty"`
+	Monitoring               *MonitoringConfig `json:"MONITORING"`
+	// TODO KafkaSampleLogger
 }
 
-func (c *ClusterConfig) GetP2P() *P2PConfig {
-	if c.P2P != nil {
-		return c.P2P
-	}
-	return nil
-}
+func NewClusterConfig() *ClusterConfig {
+	var ret ClusterConfig
+	ret = skeletonClusterConfig
 
-func (c *ClusterConfig) GetDbPathRoot() string {
-	return c.DbPathRoot
+	for i := 0; i < DefaultNumSlaves; i++ {
+		slave := NewDefaultSlaveConfig()
+		slave.Port = uint64(SlavePort + i)
+		slave.ID = fmt.Sprintf("S%d", i)
+		slave.ChainMaskList = append(slave.ChainMaskList, types.NewChainMask(uint32(i|DefaultNumSlaves)))
+		ret.SlaveList = append(ret.SlaveList, slave)
+	}
+	return &ret
 }
 
 func (c *ClusterConfig) GetSlaveConfig(id string) (*SlaveConfig, error) {
@@ -112,80 +84,92 @@ func (c *ClusterConfig) GetSlaveConfig(id string) (*SlaveConfig, error) {
 		return nil, errors.New("slave config is empty")
 	}
 	for _, slave := range c.SlaveList {
-		if slave != nil && slave.Id == id {
+		if slave != nil && slave.ID == id {
 			return slave, nil
 		}
 	}
-	return nil, errors.New(fmt.Sprintf("slave %s is not in cluster config", id))
+	return nil, fmt.Errorf("slave %s is not in cluster config", id)
 }
 
 type QuarkChainConfig struct {
-	ShardSize                         uint64         `json:"SHARD_SIZE"`
-	MaxNeighbors                      uint32         `json:"MAX_NEIGHBORS"`
-	NetworkId                         uint64         `json:"NETWORK_ID"`
-	TransactionQueueSizeLimitPerShard uint64         `json:"TRANSACTION_QUEUE_SIZE_LIMIT_PER_SHARD"`
-	BlockExtraDataSizeLimit           uint32         `json:"BLOCK_EXTRA_DATA_SIZE_LIMIT"`
-	GuardianPublicKey                 string         `json:"GUARDIAN_PUBLIC_KEY"`
-	GuardianPrivateKey                []byte         `json:"GUARDIAN_PRIVATE_KEY"`
-	P2ProtocolVersion                 uint32         `json:"P2P_PROTOCOL_VERSION"`
-	P2PCommandSizeLimit               uint32         `json:"P2P_COMMAND_SIZE_LIMIT"`
-	SkipRootDifficultyCheck           bool           `json:"SKIP_ROOT_DIFFICULTY_CHECK"`
-	SkipMinorDifficultyCheck          bool           `json:"SKIP_MINOR_DIFFICULTY_CHECK"`
-	GenesisToken                      string         `json:"GENESIS_TOKEN"`
-	Root                              *RootConfig    `json:"ROOT"`
-	ShardList                         []*ShardConfig `json:"SHARD_LIST"`
-	RewardTaxRate                     float32        `json:"REWARD_TAX_RATE"`
-	// local_accounts []
+	ChainSize                         uint32      `json:"CHAIN_SIZE"`
+	MaxNeighbors                      uint32      `json:"MAX_NEIGHBORS"`
+	NetworkID                         uint32      `json:"NETWORK_ID"`
+	TransactionQueueSizeLimitPerShard uint64      `json:"TRANSACTION_QUEUE_SIZE_LIMIT_PER_SHARD"`
+	BlockExtraDataSizeLimit           uint32      `json:"BLOCK_EXTRA_DATA_SIZE_LIMIT"`
+	GuardianPublicKey                 string      `json:"GUARDIAN_PUBLIC_KEY"`
+	GuardianPrivateKey                []byte      `json:"GUARDIAN_PRIVATE_KEY"`
+	P2PProtocolVersion                uint32      `json:"P2P_PROTOCOL_VERSION"`
+	P2PCommandSizeLimit               uint32      `json:"P2P_COMMAND_SIZE_LIMIT"`
+	SkipRootDifficultyCheck           bool        `json:"SKIP_ROOT_DIFFICULTY_CHECK"`
+	SkipRootCoinbaseCheck             bool        `json:"SKIP_ROOT_COINBASE_CHECK"`
+	SkipMinorDifficultyCheck          bool        `json:"SKIP_MINOR_DIFFICULTY_CHECK"`
+	GenesisToken                      string      `json:"GENESIS_TOKEN"`
+	Root                              *RootConfig `json:"ROOT"`
+	shards                            map[uint32]*ShardConfig
+	Chains                            map[uint32]*ChainConfig `json:"-"`
+	RewardTaxRate                     *big.Rat                `json:"-"`
+	chainIdToShardSize                map[uint32]uint32
+	chainIdToShardIds                 map[uint32][]uint32
 }
 
-func NewQuarkChainConfig() *QuarkChainConfig {
-	quark := &QuarkChainConfig{
-		ShardSize:                         8,
-		MaxNeighbors:                      32,
-		NetworkId:                         3, // testnet_porsche 3
-		TransactionQueueSizeLimitPerShard: 10000,
-		BlockExtraDataSizeLimit:           1024,
-		GuardianPublicKey:                 "ab856abd0983a82972021e454fcf66ed5940ed595b0898bcd75cbe2d0a51a00f5358b566df22395a2a8bf6c022c1d51a2c3defe654e91a8d244947783029694d",
-		GuardianPrivateKey:                nil,
-		P2ProtocolVersion:                 0,
-		P2PCommandSizeLimit:               (1 << 32) - 1,
-		SkipRootDifficultyCheck:           false,
-		SkipMinorDifficultyCheck:          false,
-		Root:                              NewRootConfig(),
-		ShardList:                         make([]*ShardConfig, 0),
-		RewardTaxRate:                     0.5,
+type QuarkChainConfigAlias QuarkChainConfig
+
+func (q *QuarkChainConfig) MarshalJSON() ([]byte, error) {
+	rewardTaxRate, _ := q.RewardTaxRate.Float64()
+	chains := make([]*ChainConfig, 0)
+	for _, chain := range q.Chains {
+		chains = append(chains, chain)
 	}
-	quark.Root.ConsensusType = PoWSimulate
-	quark.Root.ConsensusConfig = NewPOWConfig()
-	quark.Root.ConsensusConfig.TargetBlockTime = 10
-	quark.Root.Genesis.ShardSize = DefaultQuatrain.ShardSize
-	for i := 0; i < int(DefaultQuatrain.ShardSize); i++ {
-		s := NewShardConfig()
-		s.SetRootConfig(quark.Root)
-		s.ConsensusType = PoWSimulate
-		s.ConsensusConfig = NewPOWConfig()
-		s.ConsensusConfig.TargetBlockTime = 3
-		quark.ShardList = append(quark.ShardList, s)
-	}
-	return quark
+	jsonConfig := struct {
+		QuarkChainConfigAlias
+		Chains        []*ChainConfig `json:"CHAINS"`
+		RewardTaxRate float64        `json:"REWARD_TAX_RATE"`
+	}{QuarkChainConfigAlias(*q), chains, rewardTaxRate}
+	return json.Marshal(jsonConfig)
 }
 
-// TODO need to add reward_tax_rate function
-/*func (q *QuarkChainConfig) rewardTaxRate() uint {}*/
+func (q *QuarkChainConfig) UnmarshalJSON(input []byte) error {
+	var jsonConfig struct {
+		QuarkChainConfigAlias
+		Chains        []*ChainConfig `json:"CHAINS"`
+		RewardTaxRate float64        `json:"REWARD_TAX_RATE"`
+	}
+	if err := json.Unmarshal(input, &jsonConfig); err != nil {
+		return err
+	}
+	*q = QuarkChainConfig(jsonConfig.QuarkChainConfigAlias)
+	q.Chains = make(map[uint32]*ChainConfig)
+	q.shards = make(map[uint32]*ShardConfig)
+	for chainID, chainCfg := range jsonConfig.Chains {
+		q.Chains[uint32(chainID)] = chainCfg
+		for shardID := uint32(0); shardID < chainCfg.ShardSize; shardID++ {
+			shardCfg := NewShardConfig(chainCfg)
+			shardCfg.SetRootConfig(q.Root)
+			shardCfg.ShardID = shardID
+			shardCfg.CoinbaseAddress = chainCfg.CoinbaseAddress
+			q.shards[shardCfg.GetFullShardId()] = shardCfg
+		}
+	}
+	var (
+		denom int64 = 1000
+		num         = int64(jsonConfig.RewardTaxRate * float64(denom))
+	)
+	q.RewardTaxRate = big.NewRat(num, denom)
+	q.initAndValidate()
+	return nil
+}
 
 // Return the root block height at which the shard shall be created
-func (q *QuarkChainConfig) GetGenesisRootHeight(shardId int) uint32 {
-	if q.ShardSize <= uint64(shardId) {
-		return 0
-	}
-	return q.ShardList[shardId].Genesis.Height
+func (q *QuarkChainConfig) GetGenesisRootHeight(fullShardId uint32) uint32 {
+	return q.shards[fullShardId].Genesis.RootHeight
 }
 
-// Return a list of ids for shards that have GENESIS
-func (q *QuarkChainConfig) GetGenesisShardIds() []int {
-	var result []int
-	for shardId := range q.ShardList {
-		result = append(result, shardId)
+// GetGenesisShardIds returns a list of ids for shards that have GENESIS.
+func (q *QuarkChainConfig) GetGenesisShardIds() []uint32 {
+	var result []uint32
+	for shardID := range q.shards {
+		result = append(result, shardID)
 	}
 	return result
 }
@@ -193,29 +177,16 @@ func (q *QuarkChainConfig) GetGenesisShardIds() []int {
 // Return a list of ids of the shards that have been initialized before a certain root height
 func (q *QuarkChainConfig) GetInitializedShardIdsBeforeRootHeight(rootHeight uint32) []uint32 {
 	var result []uint32
-	for shardId, config := range q.ShardList {
+	for fullShardId, config := range q.shards {
 		if config.Genesis != nil && config.Genesis.RootHeight < rootHeight {
-			result = append(result, uint32(shardId))
+			result = append(result, uint32(fullShardId))
 		}
 	}
 	return result
 }
 
-func (q *QuarkChainConfig) GetShardConfigById(shardId uint64) *ShardConfig {
-	if q.ShardSize <= shardId {
-		return nil
-	}
-	return q.ShardList[shardId]
-}
-
-// TODO need to add guardian_public_key function
-/*func (q *QuarkChainConfig) GuardianPublicKey() {}*/
-
-// TODO need to add guardian_private_key funcion
-/*func (q *QuarkChainConfig) GuardianPrivateKey() {}*/
-
-func (q *QuarkChainConfig) Update(shardSize, rootBlockTime, minorBlockTime uint64) {
-	q.ShardSize = shardSize
+func (q *QuarkChainConfig) Update(chainSize, shardSizePerChain, rootBlockTime, minorBlockTime uint32) {
+	q.ChainSize = chainSize
 	if q.Root == nil {
 		q.Root = NewRootConfig()
 	}
@@ -224,17 +195,115 @@ func (q *QuarkChainConfig) Update(shardSize, rootBlockTime, minorBlockTime uint6
 		q.Root.ConsensusConfig = NewPOWConfig()
 	}
 	q.Root.ConsensusConfig.TargetBlockTime = rootBlockTime
-	q.Root.Genesis.ShardSize = shardSize
 
-	q.ShardList = make([]*ShardConfig, 0)
-	for i := 0; i < int(q.ShardSize); i++ {
-		s := NewShardConfig()
-		s.SetRootConfig(q.Root)
-		s.ConsensusType = PoWSimulate
-		s.ConsensusConfig = NewPOWConfig()
-		s.ConsensusConfig.TargetBlockTime = minorBlockTime
-		// TODO address serialization type shuld to be replaced
-		s.CoinbaseAddress = ""
-		q.ShardList = append(q.ShardList, s)
+	q.Chains = make(map[uint32]*ChainConfig)
+	q.shards = make(map[uint32]*ShardConfig)
+	for chainId := uint32(0); chainId < chainSize; chainId++ {
+		chainCfg := NewChainConfig()
+		chainCfg.ChainID = chainId
+		chainCfg.ShardSize = shardSizePerChain
+		chainCfg.ConsensusType = PoWSimulate
+		chainCfg.ConsensusConfig = NewPOWConfig()
+		q.Chains[chainId] = chainCfg
+		for shardId := uint32(0); shardId < shardSizePerChain; shardId++ {
+			shardCfg := NewShardConfig(chainCfg)
+			shardCfg.SetRootConfig(q.Root)
+			shardCfg.ShardID = shardId
+			// shardCfg.CoinbaseAddress = account.CreatEmptyAddress(shardCfg.GetFullShardId())
+			q.shards[shardCfg.GetFullShardId()] = shardCfg
+		}
 	}
+	q.initAndValidate()
+}
+
+func (q *QuarkChainConfig) initAndValidate() {
+
+	q.chainIdToShardSize = make(map[uint32]uint32)
+	q.chainIdToShardIds = make(map[uint32][]uint32)
+
+	for fullShardId, shardCfg := range q.shards {
+		chainID := shardCfg.ChainID
+		shardSize := shardCfg.ShardSize
+		shardID := shardCfg.ShardID
+		realID := (chainID << 16) | shardSize | shardID
+		//fmt.Println("fullShardID=", fullShardId, "realID=", realID, "chainID=", chainID, "shardSize=", shardSize, "shardID=", shardID)
+		if fullShardId != realID {
+			panic(fmt.Sprintf("full_shard_id is not right, target=%d, actual=%d", realID, fullShardId))
+		} else {
+			q.chainIdToShardSize[chainID] = shardSize
+		}
+		if q.chainIdToShardIds[chainID] == nil {
+			q.chainIdToShardIds[chainID] = make([]uint32, 0)
+		}
+		q.chainIdToShardIds[chainID] = append(q.chainIdToShardIds[chainID], shardID)
+	}
+	chainIDMap := make(map[uint32]uint32)
+	for chainID, shardIDs := range q.chainIdToShardIds {
+		chainIDMap[chainID] = chainID
+		shardSize := q.GetShardSizeByChainId(chainID)
+		if len(shardIDs) != int(shardSize) {
+			panic(fmt.Sprintf("shard_size length is not right, target=%d, actual=%d", shardSize, len(shardIDs)))
+		}
+		for i := uint32(0); i < shardSize; i++ {
+			exist := false
+			for _, shardID := range shardIDs {
+				if i == shardID {
+					exist = true
+					break
+				}
+			}
+			if !exist {
+				panic(fmt.Sprintf("shard ids is not right, target=%d, actual=%d", i, shardIDs[i]))
+			}
+		}
+	}
+	for i := uint32(0); i < q.ChainSize; i++ {
+		if i != chainIDMap[i] {
+			panic(fmt.Sprintf("chain id is not right, target=%d, actual=%d", i, chainIDMap[i]))
+		}
+	}
+}
+
+func (q *QuarkChainConfig) GetShardConfigByFullShardID(fullShardID uint32) *ShardConfig {
+	return q.shards[fullShardID]
+}
+
+func (q *QuarkChainConfig) GetFullShardIdByFullShardKey(fullShardKey uint32) uint32 {
+	chainID := fullShardKey >> 16
+	shardSize := q.GetShardSizeByChainId(chainID)
+	shardID := fullShardKey & (shardSize - 1)
+	return (chainID << 16) | shardSize | shardID
+}
+
+func (q *QuarkChainConfig) GetShardSizeByChainId(ID uint32) uint32 {
+	return q.chainIdToShardSize[ID]
+}
+
+func NewQuarkChainConfig() *QuarkChainConfig {
+	var ret QuarkChainConfig
+	ret = skeletonQuarkChainConfig
+
+	ret.Root.ConsensusType = PoWSimulate
+	ret.Root.ConsensusConfig = NewPOWConfig()
+	ret.Root.ConsensusConfig.TargetBlockTime = 10
+
+	ret.Chains = make(map[uint32]*ChainConfig)
+	ret.shards = make(map[uint32]*ShardConfig)
+	for chainID := uint32(0); chainID < ret.ChainSize; chainID++ {
+		cfg := NewChainConfig()
+		cfg.ChainID = chainID
+		cfg.ConsensusType = PoWSimulate
+		cfg.ConsensusConfig = NewPOWConfig()
+		cfg.ConsensusConfig.TargetBlockTime = 3
+		ret.Chains[chainID] = cfg
+		for shardID := uint32(0); shardID < cfg.ShardSize; shardID++ {
+			shardCfg := NewShardConfig(cfg)
+			shardCfg.SetRootConfig(ret.Root)
+			shardCfg.ShardID = shardID
+			shardCfg.CoinbaseAddress = account.CreatEmptyAddress(shardCfg.GetFullShardId())
+			ret.shards[shardCfg.GetFullShardId()] = shardCfg
+		}
+	}
+	ret.initAndValidate()
+	return &ret
 }

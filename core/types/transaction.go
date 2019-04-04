@@ -310,18 +310,19 @@ func (tx *Transaction) getPrice() *big.Int {
 	return big.NewInt(0)
 }
 
-func (tx *Transaction) Sender(signer Signer) account.Recipient {
+func (tx *Transaction) Sender(signer Signer) (account.Recipient, error) {
 	if tx.TxType == EvmTx {
 		addr, err := Sender(signer, tx.EvmTx)
 		if err != nil {
-			log.Error(err.Error(), tx)
-			return *new(account.Recipient)
+			log.Error(err.Error(), "tx", tx)
+			return account.Recipient{}, err
 		}
 
-		return addr
+		return addr, nil
 	} else {
-		log.Error(fmt.Sprintf("do not support tx type %d", tx.TxType))
-		return *new(account.Recipient)
+		err := errors.New(fmt.Sprintf("do not support tx type %d", tx.TxType))
+		log.Error(err.Error())
+		return account.Recipient{}, err
 	}
 }
 
@@ -400,13 +401,16 @@ type TransactionsByPriceAndNonce struct {
 //
 // Note, the input map is reowned so the caller should not interact any more with
 // if after providing it to the constructor.
-func NewTransactionsByPriceAndNonce(signer Signer, txs map[account.Recipient]Transactions) *TransactionsByPriceAndNonce {
+func NewTransactionsByPriceAndNonce(signer Signer, txs map[account.Recipient]Transactions) (*TransactionsByPriceAndNonce, error) {
 	// Initialize a price based heap with the head transactions
 	heads := make(TxByPrice, 0, len(txs))
 	for from, accTxs := range txs {
 		heads = append(heads, accTxs[0])
 		// Ensure the sender address is from the signer
-		acc := accTxs[0].Sender(signer)
+		acc, err := accTxs[0].Sender(signer)
+		if err != nil {
+			return nil, err
+		}
 		txs[acc] = accTxs[1:]
 		if from != acc {
 			delete(txs, from)
@@ -419,7 +423,7 @@ func NewTransactionsByPriceAndNonce(signer Signer, txs map[account.Recipient]Tra
 		txs:    txs,
 		heads:  heads,
 		signer: signer,
-	}
+	}, nil
 }
 
 // Peek returns the next transaction by price.
@@ -431,14 +435,18 @@ func (t *TransactionsByPriceAndNonce) Peek() *Transaction {
 }
 
 // Shift replaces the current best head with the next one from the same account.
-func (t *TransactionsByPriceAndNonce) Shift() {
-	acc := t.heads[0].Sender(t.signer)
+func (t *TransactionsByPriceAndNonce) Shift() error {
+	acc, err := t.heads[0].Sender(t.signer)
+	if err != nil {
+		return err
+	}
 	if txs, ok := t.txs[acc]; ok && len(txs) > 0 {
 		t.heads[0], t.txs[acc] = txs[0], txs[1:]
 		heap.Fix(&t.heads, 0)
 	} else {
 		heap.Pop(&t.heads)
 	}
+	return nil
 }
 
 // Pop removes the best transaction, *not* replacing it with the next one from

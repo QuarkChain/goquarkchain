@@ -1,22 +1,24 @@
 package config
 
 import (
-	"github.com/ethereum/go-ethereum/common/math"
+	"encoding/json"
+	"github.com/QuarkChain/goquarkchain/account"
+	"github.com/ethereum/go-ethereum/common"
 	"math/big"
 )
 
 type ShardGenesis struct {
-	RootHeight         uint32              `json:"ROOT_HEIGHT"`
-	Version            uint32              `json:"VERSION"`
-	Height             uint32              `json:"HEIGHT"`
-	HashPrevMinorBlock string              `json:"HASH_PREV_MINOR_BLOCK"`
-	HashMerkleRoot     string              `json:"HASH_MERKLE_ROOT"`
-	ExtraData          []byte              `json:"EXTRA_DATA"`
-	Timestamp          uint64              `json:"TIMESTAMP"`
-	Difficulty         uint64              `json:"DIFFICULTY"`
-	GasLimit           uint64              `json:"GAS_LIMIT"`
-	Nonce              uint32              `json:"NONCE"`
-	Alloc              map[string]*big.Int `json:"ALLOC"`
+	RootHeight         uint32                       `json:"ROOT_HEIGHT"`
+	Version            uint32                       `json:"VERSION"`
+	Height             uint64                       `json:"HEIGHT"`
+	HashPrevMinorBlock string                       `json:"HASH_PREV_MINOR_BLOCK"`
+	HashMerkleRoot     string                       `json:"HASH_MERKLE_ROOT"`
+	ExtraData          []byte                       `json:"EXTRA_DATA"`
+	Timestamp          uint64                       `json:"TIMESTAMP"`
+	Difficulty         uint64                       `json:"DIFFICULTY"`
+	GasLimit           uint64                       `json:"GAS_LIMIT"`
+	Nonce              uint32                       `json:"NONCE"`
+	Alloc              map[account.Address]*big.Int `json:"-"`
 }
 
 func NewShardGenesis() *ShardGenesis {
@@ -31,52 +33,57 @@ func NewShardGenesis() *ShardGenesis {
 		Difficulty:         10000,
 		GasLimit:           30000 * 400,
 		Nonce:              0,
-		Alloc:              make(map[string]*big.Int),
+		Alloc:              make(map[account.Address]*big.Int),
 	}
+}
+
+type ShardGenesisAlias ShardGenesis
+
+func (s *ShardGenesis) MarshalJSON() ([]byte, error) {
+	var alloc = make(map[string]*big.Int)
+	for addr, val := range s.Alloc {
+		alloc[string(addr.ToHex())] = val
+	}
+	jsonConfig := struct {
+		ShardGenesisAlias
+		Alloc map[string]*big.Int `json:"ALLOC"`
+	}{ShardGenesisAlias(*s), alloc}
+	return json.Marshal(jsonConfig)
+}
+
+func (s *ShardGenesis) UnmarshalJSON(input []byte) error {
+	var jsonConfig struct {
+		ShardGenesisAlias
+		Alloc map[string]*big.Int `json:"ALLOC"`
+	}
+	if err := json.Unmarshal(input, &jsonConfig); err != nil {
+		return err
+	}
+	*s = ShardGenesis(jsonConfig.ShardGenesisAlias)
+	s.Alloc = make(map[account.Address]*big.Int)
+	for addr, val := range jsonConfig.Alloc {
+		address, err := account.CreatAddressFromBytes(common.FromHex(addr))
+		if err != nil {
+			return err
+		}
+		s.Alloc[address] = val
+	}
+	return nil
 }
 
 type ShardConfig struct {
-	// Only set when CONSENSUS_TYPE is not NONE
-	ConsensusType   string        `json:"CONSENSUS_TYPE"`
-	ConsensusConfig *POWConfig    `json:"CONSENSUS_CONFIG"` // POWconfig
-	Genesis         *ShardGenesis `json:"GENESIS"`          // ShardGenesis
-	// TODO coinbase address shuild to be redesigned.
-	CoinbaseAddress                    string  `json:"COINBASE_ADDRESS"`
-	CoinbaseAmount                     float64 `json:"COINBASE_AMOUNT"` // default 5 * 10^18
-	GasLimitEmaDenominator             uint64  `json:"GAS_LIMIT_EMA_DENOMINATOR"`
-	GasLimitAdjustmentFactor           uint64  `json:"GAS_LIMIT_ADJUSTMENT_FACTOR"`
-	GasLimitMinimum                    uint64  `json:"GAS_LIMIT_MINIMUM"`
-	GasLimitMaximum                    uint64  `json:"GAS_LIMIT_MAXIMUM"`
-	GasLimitUsageAdjustmentNumerator   uint32  `json:"GAS_LIMIT_USAGE_ADJUSTMENT_NUMERATOR"`
-	GasLimitUsageAdjustmentDenominator uint32  `json:"GAS_LIMIT_USAGE_ADJUSTMENT_DENOMINATOR"`
-	DifficultyAdjustmentCutoffTime     uint64  `json:"DIFFICULTY_ADJUSTMENT_CUTOFF_TIME"`
-	DifficultyAdjustmentFactor         uint64  `json:"DIFFICULTY_ADJUSTMENT_FACTOR"`
-	ExtraShardBlocksInRootBlock        uint64  `json:"EXTRA_SHARD_BLOCKS_IN_ROOT_BLOCK"`
-	rootConfig                         *RootConfig
+	ShardID    uint32
+	rootConfig *RootConfig
+	*ChainConfig
 }
 
-func NewShardConfig() *ShardConfig {
-	sharding := &ShardConfig{
-		ConsensusType:                      PoWNone,
-		ConsensusConfig:                    nil,
-		CoinbaseAddress:                    "",
-		CoinbaseAmount:                     5 * QUARKSH_TO_JIAOZI,
-		GasLimitEmaDenominator:             1024,
-		GasLimitAdjustmentFactor:           1024,
-		GasLimitMinimum:                    5000,
-		GasLimitMaximum:                    (1 << 63) - 1,
-		GasLimitUsageAdjustmentNumerator:   3,
-		GasLimitUsageAdjustmentDenominator: 2,
-		DifficultyAdjustmentCutoffTime:     7,
-		DifficultyAdjustmentFactor:         512,
-		ExtraShardBlocksInRootBlock:        3,
-		Genesis:                            NewShardGenesis(),
+func NewShardConfig(chainCfg *ChainConfig) *ShardConfig {
+
+	shardConfig := &ShardConfig{
+		ShardID:     0,
+		ChainConfig: chainCfg,
 	}
-	// TODO should to be deleted, just for test
-	valueHex := new(big.Int)
-	valueHex, _ = math.ParseBig256("1000000000000000000000000")
-	sharding.Genesis.Alloc["0x0000000000000000000000000000000000000000000000000000000000000000"] = valueHex
-	return sharding
+	return shardConfig
 }
 
 func (s *ShardConfig) SetRootConfig(value *RootConfig) {
@@ -87,17 +94,21 @@ func (s *ShardConfig) GetRootConfig() *RootConfig {
 	return s.rootConfig
 }
 
-func (s *ShardConfig) MaxBlocksPerShardInOneRootBlock() uint64 {
-	return s.rootConfig.ConsensusConfig.TargetBlockTime/s.ExtraShardBlocksInRootBlock + s.ExtraShardBlocksInRootBlock
+func (s *ShardConfig) MaxBlocksPerShardInOneRootBlock() uint32 {
+	return s.rootConfig.ConsensusConfig.TargetBlockTime/
+		s.ConsensusConfig.TargetBlockTime + s.ExtraShardBlocksInRootBlock
 }
 
-//Max_stale_minor_block_height_diff
 func (s *ShardConfig) MaxStaleMinorBlockHeightDiff() uint64 {
 	return s.rootConfig.MaxStaleRootBlockHeightDiff *
-		s.rootConfig.ConsensusConfig.TargetBlockTime /
-		s.ConsensusConfig.TargetBlockTime
+		uint64(s.rootConfig.ConsensusConfig.TargetBlockTime) /
+		uint64(s.ConsensusConfig.TargetBlockTime)
 }
 
 func (s *ShardConfig) MaxMinorBlocksInMemory() uint64 {
 	return s.MaxStaleMinorBlockHeightDiff() * 2
+}
+
+func (s *ShardConfig) GetFullShardId() uint32 {
+	return (s.ChainID << 16) | s.ShardSize | s.ShardID
 }

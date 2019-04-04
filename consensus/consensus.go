@@ -4,12 +4,13 @@ import (
 	crand "crypto/rand"
 	"errors"
 	"fmt"
+
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/metrics"
-	//"github.com/ethereum/go-ethereum/rpc"
+
 	"math"
 	"math/big"
 	"math/rand"
@@ -243,7 +244,7 @@ func (c *CommonEngine) mine(
 		attempts = int64(0)
 		nonce    = startNonce
 	)
-	logger := log.New("miner."+strings.ToLower(c.spec.Name), id)
+	logger := log.New("miner", "spec", strings.ToLower(c.spec.Name), "id", id)
 	logger.Trace("Started search for new nonces", "minerName", c.spec.Name, "startNonce", startNonce)
 search:
 	for {

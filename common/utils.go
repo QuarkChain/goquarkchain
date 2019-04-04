@@ -1,6 +1,8 @@
 package common
 
 import (
+	"bytes"
+	"encoding/gob"
 	"math/bits"
 )
 
@@ -26,4 +28,12 @@ func IsP2(shardSize uint32) bool {
 // IntLeftMostBit left most bit
 func IntLeftMostBit(v uint32) uint32 {
 	return uint32(32 - bits.LeadingZeros32(v))
+}
+
+func DeepCopy(dst, src interface{}) error {
+	var buf bytes.Buffer
+	if err := gob.NewEncoder(&buf).Encode(src); err != nil {
+		return err
+	}
+	return gob.NewDecoder(bytes.NewBuffer(buf.Bytes())).Decode(dst)
 }
