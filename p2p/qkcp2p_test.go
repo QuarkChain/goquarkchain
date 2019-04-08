@@ -7,7 +7,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 )
 
-func FakeEnv(port uint64) config.ClusterConfig {
+func FakeEnv(port uint16) config.ClusterConfig {
 	return config.ClusterConfig{
 		P2PPort: port,
 		P2P: &config.P2PConfig{
@@ -16,7 +16,7 @@ func FakeEnv(port uint64) config.ClusterConfig {
 		},
 	}
 }
-func FakeEnv2(port uint64, bootNodes string) config.ClusterConfig {
+func FakeEnv2(port uint16, bootNodes string) config.ClusterConfig {
 	return config.ClusterConfig{
 		P2PPort: port,
 		P2P: &config.P2PConfig{
