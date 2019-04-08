@@ -64,6 +64,13 @@ func (g *Genesis) CreateMinorBlock(rootBlock *types.RootBlock, fullShardId uint3
 	branch := account.Branch{Value: fullShardId}
 
 	for addr, balance := range genesis.Alloc {
+		fsId, err := addr.GetFullShardID(shardConfig.ShardSize)
+		if err != nil {
+			panic(err)
+		}
+		if fsId != fullShardId {
+			continue
+		}
 		recipient := new(common.Address)
 		recipient.SetBytes(addr.Recipient.Bytes())
 		statedb.AddBalance(*recipient, balance)
