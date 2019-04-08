@@ -3,9 +3,7 @@ package config
 import (
 	"encoding/json"
 	"github.com/QuarkChain/goquarkchain/account"
-	"github.com/QuarkChain/goquarkchain/common"
 	ethcom "github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/log"
 	"math/big"
 )
 
@@ -58,13 +56,10 @@ type ChainConfig struct {
 }
 
 func NewChainConfig() *ChainConfig {
-	chainCfg := new(ChainConfig)
-	if err := common.DeepCopy(chainCfg, &skeletonChainConfig); err != nil {
-		log.Error("chain config copy from default", "error", err)
-	}
-	chainCfg.Genesis = NewShardGenesis()
-	chainCfg.PoswConfig = NewPOSWConfig()
-	return chainCfg
+	ret := *&skeletonChainConfig
+	ret.Genesis = NewShardGenesis()
+	ret.PoswConfig = NewPOSWConfig()
+	return &ret
 }
 
 type ChainConfigAlias ChainConfig
