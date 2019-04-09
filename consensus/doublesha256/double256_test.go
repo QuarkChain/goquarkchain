@@ -1,11 +1,12 @@
 package doublesha256
 
 import (
+	"math/big"
+	"testing"
+
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/stretchr/testify/assert"
-	"math/big"
-	"testing"
 )
 
 func TestVerifySeal(t *testing.T) {
@@ -28,7 +29,7 @@ func TestVerifySeal(t *testing.T) {
 	assert.NoError(err, "should have correct nonce")
 
 	// Wrong
-	header.Nonce = block.IHeader().GetNonce() - 1
+	header.Nonce = 0
 	err = d.VerifySeal(nil, header, big.NewInt(0))
 	assert.Error(err, "should have error because of the wrong nonce")
 }
