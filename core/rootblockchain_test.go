@@ -430,6 +430,41 @@ func testReorg(t *testing.T, first, second []uint64, td int64, full bool) {
 	}
 }
 
+func TestIsSameChain(t *testing.T) {
+	engine := new(consensus.FakeEngine)
+	// Create a pristine chain and database
+	_, blockchain, err := newCanonical(engine, 0, true)
+	if err != nil {
+		t.Fatalf("failed to create pristine chain: %v", err)
+	}
+	defer blockchain.Stop()
+
+	// Insert an easy and a difficult chain afterwards
+	firstBlocks := GenerateRootBlockChain(blockchain.CurrentBlock(), engine, 10, func(i int, b *RootBlockGen) {
+		b.SetDifficulty(1000)
+	})
+	secondBlocks := GenerateRootBlockChain(blockchain.CurrentBlock(), engine, 10, func(i int, b *RootBlockGen) {
+		b.SetDifficulty(1100)
+	})
+
+	if blockchain.isSameChain(firstBlocks[9].Header(), firstBlocks[3].Header()) ||
+		blockchain.isSameChain(secondBlocks[9].Header(), secondBlocks[3].Header()) {
+		t.Fatalf("isSameChain should be false for blocks not inserted to chain")
+	}
+
+	blockchain.InsertChain(ToBlocks(firstBlocks))
+	blockchain.InsertChain(ToBlocks(secondBlocks))
+	if !blockchain.isSameChain(firstBlocks[9].Header(), firstBlocks[3].Header()) ||
+		!blockchain.isSameChain(secondBlocks[9].Header(), secondBlocks[3].Header()) {
+		t.Fatalf("isSameChain result is false, want true")
+	}
+
+	if blockchain.isSameChain(firstBlocks[9].Header(), secondBlocks[3].Header()) ||
+		blockchain.isSameChain(secondBlocks[9].Header(), firstBlocks[3].Header()) {
+		t.Fatalf("isSameChain result is true, want false")
+	}
+}
+
 // Tests that the insertion functions detect banned hashes.
 func TestBadHeaderHashes(t *testing.T) { testBadHashes(t, false) }
 func TestBadBlockHashes(t *testing.T)  { testBadHashes(t, true) }

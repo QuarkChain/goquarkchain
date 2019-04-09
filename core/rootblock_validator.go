@@ -108,7 +108,7 @@ func (v *RootBlockValidator) ValidateBlock(block types.IBlock) error {
 	}
 
 	for key, _ := range prevRootBlockHashList {
-		if v.blockChain.isSameChain(rootBlock.Header(), v.blockChain.GetHeader(key)) {
+		if v.blockChain.isSameChain(rootBlock.Header(), v.blockChain.GetHeader(key).(*types.RootBlockHeader)) {
 			return errors.New("minor block's prev root block must be in the same chain")
 		}
 	}

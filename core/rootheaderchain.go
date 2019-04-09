@@ -354,14 +354,17 @@ func (hc *RootHeaderChain) GetAncestor(hash common.Hash, number, ancestor uint64
 	return hash, number
 }
 
-func (hc *RootHeaderChain) isSameChain(longerChainHeader, shorterChainHeader types.IHeader) bool {
+func (hc *RootHeaderChain) isSameChain(longerChainHeader, shorterChainHeader *types.RootBlockHeader) bool {
 	if longerChainHeader.NumberU64() < shorterChainHeader.NumberU64() {
 		return false
 	}
 
 	header := longerChainHeader
-	for i := uint64(0); i < longerChainHeader.NumberU64()-shorterChainHeader.NumberU64(); {
-		header = rawdb.ReadRootBlockHeader(hc.chainDb, longerChainHeader.GetParentHash())
+	for i := uint64(0); i < longerChainHeader.NumberU64()-shorterChainHeader.NumberU64(); i++ {
+		header = rawdb.ReadRootBlockHeader(hc.chainDb, header.GetParentHash())
+		if header == nil {
+			return false
+		}
 	}
 
 	return header.Hash() == shorterChainHeader.Hash()

@@ -240,7 +240,7 @@ func (b *RootBlock) CoinbaseAmount() *big.Int {
 	if b.header.CoinbaseAmount != nil && b.header.CoinbaseAmount.Value != nil {
 		return new(big.Int).Set(b.header.CoinbaseAmount.Value)
 	}
-	return new(big.Int).SetUint64(0)
+	return new(big.Int)
 }
 func (b *RootBlock) Time() uint64           { return b.header.Time }
 func (b *RootBlock) Difficulty() *big.Int   { return new(big.Int).Set(b.header.Difficulty) }

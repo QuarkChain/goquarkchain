@@ -1127,7 +1127,7 @@ func (bc *RootBlockChain) GetAncestor(hash common.Hash, number, ancestor uint64,
 	return bc.headerChain.GetAncestor(hash, number, ancestor, maxNonCanonical)
 }
 
-func (bc *RootBlockChain) isSameChain(longerChainHeader, shorterChainHeader types.IHeader) bool {
+func (bc *RootBlockChain) isSameChain(longerChainHeader, shorterChainHeader *types.RootBlockHeader) bool {
 	return bc.headerChain.isSameChain(longerChainHeader, shorterChainHeader)
 }
 
