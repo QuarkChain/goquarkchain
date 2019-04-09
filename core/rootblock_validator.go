@@ -1,19 +1,3 @@
-// Copyright 2015 The go-ethereum Authors
-// This file is part of the go-ethereum library.
-//
-// The go-ethereum library is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Lesser General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// The go-ethereum library is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Lesser General Public License for more details.
-//
-// You should have received a copy of the GNU Lesser General Public License
-// along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
-
 package core
 
 import (
@@ -27,17 +11,14 @@ import (
 	"github.com/QuarkChain/goquarkchain/core/types"
 )
 
-// BlockValidator is responsible for validating block headers, uncles and
-// processed state.
-//
-// BlockValidator implements Validator.
+// RootBlockValidator implements Validator.
 type RootBlockValidator struct {
 	config     *config.QuarkChainConfig // config configuration options
 	blockChain *RootBlockChain          // blockChain block chain
 	engine     consensus.Engine         // engine engine used for validating
 }
 
-// NewBlockValidator returns a new block validator which is safe for re-use
+// NewRootBlockValidator returns a new root block validator which is safe for re-use
 func NewRootBlockValidator(config *config.QuarkChainConfig, blockchain *RootBlockChain, engine consensus.Engine) *RootBlockValidator {
 	validator := &RootBlockValidator{
 		config:     config,
@@ -47,9 +28,7 @@ func NewRootBlockValidator(config *config.QuarkChainConfig, blockchain *RootBloc
 	return validator
 }
 
-// ValidateBody validates the given block and verifies the block
-// header's transaction roots. The headers are assumed to be already
-// validated at this point.
+// ValidateBlock validates the given block and verifies the block header's roots.
 func (v *RootBlockValidator) ValidateBlock(block types.IBlock) error {
 	// Check whether the block's known, and if not, that it's linkable
 	if block == nil {
