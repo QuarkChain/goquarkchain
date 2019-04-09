@@ -39,7 +39,7 @@ func TestValidateBlock(t *testing.T) {
 		genesisrootBlock = gspec.MustCommitRootBlock(testdb)
 		engine           = new(consensus.FakeEngine)
 		rootBlocks       = GenerateRootBlockChain(genesisrootBlock, engine, 8, func(i int, b *RootBlockGen) {
-			b.header.CoinbaseAmount = &serialize.Uint256{qkcconfig.Root.CoinbaseAmount}
+			b.header.CoinbaseAmount = &serialize.Uint256{Value: qkcconfig.Root.CoinbaseAmount}
 		})
 	)
 	headers := make([]types.IHeader, len(rootBlocks))
