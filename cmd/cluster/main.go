@@ -59,6 +59,7 @@ var (
 		utils.RPCListenAddrFlag,
 		utils.RPCPortFlag,
 		utils.PrivateRPCEnableFlag,
+		utils.PrivateRPCListenAddrFlag,
 		utils.PrivateRPCPortFlag,
 		utils.IPCEnableFlag,
 		utils.IPCPathFlag,

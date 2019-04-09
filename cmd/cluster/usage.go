@@ -88,6 +88,7 @@ var AppHelpFlagGroups = []flagGroup{
 		Name: "PRIVATE API",
 		Flags: []cli.Flag{
 			utils.PrivateRPCEnableFlag,
+			utils.PrivateRPCListenAddrFlag,
 			utils.PrivateRPCPortFlag,
 		},
 	},

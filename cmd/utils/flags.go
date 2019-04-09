@@ -191,7 +191,7 @@ var (
 		Usage: "disable the public HTTP-RPC server",
 	}
 	RPCListenAddrFlag = cli.StringFlag{
-		Name:  "rpcaddr",
+		Name:  "json_rpc_addr",
 		Usage: "HTTP-RPC server listening interface",
 		Value: service.DefaultHTTPHost,
 	}
@@ -204,6 +204,11 @@ var (
 	PrivateRPCEnableFlag = cli.BoolFlag{
 		Name:  "json_rpc_private_enable",
 		Usage: "disable the public HTTP-RPC server",
+	}
+	PrivateRPCListenAddrFlag = cli.StringFlag{
+		Name:  "json_rpc_private_addr",
+		Usage: "HTTP-RPC server listening interface",
+		Value: service.DefaultHTTPHost,
 	}
 	PrivateRPCPortFlag = cli.IntFlag{
 		Name:  "json_rpc_private_port",
@@ -310,13 +315,17 @@ func setHTTP(ctx *cli.Context, cfg *service.Config) {
 		}
 		cfg.HTTPEndpoint = fmt.Sprintf("%s:%d", host, ctx.GlobalInt(RPCPortFlag.Name))
 	}
-	if !ctx.GlobalBool(PrivateRPCEnableFlag.Name) {
-		cfg.HTTPPrivEndpoint = fmt.Sprintf("%s:%d", service.DefaultHTTPHost, ctx.GlobalInt(PrivateRPCPortFlag.Name))
+	if ctx.GlobalBool(PrivateRPCEnableFlag.Name) {
+		host := service.DefaultHTTPHost
+		if ctx.GlobalIsSet(PrivateRPCListenAddrFlag.Name) {
+			host = ctx.GlobalString(PrivateRPCListenAddrFlag.Name)
+		}
+		cfg.HTTPPrivEndpoint = fmt.Sprintf("%s:%d", host, ctx.GlobalInt(PrivateRPCPortFlag.Name))
 	}
 }
 
 func setGRPC(ctx *cli.Context, cfg *service.Config) {
-	cfg.SvrPort = ctx.GlobalInt(JsonRpcPortFlag.Name)
+	cfg.SvrPort = ctx.GlobalInt(GRPCPortFlag.Name)
 	cfg.SvrHost = "127.0.0.1"
 }
 
@@ -407,8 +416,8 @@ func SetClusterConfig(ctx *cli.Context, cfg *config.ClusterConfig) {
 	// cluster.db_path_root
 	cfg.DbPathRoot = ctx.GlobalString(DbPathRootFlag.Name)
 	cfg.P2PPort = ctx.GlobalInt(P2pPortFlag.Name)
-	cfg.JSONRPCPort = ctx.GlobalInt(JsonRpcPortFlag.Name)
-	cfg.PrivateJSONRPCPort = ctx.GlobalInt(JsonRpcPortFlag.Name)
+	cfg.JSONRPCPort = ctx.GlobalInt(GRPCPortFlag.Name)
+	cfg.PrivateJSONRPCPort = ctx.GlobalInt(GRPCPortFlag.Name)
 	if ctx.GlobalBool(StartSimulatedMiningFlag.Name) {
 		cfg.StartSimulatedMining = true
 	}

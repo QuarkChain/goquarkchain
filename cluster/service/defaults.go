@@ -22,12 +22,11 @@ const (
 
 // DefaultConfig contains reasonable default settings.
 var DefaultConfig = Config{
-	DataDir:          DefaultDataDir(),
-	HTTPModules:      []string{"qkc"},
-	HTTPVirtualHosts: []string{"localhost"},
-	HTTPTimeouts:     rpc.DefaultHTTPTimeouts,
-	WSPort:           DefaultWSPort,
-	WSModules:        []string{},
+	DataDir:      DefaultDataDir(),
+	HTTPModules:  []string{"qkc"},
+	HTTPTimeouts: rpc.DefaultHTTPTimeouts,
+	WSPort:       DefaultWSPort,
+	WSModules:    []string{},
 	// SvrModule:        "MasterOp",
 	P2P: p2p.Config{
 		ListenAddr: ":38291",
