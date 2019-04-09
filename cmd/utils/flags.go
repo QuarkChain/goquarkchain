@@ -3,21 +3,22 @@ package utils
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/cluster/master"
 	"github.com/QuarkChain/goquarkchain/cluster/service"
 	"github.com/QuarkChain/goquarkchain/cluster/slave"
 	"github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/core/types"
+	"github.com/QuarkChain/goquarkchain/p2p"
+	"github.com/QuarkChain/goquarkchain/params"
 	"github.com/ethereum/go-ethereum/log"
-	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/p2p/nat"
-	"github.com/ethereum/go-ethereum/params"
 	"gopkg.in/urfave/cli.v1"
-	"os"
-	"path/filepath"
-	"strings"
 )
 
 var (
@@ -127,7 +128,7 @@ var (
 		Usage: "slaves number",
 		Value: config.DefaultNumSlaves,
 	}
-	PortStartFlag = cli.Uint64Flag{
+	PortStartFlag = cli.IntFlag{
 		Name:  "port_start",
 		Usage: "slave start port",
 		Value: 38000,
@@ -140,11 +141,6 @@ var (
 	P2pFlag = cli.BoolFlag{
 		Name:  "p2p",
 		Usage: "enables new p2p module",
-	}
-	P2pPortFlag = cli.Uint64Flag{
-		Name:  "p2p_port",
-		Usage: "p2p port",
-		Value: 38291,
 	}
 	EnableTransactionHistoryFlag = cli.BoolFlag{
 		Name:  "enable_transaction_history",
@@ -163,7 +159,7 @@ var (
 	MaxPeersFlag = cli.Uint64Flag{
 		Name:  "max_peers",
 		Usage: "max peer for new p2p module",
-		Value: config.DefaultP2PConfig.MaxPeers,
+		Value: config.NewP2PConfig().MaxPeers,
 	}
 	BootnodesFlag = cli.StringFlag{
 		Name:  "bootnodes",
@@ -191,44 +187,46 @@ var (
 	}
 	// RPC settings
 	RPCDisabledFlag = cli.BoolFlag{
-		Name:  "rpcdisable",
+		Name:  "json_rpc_disable",
 		Usage: "disable the public HTTP-RPC server",
 	}
 	RPCListenAddrFlag = cli.StringFlag{
-		Name:  "rpcaddr",
-		Usage: "public HTTP-RPC server listening interface",
+		Name:  "json_rpc_addr",
+		Usage: "HTTP-RPC server listening interface",
 		Value: service.DefaultHTTPHost,
 	}
 	RPCPortFlag = cli.IntFlag{
-		Name:  "rpcport",
+		Name:  "json_rpc_port",
 		Usage: "public HTTP-RPC server listening port",
 		Value: service.DefaultHTTPPort,
 	}
-	RPCCORSDomainFlag = cli.StringFlag{
-		Name:  "rpccorsdomain",
-		Usage: "Comma separated list of domains from which to accept cross origin requests (browser enforced)",
-		Value: "",
+	// RPC settings
+	PrivateRPCEnableFlag = cli.BoolFlag{
+		Name:  "json_rpc_private_enable",
+		Usage: "disable the public HTTP-RPC server",
 	}
-	RPCVirtualHostsFlag = cli.StringFlag{
-		Name:  "rpcvhosts",
-		Usage: "Comma separated list of virtual hostnames from which to accept requests (server enforced). Accepts '*' wildcard.",
-		Value: strings.Join(service.DefaultConfig.HTTPVirtualHosts, ","),
+	PrivateRPCListenAddrFlag = cli.StringFlag{
+		Name:  "json_rpc_private_addr",
+		Usage: "HTTP-RPC server listening interface",
+		Value: service.DefaultHTTPHost,
 	}
-	RPCApiFlag = cli.StringFlag{
-		Name:  "rpcapi",
-		Usage: "API's offered over the public HTTP-RPC interface",
-		Value: "",
+	PrivateRPCPortFlag = cli.IntFlag{
+		Name:  "json_rpc_private_port",
+		Usage: "public HTTP-RPC server listening port",
+		Value: service.DefaultPrivateHTTPPort,
 	}
-	JsonRpcPortFlag = cli.Uint64Flag{
-		Name:  "json_rpc_port",
+
+	GRPCPortFlag = cli.IntFlag{
+		Name:  "grpc_port",
 		Usage: "public json rpc port",
+		Value: 38591,
+	}
+	P2pPortFlag = cli.IntFlag{
+		Name:  "p2p_port",
+		Usage: "Network listening port",
 		Value: 38291,
 	}
-	JsonRpcPrivatePortFlag = cli.Uint64Flag{
-		Name:  "json_rpc_private_port",
-		Usage: "private json rpc port",
-		Value: 38491,
-	}
+
 	IPCEnableFlag = cli.BoolFlag{
 		Name:  "ipc",
 		Usage: "enable the IPC-RPC server",
@@ -241,11 +239,6 @@ var (
 		Name:  "maxpendpeers",
 		Usage: "Maximum number of pending connection attempts (defaults used if set to 0)",
 		Value: 0,
-	}
-	ListenPortFlag = cli.IntFlag{
-		Name:  "port",
-		Usage: "Network listening port",
-		Value: 30303,
 	}
 	NATFlag = cli.StringFlag{
 		Name:  "nat",
@@ -286,8 +279,8 @@ func setBootstrapNodes(ctx *cli.Context, cfg *p2p.Config) {
 // setListenAddress creates a TCP listening address string from set command
 // line flags.
 func setListenAddress(ctx *cli.Context, cfg *p2p.Config) {
-	if ctx.GlobalIsSet(ListenPortFlag.Name) {
-		cfg.ListenAddr = fmt.Sprintf(":%d", ctx.GlobalInt(ListenPortFlag.Name))
+	if ctx.GlobalIsSet(P2pPortFlag.Name) {
+		cfg.ListenAddr = fmt.Sprintf(":%d", ctx.GlobalInt(P2pPortFlag.Name))
 	}
 }
 
@@ -315,29 +308,24 @@ func splitAndTrim(input string) []string {
 // setHTTP creates the HTTP RPC listener interface string from the set
 // command line flags, returning empty if the HTTP endpoint is disabled.
 func setHTTP(ctx *cli.Context, cfg *service.Config) {
-	if !ctx.GlobalBool(RPCDisabledFlag.Name) && cfg.HTTPHost == "" {
-		cfg.HTTPHost = "127.0.0.1"
+	if !ctx.GlobalBool(RPCDisabledFlag.Name) {
+		host := service.DefaultHTTPHost
 		if ctx.GlobalIsSet(RPCListenAddrFlag.Name) {
-			cfg.HTTPHost = ctx.GlobalString(RPCListenAddrFlag.Name)
+			host = ctx.GlobalString(RPCListenAddrFlag.Name)
 		}
+		cfg.HTTPEndpoint = fmt.Sprintf("%s:%d", host, ctx.GlobalInt(RPCPortFlag.Name))
 	}
-
-	if ctx.GlobalIsSet(RPCPortFlag.Name) {
-		cfg.HTTPPort = ctx.GlobalInt(RPCPortFlag.Name)
-	}
-	if ctx.GlobalIsSet(RPCCORSDomainFlag.Name) {
-		cfg.HTTPCors = splitAndTrim(ctx.GlobalString(RPCCORSDomainFlag.Name))
-	}
-	if ctx.GlobalIsSet(RPCApiFlag.Name) {
-		cfg.HTTPModules = splitAndTrim(ctx.GlobalString(RPCApiFlag.Name))
-	}
-	if ctx.GlobalIsSet(RPCVirtualHostsFlag.Name) {
-		cfg.HTTPVirtualHosts = splitAndTrim(ctx.GlobalString(RPCVirtualHostsFlag.Name))
+	if ctx.GlobalBool(PrivateRPCEnableFlag.Name) {
+		host := service.DefaultHTTPHost
+		if ctx.GlobalIsSet(PrivateRPCListenAddrFlag.Name) {
+			host = ctx.GlobalString(PrivateRPCListenAddrFlag.Name)
+		}
+		cfg.HTTPPrivEndpoint = fmt.Sprintf("%s:%d", host, ctx.GlobalInt(PrivateRPCPortFlag.Name))
 	}
 }
 
 func setGRPC(ctx *cli.Context, cfg *service.Config) {
-	cfg.SvrPort = ctx.GlobalUint64(JsonRpcPortFlag.Name)
+	cfg.SvrPort = ctx.GlobalInt(GRPCPortFlag.Name)
 	cfg.SvrHost = "127.0.0.1"
 }
 
@@ -399,25 +387,25 @@ func SetClusterConfig(ctx *cli.Context, cfg *config.ClusterConfig) {
 	cfg.Quarkchain.NetworkID = uint32(ctx.GlobalInt(NetworkIdFlag.Name))
 
 	// cluster.clean
-	if ctx.GlobalBool(CleanFlag.Name) {
-		cfg.Clean = true
+	if ctx.GlobalIsSet(CleanFlag.Name) {
+		cfg.Clean = ctx.GlobalBool(CleanFlag.Name)
 	}
 	// cluster.start_simulate_mining
-	if ctx.GlobalBool(StartSimulatedMiningFlag.Name) {
-		cfg.StartSimulatedMining = true
+	if ctx.GlobalIsSet(StartSimulatedMiningFlag.Name) {
+		cfg.StartSimulatedMining = ctx.GlobalBool(StartSimulatedMiningFlag.Name)
 	}
 	// cluster.genesisDir
 	cfg.GenesisDir = ctx.GlobalString(GenesisDirFlag.Name)
 
-	portStart := ctx.GlobalUint64(PortStartFlag.Name)
-	numSlaves := ctx.GlobalUint64(NumSlavesFlag.Name)
+	portStart := ctx.GlobalInt(PortStartFlag.Name)
+	numSlaves := ctx.GlobalInt(NumSlavesFlag.Name)
 	if !common.IsP2(uint32(numSlaves)) {
 		Fatalf("slave size must be pow of 2")
 	}
 	cfg.SlaveList = make([]*config.SlaveConfig, 0)
-	for i := 0; i < int(numSlaves); i++ {
+	for i := 0; i < numSlaves; i++ {
 		slaveConfig := config.NewDefaultSlaveConfig()
-		slaveConfig.Port = portStart + uint64(i)
+		slaveConfig.Port = portStart + i
 		slaveConfig.ID = fmt.Sprintf("S%d", i)
 		slaveConfig.ChainMaskList = append(slaveConfig.ChainMaskList, types.NewChainMask(uint32(i)|uint32(numSlaves)))
 		cfg.SlaveList = append(cfg.SlaveList, slaveConfig)
@@ -427,9 +415,9 @@ func SetClusterConfig(ctx *cli.Context, cfg *config.ClusterConfig) {
 	cfg.LogLevel = ctx.GlobalString(LogLevelFlag.Name)
 	// cluster.db_path_root
 	cfg.DbPathRoot = ctx.GlobalString(DbPathRootFlag.Name)
-	cfg.P2PPort = ctx.GlobalUint64(P2pPortFlag.Name)
-	cfg.JSONRPCPort = ctx.GlobalUint64(JsonRpcPortFlag.Name)
-	cfg.PrivateJSONRPCPort = ctx.GlobalUint64(JsonRpcPortFlag.Name)
+	cfg.P2PPort = ctx.GlobalInt(P2pPortFlag.Name)
+	cfg.JSONRPCPort = ctx.GlobalInt(GRPCPortFlag.Name)
+	cfg.PrivateJSONRPCPort = ctx.GlobalInt(GRPCPortFlag.Name)
 	if ctx.GlobalBool(StartSimulatedMiningFlag.Name) {
 		cfg.StartSimulatedMining = true
 	}
@@ -440,7 +428,7 @@ func SetClusterConfig(ctx *cli.Context, cfg *config.ClusterConfig) {
 
 	if ctx.GlobalIsSet(P2pFlag.Name) {
 		cfg.SimpleNetwork = nil
-		cfg.P2P = &config.DefaultP2PConfig
+		cfg.P2P = config.NewP2PConfig()
 		cfg.P2P.BootNodes = ctx.GlobalString(BootnodesFlag.Name)
 		cfg.P2P.PrivKey = ctx.GlobalString(PrivkeyFlag.Name)
 		cfg.P2P.MaxPeers = ctx.GlobalUint64(MaxPeersFlag.Name)
@@ -449,7 +437,7 @@ func SetClusterConfig(ctx *cli.Context, cfg *config.ClusterConfig) {
 		}
 	} else {
 		cfg.P2P = nil
-		cfg.SimpleNetwork = &config.DefaultSimpleNetwork
+		cfg.SimpleNetwork = config.NewSimpleNetwork()
 		cfg.SimpleNetwork.BootstrapHost = ctx.GlobalString(SimpleNetworkBootstrapHostFlag.Name)
 		cfg.SimpleNetwork.BootstrapPort = ctx.GlobalUint64(SimpleNetworkBootstrapPortFlag.Name)
 	}

@@ -7,28 +7,6 @@ import (
 	"math/big"
 )
 
-var (
-	skeletonChainConfig = ChainConfig{
-		ChainID:                            0,
-		ShardSize:                          2,
-		DefaultChainToken:                  "",
-		ConsensusType:                      PoWNone,
-		ConsensusConfig:                    nil,
-		Genesis:                            nil,
-		CoinbaseAmount:                     new(big.Int).Mul(big.NewInt(5), QuarkashToJiaozi),
-		GasLimitEmaDenominator:             1024,
-		GasLimitAdjustmentFactor:           1024,
-		GasLimitMinimum:                    5000,
-		GasLimitMaximum:                    1<<63 - 1,
-		GasLimitUsageAdjustmentNumerator:   3,
-		GasLimitUsageAdjustmentDenominator: 2,
-		DifficultyAdjustmentCutoffTime:     7,
-		DifficultyAdjustmentFactor:         512,
-		ExtraShardBlocksInRootBlock:        3,
-		PoswConfig:                         nil,
-	}
-)
-
 type ChainConfig struct {
 	ChainID           uint32 `json:"CHAIN_ID"`
 	ShardSize         uint32 `json:"SHARD_SIZE"`
@@ -56,10 +34,25 @@ type ChainConfig struct {
 }
 
 func NewChainConfig() *ChainConfig {
-	ret := *&skeletonChainConfig
-	ret.Genesis = NewShardGenesis()
-	ret.PoswConfig = NewPOSWConfig()
-	return &ret
+	return &ChainConfig{
+		ChainID:                            0,
+		ShardSize:                          2,
+		DefaultChainToken:                  "",
+		ConsensusType:                      PoWNone,
+		ConsensusConfig:                    nil,
+		Genesis:                            NewShardGenesis(),
+		CoinbaseAmount:                     new(big.Int).Mul(big.NewInt(5), QuarkashToJiaozi),
+		GasLimitEmaDenominator:             1024,
+		GasLimitAdjustmentFactor:           1024,
+		GasLimitMinimum:                    5000,
+		GasLimitMaximum:                    1<<63 - 1,
+		GasLimitUsageAdjustmentNumerator:   3,
+		GasLimitUsageAdjustmentDenominator: 2,
+		DifficultyAdjustmentCutoffTime:     7,
+		DifficultyAdjustmentFactor:         512,
+		ExtraShardBlocksInRootBlock:        3,
+		PoswConfig:                         NewPOSWConfig(),
+	}
 }
 
 type ChainConfigAlias ChainConfig
