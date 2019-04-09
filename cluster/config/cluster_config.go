@@ -11,7 +11,7 @@ import (
 )
 
 var (
-	SlavePort             int = 38000
+	slavePort             int = 38000
 	skeletonClusterConfig     = ClusterConfig{
 		P2PPort:                  38291,
 		JSONRPCPort:              38391,
@@ -72,7 +72,7 @@ func NewClusterConfig() *ClusterConfig {
 
 	for i := 0; i < DefaultNumSlaves; i++ {
 		slave := NewDefaultSlaveConfig()
-		slave.Port = SlavePort + i
+		slave.Port = slavePort + i
 		slave.ID = fmt.Sprintf("S%d", i)
 		slave.ChainMaskList = append(slave.ChainMaskList, types.NewChainMask(uint32(i|DefaultNumSlaves)))
 		ret.SlaveList = append(ret.SlaveList, slave)

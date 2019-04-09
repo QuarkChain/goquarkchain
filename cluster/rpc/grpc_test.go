@@ -12,7 +12,7 @@ import (
 func testSlaveConfig(idx int) *config.SlaveConfig {
 	return &config.SlaveConfig{
 		IP:            "127.0.0.1",
-		Port:          config.SlavePort + idx,
+		Port:          38000 + idx,
 		ID:            fmt.Sprintf("S%d", idx),
 		ChainMaskList: nil,
 	}
