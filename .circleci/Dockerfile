@@ -1,4 +1,4 @@
-FROM circleci/golang:1.11
+FROM circleci/golang:1.12
 
 MAINTAINER ninjaahhh, junjiah@protonmail.com
 

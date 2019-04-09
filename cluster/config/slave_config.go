@@ -8,7 +8,7 @@ import (
 
 type SlaveConfig struct {
 	IP            string             `json:"HOST"` // DEFAULT_HOST
-	Port          uint16             `json:"PORT"` // 38392
+	Port          int                `json:"PORT"` // 38392
 	ID            string             `json:"ID"`
 	ChainMaskList []*types.ChainMask `json:"-"`
 }
@@ -46,7 +46,7 @@ func (s *SlaveConfig) UnmarshalJSON(input []byte) error {
 func NewDefaultSlaveConfig() *SlaveConfig {
 	slaveConfig := SlaveConfig{
 		IP:   "127.0.0.1",
-		Port: SlavePort,
+		Port: slavePort,
 	}
 	return &slaveConfig
 }

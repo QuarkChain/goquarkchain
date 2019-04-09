@@ -3,6 +3,10 @@ package utils
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/cluster/master"
 	"github.com/QuarkChain/goquarkchain/cluster/service"
@@ -15,9 +19,6 @@ import (
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/p2p/nat"
 	"gopkg.in/urfave/cli.v1"
-	"os"
-	"path/filepath"
-	"strings"
 )
 
 var (
@@ -315,7 +316,7 @@ func setHTTP(ctx *cli.Context, cfg *service.Config) {
 }
 
 func setGRPC(ctx *cli.Context, cfg *service.Config) {
-	cfg.SvrPort = uint16(ctx.GlobalInt(GRPCPortFlag.Name))
+	cfg.SvrPort = ctx.GlobalInt(JsonRpcPortFlag.Name)
 	cfg.SvrHost = "127.0.0.1"
 }
 
@@ -387,17 +388,17 @@ func SetClusterConfig(ctx *cli.Context, cfg *config.ClusterConfig) {
 	// cluster.genesisDir
 	cfg.GenesisDir = ctx.GlobalString(GenesisDirFlag.Name)
 
-	portStart := uint16(ctx.GlobalInt(PortStartFlag.Name))
-	numSlaves := uint32(ctx.GlobalInt(NumSlavesFlag.Name))
-	if !common.IsP2(numSlaves) {
+	portStart := ctx.GlobalInt(PortStartFlag.Name)
+	numSlaves := ctx.GlobalInt(NumSlavesFlag.Name)
+	if !common.IsP2(uint32(numSlaves)) {
 		Fatalf("slave size must be pow of 2")
 	}
-	cfg.SlaveList = make([]*config.SlaveConfig, 0, numSlaves)
-	for i := 0; i < int(numSlaves); i++ {
+	cfg.SlaveList = make([]*config.SlaveConfig, 0)
+	for i := 0; i < numSlaves; i++ {
 		slaveConfig := config.NewDefaultSlaveConfig()
-		slaveConfig.Port = portStart + uint16(i)
+		slaveConfig.Port = portStart + i
 		slaveConfig.ID = fmt.Sprintf("S%d", i)
-		slaveConfig.ChainMaskList = append(slaveConfig.ChainMaskList, types.NewChainMask(uint32(i)|numSlaves))
+		slaveConfig.ChainMaskList = append(slaveConfig.ChainMaskList, types.NewChainMask(uint32(i)|uint32(numSlaves)))
 		cfg.SlaveList = append(cfg.SlaveList, slaveConfig)
 	}
 
@@ -405,10 +406,12 @@ func SetClusterConfig(ctx *cli.Context, cfg *config.ClusterConfig) {
 	cfg.LogLevel = ctx.GlobalString(LogLevelFlag.Name)
 	// cluster.db_path_root
 	cfg.DbPathRoot = ctx.GlobalString(DbPathRootFlag.Name)
-	cfg.P2PPort = uint16(ctx.GlobalInt(P2pPortFlag.Name))
-	cfg.JSONRPCPort = uint16(ctx.GlobalInt(GRPCPortFlag.Name))
-	cfg.PrivateJSONRPCPort = uint16(ctx.GlobalInt(GRPCPortFlag.Name))
-
+	cfg.P2PPort = ctx.GlobalInt(P2pPortFlag.Name)
+	cfg.JSONRPCPort = ctx.GlobalInt(JsonRpcPortFlag.Name)
+	cfg.PrivateJSONRPCPort = ctx.GlobalInt(JsonRpcPortFlag.Name)
+	if ctx.GlobalBool(StartSimulatedMiningFlag.Name) {
+		cfg.StartSimulatedMining = true
+	}
 	if ctx.GlobalBool(EnableTransactionHistoryFlag.Name) {
 		cfg.EnableTransactionHistory = true
 	}
