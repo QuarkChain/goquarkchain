@@ -18,6 +18,7 @@ package core
 
 import (
 	"fmt"
+	"github.com/QuarkChain/goquarkchain/serialize"
 	"runtime"
 	"testing"
 	"time"
@@ -37,7 +38,9 @@ func TestValidateBlock(t *testing.T) {
 		gspec            = NewGenesis(qkcconfig)
 		genesisrootBlock = gspec.MustCommitRootBlock(testdb)
 		engine           = new(consensus.FakeEngine)
-		rootBlocks       = GenerateRootBlockChain(genesisrootBlock, engine, 8, nil)
+		rootBlocks       = GenerateRootBlockChain(genesisrootBlock, engine, 8, func(i int, b *RootBlockGen) {
+			b.header.CoinbaseAmount = &serialize.Uint256{qkcconfig.Root.CoinbaseAmount}
+		})
 	)
 	headers := make([]types.IHeader, len(rootBlocks))
 	blocks := make([]types.IBlock, len(rootBlocks))
@@ -76,6 +79,17 @@ func TestValidateBlock(t *testing.T) {
 			}
 		}
 		chain.InsertChain(blocks[i : i+1])
+	}
+	if chain.CurrentBlock().Header().Number != 0 {
+		t.Fatalf("verify chain CurrentBlock hight, have %d, want 0", chain.CurrentBlock().Header().Number)
+	}
+
+	engine.Err = nil
+	for i := 0; i < len(blocks); i++ {
+		_, err := chain.InsertChain(blocks[i : i+1])
+		if err != nil {
+			t.Fatalf("InsertChain failed with error: %v", err.Error())
+		}
 	}
 }
 

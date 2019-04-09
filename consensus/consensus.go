@@ -113,7 +113,8 @@ func (c *CommonEngine) VerifyHeader(
 	}
 
 	if header.GetTime() < parent.GetTime() {
-		return errors.New("timestamp equals parent's")
+		return fmt.Errorf("incorrect create time tip time %d, new block time %d",
+			header.GetTime(), parent.GetTime())
 	}
 
 	adjustedDiff := new(big.Int).SetUint64(0)

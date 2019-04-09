@@ -236,13 +236,18 @@ func (b *RootBlock) NumberU64() uint64            { return uint64(b.header.Numbe
 func (b *RootBlock) ParentHash() common.Hash      { return b.header.ParentHash }
 func (b *RootBlock) MinorHeaderHash() common.Hash { return b.header.MinorHeaderHash }
 func (b *RootBlock) Coinbase() account.Address    { return b.header.Coinbase }
-func (b *RootBlock) CoinbaseAmount() *big.Int     { return new(big.Int).Set(b.header.CoinbaseAmount.Value) }
-func (b *RootBlock) Time() uint64                 { return b.header.Time }
-func (b *RootBlock) Difficulty() *big.Int         { return new(big.Int).Set(b.header.Difficulty) }
-func (b *RootBlock) Nonce() uint64                { return b.header.Nonce }
-func (b *RootBlock) Extra() []byte                { return common.CopyBytes(b.header.Extra) }
-func (b *RootBlock) MixDigest() common.Hash       { return b.header.MixDigest }
-func (b *RootBlock) Signature() [65]byte          { return b.header.Signature }
+func (b *RootBlock) CoinbaseAmount() *big.Int {
+	if b.header.CoinbaseAmount != nil && b.header.CoinbaseAmount.Value != nil {
+		return new(big.Int).Set(b.header.CoinbaseAmount.Value)
+	}
+	return new(big.Int).SetUint64(0)
+}
+func (b *RootBlock) Time() uint64           { return b.header.Time }
+func (b *RootBlock) Difficulty() *big.Int   { return new(big.Int).Set(b.header.Difficulty) }
+func (b *RootBlock) Nonce() uint64          { return b.header.Nonce }
+func (b *RootBlock) Extra() []byte          { return common.CopyBytes(b.header.Extra) }
+func (b *RootBlock) MixDigest() common.Hash { return b.header.MixDigest }
+func (b *RootBlock) Signature() [65]byte    { return b.header.Signature }
 
 func (b *RootBlock) Header() *RootBlockHeader { return CopyRootBlockHeader(b.header) }
 func (b *RootBlock) Content() []IHashable {

@@ -51,6 +51,7 @@ func newCanonical(engine consensus.Engine, n int, full bool) (ethdb.Database, *R
 		genesisBlock = genesis.MustCommitRootBlock(db)
 	)
 
+	qkcconfig.SkipRootCoinbaseCheck = true
 	// Initialize a fresh chain with only a genesis block
 	blockchain, _ := NewRootBlockChain(db, nil, qkcconfig, engine, nil)
 	// Create and inject the requested chain
@@ -770,6 +771,7 @@ func TestBlockchainHeaderchainReorgConsistency(t *testing.T) {
 func TestTrieForkGC(t *testing.T) {
 	// Generate a canonical chain to act as the main dataset
 	db := ethdb.NewMemDatabase()
+	qkcconfig.SkipRootCoinbaseCheck = true
 	genesis := NewGenesis(qkcconfig)
 	genesisBlock := genesis.MustCommitRootBlock(db)
 	engine := new(consensus.FakeEngine)
@@ -793,7 +795,7 @@ func TestTrieForkGC(t *testing.T) {
 	diskdb := ethdb.NewMemDatabase()
 	genesis.MustCommitRootBlock(diskdb)
 
-	chain, err := NewRootBlockChain(diskdb, nil, config.NewQuarkChainConfig(), engine, nil)
+	chain, err := NewRootBlockChain(diskdb, nil, qkcconfig, engine, nil)
 	if err != nil {
 		t.Fatalf("failed to create tester chain: %v", err)
 	}
@@ -812,6 +814,7 @@ func TestTrieForkGC(t *testing.T) {
 func TestLargeReorgTrieGC(t *testing.T) {
 	// Generate the original common chain segment and the two competing forks
 	db := ethdb.NewMemDatabase()
+	qkcconfig.SkipRootCoinbaseCheck = true
 	genesis := NewGenesis(qkcconfig)
 	genesisBlock := genesis.MustCommitRootBlock(db)
 	engine := new(consensus.FakeEngine)
@@ -830,7 +833,7 @@ func TestLargeReorgTrieGC(t *testing.T) {
 	diskdb := ethdb.NewMemDatabase()
 	genesis.MustCommitRootBlock(diskdb)
 
-	chain, err := NewRootBlockChain(diskdb, nil, config.NewQuarkChainConfig(), engine, nil)
+	chain, err := NewRootBlockChain(diskdb, nil, qkcconfig, engine, nil)
 	if err != nil {
 		t.Fatalf("failed to create tester chain: %v", err)
 	}

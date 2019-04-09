@@ -96,14 +96,15 @@ type RootBlockChain struct {
 	triegc *prque.Prque   // Priority queue mapping block numbers to tries to gc
 	gcproc time.Duration  // Accumulates canonical block processing for trie dumping
 
-	headerChain   *RootHeaderChain
-	rmLogsFeed    event.Feed
-	chainFeed     event.Feed
-	chainSideFeed event.Feed
-	chainHeadFeed event.Feed
-	logsFeed      event.Feed
-	scope         event.SubscriptionScope
-	genesisBlock  *types.RootBlock
+	headerChain          *RootHeaderChain
+	validatedMinorBlocks map[common.Hash]*serialize.Uint256
+	rmLogsFeed           event.Feed
+	chainFeed            event.Feed
+	chainSideFeed        event.Feed
+	chainHeadFeed        event.Feed
+	logsFeed             event.Feed
+	scope                event.SubscriptionScope
+	genesisBlock         *types.RootBlock
 
 	mu      sync.RWMutex // global mutex for locking chain operations
 	chainmu sync.RWMutex // blockchain insertion lock
@@ -1139,6 +1140,48 @@ func (bc *RootBlockChain) GetAncestor(hash common.Hash, number, ancestor uint64,
 	defer bc.chainmu.Unlock()
 
 	return bc.headerChain.GetAncestor(hash, number, ancestor, maxNonCanonical)
+}
+
+func (bc *RootBlockChain) isSameChain(longerChainHeader, shorterChainHeader types.IHeader) bool {
+	return bc.headerChain.isSameChain(longerChainHeader, shorterChainHeader)
+}
+
+func (bc *RootBlockChain) containMinorBlock(hash common.Hash) bool {
+	_, ok := bc.validatedMinorBlocks[hash]
+	return ok
+}
+
+func (bc *RootBlockChain) AddValidatedMinorBlockHeader(header types.IHeader) {
+	bc.validatedMinorBlocks[header.Hash()] = header.(*types.MinorBlockHeader).CoinbaseAmount
+}
+
+func (bc *RootBlockChain) GetLatestMinorBlockHeaders(hash common.Hash) map[uint32]*types.MinorBlockHeader {
+	headerMap := make(map[uint32]*types.MinorBlockHeader)
+	headers := rawdb.ReadLatestMinorBlockHeaders(bc.db, hash)
+	for _, header := range headers {
+		headerMap[header.Branch.GetFullShardID()] = header
+	}
+
+	return headerMap
+}
+
+func (bc *RootBlockChain) SetLatestMinorBlockHeaders(hash common.Hash, headerMap map[uint32]*types.MinorBlockHeader) {
+	headers := make([]*types.MinorBlockHeader, 0, len(headerMap))
+	for _, header := range headerMap {
+		headers = append(headers, header)
+	}
+
+	rawdb.WriteLatestMinorBlockHeaders(bc.db, hash, headers)
+}
+
+func CalculateRootBlockCoinbase(config *config.QuarkChainConfig, block *types.RootBlock) *big.Int {
+	totalAmount := new(big.Int).SetUint64(0)
+	rate := config.RewardTaxRate
+	for _, header := range block.MinorBlockHeaders() {
+		totalAmount = new(big.Int).Add(totalAmount, header.CoinbaseAmount.Value)
+	}
+	totalAmount = new(big.Int).Div(new(big.Int).Mul(totalAmount, new(big.Int).Sub(rate.Denom(), rate.Num())), rate.Denom())
+	return new(big.Int).Add(config.Root.CoinbaseAmount, totalAmount)
 }
 
 // GetHeaderByNumber retrieves a block header from the database by number,
