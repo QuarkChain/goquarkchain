@@ -12,11 +12,10 @@ import (
 	"sync"
 
 	qkcrpc "github.com/QuarkChain/goquarkchain/cluster/rpc"
-	"github.com/ethereum/go-ethereum/accounts"
+	"github.com/QuarkChain/goquarkchain/p2p"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
-	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/prometheus/prometheus/util/flock"
 )
@@ -25,10 +24,8 @@ import (
 type Node struct {
 	eventmux *event.TypeMux // Event multiplexer used between the services of a stack
 	config   *Config
-	accman   *accounts.Manager
 
-	ephemeralKeystore string         // if non-empty, the key directory that will be removed by Stop
-	instanceDirLock   flock.Releaser // prevents concurrent use of instance directory
+	instanceDirLock flock.Releaser // prevents concurrent use of instance directory
 
 	serverConfig p2p.Config
 	server       *p2p.Server // Currently running P2P networking layer
@@ -43,10 +40,14 @@ type Node struct {
 	ipcListener net.Listener // IPC RPC listener socket to serve API requests
 	ipcHandler  *rpc.Server  // IPC RPC request handler to process the API requests
 
-	httpEndpoint  string       // HTTP endpoint (interface + port) to listen at (empty = HTTP disabled)
-	httpWhitelist []string     // HTTP RPC modules to allow through this endpoint
-	httpListener  net.Listener // HTTP RPC listener socket to server API requests
-	httpHandler   *rpc.Server  // HTTP RPC request handler to process the API requests
+	httpEndpoint  string       // public HTTP endpoint (interface + port) to listen at (empty = HTTP disabled)
+	httpWhitelist []string     // public HTTP RPC modules to allow through this endpoint
+	httpListener  net.Listener // public HTTP RPC listener socket to server API requests
+	httpHandler   *rpc.Server  // public HTTP RPC request handler to process the API requests
+
+	httpPrivEndpoint string       // private HTTP endpoint (interface + port) to listen at (empty = HTTP disabled)
+	httpPrivListener net.Listener // private HTTP RPC listener socket to server API requests
+	httpPrivHandler  *rpc.Server  // private HTTP RPC request handler to process the API requests
 
 	wsEndpoint string       // Websocket endpoint (interface + port) to listen at (empty = websocket disabled)
 	wsListener net.Listener // Websocket RPC listener socket to server API requests
@@ -76,29 +77,22 @@ func New(conf *Config) (*Node, error) {
 		}
 		conf.DataDir = absdatadir
 	}
-	// Ensure that the AccountManager method works before the node has started.
-	// We rely on this in cmd/geth.
-	am, ephemeralKeystore, err := makeAccountManager(conf)
-	if err != nil {
-		return nil, err
-	}
 	if conf.Logger == nil {
 		conf.Logger = log.New()
 	}
 	// Note: any interaction with Config that would create/touch files
 	// in the data directory or instance directory is delayed until Start.
 	node := &Node{
-		accman:            am,
-		ephemeralKeystore: ephemeralKeystore,
-		config:            conf,
-		serviceFuncs:      []ServiceConstructor{},
-		ipcEndpoint:       conf.IPCEndpoint(),
-		httpEndpoint:      conf.HTTPEndpoint(),
-		wsEndpoint:        conf.WSEndpoint(),
-		svrEndpoint:       conf.GRPCEndpoint(),
-		eventmux:          new(event.TypeMux),
-		isMaster:          true,
-		log:               conf.Logger,
+		config:           conf,
+		serviceFuncs:     []ServiceConstructor{},
+		ipcEndpoint:      conf.IPCEndpoint(),
+		httpEndpoint:     conf.HTTPEndpoint,
+		httpPrivEndpoint: conf.HTTPPrivEndpoint,
+		wsEndpoint:       conf.WSEndpoint(),
+		svrEndpoint:      conf.GRPCEndpoint(),
+		eventmux:         new(event.TypeMux),
+		isMaster:         true,
+		log:              conf.Logger,
 	}
 	return node, nil
 }
@@ -107,7 +101,7 @@ func (n *Node) SetIsMaster(isMaster bool) {
 	n.isMaster = isMaster
 }
 
-func (n *Node) GetModule() bool {
+func (n *Node) IsMaster() bool {
 	return n.isMaster
 }
 
@@ -160,10 +154,9 @@ func (n *Node) Start() error {
 	for _, constructor := range n.serviceFuncs {
 		// Create a new context for the particular service
 		ctx := &ServiceContext{
-			config:         n.config,
-			services:       make(map[reflect.Type]Service),
-			EventMux:       n.eventmux,
-			AccountManager: n.accman,
+			config:   n.config,
+			services: make(map[reflect.Type]Service),
+			EventMux: n.eventmux,
 		}
 		for kind, s := range services { // copy needed for threaded access
 			ctx.services[kind] = s
@@ -183,7 +176,7 @@ func (n *Node) Start() error {
 	for _, service := range services {
 		running.Protocols = append(running.Protocols, service.Protocols()...)
 	}
-	if n.GetModule() {
+	if n.IsMaster() {
 		if err := running.Start(); err != nil {
 			return convertFileLockError(err)
 		}
@@ -246,6 +239,7 @@ func (n *Node) startRPC(services map[reflect.Type]Service) error {
 	apis := n.apis()
 	var (
 		grpcApis []rpc.API
+		err      error
 	)
 	for _, service := range services {
 		for _, api := range service.APIs() {
@@ -258,37 +252,40 @@ func (n *Node) startRPC(services map[reflect.Type]Service) error {
 			}
 		}
 	}
-	if err := n.startGRPC(n.svrEndpoint, grpcApis); err != nil {
-		return err
+	if err = n.startGRPC(n.svrEndpoint, grpcApis); err != nil {
+		goto FALSE
 	}
-	if n.GetModule() {
+	if n.IsMaster() {
 		// Start the various API endpoints, terminating all in case of errors
-		if err := n.startInProc(apis); err != nil {
-			n.stopGRPC()
-			return err
+		if err = n.startInProc(apis); err != nil {
+			goto FALSE
 		}
-		if err := n.startIPC(apis); err != nil {
-			n.stopGRPC()
-			n.stopInProc()
-			return err
+		if err = n.startIPC(apis); err != nil {
+			goto FALSE
 		}
-		if err := n.startHTTP(n.httpEndpoint, apis, n.config.HTTPModules, n.config.HTTPCors, n.config.HTTPVirtualHosts, n.config.HTTPTimeouts); err != nil {
-			n.stopGRPC()
-			n.stopInProc()
-			n.stopIPC()
-			return err
+		if err = n.startHTTP(apis, n.config.HTTPModules, n.config.HTTPVirtualHosts, n.config.HTTPTimeouts); err != nil {
+			goto FALSE
 		}
-		if err := n.startWS(n.wsEndpoint, apis, n.config.WSModules, n.config.WSOrigins, n.config.WSExposeAll); err != nil {
-			n.stopGRPC()
-			n.stopInProc()
-			n.stopIPC()
-			n.stopHTTP()
-			return err
+		if err = n.startPrivHTTP(apis, n.config.HTTPModules, n.config.HTTPTimeouts); err != nil {
+			goto FALSE
+		}
+		if err = n.startWS(n.wsEndpoint, apis, n.config.WSModules, n.config.WSOrigins, n.config.WSExposeAll); err != nil {
+			goto FALSE
 		}
 	}
 	// All API endpoints started successfully
 	n.rpcAPIs = apis
 	return nil
+FALSE:
+	n.stopGRPC()
+	if n.IsMaster() {
+		n.stopInProc()
+		n.stopIPC()
+		n.stopHTTP()
+		n.stopPrivHTTP()
+		n.stopWS()
+	}
+	return err
 }
 
 // startInProc initializes an in-process RPC endpoint.
@@ -370,21 +367,47 @@ func (n *Node) stopGRPC() {
 }
 
 // startHTTP initializes and starts the HTTP RPC endpoint.
-func (n *Node) startHTTP(endpoint string, apis []rpc.API, modules []string, cors []string, vhosts []string, timeouts rpc.HTTPTimeouts) error {
+func (n *Node) startHTTP(apis []rpc.API, modules []string, vhosts []string, timeouts rpc.HTTPTimeouts) error {
 	// Short circuit if the HTTP endpoint isn't being exposed
-	if endpoint == "" {
+	if n.httpEndpoint == "" {
 		return nil
 	}
-	listener, handler, err := rpc.StartHTTPEndpoint(endpoint, apis, modules, cors, vhosts, timeouts)
+	listener, handler, err := rpc.StartHTTPEndpoint(n.httpEndpoint, apis, modules, []string{}, vhosts, timeouts)
 	if err != nil {
 		return err
 	}
-	n.log.Info("HTTP endpoint opened", "url", fmt.Sprintf("http://%s", endpoint), "cors", strings.Join(cors, ","), "vhosts", strings.Join(vhosts, ","))
+	n.log.Info("public HTTP endpoint opened", "url", fmt.Sprintf("http://%s", n.httpEndpoint), "vhosts", strings.Join(vhosts, ","))
 	// All listeners booted successfully
-	n.httpEndpoint = endpoint
 	n.httpListener = listener
 	n.httpHandler = handler
 
+	return nil
+}
+
+func (n *Node) startPrivHTTP(apis []rpc.API, modules []string, timeouts rpc.HTTPTimeouts) error {
+	if n.httpPrivEndpoint == "" {
+		return nil
+	}
+	privApis := n.apis()
+	for _, val := range apis {
+		if !val.Public {
+			api := rpc.API{
+				Namespace: val.Namespace,
+				Version:   val.Version,
+				Service:   val.Service,
+				Public:    true,
+			}
+			privApis = append(privApis, api)
+		}
+	}
+	vhosts := []string{"localhost"}
+	listener, handler, err := rpc.StartHTTPEndpoint(n.httpPrivEndpoint, privApis, modules, []string{}, vhosts, timeouts)
+	if err != nil {
+		return err
+	}
+	n.httpPrivListener = listener
+	n.httpPrivHandler = handler
+	n.log.Info("private HTTP endpoint opened", "url", fmt.Sprintf("http://%s", n.httpPrivEndpoint), "vhosts", strings.Join(vhosts, ","))
 	return nil
 }
 
@@ -394,11 +417,20 @@ func (n *Node) stopHTTP() {
 		n.httpListener.Close()
 		n.httpListener = nil
 
-		n.log.Info("HTTP endpoint closed", "url", fmt.Sprintf("http://%s", n.httpEndpoint))
+		n.log.Info("public HTTP endpoint closed", "url", fmt.Sprintf("http://%s", n.httpEndpoint))
 	}
 	if n.httpHandler != nil {
 		n.httpHandler.Stop()
 		n.httpHandler = nil
+	}
+}
+
+func (n *Node) stopPrivHTTP() {
+	if n.httpPrivListener != nil {
+		n.httpPrivListener.Close()
+		n.httpPrivListener = nil
+
+		n.log.Info("private HTTP endpoint closed", "url", fmt.Sprintf("http://%s", n.httpPrivEndpoint))
 	}
 }
 
@@ -450,6 +482,7 @@ func (n *Node) Stop() error {
 	n.stopGRPC()
 	n.stopWS()
 	n.stopHTTP()
+	n.stopPrivHTTP()
 	n.stopIPC()
 	n.rpcAPIs = nil
 	failure := &StopError{
@@ -475,17 +508,8 @@ func (n *Node) Stop() error {
 	// unblock n.Wait
 	close(n.stop)
 
-	// Remove the keystore if it was created ephemerally.
-	var keystoreErr error
-	if n.ephemeralKeystore != "" {
-		keystoreErr = os.RemoveAll(n.ephemeralKeystore)
-	}
-
 	if len(failure.Services) > 0 {
 		return failure
-	}
-	if keystoreErr != nil {
-		return keystoreErr
 	}
 	return nil
 }
@@ -577,11 +601,6 @@ func (n *Node) InstanceDir() string {
 	return n.config.instanceDir()
 }
 
-// AccountManager retrieves the account manager used by the protocol stack.
-func (n *Node) AccountManager() *accounts.Manager {
-	return n.accman
-}
-
 // IPCEndpoint retrieves the current IPC endpoint used by the protocol stack.
 func (n *Node) IPCEndpoint() string {
 	return n.ipcEndpoint
@@ -632,26 +651,5 @@ func (n *Node) ResolvePath(x string) string {
 
 // apis returns the collection of RPC descriptors this node offers.
 func (n *Node) apis() []rpc.API {
-	return []rpc.API{
-		{
-			Namespace: "admin",
-			Version:   "1.0",
-			Service:   NewPrivateAdminAPI(n),
-		}, {
-			Namespace: "admin",
-			Version:   "1.0",
-			Service:   NewPublicAdminAPI(n),
-			Public:    true,
-		}, {
-			Namespace: "debug",
-			Version:   "1.0",
-			Service:   NewPublicDebugAPI(n),
-			Public:    true,
-		}, {
-			Namespace: "web3",
-			Version:   "1.0",
-			Service:   NewPublicWeb3API(n),
-			Public:    true,
-		},
-	}
+	return []rpc.API{}
 }

@@ -5,8 +5,7 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/ethereum/go-ethereum/node"
-	"github.com/ethereum/go-ethereum/p2p"
+	"github.com/QuarkChain/goquarkchain/p2p"
 	"github.com/ethereum/go-ethereum/rpc"
 )
 
@@ -27,7 +26,7 @@ func (s *SampleService) Stop() error               { fmt.Println("Service stoppi
 
 func ExampleService() {
 	// Create a network node to run protocols with the default values.
-	stack, err := node.New(&node.Config{})
+	stack, err := New(&Config{})
 	if err != nil {
 		log.Fatalf("Failed to create network node: %v", err)
 	}
@@ -35,7 +34,7 @@ func ExampleService() {
 	// of a node.ServiceConstructor that will instantiate a node.Service. The reason for
 	// the factory method approach is to support service restarts without relying on the
 	// individual implementations' support for such operations.
-	constructor := func(context *node.ServiceContext) (node.Service, error) {
+	constructor := func(context *ServiceContext) (Service, error) {
 		return new(SampleService), nil
 	}
 	if err := stack.Register(constructor); err != nil {

@@ -3,6 +3,7 @@ package main
 
 import (
 	"github.com/QuarkChain/goquarkchain/cmd/utils"
+	"github.com/QuarkChain/goquarkchain/internal/debug"
 	"gopkg.in/urfave/cli.v1"
 	"io"
 	"sort"
@@ -45,6 +46,7 @@ var AppHelpFlagGroups = []flagGroup{
 	{
 		Name: "QUARKCHAIN",
 		Flags: []cli.Flag{
+			utils.ServiceFlag,
 			ClusterConfigFlag,
 			utils.LogLevelFlag,
 			utils.CleanFlag,
@@ -57,18 +59,48 @@ var AppHelpFlagGroups = []flagGroup{
 			utils.NumSlavesFlag,
 			utils.PortStartFlag,
 			utils.DbPathRootFlag,
+			utils.GRPCPortFlag,
+			utils.EnableTransactionHistoryFlag,
+		},
+	},
+	{
+		Name: "P2P",
+		Flags: []cli.Flag{
 			utils.P2pFlag,
 			utils.P2pPortFlag,
-			utils.JsonRpcPortFlag,
-			utils.JsonRpcPrivatePortFlag,
-			utils.EnableTransactionHistoryFlag,
-			utils.SimpleNetworkBootstrapHostFlag,
-			utils.SimpleNetworkBootstrapPortFlag,
 			utils.MaxPeersFlag,
 			utils.BootnodesFlag,
 			utils.UpnpFlag,
 			utils.PrivkeyFlag,
+			utils.SimpleNetworkBootstrapHostFlag,
+			utils.SimpleNetworkBootstrapPortFlag,
 		},
+	},
+	{
+		Name: "PUBLIC API",
+		Flags: []cli.Flag{
+			utils.RPCDisabledFlag,
+			utils.RPCListenAddrFlag,
+			utils.RPCPortFlag,
+		},
+	},
+	{
+		Name: "PRIVATE API",
+		Flags: []cli.Flag{
+			utils.PrivateRPCEnableFlag,
+			utils.PrivateRPCPortFlag,
+		},
+	},
+	{
+		Name: "IPC API",
+		Flags: []cli.Flag{
+			utils.IPCEnableFlag,
+			utils.IPCPathFlag,
+		},
+	},
+	{
+		Name:  "DEBUG",
+		Flags: debug.Flags,
 	},
 }
 

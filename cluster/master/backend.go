@@ -3,7 +3,8 @@ package master
 import (
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/cluster/service"
-	"github.com/ethereum/go-ethereum/p2p"
+	"github.com/QuarkChain/goquarkchain/internal/qkcapi"
+	"github.com/QuarkChain/goquarkchain/p2p"
 	"github.com/ethereum/go-ethereum/rpc"
 	"reflect"
 	"sync"
@@ -13,7 +14,7 @@ import (
 type MasterBackend struct {
 	lock       sync.RWMutex
 	config     config.ClusterConfig
-	APIBackend *MasterAPIBackend
+	APIBackend *QkcAPIBackend
 	run        int64
 }
 
@@ -25,7 +26,7 @@ func New(ctx *service.ServiceContext, cfg *config.ClusterConfig) (*MasterBackend
 		}
 		err error
 	)
-	master.APIBackend, err = NewSlaveConnManafer(master, cfg.SlaveList)
+	master.APIBackend, err = NewQkcAPIBackend(master, cfg.SlaveList)
 	if err != nil {
 		return nil, err
 	}
@@ -35,21 +36,15 @@ func New(ctx *service.ServiceContext, cfg *config.ClusterConfig) (*MasterBackend
 func (c *MasterBackend) Protocols() (protos []p2p.Protocol) { return nil }
 
 func (c *MasterBackend) APIs() []rpc.API {
-	apis := []rpc.API{
+	apis := qkcapi.GetAPIs(c.APIBackend)
+	return append(apis, []rpc.API{
 		{
-			Namespace: "mater",
-			Version:   "3.0",
-			Service:   c.APIBackend,
-			Public:    true,
-		},
-		{
-			Namespace: "rpc." + reflect.TypeOf(MasterAPIBackend{}).Name(),
+			Namespace: "rpc." + reflect.TypeOf(MasterServerSideOp{}).Name(),
 			Version:   "3.0",
 			Service:   NewServerSideOp(c),
 			Public:    false,
 		},
-	}
-	return apis
+	}...)
 }
 
 func (c *MasterBackend) Stop() error {
@@ -59,7 +54,7 @@ func (c *MasterBackend) Stop() error {
 
 func (c *MasterBackend) Start(srvr *p2p.Server) error {
 	atomic.StoreInt64(&c.run, 1)
-	c.APIBackend.ConnecToSlaves()
+	// c.APIBackend.ConnecToSlaves()
 	return nil
 }
 
