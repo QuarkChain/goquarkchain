@@ -110,7 +110,8 @@ func (v *RootBlockValidator) ValidateBlock(block types.IBlock) error {
 		}
 		if mheader.Branch.GetFullShardID() < fullShardId {
 			return errors.New("shard id must be ordered")
-		} else if mheader.Branch.GetFullShardID() > fullShardId {
+		}
+		if mheader.Branch.GetFullShardID() > fullShardId {
 			fullShardId = mheader.Branch.GetFullShardID()
 			shardIdToMinorHeadersMap[fullShardId] = make([]*types.MinorBlockHeader, 0, rootBlock.MinorBlockHeaders().Len())
 		} else if mheader.Number < parentHeader.Number {
