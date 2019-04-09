@@ -3,13 +3,15 @@ package service
 
 import (
 	"errors"
-	"github.com/QuarkChain/goquarkchain/cluster/config"
-	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/p2p"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"reflect"
 	"testing"
+
+	"github.com/QuarkChain/goquarkchain/cluster/config"
+	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/p2p"
 )
 
 var (
@@ -24,11 +26,11 @@ func testNodeConfig() *Config {
 	}
 }
 
-func testSlaveConfig(idx uint16) *config.SlaveConfig {
+func testSlaveConfig(idx int) *config.SlaveConfig {
 	return &config.SlaveConfig{
 		IP:            "127.0.0.1",
-		Port:          config.SlavePort + idx,
-		ID:            "S" + string(idx),
+		Port:          38000 + idx,
+		ID:            fmt.Sprintf("S%d", idx),
 		ChainMaskList: nil,
 	}
 }
