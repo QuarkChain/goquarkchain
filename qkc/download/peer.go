@@ -86,33 +86,11 @@ type LightPeer interface {
 // Peer encapsulates the methods required to synchronise with a remote full peer.
 type Peer interface {
 	LightPeer
-	RequestRootBodies([]common.Hash) error
-	RequestMinorBodies([]common.Hash, uint32) error
+	RequestRootBlocks([]common.Hash) error
+	RequestMinorBlocks([]common.Hash, uint32) error
 	RequestReceipts([]common.Hash) error
 	RequestNodeData([]common.Hash) error
 }
-
-//// lightPeerWrapper wraps a LightPeer struct, stubbing out the Peer-only methods.
-//type lightPeerWrapper struct {
-//	peer LightPeer
-//}
-//
-//func (w *lightPeerWrapper) Head() (common.Hash, *big.Int) { return w.peer.Head() }
-//func (w *lightPeerWrapper) RequestRootHeadersByHash(h common.Hash, amount int, skip int, reverse bool) error {
-//	return w.peer.RequestRootHeadersByHash(h, amount, skip, reverse)
-//}
-//func (w *lightPeerWrapper) RequestHeadersByNumber(i uint64, amount int, skip int, reverse bool) error {
-//	return w.peer.RequestHeadersByNumber(i, amount, skip, reverse)
-//}
-//func (w *lightPeerWrapper) RequestRootBodies([]common.Hash) error {
-//	panic("RequestRootBodies not supported in light client mode sync")
-//}
-//func (w *lightPeerWrapper) RequestReceipts([]common.Hash) error {
-//	panic("RequestReceipts not supported in light client mode sync")
-//}
-//func (w *lightPeerWrapper) RequestNodeData([]common.Hash) error {
-//	panic("RequestNodeData not supported in light client mode sync")
-//}
 
 // newPeerConnection creates a new downloader peer.
 func newPeerConnection(id string, version int, peer Peer, logger log.Logger) *peerConnection {
@@ -163,50 +141,6 @@ func (p *peerConnection) FetchHeaders(from uint64, count int) error {
 	return nil
 }
 
-//// FetchBodies sends a block body retrieval request to the remote peer.
-//func (p *peerConnection) FetchBodies(request *fetchRequest) error {
-//	// Sanity check the protocol version
-//	if p.version < 62 {
-//		panic(fmt.Sprintf("body fetch [eth/62+] requested on eth/%d", p.version))
-//	}
-//	// Short circuit if the peer is already fetching
-//	if !atomic.CompareAndSwapInt32(&p.blockIdle, 0, 1) {
-//		return errAlreadyFetching
-//	}
-//	p.blockStarted = time.Now()
-//
-//	// Convert the header set to a retrievable slice
-//	hashes := make([]common.Hash, 0, len(request.Headers))
-//	for _, header := range request.Headers {
-//		hashes = append(hashes, header.Hash())
-//	}
-//	go p.peer.RequestRootBodies(hashes)
-//
-//	return nil
-//}
-
-//// FetchReceipts sends a receipt retrieval request to the remote peer.
-//func (p *peerConnection) FetchReceipts(request *fetchRequest) error {
-//	// Sanity check the protocol version
-//	if p.version < 63 {
-//		panic(fmt.Sprintf("body fetch [eth/63+] requested on eth/%d", p.version))
-//	}
-//	// Short circuit if the peer is already fetching
-//	if !atomic.CompareAndSwapInt32(&p.receiptIdle, 0, 1) {
-//		return errAlreadyFetching
-//	}
-//	p.receiptStarted = time.Now()
-//
-//	// Convert the header set to a retrievable slice
-//	hashes := make([]common.Hash, 0, len(request.Headers))
-//	for _, header := range request.Headers {
-//		hashes = append(hashes, header.Hash())
-//	}
-//	go p.peer.RequestReceipts(hashes)
-//
-//	return nil
-//}
-
 // FetchNodeData sends a node state data retrieval request to the remote peer.
 func (p *peerConnection) FetchNodeData(hashes []common.Hash) error {
 	// Sanity check the protocol version
@@ -231,10 +165,10 @@ func (p *peerConnection) SetHeadersIdle(delivered int) {
 	p.setIdle(p.headerStarted, delivered, &p.headerThroughput, &p.headerIdle)
 }
 
-// SetBodiesIdle sets the peer to idle, allowing it to execute block body retrieval
+// SetBlocksIdle sets the peer to idle, allowing it to execute block body retrieval
 // requests. Its estimated body retrieval throughput is updated with that measured
 // just now.
-func (p *peerConnection) SetBodiesIdle(delivered int) {
+func (p *peerConnection) SetBlocksIdle(delivered int) {
 	p.setIdle(p.blockStarted, delivered, &p.blockThroughput, &p.blockIdle)
 }
 
@@ -475,9 +409,9 @@ func (ps *peerSet) HeaderIdlePeers() ([]*peerConnection, int) {
 	return ps.idlePeers(62, 64, idle, throughput)
 }
 
-// BodyIdlePeers retrieves a flat list of all the currently body-idle peers within
+// BlockIdlePeers retrieves a flat list of all the currently body-idle peers within
 // the active peer set, ordered by their reputation.
-func (ps *peerSet) BodyIdlePeers() ([]*peerConnection, int) {
+func (ps *peerSet) BlockIdlePeers() ([]*peerConnection, int) {
 	idle := func(p *peerConnection) bool {
 		return atomic.LoadInt32(&p.blockIdle) == 0
 	}

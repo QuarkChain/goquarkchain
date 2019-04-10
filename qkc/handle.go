@@ -214,7 +214,7 @@ func (m *Manager) handleMsg(peer *peer) error {
 		if err := serialize.DeserializeFromBytes(qkcMsg.Data, &blockResp); err != nil {
 			return err
 		}
-		m.rootDownloader.DeliverRootBodies(peer.id, blockResp)
+		m.rootDownloader.DeliverRootBlocks(peer.id, blockResp)
 	case qkcMsg.Op == p2p.GetMinorBlockHeaderListResponseMsg:
 		var minorHeaderResp p2p.GetMinorBlockHeaderListResponse
 
@@ -227,7 +227,7 @@ func (m *Manager) handleMsg(peer *peer) error {
 		if err := serialize.DeserializeFromBytes(qkcMsg.Data, &minorBlockResp); err != nil {
 			return err
 		}
-		m.minorDownloader.DeliverMinorBodies(peer.id, minorBlockResp)
+		m.minorDownloader.DeliverMinorBlocks(peer.id, minorBlockResp)
 
 	default:
 		return errors.New("未知的消息码")

@@ -37,35 +37,37 @@ func (p *minorHeaderPack) PeerID() string { return p.peerID }
 func (p *minorHeaderPack) Items() int     { return len(p.headers.BlockHeaderList) }
 func (p *minorHeaderPack) Stats() string  { return fmt.Sprintf("%d", len(p.headers.BlockHeaderList)) }
 
-// rootBodyPack is a batch of block bodies returned by a peer.
-type rootBodyPack struct {
+// rootBlockPack is a batch of block bodies returned by a peer.
+type rootBlockPack struct {
 	peerID    string
 	blockList []*types.RootBlock
 }
 
-func (p *rootBodyPack) PeerID() string { return p.peerID }
-func (p *rootBodyPack) Items() int {
+func (p *rootBlockPack) PeerID() string { return p.peerID }
+func (p *rootBlockPack) Items() int {
 	return len(p.blockList)
 }
-func (p *rootBodyPack) Stats() string { return fmt.Sprintf("%d", len(p.blockList)) }
+func (p *rootBlockPack) Stats() string { return fmt.Sprintf("%d", len(p.blockList)) }
 
-type minorBodyPack struct {
+type minorBlockPack struct {
 	peerID    string
 	blockList []*types.MinorBlock
 }
 
-func (p *minorBodyPack) PeerID() string { return p.peerID }
-func (p *minorBodyPack) Items() int {
+func (p *minorBlockPack) PeerID() string { return p.peerID }
+func (p *minorBlockPack) Items() int {
 	return len(p.blockList)
 }
-func (p *minorBodyPack) Stats() string { return fmt.Sprintf("%d", len(p.blockList)) }
+func (p *minorBlockPack) Stats() string { return fmt.Sprintf("%d", len(p.blockList)) }
 
 // RootDownloader root blockchain download
 type RootDownloader struct {
-	Header *types.RootBlockHeader
-	FakeMinorDownloader *MinorDownloader
+	Header          *types.RootBlockHeader
+	MinorDownloader *MinorDownloader
 
-	MasterServer *FakeMasterServer
+	MasterService *FakeMasterServer
+
+	//TODO need use real rootState
 	//FakeRootState
 	RootState    FakeRootState
 	MaxStaleness uint32
@@ -75,7 +77,7 @@ type RootDownloader struct {
 
 	// Channels
 	rootHeaderCh  chan dataPack
-	rootBodyCh    chan dataPack
+	rootBlockCh    chan dataPack
 
 }
 
@@ -83,15 +85,15 @@ type RootDownloader struct {
 func NewRootDownloader() *RootDownloader {
 	return &RootDownloader{
 		rootHeaderCh:  make(chan dataPack, 1),
-		rootBodyCh:    make(chan dataPack, 1),
-		MasterServer:  &FakeMasterServer{},
+		rootBlockCh:    make(chan dataPack, 1),
+		MasterService: &FakeMasterServer{},
 		fakeMapNumber: make(map[common.Hash]bool),
 	}
 }
 
 //SetFakeMinorDownLoader test for minor block download
 func (r *RootDownloader)SetFakeMinorDownLoader(minorDownloader *MinorDownloader){
-	r.FakeMinorDownloader=minorDownloader
+	r.MinorDownloader =minorDownloader
 }
 
 func (r *RootDownloader) check(headerList []*types.RootBlockHeader) bool {
@@ -168,7 +170,7 @@ func (r *RootDownloader) SyncWithPeer(id string, version int, pp Peer, header *t
 
 func (r *RootDownloader) addBlock(block *types.RootBlock) {
 	r.syncMinorBlocks(block.MinorBlockHeaders())
-	r.MasterServer.AddRootBlock(block)
+	r.MasterService.AddRootBlock(block)
 }
 
 func (r *RootDownloader) syncMinorBlocks(blockHeaderList types.MinorBlockHeaders) {
@@ -226,11 +228,11 @@ func (r *RootDownloader) downloadRootBlock(p *peerConnection, data []*types.Root
 	for _, v := range data {
 		hashList = append(hashList, v.Hash())
 	}
-	p.peer.RequestRootBodies(hashList)
+	p.peer.RequestRootBlocks(hashList)
 	for {
 		select {
-		case packet := <-r.rootBodyCh:
-			bodys := packet.(*rootBodyPack)
+		case packet := <-r.rootBlockCh:
+			bodys := packet.(*rootBlockPack)
 			return bodys.blockList
 
 		}
@@ -244,9 +246,9 @@ func (r *RootDownloader) DeliverRootHeaders(id string, headers p2p.GetRootBlockH
 	return r.deliver(id, r.rootHeaderCh, &rootHeaderPack{id, headers}, headerInMeter, headerDropMeter)
 }
 
-// DeliverRootBodies injects a new batch of block bodies received from a remote node.
-func (r *RootDownloader) DeliverRootBodies(id string, bodys p2p.GetRootBlockListResponse) (err error) {
-	return r.deliver(id, r.rootBodyCh, &rootBodyPack{id, bodys.RootBlockList}, bodyInMeter, bodyDropMeter)
+// DeliverRootBlocks injects a new batch of block bodies received from a remote node.
+func (r *RootDownloader) DeliverRootBlocks(id string, bodys p2p.GetRootBlockListResponse) (err error) {
+	return r.deliver(id, r.rootBlockCh, &rootBlockPack{id, bodys.RootBlockList}, bodyInMeter, bodyDropMeter)
 }
 
 func (r *RootDownloader) deliver(id string, destCh chan dataPack, packet dataPack, inMeter, dropMeter metrics.Meter) (err error) {

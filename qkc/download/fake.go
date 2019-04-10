@@ -74,7 +74,7 @@ func  (r *RootDownloader)testMinor(p *peerConnection, bodys []*types.RootBlock) 
 	}
 
 	for k, v := range mapp {
-		err:=r.FakeMinorDownloader.SyncWithPeer(p,v,k)
+		err:=r.MinorDownloader.SyncWithPeer(p,v,k)
 		if err!=nil{
 			//TODO delete panic
 			panic(err)

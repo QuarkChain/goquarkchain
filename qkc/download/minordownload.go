@@ -20,14 +20,14 @@ type MinorDownloader struct {
 
 	//channel
 	minorHeaderCh chan dataPack
-	minorBodyCh   chan dataPack
+	minorBlockCh   chan dataPack
 }
 
 // NewMinorDownloader new minor downloader
 func NewMinorDownloader() *MinorDownloader {
 	d := &MinorDownloader{
 		minorHeaderCh: make(chan dataPack, 1),
-		minorBodyCh:   make(chan dataPack, 1),
+		minorBlockCh:   make(chan dataPack, 1),
 	}
 	return d
 }
@@ -49,11 +49,11 @@ func (m *MinorDownloader) downloadMinorBlock(p *peerConnection, data []*types.Mi
 	for _, v := range data {
 		hashList = append(hashList, v.Hash())
 	}
-	p.peer.RequestMinorBodies(hashList, branch)
+	p.peer.RequestMinorBlocks(hashList, branch)
 	for {
 		select {
-		case packet := <-m.minorBodyCh:
-			bodys := packet.(*minorBodyPack)
+		case packet := <-m.minorBlockCh:
+			bodys := packet.(*minorBlockPack)
 			return bodys.blockList
 
 		}
@@ -65,9 +65,9 @@ func (m *MinorDownloader) DeliverMinorHeaders(id string, headers p2p.GetMinorBlo
 	return m.deliver(id, m.minorHeaderCh, &minorHeaderPack{id, headers}, headerInMeter, headerDropMeter)
 }
 
-//DeliverMinorBodies deliver minor bodies
-func (m *MinorDownloader) DeliverMinorBodies(id string, bodys p2p.GetMinorBlockListResponse) (err error) {
-	return m.deliver(id, m.minorBodyCh, &minorBodyPack{id, bodys.MinorBlockList}, bodyInMeter, bodyDropMeter)
+//DeliverMinorBlocks deliver minor bodies
+func (m *MinorDownloader) DeliverMinorBlocks(id string, bodys p2p.GetMinorBlockListResponse) (err error) {
+	return m.deliver(id, m.minorBlockCh, &minorBlockPack{id, bodys.MinorBlockList}, bodyInMeter, bodyDropMeter)
 }
 
 
@@ -142,11 +142,11 @@ func (m *MinorDownloader) SyncWithPeer(p *peerConnection, header *types.MinorBlo
 		bodys := m.downloadMinorBlock(p,BlockHeaderChain,branch)
 
 		//TODO check data need delete
-		fmt.Println("====Bodys展示开始", "len", len(bodys), "Branch", branch)
+		fmt.Println("====Blocks展示开始", "len", len(bodys), "Branch", branch)
 		for _, vv := range bodys {
 			fmt.Println(vv.Branch().Value, vv.Number(), vv.Hash().String())
 		}
-		fmt.Println("===Bodys展示结束")
+		fmt.Println("===Blocks展示结束")
 
 		for _, v := range bodys {
 			// if contain

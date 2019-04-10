@@ -253,14 +253,14 @@ func (p *peer) SendBlockHeaders(headers []*types.Header) error {
 	return nil
 }
 
-// SendBlockBodies sends a batch of block contents to the remote peer.
-func (p *peer) SendBlockBodies() error {
+// SendBlockBlocks sends a batch of block contents to the remote peer.
+func (p *peer) SendBlockBlocks() error {
 	return nil
 }
 
-// SendBlockBodiesRLP sends a batch of block contents to the remote peer from
+// SendBlockBlocksRLP sends a batch of block contents to the remote peer from
 // an already RLP encoded format.
-func (p *peer) SendBlockBodiesRLP(bodies []rlp.RawValue) error {
+func (p *peer) SendBlockBlocksRLP(bodies []rlp.RawValue) error {
 	return nil
 }
 
@@ -331,9 +331,9 @@ func (p *peer) RequestHeadersByNumber(origin uint64, amount int, skip int, rever
 	return nil
 }
 
-// RequestRootBodies fetches a batch of blocks' bodies corresponding to the hashes
+// RequestRootBlocks fetches a batch of blocks' bodies corresponding to the hashes
 // specified.
-func (p *peer) RequestRootBodies(hashes []common.Hash) error {
+func (p *peer) RequestRootBlocks(hashes []common.Hash) error {
 	data := p2p.GetRootBlockListRequest{}
 	for _, v := range hashes {
 		temp := new(serialize.Uint256)
@@ -350,7 +350,7 @@ func (p *peer) RequestRootBodies(hashes []common.Hash) error {
 	//return p2p.Send(p.rw, uint64(p2p.GetRootBlockListRequestMsg), data)
 }
 
-func (p *peer) RequestMinorBodies(hashes []common.Hash, branch uint32) error {
+func (p *peer) RequestMinorBlocks(hashes []common.Hash, branch uint32) error {
 	data := p2p.GetMinorBlockListRequest{}
 	for _, v := range hashes {
 		temp := new(serialize.Uint256)
