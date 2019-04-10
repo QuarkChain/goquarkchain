@@ -3,32 +3,8 @@ package config
 import (
 	"encoding/json"
 	"github.com/QuarkChain/goquarkchain/account"
-	"github.com/QuarkChain/goquarkchain/common"
 	ethcom "github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/log"
 	"math/big"
-)
-
-var (
-	skeletonChainConfig = ChainConfig{
-		ChainID:                            0,
-		ShardSize:                          2,
-		DefaultChainToken:                  "",
-		ConsensusType:                      PoWNone,
-		ConsensusConfig:                    nil,
-		Genesis:                            nil,
-		CoinbaseAmount:                     new(big.Int).Mul(big.NewInt(5), QuarkashToJiaozi),
-		GasLimitEmaDenominator:             1024,
-		GasLimitAdjustmentFactor:           1024,
-		GasLimitMinimum:                    5000,
-		GasLimitMaximum:                    1<<63 - 1,
-		GasLimitUsageAdjustmentNumerator:   3,
-		GasLimitUsageAdjustmentDenominator: 2,
-		DifficultyAdjustmentCutoffTime:     7,
-		DifficultyAdjustmentFactor:         512,
-		ExtraShardBlocksInRootBlock:        3,
-		PoswConfig:                         nil,
-	}
 )
 
 type ChainConfig struct {
@@ -58,13 +34,25 @@ type ChainConfig struct {
 }
 
 func NewChainConfig() *ChainConfig {
-	chainCfg := new(ChainConfig)
-	if err := common.DeepCopy(chainCfg, &skeletonChainConfig); err != nil {
-		log.Error("chain config copy from default", "error", err)
+	return &ChainConfig{
+		ChainID:                            0,
+		ShardSize:                          2,
+		DefaultChainToken:                  "",
+		ConsensusType:                      PoWNone,
+		ConsensusConfig:                    nil,
+		Genesis:                            NewShardGenesis(),
+		CoinbaseAmount:                     new(big.Int).Mul(big.NewInt(5), QuarkashToJiaozi),
+		GasLimitEmaDenominator:             1024,
+		GasLimitAdjustmentFactor:           1024,
+		GasLimitMinimum:                    5000,
+		GasLimitMaximum:                    1<<63 - 1,
+		GasLimitUsageAdjustmentNumerator:   3,
+		GasLimitUsageAdjustmentDenominator: 2,
+		DifficultyAdjustmentCutoffTime:     7,
+		DifficultyAdjustmentFactor:         512,
+		ExtraShardBlocksInRootBlock:        3,
+		PoswConfig:                         NewPOSWConfig(),
 	}
-	chainCfg.Genesis = NewShardGenesis()
-	chainCfg.PoswConfig = NewPOSWConfig()
-	return chainCfg
 }
 
 type ChainConfigAlias ChainConfig

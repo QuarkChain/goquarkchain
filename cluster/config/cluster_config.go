@@ -10,46 +10,13 @@ import (
 )
 
 var (
-	SlavePort             = 38000
-	skeletonClusterConfig = ClusterConfig{
-		P2PPort:                  38291,
-		JSONRPCPort:              38391,
-		PrivateJSONRPCPort:       38491,
-		EnableTransactionHistory: false,
-		DbPathRoot:               "./data",
-		LogLevel:                 "info",
-		StartSimulatedMining:     false,
-		Clean:                    false,
-		GenesisDir:               "/dev/null",
-		Quarkchain:               NewQuarkChainConfig(),
-		Master:                   &DefaultMasterConfig,
-		SimpleNetwork:            &DefaultSimpleNetwork,
-		P2P:                      &DefaultP2PConfig,
-		Monitoring:               &DefaultMonitoring,
-	}
-	skeletonQuarkChainConfig = QuarkChainConfig{
-		ChainSize:                         3,
-		MaxNeighbors:                      32,
-		NetworkID:                         3,
-		TransactionQueueSizeLimitPerShard: 10000,
-		BlockExtraDataSizeLimit:           1024,
-		GuardianPublicKey:                 "ab856abd0983a82972021e454fcf66ed5940ed595b0898bcd75cbe2d0a51a00f5358b566df22395a2a8bf6c022c1d51a2c3defe654e91a8d244947783029694d",
-		GuardianPrivateKey:                nil,
-		P2PProtocolVersion:                0,
-		P2PCommandSizeLimit:               (1 << 32) - 1,
-		SkipRootDifficultyCheck:           false,
-		SkipRootCoinbaseCheck:             false,
-		SkipMinorDifficultyCheck:          false,
-		GenesisToken:                      "",
-		RewardTaxRate:                     new(big.Rat).SetFloat64(0.5),
-		Root:                              NewRootConfig(),
-	}
+	slavePort             int = 38000
 )
 
 type ClusterConfig struct {
-	P2PPort                  uint64            `json:"P2P_PORT"`
-	JSONRPCPort              uint64            `json:"JSON_RPC_PORT"`
-	PrivateJSONRPCPort       uint64            `json:"PRIVATE_JSON_RPC_PORT"`
+	P2PPort                  int               `json:"P2P_PORT"`
+	JSONRPCPort              int               `json:"JSON_RPC_PORT"`
+	PrivateJSONRPCPort       int               `json:"PRIVATE_JSON_RPC_PORT"`
 	EnableTransactionHistory bool              `json:"ENABLE_TRANSACTION_HISTORY"`
 	DbPathRoot               string            `json:"DB_PATH_ROOT"`
 	LogLevel                 string            `json:"LOG_LEVEL"`
@@ -66,12 +33,26 @@ type ClusterConfig struct {
 }
 
 func NewClusterConfig() *ClusterConfig {
-	var ret ClusterConfig
-	ret = skeletonClusterConfig
+	var ret = ClusterConfig{
+		P2PPort:                  38291,
+		JSONRPCPort:              38391,
+		PrivateJSONRPCPort:       38491,
+		EnableTransactionHistory: false,
+		DbPathRoot:               "./data",
+		LogLevel:                 "info",
+		StartSimulatedMining:     false,
+		Clean:                    false,
+		GenesisDir:               "/dev/null",
+		Quarkchain:               NewQuarkChainConfig(),
+		Master:                   NewMasterConfig(),
+		SimpleNetwork:            NewSimpleNetwork(),
+		P2P:                      NewP2PConfig(),
+		Monitoring:               NewMonitoringConfig(),
+	}
 
 	for i := 0; i < DefaultNumSlaves; i++ {
 		slave := NewDefaultSlaveConfig()
-		slave.Port = uint64(SlavePort + i)
+		slave.Port = slavePort + i
 		slave.ID = fmt.Sprintf("S%d", i)
 		slave.ChainMaskList = append(slave.ChainMaskList, types.NewChainMask(uint32(i|DefaultNumSlaves)))
 		ret.SlaveList = append(ret.SlaveList, slave)
@@ -117,7 +98,7 @@ type QuarkChainConfigAlias QuarkChainConfig
 
 func (q *QuarkChainConfig) MarshalJSON() ([]byte, error) {
 	rewardTaxRate, _ := q.RewardTaxRate.Float64()
-	chains := make([]*ChainConfig, 0)
+	chains := make([]*ChainConfig, 0, len(q.Chains))
 	for _, chain := range q.Chains {
 		chains = append(chains, chain)
 	}
@@ -204,6 +185,7 @@ func (q *QuarkChainConfig) Update(chainSize, shardSizePerChain, rootBlockTime, m
 		chainCfg.ShardSize = shardSizePerChain
 		chainCfg.ConsensusType = PoWSimulate
 		chainCfg.ConsensusConfig = NewPOWConfig()
+		chainCfg.ConsensusConfig.TargetBlockTime = minorBlockTime
 		q.Chains[chainId] = chainCfg
 		for shardId := uint32(0); shardId < shardSizePerChain; shardId++ {
 			shardCfg := NewShardConfig(chainCfg)
@@ -280,8 +262,23 @@ func (q *QuarkChainConfig) GetShardSizeByChainId(ID uint32) uint32 {
 }
 
 func NewQuarkChainConfig() *QuarkChainConfig {
-	var ret QuarkChainConfig
-	ret = skeletonQuarkChainConfig
+	var ret = QuarkChainConfig{
+		ChainSize:                         3,
+		MaxNeighbors:                      32,
+		NetworkID:                         3,
+		TransactionQueueSizeLimitPerShard: 10000,
+		BlockExtraDataSizeLimit:           1024,
+		GuardianPublicKey:                 "ab856abd0983a82972021e454fcf66ed5940ed595b0898bcd75cbe2d0a51a00f5358b566df22395a2a8bf6c022c1d51a2c3defe654e91a8d244947783029694d",
+		GuardianPrivateKey:                nil,
+		P2PProtocolVersion:                0,
+		P2PCommandSizeLimit:               (1 << 32) - 1,
+		SkipRootDifficultyCheck:           false,
+		SkipRootCoinbaseCheck:             false,
+		SkipMinorDifficultyCheck:          false,
+		GenesisToken:                      "",
+		RewardTaxRate:                     new(big.Rat).SetFloat64(0.5),
+		Root:                              NewRootConfig(),
+	}
 
 	ret.Root.ConsensusType = PoWSimulate
 	ret.Root.ConsensusConfig = NewPOWConfig()

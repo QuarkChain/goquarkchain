@@ -26,7 +26,7 @@ type Pong struct {
 type SlaveInfo struct {
 	Id            []byte            `json:"id" gencodec:"required" bytesizeofslicelen:"4"`
 	Host          []byte            `json:"host" gencodec:"required" bytesizeofslicelen:"4"`
-	Port          uint64            `json:"port" gencodec:"required"`
+	Port          int               `json:"port" gencodec:"required"`
 	ChainMaskList []types.ChainMask `json:"chain_mask_list" gencodec:"required" bytesizeofslicelen:"4"`
 }
 
