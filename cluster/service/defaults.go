@@ -7,30 +7,29 @@ import (
 	"path/filepath"
 	"runtime"
 
-	"github.com/ethereum/go-ethereum/p2p"
+	"github.com/QuarkChain/goquarkchain/p2p"
 	"github.com/ethereum/go-ethereum/p2p/nat"
 	"github.com/ethereum/go-ethereum/rpc"
 )
 
 const (
-	DefaultHTTPHost = "localhost" // Default host interface for the HTTP RPC server
-	DefaultHTTPPort = 38391       // Default TCP port for the HTTP RPC server
-	DefaultWSHost   = "localhost" // Default host interface for the websocket RPC server
-	DefaultWSPort   = 8546        // Default TCP port for the websocket RPC server
+	DefaultHTTPHost        = "localhost" // Default host interface for the HTTP RPC server
+	DefaultHTTPPort        = 38391       // Default TCP port for the public HTTP RPC server
+	DefaultPrivateHTTPPort = 38491       // Default TCP port for the private HTTP RPC server
+	DefaultWSHost          = "localhost" // Default host interface for the websocket RPC server
+	DefaultWSPort          = 8546        // Default TCP port for the websocket RPC server
 )
 
 // DefaultConfig contains reasonable default settings.
 var DefaultConfig = Config{
-	DataDir:          DefaultDataDir(),
-	HTTPPort:         DefaultHTTPPort,
-	HTTPModules:      []string{"net", "web3"},
-	HTTPVirtualHosts: []string{"localhost"},
-	HTTPTimeouts:     rpc.DefaultHTTPTimeouts,
-	WSPort:           DefaultWSPort,
-	WSModules:        []string{"net", "web3"},
+	DataDir:      DefaultDataDir(),
+	HTTPModules:  []string{"qkc"},
+	HTTPTimeouts: rpc.DefaultHTTPTimeouts,
+	WSPort:       DefaultWSPort,
+	WSModules:    []string{},
 	// SvrModule:        "MasterOp",
 	P2P: p2p.Config{
-		ListenAddr: ":30303",
+		ListenAddr: ":38291",
 		MaxPeers:   25,
 		NAT:        nat.Any(),
 	},

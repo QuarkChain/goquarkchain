@@ -4,30 +4,25 @@ package service
 import (
 	"crypto/ecdsa"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"sync"
 
-	"github.com/ethereum/go-ethereum/accounts"
-	"github.com/ethereum/go-ethereum/accounts/keystore"
-	"github.com/ethereum/go-ethereum/accounts/usbwallet"
+	"github.com/QuarkChain/goquarkchain/p2p"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/log"
-	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/rpc"
 )
 
 const (
-	datadirPrivateKey      = "nodekey"            // Path within the datadir to the node's private key
-	datadirDefaultKeyStore = "keystore"           // Path within the datadir to the keystore
-	datadirStaticNodes     = "static-nodes.json"  // Path within the datadir to the static node list
-	datadirTrustedNodes    = "trusted-nodes.json" // Path within the datadir to the trusted node list
-	datadirNodeDatabase    = "nodes"              // Path within the datadir to store the node infos
+	datadirPrivateKey   = "nodekey"            // Path within the datadir to the node's private key
+	datadirStaticNodes  = "static-nodes.json"  // Path within the datadir to the static node list
+	datadirTrustedNodes = "trusted-nodes.json" // Path within the datadir to the trusted node list
+	datadirNodeDatabase = "nodes"              // Path within the datadir to store the node infos
 )
 
 // Config represents a small collection of configuration values to fine tune the
@@ -53,55 +48,20 @@ type Config struct {
 	// Configuration of peer-to-peer networking.
 	P2P p2p.Config
 
-	// KeyStoreDir is the file system folder that contains private keys. The directory can
-	// be specified as a relative path, in which case it is resolved relative to the
-	// current directory.
-	//
-	// If KeyStoreDir is empty, the default location is the "keystore" subdirectory of
-	// DataDir. If DataDir is unspecified and KeyStoreDir is empty, an ephemeral directory
-	// is created by New and destroyed when the node is stopped.
-	KeyStoreDir string `toml:",omitempty"`
-
-	// UseLightweightKDF lowers the memory and CPU requirements of the key store
-	// scrypt KDF at the expense of security.
-	UseLightweightKDF bool `toml:",omitempty"`
-
-	// NoUSB disables hardware wallet monitoring and connectivity.
-	NoUSB bool `toml:",omitempty"`
-
 	// IPCPath is the requested location to place the IPC endpoint. If the path is
 	// a simple file name, it is placed inside the data directory (or on the root
 	// pipe path on Windows), whereas if it's a resolvable path name (absolute or
 	// relative), then that specific path is enforced. An empty path disables IPC.
 	IPCPath string `toml:",omitempty"`
 
-	// HTTPHost is the host interface on which to start the HTTP RPC server. If this
-	// field is empty, no HTTP API endpoint will be started.
-	HTTPHost string `toml:",omitempty"`
-
-	// HTTPPort is the TCP port number on which to start the HTTP RPC server. The
-	// default zero value is/ valid and will pick a port number randomly (useful
-	// for ephemeral nodes).
-	HTTPPort int `toml:",omitempty"`
-
-	// HTTPCors is the Cross-Origin Resource Sharing header to send to requesting
-	// clients. Please be aware that CORS is a browser enforced security, it's fully
-	// useless for custom HTTP clients.
-	HTTPCors []string `toml:",omitempty"`
-
-	// HTTPVirtualHosts is the list of virtual hostnames which are allowed on incoming requests.
-	// This is by default {'localhost'}. Using this prevents attacks like
-	// DNS rebinding, which bypasses SOP by simply masquerading as being within the same
-	// origin. These attacks do not utilize CORS, since they are not cross-domain.
-	// By explicitly checking the Host-header, the server will not allow requests
-	// made against the server with a malicious host domain.
-	// Requests using ip address directly are not affected
-	HTTPVirtualHosts []string `toml:",omitempty"`
+	HTTPEndpoint string `toml:",omitempty"`
 
 	// HTTPModules is a list of API modules to expose via the HTTP RPC interface.
 	// If the module list is empty, all RPC API endpoints designated public will be
 	// exposed.
 	HTTPModules []string `toml:",omitempty"`
+
+	HTTPPrivEndpoint string `toml:",omitempty"`
 
 	// HTTPTimeouts allows for customization of the timeout values used by the HTTP RPC
 	// interface.
@@ -177,21 +137,6 @@ func (c *Config) NodeDB() string {
 		return "" // ephemeral
 	}
 	return c.ResolvePath(datadirNodeDatabase)
-}
-
-// HTTPEndpoint resolves an HTTP endpoint based on the configured host interface
-// and port parameters.
-func (c *Config) HTTPEndpoint() string {
-	if c.HTTPHost == "" {
-		return ""
-	}
-	return fmt.Sprintf("%s:%d", c.HTTPHost, c.HTTPPort)
-}
-
-// DefaultHTTPEndpoint returns the HTTP endpoint used by default.
-func DefaultHTTPEndpoint() string {
-	config := &Config{HTTPHost: DefaultHTTPHost, HTTPPort: DefaultHTTPPort}
-	return config.HTTPEndpoint()
 }
 
 // WSEndpoint resolves a websocket endpoint based on the configured host interface
@@ -358,70 +303,6 @@ func (c *Config) parsePersistentNodes(w *bool, path string) []*enode.Node {
 		nodes = append(nodes, node)
 	}
 	return nodes
-}
-
-// AccountConfig determines the settings for scrypt and keydirectory
-func (c *Config) AccountConfig() (int, int, string, error) {
-	scryptN := keystore.StandardScryptN
-	scryptP := keystore.StandardScryptP
-	if c.UseLightweightKDF {
-		scryptN = keystore.LightScryptN
-		scryptP = keystore.LightScryptP
-	}
-
-	var (
-		keydir string
-		err    error
-	)
-	switch {
-	case filepath.IsAbs(c.KeyStoreDir):
-		keydir = c.KeyStoreDir
-	case c.DataDir != "":
-		if c.KeyStoreDir == "" {
-			keydir = filepath.Join(c.DataDir, datadirDefaultKeyStore)
-		} else {
-			keydir, err = filepath.Abs(c.KeyStoreDir)
-		}
-	case c.KeyStoreDir != "":
-		keydir, err = filepath.Abs(c.KeyStoreDir)
-	}
-	return scryptN, scryptP, keydir, err
-}
-
-func makeAccountManager(conf *Config) (*accounts.Manager, string, error) {
-	scryptN, scryptP, keydir, err := conf.AccountConfig()
-	var ephemeral string
-	if keydir == "" {
-		// There is no datadir.
-		keydir, err = ioutil.TempDir("", "goquarkchain-keystore")
-		ephemeral = keydir
-	}
-
-	if err != nil {
-		return nil, "", err
-	}
-	if err := os.MkdirAll(keydir, 0700); err != nil {
-		return nil, "", err
-	}
-	// Assemble the account manager and supported backends
-	backends := []accounts.Backend{
-		keystore.NewKeyStore(keydir, scryptN, scryptP),
-	}
-	if !conf.NoUSB {
-		// Start a USB hub for Ledger hardware wallets
-		if ledgerhub, err := usbwallet.NewLedgerHub(); err != nil {
-			log.Warn(fmt.Sprintf("Failed to start Ledger hub, disabling: %v", err))
-		} else {
-			backends = append(backends, ledgerhub)
-		}
-		// Start a USB hub for Trezor hardware wallets
-		if trezorhub, err := usbwallet.NewTrezorHub(); err != nil {
-			log.Warn(fmt.Sprintf("Failed to start Trezor hub, disabling: %v", err))
-		} else {
-			backends = append(backends, trezorhub)
-		}
-	}
-	return accounts.NewManager(backends...), ephemeral, nil
 }
 
 var warnLock sync.Mutex
