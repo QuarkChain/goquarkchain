@@ -2,7 +2,7 @@ version: 2
 jobs:
   build:
     docker:
-      - image: ninjaahhh/circleci-goquarkchain:v0.0.1
+      - image: ninjaahhh/circleci-goquarkchain:v0.0.2
     steps:
       - checkout
       - restore_cache:

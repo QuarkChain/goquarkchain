@@ -17,6 +17,7 @@
 package core
 
 import (
+	"errors"
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/core/state"
 	"github.com/QuarkChain/goquarkchain/core/types"
@@ -25,6 +26,38 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 	"math/big"
 )
+
+func ValidateTransaction(state vm.StateDB, tx *types.Transaction) error {
+	from, err := tx.Sender(types.MakeSigner(tx.EvmTx.NetworkId()))
+	if err != nil {
+		return err
+	}
+
+	var reqNonce uint64
+	reqNonce = state.GetNonce(from.ToAddress())
+
+	if reqNonce > tx.EvmTx.Nonce() {
+		return ErrNonceTooLow
+	}
+
+	if state.GetBalance(from.ToAddress()).Cmp(tx.EvmTx.Cost()) < 0 {
+		return ErrInsufficientFunds
+	}
+
+	totalGas, err := IntrinsicGas(tx.EvmTx.Data(), tx.EvmTx.To() == nil, tx.EvmTx.ToFullShardId() != tx.EvmTx.FromFullShardId())
+	if err != nil {
+		return err
+	}
+	if tx.EvmTx.Gas() < totalGas {
+		return ErrIntrinsicGas
+	}
+
+	gasUsed := new(big.Int).Add(state.GetGasUsed(), new(big.Int).SetUint64(tx.EvmTx.Gas()))
+	if gasUsed.Cmp(state.GetGasLimit()) < 0 {
+		return errors.New("gas usage exceeds limit")
+	}
+	return nil
+}
 
 func ApplyTransaction(config *params.ChainConfig, bc ChainContext, gp *core.GasPool, statedb *state.StateDB, header *types.MinorBlockHeader, tx *types.Transaction, usedGas *uint64, cfg vm.Config) (*types.Receipt, uint64, error) {
 	statedb.SetFullShardID(tx.EvmTx.ToFullShardId())

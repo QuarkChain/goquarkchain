@@ -12,9 +12,9 @@ import (
 func testSlaveConfig(idx int) *config.SlaveConfig {
 	return &config.SlaveConfig{
 		IP:            "127.0.0.1",
-		Port:          uint64(config.SlavePort + idx),
-		ID:            "S" + string(idx),
-		ShardMaskList: nil,
+		Port:          38000 + idx,
+		ID:            fmt.Sprintf("S%d", idx),
+		ChainMaskList: nil,
 	}
 }
 

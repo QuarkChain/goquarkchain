@@ -19,51 +19,12 @@ const (
 )
 
 var (
-	QuarkashToJiaozi  = big.NewInt(1000000000000000000)
-	DefaultNumSlaves  = 4
-	DefaultPOSWConfig = POSWConfig{
-		Enabled:            false,
-		DiffDivider:        20,
-		WindowSize:         256,
-		TotalStakePerBlock: new(big.Int).Mul(big.NewInt(9), QuarkashToJiaozi),
-	}
-	DefaultRootGenesis = RootGenesis{
-		Version:        0,
-		Height:         0,
-		ShardSize:      32,
-		HashPrevBlock:  "",
-		HashMerkleRoot: "",
-		Timestamp:      1519147489,
-		Difficulty:     1000000,
-		Nonce:          0,
-	}
-	DefaultMonitoring = MonitoringConfig{
-		NetworkName:      "",
-		ClusterId:        "127.0.0.1",
-		KafkaRestAddress: "",
-		MinerTopic:       "qkc_miner",
-		PropagationTopic: "block_propagation",
-		Errors:           "error",
-	}
-	DefaultP2PConfig = P2PConfig{
-		BootNodes:        "",
-		PrivKey:          "",
-		MaxPeers:         25,
-		UPnP:             false,
-		AllowDialInRatio: 1.0,
-		PreferredNodes:   "",
-	}
-	DefaultSimpleNetwork = SimpleNetwork{
-		BootstrapHost: "127.0.0.1",
-		BootstrapPort: 38291,
-	}
-	DefaultMasterConfig = MasterConfig{
-		MasterToSlaveConnectRetryDelay: 1.0,
-	}
+	QuarkashToJiaozi = big.NewInt(1000000000000000000)
+	DefaultNumSlaves = 4
 )
 
 type POWConfig struct {
-	TargetBlockTime uint64 `json:"TARGET_BLOCK_TIME"`
+	TargetBlockTime uint32 `json:"TARGET_BLOCK_TIME"`
 	RemoteMine      bool   `json:"REMOTE_MINE"`
 }
 
@@ -75,10 +36,19 @@ func NewPOWConfig() *POWConfig {
 }
 
 type POSWConfig struct {
-	Enabled            bool
-	DiffDivider        uint32
-	WindowSize         uint32
-	TotalStakePerBlock *big.Int
+	Enabled            bool     `json:"ENABLED"`
+	DiffDivider        uint32   `json:"DIFF_DIVIDER"`
+	WindowSize         uint32   `json:"WINDOW_SIZE"`
+	TotalStakePerBlock *big.Int `json:"TOTAL_STAKE_PER_BLOCK"`
+}
+
+func NewPOSWConfig() *POSWConfig {
+	return &POSWConfig{
+		Enabled:            false,
+		DiffDivider:        20,
+		WindowSize:         256,
+		TotalStakePerBlock: new(big.Int).Mul(big.NewInt(1000000000), QuarkashToJiaozi),
+	}
 }
 
 type SimpleNetwork struct {
@@ -86,15 +56,33 @@ type SimpleNetwork struct {
 	BootstrapPort uint64 `json:"BOOT_STRAP_PORT"`
 }
 
+func NewSimpleNetwork() *SimpleNetwork {
+	return &SimpleNetwork{
+		BootstrapHost: "127.0.0.1",
+		BootstrapPort: 38291,
+	}
+}
+
 type RootGenesis struct {
 	Version        uint32 `json:"VERSION"`
 	Height         uint32 `json:"HEIGHT"`
-	ShardSize      uint64 `json:"SHARD_SIZE"`
 	HashPrevBlock  string `json:"HASH_PREV_BLOCK"`
 	HashMerkleRoot string `json:"HASH_MERKLE_ROOT"`
 	Timestamp      uint64 `json:"TIMESTAMP"`
 	Difficulty     uint64 `json:"DIFFICULTY"`
 	Nonce          uint32 `json:"NONCE"`
+}
+
+func NewRootGenesis() *RootGenesis {
+	return &RootGenesis{
+		Version:        0,
+		Height:         0,
+		HashPrevBlock:  "",
+		HashMerkleRoot: "",
+		Timestamp:      1519147489,
+		Difficulty:     1000000,
+		Nonce:          0,
+	}
 }
 
 type RootConfig struct {
@@ -115,13 +103,17 @@ func NewRootConfig() *RootConfig {
 		MaxStaleRootBlockHeightDiff: 60,
 		ConsensusType:               PoWNone,
 		ConsensusConfig:             nil,
-		Genesis:                     &DefaultRootGenesis,
+		Genesis:                     NewRootGenesis(),
 		// TODO address serialization type shuld to be replaced
 		CoinbaseAddress:                "",
 		CoinbaseAmount:                 new(big.Int).Mul(big.NewInt(120), QuarkashToJiaozi),
 		DifficultyAdjustmentCutoffTime: 40,
 		DifficultyAdjustmentFactor:     1024,
 	}
+}
+
+func (r *RootConfig) MaxRootBlocksInMemory() uint64 {
+	return r.MaxStaleRootBlockHeightDiff * 2
 }
 
 // TODO need to wait SharInfo be realized.
@@ -137,6 +129,12 @@ type MasterConfig struct {
 	MasterToSlaveConnectRetryDelay float32 `json:"MASTER_TO_SLAVE_CONNECT_RETRY_DELAY"`
 }
 
+func NewMasterConfig() *MasterConfig {
+	return &MasterConfig{
+		MasterToSlaveConnectRetryDelay: 1.0,
+	}
+}
+
 // TODO move to P2P
 type P2PConfig struct {
 	// *new p2p module*
@@ -148,15 +146,37 @@ type P2PConfig struct {
 	PreferredNodes   string  `json:"PREFERRED_NODES"`
 }
 
+func NewP2PConfig() *P2PConfig {
+	return &P2PConfig{
+		BootNodes:        "",
+		PrivKey:          "",
+		MaxPeers:         25,
+		UPnP:             false,
+		AllowDialInRatio: 1.0,
+		PreferredNodes:   "",
+	}
+}
+
 func (s *P2PConfig) GetBootNodes() []string {
 	return strings.Split(s.BootNodes, ",")
 }
 
 type MonitoringConfig struct {
 	NetworkName      string `json:"NETWORK_NAME"`
-	ClusterId        string `json:"CLUSTER_ID"`
+	ClusterID        string `json:"CLUSTER_ID"`
 	KafkaRestAddress string `json:"KAFKA_REST_ADDRESS"` // REST API endpoint for logging to Kafka, IP[:PORT] format
 	MinerTopic       string `json:"MINER_TOPIC"`        // "qkc_miner"
 	PropagationTopic string `json:"PROPAGATION_TOPIC"`  // "block_propagation"
 	Errors           string `json:"ERRORS"`             // "error"
+}
+
+func NewMonitoringConfig() *MonitoringConfig {
+	return &MonitoringConfig{
+		NetworkName:      "",
+		ClusterID:        "127.0.0.1",
+		KafkaRestAddress: "",
+		MinerTopic:       "qkc_miner",
+		PropagationTopic: "block_propagation",
+		Errors:           "error",
+	}
 }
