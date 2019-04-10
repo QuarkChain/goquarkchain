@@ -1,4 +1,4 @@
-package qkc
+package master
 
 import (
 	"errors"

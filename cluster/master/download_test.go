@@ -1,4 +1,4 @@
-package qkc
+package master
 
 import (
 	"fmt"
@@ -10,7 +10,7 @@ import (
 
 func fakeEnv(port uint64) config.ClusterConfig {
 	return config.ClusterConfig{
-		P2PPort: port,
+		P2PPort: int(port),
 		P2P: &config.P2PConfig{
 			MaxPeers:  25,
 			PrivKey:   "3a28b5ba57c53603b0b07b56bba752f7784bf506fa95edc395f5cf6c7514fe94",
