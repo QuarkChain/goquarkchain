@@ -93,10 +93,8 @@ func (v *RootBlockValidator) ValidateBlock(block types.IBlock) error {
 		if mheader.Branch.GetFullShardID() > fullShardId {
 			fullShardId = mheader.Branch.GetFullShardID()
 			shardIdToMinorHeadersMap[fullShardId] = make([]*types.MinorBlockHeader, 0, rootBlock.MinorBlockHeaders().Len())
-		} else if mheader.Number < parentHeader.Number {
-			return errors.New("mheader.Number must be ordered")
 		} else if mheader.Number != parentHeader.Number+1 {
-			return errors.New("mheader.Number must equal to prev header + 1")
+			return fmt.Errorf("mheader.Number must equal to prev header + 1, header number %d, prev number %d", mheader.Number, parentHeader.Number)
 		} else if mheader.ParentHash != parentHeader.Hash() {
 			return fmt.Errorf("minor block %v does not link to previous block %v",
 				mheader.Hash().String(), parentHeader.Hash().String())
