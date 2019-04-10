@@ -274,10 +274,10 @@ FALSE:
 	return err
 }
 
-func (n *Node) apiFilter(NodeApis []rpc.API, isPublic bool, modules []string) []rpc.API {
+func (n *Node) apiFilter(nodeApis []rpc.API, isPublic bool, modules []string) []rpc.API {
 	apis := n.apis()
 	for _, module := range modules {
-		for _, api := range NodeApis {
+		for _, api := range nodeApis {
 			if api.Namespace == module && api.Public == isPublic {
 				apis = append(apis, api)
 			}
