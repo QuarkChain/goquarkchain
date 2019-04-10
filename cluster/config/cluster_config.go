@@ -4,47 +4,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"math/big"
-
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/core/types"
+	"math/big"
 )
 
 var (
 	slavePort             int = 38000
-	skeletonClusterConfig     = ClusterConfig{
-		P2PPort:                  38291,
-		JSONRPCPort:              38391,
-		PrivateJSONRPCPort:       38491,
-		EnableTransactionHistory: false,
-		DbPathRoot:               "./data",
-		LogLevel:                 "info",
-		StartSimulatedMining:     false,
-		Clean:                    false,
-		GenesisDir:               "/dev/null",
-		Quarkchain:               NewQuarkChainConfig(),
-		Master:                   &DefaultMasterConfig,
-		SimpleNetwork:            &DefaultSimpleNetwork,
-		P2P:                      &DefaultP2PConfig,
-		Monitoring:               &DefaultMonitoring,
-	}
-	skeletonQuarkChainConfig = QuarkChainConfig{
-		ChainSize:                         3,
-		MaxNeighbors:                      32,
-		NetworkID:                         3,
-		TransactionQueueSizeLimitPerShard: 10000,
-		BlockExtraDataSizeLimit:           1024,
-		GuardianPublicKey:                 "ab856abd0983a82972021e454fcf66ed5940ed595b0898bcd75cbe2d0a51a00f5358b566df22395a2a8bf6c022c1d51a2c3defe654e91a8d244947783029694d",
-		GuardianPrivateKey:                nil,
-		P2PProtocolVersion:                0,
-		P2PCommandSizeLimit:               (1 << 32) - 1,
-		SkipRootDifficultyCheck:           false,
-		SkipRootCoinbaseCheck:             false,
-		SkipMinorDifficultyCheck:          false,
-		GenesisToken:                      "",
-		RewardTaxRate:                     new(big.Rat).SetFloat64(0.5),
-		Root:                              NewRootConfig(),
-	}
 )
 
 type ClusterConfig struct {
