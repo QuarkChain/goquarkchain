@@ -62,8 +62,6 @@ func defaultNodeConfig() service.Config {
 	cfg := service.DefaultConfig
 	cfg.Name = clientIdentifier
 	cfg.Version = params.VersionWithCommit(gitCommit)
-	cfg.HTTPModules = append(cfg.HTTPModules, "qkc", "shh")
-	cfg.WSModules = append(cfg.WSModules, "qkc", "shh")
 	cfg.IPCPath = "qkc.ipc"
 	cfg.SvrModule = "rpc."
 	return cfg
@@ -108,7 +106,7 @@ func makeConfigNode(ctx *cli.Context) (*service.Node, qkcConfig) {
 func makeFullNode(ctx *cli.Context) *service.Node {
 	stack, cfg := makeConfigNode(ctx)
 
-	if !stack.GetModule() {
+	if !stack.IsMaster() {
 		for _, slv := range cfg.Cluster.SlaveList {
 			if cfg.Service.Name == slv.ID {
 				utils.RegisterSlaveService(stack, slv)

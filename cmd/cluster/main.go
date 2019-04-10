@@ -58,11 +58,12 @@ var (
 		utils.RPCDisabledFlag,
 		utils.RPCListenAddrFlag,
 		utils.RPCPortFlag,
-		utils.RPCApiFlag,
+		utils.PrivateRPCEnableFlag,
+		utils.PrivateRPCListenAddrFlag,
+		utils.PrivateRPCPortFlag,
 		utils.IPCEnableFlag,
 		utils.IPCPathFlag,
-		utils.JsonRpcPortFlag,
-		utils.JsonRpcPrivatePortFlag,
+		utils.GRPCPortFlag,
 	}
 )
 
@@ -96,7 +97,6 @@ func init() {
 		// Ensure Go's GC ignores the database cache for trigger percentage
 		cache := ctx.GlobalInt(utils.CacheFlag.Name)
 		gogc := math.Max(20, math.Min(100, 100/(float64(cache)/1024)))
-
 		log.Debug("Sanitizing Go's GC trigger", "percent", int(gogc))
 		godebug.SetGCPercent(int(gogc))
 
@@ -141,7 +141,7 @@ func startService(ctx *cli.Context, stack *service.Node) {
 	// Start up the node itself
 	utils.StartService(stack)
 
-	if stack.GetModule() {
+	if stack.IsMaster() {
 		var master *master.MasterBackend
 		if err := stack.Service(&master); err != nil {
 			utils.Fatalf("master service not running %v", err)

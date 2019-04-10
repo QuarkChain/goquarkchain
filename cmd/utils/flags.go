@@ -416,8 +416,8 @@ func SetClusterConfig(ctx *cli.Context, cfg *config.ClusterConfig) {
 	// cluster.db_path_root
 	cfg.DbPathRoot = ctx.GlobalString(DbPathRootFlag.Name)
 	cfg.P2PPort = ctx.GlobalInt(P2pPortFlag.Name)
-	cfg.JSONRPCPort = ctx.GlobalInt(GRPCPortFlag.Name)
-	cfg.PrivateJSONRPCPort = ctx.GlobalInt(GRPCPortFlag.Name)
+	cfg.JSONRPCPort = ctx.GlobalInt(RPCPortFlag.Name)
+	cfg.PrivateJSONRPCPort = ctx.GlobalInt(PrivateRPCPortFlag.Name)
 	if ctx.GlobalBool(StartSimulatedMiningFlag.Name) {
 		cfg.StartSimulatedMining = true
 	}
