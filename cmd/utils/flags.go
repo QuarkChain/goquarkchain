@@ -159,7 +159,7 @@ var (
 	MaxPeersFlag = cli.Uint64Flag{
 		Name:  "max_peers",
 		Usage: "max peer for new p2p module",
-		Value: config.DefaultP2PConfig.MaxPeers,
+		Value: config.NewP2PConfig().MaxPeers,
 	}
 	BootnodesFlag = cli.StringFlag{
 		Name:  "bootnodes",
@@ -428,7 +428,7 @@ func SetClusterConfig(ctx *cli.Context, cfg *config.ClusterConfig) {
 
 	if ctx.GlobalIsSet(P2pFlag.Name) {
 		cfg.SimpleNetwork = nil
-		cfg.P2P = &config.DefaultP2PConfig
+		cfg.P2P = config.NewP2PConfig()
 		cfg.P2P.BootNodes = ctx.GlobalString(BootnodesFlag.Name)
 		cfg.P2P.PrivKey = ctx.GlobalString(PrivkeyFlag.Name)
 		cfg.P2P.MaxPeers = ctx.GlobalUint64(MaxPeersFlag.Name)
@@ -437,7 +437,7 @@ func SetClusterConfig(ctx *cli.Context, cfg *config.ClusterConfig) {
 		}
 	} else {
 		cfg.P2P = nil
-		cfg.SimpleNetwork = &config.DefaultSimpleNetwork
+		cfg.SimpleNetwork = config.NewSimpleNetwork()
 		cfg.SimpleNetwork.BootstrapHost = ctx.GlobalString(SimpleNetworkBootstrapHostFlag.Name)
 		cfg.SimpleNetwork.BootstrapPort = ctx.GlobalUint64(SimpleNetworkBootstrapPortFlag.Name)
 	}

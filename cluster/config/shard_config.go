@@ -29,7 +29,7 @@ func NewShardGenesis() *ShardGenesis {
 		HashPrevMinorBlock: "",
 		HashMerkleRoot:     "",
 		ExtraData:          []byte("It was the best of times, it was the worst of times, ... - Charles Dickens"),
-		Timestamp:          DefaultRootGenesis.Timestamp,
+		Timestamp:          NewRootGenesis().Timestamp,
 		Difficulty:         10000,
 		GasLimit:           30000 * 400,
 		Nonce:              0,
