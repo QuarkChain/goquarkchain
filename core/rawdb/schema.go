@@ -26,11 +26,12 @@ var (
 	fastTrieProgressKey = []byte("TrieSync")
 
 	// Data item prefixes (use single byte to avoid mixing data types, avoid `i`, used for indexes).
-	headerPrefix       = []byte("h")  // headerPrefix + hash -> header
-	headerTDSuffix     = []byte("t")  // headerPrefix + hash + headerTDSuffix -> td
-	rootHashPrefix     = []byte("rn") // rootHashPrefix + num (uint64 big endian) -> root hash
-	minorHashPrefix    = []byte("mn") // minorHashPrefix + num (uint64 big endian) -> minorhash
-	headerNumberPrefix = []byte("H")  // headerNumberPrefix + hash -> num (uint64 big endian)
+	headerPrefix        = []byte("h")   // headerPrefix + hash -> header
+	latestMHeaderPrefix = []byte("lmh") //latestMHeaderPrefix + hash -> latest minor header list
+	headerTDSuffix      = []byte("t")   // headerPrefix + hash + headerTDSuffix -> td
+	rootHashPrefix      = []byte("rn")  // rootHashPrefix + num (uint64 big endian) -> root hash
+	minorHashPrefix     = []byte("mn")  // minorHashPrefix + num (uint64 big endian) -> minorhash
+	headerNumberPrefix  = []byte("H")   // headerNumberPrefix + hash -> num (uint64 big endian)
 
 	blockPrefix         = []byte("b") // blockPrefix + hash -> block rootBlockBody
 	blockReceiptsPrefix = []byte("r") // blockReceiptsPrefix + num (uint64 big endian) + hash -> block receipts
@@ -72,6 +73,11 @@ func encodeBlockNumber(number uint64) []byte {
 // headerKey = headerPrefix + hash
 func headerKey(hash common.Hash) []byte {
 	return append(headerPrefix, hash.Bytes()...)
+}
+
+// latestMHeaderKey = latestMHeaderPrefix + hash
+func latestMHeaderKey(hash common.Hash) []byte {
+	return append(latestMHeaderPrefix, hash.Bytes()...)
 }
 
 // headerTDKey = headerPrefix + hash + headerTDSuffix

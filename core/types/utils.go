@@ -22,5 +22,3 @@ func serHash(val interface{}, excludeList map[string]bool) (h common.Hash) {
 	hw.Sum(h[:0])
 	return h
 }
-
-type Blocks []IBlock

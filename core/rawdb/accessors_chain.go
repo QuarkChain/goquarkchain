@@ -11,6 +11,10 @@ import (
 	"math/big"
 )
 
+type minorBlockHeaders struct {
+	Headers []*types.MinorBlockHeader `bytesizeofslicelen:"4"`
+}
+
 // ReadCanonicalHash retrieves the hash assigned to a canonical block number.
 func ReadCanonicalHash(db DatabaseReader, chainType ChainType, number uint64) common.Hash {
 	data, _ := db.Get(headerHashKey(chainType, number))
@@ -160,6 +164,38 @@ func DeleteMinorBlockHeader(db DatabaseDeleter, hash common.Hash) {
 	}
 	if err := db.Delete(headerNumberKey(hash)); err != nil {
 		log.Crit("Failed to delete hash to number mapping", "err", err)
+	}
+}
+
+func ReadLatestMinorBlockHeaders(db DatabaseReader, hash common.Hash) []*types.MinorBlockHeader {
+	data, _ := db.Get(latestMHeaderKey(hash))
+	if len(data) == 0 {
+		return nil
+	}
+	headers := new(minorBlockHeaders)
+	if err := serialize.Deserialize(serialize.NewByteBuffer(data), headers); err != nil {
+		log.Error("Invalid block header Deserialize", "hash", hash, "err", err)
+		return nil
+	}
+	return headers.Headers
+}
+
+func WriteLatestMinorBlockHeaders(db DatabaseWriter, hash common.Hash, headers []*types.MinorBlockHeader) {
+	// Write the encoded header
+	hs := minorBlockHeaders{headers}
+	data, err := serialize.SerializeToBytes(hs)
+	if err != nil {
+		log.Crit("Failed to Serialize header", "err", err)
+	}
+	key := latestMHeaderKey(hash)
+	if err := db.Put(key, data); err != nil {
+		log.Crit("Failed to store header", "err", err)
+	}
+}
+
+func DeleteLatestMinorBlockHeaders(db DatabaseDeleter, hash common.Hash) {
+	if err := db.Delete(latestMHeaderKey(hash)); err != nil {
+		log.Crit("Failed to delete header", "err", err)
 	}
 }
 
@@ -373,6 +409,7 @@ func DeleteMinorBlock(db DatabaseDeleter, hash common.Hash) {
 // DeleteRootBlock removes all block data associated with a hash.
 func DeleteRootBlock(db DatabaseDeleter, hash common.Hash) {
 	DeleteRootBlockHeader(db, hash)
+	DeleteLatestMinorBlockHeaders(db, hash)
 	DeleteBlock(db, hash)
 	DeleteTd(db, hash)
 }

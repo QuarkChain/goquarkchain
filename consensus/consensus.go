@@ -98,20 +98,23 @@ func (c *CommonEngine) VerifyHeader(
 	number := header.NumberU64()
 	logger := log.New("engine")
 
-	if chain.GetHeader(header.Hash(), number) != nil {
+	if chain.GetHeader(header.Hash()) != nil {
 		return nil
 	}
-	parent := chain.GetHeader(header.GetParentHash(), number-1)
+	parent := chain.GetHeader(header.GetParentHash())
 	if parent == nil {
 		return ErrUnknownAncestor
 	}
-
+	if parent.NumberU64() != number-1 {
+		return errors.New("incorrect block height")
+	}
 	if uint32(len(header.GetExtra())) > chain.Config().BlockExtraDataSizeLimit {
 		return fmt.Errorf("extra-data too long: %d > %d", len(header.GetExtra()), chain.Config().BlockExtraDataSizeLimit)
 	}
 
 	if header.GetTime() < parent.GetTime() {
-		return errors.New("timestamp equals parent's")
+		return fmt.Errorf("incorrect create time tip time %d, new block time %d",
+			header.GetTime(), parent.GetTime())
 	}
 
 	adjustedDiff := new(big.Int).SetUint64(0)
