@@ -47,6 +47,13 @@ var (
 
 	preimageCounter    = metrics.NewRegisteredCounter("db/preimage/total", nil)
 	preimageHitCounter = metrics.NewRegisteredCounter("db/preimage/hits", nil)
+
+	totalTxKey         = []byte("tx_count")
+	xConfirmedShardKey = []byte("xr_")
+	xShardLists        = []byte("xShard")
+	rLastM             = []byte("r_last_m")
+	rBlock             = []byte("r_block")
+	geneis             = []byte("geneis")
 )
 
 type ChainType byte
@@ -67,6 +74,12 @@ type LookupEntry struct {
 func encodeBlockNumber(number uint64) []byte {
 	enc := make([]byte, 8)
 	binary.BigEndian.PutUint64(enc, number)
+	return enc
+}
+
+func encodeUint32(number uint32) []byte {
+	enc := make([]byte, 4)
+	binary.BigEndian.PutUint32(enc, number)
 	return enc
 }
 
@@ -132,4 +145,26 @@ func preimageKey(hash common.Hash) []byte {
 // configKey = configPrefix + hash
 func configKey(hash common.Hash) []byte {
 	return append(configPrefix, hash.Bytes()...)
+}
+
+func totalTxCountKey(hash common.Hash) []byte {
+	return append(totalTxKey, hash.Bytes()...)
+}
+
+func makeConfirmedXShardKey(hash common.Hash) []byte {
+	return append(xConfirmedShardKey, hash.Bytes()...)
+}
+func makeXShardTxList(hash common.Hash) []byte {
+	return append(xShardLists, hash.Bytes()...)
+}
+func makeGenesisKey(hash common.Hash) []byte {
+	return append(geneis, hash.Bytes()...)
+}
+
+func makeRLastMHash(hash common.Hash) []byte {
+	return append(rLastM, hash.Bytes()...)
+}
+
+func makeRootBlockForShard(hash common.Hash) []byte {
+	return append(rBlock, hash.Bytes()...)
 }

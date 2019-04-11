@@ -65,16 +65,32 @@ func (h *MinorBlockHeader) Size() common.StorageSize {
 		common.StorageSize(len(h.Extra)+(h.Difficulty.BitLen())/8)
 }
 
-func (h *MinorBlockHeader) GetParentHash() common.Hash   { return h.ParentHash }
-func (h *MinorBlockHeader) GetCoinbase() account.Address { return h.Coinbase }
-func (h *MinorBlockHeader) GetTime() uint64              { return h.Time }
-func (h *MinorBlockHeader) GetDifficulty() *big.Int      { return new(big.Int).Set(h.Difficulty) }
-func (h *MinorBlockHeader) GetNonce() uint64             { return h.Nonce }
+func (h *MinorBlockHeader) GetParentHash() common.Hash        { return h.ParentHash }
+func (h *MinorBlockHeader) GetPrevRootBlockHash() common.Hash { return h.PrevRootBlockHash }
+func (h *MinorBlockHeader) GetCoinbase() account.Address      { return h.Coinbase }
+func (h *MinorBlockHeader) GetCoinbaseAmount() *big.Int {
+	return h.CoinbaseAmount.Value
+}
+func (h *MinorBlockHeader) GetTime() uint64         { return h.Time }
+func (h *MinorBlockHeader) GetDifficulty() *big.Int { return new(big.Int).Set(h.Difficulty) }
+func (h *MinorBlockHeader) GetNonce() uint64        { return h.Nonce }
 func (h *MinorBlockHeader) GetExtra() []byte {
 	if h.Extra != nil {
 		return common.CopyBytes(h.Extra)
 	}
 	return nil
+}
+func (h *MinorBlockHeader) GetGasLimit() *big.Int {
+	return h.GasLimit.Value
+}
+func (h *MinorBlockHeader) GetBranch() account.Branch {
+	return h.Branch
+}
+func (h *MinorBlockHeader) GetMetaHash() common.Hash {
+	return h.MetaHash
+}
+func (h *MinorBlockHeader) GetBloom() Bloom {
+	return h.Bloom
 }
 func (h *MinorBlockHeader) GetMixDigest() common.Hash { return h.MixDigest }
 
@@ -385,4 +401,83 @@ func (b *MinorBlock) Content() []IHashable {
 		items[i] = item
 	}
 	return items
+}
+
+func (b *MinorBlock) GetMetaData() *MinorBlockMeta {
+	return b.Meta()
+}
+
+func (b *MinorBlock) GetTrackingData() []byte {
+	return b.trackingdata
+}
+
+func (b *MinorBlock) GetTransactions() Transactions {
+	return b.transactions
+}
+
+func (b *MinorBlock) GetSize() common.StorageSize {
+	return b.Size()
+}
+
+func (h *MinorBlock) CreateBlockToAppend(createTime *uint64, difficulty *big.Int, address *account.Address, nonce *uint64, gasLimit *uint64, extraData []byte, coinBaseAmount *uint64) *MinorBlock {
+	realCreateTime := h.Time() + 1
+	if createTime != nil {
+		realCreateTime = *createTime
+	}
+
+	realDifficulty := h.Difficulty()
+	if difficulty != nil {
+		realDifficulty = difficulty
+	}
+
+	realAddress := account.CreatEmptyAddress(h.header.Coinbase.FullShardKey)
+	if address != nil {
+		realAddress = *address
+	}
+
+	realNonce := uint64(0)
+	if nonce != nil {
+		realNonce = *nonce
+	}
+
+	realGasLimit := h.GasLimit().Uint64()
+	if gasLimit != nil {
+		realGasLimit = *gasLimit
+	}
+
+	realExtraData := make([]byte, 0)
+	if extraData != nil {
+		realExtraData = extraData
+	}
+
+	realCoinBaseAmount := uint64(0)
+	if coinBaseAmount != nil {
+		realCoinBaseAmount = *coinBaseAmount
+	}
+	header := &MinorBlockHeader{
+		Version:           h.Version(),
+		Number:            h.Number() + 1,
+		Branch:            h.Branch(),
+		Coinbase:          realAddress,
+		CoinbaseAmount:    &serialize.Uint256{Value: new(big.Int).SetUint64(realCoinBaseAmount)},
+		ParentHash:        h.Hash(),
+		PrevRootBlockHash: h.PrevRootBlockHash(),
+		GasLimit:          &serialize.Uint256{Value: new(big.Int).SetUint64(realGasLimit)},
+		Time:              realCreateTime,
+		Difficulty:        realDifficulty,
+		Nonce:             realNonce,
+		Extra:             realExtraData,
+	}
+	meta := MinorBlockMeta{
+		GasUsed:           &serialize.Uint256{Value: new(big.Int).SetUint64(0)},
+		CrossShardGasUsed: &serialize.Uint256{Value: new(big.Int).SetUint64(0)},
+	}
+	return &MinorBlock{
+		header:       header,
+		meta:         &meta,
+		trackingdata: []byte{},
+	}
+}
+func (h *MinorBlock) AddTx(tx *Transaction) {
+	h.transactions = append(h.transactions, tx)
 }

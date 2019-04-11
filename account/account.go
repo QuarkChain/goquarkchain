@@ -227,7 +227,7 @@ func (Self *Account) MakeKeyStoreJSON(password string) (EncryptedKeyJSON, error)
 
 // Address return it's real address
 func (Self *Account) Address() string {
-	return hex.EncodeToString(Self.QKCAddress.ToHex())
+	return Self.QKCAddress.ToHex()
 }
 
 // PrivateKey return it's key

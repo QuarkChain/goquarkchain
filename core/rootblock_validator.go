@@ -1,9 +1,10 @@
 package core
 
 import (
+	"errors"
 	"fmt"
+	"github.com/QuarkChain/goquarkchain/core/state"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/syndtr/goleveldb/leveldb/errors"
 	"reflect"
 
 	"github.com/QuarkChain/goquarkchain/cluster/config"
@@ -151,6 +152,9 @@ func (v *RootBlockValidator) ValidateBlock(block types.IBlock) error {
 	v.blockChain.SetLatestMinorBlockHeaders(block.Hash(), latestMinorBlockHeaders)
 	return nil
 }
+func (v *RootBlockValidator) ValidateState(block, parent types.IBlock, statedb *state.StateDB, receipts types.Receipts, usedGas uint64) error {
+	panic(errors.New("not implement"))
+}
 
 type FackRootBlockValidator struct {
 	Err error
@@ -158,4 +162,8 @@ type FackRootBlockValidator struct {
 
 func (v *FackRootBlockValidator) ValidateBlock(block types.IBlock) error {
 	return v.Err
+}
+
+func (v *FackRootBlockValidator) ValidateState(block, parent types.IBlock, statedb *state.StateDB, receipts types.Receipts, usedGas uint64) error {
+	panic(errors.New("not implement"))
 }

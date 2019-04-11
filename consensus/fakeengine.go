@@ -2,6 +2,7 @@ package consensus
 
 import (
 	"github.com/QuarkChain/goquarkchain/account"
+	"github.com/QuarkChain/goquarkchain/core/state"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/rpc"
 	"math/big"
@@ -92,4 +93,8 @@ func (e *FakeEngine) APIs(chain ChainReader) []rpc.API {
 // Close terminates any background threads maintained by the consensus engine.
 func (e *FakeEngine) Close() error {
 	return e.Err
+}
+func (e *FakeEngine) Finalize(chain ChainReader, header types.IHeader, state *state.StateDB, txs []*types.Transaction,
+	uncles []types.IHeader, receipts []*types.Receipt) (types.IBlock, error) {
+	return &types.MinorBlock{}, nil
 }

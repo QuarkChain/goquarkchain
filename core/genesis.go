@@ -249,7 +249,7 @@ func (g *Genesis) CommitMinorBlock(db ethdb.Database, rootBlock *types.RootBlock
 	rawdb.WriteTd(db, block.Hash(), block.Difficulty())
 	rawdb.WriteMinorBlock(db, block)
 	rawdb.WriteReceipts(db, block.Hash(), nil)
-	rawdb.WriteCanonicalHash(db, rawdb.ChainTypeRoot, block.Hash(), block.Number())
+	rawdb.WriteCanonicalHash(db, rawdb.ChainTypeMinor, block.Hash(), block.Number())
 	rawdb.WriteHeadBlockHash(db, block.Hash())
 	rawdb.WriteHeadHeaderHash(db, block.Hash())
 

@@ -61,8 +61,12 @@ func (h *RootBlockHeader) SignWithPrivateKey(prv *ecdsa.PrivateKey) error {
 	return nil
 }
 
-func (h *RootBlockHeader) GetParentHash() common.Hash   { return h.ParentHash }
+func (h *RootBlockHeader) GetParentHash() common.Hash { return h.ParentHash }
+func (h *RootBlockHeader) GetPrevRootBlockHash() common.Hash {
+	panic(errors.New("root block header no such func"))
+}
 func (h *RootBlockHeader) GetCoinbase() account.Address { return h.Coinbase }
+func (h *RootBlockHeader) GetCoinbaseAmount() *big.Int  { return h.CoinbaseAmount.Value }
 func (h *RootBlockHeader) GetTime() uint64              { return h.Time }
 func (h *RootBlockHeader) GetDifficulty() *big.Int      { return new(big.Int).Set(h.Difficulty) }
 func (h *RootBlockHeader) GetNonce() uint64             { return h.Nonce }
@@ -71,6 +75,18 @@ func (h *RootBlockHeader) GetExtra() []byte {
 		return common.CopyBytes(h.Extra)
 	}
 	return nil
+}
+func (h *RootBlockHeader) GetGasLimit() *big.Int {
+	panic(errors.New("root block header not have gasLimit"))
+}
+func (h *RootBlockHeader) GetBranch() account.Branch {
+	panic(errors.New("root block header not have branch"))
+}
+func (h *RootBlockHeader) GetMetaHash() common.Hash {
+	panic(errors.New("root block header not have metaHash"))
+}
+func (h *RootBlockHeader) GetBloom() Bloom {
+	panic(errors.New("root block header not have bloom"))
 }
 func (h *RootBlockHeader) GetMixDigest() common.Hash { return h.MixDigest }
 
@@ -98,6 +114,51 @@ func (h *RootBlockHeader) SetNonce(nonce uint64) {
 
 func (h *RootBlockHeader) SetCoinbase(addr account.Address) {
 	h.Coinbase = addr
+}
+
+func (h *RootBlockHeader) CreateBlockToAppend(createTime *uint64, difficulty *big.Int, address *account.Address, nonce *uint64, extraData []byte) *RootBlock {
+	realCreateTime := h.Time + 1
+	if createTime != nil {
+		realCreateTime = *createTime
+	}
+
+	realDifficulty := h.Difficulty
+	if difficulty != nil {
+		realDifficulty = difficulty
+	}
+
+	realAddress := account.CreatEmptyAddress(0)
+	if address != nil {
+		realAddress = *address
+	}
+
+	realNonce := uint64(0)
+	if nonce != nil {
+		realNonce = *nonce
+	}
+
+	realExtraData := make([]byte, 0)
+	if extraData != nil {
+		realExtraData = extraData
+	}
+
+	header := &RootBlockHeader{
+		Version:         h.Version,
+		Number:          h.Number + 1,
+		ParentHash:      h.Hash(),
+		MinorHeaderHash: common.Hash{},
+		Coinbase:        realAddress,
+		CoinbaseAmount:  h.CoinbaseAmount,
+		Time:            realCreateTime,
+		Difficulty:      realDifficulty,
+		Nonce:           realNonce,
+		Extra:           realExtraData,
+	}
+	return &RootBlock{
+		header:            header,
+		minorBlockHeaders: make(MinorBlockHeaders, 0),
+		trackingdata:      []byte{},
+	}
 }
 
 // Block represents an entire block in the QuarkChain.
@@ -311,4 +372,41 @@ func (b *RootBlock) Hash() common.Hash {
 	v := b.header.Hash()
 	b.hash.Store(v)
 	return v
+}
+
+func (b *RootBlock) GetMetaData() *MinorBlockMeta {
+	return nil
+}
+
+func (b *RootBlock) GetTrackingData() []byte {
+	return b.trackingdata
+}
+
+func (b *RootBlock) GetTransactions() Transactions {
+	panic(errors.New("root block do not have txs"))
+}
+func (b *RootBlock) GetSize() common.StorageSize {
+	return b.Size()
+}
+
+func (b *RootBlock) Finalize(coinbaseAmount *uint64, coinbaseAddress *account.Address) *RootBlock {
+	realCoinBaseAmount := uint64(0)
+	if coinbaseAmount != nil {
+		realCoinBaseAmount = *coinbaseAmount
+	}
+
+	realCoinbaseAddress := account.CreatEmptyAddress(0)
+	if coinbaseAddress != nil {
+		realCoinbaseAddress = *coinbaseAddress
+	}
+	b.header.MinorHeaderHash = DeriveSha(b.minorBlockHeaders)
+	b.header.CoinbaseAmount = &serialize.Uint256{Value: new(big.Int).SetUint64(realCoinBaseAmount)}
+	b.header.Coinbase = realCoinbaseAddress
+	return b
+}
+func (b *RootBlock) AddMinorBlockHeader(header *MinorBlockHeader) {
+	b.minorBlockHeaders = append(b.minorBlockHeaders, header)
+}
+func (b *RootBlock) ExtendMinorBlockHeaderList(headers []*MinorBlockHeader) {
+	b.minorBlockHeaders = append(b.minorBlockHeaders, headers...)
 }

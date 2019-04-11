@@ -160,7 +160,7 @@ func (in *EVMInterpreter) Run(contract *Contract, input []byte, readOnly bool) (
 		defer func() { in.readOnly = false }()
 	}
 
-	// Reset the previous call's return data. It's unimportant to preserve the old buffer
+	// reset the previous call's return data. It's unimportant to preserve the old buffer
 	// as every returning call will return new data anyway.
 	in.returnData = nil
 

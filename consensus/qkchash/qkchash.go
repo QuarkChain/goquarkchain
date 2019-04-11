@@ -2,6 +2,7 @@ package qkchash
 
 import (
 	"encoding/binary"
+	"github.com/QuarkChain/goquarkchain/core/state"
 	"math/big"
 
 	"github.com/QuarkChain/goquarkchain/account"
@@ -44,6 +45,11 @@ func (q *QKCHash) VerifyHeaders(chain consensus.ChainReader, headers []types.IHe
 // Prepare initializes the consensus fields of a block header according to the
 // rules of a particular engine. The changes are executed inline.
 func (q *QKCHash) Prepare(chain consensus.ChainReader, header types.IHeader) error {
+	panic("not implemented")
+}
+
+func (q *QKCHash) Finalize(chain consensus.ChainReader, header types.IHeader, state *state.StateDB, txs []*types.Transaction,
+	uncles []types.IHeader, receipts []*types.Receipt) (types.IBlock, error) {
 	panic("not implemented")
 }
 

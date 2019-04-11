@@ -3,6 +3,8 @@ package doublesha256
 import (
 	"crypto/sha256"
 	"encoding/binary"
+	"errors"
+	"github.com/QuarkChain/goquarkchain/core/state"
 	"math/big"
 
 	"github.com/QuarkChain/goquarkchain/account"
@@ -109,6 +111,11 @@ func (d *DoubleSHA256) FindNonce(
 // Name returns the consensus engine's name.
 func (d *DoubleSHA256) Name() string {
 	return d.commonEngine.Name()
+}
+
+func (d *DoubleSHA256) Finalize(chain consensus.ChainReader, header types.IHeader, state *state.StateDB, txs []*types.Transaction,
+	uncles []types.IHeader, receipts []*types.Receipt) (types.IBlock, error) {
+	panic(errors.New("not finalize"))
 }
 
 func hashAlgo(hash []byte, nonce uint64) (consensus.MiningResult, error) {

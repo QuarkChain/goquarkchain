@@ -28,7 +28,7 @@ func (Self *Branch) GetShardSize() uint32 {
 	return 1 << (common.IntLeftMostBit(branchValue) - 1)
 }
 
-// GetFullShardID get branch's fullShardId
+// GetFullShardKey get branch's fullShardId
 func (Self *Branch) GetFullShardID() uint32 {
 	return Self.Value
 }

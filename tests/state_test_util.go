@@ -161,11 +161,12 @@ func (t *StateTest) Run(subtest StateSubtest, vmconfig vm.Config) (*state.StateD
 	context := qkcCore.NewEVMContext(*msg, header, nil)
 	evm := vm.NewEVM(context, statedb, config, vmconfig)
 
-	gaspool := new(core.GasPool)
+	gaspool := new(qkcCore.GasPool)
 	gaspool.AddGas(block.GasLimit())
 	snapshot := statedb.Snapshot()
 
-	if _, _, _, err := qkcCore.ApplyMessage(evm, msg, gaspool, 0.0); err != nil {
+	localFee:=big.NewRat(1,1)
+	if _, _, _, err := qkcCore.ApplyMessage(evm, msg, gaspool, localFee); err != nil {
 		statedb.RevertToSnapshot(snapshot)
 	}
 

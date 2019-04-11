@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"github.com/QuarkChain/goquarkchain/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 )
 
 // Address include recipient and fullShardKey
@@ -22,14 +23,23 @@ func NewAddress(recipient Recipient, fullShardKey uint32) Address {
 }
 
 // ToHex return bytes included recipient and fullShardKey
-func (Self *Address) ToHex() []byte {
+func (Self Address) ToHex() string {
 	address := Self.Recipient.Bytes()
 	shardKey := Uint32ToBytes(Self.FullShardKey)
 	address = append(address, shardKey...)
-	return address
+
+	return hexutil.Encode(address[:])
+
 }
 
-// GetFullShardID get fullShardID depend shardSize
+func (Self Address) ToBytes() []byte {
+	address := Self.Recipient.Bytes()
+	shardKey := Uint32ToBytes(Self.FullShardKey)
+	address = append(address, shardKey...)
+	return address[:]
+}
+
+// GetFullShardKey get fullShardID depend shardSize
 func (Self *Address) GetFullShardID(shardSize uint32) (uint32, error) {
 	if common.IsP2(shardSize) == false {
 		return 0, fmt.Errorf("shardSize is not right shardSize:%d", shardSize)
@@ -38,6 +48,10 @@ func (Self *Address) GetFullShardID(shardSize uint32) (uint32, error) {
 	chainID := Self.FullShardKey >> 16
 	shardID := Self.FullShardKey & (shardSize - 1)
 	return uint32(chainID<<16 | shardSize | shardID), nil
+}
+
+func (self *Address) GetChainID() uint32 {
+	return self.FullShardKey >> 16
 }
 
 // AddressInShard return address depend new fullShardKey

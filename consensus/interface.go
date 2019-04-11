@@ -3,6 +3,7 @@ package consensus
 import (
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
+	"github.com/QuarkChain/goquarkchain/core/state"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/common"
 	"math/big"
@@ -52,6 +53,13 @@ type Engine interface {
 	// Prepare initializes the consensus fields of a block header according to the
 	// rules of a particular engine. The changes are executed inline.
 	Prepare(chain ChainReader, header types.IHeader) error
+
+	// Finalize runs any post-transaction state modifications (e.g. block rewards)
+	// and assembles the final block.
+	// Note: The block header and state database might be updated to reflect any
+	// consensus rules that happen at finalization (e.g. block rewards).
+	Finalize(chain ChainReader, header types.IHeader, state *state.StateDB, txs []*types.Transaction,
+		uncles []types.IHeader, receipts []*types.Receipt) (types.IBlock, error)
 
 	// Seal generates a new sealing request for the given input block and pushes
 	// the result into the given channel.

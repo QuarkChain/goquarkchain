@@ -24,6 +24,7 @@ import (
 	"math/big"
 	"sort"
 
+	qkcaccount "github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -88,13 +89,16 @@ type StateDB struct {
 	validRevisions []revision
 	nextRevisionId int
 
-	xShardReceiveGasUsed uint32
+	xShardReceiveGasUsed uint64
 	blockFee             uint64
-	xShardList           []types.CrossShardTransactionDeposit
-	fullShardID          uint32
+	xShardList           []*types.CrossShardTransactionDeposit
+	fullShardKey         uint32
 	quarkChainConfig     *config.QuarkChainConfig
-	gasUsed              *big.Int
-	gasLimit             *big.Int
+	gasUsed              uint64
+	gasLimit             uint64
+	shardConfig          *config.ShardConfig
+	senderDisallowList   []qkcaccount.Recipient
+	blockCoinBase        qkcaccount.Recipient
 }
 
 // Create a new state from a given trie.
@@ -103,7 +107,7 @@ func New(root common.Hash, db Database) (*StateDB, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &StateDB{
+	stateDB := &StateDB{
 		db:                db,
 		trie:              tr,
 		stateObjects:      make(map[common.Address]*stateObject),
@@ -111,7 +115,10 @@ func New(root common.Hash, db Database) (*StateDB, error) {
 		logs:              make(map[common.Hash][]*types.Log),
 		preimages:         make(map[common.Hash][]byte),
 		journal:           newJournal(),
-	}, nil
+	}
+	stateDB.SetGasLimit(3141592) //????? default
+	return stateDB, nil
+
 }
 
 // setError remembers the first non-nil error it is called with.
@@ -125,7 +132,7 @@ func (s *StateDB) Error() error {
 	return s.dbErr
 }
 
-// Reset clears out all ephemeral state objects from the state db, but keeps
+// reset clears out all ephemeral state objects from the state db, but keeps
 // the underlying state trie to avoid reloading data for the next operations.
 func (s *StateDB) Reset(root common.Hash) error {
 	tr, err := s.db.OpenTrie(root)
@@ -457,6 +464,7 @@ func (s *StateDB) createObject(addr common.Address) (newobj, prev *stateObject) 
 	prev = s.getStateObject(addr)
 	newobj = newObject(s, addr, Account{})
 	newobj.setNonce(0) // sets the object to dirty
+	newobj.SetFullShardKey(s.fullShardKey)
 	if prev == nil {
 		s.journal.append(createObjectChange{account: &addr})
 	} else {
@@ -545,6 +553,8 @@ func (s *StateDB) Copy() *StateDB {
 	for hash, preimage := range s.preimages {
 		state.preimages[hash] = preimage
 	}
+	state.SetGasLimit(s.gasLimit)
+	state.SetQuarkChainConfig(s.GetQuarkChainConfig())
 	return state
 }
 
@@ -674,55 +684,86 @@ func (s *StateDB) Commit(deleteEmptyObjects bool) (root common.Hash, err error) 
 	log.Debug("Trie cache stats after commit", "misses", trie.CacheMisses(), "unloads", trie.CacheUnloads())
 	return root, err
 }
-func (s *StateDB) GetXShardReceiveGasUsed() uint32 {
+func (s *StateDB) GetXShardReceiveGasUsed() uint64 {
 	return s.xShardReceiveGasUsed
 }
 
-func (s *StateDB) SetXShardReceiveGasUsed(data uint32) {
+func (s *StateDB) SetXShardReceiveGasUsed(data uint64) {
 	s.xShardReceiveGasUsed = data
 }
 
-func (s *StateDB) AppendXShardList(data types.CrossShardTransactionDeposit) {
+func (s *StateDB) AppendXShardList(data *types.CrossShardTransactionDeposit) {
 	s.xShardList = append(s.xShardList, data)
 }
 
-func (s *StateDB) SetFullShardID(fullShardId uint32) {
-	s.fullShardID = fullShardId
+func (s *StateDB) GetXShardList() []*types.CrossShardTransactionDeposit {
+	return s.xShardList
+}
+func (s *StateDB) SetFullShardKey(fullShardKey uint32) {
+	s.fullShardKey = fullShardKey
 }
 
-func (s *StateDB) GetFullShardID() uint32 {
-	return s.fullShardID
+func (s *StateDB) GetFullShardKey(addr common.Address) uint32 {
+
+	stateObject := s.GetOrNewStateObject(addr)
+	if stateObject != nil {
+		return stateObject.FullShardKey()
+	}
+	panic(errors.New("not implement"))
 }
 
 func (s *StateDB) AddBlockFee(fee uint64) {
 	s.blockFee += fee
 }
 
+func (s *StateDB) GetBlockFee() uint64 {
+	return s.blockFee
+}
 func (s *StateDB) GetQuarkChainConfig() *config.QuarkChainConfig {
 	return s.quarkChainConfig
 }
 
-func (s *StateDB) GetGasUsed() *big.Int {
-	if s.gasUsed == nil {
-		return new(big.Int).SetUint64(0)
-	}
+func (s *StateDB) SetQuarkChainConfig(data *config.QuarkChainConfig) {
+	s.quarkChainConfig = data
+}
+func (s *StateDB) GetGasUsed() uint64 {
 	return s.gasUsed
 }
 
-func (s *StateDB) AddGasUsed(data *big.Int) {
-	if s.gasUsed == nil {
-		s.gasUsed = new(big.Int).SetUint64(0)
-	}
-	s.gasUsed.Add(s.gasUsed, data)
+func (s *StateDB) AddGasUsed(data uint64) {
+	s.gasUsed += data
 }
 
-func (s *StateDB) GetGasLimit() *big.Int {
-	if s.gasLimit == nil {
-		return new(big.Int).SetUint64(0)
-	}
+func (s *StateDB) SetGasUsed(data uint64) {
+	s.gasUsed = data
+}
+func (s *StateDB) GetGasLimit() uint64 {
 	return s.gasLimit
 }
 
-func (s *StateDB) SetGasLimit(data *big.Int) {
+func (s *StateDB) SetGasLimit(data uint64) {
 	s.gasLimit = data
+}
+
+func (s *StateDB) GetShardConfig() *config.ShardConfig {
+	return s.shardConfig
+}
+
+func (s *StateDB) SetShardConfig(config *config.ShardConfig) {
+	s.shardConfig = config
+}
+
+func (s *StateDB) SetSenderDisallowList(data []qkcaccount.Recipient) {
+	s.senderDisallowList = data
+}
+func (s *StateDB) GetSenderDisallowList() []qkcaccount.Recipient {
+	return s.senderDisallowList
+}
+
+func (s *StateDB) GetBlockCoinBase() qkcaccount.Recipient {
+	return s.blockCoinBase
+}
+
+func (s *StateDB) SetBlockCoinBase(data qkcaccount.Recipient) {
+	s.blockCoinBase = data
 }

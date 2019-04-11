@@ -17,12 +17,12 @@
 package core
 
 import (
+	"github.com/QuarkChain/goquarkchain/consensus"
 	"math/big"
 
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/core/vm"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/consensus"
 )
 
 // ChainContext supports retrieving headers and consensus parameters from the
@@ -32,7 +32,7 @@ type ChainContext interface {
 	Engine() consensus.Engine
 
 	// GetHeader returns the hash corresponding to their hash.
-	GetHeader(common.Hash, uint64) *types.MinorBlockHeader
+	GetHeader(common.Hash) types.IHeader
 }
 
 func NewEVMContext(msg types.Message, header *types.MinorBlockHeader, chain ChainContext) vm.Context {
@@ -66,10 +66,10 @@ func GetHashFn(ref *types.MinorBlockHeader, chain ChainContext) func(n uint64) c
 			return hash
 		}
 		// Not cached, iterate the blocks and cache the hashes
-		for header := chain.GetHeader(ref.ParentHash, ref.Number-1); header != nil; header = chain.GetHeader(header.ParentHash, header.Number-1) {
-			cache[header.Number-1] = header.ParentHash
-			if n == header.Number-1 {
-				return header.ParentHash
+		for header := chain.GetHeader(ref.ParentHash); header != nil; header = chain.GetHeader(header.GetParentHash()) {
+			cache[header.NumberU64()-1] = header.GetParentHash()
+			if n == header.NumberU64()-1 {
+				return header.GetParentHash()
 			}
 		}
 		return common.Hash{}
