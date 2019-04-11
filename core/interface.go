@@ -27,8 +27,9 @@ import (
 // done by the specific consensus engines.
 //
 type Validator interface {
-	// ValidateBody validates the given block's content.
+	// ValidateBlock validates the given block's content.
 	ValidateBlock(block types.IBlock) error
+	// ValidateState validate state
 	ValidateState(block, parent types.IBlock, state *state.StateDB, receipts types.Receipts, usedGas uint64) error
 }
 
@@ -39,5 +40,5 @@ type Validator interface {
 // of gas used in the process and return an error if any of the internal rules
 // failed.
 type Processor interface {
-	Process(block *types.MinorBlock, statedb *state.StateDB, cfg vm.Config, txIncluded *[]*types.Transaction, xShardReceivedTxList *[]*types.CrossShardTransactionDeposit) (types.Receipts, []*types.Log, uint64, error)
+	Process(block *types.MinorBlock, statedb *state.StateDB, cfg vm.Config, txIncluded []*types.Transaction, xShardReceivedTxList []*types.CrossShardTransactionDeposit) (types.Receipts, []*types.Log, uint64, error)
 }

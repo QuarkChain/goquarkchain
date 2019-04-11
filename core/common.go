@@ -2,7 +2,6 @@ package core
 
 import (
 	"github.com/QuarkChain/goquarkchain/account"
-	"github.com/ethereum/go-ethereum/common"
 	"math/big"
 )
 
@@ -14,13 +13,6 @@ type ConstMinorBlockRewardCalculator struct {
 func (c *ConstMinorBlockRewardCalculator) GetBlockReward() *big.Int {
 	data := new(big.Int).SetInt64(100)
 	return new(big.Int).Mul(data, new(big.Int).SetInt64(1000000000000000000))
-}
-
-type gasPriceSuggestionOracle struct {
-	LastPrice   uint64
-	LastHead    common.Hash
-	CheckBlocks uint64
-	Percentile  uint64
 }
 
 // Uint64List sort uint64 slice
