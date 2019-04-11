@@ -6,10 +6,23 @@ package rpc;
 service MasterServerSideOp {
     rpc AddMinorBlockHeader (Request) returns (Response) {
     }
+    // p2p apis
+    rpc BroadcastNewTip (Request) returns (Response) {
+    }
+    rpc BroadcastTransactions (Request) returns (Response) {
+    }
+    rpc BroadcastMinorBlock (Request) returns (Response) {
+    }
+    rpc GetMinorBlocks (Request) returns (Response) {
+    }
+    rpc GetMinorBlockHeaders (Request) returns (Response) {
+    }
 }
 
 // slave operation
 service SlaveServerSideOp {
+    rpc heartBeat (Request) returns (Response) {
+    }
     // APIs for master
     rpc Ping (Request) returns (Response) {
     }
@@ -68,11 +81,20 @@ service SlaveServerSideOp {
     }
     rpc BatchAddXshardTxList (Request) returns (Response) {
     }
+    // p2p apis
+    rpc GetMinorBlocks (Request) returns (Response) {
+    }
+    rpc GetMinorBlockHeaders (Request) returns (Response) {
+    }
+    rpc HandleNewTip (Request) returns (Response) {
+    }
+    rpc AddTransactions (Request) returns (Response) {
+    }
 }
 
 // request data
 message Request {
-    int64 op = 1;
+    uint32 op = 1;
     bytes data = 5;
 }
 
@@ -80,5 +102,5 @@ message Request {
 message Response {
     int64 rpc_id = 2;
     bytes data = 1;
-    int64 error_code = 3;
+    uint32 error_code = 3;
 }

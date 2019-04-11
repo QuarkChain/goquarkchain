@@ -14,7 +14,7 @@ type ToSlaveConnection struct {
 func NewToSlaveConnection(target string, shardMaskLst []*types.ChainMask) (*ToSlaveConnection, error) {
 	return &ToSlaveConnection{
 		target:       target,
-		client:       rpc.NewClient(),
+		client:       rpc.NewClient(rpc.MasterServer),
 		shardMaskLst: shardMaskLst,
 	}, nil
 }
