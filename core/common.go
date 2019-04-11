@@ -15,6 +15,13 @@ func (c *ConstMinorBlockRewardCalculator) GetBlockReward() *big.Int {
 	return new(big.Int).Mul(data, new(big.Int).SetInt64(1000000000000000000))
 }
 
+type gasPriceSuggestionOracle struct {
+	LastPrice   uint64
+	LastHead    common.Hash
+	CheckBlocks uint64
+	Percentile  uint64
+}
+
 // Uint64List sort uint64 slice
 type Uint64List []uint64
 
