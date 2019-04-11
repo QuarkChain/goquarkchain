@@ -8,7 +8,8 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
 
-	"github.com/QuarkChain/goquarkchain/cluster/root"
+	"github.com/QuarkChain/goquarkchain/core"
+
 	"github.com/QuarkChain/goquarkchain/core/types"
 )
 
@@ -24,33 +25,33 @@ const (
 
 // Task represents a synchronization task for the synchronizer.
 type Task interface {
-	Run(root.PrimaryServer) error
+	Run(blockchain) error
 	Peer() peer
 	Priority() uint
 }
 
 // All of the sync tasks to are to catch up with the root chain from peers.
-type task struct {
+type rootChainTask struct {
 	rootBlock *types.RootBlock
 	peer
 	header *types.RootBlockHeader
 }
 
 // Run will execute the synchronization task.
-func (t *task) Run(primary root.PrimaryServer) error {
-	if primary.RootBlockExists(t.header.Hash()) {
+func (r *rootChainTask) Run(bc *core.RootBlockChain) error {
+	if bc.HasBlock(r.header.Hash()) {
 		return nil
 	}
 
-	logger := log.New("synctask", t.header.NumberUI64())
-	headerTip := primary.Tip()
+	logger := log.New("synctask", r.header.NumberU64())
+	headerTip := bc.CurrentHeader()
 	tipHeight := headerTip.NumberU64()
 
 	// Prepare for downloading.
-	chain := []*types.RootBlockHeader{t.header} // Descending.
-	lastHeader := t.header
-	for !primary.RootBlockExists(lastHeader.ParentHash) {
-		height, hash := lastHeader.NumberUI64(), lastHeader.Hash()
+	chain := []*types.RootBlockHeader{r.header} // Descending.
+	lastHeader := r.header
+	for !bc.HasBlock(lastHeader.ParentHash) {
+		height, hash := lastHeader.NumberU64(), lastHeader.Hash()
 		if tipHeight-height > maxSyncStaleness {
 			logger.Warn("Abort synching due to forking at super old block", "currentHeight", tipHeight, "oldHeight", height)
 			return nil
@@ -66,7 +67,7 @@ func (t *task) Run(primary root.PrimaryServer) error {
 			return err
 		}
 		for _, h := range receivedHeaders {
-			if primary.RootBlockExists(h.Hash()) {
+			if bc.HasBlock(h.Hash()) {
 				break
 			}
 			chain = append(chain, h)
@@ -74,7 +75,7 @@ func (t *task) Run(primary root.PrimaryServer) error {
 		lastHeader = chain[len(chain)-1]
 	}
 
-	logger.Info("Downloading blocks", "length", len(chain), "from", lastHeader.NumberUI64(), "to", t.header.NumberUI64())
+	logger.Info("Downloading blocks", "length", len(chain), "from", lastHeader.NumberU64(), "to", r.header.NumberU64())
 
 	// Download blocks from lower to higher.
 	i := len(chain)
@@ -99,16 +100,17 @@ func (t *task) Run(primary root.PrimaryServer) error {
 		for j := len(blocks) - 1; j >= 0; j-- {
 			b := blocks[j]
 			h := b.Header()
-			logger.Info("Syncing root block starts", "height", h.NumberUI64(), "hash", h.Hash())
+			logger.Info("Syncing root block starts", "height", h.NumberU64(), "hash", h.Hash())
 			// Simple profiling.
 			ts := time.Now()
 			if err := syncMinorBlocks(b); err != nil {
 				return err
 			}
-			if err := primary.AddBlock(b); err != nil {
+			if _, err := bc.InsertChain([]types.IBlock{b}); err != nil {
 				return err
 			}
-			logger.Info("Syncing root block finishes", "height", h.NumberUI64(), "hash", h.Hash(), "elapsed", time.Now().Sub(ts))
+			elapsed := time.Now().Sub(ts).Seconds()
+			logger.Info("Syncing root block finishes", "height", h.NumberU64(), "hash", h.Hash(), "elapsed", elapsed)
 		}
 
 		i -= blockDownloadSize
@@ -117,12 +119,12 @@ func (t *task) Run(primary root.PrimaryServer) error {
 	return nil
 }
 
-func (t *task) Priority() uint {
+func (r *rootChainTask) Priority() uint {
 	panic("not implemented")
 }
 
-func (t *task) Peer() peer {
-	return t.peer
+func (r *rootChainTask) Peer() peer {
+	return r.peer
 }
 
 func downloadHeaders(startHash common.Hash, length int) ([]*types.RootBlockHeader, error) {

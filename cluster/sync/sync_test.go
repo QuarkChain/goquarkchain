@@ -3,8 +3,6 @@ package sync
 import (
 	"fmt"
 	"testing"
-
-	"github.com/QuarkChain/goquarkchain/cluster/root"
 )
 
 // For test purpose.
@@ -15,7 +13,7 @@ type trivialTask struct {
 	executeSwitch chan struct{}
 }
 
-func (t *trivialTask) Run(_ root.PrimaryServer) error {
+func (t *trivialTask) Run(_ blockchain) error {
 	<-t.executeSwitch
 	return nil
 }

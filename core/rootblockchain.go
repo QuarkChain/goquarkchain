@@ -25,7 +25,7 @@ import (
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/metrics"
-	"github.com/hashicorp/golang-lru"
+	lru "github.com/hashicorp/golang-lru"
 )
 
 var (
@@ -114,8 +114,8 @@ type RootBlockChain struct {
 	shouldPreserve func(block *types.RootBlock) bool // Function used to determine whether should preserve the given block.
 }
 
-// NewBlockChain returns a fully initialised block chain using information
-// available in the database. It initialises the default Ethereum Validator and
+// NewBlockChain returns a fully initialized block chain using information
+// available in the database. It initializes the default Ethereum Validator and
 // Processor.
 func NewRootBlockChain(db ethdb.Database, cacheConfig *CacheConfig, chainConfig *config.QuarkChainConfig, engine consensus.Engine, shouldPreserve func(block *types.RootBlock) bool) (*RootBlockChain, error) {
 	if cacheConfig == nil {

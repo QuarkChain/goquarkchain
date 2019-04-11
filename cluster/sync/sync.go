@@ -1,15 +1,22 @@
 package sync
 
 import (
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
 
-	"github.com/QuarkChain/goquarkchain/cluster/root"
+	"github.com/QuarkChain/goquarkchain/core/types"
 )
 
-// TODO a mock struct for peers, should have real Peer type in P2P module.
+// TODO a mock struct for peers, should have real peer connection type in P2P module.
 type peer struct {
 	id       string
 	hostport string
+}
+
+// blockchain is a lightweight wrapper over shard chain or root chain.
+type blockchain interface {
+	HasBlock(common.Hash) bool
+	InsertChain([]types.IBlock) (bool, error)
 }
 
 // Synchronizer will sync blocks for the master server when receiving new root blocks from peers.
@@ -19,7 +26,7 @@ type Synchronizer interface {
 }
 
 type synchronizer struct {
-	primary      root.PrimaryServer
+	blockchain   blockchain
 	taskRecvCh   chan Task
 	taskAssignCh chan Task
 	abortCh      chan struct{}
@@ -41,7 +48,7 @@ func (s *synchronizer) loop() {
 	go func() {
 		logger := log.New("synchronizer", "runner")
 		for t := range s.taskAssignCh {
-			if err := t.Run(s.primary); err != nil {
+			if err := t.Run(s.blockchain); err != nil {
 				logger.Error("Running sync task failed", "error", err)
 			} else {
 				logger.Info("Done sync task", "height")
@@ -85,9 +92,9 @@ func getNextTask(taskMap map[string]Task) (ret Task) {
 }
 
 // NewSynchronizer returns a new synchronizer instance.
-func NewSynchronizer(primary root.PrimaryServer) Synchronizer {
+func NewSynchronizer(bc blockchain) Synchronizer {
 	s := &synchronizer{
-		primary:      primary,
+		blockchain:   bc,
 		taskRecvCh:   make(chan Task),
 		taskAssignCh: make(chan Task),
 		abortCh:      make(chan struct{}),
