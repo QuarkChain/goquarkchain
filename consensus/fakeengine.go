@@ -96,5 +96,5 @@ func (e *FakeEngine) Close() error {
 }
 func (e *FakeEngine) Finalize(chain ChainReader, header types.IHeader, state *state.StateDB, txs []*types.Transaction,
 	uncles []types.IHeader, receipts []*types.Receipt) (types.IBlock, error) {
-	return &types.MinorBlock{}, nil
+	panic("no need for test")
 }

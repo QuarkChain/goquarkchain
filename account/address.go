@@ -24,10 +24,7 @@ func NewAddress(recipient Recipient, fullShardKey uint32) Address {
 
 // ToHex return bytes included recipient and fullShardKey
 func (Self Address) ToHex() string {
-	address := Self.Recipient.Bytes()
-	shardKey := Uint32ToBytes(Self.FullShardKey)
-	address = append(address, shardKey...)
-
+	address := Self.ToBytes()
 	return hexutil.Encode(address[:])
 
 }
