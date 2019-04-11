@@ -236,7 +236,6 @@ func NewTxPool(config TxPoolConfig, chainconfig *params.ChainConfig, chain block
 	}
 	pool.priced = newTxPricedList(pool.all)
 
-	fmt.Println("new", "Reset")
 	pool.reset(nil, chain.CurrentBlock().(*types.MinorBlock))
 
 	// Subscribe events from blockchain
@@ -364,8 +363,6 @@ func (pool *TxPool) reset(oldBody, newBody *types.MinorBlock) {
 			)
 			for rem.NumberU64() > add.NumberU64() {
 				discarded = append(discarded, rem.Transactions()...)
-				//	panic(-1)
-				fmt.Println("dddddddd aaaaaaaaaaappend-1", add.Transactions())
 				if rem = pool.chain.GetBlock(rem.ParentHash()).(*types.MinorBlock); rem == nil {
 					log.Error("Unrooted old chain seen by tx pool", "block", oldHead.Number, "hash", oldHead.Hash())
 					return
@@ -381,7 +378,6 @@ func (pool *TxPool) reset(oldBody, newBody *types.MinorBlock) {
 			}
 			for rem.Hash() != add.Hash() {
 				discarded = append(discarded, rem.Transactions()...)
-				//fmt.Println("dddddddd aaaaaaaaaaappend-2", len(rem.Transactions()), rem.Transactions()[0].EvmTx.ToShardSize())
 				if rem = pool.chain.GetBlock(rem.ParentHash()).(*types.MinorBlock); rem == nil {
 					log.Error("Unrooted old chain seen by tx pool", "block", oldHead.Number, "hash", oldHead.Hash())
 					return
@@ -575,9 +571,7 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 	// Make sure the transaction is signed properly
 
 	from, err := types.Sender(pool.signer, tx.EvmTx)
-	//fmt.Println("befroe****************8", err)
 	if err != nil {
-		//fmt.Println("err????????????????????????", err)
 		return ErrInvalidSender
 	}
 	// Drop non-local transactions under our own minimal accepted gas price
@@ -605,7 +599,6 @@ func (pool *TxPool) add(tx *types.Transaction, local bool) (bool, error) {
 	}
 	// If the transaction fails basic validation, discard it
 	if err := pool.validateTx(tx, local); err != nil {
-		//fmt.Println("validateTx err---------------------------", tx.EvmTx.NetworkId())
 		log.Trace("Discarding invalid transaction", "hash", hash, "err", err)
 		invalidTxCounter.Inc(1)
 		return false, err
@@ -771,7 +764,6 @@ func (pool *TxPool) addTx(tx *types.Transaction, local bool) error {
 	// Try to inject the transaction and update any state
 	replace, err := pool.add(tx, local)
 	if err != nil {
-		//fmt.Println("TxPool addTx", err)
 		return err
 	}
 	// If we added a new transaction, run promotion checks and return
