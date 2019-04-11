@@ -87,13 +87,3 @@ func (Self *Identity) GetDefaultFullShardKey() (uint32, error) {
 	}
 	return fullShardKey, nil
 }
-
-// GetRecipient Get it's recipient
-func (Self *Identity) GetRecipient() Recipient {
-	return Self.Recipient
-}
-
-// GetKey get it's key
-func (Self *Identity) GetKey() Key {
-	return Self.Key
-}
