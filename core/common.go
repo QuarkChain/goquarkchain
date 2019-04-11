@@ -1,50 +1,10 @@
 package core
 
 import (
-	"errors"
 	"github.com/QuarkChain/goquarkchain/account"
-	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/common"
 	"math/big"
 )
-
-// DiffCalc calc diff interface
-type DiffCalc interface {
-	CalculateDiff()
-	CalculateDiffWithParent(types.IHeader, uint64) (uint64, error)
-}
-
-// EthDifficultyCalculator Using metropolis or homestead algorithm (check_uncle=True or False)
-type EthDifficultyCalculator struct {
-	cutoff      uint64
-	diffFactor  uint64
-	minimumDiff int64
-}
-
-//CalculateDiff calculate only for demo
-func (e *EthDifficultyCalculator) CalculateDiff() {
-	panic("Not Implemented")
-}
-
-//CalculateDiffWithParent calc diff with preHeader
-func (e *EthDifficultyCalculator) CalculateDiffWithParent(preHeader types.IHeader, createTime uint64) (uint64, error) {
-	if preHeader.GetTime() >= createTime {
-		return 0, errors.New("time is not match")
-	}
-	t := (createTime - preHeader.GetTime()) / e.cutoff
-	var sign int64
-	if int64(1-t) > -99 {
-		sign = int64(1 - t)
-	} else {
-		sign = -99
-	}
-	offset := preHeader.GetDifficulty().Uint64() / e.diffFactor
-	if int64(preHeader.GetDifficulty().Uint64())+int64(offset)*int64(sign) < e.minimumDiff {
-		return uint64(e.minimumDiff), nil
-	}
-	return uint64(preHeader.GetDifficulty().Uint64() + uint64(int64(offset)*int64(sign))), nil
-
-}
 
 // ConstMinorBlockRewardCalculator blockReward struct
 type ConstMinorBlockRewardCalculator struct {
