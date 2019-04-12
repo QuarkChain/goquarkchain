@@ -19,7 +19,7 @@ var (
 		0, 0, 1, 0, nil,
 	)
 	tx1 = Transaction{TxType: 1, EvmTx: evmTx1}
-	//nonce , to , amount , gasLimit , gasPrice, fromFullShardId , toFullShardId , networkId , version , data
+	//nonce , to , amount , gasLimit , gasPrice, fromFullShardKey , toFullShardKey , networkId , version , data
 	evmTx2 = NewEvmTransaction(
 		3,
 		reciept,

@@ -36,7 +36,7 @@ func (Self Address) ToBytes() []byte {
 	return address[:]
 }
 
-// GetFullShardKey get fullShardID depend shardSize
+// GetFullShardID get fullShardID depend shardSize
 func (Self *Address) GetFullShardID(shardSize uint32) (uint32, error) {
 	if common.IsP2(shardSize) == false {
 		return 0, fmt.Errorf("shardSize is not right shardSize:%d", shardSize)

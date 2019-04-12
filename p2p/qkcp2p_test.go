@@ -53,12 +53,12 @@ func TestServerMsgSend(t *testing.T) {
 	}
 
 	select {
-	case <-time.After(1 * time.Second):
+	case <-time.After(2 * time.Second):
 		if len(p1.server.Peers()) != 1 || len(p2.server.Peers()) != 1 {
-			t.Error("connect failed ", "should peer is 1")
+			t.Fatal("connect failed ", "should peer is 1")
 		}
 		WriteMsgForTest(t, p1.server.Peers()[0].rw)
-		time.Sleep(1 * time.Second)
+		time.Sleep(2 * time.Second)
 	}
 }
 

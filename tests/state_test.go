@@ -61,7 +61,6 @@ func TestState(t *testing.T) {
 				continue
 			}
 
-			//time.Sleep(100*time.Second)
 			t.Run(key, func(t *testing.T) {
 				withTrace(t, test.gasLimit(subtest), func(vmconfig vm.Config) error {
 					_, err := test.Run(subtest, vmconfig)

@@ -469,8 +469,8 @@ func (h *MinorBlock) CreateBlockToAppend(createTime *uint64, difficulty *big.Int
 		Extra:             realExtraData,
 	}
 	meta := MinorBlockMeta{
-		GasUsed:           &serialize.Uint256{Value: new(big.Int).SetUint64(0)},
-		CrossShardGasUsed: &serialize.Uint256{Value: new(big.Int).SetUint64(0)},
+		GasUsed:           &serialize.Uint256{Value: new(big.Int)},
+		CrossShardGasUsed: &serialize.Uint256{Value: new(big.Int)},
 	}
 	return &MinorBlock{
 		header:       header,

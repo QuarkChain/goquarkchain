@@ -90,13 +90,13 @@ type StateDB struct {
 	validRevisions []revision
 	nextRevisionId int
 
-	xShardReceiveGasUsed uint64
-	blockFee             uint64
+	xShardReceiveGasUsed *big.Int
+	blockFee             *big.Int
 	xShardList           []*types.CrossShardTransactionDeposit
 	fullShardKey         uint32
 	quarkChainConfig     *config.QuarkChainConfig
-	gasUsed              uint64
-	gasLimit             uint64
+	gasUsed              *big.Int
+	gasLimit             *big.Int
 	shardConfig          *config.ShardConfig
 	senderDisallowList   []qkcaccount.Recipient
 	blockCoinBase        qkcaccount.Recipient
@@ -685,11 +685,14 @@ func (s *StateDB) Commit(deleteEmptyObjects bool) (root common.Hash, err error) 
 	log.Debug("Trie cache stats after commit", "misses", trie.CacheMisses(), "unloads", trie.CacheUnloads())
 	return root, err
 }
-func (s *StateDB) GetXShardReceiveGasUsed() uint64 {
+func (s *StateDB) GetXShardReceiveGasUsed() *big.Int {
+	if s.xShardReceiveGasUsed == nil {
+		s.xShardReceiveGasUsed = new(big.Int).SetUint64(0)
+	}
 	return s.xShardReceiveGasUsed
 }
 
-func (s *StateDB) SetXShardReceiveGasUsed(data uint64) {
+func (s *StateDB) SetXShardReceiveGasUsed(data *big.Int) {
 	s.xShardReceiveGasUsed = data
 }
 
@@ -713,11 +716,17 @@ func (s *StateDB) GetFullShardKey(addr common.Address) uint32 {
 	panic(errors.New("not implement"))
 }
 
-func (s *StateDB) AddBlockFee(fee uint64) {
-	s.blockFee += fee
+func (s *StateDB) AddBlockFee(fee *big.Int) {
+	if s.blockFee == nil {
+		s.blockFee = new(big.Int).SetUint64(0)
+	}
+	s.blockFee.Add(s.blockFee, fee)
 }
 
-func (s *StateDB) GetBlockFee() uint64 {
+func (s *StateDB) GetBlockFee() *big.Int {
+	if s.blockFee == nil {
+		s.blockFee = new(big.Int).SetUint64(0)
+	}
 	return s.blockFee
 }
 func (s *StateDB) GetQuarkChainConfig() *config.QuarkChainConfig {
@@ -727,22 +736,37 @@ func (s *StateDB) GetQuarkChainConfig() *config.QuarkChainConfig {
 func (s *StateDB) SetQuarkChainConfig(data *config.QuarkChainConfig) {
 	s.quarkChainConfig = data
 }
-func (s *StateDB) GetGasUsed() uint64 {
+func (s *StateDB) GetGasUsed() *big.Int {
+	if s.gasUsed == nil {
+		s.gasUsed = new(big.Int).SetUint64(0)
+	}
 	return s.gasUsed
 }
 
-func (s *StateDB) AddGasUsed(data uint64) {
-	s.gasUsed += data
+func (s *StateDB) AddGasUsed(data *big.Int) {
+	if s.gasUsed == nil {
+		s.gasUsed = new(big.Int).SetUint64(0)
+	}
+	s.gasUsed.Add(s.gasUsed, data)
 }
 
-func (s *StateDB) SetGasUsed(data uint64) {
+func (s *StateDB) SetGasUsed(data *big.Int) {
+	if data == nil {
+		s.gasUsed = new(big.Int).SetUint64(0)
+	}
 	s.gasUsed = data
 }
-func (s *StateDB) GetGasLimit() uint64 {
+func (s *StateDB) GetGasLimit() *big.Int {
+	if s.gasLimit == nil {
+		s.gasLimit = new(big.Int).SetUint64(0)
+	}
 	return s.gasLimit
 }
 
-func (s *StateDB) SetGasLimit(data uint64) {
+func (s *StateDB) SetGasLimit(data *big.Int) {
+	if data == nil {
+		s.gasLimit = new(big.Int).SetUint64(0)
+	}
 	s.gasLimit = data
 }
 

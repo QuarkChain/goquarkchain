@@ -1,8 +1,10 @@
 package params
 
+import "math/big"
+
 var (
-	GCallValueTransfer = uint64(9000)
+	GCallValueTransfer = new(big.Int).SetUint64(9000)
 	GtxxShardCost      = GCallValueTransfer // x-shard tx deposit gas
 
-	DefaultStateDBGasLimit = uint64(3141592)
+	DefaultStateDBGasLimit = new(big.Int).SetUint64(3141592)
 )

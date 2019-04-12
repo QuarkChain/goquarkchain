@@ -61,10 +61,7 @@ func (h *RootBlockHeader) SignWithPrivateKey(prv *ecdsa.PrivateKey) error {
 	return nil
 }
 
-func (h *RootBlockHeader) GetParentHash() common.Hash { return h.ParentHash }
-func (h *RootBlockHeader) GetPrevRootBlockHash() common.Hash {
-	panic(errors.New("root block header no such func"))
-}
+func (h *RootBlockHeader) GetParentHash() common.Hash   { return h.ParentHash }
 func (h *RootBlockHeader) GetCoinbase() account.Address { return h.Coinbase }
 func (h *RootBlockHeader) GetCoinbaseAmount() *big.Int  { return h.CoinbaseAmount.Value }
 func (h *RootBlockHeader) GetTime() uint64              { return h.Time }
@@ -75,18 +72,6 @@ func (h *RootBlockHeader) GetExtra() []byte {
 		return common.CopyBytes(h.Extra)
 	}
 	return nil
-}
-func (h *RootBlockHeader) GetGasLimit() *big.Int {
-	panic(errors.New("root block header not have gasLimit"))
-}
-func (h *RootBlockHeader) GetBranch() account.Branch {
-	panic(errors.New("root block header not have branch"))
-}
-func (h *RootBlockHeader) GetMetaHash() common.Hash {
-	panic(errors.New("root block header not have metaHash"))
-}
-func (h *RootBlockHeader) GetBloom() Bloom {
-	panic(errors.New("root block header not have bloom"))
 }
 func (h *RootBlockHeader) GetMixDigest() common.Hash { return h.MixDigest }
 
@@ -148,7 +133,7 @@ func (h *RootBlockHeader) CreateBlockToAppend(createTime *uint64, difficulty *bi
 		ParentHash:      h.Hash(),
 		MinorHeaderHash: common.Hash{},
 		Coinbase:        realAddress,
-		CoinbaseAmount:  h.CoinbaseAmount,
+		CoinbaseAmount:  &serialize.Uint256{Value: new(big.Int)},
 		Time:            realCreateTime,
 		Difficulty:      realDifficulty,
 		Nonce:           realNonce,
@@ -382,9 +367,6 @@ func (b *RootBlock) GetTrackingData() []byte {
 	return b.trackingdata
 }
 
-func (b *RootBlock) GetTransactions() Transactions {
-	panic(errors.New("root block do not have txs"))
-}
 func (b *RootBlock) GetSize() common.StorageSize {
 	return b.Size()
 }
@@ -395,13 +377,13 @@ func (b *RootBlock) Finalize(coinbaseAmount *uint64, coinbaseAddress *account.Ad
 		realCoinBaseAmount = *coinbaseAmount
 	}
 
-	realCoinbaseAddress := account.CreatEmptyAddress(0)
+	realCoinBaseAddress := account.CreatEmptyAddress(0)
 	if coinbaseAddress != nil {
-		realCoinbaseAddress = *coinbaseAddress
+		realCoinBaseAddress = *coinbaseAddress
 	}
 	b.header.MinorHeaderHash = DeriveSha(b.minorBlockHeaders)
 	b.header.CoinbaseAmount = &serialize.Uint256{Value: new(big.Int).SetUint64(realCoinBaseAmount)}
-	b.header.Coinbase = realCoinbaseAddress
+	b.header.Coinbase = realCoinBaseAddress
 	return b
 }
 func (b *RootBlock) AddMinorBlockHeader(header *MinorBlockHeader) {

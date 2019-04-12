@@ -66,21 +66,21 @@ type StateDB interface {
 
 	ForEachStorage(common.Address, func(common.Hash, common.Hash) bool)
 
-	GetXShardReceiveGasUsed() uint64
-	SetXShardReceiveGasUsed(uint64)
+	GetXShardReceiveGasUsed() *big.Int
+	SetXShardReceiveGasUsed(*big.Int)
 	AppendXShardList(data *types.CrossShardTransactionDeposit)
 	GetXShardList() []*types.CrossShardTransactionDeposit
 	SetFullShardKey(uint32)
 	GetFullShardKey(common.Address) uint32
-	AddBlockFee(uint64)
-	GetBlockFee() uint64
+	AddBlockFee(*big.Int)
+	GetBlockFee() *big.Int
 	GetQuarkChainConfig() *config.QuarkChainConfig
 	SetQuarkChainConfig(*config.QuarkChainConfig)
-	GetGasUsed() uint64
-	AddGasUsed(uint64)
-	SetGasUsed(uint64)
-	GetGasLimit() uint64
-	SetGasLimit(uint64)
+	GetGasUsed() *big.Int
+	AddGasUsed(*big.Int)
+	SetGasUsed(*big.Int)
+	GetGasLimit() *big.Int
+	SetGasLimit(*big.Int)
 	GetShardConfig() *config.ShardConfig
 	SetShardConfig(shardConfig *config.ShardConfig)
 	SetSenderDisallowList([]account.Recipient)
