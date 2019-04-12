@@ -38,9 +38,8 @@ func StartService(stack *service.Node) {
 		Fatalf("Error starting protocol stack: %v", err)
 	}
 	go func() {
-		sigc := make(chan os.Signal, 1)
+		sigc := stack.GetSigc()
 		signal.Notify(sigc, syscall.SIGINT, syscall.SIGTERM)
-		defer signal.Stop(sigc)
 		<-sigc
 		log.Info("Got interrupt, shutting down...")
 		go stack.Stop()

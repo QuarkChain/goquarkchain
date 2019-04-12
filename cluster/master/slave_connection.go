@@ -18,7 +18,7 @@ type SlaveConnection struct {
 
 // create slave connection manager
 func NewSlaveConn(target string, shardMaskLst []*types.ChainMask) (*SlaveConnection, error) {
-	client := rpc.NewClient()
+	client := rpc.NewClient(rpc.SlaveServer)
 	return &SlaveConnection{
 		target:       target,
 		client:       client,
@@ -26,9 +26,17 @@ func NewSlaveConn(target string, shardMaskLst []*types.ChainMask) (*SlaveConnect
 	}, nil
 }
 
+func (s *SlaveConnection) HeartBeat(request *rpc.Request) bool {
+	_, err := s.client.Call(s.target, request)
+	if err != nil {
+		return false
+	}
+	return true
+}
+
 func (s *SlaveConnection) SendPing() (string, []types.ChainMask, error) {
 	request := rpc.Request{Op: rpc.OpPing, Data: nil}
-	_, err := s.client.Call(rpc.SlaveServer, s.target, &request)
+	_, err := s.client.Call(s.target, &request)
 	if err != nil {
 		return "", nil, err
 	}
@@ -41,7 +49,7 @@ func (s *SlaveConnection) SendConnectToSlaves(slaveInfoLst []rpc.SlaveInfo) erro
 	if err != nil {
 		return err
 	}
-	_, err = s.client.Call(rpc.SlaveServer, s.target, &rpc.Request{Op: rpc.OpConnectToSlaves, Data: bytes})
+	_, err = s.client.Call(s.target, &rpc.Request{Op: rpc.OpConnectToSlaves, Data: bytes})
 	if err != nil {
 		return err
 	}
@@ -54,7 +62,7 @@ func (s *SlaveConnection) AddTransaction(tx types.Transaction) bool {
 	if err != nil {
 		goto FALSE
 	}
-	_, err = s.client.Call(rpc.SlaveServer, s.target, &rpc.Request{Op: rpc.OpAddTransaction, Data: bytes})
+	_, err = s.client.Call(s.target, &rpc.Request{Op: rpc.OpAddTransaction, Data: bytes})
 	if err != nil {
 		goto FALSE
 	}
@@ -71,7 +79,7 @@ func (s *SlaveConnection) ExecuteTransaction(tx types.Transaction, fromAddress a
 	if err != nil {
 		goto FALSE
 	}
-	_, err = s.client.Call(rpc.SlaveServer, s.target, &rpc.Request{Op: rpc.OpExecuteTransaction, Data: bytes})
+	_, err = s.client.Call(s.target, &rpc.Request{Op: rpc.OpExecuteTransaction, Data: bytes})
 	if err != nil {
 		goto FALSE
 	}
@@ -91,7 +99,7 @@ func (s *SlaveConnection) GetMinorBlockByHash(blockHash common.Hash, branch acco
 	if err != nil {
 		return nil, err
 	}
-	res, err = s.client.Call(rpc.SlaveServer, s.target, &rpc.Request{Op: rpc.OpGetMinorBlock, Data: bytes})
+	res, err = s.client.Call(s.target, &rpc.Request{Op: rpc.OpGetMinorBlock, Data: bytes})
 	if err != nil {
 		return nil, err
 	}
@@ -110,7 +118,7 @@ func (s *SlaveConnection) GetMinorBlockByHeight(height uint64, branch account.Br
 	if err != nil {
 		return nil, err
 	}
-	res, err := s.client.Call(rpc.SlaveServer, s.target, &rpc.Request{Op: rpc.OpGetMinorBlock, Data: bytes})
+	res, err := s.client.Call(s.target, &rpc.Request{Op: rpc.OpGetMinorBlock, Data: bytes})
 	if err != nil {
 		return nil, err
 	}
@@ -129,7 +137,7 @@ func (s *SlaveConnection) GetTransactionByHash(txHash common.Hash, branch accoun
 	if err != nil {
 		return nil, 0, err
 	}
-	res, err := s.client.Call(rpc.SlaveServer, s.target, &rpc.Request{Op: rpc.OpGetTransaction, Data: bytes})
+	res, err := s.client.Call(s.target, &rpc.Request{Op: rpc.OpGetTransaction, Data: bytes})
 	if err != nil {
 		return nil, 0, err
 	}
@@ -148,7 +156,7 @@ func (s *SlaveConnection) GetTransactionReceipt(txHash common.Hash, branch accou
 	if err != nil {
 		return nil, 0, nil, err
 	}
-	res, err := s.client.Call(rpc.SlaveServer, s.target, &rpc.Request{Op: rpc.OpGetTransactionReceipt, Data: bytes})
+	res, err := s.client.Call(s.target, &rpc.Request{Op: rpc.OpGetTransactionReceipt, Data: bytes})
 	if err != nil {
 		return nil, 0, nil, err
 	}
@@ -170,7 +178,7 @@ func (s *SlaveConnection) GetTransactionsByAddress(address account.Address, star
 	if err != nil {
 		goto FALSE
 	}
-	res, err = s.client.Call(rpc.SlaveServer, s.target, &rpc.Request{Op: rpc.OpGetTransactionListByAddress, Data: bytes})
+	res, err = s.client.Call(s.target, &rpc.Request{Op: rpc.OpGetTransactionListByAddress, Data: bytes})
 	if err != nil {
 		goto FALSE
 	}

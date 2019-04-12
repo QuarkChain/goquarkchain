@@ -3,14 +3,6 @@ package service
 
 import (
 	"fmt"
-	"google.golang.org/grpc"
-	"net"
-	"os"
-	"path/filepath"
-	"reflect"
-	"strings"
-	"sync"
-
 	qkcrpc "github.com/QuarkChain/goquarkchain/cluster/rpc"
 	"github.com/QuarkChain/goquarkchain/p2p"
 	"github.com/ethereum/go-ethereum/ethdb"
@@ -18,6 +10,13 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/prometheus/prometheus/util/flock"
+	"google.golang.org/grpc"
+	"net"
+	"os"
+	"path/filepath"
+	"reflect"
+	"strings"
+	"sync"
 )
 
 // Node is a container on which services can be registered.
@@ -57,7 +56,8 @@ type Node struct {
 	stop chan struct{} // Channel to wait for termination notifications
 	lock sync.RWMutex
 
-	log log.Logger
+	sigc chan os.Signal
+	log  log.Logger
 }
 
 // New creates a new P2P node, ready for protocol registration.
@@ -87,9 +87,14 @@ func New(conf *Config) (*Node, error) {
 		svrEndpoint:      conf.GRPCEndpoint(),
 		eventmux:         new(event.TypeMux),
 		isMaster:         true,
+		sigc:             make(chan os.Signal, 1),
 		log:              conf.Logger,
 	}
 	return node, nil
+}
+
+func (n *Node) GetSigc() chan os.Signal {
+	return n.sigc
 }
 
 func (n *Node) SetIsMaster(isMaster bool) {
@@ -151,6 +156,7 @@ func (n *Node) Start() error {
 		ctx := &ServiceContext{
 			config:   n.config,
 			services: make(map[reflect.Type]Service),
+			Shutdown: n.sigc,
 			EventMux: n.eventmux,
 		}
 		for kind, s := range services { // copy needed for threaded access

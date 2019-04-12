@@ -15,7 +15,7 @@ import (
 type serverType int
 
 const (
-	_ = iota
+	OpHeartBeat = iota
 	OpPing
 	OpConnectToSlaves
 	OpAddRootBlock
@@ -29,7 +29,6 @@ const (
 	OpSyncMinorBlockList
 	OpAddMinorBlock
 	OpCreateClusterPeerConnection
-	OpDestroyClusterPeerConnectionCommand
 	OpGetMinorBlock
 	OpGetTransaction
 	OpBatchAddXshardTxList
@@ -45,37 +44,53 @@ const (
 	OpGasPrice
 	OpGetWork
 	OpSubmitWork
+	// p2p api
+	OpBroadcastNewTip
+	OpBroadcastTransactions
+	OpBroadcastMinorBlock
+	OpGetMinorBlocks
+	OpGetMinorBlockHeaders
+	OpHandleNewTip
+	OpAddTransactions
 
-	MasterServer  = serverType(1)
-	SlaveServer   = serverType(0)
-	UnknownServer = serverType(-1)
+	MasterServer = serverType(1)
+	SlaveServer  = serverType(0)
+
+	timeOut = 10
 )
 
 var (
-	conns = make(map[string]*grpc.ClientConn)
-	// include all grpc funcs
-	rpcFuncs = map[int64]opType{
-		OpPing:                                {name: "Ping"},
-		OpConnectToSlaves:                     {name: "ConnectToSlaves"},
-		OpAddRootBlock:                        {name: "AddRootBlock"},
-		OpGetEcoInfoList:                      {name: "GetEcoInfoList"},
-		OpGetNextBlockToMine:                  {name: "GetNextBlockToMine"},
-		OpGetUnconfirmedHeaders:               {name: "GetUnconfirmedHeaders"},
-		OpGetAccountData:                      {name: "GetAccountData"},
-		OpAddTransaction:                      {name: "AddTransaction"},
-		OpAddMinorBlockHeader:                 {name: "AddMinorBlockHeader", serverType: MasterServer},
-		OpAddXshardTxList:                     {name: "AddXshardTxList"},
-		OpSyncMinorBlockList:                  {name: "SyncMinorBlockList"},
-		OpAddMinorBlock:                       {name: "AddMinorBlock"},
-		OpCreateClusterPeerConnection:         {name: "CreateClusterPeerConnection"},
-		OpDestroyClusterPeerConnectionCommand: {name: "DestroyClusterPeerConnectionCommand", serverType: UnknownServer},
-		OpGetMinorBlock:                       {name: "GetMinorBlock"},
-		OpGetTransaction:                      {name: "GetTransaction"},
-		OpBatchAddXshardTxList:                {name: "BatchAddXshardTxList"},
-		OpExecuteTransaction:                  {name: "ExecuteTransaction"},
-		OpGetTransactionReceipt:               {name: "GetTransactionReceipt"},
-		OpGetMine:                             {name: "GetMine"},
-		OpGenTx:                               {name: "GenTx"},
+	// master apis
+	masterApis = map[uint32]opType{
+		OpAddMinorBlockHeader:   {name: "AddMinorBlockHeader"},
+		OpBroadcastNewTip:       {name: "BroadcastNewTip"},
+		OpBroadcastTransactions: {name: "BroadcastTransactions"},
+		OpBroadcastMinorBlock:   {name: "BroadcastMinorBlock"},
+		OpGetMinorBlocks:        {name: "GetMinorBlocks"},
+		OpGetMinorBlockHeaders:  {name: "GetMinorBlockHeaders"},
+	}
+	// slave apis
+	slaveApis = map[uint32]opType{
+		OpHeartBeat:                   {name: "HeartBeat"},
+		OpPing:                        {name: "Ping"},
+		OpConnectToSlaves:             {name: "ConnectToSlaves"},
+		OpAddRootBlock:                {name: "AddRootBlock"},
+		OpGetEcoInfoList:              {name: "GetEcoInfoList"},
+		OpGetNextBlockToMine:          {name: "GetNextBlockToMine"},
+		OpGetUnconfirmedHeaders:       {name: "GetUnconfirmedHeaders"},
+		OpGetAccountData:              {name: "GetAccountData"},
+		OpAddTransaction:              {name: "AddTransaction"},
+		OpAddXshardTxList:             {name: "AddXshardTxList"},
+		OpSyncMinorBlockList:          {name: "SyncMinorBlockList"},
+		OpAddMinorBlock:               {name: "AddMinorBlock"},
+		OpCreateClusterPeerConnection: {name: "CreateClusterPeerConnection"},
+		OpGetMinorBlock:               {name: "GetMinorBlock"},
+		OpGetTransaction:              {name: "GetTransaction"},
+		OpBatchAddXshardTxList:        {name: "BatchAddXshardTxList"},
+		OpExecuteTransaction:          {name: "ExecuteTransaction"},
+		OpGetTransactionReceipt:       {name: "GetTransactionReceipt"},
+		OpGetMine:                     {name: "GetMine"},
+		OpGenTx:                       {name: "GenTx"},
 		OpGetTransactionListByAddress: {name: "GetTransactionListByAddress"},
 		OpGetLogs:                     {name: "GetLogs"},
 		OpEstimateGas:                 {name: "EstimateGas"},
@@ -84,97 +99,81 @@ var (
 		OpGasPrice:                    {name: "GasPrice"},
 		OpGetWork:                     {name: "GetWork"},
 		OpSubmitWork:                  {name: "SubmitWork"},
+		// p2p api
+		OpGetMinorBlocks:       {name: "GetMinorBlocks"},
+		OpGetMinorBlockHeaders: {name: "GetMinorBlockHeaders"},
+		OpHandleNewTip:         {name: "HandleNewTip"},
+		OpAddTransactions:      {name: "AddTransactions"},
 	}
 )
 
 type opType struct {
-	serverType serverType
-	name       string
+	name string
+}
+
+type opNode struct {
+	conn   *grpc.ClientConn
+	client reflect.Value
 }
 
 // Client wraps the GRPC client.
 type Client interface {
-	Call(server serverType, hostport string, req *Request) (*Response, error)
-	GetOpName(int64) string
+	Call(hostport string, req *Request) (*Response, error)
+	GetOpName(uint32) string
 }
 
 type rpcClient struct {
+	connVals map[string]*opNode
+	funcs    map[uint32]opType
+
 	mu      sync.RWMutex
 	timeout time.Duration
-	conns   map[string]*grpc.ClientConn
-	funcs   map[int64]opType
-	running bool
+	tp      serverType
 	logger  log.Logger
 }
 
-func (c *rpcClient) GetOpName(op int64) string {
-	return rpcFuncs[op].name
+func (c *rpcClient) GetOpName(op uint32) string {
+	return c.funcs[op].name
 }
 
-func (c *rpcClient) Call(server serverType, hostport string, req *Request) (*Response, error) {
-	c.mu.RLock()
-	running := c.running
-	c.mu.RUnlock()
-
-	if !running {
-		return nil, errors.New("client has closed")
-	}
-
-	opType, ok := rpcFuncs[req.Op]
-	if !(ok && opType.serverType == server) {
+func (c *rpcClient) Call(hostport string, req *Request) (*Response, error) {
+	_, ok := c.funcs[req.Op]
+	if !ok {
 		return nil, errors.New("invalid op")
 	}
-
-	conn, err := c.getConn(hostport)
-	if err != nil {
-		return nil, err
-	}
-	var client reflect.Value
-	switch server {
-	case MasterServer:
-		client = reflect.ValueOf(NewMasterServerSideOpClient(conn))
-	case SlaveServer:
-		client = reflect.ValueOf(NewSlaveServerSideOpClient(conn))
-	default:
-		return nil, errors.New("unrecognized server type")
-	}
-	return c.grpcOp(req, client)
+	return c.grpcOp(hostport, req)
 }
 
 func (c *rpcClient) Close() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	c.running = false
-	for _, client := range c.conns {
-		client.Close()
+	for _, node := range c.connVals {
+		node.conn.Close()
 	}
 }
 
-func (c *rpcClient) getConn(hostport string) (*grpc.ClientConn, error) {
-	c.mu.RLock()
-	running := c.running
-	conn, ok := conns[hostport]
-	c.mu.RUnlock()
-
-	if !running {
-		return nil, errors.New("client has closed")
-	}
-
+func (c *rpcClient) getConn(hostport string) (*opNode, error) {
 	// add new connection if not existing or has failed
 	// note that race may happen when adding duplicate connections
-	if !ok || conn.GetState() > connectivity.TransientFailure {
+	node, ok := c.connVals[hostport]
+	if !ok || node.conn.GetState() > connectivity.TransientFailure {
 		return c.addConn(hostport)
 	}
 
-	return conn, nil
+	return node, nil
 }
 
-func (c *rpcClient) grpcOp(req *Request, ele reflect.Value) (response *Response, err error) {
+func (c *rpcClient) grpcOp(hostport string, req *Request) (*Response, error) {
+
+	node, err := c.getConn(hostport)
+	if err != nil {
+		return nil, err
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), c.timeout)
 	defer cancel()
 
 	val := []reflect.Value{reflect.ValueOf(ctx), reflect.ValueOf(req)}
-	rs := ele.MethodByName(rpcFuncs[req.Op].name).Call(val)
+	rs := node.client.MethodByName(c.funcs[req.Op].name).Call(val)
 	if rs[1].Interface() != nil {
 		err = rs[1].Interface().(error)
 		return nil, err
@@ -187,33 +186,40 @@ func (c *rpcClient) grpcOp(req *Request, ele reflect.Value) (response *Response,
 	return res, nil
 }
 
-func (c *rpcClient) addConn(hostport string) (*grpc.ClientConn, error) {
-	var (
-		conn *grpc.ClientConn
-		err  error
-	)
+func (c *rpcClient) addConn(hostport string) (*opNode, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	delete(conns, hostport)
-	// TODO add certificate or enciphered data
+	delete(c.connVals, hostport)
 	opts := []grpc.DialOption{grpc.WithInsecure()}
-	conn, err = grpc.Dial(hostport, opts...)
+	conn, err := grpc.Dial(hostport, opts...)
 	if err != nil {
 		return nil, err
 	}
-	conns[hostport] = conn
+
+	switch c.tp {
+	case MasterServer:
+		c.connVals[hostport] = &opNode{conn: conn, client: reflect.ValueOf(NewMasterServerSideOpClient(conn))}
+	case SlaveServer:
+		c.connVals[hostport] = &opNode{conn: conn, client: reflect.ValueOf(NewSlaveServerSideOpClient(conn))}
+	}
 	c.logger.Debug("Created new connection", "hostport", hostport)
-	return conn, nil
+	return c.connVals[hostport], nil
 }
 
 // NewClient returns a new GRPC client wrapper.
-func NewClient() Client {
+func NewClient(serverType serverType) Client {
+	rpcFuncs := masterApis
+	if serverType == SlaveServer {
+		rpcFuncs = slaveApis
+	} else if serverType != MasterServer {
+		return nil
+	}
 	return &rpcClient{
-		conns:   conns,
-		funcs:   rpcFuncs,
-		timeout: 10 * time.Second,
-		running: true,
-		logger:  log.New("rpcclient"),
+		connVals: make(map[string]*opNode),
+		funcs:    rpcFuncs,
+		tp:       serverType,
+		timeout:  time.Duration(timeOut) * time.Second,
+		logger:   log.New("rpcclient"),
 	}
 }
