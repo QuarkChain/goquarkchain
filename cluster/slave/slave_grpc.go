@@ -6,12 +6,16 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"sync"
 	"sync/atomic"
+	"time"
 )
 
 type SlaveServerSideOp struct {
 	rpcId int64
-	mu    sync.Mutex
+	mu    sync.RWMutex
 	slave *SlaveBackend
+
+	run     uint8
+	curTime int64
 }
 
 func NewServerSideOp(slave *SlaveBackend) *SlaveServerSideOp {
@@ -20,8 +24,15 @@ func NewServerSideOp(slave *SlaveBackend) *SlaveServerSideOp {
 	}
 }
 
-func (s *SlaveServerSideOp) Ping(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
+func (s *SlaveServerSideOp) HeartBeat(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
+	s.curTime = time.Now().Unix()
+	log.Info("slave heart beat response", "request op", req.Op, "current time", s.curTime)
+	return &rpc.Response{
+		ErrorCode: 0,
+	}, nil
+}
 
+func (s *SlaveServerSideOp) Ping(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
 	log.Info("slave ping response", "request op", req.Op, "rpc id", s.rpcId)
 	return &rpc.Response{
 		RpcId:     s.addRpcId(),
@@ -57,7 +68,13 @@ func (s *SlaveServerSideOp) SubmitWork(ctx context.Context, req *rpc.Request) (*
 func (s *SlaveServerSideOp) AddXshardTxList(ctx context.Context, req *rpc.Request) (*rpc.Response, error)                     { panic("not implemented") }
 func (s *SlaveServerSideOp) BatchAddXshardTxList(ctx context.Context, req *rpc.Request) (*rpc.Response, error)                { panic("not implemented") }
 
-func (o *SlaveServerSideOp) addRpcId() int64 {
-	atomic.AddInt64(&o.rpcId, 1)
-	return o.rpcId
+// p2p apis
+func (s *SlaveServerSideOp) GetMinorBlocks(ctx context.Context, req *rpc.Request) (*rpc.Response, error)       { panic("not implemented") }
+func (s *SlaveServerSideOp) GetMinorBlockHeaders(ctx context.Context, req *rpc.Request) (*rpc.Response, error) { panic("not implemented") }
+func (s *SlaveServerSideOp) HandleNewTip(ctx context.Context, req *rpc.Request) (*rpc.Response, error)         { panic("not implemented") }
+func (s *SlaveServerSideOp) AddTransactions(ctx context.Context, req *rpc.Request) (*rpc.Response, error)      { panic("not implemented") }
+
+func (s *SlaveServerSideOp) addRpcId() int64 {
+	atomic.AddInt64(&s.rpcId, 1)
+	return s.rpcId
 }

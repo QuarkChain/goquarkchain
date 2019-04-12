@@ -38,17 +38,17 @@ func (p *PublicBlockChainAPI) GasPrice()                 { panic("not implemente
 func (p *PublicBlockChainAPI) SubmitWork()               { panic("not implemented") }
 func (p *PublicBlockChainAPI) GetWork()                  { panic("not implemented") }
 func (p *PublicBlockChainAPI) NetVersion()               { panic("not implemented") }
-func (p *PublicBlockChainAPI) EthGasprice()              { panic("not implemented") }
-func (p *PublicBlockChainAPI) EthGetblockbynumber()      { panic("not implemented") }
-func (p *PublicBlockChainAPI) EthGetbalance()            { panic("not implemented") }
-func (p *PublicBlockChainAPI) EthGettransactioncount()   { panic("not implemented") }
-func (p *PublicBlockChainAPI) EthGetcode()               { panic("not implemented") }
-func (p *PublicBlockChainAPI) EthCall()                  { panic("not implemented") }
-func (p *PublicBlockChainAPI) EthSendrawtransaction()    { panic("not implemented") }
-func (p *PublicBlockChainAPI) EthGettransactionreceipt() { panic("not implemented") }
-func (p *PublicBlockChainAPI) EthEstimategas()           { panic("not implemented") }
-func (p *PublicBlockChainAPI) EthGetlogs()               { panic("not implemented") }
-func (p *PublicBlockChainAPI) EthGetstorageat()          { panic("not implemented") }
+func (p *PublicBlockChainAPI) QkcQkcGasprice()           { panic("not implemented") }
+func (p *PublicBlockChainAPI) QkcGetblockbynumber()      { panic("not implemented") }
+func (p *PublicBlockChainAPI) QkcGetbalance()            { panic("not implemented") }
+func (p *PublicBlockChainAPI) QkcGettransactioncount()   { panic("not implemented") }
+func (p *PublicBlockChainAPI) QkcGetcode()               { panic("not implemented") }
+func (p *PublicBlockChainAPI) QkcCall()                  { panic("not implemented") }
+func (p *PublicBlockChainAPI) QkcSendrawtransaction()    { panic("not implemented") }
+func (p *PublicBlockChainAPI) QkcGettransactionreceipt() { panic("not implemented") }
+func (p *PublicBlockChainAPI) QkcEstimategas()           { panic("not implemented") }
+func (p *PublicBlockChainAPI) QkcGetlogs()               { panic("not implemented") }
+func (p *PublicBlockChainAPI) QkcGetstorageat()          { panic("not implemented") }
 
 type PrivateBlockChainAPI struct {
 	b Backend
@@ -58,7 +58,9 @@ func NewPrivateBlockChainAPI(b Backend) *PrivateBlockChainAPI {
 	return &PrivateBlockChainAPI{b}
 }
 
-func (p *PrivateBlockChainAPI) Getnextblocktomine() { panic("not implemented") }
+func (p *PrivateBlockChainAPI) Getnextblocktomine() {
+	fmt.Println("Getnextblocktomine func response.")
+}
 func (p *PrivateBlockChainAPI) AddBlock()           { panic("not implemented") }
 func (p *PrivateBlockChainAPI) GetPeers()           { panic("not implemented") }
 func (p *PrivateBlockChainAPI) GetSyncStats()       { panic("not implemented") }

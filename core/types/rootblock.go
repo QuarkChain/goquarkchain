@@ -359,10 +359,6 @@ func (b *RootBlock) Hash() common.Hash {
 	return v
 }
 
-func (b *RootBlock) GetMetaData() *MinorBlockMeta {
-	return nil
-}
-
 func (b *RootBlock) GetTrackingData() []byte {
 	return b.trackingdata
 }

@@ -10,16 +10,19 @@ import (
 	"github.com/QuarkChain/goquarkchain/serialize"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
+	"syscall"
 	"time"
+)
+
+const (
+	beatTime = 4
 )
 
 type QkcAPIBackend struct {
 	config []*config.SlaveConfig
 	//shardMaskList
-	master         *MasterBackend
-	slaveConn      *SlaveConnection
-	clientPool     map[string]*SlaveConnection
-	branchToSlaves map[uint32][]*SlaveConnection
+	master     *MasterBackend
+	clientPool map[string]*SlaveConnection
 }
 
 // create slave connection manager
@@ -33,6 +36,7 @@ func NewQkcAPIBackend(master *MasterBackend, slavesConfig []*config.SlaveConfig)
 		}
 		slavePool[target] = client
 	}
+	log.Info("qkc api backend", "slave client pool", len(slavePool))
 	return &QkcAPIBackend{
 		config:     slavesConfig,
 		master:     master,
@@ -40,26 +44,21 @@ func NewQkcAPIBackend(master *MasterBackend, slavesConfig []*config.SlaveConfig)
 	}, nil
 }
 
-func (s *QkcAPIBackend) ConnecToSlaves() {
-	var (
-		// shardSize  = s.master.GetShardSize()
-		targetList = make([]string, 0)
-	)
-	for target := range s.clientPool {
-		targetList = append(targetList, target)
-	}
-
-	for len(targetList) > 0 {
-		for i, target := range targetList {
-			_, _, err := s.clientPool[target].SendPing()
-			if err == nil {
-				targetList = append(targetList[:i], targetList[i+1:]...)
+func (s *QkcAPIBackend) HeartBeat() {
+	// shardSize  = s.master.GetShardSize()
+	req := qrpc.Request{Op: qrpc.OpHeartBeat, Data: nil}
+	go func(normal bool) {
+		for normal {
+			time.Sleep(time.Duration(beatTime) * time.Second)
+			for endpoint := range s.clientPool {
+				normal = s.clientPool[endpoint].HeartBeat(&req)
+				if !normal {
+					s.master.shutdown <- syscall.SIGTERM
+					break
+				}
 			}
-			log.Info("master service", "slave list length", len(targetList), "slave", target)
-			time.Sleep(time.Duration(1) * time.Second)
 		}
-	}
-	log.Info("master service", "connect to all slaves successful.")
+	}(true)
 }
 
 func (s *QkcAPIBackend) SendConnectToSlaves() bool {

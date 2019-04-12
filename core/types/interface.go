@@ -32,7 +32,6 @@ type IBlock interface {
 	IHeader() IHeader
 	WithMingResult(nonce uint64, mixDigest common.Hash) IBlock
 	Content() []IHashable
-	GetMetaData() *MinorBlockMeta
 	GetTrackingData() []byte
 	GetSize() common.StorageSize
 	CoinbaseAmount() *big.Int

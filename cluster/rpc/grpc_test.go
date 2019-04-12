@@ -39,8 +39,8 @@ func TestGRPCAPI(t *testing.T) {
 	}
 
 	// create rpc client and request AddMinorBlockHeader function
-	cli := NewClient()
-	res, err := cli.Call(MasterServer, hostport, &Request{Op: OpAddMinorBlockHeader, Data: []byte(fmt.Sprintf("%s op request", cli.GetOpName(OpAddMinorBlockHeader)))})
+	cli := NewClient(MasterServer)
+	res, err := cli.Call(hostport, &Request{Op: OpAddMinorBlockHeader, Data: []byte(fmt.Sprintf("%s op request", cli.GetOpName(OpAddMinorBlockHeader)))})
 	if err != nil || res.ErrorCode != 0 {
 		t.Fatalf("request master function %s %v", cli.GetOpName(OpAddMinorBlockHeader), err)
 	}
