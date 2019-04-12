@@ -12,15 +12,15 @@ import (
 
 // Identity include recipient and key
 type Identity struct {
-	Recipient Recipient
-	Key       Key
+	recipient Recipient
+	key       Key
 }
 
 // NewIdentity new identity include recipient and key
 func NewIdentity(recipient Recipient, key Key) Identity {
 	return Identity{
-		Recipient: recipient,
-		Key:       key,
+		recipient: recipient,
+		key:       key,
 	}
 }
 
@@ -76,7 +76,7 @@ func newIdentity(recipient []byte, key []byte) (Identity, error) {
 // GetDefaultFullShardKey get identity's default fullShardKey
 func (Self *Identity) GetDefaultFullShardKey() (uint32, error) {
 	var fullShardKey uint32
-	r := Self.Recipient
+	r := Self.recipient
 	realShardKey := []byte{0x00, 0x00}
 	realShardKey = append(realShardKey, r[0:1]...)
 	realShardKey = append(realShardKey, r[10:11]...)
@@ -86,4 +86,14 @@ func (Self *Identity) GetDefaultFullShardKey() (uint32, error) {
 		return fullShardKey, err
 	}
 	return fullShardKey, nil
+}
+
+// GetRecipient Get it's recipient
+func (Self *Identity) GetRecipient() Recipient {
+	return Self.recipient
+}
+
+// GetKey get it's key
+func (Self *Identity) GetKey() Key {
+	return Self.key
 }

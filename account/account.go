@@ -201,7 +201,7 @@ func (Self *Account) MakeKeyStoreJSON(password string) (EncryptedKeyJSON, error)
 		return EncryptedKeyJSON{}, errors.New("get cipherparams failed")
 	}
 
-	cipherText, err := aesCTRXOR(encKey, Self.Identity.Key.Bytes(), cipherParams)
+	cipherText, err := aesCTRXOR(encKey, Self.Identity.key.Bytes(), cipherParams)
 	if err != nil {
 		return EncryptedKeyJSON{}, errors.New("aes error")
 	}
@@ -232,7 +232,7 @@ func (Self *Account) Address() string {
 
 // PrivateKey return it's key
 func (Self *Account) PrivateKey() string {
-	return hex.EncodeToString(Self.Identity.Key.Bytes())
+	return hex.EncodeToString(Self.Identity.key.Bytes())
 }
 
 // UUID return it's uuid

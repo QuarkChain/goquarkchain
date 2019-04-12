@@ -2,6 +2,7 @@ package core
 
 import (
 	"github.com/QuarkChain/goquarkchain/account"
+	"github.com/ethereum/go-ethereum/common"
 	"math/big"
 )
 

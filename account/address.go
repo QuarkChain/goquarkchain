@@ -66,7 +66,7 @@ func (Self *Address) AddressInBranch(branch Branch) Address {
 
 // CreatAddressFromIdentity creat address from identity
 func CreatAddressFromIdentity(identity Identity, fullShardKey uint32) Address {
-	return NewAddress(identity.Recipient, fullShardKey)
+	return NewAddress(identity.recipient, fullShardKey)
 }
 
 // CreatRandomAccountWithFullShardKey creat random account with fullShardKey

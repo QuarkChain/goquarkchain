@@ -25,7 +25,7 @@ func CheckIdentityUnitTest(data IdentityTestStruct) bool {
 	}
 	keyType := BytesToIdentityKey(key)
 	identity, err := CreatIdentityFromKey(keyType)
-	if err := checkPublicToRecipient(keyType, identity.Recipient); err != nil {
+	if err := checkPublicToRecipient(keyType, identity.recipient); err != nil {
 		fmt.Println("checkPublicToRecipient err", err)
 		return false
 	}
@@ -34,8 +34,8 @@ func CheckIdentityUnitTest(data IdentityTestStruct) bool {
 		fmt.Println("creatFromKey Failed err", err)
 		return false
 	}
-	if hex.EncodeToString(identity.Recipient.Bytes()) != data.Recipient { //checkRecipent
-		fmt.Printf("recipient is not match : unexcepted:%s , excepted %s", hex.EncodeToString(identity.Recipient.Bytes()), data.Recipient)
+	if hex.EncodeToString(identity.recipient.Bytes()) != data.Recipient { //checkRecipent
+		fmt.Printf("recipient is not match : unexcepted:%s , excepted %s", hex.EncodeToString(identity.recipient.Bytes()), data.Recipient)
 		return false
 	}
 	return true

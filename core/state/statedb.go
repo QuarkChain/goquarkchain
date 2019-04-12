@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
+	"github.com/QuarkChain/goquarkchain/params"
 	"math/big"
 	"sort"
 
@@ -116,7 +117,7 @@ func New(root common.Hash, db Database) (*StateDB, error) {
 		preimages:         make(map[common.Hash][]byte),
 		journal:           newJournal(),
 	}
-	stateDB.SetGasLimit(3141592) //????? default
+	stateDB.SetGasLimit(params.DefaultStateDBGasLimit)
 	return stateDB, nil
 
 }
