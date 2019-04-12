@@ -419,6 +419,30 @@ func (b *MinorBlock) GetSize() common.StorageSize {
 	return b.Size()
 }
 
+func (m *MinorBlock)Finalize( receipts Receipts, rootHash common.Hash,gasUsed *big.Int,xShardReceiveGasUsed *big.Int, coinBaseAmount *big.Int, hashPrevRootBlock *common.Hash) {
+	realHashPrevRootBlock := m.Header().PrevRootBlockHash
+	if hashPrevRootBlock != nil {
+		realHashPrevRootBlock = *hashPrevRootBlock
+	}
+
+	if gasUsed==nil{
+		gasUsed=new(big.Int)
+	}
+	if xShardReceiveGasUsed==nil{
+		xShardReceiveGasUsed=new(big.Int)
+	}
+
+	m.header.PrevRootBlockHash = realHashPrevRootBlock
+
+	m.meta.Root = rootHash
+	m.meta.GasUsed = &serialize.Uint256{Value: gasUsed}
+	m.meta.CrossShardGasUsed = &serialize.Uint256{Value: xShardReceiveGasUsed}
+	m.header.CoinbaseAmount = &serialize.Uint256{Value: new(big.Int).Set(coinBaseAmount)}
+	m.meta.TxHash = DeriveSha(m.Transactions())
+	m.meta.ReceiptHash = DeriveSha(receipts)
+	m.header.MetaHash = m.meta.Hash()
+	m.header.Bloom = CreateBloom(receipts)
+}
 func (h *MinorBlock) CreateBlockToAppend(createTime *uint64, difficulty *big.Int, address *account.Address, nonce *uint64, gasLimit *uint64, extraData []byte, coinBaseAmount *uint64) *MinorBlock {
 	realCreateTime := h.Time() + 1
 	if createTime != nil {

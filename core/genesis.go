@@ -79,6 +79,9 @@ func (g *Genesis) CreateMinorBlock(rootBlock *types.RootBlock, fullShardId uint3
 	meta := types.MinorBlockMeta{
 		Root:   statedb.IntermediateRoot(false),
 		TxHash: common.HexToHash(genesis.HashMerkleRoot),
+		ReceiptHash:common.Hash{},
+		GasUsed:&serialize.Uint256{Value:new(big.Int)},
+		CrossShardGasUsed:&serialize.Uint256{Value:new(big.Int)},
 	}
 
 	coinbaseAmount := new(serialize.Uint256)

@@ -39,10 +39,20 @@ func (e *FakeEngine) VerifyHeader(chain ChainReader, header types.IHeader, seal 
 // a results channel to retrieve the async verifications (the order is that of
 // the input slice).
 func (e *FakeEngine) VerifyHeaders(chain ChainReader, headers []types.IHeader, seals []bool) (chan<- struct{}, <-chan error) {
-	abort, results := make(chan struct{}), make(chan error, len(headers))
-	for i := 0; i < len(headers); i++ {
-		results <- e.VerifyHeader(chain, headers[i], seals[i])
-	}
+	abort := make(chan struct{})
+	results := make(chan error, len(headers))
+
+	go func() {
+		for i, header := range headers {
+			err := e.VerifyHeader(chain, header, seals[i])
+
+			select {
+			case <-abort:
+				return
+			case results <- err:
+			}
+		}
+	}()
 	return abort, results
 }
 
