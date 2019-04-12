@@ -35,30 +35,30 @@ type ChainContext interface {
 	GetHeader(common.Hash) types.IHeader
 }
 
-func NewEVMContext(msg types.Message, header *types.MinorBlockHeader, chain ChainContext) vm.Context {
+func NewEVMContext(msg types.Message, header types.IHeader, chain ChainContext) vm.Context {
 	return vm.Context{
 		CanTransfer: CanTransfer,
 		Transfer:    Transfer,
 		GetHash:     GetHashFn(header, chain),
 		Origin:      msg.From(),
-		Coinbase:    header.Coinbase.Recipient.ToAddress(),
-		BlockNumber: new(big.Int).SetUint64(header.Number),
-		Time:        new(big.Int).SetUint64(header.Time),
-		Difficulty:  new(big.Int).Set(header.Difficulty),
-		GasLimit:    header.GasLimit.Value.Uint64(),
+		Coinbase:    header.GetCoinbase().Recipient.ToAddress(),
+		BlockNumber: new(big.Int).SetUint64(header.NumberU64()),
+		Time:        new(big.Int).SetUint64(header.GetTime()),
+		Difficulty:  new(big.Int).Set(header.GetDifficulty()),
+		GasLimit:    header.GetGasLimit().Uint64(),
 		GasPrice:    new(big.Int).Set(msg.GasPrice()),
 	}
 }
 
 // GetHashFn returns a GetHashFunc which retrieves header hashes by number
-func GetHashFn(ref *types.MinorBlockHeader, chain ChainContext) func(n uint64) common.Hash {
+func GetHashFn(ref types.IHeader, chain ChainContext) func(n uint64) common.Hash {
 	var cache map[uint64]common.Hash
 
 	return func(n uint64) common.Hash {
 		// If there's no hash cache yet, make one
 		if cache == nil {
 			cache = map[uint64]common.Hash{
-				ref.Number - 1: ref.ParentHash,
+				ref.NumberU64() - 1: ref.GetParentHash(),
 			}
 		}
 		// Try to fulfill the request from the cache
@@ -66,7 +66,7 @@ func GetHashFn(ref *types.MinorBlockHeader, chain ChainContext) func(n uint64) c
 			return hash
 		}
 		// Not cached, iterate the blocks and cache the hashes
-		for header := chain.GetHeader(ref.ParentHash); header != nil; header = chain.GetHeader(header.GetParentHash()) {
+		for header := chain.GetHeader(ref.GetParentHash()); header != nil; header = chain.GetHeader(header.GetParentHash()) {
 			cache[header.NumberU64()-1] = header.GetParentHash()
 			if n == header.NumberU64()-1 {
 				return header.GetParentHash()
