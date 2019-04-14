@@ -5,24 +5,28 @@ import (
 	"github.com/QuarkChain/goquarkchain/cluster/service"
 	"github.com/QuarkChain/goquarkchain/internal/qkcapi"
 	"github.com/QuarkChain/goquarkchain/p2p"
+	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/rpc"
+	"os"
 	"reflect"
 	"sync"
-	"sync/atomic"
 )
 
 type MasterBackend struct {
 	lock       sync.RWMutex
 	config     config.ClusterConfig
 	APIBackend *QkcAPIBackend
-	run        int64
+
+	eventMux *event.TypeMux
+	shutdown chan os.Signal
 }
 
 func New(ctx *service.ServiceContext, cfg *config.ClusterConfig) (*MasterBackend, error) {
 	var (
 		master = &MasterBackend{
-			run:    0,
-			config: *cfg,
+			config:   *cfg,
+			eventMux: ctx.EventMux,
+			shutdown: ctx.Shutdown,
 		}
 		err error
 	)
@@ -48,13 +52,13 @@ func (c *MasterBackend) APIs() []rpc.API {
 }
 
 func (c *MasterBackend) Stop() error {
-	atomic.StoreInt64(&c.run, 0)
+	c.eventMux.Stop()
 	return nil
 }
 
 func (c *MasterBackend) Start(srvr *p2p.Server) error {
-	atomic.StoreInt64(&c.run, 1)
-	// c.APIBackend.ConnecToSlaves()
+	// start heart beat pre 3 seconds.
+	c.APIBackend.HeartBeat()
 	return nil
 }
 

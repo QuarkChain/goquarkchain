@@ -2,10 +2,10 @@
 package service
 
 import (
+	"os"
 	"reflect"
 
 	"github.com/QuarkChain/goquarkchain/p2p"
-	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/rpc"
@@ -15,10 +15,10 @@ import (
 // the protocol stack, that is passed to all constructors to be optionally used;
 // as well as utility methods to operate on the service environment.
 type ServiceContext struct {
-	config         *Config
-	services       map[reflect.Type]Service // Index of the already constructed services
-	EventMux       *event.TypeMux           // Event multiplexer used for decoupled notifications
-	AccountManager *accounts.Manager        // Account manager created by the node.
+	config   *Config
+	services map[reflect.Type]Service // Index of the already constructed services
+	Shutdown chan os.Signal
+	EventMux *event.TypeMux // Event multiplexer used for decoupled notifications
 }
 
 // OpenDatabase opens an existing database with the given name (or creates one
