@@ -55,15 +55,19 @@ func (r *rootChainTask) Run(bc *core.RootBlockChain) error {
 	lastHeader := r.header
 	for !bc.HasBlock(lastHeader.ParentHash) {
 		height, hash := new(big.Int).SetUint64(lastHeader.NumberU64()), lastHeader.Hash()
-		heightDiff := new(big.Int).Sub(tipHeight, height)
-		if heightDiff.Cmp(maxSyncStaleness) == 1 {
+		hDiff := new(big.Int).Sub(tipHeight, height)
+		if hDiff.Cmp(maxSyncStaleness) > 0 {
 			logger.Warn("Abort synching due to forking at super old block", "currentHeight", tipHeight, "oldHeight", height)
 			return nil
 		}
 
 		logger.Info("Downloading block header list", "height", height, "hash", hash)
-		// Order should be descending.
-		receivedHeaders, err := downloadHeaders(hash, headerDownloadSize) // TODO: stub
+		// Order should be descending. Download size is min(500, h-tip) if h > tip.
+		downloadSz := uint64(headerDownloadSize)
+		if hDiff.Sign() < 0 && hDiff.CmpAbs(big.NewInt(headerDownloadSize)) < 0 {
+			downloadSz = new(big.Int).Abs(hDiff).Uint64()
+		}
+		receivedHeaders, err := downloadHeaders(hash, downloadSz) // TODO: stub
 		if err != nil {
 			return err
 		}
@@ -131,7 +135,7 @@ func (r *rootChainTask) Peer() peer {
 	return r.peer
 }
 
-func downloadHeaders(startHash common.Hash, length int) ([]*types.RootBlockHeader, error) {
+func downloadHeaders(startHash common.Hash, length uint64) ([]*types.RootBlockHeader, error) {
 	// TODO: stub
 	return nil, nil
 }
