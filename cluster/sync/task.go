@@ -2,6 +2,7 @@ package sync
 
 import (
 	"errors"
+	"math/big"
 	"strings"
 	"time"
 
@@ -14,13 +15,15 @@ import (
 )
 
 const (
-	// TODO: should use config
-	maxSyncStaleness = 60
-
 	// Number of root block headers to download from peers.
 	headerDownloadSize = 500
 	// Number root blocks to download from peers.
 	blockDownloadSize = 100
+)
+
+var (
+	// TODO: should use config
+	maxSyncStaleness = big.NewInt(60)
 )
 
 // Task represents a synchronization task for the synchronizer.
@@ -45,14 +48,15 @@ func (r *rootChainTask) Run(bc *core.RootBlockChain) error {
 
 	logger := log.New("synctask", r.header.NumberU64())
 	headerTip := bc.CurrentHeader()
-	tipHeight := headerTip.NumberU64()
+	tipHeight := new(big.Int).SetUint64(headerTip.NumberU64())
 
 	// Prepare for downloading.
 	chain := []*types.RootBlockHeader{r.header} // Descending.
 	lastHeader := r.header
 	for !bc.HasBlock(lastHeader.ParentHash) {
-		height, hash := lastHeader.NumberU64(), lastHeader.Hash()
-		if tipHeight-height > maxSyncStaleness {
+		height, hash := new(big.Int).SetUint64(lastHeader.NumberU64()), lastHeader.Hash()
+		heightDiff := new(big.Int).Sub(tipHeight, height)
+		if heightDiff.Cmp(maxSyncStaleness) == 1 {
 			logger.Warn("Abort synching due to forking at super old block", "currentHeight", tipHeight, "oldHeight", height)
 			return nil
 		}
@@ -113,7 +117,7 @@ func (r *rootChainTask) Run(bc *core.RootBlockChain) error {
 			logger.Info("Syncing root block finishes", "height", h.NumberU64(), "hash", h.Hash(), "elapsed", elapsed)
 		}
 
-		i -= blockDownloadSize
+		i = start
 	}
 
 	return nil
