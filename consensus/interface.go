@@ -5,6 +5,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/rpc"
 	"math/big"
 )
 
@@ -63,6 +64,8 @@ type Engine interface {
 	// CalcDifficulty is the difficulty adjustment algorithm. It returns the difficulty
 	// that a new block should have.
 	CalcDifficulty(chain ChainReader, time uint64, parent types.IHeader) *big.Int
+
+	APIs(chain ChainReader) []rpc.API
 
 	// Close terminates any background threads maintained by the consensus engine.
 	Close() error

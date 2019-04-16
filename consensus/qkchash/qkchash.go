@@ -3,12 +3,41 @@ package qkchash
 import (
 	"encoding/binary"
 	"math/big"
+	"sync"
+	"time"
 
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/rpc"
 )
+
+type sealTask struct {
+	block   types.IBlock
+	results chan<- types.IBlock
+}
+
+type mineResult struct {
+	nonce     uint64
+	mixDigest common.Hash
+	hash      common.Hash
+
+	errc chan error
+}
+
+type hashrate struct {
+	id   common.Hash
+	ping time.Time
+	rate uint64
+
+	done chan struct{}
+}
+
+type sealWork struct {
+	errc chan error
+	res  chan [4]string
+}
 
 // QKCHash is a consensus engine implementing PoW with qkchash algo.
 // See the interface definition:
@@ -21,6 +50,17 @@ type QKCHash struct {
 	cache qkcCache
 	// A flag indicating which impl (c++ native or go) to use
 	useNative bool
+
+	// Remote sealer related fields
+	workCh       chan *sealTask
+	fetchWorkCh  chan *sealWork
+	fetchRateCh  chan chan uint64
+	submitWorkCh chan *mineResult
+	submitRateCh chan *hashrate
+
+	lock      sync.Mutex
+	closeOnce sync.Once
+	exitCh    chan chan error
 }
 
 // Author returns coinbase address.
@@ -64,7 +104,17 @@ func (q *QKCHash) Hashrate() float64 {
 
 // Close terminates any background threads maintained by the consensus engine.
 func (q *QKCHash) Close() error {
-	return nil
+	var err error
+	q.closeOnce.Do(func() {
+		if q.exitCh == nil {
+			return
+		}
+		errc := make(chan error)
+		q.exitCh <- errc
+		err = <-errc
+		close(q.exitCh)
+	})
+	return err
 }
 
 // FindNonce finds the desired nonce and mixhash for a given block header.
@@ -98,18 +148,37 @@ func (q *QKCHash) hashAlgo(hash []byte, nonce uint64) (res consensus.MiningResul
 	return res, nil
 }
 
+func (q *QKCHash) APIs(chain consensus.ChainReader) []rpc.API {
+	return []rpc.API{
+		{
+			Namespace: "qkc",
+			Version:   "3.0",
+			Service:   &API{q},
+			Public:    true,
+		},
+	}
+}
+
 // New returns a QKCHash scheme.
 func New(useNative bool, diffCalculator consensus.DifficultyCalculator) *QKCHash {
 	q := &QKCHash{
 		diffCalculator: diffCalculator,
 		useNative:      useNative,
-		// TOOD: cache may depend on block, so a LRU-stype cache could be helpful
+		// TODO: cache may depend on block, so a LRU-stype cache could be helpful
 		cache: generateCache(cacheEntryCnt, cacheSeed, useNative),
+
+		workCh:       make(chan *sealTask),
+		fetchWorkCh:  make(chan *sealWork),
+		submitWorkCh: make(chan *mineResult),
+		fetchRateCh:  make(chan chan uint64),
+		submitRateCh: make(chan *hashrate),
+		exitCh:       make(chan chan error),
 	}
 	spec := consensus.MiningSpec{
 		Name:     "QKCHash",
 		HashAlgo: q.hashAlgo,
 	}
 	q.commonEngine = consensus.NewCommonEngine(spec)
+	go q.remote()
 	return q
 }
