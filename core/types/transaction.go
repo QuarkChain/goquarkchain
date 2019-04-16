@@ -158,13 +158,7 @@ func (tx *EvmTransaction) ToFullShardId() uint32 {
 func (tx *EvmTransaction) NetworkId() uint32 { return tx.data.NetworkId }
 func (tx *EvmTransaction) Version() uint32   { return tx.data.Version }
 func (tx *EvmTransaction) IsCrossShard() bool {
-	if tx.FromChainID() != tx.ToChainID() {
-		return true
-	}
-	if tx.FromShardID() != tx.ToShardID() {
-		return true
-	}
-	return false
+	return !(tx.FromChainID() == tx.ToChainID() && tx.FromShardID() == tx.ToShardID())
 }
 func (tx *EvmTransaction) FromFullShardKey() uint32 { return tx.data.FromFullShardKey }
 func (tx *EvmTransaction) ToFullShardKey() uint32   { return tx.data.ToFullShardKey }
@@ -239,7 +233,12 @@ func (tx *EvmTransaction) Size() common.StorageSize {
 // XXX Rename message to something less arbitrary?
 func (tx *EvmTransaction) AsMessage(s Signer) (Message, error) {
 	msgTo := new(common.Address)
-	msgTo.SetBytes(tx.data.Recipient.Bytes())
+	if tx.data.Recipient != nil {
+		msgTo.SetBytes(tx.data.Recipient.Bytes())
+	} else {
+		msgTo = nil
+	}
+
 	msg := Message{
 		nonce:            tx.data.AccountNonce,
 		gasLimit:         tx.data.GasLimit,

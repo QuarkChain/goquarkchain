@@ -146,7 +146,6 @@ func (c *CommonEngine) VerifyHeaders(
 	seals []bool,
 	cengine Engine,
 ) (chan<- struct{}, <-chan error) {
-
 	// TODO: verify concurrently, and support aborting
 	errorsOut := make(chan error, len(headers))
 	go func() {

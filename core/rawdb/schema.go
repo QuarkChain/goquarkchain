@@ -3,7 +3,6 @@ package rawdb
 
 import (
 	"encoding/binary"
-
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/metrics"
 )
@@ -48,11 +47,11 @@ var (
 	preimageCounter    = metrics.NewRegisteredCounter("db/preimage/total", nil)
 	preimageHitCounter = metrics.NewRegisteredCounter("db/preimage/hits", nil)
 
-	totalTxKey         = []byte("tx_count")
-	xConfirmedShardKey = []byte("xr_")
+	totalTxKey         = []byte("txCount")
+	xConfirmedShardKey = []byte("xr")
 	xShardLists        = []byte("xShard")
-	rLastM             = []byte("r_last_m")
-	rBlock             = []byte("r_block")
+	rLastM             = []byte("rLastM")
+	rBlock             = []byte("rBlock")
 	geneis             = []byte("geneis")
 )
 

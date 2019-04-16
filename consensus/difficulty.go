@@ -7,6 +7,7 @@ import (
 
 type DifficultyCalculator interface {
 	CalculateDifficulty(parent types.IHeader, time uint64) *big.Int
+	IsNil() bool
 }
 
 type EthDifficultyCalculator struct {
@@ -32,4 +33,8 @@ func (c *EthDifficultyCalculator) CalculateDifficulty(parent types.IHeader, time
 	} else {
 		return diff
 	}
+}
+
+func (c *EthDifficultyCalculator) IsNil() bool {
+	return c == nil
 }

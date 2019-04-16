@@ -49,7 +49,7 @@ func (q *QKCHash) Prepare(chain consensus.ChainReader, header types.IHeader) err
 }
 
 func (q *QKCHash) Finalize(chain consensus.ChainReader, header types.IHeader, state *state.StateDB, txs []*types.Transaction,
-	uncles []types.IHeader, receipts []*types.Receipt) (types.IBlock, error) {
+	receipts []*types.Receipt) (types.IBlock, error) {
 	panic("not implemented")
 }
 

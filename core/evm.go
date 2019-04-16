@@ -17,6 +17,7 @@
 package core
 
 import (
+	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"math/big"
 
@@ -30,7 +31,7 @@ import (
 type ChainContext interface {
 	// Engine retrieves the chain's consensus engine.
 	Engine() consensus.Engine
-
+	Config() *config.QuarkChainConfig
 	// GetHeader returns the hash corresponding to their hash.
 	GetHeader(common.Hash) types.IHeader
 }

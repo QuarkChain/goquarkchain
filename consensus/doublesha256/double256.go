@@ -113,8 +113,7 @@ func (d *DoubleSHA256) Name() string {
 	return d.commonEngine.Name()
 }
 
-func (d *DoubleSHA256) Finalize(chain consensus.ChainReader, header types.IHeader, state *state.StateDB, txs []*types.Transaction,
-	uncles []types.IHeader, receipts []*types.Receipt) (types.IBlock, error) {
+func (d *DoubleSHA256) Finalize(chain consensus.ChainReader, header types.IHeader, state *state.StateDB, txs []*types.Transaction, receipts []*types.Receipt) (types.IBlock, error) {
 	panic(errors.New("not finalize"))
 }
 

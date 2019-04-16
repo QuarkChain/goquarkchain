@@ -23,6 +23,7 @@ type IHeader interface {
 	SetNonce(uint64)
 	GetMixDigest() common.Hash
 	ValidateHeader() error
+	IsNil() bool
 }
 
 type IBlock interface {
@@ -35,6 +36,7 @@ type IBlock interface {
 	GetTrackingData() []byte
 	GetSize() common.StorageSize
 	CoinbaseAmount() *big.Int
+	IsNil() bool
 }
 
 type IHashable interface {

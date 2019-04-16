@@ -3,6 +3,7 @@ package common
 import (
 	"bytes"
 	"encoding/gob"
+	"math/big"
 	"math/bits"
 )
 
@@ -36,4 +37,22 @@ func DeepCopy(dst, src interface{}) error {
 		return err
 	}
 	return gob.NewDecoder(bytes.NewBuffer(buf.Bytes())).Decode(dst)
+}
+
+type IsNilInterface interface {
+	IsNil() bool
+}
+
+func IsNil(data IsNilInterface) bool {
+	return data == nil || data.IsNil()
+}
+
+// ConstMinorBlockRewardCalculator blockReward struct
+type ConstMinorBlockRewardCalculator struct {
+}
+
+// GetBlockReward getBlockReward
+func (c *ConstMinorBlockRewardCalculator) GetBlockReward() *big.Int {
+	data := new(big.Int).SetInt64(100)
+	return new(big.Int).Mul(data, new(big.Int).SetInt64(1000000000000000000))
 }

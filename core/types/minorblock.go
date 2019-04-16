@@ -114,6 +114,9 @@ func (h *MinorBlockHeader) SetDifficulty(difficulty *big.Int) {
 func (h *MinorBlockHeader) SetNonce(nonce uint64) {
 	h.Nonce = nonce
 }
+func (h *MinorBlockHeader) IsNil() bool {
+	return h == nil
+}
 
 func (h *MinorBlockHeader) SetCoinbase(addr account.Address) {
 	h.Coinbase = addr
@@ -419,17 +422,20 @@ func (b *MinorBlock) GetSize() common.StorageSize {
 	return b.Size()
 }
 
-func (m *MinorBlock)Finalize( receipts Receipts, rootHash common.Hash,gasUsed *big.Int,xShardReceiveGasUsed *big.Int, coinBaseAmount *big.Int, hashPrevRootBlock *common.Hash) {
+func (b *MinorBlock) IsNil() bool {
+	return b == nil
+}
+func (m *MinorBlock) Finalize(receipts Receipts, rootHash common.Hash, gasUsed *big.Int, xShardReceiveGasUsed *big.Int, coinBaseAmount *big.Int, hashPrevRootBlock *common.Hash) {
 	realHashPrevRootBlock := m.Header().PrevRootBlockHash
 	if hashPrevRootBlock != nil {
 		realHashPrevRootBlock = *hashPrevRootBlock
 	}
 
-	if gasUsed==nil{
-		gasUsed=new(big.Int)
+	if gasUsed == nil {
+		gasUsed = new(big.Int)
 	}
-	if xShardReceiveGasUsed==nil{
-		xShardReceiveGasUsed=new(big.Int)
+	if xShardReceiveGasUsed == nil {
+		xShardReceiveGasUsed = new(big.Int)
 	}
 
 	m.header.PrevRootBlockHash = realHashPrevRootBlock

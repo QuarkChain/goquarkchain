@@ -687,7 +687,7 @@ func (s *StateDB) Commit(deleteEmptyObjects bool) (root common.Hash, err error) 
 }
 func (s *StateDB) GetXShardReceiveGasUsed() *big.Int {
 	if s.xShardReceiveGasUsed == nil {
-		s.xShardReceiveGasUsed = new(big.Int).SetUint64(0)
+		s.xShardReceiveGasUsed = new(big.Int)
 	}
 	return s.xShardReceiveGasUsed
 }
@@ -718,14 +718,14 @@ func (s *StateDB) GetFullShardKey(addr common.Address) uint32 {
 
 func (s *StateDB) AddBlockFee(fee *big.Int) {
 	if s.blockFee == nil {
-		s.blockFee = new(big.Int).SetUint64(0)
+		s.blockFee = new(big.Int)
 	}
 	s.blockFee.Add(s.blockFee, fee)
 }
 
 func (s *StateDB) GetBlockFee() *big.Int {
 	if s.blockFee == nil {
-		s.blockFee = new(big.Int).SetUint64(0)
+		s.blockFee = new(big.Int)
 	}
 	return s.blockFee
 }
@@ -738,34 +738,34 @@ func (s *StateDB) SetQuarkChainConfig(data *config.QuarkChainConfig) {
 }
 func (s *StateDB) GetGasUsed() *big.Int {
 	if s.gasUsed == nil {
-		s.gasUsed = new(big.Int).SetUint64(0)
+		s.gasUsed = new(big.Int)
 	}
 	return s.gasUsed
 }
 
 func (s *StateDB) AddGasUsed(data *big.Int) {
 	if s.gasUsed == nil {
-		s.gasUsed = new(big.Int).SetUint64(0)
+		s.gasUsed = new(big.Int)
 	}
 	s.gasUsed.Add(s.gasUsed, data)
 }
 
 func (s *StateDB) SetGasUsed(data *big.Int) {
 	if data == nil {
-		s.gasUsed = new(big.Int).SetUint64(0)
+		s.gasUsed = new(big.Int)
 	}
 	s.gasUsed = data
 }
 func (s *StateDB) GetGasLimit() *big.Int {
 	if s.gasLimit == nil {
-		s.gasLimit = new(big.Int).SetUint64(0)
+		s.gasLimit = new(big.Int)
 	}
 	return s.gasLimit
 }
 
 func (s *StateDB) SetGasLimit(data *big.Int) {
 	if data == nil {
-		s.gasLimit = new(big.Int).SetUint64(0)
+		s.gasLimit = new(big.Int)
 	}
 	s.gasLimit = data
 }

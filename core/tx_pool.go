@@ -26,6 +26,7 @@ import (
 	"sync"
 	"time"
 
+	qkcCommon "github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/core/state"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/common"
@@ -205,7 +206,8 @@ type TxPool struct {
 
 	wg sync.WaitGroup // for shutdown sync
 
-	homestead bool
+	homestead        bool
+	fakeChanForReset chan uint64
 }
 
 // NewTxPool creates a new transaction pool to gather, sort and filter inbound
@@ -322,7 +324,6 @@ func (pool *TxPool) loop() {
 func (pool *TxPool) lockedReset(oldHead, newHead *types.MinorBlock) {
 	pool.mu.Lock()
 	defer pool.mu.Unlock()
-
 	pool.reset(oldHead, newHead)
 }
 
@@ -360,12 +361,12 @@ func (pool *TxPool) reset(oldBlock, newBlock *types.MinorBlock) {
 				rem = pool.chain.GetBlock(oldHead.Hash())
 				add = pool.chain.GetBlock(newHead.Hash())
 			)
-			if IsNil(rem) || IsNil(add) {
+			if qkcCommon.IsNil(rem) || qkcCommon.IsNil(add) {
 				return
 			}
 			for rem.NumberU64() > add.NumberU64() {
 				discarded = append(discarded, rem.(*types.MinorBlock).Transactions()...)
-				if rem = pool.chain.GetBlock(rem.IHeader().GetParentHash()); IsNil(rem) {
+				if rem = pool.chain.GetBlock(rem.IHeader().GetParentHash()); qkcCommon.IsNil(rem) {
 					log.Error("Unrooted old chain seen by tx pool", "block", oldHead.Number, "hash", oldHead.Hash())
 					return
 				}
@@ -373,19 +374,19 @@ func (pool *TxPool) reset(oldBlock, newBlock *types.MinorBlock) {
 			for add.NumberU64() > rem.NumberU64() {
 
 				included = append(included, add.(*types.MinorBlock).Transactions()...)
-				if add = pool.chain.GetBlock(add.IHeader().GetParentHash()); IsNil(add) {
+				if add = pool.chain.GetBlock(add.IHeader().GetParentHash()); qkcCommon.IsNil(add) {
 					log.Error("Unrooted new chain seen by tx pool", "block", newHead.Number, "hash", newHead.Hash())
 					return
 				}
 			}
 			for rem.Hash() != add.Hash() {
 				discarded = append(discarded, rem.(*types.MinorBlock).Transactions()...)
-				if rem = pool.chain.GetBlock(rem.IHeader().GetParentHash()); IsNil(rem) {
+				if rem = pool.chain.GetBlock(rem.IHeader().GetParentHash()); qkcCommon.IsNil(rem) {
 					log.Error("Unrooted old chain seen by tx pool", "block", oldHead.Number, "hash", oldHead.Hash())
 					return
 				}
 				included = append(included, add.(*types.MinorBlock).Transactions()...)
-				if add = pool.chain.GetBlock(add.IHeader().GetParentHash()); IsNil(add) {
+				if add = pool.chain.GetBlock(add.IHeader().GetParentHash()); qkcCommon.IsNil(add) {
 					log.Error("Unrooted new chain seen by tx pool", "block", newHead.Number, "hash", newHead.Hash())
 					return
 				}
@@ -418,7 +419,6 @@ func (pool *TxPool) reset(oldBlock, newBlock *types.MinorBlock) {
 	// have been invalidated because of another transaction (e.g.
 	// higher gas price)
 	pool.demoteUnexecutables()
-
 	// Update all accounts to the latest known pending nonce
 	for addr, list := range pool.pending {
 		txs := list.Flatten() // Heavy but will be cached and is needed by the miner anyway
@@ -427,6 +427,9 @@ func (pool *TxPool) reset(oldBlock, newBlock *types.MinorBlock) {
 	// Check the queue and move transactions over to the pending if possible
 	// or remove those that have become invalid
 	pool.promoteExecutables(nil)
+	if pool.fakeChanForReset != nil {
+		pool.fakeChanForReset <- newBlock.NumberU64()
+	}
 }
 
 // Stop terminates the transaction pool.
@@ -1107,6 +1110,10 @@ func (pool *TxPool) demoteUnexecutables() {
 			delete(pool.beats, addr)
 		}
 	}
+}
+
+func (pool *TxPool) SetFakeChain(ch chan uint64) {
+	pool.fakeChanForReset = ch
 }
 
 // addressByHeartbeat is an account address tagged with its last activity timestamp.
