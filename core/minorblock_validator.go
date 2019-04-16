@@ -81,7 +81,10 @@ func (v *MinorBlockValidator) ValidateBlock(mBlock types.IBlock) error {
 	}
 
 	if !v.bc.HasBlockAndState(block.IHeader().GetParentHash()) {
-		return ErrPreBlockNotFound
+		if!v.bc.HasBlock(block.ParentHash(),block.NumberU64()-1){
+			return consensus.ErrUnknownAncestor
+		}
+		return ErrPrunedAncestor
 	}
 
 	prevHeader := v.bc.GetHeader(block.IHeader().GetParentHash()).(*types.MinorBlockHeader)
@@ -130,7 +133,6 @@ func (v *MinorBlockValidator) ValidateBlock(mBlock types.IBlock) error {
 	}
 
 	rootBlockHeader := v.bc.getRootBlockHeaderByHash(block.Header().GetPrevRootBlockHash())
-
 	if rootBlockHeader == nil {
 		return errors.New("get blockHeader errors")
 	}

@@ -144,9 +144,10 @@ type MinorBlockChain struct {
 func NewMinorBlockChain(db ethdb.Database, cacheConfig *CacheConfig, chainConfig *params.ChainConfig, clusterConfig *config.ClusterConfig, engine consensus.Engine, vmConfig vm.Config, shouldPreserve func(block *types.MinorBlock) bool, fullShardID uint32, diffCalc consensus.DifficultyCalculator) (*MinorBlockChain, error) {
 	if cacheConfig == nil {
 		cacheConfig = &CacheConfig{
-			TrieCleanLimit: 32,
-			TrieDirtyLimit: 32,
+			TrieCleanLimit: 256,
+			TrieDirtyLimit: 256,
 			TrieTimeLimit:  5 * time.Minute,
+			Disabled:true,
 		}
 	}
 	bodyCache, _ := lru.New(bodyCacheLimit)
@@ -570,7 +571,6 @@ func (m *MinorBlockChain) HasBlockAndState(hash common.Hash) bool {
 	if block == nil {
 		return false
 	}
-
 	return m.HasState(block.GetMetaData().Root)
 }
 
@@ -898,9 +898,9 @@ func (m *MinorBlockChain) WriteBlockWithState(block *types.MinorBlock, receipts 
 	}
 	triedb := m.stateCache.TrieDB()
 
-	if err := triedb.Commit(root, true); err != nil {
-		return NonStatTy, err
-	}
+	//if err := triedb.Commit(root, true); err != nil {
+	//	return NonStatTy, err
+	//}
 
 	// If we're running an archive node, always flush
 	if m.cacheConfig.Disabled {
@@ -923,7 +923,7 @@ func (m *MinorBlockChain) WriteBlockWithState(block *types.MinorBlock, receipts 
 			}
 			// Find the next state trie we need to commit
 			header := m.GetHeaderByNumber(current - triesInMemory)
-			block := m.GetBlockByNumber(current - triesInMemory).(*types.MinorBlock)
+			blockPre := m.GetBlockByNumber(current - triesInMemory).(*types.MinorBlock)
 			chosen := header.NumberU64()
 
 			// If we exceeded out time allowance, flush an entire trie to disk
@@ -934,7 +934,7 @@ func (m *MinorBlockChain) WriteBlockWithState(block *types.MinorBlock, receipts 
 					log.Info("State in memory for too long, committing", "time", m.gcproc, "allowance", m.cacheConfig.TrieTimeLimit, "optimum", float64(chosen-lastWrite)/triesInMemory)
 				}
 				// Flush an entire trie and restart the counters
-				triedb.Commit(block.GetMetaData().Root, true)
+				triedb.Commit(blockPre.GetMetaData().Root, true)
 				lastWrite = chosen
 				m.gcproc = 0
 			}
@@ -985,18 +985,17 @@ func (m *MinorBlockChain) WriteBlockWithState(block *types.MinorBlock, receipts 
 			// Write the positional metadata for transaction/receipt lookups and preimages
 			rawdb.WriteBlockContentLookupEntries(batch, block)
 			rawdb.WritePreimages(batch, state.Preimages())
-
 			status = CanonStatTy
 		}
-
 	} else {
 		status = SideStatTy
 	}
+
 	if err := batch.Write(); err != nil {
 		return NonStatTy, err
 	}
 	if updateTip == false {
-		return SideStatTy, nil
+		status = SideStatTy
 	}
 
 	// Set new head.
@@ -1145,9 +1144,9 @@ func (m *MinorBlockChain) insertChain(chain []types.IBlock, verifySeals bool, sh
 				return it.index, events, coalescedLogs, xShardList, errors.New("too old")
 			}
 		}
-		if m.GetBlock(block.IHeader().Hash()) != nil {
-			return it.index, events, coalescedLogs, xShardList, errors.New("has exist")
-		}
+		//if m.GetBlock(block.IHeader().Hash()) != nil {
+		//	return it.index, events, coalescedLogs, xShardList, errors.New("has exist")
+		//}
 		// If the chain is terminating, stop processing blocks
 		if atomic.LoadInt32(&m.procInterrupt) == 1 {
 			log.Debug("Premature abort during blocks processing")
@@ -1254,33 +1253,6 @@ func (m *MinorBlockChain) insertChain(chain []types.IBlock, verifySeals bool, sh
 	return it.index, events, coalescedLogs, xShardList, err
 }
 
-func (m *MinorBlockChain) updateTip(state *state.StateDB, block *types.MinorBlock) (bool, error) {
-	updateTip := false
-	if !m.isSameRootChain(m.rootTip, m.getRootBlockHeaderByHash(block.Header().PrevRootBlockHash)) {
-		updateTip = false
-	} else if block.Header().ParentHash.String() == m.CurrentBlock().Hash().String() {
-		updateTip = true
-	} else if m.isMinorBlockLinkedToRootTip(block) {
-		if block.Header().Number > m.CurrentBlock().NumberU64() {
-			updateTip = true
-		} else if block.Header().Number == m.CurrentBlock().NumberU64() {
-			updateTip = m.getRootBlockHeaderByHash(block.Header().PrevRootBlockHash).Number > m.getRootBlockHeaderByHash(m.CurrentBlock().IHeader().(*types.MinorBlockHeader).GetPrevRootBlockHash()).Number
-		}
-	}
-
-	if updateTip {
-		if m.clusterConfig.Quarkchain.GetShardConfigByFullShardID(m.fullShardID).PoswConfig.Enabled {
-			disallowList, err := m.getPOSWCoinBaseBlockCnt(block.Hash(), nil)
-			if err != nil {
-				return updateTip, err
-			}
-			state.SetSenderDisallowList(disallowList)
-		}
-		m.currentEvmState = state
-	}
-	return updateTip, nil
-}
-
 // insertSidechain is called when an import batch hits upon a pruned ancestor
 // error, which happens when a sidechain with a sufficiently old fork-block is
 // found.
@@ -1363,10 +1335,12 @@ func (m *MinorBlockChain) insertSidechain(it *insertIterator, shipIDTooOld []boo
 		blocks []types.IBlock
 		memory common.StorageSize
 	)
+	shipIDTooOld=make([]bool,0)
 	for i := len(hashes) - 1; i >= 0; i-- {
 		// Append the next block to our batch
 		block := m.GetBlock(hashes[i])
 		blocks = append(blocks, block)
+		shipIDTooOld=append(shipIDTooOld,false)
 		memory += block.GetSize()
 
 		// If memory use grew too large, import and continue. Sadly we need to discard
@@ -1741,36 +1715,4 @@ func (m *MinorBlockChain) getRootBlockHeaderByHash(hash common.Hash) *types.Root
 // GetRootBlockByHash get rootBlock by hash in minorBlockChain
 func (m *MinorBlockChain) GetRootBlockByHash(hash common.Hash) *types.RootBlock {
 	return rawdb.ReadRootBlock(m.db, hash)
-}
-
-// POSWDiffAdjust POSW diff calc
-func (m *MinorBlockChain) POSWDiffAdjust(block types.IBlock) (uint64, error) {
-	startTime := time.Now()
-	header := block.IHeader()
-	diff := uint32(header.GetDifficulty().Uint64())
-	coinbaseAddress := header.GetCoinbase().Recipient
-
-	evmState, err := m.getEvmStateForNewBlock(block, true)
-	if err != nil {
-		return 0, err
-	}
-	config := m.shardConfig.PoswConfig
-	stakes := evmState.GetBalance(coinbaseAddress)
-
-	blockThreShold := stakes.Uint64() / config.TotalStakePerBlock.Uint64()
-	if config.WindowSize < uint32(blockThreShold) {
-		blockThreShold = uint64(config.WindowSize)
-	}
-
-	windowSize := config.WindowSize - 1
-	blockCnt, err := m.getPOSWCoinBaseBlockCnt(header.GetParentHash(), &windowSize)
-	log.Info(m.logInfo, blockCnt)
-	//TODO ---block_cnt.get()
-	var cnt uint64 = 1
-	if cnt < blockThreShold {
-		diff /= config.DiffDivider
-	}
-	passedMs := (time.Now().Sub(startTime)) * 1000
-	log.Info(m.logInfo, "adjust posw diff took milliseconds", passedMs)
-	return uint64(diff), nil
 }

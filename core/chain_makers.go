@@ -275,7 +275,6 @@ func GenerateMinorBlockChain(config *params.ChainConfig, quarkChainConfig *confi
 	genblock := func(i int, parent *types.MinorBlock, statedb *state.StateDB) (*types.MinorBlock, types.Receipts) {
 		b := &MinorBlockGen{i: i, chain: blocks, parent: parent, statedb: statedb, config: config, engine: engine}
 		block := parent.CreateBlockToAppend(nil, nil, nil, nil, nil, nil, nil)
-
 		b.header = block.Header()
 		if gen != nil {
 			gen(quarkChainConfig, i, b)
@@ -285,10 +284,10 @@ func GenerateMinorBlockChain(config *params.ChainConfig, quarkChainConfig *confi
 			block.AddTx(v)
 		}
 
-		coinbaseAmount := new(big.Int).Set(quarkChainConfig.GetShardConfigByFullShardID(quarkChainConfig.Chains[0].ShardSize | 0).CoinbaseAmount)
-		coinbaseAmount = coinbaseAmount.Mul(coinbaseAmount, quarkChainConfig.RewardTaxRate.Num())
-		coinbaseAmount = coinbaseAmount.Div(coinbaseAmount, quarkChainConfig.RewardTaxRate.Denom())
-		statedb.AddBalance(block.Header().Coinbase.Recipient, coinbaseAmount)
+		coinBaseAmount := new(big.Int).Set(quarkChainConfig.GetShardConfigByFullShardID(quarkChainConfig.Chains[0].ShardSize | 0).CoinbaseAmount)
+		coinBaseAmount = coinBaseAmount.Mul(coinBaseAmount, quarkChainConfig.RewardTaxRate.Num())
+		coinBaseAmount = coinBaseAmount.Div(coinBaseAmount, quarkChainConfig.RewardTaxRate.Denom())
+		statedb.AddBalance(block.Header().Coinbase.Recipient, coinBaseAmount)
 
 		b.statedb.Finalise(false)
 		rootHash, err := b.statedb.Commit(false)
@@ -298,8 +297,8 @@ func GenerateMinorBlockChain(config *params.ChainConfig, quarkChainConfig *confi
 		if err := b.statedb.Database().TrieDB().Commit(rootHash, true); err != nil {
 			panic(fmt.Sprintf("trie write error: %v", err))
 		}
-		coinbaseAmount = coinbaseAmount.Add(coinbaseAmount, statedb.GetBlockFee())
-		block.Finalize(b.receipts, rootHash, statedb.GetGasUsed(), statedb.GetXShardReceiveGasUsed(), coinbaseAmount, nil)
+		coinBaseAmount = coinBaseAmount.Add(coinBaseAmount, statedb.GetBlockFee())
+		block.Finalize(b.receipts, rootHash, statedb.GetGasUsed(), statedb.GetXShardReceiveGasUsed(), coinBaseAmount, nil)
 		return block, b.receipts
 	}
 	for i := 0; i < n; i++ {

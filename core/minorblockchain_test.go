@@ -60,7 +60,7 @@ func ToHeaders(minorBlockHeader []*types.MinorBlockHeader) []types.IHeader {
 // newMinorCanonical creates a chain database, and injects a deterministic canonical
 // chain. Depending on the full flag, if creates either a full block chain or a
 // header only chain.
-func newMinorCanonical(engine consensus.Engine, n int, full bool) (ethdb.Database, *MinorBlockChain, error) {
+func newMinorCanonical(cacheConfig *CacheConfig, engine consensus.Engine, n int, full bool) (ethdb.Database, *MinorBlockChain, error) {
 	var (
 		fakeClusterConfig = config.NewClusterConfig()
 		fakeFullShardID   = fakeClusterConfig.Quarkchain.Chains[0].ShardSize | 0
@@ -74,7 +74,7 @@ func newMinorCanonical(engine consensus.Engine, n int, full bool) (ethdb.Databas
 	fakeClusterConfig.Quarkchain.SkipRootCoinbaseCheck = true
 	// Initialize a fresh chain with only a genesis block
 	chainConfig := params.TestChainConfig
-	blockchain, _ := NewMinorBlockChain(db, nil, chainConfig, fakeClusterConfig, engine, vm.Config{}, nil, fakeFullShardID, nil)
+	blockchain, _ := NewMinorBlockChain(db, cacheConfig, chainConfig, fakeClusterConfig, engine, vm.Config{}, nil, fakeFullShardID, nil)
 	genesis, err := blockchain.InitGenesisState(rootBlock, genesis)
 	if err != nil {
 		panic(err)
@@ -101,7 +101,7 @@ func newMinorCanonical(engine consensus.Engine, n int, full bool) (ethdb.Databas
 func testMinorFork(t *testing.T, blockchain *MinorBlockChain, i, n int, full bool, comparator func(td1, td2 *big.Int)) {
 	// Copy old chain up to #i into a new db
 	engine := &consensus.FakeEngine{}
-	db, blockchain2, err := newMinorCanonical(engine, i, full)
+	db, blockchain2, err := newMinorCanonical(nil, engine, i, full)
 	if err != nil {
 		t.Fatal("could not make new canonical in testMinorFork", err)
 	}
@@ -230,7 +230,7 @@ func insertChain(done chan bool, blockchain *MinorBlockChain, chain []types.IBlo
 
 func TestMinorLastBlock(t *testing.T) {
 	engine := &consensus.FakeEngine{}
-	_, blockchain, err := newMinorCanonical(engine, 0, true)
+	_, blockchain, err := newMinorCanonical(nil, engine, 0, true)
 	if err != nil {
 		t.Fatalf("failed to create pristine chain: %v", err)
 	}
@@ -255,7 +255,7 @@ func testMinorExtendCanonical(t *testing.T, full bool) {
 	length := 5
 	// Make first chain starting from genesis
 	engine := &consensus.FakeEngine{}
-	_, processor, err := newMinorCanonical(engine, length, full)
+	_, processor, err := newMinorCanonical(nil, engine, length, full)
 	if err != nil {
 		t.Fatalf("failed to make new canonical chain: %v", err)
 	}
@@ -283,7 +283,7 @@ func testMinorShorterFork(t *testing.T, full bool) {
 	length := 10
 	// Make first chain starting from genesis
 	engine := &consensus.FakeEngine{}
-	_, processor, err := newMinorCanonical(engine, length, full)
+	_, processor, err := newMinorCanonical(nil, engine, length, full)
 	if err != nil {
 		t.Fatalf("failed to make new canonical chain: %v", err)
 	}
@@ -313,7 +313,7 @@ func testMinorLongerFork(t *testing.T, full bool) {
 	length := 10
 	// Make first chain starting from genesis
 	engine := &consensus.FakeEngine{}
-	_, processor, err := newMinorCanonical(engine, length, full)
+	_, processor, err := newMinorCanonical(nil, engine, length, full)
 	if err != nil {
 		t.Fatalf("failed to make new canonical chain: %v", err)
 	}
@@ -345,7 +345,7 @@ func testMinorEqualFork(t *testing.T, full bool) {
 
 	// Make first chain starting from genesis
 	engine := &consensus.FakeEngine{}
-	_, processor, err := newMinorCanonical(engine, length, full)
+	_, processor, err := newMinorCanonical(nil, engine, length, full)
 	if err != nil {
 		t.Fatalf("failed to make new canonical chain: %v", err)
 	}
@@ -373,7 +373,7 @@ func TestMinorBrokenBlockChain(t *testing.T)  { testMinorBrokenChain(t, true) }
 func testMinorBrokenChain(t *testing.T, full bool) {
 	// Make chain starting from genesis
 	engine := &consensus.FakeEngine{}
-	db, blockchain, err := newMinorCanonical(engine, 10, full)
+	db, blockchain, err := newMinorCanonical(nil, engine, 10, full)
 	if err != nil {
 		t.Fatalf("failed to make new canonical chain: %v", err)
 	}
@@ -427,7 +427,7 @@ func testMinorReorgShort(t *testing.T, full bool) {
 
 func testMinorReorg(t *testing.T, first, second []uint64, td int64, full bool) {
 	engine := &consensus.FakeEngine{}
-	db, blockchain, err := newMinorCanonical(engine, 0, full)
+	db, blockchain, err := newMinorCanonical(nil, engine, 0, full)
 	if err != nil {
 		t.Fatalf("failed to create pristine chain: %v", err)
 	}
@@ -503,7 +503,7 @@ func TestMinorBadBlockHashes(t *testing.T)  { testMinorBadHashes(t, true) }
 func testMinorBadHashes(t *testing.T, full bool) {
 	// Create a pristine chain and database
 	engine := &consensus.FakeEngine{}
-	db, blockchain, err := newMinorCanonical(engine, 0, full)
+	db, blockchain, err := newMinorCanonical(nil, engine, 0, full)
 	if err != nil {
 		t.Fatalf("failed to create pristine chain: %v", err)
 	}
@@ -540,7 +540,7 @@ func testMinorReorgBadHashes(t *testing.T, full bool) {
 
 	// Create a pristine chain and database
 	engine := &consensus.FakeEngine{}
-	db, blockchain, err := newMinorCanonical(engine, 0, full)
+	db, blockchain, err := newMinorCanonical(nil, engine, 0, full)
 	if err != nil {
 		t.Fatalf("failed to create pristine chain: %v", err)
 	}
@@ -598,7 +598,13 @@ func testMinorInsertNonceError(t *testing.T, full bool) {
 	for i := 1; i < 10 && !t.Failed(); i++ {
 		// Create a pristine chain and database
 		engine := &consensus.FakeEngine{}
-		db, blockchain, err := newMinorCanonical(engine, 0, full)
+		cacheConfig := &CacheConfig{
+			TrieCleanLimit: 32,
+			TrieDirtyLimit: 32,
+			TrieTimeLimit:  5 * time.Minute,
+		}
+
+		db, blockchain, err := newMinorCanonical(cacheConfig, engine, 0, full)
 		if err != nil {
 			t.Fatalf("failed to create pristine chain: %v", err)
 		}
@@ -1179,7 +1185,7 @@ done:
 // TestMinors if the canonical block can be fetched from the database during chain insertion.
 func TestMinorCanonicalBlockRetrieval(t *testing.T) {
 	engine := &consensus.FakeEngine{}
-	_, blockchain, err := newMinorCanonical(engine, 0, true)
+	_, blockchain, err := newMinorCanonical(nil, engine, 0, true)
 	if err != nil {
 		t.Fatalf("failed to create pristine chain: %v", err)
 	}
@@ -1221,349 +1227,311 @@ func TestMinorCanonicalBlockRetrieval(t *testing.T) {
 	pend.Wait()
 }
 
-//func TestMinorEIP161AccountRemoval(t *testing.T) {
-//	// Configure and generate a sample block chain
-//	var (
-//		db      = ethdb.NewMemDatabase()
-//		key, _  = crypto.HexToECDSA("b71c71a67e1177ad4e901695e1b4b9ee17ae16c6668d313eac2f96dbcda3f291")
-//		address = crypto.PubkeyToAddress(key.PublicKey)
-//		//		funds   = big.NewInt(1000000000)
-//		theAddr = common.Address{1}
-//		gspec   = &Genesis{
-//			qkcConfig: config.NewQuarkChainConfig(),
-//		}
-//		genesis = gspec.MustCommitMinorBlock(db, nil, 0)
-//	)
-//	engine := &consensus.FakeEngine{}
-//	blockchain, _ := NewMinorBlockChain(db, nil, config.NewClusterConfig(), engine, vm.Config{}, nil, config.NewClusterConfig().Quarkchain.Chains[0].ShardSize, nil)
-//	defer blockchain.Stop()
-//
-//	blocks, _ := GenerateMinorBlockChain(getDefaultParamsChainConfig(), config.NewQuarkChainConfig(), genesis, engine, db, 3, func(config *config.QuarkChainConfig, i int, block *MinorBlockGen) {
-//		var (
-//			tx     *types.EvmTransaction
-//			err    error
-//			signer = types.NewEIP155Signer(uint32(gspec.qkcConfig.NetworkID))
-//		)
-//		switch i {
-//		case 0:
-//			tx, err = types.SignTx(types.NewEvmTransaction(block.TxNonce(address), account.BytesToIdentityRecipient(theAddr.Bytes()), new(big.Int), 21000, new(big.Int), 0, 0, 0, 0, nil), signer, key)
-//		case 1:
-//			tx, err = types.SignTx(types.NewEvmTransaction(block.TxNonce(address), account.BytesToIdentityRecipient(theAddr.Bytes()), new(big.Int), 21000, new(big.Int), 0, 0, 0, 0, nil), signer, key)
-//		case 2:
-//			tx, err = types.SignTx(types.NewEvmTransaction(block.TxNonce(address), account.BytesToIdentityRecipient(theAddr.Bytes()), new(big.Int), 21000, new(big.Int), 0, 0, 0, 0, nil), signer, key)
-//		}
-//		if err != nil {
-//			t.Fatal(err)
-//		}
-//		block.AddTx(config, TransEvmTxToTx(tx))
-//	})
-//	// account must exist pre eip 161
-//	if _, _, err := blockchain.InsertChain([]types.IBlock{blocks[0]}, []bool{false}); err != nil {
-//		t.Fatal(err)
-//	}
-//	if st, _ := blockchain.State(); !st.Exist(theAddr) {
-//		t.Error("expected account to exist")
-//	}
-//
-//	// account needs to be deleted post eip 161
-//	if _, _, err := blockchain.InsertChain([]types.IBlock{blocks[1]}, []bool{false}); err != nil {
-//		t.Fatal(err)
-//	}
-//	if st, _ := blockchain.State(); st.Exist(theAddr) {
-//		t.Error("account should not exist")
-//	}
-//
-//	// account musn't be created post eip 161
-//	if _, _, err := blockchain.InsertChain([]types.IBlock{blocks[2]}, []bool{false}); err != nil {
-//		t.Fatal(err)
-//	}
-//	if st, _ := blockchain.State(); st.Exist(theAddr) {
-//		t.Error("account should not exist")
-//	}
-//}
-//
-//// This is a regression testMinor (i.e. as weird as it is, don't delete it ever), which
-//// testMinors that under weird reorg conditions the blockchain and its internal header-
-//// chain return the same latest block/header.
-////
-//// https://github.com/ethereum/go-ethereum/pull/15941
-//func TestMinorBlockchainHeaderchainReorgConsistency(t *testing.T) {
-//	// Generate a canonical chain to act as the main dataset
-//	engine := &consensus.FakeEngine{}
-//
-//	db := ethdb.NewMemDatabase()
-//	genesis := new(Genesis).MustCommitMinorBlock(db, nil, 0)
-//	blocks, _ := GenerateMinorBlockChain(params.TestChainConfig, config.NewQuarkChainConfig(), genesis, engine, db, 64, func(config *config.QuarkChainConfig, i int, b *MinorBlockGen) {
-//		b.SetCoinbase(account.NewAddress(account.BytesToIdentityRecipient(common.Address{1}.Bytes()), 0))
-//	})
-//
-//	// Generate a bunch of fork blocks, each side forking from the canonical chain
-//	forks := make([]*types.MinorBlock, len(blocks))
-//	for i := 0; i < len(forks); i++ {
-//		parent := genesis
-//		if i > 0 {
-//			parent = blocks[i-1]
-//		}
-//		fork, _ := GenerateMinorBlockChain(params.TestChainConfig, config.NewQuarkChainConfig(), parent, engine, db, 1, func(config *config.QuarkChainConfig, i int, b *MinorBlockGen) {
-//			b.SetCoinbase(account.NewAddress(account.BytesToIdentityRecipient(common.Address{2}.Bytes()), 0))
-//		})
-//		forks[i] = fork[0]
-//	}
-//	// Import the canonical and fork chain side by side, verifying the current block
-//	// and current header consistency
-//	diskdb := ethdb.NewMemDatabase()
-//	new(Genesis).MustCommitMinorBlock(diskdb, nil, 0)
-//
-//	chain, err := NewMinorBlockChain(diskdb, nil, config.NewClusterConfig(), engine, vm.Config{}, nil, config.NewClusterConfig().Quarkchain.Chains[0].ShardSize|0, nil)
-//	if err != nil {
-//		t.Fatalf("failed to create testMinorer chain: %v", err)
-//	}
-//	for i := 0; i < len(blocks); i++ {
-//		if _, _, err := chain.InsertChain(ToMinorBlocks(blocks[i:i+1]), []bool{false}); err != nil {
-//			t.Fatalf("block %d: failed to insert into chain: %v", i, err)
-//		}
-//		if chain.CurrentBlock().Hash() != chain.CurrentHeader().Hash() {
-//			t.Errorf("block %d: current block/header mismatch: block #%d [%x…], header #%d [%x…]", i, chain.CurrentBlock().Number(), chain.CurrentBlock().Hash().Bytes()[:4], chain.CurrentHeader().NumberU64(), chain.CurrentHeader().Hash().Bytes()[:4])
-//		}
-//		if _, _, err := chain.InsertChain(ToMinorBlocks(forks[i:i+1]), []bool{false}); err != nil {
-//			t.Fatalf(" fork %d: failed to insert into chain: %v", i, err)
-//		}
-//		if chain.CurrentBlock().Hash() != chain.CurrentHeader().Hash() {
-//			t.Errorf(" fork %d: current block/header mismatch: block #%d [%x…], header #%d [%x…]", i, chain.CurrentBlock().Number(), chain.CurrentBlock().Hash().Bytes()[:4], chain.CurrentHeader().NumberU64(), chain.CurrentHeader().Hash().Bytes()[:4])
-//		}
-//	}
-//}
-//
-//// TestMinors that importing small side forks doesn't leave junk in the trie database
-//// cache (which would eventually cause memory issues).
-//func TestMinorTrieForkGC(t *testing.T) {
-//	// Generate a canonical chain to act as the main dataset
-//	engine := &consensus.FakeEngine{}
-//
-//	db := ethdb.NewMemDatabase()
-//	genesis := new(Genesis).MustCommitMinorBlock(db, nil, 0)
-//	blocks, _ := GenerateMinorBlockChain(params.TestChainConfig, config.NewQuarkChainConfig(), genesis, engine, db, 2*triesInMemory, func(config *config.QuarkChainConfig, i int, b *MinorBlockGen) {
-//		b.SetCoinbase(account.NewAddress(account.BytesToIdentityRecipient(common.Address{1}.Bytes()), 0))
-//	})
-//
-//	// Generate a bunch of fork blocks, each side forking from the canonical chain
-//	forks := make([]*types.MinorBlock, len(blocks))
-//	for i := 0; i < len(forks); i++ {
-//		parent := genesis
-//		if i > 0 {
-//			parent = blocks[i-1]
-//		}
-//		fork, _ := GenerateMinorBlockChain(params.TestChainConfig, config.NewQuarkChainConfig(), parent, engine, db, 1, func(config *config.QuarkChainConfig, i int, b *MinorBlockGen) {
-//			b.SetCoinbase(account.NewAddress(account.BytesToIdentityRecipient(common.Address{2}.Bytes()), 0))
-//		})
-//		forks[i] = fork[0]
-//	}
-//	// Import the canonical and fork chain side by side, forcing the trie cache to cache both
-//	diskdb := ethdb.NewMemDatabase()
-//	new(Genesis).MustCommitMinorBlock(diskdb, nil, 0)
-//
-//	chain, err := NewMinorBlockChain(diskdb, nil, config.NewClusterConfig(), engine, vm.Config{}, nil, config.NewClusterConfig().Quarkchain.Chains[0].ShardSize|0, nil)
-//	if err != nil {
-//		t.Fatalf("failed to create testMinorer chain: %v", err)
-//	}
-//	for i := 0; i < len(blocks); i++ {
-//		if _, _, err := chain.InsertChain(ToMinorBlocks(blocks[i:i+1]), []bool{false}); err != nil {
-//			t.Fatalf("block %d: failed to insert into chain: %v", i, err)
-//		}
-//		if _, _, err := chain.InsertChain(ToMinorBlocks(forks[i:i+1]), []bool{false}); err != nil {
-//			t.Fatalf("fork %d: failed to insert into chain: %v", i, err)
-//		}
-//	}
-//	// Dereference all the recent tries and ensure no past trie is left in
-//	for i := 0; i < triesInMemory; i++ {
-//		chain.stateCache.TrieDB().Dereference(blocks[len(blocks)-1-i].Root())
-//		chain.stateCache.TrieDB().Dereference(forks[len(blocks)-1-i].Root())
-//	}
-//	if len(chain.stateCache.TrieDB().Nodes()) > 0 {
-//		t.Fatalf("stale tries still alive after garbase collection")
-//	}
-//}
+func TestMinorEIP161AccountRemoval(t *testing.T) {
+	// Configure and generate a sample block chain
+	var (
+		id1, _        = account.CreatRandomIdentity()
+		id2, _        = account.CreatRandomIdentity()
+		addr1         = account.CreatAddressFromIdentity(id1, 0)
+		addr2         = account.CreatAddressFromIdentity(id2, 0)
+		db            = ethdb.NewMemDatabase()
+		clusterConfig = config.NewClusterConfig()
+		gspec         = &Genesis{
+			qkcConfig: clusterConfig.Quarkchain,
+		}
+		rootBlock = gspec.CreateRootBlock()
+	)
 
-//// TestMinors that doing large reorgs works even if the state associated with the
-//// forking point is not available any more.
-//func TestMinorLargeReorgTrieGC(t *testing.T) {
-//	// Generate the original common chain segment and the two competing forks
-//	engine:=&consensus.FakeEngine{}
-//
-//	db := ethdb.NewMemDatabase()
-//	genesis := new(Genesis).MustCommitMinorBlock(db, nil, 0)
-//
-//	shared, _ := GenerateMinorBlockChain(params.TestChainConfig,config.NewQuarkChainConfig(), genesis, engine, db, 64, func(config *config.QuarkChainConfig,i int, b *MinorBlockGen) {
-//		b.SetCoinbase(account.NewAddress(account.BytesToIdentityRecipient(common.Address{1}.Bytes()), 0))
-//	})
-//	original, _ := GenerateMinorBlockChain(params.TestChainConfig, config.NewQuarkChainConfig(),shared[len(shared)-1], engine, db, 2*triesInMemory, func(config *config.QuarkChainConfig,i int, b *MinorBlockGen) {
-//		b.SetCoinbase(account.NewAddress(account.BytesToIdentityRecipient(common.Address{2}.Bytes()), 0))
-//	})
-//	competitor, _ := GenerateMinorBlockChain(params.TestChainConfig, config.NewQuarkChainConfig(),shared[len(shared)-1], engine, db, 2*triesInMemory+1, func(config *config.QuarkChainConfig,i int, b *MinorBlockGen) {
-//		b.SetCoinbase(account.NewAddress(account.BytesToIdentityRecipient(common.Address{3}.Bytes()), 0))
-//	})
-//
-//	// Import the shared chain and the original canonical one
-//	diskdb := ethdb.NewMemDatabase()
-//	new(Genesis).MustCommitMinorBlock(diskdb, nil, 0)
-//
-//	chain, err := NewMinorBlockChain(diskdb, nil, config.NewClusterConfig(), engine, vm.Config{}, nil, config.NewClusterConfig().Quarkchain.Chains[0].ShardSize|0, nil)
-//	if err != nil {
-//		t.Fatalf("failed to create testMinorer chain: %v", err)
-//	}
-//	skip := make([]bool, len(shared))
-//	if _, _, err := chain.InsertChain(ToMinorBlocks(shared), skip); err != nil {
-//		t.Fatalf("failed to insert shared chain: %v", err)
-//	}
-//	skip = make([]bool, len(original))
-//	if _, _, err := chain.InsertChain(ToMinorBlocks(original), skip); err != nil {
-//		t.Fatalf("failed to insert original chain: %v", err)
-//	}
-//	// Ensure that the state associated with the forking point is pruned away
-//	if node, _ := chain.stateCache.TrieDB().Node(shared[len(shared)-1].Root()); node != nil {
-//		t.Fatalf("common-but-old ancestor still cache")
-//	}
-//	// Import the competitor chain without exceeding the canonical's TD and ensure
-//	// we have not processed any of the blocks (protection against malicious blocks)
-//	skip = make([]bool, len(competitor[:len(competitor)-2]))
-//	if _, _, err := chain.InsertChain(ToMinorBlocks(competitor[:len(competitor)-2]), skip); err != nil {
-//		t.Fatalf("failed to insert competitor chain: %v", err)
-//	}
-//	for i, block := range competitor[:len(competitor)-2] {
-//		if node, _ := chain.stateCache.TrieDB().Node(block.Root()); node != nil {
-//			t.Fatalf("competitor %d: low TD chain became processed", i)
-//		}
-//	}
-//	// Import the head of the competitor chain, triggering the reorg and ensure we
-//	// successfully reprocess all the stashed away blocks.
-//	skip = make([]bool, len(competitor[len(competitor)-2:]))
-//	if _, _, err := chain.InsertChain(ToMinorBlocks(competitor[len(competitor)-2:]), skip); err != nil {
-//		t.Fatalf("failed to finalize competitor chain: %v", err)
-//	}
-//	for i, block := range competitor[:len(competitor)-triesInMemory] {
-//		if node, _ := chain.stateCache.TrieDB().Node(block.Root()); node != nil {
-//			t.Fatalf("competitor %d: competing chain state missing", i)
-//		}
-//	}
-//}
-//
-// Benchmarks large blocks with value transfers to non-existing accounts
-//func minorbenchmarkLargeNumberOfValueToNonexisting(b *testing.B, numTxs, numBlocks int, recipientFn func(uint64) common.Address, dataFn func(uint64) []byte) {
-//	var (
-//		id1, _ = account.CreatRandomIdentity()
-//
-//		addr1         = account.CreatAddressFromIdentity(id1, 0)
-//		db            = ethdb.NewMemDatabase()
-//		clusterConfig = config.NewClusterConfig()
-//		gspec         = &Genesis{
-//			qkcConfig: clusterConfig.Quarkchain,
-//		}
-//		rootBlock = gspec.CreateRootBlock()
-//	//	signer    = types.NewEIP155Signer(uint32(gspec.qkcConfig.NetworkID))
-//	)
-//
-//	prvKey1, err := crypto.HexToECDSA(hex.EncodeToString(id1.GetKey().Bytes()))
-//	if err != nil {
-//		panic(err)
-//	}
-//	clusterConfig.Quarkchain.SkipRootDifficultyCheck = true
-//	clusterConfig.Quarkchain.SkipMinorDifficultyCheck = true
-//	clusterConfig.Quarkchain.SkipRootCoinbaseCheck = true
-//	ids := clusterConfig.Quarkchain.GetGenesisShardIds()
-//	for _, v := range ids {
-//		addr := addr1.AddressInShard(v)
-//		shardConfig := clusterConfig.Quarkchain.GetShardConfigByFullShardID(v)
-//		shardConfig.Genesis.Alloc[addr] = big.NewInt(1000000000)
-//
-//	}
-//	engine := &consensus.FakeEngine{}
-//	genesis := gspec.MustCommitMinorBlock(db, rootBlock, clusterConfig.Quarkchain.Chains[0].ShardSize|0)
-//
-//	blockGenerator := func(config *config.QuarkChainConfig, i int, block *MinorBlockGen) {
-//		block.SetCoinbase(account.NewAddress(account.BytesToIdentityRecipient(common.Address{1}.Bytes()), 0))
-//		for txi := 0; txi < numTxs; txi++ {
-//			uniq := uint64(i*numTxs + txi)
-//			recipient := recipientFn(uniq)
-//			//recipient := common.BigToAddress(big.NewInt(0).SetUint64(1337 + uniq))
-//			tx, err := types.SignTx(types.NewEvmTransaction(uniq, account.BytesToIdentityRecipient(recipient.Bytes()), big.NewInt(1), params.TxGas, big.NewInt(1), 0, 0, 3, 0, nil), types.MakeSigner(0), prvKey1)
-//			if err != nil {
-//				b.Error(err)
-//			}
-//			block.AddTx(config, TransEvmTxToTx(tx))
-//		}
-//	}
-//
-//	shared, _ := GenerateMinorBlockChain(params.TestChainConfig, config.NewQuarkChainConfig(), genesis, engine, db, numBlocks, blockGenerator)
-//	b.StopTimer()
-//	b.ResetTimer()
-//	for i := 0; i < b.N; i++ {
-//		// Import the shared chain and the original canonical one
-//		diskdb := ethdb.NewMemDatabase()
-//		gspec.MustCommitMinorBlock(diskdb, nil, 0)
-//
-//		chain, err := NewMinorBlockChain(diskdb, nil, config.NewClusterConfig(), engine, vm.Config{}, nil, config.NewClusterConfig().Quarkchain.Chains[0].ShardSize|0, nil)
-//		if err != nil {
-//			b.Fatalf("failed to create testMinorer chain: %v", err)
-//		}
-//		b.StartTimer()
-//		skip := make([]bool, len(shared))
-//		if _, _, err := chain.InsertChain(ToMinorBlocks(shared), skip); err != nil {
-//			b.Fatalf("failed to insert shared chain: %v", err)
-//		}
-//		b.StopTimer()
-//		if got := chain.CurrentBlock().Transactions().Len(); got != numTxs*numBlocks {
-//			b.Fatalf("Transactions were not included, expected %d, got %d", (numTxs * numBlocks), got)
-//
-//		}
-//	}
-//}
-//func MinorBenchmarkBlockChain_1x1000ValueTransferToNonexisting(b *testing.B) {
-//	var (
-//		numTxs    = 1000
-//		numBlocks = 1
-//	)
-//
-//	recipientFn := func(nonce uint64) common.Address {
-//		return common.BigToAddress(big.NewInt(0).SetUint64(1337 + nonce))
-//	}
-//	dataFn := func(nonce uint64) []byte {
-//		return nil
-//	}
-//
-//	minorbenchmarkLargeNumberOfValueToNonexisting(b, numTxs, numBlocks, recipientFn, dataFn)
-//}
+	prvKey1, err := crypto.HexToECDSA(hex.EncodeToString(id1.GetKey().Bytes()))
+	if err != nil {
+		panic(err)
+	}
+	clusterConfig.Quarkchain.SkipRootDifficultyCheck = true
+	clusterConfig.Quarkchain.SkipMinorDifficultyCheck = true
+	clusterConfig.Quarkchain.SkipRootCoinbaseCheck = true
+	ids := clusterConfig.Quarkchain.GetGenesisShardIds()
+	for _, v := range ids {
+		addr := addr1.AddressInShard(v)
+		shardConfig := clusterConfig.Quarkchain.GetShardConfigByFullShardID(v)
+		shardConfig.Genesis.Alloc[addr] = big.NewInt(1000000)
 
-//func BenchmarkBlockChain_1x1000ValueTransferToExisting(b *testing.B) {
-//	var (
-//		numTxs    = 1000
-//		numBlocks = 1
-//	)
-//	b.StopTimer()
-//	b.ResetTimer()
+	}
+	chainConfig := &params.ChainConfig{
+		ChainID:        big.NewInt(1),
+		HomesteadBlock: new(big.Int),
+		EIP155Block:    new(big.Int),
+		EIP158Block:    big.NewInt(2),
+	}
+	engine := &consensus.FakeEngine{}
+	genesis := gspec.MustCommitMinorBlock(db, rootBlock, clusterConfig.Quarkchain.Chains[0].ShardSize|0)
+	blockchain, _ := NewMinorBlockChain(db, nil, chainConfig, clusterConfig, engine, vm.Config{}, nil, clusterConfig.Quarkchain.Chains[0].ShardSize, nil)
+	genesis, err = blockchain.InitGenesisState(rootBlock, genesis)
+	if err != nil {
+		panic(err)
+	}
+	defer blockchain.Stop()
+
+	blocks, _ := GenerateMinorBlockChain(chainConfig, config.NewQuarkChainConfig(), genesis, engine, db, 3, func(config *config.QuarkChainConfig, i int, block *MinorBlockGen) {
+		var (
+			tx     *types.EvmTransaction
+			err    error
+			signer = types.NewEIP155Signer(uint32(gspec.qkcConfig.NetworkID))
+		)
+		switch i {
+		case 0:
+			tx, err = types.SignTx(types.NewEvmTransaction(block.TxNonce(addr1.Recipient), addr2.Recipient, new(big.Int), 21000, new(big.Int), 0, 0, 3, 0, nil), signer, prvKey1)
+		case 1:
+			tx, err = types.SignTx(types.NewEvmTransaction(block.TxNonce(addr1.Recipient), addr2.Recipient, new(big.Int), 21000, new(big.Int), 0, 0, 3, 0, nil), signer, prvKey1)
+		case 2:
+			tx, err = types.SignTx(types.NewEvmTransaction(block.TxNonce(addr1.Recipient), addr2.Recipient, new(big.Int), 21000, new(big.Int), 0, 0, 3, 0, nil), signer, prvKey1)
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+		block.AddTx(config, TransEvmTxToTx(tx))
+	})
+	// account must exist pre eip 161
+	if _, _, err := blockchain.InsertChain([]types.IBlock{blocks[0]}, []bool{false}); err != nil {
+		t.Fatal(err)
+	}
+	//fmt.Println(blockchain.CurrentBlock().NumberU64(), blocks[0].NumberU64(), len(blocks[0].Transactions()), blocks[0].Transactions()[0].EvmTx.Hash().String())
+	if st := blockchain.currentEvmState; !st.Exist(addr2.Recipient) {
+		t.Error("expected account to exist")
+	}
+
+	//fmt.Println(blockchain.CurrentBlock().NumberU64(), blocks[1].NumberU64(), len(blocks[1].Transactions()), blocks[1].Transactions()[1].EvmTx.Hash().String())
+	// account needs to be deleted post eip 161
+	if _, _, err := blockchain.InsertChain([]types.IBlock{blocks[1]}, []bool{false}); err != nil {
+		t.Fatal(err)
+	}
+	if st, _ := blockchain.State(); !st.Exist(addr2.Recipient) {
+		t.Error("account should not exist")
+	}
+
+	// account musn't be created post eip 161 --do not care
+	if _, _, err := blockchain.InsertChain([]types.IBlock{blocks[2]}, []bool{false}); err != nil {
+		t.Fatal(err)
+	}
+	if st, _ := blockchain.State(); !st.Exist(addr2.Recipient) {
+		t.Error("account should not exist")
+	}
+}
+
+// This is a regression testMinor (i.e. as weird as it is, don't delete it ever), which
+// testMinors that under weird reorg conditions the blockchain and its internal header-
+// chain return the same latest block/header.
 //
-//	recipientFn := func(nonce uint64) common.Address {
-//		return common.BigToAddress(big.NewInt(0).SetUint64(1337))
-//	}
-//	dataFn := func(nonce uint64) []byte {
-//		return nil
-//	}
-//
-//	minorbenchmarkLargeNumberOfValueToNonexisting(b, numTxs, numBlocks, recipientFn, dataFn)
-//}
-//func BenchmarkBlockChain_1x1000Executions(b *testing.B) {
-//	var (
-//		numTxs    = 1000
-//		numBlocks = 1
-//	)
-//	b.StopTimer()
-//	b.ResetTimer()
-//
-//	recipientFn := func(nonce uint64) common.Address {
-//		return common.BigToAddress(big.NewInt(0).SetUint64(0xc0de))
-//	}
-//	dataFn := func(nonce uint64) []byte {
-//		return nil
-//	}
-//
-//	minorbenchmarkLargeNumberOfValueToNonexisting(b, numTxs, numBlocks, recipientFn, dataFn)
-//}
+// https://github.com/ethereum/go-ethereum/pull/15941
+func TestMinorBlockchainHeaderchainReorgConsistency(t *testing.T) {
+	// Generate a canonical chain to act as the main dataset
+	var (
+		engine        = &consensus.FakeEngine{}
+		db            = ethdb.NewMemDatabase()
+		clusterConfig = config.NewClusterConfig()
+		gspec         = &Genesis{
+			qkcConfig: clusterConfig.Quarkchain,
+		}
+		rootBlock = gspec.CreateRootBlock()
+	)
+	clusterConfig.Quarkchain.SkipRootDifficultyCheck = true
+	clusterConfig.Quarkchain.SkipMinorDifficultyCheck = true
+	clusterConfig.Quarkchain.SkipRootCoinbaseCheck = true
+
+	genesis := gspec.MustCommitMinorBlock(db, rootBlock, clusterConfig.Quarkchain.Chains[0].ShardSize|0)
+	blocks, _ := GenerateMinorBlockChain(params.TestChainConfig, clusterConfig.Quarkchain, genesis, engine, db, 64, func(config *config.QuarkChainConfig, i int, b *MinorBlockGen) {
+		b.SetCoinbase(account.NewAddress(account.BytesToIdentityRecipient(common.Address{1}.Bytes()), 0))
+	})
+
+	// Generate a bunch of fork blocks, each side forking from the canonical chain
+	forks := make([]*types.MinorBlock, len(blocks))
+	for i := 0; i < len(forks); i++ {
+		parent := genesis
+		if i > 0 {
+			parent = blocks[i-1]
+		}
+		fork, _ := GenerateMinorBlockChain(params.TestChainConfig, config.NewQuarkChainConfig(), parent, engine, db, 1, func(config *config.QuarkChainConfig, i int, b *MinorBlockGen) {
+			b.SetCoinbase(account.NewAddress(account.BytesToIdentityRecipient(common.Address{2}.Bytes()), 0))
+		})
+		forks[i] = fork[0]
+	}
+	// Import the canonical and fork chain side by side, verifying the current block
+	// and current header consistency
+	diskdb := ethdb.NewMemDatabase()
+	gspec.MustCommitMinorBlock(diskdb, rootBlock, clusterConfig.Quarkchain.Chains[0].ShardSize|0)
+
+	chain, err := NewMinorBlockChain(diskdb, nil, params.TestChainConfig, clusterConfig, engine, vm.Config{}, nil, config.NewClusterConfig().Quarkchain.Chains[0].ShardSize|0, nil)
+	genesis, err = chain.InitGenesisState(rootBlock, genesis)
+	if err != nil {
+		panic(err)
+	}
+	if err != nil {
+		t.Fatalf("failed to create testMinorer chain: %v", err)
+	}
+	for i := 0; i < len(blocks); i++ {
+		if _, _, err := chain.InsertChain(ToMinorBlocks(blocks[i:i+1]), []bool{false}); err != nil {
+			t.Fatalf("block %d: failed to insert into chain: %v", i, err)
+		}
+		if chain.CurrentBlock().Hash() != chain.CurrentHeader().Hash() {
+			t.Errorf("block %d: current block/header mismatch: block #%d [%x…], header #%d [%x…]", i, chain.CurrentBlock().Number(), chain.CurrentBlock().Hash().Bytes()[:4], chain.CurrentHeader().NumberU64(), chain.CurrentHeader().Hash().Bytes()[:4])
+		}
+		if _, _, err := chain.InsertChain(ToMinorBlocks(forks[i:i+1]), []bool{false}); err != nil {
+			t.Fatalf(" fork %d: failed to insert into chain: %v", i, err)
+		}
+		if chain.CurrentBlock().Hash() != chain.CurrentHeader().Hash() {
+			t.Errorf(" fork %d: current block/header mismatch: block #%d [%x…], header #%d [%x…]", i, chain.CurrentBlock().Number(), chain.CurrentBlock().Hash().Bytes()[:4], chain.CurrentHeader().NumberU64(), chain.CurrentHeader().Hash().Bytes()[:4])
+		}
+	}
+}
+
+// TestMinors that importing small side forks doesn't leave junk in the trie database
+// cache (which would eventually cause memory issues).
+func TestMinorTrieForkGC(t *testing.T) {
+	// Generate a canonical chain to act as the main dataset
+	var (
+		engine        = &consensus.FakeEngine{}
+		db            = ethdb.NewMemDatabase()
+		clusterConfig = config.NewClusterConfig()
+		gspec         = &Genesis{
+			qkcConfig: clusterConfig.Quarkchain,
+		}
+		rootBlock = gspec.CreateRootBlock()
+	)
+	clusterConfig.Quarkchain.SkipRootDifficultyCheck = true
+	clusterConfig.Quarkchain.SkipMinorDifficultyCheck = true
+	clusterConfig.Quarkchain.SkipRootCoinbaseCheck = true
+
+	genesis := gspec.MustCommitMinorBlock(db, rootBlock, clusterConfig.Quarkchain.Chains[0].ShardSize|0)
+	blocks, _ := GenerateMinorBlockChain(params.TestChainConfig, clusterConfig.Quarkchain, genesis, engine, db, 2*triesInMemory, func(config *config.QuarkChainConfig, i int, b *MinorBlockGen) {
+		b.SetCoinbase(account.NewAddress(account.BytesToIdentityRecipient(common.Address{1}.Bytes()), 0))
+	})
+
+	// Generate a bunch of fork blocks, each side forking from the canonical chain
+	forks := make([]*types.MinorBlock, len(blocks))
+	for i := 0; i < len(forks); i++ {
+		parent := genesis
+		if i > 0 {
+			parent = blocks[i-1]
+		}
+		fork, _ := GenerateMinorBlockChain(params.TestChainConfig, config.NewQuarkChainConfig(), parent, engine, db, 1, func(config *config.QuarkChainConfig, i int, b *MinorBlockGen) {
+			b.SetCoinbase(account.NewAddress(account.BytesToIdentityRecipient(common.Address{2}.Bytes()), 0))
+		})
+		forks[i] = fork[0]
+	}
+	// Import the canonical and fork chain side by side, forcing the trie cache to cache both
+	diskdb := ethdb.NewMemDatabase()
+	gspec.MustCommitMinorBlock(diskdb, rootBlock, clusterConfig.Quarkchain.Chains[0].ShardSize|0)
+
+	chain, err := NewMinorBlockChain(diskdb, nil, params.TestChainConfig, clusterConfig, engine, vm.Config{}, nil, config.NewClusterConfig().Quarkchain.Chains[0].ShardSize|0, nil)
+	if err != nil {
+		t.Fatalf("failed to create testMinorer chain: %v", err)
+	}
+	genesis, err = chain.InitGenesisState(rootBlock, genesis)
+	if err != nil {
+		panic(err)
+	}
+	for i := 0; i < len(blocks); i++ {
+		if _, _, err := chain.InsertChain(ToMinorBlocks(blocks[i:i+1]), []bool{false}); err != nil {
+			t.Fatalf("block %d: failed to insert into chain: %v", i, err)
+		}
+		if _, _, err := chain.InsertChain(ToMinorBlocks(forks[i:i+1]), []bool{false}); err != nil {
+			t.Fatalf("fork %d: failed to insert into chain: %v", i, err)
+		}
+	}
+	// Dereference all the recent tries and ensure no past trie is left in
+	for i := 0; i < triesInMemory; i++ {
+		chain.stateCache.TrieDB().Dereference(blocks[len(blocks)-1-i].Root())
+		chain.stateCache.TrieDB().Dereference(forks[len(blocks)-1-i].Root())
+	}
+	if len(chain.stateCache.TrieDB().Nodes()) > 0 {
+		t.Fatalf("stale tries still alive after garbase collection")
+	}
+}
+
+// TestMinors that doing large reorgs works even if the state associated with the
+// forking point is not available any more.
+func TestMinorLargeReorgTrieGC(t *testing.T) {
+	// Generate the original common chain segment and the two competing forks
+	var (
+		engine        = &consensus.FakeEngine{}
+		db            = ethdb.NewMemDatabase()
+		clusterConfig = config.NewClusterConfig()
+		gspec         = &Genesis{
+			qkcConfig: clusterConfig.Quarkchain,
+		}
+		rootBlock = gspec.CreateRootBlock()
+	)
+	clusterConfig.Quarkchain.SkipRootDifficultyCheck = true
+	clusterConfig.Quarkchain.SkipMinorDifficultyCheck = true
+	clusterConfig.Quarkchain.SkipRootCoinbaseCheck = true
+
+	genesis := gspec.MustCommitMinorBlock(db, rootBlock, clusterConfig.Quarkchain.Chains[0].ShardSize|0)
+	shared, _ := GenerateMinorBlockChain(params.TestChainConfig, clusterConfig.Quarkchain, genesis, engine, db, 64, func(config *config.QuarkChainConfig, i int, b *MinorBlockGen) {
+		b.SetCoinbase(account.NewAddress(account.BytesToIdentityRecipient(common.Address{1}.Bytes()), 0))
+	})
+	original, _ := GenerateMinorBlockChain(params.TestChainConfig, clusterConfig.Quarkchain, shared[len(shared)-1], engine, db, 2*triesInMemory, func(config *config.QuarkChainConfig, i int, b *MinorBlockGen) {
+		b.SetCoinbase(account.NewAddress(account.BytesToIdentityRecipient(common.Address{2}.Bytes()), 0))
+	})
+	competitor, _ := GenerateMinorBlockChain(params.TestChainConfig, clusterConfig.Quarkchain, shared[len(shared)-1], engine, db, 2*triesInMemory+1, func(config *config.QuarkChainConfig, i int, b *MinorBlockGen) {
+		b.SetCoinbase(account.NewAddress(account.BytesToIdentityRecipient(common.Address{3}.Bytes()), 0))
+	})
+
+	// Import the shared chain and the original canonical one
+	diskdb := ethdb.NewMemDatabase()
+	gspec.MustCommitMinorBlock(diskdb, rootBlock, clusterConfig.Quarkchain.Chains[0].ShardSize|0)
+
+	cacheConfig := &CacheConfig{
+		TrieCleanLimit: 256,
+		TrieDirtyLimit: 256,
+		TrieTimeLimit:  5 * time.Minute,
+		Disabled:       false,
+	}
+
+	chain, err := NewMinorBlockChain(diskdb, cacheConfig, params.TestChainConfig, clusterConfig, engine, vm.Config{}, nil, config.NewClusterConfig().Quarkchain.Chains[0].ShardSize|0, nil)
+	if err != nil {
+		t.Fatalf("failed to create testMinorer chain: %v", err)
+	}
+	genesis, err = chain.InitGenesisState(rootBlock, genesis)
+	if err != nil {
+		panic(err)
+	}
+	skip := make([]bool, len(shared))
+	if _, _, err := chain.InsertChain(ToMinorBlocks(shared), skip); err != nil {
+		t.Fatalf("failed to insert shared chain: %v", err)
+	}
+
+	skip = make([]bool, len(original))
+	if _, _, err := chain.InsertChain(ToMinorBlocks(original), skip); err != nil {
+		t.Fatalf("failed to insert original chain: %v", err)
+	}
+
+	// Ensure that the state associated with the forking point is pruned away
+	if node, _ := chain.stateCache.TrieDB().Node(shared[len(shared)-1].Root()); node != nil {
+		t.Fatalf("common-but-old ancestor still cache")
+	}
+	// Import the competitor chain without exceeding the canonical's TD and ensure
+	// we have not processed any of the blocks (protection against malicious blocks)
+
+	skip = make([]bool, len(competitor[:len(competitor)-2]))
+	if _, _, err := chain.InsertChain(ToMinorBlocks(competitor[:len(competitor)-2]), skip); err != nil {
+		t.Fatalf("failed to insert competitor chain: %v", err)
+	}
+	for i, block := range competitor[:len(competitor)-2] {
+		if node, _ := chain.stateCache.TrieDB().Node(block.Root()); node != nil {
+			t.Fatalf("competitor %d: low TD chain became processed", i)
+		}
+	}
+	// Import the head of the competitor chain, triggering the reorg and ensure we
+	// successfully reprocess all the stashed away blocks.
+	skip = make([]bool, len(competitor[len(competitor)-2:]))
+	if _, _, err := chain.InsertChain(ToMinorBlocks(competitor[len(competitor)-2:]), skip); err != nil {
+		t.Fatalf("failed to finalize competitor chain: %v", err)
+	}
+	for i, block := range competitor[:len(competitor)-triesInMemory] {
+		if node, _ := chain.stateCache.TrieDB().Node(block.Root()); node != nil {
+			t.Fatalf("competitor %d: competing chain state missing", i)
+		}
+	}
+}
+
+//TODO
+//Bench test: qkc genesis not support code set
