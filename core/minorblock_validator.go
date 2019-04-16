@@ -17,59 +17,182 @@
 package core
 
 import (
+	"errors"
 	"fmt"
+	"github.com/QuarkChain/goquarkchain/account"
+	"github.com/QuarkChain/goquarkchain/cluster/config"
+	"github.com/QuarkChain/goquarkchain/common"
+	"math/big"
+	"reflect"
 
-	"github.com/ethereum/go-ethereum/consensus"
-	"github.com/ethereum/go-ethereum/core/state"
-	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/QuarkChain/goquarkchain/consensus"
+	"github.com/QuarkChain/goquarkchain/core/state"
+	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/params"
 )
 
-// BlockValidator is responsible for validating block headers, uncles and
+// MinorBlockValidator is responsible for validating block headers, uncles and
 // processed state.
 //
-// BlockValidator implements Validator.
-type BlockValidator struct {
-	config *params.ChainConfig // Chain configuration options
-	bc     *BlockChain         // Canonical block chain
-	engine consensus.Engine    // Consensus engine used for validating
+// MinorBlockValidator implements Validator.
+type MinorBlockValidator struct {
+	config               *config.QuarkChainConfig // Chain configuration options
+	versionControlConfig *params.ChainConfig
+	bc                   *MinorBlockChain // Canonical block chain
+	engine               consensus.Engine // Consensus engine used for validating
+	branch               account.Branch
+	diffCalc             consensus.DifficultyCalculator
+	shardConfig          *config.ShardConfig
 }
 
 // NewBlockValidator returns a new block validator which is safe for re-use
-func NewBlockValidator(config *params.ChainConfig, blockchain *BlockChain, engine consensus.Engine) *BlockValidator {
-	validator := &BlockValidator{
-		config: config,
-		engine: engine,
-		bc:     blockchain,
+func NewBlockValidator(config *config.QuarkChainConfig, versionConfig *params.ChainConfig, blockchain *MinorBlockChain, engine consensus.Engine, branch account.Branch, diffCalc consensus.DifficultyCalculator, shardConfig *config.ShardConfig) *MinorBlockValidator {
+	validator := &MinorBlockValidator{
+		config:               config,
+		versionControlConfig: versionConfig,
+		engine:               engine,
+		bc:                   blockchain,
+		branch:               branch,
+		diffCalc:             diffCalc,
+		shardConfig:          shardConfig,
 	}
 	return validator
 }
 
-// ValidateBody validates the given block's uncles and verifies the block
+// ValidateBlock validates the given block's uncles and verifies the block
 // header's transaction and uncle roots. The headers are assumed to be already
 // validated at this point.
-func (v *BlockValidator) ValidateBody(block *types.Block) error {
+func (v *MinorBlockValidator) ValidateBlock(mBlock types.IBlock) error {
+	if common.IsNil(mBlock) {
+		return ErrBlockIsNil
+	}
+	block := mBlock.(*types.MinorBlock)
+	if reflect.TypeOf(block) != reflect.TypeOf(new(types.MinorBlock)) {
+		return ErrInvalidMinorBlock
+	}
+
+	blockHeight := block.NumberU64()
+	if blockHeight < 1 {
+		return errors.New("block.Number <1")
+	}
 	// Check whether the block's known, and if not, that it's linkable
-	if v.bc.HasBlockAndState(block.Hash(), block.NumberU64()) {
+	if v.bc.HasBlockAndState(block.Hash()) {
 		return ErrKnownBlock
 	}
-	// Header validity is known at this point, check the uncles and transactions
-	header := block.Header()
-	if err := v.engine.VerifyUncles(v.bc, block); err != nil {
+
+	if !v.bc.HasBlockAndState(block.IHeader().GetParentHash()) {
+		return ErrPreBlockNotFound
+	}
+
+	prevHeader := v.bc.GetHeader(block.IHeader().GetParentHash()).(*types.MinorBlockHeader)
+	if blockHeight != prevHeader.NumberU64()+1 {
+		return ErrHeightDisMatch
+	}
+
+	if block.Branch().Value != v.branch.Value {
+		return ErrBranch
+	}
+
+	if block.IHeader().GetTime() <= prevHeader.GetTime() {
+		return ErrTime
+	}
+
+	if block.Header().MetaHash != block.GetMetaData().Hash() {
+		return ErrMetaHash
+	}
+
+	if len(block.IHeader().GetExtra()) > int(v.config.BlockExtraDataSizeLimit) {
+		return ErrExtraLimit
+	}
+
+	if len(block.GetTrackingData()) > int(v.config.BlockExtraDataSizeLimit) {
+		return ErrTrackLimit
+	}
+
+	if err := v.ValidateGasLimit(block.Header().GetGasLimit().Uint64(), prevHeader.GetGasLimit().Uint64()); err != nil {
 		return err
 	}
-	if hash := types.CalcUncleHash(block.Uncles()); hash != header.UncleHash {
-		return fmt.Errorf("uncle root hash mismatch: have %x, want %x", hash, header.UncleHash)
+
+	merkleHash := types.DeriveSha(block.GetTransactions())
+	if merkleHash != block.GetMetaData().TxHash {
+		return ErrRootHash
 	}
-	if hash := types.DeriveSha(block.Transactions()); hash != header.TxHash {
-		return fmt.Errorf("transaction root hash mismatch: have %x, want %x", hash, header.TxHash)
+
+	if !v.branch.IsInBranch(block.IHeader().GetCoinbase().FullShardKey) {
+		return ErrFullShardKey
 	}
-	if !v.bc.HasBlockAndState(block.ParentHash(), block.NumberU64()-1) {
-		if !v.bc.HasBlock(block.ParentHash(), block.NumberU64()-1) {
-			return consensus.ErrUnknownAncestor
+
+	if !v.config.SkipMinorDifficultyCheck {
+		diff := v.diffCalc.CalculateDifficulty(prevHeader, block.IHeader().GetTime())
+		if diff.Cmp(block.IHeader().GetDifficulty()) != 0 {
+			return ErrDifficulty
 		}
-		return consensus.ErrPrunedAncestor
 	}
+
+	rootBlockHeader := v.bc.getRootBlockHeaderByHash(block.Header().GetPrevRootBlockHash())
+
+	if rootBlockHeader == nil {
+		return errors.New("get blockHeader errors")
+	}
+
+	prevPrevHeader := v.bc.getRootBlockHeaderByHash(prevHeader.GetPrevRootBlockHash())
+	if prevPrevHeader == nil {
+		return errors.New("get prePreHeader error")
+	}
+	if rootBlockHeader.NumberU64() < prevPrevHeader.NumberU64() {
+		return errors.New("pre root block height must be non-decreasing")
+	}
+
+	prevConfirmedMinorHeader := v.bc.getLastConfirmedMinorBlockHeaderAtRootBlock(block.IHeader().GetParentHash())
+	if prevConfirmedMinorHeader != nil && !v.bc.isSameMinorChain(prevHeader, prevConfirmedMinorHeader) {
+		return errors.New("prev root block's minor block is not in the same chain as the minot block")
+	}
+
+	if !v.bc.isSameRootChain(v.bc.getRootBlockHeaderByHash(block.Header().GetPrevRootBlockHash()),
+		v.bc.getRootBlockHeaderByHash(prevHeader.GetPrevRootBlockHash())) {
+		return errors.New("prev root blocks are not on the same chain")
+	}
+	return v.ValidatorMinorBlockSeal(block)
+}
+
+// ValidateGasLimit validate gasLimit when validateBlock
+func (v *MinorBlockValidator) ValidateGasLimit(gasLimit, preGasLimit uint64) error {
+	computeGasLimitBounds := func(parentGasLimit uint64) (uint64, uint64) {
+		boundaryRange := parentGasLimit / uint64(v.shardConfig.GasLimitAdjustmentFactor)
+		upperBound := parentGasLimit + boundaryRange
+		lowBound := v.shardConfig.GasLimitMinimum
+		if lowBound < parentGasLimit-boundaryRange {
+			lowBound = parentGasLimit - boundaryRange
+		}
+		return lowBound, upperBound
+	}
+	lowBound, upperBound := computeGasLimitBounds(preGasLimit)
+	if gasLimit < lowBound {
+		return errors.New("gaslimit < lowBound")
+	} else if gasLimit > upperBound {
+		return errors.New("gasLimit>upperBound")
+	}
+	return nil
+}
+
+// ValidatorMinorBlockSeal validate minor block seal when validate block
+func (v *MinorBlockValidator) ValidatorMinorBlockSeal(mBlock types.IBlock) error {
+	block := mBlock.(*types.MinorBlock)
+	branch := block.Header().GetBranch()
+	fullShardID := (&branch).GetFullShardID()
+	genesis := v.config.GetShardConfigByFullShardID(fullShardID)
+	consensusType := genesis.ConsensusType
+	if !genesis.PoswConfig.Enabled {
+		return validateSeal(block.IHeader(), consensusType, nil)
+	}
+	diff, err := v.bc.POSWDiffAdjust(block)
+	if err != nil {
+		return err
+	}
+	return validateSeal(block.IHeader(), consensusType, &diff)
+}
+
+func validateSeal(block types.IHeader, consensusType string, diff *uint64) error {
 	return nil
 }
 
@@ -77,63 +200,47 @@ func (v *BlockValidator) ValidateBody(block *types.Block) error {
 // transition, such as amount of used gas, the receipt roots and the state root
 // itself. ValidateState returns a database batch if the validation was a success
 // otherwise nil and an error is returned.
-func (v *BlockValidator) ValidateState(block, parent *types.Block, statedb *state.StateDB, receipts types.Receipts, usedGas uint64) error {
-	header := block.Header()
-	if block.GasUsed() != usedGas {
-		return fmt.Errorf("invalid gas used (remote: %d local: %d)", block.GasUsed(), usedGas)
+func (v *MinorBlockValidator) ValidateState(mBlock, parent types.IBlock, statedb *state.StateDB, receipts types.Receipts, usedGas uint64) error {
+	if common.IsNil(mBlock) {
+		return ErrBlockIsNil
+	}
+	block := mBlock.(*types.MinorBlock)
+	if reflect.TypeOf(block) != reflect.TypeOf(new(types.MinorBlock)) {
+		return ErrInvalidMinorBlock
+	}
+	mHeader := block.Header()
+	if mHeader == nil {
+		return errors.New("header is nil")
+	}
+	if block.GetMetaData().GasUsed.Value.Cmp(statedb.GetGasUsed()) != 0 {
+		return fmt.Errorf("invalid gas used (statedb.GetGasUsed: %d usedGas: %d)", block.GetMetaData().GasUsed.Value.Uint64(), statedb.GetGasUsed())
 	}
 	// Validate the received block's bloom with the one derived from the generated receipts.
 	// For valid blocks this should always validate to true.
 	rbloom := types.CreateBloom(receipts)
-	if rbloom != header.Bloom {
-		return fmt.Errorf("invalid bloom (remote: %x  local: %x)", header.Bloom, rbloom)
+	if rbloom != mHeader.GetBloom() {
+		return fmt.Errorf("invalid bloom (remote: %x  local: %x)", mHeader.GetBloom(), rbloom)
 	}
-	// Tre receipt Trie's root (R = (Tr [[H1, R1], ... [Hn, R1]]))
+
 	receiptSha := types.DeriveSha(receipts)
-	if receiptSha != header.ReceiptHash {
-		return fmt.Errorf("invalid receipt root hash (remote: %x local: %x)", header.ReceiptHash, receiptSha)
+	if receiptSha != block.GetMetaData().ReceiptHash {
+		return fmt.Errorf("invalid receipt root hash (remote: %x local: %x)", block.GetMetaData().ReceiptHash, receiptSha)
+	}
+	if statedb.GetGasUsed().Cmp(block.GetMetaData().GasUsed.Value) != 0 {
+		return ErrGasUsed
+	}
+	coinBaseAmount := new(big.Int).Add(v.bc.getCoinBaseAmount(), statedb.GetBlockFee())
+	if coinBaseAmount.Cmp(block.CoinbaseAmount()) != 0 {
+		return ErrCoinBaseAmount
+	}
+
+	if statedb.GetXShardReceiveGasUsed().Cmp(block.GetMetaData().CrossShardGasUsed.Value) != 0 {
+		return ErrXShardList
 	}
 	// Validate the state root against the received state root and throw
 	// an error if they don't match.
-	if root := statedb.IntermediateRoot(v.config.IsEIP158(header.Number)); header.Root != root {
-		return fmt.Errorf("invalid merkle root (remote: %x local: %x)", header.Root, root)
+	if root := statedb.IntermediateRoot(false); block.GetMetaData().Root != root {
+		return fmt.Errorf("invalid merkle root (remote: %x local: %x)", block.GetMetaData().Root, root)
 	}
 	return nil
-}
-
-// CalcGasLimit computes the gas limit of the next block after parent. It aims
-// to keep the baseline gas above the provided floor, and increase it towards the
-// ceil if the blocks are full. If the ceil is exceeded, it will always decrease
-// the gas allowance.
-func CalcGasLimit(parent *types.Block, gasFloor, gasCeil uint64) uint64 {
-	// contrib = (parentGasUsed * 3 / 2) / 1024
-	contrib := (parent.GasUsed() + parent.GasUsed()/2) / params.GasLimitBoundDivisor
-
-	// decay = parentGasLimit / 1024 -1
-	decay := parent.GasLimit()/params.GasLimitBoundDivisor - 1
-
-	/*
-		strategy: gasLimit of block-to-mine is set based on parent's
-		gasUsed value.  if parentGasUsed > parentGasLimit * (2/3) then we
-		increase it, otherwise lower it (or leave it unchanged if it's right
-		at that usage) the amount increased/decreased depends on how far away
-		from parentGasLimit * (2/3) parentGasUsed is.
-	*/
-	limit := parent.GasLimit() - decay + contrib
-	if limit < params.MinGasLimit {
-		limit = params.MinGasLimit
-	}
-	// If we're outside our allowed gas range, we try to hone towards them
-	if limit < gasFloor {
-		limit = parent.GasLimit() + decay
-		if limit > gasFloor {
-			limit = gasFloor
-		}
-	} else if limit > gasCeil {
-		limit = parent.GasLimit() - decay
-		if limit < gasCeil {
-			limit = gasCeil
-		}
-	}
-	return limit
 }

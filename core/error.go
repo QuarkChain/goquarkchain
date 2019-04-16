@@ -37,4 +37,21 @@ var (
 	// ErrInvalidNumber is returned if a block's number doesn't equal it's parent's
 	// plus one.
 	ErrInvalidNumber = errors.New("invalid block number")
+
+	errNoGenesis         = errors.New("Genesis not found in chain")
+	ErrBlockIsNil        = errors.New("block is nil")
+	ErrInvalidMinorBlock = errors.New("minor block is invalid")
+	ErrHeightDisMatch    = errors.New("block's height mis match")
+	ErrPreBlockNotFound  = errors.New("pre block not found")
+	ErrBranch            = errors.New("branch not match")
+	ErrTime              = errors.New("time is not match")
+	ErrMetaHash          = errors.New("meta hash is not match")
+	ErrExtraLimit        = errors.New("extra data's len exceeds limit")
+	ErrTrackLimit        = errors.New("track data's len exceeds limit")
+	ErrRootHash          = errors.New("root hash is not match")
+	ErrFullShardKey      = errors.New("full shard key is not match")
+	ErrDifficulty        = errors.New("diff is not match")
+	ErrGasUsed           = errors.New("gas used is not match")
+	ErrCoinBaseAmount    = errors.New("coinBaseAmount is err")
+	ErrXShardList        = errors.New("xShardReceivedGasUsed is not match")
 )
