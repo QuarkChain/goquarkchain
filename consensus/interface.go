@@ -64,6 +64,10 @@ type Engine interface {
 	// that a new block should have.
 	CalcDifficulty(chain ChainReader, time uint64, parent types.IHeader) *big.Int
 
+	GetWork() (*MiningWork, error)
+
+	SubmitWork(nonce uint64, hash, digest common.Hash) bool
+
 	// Close terminates any background threads maintained by the consensus engine.
 	Close() error
 }

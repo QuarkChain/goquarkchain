@@ -26,8 +26,8 @@ const (
 var (
 	shardToPoW = map[uint32]consensus.PoW{
 		// TODO: ethash not supported yet, need wrapping
-		4: doublesha256.New(nil), 5: doublesha256.New(nil),
-		6: qkchash.New(true, nil), 7: qkchash.New(true, nil),
+		4: doublesha256.New(nil, false), 5: doublesha256.New(nil, false),
+		6: qkchash.New(true, nil, false), 7: qkchash.New(true, nil, false),
 	}
 
 	jrpcCli *rpc.Client

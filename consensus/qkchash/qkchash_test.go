@@ -20,7 +20,7 @@ func TestVerifyHeaderAndHeaders(t *testing.T) {
 	diffCalculator := consensus.EthDifficultyCalculator{AdjustmentCutoff: 1, AdjustmentFactor: 1, MinimumDifficulty: big.NewInt(3)}
 
 	for _, qkcHashNativeFlag := range []bool{true, false} {
-		q := New(qkcHashNativeFlag, &diffCalculator)
+		q := New(qkcHashNativeFlag, &diffCalculator, false)
 
 		parent := &types.RootBlockHeader{Number: 1, Difficulty: big.NewInt(3), Time: 42}
 		header := &types.RootBlockHeader{
@@ -71,9 +71,11 @@ func TestVerifyHeaderAndHeaders(t *testing.T) {
 func sealBlock(t *testing.T, q *QKCHash, h *types.RootBlockHeader) {
 	resultsCh := make(chan types.IBlock)
 	rootBlock := types.NewRootBlockWithHeader(h)
-	err := q.Seal(nil, rootBlock, resultsCh, nil)
+	stop := make(chan struct{})
+	err := q.Seal(nil, rootBlock, resultsCh, stop)
 	assert.NoError(t, err, "should have no problem sealing the block")
 	block := <-resultsCh
+	close(stop)
 	h.Nonce = block.IHeader().GetNonce()
 	h.MixDigest = block.IHeader().GetMixDigest()
 }

@@ -2,12 +2,11 @@ package qkchash
 
 import (
 	"encoding/binary"
-	"math/big"
-
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/common"
+	"math/big"
 )
 
 // QKCHash is a consensus engine implementing PoW with qkchash algo.
@@ -64,7 +63,7 @@ func (q *QKCHash) Hashrate() float64 {
 
 // Close terminates any background threads maintained by the consensus engine.
 func (q *QKCHash) Close() error {
-	return nil
+	return q.commonEngine.Close()
 }
 
 // FindNonce finds the desired nonce and mixhash for a given block header.
@@ -98,18 +97,26 @@ func (q *QKCHash) hashAlgo(hash []byte, nonce uint64) (res consensus.MiningResul
 	return res, nil
 }
 
+func (q *QKCHash) GetWork() (*consensus.MiningWork, error) {
+	return q.commonEngine.GetWork()
+}
+
+func (q *QKCHash) SubmitWork(nonce uint64, hash, digest common.Hash) bool {
+	return q.commonEngine.SubmitWork(nonce, hash, digest)
+}
+
 // New returns a QKCHash scheme.
-func New(useNative bool, diffCalculator consensus.DifficultyCalculator) *QKCHash {
+func New(useNative bool, diffCalculator consensus.DifficultyCalculator, remote bool) *QKCHash {
 	q := &QKCHash{
 		diffCalculator: diffCalculator,
 		useNative:      useNative,
-		// TOOD: cache may depend on block, so a LRU-stype cache could be helpful
+		// TODO: cache may depend on block, so a LRU-stype cache could be helpful
 		cache: generateCache(cacheEntryCnt, cacheSeed, useNative),
 	}
 	spec := consensus.MiningSpec{
 		Name:     "QKCHash",
 		HashAlgo: q.hashAlgo,
 	}
-	q.commonEngine = consensus.NewCommonEngine(spec)
+	q.commonEngine = consensus.NewCommonEngine(spec, remote)
 	return q
 }
