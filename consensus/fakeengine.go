@@ -78,11 +78,11 @@ func (e *FakeEngine) Seal(chain ChainReader, block types.IBlock, results chan<- 
 
 // CalcDifficulty is the difficulty adjustment algorithm. It returns the difficulty
 // that a new block should have.
-func (e *FakeEngine) CalcDifficulty(chain ChainReader, time uint64, parent types.IHeader) *big.Int {
+func (e *FakeEngine) CalcDifficulty(chain ChainReader, time uint64, parent types.IHeader) (*big.Int, error) {
 	if e.Difficulty == nil || e.Difficulty.Cmp(big.NewInt(0)) < 0 {
-		return parent.GetDifficulty()
+		return parent.GetDifficulty(), nil
 	}
-	return e.Difficulty
+	return e.Difficulty, nil
 }
 
 // APIs returns the RPC APIs this consensus engine provides.

@@ -425,20 +425,13 @@ func (b *MinorBlock) GetSize() common.StorageSize {
 func (b *MinorBlock) IsNil() bool {
 	return b == nil
 }
-func (m *MinorBlock) Finalize(receipts Receipts, rootHash common.Hash, gasUsed *big.Int, xShardReceiveGasUsed *big.Int, coinBaseAmount *big.Int, hashPrevRootBlock *common.Hash) {
-	realHashPrevRootBlock := m.Header().PrevRootBlockHash
-	if hashPrevRootBlock != nil {
-		realHashPrevRootBlock = *hashPrevRootBlock
-	}
-
+func (m *MinorBlock) Finalize(receipts Receipts, rootHash common.Hash, gasUsed *big.Int, xShardReceiveGasUsed *big.Int, coinBaseAmount *big.Int) {
 	if gasUsed == nil {
 		gasUsed = new(big.Int)
 	}
 	if xShardReceiveGasUsed == nil {
 		xShardReceiveGasUsed = new(big.Int)
 	}
-
-	m.header.PrevRootBlockHash = realHashPrevRootBlock
 
 	m.meta.Root = rootHash
 	m.meta.GasUsed = &serialize.Uint256{Value: gasUsed}
@@ -449,54 +442,50 @@ func (m *MinorBlock) Finalize(receipts Receipts, rootHash common.Hash, gasUsed *
 	m.header.MetaHash = m.meta.Hash()
 	m.header.Bloom = CreateBloom(receipts)
 }
-func (h *MinorBlock) CreateBlockToAppend(createTime *uint64, difficulty *big.Int, address *account.Address, nonce *uint64, gasLimit *uint64, extraData []byte, coinBaseAmount *uint64) *MinorBlock {
-	realCreateTime := h.Time() + 1
-	if createTime != nil {
-		realCreateTime = *createTime
+func (h *MinorBlock) CreateBlockToAppend(createTime *uint64, difficulty *big.Int, address *account.Address, nonce *uint64, gasLimit *big.Int, extraData []byte, coinBaseAmount *big.Int) *MinorBlock {
+	if createTime == nil {
+		preTime := h.Time() + 1
+		createTime = &preTime
 	}
 
-	realDifficulty := h.Difficulty()
-	if difficulty != nil {
-		realDifficulty = difficulty
+	if difficulty == nil {
+		difficulty = h.Difficulty()
 	}
 
-	realAddress := account.CreatEmptyAddress(h.header.Coinbase.FullShardKey)
-	if address != nil {
-		realAddress = *address
+	if address == nil {
+		emptyAddress := account.CreatEmptyAddress(h.header.Coinbase.FullShardKey)
+		address = &emptyAddress
 	}
 
-	realNonce := uint64(0)
-	if nonce != nil {
-		realNonce = *nonce
+	if nonce == nil {
+		zeroNonce := uint64(0)
+		nonce = &zeroNonce
 	}
 
-	realGasLimit := h.GasLimit().Uint64()
-	if gasLimit != nil {
-		realGasLimit = *gasLimit
+	if gasLimit == nil {
+		gasLimit = h.GasLimit()
 	}
 
-	realExtraData := make([]byte, 0)
-	if extraData != nil {
-		realExtraData = extraData
+	if extraData == nil {
+		extraData = make([]byte, 0)
 	}
 
-	realCoinBaseAmount := uint64(0)
-	if coinBaseAmount != nil {
-		realCoinBaseAmount = *coinBaseAmount
+	if coinBaseAmount == nil {
+		coinBaseAmount = new(big.Int)
 	}
 	header := &MinorBlockHeader{
 		Version:           h.Version(),
 		Number:            h.Number() + 1,
 		Branch:            h.Branch(),
-		Coinbase:          realAddress,
-		CoinbaseAmount:    &serialize.Uint256{Value: new(big.Int).SetUint64(realCoinBaseAmount)},
+		Coinbase:          *address,
+		CoinbaseAmount:    &serialize.Uint256{Value: coinBaseAmount},
 		ParentHash:        h.Hash(),
 		PrevRootBlockHash: h.PrevRootBlockHash(),
-		GasLimit:          &serialize.Uint256{Value: new(big.Int).SetUint64(realGasLimit)},
-		Time:              realCreateTime,
-		Difficulty:        realDifficulty,
-		Nonce:             realNonce,
-		Extra:             realExtraData,
+		GasLimit:          &serialize.Uint256{Value: gasLimit},
+		Time:              *createTime,
+		Difficulty:        difficulty,
+		Nonce:             *nonce,
+		Extra:             extraData,
 	}
 	meta := MinorBlockMeta{
 		GasUsed:           &serialize.Uint256{Value: new(big.Int)},

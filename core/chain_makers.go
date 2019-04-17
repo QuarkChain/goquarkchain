@@ -78,7 +78,11 @@ func GenerateRootBlockChain(parent *types.RootBlock, engine consensus.Engine, n 
 	blocks := make([]*types.RootBlock, n)
 	genblock := func(i int, parent *types.RootBlock) *types.RootBlock {
 		b := &RootBlockGen{i: i, chain: blocks, parent: parent, engine: engine}
-		b.header = makeRootBlockHeader(parent, engine.CalcDifficulty(nil, parent.Time(), parent.Header()))
+		diff, err := engine.CalcDifficulty(nil, parent.Time(), parent.Header())
+		if err != nil {
+			panic(err) //only for test
+		}
+		b.header = makeRootBlockHeader(parent, diff)
 
 		// Execute any user modifications to the block
 		if gen != nil {

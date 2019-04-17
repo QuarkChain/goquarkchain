@@ -105,29 +105,27 @@ func (h *RootBlockHeader) IsNil() bool {
 	return h == nil
 }
 func (h *RootBlockHeader) CreateBlockToAppend(createTime *uint64, difficulty *big.Int, address *account.Address, nonce *uint64, extraData []byte) *RootBlock {
-	realCreateTime := h.Time + 1
-	if createTime != nil {
-		realCreateTime = *createTime
+	if createTime == nil {
+		preTime := h.Time + 1
+		createTime = &preTime
 	}
 
-	realDifficulty := h.Difficulty
-	if difficulty != nil {
-		realDifficulty = difficulty
+	if difficulty == nil {
+		difficulty = h.Difficulty
 	}
 
-	realAddress := account.CreatEmptyAddress(0)
-	if address != nil {
-		realAddress = *address
+	if address == nil {
+		empty := account.CreatEmptyAddress(0)
+		address = &empty
 	}
 
-	realNonce := uint64(0)
-	if nonce != nil {
-		realNonce = *nonce
+	if nonce == nil {
+		zeroNonce := uint64(0)
+		nonce = &zeroNonce
 	}
 
-	realExtraData := make([]byte, 0)
-	if extraData != nil {
-		realExtraData = extraData
+	if extraData == nil {
+		extraData = make([]byte, 0)
 	}
 
 	header := &RootBlockHeader{
@@ -135,12 +133,12 @@ func (h *RootBlockHeader) CreateBlockToAppend(createTime *uint64, difficulty *bi
 		Number:          h.Number + 1,
 		ParentHash:      h.Hash(),
 		MinorHeaderHash: common.Hash{},
-		Coinbase:        realAddress,
+		Coinbase:        *address,
 		CoinbaseAmount:  &serialize.Uint256{Value: new(big.Int)},
-		Time:            realCreateTime,
-		Difficulty:      realDifficulty,
-		Nonce:           realNonce,
-		Extra:           realExtraData,
+		Time:            *createTime,
+		Difficulty:      difficulty,
+		Nonce:           *nonce,
+		Extra:           extraData,
 	}
 	return &RootBlock{
 		header:            header,

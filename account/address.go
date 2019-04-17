@@ -25,7 +25,7 @@ func NewAddress(recipient Recipient, fullShardKey uint32) Address {
 // ToHex return bytes included recipient and fullShardKey
 func (Self Address) ToHex() string {
 	address := Self.ToBytes()
-	return hexutil.Encode(address[:])
+	return hexutil.Encode(address)
 
 }
 
@@ -33,7 +33,7 @@ func (Self Address) ToBytes() []byte {
 	address := Self.Recipient.Bytes()
 	shardKey := Uint32ToBytes(Self.FullShardKey)
 	address = append(address, shardKey...)
-	return address[:]
+	return address
 }
 
 // GetFullShardID get fullShardID depend shardSize
