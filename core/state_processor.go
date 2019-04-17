@@ -103,7 +103,7 @@ func (p *StateProcessor) Process(mBlock types.IBlock, statedb *state.StateDB, cf
 	// Finalize the block, applying any consensus engine specific extras (e.g. block rewards)
 	coinBaseAmount := p.bc.getCoinBaseAmount()
 	statedb.AddBalance(block.IHeader().GetCoinbase().Recipient, coinBaseAmount)
-	statedb.Finalise(false)
+	statedb.Finalise(true)
 	return receipts, allLogs, *usedGas, nil
 }
 
@@ -120,10 +120,7 @@ func ValidateTransaction(state vm.StateDB, tx *types.Transaction, fromAddress *a
 		from = &fromAddress.Recipient
 	}
 
-	var reqNonce uint64
-
-	reqNonce = state.GetNonce(*from)
-
+	reqNonce := state.GetNonce(*from)
 	if reqNonce > tx.EvmTx.Nonce() {
 		return ErrNonceTooLow
 	}
@@ -170,7 +167,7 @@ func ApplyTransaction(config *params.ChainConfig, bc ChainContext, gp *GasPool, 
 	}
 
 	var root []byte
-	statedb.Finalise(false)
+	statedb.Finalise(true)
 	*usedGas += gas
 
 	// Create a new receipt for the transaction, storing the intermediate root and gas used by the tx

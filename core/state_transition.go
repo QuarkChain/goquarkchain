@@ -248,8 +248,8 @@ func (st *StateTransition) TransitionDb(feeRate *big.Rat) (ret []byte, usedGas u
 		finalGasUsed -= qkcParam.GtxxShardCost.Uint64()
 	}
 	fee := new(big.Int).Mul(new(big.Int).SetUint64(finalGasUsed), st.gasPrice)
-	rateFee_1 := new(big.Int).Mul(fee, feeRate.Num())
-	rateFee := new(big.Int).Div(rateFee_1, feeRate.Denom())
+	rateFee := new(big.Int).Mul(fee, feeRate.Num())
+	rateFee = new(big.Int).Div(rateFee, feeRate.Denom())
 
 	st.state.AddBalance(st.evm.Coinbase, rateFee)
 	st.state.AddBlockFee(rateFee)

@@ -195,7 +195,7 @@ func testMinorBlockChainImport(chain []types.IBlock, blockchain *MinorBlockChain
 		blockchain.mu.Lock()
 		rawdb.WriteTd(blockchain.db, block.Hash(), new(big.Int).Add(block.IHeader().GetDifficulty(), blockchain.GetTdByHash(block.IHeader().GetParentHash())))
 		rawdb.WriteMinorBlock(blockchain.db, block.(*types.MinorBlock))
-		statedb.Commit(false)
+		statedb.Commit(true)
 		blockchain.mu.Unlock()
 	}
 	return nil
@@ -1228,6 +1228,8 @@ func TestMinorCanonicalBlockRetrieval(t *testing.T) {
 }
 
 func TestMinorEIP161AccountRemoval(t *testing.T) {
+	//qkc delete empty addr in all height
+	//eth delete empty addr depend height
 	// Configure and generate a sample block chain
 	var (
 		id1, _        = account.CreatRandomIdentity()

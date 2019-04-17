@@ -36,25 +36,25 @@ import (
 //
 // MinorBlockValidator implements Validator.
 type MinorBlockValidator struct {
-	config               *config.QuarkChainConfig // Chain configuration options
-	versionControlConfig *params.ChainConfig
-	bc                   *MinorBlockChain // Canonical block chain
-	engine               consensus.Engine // Consensus engine used for validating
-	branch               account.Branch
-	diffCalc             consensus.DifficultyCalculator
-	shardConfig          *config.ShardConfig
+	quarkChainConfig *config.QuarkChainConfig // Chain configuration options
+	ethChainConfig   *params.ChainConfig
+	bc               *MinorBlockChain // Canonical block chain
+	engine           consensus.Engine // Consensus engine used for validating
+	branch           account.Branch
+	diffCalc         consensus.DifficultyCalculator
+	shardConfig      *config.ShardConfig
 }
 
 // NewBlockValidator returns a new block validator which is safe for re-use
-func NewBlockValidator(config *config.QuarkChainConfig, versionConfig *params.ChainConfig, blockchain *MinorBlockChain, engine consensus.Engine, branch account.Branch, diffCalc consensus.DifficultyCalculator, shardConfig *config.ShardConfig) *MinorBlockValidator {
+func NewBlockValidator(quarkChainConfig *config.QuarkChainConfig, versionConfig *params.ChainConfig, blockchain *MinorBlockChain, engine consensus.Engine, branch account.Branch, diffCalc consensus.DifficultyCalculator, shardConfig *config.ShardConfig) *MinorBlockValidator {
 	validator := &MinorBlockValidator{
-		config:               config,
-		versionControlConfig: versionConfig,
-		engine:               engine,
-		bc:                   blockchain,
-		branch:               branch,
-		diffCalc:             diffCalc,
-		shardConfig:          shardConfig,
+		quarkChainConfig: quarkChainConfig,
+		ethChainConfig:   versionConfig,
+		engine:           engine,
+		bc:               blockchain,
+		branch:           branch,
+		diffCalc:         diffCalc,
+		shardConfig:      shardConfig,
 	}
 	return validator
 }
@@ -64,7 +64,7 @@ func NewBlockValidator(config *config.QuarkChainConfig, versionConfig *params.Ch
 // validated at this point.
 func (v *MinorBlockValidator) ValidateBlock(mBlock types.IBlock) error {
 	if common.IsNil(mBlock) {
-		return ErrBlockIsNil
+		return ErrMinorBlockIsNil
 	}
 	block := mBlock.(*types.MinorBlock)
 	if reflect.TypeOf(block) != reflect.TypeOf(new(types.MinorBlock)) {
@@ -81,13 +81,16 @@ func (v *MinorBlockValidator) ValidateBlock(mBlock types.IBlock) error {
 	}
 
 	if !v.bc.HasBlockAndState(block.IHeader().GetParentHash()) {
-		if!v.bc.HasBlock(block.ParentHash(),block.NumberU64()-1){
+		if !v.bc.HasBlock(block.ParentHash(), block.NumberU64()-1) {
 			return consensus.ErrUnknownAncestor
 		}
 		return ErrPrunedAncestor
 	}
 
-	prevHeader := v.bc.GetHeader(block.IHeader().GetParentHash()).(*types.MinorBlockHeader)
+	prevHeader := v.bc.GetHeader(block.IHeader().GetParentHash())
+	if common.IsNil(prevHeader) {
+		return ErrInvalidMinorBlock
+	}
 	if blockHeight != prevHeader.NumberU64()+1 {
 		return ErrHeightDisMatch
 	}
@@ -104,29 +107,32 @@ func (v *MinorBlockValidator) ValidateBlock(mBlock types.IBlock) error {
 		return ErrMetaHash
 	}
 
-	if len(block.IHeader().GetExtra()) > int(v.config.BlockExtraDataSizeLimit) {
+	if len(block.IHeader().GetExtra()) > int(v.quarkChainConfig.BlockExtraDataSizeLimit) {
 		return ErrExtraLimit
 	}
 
-	if len(block.GetTrackingData()) > int(v.config.BlockExtraDataSizeLimit) {
+	if len(block.GetTrackingData()) > int(v.quarkChainConfig.BlockExtraDataSizeLimit) {
 		return ErrTrackLimit
 	}
 
-	if err := v.ValidateGasLimit(block.Header().GetGasLimit().Uint64(), prevHeader.GetGasLimit().Uint64()); err != nil {
+	if err := v.ValidateGasLimit(block.Header().GetGasLimit().Uint64(), prevHeader.(*types.MinorBlockHeader).GetGasLimit().Uint64()); err != nil {
 		return err
 	}
 
-	merkleHash := types.DeriveSha(block.GetTransactions())
-	if merkleHash != block.GetMetaData().TxHash {
-		return ErrRootHash
+	txHash := types.DeriveSha(block.GetTransactions())
+	if txHash != block.GetMetaData().TxHash {
+		return ErrTxHash
 	}
 
 	if !v.branch.IsInBranch(block.IHeader().GetCoinbase().FullShardKey) {
 		return ErrFullShardKey
 	}
 
-	if !v.config.SkipMinorDifficultyCheck {
-		diff := v.diffCalc.CalculateDifficulty(prevHeader, block.IHeader().GetTime())
+	if !v.quarkChainConfig.SkipMinorDifficultyCheck {
+		diff, err := v.diffCalc.CalculateDifficulty(prevHeader, block.IHeader().GetTime())
+		if err != nil {
+			return err
+		}
 		if diff.Cmp(block.IHeader().GetDifficulty()) != 0 {
 			return ErrDifficulty
 		}
@@ -134,12 +140,12 @@ func (v *MinorBlockValidator) ValidateBlock(mBlock types.IBlock) error {
 
 	rootBlockHeader := v.bc.getRootBlockHeaderByHash(block.Header().GetPrevRootBlockHash())
 	if rootBlockHeader == nil {
-		return errors.New("get blockHeader errors")
+		return ErrRootBlockIsNil
 	}
 
-	prevPrevHeader := v.bc.getRootBlockHeaderByHash(prevHeader.GetPrevRootBlockHash())
+	prevPrevHeader := v.bc.getRootBlockHeaderByHash(prevHeader.(*types.MinorBlockHeader).GetPrevRootBlockHash())
 	if prevPrevHeader == nil {
-		return errors.New("get prePreHeader error")
+		return ErrRootBlockIsNil
 	}
 	if rootBlockHeader.NumberU64() < prevPrevHeader.NumberU64() {
 		return errors.New("pre root block height must be non-decreasing")
@@ -151,7 +157,7 @@ func (v *MinorBlockValidator) ValidateBlock(mBlock types.IBlock) error {
 	}
 
 	if !v.bc.isSameRootChain(v.bc.getRootBlockHeaderByHash(block.Header().GetPrevRootBlockHash()),
-		v.bc.getRootBlockHeaderByHash(prevHeader.GetPrevRootBlockHash())) {
+		v.bc.getRootBlockHeaderByHash(prevHeader.(*types.MinorBlockHeader).GetPrevRootBlockHash())) {
 		return errors.New("prev root blocks are not on the same chain")
 	}
 	return v.ValidatorMinorBlockSeal(block)
@@ -179,23 +185,27 @@ func (v *MinorBlockValidator) ValidateGasLimit(gasLimit, preGasLimit uint64) err
 
 // ValidatorMinorBlockSeal validate minor block seal when validate block
 func (v *MinorBlockValidator) ValidatorMinorBlockSeal(mBlock types.IBlock) error {
-	block := mBlock.(*types.MinorBlock)
+	block := mBlock.(*types.MinorBlock) //already check
 	branch := block.Header().GetBranch()
-	fullShardID := (&branch).GetFullShardID()
-	genesis := v.config.GetShardConfigByFullShardID(fullShardID)
+	fullShardID := branch.GetFullShardID()
+	genesis := v.quarkChainConfig.GetShardConfigByFullShardID(fullShardID)
 	consensusType := genesis.ConsensusType
 	if !genesis.PoswConfig.Enabled {
-		return validateSeal(block.IHeader(), consensusType, nil)
+		return v.validateSeal(block.IHeader(), consensusType, nil)
 	}
 	diff, err := v.bc.POSWDiffAdjust(block)
 	if err != nil {
 		return err
 	}
-	return validateSeal(block.IHeader(), consensusType, &diff)
+	return v.validateSeal(block.IHeader(), consensusType, &diff)
 }
 
-func validateSeal(block types.IHeader, consensusType string, diff *uint64) error {
-	return nil
+func (v *MinorBlockValidator) validateSeal(header types.IHeader, consensusType string, diff *uint64) error {
+	if diff == nil {
+		headerDifficult := header.GetDifficulty().Uint64()
+		diff = &headerDifficult
+	}
+	return v.engine.VerifySeal(v.bc, header, new(big.Int).SetUint64(*diff))
 }
 
 // ValidateState validates the various changes that happen after a state
@@ -204,24 +214,21 @@ func validateSeal(block types.IHeader, consensusType string, diff *uint64) error
 // otherwise nil and an error is returned.
 func (v *MinorBlockValidator) ValidateState(mBlock, parent types.IBlock, statedb *state.StateDB, receipts types.Receipts, usedGas uint64) error {
 	if common.IsNil(mBlock) {
-		return ErrBlockIsNil
+		return ErrMinorBlockIsNil
 	}
 	block := mBlock.(*types.MinorBlock)
 	if reflect.TypeOf(block) != reflect.TypeOf(new(types.MinorBlock)) {
 		return ErrInvalidMinorBlock
 	}
 	mHeader := block.Header()
-	if mHeader == nil {
-		return errors.New("header is nil")
-	}
 	if block.GetMetaData().GasUsed.Value.Cmp(statedb.GetGasUsed()) != 0 {
 		return fmt.Errorf("invalid gas used (statedb.GetGasUsed: %d usedGas: %d)", block.GetMetaData().GasUsed.Value.Uint64(), statedb.GetGasUsed())
 	}
 	// Validate the received block's bloom with the one derived from the generated receipts.
 	// For valid blocks this should always validate to true.
-	rbloom := types.CreateBloom(receipts)
-	if rbloom != mHeader.GetBloom() {
-		return fmt.Errorf("invalid bloom (remote: %x  local: %x)", mHeader.GetBloom(), rbloom)
+	bloom := types.CreateBloom(receipts)
+	if bloom != mHeader.GetBloom() {
+		return fmt.Errorf("invalid bloom (remote: %x  local: %x)", mHeader.GetBloom(), bloom)
 	}
 
 	receiptSha := types.DeriveSha(receipts)
@@ -241,7 +248,7 @@ func (v *MinorBlockValidator) ValidateState(mBlock, parent types.IBlock, statedb
 	}
 	// Validate the state root against the received state root and throw
 	// an error if they don't match.
-	if root := statedb.IntermediateRoot(false); block.GetMetaData().Root != root {
+	if root := statedb.IntermediateRoot(true); block.GetMetaData().Root != root {
 		return fmt.Errorf("invalid merkle root (remote: %x local: %x)", block.GetMetaData().Root, root)
 	}
 	return nil

@@ -293,8 +293,8 @@ func GenerateMinorBlockChain(config *params.ChainConfig, quarkChainConfig *confi
 		coinBaseAmount = coinBaseAmount.Div(coinBaseAmount, quarkChainConfig.RewardTaxRate.Denom())
 		statedb.AddBalance(block.Header().Coinbase.Recipient, coinBaseAmount)
 
-		b.statedb.Finalise(false)
-		rootHash, err := b.statedb.Commit(false)
+		b.statedb.Finalise(true)
+		rootHash, err := b.statedb.Commit(true)
 		if err != nil {
 			panic(fmt.Sprintf("state write error: %v", err))
 		}
@@ -302,7 +302,7 @@ func GenerateMinorBlockChain(config *params.ChainConfig, quarkChainConfig *confi
 			panic(fmt.Sprintf("trie write error: %v", err))
 		}
 		coinBaseAmount = coinBaseAmount.Add(coinBaseAmount, statedb.GetBlockFee())
-		block.Finalize(b.receipts, rootHash, statedb.GetGasUsed(), statedb.GetXShardReceiveGasUsed(), coinBaseAmount, nil)
+		block.Finalize(b.receipts, rootHash, statedb.GetGasUsed(), statedb.GetXShardReceiveGasUsed(), coinBaseAmount)
 		return block, b.receipts
 	}
 	for i := 0; i < n; i++ {
