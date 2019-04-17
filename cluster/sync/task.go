@@ -2,7 +2,6 @@ package sync
 
 import (
 	"errors"
-	"math/big"
 	"strings"
 	"time"
 
@@ -19,8 +18,8 @@ const (
 )
 
 var (
-	// TODO: should use config
-	maxSyncStaleness = big.NewInt(60)
+	// TODO: should use config.
+	maxSyncStaleness = 22500
 )
 
 // Task represents a synchronization task for the synchronizer.
@@ -45,15 +44,14 @@ func (r *rootChainTask) Run(bc blockchain) error {
 	logger := log.New("synctask", r.header.NumberU64())
 	peer := r.Peer()
 	headerTip := bc.CurrentHeader()
-	tipHeight := new(big.Int).SetUint64(headerTip.NumberU64())
+	tipHeight := headerTip.NumberU64()
 
 	// Prepare for downloading.
 	chain := []*types.RootBlockHeader{r.header}
 	lastHeader := r.header
 	for !bc.HasBlock(lastHeader.ParentHash) {
-		height, hash := new(big.Int).SetUint64(lastHeader.NumberU64()), lastHeader.Hash()
-		hDiff := new(big.Int).Sub(tipHeight, height)
-		if hDiff.Cmp(maxSyncStaleness) > 0 {
+		height, hash := lastHeader.NumberU64(), lastHeader.Hash()
+		if tipHeight > height && tipHeight-height > uint64(maxSyncStaleness) {
 			logger.Warn("Abort synching due to forking at super old block", "currentHeight", tipHeight, "oldHeight", height)
 			return nil
 		}

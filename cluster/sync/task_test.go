@@ -114,11 +114,7 @@ func TestRootChainTaskRun(t *testing.T) {
 	var rt Task = &rootChainTask{peer: p}
 
 	// Prepare future blocks for downloading.
-	rbChain := core.GenerateRootBlockChain(rbc.CurrentBlock(), engine, 5, nil)
-	var rhChain []*types.RootBlockHeader
-	for _, rb := range rbChain {
-		rhChain = append(rhChain, rb.Header())
-	}
+	rbChain, rhChain := makeChains(rbc.CurrentBlock(), false)
 
 	// No error if already have the target block.
 	rt.(*rootChainTask).header = bc.CurrentHeader().(*types.RootBlockHeader)
@@ -164,11 +160,41 @@ func TestRootChainTaskRun(t *testing.T) {
 	p.retBlocks = append(p.retBlocks, missing)
 	assert.NoError(t, rt.Run(bc))
 	assert.Equal(t, uint64(10), bc.CurrentHeader().NumberU64())
+
+	// Sync older forks. Starting from block 6, up to 11.
+	rbChain, rhChain = makeChains(rbChain[0], true)
+	for _, rh := range rhChain {
+		assert.False(t, bc.HasBlock(rh.Hash()))
+	}
+	rt.(*rootChainTask).header = rbChain[4].Header()
+	p.retHeaders, p.retBlocks = reverserHeaders(rhChain), reverserBlocks(rbChain)
+	assert.NoError(t, rt.Run(bc))
+	for _, rh := range rhChain {
+		assert.True(t, bc.HasBlock(rh.Hash()))
+	}
+	// Tip should be updated.
+	assert.Equal(t, uint64(11), bc.CurrentHeader().NumberU64())
 }
 
 /*
  Test helpers.
 */
+
+func makeChains(parent *types.RootBlock, random bool) ([]*types.RootBlock, []*types.RootBlockHeader) {
+	var gen func(i int, b *core.RootBlockGen)
+	if random {
+		gen = func(i int, b *core.RootBlockGen) {
+			b.SetExtra([]byte{byte(i)})
+		}
+	}
+	blockchain := core.GenerateRootBlockChain(parent, engine, 5, gen)
+	var headerchain []*types.RootBlockHeader
+	for _, rb := range blockchain {
+		headerchain = append(headerchain, rb.Header())
+	}
+
+	return blockchain, headerchain
+}
 
 func reverserBlocks(ls []*types.RootBlock) []*types.RootBlock {
 	ret := make([]*types.RootBlock, len(ls), len(ls))
