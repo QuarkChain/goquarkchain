@@ -624,7 +624,7 @@ func TestReorgSideEvent(t *testing.T) {
 	)
 
 	blockchain, _ := NewRootBlockChain(db, nil, gspec.qkcConfig, engine, nil)
-	blockchain.validator = new(FackRootBlockValidator)
+	blockchain.validator = new(fakeRootBlockValidator)
 	defer blockchain.Stop()
 
 	chain := GenerateRootBlockChain(genesis, engine, 3, func(i int, gen *RootBlockGen) {})
@@ -903,7 +903,7 @@ func benchmarkLargeNumberOfValueToNonexisting(b *testing.B, numItems, numBlocks 
 		gspec.MustCommitRootBlock(diskdb)
 
 		chain, err := NewRootBlockChain(diskdb, nil, qkcconfig, engine, nil)
-		chain.validator = new(FackRootBlockValidator)
+		chain.validator = new(fakeRootBlockValidator)
 		if err != nil {
 			b.Fatalf("failed to create tester chain: %v", err)
 		}
