@@ -55,7 +55,7 @@ func (q *QKCHash) Finalize(chain consensus.ChainReader, header types.IHeader, st
 
 // CalcDifficulty is the difficulty adjustment algorithm. It returns the difficulty
 // that a new block should have.
-func (q *QKCHash) CalcDifficulty(chain consensus.ChainReader, time uint64, parent types.IHeader) *big.Int {
+func (q *QKCHash) CalcDifficulty(chain consensus.ChainReader, time uint64, parent types.IHeader) (*big.Int, error) {
 	if q.diffCalculator == nil {
 		panic("diffCalculator is not existed")
 	}

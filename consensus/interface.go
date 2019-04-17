@@ -70,7 +70,7 @@ type Engine interface {
 
 	// CalcDifficulty is the difficulty adjustment algorithm. It returns the difficulty
 	// that a new block should have.
-	CalcDifficulty(chain ChainReader, time uint64, parent types.IHeader) *big.Int
+	CalcDifficulty(chain ChainReader, time uint64, parent types.IHeader) (*big.Int, error)
 
 	// Close terminates any background threads maintained by the consensus engine.
 	Close() error

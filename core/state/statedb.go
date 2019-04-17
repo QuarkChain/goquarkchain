@@ -708,12 +708,9 @@ func (s *StateDB) SetFullShardKey(fullShardKey uint32) {
 }
 
 func (s *StateDB) GetFullShardKey(addr common.Address) uint32 {
-
 	stateObject := s.GetOrNewStateObject(addr)
-	if stateObject != nil {
-		return stateObject.FullShardKey()
-	}
-	panic(errors.New("not implement"))
+	return stateObject.FullShardKey()
+
 }
 
 func (s *StateDB) AddBlockFee(fee *big.Int) {
