@@ -48,6 +48,7 @@ var (
 	ErrInvalidDifficulty = errors.New("non-positive difficulty")
 	ErrInvalidMixDigest  = errors.New("invalid mix digest")
 	ErrInvalidPoW        = errors.New("invalid proof-of-work")
+	ErrPreTime           = errors.New("parent time is smaller than time for CalculateDifficulty")
 )
 
 // MiningWork represents the params of mining work.
@@ -119,7 +120,10 @@ func (c *CommonEngine) VerifyHeader(
 
 	adjustedDiff := new(big.Int).SetUint64(0)
 	if !chain.Config().SkipRootDifficultyCheck {
-		expectedDiff := cengine.CalcDifficulty(chain, header.GetTime(), parent)
+		expectedDiff, err := cengine.CalcDifficulty(chain, header.GetTime(), parent)
+		if err != nil {
+			return err
+		}
 		if expectedDiff.Cmp(header.GetDifficulty()) != 0 {
 			errMsg := fmt.Sprintf("invalid difficulty: have %v, want %v", header.GetDifficulty(), expectedDiff)
 			logger.Error(errMsg)

@@ -81,7 +81,7 @@ func (d *DoubleSHA256) Seal(
 
 // CalcDifficulty is the difficulty adjustment algorithm. It returns the difficulty
 // that a new block should have.
-func (d *DoubleSHA256) CalcDifficulty(chain consensus.ChainReader, time uint64, parent types.IHeader) *big.Int {
+func (d *DoubleSHA256) CalcDifficulty(chain consensus.ChainReader, time uint64, parent types.IHeader) (*big.Int, error) {
 	if d.diffCalculator == nil {
 		panic("diffCalculator is not existed")
 	}
