@@ -2,14 +2,10 @@ package sync
 
 import (
 	"errors"
-	"math/big"
 	"strings"
 	"time"
 
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
-
-	"github.com/QuarkChain/goquarkchain/core"
 
 	"github.com/QuarkChain/goquarkchain/core/types"
 )
@@ -22,8 +18,8 @@ const (
 )
 
 var (
-	// TODO: should use config
-	maxSyncStaleness = big.NewInt(60)
+	// TODO: should use config.
+	maxSyncStaleness = 22500
 )
 
 // Task represents a synchronization task for the synchronizer.
@@ -35,28 +31,27 @@ type Task interface {
 
 // All of the sync tasks to are to catch up with the root chain from peers.
 type rootChainTask struct {
-	rootBlock *types.RootBlock
 	peer
 	header *types.RootBlockHeader
 }
 
 // Run will execute the synchronization task.
-func (r *rootChainTask) Run(bc *core.RootBlockChain) error {
+func (r *rootChainTask) Run(bc blockchain) error {
 	if bc.HasBlock(r.header.Hash()) {
 		return nil
 	}
 
 	logger := log.New("synctask", r.header.NumberU64())
+	peer := r.Peer()
 	headerTip := bc.CurrentHeader()
-	tipHeight := new(big.Int).SetUint64(headerTip.NumberU64())
+	tipHeight := headerTip.NumberU64()
 
 	// Prepare for downloading.
-	chain := []*types.RootBlockHeader{r.header} // Descending.
+	chain := []*types.RootBlockHeader{r.header}
 	lastHeader := r.header
 	for !bc.HasBlock(lastHeader.ParentHash) {
-		height, hash := new(big.Int).SetUint64(lastHeader.NumberU64()), lastHeader.Hash()
-		hDiff := new(big.Int).Sub(tipHeight, height)
-		if hDiff.Cmp(maxSyncStaleness) > 0 {
+		height, hash := lastHeader.NumberU64(), lastHeader.Hash()
+		if tipHeight > height && tipHeight-height > uint64(maxSyncStaleness) {
 			logger.Warn("Abort synching due to forking at super old block", "currentHeight", tipHeight, "oldHeight", height)
 			return nil
 		}
@@ -64,14 +59,12 @@ func (r *rootChainTask) Run(bc *core.RootBlockChain) error {
 		logger.Info("Downloading block header list", "height", height, "hash", hash)
 		// Order should be descending. Download size is min(500, h-tip) if h > tip.
 		downloadSz := uint64(headerDownloadSize)
-		if hDiff.Sign() < 0 && hDiff.CmpAbs(big.NewInt(headerDownloadSize)) < 0 {
-			downloadSz = new(big.Int).Abs(hDiff).Uint64()
-		}
-		receivedHeaders, err := downloadHeaders(hash, downloadSz) // TODO: stub
+		receivedHeaders, err := peer.downloadRootHeadersFromHash(lastHeader.ParentHash, downloadSz)
 		if err != nil {
 			return err
 		}
-		if err := validateRootBlockHeaderList(receivedHeaders); err != nil { // TODO: stub
+		err = r.validateRootBlockHeaderList(bc, receivedHeaders)
+		if err != nil {
 			return err
 		}
 		for _, h := range receivedHeaders {
@@ -94,9 +87,9 @@ func (r *rootChainTask) Run(bc *core.RootBlockChain) error {
 			start = 0
 		}
 		headersForDownload := chain[start:end]
-		blocks, err := downloadRootBlocks(headersForDownload)
+		blocks, err := peer.downloadRootBlocks(headersForDownload)
 		if err != nil {
-			return nil
+			return err
 		}
 		if len(blocks) != end-start {
 			errMsg := "Bad peer missing blocks for given headers"
@@ -105,6 +98,7 @@ func (r *rootChainTask) Run(bc *core.RootBlockChain) error {
 		}
 
 		// Again, `blocks` should also be descending.
+		// TODO: validate block order.
 		for j := len(blocks) - 1; j >= 0; j-- {
 			b := blocks[j]
 			h := b.Header()
@@ -114,6 +108,7 @@ func (r *rootChainTask) Run(bc *core.RootBlockChain) error {
 			if err := syncMinorBlocks(b); err != nil {
 				return err
 			}
+			// TODO: may optimize by batch and insert once?
 			if _, err := bc.InsertChain([]types.IBlock{b}); err != nil {
 				return err
 			}
@@ -135,19 +130,23 @@ func (r *rootChainTask) Peer() peer {
 	return r.peer
 }
 
-func downloadHeaders(startHash common.Hash, length uint64) ([]*types.RootBlockHeader, error) {
-	// TODO: stub
-	return nil, nil
-}
-
-func validateRootBlockHeaderList(headers []*types.RootBlockHeader) error {
-	// TODO: stub
+func (r *rootChainTask) validateRootBlockHeaderList(bc blockchain, headers []*types.RootBlockHeader) error {
+	var prev *types.RootBlockHeader
+	for _, h := range headers {
+		if prev != nil {
+			if h.Number+1 != prev.Number {
+				return errors.New("should have descending order with step 1")
+			}
+			if prev.ParentHash != h.Hash() {
+				return errors.New("should have blocks correctly linked")
+			}
+		}
+		if err := bc.Validator().ValidateHeader(h); err != nil {
+			return err
+		}
+		prev = h
+	}
 	return nil
-}
-
-func downloadRootBlocks(blockHashesForDownload []*types.RootBlockHeader) ([]*types.RootBlock, error) {
-	// TODO: stub
-	return nil, nil
 }
 
 func syncMinorBlocks(rootBlock *types.RootBlock) error {

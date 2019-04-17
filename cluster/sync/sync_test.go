@@ -19,7 +19,7 @@ func (t *trivialTask) Run(_ blockchain) error {
 }
 
 func (t *trivialTask) Peer() peer {
-	return peer{id: fmt.Sprintf("%d", t.id)}
+	return &mockpeer{name: fmt.Sprintf("%d", t.id)}
 }
 
 func (t *trivialTask) Priority() uint {

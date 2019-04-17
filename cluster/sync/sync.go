@@ -8,15 +8,23 @@ import (
 )
 
 // TODO a mock struct for peers, should have real peer connection type in P2P module.
-type peer struct {
-	id       string
-	hostport string
+type peer interface {
+	downloadRootHeadersFromHash(common.Hash, uint64) ([]*types.RootBlockHeader, error)
+	downloadRootBlocks([]*types.RootBlockHeader) ([]*types.RootBlock, error)
+	id() string
+}
+
+// headerValidtor is only responsible to validate block headers.
+type headerValidator interface {
+	ValidateHeader(types.IHeader) error
 }
 
 // blockchain is a lightweight wrapper over shard chain or root chain.
 type blockchain interface {
 	HasBlock(common.Hash) bool
-	InsertChain([]types.IBlock) (bool, error)
+	InsertChain([]types.IBlock) (int, error)
+	CurrentHeader() types.IHeader
+	Validator() headerValidator
 }
 
 // Synchronizer will sync blocks for the master server when receiving new root blocks from peers.
@@ -68,9 +76,9 @@ func (s *synchronizer) loop() {
 
 		select {
 		case task := <-s.taskRecvCh:
-			taskMap[task.Peer().id] = task
+			taskMap[task.Peer().id()] = task
 		case assignCh <- currTask:
-			delete(taskMap, currTask.Peer().id)
+			delete(taskMap, currTask.Peer().id())
 		case <-s.abortCh:
 			close(s.taskAssignCh)
 			return
