@@ -56,3 +56,9 @@ func (c *ConstMinorBlockRewardCalculator) GetBlockReward() *big.Int {
 	data := new(big.Int).SetInt64(100)
 	return new(big.Int).Mul(data, new(big.Int).SetInt64(1000000000000000000))
 }
+
+func BigIntMulBigRat(bigInt *big.Int, bigRat *big.Rat) *big.Int {
+	ans := new(big.Int).Mul(bigInt, bigRat.Num())
+	ans = ans.Div(ans, bigRat.Denom())
+	return ans
+}

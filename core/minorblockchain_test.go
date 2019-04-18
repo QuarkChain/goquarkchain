@@ -1297,7 +1297,7 @@ func TestMinorEIP161AccountRemoval(t *testing.T) {
 		t.Fatal(err)
 	}
 	//fmt.Println(blockchain.CurrentBlock().NumberU64(), blocks[0].NumberU64(), len(blocks[0].Transactions()), blocks[0].Transactions()[0].EvmTx.Hash().String())
-	if st := blockchain.currentEvmState; !st.Exist(addr2.Recipient) {
+	if st := blockchain.currentEvmState; st.Exist(addr2.Recipient) {
 		t.Error("expected account to exist")
 	}
 
@@ -1306,16 +1306,16 @@ func TestMinorEIP161AccountRemoval(t *testing.T) {
 	if _, _, err := blockchain.InsertChain([]types.IBlock{blocks[1]}, []bool{false}); err != nil {
 		t.Fatal(err)
 	}
-	if st, _ := blockchain.State(); !st.Exist(addr2.Recipient) {
-		t.Error("account should not exist")
+	if st, _ := blockchain.State(); st.Exist(addr2.Recipient) {
+		t.Error("account should  exist")
 	}
 
 	// account musn't be created post eip 161 --do not care
 	if _, _, err := blockchain.InsertChain([]types.IBlock{blocks[2]}, []bool{false}); err != nil {
 		t.Fatal(err)
 	}
-	if st, _ := blockchain.State(); !st.Exist(addr2.Recipient) {
-		t.Error("account should not exist")
+	if st, _ := blockchain.State(); st.Exist(addr2.Recipient) {
+		t.Error("account should  exist")
 	}
 }
 

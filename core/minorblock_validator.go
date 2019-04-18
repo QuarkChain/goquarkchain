@@ -22,13 +22,11 @@ import (
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/common"
-	"math/big"
-	"reflect"
-
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/core/state"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/params"
+	"math/big"
 )
 
 // MinorBlockValidator is responsible for validating block headers, uncles and
@@ -66,8 +64,8 @@ func (v *MinorBlockValidator) ValidateBlock(mBlock types.IBlock) error {
 	if common.IsNil(mBlock) {
 		return ErrMinorBlockIsNil
 	}
-	block := mBlock.(*types.MinorBlock)
-	if reflect.TypeOf(block) != reflect.TypeOf(new(types.MinorBlock)) {
+	block, ok := mBlock.(*types.MinorBlock)
+	if !ok {
 		return ErrInvalidMinorBlock
 	}
 
@@ -81,7 +79,7 @@ func (v *MinorBlockValidator) ValidateBlock(mBlock types.IBlock) error {
 	}
 
 	if !v.bc.HasBlockAndState(block.IHeader().GetParentHash()) {
-		if !v.bc.HasBlock(block.ParentHash(), block.NumberU64()-1) {
+		if !v.bc.HasBlock(block.ParentHash()) {
 			return consensus.ErrUnknownAncestor
 		}
 		return ErrPrunedAncestor
@@ -143,17 +141,17 @@ func (v *MinorBlockValidator) ValidateBlock(mBlock types.IBlock) error {
 		return ErrRootBlockIsNil
 	}
 
-	prevPrevHeader := v.bc.getRootBlockHeaderByHash(prevHeader.(*types.MinorBlockHeader).GetPrevRootBlockHash())
-	if prevPrevHeader == nil {
+	prevRootHeader := v.bc.getRootBlockHeaderByHash(prevHeader.(*types.MinorBlockHeader).GetPrevRootBlockHash())
+	if prevRootHeader == nil {
 		return ErrRootBlockIsNil
 	}
-	if rootBlockHeader.NumberU64() < prevPrevHeader.NumberU64() {
+	if rootBlockHeader.NumberU64() < prevRootHeader.NumberU64() {
 		return errors.New("pre root block height must be non-decreasing")
 	}
 
-	prevConfirmedMinorHeader := v.bc.getLastConfirmedMinorBlockHeaderAtRootBlock(block.IHeader().GetParentHash())
+	prevConfirmedMinorHeader := v.bc.getLastConfirmedMinorBlockHeaderAtRootBlock(block.Header().PrevRootBlockHash)
 	if prevConfirmedMinorHeader != nil && !v.bc.isSameMinorChain(prevHeader, prevConfirmedMinorHeader) {
-		return errors.New("prev root block's minor block is not in the same chain as the minot block")
+		return errors.New("prev root block's minor block is not in the same chain as the minor block")
 	}
 
 	if !v.bc.isSameRootChain(v.bc.getRootBlockHeaderByHash(block.Header().GetPrevRootBlockHash()),
@@ -184,8 +182,7 @@ func (v *MinorBlockValidator) ValidateGasLimit(gasLimit, preGasLimit uint64) err
 }
 
 // ValidatorMinorBlockSeal validate minor block seal when validate block
-func (v *MinorBlockValidator) ValidatorMinorBlockSeal(mBlock types.IBlock) error {
-	block := mBlock.(*types.MinorBlock) //already check
+func (v *MinorBlockValidator) ValidatorMinorBlockSeal(block *types.MinorBlock) error {
 	branch := block.Header().GetBranch()
 	fullShardID := branch.GetFullShardID()
 	genesis := v.quarkChainConfig.GetShardConfigByFullShardID(fullShardID)
@@ -216,8 +213,8 @@ func (v *MinorBlockValidator) ValidateState(mBlock, parent types.IBlock, statedb
 	if common.IsNil(mBlock) {
 		return ErrMinorBlockIsNil
 	}
-	block := mBlock.(*types.MinorBlock)
-	if reflect.TypeOf(block) != reflect.TypeOf(new(types.MinorBlock)) {
+	block, ok := mBlock.(*types.MinorBlock)
+	if !ok {
 		return ErrInvalidMinorBlock
 	}
 	mHeader := block.Header()

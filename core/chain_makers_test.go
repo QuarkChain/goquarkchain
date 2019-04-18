@@ -103,11 +103,6 @@ func ExampleGenerateMinorBlockChain() {
 	rootBlock := gspec.CreateRootBlock()
 	genesis := gspec.MustCommitMinorBlock(db, rootBlock, gspec.qkcConfig.Chains[0].ShardSize|0)
 
-	// This call generates a chain of 5 blocks. The function runs for
-	// each block and adds different features to gen based on the
-	// block index.
-	//	signer := types.HomesteadSigner{}
-
 	chain, _ := GenerateMinorBlockChain(params.TestChainConfig, fakeClusterConfig.Quarkchain, genesis, new(consensus.FakeEngine), db, 5, func(config *config.QuarkChainConfig, i int, gen *MinorBlockGen) {
 		switch i {
 		case 0:

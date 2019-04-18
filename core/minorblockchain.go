@@ -544,7 +544,7 @@ func (m *MinorBlockChain) Genesis() *types.MinorBlock {
 }
 
 // HasBlock checks if a block is fully present in the database or not.
-func (m *MinorBlockChain) HasBlock(hash common.Hash, number uint64) bool {
+func (m *MinorBlockChain) HasBlock(hash common.Hash) bool {
 	if m.blockCache.Contains(hash) {
 		return true
 	}
@@ -552,8 +552,8 @@ func (m *MinorBlockChain) HasBlock(hash common.Hash, number uint64) bool {
 }
 
 // HasFastBlock checks if a fast block is fully present in the database or not.
-func (m *MinorBlockChain) HasFastBlock(hash common.Hash, number uint64) bool {
-	if !m.HasBlock(hash, number) {
+func (m *MinorBlockChain) HasFastBlock(hash common.Hash) bool {
+	if !m.HasBlock(hash) {
 		return false
 	}
 	if m.receiptsCache.Contains(hash) {
@@ -813,7 +813,7 @@ func (m *MinorBlockChain) InsertReceiptChain(blockChain []types.IBlock, receiptC
 			return i, fmt.Errorf("containing header #%d [%x…] unknown", block.NumberU64(), block.Hash().Bytes()[:4])
 		}
 		// Skip if the entire data is already known
-		if m.HasBlock(block.Hash(), block.NumberU64()) {
+		if m.HasBlock(block.Hash()) {
 			stats.ignored++
 			continue
 		}
@@ -1318,7 +1318,7 @@ func (m *MinorBlockChain) insertSidechain(it *insertIterator, shipIDTooOld []boo
 		}
 		externTd = new(big.Int).Add(externTd, block.IHeader().GetDifficulty())
 
-		if !m.HasBlock(block.Hash(), block.NumberU64()) {
+		if !m.HasBlock(block.Hash()) {
 			start := time.Now()
 			if err := m.WriteBlockWithoutState(block, externTd); err != nil {
 				return it.index, nil, nil, nil, err

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
+	qkcCommon "github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/core/state"
 	"github.com/QuarkChain/goquarkchain/core/types"
@@ -189,14 +190,14 @@ func (b *MinorBlockGen) AddTx(quarkChainConfig *config.QuarkChainConfig, tx *typ
 	b.AddTxWithChain(quarkChainConfig, nil, tx)
 }
 
-//// AddTxWithChain adds a transaction to the generated block. If no coinbase has
-//// been set, the block's coinbase is set to the zero address.
-////
-//// AddTxWithChain panics if the transaction cannot be executed. In addition to
-//// the protocol-imposed limitations (gas limit, etc.), there are some
-//// further limitations on the content of transactions that can be
-//// added. If contract code relies on the BLOCKHASH instruction,
-//// the block in chain will be returned.
+// AddTxWithChain adds a transaction to the generated block. If no coinbase has
+// been set, the block's coinbase is set to the zero address.
+//
+// AddTxWithChain panics if the transaction cannot be executed. In addition to
+// the protocol-imposed limitations (gas limit, etc.), there are some
+// further limitations on the content of transactions that can be
+// added. If contract code relies on the BLOCKHASH instruction,
+// the block in chain will be returned.
 func (b *MinorBlockGen) AddTxWithChain(quarkChainConfig *config.QuarkChainConfig, bc *MinorBlockChain, tx *types.Transaction) {
 	if b.gasPool == nil {
 		b.SetCoinbase(account.Address{})
@@ -288,9 +289,7 @@ func GenerateMinorBlockChain(config *params.ChainConfig, quarkChainConfig *confi
 			block.AddTx(v)
 		}
 
-		coinBaseAmount := new(big.Int).Set(quarkChainConfig.GetShardConfigByFullShardID(quarkChainConfig.Chains[0].ShardSize | 0).CoinbaseAmount)
-		coinBaseAmount = coinBaseAmount.Mul(coinBaseAmount, quarkChainConfig.RewardTaxRate.Num())
-		coinBaseAmount = coinBaseAmount.Div(coinBaseAmount, quarkChainConfig.RewardTaxRate.Denom())
+		coinBaseAmount := qkcCommon.BigIntMulBigRat(quarkChainConfig.GetShardConfigByFullShardID(quarkChainConfig.Chains[0].ShardSize|0).CoinbaseAmount, quarkChainConfig.RewardTaxRate)
 		statedb.AddBalance(block.Header().Coinbase.Recipient, coinBaseAmount)
 
 		b.statedb.Finalise(true)
@@ -301,7 +300,7 @@ func GenerateMinorBlockChain(config *params.ChainConfig, quarkChainConfig *confi
 		if err := b.statedb.Database().TrieDB().Commit(rootHash, true); err != nil {
 			panic(fmt.Sprintf("trie write error: %v", err))
 		}
-		coinBaseAmount = coinBaseAmount.Add(coinBaseAmount, statedb.GetBlockFee())
+		coinBaseAmount.Add(coinBaseAmount, statedb.GetBlockFee())
 		block.Finalize(b.receipts, rootHash, statedb.GetGasUsed(), statedb.GetXShardReceiveGasUsed(), coinBaseAmount)
 		return block, b.receipts
 	}
