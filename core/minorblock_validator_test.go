@@ -31,7 +31,7 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 )
 
-func ToMinorBlocks(minorBlocks []*types.MinorBlock) []types.IBlock {
+func toMinorBlocks(minorBlocks []*types.MinorBlock) []types.IBlock {
 	blocks := make([]types.IBlock, len(minorBlocks))
 	for i, block := range minorBlocks {
 		blocks[i] = block
@@ -99,7 +99,7 @@ func TestHeaderVerification(t *testing.T) {
 			case <-time.After(25 * time.Millisecond):
 			}
 		}
-		chain.InsertChain(ToMinorBlocks(blocks[i:i+1]), []bool{true})
+		chain.InsertChain(toMinorBlocks(blocks[i:i+1]), []bool{true})
 	}
 }
 

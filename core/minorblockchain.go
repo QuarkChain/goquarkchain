@@ -141,16 +141,26 @@ type MinorBlockChain struct {
 // NewMinorBlockChain returns a fully initialised block chain using information
 // available in the database. It initialises the default Ethereum Validator and
 // Processor.
-func NewMinorBlockChain(db ethdb.Database, cacheConfig *CacheConfig, chainConfig *params.ChainConfig, clusterConfig *config.ClusterConfig, engine consensus.Engine, vmConfig vm.Config, shouldPreserve func(block *types.MinorBlock) bool, fullShardID uint32, diffCalc consensus.DifficultyCalculator) (*MinorBlockChain, error) {
+func NewMinorBlockChain(
+	db ethdb.Database,
+	cacheConfig *CacheConfig,
+	chainConfig *params.ChainConfig,
+	clusterConfig *config.ClusterConfig,
+	engine consensus.Engine,
+	vmConfig vm.Config,
+	shouldPreserve func(block *types.MinorBlock) bool,
+	fullShardID uint32,
+	diffCalc consensus.DifficultyCalculator,
+) (*MinorBlockChain, error) {
 	if clusterConfig == nil || chainConfig == nil {
-		return nil, errors.New("can not new minorBlock:config is nil")
+		return nil, errors.New("can not new minorBlock: config is nil")
 	}
 	if cacheConfig == nil {
 		cacheConfig = &CacheConfig{
 			TrieCleanLimit: 256,
 			TrieDirtyLimit: 256,
 			TrieTimeLimit:  5 * time.Minute,
-			Disabled:       true,
+			Disabled:       true, //update trieDB every block
 		}
 	}
 	bodyCache, _ := lru.New(bodyCacheLimit)
@@ -180,10 +190,17 @@ func NewMinorBlockChain(db ethdb.Database, cacheConfig *CacheConfig, chainConfig
 		fullShardID:              fullShardID,
 		heightToMinorBlockHashes: make(map[uint64]map[common.Hash]struct{}),
 		currentEvmState:          new(state.StateDB),
+		branch:                   account.Branch{Value: fullShardID},
+		shardConfig:              clusterConfig.Quarkchain.GetShardConfigByFullShardID(fullShardID),
+		rewardCalc:               &qkcCommon.ConstMinorBlockRewardCalculator{},
+		gasPriceSuggestionOracle: &gasPriceSuggestionOracle{
+			LastPrice:   0,
+			LastHead:    common.Hash{},
+			CheckBlocks: 5,
+			Percentile:  50,
+		},
 	}
 	var err error
-	bc.branch = account.Branch{Value: fullShardID}
-	bc.shardConfig = bc.clusterConfig.Quarkchain.GetShardConfigByFullShardID(fullShardID)
 
 	if qkcCommon.IsNil(diffCalc) {
 		cutoff := bc.shardConfig.DifficultyAdjustmentCutoffTime
@@ -192,14 +209,6 @@ func NewMinorBlockChain(db ethdb.Database, cacheConfig *CacheConfig, chainConfig
 		bc.diffCalc = &consensus.EthDifficultyCalculator{AdjustmentCutoff: cutoff, AdjustmentFactor: diffFactor, MinimumDifficulty: new(big.Int).SetUint64(minDiff)}
 	} else {
 		bc.diffCalc = diffCalc
-	}
-
-	bc.rewardCalc = &qkcCommon.ConstMinorBlockRewardCalculator{}
-	bc.gasPriceSuggestionOracle = &gasPriceSuggestionOracle{
-		LastPrice:   0,
-		LastHead:    common.Hash{},
-		CheckBlocks: 5,
-		Percentile:  50,
 	}
 
 	bc.SetValidator(NewBlockValidator(clusterConfig.Quarkchain, bc.chainConfig, bc, engine, bc.branch, bc.diffCalc, bc.shardConfig))
@@ -221,7 +230,6 @@ func NewMinorBlockChain(db ethdb.Database, cacheConfig *CacheConfig, chainConfig
 	if err := bc.loadLastState(); err != nil {
 		return nil, err
 	}
-
 	// Check the current state of the block hashes and make sure that we do not have any of the bad blocks in our chain
 	for hash := range BadHashes {
 		if header := bc.GetHeaderByHash(hash); header != nil {
@@ -246,7 +254,7 @@ func (m *MinorBlockChain) getProcInterrupt() bool {
 	return atomic.LoadInt32(&m.procInterrupt) == 1
 }
 
-// GetVMConfig returns the block chain VM quarkChainConfig.
+// GetVMConfig returns the block chain VM config.
 func (m *MinorBlockChain) GetVMConfig() *vm.Config {
 	return &m.vmConfig
 }
@@ -430,8 +438,8 @@ func (m *MinorBlockChain) ResetWithGenesisBlock(genesis *types.MinorBlock) error
 	if err := m.SetHead(0); err != nil {
 		return err
 	}
-	m.mu.Lock()
-	defer m.mu.Unlock()
+	//m.mu.Lock()
+	//defer m.mu.Unlock()
 
 	// Prepare the genesis block and reinitialise the chain
 	if err := m.hc.WriteTd(genesis.Hash(), genesis.NumberU64(), genesis.Difficulty()); err != nil {
@@ -440,7 +448,7 @@ func (m *MinorBlockChain) ResetWithGenesisBlock(genesis *types.MinorBlock) error
 	rawdb.WriteMinorBlock(m.db, genesis)
 
 	m.genesisBlock = genesis
-	m.insert(m.genesisBlock, true)
+	m.insert(m.genesisBlock)
 	m.currentBlock.Store(m.genesisBlock)
 	m.hc.SetGenesis(m.genesisBlock.Header())
 	m.hc.SetCurrentHeader(m.genesisBlock.Header())
@@ -515,25 +523,20 @@ func (m *MinorBlockChain) ExportN(w io.Writer, first uint64, last uint64) error 
 // or if they are on a different side chain.
 //
 // Note, this function assumes that the `mu` mutex is held!
-func (m *MinorBlockChain) insert(block *types.MinorBlock, updateTip bool) {
-	if updateTip == false {
-		return
-	}
+func (m *MinorBlockChain) insert(block *types.MinorBlock) {
 	// If the block is on a side chain or an unknown one, force other heads onto it too
 	updateHeads := rawdb.ReadCanonicalHash(m.db, rawdb.ChainTypeMinor, block.NumberU64()) != block.Hash()
 
 	// Add the block to the canonical chain number scheme and mark as the head
+	//fmt.Println("insert", block.Hash().String(), block.NumberU64())
 	rawdb.WriteCanonicalHash(m.db, rawdb.ChainTypeMinor, block.Hash(), block.NumberU64())
 	rawdb.WriteHeadBlockHash(m.db, block.Hash())
 
-	//preBlock := m.CurrentBlock()
 	m.currentBlock.Store(block)
 
 	// If the block is better than our head or is on a different chain, force update heads
 	if updateHeads {
 		m.hc.SetCurrentHeader(block.Header())
-		//fmt.Println("?????")
-		//	m.reWriteBlockIndexTo(preBlock, block)
 	}
 
 }
@@ -549,17 +552,6 @@ func (m *MinorBlockChain) HasBlock(hash common.Hash) bool {
 		return true
 	}
 	return rawdb.HasBlock(m.db, hash)
-}
-
-// HasFastBlock checks if a fast block is fully present in the database or not.
-func (m *MinorBlockChain) HasFastBlock(hash common.Hash) bool {
-	if !m.HasBlock(hash) {
-		return false
-	}
-	if m.receiptsCache.Contains(hash) {
-		return true
-	}
-	return rawdb.HasReceipts(m.db, hash)
 }
 
 // HasState checks if state trie is fully present in the database or not.
@@ -675,6 +667,7 @@ func (m *MinorBlockChain) Stop() {
 				recentBlockInterface := m.GetBlockByNumber(number - offset)
 				if qkcCommon.IsNil(recentBlockInterface) {
 					log.Error("block is nil", "err", errInsufficientBalanceForGas)
+					continue
 				}
 				recent := recentBlockInterface.(*types.MinorBlock)
 
@@ -685,8 +678,7 @@ func (m *MinorBlockChain) Stop() {
 			}
 		}
 		for !m.triegc.Empty() {
-			ss := m.triegc.PopItem().(common.Hash)
-			triedb.Dereference(ss)
+			triedb.Dereference(m.triegc.PopItem().(common.Hash))
 		}
 		if size, _ := triedb.Size(); size != 0 {
 			log.Error("Dangling trie nodes after full cleanup")
@@ -881,7 +873,6 @@ func (m *MinorBlockChain) WriteBlockWithoutState(block types.IBlock, td *big.Int
 
 // WriteBlockWithState writes the block and all associated state to the database.
 func (m *MinorBlockChain) WriteBlockWithState(block *types.MinorBlock, receipts []*types.Receipt, state *state.StateDB, xShardList []*types.CrossShardTransactionDeposit, updateTip bool) (status WriteStatus, err error) {
-	//fmt.Println("WriteBlockWithState", block.NumberU64())
 	m.wg.Add(1)
 	defer m.wg.Done()
 
@@ -898,7 +889,6 @@ func (m *MinorBlockChain) WriteBlockWithState(block *types.MinorBlock, receipts 
 	localTd := m.GetTd(currentBlock.Hash(), currentBlock.NumberU64())
 	externTd := new(big.Int).Add(block.IHeader().GetDifficulty(), ptd)
 
-	//fmt.Println("writeBlockWithState",block.NumberU64(),block.Hash().String(),localTd,externTd)
 	// Irrelevant of the canonical status, write the block itself to the database
 	if err := m.hc.WriteTd(block.Hash(), block.NumberU64(), externTd); err != nil {
 		return NonStatTy, err
@@ -998,7 +988,6 @@ func (m *MinorBlockChain) WriteBlockWithState(block *types.MinorBlock, receipts 
 		} else {
 			// Reorganise the chain if the parent is not the head block
 			if block.ParentHash() != currentBlock.Hash() {
-				//fmt.Println("???????", currentBlock.NumberU64(), block.NumberU64())
 				if err := m.reorg(currentBlock, block); err != nil {
 					return NonStatTy, err
 				}
@@ -1021,7 +1010,7 @@ func (m *MinorBlockChain) WriteBlockWithState(block *types.MinorBlock, receipts 
 
 	// Set new head.
 	if status == CanonStatTy || updateTip == true {
-		m.insert(block, updateTip)
+		m.insert(block)
 	}
 	m.futureBlocks.Remove(block.Hash())
 	return status, nil
@@ -1396,7 +1385,6 @@ func (m *MinorBlockChain) insertSidechain(it *insertIterator, shipIDTooOld []boo
 // to be part of the new canonical chain and accumulates potential missing transactions and post an
 // event about them
 func (m *MinorBlockChain) reorg(oldBlock, newBlock types.IBlock) error {
-	fmt.Println("reorg", oldBlock.NumberU64(), newBlock.NumberU64())
 	if qkcCommon.IsNil(oldBlock) || qkcCommon.IsNil(newBlock) {
 		return errors.New("reorg err:block is nil")
 	}
@@ -1448,7 +1436,7 @@ func (m *MinorBlockChain) reorg(oldBlock, newBlock types.IBlock) error {
 	}
 
 	for {
-		if oldBlock.Hash() == newBlock.Hash() || oldBlock.NumberU64() == 0 || newBlock.NumberU64() == 0 {
+		if oldBlock.Hash() == newBlock.Hash() {
 			commonBlock = oldBlock
 			break
 		}
@@ -1481,7 +1469,7 @@ func (m *MinorBlockChain) reorg(oldBlock, newBlock types.IBlock) error {
 	var addedTxs types.Transactions
 	for i := len(newChain) - 1; i >= 0; i-- {
 		// insert the block in the canonical way, re-writing history
-		m.insert(newChain[i].(*types.MinorBlock), true)
+		m.insert(newChain[i].(*types.MinorBlock))
 		// write lookup entries for hash based transaction/receipt searches
 		rawdb.WriteBlockContentLookupEntries(m.db, newChain[i])
 		addedTxs = append(addedTxs, newChain[i].(*types.MinorBlock).GetTransactions()...)
