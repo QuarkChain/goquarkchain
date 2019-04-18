@@ -26,7 +26,6 @@ import (
 	"github.com/QuarkChain/goquarkchain/serialize"
 	"io"
 	"math/big"
-	mrand "math/rand"
 	"sort"
 	"sync"
 	"sync/atomic"
@@ -46,7 +45,6 @@ import (
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
-	"github.com/ethereum/go-ethereum/trie"
 	"github.com/hashicorp/golang-lru"
 )
 
@@ -225,23 +223,10 @@ func NewMinorBlockChain(
 	}
 	bc.genesisBlock = genesisBlock.(*types.MinorBlock)
 	if bc.genesisBlock == nil {
-		return nil, errNoGenesis
+		return nil, ErrNoGenesis
 	}
 	if err := bc.loadLastState(); err != nil {
 		return nil, err
-	}
-	// Check the current state of the block hashes and make sure that we do not have any of the bad blocks in our chain
-	for hash := range BadHashes {
-		if header := bc.GetHeaderByHash(hash); header != nil {
-			// get the canonical block corresponding to the offending header's number
-			headerByNumber := bc.GetHeaderByNumber(header.NumberU64())
-			// make sure the headerByNumber (if present) is in our current canonical chain
-			if headerByNumber != nil && headerByNumber.Hash() == header.Hash() {
-				log.Error("Found bad hash, rewinding chain", "number", header.NumberU64(), "hash", header.GetParentHash())
-				bc.SetHead(header.NumberU64() - 1)
-				log.Error("Chain rewind was successful, resuming normal operation")
-			}
-		}
 	}
 
 	bc.txPool = NewTxPool(DefaultTxPoolConfig, bc.chainConfig, bc)
@@ -313,9 +298,6 @@ func (m *MinorBlockChain) loadLastState() error {
 func (m *MinorBlockChain) SetHead(head uint64) error {
 	log.Warn("Rewinding blockchain", "target", head)
 
-	//m.mu.Lock()
-	//defer m.mu.Unlock()
-
 	// Rewind the header chain, deleting all block bodies until then
 	delFn := func(db rawdb.DatabaseDeleter, hash common.Hash) {
 		rawdb.DeleteBlock(db, hash)
@@ -350,26 +332,6 @@ func (m *MinorBlockChain) SetHead(head uint64) error {
 	rawdb.WriteHeadBlockHash(m.db, currentBlock.Hash())
 
 	return m.loadLastState()
-}
-
-// FastSyncCommitHead sets the current head block to the one defined by the hash
-// irrelevant what the chain contents were prior.
-func (m *MinorBlockChain) FastSyncCommitHead(hash common.Hash) error {
-	// Make sure that both the block as well at its state trie exists
-	block := m.GetBlockByHash(hash)
-	if block == nil {
-		return fmt.Errorf("non existent block [%x…]", hash[:4])
-	}
-	if _, err := trie.NewSecure(block.Meta().Root, m.stateCache.TrieDB(), 0); err != nil {
-		return err
-	}
-	// If all checks out, manually set the head block
-	m.mu.Lock()
-	m.currentBlock.Store(block)
-	m.mu.Unlock()
-
-	log.Info("Committed new head block", "number", block.Number(), "hash", hash)
-	return nil
 }
 
 // GasLimit returns the gas limit of the current HEAD block.
@@ -438,8 +400,6 @@ func (m *MinorBlockChain) ResetWithGenesisBlock(genesis *types.MinorBlock) error
 	if err := m.SetHead(0); err != nil {
 		return err
 	}
-	//m.mu.Lock()
-	//defer m.mu.Unlock()
 
 	// Prepare the genesis block and reinitialise the chain
 	if err := m.hc.WriteTd(genesis.Hash(), genesis.NumberU64(), genesis.Difficulty()); err != nil {
@@ -688,13 +648,10 @@ func (m *MinorBlockChain) Stop() {
 }
 
 func (m *MinorBlockChain) procFutureBlocks() {
-	skipBoolList := make([]bool, 0)
 	blocks := make([]types.IBlock, 0, m.futureBlocks.Len())
 	for _, hash := range m.futureBlocks.Keys() {
 		if block, exist := m.futureBlocks.Peek(hash); exist {
 			blocks = append(blocks, block.(*types.MinorBlock))
-			//false???
-			skipBoolList = append(skipBoolList, false)
 		}
 	}
 	if len(blocks) > 0 {
@@ -702,7 +659,7 @@ func (m *MinorBlockChain) procFutureBlocks() {
 
 		// Insert one by one as chain insertion needs contiguous ancestry between blocks
 		for i := range blocks {
-			m.InsertChain(blocks[i:i+1], skipBoolList)
+			m.InsertChain(blocks[i : i+1])
 		}
 	}
 }
@@ -886,7 +843,7 @@ func (m *MinorBlockChain) WriteBlockWithState(block *types.MinorBlock, receipts 
 	defer m.mu.Unlock()
 
 	currentBlock := m.CurrentBlock()
-	localTd := m.GetTd(currentBlock.Hash(), currentBlock.NumberU64())
+
 	externTd := new(big.Int).Add(block.IHeader().GetDifficulty(), ptd)
 
 	// Irrelevant of the canonical status, write the block itself to the database
@@ -904,13 +861,9 @@ func (m *MinorBlockChain) WriteBlockWithState(block *types.MinorBlock, receipts 
 	}
 	triedb := m.stateCache.TrieDB()
 
-	//if err := triedb.Commit(root, true); err != nil {
-	//	return NonStatTy, err
-	//}
-
 	// If we're running an archive node, always flush
 	if m.cacheConfig.Disabled {
-		if err := triedb.Commit(root, true); err != nil {
+		if err := triedb.Commit(root, false); err != nil {
 			return NonStatTy, err
 		}
 	} else {
@@ -964,39 +917,18 @@ func (m *MinorBlockChain) WriteBlockWithState(block *types.MinorBlock, receipts 
 	batch := m.db.NewBatch()
 	rawdb.WriteReceipts(batch, block.Hash(), receipts)
 
-	// If the total difficulty is higher than our known, add it to the canonical chain
-	// Second clause in the if statement reduces the vulnerability to selfish mining.
-	// Please refer to http://www.cs.cornell.edu/~ie53/publications/btcProcFC.pdf
-	reorg := externTd.Cmp(localTd) > 0
-	currentBlock = m.CurrentBlock()
-	if !reorg && externTd.Cmp(localTd) == 0 {
-		// Split same-difficulty blocks by number, then preferentially select
-		// the block generated by the local miner as the canonical block.
-		if block.NumberU64() < currentBlock.NumberU64() {
-			reorg = true
-		} else if block.NumberU64() == currentBlock.NumberU64() {
-			var currentPreserve, blockPreserve bool
-			if m.shouldPreserve != nil {
-				currentPreserve, blockPreserve = m.shouldPreserve(currentBlock), m.shouldPreserve(block)
+	if updateTip {
+		// Reorganise the chain if the parent is not the head block
+		if block.ParentHash() != currentBlock.Hash() {
+			if err := m.reorg(currentBlock, block); err != nil {
+				return NonStatTy, err
 			}
-			reorg = !currentPreserve && (blockPreserve || mrand.Float64() < 0.5)
 		}
-	}
-	if reorg {
-		if updateTip == false {
-			status = SideStatTy
-		} else {
-			// Reorganise the chain if the parent is not the head block
-			if block.ParentHash() != currentBlock.Hash() {
-				if err := m.reorg(currentBlock, block); err != nil {
-					return NonStatTy, err
-				}
-			}
-			// Write the positional metadata for transaction/receipt lookups and preimages
-			rawdb.WriteBlockContentLookupEntries(batch, block)
-			rawdb.WritePreimages(batch, state.Preimages())
-			status = CanonStatTy
-		}
+		// Write the positional metadata for transaction/receipt lookups and preimages
+		rawdb.WriteBlockContentLookupEntries(batch, block)
+		rawdb.WritePreimages(batch, state.Preimages())
+		status = CanonStatTy
+
 	} else {
 		status = SideStatTy
 	}
@@ -1004,12 +936,9 @@ func (m *MinorBlockChain) WriteBlockWithState(block *types.MinorBlock, receipts 
 	if err := batch.Write(); err != nil {
 		return NonStatTy, err
 	}
-	if updateTip == false {
-		status = SideStatTy
-	}
 
 	// Set new head.
-	if status == CanonStatTy || updateTip == true {
+	if status == CanonStatTy {
 		m.insert(block)
 	}
 	m.futureBlocks.Remove(block.Hash())
@@ -1034,7 +963,7 @@ func (m *MinorBlockChain) addFutureBlock(block types.IBlock) error {
 // wrong.
 //
 // After insertion is done, all accumulated events will be fired.
-func (m *MinorBlockChain) InsertChain(chain []types.IBlock, skipIfTooOld []bool) (int, [][]*types.CrossShardTransactionDeposit, error) {
+func (m *MinorBlockChain) InsertChain(chain []types.IBlock) (int, [][]*types.CrossShardTransactionDeposit, error) {
 	// Sanity check that we have something meaningful to import
 	if len(chain) == 0 {
 		return 0, nil, nil
@@ -1053,7 +982,7 @@ func (m *MinorBlockChain) InsertChain(chain []types.IBlock, skipIfTooOld []bool)
 	// Pre-checks passed, start the full block imports
 	m.wg.Add(1)
 	m.chainmu.Lock()
-	n, events, logs, xShardList, err := m.insertChain(chain, true, skipIfTooOld)
+	n, events, logs, xShardList, err := m.insertChain(chain, true)
 	m.chainmu.Unlock()
 	m.wg.Done()
 
@@ -1069,7 +998,7 @@ func (m *MinorBlockChain) InsertChain(chain []types.IBlock, skipIfTooOld []bool)
 // racey behaviour. If a sidechain import is in progress, and the historic state
 // is imported, but then new canon-head is added before the actual sidechain
 // completes, then the historic state could be pruned again
-func (m *MinorBlockChain) insertChain(chain []types.IBlock, verifySeals bool, shipIDTooOld []bool) (int, []interface{}, []*types.Log, [][]*types.CrossShardTransactionDeposit, error) {
+func (m *MinorBlockChain) insertChain(chain []types.IBlock, verifySeals bool) (int, []interface{}, []*types.Log, [][]*types.CrossShardTransactionDeposit, error) {
 	xShardList := make([][]*types.CrossShardTransactionDeposit, 0)
 	evmTxIncluded := make([]*types.Transaction, 0)
 	// If the chain is terminating, don't even bother starting u
@@ -1110,7 +1039,7 @@ func (m *MinorBlockChain) insertChain(chain []types.IBlock, verifySeals bool, sh
 	switch {
 	// First block is pruned, insert as sidechain and reorg only if TD grows enough
 	case err == ErrPrunedAncestor:
-		return m.insertSidechain(it, shipIDTooOld)
+		return m.insertSidechain(it)
 
 	// First block is future, shove it (and all children) to the future queue (unknown ancestor)
 	case err == ErrFutureBlock || (err == ErrUnknownAncestor && m.futureBlocks.Contains(it.first().IHeader().GetParentHash())):
@@ -1150,23 +1079,10 @@ func (m *MinorBlockChain) insertChain(chain []types.IBlock, verifySeals bool, sh
 	// No validation errors for the first block (or chain prefix skipped)
 	for ; !qkcCommon.IsNil(block) && err == nil; block, err = it.next() {
 		mBlock := block.(*types.MinorBlock)
-		if shipIDTooOld[it.index] {
-			if int(m.CurrentBlock().NumberU64())-int(mBlock.NumberU64()) > int(m.shardConfig.MaxStaleMinorBlockHeightDiff()) {
-				return it.index, events, coalescedLogs, xShardList, errors.New("too old")
-			}
-		}
-		//if m.GetBlock(block.IHeader().Hash()) != nil {
-		//	return it.index, events, coalescedLogs, xShardList, errors.New("has exist")
-		//}
 		// If the chain is terminating, stop processing blocks
 		if atomic.LoadInt32(&m.procInterrupt) == 1 {
 			log.Debug("Premature abort during blocks processing")
 			break
-		}
-		// If the header is a banned one, straight out abort
-		if BadHashes[mBlock.Hash()] {
-			m.reportBlock(mBlock, nil, ErrBlacklistedHash)
-			return it.index, events, coalescedLogs, xShardList, ErrBlacklistedHash
 		}
 		// Retrieve the parent block and it's state to execute on top
 		start := time.Now()
@@ -1273,7 +1189,7 @@ func (m *MinorBlockChain) insertChain(chain []types.IBlock, verifySeals bool, sh
 //
 // The method writes all (header-and-body-valid) blocks to disk, then tries to
 // switch over to the new chain if the TD exceeded the current chain.
-func (m *MinorBlockChain) insertSidechain(it *insertIterator, shipIDTooOld []bool) (int, []interface{}, []*types.Log, [][]*types.CrossShardTransactionDeposit, error) {
+func (m *MinorBlockChain) insertSidechain(it *insertIterator) (int, []interface{}, []*types.Log, [][]*types.CrossShardTransactionDeposit, error) {
 	var (
 		externTd *big.Int
 		current  = m.CurrentBlock().NumberU64()
@@ -1349,12 +1265,10 @@ func (m *MinorBlockChain) insertSidechain(it *insertIterator, shipIDTooOld []boo
 		blocks []types.IBlock
 		memory common.StorageSize
 	)
-	shipIDTooOld = make([]bool, 0)
 	for i := len(hashes) - 1; i >= 0; i-- {
 		// Append the next block to our batch
 		block := m.GetBlock(hashes[i])
 		blocks = append(blocks, block)
-		shipIDTooOld = append(shipIDTooOld, false)
 		memory += block.GetSize()
 
 		// If memory use grew too large, import and continue. Sadly we need to discard
@@ -1362,7 +1276,7 @@ func (m *MinorBlockChain) insertSidechain(it *insertIterator, shipIDTooOld []boo
 		// memory here.
 		if len(blocks) >= 2048 || memory > 64*1024*1024 {
 			log.Info("Importing heavy sidechain segment", "blocks", len(blocks), "start", blocks[0].NumberU64(), "end", block.NumberU64())
-			if _, _, _, _, err := m.insertChain(blocks, false, shipIDTooOld); err != nil {
+			if _, _, _, _, err := m.insertChain(blocks, false); err != nil {
 				return 0, nil, nil, nil, err
 			}
 			blocks, memory = blocks[:0], 0
@@ -1376,7 +1290,7 @@ func (m *MinorBlockChain) insertSidechain(it *insertIterator, shipIDTooOld []boo
 	}
 	if len(blocks) > 0 {
 		log.Info("Importing sidechain segment", "start", blocks[0].NumberU64(), "end", blocks[len(blocks)-1].NumberU64())
-		return m.insertChain(blocks, false, shipIDTooOld)
+		return m.insertChain(blocks, false)
 	}
 	return 0, nil, nil, nil, nil
 }
@@ -1562,7 +1476,7 @@ func (m *MinorBlockChain) reportBlock(block types.IBlock, receipts types.Receipt
 	}
 	log.Error(fmt.Sprintf(`
 ########## BAD BLOCK #########
-Chain quarkChainConfig: %v
+Chain config: %v
 
 Number: %v
 Hash: 0x%x

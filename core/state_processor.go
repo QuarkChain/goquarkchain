@@ -184,9 +184,5 @@ func ApplyTransaction(config *params.ChainConfig, bc ChainContext, gp *GasPool, 
 	receipt.Logs = statedb.GetLogs(tx.Hash())
 	receipt.Bloom = types.CreateBloom(types.Receipts{receipt})
 
-	if err != nil {
-		panic(err)
-	}
-
 	return receipt, gas, err
 }
