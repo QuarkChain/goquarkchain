@@ -10,7 +10,6 @@ import (
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/rpc"
 )
 
 var (
@@ -97,10 +96,6 @@ func (d *DoubleSHA256) CalcDifficulty(chain consensus.ChainReader, time uint64, 
 // Hashrate returns the current mining hashrate of a PoW consensus engine.
 func (d *DoubleSHA256) Hashrate() float64 {
 	return d.commonEngine.Hashrate()
-}
-
-func (d *DoubleSHA256) APIs(chain consensus.ChainReader) []rpc.API {
-	return []rpc.API{}
 }
 
 // Close terminates any background threads maintained by the consensus engine.
