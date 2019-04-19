@@ -2,15 +2,17 @@ package qkchash
 
 import (
 	"bytes"
-	"math/big"
-
+	"errors"
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/core/types"
+	"math/big"
 )
 
 var (
 	// two256 is a big integer representing 2^256
 	two256 = new(big.Int).Exp(big.NewInt(2), big.NewInt(256), big.NewInt(0))
+
+	errNoMiningWork = errors.New("no mining work available yet")
 )
 
 // Seal generates a new block for the given input block with the local miner's
@@ -20,7 +22,10 @@ func (q *QKCHash) Seal(
 	block types.IBlock,
 	results chan<- types.IBlock,
 	stop <-chan struct{}) error {
-
+	if q.commonEngine.IsRemoteMining() {
+		q.commonEngine.SetWork(block, results)
+		return nil
+	}
 	return q.commonEngine.Seal(block, results, stop)
 }
 
