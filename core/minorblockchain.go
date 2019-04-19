@@ -705,7 +705,6 @@ func SetReceiptsData(config *config.QuarkChainConfig, mBlock types.IBlock, recei
 			// Deriving the signer is expensive, only do if it's actually needed
 			from, _ := types.Sender(signer, transactions[j].EvmTx)
 			receipts[j].ContractAddress = account.BytesToIdentityRecipient(vm.CreateAddress(from, transactions[j].EvmTx.ToFullShardId(), transactions[j].EvmTx.Nonce()).Bytes())
-			//receipts[j].ContractAddress = crypto.CreateAddress(from, transactions[j].Nonce())
 		}
 		// The used gas can be calculated based on previous receipts
 		if j == 0 {
@@ -793,9 +792,7 @@ func (m *MinorBlockChain) InsertReceiptChain(blockChain []types.IBlock, receiptC
 	}
 
 	// Update the head fast sync block if better
-	m.mu.Lock()
 	head := blockChain[len(blockChain)-1]
-	m.mu.Unlock()
 
 	context := []interface{}{
 		"count", stats.processed, "elapsed", common.PrettyDuration(time.Since(start)),
@@ -879,11 +876,11 @@ func (m *MinorBlockChain) WriteBlockWithState(block *types.MinorBlock, receipts 
 			}
 			// Find the next state trie we need to commit
 			header := m.GetHeaderByNumber(current - triesInMemory)
-			preBlochInterface := m.GetBlockByNumber(current - triesInMemory)
-			if qkcCommon.IsNil(preBlochInterface) {
+			preBlockInterface := m.GetBlockByNumber(current - triesInMemory)
+			if qkcCommon.IsNil(preBlockInterface) {
 				log.Error("minorBlock not found", "height", current-triesInMemory)
 			}
-			preBlock := preBlochInterface.(*types.MinorBlock)
+			preBlock := preBlockInterface.(*types.MinorBlock)
 			chosen := header.NumberU64()
 
 			// If we exceeded out time allowance, flush an entire trie to disk
@@ -1085,7 +1082,6 @@ func (m *MinorBlockChain) insertChain(chain []types.IBlock, verifySeals bool) (i
 		start := time.Now()
 		parent := it.previous()
 		if parent == nil {
-			//parent = m.CurrentBlock()
 			parent = m.GetBlock(mBlock.Header().GetParentHash())
 		}
 		if qkcCommon.IsNil(parent) {
