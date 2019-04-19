@@ -2,7 +2,6 @@ package core
 
 import (
 	"errors"
-	"fmt"
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/consensus"
@@ -1157,14 +1156,9 @@ func TestXShardForTwoRootBlocks(t *testing.T) {
 	rootBlock0.AddMinorBlockHeader(b0.Header())
 	rootBlock0.AddMinorBlockHeader(b1.Header())
 	rootBlock0.Finalize(nil, nil)
-	//fmt.Println("????", shardState0.CurrentBlock().Hash().String(), shardState0.CurrentHeader().Hash().String(), b0.Hash().String())
 	err = shardState0.AddRootBlock(rootBlock0)
-
 	checkErr(err)
-	//fmt.Println("????", shardState0.CurrentBlock().Hash().String(), shardState0.CurrentHeader().Hash().String())
-	//fmt.Println("before b2", shardState0.CurrentBlock().NumberU64())
 	b2 := shardState0.CurrentBlock().CreateBlockToAppend(nil, nil, nil, nil, nil, nil, nil)
-	//fmt.Println("b2.Number", b2.NumberU64())
 	b2, _, err = shardState0.FinalizeAndAddBlock(b2)
 	checkErr(err)
 
@@ -1384,10 +1378,7 @@ func TestShardStateAddRootBlock(t *testing.T) {
 	rootBlock2.Finalize(nil, nil)
 
 	ifEqual(shardState0.CurrentBlock().Hash().String(), b2.Header().Hash().String())
-
-	//fmt.Println("AddRootBlock2")
 	err = shardState0.AddRootBlock(rootBlock2)
-	//fmt.Println("AddRootBlock2-end")
 	checkErr(err)
 
 	currHeader := shardState0.CurrentHeader().(*types.MinorBlockHeader)
@@ -1543,20 +1534,18 @@ func TestShardStateRecoveryFromRootBlock(t *testing.T) {
 	blockMetas = append(blockMetas, shardState.CurrentBlock().GetMetaData())
 	for index := 0; index < 12; index++ {
 		b := shardState.CurrentBlock().CreateBlockToAppend(nil, nil, &acc1, nil, nil, nil, nil)
-		//fmt.Println("index", index, b.Header().Number)
 		b, _, err = shardState.FinalizeAndAddBlock(b)
 
 		checkErr(err)
 		blockHeaders = append(blockHeaders, b.Header())
 		blockMetas = append(blockMetas, b.Meta())
 	}
-	//fmt.Println("end")
+
 	b1 := shardState.GetBlockByNumber(3).(*types.MinorBlock)
 	b11Header := b1.Header()
 	b11Header.Time = b1.Header().GetTime() + 1
 	b1 = types.NewMinorBlock(b11Header, b1.Meta(), b1.Transactions(), nil, nil)
 	b1, _, err = shardState.FinalizeAndAddBlock(b1)
-	//fmt.Println("b1???")
 	checkErr(err)
 
 	DBb1 := shardState.GetBlockByHash(b1.Hash())
@@ -1574,12 +1563,7 @@ func TestShardStateRecoveryFromRootBlock(t *testing.T) {
 	Engine := new(consensus.FakeEngine)
 
 	recoveredState, err := NewMinorBlockChain(env.db, nil, ethParams.TestChainConfig, fakeClusterConfig, Engine, vm.Config{}, nil, 2|0, nil)
-
-	//fmt.Println("hahha")
 	err = recoveredState.InitFromRootBlock(rootBlock)
-	fmt.Println(">>>>>>>>>>", recoveredState.CurrentBlock().NumberU64())
-	//s := recoveredState.GetBlockByNumber(10)
-	//fmt.Println("SSSSS", s.NumberU64())
 	checkErr(err)
 	tempBlock := recoveredState.GetBlockByHash(b1.Header().Hash())
 

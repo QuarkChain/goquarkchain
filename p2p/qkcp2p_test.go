@@ -75,11 +75,13 @@ func TestServerConnection(t *testing.T) {
 
 	select {
 	case <-time.After(2 * time.Second):
-		if len(p1.server.Peers()) != 1 && len(p2.server.Peers()) != 1 {
+		p1Peers := p1.server.Peers()
+		p2Peers := p2.server.Peers()
+		if len(p1Peers) != 1 && len(p2Peers) != 1 {
 			t.Error("peer connect failed")
 		}
-		peer1 := p1.server.Peers()[0]
-		peer2 := p2.server.Peers()[0]
+		peer1 := p1Peers[0]
+		peer2 := p2Peers[0]
 		if peer1.LocalAddr().String() != peer2.RemoteAddr().String() {
 			t.Error("peer connect err", "ip is not correct")
 		}
