@@ -19,18 +19,11 @@ package master
 import (
 	"bytes"
 	"fmt"
-	"github.com/QuarkChain/goquarkchain/core"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/p2p"
 	"github.com/QuarkChain/goquarkchain/serialize"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/consensus/ethash"
-	"github.com/ethereum/go-ethereum/eth/downloader"
-	"github.com/ethereum/go-ethereum/ethdb"
-	"github.com/ethereum/go-ethereum/event"
-	"github.com/ethereum/go-ethereum/params"
 	"io/ioutil"
-	"math/big"
 	"testing"
 	"time"
 )
@@ -353,80 +346,4 @@ func handleMsg(peer *peer) error {
 		return fmt.Errorf("unknown msg code %d", qkcMsg.Op)
 	}
 	return nil
-}
-
-func TestBroadcastBlock(t *testing.T) {
-	var tests = []struct {
-		totalPeers        int
-		broadcastExpected int
-	}{
-		{1, 1},
-		{2, 2},
-		{3, 3},
-		{4, 4},
-		{5, 4},
-		{9, 4},
-		{12, 4},
-		{16, 4},
-		{26, 5},
-		{100, 10},
-	}
-	for _, test := range tests {
-		testBroadcastBlock(t, test.totalPeers, test.broadcastExpected)
-	}
-}
-
-func testBroadcastBlock(t *testing.T, totalPeers, broadcastExpected int) {
-	pm, _ := newTestProtocolManagerMust(t, rootBlockHeaderListLimit+15, nil)
-	peer, _ := newTestPeer("peer", int(qkcconfig.P2PProtocolVersion), pm, true)
-	clientPeer := newTestClientPeer(int(qkcconfig.P2PProtocolVersion), peer.app)
-	defer peer.close()
-
-	var peers []*testPeer
-	for i := 0; i < totalPeers; i++ {
-		peer, _ := newTestPeer(fmt.Sprintf("peer %d", i), eth63, pm, true)
-		defer peer.close()
-		peers = append(peers, peer)
-	}
-
-	chain := core.GenerateRootBlockChain(pm.rootBlockChain.CurrentBlock(), pm.rootBlockChain.Engine(), 1, nil)
-	//chain, _ := core.GenerateChain(gspec.Config, genesis, ethash.NewFaker(), db, 1, func(i int, gen *core.BlockGen) {})
-	pm.BroadcastBlock(chain[0], true)
-
-	errCh := make(chan error, totalPeers)
-	doneCh := make(chan struct{}, totalPeers)
-	for _, peer := range peers {
-		go func(p *testPeer) {
-			if err := p2p.ExpectMsg(p.app, NewBlockMsg, &newBlockData{Block: chain[0], TD: big.NewInt(131136)}); err != nil {
-				errCh <- err
-			} else {
-				doneCh <- struct{}{}
-			}
-		}(peer)
-	}
-	timeout := time.After(300 * time.Millisecond)
-	var receivedCount int
-outer:
-	for {
-		select {
-		case err = <-errCh:
-			break outer
-		case <-doneCh:
-			receivedCount++
-			if receivedCount == totalPeers {
-				break outer
-			}
-		case <-timeout:
-			break outer
-		}
-	}
-	for _, peer := range peers {
-		peer.app.Close()
-	}
-	if err != nil {
-		t.Errorf("error matching block by peer: %v", err)
-	}
-	if receivedCount != broadcastExpected {
-		t.Errorf("block broadcast to %d peers, expected %d", receivedCount, broadcastExpected)
-	}
 }
