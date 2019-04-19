@@ -34,7 +34,6 @@ import (
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/metrics"
-	"github.com/ethereum/go-ethereum/params"
 )
 
 const (
@@ -181,7 +180,6 @@ func (config *TxPoolConfig) sanitize() TxPoolConfig {
 // two states over time as they are received and processed.
 type TxPool struct {
 	config       TxPoolConfig
-	chainconfig  *params.ChainConfig
 	quarkConfig  *config.QuarkChainConfig
 	chain        blockChain
 	gasPrice     *big.Int
@@ -206,20 +204,18 @@ type TxPool struct {
 
 	wg sync.WaitGroup // for shutdown sync
 
-	homestead        bool
 	fakeChanForReset chan uint64
 }
 
 // NewTxPool creates a new transaction pool to gather, sort and filter inbound
 // transactions from the network.
-func NewTxPool(config TxPoolConfig, chainconfig *params.ChainConfig, chain blockChain) *TxPool {
+func NewTxPool(config TxPoolConfig, chain blockChain) *TxPool {
 	// Sanitize the input to ensure no vulnerable gas prices are set
 	config = (&config).sanitize()
 
 	// Create the transaction pool with its initial settings
 	pool := &TxPool{
 		config:      config,
-		chainconfig: chainconfig,
 		chain:       chain,
 		signer:      types.MakeSigner(config.NetWorkID),
 		pending:     make(map[common.Address]*txList),
@@ -274,10 +270,6 @@ func (pool *TxPool) loop() {
 		case ev := <-pool.chainHeadCh:
 			if ev.Block != nil {
 				pool.mu.Lock()
-				if pool.chainconfig.IsHomestead(new(big.Int).SetUint64(ev.Block.NumberU64())) {
-					pool.homestead = true
-				}
-
 				pool.reset(head, ev.Block.(*types.MinorBlock))
 				head = ev.Block.(*types.MinorBlock)
 
@@ -1110,10 +1102,6 @@ func (pool *TxPool) demoteUnexecutables() {
 			delete(pool.beats, addr)
 		}
 	}
-}
-
-func (pool *TxPool) SetFakeChain(ch chan uint64) {
-	pool.fakeChanForReset = ch
 }
 
 // addressByHeartbeat is an account address tagged with its last activity timestamp.

@@ -25,7 +25,6 @@ import (
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/core/state"
 	"github.com/QuarkChain/goquarkchain/core/types"
-	"github.com/ethereum/go-ethereum/params"
 	"math/big"
 )
 
@@ -35,24 +34,20 @@ import (
 // MinorBlockValidator implements Validator.
 type MinorBlockValidator struct {
 	quarkChainConfig *config.QuarkChainConfig // Chain configuration options
-	ethChainConfig   *params.ChainConfig
-	bc               *MinorBlockChain // Canonical block chain
-	engine           consensus.Engine // Consensus engine used for validating
+	bc               *MinorBlockChain         // Canonical block chain
+	engine           consensus.Engine         // Consensus engine used for validating
 	branch           account.Branch
 	diffCalc         consensus.DifficultyCalculator
-	shardConfig      *config.ShardConfig
 }
 
 // NewBlockValidator returns a new block validator which is safe for re-use
-func NewBlockValidator(quarkChainConfig *config.QuarkChainConfig, versionConfig *params.ChainConfig, blockchain *MinorBlockChain, engine consensus.Engine, branch account.Branch, diffCalc consensus.DifficultyCalculator, shardConfig *config.ShardConfig) *MinorBlockValidator {
+func NewBlockValidator(quarkChainConfig *config.QuarkChainConfig, blockchain *MinorBlockChain, engine consensus.Engine, branch account.Branch, diffCalc consensus.DifficultyCalculator) *MinorBlockValidator {
 	validator := &MinorBlockValidator{
 		quarkChainConfig: quarkChainConfig,
-		ethChainConfig:   versionConfig,
 		engine:           engine,
 		bc:               blockchain,
 		branch:           branch,
 		diffCalc:         diffCalc,
-		shardConfig:      shardConfig,
 	}
 	return validator
 }
@@ -123,7 +118,7 @@ func (v *MinorBlockValidator) ValidateBlock(mBlock types.IBlock) error {
 	}
 
 	if !v.branch.IsInBranch(block.IHeader().GetCoinbase().FullShardKey) {
-		return ErrFullShardKey
+		return ErrMinerFullShardKey
 	}
 
 	if !v.quarkChainConfig.SkipMinorDifficultyCheck {
@@ -163,10 +158,11 @@ func (v *MinorBlockValidator) ValidateBlock(mBlock types.IBlock) error {
 
 // ValidateGasLimit validate gasLimit when validateBlock
 func (v *MinorBlockValidator) ValidateGasLimit(gasLimit, preGasLimit uint64) error {
+	shardConfig := v.quarkChainConfig.GetShardConfigByFullShardID(v.branch.Value)
 	computeGasLimitBounds := func(parentGasLimit uint64) (uint64, uint64) {
-		boundaryRange := parentGasLimit / uint64(v.shardConfig.GasLimitAdjustmentFactor)
+		boundaryRange := parentGasLimit / uint64(shardConfig.GasLimitAdjustmentFactor)
 		upperBound := parentGasLimit + boundaryRange
-		lowBound := v.shardConfig.GasLimitMinimum
+		lowBound := shardConfig.GasLimitMinimum
 		if lowBound < parentGasLimit-boundaryRange {
 			lowBound = parentGasLimit - boundaryRange
 		}
@@ -185,9 +181,9 @@ func (v *MinorBlockValidator) ValidateGasLimit(gasLimit, preGasLimit uint64) err
 func (v *MinorBlockValidator) ValidatorMinorBlockSeal(block *types.MinorBlock) error {
 	branch := block.Header().GetBranch()
 	fullShardID := branch.GetFullShardID()
-	genesis := v.quarkChainConfig.GetShardConfigByFullShardID(fullShardID)
-	consensusType := genesis.ConsensusType
-	if !genesis.PoswConfig.Enabled {
+	shardConfig := v.quarkChainConfig.GetShardConfigByFullShardID(fullShardID)
+	consensusType := shardConfig.ConsensusType
+	if !shardConfig.PoswConfig.Enabled {
 		return v.validateSeal(block.IHeader(), consensusType, nil)
 	}
 	diff, err := v.bc.POSWDiffAdjust(block)

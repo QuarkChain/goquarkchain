@@ -1091,7 +1091,7 @@ func TestMinorCanonicalBlockRetrieval(t *testing.T) {
 	}
 	defer blockchain.Stop()
 
-	chain, _ := GenerateMinorBlockChain(blockchain.chainConfig, blockchain.clusterConfig.Quarkchain, blockchain.genesisBlock, engine, blockchain.db, 10, func(config *config.QuarkChainConfig, i int, gen *MinorBlockGen) {})
+	chain, _ := GenerateMinorBlockChain(blockchain.ethChainConfig, blockchain.clusterConfig.Quarkchain, blockchain.genesisBlock, engine, blockchain.db, 10, func(config *config.QuarkChainConfig, i int, gen *MinorBlockGen) {})
 
 	var pend sync.WaitGroup
 	pend.Add(len(chain))

@@ -75,9 +75,9 @@ type gasPriceSuggestionOracle struct {
 // included in the canonical one where as GetBlockByNumber always represents the
 // canonical chain.
 type MinorBlockChain struct {
-	chainConfig   *params.ChainConfig
-	clusterConfig *config.ClusterConfig // Chain & network configuration
-	cacheConfig   *CacheConfig          // Cache configuration for pruning
+	ethChainConfig *params.ChainConfig
+	clusterConfig  *config.ClusterConfig // Chain & network configuration
+	cacheConfig    *CacheConfig          // Cache configuration for pruning
 
 	db     ethdb.Database // Low level persistent database to store final content in
 	triegc *prque.Prque   // Priority queue mapping block numbers to tries to gc
@@ -120,20 +120,19 @@ type MinorBlockChain struct {
 	badBlocks      *lru.Cache                   // Bad block cache
 	shouldPreserve func(*types.MinorBlock) bool // Function used to determine whether should preserve the given block.
 
+	txPool                   *TxPool
 	branch                   account.Branch
-	fullShardID              uint32
 	shardConfig              *config.ShardConfig
-	logInfo                  string
 	rootTip                  *types.RootBlockHeader
 	confirmedHeaderTip       *types.MinorBlockHeader
 	initialized              bool
 	coinBaseAddrCache        map[common.Hash]heightAndAddrs
 	diffCalc                 consensus.DifficultyCalculator
 	rewardCalc               *qkcCommon.ConstMinorBlockRewardCalculator
-	txPool                   *TxPool
 	gasPriceSuggestionOracle *gasPriceSuggestionOracle
 	heightToMinorBlockHashes map[uint64]map[common.Hash]struct{}
 	currentEvmState          *state.StateDB
+	logInfo                  string
 }
 
 // NewMinorBlockChain returns a fully initialised block chain using information
@@ -169,7 +168,7 @@ func NewMinorBlockChain(
 	badBlocks, _ := lru.New(badBlockLimit)
 
 	bc := &MinorBlockChain{
-		chainConfig:              chainConfig,
+		ethChainConfig:           chainConfig,
 		clusterConfig:            clusterConfig,
 		cacheConfig:              cacheConfig,
 		db:                       db,
@@ -185,7 +184,6 @@ func NewMinorBlockChain(
 		engine:                   engine,
 		vmConfig:                 vmConfig,
 		badBlocks:                badBlocks,
-		fullShardID:              fullShardID,
 		heightToMinorBlockHashes: make(map[uint64]map[common.Hash]struct{}),
 		currentEvmState:          new(state.StateDB),
 		branch:                   account.Branch{Value: fullShardID},
@@ -209,8 +207,8 @@ func NewMinorBlockChain(
 		bc.diffCalc = diffCalc
 	}
 
-	bc.SetValidator(NewBlockValidator(clusterConfig.Quarkchain, bc.chainConfig, bc, engine, bc.branch, bc.diffCalc, bc.shardConfig))
-	bc.SetProcessor(NewStateProcessor(bc.chainConfig, bc, engine))
+	bc.SetValidator(NewBlockValidator(clusterConfig.Quarkchain, bc, engine, bc.branch, bc.diffCalc))
+	bc.SetProcessor(NewStateProcessor(bc.ethChainConfig, bc, engine))
 
 	bc.hc, err = NewMinorHeaderChain(db, bc.clusterConfig.Quarkchain, engine, bc.getProcInterrupt)
 	if err != nil {
@@ -219,7 +217,7 @@ func NewMinorBlockChain(
 
 	genesisBlock := bc.GetBlockByNumber(0)
 	if qkcCommon.IsNil(genesisBlock) {
-		return nil, errNoGenesis
+		return nil, ErrNoGenesis
 	}
 	bc.genesisBlock = genesisBlock.(*types.MinorBlock)
 	if bc.genesisBlock == nil {
@@ -229,7 +227,7 @@ func NewMinorBlockChain(
 		return nil, err
 	}
 
-	bc.txPool = NewTxPool(DefaultTxPoolConfig, bc.chainConfig, bc)
+	bc.txPool = NewTxPool(DefaultTxPoolConfig, bc)
 	// Take ownership of this particular state
 	go bc.update()
 	return bc, nil
@@ -656,7 +654,6 @@ func (m *MinorBlockChain) procFutureBlocks() {
 	}
 	if len(blocks) > 0 {
 		sort.Slice(blocks, func(i, j int) bool { return blocks[i].NumberU64() < blocks[j].NumberU64() })
-
 		// Insert one by one as chain insertion needs contiguous ancestry between blocks
 		for i := range blocks {
 			m.InsertChain(blocks[i : i+1])
@@ -1154,9 +1151,8 @@ func (m *MinorBlockChain) insertChain(chain []types.IBlock, verifySeals bool) (i
 		}
 		blockInsertTimer.UpdateSince(start)
 		stats.processed++
-		//	stats.usedGas += usedGas
+		stats.usedGas += usedGas
 
-		//cache, _ := m.stateCache.TrieDB().Size()
 		stats.report(chain, it.index)
 		xShardList = append(xShardList, state.GetXShardList())
 	}
@@ -1484,7 +1480,7 @@ Hash: 0x%x
 
 Error: %v
 ##############################
-`, m.chainConfig, block.NumberU64(), block.Hash(), receiptString, err))
+`, m.ethChainConfig, block.NumberU64(), block.Hash(), receiptString, err))
 }
 
 // InsertHeaderChain attempts to insert the given header chain in to the local

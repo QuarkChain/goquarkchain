@@ -50,7 +50,7 @@ var (
 	ErrExtraLimit        = errors.New("extra data's len exceeds limit")
 	ErrTrackLimit        = errors.New("track data's len exceeds limit")
 	ErrTxHash            = errors.New("tx hash is not match")
-	ErrFullShardKey      = errors.New("full shard key is not match")
+	ErrMinerFullShardKey = errors.New("coinBase full shard key is not match")
 	ErrDifficulty        = errors.New("diff is not match")
 	ErrGasUsed           = errors.New("gas used is not match")
 	ErrCoinBaseAmount    = errors.New("coinBaseAmount is err")
