@@ -637,7 +637,7 @@ func TestReorgSideEvent(t *testing.T) {
 		header := types.MinorBlockHeader{Coinbase: addr1}
 		gen.headers = append(gen.headers, &header)
 	})
-	chainSideCh := make(chan ChainSideEvent, 64)
+	chainSideCh := make(chan RootChainSideEvent, 64)
 	blockchain.SubscribeChainSideEvent(chainSideCh)
 	if _, err := blockchain.InsertChain(ToBlocks(replacementBlocks)); err != nil {
 		t.Fatalf("failed to insert chain: %v", err)
@@ -925,6 +925,7 @@ func ToBlocks(rootBlocks []*types.RootBlock) []types.IBlock {
 	}
 	return blocks
 }
+
 func BenchmarkBlockChain_1x1000ValueTransferToNonexisting(b *testing.B) {
 	var (
 		numitems  = 1000

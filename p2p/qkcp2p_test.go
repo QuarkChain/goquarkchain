@@ -1,24 +1,28 @@
 package p2p
 
 import (
+	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"testing"
 	"time"
-
-	"github.com/QuarkChain/goquarkchain/cluster/config"
 )
 
-func FakeEnv(port int) config.ClusterConfig {
+const (
+	QKCProtocolVersion = 1
+	QKCProtocolLength  = 16
+)
+
+func FakeEnv(port uint64) config.ClusterConfig {
 	return config.ClusterConfig{
-		P2PPort: port,
+		P2Port: port,
 		P2P: &config.P2PConfig{
 			MaxPeers: 25,
 			PrivKey:  "3a28b5ba57c53603b0b07b56bba752f7784bf506fa95edc395f5cf6c7514fe94",
 		},
 	}
 }
-func FakeEnv2(port int, bootNodes string) config.ClusterConfig {
+func FakeEnv2(port uint64, bootNodes string) config.ClusterConfig {
 	return config.ClusterConfig{
-		P2PPort: port,
+		P2Port: port,
 		P2P: &config.P2PConfig{
 			MaxPeers:  25,
 			BootNodes: bootNodes,
@@ -26,8 +30,16 @@ func FakeEnv2(port int, bootNodes string) config.ClusterConfig {
 	}
 }
 
-func StartServer(env config.ClusterConfig, t *testing.T, flag bool) (*PManager, error) {
-	p2pManager, err := NewP2PManager(env)
+func StartServer(env config.ClusterConfig, t *testing.T, flag bool) (*P2PManager, error) {
+	p2pManager, err := NewP2PManager(env, Protocol{
+		Name:    QKCProtocolName,
+		Version: QKCProtocolVersion,
+		Length:  QKCProtocolLength,
+		Run: func(p *Peer, rw MsgReadWriter) error {
+			//peer := newPeer(int(QKCProtocolVersion), p, rw)
+			return qkcMsgHandle(p, rw)
+		},
+	})
 	if err != nil {
 		t.Error("NewP2PManager err", err)
 	}
@@ -54,10 +66,10 @@ func TestServerMsgSend(t *testing.T) {
 
 	select {
 	case <-time.After(1 * time.Second):
-		if len(p1.server.Peers()) != 1 || len(p2.server.Peers()) != 1 {
+		if len(p1.Server.Peers()) != 1 || len(p2.Server.Peers()) != 1 {
 			t.Error("connect failed ", "should peer is 1")
 		}
-		WriteMsgForTest(t, p1.server.Peers()[0].rw)
+		WriteMsgForTest(t, p1.Server.Peers()[0].rw)
 		time.Sleep(1 * time.Second)
 	}
 }
@@ -75,11 +87,11 @@ func TestServerConnection(t *testing.T) {
 
 	select {
 	case <-time.After(2 * time.Second):
-		if len(p1.server.Peers()) != 1 && len(p2.server.Peers()) != 1 {
+		if len(p1.Server.Peers()) != 1 && len(p2.Server.Peers()) != 1 {
 			t.Error("peer connect failed")
 		}
-		peer1 := p1.server.Peers()[0]
-		peer2 := p2.server.Peers()[0]
+		peer1 := p1.Server.Peers()[0]
+		peer2 := p2.Server.Peers()[0]
 		if peer1.LocalAddr().String() != peer2.RemoteAddr().String() {
 			t.Error("peer connect err", "ip is not correct")
 		}
@@ -87,17 +99,17 @@ func TestServerConnection(t *testing.T) {
 			t.Error("peer connect err", "ip is not correct")
 		}
 
-		if p1.server.NodeInfo().ID != peer2.ID().String() {
+		if p1.Server.NodeInfo().ID != peer2.ID().String() {
 			t.Error("peer connect err", "id is not correct")
 		}
-		if p2.server.NodeInfo().ID != peer1.ID().String() {
+		if p2.Server.NodeInfo().ID != peer1.ID().String() {
 			t.Error("peer connect err", "id is not correct")
 		}
 	}
 }
 
 func WriteMsgForTest(t *testing.T, rw MsgReadWriter) {
-	cmd, err := makeMsg(Hello, 0, HelloCmd{})
+	cmd, err := MakeMsg(Hello, 0, Metadata{}, HelloCmd{})
 	if err != nil {
 		t.Error("HelloCmd makeSendMsg err", err)
 	}
@@ -105,15 +117,15 @@ func WriteMsgForTest(t *testing.T, rw MsgReadWriter) {
 		t.Error("Write HelloCmd Msg err", err)
 	}
 
-	cmd, err = makeMsg(NewMinorBlockHeaderListMsg, 0, NewMinorBlockHeaderList{})
+	cmd, err = MakeMsg(NewTipMsg, 0, Metadata{}, Tip{})
 	if err != nil {
-		t.Error("NewMinorBlockHeaderList makeSendMsg err", err)
+		t.Error("Tip makeSendMsg err", err)
 	}
 	if err := rw.WriteMsg(cmd); err != nil {
-		t.Error("Write NewMinorBlockHeaderList Msg err", err)
+		t.Error("Write Tip Msg err", err)
 	}
 
-	cmd, err = makeMsg(NewTransactionListMsg, 0, NewTransactionList{})
+	cmd, err = MakeMsg(NewTransactionListMsg, 0, Metadata{}, NewTransactionList{})
 	if err != nil {
 		t.Error("NewTransactionList makeSendMsg err", err)
 	}
@@ -121,7 +133,7 @@ func WriteMsgForTest(t *testing.T, rw MsgReadWriter) {
 		t.Error("Write NewTransactionList Msg err", err)
 	}
 
-	cmd, err = makeMsg(GetPeerListRequestMsg, 0, GetPeerListRequest{})
+	cmd, err = MakeMsg(GetPeerListRequestMsg, 0, Metadata{}, GetPeerListRequest{})
 	if err != nil {
 		t.Error("GetPeerListRequest makeSendMsg err", err)
 	}
@@ -129,7 +141,7 @@ func WriteMsgForTest(t *testing.T, rw MsgReadWriter) {
 		t.Error("Write GetPeerListRequest Msg err", err)
 	}
 
-	cmd, err = makeMsg(GetPeerListResponseMsg, 0, GetPeerListResponse{})
+	cmd, err = MakeMsg(GetPeerListResponseMsg, 0, Metadata{}, GetPeerListResponse{})
 	if err != nil {
 		t.Error("GetPeerListResponse makeSendMsg err", err)
 	}
@@ -137,7 +149,7 @@ func WriteMsgForTest(t *testing.T, rw MsgReadWriter) {
 		t.Error("Write GetPeerListResponse Msg err", err)
 	}
 
-	cmd, err = makeMsg(GetRootBlockHeaderListRequestMsg, 0, GetRootBlockHeaderListRequest{})
+	cmd, err = MakeMsg(GetRootBlockHeaderListRequestMsg, 0, Metadata{}, GetRootBlockHeaderListRequest{})
 	if err != nil {
 		t.Error("GetRootBlockHeaderListRequest makeSendMsg err", err)
 	}
@@ -145,7 +157,7 @@ func WriteMsgForTest(t *testing.T, rw MsgReadWriter) {
 		t.Error("Write GetRootBlockHeaderListRequest Msg err", err)
 	}
 
-	cmd, err = makeMsg(GetRootBlockHeaderListResponseMsg, 0, GetRootBlockHeaderListResponse{})
+	cmd, err = MakeMsg(GetRootBlockHeaderListResponseMsg, 0, Metadata{}, GetRootBlockHeaderListResponse{})
 	if err != nil {
 		t.Error("GetRootBlockHeaderListResponse makeSendMsg err", err)
 	}
@@ -153,7 +165,7 @@ func WriteMsgForTest(t *testing.T, rw MsgReadWriter) {
 		t.Error("Write GetRootBlockHeaderListResponse Msg err", err)
 	}
 
-	cmd, err = makeMsg(GetRootBlockListRequestMsg, 0, GetRootBlockListRequest{})
+	cmd, err = MakeMsg(GetRootBlockListRequestMsg, 0, Metadata{}, GetRootBlockListRequest{})
 	if err != nil {
 		t.Error("GetRootBlockListRequest makeSendMsg err", err)
 	}
@@ -161,7 +173,7 @@ func WriteMsgForTest(t *testing.T, rw MsgReadWriter) {
 		t.Error("Write GetRootBlockListRequest Msg err", err)
 	}
 
-	cmd, err = makeMsg(GetRootBlockListResponseMsg, 0, GetRootBlockListResponse{})
+	cmd, err = MakeMsg(GetRootBlockListResponseMsg, 0, Metadata{}, GetRootBlockListResponse{})
 	if err != nil {
 		t.Error("GetRootBlockListResponse makeSendMsg err", err)
 	}
@@ -169,7 +181,7 @@ func WriteMsgForTest(t *testing.T, rw MsgReadWriter) {
 		t.Error("Write GetRootBlockListResponse Msg err", err)
 	}
 
-	cmd, err = makeMsg(GetMinorBlockListRequestMsg, 0, GetMinorBlockListRequest{})
+	cmd, err = MakeMsg(GetMinorBlockListRequestMsg, 0, Metadata{}, GetMinorBlockListRequest{})
 	if err != nil {
 		t.Error("GetMinorBlockListRequest makeSendMsg err", err)
 	}
@@ -177,7 +189,7 @@ func WriteMsgForTest(t *testing.T, rw MsgReadWriter) {
 		t.Error("Write GetMinorBlockListRequest Msg err", err)
 	}
 
-	cmd, err = makeMsg(GetMinorBlockListResponseMsg, 0, GetMinorBlockListResponse{})
+	cmd, err = MakeMsg(GetMinorBlockListResponseMsg, 0, Metadata{}, GetMinorBlockListResponse{})
 	if err != nil {
 		t.Error("GetMinorBlockListResponse makeSendMsg err", err)
 	}
@@ -185,7 +197,7 @@ func WriteMsgForTest(t *testing.T, rw MsgReadWriter) {
 		t.Error("Write GetMinorBlockListResponse Msg err", err)
 	}
 
-	cmd, err = makeMsg(GetMinorBlockHeaderListRequestMsg, 0, GetMinorBlockHeaderListRequest{})
+	cmd, err = MakeMsg(GetMinorBlockHeaderListRequestMsg, 0, Metadata{}, GetMinorBlockHeaderListRequest{})
 	if err != nil {
 		t.Error("GetMinorBlockHeaderListRequest makeSendMsg err", err)
 	}
@@ -193,7 +205,7 @@ func WriteMsgForTest(t *testing.T, rw MsgReadWriter) {
 		t.Error("Write GetMinorBlockHeaderListRequest Msg err", err)
 	}
 
-	cmd, err = makeMsg(GetMinorBlockHeaderListResponseMsg, 0, GetMinorBlockHeaderListResponse{})
+	cmd, err = MakeMsg(GetMinorBlockHeaderListResponseMsg, 0, Metadata{}, GetMinorBlockHeaderListResponse{})
 	if err != nil {
 		t.Error("GetMinorBlockHeaderListResponse makeSendMsg err", err)
 	}
@@ -201,7 +213,7 @@ func WriteMsgForTest(t *testing.T, rw MsgReadWriter) {
 		t.Error("Write GetMinorBlockHeaderListResponse Msg err", err)
 	}
 
-	cmd, err = makeMsg(NewBlockMinorMsg, 0, NewBlockMinor{})
+	cmd, err = MakeMsg(NewBlockMinorMsg, 0, Metadata{}, NewBlockMinor{})
 	if err != nil {
 		t.Error("NewBlockMinor makeSendMsg err", err)
 	}

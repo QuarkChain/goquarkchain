@@ -10,7 +10,7 @@ import (
 )
 
 var (
-	slavePort             int = 38000
+	slavePort int = 38000
 )
 
 type ClusterConfig struct {

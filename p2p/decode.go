@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	// OPLength op length
+	// OPLength Op length
 	OPLength = 1
 	// RPCIDLength rpc length
 	RPCIDLength = 8
@@ -24,47 +24,47 @@ type P2PeerInfo struct {
 
 // QKCMsg qkc msg struct
 type QKCMsg struct {
-	metaData metadata
-	op       P2PCommandOp
-	rpcID    uint64
-	data     []byte
+	MetaData Metadata
+	Op       P2PCommandOp
+	RpcID    uint64
+	Data     []byte
 }
 
-type metadata struct {
+type Metadata struct {
 	Branch uint32
 }
 
-func (m metadata) Size() int {
+func (m Metadata) Size() int {
 	return int(unsafe.Sizeof(m))
 }
 
 // DecodeQKCMsg decode byte to qkcMsg
 func DecodeQKCMsg(body []byte) (QKCMsg, error) {
-	if len(body) < (metadata{}.Size() + PreP2PLength) {
+	if len(body) < (Metadata{}.Size() + PreP2PLength) {
 		return QKCMsg{}, errors.New("decode qkc msg err body is short")
 	}
 
 	var msg QKCMsg
-	metaBytes := body[:metadata{}.Size()]
-	rawBytes := body[metadata{}.Size():]
+	metaBytes := body[:Metadata{}.Size()]
+	rawBytes := body[Metadata{}.Size():]
 
-	var metaData metadata
+	var metaData Metadata
 	err := serialize.DeserializeFromBytes(metaBytes, &metaData)
 	if err != nil {
 		return QKCMsg{}, err
 	}
 
-	msg.metaData = metaData
-	msg.op = P2PCommandOp(rawBytes[0])
-	msg.rpcID = binary.BigEndian.Uint64(rawBytes[OPLength:PreP2PLength])
+	msg.MetaData = metaData
+	msg.Op = P2PCommandOp(rawBytes[0])
+	msg.RpcID = binary.BigEndian.Uint64(rawBytes[OPLength:PreP2PLength])
 	dataSize := uint32(len(rawBytes) - PreP2PLength)
-	msg.data = make([]byte, dataSize)
-	copy(msg.data[:], rawBytes[PreP2PLength:])
+	msg.Data = make([]byte, dataSize)
+	copy(msg.Data[:], rawBytes[PreP2PLength:])
 	return msg, nil
 }
 
-// Encrypt encrypt data to byte array
-func Encrypt(metadata metadata, op P2PCommandOp, ipcID uint64, cmd interface{}) ([]byte, error) {
+// Encrypt encrypt Data to byte array
+func Encrypt(metadata Metadata, op P2PCommandOp, ipcID uint64, cmd interface{}) ([]byte, error) {
 	encryptBytes := make([]byte, 0)
 	metadataBytes, err := serialize.SerializeToBytes(metadata)
 	if err != nil {
