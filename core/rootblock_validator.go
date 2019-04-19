@@ -2,9 +2,10 @@ package core
 
 import (
 	"fmt"
+	"reflect"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/syndtr/goleveldb/leveldb/errors"
-	"reflect"
 
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/consensus"
@@ -152,10 +153,15 @@ func (v *RootBlockValidator) ValidateBlock(block types.IBlock) error {
 	return nil
 }
 
-type FackRootBlockValidator struct {
+// ValidateHeader calls underlying engine's header verification method.
+func (v *RootBlockValidator) ValidateHeader(header types.IHeader) error {
+	return v.engine.VerifyHeader(v.blockChain, header, true)
+}
+
+type fakeRootBlockValidator struct {
 	Err error
 }
 
-func (v *FackRootBlockValidator) ValidateBlock(block types.IBlock) error {
+func (v *fakeRootBlockValidator) ValidateBlock(block types.IBlock) error {
 	return v.Err
 }

@@ -3,7 +3,7 @@ package consensus
 import (
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/core/types"
-	"github.com/ethereum/go-ethereum/rpc"
+	"github.com/ethereum/go-ethereum/common"
 	"math/big"
 	"time"
 )
@@ -84,9 +84,12 @@ func (e *FakeEngine) CalcDifficulty(chain ChainReader, time uint64, parent types
 	return e.Difficulty
 }
 
-// APIs returns the RPC APIs this consensus engine provides.
-func (e *FakeEngine) APIs(chain ChainReader) []rpc.API {
-	return nil
+func (e *FakeEngine) GetWork() (*MiningWork, error) {
+	return &MiningWork{}, nil
+}
+
+func (e *FakeEngine) SubmitWork(nonce uint64, hash, digest common.Hash) bool {
+	return false
 }
 
 // Close terminates any background threads maintained by the consensus engine.

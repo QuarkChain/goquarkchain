@@ -4,7 +4,6 @@ import (
 	crand "crypto/rand"
 	"errors"
 	"fmt"
-
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -38,6 +37,10 @@ var (
 	// ErrInvalidNumber is returned if a block's number doesn't equal it's parent's
 	// plus one.
 	ErrInvalidNumber = errors.New("invalid block number")
+
+	// ErrNotRemote is returned if GetWork be called in local mining
+	// is not remote
+	ErrNotRemote = errors.New("is not remote mining")
 )
 
 // Various error messages to mark blocks invalid. These should be private to
@@ -75,6 +78,17 @@ type MiningSpec struct {
 type CommonEngine struct {
 	spec     MiningSpec
 	hashrate metrics.Meter
+
+	isRemote bool
+	// Remote sealer related fields
+	workCh       chan *sealTask
+	fetchWorkCh  chan *sealWork
+	submitWorkCh chan *mineResult
+
+	cengine Engine
+
+	closeOnce sync.Once
+	exitCh    chan chan error
 }
 
 // Name returns the consensus engine's name.
@@ -92,7 +106,6 @@ func (c *CommonEngine) VerifyHeader(
 	chain ChainReader,
 	header types.IHeader,
 	seal bool,
-	cengine Engine,
 ) error {
 	// Short-circuit if the header is known, or parent not
 	number := header.NumberU64()
@@ -119,7 +132,7 @@ func (c *CommonEngine) VerifyHeader(
 
 	adjustedDiff := new(big.Int).SetUint64(0)
 	if !chain.Config().SkipRootDifficultyCheck {
-		expectedDiff := cengine.CalcDifficulty(chain, header.GetTime(), parent)
+		expectedDiff := c.cengine.CalcDifficulty(chain, header.GetTime(), parent)
 		if expectedDiff.Cmp(header.GetDifficulty()) != 0 {
 			errMsg := fmt.Sprintf("invalid difficulty: have %v, want %v", header.GetDifficulty(), expectedDiff)
 			logger.Error(errMsg)
@@ -133,7 +146,7 @@ func (c *CommonEngine) VerifyHeader(
 		}
 	}
 
-	return cengine.VerifySeal(chain, header, adjustedDiff)
+	return c.cengine.VerifySeal(chain, header, adjustedDiff)
 }
 
 // VerifyHeaders is similar to VerifyHeader, but verifies a batch of headers
@@ -144,14 +157,13 @@ func (c *CommonEngine) VerifyHeaders(
 	chain ChainReader,
 	headers []types.IHeader,
 	seals []bool,
-	cengine Engine,
 ) (chan<- struct{}, <-chan error) {
 
 	// TODO: verify concurrently, and support aborting
 	errorsOut := make(chan error, len(headers))
 	go func() {
 		for _, h := range headers {
-			err := c.VerifyHeader(chain, h, true /*seal flag not used*/, cengine)
+			err := c.VerifyHeader(chain, h, true /*seal flag not used*/)
 			errorsOut <- err
 		}
 	}()
@@ -282,10 +294,92 @@ search:
 	}
 }
 
+func (c *CommonEngine) GetWork() (*MiningWork, error) {
+	if !c.isRemote {
+		return nil, ErrNotRemote
+	}
+	var (
+		workCh = make(chan MiningWork, 1)
+		errc   = make(chan error, 1)
+	)
+	select {
+	case c.fetchWorkCh <- &sealWork{errc: errc, res: workCh}:
+	case <-c.exitCh:
+		return nil, errors.New(fmt.Sprintf("%s hash stoped", c.Name()))
+	}
+
+	select {
+	case work := <-workCh:
+
+		return &MiningWork{
+			work.HeaderHash,
+			work.Number,
+			work.Difficulty,
+		}, nil
+	case err := <-errc:
+		return nil, err
+	}
+}
+
+func (c *CommonEngine) SubmitWork(nonce uint64, hash, digest common.Hash) bool {
+	if !c.isRemote {
+		return false
+	}
+	var errc = make(chan error, 1)
+
+	select {
+	case c.submitWorkCh <- &mineResult{
+		nonce:     nonce,
+		mixDigest: digest,
+		hash:      hash,
+		errc:      errc,
+	}:
+	case <-c.exitCh:
+		return false
+	}
+	err := <-errc
+	return err == nil
+}
+
+func (c *CommonEngine) SetWork(block types.IBlock, results chan<- types.IBlock) {
+	c.workCh <- &sealTask{block: block, results: results}
+}
+
+func (c *CommonEngine) IsRemoteMining() bool {
+	return c.isRemote
+}
+
+func (c *CommonEngine) Close() error {
+	var err error
+	if !c.isRemote {
+		return err
+	}
+	c.closeOnce.Do(func() {
+		if c.exitCh == nil {
+			return
+		}
+		errc := make(chan error)
+		c.exitCh <- errc
+		err = <-errc
+		close(c.exitCh)
+	})
+	return err
+}
+
 // NewCommonEngine returns the common engine mixin.
-func NewCommonEngine(spec MiningSpec) *CommonEngine {
-	return &CommonEngine{
+func NewCommonEngine(pow Engine, spec MiningSpec, remote bool) *CommonEngine {
+	c := &CommonEngine{
 		spec:     spec,
 		hashrate: metrics.NewMeter(),
+		cengine:  pow,
 	}
+	if remote {
+		c.isRemote = remote
+		c.workCh = make(chan *sealTask)
+		c.fetchWorkCh = make(chan *sealWork)
+		c.submitWorkCh = make(chan *mineResult)
+		c.exitCh = make(chan chan error)
+		go c.remote()
+	}
+	return c
 }

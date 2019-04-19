@@ -17,7 +17,7 @@ func newTestRDB() (*qkcdb.RDBDatabase, func()) {
 	if err != nil {
 		panic("failed to create test file: " + err.Error())
 	}
-	db, err := qkcdb.NewRDBDatabase(dirname, 0)
+	db, err := qkcdb.NewRDBDatabase(dirname)
 	if err != nil {
 		panic("failed to create test database: " + err.Error())
 	}
