@@ -233,7 +233,7 @@ func (pm *ProtocolManager) handleMsg(peer *peer) error {
 			return err
 		}
 
-		return peer.SendResponse(p2p.GetRootBlockHeaderListResponseMsg, p2p.Metadata{0}, qkcMsg.RpcID, resp)
+		return peer.SendResponse(p2p.GetRootBlockHeaderListResponseMsg, p2p.Metadata{Branch: 0}, qkcMsg.RpcID, resp)
 
 	case qkcMsg.Op == p2p.GetRootBlockHeaderListResponseMsg:
 		var blockHeaderResp p2p.GetRootBlockHeaderListResponse
@@ -255,7 +255,7 @@ func (pm *ProtocolManager) handleMsg(peer *peer) error {
 			return err
 		}
 
-		return peer.SendResponse(p2p.GetRootBlockListResponseMsg, p2p.Metadata{0}, qkcMsg.RpcID, resp)
+		return peer.SendResponse(p2p.GetRootBlockListResponseMsg, p2p.Metadata{Branch: 0}, qkcMsg.RpcID, resp)
 
 	case qkcMsg.Op == p2p.GetRootBlockListResponseMsg:
 		var blockResp p2p.GetRootBlockListResponse
@@ -277,7 +277,7 @@ func (pm *ProtocolManager) handleMsg(peer *peer) error {
 			return err
 		}
 
-		return peer.SendResponse(p2p.GetMinorBlockHeaderListResponseMsg, p2p.Metadata{0}, qkcMsg.RpcID, resp)
+		return peer.SendResponse(p2p.GetMinorBlockHeaderListResponseMsg, p2p.Metadata{Branch: 0}, qkcMsg.RpcID, resp)
 
 	case qkcMsg.Op == p2p.GetMinorBlockHeaderListResponseMsg:
 		var minorHeaderResp p2p.GetMinorBlockHeaderListResponse
@@ -300,7 +300,7 @@ func (pm *ProtocolManager) handleMsg(peer *peer) error {
 			return err
 		}
 
-		return peer.SendResponse(p2p.GetMinorBlockListResponseMsg, p2p.Metadata{0}, qkcMsg.RpcID, resp)
+		return peer.SendResponse(p2p.GetMinorBlockListResponseMsg, p2p.Metadata{Branch: 0}, qkcMsg.RpcID, resp)
 
 	case qkcMsg.Op == p2p.GetMinorBlockListResponseMsg:
 		var minorBlockResp p2p.GetMinorBlockListResponse

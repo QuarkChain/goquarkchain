@@ -166,20 +166,20 @@ func TestGetRootBlocks(t *testing.T) {
 	limit := uint64(rootBlockBatchSize)
 	tests := []*p2p.GetRootBlockListRequest{
 		// A single random block should be retrievable by hash
-		{[]common.Hash{pm.rootBlockChain.GetBlockByNumber(limit / 2).Hash()}},
+		{RootBlockHashList: []common.Hash{pm.rootBlockChain.GetBlockByNumber(limit / 2).Hash()}},
 		{ // multi hash retrievable
-			[]common.Hash{
+			RootBlockHashList: []common.Hash{
 				pm.rootBlockChain.GetBlockByNumber(limit / 2).Hash(),
 				pm.rootBlockChain.GetBlockByNumber(limit/2 - 1).Hash(),
 				pm.rootBlockChain.GetBlockByNumber(limit/2 - 2).Hash(),
 			},
 		},
 		// The chain endpoints should be retrievable
-		{[]common.Hash{pm.rootBlockChain.Genesis().Hash()}},
-		{[]common.Hash{pm.rootBlockChain.CurrentBlock().Hash()}},
+		{RootBlockHashList: []common.Hash{pm.rootBlockChain.Genesis().Hash()}},
+		{RootBlockHashList: []common.Hash{pm.rootBlockChain.CurrentBlock().Hash()}},
 		// Ensure protocol limits are honored
-		{pm.rootBlockChain.GetBlockHashesFromHash(pm.rootBlockChain.CurrentBlock().Hash(), limit)},
-		{[]common.Hash{pm.rootBlockChain.CurrentBlock().Hash(), unknown}},
+		{RootBlockHashList: pm.rootBlockChain.GetBlockHashesFromHash(pm.rootBlockChain.CurrentBlock().Hash(), limit)},
+		{RootBlockHashList: []common.Hash{pm.rootBlockChain.CurrentBlock().Hash(), unknown}},
 	}
 	// Run each of the tests and verify the results against the chain
 	for i, request := range tests {
@@ -215,19 +215,19 @@ func TestBloadcast(t *testing.T) {
 	limit := uint64(rootBlockBatchSize)
 	tests := []*p2p.GetRootBlockListRequest{
 		// A single random block should be retrievable by hash
-		{[]common.Hash{pm.rootBlockChain.GetBlockByNumber(limit / 2).Hash()}},
+		{RootBlockHashList: []common.Hash{pm.rootBlockChain.GetBlockByNumber(limit / 2).Hash()}},
 		{ // multi hash retrievable
-			[]common.Hash{
+			RootBlockHashList: []common.Hash{
 				pm.rootBlockChain.GetBlockByNumber(limit / 2).Hash(),
 				pm.rootBlockChain.GetBlockByNumber(limit/2 - 1).Hash(),
 				pm.rootBlockChain.GetBlockByNumber(limit/2 - 2).Hash(),
 			},
 		},
 		// The chain endpoints should be retrievable
-		{[]common.Hash{pm.rootBlockChain.Genesis().Hash()}},
-		{[]common.Hash{pm.rootBlockChain.CurrentBlock().Hash()}},
+		{RootBlockHashList: []common.Hash{pm.rootBlockChain.Genesis().Hash()}},
+		{RootBlockHashList: []common.Hash{pm.rootBlockChain.CurrentBlock().Hash()}},
 		// Ensure protocol limits are honored
-		{pm.rootBlockChain.GetBlockHashesFromHash(pm.rootBlockChain.CurrentBlock().Hash(), limit)},
+		{RootBlockHashList: pm.rootBlockChain.GetBlockHashesFromHash(pm.rootBlockChain.CurrentBlock().Hash(), limit)},
 	}
 	// Run each of the tests and verify the results against the chain
 	for i, request := range tests {
@@ -243,7 +243,7 @@ func TestBloadcast(t *testing.T) {
 		}
 		peer.app.WriteMsg(msg)
 		response := p2p.GetRootBlockListResponse{RootBlockList: blocks}
-		if _, err := ExpectMsg(peer.app, p2p.GetRootBlockListResponseMsg, p2p.Metadata{0}, &response); err != nil {
+		if _, err := ExpectMsg(peer.app, p2p.GetRootBlockListResponseMsg, p2p.Metadata{Branch: 0}, &response); err != nil {
 			t.Errorf("test %d: headers mismatch: %v", i, err)
 		}
 		/*
