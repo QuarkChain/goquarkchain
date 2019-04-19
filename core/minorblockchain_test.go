@@ -594,7 +594,7 @@ func TestMinorFastVsFullChains(t *testing.T) {
 				if err != nil {
 					panic(err)
 				}
-				block.AddTx(config, TransEvmTxToTx(tx))
+				block.AddTx(config, transEvmTxToTx(tx))
 			}
 		}
 		// If the block number is a multiple of 5, add a few bonus uncles to the block
@@ -829,14 +829,14 @@ func TestMinorChainTxReorgs(t *testing.T) {
 		case 0:
 			pastDrop, _ = types.SignTx(types.NewEvmTransaction(gen.TxNonce(addr2.Recipient), addr2.Recipient, big.NewInt(1000), params.TxGas, nil, 0, 0, 3, 0, nil), signer, prvKey2)
 
-			gen.AddTx(config, TransEvmTxToTx(pastDrop))  // This transaction will be dropped in the fork from below the split point
-			gen.AddTx(config, TransEvmTxToTx(postponed)) // This transaction will be postponed till block #3 in the fork
+			gen.AddTx(config, transEvmTxToTx(pastDrop))  // This transaction will be dropped in the fork from below the split point
+			gen.AddTx(config, transEvmTxToTx(postponed)) // This transaction will be postponed till block #3 in the fork
 
 		case 2:
 			freshDrop, _ = types.SignTx(types.NewEvmTransaction(gen.TxNonce(addr2.Recipient), addr2.Recipient, big.NewInt(1000), params.TxGas, nil, 0, 0, 3, 0, nil), signer, prvKey2)
 
-			gen.AddTx(config, TransEvmTxToTx(freshDrop)) // This transaction will be dropped in the fork from exactly at the split point
-			gen.AddTx(config, TransEvmTxToTx(swapped))   // This transaction will be swapped out at the exact height
+			gen.AddTx(config, transEvmTxToTx(freshDrop)) // This transaction will be dropped in the fork from exactly at the split point
+			gen.AddTx(config, transEvmTxToTx(swapped))   // This transaction will be swapped out at the exact height
 
 			gen.SetDifficulty(9) // Lower the block difficulty to simulate a weaker chain
 		}
@@ -858,18 +858,18 @@ func TestMinorChainTxReorgs(t *testing.T) {
 		switch i {
 		case 0:
 			pastAdd, _ = types.SignTx(types.NewEvmTransaction(gen.TxNonce(addr3.Recipient), addr3.Recipient, big.NewInt(1000), params.TxGas, nil, 0, 0, 3, 0, nil), signer, prvKey3)
-			gen.AddTx(config, TransEvmTxToTx(pastAdd)) // This transaction needs to be injected during reorg
+			gen.AddTx(config, transEvmTxToTx(pastAdd)) // This transaction needs to be injected during reorg
 
 		case 2:
-			gen.AddTx(config, TransEvmTxToTx(postponed)) // This transaction was postponed from block #1 in the original chain
-			gen.AddTx(config, TransEvmTxToTx(swapped))   // This transaction was swapped from the exact current spot in the original chain
+			gen.AddTx(config, transEvmTxToTx(postponed)) // This transaction was postponed from block #1 in the original chain
+			gen.AddTx(config, transEvmTxToTx(swapped))   // This transaction was swapped from the exact current spot in the original chain
 
 			freshAdd, _ = types.SignTx(types.NewEvmTransaction(gen.TxNonce(addr3.Recipient), addr3.Recipient, big.NewInt(1000), params.TxGas, nil, 0, 0, 3, 0, nil), signer, prvKey3)
-			gen.AddTx(config, TransEvmTxToTx(freshAdd)) // This transaction will be added exactly at reorg time
+			gen.AddTx(config, transEvmTxToTx(freshAdd)) // This transaction will be added exactly at reorg time
 
 		case 3:
 			futureAdd, _ = types.SignTx(types.NewEvmTransaction(gen.TxNonce(addr3.Recipient), addr3.Recipient, big.NewInt(1000), params.TxGas, nil, 0, 0, 3, 0, nil), signer, prvKey3)
-			gen.AddTx(config, TransEvmTxToTx(futureAdd)) // This transaction will be added after a full reorg
+			gen.AddTx(config, transEvmTxToTx(futureAdd)) // This transaction will be added after a full reorg
 		}
 	})
 
@@ -878,7 +878,7 @@ func TestMinorChainTxReorgs(t *testing.T) {
 	}
 
 	// removed tx
-	for i, tx := range (types.Transactions{TransEvmTxToTx(pastDrop), TransEvmTxToTx(freshDrop)}) {
+	for i, tx := range (types.Transactions{transEvmTxToTx(pastDrop), transEvmTxToTx(freshDrop)}) {
 		if txn, _, _ := rawdb.ReadTransaction(db, tx.Hash()); txn != nil {
 			t.Errorf("drop %d: tx %v found while shouldn't have been", i, txn)
 		}
@@ -887,7 +887,7 @@ func TestMinorChainTxReorgs(t *testing.T) {
 		}
 	}
 	// added tx
-	for i, tx := range (types.Transactions{TransEvmTxToTx(pastAdd), TransEvmTxToTx(freshAdd), TransEvmTxToTx(futureAdd)}) {
+	for i, tx := range (types.Transactions{transEvmTxToTx(pastAdd), transEvmTxToTx(freshAdd), transEvmTxToTx(futureAdd)}) {
 		if txn, _, _ := rawdb.ReadTransaction(db, tx.Hash()); txn == nil {
 			t.Errorf("add %d: expected tx to be found", i)
 		}
@@ -896,7 +896,7 @@ func TestMinorChainTxReorgs(t *testing.T) {
 		}
 	}
 	// shared tx
-	for i, tx := range (types.Transactions{TransEvmTxToTx(postponed), TransEvmTxToTx(swapped)}) {
+	for i, tx := range (types.Transactions{transEvmTxToTx(postponed), transEvmTxToTx(swapped)}) {
 		if txn, _, _ := rawdb.ReadTransaction(db, tx.Hash()); txn == nil {
 			t.Errorf("share %d: expected tx to be found", i)
 		}
@@ -953,7 +953,7 @@ func TestMinorLogReorgs(t *testing.T) {
 			if err != nil {
 				t.Fatalf("failed to create tx: %v", err)
 			}
-			gen.AddTx(config, TransEvmTxToTx(tx))
+			gen.AddTx(config, transEvmTxToTx(tx))
 		}
 	})
 	if _, _, err := blockchain.InsertChain(toMinorBlocks(chain)); err != nil {
@@ -1027,7 +1027,7 @@ func TestMinorReorgSideEvent(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to create tx: %v", err)
 		}
-		gen.AddTx(config, TransEvmTxToTx(tx))
+		gen.AddTx(config, transEvmTxToTx(tx))
 	})
 	chainSideCh := make(chan ChainSideEvent, 64)
 	blockchain.SubscribeChainSideEvent(chainSideCh)
@@ -1190,7 +1190,7 @@ func TestMinorEIP161AccountRemoval(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		block.AddTx(config, TransEvmTxToTx(tx))
+		block.AddTx(config, transEvmTxToTx(tx))
 	})
 	// account must exist pre eip 161
 	if _, _, err := blockchain.InsertChain([]types.IBlock{blocks[0]}); err != nil {
