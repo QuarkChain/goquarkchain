@@ -74,7 +74,7 @@ func TestServerConnection(t *testing.T) {
 	}
 
 	select {
-	case <-time.After(2 * time.Second):
+	case <-time.After(3 * time.Second):
 		p1Peers := p1.server.Peers()
 		p2Peers := p2.server.Peers()
 		if len(p1Peers) != 1 && len(p2Peers) != 1 {
