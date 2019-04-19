@@ -198,7 +198,6 @@ func (p *MsgPipeRW) ReadMsg() (Msg, error) {
 		case msg := <-p.r:
 			return msg, nil
 		case <-p.closing:
-			fmt.Println("--------MsgPipeRW is close------")
 		}
 	}
 	return Msg{}, ErrPipeClosed
@@ -215,10 +214,6 @@ func (p *MsgPipeRW) Close() error {
 	}
 	close(p.closing)
 	return nil
-}
-
-func (p *MsgPipeRW) IsClosed() bool {
-	return atomic.LoadInt32(p.closed) == 1
 }
 
 // ExpectMsg reads a message from r and verifies that its
