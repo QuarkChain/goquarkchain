@@ -6,6 +6,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
+	"time"
 )
 
 const (
@@ -72,6 +73,10 @@ func (c *CommonEngine) remote() {
 		}
 
 		solution := block.WithMingResult(nonce, mixDigest)
+		start := time.Now()
+		if err := c.cengine.VerifySeal(nil, block.IHeader(), block.IHeader().GetDifficulty()); err != nil {
+			log.Warn("Invalid proof-of-work submitted", "sealhash", sealhash, "elapsed", time.Since(start), "err", err)
+		}
 		if solution.NumberU64()+staleThreshold > currentBlock.NumberU64() {
 			select {
 			case results <- solution:

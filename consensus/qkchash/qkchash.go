@@ -29,7 +29,7 @@ func (q *QKCHash) Author(header types.IHeader) (account.Address, error) {
 
 // VerifyHeader checks whether a header conforms to the consensus rules.
 func (q *QKCHash) VerifyHeader(chain consensus.ChainReader, header types.IHeader, seal bool) error {
-	return q.commonEngine.VerifyHeader(chain, header, seal, q)
+	return q.commonEngine.VerifyHeader(chain, header, seal)
 }
 
 // VerifyHeaders is similar to VerifyHeader, but verifies a batch of headers
@@ -37,7 +37,7 @@ func (q *QKCHash) VerifyHeader(chain consensus.ChainReader, header types.IHeader
 // a results channel to retrieve the async verifications (the order is that of
 // the input slice).
 func (q *QKCHash) VerifyHeaders(chain consensus.ChainReader, headers []types.IHeader, seals []bool) (chan<- struct{}, <-chan error) {
-	return q.commonEngine.VerifyHeaders(chain, headers, seals, q)
+	return q.commonEngine.VerifyHeaders(chain, headers, seals)
 }
 
 // Prepare initializes the consensus fields of a block header according to the
@@ -117,6 +117,6 @@ func New(useNative bool, diffCalculator consensus.DifficultyCalculator, remote b
 		Name:     "QKCHash",
 		HashAlgo: q.hashAlgo,
 	}
-	q.commonEngine = consensus.NewCommonEngine(spec, remote)
+	q.commonEngine = consensus.NewCommonEngine(q, spec, remote)
 	return q
 }

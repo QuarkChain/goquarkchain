@@ -85,6 +85,8 @@ type CommonEngine struct {
 	fetchWorkCh  chan *sealWork
 	submitWorkCh chan *mineResult
 
+	cengine Engine
+
 	closeOnce sync.Once
 	exitCh    chan chan error
 }
@@ -104,7 +106,6 @@ func (c *CommonEngine) VerifyHeader(
 	chain ChainReader,
 	header types.IHeader,
 	seal bool,
-	cengine Engine,
 ) error {
 	// Short-circuit if the header is known, or parent not
 	number := header.NumberU64()
@@ -131,7 +132,7 @@ func (c *CommonEngine) VerifyHeader(
 
 	adjustedDiff := new(big.Int).SetUint64(0)
 	if !chain.Config().SkipRootDifficultyCheck {
-		expectedDiff := cengine.CalcDifficulty(chain, header.GetTime(), parent)
+		expectedDiff := c.cengine.CalcDifficulty(chain, header.GetTime(), parent)
 		if expectedDiff.Cmp(header.GetDifficulty()) != 0 {
 			errMsg := fmt.Sprintf("invalid difficulty: have %v, want %v", header.GetDifficulty(), expectedDiff)
 			logger.Error(errMsg)
@@ -145,7 +146,7 @@ func (c *CommonEngine) VerifyHeader(
 		}
 	}
 
-	return cengine.VerifySeal(chain, header, adjustedDiff)
+	return c.cengine.VerifySeal(chain, header, adjustedDiff)
 }
 
 // VerifyHeaders is similar to VerifyHeader, but verifies a batch of headers
@@ -156,14 +157,13 @@ func (c *CommonEngine) VerifyHeaders(
 	chain ChainReader,
 	headers []types.IHeader,
 	seals []bool,
-	cengine Engine,
 ) (chan<- struct{}, <-chan error) {
 
 	// TODO: verify concurrently, and support aborting
 	errorsOut := make(chan error, len(headers))
 	go func() {
 		for _, h := range headers {
-			err := c.VerifyHeader(chain, h, true /*seal flag not used*/, cengine)
+			err := c.VerifyHeader(chain, h, true /*seal flag not used*/)
 			errorsOut <- err
 		}
 	}()
@@ -367,10 +367,11 @@ func (c *CommonEngine) Close() error {
 }
 
 // NewCommonEngine returns the common engine mixin.
-func NewCommonEngine(spec MiningSpec, remote bool) *CommonEngine {
+func NewCommonEngine(pow Engine, spec MiningSpec, remote bool) *CommonEngine {
 	c := &CommonEngine{
 		spec:     spec,
 		hashrate: metrics.NewMeter(),
+		cengine:  pow,
 	}
 	if remote {
 		c.isRemote = remote

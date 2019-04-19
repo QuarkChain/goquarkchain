@@ -34,7 +34,7 @@ func (d *DoubleSHA256) Author(header types.IHeader) (account.Address, error) {
 
 // VerifyHeader checks whether a header conforms to the consensus rules.
 func (d *DoubleSHA256) VerifyHeader(chain consensus.ChainReader, header types.IHeader, seal bool) error {
-	return d.commonEngine.VerifyHeader(chain, header, seal, d)
+	return d.commonEngine.VerifyHeader(chain, header, seal)
 }
 
 // VerifyHeaders is similar to VerifyHeader, but verifies a batch of headers
@@ -42,7 +42,7 @@ func (d *DoubleSHA256) VerifyHeader(chain consensus.ChainReader, header types.IH
 // a results channel to retrieve the async verifications (the order is that of
 // the input slice).
 func (d *DoubleSHA256) VerifyHeaders(chain consensus.ChainReader, headers []types.IHeader, seals []bool) (chan<- struct{}, <-chan error) {
-	return d.commonEngine.VerifyHeaders(chain, headers, seals, d)
+	return d.commonEngine.VerifyHeaders(chain, headers, seals)
 }
 
 // VerifySeal checks whether the crypto seal on a header is valid according to
@@ -147,8 +147,8 @@ func New(diffCalculator consensus.DifficultyCalculator, remote bool) *DoubleSHA2
 		HashAlgo: hashAlgo,
 	}
 	d := &DoubleSHA256{
-		commonEngine:   consensus.NewCommonEngine(spec, remote),
 		diffCalculator: diffCalculator,
 	}
+	d.commonEngine = consensus.NewCommonEngine(d, spec, remote)
 	return d
 }
