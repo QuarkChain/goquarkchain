@@ -11,7 +11,7 @@ const (
 	QKCProtocolLength  = 16
 )
 
-func FakeEnv(port uint64) config.ClusterConfig {
+func FakeEnv(port int) config.ClusterConfig {
 	return config.ClusterConfig{
 		P2PPort: port,
 		P2P: &config.P2PConfig{
@@ -20,7 +20,7 @@ func FakeEnv(port uint64) config.ClusterConfig {
 		},
 	}
 }
-func FakeEnv2(port uint64, bootNodes string) config.ClusterConfig {
+func FakeEnv2(port int, bootNodes string) config.ClusterConfig {
 	return config.ClusterConfig{
 		P2PPort: port,
 		P2P: &config.P2PConfig{
