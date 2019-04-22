@@ -23,6 +23,8 @@ service MasterServerSideOp {
 service SlaveServerSideOp {
     rpc heartBeat (Request) returns (Response) {
     }
+    rpc MasterInfo (Request) returns (Response) {
+    }
     // APIs for master
     rpc Ping (Request) returns (Response) {
     }

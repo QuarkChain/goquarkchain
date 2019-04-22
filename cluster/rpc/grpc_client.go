@@ -16,6 +16,7 @@ type serverType int
 
 const (
 	OpHeartBeat = iota
+	OpMasterInfo
 	OpPing
 	OpConnectToSlaves
 	OpAddRootBlock
@@ -72,6 +73,7 @@ var (
 	// slave apis
 	slaveApis = map[uint32]opType{
 		OpHeartBeat:                   {name: "HeartBeat"},
+		OpMasterInfo:                  {name: "MasterInfo"},
 		OpPing:                        {name: "Ping"},
 		OpConnectToSlaves:             {name: "ConnectToSlaves"},
 		OpAddRootBlock:                {name: "AddRootBlock"},
@@ -155,6 +157,8 @@ func (c *rpcClient) Close() {
 func (c *rpcClient) getConn(hostport string) (*opNode, error) {
 	// add new connection if not existing or has failed
 	// note that race may happen when adding duplicate connections
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	node, ok := c.connVals[hostport]
 	if !ok || node.conn.GetState() > connectivity.TransientFailure {
 		return c.addConn(hostport)
@@ -187,8 +191,6 @@ func (c *rpcClient) grpcOp(hostport string, req *Request) (*Response, error) {
 }
 
 func (c *rpcClient) addConn(hostport string) (*opNode, error) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
 
 	delete(c.connVals, hostport)
 	opts := []grpc.DialOption{grpc.WithInsecure()}
