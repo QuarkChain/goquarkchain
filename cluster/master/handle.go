@@ -19,17 +19,12 @@ import (
 
 // QKCProtocol details
 const (
-	QKCProtocolName    = "quarkchain"
-	QKCProtocolVersion = 1
-	QKCProtocolLength  = 16
-
-	// txChanSize is the size of channel listening to NewTxsEvent.
-	// The number is referenced from the size of tx pool.
+	QKCProtocolName     = "quarkchain"
+	QKCProtocolVersion  = 1
+	QKCProtocolLength   = 16
 	chainHeadChanSize   = 10
 	forceSyncCycle      = 1000 * time.Second
 	minDesiredPeerCount = 5
-	DirectionToGeneis   = uint8(0)
-	DirectionToTIP      = uint8(1)
 )
 
 // ProtocolManager QKC manager
@@ -37,16 +32,14 @@ type ProtocolManager struct {
 	networkID      uint32
 	rootBlockChain *core.RootBlockChain
 	clusterConfig  *config.ClusterConfig
-	maxPeers       int
 
-	//downloader *downloader.Downloader
 	SubProtocols     []p2p.Protocol
 	getShardConnFunc func(fullShardId uint32) ShardConnForP2P
-	//P2PManager   *p2p.P2PManager
 
 	chainHeadChan     chan core.RootChainHeadEvent
 	chainHeadEventSub event.Subscription
 
+	maxPeers    int
 	peers       *peerSet // Set of active peers from which rootDownloader can proceed
 	newPeerCh   chan *peer
 	quitSync    chan struct{}
@@ -128,7 +121,6 @@ func (pm *ProtocolManager) Stop() {
 	// After this send has completed, no new peers will be accepted.
 	pm.noMorePeers <- struct{}{}
 
-	// Quit fetcher, txsyncLoop.
 	close(pm.quitSync)
 
 	// Disconnect existing sessions.
@@ -270,6 +262,8 @@ func (pm *ProtocolManager) handleMsg(peer *peer) error {
 		}
 		if c := peer.getChan(qkcMsg.RpcID); c != nil {
 			c <- blockHeaderResp.BlockHeaderList
+		} else {
+			log.Error(fmt.Sprintf("chan for rpc %d is missing", qkcMsg.RpcID))
 		}
 
 	case qkcMsg.Op == p2p.GetRootBlockListRequestMsg:
@@ -292,6 +286,8 @@ func (pm *ProtocolManager) handleMsg(peer *peer) error {
 		}
 		if c := peer.getChan(qkcMsg.RpcID); c != nil {
 			c <- blockResp.RootBlockList
+		} else {
+			log.Error(fmt.Sprintf("chan for rpc %d is missing", qkcMsg.RpcID))
 		}
 
 	case qkcMsg.Op == p2p.GetMinorBlockHeaderListRequestMsg:
@@ -315,6 +311,8 @@ func (pm *ProtocolManager) handleMsg(peer *peer) error {
 		}
 		if c := peer.getChan(qkcMsg.RpcID); c != nil {
 			c <- minorHeaderResp.BlockHeaderList
+		} else {
+			log.Error(fmt.Sprintf("chan for rpc %d is missing", qkcMsg.RpcID))
 		}
 
 	case qkcMsg.Op == p2p.GetMinorBlockListRequestMsg:
@@ -337,6 +335,8 @@ func (pm *ProtocolManager) handleMsg(peer *peer) error {
 		}
 		if c := peer.getChan(qkcMsg.RpcID); c != nil {
 			c <- minorBlockResp.MinorBlockList
+		} else {
+			log.Error(fmt.Sprintf("chan for rpc %d is missing", qkcMsg.RpcID))
 		}
 
 	default:
@@ -353,7 +353,7 @@ func (pm *ProtocolManager) HandleGetRootBlockHeaderListRequest(blockHeaderReq *p
 	if blockHeaderReq.Limit > rootBlockHeaderListLimit {
 		return nil, fmt.Errorf("limit in request is larger than expected, limit: %d, want: %d", blockHeaderReq.Limit, rootBlockHeaderListLimit)
 	}
-	if blockHeaderReq.Direction != DirectionToGeneis {
+	if blockHeaderReq.Direction != directionToGenesis {
 		return nil, errors.New("Bad direction")
 	}
 	blockHeaderResp := p2p.GetRootBlockHeaderListResponse{
@@ -364,7 +364,7 @@ func (pm *ProtocolManager) HandleGetRootBlockHeaderListRequest(blockHeaderReq *p
 	hash := blockHeaderReq.BlockHash
 	for i := uint32(0); i < blockHeaderReq.Limit; i++ {
 		header := pm.rootBlockChain.GetHeader(hash)
-		if header == nil { //todo check interfae == nil
+		if header == nil { //todo check interface == nil
 			panic(fmt.Sprintf("hash %v is missing from DB which is not expected", hash))
 		}
 		hash = header.GetParentHash()
@@ -493,52 +493,4 @@ func (pm *ProtocolManager) synchronise(peer *peer) {
 	// Make sure the peer's TD is higher than our own
 	currentBlock := pm.rootBlockChain.CurrentBlock()
 	go pm.BroadcastTip(currentBlock.Header())
-}
-
-func testDisplayNewBlockMinor(msg p2p.QKCMsg) error {
-	//TODO only display need delete
-	var newBlockMinor p2p.NewBlockMinor
-
-	if err := serialize.DeserializeFromBytes(msg.Data, &newBlockMinor); err != nil {
-		return err
-	}
-
-	fmt.Println("===root block到来 开始展示", newBlockMinor.Block.Header().Hash().String())
-	header := newBlockMinor.Block.Header()
-	fmt.Println("Time", header.Time)
-	fmt.Println("Number", header.Number)
-	fmt.Println("Version", header.Version)
-	fmt.Println("Branch", header.Branch)
-	fmt.Println("PrevRootBlockHash", header.PrevRootBlockHash.String())
-	fmt.Println("Bloom", header.Bloom.Big().String())
-	fmt.Println("Coinbase", header.Coinbase.ToHex())
-	fmt.Println("Difficulty", header.Difficulty.String())
-	fmt.Println("Nonce", header.Nonce)
-	fmt.Println("CoinbaseAmount", header.CoinbaseAmount.Value.String())
-	fmt.Println("Extra", header.Extra)
-	fmt.Println("MixDigest", header.MixDigest.String())
-	fmt.Println("===root block到来 展示结束")
-	return nil
-}
-
-func testDisplayNewMinotBlockHeaderList(header *types.RootBlockHeader, minorHeaderList []*types.MinorBlockHeader) {
-	//TODO only display need delete
-	fmt.Println("===minor block到来 开始展示", header.Hash().String())
-	fmt.Println("Time", header.Time)
-	fmt.Println("Number", header.Number)
-	fmt.Println("Version", header.Version)
-	fmt.Println("ParentHash", header.ParentHash.String())
-	fmt.Println("Coinbase", header.Coinbase.ToHex())
-	fmt.Println("Difficulty", header.Difficulty.String())
-	fmt.Println("Nonce", header.Nonce)
-	fmt.Println("CoinbaseAmount", header.CoinbaseAmount.Value.String())
-	fmt.Println("Extra", header.Extra)
-	fmt.Println("MinorHeaderHash", header.MinorHeaderHash.String())
-	fmt.Println("MixDigest", header.MixDigest.String())
-	fmt.Println("Signature", header.Signature)
-	fmt.Println("[]*types.MinorBlockHeader len", len(minorHeaderList))
-	for _, v := range minorHeaderList {
-		fmt.Println("Tip single types.MinorBlockHeader", v.Hash().String())
-	}
-	fmt.Println("===minor block到来 展示结束")
 }
