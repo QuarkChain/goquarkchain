@@ -72,7 +72,7 @@ func newMinorCanonical(cacheConfig *CacheConfig, engine consensus.Engine, n int,
 	fakeClusterConfig.Quarkchain.SkipRootCoinbaseCheck = true
 	// Initialize a fresh chain with only a genesis block
 	chainConfig := params.TestChainConfig
-	blockchain, _ := NewMinorBlockChain(db, cacheConfig, chainConfig, fakeClusterConfig, engine, vm.Config{}, nil, fakeFullShardID, nil)
+	blockchain, _ := NewMinorBlockChain(db, cacheConfig, chainConfig, fakeClusterConfig, engine, vm.Config{}, nil, fakeFullShardID)
 	genesis, err := blockchain.InitGenesisState(rootBlock, genesis)
 	if err != nil {
 		panic(err)
@@ -605,7 +605,7 @@ func TestMinorFastVsFullChains(t *testing.T) {
 	// Import the chain as an archive node for the comparison baseline
 	archiveDb := ethdb.NewMemDatabase()
 	gspec.MustCommitMinorBlock(archiveDb, nil, clusterConfig.Quarkchain.Chains[0].ShardSize|0)
-	archive, _ := NewMinorBlockChain(archiveDb, nil, chainConfig, clusterConfig, engine, vm.Config{}, nil, clusterConfig.Quarkchain.Chains[0].ShardSize|0, nil)
+	archive, _ := NewMinorBlockChain(archiveDb, nil, chainConfig, clusterConfig, engine, vm.Config{}, nil, clusterConfig.Quarkchain.Chains[0].ShardSize|0)
 	genesis, err = archive.InitGenesisState(rootBlock, genesis)
 	if err != nil {
 		panic(err)
@@ -618,7 +618,7 @@ func TestMinorFastVsFullChains(t *testing.T) {
 	// Fast import the chain as a non-archive node to testMinor
 	fastDb := ethdb.NewMemDatabase()
 	gspec.MustCommitMinorBlock(fastDb, nil, config.NewClusterConfig().Quarkchain.Chains[0].ShardSize|0)
-	fast, _ := NewMinorBlockChain(fastDb, nil, chainConfig, config.NewClusterConfig(), engine, vm.Config{}, nil, clusterConfig.Quarkchain.Chains[0].ShardSize|0, nil)
+	fast, _ := NewMinorBlockChain(fastDb, nil, chainConfig, config.NewClusterConfig(), engine, vm.Config{}, nil, clusterConfig.Quarkchain.Chains[0].ShardSize|0)
 	defer fast.Stop()
 
 	headers := make([]*types.MinorBlockHeader, len(blocks))
@@ -700,7 +700,7 @@ func TestMinorLightVsFastVsFullChainHeads(t *testing.T) {
 	archiveDb := ethdb.NewMemDatabase()
 	gspec.MustCommitMinorBlock(archiveDb, rootBlock, clusterConfig.Quarkchain.Chains[0].ShardSize|0)
 
-	archive, _ := NewMinorBlockChain(archiveDb, nil, params.TestChainConfig, clusterConfig, engine, vm.Config{}, nil, config.NewClusterConfig().Quarkchain.Chains[0].ShardSize|0, nil)
+	archive, _ := NewMinorBlockChain(archiveDb, nil, params.TestChainConfig, clusterConfig, engine, vm.Config{}, nil, config.NewClusterConfig().Quarkchain.Chains[0].ShardSize|0)
 	genesis, err := archive.InitGenesisState(rootBlock, genesis)
 	if err != nil {
 		panic(err)
@@ -717,7 +717,7 @@ func TestMinorLightVsFastVsFullChainHeads(t *testing.T) {
 	// Import the chain as a non-archive node and ensure all pointers are updated
 	fastDb := ethdb.NewMemDatabase()
 	genesis1 := gspec.MustCommitMinorBlock(fastDb, rootBlock, clusterConfig.Quarkchain.Chains[0].ShardSize|0)
-	fast, _ := NewMinorBlockChain(fastDb, nil, params.TestChainConfig, clusterConfig, engine, vm.Config{}, nil, config.NewClusterConfig().Quarkchain.Chains[0].ShardSize|0, nil)
+	fast, _ := NewMinorBlockChain(fastDb, nil, params.TestChainConfig, clusterConfig, engine, vm.Config{}, nil, config.NewClusterConfig().Quarkchain.Chains[0].ShardSize|0)
 	genesis1, err = fast.InitGenesisState(rootBlock, genesis1)
 	if err != nil {
 		panic(err)
@@ -742,7 +742,7 @@ func TestMinorLightVsFastVsFullChainHeads(t *testing.T) {
 	lightDb := ethdb.NewMemDatabase()
 	genesis2 := gspec.MustCommitMinorBlock(lightDb, rootBlock, clusterConfig.Quarkchain.Chains[0].ShardSize|0)
 
-	light, _ := NewMinorBlockChain(lightDb, nil, params.TestChainConfig, clusterConfig, engine, vm.Config{}, nil, config.NewClusterConfig().Quarkchain.Chains[0].ShardSize|0, nil)
+	light, _ := NewMinorBlockChain(lightDb, nil, params.TestChainConfig, clusterConfig, engine, vm.Config{}, nil, config.NewClusterConfig().Quarkchain.Chains[0].ShardSize|0)
 	genesis2, err = light.InitGenesisState(rootBlock, genesis2)
 	if err != nil {
 		panic(err)
@@ -842,7 +842,7 @@ func TestMinorChainTxReorgs(t *testing.T) {
 		}
 	})
 	// Import the chain. This runs all block validation rules.
-	blockchain, _ := NewMinorBlockChain(db, nil, params.TestChainConfig, clusterConfig, engine, vm.Config{}, nil, clusterConfig.Quarkchain.Chains[0].ShardSize|0, nil)
+	blockchain, _ := NewMinorBlockChain(db, nil, params.TestChainConfig, clusterConfig, engine, vm.Config{}, nil, clusterConfig.Quarkchain.Chains[0].ShardSize|0)
 	genesis, err = blockchain.InitGenesisState(rootBlock, genesis)
 	if err != nil {
 		panic(err)
@@ -938,7 +938,7 @@ func TestMinorLogReorgs(t *testing.T) {
 	}
 	engine := &consensus.FakeEngine{}
 	genesis := gspec.MustCommitMinorBlock(db, rootBlock, clusterConfig.Quarkchain.Chains[0].ShardSize|0)
-	blockchain, _ := NewMinorBlockChain(db, nil, params.TestChainConfig, clusterConfig, engine, vm.Config{}, nil, config.NewClusterConfig().Quarkchain.Chains[0].ShardSize|0, nil)
+	blockchain, _ := NewMinorBlockChain(db, nil, params.TestChainConfig, clusterConfig, engine, vm.Config{}, nil, config.NewClusterConfig().Quarkchain.Chains[0].ShardSize|0)
 	genesis, err = blockchain.InitGenesisState(rootBlock, genesis)
 	if err != nil {
 		panic(err)
@@ -1007,7 +1007,7 @@ func TestMinorReorgSideEvent(t *testing.T) {
 	}
 	engine := &consensus.FakeEngine{}
 	genesis := gspec.MustCommitMinorBlock(db, rootBlock, clusterConfig.Quarkchain.Chains[0].ShardSize|0)
-	blockchain, _ := NewMinorBlockChain(db, nil, params.TestChainConfig, clusterConfig, engine, vm.Config{}, nil, clusterConfig.Quarkchain.Chains[0].ShardSize|0, nil)
+	blockchain, _ := NewMinorBlockChain(db, nil, params.TestChainConfig, clusterConfig, engine, vm.Config{}, nil, clusterConfig.Quarkchain.Chains[0].ShardSize|0)
 	genesis, err = blockchain.InitGenesisState(rootBlock, genesis)
 	if err != nil {
 		panic(err)
@@ -1166,7 +1166,7 @@ func TestMinorEIP161AccountRemoval(t *testing.T) {
 	}
 	engine := &consensus.FakeEngine{}
 	genesis := gspec.MustCommitMinorBlock(db, rootBlock, clusterConfig.Quarkchain.Chains[0].ShardSize|0)
-	blockchain, _ := NewMinorBlockChain(db, nil, chainConfig, clusterConfig, engine, vm.Config{}, nil, clusterConfig.Quarkchain.Chains[0].ShardSize, nil)
+	blockchain, _ := NewMinorBlockChain(db, nil, chainConfig, clusterConfig, engine, vm.Config{}, nil, clusterConfig.Quarkchain.Chains[0].ShardSize)
 	genesis, err = blockchain.InitGenesisState(rootBlock, genesis)
 	if err != nil {
 		panic(err)
@@ -1259,7 +1259,7 @@ func TestMinorBlockchainHeaderchainReorgConsistency(t *testing.T) {
 	diskdb := ethdb.NewMemDatabase()
 	gspec.MustCommitMinorBlock(diskdb, rootBlock, clusterConfig.Quarkchain.Chains[0].ShardSize|0)
 
-	chain, err := NewMinorBlockChain(diskdb, nil, params.TestChainConfig, clusterConfig, engine, vm.Config{}, nil, config.NewClusterConfig().Quarkchain.Chains[0].ShardSize|0, nil)
+	chain, err := NewMinorBlockChain(diskdb, nil, params.TestChainConfig, clusterConfig, engine, vm.Config{}, nil, config.NewClusterConfig().Quarkchain.Chains[0].ShardSize|0)
 	genesis, err = chain.InitGenesisState(rootBlock, genesis)
 	if err != nil {
 		panic(err)
@@ -1321,7 +1321,7 @@ func TestMinorTrieForkGC(t *testing.T) {
 	diskdb := ethdb.NewMemDatabase()
 	gspec.MustCommitMinorBlock(diskdb, rootBlock, clusterConfig.Quarkchain.Chains[0].ShardSize|0)
 
-	chain, err := NewMinorBlockChain(diskdb, nil, params.TestChainConfig, clusterConfig, engine, vm.Config{}, nil, config.NewClusterConfig().Quarkchain.Chains[0].ShardSize|0, nil)
+	chain, err := NewMinorBlockChain(diskdb, nil, params.TestChainConfig, clusterConfig, engine, vm.Config{}, nil, config.NewClusterConfig().Quarkchain.Chains[0].ShardSize|0)
 	if err != nil {
 		t.Fatalf("failed to create testMinorer chain: %v", err)
 	}
@@ -1386,7 +1386,7 @@ func TestMinorLargeReorgTrieGC(t *testing.T) {
 		Disabled:       false,
 	}
 
-	chain, err := NewMinorBlockChain(diskdb, cacheConfig, params.TestChainConfig, clusterConfig, engine, vm.Config{}, nil, config.NewClusterConfig().Quarkchain.Chains[0].ShardSize|0, nil)
+	chain, err := NewMinorBlockChain(diskdb, cacheConfig, params.TestChainConfig, clusterConfig, engine, vm.Config{}, nil, config.NewClusterConfig().Quarkchain.Chains[0].ShardSize|0)
 	if err != nil {
 		t.Fatalf("failed to create testMinorer chain: %v", err)
 	}

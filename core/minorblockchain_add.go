@@ -720,7 +720,7 @@ func (m *MinorBlockChain) GetNextBlockDifficulty(createTime *uint64) (*big.Int, 
 	} else {
 		realTime = *createTime
 	}
-	return m.diffCalc.CalculateDifficulty(m.CurrentHeader().(*types.MinorBlockHeader), realTime)
+	return m.engine.CalcDifficulty(m, realTime, m.CurrentHeader().(*types.MinorBlockHeader))
 }
 
 // GetNextBlockCoinBaseAmount get next block coinBase amount

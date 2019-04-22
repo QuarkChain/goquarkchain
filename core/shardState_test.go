@@ -1562,7 +1562,7 @@ func TestShardStateRecoveryFromRootBlock(t *testing.T) {
 	fakeClusterConfig := config.NewClusterConfig()
 	Engine := new(consensus.FakeEngine)
 
-	recoveredState, err := NewMinorBlockChain(env.db, nil, ethParams.TestChainConfig, fakeClusterConfig, Engine, vm.Config{}, nil, 2|0, nil)
+	recoveredState, err := NewMinorBlockChain(env.db, nil, ethParams.TestChainConfig, fakeClusterConfig, Engine, vm.Config{}, nil, 2|0)
 	err = recoveredState.InitFromRootBlock(rootBlock)
 	checkErr(err)
 	tempBlock := recoveredState.GetBlockByHash(b1.Header().Hash())
@@ -1606,7 +1606,7 @@ func TestShardStateTecoveryFromGenesis(t *testing.T) {
 
 	fakeClusterConfig := config.NewClusterConfig()
 	Engine := new(consensus.FakeEngine)
-	recoveredState, err := NewMinorBlockChain(env.db, nil, ethParams.TestChainConfig, fakeClusterConfig, Engine, vm.Config{}, nil, 2|0, nil)
+	recoveredState, err := NewMinorBlockChain(env.db, nil, ethParams.TestChainConfig, fakeClusterConfig, Engine, vm.Config{}, nil, 2|0)
 	checkErr(err)
 	err = recoveredState.InitFromRootBlock(rootBlock)
 	checkErr(err)

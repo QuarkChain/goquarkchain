@@ -127,7 +127,6 @@ type MinorBlockChain struct {
 	confirmedHeaderTip       *types.MinorBlockHeader
 	initialized              bool
 	coinBaseAddrCache        map[common.Hash]heightAndAddrs
-	diffCalc                 consensus.DifficultyCalculator
 	rewardCalc               *qkcCommon.ConstMinorBlockRewardCalculator
 	gasPriceSuggestionOracle *gasPriceSuggestionOracle
 	heightToMinorBlockHashes map[uint64]map[common.Hash]struct{}
@@ -147,7 +146,6 @@ func NewMinorBlockChain(
 	vmConfig vm.Config,
 	shouldPreserve func(block *types.MinorBlock) bool,
 	fullShardID uint32,
-	diffCalc consensus.DifficultyCalculator,
 ) (*MinorBlockChain, error) {
 	if clusterConfig == nil || chainConfig == nil {
 		return nil, errors.New("can not new minorBlock: config is nil")
@@ -198,16 +196,7 @@ func NewMinorBlockChain(
 	}
 	var err error
 
-	if qkcCommon.IsNil(diffCalc) {
-		cutoff := bc.shardConfig.DifficultyAdjustmentCutoffTime
-		diffFactor := bc.shardConfig.DifficultyAdjustmentFactor
-		minDiff := bc.shardConfig.Genesis.Difficulty
-		bc.diffCalc = &consensus.EthDifficultyCalculator{AdjustmentCutoff: cutoff, AdjustmentFactor: diffFactor, MinimumDifficulty: new(big.Int).SetUint64(minDiff)}
-	} else {
-		bc.diffCalc = diffCalc
-	}
-
-	bc.SetValidator(NewBlockValidator(clusterConfig.Quarkchain, bc, engine, bc.branch, bc.diffCalc))
+	bc.SetValidator(NewBlockValidator(clusterConfig.Quarkchain, bc, engine, bc.branch))
 	bc.SetProcessor(NewStateProcessor(bc.ethChainConfig, bc, engine))
 
 	bc.hc, err = NewMinorHeaderChain(db, bc.clusterConfig.Quarkchain, engine, bc.getProcInterrupt)

@@ -37,17 +37,15 @@ type MinorBlockValidator struct {
 	bc               *MinorBlockChain         // Canonical block chain
 	engine           consensus.Engine         // Consensus engine used for validating
 	branch           account.Branch
-	diffCalc         consensus.DifficultyCalculator
 }
 
 // NewBlockValidator returns a new block validator which is safe for re-use
-func NewBlockValidator(quarkChainConfig *config.QuarkChainConfig, blockchain *MinorBlockChain, engine consensus.Engine, branch account.Branch, diffCalc consensus.DifficultyCalculator) *MinorBlockValidator {
+func NewBlockValidator(quarkChainConfig *config.QuarkChainConfig, blockchain *MinorBlockChain, engine consensus.Engine, branch account.Branch) *MinorBlockValidator {
 	validator := &MinorBlockValidator{
 		quarkChainConfig: quarkChainConfig,
 		engine:           engine,
 		bc:               blockchain,
 		branch:           branch,
-		diffCalc:         diffCalc,
 	}
 	return validator
 }
@@ -122,7 +120,7 @@ func (v *MinorBlockValidator) ValidateBlock(mBlock types.IBlock) error {
 	}
 
 	if !v.quarkChainConfig.SkipMinorDifficultyCheck {
-		diff, err := v.diffCalc.CalculateDifficulty(prevHeader, block.IHeader().GetTime())
+		diff, err := v.engine.CalcDifficulty(v.bc, block.IHeader().GetTime(), prevHeader)
 		if err != nil {
 			return err
 		}

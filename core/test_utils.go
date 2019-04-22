@@ -101,7 +101,7 @@ func createDefaultShardState(env *fakeEnv, shardID *uint32, diffCalc consensus.D
 	gensisBlock := genesisManager.MustCommitMinorBlock(env.db, rBlock, fullShardID)
 	Engine := new(consensus.FakeEngine)
 	chainConfig := params.TestChainConfig
-	shardState, err := NewMinorBlockChain(env.db, nil, chainConfig, env.clusterConfig, Engine, vm.Config{}, nil, fullShardID, diffCalc)
+	shardState, err := NewMinorBlockChain(env.db, nil, chainConfig, env.clusterConfig, Engine, vm.Config{}, nil, fullShardID)
 	if err != nil {
 		panic(err)
 	}

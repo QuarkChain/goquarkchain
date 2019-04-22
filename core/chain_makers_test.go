@@ -126,7 +126,7 @@ func ExampleGenerateMinorBlockChain() {
 	fakeFullShardID := fakeClusterConfig.Quarkchain.Chains[0].ShardSize | 0
 	// Import the chain. This runs all block validation rules.
 	chainConfig := params.TestChainConfig
-	blockchain, _ := NewMinorBlockChain(db, nil, chainConfig, fakeClusterConfig, new(consensus.FakeEngine), vm.Config{}, nil, fakeFullShardID, nil)
+	blockchain, _ := NewMinorBlockChain(db, nil, chainConfig, fakeClusterConfig, new(consensus.FakeEngine), vm.Config{}, nil, fakeFullShardID)
 	genesis, err = blockchain.InitGenesisState(rootBlock, genesis)
 	if err != nil {
 		panic(err)
