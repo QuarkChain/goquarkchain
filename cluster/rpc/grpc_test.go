@@ -9,7 +9,7 @@ import (
 	"github.com/ethereum/go-ethereum/rpc"
 )
 
-func testSlaveConfig(idx int) *config.SlaveConfig {
+func testSlaveConfig(idx uint16) *config.SlaveConfig {
 	return &config.SlaveConfig{
 		IP:            "127.0.0.1",
 		Port:          38000 + idx,

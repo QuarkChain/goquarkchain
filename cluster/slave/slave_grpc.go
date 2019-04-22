@@ -2,7 +2,9 @@ package slave
 
 import (
 	"context"
+	"fmt"
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
+	"github.com/QuarkChain/goquarkchain/serialize"
 	"github.com/ethereum/go-ethereum/log"
 	"sync"
 	"sync/atomic"
@@ -32,6 +34,19 @@ func (s *SlaveServerSideOp) HeartBeat(ctx context.Context, req *rpc.Request) (*r
 	}, nil
 }
 
+func (s *SlaveServerSideOp) MasterInfo(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
+
+	var mstrInfo rpc.MasterInfo
+	buf := serialize.NewByteBuffer(req.Data)
+
+	if err := serialize.Deserialize(buf, &mstrInfo); err != nil {
+		return nil, err
+	}
+	s.slave.masterConn.target = fmt.Sprintf("%s:%d", mstrInfo.Ip, mstrInfo.Port)
+	log.Info("slave master info response", "master info", s.slave.masterConn.target)
+	return &rpc.Response{ErrorCode: 0}, nil
+}
+
 func (s *SlaveServerSideOp) Ping(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
 	log.Info("slave ping response", "request op", req.Op, "rpc id", s.rpcId)
 	return &rpc.Response{
@@ -40,7 +55,22 @@ func (s *SlaveServerSideOp) Ping(ctx context.Context, req *rpc.Request) (*rpc.Re
 	}, nil
 }
 
-func (s *SlaveServerSideOp) ConnectToSlaves(ctx context.Context, req *rpc.Request) (*rpc.Response, error)                     { panic("not implemented") }
+func (s *SlaveServerSideOp) ConnectToSlaves(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
+	var slavesReq rpc.ConnectToSlavesRequest
+	buf := serialize.NewByteBuffer(req.Data)
+
+	if err := serialize.Deserialize(buf, &slavesReq); err != nil {
+		return nil, err
+	}
+
+	for _, slvInfo := range slavesReq.SlaveInfoList {
+		if ok := s.slave.slaveConnManager.AddConnectToSlave(&slvInfo); !ok {
+
+		}
+	}
+
+	return &rpc.Response{}, nil
+}
 func (s *SlaveServerSideOp) GetMine(ctx context.Context, req *rpc.Request) (*rpc.Response, error)                             { panic("not implemented") }
 func (s *SlaveServerSideOp) GenTx(ctx context.Context, req *rpc.Request) (*rpc.Response, error)                               { panic("not implemented") }
 func (s *SlaveServerSideOp) AddRootBlock(ctx context.Context, req *rpc.Request) (*rpc.Response, error)                        { panic("not implemented") }

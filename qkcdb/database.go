@@ -2,6 +2,7 @@ package qkcdb
 
 import (
 	"errors"
+	"os"
 	"sync"
 
 	"github.com/ethereum/go-ethereum/log"
@@ -29,6 +30,9 @@ type RDBDatabase struct {
 func NewRDBDatabase(file string) (*RDBDatabase, error) {
 	logger := log.New("database", file)
 
+	if err := os.MkdirAll(file, 0700); err != nil {
+		return nil, err
+	}
 	opts := gorocksdb.NewDefaultOptions()
 	// ubuntu 16.04 max files descriptors 524288
 	opts.SetMaxFileOpeningThreads(handles)

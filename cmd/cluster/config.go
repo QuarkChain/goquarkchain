@@ -109,7 +109,7 @@ func makeFullNode(ctx *cli.Context) *service.Node {
 	if !stack.IsMaster() {
 		for _, slv := range cfg.Cluster.SlaveList {
 			if cfg.Service.Name == slv.ID {
-				utils.RegisterSlaveService(stack, slv)
+				utils.RegisterSlaveService(stack, &cfg.Cluster, slv)
 				break
 			}
 		}

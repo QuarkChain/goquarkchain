@@ -96,6 +96,8 @@ type RootConfig struct {
 	CoinbaseAmount                 *big.Int     `json:"COINBASE_AMOUNT"`
 	DifficultyAdjustmentCutoffTime uint32       `json:"DIFFICULTY_ADJUSTMENT_CUTOFF_TIME"`
 	DifficultyAdjustmentFactor     uint32       `json:"DIFFICULTY_ADJUSTMENT_FACTOR"`
+	Ip                             string       `json:"-"`
+	Port                           uint16       `json:"-"`
 }
 
 func NewRootConfig() *RootConfig {

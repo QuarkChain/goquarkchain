@@ -8,6 +8,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/serialize"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
+	"time"
 )
 
 type SlaveConnection struct {
@@ -26,15 +27,34 @@ func NewSlaveConn(target string, shardMaskLst []*types.ChainMask) (*SlaveConnect
 	}, nil
 }
 
-func (s *SlaveConnection) HeartBeat(request *rpc.Request) bool {
-	_, err := s.client.Call(s.target, request)
-	if err != nil {
-		return false
+func (s *SlaveConnection) HeartBeat() bool {
+
+	var tryTimes = 3
+	for tryTimes > 0 {
+		req := rpc.Request{Op: rpc.OpHeartBeat, Data: nil}
+		_, err := s.client.Call(s.target, &req)
+		if err != nil {
+			time.Sleep(time.Duration(1) * time.Second)
+			tryTimes -= 1
+			continue
+		}
+		return true
 	}
-	return true
+	return false
 }
 
-func (s *SlaveConnection) SendPing() (string, []types.ChainMask, error) {
+func (s *SlaveConnection) SendMasterInfo(ip string, port uint16) error {
+
+	req := rpc.MasterInfo{Ip: ip, Port: port}
+	bytes, err := serialize.SerializeToBytes(req)
+	if err != nil {
+		return err
+	}
+	_, err = s.client.Call(s.target, &rpc.Request{Op: rpc.OpMasterInfo, Data: bytes})
+	return err
+}
+
+func (s *SlaveConnection) SendPing(block types.RootBlock) (string, []types.ChainMask, error) {
 	request := rpc.Request{Op: rpc.OpPing, Data: nil}
 	_, err := s.client.Call(s.target, &request)
 	if err != nil {
@@ -50,10 +70,7 @@ func (s *SlaveConnection) SendConnectToSlaves(slaveInfoLst []rpc.SlaveInfo) erro
 		return err
 	}
 	_, err = s.client.Call(s.target, &rpc.Request{Op: rpc.OpConnectToSlaves, Data: bytes})
-	if err != nil {
-		return err
-	}
-	return nil
+	return err
 }
 
 func (s *SlaveConnection) AddTransaction(tx types.Transaction) bool {

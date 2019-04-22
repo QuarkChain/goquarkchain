@@ -9,13 +9,13 @@ import (
 
 func StartGRPCServer(hostport string, apis []rpc.API) (net.Listener, *grpc.Server, error) {
 	handler := grpc.NewServer()
-	// register rpc services
+	// regist rpc services
 	for _, api := range apis {
 		switch api.Namespace {
-		// register master handle service
+		// regist master handle service
 		case _MasterServerSideOp_serviceDesc.ServiceName:
 			handler.RegisterService(&_MasterServerSideOp_serviceDesc, api.Service)
-		// register slave handle service
+		// regist slave handle service
 		case _SlaveServerSideOp_serviceDesc.ServiceName:
 			handler.RegisterService(&_SlaveServerSideOp_serviceDesc, api.Service)
 		}

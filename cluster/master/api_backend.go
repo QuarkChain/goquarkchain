@@ -10,12 +10,13 @@ import (
 	"github.com/QuarkChain/goquarkchain/serialize"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
+	"sync"
 	"syscall"
 	"time"
 )
 
 const (
-	beatTime = 4
+	beatTime = 3
 )
 
 type QkcAPIBackend struct {
@@ -23,6 +24,8 @@ type QkcAPIBackend struct {
 	//shardMaskList
 	master     *MasterBackend
 	clientPool map[string]*SlaveConnection
+
+	taskonce sync.Once
 }
 
 // create slave connection manager
@@ -46,24 +49,36 @@ func NewQkcAPIBackend(master *MasterBackend, slavesConfig []*config.SlaveConfig)
 
 func (s *QkcAPIBackend) HeartBeat() {
 	// shardSize  = s.master.GetShardSize()
-	req := qrpc.Request{Op: qrpc.OpHeartBeat, Data: nil}
+	var timeGap int64
 	go func(normal bool) {
 		for normal {
-			time.Sleep(time.Duration(beatTime) * time.Second)
+			timeGap = time.Now().Unix()
 			for endpoint := range s.clientPool {
-				normal = s.clientPool[endpoint].HeartBeat(&req)
+				normal = s.clientPool[endpoint].HeartBeat()
 				if !normal {
 					s.master.shutdown <- syscall.SIGTERM
 					break
 				}
 			}
+			timeGap = time.Now().Unix() - timeGap
+			if timeGap >= beatTime {
+				continue
+			}
+			time.Sleep(time.Duration(beatTime-timeGap) * time.Second)
 		}
 	}(true)
+
+	for target := range s.clientPool {
+		if err := s.clientPool[target].SendMasterInfo(s.master.config.Ip, s.master.config.Port); err != nil {
+			log.Error("Failed to send master info to slave", "slave endpoint", target, "err", err)
+		}
+	}
 }
 
 func (s *QkcAPIBackend) SendConnectToSlaves() bool {
 	var (
 		slaveInfos = make([]qrpc.SlaveInfo, 0)
+		err        error
 	)
 	for _, info := range s.config {
 		var chainMask []types.ChainMask
@@ -79,11 +94,9 @@ func (s *QkcAPIBackend) SendConnectToSlaves() bool {
 				ChainMaskList: chainMask,
 			})
 	}
-	for target, conn := range s.clientPool {
-		err := conn.SendConnectToSlaves(slaveInfos)
-		if err != nil {
-			log.Info("slave manager", "send connection cfg to slaves", "target", target, err)
-			return false
+	for target := range s.clientPool {
+		if err = s.clientPool[target].SendConnectToSlaves(slaveInfos); err != nil {
+			log.Error("Failed send connection to slaves", "target", target, "err", err)
 		}
 	}
 	return true

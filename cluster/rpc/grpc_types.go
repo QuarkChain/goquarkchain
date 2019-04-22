@@ -26,7 +26,7 @@ type Pong struct {
 type SlaveInfo struct {
 	Id            []byte            `json:"id" gencodec:"required" bytesizeofslicelen:"4"`
 	Host          []byte            `json:"host" gencodec:"required" bytesizeofslicelen:"4"`
-	Port          int               `json:"port" gencodec:"required"`
+	Port          uint16            `json:"port" gencodec:"required"`
 	ChainMaskList []types.ChainMask `json:"chain_mask_list" gencodec:"required" bytesizeofslicelen:"4"`
 }
 
@@ -39,6 +39,11 @@ type ConnectToSlavesRequest struct {
 // Empty result means success otherwise it would a serialized error message.
 type ConnectToSlavesResponse struct {
 	ResultList []byte `json:"result_list" gencodec:"required" bytesizeofslicelen:"4"`
+}
+
+type MasterInfo struct {
+	Ip   string `json:"ip" gencodec:"required"`
+	Port uint16 `json:"port" gencodec:"required"`
 }
 
 type ArtificialTxConfig struct {
@@ -297,10 +302,14 @@ type AddMinorBlockHeaderResponse struct {
 	ArtificialTxConfig ArtificialTxConfig `json:"artificial_tx_config" gencodec:"required"`
 }
 
+type CrossShardTransactionList struct {
+	TxList []types.CrossShardTransactionDeposit `json:"tx_list" gencodec:"required" bytesizeofslicelen:"4"`
+}
+
 type AddXshardTxListRequest struct {
-	Branch         account.Branch                       `json:"branch" gencodec:"required"`
-	MinorBlockHash common.Hash                          `json:"minor_block_hash" gencodec:"required"`
-	TxList         []types.CrossShardTransactionDeposit `json:"tx_list" gencodec:"required" bytesizeofslicelen:"4"`
+	Branch         account.Branch            `json:"branch" gencodec:"required"`
+	MinorBlockHash common.Hash               `json:"minor_block_hash" gencodec:"required"`
+	TxList         CrossShardTransactionList `json:"tx_list" gencodec:"required"`
 }
 
 type AddXshardTxListResponse struct {
