@@ -1,19 +1,3 @@
-// Copyright 2015 The go-ethereum Authors
-// This file is part of the go-ethereum library.
-//
-// The go-ethereum library is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Lesser General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// The go-ethereum library is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Lesser General Public License for more details.
-//
-// You should have received a copy of the GNU Lesser General Public License
-// along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
-
 package master
 
 import (
@@ -74,6 +58,7 @@ func TestGetRootBlockHeaders(t *testing.T) {
 		// Ensure protocol limits are honored
 		{
 			&p2p.GetRootBlockHeaderListRequest{BlockHash: pm.rootBlockChain.CurrentBlock().ParentHash(), Limit: uint32(limit), Direction: 0},
+			//GetBlockHashesFromHash return hash up to limit which do not include the hash in parameter
 			pm.rootBlockChain.GetBlockHashesFromHash(pm.rootBlockChain.CurrentBlock().Hash(), limit),
 		}, {
 			// Check that requesting more than available is handled gracefully
@@ -141,9 +126,6 @@ func TestCloseConnWithErr(t *testing.T) {
 
 		err = readOrTimeOut(peer)
 		if err != p2p.DiscReadTimeout {
-			t.Errorf("test %d: make message failed: %v", i, err)
-		}
-		if err == nil {
 			t.Errorf("test %d: read msg should be timeout", i)
 		}
 		if pm.peers.Peer(peer.id) != nil {
@@ -203,59 +185,6 @@ func TestGetRootBlocks(t *testing.T) {
 				t.Errorf("test %d: peer result %d count is mismatch: got %v, want %v", i, index, block.Hash(), blocks[index].Hash())
 			}
 		}
-	}
-}
-
-func TestBloadcast(t *testing.T) {
-	pm, _ := newTestProtocolManagerMust(t, rootBlockBatchSize+15, nil)
-	peer, _ := newTestPeer("peer", int(qkcconfig.P2PProtocolVersion), pm, true)
-	defer peer.close()
-
-	// Create a batch of tests for various scenarios
-	limit := uint64(rootBlockBatchSize)
-	tests := []*p2p.GetRootBlockListRequest{
-		// A single random block should be retrievable by hash
-		{RootBlockHashList: []common.Hash{pm.rootBlockChain.GetBlockByNumber(limit / 2).Hash()}},
-		{ // multi hash retrievable
-			RootBlockHashList: []common.Hash{
-				pm.rootBlockChain.GetBlockByNumber(limit / 2).Hash(),
-				pm.rootBlockChain.GetBlockByNumber(limit/2 - 1).Hash(),
-				pm.rootBlockChain.GetBlockByNumber(limit/2 - 2).Hash(),
-			},
-		},
-		// The chain endpoints should be retrievable
-		{RootBlockHashList: []common.Hash{pm.rootBlockChain.Genesis().Hash()}},
-		{RootBlockHashList: []common.Hash{pm.rootBlockChain.CurrentBlock().Hash()}},
-		// Ensure protocol limits are honored
-		{RootBlockHashList: pm.rootBlockChain.GetBlockHashesFromHash(pm.rootBlockChain.CurrentBlock().Hash(), limit)},
-	}
-	// Run each of the tests and verify the results against the chain
-	for i, request := range tests {
-		// Collect the headers to expect in the response
-		blocks := make([]*types.RootBlock, 0, len(request.RootBlockHashList))
-		for _, hash := range request.RootBlockHashList {
-			blocks = append(blocks, pm.rootBlockChain.GetBlock(hash).(*types.RootBlock))
-		}
-		// Send the hash request and verify the response
-		msg, err := p2p.MakeMsg(p2p.GetRootBlockListRequestMsg, peer.getRpcId(), p2p.Metadata{}, request)
-		if err != nil {
-			t.Errorf("test %d: make message failed: %v", i, err)
-		}
-		peer.app.WriteMsg(msg)
-		response := p2p.GetRootBlockListResponse{RootBlockList: blocks}
-		if _, err := ExpectMsg(peer.app, p2p.GetRootBlockListResponseMsg, p2p.Metadata{Branch: 0}, &response); err != nil {
-			t.Errorf("test %d: headers mismatch: %v", i, err)
-		}
-		/*
-			rblocks, err := peer.GetRootBlockList(request.RootBlockHashList)
-			if len(rblocks) != len(blocks) {
-				t.Errorf("test %d: peer result count is mismatch: got %d, want %d", i, len(rblocks), len(blocks))
-			}
-			for index, block := range rblocks {
-				if block.Hash() != blocks[i].Hash() {
-					t.Errorf("test %d: peer result %d count is mismatch: got %v, want %v", i, index, block.Hash(), blocks[i].Hash())
-				}
-			}*/
 	}
 }
 

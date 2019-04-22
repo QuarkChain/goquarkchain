@@ -28,15 +28,13 @@ const (
 	// contain a single transaction, or thousands.
 	maxQueuedTxs = 128
 
-	// maxQueuedProps is the maximum number of block propagations to queue up before
-	// dropping broadcasts. There's not much point in queueing stale blocks, so a few
-	// that might cover uncles should be enough.
-	maxQueuedProps = 4
+	// maxQueuedMinorBlocks is the maximum number of block propagations to queue up before
+	// dropping broadcasts.
+	maxQueuedMinorBlocks = 16
 
-	// maxQueuedAnns is the maximum number of block announcements to queue up before
-	// dropping broadcasts. Similarly to block propagations, there's no point to queue
-	// above some healthy uncle limit, so use that.
-	maxQueuedAnns = 4
+	// maxQueuedTips is the maximum number of block announcements to queue up before
+	// dropping broadcasts.
+	maxQueuedTips = 16
 
 	handshakeTimeout = 5 * time.Second
 
@@ -45,17 +43,19 @@ const (
 	rootBlockHeaderListLimit = 500
 
 	rootBlockBatchSize = 100
+
+	directionToGenesis = uint8(0)
+	directionToTip     = uint8(1)
 )
 
-// PeerInfo represents a short summary of the Ethereum sub-protocol metadata known
+// PeerInfo represents a short summary of the sub-protocol metadata known
 // about a connected peer.
 type PeerInfo struct {
-	Version    int      `json:"version"`    // Ethereum protocol version negotiated
+	Version    int      `json:"version"`    // protocol version negotiated
 	Difficulty *big.Int `json:"difficulty"` // Total difficulty of the peer's blockchain
 	Head       string   `json:"head"`       // SHA3 hash of the peer's best owned block
 }
 
-// propEvent is a block propagation, waiting for its turn in the broadcast queue.
 type newMinorBlock struct {
 	branch uint32
 	block  *types.MinorBlock
@@ -88,7 +88,7 @@ type peer struct {
 	chanLock         sync.RWMutex
 	queuedTxs        chan newTxs        // Queue of transactions to broadcast to the peer
 	queuedMinorBlock chan newMinorBlock // Queue of blocks to broadcast to the peer
-	queuedTip        chan newTip        // Queue of blocks to announce to the peer
+	queuedTip        chan newTip        // Queue of Tips to announce to the peer
 	term             chan struct{}      // Termination channel to stop the broadcaster
 	chans            map[uint64]chan interface{}
 }
@@ -100,8 +100,8 @@ func newPeer(version int, p *p2p.Peer, rw p2p.MsgReadWriter) *peer {
 		version:          version,
 		id:               fmt.Sprintf("%x", p.ID().Bytes()[:8]),
 		queuedTxs:        make(chan newTxs, maxQueuedTxs),
-		queuedMinorBlock: make(chan newMinorBlock, maxQueuedProps),
-		queuedTip:        make(chan newTip, maxQueuedAnns),
+		queuedMinorBlock: make(chan newMinorBlock, maxQueuedMinorBlocks),
+		queuedTip:        make(chan newTip, maxQueuedTips),
 		term:             make(chan struct{}),
 		chans:            make(map[uint64]chan interface{}),
 	}
@@ -115,22 +115,28 @@ func (p *peer) broadcast() {
 		select {
 		case nTxs := <-p.queuedTxs:
 			if err := p.SendTransactions(nTxs.branch, nTxs.txs); err != nil {
+				p.Log().Error("Broadcast transactions failed",
+					"count", len(nTxs.txs), "branch", nTxs.branch, "error", err.Error())
 				return
 			}
 			p.Log().Trace("Broadcast transactions", "count", len(nTxs.txs), "branch", nTxs.branch)
 
 		case nBlock := <-p.queuedMinorBlock:
 			if err := p.SendNewMinorBlock(nBlock.branch, nBlock.block); err != nil {
+				p.Log().Error("Broadcast transactions failed",
+					"number", nBlock.block.NumberU64(), "hash", nBlock.block.Hash(), "branch", nBlock.branch, "error", err.Error())
 				return
 			}
 			p.Log().Trace("Broadcast minor block", "number", nBlock.block.NumberU64(), "hash", nBlock.block.Hash(), "branch", nBlock.branch)
 
 		case nTip := <-p.queuedTip:
 			if err := p.SendNewTip(nTip.branch, nTip.tip); err != nil {
+				p.Log().Error("Broadcast transactions failed",
+					"number", nTip.tip.MinorBlockHeaderList[0].NumberU64(), "branch", nTip.branch, "error", err.Error())
 				return
 			}
 			if nTip.branch != 0 {
-				p.Log().Trace("Broadcast new tip", "", nTip.tip.RootBlockHeader.NumberU64(), "branch", nTip.branch)
+				p.Log().Trace("Broadcast new tip", "number", nTip.tip.RootBlockHeader.NumberU64(), "branch", nTip.branch)
 			} else {
 				p.Log().Trace("Broadcast new tip", "number", nTip.tip.MinorBlockHeaderList[0].NumberU64(), "branch", nTip.branch)
 			}
@@ -216,8 +222,7 @@ func (p *peer) AsyncSendTransactions(branch uint32, txs []*types.Transaction) {
 	}
 }
 
-// SendNewBlockHashes announces the availability of a number of blocks through
-// a hash notification.
+// SendNewTip announces the head of each shard or root.
 func (p *peer) SendNewTip(branch uint32, tip *p2p.Tip) error {
 	msg, err := p2p.MakeMsg(p2p.NewTransactionListMsg, p.getRpcId(), p2p.Metadata{Branch: branch}, tip)
 	if err != nil {
@@ -226,9 +231,8 @@ func (p *peer) SendNewTip(branch uint32, tip *p2p.Tip) error {
 	return p.rw.WriteMsg(msg)
 }
 
-// AsyncSendNewBlockHash queues the availability of a block for propagation to a
-// remote peer. If the peer's broadcast queue is full, the event is silently
-// dropped.
+// AsyncSendNewTip queues the head block for propagation to a remote peer.
+// If the peer's broadcast queue is full, the event is silently dropped.
 func (p *peer) AsyncSendNewTip(branch uint32, tip *p2p.Tip) {
 	select {
 	case p.queuedTip <- newTip{branch: branch, tip: tip}:
@@ -238,7 +242,7 @@ func (p *peer) AsyncSendNewTip(branch uint32, tip *p2p.Tip) {
 	}
 }
 
-// SendNewMinorBlock propagates an entire block to a remote peer.
+// SendNewMinorBlock propagates an entire minor block to a remote peer.
 func (p *peer) SendNewMinorBlock(branch uint32, block *types.MinorBlock) error {
 	data := p2p.NewBlockMinor{Block: block}
 
@@ -249,7 +253,7 @@ func (p *peer) SendNewMinorBlock(branch uint32, block *types.MinorBlock) error {
 	return p.rw.WriteMsg(msg)
 }
 
-// AsyncSendNewBlock queues an entire block for propagation to a remote peer. If
+// AsyncSendNewMinorBlock queues an entire minor block for propagation to a remote peer. If
 // the peer's broadcast queue is full, the event is silently dropped.
 func (p *peer) AsyncSendNewMinorBlock(branch uint32, block *types.MinorBlock) {
 	select {
@@ -278,15 +282,15 @@ func (p *peer) deleteChan(rpcId uint64) {
 	delete(p.chans, rpcId)
 }
 
-// requestRootBlockHeaderList fetches a batch of blocks' headers corresponding to the
+// requestRootBlockHeaderList fetches a batch of root blocks' headers corresponding to the
 // specified header query, based on the hash of an origin block.
 func (p *peer) requestRootBlockHeaderList(rpcId uint64, hash common.Hash, amount uint32, reverse bool) error {
 	if amount == 0 {
 		amount = rootBlockHeaderListLimit
 	}
-	var direction uint8 = 0 // 0 to genesis
+	var direction uint8 = directionToGenesis // 0 to genesis
 	if !reverse {
-		direction = 1 // 1 to tip
+		direction = directionToTip // 1 to tip
 	}
 
 	data := p2p.GetRootBlockHeaderListRequest{BlockHash: hash, Limit: amount, Direction: direction}
@@ -309,16 +313,20 @@ func (p *peer) GetRootBlockHeaderList(hash common.Hash, amount uint32, reverse b
 	timeout := time.NewTimer(requestTimeout)
 	select {
 	case obj := <-rpcchan:
-		return obj.([]*types.RootBlockHeader), nil
+		if ret, ok := obj.([]*types.RootBlockHeader); !ok {
+			panic("invalid return result in GetRootBlockHeaderList")
+		} else {
+			return ret, nil
+		}
 	case <-timeout.C:
-		return nil, fmt.Errorf("peer %v return disc Read Time out for rpcid %d", p.id, rpcId)
+		return nil, fmt.Errorf("peer %v return GetRootBlockHeaderList Time out for rpcid %d", p.id, rpcId)
 	}
 }
 
 func (p *peer) requestMinorBlockHeaderList(rpcId uint64, hash common.Hash, amount uint32, branch uint32, reverse bool) error {
-	var direction uint8 = 0
-	if reverse {
-		direction = 1
+	var direction uint8 = directionToGenesis
+	if !reverse {
+		direction = directionToTip
 	}
 
 	data := p2p.GetMinorBlockHeaderListRequest{BlockHash: hash, Branch: account.Branch{Value: branch}, Limit: amount, Direction: direction}
@@ -341,13 +349,17 @@ func (p *peer) GetMinorBlockHeaderList(origin common.Hash, amount uint32, branch
 	timeout := time.NewTimer(requestTimeout)
 	select {
 	case obj := <-rpcchan:
-		return obj.([]*types.MinorBlockHeader), nil
+		if ret, ok := obj.([]*types.MinorBlockHeader); !ok {
+			panic("invalid return result in GetMinorBlockHeaderList")
+		} else {
+			return ret, nil
+		}
 	case <-timeout.C:
 		return nil, fmt.Errorf("peer %v return disc Read Time out for rpcid %d", p.id, rpcId)
 	}
 }
 
-// requestRootBlockList fetches a batch of blocks' bodies corresponding to the hashes
+// requestRootBlockList fetches a batch of root blocks' corresponding to the hashes
 // specified.
 func (p *peer) requestRootBlockList(rpcId uint64, hashList []common.Hash) error {
 	data := p2p.GetRootBlockListRequest{RootBlockHashList: hashList}
@@ -370,7 +382,11 @@ func (p *peer) GetRootBlockList(hashes []common.Hash) ([]*types.RootBlock, error
 	timeout := time.NewTimer(requestTimeout)
 	select {
 	case obj := <-rpcchan:
-		return obj.([]*types.RootBlock), nil
+		if ret, ok := obj.([]*types.RootBlock); !ok {
+			panic("invalid return result in GetRootBlockList")
+		} else {
+			return ret, nil
+		}
 	case <-timeout.C:
 		return nil, fmt.Errorf("peer %v return disc Read Time out for rpcid %d", p.id, rpcId)
 	}
@@ -397,7 +413,11 @@ func (p *peer) GetMinorBlockList(hashes []common.Hash, branch uint32) ([]*types.
 	timeout := time.NewTimer(requestTimeout)
 	select {
 	case obj := <-rpcchan:
-		return obj.([]*types.MinorBlock), nil
+		if ret, ok := obj.([]*types.MinorBlock); !ok {
+			panic("invalid return result in GetMinorBlockList")
+		} else {
+			return ret, nil
+		}
 	case <-timeout.C:
 		return nil, fmt.Errorf("peer %v return disc Read Time out for rpcid %d", p.id, rpcId)
 	}
@@ -492,7 +512,7 @@ func (p *peer) String() string {
 }
 
 // peerSet represents the collection of active peers currently participating in
-// the Ethereum sub-protocol.
+// the sub-protocol.
 type peerSet struct {
 	peers  map[string]*peer
 	lock   sync.RWMutex
