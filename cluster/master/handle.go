@@ -259,7 +259,7 @@ func (pm *ProtocolManager) handleMsg(peer *peer) error {
 		if c := peer.getChan(qkcMsg.RpcID); c != nil {
 			c <- blockResp.RootBlockList
 		} else {
-			log.Error(fmt.Sprintf("chan for rpc %d is missing", qkcMsg.RpcID))
+			log.Warn(fmt.Sprintf("chan for rpc %d is missing", qkcMsg.RpcID))
 		}
 
 	case qkcMsg.Op == p2p.GetMinorBlockHeaderListRequestMsg:
@@ -284,7 +284,7 @@ func (pm *ProtocolManager) handleMsg(peer *peer) error {
 		if c := peer.getChan(qkcMsg.RpcID); c != nil {
 			c <- minorHeaderResp.BlockHeaderList
 		} else {
-			log.Error(fmt.Sprintf("chan for rpc %d is missing", qkcMsg.RpcID))
+			log.Warn(fmt.Sprintf("chan for rpc %d is missing", qkcMsg.RpcID))
 		}
 
 	case qkcMsg.Op == p2p.GetMinorBlockListRequestMsg:
@@ -308,7 +308,7 @@ func (pm *ProtocolManager) handleMsg(peer *peer) error {
 		if c := peer.getChan(qkcMsg.RpcID); c != nil {
 			c <- minorBlockResp.MinorBlockList
 		} else {
-			log.Error(fmt.Sprintf("chan for rpc %d is missing", qkcMsg.RpcID))
+			log.Warn(fmt.Sprintf("chan for rpc %d is missing", qkcMsg.RpcID))
 		}
 
 	default:
