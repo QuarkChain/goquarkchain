@@ -10,13 +10,13 @@ import (
 )
 
 var (
-	slavePort int = 38000
+	slavePort uint16 = 38000
 )
 
 type ClusterConfig struct {
-	P2PPort                  int               `json:"P2P_PORT"`
-	JSONRPCPort              int               `json:"JSON_RPC_PORT"`
-	PrivateJSONRPCPort       int               `json:"PRIVATE_JSON_RPC_PORT"`
+	P2PPort                  uint16            `json:"P2P_PORT"`
+	JSONRPCPort              uint16            `json:"JSON_RPC_PORT"`
+	PrivateJSONRPCPort       uint16            `json:"PRIVATE_JSON_RPC_PORT"`
 	EnableTransactionHistory bool              `json:"ENABLE_TRANSACTION_HISTORY"`
 	DbPathRoot               string            `json:"DB_PATH_ROOT"`
 	LogLevel                 string            `json:"LOG_LEVEL"`
@@ -52,7 +52,7 @@ func NewClusterConfig() *ClusterConfig {
 
 	for i := 0; i < DefaultNumSlaves; i++ {
 		slave := NewDefaultSlaveConfig()
-		slave.Port = slavePort + i
+		slave.Port = slavePort + uint16(i)
 		slave.ID = fmt.Sprintf("S%d", i)
 		slave.ChainMaskList = append(slave.ChainMaskList, types.NewChainMask(uint32(i|DefaultNumSlaves)))
 		ret.SlaveList = append(ret.SlaveList, slave)
