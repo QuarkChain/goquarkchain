@@ -34,7 +34,7 @@ type ProtocolManager struct {
 	clusterConfig  *config.ClusterConfig
 
 	SubProtocols     []p2p.Protocol
-	getShardConnFunc func(fullShardId uint32) ShardConnForP2P
+	getShardConnFunc func(fullShardId uint32) []ShardConnForP2P
 
 	chainHeadChan     chan core.RootChainHeadEvent
 	chainHeadEventSub event.Subscription
@@ -51,7 +51,7 @@ type ProtocolManager struct {
 }
 
 // NewQKCManager  new qkc manager
-func NewProtocolManager(env config.ClusterConfig, rootBlockChain *core.RootBlockChain, getShardConnFunc func(fullShardId uint32) ShardConnForP2P) (*ProtocolManager, error) {
+func NewProtocolManager(env config.ClusterConfig, rootBlockChain *core.RootBlockChain, getShardConnFunc func(fullShardId uint32) []ShardConnForP2P) (*ProtocolManager, error) {
 	manager := &ProtocolManager{
 		networkID:        env.Quarkchain.NetworkID,
 		rootBlockChain:   rootBlockChain,
@@ -199,21 +199,31 @@ func (pm *ProtocolManager) handleMsg(peer *peer) error {
 		if err := serialize.DeserializeFromBytes(qkcMsg.Data, tip); err != nil {
 			return err
 		}
+		if tip.RootBlockHeader == nil {
+			return fmt.Errorf("invalid NewTip Request: RootBlockHeader is nil. %d for rpc request %d",
+				qkcMsg.RpcID, qkcMsg.MetaData.Branch)
+		}
 		if qkcMsg.MetaData.Branch == 0 {
 			//todo add to sync task
 			break
 		}
-		client := pm.getShardConnFunc(qkcMsg.MetaData.Branch)
-		if client == nil {
+		if tip.MinorBlockHeaderList == nil || len(tip.MinorBlockHeaderList) != 1 {
+			return fmt.Errorf("invalid NewTip Request: len of MinorBlockHeaderList is %d. %d for rpc request %d",
+				len(tip.MinorBlockHeaderList), qkcMsg.RpcID, qkcMsg.MetaData.Branch)
+		}
+		clients := pm.getShardConnFunc(qkcMsg.MetaData.Branch)
+		if clients == nil || len(clients) == 0 {
 			return fmt.Errorf("invalid branch %d for rpc request %d", qkcMsg.RpcID, qkcMsg.MetaData.Branch)
 		}
-		result, err := client.HandleNewTip(tip)
-		if err != nil {
-			log.Error("branch %d handle NewTipMsg message failed with error: %v", qkcMsg.MetaData.Branch, err.Error())
-		}
-		if !result {
-			return fmt.Errorf("HandleNewTip (rpcId %d) for branch %d return false",
-				qkcMsg.RpcID, qkcMsg.MetaData.Branch)
+		for _, client := range clients {
+			result, err := client.HandleNewTip(tip)
+			if err != nil {
+				log.Error("branch %d handle NewTipMsg message failed with error: %v", qkcMsg.MetaData.Branch, err.Error())
+			}
+			if !result {
+				return fmt.Errorf("HandleNewTip (rpcId %d) for branch %d  with height %d return false",
+					qkcMsg.RpcID, qkcMsg.MetaData.Branch, tip.MinorBlockHeaderList[0])
+			}
 		}
 
 	case qkcMsg.Op == p2p.NewTransactionListMsg:
@@ -235,11 +245,24 @@ func (pm *ProtocolManager) handleMsg(peer *peer) error {
 		}
 
 	case qkcMsg.Op == p2p.NewBlockMinorMsg:
-		var newBlockMinor p2p.NewBlockMinor
-		if err := serialize.DeserializeFromBytes(qkcMsg.Data, &newBlockMinor); err != nil {
+		var newBlockMinor *p2p.NewBlockMinor
+		if err := serialize.DeserializeFromBytes(qkcMsg.Data, newBlockMinor); err != nil {
 			return err
 		}
-		// todo client send minor block
+		clients := pm.getShardConnFunc(qkcMsg.MetaData.Branch)
+		if clients == nil || len(clients) == 0 {
+			return fmt.Errorf("invalid branch %d for rpc request %d", qkcMsg.RpcID, qkcMsg.MetaData.Branch)
+		}
+		for _, client := range clients {
+			result, err := client.AddMinorBlock(newBlockMinor)
+			if err != nil {
+				log.Error("branch %d handle NewTipMsg message failed with error: %v", qkcMsg.MetaData.Branch, err.Error())
+			}
+			if !result {
+				return fmt.Errorf("AddMinorBlock (rpcId %d) for branch %d return false",
+					qkcMsg.RpcID, qkcMsg.MetaData.Branch)
+			}
+		}
 
 	case qkcMsg.Op == p2p.GetRootBlockHeaderListRequestMsg:
 		var blockHeaderReq p2p.GetRootBlockHeaderListRequest
@@ -263,7 +286,7 @@ func (pm *ProtocolManager) handleMsg(peer *peer) error {
 		if c := peer.getChan(qkcMsg.RpcID); c != nil {
 			c <- blockHeaderResp.BlockHeaderList
 		} else {
-			log.Error(fmt.Sprintf("chan for rpc %d is missing", qkcMsg.RpcID))
+			log.Warn(fmt.Sprintf("chan for rpc %d is missing", qkcMsg.RpcID))
 		}
 
 	case qkcMsg.Op == p2p.GetRootBlockListRequestMsg:
@@ -400,24 +423,43 @@ func (pm *ProtocolManager) HandleGetMinorBlockHeaderListRequest(request *p2p.Get
 }
 
 func (pm *ProtocolManager) HandleNewTransactionListRequest(peerId string, rpcId uint64, branch uint32, request *p2p.NewTransactionList) error {
-	client := pm.getShardConnFunc(branch)
-	if client == nil {
+	clients := pm.getShardConnFunc(branch)
+	if clients == nil || len(clients) == 0 {
 		return fmt.Errorf("invalid branch %d for rpc request %d", rpcId, branch)
 	}
-	result, err := client.AddTransactions(request)
-	if err != nil {
-		log.Error("branch %d handle AddTransactions message failed with error: %v", rpcId, err.Error())
-	}
-	tx2broadcast := make([]*types.Transaction, 0, len(request.TransactionList))
-	for _, tx := range request.TransactionList {
-		for _, hash := range result.Hashes {
-			if tx.Hash() == hash {
-				tx2broadcast = append(tx2broadcast, tx)
-				break
+	var hashList []common.Hash
+	needBroadcast := true
+	for _, client := range clients {
+		result, err := client.AddTransactions(request)
+		if err != nil {
+			log.Error("branch %d handle AddTransactions message failed with error: %v", rpcId, err.Error())
+		}
+		if hashList == nil {
+			hashList = result.Hashes
+		} else if len(hashList) != len(result.Hashes) {
+			needBroadcast = false
+		} else {
+			for i := 0; i < len(hashList); i++ {
+				if hashList[i] != result.Hashes[i] {
+					needBroadcast = false
+					break
+				}
 			}
 		}
 	}
-	pm.BroadcastTransactions(branch, tx2broadcast, peerId)
+
+	if needBroadcast && len(hashList) > 0 {
+		tx2broadcast := make([]*types.Transaction, 0, len(request.TransactionList))
+		for _, tx := range request.TransactionList {
+			for _, hash := range hashList {
+				if tx.Hash() == hash {
+					tx2broadcast = append(tx2broadcast, tx)
+					break
+				}
+			}
+		}
+		pm.BroadcastTransactions(branch, tx2broadcast, peerId)
+	}
 	return nil
 }
 
