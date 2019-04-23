@@ -325,7 +325,7 @@ func setHTTP(ctx *cli.Context, cfg *service.Config) {
 }
 
 func setGRPC(ctx *cli.Context, cfg *service.Config) {
-	cfg.SvrPort = ctx.GlobalInt(GRPCPortFlag.Name)
+	cfg.SvrPort = uint16(ctx.GlobalInt(GRPCPortFlag.Name))
 	cfg.SvrHost = "127.0.0.1"
 }
 
@@ -405,7 +405,7 @@ func SetClusterConfig(ctx *cli.Context, cfg *config.ClusterConfig) {
 	cfg.SlaveList = make([]*config.SlaveConfig, 0)
 	for i := 0; i < numSlaves; i++ {
 		slaveConfig := config.NewDefaultSlaveConfig()
-		slaveConfig.Port = portStart + i
+		slaveConfig.Port = uint16(portStart + i)
 		slaveConfig.ID = fmt.Sprintf("S%d", i)
 		slaveConfig.ChainMaskList = append(slaveConfig.ChainMaskList, types.NewChainMask(uint32(i)|uint32(numSlaves)))
 		cfg.SlaveList = append(cfg.SlaveList, slaveConfig)
@@ -415,9 +415,9 @@ func SetClusterConfig(ctx *cli.Context, cfg *config.ClusterConfig) {
 	cfg.LogLevel = ctx.GlobalString(LogLevelFlag.Name)
 	// cluster.db_path_root
 	cfg.DbPathRoot = ctx.GlobalString(DbPathRootFlag.Name)
-	cfg.P2PPort = ctx.GlobalInt(P2pPortFlag.Name)
-	cfg.JSONRPCPort = ctx.GlobalInt(RPCPortFlag.Name)
-	cfg.PrivateJSONRPCPort = ctx.GlobalInt(PrivateRPCPortFlag.Name)
+	cfg.P2PPort = uint16(ctx.GlobalInt(P2pPortFlag.Name))
+	cfg.JSONRPCPort = uint16(ctx.GlobalInt(RPCPortFlag.Name))
+	cfg.PrivateJSONRPCPort = uint16(ctx.GlobalInt(PrivateRPCPortFlag.Name))
 	if ctx.GlobalBool(StartSimulatedMiningFlag.Name) {
 		cfg.StartSimulatedMining = true
 	}
