@@ -118,7 +118,7 @@ type blockChain interface {
 	GetBlock(hash common.Hash, number uint64) *types.MinorBlock
 	StateAt(root common.Hash) (*state.StateDB, error)
 
-	SubscribeChainHeadEvent(ch chan<- ChainHeadEvent) event.Subscription
+	SubscribeChainHeadEvent(ch chan<- MinorChainHeadEvent) event.Subscription
 }
 
 // TxPoolConfig are the configuration parameters of the transaction pool.
@@ -184,7 +184,7 @@ type TxPool struct {
 	gasPrice     *big.Int
 	txFeed       event.Feed
 	scope        event.SubscriptionScope
-	chainHeadCh  chan ChainHeadEvent
+	chainHeadCh  chan MinorChainHeadEvent
 	chainHeadSub event.Subscription
 	signer       types.Signer
 	mu           sync.RWMutex
@@ -222,7 +222,7 @@ func NewTxPool(config TxPoolConfig, chainconfig *params.ChainConfig, chain block
 		queue:       make(map[common.Address]*txList),
 		beats:       make(map[common.Address]time.Time),
 		all:         newTxLookup(),
-		chainHeadCh: make(chan ChainHeadEvent, chainHeadChanSize),
+		chainHeadCh: make(chan MinorChainHeadEvent, chainHeadChanSize),
 		gasPrice:    new(big.Int).SetUint64(config.PriceLimit),
 	}
 	pool.locals = newAccountSet(pool.signer)
@@ -272,8 +272,8 @@ func (pool *TxPool) loop() {
 				if pool.chainconfig.IsHomestead(new(big.Int).SetUint64(ev.Block.NumberU64())) {
 					pool.homestead = true
 				}
-				pool.reset(head, ev.Block.(*types.MinorBlock))
-				head = ev.Block.(*types.MinorBlock)
+				pool.reset(head, ev.Block)
+				head = ev.Block
 
 				pool.mu.Unlock()
 			}
