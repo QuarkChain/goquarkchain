@@ -1,6 +1,7 @@
 package p2p
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -78,6 +79,7 @@ func TestServerConnection(t *testing.T) {
 		p1Peers := p1.server.Peers()
 		p2Peers := p2.server.Peers()
 		if len(p1Peers) != 1 && len(p2Peers) != 1 {
+			fmt.Println("Len", len(p1Peers), len(p2Peers))
 			t.Error("peer connect failed")
 		}
 		peer1 := p1Peers[0]

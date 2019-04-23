@@ -3,18 +3,17 @@ package core
 import (
 	"encoding/hex"
 	"errors"
-	"fmt"
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/consensus"
+	"github.com/QuarkChain/goquarkchain/consensus/doublesha256"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/params"
 	"math/big"
-	"reflect"
 )
 
 var (
@@ -87,7 +86,7 @@ func getTestEnv(genesisAccount *account.Address, genesisMinorQuarkHash *uint64, 
 	return env
 }
 
-func createDefaultShardState(env *fakeEnv, shardID *uint32, diffCalc consensus.DifficultyCalculator, poswOverride *bool, noCoinBase *bool) *MinorBlockChain {
+func createDefaultShardState(env *fakeEnv, shardID *uint32, diffCalc consensus.DifficultyCalculator, poswOverride *bool, flagEngine *bool) *MinorBlockChain {
 	if shardID == nil {
 		temp := uint32(0)
 		shardID = &temp
@@ -99,14 +98,24 @@ func createDefaultShardState(env *fakeEnv, shardID *uint32, diffCalc consensus.D
 
 	fullShardID := env.clusterConfig.Quarkchain.Chains[0].ShardSize | *shardID
 	gensisBlock := genesisManager.MustCommitMinorBlock(env.db, rBlock, fullShardID)
-	Engine := new(consensus.FakeEngine)
-	chainConfig := params.TestChainConfig
-	shardState, err := NewMinorBlockChain(env.db, nil, chainConfig, env.clusterConfig, Engine, vm.Config{}, nil, fullShardID)
-	if err != nil {
-		panic(err)
-	}
-	shardState.InitGenesisState(rBlock, gensisBlock)
 
+	var shardState *MinorBlockChain
+	var err error
+	chainConfig := params.TestChainConfig
+	if flagEngine != nil {
+		shardState, err = NewMinorBlockChain(env.db, nil, chainConfig, env.clusterConfig, doublesha256.New(diffCalc), vm.Config{}, nil, fullShardID)
+		if err != nil {
+			panic(err)
+		}
+	} else {
+		shardState, err = NewMinorBlockChain(env.db, nil, chainConfig, env.clusterConfig, new(consensus.FakeEngine), vm.Config{}, nil, fullShardID)
+		if err != nil {
+			panic(err)
+		}
+	}
+
+	_, err = shardState.InitGenesisState(rBlock, gensisBlock)
+	checkErr(err)
 	return shardState
 
 }
@@ -158,12 +167,6 @@ func createTransferTransaction(
 
 func checkErr(err error) {
 	if err != nil {
-		panic(err)
-	}
-}
-func ifEqual(want interface{}, is interface{}) {
-	if !reflect.DeepEqual(want, is) {
-		err := fmt.Sprintln("want:", want, reflect.TypeOf(want), "is:", is, reflect.TypeOf(is))
 		panic(err)
 	}
 }

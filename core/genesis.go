@@ -86,7 +86,7 @@ func (g *Genesis) CreateMinorBlock(rootBlock *types.RootBlock, fullShardId uint3
 
 	coinbaseAmount := new(serialize.Uint256)
 	coinbaseAmount.Value = new(big.Int).Div(new(big.Int).Mul(shardConfig.CoinbaseAmount,
-		g.qkcConfig.RewardTaxRate.Denom()), g.qkcConfig.RewardTaxRate.Num())
+		g.qkcConfig.RewardTaxRate.Num()), g.qkcConfig.RewardTaxRate.Denom())
 
 	gasLimit := new(serialize.Uint256)
 	gasLimit.Value = new(big.Int).SetUint64(genesis.GasLimit)
