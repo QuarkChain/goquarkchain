@@ -123,7 +123,7 @@ func (p *peer) broadcast() {
 
 		case nBlock := <-p.queuedMinorBlock:
 			if err := p.SendNewMinorBlock(nBlock.branch, nBlock.block); err != nil {
-				p.Log().Error("Broadcast transactions failed",
+				p.Log().Error("Broadcast minor block failed",
 					"number", nBlock.block.NumberU64(), "hash", nBlock.block.Hash(), "branch", nBlock.branch, "error", err.Error())
 				return
 			}
@@ -131,7 +131,7 @@ func (p *peer) broadcast() {
 
 		case nTip := <-p.queuedTip:
 			if err := p.SendNewTip(nTip.branch, nTip.tip); err != nil {
-				p.Log().Error("Broadcast transactions failed",
+				p.Log().Error("Broadcast tip failed",
 					"number", nTip.tip.MinorBlockHeaderList[0].NumberU64(), "branch", nTip.branch, "error", err.Error())
 				return
 			}
