@@ -6,21 +6,12 @@ import (
 	"crypto/hmac"
 	"encoding/binary"
 	"errors"
-	"github.com/QuarkChain/goquarkchain/core/types"
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/golang/snappy"
 	"io"
 	"io/ioutil"
-	"math/big"
 	"net"
 	"time"
-)
-
-const (
-	QKCProtocolName    = "quarkchain"
-	QKCProtocolVersion = 1
-	QKCProtocolLength  = 16
 )
 
 var (
@@ -45,30 +36,20 @@ func qkcMsgHandle(peer *Peer, ws MsgReadWriter) error {
 			log.Error(msgHandleLog, "decode qkc msg err", err)
 			return err
 		}
-		log.Info(msgHandleLog, "recv qkc op", qkcMsg.op, "rpcId", qkcMsg.rpcID, "metaData", qkcMsg.metaData)
+		log.Info(msgHandleLog, "recv qkc Op", qkcMsg.Op, "rpcId", qkcMsg.RpcID, "MetaData", qkcMsg.MetaData)
 
-		if _, ok := OPSerializerMap[qkcMsg.op]; !ok {
-			log.Error(msgHandleLog, "unExcepted op", qkcMsg.op)
+		if _, ok := OPSerializerMap[qkcMsg.Op]; !ok {
+			log.Error(msgHandleLog, "unExcepted Op", qkcMsg.Op)
 			return err
 		}
 
-		if HandleFunc, ok := OPNonRPCMap[qkcMsg.op]; ok {
-			HandleFunc(qkcMsg.op, qkcMsg.data)
-		} else if HandleFunc, ok := OpRPCMap[qkcMsg.op]; ok {
-			HandleFunc.handleFunc(qkcMsg.data)
+		if HandleFunc, ok := OPNonRPCMap[qkcMsg.Op]; ok {
+			HandleFunc(qkcMsg.Op, qkcMsg.Data)
+		} else if HandleFunc, ok := OpRPCMap[qkcMsg.Op]; ok {
+			HandleFunc.handleFunc(qkcMsg.Data)
 		} else {
 			//TODO future
 		}
-	}
-}
-
-// QKCProtocol return qkc protocol
-func QKCProtocol() Protocol {
-	return Protocol{
-		Name:    QKCProtocolName,
-		Version: QKCProtocolVersion,
-		Length:  QKCProtocolLength,
-		Run:     qkcMsgHandle,
 	}
 }
 
@@ -184,7 +165,7 @@ func (q *qkcRlp) writeQKCMsg(msg Msg) error {
 	}
 
 	// write encrypted frame, updating the egress MAC hash with
-	// the data written to conn.
+	// the Data written to conn.
 	tee := cipher.StreamWriter{S: q.rw.enc, W: io.MultiWriter(q.rw.conn, q.rw.egressMAC)}
 	realBody, err := ioutil.ReadAll(msg.Payload)
 	if err != nil {
@@ -210,35 +191,5 @@ func (q *qkcRlp) doProtoHandshake(our *protoHandshake) (their *protoHandshake, e
 	if err != nil {
 		return nil, err
 	}
-	hello, err := makeMsg(Hello, 0, HelloCmd{
-		Version:   0,
-		NetWorkID: 24,
-		PeerID:    common.BytesToHash(our.ID),
-		PeerPort:  38291,
-		RootBlockHeader: types.RootBlockHeader{
-			Version:         0,
-			Number:          0,
-			Time:            1519147489,
-			ParentHash:      common.Hash{},
-			MinorHeaderHash: common.Hash{},
-			Difficulty:      big.NewInt(1000000000000),
-		},
-	})
-	err = q.WriteMsg(hello)
-	if err != nil {
-		return nil, err
-	}
-
-	msg, err := q.ReadMsg()
-	qkcBody, err := ioutil.ReadAll(msg.Payload)
-	if err != nil {
-		return nil, err
-	}
-	qkcMsg, err := DecodeQKCMsg(qkcBody)
-	if err != nil {
-		return nil, err
-	}
-	log.Info(msgHandleLog, "hello exchange end op", qkcMsg.op)
-
 	return perHandshake, nil
 }
