@@ -152,15 +152,17 @@ func (v *RootBlockValidator) ValidateBlock(block types.IBlock) error {
 	v.blockChain.SetLatestMinorBlockHeaders(block.Hash(), latestMinorBlockHeaders)
 	return nil
 }
-func (v *RootBlockValidator) ValidateState(block, parent types.IBlock, statedb *state.StateDB, receipts types.Receipts, usedGas uint64) error {
-	panic(errors.New("not implement"))
+
+// ValidateHeader calls underlying engine's header verification method.
+func (v *RootBlockValidator) ValidateHeader(header types.IHeader) error {
+	return v.engine.VerifyHeader(v.blockChain, header, true)
 }
 
-type FackRootBlockValidator struct {
+type fakeRootBlockValidator struct {
 	Err error
 }
 
-func (v *FackRootBlockValidator) ValidateBlock(block types.IBlock) error {
+func (v *fakeRootBlockValidator) ValidateBlock(block types.IBlock) error {
 	return v.Err
 }
 

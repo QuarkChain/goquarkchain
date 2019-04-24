@@ -95,7 +95,7 @@ type Config struct {
 
 	// grpc service endpoint
 	SvrHost   string `toml:",omitempty"`
-	SvrPort   int    `toml:",omitempty"`
+	SvrPort   uint16 `toml:",omitempty"`
 	SvrModule string `toml:",omitempty"`
 
 	// Logger is a custom logger to use with the p2p.Server.

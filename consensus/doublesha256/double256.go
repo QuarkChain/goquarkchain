@@ -6,6 +6,7 @@ import (
 	"errors"
 	"github.com/QuarkChain/goquarkchain/core/state"
 	"math/big"
+	"sync"
 
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/consensus"
@@ -24,6 +25,8 @@ var (
 type DoubleSHA256 struct {
 	commonEngine   *consensus.CommonEngine
 	diffCalculator consensus.DifficultyCalculator
+
+	closeOnce sync.Once
 }
 
 // Author returns coinbase address.
@@ -33,7 +36,7 @@ func (d *DoubleSHA256) Author(header types.IHeader) (account.Address, error) {
 
 // VerifyHeader checks whether a header conforms to the consensus rules.
 func (d *DoubleSHA256) VerifyHeader(chain consensus.ChainReader, header types.IHeader, seal bool) error {
-	return d.commonEngine.VerifyHeader(chain, header, seal, d)
+	return d.commonEngine.VerifyHeader(chain, header, seal)
 }
 
 // VerifyHeaders is similar to VerifyHeader, but verifies a batch of headers
@@ -41,7 +44,7 @@ func (d *DoubleSHA256) VerifyHeader(chain consensus.ChainReader, header types.IH
 // a results channel to retrieve the async verifications (the order is that of
 // the input slice).
 func (d *DoubleSHA256) VerifyHeaders(chain consensus.ChainReader, headers []types.IHeader, seals []bool) (chan<- struct{}, <-chan error) {
-	return d.commonEngine.VerifyHeaders(chain, headers, seals, d)
+	return d.commonEngine.VerifyHeaders(chain, headers, seals)
 }
 
 // VerifySeal checks whether the crypto seal on a header is valid according to
@@ -75,7 +78,10 @@ func (d *DoubleSHA256) Seal(
 	block types.IBlock,
 	results chan<- types.IBlock,
 	stop <-chan struct{}) error {
-
+	if d.commonEngine.IsRemoteMining() {
+		d.commonEngine.SetWork(block, results)
+		return nil
+	}
 	return d.commonEngine.Seal(block, results, stop)
 }
 
@@ -96,7 +102,7 @@ func (d *DoubleSHA256) Hashrate() float64 {
 
 // Close terminates any background threads maintained by the consensus engine.
 func (d *DoubleSHA256) Close() error {
-	return nil
+	return d.commonEngine.Close()
 }
 
 // FindNonce finds the desired nonce and mixhash for a given block header.
@@ -132,14 +138,23 @@ func hashAlgo(hash []byte, nonce uint64) (consensus.MiningResult, error) {
 	}, nil
 }
 
+func (d *DoubleSHA256) GetWork() (*consensus.MiningWork, error) {
+	return d.commonEngine.GetWork()
+}
+
+func (d *DoubleSHA256) SubmitWork(nonce uint64, hash, digest common.Hash) bool {
+	return d.commonEngine.SubmitWork(nonce, hash, digest)
+}
+
 // New returns a DoubleSHA256 scheme.
-func New(diffCalculator consensus.DifficultyCalculator) *DoubleSHA256 {
+func New(diffCalculator consensus.DifficultyCalculator, remote bool) *DoubleSHA256 {
 	spec := consensus.MiningSpec{
 		Name:     "DoubleSHA256",
 		HashAlgo: hashAlgo,
 	}
-	return &DoubleSHA256{
-		commonEngine:   consensus.NewCommonEngine(spec),
+	d := &DoubleSHA256{
 		diffCalculator: diffCalculator,
 	}
+	d.commonEngine = consensus.NewCommonEngine(d, spec, remote)
+	return d
 }
