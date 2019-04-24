@@ -165,3 +165,7 @@ type fakeRootBlockValidator struct {
 func (v *fakeRootBlockValidator) ValidateBlock(block types.IBlock) error {
 	return v.Err
 }
+
+func (v *fakeRootBlockValidator) ValidateHeader(header types.IHeader) error {
+	return v.Err
+}

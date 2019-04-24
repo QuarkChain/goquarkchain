@@ -60,9 +60,6 @@ func (api *PrivateP2PAPI) GetMinorBlocks(hashList []common.Hash, branch uint32, 
 		return nil, errNotRegistered
 	}
 	blocks, err := peer.GetMinorBlockList(hashList, branch)
-	//if err != nil {
-	//api.peers.Unregister(peerId)
-	//}
 	return blocks, err
 }
 
@@ -72,8 +69,5 @@ func (api *PrivateP2PAPI) GetMinorBlockHeaders(hash common.Hash, amount uint32, 
 		return nil, errNotRegistered
 	}
 	headers, err := peer.GetMinorBlockHeaderList(hash, amount, branch, reverse)
-	//if err != nil {
-	//	api.peers.Unregister(peerId)
-	//}
 	return headers, err
 }

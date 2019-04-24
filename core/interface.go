@@ -15,6 +15,8 @@ import (
 type Validator interface {
 	// ValidateBlock validates the given block's content.
 	ValidateBlock(block types.IBlock) error
+
+	ValidateHeader(header types.IHeader) error
 }
 
 // Processor is an interface for processing blocks using a given initial state.

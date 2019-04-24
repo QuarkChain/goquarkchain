@@ -31,7 +31,7 @@ type mockpeer struct {
 	retBlocks           []*types.RootBlock       // Order: descending.
 }
 
-func (p *mockpeer) downloadRootHeadersFromHash(hash common.Hash, sz uint64) ([]*types.RootBlockHeader, error) {
+func (p *mockpeer) GetRootBlockHeaderList(hash common.Hash, amount uint32, reverse bool) ([]*types.RootBlockHeader, error) {
 	if p.downloadHeaderError != nil {
 		return nil, p.downloadHeaderError
 	}
@@ -45,20 +45,20 @@ func (p *mockpeer) downloadRootHeadersFromHash(hash common.Hash, sz uint64) ([]*
 	panic("lolwut")
 }
 
-func (p *mockpeer) downloadRootBlocks([]*types.RootBlockHeader) ([]*types.RootBlock, error) {
+func (p *mockpeer) GetRootBlockList(hashes []common.Hash) ([]*types.RootBlock, error) {
 	if p.downloadBlockError != nil {
 		return nil, p.downloadBlockError
 	}
 	return p.retBlocks, nil
 }
 
-func (p *mockpeer) id() string {
+func (p *mockpeer) PeerId() string {
 	return p.name
 }
 
 type mockblockchain struct {
 	rbc       *core.RootBlockChain
-	validator headerValidator
+	validator core.Validator
 }
 
 func (bc *mockblockchain) HasBlock(hash common.Hash) bool {
@@ -74,7 +74,7 @@ func (bc *mockblockchain) CurrentHeader() types.IHeader {
 	return bc.rbc.CurrentHeader()
 }
 
-func (bc *mockblockchain) Validator() headerValidator {
+func (bc *mockblockchain) Validator() core.Validator {
 	return bc.validator
 }
 
@@ -83,6 +83,10 @@ type mockvalidator struct {
 }
 
 func (v *mockvalidator) ValidateHeader(types.IHeader) error {
+	return v.err
+}
+
+func (v *mockvalidator) ValidateBlock(types.IBlock) error {
 	return v.err
 }
 

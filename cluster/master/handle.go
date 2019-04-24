@@ -3,6 +3,7 @@ package master
 import (
 	"fmt"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
+	synchronizer "github.com/QuarkChain/goquarkchain/cluster/sync"
 	"github.com/QuarkChain/goquarkchain/core"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/p2p"
@@ -35,6 +36,7 @@ type ProtocolManager struct {
 
 	SubProtocols     []p2p.Protocol
 	getShardConnFunc func(fullShardId uint32) []ShardConnForP2P
+	synchronizer     synchronizer.Synchronizer
 
 	chainHeadChan     chan core.RootChainHeadEvent
 	chainHeadEventSub event.Subscription
@@ -45,13 +47,12 @@ type ProtocolManager struct {
 	quitSync    chan struct{}
 	noMorePeers chan struct{}
 
-	// todo add sync
 	log string
 	wg  sync.WaitGroup
 }
 
 // NewQKCManager  new qkc manager
-func NewProtocolManager(env config.ClusterConfig, rootBlockChain *core.RootBlockChain, getShardConnFunc func(fullShardId uint32) []ShardConnForP2P) (*ProtocolManager, error) {
+func NewProtocolManager(env config.ClusterConfig, rootBlockChain *core.RootBlockChain, synchronizer synchronizer.Synchronizer, getShardConnFunc func(fullShardId uint32) []ShardConnForP2P) (*ProtocolManager, error) {
 	manager := &ProtocolManager{
 		networkID:        env.Quarkchain.NetworkID,
 		rootBlockChain:   rootBlockChain,
@@ -60,6 +61,7 @@ func NewProtocolManager(env config.ClusterConfig, rootBlockChain *core.RootBlock
 		newPeerCh:        make(chan *peer),
 		quitSync:         make(chan struct{}),
 		noMorePeers:      make(chan struct{}),
+		synchronizer:     synchronizer,
 		getShardConnFunc: getShardConnFunc,
 	}
 	protocol := p2p.Protocol{
@@ -79,7 +81,6 @@ func NewProtocolManager(env config.ClusterConfig, rootBlockChain *core.RootBlock
 		},
 	}
 	manager.SubProtocols = []p2p.Protocol{protocol}
-
 	return manager, nil
 
 }
@@ -159,7 +160,6 @@ func (pm *ProtocolManager) handle(peer *peer) error {
 	}
 	defer pm.removePeer(peer.id)
 
-	//todo add register synchroniser
 	// currently we do not broadcast old transaction when connect
 	// so the first few block may not have transaction verification failed
 	// or transaction drop issue which is temp issue
@@ -168,7 +168,7 @@ func (pm *ProtocolManager) handle(peer *peer) error {
 	for {
 		if err := pm.handleMsg(peer); err != nil {
 			peer.Log().Debug("message handling failed", "err", err)
-			pm.peers.Unregister(peer.id)
+			_ = pm.peers.Unregister(peer.id)
 			return err
 		}
 	}
@@ -188,11 +188,7 @@ func (pm *ProtocolManager) handleMsg(peer *peer) error {
 	log.Info(pm.log, " receive QKC Msgop", qkcMsg.Op.String())
 	switch {
 	case qkcMsg.Op == p2p.Hello:
-		var hello p2p.HelloCmd
-		if err := serialize.DeserializeFromBytes(qkcMsg.Data, &hello); err != nil {
-			return err
-		}
-		//todo add sync task ?
+		return errors.New("Unexpected Hello msg")
 
 	case qkcMsg.Op == p2p.NewTipMsg:
 		var tip *p2p.Tip
@@ -204,8 +200,7 @@ func (pm *ProtocolManager) handleMsg(peer *peer) error {
 				qkcMsg.RpcID, qkcMsg.MetaData.Branch)
 		}
 		if qkcMsg.MetaData.Branch == 0 {
-			//todo add to sync task
-			break
+			return pm.HandleNewTip(tip, peer)
 		}
 		if tip.MinorBlockHeaderList == nil || len(tip.MinorBlockHeaderList) != 1 {
 			return fmt.Errorf("invalid NewTip Request: len of MinorBlockHeaderList is %d. %d for rpc request %d",
@@ -265,14 +260,13 @@ func (pm *ProtocolManager) handleMsg(peer *peer) error {
 		}
 
 	case qkcMsg.Op == p2p.GetRootBlockHeaderListRequestMsg:
-		var blockHeaderReq p2p.GetRootBlockHeaderListRequest
-		if err := serialize.DeserializeFromBytes(qkcMsg.Data, &blockHeaderReq); err != nil {
+		var blockHeaderReq *p2p.GetRootBlockHeaderListRequest
+		if err := serialize.DeserializeFromBytes(qkcMsg.Data, blockHeaderReq); err != nil {
 			return err
 		}
 
-		resp, err := pm.HandleGetRootBlockHeaderListRequest(&blockHeaderReq)
+		resp, err := pm.HandleGetRootBlockHeaderListRequest(blockHeaderReq)
 		if err != nil {
-			log.Error(err.Error())
 			return err
 		}
 
@@ -314,12 +308,12 @@ func (pm *ProtocolManager) handleMsg(peer *peer) error {
 		}
 
 	case qkcMsg.Op == p2p.GetMinorBlockHeaderListRequestMsg:
-		var minorHeaderReq p2p.GetMinorBlockHeaderListRequest
-		if err := serialize.DeserializeFromBytes(qkcMsg.Data, &minorHeaderReq); err != nil {
+		var minorHeaderReq *p2p.GetMinorBlockHeaderListRequest
+		if err := serialize.DeserializeFromBytes(qkcMsg.Data, minorHeaderReq); err != nil {
 			return err
 		}
 
-		resp, err := pm.HandleGetMinorBlockHeaderListRequest(&minorHeaderReq)
+		resp, err := pm.HandleGetMinorBlockHeaderListRequest(qkcMsg.RpcID, qkcMsg.MetaData.Branch, minorHeaderReq)
 		if err != nil {
 			return err
 		}
@@ -339,12 +333,12 @@ func (pm *ProtocolManager) handleMsg(peer *peer) error {
 		}
 
 	case qkcMsg.Op == p2p.GetMinorBlockListRequestMsg:
-		var minorBlockReq p2p.GetMinorBlockListRequest
-		if err := serialize.DeserializeFromBytes(qkcMsg.Data, &minorBlockReq); err != nil {
+		var minorBlockReq *p2p.GetMinorBlockListRequest
+		if err := serialize.DeserializeFromBytes(qkcMsg.Data, minorBlockReq); err != nil {
 			return err
 		}
 
-		resp, err := pm.HandleGetMinorBlockListRequest(&minorBlockReq)
+		resp, err := pm.HandleGetMinorBlockListRequest(qkcMsg.RpcID, qkcMsg.MetaData.Branch, minorBlockReq)
 		if err != nil {
 			return err
 		}
@@ -367,9 +361,25 @@ func (pm *ProtocolManager) handleMsg(peer *peer) error {
 	}
 	return nil
 }
+func (pm *ProtocolManager) HandleNewTip(tip *p2p.Tip, peer *peer) error {
+	if len(tip.MinorBlockHeaderList) != 0 {
+		return errors.New("minor block header list must be empty")
+	}
+	head := peer.Head()
+	if tip.RootBlockHeader.NumberU64() < head.NumberU64() {
+		return fmt.Errorf("root block height is decreasing %d < %d", tip.RootBlockHeader.NumberU64(), head.NumberU64())
+	}
+	if tip.RootBlockHeader.NumberU64() == head.NumberU64() && tip.RootBlockHeader.Hash() != head.Hash() {
+		return fmt.Errorf("root block header changed with same height %d", tip.RootBlockHeader.NumberU64())
+	}
+	peer.SetHead(tip.RootBlockHeader)
+	if tip.RootBlockHeader.NumberU64() > pm.rootBlockChain.CurrentBlock().NumberU64() {
+		pm.synchronizer.AddTask(synchronizer.NewRootChainTask(peer, tip.RootBlockHeader))
+	}
+	return nil
+}
 
 func (pm *ProtocolManager) HandleGetRootBlockHeaderListRequest(blockHeaderReq *p2p.GetRootBlockHeaderListRequest) (*p2p.GetRootBlockHeaderListResponse, error) {
-
 	if !pm.rootBlockChain.HasHeader(blockHeaderReq.BlockHash) {
 		return nil, fmt.Errorf("hash %v do not exist", blockHeaderReq.BlockHash.Hex())
 	}
@@ -417,11 +427,6 @@ func (pm *ProtocolManager) HandleGetRootBlockListRequest(request *p2p.GetRootBlo
 	return &response, nil
 }
 
-func (pm *ProtocolManager) HandleGetMinorBlockHeaderListRequest(request *p2p.GetMinorBlockHeaderListRequest) (*p2p.GetMinorBlockHeaderListResponse, error) {
-	//todo API client call RPC API to get response
-	return nil, nil
-}
-
 func (pm *ProtocolManager) HandleNewTransactionListRequest(peerId string, rpcId uint64, branch uint32, request *p2p.NewTransactionList) error {
 	clients := pm.getShardConnFunc(branch)
 	if clients == nil || len(clients) == 0 {
@@ -463,9 +468,41 @@ func (pm *ProtocolManager) HandleNewTransactionListRequest(peerId string, rpcId 
 	return nil
 }
 
-func (pm *ProtocolManager) HandleGetMinorBlockListRequest(request *p2p.GetMinorBlockListRequest) (*p2p.GetMinorBlockListResponse, error) {
-	//todo API client call RPC API to get response
-	return nil, nil
+func (pm *ProtocolManager) HandleGetMinorBlockHeaderListRequest(rpcId uint64, branch uint32, request *p2p.GetMinorBlockHeaderListRequest) (*p2p.GetMinorBlockHeaderListResponse, error) {
+	if request.Limit > minorBlockHeaderListLimit {
+		return nil, fmt.Errorf("Bad limit. rpcId: %d; branch: %d; limit: %d; expected limit: %d",
+			rpcId, branch, request.Limit, minorBlockHeaderListLimit)
+	}
+	if request.Direction != 0 {
+		return nil, fmt.Errorf("Bad direction. rpcId: %d; branch: %d; ", rpcId, branch)
+	}
+	clients := pm.getShardConnFunc(branch)
+	if clients == nil || len(clients) == 0 {
+		return nil, fmt.Errorf("invalid branch %d for rpc request %d", rpcId, branch)
+	}
+	result, err := clients[0].GetMinorBlockHeaders(request)
+	if err != nil {
+		return nil, fmt.Errorf("branch %d handle NewTipMsg message failed with error: %v", branch, err.Error())
+	}
+
+	return result, nil
+}
+
+func (pm *ProtocolManager) HandleGetMinorBlockListRequest(rpcId uint64, branch uint32, request *p2p.GetMinorBlockListRequest) (*p2p.GetMinorBlockListResponse, error) {
+	if len(request.MinorBlockHashList) > minorBlockBatchSize {
+		return nil, fmt.Errorf("Bad number of minor blocks requested. rpcId: %d; branch: %d; limit: %d; expected limit: %d",
+			rpcId, branch, len(request.MinorBlockHashList), minorBlockBatchSize)
+	}
+	clients := pm.getShardConnFunc(branch)
+	if clients == nil || len(clients) == 0 {
+		return nil, fmt.Errorf("invalid branch %d for rpc request %d", rpcId, branch)
+	}
+	result, err := clients[0].GetMinorBlocks(request)
+	if err != nil {
+		return nil, fmt.Errorf("branch %d handle NewTipMsg message failed with error: %v", branch, err.Error())
+	}
+
+	return result, nil
 }
 
 func (pm *ProtocolManager) BroadcastTip(header *types.RootBlockHeader) {
@@ -514,11 +551,8 @@ func (pm *ProtocolManager) syncer() {
 				break
 			}
 			go pm.synchronise(pm.peers.BestPeer())
-
 		case <-forceSync.C:
-			// Force a sync even if not enough peers are present
 			go pm.synchronise(pm.peers.BestPeer())
-
 		case <-pm.noMorePeers:
 			return
 		}
@@ -531,8 +565,8 @@ func (pm *ProtocolManager) synchronise(peer *peer) {
 	if peer == nil {
 		return
 	}
-	// todo add sync task & bloadcast tip if updated
-	// Make sure the peer's TD is higher than our own
-	currentBlock := pm.rootBlockChain.CurrentBlock()
-	go pm.BroadcastTip(currentBlock.Header())
+
+	if peer.Head() != nil {
+		pm.synchronizer.AddTask(synchronizer.NewRootChainTask(peer, peer.Head()))
+	}
 }

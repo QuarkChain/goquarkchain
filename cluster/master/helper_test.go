@@ -30,6 +30,7 @@ import (
 	"testing"
 
 	"github.com/QuarkChain/goquarkchain/cluster/config"
+	synchronizer "github.com/QuarkChain/goquarkchain/cluster/sync"
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/core"
 	"github.com/QuarkChain/goquarkchain/core/types"
@@ -64,7 +65,7 @@ func newTestProtocolManager(blocks int, generator func(int, *core.RootBlockGen))
 		panic(err)
 	}
 
-	pm, err := NewProtocolManager(*clusterconfig, blockChain, nil)
+	pm, err := NewProtocolManager(*clusterconfig, blockChain, NewFakeSynchronizer(), nil)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -215,4 +216,21 @@ func toIBlocks(rootBlocks []*types.RootBlock) []types.IBlock {
 // manager of termination.
 func (p *testPeer) close() {
 	p.app.Close()
+}
+
+type fakeSynchronizer struct {
+	TaskList []synchronizer.Task
+}
+
+func NewFakeSynchronizer() *fakeSynchronizer {
+	return &fakeSynchronizer{make([]synchronizer.Task, 0, 0)}
+}
+
+func (s *fakeSynchronizer) AddTask(task synchronizer.Task) error {
+	s.TaskList = append(s.TaskList, task)
+	return nil
+}
+
+func (s *fakeSynchronizer) Close() error {
+	return nil
 }

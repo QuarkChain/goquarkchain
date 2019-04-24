@@ -2,6 +2,7 @@ package sync
 
 import (
 	"errors"
+	"github.com/ethereum/go-ethereum/common"
 	"strings"
 	"time"
 
@@ -35,6 +36,10 @@ type rootChainTask struct {
 	header *types.RootBlockHeader
 }
 
+func NewRootChainTask(p peer, header *types.RootBlockHeader) Task {
+	return &rootChainTask{peer: p, header: header}
+}
+
 // Run will execute the synchronization task.
 func (r *rootChainTask) Run(bc blockchain) error {
 	if bc.HasBlock(r.header.Hash()) {
@@ -47,7 +52,7 @@ func (r *rootChainTask) Run(bc blockchain) error {
 	tipHeight := headerTip.NumberU64()
 
 	// Prepare for downloading.
-	chain := []*types.RootBlockHeader{r.header}
+	chain := []common.Hash{r.header.Hash()}
 	lastHeader := r.header
 	for !bc.HasBlock(lastHeader.ParentHash) {
 		height, hash := lastHeader.NumberU64(), lastHeader.Hash()
@@ -58,8 +63,8 @@ func (r *rootChainTask) Run(bc blockchain) error {
 
 		logger.Info("Downloading block header list", "height", height, "hash", hash)
 		// Order should be descending. Download size is min(500, h-tip) if h > tip.
-		downloadSz := uint64(headerDownloadSize)
-		receivedHeaders, err := peer.downloadRootHeadersFromHash(lastHeader.ParentHash, downloadSz)
+		downloadSz := uint32(headerDownloadSize)
+		receivedHeaders, err := peer.GetRootBlockHeaderList(lastHeader.ParentHash, downloadSz, true)
 		if err != nil {
 			return err
 		}
@@ -71,9 +76,9 @@ func (r *rootChainTask) Run(bc blockchain) error {
 			if bc.HasBlock(h.Hash()) {
 				break
 			}
-			chain = append(chain, h)
+			chain = append(chain, h.Hash())
+			lastHeader = h
 		}
-		lastHeader = chain[len(chain)-1]
 	}
 
 	logger.Info("Downloading blocks", "length", len(chain), "from", lastHeader.NumberU64(), "to", r.header.NumberU64())
@@ -87,7 +92,7 @@ func (r *rootChainTask) Run(bc blockchain) error {
 			start = 0
 		}
 		headersForDownload := chain[start:end]
-		blocks, err := peer.downloadRootBlocks(headersForDownload)
+		blocks, err := peer.GetRootBlockList(headersForDownload)
 		if err != nil {
 			return err
 		}

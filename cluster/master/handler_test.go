@@ -36,25 +36,25 @@ func TestGetRootBlockHeaders(t *testing.T) {
 		expect []common.Hash                      // The hashes of the block whose headers are expected
 	}{
 		// A single random block should be retrievable by hash
-		/*	{
-				&p2p.GetRootBlockHeaderListRequest{BlockHash: pm.rootBlockChain.GetBlockByNumber(limit / 2).Hash(), Limit: 1, Direction: 0},
-				[]common.Hash{pm.rootBlockChain.GetBlockByNumber(limit / 2).Hash()},
-			}, {
-				&p2p.GetRootBlockHeaderListRequest{BlockHash: pm.rootBlockChain.GetBlockByNumber(limit / 2).Hash(), Limit: 3, Direction: 0},
-				[]common.Hash{
-					pm.rootBlockChain.GetBlockByNumber(limit / 2).Hash(),
-					pm.rootBlockChain.GetBlockByNumber(limit/2 - 1).Hash(),
-					pm.rootBlockChain.GetBlockByNumber(limit/2 - 2).Hash(),
-				},
+		{
+			&p2p.GetRootBlockHeaderListRequest{BlockHash: pm.rootBlockChain.GetBlockByNumber(limit / 2).Hash(), Limit: 1, Direction: 0},
+			[]common.Hash{pm.rootBlockChain.GetBlockByNumber(limit / 2).Hash()},
+		}, {
+			&p2p.GetRootBlockHeaderListRequest{BlockHash: pm.rootBlockChain.GetBlockByNumber(limit / 2).Hash(), Limit: 3, Direction: 0},
+			[]common.Hash{
+				pm.rootBlockChain.GetBlockByNumber(limit / 2).Hash(),
+				pm.rootBlockChain.GetBlockByNumber(limit/2 - 1).Hash(),
+				pm.rootBlockChain.GetBlockByNumber(limit/2 - 2).Hash(),
 			},
-			// The chain endpoints should be retrievable
-			{
-				&p2p.GetRootBlockHeaderListRequest{BlockHash: pm.rootBlockChain.Genesis().Hash(), Limit: 1, Direction: 0},
-				[]common.Hash{pm.rootBlockChain.GetBlockByNumber(0).Hash()},
-			}, {
-				&p2p.GetRootBlockHeaderListRequest{BlockHash: pm.rootBlockChain.CurrentBlock().Hash(), Limit: 1, Direction: 0},
-				[]common.Hash{pm.rootBlockChain.CurrentBlock().Hash()},
-			},*/
+		},
+		// The chain endpoints should be retrievable
+		{
+			&p2p.GetRootBlockHeaderListRequest{BlockHash: pm.rootBlockChain.Genesis().Hash(), Limit: 1, Direction: 0},
+			[]common.Hash{pm.rootBlockChain.GetBlockByNumber(0).Hash()},
+		}, {
+			&p2p.GetRootBlockHeaderListRequest{BlockHash: pm.rootBlockChain.CurrentBlock().Hash(), Limit: 1, Direction: 0},
+			[]common.Hash{pm.rootBlockChain.CurrentBlock().Hash()},
+		},
 		// Ensure protocol limits are honored
 		{
 			&p2p.GetRootBlockHeaderListRequest{BlockHash: pm.rootBlockChain.CurrentBlock().ParentHash(), Limit: uint32(limit), Direction: 0},
@@ -226,6 +226,7 @@ func ExpectMsg(r p2p.MsgReader, op p2p.P2PCommandOp, metadata p2p.Metadata, cont
 	if err != nil {
 		return nil, err
 	}
+	fmt.Printf("op: %d, rpcid: %d", qkcMsg.Op, qkcMsg.RpcID)
 	if qkcMsg.Op != op {
 		return &qkcMsg, fmt.Errorf("incorrect op code: got %d, want %d", qkcMsg.Op, op)
 	}
