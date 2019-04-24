@@ -73,7 +73,7 @@ func (s *SlaveConnection) SendConnectToSlaves(slaveInfoLst []rpc.SlaveInfo) erro
 	return err
 }
 
-func (s *SlaveConnection) AddTransaction(tx types.Transaction) bool {
+func (s *SlaveConnection) AddTransaction(tx *types.Transaction) bool {
 	req := rpc.AddTransactionRequest{Tx: tx}
 	bytes, err := serialize.SerializeToBytes(req)
 	if err != nil {
@@ -90,7 +90,7 @@ FALSE:
 }
 
 // TODO return type is not confirmed.
-func (s *SlaveConnection) ExecuteTransaction(tx types.Transaction, fromAddress account.Address, height uint64) bool {
+func (s *SlaveConnection) ExecuteTransaction(tx *types.Transaction, fromAddress *account.Address, height uint64) bool {
 	req := rpc.ExecuteTransactionRequest{Tx: tx, FromAddress: fromAddress, BlockHeight: height}
 	bytes, err := serialize.SerializeToBytes(req)
 	if err != nil {
@@ -123,7 +123,7 @@ func (s *SlaveConnection) GetMinorBlockByHash(blockHash common.Hash, branch acco
 	if err = serialize.Deserialize(serialize.NewByteBuffer(res.Data), &minBlockResponse); err != nil {
 		return nil, err
 	}
-	return &minBlockResponse.MinorBlock, nil
+	return minBlockResponse.MinorBlock, nil
 }
 
 func (s *SlaveConnection) GetMinorBlockByHeight(height uint64, branch account.Branch) (*types.MinorBlock, error) {
@@ -142,7 +142,7 @@ func (s *SlaveConnection) GetMinorBlockByHeight(height uint64, branch account.Br
 	if err := serialize.Deserialize(serialize.NewByteBuffer(res.Data), &minBlockResponse); err != nil {
 		return nil, err
 	}
-	return &minBlockResponse.MinorBlock, nil
+	return minBlockResponse.MinorBlock, nil
 }
 
 func (s *SlaveConnection) GetTransactionByHash(txHash common.Hash, branch account.Branch) (*types.MinorBlock, uint32, error) {
@@ -161,7 +161,7 @@ func (s *SlaveConnection) GetTransactionByHash(txHash common.Hash, branch accoun
 	if err := serialize.Deserialize(serialize.NewByteBuffer(res.Data), &trans); err != nil {
 		return nil, 0, err
 	}
-	return &trans.MinorBlock, 0, nil
+	return trans.MinorBlock, 0, nil
 }
 
 func (s *SlaveConnection) GetTransactionReceipt(txHash common.Hash, branch account.Branch) (*types.MinorBlock, uint32, *types.Receipt, error) {
@@ -180,10 +180,10 @@ func (s *SlaveConnection) GetTransactionReceipt(txHash common.Hash, branch accou
 	if err := serialize.Deserialize(serialize.NewByteBuffer(res.Data), &trans); err != nil {
 		return nil, 0, nil, err
 	}
-	return &trans.MinorBlock, trans.Index, &trans.Receipt, nil
+	return trans.MinorBlock, trans.Index, trans.Receipt, nil
 }
 
-func (s *SlaveConnection) GetTransactionsByAddress(address account.Address, start []byte, limit uint32) ([]rpc.TransactionDetail, []byte, error) {
+func (s *SlaveConnection) GetTransactionsByAddress(address *account.Address, start []byte, limit uint32) ([]*rpc.TransactionDetail, []byte, error) {
 	var (
 		req   = rpc.GetTransactionListByAddressRequest{Address: address, Start: start, Limit: limit}
 		trans = rpc.GetTransactionListByAddressResponse{}

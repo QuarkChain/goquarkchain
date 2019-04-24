@@ -23,7 +23,7 @@ type ShardBackend struct {
 	chainDb ethdb.Database
 	engine  consensus.Engine
 
-	shardChain *types.MinorBlock
+	shardState *types.MinorBlock
 
 	eventMux *event.TypeMux
 }
