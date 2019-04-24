@@ -25,7 +25,7 @@ import (
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/metrics"
-	"github.com/hashicorp/golang-lru"
+	lru "github.com/hashicorp/golang-lru"
 )
 
 var (
@@ -114,8 +114,8 @@ type RootBlockChain struct {
 	shouldPreserve func(block *types.RootBlock) bool // Function used to determine whether should preserve the given block.
 }
 
-// NewBlockChain returns a fully initialised block chain using information
-// available in the database. It initialises the default Ethereum Validator and
+// NewBlockChain returns a fully initialized block chain using information
+// available in the database. It initializes the default Ethereum Validator and
 // Processor.
 func NewRootBlockChain(db ethdb.Database, cacheConfig *CacheConfig, chainConfig *config.QuarkChainConfig, engine consensus.Engine, shouldPreserve func(block *types.RootBlock) bool) (*RootBlockChain, error) {
 	if cacheConfig == nil {
@@ -619,7 +619,7 @@ func (bc *RootBlockChain) insertChain(chain []types.IBlock, verifySeals bool) (i
 	var (
 		stats     = insertStats{startTime: mclock.Now()}
 		events    = make([]interface{}, 0, len(chain))
-		lastCanon types.IBlock
+		lastCanon *types.RootBlock
 	)
 	// Start the parallel header verifier
 	headers := make([]types.IHeader, len(chain))
@@ -715,9 +715,8 @@ func (bc *RootBlockChain) insertChain(chain []types.IBlock, verifySeals bool) (i
 		case CanonStatTy:
 			log.Debug("Inserted new block", "number", block.NumberU64(), "hash", block.Hash(),
 				"minorHeaderd", len(block.Content()), "elapsed", common.PrettyDuration(time.Since(start)))
-
-			events = append(events, ChainEvent{block, block.Hash(), nil})
-			lastCanon = block
+			lastCanon = block.(*types.RootBlock)
+			events = append(events, RootChainEvent{lastCanon, block.Hash()})
 
 			// Only count canonical blocks for GC processing time
 			bc.gcproc += proctime
@@ -726,7 +725,7 @@ func (bc *RootBlockChain) insertChain(chain []types.IBlock, verifySeals bool) (i
 			log.Debug("Inserted forked block", "number", block.NumberU64(), "hash", block.Hash(),
 				"diff", block.IHeader().GetDifficulty(), "elapsed", common.PrettyDuration(time.Since(start)),
 				"headblock", len(block.Content()))
-			events = append(events, ChainSideEvent{block})
+			events = append(events, RootChainSideEvent{block.(*types.RootBlock)})
 		}
 		blockInsertTimer.UpdateSince(start)
 		stats.processed++
@@ -750,7 +749,7 @@ func (bc *RootBlockChain) insertChain(chain []types.IBlock, verifySeals bool) (i
 
 	// Append a single chain head event if we've progressed the chain
 	if lastCanon != nil && bc.CurrentBlock().Hash() == lastCanon.Hash() {
-		events = append(events, ChainHeadEvent{lastCanon})
+		events = append(events, RootChainHeadEvent{lastCanon})
 	}
 	return it.index, events, err
 }
@@ -943,7 +942,7 @@ func (bc *RootBlockChain) reorg(oldBlock, newBlock types.IBlock) error {
 	if len(oldChain) > 0 {
 		go func() {
 			for _, block := range oldChain {
-				bc.chainSideFeed.Send(ChainSideEvent{Block: block})
+				bc.chainSideFeed.Send(RootChainSideEvent{Block: block.(*types.RootBlock)})
 			}
 		}()
 	}
@@ -957,13 +956,13 @@ func (bc *RootBlockChain) reorg(oldBlock, newBlock types.IBlock) error {
 func (bc *RootBlockChain) PostChainEvents(events []interface{}) {
 	for _, event := range events {
 		switch ev := event.(type) {
-		case ChainEvent:
+		case RootChainEvent:
 			bc.chainFeed.Send(ev)
 
-		case ChainHeadEvent:
+		case RootChainHeadEvent:
 			bc.chainHeadFeed.Send(ev)
 
-		case ChainSideEvent:
+		case RootChainSideEvent:
 			bc.chainSideFeed.Send(ev)
 		}
 	}
@@ -1169,16 +1168,16 @@ func (bc *RootBlockChain) SubscribeRemovedLogsEvent(ch chan<- RemovedLogsEvent) 
 }
 
 // SubscribeChainEvent registers a subscription of ChainEvent.
-func (bc *RootBlockChain) SubscribeChainEvent(ch chan<- ChainEvent) event.Subscription {
+func (bc *RootBlockChain) SubscribeChainEvent(ch chan<- RootChainEvent) event.Subscription {
 	return bc.scope.Track(bc.chainFeed.Subscribe(ch))
 }
 
 // SubscribeChainHeadEvent registers a subscription of ChainHeadEvent.
-func (bc *RootBlockChain) SubscribeChainHeadEvent(ch chan<- ChainHeadEvent) event.Subscription {
+func (bc *RootBlockChain) SubscribeChainHeadEvent(ch chan<- RootChainHeadEvent) event.Subscription {
 	return bc.scope.Track(bc.chainHeadFeed.Subscribe(ch))
 }
 
 // SubscribeChainSideEvent registers a subscription of ChainSideEvent.
-func (bc *RootBlockChain) SubscribeChainSideEvent(ch chan<- ChainSideEvent) event.Subscription {
+func (bc *RootBlockChain) SubscribeChainSideEvent(ch chan<- RootChainSideEvent) event.Subscription {
 	return bc.scope.Track(bc.chainSideFeed.Subscribe(ch))
 }

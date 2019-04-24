@@ -536,7 +536,7 @@ func TestReorgSideEvent(t *testing.T) {
 	)
 
 	blockchain, _ := NewRootBlockChain(db, nil, gspec.qkcConfig, engine, nil)
-	blockchain.validator = new(FackRootBlockValidator)
+	blockchain.validator = new(fakeRootBlockValidator)
 	defer blockchain.Stop()
 
 	chain := GenerateRootBlockChain(genesis, engine, 3, func(i int, gen *RootBlockGen) {})
@@ -549,7 +549,7 @@ func TestReorgSideEvent(t *testing.T) {
 		header := types.MinorBlockHeader{Coinbase: addr1}
 		gen.headers = append(gen.headers, &header)
 	})
-	chainSideCh := make(chan ChainSideEvent, 64)
+	chainSideCh := make(chan RootChainSideEvent, 64)
 	blockchain.SubscribeChainSideEvent(chainSideCh)
 	if _, err := blockchain.InsertChain(ToBlocks(replacementBlocks)); err != nil {
 		t.Fatalf("failed to insert chain: %v", err)
@@ -815,7 +815,7 @@ func benchmarkLargeNumberOfValueToNonexisting(b *testing.B, numItems, numBlocks 
 		gspec.MustCommitRootBlock(diskdb)
 
 		chain, err := NewRootBlockChain(diskdb, nil, qkcconfig, engine, nil)
-		chain.validator = new(FackRootBlockValidator)
+		chain.validator = new(fakeRootBlockValidator)
 		if err != nil {
 			b.Fatalf("failed to create tester chain: %v", err)
 		}
@@ -837,6 +837,7 @@ func ToBlocks(rootBlocks []*types.RootBlock) []types.IBlock {
 	}
 	return blocks
 }
+
 func BenchmarkBlockChain_1x1000ValueTransferToNonexisting(b *testing.B) {
 	var (
 		numitems  = 1000
