@@ -1,138 +1,187 @@
 package master
 
 import (
-	"fmt"
+	"bytes"
+	"errors"
 	"github.com/QuarkChain/goquarkchain/account"
-	"github.com/QuarkChain/goquarkchain/cluster/config"
-	qrpc "github.com/QuarkChain/goquarkchain/cluster/rpc"
+	"github.com/QuarkChain/goquarkchain/cluster/rpc"
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/serialize"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/log"
-	"syscall"
-	"time"
 )
 
-const (
-	beatTime = 4
-)
-
-type QkcAPIBackend struct {
-	config []*config.SlaveConfig
-	//shardMaskList
-	master     *MasterBackend
-	clientPool map[string]*SlaveConnection
-}
-
-// create slave connection manager
-func NewQkcAPIBackend(master *MasterBackend, slavesConfig []*config.SlaveConfig) (*QkcAPIBackend, error) {
-	slavePool := make(map[string]*SlaveConnection)
-	for _, cfg := range slavesConfig {
-		target := fmt.Sprintf("%s:%d", cfg.IP, cfg.Port)
-		client, err := NewSlaveConn(target, cfg.ChainMaskList)
-		if err != nil {
-			return nil, err
-		}
-		slavePool[target] = client
-	}
-	log.Info("qkc api backend", "slave client pool", len(slavePool))
-	return &QkcAPIBackend{
-		config:     slavesConfig,
-		master:     master,
-		clientPool: slavePool,
-	}, nil
-}
-
-func (s *QkcAPIBackend) HeartBeat() {
-	// shardSize  = s.master.GetShardSize()
-	req := qrpc.Request{Op: qrpc.OpHeartBeat, Data: nil}
-	go func(normal bool) {
-		for normal {
-			time.Sleep(time.Duration(beatTime) * time.Second)
-			for endpoint := range s.clientPool {
-				normal = s.clientPool[endpoint].HeartBeat(&req)
-				if !normal {
-					s.master.shutdown <- syscall.SIGTERM
-					break
-				}
-			}
-		}
-	}(true)
-}
-
-func (s *QkcAPIBackend) SendConnectToSlaves() bool {
-	var (
-		slaveInfos = make([]qrpc.SlaveInfo, 0)
-	)
-	for _, info := range s.config {
-		var chainMask []types.ChainMask
-		for _, mask := range info.ChainMaskList {
-			chainMask = append(chainMask, *mask)
-		}
-		slaveInfos = append(
-			slaveInfos,
-			qrpc.SlaveInfo{
-				Id:            []byte(info.ID),
-				Host:          []byte(info.IP),
-				Port:          info.Port,
-				ChainMaskList: chainMask,
-			})
-	}
-	for target, conn := range s.clientPool {
-		err := conn.SendConnectToSlaves(slaveInfos)
-		if err != nil {
-			log.Info("slave manager", "send connection cfg to slaves", "target", target, err)
-			return false
+func (s *MasterBackend) AddTransaction(tx *types.Transaction) error {
+	evmTx := tx.EvmTx
+	//TODO :SetQKCConfig
+	branch := account.Branch{Value: evmTx.FromFullShardId()}
+	flag := false
+	for k, _ := range s.branchToSlaves {
+		if k == branch.Value {
+			flag = true
 		}
 	}
-	return true
+	if !flag {
+		return errors.New("not exist")
+	}
+	slaves, ok := s.branchToSlaves[branch.Value]
+	if !ok {
+		return errors.New("no such slave")
+	}
+	lenSlaves := len(slaves)
+	check := NewCheckErr(lenSlaves)
+	for index := range slaves {
+		check.wg.Add(1)
+		go func(slave *SlaveConnection) {
+			defer check.wg.Done()
+			err := slave.AddTransaction(tx) //TODO ??height
+			check.errc <- err
+
+		}(slaves[index])
+	}
+	check.wg.Wait()
+	if err := check.check(); err != nil {
+		return err
+	}
+
+	return nil //TODO?? peer broadcast
 }
 
-func (s *QkcAPIBackend) AddTransaction(tx types.Transaction) bool {
-	return false
+func (s *MasterBackend) ExecuteTransaction(tx *types.Transaction, address account.Address, height *uint64) ([]byte, error) {
+	evmTx := tx.EvmTx
+	//TODO setQuarkChain
+	branch := account.Branch{Value: evmTx.FromFullShardId()}
+
+	slaves, ok := s.branchToSlaves[branch.Value]
+	if !ok {
+		return nil, errors.New("no such slave")
+	}
+	lenSlaves := len(slaves)
+	check := NewCheckErr(lenSlaves)
+	chanRsp := make(chan []byte, lenSlaves)
+	for index := range slaves {
+		check.wg.Add(1)
+		go func(slave *SlaveConnection) {
+			defer check.wg.Done()
+			rsp, err := slave.ExecuteTransaction(tx, address, height) //TODO ??height
+			check.errc <- err
+			chanRsp <- rsp
+
+		}(slaves[index])
+	}
+	check.wg.Wait()
+	close(chanRsp)
+	if err := check.check(); err != nil {
+		return nil, err
+	}
+
+	flag := true
+	firstFlag := 1
+	var onlyValue []byte
+	for res := range chanRsp {
+		if firstFlag == 1 {
+			firstFlag = 0
+			onlyValue = res
+		}
+		if res == nil || !bytes.Equal(res, onlyValue) {
+			flag = false
+			break
+		}
+	}
+	if flag == false {
+		return nil, errors.New("flag==false")
+	}
+	return onlyValue, nil
+}
+func (s *MasterBackend) GetMinorBlockByHash(blockHash common.Hash, branch account.Branch) (*types.MinorBlock, error) {
+	slaveConn, err := s.getSlaveConnection(branch)
+	if err != nil {
+		return nil, err
+	}
+	return slaveConn.GetMinorBlockByHash(blockHash, branch)
+}
+func (s *MasterBackend) GetMinorBlockByHeight(height uint64, branch account.Branch) (*types.MinorBlock, error) {
+	slaveConn, err := s.getSlaveConnection(branch)
+	if err != nil {
+		return nil, err
+	}
+	return slaveConn.GetMinorBlockByHeight(height, branch)
+}
+func (s *MasterBackend) GetTransactionByHash(txHash common.Hash, branch account.Branch) (*types.MinorBlock, uint32, error) {
+	slaveConn, err := s.getSlaveConnection(branch)
+	if err != nil {
+		return nil, 0, err
+	}
+	return slaveConn.GetTransactionByHash(txHash, branch)
+}
+func (s *MasterBackend) GetTransactionReceipt(txHash common.Hash, branch account.Branch) (*types.MinorBlock, uint32, *types.Receipt, error) {
+	slaveConn, err := s.getSlaveConnection(branch)
+	if err != nil {
+		return nil, 0, nil, err
+	}
+	return slaveConn.GetTransactionReceipt(txHash, branch)
 }
 
-// TODO return type is not confirmed.
-func (s *QkcAPIBackend) ExecuteTransaction(tx types.Transaction, address account.Address, height uint64) {
+func (s *MasterBackend) GetTransactionsByAddress(address account.Address, start []byte, limit uint32) ([]*rpc.TransactionDetail, []byte, error) {
+	fullShardID := s.clusterConfig.Quarkchain.GetFullShardIdByFullShardKey(address.FullShardKey)
+	slaveConn, err := s.getSlaveConnection(account.Branch{Value: fullShardID})
+	if err != nil {
+		return nil, nil, err
+	}
+	return slaveConn.GetTransactionsByAddress(address, start, limit)
+}
+func (s *MasterBackend) GetLogs(branch account.Branch, address []account.Address, topics []*rpc.Topic, startBlock, endBlock *rpc.BlockHeight) ([]*types.Log, error) {
+	slaveConn, err := s.getSlaveConnection(branch)
+	if err != nil {
+		return nil, err
+	}
+
+	if startBlock.Str == "latest" {
+		startBlock.Height = s.branchToShardStats[branch.Value].Height
+	}
+	if endBlock.Str == "latest" {
+		endBlock.Height = s.branchToShardStats[branch.Value].Height
+	}
+	return slaveConn.GetLogs(branch, address, topics, startBlock.Height, endBlock.Height)
 }
 
-func (s *QkcAPIBackend) GetMinorBlockByHash(blockHash common.Hash, branch account.Branch) types.MinorBlock {
-	return types.MinorBlock{}
+func (s *MasterBackend) EstimateGas(tx *types.Transaction, fromAddress account.Address) (uint32, error) {
+	evmTx := tx.EvmTx
+	//TODO set config
+	slaveConn, err := s.getSlaveConnection(account.Branch{Value: evmTx.FromFullShardId()})
+	if err != nil {
+		return 0, err
+	}
+	return slaveConn.EstimateGas(tx, fromAddress)
+}
+func (s *MasterBackend) GetStorageAt(address account.Address, key *serialize.Uint256, height uint64) (*serialize.Uint256, error) {
+	fullShardID := s.clusterConfig.Quarkchain.GetFullShardIdByFullShardKey(address.FullShardKey)
+	slaveConn, err := s.getSlaveConnection(account.Branch{Value: fullShardID})
+	if err != nil {
+		return nil, err
+	}
+	return slaveConn.GetStorageAt(address, key, height)
 }
 
-func (s *QkcAPIBackend) GetMinorBlockByHeight(height uint64, branch account.Branch) types.MinorBlock {
-	return types.MinorBlock{}
+func (s *MasterBackend) GetCode(address account.Address, height uint64) ([]byte, error) {
+	fullShardID := s.clusterConfig.Quarkchain.GetFullShardIdByFullShardKey(address.FullShardKey)
+	slaveConn, err := s.getSlaveConnection(account.Branch{Value: fullShardID})
+	if err != nil {
+		return nil, err
+	}
+	return slaveConn.GetCode(address, height)
 }
 
-func (s *QkcAPIBackend) GetTransactionByHash(txHash common.Hash, branch account.Branch) (types.MinorBlock, uint32) {
-	return types.MinorBlock{}, 0
+func (s *MasterBackend) GasPrice(branch account.Branch) (uint64, error) {
+	slaveConn, err := s.getSlaveConnection(branch)
+	if err != nil {
+		return 0, err
+	}
+	return slaveConn.GasPrice(branch)
 }
-
-func (s *QkcAPIBackend) GetTransactionReceipt(txHash common.Hash, branch account.Branch) (types.MinorBlock, uint32, types.Receipt) {
-	return types.MinorBlock{}, 0, types.Receipt{}
+func (s *MasterBackend) GetWork(branch account.Branch) consensus.MiningWork {
+	panic("not ")
 }
-
-func (s *QkcAPIBackend) GetTransactionsByAddress(address account.Address, start uint64, limit uint32) ([]types.Transactions, uint64) {
-	return nil, 0
-}
-
-func (s *QkcAPIBackend) GetLogs() {}
-func (s *QkcAPIBackend) EstimateGas(tx types.Transaction, address account.Address) uint32 {
-	return 0
-}
-func (s *QkcAPIBackend) GetStorageAt(address account.Address, key serialize.Uint256, height uint64) []byte {
-	return nil
-}
-func (s *QkcAPIBackend) GetCode(address account.Address, height uint64) []byte {
-	return nil
-}
-func (s *QkcAPIBackend) GasPrice(branch account.Branch) uint64 {
-	return 0
-}
-func (s *QkcAPIBackend) GetWork(branch account.Branch) consensus.MiningWork {
-	return consensus.MiningWork{}
-}
-func (s *QkcAPIBackend) SubmitWork(branch account.Branch, headerHash common.Hash, nonce uint64, mixHash common.Hash) bool {
+func (s *MasterBackend) SubmitWork(branch account.Branch, headerHash common.Hash, nonce uint64, mixHash common.Hash) bool {
 	return false
 }
