@@ -1029,7 +1029,7 @@ func TestMinorReorgSideEvent(t *testing.T) {
 		}
 		gen.AddTx(config, transEvmTxToTx(tx))
 	})
-	chainSideCh := make(chan ChainSideEvent, 64)
+	chainSideCh := make(chan MinorChainSideEvent, 64)
 	blockchain.SubscribeChainSideEvent(chainSideCh)
 	if _, _, err := blockchain.InsertChain(toMinorBlocks(replacementBlocks)); err != nil {
 		t.Fatalf("failed to insert chain: %v", err)

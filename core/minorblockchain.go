@@ -1121,7 +1121,7 @@ func (m *MinorBlockChain) insertChain(chain []types.IBlock, verifySeals bool) (i
 				"root", mBlock.GetMetaData().Root)
 
 			coalescedLogs = append(coalescedLogs, logs...)
-			events = append(events, ChainEvent{mBlock, mBlock.Hash(), logs})
+			events = append(events, MinorChainEvent{mBlock, mBlock.Hash(), logs})
 			lastCanon = block
 
 			// Only count canonical blocks for GC processing time
@@ -1132,7 +1132,7 @@ func (m *MinorBlockChain) insertChain(chain []types.IBlock, verifySeals bool) (i
 				"diff", mBlock.Header().GetDifficulty(), "elapsed", common.PrettyDuration(time.Since(start)),
 				"txs", len(mBlock.GetTransactions()), "gas", mBlock.GetMetaData().GasUsed,
 				"root", mBlock.GetMetaData().Root)
-			events = append(events, ChainSideEvent{mBlock})
+			events = append(events, MinorChainSideEvent{mBlock})
 		}
 		blockInsertTimer.UpdateSince(start)
 		stats.processed++
@@ -1159,7 +1159,7 @@ func (m *MinorBlockChain) insertChain(chain []types.IBlock, verifySeals bool) (i
 
 	// Append a single chain head event if we've progressed the chain
 	if lastCanon != nil && m.CurrentBlock().Hash() == lastCanon.Hash() {
-		events = append(events, ChainHeadEvent{lastCanon.(*types.MinorBlock)})
+		events = append(events, MinorChainHeadEvent{lastCanon.(*types.MinorBlock)})
 	}
 	return it.index, events, coalescedLogs, xShardList, err
 }
@@ -1385,7 +1385,7 @@ func (m *MinorBlockChain) reorg(oldBlock, newBlock types.IBlock) error {
 	if len(oldChain) > 0 {
 		go func() {
 			for _, block := range oldChain {
-				m.chainSideFeed.Send(ChainSideEvent{Block: block.(*types.MinorBlock)})
+				m.chainSideFeed.Send(MinorChainSideEvent{Block: block.(*types.MinorBlock)})
 			}
 		}()
 	}
@@ -1403,13 +1403,13 @@ func (m *MinorBlockChain) PostChainEvents(events []interface{}, logs []*types.Lo
 	}
 	for _, event := range events {
 		switch ev := event.(type) {
-		case ChainEvent:
+		case MinorChainEvent:
 			m.chainFeed.Send(ev)
 
-		case ChainHeadEvent:
+		case MinorChainHeadEvent:
 			m.chainHeadFeed.Send(ev)
 
-		case ChainSideEvent:
+		case MinorChainSideEvent:
 			m.chainSideFeed.Send(ev)
 		}
 	}
@@ -1600,17 +1600,17 @@ func (m *MinorBlockChain) SubscribeRemovedLogsEvent(ch chan<- RemovedLogsEvent) 
 }
 
 // SubscribeChainEvent registers a subscription of ChainEvent.
-func (m *MinorBlockChain) SubscribeChainEvent(ch chan<- ChainEvent) event.Subscription {
+func (m *MinorBlockChain) SubscribeChainEvent(ch chan<- MinorChainEvent) event.Subscription {
 	return m.scope.Track(m.chainFeed.Subscribe(ch))
 }
 
 // SubscribeChainHeadEvent registers a subscription of ChainHeadEvent.
-func (m *MinorBlockChain) SubscribeChainHeadEvent(ch chan<- ChainHeadEvent) event.Subscription {
+func (m *MinorBlockChain) SubscribeChainHeadEvent(ch chan<- MinorChainHeadEvent) event.Subscription {
 	return m.scope.Track(m.chainHeadFeed.Subscribe(ch))
 }
 
 // SubscribeChainSideEvent registers a subscription of ChainSideEvent.
-func (m *MinorBlockChain) SubscribeChainSideEvent(ch chan<- ChainSideEvent) event.Subscription {
+func (m *MinorBlockChain) SubscribeChainSideEvent(ch chan<- MinorChainSideEvent) event.Subscription {
 	return m.scope.Track(m.chainSideFeed.Subscribe(ch))
 }
 
