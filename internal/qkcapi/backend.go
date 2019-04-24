@@ -2,6 +2,7 @@ package qkcapi
 
 import (
 	"github.com/QuarkChain/goquarkchain/account"
+	qkcRPC "github.com/QuarkChain/goquarkchain/cluster/rpc"
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/serialize"
@@ -10,19 +11,18 @@ import (
 )
 
 type Backend interface {
-	SendConnectToSlaves() bool
-	AddTransaction(tx types.Transaction) bool
-	ExecuteTransaction(tx types.Transaction, address account.Address, height uint64)
-	GetMinorBlockByHash(blockHash common.Hash, branch account.Branch) types.MinorBlock
-	GetMinorBlockByHeight(height uint64, branch account.Branch) types.MinorBlock
-	GetTransactionByHash(txHash common.Hash, branch account.Branch) (types.MinorBlock, uint32)
-	GetTransactionReceipt(txHash common.Hash, branch account.Branch) (types.MinorBlock, uint32, types.Receipt)
-	GetTransactionsByAddress(address account.Address, start uint64, limit uint32) ([]types.Transactions, uint64)
-	GetLogs()
-	EstimateGas(tx types.Transaction, address account.Address) uint32
-	GetStorageAt(address account.Address, key serialize.Uint256, height uint64) []byte
-	GetCode(address account.Address, height uint64) []byte
-	GasPrice(branch account.Branch) uint64
+	AddTransaction(tx *types.Transaction) error
+	ExecuteTransaction(tx *types.Transaction, address account.Address, height *uint64) ([]byte, error)
+	GetMinorBlockByHash(blockHash common.Hash, branch account.Branch) (*types.MinorBlock, error)
+	GetMinorBlockByHeight(height uint64, branch account.Branch) (*types.MinorBlock, error)
+	GetTransactionByHash(txHash common.Hash, branch account.Branch) (*types.MinorBlock, uint32, error)
+	GetTransactionReceipt(txHash common.Hash, branch account.Branch) (*types.MinorBlock, uint32, *types.Receipt, error)
+	GetTransactionsByAddress(address account.Address, start []byte, limit uint32) ([]*qkcRPC.TransactionDetail, []byte, error)
+	GetLogs(branch account.Branch, address []account.Address, topics []*qkcRPC.Topic, startBlock, endBlock *qkcRPC.BlockHeight) ([]*types.Log, error)
+	EstimateGas(tx *types.Transaction, address account.Address) (uint32, error)
+	GetStorageAt(address account.Address, key *serialize.Uint256, height uint64) (*serialize.Uint256, error)
+	GetCode(address account.Address, height uint64) ([]byte, error)
+	GasPrice(branch account.Branch) (uint64, error)
 	GetWork(branch account.Branch) consensus.MiningWork
 	SubmitWork(branch account.Branch, headerHash common.Hash, nonce uint64, mixHash common.Hash) bool
 }
