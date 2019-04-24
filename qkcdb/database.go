@@ -8,6 +8,11 @@ import (
 	"github.com/tecbot/gorocksdb"
 )
 
+const (
+	cache   uint64 = 128
+	handles        = 1024
+)
+
 type RDBDatabase struct {
 	fn string        // filename for reporting
 	db *gorocksdb.DB // RocksDB instance
@@ -21,16 +26,12 @@ type RDBDatabase struct {
 }
 
 // NewRDBDatabase returns a rocksdb wrapped object.
-func NewRDBDatabase(file string, cache int) (*RDBDatabase, error) {
+func NewRDBDatabase(file string) (*RDBDatabase, error) {
 	logger := log.New("database", file)
 
-	// Ensure we have some minimal caching and file guarantees
-	if cache < 16 {
-		cache = 16
-	}
 	opts := gorocksdb.NewDefaultOptions()
 	// ubuntu 16.04 max files descriptors 524288
-	opts.SetMaxFileOpeningThreads(1024)
+	opts.SetMaxFileOpeningThreads(handles)
 	// 128 MiB
 	opts.SetMaxTotalWalSize(uint64(cache * 1024 * 1024))
 	// sets the maximum number of write buffers that are built up in memory.
@@ -49,7 +50,7 @@ func NewRDBDatabase(file string, cache int) (*RDBDatabase, error) {
 	ro := gorocksdb.NewDefaultReadOptions()
 	wo := gorocksdb.NewDefaultWriteOptions()
 
-	logger.Info("Allocated cache and file handles", "cache", cache)
+	logger.Info("Allocated cache and file handles", "cache", cache, "handles", handles)
 
 	return &RDBDatabase{
 		fn:  file,
