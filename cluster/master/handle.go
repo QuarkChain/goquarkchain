@@ -353,7 +353,7 @@ func (pm *ProtocolManager) handleMsg(peer *peer) error {
 		if c := peer.getChan(qkcMsg.RpcID); c != nil {
 			c <- minorBlockResp.MinorBlockList
 		} else {
-			log.Error(fmt.Sprintf("chan for rpc %d is missing", qkcMsg.RpcID))
+			log.Warn(fmt.Sprintf("chan for rpc %d is missing", qkcMsg.RpcID))
 		}
 
 	default:
@@ -361,6 +361,7 @@ func (pm *ProtocolManager) handleMsg(peer *peer) error {
 	}
 	return nil
 }
+
 func (pm *ProtocolManager) HandleNewTip(tip *p2p.Tip, peer *peer) error {
 	if len(tip.MinorBlockHeaderList) != 0 {
 		return errors.New("minor block header list must be empty")
@@ -551,8 +552,10 @@ func (pm *ProtocolManager) syncer() {
 				break
 			}
 			go pm.synchronise(pm.peers.BestPeer())
+
 		case <-forceSync.C:
 			go pm.synchronise(pm.peers.BestPeer())
+
 		case <-pm.noMorePeers:
 			return
 		}
@@ -565,7 +568,6 @@ func (pm *ProtocolManager) synchronise(peer *peer) {
 	if peer == nil {
 		return
 	}
-
 	if peer.Head() != nil {
 		pm.synchronizer.AddTask(synchronizer.NewRootChainTask(peer, peer.Head()))
 	}
