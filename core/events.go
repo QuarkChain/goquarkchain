@@ -21,14 +21,25 @@ type NewMinedBlockEvent struct{ Block types.IBlock }
 // RemovedLogsEvent is posted when a reorg happens
 type RemovedLogsEvent struct{ Logs []*types.Log }
 
-type ChainEvent struct {
-	Block types.IBlock
+type MinorChainEvent struct {
+	Block *types.MinorBlock
 	Hash  common.Hash
 	Logs  []*types.Log
 }
 
-type ChainSideEvent struct {
+type MinorChainSideEvent struct {
 	Block types.IBlock
 }
 
-type ChainHeadEvent struct{ Block types.IBlock }
+type MinorChainHeadEvent struct{ Block *types.MinorBlock }
+
+type RootChainEvent struct {
+	Block *types.RootBlock
+	Hash  common.Hash
+}
+
+type RootChainSideEvent struct {
+	Block *types.RootBlock
+}
+
+type RootChainHeadEvent struct{ Block *types.RootBlock }
