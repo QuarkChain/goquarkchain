@@ -55,7 +55,7 @@ func (s *ShardBackend) HandleNewTip(tip *p2p.Tip) error {
 		log.Error("minor block header list must have only one header", "shard id", s.config.ShardID)
 	}
 	mHeader := tip.MinorBlockHeaderList[0]
-	if mHeader.Branch != s.shardChain.Branch() {
+	if mHeader.Branch != s.shardState.Branch() {
 
 	}
 	return nil
