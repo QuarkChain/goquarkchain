@@ -101,9 +101,6 @@ func (h *RootBlockHeader) SetCoinbase(addr account.Address) {
 	h.Coinbase = addr
 }
 
-func (h *RootBlockHeader) IsNil() bool {
-	return h == nil
-}
 func (h *RootBlockHeader) CreateBlockToAppend(createTime *uint64, difficulty *big.Int, address *account.Address, nonce *uint64, extraData []byte) *RootBlock {
 	if createTime == nil {
 		preTime := h.Time + 1
@@ -366,10 +363,6 @@ func (b *RootBlock) GetTrackingData() []byte {
 
 func (b *RootBlock) GetSize() common.StorageSize {
 	return b.Size()
-}
-
-func (b *RootBlock) IsNil() bool {
-	return b == nil
 }
 
 func (b *RootBlock) Finalize(coinbaseAmount *uint64, coinbaseAddress *account.Address) *RootBlock {
