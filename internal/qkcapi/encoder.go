@@ -114,11 +114,46 @@ func minorBlockEncoder(block *types.MinorBlock, includeTransaction bool) (map[st
 	return field, nil
 }
 
-//func txEncoder(block *types.MinorBlock, i int) (map[string]interface{}, error) {
-//	tx := block.Transactions()[i].EvmTx
-//	branch := block.Header().Branch
-//	field:=map[string]interface{}{
-//		"id":IDEncoder(tx.Hash().Bytes(),tx.FromFullShardId()),
-//		""
-//	}
-//}
+func txEncoder(block *types.MinorBlock, i int) (map[string]interface{}, error) {
+	header := block.Header()
+	tx := block.Transactions()[i].EvmTx
+	v, r, s := tx.RawSignatureValues()
+	sender, err := types.Sender(types.MakeSigner(tx.NetworkId()), tx)
+	if err != nil {
+		return nil, err
+	}
+	branch := block.Header().Branch
+	field := map[string]interface{}{
+		"id":               IDEncoder(tx.Hash().Bytes(), tx.FromFullShardId()),
+		"hash":             tx.Hash(),
+		"nonce":            hexutil.Uint64(tx.Nonce()),
+		"timestamp":        hexutil.Uint64(header.Time),
+		"fullShardId":      hexutil.Uint64(header.Branch.GetFullShardID()),
+		"chainId":          hexutil.Uint64(header.Branch.GetChainID()),
+		"shardId":          hexutil.Uint64(header.Branch.GetShardID()),
+		"blockId":          IDEncoder(header.Hash().Bytes(), branch.GetFullShardID()),
+		"blockHeight":      hexutil.Uint64(header.Number),
+		"transactionIndex": hexutil.Uint64(i),
+		"from":             AddressEncoder(sender.Bytes()),
+		"to":               AddressEncoder(tx.To().Bytes()),
+		"fromFullShardKey": hexutil.Uint64(tx.FromFullShardId()), //TODO full_shard_key
+		"toFullShardKey":   hexutil.Uint64(tx.ToFullShardId()),   //TODO full_shard_key
+		"value":            (*hexutil.Big)(tx.Value()),
+		"gasPrice":         (*hexutil.Big)(tx.GasPrice()),
+		"gas":              hexutil.Uint64(tx.Gas()),
+		"data":             hexutil.Bytes(tx.Data()),
+		"networkId":        hexutil.Uint64(tx.NetworkId()),
+		//TODO TokenID
+		"transferTokenId": hexutil.Uint64(1),
+		"gasTokenId":      hexutil.Uint64(1),
+		//	"transferTokenStr gasTokenStr":
+		"r": (*hexutil.Big)(r),
+		"s": (*hexutil.Big)(s),
+		"v": (*hexutil.Big)(v),
+	}
+	return field, nil
+}
+
+func logListEncoder(logList []*types.Log) {
+
+}
