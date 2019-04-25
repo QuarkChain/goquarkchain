@@ -2,6 +2,7 @@ package common
 
 import (
 	"bytes"
+	"encoding/binary"
 	"encoding/gob"
 	"math/bits"
 )
@@ -36,4 +37,11 @@ func DeepCopy(dst, src interface{}) error {
 		return err
 	}
 	return gob.NewDecoder(bytes.NewBuffer(buf.Bytes())).Decode(dst)
+}
+
+// Uint32ToBytes trans uint32 num to bytes
+func Uint32ToBytes(n uint32) []byte {
+	Bytes := make([]byte, 4)
+	binary.BigEndian.PutUint32(Bytes, n)
+	return Bytes
 }
