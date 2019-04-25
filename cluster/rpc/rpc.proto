@@ -23,10 +23,10 @@ service MasterServerSideOp {
 service SlaveServerSideOp {
     rpc heartBeat (Request) returns (Response) {
     }
+    rpc MasterInfo (Request) returns (Response) {
+    }
     // APIs for master
     rpc Ping (Request) returns (Response) {
-    }
-    rpc ConnectToSlaves (Request) returns (Response) {
     }
     rpc GetMine (Request) returns (Response) {
     }
@@ -35,8 +35,6 @@ service SlaveServerSideOp {
     rpc AddRootBlock (Request) returns (Response) {
     }
     rpc GetEcoInfoList (Request) returns (Response) {
-    }
-    rpc GetNextBlockToMine (Request) returns (Response) {
     }
     rpc AddMinorBlock (Request) returns (Response) {
     }
@@ -47,8 +45,6 @@ service SlaveServerSideOp {
     rpc AddTransaction (Request) returns (Response) {
     }
     rpc CreateClusterPeerConnection (Request) returns (Response) {
-    }
-    rpc DestroyClusterPeerConnectionCommand (Request) returns (Response) {
     }
     rpc GetMinorBlock (Request) returns (Response) {
     }
@@ -82,9 +78,9 @@ service SlaveServerSideOp {
     rpc BatchAddXshardTxList (Request) returns (Response) {
     }
     // p2p apis
-    rpc GetMinorBlocks (Request) returns (Response) {
+    rpc GetMinorBlockList (Request) returns (Response) {
     }
-    rpc GetMinorBlockHeaders (Request) returns (Response) {
+    rpc GetMinorBlockHeaderList (Request) returns (Response) {
     }
     rpc HandleNewTip (Request) returns (Response) {
     }
@@ -95,12 +91,12 @@ service SlaveServerSideOp {
 // request data
 message Request {
     uint32 op = 1;
+    int64 rpc_id = 2;
     bytes data = 5;
 }
 
 // response data
 message Response {
-    int64 rpc_id = 2;
     bytes data = 1;
-    uint32 error_code = 3;
+    int64 rpc_id = 2;
 }
