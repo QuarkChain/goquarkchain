@@ -1,6 +1,11 @@
 package qkcapi
 
-import "fmt"
+import (
+	"fmt"
+	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/ethereum/go-ethereum/rpc"
+	"math/big"
+)
 
 // It offers only methods that operate on public data that is freely available to anyone.
 type PublicBlockChainAPI struct {
@@ -12,18 +17,30 @@ func NewPublicBlockChainAPI(b Backend) *PublicBlockChainAPI {
 	return &PublicBlockChainAPI{b}
 }
 
-func (p *PublicBlockChainAPI) Echoquantity() {
-	fmt.Println("Echoquantity func response.")
+func (p *PublicBlockChainAPI) Echoquantity() *hexutil.Big {
+	fmt.Println("Echoquantity func response.---scf")
+	res := new(big.Int).SetUint64(1)
+	return (*hexutil.Big)(res)
 }
-func (p *PublicBlockChainAPI) EchoData()                 { panic("not implemented") }
-func (p *PublicBlockChainAPI) NetworkInfo()              { panic("not implemented") }
-func (p *PublicBlockChainAPI) GetBalances()              { panic("not implemented") }
-func (p *PublicBlockChainAPI) GetAccountData()           { panic("not implemented") }
-func (p *PublicBlockChainAPI) SendUnsigedTransaction()   { panic("not implemented") }
-func (p *PublicBlockChainAPI) SendTransaction()          { panic("not implemented") }
-func (p *PublicBlockChainAPI) SendRawTransaction()       { panic("not implemented") }
-func (p *PublicBlockChainAPI) GetRootBlockById()         { panic("not implemented") }
-func (p *PublicBlockChainAPI) GetRootBlockByHeight()     { panic("not implemented") }
+func (p *PublicBlockChainAPI) EchoData()               { panic("not implemented") }
+func (p *PublicBlockChainAPI) NetworkInfo()            { panic("not implemented") }
+func (p *PublicBlockChainAPI) GetBalances()            { panic("not implemented") }
+func (p *PublicBlockChainAPI) GetAccountData()         { panic("not implemented") }
+func (p *PublicBlockChainAPI) SendUnsigedTransaction() { panic("not implemented") }
+func (p *PublicBlockChainAPI) SendTransaction()        { panic("not implemented") }
+func (p *PublicBlockChainAPI) SendRawTransaction()     { panic("not implemented") }
+func (p *PublicBlockChainAPI) GetRootBlockById()       { panic("not implemented") }
+func (p *PublicBlockChainAPI) GetRootBlockByHeight(blockNr rpc.BlockNumber) (map[string]interface{}, error) {
+	rootBlock, err := p.b.RootBlockByNumber(uint64(blockNr))
+	if err == nil {
+		response, err := rootBlockEncoder(rootBlock)
+		if err != nil {
+			return nil, err
+		}
+		return response, nil
+	}
+	return nil, err
+}
 func (p *PublicBlockChainAPI) GetMinorBlockById()        { panic("not implemented") }
 func (p *PublicBlockChainAPI) GetMinorBlockByHeight()    { panic("not implemented") }
 func (p *PublicBlockChainAPI) GetTransactionById()       { panic("not implemented") }

@@ -185,3 +185,11 @@ func (s *MasterBackend) GetWork(branch account.Branch) consensus.MiningWork {
 func (s *MasterBackend) SubmitWork(branch account.Branch, headerHash common.Hash, nonce uint64, mixHash common.Hash) bool {
 	return false
 }
+
+func (s *MasterBackend) RootBlockByNumber(blockNumber uint64) (*types.RootBlock, error) {
+	block := s.rootBlockChain.GetBlockByNumber(blockNumber)
+	if block == nil {
+		return nil, errors.New("rootBlock is nil")
+	}
+	return block.(*types.RootBlock), nil
+}

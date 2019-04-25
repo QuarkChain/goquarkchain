@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"github.com/QuarkChain/goquarkchain/common"
+	"reflect"
 )
 
 // Address include recipient and fullShardKey
@@ -108,4 +109,28 @@ func CreatAddressFromBytes(bs []byte) (Address, error) {
 func (Self *Address) IsEmpty() bool {
 	zero := make([]byte, RecipientLength)
 	return bytes.Equal(zero, Self.Recipient.Bytes())
+}
+func (Self *Address) String() string {
+	return fmt.Sprintf("%x", Self.ToHex())
+}
+
+var (
+	addressT = reflect.TypeOf(Address{})
+)
+
+// MarshalJSON Address serialisation
+func (Self *Address) MarshalJSON() (out []byte, err error) {
+	return []byte(`"` + Self.String() + `"`), nil
+}
+
+func (Self *Address) UnmarshalJSON(input []byte) error {
+	fmt.Println(">>>>>>>>>>>>>>.", len(input))
+	Self.Recipient = BytesToIdentityRecipient(input[0:20])
+
+	bytesBuffer := bytes.NewBuffer(input[20:])
+	var x uint32
+	binary.Read(bytesBuffer, binary.BigEndian, &x)
+
+	Self.FullShardKey = x
+	return nil
 }

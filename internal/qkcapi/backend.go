@@ -25,6 +25,8 @@ type Backend interface {
 	GasPrice(branch account.Branch) (uint64, error)
 	GetWork(branch account.Branch) consensus.MiningWork
 	SubmitWork(branch account.Branch, headerHash common.Hash, nonce uint64, mixHash common.Hash) bool
+
+	RootBlockByNumber(blockNr uint64) (*types.RootBlock, error)
 }
 
 func GetAPIs(apiBackend Backend) []rpc.API {
