@@ -25,6 +25,7 @@ const _ = proto.ProtoPackageIsVersion3 // please upgrade the proto package
 // request data
 type Request struct {
 	Op                   uint32   `protobuf:"varint,1,opt,name=op,proto3" json:"op,omitempty"`
+	RpcId                int64    `protobuf:"varint,2,opt,name=rpc_id,json=rpcId,proto3" json:"rpc_id,omitempty"`
 	Data                 []byte   `protobuf:"bytes,5,opt,name=data,proto3" json:"data,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
@@ -63,6 +64,13 @@ func (m *Request) GetOp() uint32 {
 	return 0
 }
 
+func (m *Request) GetRpcId() int64 {
+	if m != nil {
+		return m.RpcId
+	}
+	return 0
+}
+
 func (m *Request) GetData() []byte {
 	if m != nil {
 		return m.Data
@@ -72,9 +80,8 @@ func (m *Request) GetData() []byte {
 
 // response data
 type Response struct {
-	RpcId                int64    `protobuf:"varint,2,opt,name=rpc_id,json=rpcId,proto3" json:"rpc_id,omitempty"`
 	Data                 []byte   `protobuf:"bytes,1,opt,name=data,proto3" json:"data,omitempty"`
-	ErrorCode            uint32   `protobuf:"varint,3,opt,name=error_code,json=errorCode,proto3" json:"error_code,omitempty"`
+	RpcId                int64    `protobuf:"varint,2,opt,name=rpc_id,json=rpcId,proto3" json:"rpc_id,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -105,13 +112,6 @@ func (m *Response) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_Response proto.InternalMessageInfo
 
-func (m *Response) GetRpcId() int64 {
-	if m != nil {
-		return m.RpcId
-	}
-	return 0
-}
-
 func (m *Response) GetData() []byte {
 	if m != nil {
 		return m.Data
@@ -119,9 +119,9 @@ func (m *Response) GetData() []byte {
 	return nil
 }
 
-func (m *Response) GetErrorCode() uint32 {
+func (m *Response) GetRpcId() int64 {
 	if m != nil {
-		return m.ErrorCode
+		return m.RpcId
 	}
 	return 0
 }
@@ -134,44 +134,42 @@ func init() {
 func init() { proto.RegisterFile("rpc.proto", fileDescriptor_77a6da22d6a3feb1) }
 
 var fileDescriptor_77a6da22d6a3feb1 = []byte{
-	// 590 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xbc, 0x96, 0x5b, 0x4f, 0x13, 0x41,
-	0x14, 0xc7, 0x6d, 0xb9, 0x1f, 0x0b, 0xc4, 0x01, 0x92, 0x46, 0x63, 0x42, 0x30, 0x9a, 0x7a, 0x01,
-	0x09, 0x17, 0x9f, 0x7c, 0xd9, 0x16, 0xb2, 0x90, 0x00, 0x92, 0xed, 0x1a, 0x7d, 0x23, 0xc3, 0xcc,
-	0x01, 0x26, 0xb6, 0x73, 0xd6, 0x33, 0x53, 0x2c, 0x5f, 0xd3, 0xaf, 0xe2, 0x17, 0x30, 0xed, 0x36,
-	0x40, 0x13, 0x93, 0x99, 0xbe, 0xf8, 0xd6, 0x6e, 0xce, 0x6f, 0xce, 0xe5, 0xff, 0x3f, 0x3b, 0x0b,
-	0x0b, 0x5c, 0xa8, 0xad, 0x82, 0xc9, 0x93, 0x98, 0xe2, 0x42, 0x6d, 0x6c, 0xc2, 0x5c, 0x86, 0x3f,
-	0x7b, 0xe8, 0xbc, 0x58, 0x82, 0x2a, 0x15, 0xf5, 0xca, 0x7a, 0xa5, 0xb1, 0x98, 0x55, 0xa9, 0x10,
-	0x02, 0xa6, 0xb5, 0xf4, 0xb2, 0x3e, 0xb3, 0x5e, 0x69, 0xd4, 0xb2, 0xe1, 0xef, 0x8d, 0x1c, 0xe6,
-	0x33, 0x74, 0x05, 0x59, 0x87, 0x62, 0x0d, 0x66, 0xb9, 0x50, 0x17, 0x46, 0xd7, 0xab, 0xeb, 0x95,
-	0xc6, 0x54, 0x36, 0xc3, 0x85, 0x3a, 0xd6, 0xf7, 0x58, 0xe5, 0x01, 0x13, 0x2f, 0x01, 0x90, 0x99,
-	0xf8, 0x42, 0x91, 0xc6, 0xfa, 0xd4, 0x30, 0xc5, 0xc2, 0xf0, 0x49, 0x8b, 0x34, 0xee, 0xfc, 0xae,
-	0x82, 0x38, 0x95, 0xce, 0x23, 0xb7, 0x91, 0x6f, 0x91, 0xdb, 0x46, 0xe3, 0x97, 0x42, 0xec, 0xc1,
-	0x4a, 0xa2, 0xf5, 0xa9, 0xb1, 0xc4, 0xcd, 0x0e, 0xa9, 0x1f, 0x47, 0x28, 0x35, 0xb2, 0xa8, 0x6d,
-	0x0d, 0x7a, 0x18, 0x55, 0xfd, 0x7c, 0x71, 0xf4, 0xaf, 0x2c, 0x6a, 0xe3, 0x89, 0xd8, 0x86, 0xe5,
-	0x26, 0x93, 0xd4, 0x4a, 0x3a, 0x7f, 0x86, 0xbf, 0x72, 0x53, 0x84, 0x88, 0x4f, 0xb0, 0x76, 0x4f,
-	0xe4, 0x2c, 0xad, 0x93, 0xca, 0x1b, 0xb2, 0x2e, 0xc4, 0xed, 0xc1, 0xca, 0x3d, 0xf7, 0x50, 0x65,
-	0x88, 0xfa, 0x08, 0x4b, 0x29, 0x3e, 0x8a, 0x0f, 0xa6, 0xd9, 0x87, 0xd5, 0x31, 0xa0, 0x1c, 0x43,
-	0x08, 0xdb, 0xf9, 0x53, 0x83, 0x67, 0xed, 0x8e, 0xbc, 0xc5, 0xb1, 0x99, 0xbe, 0x83, 0x85, 0x1b,
-	0x94, 0xec, 0x9b, 0x28, 0x7d, 0x28, 0xf1, 0x6b, 0x98, 0x3e, 0x37, 0xf6, 0x3a, 0x62, 0xe0, 0x2d,
-	0xb2, 0x16, 0x95, 0xcf, 0x69, 0x98, 0x30, 0xd8, 0x51, 0x03, 0xe6, 0xca, 0x8e, 0x30, 0x14, 0xf9,
-	0x06, 0x66, 0x52, 0xb4, 0x79, 0x3f, 0x14, 0xb7, 0x09, 0xb5, 0x44, 0xeb, 0x8c, 0xc8, 0x4f, 0xa0,
-	0xc1, 0xa1, 0xa2, 0x63, 0x7b, 0x45, 0x27, 0xc6, 0x05, 0x47, 0xb1, 0x0b, 0x22, 0x45, 0x7f, 0x86,
-	0xfd, 0xf2, 0xfc, 0x9c, 0x62, 0x8a, 0xdf, 0x82, 0xc5, 0x31, 0xff, 0x46, 0xf8, 0x30, 0x45, 0xff,
-	0xd5, 0x2a, 0xb2, 0x57, 0x86, 0xbb, 0xa8, 0xe3, 0x94, 0x1e, 0x75, 0x93, 0x28, 0x45, 0x3d, 0xeb,
-	0x0f, 0x06, 0xfb, 0x16, 0x06, 0x12, 0xad, 0x1f, 0x59, 0x3d, 0x04, 0x7c, 0x86, 0x17, 0x2d, 0x46,
-	0xe9, 0xb1, 0xd5, 0xe9, 0x0d, 0xd6, 0xf4, 0x1c, 0x91, 0x47, 0x9a, 0x47, 0xd0, 0x07, 0xf0, 0xea,
-	0x00, 0x9d, 0x67, 0xba, 0xfb, 0x27, 0xde, 0xa2, 0x6e, 0x57, 0x5a, 0x1d, 0x31, 0xcd, 0xb1, 0x35,
-	0x88, 0x9b, 0xca, 0x04, 0x4d, 0xee, 0x82, 0x68, 0xdf, 0x59, 0xf5, 0x90, 0x21, 0xd2, 0x18, 0x87,
-	0x7d, 0x54, 0x3d, 0x8f, 0x13, 0x64, 0x2a, 0x85, 0x7e, 0x04, 0x64, 0xa8, 0xd0, 0x14, 0x3e, 0x42,
-	0x86, 0x71, 0x6e, 0x50, 0x61, 0xf3, 0x2e, 0xd1, 0x9a, 0xd1, 0x45, 0x6e, 0xdd, 0x09, 0x5d, 0x07,
-	0x23, 0x3f, 0xc0, 0xd3, 0x43, 0xe7, 0x4d, 0x57, 0x7a, 0x4c, 0xa5, 0x8b, 0xd8, 0xbd, 0x14, 0x7d,
-	0xdb, 0x13, 0xcb, 0x6b, 0x4c, 0x7c, 0x5c, 0x19, 0x83, 0xf7, 0x7e, 0x28, 0xf2, 0x2d, 0xcc, 0xa7,
-	0xd2, 0x9d, 0xb3, 0x51, 0x18, 0x77, 0xe8, 0x37, 0xe2, 0xa0, 0x2d, 0xde, 0x03, 0xb4, 0x7b, 0x97,
-	0x5d, 0x13, 0x15, 0xbc, 0x0d, 0xcb, 0x89, 0xd6, 0xdf, 0xdd, 0x8d, 0x64, 0x9d, 0xf7, 0x63, 0xfc,
-	0xb0, 0x0f, 0xab, 0x4d, 0xe9, 0xd5, 0xcd, 0x84, 0xd8, 0x7f, 0xba, 0x14, 0x06, 0x5a, 0x1d, 0x49,
-	0xab, 0x3b, 0x18, 0x77, 0x33, 0x96, 0xfd, 0x4f, 0x70, 0x27, 0x5e, 0xce, 0x0e, 0xbf, 0x2d, 0x76,
-	0xff, 0x06, 0x00, 0x00, 0xff, 0xff, 0x11, 0xba, 0xe5, 0xc1, 0x68, 0x08, 0x00, 0x00,
+	// 559 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x94, 0x95, 0x4d, 0x6f, 0x1a, 0x3d,
+	0x14, 0x85, 0x5f, 0x48, 0xc8, 0xc7, 0x0d, 0x24, 0xca, 0x24, 0xd1, 0x8b, 0xda, 0x0d, 0x42, 0x6a,
+	0x45, 0x3f, 0x42, 0x23, 0x08, 0x55, 0x17, 0xdd, 0x0c, 0x04, 0x4d, 0x22, 0x25, 0x2d, 0x9a, 0xa1,
+	0x6a, 0x77, 0x95, 0x63, 0xdf, 0x80, 0x15, 0xb0, 0x5d, 0xdb, 0xa4, 0xe4, 0x6f, 0xf6, 0xdf, 0x74,
+	0x57, 0x91, 0x41, 0xc0, 0x48, 0xad, 0x6c, 0x76, 0xa0, 0x39, 0x8f, 0xef, 0xf1, 0xbd, 0xc7, 0x36,
+	0xec, 0x6a, 0x45, 0xeb, 0x4a, 0x4b, 0x2b, 0x83, 0x0d, 0xad, 0x68, 0xf5, 0x02, 0xb6, 0x63, 0xfc,
+	0x31, 0x41, 0x63, 0x83, 0x7d, 0xc8, 0x4b, 0x55, 0xce, 0x55, 0x72, 0xb5, 0x52, 0x9c, 0x97, 0x2a,
+	0x38, 0x81, 0x2d, 0xad, 0xe8, 0x77, 0xce, 0xca, 0xf9, 0x4a, 0xae, 0xb6, 0x11, 0x17, 0xb4, 0xa2,
+	0x57, 0x2c, 0x08, 0x60, 0x93, 0x11, 0x4b, 0xca, 0x85, 0x4a, 0xae, 0x56, 0x8c, 0x9f, 0x7e, 0x57,
+	0x5b, 0xb0, 0x13, 0xa3, 0x51, 0x52, 0x18, 0x5c, 0x7c, 0xcf, 0x2d, 0xbf, 0xff, 0x63, 0xa9, 0xc6,
+	0xaf, 0x3c, 0x04, 0x37, 0xc4, 0x58, 0xd4, 0x09, 0xea, 0x07, 0xd4, 0x09, 0x67, 0xf8, 0x59, 0x05,
+	0xe7, 0x70, 0x14, 0x32, 0x76, 0xc3, 0x85, 0xd4, 0xed, 0x91, 0xa4, 0xf7, 0x97, 0x48, 0x18, 0xea,
+	0xa0, 0x58, 0x9f, 0x79, 0x9f, 0xbb, 0x7d, 0x56, 0x9a, 0xff, 0x4b, 0xab, 0x56, 0xff, 0x0b, 0xce,
+	0xe0, 0xa0, 0xad, 0x25, 0x61, 0x94, 0x18, 0xfb, 0x09, 0x7f, 0xf6, 0xb9, 0x72, 0x11, 0xef, 0xe1,
+	0x64, 0x41, 0xf4, 0x35, 0x11, 0x86, 0x50, 0xcb, 0xa5, 0x30, 0x2e, 0xee, 0x1c, 0x8e, 0x16, 0xdc,
+	0xd2, 0xa5, 0x8b, 0x7a, 0x07, 0xfb, 0x11, 0xae, 0xe8, 0x9d, 0x65, 0x5a, 0x70, 0x9c, 0x01, 0xd2,
+	0x36, 0xb8, 0xb0, 0xc6, 0xef, 0x3d, 0x38, 0x4c, 0x46, 0xe4, 0x01, 0x33, 0x3d, 0x7d, 0x0d, 0xbb,
+	0x43, 0x24, 0xda, 0xb6, 0x91, 0x58, 0x57, 0xe1, 0x37, 0x00, 0xe9, 0x54, 0xae, 0xc4, 0x9d, 0x74,
+	0x89, 0x5f, 0xc0, 0x66, 0x8f, 0x8b, 0x81, 0x4b, 0x56, 0x83, 0xed, 0x74, 0x33, 0xe8, 0x52, 0xbe,
+	0x84, 0x42, 0x84, 0xa2, 0x3f, 0x75, 0xe9, 0x4e, 0xa1, 0x18, 0x32, 0x16, 0x4b, 0x69, 0xd7, 0x68,
+	0x7f, 0x97, 0xca, 0xd9, 0xa6, 0xae, 0xb9, 0x71, 0x76, 0xa1, 0x0e, 0xa5, 0x4c, 0x0a, 0x3d, 0xd2,
+	0x14, 0xa1, 0xfd, 0x22, 0xa8, 0x14, 0x77, 0x5c, 0x8f, 0x91, 0xf9, 0xcd, 0x6b, 0x6e, 0x2c, 0xa4,
+	0x54, 0x4e, 0x84, 0xbd, 0x98, 0x9d, 0x16, 0x37, 0x10, 0x32, 0xb6, 0x12, 0x58, 0x17, 0xf0, 0x11,
+	0x9e, 0x77, 0x34, 0x12, 0x8b, 0x9d, 0xd1, 0x64, 0x36, 0xd6, 0x1e, 0xa2, 0xee, 0x48, 0x21, 0xd0,
+	0x8b, 0xae, 0x43, 0x29, 0x13, 0x43, 0xbf, 0xfd, 0xac, 0x61, 0xaf, 0x09, 0x41, 0xf2, 0x28, 0xe8,
+	0xb2, 0x82, 0xcf, 0x74, 0x9a, 0x10, 0x74, 0xa7, 0x48, 0x27, 0x16, 0xd7, 0xa8, 0x94, 0x8e, 0x68,
+	0x05, 0x88, 0x91, 0x22, 0x57, 0xd6, 0xa3, 0x81, 0x59, 0x6e, 0xe6, 0xb0, 0xfd, 0x18, 0x32, 0xa6,
+	0xd1, 0x18, 0xbf, 0xe8, 0x5f, 0xcb, 0x81, 0x53, 0xf9, 0x16, 0xf6, 0xba, 0xc6, 0xf2, 0x31, 0xb1,
+	0x18, 0x11, 0xe3, 0x71, 0x00, 0x22, 0xb4, 0x89, 0x95, 0x9a, 0x0c, 0x30, 0xb4, 0x7e, 0x36, 0x3a,
+	0x92, 0x39, 0x4f, 0xe0, 0x2b, 0xd8, 0x89, 0x88, 0xe9, 0x69, 0x4e, 0xd1, 0x6f, 0xd1, 0xaf, 0x52,
+	0xdf, 0x7b, 0x5c, 0x2a, 0xc9, 0xe4, 0x76, 0xcc, 0xbd, 0xc4, 0x67, 0x70, 0x10, 0x32, 0xf6, 0xcd,
+	0x0c, 0x89, 0x66, 0xfd, 0xa9, 0x4f, 0x1e, 0x5a, 0x70, 0xdc, 0x26, 0x96, 0x0e, 0xd7, 0xc4, 0x1a,
+	0x70, 0x98, 0x09, 0xb7, 0x0f, 0xf3, 0x01, 0xfe, 0xff, 0xcb, 0xbd, 0xec, 0x43, 0x9e, 0x42, 0xf1,
+	0x92, 0x08, 0x36, 0x42, 0xbf, 0xf7, 0x29, 0xed, 0xc2, 0x1a, 0x2f, 0xd3, 0xed, 0xd6, 0xd3, 0xcb,
+	0xde, 0xfc, 0x13, 0x00, 0x00, 0xff, 0xff, 0xc5, 0xdf, 0x69, 0x5f, 0xe6, 0x07, 0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -418,20 +416,18 @@ var _MasterServerSideOp_serviceDesc = grpc.ServiceDesc{
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type SlaveServerSideOpClient interface {
 	HeartBeat(ctx context.Context, in *Request, opts ...grpc.CallOption) (*Response, error)
+	MasterInfo(ctx context.Context, in *Request, opts ...grpc.CallOption) (*Response, error)
 	// APIs for master
 	Ping(ctx context.Context, in *Request, opts ...grpc.CallOption) (*Response, error)
-	ConnectToSlaves(ctx context.Context, in *Request, opts ...grpc.CallOption) (*Response, error)
 	GetMine(ctx context.Context, in *Request, opts ...grpc.CallOption) (*Response, error)
 	GenTx(ctx context.Context, in *Request, opts ...grpc.CallOption) (*Response, error)
 	AddRootBlock(ctx context.Context, in *Request, opts ...grpc.CallOption) (*Response, error)
 	GetEcoInfoList(ctx context.Context, in *Request, opts ...grpc.CallOption) (*Response, error)
-	GetNextBlockToMine(ctx context.Context, in *Request, opts ...grpc.CallOption) (*Response, error)
 	AddMinorBlock(ctx context.Context, in *Request, opts ...grpc.CallOption) (*Response, error)
 	GetUnconfirmedHeaders(ctx context.Context, in *Request, opts ...grpc.CallOption) (*Response, error)
 	GetAccountData(ctx context.Context, in *Request, opts ...grpc.CallOption) (*Response, error)
 	AddTransaction(ctx context.Context, in *Request, opts ...grpc.CallOption) (*Response, error)
 	CreateClusterPeerConnection(ctx context.Context, in *Request, opts ...grpc.CallOption) (*Response, error)
-	DestroyClusterPeerConnectionCommand(ctx context.Context, in *Request, opts ...grpc.CallOption) (*Response, error)
 	GetMinorBlock(ctx context.Context, in *Request, opts ...grpc.CallOption) (*Response, error)
 	GetTransaction(ctx context.Context, in *Request, opts ...grpc.CallOption) (*Response, error)
 	SyncMinorBlockList(ctx context.Context, in *Request, opts ...grpc.CallOption) (*Response, error)
@@ -449,8 +445,8 @@ type SlaveServerSideOpClient interface {
 	AddXshardTxList(ctx context.Context, in *Request, opts ...grpc.CallOption) (*Response, error)
 	BatchAddXshardTxList(ctx context.Context, in *Request, opts ...grpc.CallOption) (*Response, error)
 	// p2p apis
-	GetMinorBlocks(ctx context.Context, in *Request, opts ...grpc.CallOption) (*Response, error)
-	GetMinorBlockHeaders(ctx context.Context, in *Request, opts ...grpc.CallOption) (*Response, error)
+	GetMinorBlockList(ctx context.Context, in *Request, opts ...grpc.CallOption) (*Response, error)
+	GetMinorBlockHeaderList(ctx context.Context, in *Request, opts ...grpc.CallOption) (*Response, error)
 	HandleNewTip(ctx context.Context, in *Request, opts ...grpc.CallOption) (*Response, error)
 	AddTransactions(ctx context.Context, in *Request, opts ...grpc.CallOption) (*Response, error)
 }
@@ -472,18 +468,18 @@ func (c *slaveServerSideOpClient) HeartBeat(ctx context.Context, in *Request, op
 	return out, nil
 }
 
-func (c *slaveServerSideOpClient) Ping(ctx context.Context, in *Request, opts ...grpc.CallOption) (*Response, error) {
+func (c *slaveServerSideOpClient) MasterInfo(ctx context.Context, in *Request, opts ...grpc.CallOption) (*Response, error) {
 	out := new(Response)
-	err := c.cc.Invoke(ctx, "/rpc.SlaveServerSideOp/Ping", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/rpc.SlaveServerSideOp/MasterInfo", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *slaveServerSideOpClient) ConnectToSlaves(ctx context.Context, in *Request, opts ...grpc.CallOption) (*Response, error) {
+func (c *slaveServerSideOpClient) Ping(ctx context.Context, in *Request, opts ...grpc.CallOption) (*Response, error) {
 	out := new(Response)
-	err := c.cc.Invoke(ctx, "/rpc.SlaveServerSideOp/ConnectToSlaves", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/rpc.SlaveServerSideOp/Ping", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -520,15 +516,6 @@ func (c *slaveServerSideOpClient) AddRootBlock(ctx context.Context, in *Request,
 func (c *slaveServerSideOpClient) GetEcoInfoList(ctx context.Context, in *Request, opts ...grpc.CallOption) (*Response, error) {
 	out := new(Response)
 	err := c.cc.Invoke(ctx, "/rpc.SlaveServerSideOp/GetEcoInfoList", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *slaveServerSideOpClient) GetNextBlockToMine(ctx context.Context, in *Request, opts ...grpc.CallOption) (*Response, error) {
-	out := new(Response)
-	err := c.cc.Invoke(ctx, "/rpc.SlaveServerSideOp/GetNextBlockToMine", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -574,15 +561,6 @@ func (c *slaveServerSideOpClient) AddTransaction(ctx context.Context, in *Reques
 func (c *slaveServerSideOpClient) CreateClusterPeerConnection(ctx context.Context, in *Request, opts ...grpc.CallOption) (*Response, error) {
 	out := new(Response)
 	err := c.cc.Invoke(ctx, "/rpc.SlaveServerSideOp/CreateClusterPeerConnection", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *slaveServerSideOpClient) DestroyClusterPeerConnectionCommand(ctx context.Context, in *Request, opts ...grpc.CallOption) (*Response, error) {
-	out := new(Response)
-	err := c.cc.Invoke(ctx, "/rpc.SlaveServerSideOp/DestroyClusterPeerConnectionCommand", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -724,18 +702,18 @@ func (c *slaveServerSideOpClient) BatchAddXshardTxList(ctx context.Context, in *
 	return out, nil
 }
 
-func (c *slaveServerSideOpClient) GetMinorBlocks(ctx context.Context, in *Request, opts ...grpc.CallOption) (*Response, error) {
+func (c *slaveServerSideOpClient) GetMinorBlockList(ctx context.Context, in *Request, opts ...grpc.CallOption) (*Response, error) {
 	out := new(Response)
-	err := c.cc.Invoke(ctx, "/rpc.SlaveServerSideOp/GetMinorBlocks", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/rpc.SlaveServerSideOp/GetMinorBlockList", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *slaveServerSideOpClient) GetMinorBlockHeaders(ctx context.Context, in *Request, opts ...grpc.CallOption) (*Response, error) {
+func (c *slaveServerSideOpClient) GetMinorBlockHeaderList(ctx context.Context, in *Request, opts ...grpc.CallOption) (*Response, error) {
 	out := new(Response)
-	err := c.cc.Invoke(ctx, "/rpc.SlaveServerSideOp/GetMinorBlockHeaders", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/rpc.SlaveServerSideOp/GetMinorBlockHeaderList", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -763,20 +741,18 @@ func (c *slaveServerSideOpClient) AddTransactions(ctx context.Context, in *Reque
 // SlaveServerSideOpServer is the server API for SlaveServerSideOp service.
 type SlaveServerSideOpServer interface {
 	HeartBeat(context.Context, *Request) (*Response, error)
+	MasterInfo(context.Context, *Request) (*Response, error)
 	// APIs for master
 	Ping(context.Context, *Request) (*Response, error)
-	ConnectToSlaves(context.Context, *Request) (*Response, error)
 	GetMine(context.Context, *Request) (*Response, error)
 	GenTx(context.Context, *Request) (*Response, error)
 	AddRootBlock(context.Context, *Request) (*Response, error)
 	GetEcoInfoList(context.Context, *Request) (*Response, error)
-	GetNextBlockToMine(context.Context, *Request) (*Response, error)
 	AddMinorBlock(context.Context, *Request) (*Response, error)
 	GetUnconfirmedHeaders(context.Context, *Request) (*Response, error)
 	GetAccountData(context.Context, *Request) (*Response, error)
 	AddTransaction(context.Context, *Request) (*Response, error)
 	CreateClusterPeerConnection(context.Context, *Request) (*Response, error)
-	DestroyClusterPeerConnectionCommand(context.Context, *Request) (*Response, error)
 	GetMinorBlock(context.Context, *Request) (*Response, error)
 	GetTransaction(context.Context, *Request) (*Response, error)
 	SyncMinorBlockList(context.Context, *Request) (*Response, error)
@@ -794,8 +770,8 @@ type SlaveServerSideOpServer interface {
 	AddXshardTxList(context.Context, *Request) (*Response, error)
 	BatchAddXshardTxList(context.Context, *Request) (*Response, error)
 	// p2p apis
-	GetMinorBlocks(context.Context, *Request) (*Response, error)
-	GetMinorBlockHeaders(context.Context, *Request) (*Response, error)
+	GetMinorBlockList(context.Context, *Request) (*Response, error)
+	GetMinorBlockHeaderList(context.Context, *Request) (*Response, error)
 	HandleNewTip(context.Context, *Request) (*Response, error)
 	AddTransactions(context.Context, *Request) (*Response, error)
 }
@@ -822,6 +798,24 @@ func _SlaveServerSideOp_HeartBeat_Handler(srv interface{}, ctx context.Context, 
 	return interceptor(ctx, in, info, handler)
 }
 
+func _SlaveServerSideOp_MasterInfo_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Request)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SlaveServerSideOpServer).MasterInfo(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/rpc.SlaveServerSideOp/MasterInfo",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SlaveServerSideOpServer).MasterInfo(ctx, req.(*Request))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _SlaveServerSideOp_Ping_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(Request)
 	if err := dec(in); err != nil {
@@ -836,24 +830,6 @@ func _SlaveServerSideOp_Ping_Handler(srv interface{}, ctx context.Context, dec f
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(SlaveServerSideOpServer).Ping(ctx, req.(*Request))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _SlaveServerSideOp_ConnectToSlaves_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(Request)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(SlaveServerSideOpServer).ConnectToSlaves(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/rpc.SlaveServerSideOp/ConnectToSlaves",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(SlaveServerSideOpServer).ConnectToSlaves(ctx, req.(*Request))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -926,24 +902,6 @@ func _SlaveServerSideOp_GetEcoInfoList_Handler(srv interface{}, ctx context.Cont
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(SlaveServerSideOpServer).GetEcoInfoList(ctx, req.(*Request))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _SlaveServerSideOp_GetNextBlockToMine_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(Request)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(SlaveServerSideOpServer).GetNextBlockToMine(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/rpc.SlaveServerSideOp/GetNextBlockToMine",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(SlaveServerSideOpServer).GetNextBlockToMine(ctx, req.(*Request))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -1034,24 +992,6 @@ func _SlaveServerSideOp_CreateClusterPeerConnection_Handler(srv interface{}, ctx
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(SlaveServerSideOpServer).CreateClusterPeerConnection(ctx, req.(*Request))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _SlaveServerSideOp_DestroyClusterPeerConnectionCommand_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(Request)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(SlaveServerSideOpServer).DestroyClusterPeerConnectionCommand(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/rpc.SlaveServerSideOp/DestroyClusterPeerConnectionCommand",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(SlaveServerSideOpServer).DestroyClusterPeerConnectionCommand(ctx, req.(*Request))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -1326,38 +1266,38 @@ func _SlaveServerSideOp_BatchAddXshardTxList_Handler(srv interface{}, ctx contex
 	return interceptor(ctx, in, info, handler)
 }
 
-func _SlaveServerSideOp_GetMinorBlocks_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _SlaveServerSideOp_GetMinorBlockList_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(Request)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(SlaveServerSideOpServer).GetMinorBlocks(ctx, in)
+		return srv.(SlaveServerSideOpServer).GetMinorBlockList(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/rpc.SlaveServerSideOp/GetMinorBlocks",
+		FullMethod: "/rpc.SlaveServerSideOp/GetMinorBlockList",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(SlaveServerSideOpServer).GetMinorBlocks(ctx, req.(*Request))
+		return srv.(SlaveServerSideOpServer).GetMinorBlockList(ctx, req.(*Request))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _SlaveServerSideOp_GetMinorBlockHeaders_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _SlaveServerSideOp_GetMinorBlockHeaderList_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(Request)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(SlaveServerSideOpServer).GetMinorBlockHeaders(ctx, in)
+		return srv.(SlaveServerSideOpServer).GetMinorBlockHeaderList(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/rpc.SlaveServerSideOp/GetMinorBlockHeaders",
+		FullMethod: "/rpc.SlaveServerSideOp/GetMinorBlockHeaderList",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(SlaveServerSideOpServer).GetMinorBlockHeaders(ctx, req.(*Request))
+		return srv.(SlaveServerSideOpServer).GetMinorBlockHeaderList(ctx, req.(*Request))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -1407,12 +1347,12 @@ var _SlaveServerSideOp_serviceDesc = grpc.ServiceDesc{
 			Handler:    _SlaveServerSideOp_HeartBeat_Handler,
 		},
 		{
-			MethodName: "Ping",
-			Handler:    _SlaveServerSideOp_Ping_Handler,
+			MethodName: "MasterInfo",
+			Handler:    _SlaveServerSideOp_MasterInfo_Handler,
 		},
 		{
-			MethodName: "ConnectToSlaves",
-			Handler:    _SlaveServerSideOp_ConnectToSlaves_Handler,
+			MethodName: "Ping",
+			Handler:    _SlaveServerSideOp_Ping_Handler,
 		},
 		{
 			MethodName: "GetMine",
@@ -1429,10 +1369,6 @@ var _SlaveServerSideOp_serviceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetEcoInfoList",
 			Handler:    _SlaveServerSideOp_GetEcoInfoList_Handler,
-		},
-		{
-			MethodName: "GetNextBlockToMine",
-			Handler:    _SlaveServerSideOp_GetNextBlockToMine_Handler,
 		},
 		{
 			MethodName: "AddMinorBlock",
@@ -1453,10 +1389,6 @@ var _SlaveServerSideOp_serviceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "CreateClusterPeerConnection",
 			Handler:    _SlaveServerSideOp_CreateClusterPeerConnection_Handler,
-		},
-		{
-			MethodName: "DestroyClusterPeerConnectionCommand",
-			Handler:    _SlaveServerSideOp_DestroyClusterPeerConnectionCommand_Handler,
 		},
 		{
 			MethodName: "GetMinorBlock",
@@ -1519,12 +1451,12 @@ var _SlaveServerSideOp_serviceDesc = grpc.ServiceDesc{
 			Handler:    _SlaveServerSideOp_BatchAddXshardTxList_Handler,
 		},
 		{
-			MethodName: "GetMinorBlocks",
-			Handler:    _SlaveServerSideOp_GetMinorBlocks_Handler,
+			MethodName: "GetMinorBlockList",
+			Handler:    _SlaveServerSideOp_GetMinorBlockList_Handler,
 		},
 		{
-			MethodName: "GetMinorBlockHeaders",
-			Handler:    _SlaveServerSideOp_GetMinorBlockHeaders_Handler,
+			MethodName: "GetMinorBlockHeaderList",
+			Handler:    _SlaveServerSideOp_GetMinorBlockHeaderList_Handler,
 		},
 		{
 			MethodName: "HandleNewTip",

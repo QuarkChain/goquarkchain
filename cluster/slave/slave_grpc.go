@@ -5,12 +5,10 @@ import (
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
 	"github.com/ethereum/go-ethereum/log"
 	"sync"
-	"sync/atomic"
 	"time"
 )
 
 type SlaveServerSideOp struct {
-	rpcId int64
 	mu    sync.RWMutex
 	slave *SlaveBackend
 
@@ -28,15 +26,14 @@ func (s *SlaveServerSideOp) HeartBeat(ctx context.Context, req *rpc.Request) (*r
 	s.curTime = time.Now().Unix()
 	log.Info("slave heart beat response", "request op", req.Op, "current time", s.curTime)
 	return &rpc.Response{
-		ErrorCode: 0,
+		RpcId: req.RpcId,
 	}, nil
 }
 
 func (s *SlaveServerSideOp) Ping(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
-	log.Info("slave ping response", "request op", req.Op, "rpc id", s.rpcId)
+	log.Info("slave ping response", "request op", req.Op)
 	return &rpc.Response{
-		RpcId:     s.addRpcId(),
-		ErrorCode: 0,
+		RpcId: req.RpcId,
 	}, nil
 }
 
@@ -73,8 +70,3 @@ func (s *SlaveServerSideOp) GetMinorBlocks(ctx context.Context, req *rpc.Request
 func (s *SlaveServerSideOp) GetMinorBlockHeaders(ctx context.Context, req *rpc.Request) (*rpc.Response, error) { panic("not implemented") }
 func (s *SlaveServerSideOp) HandleNewTip(ctx context.Context, req *rpc.Request) (*rpc.Response, error)         { panic("not implemented") }
 func (s *SlaveServerSideOp) AddTransactions(ctx context.Context, req *rpc.Request) (*rpc.Response, error)      { panic("not implemented") }
-
-func (s *SlaveServerSideOp) addRpcId() int64 {
-	atomic.AddInt64(&s.rpcId, 1)
-	return s.rpcId
-}

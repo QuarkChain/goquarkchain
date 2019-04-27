@@ -313,10 +313,6 @@ func (s *MasterBackend) createRootBlockToMine(address account.Address) (*types.R
 
 	fullShardIDToHeaderList := make(map[uint32][]*types.MinorBlockHeader, 0)
 	for resp := range chanRsp {
-		if resp.ErrorCode != 0 {
-			return nil, nil
-		}
-
 		for _, headersInfo := range resp.HeadersInfoList {
 			height := uint64(0)
 			for _, header := range headersInfo.HeaderList {
@@ -374,9 +370,6 @@ func (s *MasterBackend) GetAccountData(address account.Address) (map[account.Bra
 	}
 	branchToAccountBranchData := make(map[account.Branch]*qkcRPC.AccountBranchData)
 	for rsp := range chanRsp {
-		if rsp.ErrorCode != 0 {
-			return nil, errors.New("ErrorCode")
-		}
 		for _, accountBranchData := range rsp.AccountBranchDataList {
 			branchToAccountBranchData[accountBranchData.Branch] = accountBranchData
 		}
@@ -439,10 +432,6 @@ func (s *MasterBackend) AddRootBlock(rootBlock *types.RootBlock) error {
 }
 
 func (s *MasterBackend) AddRawMinorBlock(branch account.Branch, blockData []byte) error {
-	_, ok := s.branchToSlaves[branch.Value]
-	if !ok {
-		return errors.New("no such slave conn")
-	}
 	slaveConn, err := s.getSlaveConnection(branch)
 	if err != nil {
 		return err
@@ -497,7 +486,7 @@ func (s *MasterBackend) CreateTransactions(numTxPerShard, xShardPercent uint32, 
 }
 
 func (s *MasterBackend) UpdateShardStatus(status *qkcRPC.ShardStatus) {
-	s.lock.RLock()
+	s.lock.Lock()
 	s.branchToShardStats[status.Branch.Value] = status
 	s.lock.RUnlock()
 }

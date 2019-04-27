@@ -113,26 +113,16 @@ func (s *SlaveConnection) hasShard(fullShardID uint32) bool {
 }
 
 func (s *SlaveConnection) AddTransaction(tx *types.Transaction) error {
-
 	var (
 		req = rpc.AddTransactionRequest{Tx: tx}
-		rsp = new(rpc.AddTransactionResponse)
-		res = new(rpc.Response)
 	)
 	bytes, err := serialize.SerializeToBytes(req)
 	if err != nil {
 		goto FALSE
 	}
 
-	res, err = s.client.Call(s.target, &rpc.Request{Op: rpc.OpAddTransaction, Data: bytes})
+	_, err = s.client.Call(s.target, &rpc.Request{Op: rpc.OpAddTransaction, Data: bytes})
 	if err != nil {
-		goto FALSE
-	}
-	err = serialize.DeserializeFromBytes(res.Data, rsp)
-	if err != nil {
-		goto FALSE
-	}
-	if rsp.ErrorCode != 0 {
 		goto FALSE
 	}
 	return nil
@@ -162,10 +152,6 @@ func (s *SlaveConnection) ExecuteTransaction(tx *types.Transaction, fromAddress 
 	if err != nil {
 		goto FALSE
 	}
-	if rsp.ErrorCode != 0 {
-		return nil, errors.New("error code is nil")
-	}
-
 	return rsp.Result, nil
 FALSE:
 	log.Error("slave connection", "target", s.target, err)
@@ -392,35 +378,24 @@ func (s *SlaveConnection) SendMiningConfigToSlaves(artificialTxConfig *rpc.Artif
 			ArtificialTxConfig: artificialTxConfig,
 			Mining:             mining,
 		}
-		rsp = new(rpc.MineResponse)
 	)
 	bytes, err := serialize.SerializeToBytes(req)
 	if err != nil {
 		return err
 	}
-	res, err := s.client.Call(s.target, &rpc.Request{Op: rpc.OpGetMine, Data: bytes})
+	_, err = s.client.Call(s.target, &rpc.Request{Op: rpc.OpGetMine, Data: bytes})
 	if err != nil {
 		return err
-	}
-	if err = serialize.Deserialize(serialize.NewByteBuffer(res.Data), &rsp); err != nil {
-		return err
-	}
-	if rsp.ErrorCode != 0 {
-		return errors.New("errorCode !=0")
 	}
 	return nil
 }
 
 func (s *SlaveConnection) GetUnconfirmedHeaders() (*rpc.GetUnconfirmedHeadersResponse, error) {
 	var (
-		req = rpc.GetUnconfirmedHeadersRequest{}
 		rsp = new(rpc.GetUnconfirmedHeadersResponse)
 	)
-	bytes, err := serialize.SerializeToBytes(req)
-	if err != nil {
-		return nil, err
-	}
-	res, err := s.client.Call(s.target, &rpc.Request{Op: rpc.OpGetUnconfirmedHeaders, Data: bytes})
+
+	res, err := s.client.Call(s.target, &rpc.Request{Op: rpc.OpGetUnconfirmedHeaders})
 	if err != nil {
 		return nil, err
 	}
@@ -450,22 +425,14 @@ func (s *SlaveConnection) GetMinorBlockToMine(branch account.Branch, address acc
 	if err = serialize.Deserialize(serialize.NewByteBuffer(res.Data), rsp); err != nil {
 		return nil, err
 	}
-	if rsp.ErrorCode != 0 {
-		return nil, errors.New("error code")
-	}
 	return rsp.Block, nil
 }
 
 func (s *SlaveConnection) GetEcoInfoListRequest() (*rpc.GetEcoInfoListResponse, error) {
 	var (
-		req = rpc.GetEcoInfoListRequest{}
 		rsp = new(rpc.GetEcoInfoListResponse)
 	)
-	bytes, err := serialize.SerializeToBytes(req)
-	if err != nil {
-		return nil, err
-	}
-	res, err := s.client.Call(s.target, &rpc.Request{Op: rpc.OpGetEcoInfoList, Data: bytes})
+	res, err := s.client.Call(s.target, &rpc.Request{Op: rpc.OpGetEcoInfoList})
 	if err != nil {
 		return nil, err
 	}
@@ -517,9 +484,6 @@ func (s *SlaveConnection) AddRootBlock(rootBlock *types.RootBlock, expectSwitch 
 	if err = serialize.Deserialize(serialize.NewByteBuffer(res.Data), rsp); err != nil {
 		return err
 	}
-	if rsp.ErrorCode != 0 {
-		return errors.New("error code")
-	}
 	return nil
 }
 
@@ -528,22 +492,14 @@ func (s *SlaveConnection) AddMinorBlock(blockData []byte) error {
 		req = rpc.AddMinorBlockRequest{
 			MinorBlockData: blockData,
 		}
-		rsp = new(rpc.AddMinorBlockResponse)
-		res = new(rpc.Response)
 	)
 	bytes, err := serialize.SerializeToBytes(req)
 	if err != nil {
 		return err
 	}
-	res, err = s.client.Call(s.target, &rpc.Request{Op: rpc.OpAddMinorBlock, Data: bytes})
+	_, err = s.client.Call(s.target, &rpc.Request{Op: rpc.OpAddMinorBlock, Data: bytes})
 	if err != nil {
 		return err
-	}
-	if err = serialize.Deserialize(serialize.NewByteBuffer(res.Data), rsp); err != nil {
-		return err
-	}
-	if rsp.ErrorCode != 0 {
-		return errors.New("error code")
 	}
 	return nil
 }
@@ -555,22 +511,14 @@ func (s *SlaveConnection) GenTx(numTxPerShard, xShardPercent uint32, tx *types.T
 			XShardPercent: xShardPercent,
 			Tx:            tx,
 		}
-		rsp = new(rpc.GenTxResponse)
-		res = new(rpc.Response)
 	)
 	bytes, err := serialize.SerializeToBytes(req)
 	if err != nil {
 		return err
 	}
-	res, err = s.client.Call(s.target, &rpc.Request{Op: rpc.OpGenTx, Data: bytes})
+	_, err = s.client.Call(s.target, &rpc.Request{Op: rpc.OpGenTx, Data: bytes})
 	if err != nil {
 		return err
-	}
-	if err = serialize.Deserialize(serialize.NewByteBuffer(res.Data), rsp); err != nil {
-		return err
-	}
-	if rsp.ErrorCode != 0 {
-		return errors.New("error code")
 	}
 	return nil
 }
