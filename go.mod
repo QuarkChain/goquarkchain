@@ -1,6 +1,8 @@
 module github.com/QuarkChain/goquarkchain
 
 require (
+	bou.ke/monkey v1.0.1
+	github.com/StackExchange/wmi v0.0.0-20181212234831-e0a55b97c705 // indirect
 	github.com/allegro/bigcache v1.2.0 // indirect
 	github.com/aristanetworks/goarista v0.0.0-20190219163901-728bce664cf5 // indirect
 	github.com/btcsuite/btcd v0.0.0-20190213025234-306aecffea32 // indirect
@@ -14,6 +16,7 @@ require (
 	github.com/facebookgo/stack v0.0.0-20160209184415-751773369052 // indirect
 	github.com/facebookgo/subset v0.0.0-20150612182917-8dac2c3c4870 // indirect
 	github.com/fjl/memsize v0.0.0-20180929194037-2a09253e352a
+	github.com/go-ole/go-ole v1.2.4 // indirect
 	github.com/go-stack/stack v1.8.0 // indirect
 	github.com/golang/mock v1.2.0
 	github.com/golang/protobuf v1.3.0
@@ -29,6 +32,7 @@ require (
 	github.com/naoina/go-stringutil v0.1.0 // indirect
 	github.com/naoina/toml v0.1.1
 	github.com/pborman/uuid v1.2.0
+	github.com/pkg/errors v0.8.1
 	github.com/prometheus/prometheus v1.8.1
 	github.com/rjeczalik/notify v0.9.2 // indirect
 	github.com/rs/cors v1.6.0 // indirect

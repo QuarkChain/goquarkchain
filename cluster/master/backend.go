@@ -313,10 +313,6 @@ func (s *MasterBackend) createRootBlockToMine(address account.Address) (*types.R
 
 	fullShardIDToHeaderList := make(map[uint32][]*types.MinorBlockHeader, 0)
 	for resp := range chanRsp {
-		if resp.ErrorCode != 0 {
-			return nil, nil
-		}
-
 		for _, headersInfo := range resp.HeadersInfoList {
 			height := uint64(0)
 			for _, header := range headersInfo.HeaderList {
@@ -374,9 +370,6 @@ func (s *MasterBackend) GetAccountData(address account.Address) (map[account.Bra
 	}
 	branchToAccountBranchData := make(map[account.Branch]*qkcRPC.AccountBranchData)
 	for rsp := range chanRsp {
-		if rsp.ErrorCode != 0 {
-			return nil, errors.New("ErrorCode")
-		}
 		for _, accountBranchData := range rsp.AccountBranchDataList {
 			branchToAccountBranchData[accountBranchData.Branch] = accountBranchData
 		}
