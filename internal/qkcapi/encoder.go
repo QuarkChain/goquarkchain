@@ -7,6 +7,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/serialize"
+	ethCommon "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 )
 
@@ -154,6 +155,52 @@ func txEncoder(block *types.MinorBlock, i int) (map[string]interface{}, error) {
 	return field, nil
 }
 
-func logListEncoder(logList []*types.Log) {
+func logListEncoder(logList []*types.Log) []map[string]interface{} {
+	field := make([]map[string]interface{}, 0)
+	for _, log := range logList {
+		l := map[string]interface{}{
+			"logIndex":         hexutil.Uint64(log.Index),
+			"transactionIndex": hexutil.Uint64(log.TxIndex),
+			"transactionHash":  log.TxHash,
+			"blockHash":        log.BlockHash,
+			"blockNumber":      hexutil.Uint64(log.BlockNumber),
+			"blockHeight":      hexutil.Uint64(log.BlockNumber),
+			"address":          log.Recipient.ToAddress(),
+			"recipient":        log.Recipient.ToAddress(),
+			"data":             hexutil.Bytes(log.Data),
+		}
+		topics := make([]ethCommon.Hash, 0)
+		for _, v := range log.Topics {
+			topics = append(topics, v)
+		}
+		l["topocs"] = topics
+		field = append(field, l)
+	}
+	return field
+}
+
+func receiptEncoder(block *types.MinorBlock, i int, receipt *types.Receipt) map[string]interface{} {
+	tx := block.Transactions()[i].EvmTx
+	header := block.Header()
+
+	field := map[string]interface{}{
+		"transactionId":     IDEncoder(tx.Hash().Bytes(), tx.FromFullShardId()), //TODO fullShardKey
+		"transactionHash":   tx.Hash(),
+		"transactionIndex":  hexutil.Uint64(i),
+		"blockId":           IDEncoder(header.Hash().Bytes(), header.Branch.GetFullShardID()),
+		"blockHash":         header.Hash(),
+		"blockHeight":       hexutil.Uint64(header.Number),
+		"blockNumber":       hexutil.Uint64(header.Number),
+		"cumulativeGasUsed": hexutil.Uint64(receipt.CumulativeGasUsed),
+		"gasUsed":           hexutil.Uint64(receipt.GetPrevGasUsed()),
+		"status":            hexutil.Uint64(receipt.Status),
+		"logs":              logListEncoder(receipt.Logs),
+	}
+	if receipt.ContractAddress.Big().Uint64() == 0 {
+		field["contractAddress"] = make([]struct{}, 0)
+	} else {
+		field["contractAddress"] = AddressEncoder(receipt.ContractAddress.ToAddress().Bytes())
+	}
+	return field
 
 }

@@ -9,6 +9,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/serialize"
 	"github.com/ethereum/go-ethereum/common"
+	ethRPC "github.com/ethereum/go-ethereum/rpc"
 )
 
 func (s *MasterBackend) AddTransaction(tx *types.Transaction) error {
@@ -186,8 +187,11 @@ func (s *MasterBackend) SubmitWork(branch account.Branch, headerHash common.Hash
 	return false
 }
 
-func (s *MasterBackend) RootBlockByNumber(blockNumber uint64) (*types.RootBlock, error) {
-	block := s.rootBlockChain.GetBlockByNumber(blockNumber)
+func (s *MasterBackend) RootBlockByNumber(blockNumber *ethRPC.BlockNumber) (*types.RootBlock, error) {
+	if blockNumber == nil || *blockNumber == ethRPC.LatestBlockNumber || *blockNumber == ethRPC.PendingBlockNumber {
+		return s.rootBlockChain.CurrentBlock(), nil
+	}
+	block := s.rootBlockChain.GetBlockByNumber(uint64(*blockNumber))
 	if block == nil {
 		return nil, errors.New("rootBlock is nil")
 	}

@@ -30,8 +30,8 @@ func (p *PublicBlockChainAPI) SendUnsigedTransaction() { panic("not implemented"
 func (p *PublicBlockChainAPI) SendTransaction()        { panic("not implemented") }
 func (p *PublicBlockChainAPI) SendRawTransaction()     { panic("not implemented") }
 func (p *PublicBlockChainAPI) GetRootBlockById()       { panic("not implemented") }
-func (p *PublicBlockChainAPI) GetRootBlockByHeight(blockNr rpc.BlockNumber) (map[string]interface{}, error) {
-	rootBlock, err := p.b.RootBlockByNumber(uint64(blockNr))
+func (p *PublicBlockChainAPI) GetRootBlockByHeight(blockNr *rpc.BlockNumber) (map[string]interface{}, error) {
+	rootBlock, err := p.b.RootBlockByNumber(blockNr)
 	if err == nil {
 		response, err := rootBlockEncoder(rootBlock)
 		if err != nil {
