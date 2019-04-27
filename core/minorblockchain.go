@@ -126,7 +126,7 @@ type MinorBlockChain struct {
 	rootTip                  *types.RootBlockHeader
 	confirmedHeaderTip       *types.MinorBlockHeader
 	initialized              bool
-	coinBaseAddrCache        map[common.Hash]heightAndAddrs
+	coinbaseAddrCache        map[common.Hash]heightAndAddrs
 	rewardCalc               *qkcCommon.ConstMinorBlockRewardCalculator
 	gasPriceSuggestionOracle *gasPriceSuggestionOracle
 	heightToMinorBlockHashes map[uint64]map[common.Hash]struct{}

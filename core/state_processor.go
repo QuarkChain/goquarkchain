@@ -56,7 +56,7 @@ func NewStateProcessor(config *params.ChainConfig, bc *MinorBlockChain, engine c
 func (p *StateProcessor) Process(mBlock types.IBlock, statedb *state.StateDB, cfg vm.Config, evmTxIncluded []*types.Transaction, xShardReceiveTxList []*types.CrossShardTransactionDeposit) (types.Receipts, []*types.Log, uint64, error) {
 	block := mBlock.(*types.MinorBlock)
 	statedb.SetQuarkChainConfig(p.bc.clusterConfig.Quarkchain)
-	statedb.SetBlockCoinBase(block.IHeader().GetCoinbase().Recipient)
+	statedb.SetBlockCoinbase(block.IHeader().GetCoinbase().Recipient)
 	if evmTxIncluded == nil {
 		evmTxIncluded = make([]*types.Transaction, 0)
 	}
@@ -101,8 +101,8 @@ func (p *StateProcessor) Process(mBlock types.IBlock, statedb *state.StateDB, cf
 	}
 
 	// Finalize the block, applying any consensus engine specific extras (e.g. block rewards)
-	coinBaseAmount := p.bc.getCoinBaseAmount()
-	statedb.AddBalance(block.IHeader().GetCoinbase().Recipient, coinBaseAmount)
+	coinbaseAmount := p.bc.getCoinbaseAmount()
+	statedb.AddBalance(block.IHeader().GetCoinbase().Recipient, coinbaseAmount)
 	statedb.Finalise(true)
 	return receipts, allLogs, *usedGas, nil
 }

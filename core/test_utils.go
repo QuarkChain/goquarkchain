@@ -19,7 +19,7 @@ import (
 var (
 	// JIAOZI 10^18
 	JIAOZI                  = new(big.Int).Mul(new(big.Int).SetUint64(1000000000), new(big.Int).SetUint64(1000000000))
-	testShardCoinBaseAmount = new(big.Int).Mul(new(big.Int).SetUint64(5), JIAOZI)
+	testShardCoinbaseAmount = new(big.Int).Mul(new(big.Int).SetUint64(5), JIAOZI)
 )
 
 type fakeEnv struct {

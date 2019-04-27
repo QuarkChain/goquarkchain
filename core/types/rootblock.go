@@ -366,18 +366,18 @@ func (b *RootBlock) GetSize() common.StorageSize {
 }
 
 func (b *RootBlock) Finalize(coinbaseAmount *uint64, coinbaseAddress *account.Address) *RootBlock {
-	realCoinBaseAmount := uint64(0)
-	if coinbaseAmount != nil {
-		realCoinBaseAmount = *coinbaseAmount
+	if coinbaseAmount == nil {
+		temp := uint64(0)
+		coinbaseAmount = &temp
 	}
 
-	realCoinBaseAddress := account.CreatEmptyAddress(0)
-	if coinbaseAddress != nil {
-		realCoinBaseAddress = *coinbaseAddress
+	if coinbaseAddress == nil {
+		temp := account.CreatEmptyAddress(0)
+		coinbaseAddress = &temp
 	}
 	b.header.MinorHeaderHash = DeriveSha(b.minorBlockHeaders)
-	b.header.CoinbaseAmount = &serialize.Uint256{Value: new(big.Int).SetUint64(realCoinBaseAmount)}
-	b.header.Coinbase = realCoinBaseAddress
+	b.header.CoinbaseAmount = &serialize.Uint256{Value: new(big.Int).SetUint64(*coinbaseAmount)}
+	b.header.Coinbase = *coinbaseAddress
 	return b
 }
 func (b *RootBlock) AddMinorBlockHeader(header *MinorBlockHeader) {

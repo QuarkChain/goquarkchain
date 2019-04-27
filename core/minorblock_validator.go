@@ -229,9 +229,9 @@ func (v *MinorBlockValidator) ValidateState(mBlock, parent types.IBlock, statedb
 	if statedb.GetGasUsed().Cmp(block.GetMetaData().GasUsed.Value) != 0 {
 		return ErrGasUsed
 	}
-	coinBaseAmount := new(big.Int).Add(v.bc.getCoinBaseAmount(), statedb.GetBlockFee())
-	if coinBaseAmount.Cmp(block.CoinbaseAmount()) != 0 {
-		return ErrCoinBaseAmount
+	coinbaseAmount := new(big.Int).Add(v.bc.getCoinbaseAmount(), statedb.GetBlockFee())
+	if coinbaseAmount.Cmp(block.CoinbaseAmount()) != 0 {
+		return ErrCoinbaseAmount
 	}
 
 	if statedb.GetXShardReceiveGasUsed().Cmp(block.GetMetaData().CrossShardGasUsed.Value) != 0 {

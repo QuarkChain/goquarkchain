@@ -99,7 +99,7 @@ type StateDB struct {
 	gasLimit             *big.Int
 	shardConfig          *config.ShardConfig
 	senderDisallowList   []qkcaccount.Recipient
-	blockCoinBase        qkcaccount.Recipient
+	blockCoinbase        qkcaccount.Recipient
 }
 
 // Create a new state from a given trie.
@@ -782,10 +782,10 @@ func (s *StateDB) GetSenderDisallowList() []qkcaccount.Recipient {
 	return s.senderDisallowList
 }
 
-func (s *StateDB) GetBlockCoinBase() qkcaccount.Recipient {
-	return s.blockCoinBase
+func (s *StateDB) GetBlockCoinbase() qkcaccount.Recipient {
+	return s.blockCoinbase
 }
 
-func (s *StateDB) SetBlockCoinBase(data qkcaccount.Recipient) {
-	s.blockCoinBase = data
+func (s *StateDB) SetBlockCoinbase(data qkcaccount.Recipient) {
+	s.blockCoinbase = data
 }

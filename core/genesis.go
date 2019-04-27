@@ -7,6 +7,7 @@ import (
 
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
+	qkcCommon "github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/core/rawdb"
 	"github.com/QuarkChain/goquarkchain/core/state"
 	"github.com/QuarkChain/goquarkchain/core/types"
@@ -85,8 +86,7 @@ func (g *Genesis) CreateMinorBlock(rootBlock *types.RootBlock, fullShardId uint3
 	}
 
 	coinbaseAmount := new(serialize.Uint256)
-	coinbaseAmount.Value = new(big.Int).Div(new(big.Int).Mul(shardConfig.CoinbaseAmount,
-		g.qkcConfig.RewardTaxRate.Num()), g.qkcConfig.RewardTaxRate.Denom())
+	coinbaseAmount.Value = qkcCommon.BigIntMulBigRat(shardConfig.CoinbaseAmount, g.qkcConfig.RewardTaxRate)
 
 	gasLimit := new(serialize.Uint256)
 	gasLimit.Value = new(big.Int).SetUint64(genesis.GasLimit)

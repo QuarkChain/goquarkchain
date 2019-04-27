@@ -289,8 +289,8 @@ func GenerateMinorBlockChain(config *params.ChainConfig, quarkChainConfig *confi
 			block.AddTx(v)
 		}
 
-		coinBaseAmount := qkcCommon.BigIntMulBigRat(quarkChainConfig.GetShardConfigByFullShardID(quarkChainConfig.Chains[0].ShardSize|0).CoinbaseAmount, quarkChainConfig.RewardTaxRate)
-		statedb.AddBalance(block.Header().Coinbase.Recipient, coinBaseAmount)
+		coinbaseAmount := qkcCommon.BigIntMulBigRat(quarkChainConfig.GetShardConfigByFullShardID(quarkChainConfig.Chains[0].ShardSize|0).CoinbaseAmount, quarkChainConfig.RewardTaxRate)
+		statedb.AddBalance(block.Header().Coinbase.Recipient, coinbaseAmount)
 
 		b.statedb.Finalise(true)
 		rootHash, err := b.statedb.Commit(true)
@@ -300,8 +300,8 @@ func GenerateMinorBlockChain(config *params.ChainConfig, quarkChainConfig *confi
 		if err := b.statedb.Database().TrieDB().Commit(rootHash, true); err != nil {
 			panic(fmt.Sprintf("trie write error: %v", err))
 		}
-		coinBaseAmount.Add(coinBaseAmount, statedb.GetBlockFee())
-		block.Finalize(b.receipts, rootHash, statedb.GetGasUsed(), statedb.GetXShardReceiveGasUsed(), coinBaseAmount)
+		coinbaseAmount.Add(coinbaseAmount, statedb.GetBlockFee())
+		block.Finalize(b.receipts, rootHash, statedb.GetGasUsed(), statedb.GetXShardReceiveGasUsed(), coinbaseAmount)
 		return block, b.receipts
 	}
 	for i := 0; i < n; i++ {
