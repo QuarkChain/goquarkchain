@@ -1,11 +1,32 @@
 package qkcapi
 
 import (
+	"errors"
 	"fmt"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/rpc"
-	"math/big"
 )
+
+func decodeBlockNumberToUint64(b Backend, blockNumber *rpc.BlockNumber) (uint64, error) {
+	if blockNumber == nil {
+		return b.CurrentBlock().NumberU64(), nil
+	}
+	if *blockNumber == rpc.PendingBlockNumber {
+		return 0, errors.New("is pending block number")
+	}
+	if *blockNumber == rpc.LatestBlockNumber {
+		return b.CurrentBlock().NumberU64(), nil
+	}
+	if *blockNumber == rpc.EarliestBlockNumber {
+		return 0, nil
+	}
+
+	if *blockNumber < 0 {
+		return 0, errors.New("invalid block Num")
+	}
+	return uint64(blockNumber.Int64()), nil
+}
 
 // It offers only methods that operate on public data that is freely available to anyone.
 type PublicBlockChainAPI struct {
@@ -17,21 +38,43 @@ func NewPublicBlockChainAPI(b Backend) *PublicBlockChainAPI {
 	return &PublicBlockChainAPI{b}
 }
 
-func (p *PublicBlockChainAPI) Echoquantity() *hexutil.Big {
-	fmt.Println("Echoquantity func response.---scf")
-	res := new(big.Int).SetUint64(1)
-	return (*hexutil.Big)(res)
+// Echoquantity :should use data without leading zero
+func (p *PublicBlockChainAPI) Echoquantity(data hexutil.Big) *hexutil.Big {
+	return &data
 }
-func (p *PublicBlockChainAPI) EchoData()               { panic("not implemented") }
-func (p *PublicBlockChainAPI) NetworkInfo()            { panic("not implemented") }
-func (p *PublicBlockChainAPI) GetBalances()            { panic("not implemented") }
+
+// EchoData echo data for test
+func (p *PublicBlockChainAPI) EchoData(data rpc.BlockNumber) *hexutil.Big {
+	fmt.Println("data", data.Int64())
+	return nil
+}
+
+func (p *PublicBlockChainAPI) NetworkInfo() map[string]interface{} {
+	return p.b.NetWorkInfo()
+}
+func (p *PublicBlockChainAPI) GetBalances(address common.Address, blockNr *rpc.BlockNumber) (*hexutil.Big, error) {
+	blockNumber, err := decodeBlockNumberToUint64(p.b, blockNr)
+	if err != nil {
+		return nil, err
+	}
+	if blockNr == nil {
+		p.b.GetPrimaryAccountData(address, nil)
+	} else {
+		p.b.GetPrimaryAccountData(address)
+	}
+
+}
 func (p *PublicBlockChainAPI) GetAccountData()         { panic("not implemented") }
 func (p *PublicBlockChainAPI) SendUnsigedTransaction() { panic("not implemented") }
 func (p *PublicBlockChainAPI) SendTransaction()        { panic("not implemented") }
 func (p *PublicBlockChainAPI) SendRawTransaction()     { panic("not implemented") }
 func (p *PublicBlockChainAPI) GetRootBlockById()       { panic("not implemented") }
 func (p *PublicBlockChainAPI) GetRootBlockByHeight(blockNr *rpc.BlockNumber) (map[string]interface{}, error) {
-	rootBlock, err := p.b.RootBlockByNumber(blockNr)
+	blockNumber, err := decodeBlockNumberToUint64(p.b, blockNr)
+	if err != nil {
+		return nil, err
+	}
+	rootBlock, err := p.b.RootBlockByNumber(blockNumber)
 	if err == nil {
 		response, err := rootBlockEncoder(rootBlock)
 		if err != nil {

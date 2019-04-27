@@ -380,7 +380,8 @@ func TestGetPrimaryAccountData(t *testing.T) {
 	id1, err := account.CreatRandomIdentity()
 	assert.NoError(t, err)
 	add1 := account.NewAddress(id1.Recipient, 3)
-	_, err = master.GetPrimaryAccountData(add1, 0)
+	temp := uint64(0)
+	_, err = master.GetPrimaryAccountData(add1, &temp)
 	assert.NoError(t, err)
 }
 

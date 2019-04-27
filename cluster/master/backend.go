@@ -358,7 +358,7 @@ func (s *MasterBackend) GetAccountData(address account.Address) (map[account.Bra
 		check.wg.Add(1)
 		go func(slaveConn *SlaveConnection) {
 			defer check.wg.Done()
-			rsp, err := slaveConn.GetAccountData(address, 0) //TODO ??height
+			rsp, err := slaveConn.GetAccountData(address, nil) //TODO ??height
 			check.errc <- err
 			chanRsp <- rsp
 		}(s.clientPool[index])
@@ -380,7 +380,7 @@ func (s *MasterBackend) GetAccountData(address account.Address) (map[account.Bra
 	return branchToAccountBranchData, nil
 }
 
-func (s *MasterBackend) GetPrimaryAccountData(address account.Address, blockHeight uint64) (*qkcRPC.AccountBranchData, error) {
+func (s *MasterBackend) GetPrimaryAccountData(address account.Address, blockHeight *uint64) (*qkcRPC.AccountBranchData, error) {
 	fullShardID := s.clusterConfig.Quarkchain.GetFullShardIdByFullShardKey(address.FullShardKey)
 	slaveConn, err := s.getSlaveConnection(account.Branch{Value: fullShardID})
 	if err != nil {
@@ -502,6 +502,18 @@ func (s *MasterBackend) GetBlockCount() {
 func (s *MasterBackend) getStats() {
 	panic("not implement")
 	//TODO :only calc
+}
+
+func (s *MasterBackend) isSyning() bool {
+	return false
+}
+
+func (s *MasterBackend) isMining() bool {
+	return false
+}
+
+func (s *MasterBackend) CurrentBlock() *types.RootBlock {
+	return s.rootBlockChain.CurrentBlock()
 }
 
 type CheckErr struct {

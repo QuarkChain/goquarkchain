@@ -442,7 +442,7 @@ func (s *SlaveConnection) GetEcoInfoListRequest() (*rpc.GetEcoInfoListResponse, 
 	return rsp, nil
 }
 
-func (s *SlaveConnection) GetAccountData(address account.Address, height uint64) (*rpc.GetAccountDataResponse, error) {
+func (s *SlaveConnection) GetAccountData(address account.Address, height *uint64) (*rpc.GetAccountDataResponse, error) {
 	var (
 		req = rpc.GetAccountDataRequest{
 			Address:     address,

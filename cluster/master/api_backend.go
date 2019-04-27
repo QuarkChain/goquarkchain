@@ -9,7 +9,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/serialize"
 	"github.com/ethereum/go-ethereum/common"
-	ethRPC "github.com/ethereum/go-ethereum/rpc"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 )
 
 func (s *MasterBackend) AddTransaction(tx *types.Transaction) error {
@@ -178,13 +178,27 @@ func (s *MasterBackend) SubmitWork(branch account.Branch, headerHash common.Hash
 	return false
 }
 
-func (s *MasterBackend) RootBlockByNumber(blockNumber *ethRPC.BlockNumber) (*types.RootBlock, error) {
-	if blockNumber == nil || *blockNumber == ethRPC.LatestBlockNumber || *blockNumber == ethRPC.PendingBlockNumber {
-		return s.rootBlockChain.CurrentBlock(), nil
-	}
-	block := s.rootBlockChain.GetBlockByNumber(uint64(*blockNumber))
+func (s *MasterBackend) RootBlockByNumber(blockNumber uint64) (*types.RootBlock, error) {
+	block := s.rootBlockChain.GetBlockByNumber(blockNumber)
 	if block == nil {
 		return nil, errors.New("rootBlock is nil")
 	}
 	return block.(*types.RootBlock), nil
+}
+
+func (s *MasterBackend) NetWorkInfo() map[string]interface{} {
+	shardSizeList := make([]hexutil.Uint, 0)
+	for _, v := range s.clusterConfig.Quarkchain.Chains {
+		shardSizeList = append(shardSizeList, hexutil.Uint(v.ShardSize))
+	}
+
+	fileds := map[string]interface{}{
+		"networkId":        hexutil.Uint(s.clusterConfig.Quarkchain.NetworkID),
+		"chainSize":        hexutil.Uint(s.clusterConfig.Quarkchain.ChainSize),
+		"shardSizes":       shardSizeList,
+		"syncing":          s.isSyning(),
+		"mining":           s.isMining(),
+		"shardServerCount": hexutil.Uint(len(s.clientPool)),
+	}
+	return fileds
 }

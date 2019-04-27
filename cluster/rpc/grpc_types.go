@@ -218,12 +218,12 @@ type GetUnconfirmedHeadersResponse struct {
 
 type GetAccountDataRequest struct {
 	Address     account.Address `json:"address" gencodec:"required"`
-	BlockHeight uint64          `json:"block_height" ser:"nil"`
+	BlockHeight *uint64         `json:"block_height" ser:"nil"`
 }
 
 type TokenBalancePair struct {
-	TokenId uint64      `json:"token_id" gencodec:"required"`
-	Balance common.Hash `json:"balance" gencodec:"required"`
+	TokenId uint64             `json:"token_id" gencodec:"required"`
+	Balance *serialize.Uint256 `json:"balance" gencodec:"required"`
 }
 
 type AccountBranchData struct {

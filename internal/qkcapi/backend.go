@@ -26,7 +26,10 @@ type Backend interface {
 	GetWork(branch account.Branch) consensus.MiningWork
 	SubmitWork(branch account.Branch, headerHash common.Hash, nonce uint64, mixHash common.Hash) bool
 
-	RootBlockByNumber(blockNr *rpc.BlockNumber) (*types.RootBlock, error)
+	RootBlockByNumber(blockNr uint64) (*types.RootBlock, error)
+	NetWorkInfo() map[string]interface{}
+	GetPrimaryAccountData(address account.Address, blockHeight *uint64) (*qkcRPC.AccountBranchData, error)
+	CurrentBlock() *types.RootBlock
 }
 
 func GetAPIs(apiBackend Backend) []rpc.API {
