@@ -2,7 +2,6 @@ package rpc
 
 import (
 	"sync"
-	"sync/atomic"
 )
 
 import (
@@ -22,46 +21,34 @@ func NewMasterTestOp() *MasterServerSideOp {
 // master handle function
 func (m *MasterServerSideOp) AddMinorBlockHeader(ctx context.Context, req *Request) (*Response, error) {
 	return &Response{
-		RpcId:     m.addRpcId(),
-		Data:      []byte("AddMinorBlockHeader response"),
-		ErrorCode: 0,
+		RpcId: req.RpcId,
+		Data:  []byte("AddMinorBlockHeader response"),
 	}, nil
 }
 
 // p2p apis
 func (m *MasterServerSideOp) BroadcastNewTip(ctx context.Context, req *Request) (*Response, error) {
 	return &Response{
-		RpcId:     m.addRpcId(),
-		ErrorCode: 0,
+		RpcId: req.RpcId,
 	}, nil
 }
 func (m *MasterServerSideOp) BroadcastTransactions(ctx context.Context, req *Request) (*Response, error) {
 	return &Response{
-		RpcId:     m.addRpcId(),
-		ErrorCode: 0,
+		RpcId: req.RpcId,
 	}, nil
 }
 func (m *MasterServerSideOp) BroadcastMinorBlock(ctx context.Context, req *Request) (*Response, error) {
 	return &Response{
-		RpcId:     m.addRpcId(),
-		ErrorCode: 0,
+		RpcId: req.RpcId,
 	}, nil
 }
 func (m *MasterServerSideOp) GetMinorBlocks(ctx context.Context, req *Request) (*Response, error) {
 	return &Response{
-		RpcId:     m.addRpcId(),
-		ErrorCode: 0,
+		RpcId: req.RpcId,
 	}, nil
 }
 func (m *MasterServerSideOp) GetMinorBlockHeaders(ctx context.Context, req *Request) (*Response, error) {
 	return &Response{
-		RpcId:     m.addRpcId(),
-		ErrorCode: 0,
+		RpcId: req.RpcId,
 	}, nil
-}
-
-// id atomic increase in every request
-func (m *MasterServerSideOp) addRpcId() int64 {
-	atomic.AddInt64(&m.rpcId, 1)
-	return m.rpcId
 }
