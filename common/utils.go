@@ -3,9 +3,14 @@ package common
 import (
 	"bytes"
 	"encoding/gob"
+	ethCommon "github.com/ethereum/go-ethereum/common"
 	"math/big"
 	"math/bits"
 	"reflect"
+)
+
+var (
+	EmptyHash = ethCommon.Hash{}
 )
 
 /*

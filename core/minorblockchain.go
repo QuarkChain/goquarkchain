@@ -282,6 +282,7 @@ func (m *MinorBlockChain) loadLastState() error {
 // above the new head will be deleted and the new one set. In the case of blocks
 // though, the head may be further rewound if block bodies are missing (non-archive
 // nodes after a fast sync).
+// already have locked
 func (m *MinorBlockChain) SetHead(head uint64) error {
 	log.Warn("Rewinding blockchain", "target", head)
 
@@ -362,6 +363,8 @@ func (m *MinorBlockChain) Processor() Processor {
 
 // State returns a new mutable state based on the current HEAD block.
 func (m *MinorBlockChain) State() (*state.StateDB, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
 	return m.currentEvmState, nil
 }
 
