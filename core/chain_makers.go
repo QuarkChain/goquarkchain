@@ -209,7 +209,7 @@ func (b *MinorBlockGen) AddTxWithChain(quarkChainConfig *config.QuarkChainConfig
 		panic(err)
 	}
 
-	receipt, _, err := ApplyTransaction(b.config, bc, b.gasPool, b.statedb, b.header, tx, &b.gasUsed, vm.Config{})
+	_, receipt, _, err := ApplyTransaction(b.config, bc, b.gasPool, b.statedb, b.header, tx, &b.gasUsed, vm.Config{})
 	if err != nil {
 		panic(err)
 	}

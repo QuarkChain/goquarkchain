@@ -690,20 +690,23 @@ func (m *MinorBlockChain) GetStorageAt(recipient account.Recipient, key common.H
 }
 
 // ExecuteTx execute tx
-func (m *MinorBlockChain) ExecuteTx(tx *types.Transaction, fromAddress account.Address, height *uint64) error {
+func (m *MinorBlockChain) ExecuteTx(tx *types.Transaction, fromAddress *account.Address, height *uint64) ([]byte, error) {
 	// no need to lock
 	if height == nil {
 		temp := m.CurrentBlock().NumberU64()
 		height = &temp
 	}
+	if fromAddress == nil {
+		return nil, errors.New("from address should not empty")
+	}
 	mBlock, ok := m.GetBlockByNumber(*height).(*types.MinorBlock)
 	if !ok {
-		return ErrMinorBlockIsNil
+		return nil, ErrMinorBlockIsNil
 	}
 
 	evmState, err := m.StateAt(mBlock.GetMetaData().Root)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	state := evmState.Copy()
@@ -715,14 +718,14 @@ func (m *MinorBlockChain) ExecuteTx(tx *types.Transaction, fromAddress account.A
 		gas = state.GetGasLimit().Uint64()
 	}
 
-	evmTx, err := m.validateTx(tx, state, &fromAddress, &gas)
+	evmTx, err := m.validateTx(tx, state, fromAddress, &gas)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	gp := new(GasPool).AddGas(mBlock.Header().GetGasLimit().Uint64())
 	usedGas := new(uint64)
-	_, _, err = ApplyTransaction(m.ethChainConfig, m, gp, state, mBlock.IHeader().(*types.MinorBlockHeader), evmTx, usedGas, *m.GetVMConfig())
-	return err
+	ret, _, _, err := ApplyTransaction(m.ethChainConfig, m, gp, state, mBlock.IHeader().(*types.MinorBlockHeader), evmTx, usedGas, *m.GetVMConfig())
+	return ret, err
 }
 
 // GetNextBlockDifficulty get next block difficulty
@@ -908,7 +911,7 @@ func (m *MinorBlockChain) addTransactionToBlock(rootBlockHash common.Hash, block
 
 		}
 
-		receipt, _, err := ApplyTransaction(m.ethChainConfig, m, gp, stateT, block.IHeader().(*types.MinorBlockHeader), tx, usedGas, *m.GetVMConfig())
+		_, receipt, _, err := ApplyTransaction(m.ethChainConfig, m, gp, stateT, block.IHeader().(*types.MinorBlockHeader), tx, usedGas, *m.GetVMConfig())
 		if err != nil {
 			return nil, nil, err
 		}

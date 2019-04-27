@@ -205,7 +205,7 @@ func TestExecuteTx(t *testing.T) {
 
 	// adding this line to make sure `execute_tx` would reset `gas_used`
 	currentEvmState.SetGasUsed(currentEvmState.GetGasLimit())
-	err = shardState.ExecuteTx(tx, acc1, nil)
+	_, err = shardState.ExecuteTx(tx, &acc1, nil)
 	checkErr(err)
 }
 
@@ -223,7 +223,7 @@ func TestAddTxIncorrectFromShardID(t *testing.T) {
 	tx := createTransferTransaction(shardState, id1.GetKey().Bytes(), acc1, acc2, new(big.Int).SetUint64(12345), nil, nil, nil, nil)
 	err = shardState.AddTx(tx)
 	assert.Error(t, err)
-	err = shardState.ExecuteTx(tx, acc1, nil)
+	_, err = shardState.ExecuteTx(tx, &acc1, nil)
 	assert.Error(t, err)
 }
 

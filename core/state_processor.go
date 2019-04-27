@@ -92,7 +92,7 @@ func (p *StateProcessor) Process(mBlock types.IBlock, statedb *state.StateDB, cf
 			return nil, nil, 0, err
 		}
 		statedb.Prepare(tx.Hash(), block.Hash(), i)
-		receipt, _, err := ApplyTransaction(p.config, p.bc, gp, statedb, header, evmTx, usedGas, cfg)
+		_, receipt, _, err := ApplyTransaction(p.config, p.bc, gp, statedb, header, evmTx, usedGas, cfg)
 		if err != nil {
 			return nil, nil, 0, err
 		}
@@ -145,7 +145,7 @@ func ValidateTransaction(state vm.StateDB, tx *types.Transaction, fromAddress *a
 }
 
 // ApplyTransaction apply tx
-func ApplyTransaction(config *params.ChainConfig, bc ChainContext, gp *GasPool, statedb *state.StateDB, header types.IHeader, tx *types.Transaction, usedGas *uint64, cfg vm.Config) (*types.Receipt, uint64, error) {
+func ApplyTransaction(config *params.ChainConfig, bc ChainContext, gp *GasPool, statedb *state.StateDB, header types.IHeader, tx *types.Transaction, usedGas *uint64, cfg vm.Config) ([]byte, *types.Receipt, uint64, error) {
 	statedb.SetFullShardKey(tx.EvmTx.ToFullShardKey())
 	localFeeRate := big.NewRat(1, 1)
 	if qkcConfig := statedb.GetQuarkChainConfig(); qkcConfig != nil {
@@ -156,14 +156,14 @@ func ApplyTransaction(config *params.ChainConfig, bc ChainContext, gp *GasPool, 
 	}
 	msg, err := tx.EvmTx.AsMessage(types.MakeSigner(tx.EvmTx.NetworkId()))
 	if err != nil {
-		return nil, 0, err
+		return nil, nil, 0, err
 	}
 	context := NewEVMContext(msg, header, bc)
 	vmenv := vm.NewEVM(context, statedb, config, cfg)
 
-	_, gas, failed, err := ApplyMessage(vmenv, msg, gp, localFeeRate)
+	ret, gas, failed, err := ApplyMessage(vmenv, msg, gp, localFeeRate)
 	if err != nil {
-		return nil, 0, err
+		return nil, nil, 0, err
 	}
 
 	var root []byte
@@ -184,5 +184,5 @@ func ApplyTransaction(config *params.ChainConfig, bc ChainContext, gp *GasPool, 
 	receipt.Logs = statedb.GetLogs(tx.Hash())
 	receipt.Bloom = types.CreateBloom(types.Receipts{receipt})
 
-	return receipt, gas, err
+	return ret, receipt, gas, err
 }
