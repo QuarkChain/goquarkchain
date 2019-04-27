@@ -15,15 +15,6 @@ func (s *MasterBackend) AddTransaction(tx *types.Transaction) error {
 	evmTx := tx.EvmTx
 	//TODO :SetQKCConfig
 	branch := account.Branch{Value: evmTx.FromFullShardId()}
-	flag := false
-	for k, _ := range s.branchToSlaves {
-		if k == branch.Value {
-			flag = true
-		}
-	}
-	if !flag {
-		return errors.New("not exist")
-	}
 	slaves, ok := s.branchToSlaves[branch.Value]
 	if !ok {
 		return errors.New("no such slave")

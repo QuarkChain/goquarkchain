@@ -439,10 +439,6 @@ func (s *MasterBackend) AddRootBlock(rootBlock *types.RootBlock) error {
 }
 
 func (s *MasterBackend) AddRawMinorBlock(branch account.Branch, blockData []byte) error {
-	_, ok := s.branchToSlaves[branch.Value]
-	if !ok {
-		return errors.New("no such slave conn")
-	}
 	slaveConn, err := s.getSlaveConnection(branch)
 	if err != nil {
 		return err
@@ -497,7 +493,7 @@ func (s *MasterBackend) CreateTransactions(numTxPerShard, xShardPercent uint32, 
 }
 
 func (s *MasterBackend) UpdateShardStatus(status *qkcRPC.ShardStatus) {
-	s.lock.RLock()
+	s.lock.Lock()
 	s.branchToShardStats[status.Branch.Value] = status
 	s.lock.RUnlock()
 }
