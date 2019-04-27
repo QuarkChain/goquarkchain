@@ -3,8 +3,10 @@ package rpc
 import (
 	"context"
 	"errors"
+	"fmt"
 	"reflect"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/ethereum/go-ethereum/log"
@@ -16,6 +18,7 @@ type serverType int
 
 const (
 	OpHeartBeat = iota
+	OpMasterInfo
 	OpPing
 	OpConnectToSlaves
 	OpAddRootBlock
@@ -71,9 +74,10 @@ var (
 	}
 	// slave apis
 	slaveApis = map[uint32]opType{
-		OpHeartBeat:                   {name: "HeartBeat"},
-		OpPing:                        {name: "Ping"},
-		OpConnectToSlaves:             {name: "ConnectToSlaves"},
+		OpHeartBeat:  {name: "HeartBeat"},
+		OpMasterInfo: {name: "MasterInfo"},
+		OpPing:       {name: "Ping"},
+		// OpConnectToSlaves:             {name: "ConnectToSlaves"},
 		OpAddRootBlock:                {name: "AddRootBlock"},
 		OpGetEcoInfoList:              {name: "GetEcoInfoList"},
 		OpGetNextBlockToMine:          {name: "GetNextBlockToMine"},
@@ -129,6 +133,7 @@ type rpcClient struct {
 	mu      sync.RWMutex
 	timeout time.Duration
 	tp      serverType
+	rpcId   int64
 	logger  log.Logger
 }
 
@@ -141,6 +146,7 @@ func (c *rpcClient) Call(hostport string, req *Request) (*Response, error) {
 	if !ok {
 		return nil, errors.New("invalid op")
 	}
+	req.RpcId = c.addRpcId()
 	return c.grpcOp(hostport, req)
 }
 
@@ -155,6 +161,8 @@ func (c *rpcClient) Close() {
 func (c *rpcClient) getConn(hostport string) (*opNode, error) {
 	// add new connection if not existing or has failed
 	// note that race may happen when adding duplicate connections
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	node, ok := c.connVals[hostport]
 	if !ok || node.conn.GetState() > connectivity.TransientFailure {
 		return c.addConn(hostport)
@@ -172,23 +180,24 @@ func (c *rpcClient) grpcOp(hostport string, req *Request) (*Response, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), c.timeout)
 	defer cancel()
 
-	val := []reflect.Value{reflect.ValueOf(ctx), reflect.ValueOf(req)}
+	var (
+		val = []reflect.Value{reflect.ValueOf(ctx), reflect.ValueOf(req)}
+		res *Response
+	)
+
 	rs := node.client.MethodByName(c.funcs[req.Op].name).Call(val)
-	if rs[1].Interface() != nil {
+
+	if !rs[1].IsNil() {
 		err = rs[1].Interface().(error)
 		return nil, err
+	} else if !rs[0].IsNil() {
+		res = rs[0].Interface().(*Response)
+		return res, nil
 	}
-
-	res := rs[0].Interface().(*Response)
-	if err != nil {
-		return nil, err
-	}
-	return res, nil
+	panic(fmt.Sprintf("unforeseen event from %s, api %s", hostport, c.GetOpName(req.Op)))
 }
 
 func (c *rpcClient) addConn(hostport string) (*opNode, error) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
 
 	delete(c.connVals, hostport)
 	opts := []grpc.DialOption{grpc.WithInsecure()}
@@ -205,6 +214,10 @@ func (c *rpcClient) addConn(hostport string) (*opNode, error) {
 	}
 	c.logger.Debug("Created new connection", "hostport", hostport)
 	return c.connVals[hostport], nil
+}
+
+func (c *rpcClient) addRpcId() int64 {
+	return atomic.AddInt64(&c.rpcId, 1)
 }
 
 // NewClient returns a new GRPC client wrapper.
