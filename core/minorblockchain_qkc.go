@@ -671,7 +671,7 @@ func (m *MinorBlockChain) GetCode(recipient account.Recipient, height *uint64) (
 }
 
 // GetStorageAt get storage for addr
-func (m *MinorBlockChain) GetStorageAt(recipient account.Recipient, key common.Hash, height *uint64) ([][]byte, error) {
+func (m *MinorBlockChain) GetStorageAt(recipient account.Recipient, key common.Hash, height *uint64) ( common.Hash, error) {
 	// no need to lock
 	if height == nil {
 		temp := m.CurrentBlock().NumberU64()
@@ -679,14 +679,14 @@ func (m *MinorBlockChain) GetStorageAt(recipient account.Recipient, key common.H
 	}
 	mBlock := m.GetBlockByNumber(*height)
 	if qkcCommon.IsNil(mBlock) {
-		return nil, ErrMinorBlockIsNil
+		return common.Hash{}, ErrMinorBlockIsNil
 	}
 
 	evmState, err := m.StateAt(mBlock.(*types.MinorBlock).GetMetaData().Root)
 	if err != nil {
-		return nil, err
+		return common.Hash{}, err
 	}
-	return evmState.GetStorageProof(recipient, key)
+	return evmState.GetState(recipient, key),nil
 }
 
 // ExecuteTx execute tx
