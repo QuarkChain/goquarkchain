@@ -456,7 +456,7 @@ func TestBroadcastNewMinorBlockTip(t *testing.T) {
 	if err := waitChanTilErrorOrTimeout(errc, 3); err != nil {
 		t.Errorf("got one error: %v", err.Error())
 	}
-	time.Sleep(1 * time.Second)
+	time.Sleep(2 * time.Second)
 	if pm.peers.Peer(peer.id) != nil {
 		t.Errorf("peer should be Unregister")
 	}
