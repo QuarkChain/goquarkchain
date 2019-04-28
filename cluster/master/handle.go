@@ -217,7 +217,7 @@ func (pm *ProtocolManager) handleMsg(peer *peer) error {
 			}
 			if !result {
 				return fmt.Errorf("HandleNewTip (rpcId %d) for branch %d  with height %d return false",
-					qkcMsg.RpcID, qkcMsg.MetaData.Branch, tip.MinorBlockHeaderList[0])
+					qkcMsg.RpcID, qkcMsg.MetaData.Branch, tip.MinorBlockHeaderList[0].NumberU64())
 			}
 		}
 
