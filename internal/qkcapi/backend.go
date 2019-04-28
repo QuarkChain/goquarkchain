@@ -27,7 +27,7 @@ type Backend interface {
 	GetWork(branch account.Branch) consensus.MiningWork
 	SubmitWork(branch account.Branch, headerHash common.Hash, nonce uint64, mixHash common.Hash) bool
 
-	GetRootBlockByNumber(blockNr uint64) (*types.RootBlock, error)
+	GetRootBlockByNumber(blockNr *uint64) (*types.RootBlock, error)
 	GetRootBlockByHash(hash common.Hash) (*types.RootBlock, error)
 	NetWorkInfo() map[string]interface{}
 	GetPrimaryAccountData(address account.Address, blockHeight *uint64) (*qkcRPC.AccountBranchData, error)

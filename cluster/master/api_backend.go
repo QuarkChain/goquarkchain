@@ -92,10 +92,13 @@ func (s *MasterBackend) GetMinorBlockByHash(blockHash common.Hash, branch accoun
 	}
 	return slaveConn.GetMinorBlockByHash(blockHash, branch)
 }
-func (s *MasterBackend) GetMinorBlockByHeight(height uint64, branch account.Branch) (*types.MinorBlock, error) {
+func (s *MasterBackend) GetMinorBlockByHeight(height *uint64, branch account.Branch) (*types.MinorBlock, error) {
 	slaveConn, err := s.getSlaveConnection(branch)
 	if err != nil {
 		return nil, err
+	}
+	if height==nil{
+		temp:=s.branchToSlaves[branch.Value]
 	}
 	return slaveConn.GetMinorBlockByHeight(height, branch)
 }
@@ -180,9 +183,10 @@ func (s *MasterBackend) SubmitWork(branch account.Branch, headerHash common.Hash
 
 func (s *MasterBackend) GetRootBlockByNumber(blockNumber *uint64) (*types.RootBlock, error) {
 	if blockNumber==nil{
-		blockNumber=s.rootBlockChain.CurrentBlock().NumberU64()
+		temp:=s.rootBlockChain.CurrentBlock().NumberU64()
+		blockNumber=&temp
 	}
-	block := s.rootBlockChain.GetBlockByNumber(blockNumber)
+	block := s.rootBlockChain.GetBlockByNumber(*blockNumber)
 	if block == nil {
 		return nil, errors.New("rootBlock is nil")
 	}

@@ -203,11 +203,7 @@ func (p *PublicBlockChainAPI) GetRootBlockById(hash common.Hash) (map[string]int
 	return rootBlockEncoder(rootBlock)
 }
 func (p *PublicBlockChainAPI) GetRootBlockByHeight(blockHeight *uint64) (map[string]interface{}, error) {
-
-	if blockHeight==nil{
-		temp:=p.b.GetCu
-	}
-	rootBlock, err := p.b.GetRootBlockByNumber(blockNumber)
+	rootBlock, err := p.b.GetRootBlockByNumber(blockHeight)
 	if err == nil {
 		response, err := rootBlockEncoder(rootBlock)
 		if err != nil {
@@ -217,8 +213,41 @@ func (p *PublicBlockChainAPI) GetRootBlockByHeight(blockHeight *uint64) (map[str
 	}
 	return nil, err
 }
-func (p *PublicBlockChainAPI) GetMinorBlockById()        { panic("not implemented") }
-func (p *PublicBlockChainAPI) GetMinorBlockByHeight()    { panic("not implemented") }
+func (p *PublicBlockChainAPI) GetMinorBlockById(blockID hexutil.Bytes,includeTxs *bool)  (map[string]interface{},error)      {
+	if includeTxs==nil{
+		temp:=false
+		includeTxs=&temp
+	}
+	blockHash,fullShardKey,err:=IDDecoder(blockID)
+	if err!=nil{
+		return nil,err
+	}
+	branch:=account.Branch{Value:p.b.GetClusterConfig().Quarkchain.GetFullShardIdByFullShardKey(uint32(fullShardKey))}
+	minorBlock,err:=p.b.GetMinorBlockByHash(blockHash,branch)
+	if err!=nil{
+		return nil,err
+	}
+	if minorBlock==nil{
+		return nil,err
+	}
+	return minorBlockEncoder(minorBlock,*includeTxs)
+
+}
+func (p *PublicBlockChainAPI) GetMinorBlockByHeight(fullShardKey uint32,height *uint64 ,includeTxs *bool)   (map[string]interface{},error) {
+	if includeTxs==nil{
+		temp:=false
+		includeTxs=&temp
+	}
+	branch:=account.Branch{Value:p.b.GetClusterConfig().Quarkchain.GetFullShardIdByFullShardKey(fullShardKey)}
+	minorBlock,err:=p.b.GetMinorBlockByHeight(height,branch)
+	if err!=nil{
+		return nil,err
+	}
+	if minorBlock==nil{
+		return nil,err
+	}
+	return minorBlockEncoder(minorBlock,includeTxs)
+}
 func (p *PublicBlockChainAPI) GetTransactionById()       { panic("not implemented") }
 func (p *PublicBlockChainAPI) Call()                     { panic("not implemented") }
 func (p *PublicBlockChainAPI) EstimateGas()              { panic("not implemented") }

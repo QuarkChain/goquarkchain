@@ -71,11 +71,28 @@ func IDEncoder(hashByte []byte, fullShardKey uint32) hexutil.Bytes {
 	hashByte = append(hashByte, common.Uint32ToBytes(fullShardKey)...)
 	return hexutil.Bytes(hashByte)
 }
-func DataEncoder(bytes []byte) string {
-	return "0x" + hex.EncodeToString(bytes)
-}
 
-func FullShardKeyEncoder(fullShardKey uint32) string {
+func IDDecoder(bytes []byte)(ethCommon.Hash,hexutil.Uint , error){
+	dataBytes,err:=DataDecoder(bytes)
+	if err!=nil{
+		return ethCommon.Hash{},0,err
+	}
+	if len(dataBytes)!=36{
+		return ethCommon.Hash{},0,errors.New("len should 36")
+	}
+	return ethCommon.BytesToHash(dataBytes[:32]),hexutil.Uint(common.BytesToUint32(dataBytes[32:])),nil
+
+}
+func DataEncoder(bytes []byte) hexutil.Bytes {
+	return hexutil.Bytes(bytes)
+}
+func DataDecoder(bytes []byte)  (hexutil.Bytes,error){
+	if len(bytes)>=2&&bytes[0]=='0'&&bytes[1]=='x'{
+		return hexutil.Bytes(bytes[2:]),nil
+	}
+	return nil,errors.New("should have 0x")
+}
+func FullShardKeyEncoder(fullShardKey uint32) hexutil.Bytes {
 	return DataEncoder(common.Uint32ToBytes(fullShardKey))
 }
 func rootBlockEncoder(rootBlock *types.RootBlock) (map[string]interface{}, error) {
