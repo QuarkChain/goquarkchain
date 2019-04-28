@@ -207,7 +207,7 @@ func (p *peer) AsyncSendTransactions(branch uint32, txs []*types.Transaction) {
 
 // SendNewTip announces the head of each shard or root.
 func (p *peer) SendNewTip(branch uint32, tip *p2p.Tip) error {
-	msg, err := p2p.MakeMsg(p2p.NewTransactionListMsg, p.getRpcId(), p2p.Metadata{Branch: branch}, tip)
+	msg, err := p2p.MakeMsg(p2p.NewTipMsg, p.getRpcId(), p2p.Metadata{Branch: branch}, tip)
 	if err != nil {
 		return err
 	}
@@ -229,7 +229,7 @@ func (p *peer) AsyncSendNewTip(branch uint32, tip *p2p.Tip) {
 func (p *peer) SendNewMinorBlock(branch uint32, block *types.MinorBlock) error {
 	data := p2p.NewBlockMinor{Block: block}
 
-	msg, err := p2p.MakeMsg(p2p.NewTransactionListMsg, p.getRpcId(), p2p.Metadata{Branch: branch}, data)
+	msg, err := p2p.MakeMsg(p2p.NewBlockMinorMsg, p.getRpcId(), p2p.Metadata{Branch: branch}, data)
 	if err != nil {
 		return err
 	}
@@ -266,7 +266,7 @@ func (p *peer) deleteChan(rpcId uint64) {
 }
 
 // requestRootBlockHeaderList fetches a batch of root blocks' headers corresponding to the
-// specified header query, based on the hash of an origin block.
+// specified header hashList, based on the hash of an origin block.
 func (p *peer) requestRootBlockHeaderList(rpcId uint64, hash common.Hash, amount uint32, reverse bool) error {
 	if amount == 0 {
 		amount = rootBlockHeaderListLimit

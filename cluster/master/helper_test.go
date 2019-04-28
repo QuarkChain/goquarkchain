@@ -23,6 +23,7 @@ import (
 	"crypto/ecdsa"
 	"crypto/rand"
 	"github.com/QuarkChain/goquarkchain/account"
+	"github.com/QuarkChain/goquarkchain/serialize"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"math/big"
 	"sort"
@@ -50,7 +51,7 @@ var (
 // newTestProtocolManager creates a new protocol manager for testing purposes,
 // with the given number of blocks already known, and potential notification
 // channels for different events.
-func newTestProtocolManager(blocks int, generator func(int, *core.RootBlockGen)) (*ProtocolManager, *ethdb.MemDatabase, error) {
+func newTestProtocolManager(blocks int, generator func(int, *core.RootBlockGen), synchronizer synchronizer.Synchronizer, getShardConnFunc func(fullShardId uint32) []ShardConnForP2P) (*ProtocolManager, *ethdb.MemDatabase, error) {
 	var (
 		engine        = new(consensus.FakeEngine)
 		db            = ethdb.NewMemDatabase()
@@ -65,7 +66,7 @@ func newTestProtocolManager(blocks int, generator func(int, *core.RootBlockGen))
 		panic(err)
 	}
 
-	pm, err := NewProtocolManager(*clusterconfig, blockChain, NewFakeSynchronizer(), nil)
+	pm, err := NewProtocolManager(*clusterconfig, blockChain, synchronizer, getShardConnFunc)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -77,8 +78,8 @@ func newTestProtocolManager(blocks int, generator func(int, *core.RootBlockGen))
 // with the given number of blocks already known, and potential notification
 // channels for different events. In case of an error, the constructor force-
 // fails the test.
-func newTestProtocolManagerMust(t *testing.T, blocks int, generator func(int, *core.RootBlockGen)) (*ProtocolManager, *ethdb.MemDatabase) {
-	pm, db, err := newTestProtocolManager(blocks, generator)
+func newTestProtocolManagerMust(t *testing.T, blocks int, generator func(int, *core.RootBlockGen), synchronizer synchronizer.Synchronizer, getShardConnFunc func(fullShardId uint32) []ShardConnForP2P) (*ProtocolManager, *ethdb.MemDatabase) {
+	pm, db, err := newTestProtocolManager(blocks, generator, synchronizer, getShardConnFunc)
 	if err != nil {
 		t.Fatalf("Failed to create protocol manager: %v", err)
 	}
@@ -126,6 +127,16 @@ func (p *testTxPool) Pending() (map[common.Address]types.Transactions, error) {
 
 func (p *testTxPool) SubscribeNewTxsEvent(ch chan<- core.NewTxsEvent) event.Subscription {
 	return p.txFeed.Subscribe(ch)
+}
+
+func newTestTransactionList(count int) []*types.Transaction {
+	key, _ := crypto.HexToECDSA("45a915e4d060149eb4365960e6a7a45f334393093061116b197e3240065ff2d8")
+	txs := make([]*types.Transaction, 0, count)
+	for i := 0; i < count; i++ {
+		tx := newTestTransaction(key, uint64(i), 100)
+		txs = append(txs, tx)
+	}
+	return txs
 }
 
 // newTestTransaction create a new dummy transaction.
@@ -218,16 +229,50 @@ func (p *testPeer) close() {
 	p.app.Close()
 }
 
-type fakeSynchronizer struct {
-	TaskList []synchronizer.Task
+func generateMinorBlocks(n int) []*types.MinorBlock {
+	var (
+		engine       = new(consensus.FakeEngine)
+		db           = ethdb.NewMemDatabase()
+		genesis      = core.NewGenesis(qkcconfig)
+		genesisBlock = genesis.MustCommitMinorBlock(db, genesis.CreateRootBlock(), 2)
+	)
+	blocks := make([]*types.MinorBlock, n)
+	genblock := func(i int, parent *types.MinorBlock) *types.MinorBlock {
+		header := &types.MinorBlockHeader{
+			ParentHash: parent.Hash(),
+			Coinbase:   parent.Coinbase(),
+			Difficulty: engine.CalcDifficulty(nil, parent.Time(), parent.Header()),
+			Number:     parent.Number() + 1,
+			Time:       parent.Time() + 10,
+		}
+		meta := types.MinorBlockMeta{
+			TxHash:            common.Hash{},
+			Root:              common.Hash{},
+			ReceiptHash:       common.Hash{},
+			GasUsed:           &serialize.Uint256{Value: big.NewInt(10000)},
+			CrossShardGasUsed: &serialize.Uint256{Value: big.NewInt(10)},
+		}
+		return types.NewMinorBlock(header, &meta, nil, nil, nil)
+	}
+	parent := genesisBlock
+	for i := 0; i < n; i++ {
+		block := genblock(i, parent)
+		blocks[i] = block
+		parent = block
+	}
+	return blocks
 }
 
-func NewFakeSynchronizer() *fakeSynchronizer {
-	return &fakeSynchronizer{make([]synchronizer.Task, 0, 0)}
+type fakeSynchronizer struct {
+	Task chan synchronizer.Task
+}
+
+func NewFakeSynchronizer(n int) *fakeSynchronizer {
+	return &fakeSynchronizer{make(chan synchronizer.Task, n)}
 }
 
 func (s *fakeSynchronizer) AddTask(task synchronizer.Task) error {
-	s.TaskList = append(s.TaskList, task)
+	s.Task <- task
 	return nil
 }
 

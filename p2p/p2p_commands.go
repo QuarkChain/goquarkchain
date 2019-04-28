@@ -209,8 +209,8 @@ type GetMinorBlockHeaderListRequest struct {
 
 //GetMinorBlockHeaderListResponse get minor block header list response
 type GetMinorBlockHeaderListResponse struct {
-	RootTip         types.RootBlockHeader
-	ShardTip        types.MinorBlockHeader
+	RootTip         *types.RootBlockHeader
+	ShardTip        *types.MinorBlockHeader
 	BlockHeaderList []*types.MinorBlockHeader `bytesizeofslicelen:"4"`
 }
 

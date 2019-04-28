@@ -14,6 +14,7 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/pkg/errors"
 	"io/ioutil"
+	"reflect"
 	"sync"
 	"time"
 )
@@ -110,7 +111,6 @@ func (pm *ProtocolManager) Start(maxPeers int) {
 	pm.chainHeadEventSub = pm.rootBlockChain.SubscribeChainHeadEvent(pm.chainHeadChan)
 	go pm.tipBroadcastLoop()
 	go pm.syncer()
-	//todo add sync task loop
 }
 
 func (pm *ProtocolManager) Stop() {
@@ -213,7 +213,7 @@ func (pm *ProtocolManager) handleMsg(peer *peer) error {
 		for _, client := range clients {
 			result, err := client.HandleNewTip(&tip)
 			if err != nil {
-				log.Error("branch %d handle NewTipMsg message failed with error: %v", qkcMsg.MetaData.Branch, err.Error())
+				return fmt.Errorf("branch %d handle NewTipMsg message failed with error: %v", qkcMsg.MetaData.Branch, err.Error())
 			}
 			if !result {
 				return fmt.Errorf("HandleNewTip (rpcId %d) for branch %d  with height %d return false",
@@ -251,7 +251,7 @@ func (pm *ProtocolManager) handleMsg(peer *peer) error {
 		for _, client := range clients {
 			result, err := client.AddMinorBlock(&newBlockMinor)
 			if err != nil {
-				log.Error("branch %d handle NewTipMsg message failed with error: %v", qkcMsg.MetaData.Branch, err.Error())
+				return fmt.Errorf("branch %d handle NewTipMsg message failed with error: %v", qkcMsg.MetaData.Branch, err.Error())
 			}
 			if !result {
 				return fmt.Errorf("AddMinorBlock (rpcId %d) for branch %d return false",
@@ -402,7 +402,7 @@ func (pm *ProtocolManager) HandleGetRootBlockHeaderListRequest(blockHeaderReq *p
 	hash := blockHeaderReq.BlockHash
 	for i := uint32(0); i < blockHeaderReq.Limit; i++ {
 		header := pm.rootBlockChain.GetHeader(hash)
-		if header == nil { //todo check interface == nil
+		if header == nil || reflect.ValueOf(header).IsNil() {
 			panic(fmt.Sprintf("hash %v is missing from DB which is not expected", hash))
 		}
 		hash = header.GetParentHash()
@@ -475,7 +475,7 @@ func (pm *ProtocolManager) HandleNewTransactionListRequest(peerId string, rpcId 
 
 func (pm *ProtocolManager) HandleGetMinorBlockHeaderListRequest(rpcId uint64, branch uint32, request *p2p.GetMinorBlockHeaderListRequest) (*p2p.GetMinorBlockHeaderListResponse, error) {
 	if request.Limit > minorBlockHeaderListLimit {
-		return nil, fmt.Errorf("Bad limit. rpcId: %d; branch: %d; limit: %d; expected limit: %d",
+		return nil, fmt.Errorf("bad limit. rpcId: %d; branch: %d; limit: %d; expected limit: %d",
 			rpcId, branch, request.Limit, minorBlockHeaderListLimit)
 	}
 	if request.Direction != 0 {
@@ -495,7 +495,7 @@ func (pm *ProtocolManager) HandleGetMinorBlockHeaderListRequest(rpcId uint64, br
 
 func (pm *ProtocolManager) HandleGetMinorBlockListRequest(rpcId uint64, branch uint32, request *p2p.GetMinorBlockListRequest) (*p2p.GetMinorBlockListResponse, error) {
 	if len(request.MinorBlockHashList) > minorBlockBatchSize {
-		return nil, fmt.Errorf("Bad number of minor blocks requested. rpcId: %d; branch: %d; limit: %d; expected limit: %d",
+		return nil, fmt.Errorf("bad number of minor blocks requested. rpcId: %d; branch: %d; limit: %d; expected limit: %d",
 			rpcId, branch, len(request.MinorBlockHashList), minorBlockBatchSize)
 	}
 	clients := pm.getShardConnFunc(branch)
@@ -573,6 +573,9 @@ func (pm *ProtocolManager) synchronise(peer *peer) {
 		return
 	}
 	if peer.Head() != nil {
-		pm.synchronizer.AddTask(synchronizer.NewRootChainTask(peer, peer.Head()))
+		err := pm.synchronizer.AddTask(synchronizer.NewRootChainTask(peer, peer.Head()))
+		if err != nil {
+			log.Error("AddTask to synchronizer error: %v", err.Error())
+		}
 	}
 }
