@@ -484,7 +484,7 @@ func TestBroadcastNewRootBlockTip(t *testing.T) {
 	}
 
 	blocks := core.GenerateRootBlockChain(pm.rootBlockChain.CurrentBlock(), pm.rootBlockChain.Engine(), 1, nil)
-	err = clientPeer.SendNewTip(0, &p2p.Tip{RootBlockHeader: blocks[0].Header(), MinorBlockHeaderList: nil})
+	err = clientPeer.SendNewTip(0, &p2p.Tip{RootBlockHeader: blocks[5].Header(), MinorBlockHeaderList: nil})
 	if err != nil {
 		t.Errorf("make message failed: %v", err.Error())
 	}
