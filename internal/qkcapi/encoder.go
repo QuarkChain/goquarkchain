@@ -72,7 +72,7 @@ func IDEncoder(hashByte []byte, fullShardKey uint32) hexutil.Bytes {
 	return hexutil.Bytes(hashByte)
 }
 
-func IDDecoder(bytes []byte)(ethCommon.Hash,hexutil.Uint , error){
+func IDDecoder(bytes []byte)(ethCommon.Hash,uint32, error){
 	dataBytes,err:=DataDecoder(bytes)
 	if err!=nil{
 		return ethCommon.Hash{},0,err
@@ -80,7 +80,7 @@ func IDDecoder(bytes []byte)(ethCommon.Hash,hexutil.Uint , error){
 	if len(dataBytes)!=36{
 		return ethCommon.Hash{},0,errors.New("len should 36")
 	}
-	return ethCommon.BytesToHash(dataBytes[:32]),hexutil.Uint(common.BytesToUint32(dataBytes[32:])),nil
+	return ethCommon.BytesToHash(dataBytes[:32]),common.BytesToUint32(dataBytes[32:]),nil
 
 }
 func DataEncoder(bytes []byte) hexutil.Bytes {

@@ -1,7 +1,10 @@
 package p2p
 
 import (
+	"fmt"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
+	"net"
+	"reflect"
 	"testing"
 	"time"
 )
@@ -69,6 +72,9 @@ func TestServerMsgSend(t *testing.T) {
 		if len(p1.Server.Peers()) != 1 || len(p2.Server.Peers()) != 1 {
 			t.Error("connect failed ", "should peer is 1")
 		}
+		fmt.Println("11", reflect.TypeOf(p1.Server.Peers()[0].RemoteAddr()))
+		fmt.Println("??", p1.Server.Peers()[0].RemoteAddr().(*net.TCPAddr).Port)
+		fmt.Println("??", p2.Server.Peers()[0].RemoteAddr().(*net.TCPAddr).Port)
 		WriteMsgForTest(t, p1.Server.Peers()[0].rw)
 	}
 }

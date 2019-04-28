@@ -2,15 +2,56 @@ package master
 
 import (
 	"bytes"
+	"encoding/binary"
 	"errors"
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/core/types"
-	"github.com/QuarkChain/goquarkchain/serialize"
+	"github.com/QuarkChain/goquarkchain/p2p"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	"net"
 )
+
+func ip2Long(ip string) uint32 {
+	var long uint32
+	binary.Read(bytes.NewBuffer(net.ParseIP(ip).To4()), binary.BigEndian, &long)
+	return long
+}
+
+func (s *MasterBackend) GetPeers() []rpc.PeerInfoForDisPlay {
+	fake := make([]p2p.Peer, 0)
+	res := make([]rpc.PeerInfoForDisPlay, 0)
+	for k := range fake {
+		temp := rpc.PeerInfoForDisPlay{}
+		if tcp, ok := fake[k].RemoteAddr().(*net.TCPAddr); ok {
+			temp.IP = ip2Long(tcp.IP.String())
+			temp.Port = uint32(tcp.Port)
+			temp.ID = fake[k].ID().Bytes()
+		} else {
+			panic("not tcp")
+		}
+		res = append(res, temp)
+	}
+	return res
+
+}
+
+func (s *MasterBackend) AddRootBlockFromMine(block *types.RootBlock) error {
+	currTip := s.rootBlockChain.CurrentBlock()
+	if block.Header().ParentHash != currTip.Hash() {
+		return errors.New("parent hash not match")
+	}
+	return s.AddRootBlock(block)
+}
+func (s *MasterBackend) AddRawMinorBlock(branch account.Branch, blockData []byte) error {
+	slaveConn, err := s.getSlaveConnection(branch)
+	if err != nil {
+		return err
+	}
+	return slaveConn.AddMinorBlock(blockData)
+}
 
 func (s *MasterBackend) AddTransaction(tx *types.Transaction) error {
 	evmTx := tx.EvmTx
@@ -93,14 +134,19 @@ func (s *MasterBackend) GetMinorBlockByHash(blockHash common.Hash, branch accoun
 	return slaveConn.GetMinorBlockByHash(blockHash, branch)
 }
 func (s *MasterBackend) GetMinorBlockByHeight(height *uint64, branch account.Branch) (*types.MinorBlock, error) {
+	s.GetBlockCount()
 	slaveConn, err := s.getSlaveConnection(branch)
 	if err != nil {
 		return nil, err
 	}
-	if height==nil{
-		temp:=s.branchToSlaves[branch.Value]
+	if height == nil {
+		shardStats, ok := s.branchToShardStats[branch.Value]
+		if !ok {
+			return nil, errors.New("no such branch")
+		}
+		height = &shardStats.Height
 	}
-	return slaveConn.GetMinorBlockByHeight(height, branch)
+	return slaveConn.GetMinorBlockByHeight(*height, branch)
 }
 func (s *MasterBackend) GetTransactionByHash(txHash common.Hash, branch account.Branch) (*types.MinorBlock, uint32, error) {
 	slaveConn, err := s.getSlaveConnection(branch)
@@ -149,16 +195,16 @@ func (s *MasterBackend) EstimateGas(tx *types.Transaction, fromAddress account.A
 	}
 	return slaveConn.EstimateGas(tx, fromAddress)
 }
-func (s *MasterBackend) GetStorageAt(address account.Address, key *serialize.Uint256, height uint64) (*serialize.Uint256, error) {
+func (s *MasterBackend) GetStorageAt(address account.Address, key common.Hash, height *uint64) (common.Hash, error) {
 	fullShardID := s.clusterConfig.Quarkchain.GetFullShardIdByFullShardKey(address.FullShardKey)
 	slaveConn, err := s.getSlaveConnection(account.Branch{Value: fullShardID})
 	if err != nil {
-		return nil, err
+		return common.Hash{}, err
 	}
 	return slaveConn.GetStorageAt(address, key, height)
 }
 
-func (s *MasterBackend) GetCode(address account.Address, height uint64) ([]byte, error) {
+func (s *MasterBackend) GetCode(address account.Address, height *uint64) ([]byte, error) {
 	fullShardID := s.clusterConfig.Quarkchain.GetFullShardIdByFullShardKey(address.FullShardKey)
 	slaveConn, err := s.getSlaveConnection(account.Branch{Value: fullShardID})
 	if err != nil {
@@ -174,17 +220,17 @@ func (s *MasterBackend) GasPrice(branch account.Branch) (uint64, error) {
 	}
 	return slaveConn.GasPrice(branch)
 }
-func (s *MasterBackend) GetWork(branch account.Branch) consensus.MiningWork {
+func (s *MasterBackend) GetWork(branch *account.Branch) consensus.MiningWork {
 	panic("not ")
 }
-func (s *MasterBackend) SubmitWork(branch account.Branch, headerHash common.Hash, nonce uint64, mixHash common.Hash) bool {
+func (s *MasterBackend) SubmitWork(branch *account.Branch, headerHash common.Hash, nonce uint64, mixHash common.Hash) bool {
 	return false
 }
 
 func (s *MasterBackend) GetRootBlockByNumber(blockNumber *uint64) (*types.RootBlock, error) {
-	if blockNumber==nil{
-		temp:=s.rootBlockChain.CurrentBlock().NumberU64()
-		blockNumber=&temp
+	if blockNumber == nil {
+		temp := s.rootBlockChain.CurrentBlock().NumberU64()
+		blockNumber = &temp
 	}
 	block := s.rootBlockChain.GetBlockByNumber(*blockNumber)
 	if block == nil {

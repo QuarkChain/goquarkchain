@@ -305,7 +305,7 @@ func (s *SlaveConnection) EstimateGas(tx *types.Transaction, fromAddress account
 	err = serialize.Deserialize(serialize.NewByteBuffer(res.Data), rsp)
 	return rsp.Result, err
 }
-func (s *SlaveConnection) GetStorageAt(address account.Address, key *serialize.Uint256, height uint64) (*serialize.Uint256, error) {
+func (s *SlaveConnection) GetStorageAt(address account.Address, key common.Hash, height *uint64) (common.Hash, error) {
 	var (
 		req = rpc.GetStorageRequest{
 			Address:     address,
@@ -317,16 +317,16 @@ func (s *SlaveConnection) GetStorageAt(address account.Address, key *serialize.U
 	)
 	bytes, err := serialize.SerializeToBytes(req)
 	if err != nil {
-		return nil, err
+		return common.Hash{}, err
 	}
 	res, err = s.client.Call(s.target, &rpc.Request{Op: rpc.OpGetStorageAt, Data: bytes})
 	if err != nil {
-		return nil, err
+		return common.Hash{}, err
 	}
 	err = serialize.Deserialize(serialize.NewByteBuffer(res.Data), rsp)
 	return rsp.Result, err
 }
-func (s *SlaveConnection) GetCode(address account.Address, height uint64) ([]byte, error) {
+func (s *SlaveConnection) GetCode(address account.Address, height *uint64) ([]byte, error) {
 	var (
 		req = rpc.GetCodeRequest{
 			Address:     address,

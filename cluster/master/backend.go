@@ -435,22 +435,6 @@ func (s *MasterBackend) AddRootBlock(rootBlock *types.RootBlock) error {
 	return check.check()
 }
 
-func (s *MasterBackend) AddRawMinorBlock(branch account.Branch, blockData []byte) error {
-	slaveConn, err := s.getSlaveConnection(branch)
-	if err != nil {
-		return err
-	}
-	return slaveConn.AddMinorBlock(blockData)
-}
-
-func (s *MasterBackend) AddRootBlockFromMine(block *types.RootBlock) error {
-	currTip := s.rootBlockChain.CurrentBlock()
-	if block.Header().ParentHash != currTip.Hash() {
-		return errors.New("parent hash not match")
-	}
-	return s.AddRootBlock(block)
-}
-
 func (s *MasterBackend) SetTargetBlockTime(rootBlockTime *uint32, minorBlockTime *uint32) error {
 	if rootBlockTime == nil {
 		temp := s.artificialTxConfig.TargetMinorBlockTime
@@ -499,11 +483,11 @@ func (s *MasterBackend) UpdateTxCountHistory() {
 	panic("not implement")
 }
 
-func (s *MasterBackend) GetBlockCount() {
+func (s *MasterBackend) GetBlockCount() map[string]interface{} {
 	panic("not implement")
 }
 
-func (s *MasterBackend) getStats() {
+func (s *MasterBackend) GetStats() map[string]interface{} {
 	panic("not implement")
 	//TODO :only calc
 }

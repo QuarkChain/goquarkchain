@@ -325,18 +325,18 @@ type EstimateGasResponse struct {
 }
 
 type GetStorageRequest struct {
-	Address     account.Address    `json:"address" gencodec:"required"`
-	Key         *serialize.Uint256 `json:"key" gencodec:"required"`
-	BlockHeight uint64             `json:"block_height" ser:"nil"`
+	Address     account.Address `json:"address" gencodec:"required"`
+	Key         common.Hash     `json:"key" gencodec:"required"`
+	BlockHeight *uint64         `json:"block_height" ser:"nil"`
 }
 
 type GetStorageResponse struct {
-	Result *serialize.Uint256 `json:"result" gencodec:"required"`
+	Result common.Hash `json:"result" gencodec:"required"`
 }
 
 type GetCodeRequest struct {
 	Address     account.Address `json:"address" gencodec:"required"`
-	BlockHeight uint64          `json:"block_height" ser:"nil"`
+	BlockHeight *uint64         `json:"block_height" ser:"nil"`
 }
 
 type GetCodeResponse struct {
@@ -389,4 +389,9 @@ type ShardStatus struct {
 	BlockCount60s      uint32
 	StaleBlockCount60s uint32
 	LastBlockTime      uint32
+}
+type PeerInfoForDisPlay struct {
+	ID   []byte
+	IP   uint32
+	Port uint32
 }
