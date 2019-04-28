@@ -488,7 +488,7 @@ func TestBroadcastNewRootBlockTip(t *testing.T) {
 	if err != nil {
 		t.Errorf("make message failed: %v", err.Error())
 	}
-	timeout = time.NewTimer(time.Duration(2))
+	timeout = time.NewTimer(time.Duration(3))
 	defer timeout.Stop()
 	select {
 	case <-sync.Task:
@@ -529,7 +529,7 @@ func readOrTimeOut(peer *testPeer) error {
 		errc <- err
 	}()
 
-	timeout := time.NewTimer(1)
+	timeout := time.NewTimer(1 * time.Second)
 	defer timeout.Stop()
 	select {
 	case err := <-errc:
