@@ -104,6 +104,10 @@ func CreateConsensusEngine(ctx *service.ServiceContext, cfg *config.RootConfig) 
 	return nil, errors.New(fmt.Sprintf("Failed to create consensus engine consensus type %s", cfg.ConsensusType))
 }
 
+func (s *MasterBackend) GetClusterConfig() *config.ClusterConfig {
+	return s.clusterConfig
+}
+
 func (s *MasterBackend) isLocalBlock(block *types.RootBlock) bool {
 	return false
 }

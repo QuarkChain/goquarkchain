@@ -228,7 +228,7 @@ type TokenBalancePair struct {
 
 type AccountBranchData struct {
 	Branch           account.Branch     `json:"branch" gencodec:"required"`
-	TransactionCount common.Hash        `json:"transaction_count" gencodec:"required"`
+	TransactionCount *serialize.Uint256 `json:"transaction_count" gencodec:"required"`
 	TokenBalances    []TokenBalancePair `json:"token_balances" gencodec:"required" bytesizeofslicelen:"4"`
 	IsContract       bool               `json:"is_contract" gencodec:"required"`
 }

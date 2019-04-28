@@ -178,7 +178,10 @@ func (s *MasterBackend) SubmitWork(branch account.Branch, headerHash common.Hash
 	return false
 }
 
-func (s *MasterBackend) RootBlockByNumber(blockNumber uint64) (*types.RootBlock, error) {
+func (s *MasterBackend) GetRootBlockByNumber(blockNumber *uint64) (*types.RootBlock, error) {
+	if blockNumber==nil{
+		blockNumber=s.rootBlockChain.CurrentBlock().NumberU64()
+	}
 	block := s.rootBlockChain.GetBlockByNumber(blockNumber)
 	if block == nil {
 		return nil, errors.New("rootBlock is nil")
@@ -186,6 +189,13 @@ func (s *MasterBackend) RootBlockByNumber(blockNumber uint64) (*types.RootBlock,
 	return block.(*types.RootBlock), nil
 }
 
+func (s *MasterBackend) GetRootBlockByHash(hash common.Hash) (*types.RootBlock, error) {
+	block, ok := s.rootBlockChain.GetBlock(hash).(*types.RootBlock)
+	if !ok {
+		return nil, errors.New("rootBlock is nil")
+	}
+	return block, nil
+}
 func (s *MasterBackend) NetWorkInfo() map[string]interface{} {
 	shardSizeList := make([]hexutil.Uint, 0)
 	for _, v := range s.clusterConfig.Quarkchain.Chains {

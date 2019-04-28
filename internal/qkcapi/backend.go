@@ -2,6 +2,7 @@ package qkcapi
 
 import (
 	"github.com/QuarkChain/goquarkchain/account"
+	"github.com/QuarkChain/goquarkchain/cluster/config"
 	qkcRPC "github.com/QuarkChain/goquarkchain/cluster/rpc"
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/core/types"
@@ -26,10 +27,13 @@ type Backend interface {
 	GetWork(branch account.Branch) consensus.MiningWork
 	SubmitWork(branch account.Branch, headerHash common.Hash, nonce uint64, mixHash common.Hash) bool
 
-	RootBlockByNumber(blockNr uint64) (*types.RootBlock, error)
+	GetRootBlockByNumber(blockNr uint64) (*types.RootBlock, error)
+	GetRootBlockByHash(hash common.Hash) (*types.RootBlock, error)
 	NetWorkInfo() map[string]interface{}
 	GetPrimaryAccountData(address account.Address, blockHeight *uint64) (*qkcRPC.AccountBranchData, error)
 	CurrentBlock() *types.RootBlock
+	GetAccountData(address account.Address) (map[account.Branch]*qkcRPC.AccountBranchData, error)
+	GetClusterConfig() *config.ClusterConfig
 }
 
 func GetAPIs(apiBackend Backend) []rpc.API {

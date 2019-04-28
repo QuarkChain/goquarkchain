@@ -2,23 +2,82 @@ package qkcapi
 
 import (
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"github.com/QuarkChain/goquarkchain/account"
+	"github.com/QuarkChain/goquarkchain/cluster/rpc"
 	"github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/serialize"
 	ethCommon "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	"math/big"
 )
 
-func IDEncoder(hashByte []byte, fullShardKey uint32) string {
-	hashByte = append(hashByte, common.Uint32ToBytes(fullShardKey)...)
-	return "0x" + hex.EncodeToString(hashByte)
+// SendTxArgs represents the arguments to sumbit a new transaction into the transaction pool.
+type SendTxArgs struct {
+	From     ethCommon.Address  `json:"from"`
+	To       *ethCommon.Address `json:"to"`
+	Gas      *hexutil.Uint64    `json:"gas"`
+	GasPrice *hexutil.Big       `json:"gasPrice"`
+	Value    *hexutil.Big       `json:"value"`
+	Nonce    *hexutil.Uint64    `json:"nonce"`
+	// We accept "data" and "input" for backwards-compatibility reasons. "input" is the
+	// newer name and should be preferred by clients.
+	Data             *hexutil.Bytes  `json:"data"`
+	FromFullShardKey *hexutil.Uint64 `json:"fromFullShardId"`
+	ToFullShardKey   *hexutil.Uint64 `json:"toFullShardId"`
 }
-func AddressEncoder(bytes []byte) string {
+
+var (
+	DEFAULT_STARTGAS = uint64(100 * 1000)
+	DEFAULT_GASPRICE = new(big.Int).Mul(new(big.Int).SetUint64(10), new(big.Int).SetUint64(1000000000))
+)
+
+// setDefaults is a helper function that fills in default values for unspecified tx fields.
+func (args *SendTxArgs) setDefaults() {
+	// ingore nonce
+	// ingore to
+	if args.Gas == nil {
+		args.Gas = new(hexutil.Uint64)
+		*(*uint64)(args.Gas) = DEFAULT_STARTGAS
+	}
+	if args.GasPrice == nil {
+		args.GasPrice = (*hexutil.Big)(DEFAULT_GASPRICE)
+	}
+	if args.Value == nil {
+		args.Value = new(hexutil.Big)
+	}
+}
+
+func (args *SendTxArgs) toTransaction(networkID uint32) (*types.Transaction, error) {
+	if args.Nonce == nil {
+		return nil, errors.New("nonce is missing")
+	}
+	if args.FromFullShardKey == nil {
+		return nil, errors.New("fromFullShardKey is missing")
+	}
+	if args.ToFullShardKey == nil {
+		args.ToFullShardKey = args.FromFullShardKey
+	}
+	evmTx := types.NewEvmTransaction(uint64(*args.Nonce), account.BytesToIdentityRecipient(args.To.Bytes()), (*big.Int)(args.Value), uint64(*args.Gas), (*big.Int)(args.GasPrice), uint32(*args.FromFullShardKey), uint32(*args.ToFullShardKey), networkID, 0, *args.Data)
+	return &types.Transaction{
+		EvmTx:  evmTx,
+		TxType: types.EvmTx,
+	}, nil
+}
+
+func IDEncoder(hashByte []byte, fullShardKey uint32) hexutil.Bytes {
+	hashByte = append(hashByte, common.Uint32ToBytes(fullShardKey)...)
+	return hexutil.Bytes(hashByte)
+}
+func DataEncoder(bytes []byte) string {
 	return "0x" + hex.EncodeToString(bytes)
 }
 
+func FullShardKeyEncoder(fullShardKey uint32) string {
+	return DataEncoder(common.Uint32ToBytes(fullShardKey))
+}
 func rootBlockEncoder(rootBlock *types.RootBlock) (map[string]interface{}, error) {
 	serData, err := serialize.SerializeToBytes(rootBlock)
 	if err != nil {
@@ -44,7 +103,7 @@ func rootBlockEncoder(rootBlock *types.RootBlock) (map[string]interface{}, error
 		"idPrevBlock":    header.ParentHash,
 		"nonce":          hexutil.Uint64(header.Nonce),
 		"hashMerkleRoot": header.MinorHeaderHash,
-		"miner":          AddressEncoder(minerData),
+		"miner":          DataEncoder(minerData),
 		"coinbase":       (*hexutil.Big)(header.CoinbaseAmount.Value),
 		"difficulty":     (*hexutil.Big)(header.Difficulty),
 		"timestamp":      hexutil.Uint64(header.Time),
@@ -69,7 +128,7 @@ func rootBlockEncoder(rootBlock *types.RootBlock) (map[string]interface{}, error
 			"hashPrevRootBlock":  header.PrevRootBlockHash,
 			"nonce":              hexutil.Uint64(header.Nonce),
 			"difficulty":         (*hexutil.Big)(header.Difficulty),
-			"miner":              AddressEncoder(minerData),
+			"miner":              DataEncoder(minerData),
 			"coinbase":           (*hexutil.Big)(header.CoinbaseAmount.Value),
 			"timestamp":          hexutil.Uint64(header.Time),
 		}
@@ -103,7 +162,7 @@ func minorBlockEncoder(block *types.MinorBlock, includeTransaction bool) (map[st
 		"nonce":              hexutil.Uint64(header.Nonce),
 		"hashMerkleRoot":     meta.TxHash,
 		"hashEvmStateRoot":   meta.Root,
-		"miner":              AddressEncoder(minerData),
+		"miner":              DataEncoder(minerData),
 		"coinbase":           (*hexutil.Big)(header.CoinbaseAmount.Value),
 		"difficulty":         (*hexutil.Big)(header.Difficulty),
 		"extraData":          hexutil.Bytes(header.Extra),
@@ -135,8 +194,8 @@ func txEncoder(block *types.MinorBlock, i int) (map[string]interface{}, error) {
 		"blockId":          IDEncoder(header.Hash().Bytes(), branch.GetFullShardID()),
 		"blockHeight":      hexutil.Uint64(header.Number),
 		"transactionIndex": hexutil.Uint64(i),
-		"from":             AddressEncoder(sender.Bytes()),
-		"to":               AddressEncoder(tx.To().Bytes()),
+		"from":             DataEncoder(sender.Bytes()),
+		"to":               DataEncoder(tx.To().Bytes()),
 		"fromFullShardKey": hexutil.Uint64(tx.FromFullShardId()), //TODO full_shard_key
 		"toFullShardKey":   hexutil.Uint64(tx.ToFullShardId()),   //TODO full_shard_key
 		"value":            (*hexutil.Big)(tx.Value()),
@@ -199,8 +258,19 @@ func receiptEncoder(block *types.MinorBlock, i int, receipt *types.Receipt) map[
 	if receipt.ContractAddress.Big().Uint64() == 0 {
 		field["contractAddress"] = make([]struct{}, 0)
 	} else {
-		field["contractAddress"] = AddressEncoder(receipt.ContractAddress.ToAddress().Bytes())
+		field["contractAddress"] = DataEncoder(receipt.ContractAddress.ToAddress().Bytes())
 	}
 	return field
+}
 
+func balancesEncoder(balances []rpc.TokenBalancePair) []map[string]interface{} {
+	fields := make([]map[string]interface{}, 0)
+	for _, v := range balances {
+		field := map[string]interface{}{
+			// TODO tokenID tokenSte
+			"balance": (*hexutil.Big)(v.Balance.Value),
+		}
+		fields = append(fields, field)
+	}
+	return fields
 }

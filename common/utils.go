@@ -45,3 +45,6 @@ func Uint32ToBytes(n uint32) []byte {
 	binary.BigEndian.PutUint32(Bytes, n)
 	return Bytes
 }
+func Has0xPrefix(input string) bool {
+	return len(input) >= 2 && input[0] == '0' && (input[1] == 'x' || input[1] == 'X')
+}
