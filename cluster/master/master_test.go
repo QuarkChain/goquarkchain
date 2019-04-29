@@ -280,7 +280,7 @@ func TestMasterBackend_InitCluster(t *testing.T) {
 func TestMasterBackend_HeartBeat(t *testing.T) {
 	chanOp := make(chan uint32, 100)
 	master := initEnv(t, chanOp)
-	master.heartBeat()
+	master.HeartBeat()
 	status := true
 	countHeartBeat := 0
 	for status {
@@ -293,7 +293,7 @@ func TestMasterBackend_HeartBeat(t *testing.T) {
 				status = false
 			}
 		case <-time.After(2 * time.Second):
-			panic(errors.New("no receive heartBeat"))
+			panic(errors.New("no receive HeartBeat"))
 		}
 	}
 }

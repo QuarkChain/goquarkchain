@@ -137,7 +137,7 @@ func (s *QKCMasterBackend) Stop() error {
 // Start start node -> start qkcMaster
 func (s *QKCMasterBackend) Start(srvr *p2p.Server) error {
 	// start heart beat pre 3 seconds.
-	s.heartBeat()
+	s.HeartBeat()
 	return nil
 }
 
@@ -152,13 +152,13 @@ func (s *QKCMasterBackend) StopMining(threads int) error {
 }
 
 // InitCluster init cluster :
-//                          1:connectToSlaves
+//                          1:ConnectToSlaves
 // 							2:logSummary
 // 							3:check if has all shards
 // 							4.setup slave to slave
 //                          5:init shards
 func (s *QKCMasterBackend) InitCluster() error {
-	if err := s.connectToSlaves(); err != nil {
+	if err := s.ConnectToSlaves(); err != nil {
 		return err
 	}
 	s.logSummary()
@@ -174,7 +174,7 @@ func (s *QKCMasterBackend) InitCluster() error {
 	return nil
 }
 
-func (s *QKCMasterBackend) connectToSlaves() error {
+func (s *QKCMasterBackend) ConnectToSlaves() error {
 	for _, cfg := range s.clusterConfig.SlaveList {
 		target := fmt.Sprintf("%s:%d", cfg.IP, cfg.Port)
 		client := NewSlaveConn(target, cfg.ChainMaskList, cfg.ID)
@@ -252,7 +252,7 @@ func (s *QKCMasterBackend) initShards() error {
 	return check.check()
 }
 
-func (s *QKCMasterBackend) heartBeat() {
+func (s *QKCMasterBackend) HeartBeat() {
 	go func(normal bool) {
 		for normal {
 			time.Sleep(time.Duration(beatTime) * time.Second)
