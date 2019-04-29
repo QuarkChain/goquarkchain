@@ -73,9 +73,6 @@ type CreateClusterPeerConnectionRequest struct {
 	ClusterPeerId uint64 `json:"cluster_peer_id" gencodec:"required"`
 }
 
-type CreateClusterPeerConnectionResponse struct {
-}
-
 /*
 	Broadcast to the cluster and announce that a peer connection is lost
     As a contract, the master will not send traffic after the command.
@@ -206,13 +203,13 @@ type GetAccountDataRequest struct {
 }
 
 type TokenBalancePair struct {
-	TokenId uint64      `json:"token_id" gencodec:"required"`
-	Balance common.Hash `json:"balance" gencodec:"required"`
+	TokenId uint64             `json:"token_id" gencodec:"required"`
+	Balance *serialize.Uint256 `json:"balance" gencodec:"required"`
 }
 
 type AccountBranchData struct {
 	Branch           account.Branch     `json:"branch" gencodec:"required"`
-	TransactionCount common.Hash        `json:"transaction_count" gencodec:"required"`
+	TransactionCount *serialize.Uint256 `json:"transaction_count" gencodec:"required"`
 	TokenBalances    []TokenBalancePair `json:"token_balances" gencodec:"required" bytesizeofslicelen:"4"`
 	IsContract       bool               `json:"is_contract" gencodec:"required"`
 }
@@ -301,18 +298,18 @@ type EstimateGasResponse struct {
 }
 
 type GetStorageRequest struct {
-	Address     account.Address    `json:"address" gencodec:"required"`
-	Key         *serialize.Uint256 `json:"key" gencodec:"required"`
-	BlockHeight uint64             `json:"block_height" ser:"nil"`
+	Address     account.Address `json:"address" gencodec:"required"`
+	Key         common.Hash     `json:"key" gencodec:"required"`
+	BlockHeight *uint64         `json:"block_height" ser:"nil"`
 }
 
 type GetStorageResponse struct {
-	Result *serialize.Uint256 `json:"result" gencodec:"required"`
+	Result common.Hash `json:"result" gencodec:"required"`
 }
 
 type GetCodeRequest struct {
 	Address     account.Address `json:"address" gencodec:"required"`
-	BlockHeight uint64          `json:"block_height" ser:"nil"`
+	BlockHeight *uint64         `json:"block_height" ser:"nil"`
 }
 
 type GetCodeResponse struct {
@@ -350,4 +347,9 @@ type SubmitWorkResponse struct {
 type BlockHeight struct {
 	Height uint64
 	Str    string
+}
+type PeerInfoForDisPlay struct {
+	ID   []byte
+	IP   uint32
+	Port uint32
 }
