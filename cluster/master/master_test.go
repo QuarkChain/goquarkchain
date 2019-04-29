@@ -245,7 +245,7 @@ func (c *fakeRpcClient) Call(hostport string, req *rpc.Request) (*rpc.Response, 
 	}
 }
 
-func initEnv(t *testing.T, chanOp chan uint32) *MasterBackend {
+func initEnv(t *testing.T, chanOp chan uint32) *QKCMasterBackend {
 	beatTime = 1
 	monkey.Patch(NewSlaveConn, func(target string, shardMaskLst []*types.ChainMask, slaveID string) *SlaveConnection {
 		client := NewFakeRPCClient(chanOp, target, shardMaskLst, slaveID, config.NewClusterConfig())
@@ -256,7 +256,7 @@ func initEnv(t *testing.T, chanOp chan uint32) *MasterBackend {
 			slaveID:      slaveID,
 		}
 	})
-	monkey.Patch(CreateDB, func(ctx *service.ServiceContext, name string) (ethdb.Database, error) {
+	monkey.Patch(createDB, func(ctx *service.ServiceContext, name string) (ethdb.Database, error) {
 		return ethdb.NewMemDatabase(), nil
 	})
 
@@ -280,7 +280,7 @@ func TestMasterBackend_InitCluster(t *testing.T) {
 func TestMasterBackend_HeartBeat(t *testing.T) {
 	chanOp := make(chan uint32, 100)
 	master := initEnv(t, chanOp)
-	master.HeartBeat()
+	master.heartBeat()
 	status := true
 	countHeartBeat := 0
 	for status {
@@ -366,7 +366,7 @@ func TestGetPrimaryAccountData(t *testing.T) {
 	id1, err := account.CreatRandomIdentity()
 	assert.NoError(t, err)
 	add1 := account.NewAddress(id1.Recipient, 3)
-	_, err = master.GetPrimaryAccountData(add1, 0)
+	_, err = master.GetPrimaryAccountData(add1, nil)
 	assert.NoError(t, err)
 }
 

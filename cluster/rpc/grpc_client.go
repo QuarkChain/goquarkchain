@@ -74,10 +74,10 @@ var (
 	}
 	// slave apis
 	slaveApis = map[uint32]opType{
-		OpHeartBeat:  {name: "HeartBeat"},
+		OpHeartBeat:  {name: "heartBeat"},
 		OpMasterInfo: {name: "MasterInfo"},
 		OpPing:       {name: "Ping"},
-		// OpConnectToSlaves:             {name: "ConnectToSlaves"},
+		// OpConnectToSlaves:             {name: "connectToSlaves"},
 		OpAddRootBlock:                {name: "AddRootBlock"},
 		OpGetEcoInfoList:              {name: "GetEcoInfoList"},
 		OpGetNextBlockToMine:          {name: "GetNextBlockToMine"},

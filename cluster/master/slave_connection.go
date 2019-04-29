@@ -21,7 +21,7 @@ type SlaveConnection struct {
 	rpcID        int64
 }
 
-func (s *SlaveConnection) addRpcId() int64 {
+func (s *SlaveConnection) addRPCID() int64 {
 	atomic.AddInt64(&s.rpcID, 1)
 	return s.rpcID
 }
@@ -47,7 +47,7 @@ func (s *SlaveConnection) hasOverlap(chainMask *types.ChainMask) bool {
 	return false
 }
 func (s *SlaveConnection) HeartBeat() bool {
-	req := rpc.Request{Op: rpc.OpHeartBeat, RpcId: s.addRpcId(), Data: nil}
+	req := rpc.Request{Op: rpc.OpHeartBeat, RpcId: s.addRPCID(), Data: nil}
 	_, err := s.client.Call(s.target, &req)
 	if err != nil {
 		return false
@@ -68,7 +68,7 @@ func (s *SlaveConnection) SendPing(rootBlockChain *core.RootBlockChain, initiali
 		return nil, nil, err
 	}
 
-	request := rpc.Request{Op: rpc.OpPing, RpcId: s.addRpcId(), Data: bytes}
+	request := rpc.Request{Op: rpc.OpPing, RpcId: s.addRPCID(), Data: bytes}
 
 	rsp, err := s.client.Call(s.target, &request)
 	if err != nil {
@@ -88,7 +88,7 @@ func (s *SlaveConnection) SendConnectToSlaves(slaveInfoLst []*rpc.SlaveInfo) err
 	if err != nil {
 		return err
 	}
-	rsp, err := s.client.Call(s.target, &rpc.Request{Op: rpc.OpConnectToSlaves, RpcId: s.addRpcId(), Data: bytes})
+	rsp, err := s.client.Call(s.target, &rpc.Request{Op: rpc.OpConnectToSlaves, RpcId: s.addRPCID(), Data: bytes})
 	if err != nil {
 		return err
 	}
@@ -128,7 +128,7 @@ func (s *SlaveConnection) AddTransaction(tx *types.Transaction) error {
 		goto FALSE
 	}
 
-	_, err = s.client.Call(s.target, &rpc.Request{Op: rpc.OpAddTransaction, RpcId: s.addRpcId(), Data: bytes})
+	_, err = s.client.Call(s.target, &rpc.Request{Op: rpc.OpAddTransaction, RpcId: s.addRPCID(), Data: bytes})
 	if err != nil {
 		goto FALSE
 	}
@@ -138,7 +138,6 @@ FALSE:
 	return err
 }
 
-// TODO return type is not confirmed.
 func (s *SlaveConnection) ExecuteTransaction(tx *types.Transaction, fromAddress account.Address, height *uint64) ([]byte, error) {
 	var (
 		req = rpc.ExecuteTransactionRequest{Tx: tx, FromAddress: fromAddress, BlockHeight: height}
@@ -150,7 +149,7 @@ func (s *SlaveConnection) ExecuteTransaction(tx *types.Transaction, fromAddress 
 	if err != nil {
 		goto FALSE
 	}
-	res, err = s.client.Call(s.target, &rpc.Request{Op: rpc.OpExecuteTransaction, RpcId: s.addRpcId(), Data: bytes})
+	res, err = s.client.Call(s.target, &rpc.Request{Op: rpc.OpExecuteTransaction, RpcId: s.addRPCID(), Data: bytes})
 	if err != nil {
 		goto FALSE
 	}
@@ -175,7 +174,7 @@ func (s *SlaveConnection) GetMinorBlockByHash(blockHash common.Hash, branch acco
 	if err != nil {
 		return nil, err
 	}
-	res, err = s.client.Call(s.target, &rpc.Request{Op: rpc.OpGetMinorBlock, RpcId: s.addRpcId(), Data: bytes})
+	res, err = s.client.Call(s.target, &rpc.Request{Op: rpc.OpGetMinorBlock, RpcId: s.addRPCID(), Data: bytes})
 	if err != nil {
 		return nil, err
 	}
@@ -194,7 +193,7 @@ func (s *SlaveConnection) GetMinorBlockByHeight(height uint64, branch account.Br
 	if err != nil {
 		return nil, err
 	}
-	res, err := s.client.Call(s.target, &rpc.Request{Op: rpc.OpGetMinorBlock, RpcId: s.addRpcId(), Data: bytes})
+	res, err := s.client.Call(s.target, &rpc.Request{Op: rpc.OpGetMinorBlock, RpcId: s.addRPCID(), Data: bytes})
 	if err != nil {
 		return nil, err
 	}
@@ -213,7 +212,7 @@ func (s *SlaveConnection) GetTransactionByHash(txHash common.Hash, branch accoun
 	if err != nil {
 		return nil, 0, err
 	}
-	res, err := s.client.Call(s.target, &rpc.Request{Op: rpc.OpGetTransaction, RpcId: s.addRpcId(), Data: bytes})
+	res, err := s.client.Call(s.target, &rpc.Request{Op: rpc.OpGetTransaction, RpcId: s.addRPCID(), Data: bytes})
 	if err != nil {
 		return nil, 0, err
 	}
@@ -232,7 +231,7 @@ func (s *SlaveConnection) GetTransactionReceipt(txHash common.Hash, branch accou
 	if err != nil {
 		return nil, 0, nil, err
 	}
-	res, err := s.client.Call(s.target, &rpc.Request{Op: rpc.OpGetTransactionReceipt, RpcId: s.addRpcId(), Data: bytes})
+	res, err := s.client.Call(s.target, &rpc.Request{Op: rpc.OpGetTransactionReceipt, RpcId: s.addRPCID(), Data: bytes})
 	if err != nil {
 		return nil, 0, nil, err
 	}
@@ -256,7 +255,7 @@ func (s *SlaveConnection) GetTransactionsByAddress(address account.Address, star
 	if err != nil {
 		goto FALSE
 	}
-	res, err = s.client.Call(s.target, &rpc.Request{Op: rpc.OpGetTransactionListByAddress, RpcId: s.addRpcId(), Data: bytes})
+	res, err = s.client.Call(s.target, &rpc.Request{Op: rpc.OpGetTransactionListByAddress, RpcId: s.addRPCID(), Data: bytes})
 	if err != nil {
 		goto FALSE
 	}
@@ -284,7 +283,7 @@ func (s *SlaveConnection) GetLogs(branch account.Branch, address []account.Addre
 	if err != nil {
 		return nil, err
 	}
-	res, err = s.client.Call(s.target, &rpc.Request{Op: rpc.OpGetLogs, RpcId: s.addRpcId(), Data: bytes})
+	res, err = s.client.Call(s.target, &rpc.Request{Op: rpc.OpGetLogs, RpcId: s.addRPCID(), Data: bytes})
 	if err != nil {
 		return nil, err
 	}
@@ -305,7 +304,7 @@ func (s *SlaveConnection) EstimateGas(tx *types.Transaction, fromAddress account
 	if err != nil {
 		return 0, err
 	}
-	res, err = s.client.Call(s.target, &rpc.Request{Op: rpc.OpEstimateGas, RpcId: s.addRpcId(), Data: bytes})
+	res, err = s.client.Call(s.target, &rpc.Request{Op: rpc.OpEstimateGas, RpcId: s.addRPCID(), Data: bytes})
 	if err != nil {
 		return 0, err
 	}
@@ -326,7 +325,7 @@ func (s *SlaveConnection) GetStorageAt(address account.Address, key *serialize.U
 	if err != nil {
 		return nil, err
 	}
-	res, err = s.client.Call(s.target, &rpc.Request{Op: rpc.OpGetStorageAt, RpcId: s.addRpcId(), Data: bytes})
+	res, err = s.client.Call(s.target, &rpc.Request{Op: rpc.OpGetStorageAt, RpcId: s.addRPCID(), Data: bytes})
 	if err != nil {
 		return nil, err
 	}
@@ -346,7 +345,7 @@ func (s *SlaveConnection) GetCode(address account.Address, height uint64) ([]byt
 	if err != nil {
 		return nil, err
 	}
-	res, err = s.client.Call(s.target, &rpc.Request{Op: rpc.OpGetCode, RpcId: s.addRpcId(), Data: bytes})
+	res, err = s.client.Call(s.target, &rpc.Request{Op: rpc.OpGetCode, RpcId: s.addRPCID(), Data: bytes})
 	if err != nil {
 		return nil, err
 	}
@@ -365,7 +364,7 @@ func (s *SlaveConnection) GasPrice(branch account.Branch) (uint64, error) {
 	if err != nil {
 		return 0, err
 	}
-	res, err = s.client.Call(s.target, &rpc.Request{Op: rpc.OpGasPrice, RpcId: s.addRpcId(), Data: bytes})
+	res, err = s.client.Call(s.target, &rpc.Request{Op: rpc.OpGasPrice, RpcId: s.addRPCID(), Data: bytes})
 	if err != nil {
 		return 0, err
 	}
@@ -390,7 +389,7 @@ func (s *SlaveConnection) SendMiningConfigToSlaves(artificialTxConfig *rpc.Artif
 	if err != nil {
 		return err
 	}
-	_, err = s.client.Call(s.target, &rpc.Request{Op: rpc.OpGetMine, RpcId: s.addRpcId(), Data: bytes})
+	_, err = s.client.Call(s.target, &rpc.Request{Op: rpc.OpGetMine, RpcId: s.addRPCID(), Data: bytes})
 	if err != nil {
 		return err
 	}
@@ -402,7 +401,7 @@ func (s *SlaveConnection) GetUnconfirmedHeaders() (*rpc.GetUnconfirmedHeadersRes
 		rsp = new(rpc.GetUnconfirmedHeadersResponse)
 	)
 
-	res, err := s.client.Call(s.target, &rpc.Request{Op: rpc.OpGetUnconfirmedHeaders, RpcId: s.addRpcId()})
+	res, err := s.client.Call(s.target, &rpc.Request{Op: rpc.OpGetUnconfirmedHeaders, RpcId: s.addRPCID()})
 	if err != nil {
 		return nil, err
 	}
@@ -425,7 +424,7 @@ func (s *SlaveConnection) GetMinorBlockToMine(branch account.Branch, address acc
 	if err != nil {
 		return nil, err
 	}
-	res, err := s.client.Call(s.target, &rpc.Request{Op: rpc.OpGetNextBlockToMine, RpcId: s.addRpcId(), Data: bytes})
+	res, err := s.client.Call(s.target, &rpc.Request{Op: rpc.OpGetNextBlockToMine, RpcId: s.addRPCID(), Data: bytes})
 	if err != nil {
 		return nil, err
 	}
@@ -439,7 +438,7 @@ func (s *SlaveConnection) GetEcoInfoListRequest() (*rpc.GetEcoInfoListResponse, 
 	var (
 		rsp = new(rpc.GetEcoInfoListResponse)
 	)
-	res, err := s.client.Call(s.target, &rpc.Request{Op: rpc.OpGetEcoInfoList, RpcId: s.addRpcId()})
+	res, err := s.client.Call(s.target, &rpc.Request{Op: rpc.OpGetEcoInfoList, RpcId: s.addRPCID()})
 	if err != nil {
 		return nil, err
 	}
@@ -449,7 +448,7 @@ func (s *SlaveConnection) GetEcoInfoListRequest() (*rpc.GetEcoInfoListResponse, 
 	return rsp, nil
 }
 
-func (s *SlaveConnection) GetAccountData(address account.Address, height uint64) (*rpc.GetAccountDataResponse, error) {
+func (s *SlaveConnection) GetAccountData(address account.Address, height *uint64) (*rpc.GetAccountDataResponse, error) {
 	var (
 		req = rpc.GetAccountDataRequest{
 			Address:     address,
@@ -461,7 +460,7 @@ func (s *SlaveConnection) GetAccountData(address account.Address, height uint64)
 	if err != nil {
 		return nil, err
 	}
-	res, err := s.client.Call(s.target, &rpc.Request{Op: rpc.OpGetAccountData, RpcId: s.addRpcId(), Data: bytes})
+	res, err := s.client.Call(s.target, &rpc.Request{Op: rpc.OpGetAccountData, RpcId: s.addRPCID(), Data: bytes})
 	if err != nil {
 		return nil, err
 	}
@@ -484,7 +483,7 @@ func (s *SlaveConnection) AddRootBlock(rootBlock *types.RootBlock, expectSwitch 
 	if err != nil {
 		return err
 	}
-	res, err = s.client.Call(s.target, &rpc.Request{Op: rpc.OpAddRootBlock, RpcId: s.addRpcId(), Data: bytes})
+	res, err = s.client.Call(s.target, &rpc.Request{Op: rpc.OpAddRootBlock, RpcId: s.addRPCID(), Data: bytes})
 	if err != nil {
 		return err
 	}
@@ -504,7 +503,7 @@ func (s *SlaveConnection) AddMinorBlock(blockData []byte) error {
 	if err != nil {
 		return err
 	}
-	_, err = s.client.Call(s.target, &rpc.Request{Op: rpc.OpAddMinorBlock, RpcId: s.addRpcId(), Data: bytes})
+	_, err = s.client.Call(s.target, &rpc.Request{Op: rpc.OpAddMinorBlock, RpcId: s.addRPCID(), Data: bytes})
 	if err != nil {
 		return err
 	}
@@ -523,7 +522,7 @@ func (s *SlaveConnection) GenTx(numTxPerShard, xShardPercent uint32, tx *types.T
 	if err != nil {
 		return err
 	}
-	_, err = s.client.Call(s.target, &rpc.Request{Op: rpc.OpGenTx, RpcId: s.addRpcId(), Data: bytes})
+	_, err = s.client.Call(s.target, &rpc.Request{Op: rpc.OpGenTx, RpcId: s.addRPCID(), Data: bytes})
 	if err != nil {
 		return err
 	}

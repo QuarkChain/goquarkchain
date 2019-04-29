@@ -7,18 +7,18 @@ import (
 	"sync"
 )
 
-type MasterServerSideOp struct {
+type QKCMasterServerSideOp struct {
 	mu     sync.RWMutex
-	master *MasterBackend
+	master *QKCMasterBackend
 }
 
-func NewServerSideOp(master *MasterBackend) *MasterServerSideOp {
-	return &MasterServerSideOp{
+func NewServerSideOp(master *QKCMasterBackend) *QKCMasterServerSideOp {
+	return &QKCMasterServerSideOp{
 		master: master,
 	}
 }
 
-func (m *MasterServerSideOp) AddMinorBlockHeader(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
+func (m *QKCMasterServerSideOp) AddMinorBlockHeader(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
 	data := new(rpc.AddMinorBlockHeaderRequest)
 	if err := serialize.DeserializeFromBytes(req.Data, data); err != nil {
 		return nil, err
@@ -42,27 +42,27 @@ func (m *MasterServerSideOp) AddMinorBlockHeader(ctx context.Context, req *rpc.R
 
 //TODO @pingke
 // p2p apis
-func (m *MasterServerSideOp) BroadcastNewTip(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
+func (m *QKCMasterServerSideOp) BroadcastNewTip(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
 	return &rpc.Response{
 		RpcId: req.RpcId,
 	}, nil
 }
-func (m *MasterServerSideOp) BroadcastTransactions(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
+func (m *QKCMasterServerSideOp) BroadcastTransactions(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
 	return &rpc.Response{
 		RpcId: req.RpcId,
 	}, nil
 }
-func (m *MasterServerSideOp) BroadcastMinorBlock(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
+func (m *QKCMasterServerSideOp) BroadcastMinorBlock(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
 	return &rpc.Response{
 		RpcId: req.RpcId,
 	}, nil
 }
-func (m *MasterServerSideOp) GetMinorBlocks(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
+func (m *QKCMasterServerSideOp) GetMinorBlocks(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
 	return &rpc.Response{
 		RpcId: req.RpcId,
 	}, nil
 }
-func (m *MasterServerSideOp) GetMinorBlockHeaders(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
+func (m *QKCMasterServerSideOp) GetMinorBlockHeaders(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
 	return &rpc.Response{
 		RpcId: req.RpcId,
 	}, nil
