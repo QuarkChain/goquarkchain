@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
 	"github.com/QuarkChain/goquarkchain/consensus"
@@ -13,6 +14,7 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	ethRpc "github.com/ethereum/go-ethereum/rpc"
 	"net"
+	"reflect"
 )
 
 func ip2Long(ip string) uint32 {
@@ -22,20 +24,20 @@ func ip2Long(ip string) uint32 {
 }
 
 func (s *QKCMasterBackend) GetPeers() []rpc.PeerInfoForDisPlay {
-	fake := make([]p2p.Peer, 0)
-	res := make([]rpc.PeerInfoForDisPlay, 0)
-	for k := range fake {
+	fakePeers := make([]p2p.Peer, 0) //TODO use real peerList
+	result := make([]rpc.PeerInfoForDisPlay, 0)
+	for k := range fakePeers {
 		temp := rpc.PeerInfoForDisPlay{}
-		if tcp, ok := fake[k].RemoteAddr().(*net.TCPAddr); ok {
+		if tcp, ok := fakePeers[k].RemoteAddr().(*net.TCPAddr); ok {
 			temp.IP = ip2Long(tcp.IP.String())
 			temp.Port = uint32(tcp.Port)
-			temp.ID = fake[k].ID().Bytes()
+			temp.ID = fakePeers[k].ID().Bytes()
 		} else {
-			panic("not tcp")
+			panic(fmt.Errorf("not tcp? real type %v", reflect.TypeOf(tcp)))
 		}
-		res = append(res, temp)
+		result = append(result, temp)
 	}
-	return res
+	return result
 
 }
 
@@ -47,9 +49,9 @@ func (s *QKCMasterBackend) AddRootBlockFromMine(block *types.RootBlock) error {
 	return s.AddRootBlock(block)
 }
 func (s *QKCMasterBackend) AddRawMinorBlock(branch account.Branch, blockData []byte) error {
-	slaveConn, err := s.getSlaveConnection(branch)
-	if err != nil {
-		return err
+	slaveConn := s.getOneSlaveConnection(branch)
+	if slaveConn == nil {
+		return ErrNoBranchConn
 	}
 	return slaveConn.AddMinorBlock(blockData)
 }
@@ -68,15 +70,12 @@ func (s *QKCMasterBackend) AddTransaction(tx *types.Transaction) error {
 		go func(slave *SlaveConnection) {
 			defer check.wg.Done()
 			err := slave.AddTransaction(tx)
-			check.errc <- err
-
+			check.errc = append(check.errc, err)
 		}(slaves[index])
 	}
-	check.wg.Wait()
 	if err := check.check(); err != nil {
 		return err
 	}
-
 	return nil //TODO?? peer broadcast
 }
 
@@ -87,56 +86,54 @@ func (s *QKCMasterBackend) ExecuteTransaction(tx *types.Transaction, address acc
 
 	slaves, ok := s.branchToSlaves[branch.Value]
 	if !ok {
-		return nil, errors.New("no such slave")
+		return nil, fmt.Errorf("no such branch %v", branch.Value)
 	}
 	lenSlaves := len(slaves)
 	check := NewCheckErr(lenSlaves)
-	chanRsp := make(chan []byte, lenSlaves)
+	rspList := make([][]byte, lenSlaves)
 	for index := range slaves {
 		check.wg.Add(1)
 		go func(slave *SlaveConnection) {
 			defer check.wg.Done()
 			rsp, err := slave.ExecuteTransaction(tx, address, height)
-			check.errc <- err
-			chanRsp <- rsp
+			check.errc = append(check.errc, err)
+			rspList = append(rspList, rsp)
 
 		}(slaves[index])
 	}
-	check.wg.Wait()
-	close(chanRsp)
 	if err := check.check(); err != nil {
 		return nil, err
 	}
 
-	flag := true
-	firstFlag := 1
-	var onlyValue []byte
-	for res := range chanRsp {
-		if firstFlag == 1 {
-			firstFlag = 0
-			onlyValue = res
-		}
-		if res == nil || !bytes.Equal(res, onlyValue) {
-			flag = false
-			break
+	valueList := make(map[string]struct{}, 0)
+	for _, res := range rspList {
+		if res != nil {
+			valueList[string(res)] = struct{}{}
+		} else {
+			return nil, errors.New("unexpected err res==nil")
 		}
 	}
-	if flag == false {
-		return nil, errors.New("flag==false")
+	if len(valueList) != 1 {
+		return nil, errors.New("exist more than one value from slaves")
 	}
-	return onlyValue, nil
+	for k, _ := range valueList {
+		return []byte(k), nil
+	}
+	return nil, errors.New("unexpected err")
 }
+
 func (s *QKCMasterBackend) GetMinorBlockByHash(blockHash common.Hash, branch account.Branch) (*types.MinorBlock, error) {
-	slaveConn, err := s.getSlaveConnection(branch)
-	if err != nil {
-		return nil, err
+	slaveConn := s.getOneSlaveConnection(branch)
+	if slaveConn == nil {
+		return nil, ErrNoBranchConn
 	}
 	return slaveConn.GetMinorBlockByHash(blockHash, branch)
 }
+
 func (s *QKCMasterBackend) GetMinorBlockByHeight(height *uint64, branch account.Branch) (*types.MinorBlock, error) {
-	slaveConn, err := s.getSlaveConnection(branch)
-	if err != nil {
-		return nil, err
+	slaveConn := s.getOneSlaveConnection(branch)
+	if slaveConn == nil {
+		return nil, ErrNoBranchConn
 	}
 	if height == nil {
 		shardStats, ok := s.branchToShardStats[branch.Value]
@@ -148,33 +145,35 @@ func (s *QKCMasterBackend) GetMinorBlockByHeight(height *uint64, branch account.
 	return slaveConn.GetMinorBlockByHeight(*height, branch)
 }
 func (s *QKCMasterBackend) GetTransactionByHash(txHash common.Hash, branch account.Branch) (*types.MinorBlock, uint32, error) {
-	slaveConn, err := s.getSlaveConnection(branch)
-	if err != nil {
-		return nil, 0, err
+	slaveConn := s.getOneSlaveConnection(branch)
+	if slaveConn == nil {
+		return nil, 0, ErrNoBranchConn
 	}
 	return slaveConn.GetTransactionByHash(txHash, branch)
 }
 func (s *QKCMasterBackend) GetTransactionReceipt(txHash common.Hash, branch account.Branch) (*types.MinorBlock, uint32, *types.Receipt, error) {
-	slaveConn, err := s.getSlaveConnection(branch)
-	if err != nil {
-		return nil, 0, nil, err
+	slaveConn := s.getOneSlaveConnection(branch)
+	if slaveConn == nil {
+		return nil, 0, nil, ErrNoBranchConn
 	}
 	return slaveConn.GetTransactionReceipt(txHash, branch)
 }
 
 func (s *QKCMasterBackend) GetTransactionsByAddress(address account.Address, start []byte, limit uint32) ([]*rpc.TransactionDetail, []byte, error) {
 	fullShardID := s.clusterConfig.Quarkchain.GetFullShardIdByFullShardKey(address.FullShardKey)
-	slaveConn, err := s.getSlaveConnection(account.Branch{Value: fullShardID})
-	if err != nil {
-		return nil, nil, err
+	slaveConn := s.getOneSlaveConnection(account.Branch{Value: fullShardID})
+	if slaveConn == nil {
+		return nil, nil, ErrNoBranchConn
 	}
 	return slaveConn.GetTransactionsByAddress(address, start, limit)
 }
 func (s *QKCMasterBackend) GetLogs(branch account.Branch, address []account.Address, topics []*rpc.Topic, startBlock, endBlock ethRpc.BlockNumber) ([]*types.Log, error) {
+	s.lock.RLock()
+	defer s.lock.RUnlock() // lock to read branchToShardStats
 	// not support earlist and pending
-	slaveConn, err := s.getSlaveConnection(branch)
-	if err != nil {
-		return nil, err
+	slaveConn := s.getOneSlaveConnection(branch)
+	if slaveConn == nil {
+		return nil, ErrNoBranchConn
 	}
 
 	var (
@@ -197,34 +196,35 @@ func (s *QKCMasterBackend) GetLogs(branch account.Branch, address []account.Addr
 func (s *QKCMasterBackend) EstimateGas(tx *types.Transaction, fromAddress account.Address) (uint32, error) {
 	evmTx := tx.EvmTx
 	//TODO set config
-	slaveConn, err := s.getSlaveConnection(account.Branch{Value: evmTx.FromFullShardId()})
-	if err != nil {
-		return 0, err
+	slaveConn := s.getOneSlaveConnection(account.Branch{Value: evmTx.FromFullShardId()})
+	if slaveConn == nil {
+		return 0, ErrNoBranchConn
 	}
 	return slaveConn.EstimateGas(tx, fromAddress)
 }
+
 func (s *QKCMasterBackend) GetStorageAt(address account.Address, key common.Hash, height *uint64) (common.Hash, error) {
 	fullShardID := s.clusterConfig.Quarkchain.GetFullShardIdByFullShardKey(address.FullShardKey)
-	slaveConn, err := s.getSlaveConnection(account.Branch{Value: fullShardID})
-	if err != nil {
-		return common.Hash{}, err
+	slaveConn := s.getOneSlaveConnection(account.Branch{Value: fullShardID})
+	if slaveConn == nil {
+		return common.Hash{}, ErrNoBranchConn
 	}
 	return slaveConn.GetStorageAt(address, key, height)
 }
 
 func (s *QKCMasterBackend) GetCode(address account.Address, height *uint64) ([]byte, error) {
 	fullShardID := s.clusterConfig.Quarkchain.GetFullShardIdByFullShardKey(address.FullShardKey)
-	slaveConn, err := s.getSlaveConnection(account.Branch{Value: fullShardID})
-	if err != nil {
-		return nil, err
+	slaveConn := s.getOneSlaveConnection(account.Branch{Value: fullShardID})
+	if slaveConn == nil {
+		return nil, ErrNoBranchConn
 	}
 	return slaveConn.GetCode(address, height)
 }
 
 func (s *QKCMasterBackend) GasPrice(branch account.Branch) (uint64, error) {
-	slaveConn, err := s.getSlaveConnection(branch)
-	if err != nil {
-		return 0, err
+	slaveConn := s.getOneSlaveConnection(branch)
+	if slaveConn == nil {
+		return 0, ErrNoBranchConn
 	}
 	return slaveConn.GasPrice(branch)
 }

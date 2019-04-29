@@ -27,7 +27,8 @@ import (
 )
 
 var (
-	beatTime = 4
+	beatTime        = 4
+	ErrNoBranchConn = errors.New("no such branch's connection")
 )
 
 // QKCMasterBackend masterServer include connections
@@ -73,7 +74,7 @@ func New(ctx *service.ServiceContext, cfg *config.ClusterConfig) (*QKCMasterBack
 
 	genesis := core.NewGenesis(cfg.Quarkchain)
 	genesis.MustCommitRootBlock(mstr.chainDb)
-	if mstr.rootBlockChain, err = core.NewRootBlockChain(mstr.chainDb, nil, cfg.Quarkchain, mstr.engine, mstr.isLocalBlock); err != nil {
+	if mstr.rootBlockChain, err = core.NewRootBlockChain(mstr.chainDb, nil, cfg.Quarkchain, mstr.engine, nil); err != nil {
 		return nil, err
 	}
 
@@ -107,10 +108,6 @@ func createConsensusEngine(ctx *service.ServiceContext, cfg *config.RootConfig) 
 
 func (s *QKCMasterBackend) GetClusterConfig() *config.ClusterConfig {
 	return s.clusterConfig
-}
-
-func (s *QKCMasterBackend) isLocalBlock(block *types.RootBlock) bool {
-	return false
 }
 
 // Protocols p2p protocols, p2p Server will start in node.Start
@@ -249,10 +246,9 @@ func (s *QKCMasterBackend) initShards() error {
 		go func(slaveConn *SlaveConnection) {
 			defer check.wg.Done()
 			_, _, err := slaveConn.SendPing(s.rootBlockChain, true)
-			check.errc <- err
+			check.errc = append(check.errc, err)
 		}(s.clientPool[index])
 	}
-	check.wg.Wait()
 	return check.check()
 }
 
@@ -298,38 +294,47 @@ func checkPing(slaveConn *SlaveConnection, id []byte, chainMaskList []*types.Cha
 	return nil
 }
 
-func (s *QKCMasterBackend) getSlaveConnection(branch account.Branch) (*SlaveConnection, error) {
+func (s *QKCMasterBackend) getOneSlaveConnection(branch account.Branch) *SlaveConnection {
 	slaves, ok := s.branchToSlaves[branch.Value]
 	if !ok {
-		return nil, errors.New("no such branch")
+		return nil
 	}
 	if len(slaves) < 1 {
-		return nil, errors.New("len slaves <1")
+		return nil
 	}
-	return slaves[0], nil
+	return slaves[0]
+}
+
+func (s *QKCMasterBackend) getAllSlaveConnection(branch account.Branch) []*SlaveConnection {
+	slaves, ok := s.branchToSlaves[branch.Value]
+	if !ok {
+		return nil
+	}
+	if len(slaves) < 1 {
+		return nil
+	}
+	return slaves
 }
 
 func (s *QKCMasterBackend) createRootBlockToMine(address account.Address) (*types.RootBlock, error) {
 	lenSlaves := len(s.clientPool)
 	check := NewCheckErr(lenSlaves)
-	chanRsp := make(chan *rpc.GetUnconfirmedHeadersResponse, lenSlaves)
+	rspList := make([]*rpc.GetUnconfirmedHeadersResponse, lenSlaves)
 	for index := range s.clientPool {
 		check.wg.Add(1)
 		go func(slaveConn *SlaveConnection) {
 			defer check.wg.Done()
 			rsp, err := slaveConn.GetUnconfirmedHeaders()
-			check.errc <- err
-			chanRsp <- rsp
+			check.errc = append(check.errc, err)
+			rspList = append(rspList, rsp)
 		}(s.clientPool[index])
 	}
-	check.wg.Wait()
-	close(chanRsp)
 	if err := check.check(); err != nil {
 		return nil, err
 	}
 
 	fullShardIDToHeaderList := make(map[uint32][]*types.MinorBlockHeader, 0)
-	for resp := range chanRsp {
+	for _, resp := range rspList {
 		for _, headersInfo := range resp.HeadersInfoList {
 			height := uint64(0)
 			for _, header := range headersInfo.HeaderList {
@@ -359,9 +364,9 @@ func (s *QKCMasterBackend) createRootBlockToMine(address account.Address) (*type
 }
 
 func (s *QKCMasterBackend) getMinorBlockToMine(branch account.Branch, address account.Address) (*types.MinorBlock, error) {
-	slaveConn, err := s.getSlaveConnection(branch)
-	if err != nil {
-		return nil, err
+	slaveConn := s.getOneSlaveConnection(branch)
+	if slaveConn == nil {
+		return nil, ErrNoBranchConn
 	}
 	return slaveConn.GetMinorBlockToMine(branch, address, s.artificialTxConfig)
 
@@ -371,23 +376,21 @@ func (s *QKCMasterBackend) getMinorBlockToMine(branch account.Branch, address ac
 func (s *QKCMasterBackend) GetAccountData(address account.Address) (map[account.Branch]*rpc.AccountBranchData, error) {
 	lenSlaves := len(s.clientPool)
 	check := NewCheckErr(lenSlaves)
-	chanRsp := make(chan *rpc.GetAccountDataResponse, lenSlaves)
+	rspList := make([]*rpc.GetAccountDataResponse, lenSlaves)
 	for index := range s.clientPool {
 		check.wg.Add(1)
 		go func(slaveConn *SlaveConnection) {
 			defer check.wg.Done()
 			rsp, err := slaveConn.GetAccountData(address, nil)
-			check.errc <- err
-			chanRsp <- rsp
+			check.errc = append(check.errc, err)
+			rspList = append(rspList, rsp)
 		}(s.clientPool[index])
 	}
-	check.wg.Wait()
-	close(chanRsp)
 	if err := check.check(); err != nil {
 		return nil, err
 	}
 	branchToAccountBranchData := make(map[account.Branch]*rpc.AccountBranchData)
-	for rsp := range chanRsp {
+	for _, rsp := range rspList {
 		for _, accountBranchData := range rsp.AccountBranchDataList {
 			branchToAccountBranchData[accountBranchData.Branch] = accountBranchData
 		}
@@ -401,9 +404,9 @@ func (s *QKCMasterBackend) GetAccountData(address account.Address) (map[account.
 // GetPrimaryAccountData get primary account data for jsonRpc
 func (s *QKCMasterBackend) GetPrimaryAccountData(address account.Address, blockHeight *uint64) (*rpc.AccountBranchData, error) {
 	fullShardID := s.clusterConfig.Quarkchain.GetFullShardIdByFullShardKey(address.FullShardKey)
-	slaveConn, err := s.getSlaveConnection(account.Branch{Value: fullShardID})
-	if err != nil {
-		return nil, err
+	slaveConn := s.getOneSlaveConnection(account.Branch{Value: fullShardID})
+	if slaveConn == nil {
+		return nil, ErrNoBranchConn
 	}
 	rsp, err := slaveConn.GetAccountData(address, blockHeight)
 	if err != nil {
@@ -426,10 +429,9 @@ func (s *QKCMasterBackend) SendMiningConfigToSlaves(mining bool) error {
 		go func(slaveConn *SlaveConnection) {
 			defer check.wg.Done()
 			err := slaveConn.SendMiningConfigToSlaves(s.artificialTxConfig, mining)
-			check.errc <- err
+			check.errc = append(check.errc, err)
 		}(s.clientPool[index])
 	}
-	check.wg.Wait()
 	return check.check()
 }
 
@@ -446,10 +448,9 @@ func (s *QKCMasterBackend) AddRootBlock(rootBlock *types.RootBlock) error {
 		go func(slaveConn *SlaveConnection) {
 			defer check.wg.Done()
 			err := slaveConn.AddRootBlock(rootBlock, false)
-			check.errc <- err
+			check.errc = append(check.errc, err)
 		}(s.clientPool[index])
 	}
-	check.wg.Wait()
 	return check.check()
 }
 
@@ -488,10 +489,9 @@ func (s *QKCMasterBackend) CreateTransactions(numTxPerShard, xShardPercent uint3
 		go func(slaveConn *SlaveConnection) {
 			defer check.wg.Done()
 			err := slaveConn.GenTx(numTxPerShard, xShardPercent, tx)
-			check.errc <- err
+			check.errc = append(check.errc, err)
 		}(s.clientPool[index])
 	}
-	check.wg.Wait()
 	return check.check()
 }
 
@@ -530,26 +530,24 @@ func (s *QKCMasterBackend) CurrentBlock() *types.RootBlock {
 
 type CheckErr struct {
 	len  int
-	errc chan error
+	errc []error
 	wg   sync.WaitGroup
 }
 
 // NewCheckErr needed len for check
 func NewCheckErr(len int) *CheckErr {
 	return &CheckErr{
-		errc: make(chan error, len),
-		len:  len,
+		len: len,
 	}
 }
 
 // check if it has err in chans
 func (c *CheckErr) check() error {
 	c.wg.Wait()
-	close(c.errc)
-	if len(c.errc) != c.len {
+	if c.len != len(c.errc) {
 		return errors.New("len is not match")
 	}
-	for err := range c.errc {
+	for _, err := range c.errc {
 		if err != nil {
 			return err
 		}

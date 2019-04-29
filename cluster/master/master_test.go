@@ -301,13 +301,11 @@ func TestMasterBackend_HeartBeat(t *testing.T) {
 func TestGetSlaveConnByBranch(t *testing.T) {
 	master := initEnv(t, nil)
 	for _, v := range master.clusterConfig.Quarkchain.GetGenesisShardIds() {
-		conn, err := master.getSlaveConnection(account.Branch{Value: v})
-		assert.NoError(t, err)
+		conn := master.getOneSlaveConnection(account.Branch{Value: v})
 		assert.NotNil(t, conn)
 	}
 	fakeFullShardID := uint32(99999)
-	conn, err := master.getSlaveConnection(account.Branch{Value: fakeFullShardID})
-	assert.Error(t, err)
+	conn := master.getOneSlaveConnection(account.Branch{Value: fakeFullShardID})
 	assert.Nil(t, conn)
 }
 
@@ -584,5 +582,4 @@ func TestGasPrice(t *testing.T) {
 	data, err := master.GasPrice(account.Branch{Value: 2})
 	assert.NoError(t, err)
 	assert.Equal(t, data, uint64(123))
-
 }
