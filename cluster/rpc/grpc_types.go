@@ -274,14 +274,14 @@ type SyncMinorBlockListResponse struct {
 	Piggyback the ShardStats in the same request.
 */
 type AddMinorBlockHeaderRequest struct {
-	MinorBlockHeader types.MinorBlockHeader `json:"minor_block_header" gencodec:"required"`
-	TxCount          uint32                 `json:"tx_count" gencodec:"required"`
-	XShardTxCount    uint32                 `json:"x_shard_tx_count" gencodec:"required"`
-	ShardStats       ShardStats             `json:"shard_stats" gencodec:"required"`
+	MinorBlockHeader *types.MinorBlockHeader `json:"minor_block_header" gencodec:"required"`
+	TxCount          uint32                  `json:"tx_count" gencodec:"required"`
+	XShardTxCount    uint32                  `json:"x_shard_tx_count" gencodec:"required"`
+	ShardStats       *ShardStats             `json:"shard_stats" gencodec:"required"`
 }
 
 type AddMinorBlockHeaderResponse struct {
-	ArtificialTxConfig ArtificialTxConfig `json:"artificial_tx_config" gencodec:"required"`
+	ArtificialTxConfig *ArtificialTxConfig `json:"artificial_tx_config" gencodec:"required"`
 }
 
 type AddXshardTxListRequest struct {

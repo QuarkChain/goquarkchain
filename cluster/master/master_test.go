@@ -13,6 +13,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/serialize"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethdb"
+	ethRPC "github.com/ethereum/go-ethereum/rpc"
 	"github.com/stretchr/testify/assert"
 	"math/big"
 	"testing"
@@ -129,12 +130,7 @@ func (c *fakeRpcClient) Call(hostport string, req *rpc.Request) (*rpc.Response, 
 		}
 		return &rpc.Response{Data: data}, nil
 	case rpc.OpGetMine:
-		rsp := new(rpc.MineResponse)
-		data, err := serialize.SerializeToBytes(rsp)
-		if err != nil {
-			return nil, err
-		}
-		return &rpc.Response{Data: data}, nil
+		return &rpc.Response{}, nil
 	case rpc.OpAddRootBlock:
 		rsp := new(rpc.AddRootBlockResponse)
 		rsp.Switched = false
@@ -144,19 +140,9 @@ func (c *fakeRpcClient) Call(hostport string, req *rpc.Request) (*rpc.Response, 
 		}
 		return &rpc.Response{Data: data}, nil
 	case rpc.OpAddMinorBlock:
-		rsp := new(rpc.AddMinorBlockResponse)
-		data, err := serialize.SerializeToBytes(rsp)
-		if err != nil {
-			return nil, err
-		}
-		return &rpc.Response{Data: data}, nil
+		return &rpc.Response{}, nil
 	case rpc.OpAddTransaction:
-		rsp := new(rpc.AddTransactionResponse)
-		data, err := serialize.SerializeToBytes(rsp)
-		if err != nil {
-			return nil, err
-		}
-		return &rpc.Response{Data: data}, nil
+		return &rpc.Response{}, nil
 	case rpc.OpExecuteTransaction:
 		rsp := new(rpc.ExecuteTransactionResponse)
 		rsp.Result = []byte("qkc")
@@ -259,7 +245,7 @@ func (c *fakeRpcClient) Call(hostport string, req *rpc.Request) (*rpc.Response, 
 	}
 }
 
-func initEnv(t *testing.T, chanOp chan uint32) *MasterBackend {
+func initEnv(t *testing.T, chanOp chan uint32) *QKCMasterBackend {
 	beatTime = 1
 	monkey.Patch(NewSlaveConn, func(target string, shardMaskLst []*types.ChainMask, slaveID string) *SlaveConnection {
 		client := NewFakeRPCClient(chanOp, target, shardMaskLst, slaveID, config.NewClusterConfig())
@@ -270,7 +256,7 @@ func initEnv(t *testing.T, chanOp chan uint32) *MasterBackend {
 			slaveID:      slaveID,
 		}
 	})
-	monkey.Patch(CreateDB, func(ctx *service.ServiceContext, name string) (ethdb.Database, error) {
+	monkey.Patch(createDB, func(ctx *service.ServiceContext, name string) (ethdb.Database, error) {
 		return ethdb.NewMemDatabase(), nil
 	})
 
@@ -307,7 +293,7 @@ func TestMasterBackend_HeartBeat(t *testing.T) {
 				status = false
 			}
 		case <-time.After(2 * time.Second):
-			panic(errors.New("no receive heartBeat"))
+			panic(errors.New("no receive HeartBeat"))
 		}
 	}
 }
@@ -380,8 +366,7 @@ func TestGetPrimaryAccountData(t *testing.T) {
 	id1, err := account.CreatRandomIdentity()
 	assert.NoError(t, err)
 	add1 := account.NewAddress(id1.Recipient, 3)
-	temp := uint64(0)
-	_, err = master.GetPrimaryAccountData(add1, &temp)
+	_, err = master.GetPrimaryAccountData(add1, nil)
 	assert.NoError(t, err)
 }
 
@@ -474,13 +459,11 @@ func TestExecuteTransaction(t *testing.T) {
 func TestGetMinorBlockByHeight(t *testing.T) {
 	master := initEnv(t, nil)
 	fakeMinorBlock := types.NewMinorBlock(&types.MinorBlockHeader{Version: 111}, &types.MinorBlockMeta{}, nil, nil, nil)
-	temp := uint64(0)
-	minorBlock, err := master.GetMinorBlockByHeight(&temp, account.Branch{Value: 2})
+	minorBlock, err := master.GetMinorBlockByHeight(nil, account.Branch{Value: 2})
 	assert.NoError(t, err)
 	assert.Equal(t, fakeMinorBlock.Hash(), minorBlock.Hash())
 
-	temp = uint64(0)
-	_, err = master.GetMinorBlockByHeight(&temp, account.Branch{Value: 2222})
+	_, err = master.GetMinorBlockByHeight(nil, account.Branch{Value: 2222})
 	assert.Error(t, err)
 }
 func TestGetMinorBlockByHash(t *testing.T) {
@@ -540,12 +523,8 @@ func TestGetTransactionsByAddress(t *testing.T) {
 func TestGetLogs(t *testing.T) {
 	master := initEnv(t, nil)
 
-	startBlock := &rpc.BlockHeight{
-		Height: 0,
-	}
-	endBlock := &rpc.BlockHeight{
-		Height: 0,
-	}
+	startBlock := ethRPC.BlockNumber(0)
+	endBlock := ethRPC.BlockNumber(0)
 	logs, err := master.GetLogs(account.Branch{Value: 2}, nil, nil, startBlock, endBlock)
 	assert.NoError(t, err)
 	assert.Equal(t, len(logs), 1)
@@ -580,8 +559,7 @@ func TestGetStorageAt(t *testing.T) {
 	id1, err := account.CreatRandomIdentity()
 	assert.NoError(t, err)
 	add1 := account.NewAddress(id1.Recipient, 3)
-	temp := uint64(0)
-	data, err := master.GetStorageAt(add1, common.Hash{}, &temp)
+	data, err := master.GetStorageAt(add1, common.Hash{}, nil)
 	assert.NoError(t, err)
 	assert.Equal(t, data.Big().Uint64(), uint64(123))
 }
@@ -590,8 +568,7 @@ func TestGetCode(t *testing.T) {
 	id1, err := account.CreatRandomIdentity()
 	assert.NoError(t, err)
 	add1 := account.NewAddress(id1.Recipient, 3)
-	temp := uint64(0)
-	data, err := master.GetCode(add1, &temp)
+	data, err := master.GetCode(add1, nil)
 	assert.NoError(t, err)
 	assert.Equal(t, data, []byte("qkc"))
 

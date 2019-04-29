@@ -11,6 +11,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/p2p"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	ethRpc "github.com/ethereum/go-ethereum/rpc"
 	"net"
 )
 
@@ -20,7 +21,7 @@ func ip2Long(ip string) uint32 {
 	return long
 }
 
-func (s *MasterBackend) GetPeers() []rpc.PeerInfoForDisPlay {
+func (s *QKCMasterBackend) GetPeers() []rpc.PeerInfoForDisPlay {
 	fake := make([]p2p.Peer, 0)
 	res := make([]rpc.PeerInfoForDisPlay, 0)
 	for k := range fake {
@@ -38,22 +39,21 @@ func (s *MasterBackend) GetPeers() []rpc.PeerInfoForDisPlay {
 
 }
 
-func (s *MasterBackend) AddRootBlockFromMine(block *types.RootBlock) error {
+func (s *QKCMasterBackend) AddRootBlockFromMine(block *types.RootBlock) error {
 	currTip := s.rootBlockChain.CurrentBlock()
 	if block.Header().ParentHash != currTip.Hash() {
 		return errors.New("parent hash not match")
 	}
 	return s.AddRootBlock(block)
 }
-func (s *MasterBackend) AddRawMinorBlock(branch account.Branch, blockData []byte) error {
+func (s *QKCMasterBackend) AddRawMinorBlock(branch account.Branch, blockData []byte) error {
 	slaveConn, err := s.getSlaveConnection(branch)
 	if err != nil {
 		return err
 	}
 	return slaveConn.AddMinorBlock(blockData)
 }
-
-func (s *MasterBackend) AddTransaction(tx *types.Transaction) error {
+func (s *QKCMasterBackend) AddTransaction(tx *types.Transaction) error {
 	evmTx := tx.EvmTx
 	//TODO :SetQKCConfig
 	branch := account.Branch{Value: evmTx.FromFullShardId()}
@@ -67,7 +67,7 @@ func (s *MasterBackend) AddTransaction(tx *types.Transaction) error {
 		check.wg.Add(1)
 		go func(slave *SlaveConnection) {
 			defer check.wg.Done()
-			err := slave.AddTransaction(tx) //TODO ??height
+			err := slave.AddTransaction(tx)
 			check.errc <- err
 
 		}(slaves[index])
@@ -80,7 +80,7 @@ func (s *MasterBackend) AddTransaction(tx *types.Transaction) error {
 	return nil //TODO?? peer broadcast
 }
 
-func (s *MasterBackend) ExecuteTransaction(tx *types.Transaction, address account.Address, height *uint64) ([]byte, error) {
+func (s *QKCMasterBackend) ExecuteTransaction(tx *types.Transaction, address account.Address, height *uint64) ([]byte, error) {
 	evmTx := tx.EvmTx
 	//TODO setQuarkChain
 	branch := account.Branch{Value: evmTx.FromFullShardId()}
@@ -96,7 +96,7 @@ func (s *MasterBackend) ExecuteTransaction(tx *types.Transaction, address accoun
 		check.wg.Add(1)
 		go func(slave *SlaveConnection) {
 			defer check.wg.Done()
-			rsp, err := slave.ExecuteTransaction(tx, address, height) //TODO ??height
+			rsp, err := slave.ExecuteTransaction(tx, address, height)
 			check.errc <- err
 			chanRsp <- rsp
 
@@ -126,14 +126,14 @@ func (s *MasterBackend) ExecuteTransaction(tx *types.Transaction, address accoun
 	}
 	return onlyValue, nil
 }
-func (s *MasterBackend) GetMinorBlockByHash(blockHash common.Hash, branch account.Branch) (*types.MinorBlock, error) {
+func (s *QKCMasterBackend) GetMinorBlockByHash(blockHash common.Hash, branch account.Branch) (*types.MinorBlock, error) {
 	slaveConn, err := s.getSlaveConnection(branch)
 	if err != nil {
 		return nil, err
 	}
 	return slaveConn.GetMinorBlockByHash(blockHash, branch)
 }
-func (s *MasterBackend) GetMinorBlockByHeight(height *uint64, branch account.Branch) (*types.MinorBlock, error) {
+func (s *QKCMasterBackend) GetMinorBlockByHeight(height *uint64, branch account.Branch) (*types.MinorBlock, error) {
 	slaveConn, err := s.getSlaveConnection(branch)
 	if err != nil {
 		return nil, err
@@ -147,14 +147,14 @@ func (s *MasterBackend) GetMinorBlockByHeight(height *uint64, branch account.Bra
 	}
 	return slaveConn.GetMinorBlockByHeight(*height, branch)
 }
-func (s *MasterBackend) GetTransactionByHash(txHash common.Hash, branch account.Branch) (*types.MinorBlock, uint32, error) {
+func (s *QKCMasterBackend) GetTransactionByHash(txHash common.Hash, branch account.Branch) (*types.MinorBlock, uint32, error) {
 	slaveConn, err := s.getSlaveConnection(branch)
 	if err != nil {
 		return nil, 0, err
 	}
 	return slaveConn.GetTransactionByHash(txHash, branch)
 }
-func (s *MasterBackend) GetTransactionReceipt(txHash common.Hash, branch account.Branch) (*types.MinorBlock, uint32, *types.Receipt, error) {
+func (s *QKCMasterBackend) GetTransactionReceipt(txHash common.Hash, branch account.Branch) (*types.MinorBlock, uint32, *types.Receipt, error) {
 	slaveConn, err := s.getSlaveConnection(branch)
 	if err != nil {
 		return nil, 0, nil, err
@@ -162,7 +162,7 @@ func (s *MasterBackend) GetTransactionReceipt(txHash common.Hash, branch account
 	return slaveConn.GetTransactionReceipt(txHash, branch)
 }
 
-func (s *MasterBackend) GetTransactionsByAddress(address account.Address, start []byte, limit uint32) ([]*rpc.TransactionDetail, []byte, error) {
+func (s *QKCMasterBackend) GetTransactionsByAddress(address account.Address, start []byte, limit uint32) ([]*rpc.TransactionDetail, []byte, error) {
 	fullShardID := s.clusterConfig.Quarkchain.GetFullShardIdByFullShardKey(address.FullShardKey)
 	slaveConn, err := s.getSlaveConnection(account.Branch{Value: fullShardID})
 	if err != nil {
@@ -170,22 +170,31 @@ func (s *MasterBackend) GetTransactionsByAddress(address account.Address, start 
 	}
 	return slaveConn.GetTransactionsByAddress(address, start, limit)
 }
-func (s *MasterBackend) GetLogs(branch account.Branch, address []account.Address, topics []*rpc.Topic, startBlock, endBlock *rpc.BlockHeight) ([]*types.Log, error) {
+func (s *QKCMasterBackend) GetLogs(branch account.Branch, address []account.Address, topics []*rpc.Topic, startBlock, endBlock ethRpc.BlockNumber) ([]*types.Log, error) {
+	// not support earlist and pending
 	slaveConn, err := s.getSlaveConnection(branch)
 	if err != nil {
 		return nil, err
 	}
 
-	if startBlock.Str == "latest" {
-		startBlock.Height = s.branchToShardStats[branch.Value].Height
+	var (
+		startBlockNumber uint64
+		endBlockNumber   uint64
+	)
+	if startBlock == ethRpc.LatestBlockNumber {
+		startBlockNumber = s.branchToShardStats[branch.Value].Height
+	} else {
+		startBlockNumber = uint64(startBlock.Int64())
 	}
-	if endBlock.Str == "latest" {
-		endBlock.Height = s.branchToShardStats[branch.Value].Height
+	if endBlock == ethRpc.LatestBlockNumber {
+		endBlockNumber = s.branchToShardStats[branch.Value].Height
+	} else {
+		endBlockNumber = uint64(endBlock.Int64())
 	}
-	return slaveConn.GetLogs(branch, address, topics, startBlock.Height, endBlock.Height)
+	return slaveConn.GetLogs(branch, address, topics, startBlockNumber, endBlockNumber)
 }
 
-func (s *MasterBackend) EstimateGas(tx *types.Transaction, fromAddress account.Address) (uint32, error) {
+func (s *QKCMasterBackend) EstimateGas(tx *types.Transaction, fromAddress account.Address) (uint32, error) {
 	evmTx := tx.EvmTx
 	//TODO set config
 	slaveConn, err := s.getSlaveConnection(account.Branch{Value: evmTx.FromFullShardId()})
@@ -194,7 +203,7 @@ func (s *MasterBackend) EstimateGas(tx *types.Transaction, fromAddress account.A
 	}
 	return slaveConn.EstimateGas(tx, fromAddress)
 }
-func (s *MasterBackend) GetStorageAt(address account.Address, key common.Hash, height *uint64) (common.Hash, error) {
+func (s *QKCMasterBackend) GetStorageAt(address account.Address, key common.Hash, height *uint64) (common.Hash, error) {
 	fullShardID := s.clusterConfig.Quarkchain.GetFullShardIdByFullShardKey(address.FullShardKey)
 	slaveConn, err := s.getSlaveConnection(account.Branch{Value: fullShardID})
 	if err != nil {
@@ -203,7 +212,7 @@ func (s *MasterBackend) GetStorageAt(address account.Address, key common.Hash, h
 	return slaveConn.GetStorageAt(address, key, height)
 }
 
-func (s *MasterBackend) GetCode(address account.Address, height *uint64) ([]byte, error) {
+func (s *QKCMasterBackend) GetCode(address account.Address, height *uint64) ([]byte, error) {
 	fullShardID := s.clusterConfig.Quarkchain.GetFullShardIdByFullShardKey(address.FullShardKey)
 	slaveConn, err := s.getSlaveConnection(account.Branch{Value: fullShardID})
 	if err != nil {
@@ -212,21 +221,21 @@ func (s *MasterBackend) GetCode(address account.Address, height *uint64) ([]byte
 	return slaveConn.GetCode(address, height)
 }
 
-func (s *MasterBackend) GasPrice(branch account.Branch) (uint64, error) {
+func (s *QKCMasterBackend) GasPrice(branch account.Branch) (uint64, error) {
 	slaveConn, err := s.getSlaveConnection(branch)
 	if err != nil {
 		return 0, err
 	}
 	return slaveConn.GasPrice(branch)
 }
-func (s *MasterBackend) GetWork(branch *account.Branch) consensus.MiningWork {
+func (s *QKCMasterBackend) GetWork(branch *account.Branch) consensus.MiningWork {
 	panic("not ")
 }
-func (s *MasterBackend) SubmitWork(branch *account.Branch, headerHash common.Hash, nonce uint64, mixHash common.Hash) bool {
+func (s *QKCMasterBackend) SubmitWork(branch *account.Branch, headerHash common.Hash, nonce uint64, mixHash common.Hash) bool {
 	return false
 }
 
-func (s *MasterBackend) GetRootBlockByNumber(blockNumber *uint64) (*types.RootBlock, error) {
+func (s *QKCMasterBackend) GetRootBlockByNumber(blockNumber *uint64) (*types.RootBlock, error) {
 	if blockNumber == nil {
 		temp := s.rootBlockChain.CurrentBlock().NumberU64()
 		blockNumber = &temp
@@ -238,14 +247,14 @@ func (s *MasterBackend) GetRootBlockByNumber(blockNumber *uint64) (*types.RootBl
 	return block.(*types.RootBlock), nil
 }
 
-func (s *MasterBackend) GetRootBlockByHash(hash common.Hash) (*types.RootBlock, error) {
+func (s *QKCMasterBackend) GetRootBlockByHash(hash common.Hash) (*types.RootBlock, error) {
 	block, ok := s.rootBlockChain.GetBlock(hash).(*types.RootBlock)
 	if !ok {
 		return nil, errors.New("rootBlock is nil")
 	}
 	return block, nil
 }
-func (s *MasterBackend) NetWorkInfo() map[string]interface{} {
+func (s *QKCMasterBackend) NetWorkInfo() map[string]interface{} {
 	shardSizeList := make([]hexutil.Uint, 0)
 	for _, v := range s.clusterConfig.Quarkchain.Chains {
 		shardSizeList = append(shardSizeList, hexutil.Uint(v.ShardSize))
