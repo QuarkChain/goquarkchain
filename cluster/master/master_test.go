@@ -13,6 +13,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/serialize"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethdb"
+	ethRPC "github.com/ethereum/go-ethereum/rpc"
 	"github.com/stretchr/testify/assert"
 	"math/big"
 	"testing"
@@ -129,12 +130,7 @@ func (c *fakeRpcClient) Call(hostport string, req *rpc.Request) (*rpc.Response, 
 		}
 		return &rpc.Response{Data: data}, nil
 	case rpc.OpGetMine:
-		rsp := new(rpc.MineResponse)
-		data, err := serialize.SerializeToBytes(rsp)
-		if err != nil {
-			return nil, err
-		}
-		return &rpc.Response{Data: data}, nil
+		return &rpc.Response{}, nil
 	case rpc.OpAddRootBlock:
 		rsp := new(rpc.AddRootBlockResponse)
 		rsp.Switched = false
@@ -144,19 +140,9 @@ func (c *fakeRpcClient) Call(hostport string, req *rpc.Request) (*rpc.Response, 
 		}
 		return &rpc.Response{Data: data}, nil
 	case rpc.OpAddMinorBlock:
-		rsp := new(rpc.AddMinorBlockResponse)
-		data, err := serialize.SerializeToBytes(rsp)
-		if err != nil {
-			return nil, err
-		}
-		return &rpc.Response{Data: data}, nil
+		return &rpc.Response{}, nil
 	case rpc.OpAddTransaction:
-		rsp := new(rpc.AddTransactionResponse)
-		data, err := serialize.SerializeToBytes(rsp)
-		if err != nil {
-			return nil, err
-		}
-		return &rpc.Response{Data: data}, nil
+		return &rpc.Response{}, nil
 	case rpc.OpExecuteTransaction:
 		rsp := new(rpc.ExecuteTransactionResponse)
 		rsp.Result = []byte("qkc")
@@ -537,12 +523,8 @@ func TestGetTransactionsByAddress(t *testing.T) {
 func TestGetLogs(t *testing.T) {
 	master := initEnv(t, nil)
 
-	startBlock := &rpc.BlockHeight{
-		Height: 0,
-	}
-	endBlock := &rpc.BlockHeight{
-		Height: 0,
-	}
+	startBlock := ethRPC.BlockNumber(0)
+	endBlock := ethRPC.BlockNumber(0)
 	logs, err := master.GetLogs(account.Branch{Value: 2}, nil, nil, startBlock, endBlock)
 	assert.NoError(t, err)
 	assert.Equal(t, len(logs), 1)

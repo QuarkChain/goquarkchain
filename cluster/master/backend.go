@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
-	qkcRPC "github.com/QuarkChain/goquarkchain/cluster/rpc"
+	"github.com/QuarkChain/goquarkchain/cluster/rpc"
 	"github.com/QuarkChain/goquarkchain/cluster/service"
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/consensus/doublesha256"
@@ -17,7 +17,7 @@ import (
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
-	"github.com/ethereum/go-ethereum/rpc"
+	ethRPC "github.com/ethereum/go-ethereum/rpc"
 	"math/big"
 	"os"
 	"reflect"
@@ -39,8 +39,8 @@ type MasterBackend struct {
 	clusterConfig      *config.ClusterConfig
 	clientPool         map[string]*SlaveConnection
 	branchToSlaves     map[uint32][]*SlaveConnection
-	branchToShardStats map[uint32]*qkcRPC.ShardStatus
-	artificialTxConfig *qkcRPC.ArtificialTxConfig
+	branchToShardStats map[uint32]*rpc.ShardStatus
+	artificialTxConfig *rpc.ArtificialTxConfig
 	rootBlockChain     *core.RootBlockChain
 	logInfo            string
 }
@@ -52,9 +52,9 @@ func New(ctx *service.ServiceContext, cfg *config.ClusterConfig) (*MasterBackend
 			eventMux:           ctx.EventMux,
 			clientPool:         make(map[string]*SlaveConnection),
 			branchToSlaves:     make(map[uint32][]*SlaveConnection, 0),
-			branchToShardStats: make(map[uint32]*qkcRPC.ShardStatus),
+			branchToShardStats: make(map[uint32]*rpc.ShardStatus),
 
-			artificialTxConfig: &qkcRPC.ArtificialTxConfig{
+			artificialTxConfig: &rpc.ArtificialTxConfig{
 				TargetRootBlockTime:  cfg.Quarkchain.Root.ConsensusConfig.TargetBlockTime,
 				TargetMinorBlockTime: 0, //TODO:next iter?
 			},
@@ -110,9 +110,9 @@ func (s *MasterBackend) isLocalBlock(block *types.RootBlock) bool {
 
 func (s *MasterBackend) Protocols() []p2p.Protocol { return nil }
 
-func (s *MasterBackend) APIs() []rpc.API {
+func (s *MasterBackend) APIs() []ethRPC.API {
 	apis := qkcapi.GetAPIs(s)
-	return append(apis, []rpc.API{
+	return append(apis, []ethRPC.API{
 		{
 			Namespace: "rpc." + reflect.TypeOf(MasterServerSideOp{}).Name(),
 			Version:   "3.0",
@@ -211,10 +211,10 @@ func (s *MasterBackend) SetUpSlaveToSlaveConnections() error {
 	return nil
 }
 
-func (s *MasterBackend) getSlaveInfoListFromClusterConfig() []*qkcRPC.SlaveInfo {
-	slaveInfos := make([]*qkcRPC.SlaveInfo, 0)
+func (s *MasterBackend) getSlaveInfoListFromClusterConfig() []*rpc.SlaveInfo {
+	slaveInfos := make([]*rpc.SlaveInfo, 0)
 	for _, slave := range s.clusterConfig.SlaveList {
-		slaveInfos = append(slaveInfos, &qkcRPC.SlaveInfo{
+		slaveInfos = append(slaveInfos, &rpc.SlaveInfo{
 			Id:            []byte(slave.ID),
 			Host:          []byte(slave.IP),
 			Port:          slave.Port,
@@ -239,12 +239,11 @@ func (s *MasterBackend) InitShards() error {
 }
 
 func (s *MasterBackend) HeartBeat() {
-	req := qkcRPC.Request{Op: qkcRPC.OpHeartBeat, Data: nil}
 	go func(normal bool) {
 		for normal {
 			time.Sleep(time.Duration(beatTime) * time.Second)
 			for endpoint := range s.clientPool {
-				normal = s.clientPool[endpoint].HeartBeat(&req)
+				normal = s.clientPool[endpoint].HeartBeat()
 				if !normal {
 					s.shutdown <- syscall.SIGTERM
 					break
@@ -295,7 +294,7 @@ func (s *MasterBackend) getSlaveConnection(branch account.Branch) (*SlaveConnect
 func (s *MasterBackend) createRootBlockToMine(address account.Address) (*types.RootBlock, error) {
 	lenSlaves := len(s.clientPool)
 	check := NewCheckErr(lenSlaves)
-	chanRsp := make(chan *qkcRPC.GetUnconfirmedHeadersResponse, lenSlaves)
+	chanRsp := make(chan *rpc.GetUnconfirmedHeadersResponse, lenSlaves)
 	for index := range s.clientPool {
 		check.wg.Add(1)
 		go func(slaveConn *SlaveConnection) {
@@ -350,10 +349,10 @@ func (s *MasterBackend) getMinorBlockToMine(branch account.Branch, address accou
 
 }
 
-func (s *MasterBackend) GetAccountData(address account.Address) (map[account.Branch]*qkcRPC.AccountBranchData, error) {
+func (s *MasterBackend) GetAccountData(address account.Address) (map[account.Branch]*rpc.AccountBranchData, error) {
 	lenSlaves := len(s.clientPool)
 	check := NewCheckErr(lenSlaves)
-	chanRsp := make(chan *qkcRPC.GetAccountDataResponse, lenSlaves)
+	chanRsp := make(chan *rpc.GetAccountDataResponse, lenSlaves)
 	for index := range s.clientPool {
 		check.wg.Add(1)
 		go func(slaveConn *SlaveConnection) {
@@ -368,7 +367,7 @@ func (s *MasterBackend) GetAccountData(address account.Address) (map[account.Bra
 	if err := check.check(); err != nil {
 		return nil, err
 	}
-	branchToAccountBranchData := make(map[account.Branch]*qkcRPC.AccountBranchData)
+	branchToAccountBranchData := make(map[account.Branch]*rpc.AccountBranchData)
 	for rsp := range chanRsp {
 		for _, accountBranchData := range rsp.AccountBranchDataList {
 			branchToAccountBranchData[accountBranchData.Branch] = accountBranchData
@@ -380,7 +379,7 @@ func (s *MasterBackend) GetAccountData(address account.Address) (map[account.Bra
 	return branchToAccountBranchData, nil
 }
 
-func (s *MasterBackend) GetPrimaryAccountData(address account.Address, blockHeight uint64) (*qkcRPC.AccountBranchData, error) {
+func (s *MasterBackend) GetPrimaryAccountData(address account.Address, blockHeight uint64) (*rpc.AccountBranchData, error) {
 	fullShardID := s.clusterConfig.Quarkchain.GetFullShardIdByFullShardKey(address.FullShardKey)
 	slaveConn, err := s.getSlaveConnection(account.Branch{Value: fullShardID})
 	if err != nil {
@@ -457,7 +456,7 @@ func (s *MasterBackend) SetTargetBlockTime(rootBlockTime *uint32, minorBlockTime
 		temp := s.artificialTxConfig.TargetMinorBlockTime
 		minorBlockTime = &temp
 	}
-	s.artificialTxConfig = &qkcRPC.ArtificialTxConfig{
+	s.artificialTxConfig = &rpc.ArtificialTxConfig{
 		TargetRootBlockTime:  *rootBlockTime,
 		TargetMinorBlockTime: *minorBlockTime,
 	}
@@ -485,13 +484,13 @@ func (s *MasterBackend) CreateTransactions(numTxPerShard, xShardPercent uint32, 
 	return check.check()
 }
 
-func (s *MasterBackend) UpdateShardStatus(status *qkcRPC.ShardStatus) {
+func (s *MasterBackend) UpdateShardStatus(status *rpc.ShardStats) {
 	s.lock.Lock()
 	s.branchToShardStats[status.Branch.Value] = status
 	s.lock.RUnlock()
 }
 
-func (s *MasterBackend) UpdateTxCountHistory() {
+func (s *MasterBackend) UpdateTxCountHistory(txCount, xShardTxCount uint32, createTime uint64) {
 	panic("not implement")
 }
 

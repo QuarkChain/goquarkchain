@@ -9,6 +9,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/serialize"
 	"github.com/ethereum/go-ethereum/common"
+	ethRPC "github.com/ethereum/go-ethereum/rpc"
 )
 
 func (s *MasterBackend) AddTransaction(tx *types.Transaction) error {
@@ -121,19 +122,28 @@ func (s *MasterBackend) GetTransactionsByAddress(address account.Address, start 
 	}
 	return slaveConn.GetTransactionsByAddress(address, start, limit)
 }
-func (s *MasterBackend) GetLogs(branch account.Branch, address []account.Address, topics []*rpc.Topic, startBlock, endBlock *rpc.BlockHeight) ([]*types.Log, error) {
+func (s *MasterBackend) GetLogs(branch account.Branch, address []account.Address, topics []*rpc.Topic, startBlock, endBlock ethRPC.BlockNumber) ([]*types.Log, error) {
+	// not support earlist and pending
 	slaveConn, err := s.getSlaveConnection(branch)
 	if err != nil {
 		return nil, err
 	}
 
-	if startBlock.Str == "latest" {
-		startBlock.Height = s.branchToShardStats[branch.Value].Height
+	var (
+		startBlockNumber uint64
+		endBlockNumber   uint64
+	)
+	if startBlock == ethRPC.LatestBlockNumber {
+		startBlockNumber = s.branchToShardStats[branch.Value].Height
+	} else {
+		startBlockNumber = uint64(startBlock.Int64())
 	}
-	if endBlock.Str == "latest" {
-		endBlock.Height = s.branchToShardStats[branch.Value].Height
+	if endBlock == ethRPC.LatestBlockNumber {
+		endBlockNumber = s.branchToShardStats[branch.Value].Height
+	} else {
+		endBlockNumber = uint64(endBlock.Int64())
 	}
-	return slaveConn.GetLogs(branch, address, topics, startBlock.Height, endBlock.Height)
+	return slaveConn.GetLogs(branch, address, topics, startBlockNumber, endBlockNumber)
 }
 
 func (s *MasterBackend) EstimateGas(tx *types.Transaction, fromAddress account.Address) (uint32, error) {

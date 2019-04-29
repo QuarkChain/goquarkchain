@@ -56,17 +56,11 @@ type MineRequest struct {
 	Mining             bool                `json:"mining" gencodec:"required"`
 }
 
-type MineResponse struct {
-}
-
 // Generate transactions for loadtesting
 type GenTxRequest struct {
 	NumTxPerShard uint32             `json:"num_tx_per_shard" gencodec:"required"`
 	XShardPercent uint32             `json:"x_shard_percent" gencodec:"required"`
 	Tx            *types.Transaction `json:"tx" gencodec:"required"`
-}
-
-type GenTxResponse struct {
 }
 
 // Virtual connection management
@@ -178,9 +172,6 @@ type EcoInfo struct {
 	UnconfirmedHeadersCoinbaseAmount common.Hash    `json:"unconfirmed_headers_coinbase_amount" gencodec:"required"`
 }
 
-type GetEcoInfoListRequest struct {
-}
-
 type GetEcoInfoListResponse struct {
 	EcoInfoList []*EcoInfo `json:"eco_info_list" gencodec:"required" bytesizeofslicelen:"4"`
 }
@@ -200,16 +191,9 @@ type AddMinorBlockRequest struct {
 	MinorBlockData []byte `json:"minor_block_data" gencodec:"required" bytesizeofslicelen:"4"`
 }
 
-type AddMinorBlockResponse struct {
-}
-
 type HeadersInfo struct {
 	Branch     account.Branch            `json:"branch" gencodec:"required"`
 	HeaderList []*types.MinorBlockHeader `json:"header_list" gencodec:"required" bytesizeofslicelen:"4"`
-}
-
-// To collect minor block headers to build a new root block
-type GetUnconfirmedHeadersRequest struct {
 }
 
 type GetUnconfirmedHeadersResponse struct {
@@ -239,9 +223,6 @@ type GetAccountDataResponse struct {
 
 type AddTransactionRequest struct {
 	Tx *types.Transaction `json:"tx" gencodec:"required"`
-}
-
-type AddTransactionResponse struct {
 }
 
 type ShardStats struct {
@@ -274,14 +255,14 @@ type SyncMinorBlockListResponse struct {
 	Piggyback the ShardStats in the same request.
 */
 type AddMinorBlockHeaderRequest struct {
-	MinorBlockHeader types.MinorBlockHeader `json:"minor_block_header" gencodec:"required"`
-	TxCount          uint32                 `json:"tx_count" gencodec:"required"`
-	XShardTxCount    uint32                 `json:"x_shard_tx_count" gencodec:"required"`
-	ShardStats       ShardStats             `json:"shard_stats" gencodec:"required"`
+	MinorBlockHeader *types.MinorBlockHeader `json:"minor_block_header" gencodec:"required"`
+	TxCount          uint32                  `json:"tx_count" gencodec:"required"`
+	XShardTxCount    uint32                  `json:"x_shard_tx_count" gencodec:"required"`
+	ShardStats       *ShardStats             `json:"shard_stats" gencodec:"required"`
 }
 
 type AddMinorBlockHeaderResponse struct {
-	ArtificialTxConfig ArtificialTxConfig `json:"artificial_tx_config" gencodec:"required"`
+	ArtificialTxConfig *ArtificialTxConfig `json:"artificial_tx_config" gencodec:"required"`
 }
 
 type AddXshardTxListRequest struct {
@@ -290,15 +271,10 @@ type AddXshardTxListRequest struct {
 	TxList         []types.CrossShardTransactionDeposit `json:"tx_list" gencodec:"required" bytesizeofslicelen:"4"`
 }
 
-type AddXshardTxListResponse struct {
-}
-
 type BatchAddXshardTxListRequest struct {
 	AddXshardTxListRequestList []AddMinorBlockHeaderRequest `json:"add_xshard_tx_list_request_list" gencodec:"required" bytesizeofslicelen:"4"`
 }
 
-type BatchAddXshardTxListResponse struct {
-}
 type Topic struct {
 	Data [32]byte `json:"topics" gencodec:"required" bytesizeofslicelen:"4"`
 }
@@ -374,19 +350,4 @@ type SubmitWorkResponse struct {
 type BlockHeight struct {
 	Height uint64
 	Str    string
-}
-
-// ShardStatus shard status for api
-type ShardStatus struct {
-	Branch             account.Branch
-	Height             uint64
-	Difficulty         *big.Int
-	CoinBaseAddress    account.Address
-	TimeStamp          uint64
-	TxCount60s         uint32
-	PendingTxCount     uint32
-	TotalTxCount       uint32
-	BlockCount60s      uint32
-	StaleBlockCount60s uint32
-	LastBlockTime      uint32
 }
