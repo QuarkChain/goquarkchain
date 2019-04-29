@@ -56,19 +56,11 @@ type MineRequest struct {
 	Mining             bool                `json:"mining" gencodec:"required"`
 }
 
-type MineResponse struct {
-	ErrorCode uint32 `json:"error_code" gencodec:"required"`
-}
-
 // Generate transactions for loadtesting
 type GenTxRequest struct {
 	NumTxPerShard uint32             `json:"num_tx_per_shard" gencodec:"required"`
 	XShardPercent uint32             `json:"x_shard_percent" gencodec:"required"`
 	Tx            *types.Transaction `json:"tx" gencodec:"required"`
-}
-
-type GenTxResponse struct {
-	ErrorCode uint32 `json:"error_code" gencodec:"required"`
 }
 
 // Virtual connection management
@@ -82,7 +74,6 @@ type CreateClusterPeerConnectionRequest struct {
 }
 
 type CreateClusterPeerConnectionResponse struct {
-	ErrorCode uint32 `json:"error_code" gencodec:"required"`
 }
 
 /*
@@ -102,7 +93,6 @@ type GetMinorBlockRequest struct {
 }
 
 type GetMinorBlockResponse struct {
-	ErrorCode  uint32            `json:"error_code" gencodec:"required"`
 	MinorBlock *types.MinorBlock `json:"minor_block" gencodec:"required"`
 }
 
@@ -112,7 +102,6 @@ type GetTransactionRequest struct {
 }
 
 type GetTransactionResponse struct {
-	ErrorCode  uint32            `json:"error_code" gencodec:"required"`
 	MinorBlock *types.MinorBlock `json:"minor_block" gencodec:"required"`
 	Index      uint32            `json:"index" gencodec:"required"`
 }
@@ -124,8 +113,7 @@ type ExecuteTransactionRequest struct {
 }
 
 type ExecuteTransactionResponse struct {
-	ErrorCode uint32 `json:"error_code" gencodec:"required"`
-	Result    []byte `json:"result" gencodec:"required" bytesizeofslicelen:"4"`
+	Result []byte `json:"result" gencodec:"required" bytesizeofslicelen:"4"`
 }
 
 type GetTransactionReceiptRequest struct {
@@ -134,7 +122,6 @@ type GetTransactionReceiptRequest struct {
 }
 
 type GetTransactionReceiptResponse struct {
-	ErrorCode  uint32            `json:"error_code" gencodec:"required"`
 	MinorBlock *types.MinorBlock `json:"minor_block" gencodec:"required"`
 	Index      uint32            `json:"index" gencodec:"required"`
 	Receipt    *types.Receipt    `json:"receipt" gencodec:"required"`
@@ -159,9 +146,8 @@ type TransactionDetail struct {
 }
 
 type GetTransactionListByAddressResponse struct {
-	ErrorCode uint32               `json:"error_code" gencodec:"required"`
-	TxList    []*TransactionDetail `json:"tx_list" gencodec:"required" bytesizeofslicelen:"4"`
-	Next      []byte               `json:"next" gencodec:"required" bytesizeofslicelen:"4"`
+	TxList []*TransactionDetail `json:"tx_list" gencodec:"required" bytesizeofslicelen:"4"`
+	Next   []byte               `json:"next" gencodec:"required" bytesizeofslicelen:"4"`
 }
 
 // RPCs to update blockchains
@@ -174,8 +160,7 @@ type AddRootBlockRequest struct {
 }
 
 type AddRootBlockResponse struct {
-	ErrorCode uint32 `json:"error_code" gencodec:"required"`
-	Switched  bool   `json:"switched" gencodec:"required"`
+	Switched bool `json:"switched" gencodec:"required"`
 }
 
 // Necessary information for master to decide the best block to mine
@@ -187,11 +172,7 @@ type EcoInfo struct {
 	UnconfirmedHeadersCoinbaseAmount common.Hash    `json:"unconfirmed_headers_coinbase_amount" gencodec:"required"`
 }
 
-type GetEcoInfoListRequest struct {
-}
-
 type GetEcoInfoListResponse struct {
-	ErrorCode   uint32     `json:"error_code" gencodec:"required"`
 	EcoInfoList []*EcoInfo `json:"eco_info_list" gencodec:"required" bytesizeofslicelen:"4"`
 }
 
@@ -202,8 +183,7 @@ type GetNextBlockToMineRequest struct {
 }
 
 type GetNextBlockToMineResponse struct {
-	ErrorCode uint32            `json:"error_code" gencodec:"required"`
-	Block     *types.MinorBlock `json:"block" gencodec:"required"`
+	Block *types.MinorBlock `json:"block" gencodec:"required"`
 }
 
 // For adding blocks mined through JRPC
@@ -211,27 +191,18 @@ type AddMinorBlockRequest struct {
 	MinorBlockData []byte `json:"minor_block_data" gencodec:"required" bytesizeofslicelen:"4"`
 }
 
-type AddMinorBlockResponse struct {
-	ErrorCode uint32 `json:"error_code" gencodec:"required"`
-}
-
 type HeadersInfo struct {
 	Branch     account.Branch            `json:"branch" gencodec:"required"`
 	HeaderList []*types.MinorBlockHeader `json:"header_list" gencodec:"required" bytesizeofslicelen:"4"`
 }
 
-// To collect minor block headers to build a new root block
-type GetUnconfirmedHeadersRequest struct {
-}
-
 type GetUnconfirmedHeadersResponse struct {
-	ErrorCode       uint32         `json:"error_code" gencodec:"required"`
 	HeadersInfoList []*HeadersInfo `json:"headers_info_list" gencodec:"required" bytesizeofslicelen:"4"`
 }
 
 type GetAccountDataRequest struct {
 	Address     account.Address `json:"address" gencodec:"required"`
-	BlockHeight uint64          `json:"block_height" ser:"nil"`
+	BlockHeight *uint64         `json:"block_height" ser:"nil"`
 }
 
 type TokenBalancePair struct {
@@ -247,16 +218,11 @@ type AccountBranchData struct {
 }
 
 type GetAccountDataResponse struct {
-	ErrorCode             uint32               `json:"error_code" gencodec:"required"`
 	AccountBranchDataList []*AccountBranchData `json:"account_branch_data_list" gencodec:"required" bytesizeofslicelen:"4"`
 }
 
 type AddTransactionRequest struct {
 	Tx *types.Transaction `json:"tx" gencodec:"required"`
-}
-
-type AddTransactionResponse struct {
-	ErrorCode uint32 `json:"error_code" gencodec:"required"`
 }
 
 type ShardStats struct {
@@ -280,7 +246,6 @@ type SyncMinorBlockListRequest struct {
 }
 
 type SyncMinorBlockListResponse struct {
-	ErrorCode  uint32     `json:"error_code" gencodec:"required"`
 	ShardStats ShardStats `json:"shard_stats" ser:"nil"`
 }
 
@@ -290,15 +255,14 @@ type SyncMinorBlockListResponse struct {
 	Piggyback the ShardStats in the same request.
 */
 type AddMinorBlockHeaderRequest struct {
-	MinorBlockHeader types.MinorBlockHeader `json:"minor_block_header" gencodec:"required"`
-	TxCount          uint32                 `json:"tx_count" gencodec:"required"`
-	XShardTxCount    uint32                 `json:"x_shard_tx_count" gencodec:"required"`
-	ShardStats       ShardStats             `json:"shard_stats" gencodec:"required"`
+	MinorBlockHeader *types.MinorBlockHeader `json:"minor_block_header" gencodec:"required"`
+	TxCount          uint32                  `json:"tx_count" gencodec:"required"`
+	XShardTxCount    uint32                  `json:"x_shard_tx_count" gencodec:"required"`
+	ShardStats       *ShardStats             `json:"shard_stats" gencodec:"required"`
 }
 
 type AddMinorBlockHeaderResponse struct {
-	ErrorCode          uint32             `json:"error_code" gencodec:"required"`
-	ArtificialTxConfig ArtificialTxConfig `json:"artificial_tx_config" gencodec:"required"`
+	ArtificialTxConfig *ArtificialTxConfig `json:"artificial_tx_config" gencodec:"required"`
 }
 
 type AddXshardTxListRequest struct {
@@ -307,17 +271,10 @@ type AddXshardTxListRequest struct {
 	TxList         []types.CrossShardTransactionDeposit `json:"tx_list" gencodec:"required" bytesizeofslicelen:"4"`
 }
 
-type AddXshardTxListResponse struct {
-	ErrorCode uint32 `json:"error_code" gencodec:"required"`
-}
-
 type BatchAddXshardTxListRequest struct {
 	AddXshardTxListRequestList []AddMinorBlockHeaderRequest `json:"add_xshard_tx_list_request_list" gencodec:"required" bytesizeofslicelen:"4"`
 }
 
-type BatchAddXshardTxListResponse struct {
-	ErrorCode uint32 `json:"error_code" gencodec:"required"`
-}
 type Topic struct {
 	Data [32]byte `json:"topics" gencodec:"required" bytesizeofslicelen:"4"`
 }
@@ -331,8 +288,7 @@ type GetLogRequest struct {
 }
 
 type GetLogResponse struct {
-	ErrorCode uint32       `json:"error_code" gencodec:"required"`
-	Logs      []*types.Log `json:"logs" gencodec:"required" bytesizeofslicelen:"4"`
+	Logs []*types.Log `json:"logs" gencodec:"required" bytesizeofslicelen:"4"`
 }
 
 type EstimateGasRequest struct {
@@ -341,8 +297,7 @@ type EstimateGasRequest struct {
 }
 
 type EstimateGasResponse struct {
-	ErrorCode uint32 `json:"error_code" gencodec:"required"`
-	Result    uint32 `json:"result" gencodec:"required"`
+	Result uint32 `json:"result" gencodec:"required"`
 }
 
 type GetStorageRequest struct {
@@ -352,8 +307,7 @@ type GetStorageRequest struct {
 }
 
 type GetStorageResponse struct {
-	ErrorCode uint32             `json:"error_code" gencodec:"required"`
-	Result    *serialize.Uint256 `json:"result" gencodec:"required"`
+	Result *serialize.Uint256 `json:"result" gencodec:"required"`
 }
 
 type GetCodeRequest struct {
@@ -362,8 +316,7 @@ type GetCodeRequest struct {
 }
 
 type GetCodeResponse struct {
-	ErrorCode uint32 `json:"error_code" gencodec:"required"`
-	Result    []byte `json:"result" gencodec:"required" bytesizeofslicelen:"4"`
+	Result []byte `json:"result" gencodec:"required" bytesizeofslicelen:"4"`
 }
 
 type GasPriceRequest struct {
@@ -371,8 +324,7 @@ type GasPriceRequest struct {
 }
 
 type GasPriceResponse struct {
-	ErrorCode uint32 `json:"error_code" gencodec:"required"`
-	Result    uint64 `json:"result" gencodec:"required"`
+	Result uint64 `json:"result" gencodec:"required"`
 }
 
 type GetWorkRequest struct {
@@ -380,7 +332,6 @@ type GetWorkRequest struct {
 }
 
 type GetWorkResponse struct {
-	ErrorCode  uint32      `json:"error_code" gencodec:"required"`
 	HeaderHash common.Hash `json:"header_hash" gencodec:"required"`
 	Height     uint64      `json:"height" gencodec:"required"`
 	Difficulty *big.Int    `json:"difficulty" gencodec:"required"`
@@ -394,25 +345,9 @@ type SubmitWorkRequest struct {
 }
 
 type SubmitWorkResponse struct {
-	ErrorCode uint32 `json:"error_code" gencodec:"required"`
-	Success   bool   `json:"success" gencodec:"required"`
+	Success bool `json:"success" gencodec:"required"`
 }
 type BlockHeight struct {
 	Height uint64
 	Str    string
-}
-
-// ShardStatus shard status for api
-type ShardStatus struct {
-	Branch             account.Branch
-	Height             uint64
-	Difficulty         *big.Int
-	CoinBaseAddress    account.Address
-	TimeStamp          uint64
-	TxCount60s         uint32
-	PendingTxCount     uint32
-	TotalTxCount       uint32
-	BlockCount60s      uint32
-	StaleBlockCount60s uint32
-	LastBlockTime      uint32
 }
