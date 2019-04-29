@@ -459,7 +459,13 @@ func TestExecuteTransaction(t *testing.T) {
 func TestGetMinorBlockByHeight(t *testing.T) {
 	master := initEnv(t, nil)
 	fakeMinorBlock := types.NewMinorBlock(&types.MinorBlockHeader{Version: 111}, &types.MinorBlockMeta{}, nil, nil, nil)
+	fakeShardStatus := rpc.ShardStats{
+		Branch: account.Branch{Value: 2},
+		Height: 0,
+	}
+	master.UpdateShardStatus(&fakeShardStatus)
 	minorBlock, err := master.GetMinorBlockByHeight(nil, account.Branch{Value: 2})
+
 	assert.NoError(t, err)
 	assert.Equal(t, fakeMinorBlock.Hash(), minorBlock.Hash())
 

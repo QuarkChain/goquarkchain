@@ -499,7 +499,7 @@ func (s *QKCMasterBackend) CreateTransactions(numTxPerShard, xShardPercent uint3
 func (s *QKCMasterBackend) UpdateShardStatus(status *rpc.ShardStats) {
 	s.lock.Lock()
 	s.branchToShardStats[status.Branch.Value] = status
-	s.lock.RUnlock()
+	s.lock.Unlock()
 }
 
 // UpdateTxCountHistory update Tx count queue
