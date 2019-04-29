@@ -1231,8 +1231,8 @@ func (bc *RootBlockChain) CalculateRootBlockCoinBase(rootBlock *types.RootBlock)
 	for _, header := range rootBlock.MinorBlockHeaders() {
 		minorBlockFee.Add(minorBlockFee, header.CoinbaseAmount.Value)
 	}
-	minorBlockFee.Mul(minorBlockFee, value.Denom())
-	minorBlockFee.Div(minorBlockFee, value.Num())
+	minorBlockFee.Mul(minorBlockFee, value.Num())
+	minorBlockFee.Div(minorBlockFee, value.Denom())
 	coinBaseAmount.Add(coinBaseAmount, minorBlockFee)
 	return coinBaseAmount
 }
