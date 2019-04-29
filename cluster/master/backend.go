@@ -39,7 +39,7 @@ type MasterBackend struct {
 	clusterConfig      *config.ClusterConfig
 	clientPool         map[string]*SlaveConnection
 	branchToSlaves     map[uint32][]*SlaveConnection
-	branchToShardStats map[uint32]*rpc.ShardStatus
+	branchToShardStats map[uint32]*rpc.ShardStats
 	artificialTxConfig *rpc.ArtificialTxConfig
 	rootBlockChain     *core.RootBlockChain
 	logInfo            string
@@ -52,12 +52,12 @@ func New(ctx *service.ServiceContext, cfg *config.ClusterConfig) (*MasterBackend
 			eventMux:           ctx.EventMux,
 			clientPool:         make(map[string]*SlaveConnection),
 			branchToSlaves:     make(map[uint32][]*SlaveConnection, 0),
-			branchToShardStats: make(map[uint32]*rpc.ShardStatus),
-
+			branchToShardStats: make(map[uint32]*rpc.ShardStats),
 			artificialTxConfig: &rpc.ArtificialTxConfig{
 				TargetRootBlockTime:  cfg.Quarkchain.Root.ConsensusConfig.TargetBlockTime,
-				TargetMinorBlockTime: 0, //TODO:next iter?
+				TargetMinorBlockTime: cfg.Quarkchain.GetShardConfigByFullShardID(cfg.Quarkchain.GetGenesisShardIds()[0]).ConsensusConfig.TargetBlockTime,
 			},
+			logInfo: "masterServer",
 		}
 		err error
 	)
@@ -65,13 +65,12 @@ func New(ctx *service.ServiceContext, cfg *config.ClusterConfig) (*MasterBackend
 		return nil, err
 	}
 
-	genesis := core.NewGenesis(cfg.Quarkchain)
-	genesis.MustCommitRootBlock(mstr.chainDb)
-
 	if mstr.engine, err = CreateConsensusEngine(ctx, cfg.Quarkchain.Root); err != nil {
 		return nil, err
 	}
 
+	genesis := core.NewGenesis(cfg.Quarkchain)
+	genesis.MustCommitRootBlock(mstr.chainDb)
 	if mstr.rootBlockChain, err = core.NewRootBlockChain(mstr.chainDb, nil, cfg.Quarkchain, mstr.engine, mstr.isLocalBlock); err != nil {
 		return nil, err
 	}

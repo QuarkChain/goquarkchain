@@ -26,7 +26,7 @@ func (s *MasterBackend) AddTransaction(tx *types.Transaction) error {
 		check.wg.Add(1)
 		go func(slave *SlaveConnection) {
 			defer check.wg.Done()
-			err := slave.AddTransaction(tx) //TODO ??height
+			err := slave.AddTransaction(tx)
 			check.errc <- err
 
 		}(slaves[index])

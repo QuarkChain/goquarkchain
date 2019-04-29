@@ -34,6 +34,7 @@ func NewSlaveConn(target string, shardMaskLst []*types.ChainMask, slaveID string
 		client:       client,
 		chainMaskLst: shardMaskLst,
 		slaveID:      slaveID,
+		rpcID:        0,
 	}
 }
 

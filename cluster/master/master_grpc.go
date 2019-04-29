@@ -40,6 +40,7 @@ func (m *MasterServerSideOp) AddMinorBlockHeader(ctx context.Context, req *rpc.R
 	}, nil
 }
 
+//TODO @pingke
 // p2p apis
 func (m *MasterServerSideOp) BroadcastNewTip(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
 	return &rpc.Response{
