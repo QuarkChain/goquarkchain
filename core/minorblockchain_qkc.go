@@ -671,7 +671,7 @@ func (m *MinorBlockChain) GetCode(recipient account.Recipient, height *uint64) (
 }
 
 // GetStorageAt get storage for addr
-func (m *MinorBlockChain) GetStorageAt(recipient account.Recipient, key common.Hash, height *uint64) ( common.Hash, error) {
+func (m *MinorBlockChain) GetStorageAt(recipient account.Recipient, key common.Hash, height *uint64) (common.Hash, error) {
 	// no need to lock
 	if height == nil {
 		temp := m.CurrentBlock().NumberU64()
@@ -686,7 +686,7 @@ func (m *MinorBlockChain) GetStorageAt(recipient account.Recipient, key common.H
 	if err != nil {
 		return common.Hash{}, err
 	}
-	return evmState.GetState(recipient, key),nil
+	return evmState.GetState(recipient, key), nil
 }
 
 // ExecuteTx execute tx
@@ -1377,7 +1377,7 @@ func (m *MinorBlockChain) POSWDiffAdjust(block types.IBlock) (uint64, error) {
 		blockThreShold = uint64(config.WindowSize)
 	}
 
-	windowSize := config.WindowSize - 1
+	windowSize := config.WindowSize
 	blockCnt, err := m.getPOSWCoinbaseBlockCnt(header.GetParentHash(), &windowSize)
 	log.Info(m.logInfo, blockCnt)
 	//TODO ---block_cnt.get()
