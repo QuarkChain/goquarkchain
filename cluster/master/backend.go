@@ -82,7 +82,7 @@ func New(ctx *service.ServiceContext, cfg *config.ClusterConfig) (*QKCMasterBack
 }
 
 func createDB(ctx *service.ServiceContext, name string) (ethdb.Database, error) {
-	db, err := ctx.OpenDatabase(name, 128, 1024)
+	db, err := ctx.OpenDatabase(name, 128, 1024) // TODO @liuhuan to delete "128 1024"?
 	if err != nil {
 		return nil, err
 	}
@@ -111,7 +111,10 @@ func (s *QKCMasterBackend) GetClusterConfig() *config.ClusterConfig {
 }
 
 // Protocols p2p protocols, p2p Server will start in node.Start
-func (s *QKCMasterBackend) Protocols() []p2p.Protocol { return nil }
+func (s *QKCMasterBackend) Protocols() []p2p.Protocol {
+	// TODO add p2p.protocol
+	return nil
+}
 
 // APIs return all apis for master Server
 func (s *QKCMasterBackend) APIs() []ethRPC.API {
@@ -144,20 +147,22 @@ func (s *QKCMasterBackend) Start(srvr *p2p.Server) error {
 
 // StartMining start mining
 func (s *QKCMasterBackend) StartMining(threads int) error {
+	// TODO @liuhuan
 	return nil
 }
 
 // StopMining stop mining
 func (s *QKCMasterBackend) StopMining(threads int) error {
+	// TODO @liuhuan
 	return nil
 }
 
 // InitCluster init cluster :
-//                          1:ConnectToSlaves
-// 							2:logSummary
-// 							3:check if has all shards
-// 							4.setup slave to slave
-//                          5:init shards
+// 1:ConnectToSlaves
+// 2:logSummary
+// 3:check if has all shards
+// 4.setup slave to slave
+// 5:init shards
 func (s *QKCMasterBackend) InitCluster() error {
 	if err := s.ConnectToSlaves(); err != nil {
 		return err
@@ -504,23 +509,27 @@ func (s *QKCMasterBackend) UpdateShardStatus(status *rpc.ShardStats) {
 
 // UpdateTxCountHistory update Tx count queue
 func (s *QKCMasterBackend) UpdateTxCountHistory(txCount, xShardTxCount uint32, createTime uint64) {
+	// TODO @scf next pr to implement
 	panic("not implement")
 }
 
 func (s *QKCMasterBackend) GetBlockCount() map[string]interface{} {
+	// TODO @scf next pr to implement
 	panic("not implement")
 }
 
 func (s *QKCMasterBackend) GetStats() map[string]interface{} {
+	// TODO @scf next pr to implement
 	panic("not implement")
-	//TODO :only calc
 }
 
 func (s *QKCMasterBackend) isSyning() bool {
+	// TODO @liuhuan
 	return false
 }
 
 func (s *QKCMasterBackend) isMining() bool {
+	// TODO @liuhuan
 	return false
 }
 

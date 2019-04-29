@@ -61,7 +61,7 @@ func (s *QKCMasterBackend) AddTransaction(tx *types.Transaction) error {
 	branch := account.Branch{Value: evmTx.FromFullShardId()}
 	slaves, ok := s.branchToSlaves[branch.Value]
 	if !ok {
-		return errors.New("no such slave")
+		return ErrNoBranchConn
 	}
 	lenSlaves := len(slaves)
 	check := NewCheckErr(lenSlaves)
@@ -86,7 +86,7 @@ func (s *QKCMasterBackend) ExecuteTransaction(tx *types.Transaction, address acc
 
 	slaves, ok := s.branchToSlaves[branch.Value]
 	if !ok {
-		return nil, fmt.Errorf("no such branch %v", branch.Value)
+		return nil, ErrNoBranchConn
 	}
 	lenSlaves := len(slaves)
 	check := NewCheckErr(lenSlaves)
@@ -136,9 +136,11 @@ func (s *QKCMasterBackend) GetMinorBlockByHeight(height *uint64, branch account.
 		return nil, ErrNoBranchConn
 	}
 	if height == nil {
+		s.lock.RLock()
 		shardStats, ok := s.branchToShardStats[branch.Value]
+		s.lock.RUnlock()
 		if !ok {
-			return nil, errors.New("no such branch")
+			return nil, ErrNoBranchConn
 		}
 		height = &shardStats.Height
 	}
@@ -168,8 +170,6 @@ func (s *QKCMasterBackend) GetTransactionsByAddress(address account.Address, sta
 	return slaveConn.GetTransactionsByAddress(address, start, limit)
 }
 func (s *QKCMasterBackend) GetLogs(branch account.Branch, address []account.Address, topics []*rpc.Topic, startBlock, endBlock ethRpc.BlockNumber) ([]*types.Log, error) {
-	s.lock.RLock()
-	defer s.lock.RUnlock() // lock to read branchToShardStats
 	// not support earlist and pending
 	slaveConn := s.getOneSlaveConnection(branch)
 	if slaveConn == nil {
@@ -180,6 +180,8 @@ func (s *QKCMasterBackend) GetLogs(branch account.Branch, address []account.Addr
 		startBlockNumber uint64
 		endBlockNumber   uint64
 	)
+
+	s.lock.RLock()
 	if startBlock == ethRpc.LatestBlockNumber {
 		startBlockNumber = s.branchToShardStats[branch.Value].Height
 	} else {
@@ -190,6 +192,7 @@ func (s *QKCMasterBackend) GetLogs(branch account.Branch, address []account.Addr
 	} else {
 		endBlockNumber = uint64(endBlock.Int64())
 	}
+	s.lock.RUnlock() // lock branchToShardStats
 	return slaveConn.GetLogs(branch, address, topics, startBlockNumber, endBlockNumber)
 }
 
@@ -229,9 +232,11 @@ func (s *QKCMasterBackend) GasPrice(branch account.Branch) (uint64, error) {
 	return slaveConn.GasPrice(branch)
 }
 func (s *QKCMasterBackend) GetWork(branch *account.Branch) consensus.MiningWork {
+	// TODO @liuhuan
 	panic("not ")
 }
 func (s *QKCMasterBackend) SubmitWork(branch *account.Branch, headerHash common.Hash, nonce uint64, mixHash common.Hash) bool {
+	// TODO @liuhuan
 	return false
 }
 
@@ -240,11 +245,11 @@ func (s *QKCMasterBackend) GetRootBlockByNumber(blockNumber *uint64) (*types.Roo
 		temp := s.rootBlockChain.CurrentBlock().NumberU64()
 		blockNumber = &temp
 	}
-	block := s.rootBlockChain.GetBlockByNumber(*blockNumber)
-	if block == nil {
+	block, ok := s.rootBlockChain.GetBlockByNumber(*blockNumber).(*types.RootBlock)
+	if !ok {
 		return nil, errors.New("rootBlock is nil")
 	}
-	return block.(*types.RootBlock), nil
+	return block, nil
 }
 
 func (s *QKCMasterBackend) GetRootBlockByHash(hash common.Hash) (*types.RootBlock, error) {
