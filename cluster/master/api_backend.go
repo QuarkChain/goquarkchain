@@ -134,7 +134,6 @@ func (s *MasterBackend) GetMinorBlockByHash(blockHash common.Hash, branch accoun
 	return slaveConn.GetMinorBlockByHash(blockHash, branch)
 }
 func (s *MasterBackend) GetMinorBlockByHeight(height *uint64, branch account.Branch) (*types.MinorBlock, error) {
-	s.GetBlockCount()
 	slaveConn, err := s.getSlaveConnection(branch)
 	if err != nil {
 		return nil, err
