@@ -90,7 +90,7 @@ func (s *QKCMasterBackend) ExecuteTransaction(tx *types.Transaction, address acc
 	}
 	lenSlaves := len(slaves)
 	check := NewCheckErr(lenSlaves)
-	rspList := make([][]byte, lenSlaves)
+	rspList := make([][]byte, 0)
 	for index := range slaves {
 		check.wg.Add(1)
 		go func(slave *SlaveConnection) {
