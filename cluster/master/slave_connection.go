@@ -227,11 +227,10 @@ func (s *SlaveConnection) GetTransactionReceipt(txHash common.Hash, branch accou
 	if err != nil {
 		return nil, 0, nil, err
 	}
-	//fmt.Println("RRRRRR-data", hex.EncodeToString(res.Data))
+
 	if err := serialize.Deserialize(serialize.NewByteBuffer(res.Data), rsp); err != nil {
 		return nil, 0, nil, err
 	}
-	//fmt.Println("RRRRRRRRRR", rsp.Receipt.TxHash.String(), rsp.Receipt.Status)
 	return rsp.MinorBlock, rsp.Index, rsp.Receipt, nil
 }
 
