@@ -77,7 +77,7 @@ var (
 		OpHeartBeat:  {name: "HeartBeat"},
 		OpMasterInfo: {name: "MasterInfo"},
 		OpPing:       {name: "Ping"},
-		// OpConnectToSlaves:             {name: "ConnectToSlaves"},
+		// OpConnectToSlaves:             {name: "connectToSlaves"},
 		OpAddRootBlock:                {name: "AddRootBlock"},
 		OpGetEcoInfoList:              {name: "GetEcoInfoList"},
 		OpGetNextBlockToMine:          {name: "GetNextBlockToMine"},
