@@ -377,10 +377,10 @@ func TestBroadcastMinorBlock(t *testing.T) {
 	if err != nil {
 		t.Errorf("make message failed: %v", err.Error())
 	}
-	if err := waitChanTilErrorOrTimeout(errc, 3); err != nil {
+	if err := waitChanTilErrorOrTimeout(errc, 2); err != nil {
 		t.Errorf("got one error: %v", err.Error())
 	}
-	time.Sleep(1 * time.Second)
+	time.Sleep(2 * time.Second)
 	if pm.peers.Peer(peer.id) != nil {
 		t.Errorf("peer should be Unregister")
 	}
@@ -453,7 +453,7 @@ func TestBroadcastNewMinorBlockTip(t *testing.T) {
 	if err != nil {
 		t.Errorf("make message failed: %v", err.Error())
 	}
-	if err := waitChanTilErrorOrTimeout(errc, 3); err != nil {
+	if err := waitChanTilErrorOrTimeout(errc, 2); err != nil {
 		t.Errorf("got one error: %v", err.Error())
 	}
 	time.Sleep(2 * time.Second)
@@ -475,7 +475,7 @@ func TestBroadcastNewRootBlockTip(t *testing.T) {
 	if err != nil {
 		t.Errorf("make message failed: %v", err.Error())
 	}
-	timeout := time.NewTimer(time.Duration(2))
+	timeout := time.NewTimer(time.Duration(2 * time.Second))
 	defer timeout.Stop()
 	select {
 	case <-sync.Task:
@@ -488,7 +488,7 @@ func TestBroadcastNewRootBlockTip(t *testing.T) {
 	if err != nil {
 		t.Errorf("make message failed: %v", err.Error())
 	}
-	timeout = time.NewTimer(time.Duration(3))
+	timeout = time.NewTimer(time.Duration(3 * time.Second))
 	defer timeout.Stop()
 	select {
 	case <-sync.Task:
@@ -507,9 +507,8 @@ func getShardConnForP2P(n int, ctrl *gomock.Controller) []ShardConnForP2P {
 	return shardConns
 }
 
-func waitChanTilErrorOrTimeout(errc chan error, wait int64) error {
-
-	timeout := time.NewTimer(time.Duration(wait))
+func waitChanTilErrorOrTimeout(errc chan error, wait time.Duration) error {
+	timeout := time.NewTimer(wait * time.Second)
 	defer timeout.Stop()
 	select {
 	case err := <-errc:
