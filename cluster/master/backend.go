@@ -105,6 +105,10 @@ func createConsensusEngine(ctx *service.ServiceContext, cfg *config.RootConfig) 
 	return nil, fmt.Errorf("Failed to create consensus engine consensus type %s", cfg.ConsensusType)
 }
 
+func (s *QKCMasterBackend) GetClusterConfig() *config.ClusterConfig {
+	return s.clusterConfig
+}
+
 func (s *QKCMasterBackend) isLocalBlock(block *types.RootBlock) bool {
 	return false
 }
@@ -449,24 +453,6 @@ func (s *QKCMasterBackend) AddRootBlock(rootBlock *types.RootBlock) error {
 	return check.check()
 }
 
-// AddRawMinorBlock add minor block to other slave
-func (s *QKCMasterBackend) AddRawMinorBlock(branch account.Branch, blockData []byte) error {
-	slaveConn, err := s.getSlaveConnection(branch)
-	if err != nil {
-		return err
-	}
-	return slaveConn.AddMinorBlock(blockData)
-}
-
-// AddRootBlockFromMine add root block from mine,used in local
-func (s *QKCMasterBackend) AddRootBlockFromMine(block *types.RootBlock) error {
-	currTip := s.rootBlockChain.CurrentBlock()
-	if block.Header().ParentHash != currTip.Hash() {
-		return errors.New("parent hash not match")
-	}
-	return s.AddRootBlock(block)
-}
-
 // SetTargetBlockTime set target Time from jsonRpc
 func (s *QKCMasterBackend) SetTargetBlockTime(rootBlockTime *uint32, minorBlockTime *uint32) error {
 	if rootBlockTime == nil {
@@ -521,18 +507,27 @@ func (s *QKCMasterBackend) UpdateTxCountHistory(txCount, xShardTxCount uint32, c
 	panic("not implement")
 }
 
-// GetBlockCount get curr block count
-func (s *QKCMasterBackend) GetBlockCount() {
+func (s *QKCMasterBackend) GetBlockCount() map[string]interface{} {
 	panic("not implement")
 }
 
-// GetStatus get curr all branchs's status
-func (s *QKCMasterBackend) GetStatus() {
+func (s *QKCMasterBackend) GetStats() map[string]interface{} {
 	panic("not implement")
 	//TODO :only calc
 }
 
-// CheckErr check slaveConn's response
+func (s *QKCMasterBackend) isSyning() bool {
+	return false
+}
+
+func (s *QKCMasterBackend) isMining() bool {
+	return false
+}
+
+func (s *QKCMasterBackend) CurrentBlock() *types.RootBlock {
+	return s.rootBlockChain.CurrentBlock()
+}
+
 type CheckErr struct {
 	len  int
 	errc chan error
