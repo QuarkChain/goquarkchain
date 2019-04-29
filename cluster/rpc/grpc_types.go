@@ -344,10 +344,7 @@ type SubmitWorkRequest struct {
 type SubmitWorkResponse struct {
 	Success bool `json:"success" gencodec:"required"`
 }
-type BlockHeight struct {
-	Height uint64
-	Str    string
-}
+
 type PeerInfoForDisPlay struct {
 	ID   []byte
 	IP   uint32
