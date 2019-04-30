@@ -35,7 +35,7 @@ type ProtocolManager struct {
 	rootBlockChain *core.RootBlockChain
 	clusterConfig  *config.ClusterConfig
 
-	SubProtocols     []p2p.Protocol
+	subProtocols     []p2p.Protocol
 	getShardConnFunc func(fullShardId uint32) []ShardConnForP2P
 	synchronizer     synchronizer.Synchronizer
 
@@ -81,7 +81,7 @@ func NewProtocolManager(env config.ClusterConfig, rootBlockChain *core.RootBlock
 			}
 		},
 	}
-	manager.SubProtocols = []p2p.Protocol{protocol}
+	manager.subProtocols = []p2p.Protocol{protocol}
 	return manager, nil
 
 }
@@ -478,11 +478,11 @@ func (pm *ProtocolManager) HandleGetMinorBlockHeaderListRequest(rpcId uint64, br
 		return nil, fmt.Errorf("bad limit. rpcId: %d; branch: %d; limit: %d; expected limit: %d",
 			rpcId, branch, request.Limit, minorBlockHeaderListLimit)
 	}
-	if request.Direction != 0 {
+	if request.Direction != directionToGenesis {
 		return nil, fmt.Errorf("Bad direction. rpcId: %d; branch: %d; ", rpcId, branch)
 	}
 	clients := pm.getShardConnFunc(branch)
-	if clients == nil || len(clients) == 0 {
+	if len(clients) == 0 {
 		return nil, fmt.Errorf("invalid branch %d for rpc request %d", rpcId, branch)
 	}
 	result, err := clients[0].GetMinorBlockHeaders(request)
@@ -537,7 +537,7 @@ func (pm *ProtocolManager) BroadcastTransactions(branch uint32, txs []*types.Tra
 			peer.AsyncSendTransactions(branch, txs)
 		}
 	}
-	log.Trace("Announced transaction", "count", len(txs), "recipients", len(pm.peers.peers))
+	log.Trace("Announced transaction", "count", len(txs), "recipients", len(pm.peers.peers)-1)
 }
 
 // syncer is responsible for periodically synchronising with the network, both

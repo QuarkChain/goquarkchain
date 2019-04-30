@@ -574,6 +574,7 @@ func (ps *peerSet) BestPeer() *peer {
 		bestPeer   *peer
 		bestHeight uint64
 	)
+	// TODO will update to TD when td add to rootblock
 	for _, p := range ps.peers {
 		if head := p.Head(); head != nil && (bestPeer == nil || head.NumberU64() > bestHeight) {
 			bestPeer, bestHeight = p, head.NumberU64()
