@@ -2,7 +2,6 @@ package p2p
 
 import (
 	"bytes"
-	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/serialize"
 	"github.com/ethereum/go-ethereum/common"
@@ -202,7 +201,6 @@ type GetMinorBlockListResponse struct {
 //GetMinorBlockHeaderListRequest get minor block header list request
 type GetMinorBlockHeaderListRequest struct {
 	BlockHash common.Hash
-	Branch    account.Branch
 	Limit     uint32
 	Direction uint8
 }
