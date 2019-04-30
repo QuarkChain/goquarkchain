@@ -250,10 +250,10 @@ func initEnv(t *testing.T, chanOp chan uint32) *QKCMasterBackend {
 	monkey.Patch(NewSlaveConn, func(target string, shardMaskLst []*types.ChainMask, slaveID string) *SlaveConnection {
 		client := NewFakeRPCClient(chanOp, target, shardMaskLst, slaveID, config.NewClusterConfig())
 		return &SlaveConnection{
-			target:       target,
-			client:       client,
-			chainMaskLst: shardMaskLst,
-			slaveID:      slaveID,
+			target:        target,
+			client:        client,
+			shardMaskList: shardMaskLst,
+			slaveID:       slaveID,
 		}
 	})
 	monkey.Patch(createDB, func(ctx *service.ServiceContext, name string) (ethdb.Database, error) {

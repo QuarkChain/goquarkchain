@@ -5,55 +5,58 @@ import (
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
 	"github.com/QuarkChain/goquarkchain/consensus"
-	"github.com/QuarkChain/goquarkchain/core"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/serialize"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
+	"time"
 )
 
 type SlaveConnection struct {
-	target       string
-	chainMaskLst []*types.ChainMask
-	client       rpc.Client
-	slaveID      string
+	target        string
+	shardMaskList []*types.ChainMask
+	client        rpc.Client
+	slaveID       string
 }
 
 // create slave connection manager
-func NewSlaveConn(target string, shardMaskLst []*types.ChainMask, slaveID string) *SlaveConnection {
+func NewSlaveConn(target string, shardMaskList []*types.ChainMask, slaveID string) *SlaveConnection {
 	client := rpc.NewClient(rpc.SlaveServer)
 	return &SlaveConnection{
-		target:       target,
-		client:       client,
-		chainMaskLst: shardMaskLst,
-		slaveID:      slaveID,
+		target:        target,
+		client:        client,
+		shardMaskList: shardMaskList,
+		slaveID:       slaveID,
 	}
 }
 
 func (s *SlaveConnection) hasOverlap(chainMask *types.ChainMask) bool {
-	for _, localChainMask := range s.chainMaskLst {
+	for _, localChainMask := range s.shardMaskList {
 		if localChainMask.HasOverlap(chainMask.GetMask()) {
 			return true
 		}
 	}
 	return false
 }
+
 func (s *SlaveConnection) HeartBeat() bool {
-	req := rpc.Request{Op: rpc.OpHeartBeat, Data: nil}
-	_, err := s.client.Call(s.target, &req)
-	if err != nil {
-		return false
+	var tryTimes = 3
+	for tryTimes > 0 {
+		req := rpc.Request{Op: rpc.OpHeartBeat, Data: nil}
+		_, err := s.client.Call(s.target, &req)
+		if err != nil {
+			time.Sleep(time.Duration(1) * time.Second)
+			tryTimes -= 1
+			continue
+		}
+		return true
 	}
-	return true
+	return false
 }
 
-func (s *SlaveConnection) SendPing(rootBlockChain *core.RootBlockChain, initializeShardSize bool) ([]byte, []*types.ChainMask, error) {
+func (s *SlaveConnection) SendPing(rootBlock *types.RootBlock, initializeShardSize bool) ([]byte, []*types.ChainMask, error) {
 	req := new(rpc.Ping)
-	if initializeShardSize {
-		req.RootTip = rootBlockChain.CurrentBlock()
-	} else {
-		req.RootTip = nil
-	}
+	req.RootTip = rootBlock
 
 	bytes, err := serialize.SerializeToBytes(req)
 	if err != nil {
@@ -103,7 +106,7 @@ func (s *SlaveConnection) SendConnectToSlaves(slaveInfoLst []*rpc.SlaveInfo) err
 }
 
 func (s *SlaveConnection) hasShard(fullShardID uint32) bool {
-	for _, chainMask := range s.chainMaskLst {
+	for _, chainMask := range s.shardMaskList {
 		if chainMask.ContainFullShardId(fullShardID) {
 			return true
 		}

@@ -49,11 +49,21 @@ func (s *QKCMasterBackend) AddRootBlockFromMine(block *types.RootBlock) error {
 	return s.AddRootBlock(block)
 }
 func (s *QKCMasterBackend) AddRawMinorBlock(branch account.Branch, blockData []byte) error {
-	slaveConn := s.getOneSlaveConnection(branch)
-	if slaveConn == nil {
+	slaves, ok := s.branchToSlaves[branch.Value]
+	if !ok {
 		return ErrNoBranchConn
 	}
-	return slaveConn.AddMinorBlock(blockData)
+
+	check := NewCheckErr(len(slaves))
+	for index := range slaves {
+		check.wg.Add(1)
+		go func(slaveConn *SlaveConnection) {
+			defer check.wg.Done()
+			err := slaveConn.AddMinorBlock(blockData)
+			check.errc = append(check.errc, err)
+		}(slaves[index])
+	}
+	return check.check()
 }
 func (s *QKCMasterBackend) AddTransaction(tx *types.Transaction) error {
 	evmTx := tx.EvmTx
@@ -85,7 +95,7 @@ func (s *QKCMasterBackend) ExecuteTransaction(tx *types.Transaction, address acc
 	branch := account.Branch{Value: evmTx.FromFullShardId()}
 
 	slaves, ok := s.branchToSlaves[branch.Value]
-	if !ok {
+	if !ok || len(slaves) > 0 {
 		return nil, ErrNoBranchConn
 	}
 	lenSlaves := len(slaves)
@@ -105,21 +115,14 @@ func (s *QKCMasterBackend) ExecuteTransaction(tx *types.Transaction, address acc
 		return nil, err
 	}
 
-	valueList := make(map[string]struct{}, 0)
+	resultBytes := rspList[0] // before already this len>0
 	for _, res := range rspList {
-		if res != nil {
-			valueList[string(res)] = struct{}{}
-		} else {
-			return nil, errors.New("unexpected err res==nil")
+		if res != nil && !bytes.Equal(resultBytes, res) {
+			return nil, errors.New("exist more than one result")
 		}
 	}
-	if len(valueList) != 1 {
-		return nil, errors.New("exist more than one value from slaves")
-	}
-	for k, _ := range valueList {
-		return []byte(k), nil
-	}
-	return nil, errors.New("unexpected err")
+	return resultBytes, nil
+
 }
 
 func (s *QKCMasterBackend) GetMinorBlockByHash(blockHash common.Hash, branch account.Branch) (*types.MinorBlock, error) {
@@ -169,31 +172,22 @@ func (s *QKCMasterBackend) GetTransactionsByAddress(address account.Address, sta
 	}
 	return slaveConn.GetTransactionsByAddress(address, start, limit)
 }
-func (s *QKCMasterBackend) GetLogs(branch account.Branch, address []account.Address, topics []*rpc.Topic, startBlock, endBlock ethRpc.BlockNumber) ([]*types.Log, error) {
+func (s *QKCMasterBackend) GetLogs(branch account.Branch, address []account.Address, topics []*rpc.Topic, startBlockNumber, endBlockNumber ethRpc.BlockNumber) ([]*types.Log, error) {
 	// not support earlist and pending
 	slaveConn := s.getOneSlaveConnection(branch)
 	if slaveConn == nil {
 		return nil, ErrNoBranchConn
 	}
 
-	var (
-		startBlockNumber uint64
-		endBlockNumber   uint64
-	)
-
 	s.lock.RLock()
-	if startBlock == ethRpc.LatestBlockNumber {
-		startBlockNumber = s.branchToShardStats[branch.Value].Height
-	} else {
-		startBlockNumber = uint64(startBlock.Int64())
+	if startBlockNumber == ethRpc.LatestBlockNumber {
+		startBlockNumber = ethRpc.BlockNumber(s.branchToShardStats[branch.Value].Height)
 	}
-	if endBlock == ethRpc.LatestBlockNumber {
-		endBlockNumber = s.branchToShardStats[branch.Value].Height
-	} else {
-		endBlockNumber = uint64(endBlock.Int64())
+	if endBlockNumber == ethRpc.LatestBlockNumber {
+		endBlockNumber = ethRpc.BlockNumber(s.branchToShardStats[branch.Value].Height)
 	}
 	s.lock.RUnlock() // lock branchToShardStats
-	return slaveConn.GetLogs(branch, address, topics, startBlockNumber, endBlockNumber)
+	return slaveConn.GetLogs(branch, address, topics, uint64(startBlockNumber), uint64(endBlockNumber))
 }
 
 func (s *QKCMasterBackend) EstimateGas(tx *types.Transaction, fromAddress account.Address) (uint32, error) {

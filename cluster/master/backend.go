@@ -21,13 +21,14 @@ import (
 	"math/big"
 	"os"
 	"reflect"
+	"sort"
 	"sync"
 	"syscall"
 	"time"
 )
 
 var (
-	beatTime        = 4
+	beatTime        = int64(4)
 	ErrNoBranchConn = errors.New("no such branch's connection")
 )
 
@@ -188,13 +189,16 @@ func (s *QKCMasterBackend) ConnectToSlaves() error {
 	}
 	log.Info("qkc api backend", "slave client pool", len(s.clientPool))
 
-	fullShardIDS := s.clusterConfig.Quarkchain.GetGenesisShardIds()
+	fullShardIds := s.clusterConfig.Quarkchain.GetGenesisShardIds()
 	for _, slaveConn := range s.clientPool {
-		id, chainMaskList, err := slaveConn.SendPing(s.rootBlockChain, false)
-		if err := checkPing(slaveConn, id, chainMaskList, err); err != nil {
+		id, chainMaskList, err := slaveConn.SendPing(nil, false)
+		if err != nil {
 			return err
 		}
-		for _, fullShardID := range fullShardIDS {
+		if err := checkPing(slaveConn, id, chainMaskList); err != nil {
+			return err
+		}
+		for _, fullShardID := range fullShardIds {
 			if slaveConn.hasShard(fullShardID) {
 				s.saveFullShardID(fullShardID, slaveConn)
 			}
@@ -250,7 +254,8 @@ func (s *QKCMasterBackend) initShards() error {
 		check.wg.Add(1)
 		go func(slaveConn *SlaveConnection) {
 			defer check.wg.Done()
-			_, _, err := slaveConn.SendPing(s.rootBlockChain, true)
+			currRootBlock := s.rootBlockChain.CurrentBlock()
+			_, _, err := slaveConn.SendPing(currRootBlock, true)
 			check.errc = append(check.errc, err)
 		}(s.clientPool[index])
 	}
@@ -258,9 +263,10 @@ func (s *QKCMasterBackend) initShards() error {
 }
 
 func (s *QKCMasterBackend) HeartBeat() {
+	var timeGap int64
 	go func(normal bool) {
 		for normal {
-			time.Sleep(time.Duration(beatTime) * time.Second)
+			timeGap = time.Now().Unix()
 			for endpoint := range s.clientPool {
 				normal = s.clientPool[endpoint].HeartBeat()
 				if !normal {
@@ -268,8 +274,14 @@ func (s *QKCMasterBackend) HeartBeat() {
 					break
 				}
 			}
+			timeGap = time.Now().Unix() - timeGap
+			if timeGap >= beatTime {
+				continue
+			}
+			time.Sleep(time.Duration(beatTime-timeGap) * time.Second)
 		}
 	}(true)
+	//TODO :add send master info
 }
 
 func (s *QKCMasterBackend) saveFullShardID(fullShardID uint32, slaveConn *SlaveConnection) {
@@ -279,20 +291,17 @@ func (s *QKCMasterBackend) saveFullShardID(fullShardID uint32, slaveConn *SlaveC
 	s.branchToSlaves[fullShardID] = append(s.branchToSlaves[fullShardID], slaveConn)
 }
 
-func checkPing(slaveConn *SlaveConnection, id []byte, chainMaskList []*types.ChainMask, err error) error {
-	if err != nil {
-		return err
-	}
+func checkPing(slaveConn *SlaveConnection, id []byte, chainMaskList []*types.ChainMask) error {
 	if slaveConn.slaveID != string(id) {
 		return errors.New("slaveID is not match")
 	}
-	if len(chainMaskList) != len(slaveConn.chainMaskLst) {
+	if len(chainMaskList) != len(slaveConn.shardMaskList) {
 		return errors.New("chainMaskList is not match")
 	}
 	lenChainMaskList := len(chainMaskList)
 
 	for index := 0; index < lenChainMaskList; index++ {
-		if chainMaskList[index].GetMask() != slaveConn.chainMaskLst[index].GetMask() {
+		if chainMaskList[index].GetMask() != slaveConn.shardMaskList[index].GetMask() {
 			return errors.New("chainMaskList index is not match")
 		}
 	}
@@ -341,6 +350,11 @@ func (s *QKCMasterBackend) createRootBlockToMine(address account.Address) (*type
 	fullShardIDToHeaderList := make(map[uint32][]*types.MinorBlockHeader, 0)
 	for _, resp := range rspList {
 		for _, headersInfo := range resp.HeadersInfoList {
+			if _, ok := fullShardIDToHeaderList[headersInfo.Branch.Value]; !ok { // to avoid overlap
+				fullShardIDToHeaderList[headersInfo.Branch.Value] = make([]*types.MinorBlockHeader, 0)
+			} else {
+				continue // skip it if has added
+			}
 			height := uint64(0)
 			for _, header := range headersInfo.HeaderList {
 				if height != 0 && height+1 != header.Number {
@@ -351,17 +365,15 @@ func (s *QKCMasterBackend) createRootBlockToMine(address account.Address) (*type
 				if !s.rootBlockChain.IsMinorBlockValidated(header.Hash()) {
 					break
 				}
-				if _, ok := fullShardIDToHeaderList[headersInfo.Branch.Value]; !ok {
-					fullShardIDToHeaderList[headersInfo.Branch.Value] = make([]*types.MinorBlockHeader, 0)
-				}
 				fullShardIDToHeaderList[headersInfo.Branch.Value] = append(fullShardIDToHeaderList[headersInfo.Branch.Value], header)
 			}
 		}
 	}
 	headerList := make([]*types.MinorBlockHeader, 0)
 	currTipHeight := s.rootBlockChain.CurrentBlock().Number()
-	fullShardIDToCHeck := s.clusterConfig.Quarkchain.GetInitializedShardIdsBeforeRootHeight(currTipHeight + 1)
-	for _, fullShardID := range fullShardIDToCHeck {
+	fullShardIdToCheck := s.clusterConfig.Quarkchain.GetInitializedShardIdsBeforeRootHeight(currTipHeight + 1)
+	sort.Slice(fullShardIdToCheck, func(i, j int) bool { return fullShardIdToCheck[i] < fullShardIdToCheck[j] })
+	for _, fullShardID := range fullShardIdToCheck {
 		headers := fullShardIDToHeaderList[fullShardID]
 		headerList = append(headerList, headers...)
 	}
@@ -545,6 +557,9 @@ type CheckErr struct {
 
 // NewCheckErr needed len for check
 func NewCheckErr(len int) *CheckErr {
+	if len <= 0 {
+		panic(errors.New("len should >0"))
+	}
 	return &CheckErr{
 		len: len,
 	}
