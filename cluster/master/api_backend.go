@@ -91,12 +91,12 @@ func (s *QKCMasterBackend) ExecuteTransaction(tx *types.Transaction, address acc
 		return nil, ErrNoBranchConn
 	}
 	var g errgroup.Group
-	rspList := make([][]byte, 0)
+	rspList := make([][]byte, len(slaves))
 	for index := range slaves {
 		i := index
 		g.Go(func() error {
 			rsp, err := slaves[i].ExecuteTransaction(tx, address, height)
-			rspList = append(rspList, rsp)
+			rspList[i] = rsp
 			return err
 		})
 	}
