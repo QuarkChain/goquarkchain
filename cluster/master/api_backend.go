@@ -13,6 +13,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	ethRpc "github.com/ethereum/go-ethereum/rpc"
+	"golang.org/x/sync/errgroup"
 	"net"
 	"reflect"
 )
@@ -50,43 +51,34 @@ func (s *QKCMasterBackend) AddRootBlockFromMine(block *types.RootBlock) error {
 }
 func (s *QKCMasterBackend) AddRawMinorBlock(branch account.Branch, blockData []byte) error {
 	slaves, ok := s.branchToSlaves[branch.Value]
-	if !ok {
+	if !ok || len(slaves) <= 0 {
 		return ErrNoBranchConn
 	}
-
-	check := NewCheckErr(len(slaves))
+	var g errgroup.Group
 	for index := range slaves {
-		check.wg.Add(1)
-		go func(slaveConn *SlaveConnection) {
-			defer check.wg.Done()
-			err := slaveConn.AddMinorBlock(blockData)
-			check.errc = append(check.errc, err)
-		}(slaves[index])
+		i := index
+		g.Go(func() error {
+			return slaves[i].AddMinorBlock(blockData)
+		})
 	}
-	return check.check()
+	return g.Wait()
 }
 func (s *QKCMasterBackend) AddTransaction(tx *types.Transaction) error {
 	evmTx := tx.EvmTx
 	//TODO :SetQKCConfig
 	branch := account.Branch{Value: evmTx.FromFullShardId()}
 	slaves, ok := s.branchToSlaves[branch.Value]
-	if !ok {
+	if !ok || len(slaves) <= 0 {
 		return ErrNoBranchConn
 	}
-	lenSlaves := len(slaves)
-	check := NewCheckErr(lenSlaves)
+	var g errgroup.Group
 	for index := range slaves {
-		check.wg.Add(1)
-		go func(slave *SlaveConnection) {
-			defer check.wg.Done()
-			err := slave.AddTransaction(tx)
-			check.errc = append(check.errc, err)
-		}(slaves[index])
+		i := index
+		g.Go(func() error {
+			return slaves[i].AddTransaction(tx)
+		})
 	}
-	if err := check.check(); err != nil {
-		return err
-	}
-	return nil //TODO?? peer broadcast
+	return g.Wait() //TODO?? peer broadcast
 }
 
 func (s *QKCMasterBackend) ExecuteTransaction(tx *types.Transaction, address account.Address, height *uint64) ([]byte, error) {
@@ -95,23 +87,20 @@ func (s *QKCMasterBackend) ExecuteTransaction(tx *types.Transaction, address acc
 	branch := account.Branch{Value: evmTx.FromFullShardId()}
 
 	slaves, ok := s.branchToSlaves[branch.Value]
-	if !ok || len(slaves) > 0 {
+	if !ok || len(slaves) <= 0 {
 		return nil, ErrNoBranchConn
 	}
-	lenSlaves := len(slaves)
-	check := NewCheckErr(lenSlaves)
+	var g errgroup.Group
 	rspList := make([][]byte, 0)
 	for index := range slaves {
-		check.wg.Add(1)
-		go func(slave *SlaveConnection) {
-			defer check.wg.Done()
-			rsp, err := slave.ExecuteTransaction(tx, address, height)
-			check.errc = append(check.errc, err)
+		i := index
+		g.Go(func() error {
+			rsp, err := slaves[i].ExecuteTransaction(tx, address, height)
 			rspList = append(rspList, rsp)
-
-		}(slaves[index])
+			return err
+		})
 	}
-	if err := check.check(); err != nil {
+	if err := g.Wait(); err != nil {
 		return nil, err
 	}
 

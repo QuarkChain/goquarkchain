@@ -18,6 +18,7 @@ import (
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
 	ethRPC "github.com/ethereum/go-ethereum/rpc"
+	"golang.org/x/sync/errgroup"
 	"math/big"
 	"os"
 	"reflect"
@@ -248,18 +249,16 @@ func (s *QKCMasterBackend) getSlaveInfoListFromClusterConfig() []*rpc.SlaveInfo 
 	return slaveInfos
 }
 func (s *QKCMasterBackend) initShards() error {
-	lenPool := len(s.clientPool)
-	check := NewCheckErr(lenPool)
+	var g errgroup.Group
 	for index := range s.clientPool {
-		check.wg.Add(1)
-		go func(slaveConn *SlaveConnection) {
-			defer check.wg.Done()
+		i := index
+		g.Go(func() error {
 			currRootBlock := s.rootBlockChain.CurrentBlock()
-			_, _, err := slaveConn.SendPing(currRootBlock, true)
-			check.errc = append(check.errc, err)
-		}(s.clientPool[index])
+			_, _, err := s.clientPool[i].SendPing(currRootBlock, true)
+			return err
+		})
 	}
-	return check.check()
+	return g.Wait()
 }
 
 func (s *QKCMasterBackend) HeartBeat() {
@@ -310,7 +309,7 @@ func checkPing(slaveConn *SlaveConnection, id []byte, chainMaskList []*types.Cha
 
 func (s *QKCMasterBackend) getOneSlaveConnection(branch account.Branch) *SlaveConnection {
 	slaves, ok := s.branchToSlaves[branch.Value]
-	if !ok {
+	if !ok || len(slaves) <= 0 {
 		return nil
 	}
 	if len(slaves) < 1 {
@@ -321,7 +320,7 @@ func (s *QKCMasterBackend) getOneSlaveConnection(branch account.Branch) *SlaveCo
 
 func (s *QKCMasterBackend) getAllSlaveConnection(branch account.Branch) []*SlaveConnection {
 	slaves, ok := s.branchToSlaves[branch.Value]
-	if !ok {
+	if !ok || len(slaves) <= 0 {
 		return nil
 	}
 	if len(slaves) < 1 {
@@ -331,19 +330,17 @@ func (s *QKCMasterBackend) getAllSlaveConnection(branch account.Branch) []*Slave
 }
 
 func (s *QKCMasterBackend) createRootBlockToMine(address account.Address) (*types.RootBlock, error) {
-	lenSlaves := len(s.clientPool)
-	check := NewCheckErr(lenSlaves)
+	var g errgroup.Group
 	rspList := make([]*rpc.GetUnconfirmedHeadersResponse, 0)
 	for index := range s.clientPool {
-		check.wg.Add(1)
-		go func(slaveConn *SlaveConnection) {
-			defer check.wg.Done()
-			rsp, err := slaveConn.GetUnconfirmedHeaders()
-			check.errc = append(check.errc, err)
+		i := index
+		g.Go(func() error {
+			rsp, err := s.clientPool[i].GetUnconfirmedHeaders()
 			rspList = append(rspList, rsp)
-		}(s.clientPool[index])
+			return err
+		})
 	}
-	if err := check.check(); err != nil {
+	if err := g.Wait(); err != nil {
 		return nil, err
 	}
 
@@ -391,19 +388,17 @@ func (s *QKCMasterBackend) getMinorBlockToMine(branch account.Branch, address ac
 
 // GetAccountData get account Data for jsonRpc
 func (s *QKCMasterBackend) GetAccountData(address account.Address) (map[account.Branch]*rpc.AccountBranchData, error) {
-	lenSlaves := len(s.clientPool)
-	check := NewCheckErr(lenSlaves)
+	var g errgroup.Group
 	rspList := make([]*rpc.GetAccountDataResponse, 0)
 	for index := range s.clientPool {
-		check.wg.Add(1)
-		go func(slaveConn *SlaveConnection) {
-			defer check.wg.Done()
-			rsp, err := slaveConn.GetAccountData(address, nil)
-			check.errc = append(check.errc, err)
+		i := index
+		g.Go(func() error {
+			rsp, err := s.clientPool[i].GetAccountData(address, nil)
 			rspList = append(rspList, rsp)
-		}(s.clientPool[index])
+			return err
+		})
 	}
-	if err := check.check(); err != nil {
+	if err := g.Wait(); err != nil {
 		return nil, err
 	}
 	branchToAccountBranchData := make(map[account.Branch]*rpc.AccountBranchData)
@@ -439,17 +434,14 @@ func (s *QKCMasterBackend) GetPrimaryAccountData(address account.Address, blockH
 
 // SendMiningConfigToSlaves send mining config to slaves,used in jsonRpc
 func (s *QKCMasterBackend) SendMiningConfigToSlaves(mining bool) error {
-	lenSlaves := len(s.clientPool)
-	check := NewCheckErr(lenSlaves)
+	var g errgroup.Group
 	for index := range s.clientPool {
-		check.wg.Add(1)
-		go func(slaveConn *SlaveConnection) {
-			defer check.wg.Done()
-			err := slaveConn.SendMiningConfigToSlaves(s.artificialTxConfig, mining)
-			check.errc = append(check.errc, err)
-		}(s.clientPool[index])
+		i := index
+		g.Go(func() error {
+			return s.clientPool[i].SendMiningConfigToSlaves(s.artificialTxConfig, mining)
+		})
 	}
-	return check.check()
+	return g.Wait()
 }
 
 // AddRootBlock add root block to all slaves
@@ -458,17 +450,14 @@ func (s *QKCMasterBackend) AddRootBlock(rootBlock *types.RootBlock) error {
 	if err != nil {
 		return err
 	}
-	lenSlaves := len(s.clientPool)
-	check := NewCheckErr(lenSlaves)
+	var g errgroup.Group
 	for index := range s.clientPool {
-		check.wg.Add(1)
-		go func(slaveConn *SlaveConnection) {
-			defer check.wg.Done()
-			err := slaveConn.AddRootBlock(rootBlock, false)
-			check.errc = append(check.errc, err)
-		}(s.clientPool[index])
+		i := index
+		g.Go(func() error {
+			return s.clientPool[i].AddRootBlock(rootBlock, false)
+		})
 	}
-	return check.check()
+	return g.Wait()
 }
 
 // SetTargetBlockTime set target Time from jsonRpc
@@ -499,17 +488,14 @@ func (s *QKCMasterBackend) SetMining(mining bool) error {
 
 // CreateTransactions Create transactions and add to the network for load testing
 func (s *QKCMasterBackend) CreateTransactions(numTxPerShard, xShardPercent uint32, tx *types.Transaction) error {
-	lenSlaves := len(s.clientPool)
-	check := NewCheckErr(lenSlaves)
+	var g errgroup.Group
 	for index := range s.clientPool {
-		check.wg.Add(1)
-		go func(slaveConn *SlaveConnection) {
-			defer check.wg.Done()
-			err := slaveConn.GenTx(numTxPerShard, xShardPercent, tx)
-			check.errc = append(check.errc, err)
-		}(s.clientPool[index])
+		i := index
+		g.Go(func() error {
+			return s.clientPool[i].GenTx(numTxPerShard, xShardPercent, tx)
+		})
 	}
-	return check.check()
+	return g.Wait()
 }
 
 // UpdateShardStatus update shard status for branchg
@@ -547,34 +533,4 @@ func (s *QKCMasterBackend) isMining() bool {
 
 func (s *QKCMasterBackend) CurrentBlock() *types.RootBlock {
 	return s.rootBlockChain.CurrentBlock()
-}
-
-type CheckErr struct {
-	len  int
-	errc []error
-	wg   sync.WaitGroup
-}
-
-// NewCheckErr needed len for check
-func NewCheckErr(len int) *CheckErr {
-	if len <= 0 {
-		panic(errors.New("len should >0"))
-	}
-	return &CheckErr{
-		len: len,
-	}
-}
-
-// check if it has err in chans
-func (c *CheckErr) check() error {
-	c.wg.Wait()
-	if c.len != len(c.errc) {
-		return errors.New("len is not match")
-	}
-	for _, err := range c.errc {
-		if err != nil {
-			return err
-		}
-	}
-	return nil
 }
