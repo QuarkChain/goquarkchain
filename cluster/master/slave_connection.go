@@ -8,7 +8,6 @@ import (
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/serialize"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/log"
 	"time"
 )
 
@@ -120,17 +119,15 @@ func (s *SlaveConnection) AddTransaction(tx *types.Transaction) error {
 	)
 	bytes, err := serialize.SerializeToBytes(req)
 	if err != nil {
-		goto FALSE
+		return err
 	}
 
 	_, err = s.client.Call(s.target, &rpc.Request{Op: rpc.OpAddTransaction, Data: bytes})
 	if err != nil {
-		goto FALSE
+		return err
 	}
 	return nil
-FALSE:
-	log.Error("slave connection", "target", s.target, err)
-	return err
+
 }
 
 func (s *SlaveConnection) ExecuteTransaction(tx *types.Transaction, fromAddress account.Address, height *uint64) ([]byte, error) {
@@ -142,21 +139,19 @@ func (s *SlaveConnection) ExecuteTransaction(tx *types.Transaction, fromAddress 
 
 	bytes, err := serialize.SerializeToBytes(req)
 	if err != nil {
-		goto FALSE
+		return nil, err
 	}
 	res, err = s.client.Call(s.target, &rpc.Request{Op: rpc.OpExecuteTransaction, Data: bytes})
 	if err != nil {
-		goto FALSE
+		return nil, err
 	}
 
 	err = serialize.DeserializeFromBytes(res.Data, rsp)
 	if err != nil {
-		goto FALSE
+		return nil, err
 	}
 	return rsp.Result, nil
-FALSE:
-	log.Error("slave connection", "target", s.target, err)
-	return nil, err
+
 }
 
 func (s *SlaveConnection) GetMinorBlockByHash(blockHash common.Hash, branch account.Branch) (*types.MinorBlock, error) {
@@ -247,18 +242,16 @@ func (s *SlaveConnection) GetTransactionsByAddress(address account.Address, star
 	)
 	bytes, err = serialize.SerializeToBytes(req)
 	if err != nil {
-		goto FALSE
+		return nil, nil, err
 	}
 	res, err = s.client.Call(s.target, &rpc.Request{Op: rpc.OpGetTransactionListByAddress, Data: bytes})
 	if err != nil {
-		goto FALSE
+		return nil, nil, err
 	}
 	if err = serialize.Deserialize(serialize.NewByteBuffer(res.Data), &trans); err != nil {
-		goto FALSE
+		return nil, nil, err
 	}
 	return trans.TxList, trans.Next, nil
-FALSE:
-	return nil, nil, err
 }
 
 func (s *SlaveConnection) GetLogs(branch account.Branch, address []account.Address, topics []*rpc.Topic, startBlock, endBlock uint64) ([]*types.Log, error) {

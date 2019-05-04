@@ -1256,3 +1256,15 @@ func (bc *RootBlockChain) GetBlockCount() {
 	//TODO for json rpc
 	//Returns a dict(full_shard_id, dict(miner_recipient, block_count))
 }
+
+func (bc *RootBlockChain) WriteCommittingHash(hash common.Hash) {
+	rawdb.WriteRbCommittingHash(bc.db, hash)
+}
+
+func (bc *RootBlockChain) ClearCommittingHash() {
+	rawdb.DeleteRbCommittingHash(bc.db)
+}
+
+func (bc *RootBlockChain) GetCommittingBlockHash() common.Hash {
+	return rawdb.ReadRbCommittingHash(bc.db)
+}

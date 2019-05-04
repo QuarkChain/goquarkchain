@@ -368,6 +368,7 @@ func (s *QKCMasterBackend) createRootBlockToMine(address account.Address) (*type
 			}
 		}
 	}
+
 	headerList := make([]*types.MinorBlockHeader, 0)
 	currTipHeight := s.rootBlockChain.CurrentBlock().Number()
 	fullShardIdToCheck := s.clusterConfig.Quarkchain.GetInitializedShardIdsBeforeRootHeight(currTipHeight + 1)
@@ -376,7 +377,8 @@ func (s *QKCMasterBackend) createRootBlockToMine(address account.Address) (*type
 		headers := fullShardIDToHeaderList[fullShardID]
 		headerList = append(headerList, headers...)
 	}
-	return s.rootBlockChain.CreateBlockToMine(headerList, &address, nil), nil
+	newblock := s.rootBlockChain.CreateBlockToMine(headerList, &address, nil)
+	return newblock, s.rootBlockChain.Validator().ValidateBlock(newblock)
 }
 
 func (s *QKCMasterBackend) getMinorBlockToMine(branch account.Branch, address account.Address) (*types.MinorBlock, error) {
@@ -451,6 +453,7 @@ func (s *QKCMasterBackend) SendMiningConfigToSlaves(mining bool) error {
 
 // AddRootBlock add root block to all slaves
 func (s *QKCMasterBackend) AddRootBlock(rootBlock *types.RootBlock) error {
+	s.rootBlockChain.WriteCommittingHash(rootBlock.Hash())
 	_, err := s.rootBlockChain.InsertChain([]types.IBlock{rootBlock})
 	if err != nil {
 		return err
@@ -462,7 +465,11 @@ func (s *QKCMasterBackend) AddRootBlock(rootBlock *types.RootBlock) error {
 			return s.clientPool[i].AddRootBlock(rootBlock, false)
 		})
 	}
-	return g.Wait()
+	if err := g.Wait(); err != nil {
+		return err
+	}
+	s.rootBlockChain.ClearCommittingHash()
+	return nil
 }
 
 // SetTargetBlockTime set target Time from jsonRpc
@@ -485,6 +492,7 @@ func (s *QKCMasterBackend) SetTargetBlockTime(rootBlockTime *uint32, minorBlockT
 
 // SetMining setmiming status
 func (s *QKCMasterBackend) SetMining(mining bool) error {
+	//TODO need liuhuan to finish
 	if mining {
 		return s.StartMining(1)
 	}
