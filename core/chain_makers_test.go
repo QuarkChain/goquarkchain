@@ -127,7 +127,7 @@ func ExampleGenerateMinorBlockChain() {
 	// Import the chain. This runs all block validation rules.
 	chainConfig := params.TestChainConfig
 	blockchain, _ := NewMinorBlockChain(db, nil, chainConfig, fakeClusterConfig, new(consensus.FakeEngine), vm.Config{}, nil, fakeFullShardID)
-	genesis, err = blockchain.InitGenesisState(rootBlock, genesis)
+	genesis, err = blockchain.InitGenesisState(rootBlock)
 	if err != nil {
 		panic(err)
 	}

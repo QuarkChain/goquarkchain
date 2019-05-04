@@ -112,11 +112,11 @@ const (
 	TxStatusIncluded
 )
 
-// blockChain provides the state of blockchain and current gas limit to do
+// minorBlockChain provides the state of blockchain and current gas limit to do
 // some pre checks in tx pool and event subscribers.
-type blockChain interface {
+type minorBlockChain interface {
 	CurrentBlock() *types.MinorBlock
-	GetBlock(hash common.Hash) types.IBlock
+	GetMinorBlock(hash common.Hash) *types.MinorBlock
 	StateAt(root common.Hash) (*state.StateDB, error)
 	Config() *config.QuarkChainConfig
 	SubscribeChainHeadEvent(ch chan<- MinorChainHeadEvent) event.Subscription
@@ -181,7 +181,7 @@ func (config *TxPoolConfig) sanitize() TxPoolConfig {
 type TxPool struct {
 	config       TxPoolConfig
 	quarkConfig  *config.QuarkChainConfig
-	chain        blockChain
+	chain        minorBlockChain
 	gasPrice     *big.Int
 	txFeed       event.Feed
 	scope        event.SubscriptionScope
@@ -210,7 +210,7 @@ type TxPool struct {
 
 // NewTxPool creates a new transaction pool to gather, sort and filter inbound
 // transactions from the network.
-func NewTxPool(config TxPoolConfig, chain blockChain) *TxPool {
+func NewTxPool(config TxPoolConfig, chain minorBlockChain) *TxPool {
 	// Sanitize the input to ensure no vulnerable gas prices are set
 	config = (&config).sanitize()
 
@@ -352,35 +352,34 @@ func (pool *TxPool) reset(oldBlock, newBlock *types.MinorBlock) {
 			var discarded, included types.Transactions
 
 			var (
-				rem = pool.chain.GetBlock(oldHead.Hash())
-				add = pool.chain.GetBlock(newHead.Hash())
+				rem = pool.chain.GetMinorBlock(oldHead.Hash())
+				add = pool.chain.GetMinorBlock(newHead.Hash())
 			)
 			if qkcCommon.IsNil(rem) || qkcCommon.IsNil(add) {
 				return
 			}
 			for rem.NumberU64() > add.NumberU64() {
-				discarded = append(discarded, rem.(*types.MinorBlock).Transactions()...)
-				if rem = pool.chain.GetBlock(rem.IHeader().GetParentHash()); qkcCommon.IsNil(rem) {
+				discarded = append(discarded, rem.Transactions()...)
+				if rem = pool.chain.GetMinorBlock(rem.IHeader().GetParentHash()); qkcCommon.IsNil(rem) {
 					log.Error("Unrooted old chain seen by tx pool", "block", oldHead.Number, "hash", oldHead.Hash())
 					return
 				}
 			}
 			for add.NumberU64() > rem.NumberU64() {
-
-				included = append(included, add.(*types.MinorBlock).Transactions()...)
-				if add = pool.chain.GetBlock(add.IHeader().GetParentHash()); qkcCommon.IsNil(add) {
+				included = append(included, add.Transactions()...)
+				if add = pool.chain.GetMinorBlock(add.IHeader().GetParentHash()); qkcCommon.IsNil(add) {
 					log.Error("Unrooted new chain seen by tx pool", "block", newHead.Number, "hash", newHead.Hash())
 					return
 				}
 			}
 			for rem.Hash() != add.Hash() {
-				discarded = append(discarded, rem.(*types.MinorBlock).Transactions()...)
-				if rem = pool.chain.GetBlock(rem.IHeader().GetParentHash()); qkcCommon.IsNil(rem) {
+				discarded = append(discarded, rem.Transactions()...)
+				if rem = pool.chain.GetMinorBlock(rem.IHeader().GetParentHash()); qkcCommon.IsNil(rem) {
 					log.Error("Unrooted old chain seen by tx pool", "block", oldHead.Number, "hash", oldHead.Hash())
 					return
 				}
-				included = append(included, add.(*types.MinorBlock).Transactions()...)
-				if add = pool.chain.GetBlock(add.IHeader().GetParentHash()); qkcCommon.IsNil(add) {
+				included = append(included, add.Transactions()...)
+				if add = pool.chain.GetMinorBlock(add.IHeader().GetParentHash()); qkcCommon.IsNil(add) {
 					log.Error("Unrooted new chain seen by tx pool", "block", newHead.Number, "hash", newHead.Hash())
 					return
 				}

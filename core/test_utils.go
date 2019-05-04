@@ -97,7 +97,7 @@ func createDefaultShardState(env *fakeEnv, shardID *uint32, diffCalc consensus.D
 	genesisManager := NewGenesis(env.clusterConfig.Quarkchain)
 
 	fullShardID := env.clusterConfig.Quarkchain.Chains[0].ShardSize | *shardID
-	gensisBlock := genesisManager.MustCommitMinorBlock(env.db, rBlock, fullShardID)
+	genesisManager.MustCommitMinorBlock(env.db, rBlock, fullShardID)
 
 	var shardState *MinorBlockChain
 	var err error
@@ -114,7 +114,7 @@ func createDefaultShardState(env *fakeEnv, shardID *uint32, diffCalc consensus.D
 		}
 	}
 
-	_, err = shardState.InitGenesisState(rBlock, gensisBlock)
+	_, err = shardState.InitGenesisState(rBlock)
 	checkErr(err)
 	return shardState
 

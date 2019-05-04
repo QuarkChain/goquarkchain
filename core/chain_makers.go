@@ -222,15 +222,6 @@ func (b *MinorBlockGen) Number() *big.Int {
 	return new(big.Int).SetUint64(b.header.Number)
 }
 
-// AddUncheckedReceipt forcefully adds a receipts to the block without a
-// backing transaction.
-//
-// AddUncheckedReceipt will cause consensus failures when used during real
-// chain processing. This is best used in conjunction with raw block insertion.
-func (b *MinorBlockGen) AddUncheckedReceipt(receipt *types.Receipt) {
-	b.receipts = append(b.receipts, receipt)
-}
-
 // TxNonce returns the next valid transaction nonce for the
 // account at addr. It panics if the account does not exist.
 func (b *MinorBlockGen) TxNonce(addr common.Address) uint64 {

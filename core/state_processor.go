@@ -32,6 +32,7 @@ import (
 //
 // StateProcessor implements Processor.
 type StateProcessor struct {
+	//TODO delete eth minorBlockChain config
 	config *params.ChainConfig // Chain configuration options
 	bc     *MinorBlockChain    // Canonical block chain
 	engine consensus.Engine    // Consensus engine used for block rewards
@@ -53,8 +54,7 @@ func NewStateProcessor(config *params.ChainConfig, bc *MinorBlockChain, engine c
 // Process returns the receipts and logs accumulated during the process and
 // returns the amount of gas that was used in the process. If any of the
 // transactions failed to execute due to insufficient gas it will return an error.
-func (p *StateProcessor) Process(mBlock types.IBlock, statedb *state.StateDB, cfg vm.Config, evmTxIncluded []*types.Transaction, xShardReceiveTxList []*types.CrossShardTransactionDeposit) (types.Receipts, []*types.Log, uint64, error) {
-	block := mBlock.(*types.MinorBlock)
+func (p *StateProcessor) Process(block *types.MinorBlock, statedb *state.StateDB, cfg vm.Config, evmTxIncluded []*types.Transaction, xShardReceiveTxList []*types.CrossShardTransactionDeposit) (types.Receipts, []*types.Log, uint64, error) {
 	statedb.SetQuarkChainConfig(p.bc.clusterConfig.Quarkchain)
 	statedb.SetBlockCoinbase(block.IHeader().GetCoinbase().Recipient)
 	if evmTxIncluded == nil {
@@ -65,7 +65,7 @@ func (p *StateProcessor) Process(mBlock types.IBlock, statedb *state.StateDB, cf
 	}
 
 	rootBlockHeader := p.bc.getRootBlockHeaderByHash(block.Header().GetPrevRootBlockHash())
-	preBlock := p.bc.GetBlockByHash(block.IHeader().GetParentHash())
+	preBlock := p.bc.GetMinorBlock(block.IHeader().GetParentHash())
 	if preBlock == nil {
 		return nil, nil, 0, errors.New("preBlock is nil")
 	}

@@ -45,12 +45,8 @@ func TestInitGenesisState(t *testing.T) {
 	rootBlock := shardState.rootTip.CreateBlockToAppend(nil, nil, nil, &fakeNonce, nil)
 	rootBlock = modifyNumber(rootBlock, 0)
 	rootBlock.Finalize(nil, nil)
-	FakeQkcConfig := config.NewQuarkChainConfig()
-	genesisManager := NewGenesis(FakeQkcConfig)
-	gensisBlock, err := genesisManager.CreateMinorBlock(rootBlock, 2, env.db)
-	checkErr(err)
 
-	newGenesisBlock, err := shardState.InitGenesisState(rootBlock, gensisBlock)
+	newGenesisBlock, err := shardState.InitGenesisState(rootBlock)
 	checkErr(err)
 	assert.NotEqual(t, newGenesisBlock.Hash(), genesisHeader.Hash())
 	// header tip is still the old genesis header
@@ -1419,7 +1415,7 @@ func TestShardStateRecoveryFromRootBlock(t *testing.T) {
 	b1, _, err = shardState.FinalizeAndAddBlock(b1)
 	checkErr(err)
 
-	DBb1 := shardState.GetBlockByHash(b1.Hash())
+	DBb1 := shardState.GetMinorBlock(b1.Hash())
 	assert.Equal(t, DBb1.IHeader().GetTime(), b11Header.Time)
 
 	rootBlock := shardState.rootTip.CreateBlockToAppend(nil, nil, nil, nil, nil)
@@ -1437,7 +1433,7 @@ func TestShardStateRecoveryFromRootBlock(t *testing.T) {
 	// forks are pruned
 	err = recoveredState.InitFromRootBlock(rootBlock)
 	checkErr(err)
-	tempBlock := recoveredState.GetBlockByHash(b1.Header().Hash())
+	tempBlock := recoveredState.GetMinorBlock(b1.Header().Hash())
 
 	assert.Equal(t, tempBlock.Hash().String(), b1.Hash().String())
 	assert.Equal(t, recoveredState.rootTip.Hash().String(), rootBlock.Hash().String())
@@ -1594,7 +1590,7 @@ func TestNotUpdateTipOnRootFork(t *testing.T) {
 	checkErr(err)
 
 	// but m1 should still be the tip
-	assert.Equal(t, shardState.GetBlockByHash(m2.Hash()).Hash().String(), m2.Header().Hash().String())
+	assert.Equal(t, shardState.GetMinorBlock(m2.Hash()).Hash().String(), m2.Header().Hash().String())
 	assert.Equal(t, shardState.CurrentHeader().Hash().String(), m1.IHeader().Hash().String())
 }
 

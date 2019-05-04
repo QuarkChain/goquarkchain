@@ -15,7 +15,7 @@ import (
 // RootBlockValidator implements Validator.
 type RootBlockValidator struct {
 	config     *config.QuarkChainConfig // config configuration options
-	blockChain *RootBlockChain          // blockChain block chain
+	blockChain *RootBlockChain          // minorBlockChain block chain
 	engine     consensus.Engine         // engine engine used for validating
 }
 

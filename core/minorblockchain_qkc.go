@@ -47,7 +47,7 @@ func (m *MinorBlockChain) getPOSWCoinbaseBlockCnt(headerHash common.Hash, length
 
 func (m *MinorBlockChain) getCoinbaseAddressUntilBlock(headerHash common.Hash, length uint32) ([]account.Recipient, error) {
 	// already locked
-	currBlock := m.GetBlockByHash(headerHash)
+	currBlock := m.GetMinorBlock(headerHash)
 	if currBlock == nil {
 		return nil, ErrMinorBlockIsNil
 	}
@@ -221,7 +221,7 @@ func (m *MinorBlockChain) createEvmState(trieRootHash common.Hash, headerHash co
 // getEvmStateForNewBlock get evmState for new block.should have locked
 func (m *MinorBlockChain) getEvmStateForNewBlock(mBlock types.IBlock, ephemeral bool) (*state.StateDB, error) {
 	block := mBlock.(*types.MinorBlock)
-	preMinorBlock := m.GetBlockByHash(block.IHeader().GetParentHash())
+	preMinorBlock := m.GetMinorBlock(block.IHeader().GetParentHash())
 	if preMinorBlock == nil {
 		return nil, errInsufficientBalanceForGas
 	}
@@ -253,10 +253,14 @@ func (m *MinorBlockChain) getEvmStateFromHeight(height *uint64) (*state.StateDB,
 }
 
 // InitGenesisState init genesis stateDB from rootBlock
-func (m *MinorBlockChain) InitGenesisState(rBlock *types.RootBlock, gBlock *types.MinorBlock) (*types.MinorBlock, error) {
+func (m *MinorBlockChain) InitGenesisState(rBlock *types.RootBlock) (*types.MinorBlock, error) {
 	m.mu.Lock() // used in init_from_rootBlock and add_rootBlock,so should lock
 	defer m.mu.Unlock()
 	var err error
+	gBlock, err := NewGenesis(m.clusterConfig.Quarkchain).CreateMinorBlock(rBlock, m.branch.Value, m.db)
+	if err != nil {
+		return nil, err
+	}
 	rawdb.WriteTd(m.db, gBlock.Hash(), gBlock.Difficulty())
 	height := m.clusterConfig.Quarkchain.GetGenesisRootHeight(m.branch.Value)
 	if rBlock.Header().Number != height {
@@ -285,7 +289,7 @@ func (m *MinorBlockChain) InitGenesisState(rBlock *types.RootBlock, gBlock *type
 func (m *MinorBlockChain) runBlock(block *types.MinorBlock) (*state.StateDB, types.Receipts, error) {
 	m.mu.Lock() // to lock Process
 	defer m.mu.Unlock()
-	parent := m.GetBlockByHash(block.ParentHash())
+	parent := m.GetMinorBlock(block.ParentHash())
 	if qkcCommon.IsNil(parent) {
 		return nil, nil, ErrRootBlockIsNil
 	}
@@ -585,7 +589,7 @@ func (m *MinorBlockChain) isMinorBlockLinkedToRootTip(mBlock *types.MinorBlock) 
 	}
 	header := mBlock.Header()
 	for index := 0; index < int(mBlock.Number()-m.confirmedHeaderTip.Number); index++ {
-		header = m.GetBlockByHash(header.ParentHash).IHeader().(*types.MinorBlockHeader)
+		header = m.GetMinorBlock(header.ParentHash).IHeader().(*types.MinorBlockHeader)
 	}
 	return header.Hash() == m.confirmedHeaderTip.Hash()
 }
@@ -1004,7 +1008,7 @@ func (m *MinorBlockChain) AddRootBlock(rBlock *types.RootBlock) error {
 	for _, mHeader := range rBlock.MinorBlockHeaders() {
 		h := mHeader.Hash()
 		if mHeader.Branch == m.branch {
-			if m.GetBlockByHash(h) == nil {
+			if m.GetMinorBlock(h) == nil {
 				return ErrMinorBlockIsNil
 			}
 			shardHeaders = append(shardHeaders, mHeader)
@@ -1062,7 +1066,7 @@ func (m *MinorBlockChain) AddRootBlock(rBlock *types.RootBlock) error {
 		origBlock := m.GetBlockByNumber(shardHeader.Number)
 		if qkcCommon.IsNil(origBlock) || origBlock.Hash() != shardHeader.Hash() {
 			m.hc.SetCurrentHeader(shardHeader)
-			block := m.GetBlockByHash(shardHeader.Hash())
+			block := m.GetMinorBlock(shardHeader.Hash())
 			m.currentBlock.Store(block)
 		}
 	}
@@ -1096,8 +1100,8 @@ func (m *MinorBlockChain) AddRootBlock(rBlock *types.RootBlock) error {
 	}
 
 	if m.CurrentHeader().Hash() != origHeaderTip.Hash() {
-		origBlock := m.GetBlockByHash(origHeaderTip.Hash())
-		newBlock := m.GetBlockByHash(m.CurrentHeader().Hash())
+		origBlock := m.GetMinorBlock(origHeaderTip.Hash())
+		newBlock := m.GetMinorBlock(m.CurrentHeader().Hash())
 		return m.reWriteBlockIndexTo(origBlock, newBlock)
 	}
 	return nil
@@ -1170,7 +1174,7 @@ func (m *MinorBlockChain) GetTransactionByHash(hash common.Hash) (*types.MinorBl
 		temp := types.NewMinorBlock(&types.MinorBlockHeader{}, &types.MinorBlockMeta{}, txs, nil, nil)
 		return temp, 0
 	}
-	return m.GetBlockByHash(mHash), txIndex
+	return m.GetMinorBlock(mHash), txIndex
 }
 
 // GetTransactionReceipt get tx receipt by hash for slave
@@ -1199,7 +1203,7 @@ func (m *MinorBlockChain) GetShardStatus() (*ShardStatus, error) {
 		txCount += uint32(len(block.GetTransactions()))
 		blockCount++
 		staleBlockCount = uint32(m.getBlockCountByHeight(block.Header().Number))
-		block = m.GetBlockByHash(block.IHeader().GetParentHash())
+		block = m.GetMinorBlock(block.IHeader().GetParentHash())
 		if block == nil {
 			return nil, ErrMinorBlockIsNil
 		}

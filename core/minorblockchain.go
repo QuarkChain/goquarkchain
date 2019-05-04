@@ -242,7 +242,7 @@ func (m *MinorBlockChain) loadLastState() error {
 		return m.Reset()
 	}
 	// Make sure the entire head block is available
-	currentBlock := m.GetBlockByHash(head)
+	currentBlock := m.GetMinorBlock(head)
 	if currentBlock == nil {
 		// Corrupt or empty database, init from scratch
 		log.Warn("Head block missing, resetting chain", "hash", head)
@@ -514,7 +514,7 @@ func (m *MinorBlockChain) HasState(hash common.Hash) bool {
 // in the database or not, caching it if present.
 func (m *MinorBlockChain) HasBlockAndState(hash common.Hash) bool {
 	// Check first that the block itself is known
-	block := m.GetBlockByHash(hash)
+	block := m.GetMinorBlock(hash)
 	if block == nil {
 		return false
 	}
@@ -537,8 +537,8 @@ func (m *MinorBlockChain) GetBlock(hash common.Hash) types.IBlock {
 	return block
 }
 
-// GetBlockByHash retrieves a block from the database by hash, caching it if found.
-func (m *MinorBlockChain) GetBlockByHash(hash common.Hash) *types.MinorBlock {
+// GetMinorBlock retrieves a block from the database by hash, caching it if found.
+func (m *MinorBlockChain) GetMinorBlock(hash common.Hash) *types.MinorBlock {
 	return rawdb.ReadMinorBlock(m.db, hash)
 }
 
