@@ -332,11 +332,13 @@ func (s *QKCMasterBackend) getAllSlaveConnection(branch account.Branch) []*Slave
 func (s *QKCMasterBackend) createRootBlockToMine(address account.Address) (*types.RootBlock, error) {
 	var g errgroup.Group
 	rspList := make([]*rpc.GetUnconfirmedHeadersResponse, len(s.clientPool))
-	for index := range s.clientPool {
-		i := index
+	indexCount := -1
+	for target := range s.clientPool {
+		i := target
+		indexCount++
 		g.Go(func() error {
 			rsp, err := s.clientPool[i].GetUnconfirmedHeaders()
-			rspList[i] = rsp
+			rspList[indexCount] = rsp
 			return err
 		})
 	}
@@ -390,11 +392,13 @@ func (s *QKCMasterBackend) getMinorBlockToMine(branch account.Branch, address ac
 func (s *QKCMasterBackend) GetAccountData(address account.Address) (map[account.Branch]*rpc.AccountBranchData, error) {
 	var g errgroup.Group
 	rspList := make([]*rpc.GetAccountDataResponse, len(s.clientPool))
-	for index := range s.clientPool {
-		i := index
+	indexCount := -1
+	for target := range s.clientPool {
+		i := target
+		indexCount++
 		g.Go(func() error {
 			rsp, err := s.clientPool[i].GetAccountData(address, nil)
-			rspList[i] = rsp
+			rspList[indexCount] = rsp
 			return err
 		})
 	}
