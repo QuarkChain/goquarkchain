@@ -118,22 +118,23 @@ func TestGasPrice(t *testing.T) {
 			err = shardState.AddTx(tempTx)
 			checkErr(err)
 		}
-		forRe := false
+		b, err := shardState.CreateBlockToMine(nil, &accList[1], nil)
+		checkErr(err)
+		_, _, err = shardState.FinalizeAndAddBlock(b)
+		checkErr(err)
+		forRe := true
 		for forRe == true {
 			select {
 			case result := <-fakeChan:
 				if result == uint64(blockIndex+1) {
-					forRe = true
+					forRe = false
 				}
 			case <-time.After(2 * time.Second):
 				panic(errors.New("should end here"))
 
 			}
 		}
-		b, err := shardState.CreateBlockToMine(nil, &accList[1], nil)
-		checkErr(err)
-		_, _, err = shardState.FinalizeAndAddBlock(b)
-		checkErr(err)
+
 	}
 
 	currentNumber := int(shardState.CurrentBlock().NumberU64())
@@ -514,13 +515,12 @@ func TestTwoTxInOneBlock(t *testing.T) {
 	//Check Account has full_shard_key
 	currOB := currState.GetOrNewStateObject(acc2.Recipient)
 	assert.Equal(t, currOB.FullShardKey(), acc2.FullShardKey)
-
-	forRe := false
+	forRe := true
 	for forRe == true {
 		select {
 		case result := <-fakeChan:
 			if result == shardState.CurrentBlock().NumberU64() {
-				forRe = true
+				forRe = false
 			}
 		case <-time.After(2 * time.Second):
 			panic(errors.New("should end here"))
@@ -624,9 +624,7 @@ func TestForkDoesNotConfirmTx(t *testing.T) {
 	_, _, err = shardState.FinalizeAndAddBlock(b2)
 	checkErr(err)
 
-	time.Sleep(1 * time.Second)
-
-	forRe := false
+	forRe := true
 	for forRe == true {
 		select {
 		case result := <-fakeChain:
@@ -634,10 +632,10 @@ func TestForkDoesNotConfirmTx(t *testing.T) {
 				pending, err := shardState.txPool.Pending()
 				checkErr(err)
 				assert.Equal(t, len(pending), 0)
-				forRe = true
+				forRe = false
 			}
 
-		case <-time.After(2 * time.Second):
+		case <-time.After(1 * time.Second):
 			panic(errors.New("should end here"))
 		}
 	}
@@ -689,7 +687,7 @@ func TestRevertForkPutTxBackToQueue(t *testing.T) {
 	b4 := b3.CreateBlockToAppend(nil, nil, nil, nil, nil, nil, nil)
 	b4, _, err = shardState.FinalizeAndAddBlock(b4)
 
-	forRe := false
+	forRe := true
 	for forRe == true {
 		select {
 		case result := <-fakeChain:
@@ -697,8 +695,8 @@ func TestRevertForkPutTxBackToQueue(t *testing.T) {
 				pending, err := shardState.txPool.Pending()
 				checkErr(err)
 				// # b0-b3-b4 becomes the best chain
-				assert.Equal(t, len(pending), 1)
-				forRe = true
+				assert.Equal(t, len(pending), 0)
+				forRe = false
 			}
 
 		case <-time.After(2 * time.Second):
