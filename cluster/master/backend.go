@@ -335,9 +335,9 @@ func (s *QKCMasterBackend) createRootBlockToMine(address account.Address) (*type
 	indexCount := -1
 	for target := range s.clientPool {
 		i := target
-		indexCount++
 		g.Go(func() error {
 			rsp, err := s.clientPool[i].GetUnconfirmedHeaders()
+			indexCount++
 			rspList[indexCount] = rsp
 			return err
 		})
@@ -395,9 +395,9 @@ func (s *QKCMasterBackend) GetAccountData(address account.Address) (map[account.
 	indexCount := -1
 	for target := range s.clientPool {
 		i := target
-		indexCount++
 		g.Go(func() error {
 			rsp, err := s.clientPool[i].GetAccountData(address, nil)
+			indexCount++
 			rspList[indexCount] = rsp
 			return err
 		})
@@ -405,6 +405,7 @@ func (s *QKCMasterBackend) GetAccountData(address account.Address) (map[account.
 	if err := g.Wait(); err != nil {
 		return nil, err
 	}
+
 	branchToAccountBranchData := make(map[account.Branch]*rpc.AccountBranchData)
 	for _, rsp := range rspList {
 		for _, accountBranchData := range rsp.AccountBranchDataList {
