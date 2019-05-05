@@ -49,20 +49,7 @@ func (s *QKCMasterBackend) AddRootBlockFromMine(block *types.RootBlock) error {
 	}
 	return s.AddRootBlock(block)
 }
-func (s *QKCMasterBackend) AddRawMinorBlock(branch account.Branch, blockData []byte) error {
-	slaves, ok := s.branchToSlaves[branch.Value]
-	if !ok || len(slaves) <= 0 {
-		return ErrNoBranchConn
-	}
-	var g errgroup.Group
-	for index := range slaves {
-		i := index
-		g.Go(func() error {
-			return slaves[i].AddMinorBlock(blockData)
-		})
-	}
-	return g.Wait()
-}
+
 func (s *QKCMasterBackend) AddTransaction(tx *types.Transaction) error {
 	evmTx := tx.EvmTx
 	//TODO :SetQKCConfig

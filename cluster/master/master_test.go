@@ -383,15 +383,6 @@ func TestAddRootBlock(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestAddRawMinorBlock(t *testing.T) {
-	master := initEnv(t, nil)
-	err := master.AddRawMinorBlock(account.Branch{Value: 2}, []byte{})
-	assert.NoError(t, err)
-
-	err = master.AddRawMinorBlock(account.Branch{Value: 2222}, []byte{})
-	assert.Error(t, err)
-}
-
 func TestAddRootBlockFromMine(t *testing.T) {
 	master := initEnv(t, nil)
 	id1, err := account.CreatRandomIdentity()
