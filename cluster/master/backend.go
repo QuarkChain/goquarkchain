@@ -6,6 +6,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
+	"github.com/QuarkChain/goquarkchain/cluster/sync"
 	"github.com/QuarkChain/goquarkchain/cluster/service"
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/consensus/doublesha256"
@@ -47,6 +48,7 @@ type QKCMasterBackend struct {
 	artificialTxConfig *rpc.ArtificialTxConfig
 	rootBlockChain     *core.RootBlockChain
 	logInfo            string
+	ProtocolManager *ProtocolManager
 }
 
 // New new master with config
@@ -80,6 +82,7 @@ func New(ctx *service.ServiceContext, cfg *config.ClusterConfig) (*QKCMasterBack
 		return nil, err
 	}
 
+	mstr.ProtocolManager,err=NewProtocolManager(*cfg,mstr.rootBlockChain,sync.NewSynchronizer(mstr.rootBlockChain),mstr.getAllSlaveConnection)
 	return mstr, nil
 }
 
