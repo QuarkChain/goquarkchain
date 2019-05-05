@@ -414,6 +414,25 @@ func DeleteRootBlock(db DatabaseDeleter, hash common.Hash) {
 	DeleteTd(db, hash)
 }
 
+func WriteRbCommittingHash(db DatabaseWriter, hash common.Hash) {
+	if err := db.Put(rbCommittingKey, hash.Bytes()); err != nil {
+		log.Crit("Failed to store rb committing block's hash", "err", err)
+	}
+}
+
+func ReadRbCommittingHash(db DatabaseReader) common.Hash {
+	data, _ := db.Get(rbCommittingKey)
+	if len(data) == 0 {
+		return common.Hash{}
+	}
+	return common.BytesToHash(data)
+}
+func DeleteRbCommittingHash(db DatabaseDeleter) {
+	if err := db.Delete(rbCommittingKey); err != nil {
+		log.Crit("Failed to delete block receipts", "err", err)
+	}
+}
+
 // FindCommonMinorAncestor returns the last common ancestor of two block headers
 func FindCommonMinorAncestor(db DatabaseReader, a, b *types.MinorBlockHeader) *types.MinorBlockHeader {
 	for bn := b.Number; a.Number > bn; {

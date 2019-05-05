@@ -6,7 +6,7 @@ import (
 )
 
 type ChainMask struct {
-	value uint32
+	Value uint32
 }
 
 /*
@@ -21,24 +21,24 @@ func NewChainMask(value uint32) *ChainMask {
 		return nil
 	}
 	return &ChainMask{
-		value: value,
+		Value: value,
 	}
 }
 
 func (c *ChainMask) GetMask() uint32 {
-	return c.value
+	return c.Value
 }
 
 func (c *ChainMask) ContainFullShardId(fullShardId uint32) bool {
 	chainId := fullShardId >> 16
-	bitMask := uint32((1 << (common.IntLeftMostBit(c.value) - 1)) - 1)
-	return (bitMask & chainId) == (c.value & bitMask)
+	bitMask := uint32((1 << (common.IntLeftMostBit(c.Value) - 1)) - 1)
+	return (bitMask & chainId) == (c.Value & bitMask)
 }
 
-func (c *ChainMask) ContainBranch(branch *account.Branch) bool {
+func (c *ChainMask) ContainBranch(branch account.Branch) bool {
 	return c.ContainFullShardId(branch.GetFullShardID())
 }
 
 func (c *ChainMask) HasOverlap(value uint32) bool {
-	return common.MasksHaveOverlap(c.value, value)
+	return common.MasksHaveOverlap(c.Value, value)
 }

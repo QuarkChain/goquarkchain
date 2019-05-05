@@ -70,7 +70,6 @@ func TestServerMsgSend(t *testing.T) {
 			t.Error("connect failed ", "should peer is 1")
 		}
 		WriteMsgForTest(t, p1.Server.Peers()[0].rw)
-		time.Sleep(1 * time.Second)
 	}
 }
 

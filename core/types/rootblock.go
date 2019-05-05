@@ -100,6 +100,42 @@ func (h *RootBlockHeader) SetCoinbase(addr account.Address) {
 	h.Coinbase = addr
 }
 
+func (h *RootBlockHeader) CreateBlockToAppend(createTime *uint64, diff *big.Int, address *account.Address, nonce *uint64, extraData []byte) *RootBlock {
+	if createTime == nil {
+		temp := h.Time + 1
+		createTime = &temp
+	}
+	if diff == nil {
+		diff = h.Difficulty
+	}
+	if nonce == nil {
+		temp := uint64(0)
+		nonce = &temp
+	}
+	if address == nil {
+		temp := account.CreatEmptyAddress(0)
+		address = &temp
+	}
+	if extraData == nil {
+		extraData = []byte{}
+	}
+	header := &RootBlockHeader{
+		Version:         h.Version,
+		Number:          h.Number + 1,
+		ParentHash:      h.Hash(),
+		MinorHeaderHash: common.Hash{},
+		Coinbase:        *address,
+		CoinbaseAmount:  h.CoinbaseAmount,
+		Time:            *createTime,
+		Difficulty:      diff,
+		Nonce:           *nonce,
+		Extra:           extraData,
+	}
+	return &RootBlock{
+		header: header,
+	}
+}
+
 // Block represents an entire block in the QuarkChain.
 type RootBlock struct {
 	header            *RootBlockHeader
@@ -311,4 +347,24 @@ func (b *RootBlock) Hash() common.Hash {
 	v := b.header.Hash()
 	b.hash.Store(v)
 	return v
+}
+
+func (b *RootBlock) Finalize(coinbaseAmount *big.Int, coinbaseAddress *account.Address) {
+	if coinbaseAmount == nil {
+		coinbaseAmount = new(big.Int)
+	}
+
+	realCoinBaseAddress := account.CreatEmptyAddress(0)
+	if coinbaseAddress != nil {
+		realCoinBaseAddress = *coinbaseAddress
+	}
+	b.header.MinorHeaderHash = DeriveSha(b.minorBlockHeaders)
+	b.header.CoinbaseAmount = &serialize.Uint256{Value: coinbaseAmount}
+	b.header.Coinbase = realCoinBaseAddress
+}
+func (b *RootBlock) AddMinorBlockHeader(header *MinorBlockHeader) {
+	b.minorBlockHeaders = append(b.minorBlockHeaders, header)
+}
+func (b *RootBlock) ExtendMinorBlockHeaderList(headers []*MinorBlockHeader) {
+	b.minorBlockHeaders = append(b.minorBlockHeaders, headers...)
 }
