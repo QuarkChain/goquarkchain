@@ -318,8 +318,8 @@ func (s *QKCMasterBackend) getOneSlaveConnection(branch account.Branch) *SlaveCo
 	return slaves[0]
 }
 
-func (s *QKCMasterBackend) getAllSlaveConnection(branch account.Branch) []*SlaveConnection {
-	slaves, ok := s.branchToSlaves[branch.Value]
+func (s *QKCMasterBackend) getAllSlaveConnection(fullShardID uint32) []*SlaveConnection {
+	slaves, ok := s.branchToSlaves[fullShardID]
 	if !ok || len(slaves) <= 0 {
 		return nil
 	}
