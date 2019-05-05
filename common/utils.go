@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/gob"
 	"math/bits"
+	"net"
 )
 
 /*
@@ -36,4 +37,22 @@ func DeepCopy(dst, src interface{}) error {
 		return err
 	}
 	return gob.NewDecoder(bytes.NewBuffer(buf.Bytes())).Decode(dst)
+}
+
+func GetIPV4Addr() (string, error) {
+
+	addrs, err := net.InterfaceAddrs()
+	if err != nil {
+		return "127.0.0.1", err
+	}
+
+	for _, addr := range addrs {
+		if ipnet, ok := addr.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
+			ones, bits := ipnet.Mask.Size()
+			if bits == 32 && ones == 24 {
+				return ipnet.IP.To4().String(), nil
+			}
+		}
+	}
+	return "127.0.0.1", nil
 }

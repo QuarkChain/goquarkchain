@@ -5,8 +5,10 @@ import (
 	"errors"
 	"fmt"
 	"github.com/QuarkChain/goquarkchain/account"
+	"github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"math/big"
+	"sort"
 )
 
 var (
@@ -38,11 +40,11 @@ func NewClusterConfig() *ClusterConfig {
 		JSONRPCPort:              38391,
 		PrivateJSONRPCPort:       38491,
 		EnableTransactionHistory: false,
-		DbPathRoot:               "./data",
+		DbPathRoot:               "./db",
 		LogLevel:                 "info",
 		StartSimulatedMining:     false,
 		Clean:                    false,
-		GenesisDir:               "/dev/null",
+		GenesisDir:               "../genesis_data",
 		Quarkchain:               NewQuarkChainConfig(),
 		Master:                   NewMasterConfig(),
 		SimpleNetwork:            NewSimpleNetwork(),
@@ -110,6 +112,12 @@ func (q *QuarkChainConfig) MarshalJSON() ([]byte, error) {
 	return json.Marshal(jsonConfig)
 }
 
+type ChainsAlias []*ChainConfig
+
+func (m ChainsAlias) Len() int           { return len(m) }
+func (m ChainsAlias) Less(i, j int) bool { return m[i].ChainID < m[j].ChainID }
+func (m ChainsAlias) Swap(i, j int)      { m[i], m[j] = m[j], m[i] }
+
 func (q *QuarkChainConfig) UnmarshalJSON(input []byte) error {
 	var jsonConfig struct {
 		QuarkChainConfigAlias
@@ -119,10 +127,15 @@ func (q *QuarkChainConfig) UnmarshalJSON(input []byte) error {
 	if err := json.Unmarshal(input, &jsonConfig); err != nil {
 		return err
 	}
+
+	var chainsAlias ChainsAlias
+	chainsAlias = append(chainsAlias, jsonConfig.Chains...)
+	sort.Sort(chainsAlias)
+
 	*q = QuarkChainConfig(jsonConfig.QuarkChainConfigAlias)
 	q.Chains = make(map[uint32]*ChainConfig)
 	q.shards = make(map[uint32]*ShardConfig)
-	for chainID, chainCfg := range jsonConfig.Chains {
+	for chainID, chainCfg := range chainsAlias {
 		q.Chains[uint32(chainID)] = chainCfg
 		for shardID := uint32(0); shardID < chainCfg.ShardSize; shardID++ {
 			shardCfg := NewShardConfig(chainCfg)
@@ -132,10 +145,13 @@ func (q *QuarkChainConfig) UnmarshalJSON(input []byte) error {
 			q.shards[shardCfg.GetFullShardId()] = shardCfg
 		}
 	}
+
 	var (
 		denom int64 = 1000
 		num         = int64(jsonConfig.RewardTaxRate * float64(denom))
 	)
+	q.Root.Port = 38591
+	q.Root.Ip, _ = common.GetIPV4Addr()
 	q.RewardTaxRate = big.NewRat(num, denom)
 	q.initAndValidate()
 	return nil

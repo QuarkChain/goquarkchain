@@ -62,7 +62,7 @@ func (c *ChainConfig) MarshalJSON() ([]byte, error) {
 	jsonConfig := struct {
 		ChainConfigAlias
 		CoinbaseAddress string `json:"COINBASE_ADDRESS"`
-	}{ChainConfigAlias(*c), addr}
+	}{ChainConfigAlias: ChainConfigAlias(*c), CoinbaseAddress: addr}
 	return json.Marshal(jsonConfig)
 }
 
