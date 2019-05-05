@@ -1,55 +1,87 @@
 package slave
 
 import (
+	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/cluster/service"
+	"github.com/QuarkChain/goquarkchain/cluster/shard"
 	"github.com/QuarkChain/goquarkchain/p2p"
 	"github.com/ethereum/go-ethereum/event"
-	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rpc"
 	"reflect"
+	"sync"
 )
 
 type SlaveBackend struct {
-	config     config.SlaveConfig
-	masterConn *MasterConnection
+	clstrCfg *config.ClusterConfig
+	config   *config.SlaveConfig
+	mining   bool
 
-	eventMux  *event.TypeMux
+	slaveConnManager *SlaveConnManager
+
+	shards map[uint32]*shard.ShardBackend
+
+	mu       sync.Mutex
+	ctx      *service.ServiceContext
+	eventMux *event.TypeMux
 }
 
-func New(ctx *service.ServiceContext, cfg *config.SlaveConfig) (*SlaveBackend, error) {
-	log.Info("slave area", "create slave", cfg.ID)
-	masterConn, err := NewMasterConnection()
+func New(ctx *service.ServiceContext, clusterCfg *config.ClusterConfig, cfg *config.SlaveConfig) (*SlaveBackend, error) {
+
+	var (
+		err error
+	)
+	slave := &SlaveBackend{
+		config:   cfg,
+		clstrCfg: clusterCfg,
+		shards:   make(map[uint32]*shard.ShardBackend),
+		ctx:      ctx,
+		eventMux: ctx.EventMux,
+	}
+
+	slave.slaveConnManager, err = NewToSlaveConnManager(slave.clstrCfg.Quarkchain, slave)
 	if err != nil {
 		return nil, err
-	}
-	slave := &SlaveBackend{
-		config:     *cfg,
-		masterConn: masterConn,
-		eventMux:   ctx.EventMux,
 	}
 	return slave, nil
 }
 
-func (c *SlaveBackend) Protocols() (protos []p2p.Protocol) { return nil }
+func (s *SlaveBackend) coverShardId(id uint32) bool {
+	for _, msk := range s.config.ChainMaskList {
+		if msk.ContainFullShardId(id) {
+			return true
+		}
+	}
+	return false
+}
 
-func (c *SlaveBackend) APIs() []rpc.API {
+func (s *SlaveBackend) getBranch(address *account.Address) account.Branch {
+	return account.NewBranch(s.clstrCfg.Quarkchain.GetFullShardIdByFullShardKey(address.FullShardKey))
+}
+
+func (s *SlaveBackend) GetConfig() *config.SlaveConfig {
+	return s.config
+}
+
+func (s *SlaveBackend) Protocols() (protos []p2p.Protocol) { return nil }
+
+func (s *SlaveBackend) APIs() []rpc.API {
 	apis := []rpc.API{
 		{
 			Namespace: "rpc." + reflect.TypeOf(SlaveServerSideOp{}).Name(),
 			Version:   "3.0",
-			Service:   NewServerSideOp(c),
+			Service:   NewServerSideOp(s),
 			Public:    false,
 		},
 	}
 	return apis
 }
 
-func (c *SlaveBackend) Stop() error {
-	c.eventMux.Stop()
+func (s *SlaveBackend) Stop() error {
+	s.eventMux.Stop()
 	return nil
 }
 
-func (c *SlaveBackend) Start(srvr *p2p.Server) error {
+func (s *SlaveBackend) Start(srvr *p2p.Server) error {
 	return nil
 }

@@ -1,37 +1,22 @@
-package slave
+package test
 
 import (
 	"context"
-	"fmt"
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
-	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/p2p"
 	"github.com/QuarkChain/goquarkchain/serialize"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/log"
-	"sync"
-	"time"
 )
 
 type SlaveServerSideOp struct {
-	rpcId int64
-	mu    sync.RWMutex
-	slave *SlaveBackend
-
-	run     uint8
-	curTime int64
 }
 
-func NewServerSideOp(slave *SlaveBackend) *SlaveServerSideOp {
+func NewFakeServerSideOp() *SlaveServerSideOp {
 	return &SlaveServerSideOp{
-		slave: slave,
 	}
 }
 
 func (s *SlaveServerSideOp) HeartBeat(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
-	s.curTime = time.Now().Unix()
-	log.Info("slave heart beat response", "request op", req.Op, "current time", s.curTime)
 	return &rpc.Response{
 	}, nil
 }
@@ -47,16 +32,13 @@ func (s *SlaveServerSideOp) MasterInfo(ctx context.Context, req *rpc.Request) (*
 		return nil, err
 	}
 
-	s.slave.slaveConnManager.ModifyTarget(fmt.Sprintf("%s:%d", gReq.Ip, gReq.Port))
-	log.Info("slave master info response", "master info", s.slave.slaveConnManager.masterCli.target)
-
 	return response, nil
 }
 
 func (s *SlaveServerSideOp) Ping(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
 	var (
-		gReq     rpc.Ping
-		gRep     rpc.Pong
+		gReq     = new(rpc.Ping)
+		gRep     = new(rpc.Pong)
 		buf      = serialize.NewByteBuffer(req.Data)
 		response = &rpc.Response{RpcId: req.RpcId}
 		err      error
@@ -64,14 +46,6 @@ func (s *SlaveServerSideOp) Ping(ctx context.Context, req *rpc.Request) (*rpc.Re
 	if err = serialize.Deserialize(buf, &gReq); err != nil {
 		return nil, err
 	}
-
-	if gReq.RootTip != nil {
-		if err = s.slave.CreateShards(gReq.RootTip); err != nil {
-			return nil, err
-		}
-	}
-	gRep.Id, gRep.ChainMaskList = gReq.Id, gReq.ChainMaskList
-	log.Info("slave ping response", "request op", req.Op, "rpc id", s.rpcId)
 
 	if response.Data, err = serialize.SerializeToBytes(gRep); err != nil {
 		return nil, err
@@ -92,12 +66,6 @@ func (s *SlaveServerSideOp) GetMine(ctx context.Context, req *rpc.Request) (*rpc
 		return nil, err
 	}
 
-	if gReq.MinorBlockHash != (common.Hash{}) {
-		if gRep.MinorBlock, err = s.slave.GetMinorBlockByHeight(gReq.Height, gReq.Branch); err != nil {
-			return nil, err
-		}
-	}
-
 	if response.Data, err = serialize.SerializeToBytes(gRep); err != nil {
 		return nil, err
 	}
@@ -116,13 +84,10 @@ func (s *SlaveServerSideOp) GenTx(ctx context.Context, req *rpc.Request) (*rpc.R
 		return nil, err
 	}
 
-	// TODO CreateTransactions
-
 	if response.Data, err = serialize.SerializeToBytes(gRep); err != nil {
 		return nil, err
 	}
 	return response, nil
-
 }
 
 func (s *SlaveServerSideOp) AddRootBlock(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
@@ -137,26 +102,24 @@ func (s *SlaveServerSideOp) AddRootBlock(ctx context.Context, req *rpc.Request) 
 		return nil, err
 	}
 
-	gRep.Switched, err = s.slave.AddRootBlock(gReq.RootBlock)
-
 	if response.Data, err = serialize.SerializeToBytes(gRep); err != nil {
 		return nil, err
 	}
 
-	if err = s.slave.CreateShards(gReq.RootBlock); err != nil {
-		return nil, err
-	}
 	return response, nil
 }
 
 func (s *SlaveServerSideOp) GetEcoInfoList(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
 	var (
+		gReq     rpc.GetEcoInfoListRequest
 		gRep     rpc.GetEcoInfoListResponse
+		buf      = serialize.NewByteBuffer(req.Data)
 		response = &rpc.Response{RpcId: req.RpcId}
 		err      error
 	)
-
-	// TODO fill content.
+	if err = serialize.Deserialize(buf, &gReq); err != nil {
+		return nil, err
+	}
 
 	if response.Data, err = serialize.SerializeToBytes(gRep); err != nil {
 		return nil, err
@@ -166,22 +129,12 @@ func (s *SlaveServerSideOp) GetEcoInfoList(ctx context.Context, req *rpc.Request
 
 func (s *SlaveServerSideOp) AddMinorBlock(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
 	var (
-		gReq       rpc.AddMinorBlockRequest
-		buf        = serialize.NewByteBuffer(req.Data)
-		minorBlock = types.MinorBlock{}
-		mBuf       *serialize.ByteBuffer
-		response   = &rpc.Response{}
-		err        error
+		gReq     rpc.AddMinorBlockRequest
+		buf      = serialize.NewByteBuffer(req.Data)
+		response = &rpc.Response{}
+		err      error
 	)
 	if err = serialize.Deserialize(buf, &gReq); err != nil {
-		return nil, err
-	}
-
-	mBuf = serialize.NewByteBuffer(gReq.MinorBlockData)
-	if err = serialize.Deserialize(mBuf, &minorBlock); err != nil {
-		return nil, err
-	}
-	if err = s.slave.AddMinorBlock(&minorBlock); err != nil {
 		return nil, err
 	}
 
@@ -197,9 +150,6 @@ func (s *SlaveServerSideOp) GetUnconfirmedHeaderList(ctx context.Context, req *r
 		err      error
 	)
 	if err = serialize.Deserialize(buf, &gReq); err != nil {
-		return nil, err
-	}
-	if gRep.HeadersInfoList, err = s.slave.GetUnconfirmedHeaderList(); err != nil {
 		return nil, err
 	}
 
@@ -221,10 +171,6 @@ func (s *SlaveServerSideOp) GetAccountData(ctx context.Context, req *rpc.Request
 		return nil, err
 	}
 
-	if gRep.AccountBranchDataList, err = s.slave.GetAccountData(gReq.Address, *gReq.BlockHeight); err != nil {
-		return nil, err
-	}
-
 	if response.Data, err = serialize.SerializeToBytes(gRep); err != nil {
 		return nil, err
 	}
@@ -242,10 +188,6 @@ func (s *SlaveServerSideOp) AddTransaction(ctx context.Context, req *rpc.Request
 		return nil, err
 	}
 
-	if err = s.slave.AddTx(gReq.Tx); err != nil {
-		return nil, err
-	}
-
 	return response, nil
 }
 
@@ -259,16 +201,6 @@ func (s *SlaveServerSideOp) GetMinorBlock(ctx context.Context, req *rpc.Request)
 	)
 	if err = serialize.Deserialize(buf, &gReq); err != nil {
 		return nil, err
-	}
-
-	if gReq.MinorBlockHash != (common.Hash{}) {
-		if gRep.MinorBlock, err = s.slave.GetMinorBlockByHash(gReq.MinorBlockHash, gReq.Branch); err != nil {
-			return nil, err
-		}
-	} else {
-		if gRep.MinorBlock, err = s.slave.GetMinorBlockByHeight(gReq.Height, gReq.Branch); err != nil {
-			return nil, err
-		}
 	}
 
 	if response.Data, err = serialize.SerializeToBytes(gRep); err != nil {
@@ -289,7 +221,21 @@ func (s *SlaveServerSideOp) GetTransaction(ctx context.Context, req *rpc.Request
 		return nil, err
 	}
 
-	if gRep.MinorBlock, gRep.Index, err = s.slave.GetTransactionByHash(gReq.TxHash, gReq.Branch); err != nil {
+	if response.Data, err = serialize.SerializeToBytes(gRep); err != nil {
+		return nil, err
+	}
+	return response, nil
+}
+
+func (s *SlaveServerSideOp) SyncMinorBlockList(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
+	var (
+		gReq     rpc.SyncMinorBlockListRequest
+		gRep     rpc.SyncMinorBlockListResponse
+		buf      = serialize.NewByteBuffer(req.Data)
+		response = &rpc.Response{RpcId: req.RpcId}
+		err      error
+	)
+	if err = serialize.Deserialize(buf, &gReq); err != nil {
 		return nil, err
 	}
 
@@ -308,10 +254,6 @@ func (s *SlaveServerSideOp) ExecuteTransaction(ctx context.Context, req *rpc.Req
 		err      error
 	)
 	if err = serialize.Deserialize(buf, &gReq); err != nil {
-		return nil, err
-	}
-
-	if gRep.Result, err = s.slave.ExecuteTx(gReq.Tx, gReq.FromAddress); err != nil {
 		return nil, err
 	}
 
@@ -334,11 +276,6 @@ func (s *SlaveServerSideOp) GetTransactionReceipt(ctx context.Context, req *rpc.
 		return nil, err
 	}
 
-	gRep.MinorBlock, gRep.Index, gRep.Receipt, err = s.slave.GetTransactionReceipt(gReq.TxHash, gReq.Branch)
-	if err != nil {
-		return nil, err
-	}
-
 	if response.Data, err = serialize.SerializeToBytes(gRep); err != nil {
 		return nil, err
 	}
@@ -355,11 +292,6 @@ func (s *SlaveServerSideOp) GetTransactionListByAddress(ctx context.Context, req
 	)
 	response = &rpc.Response{RpcId: req.RpcId}
 	if err = serialize.Deserialize(buf, &gReq); err != nil {
-		return nil, err
-	}
-
-	if gRep.TxList, gRep.Next, err = s.slave.GetTransactionListByAddress(gReq.Address,
-		gReq.Start, gReq.Limit); err != nil {
 		return nil, err
 	}
 
@@ -382,10 +314,6 @@ func (s *SlaveServerSideOp) GetLogs(ctx context.Context, req *rpc.Request) (*rpc
 		return nil, err
 	}
 
-	if gRep.Logs, err = s.slave.GetLogs(gReq.Addresses, gReq.StartBlock, gReq.EndBlock, gReq.Branch); err != nil {
-		return nil, err
-	}
-
 	if response.Data, err = serialize.SerializeToBytes(gRep); err != nil {
 		return nil, err
 	}
@@ -402,10 +330,6 @@ func (s *SlaveServerSideOp) EstimateGas(ctx context.Context, req *rpc.Request) (
 	)
 	response = &rpc.Response{RpcId: req.RpcId}
 	if err = serialize.Deserialize(buf, &gReq); err != nil {
-		return nil, err
-	}
-
-	if gRep.Result, err = s.slave.EstimateGas(gReq.Tx, gReq.FromAddress); err != nil {
 		return nil, err
 	}
 
@@ -428,10 +352,6 @@ func (s *SlaveServerSideOp) GetStorageAt(ctx context.Context, req *rpc.Request) 
 		return nil, err
 	}
 
-	if gRep.Result, err = s.slave.GetStorageAt(gReq.Address, gReq.Key, *gReq.BlockHeight); err != nil {
-		return nil, err
-	}
-
 	if response.Data, err = serialize.SerializeToBytes(gRep); err != nil {
 		return nil, err
 	}
@@ -448,10 +368,6 @@ func (s *SlaveServerSideOp) GetCode(ctx context.Context, req *rpc.Request) (*rpc
 	)
 
 	if err = serialize.Deserialize(buf, &gReq); err != nil {
-		return nil, err
-	}
-
-	if gRep.Result, err = s.slave.GetCode(gReq.Address, *gReq.BlockHeight); err != nil {
 		return nil, err
 	}
 
@@ -474,10 +390,6 @@ func (s *SlaveServerSideOp) GasPrice(ctx context.Context, req *rpc.Request) (*rp
 		return nil, err
 	}
 
-	if gRep.Result, err = s.slave.GasPrice(gReq.Branch); err != nil {
-		return nil, err
-	}
-
 	if response.Data, err = serialize.SerializeToBytes(gRep); err != nil {
 		return nil, err
 	}
@@ -489,7 +401,6 @@ func (s *SlaveServerSideOp) GetWork(ctx context.Context, req *rpc.Request) (*rpc
 		gReq     rpc.GetWorkRequest
 		gRep     rpc.GetWorkResponse
 		buf      = serialize.NewByteBuffer(req.Data)
-		work     *consensus.MiningWork
 		response = &rpc.Response{RpcId: req.RpcId}
 		err      error
 	)
@@ -497,11 +408,6 @@ func (s *SlaveServerSideOp) GetWork(ctx context.Context, req *rpc.Request) (*rpc
 	if err = serialize.Deserialize(buf, &gReq); err != nil {
 		return nil, err
 	}
-
-	if work, err = s.slave.GetWork(gReq.Branch); err != nil {
-		return nil, err
-	}
-	gRep.HeaderHash, gRep.Height, gRep.Difficulty = work.HeaderHash, work.Number, work.Difficulty
 
 	if response.Data, err = serialize.SerializeToBytes(gRep); err != nil {
 		return nil, err
@@ -522,11 +428,6 @@ func (s *SlaveServerSideOp) SubmitWork(ctx context.Context, req *rpc.Request) (*
 		return nil, err
 	}
 
-	if err = s.slave.SubmitWork(gReq.HeaderHash, gReq.Nonce, gReq.MixHash, gReq.Branch); err != nil {
-		return nil, err
-	}
-	gRep.Success = true
-
 	if response.Data, err = serialize.SerializeToBytes(gRep); err != nil {
 		return nil, err
 	}
@@ -545,10 +446,6 @@ func (s *SlaveServerSideOp) AddXshardTxList(ctx context.Context, req *rpc.Reques
 		return nil, err
 	}
 
-	if err = s.slave.AddCrossShardTxListByMinorBlockHash(gReq.MinorBlockHash, gReq.TxList, gReq.Branch); err != nil {
-		return nil, err
-	}
-
 	return response, nil
 }
 
@@ -564,34 +461,21 @@ func (s *SlaveServerSideOp) BatchAddXshardTxList(ctx context.Context, req *rpc.R
 		return nil, err
 	}
 
-	for _, req := range gReq.AddXshardTxListRequestList {
-		if err = s.slave.AddCrossShardTxListByMinorBlockHash(req.MinorBlockHash, req.TxList, req.Branch); err != nil {
-			return nil, err
-		}
-	}
-
 	return response, nil
 }
 
-// check if the blocks are vailed.
-func (s *SlaveServerSideOp) AddMinorBlockListForSync(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
+func (s *SlaveServerSideOp) AddBlockListForSync(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
 	var (
 		gReq     rpc.AddBlockListForSyncRequest
-		gRep     rpc.AddBlockListForSyncResponse
 		buf      = serialize.NewByteBuffer(req.Data)
 		response = &rpc.Response{RpcId: req.RpcId}
 		err      error
 	)
+
 	if err = serialize.Deserialize(buf, &gReq); err != nil {
 		return nil, err
 	}
-	if gRep.ShardStatus, err = s.slave.AddBlockListForSync(gReq.MinorBlockList); err != nil {
-		return nil, err
-	}
 
-	if response.Data, err = serialize.SerializeToBytes(gRep); err != nil {
-		return nil, err
-	}
 	return response, nil
 }
 
@@ -608,10 +492,6 @@ func (s *SlaveServerSideOp) GetMinorBlockList(ctx context.Context, req *rpc.Requ
 		return nil, err
 	}
 
-	if gRep.MinorBlockList, err = s.slave.GetMinorBlockListByHashList(gReq.MinorBlockHashList, gReq.Branch); err != nil {
-		return nil, err
-	}
-
 	if response.Data, err = serialize.SerializeToBytes(gRep); err != nil {
 		return nil, err
 	}
@@ -623,20 +503,11 @@ func (s *SlaveServerSideOp) GetMinorBlockHeaderList(ctx context.Context, req *rp
 		gReq     rpc.GetMinorBlockHeaderListRequest
 		gRep     rpc.GetMinorBlockHeaderListResponse
 		buf      = serialize.NewByteBuffer(req.Data)
-		blockLst []*types.MinorBlock
 		response = &rpc.Response{RpcId: req.RpcId}
 		err      error
 	)
 	gRep.MinorBlockHeader = make([]*types.MinorBlockHeader, 0)
 	if err = serialize.Deserialize(buf, &gReq); err != nil {
-		return nil, err
-	}
-
-	if blockLst, err = s.slave.GetMinorBlockListByDirection(gReq.BlockHash, gReq.Limit, gReq.Direction, gReq.Branch); err == nil {
-		for _, blok := range blockLst {
-			gRep.MinorBlockHeader = append(gRep.MinorBlockHeader, blok.Header())
-		}
-	} else {
 		return nil, err
 	}
 
@@ -649,6 +520,7 @@ func (s *SlaveServerSideOp) GetMinorBlockHeaderList(ctx context.Context, req *rp
 func (s *SlaveServerSideOp) HandleNewTip(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
 	var (
 		gReq     p2p.Tip
+		gRep     rpc.GetTransactionResponse
 		buf      = serialize.NewByteBuffer(req.Data)
 		response = &rpc.Response{RpcId: req.RpcId}
 		err      error
@@ -658,10 +530,9 @@ func (s *SlaveServerSideOp) HandleNewTip(ctx context.Context, req *rpc.Request) 
 		return nil, err
 	}
 
-	if err = s.slave.HandleNewTip(&gReq); err != nil {
+	if response.Data, err = serialize.SerializeToBytes(gRep); err != nil {
 		return nil, err
 	}
-
 	return response, nil
 }
 
@@ -676,12 +547,6 @@ func (s *SlaveServerSideOp) AddTransactions(ctx context.Context, req *rpc.Reques
 
 	if err = serialize.Deserialize(buf, &gReq); err != nil {
 		return nil, err
-	}
-
-	for _, tx := range gReq.TransactionList {
-		if err = s.slave.AddTx(tx); err != nil {
-			return nil, err
-		}
 	}
 
 	if response.Data, err = serialize.SerializeToBytes(gRep); err != nil {
