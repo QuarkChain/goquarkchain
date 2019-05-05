@@ -53,6 +53,7 @@ var AppHelpFlagGroups = []flagGroup{
 			utils.StartSimulatedMiningFlag,
 			utils.GenesisDirFlag,
 			utils.NumShardsFlag,
+			utils.NumChainsFlag,
 			utils.RootBlockIntervalSecFlag,
 			utils.MinorBlockIntervalSecFlag,
 			utils.NetworkIdFlag,
