@@ -29,7 +29,13 @@ func (s *SlaveServerSideOp) HeartBeat(ctx context.Context, req *rpc.Request) (*r
 		RpcId: req.RpcId,
 	}, nil
 }
-
+func (s *SlaveServerSideOp) MasterInfo(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
+	s.curTime = time.Now().Unix()
+	log.Info("slave heart beat response", "request op", req.Op, "current time", s.curTime)
+	return &rpc.Response{
+		RpcId: req.RpcId,
+	}, nil
+}
 func (s *SlaveServerSideOp) Ping(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
 	log.Info("slave ping response", "request op", req.Op)
 	return &rpc.Response{
@@ -66,7 +72,7 @@ func (s *SlaveServerSideOp) AddXshardTxList(ctx context.Context, req *rpc.Reques
 func (s *SlaveServerSideOp) BatchAddXshardTxList(ctx context.Context, req *rpc.Request) (*rpc.Response, error)                { panic("not implemented") }
 
 // p2p apis
-func (s *SlaveServerSideOp) GetMinorBlocks(ctx context.Context, req *rpc.Request) (*rpc.Response, error)       { panic("not implemented") }
-func (s *SlaveServerSideOp) GetMinorBlockHeaders(ctx context.Context, req *rpc.Request) (*rpc.Response, error) { panic("not implemented") }
+func (s *SlaveServerSideOp) GetMinorBlockList(ctx context.Context, req *rpc.Request) (*rpc.Response, error)       { panic("not implemented") }
+func (s *SlaveServerSideOp) GetMinorBlockHeaderList(ctx context.Context, req *rpc.Request) (*rpc.Response, error) { panic("not implemented") }
 func (s *SlaveServerSideOp) HandleNewTip(ctx context.Context, req *rpc.Request) (*rpc.Response, error)         { panic("not implemented") }
 func (s *SlaveServerSideOp) AddTransactions(ctx context.Context, req *rpc.Request) (*rpc.Response, error)      { panic("not implemented") }
