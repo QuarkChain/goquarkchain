@@ -80,7 +80,7 @@ func NewRootGenesis() *RootGenesis {
 		HashPrevBlock:  "",
 		HashMerkleRoot: "",
 		Timestamp:      1519147489,
-		Difficulty:     1000000,
+		Difficulty:     1000000000000,
 		Nonce:          0,
 	}
 }

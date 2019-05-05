@@ -6,7 +6,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
-	"github.com/QuarkChain/goquarkchain/cluster/sync"
+	qkcSync "github.com/QuarkChain/goquarkchain/cluster/sync"
 	"github.com/QuarkChain/goquarkchain/cluster/service"
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/consensus/doublesha256"
@@ -82,7 +82,7 @@ func New(ctx *service.ServiceContext, cfg *config.ClusterConfig) (*QKCMasterBack
 		return nil, err
 	}
 
-	mstr.ProtocolManager,err=NewProtocolManager(*cfg,mstr.rootBlockChain,sync.NewSynchronizer(mstr.rootBlockChain),mstr.getAllSlaveConnection)
+	mstr.ProtocolManager,err=NewProtocolManager(*cfg,mstr.rootBlockChain,qkcSync.NewSynchronizer(mstr.rootBlockChain),mstr.getAllSlaveConnection)
 	return mstr, nil
 }
 
@@ -117,8 +117,7 @@ func (s *QKCMasterBackend) GetClusterConfig() *config.ClusterConfig {
 
 // Protocols p2p protocols, p2p Server will start in node.Start
 func (s *QKCMasterBackend) Protocols() []p2p.Protocol {
-	// TODO add p2p.protocol
-	return nil
+	return s.ProtocolManager.subProtocols
 }
 
 // APIs return all apis for master Server
@@ -147,6 +146,8 @@ func (s *QKCMasterBackend) Stop() error {
 func (s *QKCMasterBackend) Start(srvr *p2p.Server) error {
 	// start heart beat pre 3 seconds.
 	s.HeartBeat()
+	s.ProtocolManager.Start(10000)
+	s.disPlayPeers()
 	return nil
 }
 
@@ -321,7 +322,7 @@ func (s *QKCMasterBackend) getOneSlaveConnection(branch account.Branch) *SlaveCo
 	return slaves[0]
 }
 
-func (s *QKCMasterBackend) getAllSlaveConnection(fullShardID uint32) []*SlaveConnection {
+func (s *QKCMasterBackend) getAllSlaveConnection(fullShardID uint32) []ShardConnForP2P {
 	slaves, ok := s.branchToSlaves[fullShardID]
 	if !ok || len(slaves) <= 0 {
 		return nil
@@ -329,7 +330,11 @@ func (s *QKCMasterBackend) getAllSlaveConnection(fullShardID uint32) []*SlaveCon
 	if len(slaves) < 1 {
 		return nil
 	}
-	return slaves
+	res:=make([]ShardConnForP2P,0)
+	for _,v:=range slaves{
+		res=append(res,v)
+	}
+	return res
 }
 
 func (s *QKCMasterBackend) createRootBlockToMine(address account.Address) (*types.RootBlock, error) {
@@ -549,4 +554,19 @@ func (s *QKCMasterBackend) isMining() bool {
 
 func (s *QKCMasterBackend) CurrentBlock() *types.RootBlock {
 	return s.rootBlockChain.CurrentBlock()
+}
+
+func (s *QKCMasterBackend)disPlayPeers()  {
+	go func() {
+		for true{
+			time.Sleep(5*time.Second)
+			peers:=s.ProtocolManager.peers.peers
+
+			log.Info(s.logInfo,"len peers-------------------------",len(peers))
+			for k,v:=range peers{
+				log.Info(s.logInfo,"k",k,"v",v.RemoteAddr().String())
+			}
+		}
+	}()
+
 }

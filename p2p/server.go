@@ -427,7 +427,7 @@ func (srv *Server) Start() (err error) {
 		return errors.New("Server.PrivateKey must be set to a non-nil key")
 	}
 	if srv.newTransport == nil {
-		srv.newTransport = newRLPX
+		srv.newTransport = NewQKCRlp
 	}
 	if srv.Dialer == nil {
 		srv.Dialer = TCPDialer{&net.Dialer{Timeout: defaultDialTimeout}}

@@ -121,7 +121,7 @@ var (
 	NetworkIdFlag = cli.IntFlag{
 		Name:  "network_id",
 		Usage: "net work id",
-		Value: 3,
+		Value: 24,
 	}
 	NumSlavesFlag = cli.IntFlag{
 		Name:  "num_slaves",
@@ -426,21 +426,15 @@ func SetClusterConfig(ctx *cli.Context, cfg *config.ClusterConfig) {
 	}
 	cfg.Quarkchain.NetworkID = uint32(ctx.GlobalInt(NetworkIdFlag.Name))
 
-	if ctx.GlobalIsSet(P2pFlag.Name) {
-		cfg.SimpleNetwork = nil
-		cfg.P2P = config.NewP2PConfig()
-		cfg.P2P.BootNodes = ctx.GlobalString(BootnodesFlag.Name)
-		cfg.P2P.PrivKey = ctx.GlobalString(PrivkeyFlag.Name)
-		cfg.P2P.MaxPeers = ctx.GlobalUint64(MaxPeersFlag.Name)
-		if ctx.GlobalBool(UpnpFlag.Name) {
-			cfg.P2P.UPnP = true
-		}
-	} else {
-		cfg.P2P = nil
-		cfg.SimpleNetwork = config.NewSimpleNetwork()
-		cfg.SimpleNetwork.BootstrapHost = ctx.GlobalString(SimpleNetworkBootstrapHostFlag.Name)
-		cfg.SimpleNetwork.BootstrapPort = ctx.GlobalUint64(SimpleNetworkBootstrapPortFlag.Name)
+	// p2p config
+	cfg.P2P = config.NewP2PConfig()
+	cfg.P2P.BootNodes = ctx.GlobalString(BootnodesFlag.Name)
+	cfg.P2P.PrivKey = ctx.GlobalString(PrivkeyFlag.Name)
+	cfg.P2P.MaxPeers = ctx.GlobalUint64(MaxPeersFlag.Name)
+	if ctx.GlobalBool(UpnpFlag.Name) {
+		cfg.P2P.UPnP = true
 	}
+
 }
 
 // SetNodeConfig applies node-related command line flags to the config.

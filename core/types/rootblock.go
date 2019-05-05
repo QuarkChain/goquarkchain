@@ -186,7 +186,7 @@ func NewRootBlock(header *RootBlockHeader, mbHeaders MinorBlockHeaders, tracking
 	b := &RootBlock{header: CopyRootBlockHeader(header), td: new(big.Int)}
 
 	if len(mbHeaders) == 0 {
-		b.header.MinorHeaderHash = EmptyHash
+		b.header.MinorHeaderHash = common.Hash{}
 	} else {
 		b.header.MinorHeaderHash = DeriveSha(MinorBlockHeaders(mbHeaders))
 		b.minorBlockHeaders = make(MinorBlockHeaders, len(mbHeaders))
