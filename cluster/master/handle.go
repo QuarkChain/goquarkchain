@@ -202,12 +202,12 @@ func (pm *ProtocolManager) handleMsg(peer *peer) error {
 		if qkcMsg.MetaData.Branch == 0 {
 			return pm.HandleNewTip(&tip, peer)
 		}
-		if tip.MinorBlockHeaderList == nil || len(tip.MinorBlockHeaderList) != 1 {
+		if len(tip.MinorBlockHeaderList) != 1 {
 			return fmt.Errorf("invalid NewTip Request: len of MinorBlockHeaderList is %d. %d for rpc request %d",
 				len(tip.MinorBlockHeaderList), qkcMsg.RpcID, qkcMsg.MetaData.Branch)
 		}
 		clients := pm.getShardConnFunc(qkcMsg.MetaData.Branch)
-		if clients == nil || len(clients) == 0 {
+		if len(clients) == 0 {
 			return fmt.Errorf("invalid branch %d for rpc request %d", qkcMsg.RpcID, qkcMsg.MetaData.Branch)
 		}
 		for _, client := range clients {
@@ -245,7 +245,7 @@ func (pm *ProtocolManager) handleMsg(peer *peer) error {
 			return err
 		}
 		clients := pm.getShardConnFunc(qkcMsg.MetaData.Branch)
-		if clients == nil || len(clients) == 0 {
+		if len(clients) == 0 {
 			return fmt.Errorf("invalid branch %d for rpc request %d", qkcMsg.RpcID, qkcMsg.MetaData.Branch)
 		}
 		for _, client := range clients {
@@ -434,7 +434,7 @@ func (pm *ProtocolManager) HandleGetRootBlockListRequest(request *p2p.GetRootBlo
 
 func (pm *ProtocolManager) HandleNewTransactionListRequest(peerId string, rpcId uint64, branch uint32, request *p2p.NewTransactionList) error {
 	clients := pm.getShardConnFunc(branch)
-	if clients == nil || len(clients) == 0 {
+	if len(clients) == 0 {
 		return fmt.Errorf("invalid branch %d for rpc request %d", rpcId, branch)
 	}
 	var hashList []common.Hash
@@ -499,7 +499,7 @@ func (pm *ProtocolManager) HandleGetMinorBlockListRequest(rpcId uint64, branch u
 			rpcId, branch, len(request.MinorBlockHashList), minorBlockBatchSize)
 	}
 	clients := pm.getShardConnFunc(branch)
-	if clients == nil || len(clients) == 0 {
+	if len(clients) == 0 {
 		return nil, fmt.Errorf("invalid branch %d for rpc request %d", rpcId, branch)
 	}
 	result, err := clients[0].GetMinorBlocks(request)
