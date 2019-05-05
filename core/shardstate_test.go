@@ -173,12 +173,12 @@ func TestEstimateGas(t *testing.T) {
 	estimate, err := shardState.EstimateGas(tx, acc1)
 	checkErr(err)
 
-	assert.Equal(t, estimate, uint64(21000))
+	assert.Equal(t, estimate, uint32(21000))
 
 	newTx := txGen([]byte("12123478123412348125936583475758"))
 	estimate, err = shardState.EstimateGas(newTx, acc1)
 	checkErr(err)
-	assert.Equal(t, estimate, uint64(23176))
+	assert.Equal(t, estimate, uint32(23176))
 }
 
 func TestExecuteTx(t *testing.T) {
@@ -254,7 +254,7 @@ func TestOneTx(t *testing.T) {
 	assert.NotNil(t, block)
 	assert.Equal(t, block.GetTransactions()[0].Hash(), tx.Hash())
 	assert.Equal(t, block.Header().Time, uint64(0))
-	assert.Equal(t, i, uint64(0))
+	assert.Equal(t, i, uint32(0))
 
 	// tx claims to use more gas than the limit and thus not included
 	b1, err := shardState.CreateBlockToMine(nil, &acc3, new(big.Int).SetUint64(49999))
@@ -300,13 +300,13 @@ func TestOneTx(t *testing.T) {
 	for k, v := range curBlock.GetTransactions() {
 		assert.Equal(t, v.Hash(), block.Transactions()[k].Hash())
 	}
-	assert.Equal(t, i, uint64(0))
+	assert.Equal(t, i, uint32(0))
 
 	// Check receipts
 	blockR, indexR, reR := shardState.GetTransactionReceipt(tx.Hash())
 	assert.NotNil(t, blockR)
 	assert.Equal(t, blockR.Hash(), b2.Hash())
-	assert.Equal(t, indexR, uint64(0))
+	assert.Equal(t, indexR, uint32(0))
 	assert.Equal(t, reR[0].Status, uint64(1))
 	assert.Equal(t, reR[0].GasUsed, uint64(21000))
 
@@ -345,7 +345,7 @@ func TestDuplicatedTx(t *testing.T) {
 	assert.Equal(t, len(block.Transactions()), 1)
 	assert.Equal(t, block.Transactions()[0].Hash(), tx.Hash())
 	assert.Equal(t, block.Header().Time, uint64(0))
-	assert.Equal(t, i, uint64(0))
+	assert.Equal(t, i, uint32(0))
 	b1, err := shardState.CreateBlockToMine(nil, &acc3, nil)
 	assert.Equal(t, len(b1.Transactions()), 1)
 	// Should succeed
@@ -572,12 +572,12 @@ func TestTwoTxInOneBlock(t *testing.T) {
 
 	block, i := shardState.GetTransactionByHash(b1.GetTransactions()[0].Hash())
 	assert.Equal(t, block.Hash(), b1.Hash())
-	assert.Equal(t, i, uint64(0))
+	assert.Equal(t, i, uint32(0))
 
 	block, i = shardState.GetTransactionByHash(b1.GetTransactions()[1].Hash())
 
 	assert.Equal(t, block.Hash(), b1.Hash())
-	assert.Equal(t, i, uint64(1))
+	assert.Equal(t, i, uint32(1))
 
 	//Check acc2 full_shard_key doesn't change
 	assert.Equal(t, currState.GetFullShardKey(acc2.Recipient), acc2.FullShardKey)

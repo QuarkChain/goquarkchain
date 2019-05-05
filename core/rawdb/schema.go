@@ -66,7 +66,7 @@ const (
 // a transaction or receipt given only its hash.
 type LookupEntry struct {
 	BlockHash common.Hash
-	Index     uint64
+	Index     uint32
 }
 
 // encodeBlockNumber encodes a block number as big endian uint64
