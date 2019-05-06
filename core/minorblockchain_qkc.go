@@ -1093,7 +1093,6 @@ func (m *MinorBlockChain) runOneCrossShardTxListByRootBlockHash(hash common.Hash
 	// already locked
 	txList, err := m.getCrossShardTxListByRootBlockHash(hash)
 	if err != nil {
-		panic(err)
 		return nil, err
 	}
 
