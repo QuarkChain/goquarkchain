@@ -1,7 +1,6 @@
 package consensus
 
 import (
-	"fmt"
 	"github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/core/rawdb"
 	"github.com/QuarkChain/goquarkchain/core/types"
@@ -21,7 +20,7 @@ func IsSameRootChain(db rawdb.DatabaseReader, longerChainHeader, shorterChainHea
 		if common.IsNil(header) { // TODO to check here:header==nil error
 			return false
 		} else {
-			fmt.Println("not nil")
+			//fmt.Println("not nil")
 		}
 	}
 

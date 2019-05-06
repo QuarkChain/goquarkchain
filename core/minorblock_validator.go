@@ -181,14 +181,8 @@ func (v *MinorBlockValidator) ValidatorMinorBlockSeal(block *types.MinorBlock) e
 	fullShardID := branch.GetFullShardID()
 	shardConfig := v.quarkChainConfig.GetShardConfigByFullShardID(fullShardID)
 	consensusType := shardConfig.ConsensusType
-	if !shardConfig.PoswConfig.Enabled {
-		return v.validateSeal(block.IHeader(), consensusType, nil)
-	}
-	diff, err := v.bc.POSWDiffAdjust(block)
-	if err != nil {
-		return err
-	}
-	return v.validateSeal(block.IHeader(), consensusType, &diff)
+	return v.validateSeal(block.IHeader(), consensusType, nil)
+
 }
 
 func (v *MinorBlockValidator) validateSeal(header types.IHeader, consensusType string, diff *uint64) error {
