@@ -68,6 +68,8 @@ type Engine interface {
 
 	SubmitWork(nonce uint64, hash, digest common.Hash) bool
 
+	SetThreads(threads int)
+
 	// Close terminates any background threads maintained by the consensus engine.
 	Close() error
 }

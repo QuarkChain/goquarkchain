@@ -140,6 +140,10 @@ func (d *DoubleSHA256) SubmitWork(nonce uint64, hash, digest common.Hash) bool {
 	return d.commonEngine.SubmitWork(nonce, hash, digest)
 }
 
+func (q *DoubleSHA256) SetThreads(threads int) {
+	q.commonEngine.SetThreads(threads)
+}
+
 // New returns a DoubleSHA256 scheme.
 func New(diffCalculator consensus.DifficultyCalculator, remote bool) *DoubleSHA256 {
 	spec := consensus.MiningSpec{

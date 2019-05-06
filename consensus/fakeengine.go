@@ -92,6 +92,8 @@ func (e *FakeEngine) SubmitWork(nonce uint64, hash, digest common.Hash) bool {
 	return false
 }
 
+func (e *FakeEngine) SetThreads(threads int) {}
+
 // Close terminates any background threads maintained by the consensus engine.
 func (e *FakeEngine) Close() error {
 	return e.Err

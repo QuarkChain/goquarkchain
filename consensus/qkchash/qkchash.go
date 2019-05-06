@@ -105,6 +105,10 @@ func (q *QKCHash) SubmitWork(nonce uint64, hash, digest common.Hash) bool {
 	return q.commonEngine.SubmitWork(nonce, hash, digest)
 }
 
+func (q *QKCHash) SetThreads(threads int) {
+	q.commonEngine.SetThreads(threads)
+}
+
 // New returns a QKCHash scheme.
 func New(useNative bool, diffCalculator consensus.DifficultyCalculator, remote bool) *QKCHash {
 	q := &QKCHash{
