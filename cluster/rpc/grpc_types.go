@@ -32,7 +32,7 @@ type SlaveInfo struct {
 
 // Master instructs a slave to connect to other slaves
 type ConnectToSlavesRequest struct {
-	SlaveInfoList []SlaveInfo `json:"slave_info_list" gencodec:"required" bytesizeofslicelen:"4"`
+	SlaveInfoList []*SlaveInfo `json:"slave_info_list" gencodec:"required" bytesizeofslicelen:"4"`
 }
 
 type ConnectToSlavesResult struct {
@@ -129,7 +129,7 @@ type GetTransactionResponse struct {
 type ExecuteTransactionRequest struct {
 	Tx          *types.Transaction `json:"tx" gencodec:"required"`
 	FromAddress *account.Address   `json:"from_address" gencodec:"required"`
-	BlockHeight uint64             `json:"block_height" ser:"nil"`
+	BlockHeight *uint64            `json:"block_height" ser:"nil"`
 }
 
 type ExecuteTransactionResponse struct {
@@ -197,9 +197,9 @@ type GetEcoInfoListResponse struct {
 }
 
 type GetNextBlockToMineRequest struct {
-	Branch             account.Branch     `json:"branch" gencodec:"required"`
-	Address            account.Address    `json:"address" gencodec:"required"`
-	ArtificialTxConfig ArtificialTxConfig `json:"artificial_tx_config" gencodec:"required"`
+	Branch             account.Branch      `json:"branch" gencodec:"required"`
+	Address            account.Address     `json:"address" gencodec:"required"`
+	ArtificialTxConfig *ArtificialTxConfig `json:"artificial_tx_config" gencodec:"required"`
 }
 
 type GetNextBlockToMineResponse struct {
