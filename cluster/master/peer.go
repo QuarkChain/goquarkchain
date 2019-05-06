@@ -122,14 +122,17 @@ func (p *peer) broadcast() {
 
 		case nTip := <-p.queuedTip:
 			if err := p.SendNewTip(nTip.branch, nTip.tip); err != nil {
-				p.Log().Error("Broadcast tip failed",
-					"number", nTip.tip.MinorBlockHeaderList[0].NumberU64(), "branch", nTip.branch, "error", err.Error())
+				// TODO [0]?
+				//p.Log().Error("Broadcast tip failed",
+				//	"number", nTip.tip.MinorBlockHeaderList[0].NumberU64(), "branch", nTip.branch, "error", err.Error())
 				return
 			}
 			if nTip.branch != 0 {
 				p.Log().Trace("Broadcast new tip", "number", nTip.tip.RootBlockHeader.NumberU64(), "branch", nTip.branch)
 			} else {
-				p.Log().Trace("Broadcast new tip", "number", nTip.tip.MinorBlockHeaderList[0].NumberU64(), "branch", nTip.branch)
+				//TODO ?? [0]??
+				//	fmt.Println("?????", nTip.tip.RootBlockHeader.Number, len(nTip.tip.MinorBlockHeaderList))
+				//	p.Log().Trace("Broadcast new tip", "number", nTip.tip.MinorBlockHeaderList[0].NumberU64(), "branch", nTip.branch)
 			}
 
 		case <-p.term:

@@ -64,7 +64,8 @@ func New(ctx *service.ServiceContext, cfg *config.ClusterConfig) (*QKCMasterBack
 				TargetRootBlockTime:  cfg.Quarkchain.Root.ConsensusConfig.TargetBlockTime,
 				TargetMinorBlockTime: cfg.Quarkchain.GetShardConfigByFullShardID(cfg.Quarkchain.GetGenesisShardIds()[0]).ConsensusConfig.TargetBlockTime,
 			},
-			logInfo: "masterServer",
+			logInfo:  "masterServer",
+			shutdown: ctx.Shutdown,
 		}
 		err error
 	)
@@ -100,6 +101,7 @@ func createConsensusEngine(ctx *service.ServiceContext, cfg *config.RootConfig) 
 		AdjustmentCutoff:  cfg.DifficultyAdjustmentCutoffTime,
 		AdjustmentFactor:  cfg.DifficultyAdjustmentFactor,
 	}
+	cfg.ConsensusType = "ModeFake" //TODO delete it
 	switch cfg.ConsensusType {
 	case "ModeFake":
 		return &consensus.FakeEngine{}, nil
@@ -180,9 +182,6 @@ func (s *QKCMasterBackend) InitCluster() error {
 	if err := s.hasAllShards(); err != nil {
 		return err
 	}
-	if err := s.setUpSlaveToSlaveConnections(); err != nil {
-		return err
-	}
 	if err := s.initShards(); err != nil {
 		return err
 	}
@@ -205,7 +204,7 @@ func (s *QKCMasterBackend) ConnectToSlaves() error {
 			return err
 		}
 		if err := checkPing(slaveConn, id, chainMaskList); err != nil {
-			return err
+			//return err //TODO not return err
 		}
 		for _, fullShardID := range fullShardIds {
 			if slaveConn.hasShard(fullShardID) {
@@ -270,7 +269,6 @@ func (s *QKCMasterBackend) initShards() error {
 }
 
 func (s *QKCMasterBackend) HeartBeat() {
-	fmt.Println("HHHHHHHHHH", "heartBeat", len(s.clientPool))
 	var timeGap int64
 	go func(normal bool) {
 		for normal {

@@ -587,6 +587,8 @@ func (bc *RootBlockChain) addFutureBlock(block types.IBlock) error {
 //
 // After insertion is done, all accumulated events will be fired.
 func (bc *RootBlockChain) InsertChain(chain []types.IBlock) (int, error) {
+	log.Info("RootBlockChain", "InsertChain-Number", chain[0].NumberU64(), "hash", chain[0].Hash().String())
+	defer log.Info("RootBlockChain", "InsertChain", "end")
 	// Sanity check that we have something meaningful to import
 	if len(chain) == 0 {
 		return 0, nil
@@ -1128,10 +1130,14 @@ func (bc *RootBlockChain) GetAncestor(hash common.Hash, number, ancestor uint64,
 }
 
 func (bc *RootBlockChain) isSameChain(longerChainHeader, shorterChainHeader *types.RootBlockHeader) bool {
+	//TODO fake
+	return false
 	return bc.headerChain.isSameChain(longerChainHeader, shorterChainHeader)
 }
 
 func (bc *RootBlockChain) containMinorBlock(hash common.Hash) bool {
+	// TODO fake
+	return true
 	_, ok := bc.validatedMinorBlocks[hash]
 	return ok
 }
@@ -1231,10 +1237,10 @@ func (bc *RootBlockChain) CalculateRootBlockCoinBase(rootBlock *types.RootBlock)
 	for _, header := range rootBlock.MinorBlockHeaders() {
 		minorBlockFee.Add(minorBlockFee, header.CoinbaseAmount.Value)
 	}
-	minorBlockFee.Mul(minorBlockFee, value.Num())
-	minorBlockFee.Div(minorBlockFee, value.Denom())
-	coinBaseAmount.Add(coinBaseAmount, minorBlockFee)
-	return coinBaseAmount
+	minorBlockFee.Mul(minorBlockFee, value.Denom())
+	minorBlockFee.Div(minorBlockFee, value.Num())
+	ans := new(big.Int).Add(coinBaseAmount, minorBlockFee)
+	return ans
 }
 func (bc *RootBlockChain) IsMinorBlockValidated(hash common.Hash) bool {
 	minorBlock := rawdb.ReadMinorBlock(bc.db, hash)

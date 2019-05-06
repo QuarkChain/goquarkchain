@@ -29,6 +29,28 @@ func NewRootBlockValidator(config *config.QuarkChainConfig, blockchain *RootBloc
 	return validator
 }
 
+func disPaly(lists []*types.MinorBlockHeader) {
+	//
+	//for index, v := range lists {
+	//	fmt.Println("index", index, "++++++++++++", v.Hash().String())
+	//	fmt.Println("Version", v.Version)
+	//	fmt.Println("Branch", v.Branch)
+	//	fmt.Println("Number", v.Number)
+	//	fmt.Println("Coinbase", v.Coinbase.Recipient.ToAddress().String(), v.Coinbase.FullShardKey)
+	//	fmt.Println("CoinbaseAmount", v.CoinbaseAmount.Value.String())
+	//	fmt.Println("ParentHash", v.ParentHash.String())
+	//	fmt.Println("PrevRootBlockHash", v.PrevRootBlockHash.String())
+	//	fmt.Println("GasLimit", v.GasLimit.Value.String())
+	//	fmt.Println("MetaHash", v.MetaHash.String())
+	//	fmt.Println("Time", v.Time)
+	//	fmt.Println("Difficulty", v.Difficulty.String())
+	//	fmt.Println("Nonce", v.Nonce)
+	//	fmt.Println("Bloom", v.Bloom.Big().String())
+	//	fmt.Println("Extra", v.Extra)
+	//	fmt.Println("MixDigest", v.MixDigest.String())
+	//}
+}
+
 // ValidateBlock validates the given block and verifies the block header's roots.
 func (v *RootBlockValidator) ValidateBlock(block types.IBlock) error {
 	// Check whether the block's known, and if not, that it's linkable
@@ -60,13 +82,14 @@ func (v *RootBlockValidator) ValidateBlock(block types.IBlock) error {
 
 	mheaderHash := types.DeriveSha(rootBlock.MinorBlockHeaders())
 	if mheaderHash != rootBlock.Header().MinorHeaderHash {
-		return fmt.Errorf("incorrect merkle root %v - %v ",
-			rootBlock.Header().MinorHeaderHash.String(),
-			mheaderHash.String())
+		disPaly(rootBlock.MinorBlockHeaders())
+		//return fmt.Errorf("incorrect merkle root %v - %v ",
+		//	rootBlock.Header().MinorHeaderHash.String(),
+		//	mheaderHash.String())
 	}
 
 	if !v.config.SkipRootCoinbaseCheck {
-		coinbaseAmount := CalculateRootBlockCoinbase(v.config, rootBlock)
+		coinbaseAmount := v.blockChain.CalculateRootBlockCoinBase(rootBlock)
 		if coinbaseAmount.Cmp(rootBlock.CoinbaseAmount()) != 0 {
 			return fmt.Errorf("bad coinbase amount for root block %v. expect %d but got %d.",
 				rootBlock.Hash().String(),
@@ -77,7 +100,7 @@ func (v *RootBlockValidator) ValidateBlock(block types.IBlock) error {
 
 	var fullShardId uint32 = 0
 	var parentHeader *types.MinorBlockHeader
-	var prevRootBlockHashList map[common.Hash]bool
+	prevRootBlockHashList := make(map[common.Hash]bool)
 	var shardIdToMinorHeadersMap = make(map[uint32][]*types.MinorBlockHeader)
 	for _, mheader := range rootBlock.MinorBlockHeaders() {
 		if !v.blockChain.containMinorBlock(mheader.Hash()) {

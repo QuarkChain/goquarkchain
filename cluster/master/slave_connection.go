@@ -560,6 +560,8 @@ func (s *SlaveConnection) GetMinorBlockHeaders(request *p2p.GetMinorBlockHeaderL
 	return rsp, nil
 }
 func (s *SlaveConnection) HandleNewTip(request *p2p.Tip) (bool, error) {
+	// todo fake
+	return true, nil
 	bytes, err := serialize.SerializeToBytes(request)
 	if err != nil {
 		return false, err
@@ -574,6 +576,7 @@ func (s *SlaveConnection) HandleNewTip(request *p2p.Tip) (bool, error) {
 func (s *SlaveConnection) AddMinorBlock(request *p2p.NewBlockMinor) (bool, error) {
 	log.Info(s.logInfo, "AddMinorBlock-start", request.Block.Header().Number)
 	defer log.Info(s.logInfo, "AddMinorBlock-end", request.Block.Number())
+	return true, nil //TODO only test
 	blockData, err := serialize.SerializeToBytes(request.Block)
 	if err != nil {
 		return false, err

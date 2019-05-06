@@ -12,8 +12,8 @@ import (
 // RPCs to initialize a cluster
 
 type Ping struct {
-	Id            []byte            `json:"id" bytesizeofslicelen:"4"`
-	ChainMaskList []types.ChainMask `json:"chain_mask_list" bytesizeofslicelen:"4"`
+	Id            []byte             `json:"id" bytesizeofslicelen:"4"`
+	ChainMaskList []*types.ChainMask `json:"chain_mask_list" bytesizeofslicelen:"4"`
 	// Initialize ShardState if not None
 	RootTip *types.RootBlock `json:"root_tip" ser:"nil"`
 }
