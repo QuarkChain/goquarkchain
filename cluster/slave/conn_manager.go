@@ -116,7 +116,7 @@ func (s *SlaveConnManager) BroadcastXshardTxList(block *types.MinorBlock,
 			continue
 		}
 		if shrd, ok := s.slave.shards[branch.Value]; ok {
-			shrd.State.AddCrossShardTxListByMinorBlockHash(hash, request.TxList)
+			shrd.State.AddCrossShardTxListByMinorBlockHash(hash, types.CrossShardTransactionDepositList{TXList: request.TxList})
 		}
 		ok := s.AddXshardTxList(branch.GetFullShardID(), request)
 		if !ok {
@@ -157,7 +157,7 @@ func (s *SlaveConnManager) BatchBroadcastXshardTxList(
 	for brch, request := range brchToAddXsdTxLstReqLst {
 		if shrd, ok := s.slave.shards[brch.Value]; ok {
 			for _, req := range request {
-				shrd.State.AddCrossShardTxListByMinorBlockHash(req.MinorBlockHash, req.TxList)
+				shrd.State.AddCrossShardTxListByMinorBlockHash(req.MinorBlockHash, types.CrossShardTransactionDepositList{TXList: req.TxList})
 			}
 		}
 		if !s.BatchAddXshardTxList(brch.GetFullShardID(), request) {

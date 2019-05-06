@@ -168,7 +168,7 @@ func (s *SlaveBackend) GetAccountData(address account.Address, height uint64) ([
 
 func (s *SlaveBackend) GetMinorBlockByHash(hash common.Hash, branch uint32) (*types.MinorBlock, error) {
 	if shrd, ok := s.shards[branch]; ok {
-		if shrd.State.GetBlockByHash(hash) == nil {
+		if shrd.State.GetMinorBlock(hash) == nil {
 			return nil, errors.New(fmt.Sprintf("empty minor block in state, shard id: %d", shrd.Config.ShardID))
 		}
 	}
@@ -269,7 +269,7 @@ func (s *SlaveBackend) SubmitWork(headerHash common.Hash, nonce uint64, mixHash 
 func (s *SlaveBackend) AddCrossShardTxListByMinorBlockHash(minorHash common.Hash,
 	txList []*types.CrossShardTransactionDeposit, branch uint32) error {
 	if shrd, ok := s.shards[branch]; ok {
-		shrd.State.AddCrossShardTxListByMinorBlockHash(minorHash, txList)
+		shrd.State.AddCrossShardTxListByMinorBlockHash(minorHash, types.CrossShardTransactionDepositList{TXList: txList})
 		return nil
 	}
 	return ErrorBranch
@@ -287,7 +287,7 @@ func (s *SlaveBackend) GetMinorBlockListByHashList(mHashList []common.Hash, bran
 			if hash == (common.Hash{}) {
 				return nil, errors.New(fmt.Sprintf("empty hash in GetMinorBlockListByHashList func, slave_id: %s", s.config.ID))
 			}
-			block = shad.State.GetBlockByHash(hash)
+			block = shad.State.GetMinorBlock(hash)
 			if block != nil {
 				minorList = append(minorList, block)
 			}

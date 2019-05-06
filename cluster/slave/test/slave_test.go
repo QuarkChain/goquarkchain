@@ -45,7 +45,6 @@ func casesData(t *testing.T, slv *slave.SlaveBackend) map[int]*grpc.Request {
 	dt[grpc.OpGetAccountData] = &grpc.Request{Op: grpc.OpGetAccountData, Data: nil}
 	dt[grpc.OpAddTransaction] = &grpc.Request{Op: grpc.OpAddTransaction, Data: nil}
 	dt[grpc.OpAddXshardTxList] = &grpc.Request{Op: grpc.OpAddXshardTxList, Data: nil}
-	dt[grpc.OpSyncMinorBlockList] = &grpc.Request{Op: grpc.OpSyncMinorBlockList, Data: nil}
 	dt[grpc.OpAddMinorBlock] = &grpc.Request{Op: grpc.OpAddMinorBlock, Data: nil}
 	dt[grpc.OpGetMinorBlock] = &grpc.Request{Op: grpc.OpGetMinorBlock, Data: nil}
 	dt[grpc.OpGetTransaction] = &grpc.Request{Op: grpc.OpGetTransaction, Data: nil}
@@ -81,16 +80,6 @@ func casesData(t *testing.T, slv *slave.SlaveBackend) map[int]*grpc.Request {
 		t.Fatalf("")
 	}
 
-	dt[grpc.OpGetEcoInfoList].Data, err = serialize.SerializeToBytes(grpc.GetEcoInfoListRequest{})
-	if err != nil {
-		t.Fatalf("")
-	}
-
-	dt[grpc.OpGetUnconfirmedHeaderList].Data, err = serialize.SerializeToBytes(grpc.GetUnconfirmedHeadersRequest{})
-	if err != nil {
-		t.Fatalf("")
-	}
-
 	dt[grpc.OpGetAccountData].Data, err = serialize.SerializeToBytes(grpc.GetAccountDataRequest{})
 	if err != nil {
 		t.Fatalf("")
@@ -102,11 +91,6 @@ func casesData(t *testing.T, slv *slave.SlaveBackend) map[int]*grpc.Request {
 	}
 
 	dt[grpc.OpAddXshardTxList].Data, err = serialize.SerializeToBytes(grpc.AddXshardTxListRequest{})
-	if err != nil {
-		t.Fatalf("")
-	}
-
-	dt[grpc.OpSyncMinorBlockList].Data, err = serialize.SerializeToBytes(grpc.SyncMinorBlockListRequest{})
 	if err != nil {
 		t.Fatalf("")
 	}
@@ -254,18 +238,6 @@ func casesFuncs() map[int]func(t *testing.T, response *grpc.Response) {
 
 	checkFuncs[grpc.OpAddXshardTxList] = func(t *testing.T, res *grpc.Response) {}
 
-	checkFuncs[grpc.OpSyncMinorBlockList] = func(t *testing.T, res *grpc.Response) {
-		var (
-			gRep grpc.SyncMinorBlockListResponse
-			buf  = serialize.NewByteBuffer(res.Data)
-			err  error
-		)
-		if err = serialize.Deserialize(buf, &gRep); err != nil {
-			t.Fatalf("Failed to deserialize SyncMinorBlockListResponse, err %v", err)
-		}
-
-	}
-
 	checkFuncs[grpc.OpAddMinorBlock] = func(t *testing.T, res *grpc.Response) {}
 
 	checkFuncs[grpc.OpGetMinorBlock] = func(t *testing.T, res *grpc.Response) {
@@ -318,17 +290,7 @@ func casesFuncs() map[int]func(t *testing.T, response *grpc.Response) {
 
 	}
 
-	checkFuncs[grpc.OpGenTx] = func(t *testing.T, res *grpc.Response) {
-		var (
-			gRep grpc.GenTxResponse
-			buf  = serialize.NewByteBuffer(res.Data)
-			err  error
-		)
-		if err = serialize.Deserialize(buf, &gRep); err != nil {
-			t.Fatalf("Failed to deserialize GenTxResponse, err %v", err)
-		}
-
-	}
+	checkFuncs[grpc.OpGenTx] = func(t *testing.T, res *grpc.Response) {}
 
 	checkFuncs[grpc.OpGetTransactionListByAddress] = func(t *testing.T, res *grpc.Response) {
 		var (

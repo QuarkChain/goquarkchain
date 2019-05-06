@@ -75,7 +75,6 @@ func (s *SlaveServerSideOp) GetMine(ctx context.Context, req *rpc.Request) (*rpc
 func (s *SlaveServerSideOp) GenTx(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
 	var (
 		gReq     rpc.GenTxRequest
-		gRep     rpc.GenTxResponse
 		buf      = serialize.NewByteBuffer(req.Data)
 		response = &rpc.Response{RpcId: req.RpcId}
 		err      error
@@ -84,9 +83,6 @@ func (s *SlaveServerSideOp) GenTx(ctx context.Context, req *rpc.Request) (*rpc.R
 		return nil, err
 	}
 
-	if response.Data, err = serialize.SerializeToBytes(gRep); err != nil {
-		return nil, err
-	}
 	return response, nil
 }
 
@@ -111,15 +107,10 @@ func (s *SlaveServerSideOp) AddRootBlock(ctx context.Context, req *rpc.Request) 
 
 func (s *SlaveServerSideOp) GetEcoInfoList(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
 	var (
-		gReq     rpc.GetEcoInfoListRequest
 		gRep     rpc.GetEcoInfoListResponse
-		buf      = serialize.NewByteBuffer(req.Data)
 		response = &rpc.Response{RpcId: req.RpcId}
 		err      error
 	)
-	if err = serialize.Deserialize(buf, &gReq); err != nil {
-		return nil, err
-	}
 
 	if response.Data, err = serialize.SerializeToBytes(gRep); err != nil {
 		return nil, err
@@ -143,15 +134,10 @@ func (s *SlaveServerSideOp) AddMinorBlock(ctx context.Context, req *rpc.Request)
 
 func (s *SlaveServerSideOp) GetUnconfirmedHeaderList(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
 	var (
-		gReq     rpc.GetUnconfirmedHeadersRequest
 		gRep     rpc.GetUnconfirmedHeadersResponse
-		buf      = serialize.NewByteBuffer(req.Data)
 		response = &rpc.Response{RpcId: req.RpcId}
 		err      error
 	)
-	if err = serialize.Deserialize(buf, &gReq); err != nil {
-		return nil, err
-	}
 
 	if response.Data, err = serialize.SerializeToBytes(gRep); err != nil {
 		return nil, err
@@ -213,24 +199,6 @@ func (s *SlaveServerSideOp) GetTransaction(ctx context.Context, req *rpc.Request
 	var (
 		gReq     rpc.GetTransactionRequest
 		gRep     rpc.GetTransactionResponse
-		buf      = serialize.NewByteBuffer(req.Data)
-		response = &rpc.Response{RpcId: req.RpcId}
-		err      error
-	)
-	if err = serialize.Deserialize(buf, &gReq); err != nil {
-		return nil, err
-	}
-
-	if response.Data, err = serialize.SerializeToBytes(gRep); err != nil {
-		return nil, err
-	}
-	return response, nil
-}
-
-func (s *SlaveServerSideOp) SyncMinorBlockList(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
-	var (
-		gReq     rpc.SyncMinorBlockListRequest
-		gRep     rpc.SyncMinorBlockListResponse
 		buf      = serialize.NewByteBuffer(req.Data)
 		response = &rpc.Response{RpcId: req.RpcId}
 		err      error
@@ -464,7 +432,7 @@ func (s *SlaveServerSideOp) BatchAddXshardTxList(ctx context.Context, req *rpc.R
 	return response, nil
 }
 
-func (s *SlaveServerSideOp) AddBlockListForSync(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
+func (s *SlaveServerSideOp) AddMinorBlockListForSync(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
 	var (
 		gReq     rpc.AddBlockListForSyncRequest
 		buf      = serialize.NewByteBuffer(req.Data)

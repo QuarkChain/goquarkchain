@@ -70,7 +70,7 @@ func (s *SlaveServerSideOp) Ping(ctx context.Context, req *rpc.Request) (*rpc.Re
 			return nil, err
 		}
 	}
-	gRep.Id, gRep.ChainMaskList = gReq.Id, gReq.ChainMaskList
+	gRep.Id, gRep.ChainMaskList = []byte(s.slave.config.ID), s.slave.config.ChainMaskList
 	log.Info("slave ping response", "request op", req.Op, "rpc id", s.rpcId)
 
 	if response.Data, err = serialize.SerializeToBytes(gRep); err != nil {
@@ -107,7 +107,6 @@ func (s *SlaveServerSideOp) GetMine(ctx context.Context, req *rpc.Request) (*rpc
 func (s *SlaveServerSideOp) GenTx(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
 	var (
 		gReq     rpc.GenTxRequest
-		gRep     rpc.GenTxResponse
 		buf      = serialize.NewByteBuffer(req.Data)
 		response = &rpc.Response{RpcId: req.RpcId}
 		err      error
@@ -118,9 +117,6 @@ func (s *SlaveServerSideOp) GenTx(ctx context.Context, req *rpc.Request) (*rpc.R
 
 	// TODO CreateTransactions
 
-	if response.Data, err = serialize.SerializeToBytes(gRep); err != nil {
-		return nil, err
-	}
 	return response, nil
 
 }
@@ -190,15 +186,10 @@ func (s *SlaveServerSideOp) AddMinorBlock(ctx context.Context, req *rpc.Request)
 
 func (s *SlaveServerSideOp) GetUnconfirmedHeaderList(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
 	var (
-		gReq     rpc.GetUnconfirmedHeadersRequest
 		gRep     rpc.GetUnconfirmedHeadersResponse
-		buf      = serialize.NewByteBuffer(req.Data)
 		response = &rpc.Response{RpcId: req.RpcId}
 		err      error
 	)
-	if err = serialize.Deserialize(buf, &gReq); err != nil {
-		return nil, err
-	}
 	if gRep.HeadersInfoList, err = s.slave.GetUnconfirmedHeaderList(); err != nil {
 		return nil, err
 	}
