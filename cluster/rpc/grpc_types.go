@@ -35,10 +35,14 @@ type ConnectToSlavesRequest struct {
 	SlaveInfoList []SlaveInfo `json:"slave_info_list" gencodec:"required" bytesizeofslicelen:"4"`
 }
 
+type ConnectToSlavesResult struct {
+	Result []byte `json:"result" gencodec:"required" bytesizeofslicelen:"4"`
+}
+
 // result_list must have the same size as salve_info_list in the request.
 // Empty result means success otherwise it would a serialized error message.
 type ConnectToSlavesResponse struct {
-	ResultList []byte `json:"result_list" gencodec:"required" bytesizeofslicelen:"4"`
+	ResultList []*ConnectToSlavesResult `json:"result_list" gencodec:"required" bytesizeofslicelen:"4"`
 }
 
 type MasterInfo struct {
@@ -57,19 +61,11 @@ type MineRequest struct {
 	Mining             bool                `json:"mining" gencodec:"required"`
 }
 
-type MineResponse struct {
-	ErrorCode uint32 `json:"error_code" gencodec:"required"`
-}
-
 // Generate transactions for loadtesting
 type GenTxRequest struct {
 	NumTxPerShard uint32             `json:"num_tx_per_shard" gencodec:"required"`
 	XShardPercent uint32             `json:"x_shard_percent" gencodec:"required"`
 	Tx            *types.Transaction `json:"tx" gencodec:"required"`
-}
-
-type GenTxResponse struct {
-	ErrorCode uint32 `json:"error_code" gencodec:"required"`
 }
 
 // RPCs to lookup data from shards (master -> slaves)
@@ -80,7 +76,6 @@ type GetMinorBlockRequest struct {
 }
 
 type GetMinorBlockResponse struct {
-	ErrorCode  uint32            `json:"error_code" gencodec:"required"`
 	MinorBlock *types.MinorBlock `json:"minor_block" gencodec:"required"`
 }
 
@@ -219,10 +214,6 @@ type AddMinorBlockRequest struct {
 type HeadersInfo struct {
 	Branch     uint32                    `json:"branch" gencodec:"required"`
 	HeaderList []*types.MinorBlockHeader `json:"header_list" gencodec:"required" bytesizeofslicelen:"4"`
-}
-
-// To collect minor block headers to build a new root block
-type GetUnconfirmedHeadersRequest struct {
 }
 
 type GetUnconfirmedHeadersResponse struct {
