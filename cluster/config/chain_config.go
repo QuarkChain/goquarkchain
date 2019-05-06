@@ -36,7 +36,7 @@ type ChainConfig struct {
 func NewChainConfig() *ChainConfig {
 	return &ChainConfig{
 		ChainID:                            0,
-		ShardSize:                          2,
+		ShardSize:                          1,
 		DefaultChainToken:                  "",
 		ConsensusType:                      PoWNone,
 		ConsensusConfig:                    nil,

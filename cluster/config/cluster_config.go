@@ -263,7 +263,7 @@ func (q *QuarkChainConfig) GetShardSizeByChainId(ID uint32) uint32 {
 
 func NewQuarkChainConfig() *QuarkChainConfig {
 	var ret = QuarkChainConfig{
-		ChainSize:                         3,
+		ChainSize:                         2,
 		MaxNeighbors:                      32,
 		NetworkID:                         24,
 		TransactionQueueSizeLimitPerShard: 10000,

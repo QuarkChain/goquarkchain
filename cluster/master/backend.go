@@ -6,8 +6,8 @@ import (
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
-	qkcSync "github.com/QuarkChain/goquarkchain/cluster/sync"
 	"github.com/QuarkChain/goquarkchain/cluster/service"
+	qkcSync "github.com/QuarkChain/goquarkchain/cluster/sync"
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/consensus/doublesha256"
 	"github.com/QuarkChain/goquarkchain/consensus/qkchash"
@@ -48,7 +48,7 @@ type QKCMasterBackend struct {
 	artificialTxConfig *rpc.ArtificialTxConfig
 	rootBlockChain     *core.RootBlockChain
 	logInfo            string
-	ProtocolManager *ProtocolManager
+	ProtocolManager    *ProtocolManager
 }
 
 // New new master with config
@@ -82,7 +82,7 @@ func New(ctx *service.ServiceContext, cfg *config.ClusterConfig) (*QKCMasterBack
 		return nil, err
 	}
 
-	mstr.ProtocolManager,err=NewProtocolManager(*cfg,mstr.rootBlockChain,qkcSync.NewSynchronizer(mstr.rootBlockChain),mstr.getAllSlaveConnection)
+	mstr.ProtocolManager, err = NewProtocolManager(*cfg, mstr.rootBlockChain, qkcSync.NewSynchronizer(mstr.rootBlockChain), mstr.getAllSlaveConnection)
 	return mstr, nil
 }
 
@@ -144,6 +144,9 @@ func (s *QKCMasterBackend) Stop() error {
 
 // Start start node -> start qkcMaster
 func (s *QKCMasterBackend) Start(srvr *p2p.Server) error {
+	if err := s.InitCluster(); err != nil {
+		return err
+	}
 	// start heart beat pre 3 seconds.
 	s.HeartBeat()
 	s.ProtocolManager.Start(10000)
@@ -195,6 +198,7 @@ func (s *QKCMasterBackend) ConnectToSlaves() error {
 	log.Info("qkc api backend", "slave client pool", len(s.clientPool))
 
 	fullShardIds := s.clusterConfig.Quarkchain.GetGenesisShardIds()
+	fmt.Println("GetGenesisShardIds", fullShardIds)
 	for _, slaveConn := range s.clientPool {
 		id, chainMaskList, err := slaveConn.SendPing(nil, false)
 		if err != nil {
@@ -266,6 +270,7 @@ func (s *QKCMasterBackend) initShards() error {
 }
 
 func (s *QKCMasterBackend) HeartBeat() {
+	fmt.Println("HHHHHHHHHH", "heartBeat", len(s.clientPool))
 	var timeGap int64
 	go func(normal bool) {
 		for normal {
@@ -330,9 +335,9 @@ func (s *QKCMasterBackend) getAllSlaveConnection(fullShardID uint32) []ShardConn
 	if len(slaves) < 1 {
 		return nil
 	}
-	res:=make([]ShardConnForP2P,0)
-	for _,v:=range slaves{
-		res=append(res,v)
+	res := make([]ShardConnForP2P, 0)
+	for _, v := range slaves {
+		res = append(res, v)
 	}
 	return res
 }
@@ -556,15 +561,15 @@ func (s *QKCMasterBackend) CurrentBlock() *types.RootBlock {
 	return s.rootBlockChain.CurrentBlock()
 }
 
-func (s *QKCMasterBackend)disPlayPeers()  {
+func (s *QKCMasterBackend) disPlayPeers() {
 	go func() {
-		for true{
-			time.Sleep(5*time.Second)
-			peers:=s.ProtocolManager.peers.peers
+		for true {
+			time.Sleep(5 * time.Second)
+			peers := s.ProtocolManager.peers.peers
 
-			log.Info(s.logInfo,"len peers-------------------------",len(peers))
-			for k,v:=range peers{
-				log.Info(s.logInfo,"k",k,"v",v.RemoteAddr().String())
+			log.Info(s.logInfo, "len peers-------------------------", len(peers))
+			for k, v := range peers {
+				log.Info(s.logInfo, "k", k, "v", v.RemoteAddr().String())
 			}
 		}
 	}()

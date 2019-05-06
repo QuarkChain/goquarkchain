@@ -114,7 +114,7 @@ func Setup(ctx *cli.Context, logdir string) error {
 	}
 	//TODO  fake log level : trace
 	//glogger.Verbosity(log.Lvl(ctx.GlobalInt(verbosityFlag.Name)))
-	glogger.Verbosity(log.Lvl(5))
+	glogger.Verbosity(log.Lvl(3))
 	glogger.Vmodule(ctx.GlobalString(vmoduleFlag.Name))
 	glogger.BacktraceAt(ctx.GlobalString(backtraceAtFlag.Name))
 	log.Root().SetHandler(glogger)

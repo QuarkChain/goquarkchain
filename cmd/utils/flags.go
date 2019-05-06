@@ -101,12 +101,12 @@ var (
 	NumChainsFlag = cli.IntFlag{
 		Name:  "num_chains",
 		Usage: "chain number",
-		Value: 3,
+		Value: 2,
 	}
 	NumShardsFlag = cli.IntFlag{
 		Name:  "num_shards",
 		Usage: "shard number",
-		Value: 2,
+		Value: 1,
 	}
 	RootBlockIntervalSecFlag = cli.IntFlag{
 		Name:  "root_block_interval_sec",

@@ -20,7 +20,7 @@ const (
 
 var (
 	QuarkashToJiaozi = big.NewInt(1000000000000000000)
-	DefaultNumSlaves = 4
+	DefaultNumSlaves = 2
 )
 
 type POWConfig struct {
