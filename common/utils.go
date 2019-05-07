@@ -3,8 +3,14 @@ package common
 import (
 	"bytes"
 	"encoding/gob"
+	ethCommon "github.com/ethereum/go-ethereum/common"
 	"math/big"
 	"math/bits"
+	"reflect"
+)
+
+var (
+	EmptyHash = ethCommon.Hash{}
 )
 
 /*
@@ -39,12 +45,8 @@ func DeepCopy(dst, src interface{}) error {
 	return gob.NewDecoder(bytes.NewBuffer(buf.Bytes())).Decode(dst)
 }
 
-type IsNilInterface interface {
-	IsNil() bool
-}
-
-func IsNil(data IsNilInterface) bool {
-	return data == nil || data.IsNil()
+func IsNil(data interface{}) bool {
+	return data == nil || reflect.ValueOf(data).IsNil()
 }
 
 // ConstMinorBlockRewardCalculator blockReward struct
@@ -55,4 +57,10 @@ type ConstMinorBlockRewardCalculator struct {
 func (c *ConstMinorBlockRewardCalculator) GetBlockReward() *big.Int {
 	data := new(big.Int).SetInt64(100)
 	return new(big.Int).Mul(data, new(big.Int).SetInt64(1000000000000000000))
+}
+
+func BigIntMulBigRat(bigInt *big.Int, bigRat *big.Rat) *big.Int {
+	ans := new(big.Int).Mul(bigInt, bigRat.Num())
+	ans.Div(ans, bigRat.Denom())
+	return ans
 }
