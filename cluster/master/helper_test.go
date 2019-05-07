@@ -238,10 +238,11 @@ func generateMinorBlocks(n int) []*types.MinorBlock {
 	)
 	blocks := make([]*types.MinorBlock, n)
 	genblock := func(i int, parent *types.MinorBlock) *types.MinorBlock {
+		difficulty, _ := engine.CalcDifficulty(nil, parent.Time(), parent.Header())
 		header := &types.MinorBlockHeader{
 			ParentHash: parent.Hash(),
 			Coinbase:   parent.Coinbase(),
-			Difficulty: engine.CalcDifficulty(nil, parent.Time(), parent.Header()),
+			Difficulty: difficulty,
 			Number:     parent.Number() + 1,
 			Time:       parent.Time() + 10,
 		}
