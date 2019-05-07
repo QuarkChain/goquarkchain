@@ -379,7 +379,10 @@ func (s *QKCMasterBackend) createRootBlockToMine(address account.Address) (*type
 		headers := fullShardIDToHeaderList[fullShardID]
 		headerList = append(headerList, headers...)
 	}
-	newblock := s.rootBlockChain.CreateBlockToMine(headerList, &address, nil)
+	newblock, err := s.rootBlockChain.CreateBlockToMine(headerList, &address, nil)
+	if err != nil {
+		return nil, err
+	}
 	return newblock, s.rootBlockChain.Validator().ValidateBlock(newblock)
 }
 

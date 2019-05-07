@@ -1,11 +1,12 @@
 package core
 
 import (
+	"errors"
 	"fmt"
 	"reflect"
 
+	"github.com/QuarkChain/goquarkchain/core/state"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/syndtr/goleveldb/leveldb/errors"
 
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/consensus"
@@ -15,7 +16,7 @@ import (
 // RootBlockValidator implements Validator.
 type RootBlockValidator struct {
 	config     *config.QuarkChainConfig // config configuration options
-	blockChain *RootBlockChain          // blockChain block chain
+	blockChain *RootBlockChain          // root block chain
 	engine     consensus.Engine         // engine engine used for validating
 }
 
@@ -153,6 +154,10 @@ func (v *RootBlockValidator) ValidateBlock(block types.IBlock) error {
 	return nil
 }
 
+func (v *RootBlockValidator) ValidateState(block, parent types.IBlock, statedb *state.StateDB, receipts types.Receipts, usedGas uint64) error {
+	panic(errors.New("not implement"))
+}
+
 // ValidateHeader calls underlying engine's header verification method.
 func (v *RootBlockValidator) ValidateHeader(header types.IHeader) error {
 	return v.engine.VerifyHeader(v.blockChain, header, true)
@@ -164,4 +169,8 @@ type fakeRootBlockValidator struct {
 
 func (v *fakeRootBlockValidator) ValidateBlock(block types.IBlock) error {
 	return v.Err
+}
+
+func (v *fakeRootBlockValidator) ValidateState(block, parent types.IBlock, statedb *state.StateDB, receipts types.Receipts, usedGas uint64) error {
+	panic(errors.New("not implement"))
 }
