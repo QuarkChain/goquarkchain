@@ -1184,7 +1184,7 @@ func (bc *RootBlockChain) SubscribeChainSideEvent(ch chan<- RootChainSideEvent) 
 	return bc.scope.Track(bc.chainSideFeed.Subscribe(ch))
 }
 
-func (bc *RootBlockChain) CreateBlockToMine(mHeaderList []*types.MinorBlockHeader, address *account.Address, createTime *uint64) *types.RootBlock {
+func (bc *RootBlockChain) CreateBlockToMine(mHeaderList []*types.MinorBlockHeader, address *account.Address, createTime *uint64) (*types.RootBlock, error) {
 	if address == nil {
 		a := account.CreatEmptyAddress(0)
 		address = &a
@@ -1196,13 +1196,14 @@ func (bc *RootBlockChain) CreateBlockToMine(mHeaderList []*types.MinorBlockHeade
 		}
 		createTime = &ts
 	}
-	// TODO(chunfeng): handle return value
-	difficulty, _ := bc.engine.CalcDifficulty(bc, *createTime, bc.CurrentHeader())
+	difficulty, err := bc.engine.CalcDifficulty(bc, *createTime, bc.CurrentHeader())
+	if err != nil {
+		return nil, err
+	}
 	block := bc.CurrentBlock().Header().CreateBlockToAppend(createTime, difficulty, address, nil, nil)
 	block.ExtendMinorBlockHeaderList(mHeaderList)
-	coinbase := bc.CalculateRootBlockCoinBase(block).Uint64()
-	block.Finalize(&coinbase, address)
-	return block
+	block.Finalize(bc.CalculateRootBlockCoinBase(block), address)
+	return block, nil
 }
 
 func (bc *RootBlockChain) CalculateRootBlockCoinBase(rootBlock *types.RootBlock) *big.Int {
@@ -1225,7 +1226,7 @@ func (bc *RootBlockChain) IsMinorBlockValidated(hash common.Hash) bool {
 	return rawdb.ReadMinorBlock(bc.db, hash) != nil
 }
 
-func (bc *RootBlockChain) GetNextDifficulty(create *uint64) *big.Int {
+func (bc *RootBlockChain) GetNextDifficulty(create *uint64) (*big.Int, error) {
 	if create == nil {
 		ts := uint64(time.Now().Unix())
 		if ts < bc.CurrentBlock().Time()+1 {
@@ -1233,12 +1234,22 @@ func (bc *RootBlockChain) GetNextDifficulty(create *uint64) *big.Int {
 		}
 		create = &ts
 	}
-	// TODO(chunfeng): handle error
-	ret, _ := bc.engine.CalcDifficulty(bc, *create, bc.CurrentBlock().Header())
-	return ret
+	return bc.engine.CalcDifficulty(bc, *create, bc.CurrentBlock().Header())
 }
 
 func (bc *RootBlockChain) GetBlockCount() {
 	// TODO for json rpc
 	// Returns a dict(full_shard_id, dict(miner_recipient, block_count))
+}
+
+func (bc *RootBlockChain) WriteCommittingHash(hash common.Hash) {
+	rawdb.WriteRbCommittingHash(bc.db, hash)
+}
+
+func (bc *RootBlockChain) ClearCommittingHash() {
+	rawdb.DeleteRbCommittingHash(bc.db)
+}
+
+func (bc *RootBlockChain) GetCommittingBlockHash() common.Hash {
+	return rawdb.ReadRbCommittingHash(bc.db)
 }
