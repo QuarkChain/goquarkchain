@@ -6,7 +6,7 @@ import (
 )
 
 type DifficultyCalculator interface {
-	CalculateDifficulty(parent types.IHeader, time uint64) *big.Int
+	CalculateDifficulty(parent types.IHeader, time uint64) (*big.Int, error)
 }
 
 type EthDifficultyCalculator struct {
@@ -15,10 +15,10 @@ type EthDifficultyCalculator struct {
 	MinimumDifficulty *big.Int
 }
 
-func (c *EthDifficultyCalculator) CalculateDifficulty(parent types.IHeader, time uint64) *big.Int {
+func (c *EthDifficultyCalculator) CalculateDifficulty(parent types.IHeader, time uint64) (*big.Int, error) {
 	parentTime := parent.GetTime()
 	if parentTime > time {
-		panic("parent time is smaller than time for CalculateDifficulty")
+		return nil, ErrPreTime
 	}
 
 	sign := new(big.Int).Sub(big.NewInt(1), new(big.Int).SetUint64((time-parent.GetTime())/uint64(c.AdjustmentCutoff)))
@@ -28,8 +28,8 @@ func (c *EthDifficultyCalculator) CalculateDifficulty(parent types.IHeader, time
 	offset := new(big.Int).Div(parent.GetDifficulty(), new(big.Int).SetUint64(uint64(c.AdjustmentFactor)))
 	diff := new(big.Int).Add(parent.GetDifficulty(), offset.Mul(offset, sign))
 	if diff.Cmp(c.MinimumDifficulty) < 0 {
-		return c.MinimumDifficulty
-	} else {
-		return diff
+		return c.MinimumDifficulty, nil
 	}
+	return diff, nil
+
 }

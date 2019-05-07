@@ -447,11 +447,6 @@ func TestIsSameChain(t *testing.T) {
 		b.SetDifficulty(1100)
 	})
 
-	if blockchain.isSameChain(firstBlocks[9].Header(), firstBlocks[3].Header()) ||
-		blockchain.isSameChain(secondBlocks[9].Header(), secondBlocks[3].Header()) {
-		t.Fatalf("isSameChain should be false for blocks not inserted to chain")
-	}
-
 	blockchain.InsertChain(ToBlocks(firstBlocks))
 	blockchain.InsertChain(ToBlocks(secondBlocks))
 	if !blockchain.isSameChain(firstBlocks[9].Header(), firstBlocks[3].Header()) ||
@@ -463,94 +458,6 @@ func TestIsSameChain(t *testing.T) {
 		blockchain.isSameChain(secondBlocks[9].Header(), firstBlocks[3].Header()) {
 		t.Fatalf("isSameChain result is true, want false")
 	}
-}
-
-// Tests that the insertion functions detect banned hashes.
-func TestBadHeaderHashes(t *testing.T) { testBadHashes(t, false) }
-func TestBadBlockHashes(t *testing.T)  { testBadHashes(t, true) }
-
-func testBadHashes(t *testing.T, full bool) {
-	engine := new(consensus.FakeEngine)
-	// Create a pristine chain and database
-	_, blockchain, err := newCanonical(engine, 0, full)
-	if err != nil {
-		t.Fatalf("failed to create pristine chain: %v", err)
-	}
-	defer blockchain.Stop()
-
-	// Create a chain, ban a hash and try to import
-	if full {
-		blocks := makeRootBlockChain(blockchain.CurrentBlock(), 3, engine, 10)
-
-		BadHashes[blocks[2].Header().Hash()] = true
-		defer func() { delete(BadHashes, blocks[2].Header().Hash()) }()
-
-		_, err = blockchain.InsertChain(ToBlocks(blocks))
-	} else {
-		headers := makeRootBlockHeaderChain(blockchain.CurrentHeader().(*types.RootBlockHeader), 3, engine, 10)
-
-		BadHashes[headers[2].Hash()] = true
-		defer func() { delete(BadHashes, headers[2].Hash()) }()
-
-		_, err = blockchain.InsertHeaderChain(headers, 1)
-	}
-	if err != ErrBlacklistedHash {
-		t.Errorf("error mismatch: have: %v, want: %v", err, ErrBlacklistedHash)
-	}
-}
-
-// Tests that bad hashes are detected on boot, and the chain rolled back to a
-// good state prior to the bad hash.
-func TestReorgBadHeaderHashes(t *testing.T) { testReorgBadHashes(t, false) }
-func TestReorgBadBlockHashes(t *testing.T)  { testReorgBadHashes(t, true) }
-
-func testReorgBadHashes(t *testing.T, full bool) {
-	engine := new(consensus.FakeEngine)
-	// Create a pristine chain and database
-	_, blockchain, err := newCanonical(engine, 0, full)
-	if err != nil {
-		t.Fatalf("failed to create pristine chain: %v", err)
-	}
-	// Create a chain, import and ban afterwards
-	headers := makeRootBlockHeaderChain(blockchain.CurrentHeader().(*types.RootBlockHeader), 4, engine, 10)
-	blocks := makeRootBlockChain(blockchain.CurrentBlock(), 4, engine, 10)
-
-	if full {
-		if _, err = blockchain.InsertChain(ToBlocks(blocks)); err != nil {
-			t.Errorf("failed to import blocks: %v", err)
-		}
-		if blockchain.CurrentBlock().Hash() != blocks[3].Hash() {
-			t.Errorf("last block hash mismatch: have: %x, want %x", blockchain.CurrentBlock().Hash(), blocks[3].Header().Hash())
-		}
-		BadHashes[blocks[3].Header().Hash()] = true
-		defer func() { delete(BadHashes, blocks[3].Header().Hash()) }()
-	} else {
-		if _, err = blockchain.InsertHeaderChain(headers, 1); err != nil {
-			t.Errorf("failed to import headers: %v", err)
-		}
-		if blockchain.CurrentHeader().Hash() != headers[3].Hash() {
-			t.Errorf("last header hash mismatch: have: %x, want %x", blockchain.CurrentHeader().Hash(), headers[3].Hash())
-		}
-		BadHashes[headers[3].Hash()] = true
-		defer func() { delete(BadHashes, headers[3].Hash()) }()
-	}
-	blockchain.Stop()
-
-	// Create a new RootBlockChain and check that it rolled back the state.
-	ncm, err := NewRootBlockChain(blockchain.db, nil, blockchain.chainConfig, engine, nil)
-	if err != nil {
-		t.Fatalf("failed to create new chain manager: %v", err)
-	}
-	if full {
-		if ncm.CurrentBlock().Hash() != blocks[2].Header().Hash() {
-			t.Errorf("last block hash mismatch: have: %x, want %x", ncm.CurrentBlock().Hash(), blocks[2].Header().Hash())
-		}
-	} else {
-		if ncm.CurrentHeader().Hash() != headers[2].Hash() {
-			t.Errorf("last header hash mismatch: have: %x, want %x", ncm.CurrentHeader().Hash(), headers[2].Hash())
-		}
-	}
-	ncm.Stop()
 }
 
 // Tests chain insertions in the face of one entity containing an invalid nonce.

@@ -17,12 +17,13 @@
 package core
 
 import (
+	"github.com/QuarkChain/goquarkchain/cluster/config"
+	"github.com/QuarkChain/goquarkchain/consensus"
 	"math/big"
 
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/core/vm"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/consensus"
 )
 
 // ChainContext supports retrieving headers and consensus parameters from the
@@ -30,35 +31,36 @@ import (
 type ChainContext interface {
 	// Engine retrieves the chain's consensus engine.
 	Engine() consensus.Engine
-
+	Config() *config.QuarkChainConfig
 	// GetHeader returns the hash corresponding to their hash.
-	GetHeader(common.Hash, uint64) *types.MinorBlockHeader
+	GetHeader(common.Hash) types.IHeader
 }
 
-func NewEVMContext(msg types.Message, header *types.MinorBlockHeader, chain ChainContext) vm.Context {
+func NewEVMContext(msg types.Message, mheader types.IHeader, chain ChainContext) vm.Context {
+	header := mheader.(*types.MinorBlockHeader)
 	return vm.Context{
 		CanTransfer: CanTransfer,
 		Transfer:    Transfer,
 		GetHash:     GetHashFn(header, chain),
 		Origin:      msg.From(),
-		Coinbase:    header.Coinbase.Recipient.ToAddress(),
-		BlockNumber: new(big.Int).SetUint64(header.Number),
-		Time:        new(big.Int).SetUint64(header.Time),
-		Difficulty:  new(big.Int).Set(header.Difficulty),
+		Coinbase:    header.GetCoinbase().Recipient,
+		BlockNumber: new(big.Int).SetUint64(header.NumberU64()),
+		Time:        new(big.Int).SetUint64(header.GetTime()),
+		Difficulty:  new(big.Int).Set(header.GetDifficulty()),
 		GasLimit:    header.GasLimit.Value.Uint64(),
 		GasPrice:    new(big.Int).Set(msg.GasPrice()),
 	}
 }
 
 // GetHashFn returns a GetHashFunc which retrieves header hashes by number
-func GetHashFn(ref *types.MinorBlockHeader, chain ChainContext) func(n uint64) common.Hash {
+func GetHashFn(ref types.IHeader, chain ChainContext) func(n uint64) common.Hash {
 	var cache map[uint64]common.Hash
 
 	return func(n uint64) common.Hash {
 		// If there's no hash cache yet, make one
 		if cache == nil {
 			cache = map[uint64]common.Hash{
-				ref.Number - 1: ref.ParentHash,
+				ref.NumberU64() - 1: ref.GetParentHash(),
 			}
 		}
 		// Try to fulfill the request from the cache
@@ -66,10 +68,10 @@ func GetHashFn(ref *types.MinorBlockHeader, chain ChainContext) func(n uint64) c
 			return hash
 		}
 		// Not cached, iterate the blocks and cache the hashes
-		for header := chain.GetHeader(ref.ParentHash, ref.Number-1); header != nil; header = chain.GetHeader(header.ParentHash, header.Number-1) {
-			cache[header.Number-1] = header.ParentHash
-			if n == header.Number-1 {
-				return header.ParentHash
+		for header := chain.GetHeader(ref.GetParentHash()); header != nil; header = chain.GetHeader(header.GetParentHash()) {
+			cache[header.NumberU64()-1] = header.GetParentHash()
+			if n == header.NumberU64()-1 {
+				return header.GetParentHash()
 			}
 		}
 		return common.Hash{}

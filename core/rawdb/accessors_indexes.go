@@ -11,7 +11,7 @@ import (
 
 // ReadBlockContentLookupEntry retrieves the positional metadata associated with a transaction
 // hash to allow retrieving the transaction or receipt by hash.
-func ReadBlockContentLookupEntry(db DatabaseReader, hash common.Hash) (common.Hash, uint64) {
+func ReadBlockContentLookupEntry(db DatabaseReader, hash common.Hash) (common.Hash, uint32) {
 	data, _ := db.Get(lookupKey(hash))
 	if len(data) == 0 {
 		return common.Hash{}, 0
@@ -31,7 +31,7 @@ func WriteBlockContentLookupEntries(db DatabaseWriter, block types.IBlock) {
 	for i, item := range block.Content() {
 		entry := LookupEntry{
 			BlockHash: hash,
-			Index:     uint64(i),
+			Index:     uint32(i),
 		}
 		data, err := serialize.SerializeToBytes(entry)
 		if err != nil {
@@ -50,7 +50,7 @@ func DeleteBlockContentLookupEntry(db DatabaseDeleter, hash common.Hash) {
 
 // ReadMinorHeader retrieves a specific MinorHeader from the database, along with
 // its added positional metadata.
-func ReadMinorHeaderFromRootBlock(db DatabaseReader, hash common.Hash) (*types.MinorBlockHeader, common.Hash, uint64) {
+func ReadMinorHeaderFromRootBlock(db DatabaseReader, hash common.Hash) (*types.MinorBlockHeader, common.Hash, uint32) {
 	blockHash, headerIndex := ReadBlockContentLookupEntry(db, hash)
 	if blockHash == (common.Hash{}) {
 		return nil, common.Hash{}, 0
@@ -65,7 +65,7 @@ func ReadMinorHeaderFromRootBlock(db DatabaseReader, hash common.Hash) (*types.M
 
 // ReadTransaction retrieves a specific transaction from the database, along with
 // its added positional metadata.
-func ReadTransaction(db DatabaseReader, hash common.Hash) (*types.Transaction, common.Hash, uint64) {
+func ReadTransaction(db DatabaseReader, hash common.Hash) (*types.Transaction, common.Hash, uint32) {
 	blockHash, txIndex := ReadBlockContentLookupEntry(db, hash)
 	if blockHash == (common.Hash{}) {
 		return nil, common.Hash{}, 0
@@ -80,7 +80,7 @@ func ReadTransaction(db DatabaseReader, hash common.Hash) (*types.Transaction, c
 
 // ReadReceipt retrieves a specific transaction receipt from the database, along with
 // its added positional metadata.
-func ReadReceipt(db DatabaseReader, hash common.Hash) (*types.Receipt, common.Hash, uint64) {
+func ReadReceipt(db DatabaseReader, hash common.Hash) (*types.Receipt, common.Hash, uint32) {
 	blockHash, receiptIndex := ReadBlockContentLookupEntry(db, hash)
 	if blockHash == (common.Hash{}) {
 		return nil, common.Hash{}, 0

@@ -158,19 +158,6 @@ func NewRootBlockChain(db ethdb.Database, cacheConfig *CacheConfig, chainConfig 
 	if err := bc.loadLastState(); err != nil {
 		return nil, err
 	}
-	// Check the current state of the block hashes and make sure that we do not have any of the bad blocks in our chain
-	for hash := range BadHashes {
-		if header := bc.GetHeader(hash); header != nil {
-			// get the canonical block corresponding to the offending header's number
-			headerByNumber := bc.GetHeaderByNumber(header.NumberU64())
-			// make sure the headerByNumber (if present) is in our current canonical chain
-			if headerByNumber != nil && headerByNumber.Hash() == header.Hash() {
-				log.Error("Found bad hash, rewinding chain", "number", header.NumberU64(), "hash", header.GetParentHash())
-				bc.SetHead(header.NumberU64() - 1)
-				log.Error("Chain rewind was successful, resuming normal operation")
-			}
-		}
-	}
 	// Take ownership of this particular state
 	go bc.update()
 	return bc, nil
@@ -695,11 +682,6 @@ func (bc *RootBlockChain) insertChain(chain []types.IBlock, verifySeals bool) (i
 		if atomic.LoadInt32(&bc.procInterrupt) == 1 {
 			log.Debug("Premature abort during blocks processing")
 			break
-		}
-		// If the header is a banned one, straight out abort
-		if BadHashes[block.Hash()] {
-			bc.reportBlock(block, ErrBlacklistedHash)
-			return it.index, events, ErrBlacklistedHash
 		}
 		// Retrieve the parent block and it's state to execute on top
 		start := time.Now()
