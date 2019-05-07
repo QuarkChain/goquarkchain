@@ -121,7 +121,7 @@ type RootBlock struct {
 }
 
 func (b *RootBlock) ValidateBlock() error {
-	if rootHash := DeriveSha(b.MinorBlockHeaders()); rootHash != b.Header().MinorHeaderHash {
+	if rootHash := CalculateMerkleRoot(b.MinorBlockHeaders()); rootHash != b.Header().MinorHeaderHash {
 		return errors.New("incorrect merkle root")
 	}
 
@@ -152,7 +152,7 @@ func NewRootBlock(header *RootBlockHeader, mbHeaders MinorBlockHeaders, tracking
 	if len(mbHeaders) == 0 {
 		b.header.MinorHeaderHash = EmptyHash
 	} else {
-		b.header.MinorHeaderHash = DeriveSha(MinorBlockHeaders(mbHeaders))
+		b.header.MinorHeaderHash = CalculateMerkleRoot(MinorBlockHeaders(mbHeaders))
 		b.minorBlockHeaders = make(MinorBlockHeaders, len(mbHeaders))
 		copy(b.minorBlockHeaders, mbHeaders)
 	}

@@ -58,7 +58,7 @@ func (v *RootBlockValidator) ValidateBlock(block types.IBlock) error {
 		return errors.New("tracking data in block is too large")
 	}
 
-	mheaderHash := types.DeriveSha(rootBlock.MinorBlockHeaders())
+	mheaderHash := types.CalculateMerkleRoot(rootBlock.MinorBlockHeaders())
 	if mheaderHash != rootBlock.Header().MinorHeaderHash {
 		return fmt.Errorf("incorrect merkle root %v - %v ",
 			rootBlock.Header().MinorHeaderHash.String(),
