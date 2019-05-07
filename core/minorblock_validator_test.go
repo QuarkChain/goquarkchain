@@ -61,8 +61,8 @@ func TestHeaderVerification(t *testing.T) {
 	)
 	chainConfig := params.TestChainConfig
 	// Run the header checker for blocks one-by-one, checking for both valid and invalid nonces
-	chain, _ := NewMinorBlockChain(testdb, nil, chainConfig, fakeClusterConfig, engine, vm.Config{}, nil, fakeFullShardID, nil)
-	genesisBlock, err := chain.InitGenesisState(rootBlock, genesisBlock)
+	chain, _ := NewMinorBlockChain(testdb, nil, chainConfig, fakeClusterConfig, engine, vm.Config{}, nil, fakeFullShardID)
+	genesisBlock, err := chain.InitGenesisState(rootBlock)
 	if err != nil {
 		panic(err)
 	}
@@ -140,8 +140,8 @@ func testMinorHeaderConcurrentVerification(t *testing.T, threads int) {
 		var results <-chan error
 		chainConfig := params.TestChainConfig
 		if valid {
-			chain, _ := NewMinorBlockChain(testdb, nil, chainConfig, fakeClusterConfig, engine, vm.Config{}, nil, fakeFullShardID, nil)
-			genesis, err = chain.InitGenesisState(rootBlock, genesis)
+			chain, _ := NewMinorBlockChain(testdb, nil, chainConfig, fakeClusterConfig, engine, vm.Config{}, nil, fakeFullShardID)
+			genesis, err = chain.InitGenesisState(rootBlock)
 			if err != nil {
 				panic(err)
 			}
@@ -151,8 +151,8 @@ func testMinorHeaderConcurrentVerification(t *testing.T, threads int) {
 			engine := new(consensus.FakeEngine)
 			engine.Err = errors.New("err ")
 			engine.NumberToFail = blocks[len(headers)-1].NumberU64()
-			chain, _ := NewMinorBlockChain(testdb, nil, chainConfig, fakeClusterConfig, engine, vm.Config{}, nil, fakeFullShardID, nil)
-			genesis, err = chain.InitGenesisState(rootBlock, genesis)
+			chain, _ := NewMinorBlockChain(testdb, nil, chainConfig, fakeClusterConfig, engine, vm.Config{}, nil, fakeFullShardID)
+			genesis, err = chain.InitGenesisState(rootBlock)
 			_, results = chain.engine.VerifyHeaders(chain, ToMinorHeaders(headers), seals)
 			chain.Stop()
 		}

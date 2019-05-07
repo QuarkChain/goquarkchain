@@ -37,17 +37,15 @@ type MinorBlockValidator struct {
 	bc               *MinorBlockChain         // Canonical block chain
 	engine           consensus.Engine         // Consensus engine used for validating
 	branch           account.Branch
-	diffCalc         consensus.DifficultyCalculator
 }
 
 // NewBlockValidator returns a new block validator which is safe for re-use
-func NewBlockValidator(quarkChainConfig *config.QuarkChainConfig, blockchain *MinorBlockChain, engine consensus.Engine, branch account.Branch, diffCalc consensus.DifficultyCalculator) *MinorBlockValidator {
+func NewBlockValidator(quarkChainConfig *config.QuarkChainConfig, blockchain *MinorBlockChain, engine consensus.Engine, branch account.Branch) *MinorBlockValidator {
 	validator := &MinorBlockValidator{
 		quarkChainConfig: quarkChainConfig,
 		engine:           engine,
 		bc:               blockchain,
 		branch:           branch,
-		diffCalc:         diffCalc,
 	}
 	return validator
 }
@@ -85,7 +83,7 @@ func (v *MinorBlockValidator) ValidateBlock(mBlock types.IBlock) error {
 		return ErrInvalidMinorBlock
 	}
 	if blockHeight != prevHeader.NumberU64()+1 {
-		return ErrHeightDisMatch
+		return ErrHeightMismatch
 	}
 
 	if block.Branch().Value != v.branch.Value {
@@ -122,7 +120,7 @@ func (v *MinorBlockValidator) ValidateBlock(mBlock types.IBlock) error {
 	}
 
 	if !v.quarkChainConfig.SkipMinorDifficultyCheck {
-		diff, err := v.diffCalc.CalculateDifficulty(prevHeader, block.IHeader().GetTime())
+		diff, err := v.engine.CalcDifficulty(v.bc, block.IHeader().GetTime(), prevHeader)
 		if err != nil {
 			return err
 		}
@@ -183,14 +181,8 @@ func (v *MinorBlockValidator) ValidatorMinorBlockSeal(block *types.MinorBlock) e
 	fullShardID := branch.GetFullShardID()
 	shardConfig := v.quarkChainConfig.GetShardConfigByFullShardID(fullShardID)
 	consensusType := shardConfig.ConsensusType
-	if !shardConfig.PoswConfig.Enabled {
-		return v.validateSeal(block.IHeader(), consensusType, nil)
-	}
-	diff, err := v.bc.POSWDiffAdjust(block)
-	if err != nil {
-		return err
-	}
-	return v.validateSeal(block.IHeader(), consensusType, &diff)
+	return v.validateSeal(block.IHeader(), consensusType, nil)
+
 }
 
 func (v *MinorBlockValidator) validateSeal(header types.IHeader, consensusType string, diff *uint64) error {
@@ -231,9 +223,9 @@ func (v *MinorBlockValidator) ValidateState(mBlock, parent types.IBlock, statedb
 	if statedb.GetGasUsed().Cmp(block.GetMetaData().GasUsed.Value) != 0 {
 		return ErrGasUsed
 	}
-	coinBaseAmount := new(big.Int).Add(v.bc.getCoinBaseAmount(), statedb.GetBlockFee())
-	if coinBaseAmount.Cmp(block.CoinbaseAmount()) != 0 {
-		return ErrCoinBaseAmount
+	coinbaseAmount := new(big.Int).Add(v.bc.getCoinbaseAmount(), statedb.GetBlockFee())
+	if coinbaseAmount.Cmp(block.CoinbaseAmount()) != 0 {
+		return ErrCoinbaseAmount
 	}
 
 	if statedb.GetXShardReceiveGasUsed().Cmp(block.GetMetaData().CrossShardGasUsed.Value) != 0 {

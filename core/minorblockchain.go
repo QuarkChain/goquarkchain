@@ -126,8 +126,7 @@ type MinorBlockChain struct {
 	rootTip                  *types.RootBlockHeader
 	confirmedHeaderTip       *types.MinorBlockHeader
 	initialized              bool
-	coinBaseAddrCache        map[common.Hash]heightAndAddrs
-	diffCalc                 consensus.DifficultyCalculator
+	coinbaseAddrCache        map[common.Hash]heightAndAddrs
 	rewardCalc               *qkcCommon.ConstMinorBlockRewardCalculator
 	gasPriceSuggestionOracle *gasPriceSuggestionOracle
 	heightToMinorBlockHashes map[uint64]map[common.Hash]struct{}
@@ -147,7 +146,6 @@ func NewMinorBlockChain(
 	vmConfig vm.Config,
 	shouldPreserve func(block *types.MinorBlock) bool,
 	fullShardID uint32,
-	diffCalc consensus.DifficultyCalculator,
 ) (*MinorBlockChain, error) {
 	if clusterConfig == nil || chainConfig == nil {
 		return nil, errors.New("can not new minorBlock: config is nil")
@@ -198,16 +196,7 @@ func NewMinorBlockChain(
 	}
 	var err error
 
-	if qkcCommon.IsNil(diffCalc) {
-		cutoff := bc.shardConfig.DifficultyAdjustmentCutoffTime
-		diffFactor := bc.shardConfig.DifficultyAdjustmentFactor
-		minDiff := bc.shardConfig.Genesis.Difficulty
-		bc.diffCalc = &consensus.EthDifficultyCalculator{AdjustmentCutoff: cutoff, AdjustmentFactor: diffFactor, MinimumDifficulty: new(big.Int).SetUint64(minDiff)}
-	} else {
-		bc.diffCalc = diffCalc
-	}
-
-	bc.SetValidator(NewBlockValidator(clusterConfig.Quarkchain, bc, engine, bc.branch, bc.diffCalc))
+	bc.SetValidator(NewBlockValidator(clusterConfig.Quarkchain, bc, engine, bc.branch))
 	bc.SetProcessor(NewStateProcessor(bc.ethChainConfig, bc, engine))
 
 	bc.hc, err = NewMinorHeaderChain(db, bc.clusterConfig.Quarkchain, engine, bc.getProcInterrupt)
@@ -253,7 +242,7 @@ func (m *MinorBlockChain) loadLastState() error {
 		return m.Reset()
 	}
 	// Make sure the entire head block is available
-	currentBlock := m.GetBlockByHash(head)
+	currentBlock := m.GetMinorBlock(head)
 	if currentBlock == nil {
 		// Corrupt or empty database, init from scratch
 		log.Warn("Head block missing, resetting chain", "hash", head)
@@ -293,6 +282,7 @@ func (m *MinorBlockChain) loadLastState() error {
 // above the new head will be deleted and the new one set. In the case of blocks
 // though, the head may be further rewound if block bodies are missing (non-archive
 // nodes after a fast sync).
+// already have locked
 func (m *MinorBlockChain) SetHead(head uint64) error {
 	log.Warn("Rewinding blockchain", "target", head)
 
@@ -373,6 +363,8 @@ func (m *MinorBlockChain) Processor() Processor {
 
 // State returns a new mutable state based on the current HEAD block.
 func (m *MinorBlockChain) State() (*state.StateDB, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
 	return m.currentEvmState, nil
 }
 
@@ -522,7 +514,7 @@ func (m *MinorBlockChain) HasState(hash common.Hash) bool {
 // in the database or not, caching it if present.
 func (m *MinorBlockChain) HasBlockAndState(hash common.Hash) bool {
 	// Check first that the block itself is known
-	block := m.GetBlockByHash(hash)
+	block := m.GetMinorBlock(hash)
 	if block == nil {
 		return false
 	}
@@ -545,8 +537,8 @@ func (m *MinorBlockChain) GetBlock(hash common.Hash) types.IBlock {
 	return block
 }
 
-// GetBlockByHash retrieves a block from the database by hash, caching it if found.
-func (m *MinorBlockChain) GetBlockByHash(hash common.Hash) *types.MinorBlock {
+// GetMinorBlock retrieves a block from the database by hash, caching it if found.
+func (m *MinorBlockChain) GetMinorBlock(hash common.Hash) *types.MinorBlock {
 	return rawdb.ReadMinorBlock(m.db, hash)
 }
 
@@ -1132,7 +1124,7 @@ func (m *MinorBlockChain) insertChain(chain []types.IBlock, verifySeals bool) (i
 				"root", mBlock.GetMetaData().Root)
 
 			coalescedLogs = append(coalescedLogs, logs...)
-			events = append(events, ChainEvent{mBlock, mBlock.Hash(), logs})
+			events = append(events, MinorChainEvent{mBlock, mBlock.Hash(), logs})
 			lastCanon = block
 
 			// Only count canonical blocks for GC processing time
@@ -1143,7 +1135,7 @@ func (m *MinorBlockChain) insertChain(chain []types.IBlock, verifySeals bool) (i
 				"diff", mBlock.Header().GetDifficulty(), "elapsed", common.PrettyDuration(time.Since(start)),
 				"txs", len(mBlock.GetTransactions()), "gas", mBlock.GetMetaData().GasUsed,
 				"root", mBlock.GetMetaData().Root)
-			events = append(events, ChainSideEvent{mBlock})
+			events = append(events, MinorChainSideEvent{mBlock})
 		}
 		blockInsertTimer.UpdateSince(start)
 		stats.processed++
@@ -1170,7 +1162,7 @@ func (m *MinorBlockChain) insertChain(chain []types.IBlock, verifySeals bool) (i
 
 	// Append a single chain head event if we've progressed the chain
 	if lastCanon != nil && m.CurrentBlock().Hash() == lastCanon.Hash() {
-		events = append(events, ChainHeadEvent{lastCanon.(*types.MinorBlock)})
+		events = append(events, MinorChainHeadEvent{lastCanon.(*types.MinorBlock)})
 	}
 	return it.index, events, coalescedLogs, xShardList, err
 }
@@ -1396,7 +1388,7 @@ func (m *MinorBlockChain) reorg(oldBlock, newBlock types.IBlock) error {
 	if len(oldChain) > 0 {
 		go func() {
 			for _, block := range oldChain {
-				m.chainSideFeed.Send(ChainSideEvent{Block: block.(*types.MinorBlock)})
+				m.chainSideFeed.Send(MinorChainSideEvent{Block: block.(*types.MinorBlock)})
 			}
 		}()
 	}
@@ -1414,13 +1406,13 @@ func (m *MinorBlockChain) PostChainEvents(events []interface{}, logs []*types.Lo
 	}
 	for _, event := range events {
 		switch ev := event.(type) {
-		case ChainEvent:
+		case MinorChainEvent:
 			m.chainFeed.Send(ev)
 
-		case ChainHeadEvent:
+		case MinorChainHeadEvent:
 			m.chainHeadFeed.Send(ev)
 
-		case ChainSideEvent:
+		case MinorChainSideEvent:
 			m.chainSideFeed.Send(ev)
 		}
 	}
@@ -1611,17 +1603,17 @@ func (m *MinorBlockChain) SubscribeRemovedLogsEvent(ch chan<- RemovedLogsEvent) 
 }
 
 // SubscribeChainEvent registers a subscription of ChainEvent.
-func (m *MinorBlockChain) SubscribeChainEvent(ch chan<- ChainEvent) event.Subscription {
+func (m *MinorBlockChain) SubscribeChainEvent(ch chan<- MinorChainEvent) event.Subscription {
 	return m.scope.Track(m.chainFeed.Subscribe(ch))
 }
 
 // SubscribeChainHeadEvent registers a subscription of ChainHeadEvent.
-func (m *MinorBlockChain) SubscribeChainHeadEvent(ch chan<- ChainHeadEvent) event.Subscription {
+func (m *MinorBlockChain) SubscribeChainHeadEvent(ch chan<- MinorChainHeadEvent) event.Subscription {
 	return m.scope.Track(m.chainHeadFeed.Subscribe(ch))
 }
 
 // SubscribeChainSideEvent registers a subscription of ChainSideEvent.
-func (m *MinorBlockChain) SubscribeChainSideEvent(ch chan<- ChainSideEvent) event.Subscription {
+func (m *MinorBlockChain) SubscribeChainSideEvent(ch chan<- MinorChainSideEvent) event.Subscription {
 	return m.scope.Track(m.chainSideFeed.Subscribe(ch))
 }
 

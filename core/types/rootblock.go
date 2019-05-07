@@ -5,14 +5,15 @@ package types
 import (
 	"crypto/ecdsa"
 	"errors"
-	"github.com/QuarkChain/goquarkchain/account"
-	"github.com/QuarkChain/goquarkchain/serialize"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/crypto"
 	"math/big"
 	"sync/atomic"
 	"time"
 	"unsafe"
+
+	"github.com/QuarkChain/goquarkchain/account"
+	"github.com/QuarkChain/goquarkchain/serialize"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
 )
 
 // RootBlockHeader represents a root block header in the QuarkChain.
@@ -101,9 +102,6 @@ func (h *RootBlockHeader) SetCoinbase(addr account.Address) {
 	h.Coinbase = addr
 }
 
-func (h *RootBlockHeader) IsNil() bool {
-	return h == nil
-}
 func (h *RootBlockHeader) CreateBlockToAppend(createTime *uint64, difficulty *big.Int, address *account.Address, nonce *uint64, extraData []byte) *RootBlock {
 	if createTime == nil {
 		preTime := h.Time + 1
@@ -368,23 +366,19 @@ func (b *RootBlock) GetSize() common.StorageSize {
 	return b.Size()
 }
 
-func (b *RootBlock) IsNil() bool {
-	return b == nil
-}
-
 func (b *RootBlock) Finalize(coinbaseAmount *uint64, coinbaseAddress *account.Address) *RootBlock {
-	realCoinBaseAmount := uint64(0)
-	if coinbaseAmount != nil {
-		realCoinBaseAmount = *coinbaseAmount
+	if coinbaseAmount == nil {
+		c := uint64(0)
+		coinbaseAmount = &c
 	}
 
-	realCoinBaseAddress := account.CreatEmptyAddress(0)
-	if coinbaseAddress != nil {
-		realCoinBaseAddress = *coinbaseAddress
+	if coinbaseAddress == nil {
+		a := account.CreatEmptyAddress(0)
+		coinbaseAddress = &a
 	}
 	b.header.MinorHeaderHash = DeriveSha(b.minorBlockHeaders)
-	b.header.CoinbaseAmount = &serialize.Uint256{Value: new(big.Int).SetUint64(realCoinBaseAmount)}
-	b.header.Coinbase = realCoinBaseAddress
+	b.header.CoinbaseAmount = &serialize.Uint256{Value: new(big.Int).SetUint64(*coinbaseAmount)}
+	b.header.Coinbase = *coinbaseAddress
 	return b
 }
 func (b *RootBlock) AddMinorBlockHeader(header *MinorBlockHeader) {

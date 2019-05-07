@@ -52,7 +52,7 @@ var (
 	xShardLists        = []byte("xShard")
 	rLastM             = []byte("rLastM")
 	rBlock             = []byte("rBlock")
-	geneis             = []byte("geneis")
+	genesis            = []byte("genesis")
 )
 
 type ChainType byte
@@ -66,7 +66,7 @@ const (
 // a transaction or receipt given only its hash.
 type LookupEntry struct {
 	BlockHash common.Hash
-	Index     uint64
+	Index     uint32
 }
 
 // encodeBlockNumber encodes a block number as big endian uint64
@@ -157,7 +157,7 @@ func makeXShardTxList(hash common.Hash) []byte {
 	return append(xShardLists, hash.Bytes()...)
 }
 func makeGenesisKey(hash common.Hash) []byte {
-	return append(geneis, hash.Bytes()...)
+	return append(genesis, hash.Bytes()...)
 }
 
 func makeRLastMHash(hash common.Hash) []byte {

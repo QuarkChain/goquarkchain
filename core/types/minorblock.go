@@ -114,9 +114,6 @@ func (h *MinorBlockHeader) SetDifficulty(difficulty *big.Int) {
 func (h *MinorBlockHeader) SetNonce(nonce uint64) {
 	h.Nonce = nonce
 }
-func (h *MinorBlockHeader) IsNil() bool {
-	return h == nil
-}
 
 func (h *MinorBlockHeader) SetCoinbase(addr account.Address) {
 	h.Coinbase = addr
@@ -422,10 +419,7 @@ func (b *MinorBlock) GetSize() common.StorageSize {
 	return b.Size()
 }
 
-func (b *MinorBlock) IsNil() bool {
-	return b == nil
-}
-func (m *MinorBlock) Finalize(receipts Receipts, rootHash common.Hash, gasUsed *big.Int, xShardReceiveGasUsed *big.Int, coinBaseAmount *big.Int) {
+func (m *MinorBlock) Finalize(receipts Receipts, rootHash common.Hash, gasUsed *big.Int, xShardReceiveGasUsed *big.Int, coinbaseAmount *big.Int) {
 	if gasUsed == nil {
 		gasUsed = new(big.Int)
 	}
@@ -436,13 +430,13 @@ func (m *MinorBlock) Finalize(receipts Receipts, rootHash common.Hash, gasUsed *
 	m.meta.Root = rootHash
 	m.meta.GasUsed = &serialize.Uint256{Value: gasUsed}
 	m.meta.CrossShardGasUsed = &serialize.Uint256{Value: xShardReceiveGasUsed}
-	m.header.CoinbaseAmount = &serialize.Uint256{Value: new(big.Int).Set(coinBaseAmount)}
+	m.header.CoinbaseAmount = &serialize.Uint256{Value: new(big.Int).Set(coinbaseAmount)}
 	m.meta.TxHash = DeriveSha(m.Transactions())
 	m.meta.ReceiptHash = DeriveSha(receipts)
 	m.header.MetaHash = m.meta.Hash()
 	m.header.Bloom = CreateBloom(receipts)
 }
-func (h *MinorBlock) CreateBlockToAppend(createTime *uint64, difficulty *big.Int, address *account.Address, nonce *uint64, gasLimit *big.Int, extraData []byte, coinBaseAmount *big.Int) *MinorBlock {
+func (h *MinorBlock) CreateBlockToAppend(createTime *uint64, difficulty *big.Int, address *account.Address, nonce *uint64, gasLimit *big.Int, extraData []byte, coinbaseAmount *big.Int) *MinorBlock {
 	if createTime == nil {
 		preTime := h.Time() + 1
 		createTime = &preTime
@@ -470,15 +464,15 @@ func (h *MinorBlock) CreateBlockToAppend(createTime *uint64, difficulty *big.Int
 		extraData = make([]byte, 0)
 	}
 
-	if coinBaseAmount == nil {
-		coinBaseAmount = new(big.Int)
+	if coinbaseAmount == nil {
+		coinbaseAmount = new(big.Int)
 	}
 	header := &MinorBlockHeader{
 		Version:           h.Version(),
 		Number:            h.Number() + 1,
 		Branch:            h.Branch(),
 		Coinbase:          *address,
-		CoinbaseAmount:    &serialize.Uint256{Value: coinBaseAmount},
+		CoinbaseAmount:    &serialize.Uint256{Value: coinbaseAmount},
 		ParentHash:        h.Hash(),
 		PrevRootBlockHash: h.PrevRootBlockHash(),
 		GasLimit:          &serialize.Uint256{Value: gasLimit},

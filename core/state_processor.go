@@ -32,6 +32,7 @@ import (
 //
 // StateProcessor implements Processor.
 type StateProcessor struct {
+	//TODO delete eth minorBlockChain config
 	config *params.ChainConfig // Chain configuration options
 	bc     *MinorBlockChain    // Canonical block chain
 	engine consensus.Engine    // Consensus engine used for block rewards
@@ -53,10 +54,9 @@ func NewStateProcessor(config *params.ChainConfig, bc *MinorBlockChain, engine c
 // Process returns the receipts and logs accumulated during the process and
 // returns the amount of gas that was used in the process. If any of the
 // transactions failed to execute due to insufficient gas it will return an error.
-func (p *StateProcessor) Process(mBlock types.IBlock, statedb *state.StateDB, cfg vm.Config, evmTxIncluded []*types.Transaction, xShardReceiveTxList []*types.CrossShardTransactionDeposit) (types.Receipts, []*types.Log, uint64, error) {
-	block := mBlock.(*types.MinorBlock)
+func (p *StateProcessor) Process(block *types.MinorBlock, statedb *state.StateDB, cfg vm.Config, evmTxIncluded []*types.Transaction, xShardReceiveTxList []*types.CrossShardTransactionDeposit) (types.Receipts, []*types.Log, uint64, error) {
 	statedb.SetQuarkChainConfig(p.bc.clusterConfig.Quarkchain)
-	statedb.SetBlockCoinBase(block.IHeader().GetCoinbase().Recipient)
+	statedb.SetBlockCoinbase(block.IHeader().GetCoinbase().Recipient)
 	if evmTxIncluded == nil {
 		evmTxIncluded = make([]*types.Transaction, 0)
 	}
@@ -65,7 +65,7 @@ func (p *StateProcessor) Process(mBlock types.IBlock, statedb *state.StateDB, cf
 	}
 
 	rootBlockHeader := p.bc.getRootBlockHeaderByHash(block.Header().GetPrevRootBlockHash())
-	preBlock := p.bc.GetBlockByHash(block.IHeader().GetParentHash())
+	preBlock := p.bc.GetMinorBlock(block.IHeader().GetParentHash())
 	if preBlock == nil {
 		return nil, nil, 0, errors.New("preBlock is nil")
 	}
@@ -92,7 +92,7 @@ func (p *StateProcessor) Process(mBlock types.IBlock, statedb *state.StateDB, cf
 			return nil, nil, 0, err
 		}
 		statedb.Prepare(tx.Hash(), block.Hash(), i)
-		receipt, _, err := ApplyTransaction(p.config, p.bc, gp, statedb, header, evmTx, usedGas, cfg)
+		_, receipt, _, err := ApplyTransaction(p.config, p.bc, gp, statedb, header, evmTx, usedGas, cfg)
 		if err != nil {
 			return nil, nil, 0, err
 		}
@@ -101,8 +101,8 @@ func (p *StateProcessor) Process(mBlock types.IBlock, statedb *state.StateDB, cf
 	}
 
 	// Finalize the block, applying any consensus engine specific extras (e.g. block rewards)
-	coinBaseAmount := p.bc.getCoinBaseAmount()
-	statedb.AddBalance(block.IHeader().GetCoinbase().Recipient, coinBaseAmount)
+	coinbaseAmount := p.bc.getCoinbaseAmount()
+	statedb.AddBalance(block.IHeader().GetCoinbase().Recipient, coinbaseAmount)
 	statedb.Finalise(true)
 	return receipts, allLogs, *usedGas, nil
 }
@@ -145,7 +145,7 @@ func ValidateTransaction(state vm.StateDB, tx *types.Transaction, fromAddress *a
 }
 
 // ApplyTransaction apply tx
-func ApplyTransaction(config *params.ChainConfig, bc ChainContext, gp *GasPool, statedb *state.StateDB, header types.IHeader, tx *types.Transaction, usedGas *uint64, cfg vm.Config) (*types.Receipt, uint64, error) {
+func ApplyTransaction(config *params.ChainConfig, bc ChainContext, gp *GasPool, statedb *state.StateDB, header types.IHeader, tx *types.Transaction, usedGas *uint64, cfg vm.Config) ([]byte, *types.Receipt, uint64, error) {
 	statedb.SetFullShardKey(tx.EvmTx.ToFullShardKey())
 	localFeeRate := big.NewRat(1, 1)
 	if qkcConfig := statedb.GetQuarkChainConfig(); qkcConfig != nil {
@@ -156,14 +156,14 @@ func ApplyTransaction(config *params.ChainConfig, bc ChainContext, gp *GasPool, 
 	}
 	msg, err := tx.EvmTx.AsMessage(types.MakeSigner(tx.EvmTx.NetworkId()))
 	if err != nil {
-		return nil, 0, err
+		return nil, nil, 0, err
 	}
 	context := NewEVMContext(msg, header, bc)
 	vmenv := vm.NewEVM(context, statedb, config, cfg)
 
-	_, gas, failed, err := ApplyMessage(vmenv, msg, gp, localFeeRate)
+	ret, gas, failed, err := ApplyMessage(vmenv, msg, gp, localFeeRate)
 	if err != nil {
-		return nil, 0, err
+		return nil, nil, 0, err
 	}
 
 	var root []byte
@@ -184,5 +184,5 @@ func ApplyTransaction(config *params.ChainConfig, bc ChainContext, gp *GasPool, 
 	receipt.Logs = statedb.GetLogs(tx.Hash())
 	receipt.Bloom = types.CreateBloom(types.Receipts{receipt})
 
-	return receipt, gas, err
+	return ret, receipt, gas, err
 }
