@@ -117,7 +117,7 @@ func (p *testTxPool) Pending() (map[common.Address]types.Transactions, error) {
 	for _, tx := range p.pool {
 		signer := types.MakeSigner(tx.EvmTx.NetworkId())
 		from, _ := types.Sender(signer, tx.EvmTx)
-		batches[from.ToAddress()] = append(batches[from.ToAddress()], tx)
+		batches[from] = append(batches[from], tx)
 	}
 	for _, batch := range batches {
 		sort.Sort(types.TxByNonce(batch))
