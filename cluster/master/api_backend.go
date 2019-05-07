@@ -148,7 +148,7 @@ func (s *QKCMasterBackend) GetTransactionsByAddress(address account.Address, sta
 	}
 	return slaveConn.GetTransactionsByAddress(address, start, limit)
 }
-func (s *QKCMasterBackend) GetLogs(branch account.Branch, address []account.Address, topics []*rpc.Topic, startBlockNumber, endBlockNumber ethRpc.BlockNumber) ([]*types.Log, error) {
+func (s *QKCMasterBackend) GetLogs(branch account.Branch, address []*account.Address, topics []*rpc.Topic, startBlockNumber, endBlockNumber ethRpc.BlockNumber) ([]*types.Log, error) {
 	// not support earlist and pending
 	slaveConn := s.getOneSlaveConnection(branch)
 	if slaveConn == nil {

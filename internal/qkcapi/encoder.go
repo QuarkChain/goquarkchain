@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/QuarkChain/goquarkchain/account"
-	"github.com/QuarkChain/goquarkchain/cluster/rpc"
 	"github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/serialize"
@@ -277,16 +276,4 @@ func receiptEncoder(block *types.MinorBlock, i int, receipt *types.Receipt) map[
 		field["contractAddress"] = DataEncoder(receipt.ContractAddress.Bytes())
 	}
 	return field
-}
-
-func balancesEncoder(balances []rpc.TokenBalancePair) []map[string]interface{} {
-	fields := make([]map[string]interface{}, 0)
-	for _, v := range balances {
-		field := map[string]interface{}{
-			// TODO tokenID tokenSte
-			"balance": (*hexutil.Big)(v.Balance.Value),
-		}
-		fields = append(fields, field)
-	}
-	return fields
 }

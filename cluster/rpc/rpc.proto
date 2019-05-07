@@ -13,9 +13,9 @@ service MasterServerSideOp {
     }
     rpc BroadcastMinorBlock (Request) returns (Response) {
     }
-    rpc GetMinorBlocks (Request) returns (Response) {
+    rpc GetMinorBlockList (Request) returns (Response) {
     }
-    rpc GetMinorBlockHeaders (Request) returns (Response) {
+    rpc GetMinorBlockHeaderList (Request) returns (Response) {
     }
 }
 
@@ -28,8 +28,6 @@ service SlaveServerSideOp {
     // APIs for master
     rpc Ping (Request) returns (Response) {
     }
-    rpc GetMine (Request) returns (Response) {
-    }
     rpc GenTx (Request) returns (Response) {
     }
     rpc AddRootBlock (Request) returns (Response) {
@@ -38,19 +36,15 @@ service SlaveServerSideOp {
     }
     rpc AddMinorBlock (Request) returns (Response) {
     }
-    rpc GetUnconfirmedHeaders (Request) returns (Response) {
+    rpc GetUnconfirmedHeaderList (Request) returns (Response) {
     }
     rpc GetAccountData (Request) returns (Response) {
     }
     rpc AddTransaction (Request) returns (Response) {
     }
-    rpc CreateClusterPeerConnection (Request) returns (Response) {
-    }
     rpc GetMinorBlock (Request) returns (Response) {
     }
     rpc GetTransaction (Request) returns (Response) {
-    }
-    rpc SyncMinorBlockList (Request) returns (Response) {
     }
     rpc ExecuteTransaction (Request) returns (Response) {
     }
@@ -76,6 +70,8 @@ service SlaveServerSideOp {
     rpc AddXshardTxList (Request) returns (Response) {
     }
     rpc BatchAddXshardTxList (Request) returns (Response) {
+    }
+    rpc AddMinorBlockListForSync (Request) returns (Response) {
     }
     // p2p apis
     rpc GetMinorBlockList (Request) returns (Response) {

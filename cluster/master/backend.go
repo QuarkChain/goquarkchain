@@ -43,7 +43,7 @@ type QKCMasterBackend struct {
 	clusterConfig      *config.ClusterConfig
 	clientPool         map[string]*SlaveConnection
 	branchToSlaves     map[uint32][]*SlaveConnection
-	branchToShardStats map[uint32]*rpc.ShardStats
+	branchToShardStats map[uint32]*core.ShardStatus
 	artificialTxConfig *rpc.ArtificialTxConfig
 	rootBlockChain     *core.RootBlockChain
 	logInfo            string
@@ -57,7 +57,7 @@ func New(ctx *service.ServiceContext, cfg *config.ClusterConfig) (*QKCMasterBack
 			eventMux:           ctx.EventMux,
 			clientPool:         make(map[string]*SlaveConnection),
 			branchToSlaves:     make(map[uint32][]*SlaveConnection, 0),
-			branchToShardStats: make(map[uint32]*rpc.ShardStats),
+			branchToShardStats: make(map[uint32]*core.ShardStatus),
 			artificialTxConfig: &rpc.ArtificialTxConfig{
 				TargetRootBlockTime:  cfg.Quarkchain.Root.ConsensusConfig.TargetBlockTime,
 				TargetMinorBlockTime: cfg.Quarkchain.GetShardConfigByFullShardID(cfg.Quarkchain.GetGenesisShardIds()[0]).ConsensusConfig.TargetBlockTime,
@@ -352,8 +352,8 @@ func (s *QKCMasterBackend) createRootBlockToMine(address account.Address) (*type
 	fullShardIDToHeaderList := make(map[uint32][]*types.MinorBlockHeader, 0)
 	for _, resp := range rspList {
 		for _, headersInfo := range resp.HeadersInfoList {
-			if _, ok := fullShardIDToHeaderList[headersInfo.Branch.Value]; !ok { // to avoid overlap
-				fullShardIDToHeaderList[headersInfo.Branch.Value] = make([]*types.MinorBlockHeader, 0)
+			if _, ok := fullShardIDToHeaderList[headersInfo.Branch]; !ok { // to avoid overlap
+				fullShardIDToHeaderList[headersInfo.Branch] = make([]*types.MinorBlockHeader, 0)
 			} else {
 				continue // skip it if has added
 			}
@@ -367,7 +367,7 @@ func (s *QKCMasterBackend) createRootBlockToMine(address account.Address) (*type
 				if !s.rootBlockChain.IsMinorBlockValidated(header.Hash()) {
 					break
 				}
-				fullShardIDToHeaderList[headersInfo.Branch.Value] = append(fullShardIDToHeaderList[headersInfo.Branch.Value], header)
+				fullShardIDToHeaderList[headersInfo.Branch] = append(fullShardIDToHeaderList[headersInfo.Branch], header)
 			}
 		}
 	}
@@ -417,7 +417,7 @@ func (s *QKCMasterBackend) GetAccountData(address account.Address) (map[account.
 	branchToAccountBranchData := make(map[account.Branch]*rpc.AccountBranchData)
 	for _, rsp := range rspList {
 		for _, accountBranchData := range rsp.AccountBranchDataList {
-			branchToAccountBranchData[accountBranchData.Branch] = accountBranchData
+			branchToAccountBranchData[account.Branch{Value: accountBranchData.Branch}] = accountBranchData
 		}
 	}
 	if len(branchToAccountBranchData) != len(s.clusterConfig.Quarkchain.GetGenesisShardIds()) {
@@ -438,7 +438,7 @@ func (s *QKCMasterBackend) GetPrimaryAccountData(address account.Address, blockH
 		return nil, err
 	}
 	for _, accountBranchData := range rsp.AccountBranchDataList {
-		if accountBranchData.Branch.Value == fullShardID {
+		if accountBranchData.Branch == fullShardID {
 			return accountBranchData, nil
 		}
 	}
@@ -518,7 +518,7 @@ func (s *QKCMasterBackend) CreateTransactions(numTxPerShard, xShardPercent uint3
 }
 
 // UpdateShardStatus update shard status for branchg
-func (s *QKCMasterBackend) UpdateShardStatus(status *rpc.ShardStats) {
+func (s *QKCMasterBackend) UpdateShardStatus(status *core.ShardStatus) {
 	s.lock.Lock()
 	s.branchToShardStats[status.Branch.Value] = status
 	s.lock.Unlock()

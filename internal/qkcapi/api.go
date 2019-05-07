@@ -79,26 +79,26 @@ func (p *PublicBlockChainAPI) getPrimaryAccountData(address account.Address, blo
 	return data, err
 }
 
-func (p *PublicBlockChainAPI) GetTransactionCount(address account.Address, blockNr *rpc.BlockNumber) (*hexutil.Big, error) {
+func (p *PublicBlockChainAPI) GetTransactionCount(address account.Address, blockNr *rpc.BlockNumber) (hexutil.Uint64, error) {
 	data, err := p.getPrimaryAccountData(address, blockNr)
 	if err != nil {
-		return nil, err
+		return 0, err
 	}
-	return (*hexutil.Big)(data.TransactionCount.Value), nil
+	return (hexutil.Uint64)(data.TransactionCount), nil
 }
 func (p *PublicBlockChainAPI) GetBalances(address account.Address, blockNr *rpc.BlockNumber) (map[string]interface{}, error) {
 	data, err := p.getPrimaryAccountData(address, blockNr)
 	if err != nil {
 		return nil, err
 	}
-	branch := data.Branch
-	balances := data.TokenBalances
+	branch := account.Branch{Value: data.Branch}
+	balances := data.Balance
 	fields := map[string]interface{}{
 		"branch":      hexutil.Uint64(branch.Value),
 		"fullShardId": hexutil.Uint64(branch.GetFullShardID()),
 		"shardId":     hexutil.Uint64(branch.GetShardID()),
 		"chainId":     hexutil.Uint64(branch.GetChainID()),
-		"balances":    balancesEncoder(balances),
+		"balances":    (*hexutil.Big)(balances),
 	}
 	return fields, nil
 }
@@ -115,14 +115,14 @@ func (p *PublicBlockChainAPI) GetAccountData(address account.Address, blockNr *r
 		if err != nil {
 			return nil, err
 		}
-		branch := data.Branch
+		branch := account.Branch{Value: data.Branch}
 
 		primary := map[string]interface{}{
 			"fullShardId":      hexutil.Uint64(branch.GetFullShardID()),
 			"shardId":          hexutil.Uint64(branch.GetShardID()),
 			"chainId":          hexutil.Uint64(branch.GetChainID()),
-			"balances":         balancesEncoder(data.TokenBalances),
-			"transactionCount": (*hexutil.Big)(data.TransactionCount.Value),
+			"balances":         (*hexutil.Big)(data.Balance),
+			"transactionCount": (hexutil.Uint64)(data.TransactionCount),
 			"isContract":       data.IsContract,
 		}
 		return map[string]interface{}{
@@ -140,8 +140,8 @@ func (p *PublicBlockChainAPI) GetAccountData(address account.Address, blockNr *r
 			"fullShardId":      hexutil.Uint64(branch.GetFullShardID()),
 			"shardId":          hexutil.Uint64(branch.GetShardID()),
 			"chainId":          hexutil.Uint64(branch.GetChainID()),
-			"balances":         balancesEncoder(data.TokenBalances),
-			"transactionCount": (*hexutil.Big)(data.TransactionCount.Value),
+			"balances":         (*hexutil.Big)(data.Balance),
+			"transactionCount": (hexutil.Uint64)(data.TransactionCount),
 			"isContract":       data.IsContract,
 		}
 		shards = append(shards, shard)

@@ -1,12 +1,29 @@
 package core
 
 import (
+	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/ethereum/go-ethereum/log"
+	"math/big"
 
 	"github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/core/rawdb"
 	"github.com/QuarkChain/goquarkchain/core/types"
 )
+
+// ShardStatus shard status for api
+type ShardStatus struct {
+	Branch             account.Branch
+	Height             uint64
+	Difficulty         *big.Int
+	CoinbaseAddress    account.Address
+	TimeStamp          uint64
+	TxCount60s         uint32
+	PendingTxCount     uint32
+	TotalTxCount       uint32
+	BlockCount60s      uint32
+	StaleBlockCount60s uint32
+	LastBlockTime      uint32
+}
 
 //TODO finish IsSameMinorChain
 

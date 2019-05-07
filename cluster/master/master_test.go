@@ -8,6 +8,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
 	"github.com/QuarkChain/goquarkchain/cluster/service"
+	"github.com/QuarkChain/goquarkchain/core"
 	"github.com/QuarkChain/goquarkchain/core/rawdb"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/serialize"
@@ -85,11 +86,11 @@ func (c *fakeRpcClient) Call(hostport string, req *rpc.Request) (*rpc.Response, 
 			return nil, err
 		}
 		return &rpc.Response{Data: data}, nil
-	case rpc.OpGetUnconfirmedHeaders:
+	case rpc.OpGetUnconfirmedHeaderList:
 		rsp := new(rpc.GetUnconfirmedHeadersResponse)
 		for _, v := range c.branchs {
 			rsp.HeadersInfoList = append(rsp.HeadersInfoList, &rpc.HeadersInfo{
-				Branch:     account.Branch{Value: v.Value},
+				Branch:     v.Value,
 				HeaderList: make([]*types.MinorBlockHeader, 0),
 			})
 			//rsp.HeadersInfoList[0].HeaderList = append(rsp.HeadersInfoList[0].HeaderList, &types.MinorBlockHeader{})
@@ -122,7 +123,7 @@ func (c *fakeRpcClient) Call(hostport string, req *rpc.Request) (*rpc.Response, 
 	case rpc.OpGetAccountData:
 		rsp := new(rpc.GetAccountDataResponse)
 		for _, v := range c.branchs {
-			rsp.AccountBranchDataList = append(rsp.AccountBranchDataList, &rpc.AccountBranchData{Branch: *v})
+			rsp.AccountBranchDataList = append(rsp.AccountBranchDataList, &rpc.AccountBranchData{Branch: v.Value})
 		}
 		data, err := serialize.SerializeToBytes(rsp)
 		if err != nil {
@@ -447,7 +448,7 @@ func TestExecuteTransaction(t *testing.T) {
 func TestGetMinorBlockByHeight(t *testing.T) {
 	master := initEnv(t, nil)
 	fakeMinorBlock := types.NewMinorBlock(&types.MinorBlockHeader{Version: 111}, &types.MinorBlockMeta{}, nil, nil, nil)
-	fakeShardStatus := rpc.ShardStats{
+	fakeShardStatus := core.ShardStatus{
 		Branch: account.Branch{Value: 2},
 		Height: 0,
 	}
