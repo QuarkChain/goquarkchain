@@ -199,9 +199,11 @@ func (pm *ProtocolManager) handleMsg(peer *peer) error {
 			return fmt.Errorf("invalid NewTip Request: RootBlockHeader is nil. %d for rpc request %d",
 				qkcMsg.RpcID, qkcMsg.MetaData.Branch)
 		}
+		// handle root tip when branch == 0
 		if qkcMsg.MetaData.Branch == 0 {
 			return pm.HandleNewTip(&tip, peer)
 		}
+		// handle minor tip when branch != 0 and the minor block only contain 1 heard which is the tip block
 		if len(tip.MinorBlockHeaderList) != 1 {
 			return fmt.Errorf("invalid NewTip Request: len of MinorBlockHeaderList is %d. %d for rpc request %d",
 				len(tip.MinorBlockHeaderList), qkcMsg.RpcID, qkcMsg.MetaData.Branch)
@@ -210,13 +212,14 @@ func (pm *ProtocolManager) handleMsg(peer *peer) error {
 		if len(clients) == 0 {
 			return fmt.Errorf("invalid branch %d for rpc request %d", qkcMsg.RpcID, qkcMsg.MetaData.Branch)
 		}
+		// todo make the client call in Parallelized
 		for _, client := range clients {
 			result, err := client.HandleNewTip(&tip)
 			if err != nil {
 				return fmt.Errorf("branch %d handle NewTipMsg message failed with error: %v", qkcMsg.MetaData.Branch, err.Error())
 			}
 			if !result {
-				return fmt.Errorf("HandleNewTip (rpcId %d) for branch %d  with height %d return false",
+				return fmt.Errorf("HandleNewTip (rpcId %d) for branch %d with height %d return false",
 					qkcMsg.RpcID, qkcMsg.MetaData.Branch, tip.MinorBlockHeaderList[0].NumberU64())
 			}
 		}
@@ -233,6 +236,7 @@ func (pm *ProtocolManager) handleMsg(peer *peer) error {
 		for _, tx := range trans.TransactionList {
 			branchTxMap[tx.EvmTx.FromFullShardId()] = append(branchTxMap[tx.EvmTx.FromFullShardId()], tx)
 		}
+		// todo make them run in Parallelized
 		for branch, list := range branchTxMap {
 			if err := pm.HandleNewTransactionListRequest(peer.id, qkcMsg.RpcID, branch, &p2p.NewTransactionList{TransactionList: list}); err != nil {
 				return err
@@ -248,6 +252,7 @@ func (pm *ProtocolManager) handleMsg(peer *peer) error {
 		if len(clients) == 0 {
 			return fmt.Errorf("invalid branch %d for rpc request %d", qkcMsg.RpcID, qkcMsg.MetaData.Branch)
 		}
+		//todo make them run in Parallelized
 		for _, client := range clients {
 			result, err := client.AddMinorBlock(&newBlockMinor)
 			if err != nil {
@@ -438,27 +443,27 @@ func (pm *ProtocolManager) HandleNewTransactionListRequest(peerId string, rpcId 
 		return fmt.Errorf("invalid branch %d for rpc request %d", rpcId, branch)
 	}
 	var hashList []common.Hash
-	needBroadcast := true
+	sameResponse := true
 	for _, client := range clients {
 		result, err := client.AddTransactions(request)
 		if err != nil {
-			log.Error("branch %d handle AddTransactions message failed with error: %v", rpcId, err.Error())
+			log.Error("branch %d HandleNewTransactionListRequest failed with error: %v", rpcId, err.Error())
 		}
 		if hashList == nil {
 			hashList = result.Hashes
 		} else if len(hashList) != len(result.Hashes) {
-			needBroadcast = false
+			sameResponse = false
 		} else {
 			for i := 0; i < len(hashList); i++ {
 				if hashList[i] != result.Hashes[i] {
-					needBroadcast = false
+					sameResponse = false
 					break
 				}
 			}
 		}
 	}
 
-	if needBroadcast && len(hashList) > 0 {
+	if sameResponse && len(hashList) > 0 {
 		tx2broadcast := make([]*types.Transaction, 0, len(request.TransactionList))
 		for _, tx := range request.TransactionList {
 			for _, hash := range hashList {
@@ -487,7 +492,7 @@ func (pm *ProtocolManager) HandleGetMinorBlockHeaderListRequest(rpcId uint64, br
 	}
 	result, err := clients[0].GetMinorBlockHeaders(request)
 	if err != nil {
-		return nil, fmt.Errorf("branch %d handle NewTipMsg message failed with error: %v", branch, err.Error())
+		return nil, fmt.Errorf("branch %d HandleGetMinorBlockHeaderListRequest failed with error: %v", branch, err.Error())
 	}
 
 	return result, nil
@@ -504,7 +509,7 @@ func (pm *ProtocolManager) HandleGetMinorBlockListRequest(rpcId uint64, branch u
 	}
 	result, err := clients[0].GetMinorBlocks(request)
 	if err != nil {
-		return nil, fmt.Errorf("branch %d handle NewTipMsg message failed with error: %v", branch, err.Error())
+		return nil, fmt.Errorf("branch %d HandleGetMinorBlockListRequest failed with error: %v", branch, err.Error())
 	}
 
 	return result, nil
