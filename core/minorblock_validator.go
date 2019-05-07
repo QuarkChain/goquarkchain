@@ -154,6 +154,11 @@ func (v *MinorBlockValidator) ValidateBlock(mBlock types.IBlock) error {
 	return v.ValidatorMinorBlockSeal(block)
 }
 
+// RootBlockValidator calls underlying engine's header verification method.
+func (v *MinorBlockValidator) ValidateHeader(header types.IHeader) error {
+	return v.engine.VerifyHeader(v.bc, header, true)
+}
+
 // ValidateGasLimit validate gasLimit when validateBlock
 func (v *MinorBlockValidator) ValidateGasLimit(gasLimit, preGasLimit uint64) error {
 	shardConfig := v.quarkChainConfig.GetShardConfigByFullShardID(v.branch.Value)
