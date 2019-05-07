@@ -3,6 +3,8 @@ package doublesha256
 import (
 	"crypto/sha256"
 	"encoding/binary"
+	"errors"
+	"github.com/QuarkChain/goquarkchain/core/state"
 	"math/big"
 	"sync"
 
@@ -85,7 +87,7 @@ func (d *DoubleSHA256) Seal(
 
 // CalcDifficulty is the difficulty adjustment algorithm. It returns the difficulty
 // that a new block should have.
-func (d *DoubleSHA256) CalcDifficulty(chain consensus.ChainReader, time uint64, parent types.IHeader) *big.Int {
+func (d *DoubleSHA256) CalcDifficulty(chain consensus.ChainReader, time uint64, parent types.IHeader) (*big.Int, error) {
 	if d.diffCalculator == nil {
 		panic("diffCalculator is not existed")
 	}
@@ -115,6 +117,10 @@ func (d *DoubleSHA256) FindNonce(
 // Name returns the consensus engine's name.
 func (d *DoubleSHA256) Name() string {
 	return d.commonEngine.Name()
+}
+
+func (d *DoubleSHA256) Finalize(chain consensus.ChainReader, header types.IHeader, state *state.StateDB, txs []*types.Transaction, receipts []*types.Receipt) (types.IBlock, error) {
+	panic(errors.New("not finalize"))
 }
 
 func hashAlgo(hash []byte, nonce uint64) (consensus.MiningResult, error) {

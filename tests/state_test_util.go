@@ -161,11 +161,12 @@ func (t *StateTest) Run(subtest StateSubtest, vmconfig vm.Config) (*state.StateD
 	context := qkcCore.NewEVMContext(*msg, header, nil)
 	evm := vm.NewEVM(context, statedb, config, vmconfig)
 
-	gaspool := new(core.GasPool)
+	gaspool := new(qkcCore.GasPool)
 	gaspool.AddGas(block.GasLimit())
 	snapshot := statedb.Snapshot()
 
-	if _, _, _, err := qkcCore.ApplyMessage(evm, msg, gaspool, 0.0); err != nil {
+	localFee := big.NewRat(1, 1)
+	if _, _, _, err := qkcCore.ApplyMessage(evm, msg, gaspool, localFee); err != nil {
 		statedb.RevertToSnapshot(snapshot)
 	}
 
@@ -179,7 +180,7 @@ func (t *StateTest) Run(subtest StateSubtest, vmconfig vm.Config) (*state.StateD
 	//   the coinbase gets no txfee, so isn't created, and thus needs to be touched
 	statedb.AddBalance(block.Coinbase(), new(big.Int))
 	// And _now_ get the state root
-	root := statedb.IntermediateRoot(config.IsEIP158(block.Number()))
+	root := statedb.IntermediateRoot(true)
 	// N.B: We need to do this in a two-step process, because the first Commit takes care
 	// of suicides, and we need to touch the coinbase _after_ it has potentially suicided.
 

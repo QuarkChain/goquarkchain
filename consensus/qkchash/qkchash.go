@@ -2,11 +2,13 @@ package qkchash
 
 import (
 	"encoding/binary"
+	"github.com/QuarkChain/goquarkchain/core/state"
+	"math/big"
+
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/common"
-	"math/big"
 )
 
 // QKCHash is a consensus engine implementing PoW with qkchash algo.
@@ -46,9 +48,14 @@ func (q *QKCHash) Prepare(chain consensus.ChainReader, header types.IHeader) err
 	panic("not implemented")
 }
 
+func (q *QKCHash) Finalize(chain consensus.ChainReader, header types.IHeader, state *state.StateDB, txs []*types.Transaction,
+	receipts []*types.Receipt) (types.IBlock, error) {
+	panic("not implemented")
+}
+
 // CalcDifficulty is the difficulty adjustment algorithm. It returns the difficulty
 // that a new block should have.
-func (q *QKCHash) CalcDifficulty(chain consensus.ChainReader, time uint64, parent types.IHeader) *big.Int {
+func (q *QKCHash) CalcDifficulty(chain consensus.ChainReader, time uint64, parent types.IHeader) (*big.Int, error) {
 	if q.diffCalculator == nil {
 		panic("diffCalculator is not existed")
 	}
