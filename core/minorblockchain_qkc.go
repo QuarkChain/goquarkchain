@@ -123,14 +123,6 @@ func (m *MinorBlockChain) putConfirmedCrossShardTransactionDepositList(hash comm
 
 }
 
-func (m *MinorBlockChain) getConfirmedCrossShardTransactionDepositList(hash common.Hash) *types.MinorBlockHeader {
-	rMinorHeaderHash := rawdb.ReadLastConfirmedMinorBlockHeaderAtRootBlock(m.db, hash)
-	if rMinorHeaderHash == qkcCommon.EmptyHash {
-		return nil
-	}
-	return rawdb.ReadMinorBlockHeader(m.db, rMinorHeaderHash)
-}
-
 func (m *MinorBlockChain) getLastConfirmedMinorBlockHeaderAtRootBlock(hash common.Hash) *types.MinorBlockHeader {
 	rMinorHeaderHash := rawdb.ReadLastConfirmedMinorBlockHeaderAtRootBlock(m.db, hash)
 	if rMinorHeaderHash == qkcCommon.EmptyHash {
@@ -167,14 +159,6 @@ func (m *MinorBlockChain) putRootBlock(rBlock *types.RootBlock, minorHeader *typ
 	rawdb.WriteLastConfirmedMinorBlockHeaderAtRootBlock(m.db, rBlockHash, mHash)
 }
 
-func (m *MinorBlockChain) putGenesisBlock(rBlockHash common.Hash, genesisBlock *types.MinorBlock) {
-	rawdb.WriteGenesisBlock(m.db, rBlockHash, genesisBlock)
-}
-
-func (m *MinorBlockChain) getGenesisBlock(hash common.Hash) *types.MinorBlock {
-	return rawdb.ReadGenesis(m.db, hash)
-}
-
 // InitFromRootBlock init minorBlockChain from rootBlock
 func (m *MinorBlockChain) InitFromRootBlock(rBlock *types.RootBlock) error {
 	m.mu.Lock() // to lock rootTip  confirmedHeaderTip...
@@ -186,7 +170,7 @@ func (m *MinorBlockChain) InitFromRootBlock(rBlock *types.RootBlock) error {
 		return errors.New("already initialized")
 	}
 	m.initialized = true
-	confirmedHeaderTip := m.getConfirmedCrossShardTransactionDepositList(rBlock.Hash())
+	confirmedHeaderTip := m.getLastConfirmedMinorBlockHeaderAtRootBlock(rBlock.Hash())
 	headerTip := confirmedHeaderTip
 	if headerTip == nil {
 		headerTip = m.GetBlockByNumber(0).IHeader().(*types.MinorBlockHeader)
@@ -270,7 +254,7 @@ func (m *MinorBlockChain) InitGenesisState(rBlock *types.RootBlock) (*types.Mino
 		return nil, err
 	}
 	m.putRootBlock(rBlock, nil)
-	m.putGenesisBlock(rBlock.Hash(), gBlock)
+	rawdb.WriteGenesisBlock(m.db, rBlock.Hash(), gBlock) // key:rootBlockHash value:minorBlock
 	if m.initialized {
 		return gBlock, nil
 	}
@@ -739,8 +723,12 @@ func (m *MinorBlockChain) getAllUnconfirmedHeaderList() []*types.MinorBlockHeade
 	for index := allHeight - 1; index >= 0; index-- {
 		headerList[index] = header
 		header, ok = m.GetHeaderByHash(header.GetParentHash()).(*types.MinorBlockHeader)
-		if !ok && index == 0 {
-			break // 0's pre
+		if !ok {
+			if index == 0 {
+				continue // 0's pre
+			} else {
+				panic(errors.New("not in order"))
+			}
 		}
 	}
 
@@ -1039,7 +1027,7 @@ func (m *MinorBlockChain) AddRootBlock(rBlock *types.RootBlock) error {
 					return ErrMinorBlockIsNil
 				}
 			}
-			newGenesis := m.getGenesisBlock(genesisRootHeader.Hash()) // genesisblock key is rootblock hash
+			newGenesis := rawdb.ReadGenesis(m.db, genesisRootHeader.Hash()) // genesisblock key is rootblock hash
 			if newGenesis == nil {
 				panic(errors.New("get genesis block is nil"))
 			}
