@@ -1,6 +1,8 @@
-package consensus
+package core
 
 import (
+	"github.com/ethereum/go-ethereum/log"
+
 	"github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/core/rawdb"
 	"github.com/QuarkChain/goquarkchain/core/types"
@@ -8,19 +10,17 @@ import (
 
 //TODO finish IsSameMinorChain
 
-func IsSameRootChain(db rawdb.DatabaseReader, longerChainHeader, shorterChainHeader types.IHeader) bool {
+func isSameRootChain(db rawdb.DatabaseReader, longerChainHeader, shorterChainHeader types.IHeader) bool {
 	if longerChainHeader.NumberU64() < shorterChainHeader.NumberU64() {
-		return false
+		log.Crit("wrong parameter order")
 	}
 
 	header := longerChainHeader
 
 	for i := uint64(0); i < longerChainHeader.NumberU64()-shorterChainHeader.NumberU64(); i++ {
 		header = rawdb.ReadRootBlockHeader(db, header.GetParentHash())
-		if common.IsNil(header) { // TODO to check here:header==nil error
-			return false
-		} else {
-			//fmt.Println("not nil")
+		if common.IsNil(header) {
+			log.Crit("mysteriously missing blocks")
 		}
 	}
 

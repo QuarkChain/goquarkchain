@@ -5,14 +5,15 @@ package types
 import (
 	"crypto/ecdsa"
 	"errors"
-	"github.com/QuarkChain/goquarkchain/account"
-	"github.com/QuarkChain/goquarkchain/serialize"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/crypto"
 	"math/big"
 	"sync/atomic"
 	"time"
 	"unsafe"
+
+	"github.com/QuarkChain/goquarkchain/account"
+	"github.com/QuarkChain/goquarkchain/serialize"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
 )
 
 // RootBlockHeader represents a root block header in the QuarkChain.
@@ -367,13 +368,13 @@ func (b *RootBlock) GetSize() common.StorageSize {
 
 func (b *RootBlock) Finalize(coinbaseAmount *uint64, coinbaseAddress *account.Address) *RootBlock {
 	if coinbaseAmount == nil {
-		temp := uint64(0)
-		coinbaseAmount = &temp
+		c := uint64(0)
+		coinbaseAmount = &c
 	}
 
 	if coinbaseAddress == nil {
-		temp := account.CreatEmptyAddress(0)
-		coinbaseAddress = &temp
+		a := account.CreatEmptyAddress(0)
+		coinbaseAddress = &a
 	}
 	b.header.MinorHeaderHash = DeriveSha(b.minorBlockHeaders)
 	b.header.CoinbaseAmount = &serialize.Uint256{Value: new(big.Int).SetUint64(*coinbaseAmount)}

@@ -3,9 +3,10 @@ package core
 import (
 	"errors"
 	"fmt"
+	"reflect"
+
 	"github.com/QuarkChain/goquarkchain/core/state"
 	"github.com/ethereum/go-ethereum/common"
-	"reflect"
 
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/consensus"
@@ -15,7 +16,7 @@ import (
 // RootBlockValidator implements Validator.
 type RootBlockValidator struct {
 	config     *config.QuarkChainConfig // config configuration options
-	blockChain *RootBlockChain          // minorBlockChain block chain
+	blockChain *RootBlockChain          // root block chain
 	engine     consensus.Engine         // engine engine used for validating
 }
 

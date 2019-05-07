@@ -83,7 +83,7 @@ func (v *MinorBlockValidator) ValidateBlock(mBlock types.IBlock) error {
 		return ErrInvalidMinorBlock
 	}
 	if blockHeight != prevHeader.NumberU64()+1 {
-		return ErrHeightDisMatch
+		return ErrHeightMismatch
 	}
 
 	if block.Branch().Value != v.branch.Value {

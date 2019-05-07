@@ -20,10 +20,11 @@ package state
 import (
 	"errors"
 	"fmt"
-	"github.com/QuarkChain/goquarkchain/cluster/config"
-	"github.com/QuarkChain/goquarkchain/params"
 	"math/big"
 	"sort"
+
+	"github.com/QuarkChain/goquarkchain/cluster/config"
+	"github.com/QuarkChain/goquarkchain/params"
 
 	qkcaccount "github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/core/types"
@@ -99,7 +100,7 @@ type StateDB struct {
 	gasLimit             *big.Int
 	shardConfig          *config.ShardConfig
 	senderDisallowList   []qkcaccount.Recipient
-	blockCoinbase        qkcaccount.Recipient
+	blockCoinbase        common.Address
 }
 
 // Create a new state from a given trie.
