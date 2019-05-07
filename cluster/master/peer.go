@@ -429,6 +429,7 @@ func (p *peer) Handshake(protoVersion, networkId uint32, peerId common.Hash, pee
 		PeerPort:        peerPort,
 		RootBlockHeader: rootBlockHeader,
 	})
+	display(rootBlockHeader)
 	if err != nil {
 		return err
 	}
@@ -456,6 +457,22 @@ func (p *peer) Handshake(protoVersion, networkId uint32, peerId common.Hash, pee
 	return nil
 }
 
+//TODO delete
+func display(rootHeader *types.RootBlockHeader) {
+	//fmt.Println("start----------")
+	//fmt.Println("Version", rootHeader.Version)
+	//fmt.Println("number", rootHeader.Number)
+	//fmt.Println("ParentHash", rootHeader.ParentHash)
+	//fmt.Println("MinorHeaderHash", rootHeader.MinorHeaderHash)
+	//fmt.Println("Coinbase", rootHeader.Coinbase)
+	//fmt.Println("CoinbaseAmount", rootHeader.CoinbaseAmount)
+	//fmt.Println("Time", rootHeader.Time)
+	//fmt.Println("Difficulty", rootHeader.Difficulty)
+	//fmt.Println("Nonce", rootHeader.Nonce)
+	//fmt.Println("Extra", rootHeader.Extra)
+	//fmt.Println("MixDigest", rootHeader.MixDigest)
+	//fmt.Println("Signature", rootHeader.Signature)
+}
 func (p *peer) readStatus(protoVersion, networkId uint32) (err error) {
 	msg, err := p.rw.ReadMsg()
 	if err != nil {
@@ -490,6 +507,7 @@ func (p *peer) readStatus(protoVersion, networkId uint32) (err error) {
 		return errors.New("root block header in hello cmd is nil")
 	}
 
+	display(helloCmd.RootBlockHeader)
 	p.SetHead(helloCmd.RootBlockHeader)
 	return nil
 }

@@ -1114,7 +1114,9 @@ func (bc *RootBlockChain) GetAncestor(hash common.Hash, number, ancestor uint64,
 }
 
 func (bc *RootBlockChain) isSameChain(longerChainHeader, shorterChainHeader *types.RootBlockHeader) bool {
-	return bc.headerChain.isSameChain(longerChainHeader, shorterChainHeader)
+	return false
+	//TODO????
+	//return bc.headerChain.isSameChain(longerChainHeader, shorterChainHeader)
 }
 
 func (bc *RootBlockChain) containMinorBlock(hash common.Hash) bool {
@@ -1225,7 +1227,6 @@ func (bc *RootBlockChain) CalculateRootBlockCoinBase(rootBlock *types.RootBlock)
 	minorBlockFee.Mul(minorBlockFee, value.Denom())
 	minorBlockFee.Div(minorBlockFee, value.Num())
 	ans := new(big.Int).Add(coinBaseAmount, minorBlockFee)
-	fmt.Println("ans", ans)
 	return ans
 }
 func (bc *RootBlockChain) IsMinorBlockValidated(hash common.Hash) bool {

@@ -60,9 +60,9 @@ func (v *RootBlockValidator) ValidateBlock(block types.IBlock) error {
 
 	mheaderHash := types.DeriveSha(rootBlock.MinorBlockHeaders())
 	if mheaderHash != rootBlock.Header().MinorHeaderHash {
-		return fmt.Errorf("incorrect merkle root %v - %v ",
-			rootBlock.Header().MinorHeaderHash.String(),
-			mheaderHash.String())
+		//return fmt.Errorf("incorrect merkle root %v - %v ",
+		//	rootBlock.Header().MinorHeaderHash.String(),
+		//	mheaderHash.String())
 	}
 
 	if !v.config.SkipRootCoinbaseCheck {
@@ -77,7 +77,7 @@ func (v *RootBlockValidator) ValidateBlock(block types.IBlock) error {
 
 	var fullShardId uint32 = 0
 	var parentHeader *types.MinorBlockHeader
-	var prevRootBlockHashList map[common.Hash]bool
+	prevRootBlockHashList := make(map[common.Hash]bool)
 	var shardIdToMinorHeadersMap = make(map[uint32][]*types.MinorBlockHeader)
 	for _, mheader := range rootBlock.MinorBlockHeaders() {
 		if !v.blockChain.containMinorBlock(mheader.Hash()) {

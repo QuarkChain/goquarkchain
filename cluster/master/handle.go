@@ -25,7 +25,7 @@ const (
 	QKCProtocolVersion  = 1
 	QKCProtocolLength   = 16
 	chainHeadChanSize   = 10
-	forceSyncCycle      = 30 * time.Second
+	forceSyncCycle      = 10 * time.Second
 	minDesiredPeerCount = 5
 )
 
@@ -185,7 +185,7 @@ func (pm *ProtocolManager) handleMsg(peer *peer) error {
 		return err
 	}
 
-	log.Info(pm.log, " receive QKC Msgop", qkcMsg.Op.String())
+	log.Info(pm.log, " receive QKC Msgop", qkcMsg.Op.String(), "remote addr", peer.RemoteAddr().String())
 	switch {
 	case qkcMsg.Op == p2p.Hello:
 		return errors.New("Unexpected Hello msg")

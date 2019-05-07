@@ -193,11 +193,10 @@ type extrootblock struct {
 // and receipts.
 func NewRootBlock(header *RootBlockHeader, mbHeaders MinorBlockHeaders, trackingdata []byte) *RootBlock {
 	b := &RootBlock{header: CopyRootBlockHeader(header), td: new(big.Int)}
-
 	if len(mbHeaders) == 0 {
-		b.header.MinorHeaderHash = EmptyHash
+		b.header.MinorHeaderHash = common.Hash{}
 	} else {
-		b.header.MinorHeaderHash = DeriveSha(MinorBlockHeaders(mbHeaders))
+		b.header.MinorHeaderHash = common.Hash{}
 		b.minorBlockHeaders = make(MinorBlockHeaders, len(mbHeaders))
 		copy(b.minorBlockHeaders, mbHeaders)
 	}
@@ -205,7 +204,6 @@ func NewRootBlock(header *RootBlockHeader, mbHeaders MinorBlockHeaders, tracking
 		b.trackingdata = make([]byte, len(trackingdata))
 		copy(b.trackingdata, trackingdata)
 	}
-
 	return b
 }
 
