@@ -56,6 +56,6 @@ var (
 	ErrCoinbaseAmount    = errors.New("wrong coinbase amount")
 	ErrXShardList        = errors.New("xShardReceivedGasUsed not match")
 	ErrNetWorkID         = errors.New("network id not match")
-	ErrNotNeighbir       = errors.New("is not a neighbor")
+	ErrNotNeighbor       = errors.New("is not a neighbor")
 	ErrNotSameRootChain  = errors.New("is not same root chain")
 )
