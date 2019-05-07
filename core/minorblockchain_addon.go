@@ -10,7 +10,6 @@ import (
 
 	"github.com/QuarkChain/goquarkchain/account"
 	qkcCommon "github.com/QuarkChain/goquarkchain/common"
-	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/core/state"
 	"github.com/QuarkChain/goquarkchain/core/types"
 )
@@ -184,7 +183,7 @@ func (m *MinorBlockChain) GetTransactionCount(recipient account.Recipient, heigh
 }
 func (m *MinorBlockChain) isSameRootChain(long types.IHeader, short types.IHeader) bool {
 	// no need to lock
-	return consensus.IsSameRootChain(m.db, long, short)
+	return isSameRootChain(m.db, long, short)
 }
 
 func (m *MinorBlockChain) isMinorBlockLinkedToRootTip(mBlock *types.MinorBlock) bool {
