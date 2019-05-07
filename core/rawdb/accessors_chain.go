@@ -128,6 +128,7 @@ func ReadMinorBlockHeader(db DatabaseReader, hash common.Hash) *types.MinorBlock
 	if len(data) == 0 {
 		return nil
 	}
+
 	header := new(types.MinorBlockHeader)
 	if err := serialize.Deserialize(serialize.NewByteBuffer(data), header); err != nil {
 		log.Error("Invalid block header Deserialize", "hash", hash, "err", err)
@@ -466,4 +467,102 @@ func FindCommonRootAncestor(db DatabaseReader, a, b *types.RootBlockHeader) *typ
 		}
 	}
 	return a
+}
+
+func WriteTotalTx(db DatabaseWriter, hash common.Hash, txCount uint32) {
+	data := encodeUint32(txCount)
+	if err := db.Put(totalTxCountKey(hash), data); err != nil {
+		log.Crit("Failed to store total Tx", "err", err)
+	}
+}
+func ReadTotalTx(db DatabaseReader, hash common.Hash) *uint32 {
+	data, _ := db.Get(totalTxCountKey(hash))
+	if len(data) == 0 {
+		return nil
+	}
+	number := binary.BigEndian.Uint32(data)
+	return &number
+
+}
+
+func WriteGenesisBlock(db DatabaseWriter, rHash common.Hash, block *types.MinorBlock) {
+	data, err := serialize.SerializeToBytes(block)
+	if err != nil {
+		log.Crit("can not serilalize Minor block")
+	}
+	key := makeGenesisKey(rHash)
+	if err := db.Put(key, data); err != nil {
+		log.Crit("Failed to store genesis", "err", err)
+	}
+}
+func ReadGenesis(db DatabaseReader, hash common.Hash) *types.MinorBlock {
+	data, _ := db.Get(makeGenesisKey(hash))
+	if len(data) == 0 {
+		return nil
+	}
+	res := new(types.MinorBlock)
+	if err := serialize.DeserializeFromBytes(data, res); err != nil {
+		return nil
+	}
+	return res
+}
+
+func WriteConfirmedCrossShardTxList(db DatabaseWriter, hash common.Hash, list types.CrossShardTransactionDepositList) {
+	data, err := serialize.SerializeToBytes(list)
+	if err != nil {
+		log.Crit("can not serialize CrossShardTransactionDepositList")
+	}
+	key := makeConfirmedXShardKey(hash)
+	if err := db.Put(key, data); err != nil {
+		log.Crit("Failed to store header", "err", err)
+	}
+}
+func ReadConfirmedCrossShardTxList(db DatabaseReader, hash common.Hash) *types.CrossShardTransactionDepositList {
+	data, _ := db.Get(makeConfirmedXShardKey(hash))
+	if len(data) == 0 {
+		return nil
+	}
+	list := new(types.CrossShardTransactionDepositList)
+	if err := serialize.Deserialize(serialize.NewByteBuffer(data), list); err != nil {
+		log.Error("Invalid block header Deserialize", "hash", hash, "err", err)
+		return nil
+	}
+	return list
+}
+
+func WriteCrossShardTxList(db DatabaseWriter, hash common.Hash, list types.CrossShardTransactionDepositList) {
+	data, err := serialize.SerializeToBytes(list)
+	if err != nil {
+		log.Crit("can not serialize CrossShardTransactionDepositList")
+	}
+	key := makeXShardTxList(hash)
+	if err := db.Put(key, data); err != nil {
+		log.Crit("Failed to store header", "err", err)
+	}
+}
+func ReadCrossShardTxList(db DatabaseReader, hash common.Hash) *types.CrossShardTransactionDepositList {
+	data, _ := db.Get(makeXShardTxList(hash))
+	if len(data) == 0 {
+		return nil
+	}
+	list := new(types.CrossShardTransactionDepositList)
+	if err := serialize.Deserialize(serialize.NewByteBuffer(data), list); err != nil {
+		log.Error("Invalid block header Deserialize", "hash", hash, "err", err)
+		return nil
+	}
+	return list
+}
+
+func WriteLastConfirmedMinorBlockHeaderAtRootBlock(db DatabaseWriter, rHash common.Hash, mHash common.Hash) {
+	if err := db.Put(makeRLastMHash(rHash), mHash.Bytes()); err != nil {
+		log.Crit("failed to store last confirmed  minot block at root block")
+	}
+}
+
+func ReadLastConfirmedMinorBlockHeaderAtRootBlock(db DatabaseReader, rHash common.Hash) common.Hash {
+	data, _ := db.Get(makeRLastMHash(rHash))
+	if len(data) == 0 {
+		return common.Hash{}
+	}
+	return common.BytesToHash(data)
 }
