@@ -81,8 +81,6 @@ func New(ctx *service.ServiceContext, cfg *config.ClusterConfig) (*QKCMasterBack
 		return nil, err
 	}
 
-	mstr.ProtocolManager, err = NewProtocolManager(*cfg, mstr.rootBlockChain, qkcSync.NewSynchronizer(mstr.rootBlockChain), mstr.getAllSlaveConnection)
-
 	for _, cfg := range cfg.SlaveList {
 		target := fmt.Sprintf("%s:%d", cfg.IP, cfg.Port)
 		client := NewSlaveConn(target, cfg.ChainMaskList, cfg.ID)
