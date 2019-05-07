@@ -113,6 +113,8 @@ type RootBlockChain struct {
 
 	badBlocks      *lru.Cache                        // Bad block cache
 	shouldPreserve func(block *types.RootBlock) bool // Function used to determine whether should preserve the given block.
+
+	fakeMinorBlockChain *MinorBlockChain
 }
 
 // NewBlockChain returns a fully initialized block chain using information
@@ -154,7 +156,6 @@ func NewRootBlockChain(db ethdb.Database, cacheConfig *CacheConfig, chainConfig 
 		return nil, ErrNoGenesis
 	}
 	bc.genesisBlock = genesisBlock.(*types.RootBlock)
-
 	if err := bc.loadLastState(); err != nil {
 		return nil, err
 	}

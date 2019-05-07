@@ -297,6 +297,7 @@ func ReadRootBlock(db DatabaseReader, hash common.Hash) *types.RootBlock {
 
 // WriteRootBlock storea a block rootBlockBody into the database.
 func WriteRootBlock(db DatabaseWriter, block *types.RootBlock) {
+	log.Info("出块", "number", block.Number())
 	WriteRootBlockHeader(db, block.Header())
 	data, err := serialize.SerializeToBytes(block)
 	if err != nil {
