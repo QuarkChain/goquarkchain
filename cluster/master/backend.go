@@ -197,7 +197,6 @@ func (s *QKCMasterBackend) ConnectToSlaves() error {
 	log.Info("qkc api backend", "slave client pool", len(s.clientPool))
 
 	fullShardIds := s.clusterConfig.Quarkchain.GetGenesisShardIds()
-	fmt.Println("GetGenesisShardIds", fullShardIds)
 	for _, slaveConn := range s.clientPool {
 		id, chainMaskList, err := slaveConn.SendPing(nil, false)
 		if err != nil {

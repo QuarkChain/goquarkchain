@@ -69,7 +69,7 @@ func TestClusterConfig(t *testing.T) {
 
 	shardIds := quarkchain.GetGenesisShardIds()
 	// make sure the default chainsize and shardsize
-	if len(shardIds) != 2*3 {
+	if len(shardIds) != 2*1 {
 		t.Fatalf("shard id list is not enough.")
 	}
 	for _, fullShardId := range shardIds {

@@ -58,7 +58,7 @@ func NewChainConfig() *ChainConfig {
 type ChainConfigAlias ChainConfig
 
 func (c *ChainConfig) MarshalJSON() ([]byte, error) {
-	addr := ethcom.ToHex(c.CoinbaseAddress.ToHex())
+	addr := c.CoinbaseAddress.ToHex()
 	jsonConfig := struct {
 		ChainConfigAlias
 		CoinbaseAddress string `json:"COINBASE_ADDRESS"`

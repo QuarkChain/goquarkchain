@@ -1,11 +1,11 @@
 package core
 
 import (
+	"errors"
 	"fmt"
-	"reflect"
-
+	"github.com/QuarkChain/goquarkchain/core/state"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/syndtr/goleveldb/leveldb/errors"
+	"reflect"
 
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/consensus"
@@ -15,7 +15,7 @@ import (
 // RootBlockValidator implements Validator.
 type RootBlockValidator struct {
 	config     *config.QuarkChainConfig // config configuration options
-	blockChain *RootBlockChain          // blockChain block chain
+	blockChain *RootBlockChain          // minorBlockChain block chain
 	engine     consensus.Engine         // engine engine used for validating
 }
 
@@ -27,28 +27,6 @@ func NewRootBlockValidator(config *config.QuarkChainConfig, blockchain *RootBloc
 		blockChain: blockchain,
 	}
 	return validator
-}
-
-func disPaly(lists []*types.MinorBlockHeader) {
-	//
-	//for index, v := range lists {
-	//	fmt.Println("index", index, "++++++++++++", v.Hash().String())
-	//	fmt.Println("Version", v.Version)
-	//	fmt.Println("Branch", v.Branch)
-	//	fmt.Println("Number", v.Number)
-	//	fmt.Println("Coinbase", v.Coinbase.Recipient.ToAddress().String(), v.Coinbase.FullShardKey)
-	//	fmt.Println("CoinbaseAmount", v.CoinbaseAmount.Value.String())
-	//	fmt.Println("ParentHash", v.ParentHash.String())
-	//	fmt.Println("PrevRootBlockHash", v.PrevRootBlockHash.String())
-	//	fmt.Println("GasLimit", v.GasLimit.Value.String())
-	//	fmt.Println("MetaHash", v.MetaHash.String())
-	//	fmt.Println("Time", v.Time)
-	//	fmt.Println("Difficulty", v.Difficulty.String())
-	//	fmt.Println("Nonce", v.Nonce)
-	//	fmt.Println("Bloom", v.Bloom.Big().String())
-	//	fmt.Println("Extra", v.Extra)
-	//	fmt.Println("MixDigest", v.MixDigest.String())
-	//}
 }
 
 // ValidateBlock validates the given block and verifies the block header's roots.
@@ -82,10 +60,9 @@ func (v *RootBlockValidator) ValidateBlock(block types.IBlock) error {
 
 	mheaderHash := types.DeriveSha(rootBlock.MinorBlockHeaders())
 	if mheaderHash != rootBlock.Header().MinorHeaderHash {
-		disPaly(rootBlock.MinorBlockHeaders())
-		//return fmt.Errorf("incorrect merkle root %v - %v ",
-		//	rootBlock.Header().MinorHeaderHash.String(),
-		//	mheaderHash.String())
+		return fmt.Errorf("incorrect merkle root %v - %v ",
+			rootBlock.Header().MinorHeaderHash.String(),
+			mheaderHash.String())
 	}
 
 	if !v.config.SkipRootCoinbaseCheck {
@@ -100,7 +77,7 @@ func (v *RootBlockValidator) ValidateBlock(block types.IBlock) error {
 
 	var fullShardId uint32 = 0
 	var parentHeader *types.MinorBlockHeader
-	prevRootBlockHashList := make(map[common.Hash]bool)
+	var prevRootBlockHashList map[common.Hash]bool
 	var shardIdToMinorHeadersMap = make(map[uint32][]*types.MinorBlockHeader)
 	for _, mheader := range rootBlock.MinorBlockHeaders() {
 		if !v.blockChain.containMinorBlock(mheader.Hash()) {
@@ -176,6 +153,10 @@ func (v *RootBlockValidator) ValidateBlock(block types.IBlock) error {
 	return nil
 }
 
+func (v *RootBlockValidator) ValidateState(block, parent types.IBlock, statedb *state.StateDB, receipts types.Receipts, usedGas uint64) error {
+	panic(errors.New("not implement"))
+}
+
 // ValidateHeader calls underlying engine's header verification method.
 func (v *RootBlockValidator) ValidateHeader(header types.IHeader) error {
 	return v.engine.VerifyHeader(v.blockChain, header, true)
@@ -189,6 +170,9 @@ func (v *fakeRootBlockValidator) ValidateBlock(block types.IBlock) error {
 	return v.Err
 }
 
-func (v *fakeRootBlockValidator) ValidateHeader(header types.IHeader) error {
+func (v *fakeRootBlockValidator) ValidateState(block, parent types.IBlock, statedb *state.StateDB, receipts types.Receipts, usedGas uint64) error {
+	panic(errors.New("not implement"))
+}
+func (v *fakeRootBlockValidator) ValidateHeader(block types.IHeader) error {
 	return v.Err
 }

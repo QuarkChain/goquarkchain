@@ -158,19 +158,6 @@ func NewRootBlockChain(db ethdb.Database, cacheConfig *CacheConfig, chainConfig 
 	if err := bc.loadLastState(); err != nil {
 		return nil, err
 	}
-	// Check the current state of the block hashes and make sure that we do not have any of the bad blocks in our chain
-	for hash := range BadHashes {
-		if header := bc.GetHeader(hash); header != nil {
-			// get the canonical block corresponding to the offending header's number
-			headerByNumber := bc.GetHeaderByNumber(header.NumberU64())
-			// make sure the headerByNumber (if present) is in our current canonical chain
-			if headerByNumber != nil && headerByNumber.Hash() == header.Hash() {
-				log.Error("Found bad hash, rewinding chain", "number", header.NumberU64(), "hash", header.GetParentHash())
-				bc.SetHead(header.NumberU64() - 1)
-				log.Error("Chain rewind was successful, resuming normal operation")
-			}
-		}
-	}
 	// Take ownership of this particular state
 	go bc.update()
 	return bc, nil
@@ -587,7 +574,9 @@ func (bc *RootBlockChain) addFutureBlock(block types.IBlock) error {
 //
 // After insertion is done, all accumulated events will be fired.
 func (bc *RootBlockChain) InsertChain(chain []types.IBlock) (int, error) {
-	log.Info("RootBlockChain", "InsertChain-Number", chain[0].NumberU64(), "hash", chain[0].Hash().String())
+	for _, v := range chain {
+		log.Info("RootBlockChain", "InsertChain-num", v.IHeader().NumberU64())
+	}
 	defer log.Info("RootBlockChain", "InsertChain", "end")
 	// Sanity check that we have something meaningful to import
 	if len(chain) == 0 {
@@ -697,11 +686,6 @@ func (bc *RootBlockChain) insertChain(chain []types.IBlock, verifySeals bool) (i
 		if atomic.LoadInt32(&bc.procInterrupt) == 1 {
 			log.Debug("Premature abort during blocks processing")
 			break
-		}
-		// If the header is a banned one, straight out abort
-		if BadHashes[block.Hash()] {
-			bc.reportBlock(block, ErrBlacklistedHash)
-			return it.index, events, ErrBlacklistedHash
 		}
 		// Retrieve the parent block and it's state to execute on top
 		start := time.Now()
@@ -1130,16 +1114,14 @@ func (bc *RootBlockChain) GetAncestor(hash common.Hash, number, ancestor uint64,
 }
 
 func (bc *RootBlockChain) isSameChain(longerChainHeader, shorterChainHeader *types.RootBlockHeader) bool {
-	//TODO fake
-	return false
 	return bc.headerChain.isSameChain(longerChainHeader, shorterChainHeader)
 }
 
 func (bc *RootBlockChain) containMinorBlock(hash common.Hash) bool {
 	// TODO fake
 	return true
-	_, ok := bc.validatedMinorBlocks[hash]
-	return ok
+	//_, ok := bc.validatedMinorBlocks[hash]
+	//return ok
 }
 
 func (bc *RootBlockChain) AddValidatedMinorBlockHeader(header types.IHeader) {
@@ -1219,10 +1201,14 @@ func (bc *RootBlockChain) CreateBlockToMine(mHeaderList []*types.MinorBlockHeade
 		}
 		createTime = &temp
 	}
-	difficulty := bc.engine.CalcDifficulty(bc, *createTime, bc.CurrentHeader())
+	difficulty, err := bc.engine.CalcDifficulty(bc, *createTime, bc.CurrentHeader())
+	if err != nil {
+		panic(errors.New("sb"))
+	}
 	block := bc.CurrentBlock().Header().CreateBlockToAppend(createTime, difficulty, address, nil, nil)
 	block.ExtendMinorBlockHeaderList(mHeaderList)
-	block.Finalize(bc.CalculateRootBlockCoinBase(block), address)
+	coinbase := bc.CalculateRootBlockCoinBase(block).Uint64()
+	block.Finalize(&coinbase, address)
 	return block
 }
 
@@ -1240,6 +1226,7 @@ func (bc *RootBlockChain) CalculateRootBlockCoinBase(rootBlock *types.RootBlock)
 	minorBlockFee.Mul(minorBlockFee, value.Denom())
 	minorBlockFee.Div(minorBlockFee, value.Num())
 	ans := new(big.Int).Add(coinBaseAmount, minorBlockFee)
+	fmt.Println("ans", ans)
 	return ans
 }
 func (bc *RootBlockChain) IsMinorBlockValidated(hash common.Hash) bool {
@@ -1255,7 +1242,11 @@ func (bc *RootBlockChain) GetNextDifficulty(create *uint64) *big.Int {
 		}
 		create = &temp
 	}
-	return bc.engine.CalcDifficulty(bc, *create, bc.CurrentBlock().Header())
+	data, err := bc.engine.CalcDifficulty(bc, *create, bc.CurrentBlock().Header())
+	if err != nil {
+		panic(errors.New("sb"))
+	}
+	return data
 }
 
 func (bc *RootBlockChain) GetBlockCount() {

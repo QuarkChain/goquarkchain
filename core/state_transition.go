@@ -27,7 +27,6 @@ import (
 	"github.com/QuarkChain/goquarkchain/core/vm"
 	qkcParam "github.com/QuarkChain/goquarkchain/params"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
 )
@@ -54,7 +53,7 @@ The state transitioning model does all the necessary work to work out a valid ne
 6) Derive new state root
 */
 type StateTransition struct {
-	gp         *core.GasPool
+	gp         *GasPool
 	msg        Message
 	gas        uint64
 	gasPrice   *big.Int
@@ -79,8 +78,8 @@ type Message interface {
 	CheckNonce() bool
 	Data() []byte
 	IsCrossShard() bool
-	FromFullShardId() uint32
-	ToFullShardId() uint32
+	FromFullShardKey() uint32
+	ToFullShardKey() uint32
 	TxHash() common.Hash
 }
 
@@ -116,13 +115,13 @@ func IntrinsicGas(data []byte, contractCreation, isCrossShard bool) (uint64, err
 
 	// GTXXSHARDCOST
 	if isCrossShard {
-		gas += uint64(qkcParam.GtxxShardCost)
+		gas += qkcParam.GtxxShardCost.Uint64()
 	}
 	return gas, nil
 }
 
 // NewStateTransition initialises and returns a new state transition object.
-func NewStateTransition(evm *vm.EVM, msg Message, gp *core.GasPool) *StateTransition {
+func NewStateTransition(evm *vm.EVM, msg Message, gp *GasPool) *StateTransition {
 	return &StateTransition{
 		gp:       gp,
 		evm:      evm,
@@ -141,7 +140,7 @@ func NewStateTransition(evm *vm.EVM, msg Message, gp *core.GasPool) *StateTransi
 // the gas used (which includes gas refunds) and an error if it failed. An error always
 // indicates a core error meaning that the message would always fail for that particular
 // state and would never be accepted within a block.
-func ApplyMessage(evm *vm.EVM, msg Message, gp *core.GasPool, feeRate float32) ([]byte, uint64, bool, error) {
+func ApplyMessage(evm *vm.EVM, msg Message, gp *GasPool, feeRate *big.Rat) ([]byte, uint64, bool, error) {
 	return NewStateTransition(evm, msg, gp).TransitionDb(feeRate)
 }
 
@@ -182,9 +181,9 @@ func (st *StateTransition) preCheck() error {
 	if st.msg.CheckNonce() {
 		nonce := st.state.GetNonce(st.msg.From())
 		if nonce < st.msg.Nonce() {
-			return core.ErrNonceTooHigh
+			return ErrNonceTooHigh
 		} else if nonce > st.msg.Nonce() {
-			return core.ErrNonceTooLow
+			return ErrNonceTooLow
 		}
 	}
 	return st.buyGas()
@@ -193,7 +192,7 @@ func (st *StateTransition) preCheck() error {
 // TransitionDb will transition the state by applying the current message and
 // returning the result including the used gas. It returns an error if failed.
 // An error indicates a consensus issue.
-func (st *StateTransition) TransitionDb(feeRate float32) (ret []byte, usedGas uint64, failed bool, err error) {
+func (st *StateTransition) TransitionDb(feeRate *big.Rat) (ret []byte, usedGas uint64, failed bool, err error) {
 	if err = st.preCheck(); err != nil {
 		return
 	}
@@ -229,6 +228,7 @@ func (st *StateTransition) TransitionDb(feeRate float32) (ret []byte, usedGas ui
 		}
 
 	}
+
 	if vmerr != nil {
 		log.Debug("VM returned with error", "err", vmerr)
 		// The only possible consensus-error would be if there wasn't
@@ -242,16 +242,19 @@ func (st *StateTransition) TransitionDb(feeRate float32) (ret []byte, usedGas ui
 
 	finalGasUsed := st.gasUsed()
 	if st.msg.IsCrossShard() {
-		finalGasUsed -= uint64(qkcParam.GtxxShardCost)
+		if finalGasUsed < qkcParam.GtxxShardCost.Uint64() {
+			return nil, 0, false, errors.New("crossShard ")
+		}
+		finalGasUsed -= qkcParam.GtxxShardCost.Uint64()
 	}
-
 	fee := new(big.Int).Mul(new(big.Int).SetUint64(finalGasUsed), st.gasPrice)
-	rateFee := fee //TODO *feeRate
+	rateFee := new(big.Int).Mul(fee, feeRate.Num())
+	rateFee = new(big.Int).Div(rateFee, feeRate.Denom())
 
 	st.state.AddBalance(st.evm.Coinbase, rateFee)
-	st.state.AddBlockFee(rateFee.Uint64())
+	st.state.AddBlockFee(rateFee)
 
-	st.state.AddGasUsed(new(big.Int).SetUint64(finalGasUsed))
+	st.state.AddGasUsed(new(big.Int).SetUint64(st.gasUsed()))
 	return ret, st.gasUsed(), vmerr != nil, err
 }
 
@@ -284,24 +287,24 @@ func (st *StateTransition) handleCrossShardTx() (ret []byte, usedGas uint64, err
 		return nil, 0, vm.ErrInsufficientBalance
 	}
 	crossShardValue := new(serialize.Uint256)
-	crossShardValue.Value.Set(msg.Value())
+	crossShardValue.Value = new(big.Int).Set(msg.Value())
 
 	crossShardGasPrice := new(serialize.Uint256)
-	crossShardGasPrice.Value.Set(msg.GasPrice())
-	crossShardData := types.CrossShardTransactionDeposit{
+	crossShardGasPrice.Value = new(big.Int).Set(msg.GasPrice())
+	crossShardData := &types.CrossShardTransactionDeposit{
 		TxHash: msg.TxHash(),
 		From: account.Address{
 			Recipient:    account.Recipient(msg.From()),
-			FullShardKey: msg.FromFullShardId(),
+			FullShardKey: msg.FromFullShardKey(),
 		},
 		To: account.Address{
 			Recipient:    account.Recipient(*msg.To()),
-			FullShardKey: msg.ToFullShardId(),
+			FullShardKey: msg.ToFullShardKey(),
 		},
 		Value:    crossShardValue,
 		GasPrice: crossShardGasPrice,
 	}
 	evm.StateDB.SubBalance(msg.From(), st.value)
 	evm.StateDB.AppendXShardList(crossShardData)
-	return nil, st.gasUsed(), nil
+	return nil, st.gas, nil
 }

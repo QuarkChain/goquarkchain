@@ -3,6 +3,7 @@ package sync
 import (
 	"errors"
 	"fmt"
+	"github.com/QuarkChain/goquarkchain/core/state"
 	"math/rand"
 	"reflect"
 	"testing"
@@ -88,6 +89,10 @@ func (v *mockvalidator) ValidateHeader(types.IHeader) error {
 
 func (v *mockvalidator) ValidateBlock(types.IBlock) error {
 	return v.err
+}
+
+func (v *mockvalidator) ValidateState(block, parent types.IBlock, state *state.StateDB, receipts types.Receipts, usedGas uint64) error {
+	panic(errors.New("sb"))
 }
 
 func newBlockChain(sz int) blockchain {
