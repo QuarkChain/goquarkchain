@@ -144,7 +144,7 @@ type GetTransactionReceiptRequest struct {
 type GetTransactionReceiptResponse struct {
 	MinorBlock *types.MinorBlock `json:"minor_block" gencodec:"required"`
 	Index      uint32            `json:"index" gencodec:"required"`
-	Receipt    types.Receipts    `json:"receipt" gencodec:"required" bytesizeofslicelen:"4"`
+	Receipt    *types.Receipt    `json:"receipt" gencodec:"required" bytesizeofslicelen:"4"`
 }
 
 type GetTransactionListByAddressRequest struct {
@@ -203,7 +203,7 @@ type GetNextBlockToMineRequest struct {
 }
 
 type GetNextBlockToMineResponse struct {
-	Block types.MinorBlock `json:"block" gencodec:"required"`
+	Block *types.MinorBlock `json:"block" gencodec:"required"`
 }
 
 // For adding blocks mined through JRPC
