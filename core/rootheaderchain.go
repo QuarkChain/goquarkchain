@@ -19,7 +19,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/log"
-	"github.com/hashicorp/golang-lru"
+	lru "github.com/hashicorp/golang-lru"
 )
 
 const (
@@ -27,12 +27,6 @@ const (
 	tdCacheLimit     = 1024
 	numberCacheLimit = 2048
 )
-
-// BadHashes represent a set of manually tracked bad hashes (usually hard forks)
-var BadHashes = map[common.Hash]bool{
-	common.HexToHash("05bef30ef572270f654746da22639a7a0c97dd97a7050b9e252391996aaeb689"): true,
-	common.HexToHash("7d05d08cbc596a2e5e4f13b80a743e53e09221b5323c3a61946b20873e58583f"): true,
-}
 
 // RootHeaderChain implements the basic block header chain logic that is shared by
 // core.RootBlockChain and light.LightChain. It is not usable in itself, only as
@@ -229,16 +223,13 @@ func (hc *RootHeaderChain) ValidateHeaderChain(chain []*types.RootBlockHeader, c
 	defer close(abort)
 
 	// Iterate over the headers and ensure they all check out
-	for i, header := range chain {
+	for i, _ := range chain {
 		// If the chain is terminating, stop processing blocks
 		if hc.procInterrupt() {
 			log.Debug("Premature abort during headers verification")
 			return 0, errors.New("aborted")
 		}
-		// If the header is a banned one, straight out abort
-		if BadHashes[header.Hash()] {
-			return i, ErrBlacklistedHash
-		}
+
 		// Otherwise wait for headers checks and ensure they pass
 		if err := <-results; err != nil {
 			return i, err
@@ -355,19 +346,7 @@ func (hc *RootHeaderChain) GetAncestor(hash common.Hash, number, ancestor uint64
 }
 
 func (hc *RootHeaderChain) isSameChain(longerChainHeader, shorterChainHeader *types.RootBlockHeader) bool {
-	if longerChainHeader.NumberU64() < shorterChainHeader.NumberU64() {
-		return false
-	}
-
-	header := longerChainHeader
-	for i := uint64(0); i < longerChainHeader.NumberU64()-shorterChainHeader.NumberU64(); i++ {
-		header = rawdb.ReadRootBlockHeader(hc.chainDb, header.GetParentHash())
-		if header == nil {
-			return false
-		}
-	}
-
-	return header.Hash() == shorterChainHeader.Hash()
+	return isSameRootChain(hc.chainDb, longerChainHeader, shorterChainHeader)
 }
 
 // GetTd retrieves a block's total difficulty in the canonical chain from the
