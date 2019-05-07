@@ -134,7 +134,7 @@ func (c *CommonEngine) VerifyHeader(
 
 	adjustedDiff := new(big.Int).SetUint64(0)
 	if !chain.Config().SkipRootDifficultyCheck {
-		expectedDiff, err := cengine.CalcDifficulty(chain, header.GetTime(), parent)
+		expectedDiff, err := c.cengine.CalcDifficulty(chain, header.GetTime(), parent)
 		if err != nil {
 			return err
 		}

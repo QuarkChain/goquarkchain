@@ -85,8 +85,8 @@ type StateDB interface {
 	SetShardConfig(shardConfig *config.ShardConfig)
 	SetSenderDisallowList([]account.Recipient)
 	GetSenderDisallowList() []account.Recipient
-	GetBlockCoinBase() account.Recipient
-	SetBlockCoinBase(recipient account.Recipient)
+	GetBlockCoinbase() account.Recipient
+	SetBlockCoinbase(recipient account.Recipient)
 }
 
 // CallContext provides a basic interface for the EVM calling conventions. The EVM

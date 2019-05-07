@@ -209,7 +209,7 @@ func (b *MinorBlockGen) AddTxWithChain(quarkChainConfig *config.QuarkChainConfig
 		panic(err)
 	}
 
-	receipt, _, err := ApplyTransaction(b.config, bc, b.gasPool, b.statedb, b.header, tx, &b.gasUsed, vm.Config{})
+	_, receipt, _, err := ApplyTransaction(b.config, bc, b.gasPool, b.statedb, b.header, tx, &b.gasUsed, vm.Config{})
 	if err != nil {
 		panic(err)
 	}
@@ -220,15 +220,6 @@ func (b *MinorBlockGen) AddTxWithChain(quarkChainConfig *config.QuarkChainConfig
 // Number returns the block number of the block being generated.
 func (b *MinorBlockGen) Number() *big.Int {
 	return new(big.Int).SetUint64(b.header.Number)
-}
-
-// AddUncheckedReceipt forcefully adds a receipts to the block without a
-// backing transaction.
-//
-// AddUncheckedReceipt will cause consensus failures when used during real
-// chain processing. This is best used in conjunction with raw block insertion.
-func (b *MinorBlockGen) AddUncheckedReceipt(receipt *types.Receipt) {
-	b.receipts = append(b.receipts, receipt)
 }
 
 // TxNonce returns the next valid transaction nonce for the
@@ -289,8 +280,8 @@ func GenerateMinorBlockChain(config *params.ChainConfig, quarkChainConfig *confi
 			block.AddTx(v)
 		}
 
-		coinBaseAmount := qkcCommon.BigIntMulBigRat(quarkChainConfig.GetShardConfigByFullShardID(quarkChainConfig.Chains[0].ShardSize|0).CoinbaseAmount, quarkChainConfig.RewardTaxRate)
-		statedb.AddBalance(block.Header().Coinbase.Recipient, coinBaseAmount)
+		coinbaseAmount := qkcCommon.BigIntMulBigRat(quarkChainConfig.GetShardConfigByFullShardID(quarkChainConfig.Chains[0].ShardSize|0).CoinbaseAmount, quarkChainConfig.RewardTaxRate)
+		statedb.AddBalance(block.Header().Coinbase.Recipient, coinbaseAmount)
 
 		b.statedb.Finalise(true)
 		rootHash, err := b.statedb.Commit(true)
@@ -300,8 +291,8 @@ func GenerateMinorBlockChain(config *params.ChainConfig, quarkChainConfig *confi
 		if err := b.statedb.Database().TrieDB().Commit(rootHash, true); err != nil {
 			panic(fmt.Sprintf("trie write error: %v", err))
 		}
-		coinBaseAmount.Add(coinBaseAmount, statedb.GetBlockFee())
-		block.Finalize(b.receipts, rootHash, statedb.GetGasUsed(), statedb.GetXShardReceiveGasUsed(), coinBaseAmount)
+		coinbaseAmount.Add(coinbaseAmount, statedb.GetBlockFee())
+		block.Finalize(b.receipts, rootHash, statedb.GetGasUsed(), statedb.GetXShardReceiveGasUsed(), coinbaseAmount)
 		return block, b.receipts
 	}
 	for i := 0; i < n; i++ {

@@ -82,7 +82,6 @@ type receiptStorageRLP struct {
 	ContractFullShardId uint32
 	Logs                []*LogForStorage
 	GasUsed             uint64
-	Status              uint64
 }
 
 // NewReceipt creates a barebone transaction receipt, copying the init fields.
@@ -201,7 +200,6 @@ func (r *ReceiptForStorage) EncodeRLP(w io.Writer) error {
 		ContractFullShardId: r.ContractFullShardId,
 		Logs:                make([]*LogForStorage, len(r.Logs)),
 		GasUsed:             r.GasUsed,
-		Status:              r.Status,
 	}
 	for i, log := range r.Logs {
 		enc.Logs[i] = (*LogForStorage)(log)
@@ -227,7 +225,6 @@ func (r *ReceiptForStorage) DecodeRLP(s *rlp.Stream) error {
 	}
 	// Assign the implementation fields
 	r.TxHash, r.ContractAddress, r.ContractFullShardId, r.GasUsed = dec.TxHash, dec.ContractAddress, dec.ContractFullShardId, dec.GasUsed
-	r.Status = dec.Status
 	return nil
 }
 

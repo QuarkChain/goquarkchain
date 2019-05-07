@@ -59,7 +59,7 @@ func (bc *testBlockChain) CurrentBlock() *types.MinorBlock {
 	}, &types.MinorBlockMeta{}, nil, nil, nil)
 }
 
-func (bc *testBlockChain) GetBlock(hash common.Hash) types.IBlock {
+func (bc *testBlockChain) GetMinorBlock(hash common.Hash) *types.MinorBlock {
 	return bc.CurrentBlock()
 }
 

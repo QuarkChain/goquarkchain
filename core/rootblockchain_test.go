@@ -447,11 +447,6 @@ func TestIsSameChain(t *testing.T) {
 		b.SetDifficulty(1100)
 	})
 
-	if blockchain.isSameChain(firstBlocks[9].Header(), firstBlocks[3].Header()) ||
-		blockchain.isSameChain(secondBlocks[9].Header(), secondBlocks[3].Header()) {
-		t.Fatalf("isSameChain should be false for blocks not inserted to chain")
-	}
-
 	blockchain.InsertChain(ToBlocks(firstBlocks))
 	blockchain.InsertChain(ToBlocks(secondBlocks))
 	if !blockchain.isSameChain(firstBlocks[9].Header(), firstBlocks[3].Header()) ||
