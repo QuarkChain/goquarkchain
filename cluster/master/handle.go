@@ -256,7 +256,7 @@ func (pm *ProtocolManager) handleMsg(peer *peer) error {
 		for _, client := range clients {
 			result, err := client.AddMinorBlock(&newBlockMinor)
 			if err != nil {
-				return fmt.Errorf("branch %d handle NewTipMsg message failed with error: %v", qkcMsg.MetaData.Branch, err.Error())
+				return fmt.Errorf("branch %d handle NewBlockMinorMsg message failed with error: %v", qkcMsg.MetaData.Branch, err.Error())
 			}
 			if !result {
 				return fmt.Errorf("AddMinorBlock (rpcId %d) for branch %d return false",
@@ -369,7 +369,7 @@ func (pm *ProtocolManager) handleMsg(peer *peer) error {
 
 func (pm *ProtocolManager) HandleNewTip(tip *p2p.Tip, peer *peer) error {
 	if len(tip.MinorBlockHeaderList) != 0 {
-		return errors.New("minor block header list must be empty")
+		return errors.New("minor block header list must not be empty")
 	}
 	head := peer.Head()
 	if tip.RootBlockHeader.NumberU64() < head.NumberU64() {
@@ -444,10 +444,11 @@ func (pm *ProtocolManager) HandleNewTransactionListRequest(peerId string, rpcId 
 	}
 	var hashList []common.Hash
 	sameResponse := true
+	// todo make the client call in Parallelized
 	for _, client := range clients {
 		result, err := client.AddTransactions(request)
 		if err != nil {
-			log.Error("branch %d HandleNewTransactionListRequest failed with error: %v", rpcId, err.Error())
+			return fmt.Errorf("branch %d HandleNewTransactionListRequest failed with error: %v", rpcId, err.Error())
 		}
 		if hashList == nil {
 			hashList = result.Hashes
@@ -463,7 +464,10 @@ func (pm *ProtocolManager) HandleNewTransactionListRequest(peerId string, rpcId 
 		}
 	}
 
-	if sameResponse && len(hashList) > 0 {
+	if !sameResponse {
+		panic("same shard in different slave is inconsistent")
+	}
+	if len(hashList) > 0 {
 		tx2broadcast := make([]*types.Transaction, 0, len(request.TransactionList))
 		for _, tx := range request.TransactionList {
 			for _, hash := range hashList {
