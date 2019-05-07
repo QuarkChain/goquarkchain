@@ -2,9 +2,10 @@ package core
 
 import (
 	"errors"
+	"math/big"
+
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/core/rawdb"
-	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
 
@@ -34,13 +35,8 @@ func (m *MinorBlockChain) isSameMinorChain(long types.IHeader, short types.IHead
 	return header.Hash() == short.Hash()
 }
 func getLocalFeeRate(qkcConfig *config.QuarkChainConfig) *big.Rat {
-	localFeeRate := big.NewRat(1, 1)
-	if qkcConfig != nil {
-		num := qkcConfig.RewardTaxRate.Num().Int64()
-		demo := qkcConfig.RewardTaxRate.Denom().Int64()
-		localFeeRate = big.NewRat(demo-num, demo)
-	}
-	return localFeeRate
+	ret := new(big.Rat).SetInt64(1)
+	return ret.Sub(ret, qkcConfig.RewardTaxRate)
 }
 func (m *MinorBlockChain) getCoinbaseAmount() *big.Int {
 	// no need to lock
@@ -55,20 +51,24 @@ func (m *MinorBlockChain) putMinorBlock(mBlock *types.MinorBlock, xShardReceiveT
 	}
 	m.heightToMinorBlockHashes[mBlock.NumberU64()][mBlock.Hash()] = struct{}{}
 	rawdb.WriteMinorBlock(m.db, mBlock)
-	//TODO add logic
+	// TODO 1: put total tx count.
+	// TODO 2: put confirmed xshard tx deposits.
 	return nil
 }
 func (m *MinorBlockChain) updateTip(state *state.StateDB, block *types.MinorBlock) (bool, error) {
-	updateTip := false
+	// Don't update tip if the block depends on a root block that is not root_tip or root_tip's ancestor
 	if !m.isSameRootChain(m.rootTip, m.getRootBlockHeaderByHash(block.Header().PrevRootBlockHash)) {
-		updateTip = false
-	} else if block.Header().ParentHash.String() == m.CurrentBlock().Hash().String() {
+		return false, nil
+	}
+	updateTip := false
+	currentTip := m.CurrentBlock().IHeader().(*types.MinorBlockHeader)
+	if block.Header().ParentHash == currentTip.Hash() {
 		updateTip = true
 	} else if m.isMinorBlockLinkedToRootTip(block) {
-		if block.Header().Number > m.CurrentBlock().NumberU64() {
+		if block.Header().Number > currentTip.NumberU64() {
 			updateTip = true
-		} else if block.Header().Number == m.CurrentBlock().NumberU64() {
-			updateTip = m.getRootBlockHeaderByHash(block.Header().PrevRootBlockHash).Number > m.getRootBlockHeaderByHash(m.CurrentBlock().IHeader().(*types.MinorBlockHeader).GetPrevRootBlockHash()).Number
+		} else if block.Header().Number == currentTip.NumberU64() {
+			updateTip = m.getRootBlockHeaderByHash(block.Header().PrevRootBlockHash).Number > m.getRootBlockHeaderByHash(currentTip.PrevRootBlockHash).Number
 		}
 	}
 
@@ -79,20 +79,18 @@ func (m *MinorBlockChain) updateTip(state *state.StateDB, block *types.MinorBloc
 }
 
 func (m *MinorBlockChain) runCrossShardTxList(evmState *state.StateDB, descendantRootHeader *types.RootBlockHeader, ancestorRootHeader *types.RootBlockHeader) ([]*types.CrossShardTransactionDeposit, error) {
-	//TODO
-	ans := make([]*types.CrossShardTransactionDeposit, 0)
-	return ans, nil
+	// TODO
+	return nil, nil
 }
 
 func (m *MinorBlockChain) validateTx(tx *types.Transaction, evmState *state.StateDB, fromAddress *account.Address, gas *uint64) (*types.Transaction, error) {
-	// no need to lock
 	if tx.TxType != types.EvmTx {
-		return nil, errors.New("tx type is not match")
+		return nil, errors.New("unexpected tx type")
 	}
 	evmTx := tx.EvmTx
 	if fromAddress != nil {
 		if evmTx.FromFullShardKey() != fromAddress.FullShardKey {
-			return nil, errors.New("from full shard id is not match")
+			return nil, errors.New("from full shard id not match")
 		}
 		evmTxGas := evmTx.Gas()
 		if gas != nil {
@@ -129,12 +127,12 @@ func (m *MinorBlockChain) validateTx(tx *types.Transaction, evmState *state.Stat
 			}
 		}
 		if !hasInit {
-			return nil, errors.New("is not initialized yet")
+			return nil, errors.New("shard is not initialized yet")
 		}
 	}
 
 	if evmTx.IsCrossShard() && !m.isNeighbor(toBranch, nil) {
-		return nil, ErrNotNeighbir
+		return nil, ErrNotNeighbor
 	}
 	if err := ValidateTransaction(evmState, tx, fromAddress); err != nil {
 		return nil, err
@@ -147,7 +145,7 @@ func (m *MinorBlockChain) validateTx(tx *types.Transaction, evmState *state.Stat
 	return tx, nil
 }
 func (m *MinorBlockChain) InitGenesisState(rBlock *types.RootBlock) (*types.MinorBlock, error) {
-	m.mu.Lock() // used in init_from_rootBlock and add_rootBlock,so should lock
+	m.mu.Lock() // used in initFromRootBlock and addRootBlock, so should lock
 	defer m.mu.Unlock()
 	var err error
 	gBlock, err := NewGenesis(m.clusterConfig.Quarkchain).CreateMinorBlock(rBlock, m.branch.Value, m.db)
@@ -157,7 +155,7 @@ func (m *MinorBlockChain) InitGenesisState(rBlock *types.RootBlock) (*types.Mino
 	rawdb.WriteTd(m.db, gBlock.Hash(), gBlock.Difficulty())
 	height := m.clusterConfig.Quarkchain.GetGenesisRootHeight(m.branch.Value)
 	if rBlock.Header().Number != height {
-		return nil, errors.New("header number is not match")
+		return nil, errors.New("header number not match")
 	}
 
 	if err := m.putMinorBlock(gBlock, nil); err != nil {
@@ -182,22 +180,20 @@ func (m *MinorBlockChain) GetTransactionCount(recipient account.Recipient, heigh
 	panic("not implemented")
 }
 func (m *MinorBlockChain) isSameRootChain(long types.IHeader, short types.IHeader) bool {
-	// no need to lock
 	return isSameRootChain(m.db, long, short)
 }
 
 func (m *MinorBlockChain) isMinorBlockLinkedToRootTip(mBlock *types.MinorBlock) bool {
-	// already lock
-	if m.confirmedHeaderTip == nil {
+	confirmed := m.confirmedHeaderTip
+	if confirmed == nil {
 		return true
 	}
-	if mBlock.Header().Number <= m.confirmedHeaderTip.Number {
+	if mBlock.Header().Number <= confirmed.Number {
 		return false
 	}
-	return m.isSameMinorChain(mBlock.Header(), m.confirmedHeaderTip)
+	return m.isSameMinorChain(mBlock.Header(), confirmed)
 }
 func (m *MinorBlockChain) isNeighbor(remoteBranch account.Branch, rootHeight *uint32) bool {
-	// no need to lock
 	if rootHeight == nil {
 		rootHeight = &m.rootTip.Number
 	}
@@ -206,7 +202,6 @@ func (m *MinorBlockChain) isNeighbor(remoteBranch account.Branch, rootHeight *ui
 }
 
 func (m *MinorBlockChain) putRootBlock(rBlock *types.RootBlock, minorHeader *types.MinorBlockHeader) {
-	// no need to lock
 	rBlockHash := rBlock.Hash()
 	rawdb.WriteRootBlock(m.db, rBlock)
 	var mHash common.Hash
@@ -216,7 +211,6 @@ func (m *MinorBlockChain) putRootBlock(rBlock *types.RootBlock, minorHeader *typ
 	rawdb.WriteLastConfirmedMinorBlockHeaderAtRootBlock(m.db, rBlockHash, mHash)
 }
 
-// createEvmState already locked
 func (m *MinorBlockChain) createEvmState(trieRootHash common.Hash, headerHash common.Hash) (*state.StateDB, error) {
 	evmState, err := m.StateAt(trieRootHash)
 	if err != nil {
