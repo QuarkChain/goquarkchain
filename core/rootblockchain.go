@@ -1207,8 +1207,7 @@ func (bc *RootBlockChain) CreateBlockToMine(mHeaderList []*types.MinorBlockHeade
 	}
 	block := bc.CurrentBlock().Header().CreateBlockToAppend(createTime, difficulty, address, nil, nil)
 	block.ExtendMinorBlockHeaderList(mHeaderList)
-	coinbase := bc.CalculateRootBlockCoinBase(block).Uint64()
-	block.Finalize(&coinbase, address)
+	block.Finalize(bc.CalculateRootBlockCoinBase(block), address)
 	return block
 }
 

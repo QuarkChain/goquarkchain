@@ -318,17 +318,18 @@ func TestCreateRootBlockToMine(t *testing.T) {
 	master := initEnv(t, nil)
 	rawdb.WriteMinorBlock(master.chainDb, minorBlock)
 	rootBlock, err := master.createRootBlockToMine(add1)
+	fmt.Println("MMMMMMMMM", rootBlock.Header().CoinbaseAmount)
 	assert.NoError(t, err)
 	assert.Equal(t, rootBlock.Header().Coinbase, add1)
 	assert.Equal(t, rootBlock.Header().CoinbaseAmount.Value.String(), "120000000000000000000")
-	assert.Equal(t, rootBlock.Header().Difficulty, new(big.Int).SetUint64(1000000))
+	assert.Equal(t, rootBlock.Header().Difficulty, new(big.Int).SetUint64(1000000000000))
 
 	rawdb.DeleteBlock(master.chainDb, minorBlock.Hash())
 	rootBlock, err = master.createRootBlockToMine(add1)
 	assert.NoError(t, err)
 	assert.Equal(t, rootBlock.Header().Coinbase, add1)
 	assert.Equal(t, rootBlock.Header().CoinbaseAmount.Value.String(), "120000000000000000000")
-	assert.Equal(t, rootBlock.Header().Difficulty, new(big.Int).SetUint64(1000000))
+	assert.Equal(t, rootBlock.Header().Difficulty, new(big.Int).SetUint64(1000000000000))
 	assert.Equal(t, len(rootBlock.MinorBlockHeaders()), 0)
 }
 
