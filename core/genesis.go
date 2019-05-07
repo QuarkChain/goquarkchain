@@ -7,6 +7,7 @@ import (
 
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
+	qkcCommon "github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/core/rawdb"
 	"github.com/QuarkChain/goquarkchain/core/state"
 	"github.com/QuarkChain/goquarkchain/core/types"
@@ -77,13 +78,15 @@ func (g *Genesis) CreateMinorBlock(rootBlock *types.RootBlock, fullShardId uint3
 	}
 
 	meta := types.MinorBlockMeta{
-		Root:   statedb.IntermediateRoot(false),
-		TxHash: common.HexToHash(genesis.HashMerkleRoot),
+		Root:              statedb.IntermediateRoot(false),
+		TxHash:            common.HexToHash(genesis.HashMerkleRoot),
+		ReceiptHash:       common.Hash{},
+		GasUsed:           &serialize.Uint256{Value: new(big.Int)},
+		CrossShardGasUsed: &serialize.Uint256{Value: new(big.Int)},
 	}
 
 	coinbaseAmount := new(serialize.Uint256)
-	coinbaseAmount.Value = new(big.Int).Div(new(big.Int).Mul(shardConfig.CoinbaseAmount,
-		g.qkcConfig.RewardTaxRate.Denom()), g.qkcConfig.RewardTaxRate.Num())
+	coinbaseAmount.Value = qkcCommon.BigIntMulBigRat(shardConfig.CoinbaseAmount, g.qkcConfig.RewardTaxRate)
 
 	gasLimit := new(serialize.Uint256)
 	gasLimit.Value = new(big.Int).SetUint64(genesis.GasLimit)
@@ -249,7 +252,7 @@ func (g *Genesis) CommitMinorBlock(db ethdb.Database, rootBlock *types.RootBlock
 	rawdb.WriteTd(db, block.Hash(), block.Difficulty())
 	rawdb.WriteMinorBlock(db, block)
 	rawdb.WriteReceipts(db, block.Hash(), nil)
-	rawdb.WriteCanonicalHash(db, rawdb.ChainTypeRoot, block.Hash(), block.Number())
+	rawdb.WriteCanonicalHash(db, rawdb.ChainTypeMinor, block.Hash(), block.Number())
 	rawdb.WriteHeadBlockHash(db, block.Hash())
 	rawdb.WriteHeadHeaderHash(db, block.Hash())
 

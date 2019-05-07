@@ -1,7 +1,6 @@
 package qkcapi
 
 import (
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"github.com/QuarkChain/goquarkchain/account"
@@ -72,25 +71,25 @@ func IDEncoder(hashByte []byte, fullShardKey uint32) hexutil.Bytes {
 	return hexutil.Bytes(hashByte)
 }
 
-func IDDecoder(bytes []byte)(ethCommon.Hash,uint32, error){
-	dataBytes,err:=DataDecoder(bytes)
-	if err!=nil{
-		return ethCommon.Hash{},0,err
+func IDDecoder(bytes []byte) (ethCommon.Hash, uint32, error) {
+	dataBytes, err := DataDecoder(bytes)
+	if err != nil {
+		return ethCommon.Hash{}, 0, err
 	}
-	if len(dataBytes)!=36{
-		return ethCommon.Hash{},0,errors.New("len should 36")
+	if len(dataBytes) != 36 {
+		return ethCommon.Hash{}, 0, errors.New("len should 36")
 	}
-	return ethCommon.BytesToHash(dataBytes[:32]),common.BytesToUint32(dataBytes[32:]),nil
+	return ethCommon.BytesToHash(dataBytes[:32]), common.BytesToUint32(dataBytes[32:]), nil
 
 }
 func DataEncoder(bytes []byte) hexutil.Bytes {
 	return hexutil.Bytes(bytes)
 }
-func DataDecoder(bytes []byte)  (hexutil.Bytes,error){
-	if len(bytes)>=2&&bytes[0]=='0'&&bytes[1]=='x'{
-		return hexutil.Bytes(bytes[2:]),nil
+func DataDecoder(bytes []byte) (hexutil.Bytes, error) {
+	if len(bytes) >= 2 && bytes[0] == '0' && bytes[1] == 'x' {
+		return hexutil.Bytes(bytes[2:]), nil
 	}
-	return nil,errors.New("should have 0x")
+	return nil, errors.New("should have 0x")
 }
 func FullShardKeyEncoder(fullShardKey uint32) hexutil.Bytes {
 	return DataEncoder(common.Uint32ToBytes(fullShardKey))
@@ -103,9 +102,9 @@ func rootBlockEncoder(rootBlock *types.RootBlock) (map[string]interface{}, error
 	header := rootBlock.Header()
 
 	tempID, _ := account.CreatRandomIdentity()
-	add1 := account.NewAddress(tempID.Recipient, 3)
+	add1 := account.NewAddress(tempID.GetRecipient(), 3)
 
-	fmt.Println("hhex", hex.EncodeToString(add1.ToHex()))
+	fmt.Println("hhex", add1.ToHex())
 	//minerData, err := serialize.SerializeToBytes(header.Coinbase)
 	minerData, err := serialize.SerializeToBytes(add1)
 	if err != nil {
@@ -241,8 +240,8 @@ func logListEncoder(logList []*types.Log) []map[string]interface{} {
 			"blockHash":        log.BlockHash,
 			"blockNumber":      hexutil.Uint64(log.BlockNumber),
 			"blockHeight":      hexutil.Uint64(log.BlockNumber),
-			"address":          log.Recipient.ToAddress(),
-			"recipient":        log.Recipient.ToAddress(),
+			"address":          log.Recipient,
+			"recipient":        log.Recipient,
 			"data":             hexutil.Bytes(log.Data),
 		}
 		topics := make([]ethCommon.Hash, 0)
@@ -275,7 +274,7 @@ func receiptEncoder(block *types.MinorBlock, i int, receipt *types.Receipt) map[
 	if receipt.ContractAddress.Big().Uint64() == 0 {
 		field["contractAddress"] = make([]struct{}, 0)
 	} else {
-		field["contractAddress"] = DataEncoder(receipt.ContractAddress.ToAddress().Bytes())
+		field["contractAddress"] = DataEncoder(receipt.ContractAddress.Bytes())
 	}
 	return field
 }

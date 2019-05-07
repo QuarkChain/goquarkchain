@@ -3,7 +3,6 @@ package rawdb
 
 import (
 	"encoding/binary"
-
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/metrics"
 )
@@ -21,6 +20,7 @@ var (
 
 	// headFastBlockKey tracks the latest known incomplete block's hash during fast sync.
 	headFastBlockKey = []byte("LastFast")
+	rbCommittingKey  = []byte("rbCommitting")
 
 	// fastTrieProgressKey tracks the number of trie entries imported during fast sync.
 	fastTrieProgressKey = []byte("TrieSync")
@@ -47,6 +47,13 @@ var (
 
 	preimageCounter    = metrics.NewRegisteredCounter("db/preimage/total", nil)
 	preimageHitCounter = metrics.NewRegisteredCounter("db/preimage/hits", nil)
+
+	totalTxKey         = []byte("txCount")
+	xConfirmedShardKey = []byte("xr")
+	xShardLists        = []byte("xShard")
+	rLastM             = []byte("rLastM")
+	rBlock             = []byte("rBlock")
+	genesis            = []byte("genesis")
 )
 
 type ChainType byte
@@ -60,13 +67,19 @@ const (
 // a transaction or receipt given only its hash.
 type LookupEntry struct {
 	BlockHash common.Hash
-	Index     uint64
+	Index     uint32
 }
 
 // encodeBlockNumber encodes a block number as big endian uint64
 func encodeBlockNumber(number uint64) []byte {
 	enc := make([]byte, 8)
 	binary.BigEndian.PutUint64(enc, number)
+	return enc
+}
+
+func encodeUint32(number uint32) []byte {
+	enc := make([]byte, 4)
+	binary.BigEndian.PutUint32(enc, number)
 	return enc
 }
 
@@ -132,4 +145,26 @@ func preimageKey(hash common.Hash) []byte {
 // configKey = configPrefix + hash
 func configKey(hash common.Hash) []byte {
 	return append(configPrefix, hash.Bytes()...)
+}
+
+func totalTxCountKey(hash common.Hash) []byte {
+	return append(totalTxKey, hash.Bytes()...)
+}
+
+func makeConfirmedXShardKey(hash common.Hash) []byte {
+	return append(xConfirmedShardKey, hash.Bytes()...)
+}
+func makeXShardTxList(hash common.Hash) []byte {
+	return append(xShardLists, hash.Bytes()...)
+}
+func makeGenesisKey(hash common.Hash) []byte {
+	return append(genesis, hash.Bytes()...)
+}
+
+func makeRLastMHash(hash common.Hash) []byte {
+	return append(rLastM, hash.Bytes()...)
+}
+
+func makeRootBlockForShard(hash common.Hash) []byte {
+	return append(rBlock, hash.Bytes()...)
 }

@@ -92,7 +92,7 @@ func (c *fakeRpcClient) Call(hostport string, req *rpc.Request) (*rpc.Response, 
 				Branch:     account.Branch{Value: v.Value},
 				HeaderList: make([]*types.MinorBlockHeader, 0),
 			})
-			rsp.HeadersInfoList[0].HeaderList = append(rsp.HeadersInfoList[0].HeaderList, &types.MinorBlockHeader{})
+			//rsp.HeadersInfoList[0].HeaderList = append(rsp.HeadersInfoList[0].HeaderList, &types.MinorBlockHeader{})
 		}
 		data, err := serialize.SerializeToBytes(rsp)
 		if err != nil {
@@ -250,10 +250,10 @@ func initEnv(t *testing.T, chanOp chan uint32) *QKCMasterBackend {
 	monkey.Patch(NewSlaveConn, func(target string, shardMaskLst []*types.ChainMask, slaveID string) *SlaveConnection {
 		client := NewFakeRPCClient(chanOp, target, shardMaskLst, slaveID, config.NewClusterConfig())
 		return &SlaveConnection{
-			target:       target,
-			client:       client,
-			chainMaskLst: shardMaskLst,
-			slaveID:      slaveID,
+			target:        target,
+			client:        client,
+			shardMaskList: shardMaskLst,
+			slaveID:       slaveID,
 		}
 	})
 	monkey.Patch(createDB, func(ctx *service.ServiceContext, name string) (ethdb.Database, error) {
@@ -301,13 +301,11 @@ func TestMasterBackend_HeartBeat(t *testing.T) {
 func TestGetSlaveConnByBranch(t *testing.T) {
 	master := initEnv(t, nil)
 	for _, v := range master.clusterConfig.Quarkchain.GetGenesisShardIds() {
-		conn, err := master.getSlaveConnection(account.Branch{Value: v})
-		assert.NoError(t, err)
+		conn := master.getOneSlaveConnection(account.Branch{Value: v})
 		assert.NotNil(t, conn)
 	}
 	fakeFullShardID := uint32(99999)
-	conn, err := master.getSlaveConnection(account.Branch{Value: fakeFullShardID})
-	assert.Error(t, err)
+	conn := master.getOneSlaveConnection(account.Branch{Value: fakeFullShardID})
 	assert.Nil(t, conn)
 }
 
@@ -315,7 +313,7 @@ func TestCreateRootBlockToMine(t *testing.T) {
 	minorBlock := types.NewMinorBlock(&types.MinorBlockHeader{}, &types.MinorBlockMeta{}, nil, nil, nil)
 	id1, err := account.CreatRandomIdentity()
 	assert.NoError(t, err)
-	add1 := account.NewAddress(id1.Recipient, 3)
+	add1 := account.NewAddress(id1.GetRecipient(), 3)
 	master := initEnv(t, nil)
 	rawdb.WriteMinorBlock(master.chainDb, minorBlock)
 	rootBlock, err := master.createRootBlockToMine(add1)
@@ -323,7 +321,6 @@ func TestCreateRootBlockToMine(t *testing.T) {
 	assert.Equal(t, rootBlock.Header().Coinbase, add1)
 	assert.Equal(t, rootBlock.Header().CoinbaseAmount.Value.String(), "120000000000000000000")
 	assert.Equal(t, rootBlock.Header().Difficulty, new(big.Int).SetUint64(1000000))
-	assert.Equal(t, len(rootBlock.MinorBlockHeaders()), len(master.clusterConfig.Quarkchain.GetGenesisShardIds()))
 
 	rawdb.DeleteBlock(master.chainDb, minorBlock.Hash())
 	rootBlock, err = master.createRootBlockToMine(add1)
@@ -341,7 +338,7 @@ func TestGetMinorBlockToMine(t *testing.T) {
 	branch := account.Branch{Value: 2}
 	id1, err := account.CreatRandomIdentity()
 	assert.NoError(t, err)
-	add1 := account.NewAddress(id1.Recipient, 3)
+	add1 := account.NewAddress(id1.GetRecipient(), 3)
 	minorBlock, err := master.getMinorBlockToMine(branch, add1)
 	assert.NoError(t, err)
 	assert.Equal(t, minorBlock.Hash(), fakeMinorBlock.Hash())
@@ -355,7 +352,7 @@ func TestGetMinorBlockToMine(t *testing.T) {
 func TestGetAccountData(t *testing.T) {
 	id1, err := account.CreatRandomIdentity()
 	assert.NoError(t, err)
-	add1 := account.NewAddress(id1.Recipient, 3)
+	add1 := account.NewAddress(id1.GetRecipient(), 3)
 	master := initEnv(t, nil)
 	_, err = master.GetAccountData(add1)
 	assert.NoError(t, err)
@@ -365,7 +362,7 @@ func TestGetPrimaryAccountData(t *testing.T) {
 	master := initEnv(t, nil)
 	id1, err := account.CreatRandomIdentity()
 	assert.NoError(t, err)
-	add1 := account.NewAddress(id1.Recipient, 3)
+	add1 := account.NewAddress(id1.GetRecipient(), 3)
 	_, err = master.GetPrimaryAccountData(add1, nil)
 	assert.NoError(t, err)
 }
@@ -380,27 +377,18 @@ func TestAddRootBlock(t *testing.T) {
 	master := initEnv(t, nil)
 	id1, err := account.CreatRandomIdentity()
 	assert.NoError(t, err)
-	add1 := account.NewAddress(id1.Recipient, 3)
-	rootBlock := master.rootBlockChain.CreateBlockToMine(nil, &add1, nil)
+	add1 := account.NewAddress(id1.GetRecipient(), 3)
+	rootBlock, err := master.rootBlockChain.CreateBlockToMine(nil, &add1, nil)
 	err = master.AddRootBlock(rootBlock)
 	assert.NoError(t, err)
-}
-
-func TestAddRawMinorBlock(t *testing.T) {
-	master := initEnv(t, nil)
-	err := master.AddRawMinorBlock(account.Branch{Value: 2}, []byte{})
-	assert.NoError(t, err)
-
-	err = master.AddRawMinorBlock(account.Branch{Value: 2222}, []byte{})
-	assert.Error(t, err)
 }
 
 func TestAddRootBlockFromMine(t *testing.T) {
 	master := initEnv(t, nil)
 	id1, err := account.CreatRandomIdentity()
 	assert.NoError(t, err)
-	add1 := account.NewAddress(id1.Recipient, 3)
-	rootBlock := master.rootBlockChain.CreateBlockToMine(nil, &add1, nil)
+	add1 := account.NewAddress(id1.GetRecipient(), 3)
+	rootBlock, err := master.rootBlockChain.CreateBlockToMine(nil, &add1, nil)
 	err = master.AddRootBlockFromMine(rootBlock)
 	assert.NoError(t, err)
 }
@@ -417,7 +405,7 @@ func TestAddTransaction(t *testing.T) {
 	master := initEnv(t, nil)
 	id1, err := account.CreatRandomIdentity()
 	assert.NoError(t, err)
-	evmTx := types.NewEvmTransaction(0, id1.Recipient, new(big.Int), 0, new(big.Int), 2, 2, 1, 0, []byte{})
+	evmTx := types.NewEvmTransaction(0, id1.GetRecipient(), new(big.Int), 0, new(big.Int), 2, 2, 1, 0, []byte{})
 	tx := &types.Transaction{
 		EvmTx:  evmTx,
 		TxType: types.EvmTx,
@@ -425,7 +413,7 @@ func TestAddTransaction(t *testing.T) {
 	err = master.AddTransaction(tx)
 	assert.NoError(t, err)
 
-	evmTx = types.NewEvmTransaction(0, id1.Recipient, new(big.Int), 0, new(big.Int), 100, 2, 1, 0, []byte{})
+	evmTx = types.NewEvmTransaction(0, id1.GetRecipient(), new(big.Int), 0, new(big.Int), 100, 2, 1, 0, []byte{})
 	tx = &types.Transaction{
 		EvmTx:  evmTx,
 		TxType: types.EvmTx,
@@ -437,8 +425,8 @@ func TestExecuteTransaction(t *testing.T) {
 	master := initEnv(t, nil)
 	id1, err := account.CreatRandomIdentity()
 	assert.NoError(t, err)
-	add1 := account.NewAddress(id1.Recipient, 3)
-	evmTx := types.NewEvmTransaction(0, id1.Recipient, new(big.Int), 0, new(big.Int), 2, 2, 1, 0, []byte{})
+	add1 := account.NewAddress(id1.GetRecipient(), 3)
+	evmTx := types.NewEvmTransaction(0, id1.GetRecipient(), new(big.Int), 0, new(big.Int), 2, 2, 1, 0, []byte{})
 	tx := &types.Transaction{
 		EvmTx:  evmTx,
 		TxType: types.EvmTx,
@@ -447,7 +435,7 @@ func TestExecuteTransaction(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, data, []byte("qkc"))
 
-	evmTx = types.NewEvmTransaction(0, id1.Recipient, new(big.Int), 0, new(big.Int), 222222222, 2, 1, 0, []byte{})
+	evmTx = types.NewEvmTransaction(0, id1.GetRecipient(), new(big.Int), 0, new(big.Int), 222222222, 2, 1, 0, []byte{})
 	tx = &types.Transaction{
 		EvmTx:  evmTx,
 		TxType: types.EvmTx,
@@ -487,7 +475,7 @@ func TestGetTransactionByHash(t *testing.T) {
 	master := initEnv(t, nil)
 	id1, err := account.CreatRandomIdentity()
 	assert.NoError(t, err)
-	evmTx := types.NewEvmTransaction(0, id1.Recipient, new(big.Int), 0, new(big.Int), 2, 2, 1, 0, []byte{})
+	evmTx := types.NewEvmTransaction(0, id1.GetRecipient(), new(big.Int), 0, new(big.Int), 2, 2, 1, 0, []byte{})
 	tx := &types.Transaction{
 		EvmTx:  evmTx,
 		TxType: types.EvmTx,
@@ -503,7 +491,7 @@ func TestGetTransactionReceipt(t *testing.T) {
 	master := initEnv(t, nil)
 	id1, err := account.CreatRandomIdentity()
 	assert.NoError(t, err)
-	evmTx := types.NewEvmTransaction(0, id1.Recipient, new(big.Int), 0, new(big.Int), 2, 2, 1, 0, []byte{})
+	evmTx := types.NewEvmTransaction(0, id1.GetRecipient(), new(big.Int), 0, new(big.Int), 2, 2, 1, 0, []byte{})
 	tx := &types.Transaction{
 		EvmTx:  evmTx,
 		TxType: types.EvmTx,
@@ -519,7 +507,7 @@ func TestGetTransactionsByAddress(t *testing.T) {
 	master := initEnv(t, nil)
 	id1, err := account.CreatRandomIdentity()
 	assert.NoError(t, err)
-	add1 := account.NewAddress(id1.Recipient, 3)
+	add1 := account.NewAddress(id1.GetRecipient(), 3)
 	res, bytes, err := master.GetTransactionsByAddress(add1, []byte{}, 0)
 	assert.NoError(t, err)
 	assert.Equal(t, bytes, []byte("qkc"))
@@ -541,8 +529,8 @@ func TestEstimateGas(t *testing.T) {
 	master := initEnv(t, nil)
 	id1, err := account.CreatRandomIdentity()
 	assert.NoError(t, err)
-	add1 := account.NewAddress(id1.Recipient, 3)
-	evmTx := types.NewEvmTransaction(0, id1.Recipient, new(big.Int), 0, new(big.Int), 2, 2, 1, 0, []byte{})
+	add1 := account.NewAddress(id1.GetRecipient(), 3)
+	evmTx := types.NewEvmTransaction(0, id1.GetRecipient(), new(big.Int), 0, new(big.Int), 2, 2, 1, 0, []byte{})
 	tx := &types.Transaction{
 		EvmTx:  evmTx,
 		TxType: types.EvmTx,
@@ -551,7 +539,7 @@ func TestEstimateGas(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, data, uint32(123))
 
-	evmTx = types.NewEvmTransaction(0, id1.Recipient, new(big.Int), 0, new(big.Int), 2222222, 2, 1, 0, []byte{})
+	evmTx = types.NewEvmTransaction(0, id1.GetRecipient(), new(big.Int), 0, new(big.Int), 2222222, 2, 1, 0, []byte{})
 	tx = &types.Transaction{
 		EvmTx:  evmTx,
 		TxType: types.EvmTx,
@@ -564,7 +552,7 @@ func TestGetStorageAt(t *testing.T) {
 	master := initEnv(t, nil)
 	id1, err := account.CreatRandomIdentity()
 	assert.NoError(t, err)
-	add1 := account.NewAddress(id1.Recipient, 3)
+	add1 := account.NewAddress(id1.GetRecipient(), 3)
 	data, err := master.GetStorageAt(add1, common.Hash{}, nil)
 	assert.NoError(t, err)
 	assert.Equal(t, data.Big().Uint64(), uint64(123))
@@ -573,7 +561,7 @@ func TestGetCode(t *testing.T) {
 	master := initEnv(t, nil)
 	id1, err := account.CreatRandomIdentity()
 	assert.NoError(t, err)
-	add1 := account.NewAddress(id1.Recipient, 3)
+	add1 := account.NewAddress(id1.GetRecipient(), 3)
 	data, err := master.GetCode(add1, nil)
 	assert.NoError(t, err)
 	assert.Equal(t, data, []byte("qkc"))
@@ -584,5 +572,4 @@ func TestGasPrice(t *testing.T) {
 	data, err := master.GasPrice(account.Branch{Value: 2})
 	assert.NoError(t, err)
 	assert.Equal(t, data, uint64(123))
-
 }

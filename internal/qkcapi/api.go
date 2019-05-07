@@ -51,7 +51,6 @@ func (p *PublicBlockChainAPI) Echoquantity(data hexutil.Big) *hexutil.Big {
 
 // EchoData echo data for test
 func (p *PublicBlockChainAPI) EchoData(data rpc.BlockNumber) *hexutil.Big {
-	fmt.Println("data", data.Int64())
 	return nil
 }
 
@@ -444,10 +443,7 @@ func (p *PrivateBlockChainAPI) AddBlock(branch hexutil.Uint, blockData hexutil.B
 		}
 		return true, nil
 	}
-	if err := p.b.AddRawMinorBlock(account.Branch{Value: uint32(branch)}, blockData); err != nil {
-		return false, err
-	}
-	return true, nil
+	panic(errors.New("not support minor"))
 }
 func (p *PrivateBlockChainAPI) GetPeers() map[string]interface{} {
 	fields := make(map[string]interface{})

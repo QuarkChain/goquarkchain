@@ -13,6 +13,7 @@ type IHeader interface {
 	GetParentHash() common.Hash
 	GetCoinbase() account.Address
 	GetTime() uint64
+	GetCoinbaseAmount() *big.Int
 	GetDifficulty() *big.Int
 	GetNonce() uint64
 	GetExtra() []byte
@@ -31,6 +32,9 @@ type IBlock interface {
 	IHeader() IHeader
 	WithMingResult(nonce uint64, mixDigest common.Hash) IBlock
 	Content() []IHashable
+	GetTrackingData() []byte
+	GetSize() common.StorageSize
+	CoinbaseAmount() *big.Int
 }
 
 type IHashable interface {

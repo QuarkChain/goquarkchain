@@ -12,7 +12,6 @@ import (
 
 type Backend interface {
 	AddTransaction(tx *types.Transaction) error
-	AddRawMinorBlock(branch account.Branch, blockData []byte) error
 	AddRootBlockFromMine(block *types.RootBlock) error
 	ExecuteTransaction(tx *types.Transaction, address account.Address, height *uint64) ([]byte, error)
 	GetMinorBlockByHash(blockHash common.Hash, branch account.Branch) (*types.MinorBlock, error)

@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/QuarkChain/goquarkchain/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"reflect"
 	"strings"
 )
@@ -26,7 +27,13 @@ func NewAddress(recipient Recipient, fullShardKey uint32) Address {
 }
 
 // ToHex return bytes included recipient and fullShardKey
-func (Self *Address) ToHex() []byte {
+func (Self Address) ToHex() string {
+	address := Self.ToBytes()
+	return hexutil.Encode(address)
+
+}
+
+func (Self Address) ToBytes() []byte {
 	address := Self.Recipient.Bytes()
 	shardKey := Uint32ToBytes(Self.FullShardKey)
 	address = append(address, shardKey...)
@@ -44,6 +51,10 @@ func (Self *Address) GetFullShardID(shardSize uint32) (uint32, error) {
 	return uint32(chainID<<16 | shardSize | shardID), nil
 }
 
+func (self *Address) GetChainID() uint32 {
+	return self.FullShardKey >> 16
+}
+
 // AddressInShard return address depend new fullShardKey
 func (Self *Address) AddressInShard(fullShardKey uint32) Address {
 	return NewAddress(Self.Recipient, fullShardKey)
@@ -59,7 +70,7 @@ func (Self *Address) AddressInBranch(branch Branch) Address {
 
 // CreatAddressFromIdentity creat address from identity
 func CreatAddressFromIdentity(identity Identity, fullShardKey uint32) Address {
-	return NewAddress(identity.Recipient, fullShardKey)
+	return NewAddress(identity.recipient, fullShardKey)
 }
 
 // CreatRandomAccountWithFullShardKey creat random account with fullShardKey
@@ -113,9 +124,6 @@ func (Self *Address) IsEmpty() bool {
 	zero := make([]byte, RecipientLength)
 	return bytes.Equal(zero, Self.Recipient.Bytes())
 }
-func (Self *Address) String() string {
-	return fmt.Sprintf("0x%x", Self.ToHex())
-}
 
 var (
 	addressT = reflect.TypeOf(Address{})
@@ -123,7 +131,7 @@ var (
 
 // MarshalJSON Address serialisation
 func (Self Address) MarshalJSON() (out []byte, err error) {
-	return []byte(`"` + Self.String() + `"`), nil
+	return []byte(`"` + Self.ToHex() + `"`), nil
 }
 
 func (Self *Address) UnmarshalJSON(data []byte) error {

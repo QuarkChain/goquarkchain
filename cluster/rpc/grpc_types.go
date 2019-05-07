@@ -79,9 +79,6 @@ type CreateClusterPeerConnectionRequest struct {
 	ClusterPeerId uint64 `json:"cluster_peer_id" gencodec:"required"`
 }
 
-type CreateClusterPeerConnectionResponse struct {
-}
-
 /*
 	Broadcast to the cluster and announce that a peer connection is lost
     As a contract, the master will not send traffic after the command.
@@ -371,9 +368,9 @@ type SubmitWorkRequest struct {
 type SubmitWorkResponse struct {
 	Success bool `json:"success" gencodec:"required"`
 }
-type BlockHeight struct {
-	Height uint64
-	Str    string
+
+type HashList struct {
+	Hashes []common.Hash `json:"hash_list" gencodec:"required" bytesizeofslicelen:"4"`
 }
 
 // ShardStatus shard status for api
