@@ -1118,13 +1118,18 @@ func (m *MinorBlockChain) GetTransactionByHash(hash common.Hash) (*types.MinorBl
 }
 
 // GetTransactionReceipt get tx receipt by hash for slave
-func (m *MinorBlockChain) GetTransactionReceipt(hash common.Hash) (*types.MinorBlock, uint32, types.Receipts) {
+func (m *MinorBlockChain) GetTransactionReceipt(hash common.Hash) (*types.MinorBlock, uint32, *types.Receipt) {
 	block, index := m.GetTransactionByHash(hash)
 	if block == nil {
 		return nil, 0, nil
 	}
 	receipts := m.GetReceiptsByHash(block.Hash())
-	return block, index, receipts
+	for _, receipt := range receipts {
+		if receipt.TxHash == hash {
+			return block, index, receipt
+		}
+	}
+	return nil, 0, nil
 }
 
 // GetTransactionListByAddress get txList by addr

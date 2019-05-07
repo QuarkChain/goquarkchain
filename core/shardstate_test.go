@@ -307,8 +307,8 @@ func TestOneTx(t *testing.T) {
 	assert.NotNil(t, blockR)
 	assert.Equal(t, blockR.Hash(), b2.Hash())
 	assert.Equal(t, indexR, uint32(0))
-	assert.Equal(t, reR[0].Status, uint64(1))
-	assert.Equal(t, reR[0].GasUsed, uint64(21000))
+	assert.Equal(t, reR.Status, uint64(1))
+	assert.Equal(t, reR.GasUsed, uint64(21000))
 
 	s, err := shardState.State()
 	// Check Account has full_shard_key
