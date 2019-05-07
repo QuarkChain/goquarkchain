@@ -81,6 +81,15 @@ func New(ctx *service.ServiceContext, cfg *config.ClusterConfig) (*QKCMasterBack
 		return nil, err
 	}
 
+	mstr.ProtocolManager, err = NewProtocolManager(*cfg, mstr.rootBlockChain, qkcSync.NewSynchronizer(mstr.rootBlockChain), mstr.getAllSlaveConnection)
+
+	for _, cfg := range cfg.SlaveList {
+		target := fmt.Sprintf("%s:%d", cfg.IP, cfg.Port)
+		client := NewSlaveConn(target, cfg.ChainMaskList, cfg.ID)
+		mstr.clientPool[target] = client
+	}
+	log.Info("qkc api backend", "slave client pool", len(mstr.clientPool))
+
 	return mstr, nil
 }
 
@@ -185,13 +194,6 @@ func (s *QKCMasterBackend) InitCluster() error {
 }
 
 func (s *QKCMasterBackend) ConnectToSlaves() error {
-	for _, cfg := range s.clusterConfig.SlaveList {
-		target := fmt.Sprintf("%s:%d", cfg.IP, cfg.Port)
-		client := NewSlaveConn(target, cfg.ChainMaskList, cfg.ID)
-		s.clientPool[target] = client
-	}
-	log.Info("qkc api backend", "slave client pool", len(s.clientPool))
-
 	fullShardIds := s.clusterConfig.Quarkchain.GetGenesisShardIds()
 	for _, slaveConn := range s.clientPool {
 		id, chainMaskList, err := slaveConn.SendPing(nil, false)
