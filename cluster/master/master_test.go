@@ -184,7 +184,6 @@ func (c *fakeRpcClient) Call(hostport string, req *rpc.Request) (*rpc.Response, 
 		if err != nil {
 			return nil, err
 		}
-		//fmt.Println("data----", hex.EncodeToString(data))
 		return &rpc.Response{Data: data}, nil
 	case rpc.OpGetTransactionListByAddress:
 		rsp := new(rpc.GetTransactionListByAddressResponse)
@@ -248,7 +247,9 @@ func (c *fakeRpcClient) Call(hostport string, req *rpc.Request) (*rpc.Response, 
 func initEnv(t *testing.T, chanOp chan uint32) *QKCMasterBackend {
 	beatTime = 1
 	monkey.Patch(NewSlaveConn, func(target string, shardMaskLst []*types.ChainMask, slaveID string) *SlaveConnection {
-		client := NewFakeRPCClient(chanOp, target, shardMaskLst, slaveID, config.NewClusterConfig())
+		config := config.NewClusterConfig()
+		config.Quarkchain.Update(3, 2, 30, 10)
+		client := NewFakeRPCClient(chanOp, target, shardMaskLst, slaveID, config)
 		return &SlaveConnection{
 			target:        target,
 			client:        client,
@@ -314,11 +315,10 @@ func TestCreateRootBlockToMine(t *testing.T) {
 	minorBlock := types.NewMinorBlock(&types.MinorBlockHeader{}, &types.MinorBlockMeta{}, nil, nil, nil)
 	id1, err := account.CreatRandomIdentity()
 	assert.NoError(t, err)
-	add1 := account.NewAddress(id1.GetRecipient(), 2)
+	add1 := account.NewAddress(id1.GetRecipient(), 3)
 	master := initEnv(t, nil)
 	rawdb.WriteMinorBlock(master.chainDb, minorBlock)
 	rootBlock, err := master.createRootBlockToMine(add1)
-	fmt.Println("MMMMMMMMM", rootBlock.Header().CoinbaseAmount)
 	assert.NoError(t, err)
 	assert.Equal(t, rootBlock.Header().Coinbase, add1)
 	assert.Equal(t, rootBlock.Header().CoinbaseAmount.Value.String(), "120000000000000000000")
@@ -337,8 +337,7 @@ func TestGetMinorBlockToMine(t *testing.T) {
 	fakeMinorBlock := types.NewMinorBlock(&types.MinorBlockHeader{Version: 111}, &types.MinorBlockMeta{}, nil, nil, nil)
 
 	master := initEnv(t, nil)
-	fullShardID := (master.clusterConfig.Quarkchain.Chains[0].ChainID >> 16) | (master.clusterConfig.Quarkchain.Chains[0].ShardSize) | 0
-	branch := account.Branch{Value: fullShardID}
+	branch := account.Branch{Value: 2}
 	id1, err := account.CreatRandomIdentity()
 	assert.NoError(t, err)
 	add1 := account.NewAddress(id1.GetRecipient(), 3)
@@ -390,7 +389,7 @@ func TestAddRootBlockFromMine(t *testing.T) {
 	master := initEnv(t, nil)
 	id1, err := account.CreatRandomIdentity()
 	assert.NoError(t, err)
-	add1 := account.NewAddress(id1.GetRecipient(), 2)
+	add1 := account.NewAddress(id1.GetRecipient(), 3)
 	rootBlock := master.rootBlockChain.CreateBlockToMine(nil, &add1, nil)
 	err = master.AddRootBlockFromMine(rootBlock)
 	assert.NoError(t, err)
@@ -450,9 +449,8 @@ func TestExecuteTransaction(t *testing.T) {
 func TestGetMinorBlockByHeight(t *testing.T) {
 	master := initEnv(t, nil)
 	fakeMinorBlock := types.NewMinorBlock(&types.MinorBlockHeader{Version: 111}, &types.MinorBlockMeta{}, nil, nil, nil)
-	fullShardID := (master.clusterConfig.Quarkchain.Chains[0].ChainID >> 16) | (master.clusterConfig.Quarkchain.Chains[0].ShardSize) | 0
 	fakeShardStatus := rpc.ShardStats{
-		Branch: account.Branch{Value: fullShardID},
+		Branch: account.Branch{Value: 2},
 		Height: 0,
 	}
 	master.UpdateShardStatus(&fakeShardStatus)
