@@ -255,7 +255,7 @@ type AddTransactionResponse struct {
 	ErrorCode uint32 `json:"error_code" gencodec:"required"`
 }
 
-type ShardStats struct {
+type ShardStatus struct {
 	Branch             account.Branch  `json:"branch" gencodec:"required"`
 	Height             uint64          `json:"height" gencodec:"required"`
 	Difficulty         *big.Int        `json:"difficulty" gencodec:"required"`
@@ -276,20 +276,20 @@ type SyncMinorBlockListRequest struct {
 }
 
 type SyncMinorBlockListResponse struct {
-	ErrorCode  uint32     `json:"error_code" gencodec:"required"`
-	ShardStats ShardStats `json:"shard_stats" ser:"nil"`
+	ErrorCode  uint32      `json:"error_code" gencodec:"required"`
+	ShardStats ShardStatus `json:"shard_stats" ser:"nil"`
 }
 
 // slave -> master
 /*
 	Notify master about a successfully added minro block.
-	Piggyback the ShardStats in the same request.
+	Piggyback the ShardStatus in the same request.
 */
 type AddMinorBlockHeaderRequest struct {
 	MinorBlockHeader types.MinorBlockHeader `json:"minor_block_header" gencodec:"required"`
 	TxCount          uint32                 `json:"tx_count" gencodec:"required"`
 	XShardTxCount    uint32                 `json:"x_shard_tx_count" gencodec:"required"`
-	ShardStats       ShardStats             `json:"shard_stats" gencodec:"required"`
+	ShardStats       ShardStatus            `json:"shard_stats" gencodec:"required"`
 }
 
 type AddMinorBlockHeaderResponse struct {

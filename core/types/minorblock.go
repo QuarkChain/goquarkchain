@@ -194,13 +194,13 @@ func NewMinorBlock(header *MinorBlockHeader, meta *MinorBlockMeta, txs []*Transa
 	if len(txs) == 0 {
 		b.meta.TxHash = EmptyHash
 	} else {
-		b.meta.TxHash = DeriveSha(Transactions(txs))
+		b.meta.TxHash = CalculateMerkleRoot(Transactions(txs))
 		b.transactions = make(Transactions, len(txs))
 		copy(b.transactions, txs)
 	}
 
 	if len(receipts) == 0 {
-		b.meta.ReceiptHash = EmptyHash
+		b.meta.ReceiptHash = EmptyTrieHash
 	} else {
 		b.meta.ReceiptHash = DeriveSha(Receipts(receipts))
 		b.header.Bloom = CreateBloom(receipts)
@@ -371,7 +371,7 @@ func (b *MinorBlock) Hash() common.Hash {
 	return v
 }
 func (b *MinorBlock) ValidateBlock() error {
-	if txHash := DeriveSha(b.transactions); txHash != b.meta.TxHash {
+	if txHash := CalculateMerkleRoot(b.transactions); txHash != b.meta.TxHash {
 		return errors.New("incorrect merkle root")
 	}
 
