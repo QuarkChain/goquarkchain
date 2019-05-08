@@ -333,14 +333,13 @@ func (s *QKCMasterBackend) getAllSlaveConnection(fullShardID uint32) []*SlaveCon
 
 func (s *QKCMasterBackend) createRootBlockToMine(address account.Address) (*types.RootBlock, error) {
 	var g errgroup.Group
-	rspList := make([]*rpc.GetUnconfirmedHeadersResponse, len(s.clientPool))
-	indexCount := -1
-	for target := range s.clientPool {
-		i := target
+	rspList := make(map[string]*rpc.GetUnconfirmedHeadersResponse)
+
+	for target:= range s.clientPool {
+		target:=target
 		g.Go(func() error {
-			rsp, err := s.clientPool[i].GetUnconfirmedHeaders()
-			indexCount++
-			rspList[indexCount] = rsp
+			rsp, err := s.clientPool[target].GetUnconfirmedHeaders()
+			rspList[target] = rsp
 			return err
 		})
 	}
@@ -383,7 +382,11 @@ func (s *QKCMasterBackend) createRootBlockToMine(address account.Address) (*type
 	if err != nil {
 		return nil, err
 	}
-	return newblock, s.rootBlockChain.Validator().ValidateBlock(newblock)
+	if err:=s.rootBlockChain.Validator().ValidateBlock(newblock);err!=nil{
+		//TODO :only for exposure problem ,need to delete later
+		panic(err)
+	}
+	return newblock, nil
 }
 
 func (s *QKCMasterBackend) getMinorBlockToMine(branch account.Branch, address account.Address) (*types.MinorBlock, error) {
@@ -398,14 +401,12 @@ func (s *QKCMasterBackend) getMinorBlockToMine(branch account.Branch, address ac
 // GetAccountData get account Data for jsonRpc
 func (s *QKCMasterBackend) GetAccountData(address account.Address) (map[account.Branch]*rpc.AccountBranchData, error) {
 	var g errgroup.Group
-	rspList := make([]*rpc.GetAccountDataResponse, len(s.clientPool))
-	indexCount := -1
+	rspList := make(map[string]*rpc.GetAccountDataResponse)
 	for target := range s.clientPool {
-		i := target
+		target := target
 		g.Go(func() error {
-			rsp, err := s.clientPool[i].GetAccountData(address, nil)
-			indexCount++
-			rspList[indexCount] = rsp
+			rsp, err := s.clientPool[target].GetAccountData(address, nil)
+			rspList[target] = rsp
 			return err
 		})
 	}

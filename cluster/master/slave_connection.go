@@ -9,6 +9,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/p2p"
 	"github.com/QuarkChain/goquarkchain/serialize"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/log"
 	"time"
 )
 
@@ -45,6 +46,7 @@ func (s *SlaveConnection) HeartBeat() bool {
 		req := rpc.Request{Op: rpc.OpHeartBeat, Data: nil}
 		_, err := s.client.Call(s.target, &req)
 		if err != nil {
+			log.Error(s.slaveID,"heart beat err",err)
 			time.Sleep(time.Duration(1) * time.Second)
 			tryTimes -= 1
 			continue

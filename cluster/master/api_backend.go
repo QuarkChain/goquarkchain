@@ -18,7 +18,7 @@ import (
 	"reflect"
 )
 
-func ip2Long(ip string) uint32 {
+func ip2uint32(ip string) uint32 {
 	var long uint32
 	binary.Read(bytes.NewBuffer(net.ParseIP(ip).To4()), binary.BigEndian, &long)
 	return long
@@ -30,7 +30,7 @@ func (s *QKCMasterBackend) GetPeers() []rpc.PeerInfoForDisPlay {
 	for k := range fakePeers {
 		temp := rpc.PeerInfoForDisPlay{}
 		if tcp, ok := fakePeers[k].RemoteAddr().(*net.TCPAddr); ok {
-			temp.IP = ip2Long(tcp.IP.String())
+			temp.IP = ip2uint32(tcp.IP.String())
 			temp.Port = uint32(tcp.Port)
 			temp.ID = fakePeers[k].ID().Bytes()
 		} else {
