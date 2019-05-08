@@ -609,8 +609,8 @@ func (m *MinorBlockChain) GetTransactionListByAddress(address account.Address, s
 // GetShardStatus show shardStatus
 func (m *MinorBlockChain) GetShardStatus() (*rpc.ShardStatus, error) {
 	// getBlockCountByHeight have lock
-	cutoff := m.CurrentBlock().IHeader().GetTime() - 60
 	cblock := m.CurrentBlock()
+	cutoff := cblock.IHeader().GetTime() - 60
 
 	txCount := uint32(0)
 	blockCount := uint32(0)
@@ -633,13 +633,13 @@ func (m *MinorBlockChain) GetShardStatus() (*rpc.ShardStatus, error) {
 	}
 	return &rpc.ShardStatus{
 		Branch:             m.branch,
-		Height:             m.CurrentBlock().IHeader().NumberU64(),
-		Difficulty:         m.CurrentBlock().IHeader().GetDifficulty(),
-		CoinbaseAddress:    m.CurrentBlock().IHeader().GetCoinbase(),
-		Timestamp:          m.CurrentBlock().IHeader().GetTime(),
+		Height:             cblock.IHeader().NumberU64(),
+		Difficulty:         cblock.IHeader().GetDifficulty(),
+		CoinbaseAddress:    cblock.IHeader().GetCoinbase(),
+		Timestamp:          cblock.IHeader().GetTime(),
 		TxCount60s:         txCount,
 		PendingTxCount:     uint32(len(m.txPool.pending)),
-		TotalTxCount:       *m.getTotalTxCount(m.CurrentBlock().Hash()),
+		TotalTxCount:       *m.getTotalTxCount(cblock.Hash()),
 		BlockCount60s:      blockCount,
 		StaleBlockCount60s: staleBlockCount,
 		LastBlockTime:      lastBlockTime,
