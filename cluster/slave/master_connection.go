@@ -2,14 +2,13 @@ package slave
 
 import (
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
-	"github.com/QuarkChain/goquarkchain/core"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/serialize"
 	"github.com/ethereum/go-ethereum/common"
 )
 
 func (s *SlaveConnManager) SendMinorBlockHeaderToMaster(minorHeader *types.MinorBlockHeader,
-	txCount, xshardCount uint32, state *core.ShardStatus) error {
+	txCount, xshardCount uint32, state *rpc.ShardStatus) error {
 	var (
 		gReq = rpc.AddMinorBlockHeaderRequest{
 			MinorBlockHeader: minorHeader,
