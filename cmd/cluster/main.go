@@ -142,7 +142,7 @@ func startService(ctx *cli.Context, stack *service.Node) {
 	utils.StartService(stack)
 
 	if stack.IsMaster() {
-		var master *master.MasterBackend
+		var master *master.QKCMasterBackend
 		if err := stack.Service(&master); err != nil {
 			utils.Fatalf("master service not running %v", err)
 		}

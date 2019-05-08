@@ -187,6 +187,7 @@ func (c *CommonEngine) VerifyHeaders(
 ) (chan<- struct{}, <-chan error) {
 
 	// TODO: verify concurrently, and support aborting
+	abort := make(chan struct{})
 	errorsOut := make(chan error, len(headers))
 	go func() {
 		for _, h := range headers {
@@ -194,7 +195,7 @@ func (c *CommonEngine) VerifyHeaders(
 			errorsOut <- err
 		}
 	}()
-	return nil, errorsOut
+	return abort, errorsOut
 }
 
 // FindNonce finds the desired nonce and mixhash for a given block header.

@@ -13,6 +13,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/QuarkChain/goquarkchain/account"
+
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/core/rawdb"
@@ -1180,4 +1182,74 @@ func (bc *RootBlockChain) SubscribeChainHeadEvent(ch chan<- RootChainHeadEvent) 
 // SubscribeChainSideEvent registers a subscription of ChainSideEvent.
 func (bc *RootBlockChain) SubscribeChainSideEvent(ch chan<- RootChainSideEvent) event.Subscription {
 	return bc.scope.Track(bc.chainSideFeed.Subscribe(ch))
+}
+
+func (bc *RootBlockChain) CreateBlockToMine(mHeaderList []*types.MinorBlockHeader, address *account.Address, createTime *uint64) (*types.RootBlock, error) {
+	if address == nil {
+		a := account.CreatEmptyAddress(0)
+		address = &a
+	}
+	if createTime == nil {
+		ts := uint64(time.Now().Unix())
+		if bc.CurrentBlock().Time()+1 > ts {
+			ts = bc.CurrentBlock().Time() + 1
+		}
+		createTime = &ts
+	}
+	difficulty, err := bc.engine.CalcDifficulty(bc, *createTime, bc.CurrentHeader())
+	if err != nil {
+		return nil, err
+	}
+	block := bc.CurrentBlock().Header().CreateBlockToAppend(createTime, difficulty, address, nil, nil)
+	block.ExtendMinorBlockHeaderList(mHeaderList)
+	block.Finalize(bc.CalculateRootBlockCoinBase(block), address)
+	return block, nil
+}
+
+func (bc *RootBlockChain) CalculateRootBlockCoinBase(rootBlock *types.RootBlock) *big.Int {
+	ret := new(big.Int).Set(bc.Config().Root.CoinbaseAmount)
+	rewardTaxRate := bc.Config().RewardTaxRate
+	ratio := big.NewRat(1, 1)
+	ratio.Sub(ratio, rewardTaxRate)
+	ratio.Quo(ratio, rewardTaxRate)
+
+	minorBlockFee := new(big.Int)
+	for _, header := range rootBlock.MinorBlockHeaders() {
+		minorBlockFee.Add(minorBlockFee, header.CoinbaseAmount.Value)
+	}
+	minorBlockFee.Mul(minorBlockFee, ratio.Num())
+	minorBlockFee.Div(minorBlockFee, ratio.Denom())
+	ret.Add(ret, minorBlockFee)
+	return ret
+}
+func (bc *RootBlockChain) IsMinorBlockValidated(hash common.Hash) bool {
+	return rawdb.ReadMinorBlock(bc.db, hash) != nil
+}
+
+func (bc *RootBlockChain) GetNextDifficulty(create *uint64) (*big.Int, error) {
+	if create == nil {
+		ts := uint64(time.Now().Unix())
+		if ts < bc.CurrentBlock().Time()+1 {
+			ts = bc.CurrentBlock().Time() + 1
+		}
+		create = &ts
+	}
+	return bc.engine.CalcDifficulty(bc, *create, bc.CurrentBlock().Header())
+}
+
+func (bc *RootBlockChain) GetBlockCount() {
+	// TODO for json rpc
+	// Returns a dict(full_shard_id, dict(miner_recipient, block_count))
+}
+
+func (bc *RootBlockChain) WriteCommittingHash(hash common.Hash) {
+	rawdb.WriteRootBlockCommittingHash(bc.db, hash)
+}
+
+func (bc *RootBlockChain) ClearCommittingHash() {
+	rawdb.DeleteRbCommittingHash(bc.db)
+}
+
+func (bc *RootBlockChain) GetCommittingBlockHash() common.Hash {
+	return rawdb.ReadRbCommittingHash(bc.db)
 }
