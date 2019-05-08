@@ -112,12 +112,6 @@ func (q *QuarkChainConfig) MarshalJSON() ([]byte, error) {
 	return json.Marshal(jsonConfig)
 }
 
-type ChainsAlias []*ChainConfig
-
-func (m ChainsAlias) Len() int           { return len(m) }
-func (m ChainsAlias) Less(i, j int) bool { return m[i].ChainID < m[j].ChainID }
-func (m ChainsAlias) Swap(i, j int)      { m[i], m[j] = m[j], m[i] }
-
 func (q *QuarkChainConfig) UnmarshalJSON(input []byte) error {
 	var jsonConfig struct {
 		QuarkChainConfigAlias
@@ -128,14 +122,12 @@ func (q *QuarkChainConfig) UnmarshalJSON(input []byte) error {
 		return err
 	}
 
-	var chainsAlias ChainsAlias
-	chainsAlias = append(chainsAlias, jsonConfig.Chains...)
-	sort.Sort(chainsAlias)
+	sort.Slice(jsonConfig.Chains, func(i, j int) bool { return jsonConfig.Chains[i].ChainID < jsonConfig.Chains[j].ChainID })
 
 	*q = QuarkChainConfig(jsonConfig.QuarkChainConfigAlias)
 	q.Chains = make(map[uint32]*ChainConfig)
 	q.shards = make(map[uint32]*ShardConfig)
-	for chainID, chainCfg := range chainsAlias {
+	for chainID, chainCfg := range jsonConfig.Chains {
 		q.Chains[uint32(chainID)] = chainCfg
 		for shardID := uint32(0); shardID < chainCfg.ShardSize; shardID++ {
 			shardCfg := NewShardConfig(chainCfg)

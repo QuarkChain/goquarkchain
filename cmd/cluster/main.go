@@ -33,6 +33,7 @@ var (
 	usageFlags = []cli.Flag{
 		ClusterConfigFlag,
 		utils.ServiceFlag,
+		utils.DataDirFlag,
 		utils.LogLevelFlag,
 		utils.CleanFlag,
 		utils.StartSimulatedMiningFlag,
@@ -72,9 +73,7 @@ func init() {
 	// Initialize the CLI app and start Geth
 	app.Action = cluster
 	app.HideVersion = true // we have a command to print the version
-	app.Commands = []cli.Command{
-		initCommand,
-	}
+	app.Commands = []cli.Command{}
 	sort.Sort(cli.CommandsByName(app.Commands))
 
 	app.Flags = append(app.Flags, debug.Flags...)

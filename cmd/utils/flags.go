@@ -286,25 +286,28 @@ func splitAndTrim(input string) []string {
 
 // setHTTP creates the HTTP RPC listener interface string from the set
 // command line flags, returning empty if the HTTP endpoint is disabled.
-func setHTTP(ctx *cli.Context, cfg *service.Config) {
+func setHTTP(ctx *cli.Context, cfg *service.Config, clstrCfg *config.ClusterConfig) {
 	if !ctx.GlobalBool(RPCDisabledFlag.Name) {
-		host := service.DefaultHTTPHost
-		if ctx.GlobalIsSet(RPCListenAddrFlag.Name) {
-			host = ctx.GlobalString(RPCListenAddrFlag.Name)
+		port := clstrCfg.JSONRPCPort
+		if ctx.GlobalIsSet(RPCPortFlag.Name) {
+			port = uint16(ctx.GlobalInt(RPCPortFlag.Name))
 		}
-		cfg.HTTPEndpoint = fmt.Sprintf("%s:%d", host, ctx.GlobalInt(RPCPortFlag.Name))
+		cfg.HTTPEndpoint = fmt.Sprintf("localhost:%d", port)
 	}
 	if ctx.GlobalBool(PrivateRPCEnableFlag.Name) {
-		host := service.DefaultHTTPHost
-		if ctx.GlobalIsSet(PrivateRPCListenAddrFlag.Name) {
-			host = ctx.GlobalString(PrivateRPCListenAddrFlag.Name)
+		port := clstrCfg.PrivateJSONRPCPort
+		if ctx.GlobalIsSet(PrivateRPCPortFlag.Name) {
+			port = uint16(ctx.GlobalInt(PrivateRPCPortFlag.Name))
 		}
-		cfg.HTTPPrivEndpoint = fmt.Sprintf("%s:%d", host, ctx.GlobalInt(PrivateRPCPortFlag.Name))
+		cfg.HTTPPrivEndpoint = fmt.Sprintf("localhost:%d", port)
 	}
 }
 
-func setGRPC(ctx *cli.Context, cfg *service.Config) {
-	cfg.SvrPort = uint16(ctx.GlobalInt(GRPCPortFlag.Name))
+func setGRPC(ctx *cli.Context, cfg *service.Config, clstrCfg *config.ClusterConfig) {
+	cfg.SvrPort = clstrCfg.Quarkchain.Root.Port
+	if ctx.GlobalIsSet(GRPCPortFlag.Name) {
+		cfg.SvrPort = uint16(ctx.GlobalInt(GRPCPortFlag.Name))
+	}
 	cfg.SvrHost = "127.0.0.1"
 }
 
@@ -401,9 +404,6 @@ func SetClusterConfig(ctx *cli.Context, cfg *config.ClusterConfig) {
 	numSlaves := config.DefaultNumSlaves
 	if ctx.GlobalIsSet(NumSlavesFlag.Name) {
 		numSlaves = ctx.GlobalInt(NumSlavesFlag.Name)
-		if !common.IsP2(uint32(numSlaves)) {
-			Fatalf("slave size must be pow of 2")
-		}
 	}
 
 	cfg.SlaveList = make([]*config.SlaveConfig, 0)
@@ -479,8 +479,8 @@ func SetClusterConfig(ctx *cli.Context, cfg *config.ClusterConfig) {
 func SetNodeConfig(ctx *cli.Context, cfg *service.Config, clstrCfg *config.ClusterConfig) {
 	SetP2PConfig(ctx, &cfg.P2P, clstrCfg)
 	setIPC(ctx, cfg)
-	setHTTP(ctx, cfg)
-	setGRPC(ctx, cfg)
+	setHTTP(ctx, cfg, clstrCfg)
+	setGRPC(ctx, cfg, clstrCfg)
 	setDataDir(ctx, cfg, clstrCfg)
 }
 
