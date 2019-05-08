@@ -19,7 +19,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/log"
-	"github.com/hashicorp/golang-lru"
+	lru "github.com/hashicorp/golang-lru"
 )
 
 const (
@@ -346,7 +346,7 @@ func (hc *RootHeaderChain) GetAncestor(hash common.Hash, number, ancestor uint64
 }
 
 func (hc *RootHeaderChain) isSameChain(longerChainHeader, shorterChainHeader *types.RootBlockHeader) bool {
-	return consensus.IsSameRootChain(hc.chainDb, longerChainHeader, shorterChainHeader)
+	return isSameRootChain(hc.chainDb, longerChainHeader, shorterChainHeader)
 }
 
 // GetTd retrieves a block's total difficulty in the canonical chain from the

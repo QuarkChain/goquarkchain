@@ -5,15 +5,15 @@ package types
 import (
 	"crypto/ecdsa"
 	"errors"
-	"fmt"
-	"github.com/QuarkChain/goquarkchain/account"
-	"github.com/QuarkChain/goquarkchain/serialize"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/crypto"
 	"math/big"
 	"sync/atomic"
 	"time"
 	"unsafe"
+
+	"github.com/QuarkChain/goquarkchain/account"
+	"github.com/QuarkChain/goquarkchain/serialize"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
 )
 
 // RootBlockHeader represents a root block header in the QuarkChain.
@@ -193,10 +193,11 @@ type extrootblock struct {
 // and receipts.
 func NewRootBlock(header *RootBlockHeader, mbHeaders MinorBlockHeaders, trackingdata []byte) *RootBlock {
 	b := &RootBlock{header: CopyRootBlockHeader(header), td: new(big.Int)}
+
 	if len(mbHeaders) == 0 {
-		b.header.MinorHeaderHash = common.Hash{}
+		b.header.MinorHeaderHash = EmptyHash
 	} else {
-		b.header.MinorHeaderHash = common.Hash{}
+		b.header.MinorHeaderHash = DeriveSha(MinorBlockHeaders(mbHeaders))
 		b.minorBlockHeaders = make(MinorBlockHeaders, len(mbHeaders))
 		copy(b.minorBlockHeaders, mbHeaders)
 	}
@@ -204,6 +205,7 @@ func NewRootBlock(header *RootBlockHeader, mbHeaders MinorBlockHeaders, tracking
 		b.trackingdata = make([]byte, len(trackingdata))
 		copy(b.trackingdata, trackingdata)
 	}
+
 	return b
 }
 
@@ -370,13 +372,12 @@ func (b *RootBlock) Finalize(coinbaseAmount *big.Int, coinbaseAddress *account.A
 	}
 
 	if coinbaseAddress == nil {
-		temp := account.CreatEmptyAddress(0)
-		coinbaseAddress = &temp
+		a := account.CreatEmptyAddress(0)
+		coinbaseAddress = &a
 	}
 	b.header.MinorHeaderHash = DeriveSha(b.minorBlockHeaders)
-	b.header.CoinbaseAmount = &serialize.Uint256{Value: new(big.Int).Set(coinbaseAmount)}
+	b.header.CoinbaseAmount = &serialize.Uint256{Value: coinbaseAmount}
 	b.header.Coinbase = *coinbaseAddress
-	fmt.Println("FFFFFFFFFFFFf", b.header.CoinbaseAmount, b.header.Difficulty)
 	return b
 }
 func (b *RootBlock) AddMinorBlockHeader(header *MinorBlockHeader) {

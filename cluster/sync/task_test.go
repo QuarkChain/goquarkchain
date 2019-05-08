@@ -3,19 +3,18 @@ package sync
 import (
 	"errors"
 	"fmt"
-	"github.com/QuarkChain/goquarkchain/core/state"
 	"math/rand"
 	"reflect"
 	"testing"
 
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/ethdb"
-	"github.com/stretchr/testify/assert"
-
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/core"
+	"github.com/QuarkChain/goquarkchain/core/state"
 	"github.com/QuarkChain/goquarkchain/core/types"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/ethdb"
+	"github.com/stretchr/testify/assert"
 )
 
 var (
@@ -86,13 +85,12 @@ type mockvalidator struct {
 func (v *mockvalidator) ValidateHeader(types.IHeader) error {
 	return v.err
 }
-
-func (v *mockvalidator) ValidateBlock(types.IBlock) error {
+func (v *mockvalidator) ValidateState(block, parent types.IBlock, state *state.StateDB, receipts types.Receipts, usedGas uint64) error {
 	return v.err
 }
 
-func (v *mockvalidator) ValidateState(block, parent types.IBlock, state *state.StateDB, receipts types.Receipts, usedGas uint64) error {
-	panic(errors.New("sb"))
+func (v *mockvalidator) ValidateBlock(types.IBlock) error {
+	return v.err
 }
 
 func newBlockChain(sz int) blockchain {

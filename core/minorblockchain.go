@@ -506,8 +506,6 @@ func (m *MinorBlockChain) HasBlock(hash common.Hash) bool {
 
 // HasState checks if state trie is fully present in the database or not.
 func (m *MinorBlockChain) HasState(hash common.Hash) bool {
-	// TODO
-	return true
 	_, err := m.stateCache.OpenTrie(hash)
 	return err == nil
 }
@@ -520,10 +518,7 @@ func (m *MinorBlockChain) HasBlockAndState(hash common.Hash) bool {
 	if block == nil {
 		return false
 	}
-	return true
-	fmt.Println("??????",hash.String())
-	panic(errors.New("sn"))
-	//return m.HasState(block.GetMetaData().Root)
+	return m.HasState(block.GetMetaData().Root)
 }
 
 // GetBlock retrieves a block from the database by hash and number,
@@ -846,21 +841,21 @@ func (m *MinorBlockChain) WriteBlockWithState(block *types.MinorBlock, receipts 
 		return NonStatTy, err
 	}
 
-	//root, err := state.Commit(true)
-	//if err != nil {
-	//	return NonStatTy, err
-	//}
+	root, err := state.Commit(true)
+	if err != nil {
+		return NonStatTy, err
+	}
 	triedb := m.stateCache.TrieDB()
 
 	// If we're running an archive node, always flush
 	if m.cacheConfig.Disabled {
-		//if err := triedb.Commit(root, false); err != nil {
-		//	return NonStatTy, err
-		//}
+		if err := triedb.Commit(root, false); err != nil {
+			return NonStatTy, err
+		}
 	} else {
 		// Full but not archive node, do proper garbage collection
-		//triedb.Reference(root, common.Hash{}) // metadata reference to keep trie alive
-		//m.triegc.Push(root, -int64(block.NumberU64()))
+		triedb.Reference(root, common.Hash{}) // metadata reference to keep trie alive
+		m.triegc.Push(root, -int64(block.NumberU64()))
 
 		if current := block.NumberU64(); current > triesInMemory {
 			// If we exceeded our memory allowance, flush matured singleton nodes to disk
@@ -917,7 +912,7 @@ func (m *MinorBlockChain) WriteBlockWithState(block *types.MinorBlock, receipts 
 		}
 		// Write the positional metadata for transaction/receipt lookups and preimages
 		rawdb.WriteBlockContentLookupEntries(batch, block)
-	//	rawdb.WritePreimages(batch, state.Preimages())
+		rawdb.WritePreimages(batch, state.Preimages())
 		status = CanonStatTy
 
 	} else {
@@ -991,7 +986,7 @@ func (m *MinorBlockChain) InsertChain(chain []types.IBlock) (int, [][]*types.Cro
 // completes, then the historic state could be pruned again
 func (m *MinorBlockChain) insertChain(chain []types.IBlock, verifySeals bool) (int, []interface{}, []*types.Log, [][]*types.CrossShardTransactionDeposit, error) {
 	xShardList := make([][]*types.CrossShardTransactionDeposit, 0)
-	//evmTxIncluded := make([]*types.Transaction, 0)
+	evmTxIncluded := make([]*types.Transaction, 0)
 	// If the chain is terminating, don't even bother starting u
 	if atomic.LoadInt32(&m.procInterrupt) == 1 {
 		return 0, nil, nil, xShardList, nil
@@ -1027,7 +1022,6 @@ func (m *MinorBlockChain) insertChain(chain []types.IBlock, verifySeals bool) (i
 	// Peek the error for the first block to decide the directing import logic
 	it := newInsertIterator(chain, results, m.Validator())
 	block, err := it.next()
-	fmt.Println("next err",err)
 	switch {
 	// First block is pruned, insert as sidechain and reorg only if TD grows enough
 	case err == ErrPrunedAncestor:
@@ -1070,7 +1064,6 @@ func (m *MinorBlockChain) insertChain(chain []types.IBlock, verifySeals bool) (i
 
 	// No validation errors for the first block (or chain prefix skipped)
 	for ; !qkcCommon.IsNil(block) && err == nil; block, err = it.next() {
-		fmt.Println("vvvvvvvv-1")
 		mBlock := block.(*types.MinorBlock)
 		// If the chain is terminating, stop processing blocks
 		if atomic.LoadInt32(&m.procInterrupt) == 1 {
@@ -1086,27 +1079,26 @@ func (m *MinorBlockChain) insertChain(chain []types.IBlock, verifySeals bool) (i
 		if qkcCommon.IsNil(parent) {
 			return it.index, events, coalescedLogs, xShardList, err
 		}
-		fmt.Println("vvvvvvvv-2")
+
 		state, err := state.New(parent.(*types.MinorBlock).GetMetaData().Root, m.stateCache)
 		if err != nil {
-			//return it.index, events, coalescedLogs, xShardList, err
+			return it.index, events, coalescedLogs, xShardList, err
 		}
 		xShardReceiveTxList := make([]*types.CrossShardTransactionDeposit, 0)
 		// Process block using the parent state as reference point.
 		t0 := time.Now()
-		fmt.Println("vvvvvvvv-3")
-		//receipts, logs, usedGas, err := m.processor.Process(mBlock, state, m.vmConfig, evmTxIncluded, xShardReceiveTxList)
+
+		receipts, logs, usedGas, err := m.processor.Process(mBlock, state, m.vmConfig, evmTxIncluded, xShardReceiveTxList)
 		t1 := time.Now()
 		if err != nil {
-		//	m.reportBlock(block, receipts, err)
-			//return it.index, events, coalescedLogs, xShardList, err
+			m.reportBlock(block, receipts, err)
+			return it.index, events, coalescedLogs, xShardList, err
 		}
-		fmt.Println("vvvvvvvv-4")
 		// Validate the state using the default validator
-		//if err := m.Validator().ValidateState(block, parent, state, receipts, usedGas); err != nil {
-		//	m.reportBlock(block, receipts, err)
-		//	//return it.index, events, coalescedLogs, xShardList, err
-		//}
+		if err := m.Validator().ValidateState(block, parent, state, receipts, usedGas); err != nil {
+			m.reportBlock(block, receipts, err)
+			return it.index, events, coalescedLogs, xShardList, err
+		}
 		t2 := time.Now()
 		proctime := time.Since(start)
 
@@ -1115,8 +1107,7 @@ func (m *MinorBlockChain) insertChain(chain []types.IBlock, verifySeals bool) (i
 			return it.index, events, coalescedLogs, xShardList, err
 		}
 		// Write the block to the chain and get the status.
-		temp:=make(types.Receipts,0)
-		status, err := m.WriteBlockWithState(mBlock, temp, state, xShardReceiveTxList, updateTip)
+		status, err := m.WriteBlockWithState(mBlock, receipts, state, xShardReceiveTxList, updateTip)
 		t3 := time.Now()
 		if err != nil {
 			return it.index, events, coalescedLogs, xShardList, err
@@ -1132,8 +1123,8 @@ func (m *MinorBlockChain) insertChain(chain []types.IBlock, verifySeals bool) (i
 				"elapsed", common.PrettyDuration(time.Since(start)),
 				"root", mBlock.GetMetaData().Root)
 
-			//coalescedLogs = append(coalescedLogs, logs...)
-			//events = append(events, MinorChainEvent{mBlock, mBlock.Hash(), logs})
+			coalescedLogs = append(coalescedLogs, logs...)
+			events = append(events, MinorChainEvent{mBlock, mBlock.Hash(), logs})
 			lastCanon = block
 
 			// Only count canonical blocks for GC processing time
@@ -1148,10 +1139,10 @@ func (m *MinorBlockChain) insertChain(chain []types.IBlock, verifySeals bool) (i
 		}
 		blockInsertTimer.UpdateSince(start)
 		stats.processed++
-		//stats.usedGas += usedGas
+		stats.usedGas += usedGas
 
 		stats.report(chain, it.index)
-		//xShardList = append(xShardList, state.GetXShardList())
+		xShardList = append(xShardList, state.GetXShardList())
 	}
 	// Any blocks remaining here? The only ones we care about are the future ones
 	if !qkcCommon.IsNil(block) && err == ErrFutureBlock {

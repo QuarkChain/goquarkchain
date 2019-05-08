@@ -29,8 +29,9 @@ import (
 type Validator interface {
 	// ValidateBlock validates the given block's content.
 	ValidateBlock(block types.IBlock) error
-	// ValidateState validate state
+
 	ValidateHeader(header types.IHeader) error
+	// ValidateState validate state
 	ValidateState(block, parent types.IBlock, state *state.StateDB, receipts types.Receipts, usedGas uint64) error
 }
 

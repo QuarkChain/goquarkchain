@@ -22,7 +22,6 @@ package master
 import (
 	"crypto/ecdsa"
 	"crypto/rand"
-	"errors"
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/serialize"
 	"github.com/ethereum/go-ethereum/p2p/enode"
@@ -231,23 +230,19 @@ func (p *testPeer) close() {
 }
 
 func generateMinorBlocks(n int) []*types.MinorBlock {
-	fullShardID := (qkcconfig.Chains[0].ChainID << 16) | qkcconfig.Chains[0].ShardSize | 0
 	var (
 		engine       = new(consensus.FakeEngine)
 		db           = ethdb.NewMemDatabase()
 		genesis      = core.NewGenesis(qkcconfig)
-		genesisBlock = genesis.MustCommitMinorBlock(db, genesis.CreateRootBlock(), fullShardID)
+		genesisBlock = genesis.MustCommitMinorBlock(db, genesis.CreateRootBlock(), 2)
 	)
 	blocks := make([]*types.MinorBlock, n)
 	genblock := func(i int, parent *types.MinorBlock) *types.MinorBlock {
-		diff, err := engine.CalcDifficulty(nil, parent.Time(), parent.Header())
-		if err != nil {
-			panic(errors.New("sb"))
-		}
+		difficulty, _ := engine.CalcDifficulty(nil, parent.Time(), parent.Header())
 		header := &types.MinorBlockHeader{
 			ParentHash: parent.Hash(),
 			Coinbase:   parent.Coinbase(),
-			Difficulty: diff,
+			Difficulty: difficulty,
 			Number:     parent.Number() + 1,
 			Time:       parent.Time() + 10,
 		}

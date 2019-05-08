@@ -355,7 +355,7 @@ func (m *MinorBlockChain) validateTx(tx *types.Transaction, evmState *state.Stat
 	}
 
 	if evmTx.IsCrossShard() && !m.isNeighbor(toBranch, nil) {
-		return nil, ErrNotNeighbir
+		return nil, ErrNotNeighbor
 	}
 	if err := ValidateTransaction(evmState, tx, fromAddress); err != nil {
 		return nil, err
@@ -933,7 +933,7 @@ func (m *MinorBlockChain) AddCrossShardTxListByMinorBlockHash(h common.Hash, txL
 
 // AddRootBlock add root block for minorBlockChain
 func (m *MinorBlockChain) AddRootBlock(rBlock *types.RootBlock) error {
-	fmt.Println("MinorBlockChain","AddRootBlock number",rBlock.Number())
+	fmt.Println("MinorBlockChain", "AddRootBlock number", rBlock.Number())
 	m.mu.Lock() // Ensure insertion continuity
 	defer m.mu.Unlock()
 	if rBlock.Number() <= uint32(m.clusterConfig.Quarkchain.GetGenesisRootHeight(m.branch.Value)) {
@@ -963,7 +963,7 @@ func (m *MinorBlockChain) AddRootBlock(rBlock *types.RootBlock) error {
 		// prev_root_header can be None when the shard is not created at root height 0
 		if prevRootHeader == nil || prevRootHeader.Number() == uint32(m.clusterConfig.Quarkchain.GetGenesisRootHeight(m.branch.Value)) || !m.isNeighbor(mHeader.Branch, &prevHeaderNumber) {
 			if data := rawdb.ReadCrossShardTxList(m.db, h); data != nil {
-				fmt.Println("data",len(data.TXList),data.TXList)
+				fmt.Println("data", len(data.TXList), data.TXList)
 				return errors.New("already have")
 			}
 			continue

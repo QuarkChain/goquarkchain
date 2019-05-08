@@ -3,9 +3,10 @@ package core
 import (
 	"errors"
 	"fmt"
+	"reflect"
+
 	"github.com/QuarkChain/goquarkchain/core/state"
 	"github.com/ethereum/go-ethereum/common"
-	"reflect"
 
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/consensus"
@@ -15,7 +16,7 @@ import (
 // RootBlockValidator implements Validator.
 type RootBlockValidator struct {
 	config     *config.QuarkChainConfig // config configuration options
-	blockChain *RootBlockChain          // minorBlockChain block chain
+	blockChain *RootBlockChain          // root block chain
 	engine     consensus.Engine         // engine engine used for validating
 }
 
@@ -63,12 +64,10 @@ func (v *RootBlockValidator) ValidateBlock(block types.IBlock) error {
 		return fmt.Errorf("incorrect merkle root %v - %v ",
 			rootBlock.Header().MinorHeaderHash.String(),
 			mheaderHash.String())
-	}else{
-		fmt.Println("一样")
 	}
 
 	if !v.config.SkipRootCoinbaseCheck {
-		coinbaseAmount := v.blockChain.CalculateRootBlockCoinBase(rootBlock)
+		coinbaseAmount := CalculateRootBlockCoinbase(v.config, rootBlock)
 		if coinbaseAmount.Cmp(rootBlock.CoinbaseAmount()) != 0 {
 			return fmt.Errorf("bad coinbase amount for root block %v. expect %d but got %d.",
 				rootBlock.Hash().String(),
@@ -79,7 +78,7 @@ func (v *RootBlockValidator) ValidateBlock(block types.IBlock) error {
 
 	var fullShardId uint32 = 0
 	var parentHeader *types.MinorBlockHeader
-	prevRootBlockHashList := make(map[common.Hash]bool)
+	var prevRootBlockHashList map[common.Hash]bool
 	var shardIdToMinorHeadersMap = make(map[uint32][]*types.MinorBlockHeader)
 	for _, mheader := range rootBlock.MinorBlockHeaders() {
 		if !v.blockChain.containMinorBlock(mheader.Hash()) {
@@ -159,7 +158,7 @@ func (v *RootBlockValidator) ValidateState(block, parent types.IBlock, statedb *
 	panic(errors.New("not implement"))
 }
 
-// ValidateHeader calls underlying engine's header verification method.
+// RootBlockValidator calls underlying engine's header verification method.
 func (v *RootBlockValidator) ValidateHeader(header types.IHeader) error {
 	return v.engine.VerifyHeader(v.blockChain, header, true)
 }
@@ -172,9 +171,10 @@ func (v *fakeRootBlockValidator) ValidateBlock(block types.IBlock) error {
 	return v.Err
 }
 
+func (v *fakeRootBlockValidator) ValidateHeader(header types.IHeader) error {
+	return v.Err
+}
+
 func (v *fakeRootBlockValidator) ValidateState(block, parent types.IBlock, statedb *state.StateDB, receipts types.Receipts, usedGas uint64) error {
 	panic(errors.New("not implement"))
-}
-func (v *fakeRootBlockValidator) ValidateHeader(block types.IHeader) error {
-	return v.Err
 }
