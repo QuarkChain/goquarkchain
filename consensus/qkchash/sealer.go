@@ -3,9 +3,10 @@ package qkchash
 import (
 	"bytes"
 	"errors"
+	"math/big"
+
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/core/types"
-	"math/big"
 )
 
 var (
@@ -15,23 +16,7 @@ var (
 	errNoMiningWork = errors.New("no mining work available yet")
 )
 
-// Seal generates a new block for the given input block with the local miner's
-// seal place on top.
-func (q *QKCHash) Seal(
-	chain consensus.ChainReader,
-	block types.IBlock,
-	results chan<- types.IBlock,
-	stop <-chan struct{}) error {
-	if q.commonEngine.IsRemoteMining() {
-		q.commonEngine.SetWork(block, results)
-		return nil
-	}
-	return q.commonEngine.Seal(block, results, stop)
-}
-
-// VerifySeal checks whether the crypto seal on a header is valid according to
-// the consensus rules of the given engine.
-func (q *QKCHash) VerifySeal(chain consensus.ChainReader, header types.IHeader, adjustedDiff *big.Int) error {
+func (q *QKCHash) verifySeal(chain consensus.ChainReader, header types.IHeader, adjustedDiff *big.Int) error {
 	if header.GetDifficulty().Sign() <= 0 {
 		return consensus.ErrInvalidDifficulty
 	}
