@@ -3,11 +3,32 @@
 package types
 
 import (
+	"bytes"
 	"github.com/QuarkChain/goquarkchain/serialize"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto/sha3"
+	"github.com/ethereum/go-ethereum/rlp"
+	"github.com/ethereum/go-ethereum/trie"
 	"reflect"
 )
+
+type DerivableList interface {
+	Len() int
+	Bytes(i int) []byte
+}
+
+func DeriveSha(list DerivableList) common.Hash {
+	keybuf := new(bytes.Buffer)
+	trie := new(trie.Trie)
+	for i := 0; i < list.Len(); i++ {
+		keybuf.Reset()
+		rlp.Encode(keybuf, uint(i))
+		trie.Update(keybuf.Bytes(), list.Bytes(i))
+	}
+	return trie.Hash()
+}
+
+var EmptyTrieHash = new(trie.Trie).Hash()
 
 var EmptyHash = common.Hash{}
 
