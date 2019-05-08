@@ -110,8 +110,9 @@ func (v *MinorBlockValidator) ValidateBlock(mBlock types.IBlock) error {
 		return err
 	}
 
-	txHash := types.DeriveSha(block.GetTransactions())
+	txHash := types.CalculateMerkleRoot(block.GetTransactions())
 	if txHash != block.GetMetaData().TxHash {
+		fmt.Println("txHash", txHash.String(), block.GetMetaData().TxHash.String())
 		return ErrTxHash
 	}
 
