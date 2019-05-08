@@ -219,3 +219,137 @@ func (m *MinorBlockChain) createEvmState(trieRootHash common.Hash, headerHash co
 	evmState.SetShardConfig(m.shardConfig)
 	return evmState, nil
 }
+
+// AddRootBlock add root block for minorBlockChain
+func (m *MinorBlockChain) AddRootBlock(rBlock *types.RootBlock) error {
+	m.mu.Lock() // Ensure insertion continuity
+	defer m.mu.Unlock()
+	if rBlock.Number() <= uint32(m.clusterConfig.Quarkchain.GetGenesisRootHeight(m.branch.Value)) {
+		return errors.New("rBlock is small than config")
+	}
+
+	if m.GetRootBlockByHash(rBlock.ParentHash()) == nil {
+		return ErrRootBlockIsNil
+	}
+
+	shardHeaders := make([]*types.MinorBlockHeader, 0)
+	for _, mHeader := range rBlock.MinorBlockHeaders() {
+		h := mHeader.Hash()
+		if mHeader.Branch == m.branch {
+			if !m.HasBlock(h) {
+				return ErrMinorBlockIsNil
+			}
+			shardHeaders = append(shardHeaders, mHeader)
+			continue
+		}
+		prevRootHeader := m.GetRootBlockByHash(mHeader.PrevRootBlockHash)
+		prevHeaderNumber := uint32(0)
+		if prevRootHeader != nil {
+			prevHeaderNumber = prevRootHeader.Number()
+		}
+
+		// prev_root_header can be None when the shard is not created at root height 0
+		if prevRootHeader == nil || prevRootHeader.Number() == uint32(m.clusterConfig.Quarkchain.GetGenesisRootHeight(m.branch.Value)) || !m.isNeighbor(mHeader.Branch, &prevHeaderNumber) {
+			if data := rawdb.ReadCrossShardTxList(m.db, h); data != nil {
+				return errors.New("already have")
+			}
+			continue
+		}
+
+		if data := rawdb.ReadCrossShardTxList(m.db, h); data == nil {
+			return errors.New("not have")
+		}
+
+	}
+	if uint64(len(shardHeaders)) > m.getMaxBlocksInOneRootBlock() {
+		return errors.New("shardHeaders big than config")
+	}
+
+	lastMinorHeaderInPrevRootBlock := m.getLastConfirmedMinorBlockHeaderAtRootBlock(rBlock.Header().ParentHash)
+
+	var shardHeader *types.MinorBlockHeader
+	if len(shardHeaders) > 0 {
+		if shardHeaders[0].Number == 0 || shardHeaders[0].ParentHash == lastMinorHeaderInPrevRootBlock.Hash() {
+			shardHeader = shardHeaders[len(shardHeaders)-1]
+		} else {
+			return errors.New("master should assure this check will not fail")
+		}
+	} else {
+		shardHeader = lastMinorHeaderInPrevRootBlock
+	}
+	m.putRootBlock(rBlock, shardHeader)
+	if shardHeader != nil {
+		if !m.isSameRootChain(rBlock.Header(), m.getRootBlockHeaderByHash(shardHeader.PrevRootBlockHash)) {
+			return ErrNotSameRootChain
+		}
+	}
+
+	if rBlock.Header().Number <= m.rootTip.Number {
+		if !m.isSameRootChain(m.rootTip, m.GetRootBlockByHash(m.CurrentBlock().IHeader().(*types.MinorBlockHeader).GetPrevRootBlockHash()).Header()) {
+			return ErrNotSameRootChain
+		}
+		return nil
+	}
+
+	m.rootTip = rBlock.Header()
+	m.confirmedHeaderTip = shardHeader
+
+	origHeaderTip := m.CurrentHeader().(*types.MinorBlockHeader)
+	if shardHeader != nil {
+		origBlock := m.GetBlockByNumber(shardHeader.Number)
+		if qkcCommon.IsNil(origBlock) || origBlock.Hash() != shardHeader.Hash() {
+			m.hc.SetCurrentHeader(shardHeader)
+			block := m.GetMinorBlock(shardHeader.Hash())
+			m.currentBlock.Store(block)
+		}
+	}
+
+	for !m.isSameRootChain(m.rootTip, m.getRootBlockHeaderByHash(m.CurrentHeader().(*types.MinorBlockHeader).GetPrevRootBlockHash())) {
+		if m.CurrentHeader().NumberU64() == 0 {
+			genesisRootHeader := m.rootTip
+			genesisHeight := m.clusterConfig.Quarkchain.GetGenesisRootHeight(m.branch.Value)
+			if genesisRootHeader.Number < uint32(genesisHeight) {
+				return errors.New("genesis root height small than config")
+			}
+			for genesisRootHeader.Number != uint32(genesisHeight) {
+				genesisRootHeader = m.getRootBlockHeaderByHash(genesisRootHeader.ParentHash)
+				if genesisRootHeader == nil {
+					return ErrMinorBlockIsNil
+				}
+			}
+			newGenesis := rawdb.ReadGenesis(m.db, genesisRootHeader.Hash()) // genesisblock key is rootblock hash
+			if newGenesis == nil {
+				panic(errors.New("get genesis block is nil"))
+			}
+			m.genesisBlock = newGenesis
+			if err := m.Reset(); err != nil {
+				return err
+			}
+			break
+		}
+		preBlock := m.GetBlock(m.CurrentHeader().GetParentHash()).(*types.MinorBlock)
+		m.hc.SetCurrentHeader(preBlock.Header())
+		m.currentBlock.Store(preBlock)
+	}
+
+	if m.CurrentHeader().Hash() != origHeaderTip.Hash() {
+		origBlock := m.GetMinorBlock(origHeaderTip.Hash())
+		newBlock := m.GetMinorBlock(m.CurrentHeader().Hash())
+		return m.reWriteBlockIndexTo(origBlock, newBlock)
+	}
+	return nil
+}
+func (m *MinorBlockChain) getMaxBlocksInOneRootBlock() uint64 {
+	return uint64(m.shardConfig.MaxBlocksPerShardInOneRootBlock())
+}
+
+// reWriteBlockIndexTo : already locked
+func (m *MinorBlockChain) reWriteBlockIndexTo(oldBlock *types.MinorBlock, newBlock *types.MinorBlock) error {
+	if oldBlock == nil {
+		oldBlock = m.CurrentBlock()
+	}
+	if oldBlock.NumberU64() < newBlock.NumberU64() {
+		return m.reorg(oldBlock, newBlock)
+	}
+	return m.SetHead(newBlock.NumberU64())
+}
