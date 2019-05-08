@@ -3,6 +3,7 @@ package utils
 
 import (
 	"fmt"
+	"github.com/QuarkChain/goquarkchain/cluster/slave"
 	"os"
 	"path/filepath"
 	"strings"
@@ -10,7 +11,6 @@ import (
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/cluster/master"
 	"github.com/QuarkChain/goquarkchain/cluster/service"
-	"github.com/QuarkChain/goquarkchain/cluster/slave"
 	"github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/p2p"
@@ -83,7 +83,6 @@ var (
 	LogLevelFlag = cli.StringFlag{
 		Name:  "log_level",
 		Usage: "log level",
-		Value: "info",
 	}
 	CleanFlag = cli.BoolFlag{
 		Name:  "clean",
@@ -96,47 +95,38 @@ var (
 	GenesisDirFlag = cli.StringFlag{
 		Name:  "genesis_dir",
 		Usage: "gensis data dir",
-		Value: "../genesis_data",
 	}
 	NumChainsFlag = cli.IntFlag{
 		Name:  "num_chains",
 		Usage: "chain number",
-		Value: 2,
 	}
 	NumShardsFlag = cli.IntFlag{
 		Name:  "num_shards",
 		Usage: "shard number",
-		Value: 1,
 	}
 	RootBlockIntervalSecFlag = cli.IntFlag{
 		Name:  "root_block_interval_sec",
 		Usage: "interval time of root block",
-		Value: 10,
 	}
 	MinorBlockIntervalSecFlag = cli.IntFlag{
 		Name:  "minor_block_interval_sec",
 		Usage: "",
-		Value: 3,
 	}
 	NetworkIdFlag = cli.IntFlag{
 		Name:  "network_id",
 		Usage: "net work id",
-		Value: 24,
 	}
 	NumSlavesFlag = cli.IntFlag{
 		Name:  "num_slaves",
 		Usage: "slaves number",
-		Value: config.DefaultNumSlaves,
 	}
 	PortStartFlag = cli.IntFlag{
 		Name:  "port_start",
 		Usage: "slave start port",
-		Value: 38000,
 	}
 	DbPathRootFlag = cli.StringFlag{
 		Name:  "db_path_root",
 		Usage: "Data directory for the databases and keystore",
-		Value: "./data",
 	}
 	P2pFlag = cli.BoolFlag{
 		Name:  "p2p",
@@ -159,7 +149,6 @@ var (
 	MaxPeersFlag = cli.Uint64Flag{
 		Name:  "max_peers",
 		Usage: "max peer for new p2p module",
-		Value: config.NewP2PConfig().MaxPeers,
 	}
 	BootnodesFlag = cli.StringFlag{
 		Name:  "bootnodes",
@@ -198,7 +187,6 @@ var (
 	RPCPortFlag = cli.IntFlag{
 		Name:  "json_rpc_port",
 		Usage: "public HTTP-RPC server listening port",
-		Value: service.DefaultHTTPPort,
 	}
 	// RPC settings
 	PrivateRPCEnableFlag = cli.BoolFlag{
@@ -213,18 +201,15 @@ var (
 	PrivateRPCPortFlag = cli.IntFlag{
 		Name:  "json_rpc_private_port",
 		Usage: "public HTTP-RPC server listening port",
-		Value: service.DefaultPrivateHTTPPort,
 	}
 
 	GRPCPortFlag = cli.IntFlag{
 		Name:  "grpc_port",
 		Usage: "public json rpc port",
-		Value: 38591,
 	}
 	P2pPortFlag = cli.IntFlag{
 		Name:  "p2p_port",
 		Usage: "Network listening port",
-		Value: 38291,
 	}
 
 	IPCEnableFlag = cli.BoolFlag{
@@ -257,13 +242,15 @@ var (
 
 // setBootstrapNodes creates a list of bootstrap nodes from the command line
 // flags, reverting to pre-configured ones if none have been specified.
-func setBootstrapNodes(ctx *cli.Context, cfg *p2p.Config) {
-	urls := params.MainnetBootnodes
-	switch {
-	case ctx.GlobalIsSet(BootnodesFlag.Name):
-		urls = strings.Split(ctx.GlobalString(BootnodesFlag.Name), ",")
-	case cfg.BootstrapNodes != nil:
+func setBootstrapNodes(ctx *cli.Context, cfg *p2p.Config, clstrCfg *config.ClusterConfig) {
+
+	if cfg.BootstrapNodes != nil {
 		return // already set, don't apply defaults.
+	}
+
+	urls := params.MainnetBootnodes
+	if clstrCfg.P2P.BootNodes != "" {
+		urls = strings.Split(clstrCfg.P2P.BootNodes, ",")
 	}
 
 	cfg.BootstrapNodes = make([]*enode.Node, 0, len(urls))
@@ -273,14 +260,6 @@ func setBootstrapNodes(ctx *cli.Context, cfg *p2p.Config) {
 			log.Crit("Bootstrap URL invalid", "enode", url, "err", err)
 		}
 		cfg.BootstrapNodes = append(cfg.BootstrapNodes, node)
-	}
-}
-
-// setListenAddress creates a TCP listening address string from set command
-// line flags.
-func setListenAddress(ctx *cli.Context, cfg *p2p.Config) {
-	if ctx.GlobalIsSet(P2pPortFlag.Name) {
-		cfg.ListenAddr = fmt.Sprintf(":%d", ctx.GlobalInt(P2pPortFlag.Name))
 	}
 }
 
@@ -307,25 +286,28 @@ func splitAndTrim(input string) []string {
 
 // setHTTP creates the HTTP RPC listener interface string from the set
 // command line flags, returning empty if the HTTP endpoint is disabled.
-func setHTTP(ctx *cli.Context, cfg *service.Config) {
+func setHTTP(ctx *cli.Context, cfg *service.Config, clstrCfg *config.ClusterConfig) {
 	if !ctx.GlobalBool(RPCDisabledFlag.Name) {
-		host := service.DefaultHTTPHost
-		if ctx.GlobalIsSet(RPCListenAddrFlag.Name) {
-			host = ctx.GlobalString(RPCListenAddrFlag.Name)
+		port := clstrCfg.JSONRPCPort
+		if ctx.GlobalIsSet(RPCPortFlag.Name) {
+			port = uint16(ctx.GlobalInt(RPCPortFlag.Name))
 		}
-		cfg.HTTPEndpoint = fmt.Sprintf("%s:%d", host, ctx.GlobalInt(RPCPortFlag.Name))
+		cfg.HTTPEndpoint = fmt.Sprintf("localhost:%d", port)
 	}
 	if ctx.GlobalBool(PrivateRPCEnableFlag.Name) {
-		host := service.DefaultHTTPHost
-		if ctx.GlobalIsSet(PrivateRPCListenAddrFlag.Name) {
-			host = ctx.GlobalString(PrivateRPCListenAddrFlag.Name)
+		port := clstrCfg.PrivateJSONRPCPort
+		if ctx.GlobalIsSet(PrivateRPCPortFlag.Name) {
+			port = uint16(ctx.GlobalInt(PrivateRPCPortFlag.Name))
 		}
-		cfg.HTTPPrivEndpoint = fmt.Sprintf("%s:%d", host, ctx.GlobalInt(PrivateRPCPortFlag.Name))
+		cfg.HTTPPrivEndpoint = fmt.Sprintf("localhost:%d", port)
 	}
 }
 
-func setGRPC(ctx *cli.Context, cfg *service.Config) {
-	cfg.SvrPort = uint16(ctx.GlobalInt(GRPCPortFlag.Name))
+func setGRPC(ctx *cli.Context, cfg *service.Config, clstrCfg *config.ClusterConfig) {
+	cfg.SvrPort = clstrCfg.Quarkchain.Root.Port
+	if ctx.GlobalIsSet(GRPCPortFlag.Name) {
+		cfg.SvrPort = uint16(ctx.GlobalInt(GRPCPortFlag.Name))
+	}
 	cfg.SvrHost = "127.0.0.1"
 }
 
@@ -341,17 +323,14 @@ func setIPC(ctx *cli.Context, cfg *service.Config) {
 	}
 }
 
-func SetP2PConfig(ctx *cli.Context, cfg *p2p.Config) {
+func SetP2PConfig(ctx *cli.Context, cfg *p2p.Config, clstrCfg *config.ClusterConfig) {
 	// setNodeKey(ctx, cfg)
 	setNAT(ctx, cfg)
-	setListenAddress(ctx, cfg)
-	setBootstrapNodes(ctx, cfg)
+	cfg.ListenAddr = fmt.Sprintf(":%d", clstrCfg.P2PPort)
+	setBootstrapNodes(ctx, cfg, clstrCfg)
 
-	if ctx.GlobalIsSet(MaxPeersFlag.Name) {
-		cfg.MaxPeers = ctx.GlobalInt(MaxPeersFlag.Name)
-	}
-	ethPeers := cfg.MaxPeers
-	log.Info("Maximum peer count", "QKC", ethPeers, "total", cfg.MaxPeers)
+	cfg.MaxPeers = int(clstrCfg.P2P.MaxPeers)
+	log.Info("Maximum peer count", "QKC", cfg.MaxPeers, "total", cfg.MaxPeers)
 
 	if ctx.GlobalIsSet(MaxPendingPeersFlag.Name) {
 		cfg.MaxPendingPeers = ctx.GlobalInt(MaxPendingPeersFlag.Name)
@@ -373,83 +352,143 @@ func SetP2PConfig(ctx *cli.Context, cfg *p2p.Config) {
 
 func SetClusterConfig(ctx *cli.Context, cfg *config.ClusterConfig) {
 
+	var (
+		shardSize      = cfg.Quarkchain.Chains[0].ShardSize
+		chainSize      = cfg.Quarkchain.ChainSize
+		rootBlockTime  = cfg.Quarkchain.Root.ConsensusConfig.TargetBlockTime
+		minorBlockTime = cfg.Quarkchain.Chains[0].ConsensusConfig.TargetBlockTime
+	)
 	// quarkchain.update
-	shardSize := ctx.GlobalInt(NumShardsFlag.Name)
-	if !common.IsP2(uint32(shardSize)) {
-		Fatalf("shard size must be pow of 2")
+	if ctx.GlobalIsSet(NumShardsFlag.Name) {
+		shardSize = uint32(ctx.GlobalInt(NumShardsFlag.Name))
+		if !common.IsP2(uint32(shardSize)) {
+			Fatalf("shard size must be pow of 2")
+		}
 	}
-	chainSize := ctx.GlobalInt(NumChainsFlag.Name)
-	rootBlockTime := ctx.GlobalInt(RootBlockIntervalSecFlag.Name)
-	minorBlockTime := ctx.GlobalInt(MinorBlockIntervalSecFlag.Name)
-	cfg.Quarkchain.Update(uint32(chainSize), uint32(shardSize), uint32(rootBlockTime), uint32(minorBlockTime))
+	if ctx.GlobalIsSet(NumChainsFlag.Name) {
+		chainSize = uint32(ctx.GlobalInt(NumChainsFlag.Name))
+	}
+	if ctx.GlobalIsSet(RootBlockIntervalSecFlag.Name) {
+		rootBlockTime = uint32(ctx.GlobalInt(RootBlockIntervalSecFlag.Name))
+	}
+	if ctx.GlobalIsSet(MinorBlockIntervalSecFlag.Name) {
+		minorBlockTime = uint32(ctx.GlobalInt(MinorBlockIntervalSecFlag.Name))
+	}
+	cfg.Quarkchain.Update(chainSize, shardSize, rootBlockTime, minorBlockTime)
 
 	// quarkchain.network_id
-	cfg.Quarkchain.NetworkID = uint32(ctx.GlobalInt(NetworkIdFlag.Name))
+	if ctx.GlobalIsSet(NetworkIdFlag.Name) {
+		cfg.Quarkchain.NetworkID = uint32(ctx.GlobalInt(NetworkIdFlag.Name))
+	}
 
 	// cluster.clean
 	if ctx.GlobalIsSet(CleanFlag.Name) {
 		cfg.Clean = ctx.GlobalBool(CleanFlag.Name)
 	}
+
 	// cluster.start_simulate_mining
 	if ctx.GlobalIsSet(StartSimulatedMiningFlag.Name) {
 		cfg.StartSimulatedMining = ctx.GlobalBool(StartSimulatedMiningFlag.Name)
 	}
-	// cluster.genesisDir
-	cfg.GenesisDir = ctx.GlobalString(GenesisDirFlag.Name)
 
-	portStart := ctx.GlobalInt(PortStartFlag.Name)
-	numSlaves := ctx.GlobalInt(NumSlavesFlag.Name)
-	if !common.IsP2(uint32(numSlaves)) {
-		Fatalf("slave size must be pow of 2")
+	// cluster.genesisDir
+	if ctx.GlobalIsSet(GenesisDirFlag.Name) {
+		cfg.GenesisDir = ctx.GlobalString(GenesisDirFlag.Name)
 	}
+
+	portStart := cfg.SlaveList[0].Port
+	if ctx.GlobalIsSet(PortStartFlag.Name) {
+		portStart = uint16(ctx.GlobalInt(PortStartFlag.Name))
+	}
+
+	numSlaves := config.DefaultNumSlaves
+	if ctx.GlobalIsSet(NumSlavesFlag.Name) {
+		numSlaves = ctx.GlobalInt(NumSlavesFlag.Name)
+	}
+
 	cfg.SlaveList = make([]*config.SlaveConfig, 0)
 	for i := 0; i < numSlaves; i++ {
 		slaveConfig := config.NewDefaultSlaveConfig()
-		slaveConfig.Port = uint16(portStart + i)
+		slaveConfig.Port = portStart + uint16(i)
 		slaveConfig.ID = fmt.Sprintf("S%d", i)
 		slaveConfig.ChainMaskList = append(slaveConfig.ChainMaskList, types.NewChainMask(uint32(i)|uint32(numSlaves)))
 		cfg.SlaveList = append(cfg.SlaveList, slaveConfig)
 	}
 
 	// cluster.loglevel
-	cfg.LogLevel = ctx.GlobalString(LogLevelFlag.Name)
+	if ctx.GlobalIsSet(LogLevelFlag.Name) {
+		cfg.LogLevel = ctx.GlobalString(LogLevelFlag.Name)
+	}
+
 	// cluster.db_path_root
-	cfg.DbPathRoot = ctx.GlobalString(DbPathRootFlag.Name)
-	cfg.P2PPort = uint16(ctx.GlobalInt(P2pPortFlag.Name))
-	cfg.JSONRPCPort = uint16(ctx.GlobalInt(RPCPortFlag.Name))
-	cfg.PrivateJSONRPCPort = uint16(ctx.GlobalInt(PrivateRPCPortFlag.Name))
+	if ctx.GlobalIsSet(DbPathRootFlag.Name) {
+		cfg.DbPathRoot = ctx.GlobalString(DbPathRootFlag.Name)
+	}
+
+	if ctx.GlobalIsSet(P2pPortFlag.Name) {
+		cfg.P2PPort = uint16(ctx.GlobalInt(P2pPortFlag.Name))
+	}
+
+	if ctx.GlobalIsSet(RPCPortFlag.Name) {
+		cfg.JSONRPCPort = uint16(ctx.GlobalInt(RPCPortFlag.Name))
+	}
+
+	if ctx.GlobalIsSet(PrivateRPCPortFlag.Name) {
+		cfg.PrivateJSONRPCPort = uint16(ctx.GlobalInt(PrivateRPCPortFlag.Name))
+	}
+
 	if ctx.GlobalBool(StartSimulatedMiningFlag.Name) {
 		cfg.StartSimulatedMining = true
 	}
 	if ctx.GlobalBool(EnableTransactionHistoryFlag.Name) {
 		cfg.EnableTransactionHistory = true
 	}
-	cfg.Quarkchain.NetworkID = uint32(ctx.GlobalInt(NetworkIdFlag.Name))
+	if ctx.GlobalIsSet(NetworkIdFlag.Name) {
+		cfg.Quarkchain.NetworkID = uint32(ctx.GlobalInt(NetworkIdFlag.Name))
+	}
 
 	// p2p config
-	cfg.P2P = config.NewP2PConfig()
-	cfg.P2P.BootNodes = ctx.GlobalString(BootnodesFlag.Name)
-	cfg.P2P.PrivKey = ctx.GlobalString(PrivkeyFlag.Name)
-	cfg.P2P.MaxPeers = ctx.GlobalUint64(MaxPeersFlag.Name)
+	if ctx.GlobalIsSet(BootnodesFlag.Name) {
+		cfg.P2P.BootNodes = ctx.GlobalString(BootnodesFlag.Name)
+	}
+
+	if ctx.GlobalIsSet(PrivkeyFlag.Name) {
+		cfg.P2P.PrivKey = ctx.GlobalString(PrivkeyFlag.Name)
+	}
+
+	if ctx.GlobalIsSet(MaxPeersFlag.Name) {
+		cfg.P2P.MaxPeers = ctx.GlobalUint64(MaxPeersFlag.Name)
+	}
+
 	if ctx.GlobalBool(UpnpFlag.Name) {
 		cfg.P2P.UPnP = true
+	}
+
+	var err error
+	cfg.Quarkchain.Root.Ip, err = common.GetIPV4Addr()
+	if err != nil {
+		Fatalf("Failed to get ip address", "err", err)
+	}
+	if ctx.GlobalIsSet(GRPCPortFlag.Name) {
+		cfg.Quarkchain.Root.Port = uint16(ctx.GlobalInt(GRPCPortFlag.Name))
 	}
 
 }
 
 // SetNodeConfig applies node-related command line flags to the config.
-func SetNodeConfig(ctx *cli.Context, cfg *service.Config) {
-	SetP2PConfig(ctx, &cfg.P2P)
+func SetNodeConfig(ctx *cli.Context, cfg *service.Config, clstrCfg *config.ClusterConfig) {
+	SetP2PConfig(ctx, &cfg.P2P, clstrCfg)
 	setIPC(ctx, cfg)
-	setHTTP(ctx, cfg)
-	setGRPC(ctx, cfg)
-	setDataDir(ctx, cfg)
+	setHTTP(ctx, cfg, clstrCfg)
+	setGRPC(ctx, cfg, clstrCfg)
+	setDataDir(ctx, cfg, clstrCfg)
 }
 
-func setDataDir(ctx *cli.Context, cfg *service.Config) {
-	switch {
-	case ctx.GlobalIsSet(DbPathRootFlag.Name):
-		cfg.DataDir = ctx.GlobalString(DbPathRootFlag.Name)
+func setDataDir(ctx *cli.Context, cfg *service.Config, clstrCfg *config.ClusterConfig) {
+	cfg.Name = ctx.GlobalString(ServiceFlag.Name)
+	cfg.DataDir = service.DefaultDataDir()
+	if ctx.GlobalIsSet(DataDirFlag.Name) {
+		cfg.DataDir = ctx.GlobalString(DataDirFlag.Name)
 	}
 }
 
@@ -505,9 +544,9 @@ func RegisterMasterService(stack *service.Node, cfg *config.ClusterConfig) {
 	}
 }
 
-func RegisterSlaveService(stack *service.Node, cfg *config.SlaveConfig) {
+func RegisterSlaveService(stack *service.Node, clusterCfg *config.ClusterConfig, cfg *config.SlaveConfig) {
 	err := stack.Register(func(ctx *service.ServiceContext) (service.Service, error) {
-		return slave.New(ctx, cfg)
+		return slave.New(ctx, clusterCfg, cfg)
 	})
 	if err != nil {
 		Fatalf("Failed to register the cluster grpc service: %v", err)

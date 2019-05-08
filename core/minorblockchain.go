@@ -500,10 +500,10 @@ func (m *MinorBlockChain) Genesis() *types.MinorBlock {
 func (m *MinorBlockChain) HasBlock(hash common.Hash) bool {
 	//TODO
 	return true
-	if m.blockCache.Contains(hash) {
-		return true
-	}
-	return rawdb.HasBlock(m.db, hash)
+	//if m.blockCache.Contains(hash) {
+	//	return true
+	//}
+	//return rawdb.HasBlock(m.db, hash)
 }
 
 // HasState checks if state trie is fully present in the database or not.
@@ -520,6 +520,7 @@ func (m *MinorBlockChain) HasBlockAndState(hash common.Hash) bool {
 	if block == nil {
 		return false
 	}
+	return true
 	return m.HasState(block.GetMetaData().Root)
 }
 

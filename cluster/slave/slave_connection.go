@@ -11,10 +11,10 @@ type ToSlaveConnection struct {
 	client       rpc.Client
 }
 
-//func NewToSlaveConnection(target string, shardMaskLst []*types.ChainMask) (*ToSlaveConnection, error) {
-//	return &ToSlaveConnection{
-//		target:       target,
-//		client:       rpc.NewClient(rpc.MasterServer),
-//		shardMaskLst: shardMaskLst,
-//	}, nil
-//}
+func NewToSlaveConnection(target string, shardMaskLst []*types.ChainMask) (*ToSlaveConnection, error) {
+	return &ToSlaveConnection{
+		target:       target,
+		client:       rpc.NewClient(rpc.MasterServer),
+		shardMaskLst: shardMaskLst,
+	}, nil
+}

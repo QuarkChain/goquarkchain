@@ -264,7 +264,6 @@ type MasterServerSideOpServer interface {
 	BroadcastMinorBlock(context.Context, *Request) (*Response, error)
 	GetMinorBlocks(context.Context, *Request) (*Response, error)
 	GetMinorBlockHeaders(context.Context, *Request) (*Response, error)
-	//GetMinorBlockHeaders1(context.Context, *Request) (*Response, error)
 }
 
 func RegisterMasterServerSideOpServer(s *grpc.Server, srv MasterServerSideOpServer) {

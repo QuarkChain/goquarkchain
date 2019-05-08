@@ -47,7 +47,7 @@ type QKCMasterBackend struct {
 	clusterConfig      *config.ClusterConfig
 	clientPool         map[string]*SlaveConnection
 	branchToSlaves     map[uint32][]*SlaveConnection
-	branchToShardStats map[uint32]*rpc.ShardStats
+	branchToShardStats map[uint32]*rpc.ShardStatus
 	artificialTxConfig *rpc.ArtificialTxConfig
 	rootBlockChain     *core.RootBlockChain
 	MinorBlockChain    *core.MinorBlockChain
@@ -63,7 +63,7 @@ func New(ctx *service.ServiceContext, cfg *config.ClusterConfig) (*QKCMasterBack
 			eventMux:           ctx.EventMux,
 			clientPool:         make(map[string]*SlaveConnection),
 			branchToSlaves:     make(map[uint32][]*SlaveConnection, 0),
-			branchToShardStats: make(map[uint32]*rpc.ShardStats),
+			branchToShardStats: make(map[uint32]*rpc.ShardStatus),
 			artificialTxConfig: &rpc.ArtificialTxConfig{
 				TargetRootBlockTime:  cfg.Quarkchain.Root.ConsensusConfig.TargetBlockTime,
 				TargetMinorBlockTime: cfg.Quarkchain.GetShardConfigByFullShardID(cfg.Quarkchain.GetGenesisShardIds()[0]).ConsensusConfig.TargetBlockTime,
@@ -365,13 +365,13 @@ func (s *QKCMasterBackend) getShardConnForP2P(fullShardID uint32) []ShardConnFor
 
 func (s *QKCMasterBackend) createRootBlockToMine(address account.Address) (*types.RootBlock, error) {
 	var g errgroup.Group
-	rspList := make(map[string]*rpc.GetUnconfirmedHeadersResponse)
+	rspList := make(chan *rpc.GetUnconfirmedHeadersResponse, len(s.clientPool))
 
 	for target := range s.clientPool {
 		target := target
 		g.Go(func() error {
 			rsp, err := s.clientPool[target].GetUnconfirmedHeaders()
-			rspList[target] = rsp
+			rspList <- rsp
 			return err
 		})
 	}
@@ -380,7 +380,8 @@ func (s *QKCMasterBackend) createRootBlockToMine(address account.Address) (*type
 	}
 
 	fullShardIDToHeaderList := make(map[uint32][]*types.MinorBlockHeader, 0)
-	for _, resp := range rspList {
+	for index := 0; index < len(s.clientPool); index++ {
+		resp := <-rspList
 		for _, headersInfo := range resp.HeadersInfoList {
 			if _, ok := fullShardIDToHeaderList[headersInfo.Branch.Value]; ok { // to avoid overlap
 				continue // skip it if has added
@@ -408,7 +409,10 @@ func (s *QKCMasterBackend) createRootBlockToMine(address account.Address) (*type
 		headers := fullShardIDToHeaderList[fullShardID]
 		headerList = append(headerList, headers...)
 	}
-	newblock := s.rootBlockChain.CreateBlockToMine(headerList, &address, nil)
+	newblock, err := s.rootBlockChain.CreateBlockToMine(headerList, &address, nil)
+	if err != nil {
+		return nil, err
+	}
 	if err := s.rootBlockChain.Validator().ValidateBlock(newblock); err != nil {
 		//TODO :only for exposure problem ,need to delete later
 		panic(err)
@@ -419,12 +423,12 @@ func (s *QKCMasterBackend) createRootBlockToMine(address account.Address) (*type
 // GetAccountData get account Data for jsonRpc
 func (s *QKCMasterBackend) GetAccountData(address account.Address, height *uint64) (map[account.Branch]*rpc.AccountBranchData, error) {
 	var g errgroup.Group
-	rspList := make(map[string]*rpc.GetAccountDataResponse)
+	rspList := make(chan *rpc.GetAccountDataResponse, len(s.clientPool))
 	for target := range s.clientPool {
 		target := target
 		g.Go(func() error {
 			rsp, err := s.clientPool[target].GetAccountData(address, height)
-			rspList[target] = rsp
+			rspList <- rsp
 			return err
 		})
 	}
@@ -433,7 +437,8 @@ func (s *QKCMasterBackend) GetAccountData(address account.Address, height *uint6
 	}
 
 	branchToAccountBranchData := make(map[account.Branch]*rpc.AccountBranchData)
-	for _, rsp := range rspList {
+	for index := 0; index < len(s.clientPool); index++ {
+		rsp := <-rspList
 		for _, accountBranchData := range rsp.AccountBranchDataList {
 			branchToAccountBranchData[accountBranchData.Branch] = accountBranchData
 		}
@@ -536,7 +541,7 @@ func (s *QKCMasterBackend) CreateTransactions(numTxPerShard, xShardPercent uint3
 }
 
 // UpdateShardStatus update shard status for branchg
-func (s *QKCMasterBackend) UpdateShardStatus(status *rpc.ShardStats) {
+func (s *QKCMasterBackend) UpdateShardStatus(status *rpc.ShardStatus) {
 	s.lock.Lock()
 	s.branchToShardStats[status.Branch.Value] = status
 	s.lock.Unlock()

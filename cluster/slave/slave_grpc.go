@@ -55,7 +55,7 @@ func (s *SlaveServerSideOp) Ping(ctx context.Context, req *rpc.Request) (*rpc.Re
 		//	return nil, err
 		//}
 	}
-	gRep.Id, gRep.ChainMaskList = gReq.Id, gReq.ChainMaskList
+	//	gRep.Id, gRep.ChainMaskList = gReq.Id, gReq.ChainMaskList
 	log.Info("slave ping response", "request op", req.Op, "rpc id", s.rpcId)
 
 	if response.Data, err = serialize.SerializeToBytes(gRep); err != nil {

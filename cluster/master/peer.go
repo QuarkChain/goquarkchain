@@ -11,7 +11,6 @@ import (
 	"github.com/QuarkChain/goquarkchain/serialize"
 	"github.com/ethereum/go-ethereum/common"
 	"io/ioutil"
-	"math/big"
 	"sync"
 	"time"
 )
@@ -211,7 +210,7 @@ func (p *peer) AsyncSendTransactions(branch uint32, txs []*types.Transaction) {
 
 // SendNewTip announces the head of each shard or root.
 func (p *peer) SendNewTip(branch uint32, tip *p2p.Tip) error {
-	msg, err := p2p.MakeMsg(p2p.NewTransactionListMsg, p.getRpcId(), p2p.Metadata{Branch: branch}, tip)
+	msg, err := p2p.MakeMsg(p2p.NewTipMsg, p.getRpcId(), p2p.Metadata{Branch: branch}, tip)
 	if err != nil {
 		return err
 	}
@@ -270,7 +269,7 @@ func (p *peer) deleteChan(rpcId uint64) {
 }
 
 // requestRootBlockHeaderList fetches a batch of root blocks' headers corresponding to the
-// specified header query, based on the hash of an origin block.
+// specified header hashList, based on the hash of an origin block.
 func (p *peer) requestRootBlockHeaderList(rpcId uint64, hash common.Hash, amount uint32, reverse bool) error {
 	if amount == 0 {
 		amount = rootBlockHeaderListLimit
@@ -593,12 +592,13 @@ func (ps *peerSet) BestPeer() *peer {
 	defer ps.lock.RUnlock()
 
 	var (
-		bestPeer *peer
-		bestTd   *big.Int
+		bestPeer   *peer
+		bestHeight uint64
 	)
+	// TODO will update to TD when td add to rootblock
 	for _, p := range ps.peers {
-		if td := p.Head().Difficulty; bestPeer == nil || td.Cmp(bestTd) > 0 {
-			bestPeer, bestTd = p, td
+		if head := p.Head(); head != nil && (bestPeer == nil || head.NumberU64() > bestHeight) {
+			bestPeer, bestHeight = p, head.NumberU64()
 		}
 	}
 	return bestPeer

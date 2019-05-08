@@ -2,7 +2,7 @@
 package main
 
 import (
-	"bufio"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
@@ -11,7 +11,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/params"
 	"github.com/naoina/toml"
 	"gopkg.in/urfave/cli.v1"
-	"os"
+	"io/ioutil"
 	"reflect"
 	"unicode"
 )
@@ -44,18 +44,14 @@ type qkcConfig struct {
 }
 
 func loadConfig(file string, cfg *config.ClusterConfig) error {
-	f, err := os.Open(file)
-	if err != nil {
-		return err
+	var (
+		content []byte
+		err     error
+	)
+	if content, err = ioutil.ReadFile(file); err != nil {
+		return errors.New(file + ", " + err.Error())
 	}
-	defer f.Close()
-
-	err = tomlSettings.NewDecoder(bufio.NewReader(f)).Decode(cfg)
-	// Add file name to errors that have a line number.
-	if _, ok := err.(*toml.LineError); ok {
-		err = errors.New(file + ", " + err.Error())
-	}
-	return err
+	return json.Unmarshal(content, cfg)
 }
 
 func defaultNodeConfig() service.Config {
@@ -78,12 +74,14 @@ func makeConfigNode(ctx *cli.Context) (*service.Node, qkcConfig) {
 	if file := ctx.GlobalString(ClusterConfigFlag.Name); file != "" {
 		if err := loadConfig(file, &cfg.Cluster); err != nil {
 			utils.Fatalf("%v", err)
+		} else {
+			fmt.Println("lllllllll", cfg.Cluster.Quarkchain.GetGenesisShardIds())
 		}
 	} else {
 		utils.SetClusterConfig(ctx, &cfg.Cluster)
 	}
 	// Load default cluster config.
-	utils.SetNodeConfig(ctx, &cfg.Service)
+	utils.SetNodeConfig(ctx, &cfg.Service, &cfg.Cluster)
 
 	ServiceName := ctx.GlobalString(utils.ServiceFlag.Name)
 	if ServiceName != clientIdentifier {
@@ -109,7 +107,7 @@ func makeFullNode(ctx *cli.Context) *service.Node {
 	if !stack.IsMaster() {
 		for _, slv := range cfg.Cluster.SlaveList {
 			if cfg.Service.Name == slv.ID {
-				utils.RegisterSlaveService(stack, slv)
+				utils.RegisterSlaveService(stack, &cfg.Cluster, slv)
 				break
 			}
 		}

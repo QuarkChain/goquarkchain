@@ -6,6 +6,7 @@ import (
 	ethCommon "github.com/ethereum/go-ethereum/common"
 	"math/big"
 	"math/bits"
+	"net"
 	"reflect"
 )
 
@@ -43,6 +44,41 @@ func DeepCopy(dst, src interface{}) error {
 		return err
 	}
 	return gob.NewDecoder(bytes.NewBuffer(buf.Bytes())).Decode(dst)
+}
+
+func GetIPV4Addr() (string, error) {
+
+	addrs, err := net.InterfaceAddrs()
+	if err != nil {
+		return "127.0.0.1", err
+	}
+
+	for _, addr := range addrs {
+		if ipnet, ok := addr.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
+			ones, bits := ipnet.Mask.Size()
+			if bits == 32 && ones == 24 {
+				return ipnet.IP.To4().String(), nil
+			}
+		}
+	}
+	return "127.0.0.1", nil
+}
+
+func IsLocalIP(ip string) (bool, error) {
+	addrs, err := net.InterfaceAddrs()
+	if err != nil {
+		return false, err
+	}
+	for i := range addrs {
+		intf, _, err := net.ParseCIDR(addrs[i].String())
+		if err != nil {
+			return false, err
+		}
+		if net.ParseIP(ip).Equal(intf) {
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 func IsNil(data interface{}) bool {

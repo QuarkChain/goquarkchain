@@ -359,7 +359,8 @@ func TestAddRootBlock(t *testing.T) {
 	id1, err := account.CreatRandomIdentity()
 	assert.NoError(t, err)
 	add1 := account.NewAddress(id1.GetRecipient(), 3)
-	rootBlock := master.rootBlockChain.CreateBlockToMine(nil, &add1, nil)
+	rootBlock, err := master.rootBlockChain.CreateBlockToMine(nil, &add1, nil)
+	assert.NoError(t, err)
 	err = master.AddRootBlock(rootBlock)
 	assert.NoError(t, err)
 }
@@ -418,7 +419,7 @@ func TestExecuteTransaction(t *testing.T) {
 func TestGetMinorBlockByHeight(t *testing.T) {
 	master := initEnv(t, nil)
 	fakeMinorBlock := types.NewMinorBlock(&types.MinorBlockHeader{Version: 111}, &types.MinorBlockMeta{}, nil, nil, nil)
-	fakeShardStatus := rpc.ShardStats{
+	fakeShardStatus := rpc.ShardStatus{
 		Branch: account.Branch{Value: 2},
 		Height: 0,
 	}

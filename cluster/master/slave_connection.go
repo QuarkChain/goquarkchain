@@ -403,29 +403,6 @@ func (s *SlaveConnection) GetUnconfirmedHeaders() (*rpc.GetUnconfirmedHeadersRes
 	return rsp, nil
 }
 
-func (s *SlaveConnection) GetMinorBlockToMine(branch account.Branch, address account.Address, artificialTxConfig *rpc.ArtificialTxConfig) (*types.MinorBlock, error) {
-	var (
-		req = rpc.GetNextBlockToMineRequest{
-			Branch:             branch,
-			Address:            address.AddressInBranch(branch),
-			ArtificialTxConfig: artificialTxConfig,
-		}
-		rsp = new(rpc.GetNextBlockToMineResponse)
-	)
-	bytes, err := serialize.SerializeToBytes(req)
-	if err != nil {
-		return nil, err
-	}
-	res, err := s.client.Call(s.target, &rpc.Request{Op: rpc.OpGetNextBlockToMine, Data: bytes})
-	if err != nil {
-		return nil, err
-	}
-	if err = serialize.Deserialize(serialize.NewByteBuffer(res.Data), rsp); err != nil {
-		return nil, err
-	}
-	return rsp.Block, nil
-}
-
 func (s *SlaveConnection) GetEcoInfoListRequest() (*rpc.GetEcoInfoListResponse, error) {
 	var (
 		rsp = new(rpc.GetEcoInfoListResponse)

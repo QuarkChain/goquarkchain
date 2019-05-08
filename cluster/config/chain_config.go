@@ -50,7 +50,7 @@ func NewChainConfig() *ChainConfig {
 		GasLimitUsageAdjustmentDenominator: 2,
 		DifficultyAdjustmentCutoffTime:     7,
 		DifficultyAdjustmentFactor:         512,
-		ExtraShardBlocksInRootBlock:        30,
+		ExtraShardBlocksInRootBlock:        3,
 		PoswConfig:                         NewPOSWConfig(),
 	}
 }
@@ -62,7 +62,7 @@ func (c *ChainConfig) MarshalJSON() ([]byte, error) {
 	jsonConfig := struct {
 		ChainConfigAlias
 		CoinbaseAddress string `json:"COINBASE_ADDRESS"`
-	}{ChainConfigAlias(*c), addr}
+	}{ChainConfigAlias: ChainConfigAlias(*c), CoinbaseAddress: addr}
 	return json.Marshal(jsonConfig)
 }
 

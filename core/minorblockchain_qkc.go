@@ -6,7 +6,6 @@ import (
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	qkcCommon "github.com/QuarkChain/goquarkchain/common"
-	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/core/rawdb"
 	"github.com/QuarkChain/goquarkchain/core/state"
 	"github.com/QuarkChain/goquarkchain/core/types"
@@ -587,7 +586,7 @@ func (m *MinorBlockChain) isSameMinorChain(long types.IHeader, short types.IHead
 }
 func (m *MinorBlockChain) isSameRootChain(long types.IHeader, short types.IHeader) bool {
 	// no need to lock
-	return consensus.IsSameRootChain(m.db, long, short)
+	return isSameRootChain(m.db, long, short)
 }
 
 func (m *MinorBlockChain) getDefaultEvmState(height *uint64) (*state.StateDB, error) {

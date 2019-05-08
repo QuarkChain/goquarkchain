@@ -81,7 +81,7 @@ func NewRootGenesis() *RootGenesis {
 		HashPrevBlock:  "",
 		HashMerkleRoot: "",
 		Timestamp:      1519147489,
-		Difficulty:     1000000000000,
+		Difficulty:     1000000,
 		Nonce:          0,
 	}
 }
@@ -97,6 +97,8 @@ type RootConfig struct {
 	CoinbaseAmount                 *big.Int     `json:"COINBASE_AMOUNT"`
 	DifficultyAdjustmentCutoffTime uint32       `json:"DIFFICULTY_ADJUSTMENT_CUTOFF_TIME"`
 	DifficultyAdjustmentFactor     uint32       `json:"DIFFICULTY_ADJUSTMENT_FACTOR"`
+	Ip                             string       `json:"-"`
+	Port                           uint16       `json:"-"`
 }
 
 func NewRootConfig() *RootConfig {
@@ -110,6 +112,8 @@ func NewRootConfig() *RootConfig {
 		CoinbaseAmount:                 new(big.Int).Mul(big.NewInt(120), QuarkashToJiaozi),
 		DifficultyAdjustmentCutoffTime: 40,
 		DifficultyAdjustmentFactor:     1024,
+		Ip:                             "127.0.0.1",
+		Port:                           38591,
 	}
 }
 
