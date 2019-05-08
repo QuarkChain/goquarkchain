@@ -24,7 +24,7 @@ func (q *QKCHash) verifySeal(chain consensus.ChainReader, header types.IHeader, 
 		adjustedDiff = header.GetDifficulty()
 	}
 
-	miningRes, err := q.hashAlgo(header.SealHash().Bytes(), header.GetNonce())
+	miningRes, err := q.hashAlgo(0 /* TODO: not used */, header.SealHash().Bytes(), header.GetNonce())
 	if err != nil {
 		return err
 	}

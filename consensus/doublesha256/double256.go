@@ -5,7 +5,6 @@ import (
 	"encoding/binary"
 	"errors"
 	"math/big"
-	"sync"
 
 	"github.com/ethereum/go-ethereum/common"
 
@@ -24,8 +23,6 @@ var (
 // Implements consensus.Pow
 type DoubleSHA256 struct {
 	*consensus.CommonEngine
-
-	closeOnce sync.Once
 }
 
 // Prepare initializes the consensus fields of a block header according to the
@@ -38,7 +35,7 @@ func (d *DoubleSHA256) Finalize(chain consensus.ChainReader, header types.IHeade
 	panic(errors.New("not finalize"))
 }
 
-func hashAlgo(hash []byte, nonce uint64) (consensus.MiningResult, error) {
+func hashAlgo(height uint64, hash []byte, nonce uint64) (consensus.MiningResult, error) {
 	nonceBytes := make([]byte, 8)
 	// Note it's big endian here
 	binary.BigEndian.PutUint64(nonceBytes, nonce)
@@ -62,7 +59,7 @@ func verifySeal(chain consensus.ChainReader, header types.IHeader, adjustedDiff 
 	}
 
 	target := new(big.Int).Div(two256, adjustedDiff)
-	miningRes, _ := hashAlgo(header.SealHash().Bytes(), header.GetNonce())
+	miningRes, _ := hashAlgo(0 /* not used */, header.SealHash().Bytes(), header.GetNonce())
 	if new(big.Int).SetBytes(miningRes.Result).Cmp(target) > 0 {
 		return consensus.ErrInvalidPoW
 	}
