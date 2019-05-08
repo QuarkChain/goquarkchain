@@ -69,10 +69,6 @@ func verifySeal(chain consensus.ChainReader, header types.IHeader, adjustedDiff 
 	return nil
 }
 
-func (q *DoubleSHA256) SetThreads(threads int) {
-	q.commonEngine.SetThreads(threads)
-}
-
 // New returns a DoubleSHA256 scheme.
 func New(diffCalculator consensus.DifficultyCalculator, remote bool) *DoubleSHA256 {
 	spec := consensus.MiningSpec{
