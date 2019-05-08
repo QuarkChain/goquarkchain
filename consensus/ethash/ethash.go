@@ -14,6 +14,7 @@ import (
 	"strconv"
 	"sync"
 	"sync/atomic"
+	"time"
 	"unsafe"
 
 	mmap "github.com/edsrzf/mmap-go"
@@ -21,7 +22,20 @@ import (
 	"github.com/hashicorp/golang-lru/simplelru"
 )
 
-var ErrInvalidDumpMagic = errors.New("invalid dump magic")
+// Ethash proof-of-work protocol constants.
+var (
+	allowedFutureBlockTime = 15 * time.Second // Max time from current time allowed for blocks, before they're considered future blocks
+)
+
+// Various error messages to mark blocks invalid. These should be private to
+// prevent engine specific errors from being referenced in the remainder of the
+// codebase, inherently breaking if the engine is swapped out. Please put common
+// error types into the consensus package.
+var (
+	errInvalidDifficulty = errors.New("non-positive difficulty")
+	errInvalidMixDigest  = errors.New("invalid mix digest")
+	errInvalidPoW        = errors.New("invalid proof-of-work")
+)
 
 var (
 	// two256 is a big integer representing 2^256
@@ -59,7 +73,7 @@ func memoryMap(path string) (*os.File, mmap.MMap, []uint32, error) {
 		if buffer[i] != magic {
 			mem.Unmap()
 			file.Close()
-			return nil, nil, nil, ErrInvalidDumpMagic
+			return nil, nil, nil, errors.New("invalid dump magic")
 		}
 	}
 	return file, mem, buffer[len(dumpMagic):], err
@@ -391,10 +405,6 @@ type Ethash struct {
 	caches   *lru // In memory caches to avoid regenerating too often
 	datasets *lru // In memory datasets to avoid regenerating too often
 
-	lock      sync.Mutex      // Ensures thread safety for the in-memory caches and mining fields
-	closeOnce sync.Once       // Ensures exit channel will not be closed twice.
-	exitCh    chan chan error // Notification channel to exiting backend threads
-
 	shared *Ethash // Shared PoW verifier to avoid cache regeneration
 }
 
@@ -429,22 +439,6 @@ func NewTester(notify []string, noverify bool) *Ethash {
 		datasets: newlru("dataset", 1, newDataset),
 	}
 	return ethash
-}
-
-// Close closes the exit channel to notify all backend threads exiting.
-func (ethash *Ethash) Close() error {
-	var err error
-	ethash.closeOnce.Do(func() {
-		// Short circuit if the exit channel is not allocated.
-		if ethash.exitCh == nil {
-			return
-		}
-		errc := make(chan error)
-		ethash.exitCh <- errc
-		err = <-errc
-		close(ethash.exitCh)
-	})
-	return err
 }
 
 // cache tries to retrieve a verification cache for the specified block number
