@@ -418,7 +418,8 @@ func DeleteRootBlock(db DatabaseDeleter, hash common.Hash) {
 	DeleteTd(db, hash)
 }
 
-func WriteRbCommittingHash(db DatabaseWriter, hash common.Hash) {
+func WriteRootBlockCommittingHash(db DatabaseWriter, hash common.Hash) {
+	//  use write-ahead log so if crashed the root block can be re-broadcasted
 	if err := db.Put(rbCommittingKey, hash.Bytes()); err != nil {
 		log.Crit("Failed to store rb committing block's hash", "err", err)
 	}

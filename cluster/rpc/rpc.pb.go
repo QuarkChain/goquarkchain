@@ -791,7 +791,7 @@ func _SlaveServerSideOp_HeartBeat_Handler(srv interface{}, ctx context.Context, 
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/rpc.SlaveServerSideOp/HeartBeat",
+		FullMethod: "/rpc.SlaveServerSideOp/Heartbeat",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(SlaveServerSideOpServer).HeartBeat(ctx, req.(*Request))

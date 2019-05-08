@@ -16,6 +16,7 @@ const (
 	PoWSimulate = "POW_SIMULATE"
 	// PoWQkchash is the consensus type running qkchash algorithm.
 	PoWQkchash = "POW_QKCHASH"
+	PoWFake    = "FakeEngine"
 )
 
 var (
