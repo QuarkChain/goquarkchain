@@ -60,7 +60,11 @@ func (q *QEthash) verifySeal(chain qkconsensus.ChainReader, header qkctypes.IHea
 	if !bytes.Equal(header.GetMixDigest().Bytes(), digest) {
 		return errInvalidMixDigest
 	}
-	target := new(big.Int).Div(two256, header.GetDifficulty())
+	diff := adjustedDiff
+	if diff == nil || diff.Cmp(big.NewInt(0)) == 0 {
+		diff = header.GetDifficulty()
+	}
+	target := new(big.Int).Div(two256, diff)
 	if new(big.Int).SetBytes(result).Cmp(target) > 0 {
 		return errInvalidPoW
 	}
@@ -73,7 +77,7 @@ func New(
 	diffCalculator qkconsensus.DifficultyCalculator,
 	remote bool,
 ) *QEthash {
-	ethash := newEthash(config )
+	ethash := newEthash(config)
 	q := &QEthash{
 		Ethash: ethash,
 	}

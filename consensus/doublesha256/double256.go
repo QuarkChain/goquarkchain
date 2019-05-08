@@ -54,11 +54,12 @@ func verifySeal(chain consensus.ChainReader, header types.IHeader, adjustedDiff 
 	if header.GetDifficulty().Sign() <= 0 {
 		return consensus.ErrInvalidDifficulty
 	}
-	if adjustedDiff.Cmp(new(big.Int).SetUint64(0)) == 0 {
-		adjustedDiff = header.GetDifficulty()
+	diff := adjustedDiff
+	if diff == nil || diff.Cmp(big.NewInt(0)) == 0 {
+		diff = header.GetDifficulty()
 	}
 
-	target := new(big.Int).Div(two256, adjustedDiff)
+	target := new(big.Int).Div(two256, diff)
 	miningRes, _ := hashAlgo(0 /* not used */, header.SealHash().Bytes(), header.GetNonce())
 	if new(big.Int).SetBytes(miningRes.Result).Cmp(target) > 0 {
 		return consensus.ErrInvalidPoW
