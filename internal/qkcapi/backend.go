@@ -12,8 +12,6 @@ import (
 
 type Backend interface {
 	AddTransaction(tx *types.Transaction) error
-	//AddRawMinorBlock(branch account.Branch, blockData []byte) error
-	AddRootBlockFromMine(block *types.RootBlock) error
 	ExecuteTransaction(tx *types.Transaction, address account.Address, height *uint64) ([]byte, error)
 	GetMinorBlockByHash(blockHash common.Hash, branch account.Branch) (*types.MinorBlock, error)
 	GetMinorBlockByHeight(height *uint64, branch account.Branch) (*types.MinorBlock, error)
@@ -33,7 +31,7 @@ type Backend interface {
 	NetWorkInfo() map[string]interface{}
 	GetPrimaryAccountData(address account.Address, blockHeight *uint64) (*qkcRPC.AccountBranchData, error)
 	CurrentBlock() *types.RootBlock
-	GetAccountData(address account.Address) (map[account.Branch]*qkcRPC.AccountBranchData, error)
+	GetAccountData(address account.Address, height *uint64) (map[account.Branch]*qkcRPC.AccountBranchData, error)
 	GetClusterConfig() *config.ClusterConfig
 	GetPeers() []qkcRPC.PeerInfoForDisPlay
 	GetStats() map[string]interface{}

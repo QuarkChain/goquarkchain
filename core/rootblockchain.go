@@ -1243,7 +1243,7 @@ func (bc *RootBlockChain) GetBlockCount() {
 }
 
 func (bc *RootBlockChain) WriteCommittingHash(hash common.Hash) {
-	rawdb.WriteRbCommittingHash(bc.db, hash)
+	rawdb.WriteRootBlockCommittingHash(bc.db, hash)
 }
 
 func (bc *RootBlockChain) ClearCommittingHash() {

@@ -375,7 +375,7 @@ func (b *RootBlock) Finalize(coinbaseAmount *big.Int, coinbaseAddress *account.A
 		a := account.CreatEmptyAddress(0)
 		coinbaseAddress = &a
 	}
-	b.header.MinorHeaderHash = DeriveSha(b.minorBlockHeaders)
+	b.header.MinorHeaderHash = CalculateMerkleRoot(b.minorBlockHeaders)
 	b.header.CoinbaseAmount = &serialize.Uint256{Value: coinbaseAmount}
 	b.header.Coinbase = *coinbaseAddress
 	return b
