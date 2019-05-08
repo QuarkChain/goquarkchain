@@ -390,3 +390,7 @@ type SubmitWorkResponse struct {
 	ErrorCode uint32 `json:"error_code" gencodec:"required"`
 	Success   bool   `json:"success" gencodec:"required"`
 }
+
+type HashList struct {
+	Hashes []common.Hash `json:"hash_list" gencodec:"required" bytesizeofslicelen:"4"`
+}
