@@ -68,10 +68,6 @@ type Engine interface {
 	// than one result may also be returned depending on the consensus algorithm.
 	Seal(chain ChainReader, block types.IBlock, results chan<- types.IBlock, stop <-chan struct{}) error
 
-	// CalcDifficulty is the difficulty adjustment algorithm. It returns the difficulty
-	// that a new block should have.
-	CalcDifficulty(chain ChainReader, time uint64, parent types.IHeader) (*big.Int, error)
-
 	GetWork() (*MiningWork, error)
 
 	SubmitWork(nonce uint64, hash, digest common.Hash) bool

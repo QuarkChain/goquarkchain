@@ -71,8 +71,9 @@ type MiningResult struct {
 
 // MiningSpec contains a PoW algo's basic info and hash algo
 type MiningSpec struct {
-	Name     string
-	HashAlgo func(hash []byte, nonce uint64) (MiningResult, error)
+	Name       string
+	HashAlgo   func(hash []byte, nonce uint64) (MiningResult, error)
+	VerifySeal func(chain ChainReader, header types.IHeader, adjustedDiff *big.Int) error
 }
 
 // CommonEngine contains the common parts for consensus engines, where engine-specific
@@ -81,13 +82,13 @@ type CommonEngine struct {
 	spec     MiningSpec
 	hashrate metrics.Meter
 
-	isRemote bool
 	// Remote sealer related fields
+	isRemote     bool
 	workCh       chan *sealTask
 	fetchWorkCh  chan *sealWork
 	submitWorkCh chan *mineResult
 
-	cengine Engine
+	diffCalc DifficultyCalculator
 
 	closeOnce sync.Once
 	exitCh    chan chan error
@@ -134,7 +135,7 @@ func (c *CommonEngine) VerifyHeader(
 
 	adjustedDiff := new(big.Int).SetUint64(0)
 	if !chain.Config().SkipRootDifficultyCheck {
-		expectedDiff, err := c.cengine.CalcDifficulty(chain, header.GetTime(), parent)
+		expectedDiff, err := c.diffCalc.CalculateDifficulty(parent, header.GetTime())
 		if err != nil {
 			return err
 		}
@@ -151,7 +152,13 @@ func (c *CommonEngine) VerifyHeader(
 		}
 	}
 
-	return c.cengine.VerifySeal(chain, header, adjustedDiff)
+	return c.spec.VerifySeal(chain, header, adjustedDiff)
+}
+
+// VerifySeal checks whether the crypto seal on a header is valid according to
+// the consensus rules of the given engine.
+func (c *CommonEngine) VerifySeal(chain ChainReader, header types.IHeader, adjustedDiff *big.Int) error {
+	return c.spec.VerifySeal(chain, header, adjustedDiff)
 }
 
 // VerifyHeaders is similar to VerifyHeader, but verifies a batch of headers
@@ -372,14 +379,14 @@ func (c *CommonEngine) Close() error {
 }
 
 // NewCommonEngine returns the common engine mixin.
-func NewCommonEngine(pow Engine, spec MiningSpec, remote bool) *CommonEngine {
+func NewCommonEngine(spec MiningSpec, diffCalc DifficultyCalculator, remote bool) *CommonEngine {
 	c := &CommonEngine{
 		spec:     spec,
 		hashrate: metrics.NewMeter(),
-		cengine:  pow,
+		diffCalc: diffCalc,
 	}
 	if remote {
-		c.isRemote = remote
+		c.isRemote = true
 		c.workCh = make(chan *sealTask)
 		c.fetchWorkCh = make(chan *sealWork)
 		c.submitWorkCh = make(chan *mineResult)

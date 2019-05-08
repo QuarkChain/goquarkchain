@@ -3,9 +3,10 @@ package qkchash
 import (
 	"bytes"
 	"errors"
+	"math/big"
+
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/core/types"
-	"math/big"
 )
 
 var (
@@ -22,16 +23,14 @@ func (q *QKCHash) Seal(
 	block types.IBlock,
 	results chan<- types.IBlock,
 	stop <-chan struct{}) error {
-	if q.commonEngine.IsRemoteMining() {
-		q.commonEngine.SetWork(block, results)
+	if q.CommonEngine.IsRemoteMining() {
+		q.CommonEngine.SetWork(block, results)
 		return nil
 	}
-	return q.commonEngine.Seal(block, results, stop)
+	return q.CommonEngine.Seal(block, results, stop)
 }
 
-// VerifySeal checks whether the crypto seal on a header is valid according to
-// the consensus rules of the given engine.
-func (q *QKCHash) VerifySeal(chain consensus.ChainReader, header types.IHeader, adjustedDiff *big.Int) error {
+func (q *QKCHash) verifySeal(chain consensus.ChainReader, header types.IHeader, adjustedDiff *big.Int) error {
 	if header.GetDifficulty().Sign() <= 0 {
 		return consensus.ErrInvalidDifficulty
 	}
