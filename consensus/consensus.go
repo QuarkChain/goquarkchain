@@ -110,6 +110,12 @@ func (c *CommonEngine) Author(header types.IHeader) (account.Address, error) {
 	return header.GetCoinbase(), nil
 }
 
+// CalcDifficulty is the difficulty adjustment algorithm. It returns the difficulty
+// that a new block should have.
+func (c *CommonEngine) CalcDifficulty(chain ChainReader, time uint64, parent types.IHeader) (*big.Int, error) {
+	return c.diffCalc.CalculateDifficulty(parent, time)
+}
+
 // VerifyHeader checks whether a header conforms to the consensus rules.
 func (c *CommonEngine) VerifyHeader(
 	chain ChainReader,
