@@ -9,7 +9,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 
-	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/core/state"
 	"github.com/QuarkChain/goquarkchain/core/types"
@@ -27,11 +26,6 @@ type DoubleSHA256 struct {
 	*consensus.CommonEngine
 
 	closeOnce sync.Once
-}
-
-// Author returns coinbase address.
-func (d *DoubleSHA256) Author(header types.IHeader) (account.Address, error) {
-	return header.GetCoinbase(), nil
 }
 
 // Prepare initializes the consensus fields of a block header according to the

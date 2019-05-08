@@ -4,13 +4,6 @@ import (
 	crand "crypto/rand"
 	"errors"
 	"fmt"
-
-	"github.com/QuarkChain/goquarkchain/core/types"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/log"
-	"github.com/ethereum/go-ethereum/metrics"
-
 	"math"
 	"math/big"
 	"math/rand"
@@ -18,6 +11,14 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/metrics"
+
+	"github.com/QuarkChain/goquarkchain/account"
+	"github.com/QuarkChain/goquarkchain/core/types"
 )
 
 var (
@@ -102,6 +103,11 @@ func (c *CommonEngine) Name() string {
 // Hashrate returns the current mining hashrate of a PoW consensus engine.
 func (c *CommonEngine) Hashrate() float64 {
 	return c.hashrate.Rate1()
+}
+
+// Author returns coinbase address.
+func (c *CommonEngine) Author(header types.IHeader) (account.Address, error) {
+	return header.GetCoinbase(), nil
 }
 
 // VerifyHeader checks whether a header conforms to the consensus rules.

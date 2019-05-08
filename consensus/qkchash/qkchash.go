@@ -3,12 +3,11 @@ package qkchash
 import (
 	"encoding/binary"
 
-	"github.com/QuarkChain/goquarkchain/core/state"
-
-	"github.com/QuarkChain/goquarkchain/account"
-	"github.com/QuarkChain/goquarkchain/consensus"
-	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/common"
+
+	"github.com/QuarkChain/goquarkchain/consensus"
+	"github.com/QuarkChain/goquarkchain/core/state"
+	"github.com/QuarkChain/goquarkchain/core/types"
 )
 
 // QKCHash is a consensus engine implementing PoW with qkchash algo.
@@ -21,11 +20,6 @@ type QKCHash struct {
 	cache qkcCache
 	// A flag indicating which impl (c++ native or go) to use
 	useNative bool
-}
-
-// Author returns coinbase address.
-func (q *QKCHash) Author(header types.IHeader) (account.Address, error) {
-	return header.GetCoinbase(), nil
 }
 
 // Prepare initializes the consensus fields of a block header according to the
