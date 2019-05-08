@@ -352,6 +352,18 @@ func (s *QKCMasterBackend) getAllSlaveConnection(fullShardID uint32) []*SlaveCon
 	return slaves
 }
 
+func (s *QKCMasterBackend) getShardConnForP2P(fullShardID uint32) []ShardConnForP2P {
+	slaves := s.branchToSlaves[fullShardID]
+	if len(slaves) < 1 {
+		return nil
+	}
+	slavesInterface := make([]ShardConnForP2P, 0)
+	for _, v := range slaves {
+		slavesInterface = append(slavesInterface, v)
+	}
+	return slavesInterface
+}
+
 func (s *QKCMasterBackend) createRootBlockToMine(address account.Address) (*types.RootBlock, error) {
 	var g errgroup.Group
 	rspList := make(map[string]*rpc.GetUnconfirmedHeadersResponse)
