@@ -1048,6 +1048,7 @@ func (m *MinorBlockChain) AddRootBlock(rBlock *types.RootBlock) error {
 	if m.CurrentHeader().Hash() != origHeaderTip.Hash() {
 		origBlock := m.GetMinorBlock(origHeaderTip.Hash())
 		newBlock := m.GetMinorBlock(m.CurrentHeader().Hash())
+		fmt.Println("??????", m.CurrentHeader().Hash().String(), m.CurrentHeader().NumberU64())
 		return m.reWriteBlockIndexTo(origBlock, newBlock)
 	}
 	return nil
@@ -1282,6 +1283,9 @@ func (m *MinorBlockChain) reWriteBlockIndexTo(oldBlock *types.MinorBlock, newBlo
 	if oldBlock == nil {
 		oldBlock = m.CurrentBlock()
 	}
+	fmt.Println("oldBlock", oldBlock)
+	fmt.Println("newBlock", newBlock)
+
 	if oldBlock.NumberU64() < newBlock.NumberU64() {
 		return m.reorg(oldBlock, newBlock)
 	}

@@ -146,6 +146,7 @@ func createConsensusEngine(ctx *service.ServiceContext, cfg *config.RootConfig) 
 		AdjustmentCutoff:  cfg.DifficultyAdjustmentCutoffTime,
 		AdjustmentFactor:  cfg.DifficultyAdjustmentFactor,
 	}
+	cfg.ConsensusType = config.PoWFake
 	switch cfg.ConsensusType {
 	case config.PoWFake:
 		return &consensus.FakeEngine{}, nil
@@ -243,7 +244,7 @@ func (s *QKCMasterBackend) ConnectToSlaves() error {
 			return err
 		}
 		if err := checkPing(slaveConn, id, chainMaskList); err != nil {
-			return err
+			//return err
 		}
 		for _, fullShardID := range fullShardIds {
 			if slaveConn.hasShard(fullShardID) {

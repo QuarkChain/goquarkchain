@@ -1286,7 +1286,6 @@ func (bc *RootBlockChain) FakeInsertToShard(blocks []types.IBlock) error {
 		}
 		fmt.Println("分片插入root--结束", block.Number())
 	}
-	fmt.Println("FakeInsertToShard 成功!@@@@@@@@@@@@@@@@@@@@@")
 	return nil
 }
 
