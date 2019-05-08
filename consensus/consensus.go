@@ -4,13 +4,6 @@ import (
 	crand "crypto/rand"
 	"errors"
 	"fmt"
-
-	"github.com/QuarkChain/goquarkchain/core/types"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/log"
-	"github.com/ethereum/go-ethereum/metrics"
-
 	"math"
 	"math/big"
 	"math/rand"
@@ -18,6 +11,14 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/metrics"
+
+	"github.com/QuarkChain/goquarkchain/account"
+	"github.com/QuarkChain/goquarkchain/core/types"
 )
 
 var (
@@ -71,8 +72,9 @@ type MiningResult struct {
 
 // MiningSpec contains a PoW algo's basic info and hash algo
 type MiningSpec struct {
-	Name     string
-	HashAlgo func(hash []byte, nonce uint64) (MiningResult, error)
+	Name       string
+	HashAlgo   func(hash []byte, nonce uint64) (MiningResult, error)
+	VerifySeal func(chain ChainReader, header types.IHeader, adjustedDiff *big.Int) error
 }
 
 // CommonEngine contains the common parts for consensus engines, where engine-specific
@@ -81,13 +83,13 @@ type CommonEngine struct {
 	spec     MiningSpec
 	hashrate metrics.Meter
 
-	isRemote bool
 	// Remote sealer related fields
+	isRemote     bool
 	workCh       chan *sealTask
 	fetchWorkCh  chan *sealWork
 	submitWorkCh chan *mineResult
 
-	cengine Engine
+	diffCalc DifficultyCalculator
 
 	closeOnce sync.Once
 	exitCh    chan chan error
@@ -101,6 +103,17 @@ func (c *CommonEngine) Name() string {
 // Hashrate returns the current mining hashrate of a PoW consensus engine.
 func (c *CommonEngine) Hashrate() float64 {
 	return c.hashrate.Rate1()
+}
+
+// Author returns coinbase address.
+func (c *CommonEngine) Author(header types.IHeader) (account.Address, error) {
+	return header.GetCoinbase(), nil
+}
+
+// CalcDifficulty is the difficulty adjustment algorithm. It returns the difficulty
+// that a new block should have.
+func (c *CommonEngine) CalcDifficulty(chain ChainReader, time uint64, parent types.IHeader) (*big.Int, error) {
+	return c.diffCalc.CalculateDifficulty(parent, time)
 }
 
 // VerifyHeader checks whether a header conforms to the consensus rules.
@@ -134,7 +147,7 @@ func (c *CommonEngine) VerifyHeader(
 
 	adjustedDiff := new(big.Int).SetUint64(0)
 	if !chain.Config().SkipRootDifficultyCheck {
-		expectedDiff, err := c.cengine.CalcDifficulty(chain, header.GetTime(), parent)
+		expectedDiff, err := c.diffCalc.CalculateDifficulty(parent, header.GetTime())
 		if err != nil {
 			return err
 		}
@@ -151,7 +164,13 @@ func (c *CommonEngine) VerifyHeader(
 		}
 	}
 
-	return c.cengine.VerifySeal(chain, header, adjustedDiff)
+	return c.spec.VerifySeal(chain, header, adjustedDiff)
+}
+
+// VerifySeal checks whether the crypto seal on a header is valid according to
+// the consensus rules of the given engine.
+func (c *CommonEngine) VerifySeal(chain ChainReader, header types.IHeader, adjustedDiff *big.Int) error {
+	return c.spec.VerifySeal(chain, header, adjustedDiff)
 }
 
 // VerifyHeaders is similar to VerifyHeader, but verifies a batch of headers
@@ -220,6 +239,20 @@ func (c *CommonEngine) FindNonce(
 // Seal generates a new block for the given input block with the local miner's
 // seal place on top.
 func (c *CommonEngine) Seal(
+	chain ChainReader,
+	block types.IBlock,
+	results chan<- types.IBlock,
+	stop <-chan struct{}) error {
+	if c.isRemote {
+		c.SetWork(block, results)
+		return nil
+	}
+	return c.localSeal(block, results, stop)
+}
+
+// localSeal generates a new block for the given input block with the local miner's
+// seal place on top.
+func (c *CommonEngine) localSeal(
 	block types.IBlock,
 	results chan<- types.IBlock,
 	stop <-chan struct{},
@@ -350,10 +383,6 @@ func (c *CommonEngine) SetWork(block types.IBlock, results chan<- types.IBlock) 
 	c.workCh <- &sealTask{block: block, results: results}
 }
 
-func (c *CommonEngine) IsRemoteMining() bool {
-	return c.isRemote
-}
-
 func (c *CommonEngine) Close() error {
 	var err error
 	if !c.isRemote {
@@ -372,14 +401,14 @@ func (c *CommonEngine) Close() error {
 }
 
 // NewCommonEngine returns the common engine mixin.
-func NewCommonEngine(pow Engine, spec MiningSpec, remote bool) *CommonEngine {
+func NewCommonEngine(spec MiningSpec, diffCalc DifficultyCalculator, remote bool) *CommonEngine {
 	c := &CommonEngine{
 		spec:     spec,
 		hashrate: metrics.NewMeter(),
-		cengine:  pow,
+		diffCalc: diffCalc,
 	}
 	if remote {
-		c.isRemote = remote
+		c.isRemote = true
 		c.workCh = make(chan *sealTask)
 		c.fetchWorkCh = make(chan *sealWork)
 		c.submitWorkCh = make(chan *mineResult)
