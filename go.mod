@@ -1,6 +1,7 @@
 module github.com/QuarkChain/goquarkchain
 
 require (
+	bou.ke/monkey v1.0.1
 	github.com/StackExchange/wmi v0.0.0-20181212234831-e0a55b97c705 // indirect
 	github.com/allegro/bigcache v1.2.0 // indirect
 	github.com/aristanetworks/goarista v0.0.0-20190219163901-728bce664cf5 // indirect
@@ -40,7 +41,7 @@ require (
 	github.com/tecbot/gorocksdb v0.0.0-20181010114359-8752a9433481
 	golang.org/x/crypto v0.0.0-20190227175134-215aa809caaf
 	golang.org/x/net v0.0.0-20190227160552-c95aed5357e7 // indirect
-	golang.org/x/sync v0.0.0-20190227155943-e225da77a7e6 // indirect
+	golang.org/x/sync v0.0.0-20190227155943-e225da77a7e6
 	golang.org/x/tools v0.0.0-20190114222345-bf090417da8b
 	google.golang.org/grpc v1.19.1
 	gopkg.in/bluesuncorp/validator.v5 v5.10.3

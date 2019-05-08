@@ -2,7 +2,9 @@ package config
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io/ioutil"
 	"math/big"
 	"reflect"
 	"strings"
@@ -51,7 +53,7 @@ func TestClusterConfig(t *testing.T) {
 	if err != nil {
 		t.Fatalf("UnMarsshal cluster config error: %v", err)
 	}
-	if c.DbPathRoot != "./data" {
+	if c.DbPathRoot != "./db" {
 		t.Fatalf("db path root error")
 	}
 
@@ -102,4 +104,54 @@ func TestSlaveConfig(t *testing.T) {
 	jsonConfig, err := json.Marshal(&sc)
 	assert.NoError(t, err)
 	assert.True(t, strings.Contains(string(jsonConfig), "MASK_LIST\":[4]"))
+}
+
+func TestLoadClusterConfig(t *testing.T) {
+	var (
+		goClstr ClusterConfig
+		pyClstr ClusterConfig
+	)
+	if err := loadConfig("./test_config.json", &goClstr); err != nil {
+		t.Fatalf("Failed to load json file, err: %v", err)
+	}
+
+	if err := loadConfig("../../tests/testdata/testnet/cluster_config_template.json", &pyClstr); err != nil {
+		t.Fatalf("Failed to load python config file, err: %v", err)
+	}
+
+	if !reflect.DeepEqual(goClstr.SlaveList, pyClstr.SlaveList) {
+		t.Fatalf("go config slave list is not equal to python config")
+	}
+	if goClstr.Quarkchain.ChainSize != pyClstr.Quarkchain.ChainSize {
+		t.Fatalf("go config chain size is not equal to python config")
+	}
+	for i, goChain := range goClstr.Quarkchain.Chains {
+		pyCHain := pyClstr.Quarkchain.Chains[i]
+		if goChain.ChainID != pyCHain.ChainID {
+			t.Fatalf("go config chain size is not equal to python config")
+		}
+		if goChain.ShardSize != pyCHain.ShardSize {
+			t.Fatalf("go config chain size is not equal to python config")
+		}
+		if reflect.DeepEqual(goChain.Genesis, pyCHain.Genesis) {
+			t.Fatalf("go config Genesis is not equal to python config")
+		}
+		if reflect.DeepEqual(goChain.PoswConfig, pyCHain.PoswConfig) {
+			t.Fatalf("go config PoswConfig is not equal to python config")
+		}
+		if reflect.DeepEqual(goChain.ConsensusConfig, pyCHain.ConsensusConfig) {
+			t.Fatalf("go config ConsensusConfig is not equal to python config")
+		}
+	}
+}
+
+func loadConfig(file string, cfg *ClusterConfig) error {
+	var (
+		content []byte
+		err     error
+	)
+	if content, err = ioutil.ReadFile(file); err != nil {
+		return errors.New(file + ", " + err.Error())
+	}
+	return json.Unmarshal(content, cfg)
 }
