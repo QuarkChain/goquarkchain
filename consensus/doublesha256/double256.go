@@ -34,20 +34,6 @@ func (d *DoubleSHA256) Prepare(chain consensus.ChainReader, header types.IHeader
 	panic("not implemented")
 }
 
-// Seal generates a new block for the given input block with the local miner's
-// seal place on top.
-func (d *DoubleSHA256) Seal(
-	chain consensus.ChainReader,
-	block types.IBlock,
-	results chan<- types.IBlock,
-	stop <-chan struct{}) error {
-	if d.IsRemoteMining() {
-		d.SetWork(block, results)
-		return nil
-	}
-	return d.LocalSeal(block, results, stop)
-}
-
 func (d *DoubleSHA256) Finalize(chain consensus.ChainReader, header types.IHeader, state *state.StateDB, txs []*types.Transaction, receipts []*types.Receipt) (types.IBlock, error) {
 	panic(errors.New("not finalize"))
 }

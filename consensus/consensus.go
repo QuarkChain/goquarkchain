@@ -230,9 +230,23 @@ func (c *CommonEngine) FindNonce(
 	return nil
 }
 
-// LoclSeal generates a new block for the given input block with the local miner's
+// Seal generates a new block for the given input block with the local miner's
 // seal place on top.
-func (c *CommonEngine) LocalSeal(
+func (c *CommonEngine) Seal(
+	chain ChainReader,
+	block types.IBlock,
+	results chan<- types.IBlock,
+	stop <-chan struct{}) error {
+	if c.isRemote {
+		c.SetWork(block, results)
+		return nil
+	}
+	return c.localSeal(block, results, stop)
+}
+
+// localSeal generates a new block for the given input block with the local miner's
+// seal place on top.
+func (c *CommonEngine) localSeal(
 	block types.IBlock,
 	results chan<- types.IBlock,
 	stop <-chan struct{},
@@ -361,10 +375,6 @@ func (c *CommonEngine) SubmitWork(nonce uint64, hash, digest common.Hash) bool {
 
 func (c *CommonEngine) SetWork(block types.IBlock, results chan<- types.IBlock) {
 	c.workCh <- &sealTask{block: block, results: results}
-}
-
-func (c *CommonEngine) IsRemoteMining() bool {
-	return c.isRemote
 }
 
 func (c *CommonEngine) Close() error {
