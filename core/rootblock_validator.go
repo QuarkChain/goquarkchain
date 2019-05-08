@@ -60,9 +60,11 @@ func (v *RootBlockValidator) ValidateBlock(block types.IBlock) error {
 
 	mheaderHash := types.DeriveSha(rootBlock.MinorBlockHeaders())
 	if mheaderHash != rootBlock.Header().MinorHeaderHash {
-		//return fmt.Errorf("incorrect merkle root %v - %v ",
-		//	rootBlock.Header().MinorHeaderHash.String(),
-		//	mheaderHash.String())
+		return fmt.Errorf("incorrect merkle root %v - %v ",
+			rootBlock.Header().MinorHeaderHash.String(),
+			mheaderHash.String())
+	}else{
+		fmt.Println("一样")
 	}
 
 	if !v.config.SkipRootCoinbaseCheck {

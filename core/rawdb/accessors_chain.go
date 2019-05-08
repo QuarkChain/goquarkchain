@@ -3,6 +3,7 @@ package rawdb
 
 import (
 	"encoding/binary"
+	"fmt"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/serialize"
 	"github.com/ethereum/go-ethereum/common"
@@ -271,6 +272,7 @@ func ReadMinorBlock(db DatabaseReader, hash common.Hash) *types.MinorBlock {
 
 // WriteMinorBlock storea a block body into the database.
 func WriteMinorBlock(db DatabaseWriter, block *types.MinorBlock) {
+	fmt.Println("WriteMinorBlockWriteMinorBlockWriteMinorBlockWriteMinorBlock",block.Number(),block.Hash().String())
 	WriteMinorBlockHeader(db, block.Header())
 	data, err := serialize.SerializeToBytes(block)
 	if err != nil {
@@ -297,7 +299,7 @@ func ReadRootBlock(db DatabaseReader, hash common.Hash) *types.RootBlock {
 
 // WriteRootBlock storea a block rootBlockBody into the database.
 func WriteRootBlock(db DatabaseWriter, block *types.RootBlock) {
-	log.Info("出块", "number", block.Number())
+	fmt.Println("WriteRootBlockWriteRootBlockWriteRootBlockWriteRootBlock",block.Number(),block.Hash().String())
 	WriteRootBlockHeader(db, block.Header())
 	data, err := serialize.SerializeToBytes(block)
 	if err != nil {

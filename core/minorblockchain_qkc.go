@@ -2,6 +2,7 @@ package core
 
 import (
 	"errors"
+	"fmt"
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	qkcCommon "github.com/QuarkChain/goquarkchain/common"
@@ -932,6 +933,7 @@ func (m *MinorBlockChain) AddCrossShardTxListByMinorBlockHash(h common.Hash, txL
 
 // AddRootBlock add root block for minorBlockChain
 func (m *MinorBlockChain) AddRootBlock(rBlock *types.RootBlock) error {
+	fmt.Println("MinorBlockChain","AddRootBlock number",rBlock.Number())
 	m.mu.Lock() // Ensure insertion continuity
 	defer m.mu.Unlock()
 	if rBlock.Number() <= uint32(m.clusterConfig.Quarkchain.GetGenesisRootHeight(m.branch.Value)) {
@@ -961,6 +963,7 @@ func (m *MinorBlockChain) AddRootBlock(rBlock *types.RootBlock) error {
 		// prev_root_header can be None when the shard is not created at root height 0
 		if prevRootHeader == nil || prevRootHeader.Number() == uint32(m.clusterConfig.Quarkchain.GetGenesisRootHeight(m.branch.Value)) || !m.isNeighbor(mHeader.Branch, &prevHeaderNumber) {
 			if data := rawdb.ReadCrossShardTxList(m.db, h); data != nil {
+				fmt.Println("data",len(data.TXList),data.TXList)
 				return errors.New("already have")
 			}
 			continue

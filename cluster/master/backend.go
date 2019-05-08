@@ -13,11 +13,13 @@ import (
 	"github.com/QuarkChain/goquarkchain/consensus/qkchash"
 	"github.com/QuarkChain/goquarkchain/core"
 	"github.com/QuarkChain/goquarkchain/core/types"
+	"github.com/QuarkChain/goquarkchain/core/vm"
 	"github.com/QuarkChain/goquarkchain/internal/qkcapi"
 	"github.com/QuarkChain/goquarkchain/p2p"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/params"
 	ethRPC "github.com/ethereum/go-ethereum/rpc"
 	"golang.org/x/sync/errgroup"
 	"math/big"
@@ -47,6 +49,7 @@ type QKCMasterBackend struct {
 	branchToShardStats map[uint32]*rpc.ShardStats
 	artificialTxConfig *rpc.ArtificialTxConfig
 	rootBlockChain     *core.RootBlockChain
+	MinorBlockChain *core.MinorBlockChain
 	logInfo            string
 	ProtocolManager    *ProtocolManager
 }
@@ -92,7 +95,40 @@ func New(ctx *service.ServiceContext, cfg *config.ClusterConfig) (*QKCMasterBack
 	}
 	log.Info("qkc api backend", "slave client pool", len(mstr.clientPool))
 
+	shardDB:=ethdb.NewMemDatabase()
+	genesis.MustCommitMinorBlock(shardDB,mstr.rootBlockChain.CurrentBlock(),cfg.Quarkchain.GetGenesisShardIds()[0])
+	mstr.MinorBlockChain,err=core.NewMinorBlockChain(shardDB,nil,params.TestChainConfig,cfg,mstr.engine,vm.Config{},nil,cfg.Quarkchain.GetGenesisShardIds()[0])
+	if _,err:=mstr.MinorBlockChain.InitGenesisState(mstr.rootBlockChain.CurrentBlock());err!=nil{
+		panic(err)
+	}
+	if err!=nil{
+		panic(err)
+	}
+	fmt.Println("InitGenesisi succ","-===========")
+	disPlayMinor(mstr.MinorBlockChain.CurrentBlock().Header())
+	mstr.rootBlockChain.SetMinorBlockChain(mstr.MinorBlockChain)
+
 	return mstr, nil
+}
+
+func disPlayMinor(header *types.MinorBlockHeader){
+	fmt.Println("=========")
+	fmt.Println("hash",header.Hash().String())
+	fmt.Println(header.Version)
+	fmt.Println(header.Branch)
+	fmt.Println(header.Number)
+	fmt.Println(header.Coinbase)
+	fmt.Println(header.CoinbaseAmount.Value)
+	fmt.Println(header.ParentHash.String())
+	fmt.Println(header.PrevRootBlockHash.String())
+	fmt.Println(header.GasLimit)
+	fmt.Println(header.MetaHash.String())
+	fmt.Println(header.Time)
+	fmt.Println(header.Difficulty)
+	fmt.Println(header.Nonce)
+	fmt.Println(header.Bloom)
+	fmt.Println(header.Extra)
+	fmt.Println(header.MixDigest)
 }
 
 func createDB(ctx *service.ServiceContext, name string) (ethdb.Database, error) {

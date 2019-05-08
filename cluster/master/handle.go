@@ -244,6 +244,9 @@ func (pm *ProtocolManager) handleMsg(peer *peer) error {
 		if err := serialize.DeserializeFromBytes(qkcMsg.Data, &newBlockMinor); err != nil {
 			return err
 		}
+		if err:=pm.rootBlockChain.AddMinorBlockChain(newBlockMinor.Block);err!=nil{
+			panic(err)
+		}
 		clients := pm.getShardConnFunc(qkcMsg.MetaData.Branch)
 		if len(clients) == 0 {
 			return fmt.Errorf("invalid branch %d for rpc request %d", qkcMsg.RpcID, qkcMsg.MetaData.Branch)

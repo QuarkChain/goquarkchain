@@ -116,7 +116,6 @@ type RootBlockChain struct {
 
 	fakeMinorBlockChain *MinorBlockChain
 }
-
 // NewBlockChain returns a fully initialized block chain using information
 // available in the database. It initializes the default Ethereum Validator and
 // Processor.
@@ -575,6 +574,9 @@ func (bc *RootBlockChain) addFutureBlock(block types.IBlock) error {
 //
 // After insertion is done, all accumulated events will be fired.
 func (bc *RootBlockChain) InsertChain(chain []types.IBlock) (int, error) {
+	if err:=bc.FakeInsertToShard(chain);err!=nil{
+		return 0,err
+	}
 	for _, v := range chain {
 		log.Info("RootBlockChain", "InsertChain-num", v.IHeader().NumberU64())
 	}
@@ -1265,4 +1267,38 @@ func (bc *RootBlockChain) ClearCommittingHash() {
 
 func (bc *RootBlockChain) GetCommittingBlockHash() common.Hash {
 	return rawdb.ReadRbCommittingHash(bc.db)
+}
+
+func (bc *RootBlockChain)SetMinorBlockChain(m *MinorBlockChain)  {
+	bc.fakeMinorBlockChain=m
+}
+
+func (bc *RootBlockChain)FakeInsertToShard(blocks []types.IBlock)error  {
+	for _,v:=range blocks{
+		block,ok:=v.(*types.RootBlock)
+		if !ok{
+			panic(errors.New("sb"))
+		}
+		fmt.Println("分片插入root--开始")
+		if err:=bc.fakeMinorBlockChain.AddRootBlock(block);err!=nil{
+			return err
+		}
+		fmt.Println("分片插入root--结束",block.Number())
+	}
+	fmt.Println("FakeInsertToShard 成功!@@@@@@@@@@@@@@@@@@@@@")
+	return nil
+}
+
+func (bc *RootBlockChain)AddMinorBlockChain(block *types.MinorBlock)error  {
+	if block.Header().Branch.Value==bc.fakeMinorBlockChain.branch.Value{
+		fmt.Println("准备插入minorBlockChain",block.Number())
+		_,_,err:=bc.fakeMinorBlockChain.InsertChain([]types.IBlock{block})
+		if err!=nil{
+			panic(err)
+		}
+		fmt.Println("结束插入minorBlockChain",block.Number())
+		return nil
+	}
+	fmt.Println("不是本branch",block.Header().Branch.Value,bc.fakeMinorBlockChain.branch.Value)
+	return nil
 }
