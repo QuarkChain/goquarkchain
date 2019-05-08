@@ -359,7 +359,7 @@ func TestAddRootBlock(t *testing.T) {
 	id1, err := account.CreatRandomIdentity()
 	assert.NoError(t, err)
 	add1 := account.NewAddress(id1.GetRecipient(), 3)
-	rootBlock, err := master.rootBlockChain.CreateBlockToMine(nil, &add1, nil)
+	rootBlock := master.rootBlockChain.CreateBlockToMine(nil, &add1, nil)
 	err = master.AddRootBlock(rootBlock)
 	assert.NoError(t, err)
 }

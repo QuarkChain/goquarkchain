@@ -50,7 +50,7 @@ type QKCMasterBackend struct {
 	branchToShardStats map[uint32]*rpc.ShardStats
 	artificialTxConfig *rpc.ArtificialTxConfig
 	rootBlockChain     *core.RootBlockChain
-	MinorBlockChain *core.MinorBlockChain
+	MinorBlockChain    *core.MinorBlockChain
 	logInfo            string
 	ProtocolManager    *ProtocolManager
 }
@@ -87,7 +87,7 @@ func New(ctx *service.ServiceContext, cfg *config.ClusterConfig) (*QKCMasterBack
 		return nil, err
 	}
 
-	mstr.ProtocolManager, err = NewProtocolManager(*cfg, mstr.rootBlockChain, qkcSync.NewSynchronizer(mstr.rootBlockChain), mstr.getAllSlaveConnection)
+	mstr.ProtocolManager, err = NewProtocolManager(*cfg, mstr.rootBlockChain, qkcSync.NewSynchronizer(mstr.rootBlockChain), mstr.getShardConnForP2P)
 
 	for _, cfg := range cfg.SlaveList {
 		target := fmt.Sprintf("%s:%d", cfg.IP, cfg.Port)
@@ -96,25 +96,25 @@ func New(ctx *service.ServiceContext, cfg *config.ClusterConfig) (*QKCMasterBack
 	}
 	log.Info("qkc api backend", "slave client pool", len(mstr.clientPool))
 
-	shardDB:=ethdb.NewMemDatabase()
-	genesis.MustCommitMinorBlock(shardDB,mstr.rootBlockChain.CurrentBlock(),cfg.Quarkchain.GetGenesisShardIds()[0])
-	mstr.MinorBlockChain,err=core.NewMinorBlockChain(shardDB,nil,params.TestChainConfig,cfg,mstr.engine,vm.Config{},nil,cfg.Quarkchain.GetGenesisShardIds()[0])
-	if _,err:=mstr.MinorBlockChain.InitGenesisState(mstr.rootBlockChain.CurrentBlock());err!=nil{
+	shardDB := ethdb.NewMemDatabase()
+	genesis.MustCommitMinorBlock(shardDB, mstr.rootBlockChain.CurrentBlock(), cfg.Quarkchain.GetGenesisShardIds()[0])
+	mstr.MinorBlockChain, err = core.NewMinorBlockChain(shardDB, nil, params.TestChainConfig, cfg, mstr.engine, vm.Config{}, nil, cfg.Quarkchain.GetGenesisShardIds()[0])
+	if _, err := mstr.MinorBlockChain.InitGenesisState(mstr.rootBlockChain.CurrentBlock()); err != nil {
 		panic(err)
 	}
-	if err!=nil{
+	if err != nil {
 		panic(err)
 	}
-	fmt.Println("InitGenesisi succ","-===========")
+	fmt.Println("InitGenesisi succ", "-===========")
 	disPlayMinor(mstr.MinorBlockChain.CurrentBlock().Header())
 	mstr.rootBlockChain.SetMinorBlockChain(mstr.MinorBlockChain)
 
 	return mstr, nil
 }
 
-func disPlayMinor(header *types.MinorBlockHeader){
+func disPlayMinor(header *types.MinorBlockHeader) {
 	fmt.Println("=========")
-	fmt.Println("hash",header.Hash().String())
+	fmt.Println("hash", header.Hash().String())
 	fmt.Println(header.Version)
 	fmt.Println(header.Branch)
 	fmt.Println(header.Number)
@@ -196,7 +196,7 @@ func (s *QKCMasterBackend) Start(srvr *p2p.Server) error {
 		return err
 	}
 	// start heart beat pre 3 seconds.
-	s.HeartBeat()
+	s.Heartbeat()
 	s.ProtocolManager.Start(10000)
 	s.disPlayPeers()
 	return nil
@@ -228,9 +228,7 @@ func (s *QKCMasterBackend) InitCluster() error {
 	if err := s.hasAllShards(); err != nil {
 		return err
 	}
-	if err := s.setUpSlaveToSlaveConnections(); err != nil {
-		return err
-	}
+
 	if err := s.initShards(); err != nil {
 		return err
 	}
@@ -409,10 +407,7 @@ func (s *QKCMasterBackend) createRootBlockToMine(address account.Address) (*type
 		headers := fullShardIDToHeaderList[fullShardID]
 		headerList = append(headerList, headers...)
 	}
-	newblock, err := s.rootBlockChain.CreateBlockToMine(headerList, &address, nil)
-	if err != nil {
-		return nil, err
-	}
+	newblock := s.rootBlockChain.CreateBlockToMine(headerList, &address, nil)
 	if err := s.rootBlockChain.Validator().ValidateBlock(newblock); err != nil {
 		//TODO :only for exposure problem ,need to delete later
 		panic(err)
