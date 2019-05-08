@@ -2,10 +2,10 @@ package core
 
 import (
 	"errors"
-	"math/big"
-
 	"github.com/QuarkChain/goquarkchain/cluster/config"
+	"github.com/QuarkChain/goquarkchain/cluster/rpc"
 	"github.com/QuarkChain/goquarkchain/core/rawdb"
+	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
 
@@ -219,6 +219,248 @@ func (m *MinorBlockChain) createEvmState(trieRootHash common.Hash, headerHash co
 	evmState.SetShardConfig(m.shardConfig)
 	return evmState, nil
 }
+func (m *MinorBlockChain) GetPOSWCoinbaseBlockCnt(headerHash common.Hash, length *uint32) (map[account.Recipient]uint32, error) {
+	panic(-1)
+}
+
+func (m *MinorBlockChain) getCoinbaseAddressUntilBlock(headerHash common.Hash, length uint32) ([]account.Recipient, error) {
+	panic(-1)
+}
+
+func (m *MinorBlockChain) putTotalTxCount(mBlock *types.MinorBlock) error {
+	panic(-1)
+}
+
+func (m *MinorBlockChain) getTotalTxCount(hash common.Hash) *uint32 {
+	return rawdb.ReadTotalTx(m.db, hash)
+}
+
+func (m *MinorBlockChain) putConfirmedCrossShardTransactionDepositList(hash common.Hash, xShardReceiveTxList []*types.CrossShardTransactionDeposit) error {
+	panic(-1)
+}
+
+// InitFromRootBlock init minorBlockChain from rootBlock
+func (m *MinorBlockChain) InitFromRootBlock(rBlock *types.RootBlock) error {
+	m.mu.Lock() // to lock rootTip  confirmedHeaderTip...
+	defer m.mu.Unlock()
+	if rBlock.Header().Number <= uint32(m.clusterConfig.Quarkchain.GetGenesisRootHeight(m.branch.Value)) {
+		return errors.New("rootBlock height small than config's height")
+	}
+	if m.initialized == true {
+		return errors.New("already initialized")
+	}
+	m.initialized = true
+	confirmedHeaderTip := m.getLastConfirmedMinorBlockHeaderAtRootBlock(rBlock.Hash())
+	headerTip := confirmedHeaderTip
+	if headerTip == nil {
+		headerTip = m.GetBlockByNumber(0).IHeader().(*types.MinorBlockHeader)
+	}
+
+	m.rootTip = rBlock.Header()
+	m.confirmedHeaderTip = confirmedHeaderTip
+
+	block := rawdb.ReadMinorBlock(m.db, headerTip.Hash())
+	if block == nil {
+		return ErrMinorBlockIsNil
+	}
+	var err error
+	m.currentEvmState, err = m.createEvmState(block.Meta().Root, block.Hash())
+	if err != nil {
+		return err
+	}
+	return m.reWriteBlockIndexTo(nil, block)
+}
+
+// getEvmStateForNewBlock get evmState for new block.should have locked
+func (m *MinorBlockChain) getEvmStateForNewBlock(mBlock types.IBlock, ephemeral bool) (*state.StateDB, error) {
+	panic(-1)
+}
+
+func (m *MinorBlockChain) getEvmStateFromHeight(height *uint64) (*state.StateDB, error) {
+	panic(-1)
+}
+
+func (m *MinorBlockChain) runBlock(block *types.MinorBlock) (*state.StateDB, types.Receipts, error) {
+	panic(-1)
+}
+
+// FinalizeAndAddBlock finalize minor block and add it to chain
+// only used in test now
+func (m *MinorBlockChain) FinalizeAndAddBlock(block *types.MinorBlock) (*types.MinorBlock, types.Receipts, error) {
+	panic(-1)
+}
+
+func absUint32(a, b uint32) uint32 {
+	panic(-1)
+}
+func minBigInt(a, b *big.Int) *big.Int {
+	panic(-1)
+}
+func isNeighbor(b1, b2 account.Branch, shardSize uint32) bool {
+	panic(-1)
+}
+
+// AddTx add tx to txPool
+func (m *MinorBlockChain) AddTx(tx *types.Transaction) error {
+	if m.txPool.all.Count() > int(m.clusterConfig.Quarkchain.TransactionQueueSizeLimitPerShard) {
+		return errors.New("txpool queue full")
+	}
+	txHash := tx.Hash()
+	txInDB, _, _ := rawdb.ReadTransaction(m.db, txHash)
+	if txInDB != nil {
+		return errors.New("tx already have")
+	}
+	evmState, err := m.State()
+	if err != nil {
+		return err
+	}
+	evmState = evmState.Copy()
+	evmState.SetGasUsed(new(big.Int).SetUint64(0))
+	if _, err = evmState.Commit(true); err != nil {
+		return err
+	}
+
+	if tx, err = m.validateTx(tx, evmState, nil, nil); err != nil {
+		return err
+	}
+
+	err = m.txPool.AddLocal(tx) // txpool.addTx have lock already
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *MinorBlockChain) computeGasLimit(parentGasLimit, parentGasUsed, gasLimitFloor uint64) (*big.Int, error) {
+	panic(-1)
+}
+
+func (m *MinorBlockChain) ruOneCrossShardTxListByRootBlockHash(hash common.Hash, evmState *state.StateDB) ([]*types.CrossShardTransactionDeposit, error) {
+	panic(-1)
+}
+
+func (m *MinorBlockChain) getCrossShardTxListByRootBlockHash(hash common.Hash) ([]*types.CrossShardTransactionDeposit, error) {
+	panic(-1)
+}
+
+func (m *MinorBlockChain) getDefaultEvmState(height *uint64) (*state.StateDB, error) {
+	panic(-1)
+}
+
+// GetBalance get balance for address
+func (m *MinorBlockChain) GetBalance(recipient account.Recipient, height *uint64) (*big.Int, error) {
+	panic(-1)
+}
+
+// GetCode get code for addr
+func (m *MinorBlockChain) GetCode(recipient account.Recipient, height *uint64) ([]byte, error) {
+	panic(-1)
+}
+
+// GetStorageAt get storage for addr
+func (m *MinorBlockChain) GetStorageAt(recipient account.Recipient, key common.Hash, height *uint64) (common.Hash, error) {
+	panic(-1)
+}
+
+// ExecuteTx execute tx
+func (m *MinorBlockChain) ExecuteTx(tx *types.Transaction, fromAddress *account.Address, height *uint64) ([]byte, error) {
+	panic(-1)
+}
+
+func checkEqual(a, b types.IHeader) bool {
+	if qkcCommon.IsNil(a) && qkcCommon.IsNil(b) {
+		return true
+	}
+	if qkcCommon.IsNil(a) && !qkcCommon.IsNil(b) {
+		return false
+	}
+	if !qkcCommon.IsNil(a) && qkcCommon.IsNil(b) {
+		return false
+	}
+	if a.Hash() != b.Hash() {
+		return false
+	}
+	return true
+}
+func (m *MinorBlockChain) getAllUnconfirmedHeaderList() []*types.MinorBlockHeader {
+	var (
+		header *types.MinorBlockHeader
+		ok     bool
+	)
+
+	confirmedHeaderTip := m.confirmedHeaderTip
+
+	header, ok = m.CurrentHeader().(*types.MinorBlockHeader)
+	if !ok {
+		panic(errors.New("current not exist"))
+	}
+	startHeight := int64(-1)
+	if confirmedHeaderTip != nil {
+		startHeight = int64(confirmedHeaderTip.Number)
+	}
+
+	allHeight := int(header.NumberU64()) - int(startHeight)
+	headerList := make([]*types.MinorBlockHeader, allHeight)
+	for index := allHeight - 1; index >= 0; index-- {
+		headerList[index] = header
+		header, ok = m.GetHeaderByHash(header.GetParentHash()).(*types.MinorBlockHeader)
+		if !ok {
+			if index == 0 {
+				continue // 0's pre
+			} else {
+				panic(errors.New("not in order"))
+			}
+		}
+	}
+
+	if !checkEqual(header, confirmedHeaderTip) {
+		return nil
+	}
+	return headerList
+}
+
+// GetUnconfirmedHeaderList get unconfirmed headerList
+func (m *MinorBlockChain) GetUnconfirmedHeaderList() []*types.MinorBlockHeader {
+	panic(-1)
+}
+
+func (m *MinorBlockChain) getMaxBlocksInOneRootBlock() uint64 {
+	return uint64(m.shardConfig.MaxBlocksPerShardInOneRootBlock())
+}
+
+// GetUnconfirmedHeadersCoinbaseAmount get unconfirmed headers coinbase amount
+func (m *MinorBlockChain) GetUnconfirmedHeadersCoinbaseAmount() uint64 {
+	panic(-1)
+}
+
+func (m *MinorBlockChain) getXShardTxLimits(rBlock *types.RootBlock) map[uint32]uint32 {
+	panic(-1)
+}
+
+func (m *MinorBlockChain) addTransactionToBlock(rootBlockHash common.Hash, block *types.MinorBlock, evmState *state.StateDB) (*types.MinorBlock, types.Receipts, error) {
+	panic(-1)
+}
+
+var (
+	ErrorTxContinue = errors.New("apply tx continue")
+	ErrorTxBreak    = errors.New("apply tx break")
+)
+
+func (m *MinorBlockChain) checkTxBeforeApply(stateT *state.StateDB, tx *types.Transaction, xShardTxCounters, xShardTxLimits map[uint32]uint32) error {
+	panic(-1)
+}
+
+// CreateBlockToMine create block to mine
+func (m *MinorBlockChain) CreateBlockToMine(createTime *uint64, address *account.Address, gasLimit *big.Int) (*types.MinorBlock, error) {
+	panic(-1)
+}
+
+//Cross-Shard transaction handling
+
+// AddCrossShardTxListByMinorBlockHash add crossShardTxList by slave
+func (m *MinorBlockChain) AddCrossShardTxListByMinorBlockHash(h common.Hash, txList types.CrossShardTransactionDepositList) {
+	panic(-1)
+}
 
 // AddRootBlock add root block for minorBlockChain
 func (m *MinorBlockChain) AddRootBlock(rBlock *types.RootBlock) error {
@@ -339,8 +581,88 @@ func (m *MinorBlockChain) AddRootBlock(rBlock *types.RootBlock) error {
 	}
 	return nil
 }
-func (m *MinorBlockChain) getMaxBlocksInOneRootBlock() uint64 {
-	return uint64(m.shardConfig.MaxBlocksPerShardInOneRootBlock())
+
+// includeCrossShardTxList already locked
+func (m *MinorBlockChain) includeCrossShardTxList(evmState *state.StateDB, descendantRootHeader *types.RootBlockHeader, ancestorRootHeader *types.RootBlockHeader) (*types.RootBlockHeader, error) {
+	panic(-1)
+}
+
+func (m *MinorBlockChain) runOneCrossShardTxListByRootBlockHash(hash common.Hash, evmState *state.StateDB) ([]*types.CrossShardTransactionDeposit, error) {
+	panic(-1)
+}
+
+// GetTransactionByHash get tx by hash
+func (m *MinorBlockChain) GetTransactionByHash(hash common.Hash) (*types.MinorBlock, uint32) {
+	panic(-1)
+}
+
+// GetTransactionReceipt get tx receipt by hash for slave
+func (m *MinorBlockChain) GetTransactionReceipt(hash common.Hash) (*types.MinorBlock, uint32, *types.Receipt) {
+	panic(-1)
+}
+
+// GetTransactionListByAddress get txList by addr
+func (m *MinorBlockChain) GetTransactionListByAddress(address account.Address, start, limit uint64) {
+	panic(-1)
+}
+
+// GetShardStatus show shardStatus
+func (m *MinorBlockChain) GetShardStatus() (*rpc.ShardStats, error) {
+	// getBlockCountByHeight have lock
+	cutoff := m.CurrentBlock().IHeader().GetTime() - 60
+	cblock := m.CurrentBlock()
+
+	txCount := uint32(0)
+	blockCount := uint32(0)
+	staleBlockCount := uint32(0)
+	lastBlockTime := uint32(0)
+	for cblock.IHeader().NumberU64() > 0 && cblock.IHeader().GetTime() > cutoff {
+		txCount += uint32(len(cblock.GetTransactions()))
+		blockCount++
+		staleBlockCount = uint32(m.getBlockCountByHeight(cblock.Header().Number))
+		cblock = m.GetMinorBlock(cblock.IHeader().GetParentHash())
+		if cblock == nil {
+			return nil, ErrMinorBlockIsNil
+		}
+		if lastBlockTime == 0 {
+			lastBlockTime = uint32(m.CurrentBlock().IHeader().GetTime() - cblock.IHeader().GetTime())
+		}
+	}
+	if staleBlockCount < 0 {
+		return nil, errors.New("staleBlockCount should >=0")
+	}
+	return &rpc.ShardStats{
+		Branch:             m.branch,
+		Height:             m.CurrentBlock().IHeader().NumberU64(),
+		Difficulty:         m.CurrentBlock().IHeader().GetDifficulty(),
+		CoinbaseAddress:    m.CurrentBlock().IHeader().GetCoinbase(),
+		Timestamp:          m.CurrentBlock().IHeader().GetTime(),
+		TxCount60s:         txCount,
+		PendingTxCount:     uint32(len(m.txPool.pending)),
+		TotalTxCount:       *m.getTotalTxCount(m.CurrentBlock().Hash()),
+		BlockCount60s:      blockCount,
+		StaleBlockCount60s: staleBlockCount,
+		LastBlockTime:      lastBlockTime,
+	}, nil
+}
+
+// EstimateGas estimate gas for this tx
+func (m *MinorBlockChain) EstimateGas(tx *types.Transaction, fromAddress account.Address) (uint32, error) {
+	panic(-1)
+}
+
+// GasPrice gas price
+func (m *MinorBlockChain) GasPrice() *uint64 {
+	panic(-1)
+}
+
+func (m *MinorBlockChain) getBlockCountByHeight(height uint64) uint64 {
+	m.mu.RLock() //to lock heightToMinorBlockHashes
+	defer m.mu.RUnlock()
+	if _, ok := m.heightToMinorBlockHashes[height]; ok == false {
+		return 0
+	}
+	return uint64(len(m.heightToMinorBlockHashes[height]))
 }
 
 // reWriteBlockIndexTo : already locked
@@ -352,4 +674,18 @@ func (m *MinorBlockChain) reWriteBlockIndexTo(oldBlock *types.MinorBlock, newBlo
 		return m.reorg(oldBlock, newBlock)
 	}
 	return m.SetHead(newBlock.NumberU64())
+}
+
+// POSWDiffAdjust POSW diff calc,already locked by insertChain
+// TODO to finish it later
+func (m *MinorBlockChain) POSWDiffAdjust(block types.IBlock) (uint64, error) {
+	panic(-1)
+}
+
+func (m *MinorBlockChain) GetBranch() account.Branch {
+	panic(-1)
+}
+
+func (m *MinorBlockChain) GetRootTip() *types.RootBlockHeader {
+	return m.rootTip
 }
