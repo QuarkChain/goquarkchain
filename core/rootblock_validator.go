@@ -158,7 +158,7 @@ func (v *RootBlockValidator) ValidateState(block, parent types.IBlock, statedb *
 	panic(errors.New("not implement"))
 }
 
-// ValidateHeader calls underlying engine's header verification method.
+// RootBlockValidator calls underlying engine's header verification method.
 func (v *RootBlockValidator) ValidateHeader(header types.IHeader) error {
 	return v.engine.VerifyHeader(v.blockChain, header, true)
 }
@@ -168,6 +168,10 @@ type fakeRootBlockValidator struct {
 }
 
 func (v *fakeRootBlockValidator) ValidateBlock(block types.IBlock) error {
+	return v.Err
+}
+
+func (v *fakeRootBlockValidator) ValidateHeader(header types.IHeader) error {
 	return v.Err
 }
 

@@ -5,13 +5,11 @@ package master
 import (
 	"errors"
 	"fmt"
-	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/p2p"
 	"github.com/QuarkChain/goquarkchain/serialize"
 	"github.com/ethereum/go-ethereum/common"
 	"io/ioutil"
-	"math/big"
 	"sync"
 	"time"
 )
@@ -20,6 +18,7 @@ var (
 	errClosed            = errors.New("peer set is closed")
 	errAlreadyRegistered = errors.New("peer is already registered")
 	errNotRegistered     = errors.New("peer is not registered")
+	errTimeout           = errors.New("request timeout")
 )
 
 const (
@@ -40,21 +39,14 @@ const (
 
 	requestTimeout = 5 * time.Second
 
-	rootBlockHeaderListLimit = 500
-
-	rootBlockBatchSize = 100
+	rootBlockHeaderListLimit  = 500
+	rootBlockBatchSize        = 100
+	minorBlockHeaderListLimit = 100
+	minorBlockBatchSize       = 50
 
 	directionToGenesis = uint8(0)
 	directionToTip     = uint8(1)
 )
-
-// PeerInfo represents a short summary of the sub-protocol metadata known
-// about a connected peer.
-type PeerInfo struct {
-	Version    int      `json:"version"`    // protocol version negotiated
-	Difficulty *big.Int `json:"difficulty"` // Total difficulty of the peer's blockchain
-	Head       string   `json:"head"`       // SHA3 hash of the peer's best owned block
-}
 
 type newMinorBlock struct {
 	branch uint32
@@ -81,8 +73,7 @@ type peer struct {
 	version  int         // Protocol version negotiated
 	forkDrop *time.Timer // Timed connection dropper if forks aren't validated in time
 
-	head common.Hash
-	td   *big.Int
+	head *types.RootBlockHeader
 
 	lock             sync.RWMutex
 	chanLock         sync.RWMutex
@@ -168,34 +159,25 @@ func (p *peer) getRpcIdWithChan() (uint64, chan interface{}) {
 	return p.rpcId, rpcchan
 }
 
-// Info gathers and returns a collection of metadata known about a peer.
-func (p *peer) Info() *PeerInfo {
-	hash, td := p.Head()
-
-	return &PeerInfo{
-		Version:    p.version,
-		Difficulty: td,
-		Head:       hash.Hex(),
-	}
-}
-
 // Head retrieves a copy of the current head hash and total difficulty of the
 // peer.
-func (p *peer) Head() (hash common.Hash, td *big.Int) {
+func (p *peer) Head() *types.RootBlockHeader {
 	p.lock.RLock()
 	defer p.lock.RUnlock()
 
-	copy(hash[:], p.head[:])
-	return hash, new(big.Int).Set(p.td)
+	return p.head
 }
 
 // SetHead updates the head hash and total difficulty of the peer.
-func (p *peer) SetHead(hash common.Hash, td *big.Int) {
+func (p *peer) SetHead(head *types.RootBlockHeader) {
 	p.lock.Lock()
 	defer p.lock.Unlock()
 
-	copy(p.head[:], hash[:])
-	p.td.Set(td)
+	p.head = head
+}
+
+func (p *peer) PeerId() string {
+	return p.id
 }
 
 // SendTransactions sends transactions to the peer and includes the hashes
@@ -224,7 +206,7 @@ func (p *peer) AsyncSendTransactions(branch uint32, txs []*types.Transaction) {
 
 // SendNewTip announces the head of each shard or root.
 func (p *peer) SendNewTip(branch uint32, tip *p2p.Tip) error {
-	msg, err := p2p.MakeMsg(p2p.NewTransactionListMsg, p.getRpcId(), p2p.Metadata{Branch: branch}, tip)
+	msg, err := p2p.MakeMsg(p2p.NewTipMsg, p.getRpcId(), p2p.Metadata{Branch: branch}, tip)
 	if err != nil {
 		return err
 	}
@@ -246,7 +228,7 @@ func (p *peer) AsyncSendNewTip(branch uint32, tip *p2p.Tip) {
 func (p *peer) SendNewMinorBlock(branch uint32, block *types.MinorBlock) error {
 	data := p2p.NewBlockMinor{Block: block}
 
-	msg, err := p2p.MakeMsg(p2p.NewTransactionListMsg, p.getRpcId(), p2p.Metadata{Branch: branch}, data)
+	msg, err := p2p.MakeMsg(p2p.NewBlockMinorMsg, p.getRpcId(), p2p.Metadata{Branch: branch}, data)
 	if err != nil {
 		return err
 	}
@@ -283,7 +265,7 @@ func (p *peer) deleteChan(rpcId uint64) {
 }
 
 // requestRootBlockHeaderList fetches a batch of root blocks' headers corresponding to the
-// specified header query, based on the hash of an origin block.
+// specified header hashList, based on the hash of an origin block.
 func (p *peer) requestRootBlockHeaderList(rpcId uint64, hash common.Hash, amount uint32, reverse bool) error {
 	if amount == 0 {
 		amount = rootBlockHeaderListLimit
@@ -329,7 +311,7 @@ func (p *peer) requestMinorBlockHeaderList(rpcId uint64, hash common.Hash, amoun
 		direction = directionToTip
 	}
 
-	data := p2p.GetMinorBlockHeaderListRequest{BlockHash: hash, Branch: account.Branch{Value: branch}, Limit: amount, Direction: direction}
+	data := p2p.GetMinorBlockHeaderListRequest{BlockHash: hash, Limit: amount, Direction: direction}
 	msg, err := p2p.MakeMsg(p2p.GetMinorBlockHeaderListRequestMsg, rpcId, p2p.Metadata{Branch: branch}, data)
 	if err != nil {
 		return err
@@ -501,6 +483,11 @@ func (p *peer) readStatus(protoVersion, networkId uint32) (err error) {
 	if helloCmd.Version != protoVersion {
 		return fmt.Errorf("protoco version mismatch, get: %d, want: %d", helloCmd.Version, protoVersion)
 	}
+	if helloCmd.RootBlockHeader == nil {
+		return errors.New("root block header in hello cmd is nil")
+	}
+
+	p.SetHead(helloCmd.RootBlockHeader)
 	return nil
 }
 
@@ -583,12 +570,13 @@ func (ps *peerSet) BestPeer() *peer {
 	defer ps.lock.RUnlock()
 
 	var (
-		bestPeer *peer
-		bestTd   *big.Int
+		bestPeer   *peer
+		bestHeight uint64
 	)
+	// TODO will update to TD when td add to rootblock
 	for _, p := range ps.peers {
-		if _, td := p.Head(); bestPeer == nil || td.Cmp(bestTd) > 0 {
-			bestPeer, bestTd = p, td
+		if head := p.Head(); head != nil && (bestPeer == nil || head.NumberU64() > bestHeight) {
+			bestPeer, bestHeight = p, head.NumberU64()
 		}
 	}
 	return bestPeer

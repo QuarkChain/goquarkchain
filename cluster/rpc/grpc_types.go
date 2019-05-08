@@ -374,3 +374,7 @@ type PeerInfoForDisPlay struct {
 	IP   uint32
 	Port uint32
 }
+
+type HashList struct {
+	Hashes []common.Hash `json:"hash_list" gencodec:"required" bytesizeofslicelen:"4"`
+}
