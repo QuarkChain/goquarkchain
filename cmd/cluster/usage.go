@@ -47,6 +47,7 @@ var AppHelpFlagGroups = []flagGroup{
 		Name: "QUARKCHAIN",
 		Flags: []cli.Flag{
 			utils.ServiceFlag,
+			utils.DataDirFlag,
 			ClusterConfigFlag,
 			utils.LogLevelFlag,
 			utils.CleanFlag,
