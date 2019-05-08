@@ -23,11 +23,11 @@ func (q *QKCHash) Seal(
 	block types.IBlock,
 	results chan<- types.IBlock,
 	stop <-chan struct{}) error {
-	if q.CommonEngine.IsRemoteMining() {
-		q.CommonEngine.SetWork(block, results)
+	if q.IsRemoteMining() {
+		q.SetWork(block, results)
 		return nil
 	}
-	return q.CommonEngine.Seal(block, results, stop)
+	return q.LocalSeal(block, results, stop)
 }
 
 func (q *QKCHash) verifySeal(chain consensus.ChainReader, header types.IHeader, adjustedDiff *big.Int) error {

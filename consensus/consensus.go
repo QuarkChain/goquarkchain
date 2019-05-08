@@ -224,9 +224,9 @@ func (c *CommonEngine) FindNonce(
 	return nil
 }
 
-// Seal generates a new block for the given input block with the local miner's
+// LoclSeal generates a new block for the given input block with the local miner's
 // seal place on top.
-func (c *CommonEngine) Seal(
+func (c *CommonEngine) LocalSeal(
 	block types.IBlock,
 	results chan<- types.IBlock,
 	stop <-chan struct{},

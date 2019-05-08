@@ -47,11 +47,11 @@ func (d *DoubleSHA256) Seal(
 	block types.IBlock,
 	results chan<- types.IBlock,
 	stop <-chan struct{}) error {
-	if d.CommonEngine.IsRemoteMining() {
-		d.CommonEngine.SetWork(block, results)
+	if d.IsRemoteMining() {
+		d.SetWork(block, results)
 		return nil
 	}
-	return d.CommonEngine.Seal(block, results, stop)
+	return d.LocalSeal(block, results, stop)
 }
 
 func (d *DoubleSHA256) Finalize(chain consensus.ChainReader, header types.IHeader, state *state.StateDB, txs []*types.Transaction, receipts []*types.Receipt) (types.IBlock, error) {
