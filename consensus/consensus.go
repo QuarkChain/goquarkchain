@@ -91,6 +91,9 @@ type CommonEngine struct {
 
 	diffCalc DifficultyCalculator
 
+	threads int
+	lock    sync.Mutex
+
 	closeOnce sync.Once
 	exitCh    chan chan error
 }
@@ -212,7 +215,16 @@ func (c *CommonEngine) FindNonce(
 	randGen := rand.New(rand.NewSource(seed.Int64()))
 
 	// TODO: support turning this off (for remote mining)
-	threads := runtime.NumCPU()
+	c.lock.Lock()
+	threads := c.threads
+	c.lock.Unlock()
+	if threads == 0 {
+		threads = runtime.NumCPU()
+	}
+	if threads < 0 {
+		threads = 0 // Allows disabling local mining without extra logic around local/remote
+	}
+
 	pend := sync.WaitGroup{}
 	for i := 0; i < threads; i++ {
 		pend.Add(1)
@@ -378,6 +390,12 @@ func (c *CommonEngine) SubmitWork(nonce uint64, hash, digest common.Hash) bool {
 	}
 	err := <-errc
 	return err == nil
+}
+
+func (c *CommonEngine) SetThreads(threads int) {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+	c.threads = threads
 }
 
 func (c *CommonEngine) SetWork(block types.IBlock, results chan<- types.IBlock) {
