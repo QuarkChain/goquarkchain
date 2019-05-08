@@ -24,7 +24,7 @@ func TestCacheFileEvict(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpdir)
 	diffCalculator := qkconsensus.EthDifficultyCalculator{AdjustmentCutoff: 7, AdjustmentFactor: 512, MinimumDifficulty: big.NewInt(100000)}
-	e := New(Config{CachesInMem: 3, CachesOnDisk: 10, CacheDir: tmpdir, PowMode: ModeTest}, nil, false, &diffCalculator, false)
+	e := New(Config{CachesInMem: 3, CachesOnDisk: 10, CacheDir: tmpdir, PowMode: ModeTest}, &diffCalculator, false)
 
 	workers := 8
 	epochs := 100
@@ -57,7 +57,7 @@ func TestVerifySeal(t *testing.T) {
 
 	header := &types.RootBlockHeader{Number: 1, Difficulty: big.NewInt(10)}
 	rootBlock := types.NewRootBlockWithHeader(header)
-	e := New(Config{CachesInMem: 3, CachesOnDisk: 10, PowMode: ModeTest}, nil, false, &diffCalculator, false)
+	e := New(Config{CachesInMem: 3, CachesOnDisk: 10, PowMode: ModeTest}, &diffCalculator, false)
 
 	resultsCh := make(chan types.IBlock)
 	err := e.Seal(nil, rootBlock, resultsCh, nil)

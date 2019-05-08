@@ -70,12 +70,10 @@ func (q *QEthash) verifySeal(chain qkconsensus.ChainReader, header qkctypes.IHea
 // New returns a Ethash scheme.
 func New(
 	config Config,
-	notify []string,
-	noverify bool,
 	diffCalculator qkconsensus.DifficultyCalculator,
 	remote bool,
 ) *QEthash {
-	ethash := NewEthash(config, notify, noverify)
+	ethash := newEthash(config )
 	q := &QEthash{
 		Ethash: ethash,
 	}
