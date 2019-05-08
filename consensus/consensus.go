@@ -73,7 +73,7 @@ type MiningResult struct {
 // MiningSpec contains a PoW algo's basic info and hash algo
 type MiningSpec struct {
 	Name       string
-	HashAlgo   func(hash []byte, nonce uint64) (MiningResult, error)
+	HashAlgo   func(height uint64, hash []byte, nonce uint64) (MiningResult, error)
 	VerifySeal func(chain ChainReader, header types.IHeader, adjustedDiff *big.Int) error
 }
 
@@ -305,6 +305,7 @@ func (c *CommonEngine) mine(
 ) {
 
 	var (
+		height   = work.Number
 		hash     = work.HeaderHash.Bytes()
 		target   = new(big.Int).Div(two256, work.Difficulty)
 		attempts = int64(0)
@@ -325,7 +326,7 @@ search:
 				c.hashrate.Mark(attempts)
 				attempts = 0
 			}
-			miningRes, err := c.spec.HashAlgo(hash, nonce)
+			miningRes, err := c.spec.HashAlgo(height, hash, nonce)
 			if err != nil {
 				logger.Warn("Failed to run hash algo", "miner", c.spec.Name, "error", err)
 				continue // Continue the for loop. Nonce not incremented
