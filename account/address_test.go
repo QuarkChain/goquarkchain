@@ -52,13 +52,13 @@ func CheckAddressUnitTest(data AddressTestStruct) bool {
 		return false
 	}
 	toHex := tAddress.ToHex()
-	if hex.EncodeToString(toHex) != data.ToHex { //checkToHex
+	if toHex != "0x"+data.ToHex { //checkToHex
 		fmt.Println("toHex is not match")
 		return false
 	}
 	fullShardID, err := tAddress.GetFullShardID(data.FullSizeData) //checkFullSizeData
 	if err != nil {
-		fmt.Println("GetFullShardID err", err)
+		fmt.Println("GetFullShardKey err", err)
 		return false
 	}
 
@@ -72,15 +72,15 @@ func CheckAddressUnitTest(data AddressTestStruct) bool {
 	}
 	addressInBranch := tAddress.AddressInBranch(tBranch) //check address's toHex depend addressInBranch
 	toHex = addressInBranch.ToHex()
-	if hex.EncodeToString(toHex) != data.BranchToHex {
+	if toHex != "0x"+data.BranchToHex {
 		fmt.Println("addressInBranch.Tohex is not match ")
 		return false
 	}
 
 	addressInShard := tAddress.AddressInShard(data.TShard) //checkShardIDInBranch
 	toHex = addressInShard.ToHex()
-	if hex.EncodeToString(toHex) != data.ShardToHex {
-		fmt.Printf("addressInShard is not match : unexcepted %s,excepted %s\n", hex.EncodeToString(toHex), data.ShardToHex)
+	if toHex != "0x"+data.ShardToHex {
+		fmt.Printf("addressInShard is not match : unexcepted %s,excepted %s\n", hex.EncodeToString([]byte(toHex)), data.ShardToHex)
 		return false
 	}
 	return true

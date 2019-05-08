@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"github.com/QuarkChain/goquarkchain/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 )
 
 // Address include recipient and fullShardKey
@@ -22,7 +23,13 @@ func NewAddress(recipient Recipient, fullShardKey uint32) Address {
 }
 
 // ToHex return bytes included recipient and fullShardKey
-func (Self *Address) ToHex() []byte {
+func (Self Address) ToHex() string {
+	address := Self.ToBytes()
+	return hexutil.Encode(address)
+
+}
+
+func (Self Address) ToBytes() []byte {
 	address := Self.Recipient.Bytes()
 	shardKey := Uint32ToBytes(Self.FullShardKey)
 	address = append(address, shardKey...)
@@ -40,6 +47,10 @@ func (Self *Address) GetFullShardID(shardSize uint32) (uint32, error) {
 	return uint32(chainID<<16 | shardSize | shardID), nil
 }
 
+func (self *Address) GetChainID() uint32 {
+	return self.FullShardKey >> 16
+}
+
 // AddressInShard return address depend new fullShardKey
 func (Self *Address) AddressInShard(fullShardKey uint32) Address {
 	return NewAddress(Self.Recipient, fullShardKey)
@@ -55,7 +66,7 @@ func (Self *Address) AddressInBranch(branch Branch) Address {
 
 // CreatAddressFromIdentity creat address from identity
 func CreatAddressFromIdentity(identity Identity, fullShardKey uint32) Address {
-	return NewAddress(identity.Recipient, fullShardKey)
+	return NewAddress(identity.recipient, fullShardKey)
 }
 
 // CreatRandomAccountWithFullShardKey creat random account with fullShardKey

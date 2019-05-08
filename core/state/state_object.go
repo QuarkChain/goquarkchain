@@ -96,11 +96,11 @@ func (s *stateObject) empty() bool {
 // Account is the Ethereum consensus representation of accounts.
 // These objects are stored in the main account trie.
 type Account struct {
-	Nonce       uint64
-	Balance     *big.Int
-	Root        common.Hash // merkle root of the storage trie
-	CodeHash    []byte
-	FullShardID uint32
+	Nonce        uint64
+	Balance      *big.Int
+	Root         common.Hash // merkle root of the storage trie
+	CodeHash     []byte
+	FullShardKey uint32
 }
 
 // newObject creates a state object.
@@ -381,4 +381,11 @@ func (self *stateObject) Nonce() uint64 {
 // interface. Interfaces are awesome.
 func (self *stateObject) Value() *big.Int {
 	panic("Value on stateObject should never be called")
+}
+
+func (self *stateObject) FullShardKey() uint32 {
+	return self.data.FullShardKey
+}
+func (self *stateObject) SetFullShardKey(fullShardKey uint32) {
+	self.data.FullShardKey = fullShardKey
 }

@@ -2,6 +2,7 @@ package consensus
 
 import (
 	"github.com/QuarkChain/goquarkchain/account"
+	"github.com/QuarkChain/goquarkchain/core/state"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/common"
 	"math/big"
@@ -77,11 +78,11 @@ func (e *FakeEngine) Seal(chain ChainReader, block types.IBlock, results chan<- 
 
 // CalcDifficulty is the difficulty adjustment algorithm. It returns the difficulty
 // that a new block should have.
-func (e *FakeEngine) CalcDifficulty(chain ChainReader, time uint64, parent types.IHeader) *big.Int {
+func (e *FakeEngine) CalcDifficulty(chain ChainReader, time uint64, parent types.IHeader) (*big.Int, error) {
 	if e.Difficulty == nil || e.Difficulty.Cmp(big.NewInt(0)) < 0 {
-		return parent.GetDifficulty()
+		return parent.GetDifficulty(), nil
 	}
-	return e.Difficulty
+	return e.Difficulty, nil
 }
 
 func (e *FakeEngine) GetWork() (*MiningWork, error) {
@@ -97,4 +98,8 @@ func (e *FakeEngine) SetThreads(threads int) {}
 // Close terminates any background threads maintained by the consensus engine.
 func (e *FakeEngine) Close() error {
 	return e.Err
+}
+func (e *FakeEngine) Finalize(chain ChainReader, header types.IHeader, state *state.StateDB, txs []*types.Transaction,
+	receipts []*types.Receipt) (types.IBlock, error) {
+	panic("no need for test")
 }

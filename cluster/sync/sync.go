@@ -1,6 +1,7 @@
 package sync
 
 import (
+	"github.com/QuarkChain/goquarkchain/core"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
 
@@ -9,14 +10,9 @@ import (
 
 // TODO a mock struct for peers, should have real peer connection type in P2P module.
 type peer interface {
-	downloadRootHeadersFromHash(common.Hash, uint64) ([]*types.RootBlockHeader, error)
-	downloadRootBlocks([]*types.RootBlockHeader) ([]*types.RootBlock, error)
-	id() string
-}
-
-// headerValidtor is only responsible to validate block headers.
-type headerValidator interface {
-	ValidateHeader(types.IHeader) error
+	GetRootBlockHeaderList(hash common.Hash, amount uint32, reverse bool) ([]*types.RootBlockHeader, error)
+	GetRootBlockList(hashes []common.Hash) ([]*types.RootBlock, error)
+	PeerId() string
 }
 
 // blockchain is a lightweight wrapper over shard chain or root chain.
@@ -24,7 +20,7 @@ type blockchain interface {
 	HasBlock(common.Hash) bool
 	InsertChain([]types.IBlock) (int, error)
 	CurrentHeader() types.IHeader
-	Validator() headerValidator
+	Validator() core.Validator
 }
 
 // Synchronizer will sync blocks for the master server when receiving new root blocks from peers.
@@ -76,9 +72,9 @@ func (s *synchronizer) loop() {
 
 		select {
 		case task := <-s.taskRecvCh:
-			taskMap[task.Peer().id()] = task
+			taskMap[task.Peer().PeerId()] = task
 		case assignCh <- currTask:
-			delete(taskMap, currTask.Peer().id())
+			delete(taskMap, currTask.Peer().PeerId())
 		case <-s.abortCh:
 			close(s.taskAssignCh)
 			return

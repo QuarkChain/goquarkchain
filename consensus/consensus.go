@@ -4,6 +4,7 @@ import (
 	crand "crypto/rand"
 	"errors"
 	"fmt"
+
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -51,6 +52,7 @@ var (
 	ErrInvalidDifficulty = errors.New("non-positive difficulty")
 	ErrInvalidMixDigest  = errors.New("invalid mix digest")
 	ErrInvalidPoW        = errors.New("invalid proof-of-work")
+	ErrPreTime           = errors.New("parent time is smaller than time for CalculateDifficulty")
 )
 
 // MiningWork represents the params of mining work.
@@ -135,7 +137,10 @@ func (c *CommonEngine) VerifyHeader(
 
 	adjustedDiff := new(big.Int).SetUint64(0)
 	if !chain.Config().SkipRootDifficultyCheck {
-		expectedDiff := c.cengine.CalcDifficulty(chain, header.GetTime(), parent)
+		expectedDiff, err := c.cengine.CalcDifficulty(chain, header.GetTime(), parent)
+		if err != nil {
+			return err
+		}
 		if expectedDiff.Cmp(header.GetDifficulty()) != 0 {
 			errMsg := fmt.Sprintf("invalid difficulty: have %v, want %v", header.GetDifficulty(), expectedDiff)
 			logger.Error(errMsg)
