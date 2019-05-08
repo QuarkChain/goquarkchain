@@ -1,11 +1,14 @@
 package consensus
 
 import (
+	"math/big"
+
+	"github.com/ethereum/go-ethereum/common"
+
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
+	"github.com/QuarkChain/goquarkchain/core/state"
 	"github.com/QuarkChain/goquarkchain/core/types"
-	"github.com/ethereum/go-ethereum/common"
-	"math/big"
 )
 
 // ChainReader defines a small collection of methods needed to access the local
@@ -53,6 +56,13 @@ type Engine interface {
 	// rules of a particular engine. The changes are executed inline.
 	Prepare(chain ChainReader, header types.IHeader) error
 
+	// Finalize runs any post-transaction state modifications (e.g. block rewards)
+	// and assembles the final block.
+	// Note: The block header and state database might be updated to reflect any
+	// consensus rules that happen at finalization (e.g. block rewards).
+	Finalize(chain ChainReader, header types.IHeader, state *state.StateDB, txs []*types.Transaction,
+		receipts []*types.Receipt) (types.IBlock, error)
+
 	// Seal generates a new sealing request for the given input block and pushes
 	// the result into the given channel.
 	//
@@ -62,11 +72,13 @@ type Engine interface {
 
 	// CalcDifficulty is the difficulty adjustment algorithm. It returns the difficulty
 	// that a new block should have.
-	CalcDifficulty(chain ChainReader, time uint64, parent types.IHeader) *big.Int
+	CalcDifficulty(chain ChainReader, time uint64, parent types.IHeader) (*big.Int, error)
 
 	GetWork() (*MiningWork, error)
 
 	SubmitWork(nonce uint64, hash, digest common.Hash) bool
+
+	SetThreads(threads int)
 
 	// Close terminates any background threads maintained by the consensus engine.
 	Close() error

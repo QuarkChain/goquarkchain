@@ -5,14 +5,15 @@ package types
 import (
 	"crypto/ecdsa"
 	"errors"
-	"github.com/QuarkChain/goquarkchain/account"
-	"github.com/QuarkChain/goquarkchain/serialize"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/crypto"
 	"math/big"
 	"sync/atomic"
 	"time"
 	"unsafe"
+
+	"github.com/QuarkChain/goquarkchain/account"
+	"github.com/QuarkChain/goquarkchain/serialize"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
 )
 
 // RootBlockHeader represents a root block header in the QuarkChain.
@@ -63,6 +64,7 @@ func (h *RootBlockHeader) SignWithPrivateKey(prv *ecdsa.PrivateKey) error {
 
 func (h *RootBlockHeader) GetParentHash() common.Hash   { return h.ParentHash }
 func (h *RootBlockHeader) GetCoinbase() account.Address { return h.Coinbase }
+func (h *RootBlockHeader) GetCoinbaseAmount() *big.Int  { return h.CoinbaseAmount.Value }
 func (h *RootBlockHeader) GetTime() uint64              { return h.Time }
 func (h *RootBlockHeader) GetDifficulty() *big.Int      { return new(big.Int).Set(h.Difficulty) }
 func (h *RootBlockHeader) GetNonce() uint64             { return h.Nonce }
@@ -100,6 +102,49 @@ func (h *RootBlockHeader) SetCoinbase(addr account.Address) {
 	h.Coinbase = addr
 }
 
+func (h *RootBlockHeader) CreateBlockToAppend(createTime *uint64, difficulty *big.Int, address *account.Address, nonce *uint64, extraData []byte) *RootBlock {
+	if createTime == nil {
+		preTime := h.Time + 1
+		createTime = &preTime
+	}
+
+	if difficulty == nil {
+		difficulty = h.Difficulty
+	}
+
+	if address == nil {
+		empty := account.CreatEmptyAddress(0)
+		address = &empty
+	}
+
+	if nonce == nil {
+		zeroNonce := uint64(0)
+		nonce = &zeroNonce
+	}
+
+	if extraData == nil {
+		extraData = make([]byte, 0)
+	}
+
+	header := &RootBlockHeader{
+		Version:         h.Version,
+		Number:          h.Number + 1,
+		ParentHash:      h.Hash(),
+		MinorHeaderHash: common.Hash{},
+		Coinbase:        *address,
+		CoinbaseAmount:  &serialize.Uint256{Value: new(big.Int)},
+		Time:            *createTime,
+		Difficulty:      difficulty,
+		Nonce:           *nonce,
+		Extra:           extraData,
+	}
+	return &RootBlock{
+		header:            header,
+		minorBlockHeaders: make(MinorBlockHeaders, 0),
+		trackingdata:      []byte{},
+	}
+}
+
 // Block represents an entire block in the QuarkChain.
 type RootBlock struct {
 	header            *RootBlockHeader
@@ -121,7 +166,7 @@ type RootBlock struct {
 }
 
 func (b *RootBlock) ValidateBlock() error {
-	if rootHash := DeriveSha(b.MinorBlockHeaders()); rootHash != b.Header().MinorHeaderHash {
+	if rootHash := CalculateMerkleRoot(b.MinorBlockHeaders()); rootHash != b.Header().MinorHeaderHash {
 		return errors.New("incorrect merkle root")
 	}
 
@@ -152,7 +197,7 @@ func NewRootBlock(header *RootBlockHeader, mbHeaders MinorBlockHeaders, tracking
 	if len(mbHeaders) == 0 {
 		b.header.MinorHeaderHash = EmptyHash
 	} else {
-		b.header.MinorHeaderHash = DeriveSha(MinorBlockHeaders(mbHeaders))
+		b.header.MinorHeaderHash = CalculateMerkleRoot(MinorBlockHeaders(mbHeaders))
 		b.minorBlockHeaders = make(MinorBlockHeaders, len(mbHeaders))
 		copy(b.minorBlockHeaders, mbHeaders)
 	}
@@ -311,4 +356,34 @@ func (b *RootBlock) Hash() common.Hash {
 	v := b.header.Hash()
 	b.hash.Store(v)
 	return v
+}
+
+func (b *RootBlock) GetTrackingData() []byte {
+	return b.trackingdata
+}
+
+func (b *RootBlock) GetSize() common.StorageSize {
+	return b.Size()
+}
+
+func (b *RootBlock) Finalize(coinbaseAmount *uint64, coinbaseAddress *account.Address) *RootBlock {
+	if coinbaseAmount == nil {
+		c := uint64(0)
+		coinbaseAmount = &c
+	}
+
+	if coinbaseAddress == nil {
+		a := account.CreatEmptyAddress(0)
+		coinbaseAddress = &a
+	}
+	b.header.MinorHeaderHash = DeriveSha(b.minorBlockHeaders)
+	b.header.CoinbaseAmount = &serialize.Uint256{Value: new(big.Int).SetUint64(*coinbaseAmount)}
+	b.header.Coinbase = *coinbaseAddress
+	return b
+}
+func (b *RootBlock) AddMinorBlockHeader(header *MinorBlockHeader) {
+	b.minorBlockHeaders = append(b.minorBlockHeaders, header)
+}
+func (b *RootBlock) ExtendMinorBlockHeaderList(headers []*MinorBlockHeader) {
+	b.minorBlockHeaders = append(b.minorBlockHeaders, headers...)
 }

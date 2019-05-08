@@ -3,13 +3,15 @@ package doublesha256
 import (
 	"crypto/sha256"
 	"encoding/binary"
+	"errors"
 	"math/big"
 	"sync"
 
-	"github.com/QuarkChain/goquarkchain/account"
-	"github.com/QuarkChain/goquarkchain/consensus"
-	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/common"
+
+	"github.com/QuarkChain/goquarkchain/consensus"
+	"github.com/QuarkChain/goquarkchain/core/state"
+	"github.com/QuarkChain/goquarkchain/core/types"
 )
 
 var (
@@ -21,46 +23,9 @@ var (
 // See the interface definition:
 // Implements consensus.Pow
 type DoubleSHA256 struct {
-	commonEngine   *consensus.CommonEngine
-	diffCalculator consensus.DifficultyCalculator
+	*consensus.CommonEngine
 
 	closeOnce sync.Once
-}
-
-// Author returns coinbase address.
-func (d *DoubleSHA256) Author(header types.IHeader) (account.Address, error) {
-	return header.GetCoinbase(), nil
-}
-
-// VerifyHeader checks whether a header conforms to the consensus rules.
-func (d *DoubleSHA256) VerifyHeader(chain consensus.ChainReader, header types.IHeader, seal bool) error {
-	return d.commonEngine.VerifyHeader(chain, header, seal)
-}
-
-// VerifyHeaders is similar to VerifyHeader, but verifies a batch of headers
-// concurrently. The method returns a quit channel to abort the operations and
-// a results channel to retrieve the async verifications (the order is that of
-// the input slice).
-func (d *DoubleSHA256) VerifyHeaders(chain consensus.ChainReader, headers []types.IHeader, seals []bool) (chan<- struct{}, <-chan error) {
-	return d.commonEngine.VerifyHeaders(chain, headers, seals)
-}
-
-// VerifySeal checks whether the crypto seal on a header is valid according to
-// the consensus rules of the given engine.
-func (d *DoubleSHA256) VerifySeal(chain consensus.ChainReader, header types.IHeader, adjustedDiff *big.Int) error {
-	if header.GetDifficulty().Sign() <= 0 {
-		return consensus.ErrInvalidDifficulty
-	}
-	if adjustedDiff.Cmp(new(big.Int).SetUint64(0)) == 0 {
-		adjustedDiff = header.GetDifficulty()
-	}
-
-	target := new(big.Int).Div(two256, adjustedDiff)
-	miningRes, _ := hashAlgo(header.SealHash().Bytes(), header.GetNonce())
-	if new(big.Int).SetBytes(miningRes.Result).Cmp(target) > 0 {
-		return consensus.ErrInvalidPoW
-	}
-	return nil
 }
 
 // Prepare initializes the consensus fields of a block header according to the
@@ -69,52 +34,8 @@ func (d *DoubleSHA256) Prepare(chain consensus.ChainReader, header types.IHeader
 	panic("not implemented")
 }
 
-// Seal generates a new block for the given input block with the local miner's
-// seal place on top.
-func (d *DoubleSHA256) Seal(
-	chain consensus.ChainReader,
-	block types.IBlock,
-	results chan<- types.IBlock,
-	stop <-chan struct{}) error {
-	if d.commonEngine.IsRemoteMining() {
-		d.commonEngine.SetWork(block, results)
-		return nil
-	}
-	return d.commonEngine.Seal(block, results, stop)
-}
-
-// CalcDifficulty is the difficulty adjustment algorithm. It returns the difficulty
-// that a new block should have.
-func (d *DoubleSHA256) CalcDifficulty(chain consensus.ChainReader, time uint64, parent types.IHeader) *big.Int {
-	if d.diffCalculator == nil {
-		panic("diffCalculator is not existed")
-	}
-
-	return d.diffCalculator.CalculateDifficulty(parent, time)
-}
-
-// Hashrate returns the current mining hashrate of a PoW consensus engine.
-func (d *DoubleSHA256) Hashrate() float64 {
-	return d.commonEngine.Hashrate()
-}
-
-// Close terminates any background threads maintained by the consensus engine.
-func (d *DoubleSHA256) Close() error {
-	return d.commonEngine.Close()
-}
-
-// FindNonce finds the desired nonce and mixhash for a given block header.
-func (d *DoubleSHA256) FindNonce(
-	work consensus.MiningWork,
-	results chan<- consensus.MiningResult,
-	stop <-chan struct{},
-) error {
-	return d.commonEngine.FindNonce(work, results, stop)
-}
-
-// Name returns the consensus engine's name.
-func (d *DoubleSHA256) Name() string {
-	return d.commonEngine.Name()
+func (d *DoubleSHA256) Finalize(chain consensus.ChainReader, header types.IHeader, state *state.StateDB, txs []*types.Transaction, receipts []*types.Receipt) (types.IBlock, error) {
+	panic(errors.New("not finalize"))
 }
 
 func hashAlgo(hash []byte, nonce uint64) (consensus.MiningResult, error) {
@@ -132,23 +53,30 @@ func hashAlgo(hash []byte, nonce uint64) (consensus.MiningResult, error) {
 	}, nil
 }
 
-func (d *DoubleSHA256) GetWork() (*consensus.MiningWork, error) {
-	return d.commonEngine.GetWork()
-}
+func verifySeal(chain consensus.ChainReader, header types.IHeader, adjustedDiff *big.Int) error {
+	if header.GetDifficulty().Sign() <= 0 {
+		return consensus.ErrInvalidDifficulty
+	}
+	if adjustedDiff.Cmp(new(big.Int).SetUint64(0)) == 0 {
+		adjustedDiff = header.GetDifficulty()
+	}
 
-func (d *DoubleSHA256) SubmitWork(nonce uint64, hash, digest common.Hash) bool {
-	return d.commonEngine.SubmitWork(nonce, hash, digest)
+	target := new(big.Int).Div(two256, adjustedDiff)
+	miningRes, _ := hashAlgo(header.SealHash().Bytes(), header.GetNonce())
+	if new(big.Int).SetBytes(miningRes.Result).Cmp(target) > 0 {
+		return consensus.ErrInvalidPoW
+	}
+	return nil
 }
 
 // New returns a DoubleSHA256 scheme.
 func New(diffCalculator consensus.DifficultyCalculator, remote bool) *DoubleSHA256 {
 	spec := consensus.MiningSpec{
-		Name:     "DoubleSHA256",
-		HashAlgo: hashAlgo,
+		Name:       "DoubleSHA256",
+		HashAlgo:   hashAlgo,
+		VerifySeal: verifySeal,
 	}
-	d := &DoubleSHA256{
-		diffCalculator: diffCalculator,
+	return &DoubleSHA256{
+		CommonEngine: consensus.NewCommonEngine(spec, diffCalculator, remote),
 	}
-	d.commonEngine = consensus.NewCommonEngine(d, spec, remote)
-	return d
 }

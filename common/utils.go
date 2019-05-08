@@ -3,8 +3,15 @@ package common
 import (
 	"bytes"
 	"encoding/gob"
+	ethCommon "github.com/ethereum/go-ethereum/common"
+	"math/big"
 	"math/bits"
 	"net"
+	"reflect"
+)
+
+var (
+	EmptyHash = ethCommon.Hash{}
 )
 
 /*
@@ -55,4 +62,41 @@ func GetIPV4Addr() (string, error) {
 		}
 	}
 	return "127.0.0.1", nil
+}
+
+func IsLocalIP(ip string) (bool, error) {
+	addrs, err := net.InterfaceAddrs()
+	if err != nil {
+		return false, err
+	}
+	for i := range addrs {
+		intf, _, err := net.ParseCIDR(addrs[i].String())
+		if err != nil {
+			return false, err
+		}
+		if net.ParseIP(ip).Equal(intf) {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+func IsNil(data interface{}) bool {
+	return data == nil || reflect.ValueOf(data).IsNil()
+}
+
+// ConstMinorBlockRewardCalculator blockReward struct
+type ConstMinorBlockRewardCalculator struct {
+}
+
+// GetBlockReward getBlockReward
+func (c *ConstMinorBlockRewardCalculator) GetBlockReward() *big.Int {
+	data := new(big.Int).SetInt64(100)
+	return new(big.Int).Mul(data, new(big.Int).SetInt64(1000000000000000000))
+}
+
+func BigIntMulBigRat(bigInt *big.Int, bigRat *big.Rat) *big.Int {
+	ans := new(big.Int).Mul(bigInt, bigRat.Num())
+	ans.Div(ans, bigRat.Denom())
+	return ans
 }
