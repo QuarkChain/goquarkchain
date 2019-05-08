@@ -46,7 +46,7 @@ func (s *SlaveConnection) HeartBeat() bool {
 		req := rpc.Request{Op: rpc.OpHeartBeat, Data: nil}
 		_, err := s.client.Call(s.target, &req)
 		if err != nil {
-			log.Error(s.slaveID,"heart beat err",err)
+			log.Error(s.slaveID, "heart beat err", err)
 			time.Sleep(time.Duration(1) * time.Second)
 			tryTimes -= 1
 			continue
@@ -401,29 +401,6 @@ func (s *SlaveConnection) GetUnconfirmedHeaders() (*rpc.GetUnconfirmedHeadersRes
 	return rsp, nil
 }
 
-func (s *SlaveConnection) GetMinorBlockToMine(branch account.Branch, address account.Address, artificialTxConfig *rpc.ArtificialTxConfig) (*types.MinorBlock, error) {
-	var (
-		req = rpc.GetNextBlockToMineRequest{
-			Branch:             branch,
-			Address:            address.AddressInBranch(branch),
-			ArtificialTxConfig: artificialTxConfig,
-		}
-		rsp = new(rpc.GetNextBlockToMineResponse)
-	)
-	bytes, err := serialize.SerializeToBytes(req)
-	if err != nil {
-		return nil, err
-	}
-	res, err := s.client.Call(s.target, &rpc.Request{Op: rpc.OpGetNextBlockToMine, Data: bytes})
-	if err != nil {
-		return nil, err
-	}
-	if err = serialize.Deserialize(serialize.NewByteBuffer(res.Data), rsp); err != nil {
-		return nil, err
-	}
-	return rsp.Block, nil
-}
-
 func (s *SlaveConnection) GetEcoInfoListRequest() (*rpc.GetEcoInfoListResponse, error) {
 	var (
 		rsp = new(rpc.GetEcoInfoListResponse)
@@ -501,78 +478,78 @@ func (s *SlaveConnection) GenTx(numTxPerShard, xShardPercent uint32, tx *types.T
 	}
 	return nil
 }
-func (s *SlaveConnection)AddTransactions(request *p2p.NewTransactionList) (*rpc.HashList, error)  {
-	var(
+func (s *SlaveConnection) AddTransactions(request *p2p.NewTransactionList) (*rpc.HashList, error) {
+	var (
 		rsp = new(rpc.HashList)
 		res = new(rpc.Response)
 	)
 	bytes, err := serialize.SerializeToBytes(request)
 	if err != nil {
-		return nil,err
+		return nil, err
 	}
 	res, err = s.client.Call(s.target, &rpc.Request{Op: rpc.OpAddTransactions, Data: bytes})
 	if err != nil {
-		return nil,err
+		return nil, err
 	}
-	if err=serialize.DeserializeFromBytes(res.Data,rsp);err!=nil{
-		return nil,err
+	if err = serialize.DeserializeFromBytes(res.Data, rsp); err != nil {
+		return nil, err
 	}
-	return rsp,nil
+	return rsp, nil
 }
 
-func (s *SlaveConnection)GetMinorBlocks(request *p2p.GetMinorBlockListRequest) (*p2p.GetMinorBlockListResponse, error){
+func (s *SlaveConnection) GetMinorBlocks(request *p2p.GetMinorBlockListRequest) (*p2p.GetMinorBlockListResponse, error) {
 	var (
-		rsp=new(p2p.GetMinorBlockListResponse)
-		res=new(rpc.Response)
+		rsp = new(p2p.GetMinorBlockListResponse)
+		res = new(rpc.Response)
 	)
 	bytes, err := serialize.SerializeToBytes(request)
 	if err != nil {
-		return nil,err
+		return nil, err
 	}
 	res, err = s.client.Call(s.target, &rpc.Request{Op: rpc.OpGetMinorBlocks, Data: bytes})
 	if err != nil {
-		return nil,err
+		return nil, err
 	}
-	if err=serialize.DeserializeFromBytes(res.Data,rsp);err!=nil{
-		return nil,err
+	if err = serialize.DeserializeFromBytes(res.Data, rsp); err != nil {
+		return nil, err
 	}
-	return rsp,nil
+	return rsp, nil
 }
 
-func (s *SlaveConnection)GetMinorBlockHeaders(request *p2p.GetMinorBlockHeaderListRequest) (*p2p.GetMinorBlockHeaderListResponse, error)  {
+func (s *SlaveConnection) GetMinorBlockHeaders(request *p2p.GetMinorBlockHeaderListRequest) (*p2p.GetMinorBlockHeaderListResponse, error) {
 	var (
-		rsp=new(p2p.GetMinorBlockHeaderListResponse)
-		res=new(rpc.Response)
+		rsp = new(p2p.GetMinorBlockHeaderListResponse)
+		res = new(rpc.Response)
 	)
 	bytes, err := serialize.SerializeToBytes(request)
 	if err != nil {
-		return nil,err
+		return nil, err
 	}
 	res, err = s.client.Call(s.target, &rpc.Request{Op: rpc.OpGetMinorBlockHeaders, Data: bytes})
 	if err != nil {
-		return nil,err
+		return nil, err
 	}
-	if err=serialize.DeserializeFromBytes(res.Data,rsp);err!=nil{
-		return nil,err
+	if err = serialize.DeserializeFromBytes(res.Data, rsp); err != nil {
+		return nil, err
 	}
-	return rsp,nil
+	return rsp, nil
 }
-func (s *SlaveConnection)HandleNewTip(request *p2p.Tip) (bool, error)  {
+func (s *SlaveConnection) HandleNewTip(request *p2p.Tip) (bool, error) {
 	bytes, err := serialize.SerializeToBytes(request)
 	if err != nil {
-		return false,err
+		return false, err
 	}
 	_, err = s.client.Call(s.target, &rpc.Request{Op: rpc.OpHandleNewTip, Data: bytes})
 	if err != nil {
-		return false,err
+		return false, err
 	}
 
-	return true,nil
+	return true, nil
 }
-func (s *SlaveConnection) AddMinorBlock(request *p2p.NewBlockMinor) (bool, error){
-	blockData,err:=serialize.SerializeToBytes(request.Block)
-	if err!=nil{
-		return false,err
+func (s *SlaveConnection) AddMinorBlock(request *p2p.NewBlockMinor) (bool, error) {
+	blockData, err := serialize.SerializeToBytes(request.Block)
+	if err != nil {
+		return false, err
 	}
 	var (
 		req = rpc.AddMinorBlockRequest{
@@ -581,11 +558,11 @@ func (s *SlaveConnection) AddMinorBlock(request *p2p.NewBlockMinor) (bool, error
 	)
 	bytes, err := serialize.SerializeToBytes(req)
 	if err != nil {
-		return false,err
+		return false, err
 	}
 	_, err = s.client.Call(s.target, &rpc.Request{Op: rpc.OpAddMinorBlock, Data: bytes})
 	if err != nil {
-		return false,err
+		return false, err
 	}
-	return true,nil
+	return true, nil
 }

@@ -42,20 +42,12 @@ func (s *QKCMasterBackend) GetPeers() []rpc.PeerInfoForDisPlay {
 
 }
 
-func (s *QKCMasterBackend) AddRootBlockFromMine(block *types.RootBlock) error {
-	currTip := s.rootBlockChain.CurrentBlock()
-	if block.Header().ParentHash != currTip.Hash() {
-		return errors.New("parent hash not match")
-	}
-	return s.AddRootBlock(block)
-}
-
 func (s *QKCMasterBackend) AddTransaction(tx *types.Transaction) error {
 	evmTx := tx.EvmTx
 	//TODO :SetQKCConfig
 	branch := account.Branch{Value: evmTx.FromFullShardId()}
-	slaves, ok := s.branchToSlaves[branch.Value]
-	if !ok || len(slaves) <= 0 {
+	slaves := s.getAllSlaveConnection(branch.Value)
+	if len(slaves) == 0 {
 		return ErrNoBranchConn
 	}
 	var g errgroup.Group
@@ -72,9 +64,8 @@ func (s *QKCMasterBackend) ExecuteTransaction(tx *types.Transaction, address acc
 	evmTx := tx.EvmTx
 	//TODO setQuarkChain
 	branch := account.Branch{Value: evmTx.FromFullShardId()}
-
-	slaves, ok := s.branchToSlaves[branch.Value]
-	if !ok || len(slaves) <= 0 {
+	slaves := s.getAllSlaveConnection(branch.Value)
+	if len(slaves) == 0 {
 		return nil, ErrNoBranchConn
 	}
 	var g errgroup.Group
