@@ -607,7 +607,7 @@ func (m *MinorBlockChain) GetTransactionListByAddress(address account.Address, s
 }
 
 // GetShardStatus show shardStatus
-func (m *MinorBlockChain) GetShardStatus() (*rpc.ShardStats, error) {
+func (m *MinorBlockChain) GetShardStatus() (*rpc.ShardStatus, error) {
 	// getBlockCountByHeight have lock
 	cutoff := m.CurrentBlock().IHeader().GetTime() - 60
 	cblock := m.CurrentBlock()
@@ -631,7 +631,7 @@ func (m *MinorBlockChain) GetShardStatus() (*rpc.ShardStats, error) {
 	if staleBlockCount < 0 {
 		return nil, errors.New("staleBlockCount should >=0")
 	}
-	return &rpc.ShardStats{
+	return &rpc.ShardStatus{
 		Branch:             m.branch,
 		Height:             m.CurrentBlock().IHeader().NumberU64(),
 		Difficulty:         m.CurrentBlock().IHeader().GetDifficulty(),
