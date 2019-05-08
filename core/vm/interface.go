@@ -17,11 +17,11 @@
 package vm
 
 import (
+	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
-	"math/big"
-
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/common"
+	"math/big"
 )
 
 // StateDB is an EVM database for full state querying.
@@ -66,17 +66,27 @@ type StateDB interface {
 
 	ForEachStorage(common.Address, func(common.Hash, common.Hash) bool)
 
-	GetXShardReceiveGasUsed() uint32
-	SetXShardReceiveGasUsed(uint32)
-	AppendXShardList(data types.CrossShardTransactionDeposit)
-	SetFullShardID(uint32)
-	GetFullShardID() uint32
-	AddBlockFee(uint64)
+	GetXShardReceiveGasUsed() *big.Int
+	SetXShardReceiveGasUsed(*big.Int)
+	AppendXShardList(data *types.CrossShardTransactionDeposit)
+	GetXShardList() []*types.CrossShardTransactionDeposit
+	SetFullShardKey(uint32)
+	GetFullShardKey(common.Address) uint32
+	AddBlockFee(*big.Int)
+	GetBlockFee() *big.Int
 	GetQuarkChainConfig() *config.QuarkChainConfig
+	SetQuarkChainConfig(*config.QuarkChainConfig)
 	GetGasUsed() *big.Int
 	AddGasUsed(*big.Int)
+	SetGasUsed(*big.Int)
 	GetGasLimit() *big.Int
 	SetGasLimit(*big.Int)
+	GetShardConfig() *config.ShardConfig
+	SetShardConfig(shardConfig *config.ShardConfig)
+	SetSenderDisallowList([]account.Recipient)
+	GetSenderDisallowList() []account.Recipient
+	GetBlockCoinbase() account.Recipient
+	SetBlockCoinbase(recipient account.Recipient)
 }
 
 // CallContext provides a basic interface for the EVM calling conventions. The EVM
