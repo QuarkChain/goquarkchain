@@ -576,7 +576,8 @@ func (s *SlaveServerSideOp) AddMinorBlockListForSync(ctx context.Context, req *r
 	if err = serialize.Deserialize(buf, &gReq); err != nil {
 		return nil, err
 	}
-	if gRep.ShardStatus, err = s.slave.AddBlockListForSync(gReq.MinorBlockList); err != nil {
+
+	if gRep.ShardStatus, err = s.slave.AddBlockListForSync(gReq.MinorBlockHashList, gReq.Branch); err != nil {
 		return nil, err
 	}
 

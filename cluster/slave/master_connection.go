@@ -1,6 +1,7 @@
 package slave
 
 import (
+	"errors"
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/serialize"
@@ -10,15 +11,18 @@ import (
 func (s *SlaveConnManager) SendMinorBlockHeaderToMaster(minorHeader *types.MinorBlockHeader,
 	txCount, xshardCount uint32, state *rpc.ShardStatus) error {
 	var (
-		gReq = rpc.AddMinorBlockHeaderRequest{
-			MinorBlockHeader: minorHeader,
-			TxCount:          txCount,
-			XShardTxCount:    xshardCount,
-			ShardStats:       state,
-		}
 		gRep rpc.AddMinorBlockHeaderResponse
 	)
 
+	if s.masterCli.target == "" {
+		return errors.New("master endpoint is empty")
+	}
+	gReq := rpc.AddMinorBlockHeaderRequest{
+		MinorBlockHeader: minorHeader,
+		TxCount:          txCount,
+		XShardTxCount:    xshardCount,
+		ShardStats:       state,
+	}
 	data, err := serialize.SerializeToBytes(gReq)
 
 	res, err := s.masterCli.client.Call(s.masterCli.target, &rpc.Request{Op: rpc.OpAddMinorBlockHeader, Data: data})
