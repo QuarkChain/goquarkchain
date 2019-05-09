@@ -20,6 +20,7 @@ type Task interface {
 type task struct {
 	header     types.IHeader
 	peer       peer
+	name       string
 	getHeaders func(common.Hash, uint32) ([]types.IHeader, error)
 	getBlocks  func([]common.Hash) ([]types.IBlock, error)
 	syncBlock  func(types.IBlock) error
@@ -31,7 +32,7 @@ func (t *task) Run(bc blockchain) error {
 		return nil
 	}
 
-	logger := log.New("synctask", t.header.NumberU64())
+	logger := log.New("synctask", t.name, "start", t.header.NumberU64())
 	headerTip := bc.CurrentHeader()
 	tipHeight := headerTip.NumberU64()
 
@@ -48,7 +49,6 @@ func (t *task) Run(bc blockchain) error {
 		logger.Info("Downloading block header list", "height", height, "hash", hash)
 		// Order should be descending. Download size is min(500, h-tip) if h > tip.
 		downloadSz := uint32(headerDownloadSize)
-		// receivedHeaders, err := peer.GetRootBlockHeaderList(lastHeader.ParentHash, downloadSz, true)
 		receivedHeaders, err := t.getHeaders(lastHeader.GetParentHash(), downloadSz)
 		if err != nil {
 			return err
@@ -92,7 +92,7 @@ func (t *task) Run(bc blockchain) error {
 		for j := len(blocks) - 1; j >= 0; j-- {
 			b := blocks[j]
 			h := b.IHeader()
-			logger.Info("Syncing root block starts", "height", h.NumberU64(), "hash", h.Hash())
+			logger.Info("Syncing block starts", "height", h.NumberU64(), "hash", h.Hash())
 			// Simple profiling.
 			ts := time.Now()
 			if t.syncBlock != nil {
@@ -105,7 +105,7 @@ func (t *task) Run(bc blockchain) error {
 				return err
 			}
 			elapsed := time.Now().Sub(ts).Seconds()
-			logger.Info("Syncing root block finishes", "height", h.NumberU64(), "hash", h.Hash(), "elapsed", elapsed)
+			logger.Info("Syncing block finishes", "height", h.NumberU64(), "hash", h.Hash(), "elapsed", elapsed)
 		}
 
 		i = start

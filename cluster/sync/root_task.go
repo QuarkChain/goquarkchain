@@ -22,11 +22,13 @@ type rootChainTask struct {
 	task
 }
 
+// NewRootChainTask returns a sync task for root chain.
 func NewRootChainTask(p peer, header *types.RootBlockHeader) Task {
 	return &rootChainTask{
-		task: task{
+		task{
 			header: header,
 			peer:   p,
+			name: "root",
 			getHeaders: func(hash common.Hash, limit uint32) (ret []types.IHeader, err error) {
 				rheaders, err := p.GetRootBlockHeaderList(hash, limit, true)
 				if err != nil {
