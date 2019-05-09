@@ -912,13 +912,14 @@ func (m *MinorBlockChain) CreateBlockToMine(createTime *uint64, address *account
 
 	pureCoinbaseAmount := m.getCoinbaseAmount()
 	evmState.AddBalance(evmState.GetBlockCoinbase(), pureCoinbaseAmount)
-	_, err = evmState.Commit(true)
+	root, err := evmState.Commit(true)
 	if err != nil {
 		return nil, err
 	}
 
 	coinbaseAmount := new(big.Int).Add(pureCoinbaseAmount, evmState.GetBlockFee())
-	newBlock.Finalize(recipiets, evmState.IntermediateRoot(true), evmState.GetGasUsed(), evmState.GetXShardReceiveGasUsed(), coinbaseAmount)
+	fmt.Println(">>>>>>>>>>>>>>>", root.Hex())
+	newBlock.Finalize(recipiets, root, evmState.GetGasUsed(), evmState.GetXShardReceiveGasUsed(), coinbaseAmount)
 	return newBlock, nil
 
 }
@@ -968,12 +969,13 @@ func (m *MinorBlockChain) AddRootBlock(rBlock *types.RootBlock) error {
 			continue
 		}
 
-		if data := rawdb.ReadCrossShardTxList(m.db, h); data == nil {
-			return errors.New("not have")
-		}
+		//if data := rawdb.ReadCrossShardTxList(m.db, h); data == nil {
+		//	return errors.New("not have")
+		//}
 
 	}
 	if uint64(len(shardHeaders)) > m.getMaxBlocksInOneRootBlock() {
+		fmt.Println(">>", uint64(len(shardHeaders)), m.getMaxBlocksInOneRootBlock())
 		return errors.New("shardHeaders big than config")
 	}
 
@@ -1101,7 +1103,7 @@ func (m *MinorBlockChain) runOneCrossShardTxListByRootBlockHash(hash common.Hash
 		xShardFee := new(big.Int).Mul(params.GtxxShardCost, tx.GasPrice.Value)
 		xShardFee = qkcCommon.BigIntMulBigRat(xShardFee, localFeeRate)
 		evmState.AddBlockFee(xShardFee)
-		evmState.AddBalance(evmState.GetBlockCoinbase(), new(big.Int).SetUint64(xShardFee.Uint64()))
+		evmState.AddBalance(evmState.GetBlockCoinbase(), xShardFee)
 	}
 	evmState.SetXShardReceiveGasUsed(evmState.GetGasUsed())
 	return txList, nil

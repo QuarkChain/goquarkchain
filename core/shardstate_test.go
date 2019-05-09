@@ -1,7 +1,9 @@
 package core
 
 import (
+	"encoding/hex"
 	"errors"
+	"fmt"
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/core/rawdb"
@@ -10,6 +12,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/serialize"
 	"github.com/ethereum/go-ethereum/common"
 	ethParams "github.com/ethereum/go-ethereum/params"
+	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/stretchr/testify/assert"
 	"math/big"
 	"math/rand"
@@ -19,19 +22,67 @@ import (
 )
 
 func TestShardStateSimple(t *testing.T) {
+	emptyAccount := account.CreatEmptyAddress(2)
+
 	env := setUp(nil, nil, nil)
 	shardState := createDefaultShardState(env, nil, nil, nil, nil)
-	defer shardState.Stop()
-	if shardState.rootTip.Number != 0 {
-		t.Errorf("rootTip number mismatch have:%v want:%v", shardState.rootTip.Number, 0)
+	curTip := shardState.CurrentBlock()
+	fmt.Println("evm_state", curTip.Root().String(), curTip.Header().Number)
+
+	b, err := shardState.CreateBlockToMine(nil, &emptyAccount, nil)
+	checkErr(err)
+	_, _, err = shardState.FinalizeAndAddBlock(b)
+	checkErr(err)
+
+	curTip = shardState.CurrentBlock()
+	fmt.Println("evm_state", curTip.Root().String(), curTip.Header().Number, curTip.Header().Coinbase, curTip.Header().CoinbaseAmount.Value)
+
+	b, err = shardState.CreateBlockToMine(nil, &emptyAccount, nil)
+	checkErr(err)
+	_, _, err = shardState.FinalizeAndAddBlock(b)
+	checkErr(err)
+
+	curTip = shardState.CurrentBlock()
+	fmt.Println("evm_state", curTip.Root().String(), curTip.Header().Number, curTip.Header().Coinbase, curTip.Header().CoinbaseAmount.Value)
+
+}
+
+type XIABAN struct {
+	Nonce        uint64
+	Balance      *big.Int
+	Root         common.Hash // merkle root of the storage trie
+	CodeHash     []byte
+	FullShardKey uint32
+}
+
+func TestSB(t *testing.T) {
+	s1 := "c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470"
+	s2 := "56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421"
+
+	s11, err := hex.DecodeString(s1)
+	if err != nil {
+		panic(err)
 	}
-	if shardState.CurrentBlock().IHeader().NumberU64() != 0 {
-		t.Errorf("minorHeader number mismatch have:%v want:%v", shardState.CurrentBlock().IHeader().NumberU64(), 0)
+
+	s22, err := hex.DecodeString(s2)
+	if err != nil {
+		panic(err)
 	}
-	rootBlock := shardState.GetRootBlockByHash(shardState.rootTip.Hash())
-	assert.NotNil(t, rootBlock)
-	// make sure genesis minor block has the right coinbase after-tax
-	assert.NotNil(t, shardState.CurrentBlock().Header().CoinbaseAmount.Value, testShardCoinbaseAmount)
+
+	s111 := common.BytesToHash(s11)
+	s222 := common.BytesToHash(s22)
+	fmt.Println("s1", s111.String())
+	fmt.Println("s2", s222.String())
+
+	xiaban := XIABAN{
+		Nonce:        0,
+		Balance:      new(big.Int).Mul(new(big.Int).SetUint64(250000000), new(big.Int).SetUint64(10000000000)),
+		Root:         s222,
+		CodeHash:     s111.Bytes(),
+		FullShardKey: 0,
+	}
+	data, err := rlp.EncodeToBytes(xiaban)
+	fmt.Println("hex", hex.EncodeToString(data))
 }
 
 func TestInitGenesisState(t *testing.T) {

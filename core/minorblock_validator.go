@@ -54,6 +54,8 @@ func NewBlockValidator(quarkChainConfig *config.QuarkChainConfig, blockchain *Mi
 // header's transaction and uncle roots. The headers are assumed to be already
 // validated at this point.
 func (v *MinorBlockValidator) ValidateBlock(mBlock types.IBlock) error {
+	fmt.Println("MinorBlockValidator", mBlock.NumberU64(), mBlock.Hash().String())
+	defer fmt.Println("end MinorBlockValidator", mBlock.NumberU64())
 	if common.IsNil(mBlock) {
 		return ErrMinorBlockIsNil
 	}
@@ -75,6 +77,7 @@ func (v *MinorBlockValidator) ValidateBlock(mBlock types.IBlock) error {
 		if !v.bc.HasBlock(block.ParentHash()) {
 			return consensus.ErrUnknownAncestor
 		}
+		fmt.Println("???block", block.IHeader().GetParentHash().String(), block.IHeader().NumberU64())
 		return ErrPrunedAncestor
 	}
 
@@ -120,15 +123,15 @@ func (v *MinorBlockValidator) ValidateBlock(mBlock types.IBlock) error {
 		return ErrMinerFullShardKey
 	}
 
-	if !v.quarkChainConfig.SkipMinorDifficultyCheck {
-		diff, err := v.engine.CalcDifficulty(v.bc, block.IHeader().GetTime(), prevHeader)
-		if err != nil {
-			return err
-		}
-		if diff.Cmp(block.IHeader().GetDifficulty()) != 0 {
-			return ErrDifficulty
-		}
-	}
+	//if !v.quarkChainConfig.SkipMinorDifficultyCheck {
+	//	diff, err := v.engine.CalcDifficulty(v.bc, block.IHeader().GetTime(), prevHeader)
+	//	if err != nil {
+	//		return err
+	//	}
+	//	if diff.Cmp(block.IHeader().GetDifficulty()) != 0 {
+	//		return ErrDifficulty
+	//	}
+	//}
 
 	rootBlockHeader := v.bc.getRootBlockHeaderByHash(block.Header().GetPrevRootBlockHash())
 	if rootBlockHeader == nil {

@@ -1330,6 +1330,7 @@ func (m *MinorBlockChain) reorg(oldBlock, newBlock types.IBlock) error {
 		}
 	}
 	if qkcCommon.IsNil(oldBlock) {
+		fmt.Println("----------------")
 		return fmt.Errorf("Invalid old chain")
 	}
 	if qkcCommon.IsNil(newBlock) {
@@ -1349,6 +1350,7 @@ func (m *MinorBlockChain) reorg(oldBlock, newBlock types.IBlock) error {
 
 		oldBlock, newBlock = m.GetBlock(oldBlock.IHeader().GetParentHash()), m.GetBlock(newBlock.IHeader().GetParentHash())
 		if qkcCommon.IsNil(oldBlock) {
+			fmt.Println("=======")
 			return fmt.Errorf("Invalid old chain")
 		}
 		if qkcCommon.IsNil(newBlock) {

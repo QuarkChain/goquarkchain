@@ -1,6 +1,7 @@
 package master
 
 import (
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"github.com/QuarkChain/goquarkchain/account"
@@ -97,18 +98,20 @@ func New(ctx *service.ServiceContext, cfg *config.ClusterConfig) (*QKCMasterBack
 	log.Info("qkc api backend", "slave client pool", len(mstr.clientPool))
 
 	shardDB := ethdb.NewMemDatabase()
-	genesis.MustCommitMinorBlock(shardDB, mstr.rootBlockChain.CurrentBlock(), cfg.Quarkchain.GetGenesisShardIds()[0])
-	mstr.MinorBlockChain, err = core.NewMinorBlockChain(shardDB, nil, params.TestChainConfig, cfg, mstr.engine, vm.Config{}, nil, cfg.Quarkchain.GetGenesisShardIds()[0])
+	fullShardID := cfg.Quarkchain.Chains[1].ChainID<<16 | cfg.Quarkchain.Chains[1].ShardSize | 0
+	genesis.MustCommitMinorBlock(shardDB, mstr.rootBlockChain.CurrentBlock(), fullShardID)
+
+	mstr.MinorBlockChain, err = core.NewMinorBlockChain(shardDB, nil, params.TestChainConfig, cfg, mstr.engine, vm.Config{}, nil, fullShardID)
 	if _, err := mstr.MinorBlockChain.InitGenesisState(mstr.rootBlockChain.CurrentBlock()); err != nil {
 		panic(err)
 	}
 	if err != nil {
 		panic(err)
 	}
-	fmt.Println("InitGenesisi succ", "-===========")
+	fmt.Println("InitGenesisi succ", "-===========", mstr.MinorBlockChain.GetBranch().Value, mstr.MinorBlockChain.CurrentBlock().NumberU64(), mstr.MinorBlockChain.CurrentBlock().Hash().String())
+	fmt.Println("MMMMMMM", mstr.MinorBlockChain.CurrentBlock().Meta())
 	disPlayMinor(mstr.MinorBlockChain.CurrentBlock().Header())
 	mstr.rootBlockChain.SetMinorBlockChain(mstr.MinorBlockChain)
-
 	return mstr, nil
 }
 
@@ -128,7 +131,7 @@ func disPlayMinor(header *types.MinorBlockHeader) {
 	fmt.Println(header.Difficulty)
 	fmt.Println(header.Nonce)
 	fmt.Println(header.Bloom)
-	fmt.Println(header.Extra)
+	fmt.Println(hex.EncodeToString(header.Extra))
 	fmt.Println(header.MixDigest)
 }
 

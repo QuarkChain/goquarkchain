@@ -50,7 +50,7 @@ func NewChainConfig() *ChainConfig {
 		GasLimitUsageAdjustmentDenominator: 2,
 		DifficultyAdjustmentCutoffTime:     7,
 		DifficultyAdjustmentFactor:         512,
-		ExtraShardBlocksInRootBlock:        3,
+		ExtraShardBlocksInRootBlock:        30,
 		PoswConfig:                         NewPOSWConfig(),
 	}
 }

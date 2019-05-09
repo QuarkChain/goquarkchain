@@ -210,7 +210,8 @@ func (p *peer) AsyncSendTransactions(branch uint32, txs []*types.Transaction) {
 
 // SendNewTip announces the head of each shard or root.
 func (p *peer) SendNewTip(branch uint32, tip *p2p.Tip) error {
-	msg, err := p2p.MakeMsg(p2p.NewTipMsg, p.getRpcId(), p2p.Metadata{Branch: branch}, tip)
+	fmt.Println("SendNewTip", "?????????")
+	msg, err := p2p.MakeMsg(p2p.NewTipMsg, 0, p2p.Metadata{Branch: branch}, tip)
 	if err != nil {
 		return err
 	}

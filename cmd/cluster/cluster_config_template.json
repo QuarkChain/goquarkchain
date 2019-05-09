@@ -25,7 +25,7 @@
       "MAX_STALE_ROOT_BLOCK_HEIGHT_DIFF": 60,
       "CONSENSUS_TYPE": "POW_SIMULATE",
       "CONSENSUS_CONFIG": {
-        "TARGET_BLOCK_TIME": 10,
+        "TARGET_BLOCK_TIME": 20,
         "REMOTE_MINE": false
       },
       "GENESIS": {
@@ -49,7 +49,7 @@
         "DEFAULT_CHAIN_TOKEN": "TQKC",
         "CONSENSUS_TYPE": "POW_SIMULATE",
         "CONSENSUS_CONFIG": {
-          "TARGET_BLOCK_TIME": 10,
+          "TARGET_BLOCK_TIME": 5,
           "REMOTE_MINE": false
         },
         "GENESIS": {
@@ -88,7 +88,7 @@
         "DEFAULT_CHAIN_TOKEN": "TQKC",
         "CONSENSUS_TYPE": "POW_SIMULATE",
         "CONSENSUS_CONFIG": {
-          "TARGET_BLOCK_TIME": 10,
+          "TARGET_BLOCK_TIME": 5,
           "REMOTE_MINE": false
         },
         "GENESIS": {
