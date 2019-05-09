@@ -17,7 +17,7 @@ func NewTransactionGenerator(qkcCfg *config.QuarkChainConfig, shrd *ShardBackend
 	gen := &TransactionGenerator{
 		qkcCfg:      qkcCfg,
 		fullShardId: shrd.fullShardId,
-		state:       shrd.State,
+		state:       shrd.MinorBlockChain,
 	}
 	// TODO need to fill content.
 	return gen

@@ -34,8 +34,8 @@ type ShardBackend struct {
 	gspec *core.Genesis
 	conn  ConnManager
 
-	State        *core.MinorBlockChain
-	newBlockPool map[common.Hash]*types.MinorBlock
+	MinorBlockChain *core.MinorBlockChain
+	newBlockPool    map[common.Hash]*types.MinorBlock
 
 	bstRHObserved *types.RootBlockHeader  // bestRootHeaderObserved
 	bstMHObserved *types.MinorBlockHeader // bestMinorHeaderObserved
@@ -81,7 +81,7 @@ func New(ctx *service.ServiceContext, rBlock *types.RootBlock, conn ConnManager,
 	}
 	log.Info("Initialised chain configuration", "config", chainConfig)
 
-	shrd.State, err = core.NewMinorBlockChain(shrd.chainDb, nil, &params.ChainConfig{}, cfg, shrd.engine, vm.Config{}, nil, fullshardId)
+	shrd.MinorBlockChain, err = core.NewMinorBlockChain(shrd.chainDb, nil, &params.ChainConfig{}, cfg, shrd.engine, vm.Config{}, nil, fullshardId)
 	if err != nil {
 		return nil, err
 	}
@@ -89,7 +89,7 @@ func New(ctx *service.ServiceContext, rBlock *types.RootBlock, conn ConnManager,
 	// Rewind the chain in case of an incompatible config upgrade.
 	if compat, ok := genesisErr.(*params.ConfigCompatError); ok {
 		log.Warn("Rewinding chain to upgrade configuration", "err", compat)
-		shrd.State.SetHead(compat.RewindTo)
+		shrd.MinorBlockChain.SetHead(compat.RewindTo)
 		rawdb.WriteChainConfig(shrd.chainDb, genesisHash, chainConfig)
 	}
 
@@ -155,13 +155,13 @@ func (s *ShardBackend) initGenesisState(rootBlock *types.RootBlock) error {
 		err        error
 	)
 	// TODO InitGenesisState's second parameter will be removed.
-	minorBlock, err = s.State.InitGenesisState(rootBlock)
+	minorBlock, err = s.MinorBlockChain.InitGenesisState(rootBlock)
 	if err != nil {
 		return err
 	}
 
 	s.conn.BroadcastXshardTxList(minorBlock, xshardList, rootBlock.Header().Number)
-	if status, err = s.State.GetShardStatus(); err != nil {
+	if status, err = s.MinorBlockChain.GetShardStatus(); err != nil {
 		return err
 	}
 
@@ -188,7 +188,7 @@ func (s *ShardBackend) addTxList(txs []*types.Transaction) {
 }
 
 func (s *ShardBackend) addTx(tx *types.Transaction) bool {
-	if err := s.State.AddTx(tx); err != nil {
+	if err := s.MinorBlockChain.AddTx(tx); err != nil {
 		log.Error("add tx", "failed to add tx", "tx hash", tx.Hash())
 		return false
 	}

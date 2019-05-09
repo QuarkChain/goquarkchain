@@ -14,15 +14,16 @@ import (
 )
 
 func (s *ShardBackend) GetUnconfirmedHeaderList() ([]*types.MinorBlockHeader, error) {
-	headers := s.State.GetAllUnconfirmedHeaderList()
-	return headers[0:s.maxBlocks], nil
+	panic("GetUnconfirmedHeaderList")
+	//headers := s.MinorBlockChain.GetAllUnconfirmedHeaderList()
+	//return headers[0:s.maxBlocks], nil
 }
 
 func (s *ShardBackend) broadcastNewTip() (err error) {
 
 	var (
-		rootTip  = s.State.GetRootTip()
-		minorTip = s.State.CurrentHeader().(*types.MinorBlockHeader)
+		rootTip  = s.MinorBlockChain.GetRootTip()
+		minorTip = s.MinorBlockChain.CurrentHeader().(*types.MinorBlockHeader)
 	)
 	if s.bstRHObserved != nil {
 		if rootTip.Number < s.bstRHObserved.Number {
@@ -48,10 +49,10 @@ func (s *ShardBackend) AddMinorBlock(block *types.MinorBlock) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	var (
-		oldTip = s.State.CurrentHeader()
+		oldTip = s.MinorBlockChain.CurrentHeader()
 	)
 
-	if s.State.HasBlock(block.Hash()) {
+	if s.MinorBlockChain.HasBlock(block.Hash()) {
 		log.Info("add minor block", "Known minor block", "branch", block.Header().Branch, "height", block.Number())
 		return nil
 	}
@@ -62,7 +63,7 @@ func (s *ShardBackend) AddMinorBlock(block *types.MinorBlock) error {
 		return nil
 	}
 
-	_, xshardLst, err := s.State.InsertChain([]types.IBlock{block})
+	_, xshardLst, err := s.MinorBlockChain.InsertChain([]types.IBlock{block})
 	if err != nil || len(xshardLst) != 1 {
 		log.Error("Failed to add minor block, err %v", err)
 		return err
@@ -72,7 +73,7 @@ func (s *ShardBackend) AddMinorBlock(block *types.MinorBlock) error {
 	delete(s.newBlockPool, block.Header().Hash())
 
 	// block has been added to local state, broadcast tip so that peers can sync if needed
-	if !reflect.DeepEqual(oldTip, s.State.CurrentHeader()) {
+	if !reflect.DeepEqual(oldTip, s.MinorBlockChain.CurrentHeader()) {
 		if err = s.broadcastNewTip(); err != nil {
 			return err
 		}
@@ -83,9 +84,9 @@ func (s *ShardBackend) AddMinorBlock(block *types.MinorBlock) error {
 		return nil
 	}
 
-	prevRootHeight := s.State.GetRootBlockByHash(block.Header().Hash()).Header().Number
+	prevRootHeight := s.MinorBlockChain.GetRootBlockByHash(block.Header().Hash()).Header().Number
 	s.conn.BroadcastXshardTxList(block, xshardLst[0], prevRootHeight)
-	status, err := s.State.GetShardStatus()
+	status, err := s.MinorBlockChain.GetShardStatus()
 	if err != nil {
 		return err
 	}
@@ -104,7 +105,7 @@ func (s *ShardBackend) AddMinorBlock(block *types.MinorBlock) error {
 // Either recover state from local db or create genesis state based on config
 func (s *ShardBackend) InitFromRootBlock(rBlock *types.RootBlock) error {
 	if rBlock.Header().Number > s.genesisRootHeight {
-		return s.State.InitFromRootBlock(rBlock)
+		return s.MinorBlockChain.InitFromRootBlock(rBlock)
 	}
 	if rBlock.Header().Number == s.genesisRootHeight {
 		return s.initGenesisState(rBlock)
@@ -114,7 +115,7 @@ func (s *ShardBackend) InitFromRootBlock(rBlock *types.RootBlock) error {
 
 func (s *ShardBackend) AddRootBlock(rBlock *types.RootBlock) error {
 	if rBlock.Header().Number > s.genesisRootHeight {
-		if err := s.State.AddRootBlock(rBlock); err != nil {
+		if err := s.MinorBlockChain.AddRootBlock(rBlock); err != nil {
 			return err
 		}
 	}
@@ -138,10 +139,10 @@ func (s *ShardBackend) AddBlockListForSync(blockLst []*types.MinorBlock) error {
 	}
 
 	for _, block := range blockLst {
-		if block.Header().Branch.GetFullShardID() != s.fullShardId || s.State.HasBlock(block.Hash()) {
+		if block.Header().Branch.GetFullShardID() != s.fullShardId || s.MinorBlockChain.HasBlock(block.Hash()) {
 			continue
 		}
-		if _, _, err := s.State.InsertChain([]types.IBlock{block}); err != nil {
+		if _, _, err := s.MinorBlockChain.InsertChain([]types.IBlock{block}); err != nil {
 			return err
 		}
 	}
@@ -191,7 +192,7 @@ func (s *ShardBackend) HandleNewTip(rBHeader *types.RootBlockHeader, mBHeader *t
 
 	s.bstRHObserved = rBHeader
 	s.bstMHObserved = mBHeader
-	if s.State.CurrentHeader().NumberU64() >= mBHeader.Number {
+	if s.MinorBlockChain.CurrentHeader().NumberU64() >= mBHeader.Number {
 		return nil
 	}
 
