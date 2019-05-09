@@ -448,10 +448,6 @@ func (m *MinorBlockChain) computeGasLimit(parentGasLimit, parentGasUsed, gasLimi
 	return new(big.Int).SetUint64(gasLimit), nil
 }
 
-func (m *MinorBlockChain) ruOneCrossShardTxListByRootBlockHash(hash common.Hash, evmState *state.StateDB) ([]*types.CrossShardTransactionDeposit, error) {
-	panic(-1)
-}
-
 func (m *MinorBlockChain) getCrossShardTxListByRootBlockHash(hash common.Hash) ([]*types.CrossShardTransactionDeposit, error) {
 	// no need to lock
 	rBlock := m.GetRootBlockByHash(hash)
@@ -933,7 +929,7 @@ func (m *MinorBlockChain) runOneCrossShardTxListByRootBlockHash(hash common.Hash
 		xShardFee := new(big.Int).Mul(params.GtxxShardCost, tx.GasPrice.Value)
 		xShardFee = qkcCommon.BigIntMulBigRat(xShardFee, localFeeRate)
 		evmState.AddBlockFee(xShardFee)
-		evmState.AddBalance(evmState.GetBlockCoinbase(), new(big.Int).SetUint64(xShardFee.Uint64()))
+		evmState.AddBalance(evmState.GetBlockCoinbase(), xShardFee)
 	}
 	evmState.SetXShardReceiveGasUsed(evmState.GetGasUsed())
 	return txList, nil
