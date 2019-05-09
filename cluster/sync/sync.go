@@ -8,7 +8,6 @@ import (
 	"github.com/QuarkChain/goquarkchain/core/types"
 )
 
-// TODO a mock struct for peers, should have real peer connection type in P2P module.
 type peer interface {
 	GetRootBlockHeaderList(hash common.Hash, amount uint32, reverse bool) ([]*types.RootBlockHeader, error)
 	GetRootBlockList(hashes []common.Hash) ([]*types.RootBlock, error)

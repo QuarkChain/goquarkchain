@@ -118,7 +118,7 @@ func TestRootChainTaskRun(t *testing.T) {
 	p := &mockpeer{name: "chunfeng"}
 	bc := newBlockChain(5)
 	rbc := bc.(*mockblockchain).rbc
-	var rt Task = &rootChainTask{peer: p}
+	var rt Task = NewRootChainTask(p, nil)
 
 	// Prepare future blocks for downloading.
 	rbChain, rhChain := makeChains(rbc.CurrentBlock(), false)
