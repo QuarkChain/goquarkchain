@@ -249,8 +249,8 @@ func TestGetMinorBlockHeaders(t *testing.T) {
 		for _, conn := range shardConns {
 			conn.(*mock_master.MockShardConnForP2P).EXPECT().GetMinorBlockHeaders(tt.query).Return(
 				&p2p.GetMinorBlockHeaderListResponse{
-					RootTip:         pm.rootBlockChain.CurrentHeader().(*types.RootBlockHeader),
-					ShardTip:        minorHeaders[blockcount-1],
+					RootTip:         *pm.rootBlockChain.CurrentHeader().(*types.RootBlockHeader),
+					ShardTip:        *minorHeaders[blockcount-1],
 					BlockHeaderList: tt.expect,
 				}, nil).AnyTimes()
 		}
