@@ -183,7 +183,7 @@ func (p *peer) SendTransactions(branch uint32, txs []*types.Transaction) error {
 	data := p2p.NewTransactionList{}
 	data.TransactionList = txs
 
-	msg, err := p2p.MakeMsg(p2p.NewTransactionListMsg, p.getRpcId(), p2p.Metadata{Branch: branch}, data)
+	msg, err := p2p.MakeMsg(p2p.NewTransactionListMsg, 0, p2p.Metadata{Branch: branch}, data)
 	if err != nil {
 		return err
 	}
@@ -416,7 +416,7 @@ func (p *peer) Handshake(protoVersion, networkId uint32, peerId common.Hash, pee
 	// Send out own handshake in a new thread
 	errc := make(chan error, 2)
 
-	hello, err := p2p.MakeMsg(p2p.Hello, p.getRpcId(), p2p.Metadata{}, p2p.HelloCmd{
+	hello, err := p2p.MakeMsg(p2p.Hello, 0, p2p.Metadata{}, p2p.HelloCmd{
 		Version:         protoVersion,
 		NetWorkID:       networkId,
 		PeerID:          peerId,
