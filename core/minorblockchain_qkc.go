@@ -1083,6 +1083,7 @@ func (m *MinorBlockChain) runOneCrossShardTxListByRootBlockHash(hash common.Hash
 		xShardFee = qkcCommon.BigIntMulBigRat(xShardFee, localFeeRate)
 		evmState.AddBlockFee(xShardFee)
 		evmState.AddBalance(evmState.GetBlockCoinbase(), xShardFee)
+		fmt.Println("HHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHh",hash.String(),tx.Value.Value.String(),xShardFee.String())
 	}
 	evmState.SetXShardReceiveGasUsed(evmState.GetGasUsed())
 	return txList, nil
