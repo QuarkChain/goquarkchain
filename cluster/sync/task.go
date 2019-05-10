@@ -128,7 +128,7 @@ func (r *rootChainTask) Run(bc blockchain) error {
 }
 
 func (r *rootChainTask) Priority() uint {
-	panic("not implemented")
+	return uint(r.header.Number)
 }
 
 func (r *rootChainTask) Peer() peer {
