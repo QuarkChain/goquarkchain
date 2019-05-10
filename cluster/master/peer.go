@@ -123,17 +123,10 @@ func (p *peer) broadcast() {
 
 		case nTip := <-p.queuedTip:
 			if err := p.SendNewTip(nTip.branch, nTip.tip); err != nil {
-				// TODO [0]?
-				//p.Log().Error("Broadcast tip failed",
-				//	"number", nTip.tip.MinorBlockHeaderList[0].NumberU64(), "branch", nTip.branch, "error", err.Error())
 				return
 			}
 			if nTip.branch != 0 {
 				p.Log().Trace("Broadcast new tip", "number", nTip.tip.RootBlockHeader.NumberU64(), "branch", nTip.branch)
-			} else {
-				//TODO ?? [0]??
-				//	fmt.Println("?????", nTip.tip.RootBlockHeader.Number, len(nTip.tip.MinorBlockHeaderList))
-				//	p.Log().Trace("Broadcast new tip", "number", nTip.tip.MinorBlockHeaderList[0].NumberU64(), "branch", nTip.branch)
 			}
 
 		case <-p.term:
@@ -210,8 +203,7 @@ func (p *peer) AsyncSendTransactions(branch uint32, txs []*types.Transaction) {
 
 // SendNewTip announces the head of each shard or root.
 func (p *peer) SendNewTip(branch uint32, tip *p2p.Tip) error {
-	fmt.Println("SendNewTip", "?????????")
-	msg, err := p2p.MakeMsg(p2p.NewTipMsg, 0, p2p.Metadata{Branch: branch}, tip)
+	msg, err := p2p.MakeMsg(p2p.NewTipMsg, 0, p2p.Metadata{Branch: branch}, tip)//NewTipMsg should rpc=0
 	if err != nil {
 		return err
 	}
