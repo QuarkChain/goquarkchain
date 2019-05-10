@@ -7,6 +7,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
 	"github.com/QuarkChain/goquarkchain/cluster/service"
+	Synchronizer "github.com/QuarkChain/goquarkchain/cluster/sync"
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/consensus/doublesha256"
 	"github.com/QuarkChain/goquarkchain/consensus/qkchash"
@@ -45,8 +46,11 @@ type QKCMasterBackend struct {
 	clientPool         map[string]*SlaveConnection
 	branchToSlaves     map[uint32][]*SlaveConnection
 	branchToShardStats map[uint32]*rpc.ShardStatus
+	shardStatsChan     chan *rpc.ShardStatus
 	artificialTxConfig *rpc.ArtificialTxConfig
 	rootBlockChain     *core.RootBlockChain
+	protocolManager    *ProtocolManager
+	synchronizer       Synchronizer.Synchronizer
 	logInfo            string
 }
 
@@ -59,6 +63,7 @@ func New(ctx *service.ServiceContext, cfg *config.ClusterConfig) (*QKCMasterBack
 			clientPool:         make(map[string]*SlaveConnection),
 			branchToSlaves:     make(map[uint32][]*SlaveConnection, 0),
 			branchToShardStats: make(map[uint32]*rpc.ShardStatus),
+			shardStatsChan:     make(chan *rpc.ShardStatus, len(cfg.Quarkchain.GetGenesisShardIds())),
 			artificialTxConfig: &rpc.ArtificialTxConfig{
 				TargetRootBlockTime:  cfg.Quarkchain.Root.ConsensusConfig.TargetBlockTime,
 				TargetMinorBlockTime: cfg.Quarkchain.GetShardConfigByFullShardID(cfg.Quarkchain.GetGenesisShardIds()[0]).ConsensusConfig.TargetBlockTime,
@@ -88,6 +93,11 @@ func New(ctx *service.ServiceContext, cfg *config.ClusterConfig) (*QKCMasterBack
 		mstr.clientPool[target] = client
 	}
 	log.Info("qkc api backend", "slave client pool", len(mstr.clientPool))
+
+	mstr.synchronizer = Synchronizer.NewSynchronizer(mstr.rootBlockChain)
+	if mstr.protocolManager, err = NewProtocolManager(*cfg, mstr.rootBlockChain, mstr.synchronizer, mstr.getShardConnForP2P); err != nil {
+		return nil, err
+	}
 
 	return mstr, nil
 }
@@ -144,10 +154,14 @@ func (s *QKCMasterBackend) APIs() []ethRPC.API {
 
 // Stop stop node -> stop qkcMaster
 func (s *QKCMasterBackend) Stop() error {
+	s.rootBlockChain.Stop()
+	s.engine.Close()
+	s.protocolManager.Stop()
 	if s.engine != nil {
 		s.engine.Close()
 	}
 	s.eventMux.Stop()
+	s.chainDb.Close()
 	return nil
 }
 
@@ -156,7 +170,10 @@ func (s *QKCMasterBackend) Start(srvr *p2p.Server) error {
 	if err := s.InitCluster(); err != nil {
 		return err
 	}
+	maxPeers := srvr.MaxPeers
+	s.protocolManager.Start(maxPeers)
 	// start heart beat pre 3 seconds.
+	s.updateShardStatsLoop()
 	s.Heartbeat()
 	return nil
 }
@@ -256,6 +273,17 @@ func (s *QKCMasterBackend) initShards() error {
 	return g.Wait()
 }
 
+func (s *QKCMasterBackend) updateShardStatsLoop() {
+	go func() {
+		for true {
+			select {
+			case stats := <-s.shardStatsChan:
+				s.branchToShardStats[stats.Branch.Value] = stats
+			}
+		}
+	}()
+}
+
 func (s *QKCMasterBackend) Heartbeat() {
 	go func(normal bool) {
 		for normal {
@@ -308,12 +336,12 @@ func (s *QKCMasterBackend) getAllSlaveConnection(fullShardID uint32) []*SlaveCon
 	return slaves
 }
 
-func (s *QKCMasterBackend) getShardConnForP2P(fullShardID uint32) []ShardConnForP2P {
+func (s *QKCMasterBackend) getShardConnForP2P(fullShardID uint32) []rpc.ShardConnForP2P {
 	slaves := s.branchToSlaves[fullShardID]
 	if len(slaves) < 1 {
 		return nil
 	}
-	slavesInterface := make([]ShardConnForP2P, 0)
+	slavesInterface := make([]rpc.ShardConnForP2P, 0)
 	for _, v := range slaves {
 		slavesInterface = append(slavesInterface, v)
 	}

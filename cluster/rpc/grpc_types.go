@@ -233,7 +233,7 @@ type ShardStatus struct {
 	TotalTxCount       uint32          `json:"total_tx_count" gencodec:"required"`
 	BlockCount60s      uint32          `json:"block_count_60_s" gencodec:"required"`
 	StaleBlockCount60s uint32          `json:"stale_block_count_60_s" gencodec:"required"`
-	LastBlockTime      uint32          `json:"last_block_time" gencodec:"required"`
+	LastBlockTime      uint64          `json:"last_block_time" gencodec:"required"`
 }
 
 type SyncMinorBlockListRequest struct {

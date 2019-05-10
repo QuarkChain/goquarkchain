@@ -81,7 +81,7 @@ func (v *RootBlockValidator) ValidateBlock(block types.IBlock) error {
 	var prevRootBlockHashList map[common.Hash]bool
 	var shardIdToMinorHeadersMap = make(map[uint32][]*types.MinorBlockHeader)
 	for _, mheader := range rootBlock.MinorBlockHeaders() {
-		if !v.blockChain.containMinorBlock(mheader.Hash()) {
+		if !v.blockChain.IsMinorBlockValidated(mheader.Hash()) {
 			return fmt.Errorf("minor block is not validated. %v-%d",
 				mheader.Coinbase.FullShardKey, mheader.Number)
 		}

@@ -1,7 +1,6 @@
-package master
+package rpc
 
 import (
-	"github.com/QuarkChain/goquarkchain/cluster/rpc"
 	"github.com/QuarkChain/goquarkchain/p2p"
 )
 
@@ -17,7 +16,7 @@ type ShardConnForP2P interface {
 	// AddTransactions will add the tx to shard tx pool, and return the tx hash
 	// which have been added to tx pool. so tx which cannot pass verification
 	// or existed in tx pool will not be included in return hash list
-	AddTransactions(request *p2p.NewTransactionList) (*rpc.HashList, error)
+	AddTransactions(request *p2p.NewTransactionList) (*HashList, error)
 
 	GetMinorBlocks(request *p2p.GetMinorBlockListRequest) (*p2p.GetMinorBlockListResponse, error)
 
@@ -26,4 +25,6 @@ type ShardConnForP2P interface {
 	HandleNewTip(request *p2p.Tip) (bool, error)
 
 	AddMinorBlock(request *p2p.NewBlockMinor) (bool, error)
+
+	AddBlockListForSync(request *HashList) (*ShardStatus, error)
 }

@@ -197,7 +197,7 @@ func TestGetMinorBlockHeaders(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	blockcount := minorBlockHeaderListLimit + 15
 	shardConns := getShardConnForP2P(2, ctrl)
-	pm, _ := newTestProtocolManagerMust(t, 15, nil, nil, func(fullShardId uint32) []ShardConnForP2P {
+	pm, _ := newTestProtocolManagerMust(t, 15, nil, nil, func(fullShardId uint32) []rpc.ShardConnForP2P {
 		return shardConns
 	})
 	minorBlocks := generateMinorBlocks(blockcount)
@@ -275,7 +275,7 @@ func TestGetMinorBlocks(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	blockcount := minorBlockBatchSize + 15
 	shardConns := getShardConnForP2P(2, ctrl)
-	pm, _ := newTestProtocolManagerMust(t, 15, nil, nil, func(fullShardId uint32) []ShardConnForP2P {
+	pm, _ := newTestProtocolManagerMust(t, 15, nil, nil, func(fullShardId uint32) []rpc.ShardConnForP2P {
 		return shardConns
 	})
 	minorBlocks := generateMinorBlocks(blockcount)
@@ -350,7 +350,7 @@ func TestBroadcastMinorBlock(t *testing.T) {
 	errc := make(chan error)
 	defer ctrl.Finish()
 	shardConns := getShardConnForP2P(1, ctrl)
-	pm, _ := newTestProtocolManagerMust(t, 15, nil, sync, func(fullShardId uint32) []ShardConnForP2P {
+	pm, _ := newTestProtocolManagerMust(t, 15, nil, sync, func(fullShardId uint32) []rpc.ShardConnForP2P {
 		return shardConns
 	})
 	minorBlock := generateMinorBlocks(1)[0]
@@ -391,7 +391,7 @@ func TestBroadcastTransactions(t *testing.T) {
 	errc := make(chan error)
 	defer ctrl.Finish()
 	shardConns := getShardConnForP2P(1, ctrl)
-	pm, _ := newTestProtocolManagerMust(t, 15, nil, nil, func(fullShardId uint32) []ShardConnForP2P {
+	pm, _ := newTestProtocolManagerMust(t, 15, nil, nil, func(fullShardId uint32) []rpc.ShardConnForP2P {
 		return shardConns
 	})
 	txs := newTestTransactionList(10)
@@ -424,7 +424,7 @@ func TestBroadcastNewMinorBlockTip(t *testing.T) {
 	errc := make(chan error)
 	defer ctrl.Finish()
 	shardConns := getShardConnForP2P(1, ctrl)
-	pm, _ := newTestProtocolManagerMust(t, 15, nil, nil, func(fullShardId uint32) []ShardConnForP2P {
+	pm, _ := newTestProtocolManagerMust(t, 15, nil, nil, func(fullShardId uint32) []rpc.ShardConnForP2P {
 		return shardConns
 	})
 	minorBlocks := generateMinorBlocks(30)
@@ -432,9 +432,6 @@ func TestBroadcastNewMinorBlockTip(t *testing.T) {
 	clientPeer := newTestClientPeer(int(qkcconfig.P2PProtocolVersion), peer.app)
 	defer peer.close()
 
-	for _, conn := range shardConns {
-		conn.(*mock_master.MockShardConnForP2P).EXPECT().HandleNewTip(gomock.Any()).Return(true, nil).Times(1)
-	}
 	err := clientPeer.SendNewTip(2, &p2p.Tip{RootBlockHeader: pm.rootBlockChain.CurrentBlock().Header(),
 		MinorBlockHeaderList: []*types.MinorBlockHeader{minorBlocks[len(minorBlocks)-2].Header()}})
 	if err != nil {
@@ -497,8 +494,8 @@ func TestBroadcastNewRootBlockTip(t *testing.T) {
 	}
 }
 
-func getShardConnForP2P(n int, ctrl *gomock.Controller) []ShardConnForP2P {
-	shardConns := make([]ShardConnForP2P, 0, n)
+func getShardConnForP2P(n int, ctrl *gomock.Controller) []rpc.ShardConnForP2P {
+	shardConns := make([]rpc.ShardConnForP2P, 0, n)
 	for i := 0; i < n; i++ {
 		sc := mock_master.NewMockShardConnForP2P(ctrl)
 		shardConns = append(shardConns, sc)
