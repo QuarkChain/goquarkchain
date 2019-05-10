@@ -114,7 +114,7 @@ type RootBlockChain struct {
 	badBlocks      *lru.Cache                        // Bad block cache
 	shouldPreserve func(block *types.RootBlock) bool // Function used to determine whether should preserve the given block.
 
-	fakeMinorBlockChain *MinorBlockChain
+	minorPool map[uint32]*MinorBlockChain
 }
 
 // NewBlockChain returns a fully initialized block chain using information
@@ -159,6 +159,7 @@ func NewRootBlockChain(db ethdb.Database, cacheConfig *CacheConfig, chainConfig 
 	if err := bc.loadLastState(); err != nil {
 		return nil, err
 	}
+
 	// Take ownership of this particular state
 	go bc.update()
 	return bc, nil
@@ -1265,35 +1266,38 @@ func (bc *RootBlockChain) GetCommittingBlockHash() common.Hash {
 	return rawdb.ReadRbCommittingHash(bc.db)
 }
 
-func (bc *RootBlockChain) SetMinorBlockChain(m *MinorBlockChain) {
-	bc.fakeMinorBlockChain = m
+func (bc *RootBlockChain) SetMinorPool(m map[uint32]*MinorBlockChain) {
+	bc.minorPool = m
 }
 
 func (bc *RootBlockChain) FakeInsertToShard(blocks []types.IBlock) error {
-	for _, v := range blocks {
-		block, ok := v.(*types.RootBlock)
-		if !ok {
-			panic(errors.New("sb"))
+	fmt.Println("HHHHHHHHHHHHHHHHHHHHHHHHHHHHHHH", len(bc.minorPool))
+	for branch, minorBlockChain := range bc.minorPool {
+		for _, v := range blocks {
+			block, ok := v.(*types.RootBlock)
+			if !ok {
+				panic(errors.New("sb"))
+			}
+			fmt.Println("minor 开始插主链", "branch:", branch, "number", block.NumberU64(), "coinbase", block.Header().CoinbaseAmount.Value)
+			if err := minorBlockChain.AddRootBlock(block); err != nil {
+				return err
+			}
+			fmt.Println("minor 结束插主链", "branch:", branch, "number", block.NumberU64())
 		}
-		fmt.Println("分片插入root--开始")
-		if err := bc.fakeMinorBlockChain.AddRootBlock(block); err != nil {
-			return err
-		}
-		fmt.Println("分片插入root--结束", block.Number())
 	}
 	return nil
 }
 
-func (bc *RootBlockChain) AddMinorBlockChain(block *types.MinorBlock) error {
-	if block.Header().Branch.Value == bc.fakeMinorBlockChain.branch.Value {
-		fmt.Println("准备插入minorBlockChain", block.Number())
-		_, _, err := bc.fakeMinorBlockChain.InsertChain([]types.IBlock{block})
-		if err != nil {
-			panic(err)
-		}
-		fmt.Println("结束插入minorBlockChain", block.Number())
-		return nil
-	}
-	fmt.Println("不是本branch", block.Header().Branch.Value, bc.fakeMinorBlockChain.branch.Value)
-	return nil
-}
+//func (bc *RootBlockChain) FakeAddMinorBlockChain(block *types.MinorBlock) error {
+//	if block.Header().Branch.Value == bc.fakeMinorBlockChain.branch.Value {
+//		fmt.Println("准备插入minorBlockChain", block.Number())
+//		_, _, err := bc.fakeMinorBlockChain.InsertChain([]types.IBlock{block})
+//		if err != nil {
+//			panic(err)
+//		}
+//		fmt.Println("结束插入minorBlockChain", block.Number())
+//		return nil
+//	}
+//	fmt.Println("不是本branch", block.Header().Branch.Value, bc.fakeMinorBlockChain.branch.Value)
+//	return nil
+//}

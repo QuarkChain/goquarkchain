@@ -14,13 +14,11 @@ import (
 	"github.com/QuarkChain/goquarkchain/consensus/qkchash"
 	"github.com/QuarkChain/goquarkchain/core"
 	"github.com/QuarkChain/goquarkchain/core/types"
-	"github.com/QuarkChain/goquarkchain/core/vm"
 	"github.com/QuarkChain/goquarkchain/internal/qkcapi"
 	"github.com/QuarkChain/goquarkchain/p2p"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
-	"github.com/ethereum/go-ethereum/params"
 	ethRPC "github.com/ethereum/go-ethereum/rpc"
 	"golang.org/x/sync/errgroup"
 	"math/big"
@@ -51,7 +49,6 @@ type QKCMasterBackend struct {
 	branchToShardStats map[uint32]*rpc.ShardStatus
 	artificialTxConfig *rpc.ArtificialTxConfig
 	rootBlockChain     *core.RootBlockChain
-	MinorBlockChain    *core.MinorBlockChain
 	logInfo            string
 	ProtocolManager    *ProtocolManager
 }
@@ -96,22 +93,6 @@ func New(ctx *service.ServiceContext, cfg *config.ClusterConfig) (*QKCMasterBack
 		mstr.clientPool[target] = client
 	}
 	log.Info("qkc api backend", "slave client pool", len(mstr.clientPool))
-
-	shardDB := ethdb.NewMemDatabase()
-	fullShardID := cfg.Quarkchain.Chains[1].ChainID<<16 | cfg.Quarkchain.Chains[1].ShardSize | 0
-	genesis.MustCommitMinorBlock(shardDB, mstr.rootBlockChain.CurrentBlock(), fullShardID)
-
-	mstr.MinorBlockChain, err = core.NewMinorBlockChain(shardDB, nil, params.TestChainConfig, cfg, mstr.engine, vm.Config{}, nil, fullShardID)
-	if _, err := mstr.MinorBlockChain.InitGenesisState(mstr.rootBlockChain.CurrentBlock()); err != nil {
-		panic(err)
-	}
-	if err != nil {
-		panic(err)
-	}
-	fmt.Println("InitGenesisi succ", "-===========", mstr.MinorBlockChain.GetBranch().Value, mstr.MinorBlockChain.CurrentBlock().NumberU64(), mstr.MinorBlockChain.CurrentBlock().Hash().String())
-	fmt.Println("MMMMMMM", mstr.MinorBlockChain.CurrentBlock().Meta())
-	disPlayMinor(mstr.MinorBlockChain.CurrentBlock().Header())
-	mstr.rootBlockChain.SetMinorBlockChain(mstr.MinorBlockChain)
 	return mstr, nil
 }
 

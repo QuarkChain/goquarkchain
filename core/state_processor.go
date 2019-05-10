@@ -64,19 +64,19 @@ func (p *StateProcessor) Process(block *types.MinorBlock, statedb *state.StateDB
 		xShardReceiveTxList = make([]*types.CrossShardTransactionDeposit, 0)
 	}
 
-	//	rootBlockHeader := p.bc.getRootBlockHeaderByHash(block.Header().GetPrevRootBlockHash())
+	rootBlockHeader := p.bc.getRootBlockHeaderByHash(block.Header().GetPrevRootBlockHash())
 	preBlock := p.bc.GetMinorBlock(block.IHeader().GetParentHash())
 	if preBlock == nil {
 		return nil, nil, 0, errors.New("preBlock is nil")
 	}
 
-	//	preRootHeader := p.bc.getRootBlockHeaderByHash(preBlock.Header().GetPrevRootBlockHash())
+	preRootHeader := p.bc.getRootBlockHeaderByHash(preBlock.Header().GetPrevRootBlockHash())
 
-	//txList, err := p.bc.runCrossShardTxList(statedb, rootBlockHeader, preRootHeader)
-	//if err != nil {
-	//	return nil, nil, 0, err
-	//}
-	txList := make([]*types.CrossShardTransactionDeposit, 0)
+	txList, err := p.bc.runCrossShardTxList(statedb, rootBlockHeader, preRootHeader)
+	if err != nil {
+		return nil, nil, 0, err
+	}
+	//	txList := make([]*types.CrossShardTransactionDeposit, 0)
 	xShardReceiveTxList = append(xShardReceiveTxList, txList...)
 	var (
 		receipts types.Receipts

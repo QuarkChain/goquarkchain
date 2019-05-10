@@ -4,14 +4,18 @@ import (
 	"fmt"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	synchronizer "github.com/QuarkChain/goquarkchain/cluster/sync"
+	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/core"
 	"github.com/QuarkChain/goquarkchain/core/types"
+	"github.com/QuarkChain/goquarkchain/core/vm"
 	"github.com/QuarkChain/goquarkchain/p2p"
 	"github.com/QuarkChain/goquarkchain/serialize"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/params"
 	"github.com/pkg/errors"
 	"io/ioutil"
 	"reflect"
@@ -50,6 +54,8 @@ type ProtocolManager struct {
 
 	log string
 	wg  sync.WaitGroup
+
+	MinorPool map[uint32]*core.MinorBlockChain
 }
 
 // NewQKCManager  new qkc manager
@@ -82,8 +88,52 @@ func NewProtocolManager(env config.ClusterConfig, rootBlockChain *core.RootBlock
 		},
 	}
 	manager.subProtocols = []p2p.Protocol{protocol}
-	return manager, nil
 
+	manager.MinorPool = make(map[uint32]*core.MinorBlockChain)
+	quarkchainConfig := env.Quarkchain
+	genesis := core.NewGenesis(quarkchainConfig)
+
+	for _, fullShardID := range quarkchainConfig.GetGenesisShardIds() {
+		shardDB := ethdb.NewMemDatabase()
+		genesis.MustCommitMinorBlock(shardDB, rootBlockChain.CurrentBlock(), fullShardID)
+		minorBlockChain, err := core.NewMinorBlockChain(shardDB, nil, params.TestChainConfig, &env, &consensus.FakeEngine{}, vm.Config{}, nil, fullShardID)
+		if _, err := minorBlockChain.InitGenesisState(rootBlockChain.CurrentBlock()); err != nil {
+			panic(err)
+		}
+		if err != nil {
+			panic(err)
+		}
+		fmt.Println("InitGenesisi succ", "-===========", minorBlockChain.GetBranch().Value, minorBlockChain.CurrentBlock().NumberU64(), minorBlockChain.CurrentBlock().Hash().String())
+		manager.MinorPool[fullShardID] = minorBlockChain
+
+	}
+	manager.rootBlockChain.SetMinorPool(manager.MinorPool)
+	for _, blockchain := range manager.MinorPool {
+		txList := types.CrossShardTransactionDepositList{}
+		txList.TXList = make([]*types.CrossShardTransactionDeposit, 0)
+		hash := blockchain.GetBlockByNumber(0).Hash()
+
+		for _, vv := range manager.MinorPool {
+			vv.AddCrossShardTxListByMinorBlockHash(hash, txList)
+		}
+	}
+	return manager, nil
+}
+
+func (bc *ProtocolManager) FakeAddMinorBlockChain(block *types.MinorBlock) error {
+	fmt.Println("准备插入分片", "分片", block.Header().Branch.Value, "高度", block.Header().Number, "evmHash", block.Meta().Root.String())
+	txList := types.CrossShardTransactionDepositList{}
+	txList.TXList = make([]*types.CrossShardTransactionDeposit, 0)
+
+	for _, v := range bc.MinorPool {
+		v.AddCrossShardTxListByMinorBlockHash(block.Hash(), txList) //TODO:::shard_state.1091add_cross_shard_tx_list_by_minor_block_hash
+	}
+	_, _, err := bc.MinorPool[block.Branch().Value].InsertChain([]types.IBlock{block})
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println("结束插入分片", "分片", block.Header().Branch.Value, "高度", block.Header().Number)
+	return nil
 }
 
 func (pm *ProtocolManager) removePeer(id string) {
@@ -248,7 +298,7 @@ func (pm *ProtocolManager) handleMsg(peer *peer) error {
 		if err := serialize.DeserializeFromBytes(qkcMsg.Data, &newBlockMinor); err != nil {
 			return err
 		}
-		if err := pm.rootBlockChain.AddMinorBlockChain(newBlockMinor.Block); err != nil {
+		if err := pm.FakeAddMinorBlockChain(newBlockMinor.Block); err != nil {
 			return err
 		}
 		clients := pm.getShardConnFunc(qkcMsg.MetaData.Branch)

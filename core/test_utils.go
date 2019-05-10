@@ -44,7 +44,7 @@ func getTestEnv(genesisAccount *account.Address, genesisMinorQuarkHash *uint64, 
 	}
 
 	if shardSize == nil {
-		temp := uint32(2)
+		temp := uint32(1)
 		shardSize = &temp
 	}
 

@@ -3,6 +3,7 @@ package rawdb
 
 import (
 	"encoding/binary"
+	"fmt"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/serialize"
 	"github.com/ethereum/go-ethereum/common"
@@ -565,13 +566,16 @@ func WriteCrossShardTxList(db DatabaseWriter, hash common.Hash, list types.Cross
 func ReadCrossShardTxList(db DatabaseReader, hash common.Hash) *types.CrossShardTransactionDepositList {
 	data, _ := db.Get(makeXShardTxList(hash))
 	if len(data) == 0 {
+		fmt.Println("111")
 		return nil
 	}
 	list := new(types.CrossShardTransactionDepositList)
 	if err := serialize.Deserialize(serialize.NewByteBuffer(data), list); err != nil {
-		log.Error("Invalid block header Deserialize", "hash", hash, "err", err)
+		log.Error("Invalid CrossShardTransactionDepositList Deserialize", "hash", hash, "err", err)
+		fmt.Println("2222")
 		return nil
 	}
+	fmt.Println("33333", len(list.TXList))
 	return list
 }
 

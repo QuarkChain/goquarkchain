@@ -22,29 +22,19 @@ import (
 )
 
 func TestShardStateSimple(t *testing.T) {
-	emptyAccount := account.CreatEmptyAddress(2)
+	emptyAccount := account.CreatEmptyAddress(1)
 
 	env := setUp(nil, nil, nil)
 	shardState := createDefaultShardState(env, nil, nil, nil, nil)
-	curTip := shardState.CurrentBlock()
-	fmt.Println("evm_state", curTip.Root().String(), curTip.Header().Number)
+	for index := 0; index < 10; index++ {
+		b, err := shardState.CreateBlockToMine(nil, &emptyAccount, nil)
+		checkErr(err)
+		_, _, err = shardState.FinalizeAndAddBlock(b)
+		checkErr(err)
 
-	b, err := shardState.CreateBlockToMine(nil, &emptyAccount, nil)
-	checkErr(err)
-	_, _, err = shardState.FinalizeAndAddBlock(b)
-	checkErr(err)
-
-	curTip = shardState.CurrentBlock()
-	fmt.Println("evm_state", curTip.Root().String(), curTip.Header().Number, curTip.Header().Coinbase, curTip.Header().CoinbaseAmount.Value)
-
-	b, err = shardState.CreateBlockToMine(nil, &emptyAccount, nil)
-	checkErr(err)
-	_, _, err = shardState.FinalizeAndAddBlock(b)
-	checkErr(err)
-
-	curTip = shardState.CurrentBlock()
-	fmt.Println("evm_state", curTip.Root().String(), curTip.Header().Number, curTip.Header().Coinbase, curTip.Header().CoinbaseAmount.Value)
-
+		curTip := shardState.CurrentBlock()
+		fmt.Println("evm_state", curTip.Root().String(), curTip.Header().Branch.Value, curTip.Header().Number, curTip.Header().Coinbase, curTip.Header().CoinbaseAmount.Value)
+	}
 }
 
 type XIABAN struct {
@@ -1706,5 +1696,18 @@ func TestAddRootBlockRevertHeaderTip(t *testing.T) {
 	assert.Equal(t, shardState.rootTip.Hash().String(), r3.Header().Hash().String())
 	assert.Equal(t, shardState.CurrentHeader().Hash().String(), m2.Header().Hash().String())
 	assert.Equal(t, shardState.CurrentBlock().Hash().String(), m2.Header().Hash().String())
+
+}
+
+func TestNewStateProcessor(t *testing.T) {
+	ans := types.CrossShardTransactionDepositList{}
+	ans.TXList = make([]*types.CrossShardTransactionDeposit, 0)
+
+	data, err := serialize.SerializeToBytes(ans)
+	fmt.Println("data,err", len(data), err)
+
+	sb := new(types.CrossShardTransactionDepositList)
+	err = serialize.DeserializeFromBytes(data, sb)
+	fmt.Println("sb", err, len(sb.TXList), sb.TXList)
 
 }

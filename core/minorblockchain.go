@@ -219,6 +219,7 @@ func NewMinorBlockChain(
 	bc.txPool = NewTxPool(DefaultTxPoolConfig, bc)
 	// Take ownership of this particular state
 	go bc.update()
+	fmt.Println("NNNNNNNNNNN", bc.branch.Value, &bc.db)
 	return bc, nil
 }
 
