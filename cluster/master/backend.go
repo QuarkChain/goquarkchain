@@ -95,7 +95,7 @@ func New(ctx *service.ServiceContext, cfg *config.ClusterConfig) (*QKCMasterBack
 	log.Info("qkc api backend", "slave client pool", len(mstr.clientPool))
 
 	mstr.synchronizer = Synchronizer.NewSynchronizer(mstr.rootBlockChain)
-	if mstr.protocolManager, err = NewProtocolManager(*cfg, mstr.rootBlockChain, mstr.synchronizer, mstr.getShardConnForP2P); err != nil {
+	if mstr.protocolManager, err = NewProtocolManager(*cfg, mstr.rootBlockChain, mstr.shardStatsChan, mstr.synchronizer, mstr.getShardConnForP2P); err != nil {
 		return nil, err
 	}
 

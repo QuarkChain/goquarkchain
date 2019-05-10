@@ -67,7 +67,7 @@ func newTestProtocolManager(blocks int, generator func(int, *core.RootBlockGen),
 		panic(err)
 	}
 
-	pm, err := NewProtocolManager(*clusterconfig, blockChain, synchronizer, getShardConnFunc)
+	pm, err := NewProtocolManager(*clusterconfig, blockChain, nil, synchronizer, getShardConnFunc)
 	if err != nil {
 		return nil, nil, err
 	}

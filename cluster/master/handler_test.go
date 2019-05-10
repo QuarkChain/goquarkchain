@@ -421,7 +421,7 @@ func TestBroadcastTransactions(t *testing.T) {
 
 func TestBroadcastNewMinorBlockTip(t *testing.T) {
 	ctrl := gomock.NewController(t)
-	errc := make(chan error)
+	errc := make(chan error, 1)
 	defer ctrl.Finish()
 	shardConns := getShardConnForP2P(1, ctrl)
 	pm, _ := newTestProtocolManagerMust(t, 15, nil, nil, func(fullShardId uint32) []rpc.ShardConnForP2P {
@@ -432,10 +432,18 @@ func TestBroadcastNewMinorBlockTip(t *testing.T) {
 	clientPeer := newTestClientPeer(int(qkcconfig.P2PProtocolVersion), peer.app)
 	defer peer.close()
 
+	for _, conn := range shardConns {
+		conn.(*mock_master.MockShardConnForP2P).EXPECT().
+			HandleNewTip(gomock.Any()).Return(true, nil).Times(1)
+	}
 	err := clientPeer.SendNewTip(2, &p2p.Tip{RootBlockHeader: pm.rootBlockChain.CurrentBlock().Header(),
 		MinorBlockHeaderList: []*types.MinorBlockHeader{minorBlocks[len(minorBlocks)-2].Header()}})
 	if err != nil {
 		t.Errorf("make message failed: %v", err.Error())
+	}
+	time.Sleep(1 * time.Second)
+	if pm.peers.Peer(peer.id) == nil {
+		t.Errorf("peer should not be unregister")
 	}
 	for _, conn := range shardConns {
 		conn.(*mock_master.MockShardConnForP2P).EXPECT().
@@ -455,7 +463,7 @@ func TestBroadcastNewMinorBlockTip(t *testing.T) {
 	}
 	time.Sleep(2 * time.Second)
 	if pm.peers.Peer(peer.id) != nil {
-		t.Errorf("peer should be Unregister")
+		t.Errorf("peer should be unregister")
 	}
 }
 

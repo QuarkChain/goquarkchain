@@ -23,7 +23,7 @@ func (m *QKCMasterServerSideOp) AddMinorBlockHeader(ctx context.Context, req *rp
 	if err := serialize.DeserializeFromBytes(req.Data, data); err != nil {
 		return nil, err
 	}
-	m.master.rootBlockChain.AddValidatedMinorBlockHeader(data.MinorBlockHeader)
+	m.master.rootBlockChain.AddValidatedMinorBlockHeader(data.MinorBlockHeader.Hash())
 	m.master.UpdateShardStatus(data.ShardStats)
 	m.master.UpdateTxCountHistory(data.TxCount, data.XShardTxCount, data.MinorBlockHeader.Time)
 
