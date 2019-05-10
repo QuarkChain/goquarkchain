@@ -3,7 +3,6 @@ package rawdb
 
 import (
 	"encoding/binary"
-	"fmt"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/serialize"
 	"github.com/ethereum/go-ethereum/common"
@@ -272,7 +271,6 @@ func ReadMinorBlock(db DatabaseReader, hash common.Hash) *types.MinorBlock {
 
 // WriteMinorBlock storea a block body into the database.
 func WriteMinorBlock(db DatabaseWriter, block *types.MinorBlock) {
-	//fmt.Println("WriteMinorBlockWriteMinorBlockWriteMinorBlockWriteMinorBlock",block.Number(),block.Hash().String())
 	WriteMinorBlockHeader(db, block.Header())
 	data, err := serialize.SerializeToBytes(block)
 	if err != nil {
@@ -299,7 +297,6 @@ func ReadRootBlock(db DatabaseReader, hash common.Hash) *types.RootBlock {
 
 // WriteRootBlock storea a block rootBlockBody into the database.
 func WriteRootBlock(db DatabaseWriter, block *types.RootBlock) {
-	//fmt.Println("WriteRootBlockWriteRootBlockWriteRootBlockWriteRootBlock",block.Number(),block.Hash().String())
 	WriteRootBlockHeader(db, block.Header())
 	data, err := serialize.SerializeToBytes(block)
 	if err != nil {
@@ -566,16 +563,13 @@ func WriteCrossShardTxList(db DatabaseWriter, hash common.Hash, list types.Cross
 func ReadCrossShardTxList(db DatabaseReader, hash common.Hash) *types.CrossShardTransactionDepositList {
 	data, _ := db.Get(makeXShardTxList(hash))
 	if len(data) == 0 {
-		fmt.Println("111")
 		return nil
 	}
 	list := new(types.CrossShardTransactionDepositList)
 	if err := serialize.Deserialize(serialize.NewByteBuffer(data), list); err != nil {
-		log.Error("Invalid CrossShardTransactionDepositList Deserialize", "hash", hash, "err", err)
-		fmt.Println("2222")
+		log.Error("Invalid block header Deserialize", "hash", hash, "err", err)
 		return nil
 	}
-	fmt.Println("33333", len(list.TXList))
 	return list
 }
 

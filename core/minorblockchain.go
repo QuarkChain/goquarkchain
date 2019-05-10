@@ -219,7 +219,6 @@ func NewMinorBlockChain(
 	bc.txPool = NewTxPool(DefaultTxPoolConfig, bc)
 	// Take ownership of this particular state
 	go bc.update()
-	fmt.Println("NNNNNNNNNNN", bc.branch.Value, &bc.db)
 	return bc, nil
 }
 
@@ -1331,7 +1330,6 @@ func (m *MinorBlockChain) reorg(oldBlock, newBlock types.IBlock) error {
 		}
 	}
 	if qkcCommon.IsNil(oldBlock) {
-		fmt.Println("----------------")
 		return fmt.Errorf("Invalid old chain")
 	}
 	if qkcCommon.IsNil(newBlock) {
@@ -1351,7 +1349,6 @@ func (m *MinorBlockChain) reorg(oldBlock, newBlock types.IBlock) error {
 
 		oldBlock, newBlock = m.GetBlock(oldBlock.IHeader().GetParentHash()), m.GetBlock(newBlock.IHeader().GetParentHash())
 		if qkcCommon.IsNil(oldBlock) {
-			fmt.Println("=======")
 			return fmt.Errorf("Invalid old chain")
 		}
 		if qkcCommon.IsNil(newBlock) {

@@ -74,8 +74,6 @@ func makeConfigNode(ctx *cli.Context) (*service.Node, qkcConfig) {
 	if file := ctx.GlobalString(ClusterConfigFlag.Name); file != "" {
 		if err := loadConfig(file, &cfg.Cluster); err != nil {
 			utils.Fatalf("%v", err)
-		} else {
-			fmt.Println("lllllllll", cfg.Cluster.Quarkchain.GetGenesisShardIds())
 		}
 	} else {
 		utils.SetClusterConfig(ctx, &cfg.Cluster)

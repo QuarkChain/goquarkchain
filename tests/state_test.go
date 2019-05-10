@@ -21,7 +21,6 @@ import (
 	"flag"
 	"fmt"
 	"github.com/QuarkChain/goquarkchain/core/vm"
-	"github.com/ethereum/go-ethereum/ethdb"
 	"reflect"
 	"testing"
 )
@@ -108,15 +107,4 @@ func withTrace(t *testing.T, gasLimit uint64, test func(vm.Config) error) {
 	}
 	t.Logf("EVM output: 0x%x", tracer.Output())
 	t.Logf("EVM error: %v", tracer.Error())
-}
-
-func TestTransFromBlock(t *testing.T) {
-	s1 := ethdb.NewMemDatabase()
-	s1.Put([]byte("123"), []byte("1233"))
-	fmt.Println("?", &s1)
-	fmt.Println("==========")
-	fmt.Println(s1.Keys())
-
-	s2 := ethdb.NewMemDatabase()
-	fmt.Println("?", &s2)
 }

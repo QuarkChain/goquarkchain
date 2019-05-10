@@ -76,7 +76,6 @@ func (p *StateProcessor) Process(block *types.MinorBlock, statedb *state.StateDB
 	if err != nil {
 		return nil, nil, 0, err
 	}
-	//	txList := make([]*types.CrossShardTransactionDeposit, 0)
 	xShardReceiveTxList = append(xShardReceiveTxList, txList...)
 	var (
 		receipts types.Receipts
