@@ -5,9 +5,12 @@ import (
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
 	"github.com/QuarkChain/goquarkchain/core/rawdb"
+	"github.com/QuarkChain/goquarkchain/core/vm"
 	"github.com/QuarkChain/goquarkchain/params"
 	"github.com/QuarkChain/goquarkchain/serialize"
+	"math"
 	"math/big"
+	"sort"
 	"time"
 
 	"github.com/QuarkChain/goquarkchain/account"
@@ -15,6 +18,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/core/state"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/log"
 )
 
 func (m *MinorBlockChain) getLastConfirmedMinorBlockHeaderAtRootBlock(hash common.Hash) *types.MinorBlockHeader {
@@ -522,7 +526,41 @@ func (m *MinorBlockChain) GetStorageAt(recipient account.Recipient, key common.H
 
 // ExecuteTx execute tx
 func (m *MinorBlockChain) ExecuteTx(tx *types.Transaction, fromAddress *account.Address, height *uint64) ([]byte, error) {
-	panic(-1)
+	// no need to lock
+	if height == nil {
+		temp := m.CurrentBlock().NumberU64()
+		height = &temp
+	}
+	if fromAddress == nil {
+		return nil, errors.New("from address should not empty")
+	}
+	mBlock, ok := m.GetBlockByNumber(*height).(*types.MinorBlock)
+	if !ok {
+		return nil, ErrMinorBlockIsNil
+	}
+
+	evmState, err := m.StateAt(mBlock.GetMetaData().Root)
+	if err != nil {
+		return nil, err
+	}
+
+	state := evmState.Copy()
+	state.SetGasUsed(new(big.Int).SetUint64(0))
+	var gas uint64
+	if tx.EvmTx.Gas() != 0 {
+		gas = tx.EvmTx.Gas()
+	} else {
+		gas = state.GetGasLimit().Uint64()
+	}
+
+	evmTx, err := m.validateTx(tx, state, fromAddress, &gas)
+	if err != nil {
+		return nil, err
+	}
+	gp := new(GasPool).AddGas(mBlock.Header().GetGasLimit().Uint64())
+	usedGas := new(uint64)
+	ret, _, _, err := ApplyTransaction(m.ethChainConfig, m, gp, state, mBlock.IHeader().(*types.MinorBlockHeader), evmTx, usedGas, *m.GetVMConfig())
+	return ret, err
 }
 
 func checkEqual(a, b types.IHeader) bool {
@@ -758,7 +796,7 @@ func (m *MinorBlockChain) CreateBlockToMine(createTime *uint64, address *account
 
 // AddCrossShardTxListByMinorBlockHash add crossShardTxList by slave
 func (m *MinorBlockChain) AddCrossShardTxListByMinorBlockHash(h common.Hash, txList types.CrossShardTransactionDepositList) {
-	panic(-1)
+	rawdb.WriteCrossShardTxList(m.db, h, txList)
 }
 
 // AddRootBlock add root block for minorBlockChain
@@ -937,12 +975,35 @@ func (m *MinorBlockChain) runOneCrossShardTxListByRootBlockHash(hash common.Hash
 
 // GetTransactionByHash get tx by hash
 func (m *MinorBlockChain) GetTransactionByHash(hash common.Hash) (*types.MinorBlock, uint32) {
-	panic(-1)
+	_, mHash, txIndex := rawdb.ReadTransaction(m.db, hash)
+	if mHash == qkcCommon.EmptyHash { //TODO need? for test???
+		txs := make([]*types.Transaction, 0)
+		m.txPool.mu.Lock() // to lock txpool.all
+		tx,ok:=m.txPool.all.all[hash]
+		if !ok{
+			return nil,0
+		}
+		txs = append(txs, tx)
+		m.txPool.mu.Unlock()
+		temp := types.NewMinorBlock(&types.MinorBlockHeader{}, &types.MinorBlockMeta{}, txs, nil, nil)
+		return temp, 0
+	}
+	return m.GetMinorBlock(mHash), txIndex
 }
 
 // GetTransactionReceipt get tx receipt by hash for slave
 func (m *MinorBlockChain) GetTransactionReceipt(hash common.Hash) (*types.MinorBlock, uint32, *types.Receipt) {
-	panic(-1)
+	block, index := m.GetTransactionByHash(hash)
+	if block == nil {
+		return nil, 0, nil
+	}
+	receipts := m.GetReceiptsByHash(block.Hash())
+	for _, receipt := range receipts {
+		if receipt.TxHash == hash {
+			return block, index, receipt
+		}
+	}
+	return nil, 0, nil
 }
 
 // GetTransactionListByAddress get txList by addr
@@ -992,12 +1053,94 @@ func (m *MinorBlockChain) GetShardStatus() (*rpc.ShardStatus, error) {
 
 // EstimateGas estimate gas for this tx
 func (m *MinorBlockChain) EstimateGas(tx *types.Transaction, fromAddress account.Address) (uint32, error) {
-	panic(-1)
+	// no need to locks
+	if tx.EvmTx.Gas() > math.MaxUint32 {
+		return 0, errors.New("gas > maxInt31")
+	}
+	evmTxStartGas := uint32(tx.EvmTx.Gas())
+	lo := uint32(21000 - 1)
+	currentState, err := m.State()
+	if err != nil {
+		return 0, err
+	}
+	if currentState.GetGasLimit().Uint64() > math.MaxInt32 {
+		return 0, errors.New("gasLimit > MaxInt32")
+	}
+	hi := uint32(currentState.GetGasLimit().Uint64())
+	if evmTxStartGas > 21000 {
+		hi = evmTxStartGas
+	}
+	cap := hi
+
+	runTx := func(gas uint32) error {
+		evmState := currentState.Copy()
+		evmState.SetGasUsed(new(big.Int).SetUint64(0))
+		uint64Gas := uint64(gas)
+		evmTx, err := m.validateTx(tx, evmState, &fromAddress, &uint64Gas)
+		if err != nil {
+			return err
+		}
+
+		gp := new(GasPool).AddGas(evmState.GetGasLimit().Uint64())
+		to := evmTx.EvmTx.To()
+		msg := types.NewMessage(fromAddress.Recipient, to, evmTx.EvmTx.Nonce(), evmTx.EvmTx.Value(), evmTx.EvmTx.Gas(), evmTx.EvmTx.GasPrice(), evmTx.EvmTx.Data(), false, tx.EvmTx.FromShardID(), tx.EvmTx.ToShardID())
+		evmState.SetFullShardKey(tx.EvmTx.ToFullShardKey())
+		context := NewEVMContext(msg, m.CurrentBlock().IHeader().(*types.MinorBlockHeader), m)
+		evmEnv := vm.NewEVM(context, evmState, m.ethChainConfig, m.vmConfig)
+
+		localFee := big.NewRat(1, 1)
+		_, _, _, err = ApplyMessage(evmEnv, msg, gp, localFee)
+		return err
+	}
+
+	for lo+1 < hi {
+		mid := (lo + hi) / 2
+		if runTx(mid) == nil {
+			hi = mid
+		} else {
+			lo = mid
+		}
+	}
+	if hi == cap && runTx(hi) == nil {
+		return 0, nil
+	}
+	return hi, nil
 }
 
 // GasPrice gas price
 func (m *MinorBlockChain) GasPrice() *uint64 {
-	panic(-1)
+	// no need to lock
+	currHead := m.CurrentBlock().Hash()
+	if currHead == m.gasPriceSuggestionOracle.LastHead {
+		return &m.gasPriceSuggestionOracle.LastPrice
+	}
+	currHeight := m.CurrentBlock().NumberU64()
+	startHeight := int64(currHeight) - int64(m.gasPriceSuggestionOracle.CheckBlocks) + 1
+	if startHeight < 3 {
+		startHeight = 3
+	}
+	prices := make([]uint64, 0)
+	for index := startHeight; index < int64(currHeight+1); index++ {
+		block, ok := m.GetBlockByNumber(uint64(index)).(*types.MinorBlock)
+		if !ok {
+			log.Error(m.logInfo, "failed to get block", index)
+			return nil
+		}
+		tempPreBlockPrices := make([]uint64, 0)
+		for _, tx := range block.GetTransactions() {
+			tempPreBlockPrices = append(tempPreBlockPrices, tx.EvmTx.GasPrice().Uint64())
+		}
+		prices = append(prices, tempPreBlockPrices...)
+	}
+	if len(prices) == 0 {
+		return nil
+	}
+
+	sort.Slice(prices, func(i, j int) bool { return prices[i] < prices[j] })
+	price := prices[(len(prices)-1)*int(m.gasPriceSuggestionOracle.Percentile)/100]
+	m.gasPriceSuggestionOracle.LastPrice = price
+	m.gasPriceSuggestionOracle.LastHead = currHead
+	return &price
 }
 
 func (m *MinorBlockChain) getBlockCountByHeight(height uint64) uint64 {
