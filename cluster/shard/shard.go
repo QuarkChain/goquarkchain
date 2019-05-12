@@ -37,9 +37,6 @@ type ShardBackend struct {
 	MinorBlockChain *core.MinorBlockChain
 	newBlockPool    map[common.Hash]*types.MinorBlock
 
-	bstRHObserved *types.RootBlockHeader  // bestRootHeaderObserved
-	bstMHObserved *types.MinorBlockHeader // bestMinorHeaderObserved
-
 	mu       sync.Mutex
 	eventMux *event.TypeMux
 }

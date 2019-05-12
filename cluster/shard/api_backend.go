@@ -25,19 +25,6 @@ func (s *ShardBackend) broadcastNewTip() (err error) {
 		rootTip  = s.MinorBlockChain.GetRootTip()
 		minorTip = s.MinorBlockChain.CurrentHeader().(*types.MinorBlockHeader)
 	)
-	if s.bstRHObserved != nil {
-		if rootTip.Number < s.bstRHObserved.Number {
-			return
-		}
-		if reflect.DeepEqual(rootTip, s.bstRHObserved) {
-			if uint64(rootTip.Number) < s.bstMHObserved.Number {
-				return
-			}
-			if reflect.DeepEqual(minorTip, s.bstMHObserved) {
-				return
-			}
-		}
-	}
 
 	err = s.conn.BroadcastNewTip([]*types.MinorBlockHeader{minorTip}, rootTip, s.fullShardId)
 	return
@@ -164,23 +151,7 @@ func (s *ShardBackend) SubmitWork(headerHash common.Hash, nonce uint64, mixHash 
 
 func (s *ShardBackend) HandleNewTip(rBHeader *types.RootBlockHeader, mBHeader *types.MinorBlockHeader) error {
 
-	if s.bstRHObserved != nil {
-		if rBHeader.Number < s.bstRHObserved.Number {
-			return errors.New(fmt.Sprintf("best observed root header height is decreasing %d < %d", rBHeader.Number, s.bstRHObserved.Number))
-		}
-
-		if rBHeader.Number == s.bstRHObserved.Number {
-			if !reflect.DeepEqual(rBHeader, s.bstRHObserved) {
-				return errors.New(fmt.Sprintf("best observed root header changed with same height %d", s.bstRHObserved.Number))
-			}
-			if mBHeader.Number < s.bstMHObserved.Number {
-				return errors.New(fmt.Sprintf("best observed minor header is decreasing %d < %d", mBHeader.Number, s.bstMHObserved.Number))
-			}
-		}
-	}
-
-	s.bstRHObserved = rBHeader
-	s.bstMHObserved = mBHeader
+	// TODO sync.add_task
 	if s.MinorBlockChain.CurrentHeader().NumberU64() >= mBHeader.Number {
 		return nil
 	}
