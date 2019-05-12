@@ -31,10 +31,10 @@ func NewSlaveConn(target string, shardMaskList []*types.ChainMask, slaveID strin
 	}
 }
 
-func (s *SlaveConnection)GetSlaveID()string  {
+func (s *SlaveConnection) GetSlaveID() string {
 	return s.slaveID
 }
-func (s *SlaveConnection)GetShardMaskList()[]*types.ChainMask  {
+func (s *SlaveConnection) GetShardMaskList() []*types.ChainMask {
 	return s.shardMaskList
 }
 
@@ -114,7 +114,7 @@ func (s *SlaveConnection) SendConnectToSlaves(slaveInfoLst []*rpc.SlaveInfo) err
 	return nil
 }
 
-func (s *SlaveConnection) hasShard(fullShardID uint32) bool {
+func (s *SlaveConnection) HasShard(fullShardID uint32) bool {
 	for _, chainMask := range s.shardMaskList {
 		if chainMask.ContainFullShardId(fullShardID) {
 			return true
@@ -140,7 +140,7 @@ func (s *SlaveConnection) AddTransaction(tx *types.Transaction) error {
 
 }
 
-func (s *SlaveConnection) ExecuteTransaction(tx *types.Transaction, fromAddress account.Address, height *uint64) ([]byte, error) {
+func (s *SlaveConnection) ExecuteTransaction(tx *types.Transaction, fromAddress *account.Address, height *uint64) ([]byte, error) {
 	var (
 		req = rpc.ExecuteTransactionRequest{Tx: tx, FromAddress: fromAddress, BlockHeight: height}
 		rsp = new(rpc.ExecuteTransactionResponse)
@@ -166,7 +166,7 @@ func (s *SlaveConnection) ExecuteTransaction(tx *types.Transaction, fromAddress 
 
 func (s *SlaveConnection) GetMinorBlockByHash(blockHash common.Hash, branch account.Branch) (*types.MinorBlock, error) {
 	var (
-		req              = rpc.GetMinorBlockRequest{Branch: branch, MinorBlockHash: blockHash}
+		req              = rpc.GetMinorBlockRequest{Branch: branch.Value, MinorBlockHash: blockHash}
 		minBlockResponse = rpc.GetMinorBlockResponse{}
 		res              *rpc.Response
 	)
@@ -186,7 +186,7 @@ func (s *SlaveConnection) GetMinorBlockByHash(blockHash common.Hash, branch acco
 
 func (s *SlaveConnection) GetMinorBlockByHeight(height uint64, branch account.Branch) (*types.MinorBlock, error) {
 	var (
-		req              = rpc.GetMinorBlockRequest{Branch: branch, Height: height}
+		req              = rpc.GetMinorBlockRequest{Branch: branch.Value, Height: height}
 		minBlockResponse = rpc.GetMinorBlockResponse{}
 	)
 	bytes, err := serialize.SerializeToBytes(req)
@@ -205,7 +205,7 @@ func (s *SlaveConnection) GetMinorBlockByHeight(height uint64, branch account.Br
 
 func (s *SlaveConnection) GetTransactionByHash(txHash common.Hash, branch account.Branch) (*types.MinorBlock, uint32, error) {
 	var (
-		req   = rpc.GetTransactionRequest{Branch: branch, TxHash: txHash}
+		req   = rpc.GetTransactionRequest{Branch: branch.Value, TxHash: txHash}
 		trans = rpc.GetTransactionResponse{}
 	)
 	bytes, err := serialize.SerializeToBytes(req)
@@ -224,7 +224,7 @@ func (s *SlaveConnection) GetTransactionByHash(txHash common.Hash, branch accoun
 
 func (s *SlaveConnection) GetTransactionReceipt(txHash common.Hash, branch account.Branch) (*types.MinorBlock, uint32, *types.Receipt, error) {
 	var (
-		req = rpc.GetTransactionReceiptRequest{Branch: branch, TxHash: txHash}
+		req = rpc.GetTransactionReceiptRequest{Branch: branch.Value, TxHash: txHash}
 		rsp = new(rpc.GetTransactionReceiptResponse)
 	)
 	bytes, err := serialize.SerializeToBytes(req)
@@ -242,7 +242,7 @@ func (s *SlaveConnection) GetTransactionReceipt(txHash common.Hash, branch accou
 	return rsp.MinorBlock, rsp.Index, rsp.Receipt, nil
 }
 
-func (s *SlaveConnection) GetTransactionsByAddress(address account.Address, start []byte, limit uint32) ([]*rpc.TransactionDetail, []byte, error) {
+func (s *SlaveConnection) GetTransactionsByAddress(address *account.Address, start []byte, limit uint32) ([]*rpc.TransactionDetail, []byte, error) {
 	var (
 		req   = rpc.GetTransactionListByAddressRequest{Address: address, Start: start, Limit: limit}
 		trans = rpc.GetTransactionListByAddressResponse{}
@@ -264,10 +264,10 @@ func (s *SlaveConnection) GetTransactionsByAddress(address account.Address, star
 	return trans.TxList, trans.Next, nil
 }
 
-func (s *SlaveConnection) GetLogs(branch account.Branch, address []account.Address, topics []*rpc.Topic, startBlock, endBlock uint64) ([]*types.Log, error) {
+func (s *SlaveConnection) GetLogs(branch account.Branch, address []*account.Address, topics []*rpc.Topic, startBlock, endBlock uint64) ([]*types.Log, error) {
 	var (
 		req = rpc.GetLogRequest{
-			Branch:     branch,
+			Branch:     branch.Value,
 			Addresses:  address,
 			Topics:     topics,
 			StartBlock: startBlock,
@@ -288,7 +288,7 @@ func (s *SlaveConnection) GetLogs(branch account.Branch, address []account.Addre
 	return rsp.Logs, err
 
 }
-func (s *SlaveConnection) EstimateGas(tx *types.Transaction, fromAddress account.Address) (uint32, error) {
+func (s *SlaveConnection) EstimateGas(tx *types.Transaction, fromAddress *account.Address) (uint32, error) {
 	var (
 		req = rpc.EstimateGasRequest{
 			Tx:          tx,
@@ -308,7 +308,7 @@ func (s *SlaveConnection) EstimateGas(tx *types.Transaction, fromAddress account
 	err = serialize.Deserialize(serialize.NewByteBuffer(res.Data), rsp)
 	return rsp.Result, err
 }
-func (s *SlaveConnection) GetStorageAt(address account.Address, key common.Hash, height *uint64) (common.Hash, error) {
+func (s *SlaveConnection) GetStorageAt(address *account.Address, key common.Hash, height *uint64) (common.Hash, error) {
 	var (
 		req = rpc.GetStorageRequest{
 			Address:     address,
@@ -329,7 +329,7 @@ func (s *SlaveConnection) GetStorageAt(address account.Address, key common.Hash,
 	err = serialize.Deserialize(serialize.NewByteBuffer(res.Data), rsp)
 	return rsp.Result, err
 }
-func (s *SlaveConnection) GetCode(address account.Address, height *uint64) ([]byte, error) {
+func (s *SlaveConnection) GetCode(address *account.Address, height *uint64) ([]byte, error) {
 	var (
 		req = rpc.GetCodeRequest{
 			Address:     address,
@@ -352,7 +352,7 @@ func (s *SlaveConnection) GetCode(address account.Address, height *uint64) ([]by
 func (s *SlaveConnection) GasPrice(branch account.Branch) (uint64, error) {
 	var (
 		req = rpc.GasPriceRequest{
-			Branch: branch,
+			Branch: branch.Value,
 		}
 		rsp = new(rpc.GasPriceResponse)
 		res = new(rpc.Response)
@@ -398,7 +398,7 @@ func (s *SlaveConnection) GetUnconfirmedHeaders() (*rpc.GetUnconfirmedHeadersRes
 		rsp = new(rpc.GetUnconfirmedHeadersResponse)
 	)
 
-	res, err := s.client.Call(s.target, &rpc.Request{Op: rpc.OpGetUnconfirmedHeaders})
+	res, err := s.client.Call(s.target, &rpc.Request{Op: rpc.OpGetUnconfirmedHeaderList})
 	if err != nil {
 		return nil, err
 	}
@@ -422,7 +422,7 @@ func (s *SlaveConnection) GetEcoInfoListRequest() (*rpc.GetEcoInfoListResponse, 
 	return rsp, nil
 }
 
-func (s *SlaveConnection) GetAccountData(address account.Address, height *uint64) (*rpc.GetAccountDataResponse, error) {
+func (s *SlaveConnection) GetAccountData(address *account.Address, height *uint64) (*rpc.GetAccountDataResponse, error) {
 	var (
 		req = rpc.GetAccountDataRequest{
 			Address:     address,
@@ -513,7 +513,7 @@ func (s *SlaveConnection) GetMinorBlocks(request *p2p.GetMinorBlockListRequest) 
 	if err != nil {
 		return nil, err
 	}
-	res, err = s.client.Call(s.target, &rpc.Request{Op: rpc.OpGetMinorBlocks, Data: bytes})
+	res, err = s.client.Call(s.target, &rpc.Request{Op: rpc.OpGetMinorBlockList, Data: bytes})
 	if err != nil {
 		return nil, err
 	}
@@ -532,7 +532,7 @@ func (s *SlaveConnection) GetMinorBlockHeaders(request *p2p.GetMinorBlockHeaderL
 	if err != nil {
 		return nil, err
 	}
-	res, err = s.client.Call(s.target, &rpc.Request{Op: rpc.OpGetMinorBlockHeaders, Data: bytes})
+	res, err = s.client.Call(s.target, &rpc.Request{Op: rpc.OpGetMinorBlockHeaderList, Data: bytes})
 	if err != nil {
 		return nil, err
 	}
@@ -541,6 +541,7 @@ func (s *SlaveConnection) GetMinorBlockHeaders(request *p2p.GetMinorBlockHeaderL
 	}
 	return rsp, nil
 }
+
 func (s *SlaveConnection) HandleNewTip(request *p2p.Tip) (bool, error) {
 	bytes, err := serialize.SerializeToBytes(request)
 	if err != nil {
@@ -553,6 +554,7 @@ func (s *SlaveConnection) HandleNewTip(request *p2p.Tip) (bool, error) {
 
 	return true, nil
 }
+
 func (s *SlaveConnection) AddMinorBlock(request *p2p.NewBlockMinor) (bool, error) {
 	blockData, err := serialize.SerializeToBytes(request.Block)
 	if err != nil {
@@ -572,4 +574,23 @@ func (s *SlaveConnection) AddMinorBlock(request *p2p.NewBlockMinor) (bool, error
 		return false, err
 	}
 	return true, nil
+}
+
+func (s *SlaveConnection) AddBlockListForSync(request *rpc.HashList) (*rpc.ShardStatus, error) {
+	var (
+		shardStatus = new(rpc.ShardStatus)
+		res         = new(rpc.Response)
+	)
+	bytes, err := serialize.SerializeToBytes(request)
+	if err != nil {
+		return nil, err
+	}
+	res, err = s.client.Call(s.target, &rpc.Request{Op: rpc.OpAddMinorBlockListForSync, Data: bytes})
+	if err != nil {
+		return nil, err
+	}
+	if err = serialize.DeserializeFromBytes(res.Data, shardStatus); err != nil {
+		return nil, err
+	}
+	return shardStatus, nil
 }

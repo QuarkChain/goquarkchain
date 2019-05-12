@@ -42,7 +42,7 @@ type RootHeaderChain struct {
 	currentHeader     atomic.Value // Current head of the header chain (may be above the block chain!)
 	currentHeaderHash common.Hash  // Hash of the current head of the header chain (prevent recomputing all the time)
 
-	headerCache *lru.Cache // Cache for the most recent block headers
+	headerCache *lru.Cache // Cache for the most recent block Headers
 	tdCache     *lru.Cache // Cache for the most recent block total difficulties
 	numberCache *lru.Cache // Cache for the most recent block numbers
 
@@ -115,7 +115,7 @@ func (hc *RootHeaderChain) GetBlockNumber(hash common.Hash) *uint64 {
 //
 // Note: This method is not concurrent-safe with inserting blocks simultaneously
 // into the chain, as side effects caused by reorganisations cannot be emulated
-// without the real blocks. Hence, writing headers directly should only be done
+// without the real blocks. Hence, writing Headers directly should only be done
 // in two scenarios: pure-header mode of operation (light clients), or properly
 // separated header/block phases (non-archive clients).
 func (hc *RootHeaderChain) WriteHeader(header *types.RootBlockHeader) (status WriteStatus, err error) {
@@ -184,7 +184,7 @@ func (hc *RootHeaderChain) WriteHeader(header *types.RootBlockHeader) (status Wr
 	return
 }
 
-// WhCallback is a callback function for inserting individual headers.
+// WhCallback is a callback function for inserting individual Headers.
 // A callback is used for two reasons: first, in a LightChain, status should be
 // processed and light chain events sent, while in a RootBlockChain this is not
 // necessary since chain events are sent after inserting blocks. Second, the
@@ -222,15 +222,15 @@ func (hc *RootHeaderChain) ValidateHeaderChain(chain []*types.RootBlockHeader, c
 	abort, results := hc.engine.VerifyHeaders(hc, headers, seals)
 	defer close(abort)
 
-	// Iterate over the headers and ensure they all check out
+	// Iterate over the Headers and ensure they all check out
 	for i, _ := range chain {
 		// If the chain is terminating, stop processing blocks
 		if hc.procInterrupt() {
-			log.Debug("Premature abort during headers verification")
+			log.Debug("Premature abort during Headers verification")
 			return 0, errors.New("aborted")
 		}
 
-		// Otherwise wait for headers checks and ensure they pass
+		// Otherwise wait for Headers checks and ensure they pass
 		if err := <-results; err != nil {
 			return i, err
 		}
@@ -250,11 +250,11 @@ func (hc *RootHeaderChain) ValidateHeaderChain(chain []*types.RootBlockHeader, c
 func (hc *RootHeaderChain) InsertHeaderChain(chain []*types.RootBlockHeader, writeHeader WhCallback, start time.Time) (int, error) {
 	// Collect some import statistics to report on
 	stats := struct{ processed, ignored int }{}
-	// All headers passed verification, import them into the database
+	// All Headers passed verification, import them into the database
 	for i, header := range chain {
 		// Short circuit insertion if shutting down
 		if hc.procInterrupt() {
-			log.Debug("Premature abort during headers import")
+			log.Debug("Premature abort during Headers import")
 			return i, errors.New("aborted")
 		}
 		// If the header's already known, skip it, otherwise store
@@ -280,7 +280,7 @@ func (hc *RootHeaderChain) InsertHeaderChain(chain []*types.RootBlockHeader, wri
 	if stats.ignored > 0 {
 		context = append(context, []interface{}{"ignored", stats.ignored}...)
 	}
-	log.Info("Imported new block headers", context...)
+	log.Info("Imported new block Headers", context...)
 
 	return 0, nil
 }
@@ -293,7 +293,7 @@ func (hc *RootHeaderChain) GetBlockHashesFromHash(hash common.Hash, max uint64) 
 	if header == nil {
 		return nil
 	}
-	// Iterate the headers until enough is collected or the genesis reached
+	// Iterate the Headers until enough is collected or the genesis reached
 	chain := make([]common.Hash, 0, max)
 	for i := uint64(0); i < max; i++ {
 		next := header.GetParentHash()

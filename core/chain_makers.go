@@ -24,7 +24,7 @@ type RootBlockGen struct {
 	parent  *types.RootBlock
 	chain   []*types.RootBlock
 	header  *types.RootBlockHeader
-	headers types.MinorBlockHeaders
+	Headers types.MinorBlockHeaders
 	engine  consensus.Engine
 }
 
@@ -96,7 +96,7 @@ func GenerateRootBlockChain(parent *types.RootBlock, engine consensus.Engine, n 
 			gen(i, b)
 		}
 
-		return types.NewRootBlock(b.header, b.headers, nil)
+		return types.NewRootBlock(b.header, b.Headers, nil)
 	}
 	for i := 0; i < n; i++ {
 		block := genblock(i, parent)
@@ -118,7 +118,7 @@ func makeRootBlockHeader(parent *types.RootBlock, difficulty *big.Int) *types.Ro
 	}
 }
 
-// makeHeaderChain creates a deterministic chain of headers rooted at parent.
+// makeHeaderChain creates a deterministic chain of Headers rooted at parent.
 func makeRootBlockHeaderChain(parent *types.RootBlockHeader, n int, engine consensus.Engine, seed int) []*types.RootBlockHeader {
 	blocks := makeRootBlockChain(types.NewRootBlockWithHeader(parent), n, engine, seed)
 	headers := make([]*types.RootBlockHeader, len(blocks))
@@ -308,7 +308,7 @@ func GenerateMinorBlockChain(config *params.ChainConfig, quarkChainConfig *confi
 	return blocks, receipts
 }
 
-// makeHeaderChain creates a deterministic chain of headers rooted at parent.
+// makeHeaderChain creates a deterministic chain of Headers rooted at parent.
 func makeHeaderChain(parent *types.MinorBlockHeader, metaData *types.MinorBlockMeta, n int, engine consensus.Engine, db ethdb.Database, seed int) []*types.MinorBlockHeader {
 	blocks := makeBlockChain(types.NewMinorBlockWithHeader(parent, metaData), n, engine, db, seed)
 	headers := make([]*types.MinorBlockHeader, len(blocks))

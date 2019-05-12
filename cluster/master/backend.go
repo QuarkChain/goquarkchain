@@ -7,6 +7,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
 	"github.com/QuarkChain/goquarkchain/cluster/service"
+	Synchronizer "github.com/QuarkChain/goquarkchain/cluster/sync"
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/consensus/doublesha256"
 	"github.com/QuarkChain/goquarkchain/consensus/qkchash"
@@ -42,11 +43,14 @@ type QKCMasterBackend struct {
 	chainDb            ethdb.Database
 	shutdown           chan os.Signal
 	clusterConfig      *config.ClusterConfig
-	clientPool         map[string]ISlaveConn
-	branchToSlaves     map[uint32][]ISlaveConn
+	clientPool         map[string]rpc.ISlaveConn
+	branchToSlaves     map[uint32][]rpc.ISlaveConn
 	branchToShardStats map[uint32]*rpc.ShardStatus
+	shardStatsChan     chan *rpc.ShardStatus
 	artificialTxConfig *rpc.ArtificialTxConfig
 	rootBlockChain     *core.RootBlockChain
+	protocolManager    *ProtocolManager
+	synchronizer       Synchronizer.Synchronizer
 	logInfo            string
 }
 
@@ -56,9 +60,10 @@ func New(ctx *service.ServiceContext, cfg *config.ClusterConfig) (*QKCMasterBack
 		mstr = &QKCMasterBackend{
 			clusterConfig:      cfg,
 			eventMux:           ctx.EventMux,
-			clientPool:         make(map[string]ISlaveConn),
-			branchToSlaves:     make(map[uint32][]ISlaveConn, 0),
+			clientPool:         make(map[string]rpc.ISlaveConn),
+			branchToSlaves:     make(map[uint32][]rpc.ISlaveConn, 0),
 			branchToShardStats: make(map[uint32]*rpc.ShardStatus),
+			shardStatsChan:     make(chan *rpc.ShardStatus, len(cfg.Quarkchain.GetGenesisShardIds())),
 			artificialTxConfig: &rpc.ArtificialTxConfig{
 				TargetRootBlockTime:  cfg.Quarkchain.Root.ConsensusConfig.TargetBlockTime,
 				TargetMinorBlockTime: cfg.Quarkchain.GetShardConfigByFullShardID(cfg.Quarkchain.GetGenesisShardIds()[0]).ConsensusConfig.TargetBlockTime,
@@ -88,6 +93,11 @@ func New(ctx *service.ServiceContext, cfg *config.ClusterConfig) (*QKCMasterBack
 		mstr.clientPool[target] = client
 	}
 	log.Info("qkc api backend", "slave client pool", len(mstr.clientPool))
+
+	mstr.synchronizer = Synchronizer.NewSynchronizer(mstr.rootBlockChain)
+	if mstr.protocolManager, err = NewProtocolManager(*cfg, mstr.rootBlockChain, mstr.shardStatsChan, mstr.synchronizer, mstr.getShardConnForP2P); err != nil {
+		return nil, err
+	}
 
 	return mstr, nil
 }
@@ -125,8 +135,7 @@ func (s *QKCMasterBackend) GetClusterConfig() *config.ClusterConfig {
 
 // Protocols p2p protocols, p2p Server will start in node.Start
 func (s *QKCMasterBackend) Protocols() []p2p.Protocol {
-	// TODO add p2p.protocol
-	return nil
+	return s.protocolManager.subProtocols
 }
 
 // APIs return all apis for master Server
@@ -134,7 +143,7 @@ func (s *QKCMasterBackend) APIs() []ethRPC.API {
 	apis := qkcapi.GetAPIs(s)
 	return append(apis, []ethRPC.API{
 		{
-			Namespace: "rpc." + reflect.TypeOf(QKCMasterServerSideOp{}).Name(),
+			Namespace: "rpc." + reflect.TypeOf(MasterServerSideOp{}).Name(),
 			Version:   "3.0",
 			Service:   NewServerSideOp(s),
 			Public:    false,
@@ -144,10 +153,14 @@ func (s *QKCMasterBackend) APIs() []ethRPC.API {
 
 // Stop stop node -> stop qkcMaster
 func (s *QKCMasterBackend) Stop() error {
+	s.rootBlockChain.Stop()
+	s.engine.Close()
+	s.protocolManager.Stop()
 	if s.engine != nil {
 		s.engine.Close()
 	}
 	s.eventMux.Stop()
+	s.chainDb.Close()
 	return nil
 }
 
@@ -156,7 +169,10 @@ func (s *QKCMasterBackend) Start(srvr *p2p.Server) error {
 	if err := s.InitCluster(); err != nil {
 		return err
 	}
+	maxPeers := srvr.MaxPeers
+	s.protocolManager.Start(maxPeers)
 	// start heart beat pre 3 seconds.
+	s.updateShardStatsLoop()
 	s.Heartbeat()
 	return nil
 }
@@ -204,7 +220,7 @@ func (s *QKCMasterBackend) ConnectToSlaves() error {
 			return err
 		}
 		for _, fullShardID := range fullShardIds {
-			if slaveConn.hasShard(fullShardID) {
+			if slaveConn.HasShard(fullShardID) {
 				s.branchToSlaves[fullShardID] = append(s.branchToSlaves[fullShardID], slaveConn)
 			}
 		}
@@ -256,6 +272,17 @@ func (s *QKCMasterBackend) initShards() error {
 	return g.Wait()
 }
 
+func (s *QKCMasterBackend) updateShardStatsLoop() {
+	go func() {
+		for true {
+			select {
+			case stats := <-s.shardStatsChan:
+				s.UpdateShardStatus(stats)
+			}
+		}
+	}()
+}
+
 func (s *QKCMasterBackend) Heartbeat() {
 	go func(normal bool) {
 		for normal {
@@ -275,7 +302,7 @@ func (s *QKCMasterBackend) Heartbeat() {
 	//TODO :add send master info
 }
 
-func checkPing(slaveConn ISlaveConn, id []byte, chainMaskList []*types.ChainMask) error {
+func checkPing(slaveConn rpc.ISlaveConn, id []byte, chainMaskList []*types.ChainMask) error {
 	if slaveConn.GetSlaveID() != string(id) {
 		return errors.New("slaveID is not match")
 	}
@@ -292,7 +319,7 @@ func checkPing(slaveConn ISlaveConn, id []byte, chainMaskList []*types.ChainMask
 	return nil
 }
 
-func (s *QKCMasterBackend) getOneSlaveConnection(branch account.Branch) ISlaveConn {
+func (s *QKCMasterBackend) getOneSlaveConnection(branch account.Branch) rpc.ISlaveConn {
 	slaves := s.branchToSlaves[branch.Value]
 	if len(slaves) < 1 {
 		return nil
@@ -300,7 +327,7 @@ func (s *QKCMasterBackend) getOneSlaveConnection(branch account.Branch) ISlaveCo
 	return slaves[0]
 }
 
-func (s *QKCMasterBackend) getAllSlaveConnection(fullShardID uint32) []ISlaveConn {
+func (s *QKCMasterBackend) getAllSlaveConnection(fullShardID uint32) []rpc.ISlaveConn {
 	slaves := s.branchToSlaves[fullShardID]
 	if len(slaves) < 1 {
 		return nil
@@ -308,12 +335,12 @@ func (s *QKCMasterBackend) getAllSlaveConnection(fullShardID uint32) []ISlaveCon
 	return slaves
 }
 
-func (s *QKCMasterBackend) getShardConnForP2P(fullShardID uint32) []ShardConnForP2P {
+func (s *QKCMasterBackend) getShardConnForP2P(fullShardID uint32) []rpc.ShardConnForP2P {
 	slaves := s.branchToSlaves[fullShardID]
 	if len(slaves) < 1 {
 		return nil
 	}
-	slavesInterface := make([]ShardConnForP2P, 0)
+	slavesInterface := make([]rpc.ShardConnForP2P, 0)
 	for _, v := range slaves {
 		slavesInterface = append(slavesInterface, v)
 	}
@@ -340,7 +367,7 @@ func (s *QKCMasterBackend) createRootBlockToMine(address account.Address) (*type
 	for index := 0; index < len(s.clientPool); index++ {
 		resp := <-rspList
 		for _, headersInfo := range resp.HeadersInfoList {
-			if _, ok := fullShardIDToHeaderList[headersInfo.Branch.Value]; ok { // to avoid overlap
+			if _, ok := fullShardIDToHeaderList[headersInfo.Branch]; ok { // to avoid overlap
 				continue // skip it if has added
 			}
 			height := uint64(0)
@@ -353,7 +380,7 @@ func (s *QKCMasterBackend) createRootBlockToMine(address account.Address) (*type
 				if !s.rootBlockChain.IsMinorBlockValidated(header.Hash()) {
 					break
 				}
-				fullShardIDToHeaderList[headersInfo.Branch.Value] = append(fullShardIDToHeaderList[headersInfo.Branch.Value], header)
+				fullShardIDToHeaderList[headersInfo.Branch] = append(fullShardIDToHeaderList[headersInfo.Branch], header)
 			}
 		}
 	}
@@ -378,7 +405,7 @@ func (s *QKCMasterBackend) createRootBlockToMine(address account.Address) (*type
 }
 
 // GetAccountData get account Data for jsonRpc
-func (s *QKCMasterBackend) GetAccountData(address account.Address, height *uint64) (map[account.Branch]*rpc.AccountBranchData, error) {
+func (s *QKCMasterBackend) GetAccountData(address *account.Address, height *uint64) (map[uint32]*rpc.AccountBranchData, error) {
 	var g errgroup.Group
 	rspList := make(chan *rpc.GetAccountDataResponse, len(s.clientPool))
 	for target := range s.clientPool {
@@ -393,7 +420,7 @@ func (s *QKCMasterBackend) GetAccountData(address account.Address, height *uint6
 		return nil, err
 	}
 
-	branchToAccountBranchData := make(map[account.Branch]*rpc.AccountBranchData)
+	branchToAccountBranchData := make(map[uint32]*rpc.AccountBranchData)
 	for index := 0; index < len(s.clientPool); index++ {
 		rsp := <-rspList
 		for _, accountBranchData := range rsp.AccountBranchDataList {
@@ -407,7 +434,7 @@ func (s *QKCMasterBackend) GetAccountData(address account.Address, height *uint6
 }
 
 // GetPrimaryAccountData get primary account data for jsonRpc
-func (s *QKCMasterBackend) GetPrimaryAccountData(address account.Address, blockHeight *uint64) (*rpc.AccountBranchData, error) {
+func (s *QKCMasterBackend) GetPrimaryAccountData(address *account.Address, blockHeight *uint64) (*rpc.AccountBranchData, error) {
 	fullShardID := s.clusterConfig.Quarkchain.GetFullShardIdByFullShardKey(address.FullShardKey)
 	slaveConn := s.getOneSlaveConnection(account.Branch{Value: fullShardID})
 	if slaveConn == nil {
@@ -418,7 +445,7 @@ func (s *QKCMasterBackend) GetPrimaryAccountData(address account.Address, blockH
 		return nil, err
 	}
 	for _, accountBranchData := range rsp.AccountBranchDataList {
-		if accountBranchData.Branch.Value == fullShardID {
+		if accountBranchData.Branch == fullShardID {
 			return accountBranchData, nil
 		}
 	}

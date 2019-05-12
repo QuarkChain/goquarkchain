@@ -648,7 +648,7 @@ func (m *MinorBlockChain) getMaxBlocksInOneRootBlock() uint64 {
 	return uint64(m.shardConfig.MaxBlocksPerShardInOneRootBlock())
 }
 
-// GetUnconfirmedHeadersCoinbaseAmount get unconfirmed headers coinbase amount
+// GetUnconfirmedHeadersCoinbaseAmount get unconfirmed Headers coinbase amount
 func (m *MinorBlockChain) GetUnconfirmedHeadersCoinbaseAmount() uint64 {
 	amount := uint64(0)
 	headers := m.GetUnconfirmedHeaderList() // have lock
@@ -1049,7 +1049,7 @@ func (m *MinorBlockChain) GetShardStatus() (*rpc.ShardStatus, error) {
 	txCount := uint32(0)
 	blockCount := uint32(0)
 	staleBlockCount := uint32(0)
-	lastBlockTime := uint32(0)
+	lastBlockTime := uint64(0)
 	for cblock.IHeader().NumberU64() > 0 && cblock.IHeader().GetTime() > cutoff {
 		txCount += uint32(len(cblock.GetTransactions()))
 		blockCount++
@@ -1059,7 +1059,7 @@ func (m *MinorBlockChain) GetShardStatus() (*rpc.ShardStatus, error) {
 			return nil, ErrMinorBlockIsNil
 		}
 		if lastBlockTime == 0 {
-			lastBlockTime = uint32(m.CurrentBlock().IHeader().GetTime() - cblock.IHeader().GetTime())
+			lastBlockTime = m.CurrentBlock().IHeader().GetTime() - cblock.IHeader().GetTime()
 		}
 	}
 	if staleBlockCount < 0 {
