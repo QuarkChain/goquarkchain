@@ -236,7 +236,7 @@ type GetUnconfirmedHeadersResponse struct {
 }
 
 type GetAccountDataRequest struct {
-	Address     account.Address `json:"address" gencodec:"required"`
+	Address     *account.Address `json:"address" gencodec:"required"`
 	BlockHeight *uint64         `json:"block_height" ser:"nil"`
 }
 
