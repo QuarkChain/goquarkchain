@@ -54,7 +54,7 @@ func (m *MasterServerSideOp) BroadcastTransactions(ctx context.Context, req *rpc
 	}, nil
 }
 
-func (m *MasterServerSideOp) BroadcastMinorBlock(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
+func (m *MasterServerSideOp) BroadcastNewMinorBlock(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
 	return &rpc.Response{
 		RpcId: req.RpcId,
 	}, nil

@@ -439,7 +439,7 @@ func (s *SlaveConnection) GetEcoInfoListRequest() (*rpc.GetEcoInfoListResponse, 
 	return rsp, nil
 }
 
-func (s *SlaveConnection) GetAccountData(address account.Address, height *uint64) (*rpc.GetAccountDataResponse, error) {
+func (s *SlaveConnection) GetAccountData(address *account.Address, height *uint64) (*rpc.GetAccountDataResponse, error) {
 	var (
 		req = rpc.GetAccountDataRequest{
 			Address:     address,
@@ -522,10 +522,10 @@ func (s *SlaveConnection) AddTransactions(request *p2p.NewTransactionList) (*rpc
 	return rsp, nil
 }
 
-func (s *SlaveConnection) GetMinorBlocks(request *p2p.GetMinorBlockListRequest) (*p2p.GetMinorBlockListResponse, error) {
+func (s *SlaveConnection) GetMinorBlockList(request *rpc.GetMinorBlockListRequest) (*rpc.GetMinorBlockListResponse, error) {
 	var (
-		rsp = new(p2p.GetMinorBlockListResponse)
-		res = new(rpc.Response)
+		rsp = &rpc.GetMinorBlockListResponse{}
+		res = &rpc.Response{}
 	)
 	bytes, err := serialize.SerializeToBytes(request)
 	if err != nil {
@@ -541,7 +541,7 @@ func (s *SlaveConnection) GetMinorBlocks(request *p2p.GetMinorBlockListRequest) 
 	return rsp, nil
 }
 
-func (s *SlaveConnection) GetMinorBlockHeaders(request *p2p.GetMinorBlockHeaderListRequest) (*p2p.GetMinorBlockHeaderListResponse, error) {
+func (s *SlaveConnection) GetMinorBlockHeaderList(request *p2p.GetMinorBlockHeaderListRequest) (*p2p.GetMinorBlockHeaderListResponse, error) {
 	var (
 		rsp = new(p2p.GetMinorBlockHeaderListResponse)
 		res = new(rpc.Response)
@@ -592,4 +592,23 @@ func (s *SlaveConnection) AddMinorBlock(request *p2p.NewBlockMinor) (bool, error
 		return false, err
 	}
 	return true, nil
+}
+
+func (s *SlaveConnection) AddBlockListForSync(request *rpc.HashList) (*rpc.ShardStatus, error) {
+	var (
+		shardStatus = new(rpc.ShardStatus)
+		res         = new(rpc.Response)
+	)
+	bytes, err := serialize.SerializeToBytes(request)
+	if err != nil {
+		return nil, err
+	}
+	res, err = s.client.Call(s.target, &rpc.Request{Op: rpc.OpSyncMinorBlockList, Data: bytes})
+	if err != nil {
+		return nil, err
+	}
+	if err = serialize.DeserializeFromBytes(res.Data, shardStatus); err != nil {
+		return nil, err
+	}
+	return shardStatus, nil
 }

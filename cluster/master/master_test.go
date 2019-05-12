@@ -335,7 +335,7 @@ func TestGetAccountData(t *testing.T) {
 	assert.NoError(t, err)
 	add1 := account.NewAddress(id1.GetRecipient(), 3)
 	master := initEnv(t, nil)
-	_, err = master.GetAccountData(add1, nil)
+	_, err = master.GetAccountData(&add1, nil)
 	assert.NoError(t, err)
 }
 
@@ -344,7 +344,7 @@ func TestGetPrimaryAccountData(t *testing.T) {
 	id1, err := account.CreatRandomIdentity()
 	assert.NoError(t, err)
 	add1 := account.NewAddress(id1.GetRecipient(), 3)
-	_, err = master.GetPrimaryAccountData(add1, nil)
+	_, err = master.GetPrimaryAccountData(&add1, nil)
 	assert.NoError(t, err)
 }
 
