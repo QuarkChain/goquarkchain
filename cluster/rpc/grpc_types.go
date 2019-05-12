@@ -110,7 +110,7 @@ type BroadcastMinorBlock struct {
 
 type BroadcastTransactions struct {
 	Branch uint32               `json:"branch" gencodec:"required"`
-	Txs    []*types.Transaction `json:"txs", gencodec:"required" bytesizeofslicelen:"4"`
+	Txs    []*types.Transaction `json:"txs" gencodec:"required" bytesizeofslicelen:"4"`
 }
 
 type GetMinorBlockHeaderListRequest struct {
