@@ -13,7 +13,7 @@ type MasterServerSideOp struct {
 }
 
 func NewServerSideOp(master *QKCMasterBackend) *MasterServerSideOp {
-	return &QKCMasterServerSideOp{
+	return &MasterServerSideOp{
 		master: master,
 	}
 }
