@@ -42,8 +42,8 @@ type QKCMasterBackend struct {
 	chainDb            ethdb.Database
 	shutdown           chan os.Signal
 	clusterConfig      *config.ClusterConfig
-	clientPool         map[string]SlaveConn
-	branchToSlaves     map[uint32][]SlaveConn
+	clientPool         map[string]ISlaveConn
+	branchToSlaves     map[uint32][]ISlaveConn
 	branchToShardStats map[uint32]*rpc.ShardStatus
 	artificialTxConfig *rpc.ArtificialTxConfig
 	rootBlockChain     *core.RootBlockChain
@@ -56,8 +56,8 @@ func New(ctx *service.ServiceContext, cfg *config.ClusterConfig) (*QKCMasterBack
 		mstr = &QKCMasterBackend{
 			clusterConfig:      cfg,
 			eventMux:           ctx.EventMux,
-			clientPool:         make(map[string]SlaveConn),
-			branchToSlaves:     make(map[uint32][]SlaveConn, 0),
+			clientPool:         make(map[string]ISlaveConn),
+			branchToSlaves:     make(map[uint32][]ISlaveConn, 0),
 			branchToShardStats: make(map[uint32]*rpc.ShardStatus),
 			artificialTxConfig: &rpc.ArtificialTxConfig{
 				TargetRootBlockTime:  cfg.Quarkchain.Root.ConsensusConfig.TargetBlockTime,
@@ -275,7 +275,7 @@ func (s *QKCMasterBackend) Heartbeat() {
 	//TODO :add send master info
 }
 
-func checkPing(slaveConn SlaveConn, id []byte, chainMaskList []*types.ChainMask) error {
+func checkPing(slaveConn ISlaveConn, id []byte, chainMaskList []*types.ChainMask) error {
 	if slaveConn.GetSlaveID() != string(id) {
 		return errors.New("slaveID is not match")
 	}
@@ -292,7 +292,7 @@ func checkPing(slaveConn SlaveConn, id []byte, chainMaskList []*types.ChainMask)
 	return nil
 }
 
-func (s *QKCMasterBackend) getOneSlaveConnection(branch account.Branch) SlaveConn {
+func (s *QKCMasterBackend) getOneSlaveConnection(branch account.Branch) ISlaveConn {
 	slaves := s.branchToSlaves[branch.Value]
 	if len(slaves) < 1 {
 		return nil
@@ -300,7 +300,7 @@ func (s *QKCMasterBackend) getOneSlaveConnection(branch account.Branch) SlaveCon
 	return slaves[0]
 }
 
-func (s *QKCMasterBackend) getAllSlaveConnection(fullShardID uint32) []SlaveConn {
+func (s *QKCMasterBackend) getAllSlaveConnection(fullShardID uint32) []ISlaveConn {
 	slaves := s.branchToSlaves[fullShardID]
 	if len(slaves) < 1 {
 		return nil
@@ -315,7 +315,7 @@ func (s *QKCMasterBackend) getShardConnForP2P(fullShardID uint32) []ShardConnFor
 	}
 	slavesInterface := make([]ShardConnForP2P, 0)
 	for _, v := range slaves {
-		slavesInterface = append(slavesInterface, v.(*SlaveConnection))
+		slavesInterface = append(slavesInterface, v)
 	}
 	return slavesInterface
 }

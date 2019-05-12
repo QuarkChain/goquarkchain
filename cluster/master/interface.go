@@ -31,7 +31,8 @@ type ShardConnForP2P interface {
 	AddMinorBlock(request *p2p.NewBlockMinor) (bool, error)
 }
 
-type SlaveConn interface {
+type ISlaveConn interface {
+	ShardConnForP2P
 	GetSlaveID()string
 	GetShardMaskList()[]*types.ChainMask
 	hasShard(fullShardID uint32) bool
@@ -42,7 +43,6 @@ type SlaveConn interface {
 	AddRootBlock(rootBlock *types.RootBlock, expectSwitch bool) error
 	GenTx(numTxPerShard, xShardPercent uint32, tx *types.Transaction) error
 	SendMiningConfigToSlaves(artificialTxConfig *rpc.ArtificialTxConfig, mining bool) error
-	AddTransactions(request *p2p.NewTransactionList) (*rpc.HashList, error)
 	AddTransaction(tx *types.Transaction) error
 	ExecuteTransaction(tx *types.Transaction, fromAddress account.Address, height *uint64) ([]byte, error)
 	GetMinorBlockByHash(blockHash common.Hash, branch account.Branch) (*types.MinorBlock, error)
