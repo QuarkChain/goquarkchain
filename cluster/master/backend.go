@@ -93,7 +93,7 @@ func New(ctx *service.ServiceContext, cfg *config.ClusterConfig) (*QKCMasterBack
 }
 
 func createDB(ctx *service.ServiceContext, name string) (ethdb.Database, error) {
-	db, err := ctx.OpenDatabase(name, 128, 1024) // TODO @liuhuan to delete "128 1024"?
+	db, err := ctx.OpenDatabase(name)
 	if err != nil {
 		return nil, err
 	}
