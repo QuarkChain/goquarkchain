@@ -52,17 +52,6 @@ func (s *ShardBackend) AddMinorBlock(block *types.MinorBlock) error {
 		oldTip = s.MinorBlockChain.CurrentHeader()
 	)
 
-	if s.MinorBlockChain.HasBlock(block.Hash()) {
-		log.Info("add minor block", "Known minor block", "branch", block.Header().Branch, "height", block.Number())
-		return nil
-	}
-	if block.Header().ParentHash != oldTip.Hash() {
-		// Tip changed, don't bother creating a fork
-		log.Info("add minor block", "dropped stale block mined locally",
-			"branch", block.Header().Branch.Value, "minor height", block.Header().Number)
-		return nil
-	}
-
 	_, xshardLst, err := s.MinorBlockChain.InsertChain([]types.IBlock{block})
 	if err != nil || len(xshardLst) != 1 {
 		log.Error("Failed to add minor block, err %v", err)
@@ -202,4 +191,26 @@ func (s *ShardBackend) HandleNewTip(rBHeader *types.RootBlockHeader, mBHeader *t
 
 func (s *ShardBackend) GetMinorBlock(mHash common.Hash, height *uint64) *types.MinorBlock {
 	return nil
+}
+
+func (s *ShardBackend) NewMinorBlock(block *types.MinorBlock) (err error) {
+	var (
+		mHash = block.Header().Hash()
+	)
+	if _, ok := s.newBlockPool[mHash]; ok {
+		return
+	}
+	if s.MinorBlockChain.HasBlock(block.Hash()) {
+		log.Info("add minor block", "Known minor block", "branch", block.Header().Branch, "height", block.Number())
+		return
+	}
+	if !s.MinorBlockChain.HasBlock(block.Header().ParentHash) {
+		return fmt.Errorf("prarent block hash be included, parent hash: %s", block.Header().ParentHash.Hex())
+	}
+
+	s.newBlockPool[mHash] = block
+	if err = s.conn.BroadcastMinorBlock(block, s.fullShardId); err != nil {
+		return err
+	}
+	return s.AddMinorBlock(block)
 }

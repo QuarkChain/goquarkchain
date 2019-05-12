@@ -40,8 +40,7 @@ type ShardBackend struct {
 	bstRHObserved *types.RootBlockHeader  // bestRootHeaderObserved
 	bstMHObserved *types.MinorBlockHeader // bestMinorHeaderObserved
 
-	mu sync.Mutex
-
+	mu       sync.Mutex
 	eventMux *event.TypeMux
 }
 
@@ -105,11 +104,14 @@ func (s *ShardBackend) Stop() {
 	}
 }
 
-func (s *ShardBackend) StartMining() bool {
+func (s *ShardBackend) StartMining(threads int) bool {
+	// s.engine.SetThreads(threads)
 	return false
 }
 
-func (s *ShardBackend) StopMining() {}
+func (s *ShardBackend) StopMining() {
+	// s.engine.SetThreads(-1)
+}
 
 func CreateDB(ctx *service.ServiceContext, name string) (ethdb.Database, error) {
 	db, err := ctx.OpenDatabase(name)
@@ -140,12 +142,6 @@ func CreateConsensusEngine(ctx *service.ServiceContext, cfg *config.ShardConfig)
 	}
 	return nil, err
 }
-
-type minorBlockHeaderList []*types.MinorBlockHeader
-
-func (m minorBlockHeaderList) Len() int           { return len(m) }
-func (m minorBlockHeaderList) Less(i, j int) bool { return m[i].Number > m[j].Number }
-func (m minorBlockHeaderList) Swap(i, j int)      { m[i], m[j] = m[j], m[i] }
 
 func (s *ShardBackend) initGenesisState(rootBlock *types.RootBlock) error {
 	var (
