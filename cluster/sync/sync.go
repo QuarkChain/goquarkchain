@@ -23,6 +23,12 @@ type blockchain interface {
 	Validator() core.Validator
 }
 
+type rootblockchain interface {
+	blockchain
+	AddValidatedMinorBlockHeader(common.Hash)
+	IsMinorBlockValidated(common.Hash) bool
+}
+
 // Synchronizer will sync blocks for the master server when receiving new root blocks from peers.
 type Synchronizer interface {
 	AddTask(Task) error
