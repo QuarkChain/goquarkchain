@@ -5,8 +5,10 @@ import (
 	"errors"
 	"fmt"
 	"github.com/QuarkChain/goquarkchain/account"
+	"github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"math/big"
+	"sort"
 )
 
 var (
@@ -38,11 +40,11 @@ func NewClusterConfig() *ClusterConfig {
 		JSONRPCPort:              38391,
 		PrivateJSONRPCPort:       38491,
 		EnableTransactionHistory: false,
-		DbPathRoot:               "./data",
+		DbPathRoot:               "./db",
 		LogLevel:                 "info",
 		StartSimulatedMining:     false,
 		Clean:                    false,
-		GenesisDir:               "/dev/null",
+		GenesisDir:               "../genesis_data",
 		Quarkchain:               NewQuarkChainConfig(),
 		Master:                   NewMasterConfig(),
 		SimpleNetwork:            NewSimpleNetwork(),
@@ -119,6 +121,9 @@ func (q *QuarkChainConfig) UnmarshalJSON(input []byte) error {
 	if err := json.Unmarshal(input, &jsonConfig); err != nil {
 		return err
 	}
+
+	sort.Slice(jsonConfig.Chains, func(i, j int) bool { return jsonConfig.Chains[i].ChainID < jsonConfig.Chains[j].ChainID })
+
 	*q = QuarkChainConfig(jsonConfig.QuarkChainConfigAlias)
 	q.Chains = make(map[uint32]*ChainConfig)
 	q.shards = make(map[uint32]*ShardConfig)
@@ -132,10 +137,13 @@ func (q *QuarkChainConfig) UnmarshalJSON(input []byte) error {
 			q.shards[shardCfg.GetFullShardId()] = shardCfg
 		}
 	}
+
 	var (
 		denom int64 = 1000
 		num         = int64(jsonConfig.RewardTaxRate * float64(denom))
 	)
+	q.Root.Port = 38591
+	q.Root.Ip, _ = common.GetIPV4Addr()
 	q.RewardTaxRate = big.NewRat(num, denom)
 	q.initAndValidate()
 	return nil
