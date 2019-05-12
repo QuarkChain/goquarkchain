@@ -134,7 +134,7 @@ func (s *QKCMasterBackend) APIs() []ethRPC.API {
 	apis := qkcapi.GetAPIs(s)
 	return append(apis, []ethRPC.API{
 		{
-			Namespace: "rpc." + reflect.TypeOf(QKCMasterServerSideOp{}).Name(),
+			Namespace: "rpc." + reflect.TypeOf(MasterServerSideOp{}).Name(),
 			Version:   "3.0",
 			Service:   NewServerSideOp(s),
 			Public:    false,
@@ -340,7 +340,7 @@ func (s *QKCMasterBackend) createRootBlockToMine(address account.Address) (*type
 	for index := 0; index < len(s.clientPool); index++ {
 		resp := <-rspList
 		for _, headersInfo := range resp.HeadersInfoList {
-			if _, ok := fullShardIDToHeaderList[headersInfo.Branch.Value]; ok { // to avoid overlap
+			if _, ok := fullShardIDToHeaderList[headersInfo.Branch]; ok { // to avoid overlap
 				continue // skip it if has added
 			}
 			height := uint64(0)
@@ -353,7 +353,7 @@ func (s *QKCMasterBackend) createRootBlockToMine(address account.Address) (*type
 				if !s.rootBlockChain.IsMinorBlockValidated(header.Hash()) {
 					break
 				}
-				fullShardIDToHeaderList[headersInfo.Branch.Value] = append(fullShardIDToHeaderList[headersInfo.Branch.Value], header)
+				fullShardIDToHeaderList[headersInfo.Branch] = append(fullShardIDToHeaderList[headersInfo.Branch], header)
 			}
 		}
 	}
@@ -378,7 +378,7 @@ func (s *QKCMasterBackend) createRootBlockToMine(address account.Address) (*type
 }
 
 // GetAccountData get account Data for jsonRpc
-func (s *QKCMasterBackend) GetAccountData(address account.Address, height *uint64) (map[account.Branch]*rpc.AccountBranchData, error) {
+func (s *QKCMasterBackend) GetAccountData(address *account.Address, height *uint64) (map[uint32]*rpc.AccountBranchData, error) {
 	var g errgroup.Group
 	rspList := make(chan *rpc.GetAccountDataResponse, len(s.clientPool))
 	for target := range s.clientPool {
@@ -393,7 +393,7 @@ func (s *QKCMasterBackend) GetAccountData(address account.Address, height *uint6
 		return nil, err
 	}
 
-	branchToAccountBranchData := make(map[account.Branch]*rpc.AccountBranchData)
+	branchToAccountBranchData := make(map[uint32]*rpc.AccountBranchData)
 	for index := 0; index < len(s.clientPool); index++ {
 		rsp := <-rspList
 		for _, accountBranchData := range rsp.AccountBranchDataList {
@@ -407,7 +407,7 @@ func (s *QKCMasterBackend) GetAccountData(address account.Address, height *uint6
 }
 
 // GetPrimaryAccountData get primary account data for jsonRpc
-func (s *QKCMasterBackend) GetPrimaryAccountData(address account.Address, blockHeight *uint64) (*rpc.AccountBranchData, error) {
+func (s *QKCMasterBackend) GetPrimaryAccountData(address *account.Address, blockHeight *uint64) (*rpc.AccountBranchData, error) {
 	fullShardID := s.clusterConfig.Quarkchain.GetFullShardIdByFullShardKey(address.FullShardKey)
 	slaveConn := s.getOneSlaveConnection(account.Branch{Value: fullShardID})
 	if slaveConn == nil {
@@ -418,7 +418,7 @@ func (s *QKCMasterBackend) GetPrimaryAccountData(address account.Address, blockH
 		return nil, err
 	}
 	for _, accountBranchData := range rsp.AccountBranchDataList {
-		if accountBranchData.Branch.Value == fullShardID {
+		if accountBranchData.Branch == fullShardID {
 			return accountBranchData, nil
 		}
 	}

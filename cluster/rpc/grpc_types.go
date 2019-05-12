@@ -5,15 +5,14 @@ import (
 
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/core/types"
-	"github.com/QuarkChain/goquarkchain/serialize"
 	"github.com/ethereum/go-ethereum/common"
 )
 
 // RPCs to initialize a cluster
 
 type Ping struct {
-	Id            []byte            `json:"id" bytesizeofslicelen:"4"`
-	ChainMaskList []types.ChainMask `json:"chain_mask_list" bytesizeofslicelen:"4"`
+	Id            []byte             `json:"id" bytesizeofslicelen:"4"`
+	ChainMaskList []*types.ChainMask `json:"chain_mask_list" bytesizeofslicelen:"4"`
 	// Initialize ShardState if not None
 	RootTip *types.RootBlock `json:"root_tip" ser:"nil"`
 }
@@ -30,6 +29,21 @@ type SlaveInfo struct {
 	ChainMaskList []*types.ChainMask `json:"chain_mask_list" gencodec:"required" bytesizeofslicelen:"4"`
 }
 
+// ShardStatus shard status for api
+type ShardStatus struct {
+	Branch             account.Branch
+	Height             uint64
+	Difficulty         *big.Int
+	CoinbaseAddress    account.Address
+	Timestamp          uint64
+	TxCount60s         uint32
+	PendingTxCount     uint32
+	TotalTxCount       uint32
+	BlockCount60s      uint32
+	StaleBlockCount60s uint32
+	LastBlockTime      uint64
+}
+
 // Master instructs a slave to connect to other slaves
 type ConnectToSlavesRequest struct {
 	SlaveInfoList []*SlaveInfo `json:"slave_info_list" gencodec:"required" bytesizeofslicelen:"4"`
@@ -43,6 +57,11 @@ type ConnectToSlavesResult struct {
 // Empty result means success otherwise it would a serialized error message.
 type ConnectToSlavesResponse struct {
 	ResultList []*ConnectToSlavesResult `json:"result_list" gencodec:"required" bytesizeofslicelen:"4"`
+}
+
+type MasterInfo struct {
+	Ip   string `json:"ip" gencodec:"required"`
+	Port uint16 `json:"port" gencodec:"required"`
 }
 
 type ArtificialTxConfig struct {
@@ -63,39 +82,58 @@ type GenTxRequest struct {
 	Tx            *types.Transaction `json:"tx" gencodec:"required"`
 }
 
-// Virtual connection management
-
-/*
-	Broadcast to the cluster and announce that a peer connection is created
-	Assume always succeed.
-*/
-type CreateClusterPeerConnectionRequest struct {
-	ClusterPeerId uint64 `json:"cluster_peer_id" gencodec:"required"`
-}
-
-/*
-	Broadcast to the cluster and announce that a peer connection is lost
-    As a contract, the master will not send traffic after the command.
-*/
-type DestroyClusterPeerConnectionCommand struct {
-	ClusterPeerId uint64 `json:"cluster_peer_id" gencodec:"required"`
-}
-
 // RPCs to lookup data from shards (master -> slaves)
-
 type GetMinorBlockRequest struct {
-	Branch         account.Branch `json:"branch" gencodec:"required"`
-	MinorBlockHash common.Hash    `json:"minor_block_hash" gencodec:"required"`
-	Height         uint64         `json:"height" gencodec:"required"`
+	Branch         uint32      `json:"branch" gencodec:"required"`
+	MinorBlockHash common.Hash `json:"minor_block_hash" gencodec:"required"`
+	Height         uint64      `json:"height" gencodec:"required"`
 }
 
 type GetMinorBlockResponse struct {
 	MinorBlock *types.MinorBlock `json:"minor_block" gencodec:"required"`
 }
 
+type GetMinorBlockListRequest struct {
+	Branch             uint32        `json:"branch" gencodec:"required"`
+	PeerId             common.Hash   `json:"peer_id" gencodec:"required"`
+	MinorBlockHashList []common.Hash `json:"minor_block_list" gencodec:"required" bytesizeofslicelen:"4"`
+}
+
+type GetMinorBlockListResponse struct {
+	MinorBlockList []*types.MinorBlock `json:"minor_block_list" gencodec:"required" bytesizeofslicelen:"4"`
+}
+
+type BroadcastMinorBlock struct {
+	Branch     uint32            `json:"branch" gencodec:"required"`
+	MinorBlock *types.MinorBlock `json:"minor_block" gencodec:"required"`
+}
+
+type BroadcastTransactions struct {
+	Branch uint32               `json:"branch" gencodec:"required"`
+	Txs    []*types.Transaction `json:"txs" gencodec:"required" bytesizeofslicelen:"4"`
+}
+
+type GetMinorBlockHeaderListRequest struct {
+	Branch    uint32      `json:"branch" gencodec:"required"`
+	BlockHash common.Hash `json:"block_hash" gencodec:"required"`
+	Limit     uint32      `json:"limit" gencodec:"required"`
+	// value 0: heighter, 1 lower
+	Direction uint8 `json:"direction" gencodec:"required"`
+}
+
+type GetMinorBlockHeaderListResponse struct {
+	MinorBlockHeader []*types.MinorBlockHeader `json:"minor_block_header" gencodec:"required" bytesizeofslicelen:"4"`
+}
+
+type BroadcastNewTip struct {
+	Branch               uint32                    `json:"branch" gencodec:"required"`
+	RootBlockHeader      *types.RootBlockHeader    `json:"root_block_header" gencodec:"required"`
+	MinorBlockHeaderList []*types.MinorBlockHeader `json:"minor_block_header_list" gencodec:"required" bytesizeofslicelen:"4"`
+}
+
 type GetTransactionRequest struct {
-	TxHash common.Hash    `json:"tx_hash" gencodec:"required"`
-	Branch account.Branch `json:"branch" gencodec:"required"`
+	TxHash common.Hash `json:"tx_hash" gencodec:"required"`
+	Branch uint32      `json:"branch" gencodec:"required"`
 }
 
 type GetTransactionResponse struct {
@@ -105,7 +143,7 @@ type GetTransactionResponse struct {
 
 type ExecuteTransactionRequest struct {
 	Tx          *types.Transaction `json:"tx" gencodec:"required"`
-	FromAddress account.Address    `json:"from_address" gencodec:"required"`
+	FromAddress *account.Address   `json:"from_address" gencodec:"required"`
 	BlockHeight *uint64            `json:"block_height" ser:"nil"`
 }
 
@@ -114,20 +152,20 @@ type ExecuteTransactionResponse struct {
 }
 
 type GetTransactionReceiptRequest struct {
-	TxHash common.Hash    `json:"tx_hash" gencodec:"required"`
-	Branch account.Branch `json:"branch" gencodec:"required"`
+	TxHash common.Hash `json:"tx_hash" gencodec:"required"`
+	Branch uint32      `json:"branch" gencodec:"required"`
 }
 
 type GetTransactionReceiptResponse struct {
 	MinorBlock *types.MinorBlock `json:"minor_block" gencodec:"required"`
 	Index      uint32            `json:"index" gencodec:"required"`
-	Receipt    *types.Receipt    `json:"receipt" gencodec:"required"`
+	Receipt    *types.Receipt    `json:"receipt" gencodec:"required" bytesizeofslicelen:"4"`
 }
 
 type GetTransactionListByAddressRequest struct {
-	Address account.Address `json:"address" gencodec:"required"`
-	Start   []byte          `json:"start" gencodec:"required" bytesizeofslicelen:"4"`
-	Limit   uint32          `json:"limit" gencodec:"required"`
+	Address *account.Address `json:"address" gencodec:"required"`
+	Start   []byte           `json:"start" gencodec:"required" bytesizeofslicelen:"4"`
+	Limit   uint32           `json:"limit" gencodec:"required"`
 }
 
 type TransactionDetail struct {
@@ -189,7 +227,7 @@ type AddMinorBlockRequest struct {
 }
 
 type HeadersInfo struct {
-	Branch     account.Branch            `json:"branch" gencodec:"required"`
+	Branch     uint32                    `json:"branch" gencodec:"required"`
 	HeaderList []*types.MinorBlockHeader `json:"header_list" gencodec:"required" bytesizeofslicelen:"4"`
 }
 
@@ -198,20 +236,15 @@ type GetUnconfirmedHeadersResponse struct {
 }
 
 type GetAccountDataRequest struct {
-	Address     account.Address `json:"address" gencodec:"required"`
+	Address     *account.Address `json:"address" gencodec:"required"`
 	BlockHeight *uint64         `json:"block_height" ser:"nil"`
 }
 
-type TokenBalancePair struct {
-	TokenId uint64             `json:"token_id" gencodec:"required"`
-	Balance *serialize.Uint256 `json:"balance" gencodec:"required"`
-}
-
 type AccountBranchData struct {
-	Branch           account.Branch     `json:"branch" gencodec:"required"`
-	TransactionCount *serialize.Uint256 `json:"transaction_count" gencodec:"required"`
-	TokenBalances    []TokenBalancePair `json:"token_balances" gencodec:"required" bytesizeofslicelen:"4"`
-	IsContract       bool               `json:"is_contract" gencodec:"required"`
+	Branch           uint32   `json:"branch" gencodec:"required"`
+	TransactionCount uint64   `json:"transaction_count" gencodec:"required"`
+	Balance          *big.Int `json:"token_balances" gencodec:"required" bytesizeofslicelen:"4"`
+	IsContract       bool     `json:"is_contract" gencodec:"required"`
 }
 
 type GetAccountDataResponse struct {
@@ -222,28 +255,8 @@ type AddTransactionRequest struct {
 	Tx *types.Transaction `json:"tx" gencodec:"required"`
 }
 
-type ShardStatus struct {
-	Branch             account.Branch  `json:"branch" gencodec:"required"`
-	Height             uint64          `json:"height" gencodec:"required"`
-	Difficulty         *big.Int        `json:"difficulty" gencodec:"required"`
-	CoinbaseAddress    account.Address `json:"coinbase_address" gencodec:"required"`
-	Timestamp          uint64          `json:"timestamp" gencodec:"required"`
-	TxCount60s         uint32          `json:"tx_count_60_s" gencodec:"required"`
-	PendingTxCount     uint32          `json:"pending_tx_count" gencodec:"required"`
-	TotalTxCount       uint32          `json:"total_tx_count" gencodec:"required"`
-	BlockCount60s      uint32          `json:"block_count_60_s" gencodec:"required"`
-	StaleBlockCount60s uint32          `json:"stale_block_count_60_s" gencodec:"required"`
-	LastBlockTime      uint32          `json:"last_block_time" gencodec:"required"`
-}
-
-type SyncMinorBlockListRequest struct {
-	MinorBlockHashList []common.Hash  `json:"minor_block_hash_list" gencodec:"required" bytesizeofslicelen:"4"`
-	Branch             account.Branch `json:"branch" gencodec:"required"`
-	ClusterPeerId      uint64         `json:"cluster_peer_id" gencodec:"required"`
-}
-
-type SyncMinorBlockListResponse struct {
-	ShardStats ShardStatus `json:"shard_stats" ser:"nil"`
+type HashList struct {
+	Hashes []common.Hash `json:"hash_list" gencodec:"required" bytesizeofslicelen:"4"`
 }
 
 // slave -> master
@@ -262,14 +275,28 @@ type AddMinorBlockHeaderResponse struct {
 	ArtificialTxConfig *ArtificialTxConfig `json:"artificial_tx_config" gencodec:"required"`
 }
 
+type CrossShardTransactionList struct {
+	TxList []*types.CrossShardTransactionDeposit `json:"tx_list" gencodec:"required" bytesizeofslicelen:"4"`
+}
+
 type AddXshardTxListRequest struct {
-	Branch         account.Branch                       `json:"branch" gencodec:"required"`
-	MinorBlockHash common.Hash                          `json:"minor_block_hash" gencodec:"required"`
-	TxList         []types.CrossShardTransactionDeposit `json:"tx_list" gencodec:"required" bytesizeofslicelen:"4"`
+	Branch         uint32                                `json:"branch" gencodec:"required"`
+	MinorBlockHash common.Hash                           `json:"minor_block_hash" gencodec:"required"`
+	TxList         []*types.CrossShardTransactionDeposit `json:"tx_list" gencodec:"required" bytesizeofslicelen:"4"`
 }
 
 type BatchAddXshardTxListRequest struct {
-	AddXshardTxListRequestList []AddMinorBlockHeaderRequest `json:"add_xshard_tx_list_request_list" gencodec:"required" bytesizeofslicelen:"4"`
+	AddXshardTxListRequestList []*AddXshardTxListRequest `json:"add_xshard_tx_list_request_list" gencodec:"required" bytesizeofslicelen:"4"`
+}
+
+type AddBlockListForSyncRequest struct {
+	Branch             uint32        `json:"branch" gencodec:"required"`
+	PeerId             common.Hash   `json:"peer_id" gencodec:"required"`
+	MinorBlockHashList []common.Hash `json:"minor_block_list" gencodec:"required" bytesizeofslicelen:"4"`
+}
+
+type AddBlockListForSyncResponse struct {
+	ShardStatus *ShardStatus `json:"shard_status" gencodec:"required"`
 }
 
 type Topic struct {
@@ -277,11 +304,11 @@ type Topic struct {
 }
 
 type GetLogRequest struct {
-	Branch     account.Branch    `json:"branch" gencodec:"required"`
-	Addresses  []account.Address `json:"addresses" gencodec:"required" bytesizeofslicelen:"4"`
-	Topics     []*Topic          `json:"topics" gencodec:"required" bytesizeofslicelen:"4"`
-	StartBlock uint64            `json:"start_block" gencodec:"required"`
-	EndBlock   uint64            `json:"end_block" gencodec:"required"`
+	Branch     uint32             `json:"branch" gencodec:"required"`
+	Addresses  []*account.Address `json:"addresses" gencodec:"required" bytesizeofslicelen:"4"`
+	Topics     []*Topic           `json:"topics" gencodec:"required" bytesizeofslicelen:"4"`
+	StartBlock uint64             `json:"start_block" gencodec:"required"`
+	EndBlock   uint64             `json:"end_block" gencodec:"required"`
 }
 
 type GetLogResponse struct {
@@ -290,7 +317,7 @@ type GetLogResponse struct {
 
 type EstimateGasRequest struct {
 	Tx          *types.Transaction `json:"tx" gencodec:"required"`
-	FromAddress account.Address    `json:"from_address" gencodec:"required"`
+	FromAddress *account.Address   `json:"from_address" gencodec:"required"`
 }
 
 type EstimateGasResponse struct {
@@ -298,9 +325,9 @@ type EstimateGasResponse struct {
 }
 
 type GetStorageRequest struct {
-	Address     account.Address `json:"address" gencodec:"required"`
-	Key         common.Hash     `json:"key" gencodec:"required"`
-	BlockHeight *uint64         `json:"block_height" ser:"nil"`
+	Address     *account.Address `json:"address" gencodec:"required"`
+	Key         common.Hash      `json:"key" gencodec:"required"`
+	BlockHeight *uint64          `json:"block_height" ser:"nil"`
 }
 
 type GetStorageResponse struct {
@@ -308,8 +335,8 @@ type GetStorageResponse struct {
 }
 
 type GetCodeRequest struct {
-	Address     account.Address `json:"address" gencodec:"required"`
-	BlockHeight *uint64         `json:"block_height" ser:"nil"`
+	Address     *account.Address `json:"address" gencodec:"required"`
+	BlockHeight *uint64          `json:"block_height" ser:"nil"`
 }
 
 type GetCodeResponse struct {
@@ -317,7 +344,7 @@ type GetCodeResponse struct {
 }
 
 type GasPriceRequest struct {
-	Branch account.Branch `json:"branch" gencodec:"required"`
+	Branch uint32 `json:"branch" gencodec:"required"`
 }
 
 type GasPriceResponse struct {
@@ -325,7 +352,7 @@ type GasPriceResponse struct {
 }
 
 type GetWorkRequest struct {
-	Branch account.Branch `json:"branch" gencodec:"required"`
+	Branch uint32 `json:"branch" gencodec:"required"`
 }
 
 type GetWorkResponse struct {
@@ -335,10 +362,10 @@ type GetWorkResponse struct {
 }
 
 type SubmitWorkRequest struct {
-	Branch     account.Branch `json:"branch" gencodec:"required"`
-	HeaderHash common.Hash    `json:"header_hash" gencodec:"required"`
-	Nonce      uint64         `json:"nonce" gencodec:"required"`
-	MixHash    common.Hash    `json:"mix_hash" gencodec:"required"`
+	Branch     uint32      `json:"branch" gencodec:"required"`
+	HeaderHash common.Hash `json:"header_hash" gencodec:"required"`
+	Nonce      uint64      `json:"nonce" gencodec:"required"`
+	MixHash    common.Hash `json:"mix_hash" gencodec:"required"`
 }
 
 type SubmitWorkResponse struct {
@@ -349,8 +376,4 @@ type PeerInfoForDisPlay struct {
 	ID   []byte
 	IP   uint32
 	Port uint32
-}
-
-type HashList struct {
-	Hashes []common.Hash `json:"hash_list" gencodec:"required" bytesizeofslicelen:"4"`
 }
