@@ -262,7 +262,7 @@ type HashList struct {
 // slave -> master
 /*
 	Notify master about a successfully added minro block.
-	Piggyback the ShardStats in the same request.
+	Piggyback the ShardStatus in the same request.
 */
 type AddMinorBlockHeaderRequest struct {
 	MinorBlockHeader *types.MinorBlockHeader `json:"minor_block_header" gencodec:"required"`

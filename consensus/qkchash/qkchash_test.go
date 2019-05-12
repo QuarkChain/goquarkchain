@@ -52,7 +52,7 @@ func TestVerifyHeaderAndHeaders(t *testing.T) {
 		}
 
 		abort, errorCh := q.VerifyHeaders(cr, headers, nil)
-		assert.Nil(abort)
+		assert.NotNil(abort)
 
 		errCnt, noErrCnt := 0, 0
 		for i := 1; i <= 5; i++ {

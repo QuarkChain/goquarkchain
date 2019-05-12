@@ -180,3 +180,9 @@ func modifyNumber(block *types.RootBlock, Number uint64) *types.RootBlock {
 	header.Number = uint32(Number)
 	return types.NewRootBlock(header, nil, []byte{})
 }
+
+func checkErr(err error) {
+	if err != nil {
+		panic(err)
+	}
+}

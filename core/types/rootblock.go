@@ -166,7 +166,7 @@ type RootBlock struct {
 }
 
 func (b *RootBlock) ValidateBlock() error {
-	if rootHash := DeriveSha(b.MinorBlockHeaders()); rootHash != b.Header().MinorHeaderHash {
+	if rootHash := CalculateMerkleRoot(b.MinorBlockHeaders()); rootHash != b.Header().MinorHeaderHash {
 		return errors.New("incorrect merkle root")
 	}
 
@@ -197,7 +197,7 @@ func NewRootBlock(header *RootBlockHeader, mbHeaders MinorBlockHeaders, tracking
 	if len(mbHeaders) == 0 {
 		b.header.MinorHeaderHash = EmptyHash
 	} else {
-		b.header.MinorHeaderHash = DeriveSha(MinorBlockHeaders(mbHeaders))
+		b.header.MinorHeaderHash = CalculateMerkleRoot(MinorBlockHeaders(mbHeaders))
 		b.minorBlockHeaders = make(MinorBlockHeaders, len(mbHeaders))
 		copy(b.minorBlockHeaders, mbHeaders)
 	}
@@ -366,18 +366,17 @@ func (b *RootBlock) GetSize() common.StorageSize {
 	return b.Size()
 }
 
-func (b *RootBlock) Finalize(coinbaseAmount *uint64, coinbaseAddress *account.Address) *RootBlock {
+func (b *RootBlock) Finalize(coinbaseAmount *big.Int, coinbaseAddress *account.Address) *RootBlock {
 	if coinbaseAmount == nil {
-		c := uint64(0)
-		coinbaseAmount = &c
+		coinbaseAmount = new(big.Int)
 	}
 
 	if coinbaseAddress == nil {
 		a := account.CreatEmptyAddress(0)
 		coinbaseAddress = &a
 	}
-	b.header.MinorHeaderHash = DeriveSha(b.minorBlockHeaders)
-	b.header.CoinbaseAmount = &serialize.Uint256{Value: new(big.Int).SetUint64(*coinbaseAmount)}
+	b.header.MinorHeaderHash = CalculateMerkleRoot(b.minorBlockHeaders)
+	b.header.CoinbaseAmount = &serialize.Uint256{Value: coinbaseAmount}
 	b.header.Coinbase = *coinbaseAddress
 	return b
 }
