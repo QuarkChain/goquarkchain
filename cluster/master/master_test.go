@@ -515,7 +515,7 @@ func TestEstimateGas(t *testing.T) {
 		EvmTx:  evmTx,
 		TxType: types.EvmTx,
 	}
-	data, err = master.EstimateGas(tx, add1)
+	data, err = master.EstimateGas(tx, &add1)
 	assert.Error(t, err)
 }
 
