@@ -525,7 +525,7 @@ func (s *SlaveConnection) GetMinorBlockHeaders(request *p2p.GetMinorBlockHeaderL
 	if err != nil {
 		return nil, err
 	}
-	res, err = s.client.Call(s.target, &rpc.Request{Op: rpc.OpGetMinorBlockHeaders, Data: bytes})
+	res, err = s.client.Call(s.target, &rpc.Request{Op: rpc.OpGetMinorBlockHeaderList, Data: bytes})
 	if err != nil {
 		return nil, err
 	}
