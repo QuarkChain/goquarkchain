@@ -89,7 +89,7 @@ func (c *fakeRpcClient) Call(hostport string, req *rpc.Request) (*rpc.Response, 
 		rsp := new(rpc.GetUnconfirmedHeadersResponse)
 		for _, v := range c.branchs {
 			rsp.HeadersInfoList = append(rsp.HeadersInfoList, &rpc.HeadersInfo{
-				Branch:     account.Branch{Value: v},
+				Branch:     account.Branch{Value: v.Value},
 				HeaderList: make([]*types.MinorBlockHeader, 0),
 			})
 			//rsp.HeadersInfoList[0].HeaderList = append(rsp.HeadersInfoList[0].HeaderList, &types.MinorBlockHeader{})
@@ -122,7 +122,7 @@ func (c *fakeRpcClient) Call(hostport string, req *rpc.Request) (*rpc.Response, 
 	case rpc.OpGetAccountData:
 		rsp := new(rpc.GetAccountDataResponse)
 		for _, v := range c.branchs {
-			rsp.AccountBranchDataList = append(rsp.AccountBranchDataList, &rpc.AccountBranchData{Branch: v})
+			rsp.AccountBranchDataList = append(rsp.AccountBranchDataList, &rpc.AccountBranchData{Branch: v.Value})
 		}
 		data, err := serialize.SerializeToBytes(rsp)
 		if err != nil {
@@ -479,7 +479,7 @@ func TestGetTransactionsByAddress(t *testing.T) {
 	id1, err := account.CreatRandomIdentity()
 	assert.NoError(t, err)
 	add1 := account.NewAddress(id1.GetRecipient(), 3)
-	res, bytes, err := master.GetTransactionsByAddress(add1, []byte{}, 0)
+	res, bytes, err := master.GetTransactionsByAddress(&add1, []byte{}, 0)
 	assert.NoError(t, err)
 	assert.Equal(t, bytes, []byte("qkc"))
 	assert.Equal(t, res[0].TxHash, common.BigToHash(new(big.Int).SetUint64(11)))
@@ -506,7 +506,7 @@ func TestEstimateGas(t *testing.T) {
 		EvmTx:  evmTx,
 		TxType: types.EvmTx,
 	}
-	data, err := master.EstimateGas(tx, add1)
+	data, err := master.EstimateGas(tx, &add1)
 	assert.NoError(t, err)
 	assert.Equal(t, data, uint32(123))
 
@@ -524,7 +524,7 @@ func TestGetStorageAt(t *testing.T) {
 	id1, err := account.CreatRandomIdentity()
 	assert.NoError(t, err)
 	add1 := account.NewAddress(id1.GetRecipient(), 3)
-	data, err := master.GetStorageAt(add1, common.Hash{}, nil)
+	data, err := master.GetStorageAt(&add1, common.Hash{}, nil)
 	assert.NoError(t, err)
 	assert.Equal(t, data.Big().Uint64(), uint64(123))
 }
@@ -533,7 +533,7 @@ func TestGetCode(t *testing.T) {
 	id1, err := account.CreatRandomIdentity()
 	assert.NoError(t, err)
 	add1 := account.NewAddress(id1.GetRecipient(), 3)
-	data, err := master.GetCode(add1, nil)
+	data, err := master.GetCode(&add1, nil)
 	assert.NoError(t, err)
 	assert.Equal(t, data, []byte("qkc"))
 
