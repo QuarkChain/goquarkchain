@@ -124,6 +124,8 @@ func (r *rootChainTask) Run(bc blockchain) error {
 			if _, err := bc.InsertChain([]types.IBlock{b}); err != nil {
 				return err
 			}
+			conns := r.getShardConnFunc(b)
+
 			elapsed := time.Now().Sub(ts).Seconds()
 			logger.Info("Syncing root block finishes", "height", h.NumberU64(), "hash", h.Hash(), "elapsed", elapsed)
 		}
@@ -161,7 +163,7 @@ func (r *rootChainTask) validateRootBlockHeaderList(bc blockchain, headers []*ty
 	return nil
 }
 
-func syncMinorBlocks(rbc rootblockchain, rootBlock *types.RootBlock, statusChan chan *rpc.ShardStatus, getShardConnFunc func(fullShardId uint32) []rpc.ShardConnForP2P) error {
+func syncMinorBlocks(rbc rootblockchain, rootBlock *types.RootBlock, statsChan chan *rpc.ShardStatus, getShardConnFunc func(fullShardId uint32) []rpc.ShardConnForP2P) error {
 	if rootBlock == nil {
 		panic("rootblock should not be nil")
 	}
@@ -182,8 +184,10 @@ func syncMinorBlocks(rbc rootblockchain, rootBlock *types.RootBlock, statusChan 
 		}
 		// TODO Support to multiple connections
 		g.Go(func() error {
-			status, err := conns[0].AddBlockListForSync(&rpc.HashList{Hashes: hashList})
-			statusChan <- status
+			stats, err := conns[0].AddBlockListForSync(&rpc.HashList{Hashes: hashList})
+			if err == nil {
+				statsChan <- stats
+			}
 			return err
 		})
 	}

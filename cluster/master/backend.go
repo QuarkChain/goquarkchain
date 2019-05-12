@@ -278,7 +278,7 @@ func (s *QKCMasterBackend) updateShardStatsLoop() {
 		for true {
 			select {
 			case stats := <-s.shardStatsChan:
-				s.branchToShardStats[stats.Branch.Value] = stats
+				s.UpdateShardStatus(stats)
 			}
 		}
 	}()

@@ -385,8 +385,8 @@ func (pm *ProtocolManager) HandleNewTip(tip *p2p.Tip, peer *peer) error {
 	if tip.RootBlockHeader.NumberU64() > pm.rootBlockChain.CurrentBlock().NumberU64() {
 		err := pm.synchronizer.AddTask(synchronizer.NewRootChainTask(peer, tip.RootBlockHeader, pm.statsChan, pm.getShardConnFunc))
 		if err != nil {
-			log.Error("add task failed, root block hash: %v height: %d",
-				tip.RootBlockHeader.Hash(), tip.RootBlockHeader.NumberU64())
+			log.Error("add task failed,",
+				"root block hash", tip.RootBlockHeader.Hash(), "height", tip.RootBlockHeader.NumberU64())
 		}
 	}
 	return nil
@@ -587,7 +587,7 @@ func (pm *ProtocolManager) synchronise(peer *peer) {
 	if peer.Head() != nil {
 		err := pm.synchronizer.AddTask(synchronizer.NewRootChainTask(peer, peer.Head(), pm.statsChan, pm.getShardConnFunc))
 		if err != nil {
-			log.Error("AddTask to synchronizer error: %v", err.Error())
+			log.Error("AddTask to synchronizer.", "error", err.Error())
 		}
 	}
 }
