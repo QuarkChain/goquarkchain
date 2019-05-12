@@ -391,7 +391,7 @@ func (s *SlaveConnection) GetUnconfirmedHeaders() (*rpc.GetUnconfirmedHeadersRes
 		rsp = new(rpc.GetUnconfirmedHeadersResponse)
 	)
 
-	res, err := s.client.Call(s.target, &rpc.Request{Op: rpc.OpGetUnconfirmedHeaders})
+	res, err := s.client.Call(s.target, &rpc.Request{Op: rpc.OpGetUnconfirmedHeaderList})
 	if err != nil {
 		return nil, err
 	}
@@ -506,7 +506,7 @@ func (s *SlaveConnection) GetMinorBlocks(request *p2p.GetMinorBlockListRequest) 
 	if err != nil {
 		return nil, err
 	}
-	res, err = s.client.Call(s.target, &rpc.Request{Op: rpc.OpGetMinorBlocks, Data: bytes})
+	res, err = s.client.Call(s.target, &rpc.Request{Op: rpc.OpGetMinorBlockList, Data: bytes})
 	if err != nil {
 		return nil, err
 	}
