@@ -42,8 +42,8 @@ type QKCMasterBackend struct {
 	chainDb            ethdb.Database
 	shutdown           chan os.Signal
 	clusterConfig      *config.ClusterConfig
-	clientPool         map[string]*SlaveConnection
-	branchToSlaves     map[uint32][]*SlaveConnection
+	clientPool         map[string]SlaveConn
+	branchToSlaves     map[uint32][]SlaveConn
 	branchToShardStats map[uint32]*rpc.ShardStatus
 	artificialTxConfig *rpc.ArtificialTxConfig
 	rootBlockChain     *core.RootBlockChain
@@ -56,8 +56,8 @@ func New(ctx *service.ServiceContext, cfg *config.ClusterConfig) (*QKCMasterBack
 		mstr = &QKCMasterBackend{
 			clusterConfig:      cfg,
 			eventMux:           ctx.EventMux,
-			clientPool:         make(map[string]*SlaveConnection),
-			branchToSlaves:     make(map[uint32][]*SlaveConnection, 0),
+			clientPool:         make(map[string]SlaveConn),
+			branchToSlaves:     make(map[uint32][]SlaveConn, 0),
 			branchToShardStats: make(map[uint32]*rpc.ShardStatus),
 			artificialTxConfig: &rpc.ArtificialTxConfig{
 				TargetRootBlockTime:  cfg.Quarkchain.Root.ConsensusConfig.TargetBlockTime,
@@ -214,7 +214,7 @@ func (s *QKCMasterBackend) ConnectToSlaves() error {
 func (s *QKCMasterBackend) logSummary() {
 	for branch, slaves := range s.branchToSlaves {
 		for _, slave := range slaves {
-			log.Info(s.logInfo, "branch:", branch, "is run by slave", slave.slaveID)
+			log.Info(s.logInfo, "branch:", branch, "is run by slave", slave.GetSlaveID())
 		}
 	}
 }
@@ -275,24 +275,24 @@ func (s *QKCMasterBackend) Heartbeat() {
 	//TODO :add send master info
 }
 
-func checkPing(slaveConn *SlaveConnection, id []byte, chainMaskList []*types.ChainMask) error {
-	if slaveConn.slaveID != string(id) {
+func checkPing(slaveConn SlaveConn, id []byte, chainMaskList []*types.ChainMask) error {
+	if slaveConn.GetSlaveID() != string(id) {
 		return errors.New("slaveID is not match")
 	}
-	if len(chainMaskList) != len(slaveConn.shardMaskList) {
+	if len(chainMaskList) != len(slaveConn.GetShardMaskList()) {
 		return errors.New("chainMaskList is not match")
 	}
 	lenChainMaskList := len(chainMaskList)
 
 	for index := 0; index < lenChainMaskList; index++ {
-		if chainMaskList[index].GetMask() != slaveConn.shardMaskList[index].GetMask() {
+		if chainMaskList[index].GetMask() != slaveConn.GetShardMaskList()[index].GetMask() {
 			return errors.New("chainMaskList index is not match")
 		}
 	}
 	return nil
 }
 
-func (s *QKCMasterBackend) getOneSlaveConnection(branch account.Branch) *SlaveConnection {
+func (s *QKCMasterBackend) getOneSlaveConnection(branch account.Branch) SlaveConn {
 	slaves := s.branchToSlaves[branch.Value]
 	if len(slaves) < 1 {
 		return nil
@@ -300,7 +300,7 @@ func (s *QKCMasterBackend) getOneSlaveConnection(branch account.Branch) *SlaveCo
 	return slaves[0]
 }
 
-func (s *QKCMasterBackend) getAllSlaveConnection(fullShardID uint32) []*SlaveConnection {
+func (s *QKCMasterBackend) getAllSlaveConnection(fullShardID uint32) []SlaveConn {
 	slaves := s.branchToSlaves[fullShardID]
 	if len(slaves) < 1 {
 		return nil
@@ -315,7 +315,7 @@ func (s *QKCMasterBackend) getShardConnForP2P(fullShardID uint32) []ShardConnFor
 	}
 	slavesInterface := make([]ShardConnForP2P, 0)
 	for _, v := range slaves {
-		slavesInterface = append(slavesInterface, v)
+		slavesInterface = append(slavesInterface, v.(*SlaveConnection))
 	}
 	return slavesInterface
 }
@@ -340,7 +340,7 @@ func (s *QKCMasterBackend) createRootBlockToMine(address account.Address) (*type
 	for index := 0; index < len(s.clientPool); index++ {
 		resp := <-rspList
 		for _, headersInfo := range resp.HeadersInfoList {
-			if _, ok := fullShardIDToHeaderList[headersInfo.Branch.Value]; ok { // to avoid overlap
+			if _, ok := fullShardIDToHeaderList[headersInfo.Branch]; ok { // to avoid overlap
 				continue // skip it if has added
 			}
 			height := uint64(0)
@@ -353,7 +353,7 @@ func (s *QKCMasterBackend) createRootBlockToMine(address account.Address) (*type
 				if !s.rootBlockChain.IsMinorBlockValidated(header.Hash()) {
 					break
 				}
-				fullShardIDToHeaderList[headersInfo.Branch.Value] = append(fullShardIDToHeaderList[headersInfo.Branch.Value], header)
+				fullShardIDToHeaderList[headersInfo.Branch] = append(fullShardIDToHeaderList[headersInfo.Branch], header)
 			}
 		}
 	}
