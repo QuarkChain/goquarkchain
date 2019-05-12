@@ -37,6 +37,10 @@ func (s *SlaveBackend) AddMinorBlock(block *types.MinorBlock) error {
 
 	if shrd, ok := s.shards[block.Branch().Value]; ok {
 
+		if block.Header().ParentHash != shrd.MinorBlockChain.CurrentHeader().Hash() {
+			// Tip changed, don't bother creating a fork
+			return fmt.Errorf("add minor block dropped stale block mined locally branch: %d ,minor height: %d", block.Header().Branch.Value, block.Header().Number)
+		}
 		return shrd.AddMinorBlock(block)
 	}
 	return ErrMsg("AddMinorBlock")
@@ -79,7 +83,7 @@ func (s *SlaveBackend) CreateShards(rootBlock *types.RootBlock) (err error) {
 	return nil
 }
 
-func (s *SlaveBackend) AddBlockListForSync(mHashList []common.Hash, branch uint32) (*rpc.ShardStatus, error) {
+func (s *SlaveBackend) AddBlockListForSync(mHashList []common.Hash, peerId common.Hash, branch uint32) (*rpc.ShardStatus, error) {
 
 	if mHashList == nil || len(mHashList) == 0 {
 		return nil, errors.New("minor block hash list is empty")
@@ -96,7 +100,7 @@ func (s *SlaveBackend) AddBlockListForSync(mHashList []common.Hash, branch uint3
 			hashList = append(hashList, hash)
 		}
 	}
-	mBlockList, err := s.slaveConnManager.GetMinorBlocks(hashList, branch)
+	mBlockList, err := s.slaveConnManager.GetMinorBlocks(hashList, peerId, branch)
 	if err != nil {
 		return nil, err
 	}
@@ -153,7 +157,7 @@ func (s *SlaveBackend) GetTokenBalance(address *account.Address) (*big.Int, erro
 	return nil, ErrMsg("GetTokenBalance")
 }
 
-func (s *SlaveBackend) GetAccountData(address account.Address, height uint64) ([]*rpc.AccountBranchData, error) {
+func (s *SlaveBackend) GetAccountData(address *account.Address, height uint64) ([]*rpc.AccountBranchData, error) {
 
 	var (
 		results = make([]*rpc.AccountBranchData, 0)
@@ -348,4 +352,12 @@ func (s *SlaveBackend) HandleNewTip(tip *p2p.Tip) error {
 	}
 
 	return ErrMsg("HandleNewTip")
+}
+
+func (s *SlaveBackend) NewMinorBlock(block *types.MinorBlock) error {
+
+	if shrd, ok := s.shards[block.Header().Branch.Value]; ok {
+		return shrd.NewMinorBlock(block)
+	}
+	return ErrMsg("MinorBlock")
 }

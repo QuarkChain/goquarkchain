@@ -73,13 +73,13 @@ func (s *SlaveConnManager) BroadcastMinorBlock(minorBlock *types.MinorBlock, bra
 		return err
 	}
 
-	_, err = s.masterCli.client.Call(s.masterCli.target, &rpc.Request{Op: rpc.OpBroadcastMinorBlock, Data: data})
+	_, err = s.masterCli.client.Call(s.masterCli.target, &rpc.Request{Op: rpc.OpBroadcastNewMinorBlock, Data: data})
 	return err
 }
 
-func (s *SlaveConnManager) GetMinorBlocks(mHeaderList []common.Hash, branch uint32) ([]*types.MinorBlock, error) {
+func (s *SlaveConnManager) GetMinorBlocks(mHeaderList []common.Hash, peerId common.Hash, branch uint32) ([]*types.MinorBlock, error) {
 	var (
-		gReq = rpc.GetMinorBlockListRequest{MinorBlockHashList: mHeaderList, Branch: branch}
+		gReq = rpc.GetMinorBlockListRequest{MinorBlockHashList: mHeaderList, PeerId: peerId, Branch: branch}
 		gRep rpc.GetMinorBlockListResponse
 		res  *rpc.Response
 	)
@@ -88,7 +88,7 @@ func (s *SlaveConnManager) GetMinorBlocks(mHeaderList []common.Hash, branch uint
 		return nil, err
 	}
 
-	res, err = s.masterCli.client.Call(s.masterCli.target, &rpc.Request{Op: rpc.OpGetMinorBlockHeaderList, Data: data})
+	res, err = s.masterCli.client.Call(s.masterCli.target, &rpc.Request{Op: rpc.OpGetMinorBlockList, Data: data})
 	if err != nil {
 		return nil, err
 	}

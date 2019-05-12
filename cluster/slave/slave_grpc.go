@@ -577,7 +577,7 @@ func (s *SlaveServerSideOp) AddMinorBlockListForSync(ctx context.Context, req *r
 		return nil, err
 	}
 
-	if gRep.ShardStatus, err = s.slave.AddBlockListForSync(gReq.MinorBlockHashList, gReq.Branch); err != nil {
+	if gRep.ShardStatus, err = s.slave.AddBlockListForSync(gReq.MinorBlockHashList, gReq.PeerId, gReq.Branch); err != nil {
 		return nil, err
 	}
 
@@ -612,21 +612,20 @@ func (s *SlaveServerSideOp) GetMinorBlockList(ctx context.Context, req *rpc.Requ
 
 func (s *SlaveServerSideOp) GetMinorBlockHeaderList(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
 	var (
-		gReq     rpc.GetMinorBlockHeaderListRequest
-		gRep     rpc.GetMinorBlockHeaderListResponse
+		gReq     p2p.GetMinorBlockHeaderListRequest
+		gRep     p2p.GetMinorBlockHeaderListResponse
 		buf      = serialize.NewByteBuffer(req.Data)
 		blockLst []*types.MinorBlock
 		response = &rpc.Response{RpcId: req.RpcId}
 		err      error
 	)
-	gRep.MinorBlockHeader = make([]*types.MinorBlockHeader, 0)
 	if err = serialize.Deserialize(buf, &gReq); err != nil {
 		return nil, err
 	}
 
-	if blockLst, err = s.slave.GetMinorBlockListByDirection(gReq.BlockHash, gReq.Limit, gReq.Direction, gReq.Branch); err == nil {
+	if blockLst, err = s.slave.GetMinorBlockListByDirection(gReq.BlockHash, gReq.Limit, gReq.Direction, gReq.Branch.Value); err == nil {
 		for _, blok := range blockLst {
-			gRep.MinorBlockHeader = append(gRep.MinorBlockHeader, blok.Header())
+			gRep.BlockHeaderList = append(gRep.BlockHeaderList, blok.Header())
 		}
 	} else {
 		return nil, err
@@ -679,5 +678,22 @@ func (s *SlaveServerSideOp) AddTransactions(ctx context.Context, req *rpc.Reques
 	if response.Data, err = serialize.SerializeToBytes(gRep); err != nil {
 		return nil, err
 	}
+	return response, nil
+}
+
+func (s *SlaveServerSideOp) NewMinorBlock(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
+	var (
+		gReq     types.MinorBlock
+		buf      = serialize.NewByteBuffer(req.Data)
+		response = &rpc.Response{RpcId: req.RpcId}
+		err      error
+	)
+	if err = serialize.Deserialize(buf, &gReq); err != nil {
+		return nil, err
+	}
+	if err = s.slave.NewMinorBlock(&gReq); err != nil {
+		return nil, err
+	}
+
 	return response, nil
 }
