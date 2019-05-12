@@ -189,7 +189,7 @@ type AddMinorBlockRequest struct {
 }
 
 type HeadersInfo struct {
-	Branch     uint32	            `json:"branch" gencodec:"required"`
+	Branch     account.Branch            `json:"branch" gencodec:"required"`
 	HeaderList []*types.MinorBlockHeader `json:"header_list" gencodec:"required" bytesizeofslicelen:"4"`
 }
 
