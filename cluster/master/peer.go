@@ -5,6 +5,7 @@ package master
 import (
 	"errors"
 	"fmt"
+	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/p2p"
 	"github.com/QuarkChain/goquarkchain/serialize"
@@ -122,14 +123,10 @@ func (p *peer) broadcast() {
 
 		case nTip := <-p.queuedTip:
 			if err := p.SendNewTip(nTip.branch, nTip.tip); err != nil {
-				p.Log().Error("Broadcast tip failed",
-					"number", nTip.tip.MinorBlockHeaderList[0].NumberU64(), "branch", nTip.branch, "error", err.Error())
 				return
 			}
 			if nTip.branch != 0 {
 				p.Log().Trace("Broadcast new tip", "number", nTip.tip.RootBlockHeader.NumberU64(), "branch", nTip.branch)
-			} else {
-				p.Log().Trace("Broadcast new tip", "number", nTip.tip.MinorBlockHeaderList[0].NumberU64(), "branch", nTip.branch)
 			}
 
 		case <-p.term:
@@ -186,7 +183,7 @@ func (p *peer) SendTransactions(branch uint32, txs []*types.Transaction) error {
 	data := p2p.NewTransactionList{}
 	data.TransactionList = txs
 
-	msg, err := p2p.MakeMsg(p2p.NewTransactionListMsg, p.getRpcId(), p2p.Metadata{Branch: branch}, data)
+	msg, err := p2p.MakeMsg(p2p.NewTransactionListMsg, 0, p2p.Metadata{Branch: branch}, data)
 	if err != nil {
 		return err
 	}
@@ -206,7 +203,7 @@ func (p *peer) AsyncSendTransactions(branch uint32, txs []*types.Transaction) {
 
 // SendNewTip announces the head of each shard or root.
 func (p *peer) SendNewTip(branch uint32, tip *p2p.Tip) error {
-	msg, err := p2p.MakeMsg(p2p.NewTipMsg, p.getRpcId(), p2p.Metadata{Branch: branch}, tip)
+	msg, err := p2p.MakeMsg(p2p.NewTipMsg, 0, p2p.Metadata{Branch: branch}, tip)//NewTipMsg should rpc=0
 	if err != nil {
 		return err
 	}
@@ -311,7 +308,7 @@ func (p *peer) requestMinorBlockHeaderList(rpcId uint64, hash common.Hash, amoun
 		direction = directionToTip
 	}
 
-	data := p2p.GetMinorBlockHeaderListRequest{BlockHash: hash, Limit: amount, Direction: direction}
+	data := p2p.GetMinorBlockHeaderListRequest{BlockHash: hash, Branch: account.Branch{Value: branch}, Limit: amount, Direction: direction}
 	msg, err := p2p.MakeMsg(p2p.GetMinorBlockHeaderListRequestMsg, rpcId, p2p.Metadata{Branch: branch}, data)
 	if err != nil {
 		return err
@@ -419,7 +416,7 @@ func (p *peer) Handshake(protoVersion, networkId uint32, peerId common.Hash, pee
 	// Send out own handshake in a new thread
 	errc := make(chan error, 2)
 
-	hello, err := p2p.MakeMsg(p2p.Hello, p.getRpcId(), p2p.Metadata{}, p2p.HelloCmd{
+	hello, err := p2p.MakeMsg(p2p.Hello, 0, p2p.Metadata{}, p2p.HelloCmd{
 		Version:         protoVersion,
 		NetWorkID:       networkId,
 		PeerID:          peerId,

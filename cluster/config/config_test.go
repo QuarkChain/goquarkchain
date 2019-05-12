@@ -2,7 +2,10 @@ package config
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
+	"github.com/ethereum/go-ethereum/common"
+	"io/ioutil"
 	"math/big"
 	"reflect"
 	"strings"
@@ -51,7 +54,7 @@ func TestClusterConfig(t *testing.T) {
 	if err != nil {
 		t.Fatalf("UnMarsshal cluster config error: %v", err)
 	}
-	if c.DbPathRoot != "./data" {
+	if c.DbPathRoot != "./db" {
 		t.Fatalf("db path root error")
 	}
 
@@ -102,4 +105,66 @@ func TestSlaveConfig(t *testing.T) {
 	jsonConfig, err := json.Marshal(&sc)
 	assert.NoError(t, err)
 	assert.True(t, strings.Contains(string(jsonConfig), "MASK_LIST\":[4]"))
+}
+
+func TestLoadClusterConfig(t *testing.T) {
+	var (
+		goClstr ClusterConfig
+		pyClstr ClusterConfig
+	)
+	if err := loadConfig("./test_config.json", &goClstr); err != nil {
+		t.Fatalf("Failed to load json file, err: %v", err)
+	}
+
+	if err := loadConfig("../../tests/testdata/testnet/cluster_config_template.json", &pyClstr); err != nil {
+		t.Fatalf("Failed to load python config file, err: %v", err)
+	}
+
+	if !reflect.DeepEqual(goClstr.SlaveList, pyClstr.SlaveList) {
+		t.Fatalf("go config slave list is not equal to python config")
+	}
+	if goClstr.Quarkchain.ChainSize != pyClstr.Quarkchain.ChainSize {
+		t.Fatalf("go config chain size is not equal to python config")
+	}
+	for i, goChain := range goClstr.Quarkchain.Chains {
+		pyCHain := pyClstr.Quarkchain.Chains[i]
+		if goChain.ChainID != pyCHain.ChainID {
+			t.Fatalf("go config chain size is not equal to python config")
+		}
+		if goChain.ShardSize != pyCHain.ShardSize {
+			t.Fatalf("go config chain size is not equal to python config")
+		}
+		if reflect.DeepEqual(goChain.Genesis, pyCHain.Genesis) {
+			t.Fatalf("go config Genesis is not equal to python config")
+		}
+		if reflect.DeepEqual(goChain.PoswConfig, pyCHain.PoswConfig) {
+			t.Fatalf("go config PoswConfig is not equal to python config")
+		}
+		if reflect.DeepEqual(goChain.ConsensusConfig, pyCHain.ConsensusConfig) {
+			t.Fatalf("go config ConsensusConfig is not equal to python config")
+		}
+	}
+}
+
+func TestShardGenesis(t *testing.T) {
+	var (
+		shardGensis ShardGenesis
+	)
+	s := []byte(`{"ROOT_HEIGHT":0,"VERSION":0,"HEIGHT":0,"HASH_PREV_MINOR_BLOCK":"0000000000000000000000000000000000000000000000000000000000000000","HASH_MERKLE_ROOT":"0000000000000000000000000000000000000000000000000000000000000000","TIMESTAMP":1519147489,"DIFFICULTY":5000000000,"GAS_LIMIT":12000000,"NONCE":0,"EXTRA_DATA":"497420776173207468652062657374206f662074696d65732c206974207761732074686520776f727374206f662074696d65732c202e2e2e202d20436861726c6573204469636b656e73","ALLOC":{}}`)
+	assert.NoError(t, json.Unmarshal(s, &shardGensis))
+	assert.Equal(t, common.FromHex("497420776173207468652062657374206f662074696d65732c206974207761732074686520776f727374206f662074696d65732c202e2e2e202d20436861726c6573204469636b656e73"), shardGensis.ExtraData)
+	jsonConfig, err := json.Marshal(&shardGensis)
+	assert.NoError(t, err)
+	assert.Contains(t, string(jsonConfig), string(s))
+}
+
+func loadConfig(file string, cfg *ClusterConfig) error {
+	var (
+		content []byte
+		err     error
+	)
+	if content, err = ioutil.ReadFile(file); err != nil {
+		return errors.New(file + ", " + err.Error())
+	}
+	return json.Unmarshal(content, cfg)
 }
