@@ -52,17 +52,17 @@ func (m *MasterServerSideOp) BroadcastTransactions(ctx context.Context, req *rpc
 		RpcId: req.RpcId,
 	}, nil
 }
-func (m *MasterServerSideOp) BroadcastMinorBlock(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
+func (m *MasterServerSideOp) BroadcastNewMinorBlock(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
 	return &rpc.Response{
 		RpcId: req.RpcId,
 	}, nil
 }
-func (m *MasterServerSideOp) GetMinorBlocks(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
+func (m *MasterServerSideOp) GetMinorBlockList(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
 	return &rpc.Response{
 		RpcId: req.RpcId,
 	}, nil
 }
-func (m *MasterServerSideOp) GetMinorBlockHeaders(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
+func (m *MasterServerSideOp) GetMinorBlockHeaderList(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
 	return &rpc.Response{
 		RpcId: req.RpcId,
 	}, nil
