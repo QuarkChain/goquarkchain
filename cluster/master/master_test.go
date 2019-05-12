@@ -89,7 +89,7 @@ func (c *fakeRpcClient) Call(hostport string, req *rpc.Request) (*rpc.Response, 
 		rsp := new(rpc.GetUnconfirmedHeadersResponse)
 		for _, v := range c.branchs {
 			rsp.HeadersInfoList = append(rsp.HeadersInfoList, &rpc.HeadersInfo{
-				Branch:     account.Branch{Value: v.Value},
+				Branch:     v.Value,
 				HeaderList: make([]*types.MinorBlockHeader, 0),
 			})
 			//rsp.HeadersInfoList[0].HeaderList = append(rsp.HeadersInfoList[0].HeaderList, &types.MinorBlockHeader{})
