@@ -12,16 +12,16 @@ import (
 
 type Backend interface {
 	AddTransaction(tx *types.Transaction) error
-	ExecuteTransaction(tx *types.Transaction, address account.Address, height *uint64) ([]byte, error)
+	ExecuteTransaction(tx *types.Transaction, address *account.Address, height *uint64) ([]byte, error)
 	GetMinorBlockByHash(blockHash common.Hash, branch account.Branch) (*types.MinorBlock, error)
 	GetMinorBlockByHeight(height *uint64, branch account.Branch) (*types.MinorBlock, error)
 	GetTransactionByHash(txHash common.Hash, branch account.Branch) (*types.MinorBlock, uint32, error)
 	GetTransactionReceipt(txHash common.Hash, branch account.Branch) (*types.MinorBlock, uint32, *types.Receipt, error)
-	GetTransactionsByAddress(address account.Address, start []byte, limit uint32) ([]*qkcRPC.TransactionDetail, []byte, error)
-	GetLogs(branch account.Branch, address []account.Address, topics []*qkcRPC.Topic, startBlock, endBlock rpc.BlockNumber) ([]*types.Log, error)
-	EstimateGas(tx *types.Transaction, address account.Address) (uint32, error)
-	GetStorageAt(address account.Address, key common.Hash, height *uint64) (common.Hash, error)
-	GetCode(address account.Address, height *uint64) ([]byte, error)
+	GetTransactionsByAddress(address *account.Address, start []byte, limit uint32) ([]*qkcRPC.TransactionDetail, []byte, error)
+	GetLogs(branch account.Branch, address []*account.Address, topics []*qkcRPC.Topic, startBlock, endBlock rpc.BlockNumber) ([]*types.Log, error)
+	EstimateGas(tx *types.Transaction, address *account.Address) (uint32, error)
+	GetStorageAt(address *account.Address, key common.Hash, height *uint64) (common.Hash, error)
+	GetCode(address *account.Address, height *uint64) ([]byte, error)
 	GasPrice(branch account.Branch) (uint64, error)
 	GetWork(branch *account.Branch) consensus.MiningWork
 	SubmitWork(branch *account.Branch, headerHash common.Hash, nonce uint64, mixHash common.Hash) bool
@@ -29,9 +29,9 @@ type Backend interface {
 	GetRootBlockByNumber(blockNr *uint64) (*types.RootBlock, error)
 	GetRootBlockByHash(hash common.Hash) (*types.RootBlock, error)
 	NetWorkInfo() map[string]interface{}
-	GetPrimaryAccountData(address account.Address, blockHeight *uint64) (*qkcRPC.AccountBranchData, error)
+	GetPrimaryAccountData(address *account.Address, blockHeight *uint64) (*qkcRPC.AccountBranchData, error)
 	CurrentBlock() *types.RootBlock
-	GetAccountData(address account.Address, height *uint64) (map[account.Branch]*qkcRPC.AccountBranchData, error)
+	GetAccountData(address *account.Address, height *uint64) (map[account.Branch]*qkcRPC.AccountBranchData, error)
 	GetClusterConfig() *config.ClusterConfig
 	GetPeers() []qkcRPC.PeerInfoForDisPlay
 	GetStats() map[string]interface{}
