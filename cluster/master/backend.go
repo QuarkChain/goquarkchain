@@ -181,6 +181,7 @@ func (s *QKCMasterBackend) Start(srvr *p2p.Server) error {
 	if err := s.InitCluster(); err != nil {
 		return err
 	}
+
 	s.rootChainChan = make(chan core.RootChainEvent, rootChainChanSize)
 	s.rootChainEventSub = s.rootBlockChain.SubscribeChainEvent(s.rootChainChan)
 	s.rootChainSideChan = make(chan core.RootChainSideEvent, rootChainSideChanSize)
