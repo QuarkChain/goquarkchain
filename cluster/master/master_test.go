@@ -85,11 +85,11 @@ func (c *fakeRpcClient) Call(hostport string, req *rpc.Request) (*rpc.Response, 
 			return nil, err
 		}
 		return &rpc.Response{Data: data}, nil
-	case rpc.OpGetUnconfirmedHeaders:
+	case rpc.OpGetUnconfirmedHeaderList:
 		rsp := new(rpc.GetUnconfirmedHeadersResponse)
 		for _, v := range c.branchs {
 			rsp.HeadersInfoList = append(rsp.HeadersInfoList, &rpc.HeadersInfo{
-				Branch:     account.Branch{Value: v.Value},
+				Branch:     account.Branch{Value: v},
 				HeaderList: make([]*types.MinorBlockHeader, 0),
 			})
 			//rsp.HeadersInfoList[0].HeaderList = append(rsp.HeadersInfoList[0].HeaderList, &types.MinorBlockHeader{})
@@ -122,7 +122,7 @@ func (c *fakeRpcClient) Call(hostport string, req *rpc.Request) (*rpc.Response, 
 	case rpc.OpGetAccountData:
 		rsp := new(rpc.GetAccountDataResponse)
 		for _, v := range c.branchs {
-			rsp.AccountBranchDataList = append(rsp.AccountBranchDataList, &rpc.AccountBranchData{Branch: *v})
+			rsp.AccountBranchDataList = append(rsp.AccountBranchDataList, &rpc.AccountBranchData{Branch: v})
 		}
 		data, err := serialize.SerializeToBytes(rsp)
 		if err != nil {
@@ -335,7 +335,7 @@ func TestGetAccountData(t *testing.T) {
 	assert.NoError(t, err)
 	add1 := account.NewAddress(id1.GetRecipient(), 3)
 	master := initEnv(t, nil)
-	_, err = master.GetAccountData(add1, nil)
+	_, err = master.GetAccountData(&add1, nil)
 	assert.NoError(t, err)
 }
 
@@ -344,7 +344,7 @@ func TestGetPrimaryAccountData(t *testing.T) {
 	id1, err := account.CreatRandomIdentity()
 	assert.NoError(t, err)
 	add1 := account.NewAddress(id1.GetRecipient(), 3)
-	_, err = master.GetPrimaryAccountData(add1, nil)
+	_, err = master.GetPrimaryAccountData(&add1, nil)
 	assert.NoError(t, err)
 }
 
@@ -402,7 +402,7 @@ func TestExecuteTransaction(t *testing.T) {
 		EvmTx:  evmTx,
 		TxType: types.EvmTx,
 	}
-	data, err := master.ExecuteTransaction(tx, add1, nil)
+	data, err := master.ExecuteTransaction(tx, &add1, nil)
 	assert.NoError(t, err)
 	assert.Equal(t, data, []byte("qkc"))
 
@@ -411,7 +411,7 @@ func TestExecuteTransaction(t *testing.T) {
 		EvmTx:  evmTx,
 		TxType: types.EvmTx,
 	}
-	_, err = master.ExecuteTransaction(tx, add1, nil)
+	_, err = master.ExecuteTransaction(tx, &add1, nil)
 	assert.Error(t, err)
 }
 
