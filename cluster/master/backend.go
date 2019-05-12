@@ -135,8 +135,7 @@ func (s *QKCMasterBackend) GetClusterConfig() *config.ClusterConfig {
 
 // Protocols p2p protocols, p2p Server will start in node.Start
 func (s *QKCMasterBackend) Protocols() []p2p.Protocol {
-	// TODO add p2p.protocol
-	return nil
+	return s.protocolManager.subProtocols
 }
 
 // APIs return all apis for master Server

@@ -578,7 +578,7 @@ func (s *SlaveConnection) AddBlockListForSync(request *rpc.HashList) (*rpc.Shard
 	if err != nil {
 		return nil, err
 	}
-	res, err = s.client.Call(s.target, &rpc.Request{Op: rpc.OpSyncMinorBlockList, Data: bytes})
+	res, err = s.client.Call(s.target, &rpc.Request{Op: rpc.OpAddMinorBlockListForSync, Data: bytes})
 	if err != nil {
 		return nil, err
 	}

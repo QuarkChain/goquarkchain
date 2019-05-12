@@ -124,8 +124,6 @@ func (r *rootChainTask) Run(bc blockchain) error {
 			if _, err := bc.InsertChain([]types.IBlock{b}); err != nil {
 				return err
 			}
-			conns := r.getShardConnFunc(b)
-
 			elapsed := time.Now().Sub(ts).Seconds()
 			logger.Info("Syncing root block finishes", "height", h.NumberU64(), "hash", h.Hash(), "elapsed", elapsed)
 		}
