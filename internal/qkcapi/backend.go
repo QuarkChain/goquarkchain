@@ -31,7 +31,7 @@ type Backend interface {
 	NetWorkInfo() map[string]interface{}
 	GetPrimaryAccountData(address *account.Address, blockHeight *uint64) (*qkcRPC.AccountBranchData, error)
 	CurrentBlock() *types.RootBlock
-	GetAccountData(address *account.Address, height *uint64) (map[account.Branch]*qkcRPC.AccountBranchData, error)
+	GetAccountData(address *account.Address, height *uint64) (map[uint32]*qkcRPC.AccountBranchData, error)
 	GetClusterConfig() *config.ClusterConfig
 	GetPeers() []qkcRPC.PeerInfoForDisPlay
 	GetStats() map[string]interface{}
