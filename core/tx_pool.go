@@ -261,7 +261,7 @@ func (pool *TxPool) loop() {
 	evict := time.NewTicker(evictionInterval)
 	defer evict.Stop()
 
-	// Track the previous head headers for transaction reorgs
+	// Track the previous head Headers for transaction reorgs
 	head := pool.chain.CurrentBlock()
 
 	// Keep waiting for and reacting to the various events

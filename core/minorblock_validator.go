@@ -28,7 +28,7 @@ import (
 	"math/big"
 )
 
-// MinorBlockValidator is responsible for validating block headers, uncles and
+// MinorBlockValidator is responsible for validating block Headers, uncles and
 // processed state.
 //
 // MinorBlockValidator implements Validator.
@@ -51,7 +51,7 @@ func NewBlockValidator(quarkChainConfig *config.QuarkChainConfig, blockchain *Mi
 }
 
 // ValidateBlock validates the given block's uncles and verifies the block
-// header's transaction and uncle roots. The headers are assumed to be already
+// header's transaction and uncle roots. The Headers are assumed to be already
 // validated at this point.
 func (v *MinorBlockValidator) ValidateBlock(mBlock types.IBlock) error {
 	if common.IsNil(mBlock) {

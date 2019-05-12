@@ -278,7 +278,7 @@ func (m *MinorBlockChain) loadLastState() error {
 	return nil
 }
 
-// SetHead rewinds the local chain to a new head. In the case of headers, everything
+// SetHead rewinds the local chain to a new head. In the case of Headers, everything
 // above the new head will be deleted and the new one set. In the case of blocks
 // though, the head may be further rewound if block bodies are missing (non-archive
 // nodes after a fast sync).
@@ -1517,7 +1517,7 @@ func (m *MinorBlockChain) InsertHeaderChain(chain []types.IHeader, checkFreq int
 //
 // Note: This method is not concurrent-safe with inserting blocks simultaneously
 // into the chain, as side effects caused by reorganisations cannot be emulated
-// without the real blocks. Hence, writing headers directly should only be done
+// without the real blocks. Hence, writing Headers directly should only be done
 // in two scenarios: pure-header mode of operation (light clients), or properly
 // separated header/block phases (non-archive clients).
 func (m *MinorBlockChain) writeHeader(header *types.MinorBlockHeader) error {

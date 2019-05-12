@@ -2,13 +2,14 @@ package sync
 
 import (
 	"errors"
+	"fmt"
+	"github.com/QuarkChain/goquarkchain/cluster/rpc"
+	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/log"
+	"golang.org/x/sync/errgroup"
 	"strings"
 	"time"
-
-	"github.com/ethereum/go-ethereum/log"
-
-	"github.com/QuarkChain/goquarkchain/core/types"
 )
 
 const (
@@ -30,14 +31,19 @@ type Task interface {
 	Priority() uint
 }
 
+type SyncConn interface {
+}
+
 // All of the sync tasks to are to catch up with the root chain from peers.
 type rootChainTask struct {
 	peer
-	header *types.RootBlockHeader
+	header           *types.RootBlockHeader
+	statsChan        chan *rpc.ShardStatus
+	getShardConnFunc func(fullShardId uint32) []rpc.ShardConnForP2P
 }
 
-func NewRootChainTask(p peer, header *types.RootBlockHeader) Task {
-	return &rootChainTask{peer: p, header: header}
+func NewRootChainTask(p peer, header *types.RootBlockHeader, statusChan chan *rpc.ShardStatus, getShardConnFunc func(fullShardId uint32) []rpc.ShardConnForP2P) Task {
+	return &rootChainTask{peer: p, header: header, statsChan: statusChan, getShardConnFunc: getShardConnFunc}
 }
 
 // Run will execute the synchronization task.
@@ -104,13 +110,14 @@ func (r *rootChainTask) Run(bc blockchain) error {
 
 		// Again, `blocks` should also be descending.
 		// TODO: validate block order.
+		rbc := bc.(rootblockchain)
 		for j := len(blocks) - 1; j >= 0; j-- {
 			b := blocks[j]
 			h := b.Header()
 			logger.Info("Syncing root block starts", "height", h.NumberU64(), "hash", h.Hash())
 			// Simple profiling.
 			ts := time.Now()
-			if err := syncMinorBlocks(b); err != nil {
+			if err := syncMinorBlocks(rbc, b, r.statsChan, r.getShardConnFunc); err != nil {
 				return err
 			}
 			// TODO: may optimize by batch and insert once?
@@ -154,7 +161,43 @@ func (r *rootChainTask) validateRootBlockHeaderList(bc blockchain, headers []*ty
 	return nil
 }
 
-func syncMinorBlocks(rootBlock *types.RootBlock) error {
-	// TODO: stub
+func syncMinorBlocks(rbc rootblockchain, rootBlock *types.RootBlock, statsChan chan *rpc.ShardStatus, getShardConnFunc func(fullShardId uint32) []rpc.ShardConnForP2P) error {
+	if rootBlock == nil {
+		panic("rootblock should not be nil")
+	}
+	downloadMap := make(map[uint32][]common.Hash)
+	for _, header := range rootBlock.MinorBlockHeaders() {
+		hash := header.Hash()
+		if !rbc.IsMinorBlockValidated(hash) {
+			downloadMap[header.Branch.Value] = append(downloadMap[header.Branch.Value], hash)
+		}
+	}
+
+	var g errgroup.Group
+	for branch, hashes := range downloadMap {
+		b, hashList := branch, hashes
+		conns := getShardConnFunc(b)
+		if len(conns) == 0 {
+			return fmt.Errorf("shard connection for branch %d is missing", b)
+		}
+		// TODO Support to multiple connections
+		g.Go(func() error {
+			stats, err := conns[0].AddBlockListForSync(&rpc.HashList{Hashes: hashList})
+			if err == nil {
+				statsChan <- stats
+			}
+			return err
+		})
+	}
+	err := g.Wait()
+	if err != nil {
+		return err
+	}
+
+	for _, hashes := range downloadMap {
+		for _, hash := range hashes {
+			rbc.AddValidatedMinorBlockHeader(hash)
+		}
+	}
 	return nil
 }

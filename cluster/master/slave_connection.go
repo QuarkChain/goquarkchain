@@ -534,6 +534,7 @@ func (s *SlaveConnection) GetMinorBlockHeaders(request *p2p.GetMinorBlockHeaderL
 	}
 	return rsp, nil
 }
+
 func (s *SlaveConnection) HandleNewTip(request *p2p.Tip) (bool, error) {
 	bytes, err := serialize.SerializeToBytes(request)
 	if err != nil {
@@ -546,6 +547,7 @@ func (s *SlaveConnection) HandleNewTip(request *p2p.Tip) (bool, error) {
 
 	return true, nil
 }
+
 func (s *SlaveConnection) AddMinorBlock(request *p2p.NewBlockMinor) (bool, error) {
 	blockData, err := serialize.SerializeToBytes(request.Block)
 	if err != nil {
@@ -565,4 +567,23 @@ func (s *SlaveConnection) AddMinorBlock(request *p2p.NewBlockMinor) (bool, error
 		return false, err
 	}
 	return true, nil
+}
+
+func (s *SlaveConnection) AddBlockListForSync(request *rpc.HashList) (*rpc.ShardStatus, error) {
+	var (
+		shardStatus = new(rpc.ShardStatus)
+		res         = new(rpc.Response)
+	)
+	bytes, err := serialize.SerializeToBytes(request)
+	if err != nil {
+		return nil, err
+	}
+	res, err = s.client.Call(s.target, &rpc.Request{Op: rpc.OpAddMinorBlockListForSync, Data: bytes})
+	if err != nil {
+		return nil, err
+	}
+	if err = serialize.DeserializeFromBytes(res.Data, shardStatus); err != nil {
+		return nil, err
+	}
+	return shardStatus, nil
 }
