@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/ethereum/go-ethereum/common"
 	"io/ioutil"
 	"math/big"
 	"reflect"
@@ -143,6 +144,18 @@ func TestLoadClusterConfig(t *testing.T) {
 			t.Fatalf("go config ConsensusConfig is not equal to python config")
 		}
 	}
+}
+
+func TestShardGenesis(t *testing.T) {
+	var (
+		shardGensis ShardGenesis
+	)
+	s := []byte(`{"ROOT_HEIGHT":0,"VERSION":0,"HEIGHT":0,"HASH_PREV_MINOR_BLOCK":"0000000000000000000000000000000000000000000000000000000000000000","HASH_MERKLE_ROOT":"0000000000000000000000000000000000000000000000000000000000000000","TIMESTAMP":1519147489,"DIFFICULTY":5000000000,"GAS_LIMIT":12000000,"NONCE":0,"EXTRA_DATA":"497420776173207468652062657374206f662074696d65732c206974207761732074686520776f727374206f662074696d65732c202e2e2e202d20436861726c6573204469636b656e73","ALLOC":{}}`)
+	assert.NoError(t, json.Unmarshal(s, &shardGensis))
+	assert.Equal(t, common.FromHex("497420776173207468652062657374206f662074696d65732c206974207761732074686520776f727374206f662074696d65732c202e2e2e202d20436861726c6573204469636b656e73"), shardGensis.ExtraData)
+	jsonConfig, err := json.Marshal(&shardGensis)
+	assert.NoError(t, err)
+	assert.Contains(t, string(jsonConfig), string(s))
 }
 
 func loadConfig(file string, cfg *ClusterConfig) error {

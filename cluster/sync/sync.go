@@ -61,7 +61,7 @@ func (s *synchronizer) loop() {
 			if err := t.Run(s.blockchain); err != nil {
 				logger.Error("Running sync task failed", "error", err)
 			} else {
-				logger.Info("Done sync task", "height")
+				logger.Info("Done sync task", "height", t.Priority())
 			}
 		}
 	}()
