@@ -92,7 +92,7 @@ func (c *fakeRpcClient) Call(hostport string, req *rpc.Request) (*rpc.Response, 
 				Branch:     v.Value,
 				HeaderList: make([]*types.MinorBlockHeader, 0),
 			})
-			//rsp.HeadersInfoList[0].HeaderList = append(rsp.HeadersInfoList[0].HeaderList, &types.MinorBlockHeaderList{})
+			//rsp.HeadersInfoList[0].HeaderList = append(rsp.HeadersInfoList[0].HeaderList, &types.MinorBlockHeader{})
 		}
 		data, err := serialize.SerializeToBytes(rsp)
 		if err != nil {
