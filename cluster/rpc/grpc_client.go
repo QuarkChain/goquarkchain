@@ -50,11 +50,12 @@ const (
 	// p2p api
 	OpBroadcastNewTip
 	OpBroadcastTransactions
-	OpBroadcastMinorBlock
-	GetMinorBlockList
+	OpBroadcastNewMinorBlock
+	OpGetMinorBlockList
 	OpGetMinorBlockHeaderList
 	OpHandleNewTip
 	OpAddTransactions
+	OpNewMinorBlock
 
 	MasterServer = serverType(1)
 	SlaveServer  = serverType(0)
@@ -69,8 +70,8 @@ var (
 		// p2p api
 		OpBroadcastNewTip:         {name: "BroadcastNewTip"},
 		OpBroadcastTransactions:   {name: "BroadcastTransactions"},
-		OpBroadcastMinorBlock:     {name: "BroadcastMinorBlock"},
-		GetMinorBlockList:         {name: "GetMinorBlockList"},
+		OpBroadcastNewMinorBlock:  {name: "BroadcastNewMinorBlock"},
+		OpGetMinorBlockList:       {name: "GetMinorBlockList"},
 		OpGetMinorBlockHeaderList: {name: "GetMinorBlockHeaderList"},
 	}
 	// slave apis
@@ -104,10 +105,11 @@ var (
 		OpSubmitWork:                  {name: "SubmitWork"},
 		OpAddMinorBlockListForSync:    {name: "AddMinorBlockListForSync"},
 		// p2p api
-		GetMinorBlockList:         {name: "GetMinorBlockList"},
+		OpGetMinorBlockList:       {name: "GetMinorBlockList"},
 		OpGetMinorBlockHeaderList: {name: "GetMinorBlockHeaderList"},
 		OpHandleNewTip:            {name: "HandleNewTip"},
 		OpAddTransactions:         {name: "AddTransactions"},
+		OpNewMinorBlock:           {name: "NewMinorBlock"},
 	}
 )
 

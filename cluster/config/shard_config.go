@@ -13,7 +13,7 @@ type ShardGenesis struct {
 	Height             uint64                       `json:"HEIGHT"`
 	HashPrevMinorBlock string                       `json:"HASH_PREV_MINOR_BLOCK"`
 	HashMerkleRoot     string                       `json:"HASH_MERKLE_ROOT"`
-	ExtraData          []byte                       `json:"EXTRA_DATA"`
+	ExtraData          []byte                       `json:"-"`
 	Timestamp          uint64                       `json:"TIMESTAMP"`
 	Difficulty         uint64                       `json:"DIFFICULTY"`
 	GasLimit           uint64                       `json:"GAS_LIMIT"`
@@ -28,7 +28,7 @@ func NewShardGenesis() *ShardGenesis {
 		Height:             0,
 		HashPrevMinorBlock: "",
 		HashMerkleRoot:     "",
-		ExtraData:          []byte("It was the best of times, it was the worst of times, ... - Charles Dickens"),
+		ExtraData:          common.FromHex("497420776173207468652062657374206f662074696d65732c206974207761732074686520776f727374206f662074696d65732c202e2e2e202d20436861726c6573204469636b656e73"),
 		Timestamp:          NewRootGenesis().Timestamp,
 		Difficulty:         10000,
 		GasLimit:           30000 * 400,
@@ -46,20 +46,23 @@ func (s *ShardGenesis) MarshalJSON() ([]byte, error) {
 	}
 	jsonConfig := struct {
 		ShardGenesisAlias
-		Alloc map[string]*big.Int `json:"ALLOC"`
-	}{ShardGenesisAlias(*s), alloc}
+		ExtraData string              `json:"EXTRA_DATA"`
+		Alloc     map[string]*big.Int `json:"ALLOC"`
+	}{ShardGenesisAlias(*s), common.Bytes2Hex(s.ExtraData), alloc}
 	return json.Marshal(jsonConfig)
 }
 
 func (s *ShardGenesis) UnmarshalJSON(input []byte) error {
 	var jsonConfig struct {
 		ShardGenesisAlias
-		Alloc map[string]*big.Int `json:"ALLOC"`
+		ExtraData string              `json:"EXTRA_DATA"`
+		Alloc     map[string]*big.Int `json:"ALLOC"`
 	}
 	if err := json.Unmarshal(input, &jsonConfig); err != nil {
 		return err
 	}
 	*s = ShardGenesis(jsonConfig.ShardGenesisAlias)
+	s.ExtraData = common.Hex2Bytes(jsonConfig.ExtraData)
 	s.Alloc = make(map[account.Address]*big.Int)
 	for addr, val := range jsonConfig.Alloc {
 		address, err := account.CreatAddressFromBytes(common.FromHex(addr))

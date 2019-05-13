@@ -8,7 +8,6 @@ import (
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
 	"github.com/QuarkChain/goquarkchain/cluster/service"
-	"github.com/QuarkChain/goquarkchain/core"
 	"github.com/QuarkChain/goquarkchain/core/rawdb"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/serialize"
@@ -247,7 +246,6 @@ func (c *fakeRpcClient) Call(hostport string, req *rpc.Request) (*rpc.Response, 
 }
 
 func initEnv(t *testing.T, chanOp chan uint32) *QKCMasterBackend {
-	beatTime = 1
 	monkey.Patch(NewSlaveConn, func(target string, shardMaskLst []*types.ChainMask, slaveID string) *SlaveConnection {
 		client := NewFakeRPCClient(chanOp, target, shardMaskLst, slaveID, config.NewClusterConfig())
 		return &SlaveConnection{
@@ -263,7 +261,7 @@ func initEnv(t *testing.T, chanOp chan uint32) *QKCMasterBackend {
 
 	ctx := &service.ServiceContext{}
 	clusterConfig := config.NewClusterConfig()
-	clusterConfig.Quarkchain.Root.ConsensusType = "ModeFake"
+	clusterConfig.Quarkchain.Root.ConsensusType = config.PoWFake
 	master, err := New(ctx, clusterConfig)
 	if err != nil {
 		panic(err)
@@ -281,7 +279,7 @@ func TestMasterBackend_InitCluster(t *testing.T) {
 func TestMasterBackend_HeartBeat(t *testing.T) {
 	chanOp := make(chan uint32, 100)
 	master := initEnv(t, chanOp)
-	master.HeartBeat()
+	master.Heartbeat()
 	status := true
 	countHeartBeat := 0
 	for status {
@@ -294,7 +292,7 @@ func TestMasterBackend_HeartBeat(t *testing.T) {
 				status = false
 			}
 		case <-time.After(2 * time.Second):
-			panic(errors.New("no receive HeartBeat"))
+			panic(errors.New("no receive Heartbeat"))
 		}
 	}
 }
@@ -332,30 +330,12 @@ func TestCreateRootBlockToMine(t *testing.T) {
 	assert.Equal(t, len(rootBlock.MinorBlockHeaders()), 0)
 }
 
-func TestGetMinorBlockToMine(t *testing.T) {
-	fakeMinorBlock := types.NewMinorBlock(&types.MinorBlockHeader{Version: 111}, &types.MinorBlockMeta{}, nil, nil, nil)
-
-	master := initEnv(t, nil)
-	branch := account.Branch{Value: 2}
-	id1, err := account.CreatRandomIdentity()
-	assert.NoError(t, err)
-	add1 := account.NewAddress(id1.GetRecipient(), 3)
-	minorBlock, err := master.getMinorBlockToMine(branch, add1)
-	assert.NoError(t, err)
-	assert.Equal(t, minorBlock.Hash(), fakeMinorBlock.Hash())
-
-	//fake branch
-	fakeBranch := account.Branch{Value: 99999}
-	_, err = master.getMinorBlockToMine(fakeBranch, add1)
-	assert.Error(t, err)
-}
-
 func TestGetAccountData(t *testing.T) {
 	id1, err := account.CreatRandomIdentity()
 	assert.NoError(t, err)
 	add1 := account.NewAddress(id1.GetRecipient(), 3)
 	master := initEnv(t, nil)
-	_, err = master.GetAccountData(add1)
+	_, err = master.GetAccountData(&add1, nil)
 	assert.NoError(t, err)
 }
 
@@ -364,7 +344,7 @@ func TestGetPrimaryAccountData(t *testing.T) {
 	id1, err := account.CreatRandomIdentity()
 	assert.NoError(t, err)
 	add1 := account.NewAddress(id1.GetRecipient(), 3)
-	_, err = master.GetPrimaryAccountData(add1, nil)
+	_, err = master.GetPrimaryAccountData(&add1, nil)
 	assert.NoError(t, err)
 }
 
@@ -381,16 +361,6 @@ func TestAddRootBlock(t *testing.T) {
 	add1 := account.NewAddress(id1.GetRecipient(), 3)
 	rootBlock, err := master.rootBlockChain.CreateBlockToMine(nil, &add1, nil)
 	err = master.AddRootBlock(rootBlock)
-	assert.NoError(t, err)
-}
-
-func TestAddRootBlockFromMine(t *testing.T) {
-	master := initEnv(t, nil)
-	id1, err := account.CreatRandomIdentity()
-	assert.NoError(t, err)
-	add1 := account.NewAddress(id1.GetRecipient(), 3)
-	rootBlock, err := master.rootBlockChain.CreateBlockToMine(nil, &add1, nil)
-	err = master.AddRootBlockFromMine(rootBlock)
 	assert.NoError(t, err)
 }
 
@@ -432,7 +402,7 @@ func TestExecuteTransaction(t *testing.T) {
 		EvmTx:  evmTx,
 		TxType: types.EvmTx,
 	}
-	data, err := master.ExecuteTransaction(tx, add1, nil)
+	data, err := master.ExecuteTransaction(tx, &add1, nil)
 	assert.NoError(t, err)
 	assert.Equal(t, data, []byte("qkc"))
 
@@ -441,14 +411,14 @@ func TestExecuteTransaction(t *testing.T) {
 		EvmTx:  evmTx,
 		TxType: types.EvmTx,
 	}
-	_, err = master.ExecuteTransaction(tx, add1, nil)
+	_, err = master.ExecuteTransaction(tx, &add1, nil)
 	assert.Error(t, err)
 }
 
 func TestGetMinorBlockByHeight(t *testing.T) {
 	master := initEnv(t, nil)
 	fakeMinorBlock := types.NewMinorBlock(&types.MinorBlockHeader{Version: 111}, &types.MinorBlockMeta{}, nil, nil, nil)
-	fakeShardStatus := core.ShardStatus{
+	fakeShardStatus := rpc.ShardStatus{
 		Branch: account.Branch{Value: 2},
 		Height: 0,
 	}
@@ -509,7 +479,7 @@ func TestGetTransactionsByAddress(t *testing.T) {
 	id1, err := account.CreatRandomIdentity()
 	assert.NoError(t, err)
 	add1 := account.NewAddress(id1.GetRecipient(), 3)
-	res, bytes, err := master.GetTransactionsByAddress(add1, []byte{}, 0)
+	res, bytes, err := master.GetTransactionsByAddress(&add1, []byte{}, 0)
 	assert.NoError(t, err)
 	assert.Equal(t, bytes, []byte("qkc"))
 	assert.Equal(t, res[0].TxHash, common.BigToHash(new(big.Int).SetUint64(11)))
@@ -536,7 +506,7 @@ func TestEstimateGas(t *testing.T) {
 		EvmTx:  evmTx,
 		TxType: types.EvmTx,
 	}
-	data, err := master.EstimateGas(tx, add1)
+	data, err := master.EstimateGas(tx, &add1)
 	assert.NoError(t, err)
 	assert.Equal(t, data, uint32(123))
 
@@ -545,7 +515,7 @@ func TestEstimateGas(t *testing.T) {
 		EvmTx:  evmTx,
 		TxType: types.EvmTx,
 	}
-	data, err = master.EstimateGas(tx, add1)
+	data, err = master.EstimateGas(tx, &add1)
 	assert.Error(t, err)
 }
 
@@ -554,7 +524,7 @@ func TestGetStorageAt(t *testing.T) {
 	id1, err := account.CreatRandomIdentity()
 	assert.NoError(t, err)
 	add1 := account.NewAddress(id1.GetRecipient(), 3)
-	data, err := master.GetStorageAt(add1, common.Hash{}, nil)
+	data, err := master.GetStorageAt(&add1, common.Hash{}, nil)
 	assert.NoError(t, err)
 	assert.Equal(t, data.Big().Uint64(), uint64(123))
 }
@@ -563,7 +533,7 @@ func TestGetCode(t *testing.T) {
 	id1, err := account.CreatRandomIdentity()
 	assert.NoError(t, err)
 	add1 := account.NewAddress(id1.GetRecipient(), 3)
-	data, err := master.GetCode(add1, nil)
+	data, err := master.GetCode(&add1, nil)
 	assert.NoError(t, err)
 	assert.Equal(t, data, []byte("qkc"))
 

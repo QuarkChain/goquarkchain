@@ -123,6 +123,28 @@ func HasHeader(db DatabaseReader, hash common.Hash) bool {
 }
 
 // ReadMinorBlockHeader retrieves the block header corresponding to the hash.
+func ReadValidateMinorBlockHash(db DatabaseReader, hash common.Hash) bool {
+	if has, err := db.Has(validatedMinorHeaderHashKey(hash)); !has || err != nil {
+		return false
+	}
+	return true
+}
+
+func WriteValidateMinorBlockHash(db DatabaseWriter, hash common.Hash) {
+	key := validatedMinorHeaderHashKey(hash)
+	if err := db.Put(key, []byte{0x01}); err != nil {
+		log.Crit("Failed to store hash to number mapping", "err", err)
+	}
+}
+
+// DeleteMinorBlockHeader removes all block header data associated with a hash.
+func DeleteValidateMinorBlockHash(db DatabaseDeleter, hash common.Hash) {
+	if err := db.Delete(validatedMinorHeaderHashKey(hash)); err != nil {
+		log.Crit("Failed to delete validated minor block hash", "err", err)
+	}
+}
+
+// ReadMinorBlockHeader retrieves the block header corresponding to the hash.
 func ReadMinorBlockHeader(db DatabaseReader, hash common.Hash) *types.MinorBlockHeader {
 	data, _ := db.Get(headerKey(hash))
 	if len(data) == 0 {
@@ -415,7 +437,8 @@ func DeleteRootBlock(db DatabaseDeleter, hash common.Hash) {
 	DeleteTd(db, hash)
 }
 
-func WriteRbCommittingHash(db DatabaseWriter, hash common.Hash) {
+func WriteRootBlockCommittingHash(db DatabaseWriter, hash common.Hash) {
+	//  use write-ahead log so if crashed the root block can be re-broadcasted
 	if err := db.Put(rbCommittingKey, hash.Bytes()); err != nil {
 		log.Crit("Failed to store rb committing block's hash", "err", err)
 	}

@@ -3,6 +3,7 @@ package master
 import (
 	"fmt"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
+	"github.com/QuarkChain/goquarkchain/cluster/rpc"
 	synchronizer "github.com/QuarkChain/goquarkchain/cluster/sync"
 	"github.com/QuarkChain/goquarkchain/core"
 	"github.com/QuarkChain/goquarkchain/core/types"
@@ -36,11 +37,12 @@ type ProtocolManager struct {
 	clusterConfig  *config.ClusterConfig
 
 	subProtocols     []p2p.Protocol
-	getShardConnFunc func(fullShardId uint32) []ShardConnForP2P
+	getShardConnFunc func(fullShardId uint32) []rpc.ShardConnForP2P
 	synchronizer     synchronizer.Synchronizer
 
 	chainHeadChan     chan core.RootChainHeadEvent
 	chainHeadEventSub event.Subscription
+	statsChan         chan *rpc.ShardStatus
 
 	maxPeers    int
 	peers       *peerSet // Set of active peers from which rootDownloader can proceed
@@ -53,7 +55,7 @@ type ProtocolManager struct {
 }
 
 // NewQKCManager  new qkc manager
-func NewProtocolManager(env config.ClusterConfig, rootBlockChain *core.RootBlockChain, synchronizer synchronizer.Synchronizer, getShardConnFunc func(fullShardId uint32) []ShardConnForP2P) (*ProtocolManager, error) {
+func NewProtocolManager(env config.ClusterConfig, rootBlockChain *core.RootBlockChain, statsChan chan *rpc.ShardStatus, synchronizer synchronizer.Synchronizer, getShardConnFunc func(fullShardId uint32) []rpc.ShardConnForP2P) (*ProtocolManager, error) {
 	manager := &ProtocolManager{
 		networkID:        env.Quarkchain.NetworkID,
 		rootBlockChain:   rootBlockChain,
@@ -62,6 +64,7 @@ func NewProtocolManager(env config.ClusterConfig, rootBlockChain *core.RootBlock
 		newPeerCh:        make(chan *peer),
 		quitSync:         make(chan struct{}),
 		noMorePeers:      make(chan struct{}),
+		statsChan:        statsChan,
 		synchronizer:     synchronizer,
 		getShardConnFunc: getShardConnFunc,
 	}
@@ -380,10 +383,10 @@ func (pm *ProtocolManager) HandleNewTip(tip *p2p.Tip, peer *peer) error {
 	}
 	peer.SetHead(tip.RootBlockHeader)
 	if tip.RootBlockHeader.NumberU64() > pm.rootBlockChain.CurrentBlock().NumberU64() {
-		err := pm.synchronizer.AddTask(synchronizer.NewRootChainTask(peer, tip.RootBlockHeader))
+		err := pm.synchronizer.AddTask(synchronizer.NewRootChainTask(peer, tip.RootBlockHeader, pm.statsChan, pm.getShardConnFunc))
 		if err != nil {
-			log.Error("add task failed, root block hash: %v height: %d",
-				tip.RootBlockHeader.Hash(), tip.RootBlockHeader.NumberU64())
+			log.Error("add task failed,",
+				"root block hash", tip.RootBlockHeader.Hash(), "height", tip.RootBlockHeader.NumberU64())
 		}
 	}
 	return nil
@@ -582,9 +585,9 @@ func (pm *ProtocolManager) synchronise(peer *peer) {
 		return
 	}
 	if peer.Head() != nil {
-		err := pm.synchronizer.AddTask(synchronizer.NewRootChainTask(peer, peer.Head()))
+		err := pm.synchronizer.AddTask(synchronizer.NewRootChainTask(peer, peer.Head(), pm.statsChan, pm.getShardConnFunc))
 		if err != nil {
-			log.Error("AddTask to synchronizer error: %v", err.Error())
+			log.Error("AddTask to synchronizer.", "error", err.Error())
 		}
 	}
 }

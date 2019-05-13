@@ -11,7 +11,7 @@ service MasterServerSideOp {
     }
     rpc BroadcastTransactions (Request) returns (Response) {
     }
-    rpc BroadcastMinorBlock (Request) returns (Response) {
+    rpc BroadcastNewMinorBlock (Request) returns (Response) {
     }
     rpc GetMinorBlockList (Request) returns (Response) {
     }
@@ -81,6 +81,8 @@ service SlaveServerSideOp {
     rpc HandleNewTip (Request) returns (Response) {
     }
     rpc AddTransactions (Request) returns (Response) {
+    }
+    rpc NewMinorBlock (Request) returns (Response) {
     }
 }
 

@@ -2,11 +2,9 @@ package qkcapi
 
 import (
 	"errors"
-	"fmt"
 	"github.com/QuarkChain/goquarkchain/account"
 	qkcRPC "github.com/QuarkChain/goquarkchain/cluster/rpc"
 	"github.com/QuarkChain/goquarkchain/core/types"
-	"github.com/QuarkChain/goquarkchain/serialize"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/rlp"
@@ -68,9 +66,9 @@ func (p *PublicBlockChainAPI) getPrimaryAccountData(address account.Address, blo
 	}
 
 	if blockNr == nil {
-		data, err = p.b.GetPrimaryAccountData(address, nil)
+		data, err = p.b.GetPrimaryAccountData(&address, nil)
 	} else {
-		data, err = p.b.GetPrimaryAccountData(address, &blockNumber)
+		data, err = p.b.GetPrimaryAccountData(&address, &blockNumber)
 	}
 
 	if err != nil {
@@ -129,13 +127,14 @@ func (p *PublicBlockChainAPI) GetAccountData(address account.Address, blockNr *r
 			"primary": primary,
 		}, nil
 	}
-	branchToAccountBranchData, err := p.b.GetAccountData(address)
+	branchToAccountBranchData, err := p.b.GetAccountData(&address, nil)
 	if err != nil {
 		return nil, err
 	}
 	shards := make([]map[string]interface{}, 0)
 	primary := make(map[string]interface{})
-	for branch, data := range branchToAccountBranchData {
+	for value, data := range branchToAccountBranchData {
+		branch := account.Branch{Value: value}
 		shard := map[string]interface{}{
 			"fullShardId":      hexutil.Uint64(branch.GetFullShardID()),
 			"shardId":          hexutil.Uint64(branch.GetShardID()),
@@ -298,13 +297,13 @@ func (p *PublicBlockChainAPI) GetStorageAt(address account.Address, key common.H
 		err  error
 	)
 	if blockNr == nil {
-		hash, err = p.b.GetStorageAt(address, key, nil)
+		hash, err = p.b.GetStorageAt(&address, key, nil)
 	} else {
 		blockNumber, err := decodeBlockNumberToUint64(p.b, blockNr)
 		if err != nil {
 			return nil, err
 		}
-		hash, err = p.b.GetStorageAt(address, key, &blockNumber)
+		hash, err = p.b.GetStorageAt(&address, key, &blockNumber)
 	}
 	if err != nil {
 		return nil, err
@@ -317,13 +316,13 @@ func (p *PublicBlockChainAPI) GetCode(address account.Address, blockNr *rpc.Bloc
 		err   error
 	)
 	if blockNr == nil {
-		bytes, err = p.b.GetCode(address, nil)
+		bytes, err = p.b.GetCode(&address, nil)
 	} else {
 		blockNumber, err := decodeBlockNumberToUint64(p.b, blockNr)
 		if err != nil {
 			return nil, err
 		}
-		bytes, err = p.b.GetCode(address, &blockNumber)
+		bytes, err = p.b.GetCode(&address, &blockNumber)
 	}
 
 	if err != nil {
@@ -408,13 +407,13 @@ func (p *PublicBlockChainAPI) CallOrEstimateGas(args *CallArgs, height *uint64, 
 	args.setDefaults()
 	tx := args.toTx(p.b.GetClusterConfig().Quarkchain.NetworkID)
 	if isCall {
-		res, err := p.b.ExecuteTransaction(tx, *args.From, height)
+		res, err := p.b.ExecuteTransaction(tx, args.From, height)
 		if err != nil {
 			return nil, err
 		}
 		return DataEncoder(res), nil
 	}
-	res, err := p.b.EstimateGas(tx, *args.From)
+	res, err := p.b.EstimateGas(tx, args.From)
 	if err != nil {
 		return nil, err
 	}
@@ -430,20 +429,6 @@ func NewPrivateBlockChainAPI(b Backend) *PrivateBlockChainAPI {
 }
 
 func (p *PrivateBlockChainAPI) Getnextblocktomine() {
-	fmt.Println("Getnextblocktomine func response.")
-}
-func (p *PrivateBlockChainAPI) AddBlock(branch hexutil.Uint, blockData hexutil.Bytes) (bool, error) {
-	if branch == 0 {
-		rootBlock := new(types.RootBlock)
-		if err := serialize.DeserializeFromBytes(blockData, rootBlock); err != nil {
-			return false, err
-		}
-		if err := p.b.AddRootBlockFromMine(rootBlock); err != nil {
-			return false, err
-		}
-		return true, nil
-	}
-	panic(errors.New("not support minor"))
 }
 func (p *PrivateBlockChainAPI) GetPeers() map[string]interface{} {
 	fields := make(map[string]interface{})

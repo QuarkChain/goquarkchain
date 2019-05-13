@@ -5,7 +5,6 @@ package core
 import (
 	"errors"
 	"fmt"
-	"github.com/QuarkChain/goquarkchain/account"
 	"io"
 	"math/big"
 	mrand "math/rand"
@@ -13,6 +12,8 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/QuarkChain/goquarkchain/account"
 
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/consensus"
@@ -39,13 +40,14 @@ var (
 )
 
 const (
-	bodyCacheLimit      = 256
-	blockCacheLimit     = 256
-	receiptsCacheLimit  = 32
-	maxFutureBlocks     = 256
-	maxTimeFutureBlocks = 30
-	badBlockLimit       = 10
-	triesInMemory       = 128
+	bodyCacheLimit            = 256
+	blockCacheLimit           = 256
+	receiptsCacheLimit        = 32
+	maxFutureBlocks           = 256
+	maxTimeFutureBlocks       = 30
+	badBlockLimit             = 10
+	triesInMemory             = 128
+	validatedMinorBlockHashes = 2048
 
 	// BlockChainVersion ensures that an incompatible database forces a resync from scratch.
 	BlockChainVersion = 3
@@ -82,15 +84,15 @@ type RootBlockChain struct {
 	triegc *prque.Prque   // Priority queue mapping block numbers to tries to gc
 	gcproc time.Duration  // Accumulates canonical block processing for trie dumping
 
-	headerChain          *RootHeaderChain
-	validatedMinorBlocks map[common.Hash]*serialize.Uint256
-	rmLogsFeed           event.Feed
-	chainFeed            event.Feed
-	chainSideFeed        event.Feed
-	chainHeadFeed        event.Feed
-	logsFeed             event.Feed
-	scope                event.SubscriptionScope
-	genesisBlock         *types.RootBlock
+	headerChain              *RootHeaderChain
+	validatedMinorBlockCache *lru.Cache // Cache for the most recent validated Minor Block hash
+	rmLogsFeed               event.Feed
+	chainFeed                event.Feed
+	chainSideFeed            event.Feed
+	chainHeadFeed            event.Feed
+	logsFeed                 event.Feed
+	scope                    event.SubscriptionScope
+	genesisBlock             *types.RootBlock
 
 	mu      sync.RWMutex // global mutex for locking chain operations
 	chainmu sync.RWMutex // blockchain insertion lock
@@ -129,18 +131,20 @@ func NewRootBlockChain(db ethdb.Database, cacheConfig *CacheConfig, chainConfig 
 	blockCache, _ := lru.New(blockCacheLimit)
 	futureBlocks, _ := lru.New(maxFutureBlocks)
 	badBlocks, _ := lru.New(badBlockLimit)
+	validatedMinorBlockHashCache, _ := lru.New(validatedMinorBlockHashes)
 
 	bc := &RootBlockChain{
-		chainConfig:    chainConfig,
-		cacheConfig:    cacheConfig,
-		db:             db,
-		triegc:         prque.New(nil),
-		quit:           make(chan struct{}),
-		shouldPreserve: shouldPreserve,
-		blockCache:     blockCache,
-		futureBlocks:   futureBlocks,
-		engine:         engine,
-		badBlocks:      badBlocks,
+		chainConfig:              chainConfig,
+		cacheConfig:              cacheConfig,
+		db:                       db,
+		triegc:                   prque.New(nil),
+		quit:                     make(chan struct{}),
+		shouldPreserve:           shouldPreserve,
+		blockCache:               blockCache,
+		futureBlocks:             futureBlocks,
+		engine:                   engine,
+		badBlocks:                badBlocks,
+		validatedMinorBlockCache: validatedMinorBlockHashCache,
 	}
 	bc.SetValidator(NewRootBlockValidator(chainConfig, bc, engine))
 
@@ -205,7 +209,7 @@ func (bc *RootBlockChain) loadLastState() error {
 	return nil
 }
 
-// SetHead rewinds the local chain to a new head. In the case of headers, everything
+// SetHead rewinds the local chain to a new head. In the case of Headers, everything
 // above the new head will be deleted and the new one set. In the case of blocks
 // though, the head may be further rewound if block bodies are missing (non-archive
 // nodes after a fast sync).
@@ -802,7 +806,7 @@ func (bc *RootBlockChain) insertSidechain(it *insertIterator) (int, []interface{
 			}
 			log.Debug("Inserted sidechain block", "number", block.NumberU64(), "hash", block.Hash(),
 				"diff", block.IHeader().GetDifficulty(), "elapsed", common.PrettyDuration(time.Since(start)),
-				"headers", len(block.Content()))
+				"Headers", len(block.Content()))
 		}
 	}
 	// At this point, we've written all sidechain blocks to database. Loop ended
@@ -1053,7 +1057,7 @@ func (bc *RootBlockChain) InsertHeaderChain(chain []*types.RootBlockHeader, chec
 //
 // Note: This method is not concurrent-safe with inserting blocks simultaneously
 // into the chain, as side effects caused by reorganisations cannot be emulated
-// without the real blocks. Hence, writing headers directly should only be done
+// without the real blocks. Hence, writing Headers directly should only be done
 // in two scenarios: pure-header mode of operation (light clients), or properly
 // separated header/block phases (non-archive clients).
 func (bc *RootBlockChain) writeHeader(header *types.RootBlockHeader) error {
@@ -1113,13 +1117,12 @@ func (bc *RootBlockChain) isSameChain(longerChainHeader, shorterChainHeader *typ
 	return bc.headerChain.isSameChain(longerChainHeader, shorterChainHeader)
 }
 
-func (bc *RootBlockChain) containMinorBlock(hash common.Hash) bool {
-	_, ok := bc.validatedMinorBlocks[hash]
-	return ok
-}
-
-func (bc *RootBlockChain) AddValidatedMinorBlockHeader(header types.IHeader) {
-	bc.validatedMinorBlocks[header.Hash()] = header.(*types.MinorBlockHeader).CoinbaseAmount
+func (bc *RootBlockChain) AddValidatedMinorBlockHeader(hash common.Hash) {
+	// Short circuit if the block's already in the cache, retrieve otherwise
+	if !bc.validatedMinorBlockCache.Contains(hash) {
+		bc.validatedMinorBlockCache.Add(hash, []byte{})
+		rawdb.WriteValidateMinorBlockHash(bc.db, hash)
+	}
 }
 
 func (bc *RootBlockChain) GetLatestMinorBlockHeaders(hash common.Hash) map[uint32]*types.MinorBlockHeader {
@@ -1185,15 +1188,15 @@ func (bc *RootBlockChain) SubscribeChainSideEvent(ch chan<- RootChainSideEvent) 
 
 func (bc *RootBlockChain) CreateBlockToMine(mHeaderList []*types.MinorBlockHeader, address *account.Address, createTime *uint64) (*types.RootBlock, error) {
 	if address == nil {
-		temp := account.CreatEmptyAddress(0)
-		address = &temp
+		a := account.CreatEmptyAddress(0)
+		address = &a
 	}
 	if createTime == nil {
-		temp := uint64(time.Now().Unix())
-		if bc.CurrentBlock().Time()+1 > temp {
-			temp = bc.CurrentBlock().Time() + 1
+		ts := uint64(time.Now().Unix())
+		if bc.CurrentBlock().Time()+1 > ts {
+			ts = bc.CurrentBlock().Time() + 1
 		}
-		createTime = &temp
+		createTime = &ts
 	}
 	difficulty, err := bc.engine.CalcDifficulty(bc, *createTime, bc.CurrentHeader())
 	if err != nil {
@@ -1206,44 +1209,46 @@ func (bc *RootBlockChain) CreateBlockToMine(mHeaderList []*types.MinorBlockHeade
 }
 
 func (bc *RootBlockChain) CalculateRootBlockCoinBase(rootBlock *types.RootBlock) *big.Int {
-	coinBaseAmount := bc.Config().Root.CoinbaseAmount
+	ret := new(big.Int).Set(bc.Config().Root.CoinbaseAmount)
 	rewardTaxRate := bc.Config().RewardTaxRate
-	value := big.NewRat(1, 1)
-	value.Sub(value, rewardTaxRate)
-	value.Quo(value, rewardTaxRate)
+	ratio := big.NewRat(1, 1)
+	ratio.Sub(ratio, rewardTaxRate)
+	ratio.Quo(ratio, rewardTaxRate)
 
 	minorBlockFee := new(big.Int)
 	for _, header := range rootBlock.MinorBlockHeaders() {
 		minorBlockFee.Add(minorBlockFee, header.CoinbaseAmount.Value)
 	}
-	minorBlockFee.Mul(minorBlockFee, value.Num())
-	minorBlockFee.Div(minorBlockFee, value.Denom())
-	coinBaseAmount.Add(coinBaseAmount, minorBlockFee)
-	return coinBaseAmount
+	minorBlockFee.Mul(minorBlockFee, ratio.Num())
+	minorBlockFee.Div(minorBlockFee, ratio.Denom())
+	ret.Add(ret, minorBlockFee)
+	return ret
 }
 func (bc *RootBlockChain) IsMinorBlockValidated(hash common.Hash) bool {
-	minorBlock := rawdb.ReadMinorBlock(bc.db, hash)
-	return minorBlock != nil
+	if bc.validatedMinorBlockCache.Contains(hash) {
+		return true
+	}
+	return rawdb.ReadValidateMinorBlockHash(bc.db, hash)
 }
 
 func (bc *RootBlockChain) GetNextDifficulty(create *uint64) (*big.Int, error) {
 	if create == nil {
-		temp := uint64(time.Now().Unix())
-		if temp < bc.CurrentBlock().Time()+1 {
-			temp = bc.CurrentBlock().Time() + 1
+		ts := uint64(time.Now().Unix())
+		if ts < bc.CurrentBlock().Time()+1 {
+			ts = bc.CurrentBlock().Time() + 1
 		}
-		create = &temp
+		create = &ts
 	}
 	return bc.engine.CalcDifficulty(bc, *create, bc.CurrentBlock().Header())
 }
 
 func (bc *RootBlockChain) GetBlockCount() {
-	//TODO for json rpc
-	//Returns a dict(full_shard_id, dict(miner_recipient, block_count))
+	// TODO for json rpc
+	// Returns a dict(full_shard_id, dict(miner_recipient, block_count))
 }
 
 func (bc *RootBlockChain) WriteCommittingHash(hash common.Hash) {
-	rawdb.WriteRbCommittingHash(bc.db, hash)
+	rawdb.WriteRootBlockCommittingHash(bc.db, hash)
 }
 
 func (bc *RootBlockChain) ClearCommittingHash() {

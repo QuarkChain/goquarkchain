@@ -1,7 +1,6 @@
 package rpc
 
 import (
-	"github.com/QuarkChain/goquarkchain/core"
 	"math/big"
 
 	"github.com/QuarkChain/goquarkchain/account"
@@ -28,6 +27,21 @@ type SlaveInfo struct {
 	Host          []byte             `json:"host" gencodec:"required" bytesizeofslicelen:"4"`
 	Port          uint16             `json:"port" gencodec:"required"`
 	ChainMaskList []*types.ChainMask `json:"chain_mask_list" gencodec:"required" bytesizeofslicelen:"4"`
+}
+
+// ShardStatus shard status for api
+type ShardStatus struct {
+	Branch             account.Branch
+	Height             uint64
+	Difficulty         *big.Int
+	CoinbaseAddress    account.Address
+	Timestamp          uint64
+	TxCount60s         uint32
+	PendingTxCount     uint32
+	TotalTxCount       uint32
+	BlockCount60s      uint32
+	StaleBlockCount60s uint32
+	LastBlockTime      uint64
 }
 
 // Master instructs a slave to connect to other slaves
@@ -81,6 +95,7 @@ type GetMinorBlockResponse struct {
 
 type GetMinorBlockListRequest struct {
 	Branch             uint32        `json:"branch" gencodec:"required"`
+	PeerId             common.Hash   `json:"peer_id" gencodec:"required"`
 	MinorBlockHashList []common.Hash `json:"minor_block_list" gencodec:"required" bytesizeofslicelen:"4"`
 }
 
@@ -221,8 +236,8 @@ type GetUnconfirmedHeadersResponse struct {
 }
 
 type GetAccountDataRequest struct {
-	Address     account.Address `json:"address" gencodec:"required"`
-	BlockHeight *uint64         `json:"block_height" ser:"nil"`
+	Address     *account.Address `json:"address" gencodec:"required"`
+	BlockHeight *uint64          `json:"block_height" ser:"nil"`
 }
 
 type AccountBranchData struct {
@@ -240,34 +255,30 @@ type AddTransactionRequest struct {
 	Tx *types.Transaction `json:"tx" gencodec:"required"`
 }
 
-type HashList struct {
-	Hashes []common.Hash `json:"hash_list" gencodec:"required" bytesizeofslicelen:"4"`
+type SyncMinorBlockListRequest struct {
+	MinorBlockHashList []common.Hash  `json:"minor_block_hash_list" gencodec:"required" bytesizeofslicelen:"4"`
+	Branch             account.Branch `json:"branch" gencodec:"required"`
+	ClusterPeerId      uint64         `json:"cluster_peer_id" gencodec:"required"`
 }
 
-type ShardStats struct {
-	Branch             account.Branch   `json:"branch" gencodec:"required"`
-	Height             uint64           `json:"height" gencodec:"required"`
-	Difficulty         *big.Int         `json:"difficulty" gencodec:"required"`
-	CoinbaseAddress    *account.Address `json:"coinbase_address" gencodec:"required"`
-	Timestamp          uint64           `json:"timestamp" gencodec:"required"`
-	TxCount60s         uint32           `json:"tx_count_60_s" gencodec:"required"`
-	PendingTxCount     uint32           `json:"pending_tx_count" gencodec:"required"`
-	TotalTxCount       uint32           `json:"total_tx_count" gencodec:"required"`
-	BlockCount60s      uint32           `json:"block_count_60_s" gencodec:"required"`
-	StaleBlockCount60s uint32           `json:"stale_block_count_60_s" gencodec:"required"`
-	LastBlockTime      uint32           `json:"last_block_time" gencodec:"required"`
+type SyncMinorBlockListResponse struct {
+	ShardStats ShardStatus `json:"shard_stats" ser:"nil"`
+}
+
+type HashList struct {
+	Hashes []common.Hash `json:"hash_list" gencodec:"required" bytesizeofslicelen:"4"`
 }
 
 // slave -> master
 /*
 	Notify master about a successfully added minro block.
-	Piggyback the ShardStats in the same request.
+	Piggyback the ShardStatus in the same request.
 */
 type AddMinorBlockHeaderRequest struct {
 	MinorBlockHeader *types.MinorBlockHeader `json:"minor_block_header" gencodec:"required"`
 	TxCount          uint32                  `json:"tx_count" gencodec:"required"`
 	XShardTxCount    uint32                  `json:"x_shard_tx_count" gencodec:"required"`
-	ShardStats       *core.ShardStatus       `json:"shard_stats" gencodec:"required"`
+	ShardStats       *ShardStatus            `json:"shard_stats" gencodec:"required"`
 }
 
 type AddMinorBlockHeaderResponse struct {
@@ -289,11 +300,13 @@ type BatchAddXshardTxListRequest struct {
 }
 
 type AddBlockListForSyncRequest struct {
-	MinorBlockList []*types.MinorBlock `json:"minor_block_list" gencodec:"required" bytesizeofslicelen:"4"`
+	Branch             uint32        `json:"branch" gencodec:"required"`
+	PeerId             common.Hash   `json:"peer_id" gencodec:"required"`
+	MinorBlockHashList []common.Hash `json:"minor_block_list" gencodec:"required" bytesizeofslicelen:"4"`
 }
 
 type AddBlockListForSyncResponse struct {
-	ShardStatus *core.ShardStatus `json:"shard_status" gencodec:"required"`
+	ShardStatus *ShardStatus `json:"shard_status" gencodec:"required"`
 }
 
 type Topic struct {

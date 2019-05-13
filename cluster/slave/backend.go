@@ -17,7 +17,7 @@ type SlaveBackend struct {
 	eventMux  *event.TypeMux
 }
 
-func New(ctx *service.ServiceContext, cfg *config.SlaveConfig) (*SlaveBackend, error) {
+func New(ctx *service.ServiceContext, clusterCfg *config.ClusterConfig, cfg *config.SlaveConfig) (*SlaveBackend, error) {
 	log.Info("slave area", "create slave", cfg.ID)
 	masterConn, err := NewMasterConnection()
 	if err != nil {
