@@ -2,8 +2,6 @@ package qkcapi
 
 import (
 	"errors"
-	"fmt"
-	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/serialize"
@@ -34,35 +32,11 @@ var (
 
 // setDefaults is a helper function that fills in default values for unspecified tx fields.
 func (args *SendTxArgs) setDefaults() {
-	// ingore nonce
-	// ingore to
-	if args.Gas == nil {
-		args.Gas = new(hexutil.Uint64)
-		*(*uint64)(args.Gas) = DEFAULT_STARTGAS
-	}
-	if args.GasPrice == nil {
-		args.GasPrice = (*hexutil.Big)(DEFAULT_GASPRICE)
-	}
-	if args.Value == nil {
-		args.Value = new(hexutil.Big)
-	}
+	panic(-1)
 }
 
 func (args *SendTxArgs) toTransaction(networkID uint32) (*types.Transaction, error) {
-	if args.Nonce == nil {
-		return nil, errors.New("nonce is missing")
-	}
-	if args.FromFullShardKey == nil {
-		return nil, errors.New("fromFullShardKey is missing")
-	}
-	if args.ToFullShardKey == nil {
-		args.ToFullShardKey = args.FromFullShardKey
-	}
-	evmTx := types.NewEvmTransaction(uint64(*args.Nonce), account.BytesToIdentityRecipient(args.To.Bytes()), (*big.Int)(args.Value), uint64(*args.Gas), (*big.Int)(args.GasPrice), uint32(*args.FromFullShardKey), uint32(*args.ToFullShardKey), networkID, 0, *args.Data)
-	return &types.Transaction{
-		EvmTx:  evmTx,
-		TxType: types.EvmTx,
-	}, nil
+	panic(-1)
 }
 
 func IDEncoder(hashByte []byte, fullShardKey uint32) hexutil.Bytes {
@@ -91,7 +65,7 @@ func DataDecoder(bytes []byte) (hexutil.Bytes, error) {
 	return nil, errors.New("should have 0x")
 }
 func FullShardKeyEncoder(fullShardKey uint32) hexutil.Bytes {
-	return DataEncoder(common.Uint32ToBytes(fullShardKey))
+	panic(-1)
 }
 func rootBlockEncoder(rootBlock *types.RootBlock) (map[string]interface{}, error) {
 	serData, err := serialize.SerializeToBytes(rootBlock)
@@ -100,12 +74,7 @@ func rootBlockEncoder(rootBlock *types.RootBlock) (map[string]interface{}, error
 	}
 	header := rootBlock.Header()
 
-	tempID, _ := account.CreatRandomIdentity()
-	add1 := account.NewAddress(tempID.GetRecipient(), 3)
-
-	fmt.Println("hhex", add1.ToHex())
-	//minerData, err := serialize.SerializeToBytes(header.Coinbase)
-	minerData, err := serialize.SerializeToBytes(add1)
+	minerData, err := serialize.SerializeToBytes(header.Coinbase)
 	if err != nil {
 		return nil, err
 	}
@@ -190,90 +159,13 @@ func minorBlockEncoder(block *types.MinorBlock, includeTransaction bool) (map[st
 }
 
 func txEncoder(block *types.MinorBlock, i int) (map[string]interface{}, error) {
-	header := block.Header()
-	tx := block.Transactions()[i].EvmTx
-	v, r, s := tx.RawSignatureValues()
-	sender, err := types.Sender(types.MakeSigner(tx.NetworkId()), tx)
-	if err != nil {
-		return nil, err
-	}
-	branch := block.Header().Branch
-	field := map[string]interface{}{
-		"id":               IDEncoder(tx.Hash().Bytes(), tx.FromFullShardId()),
-		"hash":             tx.Hash(),
-		"nonce":            hexutil.Uint64(tx.Nonce()),
-		"timestamp":        hexutil.Uint64(header.Time),
-		"fullShardId":      hexutil.Uint64(header.Branch.GetFullShardID()),
-		"chainId":          hexutil.Uint64(header.Branch.GetChainID()),
-		"shardId":          hexutil.Uint64(header.Branch.GetShardID()),
-		"blockId":          IDEncoder(header.Hash().Bytes(), branch.GetFullShardID()),
-		"blockHeight":      hexutil.Uint64(header.Number),
-		"transactionIndex": hexutil.Uint64(i),
-		"from":             DataEncoder(sender.Bytes()),
-		"to":               DataEncoder(tx.To().Bytes()),
-		"fromFullShardKey": hexutil.Uint64(tx.FromFullShardId()), //TODO full_shard_key
-		"toFullShardKey":   hexutil.Uint64(tx.ToFullShardId()),   //TODO full_shard_key
-		"value":            (*hexutil.Big)(tx.Value()),
-		"gasPrice":         (*hexutil.Big)(tx.GasPrice()),
-		"gas":              hexutil.Uint64(tx.Gas()),
-		"data":             hexutil.Bytes(tx.Data()),
-		"networkId":        hexutil.Uint64(tx.NetworkId()),
-		//TODO TokenID
-		"transferTokenId": hexutil.Uint64(1),
-		"gasTokenId":      hexutil.Uint64(1),
-		//	"transferTokenStr gasTokenStr":
-		"r": (*hexutil.Big)(r),
-		"s": (*hexutil.Big)(s),
-		"v": (*hexutil.Big)(v),
-	}
-	return field, nil
+	panic(-1)
 }
 
 func logListEncoder(logList []*types.Log) []map[string]interface{} {
-	field := make([]map[string]interface{}, 0)
-	for _, log := range logList {
-		l := map[string]interface{}{
-			"logIndex":         hexutil.Uint64(log.Index),
-			"transactionIndex": hexutil.Uint64(log.TxIndex),
-			"transactionHash":  log.TxHash,
-			"blockHash":        log.BlockHash,
-			"blockNumber":      hexutil.Uint64(log.BlockNumber),
-			"blockHeight":      hexutil.Uint64(log.BlockNumber),
-			"address":          log.Recipient,
-			"recipient":        log.Recipient,
-			"data":             hexutil.Bytes(log.Data),
-		}
-		topics := make([]ethCommon.Hash, 0)
-		for _, v := range log.Topics {
-			topics = append(topics, v)
-		}
-		l["topocs"] = topics
-		field = append(field, l)
-	}
-	return field
+	panic(-1)
 }
 
 func receiptEncoder(block *types.MinorBlock, i int, receipt *types.Receipt) map[string]interface{} {
-	tx := block.Transactions()[i].EvmTx
-	header := block.Header()
-
-	field := map[string]interface{}{
-		"transactionId":     IDEncoder(tx.Hash().Bytes(), tx.FromFullShardId()), //TODO fullShardKey
-		"transactionHash":   tx.Hash(),
-		"transactionIndex":  hexutil.Uint64(i),
-		"blockId":           IDEncoder(header.Hash().Bytes(), header.Branch.GetFullShardID()),
-		"blockHash":         header.Hash(),
-		"blockHeight":       hexutil.Uint64(header.Number),
-		"blockNumber":       hexutil.Uint64(header.Number),
-		"cumulativeGasUsed": hexutil.Uint64(receipt.CumulativeGasUsed),
-		"gasUsed":           hexutil.Uint64(receipt.GetPrevGasUsed()),
-		"status":            hexutil.Uint64(receipt.Status),
-		"logs":              logListEncoder(receipt.Logs),
-	}
-	if receipt.ContractAddress.Big().Uint64() == 0 {
-		field["contractAddress"] = make([]struct{}, 0)
-	} else {
-		field["contractAddress"] = DataEncoder(receipt.ContractAddress.Bytes())
-	}
-	return field
+	panic(-1)
 }
