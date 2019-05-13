@@ -186,7 +186,7 @@ func SetupGenesisMinorBlock(db ethdb.Database, genesis *Genesis, rootBlock *type
 	}
 
 	// Just commit the new block if there is no stored genesis block.
-	stored := rawdb.ReadCanonicalHash(db, rawdb.ChainTypeRoot, 0)
+	stored := rawdb.ReadCanonicalHash(db, rawdb.ChainTypeMinor, 0)
 	if (stored == common.Hash{}) {
 		block, err := genesis.CommitMinorBlock(db, rootBlock, fullShardId)
 		return genesis.qkcConfig, block.Hash(), err
