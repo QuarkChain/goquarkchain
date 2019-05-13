@@ -57,7 +57,7 @@ func initGenesis(ctx *cli.Context) error {
 	}
 	path = filepath.Join(path, isMstr, cfg.DbPathRoot)
 
-	db, err := qkcdb.NewRDBDatabase(path)
+	db, err := qkcdb.NewRDBDatabase(path, false)
 	if err != nil {
 		return err
 	}
