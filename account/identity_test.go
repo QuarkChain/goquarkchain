@@ -4,12 +4,10 @@ import (
 	"bytes"
 	"crypto/ecdsa"
 	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/ethereum/go-ethereum/crypto"
 	"math/big"
-	"reflect"
 	"testing"
 )
 
@@ -118,24 +116,7 @@ func TestBytesToIdentityKey(t *testing.T) {
 		if new(big.Int).SetBytes(keyValue.Bytes()).Cmp(v.exceptedKey) != 0 {
 			t.Error("test BytesToIdentityKey failed", "excepted:", v.exceptedKey, "get", keyValue.Bytes())
 		}
-	}
-}
 
-func TestDecodeKeyStoreJSON(t *testing.T) {
-	id, _ := CreatRandomIdentity()
-	add1 := CreatAddressFromIdentity(id, 3)
-
-	data, err := json.Marshal(add1)
-	if err != nil {
-		panic(err)
 	}
 
-	add := new(Address)
-	err = json.Unmarshal(data, add)
-	if err != nil {
-		panic(err)
-	}
-	if !reflect.DeepEqual(add1.ToBytes(), add.ToBytes()) {
-		panic(errors.New("should equal"))
-	}
 }

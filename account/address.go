@@ -3,13 +3,9 @@ package account
 import (
 	"bytes"
 	"encoding/binary"
-	"encoding/hex"
-	"errors"
 	"fmt"
 	"github.com/QuarkChain/goquarkchain/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
-	"reflect"
-	"strings"
 )
 
 // Address include recipient and fullShardKey
@@ -123,53 +119,4 @@ func CreatAddressFromBytes(bs []byte) (Address, error) {
 func (Self *Address) IsEmpty() bool {
 	zero := make([]byte, RecipientLength)
 	return bytes.Equal(zero, Self.Recipient.Bytes())
-}
-
-var (
-	addressT = reflect.TypeOf(Address{})
-)
-
-// MarshalJSON Address serialisation
-func (Self Address) MarshalJSON() (out []byte, err error) {
-	return []byte(`"` + Self.ToHex() + `"`), nil
-}
-
-func (Self *Address) UnmarshalJSON(data []byte) error {
-	input := strings.TrimSpace(string(data))
-	if len(input) >= 2 && input[0] == '"' && input[len(input)-1] == '"' {
-		input = input[1 : len(input)-1]
-	} else {
-		return errors.New("address unmarshal failed ,should with \" \"")
-	}
-
-	if !common.Has0xPrefix(input) {
-		return errors.New("should have 0x prefix")
-	}
-
-	input = input[2:]
-	if len(input) != 0 && len(input) != 48 {
-		fmt.Println("len", len(input))
-		return errors.New("len should 0 or 48")
-	}
-	if len(input) == 0 {
-		Self.Recipient = Recipient{}
-		Self.FullShardKey = 0
-		return nil
-	}
-	recipientData, err := hex.DecodeString(input[0:40])
-	if err != nil {
-		return err
-	}
-
-	Self.Recipient = BytesToIdentityRecipient(recipientData)
-
-	fullShardKeyData, err := hex.DecodeString(input[40:])
-	if err != nil {
-		return err
-	}
-	bytesBuffer := bytes.NewBuffer(fullShardKeyData)
-	var x uint32
-	binary.Read(bytesBuffer, binary.BigEndian, &x)
-	Self.FullShardKey = x
-	return nil
 }
