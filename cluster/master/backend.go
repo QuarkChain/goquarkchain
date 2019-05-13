@@ -305,15 +305,19 @@ func (s *QKCMasterBackend) broadcastRpcLoop() {
 	go func() {
 		for true {
 			select {
+			// TODO verify whether rootChainChan & rootChainSideChan would be blocked,
+			// as the chan len is 256, they should not be blocked
 			case event := <-s.rootChainChan:
 				s.broadcastRootBlockToSlaves(event.Block)
 				// Err() channel will be closed when unsubscribing.
-			case <-s.rootChainEventSub.Err():
+			case err := <-s.rootChainEventSub.Err():
+				log.Error("rootChainEventSub error in broadcastRpcLoop ", "error", err.Error())
 				return
 			case event := <-s.rootChainSideChan:
 				s.broadcastRootBlockToSlaves(event.Block)
 				// Err() channel will be closed when unsubscribing.
-			case <-s.rootChainSideEventSub.Err():
+			case err := <-s.rootChainSideEventSub.Err():
+				log.Error("rootChainSideEventSub error in broadcastRpcLoop", "error", err.Error())
 				return
 			}
 		}
