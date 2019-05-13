@@ -248,10 +248,10 @@ func TestGetMinorBlockHeaderList(t *testing.T) {
 		go handleMsg(clientPeer)
 		for _, conn := range shardConns {
 			conn.(*mock_master.MockShardConnForP2P).EXPECT().GetMinorBlockHeaderList(tt.query).Return(
-				&p2p.GetMinorBlockHeaderListResponse{
-					RootTip:         pm.rootBlockChain.CurrentHeader().(*types.RootBlockHeader),
-					ShardTip:        minorHeaders[blockcount-1],
-					BlockHeaderList: tt.expect,
+				&rpc.GetMinorBlockHeaderListResponse{
+					RootTip:          pm.rootBlockChain.CurrentHeader().(*types.RootBlockHeader),
+					ShardTip:         minorHeaders[blockcount-1],
+					MinorBlockHeader: tt.expect,
 				}, nil).AnyTimes()
 		}
 		rheaders, err := clientPeer.GetMinorBlockHeaderList(tt.query.BlockHash, tt.query.Limit, 0, true)
