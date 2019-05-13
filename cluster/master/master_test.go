@@ -360,6 +360,7 @@ func TestAddRootBlock(t *testing.T) {
 	assert.NoError(t, err)
 	add1 := account.NewAddress(id1.GetRecipient(), 3)
 	rootBlock, err := master.rootBlockChain.CreateBlockToMine(nil, &add1, nil)
+	assert.NoError(t, err)
 	err = master.AddRootBlock(rootBlock)
 	assert.NoError(t, err)
 }
