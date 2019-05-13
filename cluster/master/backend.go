@@ -43,8 +43,8 @@ type QKCMasterBackend struct {
 	chainDb            ethdb.Database
 	shutdown           chan os.Signal
 	clusterConfig      *config.ClusterConfig
-	clientPool         map[string]*SlaveConnection
-	branchToSlaves     map[uint32][]*SlaveConnection
+	clientPool         map[string]rpc.ISlaveConn
+	branchToSlaves     map[uint32][]rpc.ISlaveConn
 	branchToShardStats map[uint32]*rpc.ShardStatus
 	shardStatsChan     chan *rpc.ShardStatus
 	artificialTxConfig *rpc.ArtificialTxConfig
@@ -60,8 +60,8 @@ func New(ctx *service.ServiceContext, cfg *config.ClusterConfig) (*QKCMasterBack
 		mstr = &QKCMasterBackend{
 			clusterConfig:      cfg,
 			eventMux:           ctx.EventMux,
-			clientPool:         make(map[string]*SlaveConnection),
-			branchToSlaves:     make(map[uint32][]*SlaveConnection, 0),
+			clientPool:         make(map[string]rpc.ISlaveConn),
+			branchToSlaves:     make(map[uint32][]rpc.ISlaveConn, 0),
 			branchToShardStats: make(map[uint32]*rpc.ShardStatus),
 			shardStatsChan:     make(chan *rpc.ShardStatus, len(cfg.Quarkchain.GetGenesisShardIds())),
 			artificialTxConfig: &rpc.ArtificialTxConfig{
@@ -220,7 +220,7 @@ func (s *QKCMasterBackend) ConnectToSlaves() error {
 			return err
 		}
 		for _, fullShardID := range fullShardIds {
-			if slaveConn.hasShard(fullShardID) {
+			if slaveConn.HasShard(fullShardID) {
 				s.branchToSlaves[fullShardID] = append(s.branchToSlaves[fullShardID], slaveConn)
 			}
 		}
@@ -230,7 +230,7 @@ func (s *QKCMasterBackend) ConnectToSlaves() error {
 func (s *QKCMasterBackend) logSummary() {
 	for branch, slaves := range s.branchToSlaves {
 		for _, slave := range slaves {
-			log.Info(s.logInfo, "branch:", branch, "is run by slave", slave.slaveID)
+			log.Info(s.logInfo, "branch:", branch, "is run by slave", slave.GetSlaveID())
 		}
 	}
 }
@@ -302,24 +302,24 @@ func (s *QKCMasterBackend) Heartbeat() {
 	//TODO :add send master info
 }
 
-func checkPing(slaveConn *SlaveConnection, id []byte, chainMaskList []*types.ChainMask) error {
-	if slaveConn.slaveID != string(id) {
+func checkPing(slaveConn rpc.ISlaveConn, id []byte, chainMaskList []*types.ChainMask) error {
+	if slaveConn.GetSlaveID() != string(id) {
 		return errors.New("slaveID is not match")
 	}
-	if len(chainMaskList) != len(slaveConn.shardMaskList) {
+	if len(chainMaskList) != len(slaveConn.GetShardMaskList()) {
 		return errors.New("chainMaskList is not match")
 	}
 	lenChainMaskList := len(chainMaskList)
 
 	for index := 0; index < lenChainMaskList; index++ {
-		if chainMaskList[index].GetMask() != slaveConn.shardMaskList[index].GetMask() {
+		if chainMaskList[index].GetMask() != slaveConn.GetShardMaskList()[index].GetMask() {
 			return errors.New("chainMaskList index is not match")
 		}
 	}
 	return nil
 }
 
-func (s *QKCMasterBackend) getOneSlaveConnection(branch account.Branch) *SlaveConnection {
+func (s *QKCMasterBackend) getOneSlaveConnection(branch account.Branch) rpc.ISlaveConn {
 	slaves := s.branchToSlaves[branch.Value]
 	if len(slaves) < 1 {
 		return nil
@@ -327,7 +327,7 @@ func (s *QKCMasterBackend) getOneSlaveConnection(branch account.Branch) *SlaveCo
 	return slaves[0]
 }
 
-func (s *QKCMasterBackend) getAllSlaveConnection(fullShardID uint32) []*SlaveConnection {
+func (s *QKCMasterBackend) getAllSlaveConnection(fullShardID uint32) []rpc.ISlaveConn {
 	slaves := s.branchToSlaves[fullShardID]
 	if len(slaves) < 1 {
 		return nil

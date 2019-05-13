@@ -1,7 +1,10 @@
 package rpc
 
 import (
+	"github.com/QuarkChain/goquarkchain/account"
+	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/p2p"
+	"github.com/ethereum/go-ethereum/common"
 )
 
 type NetworkError struct {
@@ -27,4 +30,30 @@ type ShardConnForP2P interface {
 	AddMinorBlock(request *p2p.NewBlockMinor) (bool, error)
 
 	AddBlockListForSync(request *HashList) (*ShardStatus, error)
+}
+
+type ISlaveConn interface {
+	ShardConnForP2P
+	GetSlaveID() string
+	GetShardMaskList() []*types.ChainMask
+	HasShard(fullShardID uint32) bool
+	SendPing(rootBlock *types.RootBlock, initializeShardSize bool) ([]byte, []*types.ChainMask, error)
+	HeartBeat() bool
+	GetUnconfirmedHeaders() (*GetUnconfirmedHeadersResponse, error)
+	GetAccountData(address *account.Address, height *uint64) (*GetAccountDataResponse, error)
+	AddRootBlock(rootBlock *types.RootBlock, expectSwitch bool) error
+	GenTx(numTxPerShard, xShardPercent uint32, tx *types.Transaction) error
+	SendMiningConfigToSlaves(artificialTxConfig *ArtificialTxConfig, mining bool) error
+	AddTransaction(tx *types.Transaction) error
+	ExecuteTransaction(tx *types.Transaction, fromAddress *account.Address, height *uint64) ([]byte, error)
+	GetMinorBlockByHash(blockHash common.Hash, branch account.Branch) (*types.MinorBlock, error)
+	GetMinorBlockByHeight(height uint64, branch account.Branch) (*types.MinorBlock, error)
+	GetTransactionByHash(txHash common.Hash, branch account.Branch) (*types.MinorBlock, uint32, error)
+	GetTransactionReceipt(txHash common.Hash, branch account.Branch) (*types.MinorBlock, uint32, *types.Receipt, error)
+	GetTransactionsByAddress(address *account.Address, start []byte, limit uint32) ([]*TransactionDetail, []byte, error)
+	GetLogs(branch account.Branch, address []*account.Address, topics []*Topic, startBlock, endBlock uint64) ([]*types.Log, error)
+	EstimateGas(tx *types.Transaction, fromAddress *account.Address) (uint32, error)
+	GetStorageAt(address *account.Address, key common.Hash, height *uint64) (common.Hash, error)
+	GetCode(address *account.Address, height *uint64) ([]byte, error)
+	GasPrice(branch account.Branch) (uint64, error)
 }
