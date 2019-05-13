@@ -73,7 +73,9 @@ func init() {
 	// Initialize the CLI app and start Geth
 	app.Action = cluster
 	app.HideVersion = true // we have a command to print the version
-	app.Commands = []cli.Command{}
+	app.Commands = []cli.Command{
+		removedbCommand,
+	}
 	sort.Sort(cli.CommandsByName(app.Commands))
 
 	app.Flags = append(app.Flags, debug.Flags...)

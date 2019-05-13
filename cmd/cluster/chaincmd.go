@@ -2,6 +2,7 @@
 package main
 
 import (
+	"fmt"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/cluster/service"
 	"github.com/QuarkChain/goquarkchain/cmd/utils"
@@ -9,8 +10,13 @@ import (
 	"github.com/QuarkChain/goquarkchain/core/rawdb"
 	"github.com/QuarkChain/goquarkchain/qkcdb"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/console"
+	"github.com/ethereum/go-ethereum/log"
 	"gopkg.in/urfave/cli.v1"
+	"os"
 	"path/filepath"
+	"strings"
+	"time"
 )
 
 var (
@@ -29,6 +35,18 @@ This is a destructive action and changes the network in which you will be
 participating.
 
 It expects the genesis file as argument.`,
+	}
+	removedbCommand = cli.Command{
+		Action:    utils.MigrateFlags(removeDB),
+		Name:      "clean",
+		Usage:     "Remove blockchain and state databases",
+		ArgsUsage: " ",
+		Flags: []cli.Flag{
+			utils.DataDirFlag,
+		},
+		Category: "BLOCKCHAIN COMMANDS",
+		Description: `
+Remove blockchain and state databases`,
 	}
 )
 
@@ -67,6 +85,31 @@ func initGenesis(ctx *cli.Context) error {
 	stored := rawdb.ReadCanonicalHash(db, rawdb.ChainType(chainType), 0)
 	if stored == (common.Hash{}) {
 		genesis.MustCommitRootBlock(db)
+	}
+	return nil
+}
+
+func removeDB(ctx *cli.Context) error {
+	stack, _ := makeConfigNode(ctx)
+	dbdir := stack.ResolvePath("")
+	if !common.FileExist(dbdir) {
+		log.Info("Database doesn't exist, skipping", "path", dbdir)
+		return nil
+	}
+	fileNames := strings.Split(dbdir, "/")
+	logger := log.New("database", fileNames[len(fileNames)-1])
+
+	fmt.Println(dbdir)
+	confirm, err := console.Stdin.PromptConfirm("Remove this database?")
+	switch {
+	case err != nil:
+		utils.Fatalf("%v", err)
+	case !confirm:
+		logger.Warn("Database deletion aborted")
+	default:
+		start := time.Now()
+		os.RemoveAll(dbdir)
+		logger.Info("Database successfully deleted", "elapsed", common.PrettyDuration(time.Since(start)))
 	}
 	return nil
 }
