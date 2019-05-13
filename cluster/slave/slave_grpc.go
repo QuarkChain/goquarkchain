@@ -47,8 +47,8 @@ func (s *SlaveServerSideOp) MasterInfo(ctx context.Context, req *rpc.Request) (*
 		return nil, err
 	}
 
-	s.slave.slaveConnManager.ModifyTarget(fmt.Sprintf("%s:%d", gReq.Ip, gReq.Port))
-	log.Info("slave master info response", "master info", s.slave.slaveConnManager.masterCli.target)
+	s.slave.connManager.ModifyTarget(fmt.Sprintf("%s:%d", gReq.Ip, gReq.Port))
+	log.Info("slave master info response", "master endpoint", s.slave.connManager.masterCli.target)
 
 	return response, nil
 }

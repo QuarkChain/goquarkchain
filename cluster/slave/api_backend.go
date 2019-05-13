@@ -71,7 +71,7 @@ func (s *SlaveBackend) CreateShards(rootBlock *types.RootBlock) (err error) {
 			if shrd, ok := s.shards[id]; ok {
 				return shrd.InitFromRootBlock(rootBlock)
 			}
-			shrd, err := shard.New(s.ctx, rootBlock, s.slaveConnManager, s.clstrCfg, id)
+			shrd, err := shard.New(s.ctx, rootBlock, s.connManager, s.clstrCfg, id)
 			if err != nil {
 				log.Error("Failed to create shard", "slave id", s.config.ID, "shard id", shardCfg.ShardID, "err", err)
 				return err
@@ -100,7 +100,7 @@ func (s *SlaveBackend) AddBlockListForSync(mHashList []common.Hash, peerId strin
 			hashList = append(hashList, hash)
 		}
 	}
-	mBlockList, err := s.slaveConnManager.GetMinorBlocks(hashList, peerId, branch)
+	mBlockList, err := s.connManager.GetMinorBlocks(hashList, peerId, branch)
 	if err != nil {
 		return nil, err
 	}

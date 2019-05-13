@@ -56,11 +56,11 @@ func (s *ShardBackend) AddMinorBlock(block *types.MinorBlock) error {
 	}
 
 	if xshardLst[0] == nil {
-		log.Info("add minor block", "has been added...", "branch", s.fullShardId, "height", block.Number())
+		log.Info("add minor block has been added...", "branch", s.fullShardId, "height", block.Number())
 		return nil
 	}
 
-	prevRootHeight := s.MinorBlockChain.GetRootBlockByHash(block.Header().Hash()).Header().Number
+	prevRootHeight := s.MinorBlockChain.GetRootBlockByHash(block.Header().PrevRootBlockHash).Header().Number
 	s.conn.BroadcastXshardTxList(block, xshardLst[0], prevRootHeight)
 	status, err := s.MinorBlockChain.GetShardStatus()
 	if err != nil {
@@ -109,20 +109,25 @@ func (s *ShardBackend) AddRootBlock(rBlock *types.RootBlock) error {
 // and will add them once this function returns successfully.
 func (s *ShardBackend) AddBlockListForSync(blockLst []*types.MinorBlock) error {
 
-	hashToXShardList := make(map[common.Hash]*XshardListTuple)
+	blockHashToXShardList := make(map[common.Hash]*XshardListTuple)
 	if blockLst == nil {
 		return errors.New(fmt.Sprintf("empty root block list in %d", s.Config.ShardID))
 	}
 
 	for _, block := range blockLst {
+		blockHash := block.Header().Hash()
 		if block.Header().Branch.GetFullShardID() != s.fullShardId || s.MinorBlockChain.HasBlock(block.Hash()) {
 			continue
 		}
-		if _, _, err := s.MinorBlockChain.InsertChain([]types.IBlock{block}); err != nil {
+		_, xshardLst, err := s.MinorBlockChain.InsertChain([]types.IBlock{block})
+		if err != nil || len(xshardLst) != 1 {
+			log.Error("Failed to add minor block, err %v", err)
 			return err
 		}
+		prevRootHeight := s.MinorBlockChain.GetRootBlockByHash(block.Header().PrevRootBlockHash)
+		blockHashToXShardList[blockHash] = &XshardListTuple{XshardTxList: xshardLst[0], PrevRootHeight: prevRootHeight.Number()}
 	}
-	s.conn.BatchBroadcastXshardTxList(hashToXShardList, blockLst[0].Header().Branch)
+	s.conn.BatchBroadcastXshardTxList(blockHashToXShardList, blockLst[0].Header().Branch)
 
 	return nil
 }
@@ -161,6 +166,11 @@ func (s *ShardBackend) HandleNewTip(rBHeader *types.RootBlockHeader, mBHeader *t
 }
 
 func (s *ShardBackend) GetMinorBlock(mHash common.Hash, height *uint64) *types.MinorBlock {
+	if mHash != (common.Hash{}) {
+		return s.MinorBlockChain.GetMinorBlock(mHash)
+	} else if height == nil {
+		return s.MinorBlockChain.GetBlockByNumber(*height).(*types.MinorBlock)
+	}
 	return nil
 }
 
@@ -172,7 +182,7 @@ func (s *ShardBackend) NewMinorBlock(block *types.MinorBlock) (err error) {
 		return
 	}
 	if s.MinorBlockChain.HasBlock(block.Hash()) {
-		log.Info("add minor block", "Known minor block", "branch", block.Header().Branch, "height", block.Number())
+		log.Info("add minor block, Known minor block", "branch", block.Header().Branch, "height", block.Number())
 		return
 	}
 	if !s.MinorBlockChain.HasBlock(block.Header().ParentHash) {

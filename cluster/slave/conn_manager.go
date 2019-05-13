@@ -17,7 +17,7 @@ type masterConn struct {
 	client rpc.Client
 }
 
-type SlaveConnManager struct {
+type ConnManager struct {
 	qkcCfg *config.QuarkChainConfig
 
 	// master connection
@@ -34,11 +34,11 @@ type SlaveConnManager struct {
 	mu                 sync.Mutex
 }
 
-func (s *SlaveConnManager) ModifyMasterConn(target string) {
+func (s *ConnManager) ModifyMasterConn(target string) {
 	s.masterCli.target = target
 }
 
-func (s *SlaveConnManager) AddConnectToSlave(info *rpc.SlaveInfo) error {
+func (s *ConnManager) AddConnectToSlave(info *rpc.SlaveInfo) error {
 
 	var (
 		conn   *SlaveConn
@@ -61,14 +61,14 @@ func (s *SlaveConnManager) AddConnectToSlave(info *rpc.SlaveInfo) error {
 	return nil
 }
 
-func (s *SlaveConnManager) GetConnectionsByFullShardId(id uint32) []*SlaveConn {
+func (s *ConnManager) GetConnectionsByFullShardId(id uint32) []*SlaveConn {
 	if conns, ok := s.fullShardIdToSlaves[id]; ok {
 		return conns
 	}
 	return []*SlaveConn{}
 }
 
-func (s *SlaveConnManager) AddXshardTxList(fullShardId uint32, xshardReq *rpc.AddXshardTxListRequest) bool {
+func (s *ConnManager) AddXshardTxList(fullShardId uint32, xshardReq *rpc.AddXshardTxListRequest) bool {
 
 	var status = true
 	if clients, ok := s.fullShardIdToSlaves[fullShardId]; ok {
@@ -81,7 +81,7 @@ func (s *SlaveConnManager) AddXshardTxList(fullShardId uint32, xshardReq *rpc.Ad
 	return status
 }
 
-func (s *SlaveConnManager) BatchAddXshardTxList(fullShardId uint32, xshardReqs []*rpc.AddXshardTxListRequest) bool {
+func (s *ConnManager) BatchAddXshardTxList(fullShardId uint32, xshardReqs []*rpc.AddXshardTxListRequest) bool {
 
 	var status = true
 	if clients, ok := s.fullShardIdToSlaves[fullShardId]; ok {
@@ -95,7 +95,7 @@ func (s *SlaveConnManager) BatchAddXshardTxList(fullShardId uint32, xshardReqs [
 }
 
 // Broadcast x-shard transactions to their recipient shards
-func (s *SlaveConnManager) BroadcastXshardTxList(block *types.MinorBlock,
+func (s *ConnManager) BroadcastXshardTxList(block *types.MinorBlock,
 	xshardTxList []*types.CrossShardTransactionDeposit, height uint32) {
 
 	var (
@@ -125,7 +125,7 @@ func (s *SlaveConnManager) BroadcastXshardTxList(block *types.MinorBlock,
 	}
 }
 
-func (s *SlaveConnManager) BatchBroadcastXshardTxList(
+func (s *ConnManager) BatchBroadcastXshardTxList(
 	blokHshToXLstAdPrvRotHg map[common.Hash]*shard.XshardListTuple, sorBrch account.Branch) bool {
 
 	brchToAddXsdTxLstReqLst := make(map[account.Branch][]*rpc.AddXshardTxListRequest)
@@ -168,7 +168,7 @@ func (s *SlaveConnManager) BatchBroadcastXshardTxList(
 	return status
 }
 
-func (s *SlaveConnManager) getBranchToAddXshardTxListRequest(blockHash common.Hash,
+func (s *ConnManager) getBranchToAddXshardTxListRequest(blockHash common.Hash,
 	xshardTxList []*types.CrossShardTransactionDeposit,
 	height uint32) map[account.Branch]*rpc.AddXshardTxListRequest {
 
@@ -203,7 +203,7 @@ func (s *SlaveConnManager) getBranchToAddXshardTxListRequest(blockHash common.Ha
 	return xshardTxListRequest
 }
 
-func (s *SlaveConnManager) addSlaveConnection(target string, conn *SlaveConn) {
+func (s *ConnManager) addSlaveConnection(target string, conn *SlaveConn) {
 	s.slavesConn[target] = conn
 	for _, slv := range s.slave.shards {
 		id := slv.Config.ShardID
@@ -214,8 +214,8 @@ func (s *SlaveConnManager) addSlaveConnection(target string, conn *SlaveConn) {
 	}
 }
 
-func NewToSlaveConnManager(qkcCfg *config.QuarkChainConfig, slave *SlaveBackend) (*SlaveConnManager, error) {
-	slaveConnManager := &SlaveConnManager{
+func NewToSlaveConnManager(qkcCfg *config.QuarkChainConfig, slave *SlaveBackend) (*ConnManager, error) {
+	slaveConnManager := &ConnManager{
 		qkcCfg:              qkcCfg,
 		slavesConn:          make(map[string]*SlaveConn),
 		fullShardIdToSlaves: make(map[uint32][]*SlaveConn),

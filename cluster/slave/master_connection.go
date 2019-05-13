@@ -8,7 +8,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 )
 
-func (s *SlaveConnManager) SendMinorBlockHeaderToMaster(minorHeader *types.MinorBlockHeader,
+func (s *ConnManager) SendMinorBlockHeaderToMaster(minorHeader *types.MinorBlockHeader,
 	txCount, xshardCount uint32, state *rpc.ShardStatus) error {
 	var (
 		gRep rpc.AddMinorBlockHeaderResponse
@@ -38,7 +38,7 @@ func (s *SlaveConnManager) SendMinorBlockHeaderToMaster(minorHeader *types.Minor
 	return nil
 }
 
-func (s *SlaveConnManager) BroadcastNewTip(mHeaderLst []*types.MinorBlockHeader,
+func (s *ConnManager) BroadcastNewTip(mHeaderLst []*types.MinorBlockHeader,
 	rHeader *types.RootBlockHeader, branch uint32) error {
 	var (
 		gReq = rpc.BroadcastNewTip{MinorBlockHeaderList: mHeaderLst, RootBlockHeader: rHeader, Branch: branch}
@@ -51,7 +51,7 @@ func (s *SlaveConnManager) BroadcastNewTip(mHeaderLst []*types.MinorBlockHeader,
 	return nil
 }
 
-func (s *SlaveConnManager) BroadcastTransactions(txs []*types.Transaction, branch uint32) error {
+func (s *ConnManager) BroadcastTransactions(txs []*types.Transaction, branch uint32) error {
 	var (
 		gReq = rpc.BroadcastTransactions{Txs: txs, Branch: branch}
 	)
@@ -64,7 +64,7 @@ func (s *SlaveConnManager) BroadcastTransactions(txs []*types.Transaction, branc
 	return err
 }
 
-func (s *SlaveConnManager) BroadcastMinorBlock(minorBlock *types.MinorBlock, branch uint32) error {
+func (s *ConnManager) BroadcastMinorBlock(minorBlock *types.MinorBlock, branch uint32) error {
 	var (
 		gReq = rpc.BroadcastMinorBlock{MinorBlock: minorBlock, Branch: branch}
 	)
@@ -77,7 +77,7 @@ func (s *SlaveConnManager) BroadcastMinorBlock(minorBlock *types.MinorBlock, bra
 	return err
 }
 
-func (s *SlaveConnManager) GetMinorBlocks(mHeaderList []common.Hash, peerId string, branch uint32) ([]*types.MinorBlock, error) {
+func (s *ConnManager) GetMinorBlocks(mHeaderList []common.Hash, peerId string, branch uint32) ([]*types.MinorBlock, error) {
 	var (
 		gReq = rpc.GetMinorBlockListRequest{MinorBlockHashList: mHeaderList, PeerId: peerId, Branch: branch}
 		gRep rpc.GetMinorBlockListResponse
@@ -101,7 +101,7 @@ func (s *SlaveConnManager) GetMinorBlocks(mHeaderList []common.Hash, peerId stri
 	return gRep.MinorBlockList, nil
 }
 
-func (s *SlaveConnManager) GetMinorBlockHeaders(mHash common.Hash,
+func (s *ConnManager) GetMinorBlockHeaders(mHash common.Hash,
 	limit uint32, direction uint8, branch uint32) ([]*types.MinorBlockHeader, error) {
 	var (
 		gReq = rpc.GetMinorBlockHeaderListRequest{BlockHash: mHash,
@@ -127,7 +127,7 @@ func (s *SlaveConnManager) GetMinorBlockHeaders(mHash common.Hash,
 	return gRep.MinorBlockHeaderList, nil
 }
 
-func (s *SlaveConnManager) ModifyTarget(target string) {
+func (s *ConnManager) ModifyTarget(target string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.masterCli.target = target

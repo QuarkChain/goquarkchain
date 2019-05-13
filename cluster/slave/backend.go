@@ -17,7 +17,7 @@ type SlaveBackend struct {
 	config   *config.SlaveConfig
 	mining   bool
 
-	slaveConnManager *SlaveConnManager
+	connManager *ConnManager
 
 	shards map[uint32]*shard.ShardBackend
 
@@ -39,7 +39,7 @@ func New(ctx *service.ServiceContext, clusterCfg *config.ClusterConfig, cfg *con
 		eventMux: ctx.EventMux,
 	}
 
-	slave.slaveConnManager, err = NewToSlaveConnManager(slave.clstrCfg.Quarkchain, slave)
+	slave.connManager, err = NewToSlaveConnManager(slave.clstrCfg.Quarkchain, slave)
 	if err != nil {
 		return nil, err
 	}
