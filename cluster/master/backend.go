@@ -29,7 +29,11 @@ import (
 	"time"
 )
 
-const heartbeatInterval = time.Duration(4 * time.Second)
+const (
+	heartbeatInterval     = time.Duration(4 * time.Second)
+	rootChainChanSize     = 256
+	rootChainSideChanSize = 256
+)
 
 var (
 	ErrNoBranchConn = errors.New("no such branch's connection")
@@ -47,6 +51,12 @@ type QKCMasterBackend struct {
 	branchToSlaves     map[uint32][]rpc.ISlaveConn
 	branchToShardStats map[uint32]*rpc.ShardStatus
 	shardStatsChan     chan *rpc.ShardStatus
+
+	rootChainChan         chan core.RootChainEvent
+	rootChainSideChan     chan core.RootChainSideEvent
+	rootChainEventSub     event.Subscription
+	rootChainSideEventSub event.Subscription
+
 	artificialTxConfig *rpc.ArtificialTxConfig
 	rootBlockChain     *core.RootBlockChain
 	protocolManager    *ProtocolManager
@@ -156,6 +166,8 @@ func (s *QKCMasterBackend) Stop() error {
 	s.rootBlockChain.Stop()
 	s.engine.Close()
 	s.protocolManager.Stop()
+	s.rootChainEventSub.Unsubscribe()
+	s.rootChainSideEventSub.Unsubscribe()
 	if s.engine != nil {
 		s.engine.Close()
 	}
@@ -169,6 +181,12 @@ func (s *QKCMasterBackend) Start(srvr *p2p.Server) error {
 	if err := s.InitCluster(); err != nil {
 		return err
 	}
+
+	s.rootChainChan = make(chan core.RootChainEvent, rootChainChanSize)
+	s.rootChainEventSub = s.rootBlockChain.SubscribeChainEvent(s.rootChainChan)
+	s.rootChainSideChan = make(chan core.RootChainSideEvent, rootChainSideChanSize)
+	s.rootChainSideEventSub = s.rootBlockChain.SubscribeChainSideEvent(s.rootChainSideChan)
+
 	maxPeers := srvr.MaxPeers
 	s.protocolManager.Start(maxPeers)
 	// start heart beat pre 3 seconds.
@@ -281,6 +299,44 @@ func (s *QKCMasterBackend) updateShardStatsLoop() {
 			}
 		}
 	}()
+}
+
+func (s *QKCMasterBackend) broadcastRpcLoop() {
+	go func() {
+		for true {
+			select {
+			// TODO verify whether rootChainChan & rootChainSideChan would be blocked,
+			// as the chan len is 256, they should not be blocked
+			case event := <-s.rootChainChan:
+				s.broadcastRootBlockToSlaves(event.Block)
+				// Err() channel will be closed when unsubscribing.
+			case err := <-s.rootChainEventSub.Err():
+				log.Error("rootChainEventSub error in broadcastRpcLoop ", "error", err.Error())
+				return
+			case event := <-s.rootChainSideChan:
+				s.broadcastRootBlockToSlaves(event.Block)
+				// Err() channel will be closed when unsubscribing.
+			case err := <-s.rootChainSideEventSub.Err():
+				log.Error("rootChainSideEventSub error in broadcastRpcLoop", "error", err.Error())
+				return
+			}
+		}
+	}()
+}
+
+func (s *QKCMasterBackend) broadcastRootBlockToSlaves(block *types.RootBlock) error {
+	var g errgroup.Group
+	for _, client := range s.clientPool {
+		g.Go(func() error {
+			err := client.AddRootBlock(block, false)
+			if err != nil {
+				log.Error("broadcastRootBlockToSlaves failed", "slave", client.GetSlaveID(),
+					"block", block.Hash(), "height", block.NumberU64())
+			}
+			return err
+		})
+	}
+	return g.Wait()
 }
 
 func (s *QKCMasterBackend) Heartbeat() {

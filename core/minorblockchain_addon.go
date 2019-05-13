@@ -1008,9 +1008,9 @@ func (m *MinorBlockChain) GetTransactionByHash(hash common.Hash) (*types.MinorBl
 	if mHash == qkcCommon.EmptyHash { //TODO need? for test???
 		txs := make([]*types.Transaction, 0)
 		m.txPool.mu.Lock() // to lock txpool.all
-		tx,ok:=m.txPool.all.all[hash]
-		if !ok{
-			return nil,0
+		tx, ok := m.txPool.all.all[hash]
+		if !ok {
+			return nil, 0
 		}
 		txs = append(txs, tx)
 		m.txPool.mu.Unlock()
