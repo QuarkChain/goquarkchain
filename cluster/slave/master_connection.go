@@ -77,7 +77,7 @@ func (s *SlaveConnManager) BroadcastMinorBlock(minorBlock *types.MinorBlock, bra
 	return err
 }
 
-func (s *SlaveConnManager) GetMinorBlocks(mHeaderList []common.Hash, peerId common.Hash, branch uint32) ([]*types.MinorBlock, error) {
+func (s *SlaveConnManager) GetMinorBlocks(mHeaderList []common.Hash, peerId string, branch uint32) ([]*types.MinorBlock, error) {
 	var (
 		gReq = rpc.GetMinorBlockListRequest{MinorBlockHashList: mHeaderList, PeerId: peerId, Branch: branch}
 		gRep rpc.GetMinorBlockListResponse
@@ -124,7 +124,7 @@ func (s *SlaveConnManager) GetMinorBlockHeaders(mHash common.Hash,
 		return nil, err
 	}
 
-	return gRep.MinorBlockHeader, nil
+	return gRep.MinorBlockHeaderList, nil
 }
 
 func (s *SlaveConnManager) ModifyTarget(target string) {

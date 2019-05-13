@@ -20,6 +20,6 @@ type ConnManager interface {
 	BroadcastNewTip(mHeaderLst []*types.MinorBlockHeader, rHeader *types.RootBlockHeader, branch uint32) error
 	BroadcastTransactions(txs []*types.Transaction, branch uint32) error
 	BroadcastMinorBlock(minorBlock *types.MinorBlock, branch uint32) error
-	GetMinorBlocks(mHeaderList []common.Hash, peerId common.Hash, branch uint32) ([]*types.MinorBlock, error)
+	GetMinorBlocks(mHeaderList []common.Hash, peerId string, branch uint32) ([]*types.MinorBlock, error)
 	GetMinorBlockHeaders(rHash common.Hash, limit uint32, direction uint8, branch uint32) ([]*types.MinorBlockHeader, error)
 }

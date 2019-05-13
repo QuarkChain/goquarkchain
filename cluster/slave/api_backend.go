@@ -83,7 +83,7 @@ func (s *SlaveBackend) CreateShards(rootBlock *types.RootBlock) (err error) {
 	return nil
 }
 
-func (s *SlaveBackend) AddBlockListForSync(mHashList []common.Hash, peerId common.Hash, branch uint32) (*rpc.ShardStatus, error) {
+func (s *SlaveBackend) AddBlockListForSync(mHashList []common.Hash, peerId string, branch uint32) (*rpc.ShardStatus, error) {
 
 	if mHashList == nil || len(mHashList) == 0 {
 		return nil, errors.New("minor block hash list is empty")
