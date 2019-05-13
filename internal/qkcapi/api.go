@@ -13,6 +13,14 @@ func decodeBlockNumberToUint64(b Backend, blockNumber *rpc.BlockNumber) (uint64,
 	panic(-1)
 }
 
+func transHexutilUint64ToUint64(data *hexutil.Uint64) (*uint64, error) {
+	if data == nil {
+		return nil, nil
+	}
+	res := uint64(*data)
+	return &res, nil
+}
+
 // It offers only methods that operate on public data that is freely available to anyone.
 type PublicBlockChainAPI struct {
 	b Backend
@@ -73,7 +81,11 @@ func (p *PublicBlockChainAPI) GetRootBlockById(hash common.Hash) (map[string]int
 	}
 	return rootBlockEncoder(rootBlock)
 }
-func (p *PublicBlockChainAPI) GetRootBlockByHeight(blockHeight *uint64) (map[string]interface{}, error) {
+func (p *PublicBlockChainAPI) GetRootBlockByHeight(heightInput *hexutil.Uint64) (map[string]interface{}, error) {
+	blockHeight, err := transHexutilUint64ToUint64(heightInput)
+	if err != nil {
+		return nil, err
+	}
 	rootBlock, err := p.b.GetRootBlockByNumber(blockHeight)
 	if err == nil {
 		response, err := rootBlockEncoder(rootBlock)
@@ -104,7 +116,12 @@ func (p *PublicBlockChainAPI) GetMinorBlockById(blockID hexutil.Bytes, includeTx
 	return minorBlockEncoder(minorBlock, *includeTxs)
 
 }
-func (p *PublicBlockChainAPI) GetMinorBlockByHeight(fullShardKey uint32, height *uint64, includeTxs *bool) (map[string]interface{}, error) {
+func (p *PublicBlockChainAPI) GetMinorBlockByHeight(fullShardKeyInput hexutil.Uint, heightInput *hexutil.Uint64, includeTxs *bool) (map[string]interface{}, error) {
+	height, err := transHexutilUint64ToUint64(heightInput)
+	if err != nil {
+		return nil, err
+	}
+	fullShardKey := uint32(fullShardKeyInput)
 	if includeTxs == nil {
 		temp := false
 		includeTxs = &temp
