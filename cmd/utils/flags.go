@@ -292,7 +292,11 @@ func setHTTP(ctx *cli.Context, cfg *service.Config, clstrCfg *config.ClusterConf
 		if ctx.GlobalIsSet(RPCPortFlag.Name) {
 			port = uint16(ctx.GlobalInt(RPCPortFlag.Name))
 		}
-		cfg.HTTPEndpoint = fmt.Sprintf("localhost:%d", port)
+		host := "localhost"
+		if ctx.GlobalIsSet(RPCListenAddrFlag.Name) {
+			host = ctx.GlobalString(RPCListenAddrFlag.Name)
+		}
+		cfg.HTTPEndpoint = fmt.Sprintf("%s:%d", host, port)
 	}
 	if ctx.GlobalBool(PrivateRPCEnableFlag.Name) {
 		port := clstrCfg.PrivateJSONRPCPort
