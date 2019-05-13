@@ -14,7 +14,7 @@ import (
 
 //go:generate gencodec -type Header -field-override headerMarshaling -out gen_header_json.go
 
-// MinorBlockHeader represents a minor block header in the QuarkChain.
+// MinorBlockHeaderList represents a minor block header in the QuarkChain.
 type MinorBlockHeader struct {
 	Version           uint32             `json:"version"                    gencodec:"required"`
 	Branch            account.Branch     `json:"branch"                     gencodec:"required"`
@@ -119,7 +119,7 @@ func (h *MinorBlockHeader) SetCoinbase(addr account.Address) {
 	h.Coinbase = addr
 }
 
-// MinorBlockHeaders is a MinorBlockHeader slice type for basic sorting.
+// MinorBlockHeaders is a MinorBlockHeaderList slice type for basic sorting.
 type MinorBlockHeaders []*MinorBlockHeader
 
 // Len returns the length of s.
