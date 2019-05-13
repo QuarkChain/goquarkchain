@@ -541,9 +541,9 @@ func (s *SlaveConnection) GetMinorBlockList(request *rpc.GetMinorBlockListReques
 	return rsp, nil
 }
 
-func (s *SlaveConnection) GetMinorBlockHeaderList(request *p2p.GetMinorBlockHeaderListRequest) (*p2p.GetMinorBlockHeaderListResponse, error) {
+func (s *SlaveConnection) GetMinorBlockHeaderList(request *rpc.GetMinorBlockHeaderListRequest) (*rpc.GetMinorBlockHeaderListResponse, error) {
 	var (
-		rsp = new(p2p.GetMinorBlockHeaderListResponse)
+		rsp = new(rpc.GetMinorBlockHeaderListResponse)
 		res = new(rpc.Response)
 	)
 	bytes, err := serialize.SerializeToBytes(request)
@@ -603,7 +603,7 @@ func (s *SlaveConnection) AddBlockListForSync(request *rpc.HashList) (*rpc.Shard
 	if err != nil {
 		return nil, err
 	}
-	res, err = s.client.Call(s.target, &rpc.Request{Op: rpc.OpSyncMinorBlockList, Data: bytes})
+	res, err = s.client.Call(s.target, &rpc.Request{Op: rpc.OpAddMinorBlockListForSync, Data: bytes})
 	if err != nil {
 		return nil, err
 	}

@@ -23,6 +23,7 @@ import (
 	"crypto/ecdsa"
 	"crypto/rand"
 	"github.com/QuarkChain/goquarkchain/account"
+	"github.com/QuarkChain/goquarkchain/cluster/rpc"
 	"github.com/QuarkChain/goquarkchain/serialize"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"math/big"
@@ -51,7 +52,7 @@ var (
 // newTestProtocolManager creates a new protocol manager for testing purposes,
 // with the given number of blocks already known, and potential notification
 // channels for different events.
-func newTestProtocolManager(blocks int, generator func(int, *core.RootBlockGen), synchronizer synchronizer.Synchronizer, getShardConnFunc func(fullShardId uint32) []ShardConnForP2P) (*ProtocolManager, *ethdb.MemDatabase, error) {
+func newTestProtocolManager(blocks int, generator func(int, *core.RootBlockGen), synchronizer synchronizer.Synchronizer, getShardConnFunc func(fullShardId uint32) []rpc.ShardConnForP2P) (*ProtocolManager, *ethdb.MemDatabase, error) {
 	var (
 		engine        = new(consensus.FakeEngine)
 		db            = ethdb.NewMemDatabase()
@@ -66,7 +67,7 @@ func newTestProtocolManager(blocks int, generator func(int, *core.RootBlockGen),
 		panic(err)
 	}
 
-	pm, err := NewProtocolManager(*clusterconfig, blockChain, synchronizer, getShardConnFunc)
+	pm, err := NewProtocolManager(*clusterconfig, blockChain, nil, synchronizer, getShardConnFunc)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -78,7 +79,7 @@ func newTestProtocolManager(blocks int, generator func(int, *core.RootBlockGen),
 // with the given number of blocks already known, and potential notification
 // channels for different events. In case of an error, the constructor force-
 // fails the test.
-func newTestProtocolManagerMust(t *testing.T, blocks int, generator func(int, *core.RootBlockGen), synchronizer synchronizer.Synchronizer, getShardConnFunc func(fullShardId uint32) []ShardConnForP2P) (*ProtocolManager, *ethdb.MemDatabase) {
+func newTestProtocolManagerMust(t *testing.T, blocks int, generator func(int, *core.RootBlockGen), synchronizer synchronizer.Synchronizer, getShardConnFunc func(fullShardId uint32) []rpc.ShardConnForP2P) (*ProtocolManager, *ethdb.MemDatabase) {
 	pm, db, err := newTestProtocolManager(blocks, generator, synchronizer, getShardConnFunc)
 	if err != nil {
 		t.Fatalf("Failed to create protocol manager: %v", err)

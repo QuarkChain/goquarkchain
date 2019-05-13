@@ -69,9 +69,9 @@ func (p *PublicBlockChainAPI) getPrimaryAccountData(address account.Address, blo
 	}
 
 	if blockNr == nil {
-		data, err = p.b.GetPrimaryAccountData(address, nil)
+		data, err = p.b.GetPrimaryAccountData(&address, nil)
 	} else {
-		data, err = p.b.GetPrimaryAccountData(address, &blockNumber)
+		data, err = p.b.GetPrimaryAccountData(&address, &blockNumber)
 	}
 
 	if err != nil {
@@ -138,10 +138,10 @@ func (p *PublicBlockChainAPI) GetAccountData(address account.Address, blockNr *r
 		err                       error
 	)
 	if blockNr == nil {
-		branchToAccountBranchData, err = p.b.GetAccountData(address, nil)
+		branchToAccountBranchData, err = p.b.GetAccountData(&address, nil)
 	} else {
 		height := uint64(*blockNr)
-		branchToAccountBranchData, err = p.b.GetAccountData(address, &height)
+		branchToAccountBranchData, err = p.b.GetAccountData(&address, &height)
 	}
 
 	if err != nil {

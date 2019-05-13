@@ -648,7 +648,7 @@ func (m *MinorBlockChain) getMaxBlocksInOneRootBlock() uint64 {
 	return uint64(m.shardConfig.MaxBlocksPerShardInOneRootBlock())
 }
 
-// GetUnconfirmedHeadersCoinbaseAmount get unconfirmed headers coinbase amount
+// GetUnconfirmedHeadersCoinbaseAmount get unconfirmed Headers coinbase amount
 func (m *MinorBlockChain) GetUnconfirmedHeadersCoinbaseAmount() uint64 {
 	amount := uint64(0)
 	headers := m.GetUnconfirmedHeaderList() // have lock
