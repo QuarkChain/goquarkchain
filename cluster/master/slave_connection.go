@@ -31,6 +31,13 @@ func NewSlaveConn(target string, shardMaskList []*types.ChainMask, slaveID strin
 	}
 }
 
+func (s *SlaveConnection) GetSlaveID() string {
+	return s.slaveID
+}
+func (s *SlaveConnection) GetShardMaskList() []*types.ChainMask {
+	return s.shardMaskList
+}
+
 func (s *SlaveConnection) hasOverlap(chainMask *types.ChainMask) bool {
 	for _, localChainMask := range s.shardMaskList {
 		if localChainMask.HasOverlap(chainMask.GetMask()) {
@@ -107,7 +114,7 @@ func (s *SlaveConnection) SendConnectToSlaves(slaveInfoLst []*rpc.SlaveInfo) err
 	return nil
 }
 
-func (s *SlaveConnection) hasShard(fullShardID uint32) bool {
+func (s *SlaveConnection) HasShard(fullShardID uint32) bool {
 	for _, chainMask := range s.shardMaskList {
 		if chainMask.ContainFullShardId(fullShardID) {
 			return true
