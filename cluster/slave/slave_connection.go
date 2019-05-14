@@ -7,6 +7,7 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 )
 
+// this struct is used to communicate between slaves
 type SlaveConn struct {
 	target        string
 	id            string

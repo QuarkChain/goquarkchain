@@ -94,20 +94,19 @@ func New(ctx *service.ServiceContext, rBlock *types.RootBlock, conn ConnManager,
 
 func (s *ShardBackend) Stop() {
 	s.mu.Lock()
-	s.mu.Unlock()
-	if s != nil {
-		s.chainDb.Close()
-		s.chainDb.Close()
-	}
+	defer s.mu.Unlock()
+	s.chainDb.Close()
 }
 
 func (s *ShardBackend) StartMining(threads int) bool {
-	// s.engine.SetThreads(threads)
+	s.engine.SetThreads(threads)
+	// TODO content need to be filled.
 	return false
 }
 
 func (s *ShardBackend) StopMining() {
-	// s.engine.SetThreads(-1)
+	// TODO content need to be filled.
+	s.engine.SetThreads(-1)
 }
 
 func CreateDB(ctx *service.ServiceContext, name string) (ethdb.Database, error) {
@@ -120,24 +119,22 @@ func CreateDB(ctx *service.ServiceContext, name string) (ethdb.Database, error) 
 
 func CreateConsensusEngine(ctx *service.ServiceContext, cfg *config.ShardConfig) (consensus.Engine, error) {
 
-	var (
-		diffCalculator = consensus.EthDifficultyCalculator{
-			MinimumDifficulty: big.NewInt(int64(cfg.Genesis.Difficulty)),
-			AdjustmentCutoff:  cfg.DifficultyAdjustmentCutoffTime,
-			AdjustmentFactor:  cfg.DifficultyAdjustmentFactor,
-		}
-		err error
-	)
-
-	switch cfg.ConsensusType {
-	case "POW_ETHASH", "POW_SIMULATE":
-		return qkchash.New(cfg.ConsensusConfig.RemoteMine, &diffCalculator, cfg.ConsensusConfig.RemoteMine), nil
-	case "POW_DOUBLESHA256":
-		return doublesha256.New(&diffCalculator, cfg.ConsensusConfig.RemoteMine), nil
-	default:
-		err = errors.New(fmt.Sprintf("Failed to create consensus engine consensus type %s", cfg.ConsensusType))
+	diffCalculator := consensus.EthDifficultyCalculator{
+		MinimumDifficulty: big.NewInt(int64(cfg.Genesis.Difficulty)),
+		AdjustmentCutoff:  cfg.DifficultyAdjustmentCutoffTime,
+		AdjustmentFactor:  cfg.DifficultyAdjustmentFactor,
 	}
-	return nil, err
+	switch cfg.ConsensusType {
+	case config.PoWFake:
+		return &consensus.FakeEngine{}, nil
+	case config.PoWEthash, config.PoWSimulate:
+		panic(errors.New("not support PoWEthash PoWSimulate"))
+	case config.PoWQkchash:
+		return qkchash.New(cfg.ConsensusConfig.RemoteMine, &diffCalculator, cfg.ConsensusConfig.RemoteMine), nil
+	case config.PoWDoubleSha256:
+		return doublesha256.New(&diffCalculator, cfg.ConsensusConfig.RemoteMine), nil
+	}
+	return nil, fmt.Errorf("Failed to create consensus engine consensus type %s", cfg.ConsensusType)
 }
 
 func (s *ShardBackend) initGenesisState(rootBlock *types.RootBlock) error {
@@ -158,32 +155,6 @@ func (s *ShardBackend) initGenesisState(rootBlock *types.RootBlock) error {
 		return err
 	}
 
-	err = s.conn.SendMinorBlockHeaderToMaster(minorBlock.Header(), 1, 0, status)
+	err = s.conn.SendMinorBlockHeaderToMaster(minorBlock.Header(), uint32(len(minorBlock.GetTransactions())), uint32(len(xshardList)), status)
 	return err
-}
-
-func (s *ShardBackend) addTxList(txs []*types.Transaction) {
-	if txs == nil {
-		return
-	}
-	validTxList := make([]*types.Transaction, 0)
-	for _, tx := range txs {
-		if s.addTx(tx) {
-			validTxList = append(validTxList, tx)
-		}
-	}
-
-	if len(validTxList) != 0 {
-		if err := s.conn.BroadcastTransactions(validTxList, s.fullShardId); err != nil {
-			log.Error("add tx list", "failed to broadcast tx list", "err", err)
-		}
-	}
-}
-
-func (s *ShardBackend) addTx(tx *types.Transaction) bool {
-	if err := s.MinorBlockChain.AddTx(tx); err != nil {
-		log.Error("add tx", "failed to add tx", "tx hash", tx.Hash())
-		return false
-	}
-	return true
 }

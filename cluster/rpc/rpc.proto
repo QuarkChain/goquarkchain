@@ -32,10 +32,6 @@ service SlaveServerSideOp {
     }
     rpc AddRootBlock (Request) returns (Response) {
     }
-    rpc GetEcoInfoList (Request) returns (Response) {
-    }
-    rpc AddMinorBlock (Request) returns (Response) {
-    }
     rpc GetUnconfirmedHeaderList (Request) returns (Response) {
     }
     rpc GetAccountData (Request) returns (Response) {

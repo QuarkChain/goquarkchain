@@ -168,9 +168,15 @@ func (s *SlaveBackend) GetAccountData(address *account.Address, height uint64) (
 		data := rpc.AccountBranchData{
 			Branch: branch,
 		}
-		data.TransactionCount, err = shrd.MinorBlockChain.GetTransactionCount(address.Recipient, &height)
-		data.Balance, err = shrd.MinorBlockChain.GetBalance(address.Recipient, &height)
-		bt, err = shrd.MinorBlockChain.GetCode(address.Recipient, &height)
+		if data.TransactionCount, err = shrd.MinorBlockChain.GetTransactionCount(address.Recipient, &height); err != nil {
+			return nil, err
+		}
+		if data.Balance, err = shrd.MinorBlockChain.GetBalance(address.Recipient, &height); err != nil {
+			return nil, err
+		}
+		if bt, err = shrd.MinorBlockChain.GetCode(address.Recipient, &height); err != nil {
+			return nil, err
+		}
 		data.IsContract = len(bt) > 0
 		results = append(results, &data)
 	}
@@ -188,7 +194,8 @@ func (s *SlaveBackend) GetMinorBlockByHash(hash common.Hash, branch uint32) (*ty
 
 func (s *SlaveBackend) GetMinorBlockByHeight(height uint64, branch uint32) (*types.MinorBlock, error) {
 	if shrd, ok := s.shards[branch]; ok {
-		if shrd.MinorBlockChain.GetBlockByNumber(height) == nil {
+		mBlock := shrd.MinorBlockChain.GetBlockByNumber(height)
+		if qcom.IsNil(mBlock) {
 			return nil, errors.New(fmt.Sprintf("empty minor block in state, shard id: %d", shrd.Config.ShardID))
 		}
 	}
@@ -253,7 +260,7 @@ func (s *SlaveBackend) GetCode(address *account.Address, height uint64) ([]byte,
 
 func (s *SlaveBackend) GasPrice(branch uint32) (uint64, error) {
 	var (
-		price *uint64
+		price = new(uint64)
 	)
 	if shrd, ok := s.shards[branch]; ok {
 		if price = shrd.MinorBlockChain.GasPrice(); price == nil {
@@ -309,35 +316,30 @@ func (s *SlaveBackend) GetMinorBlockListByHashList(mHashList []common.Hash, bran
 	return minorList, err
 }
 
-func (s *SlaveBackend) GetMinorBlockListByDirection(mHash common.Hash,
-	limit uint32, direction uint8, branch uint32) ([]*types.MinorBlock, error) {
+func (s *SlaveBackend) GetMinorBlockHeaderList(mHash common.Hash,
+	limit uint32, direction uint8, branch uint32) ([]*types.MinorBlockHeader, error) {
 	var (
-		minorList = make([]*types.MinorBlock, 0, limit)
-		block     *types.MinorBlock
-		total     uint64
-		err       error
+		headerList = make([]*types.MinorBlockHeader, 0)
+		err        error
 	)
+
+	if direction != 0 /*directionToGenesis*/ {
+		return nil, errors.New("bad direction")
+	}
 
 	shad, ok := s.shards[branch]
 	if !ok {
 		return nil, ErrMsg("GetMinorBlockListByDirection")
 	}
-
-	for total <= uint64(limit) {
-		if direction == 0 {
-			total += 1
-		} else {
-			total -= 1
+	for i := uint32(0); i < limit; i++ {
+		header := shad.MinorBlockChain.GetHeader(mHash).(*types.MinorBlockHeader)
+		headerList = append(headerList, header)
+		if header.NumberU64() == 0 {
+			return headerList, nil
 		}
-		iBlock := shad.MinorBlockChain.GetBlockByNumber(block.Number() + total)
-		if qcom.IsNil(iBlock) {
-			return nil, errors.New(
-				fmt.Sprintf("Failed to get minor block list by direction, slave_id: %s, start_hash: %v", s.config.ID, mHash))
-		}
-		minorList = append(minorList, iBlock.(*types.MinorBlock))
+		mHash = header.PrevRootBlockHash
 	}
-
-	return minorList, err
+	return headerList, err
 }
 
 func (s *SlaveBackend) HandleNewTip(tip *p2p.Tip) error {

@@ -24,14 +24,15 @@ func (s *ConnManager) SendMinorBlockHeaderToMaster(minorHeader *types.MinorBlock
 		ShardStats:       state,
 	}
 	data, err := serialize.SerializeToBytes(gReq)
+	if err != nil {
+		return err
+	}
 
 	res, err := s.masterCli.client.Call(s.masterCli.target, &rpc.Request{Op: rpc.OpAddMinorBlockHeader, Data: data})
 	if err != nil {
 		return err
 	}
-
-	buf := serialize.NewByteBuffer(res.Data)
-	if err := serialize.Deserialize(buf, &gRep); err != nil {
+	if err := serialize.DeserializeFromBytes(res.Data, &gRep); err != nil {
 		return err
 	}
 	s.artificialTxConfig = gRep.ArtificialTxConfig
@@ -48,7 +49,7 @@ func (s *ConnManager) BroadcastNewTip(mHeaderLst []*types.MinorBlockHeader,
 		return err
 	}
 	_, err = s.masterCli.client.Call(s.masterCli.target, &rpc.Request{Op: rpc.OpBroadcastNewTip, Data: data})
-	return nil
+	return err
 }
 
 func (s *ConnManager) BroadcastTransactions(txs []*types.Transaction, branch uint32) error {

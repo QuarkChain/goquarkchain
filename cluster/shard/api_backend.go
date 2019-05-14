@@ -168,16 +168,17 @@ func (s *ShardBackend) HandleNewTip(rBHeader *types.RootBlockHeader, mBHeader *t
 func (s *ShardBackend) GetMinorBlock(mHash common.Hash, height *uint64) *types.MinorBlock {
 	if mHash != (common.Hash{}) {
 		return s.MinorBlockChain.GetMinorBlock(mHash)
-	} else if height == nil {
+	} else if height != nil {
 		return s.MinorBlockChain.GetBlockByNumber(*height).(*types.MinorBlock)
 	}
 	return nil
 }
 
 func (s *ShardBackend) NewMinorBlock(block *types.MinorBlock) (err error) {
-	var (
-		mHash = block.Header().Hash()
-	)
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	mHash := block.Header().Hash()
 	if _, ok := s.newBlockPool[mHash]; ok {
 		return
 	}
