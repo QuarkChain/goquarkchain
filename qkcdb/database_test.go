@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/QuarkChain/goquarkchain/qkcdb"
+	"github.com/stretchr/testify/assert"
 )
 
 func newTestRDB() (*qkcdb.RDBDatabase, func()) {
@@ -17,7 +18,7 @@ func newTestRDB() (*qkcdb.RDBDatabase, func()) {
 	if err != nil {
 		panic("failed to create test file: " + err.Error())
 	}
-	db, err := qkcdb.NewRDBDatabase(dirname)
+	db, err := qkcdb.NewRDBDatabase(dirname, false)
 	if err != nil {
 		panic("failed to create test database: " + err.Error())
 	}
@@ -200,4 +201,48 @@ func testParallelPutGet(db qkcdb.Database, t *testing.T) {
 		}(strconv.Itoa(i))
 	}
 	pending.Wait()
+}
+
+func TestNewDBWithClean(t *testing.T) {
+	dirname, err := ioutil.TempDir(os.TempDir(), "qkcdb_test_")
+	if err != nil {
+		panic("failed to create test file: " + err.Error())
+	}
+	db, err := qkcdb.NewRDBDatabase(dirname, false)
+	if err != nil {
+		panic("failed to create test database: " + err.Error())
+	}
+	var (
+		key1   = []byte("key1")
+		value1 = []byte("value1")
+	)
+
+	err = db.Put(key1, value1)
+	assert.NoError(t, err)
+	getValue1, err := db.Get(key1)
+	assert.NoError(t, err)
+	assert.Equal(t, value1, getValue1)
+	db.Close()
+
+	//not clean
+	dbNotClean, err := qkcdb.NewRDBDatabase(dirname, false)
+	if err != nil {
+		panic("failed to create test database: " + err.Error())
+	}
+
+	getValue1, err = dbNotClean.Get(key1)
+	assert.NoError(t, err)
+	assert.Equal(t, value1, getValue1)
+	dbNotClean.Close()
+
+	//clean
+	dbClean, err := qkcdb.NewRDBDatabase(dirname, true)
+	if err != nil {
+		panic("failed to create test database: " + err.Error())
+	}
+
+	getValue1, err = dbClean.Get(key1)
+	assert.Error(t, err)
+	dbClean.Close()
+	os.RemoveAll(dirname)
 }
