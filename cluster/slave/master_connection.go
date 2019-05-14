@@ -94,8 +94,7 @@ func (s *ConnManager) GetMinorBlocks(mHeaderList []common.Hash, peerId string, b
 		return nil, err
 	}
 
-	buf := serialize.NewByteBuffer(res.Data)
-	if err = serialize.Deserialize(buf, &gRep); err != nil {
+	if err = serialize.DeserializeFromBytes(res.Data, &gRep); err != nil {
 		return nil, err
 	}
 
@@ -120,8 +119,7 @@ func (s *ConnManager) GetMinorBlockHeaders(mHash common.Hash,
 		return nil, err
 	}
 
-	buf := serialize.NewByteBuffer(res.Data)
-	if err = serialize.Deserialize(buf, &gRep); err != nil {
+	if err = serialize.DeserializeFromBytes(res.Data, &gRep); err != nil {
 		return nil, err
 	}
 

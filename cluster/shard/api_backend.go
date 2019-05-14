@@ -19,7 +19,6 @@ func (s *ShardBackend) GetUnconfirmedHeaderList() ([]*types.MinorBlockHeader, er
 }
 
 func (s *ShardBackend) broadcastNewTip() (err error) {
-
 	var (
 		rootTip  = s.MinorBlockChain.GetRootTip()
 		minorTip = s.MinorBlockChain.CurrentHeader().(*types.MinorBlockHeader)
@@ -88,16 +87,18 @@ func (s *ShardBackend) InitFromRootBlock(rBlock *types.RootBlock) error {
 	return nil
 }
 
-func (s *ShardBackend) AddRootBlock(rBlock *types.RootBlock) error {
+func (s *ShardBackend) AddRootBlock(rBlock *types.RootBlock) (switched bool, err error) {
 	if rBlock.Header().Number > s.genesisRootHeight {
-		if err := s.MinorBlockChain.AddRootBlock(rBlock); err != nil {
-			return err
+		if err = s.MinorBlockChain.AddRootBlock(rBlock); err != nil {
+			return false, err
 		}
 	}
 	if rBlock.Header().Number == s.genesisRootHeight {
-		return s.initGenesisState(rBlock)
+		if err = s.initGenesisState(rBlock); err != nil {
+			return false, err
+		}
 	}
-	return nil
+	return true, nil
 }
 
 // Add blocks in batch to reduce RPCs. Will NOT broadcast to peers.
@@ -107,7 +108,6 @@ func (s *ShardBackend) AddRootBlock(rBlock *types.RootBlock) error {
 // It does NOT notify master because the master should already have the minor header list,
 // and will add them once this function returns successfully.
 func (s *ShardBackend) AddBlockListForSync(blockLst []*types.MinorBlock) error {
-
 	blockHashToXShardList := make(map[common.Hash]*XshardListTuple)
 	if blockLst == nil {
 		return errors.New(fmt.Sprintf("empty root block list in %d", s.Config.ShardID))
@@ -154,7 +154,6 @@ func (s *ShardBackend) SubmitWork(headerHash common.Hash, nonce uint64, mixHash 
 }
 
 func (s *ShardBackend) HandleNewTip(rBHeader *types.RootBlockHeader, mBHeader *types.MinorBlockHeader) error {
-
 	// TODO sync.add_task
 	if s.MinorBlockChain.CurrentHeader().NumberU64() >= mBHeader.Number {
 		return nil

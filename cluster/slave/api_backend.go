@@ -34,7 +34,6 @@ func (s *SlaveBackend) GetUnconfirmedHeaderList() ([]*rpc.HeadersInfo, error) {
 
 // For local miner to submit mined blocks through master
 func (s *SlaveBackend) AddMinorBlock(block *types.MinorBlock) error {
-
 	if shrd, ok := s.shards[block.Branch().Value]; ok {
 
 		if block.Header().ParentHash != shrd.MinorBlockChain.CurrentHeader().Hash() {
@@ -48,8 +47,8 @@ func (s *SlaveBackend) AddMinorBlock(block *types.MinorBlock) error {
 
 func (s *SlaveBackend) AddRootBlock(block *types.RootBlock) (switched bool, err error) {
 	for _, shrd := range s.shards {
-		if err = shrd.AddRootBlock(block); err != nil {
-			return
+		if switched, err = shrd.AddRootBlock(block); err != nil {
+			return false, err
 		}
 	}
 	return true, nil
@@ -84,7 +83,6 @@ func (s *SlaveBackend) CreateShards(rootBlock *types.RootBlock) (err error) {
 }
 
 func (s *SlaveBackend) AddBlockListForSync(mHashList []common.Hash, peerId string, branch uint32) (*rpc.ShardStatus, error) {
-
 	if mHashList == nil || len(mHashList) == 0 {
 		return nil, errors.New("minor block hash list is empty")
 	}
@@ -112,21 +110,16 @@ func (s *SlaveBackend) AddBlockListForSync(mHashList []common.Hash, peerId strin
 }
 
 func (s *SlaveBackend) AddTx(tx *types.Transaction) (err error) {
-
-	var branch = account.NewBranch(tx.EvmTx.FromFullShardId())
-	if shrd, ok := s.shards[branch.Value]; ok {
-		if err = shrd.MinorBlockChain.AddTx(tx); err != nil {
-			return
-		}
-	} else {
+	branch := account.NewBranch(tx.EvmTx.FromFullShardId())
+	shrd, ok := s.shards[branch.Value]
+	if !ok {
 		return ErrMsg("AddTx")
 	}
-	return
+	return shrd.MinorBlockChain.AddTx(tx)
 }
 
 func (s *SlaveBackend) ExecuteTx(tx *types.Transaction, address *account.Address) ([]byte, error) {
-
-	var branch = account.NewBranch(tx.EvmTx.FromFullShardId())
+	branch := account.NewBranch(tx.EvmTx.FromFullShardId())
 	if shrd, ok := s.shards[branch.Value]; ok {
 		return shrd.MinorBlockChain.ExecuteTx(tx, address, nil)
 	}
@@ -158,7 +151,6 @@ func (s *SlaveBackend) GetTokenBalance(address *account.Address) (*big.Int, erro
 }
 
 func (s *SlaveBackend) GetAccountData(address *account.Address, height uint64) ([]*rpc.AccountBranchData, error) {
-
 	var (
 		results = make([]*rpc.AccountBranchData, 0)
 		bt      []byte
@@ -234,8 +226,7 @@ func (s *SlaveBackend) GetLogs(address []*account.Address, start uint64, end uin
 }
 
 func (s *SlaveBackend) EstimateGas(tx *types.Transaction, address *account.Address) (uint32, error) {
-
-	var branch = account.NewBranch(tx.EvmTx.FromFullShardId()).Value
+	branch := account.NewBranch(tx.EvmTx.FromFullShardId()).Value
 	if shrd, ok := s.shards[branch]; ok {
 		return shrd.MinorBlockChain.EstimateGas(tx, *address)
 	}
@@ -266,6 +257,7 @@ func (s *SlaveBackend) GasPrice(branch uint32) (uint64, error) {
 		if price = shrd.MinorBlockChain.GasPrice(); price == nil {
 			return 0, errors.New(fmt.Sprintf("Failed to get gas price, shard id : %d", shrd.Config.ShardID))
 		}
+		return *price, nil
 	}
 	return *price, ErrMsg("GasPrice")
 }
@@ -343,7 +335,6 @@ func (s *SlaveBackend) GetMinorBlockHeaderList(mHash common.Hash,
 }
 
 func (s *SlaveBackend) HandleNewTip(tip *p2p.Tip) error {
-
 	if len(tip.MinorBlockHeaderList) != 1 {
 		return errors.New("minor block header list must have only one header")
 	}
@@ -357,7 +348,6 @@ func (s *SlaveBackend) HandleNewTip(tip *p2p.Tip) error {
 }
 
 func (s *SlaveBackend) NewMinorBlock(block *types.MinorBlock) error {
-
 	if shrd, ok := s.shards[block.Header().Branch.Value]; ok {
 		return shrd.NewMinorBlock(block)
 	}

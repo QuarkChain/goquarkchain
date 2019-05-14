@@ -27,7 +27,7 @@ func NewToSlaveConn(target, id string, chainMaskList []*types.ChainMask) (*Slave
 func (s *SlaveConn) SendPing() bool {
 	var (
 		gReq = rpc.Ping{Id: []byte(s.id), ChainMaskList: s.chainMaskList}
-		gRep rpc.Pong
+		gRes rpc.Pong
 		err  error
 	)
 	data, err := serialize.SerializeToBytes(gReq)
@@ -41,18 +41,17 @@ func (s *SlaveConn) SendPing() bool {
 		log.Error("Failed to send ping to slave", "target slave", s.target, "err", err)
 		return false
 	}
-	buf := serialize.NewByteBuffer(res.Data)
-	if err = serialize.Deserialize(buf, &gRep); err != nil {
+	if err = serialize.DeserializeFromBytes(res.Data, &gRes); err != nil {
 		log.Error("send ping", "failed to deserialize Pong", "err", err)
 	}
 
-	if s.id != string(gRep.Id) {
-		log.Error("send ping", "id does not match", "target id", s.id, "actual id", string(gRep.Id))
+	if s.id != string(gRes.Id) {
+		log.Error("send ping", "id does not match", "target id", s.id, "actual id", string(gRes.Id))
 		return false
 	}
 
-	if !s.EqualChainMask(gRep.ChainMaskList) {
-		log.Error("send ping", "chain_mask_list does not match", "target list", s.chainMaskList, "actual list", gRep.ChainMaskList)
+	if !s.EqualChainMask(gRes.ChainMaskList) {
+		log.Error("send ping", "chain_mask_list does not match", "target list", s.chainMaskList, "actual list", gRes.ChainMaskList)
 		return false
 	}
 

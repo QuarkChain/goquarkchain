@@ -117,29 +117,6 @@ func (s *SlaveServerSideOp) AddRootBlock(ctx context.Context, req *rpc.Request) 
 	return response, nil
 }
 
-func (s *SlaveServerSideOp) AddMinorBlock(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
-	var (
-		gReq       rpc.AddMinorBlockRequest
-		minorBlock = types.MinorBlock{}
-		mBuf       *serialize.ByteBuffer
-		response   = &rpc.Response{}
-		err        error
-	)
-	if err = serialize.DeserializeFromBytes(req.Data, &gReq); err != nil {
-		return nil, err
-	}
-
-	mBuf = serialize.NewByteBuffer(gReq.MinorBlockData)
-	if err = serialize.Deserialize(mBuf, &minorBlock); err != nil {
-		return nil, err
-	}
-	if err = s.slave.AddMinorBlock(&minorBlock); err != nil {
-		return nil, err
-	}
-
-	return response, nil
-}
-
 func (s *SlaveServerSideOp) GetUnconfirmedHeaderList(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
 	var (
 		gRes     rpc.GetUnconfirmedHeadersResponse

@@ -35,7 +35,6 @@ type ConnManager struct {
 }
 
 func (s *ConnManager) AddConnectToSlave(info *rpc.SlaveInfo) error {
-
 	var (
 		conn   *SlaveConn
 		target = fmt.Sprintf("%s:%d", info.Host, info.Port)
@@ -65,34 +64,49 @@ func (s *ConnManager) GetConnectionsByFullShardId(id uint32) []*SlaveConn {
 }
 
 func (s *ConnManager) AddXshardTxList(fullShardId uint32, xshardReq *rpc.AddXshardTxListRequest) bool {
-
-	var status = true
+	var (
+		status = true
+		wg     sync.WaitGroup
+	)
 	if clients, ok := s.fullShardIdToSlaves[fullShardId]; ok {
-		for _, cli := range clients {
-			if !cli.AddXshardTxList(xshardReq) {
-				status = false
-			}
+		for id, _ := range clients {
+			wg.Add(1)
+			go func(id int) {
+				if !clients[id].AddXshardTxList(xshardReq) {
+					status = false
+				}
+				wg.Done()
+			}(id)
 		}
+		wg.Wait()
 	}
 	return status
 }
 
 func (s *ConnManager) BatchAddXshardTxList(fullShardId uint32, xshardReqs []*rpc.AddXshardTxListRequest) bool {
+	var (
+		status = true
+		wg     sync.WaitGroup
+	)
 
-	var status = true
 	if clients, ok := s.fullShardIdToSlaves[fullShardId]; ok {
-		for _, cli := range clients {
-			if !cli.BatchAddXshardTxList(xshardReqs) && status {
-				status = false
-			}
+		wg.Add(1)
+		for id, _ := range clients {
+			go func(id int) {
+				if !clients[id].BatchAddXshardTxList(xshardReqs) && status {
+					status = false
+				}
+				wg.Done()
+			}(id)
 		}
+		wg.Wait()
 	}
 	return status
 }
 
 // Broadcast x-shard transactions to their recipient shards
 func (s *ConnManager) BroadcastXshardTxList(block *types.MinorBlock,
-	xshardTxList []*types.CrossShardTransactionDeposit, height uint32) {
+	xshardTxList []*types.CrossShardTransactionDeposit, height uint32) error {
 
 	var (
 		hash                = block.Header().Hash()
@@ -101,12 +115,10 @@ func (s *ConnManager) BroadcastXshardTxList(block *types.MinorBlock,
 	)
 
 	for branch, request := range xshardTxListRequest {
-		if branch == block.Header().Branch ||
-			account.IsNeighbor(block.Header().Branch, branch, uint32(shardSize)) {
+		if branch == block.Header().Branch || account.IsNeighbor(block.Header().Branch, branch, uint32(shardSize)) {
 
-			if len(request.TxList) == 0 {
-
-				log.Warn("there shouldn't be xshard list for non-neighbor shard",
+			if len(request.TxList) != 0 {
+				return fmt.Errorf("there shouldn't be xshard list for non-neighbor shard",
 					"actual branch", block.Header().Branch.Value, "target branch", branch.Value)
 			}
 			continue
@@ -119,6 +131,7 @@ func (s *ConnManager) BroadcastXshardTxList(block *types.MinorBlock,
 			log.Error("Failed to broadcast xshard transactions", "full shard id", branch.GetFullShardID())
 		}
 	}
+	return nil
 }
 
 func (s *ConnManager) BatchBroadcastXshardTxList(
@@ -131,15 +144,13 @@ func (s *ConnManager) BatchBroadcastXshardTxList(
 
 		brchToAdXsdTxLstReq := s.getBranchToAddXshardTxListRequest(hash, xshardTxList, prevRootHeight)
 		for branch, request := range brchToAdXsdTxLstReq {
-			if branch == sorBrch {
-				lg := len(s.qkcCfg.GetInitializedShardIdsBeforeRootHeight(prevRootHeight))
-				if !account.IsNeighbor(branch, sorBrch, uint32(lg)) {
-					if len(request.TxList) == 0 {
-						log.Error(fmt.Sprintf("there shouldn't be xshard list for non-neighbor shard (%d -> %d)",
-							sorBrch.Value,
-							branch.Value))
-						continue
-					}
+			lg := len(s.qkcCfg.GetInitializedShardIdsBeforeRootHeight(prevRootHeight))
+			if branch == sorBrch || !account.IsNeighbor(branch, sorBrch, uint32(lg)) {
+				if len(request.TxList) != 0 {
+					log.Error(fmt.Sprintf("there shouldn't be xshard list for non-neighbor shard (%d -> %d)",
+						sorBrch.Value,
+						branch.Value))
+					continue
 				}
 			}
 			if _, ok := brchToAddXsdTxLstReqLst[branch]; !ok {
@@ -170,22 +181,7 @@ func (s *ConnManager) getBranchToAddXshardTxListRequest(blockHash common.Hash,
 
 	var (
 		xshardMap = make(map[account.Branch][]*types.CrossShardTransactionDeposit)
-		// only broadcast to the shards that have been initialized
-		initialShardIds = s.qkcCfg.GetInitializedShardIdsBeforeRootHeight(height)
 	)
-
-	for _, id := range initialShardIds {
-		branch := account.NewBranch(id)
-		xshardMap[branch] = make([]*types.CrossShardTransactionDeposit, 0)
-	}
-
-	for _, xshardTx := range xshardTxList {
-		fullShardId := s.qkcCfg.GetFullShardIdByFullShardKey(xshardTx.To.FullShardKey)
-		branch := account.NewBranch(fullShardId)
-		if _, ok := xshardMap[branch]; ok {
-			xshardMap[branch] = append(xshardMap[branch], xshardTx)
-		}
-	}
 
 	xshardTxListRequest := make(map[account.Branch]*rpc.AddXshardTxListRequest)
 	for branch, txLst := range xshardMap {
@@ -199,6 +195,7 @@ func (s *ConnManager) getBranchToAddXshardTxListRequest(blockHash common.Hash,
 	return xshardTxListRequest
 }
 
+// TODO need to check
 func (s *ConnManager) addSlaveConnection(target string, conn *SlaveConn) {
 	s.slavesConn[target] = conn
 	for _, slv := range s.slave.shards {

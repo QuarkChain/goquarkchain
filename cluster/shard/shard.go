@@ -119,7 +119,6 @@ func createDB(ctx *service.ServiceContext, name string) (ethdb.Database, error) 
 }
 
 func createConsensusEngine(ctx *service.ServiceContext, cfg *config.ShardConfig) (consensus.Engine, error) {
-
 	difficulty := new(big.Int)
 	diffCalculator := consensus.EthDifficultyCalculator{
 		MinimumDifficulty: difficulty.SetUint64(cfg.Genesis.Difficulty),
