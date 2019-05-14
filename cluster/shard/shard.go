@@ -61,12 +61,12 @@ func New(ctx *service.ServiceContext, rBlock *types.RootBlock, conn ConnManager,
 	)
 	shrd.maxBlocks = shrd.Config.MaxBlocksPerShardInOneRootBlock()
 
-	shrd.chainDb, err = CreateDB(ctx, fmt.Sprintf("shard-%d.db", fullshardId))
+	shrd.chainDb, err = createDB(ctx, fmt.Sprintf("shard-%d.db", fullshardId))
 	if err != nil {
 		return nil, err
 	}
 
-	shrd.engine, err = CreateConsensusEngine(ctx, shrd.Config)
+	shrd.engine, err = createConsensusEngine(ctx, shrd.Config)
 	if err != nil {
 		return nil, err
 	}
@@ -109,7 +109,8 @@ func (s *ShardBackend) StopMining() {
 	s.engine.SetThreads(-1)
 }
 
-func CreateDB(ctx *service.ServiceContext, name string) (ethdb.Database, error) {
+func createDB(ctx *service.ServiceContext, name string) (ethdb.Database, error) {
+	// handlers and caches size should be set in different environment.
 	db, err := ctx.OpenDatabase(name)
 	if err != nil {
 		return nil, err
@@ -117,10 +118,11 @@ func CreateDB(ctx *service.ServiceContext, name string) (ethdb.Database, error) 
 	return db, nil
 }
 
-func CreateConsensusEngine(ctx *service.ServiceContext, cfg *config.ShardConfig) (consensus.Engine, error) {
+func createConsensusEngine(ctx *service.ServiceContext, cfg *config.ShardConfig) (consensus.Engine, error) {
 
+	difficulty := new(big.Int)
 	diffCalculator := consensus.EthDifficultyCalculator{
-		MinimumDifficulty: big.NewInt(int64(cfg.Genesis.Difficulty)),
+		MinimumDifficulty: difficulty.SetUint64(cfg.Genesis.Difficulty),
 		AdjustmentCutoff:  cfg.DifficultyAdjustmentCutoffTime,
 		AdjustmentFactor:  cfg.DifficultyAdjustmentFactor,
 	}

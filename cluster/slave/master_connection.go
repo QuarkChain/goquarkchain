@@ -129,7 +129,5 @@ func (s *ConnManager) GetMinorBlockHeaders(mHash common.Hash,
 }
 
 func (s *ConnManager) ModifyTarget(target string) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
 	s.masterCli.target = target
 }

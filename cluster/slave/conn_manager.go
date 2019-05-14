@@ -34,10 +34,6 @@ type ConnManager struct {
 	mu                 sync.Mutex
 }
 
-func (s *ConnManager) ModifyMasterConn(target string) {
-	s.masterCli.target = target
-}
-
 func (s *ConnManager) AddConnectToSlave(info *rpc.SlaveInfo) error {
 
 	var (

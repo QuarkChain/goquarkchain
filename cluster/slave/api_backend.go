@@ -329,7 +329,7 @@ func (s *SlaveBackend) GetMinorBlockHeaderList(mHash common.Hash,
 
 	shad, ok := s.shards[branch]
 	if !ok {
-		return nil, ErrMsg("GetMinorBlockListByDirection")
+		return nil, ErrMsg("GetMinorBlockHeaderList")
 	}
 	for i := uint32(0); i < limit; i++ {
 		header := shad.MinorBlockChain.GetHeader(mHash).(*types.MinorBlockHeader)

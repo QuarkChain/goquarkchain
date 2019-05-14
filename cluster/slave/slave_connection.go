@@ -37,6 +37,10 @@ func (s *SlaveConn) SendPing() bool {
 	}
 
 	res, err := s.client.Call(s.target, &rpc.Request{Op: rpc.OpPing, Data: data})
+	if err != nil {
+		log.Error("Failed to send ping to slave", "target slave", s.target, "err", err)
+		return false
+	}
 	buf := serialize.NewByteBuffer(res.Data)
 	if err = serialize.Deserialize(buf, &gRep); err != nil {
 		log.Error("send ping", "failed to deserialize Pong", "err", err)
@@ -60,16 +64,16 @@ func (s *SlaveConn) EqualChainMask(chainMask []*types.ChainMask) bool {
 		return false
 	}
 	for i, id := range s.chainMaskList {
-		if chainMask[i].GetMask() == id.GetMask() {
-			return true
+		if chainMask[i].GetMask() != id.GetMask() {
+			return false
 		}
 	}
-	return false
+	return true
 }
 
-func (s *SlaveConn) HasShard(msk uint32) bool {
+func (s *SlaveConn) HasShard(shardId uint32) bool {
 	for _, id := range s.chainMaskList {
-		if id.ContainFullShardId(msk) {
+		if id.ContainFullShardId(shardId) {
 			return true
 		}
 	}
@@ -77,9 +81,11 @@ func (s *SlaveConn) HasShard(msk uint32) bool {
 }
 
 func (s *SlaveConn) AddXshardTxList(xshardReq *rpc.AddXshardTxListRequest) bool {
+	// TODO need to fill content.
 	return false
 }
 
 func (s *SlaveConn) BatchAddXshardTxList(xshardReqs []*rpc.AddXshardTxListRequest) bool {
+	// TODO need to fill content.
 	return false
 }

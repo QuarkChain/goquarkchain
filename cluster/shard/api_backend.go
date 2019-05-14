@@ -14,9 +14,8 @@ import (
 )
 
 func (s *ShardBackend) GetUnconfirmedHeaderList() ([]*types.MinorBlockHeader, error) {
-	panic("GetUnconfirmedHeaderList")
-	//headers := s.MinorBlockChain.GetAllUnconfirmedHeaderList()
-	//return headers[0:s.maxBlocks], nil
+	headers := s.MinorBlockChain.GetUnconfirmedHeaderList()
+	return headers[0:s.maxBlocks], nil
 }
 
 func (s *ShardBackend) broadcastNewTip() (err error) {
