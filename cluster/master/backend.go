@@ -29,7 +29,11 @@ import (
 	"time"
 )
 
-const heartbeatInterval = time.Duration(4 * time.Second)
+const (
+	heartbeatInterval     = time.Duration(4 * time.Second)
+	rootChainChanSize     = 256
+	rootChainSideChanSize = 256
+)
 
 var (
 	ErrNoBranchConn = errors.New("no such branch's connection")
@@ -43,10 +47,16 @@ type QKCMasterBackend struct {
 	chainDb            ethdb.Database
 	shutdown           chan os.Signal
 	clusterConfig      *config.ClusterConfig
-	clientPool         map[string]*SlaveConnection
-	branchToSlaves     map[uint32][]*SlaveConnection
+	clientPool         map[string]rpc.ISlaveConn
+	branchToSlaves     map[uint32][]rpc.ISlaveConn
 	branchToShardStats map[uint32]*rpc.ShardStatus
 	shardStatsChan     chan *rpc.ShardStatus
+
+	rootChainChan         chan core.RootChainEvent
+	rootChainSideChan     chan core.RootChainSideEvent
+	rootChainEventSub     event.Subscription
+	rootChainSideEventSub event.Subscription
+
 	artificialTxConfig *rpc.ArtificialTxConfig
 	rootBlockChain     *core.RootBlockChain
 	protocolManager    *ProtocolManager
@@ -60,8 +70,8 @@ func New(ctx *service.ServiceContext, cfg *config.ClusterConfig) (*QKCMasterBack
 		mstr = &QKCMasterBackend{
 			clusterConfig:      cfg,
 			eventMux:           ctx.EventMux,
-			clientPool:         make(map[string]*SlaveConnection),
-			branchToSlaves:     make(map[uint32][]*SlaveConnection, 0),
+			clientPool:         make(map[string]rpc.ISlaveConn),
+			branchToSlaves:     make(map[uint32][]rpc.ISlaveConn, 0),
 			branchToShardStats: make(map[uint32]*rpc.ShardStatus),
 			shardStatsChan:     make(chan *rpc.ShardStatus, len(cfg.Quarkchain.GetGenesisShardIds())),
 			artificialTxConfig: &rpc.ArtificialTxConfig{
@@ -156,6 +166,8 @@ func (s *QKCMasterBackend) Stop() error {
 	s.rootBlockChain.Stop()
 	s.engine.Close()
 	s.protocolManager.Stop()
+	s.rootChainEventSub.Unsubscribe()
+	s.rootChainSideEventSub.Unsubscribe()
 	if s.engine != nil {
 		s.engine.Close()
 	}
@@ -169,6 +181,12 @@ func (s *QKCMasterBackend) Start(srvr *p2p.Server) error {
 	if err := s.InitCluster(); err != nil {
 		return err
 	}
+
+	s.rootChainChan = make(chan core.RootChainEvent, rootChainChanSize)
+	s.rootChainEventSub = s.rootBlockChain.SubscribeChainEvent(s.rootChainChan)
+	s.rootChainSideChan = make(chan core.RootChainSideEvent, rootChainSideChanSize)
+	s.rootChainSideEventSub = s.rootBlockChain.SubscribeChainSideEvent(s.rootChainSideChan)
+
 	maxPeers := srvr.MaxPeers
 	s.protocolManager.Start(maxPeers)
 	// start heart beat pre 3 seconds.
@@ -220,7 +238,7 @@ func (s *QKCMasterBackend) ConnectToSlaves() error {
 			return err
 		}
 		for _, fullShardID := range fullShardIds {
-			if slaveConn.hasShard(fullShardID) {
+			if slaveConn.HasShard(fullShardID) {
 				s.branchToSlaves[fullShardID] = append(s.branchToSlaves[fullShardID], slaveConn)
 			}
 		}
@@ -230,7 +248,7 @@ func (s *QKCMasterBackend) ConnectToSlaves() error {
 func (s *QKCMasterBackend) logSummary() {
 	for branch, slaves := range s.branchToSlaves {
 		for _, slave := range slaves {
-			log.Info(s.logInfo, "branch:", branch, "is run by slave", slave.slaveID)
+			log.Info(s.logInfo, "branch:", branch, "is run by slave", slave.GetSlaveID())
 		}
 	}
 }
@@ -283,6 +301,44 @@ func (s *QKCMasterBackend) updateShardStatsLoop() {
 	}()
 }
 
+func (s *QKCMasterBackend) broadcastRpcLoop() {
+	go func() {
+		for true {
+			select {
+			// TODO verify whether rootChainChan & rootChainSideChan would be blocked,
+			// as the chan len is 256, they should not be blocked
+			case event := <-s.rootChainChan:
+				s.broadcastRootBlockToSlaves(event.Block)
+				// Err() channel will be closed when unsubscribing.
+			case err := <-s.rootChainEventSub.Err():
+				log.Error("rootChainEventSub error in broadcastRpcLoop ", "error", err.Error())
+				return
+			case event := <-s.rootChainSideChan:
+				s.broadcastRootBlockToSlaves(event.Block)
+				// Err() channel will be closed when unsubscribing.
+			case err := <-s.rootChainSideEventSub.Err():
+				log.Error("rootChainSideEventSub error in broadcastRpcLoop", "error", err.Error())
+				return
+			}
+		}
+	}()
+}
+
+func (s *QKCMasterBackend) broadcastRootBlockToSlaves(block *types.RootBlock) error {
+	var g errgroup.Group
+	for _, client := range s.clientPool {
+		g.Go(func() error {
+			err := client.AddRootBlock(block, false)
+			if err != nil {
+				log.Error("broadcastRootBlockToSlaves failed", "slave", client.GetSlaveID(),
+					"block", block.Hash(), "height", block.NumberU64())
+			}
+			return err
+		})
+	}
+	return g.Wait()
+}
+
 func (s *QKCMasterBackend) Heartbeat() {
 	go func(normal bool) {
 		for normal {
@@ -302,24 +358,24 @@ func (s *QKCMasterBackend) Heartbeat() {
 	//TODO :add send master info
 }
 
-func checkPing(slaveConn *SlaveConnection, id []byte, chainMaskList []*types.ChainMask) error {
-	if slaveConn.slaveID != string(id) {
+func checkPing(slaveConn rpc.ISlaveConn, id []byte, chainMaskList []*types.ChainMask) error {
+	if slaveConn.GetSlaveID() != string(id) {
 		return errors.New("slaveID is not match")
 	}
-	if len(chainMaskList) != len(slaveConn.shardMaskList) {
+	if len(chainMaskList) != len(slaveConn.GetShardMaskList()) {
 		return errors.New("chainMaskList is not match")
 	}
 	lenChainMaskList := len(chainMaskList)
 
 	for index := 0; index < lenChainMaskList; index++ {
-		if chainMaskList[index].GetMask() != slaveConn.shardMaskList[index].GetMask() {
+		if chainMaskList[index].GetMask() != slaveConn.GetShardMaskList()[index].GetMask() {
 			return errors.New("chainMaskList index is not match")
 		}
 	}
 	return nil
 }
 
-func (s *QKCMasterBackend) getOneSlaveConnection(branch account.Branch) *SlaveConnection {
+func (s *QKCMasterBackend) getOneSlaveConnection(branch account.Branch) rpc.ISlaveConn {
 	slaves := s.branchToSlaves[branch.Value]
 	if len(slaves) < 1 {
 		return nil
@@ -327,7 +383,7 @@ func (s *QKCMasterBackend) getOneSlaveConnection(branch account.Branch) *SlaveCo
 	return slaves[0]
 }
 
-func (s *QKCMasterBackend) getAllSlaveConnection(fullShardID uint32) []*SlaveConnection {
+func (s *QKCMasterBackend) getAllSlaveConnection(fullShardID uint32) []rpc.ISlaveConn {
 	slaves := s.branchToSlaves[fullShardID]
 	if len(slaves) < 1 {
 		return nil

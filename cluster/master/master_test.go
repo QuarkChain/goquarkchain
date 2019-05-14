@@ -92,7 +92,7 @@ func (c *fakeRpcClient) Call(hostport string, req *rpc.Request) (*rpc.Response, 
 				Branch:     v.Value,
 				HeaderList: make([]*types.MinorBlockHeader, 0),
 			})
-			//rsp.HeadersInfoList[0].HeaderList = append(rsp.HeadersInfoList[0].HeaderList, &types.MinorBlockHeader{})
+			//rsp.HeadersInfoList[0].HeaderList = append(rsp.HeadersInfoList[0].HeaderList, &types.MinorBlockHeaderList{})
 		}
 		data, err := serialize.SerializeToBytes(rsp)
 		if err != nil {
@@ -360,6 +360,7 @@ func TestAddRootBlock(t *testing.T) {
 	assert.NoError(t, err)
 	add1 := account.NewAddress(id1.GetRecipient(), 3)
 	rootBlock, err := master.rootBlockChain.CreateBlockToMine(nil, &add1, nil)
+	assert.NoError(t, err)
 	err = master.AddRootBlock(rootBlock)
 	assert.NoError(t, err)
 }

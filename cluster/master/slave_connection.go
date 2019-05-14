@@ -2,6 +2,7 @@ package master
 
 import (
 	"errors"
+	"fmt"
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
 	"github.com/QuarkChain/goquarkchain/consensus"
@@ -9,7 +10,6 @@ import (
 	"github.com/QuarkChain/goquarkchain/p2p"
 	"github.com/QuarkChain/goquarkchain/serialize"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/log"
 	"time"
 )
 
@@ -18,6 +18,7 @@ type SlaveConnection struct {
 	shardMaskList []*types.ChainMask
 	client        rpc.Client
 	slaveID       string
+	logInfo       string
 }
 
 // create slave connection manager
@@ -28,7 +29,15 @@ func NewSlaveConn(target string, shardMaskList []*types.ChainMask, slaveID strin
 		client:        client,
 		shardMaskList: shardMaskList,
 		slaveID:       slaveID,
+		logInfo:       fmt.Sprintf("%v", slaveID),
 	}
+}
+
+func (s *SlaveConnection) GetSlaveID() string {
+	return s.slaveID
+}
+func (s *SlaveConnection) GetShardMaskList() []*types.ChainMask {
+	return s.shardMaskList
 }
 
 func (s *SlaveConnection) hasOverlap(chainMask *types.ChainMask) bool {
@@ -46,7 +55,6 @@ func (s *SlaveConnection) HeartBeat() bool {
 		req := rpc.Request{Op: rpc.OpHeartBeat, Data: nil}
 		_, err := s.client.Call(s.target, &req)
 		if err != nil {
-			log.Error(s.slaveID, "heart beat err", err)
 			time.Sleep(time.Duration(1) * time.Second)
 			tryTimes -= 1
 			continue
@@ -107,7 +115,7 @@ func (s *SlaveConnection) SendConnectToSlaves(slaveInfoLst []*rpc.SlaveInfo) err
 	return nil
 }
 
-func (s *SlaveConnection) hasShard(fullShardID uint32) bool {
+func (s *SlaveConnection) HasShard(fullShardID uint32) bool {
 	for _, chainMask := range s.shardMaskList {
 		if chainMask.ContainFullShardId(fullShardID) {
 			return true

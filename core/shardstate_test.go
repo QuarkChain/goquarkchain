@@ -13,10 +13,10 @@ import (
 	ethParams "github.com/ethereum/go-ethereum/params"
 	"github.com/stretchr/testify/assert"
 	"math/big"
+	"math/rand"
 	"reflect"
 	"testing"
 	"time"
-	"math/rand"
 )
 
 func TestShardStateSimple(t *testing.T) {
@@ -1259,8 +1259,8 @@ func TestShardStateAddRootBlock(t *testing.T) {
 //
 //	fakeID := uint32(0)
 //	shardState := createDefaultShardState(env, &fakeID, nil, nil, nil)
-//	headers := make([]*types.MinorBlockHeader, 0)
-//	headers = append(headers, shardState.CurrentHeader().(*types.MinorBlockHeader))
+//	headers := make([]*types.MinorBlockHeaderList, 0)
+//	headers = append(headers, shardState.CurrentHeader().(*types.MinorBlockHeaderList))
 //
 //	for index := 0; index < 13; index++ {
 //		b := shardState.CurrentBlock().CreateBlockToAppend(nil, nil, nil, nil, nil, nil, nil)
