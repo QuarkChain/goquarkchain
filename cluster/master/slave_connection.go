@@ -542,6 +542,18 @@ func (s *SlaveConnection) HandleNewTip(request *p2p.Tip) (bool, error) {
 	return true, nil
 }
 
+func (s *SlaveConnection) HandleNewMinorBlock(request *p2p.NewBlockMinor) (bool, error) {
+	blockData, err := serialize.SerializeToBytes(request.Block)
+	if err != nil {
+		return false, err
+	}
+	_, err = s.client.Call(s.target, &rpc.Request{Op: rpc.OpHandleNewMinorBlock, Data: blockData})
+	if err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
 func (s *SlaveConnection) AddBlockListForSync(request *rpc.HashList) (*rpc.ShardStatus, error) {
 	var (
 		shardStatus = new(rpc.ShardStatus)
