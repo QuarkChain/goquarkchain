@@ -107,18 +107,6 @@ func (c *fakeRpcClient) Call(hostport string, req *rpc.Request) (*rpc.Response, 
 			return nil, err
 		}
 		return &rpc.Response{Data: data}, nil
-	case rpc.OpGetEcoInfoList:
-		rsp := new(rpc.GetEcoInfoListResponse)
-		for _, v := range c.branchs {
-			rsp.EcoInfoList = append(rsp.EcoInfoList, &rpc.EcoInfo{
-				Branch: account.Branch{Value: v.Value},
-			})
-		}
-		data, err := serialize.SerializeToBytes(rsp)
-		if err != nil {
-			return nil, err
-		}
-		return &rpc.Response{Data: data}, nil
 	case rpc.OpGetAccountData:
 		rsp := new(rpc.GetAccountDataResponse)
 		for _, v := range c.branchs {
@@ -139,8 +127,6 @@ func (c *fakeRpcClient) Call(hostport string, req *rpc.Request) (*rpc.Response, 
 			return nil, err
 		}
 		return &rpc.Response{Data: data}, nil
-	case rpc.OpAddMinorBlock:
-		return &rpc.Response{}, nil
 	case rpc.OpAddTransaction:
 		return &rpc.Response{}, nil
 	case rpc.OpExecuteTransaction:

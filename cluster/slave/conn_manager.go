@@ -97,8 +97,7 @@ func (s *ConnManager) BroadcastXshardTxList(block *types.MinorBlock,
 	for branch, request := range xshardTxListRequest {
 		if branch == block.Header().Branch || account.IsNeighbor(block.Header().Branch, branch, uint32(shardSize)) {
 			if len(request.TxList) != 0 {
-				return fmt.Errorf("there shouldn't be xshard list for non-neighbor shard",
-					"actual branch", block.Header().Branch.Value, "target branch", branch.Value)
+				return fmt.Errorf("there shouldn't be xshard list for non-neighbor shard, actual branch: %d, target branch: %d", block.Header().Branch.Value, branch.Value)
 			}
 			continue
 		}
@@ -144,7 +143,7 @@ func (s *ConnManager) BatchBroadcastXshardTxList(
 			}
 		}
 		if err := s.BatchAddXshardTxList(branch.Value, request); err != nil {
-			return fmt.Errorf("Failed to batch add xshard tx list", "branch", branch.GetFullShardID(), "err", err)
+			return fmt.Errorf("Failed to batch add xshard tx list branch: %d, err: %v", branch.GetFullShardID(), err)
 		}
 	}
 	return nil

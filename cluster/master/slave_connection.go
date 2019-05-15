@@ -409,20 +409,6 @@ func (s *SlaveConnection) GetUnconfirmedHeaders() (*rpc.GetUnconfirmedHeadersRes
 	return rsp, nil
 }
 
-func (s *SlaveConnection) GetEcoInfoListRequest() (*rpc.GetEcoInfoListResponse, error) {
-	var (
-		rsp = new(rpc.GetEcoInfoListResponse)
-	)
-	res, err := s.client.Call(s.target, &rpc.Request{Op: rpc.OpGetEcoInfoList})
-	if err != nil {
-		return nil, err
-	}
-	if err = serialize.Deserialize(serialize.NewByteBuffer(res.Data), rsp); err != nil {
-		return nil, err
-	}
-	return rsp, nil
-}
-
 func (s *SlaveConnection) GetAccountData(address *account.Address, height *uint64) (*rpc.GetAccountDataResponse, error) {
 	var (
 		req = rpc.GetAccountDataRequest{
@@ -553,27 +539,6 @@ func (s *SlaveConnection) HandleNewTip(request *p2p.Tip) (bool, error) {
 		return false, err
 	}
 
-	return true, nil
-}
-
-func (s *SlaveConnection) AddMinorBlock(request *p2p.NewBlockMinor) (bool, error) {
-	blockData, err := serialize.SerializeToBytes(request.Block)
-	if err != nil {
-		return false, err
-	}
-	var (
-		req = rpc.AddMinorBlockRequest{
-			MinorBlockData: blockData,
-		}
-	)
-	bytes, err := serialize.SerializeToBytes(req)
-	if err != nil {
-		return false, err
-	}
-	_, err = s.client.Call(s.target, &rpc.Request{Op: rpc.OpAddMinorBlock, Data: bytes})
-	if err != nil {
-		return false, err
-	}
 	return true, nil
 }
 
