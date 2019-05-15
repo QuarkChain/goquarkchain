@@ -1,6 +1,7 @@
 package slave
 
 import (
+	"fmt"
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/serialize"
@@ -58,6 +59,27 @@ func (s *SlaveConn) SendPing() bool {
 	return true
 }
 
+func (s *SlaveConn) AddXshardTxList(xshardReq *rpc.AddXshardTxListRequest) error {
+	if !s.HasShard(xshardReq.Branch) {
+		return fmt.Errorf("Branch don't match when call AddXshardTxList, wrong branch: %d ", xshardReq.Branch)
+	}
+	bytes, err := serialize.SerializeToBytes(xshardReq)
+	if err != nil {
+		return err
+	}
+	_, err = s.client.Call(s.target, &rpc.Request{Op: rpc.OpAddXshardTxList, Data: bytes})
+	return err
+}
+
+func (s *SlaveConn) BatchAddXshardTxList(xshardReqs []*rpc.AddXshardTxListRequest) error {
+	bytes, err := serialize.SerializeToBytes(rpc.BatchAddXshardTxListRequest{AddXshardTxListRequestList: xshardReqs})
+	if err != nil {
+		return err
+	}
+	_, err = s.client.Call(s.target, &rpc.Request{Op: rpc.OpBatchAddXshardTxList, Data: bytes})
+	return err
+}
+
 func (s *SlaveConn) EqualChainMask(chainMask []*types.ChainMask) bool {
 	if len(chainMask) != len(s.chainMaskList) {
 		return false
@@ -70,21 +92,11 @@ func (s *SlaveConn) EqualChainMask(chainMask []*types.ChainMask) bool {
 	return true
 }
 
-func (s *SlaveConn) HasShard(shardId uint32) bool {
+func (s *SlaveConn) HasShard(fullshardId uint32) bool {
 	for _, id := range s.chainMaskList {
-		if id.ContainFullShardId(shardId) {
+		if id.ContainFullShardId(fullshardId) {
 			return true
 		}
 	}
 	return false
-}
-
-func (s *SlaveConn) AddXshardTxList(xshardReq *rpc.AddXshardTxListRequest) error {
-	// TODO need to fill content.
-	return nil
-}
-
-func (s *SlaveConn) BatchAddXshardTxList(xshardReqs []*rpc.AddXshardTxListRequest) error {
-	// TODO need to fill content.
-	return nil
 }

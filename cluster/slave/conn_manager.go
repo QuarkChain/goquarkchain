@@ -137,14 +137,14 @@ func (s *ConnManager) BatchBroadcastXshardTxList(
 		}
 	}
 
-	for brch, request := range brchToAddXsdTxLstReqLst {
-		if shrd, ok := s.slave.shards[brch.Value]; ok {
+	for branch, request := range brchToAddXsdTxLstReqLst {
+		if shrd, ok := s.slave.shards[branch.Value]; ok {
 			for _, req := range request {
 				shrd.MinorBlockChain.AddCrossShardTxListByMinorBlockHash(req.MinorBlockHash, types.CrossShardTransactionDepositList{TXList: req.TxList})
 			}
 		}
-		if err := s.BatchAddXshardTxList(brch.GetFullShardID(), request); err != nil {
-			return fmt.Errorf("Failed to batch add xshard tx list", "branch", brch.GetFullShardID(), "err", err)
+		if err := s.BatchAddXshardTxList(branch.Value, request); err != nil {
+			return fmt.Errorf("Failed to batch add xshard tx list", "branch", branch.GetFullShardID(), "err", err)
 		}
 	}
 	return nil
