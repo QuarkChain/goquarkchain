@@ -35,10 +35,10 @@ func (s *SlaveBackend) GetUnconfirmedHeaderList() ([]*rpc.HeadersInfo, error) {
 // For local miner to submit mined blocks through master
 func (s *SlaveBackend) AddMinorBlock(block *types.MinorBlock) error {
 	if shrd, ok := s.shards[block.Branch().Value]; ok {
-
 		if block.Header().ParentHash != shrd.MinorBlockChain.CurrentHeader().Hash() {
 			// Tip changed, don't bother creating a fork
-			return fmt.Errorf("add minor block dropped stale block mined locally branch: %d ,minor height: %d", block.Header().Branch.Value, block.Header().Number)
+			log.Warn("add minor block dropped stale block mined locally branch: %d ,minor height: %d", block.Header().Branch.Value, block.Header().Number)
+			return nil
 		}
 		return shrd.AddMinorBlock(block)
 	}

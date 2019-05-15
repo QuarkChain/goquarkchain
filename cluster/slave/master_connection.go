@@ -101,9 +101,8 @@ func (s *ConnManager) GetMinorBlocks(mHeaderList []common.Hash, peerId string, b
 	return gRep.MinorBlockList, nil
 }
 
-func (s *ConnManager) GetMinorBlockHeaders(mHash common.Hash, limit uint32, direction uint8, branch uint32) ([]*types.MinorBlockHeader, error) {
+func (s *ConnManager) GetMinorBlockHeaders(gReq *rpc.GetMinorBlockHeaderListRequest) ([]*types.MinorBlockHeader, error) {
 	var (
-		gReq = rpc.GetMinorBlockHeaderListRequest{BlockHash: mHash, Limit: limit, Direction: direction, Branch: branch}
 		gRep rpc.GetMinorBlockHeaderListResponse
 		res  *rpc.Response
 	)
