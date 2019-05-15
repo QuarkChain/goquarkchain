@@ -141,13 +141,15 @@ func TestGasPrice(t *testing.T) {
 	assert.Equal(t, currentNumber, 3)
 	// for testing purposes, update percentile to take max gas price
 	shardState.gasPriceSuggestionOracle.Percentile = 100
-	gasPrice := shardState.GasPrice()
-	assert.Equal(t, *gasPrice, uint64(42))
+	gasPrice,err := shardState.GasPrice()
+	assert.NoError(t,err)
+	assert.Equal(t, gasPrice, uint64(42))
 
 	// results should be cached (same header). updating oracle shouldn't take effect
 	shardState.gasPriceSuggestionOracle.Percentile = 50
-	gasPrice2 := shardState.GasPrice()
-	assert.Equal(t, *gasPrice2, uint64(42))
+	gasPrice2,err := shardState.GasPrice()
+	assert.NoError(t,err)
+	assert.Equal(t, gasPrice2, uint64(42))
 
 }
 
