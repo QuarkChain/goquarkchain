@@ -57,13 +57,10 @@ func (s *SlaveBackend) AddRootBlock(block *types.RootBlock) (switched bool, err 
 // Create shards based on GENESIS config and root block height if they have
 // not been created yet.
 func (s *SlaveBackend) CreateShards(rootBlock *types.RootBlock) (err error) {
-	var (
-		fullShardIds = s.clstrCfg.Quarkchain.GetGenesisShardIds()
-	)
-
-	for _, id := range fullShardIds {
+	fullShardList := s.getFullShardList()
+	for _, id := range fullShardList {
 		shardCfg := s.clstrCfg.Quarkchain.GetShardConfigByFullShardID(id)
-		if !s.coverShardId(id) || shardCfg.Genesis == nil {
+		if shardCfg.Genesis == nil {
 			continue
 		}
 		if rootBlock.Header().Number >= shardCfg.Genesis.RootHeight {
@@ -83,7 +80,7 @@ func (s *SlaveBackend) CreateShards(rootBlock *types.RootBlock) (err error) {
 }
 
 func (s *SlaveBackend) AddBlockListForSync(mHashList []common.Hash, peerId string, branch uint32) (*rpc.ShardStatus, error) {
-	if mHashList == nil || len(mHashList) == 0 {
+	if len(mHashList) == 0 {
 		return nil, errors.New("minor block hash list is empty")
 	}
 
@@ -110,17 +107,14 @@ func (s *SlaveBackend) AddBlockListForSync(mHashList []common.Hash, peerId strin
 }
 
 func (s *SlaveBackend) AddTx(tx *types.Transaction) (err error) {
-	branch := account.NewBranch(tx.EvmTx.FromFullShardId())
-	shrd, ok := s.shards[branch.Value]
-	if !ok {
-		return ErrMsg("AddTx")
+	if shrd, ok := s.shards[tx.EvmTx.FromFullShardId()]; ok {
+		return shrd.MinorBlockChain.AddTx(tx)
 	}
-	return shrd.MinorBlockChain.AddTx(tx)
+	return ErrMsg("AddTx")
 }
 
 func (s *SlaveBackend) ExecuteTx(tx *types.Transaction, address *account.Address) ([]byte, error) {
-	branch := account.NewBranch(tx.EvmTx.FromFullShardId())
-	if shrd, ok := s.shards[branch.Value]; ok {
+	if shrd, ok := s.shards[tx.EvmTx.FromFullShardId()]; ok {
 		return shrd.MinorBlockChain.ExecuteTx(tx, address, nil)
 	}
 	return nil, ErrMsg("ExecuteTx")
@@ -289,29 +283,28 @@ func (s *SlaveBackend) GetMinorBlockListByHashList(mHashList []common.Hash, bran
 	var (
 		minorList = make([]*types.MinorBlock, 0, len(mHashList))
 		block     *types.MinorBlock
-		err       error
 	)
 
-	if shad, ok := s.shards[branch]; ok {
-		for _, hash := range mHashList {
-			if hash == (common.Hash{}) {
-				return nil, errors.New(fmt.Sprintf("empty hash in GetMinorBlockListByHashList func, slave_id: %s", s.config.ID))
-			}
-			block = shad.MinorBlockChain.GetMinorBlock(hash)
-			if block != nil {
-				minorList = append(minorList, block)
-			}
-		}
-	} else {
+	shad, ok := s.shards[branch]
+	if !ok {
 		return nil, ErrMsg("GetMinorBlockListByHashList")
 	}
-	return minorList, err
+	for _, hash := range mHashList {
+		if hash == (common.Hash{}) {
+			return nil, errors.New(fmt.Sprintf("empty hash in GetMinorBlockListByHashList func, slave_id: %s", s.config.ID))
+		}
+		block = shad.MinorBlockChain.GetMinorBlock(hash)
+		if block != nil {
+			minorList = append(minorList, block)
+		}
+	}
+	return minorList, nil
 }
 
 func (s *SlaveBackend) GetMinorBlockHeaderList(mHash common.Hash,
 	limit uint32, direction uint8, branch uint32) ([]*types.MinorBlockHeader, error) {
 	var (
-		headerList = make([]*types.MinorBlockHeader, 0)
+		headerList = make([]*types.MinorBlockHeader, 0, limit)
 		err        error
 	)
 

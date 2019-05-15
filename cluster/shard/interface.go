@@ -13,9 +13,9 @@ type XshardListTuple struct {
 }
 
 type ConnManager interface {
-	BroadcastXshardTxList(block *types.MinorBlock, xshardTxList []*types.CrossShardTransactionDeposit, height uint32)
+	BroadcastXshardTxList(block *types.MinorBlock, xshardTxList []*types.CrossShardTransactionDeposit, height uint32) error
 	SendMinorBlockHeaderToMaster(minorHeader *types.MinorBlockHeader, txLen, xshardLen uint32, state *rpc.ShardStatus) error
-	BatchBroadcastXshardTxList(blokHshToXLstAdPrvRotHg map[common.Hash]*XshardListTuple, sorBrch account.Branch) bool
+	BatchBroadcastXshardTxList(blokHshToXLstAdPrvRotHg map[common.Hash]*XshardListTuple, sorBrch account.Branch) error
 	// p2p interface
 	BroadcastNewTip(mHeaderLst []*types.MinorBlockHeader, rHeader *types.RootBlockHeader, branch uint32) error
 	BroadcastTransactions(txs []*types.Transaction, branch uint32) error

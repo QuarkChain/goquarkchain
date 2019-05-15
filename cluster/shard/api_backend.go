@@ -10,7 +10,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
 	"math/big"
-	"reflect"
 )
 
 func (s *ShardBackend) GetUnconfirmedHeaderList() ([]*types.MinorBlockHeader, error) {
@@ -47,7 +46,7 @@ func (s *ShardBackend) AddMinorBlock(block *types.MinorBlock) error {
 	delete(s.newBlockPool, block.Header().Hash())
 
 	// block has been added to local state, broadcast tip so that peers can sync if needed
-	if !reflect.DeepEqual(oldTip, s.MinorBlockChain.CurrentHeader()) {
+	if oldTip.Hash() != s.MinorBlockChain.CurrentHeader().Hash() {
 		if err = s.broadcastNewTip(); err != nil {
 			return err
 		}

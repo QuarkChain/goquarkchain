@@ -21,7 +21,7 @@ type ConnManager struct {
 	qkcCfg *config.QuarkChainConfig
 
 	// master connection
-	masterCli *masterConn
+	masterClient *masterConn
 	// slave connection list
 	slavesConn map[string]*SlaveConn
 	// branch to slave list connection
@@ -135,7 +135,7 @@ func (s *ConnManager) BroadcastXshardTxList(block *types.MinorBlock,
 }
 
 func (s *ConnManager) BatchBroadcastXshardTxList(
-	blokHshToXLstAdPrvRotHg map[common.Hash]*shard.XshardListTuple, sorBrch account.Branch) bool {
+	blokHshToXLstAdPrvRotHg map[common.Hash]*shard.XshardListTuple, sorBrch account.Branch) error {
 
 	brchToAddXsdTxLstReqLst := make(map[account.Branch][]*rpc.AddXshardTxListRequest)
 	for hash, xSadLstAndPrevRotHg := range blokHshToXLstAdPrvRotHg {
@@ -147,20 +147,16 @@ func (s *ConnManager) BatchBroadcastXshardTxList(
 			lg := len(s.qkcCfg.GetInitializedShardIdsBeforeRootHeight(prevRootHeight))
 			if branch == sorBrch || !account.IsNeighbor(branch, sorBrch, uint32(lg)) {
 				if len(request.TxList) != 0 {
-					log.Error(fmt.Sprintf("there shouldn't be xshard list for non-neighbor shard (%d -> %d)",
+					return fmt.Errorf(fmt.Sprintf("there shouldn't be xshard list for non-neighbor shard (%d -> %d)",
 						sorBrch.Value,
 						branch.Value))
-					continue
 				}
-			}
-			if _, ok := brchToAddXsdTxLstReqLst[branch]; !ok {
-				brchToAddXsdTxLstReqLst[branch] = make([]*rpc.AddXshardTxListRequest, 0)
+				continue
 			}
 			brchToAddXsdTxLstReqLst[branch] = append(brchToAddXsdTxLstReqLst[branch], request)
 		}
 	}
 
-	var status = true
 	for brch, request := range brchToAddXsdTxLstReqLst {
 		if shrd, ok := s.slave.shards[brch.Value]; ok {
 			for _, req := range request {
@@ -168,11 +164,10 @@ func (s *ConnManager) BatchBroadcastXshardTxList(
 			}
 		}
 		if !s.BatchAddXshardTxList(brch.GetFullShardID(), request) {
-			status = false
-			log.Error("Failed to batch add xshard tx list", "branch", brch.GetFullShardID())
+			return fmt.Errorf("Failed to batch add xshard tx list", "branch", brch.GetFullShardID())
 		}
 	}
-	return status
+	return nil
 }
 
 func (s *ConnManager) getBranchToAddXshardTxListRequest(blockHash common.Hash,
@@ -197,14 +192,13 @@ func (s *ConnManager) getBranchToAddXshardTxListRequest(blockHash common.Hash,
 
 // TODO need to check
 func (s *ConnManager) addSlaveConnection(target string, conn *SlaveConn) {
-	s.slavesConn[target] = conn
-	for _, slv := range s.slave.shards {
-		id := slv.Config.ShardID
-		if _, ok := s.fullShardIdToSlaves[id]; !ok {
-			s.fullShardIdToSlaves[id] = make([]*SlaveConn, 0)
+	fullShardIdList := s.slave.getFullShardList()
+	for _, id := range fullShardIdList {
+		if conn.HasShard(id) {
+			s.fullShardIdToSlaves[id] = append(s.fullShardIdToSlaves[id], conn)
 		}
-		s.fullShardIdToSlaves[id] = append(s.fullShardIdToSlaves[id], conn)
 	}
+	s.slavesConn[target] = conn
 }
 
 func NewToSlaveConnManager(qkcCfg *config.QuarkChainConfig, slave *SlaveBackend) (*ConnManager, error) {
@@ -214,7 +208,7 @@ func NewToSlaveConnManager(qkcCfg *config.QuarkChainConfig, slave *SlaveBackend)
 		fullShardIdToSlaves: make(map[uint32][]*SlaveConn),
 		slave:               slave,
 	}
-	slaveConnManager.masterCli = &masterConn{
+	slaveConnManager.masterClient = &masterConn{
 		client: rpc.NewClient(rpc.MasterServer),
 	}
 	return slaveConnManager, nil

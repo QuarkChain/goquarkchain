@@ -15,12 +15,8 @@ import (
 )
 
 type SlaveServerSideOp struct {
-	rpcId int64
 	mu    sync.RWMutex
 	slave *SlaveBackend
-
-	run     uint8
-	curTime int64
 }
 
 func NewServerSideOp(slave *SlaveBackend) *SlaveServerSideOp {
@@ -30,8 +26,7 @@ func NewServerSideOp(slave *SlaveBackend) *SlaveServerSideOp {
 }
 
 func (s *SlaveServerSideOp) HeartBeat(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
-	s.curTime = time.Now().Unix()
-	log.Info("slave heart beat response", "request op", req.Op, "current time", s.curTime)
+	log.Info("slave heart beat response", "request op", req.Op, "current time", time.Now().Unix())
 	return &rpc.Response{
 	}, nil
 }
@@ -47,7 +42,7 @@ func (s *SlaveServerSideOp) MasterInfo(ctx context.Context, req *rpc.Request) (*
 	}
 
 	s.slave.connManager.ModifyTarget(fmt.Sprintf("%s:%d", gReq.Ip, gReq.Port))
-	log.Info("slave master info response", "master endpoint", s.slave.connManager.masterCli.target)
+	log.Info("slave master info response", "master endpoint", s.slave.connManager.masterClient.target)
 
 	return response, nil
 }
@@ -69,7 +64,7 @@ func (s *SlaveServerSideOp) Ping(ctx context.Context, req *rpc.Request) (*rpc.Re
 		}
 	}
 	gRes.Id, gRes.ChainMaskList = []byte(s.slave.config.ID), s.slave.config.ChainMaskList
-	log.Info("slave ping response", "request op", req.Op, "rpc id", s.rpcId)
+	log.Info("slave ping response", "request op", req.Op)
 
 	if response.Data, err = serialize.SerializeToBytes(gRes); err != nil {
 		return nil, err
@@ -105,7 +100,9 @@ func (s *SlaveServerSideOp) AddRootBlock(ctx context.Context, req *rpc.Request) 
 		return nil, err
 	}
 
-	gRes.Switched, err = s.slave.AddRootBlock(gReq.RootBlock)
+	if gRes.Switched, err = s.slave.AddRootBlock(gReq.RootBlock); err != nil {
+		return nil, err
+	}
 
 	if response.Data, err = serialize.SerializeToBytes(gRes); err != nil {
 		return nil, err

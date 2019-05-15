@@ -13,9 +13,9 @@ import (
 )
 
 type SlaveBackend struct {
-	clstrCfg *config.ClusterConfig
-	config   *config.SlaveConfig
-	mining   bool
+	clstrCfg      *config.ClusterConfig
+	config        *config.SlaveConfig
+	fullShardList []uint32
 
 	connManager *ConnManager
 
@@ -32,11 +32,20 @@ func New(ctx *service.ServiceContext, clusterCfg *config.ClusterConfig, cfg *con
 		err error
 	)
 	slave := &SlaveBackend{
-		config:   cfg,
-		clstrCfg: clusterCfg,
-		shards:   make(map[uint32]*shard.ShardBackend),
-		ctx:      ctx,
-		eventMux: ctx.EventMux,
+		config:        cfg,
+		clstrCfg:      clusterCfg,
+		fullShardList: make([]uint32, 0),
+		shards:        make(map[uint32]*shard.ShardBackend),
+		ctx:           ctx,
+		eventMux:      ctx.EventMux,
+	}
+
+	fullShardIds := slave.clstrCfg.Quarkchain.GetGenesisShardIds()
+	for _, id := range fullShardIds {
+		if !slave.coverShardId(id) {
+			continue
+		}
+		slave.fullShardList = append(slave.fullShardList, id)
 	}
 
 	slave.connManager, err = NewToSlaveConnManager(slave.clstrCfg.Quarkchain, slave)
@@ -44,6 +53,10 @@ func New(ctx *service.ServiceContext, clusterCfg *config.ClusterConfig, cfg *con
 		return nil, err
 	}
 	return slave, nil
+}
+
+func (s *SlaveBackend) getFullShardList() []uint32 {
+	return s.fullShardList
 }
 
 func (s *SlaveBackend) coverShardId(id uint32) bool {

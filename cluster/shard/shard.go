@@ -95,6 +95,8 @@ func New(ctx *service.ServiceContext, rBlock *types.RootBlock, conn ConnManager,
 func (s *ShardBackend) Stop() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	s.eventMux.Stop()
+	s.engine.Close()
 	s.chainDb.Close()
 }
 
@@ -141,21 +143,21 @@ func createConsensusEngine(ctx *service.ServiceContext, cfg *config.ShardConfig)
 func (s *ShardBackend) initGenesisState(rootBlock *types.RootBlock) error {
 	var (
 		minorBlock *types.MinorBlock
-		xshardList []*types.CrossShardTransactionDeposit
+		xshardList = make([]*types.CrossShardTransactionDeposit, 0)
 		status     *rpc.ShardStatus
 		err        error
 	)
-	// TODO InitGenesisState's second parameter will be removed.
 	minorBlock, err = s.MinorBlockChain.InitGenesisState(rootBlock)
 	if err != nil {
 		return err
 	}
 
-	s.conn.BroadcastXshardTxList(minorBlock, xshardList, rootBlock.Header().Number)
+	if err = s.conn.BroadcastXshardTxList(minorBlock, xshardList, rootBlock.Header().Number); err != nil {
+		return err
+	}
 	if status, err = s.MinorBlockChain.GetShardStatus(); err != nil {
 		return err
 	}
 
-	err = s.conn.SendMinorBlockHeaderToMaster(minorBlock.Header(), uint32(len(minorBlock.GetTransactions())), uint32(len(xshardList)), status)
-	return err
+	return s.conn.SendMinorBlockHeaderToMaster(minorBlock.Header(), uint32(len(minorBlock.GetTransactions())), uint32(len(xshardList)), status)
 }

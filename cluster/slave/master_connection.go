@@ -14,7 +14,7 @@ func (s *ConnManager) SendMinorBlockHeaderToMaster(minorHeader *types.MinorBlock
 		gRep rpc.AddMinorBlockHeaderResponse
 	)
 
-	if s.masterCli.target == "" {
+	if s.masterClient.target == "" {
 		return errors.New("master endpoint is empty")
 	}
 	gReq := rpc.AddMinorBlockHeaderRequest{
@@ -28,7 +28,7 @@ func (s *ConnManager) SendMinorBlockHeaderToMaster(minorHeader *types.MinorBlock
 		return err
 	}
 
-	res, err := s.masterCli.client.Call(s.masterCli.target, &rpc.Request{Op: rpc.OpAddMinorBlockHeader, Data: data})
+	res, err := s.masterClient.client.Call(s.masterClient.target, &rpc.Request{Op: rpc.OpAddMinorBlockHeader, Data: data})
 	if err != nil {
 		return err
 	}
@@ -48,7 +48,7 @@ func (s *ConnManager) BroadcastNewTip(mHeaderLst []*types.MinorBlockHeader,
 	if err != nil {
 		return err
 	}
-	_, err = s.masterCli.client.Call(s.masterCli.target, &rpc.Request{Op: rpc.OpBroadcastNewTip, Data: data})
+	_, err = s.masterClient.client.Call(s.masterClient.target, &rpc.Request{Op: rpc.OpBroadcastNewTip, Data: data})
 	return err
 }
 
@@ -61,7 +61,7 @@ func (s *ConnManager) BroadcastTransactions(txs []*types.Transaction, branch uin
 		return err
 	}
 
-	_, err = s.masterCli.client.Call(s.masterCli.target, &rpc.Request{Op: rpc.OpBroadcastTransactions, Data: data})
+	_, err = s.masterClient.client.Call(s.masterClient.target, &rpc.Request{Op: rpc.OpBroadcastTransactions, Data: data})
 	return err
 }
 
@@ -74,7 +74,7 @@ func (s *ConnManager) BroadcastMinorBlock(minorBlock *types.MinorBlock, branch u
 		return err
 	}
 
-	_, err = s.masterCli.client.Call(s.masterCli.target, &rpc.Request{Op: rpc.OpBroadcastNewMinorBlock, Data: data})
+	_, err = s.masterClient.client.Call(s.masterClient.target, &rpc.Request{Op: rpc.OpBroadcastNewMinorBlock, Data: data})
 	return err
 }
 
@@ -89,7 +89,7 @@ func (s *ConnManager) GetMinorBlocks(mHeaderList []common.Hash, peerId string, b
 		return nil, err
 	}
 
-	res, err = s.masterCli.client.Call(s.masterCli.target, &rpc.Request{Op: rpc.OpGetMinorBlockList, Data: data})
+	res, err = s.masterClient.client.Call(s.masterClient.target, &rpc.Request{Op: rpc.OpGetMinorBlockList, Data: data})
 	if err != nil {
 		return nil, err
 	}
@@ -101,11 +101,9 @@ func (s *ConnManager) GetMinorBlocks(mHeaderList []common.Hash, peerId string, b
 	return gRep.MinorBlockList, nil
 }
 
-func (s *ConnManager) GetMinorBlockHeaders(mHash common.Hash,
-	limit uint32, direction uint8, branch uint32) ([]*types.MinorBlockHeader, error) {
+func (s *ConnManager) GetMinorBlockHeaders(mHash common.Hash, limit uint32, direction uint8, branch uint32) ([]*types.MinorBlockHeader, error) {
 	var (
-		gReq = rpc.GetMinorBlockHeaderListRequest{BlockHash: mHash,
-			Limit: limit, Direction: direction, Branch: branch}
+		gReq = rpc.GetMinorBlockHeaderListRequest{BlockHash: mHash, Limit: limit, Direction: direction, Branch: branch}
 		gRep rpc.GetMinorBlockHeaderListResponse
 		res  *rpc.Response
 	)
@@ -114,7 +112,7 @@ func (s *ConnManager) GetMinorBlockHeaders(mHash common.Hash,
 		return nil, err
 	}
 
-	res, err = s.masterCli.client.Call(s.masterCli.target, &rpc.Request{Op: rpc.OpGetMinorBlockHeaderList, Data: data})
+	res, err = s.masterClient.client.Call(s.masterClient.target, &rpc.Request{Op: rpc.OpGetMinorBlockHeaderList, Data: data})
 	if err != nil {
 		return nil, err
 	}
@@ -127,5 +125,5 @@ func (s *ConnManager) GetMinorBlockHeaders(mHash common.Hash,
 }
 
 func (s *ConnManager) ModifyTarget(target string) {
-	s.masterCli.target = target
+	s.masterClient.target = target
 }
