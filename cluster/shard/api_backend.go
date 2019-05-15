@@ -10,6 +10,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
 	"math/big"
+	"time"
 )
 
 func (s *ShardBackend) GetUnconfirmedHeaderList() ([]*types.MinorBlockHeader, error) {
@@ -122,6 +123,7 @@ func (s *ShardBackend) AddBlockListForSync(blockLst []*types.MinorBlock) error {
 			log.Error("Failed to add minor block, err %v", err)
 			return err
 		}
+		s.delBlockInPool(block)
 		prevRootHeight := s.MinorBlockChain.GetRootBlockByHash(block.Header().PrevRootBlockHash)
 		blockHashToXShardList[blockHash] = &XshardListTuple{XshardTxList: xshardLst[0], PrevRootHeight: prevRootHeight.Number()}
 	}
@@ -176,18 +178,34 @@ func (s *ShardBackend) NewMinorBlock(block *types.MinorBlock) (err error) {
 	defer s.mu.Unlock()
 
 	mHash := block.Header().Hash()
-	if _, ok := s.newBlockPool[mHash]; ok {
+	if s.getBlockInPool(mHash) != nil {
 		return
 	}
 	if s.MinorBlockChain.HasBlock(block.Hash()) {
 		log.Info("add minor block, Known minor block", "branch", block.Header().Branch, "height", block.Number())
 		return
 	}
-	if !s.MinorBlockChain.HasBlock(block.Header().ParentHash) {
+	if !s.MinorBlockChain.HasBlock(block.Header().ParentHash) && s.getBlockInPool(block.ParentHash()) == nil {
 		return fmt.Errorf("prarent block hash be included, parent hash: %s", block.Header().ParentHash.Hex())
 	}
 
-	s.newBlockPool[mHash] = block
+	header := block.Header()
+	diff := header.Difficulty
+	diffDivider := big.NewInt(int64(s.Config.PoswConfig.DiffDivider))
+	if s.Config.PoswConfig.Enabled {
+		diff = diff.Div(diff, diffDivider)
+	}
+	if err = s.engine.VerifySeal(s.MinorBlockChain, header, diff); err != nil {
+		log.Error("got block with bad seal in handle_new_block", "branch", header.Branch.Value, "err", err)
+		return err
+	}
+
+	timeNow := uint64(time.Now().UnixNano())
+	if header.Time > timeNow+30 {
+		return
+	}
+
+	s.setBlockInPool(block)
 	if err = s.conn.BroadcastMinorBlock(block, s.fullShardId); err != nil {
 		return err
 	}

@@ -158,6 +158,21 @@ func (s *ShardBackend) initGenesisState(rootBlock *types.RootBlock) error {
 	if status, err = s.MinorBlockChain.GetShardStatus(); err != nil {
 		return err
 	}
-
 	return s.conn.SendMinorBlockHeaderToMaster(minorBlock.Header(), uint32(len(minorBlock.GetTransactions())), uint32(len(xshardList)), status)
+}
+
+func (s *ShardBackend) getBlockInPool(hash common.Hash) *types.MinorBlock {
+	return s.newBlockPool[hash]
+}
+
+func (s *ShardBackend) setBlockInPool(block *types.MinorBlock) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.newBlockPool[block.Header().Hash()] = block
+}
+
+func (s *ShardBackend) delBlockInPool(block *types.MinorBlock) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	delete(s.newBlockPool, block.Header().Hash())
 }
