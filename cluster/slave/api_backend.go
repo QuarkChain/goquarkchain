@@ -170,9 +170,11 @@ func (s *SlaveBackend) GetAccountData(address *account.Address, height uint64) (
 
 func (s *SlaveBackend) GetMinorBlockByHash(hash common.Hash, branch uint32) (*types.MinorBlock, error) {
 	if shrd, ok := s.shards[branch]; ok {
-		if shrd.MinorBlockChain.GetMinorBlock(hash) == nil {
+		mBlock := shrd.MinorBlockChain.GetMinorBlock(hash)
+		if mBlock == nil {
 			return nil, errors.New(fmt.Sprintf("empty minor block in state, shard id: %d", shrd.Config.ShardID))
 		}
+		return mBlock, nil
 	}
 	return nil, ErrMsg("GetMinorBlockByHash")
 }
@@ -183,6 +185,7 @@ func (s *SlaveBackend) GetMinorBlockByHeight(height uint64, branch uint32) (*typ
 		if qcom.IsNil(mBlock) {
 			return nil, errors.New(fmt.Sprintf("empty minor block in state, shard id: %d", shrd.Config.ShardID))
 		}
+		return mBlock.(*types.MinorBlock), nil
 	}
 	return nil, ErrMsg("GetMinorBlockByHeight")
 }
@@ -244,7 +247,7 @@ func (s *SlaveBackend) GetCode(address *account.Address, height uint64) ([]byte,
 
 func (s *SlaveBackend) GasPrice(branch uint32) (uint64, error) {
 	var (
-		price = new(uint64)
+		price *uint64
 	)
 	if shrd, ok := s.shards[branch]; ok {
 		if price = shrd.MinorBlockChain.GasPrice(); price == nil {
@@ -252,7 +255,7 @@ func (s *SlaveBackend) GasPrice(branch uint32) (uint64, error) {
 		}
 		return *price, nil
 	}
-	return *price, ErrMsg("GasPrice")
+	return 0, ErrMsg("GasPrice")
 }
 
 func (s *SlaveBackend) GetWork(branch uint32) (*consensus.MiningWork, error) {
