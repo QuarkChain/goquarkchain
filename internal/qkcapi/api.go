@@ -1,6 +1,7 @@
 package qkcapi
 
 import (
+	"errors"
 	"github.com/QuarkChain/goquarkchain/account"
 	qkcRPC "github.com/QuarkChain/goquarkchain/cluster/rpc"
 	"github.com/QuarkChain/goquarkchain/core/types"
@@ -74,7 +75,7 @@ func (p *PublicBlockChainAPI) SendRawTransaction(encodedTx hexutil.Bytes) (hexut
 	panic(-1)
 
 }
-func (p *PublicBlockChainAPI) GetRootBlockById(hash common.Hash) (map[string]interface{}, error) {
+func (p *PublicBlockChainAPI) GetRootBlockByHash(hash common.Hash) (map[string]interface{}, error) {
 	rootBlock, err := p.b.GetRootBlockByHash(hash)
 	if err != nil {
 		return nil, err
@@ -87,14 +88,14 @@ func (p *PublicBlockChainAPI) GetRootBlockByHeight(heightInput *hexutil.Uint64) 
 		return nil, err
 	}
 	rootBlock, err := p.b.GetRootBlockByNumber(blockHeight)
-	if err == nil {
-		response, err := rootBlockEncoder(rootBlock)
-		if err != nil {
-			return nil, err
-		}
-		return response, nil
+	if err != nil {
+		return nil, err
 	}
-	return nil, err
+	response, err := rootBlockEncoder(rootBlock)
+	if err != nil {
+		return nil, err
+	}
+	return response, nil
 }
 func (p *PublicBlockChainAPI) GetMinorBlockById(blockID hexutil.Bytes, includeTxs *bool) (map[string]interface{}, error) {
 	if includeTxs == nil {
@@ -111,7 +112,7 @@ func (p *PublicBlockChainAPI) GetMinorBlockById(blockID hexutil.Bytes, includeTx
 		return nil, err
 	}
 	if minorBlock == nil {
-		return nil, err
+		return nil, errors.New("minor block is nil")
 	}
 	return minorBlockEncoder(minorBlock, *includeTxs)
 
@@ -132,7 +133,7 @@ func (p *PublicBlockChainAPI) GetMinorBlockByHeight(fullShardKeyInput hexutil.Ui
 		return nil, err
 	}
 	if minorBlock == nil {
-		return nil, err
+		return nil, errors.New("minor block is nil")
 	}
 	return minorBlockEncoder(minorBlock, *includeTxs)
 }
