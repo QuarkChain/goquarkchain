@@ -9,6 +9,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
+	"golang.org/x/sync/errgroup"
 	"sync"
 )
 
@@ -57,45 +58,30 @@ func (s *ConnManager) GetConnectionsByFullShardId(id uint32) []*SlaveConn {
 	return []*SlaveConn{}
 }
 
-func (s *ConnManager) AddXshardTxList(fullShardId uint32, xshardReq *rpc.AddXshardTxListRequest) bool {
-	var (
-		status = true
-		wg     sync.WaitGroup
-	)
+func (s *ConnManager) AddXshardTxList(fullShardId uint32, xshardReq *rpc.AddXshardTxListRequest) error {
+	var g errgroup.Group
 	if clients, ok := s.fullShardIdToSlaves[fullShardId]; ok {
-		for id, _ := range clients {
-			wg.Add(1)
-			go func(id int) {
-				if !clients[id].AddXshardTxList(xshardReq) {
-					status = false
-				}
-				wg.Done()
-			}(id)
+		for _, client := range clients {
+			cli := client
+			g.Go(func() error {
+				return cli.AddXshardTxList(xshardReq)
+			})
 		}
-		wg.Wait()
 	}
-	return status
+	return g.Wait()
 }
 
-func (s *ConnManager) BatchAddXshardTxList(fullShardId uint32, xshardReqs []*rpc.AddXshardTxListRequest) bool {
-	var (
-		status = true
-		wg     sync.WaitGroup
-	)
-
+func (s *ConnManager) BatchAddXshardTxList(fullShardId uint32, xshardReqs []*rpc.AddXshardTxListRequest) error {
+	var g errgroup.Group
 	if clients, ok := s.fullShardIdToSlaves[fullShardId]; ok {
-		wg.Add(1)
-		for id, _ := range clients {
-			go func(id int) {
-				if !clients[id].BatchAddXshardTxList(xshardReqs) && status {
-					status = false
-				}
-				wg.Done()
-			}(id)
+		for _, client := range clients {
+			cli := client
+			g.Go(func() error {
+				return cli.BatchAddXshardTxList(xshardReqs)
+			})
 		}
-		wg.Wait()
 	}
-	return status
+	return g.Wait()
 }
 
 // Broadcast x-shard transactions to their recipient shards
@@ -110,7 +96,6 @@ func (s *ConnManager) BroadcastXshardTxList(block *types.MinorBlock,
 
 	for branch, request := range xshardTxListRequest {
 		if branch == block.Header().Branch || account.IsNeighbor(block.Header().Branch, branch, uint32(shardSize)) {
-
 			if len(request.TxList) != 0 {
 				return fmt.Errorf("there shouldn't be xshard list for non-neighbor shard",
 					"actual branch", block.Header().Branch.Value, "target branch", branch.Value)
@@ -120,9 +105,10 @@ func (s *ConnManager) BroadcastXshardTxList(block *types.MinorBlock,
 		if shrd, ok := s.slave.shards[branch.Value]; ok {
 			shrd.MinorBlockChain.AddCrossShardTxListByMinorBlockHash(hash, types.CrossShardTransactionDepositList{TXList: request.TxList})
 		}
-		ok := s.AddXshardTxList(branch.GetFullShardID(), request)
-		if !ok {
-			log.Error("Failed to broadcast xshard transactions", "actual branch", block.Header().Branch.Value, "target branch", branch.Value)
+		err := s.AddXshardTxList(branch.GetFullShardID(), request)
+		if err != nil {
+			log.Error("Failed to broadcast xshard transactions", "actual branch", block.Header().Branch.Value, "target branch", branch.Value, "err", err)
+			return err
 		}
 	}
 	return nil
@@ -157,8 +143,8 @@ func (s *ConnManager) BatchBroadcastXshardTxList(
 				shrd.MinorBlockChain.AddCrossShardTxListByMinorBlockHash(req.MinorBlockHash, types.CrossShardTransactionDepositList{TXList: req.TxList})
 			}
 		}
-		if !s.BatchAddXshardTxList(brch.GetFullShardID(), request) {
-			return fmt.Errorf("Failed to batch add xshard tx list", "branch", brch.GetFullShardID())
+		if err := s.BatchAddXshardTxList(brch.GetFullShardID(), request); err != nil {
+			return fmt.Errorf("Failed to batch add xshard tx list", "branch", brch.GetFullShardID(), "err", err)
 		}
 	}
 	return nil

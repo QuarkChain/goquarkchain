@@ -482,11 +482,12 @@ func (s *SlaveServerSideOp) AddMinorBlockListForSync(ctx context.Context, req *r
 	if err = serialize.DeserializeFromBytes(req.Data, &gReq); err != nil {
 		return nil, err
 	}
-	
+	if len(gReq.MinorBlockHashList) == 0 {
+		return response, nil
+	}
 	if gRes.ShardStatus, err = s.slave.AddBlockListForSync(gReq.MinorBlockHashList, gReq.PeerId, gReq.Branch); err != nil {
 		return nil, err
 	}
-
 	if response.Data, err = serialize.SerializeToBytes(gRes); err != nil {
 		return nil, err
 	}

@@ -79,12 +79,12 @@ func (s *SlaveConn) HasShard(shardId uint32) bool {
 	return false
 }
 
-func (s *SlaveConn) AddXshardTxList(xshardReq *rpc.AddXshardTxListRequest) bool {
+func (s *SlaveConn) AddXshardTxList(xshardReq *rpc.AddXshardTxListRequest) error {
 	// TODO need to fill content.
-	return false
+	return nil
 }
 
-func (s *SlaveConn) BatchAddXshardTxList(xshardReqs []*rpc.AddXshardTxListRequest) bool {
+func (s *SlaveConn) BatchAddXshardTxList(xshardReqs []*rpc.AddXshardTxListRequest) error {
 	// TODO need to fill content.
-	return false
+	return nil
 }
