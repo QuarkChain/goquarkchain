@@ -73,7 +73,6 @@ func (s *SlaveBackend) CreateShards(rootBlock *types.RootBlock) (err error) {
 				return err
 			}
 			s.shards[id] = shrd
-			break
 		}
 	}
 	return nil
