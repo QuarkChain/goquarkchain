@@ -89,11 +89,33 @@ func (s *SlaveBackend) AddBlockListForSync(mHashList []common.Hash, peerId strin
 	}
 
 	hashList := make([]common.Hash, 0)
-	for _, hash := range mHashList {
-		if !shrd.MinorBlockChain.HasBlock(hash) {
-			hashList = append(hashList, hash)
+	for _, block := range mHashList {
+		if !shrd.MinorBlockChain.HasBlock(block) {
+			hashList = append(hashList, block)
 		}
 	}
+
+	var (
+		BlockBatchSize = 100
+		mBlockList     = make([]*types.MinorBlock, 0, len(hashList))
+	)
+	for len(hashList) > 0 {
+		hashLen := len(hashList)
+		if hashLen/BlockBatchSize > 0 {
+			hashList = hashList[:BlockBatchSize]
+		} else {
+			hashList = hashList[:hashLen%BlockBatchSize]
+		}
+		bList, err := s.connManager.GetMinorBlocks(hashList, peerId, branch)
+		if err != nil {
+			log.Error("Failed to sync request from master", "branch", branch, "peer id", peerId, "err", err)
+			return nil, err
+		}
+		mBlockList = append(mBlockList, bList...)
+	}
+
+	log.Info("sync request from master successful", "branch", branch, "peer id", peerId, "block size", len(mBlockList))
+
 	mBlockList, err := s.connManager.GetMinorBlocks(hashList, peerId, branch)
 	if err != nil {
 		return nil, err
