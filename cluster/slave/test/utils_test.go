@@ -474,7 +474,7 @@ func (s *SlaveServerSideOp) GetMinorBlockHeaderList(ctx context.Context, req *rp
 		response = &rpc.Response{RpcId: req.RpcId}
 		err      error
 	)
-	gRep.MinorBlockHeader = make([]*types.MinorBlockHeader, 0)
+	gRep.MinorBlockHeaderList = make([]*types.MinorBlockHeader, 0)
 	if err = serialize.Deserialize(buf, &gReq); err != nil {
 		return nil, err
 	}

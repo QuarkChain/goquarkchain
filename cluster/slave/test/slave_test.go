@@ -39,13 +39,11 @@ func casesData(t *testing.T, slv *slave.SlaveBackend) map[int]*grpc.Request {
 	dt[grpc.OpMasterInfo] = &grpc.Request{Op: grpc.OpMasterInfo, Data: nil}
 	dt[grpc.OpPing] = &grpc.Request{Op: grpc.OpPing, Data: nil}
 	dt[grpc.OpAddRootBlock] = &grpc.Request{Op: grpc.OpAddRootBlock, Data: nil}
-	dt[grpc.OpGetEcoInfoList] = &grpc.Request{Op: grpc.OpGetEcoInfoList, Data: nil}
 	dt[grpc.OpGetNextBlockToMine] = &grpc.Request{Op: grpc.OpGetNextBlockToMine, Data: nil}
 	dt[grpc.OpGetUnconfirmedHeaderList] = &grpc.Request{Op: grpc.OpGetUnconfirmedHeaderList, Data: nil}
 	dt[grpc.OpGetAccountData] = &grpc.Request{Op: grpc.OpGetAccountData, Data: nil}
 	dt[grpc.OpAddTransaction] = &grpc.Request{Op: grpc.OpAddTransaction, Data: nil}
 	dt[grpc.OpAddXshardTxList] = &grpc.Request{Op: grpc.OpAddXshardTxList, Data: nil}
-	dt[grpc.OpAddMinorBlock] = &grpc.Request{Op: grpc.OpAddMinorBlock, Data: nil}
 	dt[grpc.OpGetMinorBlock] = &grpc.Request{Op: grpc.OpGetMinorBlock, Data: nil}
 	dt[grpc.OpGetTransaction] = &grpc.Request{Op: grpc.OpGetTransaction, Data: nil}
 	dt[grpc.OpBatchAddXshardTxList] = &grpc.Request{Op: grpc.OpBatchAddXshardTxList, Data: nil}
@@ -91,11 +89,6 @@ func casesData(t *testing.T, slv *slave.SlaveBackend) map[int]*grpc.Request {
 	}
 
 	dt[grpc.OpAddXshardTxList].Data, err = serialize.SerializeToBytes(grpc.AddXshardTxListRequest{})
-	if err != nil {
-		t.Fatalf("")
-	}
-
-	dt[grpc.OpAddMinorBlock].Data, err = serialize.SerializeToBytes(grpc.AddMinorBlockRequest{})
 	if err != nil {
 		t.Fatalf("")
 	}
@@ -198,18 +191,6 @@ func casesFuncs() map[int]func(t *testing.T, response *grpc.Response) {
 
 	}
 
-	checkFuncs[grpc.OpGetEcoInfoList] = func(t *testing.T, res *grpc.Response) {
-		var (
-			gRep grpc.GetEcoInfoListResponse
-			buf  = serialize.NewByteBuffer(res.Data)
-			err  error
-		)
-		if err = serialize.Deserialize(buf, &gRep); err != nil {
-			t.Fatalf("Failed to deserialize GetEcoInfoListResponse, err %v", err)
-		}
-
-	}
-
 	checkFuncs[grpc.OpGetUnconfirmedHeaderList] = func(t *testing.T, res *grpc.Response) {
 		var (
 			gRep grpc.GetUnconfirmedHeadersResponse
@@ -237,8 +218,6 @@ func casesFuncs() map[int]func(t *testing.T, response *grpc.Response) {
 	checkFuncs[grpc.OpAddTransaction] = func(t *testing.T, res *grpc.Response) {}
 
 	checkFuncs[grpc.OpAddXshardTxList] = func(t *testing.T, res *grpc.Response) {}
-
-	checkFuncs[grpc.OpAddMinorBlock] = func(t *testing.T, res *grpc.Response) {}
 
 	checkFuncs[grpc.OpGetMinorBlock] = func(t *testing.T, res *grpc.Response) {
 		var (
