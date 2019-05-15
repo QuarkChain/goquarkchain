@@ -321,7 +321,7 @@ func (s *SlaveBackend) GetMinorBlockHeaderList(mHash common.Hash,
 		if header.NumberU64() == 0 {
 			return headerList, nil
 		}
-		mHash = header.PrevRootBlockHash
+		mHash = header.ParentHash
 	}
 	return headerList, err
 }

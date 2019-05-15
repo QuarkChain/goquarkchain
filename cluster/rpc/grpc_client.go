@@ -53,7 +53,7 @@ const (
 	OpGetMinorBlockHeaderList
 	OpHandleNewTip
 	OpAddTransactions
-	OpNewMinorBlock
+	OpHandleNewMinorBlock
 
 	MasterServer = serverType(1)
 	SlaveServer  = serverType(0)
@@ -105,7 +105,7 @@ var (
 		OpGetMinorBlockHeaderList: {name: "GetMinorBlockHeaderList"},
 		OpHandleNewTip:            {name: "HandleNewTip"},
 		OpAddTransactions:         {name: "AddTransactions"},
-		OpNewMinorBlock:           {name: "NewMinorBlock"},
+		OpHandleNewMinorBlock:     {name: "HandleNewMinorBlock"},
 	}
 )
 

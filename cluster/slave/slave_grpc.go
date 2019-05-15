@@ -580,7 +580,7 @@ func (s *SlaveServerSideOp) AddTransactions(ctx context.Context, req *rpc.Reques
 	return response, nil
 }
 
-func (s *SlaveServerSideOp) NewMinorBlock(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
+func (s *SlaveServerSideOp) HandleNewMinorBlock(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
 	var (
 		gReq     types.MinorBlock
 		response = &rpc.Response{RpcId: req.RpcId}

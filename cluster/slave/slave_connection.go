@@ -15,13 +15,13 @@ type SlaveConn struct {
 	client        rpc.Client
 }
 
-func NewToSlaveConn(target, id string, chainMaskList []*types.ChainMask) (*SlaveConn, error) {
+func NewToSlaveConn(target, id string, chainMaskList []*types.ChainMask) *SlaveConn {
 	return &SlaveConn{
 		target:        target,
 		id:            id,
 		chainMaskList: chainMaskList,
 		client:        rpc.NewClient(rpc.SlaveServer),
-	}, nil
+	}
 }
 
 func (s *SlaveConn) SendPing() bool {

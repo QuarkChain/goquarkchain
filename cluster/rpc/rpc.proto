@@ -78,7 +78,7 @@ service SlaveServerSideOp {
     }
     rpc AddTransactions (Request) returns (Response) {
     }
-    rpc NewMinorBlock (Request) returns (Response) {
+    rpc HandleNewMinorBlock (Request) returns (Response) {
     }
 }
 

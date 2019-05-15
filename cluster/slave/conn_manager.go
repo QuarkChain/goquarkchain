@@ -34,26 +34,20 @@ type ConnManager struct {
 	mu                 sync.Mutex
 }
 
-func (s *ConnManager) AddConnectToSlave(info *rpc.SlaveInfo) error {
+func (s *ConnManager) AddConnectToSlave(info *rpc.SlaveInfo) bool {
 	var (
-		conn   *SlaveConn
 		target = fmt.Sprintf("%s:%d", info.Host, info.Port)
-		err    error
 	)
 
-	conn, err = NewToSlaveConn(target, string(info.Id), info.ChainMaskList)
-	if err != nil {
-		log.Error("Failed to add connection to slave", "target", target, "err", err)
-		return err
-	}
+	conn := NewToSlaveConn(target, string(info.Id), info.ChainMaskList)
 	log.Info("slave conn manager, add connect to slave", "add target", target)
 
 	// Tell the remote slave who I am.
 	if ok := conn.SendPing(); ok {
 		s.addSlaveConnection(target, conn)
+		return true
 	}
-
-	return nil
+	return false
 }
 
 func (s *ConnManager) GetConnectionsByFullShardId(id uint32) []*SlaveConn {
@@ -128,7 +122,7 @@ func (s *ConnManager) BroadcastXshardTxList(block *types.MinorBlock,
 		}
 		ok := s.AddXshardTxList(branch.GetFullShardID(), request)
 		if !ok {
-			log.Error("Failed to broadcast xshard transactions", "full shard id", branch.GetFullShardID())
+			log.Error("Failed to broadcast xshard transactions", "actual branch", block.Header().Branch.Value, "target branch", branch.Value)
 		}
 	}
 	return nil
