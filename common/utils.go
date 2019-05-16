@@ -2,6 +2,7 @@ package common
 
 import (
 	"bytes"
+	"encoding/binary"
 	"encoding/gob"
 	ethCommon "github.com/ethereum/go-ethereum/common"
 	"math/big"
@@ -99,4 +100,22 @@ func BigIntMulBigRat(bigInt *big.Int, bigRat *big.Rat) *big.Int {
 	ans := new(big.Int).Mul(bigInt, bigRat.Num())
 	ans.Div(ans, bigRat.Denom())
 	return ans
+}
+
+// Uint32ToBytes trans uint32 num to bytes
+func Uint32ToBytes(n uint32) []byte {
+	Bytes := make([]byte, 4)
+	binary.BigEndian.PutUint32(Bytes, n)
+	return Bytes
+}
+
+func BytesToUint32(byte []byte) uint32 {
+	bytesBuffer := bytes.NewBuffer(byte)
+	var x uint32
+	binary.Read(bytesBuffer, binary.BigEndian, &x)
+	return x
+}
+
+func Has0xPrefix(input string) bool {
+	return len(input) >= 2 && input[0] == '0' && (input[1] == 'x' || input[1] == 'X')
 }

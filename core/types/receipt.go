@@ -114,11 +114,15 @@ func (r *Receipt) Serialize(w *[]byte) error {
 	return serialize.Serialize(w, receiptSer{
 		r.statusEncoding(),
 		r.CumulativeGasUsed,
-		r.CumulativeGasUsed - r.GasUsed,
+		r.GetPrevGasUsed(),
 		r.Bloom,
 		account.Address{Recipient: r.ContractAddress, FullShardKey: r.ContractFullShardId},
 		r.Logs,
 	})
+}
+
+func (r *Receipt) GetPrevGasUsed() uint64 {
+	return r.CumulativeGasUsed - r.GasUsed
 }
 
 // EncodeRLP implements rlp.Encoder, and flattens the consensus fields of a receipt
