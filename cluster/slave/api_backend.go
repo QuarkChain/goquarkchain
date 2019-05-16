@@ -97,12 +97,12 @@ func (s *SlaveBackend) AddBlockListForSync(mHashList []common.Hash, peerId strin
 		tHashList      []common.Hash
 	)
 	for len(hashList) > 0 {
-		hLen := len(hashList)
-		if hLen/BlockBatchSize > 0 {
+		hLen := BlockBatchSize
+		if len(hashList) > BlockBatchSize {
 			tHashList = hashList[:BlockBatchSize]
-			hashList = hashList[BlockBatchSize:]
 		} else {
-			tHashList = hashList[:hLen%BlockBatchSize]
+			tHashList = hashList
+			hLen = len(hashList)
 		}
 		bList, err := s.connManager.GetMinorBlocks(tHashList, peerId, branch)
 		if err != nil {
@@ -115,6 +115,7 @@ func (s *SlaveBackend) AddBlockListForSync(mHashList []common.Hash, peerId strin
 		if err := shrd.AddBlockListForSync(bList); err != nil {
 			return nil, err
 		}
+		hashList = hashList[hLen:]
 	}
 
 	log.Info("sync request from master successful", "branch", branch, "peer id", peerId, "block size", hashLen)
