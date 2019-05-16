@@ -9,7 +9,6 @@ import (
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/rpc"
 	"reflect"
-	"sync"
 )
 
 type SlaveBackend struct {
@@ -21,7 +20,6 @@ type SlaveBackend struct {
 
 	shards map[uint32]*shard.ShardBackend
 
-	mu       sync.Mutex
 	ctx      *service.ServiceContext
 	eventMux *event.TypeMux
 }
