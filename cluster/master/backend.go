@@ -83,7 +83,7 @@ func New(ctx *service.ServiceContext, cfg *config.ClusterConfig) (*QKCMasterBack
 		}
 		err error
 	)
-	if mstr.chainDb, err = createDB(ctx, cfg.DbPathRoot); err != nil {
+	if mstr.chainDb, err = createDB(ctx, cfg.DbPathRoot, cfg.Clean); err != nil {
 		return nil, err
 	}
 
@@ -112,8 +112,8 @@ func New(ctx *service.ServiceContext, cfg *config.ClusterConfig) (*QKCMasterBack
 	return mstr, nil
 }
 
-func createDB(ctx *service.ServiceContext, name string) (ethdb.Database, error) {
-	db, err := ctx.OpenDatabase(name)
+func createDB(ctx *service.ServiceContext, name string, clean bool) (ethdb.Database, error) {
+	db, err := ctx.OpenDatabase(name, clean)
 	if err != nil {
 		return nil, err
 	}

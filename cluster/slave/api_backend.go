@@ -252,14 +252,12 @@ func (s *SlaveBackend) GetCode(address *account.Address, height uint64) ([]byte,
 }
 
 func (s *SlaveBackend) GasPrice(branch uint32) (uint64, error) {
-	var (
-		price *uint64
-	)
 	if shrd, ok := s.shards[branch]; ok {
-		if price = shrd.MinorBlockChain.GasPrice(); price == nil {
-			return 0, errors.New(fmt.Sprintf("Failed to get gas price, shard id : %d", shrd.Config.ShardID))
+		price, err := shrd.MinorBlockChain.GasPrice()
+		if err != nil {
+			return 0, errors.New(fmt.Sprintf("Failed to get gas price, shard id : %d, err: %v", shrd.Config.ShardID, err))
 		}
-		return *price, nil
+		return price, nil
 	}
 	return 0, ErrMsg("GasPrice")
 }

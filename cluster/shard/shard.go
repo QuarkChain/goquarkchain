@@ -62,7 +62,7 @@ func New(ctx *service.ServiceContext, rBlock *types.RootBlock, conn ConnManager,
 	)
 	shrd.maxBlocks = shrd.Config.MaxBlocksPerShardInOneRootBlock()
 
-	shrd.chainDb, err = createDB(ctx, fmt.Sprintf("shard-%d.db", fullshardId))
+	shrd.chainDb, err = createDB(ctx, fmt.Sprintf("shard-%d.db", fullshardId), cfg.Clean)
 	if err != nil {
 		return nil, err
 	}
@@ -110,9 +110,9 @@ func (s *ShardBackend) StopMining() {
 	s.engine.SetThreads(-1)
 }
 
-func createDB(ctx *service.ServiceContext, name string) (ethdb.Database, error) {
+func createDB(ctx *service.ServiceContext, name string, clean bool) (ethdb.Database, error) {
 	// handlers and caches size should be set in different environment.
-	db, err := ctx.OpenDatabase(name)
+	db, err := ctx.OpenDatabase(name, clean)
 	if err != nil {
 		return nil, err
 	}

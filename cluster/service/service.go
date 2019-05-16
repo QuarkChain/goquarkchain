@@ -25,11 +25,11 @@ type ServiceContext struct {
 // OpenDatabase opens an existing database with the given name (or creates one
 // if no previous can be found) from within the node's data directory. If the
 // node is an ephemeral one, a memory database is returned.
-func (ctx *ServiceContext) OpenDatabase(name string) (ethdb.Database, error) {
+func (ctx *ServiceContext) OpenDatabase(name string, clean bool) (ethdb.Database, error) {
 	if ctx.config.DataDir == "" {
 		return ethdb.NewMemDatabase(), nil
 	}
-	db, err := qkcdb.NewRDBDatabase(ctx.config.ResolvePath(name))
+	db, err := qkcdb.NewRDBDatabase(ctx.config.ResolvePath(name), clean)
 	if err != nil {
 		return nil, err
 	}
