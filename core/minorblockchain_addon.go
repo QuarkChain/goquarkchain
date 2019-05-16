@@ -1008,9 +1008,9 @@ func (m *MinorBlockChain) GetTransactionByHash(hash common.Hash) (*types.MinorBl
 	if mHash == qkcCommon.EmptyHash { //TODO need? for test???
 		txs := make([]*types.Transaction, 0)
 		m.txPool.mu.Lock() // to lock txpool.all
-		tx,ok:=m.txPool.all.all[hash]
-		if !ok{
-			return nil,0
+		tx, ok := m.txPool.all.all[hash]
+		if !ok {
+			return nil, 0
 		}
 		txs = append(txs, tx)
 		m.txPool.mu.Unlock()
@@ -1137,11 +1137,11 @@ func (m *MinorBlockChain) EstimateGas(tx *types.Transaction, fromAddress account
 }
 
 // GasPrice gas price
-func (m *MinorBlockChain) GasPrice() *uint64 {
+func (m *MinorBlockChain) GasPrice() (uint64,error) {
 	// no need to lock
 	currHead := m.CurrentBlock().Hash()
 	if currHead == m.gasPriceSuggestionOracle.LastHead {
-		return &m.gasPriceSuggestionOracle.LastPrice
+		return m.gasPriceSuggestionOracle.LastPrice,nil
 	}
 	currHeight := m.CurrentBlock().NumberU64()
 	startHeight := int64(currHeight) - int64(m.gasPriceSuggestionOracle.CheckBlocks) + 1
@@ -1153,7 +1153,7 @@ func (m *MinorBlockChain) GasPrice() *uint64 {
 		block, ok := m.GetBlockByNumber(uint64(index)).(*types.MinorBlock)
 		if !ok {
 			log.Error(m.logInfo, "failed to get block", index)
-			return nil
+			return 0,errors.New("failed to get block")
 		}
 		tempPreBlockPrices := make([]uint64, 0)
 		for _, tx := range block.GetTransactions() {
@@ -1162,14 +1162,14 @@ func (m *MinorBlockChain) GasPrice() *uint64 {
 		prices = append(prices, tempPreBlockPrices...)
 	}
 	if len(prices) == 0 {
-		return nil
+		return 0,errors.New("len(prices)==0")
 	}
 
 	sort.Slice(prices, func(i, j int) bool { return prices[i] < prices[j] })
 	price := prices[(len(prices)-1)*int(m.gasPriceSuggestionOracle.Percentile)/100]
 	m.gasPriceSuggestionOracle.LastPrice = price
 	m.gasPriceSuggestionOracle.LastHead = currHead
-	return &price
+	return price,nil
 }
 
 func (m *MinorBlockChain) getBlockCountByHeight(height uint64) uint64 {
