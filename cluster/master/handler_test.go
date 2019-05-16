@@ -360,7 +360,7 @@ func TestBroadcastMinorBlock(t *testing.T) {
 
 	for _, conn := range shardConns {
 		conn.(*mock_master.MockShardConnForP2P).EXPECT().
-			AddMinorBlock(gomock.Any()).Return(true, nil).Times(1)
+			HandleNewMinorBlock(gomock.Any()).Return(true, nil).Times(1)
 	}
 	err := clientPeer.SendNewMinorBlock(2, minorBlock)
 	if err != nil {
@@ -368,7 +368,7 @@ func TestBroadcastMinorBlock(t *testing.T) {
 	}
 	for _, conn := range shardConns {
 		conn.(*mock_master.MockShardConnForP2P).EXPECT().
-			AddMinorBlock(gomock.Any()).DoAndReturn(func(request *p2p.NewBlockMinor) (bool, error) {
+			HandleNewMinorBlock(gomock.Any()).DoAndReturn(func(request *p2p.NewBlockMinor) (bool, error) {
 			errc <- nil
 			return false, errors.New("expected error")
 		}).Times(1)

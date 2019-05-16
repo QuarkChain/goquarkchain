@@ -22,14 +22,12 @@ const (
 	OpPing
 	OpConnectToSlaves
 	OpAddRootBlock
-	OpGetEcoInfoList
 	OpGetNextBlockToMine
 	OpGetUnconfirmedHeaderList
 	OpGetAccountData
 	OpAddTransaction
 	OpAddMinorBlockHeader
 	OpAddXshardTxList
-	OpAddMinorBlock
 	OpCreateClusterPeerConnection
 	OpGetMinorBlock
 	OpGetTransaction
@@ -55,7 +53,7 @@ const (
 	OpGetMinorBlockHeaderList
 	OpHandleNewTip
 	OpAddTransactions
-	OpNewMinorBlock
+	OpHandleNewMinorBlock
 
 	MasterServer = serverType(1)
 	SlaveServer  = serverType(0)
@@ -80,13 +78,11 @@ var (
 		OpMasterInfo:                  {name: "MasterInfo"},
 		OpPing:                        {name: "Ping"},
 		OpAddRootBlock:                {name: "AddRootBlock"},
-		OpGetEcoInfoList:              {name: "GetEcoInfoList"},
 		OpGetNextBlockToMine:          {name: "GetNextBlockToMine"},
 		OpGetUnconfirmedHeaderList:    {name: "GetUnconfirmedHeaderList"},
 		OpGetAccountData:              {name: "GetAccountData"},
 		OpAddTransaction:              {name: "AddTransaction"},
 		OpAddXshardTxList:             {name: "AddXshardTxList"},
-		OpAddMinorBlock:               {name: "AddMinorBlock"},
 		OpCreateClusterPeerConnection: {name: "CreateClusterPeerConnection"},
 		OpGetMinorBlock:               {name: "GetMinorBlock"},
 		OpGetTransaction:              {name: "GetTransaction"},
@@ -109,7 +105,7 @@ var (
 		OpGetMinorBlockHeaderList: {name: "GetMinorBlockHeaderList"},
 		OpHandleNewTip:            {name: "HandleNewTip"},
 		OpAddTransactions:         {name: "AddTransactions"},
-		OpNewMinorBlock:           {name: "NewMinorBlock"},
+		OpHandleNewMinorBlock:     {name: "HandleNewMinorBlock"},
 	}
 )
 

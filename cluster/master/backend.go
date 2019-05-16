@@ -83,7 +83,7 @@ func New(ctx *service.ServiceContext, cfg *config.ClusterConfig) (*QKCMasterBack
 		}
 		err error
 	)
-	if mstr.chainDb, err = createDB(ctx, cfg.DbPathRoot); err != nil {
+	if mstr.chainDb, err = createDB(ctx, cfg.DbPathRoot, cfg.Clean); err != nil {
 		return nil, err
 	}
 
@@ -112,8 +112,8 @@ func New(ctx *service.ServiceContext, cfg *config.ClusterConfig) (*QKCMasterBack
 	return mstr, nil
 }
 
-func createDB(ctx *service.ServiceContext, name string) (ethdb.Database, error) {
-	db, err := ctx.OpenDatabase(name, 128, 1024) // TODO @liuhuan to delete "128 1024"?
+func createDB(ctx *service.ServiceContext, name string, clean bool) (ethdb.Database, error) {
+	db, err := ctx.OpenDatabase(name, clean)
 	if err != nil {
 		return nil, err
 	}
@@ -130,7 +130,8 @@ func createConsensusEngine(ctx *service.ServiceContext, cfg *config.RootConfig) 
 	case config.PoWFake:
 		return &consensus.FakeEngine{}, nil
 	case config.PoWEthash, config.PoWSimulate:
-		panic(errors.New("not support PoWEthash PoWSimulate"))
+		return qkchash.New(cfg.ConsensusConfig.RemoteMine, &diffCalculator, cfg.ConsensusConfig.RemoteMine), nil
+		// panic(errors.New("not support PoWEthash PoWSimulate"))
 	case config.PoWQkchash:
 		return qkchash.New(cfg.ConsensusConfig.RemoteMine, &diffCalculator, cfg.ConsensusConfig.RemoteMine), nil
 	case config.PoWDoubleSha256:
