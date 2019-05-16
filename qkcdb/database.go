@@ -2,6 +2,7 @@ package qkcdb
 
 import (
 	"errors"
+	"os"
 	"sync"
 
 	"github.com/ethereum/go-ethereum/log"
@@ -29,6 +30,9 @@ type RDBDatabase struct {
 func NewRDBDatabase(file string, clean bool) (*RDBDatabase, error) {
 	logger := log.New("database", file)
 
+	if err := os.MkdirAll(file, 0700); err != nil {
+		return nil, err
+	}
 	opts := gorocksdb.NewDefaultOptions()
 	if clean {
 		if err := gorocksdb.DestroyDb(file, opts); err != nil {

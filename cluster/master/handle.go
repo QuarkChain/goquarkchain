@@ -257,7 +257,7 @@ func (pm *ProtocolManager) handleMsg(peer *peer) error {
 		}
 		//todo make them run in Parallelized
 		for _, client := range clients {
-			result, err := client.AddMinorBlock(&newBlockMinor)
+			result, err := client.HandleNewMinorBlock(&newBlockMinor)
 			if err != nil {
 				return fmt.Errorf("branch %d handle NewBlockMinorMsg message failed with error: %v", qkcMsg.MetaData.Branch, err.Error())
 			}

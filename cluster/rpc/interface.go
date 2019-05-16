@@ -27,7 +27,7 @@ type ShardConnForP2P interface {
 
 	HandleNewTip(request *p2p.Tip) (bool, error)
 
-	AddMinorBlock(request *p2p.NewBlockMinor) (bool, error)
+	HandleNewMinorBlock(request *p2p.NewBlockMinor) (bool, error)
 
 	AddBlockListForSync(request *HashList) (*ShardStatus, error)
 }
