@@ -107,7 +107,7 @@ func (s *ShardBackend) AddRootBlock(rBlock *types.RootBlock) (switched bool, err
 // and will add them once this function returns successfully.
 func (s *ShardBackend) AddBlockListForSync(blockLst []*types.MinorBlock) error {
 	blockHashToXShardList := make(map[common.Hash]*XshardListTuple)
-	if blockLst == nil {
+	if len(blockLst) == 0 {
 		return errors.New(fmt.Sprintf("empty root block list in %d", s.Config.ShardID))
 	}
 

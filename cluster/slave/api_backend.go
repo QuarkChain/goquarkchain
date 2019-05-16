@@ -94,34 +94,31 @@ func (s *SlaveBackend) AddBlockListForSync(mHashList []common.Hash, peerId strin
 	var (
 		BlockBatchSize = 100
 		hashLen        = len(hashList)
-		mBlockList     = make([]*types.MinorBlock, 0, hashLen)
 		tHashList      []common.Hash
 	)
 	for len(hashList) > 0 {
-		len := len(hashList)
-		if len/BlockBatchSize > 0 {
+		hLen := len(hashList)
+		if hLen/BlockBatchSize > 0 {
 			tHashList = hashList[:BlockBatchSize]
 			hashList = hashList[BlockBatchSize:]
 		} else {
-			tHashList = hashList[:len%BlockBatchSize]
+			tHashList = hashList[:hLen%BlockBatchSize]
 		}
 		bList, err := s.connManager.GetMinorBlocks(tHashList, peerId, branch)
 		if err != nil {
 			log.Error("Failed to sync request from master", "branch", branch, "peer id", peerId, "err", err)
 			return nil, err
 		}
-		mBlockList = append(mBlockList, bList...)
+		if len(bList) != hLen {
+			return nil, errors.New("Failed to add minor blocks for syncing root block: length of downloaded block list is incorrect")
+		}
+		if err := shrd.AddBlockListForSync(bList); err != nil {
+			return nil, err
+		}
 	}
 
-	log.Info("sync request from master successful", "branch", branch, "peer id", peerId, "block size", len(mBlockList))
+	log.Info("sync request from master successful", "branch", branch, "peer id", peerId, "block size", hashLen)
 
-	if len(mBlockList) != hashLen {
-		return nil, errors.New("Failed to add minor blocks for syncing root block: length of downloaded block list is incorrect")
-	}
-
-	if err := shrd.AddBlockListForSync(mBlockList); err != nil {
-		return nil, err
-	}
 	return shrd.MinorBlockChain.GetShardStatus()
 }
 

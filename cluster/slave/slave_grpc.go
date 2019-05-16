@@ -64,8 +64,6 @@ func (s *SlaveServerSideOp) Ping(ctx context.Context, req *rpc.Request) (*rpc.Re
 		}
 	}
 
-	s.slave.connManager.AddConnectToSlave()
-
 	gRes.Id, gRes.ChainMaskList = []byte(s.slave.config.ID), s.slave.config.ChainMaskList
 	log.Info("slave ping response", "request op", req.Op)
 
