@@ -59,17 +59,17 @@ func (s *SlaveBackend) AddRootBlock(block *types.RootBlock) (switched bool, err 
 func (s *SlaveBackend) CreateShards(rootBlock *types.RootBlock) (err error) {
 	fullShardList := s.getFullShardList()
 	for _, id := range fullShardList {
-		shardCfg := s.clstrCfg.Quarkchain.GetShardConfigByFullShardID(id)
-		if shardCfg.Genesis == nil {
+		if _, ok := s.shards[id]; ok {
 			continue
 		}
+		shardCfg := s.clstrCfg.Quarkchain.GetShardConfigByFullShardID(id)
 		if rootBlock.Header().Number >= shardCfg.Genesis.RootHeight {
-			if shrd, ok := s.shards[id]; ok {
-				return shrd.InitFromRootBlock(rootBlock)
-			}
 			shrd, err := shard.New(s.ctx, rootBlock, s.connManager, s.clstrCfg, id)
 			if err != nil {
 				log.Error("Failed to create shard", "slave id", s.config.ID, "shard id", shardCfg.ShardID, "err", err)
+				return err
+			}
+			if err := shrd.InitFromRootBlock(rootBlock); err != nil {
 				return err
 			}
 			s.shards[id] = shrd
@@ -95,15 +95,17 @@ func (s *SlaveBackend) AddBlockListForSync(mHashList []common.Hash, peerId strin
 		BlockBatchSize = 100
 		hashLen        = len(hashList)
 		mBlockList     = make([]*types.MinorBlock, 0, hashLen)
+		tHashList      []common.Hash
 	)
 	for len(hashList) > 0 {
 		len := len(hashList)
 		if len/BlockBatchSize > 0 {
-			hashList = hashList[:BlockBatchSize]
+			tHashList = hashList[:BlockBatchSize]
+			hashList = hashList[BlockBatchSize:]
 		} else {
-			hashList = hashList[:len%BlockBatchSize]
+			tHashList = hashList[:len%BlockBatchSize]
 		}
-		bList, err := s.connManager.GetMinorBlocks(hashList, peerId, branch)
+		bList, err := s.connManager.GetMinorBlocks(tHashList, peerId, branch)
 		if err != nil {
 			log.Error("Failed to sync request from master", "branch", branch, "peer id", peerId, "err", err)
 			return nil, err

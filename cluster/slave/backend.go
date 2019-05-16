@@ -5,7 +5,6 @@ import (
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/cluster/service"
 	"github.com/QuarkChain/goquarkchain/cluster/shard"
-	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/p2p"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/rpc"
@@ -89,10 +88,6 @@ func (s *SlaveBackend) APIs() []rpc.API {
 		},
 	}
 	return apis
-}
-
-func (s *SlaveBackend) checkSlave(id []byte, chainMaskList []*types.ChainMask) bool {
-
 }
 
 func (s *SlaveBackend) Stop() error {
