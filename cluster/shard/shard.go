@@ -166,20 +166,20 @@ type newBlockPool struct {
 	BlockPool map[common.Hash]*types.MinorBlock
 }
 
-func (s *newBlockPool) getBlockInPool(hash common.Hash) *types.MinorBlock {
-	s.Mu.RLock()
-	defer s.Mu.RUnlock()
-	return s.BlockPool[hash]
+func (n *newBlockPool) getBlockInPool(hash common.Hash) *types.MinorBlock {
+	n.Mu.RLock()
+	defer n.Mu.RUnlock()
+	return n.BlockPool[hash]
 }
 
-func (s *newBlockPool) setBlockInPool(block *types.MinorBlock) {
-	s.Mu.Lock()
-	defer s.Mu.Unlock()
-	s.BlockPool[block.Header().Hash()] = block
+func (n *newBlockPool) setBlockInPool(block *types.MinorBlock) {
+	n.Mu.Lock()
+	defer n.Mu.Unlock()
+	n.BlockPool[block.Header().Hash()] = block
 }
 
-func (s *newBlockPool) delBlockInPool(block *types.MinorBlock) {
-	s.Mu.Lock()
-	defer s.Mu.Unlock()
-	delete(s.BlockPool, block.Header().Hash())
+func (n *newBlockPool) delBlockInPool(block *types.MinorBlock) {
+	n.Mu.Lock()
+	defer n.Mu.Unlock()
+	delete(n.BlockPool, block.Header().Hash())
 }

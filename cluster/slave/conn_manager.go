@@ -171,7 +171,7 @@ func (s *ConnManager) getBranchToAddXshardTxListRequest(blockHash common.Hash,
 
 // TODO need to check
 func (s *ConnManager) addSlaveConnection(target string, conn *SlaveConn) {
-	fullShardIdList := s.slave.getFullShardList()
+	fullShardIdList := s.qkcCfg.GetGenesisShardIds()
 	for _, id := range fullShardIdList {
 		if conn.HasShard(id) {
 			s.fullShardIdToSlaves[id] = append(s.fullShardIdToSlaves[id], conn)
@@ -180,7 +180,7 @@ func (s *ConnManager) addSlaveConnection(target string, conn *SlaveConn) {
 	s.slavesConn[target] = conn
 }
 
-func NewToSlaveConnManager(qkcCfg *config.QuarkChainConfig, slave *SlaveBackend) (*ConnManager, error) {
+func NewToSlaveConnManager(qkcCfg *config.QuarkChainConfig, slave *SlaveBackend) *ConnManager {
 	slaveConnManager := &ConnManager{
 		qkcCfg:              qkcCfg,
 		slavesConn:          make(map[string]*SlaveConn),
@@ -190,5 +190,5 @@ func NewToSlaveConnManager(qkcCfg *config.QuarkChainConfig, slave *SlaveBackend)
 	slaveConnManager.masterClient = &masterConn{
 		client: rpc.NewClient(rpc.MasterServer),
 	}
-	return slaveConnManager, nil
+	return slaveConnManager
 }

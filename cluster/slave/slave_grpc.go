@@ -10,12 +10,10 @@ import (
 	"github.com/QuarkChain/goquarkchain/serialize"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
-	"sync"
 	"time"
 )
 
 type SlaveServerSideOp struct {
-	mu    sync.RWMutex
 	slave *SlaveBackend
 }
 

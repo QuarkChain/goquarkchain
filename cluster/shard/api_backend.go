@@ -57,7 +57,9 @@ func (s *ShardBackend) AddMinorBlock(block *types.MinorBlock) error {
 	}
 
 	prevRootHeight := s.MinorBlockChain.GetRootBlockByHash(block.Header().PrevRootBlockHash).Header().Number
-	s.conn.BroadcastXshardTxList(block, xshardLst[0], prevRootHeight)
+	if err := s.conn.BroadcastXshardTxList(block, xshardLst[0], prevRootHeight); err != nil {
+		return err
+	}
 	status, err := s.MinorBlockChain.GetShardStatus()
 	if err != nil {
 		return err
@@ -156,7 +158,7 @@ func (s *ShardBackend) HandleNewTip(rBHeader *types.RootBlockHeader, mBHeader *t
 		return nil
 	}
 
-	log.Info("handle new tip", "received new tip with height", "shard height", mBHeader.Number)
+	log.Info("Handle new tip received new tip with height", "shard height", mBHeader.Number)
 	return nil
 }
 
@@ -170,6 +172,7 @@ func (s *ShardBackend) GetMinorBlock(mHash common.Hash, height *uint64) *types.M
 }
 
 func (s *ShardBackend) NewMinorBlock(block *types.MinorBlock) (err error) {
+	// TODO
 	mHash := block.Header().Hash()
 	if s.mBPool.getBlockInPool(mHash) != nil {
 		return

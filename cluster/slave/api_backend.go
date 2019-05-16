@@ -32,26 +32,14 @@ func (s *SlaveBackend) GetUnconfirmedHeaderList() ([]*rpc.HeadersInfo, error) {
 	return headersInfoLst, nil
 }
 
-// For local miner to submit mined blocks through master
-func (s *SlaveBackend) AddMinorBlock(block *types.MinorBlock) error {
-	if shrd, ok := s.shards[block.Branch().Value]; ok {
-		if block.Header().ParentHash != shrd.MinorBlockChain.CurrentHeader().Hash() {
-			// Tip changed, don't bother creating a fork
-			log.Warn("add minor block dropped stale block mined locally branch: %d ,minor height: %d", block.Header().Branch.Value, block.Header().Number)
-			return nil
-		}
-		return shrd.AddMinorBlock(block)
-	}
-	return ErrMsg("AddMinorBlock")
-}
-
 func (s *SlaveBackend) AddRootBlock(block *types.RootBlock) (switched bool, err error) {
+	switched = false
 	for _, shrd := range s.shards {
 		if switched, err = shrd.AddRootBlock(block); err != nil {
 			return false, err
 		}
 	}
-	return true, nil
+	return switched, nil
 }
 
 // Create shards based on GENESIS config and root block height if they have
@@ -69,7 +57,7 @@ func (s *SlaveBackend) CreateShards(rootBlock *types.RootBlock) (err error) {
 				log.Error("Failed to create shard", "slave id", s.config.ID, "shard id", shardCfg.ShardID, "err", err)
 				return err
 			}
-			if err := shrd.InitFromRootBlock(rootBlock); err != nil {
+			if err = shrd.InitFromRootBlock(rootBlock); err != nil {
 				return err
 			}
 			s.shards[id] = shrd
@@ -85,9 +73,9 @@ func (s *SlaveBackend) AddBlockListForSync(mHashList []common.Hash, peerId strin
 	}
 
 	hashList := make([]common.Hash, 0)
-	for _, block := range mHashList {
-		if !shrd.MinorBlockChain.HasBlock(block) {
-			hashList = append(hashList, block)
+	for _, hash := range mHashList {
+		if !shrd.MinorBlockChain.HasBlock(hash) {
+			hashList = append(hashList, hash)
 		}
 	}
 
