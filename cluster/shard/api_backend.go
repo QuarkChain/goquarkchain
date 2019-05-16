@@ -42,7 +42,7 @@ func (s *ShardBackend) AddMinorBlock(block *types.MinorBlock) error {
 	}
 	// only remove from pool if the block successfully added to state,
 	// this may cache failed blocks but prevents them being broadcasted more than needed
-	s.delBlockInPool(block)
+	s.mBPool.delBlockInPool(block)
 
 	// block has been added to local state, broadcast tip so that peers can sync if needed
 	if oldTip.Hash() != s.MinorBlockChain.CurrentHeader().Hash() {
@@ -121,7 +121,7 @@ func (s *ShardBackend) AddBlockListForSync(blockLst []*types.MinorBlock) error {
 			log.Error("Failed to add minor block, err %v", err)
 			return err
 		}
-		s.delBlockInPool(block)
+		s.mBPool.delBlockInPool(block)
 		prevRootHeight := s.MinorBlockChain.GetRootBlockByHash(block.Header().PrevRootBlockHash)
 		blockHashToXShardList[blockHash] = &XshardListTuple{XshardTxList: xshardLst[0], PrevRootHeight: prevRootHeight.Number()}
 	}
@@ -171,14 +171,14 @@ func (s *ShardBackend) GetMinorBlock(mHash common.Hash, height *uint64) *types.M
 
 func (s *ShardBackend) NewMinorBlock(block *types.MinorBlock) (err error) {
 	mHash := block.Header().Hash()
-	if s.getBlockInPool(mHash) != nil {
+	if s.mBPool.getBlockInPool(mHash) != nil {
 		return
 	}
 	if s.MinorBlockChain.HasBlock(block.Hash()) {
 		log.Info("add minor block, Known minor block", "branch", block.Header().Branch, "height", block.Number())
 		return
 	}
-	if !s.MinorBlockChain.HasBlock(block.Header().ParentHash) && s.getBlockInPool(block.ParentHash()) == nil {
+	if !s.MinorBlockChain.HasBlock(block.Header().ParentHash) && s.mBPool.getBlockInPool(block.ParentHash()) == nil {
 		return fmt.Errorf("prarent block hash be included, parent hash: %s", block.Header().ParentHash.Hex())
 	}
 
@@ -198,7 +198,7 @@ func (s *ShardBackend) NewMinorBlock(block *types.MinorBlock) (err error) {
 		return
 	}
 
-	s.setBlockInPool(block)
+	s.mBPool.setBlockInPool(block)
 	if err = s.conn.BroadcastMinorBlock(block, s.fullShardId); err != nil {
 		return err
 	}

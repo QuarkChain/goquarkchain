@@ -42,12 +42,6 @@ type ShardBackend struct {
 	eventMux *event.TypeMux
 }
 
-// minor block pool
-type newBlockPool struct {
-	Mu        sync.RWMutex
-	BlockPool map[common.Hash]*types.MinorBlock
-}
-
 func New(ctx *service.ServiceContext, rBlock *types.RootBlock, conn ConnManager,
 	cfg *config.ClusterConfig, fullshardId uint32) (*ShardBackend, error) {
 
@@ -166,20 +160,26 @@ func (s *ShardBackend) initGenesisState(rootBlock *types.RootBlock) error {
 	return s.conn.SendMinorBlockHeaderToMaster(minorBlock.Header(), uint32(len(minorBlock.GetTransactions())), uint32(len(xshardList)), status)
 }
 
-func (s *ShardBackend) getBlockInPool(hash common.Hash) *types.MinorBlock {
-	s.mBPool.Mu.RLock()
-	defer s.mBPool.Mu.RUnlock()
-	return s.mBPool.BlockPool[hash]
+// minor block pool
+type newBlockPool struct {
+	Mu        sync.RWMutex
+	BlockPool map[common.Hash]*types.MinorBlock
 }
 
-func (s *ShardBackend) setBlockInPool(block *types.MinorBlock) {
-	s.mBPool.Mu.Lock()
-	defer s.mBPool.Mu.Unlock()
-	s.mBPool.BlockPool[block.Header().Hash()] = block
+func (s *newBlockPool) getBlockInPool(hash common.Hash) *types.MinorBlock {
+	s.Mu.RLock()
+	defer s.Mu.RUnlock()
+	return s.BlockPool[hash]
 }
 
-func (s *ShardBackend) delBlockInPool(block *types.MinorBlock) {
-	s.mBPool.Mu.Lock()
-	defer s.mBPool.Mu.Unlock()
-	delete(s.mBPool.BlockPool, block.Header().Hash())
+func (s *newBlockPool) setBlockInPool(block *types.MinorBlock) {
+	s.Mu.Lock()
+	defer s.Mu.Unlock()
+	s.BlockPool[block.Header().Hash()] = block
+}
+
+func (s *newBlockPool) delBlockInPool(block *types.MinorBlock) {
+	s.Mu.Lock()
+	defer s.Mu.Unlock()
+	delete(s.BlockPool, block.Header().Hash())
 }
