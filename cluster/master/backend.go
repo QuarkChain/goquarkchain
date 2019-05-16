@@ -130,7 +130,8 @@ func createConsensusEngine(ctx *service.ServiceContext, cfg *config.RootConfig) 
 	case config.PoWFake:
 		return &consensus.FakeEngine{}, nil
 	case config.PoWEthash, config.PoWSimulate:
-		panic(errors.New("not support PoWEthash PoWSimulate"))
+		return qkchash.New(cfg.ConsensusConfig.RemoteMine, &diffCalculator, cfg.ConsensusConfig.RemoteMine), nil
+		// panic(errors.New("not support PoWEthash PoWSimulate"))
 	case config.PoWQkchash:
 		return qkchash.New(cfg.ConsensusConfig.RemoteMine, &diffCalculator, cfg.ConsensusConfig.RemoteMine), nil
 	case config.PoWDoubleSha256:

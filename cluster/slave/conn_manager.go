@@ -10,7 +10,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
 	"golang.org/x/sync/errgroup"
-	"sync"
 )
 
 type masterConn struct {
@@ -32,9 +31,9 @@ type ConnManager struct {
 	slave *SlaveBackend
 
 	artificialTxConfig *rpc.ArtificialTxConfig
-	mu                 sync.Mutex
 }
 
+// TODO need to be called in somowhere
 func (s *ConnManager) AddConnectToSlave(info *rpc.SlaveInfo) bool {
 	var (
 		target = fmt.Sprintf("%s:%d", info.Host, info.Port)
@@ -95,7 +94,7 @@ func (s *ConnManager) BroadcastXshardTxList(block *types.MinorBlock,
 	)
 
 	for branch, request := range xshardTxListRequest {
-		if branch == block.Header().Branch || account.IsNeighbor(block.Header().Branch, branch, uint32(shardSize)) {
+		if branch == block.Header().Branch || !account.IsNeighbor(block.Header().Branch, branch, uint32(shardSize)) {
 			if len(request.TxList) != 0 {
 				return fmt.Errorf("there shouldn't be xshard list for non-neighbor shard, actual branch: %d, target branch: %d", block.Header().Branch.Value, branch.Value)
 			}
