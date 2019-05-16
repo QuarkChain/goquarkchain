@@ -12,12 +12,14 @@ import (
 	"github.com/QuarkChain/goquarkchain/consensus/doublesha256"
 	"github.com/QuarkChain/goquarkchain/consensus/qkchash"
 	"github.com/QuarkChain/goquarkchain/core"
+	"github.com/QuarkChain/goquarkchain/core/rawdb"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/internal/qkcapi"
 	"github.com/QuarkChain/goquarkchain/p2p"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/params"
 	ethRPC "github.com/ethereum/go-ethereum/rpc"
 	"golang.org/x/sync/errgroup"
 	"math/big"
@@ -41,6 +43,7 @@ var (
 
 // QKCMasterBackend masterServer include connections
 type QKCMasterBackend struct {
+	gspc               *core.Genesis
 	lock               sync.RWMutex
 	engine             consensus.Engine
 	eventMux           *event.TypeMux
@@ -69,6 +72,7 @@ func New(ctx *service.ServiceContext, cfg *config.ClusterConfig) (*QKCMasterBack
 	var (
 		mstr = &QKCMasterBackend{
 			clusterConfig:      cfg,
+			gspc:               core.NewGenesis(cfg.Quarkchain),
 			eventMux:           ctx.EventMux,
 			clientPool:         make(map[string]rpc.ISlaveConn),
 			branchToSlaves:     make(map[uint32][]rpc.ISlaveConn, 0),
@@ -91,10 +95,21 @@ func New(ctx *service.ServiceContext, cfg *config.ClusterConfig) (*QKCMasterBack
 		return nil, err
 	}
 
-	genesis := core.NewGenesis(cfg.Quarkchain)
-	genesis.MustCommitRootBlock(mstr.chainDb)
+	chainConfig, genesisHash, genesisErr := core.SetupGenesisRootBlock(mstr.chainDb, mstr.gspc)
+	if _, ok := genesisErr.(*params.ConfigCompatError); genesisErr != nil && !ok {
+		return nil, genesisErr
+	}
+	log.Info("Initialised chain configuration", "config", chainConfig)
+
 	if mstr.rootBlockChain, err = core.NewRootBlockChain(mstr.chainDb, nil, cfg.Quarkchain, mstr.engine, nil); err != nil {
 		return nil, err
+	}
+
+	// Rewind the chain in case of an incompatible config upgrade.
+	if compat, ok := genesisErr.(*params.ConfigCompatError); ok {
+		log.Warn("Rewinding chain to upgrade configuration", "err", compat)
+		mstr.rootBlockChain.SetHead(compat.RewindTo)
+		rawdb.WriteChainConfig(mstr.chainDb, genesisHash, chainConfig)
 	}
 
 	for _, cfg := range cfg.SlaveList {
@@ -130,8 +145,7 @@ func createConsensusEngine(ctx *service.ServiceContext, cfg *config.RootConfig) 
 	case config.PoWFake:
 		return &consensus.FakeEngine{}, nil
 	case config.PoWEthash, config.PoWSimulate:
-		return qkchash.New(cfg.ConsensusConfig.RemoteMine, &diffCalculator, cfg.ConsensusConfig.RemoteMine), nil
-		// panic(errors.New("not support PoWEthash PoWSimulate"))
+		panic(errors.New("not support PoWEthash PoWSimulate"))
 	case config.PoWQkchash:
 		return qkchash.New(cfg.ConsensusConfig.RemoteMine, &diffCalculator, cfg.ConsensusConfig.RemoteMine), nil
 	case config.PoWDoubleSha256:
@@ -179,10 +193,6 @@ func (s *QKCMasterBackend) Stop() error {
 
 // Start start node -> start qkcMaster
 func (s *QKCMasterBackend) Start(srvr *p2p.Server) error {
-	if err := s.InitCluster(); err != nil {
-		return err
-	}
-
 	s.rootChainChan = make(chan core.RootChainEvent, rootChainChanSize)
 	s.rootChainEventSub = s.rootBlockChain.SubscribeChainEvent(s.rootChainChan)
 	s.rootChainSideChan = make(chan core.RootChainSideEvent, rootChainSideChanSize)
@@ -219,6 +229,14 @@ func (s *QKCMasterBackend) InitCluster() error {
 		return err
 	}
 	s.logSummary()
+
+	ip, port := s.clusterConfig.Quarkchain.Root.Ip, s.clusterConfig.Quarkchain.Root.Port
+	for endpoint := range s.clientPool {
+		if err := s.clientPool[endpoint].MasterInfo(ip, port); err != nil {
+			return err
+		}
+	}
+
 	if err := s.hasAllShards(); err != nil {
 		return err
 	}

@@ -36,6 +36,7 @@ type ISlaveConn interface {
 	ShardConnForP2P
 	GetSlaveID() string
 	GetShardMaskList() []*types.ChainMask
+	MasterInfo(ip string, port uint16) error
 	HasShard(fullShardID uint32) bool
 	SendPing(rootBlock *types.RootBlock, initializeShardSize bool) ([]byte, []*types.ChainMask, error)
 	HeartBeat() bool
