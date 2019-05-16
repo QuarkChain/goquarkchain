@@ -241,7 +241,7 @@ func initEnv(t *testing.T, chanOp chan uint32) *QKCMasterBackend {
 			slaveID:       slaveID,
 		}
 	})
-	monkey.Patch(createDB, func(ctx *service.ServiceContext, name string) (ethdb.Database, error) {
+	monkey.Patch(createDB, func(ctx *service.ServiceContext, name string, clean bool) (ethdb.Database, error) {
 		return ethdb.NewMemDatabase(), nil
 	})
 
