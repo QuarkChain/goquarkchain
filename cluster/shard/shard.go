@@ -35,10 +35,17 @@ type ShardBackend struct {
 	conn  ConnManager
 
 	MinorBlockChain *core.MinorBlockChain
-	newBlockPool    map[common.Hash]*types.MinorBlock
+
+	mBPool newBlockPool
 
 	mu       sync.Mutex
 	eventMux *event.TypeMux
+}
+
+// minor block pool
+type newBlockPool struct {
+	Mu        sync.RWMutex
+	BlockPool map[common.Hash]*types.MinorBlock
 }
 
 func New(ctx *service.ServiceContext, rBlock *types.RootBlock, conn ConnManager,
@@ -53,7 +60,7 @@ func New(ctx *service.ServiceContext, rBlock *types.RootBlock, conn ConnManager,
 			genesisRootHeight: cfg.Quarkchain.GetShardConfigByFullShardID(fullshardId).Genesis.RootHeight,
 			Config:            cfg.Quarkchain.GetShardConfigByFullShardID(fullshardId),
 			conn:              conn,
-			newBlockPool:      make(map[common.Hash]*types.MinorBlock),
+			mBPool:            newBlockPool{BlockPool: make(map[common.Hash]*types.MinorBlock)},
 			gspec:             core.NewGenesis(cfg.Quarkchain),
 			eventMux:          ctx.EventMux,
 		}
@@ -93,8 +100,6 @@ func New(ctx *service.ServiceContext, rBlock *types.RootBlock, conn ConnManager,
 }
 
 func (s *ShardBackend) Stop() {
-	s.mu.Lock()
-	defer s.mu.Unlock()
 	s.eventMux.Stop()
 	s.engine.Close()
 	s.chainDb.Close()
@@ -162,17 +167,19 @@ func (s *ShardBackend) initGenesisState(rootBlock *types.RootBlock) error {
 }
 
 func (s *ShardBackend) getBlockInPool(hash common.Hash) *types.MinorBlock {
-	return s.newBlockPool[hash]
+	s.mBPool.Mu.RLock()
+	defer s.mBPool.Mu.RUnlock()
+	return s.mBPool.BlockPool[hash]
 }
 
 func (s *ShardBackend) setBlockInPool(block *types.MinorBlock) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.newBlockPool[block.Header().Hash()] = block
+	s.mBPool.Mu.Lock()
+	defer s.mBPool.Mu.Unlock()
+	s.mBPool.BlockPool[block.Header().Hash()] = block
 }
 
 func (s *ShardBackend) delBlockInPool(block *types.MinorBlock) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	delete(s.newBlockPool, block.Header().Hash())
+	s.mBPool.Mu.Lock()
+	defer s.mBPool.Mu.Unlock()
+	delete(s.mBPool.BlockPool, block.Header().Hash())
 }

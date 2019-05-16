@@ -42,7 +42,7 @@ func (s *ShardBackend) AddMinorBlock(block *types.MinorBlock) error {
 	}
 	// only remove from pool if the block successfully added to state,
 	// this may cache failed blocks but prevents them being broadcasted more than needed
-	delete(s.newBlockPool, block.Header().Hash())
+	s.delBlockInPool(block)
 
 	// block has been added to local state, broadcast tip so that peers can sync if needed
 	if oldTip.Hash() != s.MinorBlockChain.CurrentHeader().Hash() {
