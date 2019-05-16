@@ -324,6 +324,9 @@ func (s *SlaveBackend) GetMinorBlockHeaderList(mHash common.Hash,
 	if !ok {
 		return nil, ErrMsg("GetMinorBlockHeaderList")
 	}
+	if !qcom.IsNil(shad.MinorBlockChain.GetHeader(mHash)) {
+		return nil, fmt.Errorf("Minor block hash is not exist, minorHash: %s, slave id: %s ", mHash.Hex(), s.config.ID)
+	}
 	for i := uint32(0); i < limit; i++ {
 		header := shad.MinorBlockChain.GetHeader(mHash).(*types.MinorBlockHeader)
 		headerList = append(headerList, header)
