@@ -27,10 +27,6 @@ type SlaveBackend struct {
 }
 
 func New(ctx *service.ServiceContext, clusterCfg *config.ClusterConfig, cfg *config.SlaveConfig) (*SlaveBackend, error) {
-
-	var (
-		err error
-	)
 	slave := &SlaveBackend{
 		config:        cfg,
 		clstrCfg:      clusterCfg,
@@ -48,10 +44,7 @@ func New(ctx *service.ServiceContext, clusterCfg *config.ClusterConfig, cfg *con
 		slave.fullShardList = append(slave.fullShardList, id)
 	}
 
-	slave.connManager, err = NewToSlaveConnManager(slave.clstrCfg.Quarkchain, slave)
-	if err != nil {
-		return nil, err
-	}
+	slave.connManager = NewToSlaveConnManager(slave.clstrCfg.Quarkchain, slave)
 	return slave, nil
 }
 
