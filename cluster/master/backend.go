@@ -19,7 +19,6 @@ import (
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
-	"github.com/ethereum/go-ethereum/params"
 	ethRPC "github.com/ethereum/go-ethereum/rpc"
 	"golang.org/x/sync/errgroup"
 	"math/big"
@@ -96,20 +95,15 @@ func New(ctx *service.ServiceContext, cfg *config.ClusterConfig) (*QKCMasterBack
 	}
 
 	chainConfig, genesisHash, genesisErr := core.SetupGenesisRootBlock(mstr.chainDb, mstr.gspc)
-	if _, ok := genesisErr.(*params.ConfigCompatError); genesisErr != nil && !ok {
-		return nil, genesisErr
+	// TODO check config err
+	if genesisErr != nil {
+		log.Info("Fill in block into chain db.")
+		rawdb.WriteChainConfig(mstr.chainDb, genesisHash, cfg.Quarkchain)
 	}
 	log.Info("Initialised chain configuration", "config", chainConfig)
 
 	if mstr.rootBlockChain, err = core.NewRootBlockChain(mstr.chainDb, nil, cfg.Quarkchain, mstr.engine, nil); err != nil {
 		return nil, err
-	}
-
-	// Rewind the chain in case of an incompatible config upgrade.
-	if compat, ok := genesisErr.(*params.ConfigCompatError); ok {
-		log.Warn("Rewinding chain to upgrade configuration", "err", compat)
-		mstr.rootBlockChain.SetHead(compat.RewindTo)
-		rawdb.WriteChainConfig(mstr.chainDb, genesisHash, chainConfig)
 	}
 
 	for _, cfg := range cfg.SlaveList {
@@ -145,7 +139,8 @@ func createConsensusEngine(ctx *service.ServiceContext, cfg *config.RootConfig) 
 	case config.PoWFake:
 		return &consensus.FakeEngine{}, nil
 	case config.PoWEthash, config.PoWSimulate:
-		panic(errors.New("not support PoWEthash PoWSimulate"))
+		return qkchash.New(cfg.ConsensusConfig.RemoteMine, &diffCalculator, cfg.ConsensusConfig.RemoteMine), nil
+		// panic(errors.New("not support PoWEthash PoWSimulate"))
 	case config.PoWQkchash:
 		return qkchash.New(cfg.ConsensusConfig.RemoteMine, &diffCalculator, cfg.ConsensusConfig.RemoteMine), nil
 	case config.PoWDoubleSha256:

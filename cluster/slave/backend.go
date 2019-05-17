@@ -83,6 +83,10 @@ func (s *SlaveBackend) APIs() []rpc.API {
 
 func (s *SlaveBackend) Stop() error {
 	s.eventMux.Stop()
+	for target := range s.shards {
+		s.shards[target].Stop()
+		delete(s.shards, target)
+	}
 	return nil
 }
 
