@@ -20,7 +20,7 @@ import (
 
 func ip2uint32(ip string) uint32 {
 	var long uint32
-	binary.Read(bytes.NewBuffer(net.ParseIP(ip).To4()), binary.BigEndian, &long)
+	_ = binary.Read(bytes.NewBuffer(net.ParseIP(ip).To4()), binary.BigEndian, &long)
 	return long
 }
 

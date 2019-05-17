@@ -239,6 +239,18 @@ func (_mr *MockISlaveConnMockRecorder) GetShardMaskList() *gomock.Call {
 	return _mr.mock.ctrl.RecordCallWithMethodType(_mr.mock, "GetShardMaskList", reflect.TypeOf((*MockISlaveConn)(nil).GetShardMaskList))
 }
 
+// MasterInfo mocks base method
+func (_m *MockISlaveConn) MasterInfo(ip string, port uint16) error {
+	ret := _m.ctrl.Call(_m, "MasterInfo", ip, port)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// MasterInfo indicates an expected call of MasterInfo
+func (_mr *MockISlaveConnMockRecorder) MasterInfo(arg0, arg1 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCallWithMethodType(_mr.mock, "MasterInfo", reflect.TypeOf((*MockISlaveConn)(nil).MasterInfo), arg0, arg1)
+}
+
 // HasShard mocks base method
 func (_m *MockISlaveConn) HasShard(fullShardID uint32) bool {
 	ret := _m.ctrl.Call(_m, "HasShard", fullShardID)

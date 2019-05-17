@@ -12,6 +12,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/consensus/doublesha256"
 	"github.com/QuarkChain/goquarkchain/consensus/qkchash"
 	"github.com/QuarkChain/goquarkchain/core"
+	"github.com/QuarkChain/goquarkchain/core/rawdb"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/internal/qkcapi"
 	"github.com/QuarkChain/goquarkchain/p2p"
@@ -41,6 +42,7 @@ var (
 
 // QKCMasterBackend masterServer include connections
 type QKCMasterBackend struct {
+	gspc               *core.Genesis
 	lock               sync.RWMutex
 	engine             consensus.Engine
 	eventMux           *event.TypeMux
@@ -69,6 +71,7 @@ func New(ctx *service.ServiceContext, cfg *config.ClusterConfig) (*QKCMasterBack
 	var (
 		mstr = &QKCMasterBackend{
 			clusterConfig:      cfg,
+			gspc:               core.NewGenesis(cfg.Quarkchain),
 			eventMux:           ctx.EventMux,
 			clientPool:         make(map[string]rpc.ISlaveConn),
 			branchToSlaves:     make(map[uint32][]rpc.ISlaveConn, 0),
@@ -91,8 +94,14 @@ func New(ctx *service.ServiceContext, cfg *config.ClusterConfig) (*QKCMasterBack
 		return nil, err
 	}
 
-	genesis := core.NewGenesis(cfg.Quarkchain)
-	genesis.MustCommitRootBlock(mstr.chainDb)
+	chainConfig, genesisHash, genesisErr := core.SetupGenesisRootBlock(mstr.chainDb, mstr.gspc)
+	// TODO check config err
+	if genesisErr != nil {
+		log.Info("Fill in block into chain db.")
+		rawdb.WriteChainConfig(mstr.chainDb, genesisHash, cfg.Quarkchain)
+	}
+	log.Info("Initialised chain configuration", "config", chainConfig)
+
 	if mstr.rootBlockChain, err = core.NewRootBlockChain(mstr.chainDb, nil, cfg.Quarkchain, mstr.engine, nil); err != nil {
 		return nil, err
 	}
@@ -179,10 +188,6 @@ func (s *QKCMasterBackend) Stop() error {
 
 // Start start node -> start qkcMaster
 func (s *QKCMasterBackend) Start(srvr *p2p.Server) error {
-	if err := s.InitCluster(); err != nil {
-		return err
-	}
-
 	s.rootChainChan = make(chan core.RootChainEvent, rootChainChanSize)
 	s.rootChainEventSub = s.rootBlockChain.SubscribeChainEvent(s.rootChainChan)
 	s.rootChainSideChan = make(chan core.RootChainSideEvent, rootChainSideChanSize)
@@ -219,6 +224,14 @@ func (s *QKCMasterBackend) InitCluster() error {
 		return err
 	}
 	s.logSummary()
+
+	ip, port := s.clusterConfig.Quarkchain.Root.Ip, s.clusterConfig.Quarkchain.Root.Port
+	for endpoint := range s.clientPool {
+		if err := s.clientPool[endpoint].MasterInfo(ip, port); err != nil {
+			return err
+		}
+	}
+
 	if err := s.hasAllShards(); err != nil {
 		return err
 	}

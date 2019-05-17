@@ -73,21 +73,16 @@ func New(ctx *service.ServiceContext, rBlock *types.RootBlock, conn ConnManager,
 	}
 
 	chainConfig, genesisHash, genesisErr := core.SetupGenesisMinorBlock(shrd.chainDb, shrd.gspec, rBlock, fullshardId)
-	if _, ok := genesisErr.(*params.ConfigCompatError); genesisErr != nil && !ok {
-		return nil, genesisErr
+	// TODO check config err
+	if genesisErr != nil {
+		log.Info("Fill in block into chain db.")
+		rawdb.WriteChainConfig(shrd.chainDb, genesisHash, cfg.Quarkchain)
 	}
 	log.Info("Initialised chain configuration", "config", chainConfig)
 
 	shrd.MinorBlockChain, err = core.NewMinorBlockChain(shrd.chainDb, nil, &params.ChainConfig{}, cfg, shrd.engine, vm.Config{}, nil, fullshardId)
 	if err != nil {
 		return nil, err
-	}
-
-	// Rewind the chain in case of an incompatible config upgrade.
-	if compat, ok := genesisErr.(*params.ConfigCompatError); ok {
-		log.Warn("Rewinding chain to upgrade configuration", "err", compat)
-		shrd.MinorBlockChain.SetHead(compat.RewindTo)
-		rawdb.WriteChainConfig(shrd.chainDb, genesisHash, chainConfig)
 	}
 
 	return &shrd, nil
