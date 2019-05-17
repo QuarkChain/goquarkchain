@@ -31,9 +31,10 @@ import (
 )
 
 const (
-	heartbeatInterval     = time.Duration(4 * time.Second)
-	rootChainChanSize     = 256
-	rootChainSideChanSize = 256
+	heartbeatInterval       = time.Duration(4 * time.Second)
+	disPlayPeerInfoInterval = time.Duration(5 * time.Second)
+	rootChainChanSize       = 256
+	rootChainSideChanSize   = 256
 )
 
 var (
@@ -632,13 +633,14 @@ func (s *QKCMasterBackend) isMining() bool {
 func (s *QKCMasterBackend) CurrentBlock() *types.RootBlock {
 	return s.rootBlockChain.CurrentBlock()
 }
+
+//TODO need delete later
 func (s *QKCMasterBackend) disPlayPeers() {
 	go func() {
 		for true {
-			time.Sleep(5 * time.Second)
+			time.Sleep(disPlayPeerInfoInterval)
 			peers := s.protocolManager.peers.peers
-
-			log.Info(s.logInfo, "len peers-------------------------", len(peers))
+			log.Info(s.logInfo, "len(peers)", len(peers))
 			for k, v := range peers {
 				log.Info(s.logInfo, "k", k, "v", v.RemoteAddr().String())
 			}

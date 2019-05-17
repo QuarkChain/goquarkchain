@@ -37,7 +37,7 @@ func (s *ShardBackend) AddMinorBlock(block *types.MinorBlock) error {
 
 	_, xshardLst, err := s.MinorBlockChain.InsertChain([]types.IBlock{block})
 	if err != nil || len(xshardLst) != 1 {
-		log.Error("Failed to add minor block", "err %v", err)
+		log.Error("Failed to add minor block", "err", err)
 		return err
 	}
 	// only remove from pool if the block successfully added to state,
@@ -93,9 +93,6 @@ func (s *ShardBackend) AddRootBlock(rBlock *types.RootBlock) (switched bool, err
 	switched = false
 	if rBlock.Header().Number > s.genesisRootHeight {
 		switched, err = s.MinorBlockChain.AddRootBlock(rBlock)
-		if err != nil {
-			switched = false
-		}
 	}
 	if rBlock.Header().Number == s.genesisRootHeight {
 		err = s.initGenesisState(rBlock)
@@ -122,7 +119,7 @@ func (s *ShardBackend) AddBlockListForSync(blockLst []*types.MinorBlock) error {
 		}
 		_, xshardLst, err := s.MinorBlockChain.InsertChain([]types.IBlock{block})
 		if err != nil || len(xshardLst) != 1 {
-			log.Error("Failed to add minor block", "err %v", err)
+			log.Error("Failed to add minor block", "err", err)
 			return err
 		}
 		s.mBPool.delBlockInPool(block)
