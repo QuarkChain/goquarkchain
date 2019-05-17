@@ -135,6 +135,7 @@ func createConsensusEngine(ctx *service.ServiceContext, cfg *config.RootConfig) 
 		AdjustmentCutoff:  cfg.DifficultyAdjustmentCutoffTime,
 		AdjustmentFactor:  cfg.DifficultyAdjustmentFactor,
 	}
+	cfg.ConsensusType = config.PoWFake
 	switch cfg.ConsensusType {
 	case config.PoWFake:
 		return &consensus.FakeEngine{}, nil
@@ -174,7 +175,6 @@ func (s *QKCMasterBackend) APIs() []ethRPC.API {
 // Stop stop node -> stop qkcMaster
 func (s *QKCMasterBackend) Stop() error {
 	s.rootBlockChain.Stop()
-	s.engine.Close()
 	s.protocolManager.Stop()
 	s.rootChainEventSub.Unsubscribe()
 	s.rootChainSideEventSub.Unsubscribe()
@@ -198,6 +198,8 @@ func (s *QKCMasterBackend) Start(srvr *p2p.Server) error {
 	// start heart beat pre 3 seconds.
 	s.updateShardStatsLoop()
 	s.Heartbeat()
+	s.disPlayPeers()
+	go s.broadcastRpcLoop()
 	return nil
 }
 
@@ -341,6 +343,7 @@ func (s *QKCMasterBackend) broadcastRpcLoop() {
 func (s *QKCMasterBackend) broadcastRootBlockToSlaves(block *types.RootBlock) error {
 	var g errgroup.Group
 	for _, client := range s.clientPool {
+		client := client
 		g.Go(func() error {
 			err := client.AddRootBlock(block, false)
 			if err != nil {
@@ -629,4 +632,18 @@ func (s *QKCMasterBackend) isMining() bool {
 
 func (s *QKCMasterBackend) CurrentBlock() *types.RootBlock {
 	return s.rootBlockChain.CurrentBlock()
+}
+func (s *QKCMasterBackend) disPlayPeers() {
+	go func() {
+		for true {
+			time.Sleep(5 * time.Second)
+			peers := s.protocolManager.peers.peers
+
+			log.Info(s.logInfo, "len peers-------------------------", len(peers))
+			for k, v := range peers {
+				log.Info(s.logInfo, "k", k, "v", v.RemoteAddr().String())
+			}
+		}
+	}()
+
 }

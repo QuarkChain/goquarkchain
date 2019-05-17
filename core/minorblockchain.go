@@ -1361,7 +1361,7 @@ func (m *MinorBlockChain) reorg(oldBlock, newBlock types.IBlock) error {
 		logFn("Chain split detected", "number", commonBlock.NumberU64(), "hash", commonBlock.Hash(),
 			"drop", len(oldChain), "dropfrom", oldChain[0].Hash(), "add", len(newChain), "addfrom", newChain[0].Hash())
 	} else {
-		log.Error("Impossible reorg, please file an issue", "oldnum", oldBlock.NumberU64(), "oldhash", oldBlock.Hash(), "newnum", newBlock.NumberU64(), "newhash", newBlock.Hash())
+		log.Error("minorBlockChain Impossible reorg, please file an issue", "oldnum", oldBlock.NumberU64(), "oldhash", oldBlock.Hash(), "newnum", newBlock.NumberU64(), "newhash", newBlock.Hash())
 	}
 	// Insert the new chain, taking care of the proper incremental order
 	var addedTxs types.Transactions

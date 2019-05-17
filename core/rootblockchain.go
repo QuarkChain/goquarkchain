@@ -578,6 +578,8 @@ func (bc *RootBlockChain) addFutureBlock(block types.IBlock) error {
 //
 // After insertion is done, all accumulated events will be fired.
 func (bc *RootBlockChain) InsertChain(chain []types.IBlock) (int, error) {
+	log.Info("RootBlockChain", "InsertChain", len(chain), "number", chain[0].NumberU64(), "hash", chain[0].Hash().String())
+	defer log.Info("RootBlockChain", "InsertChain", "end")
 	// Sanity check that we have something meaningful to import
 	if len(chain) == 0 {
 		return 0, nil

@@ -22,6 +22,7 @@ type SlaveBackend struct {
 
 	ctx      *service.ServiceContext
 	eventMux *event.TypeMux
+	logInfo  string
 }
 
 func New(ctx *service.ServiceContext, clusterCfg *config.ClusterConfig, cfg *config.SlaveConfig) (*SlaveBackend, error) {
@@ -32,6 +33,7 @@ func New(ctx *service.ServiceContext, clusterCfg *config.ClusterConfig, cfg *con
 		shards:        make(map[uint32]*shard.ShardBackend),
 		ctx:           ctx,
 		eventMux:      ctx.EventMux,
+		logInfo:       "SlaveBackend",
 	}
 
 	fullShardIds := slave.clstrCfg.Quarkchain.GetGenesisShardIds()

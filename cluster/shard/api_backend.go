@@ -37,7 +37,7 @@ func (s *ShardBackend) AddMinorBlock(block *types.MinorBlock) error {
 
 	_, xshardLst, err := s.MinorBlockChain.InsertChain([]types.IBlock{block})
 	if err != nil || len(xshardLst) != 1 {
-		log.Error("Failed to add minor block, err %v", err)
+		log.Error("Failed to add minor block", "err %v", err)
 		return err
 	}
 	// only remove from pool if the block successfully added to state,
@@ -78,6 +78,8 @@ func (s *ShardBackend) AddMinorBlock(block *types.MinorBlock) error {
 
 // Either recover state from local db or create genesis state based on config
 func (s *ShardBackend) InitFromRootBlock(rBlock *types.RootBlock) error {
+	log.Info(s.logInfo, "InitFromRootBlock height", rBlock.Number(), "hash", rBlock.Hash().String())
+	defer log.Info(s.logInfo, "InitFromRootBlock ", "end")
 	if rBlock.Header().Number > s.genesisRootHeight {
 		return s.MinorBlockChain.InitFromRootBlock(rBlock)
 	}
@@ -88,6 +90,8 @@ func (s *ShardBackend) InitFromRootBlock(rBlock *types.RootBlock) error {
 }
 
 func (s *ShardBackend) AddRootBlock(rBlock *types.RootBlock) (switched bool, err error) {
+	log.Info(s.logInfo, "AddRootBlock height", rBlock.Number(), "hash", rBlock.Hash().String())
+	defer log.Info(s.logInfo, "AddRootBlock ", "end")
 	if rBlock.Header().Number > s.genesisRootHeight {
 		if err = s.MinorBlockChain.AddRootBlock(rBlock); err != nil {
 			return false, err
@@ -120,7 +124,7 @@ func (s *ShardBackend) AddBlockListForSync(blockLst []*types.MinorBlock) error {
 		}
 		_, xshardLst, err := s.MinorBlockChain.InsertChain([]types.IBlock{block})
 		if err != nil || len(xshardLst) != 1 {
-			log.Error("Failed to add minor block, err %v", err)
+			log.Error("Failed to add minor block", "err %v", err)
 			return err
 		}
 		s.mBPool.delBlockInPool(block)
@@ -139,7 +143,9 @@ func (s *ShardBackend) GetTransactionListByAddress(address *account.Address,
 // TODO 当前版本暂不添加
 func (s *ShardBackend) GetLogs() ([]*types.Log, error) { panic("not implemented") }
 
-func (s *ShardBackend) PoswDiffAdjust(block *types.MinorBlock) (*big.Int, error) { panic("not implemented") }
+func (s *ShardBackend) PoswDiffAdjust(block *types.MinorBlock) (*big.Int, error) {
+	panic("not implemented")
+}
 
 func (s *ShardBackend) GetWork() (*consensus.MiningWork, error) {
 	return s.engine.GetWork()

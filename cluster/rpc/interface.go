@@ -29,7 +29,7 @@ type ShardConnForP2P interface {
 
 	HandleNewMinorBlock(request *p2p.NewBlockMinor) (bool, error)
 
-	AddBlockListForSync(request *HashList) (*ShardStatus, error)
+	AddBlockListForSync(request *AddBlockListForSyncRequest) (*ShardStatus, error)
 }
 
 type ISlaveConn interface {

@@ -572,7 +572,7 @@ func (s *SlaveConnection) HandleNewMinorBlock(request *p2p.NewBlockMinor) (bool,
 	return true, nil
 }
 
-func (s *SlaveConnection) AddBlockListForSync(request *rpc.HashList) (*rpc.ShardStatus, error) {
+func (s *SlaveConnection) AddBlockListForSync(request *rpc.AddBlockListForSyncRequest) (*rpc.ShardStatus, error) {
 	var (
 		shardStatus = new(rpc.ShardStatus)
 		res         = new(rpc.Response)

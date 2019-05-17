@@ -117,7 +117,7 @@ func (r *rootChainTask) Run(bc blockchain) error {
 			logger.Info("Syncing root block starts", "height", h.NumberU64(), "hash", h.Hash())
 			// Simple profiling.
 			ts := time.Now()
-			if err := syncMinorBlocks(rbc, b, r.statsChan, r.getShardConnFunc); err != nil {
+			if err := syncMinorBlocks(peer.PeerId(), rbc, b, r.statsChan, r.getShardConnFunc); err != nil {
 				return err
 			}
 			// TODO: may optimize by batch and insert once?
@@ -161,7 +161,7 @@ func (r *rootChainTask) validateRootBlockHeaderList(bc blockchain, headers []*ty
 	return nil
 }
 
-func syncMinorBlocks(rbc rootblockchain, rootBlock *types.RootBlock, statsChan chan *rpc.ShardStatus, getShardConnFunc func(fullShardId uint32) []rpc.ShardConnForP2P) error {
+func syncMinorBlocks(peerID string, rbc rootblockchain, rootBlock *types.RootBlock, statsChan chan *rpc.ShardStatus, getShardConnFunc func(fullShardId uint32) []rpc.ShardConnForP2P) error {
 	if rootBlock == nil {
 		panic("rootblock should not be nil")
 	}
@@ -182,7 +182,7 @@ func syncMinorBlocks(rbc rootblockchain, rootBlock *types.RootBlock, statsChan c
 		}
 		// TODO Support to multiple connections
 		g.Go(func() error {
-			stats, err := conns[0].AddBlockListForSync(&rpc.HashList{Hashes: hashList})
+			stats, err := conns[0].AddBlockListForSync(&rpc.AddBlockListForSyncRequest{Branch: b, PeerId: peerID, MinorBlockHashList: hashList})
 			if err == nil {
 				statsChan <- stats
 			}

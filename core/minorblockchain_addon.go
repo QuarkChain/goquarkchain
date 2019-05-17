@@ -106,6 +106,7 @@ func (m *MinorBlockChain) runCrossShardTxList(evmState *state.StateDB, descendan
 		txList = append(txList, onTxList...)
 		rHeader = m.getRootBlockHeaderByHash(rHeader.ParentHash)
 		if rHeader == nil {
+			log.Info(m.logInfo, "parentHash", rHeader.ParentHash.String())
 			return nil, ErrRootBlockIsNil
 		}
 	}
@@ -294,6 +295,8 @@ func (m *MinorBlockChain) putConfirmedCrossShardTransactionDepositList(hash comm
 
 // InitFromRootBlock init minorBlockChain from rootBlock
 func (m *MinorBlockChain) InitFromRootBlock(rBlock *types.RootBlock) error {
+	log.Info(m.logInfo, "InitFromRootBlock number", rBlock.Number(), "hash", rBlock.Hash().String())
+	defer log.Info(m.logInfo, "InitFromRootBlock", "end")
 	m.mu.Lock() // to lock rootTip  confirmedHeaderTip...
 	defer m.mu.Unlock()
 	if rBlock.Header().Number <= uint32(m.clusterConfig.Quarkchain.GetGenesisRootHeight(m.branch.Value)) {
@@ -362,6 +365,7 @@ func (m *MinorBlockChain) runBlock(block *types.MinorBlock) (*state.StateDB, typ
 	defer m.mu.Unlock()
 	parent := m.GetMinorBlock(block.ParentHash())
 	if qkcCommon.IsNil(parent) {
+		log.Error(m.logInfo, "parentHash", block.ParentHash().String())
 		return nil, nil, ErrRootBlockIsNil
 	}
 
@@ -463,6 +467,7 @@ func (m *MinorBlockChain) getCrossShardTxListByRootBlockHash(hash common.Hash) (
 	// no need to lock
 	rBlock := m.GetRootBlockByHash(hash)
 	if rBlock == nil {
+		log.Error(m.logInfo, "getCrossShardTxListByRootBlockHash parenthash", hash.String())
 		return nil, ErrRootBlockIsNil
 	}
 	txList := make([]*types.CrossShardTransactionDeposit, 0)
@@ -479,9 +484,14 @@ func (m *MinorBlockChain) getCrossShardTxListByRootBlockHash(hash common.Hash) (
 		}
 		xShardTxList := rawdb.ReadCrossShardTxList(m.db, mHeader.Hash())
 
+		if xShardTxList == nil { //need broadcast xshardList , so fake here
+			xShardTxList = &types.CrossShardTransactionDepositList{
+				TXList: make([]*types.CrossShardTransactionDeposit, 0),
+			}
+		}
 		if prevRootHeader.Number <= uint32(m.clusterConfig.Quarkchain.GetGenesisRootHeight(m.branch.Value)) {
 			if xShardTxList != nil {
-				return nil, errors.New("get xShard tx list err")
+				//	return nil, errors.New("get xShard tx list err")
 			}
 			continue
 		}
@@ -833,10 +843,13 @@ func (m *MinorBlockChain) AddRootBlock(rBlock *types.RootBlock) error {
 	m.mu.Lock() // Ensure insertion continuity
 	defer m.mu.Unlock()
 	if rBlock.Number() <= uint32(m.clusterConfig.Quarkchain.GetGenesisRootHeight(m.branch.Value)) {
-		return errors.New("rBlock is small than config")
+		errRootBlockHeight := errors.New("rBlock is small than config")
+		log.Error(m.logInfo, "add rootBlock", errRootBlockHeight, "block's height", rBlock.Number(), "config's height", m.clusterConfig.Quarkchain.GetGenesisRootHeight(m.branch.Value))
+		return errRootBlockHeight
 	}
 
 	if m.GetRootBlockByHash(rBlock.ParentHash()) == nil {
+		log.Error(m.logInfo, "add rootBlock err", ErrRootBlockIsNil, "parentHash", rBlock.ParentHash(), "height", rBlock.Number()-1)
 		return ErrRootBlockIsNil
 	}
 
@@ -845,6 +858,7 @@ func (m *MinorBlockChain) AddRootBlock(rBlock *types.RootBlock) error {
 		h := mHeader.Hash()
 		if mHeader.Branch == m.branch {
 			if !m.HasBlock(h) {
+				log.Error(m.logInfo, "add rootBlock err", "block not exist", "height", mHeader.Number, "hash", mHeader.Hash().String())
 				return ErrMinorBlockIsNil
 			}
 			shardHeaders = append(shardHeaders, mHeader)
@@ -865,12 +879,14 @@ func (m *MinorBlockChain) AddRootBlock(rBlock *types.RootBlock) error {
 		}
 
 		if data := rawdb.ReadCrossShardTxList(m.db, h); data == nil {
-			return errors.New("not have")
+			//	return errors.New("not have")
 		}
 
 	}
 	if uint64(len(shardHeaders)) > m.getMaxBlocksInOneRootBlock() {
-		return errors.New("shardHeaders big than config")
+		errShardHeaders := errors.New("shardHeaders big than config")
+		log.Error(m.logInfo, "add root block err", errShardHeaders)
+		return errShardHeaders
 	}
 
 	lastMinorHeaderInPrevRootBlock := m.getLastConfirmedMinorBlockHeaderAtRootBlock(rBlock.Header().ParentHash)
@@ -906,6 +922,7 @@ func (m *MinorBlockChain) AddRootBlock(rBlock *types.RootBlock) error {
 	if shardHeader != nil {
 		origBlock := m.GetBlockByNumber(shardHeader.Number)
 		if qkcCommon.IsNil(origBlock) || origBlock.Hash() != shardHeader.Hash() {
+			log.Error(m.logInfo, "ready to set current header height", shardHeader.Number, "hash", shardHeader.Hash().String(), "status", qkcCommon.IsNil(origBlock))
 			m.hc.SetCurrentHeader(shardHeader)
 			block := m.GetMinorBlock(shardHeader.Hash())
 			m.currentBlock.Store(block)
@@ -930,12 +947,14 @@ func (m *MinorBlockChain) AddRootBlock(rBlock *types.RootBlock) error {
 				panic(errors.New("get genesis block is nil"))
 			}
 			m.genesisBlock = newGenesis
+			log.Warn(m.logInfo, "ready to resrt genesis number", m.genesisBlock.Number(), "hash", m.genesisBlock.Hash().String())
 			if err := m.Reset(); err != nil {
 				return err
 			}
 			break
 		}
 		preBlock := m.GetBlock(m.CurrentHeader().GetParentHash()).(*types.MinorBlock)
+		log.Warn(m.logInfo, "ready to set currentHeader-963 height", preBlock.Number(), "hash", preBlock.Hash().String())
 		m.hc.SetCurrentHeader(preBlock.Header())
 		m.currentBlock.Store(preBlock)
 	}
@@ -943,6 +962,7 @@ func (m *MinorBlockChain) AddRootBlock(rBlock *types.RootBlock) error {
 	if m.CurrentHeader().Hash() != origHeaderTip.Hash() {
 		origBlock := m.GetMinorBlock(origHeaderTip.Hash())
 		newBlock := m.GetMinorBlock(m.CurrentHeader().Hash())
+		log.Warn("reWrite", origBlock.Number(), origBlock.Hash().String(), newBlock.Number(), newBlock.Hash().String())
 		return m.reWriteBlockIndexTo(origBlock, newBlock)
 	}
 	return nil
