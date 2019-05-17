@@ -106,7 +106,7 @@ func (m *MinorBlockChain) runCrossShardTxList(evmState *state.StateDB, descendan
 		txList = append(txList, onTxList...)
 		rHeader = m.getRootBlockHeaderByHash(rHeader.ParentHash)
 		if rHeader == nil {
-			log.Info(m.logInfo, "parentHash", rHeader.ParentHash.String())
+			log.Info(m.logInfo, "err-runCrossShardTxList", ErrRootBlockIsNil, "parentHash", rHeader.ParentHash.String())
 			return nil, ErrRootBlockIsNil
 		}
 	}
@@ -367,7 +367,7 @@ func (m *MinorBlockChain) runBlock(block *types.MinorBlock) (*state.StateDB, typ
 	defer m.mu.Unlock()
 	parent := m.GetMinorBlock(block.ParentHash())
 	if qkcCommon.IsNil(parent) {
-		log.Error(m.logInfo, "parentHash", block.ParentHash().String())
+		log.Error(m.logInfo, "err-runBlock", ErrRootBlockIsNil, "parentHash", block.ParentHash().String())
 		return nil, nil, ErrRootBlockIsNil
 	}
 
@@ -469,7 +469,7 @@ func (m *MinorBlockChain) getCrossShardTxListByRootBlockHash(hash common.Hash) (
 	// no need to lock
 	rBlock := m.GetRootBlockByHash(hash)
 	if rBlock == nil {
-		log.Error(m.logInfo, "getCrossShardTxListByRootBlockHash parenthash", hash.String())
+		log.Error(m.logInfo, "err-getCrossShardTxListByRootBlockHash", ErrRootBlockIsNil, "parenthash", hash.String())
 		return nil, ErrRootBlockIsNil
 	}
 	txList := make([]*types.CrossShardTransactionDeposit, 0)
@@ -486,14 +486,15 @@ func (m *MinorBlockChain) getCrossShardTxListByRootBlockHash(hash common.Hash) (
 		}
 		xShardTxList := rawdb.ReadCrossShardTxList(m.db, mHeader.Hash())
 
-		if xShardTxList == nil { //need broadcast xshardList , so fake here
+		if xShardTxList == nil { // TODO:need broadcast xshardList , so fake here
 			xShardTxList = &types.CrossShardTransactionDepositList{
 				TXList: make([]*types.CrossShardTransactionDeposit, 0),
 			}
 		}
 		if prevRootHeader.Number <= uint32(m.clusterConfig.Quarkchain.GetGenesisRootHeight(m.branch.Value)) {
 			if xShardTxList != nil {
-				//	return nil, errors.New("get xShard tx list err")
+				// TODO:need broadcast xshardList
+				// return nil, errors.New("get xShard tx list err")
 			}
 			continue
 		}
@@ -954,7 +955,7 @@ func (m *MinorBlockChain) AddRootBlock(rBlock *types.RootBlock) (bool, error) {
 			break
 		}
 		preBlock := m.GetBlock(m.CurrentHeader().GetParentHash()).(*types.MinorBlock)
-		log.Warn(m.logInfo, "ready to set currentHeader-963 height", preBlock.Number(), "hash", preBlock.Hash().String())
+		log.Warn(m.logInfo, "ready to set currentHeader height", preBlock.Number(), "hash", preBlock.Hash().String())
 		m.hc.SetCurrentHeader(preBlock.Header())
 		m.currentBlock.Store(preBlock)
 	}

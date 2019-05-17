@@ -26,7 +26,7 @@ const (
 	QKCProtocolVersion  = 1
 	QKCProtocolLength   = 16
 	chainHeadChanSize   = 10
-	forceSyncCycle      = 10 * time.Second
+	forceSyncCycle      = 1000 * time.Second
 	minDesiredPeerCount = 5
 )
 
