@@ -236,7 +236,7 @@ func TestSyncMinorBlocks(t *testing.T) {
 				}, nil).Times(1)
 		}
 
-		syncMinorBlocks(bc.(rootblockchain), block, statusChan, func(fullShardId uint32) []rpc.ShardConnForP2P {
+		syncMinorBlocks("", bc.(rootblockchain), block, statusChan, func(fullShardId uint32) []rpc.ShardConnForP2P {
 			return shardConns
 		})
 

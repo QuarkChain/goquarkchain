@@ -37,7 +37,7 @@ func (s *ShardBackend) AddMinorBlock(block *types.MinorBlock) error {
 
 	_, xshardLst, err := s.MinorBlockChain.InsertChain([]types.IBlock{block})
 	if err != nil || len(xshardLst) != 1 {
-		log.Error("Failed to add minor block, err %v", err)
+		log.Error("Failed to add minor block", "err", err)
 		return err
 	}
 	// only remove from pool if the block successfully added to state,
@@ -88,17 +88,16 @@ func (s *ShardBackend) InitFromRootBlock(rBlock *types.RootBlock) error {
 }
 
 func (s *ShardBackend) AddRootBlock(rBlock *types.RootBlock) (switched bool, err error) {
+	log.Info(s.logInfo, "AddRootBlock height", rBlock.Number(), "hash", rBlock.Hash().String())
+	defer log.Info(s.logInfo, "AddRootBlock ", "end")
+	switched = false
 	if rBlock.Header().Number > s.genesisRootHeight {
-		if err = s.MinorBlockChain.AddRootBlock(rBlock); err != nil {
-			return false, err
-		}
+		switched, err = s.MinorBlockChain.AddRootBlock(rBlock)
 	}
 	if rBlock.Header().Number == s.genesisRootHeight {
-		if err = s.initGenesisState(rBlock); err != nil {
-			return false, err
-		}
+		err = s.initGenesisState(rBlock)
 	}
-	return true, nil
+	return
 }
 
 // Add blocks in batch to reduce RPCs. Will NOT broadcast to peers.
@@ -120,7 +119,7 @@ func (s *ShardBackend) AddBlockListForSync(blockLst []*types.MinorBlock) error {
 		}
 		_, xshardLst, err := s.MinorBlockChain.InsertChain([]types.IBlock{block})
 		if err != nil || len(xshardLst) != 1 {
-			log.Error("Failed to add minor block, err %v", err)
+			log.Error("Failed to add minor block", "err", err)
 			return err
 		}
 		s.mBPool.delBlockInPool(block)
@@ -139,7 +138,9 @@ func (s *ShardBackend) GetTransactionListByAddress(address *account.Address,
 // TODO 当前版本暂不添加
 func (s *ShardBackend) GetLogs() ([]*types.Log, error) { panic("not implemented") }
 
-func (s *ShardBackend) PoswDiffAdjust(block *types.MinorBlock) (*big.Int, error) { panic("not implemented") }
+func (s *ShardBackend) PoswDiffAdjust(block *types.MinorBlock) (*big.Int, error) {
+	panic("not implemented")
+}
 
 func (s *ShardBackend) GetWork() (*consensus.MiningWork, error) {
 	return s.engine.GetWork()

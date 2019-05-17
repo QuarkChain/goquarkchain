@@ -40,6 +40,7 @@ type ShardBackend struct {
 
 	mu       sync.Mutex
 	eventMux *event.TypeMux
+	logInfo  string
 }
 
 func New(ctx *service.ServiceContext, rBlock *types.RootBlock, conn ConnManager,
@@ -57,6 +58,7 @@ func New(ctx *service.ServiceContext, rBlock *types.RootBlock, conn ConnManager,
 			mBPool:            newBlockPool{BlockPool: make(map[common.Hash]*types.MinorBlock)},
 			gspec:             core.NewGenesis(cfg.Quarkchain),
 			eventMux:          ctx.EventMux,
+			logInfo:           fmt.Sprintf("shard:%d", fullshardId),
 		}
 		err error
 	)

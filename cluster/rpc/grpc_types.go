@@ -256,16 +256,6 @@ type AddTransactionRequest struct {
 	Tx *types.Transaction `json:"tx" gencodec:"required"`
 }
 
-type SyncMinorBlockListRequest struct {
-	MinorBlockHashList []common.Hash  `json:"minor_block_hash_list" gencodec:"required" bytesizeofslicelen:"4"`
-	Branch             account.Branch `json:"branch" gencodec:"required"`
-	ClusterPeerId      uint64         `json:"cluster_peer_id" gencodec:"required"`
-}
-
-type SyncMinorBlockListResponse struct {
-	ShardStats ShardStatus `json:"shard_stats" ser:"nil"`
-}
-
 type HashList struct {
 	Hashes []common.Hash `json:"hash_list" gencodec:"required" bytesizeofslicelen:"4"`
 }

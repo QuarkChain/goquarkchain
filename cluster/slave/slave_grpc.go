@@ -10,7 +10,6 @@ import (
 	"github.com/QuarkChain/goquarkchain/serialize"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
-	"time"
 )
 
 type SlaveServerSideOp struct {
@@ -24,9 +23,7 @@ func NewServerSideOp(slave *SlaveBackend) *SlaveServerSideOp {
 }
 
 func (s *SlaveServerSideOp) HeartBeat(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
-	log.Info("slave heart beat response", "request op", req.Op, "current time", time.Now().Unix())
-	return &rpc.Response{
-	}, nil
+	return &rpc.Response{}, nil
 }
 
 func (s *SlaveServerSideOp) MasterInfo(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
