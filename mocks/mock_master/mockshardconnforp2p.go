@@ -102,7 +102,7 @@ func (_mr *MockShardConnForP2PMockRecorder) HandleNewMinorBlock(arg0 interface{}
 }
 
 // AddBlockListForSync mocks base method
-func (_m *MockShardConnForP2P) AddBlockListForSync(request *AddBlockListForSyncRequest) (*rpc.ShardStatus, error) {
+func (_m *MockShardConnForP2P) AddBlockListForSync(request *rpc.AddBlockListForSyncRequest) (*rpc.ShardStatus, error) {
 	ret := _m.ctrl.Call(_m, "AddBlockListForSync", request)
 	ret0, _ := ret[0].(*rpc.ShardStatus)
 	ret1, _ := ret[1].(error)
@@ -203,7 +203,7 @@ func (_mr *MockISlaveConnMockRecorder) HandleNewMinorBlock(arg0 interface{}) *go
 }
 
 // AddBlockListForSync mocks base method
-func (_m *MockISlaveConn) AddBlockListForSync(request *AddBlockListForSyncRequest) (*rpc.ShardStatus, error) {
+func (_m *MockISlaveConn) AddBlockListForSync(request *rpc.AddBlockListForSyncRequest) (*rpc.ShardStatus, error) {
 	ret := _m.ctrl.Call(_m, "AddBlockListForSync", request)
 	ret0, _ := ret[0].(*rpc.ShardStatus)
 	ret1, _ := ret[1].(error)

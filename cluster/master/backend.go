@@ -135,7 +135,6 @@ func createConsensusEngine(ctx *service.ServiceContext, cfg *config.RootConfig) 
 		AdjustmentCutoff:  cfg.DifficultyAdjustmentCutoffTime,
 		AdjustmentFactor:  cfg.DifficultyAdjustmentFactor,
 	}
-	cfg.ConsensusType = config.PoWFake
 	switch cfg.ConsensusType {
 	case config.PoWFake:
 		return &consensus.FakeEngine{}, nil

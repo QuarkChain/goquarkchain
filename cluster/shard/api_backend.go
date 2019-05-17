@@ -78,8 +78,6 @@ func (s *ShardBackend) AddMinorBlock(block *types.MinorBlock) error {
 
 // Either recover state from local db or create genesis state based on config
 func (s *ShardBackend) InitFromRootBlock(rBlock *types.RootBlock) error {
-	log.Info(s.logInfo, "InitFromRootBlock height", rBlock.Number(), "hash", rBlock.Hash().String())
-	defer log.Info(s.logInfo, "InitFromRootBlock ", "end")
 	if rBlock.Header().Number > s.genesisRootHeight {
 		return s.MinorBlockChain.InitFromRootBlock(rBlock)
 	}
@@ -92,17 +90,17 @@ func (s *ShardBackend) InitFromRootBlock(rBlock *types.RootBlock) error {
 func (s *ShardBackend) AddRootBlock(rBlock *types.RootBlock) (switched bool, err error) {
 	log.Info(s.logInfo, "AddRootBlock height", rBlock.Number(), "hash", rBlock.Hash().String())
 	defer log.Info(s.logInfo, "AddRootBlock ", "end")
+	switched = false
 	if rBlock.Header().Number > s.genesisRootHeight {
-		if err = s.MinorBlockChain.AddRootBlock(rBlock); err != nil {
-			return false, err
+		switched, err = s.MinorBlockChain.AddRootBlock(rBlock)
+		if err != nil {
+			switched = false
 		}
 	}
 	if rBlock.Header().Number == s.genesisRootHeight {
-		if err = s.initGenesisState(rBlock); err != nil {
-			return false, err
-		}
+		err = s.initGenesisState(rBlock)
 	}
-	return true, nil
+	return
 }
 
 // Add blocks in batch to reduce RPCs. Will NOT broadcast to peers.
