@@ -1,6 +1,7 @@
 package slave
 
 import (
+	"errors"
 	"fmt"
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
@@ -31,6 +32,7 @@ type ConnManager struct {
 	slave *SlaveBackend
 
 	artificialTxConfig *rpc.ArtificialTxConfig
+	logInfo            string
 }
 
 // TODO need to be called in somowhere
@@ -58,6 +60,8 @@ func (s *ConnManager) GetConnectionsByFullShardId(id uint32) []*SlaveConn {
 }
 
 func (s *ConnManager) AddXshardTxList(fullShardId uint32, xshardReq *rpc.AddXshardTxListRequest) error {
+	log.Info(s.logInfo, "AddXshardTxList fullShardID", fullShardId, "xshardReq", len(xshardReq.TxList))
+	defer log.Info(s.logInfo, "AddXshardTxList", "end")
 	var g errgroup.Group
 	if clients, ok := s.fullShardIdToSlaves[fullShardId]; ok {
 		for _, client := range clients {
@@ -86,13 +90,16 @@ func (s *ConnManager) BatchAddXshardTxList(fullShardId uint32, xshardReqs []*rpc
 // Broadcast x-shard transactions to their recipient shards
 func (s *ConnManager) BroadcastXshardTxList(block *types.MinorBlock,
 	xshardTxList []*types.CrossShardTransactionDeposit, height uint32) error {
-
+	log.Info(s.logInfo, "BroadcastXshardTxList number", block.Number(), "len(xShardTxList)", len(xshardTxList), "rootBlockNumber", height)
+	defer log.Info(s.logInfo, "BroadcastXshardTxList", "end")
 	var (
-		hash                = block.Header().Hash()
-		xshardTxListRequest = s.getBranchToAddXshardTxListRequest(hash, xshardTxList, height)
-		shardSize           = len(s.qkcCfg.GetInitializedShardIdsBeforeRootHeight(height))
+		hash      = block.Header().Hash()
+		shardSize = len(s.qkcCfg.GetInitializedShardIdsBeforeRootHeight(height))
 	)
-
+	xshardTxListRequest, err := s.getBranchToAddXshardTxListRequest(hash, xshardTxList, height)
+	if err != nil {
+		return err
+	}
 	for branch, request := range xshardTxListRequest {
 		if branch == block.Header().Branch || !account.IsNeighbor(block.Header().Branch, branch, uint32(shardSize)) {
 			if len(request.TxList) != 0 {
@@ -120,7 +127,10 @@ func (s *ConnManager) BatchBroadcastXshardTxList(
 		xshardTxList := xSadLstAndPrevRotHg.XshardTxList
 		prevRootHeight := xSadLstAndPrevRotHg.PrevRootHeight
 
-		brchToAdXsdTxLstReq := s.getBranchToAddXshardTxListRequest(hash, xshardTxList, prevRootHeight)
+		brchToAdXsdTxLstReq, err := s.getBranchToAddXshardTxListRequest(hash, xshardTxList, prevRootHeight)
+		if err != nil {
+			return err
+		}
 		for branch, request := range brchToAdXsdTxLstReq {
 			lg := len(s.qkcCfg.GetInitializedShardIdsBeforeRootHeight(prevRootHeight))
 			if branch == sorBrch || !account.IsNeighbor(branch, sorBrch, uint32(lg)) {
@@ -150,12 +160,24 @@ func (s *ConnManager) BatchBroadcastXshardTxList(
 
 func (s *ConnManager) getBranchToAddXshardTxListRequest(blockHash common.Hash,
 	xshardTxList []*types.CrossShardTransactionDeposit,
-	height uint32) map[account.Branch]*rpc.AddXshardTxListRequest {
+	height uint32) (map[account.Branch]*rpc.AddXshardTxListRequest, error) {
 
 	var (
 		xshardMap = make(map[account.Branch][]*types.CrossShardTransactionDeposit)
 	)
 
+	initializedFullShardIds := s.qkcCfg.GetInitializedShardIdsBeforeRootHeight(height)
+	for _, id := range initializedFullShardIds {
+		xshardMap[account.Branch{Value: id}] = make([]*types.CrossShardTransactionDeposit, 0)
+	}
+
+	for _, sTx := range xshardTxList {
+		fullShardID := s.qkcCfg.GetFullShardIdByFullShardKey(sTx.To.FullShardKey)
+		if _, ok := xshardMap[account.Branch{Value: fullShardID}]; ok == false {
+			return nil, errors.New("xshard's to's fullShardID should in map")
+		}
+		xshardMap[account.Branch{Value: fullShardID}] = append(xshardMap[account.Branch{Value: fullShardID}], sTx)
+	}
 	xshardTxListRequest := make(map[account.Branch]*rpc.AddXshardTxListRequest)
 	for branch, txLst := range xshardMap {
 		request := rpc.AddXshardTxListRequest{
@@ -165,7 +187,7 @@ func (s *ConnManager) getBranchToAddXshardTxListRequest(blockHash common.Hash,
 		}
 		xshardTxListRequest[branch] = &request
 	}
-	return xshardTxListRequest
+	return xshardTxListRequest, nil
 }
 
 // TODO need to check
@@ -185,15 +207,10 @@ func NewToSlaveConnManager(cfg *config.ClusterConfig, slave *SlaveBackend) *Conn
 		slavesConn:          make(map[string]*SlaveConn),
 		fullShardIdToSlaves: make(map[uint32][]*SlaveConn),
 		slave:               slave,
+		logInfo:             "ConnManager",
 	}
 	slaveConnManager.masterClient = &masterConn{
 		client: rpc.NewClient(rpc.MasterServer),
-	}
-	for _, slv := range cfg.SlaveList {
-		if slv.ID == slave.config.ID {
-			continue
-		}
-		slaveConnManager.AddConnectToSlave(&rpc.SlaveInfo{Id: slv.ID, Host: slv.IP, Port: slv.Port, ChainMaskList: slv.ChainMaskList})
 	}
 	return slaveConnManager
 }

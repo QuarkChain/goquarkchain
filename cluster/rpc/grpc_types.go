@@ -13,8 +13,6 @@ import (
 type Ping struct {
 	Id            []byte             `json:"id" bytesizeofslicelen:"4"`
 	ChainMaskList []*types.ChainMask `json:"chain_mask_list" bytesizeofslicelen:"4"`
-	// Initialize ShardState if not None
-	RootTip *types.RootBlock `json:"root_tip" ser:"nil"`
 }
 
 type Pong struct {
@@ -60,8 +58,10 @@ type ConnectToSlavesResponse struct {
 }
 
 type MasterInfo struct {
-	Ip   string `json:"ip" gencodec:"required"`
-	Port uint16 `json:"port" gencodec:"required"`
+	// Initialize ShardState if not None
+	RootTip *types.RootBlock `json:"root_tip" ser:"nil"`
+	Ip      string           `json:"ip" gencodec:"required"`
+	Port    uint16           `json:"port" gencodec:"required"`
 }
 
 type ArtificialTxConfig struct {

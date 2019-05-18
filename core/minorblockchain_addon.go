@@ -244,6 +244,7 @@ func (m *MinorBlockChain) isNeighbor(remoteBranch account.Branch, rootHeight *ui
 }
 
 func (m *MinorBlockChain) putRootBlock(rBlock *types.RootBlock, minorHeader *types.MinorBlockHeader) {
+	log.Info(m.logInfo, "putRootBlock number", rBlock.Number(), "hash", rBlock.Hash().String())
 	rBlockHash := rBlock.Hash()
 	rawdb.WriteRootBlock(m.db, rBlock)
 	var mHash common.Hash
@@ -486,15 +487,14 @@ func (m *MinorBlockChain) getCrossShardTxListByRootBlockHash(hash common.Hash) (
 		}
 		xShardTxList := rawdb.ReadCrossShardTxList(m.db, mHeader.Hash())
 
-		if xShardTxList == nil { // TODO:need broadcast xshardList , so fake here
-			xShardTxList = &types.CrossShardTransactionDepositList{
-				TXList: make([]*types.CrossShardTransactionDeposit, 0),
-			}
-		}
+		//if xShardTxList == nil { // TODO:need broadcast xshardList , so fake here
+		//	xShardTxList = &types.CrossShardTransactionDepositList{
+		//		TXList: make([]*types.CrossShardTransactionDeposit, 0),
+		//	}
+		//}
 		if prevRootHeader.Number <= uint32(m.clusterConfig.Quarkchain.GetGenesisRootHeight(m.branch.Value)) {
 			if xShardTxList != nil {
-				// TODO:need broadcast xshardList
-				// return nil, errors.New("get xShard tx list err")
+				return nil, errors.New("get xShard tx list err")
 			}
 			continue
 		}
@@ -843,6 +843,8 @@ func (m *MinorBlockChain) AddCrossShardTxListByMinorBlockHash(h common.Hash, txL
 
 // AddRootBlock add root block for minorBlockChain
 func (m *MinorBlockChain) AddRootBlock(rBlock *types.RootBlock) (bool, error) {
+	log.Info(m.logInfo, "MinorBlockChain AddRootBlock", rBlock.Number(), "hash", rBlock.Hash().String())
+	defer log.Info(m.logInfo, "MinorBlockChain AddRootBlock", "end")
 	m.mu.Lock() // Ensure insertion continuity
 	defer m.mu.Unlock()
 	if rBlock.Number() <= uint32(m.clusterConfig.Quarkchain.GetGenesisRootHeight(m.branch.Value)) {
@@ -872,14 +874,17 @@ func (m *MinorBlockChain) AddRootBlock(rBlock *types.RootBlock) (bool, error) {
 		// prev_root_header can be None when the shard is not created at root height 0
 		if prevRootHeader == nil || prevRootHeader.Number() == uint32(m.clusterConfig.Quarkchain.GetGenesisRootHeight(m.branch.Value)) || !m.isNeighbor(mHeader.Branch, &prevRootHeader.Header().Number) {
 			if data := rawdb.ReadCrossShardTxList(m.db, h); data != nil {
-				return false, errors.New("already have")
+				errXshardListAlreadyHave := errors.New("already have")
+				log.Error(m.logInfo, "addrootBlock err", errXshardListAlreadyHave)
+				return false, errXshardListAlreadyHave
 			}
 			continue
 		}
 
 		if data := rawdb.ReadCrossShardTxList(m.db, h); data == nil {
-			// TODO need broadcast crossShard tx
-			//	return errors.New("not have")
+			errXshardListNotHave := errors.New("not have")
+			log.Error(m.logInfo, "addrootBlock err", errXshardListNotHave)
+			return false, errXshardListNotHave
 		}
 
 	}

@@ -31,6 +31,8 @@ func (s *ShardBackend) broadcastNewTip() (err error) {
 // Returns true if block is successfully added. False on any error.
 // called by 1. local miner (will not run if syncing) 2. SyncTask
 func (s *ShardBackend) AddMinorBlock(block *types.MinorBlock) error {
+	log.Info(s.logInfo, "shardBackend addminorBlock number", block.Number(), "hash", block.Hash().String())
+	defer log.Info(s.logInfo, "shardBackend addminorBlock", "end")
 	var (
 		oldTip = s.MinorBlockChain.CurrentHeader()
 	)
@@ -173,6 +175,8 @@ func (s *ShardBackend) GetMinorBlock(mHash common.Hash, height *uint64) *types.M
 }
 
 func (s *ShardBackend) NewMinorBlock(block *types.MinorBlock) (err error) {
+	log.Info(s.logInfo, "NewMinorBlock height", block.Header().Number, "hash", block.Header().Hash().String())
+	defer log.Info(s.logInfo, "NewMinorBlock", "end")
 	// TODO
 	mHash := block.Header().Hash()
 	if s.mBPool.getBlockInPool(mHash) != nil {

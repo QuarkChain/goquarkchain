@@ -950,6 +950,8 @@ func (m *MinorBlockChain) addFutureBlock(block types.IBlock) error {
 //
 // After insertion is done, all accumulated events will be fired.
 func (m *MinorBlockChain) InsertChain(chain []types.IBlock) (int, [][]*types.CrossShardTransactionDeposit, error) {
+	log.Info(m.logInfo, "MinorBlockChain InsertChain len", len(chain))
+	defer log.Info(m.logInfo, "MinorBlockChain InsertChain", "end")
 	// Sanity check that we have something meaningful to import
 	if len(chain) == 0 {
 		return 0, nil, nil
