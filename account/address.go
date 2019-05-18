@@ -182,16 +182,6 @@ func (Self *Address) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// MarshalJSON Address serialisation
-func (Self Address) MarshalText() (out []byte, err error) {
-	fmt.Println("Self.MarshText")
-	return []byte{}, nil
-}
-func (Self *Address) UnmarshalText(dataWithout0x []byte) error {
-	fmt.Println("Self.UnmarshalText")
-	return nil
-}
-
 type UnprefixedAddress Address
 
 func (Self UnprefixedAddress) Address() Address {

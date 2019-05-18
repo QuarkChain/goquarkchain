@@ -124,19 +124,16 @@ func TestAddress_UnmarshalJSON(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, initString, targetAddress.ToHex()[2:])
 
-	//unmarshalData := `"0x89aea23276a4090fc2920b788d114d1e96b0fe1d00000003"` //read from file
-	//newAddr := new(Address)
-	//fmt.Println("0000000")
-	//err = json.Unmarshal([]byte(unmarshalData), newAddr)
-	//fmt.Println("111111111111", err)
-	//assert.NoError(t, err)
-	//assert.Equal(t, targetAddress, *newAddr)
+	unmarshalData := `"0x89aea23276a4090fc2920b788d114d1e96b0fe1d00000003"` //read from file
+	newAddr := new(Address)
+	err = json.Unmarshal([]byte(unmarshalData), newAddr)
+	assert.NoError(t, err)
+	assert.Equal(t, targetAddress, *newAddr)
 
 	id1, err := CreatRandomIdentity()
 	assert.NoError(t, err)
 	addrBefore := CreatAddressFromIdentity(id1, 3)
 	marshalData, err := json.Marshal(addrBefore)
-	fmt.Println(addrBefore.ToHex(), "marsha", string(marshalData))
 	assert.NoError(t, err)
 	addrCheck := new(Address)
 	err = json.Unmarshal(marshalData, addrCheck)
