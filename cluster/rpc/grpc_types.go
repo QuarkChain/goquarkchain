@@ -23,8 +23,8 @@ type Pong struct {
 }
 
 type SlaveInfo struct {
-	Id            string             `json:"id" gencodec:"required" bytesizeofslicelen:"4"`
-	Host          string             `json:"host" gencodec:"required" bytesizeofslicelen:"4"`
+	Id            string             `json:"id" gencodec:"required"`
+	Host          string             `json:"host" gencodec:"required"`
 	Port          uint16             `json:"port" gencodec:"required"`
 	ChainMaskList []*types.ChainMask `json:"chain_mask_list" gencodec:"required" bytesizeofslicelen:"4"`
 }

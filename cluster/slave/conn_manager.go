@@ -18,8 +18,7 @@ type masterConn struct {
 }
 
 type ConnManager struct {
-	slaveList []*config.SlaveConfig
-	qkcCfg    *config.QuarkChainConfig
+	qkcCfg *config.QuarkChainConfig
 
 	// master connection
 	masterClient *masterConn
