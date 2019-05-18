@@ -163,29 +163,29 @@ func (s *ConnManager) getBranchToAddXshardTxListRequest(blockHash common.Hash,
 	height uint32) (map[account.Branch]*rpc.AddXshardTxListRequest, error) {
 
 	var (
-		xshardMap = make(map[account.Branch][]*types.CrossShardTransactionDeposit)
+		xshardMap = make(map[uint32][]*types.CrossShardTransactionDeposit)
 	)
 
 	initializedFullShardIds := s.qkcCfg.GetInitializedShardIdsBeforeRootHeight(height)
 	for _, id := range initializedFullShardIds {
-		xshardMap[account.Branch{Value: id}] = make([]*types.CrossShardTransactionDeposit, 0)
+		xshardMap[id] = make([]*types.CrossShardTransactionDeposit, 0)
 	}
 
 	for _, sTx := range xshardTxList {
 		fullShardID := s.qkcCfg.GetFullShardIdByFullShardKey(sTx.To.FullShardKey)
-		if _, ok := xshardMap[account.Branch{Value: fullShardID}]; ok == false {
+		if _, ok := xshardMap[fullShardID]; ok == false {
 			return nil, errors.New("xshard's to's fullShardID should in map")
 		}
-		xshardMap[account.Branch{Value: fullShardID}] = append(xshardMap[account.Branch{Value: fullShardID}], sTx)
+		xshardMap[fullShardID] = append(xshardMap[fullShardID], sTx)
 	}
 	xshardTxListRequest := make(map[account.Branch]*rpc.AddXshardTxListRequest)
 	for branch, txLst := range xshardMap {
 		request := rpc.AddXshardTxListRequest{
-			Branch:         branch.Value,
+			Branch:         branch,
 			MinorBlockHash: blockHash,
 			TxList:         txLst,
 		}
-		xshardTxListRequest[branch] = &request
+		xshardTxListRequest[account.Branch{Value: branch}] = &request
 	}
 	return xshardTxListRequest, nil
 }

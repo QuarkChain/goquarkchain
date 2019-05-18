@@ -227,17 +227,12 @@ func (s *QKCMasterBackend) InitCluster() error {
 	}
 	s.logSummary()
 
-	ip, port := s.clusterConfig.Quarkchain.Root.Ip, s.clusterConfig.Quarkchain.Root.Port
-	for endpoint := range s.clientPool {
-		if err := s.clientPool[endpoint].MasterInfo(ip, port, s.rootBlockChain.CurrentBlock()); err != nil {
-			return err
-		}
-	}
-
 	if err := s.hasAllShards(); err != nil {
 		return err
 	}
-
+	if err := s.initShards(); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -290,6 +285,15 @@ func (s *QKCMasterBackend) getSlaveInfoListFromClusterConfig() []*rpc.SlaveInfo 
 		})
 	}
 	return slaveInfos
+}
+func (s *QKCMasterBackend) initShards() error {
+	ip, port := s.clusterConfig.Quarkchain.Root.Ip, s.clusterConfig.Quarkchain.Root.Port
+	for endpoint := range s.clientPool {
+		if err := s.clientPool[endpoint].MasterInfo(ip, port, s.rootBlockChain.CurrentBlock()); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (s *QKCMasterBackend) updateShardStatsLoop() {
