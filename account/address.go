@@ -68,6 +68,13 @@ func (Self *Address) AddressInBranch(branch Branch) Address {
 	return NewAddress(Self.Recipient, newFullShardKey)
 }
 
+func (Self Address) UnprefixedAddress() UnprefixedAddress {
+	return UnprefixedAddress{
+		Recipient:    Self.Recipient,
+		FullShardKey: Self.FullShardKey,
+	}
+}
+
 // CreatAddressFromIdentity creat address from identity
 func CreatAddressFromIdentity(identity Identity, fullShardKey uint32) Address {
 	return NewAddress(identity.recipient, fullShardKey)
@@ -135,6 +142,7 @@ func (Self Address) MarshalJSON() (out []byte, err error) {
 }
 
 func (Self *Address) UnmarshalJSON(data []byte) error {
+	fmt.Println("SSSSSSSSSSUUUUUUUUUUU")
 	input := strings.TrimSpace(string(data))
 	if len(input) >= 2 && input[0] == '"' && input[len(input)-1] == '"' {
 		input = input[1 : len(input)-1]
@@ -146,31 +154,41 @@ func (Self *Address) UnmarshalJSON(data []byte) error {
 		return errors.New("should have 0x prefix")
 	}
 
-	input = input[2:]
-	if len(input) != 0 && len(input) != 48 {
-		return errors.New("failed: len should 0 or 48")
+	if len(data) != 0 && len(data) != 24 {
+		return errors.New("failed: len should 0 or 24")
 	}
-	if len(input) == 0 {
+	if len(data) == 0 {
 		Self.Recipient = Recipient{}
 		Self.FullShardKey = 0
 		return nil
 	}
-	recipientData, err := hex.DecodeString(input[0:40])
+	var err error
+	*Self, err = CreatAddressFromBytes(data)
+	return err
+}
+
+type UnprefixedAddress Address
+
+func (Self UnprefixedAddress) Address() Address {
+	return Address{
+		Recipient:    Self.Recipient,
+		FullShardKey: Self.FullShardKey,
+	}
+}
+
+// MarshalJSON Address serialisation
+func (Self UnprefixedAddress) MarshalText() (out []byte, err error) {
+	address := Self.Address()
+	return []byte(address.ToHex()), nil
+}
+
+func (Self *UnprefixedAddress) UnmarshalText(dataWithout0x []byte) error {
+	bytes, err := hex.DecodeString(string(dataWithout0x))
 	if err != nil {
 		return err
 	}
-
-	Self.Recipient = BytesToIdentityRecipient(recipientData)
-
-	fullShardKeyData, err := hex.DecodeString(input[40:])
-	if err != nil {
-		return err
-	}
-	bytesBuffer := bytes.NewBuffer(fullShardKeyData)
-	var x uint32
-	if err := binary.Read(bytesBuffer, binary.BigEndian, &x); err != nil {
-		return err
-	}
-	Self.FullShardKey = x
+	data, err := CreatAddressFromBytes(bytes)
+	Self.Recipient = data.Recipient
+	Self.FullShardKey = data.FullShardKey
 	return nil
 }

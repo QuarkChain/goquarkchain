@@ -1,6 +1,7 @@
 package config
 
 import (
+	"bytes"
 	"encoding/json"
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/ethereum/go-ethereum/common"
@@ -11,14 +12,14 @@ type ShardGenesis struct {
 	RootHeight         uint32                       `json:"ROOT_HEIGHT"`
 	Version            uint32                       `json:"VERSION"`
 	Height             uint64                       `json:"HEIGHT"`
-	HashPrevMinorBlock string                       `json:"HASH_PREV_MINOR_BLOCK"`
-	HashMerkleRoot     string                       `json:"HASH_MERKLE_ROOT"`
-	ExtraData          []byte                       `json:"-"`
+	HashPrevMinorBlock common.Hash                  `json:"HASH_PREV_MINOR_BLOCK"`
+	HashMerkleRoot     common.Hash                  `json:"HASH_MERKLE_ROOT"`
+	ExtraData          []byte                       `json:"EXTRA_DATA"`
 	Timestamp          uint64                       `json:"TIMESTAMP"`
 	Difficulty         uint64                       `json:"DIFFICULTY"`
 	GasLimit           uint64                       `json:"GAS_LIMIT"`
 	Nonce              uint32                       `json:"NONCE"`
-	Alloc              map[account.Address]*big.Int `json:"-"`
+	Alloc              map[account.Address]*big.Int `json:"ALLOC"`
 }
 
 func NewShardGenesis() *ShardGenesis {
@@ -26,9 +27,9 @@ func NewShardGenesis() *ShardGenesis {
 		RootHeight:         0,
 		Version:            0,
 		Height:             0,
-		HashPrevMinorBlock: "",
-		HashMerkleRoot:     "",
-		ExtraData:          common.FromHex("497420776173207468652062657374206f662074696d65732c206974207761732074686520776f727374206f662074696d65732c202e2e2e202d20436861726c6573204469636b656e73"),
+		HashPrevMinorBlock: common.Hash{},
+		HashMerkleRoot:     common.Hash{},
+		ExtraData:          []byte("It was the best of times, it was the worst of times, ... - Charles Dickens"),
 		Timestamp:          NewRootGenesis().Timestamp,
 		Difficulty:         10000,
 		GasLimit:           30000 * 400,
@@ -37,39 +38,86 @@ func NewShardGenesis() *ShardGenesis {
 	}
 }
 
-type ShardGenesisAlias ShardGenesis
-
 func (s *ShardGenesis) MarshalJSON() ([]byte, error) {
-	var alloc = make(map[string]*big.Int)
-	for addr, val := range s.Alloc {
-		alloc[string(addr.ToHex())] = val
+	type ShardGenesis struct {
+		RootHeight         uint32              `json:"ROOT_HEIGHT"`
+		Version            uint32              `json:"VERSION"`
+		Height             uint64              `json:"HEIGHT"`
+		HashPrevMinorBlock string              `json:"HASH_PREV_MINOR_BLOCK"`
+		HashMerkleRoot     string              `json:"HASH_MERKLE_ROOT"`
+		ExtraData          string              `json:"EXTRA_DATA"`
+		Timestamp          uint64              `json:"TIMESTAMP"`
+		Difficulty         uint64              `json:"DIFFICULTY"`
+		GasLimit           uint64              `json:"GAS_LIMIT"`
+		Nonce              uint32              `json:"NONCE"`
+		Alloc              map[string]*big.Int `json:"ALLOC"`
 	}
-	jsonConfig := struct {
-		ShardGenesisAlias
-		ExtraData string              `json:"EXTRA_DATA"`
-		Alloc     map[string]*big.Int `json:"ALLOC"`
-	}{ShardGenesisAlias(*s), common.Bytes2Hex(s.ExtraData), alloc}
-	return json.Marshal(jsonConfig)
+
+	var enc ShardGenesis
+	enc.RootHeight = s.RootHeight
+	enc.Version = s.Version
+	enc.Height = s.Height
+	if bytes.Equal(s.HashPrevMinorBlock.Bytes(), common.Hash{}.Bytes()) {
+		enc.HashPrevMinorBlock = ""
+	} else {
+		enc.HashPrevMinorBlock = s.HashPrevMinorBlock.String()[2:]
+	}
+
+	if bytes.Equal(s.HashMerkleRoot.Bytes(), common.Hash{}.Bytes()) {
+		enc.HashMerkleRoot = ""
+	} else {
+		enc.HashMerkleRoot = s.HashMerkleRoot.String()[2:]
+	}
+
+	enc.ExtraData = string(s.ExtraData)
+	enc.Timestamp = s.Timestamp
+	enc.Difficulty = s.Difficulty
+	enc.GasLimit = s.GasLimit
+	enc.Nonce = s.Nonce
+	if s.Alloc != nil {
+		enc.Alloc = make(map[string]*big.Int, len(s.Alloc))
+		for k, v := range s.Alloc {
+			enc.Alloc[k.UnprefixedAddress().Address().ToHex()[2:]] = v
+		}
+	}
+	return json.Marshal(&enc)
 }
 
 func (s *ShardGenesis) UnmarshalJSON(input []byte) error {
-	var jsonConfig struct {
-		ShardGenesisAlias
-		ExtraData string              `json:"EXTRA_DATA"`
-		Alloc     map[string]*big.Int `json:"ALLOC"`
+	type ShardGenesis struct {
+		RootHeight         uint32                                 `json:"ROOT_HEIGHT"`
+		Version            uint32                                 `json:"VERSION"`
+		Height             uint64                                 `json:"HEIGHT"`
+		HashPrevMinorBlock string                                 `json:"HASH_PREV_MINOR_BLOCK"`
+		HashMerkleRoot     string                                 `json:"HASH_MERKLE_ROOT"`
+		ExtraData          string                                 `json:"EXTRA_DATA"`
+		Timestamp          uint64                                 `json:"TIMESTAMP"`
+		Difficulty         uint64                                 `json:"DIFFICULTY"`
+		GasLimit           uint64                                 `json:"GAS_LIMIT"`
+		Nonce              uint32                                 `json:"NONCE"`
+		Alloc              map[account.UnprefixedAddress]*big.Int `json:"ALLOC"`
 	}
-	if err := json.Unmarshal(input, &jsonConfig); err != nil {
+	var dec ShardGenesis
+	if err := json.Unmarshal(input, &dec); err != nil {
 		return err
 	}
-	*s = ShardGenesis(jsonConfig.ShardGenesisAlias)
-	s.ExtraData = common.Hex2Bytes(jsonConfig.ExtraData)
-	s.Alloc = make(map[account.Address]*big.Int)
-	for addr, val := range jsonConfig.Alloc {
-		address, err := account.CreatAddressFromBytes(common.FromHex(addr))
-		if err != nil {
-			return err
+	s.RootHeight = uint32(dec.RootHeight)
+	s.Version = uint32(dec.Version)
+	s.Height = uint64(dec.Height)
+	s.HashPrevMinorBlock = common.HexToHash(dec.HashPrevMinorBlock)
+	s.HashMerkleRoot = common.HexToHash(dec.HashMerkleRoot)
+	s.ExtraData = []byte(dec.ExtraData)
+	s.Timestamp = uint64(dec.Timestamp)
+	s.Difficulty = uint64(dec.Difficulty)
+	s.GasLimit = uint64(dec.GasLimit)
+	s.Height = uint64(dec.Nonce)
+
+	if dec.Alloc != nil {
+		s.Alloc = make(map[account.Address]*big.Int, len(dec.Alloc))
+		for k, v := range dec.Alloc {
+			s.Alloc[k.Address()] = v
+
 		}
-		s.Alloc[address] = val
 	}
 	return nil
 }
