@@ -137,9 +137,9 @@ func createConsensusEngine(ctx *service.ServiceContext, cfg *config.RootConfig) 
 		AdjustmentFactor:  cfg.DifficultyAdjustmentFactor,
 	}
 	switch cfg.ConsensusType {
-	case config.PoWFake:
+	case config.PoWSimulate: // TODO pow_simulate is fake
 		return &consensus.FakeEngine{}, nil
-	case config.PoWEthash, config.PoWSimulate:
+	case config.PoWEthash:
 		return qkchash.New(cfg.ConsensusConfig.RemoteMine, &diffCalculator, cfg.ConsensusConfig.RemoteMine), nil
 		// panic(errors.New("not support PoWEthash PoWSimulate"))
 	case config.PoWQkchash:
@@ -227,13 +227,6 @@ func (s *QKCMasterBackend) InitCluster() error {
 	}
 	s.logSummary()
 
-	ip, port := s.clusterConfig.Quarkchain.Root.Ip, s.clusterConfig.Quarkchain.Root.Port
-	for endpoint := range s.clientPool {
-		if err := s.clientPool[endpoint].MasterInfo(ip, port); err != nil {
-			return err
-		}
-	}
-
 	if err := s.hasAllShards(); err != nil {
 		return err
 	}
@@ -246,7 +239,7 @@ func (s *QKCMasterBackend) InitCluster() error {
 func (s *QKCMasterBackend) ConnectToSlaves() error {
 	fullShardIds := s.clusterConfig.Quarkchain.GetGenesisShardIds()
 	for _, slaveConn := range s.clientPool {
-		id, chainMaskList, err := slaveConn.SendPing(nil, false)
+		id, chainMaskList, err := slaveConn.SendPing()
 		if err != nil {
 			return err
 		}
@@ -294,16 +287,13 @@ func (s *QKCMasterBackend) getSlaveInfoListFromClusterConfig() []*rpc.SlaveInfo 
 	return slaveInfos
 }
 func (s *QKCMasterBackend) initShards() error {
-	var g errgroup.Group
-	for index := range s.clientPool {
-		i := index
-		g.Go(func() error {
-			currRootBlock := s.rootBlockChain.CurrentBlock()
-			_, _, err := s.clientPool[i].SendPing(currRootBlock, true)
+	ip, port := s.clusterConfig.Quarkchain.Root.Ip, s.clusterConfig.Quarkchain.Root.Port
+	for endpoint := range s.clientPool {
+		if err := s.clientPool[endpoint].MasterInfo(ip, port, s.rootBlockChain.CurrentBlock()); err != nil {
 			return err
-		})
+		}
 	}
-	return g.Wait()
+	return nil
 }
 
 func (s *QKCMasterBackend) updateShardStatsLoop() {
@@ -348,7 +338,7 @@ func (s *QKCMasterBackend) broadcastRootBlockToSlaves(block *types.RootBlock) er
 			err := client.AddRootBlock(block, false)
 			if err != nil {
 				log.Error("broadcastRootBlockToSlaves failed", "slave", client.GetSlaveID(),
-					"block", block.Hash(), "height", block.NumberU64())
+					"block", block.Hash(), "height", block.NumberU64(), "err", err)
 			}
 			return err
 		})
@@ -641,8 +631,8 @@ func (s *QKCMasterBackend) disPlayPeers() {
 			time.Sleep(disPlayPeerInfoInterval)
 			peers := s.protocolManager.peers.peers
 			log.Info(s.logInfo, "len(peers)", len(peers))
-			for k, v := range peers {
-				log.Info(s.logInfo, "k", k, "v", v.RemoteAddr().String())
+			for _, v := range peers {
+				log.Info(s.logInfo, "remote addr", v.RemoteAddr().String())
 			}
 		}
 	}()

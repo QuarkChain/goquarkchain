@@ -254,7 +254,7 @@ func initEnv(t *testing.T, chanOp chan uint32) *QKCMasterBackend {
 
 	ctx := &service.ServiceContext{}
 	clusterConfig := config.NewClusterConfig()
-	clusterConfig.Quarkchain.Root.ConsensusType = config.PoWFake
+	clusterConfig.Quarkchain.Root.ConsensusType = config.PoWSimulate
 	master, err := New(ctx, clusterConfig)
 	if err != nil {
 		panic(err)

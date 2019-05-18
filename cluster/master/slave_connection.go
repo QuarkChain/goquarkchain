@@ -66,9 +66,12 @@ func (s *SlaveConnection) HeartBeat() bool {
 	return false
 }
 
-func (s *SlaveConnection) MasterInfo(ip string, port uint16) error {
+func (s *SlaveConnection) MasterInfo(ip string, port uint16, rootTip *types.RootBlock) error {
+	if rootTip == nil {
+		return errors.New("send MasterInfo failed :rootTip is nil")
+	}
 	var (
-		gReq = rpc.MasterInfo{Ip: ip, Port: port}
+		gReq = rpc.MasterInfo{Ip: ip, Port: port, RootTip: rootTip}
 	)
 	endpoint := strings.Split(s.target, ":")
 	if qcom.IsLocalIP(endpoint[0]) {
@@ -82,9 +85,8 @@ func (s *SlaveConnection) MasterInfo(ip string, port uint16) error {
 	return err
 }
 
-func (s *SlaveConnection) SendPing(rootBlock *types.RootBlock, initializeShardSize bool) ([]byte, []*types.ChainMask, error) {
+func (s *SlaveConnection) SendPing() ([]byte, []*types.ChainMask, error) {
 	req := new(rpc.Ping)
-	req.RootTip = rootBlock
 
 	bytes, err := serialize.SerializeToBytes(req)
 	if err != nil {

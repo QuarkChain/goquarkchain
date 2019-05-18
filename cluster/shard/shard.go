@@ -124,9 +124,9 @@ func createConsensusEngine(ctx *service.ServiceContext, cfg *config.ShardConfig)
 		AdjustmentFactor:  cfg.DifficultyAdjustmentFactor,
 	}
 	switch cfg.ConsensusType {
-	case config.PoWFake:
+	case config.PoWSimulate: //TODO pow_simulate is fake
 		return &consensus.FakeEngine{}, nil
-	case config.PoWEthash, config.PoWSimulate:
+	case config.PoWEthash:
 		panic(errors.New("not support PoWEthash PoWSimulate"))
 	case config.PoWQkchash:
 		return qkchash.New(cfg.ConsensusConfig.RemoteMine, &diffCalculator, cfg.ConsensusConfig.RemoteMine), nil
