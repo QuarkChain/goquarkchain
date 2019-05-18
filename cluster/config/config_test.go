@@ -173,7 +173,7 @@ func TestLoadConfig(t *testing.T) {
 	var (
 		goClstr ClusterConfig
 	)
-	if err := loadConfig("./test_config.json", &goClstr); err != nil {
+	if err := loadConfig("../../tests/config_test/test_config.json", &goClstr); err != nil {
 		t.Fatalf("Failed to load json file, err: %v", err)
 	}
 	data, err := json.Marshal(goClstr)
