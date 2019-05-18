@@ -62,14 +62,10 @@ func (s *SlaveServerSideOp) MasterInfo(ctx context.Context, req *rpc.Request) (*
 
 func (s *SlaveServerSideOp) Ping(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
 	var (
-		gReq     rpc.Ping
 		gRes     rpc.Pong
 		response = &rpc.Response{RpcId: req.RpcId}
 		err      error
 	)
-	if err = serialize.DeserializeFromBytes(req.Data, &gReq); err != nil {
-		return nil, err
-	}
 
 	gRes.Id, gRes.ChainMaskList = []byte(s.slave.config.ID), s.slave.config.ChainMaskList
 	log.Info("slave ping response", "request op", req.Op)

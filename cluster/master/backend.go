@@ -137,9 +137,9 @@ func createConsensusEngine(ctx *service.ServiceContext, cfg *config.RootConfig) 
 		AdjustmentFactor:  cfg.DifficultyAdjustmentFactor,
 	}
 	switch cfg.ConsensusType {
-	case config.PoWFake:
+	case config.PoWSimulate: // TODO pow_simulate is fake
 		return &consensus.FakeEngine{}, nil
-	case config.PoWEthash, config.PoWSimulate:
+	case config.PoWEthash:
 		return qkchash.New(cfg.ConsensusConfig.RemoteMine, &diffCalculator, cfg.ConsensusConfig.RemoteMine), nil
 		// panic(errors.New("not support PoWEthash PoWSimulate"))
 	case config.PoWQkchash:
@@ -631,8 +631,8 @@ func (s *QKCMasterBackend) disPlayPeers() {
 			time.Sleep(disPlayPeerInfoInterval)
 			peers := s.protocolManager.peers.peers
 			log.Info(s.logInfo, "len(peers)", len(peers))
-			for k, v := range peers {
-				log.Info(s.logInfo, "k", k, "v", v.RemoteAddr().String())
+			for _, v := range peers {
+				log.Info(s.logInfo, "remote addr", v.RemoteAddr().String())
 			}
 		}
 	}()
