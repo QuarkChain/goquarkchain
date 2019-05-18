@@ -69,7 +69,7 @@ func (s *ShardGenesis) MarshalJSON() ([]byte, error) {
 		enc.HashMerkleRoot = s.HashMerkleRoot.String()[2:]
 	}
 
-	enc.ExtraData = string(s.ExtraData)
+	enc.ExtraData = common.Bytes2Hex(s.ExtraData)
 	enc.Timestamp = s.Timestamp
 	enc.Difficulty = s.Difficulty
 	enc.GasLimit = s.GasLimit
@@ -98,7 +98,8 @@ func (s *ShardGenesis) UnmarshalJSON(input []byte) error {
 		Alloc              map[account.UnprefixedAddress]*big.Int `json:"ALLOC"`
 	}
 	var dec ShardGenesis
-	if err := json.Unmarshal(input, &dec); err != nil {
+	var err error
+	if err = json.Unmarshal(input, &dec); err != nil {
 		return err
 	}
 	s.RootHeight = uint32(dec.RootHeight)
@@ -106,7 +107,8 @@ func (s *ShardGenesis) UnmarshalJSON(input []byte) error {
 	s.Height = uint64(dec.Height)
 	s.HashPrevMinorBlock = common.HexToHash(dec.HashPrevMinorBlock)
 	s.HashMerkleRoot = common.HexToHash(dec.HashMerkleRoot)
-	s.ExtraData = []byte(dec.ExtraData)
+	s.ExtraData = common.Hex2Bytes(dec.ExtraData)
+
 	s.Timestamp = uint64(dec.Timestamp)
 	s.Difficulty = uint64(dec.Difficulty)
 	s.GasLimit = uint64(dec.GasLimit)
