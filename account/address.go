@@ -142,7 +142,6 @@ func (Self Address) MarshalJSON() (out []byte, err error) {
 }
 
 func (Self *Address) UnmarshalJSON(data []byte) error {
-	fmt.Println("SSSSSSSSSSUUUUUUUUUUU")
 	input := strings.TrimSpace(string(data))
 	if len(input) >= 2 && input[0] == '"' && input[len(input)-1] == '"' {
 		input = input[1 : len(input)-1]
@@ -154,17 +153,43 @@ func (Self *Address) UnmarshalJSON(data []byte) error {
 		return errors.New("should have 0x prefix")
 	}
 
-	if len(data) != 0 && len(data) != 24 {
-		return errors.New("failed: len should 0 or 24")
+	input = input[2:]
+	if len(input) != 0 && len(input) != 48 {
+		return errors.New("failed: len should 0 or 48")
 	}
-	if len(data) == 0 {
+	if len(input) == 0 {
 		Self.Recipient = Recipient{}
 		Self.FullShardKey = 0
 		return nil
 	}
-	var err error
-	*Self, err = CreatAddressFromBytes(data)
-	return err
+	recipientData, err := hex.DecodeString(input[0:40])
+	if err != nil {
+		return err
+	}
+
+	Self.Recipient = BytesToIdentityRecipient(recipientData)
+
+	fullShardKeyData, err := hex.DecodeString(input[40:])
+	if err != nil {
+		return err
+	}
+	bytesBuffer := bytes.NewBuffer(fullShardKeyData)
+	var x uint32
+	if err := binary.Read(bytesBuffer, binary.BigEndian, &x); err != nil {
+		return err
+	}
+	Self.FullShardKey = x
+	return nil
+}
+
+// MarshalJSON Address serialisation
+func (Self Address) MarshalText() (out []byte, err error) {
+	fmt.Println("Self.MarshText")
+	return []byte{}, nil
+}
+func (Self *Address) UnmarshalText(dataWithout0x []byte) error {
+	fmt.Println("Self.UnmarshalText")
+	return nil
 }
 
 type UnprefixedAddress Address
