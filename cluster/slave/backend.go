@@ -44,7 +44,7 @@ func New(ctx *service.ServiceContext, clusterCfg *config.ClusterConfig, cfg *con
 		slave.fullShardList = append(slave.fullShardList, id)
 	}
 
-	slave.connManager = NewToSlaveConnManager(slave.clstrCfg.Quarkchain, slave)
+	slave.connManager = NewToSlaveConnManager(slave.clstrCfg, slave)
 	return slave, nil
 }
 

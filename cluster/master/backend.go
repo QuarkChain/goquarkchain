@@ -285,8 +285,8 @@ func (s *QKCMasterBackend) getSlaveInfoListFromClusterConfig() []*rpc.SlaveInfo 
 	slaveInfos := make([]*rpc.SlaveInfo, 0)
 	for _, slave := range s.clusterConfig.SlaveList {
 		slaveInfos = append(slaveInfos, &rpc.SlaveInfo{
-			Id:            []byte(slave.ID),
-			Host:          []byte(slave.IP),
+			Id:            slave.ID,
+			Host:          slave.IP,
 			Port:          slave.Port,
 			ChainMaskList: slave.ChainMaskList,
 		})
