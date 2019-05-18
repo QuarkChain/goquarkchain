@@ -487,11 +487,6 @@ func (m *MinorBlockChain) getCrossShardTxListByRootBlockHash(hash common.Hash) (
 		}
 		xShardTxList := rawdb.ReadCrossShardTxList(m.db, mHeader.Hash())
 
-		//if xShardTxList == nil { // TODO:need broadcast xshardList , so fake here
-		//	xShardTxList = &types.CrossShardTransactionDepositList{
-		//		TXList: make([]*types.CrossShardTransactionDeposit, 0),
-		//	}
-		//}
 		if prevRootHeader.Number <= uint32(m.clusterConfig.Quarkchain.GetGenesisRootHeight(m.branch.Value)) {
 			if xShardTxList != nil {
 				return nil, errors.New("get xShard tx list err")
