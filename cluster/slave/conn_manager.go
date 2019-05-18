@@ -179,15 +179,21 @@ func (s *ConnManager) addSlaveConnection(target string, conn *SlaveConn) {
 	s.slavesConn[target] = conn
 }
 
-func NewToSlaveConnManager(qkcCfg *config.QuarkChainConfig, slave *SlaveBackend) *ConnManager {
+func NewToSlaveConnManager(cfg *config.ClusterConfig, slave *SlaveBackend) *ConnManager {
 	slaveConnManager := &ConnManager{
-		qkcCfg:              qkcCfg,
+		qkcCfg:              cfg.Quarkchain,
 		slavesConn:          make(map[string]*SlaveConn),
 		fullShardIdToSlaves: make(map[uint32][]*SlaveConn),
 		slave:               slave,
 	}
 	slaveConnManager.masterClient = &masterConn{
 		client: rpc.NewClient(rpc.MasterServer),
+	}
+	for _, slv := range cfg.SlaveList {
+		if slv.ID == slave.config.ID {
+			continue
+		}
+		slaveConnManager.AddConnectToSlave(&rpc.SlaveInfo{Id: slv.ID, Host: slv.IP, Port: slv.Port, ChainMaskList: slv.ChainMaskList})
 	}
 	return slaveConnManager
 }
