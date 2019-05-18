@@ -2,7 +2,9 @@ package account
 
 import (
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
+	"github.com/stretchr/testify/assert"
 	"testing"
 )
 
@@ -112,4 +114,29 @@ func TestAddress(t *testing.T) {
 		count++
 	}
 	fmt.Println("TestAddress:success test num:", count)
+}
+
+func TestAddress_UnmarshalJSON(t *testing.T) {
+	initString := "89aea23276a4090fc2920b788d114d1e96b0fe1d00000003"
+	bytes, err := hex.DecodeString(initString)
+	assert.NoError(t, err)
+	targetAddress, err := CreatAddressFromBytes(bytes)
+	assert.NoError(t, err)
+	assert.Equal(t, initString, targetAddress.ToHex()[2:])
+
+	unmarshalData := []byte(`"0x89aea23276a4090fc2920b788d114d1e96b0fe1d00000003"`) //read from file
+	newAddr := new(Address)
+	err = json.Unmarshal(unmarshalData, newAddr)
+	assert.NoError(t, err)
+	assert.Equal(t, targetAddress, *newAddr)
+
+	id1, err := CreatRandomIdentity()
+	assert.NoError(t, err)
+	addrBefore := CreatAddressFromIdentity(id1, 3)
+	marshalData, err := json.Marshal(addrBefore)
+	assert.NoError(t, err)
+	addrCheck := new(Address)
+	err = json.Unmarshal(marshalData, addrCheck)
+	assert.NoError(t, err)
+	assert.Equal(t, addrBefore, *addrCheck)
 }

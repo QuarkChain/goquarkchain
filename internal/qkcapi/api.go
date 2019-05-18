@@ -11,7 +11,23 @@ import (
 )
 
 func decodeBlockNumberToUint64(b Backend, blockNumber *rpc.BlockNumber) (uint64, error) {
-	panic(-1)
+	if blockNumber == nil {
+		return b.CurrentBlock().NumberU64(), nil
+	}
+	if *blockNumber == rpc.PendingBlockNumber {
+		return 0, errors.New("is pending block number")
+	}
+	if *blockNumber == rpc.LatestBlockNumber {
+		return b.CurrentBlock().NumberU64(), nil
+	}
+	if *blockNumber == rpc.EarliestBlockNumber {
+		return 0, nil
+	}
+
+	if *blockNumber < 0 {
+		return 0, errors.New("invalid block Num")
+	}
+	return uint64(blockNumber.Int64()), nil
 }
 
 func transHexutilUint64ToUint64(data *hexutil.Uint64) (*uint64, error) {
@@ -49,7 +65,24 @@ func (p *PublicBlockChainAPI) NetworkInfo() map[string]interface{} {
 }
 
 func (p *PublicBlockChainAPI) getPrimaryAccountData(address account.Address, blockNr *rpc.BlockNumber) (*qkcRPC.AccountBranchData, error) {
-	panic(-1)
+	var err error
+	var data *qkcRPC.AccountBranchData
+
+	blockNumber, err := decodeBlockNumberToUint64(p.b, blockNr)
+	if err != nil {
+		return nil, err
+	}
+
+	if blockNr == nil {
+		data, err = p.b.GetPrimaryAccountData(&address, nil)
+	} else {
+		data, err = p.b.GetPrimaryAccountData(&address, &blockNumber)
+	}
+
+	if err != nil {
+		return nil, err
+	}
+	return data, err
 
 }
 
@@ -57,7 +90,20 @@ func (p *PublicBlockChainAPI) GetTransactionCount(address account.Address, block
 	panic(-1)
 }
 func (p *PublicBlockChainAPI) GetBalances(address account.Address, blockNr *rpc.BlockNumber) (map[string]interface{}, error) {
-	panic(-1)
+	data, err := p.getPrimaryAccountData(address, blockNr)
+	if err != nil {
+		return nil, err
+	}
+	branch := account.Branch{Value: data.Branch}
+	balances := data.Balance
+	fields := map[string]interface{}{
+		"branch":      hexutil.Uint64(branch.Value),
+		"fullShardId": hexutil.Uint64(branch.GetFullShardID()),
+		"shardId":     hexutil.Uint64(branch.GetShardID()),
+		"chainId":     hexutil.Uint64(branch.GetChainID()),
+		"balances":    (*hexutil.Big)(balances),
+	}
+	return fields, nil
 }
 func (p *PublicBlockChainAPI) GetAccountData(address account.Address, blockNr *rpc.BlockNumber, includeShards *bool) (map[string]interface{}, error) {
 	panic(-1)
