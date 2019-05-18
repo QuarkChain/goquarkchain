@@ -156,7 +156,7 @@ func TestShardGenesis(t *testing.T) {
 	assert.Equal(t, common.FromHex("497420776173207468652062657374206f662074696d65732c206974207761732074686520776f727374206f662074696d65732c202e2e2e202d20436861726c6573204469636b656e73"), shardGensis.ExtraData)
 	jsonConfig, err := json.Marshal(&shardGensis)
 	assert.NoError(t, err)
-	assert.Contains(t, string(s), string(jsonConfig))
+	assert.Equal(t, string(s), string(jsonConfig))
 }
 
 func loadConfig(file string, cfg *ClusterConfig) error {
