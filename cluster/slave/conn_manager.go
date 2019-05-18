@@ -174,7 +174,8 @@ func (s *ConnManager) getBranchToAddXshardTxListRequest(blockHash common.Hash,
 	for _, sTx := range xshardTxList {
 		fullShardID := s.qkcCfg.GetFullShardIdByFullShardKey(sTx.To.FullShardKey)
 		if _, ok := xshardMap[fullShardID]; ok == false {
-			return nil, errors.New("xshard's to's fullShardID should in map")
+			// TODO need delete panic later?
+			panic(errors.New("xshard's to's fullShardID should in map"))
 		}
 		xshardMap[fullShardID] = append(xshardMap[fullShardID], sTx)
 	}
