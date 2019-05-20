@@ -64,26 +64,19 @@ func (p *PublicBlockChainAPI) NetworkInfo() map[string]interface{} {
 
 }
 
-func (p *PublicBlockChainAPI) getPrimaryAccountData(address account.Address, blockNr *rpc.BlockNumber) (*qkcRPC.AccountBranchData, error) {
-	var err error
-	var data *qkcRPC.AccountBranchData
+func (p *PublicBlockChainAPI) getPrimaryAccountData(address account.Address, blockNr *rpc.BlockNumber) (data *qkcRPC.AccountBranchData,err error) {
+	if blockNr == nil {
+		 data, err = p.b.GetPrimaryAccountData(&address, nil)
+		 return
+	}
 
 	blockNumber, err := decodeBlockNumberToUint64(p.b, blockNr)
 	if err != nil {
 		return nil, err
 	}
 
-	if blockNr == nil {
-		data, err = p.b.GetPrimaryAccountData(&address, nil)
-	} else {
-		data, err = p.b.GetPrimaryAccountData(&address, &blockNumber)
-	}
-
-	if err != nil {
-		return nil, err
-	}
-	return data, err
-
+	data, err = p.b.GetPrimaryAccountData(&address, &blockNumber)
+	return
 }
 
 func (p *PublicBlockChainAPI) GetTransactionCount(address account.Address, blockNr *rpc.BlockNumber) (hexutil.Uint64, error) {
