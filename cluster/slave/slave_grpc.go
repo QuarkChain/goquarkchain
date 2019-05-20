@@ -2,6 +2,7 @@ package slave
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
 	"github.com/QuarkChain/goquarkchain/consensus"
@@ -10,7 +11,6 @@ import (
 	"github.com/QuarkChain/goquarkchain/serialize"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
-	"time"
 )
 
 type SlaveServerSideOp struct {
@@ -24,9 +24,7 @@ func NewServerSideOp(slave *SlaveBackend) *SlaveServerSideOp {
 }
 
 func (s *SlaveServerSideOp) HeartBeat(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
-	log.Info("slave heart beat response", "request op", req.Op, "current time", time.Now().Unix())
-	return &rpc.Response{
-	}, nil
+	return &rpc.Response{}, nil
 }
 
 func (s *SlaveServerSideOp) MasterInfo(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
@@ -40,6 +38,23 @@ func (s *SlaveServerSideOp) MasterInfo(ctx context.Context, req *rpc.Request) (*
 	}
 
 	s.slave.connManager.ModifyTarget(fmt.Sprintf("%s:%d", gReq.Ip, gReq.Port))
+
+	if gReq.RootTip == nil {
+		return nil, errors.New("handle masterInfo err:rootTip is nil")
+	}
+	//createShards
+	if err = s.slave.CreateShards(gReq.RootTip); err != nil {
+		return nil, err
+	}
+
+	//ping with other slaves
+	for _, slv := range s.slave.clstrCfg.SlaveList {
+		if slv.ID == s.slave.config.ID {
+			continue
+		}
+		s.slave.connManager.AddConnectToSlave(&rpc.SlaveInfo{Id: slv.ID, Host: slv.IP, Port: slv.Port, ChainMaskList: slv.ChainMaskList})
+	}
+
 	log.Info("slave master info response", "master endpoint", s.slave.connManager.masterClient.target)
 
 	return response, nil
@@ -47,20 +62,10 @@ func (s *SlaveServerSideOp) MasterInfo(ctx context.Context, req *rpc.Request) (*
 
 func (s *SlaveServerSideOp) Ping(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
 	var (
-		gReq     rpc.Ping
 		gRes     rpc.Pong
 		response = &rpc.Response{RpcId: req.RpcId}
 		err      error
 	)
-	if err = serialize.DeserializeFromBytes(req.Data, &gReq); err != nil {
-		return nil, err
-	}
-
-	if gReq.RootTip != nil {
-		if err = s.slave.CreateShards(gReq.RootTip); err != nil {
-			return nil, err
-		}
-	}
 
 	gRes.Id, gRes.ChainMaskList = []byte(s.slave.config.ID), s.slave.config.ChainMaskList
 	log.Info("slave ping response", "request op", req.Op)

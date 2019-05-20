@@ -40,6 +40,7 @@ type ShardBackend struct {
 
 	mu       sync.Mutex
 	eventMux *event.TypeMux
+	logInfo  string
 }
 
 func New(ctx *service.ServiceContext, rBlock *types.RootBlock, conn ConnManager,
@@ -57,6 +58,7 @@ func New(ctx *service.ServiceContext, rBlock *types.RootBlock, conn ConnManager,
 			mBPool:            newBlockPool{BlockPool: make(map[common.Hash]*types.MinorBlock)},
 			gspec:             core.NewGenesis(cfg.Quarkchain),
 			eventMux:          ctx.EventMux,
+			logInfo:           fmt.Sprintf("shard:%d", fullshardId),
 		}
 		err error
 	)
@@ -73,21 +75,16 @@ func New(ctx *service.ServiceContext, rBlock *types.RootBlock, conn ConnManager,
 	}
 
 	chainConfig, genesisHash, genesisErr := core.SetupGenesisMinorBlock(shrd.chainDb, shrd.gspec, rBlock, fullshardId)
-	if _, ok := genesisErr.(*params.ConfigCompatError); genesisErr != nil && !ok {
-		return nil, genesisErr
+	// TODO check config err
+	if genesisErr != nil {
+		log.Info("Fill in block into chain db.")
+		rawdb.WriteChainConfig(shrd.chainDb, genesisHash, cfg.Quarkchain)
 	}
 	log.Info("Initialised chain configuration", "config", chainConfig)
 
 	shrd.MinorBlockChain, err = core.NewMinorBlockChain(shrd.chainDb, nil, &params.ChainConfig{}, cfg, shrd.engine, vm.Config{}, nil, fullshardId)
 	if err != nil {
 		return nil, err
-	}
-
-	// Rewind the chain in case of an incompatible config upgrade.
-	if compat, ok := genesisErr.(*params.ConfigCompatError); ok {
-		log.Warn("Rewinding chain to upgrade configuration", "err", compat)
-		shrd.MinorBlockChain.SetHead(compat.RewindTo)
-		rawdb.WriteChainConfig(shrd.chainDb, genesisHash, chainConfig)
 	}
 
 	return &shrd, nil
@@ -127,9 +124,9 @@ func createConsensusEngine(ctx *service.ServiceContext, cfg *config.ShardConfig)
 		AdjustmentFactor:  cfg.DifficultyAdjustmentFactor,
 	}
 	switch cfg.ConsensusType {
-	case config.PoWFake:
+	case config.PoWSimulate: //TODO pow_simulate is fake
 		return &consensus.FakeEngine{}, nil
-	case config.PoWEthash, config.PoWSimulate:
+	case config.PoWEthash:
 		panic(errors.New("not support PoWEthash PoWSimulate"))
 	case config.PoWQkchash:
 		return qkchash.New(cfg.ConsensusConfig.RemoteMine, &diffCalculator, cfg.ConsensusConfig.RemoteMine), nil

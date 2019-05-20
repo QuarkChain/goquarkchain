@@ -698,10 +698,16 @@ func (s *StateDB) SetXShardReceiveGasUsed(data *big.Int) {
 }
 
 func (s *StateDB) AppendXShardList(data *types.CrossShardTransactionDeposit) {
+	if s.xShardList == nil {
+		s.xShardList = make([]*types.CrossShardTransactionDeposit, 0)
+	}
 	s.xShardList = append(s.xShardList, data)
 }
 
 func (s *StateDB) GetXShardList() []*types.CrossShardTransactionDeposit {
+	if s.xShardList == nil {
+		s.xShardList = make([]*types.CrossShardTransactionDeposit, 0)
+	}
 	return s.xShardList
 }
 func (s *StateDB) SetFullShardKey(fullShardKey uint32) {

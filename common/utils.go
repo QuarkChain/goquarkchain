@@ -65,21 +65,21 @@ func GetIPV4Addr() (string, error) {
 	return "127.0.0.1", nil
 }
 
-func IsLocalIP(ip string) (bool, error) {
+func IsLocalIP(ip string) bool {
 	addrs, err := net.InterfaceAddrs()
 	if err != nil {
-		return false, err
+		return false
 	}
 	for i := range addrs {
 		intf, _, err := net.ParseCIDR(addrs[i].String())
 		if err != nil {
-			return false, err
+			return false
 		}
 		if net.ParseIP(ip).Equal(intf) {
-			return true, nil
+			return true
 		}
 	}
-	return false, nil
+	return false
 }
 
 func IsNil(data interface{}) bool {

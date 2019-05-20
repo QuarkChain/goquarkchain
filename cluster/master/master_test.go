@@ -225,6 +225,13 @@ func (c *fakeRpcClient) Call(hostport string, req *rpc.Request) (*rpc.Response, 
 			return nil, err
 		}
 		return &rpc.Response{Data: data}, nil
+	case rpc.OpMasterInfo:
+		rsp := new(rpc.MasterInfo)
+		data, err := serialize.SerializeToBytes(rsp)
+		if err != nil {
+			return nil, err
+		}
+		return &rpc.Response{Data: data}, nil
 	default:
 		fmt.Println("codeM", req.Op)
 		return nil, errors.New("unkown code")
@@ -247,7 +254,7 @@ func initEnv(t *testing.T, chanOp chan uint32) *QKCMasterBackend {
 
 	ctx := &service.ServiceContext{}
 	clusterConfig := config.NewClusterConfig()
-	clusterConfig.Quarkchain.Root.ConsensusType = config.PoWFake
+	clusterConfig.Quarkchain.Root.ConsensusType = config.PoWSimulate
 	master, err := New(ctx, clusterConfig)
 	if err != nil {
 		panic(err)

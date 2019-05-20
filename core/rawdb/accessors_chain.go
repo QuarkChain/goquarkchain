@@ -11,6 +11,8 @@ import (
 	"math/big"
 )
 
+const DBLOG = "db-operation"
+
 type minorBlockHeaders struct {
 	Headers []*types.MinorBlockHeader `bytesizeofslicelen:"4"`
 }
@@ -298,6 +300,7 @@ func WriteMinorBlock(db DatabaseWriter, block *types.MinorBlock) {
 	if err != nil {
 		log.Crit("Failed to serialize body", "err", err)
 	}
+	log.Info(DBLOG, "Write MinorBlock branch", block.Header().Branch.Value, "height", block.NumberU64(), "hash", block.Hash())
 	if err := db.Put(blockKey(block.Hash()), data); err != nil {
 		log.Crit("Failed to store minor block body", "err", err)
 	}
@@ -324,6 +327,7 @@ func WriteRootBlock(db DatabaseWriter, block *types.RootBlock) {
 	if err != nil {
 		log.Crit("Failed to serialize RootBlock", "err", err)
 	}
+	log.Info(DBLOG, "Write RootBlock height", block.NumberU64(), "hash", block.Hash())
 	if err := db.Put(blockKey(block.Hash()), data); err != nil {
 		log.Crit("Failed to store RootBlock", "err", err)
 	}

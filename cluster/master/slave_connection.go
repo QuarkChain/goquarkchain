@@ -5,11 +5,13 @@ import (
 	"fmt"
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
+	qcom "github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/p2p"
 	"github.com/QuarkChain/goquarkchain/serialize"
 	"github.com/ethereum/go-ethereum/common"
+	"strings"
 	"time"
 )
 
@@ -64,9 +66,27 @@ func (s *SlaveConnection) HeartBeat() bool {
 	return false
 }
 
-func (s *SlaveConnection) SendPing(rootBlock *types.RootBlock, initializeShardSize bool) ([]byte, []*types.ChainMask, error) {
+func (s *SlaveConnection) MasterInfo(ip string, port uint16, rootTip *types.RootBlock) error {
+	if rootTip == nil {
+		return errors.New("send MasterInfo failed :rootTip is nil")
+	}
+	var (
+		gReq = rpc.MasterInfo{Ip: ip, Port: port, RootTip: rootTip}
+	)
+	endpoint := strings.Split(s.target, ":")
+	if qcom.IsLocalIP(endpoint[0]) {
+		gReq.Ip = endpoint[0]
+	}
+	bytes, err := serialize.SerializeToBytes(gReq)
+	if err != nil {
+		return err
+	}
+	_, err = s.client.Call(s.target, &rpc.Request{Op: rpc.OpMasterInfo, Data: bytes})
+	return err
+}
+
+func (s *SlaveConnection) SendPing() ([]byte, []*types.ChainMask, error) {
 	req := new(rpc.Ping)
-	req.RootTip = rootBlock
 
 	bytes, err := serialize.SerializeToBytes(req)
 	if err != nil {
@@ -554,7 +574,7 @@ func (s *SlaveConnection) HandleNewMinorBlock(request *p2p.NewBlockMinor) (bool,
 	return true, nil
 }
 
-func (s *SlaveConnection) AddBlockListForSync(request *rpc.HashList) (*rpc.ShardStatus, error) {
+func (s *SlaveConnection) AddBlockListForSync(request *rpc.AddBlockListForSyncRequest) (*rpc.ShardStatus, error) {
 	var (
 		shardStatus = new(rpc.ShardStatus)
 		res         = new(rpc.Response)

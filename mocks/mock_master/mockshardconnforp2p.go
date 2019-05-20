@@ -102,7 +102,7 @@ func (_mr *MockShardConnForP2PMockRecorder) HandleNewMinorBlock(arg0 interface{}
 }
 
 // AddBlockListForSync mocks base method
-func (_m *MockShardConnForP2P) AddBlockListForSync(request *rpc.HashList) (*rpc.ShardStatus, error) {
+func (_m *MockShardConnForP2P) AddBlockListForSync(request *rpc.AddBlockListForSyncRequest) (*rpc.ShardStatus, error) {
 	ret := _m.ctrl.Call(_m, "AddBlockListForSync", request)
 	ret0, _ := ret[0].(*rpc.ShardStatus)
 	ret1, _ := ret[1].(error)
@@ -203,7 +203,7 @@ func (_mr *MockISlaveConnMockRecorder) HandleNewMinorBlock(arg0 interface{}) *go
 }
 
 // AddBlockListForSync mocks base method
-func (_m *MockISlaveConn) AddBlockListForSync(request *rpc.HashList) (*rpc.ShardStatus, error) {
+func (_m *MockISlaveConn) AddBlockListForSync(request *rpc.AddBlockListForSyncRequest) (*rpc.ShardStatus, error) {
 	ret := _m.ctrl.Call(_m, "AddBlockListForSync", request)
 	ret0, _ := ret[0].(*rpc.ShardStatus)
 	ret1, _ := ret[1].(error)
@@ -237,6 +237,18 @@ func (_m *MockISlaveConn) GetShardMaskList() []*types.ChainMask {
 // GetShardMaskList indicates an expected call of GetShardMaskList
 func (_mr *MockISlaveConnMockRecorder) GetShardMaskList() *gomock.Call {
 	return _mr.mock.ctrl.RecordCallWithMethodType(_mr.mock, "GetShardMaskList", reflect.TypeOf((*MockISlaveConn)(nil).GetShardMaskList))
+}
+
+// MasterInfo mocks base method
+func (_m *MockISlaveConn) MasterInfo(ip string, port uint16) error {
+	ret := _m.ctrl.Call(_m, "MasterInfo", ip, port)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// MasterInfo indicates an expected call of MasterInfo
+func (_mr *MockISlaveConnMockRecorder) MasterInfo(arg0, arg1 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCallWithMethodType(_mr.mock, "MasterInfo", reflect.TypeOf((*MockISlaveConn)(nil).MasterInfo), arg0, arg1)
 }
 
 // HasShard mocks base method

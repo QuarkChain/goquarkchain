@@ -56,7 +56,7 @@ func (api *PrivateP2PAPI) BroadcastNewTip(branch uint32, rootBlockHeader *types.
 
 func (api *PrivateP2PAPI) GetMinorBlockList(hashList []common.Hash, branch uint32, peerId string) ([]*types.MinorBlock, error) {
 	peer := api.peers.Peer(peerId)
-	if peer != nil {
+	if peer == nil {
 		return nil, errNotRegistered
 	}
 	blocks, err := peer.GetMinorBlockList(hashList, branch)
@@ -65,7 +65,7 @@ func (api *PrivateP2PAPI) GetMinorBlockList(hashList []common.Hash, branch uint3
 
 func (api *PrivateP2PAPI) GetMinorBlockHeaders(hash common.Hash, amount uint32, branch uint32, reverse bool, peerId string) ([]*types.MinorBlockHeader, error) {
 	peer := api.peers.Peer(peerId)
-	if peer != nil {
+	if peer == nil {
 		return nil, errNotRegistered
 	}
 	headers, err := peer.GetMinorBlockHeaderList(hash, amount, branch, reverse)

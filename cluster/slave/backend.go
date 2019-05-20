@@ -22,6 +22,7 @@ type SlaveBackend struct {
 
 	ctx      *service.ServiceContext
 	eventMux *event.TypeMux
+	logInfo  string
 }
 
 func New(ctx *service.ServiceContext, clusterCfg *config.ClusterConfig, cfg *config.SlaveConfig) (*SlaveBackend, error) {
@@ -32,6 +33,7 @@ func New(ctx *service.ServiceContext, clusterCfg *config.ClusterConfig, cfg *con
 		shards:        make(map[uint32]*shard.ShardBackend),
 		ctx:           ctx,
 		eventMux:      ctx.EventMux,
+		logInfo:       "SlaveBackend",
 	}
 
 	fullShardIds := slave.clstrCfg.Quarkchain.GetGenesisShardIds()
@@ -42,7 +44,7 @@ func New(ctx *service.ServiceContext, clusterCfg *config.ClusterConfig, cfg *con
 		slave.fullShardList = append(slave.fullShardList, id)
 	}
 
-	slave.connManager = NewToSlaveConnManager(slave.clstrCfg.Quarkchain, slave)
+	slave.connManager = NewToSlaveConnManager(slave.clstrCfg, slave)
 	return slave, nil
 }
 
@@ -83,6 +85,10 @@ func (s *SlaveBackend) APIs() []rpc.API {
 
 func (s *SlaveBackend) Stop() error {
 	s.eventMux.Stop()
+	for target := range s.shards {
+		s.shards[target].Stop()
+		delete(s.shards, target)
+	}
 	return nil
 }
 
