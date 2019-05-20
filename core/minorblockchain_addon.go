@@ -2,7 +2,6 @@ package core
 
 import (
 	"errors"
-	"fmt"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
 	"github.com/QuarkChain/goquarkchain/core/rawdb"
@@ -527,7 +526,6 @@ func (m *MinorBlockChain) getEvmStateByHeight(height *uint64) (*state.StateDB, e
 
 // GetBalance get balance for address
 func (m *MinorBlockChain) GetBalance(recipient account.Recipient, height *uint64) (*big.Int, error) {
-	fmt.Println("getbalance",recipient.String(),height)
 	// no need to lock
 	evmState, err := m.getEvmStateByHeight(height)
 	if err != nil {

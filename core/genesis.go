@@ -111,9 +111,12 @@ func (g *Genesis) CreateMinorBlock(rootBlock *types.RootBlock, fullShardId uint3
 		Extra:             extra,
 	}
 
-	statedb.Commit(true)
-	statedb.Database().TrieDB().Commit(meta.Root, true)
-	fmt.Println("create minor Block end",meta.Root.String())
+	if _,err:=statedb.Commit(true);err!=nil{
+		return nil,err
+	}
+	if err:=statedb.Database().TrieDB().Commit(meta.Root, true);err!=nil{
+		return nil,err
+	}
 	return types.NewMinorBlock(&header, &meta, make(types.Transactions, 0, 0), make(types.Receipts, 0, 0), nil), nil
 }
 
