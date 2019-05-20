@@ -348,7 +348,7 @@ func (s *SlaveBackend) HandleNewTip(tip *p2p.Tip) error {
 		return shad.HandleNewTip(tip.RootBlockHeader, mBHeader)
 	}
 
-	return ErrMsg("HandleNewTip")
+	return ErrMsg("HandleNewRootTip")
 }
 
 func (s *SlaveBackend) NewMinorBlock(block *types.MinorBlock) error {

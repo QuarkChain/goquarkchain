@@ -49,6 +49,18 @@ func (api *PrivateP2PAPI) BroadcastNewTip(branch uint32, rootBlockHeader *types.
 		return errors.New("branch mismatch")
 	}
 	for _, peer := range api.peers.peers {
+		if minorTip := peer.MinorHead(branch); minorTip != nil && minorTip.RootBlockHeader != nil {
+			if minorTip.RootBlockHeader.Number > rootBlockHeader.Number {
+				continue
+			}
+			if minorTip.RootBlockHeader.Number == rootBlockHeader.Number &&
+				minorTip.MinorBlockHeaderList[0].Number > minorBlockHeaderList[0].Number {
+				continue
+			}
+			if minorTip.MinorBlockHeaderList[0].Hash() == minorBlockHeaderList[0].Hash() {
+				continue
+			}
+		}
 		peer.AsyncSendNewTip(branch, &p2p.Tip{RootBlockHeader: rootBlockHeader, MinorBlockHeaderList: minorBlockHeaderList})
 	}
 	return nil
