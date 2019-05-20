@@ -131,7 +131,7 @@ func TestAddress_UnmarshalJSON(t *testing.T) {
 	newAddr := new(Address)
 	err = json.Unmarshal([]byte(unmarshalData), newAddr)
 	assert.NoError(t, err)
-	//	assert.Equal(t, targetAddress, *newAddr)
+	assert.Equal(t, targetAddress, *newAddr)
 
 	id1, err := CreatRandomIdentity()
 	assert.NoError(t, err)
