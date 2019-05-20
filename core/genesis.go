@@ -74,6 +74,7 @@ func (g *Genesis) CreateMinorBlock(rootBlock *types.RootBlock, fullShardId uint3
 		}
 		recipient := new(common.Address)
 		recipient.SetBytes(addr.Recipient.Bytes())
+		statedb.SetFullShardKey(addr.FullShardKey)
 		statedb.AddBalance(*recipient, balance)
 	}
 
@@ -112,6 +113,7 @@ func (g *Genesis) CreateMinorBlock(rootBlock *types.RootBlock, fullShardId uint3
 
 	statedb.Commit(true)
 	statedb.Database().TrieDB().Commit(meta.Root, true)
+	fmt.Println("create minor Block end",meta.Root.String())
 	return types.NewMinorBlock(&header, &meta, make(types.Transactions, 0, 0), make(types.Receipts, 0, 0), nil), nil
 }
 

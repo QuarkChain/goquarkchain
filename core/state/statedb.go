@@ -336,6 +336,7 @@ func (s *StateDB) HasSuicided(addr common.Address) bool {
 
 // AddBalance adds amount to the account associated with addr.
 func (s *StateDB) AddBalance(addr common.Address, amount *big.Int) {
+	fmt.Println("add——Balance",addr.String(),amount)
 	stateObject := s.GetOrNewStateObject(addr)
 	if stateObject != nil {
 		stateObject.AddBalance(amount)
@@ -441,6 +442,7 @@ func (s *StateDB) getStateObject(addr common.Address) (stateObject *stateObject)
 		log.Error("Failed to decode state object", "addr", addr, "err", err)
 		return nil
 	}
+	fmt.Println("data",addr.String(),data.FullShardKey,data.Balance.String())
 	// Insert into the live set.
 	obj := newObject(s, addr, data)
 	s.setStateObject(obj)
