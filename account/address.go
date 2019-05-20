@@ -68,13 +68,6 @@ func (Self *Address) AddressInBranch(branch Branch) Address {
 	return NewAddress(Self.Recipient, newFullShardKey)
 }
 
-func (Self Address) UnprefixedAddress() UnprefixedAddress {
-	return UnprefixedAddress{
-		Recipient:    Self.Recipient,
-		FullShardKey: Self.FullShardKey,
-	}
-}
-
 // CreatAddressFromIdentity creat address from identity
 func CreatAddressFromIdentity(identity Identity, fullShardKey uint32) Address {
 	return NewAddress(identity.recipient, fullShardKey)
@@ -178,8 +171,7 @@ func (Self UnprefixedAddress) Address() Address {
 
 // MarshalJSON Address serialisation
 func (Self UnprefixedAddress) MarshalText() (out []byte, err error) {
-	address := Self.Address()
-	return []byte(address.ToHex()), nil
+	return []byte(Self.Address().ToHex()), nil
 }
 
 func (Self *UnprefixedAddress) UnmarshalText(dataWithout0x []byte) error {

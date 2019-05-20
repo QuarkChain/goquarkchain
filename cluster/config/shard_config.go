@@ -77,7 +77,7 @@ func (s *ShardGenesis) MarshalJSON() ([]byte, error) {
 	if s.Alloc != nil {
 		enc.Alloc = make(map[string]*big.Int, len(s.Alloc))
 		for k, v := range s.Alloc {
-			enc.Alloc[k.UnprefixedAddress().Address().ToHex()[2:]] = v
+			enc.Alloc[k.ToHex()[2:]] = v
 		}
 	}
 	return json.Marshal(&enc)
