@@ -116,6 +116,7 @@ func (s *QKCMasterBackend) GetMinorBlockByHeight(height *uint64, branch account.
 	}
 	return slaveConn.GetMinorBlockByHeight(*height, branch)
 }
+
 func (s *QKCMasterBackend) GetTransactionByHash(txHash common.Hash, branch account.Branch) (*types.MinorBlock, uint32, error) {
 	slaveConn := s.getOneSlaveConnection(branch)
 	if slaveConn == nil {
@@ -123,6 +124,7 @@ func (s *QKCMasterBackend) GetTransactionByHash(txHash common.Hash, branch accou
 	}
 	return slaveConn.GetTransactionByHash(txHash, branch)
 }
+
 func (s *QKCMasterBackend) GetTransactionReceipt(txHash common.Hash, branch account.Branch) (*types.MinorBlock, uint32, *types.Receipt, error) {
 	slaveConn := s.getOneSlaveConnection(branch)
 	if slaveConn == nil {
@@ -139,6 +141,7 @@ func (s *QKCMasterBackend) GetTransactionsByAddress(address *account.Address, st
 	}
 	return slaveConn.GetTransactionsByAddress(address, start, limit)
 }
+
 func (s *QKCMasterBackend) GetLogs(branch account.Branch, address []*account.Address, topics []*rpc.Topic, startBlockNumber, endBlockNumber ethRpc.BlockNumber) ([]*types.Log, error) {
 	// not support earlist and pending
 	slaveConn := s.getOneSlaveConnection(branch)
@@ -192,13 +195,21 @@ func (s *QKCMasterBackend) GasPrice(branch account.Branch) (uint64, error) {
 	}
 	return slaveConn.GasPrice(branch)
 }
-func (s *QKCMasterBackend) GetWork(branch *account.Branch) consensus.MiningWork {
-	// TODO @liuhuan
-	panic("not ")
+
+func (s *QKCMasterBackend) GetWork(branch account.Branch) (*consensus.MiningWork, error) {
+	slaveConn := s.getOneSlaveConnection(branch)
+	if slaveConn == nil {
+		return nil, ErrNoBranchConn
+	}
+	return slaveConn.GetWork(branch)
 }
-func (s *QKCMasterBackend) SubmitWork(branch *account.Branch, headerHash common.Hash, nonce uint64, mixHash common.Hash) bool {
-	// TODO @liuhuan
-	return false
+
+func (s *QKCMasterBackend) SubmitWork(branch account.Branch, headerHash common.Hash, nonce uint64, mixHash common.Hash) (bool, error) {
+	slaveConn := s.getOneSlaveConnection(branch)
+	if slaveConn == nil {
+		return false, ErrNoBranchConn
+	}
+	return slaveConn.SubmitWork(&rpc.SubmitWorkRequest{Branch: branch.Value, HeaderHash: headerHash, Nonce: nonce, MixHash: mixHash})
 }
 
 func (s *QKCMasterBackend) GetRootBlockByNumber(blockNumber *uint64) (*types.RootBlock, error) {
@@ -220,6 +231,7 @@ func (s *QKCMasterBackend) GetRootBlockByHash(hash common.Hash) (*types.RootBloc
 	}
 	return block, nil
 }
+
 func (s *QKCMasterBackend) NetWorkInfo() map[string]interface{} {
 	shardSizeList := make([]hexutil.Uint, 0)
 	for _, v := range s.clusterConfig.Quarkchain.Chains {

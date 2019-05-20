@@ -232,6 +232,20 @@ func (c *fakeRpcClient) Call(hostport string, req *rpc.Request) (*rpc.Response, 
 			return nil, err
 		}
 		return &rpc.Response{Data: data}, nil
+	case rpc.OpGetWork:
+		rsp := new(rpc.GetWorkRequest)
+		data, err := serialize.SerializeToBytes(rsp)
+		if err != nil {
+			return nil, err
+		}
+		return &rpc.Response{Data: data}, nil
+	case rpc.OpSubmitWork:
+		rsp := new(rpc.SubmitWorkRequest)
+		data, err := serialize.SerializeToBytes(rsp)
+		if err != nil {
+			return nil, err
+		}
+		return &rpc.Response{Data: data}, nil
 	default:
 		fmt.Println("codeM", req.Op)
 		return nil, errors.New("unkown code")
@@ -537,4 +551,18 @@ func TestGasPrice(t *testing.T) {
 	data, err := master.GasPrice(account.Branch{Value: 2})
 	assert.NoError(t, err)
 	assert.Equal(t, data, uint64(123))
+}
+
+func TestGetWork(t *testing.T) {
+	master := initEnv(t, nil)
+	data, err := master.GetWork(account.NewBranch(2))
+	assert.NoError(t, err)
+	assert.Equal(t, data.Number, uint64(0))
+}
+
+func TestSubmitWork(t *testing.T) {
+	master := initEnv(t, nil)
+	data, err := master.SubmitWork(account.NewBranch(2), common.Hash{}, 0, common.Hash{})
+	assert.NoError(t, err)
+	assert.Equal(t, data, true)
 }

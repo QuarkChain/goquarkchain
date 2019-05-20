@@ -6,6 +6,7 @@ package mock_master
 import (
 	account "github.com/QuarkChain/goquarkchain/account"
 	rpc "github.com/QuarkChain/goquarkchain/cluster/rpc"
+	consensus "github.com/QuarkChain/goquarkchain/consensus"
 	types "github.com/QuarkChain/goquarkchain/core/types"
 	p2p "github.com/QuarkChain/goquarkchain/p2p"
 	common "github.com/ethereum/go-ethereum/common"
@@ -240,15 +241,15 @@ func (_mr *MockISlaveConnMockRecorder) GetShardMaskList() *gomock.Call {
 }
 
 // MasterInfo mocks base method
-func (_m *MockISlaveConn) MasterInfo(ip string, port uint16) error {
-	ret := _m.ctrl.Call(_m, "MasterInfo", ip, port)
+func (_m *MockISlaveConn) MasterInfo(ip string, port uint16, rootTip *types.RootBlock) error {
+	ret := _m.ctrl.Call(_m, "MasterInfo", ip, port, rootTip)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // MasterInfo indicates an expected call of MasterInfo
-func (_mr *MockISlaveConnMockRecorder) MasterInfo(arg0, arg1 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCallWithMethodType(_mr.mock, "MasterInfo", reflect.TypeOf((*MockISlaveConn)(nil).MasterInfo), arg0, arg1)
+func (_mr *MockISlaveConnMockRecorder) MasterInfo(arg0, arg1, arg2 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCallWithMethodType(_mr.mock, "MasterInfo", reflect.TypeOf((*MockISlaveConn)(nil).MasterInfo), arg0, arg1, arg2)
 }
 
 // HasShard mocks base method
@@ -264,8 +265,8 @@ func (_mr *MockISlaveConnMockRecorder) HasShard(arg0 interface{}) *gomock.Call {
 }
 
 // SendPing mocks base method
-func (_m *MockISlaveConn) SendPing(rootBlock *types.RootBlock, initializeShardSize bool) ([]byte, []*types.ChainMask, error) {
-	ret := _m.ctrl.Call(_m, "SendPing", rootBlock, initializeShardSize)
+func (_m *MockISlaveConn) SendPing() ([]byte, []*types.ChainMask, error) {
+	ret := _m.ctrl.Call(_m, "SendPing")
 	ret0, _ := ret[0].([]byte)
 	ret1, _ := ret[1].([]*types.ChainMask)
 	ret2, _ := ret[2].(error)
@@ -273,8 +274,8 @@ func (_m *MockISlaveConn) SendPing(rootBlock *types.RootBlock, initializeShardSi
 }
 
 // SendPing indicates an expected call of SendPing
-func (_mr *MockISlaveConnMockRecorder) SendPing(arg0, arg1 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCallWithMethodType(_mr.mock, "SendPing", reflect.TypeOf((*MockISlaveConn)(nil).SendPing), arg0, arg1)
+func (_mr *MockISlaveConnMockRecorder) SendPing() *gomock.Call {
+	return _mr.mock.ctrl.RecordCallWithMethodType(_mr.mock, "SendPing", reflect.TypeOf((*MockISlaveConn)(nil).SendPing))
 }
 
 // HeartBeat mocks base method
@@ -508,4 +509,30 @@ func (_m *MockISlaveConn) GasPrice(branch account.Branch) (uint64, error) {
 // GasPrice indicates an expected call of GasPrice
 func (_mr *MockISlaveConnMockRecorder) GasPrice(arg0 interface{}) *gomock.Call {
 	return _mr.mock.ctrl.RecordCallWithMethodType(_mr.mock, "GasPrice", reflect.TypeOf((*MockISlaveConn)(nil).GasPrice), arg0)
+}
+
+// GetWork mocks base method
+func (_m *MockISlaveConn) GetWork(branch account.Branch) (*consensus.MiningWork, error) {
+	ret := _m.ctrl.Call(_m, "GetWork", branch)
+	ret0, _ := ret[0].(*consensus.MiningWork)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetWork indicates an expected call of GetWork
+func (_mr *MockISlaveConnMockRecorder) GetWork(arg0 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCallWithMethodType(_mr.mock, "GetWork", reflect.TypeOf((*MockISlaveConn)(nil).GetWork), arg0)
+}
+
+// SubmitWork mocks base method
+func (_m *MockISlaveConn) SubmitWork(work *rpc.SubmitWorkRequest) (bool, error) {
+	ret := _m.ctrl.Call(_m, "SubmitWork", work)
+	ret0, _ := ret[0].(bool)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// SubmitWork indicates an expected call of SubmitWork
+func (_mr *MockISlaveConnMockRecorder) SubmitWork(arg0 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCallWithMethodType(_mr.mock, "SubmitWork", reflect.TypeOf((*MockISlaveConn)(nil).SubmitWork), arg0)
 }
