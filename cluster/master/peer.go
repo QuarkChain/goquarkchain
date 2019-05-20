@@ -96,7 +96,7 @@ func newPeer(version int, p *p2p.Peer, rw p2p.MsgReadWriter) *peer {
 		rw:               rw,
 		version:          version,
 		id:               fmt.Sprintf("%x", p.ID().Bytes()[:8]),
-		head:             new(peerHead),
+		head:             &peerHead{nil, make(map[uint32]*p2p.Tip)},
 		queuedTxs:        make(chan newTxs, maxQueuedTxs),
 		queuedMinorBlock: make(chan newMinorBlock, maxQueuedMinorBlocks),
 		queuedTip:        make(chan newTip, maxQueuedTips),

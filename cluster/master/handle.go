@@ -240,6 +240,7 @@ func (pm *ProtocolManager) handleMsg(peer *peer) error {
 		tip := peer.MinorHead(branch)
 		if tip == nil {
 			tip = new(p2p.Tip)
+			tip.MinorBlockHeaderList = make([]*types.MinorBlockHeader, 1, 1)
 		}
 		tip.MinorBlockHeaderList[0] = newBlockMinor.Block.Header()
 		peer.SetMinorHead(branch, tip)
