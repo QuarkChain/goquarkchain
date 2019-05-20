@@ -400,7 +400,7 @@ func (s *SlaveConnection) GetWork(branch account.Branch) (*consensus.MiningWork,
 		req = rpc.GetWorkRequest{
 			Branch: branch.Value,
 		}
-		rsp rpc.GetWorkResponse
+		rsp consensus.MiningWork
 	)
 	bytes, err := serialize.SerializeToBytes(&req)
 	if err != nil {
@@ -413,7 +413,7 @@ func (s *SlaveConnection) GetWork(branch account.Branch) (*consensus.MiningWork,
 	if err = serialize.DeserializeFromBytes(res.Data, &rsp); err != nil {
 		return nil, err
 	}
-	return &consensus.MiningWork{HeaderHash: rsp.HeaderHash, Number: rsp.Height, Difficulty: rsp.Difficulty}, nil
+	return &rsp, nil
 }
 
 func (s *SlaveConnection) SubmitWork(work *rpc.SubmitWorkRequest) (success bool, err error) {

@@ -8,6 +8,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
 	"github.com/QuarkChain/goquarkchain/cluster/service"
+	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/core/rawdb"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/serialize"
@@ -233,14 +234,16 @@ func (c *fakeRpcClient) Call(hostport string, req *rpc.Request) (*rpc.Response, 
 		}
 		return &rpc.Response{Data: data}, nil
 	case rpc.OpGetWork:
-		rsp := new(rpc.GetWorkRequest)
+		rsp := new(consensus.MiningWork)
+		rsp.Number = 1
 		data, err := serialize.SerializeToBytes(rsp)
 		if err != nil {
 			return nil, err
 		}
 		return &rpc.Response{Data: data}, nil
 	case rpc.OpSubmitWork:
-		rsp := new(rpc.SubmitWorkRequest)
+		rsp := new(rpc.SubmitWorkResponse)
+		rsp.Success = true
 		data, err := serialize.SerializeToBytes(rsp)
 		if err != nil {
 			return nil, err
@@ -557,7 +560,7 @@ func TestGetWork(t *testing.T) {
 	master := initEnv(t, nil)
 	data, err := master.GetWork(account.NewBranch(2))
 	assert.NoError(t, err)
-	assert.Equal(t, data.Number, uint64(0))
+	assert.Equal(t, data.Number, uint64(1))
 }
 
 func TestSubmitWork(t *testing.T) {
