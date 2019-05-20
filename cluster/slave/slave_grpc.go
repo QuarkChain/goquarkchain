@@ -145,7 +145,7 @@ func (s *SlaveServerSideOp) GetAccountData(ctx context.Context, req *rpc.Request
 		return nil, err
 	}
 
-	if gRes.AccountBranchDataList, err = s.slave.GetAccountData(gReq.Address, *gReq.BlockHeight); err != nil {
+	if gRes.AccountBranchDataList, err = s.slave.GetAccountData(gReq.Address, gReq.BlockHeight); err != nil {
 		return nil, err
 	}
 
