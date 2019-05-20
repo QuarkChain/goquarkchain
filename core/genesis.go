@@ -80,7 +80,7 @@ func (g *Genesis) CreateMinorBlock(rootBlock *types.RootBlock, fullShardId uint3
 
 	meta := types.MinorBlockMeta{
 		Root:              statedb.IntermediateRoot(true),
-		TxHash:            genesis.HashMerkleRoot,
+		TxHash:            common.HexToHash(genesis.HashMerkleRoot),
 		ReceiptHash:       common.Hash{},
 		GasUsed:           &serialize.Uint256{Value: new(big.Int)},
 		CrossShardGasUsed: &serialize.Uint256{Value: new(big.Int)},
@@ -100,7 +100,7 @@ func (g *Genesis) CreateMinorBlock(rootBlock *types.RootBlock, fullShardId uint3
 		Version:           genesis.Version,
 		Number:            uint64(genesis.Height),
 		Branch:            branch,
-		ParentHash:        genesis.HashPrevMinorBlock,
+		ParentHash:        common.HexToHash(genesis.HashPrevMinorBlock),
 		PrevRootBlockHash: rootBlock.Hash(),
 		GasLimit:          gasLimit,
 		MetaHash:          meta.Hash(),
