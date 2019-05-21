@@ -317,13 +317,13 @@ func (s *QKCMasterBackend) broadcastRpcLoop() {
 				s.broadcastRootBlockToSlaves(event.Block)
 				// Err() channel will be closed when unsubscribing.
 			case err := <-s.rootChainEventSub.Err():
-				log.Error("rootChainEventSub error in broadcastRpcLoop ", "error", err.Error())
+				log.Error("rootChainEventSub error in broadcastRpcLoop ", "error", err)
 				return
 			case event := <-s.rootChainSideChan:
 				s.broadcastRootBlockToSlaves(event.Block)
 				// Err() channel will be closed when unsubscribing.
 			case err := <-s.rootChainSideEventSub.Err():
-				log.Error("rootChainSideEventSub error in broadcastRpcLoop", "error", err.Error())
+				log.Error("rootChainSideEventSub error in broadcastRpcLoop", "error", err)
 				return
 			}
 		}
