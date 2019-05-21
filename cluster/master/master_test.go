@@ -92,7 +92,7 @@ func (c *fakeRpcClient) Call(hostport string, req *rpc.Request) (*rpc.Response, 
 				Branch:     v.Value,
 				HeaderList: make([]*types.MinorBlockHeader, 0),
 			})
-			//rsp.HeadersInfoList[0].HeaderList = append(rsp.HeadersInfoList[0].HeaderList, &types.MinorBlockHeader{})
+			//rsp.HeadersInfoList[0].HeaderList = append(rsp.HeadersInfoList[0].HeaderList, &types.MinorBlockHeaderList{})
 		}
 		data, err := serialize.SerializeToBytes(rsp)
 		if err != nil {
@@ -102,18 +102,6 @@ func (c *fakeRpcClient) Call(hostport string, req *rpc.Request) (*rpc.Response, 
 	case rpc.OpGetNextBlockToMine:
 		rsp := new(rpc.GetNextBlockToMineResponse)
 		rsp.Block = types.NewMinorBlock(&types.MinorBlockHeader{Version: 111}, &types.MinorBlockMeta{}, nil, nil, nil)
-		data, err := serialize.SerializeToBytes(rsp)
-		if err != nil {
-			return nil, err
-		}
-		return &rpc.Response{Data: data}, nil
-	case rpc.OpGetEcoInfoList:
-		rsp := new(rpc.GetEcoInfoListResponse)
-		for _, v := range c.branchs {
-			rsp.EcoInfoList = append(rsp.EcoInfoList, &rpc.EcoInfo{
-				Branch: account.Branch{Value: v.Value},
-			})
-		}
 		data, err := serialize.SerializeToBytes(rsp)
 		if err != nil {
 			return nil, err
@@ -139,8 +127,6 @@ func (c *fakeRpcClient) Call(hostport string, req *rpc.Request) (*rpc.Response, 
 			return nil, err
 		}
 		return &rpc.Response{Data: data}, nil
-	case rpc.OpAddMinorBlock:
-		return &rpc.Response{}, nil
 	case rpc.OpAddTransaction:
 		return &rpc.Response{}, nil
 	case rpc.OpExecuteTransaction:
@@ -239,6 +225,13 @@ func (c *fakeRpcClient) Call(hostport string, req *rpc.Request) (*rpc.Response, 
 			return nil, err
 		}
 		return &rpc.Response{Data: data}, nil
+	case rpc.OpMasterInfo:
+		rsp := new(rpc.MasterInfo)
+		data, err := serialize.SerializeToBytes(rsp)
+		if err != nil {
+			return nil, err
+		}
+		return &rpc.Response{Data: data}, nil
 	default:
 		fmt.Println("codeM", req.Op)
 		return nil, errors.New("unkown code")
@@ -255,13 +248,13 @@ func initEnv(t *testing.T, chanOp chan uint32) *QKCMasterBackend {
 			slaveID:       slaveID,
 		}
 	})
-	monkey.Patch(createDB, func(ctx *service.ServiceContext, name string) (ethdb.Database, error) {
+	monkey.Patch(createDB, func(ctx *service.ServiceContext, name string, clean bool) (ethdb.Database, error) {
 		return ethdb.NewMemDatabase(), nil
 	})
 
 	ctx := &service.ServiceContext{}
 	clusterConfig := config.NewClusterConfig()
-	clusterConfig.Quarkchain.Root.ConsensusType = config.PoWFake
+	clusterConfig.Quarkchain.Root.ConsensusType = config.PoWSimulate
 	master, err := New(ctx, clusterConfig)
 	if err != nil {
 		panic(err)
@@ -360,6 +353,7 @@ func TestAddRootBlock(t *testing.T) {
 	assert.NoError(t, err)
 	add1 := account.NewAddress(id1.GetRecipient(), 3)
 	rootBlock, err := master.rootBlockChain.CreateBlockToMine(nil, &add1, nil)
+	assert.NoError(t, err)
 	err = master.AddRootBlock(rootBlock)
 	assert.NoError(t, err)
 }

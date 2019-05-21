@@ -2,14 +2,16 @@ package master
 
 import (
 	"errors"
+	"fmt"
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
+	qcom "github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/p2p"
 	"github.com/QuarkChain/goquarkchain/serialize"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/log"
+	"strings"
 	"time"
 )
 
@@ -18,6 +20,7 @@ type SlaveConnection struct {
 	shardMaskList []*types.ChainMask
 	client        rpc.Client
 	slaveID       string
+	logInfo       string
 }
 
 // create slave connection manager
@@ -28,6 +31,7 @@ func NewSlaveConn(target string, shardMaskList []*types.ChainMask, slaveID strin
 		client:        client,
 		shardMaskList: shardMaskList,
 		slaveID:       slaveID,
+		logInfo:       fmt.Sprintf("%v", slaveID),
 	}
 }
 
@@ -53,7 +57,6 @@ func (s *SlaveConnection) HeartBeat() bool {
 		req := rpc.Request{Op: rpc.OpHeartBeat, Data: nil}
 		_, err := s.client.Call(s.target, &req)
 		if err != nil {
-			log.Error(s.slaveID, "heart beat err", err)
 			time.Sleep(time.Duration(1) * time.Second)
 			tryTimes -= 1
 			continue
@@ -63,9 +66,27 @@ func (s *SlaveConnection) HeartBeat() bool {
 	return false
 }
 
-func (s *SlaveConnection) SendPing(rootBlock *types.RootBlock, initializeShardSize bool) ([]byte, []*types.ChainMask, error) {
+func (s *SlaveConnection) MasterInfo(ip string, port uint16, rootTip *types.RootBlock) error {
+	if rootTip == nil {
+		return errors.New("send MasterInfo failed :rootTip is nil")
+	}
+	var (
+		gReq = rpc.MasterInfo{Ip: ip, Port: port, RootTip: rootTip}
+	)
+	endpoint := strings.Split(s.target, ":")
+	if qcom.IsLocalIP(endpoint[0]) {
+		gReq.Ip = endpoint[0]
+	}
+	bytes, err := serialize.SerializeToBytes(gReq)
+	if err != nil {
+		return err
+	}
+	_, err = s.client.Call(s.target, &rpc.Request{Op: rpc.OpMasterInfo, Data: bytes})
+	return err
+}
+
+func (s *SlaveConnection) SendPing() ([]byte, []*types.ChainMask, error) {
 	req := new(rpc.Ping)
-	req.RootTip = rootBlock
 
 	bytes, err := serialize.SerializeToBytes(req)
 	if err != nil {
@@ -408,20 +429,6 @@ func (s *SlaveConnection) GetUnconfirmedHeaders() (*rpc.GetUnconfirmedHeadersRes
 	return rsp, nil
 }
 
-func (s *SlaveConnection) GetEcoInfoListRequest() (*rpc.GetEcoInfoListResponse, error) {
-	var (
-		rsp = new(rpc.GetEcoInfoListResponse)
-	)
-	res, err := s.client.Call(s.target, &rpc.Request{Op: rpc.OpGetEcoInfoList})
-	if err != nil {
-		return nil, err
-	}
-	if err = serialize.Deserialize(serialize.NewByteBuffer(res.Data), rsp); err != nil {
-		return nil, err
-	}
-	return rsp, nil
-}
-
 func (s *SlaveConnection) GetAccountData(address *account.Address, height *uint64) (*rpc.GetAccountDataResponse, error) {
 	var (
 		req = rpc.GetAccountDataRequest{
@@ -555,28 +562,19 @@ func (s *SlaveConnection) HandleNewTip(request *p2p.Tip) (bool, error) {
 	return true, nil
 }
 
-func (s *SlaveConnection) AddMinorBlock(request *p2p.NewBlockMinor) (bool, error) {
+func (s *SlaveConnection) HandleNewMinorBlock(request *p2p.NewBlockMinor) (bool, error) {
 	blockData, err := serialize.SerializeToBytes(request.Block)
 	if err != nil {
 		return false, err
 	}
-	var (
-		req = rpc.AddMinorBlockRequest{
-			MinorBlockData: blockData,
-		}
-	)
-	bytes, err := serialize.SerializeToBytes(req)
-	if err != nil {
-		return false, err
-	}
-	_, err = s.client.Call(s.target, &rpc.Request{Op: rpc.OpAddMinorBlock, Data: bytes})
+	_, err = s.client.Call(s.target, &rpc.Request{Op: rpc.OpHandleNewMinorBlock, Data: blockData})
 	if err != nil {
 		return false, err
 	}
 	return true, nil
 }
 
-func (s *SlaveConnection) AddBlockListForSync(request *rpc.HashList) (*rpc.ShardStatus, error) {
+func (s *SlaveConnection) AddBlockListForSync(request *rpc.AddBlockListForSyncRequest) (*rpc.ShardStatus, error) {
 	var (
 		shardStatus = new(rpc.ShardStatus)
 		res         = new(rpc.Response)

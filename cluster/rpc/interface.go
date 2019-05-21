@@ -27,17 +27,18 @@ type ShardConnForP2P interface {
 
 	HandleNewTip(request *p2p.Tip) (bool, error)
 
-	AddMinorBlock(request *p2p.NewBlockMinor) (bool, error)
+	HandleNewMinorBlock(request *p2p.NewBlockMinor) (bool, error)
 
-	AddBlockListForSync(request *HashList) (*ShardStatus, error)
+	AddBlockListForSync(request *AddBlockListForSyncRequest) (*ShardStatus, error)
 }
 
 type ISlaveConn interface {
 	ShardConnForP2P
 	GetSlaveID() string
 	GetShardMaskList() []*types.ChainMask
+	MasterInfo(ip string, port uint16, rootTip *types.RootBlock) error
 	HasShard(fullShardID uint32) bool
-	SendPing(rootBlock *types.RootBlock, initializeShardSize bool) ([]byte, []*types.ChainMask, error)
+	SendPing() ([]byte, []*types.ChainMask, error)
 	HeartBeat() bool
 	GetUnconfirmedHeaders() (*GetUnconfirmedHeadersResponse, error)
 	GetAccountData(address *account.Address, height *uint64) (*GetAccountDataResponse, error)

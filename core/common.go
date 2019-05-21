@@ -12,7 +12,7 @@ import (
 
 func isSameRootChain(db rawdb.DatabaseReader, longerChainHeader, shorterChainHeader types.IHeader) bool {
 	if longerChainHeader.NumberU64() < shorterChainHeader.NumberU64() {
-		log.Crit("wrong parameter order")
+		log.Crit("wrong parameter order", "long.Number", longerChainHeader.NumberU64(), "long.Hash", longerChainHeader.Hash().String(), "short.Number", shorterChainHeader.NumberU64(), "short.hash", shorterChainHeader.Hash().String())
 	}
 
 	header := longerChainHeader
@@ -20,7 +20,7 @@ func isSameRootChain(db rawdb.DatabaseReader, longerChainHeader, shorterChainHea
 	for i := uint64(0); i < longerChainHeader.NumberU64()-shorterChainHeader.NumberU64(); i++ {
 		header = rawdb.ReadRootBlockHeader(db, header.GetParentHash())
 		if common.IsNil(header) {
-			log.Crit("mysteriously missing blocks")
+			log.Crit("mysteriously missing blocks", "long.Number", longerChainHeader.NumberU64(), "long.Hash", longerChainHeader.Hash().String(), "short.Number", shorterChainHeader.NumberU64(), "short.hash", shorterChainHeader.Hash().String())
 		}
 	}
 

@@ -13,8 +13,6 @@ import (
 type Ping struct {
 	Id            []byte             `json:"id" bytesizeofslicelen:"4"`
 	ChainMaskList []*types.ChainMask `json:"chain_mask_list" bytesizeofslicelen:"4"`
-	// Initialize ShardState if not None
-	RootTip *types.RootBlock `json:"root_tip" ser:"nil"`
 }
 
 type Pong struct {
@@ -23,8 +21,8 @@ type Pong struct {
 }
 
 type SlaveInfo struct {
-	Id            []byte             `json:"id" gencodec:"required" bytesizeofslicelen:"4"`
-	Host          []byte             `json:"host" gencodec:"required" bytesizeofslicelen:"4"`
+	Id            string             `json:"id" gencodec:"required"`
+	Host          string             `json:"host" gencodec:"required"`
 	Port          uint16             `json:"port" gencodec:"required"`
 	ChainMaskList []*types.ChainMask `json:"chain_mask_list" gencodec:"required" bytesizeofslicelen:"4"`
 }
@@ -60,8 +58,10 @@ type ConnectToSlavesResponse struct {
 }
 
 type MasterInfo struct {
-	Ip   string `json:"ip" gencodec:"required"`
-	Port uint16 `json:"port" gencodec:"required"`
+	// Initialize ShardState if not None
+	RootTip *types.RootBlock `json:"root_tip" ser:"nil"`
+	Ip      string           `json:"ip" gencodec:"required"`
+	Port    uint16           `json:"port" gencodec:"required"`
 }
 
 type ArtificialTxConfig struct {
@@ -95,7 +95,7 @@ type GetMinorBlockResponse struct {
 
 type GetMinorBlockListRequest struct {
 	Branch             uint32        `json:"branch" gencodec:"required"`
-	PeerId             common.Hash   `json:"peer_id" gencodec:"required"`
+	PeerId             string        `json:"peer_id" gencodec:"required"`
 	MinorBlockHashList []common.Hash `json:"minor_block_list" gencodec:"required" bytesizeofslicelen:"4"`
 }
 
@@ -118,11 +118,12 @@ type GetMinorBlockHeaderListRequest struct {
 	BlockHash common.Hash `json:"block_hash" gencodec:"required"`
 	Limit     uint32      `json:"limit" gencodec:"required"`
 	// value 0: heighter, 1 lower
-	Direction uint8 `json:"direction" gencodec:"required"`
+	Direction uint8  `json:"direction" gencodec:"required"`
+	PeerId    string `json:"peerid" gencodec:"required"`
 }
 
 type GetMinorBlockHeaderListResponse struct {
-	MinorBlockHeader []*types.MinorBlockHeader `json:"minor_block_header" gencodec:"required" bytesizeofslicelen:"4"`
+	MinorBlockHeaderList []*types.MinorBlockHeader `json:"minor_block_header" gencodec:"required" bytesizeofslicelen:"4"`
 }
 
 type BroadcastNewTip struct {
@@ -255,16 +256,6 @@ type AddTransactionRequest struct {
 	Tx *types.Transaction `json:"tx" gencodec:"required"`
 }
 
-type SyncMinorBlockListRequest struct {
-	MinorBlockHashList []common.Hash  `json:"minor_block_hash_list" gencodec:"required" bytesizeofslicelen:"4"`
-	Branch             account.Branch `json:"branch" gencodec:"required"`
-	ClusterPeerId      uint64         `json:"cluster_peer_id" gencodec:"required"`
-}
-
-type SyncMinorBlockListResponse struct {
-	ShardStats ShardStatus `json:"shard_stats" ser:"nil"`
-}
-
 type HashList struct {
 	Hashes []common.Hash `json:"hash_list" gencodec:"required" bytesizeofslicelen:"4"`
 }
@@ -301,7 +292,7 @@ type BatchAddXshardTxListRequest struct {
 
 type AddBlockListForSyncRequest struct {
 	Branch             uint32        `json:"branch" gencodec:"required"`
-	PeerId             common.Hash   `json:"peer_id" gencodec:"required"`
+	PeerId             string        `json:"peer_id" gencodec:"required"`
 	MinorBlockHashList []common.Hash `json:"minor_block_list" gencodec:"required" bytesizeofslicelen:"4"`
 }
 

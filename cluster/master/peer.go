@@ -203,7 +203,7 @@ func (p *peer) AsyncSendTransactions(branch uint32, txs []*types.Transaction) {
 
 // SendNewTip announces the head of each shard or root.
 func (p *peer) SendNewTip(branch uint32, tip *p2p.Tip) error {
-	msg, err := p2p.MakeMsg(p2p.NewTipMsg, 0, p2p.Metadata{Branch: branch}, tip)//NewTipMsg should rpc=0
+	msg, err := p2p.MakeMsg(p2p.NewTipMsg, 0, p2p.Metadata{Branch: branch}, tip) //NewTipMsg should rpc=0
 	if err != nil {
 		return err
 	}
@@ -225,7 +225,7 @@ func (p *peer) AsyncSendNewTip(branch uint32, tip *p2p.Tip) {
 func (p *peer) SendNewMinorBlock(branch uint32, block *types.MinorBlock) error {
 	data := p2p.NewBlockMinor{Block: block}
 
-	msg, err := p2p.MakeMsg(p2p.NewBlockMinorMsg, p.getRpcId(), p2p.Metadata{Branch: branch}, data)
+	msg, err := p2p.MakeMsg(p2p.NewBlockMinorMsg, 0, p2p.Metadata{Branch: branch}, data)
 	if err != nil {
 		return err
 	}
