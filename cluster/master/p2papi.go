@@ -24,7 +24,7 @@ func (api *PrivateP2PAPI) BroadcastMinorBlock(branch uint32, block *types.MinorB
 	if block.Branch().Value != branch {
 		return errors.New("branch mismatch")
 	}
-	for _, peer := range api.peers.peers {
+	for _, peer := range api.peers.Peers() {
 		peer.AsyncSendNewMinorBlock(branch, block)
 	}
 	return nil
@@ -33,7 +33,7 @@ func (api *PrivateP2PAPI) BroadcastMinorBlock(branch uint32, block *types.MinorB
 // BroadcastTransactions only be called when run performance test which the txs
 // are created by shard itself, so broadcast to all the peer
 func (api *PrivateP2PAPI) BroadcastTransactions(branch uint32, txs []*types.Transaction) {
-	for _, peer := range api.peers.peers {
+	for _, peer := range api.peers.Peers() {
 		peer.AsyncSendTransactions(branch, txs)
 	}
 }
@@ -48,7 +48,7 @@ func (api *PrivateP2PAPI) BroadcastNewTip(branch uint32, rootBlockHeader *types.
 	if minorBlockHeaderList[0].Branch.Value != branch {
 		return errors.New("branch mismatch")
 	}
-	for _, peer := range api.peers.peers {
+	for _, peer := range api.peers.Peers() {
 		if minorTip := peer.MinorHead(branch); minorTip != nil && minorTip.RootBlockHeader != nil {
 			if minorTip.RootBlockHeader.Number > rootBlockHeader.Number {
 				continue

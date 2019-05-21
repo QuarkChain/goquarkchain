@@ -576,6 +576,18 @@ func (ps *peerSet) Peer(id string) *peer {
 	return ps.peers[id]
 }
 
+// Peers retrieves all registered peers as a slice
+func (ps *peerSet) Peers() []*peer {
+	ps.lock.RLock()
+	defer ps.lock.RUnlock()
+
+	peers := make([]*peer, 0, len(ps.peers))
+	for _, peer := range ps.peers {
+		peers = append(peers, peer)
+	}
+	return peers
+}
+
 // Len returns if the current number of peers in the set.
 func (ps *peerSet) Len() int {
 	ps.lock.RLock()
