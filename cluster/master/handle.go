@@ -523,10 +523,10 @@ func (pm *ProtocolManager) HandleGetMinorBlockListRequest(rpcId uint64, branch u
 }
 
 func (pm *ProtocolManager) BroadcastTip(header *types.RootBlockHeader) {
-	for _, peer := range pm.peers.peers {
+	for _, peer := range pm.peers.Peers() {
 		peer.AsyncSendNewTip(0, &p2p.Tip{RootBlockHeader: header, MinorBlockHeaderList: nil})
 	}
-	log.Trace("Announced block", "hash", header.Hash(), "recipients", len(pm.peers.peers))
+	log.Trace("Announced block", "hash", header.Hash(), "recipients", pm.peers.Len())
 }
 
 func (pm *ProtocolManager) tipBroadcastLoop() {
@@ -544,12 +544,12 @@ func (pm *ProtocolManager) tipBroadcastLoop() {
 }
 
 func (pm *ProtocolManager) BroadcastTransactions(branch uint32, txs []*types.Transaction, sourcePeerId string) {
-	for _, peer := range pm.peers.peers {
+	for _, peer := range pm.peers.Peers() {
 		if peer.id != sourcePeerId {
 			peer.AsyncSendTransactions(branch, txs)
 		}
 	}
-	log.Trace("Announced transaction", "count", len(txs), "recipients", len(pm.peers.peers)-1)
+	log.Trace("Announced transaction", "count", len(txs), "recipients", pm.peers.Len()-1)
 }
 
 // syncer is responsible for periodically synchronising with the network, both
