@@ -707,7 +707,7 @@ func (c *slaveServerSideOpClient) GetMinorBlockHeaderList(ctx context.Context, i
 
 func (c *slaveServerSideOpClient) HandleNewTip(ctx context.Context, in *Request, opts ...grpc.CallOption) (*Response, error) {
 	out := new(Response)
-	err := c.cc.Invoke(ctx, "/rpc.SlaveServerSideOp/HandleNewTip", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/rpc.SlaveServerSideOp/HandleNewRootTip", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -847,7 +847,7 @@ func (*UnimplementedSlaveServerSideOpServer) GetMinorBlockHeaderList(ctx context
 	return nil, status.Errorf(codes.Unimplemented, "method GetMinorBlockHeaderList not implemented")
 }
 func (*UnimplementedSlaveServerSideOpServer) HandleNewTip(ctx context.Context, req *Request) (*Response, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method HandleNewTip not implemented")
+	return nil, status.Errorf(codes.Unimplemented, "method HandleNewRootTip not implemented")
 }
 func (*UnimplementedSlaveServerSideOpServer) AddTransactions(ctx context.Context, req *Request) (*Response, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method AddTransactions not implemented")
@@ -1320,7 +1320,7 @@ func _SlaveServerSideOp_HandleNewTip_Handler(srv interface{}, ctx context.Contex
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/rpc.SlaveServerSideOp/HandleNewTip",
+		FullMethod: "/rpc.SlaveServerSideOp/HandleNewRootTip",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(SlaveServerSideOpServer).HandleNewTip(ctx, req.(*Request))
@@ -1469,7 +1469,7 @@ var _SlaveServerSideOp_serviceDesc = grpc.ServiceDesc{
 			Handler:    _SlaveServerSideOp_GetMinorBlockHeaderList_Handler,
 		},
 		{
-			MethodName: "HandleNewTip",
+			MethodName: "HandleNewRootTip",
 			Handler:    _SlaveServerSideOp_HandleNewTip_Handler,
 		},
 		{
