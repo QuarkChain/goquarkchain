@@ -84,6 +84,7 @@ func deserializeUint(bb *ByteBuffer, val reflect.Value, ts Tags) error {
 	var err error
 	switch {
 	case kind > reflect.Uint && kind <= reflect.Uintptr:
+		fmt.Println("))))))")
 		bytes, err = bb.GetBytes(val.Type().Bits() / 8)
 		break
 	case kind == reflect.Uint:
@@ -106,6 +107,7 @@ func deserializeUint(bb *ByteBuffer, val reflect.Value, ts Tags) error {
 }
 
 func deserializeFixSizeBigUint(bb *ByteBuffer, val *big.Int, size int) error {
+	fmt.Println("2222")
 	bytes, err := bb.GetBytes(size)
 	if err == nil {
 		val.SetBytes(bytes)
@@ -135,6 +137,7 @@ func deserializeBigInt(bb *ByteBuffer, val reflect.Value) error {
 }
 
 func deserializeBool(bb *ByteBuffer, val reflect.Value, ts Tags) error {
+	fmt.Println("bllo")
 	b, err := bb.GetBytes(1)
 	if err == nil {
 		switch b[0] {
@@ -159,6 +162,7 @@ func deserializeByteArray(bb *ByteBuffer, val reflect.Value, ts Tags) error {
 		return fmt.Errorf("deser: invalid byte array type: [%d]%s", val.Len(), val.Kind())
 	}
 
+	fmt.Println("111111",val.Type())
 	bytes, err := bb.GetBytes(val.Len())
 	if err == nil {
 		reflect.Copy(val, reflect.ValueOf(bytes))

@@ -181,7 +181,7 @@ func (p *peer) PeerId() string {
 // in its transaction hash set for future reference.
 func (p *peer) SendTransactions(branch uint32, txs []*types.Transaction) error {
 	data := p2p.NewTransactionList{}
-	data.TransactionList = txs
+	//data.TransactionList = txs
 
 	msg, err := p2p.MakeMsg(p2p.NewTransactionListMsg, 0, p2p.Metadata{Branch: branch}, data)
 	if err != nil {

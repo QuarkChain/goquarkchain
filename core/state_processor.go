@@ -18,6 +18,7 @@ package core
 
 import (
 	"errors"
+	"fmt"
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/core/state"
@@ -146,6 +147,7 @@ func ValidateTransaction(state vm.StateDB, tx *types.Transaction, fromAddress *a
 
 // ApplyTransaction apply tx
 func ApplyTransaction(config *params.ChainConfig, bc ChainContext, gp *GasPool, statedb *state.StateDB, header types.IHeader, tx *types.Transaction, usedGas *uint64, cfg vm.Config) ([]byte, *types.Receipt, uint64, error) {
+	fmt.Println("HHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHH",tx.EvmTx.To(),tx.EvmTx.Value().String())
 	statedb.SetFullShardKey(tx.EvmTx.ToFullShardKey())
 	localFeeRate := big.NewRat(1, 1)
 	if qkcConfig := statedb.GetQuarkChainConfig(); qkcConfig != nil {

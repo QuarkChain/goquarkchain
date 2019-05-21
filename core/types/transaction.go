@@ -4,6 +4,7 @@ package types
 
 import (
 	"container/heap"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"github.com/QuarkChain/goquarkchain/account"
@@ -19,8 +20,7 @@ import (
 )
 
 const (
-	InvalidTxType = iota
-	EvmTx
+	EvmTx = iota
 )
 
 //go:generate gencodec -type txdata -field-override txdataMarshaling -out gen_tx_json.go
@@ -46,9 +46,9 @@ type txdata struct {
 	Recipient        *account.Recipient `json:"to"                 rlp:"nil"` // nil means contract creation
 	Amount           *big.Int           `json:"value"              gencodec:"required"`
 	Payload          []byte             `json:"input"              gencodec:"required"`
+	NetworkId        uint32             `json:"networkId"          gencodec:"required"`
 	FromFullShardKey uint32             `json:"fromfullshardkey"    gencodec:"required"`
 	ToFullShardKey   uint32             `json:"tofullshardkey"      gencodec:"required"`
-	NetworkId        uint32             `json:"networkId"          gencodec:"required"`
 	Version          uint32             `json:"version"            gencodec:"required"`
 	// Signature values
 	V *big.Int `json:"v"             gencodec:"required"`
@@ -101,11 +101,13 @@ func newEvmTransaction(nonce uint64, to *account.Recipient, amount *big.Int, gas
 
 // EncodeRLP implements rlp.Encoder
 func (tx *EvmTransaction) EncodeRLP(w io.Writer) error {
+	fmt.Println("--------------EvmTransaction","EncodeRLP")
 	return rlp.Encode(w, &tx.data)
 }
 
 // DecodeRLP implements rlp.Decoder
 func (tx *EvmTransaction) DecodeRLP(s *rlp.Stream) error {
+	fmt.Println("-------------------EvmTransaction","DecodeRLP")
 	_, size, _ := s.Kind()
 	err := s.Decode(&tx.data)
 	if err == nil {
@@ -122,9 +124,9 @@ type txdataUnsigned struct {
 	Recipient        *account.Recipient `json:"to"                 rlp:"nil"` // nil means contract creation
 	Amount           *big.Int           `json:"value"              gencodec:"required"`
 	Payload          []byte             `json:"input"              gencodec:"required"`
+	NetworkId        uint32             `json:"networkid"          gencodec:"required"`
 	FromFullShardKey uint32             `json:"fromfullshardid"    gencodec:"required"`
 	ToFullShardKey   uint32             `json:"tofullshardid"      gencodec:"required"`
-	NetworkId        uint32             `json:"networkid"          gencodec:"required"`
 }
 
 func (tx *EvmTransaction) getUnsignedHash() common.Hash {
@@ -313,19 +315,26 @@ func (tx *Transaction) Serialize(w *[]byte) error {
 }
 
 func (tx *Transaction) Deserialize(bb *serialize.ByteBuffer) error {
+	//data,err:=bb.GetBytes(120)
+	//fmt.Println("data",len(data),hex.EncodeToString(data),err)
+	//fmt.Println("tx.Deserialie")
 	txType, err := bb.GetUInt8()
 	if err != nil {
+		fmt.Println(">>>",err)
 		return err
 	}
 
+	fmt.Println("txType",tx.TxType,err)
+	fmt.Println("offSet",bb.GetOffset())
 	switch txType {
 	case EvmTx:
 		tx.TxType = txType
 		bytes, err := bb.GetVarBytes(4)
 		if err != nil {
+			fmt.Println("339-err",err,len(bytes))
 			return err
 		}
-
+		fmt.Println("332",len(bytes),hex.EncodeToString(bytes))
 		if tx.EvmTx == nil {
 			tx.EvmTx = new(EvmTransaction)
 		}

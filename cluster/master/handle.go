@@ -1,6 +1,7 @@
 package master
 
 import (
+	"encoding/hex"
 	"fmt"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
@@ -170,7 +171,7 @@ func (pm *ProtocolManager) handle(peer *peer) error {
 
 	for {
 		if err := pm.handleMsg(peer); err != nil {
-			peer.Log().Debug("message handling failed", "err", err)
+			peer.Log().Error("message handling failed", "err", err)
 			_ = pm.peers.Unregister(peer.id)
 			return err
 		}
@@ -229,6 +230,7 @@ func (pm *ProtocolManager) handleMsg(peer *peer) error {
 
 	case qkcMsg.Op == p2p.NewTransactionListMsg:
 		var trans p2p.NewTransactionList
+		fmt.Println("LLLLLLLLLLLLL",len(qkcMsg.Data),hex.EncodeToString(qkcMsg.Data))
 		if err := serialize.DeserializeFromBytes(qkcMsg.Data, &trans); err != nil {
 			return err
 		}
@@ -236,15 +238,16 @@ func (pm *ProtocolManager) handleMsg(peer *peer) error {
 			return pm.HandleNewTransactionListRequest(peer.id, qkcMsg.RpcID, qkcMsg.MetaData.Branch, &trans)
 		}
 		branchTxMap := make(map[uint32][]*types.Transaction)
-		for _, tx := range trans.TransactionList {
+		for _, tx_ := range trans.TransactionList {
+			tx,_:=tx_.ToTransaction()
 			branchTxMap[tx.EvmTx.FromFullShardId()] = append(branchTxMap[tx.EvmTx.FromFullShardId()], tx)
 		}
 		// todo make them run in Parallelized
-		for branch, list := range branchTxMap {
-			if err := pm.HandleNewTransactionListRequest(peer.id, qkcMsg.RpcID, branch, &p2p.NewTransactionList{TransactionList: list}); err != nil {
-				return err
-			}
-		}
+		//for branch, list := range branchTxMap {
+		//	if err := pm.HandleNewTransactionListRequest(peer.id, qkcMsg.RpcID, branch, &p2p.NewTransactionList{TransactionList: list}); err != nil {
+		//		return err
+		//	}
+		//}
 
 	case qkcMsg.Op == p2p.NewBlockMinorMsg:
 		var newBlockMinor p2p.NewBlockMinor
@@ -472,7 +475,8 @@ func (pm *ProtocolManager) HandleNewTransactionListRequest(peerId string, rpcId 
 	}
 	if len(hashList) > 0 {
 		tx2broadcast := make([]*types.Transaction, 0, len(request.TransactionList))
-		for _, tx := range request.TransactionList {
+		for _, tx_ := range request.TransactionList {
+			tx,_:=tx_.ToTransaction()
 			for _, hash := range hashList {
 				if tx.Hash() == hash {
 					tx2broadcast = append(tx2broadcast, tx)

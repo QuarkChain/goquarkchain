@@ -44,7 +44,6 @@ func (bb *ByteBuffer) GetUInt8() (uint8, error) {
 	if err != nil {
 		return 0, err
 	}
-
 	return uint8(bytes[0]), nil
 }
 
@@ -79,7 +78,6 @@ func (bb *ByteBuffer) getLen(byteSize int) (int, error) {
 	if byteSize < 1 {
 		return 0, fmt.Errorf("deser: bytesize in GetVarBytes should larger than 0")
 	}
-
 	b, err := bb.GetBytes(byteSize)
 	if err != nil {
 		return 0, err
@@ -98,8 +96,8 @@ func (bb *ByteBuffer) GetVarBytes(byteSizeOfSliceLen int) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	return bb.GetBytes(size)
+	sb,err:=bb.GetBytes(size)
+	return sb,err
 }
 
 func (bb *ByteBuffer) Remaining() int {

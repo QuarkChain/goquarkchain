@@ -3,7 +3,10 @@ package types
 import (
 	"bytes"
 	"crypto/ecdsa"
+	"encoding/hex"
+	"fmt"
 	"github.com/QuarkChain/goquarkchain/account"
+	"github.com/QuarkChain/goquarkchain/serialize"
 	"math/big"
 	"testing"
 
@@ -73,10 +76,10 @@ func TestTransactionEncode(t *testing.T) {
 }
 
 func decodeTx(data []byte) (*EvmTransaction, error) {
-	var tx EvmTransaction
+	var tx Transaction
 	t, err := &tx, rlp.Decode(bytes.NewReader(data), &tx)
 
-	return t, err
+	return t.EvmTx, err
 }
 
 func publicKey2Recipient(pk *ecdsa.PublicKey) account.Recipient {
@@ -184,4 +187,14 @@ func TestTransactionPriceNonceSort(t *testing.T) {
 			}
 		}
 	}
+}
+
+func TestEvmTransaction_NetworkId(t *testing.T) {
+	ans:="00000001000000006d03f86a8082520882753094a690cc5e5debcd4e6a6f79710fc1b588a669b07585174876e80080038080801ca057e9c698ed8e9eaf918aba31f36e5d42479c680490e34d5a42564ba2aabaffe2a075d68ef5b61f2f679c78d693b5d60c9409aa26c6c9761437a5d363b36a5581a70000"
+	data:=common.FromHex(ans)
+	s:=new(TestTx)
+	err:=serialize.DeserializeFromBytes(data,s)
+	fmt.Println(err)
+	tx:=s.TxList[0].ToTransaction()
+	fmt.Println("tx",tx)
 }
