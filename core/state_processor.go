@@ -127,6 +127,7 @@ func ValidateTransaction(state vm.StateDB, tx *types.Transaction, fromAddress *a
 	}
 
 	if state.GetBalance(*from).Cmp(tx.EvmTx.Cost()) < 0 {
+		fmt.Println("state.GetBalance(*from)", state.GetBalance(*from), tx.EvmTx.Cost())
 		return ErrInsufficientFunds
 	}
 
@@ -135,11 +136,13 @@ func ValidateTransaction(state vm.StateDB, tx *types.Transaction, fromAddress *a
 		return err
 	}
 	if tx.EvmTx.Gas() < totalGas {
+		fmt.Println("????", tx.EvmTx.Gas(), totalGas)
 		return ErrIntrinsicGas
 	}
 
 	blockLimit := new(big.Int).Add(state.GetGasUsed(), new(big.Int).SetUint64(tx.EvmTx.Gas()))
 	if blockLimit.Cmp(state.GetGasLimit()) > 0 {
+		fmt.Println("blockLimit", blockLimit, state.GetGasLimit())
 		return errors.New("gasLimit is too low")
 	}
 	return nil
@@ -147,7 +150,6 @@ func ValidateTransaction(state vm.StateDB, tx *types.Transaction, fromAddress *a
 
 // ApplyTransaction apply tx
 func ApplyTransaction(config *params.ChainConfig, bc ChainContext, gp *GasPool, statedb *state.StateDB, header types.IHeader, tx *types.Transaction, usedGas *uint64, cfg vm.Config) ([]byte, *types.Receipt, uint64, error) {
-	fmt.Println("HHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHH",tx.EvmTx.To(),tx.EvmTx.Value().String())
 	statedb.SetFullShardKey(tx.EvmTx.ToFullShardKey())
 	localFeeRate := big.NewRat(1, 1)
 	if qkcConfig := statedb.GetQuarkChainConfig(); qkcConfig != nil {
@@ -180,8 +182,9 @@ func ApplyTransaction(config *params.ChainConfig, bc ChainContext, gp *GasPool, 
 	// if the transaction created a contract, store the creation address in the receipt.
 	if msg.To() == nil {
 		receipt.ContractAddress = account.Recipient(vm.CreateAddress(vmenv.Context.Origin, msg.ToFullShardKey(), tx.EvmTx.Nonce()))
-		receipt.ContractFullShardId = tx.EvmTx.ToFullShardId()
+		receipt.ContractFullShardId = tx.EvmTx.ToFullShardKey()
 	}
+	receipt.ContractFullShardId = tx.EvmTx.ToFullShardKey()
 	// Set the receipt logs and create a bloom for filtering
 	receipt.Logs = statedb.GetLogs(tx.Hash())
 	receipt.Bloom = types.CreateBloom(types.Receipts{receipt})

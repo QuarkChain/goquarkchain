@@ -1,7 +1,6 @@
 package master
 
 import (
-	"encoding/hex"
 	"fmt"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
@@ -230,7 +229,6 @@ func (pm *ProtocolManager) handleMsg(peer *peer) error {
 
 	case qkcMsg.Op == p2p.NewTransactionListMsg:
 		var trans p2p.NewTransactionList
-		fmt.Println("LLLLLLLLLLLLL",len(qkcMsg.Data),hex.EncodeToString(qkcMsg.Data))
 		if err := serialize.DeserializeFromBytes(qkcMsg.Data, &trans); err != nil {
 			return err
 		}
@@ -238,16 +236,26 @@ func (pm *ProtocolManager) handleMsg(peer *peer) error {
 			return pm.HandleNewTransactionListRequest(peer.id, qkcMsg.RpcID, qkcMsg.MetaData.Branch, &trans)
 		}
 		branchTxMap := make(map[uint32][]*types.Transaction)
-		for _, tx_ := range trans.TransactionList {
-			tx,_:=tx_.ToTransaction()
+		for _, tx := range trans.TransactionList {
+			toShardSize := pm.clusterConfig.Quarkchain.GetShardSizeByChainId(tx.EvmTx.ToChainID())
+			if err := tx.EvmTx.SetToShardSize(toShardSize); err != nil {
+				return err
+			}
+			fromShardSize := pm.clusterConfig.Quarkchain.GetShardSizeByChainId(tx.EvmTx.FromChainID())
+			if err := tx.EvmTx.SetFromShardSize(fromShardSize); err != nil {
+				return  err
+			}
+			fmt.Println("---",tx.EvmTx.FromFullShardKey(),tx.EvmTx.ToFullShardKey())
+			fmt.Println("+++++++++++++++++ branch=0",tx.EvmTx.FromFullShardId())
 			branchTxMap[tx.EvmTx.FromFullShardId()] = append(branchTxMap[tx.EvmTx.FromFullShardId()], tx)
 		}
+		fmt.Println("len",len(branchTxMap))
 		// todo make them run in Parallelized
-		//for branch, list := range branchTxMap {
-		//	if err := pm.HandleNewTransactionListRequest(peer.id, qkcMsg.RpcID, branch, &p2p.NewTransactionList{TransactionList: list}); err != nil {
-		//		return err
-		//	}
-		//}
+		for branch, list := range branchTxMap {
+			if err := pm.HandleNewTransactionListRequest(peer.id, qkcMsg.RpcID, branch, &p2p.NewTransactionList{TransactionList: list}); err != nil {
+				return err
+			}
+		}
 
 	case qkcMsg.Op == p2p.NewBlockMinorMsg:
 		var newBlockMinor p2p.NewBlockMinor
@@ -475,8 +483,7 @@ func (pm *ProtocolManager) HandleNewTransactionListRequest(peerId string, rpcId 
 	}
 	if len(hashList) > 0 {
 		tx2broadcast := make([]*types.Transaction, 0, len(request.TransactionList))
-		for _, tx_ := range request.TransactionList {
-			tx,_:=tx_.ToTransaction()
+		for _, tx := range request.TransactionList {
 			for _, hash := range hashList {
 				if tx.Hash() == hash {
 					tx2broadcast = append(tx2broadcast, tx)

@@ -153,7 +153,7 @@ type Tip struct {
 
 //NewTransactionList new transaction list
 type NewTransactionList struct {
-	TransactionList []*types.TransactionNet `bytesizeofslicelen:"4"`
+	TransactionList []*types.Transaction `bytesizeofslicelen:"4"`
 }
 
 // GetPeerListRequest get peer list request

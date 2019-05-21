@@ -3,6 +3,7 @@
 package types
 
 import (
+	"fmt"
 	"github.com/QuarkChain/goquarkchain/account"
 	"io"
 
@@ -68,6 +69,7 @@ type rlpStorageLog struct {
 
 // EncodeRLP implements rlp.Encoder.
 func (l *Log) EncodeRLP(w io.Writer) error {
+	fmt.Println("log",l.Recipient.String(),l.Topics,l.Data)
 	return rlp.Encode(w, rlpLog{Recipient: l.Recipient, Topics: l.Topics, Data: l.Data})
 }
 

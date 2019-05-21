@@ -4,6 +4,8 @@ package types
 
 import (
 	"bytes"
+	"encoding/hex"
+	"fmt"
 	"github.com/QuarkChain/goquarkchain/serialize"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto/sha3"
@@ -24,6 +26,8 @@ func DeriveSha(list DerivableList) common.Hash {
 		keybuf.Reset()
 		rlp.Encode(keybuf, uint(i))
 		trie.Update(keybuf.Bytes(), list.Bytes(i))
+		fmt.Println("trie-----update",len(keybuf.Bytes()),hex.EncodeToString(keybuf.Bytes()),len(list.Bytes(i)),hex.EncodeToString(list.Bytes(i)))
+
 	}
 	return trie.Hash()
 }

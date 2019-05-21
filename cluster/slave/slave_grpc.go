@@ -571,8 +571,7 @@ func (s *SlaveServerSideOp) AddTransactions(ctx context.Context, req *rpc.Reques
 		return nil, err
 	}
 
-	for _, tx_ := range gReq.TransactionList {
-		tx,_:=tx_.ToTransaction()
+	for _, tx := range gReq.TransactionList {
 		if err = s.slave.AddTx(tx); err != nil {
 			log.Error("Add transaction failed", "tx", tx, "err", err)
 			continue

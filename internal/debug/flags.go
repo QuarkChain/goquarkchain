@@ -112,7 +112,7 @@ func Setup(ctx *cli.Context, logdir string) error {
 		}
 		glogger.SetHandler(log.MultiHandler(ostream, rfh))
 	}
-	glogger.Verbosity(log.Lvl(3))
+	glogger.Verbosity(log.Lvl(ctx.GlobalInt(verbosityFlag.Name)))
 	glogger.Vmodule(ctx.GlobalString(vmoduleFlag.Name))
 	glogger.BacktraceAt(ctx.GlobalString(backtraceAtFlag.Name))
 	log.Root().SetHandler(glogger)

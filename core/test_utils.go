@@ -3,6 +3,7 @@ package core
 import (
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"math/big"
 
 	"github.com/QuarkChain/goquarkchain/account"
@@ -133,6 +134,7 @@ func createTransferTransaction(
 	fromAddress account.Address, toAddress account.Address,
 	value *big.Int, gas *uint64, gasPrice *uint64, nonce *uint64, data []byte,
 ) *types.Transaction {
+	fmt.Println("init_create", gas)
 	fakeNetworkID := uint32(3) //default QuarkChain is nil
 	realNonce, err := shardState.GetTransactionCount(fromAddress.Recipient, nil)
 	if err != nil {
@@ -147,13 +149,16 @@ func createTransferTransaction(
 		realGasPrice = *gasPrice
 	}
 
-	realGas := uint64(21000)
+	realGas := uint64(2100000)
 	if gas != nil {
+		fmt.Println("????", *gas)
 		realGas = *gas
 	}
-	tempTx := types.NewEvmTransaction(realNonce, toAddress.Recipient, value, realGas,
+	fmt.Println("rrrrrrrrrr", realGas)
+	//tempTx := types.NewEvmTransaction(realNonce, toAddress.Recipient, value, realGas,
+	//	new(big.Int).SetUint64(realGasPrice), fromAddress.FullShardKey, toAddress.FullShardKey, fakeNetworkID, 0, data)
+	tempTx := types.NewEvmContractCreation(realNonce, value, realGas,
 		new(big.Int).SetUint64(realGasPrice), fromAddress.FullShardKey, toAddress.FullShardKey, fakeNetworkID, 0, data)
-
 	prvKey, err := crypto.HexToECDSA(hex.EncodeToString(key))
 	if err != nil {
 		panic(err)

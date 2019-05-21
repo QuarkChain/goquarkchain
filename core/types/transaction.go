@@ -4,7 +4,6 @@ package types
 
 import (
 	"container/heap"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"github.com/QuarkChain/goquarkchain/account"
@@ -20,7 +19,8 @@ import (
 )
 
 const (
-	EvmTx = iota
+	InvalidTxType = iota
+	EvmTx
 )
 
 //go:generate gencodec -type txdata -field-override txdataMarshaling -out gen_tx_json.go
@@ -101,13 +101,11 @@ func newEvmTransaction(nonce uint64, to *account.Recipient, amount *big.Int, gas
 
 // EncodeRLP implements rlp.Encoder
 func (tx *EvmTransaction) EncodeRLP(w io.Writer) error {
-	fmt.Println("--------------EvmTransaction","EncodeRLP")
 	return rlp.Encode(w, &tx.data)
 }
 
 // DecodeRLP implements rlp.Decoder
 func (tx *EvmTransaction) DecodeRLP(s *rlp.Stream) error {
-	fmt.Println("-------------------EvmTransaction","DecodeRLP")
 	_, size, _ := s.Kind()
 	err := s.Decode(&tx.data)
 	if err == nil {
@@ -315,26 +313,19 @@ func (tx *Transaction) Serialize(w *[]byte) error {
 }
 
 func (tx *Transaction) Deserialize(bb *serialize.ByteBuffer) error {
-	//data,err:=bb.GetBytes(120)
-	//fmt.Println("data",len(data),hex.EncodeToString(data),err)
-	//fmt.Println("tx.Deserialie")
 	txType, err := bb.GetUInt8()
 	if err != nil {
-		fmt.Println(">>>",err)
 		return err
 	}
 
-	fmt.Println("txType",tx.TxType,err)
-	fmt.Println("offSet",bb.GetOffset())
 	switch txType {
 	case EvmTx:
 		tx.TxType = txType
 		bytes, err := bb.GetVarBytes(4)
 		if err != nil {
-			fmt.Println("339-err",err,len(bytes))
 			return err
 		}
-		fmt.Println("332",len(bytes),hex.EncodeToString(bytes))
+
 		if tx.EvmTx == nil {
 			tx.EvmTx = new(EvmTransaction)
 		}
