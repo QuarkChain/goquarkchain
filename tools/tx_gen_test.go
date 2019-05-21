@@ -15,6 +15,8 @@ import (
 	"testing"
 )
 
+// To generate tx_data
+// And send json'rpc sendRawTransaction
 type JsonStruct struct {
 }
 
@@ -131,8 +133,6 @@ func TestReadTxFromFile(t *testing.T) {
 	}
 	fmt.Println("from", from.String())
 	data, err := rlp.EncodeToBytes(tx)
-	fmt.Println("data", hex.EncodeToString(data))
 	s := new(types.EvmTransaction)
 	err = rlp.DecodeBytes(data, s)
-	fmt.Println("err", err)
 }
