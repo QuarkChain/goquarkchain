@@ -107,16 +107,14 @@ func TestReadTxFromFile(t *testing.T) {
 	}
 	var evmTx *types.EvmTransaction
 	if txFromFile.To != nil {
+		fmt.Println("normal tx")
 		evmTx = types.NewEvmTransaction(txFromFile.Nonce, *txFromFile.To, txFromFile.Value, txFromFile.Gas, txFromFile.GasPrice, txFromFile.FromFullShardKey, txFromFile.ToFullShardKey, txFromFile.NetWorkID, 0, txFromFile.Data)
 	} else {
+		fmt.Println("contract")
 		evmTx = types.NewEvmContractCreation(txFromFile.Nonce, txFromFile.Value, txFromFile.Gas, txFromFile.GasPrice, txFromFile.FromFullShardKey, txFromFile.ToFullShardKey, txFromFile.NetWorkID, 0, txFromFile.Data)
 
 	}
 
-	fmt.Println("fromFullShardKey", evmTx.FromFullShardKey())
-	fmt.Println(evmTx.ToFullShardKey())
-	fmt.Println("nonce", evmTx.Nonce())
-	fmt.Println("data", hex.EncodeToString(evmTx.Data()))
 	prvKey, err := crypto.HexToECDSA(hex.EncodeToString(txFromFile.Key.Bytes()))
 	if err != nil {
 		panic(err)
