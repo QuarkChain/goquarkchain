@@ -71,7 +71,7 @@ func (s *SlaveBackend) CreateShards(rootBlock *types.RootBlock) (err error) {
 func (s *SlaveBackend) AddBlockListForSync(mHashList []common.Hash, peerId string, branch uint32) (*rpc.ShardStatus, error) {
 	shrd, ok := s.shards[branch]
 	if !ok {
-		return nil, ErrMsg("AddBlockListForSync",NoSuchBranch)
+		return nil, ErrMsg("AddBlockListForSync")
 	}
 
 	hashList := make([]common.Hash, 0)
@@ -114,25 +114,17 @@ func (s *SlaveBackend) AddBlockListForSync(mHashList []common.Hash, peerId strin
 }
 
 func (s *SlaveBackend) AddTx(tx *types.Transaction) (err error) {
-	toShardSize := s.clstrCfg.Quarkchain.GetShardSizeByChainId(tx.EvmTx.ToChainID())
-	if err := tx.EvmTx.SetToShardSize(toShardSize); err != nil {
-		return err
-	}
-	fromShardSize := s.clstrCfg.Quarkchain.GetShardSizeByChainId(tx.EvmTx.FromChainID())
-	if err := tx.EvmTx.SetFromShardSize(fromShardSize); err != nil {
-		return  err
-	}
 	if shrd, ok := s.shards[tx.EvmTx.FromFullShardId()]; ok {
 		return shrd.MinorBlockChain.AddTx(tx)
 	}
-	return ErrMsg("AddTx",err)
+	return ErrMsg("AddTx")
 }
 
 func (s *SlaveBackend) ExecuteTx(tx *types.Transaction, address *account.Address) ([]byte, error) {
 	if shrd, ok := s.shards[tx.EvmTx.FromFullShardId()]; ok {
 		return shrd.MinorBlockChain.ExecuteTx(tx, address, nil)
 	}
-	return nil, ErrMsg("ExecuteTx",NoSuchBranch)
+	return nil, ErrMsg("ExecuteTx")
 }
 
 func (s *SlaveBackend) GetTransactionCount(address *account.Address) (uint64, error) {
@@ -140,7 +132,7 @@ func (s *SlaveBackend) GetTransactionCount(address *account.Address) (uint64, er
 	if shrd, ok := s.shards[branch.Value]; ok {
 		return shrd.MinorBlockChain.GetTransactionCount(address.Recipient, nil)
 	}
-	return 0, ErrMsg("GetTransactionCount",NoSuchBranch)
+	return 0, ErrMsg("GetTransactionCount")
 }
 
 func (s *SlaveBackend) GetBalances(address *account.Address) (*big.Int, error) {
@@ -148,7 +140,7 @@ func (s *SlaveBackend) GetBalances(address *account.Address) (*big.Int, error) {
 	if shrd, ok := s.shards[branch.Value]; ok {
 		return shrd.MinorBlockChain.GetBalance(address.Recipient, nil)
 	}
-	return nil, ErrMsg("GetBalances",NoSuchBranch)
+	return nil, ErrMsg("GetBalances")
 }
 
 func (s *SlaveBackend) GetTokenBalance(address *account.Address) (*big.Int, error) {
@@ -156,7 +148,7 @@ func (s *SlaveBackend) GetTokenBalance(address *account.Address) (*big.Int, erro
 	if shrd, ok := s.shards[branch.Value]; ok {
 		return shrd.MinorBlockChain.GetBalance(address.Recipient, nil)
 	}
-	return nil, ErrMsg("GetTokenBalance",NoSuchBranch)
+	return nil, ErrMsg("GetTokenBalance")
 }
 
 func (s *SlaveBackend) GetAccountData(address *account.Address, height *uint64) ([]*rpc.AccountBranchData, error) {
@@ -192,7 +184,7 @@ func (s *SlaveBackend) GetMinorBlockByHash(hash common.Hash, branch uint32) (*ty
 		}
 		return mBlock, nil
 	}
-	return nil, ErrMsg("GetMinorBlockByHash",NoSuchBranch)
+	return nil, ErrMsg("GetMinorBlockByHash")
 }
 
 func (s *SlaveBackend) GetMinorBlockByHeight(height uint64, branch uint32) (*types.MinorBlock, error) {
@@ -203,7 +195,7 @@ func (s *SlaveBackend) GetMinorBlockByHeight(height uint64, branch uint32) (*typ
 		}
 		return mBlock.(*types.MinorBlock), nil
 	}
-	return nil, ErrMsg("GetMinorBlockByHeight",NoSuchBranch)
+	return nil, ErrMsg("GetMinorBlockByHeight")
 }
 
 func (s *SlaveBackend) GetTransactionByHash(txHash common.Hash, branch uint32) (*types.MinorBlock, uint32, error) {
@@ -211,7 +203,7 @@ func (s *SlaveBackend) GetTransactionByHash(txHash common.Hash, branch uint32) (
 		minorBlock, idx := shrd.MinorBlockChain.GetTransactionByHash(txHash)
 		return minorBlock, idx, nil
 	}
-	return nil, 0, ErrMsg("GetTransactionByHash",NoSuchBranch)
+	return nil, 0, ErrMsg("GetTransactionByHash")
 }
 
 func (s *SlaveBackend) GetTransactionReceipt(txHash common.Hash, branch uint32) (*types.MinorBlock, uint32, *types.Receipt, error) {
@@ -219,7 +211,7 @@ func (s *SlaveBackend) GetTransactionReceipt(txHash common.Hash, branch uint32) 
 		block, index, receipts := shrd.MinorBlockChain.GetTransactionReceipt(txHash)
 		return block, index, receipts, nil
 	}
-	return nil, 0, nil, ErrMsg("GetTransactionReceipt",NoSuchBranch)
+	return nil, 0, nil, ErrMsg("GetTransactionReceipt")
 }
 
 func (s *SlaveBackend) GetTransactionListByAddress(address *account.Address, start []byte, limit uint32) ([]*rpc.TransactionDetail, []byte, error) {
@@ -227,14 +219,14 @@ func (s *SlaveBackend) GetTransactionListByAddress(address *account.Address, sta
 	if shrd, ok := s.shards[branch.Value]; ok {
 		return shrd.GetTransactionListByAddress(address, start, limit)
 	}
-	return nil, nil, ErrMsg("GetTransactionListByAddress",NoSuchBranch)
+	return nil, nil, ErrMsg("GetTransactionListByAddress")
 }
 
 func (s *SlaveBackend) GetLogs(address []*account.Address, start uint64, end uint64, branch uint32) ([]*types.Log, error) {
 	if shrd, ok := s.shards[branch]; ok {
 		return shrd.GetLogs()
 	}
-	return nil, ErrMsg("GetLogs",NoSuchBranch)
+	return nil, ErrMsg("GetLogs")
 }
 
 func (s *SlaveBackend) EstimateGas(tx *types.Transaction, address *account.Address) (uint32, error) {
@@ -242,7 +234,7 @@ func (s *SlaveBackend) EstimateGas(tx *types.Transaction, address *account.Addre
 	if shrd, ok := s.shards[branch]; ok {
 		return shrd.MinorBlockChain.EstimateGas(tx, *address)
 	}
-	return 0, ErrMsg("EstimateGas",NoSuchBranch)
+	return 0, ErrMsg("EstimateGas")
 }
 
 func (s *SlaveBackend) GetStorageAt(address *account.Address, key common.Hash, height uint64) ([32]byte, error) {
@@ -250,7 +242,7 @@ func (s *SlaveBackend) GetStorageAt(address *account.Address, key common.Hash, h
 	if shrd, ok := s.shards[branch.Value]; ok {
 		return shrd.MinorBlockChain.GetStorageAt(address.Recipient, key, &height)
 	}
-	return common.Hash{}, ErrMsg("GetStorageAt",NoSuchBranch)
+	return common.Hash{}, ErrMsg("GetStorageAt")
 }
 
 func (s *SlaveBackend) GetCode(address *account.Address, height uint64) ([]byte, error) {
@@ -258,7 +250,7 @@ func (s *SlaveBackend) GetCode(address *account.Address, height uint64) ([]byte,
 	if shrd, ok := s.shards[branch.Value]; ok {
 		return shrd.MinorBlockChain.GetCode(address.Recipient, &height)
 	}
-	return nil, ErrMsg("GetCode",NoSuchBranch)
+	return nil, ErrMsg("GetCode")
 }
 
 func (s *SlaveBackend) GasPrice(branch uint32) (uint64, error) {
@@ -269,21 +261,21 @@ func (s *SlaveBackend) GasPrice(branch uint32) (uint64, error) {
 		}
 		return price, nil
 	}
-	return 0, ErrMsg("GasPrice",NoSuchBranch)
+	return 0, ErrMsg("GasPrice")
 }
 
 func (s *SlaveBackend) GetWork(branch uint32) (*consensus.MiningWork, error) {
 	if shrd, ok := s.shards[branch]; ok {
 		return shrd.GetWork()
 	}
-	return nil, ErrMsg("GetWork",NoSuchBranch)
+	return nil, ErrMsg("GetWork")
 }
 
 func (s *SlaveBackend) SubmitWork(headerHash common.Hash, nonce uint64, mixHash common.Hash, branch uint32) error {
 	if shrd, ok := s.shards[branch]; ok {
 		return shrd.SubmitWork(headerHash, nonce, mixHash)
 	}
-	return ErrMsg("SubmitWork",NoSuchBranch)
+	return ErrMsg("SubmitWork")
 }
 
 func (s *SlaveBackend) AddCrossShardTxListByMinorBlockHash(minorHash common.Hash,
@@ -292,7 +284,7 @@ func (s *SlaveBackend) AddCrossShardTxListByMinorBlockHash(minorHash common.Hash
 		shrd.MinorBlockChain.AddCrossShardTxListByMinorBlockHash(minorHash, types.CrossShardTransactionDepositList{TXList: txList})
 		return nil
 	}
-	return ErrMsg("AddCrossShardTxListByMinorBlockHash",NoSuchBranch)
+	return ErrMsg("AddCrossShardTxListByMinorBlockHash")
 }
 
 func (s *SlaveBackend) GetMinorBlockListByHashList(mHashList []common.Hash, branch uint32) ([]*types.MinorBlock, error) {
@@ -303,7 +295,7 @@ func (s *SlaveBackend) GetMinorBlockListByHashList(mHashList []common.Hash, bran
 
 	shad, ok := s.shards[branch]
 	if !ok {
-		return nil, ErrMsg("GetMinorBlockListByHashList",NoSuchBranch)
+		return nil, ErrMsg("GetMinorBlockListByHashList")
 	}
 	for _, hash := range mHashList {
 		if hash == (common.Hash{}) {
@@ -330,7 +322,7 @@ func (s *SlaveBackend) GetMinorBlockHeaderList(mHash common.Hash,
 
 	shad, ok := s.shards[branch]
 	if !ok {
-		return nil, ErrMsg("GetMinorBlockHeaderList",NoSuchBranch)
+		return nil, ErrMsg("GetMinorBlockHeaderList")
 	}
 	if !qcom.IsNil(shad.MinorBlockChain.GetHeader(mHash)) {
 		return nil, fmt.Errorf("Minor block hash is not exist, minorHash: %s, slave id: %s ", mHash.Hex(), s.config.ID)
@@ -356,12 +348,12 @@ func (s *SlaveBackend) HandleNewTip(tip *p2p.Tip) error {
 		return shad.HandleNewTip(tip.RootBlockHeader, mBHeader)
 	}
 
-	return ErrMsg("HandleNewTip",NoSuchBranch)
+	return ErrMsg("HandleNewRootTip")
 }
 
 func (s *SlaveBackend) NewMinorBlock(block *types.MinorBlock) error {
 	if shrd, ok := s.shards[block.Header().Branch.Value]; ok {
 		return shrd.NewMinorBlock(block)
 	}
-	return ErrMsg("MinorBlock",NoSuchBranch)
+	return ErrMsg("MinorBlock")
 }

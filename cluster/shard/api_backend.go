@@ -175,7 +175,7 @@ func (s *ShardBackend) GetMinorBlock(mHash common.Hash, height *uint64) *types.M
 }
 
 func (s *ShardBackend) NewMinorBlock(block *types.MinorBlock) (err error) {
-	log.Info(s.logInfo, "NewMinorBlock height", block.Header().Number, "hash", block.Header().Hash().String(),"len(tx)",len(block.Transactions()))
+	log.Info(s.logInfo, "NewMinorBlock height", block.Header().Number, "hash", block.Header().Hash().String())
 	defer log.Info(s.logInfo, "NewMinorBlock", "end")
 	// TODO
 	mHash := block.Header().Hash()

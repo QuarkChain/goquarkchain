@@ -17,7 +17,6 @@
 package vm
 
 import (
-	"encoding/hex"
 	"fmt"
 	"hash"
 	"sync/atomic"
@@ -185,7 +184,6 @@ func (in *EVMInterpreter) Run(contract *Contract, input []byte, readOnly bool) (
 		logged  bool   // deferred Tracer should ignore already logged steps
 	)
 	contract.Input = input
-	fmt.Println("heyue", len(contract.Input), hex.EncodeToString(contract.Input))
 
 	// Reclaim the stack as an int pool when the execution stops
 	defer func() { in.intPool.put(stack.data...) }()

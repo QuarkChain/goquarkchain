@@ -260,7 +260,6 @@ func (v *MinorBlockValidator) ValidateState(mBlock, parent types.IBlock, statedb
 
 	receiptSha := types.DeriveSha(receipts)
 	if receiptSha != block.GetMetaData().ReceiptHash {
-		fmt.Println("-----------------------", receipts[0].ContractAddress.String(), receipts[0].ContractFullShardId)
 		return fmt.Errorf("invalid receipt root hash (remote: %x local: %x)", block.GetMetaData().ReceiptHash, receiptSha)
 	}
 	if statedb.GetGasUsed().Cmp(block.GetMetaData().GasUsed.Value) != 0 {

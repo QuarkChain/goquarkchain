@@ -2,7 +2,6 @@ package core
 
 import (
 	"errors"
-	"fmt"
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/consensus"
@@ -482,7 +481,7 @@ func TestTwoTxInOneBlock(t *testing.T) {
 	acc2 := account.CreatAddressFromIdentity(id2, 2)
 	acc3, err := account.CreatRandomAccountWithFullShardKey(0)
 
-	fakeQuarkHash := uint64(200000000 + 21000)
+	fakeQuarkHash := uint64(2000000 + 21000)
 	env := setUp(&acc1, &fakeQuarkHash, nil)
 	shardState := createDefaultShardState(env, nil, nil, nil, nil)
 	defer shardState.Stop()
@@ -493,7 +492,6 @@ func TestTwoTxInOneBlock(t *testing.T) {
 	_, err = shardState.AddRootBlock(rootBlock)
 	checkErr(err)
 
-	fmt.Println("??????")
 	err = shardState.AddTx(createTransferTransaction(shardState, id1.GetKey().Bytes(), acc1, acc2, new(big.Int).SetUint64(1000000), nil, nil, nil, nil))
 	checkErr(err)
 	currState, err := shardState.State()
@@ -533,10 +531,10 @@ func TestTwoTxInOneBlock(t *testing.T) {
 	}
 	// set a different full shard id
 	toAddress := account.Address{Recipient: acc2.Recipient, FullShardKey: acc2.FullShardKey + 2}
-	fakeGas := uint64(3141591)
+	fakeGas := uint64(50000)
 	err = shardState.AddTx(createTransferTransaction(shardState, id1.GetKey().Bytes(), acc1, toAddress, new(big.Int).SetUint64(12345), &fakeGas, nil, nil, nil))
 	checkErr(err)
-	fakeGas = uint64(3141591)
+	fakeGas = uint64(40000)
 	err = shardState.AddTx(createTransferTransaction(shardState, id2.GetKey().Bytes(), acc2, acc1, new(big.Int).SetUint64(54321), &fakeGas, nil, nil, nil))
 	checkErr(err)
 
@@ -1662,4 +1660,5 @@ func TestAddRootBlockRevertHeaderTip(t *testing.T) {
 	assert.Equal(t, shardState.rootTip.Hash().String(), r3.Header().Hash().String())
 	assert.Equal(t, shardState.CurrentHeader().Hash().String(), m2.Header().Hash().String())
 	assert.Equal(t, shardState.CurrentBlock().Hash().String(), m2.Header().Hash().String())
+
 }
