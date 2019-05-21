@@ -135,4 +135,5 @@ func TestReadTxFromFile(t *testing.T) {
 	data, err := rlp.EncodeToBytes(tx)
 	s := new(types.EvmTransaction)
 	err = rlp.DecodeBytes(data, s)
+	fmt.Println("data_to_json_rpc", hex.EncodeToString(data))
 }
