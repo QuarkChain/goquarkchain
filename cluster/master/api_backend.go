@@ -197,23 +197,23 @@ func (s *QKCMasterBackend) GasPrice(branch account.Branch) (uint64, error) {
 }
 
 // return root chain work if branch is nil
-func (s *QKCMasterBackend) GetWork(branch *account.Branch) (*consensus.MiningWork, error) {
-	if branch == nil {
+func (s *QKCMasterBackend) GetWork(branch account.Branch) (*consensus.MiningWork, error) {
+	if branch.Value == 0 {
 		return s.engine.GetWork()
 	}
-	slaveConn := s.getOneSlaveConnection(*branch)
+	slaveConn := s.getOneSlaveConnection(branch)
 	if slaveConn == nil {
 		return nil, ErrNoBranchConn
 	}
-	return slaveConn.GetWork(*branch)
+	return slaveConn.GetWork(branch)
 }
 
 // submit root chain work if branch is nil
-func (s *QKCMasterBackend) SubmitWork(branch *account.Branch, headerHash common.Hash, nonce uint64, mixHash common.Hash) (bool, error) {
-	if branch == nil {
+func (s *QKCMasterBackend) SubmitWork(branch account.Branch, headerHash common.Hash, nonce uint64, mixHash common.Hash) (bool, error) {
+	if branch.Value == 0 {
 		return s.engine.SubmitWork(nonce, headerHash, mixHash), nil
 	}
-	slaveConn := s.getOneSlaveConnection(*branch)
+	slaveConn := s.getOneSlaveConnection(branch)
 	if slaveConn == nil {
 		return false, ErrNoBranchConn
 	}

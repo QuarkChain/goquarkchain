@@ -23,8 +23,8 @@ type Backend interface {
 	GetStorageAt(address *account.Address, key common.Hash, height *uint64) (common.Hash, error)
 	GetCode(address *account.Address, height *uint64) ([]byte, error)
 	GasPrice(branch account.Branch) (uint64, error)
-	GetWork(branch *account.Branch) (*consensus.MiningWork, error)
-	SubmitWork(branch *account.Branch, headerHash common.Hash, nonce uint64, mixHash common.Hash) (bool, error)
+	GetWork(branch account.Branch) (*consensus.MiningWork, error)
+	SubmitWork(branch account.Branch, headerHash common.Hash, nonce uint64, mixHash common.Hash) (bool, error)
 	GetRootBlockByNumber(blockNr *uint64) (*types.RootBlock, error)
 	GetRootBlockByHash(hash common.Hash) (*types.RootBlock, error)
 	NetWorkInfo() map[string]interface{}

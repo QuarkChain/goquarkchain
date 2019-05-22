@@ -559,7 +559,7 @@ func TestGasPrice(t *testing.T) {
 func TestGetWork(t *testing.T) {
 	master := initEnv(t, nil)
 	branch := account.NewBranch(2)
-	data, err := master.GetWork(&branch)
+	data, err := master.GetWork(branch)
 	assert.NoError(t, err)
 	assert.Equal(t, data.Number, uint64(1))
 }
@@ -567,7 +567,7 @@ func TestGetWork(t *testing.T) {
 func TestSubmitWork(t *testing.T) {
 	master := initEnv(t, nil)
 	branch := account.NewBranch(2)
-	data, err := master.SubmitWork(&branch, common.Hash{}, 0, common.Hash{})
+	data, err := master.SubmitWork(branch, common.Hash{}, 0, common.Hash{})
 	assert.NoError(t, err)
 	assert.Equal(t, data, true)
 }

@@ -629,7 +629,7 @@ func (s *QKCMasterBackend) disPlayPeers() {
 	go func() {
 		for true {
 			time.Sleep(disPlayPeerInfoInterval)
-			peers := s.protocolManager.peers.peers
+			peers := s.protocolManager.peers.Peers()
 			log.Info(s.logInfo, "len(peers)", len(peers))
 			for _, v := range peers {
 				log.Info(s.logInfo, "remote addr", v.RemoteAddr().String())

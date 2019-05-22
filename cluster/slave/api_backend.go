@@ -114,6 +114,14 @@ func (s *SlaveBackend) AddBlockListForSync(mHashList []common.Hash, peerId strin
 }
 
 func (s *SlaveBackend) AddTx(tx *types.Transaction) (err error) {
+	toShardSize := s.clstrCfg.Quarkchain.GetShardSizeByChainId(tx.EvmTx.ToChainID())
+	if err := tx.EvmTx.SetToShardSize(toShardSize); err != nil {
+		return err
+	}
+	fromShardSize := s.clstrCfg.Quarkchain.GetShardSizeByChainId(tx.EvmTx.FromChainID())
+	if err := tx.EvmTx.SetFromShardSize(fromShardSize); err != nil {
+		return err
+	}
 	if shrd, ok := s.shards[tx.EvmTx.FromFullShardId()]; ok {
 		return shrd.MinorBlockChain.AddTx(tx)
 	}
@@ -151,7 +159,7 @@ func (s *SlaveBackend) GetTokenBalance(address *account.Address) (*big.Int, erro
 	return nil, ErrMsg("GetTokenBalance")
 }
 
-func (s *SlaveBackend) GetAccountData(address *account.Address, height uint64) ([]*rpc.AccountBranchData, error) {
+func (s *SlaveBackend) GetAccountData(address *account.Address, height *uint64) ([]*rpc.AccountBranchData, error) {
 	var (
 		results = make([]*rpc.AccountBranchData, 0)
 		bt      []byte
@@ -161,13 +169,13 @@ func (s *SlaveBackend) GetAccountData(address *account.Address, height uint64) (
 		data := rpc.AccountBranchData{
 			Branch: branch,
 		}
-		if data.TransactionCount, err = shrd.MinorBlockChain.GetTransactionCount(address.Recipient, &height); err != nil {
+		if data.TransactionCount, err = shrd.MinorBlockChain.GetTransactionCount(address.Recipient, height); err != nil {
 			return nil, err
 		}
-		if data.Balance, err = shrd.MinorBlockChain.GetBalance(address.Recipient, &height); err != nil {
+		if data.Balance, err = shrd.MinorBlockChain.GetBalance(address.Recipient, height); err != nil {
 			return nil, err
 		}
-		if bt, err = shrd.MinorBlockChain.GetCode(address.Recipient, &height); err != nil {
+		if bt, err = shrd.MinorBlockChain.GetCode(address.Recipient, height); err != nil {
 			return nil, err
 		}
 		data.IsContract = len(bt) > 0
