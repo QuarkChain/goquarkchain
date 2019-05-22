@@ -44,18 +44,18 @@ var (
 func TestTransactionSigHash(t *testing.T) {
 	var signer = NewEIP155Signer(1)
 	//hash unsigned
-	if signer.Hash(emptyEvmTx) != common.HexToHash("297d6ae9803346cdb059a671dea7e37b684dcabfa767f2d872026ad0a3aba495") {
+	if signer.Hash(emptyEvmTx) != common.HexToHash("cb98da1db0ec788afcfd4f72772af83a4ac0b646c9cea1c60c990ba4e13b5fa2") {
 		t.Errorf("empty transaction unsigned hash mismatch, got %x, expect %x", signer.Hash(emptyEvmTx), common.HexToHash("297d6ae9803346cdb059a671dea7e37b684dcabfa767f2d872026ad0a3aba495"))
 	}
-	if emptyEvmTx.Hash() != common.HexToHash("a40920ae6f758f88c61b405f9fc39fdd6274666462b14e3887522166e6537a97") {
+	if emptyEvmTx.Hash() != common.HexToHash("2f58fa6e75fcaba333fa002429441fa34e4ae82169f0f15dfbff61a2c104f797") {
 		t.Errorf("empty transaction hash mismatch, got %x, expect %x", emptyTx.Hash(), common.HexToHash("a40920ae6f758f88c61b405f9fc39fdd6274666462b14e3887522166e6537a97"))
 	}
 
 	//hash unsigned
-	if signer.Hash(rightvrsTx) != common.HexToHash("e4f3c1dd000045bf26006df7eb7cb0a882f70a6ab81723d93638151f6418f78a") {
+	if signer.Hash(rightvrsTx) != common.HexToHash("b6a154dad08db55a52ae5aa135a35dc3c68597b8a10306b72ba143a78582c353") {
 		t.Errorf("RightVRS transaction unsigned hash mismatch, got %x, expect %x", signer.Hash(rightvrsTx), common.HexToHash("e4f3c1dd000045bf26006df7eb7cb0a882f70a6ab81723d93638151f6418f78a"))
 	}
-	if rightvrsTx.Hash() != common.HexToHash("df227f34313c2bc4a4a986817ea46437f049873f2fca8e2b89b1ecd0f9e67a28") {
+	if rightvrsTx.Hash() != common.HexToHash("75792618f65b677f0dcf7cf9def243a0f9d3274045db8c084a37123346106633") {
 		t.Errorf("RightVRS transaction hash mismatch, got %x, expect %x", rightvrsTx.Hash(), common.HexToHash("df227f34313c2bc4a4a986817ea46437f049873f2fca8e2b89b1ecd0f9e67a28"))
 	}
 }
@@ -66,7 +66,7 @@ func TestTransactionEncode(t *testing.T) {
 		t.Fatalf("encode error: %v", err)
 	}
 
-	should := common.FromHex("e703018207d094b94f5374fce5edbc8e2a8697c15331677e6ebf0b0a843535343480800180808080")
+	should := common.FromHex("e703018207d094b94f5374fce5edbc8e2a8697c15331677e6ebf0b0a843535343401808080808080")
 	if !bytes.Equal(txb, should) {
 		t.Errorf("encoded RLP mismatch, got %x", txb)
 	}
@@ -112,7 +112,7 @@ func TestRecipientEmpty(t *testing.T) {
 func TestRecipientNormal(t *testing.T) {
 	_, addr := defaultTestKey()
 
-	tx, err := decodeTx(common.Hex2Bytes("f86703018207d094b94f5374fce5edbc8e2a8697c15331677e6ebf0b0a8435353434808001801ca03ba243b74816362081890b8b680d303a5cce7803a12d8ce863723bcd1be94efba0399e91eb5b20c258a77f7045da3f2b84bc1c1f40e0c23bcc3df7bce05bea2ed8"))
+	tx, err := decodeTx(common.Hex2Bytes("f86703018207d094b94f5374fce5edbc8e2a8697c15331677e6ebf0b0a8435353434018080801ca03bffe222c359fcc09a9860e1e6c1f0652bb1bf65c78c05eaa5b895fd29c90698a01976cd9b54c1476388d9a7132da1fe31eeb28fdd840fc3bb349970774f8b0aa8"))
 	if err != nil {
 		t.Error(err)
 		t.FailNow()
