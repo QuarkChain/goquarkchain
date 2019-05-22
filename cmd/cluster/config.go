@@ -78,6 +78,9 @@ func makeConfigNode(ctx *cli.Context) (*service.Node, qkcConfig) {
 	} else {
 		utils.SetClusterConfig(ctx, &cfg.Cluster)
 	}
+	if err := config.UpdateGenesisAlloc(&cfg.Cluster); err != nil {
+		utils.Fatalf("Update genesis alloc err: %v", err)
+	}
 	// Load default cluster config.
 	utils.SetNodeConfig(ctx, &cfg.Service, &cfg.Cluster)
 
