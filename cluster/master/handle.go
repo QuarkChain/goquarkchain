@@ -170,7 +170,7 @@ func (pm *ProtocolManager) handle(peer *peer) error {
 
 	for {
 		if err := pm.handleMsg(peer); err != nil {
-			peer.Log().Debug("message handling failed", "err", err)
+			peer.Log().Error("message handling failed", "err", err)
 			_ = pm.peers.Unregister(peer.id)
 			return err
 		}
@@ -218,6 +218,14 @@ func (pm *ProtocolManager) handleMsg(peer *peer) error {
 		}
 		branchTxMap := make(map[uint32][]*types.Transaction)
 		for _, tx := range trans.TransactionList {
+			toShardSize := pm.clusterConfig.Quarkchain.GetShardSizeByChainId(tx.EvmTx.ToChainID())
+			if err := tx.EvmTx.SetToShardSize(toShardSize); err != nil {
+				return err
+			}
+			fromShardSize := pm.clusterConfig.Quarkchain.GetShardSizeByChainId(tx.EvmTx.FromChainID())
+			if err := tx.EvmTx.SetFromShardSize(fromShardSize); err != nil {
+				return  err
+			}
 			branchTxMap[tx.EvmTx.FromFullShardId()] = append(branchTxMap[tx.EvmTx.FromFullShardId()], tx)
 		}
 		// todo make them run in Parallelized

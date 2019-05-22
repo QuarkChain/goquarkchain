@@ -114,6 +114,14 @@ func (s *SlaveBackend) AddBlockListForSync(mHashList []common.Hash, peerId strin
 }
 
 func (s *SlaveBackend) AddTx(tx *types.Transaction) (err error) {
+	toShardSize := s.clstrCfg.Quarkchain.GetShardSizeByChainId(tx.EvmTx.ToChainID())
+	if err := tx.EvmTx.SetToShardSize(toShardSize); err != nil {
+		return err
+	}
+	fromShardSize := s.clstrCfg.Quarkchain.GetShardSizeByChainId(tx.EvmTx.FromChainID())
+	if err := tx.EvmTx.SetFromShardSize(fromShardSize); err != nil {
+		return err
+	}
 	if shrd, ok := s.shards[tx.EvmTx.FromFullShardId()]; ok {
 		return shrd.MinorBlockChain.AddTx(tx)
 	}
@@ -348,7 +356,7 @@ func (s *SlaveBackend) HandleNewTip(tip *p2p.Tip) error {
 		return shad.HandleNewTip(tip.RootBlockHeader, mBHeader)
 	}
 
-	return ErrMsg("HandleNewRootTip")
+	return ErrMsg("HandleNewTip")
 }
 
 func (s *SlaveBackend) NewMinorBlock(block *types.MinorBlock) error {

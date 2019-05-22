@@ -103,7 +103,7 @@ var (
 		// p2p api
 		OpGetMinorBlockList:       {name: "GetMinorBlockList"},
 		OpGetMinorBlockHeaderList: {name: "GetMinorBlockHeaderList"},
-		OpHandleNewTip:            {name: "HandleNewRootTip"},
+		OpHandleNewTip:            {name: "HandleNewTip"},
 		OpAddTransactions:         {name: "AddTransactions"},
 		OpHandleNewMinorBlock:     {name: "HandleNewMinorBlock"},
 	}

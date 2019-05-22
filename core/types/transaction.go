@@ -46,9 +46,9 @@ type txdata struct {
 	Recipient        *account.Recipient `json:"to"                 rlp:"nil"` // nil means contract creation
 	Amount           *big.Int           `json:"value"              gencodec:"required"`
 	Payload          []byte             `json:"input"              gencodec:"required"`
+	NetworkId        uint32             `json:"networkId"          gencodec:"required"`
 	FromFullShardKey uint32             `json:"fromfullshardkey"    gencodec:"required"`
 	ToFullShardKey   uint32             `json:"tofullshardkey"      gencodec:"required"`
-	NetworkId        uint32             `json:"networkId"          gencodec:"required"`
 	Version          uint32             `json:"version"            gencodec:"required"`
 	// Signature values
 	V *big.Int `json:"v"             gencodec:"required"`
@@ -122,9 +122,9 @@ type txdataUnsigned struct {
 	Recipient        *account.Recipient `json:"to"                 rlp:"nil"` // nil means contract creation
 	Amount           *big.Int           `json:"value"              gencodec:"required"`
 	Payload          []byte             `json:"input"              gencodec:"required"`
+	NetworkId        uint32             `json:"networkid"          gencodec:"required"`
 	FromFullShardKey uint32             `json:"fromfullshardid"    gencodec:"required"`
 	ToFullShardKey   uint32             `json:"tofullshardid"      gencodec:"required"`
-	NetworkId        uint32             `json:"networkid"          gencodec:"required"`
 }
 
 func (tx *EvmTransaction) getUnsignedHash() common.Hash {
