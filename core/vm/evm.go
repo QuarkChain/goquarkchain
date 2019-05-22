@@ -85,11 +85,12 @@ type Context struct {
 	GasPrice *big.Int       // Provides information for GASPRICE
 
 	// Block information
-	Coinbase    common.Address // Provides information for COINBASE
-	GasLimit    uint64         // Provides information for GASLIMIT
-	BlockNumber *big.Int       // Provides information for NUMBER
-	Time        *big.Int       // Provides information for TIME
-	Difficulty  *big.Int       // Provides information for DIFFICULTY
+	Coinbase       common.Address // Provides information for COINBASE
+	GasLimit       uint64         // Provides information for GASLIMIT
+	BlockNumber    *big.Int       // Provides information for NUMBER
+	Time           *big.Int       // Provides information for TIME
+	Difficulty     *big.Int       // Provides information for DIFFICULTY
+	ToFullShardKey uint32
 }
 
 // EVM is the Ethereum Virtual Machine base object and provides
@@ -466,7 +467,7 @@ func (evm *EVM) Create(caller ContractRef, code []byte, gas uint64, value *big.I
 	if isCrossShard {
 		return nil, contractAddr, gas, errors.New("is cross shard tx ,not support create evm")
 	}
-	contractAddr = CreateAddress(caller.Address(), evm.StateDB.GetFullShardKey(caller.Address()), evm.StateDB.GetNonce(caller.Address()))
+	contractAddr = CreateAddress(caller.Address(), evm.Context.ToFullShardKey, evm.StateDB.GetNonce(caller.Address()))
 	return evm.create(caller, &codeAndHash{code: code}, gas, value, contractAddr)
 }
 
