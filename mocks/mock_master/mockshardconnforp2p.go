@@ -7,6 +7,7 @@ package mock_master
 import (
 	account "github.com/QuarkChain/goquarkchain/account"
 	rpc "github.com/QuarkChain/goquarkchain/cluster/rpc"
+	consensus "github.com/QuarkChain/goquarkchain/consensus"
 	types "github.com/QuarkChain/goquarkchain/core/types"
 	p2p "github.com/QuarkChain/goquarkchain/p2p"
 	common "github.com/ethereum/go-ethereum/common"
@@ -579,4 +580,34 @@ func (m *MockISlaveConn) GasPrice(branch account.Branch) (uint64, error) {
 func (mr *MockISlaveConnMockRecorder) GasPrice(branch interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GasPrice", reflect.TypeOf((*MockISlaveConn)(nil).GasPrice), branch)
+}
+
+// GetWork mocks base method
+func (m *MockISlaveConn) GetWork(branch account.Branch) (*consensus.MiningWork, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetWork", branch)
+	ret0, _ := ret[0].(*consensus.MiningWork)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetWork indicates an expected call of GetWork
+func (mr *MockISlaveConnMockRecorder) GetWork(branch interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetWork", reflect.TypeOf((*MockISlaveConn)(nil).GetWork), branch)
+}
+
+// SubmitWork mocks base method
+func (m *MockISlaveConn) SubmitWork(work *rpc.SubmitWorkRequest) (bool, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SubmitWork", work)
+	ret0, _ := ret[0].(bool)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// SubmitWork indicates an expected call of SubmitWork
+func (mr *MockISlaveConnMockRecorder) SubmitWork(work interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SubmitWork", reflect.TypeOf((*MockISlaveConn)(nil).SubmitWork), work)
 }
