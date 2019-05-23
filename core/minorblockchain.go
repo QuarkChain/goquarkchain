@@ -148,7 +148,7 @@ func NewMinorBlockChain(
 	shouldPreserve func(block *types.MinorBlock) bool,
 	fullShardID uint32,
 ) (*MinorBlockChain, error) {
-	chainConfig = &qkcParams.DefaultByzantium
+	chainConfig = &qkcParams.DefaultByzantium //TODO default is byzantium
 	if clusterConfig == nil || chainConfig == nil {
 		return nil, errors.New("can not new minorBlock: config is nil")
 	}
