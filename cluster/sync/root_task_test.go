@@ -3,6 +3,10 @@ package sync
 import (
 	"errors"
 	"fmt"
+	"math/rand"
+	"reflect"
+	"testing"
+
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
@@ -15,9 +19,6 @@ import (
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
-	"math/rand"
-	"reflect"
-	"testing"
 )
 
 var (
@@ -129,7 +130,7 @@ func TestRootChainTaskRun(t *testing.T) {
 	p := &mockpeer{name: "chunfeng"}
 	bc := newBlockChain(5)
 	rbc := bc.(*mockblockchain).rbc
-	var rt Task = &rootChainTask{peer: p}
+	var rt Task = NewRootChainTask(p, nil, nil, nil)
 
 	// Prepare future blocks for downloading.
 	rbChain, rhChain := makeChains(rbc.CurrentBlock(), false)
