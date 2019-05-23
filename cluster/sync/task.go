@@ -27,9 +27,6 @@ type task struct {
 	syncBlock  func(types.IBlock, blockchain) error
 }
 
-type SyncConn interface {
-}
-
 // Run will execute the synchronization task.
 func (t *task) Run(bc blockchain) error {
 	if bc.HasBlock(t.header.Hash()) {
@@ -93,7 +90,6 @@ func (t *task) Run(bc blockchain) error {
 
 		// Again, `blocks` should also be descending.
 		// TODO: validate block order.
-		// rbc := bc.(rootblockchain)
 		for j := len(blocks) - 1; j >= 0; j-- {
 			b := blocks[j]
 			h := b.IHeader()
@@ -104,8 +100,6 @@ func (t *task) Run(bc blockchain) error {
 				if err := t.syncBlock(b, bc); err != nil {
 					return err
 				}
-				// if err := syncMinorBlocks(peer.PeerId(), rbc, b, r.statsChan, r.getShardConnFunc); err != nil {
-				// return err
 			}
 			// TODO: may optimize by batch and insert once?
 			if _, err := bc.InsertChain([]types.IBlock{b}); err != nil {
