@@ -244,28 +244,23 @@ func UpdateGenesisAlloc(cluserConfig *ClusterConfig) error {
 			if !ok {
 				continue
 			}
-			shrd.Genesis.Alloc[address] = new(big.Int).Mul(big.NewInt(1000000000), QuarkashToJiaozi)
+			shrd.Genesis.Alloc[address] = new(big.Int).Mul(big.NewInt(1000000), QuarkashToJiaozi)
 		}
 		log.Info("Load template genesis accounts", "chain id", chainId, "imported", len(addresses), "config file", allocFile)
 	}
 
-	addrs, err := loadGenesisAddrs(loadtestFile)
+	items, err := loadGenesisAddrs(loadtestFile)
 	if err != nil {
 		return fmt.Errorf(testErrMsg, loadtestFile, err)
 	}
-	for _, addr := range addrs {
-		address, err := account.CreatAddressFromBytes(common.FromHex(addr.Address))
-		if err != nil {
-			return fmt.Errorf(testErrMsg, loadtestFile, err)
+	for _, item := range items {
+		bytes := common.FromHex(item.Address)
+		for fullShardId, shardCfg := range qkcConfig.shards {
+			addr := account.NewAddress(common.BytesToAddress(bytes[:20]), fullShardId)
+			shardCfg.Genesis.Alloc[addr] = new(big.Int).Mul(big.NewInt(1000), QuarkashToJiaozi)
 		}
-		fullShardId := qkcConfig.GetFullShardIdByFullShardKey(address.FullShardKey)
-		shrd, ok := qkcConfig.shards[fullShardId]
-		if !ok {
-			continue
-		}
-		shrd.Genesis.Alloc[address] = new(big.Int).Mul(big.NewInt(1000000000), QuarkashToJiaozi)
 	}
-	log.Info("Loadtest accounts", "loadtest file", loadtestFile, "imported", len(addrs))
+	log.Info("Loadtest accounts", "loadtest file", loadtestFile, "imported", len(items))
 
 	return nil
 }
