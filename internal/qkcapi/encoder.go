@@ -1,9 +1,7 @@
 package qkcapi
 
 import (
-	"encoding/hex"
 	"errors"
-	"fmt"
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/core/types"
@@ -164,16 +162,12 @@ func txEncoder(block *types.MinorBlock, i int) (map[string]interface{}, error) {
 	v, r, s := evmtx.RawSignatureValues()
 	sender, err := types.Sender(types.MakeSigner(evmtx.NetworkId()), evmtx)
 	if err != nil {
-		fmt.Println("63-err", err)
 		return nil, err
 	}
 	var sb []byte
 	if evmtx.To() != nil {
 		sb = evmtx.To().Bytes()
 	}
-	fmt.Println("display ", tx.Hash().String())
-	dataS, err := serialize.SerializeToBytes(block.Transactions()[i])
-	fmt.Println("dataS", len(dataS), hex.EncodeToString(dataS), err)
 	branch := block.Header().Branch
 	field := map[string]interface{}{
 		"id":               IDEncoder(tx.Hash().Bytes(), evmtx.FromFullShardId()),
@@ -235,7 +229,6 @@ func receiptEncoder(block *types.MinorBlock, i int, receipt *types.Receipt) map[
 	evmtx := block.Transactions()[i].EvmTx
 	header := block.Header()
 
-	fmt.Println("???????????", receipt.GasUsed, receipt.CumulativeGasUsed)
 	field := map[string]interface{}{
 		"transactionId":     IDEncoder(tx.Hash().Bytes(), evmtx.FromFullShardId()), //TODO fullShardKey
 		"transactionHash":   tx.Hash(),

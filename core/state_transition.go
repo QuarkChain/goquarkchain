@@ -18,7 +18,6 @@ package core
 
 import (
 	"errors"
-	"fmt"
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/serialize"
@@ -253,7 +252,6 @@ func (st *StateTransition) TransitionDb(feeRate *big.Rat) (ret []byte, usedGas u
 	rateFee = new(big.Int).Div(rateFee, feeRate.Denom())
 
 	st.state.AddBalance(st.evm.Coinbase, rateFee)
-	fmt.Println("add -256", rateFee, feeRate)
 	st.state.AddBlockFee(rateFee)
 
 	st.state.AddGasUsed(new(big.Int).SetUint64(st.gasUsed()))

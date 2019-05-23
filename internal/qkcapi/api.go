@@ -1,9 +1,7 @@
 package qkcapi
 
 import (
-	"encoding/hex"
 	"errors"
-	"fmt"
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	qkcRPC "github.com/QuarkChain/goquarkchain/cluster/rpc"
@@ -183,25 +181,20 @@ func (p *PublicBlockChainAPI) GetMinorBlockByHeight(fullShardKeyInput hexutil.Ui
 func (p *PublicBlockChainAPI) GetTransactionById(txID hexutil.Bytes) (map[string]interface{}, error) {
 	txHash, fullShardKey, err := IDDecoder(txID)
 	if err != nil {
-		fmt.Println("解析错误")
 		return nil, err
 	}
 	branch := account.Branch{Value: p.b.GetClusterConfig().Quarkchain.GetFullShardIdByFullShardKey(uint32(fullShardKey))}
 	minorBlock, index, err := p.b.GetTransactionByHash(txHash, branch)
 	if err != nil {
-		fmt.Println("189-err", err)
 		return nil, err
 	}
 	if len(minorBlock.Transactions()) <= int(index) {
-		fmt.Println("194-err", err, len(minorBlock.Transactions()), index)
 		return nil, errors.New("re err")
 	}
-	fmt.Println("")
 	return txEncoder(minorBlock, int(index))
 }
 func (p *PublicBlockChainAPI) Call(data CallArgs, blockNr *rpc.BlockNumber) (hexutil.Bytes, error) {
 	if blockNr == nil {
-		fmt.Println("最近的height")
 		return p.CallOrEstimateGas(&data, nil, true)
 	}
 	blockNumber, err := decodeBlockNumberToUint64(p.b, blockNr)
@@ -281,12 +274,6 @@ func (c *CallArgs) setDefaults() {
 		temp := account.CreatEmptyAddress(c.To.FullShardKey)
 		c.From = &temp
 	}
-	fmt.Println("SetDefault-from", c.From.ToHex())
-	fmt.Println("SetDefault-to", c.To.ToHex())
-	fmt.Println("SetDefault-gasPrice", c.GasPrice)
-	fmt.Println("SetDefault-gas", hex.EncodeToString(c.Data))
-	fmt.Println("SetDefault-value", c.Value.ToInt().String())
-
 }
 func (c *CallArgs) toTx(config *config.QuarkChainConfig) (*types.Transaction, error) {
 	nonce := uint64(0)
@@ -303,7 +290,6 @@ func (c *CallArgs) toTx(config *config.QuarkChainConfig) (*types.Transaction, er
 	if err := tx.EvmTx.SetFromShardSize(fromShardSize); err != nil {
 		return nil, errors.New("SetFromShardSize err")
 	}
-	fmt.Println("TX's hash", tx.Hash().String())
 	return tx, nil
 }
 func (p *PublicBlockChainAPI) CallOrEstimateGas(args *CallArgs, height *uint64, isCall bool) (hexutil.Bytes, error) {
@@ -321,7 +307,6 @@ func (p *PublicBlockChainAPI) CallOrEstimateGas(args *CallArgs, height *uint64, 
 		if err != nil {
 			return nil, err
 		}
-		fmt.Println("???????????????RRRRRRRRRRRRR", hex.EncodeToString(res))
 		return (hexutil.Bytes)(res), nil
 	}
 	data, err := p.b.EstimateGas(tx, args.From)

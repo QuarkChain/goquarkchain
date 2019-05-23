@@ -541,13 +541,7 @@ func (m *MinorBlockChain) GetBlock(hash common.Hash) types.IBlock {
 
 // GetMinorBlock retrieves a block from the database by hash, caching it if found.
 func (m *MinorBlockChain) GetMinorBlock(hash common.Hash) *types.MinorBlock {
-	sb := rawdb.ReadMinorBlock(m.db, hash)
-	if sb != nil {
-		fmt.Println("GetMinorBlock", "hash", hash.String(), "height", sb.Number())
-	} else {
-		fmt.Println("sb====minorBlock is nil")
-	}
-	return sb
+	return rawdb.ReadMinorBlock(m.db, hash)
 }
 
 // GetBlockByNumber retrieves a block from the database by number, caching it
