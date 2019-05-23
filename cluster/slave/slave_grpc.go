@@ -221,7 +221,6 @@ func (s *SlaveServerSideOp) GetTransaction(ctx context.Context, req *rpc.Request
 }
 
 func (s *SlaveServerSideOp) ExecuteTransaction(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
-	fmt.Println("ExecuteTransaction", "ExecuteTransaction", "ExecuteTransaction")
 	var (
 		gReq     rpc.ExecuteTransactionRequest
 		gRes     rpc.ExecuteTransactionResponse
