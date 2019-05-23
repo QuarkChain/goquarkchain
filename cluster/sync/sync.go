@@ -14,12 +14,19 @@ type peer interface {
 	PeerId() string
 }
 
-// blockchain is a lightweight wrapper over shard chain or root chain.
+// A lightweight wrapper over shard chain or root chain.
 type blockchain interface {
 	HasBlock(common.Hash) bool
 	InsertChain([]types.IBlock) (int, error)
 	CurrentHeader() types.IHeader
 	Validator() core.Validator
+}
+
+// Adds rootchain specific logic.
+type rootblockchain interface {
+	blockchain
+	AddValidatedMinorBlockHeader(common.Hash)
+	IsMinorBlockValidated(common.Hash) bool
 }
 
 // Synchronizer will sync blocks for the master server when receiving new root blocks from peers.
@@ -54,7 +61,7 @@ func (s *synchronizer) loop() {
 			if err := t.Run(s.blockchain); err != nil {
 				logger.Error("Running sync task failed", "error", err)
 			} else {
-				logger.Info("Done sync task", "height")
+				logger.Info("Done sync task", "height", t.Priority())
 			}
 		}
 	}()

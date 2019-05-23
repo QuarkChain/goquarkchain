@@ -20,7 +20,7 @@ import (
 
 func ip2uint32(ip string) uint32 {
 	var long uint32
-	binary.Read(bytes.NewBuffer(net.ParseIP(ip).To4()), binary.BigEndian, &long)
+	_ = binary.Read(bytes.NewBuffer(net.ParseIP(ip).To4()), binary.BigEndian, &long)
 	return long
 }
 
@@ -60,7 +60,7 @@ func (s *QKCMasterBackend) AddTransaction(tx *types.Transaction) error {
 	return g.Wait() //TODO?? peer broadcast
 }
 
-func (s *QKCMasterBackend) ExecuteTransaction(tx *types.Transaction, address account.Address, height *uint64) ([]byte, error) {
+func (s *QKCMasterBackend) ExecuteTransaction(tx *types.Transaction, address *account.Address, height *uint64) ([]byte, error) {
 	evmTx := tx.EvmTx
 	//TODO setQuarkChain
 	branch := account.Branch{Value: evmTx.FromFullShardId()}
@@ -116,6 +116,7 @@ func (s *QKCMasterBackend) GetMinorBlockByHeight(height *uint64, branch account.
 	}
 	return slaveConn.GetMinorBlockByHeight(*height, branch)
 }
+
 func (s *QKCMasterBackend) GetTransactionByHash(txHash common.Hash, branch account.Branch) (*types.MinorBlock, uint32, error) {
 	slaveConn := s.getOneSlaveConnection(branch)
 	if slaveConn == nil {
@@ -123,6 +124,7 @@ func (s *QKCMasterBackend) GetTransactionByHash(txHash common.Hash, branch accou
 	}
 	return slaveConn.GetTransactionByHash(txHash, branch)
 }
+
 func (s *QKCMasterBackend) GetTransactionReceipt(txHash common.Hash, branch account.Branch) (*types.MinorBlock, uint32, *types.Receipt, error) {
 	slaveConn := s.getOneSlaveConnection(branch)
 	if slaveConn == nil {
@@ -131,7 +133,7 @@ func (s *QKCMasterBackend) GetTransactionReceipt(txHash common.Hash, branch acco
 	return slaveConn.GetTransactionReceipt(txHash, branch)
 }
 
-func (s *QKCMasterBackend) GetTransactionsByAddress(address account.Address, start []byte, limit uint32) ([]*rpc.TransactionDetail, []byte, error) {
+func (s *QKCMasterBackend) GetTransactionsByAddress(address *account.Address, start []byte, limit uint32) ([]*rpc.TransactionDetail, []byte, error) {
 	fullShardID := s.clusterConfig.Quarkchain.GetFullShardIdByFullShardKey(address.FullShardKey)
 	slaveConn := s.getOneSlaveConnection(account.Branch{Value: fullShardID})
 	if slaveConn == nil {
@@ -139,7 +141,8 @@ func (s *QKCMasterBackend) GetTransactionsByAddress(address account.Address, sta
 	}
 	return slaveConn.GetTransactionsByAddress(address, start, limit)
 }
-func (s *QKCMasterBackend) GetLogs(branch account.Branch, address []account.Address, topics []*rpc.Topic, startBlockNumber, endBlockNumber ethRpc.BlockNumber) ([]*types.Log, error) {
+
+func (s *QKCMasterBackend) GetLogs(branch account.Branch, address []*account.Address, topics []*rpc.Topic, startBlockNumber, endBlockNumber ethRpc.BlockNumber) ([]*types.Log, error) {
 	// not support earlist and pending
 	slaveConn := s.getOneSlaveConnection(branch)
 	if slaveConn == nil {
@@ -157,7 +160,7 @@ func (s *QKCMasterBackend) GetLogs(branch account.Branch, address []account.Addr
 	return slaveConn.GetLogs(branch, address, topics, uint64(startBlockNumber), uint64(endBlockNumber))
 }
 
-func (s *QKCMasterBackend) EstimateGas(tx *types.Transaction, fromAddress account.Address) (uint32, error) {
+func (s *QKCMasterBackend) EstimateGas(tx *types.Transaction, fromAddress *account.Address) (uint32, error) {
 	evmTx := tx.EvmTx
 	//TODO set config
 	slaveConn := s.getOneSlaveConnection(account.Branch{Value: evmTx.FromFullShardId()})
@@ -167,7 +170,7 @@ func (s *QKCMasterBackend) EstimateGas(tx *types.Transaction, fromAddress accoun
 	return slaveConn.EstimateGas(tx, fromAddress)
 }
 
-func (s *QKCMasterBackend) GetStorageAt(address account.Address, key common.Hash, height *uint64) (common.Hash, error) {
+func (s *QKCMasterBackend) GetStorageAt(address *account.Address, key common.Hash, height *uint64) (common.Hash, error) {
 	fullShardID := s.clusterConfig.Quarkchain.GetFullShardIdByFullShardKey(address.FullShardKey)
 	slaveConn := s.getOneSlaveConnection(account.Branch{Value: fullShardID})
 	if slaveConn == nil {
@@ -176,7 +179,7 @@ func (s *QKCMasterBackend) GetStorageAt(address account.Address, key common.Hash
 	return slaveConn.GetStorageAt(address, key, height)
 }
 
-func (s *QKCMasterBackend) GetCode(address account.Address, height *uint64) ([]byte, error) {
+func (s *QKCMasterBackend) GetCode(address *account.Address, height *uint64) ([]byte, error) {
 	fullShardID := s.clusterConfig.Quarkchain.GetFullShardIdByFullShardKey(address.FullShardKey)
 	slaveConn := s.getOneSlaveConnection(account.Branch{Value: fullShardID})
 	if slaveConn == nil {
@@ -192,13 +195,29 @@ func (s *QKCMasterBackend) GasPrice(branch account.Branch) (uint64, error) {
 	}
 	return slaveConn.GasPrice(branch)
 }
-func (s *QKCMasterBackend) GetWork(branch *account.Branch) consensus.MiningWork {
-	// TODO @liuhuan
-	panic("not ")
+
+// return root chain work if branch is nil
+func (s *QKCMasterBackend) GetWork(branch account.Branch) (*consensus.MiningWork, error) {
+	if branch.Value == 0 {
+		return s.engine.GetWork()
+	}
+	slaveConn := s.getOneSlaveConnection(branch)
+	if slaveConn == nil {
+		return nil, ErrNoBranchConn
+	}
+	return slaveConn.GetWork(branch)
 }
-func (s *QKCMasterBackend) SubmitWork(branch *account.Branch, headerHash common.Hash, nonce uint64, mixHash common.Hash) bool {
-	// TODO @liuhuan
-	return false
+
+// submit root chain work if branch is nil
+func (s *QKCMasterBackend) SubmitWork(branch account.Branch, headerHash common.Hash, nonce uint64, mixHash common.Hash) (bool, error) {
+	if branch.Value == 0 {
+		return s.engine.SubmitWork(nonce, headerHash, mixHash), nil
+	}
+	slaveConn := s.getOneSlaveConnection(branch)
+	if slaveConn == nil {
+		return false, ErrNoBranchConn
+	}
+	return slaveConn.SubmitWork(&rpc.SubmitWorkRequest{Branch: branch.Value, HeaderHash: headerHash, Nonce: nonce, MixHash: mixHash})
 }
 
 func (s *QKCMasterBackend) GetRootBlockByNumber(blockNumber *uint64) (*types.RootBlock, error) {
@@ -220,6 +239,7 @@ func (s *QKCMasterBackend) GetRootBlockByHash(hash common.Hash) (*types.RootBloc
 	}
 	return block, nil
 }
+
 func (s *QKCMasterBackend) NetWorkInfo() map[string]interface{} {
 	shardSizeList := make([]hexutil.Uint, 0)
 	for _, v := range s.clusterConfig.Quarkchain.Chains {

@@ -2,6 +2,7 @@ package qkcdb
 
 import (
 	"errors"
+	"os"
 	"sync"
 
 	"github.com/ethereum/go-ethereum/log"
@@ -26,10 +27,18 @@ type RDBDatabase struct {
 }
 
 // NewRDBDatabase returns a rocksdb wrapped object.
-func NewRDBDatabase(file string) (*RDBDatabase, error) {
+func NewRDBDatabase(file string, clean bool) (*RDBDatabase, error) {
 	logger := log.New("database", file)
 
+	if err := os.MkdirAll(file, 0700); err != nil {
+		return nil, err
+	}
 	opts := gorocksdb.NewDefaultOptions()
+	if clean {
+		if err := gorocksdb.DestroyDb(file, opts); err != nil {
+			return nil, err
+		}
+	}
 	// ubuntu 16.04 max files descriptors 524288
 	opts.SetMaxFileOpeningThreads(handles)
 	// 128 MiB
@@ -126,12 +135,7 @@ func (db *RDBDatabase) Close() {
 		}
 		db.quitChan = nil
 	}
-	err := db.db.Close
-	if err == nil {
-		db.log.Info("Database closed")
-	} else {
-		db.log.Error("Failed to close database", "err", err)
-	}
+	db.db.Close()
 }
 
 func (db *RDBDatabase) NewBatch() Batch {

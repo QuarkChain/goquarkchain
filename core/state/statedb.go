@@ -690,7 +690,7 @@ func (s *StateDB) GetXShardReceiveGasUsed() *big.Int {
 	if s.xShardReceiveGasUsed == nil {
 		s.xShardReceiveGasUsed = new(big.Int)
 	}
-	return s.xShardReceiveGasUsed
+	return new(big.Int).Set(s.xShardReceiveGasUsed)
 }
 
 func (s *StateDB) SetXShardReceiveGasUsed(data *big.Int) {
@@ -698,10 +698,16 @@ func (s *StateDB) SetXShardReceiveGasUsed(data *big.Int) {
 }
 
 func (s *StateDB) AppendXShardList(data *types.CrossShardTransactionDeposit) {
+	if s.xShardList == nil {
+		s.xShardList = make([]*types.CrossShardTransactionDeposit, 0)
+	}
 	s.xShardList = append(s.xShardList, data)
 }
 
 func (s *StateDB) GetXShardList() []*types.CrossShardTransactionDeposit {
+	if s.xShardList == nil {
+		s.xShardList = make([]*types.CrossShardTransactionDeposit, 0)
+	}
 	return s.xShardList
 }
 func (s *StateDB) SetFullShardKey(fullShardKey uint32) {
@@ -723,9 +729,9 @@ func (s *StateDB) AddBlockFee(fee *big.Int) {
 
 func (s *StateDB) GetBlockFee() *big.Int {
 	if s.blockFee == nil {
-		s.blockFee = new(big.Int)
+		return new(big.Int)
 	}
-	return s.blockFee
+	return new(big.Int).Set(s.blockFee)
 }
 func (s *StateDB) GetQuarkChainConfig() *config.QuarkChainConfig {
 	return s.quarkChainConfig
@@ -738,7 +744,7 @@ func (s *StateDB) GetGasUsed() *big.Int {
 	if s.gasUsed == nil {
 		s.gasUsed = new(big.Int)
 	}
-	return s.gasUsed
+	return new(big.Int).Set(s.gasUsed)
 }
 
 func (s *StateDB) AddGasUsed(data *big.Int) {
@@ -749,22 +755,16 @@ func (s *StateDB) AddGasUsed(data *big.Int) {
 }
 
 func (s *StateDB) SetGasUsed(data *big.Int) {
-	if data == nil {
-		s.gasUsed = new(big.Int)
-	}
 	s.gasUsed = data
 }
 func (s *StateDB) GetGasLimit() *big.Int {
 	if s.gasLimit == nil {
-		s.gasLimit = new(big.Int)
+		return new(big.Int)
 	}
-	return s.gasLimit
+	return new(big.Int).Set(s.gasLimit)
 }
 
 func (s *StateDB) SetGasLimit(data *big.Int) {
-	if data == nil {
-		s.gasLimit = new(big.Int)
-	}
 	s.gasLimit = data
 }
 

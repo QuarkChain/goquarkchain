@@ -11,6 +11,8 @@ import (
 	"math/big"
 )
 
+const DBLOG = "db-operation"
+
 type minorBlockHeaders struct {
 	Headers []*types.MinorBlockHeader `bytesizeofslicelen:"4"`
 }
@@ -120,6 +122,28 @@ func HasHeader(db DatabaseReader, hash common.Hash) bool {
 		return false
 	}
 	return true
+}
+
+// ReadMinorBlockHeader retrieves the block header corresponding to the hash.
+func ReadValidateMinorBlockHash(db DatabaseReader, hash common.Hash) bool {
+	if has, err := db.Has(validatedMinorHeaderHashKey(hash)); !has || err != nil {
+		return false
+	}
+	return true
+}
+
+func WriteValidateMinorBlockHash(db DatabaseWriter, hash common.Hash) {
+	key := validatedMinorHeaderHashKey(hash)
+	if err := db.Put(key, []byte{0x01}); err != nil {
+		log.Crit("Failed to store hash to number mapping", "err", err)
+	}
+}
+
+// DeleteMinorBlockHeader removes all block header data associated with a hash.
+func DeleteValidateMinorBlockHash(db DatabaseDeleter, hash common.Hash) {
+	if err := db.Delete(validatedMinorHeaderHashKey(hash)); err != nil {
+		log.Crit("Failed to delete validated minor block hash", "err", err)
+	}
 }
 
 // ReadMinorBlockHeader retrieves the block header corresponding to the hash.
@@ -276,6 +300,7 @@ func WriteMinorBlock(db DatabaseWriter, block *types.MinorBlock) {
 	if err != nil {
 		log.Crit("Failed to serialize body", "err", err)
 	}
+	log.Info(DBLOG, "Write MinorBlock branch", block.Header().Branch.Value, "height", block.NumberU64(), "hash", block.Hash())
 	if err := db.Put(blockKey(block.Hash()), data); err != nil {
 		log.Crit("Failed to store minor block body", "err", err)
 	}
@@ -302,6 +327,7 @@ func WriteRootBlock(db DatabaseWriter, block *types.RootBlock) {
 	if err != nil {
 		log.Crit("Failed to serialize RootBlock", "err", err)
 	}
+	log.Info(DBLOG, "Write RootBlock height", block.NumberU64(), "hash", block.Hash())
 	if err := db.Put(blockKey(block.Hash()), data); err != nil {
 		log.Crit("Failed to store RootBlock", "err", err)
 	}

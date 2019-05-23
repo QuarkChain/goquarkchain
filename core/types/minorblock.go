@@ -14,7 +14,7 @@ import (
 
 //go:generate gencodec -type Header -field-override headerMarshaling -out gen_header_json.go
 
-// MinorBlockHeader represents a minor block header in the QuarkChain.
+// MinorBlockHeaderList represents a minor block header in the QuarkChain.
 type MinorBlockHeader struct {
 	Version           uint32             `json:"version"                    gencodec:"required"`
 	Branch            account.Branch     `json:"branch"                     gencodec:"required"`
@@ -119,7 +119,7 @@ func (h *MinorBlockHeader) SetCoinbase(addr account.Address) {
 	h.Coinbase = addr
 }
 
-// MinorBlockHeaders is a MinorBlockHeader slice type for basic sorting.
+// MinorBlockHeaders is a MinorBlockHeaderList slice type for basic sorting.
 type MinorBlockHeaders []*MinorBlockHeader
 
 // Len returns the length of s.
@@ -431,7 +431,7 @@ func (m *MinorBlock) Finalize(receipts Receipts, rootHash common.Hash, gasUsed *
 	m.meta.GasUsed = &serialize.Uint256{Value: gasUsed}
 	m.meta.CrossShardGasUsed = &serialize.Uint256{Value: xShardReceiveGasUsed}
 	m.header.CoinbaseAmount = &serialize.Uint256{Value: new(big.Int).Set(coinbaseAmount)}
-	m.meta.TxHash = DeriveSha(m.Transactions())
+	m.meta.TxHash = CalculateMerkleRoot(m.Transactions())
 	m.meta.ReceiptHash = DeriveSha(receipts)
 	m.header.MetaHash = m.meta.Hash()
 	m.header.Bloom = CreateBloom(receipts)

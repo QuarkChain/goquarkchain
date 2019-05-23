@@ -5,6 +5,7 @@ package master
 import (
 	"errors"
 	"fmt"
+	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/p2p"
 	"github.com/QuarkChain/goquarkchain/serialize"
@@ -63,6 +64,11 @@ type newTip struct {
 	tip    *p2p.Tip
 }
 
+type peerHead struct {
+	rootTip   *types.RootBlockHeader
+	minorTips map[uint32]*p2p.Tip
+}
+
 type peer struct {
 	id    string
 	rpcId uint64
@@ -73,7 +79,7 @@ type peer struct {
 	version  int         // Protocol version negotiated
 	forkDrop *time.Timer // Timed connection dropper if forks aren't validated in time
 
-	head *types.RootBlockHeader
+	head *peerHead
 
 	lock             sync.RWMutex
 	chanLock         sync.RWMutex
@@ -90,6 +96,7 @@ func newPeer(version int, p *p2p.Peer, rw p2p.MsgReadWriter) *peer {
 		rw:               rw,
 		version:          version,
 		id:               fmt.Sprintf("%x", p.ID().Bytes()[:8]),
+		head:             &peerHead{nil, make(map[uint32]*p2p.Tip)},
 		queuedTxs:        make(chan newTxs, maxQueuedTxs),
 		queuedMinorBlock: make(chan newMinorBlock, maxQueuedMinorBlocks),
 		queuedTip:        make(chan newTip, maxQueuedTips),
@@ -122,14 +129,10 @@ func (p *peer) broadcast() {
 
 		case nTip := <-p.queuedTip:
 			if err := p.SendNewTip(nTip.branch, nTip.tip); err != nil {
-				p.Log().Error("Broadcast tip failed",
-					"number", nTip.tip.MinorBlockHeaderList[0].NumberU64(), "branch", nTip.branch, "error", err.Error())
 				return
 			}
 			if nTip.branch != 0 {
 				p.Log().Trace("Broadcast new tip", "number", nTip.tip.RootBlockHeader.NumberU64(), "branch", nTip.branch)
-			} else {
-				p.Log().Trace("Broadcast new tip", "number", nTip.tip.MinorBlockHeaderList[0].NumberU64(), "branch", nTip.branch)
 			}
 
 		case <-p.term:
@@ -159,21 +162,38 @@ func (p *peer) getRpcIdWithChan() (uint64, chan interface{}) {
 	return p.rpcId, rpcchan
 }
 
-// Head retrieves a copy of the current head hash and total difficulty of the
+// RootHead retrieves a copy of the current root head of the
 // peer.
-func (p *peer) Head() *types.RootBlockHeader {
+func (p *peer) RootHead() *types.RootBlockHeader {
 	p.lock.RLock()
 	defer p.lock.RUnlock()
 
-	return p.head
+	return p.head.rootTip
 }
 
-// SetHead updates the head hash and total difficulty of the peer.
-func (p *peer) SetHead(head *types.RootBlockHeader) {
+// SetRootHead updates the root head of the peer.
+func (p *peer) SetRootHead(rootTip *types.RootBlockHeader) {
 	p.lock.Lock()
 	defer p.lock.Unlock()
 
-	p.head = head
+	p.head.rootTip = rootTip
+}
+
+// RootHead retrieves a copy of the current root head of the
+// peer.
+func (p *peer) MinorHead(branch uint32) *p2p.Tip {
+	p.lock.RLock()
+	defer p.lock.RUnlock()
+
+	return p.head.minorTips[branch]
+}
+
+// SetRootHead updates the root head of the peer.
+func (p *peer) SetMinorHead(branch uint32, minorTip *p2p.Tip) {
+	p.lock.Lock()
+	defer p.lock.Unlock()
+
+	p.head.minorTips[branch] = minorTip
 }
 
 func (p *peer) PeerId() string {
@@ -186,7 +206,7 @@ func (p *peer) SendTransactions(branch uint32, txs []*types.Transaction) error {
 	data := p2p.NewTransactionList{}
 	data.TransactionList = txs
 
-	msg, err := p2p.MakeMsg(p2p.NewTransactionListMsg, p.getRpcId(), p2p.Metadata{Branch: branch}, data)
+	msg, err := p2p.MakeMsg(p2p.NewTransactionListMsg, 0, p2p.Metadata{Branch: branch}, data)
 	if err != nil {
 		return err
 	}
@@ -206,7 +226,7 @@ func (p *peer) AsyncSendTransactions(branch uint32, txs []*types.Transaction) {
 
 // SendNewTip announces the head of each shard or root.
 func (p *peer) SendNewTip(branch uint32, tip *p2p.Tip) error {
-	msg, err := p2p.MakeMsg(p2p.NewTipMsg, p.getRpcId(), p2p.Metadata{Branch: branch}, tip)
+	msg, err := p2p.MakeMsg(p2p.NewTipMsg, 0, p2p.Metadata{Branch: branch}, tip) //NewTipMsg should rpc=0
 	if err != nil {
 		return err
 	}
@@ -228,7 +248,7 @@ func (p *peer) AsyncSendNewTip(branch uint32, tip *p2p.Tip) {
 func (p *peer) SendNewMinorBlock(branch uint32, block *types.MinorBlock) error {
 	data := p2p.NewBlockMinor{Block: block}
 
-	msg, err := p2p.MakeMsg(p2p.NewBlockMinorMsg, p.getRpcId(), p2p.Metadata{Branch: branch}, data)
+	msg, err := p2p.MakeMsg(p2p.NewBlockMinorMsg, 0, p2p.Metadata{Branch: branch}, data)
 	if err != nil {
 		return err
 	}
@@ -311,7 +331,7 @@ func (p *peer) requestMinorBlockHeaderList(rpcId uint64, hash common.Hash, amoun
 		direction = directionToTip
 	}
 
-	data := p2p.GetMinorBlockHeaderListRequest{BlockHash: hash, Limit: amount, Direction: direction}
+	data := p2p.GetMinorBlockHeaderListRequest{BlockHash: hash, Branch: account.Branch{Value: branch}, Limit: amount, Direction: direction}
 	msg, err := p2p.MakeMsg(p2p.GetMinorBlockHeaderListRequestMsg, rpcId, p2p.Metadata{Branch: branch}, data)
 	if err != nil {
 		return err
@@ -419,7 +439,7 @@ func (p *peer) Handshake(protoVersion, networkId uint32, peerId common.Hash, pee
 	// Send out own handshake in a new thread
 	errc := make(chan error, 2)
 
-	hello, err := p2p.MakeMsg(p2p.Hello, p.getRpcId(), p2p.Metadata{}, p2p.HelloCmd{
+	hello, err := p2p.MakeMsg(p2p.Hello, 0, p2p.Metadata{}, p2p.HelloCmd{
 		Version:         protoVersion,
 		NetWorkID:       networkId,
 		PeerID:          peerId,
@@ -487,7 +507,7 @@ func (p *peer) readStatus(protoVersion, networkId uint32) (err error) {
 		return errors.New("root block header in hello cmd is nil")
 	}
 
-	p.SetHead(helloCmd.RootBlockHeader)
+	p.SetRootHead(helloCmd.RootBlockHeader)
 	return nil
 }
 
@@ -556,6 +576,18 @@ func (ps *peerSet) Peer(id string) *peer {
 	return ps.peers[id]
 }
 
+// Peers retrieves all registered peers as a slice
+func (ps *peerSet) Peers() []*peer {
+	ps.lock.RLock()
+	defer ps.lock.RUnlock()
+
+	peers := make([]*peer, 0, len(ps.peers))
+	for _, peer := range ps.peers {
+		peers = append(peers, peer)
+	}
+	return peers
+}
+
 // Len returns if the current number of peers in the set.
 func (ps *peerSet) Len() int {
 	ps.lock.RLock()
@@ -575,7 +607,7 @@ func (ps *peerSet) BestPeer() *peer {
 	)
 	// TODO will update to TD when td add to rootblock
 	for _, p := range ps.peers {
-		if head := p.Head(); head != nil && (bestPeer == nil || head.NumberU64() > bestHeight) {
+		if head := p.RootHead(); head != nil && (bestPeer == nil || head.NumberU64() > bestHeight) {
 			bestPeer, bestHeight = p, head.NumberU64()
 		}
 	}

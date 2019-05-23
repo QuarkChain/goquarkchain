@@ -7,10 +7,12 @@ import (
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
 	"github.com/QuarkChain/goquarkchain/cluster/service"
+	Synchronizer "github.com/QuarkChain/goquarkchain/cluster/sync"
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/consensus/doublesha256"
 	"github.com/QuarkChain/goquarkchain/consensus/qkchash"
 	"github.com/QuarkChain/goquarkchain/core"
+	"github.com/QuarkChain/goquarkchain/core/rawdb"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/internal/qkcapi"
 	"github.com/QuarkChain/goquarkchain/p2p"
@@ -28,7 +30,12 @@ import (
 	"time"
 )
 
-const heartbeatInterval = time.Duration(4 * time.Second)
+const (
+	heartbeatInterval       = time.Duration(4 * time.Second)
+	disPlayPeerInfoInterval = time.Duration(5 * time.Second)
+	rootChainChanSize       = 256
+	rootChainSideChanSize   = 256
+)
 
 var (
 	ErrNoBranchConn = errors.New("no such branch's connection")
@@ -36,17 +43,27 @@ var (
 
 // QKCMasterBackend masterServer include connections
 type QKCMasterBackend struct {
+	gspc               *core.Genesis
 	lock               sync.RWMutex
 	engine             consensus.Engine
 	eventMux           *event.TypeMux
 	chainDb            ethdb.Database
 	shutdown           chan os.Signal
 	clusterConfig      *config.ClusterConfig
-	clientPool         map[string]*SlaveConnection
-	branchToSlaves     map[uint32][]*SlaveConnection
+	clientPool         map[string]rpc.ISlaveConn
+	branchToSlaves     map[uint32][]rpc.ISlaveConn
 	branchToShardStats map[uint32]*rpc.ShardStatus
+	shardStatsChan     chan *rpc.ShardStatus
+
+	rootChainChan         chan core.RootChainEvent
+	rootChainSideChan     chan core.RootChainSideEvent
+	rootChainEventSub     event.Subscription
+	rootChainSideEventSub event.Subscription
+
 	artificialTxConfig *rpc.ArtificialTxConfig
 	rootBlockChain     *core.RootBlockChain
+	protocolManager    *ProtocolManager
+	synchronizer       Synchronizer.Synchronizer
 	logInfo            string
 }
 
@@ -55,10 +72,12 @@ func New(ctx *service.ServiceContext, cfg *config.ClusterConfig) (*QKCMasterBack
 	var (
 		mstr = &QKCMasterBackend{
 			clusterConfig:      cfg,
+			gspc:               core.NewGenesis(cfg.Quarkchain),
 			eventMux:           ctx.EventMux,
-			clientPool:         make(map[string]*SlaveConnection),
-			branchToSlaves:     make(map[uint32][]*SlaveConnection, 0),
+			clientPool:         make(map[string]rpc.ISlaveConn),
+			branchToSlaves:     make(map[uint32][]rpc.ISlaveConn, 0),
 			branchToShardStats: make(map[uint32]*rpc.ShardStatus),
+			shardStatsChan:     make(chan *rpc.ShardStatus, len(cfg.Quarkchain.GetGenesisShardIds())),
 			artificialTxConfig: &rpc.ArtificialTxConfig{
 				TargetRootBlockTime:  cfg.Quarkchain.Root.ConsensusConfig.TargetBlockTime,
 				TargetMinorBlockTime: cfg.Quarkchain.GetShardConfigByFullShardID(cfg.Quarkchain.GetGenesisShardIds()[0]).ConsensusConfig.TargetBlockTime,
@@ -68,7 +87,7 @@ func New(ctx *service.ServiceContext, cfg *config.ClusterConfig) (*QKCMasterBack
 		}
 		err error
 	)
-	if mstr.chainDb, err = createDB(ctx, cfg.DbPathRoot); err != nil {
+	if mstr.chainDb, err = createDB(ctx, cfg.DbPathRoot, cfg.Clean); err != nil {
 		return nil, err
 	}
 
@@ -76,8 +95,14 @@ func New(ctx *service.ServiceContext, cfg *config.ClusterConfig) (*QKCMasterBack
 		return nil, err
 	}
 
-	genesis := core.NewGenesis(cfg.Quarkchain)
-	genesis.MustCommitRootBlock(mstr.chainDb)
+	chainConfig, genesisHash, genesisErr := core.SetupGenesisRootBlock(mstr.chainDb, mstr.gspc)
+	// TODO check config err
+	if genesisErr != nil {
+		log.Info("Fill in block into chain db.")
+		rawdb.WriteChainConfig(mstr.chainDb, genesisHash, cfg.Quarkchain)
+	}
+	log.Info("Initialised chain configuration", "config", chainConfig)
+
 	if mstr.rootBlockChain, err = core.NewRootBlockChain(mstr.chainDb, nil, cfg.Quarkchain, mstr.engine, nil); err != nil {
 		return nil, err
 	}
@@ -89,11 +114,16 @@ func New(ctx *service.ServiceContext, cfg *config.ClusterConfig) (*QKCMasterBack
 	}
 	log.Info("qkc api backend", "slave client pool", len(mstr.clientPool))
 
+	mstr.synchronizer = Synchronizer.NewSynchronizer(mstr.rootBlockChain)
+	if mstr.protocolManager, err = NewProtocolManager(*cfg, mstr.rootBlockChain, mstr.shardStatsChan, mstr.synchronizer, mstr.getShardConnForP2P); err != nil {
+		return nil, err
+	}
+
 	return mstr, nil
 }
 
-func createDB(ctx *service.ServiceContext, name string) (ethdb.Database, error) {
-	db, err := ctx.OpenDatabase(name, 128, 1024) // TODO @liuhuan to delete "128 1024"?
+func createDB(ctx *service.ServiceContext, name string, clean bool) (ethdb.Database, error) {
+	db, err := ctx.OpenDatabase(name, clean)
 	if err != nil {
 		return nil, err
 	}
@@ -107,10 +137,11 @@ func createConsensusEngine(ctx *service.ServiceContext, cfg *config.RootConfig) 
 		AdjustmentFactor:  cfg.DifficultyAdjustmentFactor,
 	}
 	switch cfg.ConsensusType {
-	case config.PoWFake:
+	case config.PoWSimulate: // TODO pow_simulate is fake
 		return &consensus.FakeEngine{}, nil
-	case config.PoWEthash, config.PoWSimulate:
-		panic(errors.New("not support PoWEthash PoWSimulate"))
+	case config.PoWEthash:
+		return qkchash.New(cfg.ConsensusConfig.RemoteMine, &diffCalculator, cfg.ConsensusConfig.RemoteMine), nil
+		// panic(errors.New("not support PoWEthash PoWSimulate"))
 	case config.PoWQkchash:
 		return qkchash.New(cfg.ConsensusConfig.RemoteMine, &diffCalculator, cfg.ConsensusConfig.RemoteMine), nil
 	case config.PoWDoubleSha256:
@@ -125,8 +156,7 @@ func (s *QKCMasterBackend) GetClusterConfig() *config.ClusterConfig {
 
 // Protocols p2p protocols, p2p Server will start in node.Start
 func (s *QKCMasterBackend) Protocols() []p2p.Protocol {
-	// TODO add p2p.protocol
-	return nil
+	return s.protocolManager.subProtocols
 }
 
 // APIs return all apis for master Server
@@ -134,7 +164,7 @@ func (s *QKCMasterBackend) APIs() []ethRPC.API {
 	apis := qkcapi.GetAPIs(s)
 	return append(apis, []ethRPC.API{
 		{
-			Namespace: "rpc." + reflect.TypeOf(QKCMasterServerSideOp{}).Name(),
+			Namespace: "rpc." + reflect.TypeOf(MasterServerSideOp{}).Name(),
 			Version:   "3.0",
 			Service:   NewServerSideOp(s),
 			Public:    false,
@@ -144,20 +174,32 @@ func (s *QKCMasterBackend) APIs() []ethRPC.API {
 
 // Stop stop node -> stop qkcMaster
 func (s *QKCMasterBackend) Stop() error {
+	s.rootBlockChain.Stop()
+	s.protocolManager.Stop()
+	s.rootChainEventSub.Unsubscribe()
+	s.rootChainSideEventSub.Unsubscribe()
 	if s.engine != nil {
 		s.engine.Close()
 	}
 	s.eventMux.Stop()
+	s.chainDb.Close()
 	return nil
 }
 
 // Start start node -> start qkcMaster
 func (s *QKCMasterBackend) Start(srvr *p2p.Server) error {
-	if err := s.InitCluster(); err != nil {
-		return err
-	}
+	s.rootChainChan = make(chan core.RootChainEvent, rootChainChanSize)
+	s.rootChainEventSub = s.rootBlockChain.SubscribeChainEvent(s.rootChainChan)
+	s.rootChainSideChan = make(chan core.RootChainSideEvent, rootChainSideChanSize)
+	s.rootChainSideEventSub = s.rootBlockChain.SubscribeChainSideEvent(s.rootChainSideChan)
+
+	maxPeers := srvr.MaxPeers
+	s.protocolManager.Start(maxPeers)
 	// start heart beat pre 3 seconds.
+	s.updateShardStatsLoop()
 	s.Heartbeat()
+	s.disPlayPeers()
+	go s.broadcastRpcLoop()
 	return nil
 }
 
@@ -184,6 +226,7 @@ func (s *QKCMasterBackend) InitCluster() error {
 		return err
 	}
 	s.logSummary()
+
 	if err := s.hasAllShards(); err != nil {
 		return err
 	}
@@ -196,7 +239,7 @@ func (s *QKCMasterBackend) InitCluster() error {
 func (s *QKCMasterBackend) ConnectToSlaves() error {
 	fullShardIds := s.clusterConfig.Quarkchain.GetGenesisShardIds()
 	for _, slaveConn := range s.clientPool {
-		id, chainMaskList, err := slaveConn.SendPing(nil, false)
+		id, chainMaskList, err := slaveConn.SendPing()
 		if err != nil {
 			return err
 		}
@@ -204,7 +247,7 @@ func (s *QKCMasterBackend) ConnectToSlaves() error {
 			return err
 		}
 		for _, fullShardID := range fullShardIds {
-			if slaveConn.hasShard(fullShardID) {
+			if slaveConn.HasShard(fullShardID) {
 				s.branchToSlaves[fullShardID] = append(s.branchToSlaves[fullShardID], slaveConn)
 			}
 		}
@@ -214,7 +257,7 @@ func (s *QKCMasterBackend) ConnectToSlaves() error {
 func (s *QKCMasterBackend) logSummary() {
 	for branch, slaves := range s.branchToSlaves {
 		for _, slave := range slaves {
-			log.Info(s.logInfo, "branch:", branch, "is run by slave", slave.slaveID)
+			log.Info(s.logInfo, "branch:", branch, "is run by slave", slave.GetSlaveID())
 		}
 	}
 }
@@ -235,8 +278,8 @@ func (s *QKCMasterBackend) getSlaveInfoListFromClusterConfig() []*rpc.SlaveInfo 
 	slaveInfos := make([]*rpc.SlaveInfo, 0)
 	for _, slave := range s.clusterConfig.SlaveList {
 		slaveInfos = append(slaveInfos, &rpc.SlaveInfo{
-			Id:            []byte(slave.ID),
-			Host:          []byte(slave.IP),
+			Id:            slave.ID,
+			Host:          slave.IP,
 			Port:          slave.Port,
 			ChainMaskList: slave.ChainMaskList,
 		})
@@ -244,12 +287,59 @@ func (s *QKCMasterBackend) getSlaveInfoListFromClusterConfig() []*rpc.SlaveInfo 
 	return slaveInfos
 }
 func (s *QKCMasterBackend) initShards() error {
+	ip, port := s.clusterConfig.Quarkchain.Root.Ip, s.clusterConfig.Quarkchain.Root.Port
+	for endpoint := range s.clientPool {
+		if err := s.clientPool[endpoint].MasterInfo(ip, port, s.rootBlockChain.CurrentBlock()); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *QKCMasterBackend) updateShardStatsLoop() {
+	go func() {
+		for true {
+			select {
+			case stats := <-s.shardStatsChan:
+				s.UpdateShardStatus(stats)
+			}
+		}
+	}()
+}
+
+func (s *QKCMasterBackend) broadcastRpcLoop() {
+	go func() {
+		for true {
+			select {
+			// TODO verify whether rootChainChan & rootChainSideChan would be blocked,
+			// as the chan len is 256, they should not be blocked
+			case event := <-s.rootChainChan:
+				s.broadcastRootBlockToSlaves(event.Block)
+				// Err() channel will be closed when unsubscribing.
+			case err := <-s.rootChainEventSub.Err():
+				log.Error("rootChainEventSub error in broadcastRpcLoop ", "error", err)
+				return
+			case event := <-s.rootChainSideChan:
+				s.broadcastRootBlockToSlaves(event.Block)
+				// Err() channel will be closed when unsubscribing.
+			case err := <-s.rootChainSideEventSub.Err():
+				log.Error("rootChainSideEventSub error in broadcastRpcLoop", "error", err)
+				return
+			}
+		}
+	}()
+}
+
+func (s *QKCMasterBackend) broadcastRootBlockToSlaves(block *types.RootBlock) error {
 	var g errgroup.Group
-	for index := range s.clientPool {
-		i := index
+	for _, client := range s.clientPool {
+		client := client
 		g.Go(func() error {
-			currRootBlock := s.rootBlockChain.CurrentBlock()
-			_, _, err := s.clientPool[i].SendPing(currRootBlock, true)
+			err := client.AddRootBlock(block, false)
+			if err != nil {
+				log.Error("broadcastRootBlockToSlaves failed", "slave", client.GetSlaveID(),
+					"block", block.Hash(), "height", block.NumberU64(), "err", err)
+			}
 			return err
 		})
 	}
@@ -275,24 +365,24 @@ func (s *QKCMasterBackend) Heartbeat() {
 	//TODO :add send master info
 }
 
-func checkPing(slaveConn *SlaveConnection, id []byte, chainMaskList []*types.ChainMask) error {
-	if slaveConn.slaveID != string(id) {
+func checkPing(slaveConn rpc.ISlaveConn, id []byte, chainMaskList []*types.ChainMask) error {
+	if slaveConn.GetSlaveID() != string(id) {
 		return errors.New("slaveID is not match")
 	}
-	if len(chainMaskList) != len(slaveConn.shardMaskList) {
+	if len(chainMaskList) != len(slaveConn.GetShardMaskList()) {
 		return errors.New("chainMaskList is not match")
 	}
 	lenChainMaskList := len(chainMaskList)
 
 	for index := 0; index < lenChainMaskList; index++ {
-		if chainMaskList[index].GetMask() != slaveConn.shardMaskList[index].GetMask() {
+		if chainMaskList[index].GetMask() != slaveConn.GetShardMaskList()[index].GetMask() {
 			return errors.New("chainMaskList index is not match")
 		}
 	}
 	return nil
 }
 
-func (s *QKCMasterBackend) getOneSlaveConnection(branch account.Branch) *SlaveConnection {
+func (s *QKCMasterBackend) getOneSlaveConnection(branch account.Branch) rpc.ISlaveConn {
 	slaves := s.branchToSlaves[branch.Value]
 	if len(slaves) < 1 {
 		return nil
@@ -300,7 +390,7 @@ func (s *QKCMasterBackend) getOneSlaveConnection(branch account.Branch) *SlaveCo
 	return slaves[0]
 }
 
-func (s *QKCMasterBackend) getAllSlaveConnection(fullShardID uint32) []*SlaveConnection {
+func (s *QKCMasterBackend) getAllSlaveConnection(fullShardID uint32) []rpc.ISlaveConn {
 	slaves := s.branchToSlaves[fullShardID]
 	if len(slaves) < 1 {
 		return nil
@@ -308,12 +398,12 @@ func (s *QKCMasterBackend) getAllSlaveConnection(fullShardID uint32) []*SlaveCon
 	return slaves
 }
 
-func (s *QKCMasterBackend) getShardConnForP2P(fullShardID uint32) []ShardConnForP2P {
+func (s *QKCMasterBackend) getShardConnForP2P(fullShardID uint32) []rpc.ShardConnForP2P {
 	slaves := s.branchToSlaves[fullShardID]
 	if len(slaves) < 1 {
 		return nil
 	}
-	slavesInterface := make([]ShardConnForP2P, 0)
+	slavesInterface := make([]rpc.ShardConnForP2P, 0)
 	for _, v := range slaves {
 		slavesInterface = append(slavesInterface, v)
 	}
@@ -340,7 +430,7 @@ func (s *QKCMasterBackend) createRootBlockToMine(address account.Address) (*type
 	for index := 0; index < len(s.clientPool); index++ {
 		resp := <-rspList
 		for _, headersInfo := range resp.HeadersInfoList {
-			if _, ok := fullShardIDToHeaderList[headersInfo.Branch.Value]; ok { // to avoid overlap
+			if _, ok := fullShardIDToHeaderList[headersInfo.Branch]; ok { // to avoid overlap
 				continue // skip it if has added
 			}
 			height := uint64(0)
@@ -353,7 +443,7 @@ func (s *QKCMasterBackend) createRootBlockToMine(address account.Address) (*type
 				if !s.rootBlockChain.IsMinorBlockValidated(header.Hash()) {
 					break
 				}
-				fullShardIDToHeaderList[headersInfo.Branch.Value] = append(fullShardIDToHeaderList[headersInfo.Branch.Value], header)
+				fullShardIDToHeaderList[headersInfo.Branch] = append(fullShardIDToHeaderList[headersInfo.Branch], header)
 			}
 		}
 	}
@@ -378,7 +468,7 @@ func (s *QKCMasterBackend) createRootBlockToMine(address account.Address) (*type
 }
 
 // GetAccountData get account Data for jsonRpc
-func (s *QKCMasterBackend) GetAccountData(address account.Address, height *uint64) (map[account.Branch]*rpc.AccountBranchData, error) {
+func (s *QKCMasterBackend) GetAccountData(address *account.Address, height *uint64) (map[uint32]*rpc.AccountBranchData, error) {
 	var g errgroup.Group
 	rspList := make(chan *rpc.GetAccountDataResponse, len(s.clientPool))
 	for target := range s.clientPool {
@@ -393,7 +483,7 @@ func (s *QKCMasterBackend) GetAccountData(address account.Address, height *uint6
 		return nil, err
 	}
 
-	branchToAccountBranchData := make(map[account.Branch]*rpc.AccountBranchData)
+	branchToAccountBranchData := make(map[uint32]*rpc.AccountBranchData)
 	for index := 0; index < len(s.clientPool); index++ {
 		rsp := <-rspList
 		for _, accountBranchData := range rsp.AccountBranchDataList {
@@ -407,7 +497,7 @@ func (s *QKCMasterBackend) GetAccountData(address account.Address, height *uint6
 }
 
 // GetPrimaryAccountData get primary account data for jsonRpc
-func (s *QKCMasterBackend) GetPrimaryAccountData(address account.Address, blockHeight *uint64) (*rpc.AccountBranchData, error) {
+func (s *QKCMasterBackend) GetPrimaryAccountData(address *account.Address, blockHeight *uint64) (*rpc.AccountBranchData, error) {
 	fullShardID := s.clusterConfig.Quarkchain.GetFullShardIdByFullShardKey(address.FullShardKey)
 	slaveConn := s.getOneSlaveConnection(account.Branch{Value: fullShardID})
 	if slaveConn == nil {
@@ -418,7 +508,7 @@ func (s *QKCMasterBackend) GetPrimaryAccountData(address account.Address, blockH
 		return nil, err
 	}
 	for _, accountBranchData := range rsp.AccountBranchDataList {
-		if accountBranchData.Branch.Value == fullShardID {
+		if accountBranchData.Branch == fullShardID {
 			return accountBranchData, nil
 		}
 	}
@@ -532,4 +622,19 @@ func (s *QKCMasterBackend) isMining() bool {
 
 func (s *QKCMasterBackend) CurrentBlock() *types.RootBlock {
 	return s.rootBlockChain.CurrentBlock()
+}
+
+//TODO need delete later
+func (s *QKCMasterBackend) disPlayPeers() {
+	go func() {
+		for true {
+			time.Sleep(disPlayPeerInfoInterval)
+			peers := s.protocolManager.peers.Peers()
+			log.Info(s.logInfo, "len(peers)", len(peers))
+			for _, v := range peers {
+				log.Info(s.logInfo, "remote addr", v.RemoteAddr().String())
+			}
+		}
+	}()
+
 }

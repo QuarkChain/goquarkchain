@@ -25,10 +25,11 @@ import (
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/core/state"
 	"github.com/QuarkChain/goquarkchain/core/types"
+	"github.com/ethereum/go-ethereum/log"
 	"math/big"
 )
 
-// MinorBlockValidator is responsible for validating block headers, uncles and
+// MinorBlockValidator is responsible for validating block Headers, uncles and
 // processed state.
 //
 // MinorBlockValidator implements Validator.
@@ -37,6 +38,7 @@ type MinorBlockValidator struct {
 	bc               *MinorBlockChain         // Canonical block chain
 	engine           consensus.Engine         // Consensus engine used for validating
 	branch           account.Branch
+	logInfo          string
 }
 
 // NewBlockValidator returns a new block validator which is safe for re-use
@@ -46,112 +48,147 @@ func NewBlockValidator(quarkChainConfig *config.QuarkChainConfig, blockchain *Mi
 		engine:           engine,
 		bc:               blockchain,
 		branch:           branch,
+		logInfo:          fmt.Sprintf("minorBlock validate branch:%v", branch),
 	}
 	return validator
 }
 
 // ValidateBlock validates the given block's uncles and verifies the block
-// header's transaction and uncle roots. The headers are assumed to be already
+// header's transaction and uncle roots. The Headers are assumed to be already
 // validated at this point.
 func (v *MinorBlockValidator) ValidateBlock(mBlock types.IBlock) error {
 	if common.IsNil(mBlock) {
+		log.Error(v.logInfo, "check block err", ErrMinorBlockIsNil)
 		return ErrMinorBlockIsNil
 	}
 	block, ok := mBlock.(*types.MinorBlock)
 	if !ok {
+		log.Error(v.logInfo, "check block err", ErrInvalidMinorBlock)
 		return ErrInvalidMinorBlock
 	}
+	log.Info(v.logInfo, "begin validate height", mBlock.NumberU64(), "hash", mBlock.Hash().String())
+	defer log.Info(v.logInfo, "end validate height", mBlock.NumberU64())
 
 	blockHeight := block.NumberU64()
 	if blockHeight < 1 {
-		return errors.New("block.Number <1")
+		errBlockHeight := errors.New("block.Number <1")
+		log.Error(v.logInfo, "err", errBlockHeight, "blockHeight", blockHeight)
+		return errBlockHeight
 	}
 	// Check whether the block's known, and if not, that it's linkable
 	if v.bc.HasBlockAndState(block.Hash()) {
+		log.Error(v.logInfo, "already have this block err", ErrKnownBlock, "height", block.NumberU64(), "hash", block.Hash().String())
 		return ErrKnownBlock
 	}
 
 	if !v.bc.HasBlockAndState(block.IHeader().GetParentHash()) {
 		if !v.bc.HasBlock(block.ParentHash()) {
+			log.Error(v.logInfo, "parent block do not have", consensus.ErrUnknownAncestor, "parent height", block.Header().Number-1, "hash", block.Header().ParentHash.String())
 			return consensus.ErrUnknownAncestor
 		}
+		log.Warn(v.logInfo, "will insert side chain", ErrPrunedAncestor, "parent height", block.Header().Number-1, "hash", block.Header().ParentHash.String())
 		return ErrPrunedAncestor
 	}
 
 	prevHeader := v.bc.GetHeader(block.IHeader().GetParentHash())
 	if common.IsNil(prevHeader) {
+		log.Error(v.logInfo, "parent header is not exist", ErrInvalidMinorBlock, "parent height", block.Header().Number-1, "parent hash", block.Header().ParentHash.String())
 		return ErrInvalidMinorBlock
 	}
 	if blockHeight != prevHeader.NumberU64()+1 {
+		log.Error(v.logInfo, "err", ErrHeightMismatch, "blockHeight", blockHeight, "prevHeader", prevHeader.NumberU64())
 		return ErrHeightMismatch
 	}
 
 	if block.Branch().Value != v.branch.Value {
+		log.Error(v.logInfo, "err", ErrBranch, "block.branch", block.Branch().Value, "current branch", v.branch.Value)
 		return ErrBranch
 	}
 
 	if block.IHeader().GetTime() <= prevHeader.GetTime() {
+		log.Error(v.logInfo, "err", ErrTime, "block.Time", block.IHeader().GetTime(), "prevHeader.Time", prevHeader.GetTime())
 		return ErrTime
 	}
 
 	if block.Header().MetaHash != block.GetMetaData().Hash() {
+		log.Error(v.logInfo, "err", ErrMetaHash, "block.Metahash", block.Header().MetaHash.String(), "block.meta.hash", block.GetMetaData().Hash().String())
 		return ErrMetaHash
 	}
 
 	if len(block.IHeader().GetExtra()) > int(v.quarkChainConfig.BlockExtraDataSizeLimit) {
+		log.Error(v.logInfo, "err", ErrExtraLimit, "len block's extra", len(block.IHeader().GetExtra()), "config's limit", v.quarkChainConfig.BlockExtraDataSizeLimit)
 		return ErrExtraLimit
 	}
 
 	if len(block.GetTrackingData()) > int(v.quarkChainConfig.BlockExtraDataSizeLimit) {
+		log.Error(v.logInfo, "err", ErrTrackLimit, "len block's tracking data", len(block.GetTrackingData()), "config's limit", v.quarkChainConfig.BlockExtraDataSizeLimit)
 		return ErrTrackLimit
 	}
 
 	if err := v.ValidateGasLimit(block.Header().GetGasLimit().Uint64(), prevHeader.(*types.MinorBlockHeader).GetGasLimit().Uint64()); err != nil {
+		log.Error(v.logInfo, "validate gas limit err", err)
 		return err
 	}
 
-	txHash := types.DeriveSha(block.GetTransactions())
+	txHash := types.CalculateMerkleRoot(block.GetTransactions())
 	if txHash != block.GetMetaData().TxHash {
+		log.Error(v.logInfo, "txHash is not match err", ErrTxHash, "local", txHash.String(), "block.TxHash", block.GetMetaData().TxHash.String())
 		return ErrTxHash
 	}
 
 	if !v.branch.IsInBranch(block.IHeader().GetCoinbase().FullShardKey) {
+		log.Error(v.logInfo, "err", ErrMinerFullShardKey, "coinbase's fullshardkey", block.IHeader().GetCoinbase().FullShardKey, "current branch", v.branch.Value)
 		return ErrMinerFullShardKey
 	}
 
 	if !v.quarkChainConfig.SkipMinorDifficultyCheck {
 		diff, err := v.engine.CalcDifficulty(v.bc, block.IHeader().GetTime(), prevHeader)
 		if err != nil {
+			log.Error(v.logInfo, "check diff err", err)
 			return err
 		}
 		if diff.Cmp(block.IHeader().GetDifficulty()) != 0 {
+			log.Error(v.logInfo, "check diff err", err, "diff", diff, "block's", block.IHeader().GetDifficulty())
 			return ErrDifficulty
 		}
 	}
 
 	rootBlockHeader := v.bc.getRootBlockHeaderByHash(block.Header().GetPrevRootBlockHash())
 	if rootBlockHeader == nil {
+		log.Error(v.logInfo, "err", ErrRootBlockIsNil, "height", block.Header().Number, "parentRootBlockHash", block.Header().GetPrevRootBlockHash().String())
 		return ErrRootBlockIsNil
 	}
 
 	prevRootHeader := v.bc.getRootBlockHeaderByHash(prevHeader.(*types.MinorBlockHeader).GetPrevRootBlockHash())
 	if prevRootHeader == nil {
+		log.Error(v.logInfo, "err", ErrRootBlockIsNil, "prevHeader's height", prevHeader.NumberU64(), "preHeader's prevRootBlockHash", prevHeader.(*types.MinorBlockHeader).GetPrevRootBlockHash().String())
 		return ErrRootBlockIsNil
 	}
 	if rootBlockHeader.NumberU64() < prevRootHeader.NumberU64() {
-		return errors.New("pre root block height must be non-decreasing")
+		errRootBlockOrder := errors.New("pre root block height must be non-decreasing")
+		log.Error(v.logInfo, "err", errRootBlockOrder, "rootBlockHeader's number", rootBlockHeader.Number, "preRootHeader.Number", prevHeader.NumberU64())
+		return errRootBlockOrder
 	}
 
 	prevConfirmedMinorHeader := v.bc.getLastConfirmedMinorBlockHeaderAtRootBlock(block.Header().PrevRootBlockHash)
 	if prevConfirmedMinorHeader != nil && !v.bc.isSameMinorChain(prevHeader, prevConfirmedMinorHeader) {
-		return errors.New("prev root block's minor block is not in the same chain as the minor block")
+		errMustBeOneMinorChain := errors.New("prev root block's minor block is not in the same chain as the minor block")
+		log.Error(v.logInfo, "err", errMustBeOneMinorChain, "prevConfirmedMinor's height", prevConfirmedMinorHeader.Number, "prevConfirmedMinor's hash", prevConfirmedMinorHeader.Hash().String(),
+			"preHeader's height", prevHeader.NumberU64(), "preHeader's hash", prevHeader.Hash().String())
+		return errMustBeOneMinorChain
 	}
 
 	if !v.bc.isSameRootChain(v.bc.getRootBlockHeaderByHash(block.Header().GetPrevRootBlockHash()),
 		v.bc.getRootBlockHeaderByHash(prevHeader.(*types.MinorBlockHeader).GetPrevRootBlockHash())) {
-		return errors.New("prev root blocks are not on the same chain")
+		errMustBeOneRootChain := errors.New("prev root blocks are not on the same chain")
+		log.Error(v.logInfo, "err", errMustBeOneRootChain, "long", block.Header().GetPrevRootBlockHash().String(), "short", prevHeader.(*types.MinorBlockHeader).GetPrevRootBlockHash().String())
+		return errMustBeOneRootChain
 	}
-	return v.ValidatorMinorBlockSeal(block)
+	if err := v.ValidatorMinorBlockSeal(block); err != nil {
+		log.Error(v.logInfo, "ValidatorMinorBlockSeal err", err)
+		return err
+	}
+	return nil
 }
 
 // RootBlockValidator calls underlying engine's header verification method.

@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
+	qkcParams "github.com/QuarkChain/goquarkchain/params"
 	"github.com/QuarkChain/goquarkchain/serialize"
 	"io"
 	"math/big"
@@ -147,6 +148,7 @@ func NewMinorBlockChain(
 	shouldPreserve func(block *types.MinorBlock) bool,
 	fullShardID uint32,
 ) (*MinorBlockChain, error) {
+	chainConfig = &qkcParams.DefaultByzantium //TODO default is byzantium
 	if clusterConfig == nil || chainConfig == nil {
 		return nil, errors.New("can not new minorBlock: config is nil")
 	}
@@ -278,7 +280,7 @@ func (m *MinorBlockChain) loadLastState() error {
 	return nil
 }
 
-// SetHead rewinds the local chain to a new head. In the case of headers, everything
+// SetHead rewinds the local chain to a new head. In the case of Headers, everything
 // above the new head will be deleted and the new one set. In the case of blocks
 // though, the head may be further rewound if block bodies are missing (non-archive
 // nodes after a fast sync).
@@ -696,7 +698,7 @@ func SetReceiptsData(config *config.QuarkChainConfig, mBlock types.IBlock, recei
 		if transactions[j].EvmTx.To() == nil {
 			// Deriving the signer is expensive, only do if it's actually needed
 			from, _ := types.Sender(signer, transactions[j].EvmTx)
-			receipts[j].ContractAddress = account.BytesToIdentityRecipient(vm.CreateAddress(from, transactions[j].EvmTx.ToFullShardId(), transactions[j].EvmTx.Nonce()).Bytes())
+			receipts[j].ContractAddress = account.BytesToIdentityRecipient(vm.CreateAddress(from, transactions[j].EvmTx.ToFullShardKey(), transactions[j].EvmTx.Nonce()).Bytes())
 		}
 		// The used gas can be calculated based on previous receipts
 		if j == 0 {
@@ -950,6 +952,8 @@ func (m *MinorBlockChain) addFutureBlock(block types.IBlock) error {
 //
 // After insertion is done, all accumulated events will be fired.
 func (m *MinorBlockChain) InsertChain(chain []types.IBlock) (int, [][]*types.CrossShardTransactionDeposit, error) {
+	log.Info(m.logInfo, "MinorBlockChain InsertChain len", len(chain))
+	defer log.Info(m.logInfo, "MinorBlockChain InsertChain", "end")
 	// Sanity check that we have something meaningful to import
 	if len(chain) == 0 {
 		return 0, nil, nil
@@ -1361,7 +1365,7 @@ func (m *MinorBlockChain) reorg(oldBlock, newBlock types.IBlock) error {
 		logFn("Chain split detected", "number", commonBlock.NumberU64(), "hash", commonBlock.Hash(),
 			"drop", len(oldChain), "dropfrom", oldChain[0].Hash(), "add", len(newChain), "addfrom", newChain[0].Hash())
 	} else {
-		log.Error("Impossible reorg, please file an issue", "oldnum", oldBlock.NumberU64(), "oldhash", oldBlock.Hash(), "newnum", newBlock.NumberU64(), "newhash", newBlock.Hash())
+		log.Error("minorBlockChain Impossible reorg, please file an issue", "oldnum", oldBlock.NumberU64(), "oldhash", oldBlock.Hash(), "newnum", newBlock.NumberU64(), "newhash", newBlock.Hash())
 	}
 	// Insert the new chain, taking care of the proper incremental order
 	var addedTxs types.Transactions
@@ -1517,7 +1521,7 @@ func (m *MinorBlockChain) InsertHeaderChain(chain []types.IHeader, checkFreq int
 //
 // Note: This method is not concurrent-safe with inserting blocks simultaneously
 // into the chain, as side effects caused by reorganisations cannot be emulated
-// without the real blocks. Hence, writing headers directly should only be done
+// without the real blocks. Hence, writing Headers directly should only be done
 // in two scenarios: pure-header mode of operation (light clients), or properly
 // separated header/block phases (non-archive clients).
 func (m *MinorBlockChain) writeHeader(header *types.MinorBlockHeader) error {

@@ -7,13 +7,17 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
+	"github.com/QuarkChain/goquarkchain/cluster/rpc"
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/core"
 	"github.com/QuarkChain/goquarkchain/core/state"
 	"github.com/QuarkChain/goquarkchain/core/types"
+	"github.com/QuarkChain/goquarkchain/mocks/mock_master"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethdb"
+	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -78,6 +82,14 @@ func (bc *mockblockchain) Validator() core.Validator {
 	return bc.validator
 }
 
+func (bc *mockblockchain) AddValidatedMinorBlockHeader(hash common.Hash) {
+	bc.rbc.AddValidatedMinorBlockHeader(hash)
+}
+
+func (bc *mockblockchain) IsMinorBlockValidated(hash common.Hash) bool {
+	return bc.rbc.IsMinorBlockValidated(hash)
+}
+
 type mockvalidator struct {
 	err error
 }
@@ -118,7 +130,7 @@ func TestRootChainTaskRun(t *testing.T) {
 	p := &mockpeer{name: "chunfeng"}
 	bc := newBlockChain(5)
 	rbc := bc.(*mockblockchain).rbc
-	var rt Task = NewRootChainTask(p, nil)
+	var rt Task = NewRootChainTask(p, nil, nil, nil)
 
 	// Prepare future blocks for downloading.
 	rbChain, rhChain := makeChains(rbc.CurrentBlock(), false)
@@ -181,6 +193,77 @@ func TestRootChainTaskRun(t *testing.T) {
 	}
 	// Tip should be updated.
 	assert.Equal(t, uint64(11), bc.CurrentHeader().NumberU64())
+}
+
+func TestSyncMinorBlocks(t *testing.T) {
+	bc := newBlockChain(5)
+	rbc := bc.(*mockblockchain).rbc
+	statusChan := make(chan *rpc.ShardStatus, 2)
+	index := 0
+	// Prepare future blocks for downloading.
+	var gen = func(i int, b *core.RootBlockGen) {
+		for j := 0; j < 3; j++ {
+			header := types.MinorBlockHeader{Coinbase: account.Address{Recipient: account.Recipient{byte(index)}}}
+			index++
+			b.Headers = append(b.Headers, &header)
+		}
+	}
+	blocks := core.GenerateRootBlockChain(rbc.CurrentBlock(), engine, 2, gen)
+
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	shardConns := getShardConnForP2P(1, ctrl)
+	for _, block := range blocks {
+		for _, header := range block.MinorBlockHeaders() {
+			if rbc.IsMinorBlockValidated(header.Hash()) {
+				t.Errorf("validated minor block hash in block %d is exist", block.NumberU64())
+			}
+		}
+
+		for _, conn := range shardConns {
+			conn.(*mock_master.MockShardConnForP2P).EXPECT().AddBlockListForSync(gomock.Any()).Return(
+				&rpc.ShardStatus{
+					Branch:             account.Branch{Value: 0},
+					Height:             block.NumberU64(),
+					Difficulty:         block.Difficulty(),
+					CoinbaseAddress:    block.Coinbase(),
+					Timestamp:          block.Time(),
+					TotalTxCount:       0,
+					TxCount60s:         0,
+					PendingTxCount:     0,
+					BlockCount60s:      2,
+					StaleBlockCount60s: 2,
+					LastBlockTime:      block.Time(),
+				}, nil).Times(1)
+		}
+
+		syncMinorBlocks("", bc.(rootblockchain), block, statusChan, func(fullShardId uint32) []rpc.ShardConnForP2P {
+			return shardConns
+		})
+
+		select {
+		case status := <-statusChan:
+			if status.Branch.Value != 0 || status.Height != block.NumberU64() {
+				t.Errorf("status result is wrong")
+			}
+		}
+
+		for _, header := range block.MinorBlockHeaders() {
+			if !rbc.IsMinorBlockValidated(header.Hash()) {
+				t.Errorf("validated minor block hash in block %d is missing", block.NumberU64())
+			}
+		}
+	}
+}
+
+func getShardConnForP2P(n int, ctrl *gomock.Controller) []rpc.ShardConnForP2P {
+	shardConns := make([]rpc.ShardConnForP2P, 0, n)
+	for i := 0; i < n; i++ {
+		sc := mock_master.NewMockShardConnForP2P(ctrl)
+		shardConns = append(shardConns, sc)
+	}
+
+	return shardConns
 }
 
 /*

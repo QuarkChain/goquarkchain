@@ -24,7 +24,7 @@ func (api *PrivateP2PAPI) BroadcastMinorBlock(branch uint32, block *types.MinorB
 	if block.Branch().Value != branch {
 		return errors.New("branch mismatch")
 	}
-	for _, peer := range api.peers.peers {
+	for _, peer := range api.peers.Peers() {
 		peer.AsyncSendNewMinorBlock(branch, block)
 	}
 	return nil
@@ -33,7 +33,7 @@ func (api *PrivateP2PAPI) BroadcastMinorBlock(branch uint32, block *types.MinorB
 // BroadcastTransactions only be called when run performance test which the txs
 // are created by shard itself, so broadcast to all the peer
 func (api *PrivateP2PAPI) BroadcastTransactions(branch uint32, txs []*types.Transaction) {
-	for _, peer := range api.peers.peers {
+	for _, peer := range api.peers.Peers() {
 		peer.AsyncSendTransactions(branch, txs)
 	}
 }
@@ -48,15 +48,27 @@ func (api *PrivateP2PAPI) BroadcastNewTip(branch uint32, rootBlockHeader *types.
 	if minorBlockHeaderList[0].Branch.Value != branch {
 		return errors.New("branch mismatch")
 	}
-	for _, peer := range api.peers.peers {
+	for _, peer := range api.peers.Peers() {
+		if minorTip := peer.MinorHead(branch); minorTip != nil && minorTip.RootBlockHeader != nil {
+			if minorTip.RootBlockHeader.Number > rootBlockHeader.Number {
+				continue
+			}
+			if minorTip.RootBlockHeader.Number == rootBlockHeader.Number &&
+				minorTip.MinorBlockHeaderList[0].Number > minorBlockHeaderList[0].Number {
+				continue
+			}
+			if minorTip.MinorBlockHeaderList[0].Hash() == minorBlockHeaderList[0].Hash() {
+				continue
+			}
+		}
 		peer.AsyncSendNewTip(branch, &p2p.Tip{RootBlockHeader: rootBlockHeader, MinorBlockHeaderList: minorBlockHeaderList})
 	}
 	return nil
 }
 
-func (api *PrivateP2PAPI) GetMinorBlocks(hashList []common.Hash, branch uint32, peerId string) ([]*types.MinorBlock, error) {
+func (api *PrivateP2PAPI) GetMinorBlockList(hashList []common.Hash, branch uint32, peerId string) ([]*types.MinorBlock, error) {
 	peer := api.peers.Peer(peerId)
-	if peer != nil {
+	if peer == nil {
 		return nil, errNotRegistered
 	}
 	blocks, err := peer.GetMinorBlockList(hashList, branch)
@@ -65,7 +77,7 @@ func (api *PrivateP2PAPI) GetMinorBlocks(hashList []common.Hash, branch uint32, 
 
 func (api *PrivateP2PAPI) GetMinorBlockHeaders(hash common.Hash, amount uint32, branch uint32, reverse bool, peerId string) ([]*types.MinorBlockHeader, error) {
 	peer := api.peers.Peer(peerId)
-	if peer != nil {
+	if peer == nil {
 		return nil, errNotRegistered
 	}
 	headers, err := peer.GetMinorBlockHeaderList(hash, amount, branch, reverse)

@@ -22,15 +22,12 @@ const (
 	OpPing
 	OpConnectToSlaves
 	OpAddRootBlock
-	OpGetEcoInfoList
 	OpGetNextBlockToMine
-	OpGetUnconfirmedHeaders
+	OpGetUnconfirmedHeaderList
 	OpGetAccountData
 	OpAddTransaction
 	OpAddMinorBlockHeader
 	OpAddXshardTxList
-	OpSyncMinorBlockList
-	OpAddMinorBlock
 	OpCreateClusterPeerConnection
 	OpGetMinorBlock
 	OpGetTransaction
@@ -47,14 +44,16 @@ const (
 	OpGasPrice
 	OpGetWork
 	OpSubmitWork
+	OpAddMinorBlockListForSync
 	// p2p api
 	OpBroadcastNewTip
 	OpBroadcastTransactions
-	OpBroadcastMinorBlock
-	OpGetMinorBlocks
-	OpGetMinorBlockHeaders
+	OpBroadcastNewMinorBlock
+	OpGetMinorBlockList
+	OpGetMinorBlockHeaderList
 	OpHandleNewTip
 	OpAddTransactions
+	OpHandleNewMinorBlock
 
 	MasterServer = serverType(1)
 	SlaveServer  = serverType(0)
@@ -65,12 +64,13 @@ const (
 var (
 	// master apis
 	masterApis = map[uint32]opType{
-		OpAddMinorBlockHeader:   {name: "AddMinorBlockHeader"},
-		OpBroadcastNewTip:       {name: "BroadcastNewTip"},
-		OpBroadcastTransactions: {name: "BroadcastTransactions"},
-		OpBroadcastMinorBlock:   {name: "BroadcastMinorBlock"},
-		OpGetMinorBlocks:        {name: "GetMinorBlocks"},
-		OpGetMinorBlockHeaders:  {name: "GetMinorBlockHeaders"},
+		OpAddMinorBlockHeader: {name: "AddMinorBlockHeader"},
+		// p2p api
+		OpBroadcastNewTip:         {name: "BroadcastNewTip"},
+		OpBroadcastTransactions:   {name: "BroadcastTransactions"},
+		OpBroadcastNewMinorBlock:  {name: "BroadcastNewMinorBlock"},
+		OpGetMinorBlockList:       {name: "GetMinorBlockList"},
+		OpGetMinorBlockHeaderList: {name: "GetMinorBlockHeaderList"},
 	}
 	// slave apis
 	slaveApis = map[uint32]opType{
@@ -78,14 +78,11 @@ var (
 		OpMasterInfo:                  {name: "MasterInfo"},
 		OpPing:                        {name: "Ping"},
 		OpAddRootBlock:                {name: "AddRootBlock"},
-		OpGetEcoInfoList:              {name: "GetEcoInfoList"},
 		OpGetNextBlockToMine:          {name: "GetNextBlockToMine"},
-		OpGetUnconfirmedHeaders:       {name: "GetUnconfirmedHeaders"},
+		OpGetUnconfirmedHeaderList:    {name: "GetUnconfirmedHeaderList"},
 		OpGetAccountData:              {name: "GetAccountData"},
 		OpAddTransaction:              {name: "AddTransaction"},
 		OpAddXshardTxList:             {name: "AddXshardTxList"},
-		OpSyncMinorBlockList:          {name: "SyncMinorBlockList"},
-		OpAddMinorBlock:               {name: "AddMinorBlock"},
 		OpCreateClusterPeerConnection: {name: "CreateClusterPeerConnection"},
 		OpGetMinorBlock:               {name: "GetMinorBlock"},
 		OpGetTransaction:              {name: "GetTransaction"},
@@ -102,11 +99,13 @@ var (
 		OpGasPrice:                    {name: "GasPrice"},
 		OpGetWork:                     {name: "GetWork"},
 		OpSubmitWork:                  {name: "SubmitWork"},
+		OpAddMinorBlockListForSync:    {name: "AddMinorBlockListForSync"},
 		// p2p api
-		OpGetMinorBlocks:       {name: "GetMinorBlocks"},
-		OpGetMinorBlockHeaders: {name: "GetMinorBlockHeaders"},
-		OpHandleNewTip:         {name: "HandleNewTip"},
-		OpAddTransactions:      {name: "AddTransactions"},
+		OpGetMinorBlockList:       {name: "GetMinorBlockList"},
+		OpGetMinorBlockHeaderList: {name: "GetMinorBlockHeaderList"},
+		OpHandleNewTip:            {name: "HandleNewTip"},
+		OpAddTransactions:         {name: "AddTransactions"},
+		OpHandleNewMinorBlock:     {name: "HandleNewMinorBlock"},
 	}
 )
 

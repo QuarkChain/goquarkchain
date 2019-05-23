@@ -8,6 +8,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
 	"github.com/QuarkChain/goquarkchain/cluster/service"
+	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/core/rawdb"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/serialize"
@@ -85,14 +86,14 @@ func (c *fakeRpcClient) Call(hostport string, req *rpc.Request) (*rpc.Response, 
 			return nil, err
 		}
 		return &rpc.Response{Data: data}, nil
-	case rpc.OpGetUnconfirmedHeaders:
+	case rpc.OpGetUnconfirmedHeaderList:
 		rsp := new(rpc.GetUnconfirmedHeadersResponse)
 		for _, v := range c.branchs {
 			rsp.HeadersInfoList = append(rsp.HeadersInfoList, &rpc.HeadersInfo{
-				Branch:     account.Branch{Value: v.Value},
+				Branch:     v.Value,
 				HeaderList: make([]*types.MinorBlockHeader, 0),
 			})
-			//rsp.HeadersInfoList[0].HeaderList = append(rsp.HeadersInfoList[0].HeaderList, &types.MinorBlockHeader{})
+			//rsp.HeadersInfoList[0].HeaderList = append(rsp.HeadersInfoList[0].HeaderList, &types.MinorBlockHeaderList{})
 		}
 		data, err := serialize.SerializeToBytes(rsp)
 		if err != nil {
@@ -107,22 +108,10 @@ func (c *fakeRpcClient) Call(hostport string, req *rpc.Request) (*rpc.Response, 
 			return nil, err
 		}
 		return &rpc.Response{Data: data}, nil
-	case rpc.OpGetEcoInfoList:
-		rsp := new(rpc.GetEcoInfoListResponse)
-		for _, v := range c.branchs {
-			rsp.EcoInfoList = append(rsp.EcoInfoList, &rpc.EcoInfo{
-				Branch: account.Branch{Value: v.Value},
-			})
-		}
-		data, err := serialize.SerializeToBytes(rsp)
-		if err != nil {
-			return nil, err
-		}
-		return &rpc.Response{Data: data}, nil
 	case rpc.OpGetAccountData:
 		rsp := new(rpc.GetAccountDataResponse)
 		for _, v := range c.branchs {
-			rsp.AccountBranchDataList = append(rsp.AccountBranchDataList, &rpc.AccountBranchData{Branch: *v})
+			rsp.AccountBranchDataList = append(rsp.AccountBranchDataList, &rpc.AccountBranchData{Branch: v.Value})
 		}
 		data, err := serialize.SerializeToBytes(rsp)
 		if err != nil {
@@ -139,8 +128,6 @@ func (c *fakeRpcClient) Call(hostport string, req *rpc.Request) (*rpc.Response, 
 			return nil, err
 		}
 		return &rpc.Response{Data: data}, nil
-	case rpc.OpAddMinorBlock:
-		return &rpc.Response{}, nil
 	case rpc.OpAddTransaction:
 		return &rpc.Response{}, nil
 	case rpc.OpExecuteTransaction:
@@ -239,6 +226,29 @@ func (c *fakeRpcClient) Call(hostport string, req *rpc.Request) (*rpc.Response, 
 			return nil, err
 		}
 		return &rpc.Response{Data: data}, nil
+	case rpc.OpMasterInfo:
+		rsp := new(rpc.MasterInfo)
+		data, err := serialize.SerializeToBytes(rsp)
+		if err != nil {
+			return nil, err
+		}
+		return &rpc.Response{Data: data}, nil
+	case rpc.OpGetWork:
+		rsp := new(consensus.MiningWork)
+		rsp.Number = 1
+		data, err := serialize.SerializeToBytes(rsp)
+		if err != nil {
+			return nil, err
+		}
+		return &rpc.Response{Data: data}, nil
+	case rpc.OpSubmitWork:
+		rsp := new(rpc.SubmitWorkResponse)
+		rsp.Success = true
+		data, err := serialize.SerializeToBytes(rsp)
+		if err != nil {
+			return nil, err
+		}
+		return &rpc.Response{Data: data}, nil
 	default:
 		fmt.Println("codeM", req.Op)
 		return nil, errors.New("unkown code")
@@ -255,13 +265,13 @@ func initEnv(t *testing.T, chanOp chan uint32) *QKCMasterBackend {
 			slaveID:       slaveID,
 		}
 	})
-	monkey.Patch(createDB, func(ctx *service.ServiceContext, name string) (ethdb.Database, error) {
+	monkey.Patch(createDB, func(ctx *service.ServiceContext, name string, clean bool) (ethdb.Database, error) {
 		return ethdb.NewMemDatabase(), nil
 	})
 
 	ctx := &service.ServiceContext{}
 	clusterConfig := config.NewClusterConfig()
-	clusterConfig.Quarkchain.Root.ConsensusType = config.PoWFake
+	clusterConfig.Quarkchain.Root.ConsensusType = config.PoWSimulate
 	master, err := New(ctx, clusterConfig)
 	if err != nil {
 		panic(err)
@@ -335,7 +345,7 @@ func TestGetAccountData(t *testing.T) {
 	assert.NoError(t, err)
 	add1 := account.NewAddress(id1.GetRecipient(), 3)
 	master := initEnv(t, nil)
-	_, err = master.GetAccountData(add1, nil)
+	_, err = master.GetAccountData(&add1, nil)
 	assert.NoError(t, err)
 }
 
@@ -344,7 +354,7 @@ func TestGetPrimaryAccountData(t *testing.T) {
 	id1, err := account.CreatRandomIdentity()
 	assert.NoError(t, err)
 	add1 := account.NewAddress(id1.GetRecipient(), 3)
-	_, err = master.GetPrimaryAccountData(add1, nil)
+	_, err = master.GetPrimaryAccountData(&add1, nil)
 	assert.NoError(t, err)
 }
 
@@ -360,6 +370,7 @@ func TestAddRootBlock(t *testing.T) {
 	assert.NoError(t, err)
 	add1 := account.NewAddress(id1.GetRecipient(), 3)
 	rootBlock, err := master.rootBlockChain.CreateBlockToMine(nil, &add1, nil)
+	assert.NoError(t, err)
 	err = master.AddRootBlock(rootBlock)
 	assert.NoError(t, err)
 }
@@ -402,7 +413,7 @@ func TestExecuteTransaction(t *testing.T) {
 		EvmTx:  evmTx,
 		TxType: types.EvmTx,
 	}
-	data, err := master.ExecuteTransaction(tx, add1, nil)
+	data, err := master.ExecuteTransaction(tx, &add1, nil)
 	assert.NoError(t, err)
 	assert.Equal(t, data, []byte("qkc"))
 
@@ -411,7 +422,7 @@ func TestExecuteTransaction(t *testing.T) {
 		EvmTx:  evmTx,
 		TxType: types.EvmTx,
 	}
-	_, err = master.ExecuteTransaction(tx, add1, nil)
+	_, err = master.ExecuteTransaction(tx, &add1, nil)
 	assert.Error(t, err)
 }
 
@@ -479,7 +490,7 @@ func TestGetTransactionsByAddress(t *testing.T) {
 	id1, err := account.CreatRandomIdentity()
 	assert.NoError(t, err)
 	add1 := account.NewAddress(id1.GetRecipient(), 3)
-	res, bytes, err := master.GetTransactionsByAddress(add1, []byte{}, 0)
+	res, bytes, err := master.GetTransactionsByAddress(&add1, []byte{}, 0)
 	assert.NoError(t, err)
 	assert.Equal(t, bytes, []byte("qkc"))
 	assert.Equal(t, res[0].TxHash, common.BigToHash(new(big.Int).SetUint64(11)))
@@ -506,7 +517,7 @@ func TestEstimateGas(t *testing.T) {
 		EvmTx:  evmTx,
 		TxType: types.EvmTx,
 	}
-	data, err := master.EstimateGas(tx, add1)
+	data, err := master.EstimateGas(tx, &add1)
 	assert.NoError(t, err)
 	assert.Equal(t, data, uint32(123))
 
@@ -515,7 +526,7 @@ func TestEstimateGas(t *testing.T) {
 		EvmTx:  evmTx,
 		TxType: types.EvmTx,
 	}
-	data, err = master.EstimateGas(tx, add1)
+	data, err = master.EstimateGas(tx, &add1)
 	assert.Error(t, err)
 }
 
@@ -524,7 +535,7 @@ func TestGetStorageAt(t *testing.T) {
 	id1, err := account.CreatRandomIdentity()
 	assert.NoError(t, err)
 	add1 := account.NewAddress(id1.GetRecipient(), 3)
-	data, err := master.GetStorageAt(add1, common.Hash{}, nil)
+	data, err := master.GetStorageAt(&add1, common.Hash{}, nil)
 	assert.NoError(t, err)
 	assert.Equal(t, data.Big().Uint64(), uint64(123))
 }
@@ -533,7 +544,7 @@ func TestGetCode(t *testing.T) {
 	id1, err := account.CreatRandomIdentity()
 	assert.NoError(t, err)
 	add1 := account.NewAddress(id1.GetRecipient(), 3)
-	data, err := master.GetCode(add1, nil)
+	data, err := master.GetCode(&add1, nil)
 	assert.NoError(t, err)
 	assert.Equal(t, data, []byte("qkc"))
 
@@ -543,4 +554,20 @@ func TestGasPrice(t *testing.T) {
 	data, err := master.GasPrice(account.Branch{Value: 2})
 	assert.NoError(t, err)
 	assert.Equal(t, data, uint64(123))
+}
+
+func TestGetWork(t *testing.T) {
+	master := initEnv(t, nil)
+	branch := account.NewBranch(2)
+	data, err := master.GetWork(branch)
+	assert.NoError(t, err)
+	assert.Equal(t, data.Number, uint64(1))
+}
+
+func TestSubmitWork(t *testing.T) {
+	master := initEnv(t, nil)
+	branch := account.NewBranch(2)
+	data, err := master.SubmitWork(branch, common.Hash{}, 0, common.Hash{})
+	assert.NoError(t, err)
+	assert.Equal(t, data, true)
 }

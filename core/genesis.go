@@ -74,11 +74,12 @@ func (g *Genesis) CreateMinorBlock(rootBlock *types.RootBlock, fullShardId uint3
 		}
 		recipient := new(common.Address)
 		recipient.SetBytes(addr.Recipient.Bytes())
+		statedb.SetFullShardKey(addr.FullShardKey)
 		statedb.AddBalance(*recipient, balance)
 	}
 
 	meta := types.MinorBlockMeta{
-		Root:              statedb.IntermediateRoot(false),
+		Root:              statedb.IntermediateRoot(true),
 		TxHash:            common.HexToHash(genesis.HashMerkleRoot),
 		ReceiptHash:       common.Hash{},
 		GasUsed:           &serialize.Uint256{Value: new(big.Int)},
@@ -110,8 +111,12 @@ func (g *Genesis) CreateMinorBlock(rootBlock *types.RootBlock, fullShardId uint3
 		Extra:             extra,
 	}
 
-	statedb.Commit(false)
-	statedb.Database().TrieDB().Commit(meta.Root, true)
+	if _, err := statedb.Commit(true); err != nil {
+		return nil, err
+	}
+	if err := statedb.Database().TrieDB().Commit(meta.Root, true); err != nil {
+		return nil, err
+	}
 	return types.NewMinorBlock(&header, &meta, make(types.Transactions, 0, 0), make(types.Receipts, 0, 0), nil), nil
 }
 
@@ -186,7 +191,7 @@ func SetupGenesisMinorBlock(db ethdb.Database, genesis *Genesis, rootBlock *type
 	}
 
 	// Just commit the new block if there is no stored genesis block.
-	stored := rawdb.ReadCanonicalHash(db, rawdb.ChainTypeRoot, 0)
+	stored := rawdb.ReadCanonicalHash(db, rawdb.ChainTypeMinor, 0)
 	if (stored == common.Hash{}) {
 		block, err := genesis.CommitMinorBlock(db, rootBlock, fullShardId)
 		return genesis.qkcConfig, block.Hash(), err

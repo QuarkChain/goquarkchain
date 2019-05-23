@@ -33,14 +33,14 @@ func ExampleGenerateRootBlockChain() {
 		case 0:
 			// In block 1, addr1 sends addr2 some ether.
 			header := types.MinorBlockHeader{Number: 1, Coinbase: addr1, ParentHash: genesisBlock.Hash(), Time: genesisBlock.Time()}
-			gen.headers = append(gen.headers, &header)
+			gen.Headers = append(gen.Headers, &header)
 		case 1:
 			// In block 2, addr1 sends some more ether to addr2.
 			// addr2 passes it on to addr3.
 			header1 := types.MinorBlockHeader{Number: 1, Coinbase: addr1, ParentHash: genesisBlock.Hash(), Time: genesisBlock.Time()}
 			header2 := types.MinorBlockHeader{Number: 2, Coinbase: addr2, ParentHash: header1.Hash(), Time: genesisBlock.Time()}
-			gen.headers = append(gen.headers, &header1)
-			gen.headers = append(gen.headers, &header2)
+			gen.Headers = append(gen.Headers, &header1)
+			gen.Headers = append(gen.Headers, &header2)
 		case 2:
 			// Block 3 is empty but was mined by addr3.
 			gen.SetCoinbase(addr3)

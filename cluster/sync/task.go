@@ -5,9 +5,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
+
+	"github.com/QuarkChain/goquarkchain/core/types"
 )
 
 // Task represents a synchronization task for the synchronizer.
@@ -23,7 +24,10 @@ type task struct {
 	name       string
 	getHeaders func(common.Hash, uint32) ([]types.IHeader, error)
 	getBlocks  func([]common.Hash) ([]types.IBlock, error)
-	syncBlock  func(types.IBlock) error
+	syncBlock  func(types.IBlock, blockchain) error
+}
+
+type SyncConn interface {
 }
 
 // Run will execute the synchronization task.
@@ -89,6 +93,7 @@ func (t *task) Run(bc blockchain) error {
 
 		// Again, `blocks` should also be descending.
 		// TODO: validate block order.
+		// rbc := bc.(rootblockchain)
 		for j := len(blocks) - 1; j >= 0; j-- {
 			b := blocks[j]
 			h := b.IHeader()
@@ -96,9 +101,11 @@ func (t *task) Run(bc blockchain) error {
 			// Simple profiling.
 			ts := time.Now()
 			if t.syncBlock != nil {
-				if err := t.syncBlock(b); err != nil {
+				if err := t.syncBlock(b, bc); err != nil {
 					return err
 				}
+				// if err := syncMinorBlocks(peer.PeerId(), rbc, b, r.statsChan, r.getShardConnFunc); err != nil {
+				// return err
 			}
 			// TODO: may optimize by batch and insert once?
 			if _, err := bc.InsertChain([]types.IBlock{b}); err != nil {

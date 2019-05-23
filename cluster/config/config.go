@@ -1,7 +1,14 @@
 package config
 
 import (
+	"encoding/json"
+	"fmt"
+	"github.com/QuarkChain/goquarkchain/account"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/log"
 	"math/big"
+	"os"
+	"path/filepath"
 	"strings"
 )
 
@@ -16,7 +23,6 @@ const (
 	PoWSimulate = "POW_SIMULATE"
 	// PoWQkchash is the consensus type running qkchash algorithm.
 	PoWQkchash = "POW_QKCHASH"
-	PoWFake    = "FakeEngine"
 )
 
 var (
@@ -184,4 +190,77 @@ func NewMonitoringConfig() *MonitoringConfig {
 		PropagationTopic: "block_propagation",
 		Errors:           "error",
 	}
+}
+
+type GenesisAddress struct {
+	Address string `json:"address"`
+	PrivKey string `json:"key"`
+}
+
+func loadGenesisAddrs(file string) ([]GenesisAddress, error) {
+	var addresses []GenesisAddress
+	fp, err := os.Open(file)
+	if err != nil {
+		return nil, err
+	}
+	defer fp.Close()
+	decoder := json.NewDecoder(fp)
+	for decoder.More() {
+		err := decoder.Decode(&addresses)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return addresses, nil
+}
+
+// Update ShardConfig.GENESIS.ALLOC
+func UpdateGenesisAlloc(cluserConfig *ClusterConfig) error {
+	var (
+		templateFile = "alloc/%d.json"
+		testFile     = "loadtest.json"
+		tempErrMsg   = "Error importing genesis accounts from %s: %v "
+		testErrMsg   = "No loadtest accounts imported into genesis alloc %s: %v "
+	)
+	if cluserConfig.GenesisDir == "" {
+		return nil
+	}
+	loadtestFile := filepath.Join(cluserConfig.GenesisDir, testFile)
+	qkcConfig := cluserConfig.Quarkchain
+
+	for chainId := 0; chainId < int(qkcConfig.ChainSize); chainId++ {
+		allocFile := filepath.Join(cluserConfig.GenesisDir, fmt.Sprintf(templateFile, chainId))
+		addresses, err := loadGenesisAddrs(allocFile)
+		if err != nil {
+			return fmt.Errorf(tempErrMsg, allocFile, err)
+		}
+		for _, addr := range addresses {
+			address, err := account.CreatAddressFromBytes(common.FromHex(addr.Address))
+			if err != nil {
+				return fmt.Errorf(tempErrMsg, allocFile, err)
+			}
+			fullShardId := qkcConfig.GetFullShardIdByFullShardKey(address.FullShardKey)
+			shrd, ok := qkcConfig.shards[fullShardId]
+			if !ok {
+				continue
+			}
+			shrd.Genesis.Alloc[address] = new(big.Int).Mul(big.NewInt(1000000), QuarkashToJiaozi)
+		}
+		log.Info("Load template genesis accounts", "chain id", chainId, "imported", len(addresses), "config file", allocFile)
+	}
+
+	items, err := loadGenesisAddrs(loadtestFile)
+	if err != nil {
+		return fmt.Errorf(testErrMsg, loadtestFile, err)
+	}
+	for _, item := range items {
+		bytes := common.FromHex(item.Address)
+		for fullShardId, shardCfg := range qkcConfig.shards {
+			addr := account.NewAddress(common.BytesToAddress(bytes[:20]), fullShardId)
+			shardCfg.Genesis.Alloc[addr] = new(big.Int).Mul(big.NewInt(1000), QuarkashToJiaozi)
+		}
+	}
+	log.Info("Loadtest accounts", "loadtest file", loadtestFile, "imported", len(items))
+
+	return nil
 }

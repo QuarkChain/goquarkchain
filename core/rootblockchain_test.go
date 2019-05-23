@@ -542,7 +542,7 @@ func TestReorgSideEvent(t *testing.T) {
 	engine.Difficulty = new(big.Int).Add(genesis.Difficulty(), new(big.Int).SetUint64(10000))
 	replacementBlocks := GenerateRootBlockChain(genesis, engine, 4, func(i int, gen *RootBlockGen) {
 		header := types.MinorBlockHeader{Coinbase: addr1}
-		gen.headers = append(gen.headers, &header)
+		gen.Headers = append(gen.Headers, &header)
 	})
 	chainSideCh := make(chan RootChainSideEvent, 64)
 	blockchain.SubscribeChainSideEvent(chainSideCh)
@@ -798,7 +798,7 @@ func benchmarkLargeNumberOfValueToNonexisting(b *testing.B, numItems, numBlocks 
 			header := types.MinorBlockHeader{Version: 0, Number: uniq}
 			headers[index] = &header
 		}
-		block.headers = headers
+		block.Headers = headers
 	}
 
 	shared := GenerateRootBlockChain(genesis, engine, numBlocks, blockGenerator)
