@@ -80,9 +80,6 @@ func syncMinorBlocks(
 	statusChan chan *rpc.ShardStatus,
 	getShardConnFunc func(fullShardId uint32) []rpc.ShardConnForP2P,
 ) error {
-	if rootBlock == nil {
-		panic("rootblock should not be nil")
-	}
 	downloadMap := make(map[uint32][]common.Hash)
 	for _, header := range rootBlock.MinorBlockHeaders() {
 		hash := header.Hash()
@@ -100,9 +97,9 @@ func syncMinorBlocks(
 		}
 		// TODO Support to multiple connections
 		g.Go(func() error {
-			stats, err := conns[0].AddBlockListForSync(&rpc.AddBlockListForSyncRequest{Branch: b, PeerId: peerID, MinorBlockHashList: hashList})
+			status, err := conns[0].AddBlockListForSync(&rpc.AddBlockListForSyncRequest{Branch: b, PeerId: peerID, MinorBlockHashList: hashList})
 			if err == nil {
-				statusChan <- stats
+				statusChan <- status
 			}
 			return err
 		})
