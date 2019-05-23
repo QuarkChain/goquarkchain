@@ -339,7 +339,6 @@ func (tx *Transaction) Deserialize(bb *serialize.ByteBuffer) error {
 
 // Hash return the hash of the transaction it contained
 func (tx *Transaction) Hash() (h common.Hash) {
-
 	if tx.TxType == EvmTx {
 		hw := sha3.NewKeccak256()
 		extra, err := serialize.SerializeToBytes(tx)

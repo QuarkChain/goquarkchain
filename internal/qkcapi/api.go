@@ -210,13 +210,11 @@ func (p *PublicBlockChainAPI) EstimateGas(data CallArgs) ([]byte, error) {
 func (p *PublicBlockChainAPI) GetTransactionReceipt(txID hexutil.Bytes) (map[string]interface{}, error) {
 	txHash, fullShardKey, err := IDDecoder(txID)
 	if err != nil {
-		panic(err)
 		return nil, err
 	}
 	branch := account.Branch{Value: p.b.GetClusterConfig().Quarkchain.GetFullShardIdByFullShardKey(fullShardKey)}
 	minorBlock, index, receipt, err := p.b.GetTransactionReceipt(txHash, branch)
 	if err != nil {
-		panic(err)
 		return nil, err
 	}
 	return receiptEncoder(minorBlock, int(index), receipt), nil
