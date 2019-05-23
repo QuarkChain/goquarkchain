@@ -194,7 +194,7 @@ func NewMonitoringConfig() *MonitoringConfig {
 
 type GenesisAddress struct {
 	Address string `json:"address"`
-	Key     string `json:"key"`
+	PrivKey string `json:"key"`
 }
 
 func loadGenesisAddrs(file string) ([]GenesisAddress, error) {
