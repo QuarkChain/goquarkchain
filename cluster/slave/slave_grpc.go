@@ -221,6 +221,7 @@ func (s *SlaveServerSideOp) GetTransaction(ctx context.Context, req *rpc.Request
 }
 
 func (s *SlaveServerSideOp) ExecuteTransaction(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
+	fmt.Println("ExecuteTransaction", "ExecuteTransaction", "ExecuteTransaction")
 	var (
 		gReq     rpc.ExecuteTransactionRequest
 		gRes     rpc.ExecuteTransactionResponse
@@ -230,7 +231,14 @@ func (s *SlaveServerSideOp) ExecuteTransaction(ctx context.Context, req *rpc.Req
 	if err = serialize.DeserializeFromBytes(req.Data, &gReq); err != nil {
 		return nil, err
 	}
-
+	toShardSize := s.slave.clstrCfg.Quarkchain.GetShardSizeByChainId(gReq.Tx.EvmTx.ToChainID())
+	if err := gReq.Tx.EvmTx.SetToShardSize(toShardSize); err != nil {
+		return nil, err
+	}
+	fromShardSize := s.slave.clstrCfg.Quarkchain.GetShardSizeByChainId(gReq.Tx.EvmTx.FromChainID())
+	if err := gReq.Tx.EvmTx.SetFromShardSize(fromShardSize); err != nil {
+		return nil, err
+	}
 	if gRes.Result, err = s.slave.ExecuteTx(gReq.Tx, gReq.FromAddress); err != nil {
 		return nil, err
 	}

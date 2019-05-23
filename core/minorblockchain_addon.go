@@ -1,7 +1,9 @@
 package core
 
 import (
+	"encoding/hex"
 	"errors"
+	"fmt"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
 	"github.com/QuarkChain/goquarkchain/core/rawdb"
@@ -122,6 +124,9 @@ func (m *MinorBlockChain) validateTx(tx *types.Transaction, evmState *state.Stat
 	}
 	evmTx := tx.EvmTx
 	if fromAddress != nil {
+		nonce := evmState.GetNonce(fromAddress.Recipient)
+		fmt.Println("!!!!!!!!!!!!==nil", nonce)
+		evmTx.SetNonce(nonce)
 		if evmTx.FromFullShardKey() != fromAddress.FullShardKey {
 			return nil, errors.New("from full shard id not match")
 		}
@@ -588,9 +593,24 @@ func (m *MinorBlockChain) ExecuteTx(tx *types.Transaction, fromAddress *account.
 		return nil, err
 	}
 	gp := new(GasPool).AddGas(mBlock.Header().GetGasLimit().Uint64())
-	usedGas := new(uint64)
-	ret, _, _, err := ApplyTransaction(m.ethChainConfig, m, gp, state, mBlock.IHeader().(*types.MinorBlockHeader), evmTx, usedGas, *m.GetVMConfig())
+
+	to := evmTx.EvmTx.To()
+	msg := types.NewMessage(fromAddress.Recipient, to, evmTx.EvmTx.Nonce(), evmTx.EvmTx.Value(), evmTx.EvmTx.Gas(), evmTx.EvmTx.GasPrice(), evmTx.EvmTx.Data(), false, tx.EvmTx.FromShardID(), tx.EvmTx.ToShardID())
+	evmState.SetFullShardKey(tx.EvmTx.ToFullShardKey())
+	context := NewEVMContext(msg, m.CurrentBlock().IHeader().(*types.MinorBlockHeader), m)
+	evmEnv := vm.NewEVM(context, evmState, m.ethChainConfig, m.vmConfig)
+
+	localFee := big.NewRat(1, 1)
+	if qkcConfig := m.clusterConfig.Quarkchain; qkcConfig != nil {
+		num := qkcConfig.RewardTaxRate.Num().Int64()
+		denom := qkcConfig.RewardTaxRate.Denom().Int64()
+		localFee = big.NewRat(denom-num, denom)
+
+	}
+	ret, _, _, err := ApplyMessage(evmEnv, msg, gp, localFee)
+	fmt.Println("RRRRRRRRRRRRRRRRRRRRr", hex.EncodeToString(ret), "err", err)
 	return ret, err
+
 }
 
 func checkEqual(a, b types.IHeader) bool {
@@ -1027,12 +1047,14 @@ func (m *MinorBlockChain) runOneCrossShardTxListByRootBlockHash(hash common.Hash
 
 // GetTransactionByHash get tx by hash
 func (m *MinorBlockChain) GetTransactionByHash(hash common.Hash) (*types.MinorBlock, uint32) {
+	fmt.Println("GetTransactionByHash", hash.String())
 	_, mHash, txIndex := rawdb.ReadTransaction(m.db, hash)
 	if mHash == qkcCommon.EmptyHash { //TODO need? for test???
 		txs := make([]*types.Transaction, 0)
 		m.txPool.mu.Lock() // to lock txpool.all
 		tx, ok := m.txPool.all.all[hash]
 		if !ok {
+			fmt.Println("?????????")
 			return nil, 0
 		}
 		txs = append(txs, tx)
@@ -1141,6 +1163,12 @@ func (m *MinorBlockChain) EstimateGas(tx *types.Transaction, fromAddress account
 		evmEnv := vm.NewEVM(context, evmState, m.ethChainConfig, m.vmConfig)
 
 		localFee := big.NewRat(1, 1)
+		if qkcConfig := m.clusterConfig.Quarkchain; qkcConfig != nil {
+			num := qkcConfig.RewardTaxRate.Num().Int64()
+			denom := qkcConfig.RewardTaxRate.Denom().Int64()
+			localFee = big.NewRat(denom-num, denom)
+
+		}
 		_, _, _, err = ApplyMessage(evmEnv, msg, gp, localFee)
 		return err
 	}

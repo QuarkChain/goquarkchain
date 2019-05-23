@@ -1,9 +1,13 @@
 package qkcapi
 
 import (
+	"encoding/hex"
 	"errors"
+	"fmt"
 	"github.com/QuarkChain/goquarkchain/account"
+	"github.com/QuarkChain/goquarkchain/cluster/config"
 	qkcRPC "github.com/QuarkChain/goquarkchain/cluster/rpc"
+	qkcCommon "github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
@@ -64,10 +68,10 @@ func (p *PublicBlockChainAPI) NetworkInfo() map[string]interface{} {
 
 }
 
-func (p *PublicBlockChainAPI) getPrimaryAccountData(address account.Address, blockNr *rpc.BlockNumber) (data *qkcRPC.AccountBranchData,err error) {
+func (p *PublicBlockChainAPI) getPrimaryAccountData(address account.Address, blockNr *rpc.BlockNumber) (data *qkcRPC.AccountBranchData, err error) {
 	if blockNr == nil {
-		 data, err = p.b.GetPrimaryAccountData(&address, nil)
-		 return
+		data, err = p.b.GetPrimaryAccountData(&address, nil)
+		return
 	}
 
 	blockNumber, err := decodeBlockNumberToUint64(p.b, blockNr)
@@ -163,7 +167,7 @@ func (p *PublicBlockChainAPI) GetMinorBlockByHeight(fullShardKeyInput hexutil.Ui
 	}
 	fullShardKey := uint32(fullShardKeyInput)
 	if includeTxs == nil {
-		temp := false
+		temp := true
 		includeTxs = &temp
 	}
 	branch := account.Branch{Value: p.b.GetClusterConfig().Quarkchain.GetFullShardIdByFullShardKey(fullShardKey)}
@@ -177,17 +181,52 @@ func (p *PublicBlockChainAPI) GetMinorBlockByHeight(fullShardKeyInput hexutil.Ui
 	return minorBlockEncoder(minorBlock, *includeTxs)
 }
 func (p *PublicBlockChainAPI) GetTransactionById(txID hexutil.Bytes) (map[string]interface{}, error) {
-	panic(-1)
+	txHash, fullShardKey, err := IDDecoder(txID)
+	if err != nil {
+		fmt.Println("解析错误")
+		return nil, err
+	}
+	branch := account.Branch{Value: p.b.GetClusterConfig().Quarkchain.GetFullShardIdByFullShardKey(uint32(fullShardKey))}
+	minorBlock, index, err := p.b.GetTransactionByHash(txHash, branch)
+	if err != nil {
+		fmt.Println("189-err", err)
+		return nil, err
+	}
+	if len(minorBlock.Transactions()) <= int(index) {
+		fmt.Println("194-err", err, len(minorBlock.Transactions()), index)
+		return nil, errors.New("re err")
+	}
+	fmt.Println("")
+	return txEncoder(minorBlock, int(index))
 }
-func (p *PublicBlockChainAPI) Call(data CallArgs, blockNr *rpc.BlockNumber) ([]byte, error) {
-	panic(-1)
+func (p *PublicBlockChainAPI) Call(data CallArgs, blockNr *rpc.BlockNumber) (hexutil.Bytes, error) {
+	if blockNr == nil {
+		fmt.Println("最近的height")
+		return p.CallOrEstimateGas(&data, nil, true)
+	}
+	blockNumber, err := decodeBlockNumberToUint64(p.b, blockNr)
+	if err != nil {
+		return nil, err
+	}
+	return p.CallOrEstimateGas(&data, &blockNumber, true)
 
 }
 func (p *PublicBlockChainAPI) EstimateGas(data CallArgs) ([]byte, error) {
 	panic(-1)
 }
 func (p *PublicBlockChainAPI) GetTransactionReceipt(txID hexutil.Bytes) (map[string]interface{}, error) {
-	panic(-1)
+	txHash, fullShardKey, err := IDDecoder(txID)
+	if err != nil {
+		panic(err)
+		return nil, err
+	}
+	branch := account.Branch{Value: p.b.GetClusterConfig().Quarkchain.GetFullShardIdByFullShardKey(fullShardKey)}
+	minorBlock, index, receipt, err := p.b.GetTransactionReceipt(txHash, branch)
+	if err != nil {
+		panic(err)
+		return nil, err
+	}
+	return receiptEncoder(minorBlock, int(index), receipt), nil
 }
 func (p *PublicBlockChainAPI) GetLogs() { panic("-1") }
 func (p *PublicBlockChainAPI) GetStorageAt(address account.Address, key common.Hash, blockNr *rpc.BlockNumber) (hexutil.Bytes, error) {
@@ -231,20 +270,65 @@ func (p *PublicBlockChainAPI) QkcGetstorageat()          { panic("not implemente
 type CallArgs struct {
 	From     *account.Address `json:"from"`
 	To       *account.Address `json:"to"`
-	Gas      hexutil.Uint64   `json:"gas"`
+	Gas      hexutil.Big      `json:"gas"`
 	GasPrice hexutil.Big      `json:"gasPrice"`
 	Value    hexutil.Big      `json:"value"`
 	Data     hexutil.Bytes    `json:"data"`
 }
 
 func (c *CallArgs) setDefaults() {
-	panic(-1)
+	if c.From == nil {
+		temp := account.CreatEmptyAddress(c.To.FullShardKey)
+		c.From = &temp
+	}
+	fmt.Println("SetDefault-from", c.From.ToHex())
+	fmt.Println("SetDefault-to", c.To.ToHex())
+	fmt.Println("SetDefault-gasPrice", c.GasPrice)
+	fmt.Println("SetDefault-gas", hex.EncodeToString(c.Data))
+	fmt.Println("SetDefault-value", c.Value.ToInt().String())
+
 }
-func (c *CallArgs) toTx(networkid uint32) *types.Transaction {
-	panic(-1)
+func (c *CallArgs) toTx(config *config.QuarkChainConfig) (*types.Transaction, error) {
+	nonce := uint64(0)
+	evmTx := types.NewEvmTransaction(nonce, c.To.Recipient, c.Value.ToInt(), c.Gas.ToInt().Uint64(), c.GasPrice.ToInt(), c.From.FullShardKey, c.To.FullShardKey, config.NetworkID, 0, c.Data)
+	tx := &types.Transaction{
+		EvmTx:  evmTx,
+		TxType: types.EvmTx,
+	}
+	toShardSize := config.GetShardSizeByChainId(tx.EvmTx.ToChainID())
+	if err := tx.EvmTx.SetToShardSize(toShardSize); err != nil {
+		return nil, errors.New("SetToShardSize err")
+	}
+	fromShardSize := config.GetShardSizeByChainId(tx.EvmTx.FromChainID())
+	if err := tx.EvmTx.SetFromShardSize(fromShardSize); err != nil {
+		return nil, errors.New("SetFromShardSize err")
+	}
+	fmt.Println("TX's hash", tx.Hash().String())
+	return tx, nil
 }
-func (p *PublicBlockChainAPI) CallOrEstimateGas(args *CallArgs, height *uint64, isCall bool) ([]byte, error) {
-	panic(-1)
+func (p *PublicBlockChainAPI) CallOrEstimateGas(args *CallArgs, height *uint64, isCall bool) (hexutil.Bytes, error) {
+
+	if args.To == nil {
+		return nil, errors.New("missing to")
+	}
+	args.setDefaults()
+	tx, err := args.toTx(p.b.GetClusterConfig().Quarkchain)
+	if err != nil {
+		return nil, err
+	}
+	if isCall {
+		res, err := p.b.ExecuteTransaction(tx, args.From, height)
+		if err != nil {
+			return nil, err
+		}
+		fmt.Println("???????????????RRRRRRRRRRRRR", hex.EncodeToString(res))
+		return (hexutil.Bytes)(res), nil
+	}
+	data, err := p.b.EstimateGas(tx, args.From)
+	if err != nil {
+		return nil, err
+	}
+	return qkcCommon.Uint32ToBytes(data), nil // TODO ? check?
 }
 
 type PrivateBlockChainAPI struct {

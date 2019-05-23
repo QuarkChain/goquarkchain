@@ -267,6 +267,7 @@ func (v *MinorBlockValidator) ValidateState(mBlock, parent types.IBlock, statedb
 	}
 	coinbaseAmount := new(big.Int).Add(v.bc.getCoinbaseAmount(), statedb.GetBlockFee())
 	if coinbaseAmount.Cmp(block.CoinbaseAmount()) != 0 {
+		fmt.Println("CCCCCCCCCCCC", coinbaseAmount, v.bc.getCoinbaseAmount(), statedb.GetBlockFee(), block.CoinbaseAmount())
 		return ErrCoinbaseAmount
 	}
 

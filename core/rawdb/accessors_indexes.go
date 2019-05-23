@@ -3,6 +3,7 @@
 package rawdb
 
 import (
+	"fmt"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/serialize"
 	"github.com/ethereum/go-ethereum/common"
@@ -27,8 +28,10 @@ func ReadBlockContentLookupEntry(db DatabaseReader, hash common.Hash) (common.Ha
 // WriteBlockContentLookupEntries stores a positional metadata for every transaction from
 // a block, enabling hash based transaction and receipt lookups.
 func WriteBlockContentLookupEntries(db DatabaseWriter, block types.IBlock) {
+	fmt.Println("WriteBlockContentLookupEntries", block.NumberU64(), len(block.Content()))
 	hash := block.Hash()
 	for i, item := range block.Content() {
+		fmt.Println("3333333333333333")
 		entry := LookupEntry{
 			BlockHash: hash,
 			Index:     uint32(i),
@@ -37,6 +40,7 @@ func WriteBlockContentLookupEntries(db DatabaseWriter, block types.IBlock) {
 		if err != nil {
 			log.Crit("Failed to encode content lookup entry", "err", err)
 		}
+		fmt.Println("pppppppppp", item.Hash().String())
 		if err := db.Put(lookupKey(item.Hash()), data); err != nil {
 			log.Crit("Failed to store content lookup entry", "err", err)
 		}
@@ -68,6 +72,7 @@ func ReadMinorHeaderFromRootBlock(db DatabaseReader, hash common.Hash) (*types.M
 func ReadTransaction(db DatabaseReader, hash common.Hash) (*types.Transaction, common.Hash, uint32) {
 	blockHash, txIndex := ReadBlockContentLookupEntry(db, hash)
 	if blockHash == (common.Hash{}) {
+		fmt.Println("blockHash", "empty")
 		return nil, common.Hash{}, 0
 	}
 	block := ReadMinorBlock(db, blockHash)
@@ -75,6 +80,7 @@ func ReadTransaction(db DatabaseReader, hash common.Hash) (*types.Transaction, c
 		log.Error("Transaction referenced missing", "hash", blockHash, "index", txIndex)
 		return nil, common.Hash{}, 0
 	}
+	fmt.Println("ccccccccc", block.Transactions()[txIndex].Hash().String())
 	return block.Transactions()[txIndex], blockHash, txIndex
 }
 

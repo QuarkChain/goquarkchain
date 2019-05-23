@@ -3,6 +3,7 @@ package master
 import (
 	"bytes"
 	"encoding/binary"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"github.com/QuarkChain/goquarkchain/account"
@@ -88,6 +89,7 @@ func (s *QKCMasterBackend) ExecuteTransaction(tx *types.Transaction, address *ac
 			return nil, errors.New("exist more than one result")
 		}
 	}
+	fmt.Println("MMMMMMMMMMMMMM", hex.EncodeToString(resultBytes))
 	return resultBytes, nil
 
 }
