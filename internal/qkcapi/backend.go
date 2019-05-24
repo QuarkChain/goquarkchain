@@ -38,6 +38,9 @@ type Backend interface {
 	SetTargetBlockTime(rootBlockTime *uint32, minorBlockTime *uint32) error
 	SetMining(mining bool) error
 	CreateTransactions(numTxPerShard, xShardPercent uint32, tx *types.Transaction) error
+	IsSyncing() bool
+	IsMining() bool
+	GetSlavePoolLen() int
 }
 
 func GetAPIs(apiBackend Backend) []rpc.API {

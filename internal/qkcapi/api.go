@@ -50,17 +50,29 @@ func NewPublicBlockChainAPI(b Backend) *PublicBlockChainAPI {
 
 // Echoquantity :should use data without leading zero
 func (p *PublicBlockChainAPI) Echoquantity(data hexutil.Big) *hexutil.Big {
-	panic(-1)
+	return &data
 
 }
 
 // EchoData echo data for test
-func (p *PublicBlockChainAPI) EchoData(data rpc.BlockNumber) *hexutil.Big {
-	panic(-1)
+func (p *PublicBlockChainAPI) EchoData(data hexutil.Big) *hexutil.Big {
+	return &data
 }
 
 func (p *PublicBlockChainAPI) NetworkInfo() map[string]interface{} {
-	panic(-1)
+	config := p.b.GetClusterConfig()
+	shardSize := make([]hexutil.Uint, 0)
+	for _, v := range config.Quarkchain.Chains {
+		shardSize = append(shardSize, hexutil.Uint(v.ShardSize))
+	}
+	return map[string]interface{}{
+		"networkId":        hexutil.Uint(config.Quarkchain.NetworkID),
+		"chainSize":        hexutil.Uint(config.Quarkchain.ChainSize),
+		"shardSizes":       shardSize,
+		"syncing":          p.b.IsSyncing(),
+		"mining":           p.b.IsMining(),
+		"shardServerCount": p.b.GetSlavePoolLen(),
+	}
 
 }
 
@@ -286,7 +298,9 @@ func NewPrivateBlockChainAPI(b Backend) *PrivateBlockChainAPI {
 	return &PrivateBlockChainAPI{b}
 }
 
-func (p *PrivateBlockChainAPI) Getnextblocktomine() {
+func (p *PrivateBlockChainAPI) GetNextblocktomine() {
+	//No need to implement
+	panic(-1)
 }
 func (p *PrivateBlockChainAPI) GetPeers() map[string]interface{} {
 	fields := make(map[string]interface{})
@@ -307,7 +321,7 @@ func (p *PrivateBlockChainAPI) GetSyncStats() {
 	panic("not implemented")
 }
 func (p *PrivateBlockChainAPI) GetStats() map[string]interface{} {
-	panic(-1)
+	return p.b.GetStats()
 }
 func (p *PrivateBlockChainAPI) GetBlockCount() (map[uint32]map[account.Recipient]uint32, error) {
 	return p.b.GetBlockCount()
