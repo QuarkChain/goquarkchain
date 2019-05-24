@@ -597,13 +597,7 @@ func (m *MinorBlockChain) ExecuteTx(tx *types.Transaction, fromAddress *account.
 	context := NewEVMContext(msg, m.CurrentBlock().IHeader().(*types.MinorBlockHeader), m)
 	evmEnv := vm.NewEVM(context, evmState, m.ethChainConfig, m.vmConfig)
 
-	localFee := big.NewRat(1, 1)
-	if qkcConfig := m.clusterConfig.Quarkchain; qkcConfig != nil {
-		num := qkcConfig.RewardTaxRate.Num().Int64()
-		denom := qkcConfig.RewardTaxRate.Denom().Int64()
-		localFee = big.NewRat(denom-num, denom)
-
-	}
+	localFee := getLocalFeeRate(m.clusterConfig.Quarkchain)
 	ret, _, _, err := ApplyMessage(evmEnv, msg, gp, localFee)
 	return ret, err
 
@@ -1156,13 +1150,7 @@ func (m *MinorBlockChain) EstimateGas(tx *types.Transaction, fromAddress account
 		context := NewEVMContext(msg, m.CurrentBlock().IHeader().(*types.MinorBlockHeader), m)
 		evmEnv := vm.NewEVM(context, evmState, m.ethChainConfig, m.vmConfig)
 
-		localFee := big.NewRat(1, 1)
-		if qkcConfig := m.clusterConfig.Quarkchain; qkcConfig != nil {
-			num := qkcConfig.RewardTaxRate.Num().Int64()
-			denom := qkcConfig.RewardTaxRate.Denom().Int64()
-			localFee = big.NewRat(denom-num, denom)
-
-		}
+		localFee := getLocalFeeRate(m.clusterConfig.Quarkchain)
 		_, _, _, err = ApplyMessage(evmEnv, msg, gp, localFee)
 		return err
 	}

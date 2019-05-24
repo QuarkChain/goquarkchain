@@ -341,11 +341,13 @@ func (tx *Transaction) Deserialize(bb *serialize.ByteBuffer) error {
 func (tx *Transaction) Hash() (h common.Hash) {
 	if tx.TxType == EvmTx {
 		hw := sha3.NewKeccak256()
-		extra, err := serialize.SerializeToBytes(tx)
+		serialTxBytes, err := serialize.SerializeToBytes(tx)
 		if err != nil {
+			//TODO  panic ?
+			//TODO  not cache?
 			panic(err)
 		}
-		hw.Write(extra)
+		hw.Write(serialTxBytes)
 		hw.Sum(h[:0])
 		return h
 	}

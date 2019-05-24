@@ -165,7 +165,7 @@ func (p *PublicBlockChainAPI) GetMinorBlockByHeight(fullShardKeyInput hexutil.Ui
 	}
 	fullShardKey := uint32(fullShardKeyInput)
 	if includeTxs == nil {
-		temp := true
+		temp := false
 		includeTxs = &temp
 	}
 	branch := account.Branch{Value: p.b.GetClusterConfig().Quarkchain.GetFullShardIdByFullShardKey(fullShardKey)}
@@ -189,7 +189,7 @@ func (p *PublicBlockChainAPI) GetTransactionById(txID hexutil.Bytes) (map[string
 		return nil, err
 	}
 	if len(minorBlock.Transactions()) <= int(index) {
-		return nil, errors.New("re err")
+		return nil, errors.New("index bigger than block's tx")
 	}
 	return txEncoder(minorBlock, int(index))
 }
@@ -291,7 +291,6 @@ func (c *CallArgs) toTx(config *config.QuarkChainConfig) (*types.Transaction, er
 	return tx, nil
 }
 func (p *PublicBlockChainAPI) CallOrEstimateGas(args *CallArgs, height *uint64, isCall bool) (hexutil.Bytes, error) {
-
 	if args.To == nil {
 		return nil, errors.New("missing to")
 	}
@@ -311,7 +310,7 @@ func (p *PublicBlockChainAPI) CallOrEstimateGas(args *CallArgs, height *uint64, 
 	if err != nil {
 		return nil, err
 	}
-	return qkcCommon.Uint32ToBytes(data), nil // TODO ? check?
+	return qkcCommon.Uint32ToBytes(data), nil
 }
 
 type PrivateBlockChainAPI struct {

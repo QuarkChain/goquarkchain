@@ -152,6 +152,24 @@ func minorBlockEncoder(block *types.MinorBlock, includeTransaction bool) (map[st
 		"timestamp":          hexutil.Uint64(header.Time),
 		"size":               hexutil.Uint64(len(serData)),
 	}
+
+	if includeTransaction {
+		txForDisplay := make([]map[string]interface{}, 0)
+		for txIndex, _ := range block.Transactions() {
+			temp, err := txEncoder(block, txIndex)
+			if err != nil {
+				return nil, err
+			}
+			txForDisplay = append(txForDisplay, temp)
+		}
+		field["transactions"] = txForDisplay
+	} else {
+		txHashForDisplay := make([]hexutil.Bytes, 0)
+		for _, tx := range block.Transactions() {
+			txHashForDisplay = append(txHashForDisplay, IDEncoder(tx.Hash().Bytes(), block.Header().Branch.Value))
+		}
+		field["transactions"] = txHashForDisplay
+	}
 	return field, nil
 }
 
@@ -164,9 +182,9 @@ func txEncoder(block *types.MinorBlock, i int) (map[string]interface{}, error) {
 	if err != nil {
 		return nil, err
 	}
-	var sb []byte
+	var toBytes []byte
 	if evmtx.To() != nil {
-		sb = evmtx.To().Bytes()
+		toBytes = evmtx.To().Bytes()
 	}
 	branch := block.Header().Branch
 	field := map[string]interface{}{
@@ -181,7 +199,7 @@ func txEncoder(block *types.MinorBlock, i int) (map[string]interface{}, error) {
 		"blockHeight":      hexutil.Uint64(header.Number),
 		"transactionIndex": hexutil.Uint64(i),
 		"from":             DataEncoder(sender.Bytes()),
-		"to":               DataEncoder(sb),
+		"to":               DataEncoder(toBytes),
 		"fromFullShardKey": hexutil.Uint64(evmtx.FromFullShardId()), //TODO full_shard_key
 		"toFullShardKey":   hexutil.Uint64(evmtx.ToFullShardId()),   //TODO full_shard_key
 		"value":            (*hexutil.Big)(evmtx.Value()),
