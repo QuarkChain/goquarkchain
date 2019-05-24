@@ -15,7 +15,7 @@ import (
 
 func (s *ShardBackend) GetUnconfirmedHeaderList() ([]*types.MinorBlockHeader, error) {
 	headers := s.MinorBlockChain.GetUnconfirmedHeaderList()
-	return headers[0:s.maxBlocks], nil
+	return headers, nil
 }
 
 func (s *ShardBackend) broadcastNewTip() (err error) {
@@ -128,6 +128,8 @@ func (s *ShardBackend) AddBlockListForSync(blockLst []*types.MinorBlock) error {
 		prevRootHeight := s.MinorBlockChain.GetRootBlockByHash(block.Header().PrevRootBlockHash)
 		blockHashToXShardList[blockHash] = &XshardListTuple{XshardTxList: xshardLst[0], PrevRootHeight: prevRootHeight.Number()}
 	}
+	// interrupt the current miner and restart
+	s.miner.ReMine()
 	return s.conn.BatchBroadcastXshardTxList(blockHashToXShardList, blockLst[0].Header().Branch)
 }
 
@@ -211,5 +213,23 @@ func (s *ShardBackend) NewMinorBlock(block *types.MinorBlock) (err error) {
 	if err = s.conn.BroadcastMinorBlock(block, s.fullShardId); err != nil {
 		return err
 	}
-	return s.AddMinorBlock(block)
+	if err = s.AddMinorBlock(block); err != nil {
+		return err
+	}
+	// interrupt the current miner and restart
+	s.miner.ReMine()
+	return
+}
+
+// miner api
+func (s *ShardBackend) CreateBlockAsyncFunc() (types.IBlock, error) {
+	iBlock, err := s.MinorBlockChain.CreateBlockToMine(nil, &s.Config.CoinbaseAddress, nil)
+	if err != nil {
+		return nil, err
+	}
+	return iBlock, nil
+}
+
+func (s *ShardBackend) AddBlockAsyncFunc(block types.IBlock) error {
+	return s.AddMinorBlock(block.(*types.MinorBlock))
 }

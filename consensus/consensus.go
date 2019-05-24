@@ -256,8 +256,8 @@ func (c *CommonEngine) Seal(
 	block types.IBlock,
 	results chan<- types.IBlock,
 	stop <-chan struct{}) error {
+	c.SetWork(block, results)
 	if c.isRemote {
-		c.SetWork(block, results)
 		return nil
 	}
 	return c.localSeal(block, results, stop)

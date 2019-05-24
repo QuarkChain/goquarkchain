@@ -365,3 +365,9 @@ func (s *SlaveBackend) NewMinorBlock(block *types.MinorBlock) error {
 	}
 	return ErrMsg("MinorBlock")
 }
+
+func (s *SlaveBackend) SetMining(mining bool) {
+	for _, shrd := range s.shards {
+		shrd.SetMining(mining)
+	}
+}

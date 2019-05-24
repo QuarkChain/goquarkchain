@@ -93,6 +93,9 @@ func (c *CommonEngine) remote() {
 		return false
 	}
 
+	ticker := time.NewTicker(5 * time.Second)
+	defer ticker.Stop()
+
 	for {
 		select {
 		case work := <-c.workCh:
@@ -111,6 +114,16 @@ func (c *CommonEngine) remote() {
 				result.errc <- nil
 			} else {
 				result.errc <- errInvalidSealResult
+			}
+
+		case <-ticker.C:
+			if currentBlock != nil {
+				now := uint64(time.Now().Unix())
+				for hash, block := range works {
+					if block.IHeader().GetTime()+5 < now {
+						delete(works, hash)
+					}
+				}
 			}
 
 		case errc := <-c.exitCh:

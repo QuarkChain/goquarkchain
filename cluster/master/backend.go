@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
+	"github.com/QuarkChain/goquarkchain/cluster/miner"
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
 	"github.com/QuarkChain/goquarkchain/cluster/service"
 	Synchronizer "github.com/QuarkChain/goquarkchain/cluster/sync"
@@ -59,6 +60,7 @@ type QKCMasterBackend struct {
 	rootChainSideChan     chan core.RootChainSideEvent
 	rootChainEventSub     event.Subscription
 	rootChainSideEventSub event.Subscription
+	miner                 *miner.Miner
 
 	artificialTxConfig *rpc.ArtificialTxConfig
 	rootBlockChain     *core.RootBlockChain
@@ -94,6 +96,8 @@ func New(ctx *service.ServiceContext, cfg *config.ClusterConfig) (*QKCMasterBack
 	if mstr.engine, err = createConsensusEngine(ctx, cfg.Quarkchain.Root); err != nil {
 		return nil, err
 	}
+
+	mstr.miner = miner.New(mstr, mstr.engine)
 
 	chainConfig, genesisHash, genesisErr := core.SetupGenesisRootBlock(mstr.chainDb, mstr.gspc)
 	// TODO check config err
@@ -203,16 +207,24 @@ func (s *QKCMasterBackend) Start(srvr *p2p.Server) error {
 	return nil
 }
 
-// StartMining start mining
-func (s *QKCMasterBackend) StartMining(threads int) error {
-	// TODO @liuhuan
-	return nil
-}
+func (s *QKCMasterBackend) SetMining(mining bool) {
+	//var g errgroup.Group
+	//for _, slvConn := range s.clientPool {
+	//	g.Go(func() error {
+	//		return slvConn.SetMining(mining)
+	//	})
+	//}
+	//if err := g.Wait(); err != nil {
+	//	utils.Fatalf("Failed to start slave mining, err: %v", err)
+	//	return
+	//}
 
-// StopMining stop mining
-func (s *QKCMasterBackend) StopMining(threads int) error {
-	// TODO @liuhuan
-	return nil
+	if mining {
+		s.miner.Start(mining)
+	} else {
+		s.miner.Stop()
+	}
+
 }
 
 // InitCluster init cluster :
@@ -233,6 +245,7 @@ func (s *QKCMasterBackend) InitCluster() error {
 	if err := s.initShards(); err != nil {
 		return err
 	}
+	s.SetMining(true)
 	return nil
 }
 
@@ -563,16 +576,7 @@ func (s *QKCMasterBackend) SetTargetBlockTime(rootBlockTime *uint32, minorBlockT
 		TargetRootBlockTime:  *rootBlockTime,
 		TargetMinorBlockTime: *minorBlockTime,
 	}
-	return s.StartMining(1)
-}
-
-// SetMining setmiming status
-func (s *QKCMasterBackend) SetMining(mining bool) error {
-	//TODO need liuhuan to finish
-	if mining {
-		return s.StartMining(1)
-	}
-	return s.StopMining(1)
+	return nil
 }
 
 // CreateTransactions Create transactions and add to the network for load testing

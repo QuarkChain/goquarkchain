@@ -36,7 +36,7 @@ type Backend interface {
 	GetStats() map[string]interface{}
 	GetBlockCount() map[string]interface{}
 	SetTargetBlockTime(rootBlockTime *uint32, minorBlockTime *uint32) error
-	SetMining(mining bool) error
+	SetMining(mining bool)
 }
 
 func GetAPIs(apiBackend Backend) []rpc.API {

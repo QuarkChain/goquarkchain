@@ -80,6 +80,8 @@ service SlaveServerSideOp {
     }
     rpc HandleNewMinorBlock (Request) returns (Response) {
     }
+    rpc SetMining (Request) returns (Response) {
+    }
 }
 
 // request data

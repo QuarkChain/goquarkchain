@@ -256,3 +256,13 @@ func (s *QKCMasterBackend) NetWorkInfo() map[string]interface{} {
 	}
 	return fileds
 }
+
+// miner api
+func (s *QKCMasterBackend) CreateBlockAsyncFunc() (types.IBlock, error) {
+	return s.createRootBlockToMine(s.clusterConfig.Quarkchain.Root.CoinbaseAddress)
+}
+
+func (s *QKCMasterBackend) AddBlockAsyncFunc(block types.IBlock) error {
+	_, err := s.rootBlockChain.InsertChain([]types.IBlock{block})
+	return err
+}

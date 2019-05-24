@@ -649,6 +649,9 @@ func (m *MinorBlockChain) getAllUnconfirmedHeaderList() []*types.MinorBlockHeade
 func (m *MinorBlockChain) GetUnconfirmedHeaderList() []*types.MinorBlockHeader {
 	headers := m.getAllUnconfirmedHeaderList() // have lock
 	maxBlocks := m.getMaxBlocksInOneRootBlock()
+	if len(headers) < int(maxBlocks) {
+		return headers
+	}
 	return headers[0:maxBlocks]
 }
 

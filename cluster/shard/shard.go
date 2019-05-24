@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
+	"github.com/QuarkChain/goquarkchain/cluster/miner"
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
 	"github.com/QuarkChain/goquarkchain/cluster/service"
 	"github.com/QuarkChain/goquarkchain/consensus"
@@ -34,6 +35,7 @@ type ShardBackend struct {
 	gspec *core.Genesis
 	conn  ConnManager
 
+	miner           *miner.Miner
 	MinorBlockChain *core.MinorBlockChain
 
 	mBPool newBlockPool
@@ -50,7 +52,7 @@ func New(ctx *service.ServiceContext, rBlock *types.RootBlock, conn ConnManager,
 		return nil, errors.New("Failed to create shard, cluster config is nil ")
 	}
 	var (
-		shrd = ShardBackend{
+		shrd = &ShardBackend{
 			fullShardId:       fullshardId,
 			genesisRootHeight: cfg.Quarkchain.GetShardConfigByFullShardID(fullshardId).Genesis.RootHeight,
 			Config:            cfg.Quarkchain.GetShardConfigByFullShardID(fullshardId),
@@ -74,6 +76,8 @@ func New(ctx *service.ServiceContext, rBlock *types.RootBlock, conn ConnManager,
 		return nil, err
 	}
 
+	shrd.miner = miner.New(shrd, shrd.engine)
+
 	chainConfig, genesisHash, genesisErr := core.SetupGenesisMinorBlock(shrd.chainDb, shrd.gspec, rBlock, fullshardId)
 	// TODO check config err
 	if genesisErr != nil {
@@ -87,24 +91,22 @@ func New(ctx *service.ServiceContext, rBlock *types.RootBlock, conn ConnManager,
 		return nil, err
 	}
 
-	return &shrd, nil
+	return shrd, nil
 }
 
 func (s *ShardBackend) Stop() {
+	s.miner.Stop()
 	s.eventMux.Stop()
 	s.engine.Close()
 	s.chainDb.Close()
 }
 
-func (s *ShardBackend) StartMining(threads int) bool {
-	s.engine.SetThreads(threads)
-	// TODO content need to be filled.
-	return false
-}
-
-func (s *ShardBackend) StopMining() {
-	// TODO content need to be filled.
-	s.engine.SetThreads(-1)
+func (s *ShardBackend) SetMining(mining bool) {
+	if mining {
+		s.miner.Start(mining)
+	} else {
+		s.miner.Stop()
+	}
 }
 
 func createDB(ctx *service.ServiceContext, name string, clean bool) (ethdb.Database, error) {
