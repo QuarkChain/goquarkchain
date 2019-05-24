@@ -17,28 +17,30 @@ const (
 	blockDownloadSize = 100
 )
 
-var (
-	// TODO: should use config.
-	maxSyncStaleness = 22500
-)
+type rootSyncerPeer interface {
+	GetRootBlockHeaderList(hash common.Hash, amount uint32, reverse bool) ([]*types.RootBlockHeader, error)
+	GetRootBlockList(hashes []common.Hash) ([]*types.RootBlock, error)
+	PeerId() string
+}
 
 // All of the sync tasks to are to catch up with the root chain from peers.
 type rootChainTask struct {
 	task
+	peer rootSyncerPeer
 }
 
 // NewRootChainTask returns a sync task for root chain.
 func NewRootChainTask(
-	p peer,
+	p rootSyncerPeer,
 	header *types.RootBlockHeader,
 	statusChan chan *rpc.ShardStatus,
 	getShardConnFunc func(fullShardId uint32) []rpc.ShardConnForP2P,
 ) Task {
 	return &rootChainTask{
 		task: task{
-			header: header,
-			peer:   p,
-			name:   "root",
+			header:           header,
+			name:             "root",
+			maxSyncStaleness: 22500,
 			getHeaders: func(hash common.Hash, limit uint32) (ret []types.IHeader, err error) {
 				rheaders, err := p.GetRootBlockHeaderList(hash, limit, true)
 				if err != nil {
@@ -65,12 +67,17 @@ func NewRootChainTask(
 				return syncMinorBlocks(p.PeerId(), rbc, rb, statusChan, getShardConnFunc)
 			},
 		},
+		peer: p,
 	}
 }
 
 func (r *rootChainTask) Priority() uint {
 	// TODO: should use total diff
 	return uint(r.task.header.NumberU64())
+}
+
+func (r *rootChainTask) PeerID() string {
+	return r.peer.PeerId()
 }
 
 func syncMinorBlocks(

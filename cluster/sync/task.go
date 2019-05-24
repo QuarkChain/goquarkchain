@@ -14,17 +14,17 @@ import (
 // Task represents a synchronization task for the synchronizer.
 type Task interface {
 	Run(blockchain) error
-	Peer() peer
 	Priority() uint
+	PeerID() string
 }
 
 type task struct {
-	header     types.IHeader
-	peer       peer
-	name       string
-	getHeaders func(common.Hash, uint32) ([]types.IHeader, error)
-	getBlocks  func([]common.Hash) ([]types.IBlock, error)
-	syncBlock  func(types.IBlock, blockchain) error
+	header           types.IHeader
+	name             string
+	maxSyncStaleness int // TODO: should use config.
+	getHeaders       func(common.Hash, uint32) ([]types.IHeader, error)
+	getBlocks        func([]common.Hash) ([]types.IBlock, error)
+	syncBlock        func(types.IBlock, blockchain) error
 }
 
 // Run will execute the synchronization task.
@@ -42,7 +42,7 @@ func (t *task) Run(bc blockchain) error {
 	lastHeader := t.header
 	for !bc.HasBlock(lastHeader.GetParentHash()) {
 		height, hash := lastHeader.NumberU64(), lastHeader.Hash()
-		if tipHeight > height && tipHeight-height > uint64(maxSyncStaleness) {
+		if tipHeight > height && tipHeight-height > uint64(t.maxSyncStaleness) {
 			logger.Warn("Abort synching due to forking at super old block", "currentHeight", tipHeight, "oldHeight", height)
 			return nil
 		}
@@ -113,10 +113,6 @@ func (t *task) Run(bc blockchain) error {
 	}
 
 	return nil
-}
-
-func (t *task) Peer() peer {
-	return t.peer
 }
 
 func (t *task) validateHeaderList(bc blockchain, headers []types.IHeader) error {
