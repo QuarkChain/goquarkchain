@@ -4,9 +4,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/core/types"
-	"github.com/QuarkChain/goquarkchain/serialize"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/common/math"
@@ -178,28 +176,4 @@ func TestReadTxFromFile(t *testing.T) {
 	s := new(types.EvmTransaction)
 	err = rlp.DecodeBytes(data, s)
 	fmt.Println("data_to_json_rpc", hex.EncodeToString(data))
-}
-
-type SB struct {
-	Addr   account.Recipient
-	Height uint32
-}
-
-func TestAdf(t *testing.T) {
-	sb := make([]SB, 0)
-	sb = append(sb, SB{
-		Addr:   common.BigToAddress(new(big.Int).SetUint64(1)),
-		Height: 1,
-	})
-	sb = append(sb, SB{
-		Addr:   common.BigToAddress(new(big.Int).SetUint64(2)),
-		Height: 2,
-	})
-	fmt.Println("sb", sb)
-	dara, err := serialize.SerializeToBytes(sb)
-
-	sb1 := new([]SB)
-	err = serialize.DeserializeFromBytes(dara, sb1)
-	fmt.Println("err", err)
-	fmt.Println("sb1", sb1)
 }

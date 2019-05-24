@@ -106,7 +106,7 @@ func New(ctx *service.ServiceContext, cfg *config.ClusterConfig) (*QKCMasterBack
 	if mstr.rootBlockChain, err = core.NewRootBlockChain(mstr.chainDb, nil, cfg.Quarkchain, mstr.engine, nil); err != nil {
 		return nil, err
 	}
-	fmt.Println("?????????????????????????????", cfg.EnableTransactionHistory)
+
 	mstr.rootBlockChain.SetEnableCountMinorBlocks(cfg.EnableTransactionHistory)
 	for _, cfg := range cfg.SlaveList {
 		target := fmt.Sprintf("%s:%d", cfg.IP, cfg.Port)

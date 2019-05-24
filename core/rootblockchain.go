@@ -1319,7 +1319,6 @@ func (bc *RootBlockChain) GetBlockCount(rootHeight uint32) (map[uint32]map[accou
 		infoList := new([]account.ReceiptCnt)
 		if err := serialize.DeserializeFromBytes(data, infoList); err != nil {
 			panic(err) //TODO delete later unexpected err
-			return nil, err
 		}
 		for _, info := range *infoList {
 			if _, ok := shardRecipientCnt[fullShardId]; !ok {

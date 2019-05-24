@@ -2,7 +2,6 @@ package qkcapi
 
 import (
 	"errors"
-	"fmt"
 	"github.com/QuarkChain/goquarkchain/account"
 	qkcRPC "github.com/QuarkChain/goquarkchain/cluster/rpc"
 	qkcCommon "github.com/QuarkChain/goquarkchain/common"
@@ -311,7 +310,6 @@ func (p *PrivateBlockChainAPI) GetStats() map[string]interface{} {
 	panic(-1)
 }
 func (p *PrivateBlockChainAPI) GetBlockCount() (map[uint32]map[account.Recipient]uint32, error) {
-	fmt.Println("GGGGGGGGGGGGGGGGGGG")
 	return p.b.GetBlockCount()
 }
 
