@@ -64,3 +64,8 @@ func BytesToIdentityKey(b []byte) Key {
 	a.SetBytes(b)
 	return a
 }
+
+type ReceiptCnt struct {
+	Addr Recipient
+	Cnt  uint32
+}

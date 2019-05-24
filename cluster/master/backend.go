@@ -106,7 +106,8 @@ func New(ctx *service.ServiceContext, cfg *config.ClusterConfig) (*QKCMasterBack
 	if mstr.rootBlockChain, err = core.NewRootBlockChain(mstr.chainDb, nil, cfg.Quarkchain, mstr.engine, nil); err != nil {
 		return nil, err
 	}
-
+	fmt.Println("?????????????????????????????", cfg.EnableTransactionHistory)
+	mstr.rootBlockChain.SetEnableCountMinorBlocks(cfg.EnableTransactionHistory)
 	for _, cfg := range cfg.SlaveList {
 		target := fmt.Sprintf("%s:%d", cfg.IP, cfg.Port)
 		client := NewSlaveConn(target, cfg.ChainMaskList, cfg.ID)
@@ -600,9 +601,9 @@ func (s *QKCMasterBackend) UpdateTxCountHistory(txCount, xShardTxCount uint32, c
 	panic("not implement")
 }
 
-func (s *QKCMasterBackend) GetBlockCount() map[string]interface{} {
-	// TODO @scf next pr to implement
-	panic("not implement")
+func (s *QKCMasterBackend) GetBlockCount() (map[uint32]map[account.Recipient]uint32, error) {
+	headerTip := s.rootBlockChain.CurrentBlock()
+	return s.rootBlockChain.GetBlockCount(headerTip.Number())
 }
 
 func (s *QKCMasterBackend) GetStats() map[string]interface{} {

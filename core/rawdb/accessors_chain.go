@@ -612,3 +612,17 @@ func ReadLastConfirmedMinorBlockHeaderAtRootBlock(db DatabaseReader, rHash commo
 	}
 	return common.BytesToHash(data)
 }
+
+func WriteMinorBlockCnt(db DatabaseWriter, fullShardID uint32, height uint32, data []byte) {
+	if err := db.Put(makeMinorCount(fullShardID, height), data); err != nil {
+		log.Crit("failed to store minor block cnt")
+	}
+}
+
+func GetMinorBlockCnt(db DatabaseReader, fullShardID uint32, height uint32) []byte {
+	data, _ := db.Get(makeMinorCount(fullShardID, height))
+	if len(data) == 0 {
+		return []byte{}
+	}
+	return data
+}

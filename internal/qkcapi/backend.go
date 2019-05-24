@@ -34,9 +34,10 @@ type Backend interface {
 	GetClusterConfig() *config.ClusterConfig
 	GetPeers() []qkcRPC.PeerInfoForDisPlay
 	GetStats() map[string]interface{}
-	GetBlockCount() map[string]interface{}
+	GetBlockCount() (map[uint32]map[account.Recipient]uint32, error)
 	SetTargetBlockTime(rootBlockTime *uint32, minorBlockTime *uint32) error
 	SetMining(mining bool) error
+	CreateTransactions(numTxPerShard, xShardPercent uint32, tx *types.Transaction) error
 }
 
 func GetAPIs(apiBackend Backend) []rpc.API {

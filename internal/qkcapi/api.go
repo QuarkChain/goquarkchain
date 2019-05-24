@@ -2,11 +2,10 @@ package qkcapi
 
 import (
 	"errors"
+	"fmt"
 	"github.com/QuarkChain/goquarkchain/account"
-	"github.com/QuarkChain/goquarkchain/cluster/config"
 	qkcRPC "github.com/QuarkChain/goquarkchain/cluster/rpc"
 	qkcCommon "github.com/QuarkChain/goquarkchain/common"
-	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/rpc"
@@ -257,39 +256,6 @@ func (p *PublicBlockChainAPI) QkcEstimategas()           { panic("not implemente
 func (p *PublicBlockChainAPI) QkcGetlogs()               { panic("not implemented") }
 func (p *PublicBlockChainAPI) QkcGetstorageat()          { panic("not implemented") }
 
-// CallArgs represents the arguments for a call.
-type CallArgs struct {
-	From     *account.Address `json:"from"`
-	To       *account.Address `json:"to"`
-	Gas      hexutil.Big      `json:"gas"`
-	GasPrice hexutil.Big      `json:"gasPrice"`
-	Value    hexutil.Big      `json:"value"`
-	Data     hexutil.Bytes    `json:"data"`
-}
-
-func (c *CallArgs) setDefaults() {
-	if c.From == nil {
-		temp := account.CreatEmptyAddress(c.To.FullShardKey)
-		c.From = &temp
-	}
-}
-func (c *CallArgs) toTx(config *config.QuarkChainConfig) (*types.Transaction, error) {
-	nonce := uint64(0)
-	evmTx := types.NewEvmTransaction(nonce, c.To.Recipient, c.Value.ToInt(), c.Gas.ToInt().Uint64(), c.GasPrice.ToInt(), c.From.FullShardKey, c.To.FullShardKey, config.NetworkID, 0, c.Data)
-	tx := &types.Transaction{
-		EvmTx:  evmTx,
-		TxType: types.EvmTx,
-	}
-	toShardSize := config.GetShardSizeByChainId(tx.EvmTx.ToChainID())
-	if err := tx.EvmTx.SetToShardSize(toShardSize); err != nil {
-		return nil, errors.New("SetToShardSize err")
-	}
-	fromShardSize := config.GetShardSizeByChainId(tx.EvmTx.FromChainID())
-	if err := tx.EvmTx.SetFromShardSize(fromShardSize); err != nil {
-		return nil, errors.New("SetFromShardSize err")
-	}
-	return tx, nil
-}
 func (p *PublicBlockChainAPI) CallOrEstimateGas(args *CallArgs, height *uint64, isCall bool) (hexutil.Bytes, error) {
 	if args.To == nil {
 		return nil, errors.New("missing to")
@@ -344,14 +310,23 @@ func (p *PrivateBlockChainAPI) GetSyncStats() {
 func (p *PrivateBlockChainAPI) GetStats() map[string]interface{} {
 	panic(-1)
 }
-func (p *PrivateBlockChainAPI) GetBlockCount() map[string]interface{} {
-	panic(-1)
+func (p *PrivateBlockChainAPI) GetBlockCount() (map[uint32]map[account.Recipient]uint32, error) {
+	fmt.Println("GGGGGGGGGGGGGGGGGGG")
+	return p.b.GetBlockCount()
 }
-func (p *PrivateBlockChainAPI) CreateTransactions() { panic("not implemented") }
+
+//TODO txGenerate implement
+func (p *PrivateBlockChainAPI) CreateTransactions(args *CreateTxArgs) error {
+	args.setDefaults()
+	tx := args.toTx(p.b.GetClusterConfig().Quarkchain)
+	return p.b.CreateTransactions(uint32(args.NumTxPreShard), uint32(args.XShardPrecent), tx)
+}
 func (p *PrivateBlockChainAPI) SetTargetBlockTime(rootBlockTime *uint32, minorBlockTime *uint32) error {
-	panic(-1)
+	return p.b.SetTargetBlockTime(rootBlockTime, minorBlockTime)
 }
-func (p *PrivateBlockChainAPI) SetMining(flag bool) (bool, error) {
-	panic(-1)
+func (p *PrivateBlockChainAPI) SetMining(flag bool) error {
+	return p.b.SetMining(flag)
 }
+
+//TODO ?? necessary?
 func (p *PrivateBlockChainAPI) GetJrpcCalls() { panic("not implemented") }

@@ -55,6 +55,7 @@ var (
 	rLastM             = []byte("rLastM")
 	rBlock             = []byte("rBlock")
 	genesis            = []byte("genesis")
+	countMinor         = []byte("countMinor")
 )
 
 type ChainType byte
@@ -173,4 +174,8 @@ func makeRLastMHash(hash common.Hash) []byte {
 
 func makeRootBlockForShard(hash common.Hash) []byte {
 	return append(rBlock, hash.Bytes()...)
+}
+func makeMinorCount(fullShardID uint32, height uint32) []byte {
+	data := append(countMinor, encodeUint32(fullShardID)...)
+	return append(data, encodeUint32(height)...)
 }
