@@ -69,7 +69,7 @@ func (v *RootBlockValidator) ValidateBlock(block types.IBlock) error {
 	if !v.config.SkipRootCoinbaseCheck {
 		coinbaseAmount := v.blockChain.CalculateRootBlockCoinBase(rootBlock)
 		if coinbaseAmount.Cmp(rootBlock.CoinbaseAmount()) != 0 {
-			return fmt.Errorf("bad coinbase amount for root block %v. expect %d but got %d.",
+			return fmt.Errorf("bad coinbase amount for root block %v. expect %d but got %d ",
 				rootBlock.Hash().String(),
 				coinbaseAmount,
 				rootBlock.CoinbaseAmount())
@@ -81,6 +81,8 @@ func (v *RootBlockValidator) ValidateBlock(block types.IBlock) error {
 	prevRootBlockHashList := make(map[common.Hash]bool, 0)
 	var shardIdToMinorHeadersMap = make(map[uint32][]*types.MinorBlockHeader)
 	for _, mheader := range rootBlock.MinorBlockHeaders() {
+		mFullShardId := mheader.Branch.GetFullShardID()
+
 		if !v.blockChain.IsMinorBlockValidated(mheader.Hash()) {
 			return fmt.Errorf("minor block is not validated. %v-%d",
 				mheader.Coinbase.FullShardKey, mheader.Number)
@@ -89,11 +91,11 @@ func (v *RootBlockValidator) ValidateBlock(block types.IBlock) error {
 			return fmt.Errorf("minor block create time is larger than root block %d-%d",
 				mheader.Time, mheader.Time)
 		}
-		if mheader.Branch.GetFullShardID() < fullShardId {
+		if mFullShardId < fullShardId {
 			return errors.New("shard id must be ordered")
 		}
-		if mheader.Branch.GetFullShardID() > fullShardId {
-			fullShardId = mheader.Branch.GetFullShardID()
+		if mFullShardId > fullShardId {
+			fullShardId = mFullShardId
 			shardIdToMinorHeadersMap[fullShardId] = make([]*types.MinorBlockHeader, 0, rootBlock.MinorBlockHeaders().Len())
 		} else if mheader.Number != parentHeader.Number+1 {
 			return fmt.Errorf("mheader.Number must equal to prev header + 1, header number %d, prev number %d", mheader.Number, parentHeader.Number)
@@ -107,7 +109,7 @@ func (v *RootBlockValidator) ValidateBlock(block types.IBlock) error {
 		shardIdToMinorHeadersMap[fullShardId] = append(shardIdToMinorHeadersMap[fullShardId], mheader)
 	}
 
-	for key, _ := range prevRootBlockHashList {
+	for key := range prevRootBlockHashList {
 		if !v.blockChain.isSameChain(rootBlock.Header(), v.blockChain.GetHeader(key).(*types.RootBlockHeader)) {
 			return errors.New("minor block's prev root block must be in the same chain")
 		}
@@ -143,6 +145,9 @@ func (v *RootBlockValidator) ValidateBlock(block types.IBlock) error {
 		}
 
 		if prevHeader != nil && (prevHeader.Number+1 != minorHeaders[0].Number || prevHeader.Hash() != minorHeaders[0].ParentHash) {
+			for _, hd := range minorHeaders {
+				fmt.Println("====================", fullShardId, hd.Number, hd.Hash().Hex())
+			}
 			return fmt.Errorf("minor block %v does not link to previous block %v",
 				minorHeaders[0].Hash().String(), prevHeader.Hash().String())
 		}

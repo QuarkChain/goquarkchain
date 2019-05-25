@@ -202,29 +202,28 @@ func (s *QKCMasterBackend) Start(srvr *p2p.Server) error {
 	// start heart beat pre 3 seconds.
 	s.updateShardStatsLoop()
 	s.Heartbeat()
-	s.disPlayPeers()
+	// s.disPlayPeers()
 	go s.broadcastRpcLoop()
 	return nil
 }
 
 func (s *QKCMasterBackend) SetMining(mining bool) {
-	//var g errgroup.Group
-	//for _, slvConn := range s.clientPool {
-	//	g.Go(func() error {
-	//		return slvConn.SetMining(mining)
-	//	})
-	//}
-	//if err := g.Wait(); err != nil {
-	//	utils.Fatalf("Failed to start slave mining, err: %v", err)
-	//	return
-	//}
+	var g errgroup.Group
+	for _, slvConn := range s.clientPool {
+		g.Go(func() error {
+			return slvConn.SetMining(mining)
+		})
+	}
+	if err := g.Wait(); err != nil {
+		log.Error("Set slave mining failed", "err", err)
+		return
+	}
 
 	if mining {
 		s.miner.Start(mining)
 	} else {
 		s.miner.Stop()
 	}
-
 }
 
 // InitCluster init cluster :
@@ -473,10 +472,12 @@ func (s *QKCMasterBackend) createRootBlockToMine(address account.Address) (*type
 	if err != nil {
 		return nil, err
 	}
-	if err := s.rootBlockChain.Validator().ValidateBlock(newblock); err != nil {
-		//TODO :only for exposure problem ,need to delete later
-		panic(err)
+	pBlock := s.rootBlockChain.GetBlockByNumber(newblock.NumberU64() - 1)
+	newblock.ParentHash()
+	if newblock.ParentHash() != pBlock.Hash() {
+		log.Error("Create illed root block", "new block", newblock.Hash().Hex(), "parent block", pBlock.Hash().Hex())
 	}
+	log.Info("------------------ Create normal root block", "new block", newblock.Hash().Hex(), "new block height", newblock.NumberU64(), "parent block", pBlock.Hash().Hex())
 	return newblock, nil
 }
 

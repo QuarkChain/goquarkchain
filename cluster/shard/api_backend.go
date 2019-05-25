@@ -15,6 +15,10 @@ import (
 
 func (s *ShardBackend) GetUnconfirmedHeaderList() ([]*types.MinorBlockHeader, error) {
 	headers := s.MinorBlockChain.GetUnconfirmedHeaderList()
+	fmt.Println("------------------------------------------------", s.MinorBlockChain.CurrentHeader().NumberU64())
+	for _, header := range headers {
+		fmt.Println("=================", header.Number, header.Hash().Hex())
+	}
 	return headers, nil
 }
 
@@ -66,6 +70,7 @@ func (s *ShardBackend) AddMinorBlock(block *types.MinorBlock) error {
 	if err != nil {
 		return err
 	}
+	fmt.Println("-----------------", block.Number(), block.Nonce(), block.Difficulty())
 	err = s.conn.SendMinorBlockHeaderToMaster(
 		block.Header(),
 		uint32(block.Transactions().Len()),

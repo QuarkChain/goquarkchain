@@ -236,11 +236,10 @@ func (c *CommonEngine) FindNonce(
 	}
 
 	go func() {
-		var result MiningResult
 		select {
 		case <-stop:
 			close(abort)
-		case result = <-found:
+		case result := <-found:
 			results <- result
 			close(abort)
 		}
@@ -280,11 +279,10 @@ func (c *CommonEngine) localSeal(
 	}
 	// Convert found header to block
 	go func() {
-		var result MiningResult
 		select {
 		case <-stop:
 			close(abort)
-		case result = <-found:
+		case result := <-found:
 			select {
 			case results <- block.WithMingResult(result.Nonce, result.Digest):
 			default:
@@ -423,17 +421,19 @@ func (c *CommonEngine) Close() error {
 // NewCommonEngine returns the common engine mixin.
 func NewCommonEngine(spec MiningSpec, diffCalc DifficultyCalculator, remote bool) *CommonEngine {
 	c := &CommonEngine{
-		spec:     spec,
-		hashrate: metrics.NewMeter(),
-		diffCalc: diffCalc,
+		spec:         spec,
+		hashrate:     metrics.NewMeter(),
+		diffCalc:     diffCalc,
+		workCh:       make(chan *sealTask),
+		fetchWorkCh:  make(chan *sealWork),
+		submitWorkCh: make(chan *mineResult),
+		exitCh:       make(chan chan error),
 	}
 	if remote {
 		c.isRemote = true
-		c.workCh = make(chan *sealTask)
-		c.fetchWorkCh = make(chan *sealWork)
-		c.submitWorkCh = make(chan *mineResult)
-		c.exitCh = make(chan chan error)
-		go c.remote()
 	}
+
+	go c.remote()
+
 	return c
 }
