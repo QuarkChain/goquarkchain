@@ -1430,4 +1430,4 @@ func TestMinorLargeReorgTrieGC(t *testing.T) {
 }
 
 //TODO
-//Bench test: qkc genesis not support code set
+

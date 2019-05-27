@@ -20,7 +20,7 @@ const (
 type rootSyncerPeer interface {
 	GetRootBlockHeaderList(hash common.Hash, amount uint32, reverse bool) ([]*types.RootBlockHeader, error)
 	GetRootBlockList(hashes []common.Hash) ([]*types.RootBlock, error)
-	PeerId() string
+	PeerID() string
 }
 
 // All of the sync tasks to are to catch up with the root chain from peers.
@@ -64,7 +64,7 @@ func NewRootChainTask(
 			syncBlock: func(block types.IBlock, bc blockchain) error {
 				rb := block.(*types.RootBlock)
 				rbc := bc.(rootblockchain)
-				return syncMinorBlocks(p.PeerId(), rbc, rb, statusChan, getShardConnFunc)
+				return syncMinorBlocks(p.PeerID(), rbc, rb, statusChan, getShardConnFunc)
 			},
 		},
 		peer: p,
@@ -77,7 +77,7 @@ func (r *rootChainTask) Priority() uint {
 }
 
 func (r *rootChainTask) PeerID() string {
-	return r.peer.PeerId()
+	return r.peer.PeerID()
 }
 
 func syncMinorBlocks(

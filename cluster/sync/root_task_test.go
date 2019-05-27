@@ -31,8 +31,10 @@ type mockpeer struct {
 	name                string
 	downloadHeaderError error
 	downloadBlockError  error
-	retHeaders          []*types.RootBlockHeader // Order: descending.
-	retBlocks           []*types.RootBlock       // Order: descending.
+	retRHeaders         []*types.RootBlockHeader  // Order: descending.
+	retRBlocks          []*types.RootBlock        // Order: descending.
+	retMHeaders         []*types.MinorBlockHeader // Order: descending.
+	retMBlocks          []*types.MinorBlock       // Order: descending.
 }
 
 func (p *mockpeer) GetRootBlockHeaderList(hash common.Hash, amount uint32, reverse bool) ([]*types.RootBlockHeader, error) {
@@ -40,9 +42,9 @@ func (p *mockpeer) GetRootBlockHeaderList(hash common.Hash, amount uint32, rever
 		return nil, p.downloadHeaderError
 	}
 	// May return a subset.
-	for i, h := range p.retHeaders {
+	for i, h := range p.retRHeaders {
 		if h.Hash() == hash {
-			ret := p.retHeaders[i:len(p.retHeaders)]
+			ret := p.retRHeaders[i:len(p.retRHeaders)]
 			return ret, nil
 		}
 	}
@@ -53,29 +55,43 @@ func (p *mockpeer) GetRootBlockList(hashes []common.Hash) ([]*types.RootBlock, e
 	if p.downloadBlockError != nil {
 		return nil, p.downloadBlockError
 	}
-	return p.retBlocks, nil
+	return p.retRBlocks, nil
 }
 
-func (p *mockpeer) PeerId() string {
+func (p *mockpeer) PeerID() string {
 	return p.name
 }
 
+// Only one of `rbc` or `mbc` should be initialized.
 type mockblockchain struct {
 	rbc       *core.RootBlockChain
+	mbc       *core.MinorBlockChain
 	validator core.Validator
 }
 
 func (bc *mockblockchain) HasBlock(hash common.Hash) bool {
-	header := bc.rbc.GetHeader(hash)
+	if bc.rbc != nil {
+		header := bc.rbc.GetHeader(hash)
+		return !(header == nil || reflect.ValueOf(header).IsNil())
+	}
+	header := bc.mbc.GetHeader(hash)
 	return !(header == nil || reflect.ValueOf(header).IsNil())
+
 }
 
 func (bc *mockblockchain) InsertChain(blocks []types.IBlock) (int, error) {
-	return bc.rbc.InsertChain(blocks)
+	if bc.rbc != nil {
+		return bc.rbc.InsertChain(blocks)
+	}
+	n, _, err := bc.mbc.InsertChain(blocks)
+	return n, err
 }
 
 func (bc *mockblockchain) CurrentHeader() types.IHeader {
-	return bc.rbc.CurrentHeader()
+	if bc.rbc != nil {
+		return bc.rbc.CurrentHeader()
+	}
+	return bc.mbc.CurrentHeader()
 }
 
 func (bc *mockblockchain) Validator() core.Validator {
@@ -105,7 +121,7 @@ func (v *mockvalidator) ValidateBlock(types.IBlock) error {
 	return v.err
 }
 
-func newBlockChain(sz int) blockchain {
+func newRootBlockChain(sz int) blockchain {
 	qkcconfig.SkipRootCoinbaseCheck = true
 	db := ethdb.NewMemDatabase()
 	genesisBlock := genesis.MustCommitRootBlock(db)
@@ -128,12 +144,12 @@ func newBlockChain(sz int) blockchain {
 
 func TestRootChainTaskRun(t *testing.T) {
 	p := &mockpeer{name: "chunfeng"}
-	bc := newBlockChain(5)
+	bc := newRootBlockChain(5)
 	rbc := bc.(*mockblockchain).rbc
 	var rt Task = NewRootChainTask(p, nil, nil, nil)
 
 	// Prepare future blocks for downloading.
-	rbChain, rhChain := makeChains(rbc.CurrentBlock(), false)
+	rbChain, rhChain := makeRootChains(rbc.CurrentBlock(), false)
 
 	// No error if already have the target block.
 	rt.(*rootChainTask).header = bc.CurrentHeader().(*types.RootBlockHeader)
@@ -142,7 +158,7 @@ func TestRootChainTaskRun(t *testing.T) {
 	rt.(*rootChainTask).header = rbChain[4].Header()
 	v := &mockvalidator{}
 	bc.(*mockblockchain).validator = v
-	p.retHeaders, p.retBlocks = reverserHeaders(rhChain), reverserBlocks(rbChain)
+	p.retRHeaders, p.retRBlocks = reverseRHeaders(rhChain), reverseRBlocks(rbChain)
 	assert.NoError(t, rt.Run(bc))
 	// Confirm 5 more blocks are successfully added to existing 5-block chain.
 	assert.Equal(t, uint64(10), bc.CurrentHeader().NumberU64())
@@ -160,33 +176,33 @@ func TestRootChainTaskRun(t *testing.T) {
 	assert.Error(t, rt.Run(bc))
 	// Block validation succeeds, but block header list not correct.
 	v.err = nil
-	wrongHeaders := reverserHeaders(rhChain)
+	wrongHeaders := reverseRHeaders(rhChain)
 	rand.Shuffle(len(wrongHeaders), func(i, j int) {
 		wrongHeaders[i], wrongHeaders[j] = wrongHeaders[j], wrongHeaders[i]
 	})
-	p.retHeaders = wrongHeaders
+	p.retRHeaders = wrongHeaders
 	assert.Error(t, rt.Run(bc))
 	// Validation succeeds. Should be downloading actual blocks. Mock some errors.
-	p.retHeaders = reverserHeaders(rhChain)
+	p.retRHeaders = reverseRHeaders(rhChain)
 	p.downloadBlockError = errors.New("download error")
 	assert.Error(t, rt.Run(bc))
 	// Downloading blocks succeeds. But make the returned blocks miss one. Insertion should fail.
 	p.downloadBlockError = nil
-	missing := p.retBlocks[len(p.retBlocks)-1]
-	p.retBlocks = p.retBlocks[0 : len(p.retBlocks)-1]
+	missing := p.retRBlocks[len(p.retRBlocks)-1]
+	p.retRBlocks = p.retRBlocks[0 : len(p.retRBlocks)-1]
 	assert.Error(t, rt.Run(bc))
 	// Add back that missing block. Happy again.
-	p.retBlocks = append(p.retBlocks, missing)
+	p.retRBlocks = append(p.retRBlocks, missing)
 	assert.NoError(t, rt.Run(bc))
 	assert.Equal(t, uint64(10), bc.CurrentHeader().NumberU64())
 
 	// Sync older forks. Starting from block 6, up to 11.
-	rbChain, rhChain = makeChains(rbChain[0], true)
+	rbChain, rhChain = makeRootChains(rbChain[0], true)
 	for _, rh := range rhChain {
 		assert.False(t, bc.HasBlock(rh.Hash()))
 	}
 	rt.(*rootChainTask).header = rbChain[4].Header()
-	p.retHeaders, p.retBlocks = reverserHeaders(rhChain), reverserBlocks(rbChain)
+	p.retRHeaders, p.retRBlocks = reverseRHeaders(rhChain), reverseRBlocks(rbChain)
 	assert.NoError(t, rt.Run(bc))
 	for _, rh := range rhChain {
 		assert.True(t, bc.HasBlock(rh.Hash()))
@@ -196,7 +212,7 @@ func TestRootChainTaskRun(t *testing.T) {
 }
 
 func TestSyncMinorBlocks(t *testing.T) {
-	bc := newBlockChain(5)
+	bc := newRootBlockChain(5)
 	rbc := bc.(*mockblockchain).rbc
 	statusChan := make(chan *rpc.ShardStatus, 2)
 	index := 0
@@ -270,7 +286,7 @@ func getShardConnForP2P(n int, ctrl *gomock.Controller) []rpc.ShardConnForP2P {
  Test helpers.
 */
 
-func makeChains(parent *types.RootBlock, random bool) ([]*types.RootBlock, []*types.RootBlockHeader) {
+func makeRootChains(parent *types.RootBlock, random bool) ([]*types.RootBlock, []*types.RootBlockHeader) {
 	var gen func(i int, b *core.RootBlockGen)
 	if random {
 		gen = func(i int, b *core.RootBlockGen) {
@@ -286,7 +302,7 @@ func makeChains(parent *types.RootBlock, random bool) ([]*types.RootBlock, []*ty
 	return blockchain, headerchain
 }
 
-func reverserBlocks(ls []*types.RootBlock) []*types.RootBlock {
+func reverseRBlocks(ls []*types.RootBlock) []*types.RootBlock {
 	ret := make([]*types.RootBlock, len(ls), len(ls))
 	copy(ret, ls)
 	for left, right := 0, len(ls)-1; left < right; left, right = left+1, right-1 {
@@ -295,7 +311,7 @@ func reverserBlocks(ls []*types.RootBlock) []*types.RootBlock {
 	return ret
 }
 
-func reverserHeaders(ls []*types.RootBlockHeader) []*types.RootBlockHeader {
+func reverseRHeaders(ls []*types.RootBlockHeader) []*types.RootBlockHeader {
 	ret := make([]*types.RootBlockHeader, len(ls), len(ls))
 	copy(ret, ls)
 	for left, right := 0, len(ls)-1; left < right; left, right = left+1, right-1 {

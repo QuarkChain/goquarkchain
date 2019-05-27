@@ -7,9 +7,9 @@ import (
 )
 
 type minorSyncerPeer interface {
-	GetMinorBlockHeaderList(hash common.Hash, amount, branch uint32, reverse bool) ([]*types.RootBlockHeader, error)
+	GetMinorBlockHeaderList(hash common.Hash, amount, branch uint32, reverse bool) ([]*types.MinorBlockHeader, error)
 	GetMinorBlockList(hashes []common.Hash, branch uint32) ([]*types.MinorBlock, error)
-	PeerId() string
+	PeerID() string
 }
 
 type minorChainTask struct {
@@ -57,5 +57,5 @@ func (m *minorChainTask) Priority() uint {
 }
 
 func (m *minorChainTask) PeerID() string {
-	return m.peer.PeerId()
+	return m.peer.PeerID()
 }
