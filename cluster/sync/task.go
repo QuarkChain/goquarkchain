@@ -96,7 +96,7 @@ func (t *task) Run(bc blockchain) error {
 			logger.Info("Syncing block starts", "height", h.NumberU64(), "hash", h.Hash())
 			// Simple profiling.
 			ts := time.Now()
-			if t.syncBlock != nil {
+			if t.syncBlock != nil { // Used by root chain blocks.
 				if err := t.syncBlock(b, bc); err != nil {
 					return err
 				}
