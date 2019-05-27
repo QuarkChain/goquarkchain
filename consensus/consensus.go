@@ -239,8 +239,11 @@ func (c *CommonEngine) FindNonce(
 		select {
 		case <-stop:
 			close(abort)
+			return
 		case result := <-found:
-			results <- result
+			select {
+			case results <- result:
+			}
 			close(abort)
 		}
 		pend.Wait()
@@ -255,8 +258,8 @@ func (c *CommonEngine) Seal(
 	block types.IBlock,
 	results chan<- types.IBlock,
 	stop <-chan struct{}) error {
-	c.SetWork(block, results)
 	if c.isRemote {
+		c.SetWork(block, results)
 		return nil
 	}
 	return c.localSeal(block, results, stop)
@@ -270,25 +273,21 @@ func (c *CommonEngine) localSeal(
 	stop <-chan struct{},
 ) error {
 
-	abort := make(chan struct{})
 	found := make(chan MiningResult)
 	header := block.IHeader()
 	work := MiningWork{HeaderHash: header.SealHash(), Number: header.NumberU64(), Difficulty: header.GetDifficulty()}
-	if err := c.FindNonce(work, found, abort); err != nil {
+	if err := c.FindNonce(work, found, stop); err != nil {
 		return err
 	}
 	// Convert found header to block
 	go func() {
 		select {
-		case <-stop:
-			close(abort)
 		case result := <-found:
 			select {
 			case results <- block.WithMingResult(result.Nonce, result.Digest):
 			default:
 				log.Warn("Sealing result is not read by miner", "mode", "local", "sealhash", work.HeaderHash)
 			}
-			close(abort)
 		}
 	}()
 	return nil
@@ -298,7 +297,7 @@ func (c *CommonEngine) mine(
 	work MiningWork,
 	id int,
 	startNonce uint64,
-	abort chan struct{},
+	abort <-chan struct{},
 	found chan MiningResult,
 ) {
 
@@ -421,19 +420,18 @@ func (c *CommonEngine) Close() error {
 // NewCommonEngine returns the common engine mixin.
 func NewCommonEngine(spec MiningSpec, diffCalc DifficultyCalculator, remote bool) *CommonEngine {
 	c := &CommonEngine{
-		spec:         spec,
-		hashrate:     metrics.NewMeter(),
-		diffCalc:     diffCalc,
-		workCh:       make(chan *sealTask),
-		fetchWorkCh:  make(chan *sealWork),
-		submitWorkCh: make(chan *mineResult),
-		exitCh:       make(chan chan error),
+		spec:     spec,
+		hashrate: metrics.NewMeter(),
+		diffCalc: diffCalc,
 	}
 	if remote {
 		c.isRemote = true
+		c.workCh = make(chan *sealTask)
+		c.fetchWorkCh = make(chan *sealWork)
+		c.submitWorkCh = make(chan *mineResult)
+		c.exitCh = make(chan chan error)
+		go c.remote()
 	}
-
-	go c.remote()
 
 	return c
 }

@@ -18,11 +18,6 @@ type RootBlockValidator struct {
 	engine     consensus.Engine         // engine engine used for validating
 }
 
-type blockNode struct {
-	mBHeaders []*types.MinorBlockHeader
-	total     int
-}
-
 // NewRootBlockValidator returns a new root block validator which is safe for re-use
 func NewRootBlockValidator(config *config.QuarkChainConfig, blockchain *RootBlockChain, engine consensus.Engine) *RootBlockValidator {
 	validator := &RootBlockValidator{
@@ -82,7 +77,7 @@ func (v *RootBlockValidator) ValidateBlock(block types.IBlock) error {
 
 	var (
 		parentHeader            *types.MinorBlockHeader
-		shardIdHeadersMap       = make(map[uint32]*blockNode)
+		shardIdHeadersMap       = make(map[uint32][]*types.MinorBlockHeader)
 		latestMinorBlockHeaders = v.blockChain.GetLatestMinorBlockHeaders(header.ParentHash)
 	)
 	for _, mheader := range mHeaderList {
@@ -90,10 +85,7 @@ func (v *RootBlockValidator) ValidateBlock(block types.IBlock) error {
 
 		prevHeader, ok := latestMinorBlockHeaders[mFullShardId]
 		if ok && mheader.Number <= prevHeader.Number {
-			continue
-		}
-		if shardIdHeadersMap[mFullShardId] == nil {
-			shardIdHeadersMap[mFullShardId] = &blockNode{mBHeaders: make([]*types.MinorBlockHeader, 0)}
+			return fmt.Errorf("Unexpected miner block header, number: %d, hash: %s ", mheader.Number, mheader.Hash().Hex())
 		}
 
 		if !v.blockChain.IsMinorBlockValidated(mheader.Hash()) {
@@ -109,33 +101,25 @@ func (v *RootBlockValidator) ValidateBlock(block types.IBlock) error {
 		}
 
 		if prevHeader == nil {
-			shardIdHeadersMap[mFullShardId].mBHeaders = append(shardIdHeadersMap[mFullShardId].mBHeaders, mheader)
-			shardIdHeadersMap[mFullShardId].total++
+			shardIdHeadersMap[mFullShardId] = append(shardIdHeadersMap[mFullShardId], mheader)
 			continue
 		}
 
-		hLen := shardIdHeadersMap[mFullShardId].total
+		hLen := len(shardIdHeadersMap[mFullShardId])
 		parentHeader = prevHeader
 		if hLen != 0 {
-			parentHeader = shardIdHeadersMap[mFullShardId].mBHeaders[hLen-1]
+			parentHeader = shardIdHeadersMap[mFullShardId][hLen-1]
 		}
 		if parentHeader.Number+1 == mheader.Number && parentHeader.Hash() == mheader.ParentHash {
-			shardIdHeadersMap[mFullShardId].mBHeaders = append(shardIdHeadersMap[mFullShardId].mBHeaders, mheader)
-			shardIdHeadersMap[mFullShardId].total++
-		}
-	}
-
-	fmt.Println("-------------------------------------------------------------")
-	for fullShardId, headers := range shardIdHeadersMap {
-		for _, header := range headers.mBHeaders {
-			fmt.Println("//////////////////////", fullShardId, header.Number)
+			shardIdHeadersMap[mFullShardId] = append(shardIdHeadersMap[mFullShardId], mheader)
+		} else {
+			return fmt.Errorf("minor block %v does not link to previous block %v", mheader.Hash().Hex(), parentHeader.Hash().Hex())
 		}
 	}
 
 	fullShardIdList := v.config.GetInitializedShardIdsBeforeRootHeight(header.Number)
 	for fullShardId, minorHeaders := range shardIdHeadersMap {
-		mBHeaders := minorHeaders.mBHeaders
-		if uint32(len(mBHeaders)) > v.config.GetShardConfigByFullShardID(fullShardId).MaxBlocksPerShardInOneRootBlock() {
+		if uint32(len(minorHeaders)) > v.config.GetShardConfigByFullShardID(fullShardId).MaxBlocksPerShardInOneRootBlock() {
 			return fmt.Errorf("too many minor blocks in the root block for shard %d", fullShardId)
 		}
 		inList := false
@@ -151,21 +135,18 @@ func (v *RootBlockValidator) ValidateBlock(block types.IBlock) error {
 		}
 
 		prevHeader, ok := latestMinorBlockHeaders[fullShardId]
-		if !ok && mBHeaders[0].Number != 0 {
+		if !ok && minorHeaders[0].Number != 0 {
 			//todo double check when adding chain
 			//todo reshard will not be 0, this check will be wrong
 			return fmt.Errorf("genesis block height is not 0 for shard %d", fullShardId)
 		}
 
-		if prevHeader != nil && (prevHeader.Number+1 != mBHeaders[0].Number || prevHeader.Hash() != mBHeaders[0].ParentHash) {
-			for _, hd := range mBHeaders {
-				fmt.Println("====================", fullShardId, hd.Number, hd.Hash().Hex())
-			}
+		if prevHeader != nil && (prevHeader.Number+1 != minorHeaders[0].Number || prevHeader.Hash() != minorHeaders[0].ParentHash) {
 			return fmt.Errorf("minor block %v does not link to previous block %v",
-				mBHeaders[0].Hash().String(), prevHeader.Hash().String())
+				minorHeaders[0].Hash().String(), prevHeader.Hash().String())
 		}
 
-		latestMinorBlockHeaders[fullShardId] = mBHeaders[minorHeaders.total-1]
+		latestMinorBlockHeaders[fullShardId] = minorHeaders[len(minorHeaders)-1]
 	}
 
 	v.blockChain.SetLatestMinorBlockHeaders(block.Hash(), latestMinorBlockHeaders)

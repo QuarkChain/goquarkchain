@@ -1203,9 +1203,6 @@ func (bc *RootBlockChain) CreateBlockToMine(mHeaderList []*types.MinorBlockHeade
 		return nil, err
 	}
 	block := bc.CurrentBlock().Header().CreateBlockToAppend(createTime, difficulty, address, nil, nil)
-	for _, header := range mHeaderList {
-		fmt.Println("+++++++++++++++++++++++++++++", header.Number, header.Hash().Hex())
-	}
 	block.ExtendMinorBlockHeaderList(mHeaderList)
 	block.Finalize(bc.CalculateRootBlockCoinBase(block), address)
 	return block, nil

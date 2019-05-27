@@ -179,12 +179,11 @@ func (s *QKCMasterBackend) APIs() []ethRPC.API {
 // Stop stop node -> stop qkcMaster
 func (s *QKCMasterBackend) Stop() error {
 	s.rootBlockChain.Stop()
+	s.engine.Close()
 	s.protocolManager.Stop()
 	s.rootChainEventSub.Unsubscribe()
 	s.rootChainSideEventSub.Unsubscribe()
-	if s.engine != nil {
-		s.engine.Close()
-	}
+	s.miner.Stop()
 	s.eventMux.Stop()
 	s.chainDb.Close()
 	return nil
@@ -374,7 +373,6 @@ func (s *QKCMasterBackend) Heartbeat() {
 			time.Sleep(heartbeatInterval)
 		}
 	}(true)
-	//TODO :add send master info
 }
 
 func checkPing(slaveConn rpc.ISlaveConn, id []byte, chainMaskList []*types.ChainMask) error {
@@ -477,7 +475,6 @@ func (s *QKCMasterBackend) createRootBlockToMine(address account.Address) (*type
 	if newblock.ParentHash() != pBlock.Hash() {
 		log.Error("Create illed root block", "new block", newblock.Hash().Hex(), "parent block", pBlock.Hash().Hex())
 	}
-	log.Info("------------------ Create normal root block", "new block", newblock.Hash().Hex(), "new block height", newblock.NumberU64(), "parent block", pBlock.Hash().Hex())
 	return newblock, nil
 }
 

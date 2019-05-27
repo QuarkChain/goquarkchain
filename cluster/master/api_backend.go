@@ -12,7 +12,6 @@ import (
 	"github.com/QuarkChain/goquarkchain/p2p"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
-	"github.com/ethereum/go-ethereum/log"
 	ethRpc "github.com/ethereum/go-ethereum/rpc"
 	"golang.org/x/sync/errgroup"
 	"net"
@@ -265,15 +264,5 @@ func (s *QKCMasterBackend) CreateBlockAsyncFunc() (types.IBlock, error) {
 
 func (s *QKCMasterBackend) AddBlockAsyncFunc(block types.IBlock) error {
 	rBlock := block.(*types.RootBlock)
-	if rBlock.NumberU64() == 15 {
-		s.SetMining(false)
-	}
-	pBlock := s.rootBlockChain.GetBlockByNumber(rBlock.NumberU64() - 1)
-	log.Info("--------------------- get mined root block", "mined block", rBlock.Hash().Hex(), "mined height", rBlock.NumberU64(), "parent block", pBlock.Hash().Hex())
-	if err := s.rootBlockChain.Validator().ValidateBlock(block); err != nil {
-		log.Error("Failed to validate minered root block", "root block number", block.NumberU64(), "err", err)
-		return err
-	}
-	_, err := s.rootBlockChain.InsertChain([]types.IBlock{block})
-	return err
+	return s.AddRootBlock(rBlock)
 }
