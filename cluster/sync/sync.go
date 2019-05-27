@@ -8,14 +8,13 @@ import (
 	"github.com/QuarkChain/goquarkchain/core/types"
 )
 
-// TODO a mock struct for peers, should have real peer connection type in P2P module.
 type peer interface {
 	GetRootBlockHeaderList(hash common.Hash, amount uint32, reverse bool) ([]*types.RootBlockHeader, error)
 	GetRootBlockList(hashes []common.Hash) ([]*types.RootBlock, error)
 	PeerId() string
 }
 
-// blockchain is a lightweight wrapper over shard chain or root chain.
+// A lightweight wrapper over shard chain or root chain.
 type blockchain interface {
 	HasBlock(common.Hash) bool
 	InsertChain([]types.IBlock) (int, error)
@@ -23,6 +22,7 @@ type blockchain interface {
 	Validator() core.Validator
 }
 
+// Adds rootchain specific logic.
 type rootblockchain interface {
 	blockchain
 	AddValidatedMinorBlockHeader(common.Hash)

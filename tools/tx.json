@@ -1,10 +1,10 @@
 {
-  "Nonce": 0,
+  "Nonce": 2,
   "GasPrice": 21000,
   "Gas": 900000,
-  "Value": 100000000000,
+  "Value":10000000,
   "FromFullShardKey": "0x00000000",
-  "ToFullShardKey": "0x00010000",
+  "ToFullShardKey": "0x00000000",
   "NetWorkID": 3,
   "To": "0x0000000000000000000000000000000000000011",
   "Key": "0x8cfc088e66867b9796731e9752beec1ce1bf65f600096b9bba10923b01c5db56"
