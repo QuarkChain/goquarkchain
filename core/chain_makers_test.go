@@ -5,6 +5,8 @@ package core
 import (
 	"encoding/hex"
 	"fmt"
+	"math/big"
+
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/consensus"
@@ -13,7 +15,6 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/params"
-	"math/big"
 )
 
 func ExampleGenerateRootBlockChain() {
@@ -133,7 +134,7 @@ func ExampleGenerateMinorBlockChain() {
 	}
 	defer blockchain.Stop()
 
-	if i, _, err := blockchain.InsertChain(toMinorBlocks(chain)); err != nil {
+	if i, err := blockchain.InsertChain(toMinorBlocks(chain)); err != nil {
 		fmt.Printf("insert error (block %d): %v\n", chain[i].NumberU64(), err)
 		return
 	}
