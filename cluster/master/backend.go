@@ -350,7 +350,7 @@ func (s *QKCMasterBackend) broadcastRootBlockToSlaves(block *types.RootBlock) er
 			err := client.AddRootBlock(block, false)
 			if err != nil {
 				log.Error("broadcastRootBlockToSlaves failed", "slave", client.GetSlaveID(),
-					"block", block.Hash(), "height", block.NumberU64(), "err", err)
+					"block", block.Hash(), "root parent hash", block.Header().ParentHash.Hex(), "height", block.NumberU64(), "err", err)
 			}
 			return err
 		})

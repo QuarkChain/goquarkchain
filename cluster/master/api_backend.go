@@ -265,6 +265,9 @@ func (s *QKCMasterBackend) CreateBlockAsyncFunc() (types.IBlock, error) {
 
 func (s *QKCMasterBackend) AddBlockAsyncFunc(block types.IBlock) error {
 	rBlock := block.(*types.RootBlock)
+	if rBlock.NumberU64() == 15 {
+		s.SetMining(false)
+	}
 	pBlock := s.rootBlockChain.GetBlockByNumber(rBlock.NumberU64() - 1)
 	log.Info("--------------------- get mined root block", "mined block", rBlock.Hash().Hex(), "mined height", rBlock.NumberU64(), "parent block", pBlock.Hash().Hex())
 	if err := s.rootBlockChain.Validator().ValidateBlock(block); err != nil {

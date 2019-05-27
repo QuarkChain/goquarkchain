@@ -2,6 +2,7 @@ package core
 
 import (
 	"errors"
+	"fmt"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
 	"github.com/QuarkChain/goquarkchain/core/rawdb"
@@ -854,7 +855,7 @@ func (m *MinorBlockChain) AddRootBlock(rBlock *types.RootBlock) (bool, error) {
 	}
 
 	if m.GetRootBlockByHash(rBlock.ParentHash()) == nil {
-		log.Error(m.logInfo, "add rootBlock err", ErrRootBlockIsNil, "parentHash", rBlock.ParentHash(), "height", rBlock.Number()-1)
+		log.Error(m.logInfo, "add rootBlock err", ErrRootBlockIsNil, "parentHash", rBlock.ParentHash(), "height", rBlock.Number())
 		return false, ErrRootBlockIsNil
 	}
 
@@ -901,6 +902,7 @@ func (m *MinorBlockChain) AddRootBlock(rBlock *types.RootBlock) (bool, error) {
 		if shardHeaders[0].Number == 0 || shardHeaders[0].ParentHash == lastMinorHeaderInPrevRootBlock.Hash() {
 			shardHeader = shardHeaders[len(shardHeaders)-1]
 		} else {
+			fmt.Println("unconfirmed root block errpr")
 			return false, errors.New("master should assure this check will not fail")
 		}
 	} else {
