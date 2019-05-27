@@ -386,8 +386,7 @@ func (pm *ProtocolManager) HandleNewRootTip(tip *p2p.Tip, peer *peer) error {
 	if tip.RootBlockHeader.NumberU64() > pm.rootBlockChain.CurrentBlock().NumberU64() {
 		err := pm.synchronizer.AddTask(synchronizer.NewRootChainTask(peer, tip.RootBlockHeader, pm.statsChan, pm.getShardConnFunc))
 		if err != nil {
-			log.Error("add task failed,",
-				"root block hash", tip.RootBlockHeader.Hash(), "height", tip.RootBlockHeader.NumberU64())
+			log.Error("Failed to add root chain task,", "hash", tip.RootBlockHeader.Hash(), "height", tip.RootBlockHeader.NumberU64())
 		}
 	}
 	return nil
