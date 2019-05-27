@@ -118,6 +118,7 @@ type minorBlockChain interface {
 	CurrentBlock() *types.MinorBlock
 	GetMinorBlock(hash common.Hash) *types.MinorBlock
 	StateAt(root common.Hash) (*state.StateDB, error)
+	GetMu() sync.RWMutex
 	Config() *config.QuarkChainConfig
 	SubscribeChainHeadEvent(ch chan<- MinorChainHeadEvent) event.Subscription
 }
@@ -391,8 +392,10 @@ func (pool *TxPool) reset(oldBlock, newBlock *types.MinorBlock) {
 	if newBlock == nil {
 		newBlock = pool.chain.CurrentBlock() // Special case during testing
 	}
-
+	mu := pool.chain.GetMu()
+	mu.Lock()
 	statedb, err := pool.chain.StateAt(newBlock.Meta().Root)
+	mu.Unlock()
 	if err != nil {
 		log.Error("Failed to reset txpool state", "err", err)
 		return

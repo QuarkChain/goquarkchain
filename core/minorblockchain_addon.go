@@ -2,7 +2,6 @@ package core
 
 import (
 	"errors"
-	"fmt"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
 	"github.com/QuarkChain/goquarkchain/core/rawdb"
@@ -509,6 +508,8 @@ func (m *MinorBlockChain) getCrossShardTxListByRootBlockHash(hash common.Hash) (
 }
 
 func (m *MinorBlockChain) getEvmStateByHeight(height *uint64) (*state.StateDB, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	if height == nil {
 		temp := m.CurrentBlock().NumberU64()
 		height = &temp
@@ -557,7 +558,8 @@ func (m *MinorBlockChain) GetStorageAt(recipient account.Recipient, key common.H
 
 // ExecuteTx execute tx
 func (m *MinorBlockChain) ExecuteTx(tx *types.Transaction, fromAddress *account.Address, height *uint64) ([]byte, error) {
-	// no need to lock
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	if height == nil {
 		temp := m.CurrentBlock().NumberU64()
 		height = &temp
@@ -855,7 +857,7 @@ func (m *MinorBlockChain) AddRootBlock(rBlock *types.RootBlock) (bool, error) {
 	}
 
 	if m.GetRootBlockByHash(rBlock.ParentHash()) == nil {
-		log.Error(m.logInfo, "add rootBlock err", ErrRootBlockIsNil, "parentHash", rBlock.ParentHash(), "height", rBlock.Number())
+		log.Error(m.logInfo, "add rootBlock err", ErrRootBlockIsNil, "parentHash", rBlock.ParentHash(), "height", rBlock.Number()-1)
 		return false, ErrRootBlockIsNil
 	}
 
@@ -902,7 +904,6 @@ func (m *MinorBlockChain) AddRootBlock(rBlock *types.RootBlock) (bool, error) {
 		if shardHeaders[0].Number == 0 || shardHeaders[0].ParentHash == lastMinorHeaderInPrevRootBlock.Hash() {
 			shardHeader = shardHeaders[len(shardHeaders)-1]
 		} else {
-			fmt.Println("unconfirmed root block errpr")
 			return false, errors.New("master should assure this check will not fail")
 		}
 	} else {
