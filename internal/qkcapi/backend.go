@@ -41,6 +41,7 @@ type Backend interface {
 	IsSyncing() bool
 	IsMining() bool
 	GetSlavePoolLen() int
+	GetBranchToSlaver() map[uint32][]qkcRPC.ISlaveConn
 }
 
 func GetAPIs(apiBackend Backend) []rpc.API {

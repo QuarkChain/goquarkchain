@@ -5,8 +5,10 @@ import (
 	"github.com/QuarkChain/goquarkchain/account"
 	qkcRPC "github.com/QuarkChain/goquarkchain/cluster/rpc"
 	qkcCommon "github.com/QuarkChain/goquarkchain/common"
+	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/rpc"
 )
 
@@ -92,7 +94,11 @@ func (p *PublicBlockChainAPI) getPrimaryAccountData(address account.Address, blo
 }
 
 func (p *PublicBlockChainAPI) GetTransactionCount(address account.Address, blockNr *rpc.BlockNumber) (hexutil.Uint64, error) {
-	panic(-1)
+	data, err := p.getPrimaryAccountData(address, blockNr)
+	if err != nil {
+		return 0, err
+	}
+	return hexutil.Uint64(data.TransactionCount), nil
 }
 func (p *PublicBlockChainAPI) GetBalances(address account.Address, blockNr *rpc.BlockNumber) (map[string]interface{}, error) {
 	data, err := p.getPrimaryAccountData(address, blockNr)
@@ -111,20 +117,102 @@ func (p *PublicBlockChainAPI) GetBalances(address account.Address, blockNr *rpc.
 	return fields, nil
 }
 func (p *PublicBlockChainAPI) GetAccountData(address account.Address, blockNr *rpc.BlockNumber, includeShards *bool) (map[string]interface{}, error) {
-	panic(-1)
+	if includeShards != nil && blockNr == nil {
+		return nil, errors.New("do not allow specify height if client wants info on all shards")
+	}
+	if !(*includeShards) {
+		accountBranchData, err := p.getPrimaryAccountData(address, blockNr)
+		if err != nil {
+			return nil, err
+		}
+		branch := account.Branch{Value: accountBranchData.Branch}
+		primary := map[string]interface{}{
+			"fullShardId":      hexutil.Uint(branch.GetFullShardID()),
+			"shardId":          hexutil.Uint(branch.GetShardID()),
+			"chainId":          hexutil.Uint(branch.GetChainID()),
+			"balances":         hexutil.Big(*accountBranchData.Balance),
+			"transactionCount": hexutil.Uint64(accountBranchData.TransactionCount),
+			"isContract":       accountBranchData.IsContract,
+		}
+		return map[string]interface{}{
+			"primary": primary,
+		}, nil
+	}
+	branchToAccountBranchData, err := p.b.GetAccountData(&address, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	shards := make([]map[string]interface{}, 0)
+	primary := make(map[string]interface{})
+	for branch, accountBranchData := range branchToAccountBranchData {
+		branch := account.Branch{Value: branch}
+		shardData := map[string]interface{}{
+			"fullShardId":      branch.GetFullShardID(),
+			"shardId":          branch.GetShardID(),
+			"chainId":          branch.GetChainID(),
+			"balances":         hexutil.Big(*accountBranchData.Balance),
+			"transactionCount": hexutil.Uint(accountBranchData.TransactionCount),
+			"isContract":       accountBranchData.IsContract,
+		}
+		shards = append(shards, shardData)
+		if branch.GetFullShardID() == p.b.GetClusterConfig().Quarkchain.GetFullShardIdByFullShardKey(address.FullShardKey) {
+			primary = shardData
+		}
+	}
+	return map[string]interface{}{
+		"primary": primary,
+		"shards":  shards,
+	}, nil
 
 }
 func (p *PublicBlockChainAPI) SendUnsigedTransaction(args SendTxArgs) (map[string]interface{}, error) {
-	panic(-1)
+	// Set some sanity defaults and terminate on failure
+	args.setDefaults()
+	tx, err := args.toTransaction(p.b.GetClusterConfig().Quarkchain.NetworkID, false)
+	if err != nil {
+		return nil, err
+	}
+
+	fields := map[string]interface{}{
+		"txHashUnsigned":  tx.EvmTx.Hash(),
+		"nonce":           (hexutil.Uint64)(tx.EvmTx.Nonce()),
+		"to":              hexutil.Bytes(tx.EvmTx.To().Bytes()),
+		"fromFullShardId": hexutil.Uint(tx.EvmTx.FromFullShardKey()), //TODO fullshardKey fullshardID,to see py logic
+		"toFullShardId":   hexutil.Uint(tx.EvmTx.ToFullShardKey()),
+		"value":           (*hexutil.Big)(tx.EvmTx.Value()),
+		"gasPrice":        (*hexutil.Big)(tx.EvmTx.GasPrice()),
+		"gas":             (hexutil.Uint64)(tx.EvmTx.Gas()),
+		"data":            hexutil.Bytes(tx.EvmTx.Data()),
+		"networkId":       hexutil.Uint64(p.b.GetClusterConfig().Quarkchain.NetworkID),
+	}
+	return fields, nil
 
 }
-func (p *PublicBlockChainAPI) SendTransaction() {
-	//TODO support new tx v,r,s
-	panic("not implemented")
+func (p *PublicBlockChainAPI) SendTransaction(args SendTxArgs) (hexutil.Bytes, error) {
+	args.setDefaults()
+	tx, err := args.toTransaction(p.b.GetClusterConfig().Quarkchain.NetworkID, true)
+	if err != nil {
+		return nil, err
+	}
+	if err := p.b.AddTransaction(tx); err != nil {
+		return nil, err
+	}
+	return IDEncoder(tx.Hash().Bytes(), tx.EvmTx.FromFullShardKey()), nil
 }
 func (p *PublicBlockChainAPI) SendRawTransaction(encodedTx hexutil.Bytes) (hexutil.Bytes, error) {
-	panic(-1)
-
+	evmTx := new(types.EvmTransaction)
+	if err := rlp.DecodeBytes(encodedTx, evmTx); err != nil {
+		return nil, err
+	}
+	tx := &types.Transaction{
+		EvmTx:  evmTx,
+		TxType: types.EvmTx,
+	}
+	if err := p.b.AddTransaction(tx); err != nil {
+		return IDEncoder(common.Hash{}.Bytes(), 0), err //TODO need return err?
+	}
+	return IDEncoder(tx.Hash().Bytes(), tx.EvmTx.FromFullShardKey()), nil
 }
 func (p *PublicBlockChainAPI) GetRootBlockByHash(hash common.Hash) (map[string]interface{}, error) {
 	rootBlock, err := p.b.GetRootBlockByHash(hash)
@@ -215,7 +303,7 @@ func (p *PublicBlockChainAPI) Call(data CallArgs, blockNr *rpc.BlockNumber) (hex
 
 }
 func (p *PublicBlockChainAPI) EstimateGas(data CallArgs) ([]byte, error) {
-	panic(-1)
+	return p.CallOrEstimateGas(&data, nil, false)
 }
 func (p *PublicBlockChainAPI) GetTransactionReceipt(txID hexutil.Bytes) (map[string]interface{}, error) {
 	txHash, fullShardKey, err := IDDecoder(txID)
@@ -229,27 +317,41 @@ func (p *PublicBlockChainAPI) GetTransactionReceipt(txID hexutil.Bytes) (map[str
 	}
 	return receiptEncoder(minorBlock, int(index), receipt), nil
 }
-func (p *PublicBlockChainAPI) GetLogs() { panic("-1") }
+func (p *PublicBlockChainAPI) GetLogs() { panic("@scf") }
 func (p *PublicBlockChainAPI) GetStorageAt(address account.Address, key common.Hash, blockNr *rpc.BlockNumber) (hexutil.Bytes, error) {
-	panic(-1)
+	blockNumber, err := decodeBlockNumberToUint64(p.b, blockNr)
+	if err != nil {
+		return nil, err
+	}
+	hash, err := p.b.GetStorageAt(&address, key, &blockNumber)
+	return hash.Bytes(), err
 }
 func (p *PublicBlockChainAPI) GetCode(address account.Address, blockNr *rpc.BlockNumber) (hexutil.Bytes, error) {
-	panic(-1)
+	blockNumber, err := decodeBlockNumberToUint64(p.b, blockNr)
+	if err != nil {
+		return nil, err
+	}
+	code, err := p.b.GetCode(&address, &blockNumber)
+	return code, err
 }
 func (p *PublicBlockChainAPI) GetTransactionsByAddress(fullShardKey uint32) (hexutil.Uint64, error) {
-	panic(-1)
+	panic("later to implement@scf")
 }
-func (p *PublicBlockChainAPI) GasPrice(fullShardKey uint32) (hexutil.Uint64, error) {
-	panic(-1)
+func (p *PublicBlockChainAPI) GasPrice(fullShardID uint32) (hexutil.Uint64, error) {
+	if _, ok := p.b.GetBranchToSlaver()[fullShardID]; ok == false {
+		return 0, errors.New("no such fullshardkey")
+	}
+	data, err := p.b.GasPrice(account.Branch{Value: fullShardID})
+	return hexutil.Uint64(data), err
 }
 func (p *PublicBlockChainAPI) SubmitWork(fullShardKey hexutil.Uint, headHash common.Hash, nonce hexutil.Uint64, mixHash common.Hash) bool {
-	panic(-1)
+	panic("@liuhuan to implement")
 }
-func (p *PublicBlockChainAPI) GetWork(fullShardKey hexutil.Uint) []*hexutil.Big {
-	panic(-1)
+func (p *PublicBlockChainAPI) GetWork(fullShardID *uint32) []*hexutil.Big {
+	panic("@liuhuan to implement")
 }
-func (p *PublicBlockChainAPI) NetVersion() hexutil.Uint64 {
-	panic(-1)
+func (p *PublicBlockChainAPI) NetVersion() hexutil.Uint {
+	return hexutil.Uint(p.b.GetClusterConfig().Quarkchain.NetworkID)
 }
 func (p *PublicBlockChainAPI) QkcQkcGasprice(fullShardKey uint32) (hexutil.Uint64, error) {
 	panic(-1)
@@ -318,6 +420,7 @@ func (p *PrivateBlockChainAPI) GetPeers() map[string]interface{} {
 	return fields
 }
 func (p *PrivateBlockChainAPI) GetSyncStats() {
+	//need to discuss
 	panic("not implemented")
 }
 func (p *PrivateBlockChainAPI) GetStats() map[string]interface{} {
