@@ -57,8 +57,8 @@ type testBlockChain struct {
 	chainHeadFeed *event.Feed
 }
 
-func (bc *testBlockChain) GetMu() sync.RWMutex {
-	return mu
+func (bc *testBlockChain) GetMu() *sync.RWMutex {
+	return &mu
 }
 
 func (bc *testBlockChain) CurrentBlock() *types.MinorBlock {

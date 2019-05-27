@@ -375,8 +375,8 @@ func (m *MinorBlockChain) StateAt(root common.Hash) (*state.StateDB, error) {
 	return state.New(root, m.stateCache)
 }
 
-func (m *MinorBlockChain) GetMu() sync.RWMutex {
-	return m.mu
+func (m *MinorBlockChain) GetMu() *sync.RWMutex {
+	return &m.mu
 }
 
 // StateCache returns the caching database underpinning the blockchain instance.

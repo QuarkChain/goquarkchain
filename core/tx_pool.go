@@ -118,7 +118,7 @@ type minorBlockChain interface {
 	CurrentBlock() *types.MinorBlock
 	GetMinorBlock(hash common.Hash) *types.MinorBlock
 	StateAt(root common.Hash) (*state.StateDB, error)
-	GetMu() sync.RWMutex
+	GetMu() *sync.RWMutex
 	Config() *config.QuarkChainConfig
 	SubscribeChainHeadEvent(ch chan<- MinorChainHeadEvent) event.Subscription
 }
