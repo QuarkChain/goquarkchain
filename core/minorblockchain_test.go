@@ -20,6 +20,12 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"math/big"
+	"math/rand"
+	"sync"
+	"testing"
+	"time"
+
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/consensus"
@@ -31,11 +37,6 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/params"
-	"math/big"
-	"math/rand"
-	"sync"
-	"testing"
-	"time"
 )
 
 // So we can deterministically seed different blockchains
@@ -1430,4 +1431,4 @@ func TestMinorLargeReorgTrieGC(t *testing.T) {
 }
 
 //TODO
-
+//Bench test: qkc genesis not support code set

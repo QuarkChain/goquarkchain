@@ -54,7 +54,6 @@ func newMinorBlockChain(sz int) (blockchain, ethdb.Database) {
 	var blocks []types.IBlock
 	for _, mb := range minorBlocks {
 		blocks = append(blocks, mb)
-
 	}
 
 	blockchain, err := core.NewMinorBlockChain(db, nil, params.TestChainConfig, clusterConfig, engine, vm.Config{}, nil, fullShardID)
