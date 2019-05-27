@@ -24,6 +24,7 @@ import (
 	"math/big"
 	"math/rand"
 	"os"
+	"sync"
 	"testing"
 	"time"
 
@@ -41,7 +42,10 @@ import (
 
 // testTxPoolConfig is a transaction pool configuration without stateful disk
 // sideeffects used during testing.
-var testTxPoolConfig TxPoolConfig
+var (
+	testTxPoolConfig TxPoolConfig
+	mu               sync.RWMutex
+)
 
 func init() {
 	testTxPoolConfig = DefaultTxPoolConfig
@@ -51,6 +55,10 @@ type testBlockChain struct {
 	statedb       *state.StateDB
 	gasLimit      uint64
 	chainHeadFeed *event.Feed
+}
+
+func (bc *testBlockChain) GetMu() sync.RWMutex {
+	return mu
 }
 
 func (bc *testBlockChain) CurrentBlock() *types.MinorBlock {
