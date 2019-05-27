@@ -3,14 +3,15 @@ package shard
 import (
 	"errors"
 	"fmt"
+	"math/big"
+	"time"
+
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
-	"math/big"
-	"time"
 )
 
 func (s *ShardBackend) GetUnconfirmedHeaderList() ([]*types.MinorBlockHeader, error) {
@@ -37,7 +38,7 @@ func (s *ShardBackend) AddMinorBlock(block *types.MinorBlock) error {
 		oldTip = s.MinorBlockChain.CurrentHeader()
 	)
 
-	_, xshardLst, err := s.MinorBlockChain.InsertChain([]types.IBlock{block})
+	_, xshardLst, err := s.MinorBlockChain.InsertChainForDeposits([]types.IBlock{block})
 	if err != nil || len(xshardLst) != 1 {
 		log.Error("Failed to add minor block", "err", err)
 		return err
@@ -119,7 +120,7 @@ func (s *ShardBackend) AddBlockListForSync(blockLst []*types.MinorBlock) error {
 		if block.Header().Branch.GetFullShardID() != s.fullShardId || s.MinorBlockChain.HasBlock(block.Hash()) {
 			continue
 		}
-		_, xshardLst, err := s.MinorBlockChain.InsertChain([]types.IBlock{block})
+		_, xshardLst, err := s.MinorBlockChain.InsertChainForDeposits([]types.IBlock{block})
 		if err != nil || len(xshardLst) != 1 {
 			log.Error("Failed to add minor block", "err", err)
 			return err

@@ -83,8 +83,7 @@ func (bc *mockblockchain) InsertChain(blocks []types.IBlock) (int, error) {
 	if bc.rbc != nil {
 		return bc.rbc.InsertChain(blocks)
 	}
-	n, _, err := bc.mbc.InsertChain(blocks)
-	return n, err
+	return bc.mbc.InsertChain(blocks)
 }
 
 func (bc *mockblockchain) CurrentHeader() types.IHeader {
