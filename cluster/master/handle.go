@@ -2,6 +2,11 @@ package master
 
 import (
 	"fmt"
+	"io/ioutil"
+	"reflect"
+	"sync"
+	"time"
+
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
 	synchronizer "github.com/QuarkChain/goquarkchain/cluster/sync"
@@ -14,10 +19,6 @@ import (
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/pkg/errors"
-	"io/ioutil"
-	"reflect"
-	"sync"
-	"time"
 )
 
 // QKCProtocol details
@@ -224,7 +225,7 @@ func (pm *ProtocolManager) handleMsg(peer *peer) error {
 			}
 			fromShardSize := pm.clusterConfig.Quarkchain.GetShardSizeByChainId(tx.EvmTx.FromChainID())
 			if err := tx.EvmTx.SetFromShardSize(fromShardSize); err != nil {
-				return  err
+				return err
 			}
 			branchTxMap[tx.EvmTx.FromFullShardId()] = append(branchTxMap[tx.EvmTx.FromFullShardId()], tx)
 		}
@@ -424,7 +425,7 @@ func (pm *ProtocolManager) HandleNewMinorTip(branch uint32, tip *p2p.Tip, peer *
 	}
 	// todo make the client call in Parallelized
 	for _, client := range clients {
-		result, err := client.HandleNewTip(tip)
+		result, err := client.HandleNewTip(tip, peer.id)
 		if err != nil {
 			return fmt.Errorf("branch %d handle NewTipMsg message failed with error: %v", branch, err.Error())
 		}

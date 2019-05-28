@@ -3,6 +3,10 @@ package master
 import (
 	"bytes"
 	"fmt"
+	"io/ioutil"
+	"testing"
+	"time"
+
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
 	"github.com/QuarkChain/goquarkchain/core"
 	"github.com/QuarkChain/goquarkchain/core/types"
@@ -12,9 +16,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/golang/mock/gomock"
 	"github.com/pkg/errors"
-	"io/ioutil"
-	"testing"
-	"time"
 )
 
 // Tests that protocol versions and modes of operations are matched up properly.
@@ -434,7 +435,7 @@ func TestBroadcastNewMinorBlockTip(t *testing.T) {
 
 	for _, conn := range shardConns {
 		conn.(*mock_master.MockShardConnForP2P).EXPECT().
-			HandleNewTip(gomock.Any()).Return(true, nil).Times(1)
+			HandleNewTip(gomock.Any(), gomock.Any()).Return(true, nil).Times(1)
 	}
 	err := clientPeer.SendNewTip(2, &p2p.Tip{RootBlockHeader: pm.rootBlockChain.CurrentBlock().Header(),
 		MinorBlockHeaderList: []*types.MinorBlockHeader{minorBlocks[len(minorBlocks)-2].Header()}})
@@ -447,8 +448,8 @@ func TestBroadcastNewMinorBlockTip(t *testing.T) {
 	}
 	for _, conn := range shardConns {
 		conn.(*mock_master.MockShardConnForP2P).EXPECT().
-			HandleNewTip(gomock.Any()).DoAndReturn(
-			func(request *p2p.Tip) (bool, error) {
+			HandleNewTip(gomock.Any(), gomock.Any()).DoAndReturn(
+			func(*p2p.Tip, string) (bool, error) {
 				errc <- nil
 				return false, errors.New("expected error")
 			}).Times(1)

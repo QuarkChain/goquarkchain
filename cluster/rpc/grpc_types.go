@@ -300,6 +300,12 @@ type AddBlockListForSyncResponse struct {
 	ShardStatus *ShardStatus `json:"shard_status" gencodec:"required"`
 }
 
+type TipWithPeerID struct {
+	PeerID               string                    `json:"peer_id" gencodec:"required"`
+	RootBlockHeader      *types.RootBlockHeader    `json:"root_block_header" gencodec:"required"`
+	MinorBlockHeaderList []*types.MinorBlockHeader `json:"minor_block_header_list" gencodec:"required" bytesizeofslicelen:"4"`
+}
+
 type Topic struct {
 	Data [32]byte `json:"topics" gencodec:"required" bytesizeofslicelen:"4"`
 }
