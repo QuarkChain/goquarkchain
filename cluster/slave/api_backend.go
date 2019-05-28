@@ -346,14 +346,14 @@ func (s *SlaveBackend) GetMinorBlockHeaderList(mHash common.Hash,
 	return headerList, err
 }
 
-func (s *SlaveBackend) HandleNewTip(tip *rpc.TipWithPeerID) error {
-	if len(tip.MinorBlockHeaderList) != 1 {
+func (s *SlaveBackend) HandleNewTip(req *rpc.HandleNewTipRequest) error {
+	if len(req.MinorBlockHeaderList) != 1 {
 		return errors.New("minor block header list must have only one header")
 	}
 
-	mBHeader := tip.MinorBlockHeaderList[0]
+	mBHeader := req.MinorBlockHeaderList[0]
 	if shard, ok := s.shards[mBHeader.Branch.Value]; ok {
-		return shard.HandleNewTip(tip.RootBlockHeader, mBHeader, tip.PeerID)
+		return shard.HandleNewTip(req.RootBlockHeader, mBHeader, req.PeerID)
 	}
 
 	return ErrMsg("HandleNewTip")

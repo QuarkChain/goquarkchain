@@ -591,13 +591,8 @@ func (s *SlaveConnection) GetMinorBlockHeaders(request *p2p.GetMinorBlockHeaderL
 	return rsp, nil
 }
 
-func (s *SlaveConnection) HandleNewTip(request *p2p.Tip, peerID string) (bool, error) {
-	grpcRequest := &rpc.TipWithPeerID{
-		PeerID:               peerID,
-		RootBlockHeader:      request.RootBlockHeader,
-		MinorBlockHeaderList: request.MinorBlockHeaderList,
-	}
-	bytes, err := serialize.SerializeToBytes(grpcRequest)
+func (s *SlaveConnection) HandleNewTip(request *rpc.HandleNewTipRequest) (bool, error) {
+	bytes, err := serialize.SerializeToBytes(request)
 	if err != nil {
 		return false, err
 	}

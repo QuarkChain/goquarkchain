@@ -544,7 +544,7 @@ func (s *SlaveServerSideOp) GetMinorBlockHeaderList(ctx context.Context, req *rp
 
 func (s *SlaveServerSideOp) HandleNewTip(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
 	var (
-		gReq     rpc.TipWithPeerID
+		gReq     rpc.HandleNewTipRequest
 		response = &rpc.Response{RpcId: req.RpcId}
 		err      error
 	)

@@ -425,7 +425,12 @@ func (pm *ProtocolManager) HandleNewMinorTip(branch uint32, tip *p2p.Tip, peer *
 	}
 	// todo make the client call in Parallelized
 	for _, client := range clients {
-		result, err := client.HandleNewTip(tip, peer.id)
+		req := &rpc.HandleNewTipRequest{
+			RootBlockHeader:      tip.RootBlockHeader,
+			MinorBlockHeaderList: tip.MinorBlockHeaderList,
+			PeerID:               peer.id,
+		}
+		result, err := client.HandleNewTip(req)
 		if err != nil {
 			return fmt.Errorf("branch %d handle NewTipMsg message failed with error: %v", branch, err.Error())
 		}

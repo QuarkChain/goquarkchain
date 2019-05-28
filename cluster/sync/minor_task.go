@@ -7,7 +7,7 @@ import (
 )
 
 type minorSyncerPeer interface {
-	GetMinorBlockHeaderList(hash common.Hash, amount, branch uint32, reverse bool) ([]*types.MinorBlockHeader, error)
+	GetMinorBlockHeaderList(hash common.Hash, limit, branch uint32, reverse bool) ([]*types.MinorBlockHeader, error)
 	GetMinorBlockList(hashes []common.Hash, branch uint32) ([]*types.MinorBlock, error)
 	PeerID() string
 }

@@ -15,19 +15,24 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 )
 
+var (
+	directionToGenesis = uint8(0)
+	directionToTip     = uint8(1)
+)
+
 // Wrapper over master connection, used by synchronizer.
 type peer struct {
 	cm     ConnManager
 	peerID string
 }
 
-func (p *peer) GetMinorBlockHeaderList(hash common.Hash, amount, branch uint32, reverse bool) ([]*types.MinorBlockHeader, error) {
+func (p *peer) GetMinorBlockHeaderList(hash common.Hash, limit, branch uint32, reverse bool) ([]*types.MinorBlockHeader, error) {
 	req := &rpc.GetMinorBlockHeaderListRequest{
 		Branch:    branch,
 		BlockHash: hash,
-		Limit:     amount,
-		Direction: 0,
-		PeerId:    p.peerID,
+		Limit:     limit,
+		Direction: directionToGenesis,
+		PeerID:    p.peerID,
 	}
 	return p.cm.GetMinorBlockHeaders(req)
 }
@@ -37,7 +42,7 @@ func (p *peer) GetMinorBlockList(hashes []common.Hash, branch uint32) ([]*types.
 }
 
 func (p *peer) PeerID() string {
-	return ""
+	return p.peerID
 }
 
 func (s *ShardBackend) GetUnconfirmedHeaderList() ([]*types.MinorBlockHeader, error) {

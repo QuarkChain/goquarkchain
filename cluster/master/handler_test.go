@@ -435,7 +435,7 @@ func TestBroadcastNewMinorBlockTip(t *testing.T) {
 
 	for _, conn := range shardConns {
 		conn.(*mock_master.MockShardConnForP2P).EXPECT().
-			HandleNewTip(gomock.Any(), gomock.Any()).Return(true, nil).Times(1)
+			HandleNewTip(gomock.Any()).Return(true, nil).Times(1)
 	}
 	err := clientPeer.SendNewTip(2, &p2p.Tip{RootBlockHeader: pm.rootBlockChain.CurrentBlock().Header(),
 		MinorBlockHeaderList: []*types.MinorBlockHeader{minorBlocks[len(minorBlocks)-2].Header()}})
@@ -448,8 +448,8 @@ func TestBroadcastNewMinorBlockTip(t *testing.T) {
 	}
 	for _, conn := range shardConns {
 		conn.(*mock_master.MockShardConnForP2P).EXPECT().
-			HandleNewTip(gomock.Any(), gomock.Any()).DoAndReturn(
-			func(*p2p.Tip, string) (bool, error) {
+			HandleNewTip(gomock.Any()).DoAndReturn(
+			func(*rpc.HandleNewTipRequest) (bool, error) {
 				errc <- nil
 				return false, errors.New("expected error")
 			}).Times(1)

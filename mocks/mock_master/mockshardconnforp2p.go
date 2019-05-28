@@ -84,18 +84,18 @@ func (mr *MockShardConnForP2PMockRecorder) GetMinorBlockHeaders(request interfac
 }
 
 // HandleNewTip mocks base method
-func (m *MockShardConnForP2P) HandleNewTip(request *p2p.Tip, peerID string) (bool, error) {
+func (m *MockShardConnForP2P) HandleNewTip(request *rpc.HandleNewTipRequest) (bool, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "HandleNewTip", request, peerID)
+	ret := m.ctrl.Call(m, "HandleNewTip", request)
 	ret0, _ := ret[0].(bool)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // HandleNewTip indicates an expected call of HandleNewTip
-func (mr *MockShardConnForP2PMockRecorder) HandleNewTip(request, peerID interface{}) *gomock.Call {
+func (mr *MockShardConnForP2PMockRecorder) HandleNewTip(request interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HandleNewTip", reflect.TypeOf((*MockShardConnForP2P)(nil).HandleNewTip), request, peerID)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HandleNewTip", reflect.TypeOf((*MockShardConnForP2P)(nil).HandleNewTip), request)
 }
 
 // HandleNewMinorBlock mocks base method
@@ -197,18 +197,18 @@ func (mr *MockISlaveConnMockRecorder) GetMinorBlockHeaders(request interface{}) 
 }
 
 // HandleNewTip mocks base method
-func (m *MockISlaveConn) HandleNewTip(request *p2p.Tip, peerID string) (bool, error) {
+func (m *MockISlaveConn) HandleNewTip(request *rpc.HandleNewTipRequest) (bool, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "HandleNewTip", request, peerID)
+	ret := m.ctrl.Call(m, "HandleNewTip", request)
 	ret0, _ := ret[0].(bool)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // HandleNewTip indicates an expected call of HandleNewTip
-func (mr *MockISlaveConnMockRecorder) HandleNewTip(request, peerID interface{}) *gomock.Call {
+func (mr *MockISlaveConnMockRecorder) HandleNewTip(request interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HandleNewTip", reflect.TypeOf((*MockISlaveConn)(nil).HandleNewTip), request, peerID)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HandleNewTip", reflect.TypeOf((*MockISlaveConn)(nil).HandleNewTip), request)
 }
 
 // HandleNewMinorBlock mocks base method
