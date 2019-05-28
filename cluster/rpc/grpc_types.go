@@ -1,6 +1,7 @@
 package rpc
 
 import (
+	"github.com/QuarkChain/goquarkchain/serialize"
 	"math/big"
 
 	"github.com/QuarkChain/goquarkchain/account"
@@ -170,15 +171,13 @@ type GetTransactionListByAddressRequest struct {
 }
 
 type TransactionDetail struct {
-	TxHash          common.Hash     `json:"tx_hash" gencodec:"required"`
-	FromAddress     account.Address `json:"from_address" gencodec:"required"`
-	ToAddress       account.Address `json:"to_address" ser:"nil"`
-	Value           common.Hash     `json:"value" gencodec:"required"`
-	BlockHeight     uint64          `json:"block_height" gencodec:"required"`
-	Timestamp       uint64          `json:"timestamp" gencodec:"required"`
-	Success         bool            `json:"success" gencodec:"required"`
-	GasTokenId      uint64          `json:"gas_token_id" gencodec:"required"`
-	TransferTokenId uint64
+	TxHash      common.Hash       `json:"tx_hash" gencodec:"required"`
+	FromAddress account.Address   `json:"from_address" gencodec:"required"`
+	ToAddress   *account.Address  `json:"to_address" ser:"nil"`
+	Value       serialize.Uint256 `json:"value" gencodec:"required"`
+	BlockHeight uint64            `json:"block_height" gencodec:"required"`
+	Timestamp   uint64            `json:"timestamp" gencodec:"required"`
+	Success     bool              `json:"success" gencodec:"required"`
 }
 
 type GetTransactionListByAddressResponse struct {

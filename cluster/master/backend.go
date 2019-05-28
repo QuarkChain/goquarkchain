@@ -16,6 +16,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/internal/qkcapi"
 	"github.com/QuarkChain/goquarkchain/p2p"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
@@ -626,7 +627,7 @@ func (s *QKCMasterBackend) UpdateTxCountHistory(txCount, xShardTxCount uint32, c
 		})
 	}
 
-	for s.txCountHistory.Size() > 0 && s.txCountHistory.PopRight().(TxForQueue).Time < uint64(time.Now().Unix()-3600*12) {
+	for s.txCountHistory.Size() > 0 && s.txCountHistory.Right().(TxForQueue).Time < uint64(time.Now().Unix()-3600*12) {
 		s.txCountHistory.PopLeft()
 	}
 
@@ -649,7 +650,7 @@ func (s *QKCMasterBackend) GetStats() map[string]interface{} {
 		shard["shardId"] = shardState.Branch.GetShardID()
 		shard["height"] = shardState.Height
 		shard["difficulty"] = shardState.Difficulty
-		shard["coinbaseAddress"] = shardState.CoinbaseAddress.ToBytes()
+		shard["coinbaseAddress"] = hexutil.Bytes(shardState.CoinbaseAddress.ToBytes())
 		shard["timestamp"] = shardState.Timestamp
 		shard["txCount60s"] = shardState.TxCount60s
 		shard["pendingTxCount"] = shardState.PendingTxCount
@@ -684,7 +685,7 @@ func (s *QKCMasterBackend) GetStats() map[string]interface{} {
 	txCountHistory := make([]map[string]interface{}, 0)
 	dequeSize := s.txCountHistory.Size()
 	for index := 0; index < dequeSize; index++ {
-		right := s.txCountHistory.PopRight().(TxForQueue)
+		right := s.txCountHistory.PopLeft().(TxForQueue)
 
 		field := map[string]interface{}{
 			"timestamp":     right.Time,
@@ -692,7 +693,7 @@ func (s *QKCMasterBackend) GetStats() map[string]interface{} {
 			"xShardTxCount": right.XShardTxCount,
 		}
 		txCountHistory = append(txCountHistory, field)
-		s.txCountHistory.PushLeft(right)
+		s.txCountHistory.PushRight(right)
 	}
 	s.GetPeers()
 	peerForDisplay := make([]string, 0)
@@ -712,7 +713,7 @@ func (s *QKCMasterBackend) GetStats() map[string]interface{} {
 		"shardServerCount":    len(s.clientPool),
 		"rootHeight":          s.rootBlockChain.CurrentBlock().Number(),
 		"rootDifficulty":      s.rootBlockChain.CurrentBlock().Difficulty(),
-		"rootCoinbaseAddress": s.rootBlockChain.CurrentBlock().Coinbase().ToBytes(),
+		"rootCoinbaseAddress": hexutil.Bytes(s.rootBlockChain.CurrentBlock().Coinbase().ToBytes()),
 		"rootTimestamp":       s.rootBlockChain.CurrentBlock().Time(),
 		"rootLastBlockTime":   rootLastBlockTime,
 		"txCount60s":          sumTxCount60s,

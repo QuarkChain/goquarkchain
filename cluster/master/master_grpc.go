@@ -27,7 +27,6 @@ func (m *MasterServerSideOp) AddMinorBlockHeader(ctx context.Context, req *rpc.R
 	}
 	m.master.rootBlockChain.AddValidatedMinorBlockHeader(data.MinorBlockHeader.Hash())
 	m.master.UpdateShardStatus(data.ShardStats)
-	// TODO call that func after rm the panic
 	m.master.UpdateTxCountHistory(data.TxCount, data.XShardTxCount, data.MinorBlockHeader.Time)
 
 	rsp := new(rpc.AddMinorBlockHeaderResponse)

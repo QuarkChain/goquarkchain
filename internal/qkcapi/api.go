@@ -334,8 +334,45 @@ func (p *PublicBlockChainAPI) GetCode(address account.Address, blockNr *rpc.Bloc
 	code, err := p.b.GetCode(&address, &blockNumber)
 	return code, err
 }
-func (p *PublicBlockChainAPI) GetTransactionsByAddress(fullShardKey uint32) (hexutil.Uint64, error) {
-	panic("later to implement@scf")
+func (p *PublicBlockChainAPI) GetTransactionsByAddress(address account.Address, start *hexutil.Bytes, limit *hexutil.Uint) (map[string]interface{}, error) {
+	limitValue := uint32(0)
+	if limit != nil {
+		limitValue = uint32(*limit)
+	}
+	if limitValue > 20 {
+		limitValue = 20
+	}
+	startValue := make([]byte, 0)
+	if start != nil {
+		startValue = *start
+	}
+	txs, next, err := p.b.GetTransactionsByAddress(&address, startValue, limitValue)
+	if err != nil {
+		return nil, err
+	}
+
+	txsFields := make([]map[string]interface{}, 0)
+	for _, tx := range txs {
+		to := account.Address{}
+		if tx.ToAddress != nil {
+			to = *tx.ToAddress
+		}
+		field := map[string]interface{}{
+			"txId":        IDEncoder(tx.TxHash.Bytes(), tx.FromAddress.FullShardKey),
+			"fromAddress": tx.FromAddress,
+			"toAddress":   to,
+			"value":       (*hexutil.Big)(tx.Value.Value),
+			"blockHeight": hexutil.Uint(tx.BlockHeight),
+			"timestamp":   hexutil.Uint(tx.Timestamp),
+			"success":     tx.Success,
+		}
+		txsFields = append(txsFields, field)
+	}
+	return map[string]interface{}{
+		"txList": txsFields,
+		"next":   hexutil.Bytes(next),
+	}, nil
+
 }
 func (p *PublicBlockChainAPI) GasPrice(fullShardID uint32) (hexutil.Uint64, error) {
 	if _, ok := p.b.GetBranchToSlaver()[fullShardID]; ok == false {
