@@ -302,7 +302,7 @@ func (s *SlaveBackend) GetMinorBlockListByHashList(mHashList []common.Hash, bran
 		block     *types.MinorBlock
 	)
 
-	shad, ok := s.shards[branch]
+	shard, ok := s.shards[branch]
 	if !ok {
 		return nil, ErrMsg("GetMinorBlockListByHashList")
 	}
@@ -310,7 +310,7 @@ func (s *SlaveBackend) GetMinorBlockListByHashList(mHashList []common.Hash, bran
 		if hash == (common.Hash{}) {
 			return nil, errors.New(fmt.Sprintf("empty hash in GetMinorBlockListByHashList func, slave_id: %s", s.config.ID))
 		}
-		block = shad.MinorBlockChain.GetMinorBlock(hash)
+		block = shard.MinorBlockChain.GetMinorBlock(hash)
 		if block != nil {
 			minorList = append(minorList, block)
 		}
@@ -329,15 +329,15 @@ func (s *SlaveBackend) GetMinorBlockHeaderList(mHash common.Hash,
 		return nil, errors.New("bad direction")
 	}
 
-	shad, ok := s.shards[branch]
+	shard, ok := s.shards[branch]
 	if !ok {
 		return nil, ErrMsg("GetMinorBlockHeaderList")
 	}
-	if !qcom.IsNil(shad.MinorBlockChain.GetHeader(mHash)) {
+	if !qcom.IsNil(shard.MinorBlockChain.GetHeader(mHash)) {
 		return nil, fmt.Errorf("Minor block hash is not exist, minorHash: %s, slave id: %s ", mHash.Hex(), s.config.ID)
 	}
 	for i := uint32(0); i < limit; i++ {
-		header := shad.MinorBlockChain.GetHeader(mHash).(*types.MinorBlockHeader)
+		header := shard.MinorBlockChain.GetHeader(mHash).(*types.MinorBlockHeader)
 		headerList = append(headerList, header)
 		if header.NumberU64() == 0 {
 			return headerList, nil
@@ -353,8 +353,8 @@ func (s *SlaveBackend) HandleNewTip(tip *p2p.Tip) error {
 	}
 
 	mBHeader := tip.MinorBlockHeaderList[0]
-	if shad, ok := s.shards[mBHeader.Branch.Value]; ok {
-		return shad.HandleNewTip(tip.RootBlockHeader, mBHeader)
+	if shard, ok := s.shards[mBHeader.Branch.Value]; ok {
+		return shard.HandleNewTip(tip.RootBlockHeader, mBHeader)
 	}
 
 	return ErrMsg("HandleNewTip")
