@@ -71,7 +71,7 @@ func (m *Miner) minerLoop() {
 func (m *Miner) Start(mining bool) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	if m.isMining {
+	if m.isMining || !mining {
 		return
 	}
 	m.isMining = mining
