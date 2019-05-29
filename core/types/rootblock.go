@@ -4,7 +4,6 @@ package types
 
 import (
 	"crypto/ecdsa"
-	"errors"
 	"math/big"
 	"sync/atomic"
 	"time"
@@ -77,14 +76,6 @@ func (h *RootBlockHeader) GetExtra() []byte {
 func (h *RootBlockHeader) GetMixDigest() common.Hash { return h.MixDigest }
 
 func (h *RootBlockHeader) NumberU64() uint64 { return uint64(h.Number) }
-
-func (h *RootBlockHeader) ValidateHeader() error {
-	number := uint64(h.Number)
-	if number < 0 {
-		return errors.New("unexpected height")
-	}
-	return nil
-}
 
 func (h *RootBlockHeader) SetExtra(data []byte) {
 	h.Extra = common.CopyBytes(data)
@@ -163,14 +154,6 @@ type RootBlock struct {
 	// inter-peer block relay.
 	ReceivedAt   time.Time
 	ReceivedFrom interface{}
-}
-
-func (b *RootBlock) ValidateBlock() error {
-	if rootHash := CalculateMerkleRoot(b.MinorBlockHeaders()); rootHash != b.Header().MinorHeaderHash {
-		return errors.New("incorrect merkle root")
-	}
-
-	return nil
 }
 
 func (b *RootBlock) IHeader() IHeader {
