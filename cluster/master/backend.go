@@ -3,11 +3,19 @@ package master
 import (
 	"errors"
 	"fmt"
+	"math/big"
+	"os"
+	"reflect"
+	"sort"
+	"sync"
+	"syscall"
+	"time"
+
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
 	"github.com/QuarkChain/goquarkchain/cluster/service"
-	Synchronizer "github.com/QuarkChain/goquarkchain/cluster/sync"
+	synchronizer "github.com/QuarkChain/goquarkchain/cluster/sync"
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/consensus/doublesha256"
 	"github.com/QuarkChain/goquarkchain/consensus/qkchash"
@@ -21,13 +29,6 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	ethRPC "github.com/ethereum/go-ethereum/rpc"
 	"golang.org/x/sync/errgroup"
-	"math/big"
-	"os"
-	"reflect"
-	"sort"
-	"sync"
-	"syscall"
-	"time"
 )
 
 const (
@@ -63,14 +64,14 @@ type QKCMasterBackend struct {
 	artificialTxConfig *rpc.ArtificialTxConfig
 	rootBlockChain     *core.RootBlockChain
 	protocolManager    *ProtocolManager
-	synchronizer       Synchronizer.Synchronizer
+	synchronizer       synchronizer.Synchronizer
 	logInfo            string
 }
 
 // New new master with config
 func New(ctx *service.ServiceContext, cfg *config.ClusterConfig) (*QKCMasterBackend, error) {
 	var (
-		mstr = &QKCMasterBackend{
+		master = &QKCMasterBackend{
 			clusterConfig:      cfg,
 			gspc:               core.NewGenesis(cfg.Quarkchain),
 			eventMux:           ctx.EventMux,
@@ -87,39 +88,39 @@ func New(ctx *service.ServiceContext, cfg *config.ClusterConfig) (*QKCMasterBack
 		}
 		err error
 	)
-	if mstr.chainDb, err = createDB(ctx, cfg.DbPathRoot, cfg.Clean); err != nil {
+	if master.chainDb, err = createDB(ctx, cfg.DbPathRoot, cfg.Clean); err != nil {
 		return nil, err
 	}
 
-	if mstr.engine, err = createConsensusEngine(ctx, cfg.Quarkchain.Root); err != nil {
+	if master.engine, err = createConsensusEngine(ctx, cfg.Quarkchain.Root); err != nil {
 		return nil, err
 	}
 
-	chainConfig, genesisHash, genesisErr := core.SetupGenesisRootBlock(mstr.chainDb, mstr.gspc)
+	chainConfig, genesisHash, genesisErr := core.SetupGenesisRootBlock(master.chainDb, master.gspc)
 	// TODO check config err
 	if genesisErr != nil {
 		log.Info("Fill in block into chain db.")
-		rawdb.WriteChainConfig(mstr.chainDb, genesisHash, cfg.Quarkchain)
+		rawdb.WriteChainConfig(master.chainDb, genesisHash, cfg.Quarkchain)
 	}
 	log.Info("Initialised chain configuration", "config", chainConfig)
 
-	if mstr.rootBlockChain, err = core.NewRootBlockChain(mstr.chainDb, nil, cfg.Quarkchain, mstr.engine, nil); err != nil {
+	if master.rootBlockChain, err = core.NewRootBlockChain(master.chainDb, nil, cfg.Quarkchain, master.engine, nil); err != nil {
 		return nil, err
 	}
 
 	for _, cfg := range cfg.SlaveList {
 		target := fmt.Sprintf("%s:%d", cfg.IP, cfg.Port)
 		client := NewSlaveConn(target, cfg.ChainMaskList, cfg.ID)
-		mstr.clientPool[target] = client
+		master.clientPool[target] = client
 	}
-	log.Info("qkc api backend", "slave client pool", len(mstr.clientPool))
+	log.Info("qkc api backend", "slave client pool", len(master.clientPool))
 
-	mstr.synchronizer = Synchronizer.NewSynchronizer(mstr.rootBlockChain)
-	if mstr.protocolManager, err = NewProtocolManager(*cfg, mstr.rootBlockChain, mstr.shardStatsChan, mstr.synchronizer, mstr.getShardConnForP2P); err != nil {
+	master.synchronizer = synchronizer.NewSynchronizer(master.rootBlockChain)
+	if master.protocolManager, err = NewProtocolManager(*cfg, master.rootBlockChain, master.shardStatsChan, master.synchronizer, master.getShardConnForP2P); err != nil {
 		return nil, err
 	}
 
-	return mstr, nil
+	return master, nil
 }
 
 func createDB(ctx *service.ServiceContext, name string, clean bool) (ethdb.Database, error) {
