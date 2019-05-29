@@ -3,11 +3,14 @@ package qkcapi
 import (
 	"errors"
 	"github.com/QuarkChain/goquarkchain/account"
+	"github.com/QuarkChain/goquarkchain/cluster/config"
 	qkcRPC "github.com/QuarkChain/goquarkchain/cluster/rpc"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rpc"
+	"math/big"
 )
 
 func decodeBlockNumberToUint64(b Backend, blockNumber *rpc.BlockNumber) (uint64, error) {
@@ -40,12 +43,14 @@ func transHexutilUint64ToUint64(data *hexutil.Uint64) (*uint64, error) {
 
 // It offers only methods that operate on public data that is freely available to anyone.
 type PublicBlockChainAPI struct {
-	b Backend
+	qkcConfig *config.QuarkChainConfig
+	b         Backend
 }
 
 // NewPublicBlockChainAPI creates a new QuarkChain blockchain API.
 func NewPublicBlockChainAPI(b Backend) *PublicBlockChainAPI {
-	return &PublicBlockChainAPI{b}
+	qkcCfg := b.GetClusterConfig().Quarkchain
+	return &PublicBlockChainAPI{qkcCfg, b}
 }
 
 // Echoquantity :should use data without leading zero
@@ -64,10 +69,10 @@ func (p *PublicBlockChainAPI) NetworkInfo() map[string]interface{} {
 
 }
 
-func (p *PublicBlockChainAPI) getPrimaryAccountData(address account.Address, blockNr *rpc.BlockNumber) (data *qkcRPC.AccountBranchData,err error) {
+func (p *PublicBlockChainAPI) getPrimaryAccountData(address account.Address, blockNr *rpc.BlockNumber) (data *qkcRPC.AccountBranchData, err error) {
 	if blockNr == nil {
-		 data, err = p.b.GetPrimaryAccountData(&address, nil)
-		 return
+		data, err = p.b.GetPrimaryAccountData(&address, nil)
+		return
 	}
 
 	blockNumber, err := decodeBlockNumberToUint64(p.b, blockNr)
@@ -202,11 +207,33 @@ func (p *PublicBlockChainAPI) GetTransactionsByAddress(fullShardKey uint32) (hex
 func (p *PublicBlockChainAPI) GasPrice(fullShardKey uint32) (hexutil.Uint64, error) {
 	panic(-1)
 }
-func (p *PublicBlockChainAPI) SubmitWork(fullShardKey hexutil.Uint, headHash common.Hash, nonce hexutil.Uint64, mixHash common.Hash) bool {
-	panic(-1)
+func (p *PublicBlockChainAPI) SubmitWork(fullShardKey *hexutil.Uint, headHash common.Hash, nonce hexutil.Uint64, mixHash common.Hash) bool {
+	fullShardId := uint32(0)
+	if fullShardKey != nil {
+		fullShardId = p.qkcConfig.GetFullShardIdByFullShardKey(uint32(*fullShardKey))
+	}
+	submit, err := p.b.SubmitWork(account.NewBranch(fullShardId), headHash, uint64(nonce), mixHash)
+	if err != nil {
+		log.Error("Submit remote minered block", "err", err)
+		return false
+	}
+	return submit
 }
-func (p *PublicBlockChainAPI) GetWork(fullShardKey hexutil.Uint) []*hexutil.Big {
-	panic(-1)
+func (p *PublicBlockChainAPI) GetWork(fullShardKey *hexutil.Uint) []common.Hash {
+	fullShardId := uint32(0)
+	if fullShardKey != nil {
+		fullShardId = p.qkcConfig.GetFullShardIdByFullShardKey(uint32(*fullShardKey))
+	}
+	work, err := p.b.GetWork(account.NewBranch(fullShardId))
+	if err != nil {
+		return nil
+	}
+	height := new(big.Int).SetUint64(work.Number)
+	var val = make([]common.Hash, 0, 3)
+	val = append(val, work.HeaderHash)
+	val = append(val, common.BytesToHash(height.Bytes()))
+	val = append(val, common.BytesToHash(work.Difficulty.Bytes()))
+	return val
 }
 func (p *PublicBlockChainAPI) NetVersion() hexutil.Uint64 {
 	panic(-1)

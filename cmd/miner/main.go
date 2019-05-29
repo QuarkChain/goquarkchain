@@ -2,9 +2,13 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
+	"github.com/QuarkChain/goquarkchain/cluster/config"
+	"github.com/QuarkChain/goquarkchain/consensus/ethash"
+	"io/ioutil"
 	"log"
 	"math/big"
 	"strconv"
@@ -24,20 +28,16 @@ const (
 )
 
 var (
-	shardToPoW = map[uint32]consensus.PoW{
-		// TODO: ethash not supported yet, need wrapping
-		4: doublesha256.New(nil, false), 5: doublesha256.New(nil, false),
-		6: qkchash.New(true, nil, false), 7: qkchash.New(true, nil, false),
-	}
-
 	jrpcCli *rpc.Client
 
 	// Flags
-	shardList  = flag.String("shards", "", "comma-separated string indicating shards")
-	host       = flag.String("host", "localhost", "remote host of a quarkchain cluster")
-	port       = flag.Int("port", 38391, "remote JSONRPC port of a quarkchain cluster")
-	rpcTimeout = flag.Int("timeout", 10, "timeout in seconds for RPC calls")
-	gethlogLvl = flag.String("gethloglvl", "info", "log level of geth")
+	clusterConfig = flag.String("config", "", "cluster config file")
+	shardList     = flag.String("shards", "R", "comma-separated string indicating shards")
+	host          = flag.String("host", "localhost", "remote host of a quarkchain cluster")
+	port          = flag.Int("port", 38391, "remote JSONRPC port of a quarkchain cluster")
+	preThreads    = flag.Int("threads", 0, "Use how many threads to mine in a worker")
+	rpcTimeout    = flag.Int("timeout", 500, "timeout in seconds for RPC calls")
+	gethlogLvl    = flag.String("gethloglvl", "info", "log level of geth")
 )
 
 // Wrap mining result, because the global receiver need to differentiate between workers
@@ -77,7 +77,7 @@ func (w worker) fetch() {
 				return
 			}
 			if lastFetchedWork.HeaderHash == work.HeaderHash {
-				w.log("INFO", "skip same work, height: %d", work.Number)
+				w.log("INFO", "skip same work, height:\t %d", work.Number)
 				return
 			}
 		}
@@ -121,7 +121,7 @@ func (w worker) work() {
 				panic(err) // TODO: Send back err in an error channel
 			}
 			currWork = &work
-			w.log("INFO", "started new work, height: %d", work.Number)
+			w.log("INFO", "started new work, height:\t %d", work.Number)
 
 		case res := <-resultsCh:
 			w.submitWorkCh <- result{&w, res, *currWork}
@@ -169,7 +169,7 @@ func fetchWorkRPC(shardID *uint32) (work consensus.MiningWork, err error) {
 	err = cli.CallContext(
 		ctx,
 		&ret,
-		"getWork",
+		"qkc_getWork",
 		shardIDArg,
 	)
 	if err != nil {
@@ -199,7 +199,7 @@ func submitWorkRPC(shardID *uint32, work consensus.MiningWork, res consensus.Min
 	err := cli.CallContext(
 		ctx,
 		&success,
-		"submitWork",
+		"qkc_submitWork",
 		shardIDArg,
 		work.HeaderHash.Hex(),
 		"0x"+strconv.FormatUint(res.Nonce, 16),
@@ -214,6 +214,31 @@ func submitWorkRPC(shardID *uint32, work consensus.MiningWork, res consensus.Min
 	return nil
 }
 
+func loadConfig(file string, cfg *config.ClusterConfig) error {
+	var (
+		content []byte
+		err     error
+	)
+	if content, err = ioutil.ReadFile(file); err != nil {
+		return errors.New(file + ", " + err.Error())
+	}
+	return json.Unmarshal(content, cfg)
+}
+
+func createMiner(consensusType string) (consensus.PoW, bool) {
+	switch consensusType {
+	case config.PoWEthash:
+		return ethash.New(ethash.Config{CachesInMem: 3, CachesOnDisk: 10, CacheDir: "", PowMode: ethash.ModeNormal}, nil, false), true
+	case config.PoWQkchash:
+		return qkchash.New(true, nil, false), true
+	case config.PoWDoubleSha256:
+		return doublesha256.New(nil, false), true
+	default:
+		ethlog.Error("Failed to create consensus engine consensus type is not known", "consensus type", consensusType)
+		return nil, false
+	}
+}
+
 func main() {
 	flag.Parse()
 
@@ -223,30 +248,55 @@ func main() {
 	}
 	ethlog.Root().SetHandler(ethlog.LvlFilterHandler(lvl, ethlog.StdoutHandler))
 
-	if *shardList == "" {
-		log.Fatal("ERROR: empty shard list")
-	}
-	shards := []uint32{}
-	for _, shardStr := range strings.Split(*shardList, ",") {
-		s, err := strconv.Atoi(shardStr)
-		if err != nil {
-			log.Fatal("ERROR: invalid shard ID")
-		}
-		shards = append(shards, uint32(s))
+	var (
+		cfg         config.ClusterConfig
+		shardCfgs   = make(map[uint32]*config.ShardConfig)
+		workers     []worker
+		infoSummary []string
+		// Init global channels and workers
+		submitWorkCh = make(chan result, len(shardCfgs))
+		abortCh      = make(chan struct{})
+	)
+
+	err = loadConfig(*clusterConfig, &cfg)
+	if err != nil {
+		log.Fatal("ERROR: invalid config path: ", err)
 	}
 
-	var workers []worker
-	var infoSummary []string
-	// Init global channels and workers
-	submitWorkCh := make(chan result, len(shards))
-	abortCh := make(chan struct{})
-	// TODO: support specifying root chain when necessary
-	for _, shardID := range shards {
-		shardID := shardID
-		pow, ok := shardToPoW[shardID]
+	// Root chain miner, default
+	if *shardList == "R" {
+		pow, ok := createMiner(cfg.Quarkchain.Root.ConsensusType)
+		if !ok {
+			log.Fatal("ERROR: unsupported root / mining algorithm")
+		}
+		pow.SetThreads(*preThreads)
+		w := worker{
+			pow:          pow,
+			fetchWorkCh:  make(chan consensus.MiningWork),
+			submitWorkCh: submitWorkCh,
+			abortCh:      abortCh,
+		}
+		workers = append(workers, w)
+		infoSummary = append(infoSummary, fmt.Sprintf("[%s] %s", shardRepr(w.shardID), pow.Name()))
+		*shardList = ""
+	} else if *shardList != "" {
+		for _, shardStr := range strings.Split(*shardList, ",") {
+			s, err := strconv.Atoi(shardStr)
+			if err != nil {
+				log.Fatal("ERROR: invalid shard ID")
+			}
+			fullShardId := cfg.Quarkchain.GetFullShardIdByFullShardKey(uint32(s))
+			shardCfg := cfg.Quarkchain.GetShardConfigByFullShardID(fullShardId)
+			shardCfgs[uint32(s)] = shardCfg
+		}
+	}
+
+	for shardID, shardCfg := range shardCfgs {
+		pow, ok := createMiner(shardCfg.ConsensusType)
 		if !ok {
 			log.Fatal("ERROR: unsupported shard / mining algorithm")
 		}
+		pow.SetThreads(*preThreads)
 		w := worker{
 			shardID:      &shardID,
 			pow:          pow,
@@ -256,6 +306,7 @@ func main() {
 		}
 		workers = append(workers, w)
 		infoSummary = append(infoSummary, fmt.Sprintf("[%s] %s", shardRepr(w.shardID), pow.Name()))
+		ethlog.Info("create shard worker", "shard id", shardID, "consensus type", shardCfg.ConsensusType)
 	}
 
 	// Information summary
@@ -277,7 +328,7 @@ func main() {
 			if err := submitWorkRPC(w.shardID, mWork, mRes); err != nil {
 				w.log("WARN", "failed to submit work: %v\n", err)
 			} else {
-				w.log("INFO", "submitted work, height: %d\n", mWork.Number)
+				w.log("INFO", "submitted work, height:\t %d\n", mWork.Number)
 			}
 		}
 	}

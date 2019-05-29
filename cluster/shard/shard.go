@@ -76,7 +76,7 @@ func New(ctx *service.ServiceContext, rBlock *types.RootBlock, conn ConnManager,
 		return nil, err
 	}
 
-	shrd.miner = miner.New(shrd, shrd.engine)
+	shrd.miner = miner.New(shrd, shrd.engine, shrd.Config.ConsensusConfig.TargetBlockTime)
 
 	chainConfig, genesisHash, genesisErr := core.SetupGenesisMinorBlock(shrd.chainDb, shrd.gspec, rBlock, fullshardId)
 	// TODO check config err
@@ -102,11 +102,7 @@ func (s *ShardBackend) Stop() {
 }
 
 func (s *ShardBackend) SetMining(mining bool) {
-	if mining {
-		s.miner.Start(mining)
-	} else {
-		s.miner.Stop()
-	}
+	s.miner.SetMining(mining)
 }
 
 func createDB(ctx *service.ServiceContext, name string, clean bool) (ethdb.Database, error) {

@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 const (
@@ -23,6 +24,8 @@ const (
 	PoWSimulate = "POW_SIMULATE"
 	// PoWQkchash is the consensus type running qkchash algorithm.
 	PoWQkchash = "POW_QKCHASH"
+
+	HeartbeatInterval = time.Duration(4 * time.Second)
 )
 
 var (

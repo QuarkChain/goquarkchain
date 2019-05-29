@@ -146,11 +146,11 @@ func (s *ShardBackend) PoswDiffAdjust(block *types.MinorBlock) (*big.Int, error)
 }
 
 func (s *ShardBackend) GetWork() (*consensus.MiningWork, error) {
-	return s.engine.GetWork()
+	return s.miner.GetWork()
 }
 
 func (s *ShardBackend) SubmitWork(headerHash common.Hash, nonce uint64, mixHash common.Hash) error {
-	if ok := s.engine.SubmitWork(nonce, headerHash, mixHash); ok {
+	if ok := s.miner.SubmitWork(nonce, headerHash, mixHash); ok {
 		return nil
 	}
 	return errors.New("submit mined work failed")
@@ -216,7 +216,6 @@ func (s *ShardBackend) NewMinorBlock(block *types.MinorBlock) (err error) {
 		return err
 	}
 	// interrupt the current miner and restart
-	s.miner.ReMine()
 	return
 }
 

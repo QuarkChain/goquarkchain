@@ -32,7 +32,6 @@ import (
 )
 
 const (
-	heartbeatInterval       = time.Duration(4 * time.Second)
 	disPlayPeerInfoInterval = time.Duration(5 * time.Second)
 	rootChainChanSize       = 256
 	rootChainSideChanSize   = 256
@@ -97,7 +96,7 @@ func New(ctx *service.ServiceContext, cfg *config.ClusterConfig) (*QKCMasterBack
 		return nil, err
 	}
 
-	mstr.miner = miner.New(mstr, mstr.engine)
+	mstr.miner = miner.New(mstr, mstr.engine, cfg.Quarkchain.Root.ConsensusConfig.TargetBlockTime)
 
 	chainConfig, genesisHash, genesisErr := core.SetupGenesisRootBlock(mstr.chainDb, mstr.gspc)
 	// TODO check config err
@@ -179,11 +178,11 @@ func (s *QKCMasterBackend) APIs() []ethRPC.API {
 // Stop stop node -> stop qkcMaster
 func (s *QKCMasterBackend) Stop() error {
 	s.rootBlockChain.Stop()
+	s.miner.Stop()
 	s.engine.Close()
 	s.protocolManager.Stop()
 	s.rootChainEventSub.Unsubscribe()
 	s.rootChainSideEventSub.Unsubscribe()
-	s.miner.Stop()
 	s.eventMux.Stop()
 	s.chainDb.Close()
 	return nil
@@ -203,6 +202,7 @@ func (s *QKCMasterBackend) Start(srvr *p2p.Server) error {
 	s.Heartbeat()
 	// s.disPlayPeers()
 	go s.broadcastRpcLoop()
+	s.miner.Start()
 	return nil
 }
 
@@ -218,11 +218,7 @@ func (s *QKCMasterBackend) SetMining(mining bool) {
 		return
 	}
 
-	if mining {
-		s.miner.Start(mining)
-	} else {
-		s.miner.Stop()
-	}
+	s.miner.SetMining(mining)
 }
 
 // InitCluster init cluster :
@@ -370,7 +366,7 @@ func (s *QKCMasterBackend) Heartbeat() {
 			}
 			duration := time.Now().Sub(timeGap)
 			log.Trace(s.logInfo, "heart beat duration", duration.String())
-			time.Sleep(heartbeatInterval)
+			time.Sleep(config.HeartbeatInterval)
 		}
 	}(true)
 }

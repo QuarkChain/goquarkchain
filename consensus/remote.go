@@ -16,7 +16,7 @@ const (
 )
 
 var (
-	errNoMiningWork      = errors.New("no mining work available yet")
+	ErrNoMiningWork      = errors.New("no mining work available yet")
 	errInvalidSealResult = errors.New("invalid or stale proof-of-work solution")
 )
 
@@ -48,7 +48,7 @@ func (c *CommonEngine) remote() {
 	)
 
 	makeWork := func(block types.IBlock) {
-		hash := block.Hash()
+		hash := block.IHeader().SealHash()
 		currentWork.HeaderHash = hash
 		currentWork.Number = block.NumberU64()
 		currentWork.Difficulty = block.IHeader().GetDifficulty()
@@ -75,8 +75,9 @@ func (c *CommonEngine) remote() {
 
 		solution := block.WithMingResult(nonce, mixDigest)
 		start := time.Now()
-		if err := c.spec.VerifySeal(nil, block.IHeader(), block.IHeader().GetDifficulty()); err != nil {
-			log.Warn("Invalid proof-of-work submitted", "sealhash", sealhash, "elapsed", time.Since(start), "err", err)
+		if err := c.spec.VerifySeal(nil, solution.IHeader(), solution.IHeader().GetDifficulty()); err != nil {
+			log.Warn("Invalid proof-of-work submitted", "sealhash", sealhash.Hex(), "elapsed", time.Since(start), "err", err)
+			return false
 		}
 		if solution.NumberU64()+staleThreshold > currentBlock.NumberU64() {
 			select {
@@ -104,7 +105,7 @@ func (c *CommonEngine) remote() {
 
 		case work := <-c.fetchWorkCh:
 			if currentBlock == nil {
-				work.errc <- errNoMiningWork
+				work.errc <- ErrNoMiningWork
 			} else {
 				work.res <- currentWork
 			}
@@ -118,9 +119,8 @@ func (c *CommonEngine) remote() {
 
 		case <-ticker.C:
 			if currentBlock != nil {
-				now := uint64(time.Now().Unix())
 				for hash, block := range works {
-					if block.IHeader().GetTime()+5 < now {
+					if block.NumberU64()+staleThreshold < currentBlock.NumberU64() {
 						delete(works, hash)
 					}
 				}
