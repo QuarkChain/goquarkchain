@@ -16,7 +16,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func (p *mockpeer) GetMinorBlockHeaderList(hash common.Hash, amount, branch uint32, reverse bool) ([]*types.MinorBlockHeader, error) {
+func (p *mockpeer) GetMinorBlockHeaderList(hash common.Hash, limit, branch uint32, reverse bool) ([]*types.MinorBlockHeader, error) {
 	if p.downloadHeaderError != nil {
 		return nil, p.downloadHeaderError
 	}

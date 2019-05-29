@@ -119,7 +119,7 @@ type GetMinorBlockHeaderListRequest struct {
 	Limit     uint32      `json:"limit" gencodec:"required"`
 	// value 0: heighter, 1 lower
 	Direction uint8  `json:"direction" gencodec:"required"`
-	PeerId    string `json:"peerid" gencodec:"required"`
+	PeerID    string `json:"peerid" gencodec:"required"`
 }
 
 type GetMinorBlockHeaderListResponse struct {
@@ -298,6 +298,12 @@ type AddBlockListForSyncRequest struct {
 
 type AddBlockListForSyncResponse struct {
 	ShardStatus *ShardStatus `json:"shard_status" gencodec:"required"`
+}
+
+type HandleNewTipRequest struct {
+	PeerID               string                    `json:"peer_id" gencodec:"required"`
+	RootBlockHeader      *types.RootBlockHeader    `json:"root_block_header" gencodec:"required"`
+	MinorBlockHeaderList []*types.MinorBlockHeader `json:"minor_block_header_list" gencodec:"required" bytesizeofslicelen:"4"`
 }
 
 type Topic struct {

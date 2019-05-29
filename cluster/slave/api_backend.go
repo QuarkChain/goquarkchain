@@ -11,7 +11,6 @@ import (
 	qcom "github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/core/types"
-	"github.com/QuarkChain/goquarkchain/p2p"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
 )
@@ -97,7 +96,7 @@ func (s *SlaveBackend) AddBlockListForSync(mHashList []common.Hash, peerId strin
 		}
 		bList, err := s.connManager.GetMinorBlocks(tHashList, peerId, branch)
 		if err != nil {
-			log.Error("Failed to sync request from master", "branch", branch, "peer id", peerId, "err", err)
+			log.Error("Failed to sync request from master", "branch", branch, "peer-id", peerId, "err", err)
 			return nil, err
 		}
 		if len(bList) != hLen {
@@ -109,7 +108,7 @@ func (s *SlaveBackend) AddBlockListForSync(mHashList []common.Hash, peerId strin
 		hashList = hashList[hLen:]
 	}
 
-	log.Info("sync request from master successful", "branch", branch, "peer id", peerId, "block size", hashLen)
+	log.Info("sync request from master successful", "branch", branch, "peer-id", peerId, "block-size", hashLen)
 
 	return shard.MinorBlockChain.GetShardStatus()
 }
@@ -347,14 +346,14 @@ func (s *SlaveBackend) GetMinorBlockHeaderList(mHash common.Hash,
 	return headerList, err
 }
 
-func (s *SlaveBackend) HandleNewTip(tip *p2p.Tip) error {
-	if len(tip.MinorBlockHeaderList) != 1 {
+func (s *SlaveBackend) HandleNewTip(req *rpc.HandleNewTipRequest) error {
+	if len(req.MinorBlockHeaderList) != 1 {
 		return errors.New("minor block header list must have only one header")
 	}
 
-	mBHeader := tip.MinorBlockHeaderList[0]
+	mBHeader := req.MinorBlockHeaderList[0]
 	if shard, ok := s.shards[mBHeader.Branch.Value]; ok {
-		return shard.HandleNewTip(tip.RootBlockHeader, mBHeader)
+		return shard.HandleNewTip(req.RootBlockHeader, mBHeader, req.PeerID)
 	}
 
 	return ErrMsg("HandleNewTip")

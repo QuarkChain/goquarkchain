@@ -8,11 +8,42 @@ import (
 
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
+	synchronizer "github.com/QuarkChain/goquarkchain/cluster/sync"
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
 )
+
+var (
+	directionToGenesis = uint8(0)
+	directionToTip     = uint8(1)
+)
+
+// Wrapper over master connection, used by synchronizer.
+type peer struct {
+	cm     ConnManager
+	peerID string
+}
+
+func (p *peer) GetMinorBlockHeaderList(hash common.Hash, limit, branch uint32, reverse bool) ([]*types.MinorBlockHeader, error) {
+	req := &rpc.GetMinorBlockHeaderListRequest{
+		Branch:    branch,
+		BlockHash: hash,
+		Limit:     limit,
+		Direction: directionToGenesis,
+		PeerID:    p.peerID,
+	}
+	return p.cm.GetMinorBlockHeaders(req)
+}
+
+func (p *peer) GetMinorBlockList(hashes []common.Hash, branch uint32) ([]*types.MinorBlock, error) {
+	return p.cm.GetMinorBlocks(hashes, p.peerID, branch)
+}
+
+func (p *peer) PeerID() string {
+	return p.peerID
+}
 
 func (s *ShardBackend) GetUnconfirmedHeaderList() ([]*types.MinorBlockHeader, error) {
 	headers := s.MinorBlockChain.GetUnconfirmedHeaderList()
@@ -156,10 +187,15 @@ func (s *ShardBackend) SubmitWork(headerHash common.Hash, nonce uint64, mixHash 
 	return errors.New("submit mined work failed")
 }
 
-func (s *ShardBackend) HandleNewTip(rBHeader *types.RootBlockHeader, mBHeader *types.MinorBlockHeader) error {
-	// TODO sync.add_task
+func (s *ShardBackend) HandleNewTip(rBHeader *types.RootBlockHeader, mBHeader *types.MinorBlockHeader, peerID string) error {
 	if s.MinorBlockChain.CurrentHeader().NumberU64() >= mBHeader.Number {
 		return nil
+	}
+
+	peer := &peer{cm: s.conn, peerID: peerID}
+	err := s.synchronizer.AddTask(synchronizer.NewMinorChainTask(peer, mBHeader))
+	if err != nil {
+		log.Error("Failed to add minor chain task,", "hash", mBHeader.Hash(), "height", mBHeader.Number)
 	}
 
 	log.Info("Handle new tip received new tip with height", "shard height", mBHeader.Number)
