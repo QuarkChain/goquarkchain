@@ -193,7 +193,7 @@ func (hc *HeaderChain) WriteHeader(header *types.MinorBlockHeader) (status Write
 	return
 }
 
-// WhCallback is a callback function for inserting individual Headers.
+// MinorWhCallback is a callback function for inserting individual Headers.
 // A callback is used for two reasons: first, in a LightChain, status should be
 // processed and light chain events sent, while in a MinorBlockChain this is not
 // necessary since chain events are sent after inserting blocks. Second, the
