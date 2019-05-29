@@ -9,6 +9,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/cluster/service"
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/consensus/doublesha256"
+	"github.com/QuarkChain/goquarkchain/consensus/ethash"
 	"github.com/QuarkChain/goquarkchain/consensus/qkchash"
 	"github.com/QuarkChain/goquarkchain/core"
 	"github.com/QuarkChain/goquarkchain/core/rawdb"
@@ -125,13 +126,13 @@ func createConsensusEngine(ctx *service.ServiceContext, cfg *config.ShardConfig)
 	case config.PoWSimulate: //TODO pow_simulate is fake
 		return &consensus.FakeEngine{}, nil
 	case config.PoWEthash:
-		panic(errors.New("not support PoWEthash PoWSimulate"))
+		return ethash.New(ethash.Config{CachesInMem: 3, CachesOnDisk: 10, CacheDir: "", PowMode: ethash.ModeNormal}, &diffCalculator, cfg.ConsensusConfig.RemoteMine), nil
 	case config.PoWQkchash:
 		return qkchash.New(cfg.ConsensusConfig.RemoteMine, &diffCalculator, cfg.ConsensusConfig.RemoteMine), nil
 	case config.PoWDoubleSha256:
 		return doublesha256.New(&diffCalculator, cfg.ConsensusConfig.RemoteMine), nil
 	}
-	return nil, fmt.Errorf("Failed to create consensus engine consensus type %s", cfg.ConsensusType)
+	return nil, fmt.Errorf("Failed to create consensus engine consensus type %s ", cfg.ConsensusType)
 }
 
 func (s *ShardBackend) initGenesisState(rootBlock *types.RootBlock) error {

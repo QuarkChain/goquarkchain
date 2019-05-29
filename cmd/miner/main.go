@@ -177,6 +177,9 @@ func fetchWorkRPC(shardID *uint32) (work consensus.MiningWork, err error) {
 	}
 
 	headerHash := common.HexToHash(ret[0])
+	if headerHash == (common.Hash{}) {
+		return work, errors.New("Empty work can't be used ")
+	}
 	height := new(big.Int).SetBytes(common.FromHex(ret[1])).Uint64()
 	diff := new(big.Int).SetBytes(common.FromHex(ret[2]))
 	return consensus.MiningWork{
