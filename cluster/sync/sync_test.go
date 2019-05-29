@@ -18,8 +18,8 @@ func (t *trivialTask) Run(_ blockchain) error {
 	return nil
 }
 
-func (t *trivialTask) Peer() peer {
-	return &mockpeer{name: fmt.Sprintf("%d", t.id)}
+func (t *trivialTask) PeerID() string {
+	return fmt.Sprintf("%d", t.id)
 }
 
 func (t *trivialTask) Priority() uint {
