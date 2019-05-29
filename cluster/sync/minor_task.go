@@ -1,6 +1,8 @@
 package sync
 
 import (
+	"fmt"
+
 	"github.com/ethereum/go-ethereum/common"
 
 	"github.com/QuarkChain/goquarkchain/core/types"
@@ -25,7 +27,7 @@ func NewMinorChainTask(
 	return &minorChainTask{
 		task: task{
 			header:           header,
-			name:             "shard",   // TODO: Better naming.
+			name:             fmt.Sprintf("shard-%d", header.Branch.GetShardID()),
 			maxSyncStaleness: 22500 * 6, // TODO: derive from root chain?
 			getHeaders: func(hash common.Hash, limit uint32) (ret []types.IHeader, err error) {
 				mheaders, err := p.GetMinorBlockHeaderList(hash, limit, 0, true)

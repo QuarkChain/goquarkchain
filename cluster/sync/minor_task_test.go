@@ -75,13 +75,13 @@ func TestMinorChainTaskRun(t *testing.T) {
 	p := &mockpeer{name: "chunfeng"}
 	bc, db := newMinorBlockChain(5)
 	mbc := bc.(*mockblockchain).mbc
-	var mt Task = NewMinorChainTask(p, nil)
+	currHeader := bc.CurrentHeader().(*types.MinorBlockHeader)
+	var mt Task = NewMinorChainTask(p, currHeader)
 
 	// Prepare future blocks for downloading.
 	mbChain, mhChain := makeMinorChains(mbc.CurrentBlock(), db, false)
 
 	// No error if already have the target block.
-	mt.(*minorChainTask).header = bc.CurrentHeader().(*types.MinorBlockHeader)
 	assert.NoError(t, mt.Run(bc))
 	// Happy path.
 	mt.(*minorChainTask).header = mbChain[4].Header()
