@@ -3,6 +3,7 @@ package core
 import (
 	"errors"
 	"fmt"
+	"github.com/ethereum/go-ethereum/common"
 	"reflect"
 
 	"github.com/QuarkChain/goquarkchain/cluster/config"
@@ -77,6 +78,7 @@ func (v *RootBlockValidator) ValidateBlock(block types.IBlock) error {
 
 	var (
 		parentHeader            *types.MinorBlockHeader
+		prevRootBlockHashList   = make(map[common.Hash]bool)
 		shardIdHeadersMap       = make(map[uint32][]*types.MinorBlockHeader)
 		latestMinorBlockHeaders = v.blockChain.GetLatestMinorBlockHeaders(header.ParentHash)
 	)
@@ -96,9 +98,8 @@ func (v *RootBlockValidator) ValidateBlock(block types.IBlock) error {
 			return fmt.Errorf("minor block create time is larger than root block %d-%d",
 				mheader.Time, mheader.Time)
 		}
-		if !v.blockChain.isSameChain(rootBlock.Header(), v.blockChain.GetHeader(mheader.PrevRootBlockHash).(*types.RootBlockHeader)) {
-			return errors.New("minor block's prev root block must be in the same chain")
-		}
+
+		prevRootBlockHashList[mheader.PrevRootBlockHash] = true
 
 		if prevHeader == nil {
 			shardIdHeadersMap[mFullShardId] = append(shardIdHeadersMap[mFullShardId], mheader)
@@ -114,6 +115,12 @@ func (v *RootBlockValidator) ValidateBlock(block types.IBlock) error {
 			shardIdHeadersMap[mFullShardId] = append(shardIdHeadersMap[mFullShardId], mheader)
 		} else {
 			return fmt.Errorf("minor block %v does not link to previous block %v", mheader.Hash().Hex(), parentHeader.Hash().Hex())
+		}
+	}
+
+	for key := range prevRootBlockHashList {
+		if !v.blockChain.isSameChain(rootBlock.Header(), v.blockChain.GetHeader(key).(*types.RootBlockHeader)) {
+			return errors.New("minor block's prev root block must be in the same chain")
 		}
 	}
 
