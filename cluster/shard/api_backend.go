@@ -257,7 +257,7 @@ func (s *ShardBackend) NewMinorBlock(block *types.MinorBlock) (err error) {
 }
 
 // miner api
-func (s *ShardBackend) CreateBlockAsyncFunc() (types.IBlock, error) {
+func (s *ShardBackend) CreateBlockToMine() (types.IBlock, error) {
 	iBlock, err := s.MinorBlockChain.CreateBlockToMine(nil, &s.Config.CoinbaseAddress, nil)
 	if err != nil {
 		return nil, err
@@ -265,6 +265,6 @@ func (s *ShardBackend) CreateBlockAsyncFunc() (types.IBlock, error) {
 	return iBlock, nil
 }
 
-func (s *ShardBackend) AddBlockAsyncFunc(block types.IBlock) error {
+func (s *ShardBackend) InsertMinedBlock(block types.IBlock) error {
 	return s.AddMinorBlock(block.(*types.MinorBlock))
 }

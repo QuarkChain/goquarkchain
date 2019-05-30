@@ -258,11 +258,11 @@ func (s *QKCMasterBackend) NetWorkInfo() map[string]interface{} {
 }
 
 // miner api
-func (s *QKCMasterBackend) CreateBlockAsyncFunc() (types.IBlock, error) {
+func (s *QKCMasterBackend) CreateBlockToMine() (types.IBlock, error) {
 	return s.createRootBlockToMine(s.clusterConfig.Quarkchain.Root.CoinbaseAddress)
 }
 
-func (s *QKCMasterBackend) AddBlockAsyncFunc(block types.IBlock) error {
+func (s *QKCMasterBackend) InsertMinedBlock(block types.IBlock) error {
 	rBlock := block.(*types.RootBlock)
 	return s.AddRootBlock(rBlock)
 }

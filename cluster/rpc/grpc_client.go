@@ -59,7 +59,7 @@ const (
 	MasterServer = serverType(1)
 	SlaveServer  = serverType(0)
 
-	timeOut = 500
+	timeOut = 10
 )
 
 var (

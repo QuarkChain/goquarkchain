@@ -63,7 +63,7 @@ func (m *Miner) mainLoop(recommit time.Duration) {
 		if atomic.LoadUint32(&m.isMining) == 0 {
 			return
 		}
-		block, err := m.api.CreateBlockAsyncFunc()
+		block, err := m.api.CreateBlockToMine()
 		if err != nil {
 			log.Error("create block to mine", "err", err)
 			return
@@ -83,7 +83,7 @@ func (m *Miner) mainLoop(recommit time.Duration) {
 			_ = m.engine.Seal(nil, work, m.resultCh, stopCh)
 
 		case rBlock := <-m.resultCh:
-			if err := m.api.AddBlockAsyncFunc(rBlock); err != nil {
+			if err := m.api.InsertMinedBlock(rBlock); err != nil {
 				log.Error("add minered block", "block hash", rBlock.Hash().Hex(), "err", err)
 				time.Sleep(time.Duration(3) * time.Second)
 			}

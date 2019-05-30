@@ -228,17 +228,17 @@ func loadConfig(file string, cfg *config.ClusterConfig) error {
 	return json.Unmarshal(content, cfg)
 }
 
-func createMiner(consensusType string) (consensus.PoW, bool) {
+func createMiner(consensusType string, diffCalculator *consensus.EthDifficultyCalculator) consensus.PoW {
 	switch consensusType {
 	case config.PoWEthash:
-		return ethash.New(ethash.Config{CachesInMem: 3, CachesOnDisk: 10, CacheDir: "", PowMode: ethash.ModeNormal}, nil, false), true
+		return ethash.New(ethash.Config{CachesInMem: 3, CachesOnDisk: 10, CacheDir: "", PowMode: ethash.ModeNormal}, diffCalculator, false)
 	case config.PoWQkchash:
-		return qkchash.New(true, nil, false), true
+		return qkchash.New(true, diffCalculator, false)
 	case config.PoWDoubleSha256:
-		return doublesha256.New(nil, false), true
+		return doublesha256.New(diffCalculator, false)
 	default:
 		ethlog.Error("Failed to create consensus engine consensus type is not known", "consensus type", consensusType)
-		return nil, false
+		return nil
 	}
 }
 
@@ -268,8 +268,13 @@ func main() {
 
 	// Root chain miner, default
 	if *shardList == "R" {
-		pow, ok := createMiner(cfg.Quarkchain.Root.ConsensusType)
-		if !ok {
+		diffCalculator := &consensus.EthDifficultyCalculator{
+			MinimumDifficulty: big.NewInt(int64(cfg.Quarkchain.Root.Genesis.Difficulty)),
+			AdjustmentCutoff:  cfg.Quarkchain.Root.DifficultyAdjustmentCutoffTime,
+			AdjustmentFactor:  cfg.Quarkchain.Root.DifficultyAdjustmentFactor,
+		}
+		pow := createMiner(cfg.Quarkchain.Root.ConsensusType, diffCalculator)
+		if pow == nil {
 			log.Fatal("ERROR: unsupported root / mining algorithm")
 		}
 		pow.SetThreads(*preThreads)
@@ -295,8 +300,13 @@ func main() {
 	}
 
 	for shardID, shardCfg := range shardCfgs {
-		pow, ok := createMiner(shardCfg.ConsensusType)
-		if !ok {
+		diffCalculator := &consensus.EthDifficultyCalculator{
+			MinimumDifficulty: big.NewInt(int64(shardCfg.Genesis.Difficulty)),
+			AdjustmentCutoff:  shardCfg.DifficultyAdjustmentCutoffTime,
+			AdjustmentFactor:  shardCfg.DifficultyAdjustmentFactor,
+		}
+		pow := createMiner(shardCfg.ConsensusType, diffCalculator)
+		if pow == nil {
 			log.Fatal("ERROR: unsupported shard / mining algorithm")
 		}
 		pow.SetThreads(*preThreads)

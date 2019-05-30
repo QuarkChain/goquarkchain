@@ -211,7 +211,8 @@ func (s *QKCMasterBackend) SetMining(mining bool) {
 	var g errgroup.Group
 	for _, slvConn := range s.clientPool {
 		g.Go(func() error {
-			return slvConn.SetMining(mining)
+			conn := slvConn
+			return conn.SetMining(mining)
 		})
 	}
 	if err := g.Wait(); err != nil {
@@ -240,7 +241,6 @@ func (s *QKCMasterBackend) InitCluster() error {
 	if err := s.initShards(); err != nil {
 		return err
 	}
-	s.SetMining(true)
 	return nil
 }
 
