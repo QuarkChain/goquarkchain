@@ -256,7 +256,7 @@ func (m *MinorBlockChain) putRootBlock(rBlock *types.RootBlock, minorHeader *typ
 }
 
 func (m *MinorBlockChain) createEvmState(trieRootHash common.Hash, headerHash common.Hash) (*state.StateDB, error) {
-	evmState, err := m.StateAt(trieRootHash)
+	evmState, err := m.stateAt(trieRootHash)
 	if err != nil {
 		return nil, err
 	}
@@ -373,7 +373,7 @@ func (m *MinorBlockChain) runBlock(block *types.MinorBlock) (*state.StateDB, typ
 		return nil, nil, ErrRootBlockIsNil
 	}
 
-	preEvmState, err := m.StateAt(parent.GetMetaData().Root)
+	preEvmState, err := m.stateAt(parent.GetMetaData().Root)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -520,7 +520,7 @@ func (m *MinorBlockChain) getEvmStateByHeight(height *uint64) (*state.StateDB, e
 		return nil, ErrMinorBlockIsNil
 	}
 
-	evmState, err := m.StateAt(mBlock.(*types.MinorBlock).GetMetaData().Root)
+	evmState, err := m.stateAt(mBlock.(*types.MinorBlock).GetMetaData().Root)
 	if err != nil {
 		return nil, err
 	}
@@ -573,7 +573,7 @@ func (m *MinorBlockChain) ExecuteTx(tx *types.Transaction, fromAddress *account.
 		return nil, ErrMinorBlockIsNil
 	}
 
-	evmState, err := m.StateAt(mBlock.GetMetaData().Root)
+	evmState, err := m.stateAt(mBlock.GetMetaData().Root)
 	if err != nil {
 		return nil, err
 	}

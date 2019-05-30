@@ -372,11 +372,14 @@ func (m *MinorBlockChain) State() (*state.StateDB, error) {
 
 // StateAt returns a new mutable state based on a particular point in time.
 func (m *MinorBlockChain) StateAt(root common.Hash) (*state.StateDB, error) {
-	return state.New(root, m.stateCache)
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return m.stateAt(root)
 }
 
-func (m *MinorBlockChain) GetMu() *sync.RWMutex {
-	return &m.mu
+// stateAt returns a new mutable state based on a particular point in time.
+func (m *MinorBlockChain) stateAt(root common.Hash) (*state.StateDB, error) {
+	return state.New(root, m.stateCache)
 }
 
 // StateCache returns the caching database underpinning the blockchain instance.

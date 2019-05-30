@@ -57,10 +57,6 @@ type testBlockChain struct {
 	chainHeadFeed *event.Feed
 }
 
-func (bc *testBlockChain) GetMu() *sync.RWMutex {
-	return &mu
-}
-
 func (bc *testBlockChain) CurrentBlock() *types.MinorBlock {
 	return types.NewMinorBlock(&types.MinorBlockHeader{
 		GasLimit: &serialize.Uint256{Value: new(big.Int).SetUint64(bc.gasLimit)},
