@@ -1288,9 +1288,9 @@ func (bc *RootBlockChain) PutRootBlockIndex(block *types.RootBlock) error {
 		shardRecipientCnt[fullShardID][recipient] = newCount
 	}
 	for fullShardID, infoList := range shardRecipientCnt {
-		dataToDb := new(account.ReceiptCnts)
+		dataToDb := new(account.CoinbaseStatses)
 		for addr, count := range infoList {
-			dataToDb.RCnts = append(dataToDb.RCnts, account.ReceiptCnt{
+			dataToDb.CoinbaseStatsList = append(dataToDb.CoinbaseStatsList, account.CoinbaseStats{
 				Addr: addr,
 				Cnt:  count,
 			})
@@ -1316,14 +1316,14 @@ func (bc *RootBlockChain) GetBlockCount(rootHeight uint32) (map[uint32]map[accou
 		if len(data) == 0 {
 			continue
 		}
-		infoList := new(account.ReceiptCnts)
+		infoList := new(account.CoinbaseStatses)
 		if err := serialize.DeserializeFromBytes(data, infoList); err != nil {
 			panic(err) //TODO delete later unexpected err
 		}
 		if _, ok := shardRecipientCnt[fullShardId]; !ok {
 			shardRecipientCnt[fullShardId] = make(map[account.Recipient]uint32)
 		}
-		for _, info := range infoList.RCnts {
+		for _, info := range infoList.CoinbaseStatsList {
 			shardRecipientCnt[fullShardId][info.Addr] = info.Cnt
 		}
 	}

@@ -65,11 +65,11 @@ func BytesToIdentityKey(b []byte) Key {
 	return a
 }
 
-type ReceiptCnts struct {
-	RCnts []ReceiptCnt `json:"RCnts" gencodec:"required" bytesizeofslicelen:"4"`
+type CoinbaseStatses struct {
+	CoinbaseStatsList []CoinbaseStats `json:"ReceiptCntList" gencodec:"required" bytesizeofslicelen:"4"`
 }
 
-type ReceiptCnt struct {
+type CoinbaseStats struct {
 	Addr Recipient
 	Cnt  uint32
 }

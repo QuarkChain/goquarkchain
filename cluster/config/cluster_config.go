@@ -127,8 +127,8 @@ func (q *QuarkChainConfig) UnmarshalJSON(input []byte) error {
 	*q = QuarkChainConfig(jsonConfig.QuarkChainConfigAlias)
 	q.Chains = make(map[uint32]*ChainConfig)
 	q.shards = make(map[uint32]*ShardConfig)
-	for chainID, chainCfg := range jsonConfig.Chains {
-		q.Chains[uint32(chainID)] = chainCfg
+	for _, chainCfg := range jsonConfig.Chains {
+		q.Chains[chainCfg.ChainID] = chainCfg
 		for shardID := uint32(0); shardID < chainCfg.ShardSize; shardID++ {
 			shardCfg := NewShardConfig(chainCfg)
 			shardCfg.SetRootConfig(q.Root)
