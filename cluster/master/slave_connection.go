@@ -3,6 +3,9 @@ package master
 import (
 	"errors"
 	"fmt"
+	"strings"
+	"time"
+
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
 	qcom "github.com/QuarkChain/goquarkchain/common"
@@ -11,8 +14,6 @@ import (
 	"github.com/QuarkChain/goquarkchain/p2p"
 	"github.com/QuarkChain/goquarkchain/serialize"
 	"github.com/ethereum/go-ethereum/common"
-	"strings"
-	"time"
 )
 
 type SlaveConnection struct {
@@ -590,7 +591,7 @@ func (s *SlaveConnection) GetMinorBlockHeaders(request *p2p.GetMinorBlockHeaderL
 	return rsp, nil
 }
 
-func (s *SlaveConnection) HandleNewTip(request *p2p.Tip) (bool, error) {
+func (s *SlaveConnection) HandleNewTip(request *rpc.HandleNewTipRequest) (bool, error) {
 	bytes, err := serialize.SerializeToBytes(request)
 	if err != nil {
 		return false, err

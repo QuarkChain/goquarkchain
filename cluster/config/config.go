@@ -3,14 +3,15 @@ package config
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/QuarkChain/goquarkchain/account"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/log"
 	"math/big"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/QuarkChain/goquarkchain/account"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/log"
 )
 
 const (
@@ -270,11 +271,11 @@ func UpdateGenesisAlloc(cluserConfig *ClusterConfig) error {
 				return fmt.Errorf(tempErrMsg, allocFile, err)
 			}
 			fullShardId := qkcConfig.GetFullShardIdByFullShardKey(address.FullShardKey)
-			shrd, ok := qkcConfig.shards[fullShardId]
+			shard, ok := qkcConfig.shards[fullShardId]
 			if !ok {
 				continue
 			}
-			shrd.Genesis.Alloc[address] = new(big.Int).Mul(big.NewInt(1000000), QuarkashToJiaozi)
+			shard.Genesis.Alloc[address] = new(big.Int).Mul(big.NewInt(1000000), QuarkashToJiaozi)
 		}
 		log.Info("Load template genesis accounts", "chain id", chainId, "imported", len(addresses), "config file", allocFile)
 	}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/core/types"
@@ -543,7 +544,7 @@ func (s *SlaveServerSideOp) GetMinorBlockHeaderList(ctx context.Context, req *rp
 
 func (s *SlaveServerSideOp) HandleNewTip(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
 	var (
-		gReq     p2p.Tip
+		gReq     rpc.HandleNewTipRequest
 		response = &rpc.Response{RpcId: req.RpcId}
 		err      error
 	)
