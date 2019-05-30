@@ -53,7 +53,7 @@ func Sender(signer Signer, tx *EvmTransaction) (account.Recipient, error) {
 		// the cache.
 		if sigCache.signer.Equal(signer) {
 			return sigCache.from, nil
-		}calFee := getLocalFeeRate(m.clusterConf
+		}
 	}
 
 	addr, err := signer.Sender(tx)

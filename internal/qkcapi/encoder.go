@@ -273,5 +273,5 @@ func receiptEncoder(block *types.MinorBlock, i int, receipt *types.Receipt) (map
 		}
 		field["contractAddress"] = DataEncoder(addr.ToBytes())
 	}
-	return field
+	return field, nil
 }
