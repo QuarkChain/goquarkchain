@@ -120,7 +120,7 @@ func (m *MasterServerSideOp) GetMinorBlockHeaderList(ctx context.Context, req *r
 			getMinorBlockHeaderListReq.Limit,
 			getMinorBlockHeaderListReq.Branch,
 			getMinorBlockHeaderListReq.Direction == directionToGenesis,
-			getMinorBlockHeaderListReq.PeerId)
+			getMinorBlockHeaderListReq.PeerID)
 	if err != nil {
 		return nil, err
 	}
