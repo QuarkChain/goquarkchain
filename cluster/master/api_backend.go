@@ -9,7 +9,6 @@ import (
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/core/types"
-	"github.com/QuarkChain/goquarkchain/p2p"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	ethRpc "github.com/ethereum/go-ethereum/rpc"
@@ -25,14 +24,14 @@ func ip2uint32(ip string) uint32 {
 }
 
 func (s *QKCMasterBackend) GetPeers() []rpc.PeerInfoForDisPlay {
-	fakePeers := make([]p2p.Peer, 0) //TODO use real peerList
+	peers := s.protocolManager.peers.Peers() //TODO use real peerList
 	result := make([]rpc.PeerInfoForDisPlay, 0)
-	for k := range fakePeers {
+	for k := range peers {
 		temp := rpc.PeerInfoForDisPlay{}
-		if tcp, ok := fakePeers[k].RemoteAddr().(*net.TCPAddr); ok {
+		if tcp, ok := peers[k].RemoteAddr().(*net.TCPAddr); ok {
 			temp.IP = ip2uint32(tcp.IP.String())
 			temp.Port = uint32(tcp.Port)
-			temp.ID = fakePeers[k].ID().Bytes()
+			temp.ID = peers[k].ID().Bytes()
 		} else {
 			panic(fmt.Errorf("not tcp? real type %v", reflect.TypeOf(tcp)))
 		}

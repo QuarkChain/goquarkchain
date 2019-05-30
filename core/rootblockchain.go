@@ -113,8 +113,9 @@ type RootBlockChain struct {
 	engine    consensus.Engine
 	validator Validator // block and state validator interface
 
-	badBlocks      *lru.Cache                        // Bad block cache
-	shouldPreserve func(block *types.RootBlock) bool // Function used to determine whether should preserve the given block.
+	badBlocks        *lru.Cache                        // Bad block cache
+	shouldPreserve   func(block *types.RootBlock) bool // Function used to determine whether should preserve the given block.
+	countMinorBlocks bool
 }
 
 // NewBlockChain returns a fully initialized block chain using information
@@ -358,7 +359,10 @@ func (bc *RootBlockChain) insert(block *types.RootBlock) {
 	updateHeads := rawdb.ReadCanonicalHash(bc.db, rawdb.ChainTypeRoot, block.NumberU64()) != block.Hash()
 
 	// Add the block to the canonical chain number scheme and mark as the head
-	rawdb.WriteCanonicalHash(bc.db, rawdb.ChainTypeRoot, block.Hash(), block.NumberU64())
+	if err := bc.PutRootBlockIndex(block); err != nil {
+		//TODO need delete later?
+		panic(err)
+	}
 	rawdb.WriteHeadBlockHash(bc.db, block.Hash())
 
 	bc.currentBlock.Store(block)
@@ -1242,11 +1246,6 @@ func (bc *RootBlockChain) GetNextDifficulty(create *uint64) (*big.Int, error) {
 	return bc.engine.CalcDifficulty(bc, *create, bc.CurrentBlock().Header())
 }
 
-func (bc *RootBlockChain) GetBlockCount() {
-	// TODO for json rpc
-	// Returns a dict(full_shard_id, dict(miner_recipient, block_count))
-}
-
 func (bc *RootBlockChain) WriteCommittingHash(hash common.Hash) {
 	rawdb.WriteRootBlockCommittingHash(bc.db, hash)
 }
@@ -1257,4 +1256,76 @@ func (bc *RootBlockChain) ClearCommittingHash() {
 
 func (bc *RootBlockChain) GetCommittingBlockHash() common.Hash {
 	return rawdb.ReadRbCommittingHash(bc.db)
+}
+
+func (bc *RootBlockChain) SetEnableCountMinorBlocks(flag bool) {
+	bc.countMinorBlocks = flag
+}
+func (bc *RootBlockChain) PutRootBlockIndex(block *types.RootBlock) error {
+	rawdb.WriteCanonicalHash(bc.db, rawdb.ChainTypeRoot, block.Hash(), block.NumberU64())
+
+	if !bc.countMinorBlocks {
+		return nil
+	}
+	var (
+		shardRecipientCnt = make(map[uint32]map[account.Recipient]uint32)
+		err               error
+	)
+	if block.Header().Number > 0 {
+		if shardRecipientCnt, err = bc.GetBlockCount(block.Number() - 1); err != nil {
+			return err
+		}
+	}
+
+	for _, header := range block.MinorBlockHeaders() {
+		fullShardID := header.Branch.GetFullShardID()
+		recipient := header.Coinbase.Recipient
+		oldCount := shardRecipientCnt[fullShardID][recipient]
+		newCount := oldCount + 1
+		if _, ok := shardRecipientCnt[fullShardID]; ok == false {
+			shardRecipientCnt[fullShardID] = make(map[account.Recipient]uint32)
+		}
+		shardRecipientCnt[fullShardID][recipient] = newCount
+	}
+	for fullShardID, infoList := range shardRecipientCnt {
+		dataToDb := new(account.CoinbaseStatses)
+		for addr, count := range infoList {
+			dataToDb.CoinbaseStatsList = append(dataToDb.CoinbaseStatsList, account.CoinbaseStats{
+				Addr: addr,
+				Cnt:  count,
+			})
+		}
+		data, err := serialize.SerializeToBytes(dataToDb)
+		if err != nil {
+			return err
+		}
+		rawdb.WriteMinorBlockCnt(bc.db, fullShardID, block.Header().Number, data)
+	}
+	return nil
+}
+
+func (bc *RootBlockChain) GetBlockCount(rootHeight uint32) (map[uint32]map[account.Recipient]uint32, error) {
+	// Returns a dict(full_shard_id, dict(miner_recipient, block_count))
+	shardRecipientCnt := make(map[uint32]map[account.Recipient]uint32)
+	if !bc.countMinorBlocks {
+		return shardRecipientCnt, nil
+	}
+	fullShardIds := bc.chainConfig.GetInitializedShardIdsBeforeRootHeight(rootHeight)
+	for _, fullShardId := range fullShardIds {
+		data := rawdb.GetMinorBlockCnt(bc.db, fullShardId, rootHeight)
+		if len(data) == 0 {
+			continue
+		}
+		infoList := new(account.CoinbaseStatses)
+		if err := serialize.DeserializeFromBytes(data, infoList); err != nil {
+			panic(err) //TODO delete later unexpected err
+		}
+		if _, ok := shardRecipientCnt[fullShardId]; !ok {
+			shardRecipientCnt[fullShardId] = make(map[account.Recipient]uint32)
+		}
+		for _, info := range infoList.CoinbaseStatsList {
+			shardRecipientCnt[fullShardId][info.Addr] = info.Cnt
+		}
+	}
+	return shardRecipientCnt, nil
 }
