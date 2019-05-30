@@ -9,6 +9,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
+	"golang.org/x/sync/errgroup"
 	"math/big"
 	"time"
 )
@@ -212,4 +213,19 @@ func (s *ShardBackend) NewMinorBlock(block *types.MinorBlock) (err error) {
 		return err
 	}
 	return s.AddMinorBlock(block)
+}
+
+func (s *ShardBackend) addTxList(txs []*types.Transaction) error {
+	var g errgroup.Group
+	for _, tx := range txs {
+		g.Go(func() error {
+			return s.MinorBlockChain.AddTx(tx)
+		})
+	}
+	return g.Wait()
+}
+
+func (s *ShardBackend) CreateTransactions(numTxPerShard int, xShardPercent int, tx *types.EvmTransaction) error {
+	s.txGenerator.Generate(numTxPerShard, xShardPercent, tx)
+	return nil
 }

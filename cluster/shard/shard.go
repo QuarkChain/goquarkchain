@@ -36,7 +36,8 @@ type ShardBackend struct {
 
 	MinorBlockChain *core.MinorBlockChain
 
-	mBPool newBlockPool
+	mBPool      newBlockPool
+	txGenerator *TxGenerator
 
 	mu       sync.Mutex
 	eventMux *event.TypeMux
@@ -50,7 +51,7 @@ func New(ctx *service.ServiceContext, rBlock *types.RootBlock, conn ConnManager,
 		return nil, errors.New("Failed to create shard, cluster config is nil ")
 	}
 	var (
-		shrd = ShardBackend{
+		shrd = &ShardBackend{
 			fullShardId:       fullshardId,
 			genesisRootHeight: cfg.Quarkchain.GetShardConfigByFullShardID(fullshardId).Genesis.RootHeight,
 			Config:            cfg.Quarkchain.GetShardConfigByFullShardID(fullshardId),
@@ -65,6 +66,11 @@ func New(ctx *service.ServiceContext, rBlock *types.RootBlock, conn ConnManager,
 	shrd.maxBlocks = shrd.Config.MaxBlocksPerShardInOneRootBlock()
 
 	shrd.chainDb, err = createDB(ctx, fmt.Sprintf("shard-%d.db", fullshardId), cfg.Clean)
+	if err != nil {
+		return nil, err
+	}
+
+	shrd.txGenerator, err = NewTxGenerator(cfg.GenesisDir, shrd.fullShardId, cfg.Quarkchain, shrd.MinorBlockChain.GetTransactionCount)
 	if err != nil {
 		return nil, err
 	}
@@ -87,7 +93,7 @@ func New(ctx *service.ServiceContext, rBlock *types.RootBlock, conn ConnManager,
 		return nil, err
 	}
 
-	return &shrd, nil
+	return shrd, nil
 }
 
 func (s *ShardBackend) Stop() {
@@ -133,7 +139,7 @@ func createConsensusEngine(ctx *service.ServiceContext, cfg *config.ShardConfig)
 	case config.PoWDoubleSha256:
 		return doublesha256.New(&diffCalculator, cfg.ConsensusConfig.RemoteMine), nil
 	}
-	return nil, fmt.Errorf("Failed to create consensus engine consensus type %s", cfg.ConsensusType)
+	return nil, fmt.Errorf("Failed to create consensus engine consensus type %s ", cfg.ConsensusType)
 }
 
 func (s *ShardBackend) initGenesisState(rootBlock *types.RootBlock) error {

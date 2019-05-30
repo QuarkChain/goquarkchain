@@ -12,6 +12,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/p2p"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
+	"golang.org/x/sync/errgroup"
 	"math/big"
 )
 
@@ -364,4 +365,15 @@ func (s *SlaveBackend) NewMinorBlock(block *types.MinorBlock) error {
 		return shrd.NewMinorBlock(block)
 	}
 	return ErrMsg("MinorBlock")
+}
+
+func (s *SlaveBackend) CreateTransactions(numTxPerShard int, xShardPercent int, tx *types.EvmTransaction) error {
+	var g errgroup.Group
+	for _, shrd := range s.shards {
+		g.Go(func() error {
+			sd := shrd
+			return sd.CreateTransactions(numTxPerShard, xShardPercent, tx)
+		})
+	}
+	return g.Wait()
 }

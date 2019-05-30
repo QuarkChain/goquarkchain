@@ -597,6 +597,20 @@ func (s *SlaveServerSideOp) HandleNewMinorBlock(ctx context.Context, req *rpc.Re
 	if err = s.slave.NewMinorBlock(&gReq); err != nil {
 		return nil, err
 	}
+	return response, nil
+}
 
+func (s *SlaveServerSideOp) CreateTransactions(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
+	var (
+		gReq     rpc.GenTxRequest
+		response = &rpc.Response{RpcId: req.RpcId}
+		err      error
+	)
+	if err = serialize.DeserializeFromBytes(req.Data, &gReq); err != nil {
+		return nil, err
+	}
+	if err = s.slave.CreateTransactions(int(gReq.NumTxPerShard), int(gReq.XShardPercent), gReq.Tx); err != nil {
+		return nil, err
+	}
 	return response, nil
 }

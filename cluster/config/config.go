@@ -30,6 +30,13 @@ var (
 	DefaultNumSlaves = 4
 )
 
+var (
+	templateFile = "alloc/%d.json"
+	testFile     = "loadtest.json"
+	tempErrMsg   = "Error importing genesis accounts from %s: %v "
+	testErrMsg   = "No loadtest accounts imported into genesis alloc %s: %v "
+)
+
 type POWConfig struct {
 	TargetBlockTime uint32 `json:"TARGET_BLOCK_TIME"`
 	RemoteMine      bool   `json:"REMOTE_MINE"`
@@ -216,12 +223,6 @@ func loadGenesisAddrs(file string) ([]GenesisAddress, error) {
 
 // Update ShardConfig.GENESIS.ALLOC
 func UpdateGenesisAlloc(cluserConfig *ClusterConfig) error {
-	var (
-		templateFile = "alloc/%d.json"
-		testFile     = "loadtest.json"
-		tempErrMsg   = "Error importing genesis accounts from %s: %v "
-		testErrMsg   = "No loadtest accounts imported into genesis alloc %s: %v "
-	)
 	if cluserConfig.GenesisDir == "" {
 		return nil
 	}
@@ -263,4 +264,26 @@ func UpdateGenesisAlloc(cluserConfig *ClusterConfig) error {
 	log.Info("Loadtest accounts", "loadtest file", loadtestFile, "imported", len(items))
 
 	return nil
+}
+
+func LoadtestAccounts(genesisDir string) ([]*account.Account, error) {
+	var (
+		accounts = make([]*account.Account, 0)
+		testFile = "loadtest.json"
+		err      error
+	)
+	loadtestFile := filepath.Join(genesisDir, testFile)
+	items, err := loadGenesisAddrs(loadtestFile)
+	if err != nil {
+		return nil, fmt.Errorf(testErrMsg, loadtestFile, err)
+	}
+	for _, item := range items {
+		key := account.BytesToIdentityKey(common.FromHex(item.PrivKey))
+		acc, err := account.NewAccountWithKey(key)
+		if err != nil {
+			return nil, err
+		}
+		accounts = append(accounts, &acc)
+	}
+	return accounts, nil
 }

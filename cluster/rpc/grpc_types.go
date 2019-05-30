@@ -77,9 +77,9 @@ type MineRequest struct {
 
 // Generate transactions for loadtesting
 type GenTxRequest struct {
-	NumTxPerShard uint32             `json:"num_tx_per_shard" gencodec:"required"`
-	XShardPercent uint32             `json:"x_shard_percent" gencodec:"required"`
-	Tx            *types.Transaction `json:"tx" gencodec:"required"`
+	NumTxPerShard uint32                `json:"num_tx_per_shard" gencodec:"required"`
+	XShardPercent uint32                `json:"x_shard_percent" gencodec:"required"`
+	Tx            *types.EvmTransaction `json:"tx" gencodec:"required"`
 }
 
 // RPCs to lookup data from shards (master -> slaves)
