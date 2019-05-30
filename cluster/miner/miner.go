@@ -24,7 +24,6 @@ type Miner struct {
 	resultCh chan types.IBlock
 	workCh   chan types.IBlock
 	startCh  chan struct{}
-	stopCh   chan struct{}
 	exitCh   chan struct{}
 	now      time.Time
 	mu       sync.RWMutex
@@ -39,7 +38,6 @@ func New(api MinerAPI, engine consensus.Engine, interval uint32) *Miner {
 		resultCh:      make(chan types.IBlock, 1),
 		workCh:        make(chan types.IBlock, 1),
 		startCh:       make(chan struct{}, 1),
-		stopCh:        make(chan struct{}, 1),
 		exitCh:        make(chan struct{}),
 	}
 	go miner.mainLoop(miner.minerInterval)
@@ -63,12 +61,15 @@ func (m *Miner) mainLoop(recommit time.Duration) {
 		if atomic.LoadUint32(&m.isMining) == 0 {
 			return
 		}
+		interrupt()
 		block, err := m.api.CreateBlockToMine()
 		if err != nil {
 			log.Error("create block to mine", "err", err)
+			// retry to create block to mine
+			time.Sleep(2 * time.Second)
+			m.startCh <- struct{}{}
 			return
 		}
-		interrupt()
 		m.workCh <- block
 		log.Info("create new block to mine", "height", block.NumberU64())
 		m.now = time.Now()
@@ -80,7 +81,10 @@ func (m *Miner) mainLoop(recommit time.Duration) {
 			commit()
 
 		case work := <-m.workCh:
-			_ = m.engine.Seal(nil, work, m.resultCh, stopCh)
+			if err := m.engine.Seal(nil, work, m.resultCh, stopCh); err != nil {
+				log.Error("Seal block to mine", "err", err)
+				commit()
+			}
 
 		case rBlock := <-m.resultCh:
 			if err := m.api.InsertMinedBlock(rBlock); err != nil {
@@ -88,6 +92,7 @@ func (m *Miner) mainLoop(recommit time.Duration) {
 				time.Sleep(time.Duration(3) * time.Second)
 			}
 			commit()
+
 		case <-m.exitCh:
 			return
 		}

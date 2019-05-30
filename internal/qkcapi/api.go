@@ -43,14 +43,13 @@ func transHexutilUint64ToUint64(data *hexutil.Uint64) (*uint64, error) {
 
 // It offers only methods that operate on public data that is freely available to anyone.
 type PublicBlockChainAPI struct {
-	qkcConfig *config.QuarkChainConfig
-	b         Backend
+	clusterConfig *config.ClusterConfig
+	b             Backend
 }
 
 // NewPublicBlockChainAPI creates a new QuarkChain blockchain API.
 func NewPublicBlockChainAPI(b Backend) *PublicBlockChainAPI {
-	qkcCfg := b.GetClusterConfig().Quarkchain
-	return &PublicBlockChainAPI{qkcCfg, b}
+	return &PublicBlockChainAPI{b.GetClusterConfig(), b}
 }
 
 // Echoquantity :should use data without leading zero
@@ -210,7 +209,7 @@ func (p *PublicBlockChainAPI) GasPrice(fullShardKey uint32) (hexutil.Uint64, err
 func (p *PublicBlockChainAPI) SubmitWork(fullShardKey *hexutil.Uint, headHash common.Hash, nonce hexutil.Uint64, mixHash common.Hash) bool {
 	fullShardId := uint32(0)
 	if fullShardKey != nil {
-		fullShardId = p.qkcConfig.GetFullShardIdByFullShardKey(uint32(*fullShardKey))
+		fullShardId = p.clusterConfig.Quarkchain.GetFullShardIdByFullShardKey(uint32(*fullShardKey))
 	}
 	submit, err := p.b.SubmitWork(account.NewBranch(fullShardId), headHash, uint64(nonce), mixHash)
 	if err != nil {
@@ -222,7 +221,7 @@ func (p *PublicBlockChainAPI) SubmitWork(fullShardKey *hexutil.Uint, headHash co
 func (p *PublicBlockChainAPI) GetWork(fullShardKey *hexutil.Uint) []common.Hash {
 	fullShardId := uint32(0)
 	if fullShardKey != nil {
-		fullShardId = p.qkcConfig.GetFullShardIdByFullShardKey(uint32(*fullShardKey))
+		fullShardId = p.clusterConfig.Quarkchain.GetFullShardIdByFullShardKey(uint32(*fullShardKey))
 	}
 	work, err := p.b.GetWork(account.NewBranch(fullShardId))
 	if err != nil {

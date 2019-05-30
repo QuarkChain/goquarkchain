@@ -210,8 +210,8 @@ func (s *QKCMasterBackend) Start(srvr *p2p.Server) error {
 func (s *QKCMasterBackend) SetMining(mining bool) {
 	var g errgroup.Group
 	for _, slvConn := range s.clientPool {
+		conn := slvConn
 		g.Go(func() error {
-			conn := slvConn
 			return conn.SetMining(mining)
 		})
 	}
