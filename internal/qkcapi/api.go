@@ -373,8 +373,8 @@ func (p *PrivateBlockChainAPI) CreateTransactions(args *CreateTxArgs) error {
 func (p *PrivateBlockChainAPI) SetTargetBlockTime(rootBlockTime *uint32, minorBlockTime *uint32) error {
 	return p.b.SetTargetBlockTime(rootBlockTime, minorBlockTime)
 }
-func (p *PrivateBlockChainAPI) SetMining(flag bool) error {
-	return p.b.SetMining(flag)
+func (p *PrivateBlockChainAPI) SetMining(flag bool) {
+	p.b.SetMining(flag)
 }
 
 //TODO ?? necessary?
