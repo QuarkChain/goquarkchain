@@ -18,6 +18,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethdb"
+	"github.com/stretchr/testify/assert"
 )
 
 var (
@@ -780,6 +781,58 @@ func TestLargeReorgTrieGC(t *testing.T) {
 	if _, err := chain.InsertChain(ToBlocks(competitor[len(competitor)-2:])); err != nil {
 		t.Fatalf("failed to finalize competitor chain: %v", err)
 	}
+}
+
+func TestGetBlockCnt(t *testing.T) {
+	var (
+		addr1        = account.Address{Recipient: account.Recipient{1}, FullShardKey: 0}
+		addr2        = account.Address{Recipient: account.Recipient{2}, FullShardKey: 0}
+		db           = ethdb.NewMemDatabase()
+		qkcconfig    = config.NewQuarkChainConfig()
+		genesis      = Genesis{qkcConfig: qkcconfig}
+		genesisBlock = genesis.MustCommitRootBlock(db)
+		engine       = new(consensus.FakeEngine)
+	)
+
+	chain := GenerateRootBlockChain(genesisBlock, engine, 5, func(i int, gen *RootBlockGen) {
+		switch i {
+		case 0:
+			// In block 1, addr1 sends addr2 some ether.
+			header := types.MinorBlockHeader{Number: 1, Branch: account.Branch{Value: 2}, Coinbase: addr2, ParentHash: genesisBlock.Hash(), Time: genesisBlock.Time()}
+			header1 := types.MinorBlockHeader{Number: 1, Branch: account.Branch{Value: 3}, Coinbase: addr1, ParentHash: genesisBlock.Hash(), Time: genesisBlock.Time()}
+			gen.Headers = append(gen.Headers, &header)
+			gen.Headers = append(gen.Headers, &header1)
+		case 1:
+			// In block 2, addr1 sends some more ether to addr2.
+			// addr2 passes it on to addr3.
+			header1 := types.MinorBlockHeader{Number: 2, Branch: account.Branch{Value: 3}, Coinbase: addr1, ParentHash: genesisBlock.Hash(), Time: genesisBlock.Time()}
+			header2 := types.MinorBlockHeader{Number: 2, Branch: account.Branch{Value: 2}, Coinbase: addr2, ParentHash: header1.Hash(), Time: genesisBlock.Time()}
+			gen.Headers = append(gen.Headers, &header1)
+			gen.Headers = append(gen.Headers, &header2)
+		}
+	})
+
+	// Import the chain. This runs all block validation rules.
+	blockchain, err := NewRootBlockChain(db, nil, qkcconfig, engine, nil)
+	if err != nil {
+		fmt.Printf("new root block chain error %v\n", err)
+		return
+	}
+	blockchain.SetEnableCountMinorBlocks(true)
+	//defer blockchain.Stop()
+
+	blockchain.SetValidator(&fakeRootBlockValidator{nil})
+	if i, err := blockchain.InsertChain(ToBlocks(chain)); err != nil {
+		fmt.Printf("insert error (block %d): %v\n", chain[i].NumberU64(), err)
+		return
+	}
+	data, err := blockchain.GetBlockCount(blockchain.CurrentBlock().Number())
+	assert.NoError(t, err)
+	assert.Equal(t, data[2][addr1.Recipient], uint32(0))
+	assert.Equal(t, data[2][addr2.Recipient], uint32(2))
+	assert.Equal(t, data[3][addr1.Recipient], uint32(2))
+	assert.Equal(t, data[3][addr2.Recipient], uint32(0))
+
 }
 
 // Benchmarks large blocks with value transfers to non-existing accounts
