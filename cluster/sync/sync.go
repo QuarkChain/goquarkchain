@@ -8,12 +8,6 @@ import (
 	"github.com/QuarkChain/goquarkchain/core/types"
 )
 
-type peer interface {
-	GetRootBlockHeaderList(hash common.Hash, amount uint32, reverse bool) ([]*types.RootBlockHeader, error)
-	GetRootBlockList(hashes []common.Hash) ([]*types.RootBlock, error)
-	PeerId() string
-}
-
 // A lightweight wrapper over shard chain or root chain.
 type blockchain interface {
 	HasBlock(common.Hash) bool
@@ -78,9 +72,9 @@ func (s *synchronizer) loop() {
 
 		select {
 		case task := <-s.taskRecvCh:
-			taskMap[task.Peer().PeerId()] = task
+			taskMap[task.PeerID()] = task
 		case assignCh <- currTask:
-			delete(taskMap, currTask.Peer().PeerId())
+			delete(taskMap, currTask.PeerID())
 		case <-s.abortCh:
 			close(s.taskAssignCh)
 			return

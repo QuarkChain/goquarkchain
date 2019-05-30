@@ -3,15 +3,47 @@ package shard
 import (
 	"errors"
 	"fmt"
+	"math/big"
+	"time"
+
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
+	synchronizer "github.com/QuarkChain/goquarkchain/cluster/sync"
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
-	"math/big"
-	"time"
 )
+
+var (
+	directionToGenesis = uint8(0)
+	directionToTip     = uint8(1)
+)
+
+// Wrapper over master connection, used by synchronizer.
+type peer struct {
+	cm     ConnManager
+	peerID string
+}
+
+func (p *peer) GetMinorBlockHeaderList(hash common.Hash, limit, branch uint32, reverse bool) ([]*types.MinorBlockHeader, error) {
+	req := &rpc.GetMinorBlockHeaderListRequest{
+		Branch:    branch,
+		BlockHash: hash,
+		Limit:     limit,
+		Direction: directionToGenesis,
+		PeerID:    p.peerID,
+	}
+	return p.cm.GetMinorBlockHeaders(req)
+}
+
+func (p *peer) GetMinorBlockList(hashes []common.Hash, branch uint32) ([]*types.MinorBlock, error) {
+	return p.cm.GetMinorBlocks(hashes, p.peerID, branch)
+}
+
+func (p *peer) PeerID() string {
+	return p.peerID
+}
 
 func (s *ShardBackend) GetUnconfirmedHeaderList() ([]*types.MinorBlockHeader, error) {
 	headers := s.MinorBlockChain.GetUnconfirmedHeaderList()
@@ -37,7 +69,7 @@ func (s *ShardBackend) AddMinorBlock(block *types.MinorBlock) error {
 		oldTip = s.MinorBlockChain.CurrentHeader()
 	)
 
-	_, xshardLst, err := s.MinorBlockChain.InsertChain([]types.IBlock{block})
+	_, xshardLst, err := s.MinorBlockChain.InsertChainForDeposits([]types.IBlock{block})
 	if err != nil || len(xshardLst) != 1 {
 		log.Error("Failed to add minor block", "err", err)
 		return err
@@ -119,7 +151,7 @@ func (s *ShardBackend) AddBlockListForSync(blockLst []*types.MinorBlock) error {
 		if block.Header().Branch.GetFullShardID() != s.fullShardId || s.MinorBlockChain.HasBlock(block.Hash()) {
 			continue
 		}
-		_, xshardLst, err := s.MinorBlockChain.InsertChain([]types.IBlock{block})
+		_, xshardLst, err := s.MinorBlockChain.InsertChainForDeposits([]types.IBlock{block})
 		if err != nil || len(xshardLst) != 1 {
 			log.Error("Failed to add minor block", "err", err)
 			return err
@@ -155,10 +187,15 @@ func (s *ShardBackend) SubmitWork(headerHash common.Hash, nonce uint64, mixHash 
 	return errors.New("submit mined work failed")
 }
 
-func (s *ShardBackend) HandleNewTip(rBHeader *types.RootBlockHeader, mBHeader *types.MinorBlockHeader) error {
-	// TODO sync.add_task
+func (s *ShardBackend) HandleNewTip(rBHeader *types.RootBlockHeader, mBHeader *types.MinorBlockHeader, peerID string) error {
 	if s.MinorBlockChain.CurrentHeader().NumberU64() >= mBHeader.Number {
 		return nil
+	}
+
+	peer := &peer{cm: s.conn, peerID: peerID}
+	err := s.synchronizer.AddTask(synchronizer.NewMinorChainTask(peer, mBHeader))
+	if err != nil {
+		log.Error("Failed to add minor chain task,", "hash", mBHeader.Hash(), "height", mBHeader.Number)
 	}
 
 	log.Info("Handle new tip received new tip with height", "shard height", mBHeader.Number)

@@ -171,17 +171,14 @@ func txEncoder(block *types.MinorBlock, i int) (map[string]interface{}, error) {
 		"transactionIndex": hexutil.Uint64(i),
 		"from":             DataEncoder(sender.Bytes()),
 		"to":               DataEncoder(toBytes),
-		"fromFullShardKey": hexutil.Uint64(evmtx.FromFullShardId()), //TODO full_shard_key
-		"toFullShardKey":   hexutil.Uint64(evmtx.ToFullShardId()),   //TODO full_shard_key
+		"fromFullShardKey": hexutil.Uint64(evmtx.FromFullShardKey()),
+		"toFullShardKey":   hexutil.Uint64(evmtx.ToFullShardKey()),
 		"value":            (*hexutil.Big)(evmtx.Value()),
 		"gasPrice":         (*hexutil.Big)(evmtx.GasPrice()),
 		"gas":              hexutil.Uint64(evmtx.Gas()),
 		"data":             hexutil.Bytes(evmtx.Data()),
 		"networkId":        hexutil.Uint64(evmtx.NetworkId()),
 		//TODO TokenID
-		//"transferTokenId": hexutil.Uint64(1),
-		//"gasTokenId":      hexutil.Uint64(1),
-		//	"transferTokenStr gasTokenStr":
 		"r": (*hexutil.Big)(r),
 		"s": (*hexutil.Big)(s),
 		"v": (*hexutil.Big)(v),
@@ -190,9 +187,9 @@ func txEncoder(block *types.MinorBlock, i int) (map[string]interface{}, error) {
 }
 
 func logListEncoder(logList []*types.Log) []map[string]interface{} {
-	field := make([]map[string]interface{}, 0)
+	fields := make([]map[string]interface{}, 0)
 	for _, log := range logList {
-		l := map[string]interface{}{
+		field := map[string]interface{}{
 			"logIndex":         hexutil.Uint64(log.Index),
 			"transactionIndex": hexutil.Uint64(log.TxIndex),
 			"transactionHash":  log.TxHash,
@@ -207,15 +204,24 @@ func logListEncoder(logList []*types.Log) []map[string]interface{} {
 		for _, v := range log.Topics {
 			topics = append(topics, v)
 		}
-		l["topocs"] = topics
-		field = append(field, l)
+		field["topics"] = topics
+		fields = append(fields, field)
 	}
-	return field
+	return fields
 }
 
-func receiptEncoder(block *types.MinorBlock, i int, receipt *types.Receipt) map[string]interface{} {
+func receiptEncoder(block *types.MinorBlock, i int, receipt *types.Receipt) (map[string]interface{}, error) {
+	if block == nil {
+		return nil, errors.New("block is nil")
+	}
+	if len(block.Transactions()) <= i {
+		return nil, errors.New("tx not exist")
+	}
+	if receipt == nil {
+		return nil, errors.New("receipt is nil")
+	}
 	tx := block.Transactions()[i]
-	evmtx := block.Transactions()[i].EvmTx
+	evmtx := tx.EvmTx
 	header := block.Header()
 
 	field := map[string]interface{}{
@@ -240,5 +246,5 @@ func receiptEncoder(block *types.MinorBlock, i int, receipt *types.Receipt) map[
 		}
 		field["contractAddress"] = DataEncoder(addr.ToBytes())
 	}
-	return field
+	return field, nil
 }
