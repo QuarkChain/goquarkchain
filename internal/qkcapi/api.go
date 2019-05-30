@@ -227,7 +227,7 @@ func (p *PublicBlockChainAPI) GetTransactionReceipt(txID hexutil.Bytes) (map[str
 	if err != nil {
 		return nil, err
 	}
-	return receiptEncoder(minorBlock, int(index), receipt), nil
+	return receiptEncoder(minorBlock, int(index), receipt)
 }
 func (p *PublicBlockChainAPI) GetLogs() { panic("-1") }
 func (p *PublicBlockChainAPI) GetStorageAt(address account.Address, key common.Hash, blockNr *rpc.BlockNumber) (hexutil.Bytes, error) {
