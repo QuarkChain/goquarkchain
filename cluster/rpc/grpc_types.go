@@ -299,16 +299,12 @@ type AddBlockListForSyncResponse struct {
 	ShardStatus *ShardStatus `json:"shard_status" gencodec:"required"`
 }
 
-type Topic struct {
-	Data [32]byte `json:"topics" gencodec:"required" bytesizeofslicelen:"4"`
-}
-
 type GetLogRequest struct {
-	Branch     uint32             `json:"branch" gencodec:"required"`
-	Addresses  []*account.Address `json:"addresses" gencodec:"required" bytesizeofslicelen:"4"`
-	Topics     []*Topic           `json:"topics" gencodec:"required" bytesizeofslicelen:"4"`
-	StartBlock uint64             `json:"start_block" gencodec:"required"`
-	EndBlock   uint64             `json:"end_block" gencodec:"required"`
+	Branch     uint32            `json:"branch" gencodec:"required"`
+	Addresses  []account.Address `json:"addresses" gencodec:"required" bytesizeofslicelen:"4"`
+	Topics     [][]common.Hash   `json:"topics" gencodec:"required" bytesizeofslicelen:"4"`
+	StartBlock uint64            `json:"start_block" gencodec:"required"`
+	EndBlock   uint64            `json:"end_block" gencodec:"required"`
 }
 
 type GetLogResponse struct {

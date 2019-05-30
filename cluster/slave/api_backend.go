@@ -230,9 +230,9 @@ func (s *SlaveBackend) GetTransactionListByAddress(address *account.Address, sta
 	return nil, nil, ErrMsg("GetTransactionListByAddress")
 }
 
-func (s *SlaveBackend) GetLogs(address []*account.Address, start uint64, end uint64, branch uint32) ([]*types.Log, error) {
+func (s *SlaveBackend) GetLogs(topics [][]common.Hash, address []account.Address, start uint64, end uint64, branch uint32) ([]*types.Log, error) {
 	if shrd, ok := s.shards[branch]; ok {
-		return shrd.GetLogs()
+		return shrd.GetLogs(start, end, address, topics)
 	}
 	return nil, ErrMsg("GetLogs")
 }

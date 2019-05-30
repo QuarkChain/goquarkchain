@@ -286,7 +286,7 @@ func (s *SlaveConnection) GetTransactionsByAddress(address *account.Address, sta
 	return trans.TxList, trans.Next, nil
 }
 
-func (s *SlaveConnection) GetLogs(branch account.Branch, address []*account.Address, topics []*rpc.Topic, startBlock, endBlock uint64) ([]*types.Log, error) {
+func (s *SlaveConnection) GetLogs(branch account.Branch, address []account.Address, topics [][]common.Hash, startBlock, endBlock uint64) ([]*types.Log, error) {
 	var (
 		req = rpc.GetLogRequest{
 			Branch:     branch.Value,

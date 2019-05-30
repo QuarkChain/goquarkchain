@@ -1095,6 +1095,7 @@ func (m *MinorBlockChain) GetShardStatus() (*rpc.ShardStatus, error) {
 	if staleBlockCount < 0 {
 		return nil, errors.New("staleBlockCount should >=0")
 	}
+	cblock = m.CurrentBlock()
 	return &rpc.ShardStatus{
 		Branch:             m.branch,
 		Height:             cblock.IHeader().NumberU64(),
@@ -1423,6 +1424,27 @@ func (m *MinorBlockChain) GetTransactionByAddress(address account.Address, start
 		it.Prev()
 	}
 	return txList, next, nil
+}
+
+func (m *MinorBlockChain) GetLogsByAddressAndTopic(start uint64, end uint64, address []account.Address, topics [][]common.Hash) ([]*types.Log, error) {
+	addressValue := make([]common.Address, 0)
+	mapFullShardKey := make(map[uint32]bool)
+	for _, v := range address {
+		mapFullShardKey[v.FullShardKey] = true
+		addressValue = append(addressValue, v.Recipient)
+	}
+	if len(mapFullShardKey) != 1 {
+		return nil, errors.New("should have same full_shard_key for the given addresses")
+	}
+	if m.clusterConfig.Quarkchain.GetFullShardIdByFullShardKey(address[0].FullShardKey) != m.branch.Value {
+		return nil, errors.New("not in this branch")
+	}
+	topicsValue := make([][]common.Hash, 0)
+	for _, v := range topics {
+		topicsValue = append(topicsValue, v)
+	}
+	filter := NewRangeFilter(m, start, end, addressValue, topicsValue)
+	return filter.Logs()
 }
 func (m *MinorBlockChain) putTxIndexDB(key []byte) error {
 	err := m.db.Put(key, []byte("no empty")) //TODO????

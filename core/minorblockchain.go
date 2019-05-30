@@ -568,6 +568,15 @@ func (m *MinorBlockChain) GetReceiptsByHash(hash common.Hash) types.Receipts {
 	return receipts
 }
 
+func (m *MinorBlockChain) GetLogs(hash common.Hash) [][]*types.Log {
+	receipts := m.GetReceiptsByHash(hash)
+	logs := make([][]*types.Log, len(receipts))
+	for index, receipt := range receipts {
+		logs[index] = receipt.Logs
+	}
+	return logs
+}
+
 // GetBlocksFromHash returns the block corresponding to hash and up to n-1 ancestors.
 // [deprecated by eth/62]
 func (m *MinorBlockChain) GetBlocksFromHash(hash common.Hash, n int) (blocks []types.IBlock) {

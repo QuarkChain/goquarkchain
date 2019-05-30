@@ -435,6 +435,9 @@ func (m *MinorBlock) Finalize(receipts Receipts, rootHash common.Hash, gasUsed *
 	m.meta.ReceiptHash = DeriveSha(receipts)
 	m.header.MetaHash = m.meta.Hash()
 	m.header.Bloom = CreateBloom(receipts)
+	m.hash.Store(m.header.Hash())//Refresh memory hash
+
+
 }
 func (h *MinorBlock) CreateBlockToAppend(createTime *uint64, difficulty *big.Int, address *account.Address, nonce *uint64, gasLimit *big.Int, extraData []byte, coinbaseAmount *big.Int) *MinorBlock {
 	if createTime == nil {

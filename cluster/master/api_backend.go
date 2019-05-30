@@ -11,7 +11,6 @@ import (
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
-	ethRpc "github.com/ethereum/go-ethereum/rpc"
 	"golang.org/x/sync/errgroup"
 	"net"
 	"reflect"
@@ -141,21 +140,12 @@ func (s *QKCMasterBackend) GetTransactionsByAddress(address *account.Address, st
 	return slaveConn.GetTransactionsByAddress(address, start, limit)
 }
 
-func (s *QKCMasterBackend) GetLogs(branch account.Branch, address []*account.Address, topics []*rpc.Topic, startBlockNumber, endBlockNumber ethRpc.BlockNumber) ([]*types.Log, error) {
+func (s *QKCMasterBackend) GetLogs(branch account.Branch, address []account.Address, topics [][]common.Hash, startBlockNumber, endBlockNumber uint64) ([]*types.Log, error) {
 	// not support earlist and pending
 	slaveConn := s.getOneSlaveConnection(branch)
 	if slaveConn == nil {
 		return nil, ErrNoBranchConn
 	}
-
-	s.lock.RLock()
-	if startBlockNumber == ethRpc.LatestBlockNumber {
-		startBlockNumber = ethRpc.BlockNumber(s.branchToShardStats[branch.Value].Height)
-	}
-	if endBlockNumber == ethRpc.LatestBlockNumber {
-		endBlockNumber = ethRpc.BlockNumber(s.branchToShardStats[branch.Value].Height)
-	}
-	s.lock.RUnlock() // lock branchToShardStats
 	return slaveConn.GetLogs(branch, address, topics, uint64(startBlockNumber), uint64(endBlockNumber))
 }
 
