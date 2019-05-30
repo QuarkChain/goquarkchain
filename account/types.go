@@ -64,3 +64,12 @@ func BytesToIdentityKey(b []byte) Key {
 	a.SetBytes(b)
 	return a
 }
+
+type CoinbaseStatses struct {
+	CoinbaseStatsList []CoinbaseStats `json:"ReceiptCntList" gencodec:"required" bytesizeofslicelen:"4"`
+}
+
+type CoinbaseStats struct {
+	Addr Recipient
+	Cnt  uint32
+}
