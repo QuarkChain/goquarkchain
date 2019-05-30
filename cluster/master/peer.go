@@ -5,14 +5,15 @@ package master
 import (
 	"errors"
 	"fmt"
+	"io/ioutil"
+	"sync"
+	"time"
+
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/p2p"
 	"github.com/QuarkChain/goquarkchain/serialize"
 	"github.com/ethereum/go-ethereum/common"
-	"io/ioutil"
-	"sync"
-	"time"
 )
 
 var (
@@ -196,7 +197,7 @@ func (p *peer) SetMinorHead(branch uint32, minorTip *p2p.Tip) {
 	p.head.minorTips[branch] = minorTip
 }
 
-func (p *peer) PeerId() string {
+func (p *peer) PeerID() string {
 	return p.id
 }
 
