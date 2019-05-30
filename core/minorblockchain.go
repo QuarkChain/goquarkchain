@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
+	qkcParams "github.com/QuarkChain/goquarkchain/params"
 	"github.com/QuarkChain/goquarkchain/serialize"
 	"io"
 	"math/big"
@@ -147,6 +148,7 @@ func NewMinorBlockChain(
 	shouldPreserve func(block *types.MinorBlock) bool,
 	fullShardID uint32,
 ) (*MinorBlockChain, error) {
+	chainConfig = &qkcParams.DefaultByzantium //TODO default is byzantium
 	if clusterConfig == nil || chainConfig == nil {
 		return nil, errors.New("can not new minorBlock: config is nil")
 	}
@@ -696,7 +698,7 @@ func SetReceiptsData(config *config.QuarkChainConfig, mBlock types.IBlock, recei
 		if transactions[j].EvmTx.To() == nil {
 			// Deriving the signer is expensive, only do if it's actually needed
 			from, _ := types.Sender(signer, transactions[j].EvmTx)
-			receipts[j].ContractAddress = account.BytesToIdentityRecipient(vm.CreateAddress(from, transactions[j].EvmTx.ToFullShardId(), transactions[j].EvmTx.Nonce()).Bytes())
+			receipts[j].ContractAddress = account.BytesToIdentityRecipient(vm.CreateAddress(from, transactions[j].EvmTx.ToFullShardKey(), transactions[j].EvmTx.Nonce()).Bytes())
 		}
 		// The used gas can be calculated based on previous receipts
 		if j == 0 {
@@ -949,7 +951,14 @@ func (m *MinorBlockChain) addFutureBlock(block types.IBlock) error {
 // wrong.
 //
 // After insertion is done, all accumulated events will be fired.
-func (m *MinorBlockChain) InsertChain(chain []types.IBlock) (int, [][]*types.CrossShardTransactionDeposit, error) {
+func (m *MinorBlockChain) InsertChain(chain []types.IBlock) (int, error) {
+	n, _, err := m.InsertChainForDeposits(chain)
+	return n, err
+}
+
+// InsertChainForDeposits also return cross-shard transaction deposits in addition
+// to content returned from `InsertChain`.
+func (m *MinorBlockChain) InsertChainForDeposits(chain []types.IBlock) (int, [][]*types.CrossShardTransactionDeposit, error) {
 	log.Info(m.logInfo, "MinorBlockChain InsertChain len", len(chain))
 	defer log.Info(m.logInfo, "MinorBlockChain InsertChain", "end")
 	// Sanity check that we have something meaningful to import

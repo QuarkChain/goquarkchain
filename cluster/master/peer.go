@@ -5,14 +5,15 @@ package master
 import (
 	"errors"
 	"fmt"
+	"io/ioutil"
+	"sync"
+	"time"
+
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/p2p"
 	"github.com/QuarkChain/goquarkchain/serialize"
 	"github.com/ethereum/go-ethereum/common"
-	"io/ioutil"
-	"sync"
-	"time"
 )
 
 var (
@@ -64,6 +65,11 @@ type newTip struct {
 	tip    *p2p.Tip
 }
 
+type peerHead struct {
+	rootTip   *types.RootBlockHeader
+	minorTips map[uint32]*p2p.Tip
+}
+
 type peer struct {
 	id    string
 	rpcId uint64
@@ -74,7 +80,7 @@ type peer struct {
 	version  int         // Protocol version negotiated
 	forkDrop *time.Timer // Timed connection dropper if forks aren't validated in time
 
-	head *types.RootBlockHeader
+	head *peerHead
 
 	lock             sync.RWMutex
 	chanLock         sync.RWMutex
@@ -91,6 +97,7 @@ func newPeer(version int, p *p2p.Peer, rw p2p.MsgReadWriter) *peer {
 		rw:               rw,
 		version:          version,
 		id:               fmt.Sprintf("%x", p.ID().Bytes()[:8]),
+		head:             &peerHead{nil, make(map[uint32]*p2p.Tip)},
 		queuedTxs:        make(chan newTxs, maxQueuedTxs),
 		queuedMinorBlock: make(chan newMinorBlock, maxQueuedMinorBlocks),
 		queuedTip:        make(chan newTip, maxQueuedTips),
@@ -156,24 +163,41 @@ func (p *peer) getRpcIdWithChan() (uint64, chan interface{}) {
 	return p.rpcId, rpcchan
 }
 
-// Head retrieves a copy of the current head hash and total difficulty of the
+// RootHead retrieves a copy of the current root head of the
 // peer.
-func (p *peer) Head() *types.RootBlockHeader {
+func (p *peer) RootHead() *types.RootBlockHeader {
 	p.lock.RLock()
 	defer p.lock.RUnlock()
 
-	return p.head
+	return p.head.rootTip
 }
 
-// SetHead updates the head hash and total difficulty of the peer.
-func (p *peer) SetHead(head *types.RootBlockHeader) {
+// SetRootHead updates the root head of the peer.
+func (p *peer) SetRootHead(rootTip *types.RootBlockHeader) {
 	p.lock.Lock()
 	defer p.lock.Unlock()
 
-	p.head = head
+	p.head.rootTip = rootTip
 }
 
-func (p *peer) PeerId() string {
+// RootHead retrieves a copy of the current root head of the
+// peer.
+func (p *peer) MinorHead(branch uint32) *p2p.Tip {
+	p.lock.RLock()
+	defer p.lock.RUnlock()
+
+	return p.head.minorTips[branch]
+}
+
+// SetRootHead updates the root head of the peer.
+func (p *peer) SetMinorHead(branch uint32, minorTip *p2p.Tip) {
+	p.lock.Lock()
+	defer p.lock.Unlock()
+
+	p.head.minorTips[branch] = minorTip
+}
+
+func (p *peer) PeerID() string {
 	return p.id
 }
 
@@ -484,7 +508,7 @@ func (p *peer) readStatus(protoVersion, networkId uint32) (err error) {
 		return errors.New("root block header in hello cmd is nil")
 	}
 
-	p.SetHead(helloCmd.RootBlockHeader)
+	p.SetRootHead(helloCmd.RootBlockHeader)
 	return nil
 }
 
@@ -553,6 +577,18 @@ func (ps *peerSet) Peer(id string) *peer {
 	return ps.peers[id]
 }
 
+// Peers retrieves all registered peers as a slice
+func (ps *peerSet) Peers() []*peer {
+	ps.lock.RLock()
+	defer ps.lock.RUnlock()
+
+	peers := make([]*peer, 0, len(ps.peers))
+	for _, peer := range ps.peers {
+		peers = append(peers, peer)
+	}
+	return peers
+}
+
 // Len returns if the current number of peers in the set.
 func (ps *peerSet) Len() int {
 	ps.lock.RLock()
@@ -572,7 +608,7 @@ func (ps *peerSet) BestPeer() *peer {
 	)
 	// TODO will update to TD when td add to rootblock
 	for _, p := range ps.peers {
-		if head := p.Head(); head != nil && (bestPeer == nil || head.NumberU64() > bestHeight) {
+		if head := p.RootHead(); head != nil && (bestPeer == nil || head.NumberU64() > bestHeight) {
 			bestPeer, bestHeight = p, head.NumberU64()
 		}
 	}

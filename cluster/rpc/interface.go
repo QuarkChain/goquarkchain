@@ -2,6 +2,7 @@ package rpc
 
 import (
 	"github.com/QuarkChain/goquarkchain/account"
+	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/p2p"
 	"github.com/ethereum/go-ethereum/common"
@@ -25,7 +26,7 @@ type ShardConnForP2P interface {
 
 	GetMinorBlockHeaders(request *p2p.GetMinorBlockHeaderListRequest) (*p2p.GetMinorBlockHeaderListResponse, error)
 
-	HandleNewTip(request *p2p.Tip) (bool, error)
+	HandleNewTip(request *HandleNewTipRequest) (bool, error)
 
 	HandleNewMinorBlock(request *p2p.NewBlockMinor) (bool, error)
 
@@ -57,4 +58,6 @@ type ISlaveConn interface {
 	GetStorageAt(address *account.Address, key common.Hash, height *uint64) (common.Hash, error)
 	GetCode(address *account.Address, height *uint64) ([]byte, error)
 	GasPrice(branch account.Branch) (uint64, error)
+	GetWork(branch account.Branch) (*consensus.MiningWork, error)
+	SubmitWork(work *SubmitWorkRequest) (success bool, err error)
 }

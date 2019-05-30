@@ -39,16 +39,17 @@ type ChainContext interface {
 func NewEVMContext(msg types.Message, mheader types.IHeader, chain ChainContext) vm.Context {
 	header := mheader.(*types.MinorBlockHeader)
 	return vm.Context{
-		CanTransfer: CanTransfer,
-		Transfer:    Transfer,
-		GetHash:     GetHashFn(header, chain),
-		Origin:      msg.From(),
-		Coinbase:    header.GetCoinbase().Recipient,
-		BlockNumber: new(big.Int).SetUint64(header.NumberU64()),
-		Time:        new(big.Int).SetUint64(header.GetTime()),
-		Difficulty:  new(big.Int).Set(header.GetDifficulty()),
-		GasLimit:    header.GasLimit.Value.Uint64(),
-		GasPrice:    new(big.Int).Set(msg.GasPrice()),
+		CanTransfer:    CanTransfer,
+		Transfer:       Transfer,
+		GetHash:        GetHashFn(header, chain),
+		Origin:         msg.From(),
+		Coinbase:       header.GetCoinbase().Recipient,
+		BlockNumber:    new(big.Int).SetUint64(header.NumberU64()),
+		Time:           new(big.Int).SetUint64(header.GetTime()),
+		Difficulty:     new(big.Int).Set(header.GetDifficulty()),
+		GasLimit:       header.GasLimit.Value.Uint64(),
+		GasPrice:       new(big.Int).Set(msg.GasPrice()),
+		ToFullShardKey: msg.ToFullShardKey(),
 	}
 }
 

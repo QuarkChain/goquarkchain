@@ -183,6 +183,7 @@ func ApplyTransaction(config *params.ChainConfig, bc ChainContext, gp *GasPool, 
 	// Set the receipt logs and create a bloom for filtering
 	receipt.Logs = statedb.GetLogs(tx.Hash())
 	receipt.Bloom = types.CreateBloom(types.Receipts{receipt})
+	receipt.ContractFullShardId = tx.EvmTx.ToFullShardKey()
 
 	return ret, receipt, gas, err
 }

@@ -3,6 +3,9 @@ package master
 import (
 	"errors"
 	"fmt"
+	"strings"
+	"time"
+
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
 	qcom "github.com/QuarkChain/goquarkchain/common"
@@ -11,8 +14,6 @@ import (
 	"github.com/QuarkChain/goquarkchain/p2p"
 	"github.com/QuarkChain/goquarkchain/serialize"
 	"github.com/ethereum/go-ethereum/common"
-	"strings"
-	"time"
 )
 
 type SlaveConnection struct {
@@ -38,6 +39,7 @@ func NewSlaveConn(target string, shardMaskList []*types.ChainMask, slaveID strin
 func (s *SlaveConnection) GetSlaveID() string {
 	return s.slaveID
 }
+
 func (s *SlaveConnection) GetShardMaskList() []*types.ChainMask {
 	return s.shardMaskList
 }
@@ -309,6 +311,7 @@ func (s *SlaveConnection) GetLogs(branch account.Branch, address []*account.Addr
 	return rsp.Logs, err
 
 }
+
 func (s *SlaveConnection) EstimateGas(tx *types.Transaction, fromAddress *account.Address) (uint32, error) {
 	var (
 		req = rpc.EstimateGasRequest{
@@ -329,6 +332,7 @@ func (s *SlaveConnection) EstimateGas(tx *types.Transaction, fromAddress *accoun
 	err = serialize.Deserialize(serialize.NewByteBuffer(res.Data), rsp)
 	return rsp.Result, err
 }
+
 func (s *SlaveConnection) GetStorageAt(address *account.Address, key common.Hash, height *uint64) (common.Hash, error) {
 	var (
 		req = rpc.GetStorageRequest{
@@ -350,6 +354,7 @@ func (s *SlaveConnection) GetStorageAt(address *account.Address, key common.Hash
 	err = serialize.Deserialize(serialize.NewByteBuffer(res.Data), rsp)
 	return rsp.Result, err
 }
+
 func (s *SlaveConnection) GetCode(address *account.Address, height *uint64) ([]byte, error) {
 	var (
 		req = rpc.GetCodeRequest{
@@ -370,6 +375,7 @@ func (s *SlaveConnection) GetCode(address *account.Address, height *uint64) ([]b
 	err = serialize.Deserialize(serialize.NewByteBuffer(res.Data), rsp)
 	return rsp.Result, err
 }
+
 func (s *SlaveConnection) GasPrice(branch account.Branch) (uint64, error) {
 	var (
 		req = rpc.GasPriceRequest{
@@ -389,11 +395,46 @@ func (s *SlaveConnection) GasPrice(branch account.Branch) (uint64, error) {
 	err = serialize.Deserialize(serialize.NewByteBuffer(res.Data), rsp)
 	return rsp.Result, err
 }
+
 func (s *SlaveConnection) GetWork(branch account.Branch) (*consensus.MiningWork, error) {
-	return &consensus.MiningWork{}, nil
+	var (
+		req = rpc.GetWorkRequest{
+			Branch: branch.Value,
+		}
+		rsp consensus.MiningWork
+	)
+	bytes, err := serialize.SerializeToBytes(&req)
+	if err != nil {
+		return nil, err
+	}
+	res, err := s.client.Call(s.target, &rpc.Request{Op: rpc.OpGetWork, Data: bytes})
+	if err != nil {
+		return nil, err
+	}
+	if err = serialize.DeserializeFromBytes(res.Data, &rsp); err != nil {
+		return nil, err
+	}
+	return &rsp, nil
 }
-func (s *SlaveConnection) SubmitWork(branch account.Branch, headerHash common.Hash, nonce uint64, mixHash common.Hash) error {
-	return nil
+
+func (s *SlaveConnection) SubmitWork(work *rpc.SubmitWorkRequest) (success bool, err error) {
+	var (
+		gRes  rpc.SubmitWorkResponse
+		bytes []byte
+		res   *rpc.Response
+	)
+	bytes, err = serialize.SerializeToBytes(work)
+	if err != nil {
+		return
+	}
+	res, err = s.client.Call(s.target, &rpc.Request{Op: rpc.OpSubmitWork, Data: bytes})
+	if err != nil {
+		return
+	}
+	if err = serialize.DeserializeFromBytes(res.Data, &gRes); err != nil {
+		return
+	}
+	return gRes.Success, nil
 }
 
 func (s *SlaveConnection) SendMiningConfigToSlaves(artificialTxConfig *rpc.ArtificialTxConfig, mining bool) error {
@@ -492,6 +533,7 @@ func (s *SlaveConnection) GenTx(numTxPerShard, xShardPercent uint32, tx *types.T
 	}
 	return nil
 }
+
 func (s *SlaveConnection) AddTransactions(request *p2p.NewTransactionList) (*rpc.HashList, error) {
 	var (
 		rsp = new(rpc.HashList)
@@ -549,7 +591,7 @@ func (s *SlaveConnection) GetMinorBlockHeaders(request *p2p.GetMinorBlockHeaderL
 	return rsp, nil
 }
 
-func (s *SlaveConnection) HandleNewTip(request *p2p.Tip) (bool, error) {
+func (s *SlaveConnection) HandleNewTip(request *rpc.HandleNewTipRequest) (bool, error) {
 	bytes, err := serialize.SerializeToBytes(request)
 	if err != nil {
 		return false, err

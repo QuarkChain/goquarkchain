@@ -3,6 +3,7 @@ package slave
 import (
 	"errors"
 	"fmt"
+
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
@@ -107,8 +108,8 @@ func (s *ConnManager) BroadcastXshardTxList(block *types.MinorBlock,
 			}
 			continue
 		}
-		if shrd, ok := s.slave.shards[branch.Value]; ok {
-			shrd.MinorBlockChain.AddCrossShardTxListByMinorBlockHash(hash, types.CrossShardTransactionDepositList{TXList: request.TxList})
+		if shard, ok := s.slave.shards[branch.Value]; ok {
+			shard.MinorBlockChain.AddCrossShardTxListByMinorBlockHash(hash, types.CrossShardTransactionDepositList{TXList: request.TxList})
 		}
 		err := s.AddXshardTxList(branch.GetFullShardID(), request)
 		if err != nil {
@@ -146,9 +147,9 @@ func (s *ConnManager) BatchBroadcastXshardTxList(
 	}
 
 	for branch, request := range brchToAddXsdTxLstReqLst {
-		if shrd, ok := s.slave.shards[branch.Value]; ok {
+		if shard, ok := s.slave.shards[branch.Value]; ok {
 			for _, req := range request {
-				shrd.MinorBlockChain.AddCrossShardTxListByMinorBlockHash(req.MinorBlockHash, types.CrossShardTransactionDepositList{TXList: req.TxList})
+				shard.MinorBlockChain.AddCrossShardTxListByMinorBlockHash(req.MinorBlockHash, types.CrossShardTransactionDepositList{TXList: req.TxList})
 			}
 		}
 		if err := s.BatchAddXshardTxList(branch.Value, request); err != nil {
