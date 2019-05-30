@@ -962,7 +962,14 @@ func (m *MinorBlockChain) addFutureBlock(block types.IBlock) error {
 // wrong.
 //
 // After insertion is done, all accumulated events will be fired.
-func (m *MinorBlockChain) InsertChain(chain []types.IBlock) (int, [][]*types.CrossShardTransactionDeposit, error) {
+func (m *MinorBlockChain) InsertChain(chain []types.IBlock) (int, error) {
+	n, _, err := m.InsertChainForDeposits(chain)
+	return n, err
+}
+
+// InsertChainForDeposits also return cross-shard transaction deposits in addition
+// to content returned from `InsertChain`.
+func (m *MinorBlockChain) InsertChainForDeposits(chain []types.IBlock) (int, [][]*types.CrossShardTransactionDeposit, error) {
 	log.Info(m.logInfo, "MinorBlockChain InsertChain len", len(chain))
 	defer log.Info(m.logInfo, "MinorBlockChain InsertChain", "end")
 	// Sanity check that we have something meaningful to import

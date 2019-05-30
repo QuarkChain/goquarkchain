@@ -2,14 +2,14 @@
 package types
 
 import (
-	"errors"
-	"github.com/QuarkChain/goquarkchain/account"
-	"github.com/QuarkChain/goquarkchain/serialize"
-	"github.com/ethereum/go-ethereum/common"
 	"math/big"
 	"sync/atomic"
 	"time"
 	"unsafe"
+
+	"github.com/QuarkChain/goquarkchain/account"
+	"github.com/QuarkChain/goquarkchain/serialize"
+	"github.com/ethereum/go-ethereum/common"
 )
 
 //go:generate gencodec -type Header -field-override headerMarshaling -out gen_header_json.go
@@ -95,13 +95,6 @@ func (h *MinorBlockHeader) GetBloom() Bloom {
 func (h *MinorBlockHeader) GetMixDigest() common.Hash { return h.MixDigest }
 
 func (h *MinorBlockHeader) NumberU64() uint64 { return h.Number }
-
-func (h *MinorBlockHeader) ValidateHeader() error {
-	if h.Number < 0 {
-		return errors.New("unexpected height")
-	}
-	return nil
-}
 
 func (h *MinorBlockHeader) SetExtra(data []byte) {
 	h.Extra = common.CopyBytes(data)
@@ -369,13 +362,6 @@ func (b *MinorBlock) Hash() common.Hash {
 	v := b.header.Hash()
 	b.hash.Store(v)
 	return v
-}
-func (b *MinorBlock) ValidateBlock() error {
-	if txHash := CalculateMerkleRoot(b.transactions); txHash != b.meta.TxHash {
-		return errors.New("incorrect merkle root")
-	}
-
-	return nil
 }
 
 func (b *MinorBlock) NumberU64() uint64 {

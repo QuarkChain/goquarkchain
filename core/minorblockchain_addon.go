@@ -3,6 +3,11 @@ package core
 import (
 	"bytes"
 	"errors"
+	"math"
+	"math/big"
+	"sort"
+	"time"
+
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
 	"github.com/QuarkChain/goquarkchain/core/rawdb"
@@ -10,10 +15,6 @@ import (
 	"github.com/QuarkChain/goquarkchain/params"
 	"github.com/QuarkChain/goquarkchain/qkcdb"
 	"github.com/QuarkChain/goquarkchain/serialize"
-	"math"
-	"math/big"
-	"sort"
-	"time"
 
 	"github.com/QuarkChain/goquarkchain/account"
 	qkcCommon "github.com/QuarkChain/goquarkchain/common"
@@ -397,7 +398,7 @@ func (m *MinorBlockChain) FinalizeAndAddBlock(block *types.MinorBlock) (*types.M
 	}
 	coinbaseAmount := new(big.Int).Add(m.getCoinbaseAmount(), evmState.GetBlockFee())
 	block.Finalize(receipts, evmState.IntermediateRoot(true), evmState.GetGasUsed(), evmState.GetXShardReceiveGasUsed(), coinbaseAmount)
-	_, _, err = m.InsertChain([]types.IBlock{block}) // will lock
+	_, err = m.InsertChain([]types.IBlock{block}) // will lock
 	if err != nil {
 		return nil, nil, err
 	}

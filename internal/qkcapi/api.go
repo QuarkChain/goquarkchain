@@ -316,7 +316,7 @@ func (p *PublicBlockChainAPI) GetTransactionReceipt(txID hexutil.Bytes) (map[str
 	if err != nil {
 		return nil, err
 	}
-	return receiptEncoder(minorBlock, int(index), receipt), nil
+	return receiptEncoder(minorBlock, int(index), receipt)
 }
 func (p *PublicBlockChainAPI) GetLogs(args *FilterQuery, fullShardKey hexutil.Uint) ([]map[string]interface{}, error) {
 	fullShardID := p.b.GetClusterConfig().Quarkchain.GetFullShardIdByFullShardKey(uint32(fullShardKey))
