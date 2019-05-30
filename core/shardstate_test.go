@@ -1527,7 +1527,7 @@ func TestAddBlockReceiptRootNotMatch(t *testing.T) {
 	b1 = types.NewMinorBlock(b1.Header(), b1Meta, b1.Transactions(), nil, nil)
 
 	rawdb.DeleteMinorBlock(shardState.db, b1.Hash())
-	_, _, err = shardState.InsertChain([]types.IBlock{b1})
+	_, err = shardState.InsertChain([]types.IBlock{b1})
 	assert.Equal(t, ErrMetaHash, err)
 
 }

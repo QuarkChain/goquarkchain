@@ -55,7 +55,7 @@ var (
 	rLastM             = []byte("rLastM")
 	rBlock             = []byte("rBlock")
 	genesis            = []byte("genesis")
-	countMinor         = []byte("countMinor")
+	countMinor         = []byte("cntM")
 )
 
 type ChainType byte

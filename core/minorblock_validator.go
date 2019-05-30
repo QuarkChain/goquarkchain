@@ -19,6 +19,8 @@ package core
 import (
 	"errors"
 	"fmt"
+	"math/big"
+
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/common"
@@ -26,7 +28,6 @@ import (
 	"github.com/QuarkChain/goquarkchain/core/state"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/log"
-	"math/big"
 )
 
 // MinorBlockValidator is responsible for validating block Headers, uncles and
@@ -191,8 +192,17 @@ func (v *MinorBlockValidator) ValidateBlock(mBlock types.IBlock) error {
 	return nil
 }
 
-// RootBlockValidator calls underlying engine's header verification method.
+// ValidateHeader calls underlying engine's header verification method plus some sanity check.
 func (v *MinorBlockValidator) ValidateHeader(header types.IHeader) error {
+	h, ok := header.(*types.MinorBlockHeader)
+	if !ok {
+		log.Crit("Failed to cast minor block header from validator, panic")
+	}
+	rh := v.bc.getRootBlockHeaderByHash(h.GetPrevRootBlockHash())
+	if rh == nil {
+		log.Error(v.logInfo, "err", ErrRootBlockIsNil, "height", h.Number, "parentRootBlockHash", h.GetPrevRootBlockHash().String())
+		return ErrRootBlockIsNil
+	}
 	return v.engine.VerifyHeader(v.bc, header, true)
 }
 

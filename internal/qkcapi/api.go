@@ -10,6 +10,7 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/rpc"
+	"sort"
 )
 
 func decodeBlockNumberToUint64(b Backend, blockNumber *rpc.BlockNumber) (uint64, error) {
@@ -63,9 +64,19 @@ func (p *PublicBlockChainAPI) EchoData(data hexutil.Big) *hexutil.Big {
 
 func (p *PublicBlockChainAPI) NetworkInfo() map[string]interface{} {
 	config := p.b.GetClusterConfig()
-	shardSize := make([]hexutil.Uint, 0)
+
+	type ChainIdToShardSize struct {
+		chainID   uint32
+		shardSize uint32
+	}
+	ChainIdToShardSizeList := make([]ChainIdToShardSize, 0)
 	for _, v := range config.Quarkchain.Chains {
-		shardSize = append(shardSize, hexutil.Uint(v.ShardSize))
+		ChainIdToShardSizeList = append(ChainIdToShardSizeList, ChainIdToShardSize{chainID: v.ChainID, shardSize: v.ShardSize})
+	}
+	sort.Slice(ChainIdToShardSizeList, func(i, j int) bool { return ChainIdToShardSizeList[i].chainID < ChainIdToShardSizeList[j].chainID }) //Right???
+	shardSize := make([]hexutil.Uint, 0)
+	for _, v := range ChainIdToShardSizeList {
+		shardSize = append(shardSize, hexutil.Uint(v.shardSize))
 	}
 	return map[string]interface{}{
 		"networkId":        hexutil.Uint(config.Quarkchain.NetworkID),
@@ -315,7 +326,7 @@ func (p *PublicBlockChainAPI) GetTransactionReceipt(txID hexutil.Bytes) (map[str
 	if err != nil {
 		return nil, err
 	}
-	return receiptEncoder(minorBlock, int(index), receipt), nil
+	return receiptEncoder(minorBlock, int(index), receipt)
 }
 func (p *PublicBlockChainAPI) GetLogs() { panic("@scf") }
 func (p *PublicBlockChainAPI) GetStorageAt(address account.Address, key common.Hash, blockNr *rpc.BlockNumber) (hexutil.Bytes, error) {

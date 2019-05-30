@@ -4,6 +4,8 @@ package core
 
 import (
 	"fmt"
+	"math/big"
+
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	qkcCommon "github.com/QuarkChain/goquarkchain/common"
@@ -14,7 +16,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/params"
-	"math/big"
 )
 
 // RootBlockGen creates blocks for testing.
@@ -251,7 +252,7 @@ func (b *MinorBlockGen) SetDifficulty(value uint64) {
 	b.header.Difficulty = new(big.Int).SetUint64(value)
 }
 
-// GenerateChain creates a chain of n blocks. The first block's
+// GenerateMinorChain creates a chain of n blocks. The first block's
 // parent will be the provided parent. db is used to store
 // intermediate states and should contain the parent's state trie.
 //
