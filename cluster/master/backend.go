@@ -467,11 +467,6 @@ func (s *QKCMasterBackend) createRootBlockToMine(address account.Address) (*type
 	if err != nil {
 		return nil, err
 	}
-	pBlock := s.rootBlockChain.GetBlockByNumber(newblock.NumberU64() - 1)
-	newblock.ParentHash()
-	if newblock.ParentHash() != pBlock.Hash() {
-		log.Error("Create illed root block", "new block", newblock.Hash().Hex(), "parent block", pBlock.Hash().Hex())
-	}
 	return newblock, nil
 }
 

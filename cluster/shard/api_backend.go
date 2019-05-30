@@ -249,11 +249,7 @@ func (s *ShardBackend) NewMinorBlock(block *types.MinorBlock) (err error) {
 	if err = s.conn.BroadcastMinorBlock(block, s.fullShardId); err != nil {
 		return err
 	}
-	if err = s.AddMinorBlock(block); err != nil {
-		return err
-	}
-	// interrupt the current miner and restart
-	return
+	return s.AddMinorBlock(block)
 }
 
 // miner api
