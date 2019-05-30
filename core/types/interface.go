@@ -1,9 +1,10 @@
 package types
 
 import (
+	"math/big"
+
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/ethereum/go-ethereum/common"
-	"math/big"
 )
 
 type IHeader interface {
@@ -22,11 +23,9 @@ type IHeader interface {
 	SetDifficulty(*big.Int)
 	SetNonce(uint64)
 	GetMixDigest() common.Hash
-	ValidateHeader() error
 }
 
 type IBlock interface {
-	ValidateBlock() error
 	Hash() common.Hash
 	NumberU64() uint64
 	IHeader() IHeader

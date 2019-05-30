@@ -3,6 +3,10 @@ package master
 import (
 	"bytes"
 	"fmt"
+	"io/ioutil"
+	"testing"
+	"time"
+
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
 	"github.com/QuarkChain/goquarkchain/core"
 	"github.com/QuarkChain/goquarkchain/core/types"
@@ -12,9 +16,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/golang/mock/gomock"
 	"github.com/pkg/errors"
-	"io/ioutil"
-	"testing"
-	"time"
 )
 
 // Tests that protocol versions and modes of operations are matched up properly.
@@ -448,7 +449,7 @@ func TestBroadcastNewMinorBlockTip(t *testing.T) {
 	for _, conn := range shardConns {
 		conn.(*mock_master.MockShardConnForP2P).EXPECT().
 			HandleNewTip(gomock.Any()).DoAndReturn(
-			func(request *p2p.Tip) (bool, error) {
+			func(*rpc.HandleNewTipRequest) (bool, error) {
 				errc <- nil
 				return false, errors.New("expected error")
 			}).Times(1)

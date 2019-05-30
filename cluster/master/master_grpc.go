@@ -2,9 +2,10 @@ package master
 
 import (
 	"context"
+	"sync"
+
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
 	"github.com/QuarkChain/goquarkchain/serialize"
-	"sync"
 )
 
 type MasterServerSideOp struct {
@@ -115,13 +116,13 @@ func (m *MasterServerSideOp) GetMinorBlockHeaderList(ctx context.Context, req *r
 		return nil, err
 	}
 	//hash common.Hash, amount uint32, branch uint32, reverse bool, peerId string
-	getMinorBlockHeaderListRes.MinorBlockHeaderList, err =
-		m.p2pApi.GetMinorBlockHeaders(
-			getMinorBlockHeaderListReq.BlockHash,
-			getMinorBlockHeaderListReq.Limit,
-			getMinorBlockHeaderListReq.Branch,
-			getMinorBlockHeaderListReq.Direction == directionToGenesis,
-			getMinorBlockHeaderListReq.PeerId)
+	getMinorBlockHeaderListRes.MinorBlockHeaderList, err = m.p2pApi.GetMinorBlockHeaders(
+		getMinorBlockHeaderListReq.BlockHash,
+		getMinorBlockHeaderListReq.Limit,
+		getMinorBlockHeaderListReq.Branch,
+		getMinorBlockHeaderListReq.Direction == directionToGenesis,
+		getMinorBlockHeaderListReq.PeerID,
+	)
 	if err != nil {
 		return nil, err
 	}
