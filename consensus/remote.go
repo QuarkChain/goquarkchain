@@ -3,6 +3,7 @@ package consensus
 import (
 	"errors"
 	"fmt"
+	"github.com/hashicorp/golang-lru"
 	"time"
 
 	"github.com/QuarkChain/goquarkchain/core/types"
@@ -40,21 +41,27 @@ type sealWork struct {
 
 func (c *CommonEngine) remote() {
 	var (
-		works = make(map[common.Hash]types.IBlock)
-
 		results      chan<- types.IBlock
 		currentBlock types.IBlock = nil
 		currentWork  MiningWork
 	)
+	works, err := lru.New(staleThreshold)
+	if err != nil {
+		log.Error("Failed to create unmined block cache", "err", err)
+		return
+	}
 
 	makeWork := func(block types.IBlock) {
 		hash := block.IHeader().SealHash()
+		if works.Contains(hash) {
+			return
+		}
 		currentWork.HeaderHash = hash
 		currentWork.Number = block.NumberU64()
 		currentWork.Difficulty = block.IHeader().GetDifficulty()
 
 		currentBlock = block
-		works[hash] = block
+		works.Add(hash, block)
 	}
 
 	submitWork := func(nonce uint64, mixDigest common.Hash, sealhash common.Hash) bool {
@@ -62,7 +69,11 @@ func (c *CommonEngine) remote() {
 			log.Error("Pending work without block", "sealhash", sealhash)
 			return false
 		}
-		block := works[sealhash]
+		var block types.IBlock
+		value, ok := works.Get(sealhash)
+		if ok {
+			block = value.(types.IBlock)
+		}
 		if block == nil {
 			log.Warn("Work submitted but none pending", "sealhash", sealhash, "curnumber", currentBlock.NumberU64())
 			return false
@@ -94,9 +105,6 @@ func (c *CommonEngine) remote() {
 		return false
 	}
 
-	ticker := time.NewTicker(5 * time.Second)
-	defer ticker.Stop()
-
 	for {
 		select {
 		case work := <-c.workCh:
@@ -115,15 +123,6 @@ func (c *CommonEngine) remote() {
 				result.errc <- nil
 			} else {
 				result.errc <- errInvalidSealResult
-			}
-
-		case <-ticker.C:
-			if currentBlock != nil {
-				for hash, block := range works {
-					if block.NumberU64()+staleThreshold < currentBlock.NumberU64() {
-						delete(works, hash)
-					}
-				}
 			}
 
 		case errc := <-c.exitCh:
