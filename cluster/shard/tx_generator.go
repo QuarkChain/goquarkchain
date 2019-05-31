@@ -55,32 +55,35 @@ func (t *TxGenerator) Generate(genTxs *rpc.GenTxRequest,
 	log.Info("Start Generating transactions", "tx count", numTx, "cross-shard tx count", xShardPercent)
 
 	start := time.Now()
-	for _, acc := range t.accounts {
-		nonce, err := getTxCount(acc.Identity.GetRecipient(), nil)
-		if err != nil {
-			continue
-		}
-		tx, err := t.createTransaction(acc, nonce, xShardPercent, genTxs.Tx)
-		if err != nil {
-			continue
-		}
-		txList = append(txList, &types.Transaction{TxType: types.EvmTx, EvmTx: tx})
-		total++
-		if total%batchScale == 0 {
-			txs := txList[total-batchScale : total]
-			g.Go(func() error {
-				return addTxList(txs)
-			})
-			time.Sleep(time.Second * 2)
-		}
-		if total >= numTx {
-			txs := txList[total-total%batchScale : total]
-			g.Go(func() error {
-				return addTxList(txs)
-			})
-			break
+	for total <= numTx {
+		for _, acc := range t.accounts {
+			nonce, err := getTxCount(acc.Identity.GetRecipient(), nil)
+			if err != nil {
+				continue
+			}
+			tx, err := t.createTransaction(acc, nonce, xShardPercent, genTxs.Tx)
+			if err != nil {
+				continue
+			}
+			txList = append(txList, &types.Transaction{TxType: types.EvmTx, EvmTx: tx})
+			total++
+			if total%batchScale == 0 {
+				txs := txList[total-batchScale : total]
+				g.Go(func() error {
+					return addTxList(txs)
+				})
+				time.Sleep(time.Second * 2)
+			}
+			if total >= numTx || total >= len(t.accounts) {
+				txs := txList[total-total%batchScale : total]
+				g.Go(func() error {
+					return addTxList(txs)
+				})
+				break
+			}
 		}
 	}
+
 	log.Info("Finish Generating transactions", "fullShardId", t.fullShardId, "tx count", total, "use seconds", time.Now().Sub(start))
 	return g.Wait()
 }
@@ -109,7 +112,7 @@ func (t *TxGenerator) createTransaction(acc *account.Account, nonce uint64,
 		toFullShardKey = fullShardIds[idx]
 	}
 	value := sampleTx.EvmTx.Value()
-	if value == big.NewInt(0) {
+	if value.Uint64() == 0 {
 		rv := t.random(100)
 		value = value.Mul(big.NewInt(int64(rv)), config.QuarkashToJiaozi)
 	}
