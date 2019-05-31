@@ -2,7 +2,6 @@ package shard
 
 import (
 	"encoding/hex"
-	"errors"
 	"fmt"
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
@@ -69,19 +68,19 @@ func (t *TxGenerator) Generate(genTxs *rpc.GenTxRequest,
 			txList = append(txList, &types.Transaction{TxType: types.EvmTx, EvmTx: tx})
 			total++
 			if total%batchScale == 0 {
-				txs := txList[total-batchScale : total]
 				g.Go(func() error {
-					return addTxList(txs)
+					return addTxList(txList[0:batchScale])
 				})
+				txList = txList[batchScale:]
 				time.Sleep(time.Second * 2)
 			}
-			if total >= numTx || total%length >= length {
-				txs := txList[total-total%batchScale : total]
-				g.Go(func() error {
-					return addTxList(txs)
-				})
-				break
-			}
+		}
+		if len(txList) > 0 {
+			g.Go(func() error {
+				return addTxList(txList[:])
+			})
+			txList = txList[len(txList)-1:]
+			time.Sleep(time.Second * 2)
 		}
 	}
 
@@ -96,9 +95,6 @@ func (t *TxGenerator) createTransaction(acc *account.Account, nonce uint64,
 		toFullShardKey   = fromFullShardKey
 		recipient        = *sampleTx.EvmTx.To()
 	)
-	if t.cfg.GetFullShardIdByFullShardKey(fromFullShardKey) != t.fullShardId {
-		return nil, errors.New("fromFullShardId not match")
-	}
 
 	if recipient == (common.Address{}) {
 		idx := t.random(len(t.accounts))
