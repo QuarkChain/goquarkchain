@@ -1382,7 +1382,10 @@ func (m *MinorBlockChain) GetTransactionByAddress(address account.Address, start
 				return nil, nil, errors.New("get minBlock failed")
 			}
 			xShardReceiveTxList := rawdb.ReadConfirmedCrossShardTxList(m.db, mBlock.Hash())
-			tx := xShardReceiveTxList.TXList[index] //TODO check?
+			if index >= uint32(len(xShardReceiveTxList.TXList)) {
+				return nil, nil, errors.New("tx's index bigger than txs's len ")
+			}
+			tx := xShardReceiveTxList.TXList[index]
 			txList = append(txList, &rpc.TransactionDetail{
 				TxHash:      tx.TxHash,
 				FromAddress: tx.From,

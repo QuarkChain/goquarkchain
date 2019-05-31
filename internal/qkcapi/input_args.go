@@ -28,7 +28,8 @@ func (c *CallArgs) setDefaults() {
 	}
 }
 func (c *CallArgs) toTx(config *config.QuarkChainConfig) (*types.Transaction, error) {
-	evmTx := types.NewEvmTransaction(0, c.To.Recipient, c.Value.ToInt(), c.Gas.ToInt().Uint64(), c.GasPrice.ToInt(), c.From.FullShardKey, c.To.FullShardKey, config.NetworkID, 0, c.Data)
+	evmTx := types.NewEvmTransaction(0, c.To.Recipient, c.Value.ToInt(), c.Gas.ToInt().Uint64(),
+		c.GasPrice.ToInt(), c.From.FullShardKey, c.To.FullShardKey, config.NetworkID, 0, c.Data)
 	tx := &types.Transaction{
 		EvmTx:  evmTx,
 		TxType: types.EvmTx,
@@ -64,7 +65,8 @@ func (c *CreateTxArgs) setDefaults() {
 	}
 }
 func (c *CreateTxArgs) toTx(config *config.QuarkChainConfig) *types.Transaction {
-	evmTx := types.NewEvmTransaction(0, c.To, c.Value.ToInt(), c.Gas.ToInt().Uint64(), c.GasPrice.ToInt(), uint32(c.FromFullShardKey), 0, config.NetworkID, 0, c.Data)
+	evmTx := types.NewEvmTransaction(0, c.To, c.Value.ToInt(), c.Gas.ToInt().Uint64(), c.GasPrice.ToInt(),
+		uint32(c.FromFullShardKey), 0, config.NetworkID, 0, c.Data)
 	tx := &types.Transaction{
 		EvmTx:  evmTx,
 		TxType: types.EvmTx,
@@ -124,7 +126,10 @@ func (args *SendTxArgs) toTransaction(networkID uint32, withVRS bool) (*types.Tr
 	if args.NetWorkID != nil {
 		networkID = uint32(*args.NetWorkID)
 	}
-	evmTx := types.NewEvmTransaction(uint64(*args.Nonce), account.BytesToIdentityRecipient(args.To.Bytes()), (*big.Int)(args.Value), uint64(*args.Gas), (*big.Int)(args.GasPrice), uint32(*args.FromFullShardKey), uint32(*args.ToFullShardKey), networkID, 0, *args.Data)
+	evmTx := types.NewEvmTransaction(uint64(*args.Nonce), account.BytesToIdentityRecipient(args.To.Bytes()),
+		(*big.Int)(args.Value), uint64(*args.Gas), (*big.Int)(args.GasPrice), uint32(*args.FromFullShardKey),
+		uint32(*args.ToFullShardKey), networkID, 0, *args.Data)
+
 	if withVRS {
 		if args.V != nil && args.R != nil && args.S != nil {
 			evmTx.SetVRS(args.V.ToInt(), args.R.ToInt(), args.S.ToInt())

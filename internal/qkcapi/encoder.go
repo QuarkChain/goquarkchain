@@ -26,15 +26,6 @@ func DataEncoder(bytes []byte) hexutil.Bytes {
 	return hexutil.Bytes(bytes)
 }
 
-//func DataDecoder(bytes []byte) (hexutil.Bytes, error) {
-//	if len(bytes) >= 2 && bytes[0] == '0' && bytes[1] == 'x' {
-//		return hexutil.Bytes(bytes[2:]), nil
-//	}
-//	return nil, errors.New("should have 0x")
-//}
-//func FullShardKeyEncoder(fullShardKey uint32) hexutil.Bytes {
-//	panic(-1)
-//}
 func rootBlockEncoder(rootBlock *types.RootBlock) (map[string]interface{}, error) {
 	serData, err := serialize.SerializeToBytes(rootBlock)
 	if err != nil {

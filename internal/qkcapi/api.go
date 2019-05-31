@@ -13,24 +13,26 @@ import (
 	"sort"
 )
 
-func decodeBlockNumberToUint64(b Backend, blockNumber *rpc.BlockNumber) (uint64, error) {
+func decodeBlockNumberToUint64(b Backend, blockNumber *rpc.BlockNumber) (*uint64, error) {
 	if blockNumber == nil {
-		return b.CurrentBlock().NumberU64(), nil
+		return nil, nil
 	}
 	if *blockNumber == rpc.PendingBlockNumber {
-		return 0, errors.New("is pending block number")
+		return nil, errors.New("is pending block number")
 	}
 	if *blockNumber == rpc.LatestBlockNumber {
-		return b.CurrentBlock().NumberU64(), nil
+		return nil, nil
 	}
 	if *blockNumber == rpc.EarliestBlockNumber {
-		return 0, nil
+		tBlock := uint64(0)
+		return &tBlock, nil
 	}
 
 	if *blockNumber < 0 {
-		return 0, errors.New("invalid block Num")
+		return nil, errors.New("invalid block Num")
 	}
-	return uint64(blockNumber.Int64()), nil
+	tBlock := uint64(blockNumber.Int64())
+	return &tBlock, nil
 }
 
 func transHexutilUint64ToUint64(data *hexutil.Uint64) (*uint64, error) {
@@ -100,8 +102,7 @@ func (p *PublicBlockChainAPI) getPrimaryAccountData(address account.Address, blo
 		return nil, err
 	}
 
-	data, err = p.b.GetPrimaryAccountData(&address, &blockNumber)
-	return
+	return p.b.GetPrimaryAccountData(&address, blockNumber)
 }
 
 func (p *PublicBlockChainAPI) GetTransactionCount(address account.Address, blockNr *rpc.BlockNumber) (hexutil.Uint64, error) {
@@ -130,6 +131,10 @@ func (p *PublicBlockChainAPI) GetBalances(address account.Address, blockNr *rpc.
 func (p *PublicBlockChainAPI) GetAccountData(address account.Address, blockNr *rpc.BlockNumber, includeShards *bool) (map[string]interface{}, error) {
 	if includeShards != nil && blockNr == nil {
 		return nil, errors.New("do not allow specify height if client wants info on all shards")
+	}
+	if includeShards == nil {
+		t := false
+		includeShards = &t
 	}
 	if !(*includeShards) {
 		accountBranchData, err := p.getPrimaryAccountData(address, blockNr)
@@ -310,7 +315,7 @@ func (p *PublicBlockChainAPI) Call(data CallArgs, blockNr *rpc.BlockNumber) (hex
 	if err != nil {
 		return nil, err
 	}
-	return p.CallOrEstimateGas(&data, &blockNumber, true)
+	return p.CallOrEstimateGas(&data, blockNumber, true)
 
 }
 func (p *PublicBlockChainAPI) EstimateGas(data CallArgs) ([]byte, error) {
@@ -334,7 +339,7 @@ func (p *PublicBlockChainAPI) GetStorageAt(address account.Address, key common.H
 	if err != nil {
 		return nil, err
 	}
-	hash, err := p.b.GetStorageAt(&address, key, &blockNumber)
+	hash, err := p.b.GetStorageAt(&address, key, blockNumber)
 	return hash.Bytes(), err
 }
 func (p *PublicBlockChainAPI) GetCode(address account.Address, blockNr *rpc.BlockNumber) (hexutil.Bytes, error) {
@@ -342,8 +347,7 @@ func (p *PublicBlockChainAPI) GetCode(address account.Address, blockNr *rpc.Bloc
 	if err != nil {
 		return nil, err
 	}
-	code, err := p.b.GetCode(&address, &blockNumber)
-	return code, err
+	return p.b.GetCode(&address, blockNumber)
 }
 func (p *PublicBlockChainAPI) GetTransactionsByAddress(address account.Address, start *hexutil.Bytes, limit *hexutil.Uint) (map[string]interface{}, error) {
 	limitValue := uint32(0)
@@ -368,7 +372,7 @@ func (p *PublicBlockChainAPI) GetTransactionsByAddress(address account.Address, 
 		if tx.ToAddress != nil {
 			to = *tx.ToAddress
 		}
-		field := map[string]interface{}{
+		txField := map[string]interface{}{
 			"txId":        IDEncoder(tx.TxHash.Bytes(), tx.FromAddress.FullShardKey),
 			"fromAddress": tx.FromAddress,
 			"toAddress":   to,
@@ -377,7 +381,7 @@ func (p *PublicBlockChainAPI) GetTransactionsByAddress(address account.Address, 
 			"timestamp":   hexutil.Uint(tx.Timestamp),
 			"success":     tx.Success,
 		}
-		txsFields = append(txsFields, field)
+		txsFields = append(txsFields, txField)
 	}
 	return map[string]interface{}{
 		"txList": txsFields,
@@ -385,11 +389,9 @@ func (p *PublicBlockChainAPI) GetTransactionsByAddress(address account.Address, 
 	}, nil
 
 }
-func (p *PublicBlockChainAPI) GasPrice(fullShardID uint32) (hexutil.Uint64, error) {
-	if _, ok := p.b.GetBranchToSlaver()[fullShardID]; ok == false {
-		return 0, errors.New("no such fullshardkey")
-	}
-	data, err := p.b.GasPrice(account.Branch{Value: fullShardID})
+func (p *PublicBlockChainAPI) GasPrice(fullShardKey uint32) (hexutil.Uint64, error) {
+	fullShardId := p.b.GetClusterConfig().Quarkchain.GetFullShardIdByFullShardKey(fullShardKey)
+	data, err := p.b.GasPrice(account.Branch{Value: fullShardId})
 	return hexutil.Uint64(data), err
 }
 func (p *PublicBlockChainAPI) SubmitWork(fullShardKey hexutil.Uint, headHash common.Hash, nonce hexutil.Uint64, mixHash common.Hash) bool {
