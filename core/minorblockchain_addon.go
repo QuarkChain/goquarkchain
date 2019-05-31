@@ -1234,8 +1234,8 @@ func (m *MinorBlockChain) GetBranch() account.Branch {
 }
 
 func (m *MinorBlockChain) GetRootTip() *types.RootBlockHeader {
-	m.mu.Lock()
-	defer m.mu.Unlock()
+	m.mu.RLock()
+	defer m.mu.RUnlock()
 	return m.rootTip
 }
 func encodeAddressTxKey(adddress account.Address, height uint64, index int, crossShard bool) []byte {
@@ -1261,6 +1261,12 @@ func encodeAddressTxKey(adddress account.Address, height uint64, index int, cros
 	return rs
 }
 func decodeAddressTxKey(data []byte) (uint64, bool, uint32, error) {
+	// 38=5+24+4+1+4
+	// 5="addr_"
+	// 24=len(account.Address)
+	// 4=height
+	// 1=isCrossShard
+	// 4=index
 	if len(data) != 38 {
 		return 0, false, 0, errors.New("input err")
 	}
@@ -1332,17 +1338,17 @@ func (m *MinorBlockChain) GetTransactionByAddress(address account.Address, start
 	if !m.clusterConfig.EnableTransactionHistory {
 		return []*rpc.TransactionDetail{}, []byte{}, nil
 	}
-	end := make([]byte, 0)
-	end = append(end, []byte("addr_")...)
+	endEncodeAddressTxKey := make([]byte, 0)
+	endEncodeAddressTxKey = append(endEncodeAddressTxKey, []byte("addr_")...)
 	tAdd, err := serialize.SerializeToBytes(address)
 	if err != nil {
 		panic(err)
 	}
-	end = append(end, tAdd...)
-	originalStartBytes := bytesAddOne(end)
+	endEncodeAddressTxKey = append(endEncodeAddressTxKey, tAdd...)
+	originalStartBytes := bytesAddOne(endEncodeAddressTxKey)
 
 	next := make([]byte, 0)
-	next = append(next, end...)
+	next = append(next, endEncodeAddressTxKey...)
 
 	if len(start) == 0 || bytes.Compare(start, originalStartBytes) > 0 {
 		start = originalStartBytes
@@ -1362,7 +1368,7 @@ func (m *MinorBlockChain) GetTransactionByAddress(address account.Address, start
 			panic(errors.New("unexpected err"))
 		}
 
-		if bytes.Compare(it.Key().Data(), end) < 0 {
+		if bytes.Compare(it.Key().Data(), endEncodeAddressTxKey) < 0 {
 			break
 		}
 
@@ -1427,11 +1433,11 @@ func (m *MinorBlockChain) GetTransactionByAddress(address account.Address, start
 			})
 		}
 		next = bytesSubOne(it.Key().Data())
-		it.Prev()
 		limit--
 		if limit == 0 {
 			break
 		}
+		it.Prev()
 	}
 	return txList, next, nil
 }
@@ -1457,11 +1463,11 @@ func (m *MinorBlockChain) updateTxHistoryIndex(tx *types.Transaction, height uin
 		return err
 	}
 	if evmtx.To() != nil && m.branch.IsInBranch(evmtx.ToFullShardKey()) {
-		add := account.Address{
+		toAddr := account.Address{
 			Recipient:    *evmtx.To(),
 			FullShardKey: evmtx.ToFullShardKey(),
 		}
-		key := encodeAddressTxKey(add, height, index, false)
+		key := encodeAddressTxKey(toAddr, height, index, false)
 		if err := f(key); err != nil {
 			return err
 		}

@@ -78,7 +78,7 @@ func (c *CreateTxArgs) toTx(config *config.QuarkChainConfig) *types.Transaction 
 type SendTxArgs struct {
 	From     common.Address  `json:"from"`
 	To       *common.Address `json:"to"`
-	Gas      *hexutil.Uint64 `json:"gas"`
+	Gas      *hexutil.Big    `json:"gas"`
 	GasPrice *hexutil.Big    `json:"gasPrice"`
 	Value    *hexutil.Big    `json:"value"`
 	Nonce    *hexutil.Uint64 `json:"nonce"`
@@ -93,20 +93,15 @@ type SendTxArgs struct {
 	NetWorkID        *hexutil.Uint  `json:"networkid"`
 }
 
-var (
-	DEFAULT_STARTGAS = uint64(100 * 1000)
-	DEFAULT_GASPRICE = new(big.Int).Mul(new(big.Int).SetUint64(10), new(big.Int).SetUint64(1000000000))
-)
-
 // setDefaults is a helper function that fills in default values for unspecified tx fields.
 func (args *SendTxArgs) setDefaults() {
 	// ingore nonce
 	// ingore to
 	if args.Gas == nil {
-		args.Gas = (*hexutil.Uint64)(&DEFAULT_STARTGAS)
+		args.Gas = (*hexutil.Big)(params.DefaultStartGas)
 	}
 	if args.GasPrice == nil {
-		args.GasPrice = (*hexutil.Big)(DEFAULT_GASPRICE)
+		args.GasPrice = (*hexutil.Big)(params.DefaultGasPrice)
 	}
 	if args.Value == nil {
 		args.Value = new(hexutil.Big)
@@ -127,7 +122,7 @@ func (args *SendTxArgs) toTransaction(networkID uint32, withVRS bool) (*types.Tr
 		networkID = uint32(*args.NetWorkID)
 	}
 	evmTx := types.NewEvmTransaction(uint64(*args.Nonce), account.BytesToIdentityRecipient(args.To.Bytes()),
-		(*big.Int)(args.Value), uint64(*args.Gas), (*big.Int)(args.GasPrice), uint32(*args.FromFullShardKey),
+		(*big.Int)(args.Value), args.Gas.ToInt().Uint64(), (*big.Int)(args.GasPrice), uint32(*args.FromFullShardKey),
 		uint32(*args.ToFullShardKey), networkID, 0, *args.Data)
 
 	if withVRS {

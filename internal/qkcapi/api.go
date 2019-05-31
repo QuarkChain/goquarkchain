@@ -182,29 +182,7 @@ func (p *PublicBlockChainAPI) GetAccountData(address account.Address, blockNr *r
 	}, nil
 
 }
-func (p *PublicBlockChainAPI) SendUnsigedTransaction(args SendTxArgs) (map[string]interface{}, error) {
-	// Set some sanity defaults and terminate on failure
-	args.setDefaults()
-	tx, err := args.toTransaction(p.b.GetClusterConfig().Quarkchain.NetworkID, false)
-	if err != nil {
-		return nil, err
-	}
 
-	fields := map[string]interface{}{
-		"txHashUnsigned":  tx.EvmTx.Hash(),
-		"nonce":           (hexutil.Uint64)(tx.EvmTx.Nonce()),
-		"to":              hexutil.Bytes(tx.EvmTx.To().Bytes()),
-		"fromFullShardId": hexutil.Uint(tx.EvmTx.FromFullShardKey()), //TODO fullshardKey fullshardID,to see py logic
-		"toFullShardId":   hexutil.Uint(tx.EvmTx.ToFullShardKey()),
-		"value":           (*hexutil.Big)(tx.EvmTx.Value()),
-		"gasPrice":        (*hexutil.Big)(tx.EvmTx.GasPrice()),
-		"gas":             (hexutil.Uint64)(tx.EvmTx.Gas()),
-		"data":            hexutil.Bytes(tx.EvmTx.Data()),
-		"networkId":       hexutil.Uint64(p.b.GetClusterConfig().Quarkchain.NetworkID),
-	}
-	return fields, nil
-
-}
 func (p *PublicBlockChainAPI) SendTransaction(args SendTxArgs) (hexutil.Bytes, error) {
 	args.setDefaults()
 	tx, err := args.toTransaction(p.b.GetClusterConfig().Quarkchain.NetworkID, true)
