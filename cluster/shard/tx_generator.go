@@ -3,12 +3,15 @@ package shard
 import (
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
+	"github.com/QuarkChain/goquarkchain/cluster/rpc"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/log"
+	"golang.org/x/sync/errgroup"
 	"math/big"
 	"math/rand"
 	"sync"
@@ -18,13 +21,11 @@ import (
 type TxGenerator struct {
 	cfg         *config.QuarkChainConfig
 	fullShardId uint32
-	getTxCount  func(recipient account.Recipient, height *uint64) (uint64, error)
 	accounts    []*account.Account
 	once        sync.Once
 }
 
-func NewTxGenerator(genesisDir string, fullShardId uint32, cfg *config.QuarkChainConfig, getTxCount func(recipient account.Recipient,
-	height *uint64) (uint64, error)) (*TxGenerator, error) {
+func NewTxGenerator(genesisDir string, fullShardId uint32, cfg *config.QuarkChainConfig) (*TxGenerator, error) {
 	accounts, err := config.LoadtestAccounts(genesisDir)
 	if err != nil {
 		return nil, err
@@ -32,41 +33,56 @@ func NewTxGenerator(genesisDir string, fullShardId uint32, cfg *config.QuarkChai
 	return &TxGenerator{
 		cfg:         cfg,
 		fullShardId: fullShardId,
-		getTxCount:  getTxCount,
 		accounts:    accounts,
 		once:        sync.Once{},
 	}, nil
 }
 
-func (t *TxGenerator) Generate(numTx int, xShardPercent int, sampleTx *types.EvmTransaction) []*types.Transaction {
+func (t *TxGenerator) Generate(genTxs *rpc.GenTxRequest,
+	getTxCount func(recipient account.Recipient, height *uint64) (uint64, error),
+	addTxList func(txs []*types.Transaction) error) error {
 	var (
-		txList = make([]*types.Transaction, 0, numTx)
-		total  = 0
+		batchScale    = 600
+		txList        = make([]*types.Transaction, 0, genTxs.NumTxPerShard)
+		numTx         = int(genTxs.NumTxPerShard)
+		xShardPercent = int(genTxs.XShardPercent)
+		total         = 0
+		g             errgroup.Group
 	)
-
 	if numTx <= 0 {
-		return nil
+		return fmt.Errorf("Create txs operation, numTx ")
 	}
-	log.Info("Start Generating transactions", "tx count", numTx, "cross-shard txs", xShardPercent)
+	log.Info("Start Generating transactions", "tx count", numTx, "cross-shard tx count", xShardPercent)
+
+	start := time.Now()
 	for _, acc := range t.accounts {
-		nonce, err := t.getTxCount(acc.Identity.GetRecipient(), nil)
+		nonce, err := getTxCount(acc.Identity.GetRecipient(), nil)
 		if err != nil {
 			continue
 		}
-		tx, err := t.createTransaction(acc, nonce, xShardPercent, sampleTx)
+		tx, err := t.createTransaction(acc, nonce, xShardPercent, genTxs.Tx)
 		if err != nil {
 			continue
 		}
 		txList = append(txList, &types.Transaction{TxType: types.EvmTx, EvmTx: tx})
 		total++
-		if total%600 == 0 {
+		if total%batchScale == 0 {
+			txs := txList[total-batchScale : total]
+			g.Go(func() error {
+				return addTxList(txs)
+			})
 			time.Sleep(time.Second * 2)
 		}
 		if total >= numTx {
+			txs := txList[total-total%batchScale : total]
+			g.Go(func() error {
+				return addTxList(txs)
+			})
 			break
 		}
 	}
-	return txList
+	log.Info("Finish Generating transactions", "fullShardId", t.fullShardId, "tx count", total, "use seconds", time.Now().Sub(start))
+	return g.Wait()
 }
 
 func (t *TxGenerator) createTransaction(acc *account.Account, nonce uint64,
@@ -77,8 +93,9 @@ func (t *TxGenerator) createTransaction(acc *account.Account, nonce uint64,
 		recipient        = *sampleTx.To()
 	)
 	if t.cfg.GetFullShardIdByFullShardKey(fromFullShardKey) != t.fullShardId {
-		return nil, errors.New("fromFullShardKey not match")
+		return nil, errors.New("fromFullShardId not match")
 	}
+
 	if recipient == (common.Address{}) {
 		idx := t.random(len(t.accounts))
 		toAddr := t.accounts[idx]

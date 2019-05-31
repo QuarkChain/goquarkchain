@@ -367,12 +367,12 @@ func (s *SlaveBackend) NewMinorBlock(block *types.MinorBlock) error {
 	return ErrMsg("MinorBlock")
 }
 
-func (s *SlaveBackend) CreateTransactions(numTxPerShard int, xShardPercent int, tx *types.EvmTransaction) error {
+func (s *SlaveBackend) CreateTransactions(genTxs *rpc.GenTxRequest) error {
 	var g errgroup.Group
 	for _, shrd := range s.shards {
 		g.Go(func() error {
 			sd := shrd
-			return sd.CreateTransactions(numTxPerShard, xShardPercent, tx)
+			return sd.CreateTransactions(genTxs)
 		})
 	}
 	return g.Wait()

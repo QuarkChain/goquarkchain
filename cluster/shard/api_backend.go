@@ -225,7 +225,7 @@ func (s *ShardBackend) addTxList(txs []*types.Transaction) error {
 	return g.Wait()
 }
 
-func (s *ShardBackend) CreateTransactions(numTxPerShard int, xShardPercent int, tx *types.EvmTransaction) error {
-	s.txGenerator.Generate(numTxPerShard, xShardPercent, tx)
+func (s *ShardBackend) CreateTransactions(genTxs *rpc.GenTxRequest) error {
+	s.txGenerator.Generate(genTxs, s.MinorBlockChain.GetTransactionCount, s.addTxList)
 	return nil
 }

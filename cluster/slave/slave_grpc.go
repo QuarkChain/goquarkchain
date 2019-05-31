@@ -609,7 +609,7 @@ func (s *SlaveServerSideOp) CreateTransactions(ctx context.Context, req *rpc.Req
 	if err = serialize.DeserializeFromBytes(req.Data, &gReq); err != nil {
 		return nil, err
 	}
-	if err = s.slave.CreateTransactions(int(gReq.NumTxPerShard), int(gReq.XShardPercent), gReq.Tx); err != nil {
+	if err = s.slave.CreateTransactions(&gReq); err != nil {
 		return nil, err
 	}
 	return response, nil

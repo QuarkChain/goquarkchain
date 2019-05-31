@@ -70,7 +70,7 @@ func New(ctx *service.ServiceContext, rBlock *types.RootBlock, conn ConnManager,
 		return nil, err
 	}
 
-	shrd.txGenerator, err = NewTxGenerator(cfg.GenesisDir, shrd.fullShardId, cfg.Quarkchain, shrd.MinorBlockChain.GetTransactionCount)
+	shrd.txGenerator, err = NewTxGenerator(cfg.GenesisDir, shrd.fullShardId, cfg.Quarkchain)
 	if err != nil {
 		return nil, err
 	}
