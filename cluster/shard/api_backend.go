@@ -254,9 +254,10 @@ func (s *ShardBackend) NewMinorBlock(block *types.MinorBlock) (err error) {
 
 func (s *ShardBackend) addTxList(txs []*types.Transaction) error {
 	var g errgroup.Group
-	for _, tx := range txs {
+	for index := range txs {
+		idx := index
 		g.Go(func() error {
-			return s.MinorBlockChain.AddTx(tx)
+			return s.MinorBlockChain.AddTx(txs[idx])
 		})
 	}
 	return g.Wait()

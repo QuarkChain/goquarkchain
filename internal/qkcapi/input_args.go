@@ -50,7 +50,7 @@ type CreateTxArgs struct {
 	To               common.Address `json:"to"`
 	Gas              *hexutil.Big   `json:"gas"`
 	GasPrice         *hexutil.Big   `json:"gasPrice"`
-	Value            hexutil.Big    `json:"value"`
+	Value            *hexutil.Big   `json:"value"`
 	Data             hexutil.Bytes  `json:"data"`
 	FromFullShardKey hexutil.Uint   `json:"fromFullShardId"`
 }
