@@ -583,8 +583,8 @@ func (s *QKCMasterBackend) SetTargetBlockTime(rootBlockTime *uint32, minorBlockT
 // CreateTransactions Create transactions and add to the network for load testing
 func (s *QKCMasterBackend) CreateTransactions(numTxPerShard, xShardPercent uint32, tx *types.Transaction) error {
 	var g errgroup.Group
-	for idx := range s.clientPool {
-		i := idx
+	for index := range s.clientPool {
+		i := index
 		g.Go(func() error {
 			return s.clientPool[i].GenTx(numTxPerShard, xShardPercent, tx)
 		})

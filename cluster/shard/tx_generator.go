@@ -10,7 +10,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/log"
-	"golang.org/x/sync/errgroup"
 	"math/big"
 	"math/rand"
 	"sync"
@@ -42,12 +41,10 @@ func (t *TxGenerator) Generate(genTxs *rpc.GenTxRequest,
 	addTxList func(txs []*types.Transaction) error) error {
 	var (
 		batchScale    = 600
-		txList        = make([]*types.Transaction, 0, genTxs.NumTxPerShard)
+		txList        = make([]*types.Transaction, 0, batchScale)
 		numTx         = int(genTxs.NumTxPerShard)
 		xShardPercent = int(genTxs.XShardPercent)
-		length        = len(t.accounts)
 		total         = 0
-		g             errgroup.Group
 	)
 	if numTx == 0 {
 		return fmt.Errorf("Create txs operation, numTx ")
@@ -67,25 +64,26 @@ func (t *TxGenerator) Generate(genTxs *rpc.GenTxRequest,
 			}
 			txList = append(txList, &types.Transaction{TxType: types.EvmTx, EvmTx: tx})
 			total++
+			if total > numTx {
+				break
+			}
 			if total%batchScale == 0 {
-				g.Go(func() error {
-					return addTxList(txList[0:batchScale])
-				})
-				txList = txList[batchScale:]
+				if err := addTxList(txList); err != nil {
+					return err
+				}
+				txList = make([]*types.Transaction, batchScale)
 				time.Sleep(time.Second * 2)
 			}
 		}
-		if len(txList) > 0 {
-			g.Go(func() error {
-				return addTxList(txList[:])
-			})
-			txList = txList[len(txList)-1:]
-			time.Sleep(time.Second * 2)
+	}
+	if len(txList) != 0 {
+		if err := addTxList(txList); err != nil {
+			return err
 		}
 	}
 
 	log.Info("Finish Generating transactions", "fullShardId", t.fullShardId, "tx count", total, "use seconds", time.Now().Sub(start))
-	return g.Wait()
+	return nil
 }
 
 func (t *TxGenerator) createTransaction(acc *account.Account, nonce uint64,
