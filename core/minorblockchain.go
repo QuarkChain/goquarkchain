@@ -920,7 +920,9 @@ func (m *MinorBlockChain) WriteBlockWithState(block *types.MinorBlock, receipts 
 			}
 		}
 		// Write the positional metadata for transaction/receipt lookups and preimages
-		rawdb.WriteBlockContentLookupEntries(batch, block)
+		if err := m.putTxIndexFromBlock(batch, block); err != nil {
+			panic(err)
+		}
 		rawdb.WritePreimages(batch, state.Preimages())
 		status = CanonStatTy
 
@@ -1387,7 +1389,9 @@ func (m *MinorBlockChain) reorg(oldBlock, newBlock types.IBlock) error {
 		// insert the block in the canonical way, re-writing history
 		m.insert(newChain[i].(*types.MinorBlock))
 		// write lookup entries for hash based transaction/receipt searches
-		rawdb.WriteBlockContentLookupEntries(m.db, newChain[i])
+		if err := m.putTxIndexFromBlock(m.db, newChain[i]); err != nil {
+			return err
+		}
 		addedTxs = append(addedTxs, newChain[i].(*types.MinorBlock).GetTransactions()...)
 	}
 	// calculate the difference between deleted and added transactions
@@ -1395,8 +1399,8 @@ func (m *MinorBlockChain) reorg(oldBlock, newBlock types.IBlock) error {
 	// When transactions get deleted from the database that means the
 	// receipts that were created in the fork must also be deleted
 	batch := m.db.NewBatch()
-	for _, tx := range diff {
-		rawdb.DeleteBlockContentLookupEntry(batch, tx.Hash())
+	if err := m.removeTxIndexFromBlock(batch, diff); err != nil {
+		return err
 	}
 	batch.Write()
 

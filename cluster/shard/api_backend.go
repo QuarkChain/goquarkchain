@@ -164,10 +164,9 @@ func (s *ShardBackend) AddBlockListForSync(blockLst []*types.MinorBlock) error {
 	return s.conn.BatchBroadcastXshardTxList(blockHashToXShardList, blockLst[0].Header().Branch)
 }
 
-// TODO 当前版本暂不添加
 func (s *ShardBackend) GetTransactionListByAddress(address *account.Address,
 	start []byte, limit uint32) ([]*rpc.TransactionDetail, []byte, error) {
-	panic("not implemented")
+	return s.MinorBlockChain.GetTransactionByAddress(*address, start, limit)
 }
 
 // TODO 当前版本暂不添加
