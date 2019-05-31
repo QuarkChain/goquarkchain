@@ -1266,7 +1266,7 @@ func decodeAddressTxKey(data []byte) (uint64, bool, uint32, error) {
 	}
 	height := qkcCommon.BytesToUint32(data[5+24 : 5+24+4])
 	flag := false
-	if data[5+24+4] == byte(0) {
+	if data[5+24+4] == byte(1) {
 		flag = true
 	}
 	index := qkcCommon.BytesToUint32(data[5+24+4+1:])
@@ -1276,6 +1276,9 @@ func decodeAddressTxKey(data []byte) (uint64, bool, uint32, error) {
 
 func (m *MinorBlockChain) putTxIndexFromBlock(batch rawdb.DatabaseWriter, block types.IBlock) error {
 	rawdb.WriteBlockContentLookupEntries(batch, block) // put eth's tx lookup
+	if !m.clusterConfig.EnableTransactionHistory {
+		return nil
+	}
 	minorBlock, ok := block.(*types.MinorBlock)
 	if !ok {
 		return errors.New("minor block is nil")
@@ -1288,14 +1291,19 @@ func (m *MinorBlockChain) putTxIndexFromBlock(batch rawdb.DatabaseWriter, block 
 	return m.putTxHistoryIndexFromBlock(minorBlock) // put qkc's xshard tx
 }
 func (m *MinorBlockChain) removeTxIndexFromBlock(db rawdb.DatabaseDeleter, txs types.Transactions) error {
-	sloveStats := make(map[common.Hash]bool)
+	slovedBlock := make(map[common.Hash]bool)
 	for _, tx := range txs {
 		blockHash, _ := rawdb.ReadBlockContentLookupEntry(m.db, tx.Hash())
 		rawdb.DeleteBlockContentLookupEntry(db, tx.Hash()) //delete eth's tx lookup
-		if _, ok := sloveStats[blockHash]; ok {
+
+		if !m.clusterConfig.EnableTransactionHistory {
 			continue
 		}
-		sloveStats[blockHash] = true
+
+		if _, ok := slovedBlock[blockHash]; ok {
+			continue
+		}
+		slovedBlock[blockHash] = true
 		block, ok := m.GetBlock(blockHash).(*types.MinorBlock) // find old block
 		if !ok {
 			return errors.New("get minor block err")
@@ -1459,15 +1467,9 @@ func (m *MinorBlockChain) updateTxHistoryIndex(tx *types.Transaction, height uin
 	return nil
 }
 func (m *MinorBlockChain) putTxHistoryIndex(tx *types.Transaction, height uint64, index int) error {
-	if !m.clusterConfig.EnableTransactionHistory {
-		return nil
-	}
 	return m.updateTxHistoryIndex(tx, height, index, m.putTxIndexDB)
 }
 func (m *MinorBlockChain) removeTxHistoryIndex(tx *types.Transaction, height uint64, index int) error {
-	if !m.clusterConfig.EnableTransactionHistory {
-		return nil
-	}
 	return m.updateTxHistoryIndex(tx, height, index, m.deleteTxIndexDB)
 }
 
@@ -1485,14 +1487,8 @@ func (m *MinorBlockChain) updateTxHistoryIndexFromBlock(block *types.MinorBlock,
 	return nil
 }
 func (m *MinorBlockChain) putTxHistoryIndexFromBlock(block *types.MinorBlock) error {
-	if !m.clusterConfig.EnableTransactionHistory {
-		return nil
-	}
 	return m.updateTxHistoryIndexFromBlock(block, m.putTxIndexDB)
 }
 func (m *MinorBlockChain) removeTxHistoryIndexFromBlock(block *types.MinorBlock) error {
-	if !m.clusterConfig.EnableTransactionHistory {
-		return nil
-	}
 	return m.updateTxHistoryIndexFromBlock(block, m.deleteTxIndexDB)
 }
