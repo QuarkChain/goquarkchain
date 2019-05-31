@@ -80,6 +80,8 @@ type Engine interface {
 
 	SetThreads(threads int)
 
+
+
 	// Close terminates any background threads maintained by the consensus engine.
 	Close() error
 }

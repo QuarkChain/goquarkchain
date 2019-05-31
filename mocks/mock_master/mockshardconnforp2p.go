@@ -5,14 +5,14 @@
 package mock_master
 
 import (
-	account "github.com/QuarkChain/goquarkchain/account"
-	rpc "github.com/QuarkChain/goquarkchain/cluster/rpc"
-	consensus "github.com/QuarkChain/goquarkchain/consensus"
-	types "github.com/QuarkChain/goquarkchain/core/types"
-	p2p "github.com/QuarkChain/goquarkchain/p2p"
-	common "github.com/ethereum/go-ethereum/common"
-	gomock "github.com/golang/mock/gomock"
-	reflect "reflect"
+	"github.com/QuarkChain/goquarkchain/account"
+	"github.com/QuarkChain/goquarkchain/cluster/rpc"
+	"github.com/QuarkChain/goquarkchain/consensus"
+	"github.com/QuarkChain/goquarkchain/core/types"
+	"github.com/QuarkChain/goquarkchain/p2p"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/golang/mock/gomock"
+	"reflect"
 )
 
 // MockShardConnForP2P is a mock of ShardConnForP2P interface
@@ -610,4 +610,18 @@ func (m *MockISlaveConn) SubmitWork(work *rpc.SubmitWorkRequest) (bool, error) {
 func (mr *MockISlaveConnMockRecorder) SubmitWork(work interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SubmitWork", reflect.TypeOf((*MockISlaveConn)(nil).SubmitWork), work)
+}
+
+// SetMining mocks base method
+func (m *MockISlaveConn) SetMining(mining bool) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SetMining", mining)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// SetMining indicates an expected call of SetMining
+func (mr *MockISlaveConnMockRecorder) SetMining(mining interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetMining", reflect.TypeOf((*MockISlaveConn)(nil).SetMining), mining)
 }
