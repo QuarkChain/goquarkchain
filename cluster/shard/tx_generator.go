@@ -46,6 +46,7 @@ func (t *TxGenerator) Generate(genTxs *rpc.GenTxRequest,
 		txList        = make([]*types.Transaction, 0, genTxs.NumTxPerShard)
 		numTx         = int(genTxs.NumTxPerShard)
 		xShardPercent = int(genTxs.XShardPercent)
+		length        = len(t.accounts)
 		total         = 0
 		g             errgroup.Group
 	)
@@ -74,7 +75,7 @@ func (t *TxGenerator) Generate(genTxs *rpc.GenTxRequest,
 				})
 				time.Sleep(time.Second * 2)
 			}
-			if total >= numTx || total >= len(t.accounts) {
+			if total >= numTx || total%length >= length {
 				txs := txList[total-total%batchScale : total]
 				g.Go(func() error {
 					return addTxList(txs)
