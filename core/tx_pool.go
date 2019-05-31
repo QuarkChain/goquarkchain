@@ -391,7 +391,6 @@ func (pool *TxPool) reset(oldBlock, newBlock *types.MinorBlock) {
 	if newBlock == nil {
 		newBlock = pool.chain.CurrentBlock() // Special case during testing
 	}
-
 	statedb, err := pool.chain.StateAt(newBlock.Meta().Root)
 	if err != nil {
 		log.Error("Failed to reset txpool state", "err", err)

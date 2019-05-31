@@ -171,7 +171,6 @@ func (c *fakeRpcClient) Call(hostport string, req *rpc.Request) (*rpc.Response, 
 		if err != nil {
 			return nil, err
 		}
-		//fmt.Println("data----", hex.EncodeToString(data))
 		return &rpc.Response{Data: data}, nil
 	case rpc.OpGetTransactionListByAddress:
 		rsp := new(rpc.GetTransactionListByAddressResponse)

@@ -47,7 +47,7 @@ func (p *peer) PeerID() string {
 
 func (s *ShardBackend) GetUnconfirmedHeaderList() ([]*types.MinorBlockHeader, error) {
 	headers := s.MinorBlockChain.GetUnconfirmedHeaderList()
-	return headers[0:s.maxBlocks], nil
+	return headers, nil
 }
 
 func (s *ShardBackend) broadcastNewTip() (err error) {
@@ -160,6 +160,7 @@ func (s *ShardBackend) AddBlockListForSync(blockLst []*types.MinorBlock) error {
 		prevRootHeight := s.MinorBlockChain.GetRootBlockByHash(block.Header().PrevRootBlockHash)
 		blockHashToXShardList[blockHash] = &XshardListTuple{XshardTxList: xshardLst[0], PrevRootHeight: prevRootHeight.Number()}
 	}
+	// interrupt the current miner and restart
 	return s.conn.BatchBroadcastXshardTxList(blockHashToXShardList, blockLst[0].Header().Branch)
 }
 
@@ -177,11 +178,11 @@ func (s *ShardBackend) PoswDiffAdjust(block *types.MinorBlock) (*big.Int, error)
 }
 
 func (s *ShardBackend) GetWork() (*consensus.MiningWork, error) {
-	return s.engine.GetWork()
+	return s.miner.GetWork()
 }
 
 func (s *ShardBackend) SubmitWork(headerHash common.Hash, nonce uint64, mixHash common.Hash) error {
-	if ok := s.engine.SubmitWork(nonce, headerHash, mixHash); ok {
+	if ok := s.miner.SubmitWork(nonce, headerHash, mixHash); ok {
 		return nil
 	}
 	return errors.New("submit mined work failed")
@@ -249,4 +250,13 @@ func (s *ShardBackend) NewMinorBlock(block *types.MinorBlock) (err error) {
 		return err
 	}
 	return s.AddMinorBlock(block)
+}
+
+// miner api
+func (s *ShardBackend) CreateBlockToMine() (types.IBlock, error) {
+	return s.MinorBlockChain.CreateBlockToMine(nil, &s.Config.CoinbaseAddress, nil)
+}
+
+func (s *ShardBackend) InsertMinedBlock(block types.IBlock) error {
+	return s.AddMinorBlock(block.(*types.MinorBlock))
 }

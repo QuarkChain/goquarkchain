@@ -5,11 +5,13 @@ import (
 	"fmt"
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
+	"github.com/QuarkChain/goquarkchain/cluster/miner"
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
 	"github.com/QuarkChain/goquarkchain/cluster/service"
 	Synchronizer "github.com/QuarkChain/goquarkchain/cluster/sync"
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/consensus/doublesha256"
+	"github.com/QuarkChain/goquarkchain/consensus/ethash"
 	"github.com/QuarkChain/goquarkchain/consensus/qkchash"
 	"github.com/QuarkChain/goquarkchain/core"
 	"github.com/QuarkChain/goquarkchain/core/rawdb"
@@ -34,7 +36,6 @@ import (
 )
 
 const (
-	heartbeatInterval       = time.Duration(4 * time.Second)
 	disPlayPeerInfoInterval = time.Duration(5 * time.Second)
 	rootChainChanSize       = 256
 	rootChainSideChanSize   = 256
@@ -68,6 +69,7 @@ type QKCMasterBackend struct {
 	rootChainSideChan     chan core.RootChainSideEvent
 	rootChainEventSub     event.Subscription
 	rootChainSideEventSub event.Subscription
+	miner                 *miner.Miner
 
 	artificialTxConfig *rpc.ArtificialTxConfig
 	rootBlockChain     *core.RootBlockChain
@@ -105,6 +107,8 @@ func New(ctx *service.ServiceContext, cfg *config.ClusterConfig) (*QKCMasterBack
 	if mstr.engine, err = createConsensusEngine(ctx, cfg.Quarkchain.Root); err != nil {
 		return nil, err
 	}
+
+	mstr.miner = miner.New(mstr, mstr.engine, cfg.Quarkchain.Root.ConsensusConfig.TargetBlockTime)
 
 	chainConfig, genesisHash, genesisErr := core.SetupGenesisRootBlock(mstr.chainDb, mstr.gspc)
 	// TODO check config err
@@ -152,14 +156,13 @@ func createConsensusEngine(ctx *service.ServiceContext, cfg *config.RootConfig) 
 	case config.PoWSimulate: // TODO pow_simulate is fake
 		return &consensus.FakeEngine{}, nil
 	case config.PoWEthash:
-		return qkchash.New(cfg.ConsensusConfig.RemoteMine, &diffCalculator, cfg.ConsensusConfig.RemoteMine), nil
-		// panic(errors.New("not support PoWEthash PoWSimulate"))
+		return ethash.New(ethash.Config{CachesInMem: 3, CachesOnDisk: 10, CacheDir: "", PowMode: ethash.ModeNormal}, &diffCalculator, cfg.ConsensusConfig.RemoteMine), nil
 	case config.PoWQkchash:
-		return qkchash.New(cfg.ConsensusConfig.RemoteMine, &diffCalculator, cfg.ConsensusConfig.RemoteMine), nil
+		return qkchash.New(true, &diffCalculator, cfg.ConsensusConfig.RemoteMine), nil
 	case config.PoWDoubleSha256:
 		return doublesha256.New(&diffCalculator, cfg.ConsensusConfig.RemoteMine), nil
 	}
-	return nil, fmt.Errorf("Failed to create consensus engine consensus type %s", cfg.ConsensusType)
+	return nil, fmt.Errorf("Failed to create consensus engine consensus type %s ", cfg.ConsensusType)
 }
 
 func (s *QKCMasterBackend) GetClusterConfig() *config.ClusterConfig {
@@ -187,12 +190,11 @@ func (s *QKCMasterBackend) APIs() []ethRPC.API {
 // Stop stop node -> stop qkcMaster
 func (s *QKCMasterBackend) Stop() error {
 	s.rootBlockChain.Stop()
+	s.miner.Stop()
+	s.engine.Close()
 	s.protocolManager.Stop()
 	s.rootChainEventSub.Unsubscribe()
 	s.rootChainSideEventSub.Unsubscribe()
-	if s.engine != nil {
-		s.engine.Close()
-	}
 	s.eventMux.Stop()
 	s.chainDb.Close()
 	return nil
@@ -210,21 +212,26 @@ func (s *QKCMasterBackend) Start(srvr *p2p.Server) error {
 	// start heart beat pre 3 seconds.
 	s.updateShardStatsLoop()
 	s.Heartbeat()
-	s.disPlayPeers()
+	// s.disPlayPeers()
 	go s.broadcastRpcLoop()
+	s.miner.Start()
 	return nil
 }
 
-// StartMining start mining
-func (s *QKCMasterBackend) StartMining(threads int) error {
-	// TODO @liuhuan
-	return nil
-}
+func (s *QKCMasterBackend) SetMining(mining bool) {
+	var g errgroup.Group
+	for _, slvConn := range s.clientPool {
+		conn := slvConn
+		g.Go(func() error {
+			return conn.SetMining(mining)
+		})
+	}
+	if err := g.Wait(); err != nil {
+		log.Error("Set slave mining failed", "err", err)
+		return
+	}
 
-// StopMining stop mining
-func (s *QKCMasterBackend) StopMining(threads int) error {
-	// TODO @liuhuan
-	return nil
+	s.miner.SetMining(mining)
 }
 
 // InitCluster init cluster :
@@ -350,7 +357,7 @@ func (s *QKCMasterBackend) broadcastRootBlockToSlaves(block *types.RootBlock) er
 			err := client.AddRootBlock(block, false)
 			if err != nil {
 				log.Error("broadcastRootBlockToSlaves failed", "slave", client.GetSlaveID(),
-					"block", block.Hash(), "height", block.NumberU64(), "err", err)
+					"block", block.Hash(), "root parent hash", block.Header().ParentHash.Hex(), "height", block.NumberU64(), "err", err)
 			}
 			return err
 		})
@@ -371,10 +378,9 @@ func (s *QKCMasterBackend) Heartbeat() {
 			}
 			duration := time.Now().Sub(timeGap)
 			log.Trace(s.logInfo, "heart beat duration", duration.String())
-			time.Sleep(heartbeatInterval)
+			time.Sleep(config.HeartbeatInterval)
 		}
 	}(true)
-	//TODO :add send master info
 }
 
 func checkPing(slaveConn rpc.ISlaveConn, id []byte, chainMaskList []*types.ChainMask) error {
@@ -471,10 +477,6 @@ func (s *QKCMasterBackend) createRootBlockToMine(address account.Address) (*type
 	newblock, err := s.rootBlockChain.CreateBlockToMine(headerList, &address, nil)
 	if err != nil {
 		return nil, err
-	}
-	if err := s.rootBlockChain.Validator().ValidateBlock(newblock); err != nil {
-		//TODO :only for exposure problem ,need to delete later
-		panic(err)
 	}
 	return newblock, nil
 }
@@ -575,16 +577,7 @@ func (s *QKCMasterBackend) SetTargetBlockTime(rootBlockTime *uint32, minorBlockT
 		TargetRootBlockTime:  *rootBlockTime,
 		TargetMinorBlockTime: *minorBlockTime,
 	}
-	return s.StartMining(1)
-}
-
-// SetMining setmiming status
-func (s *QKCMasterBackend) SetMining(mining bool) error {
-	//TODO need liuhuan to finish
-	if mining {
-		return s.StartMining(1)
-	}
-	return s.StopMining(1)
+	return nil
 }
 
 // CreateTransactions Create transactions and add to the network for load testing

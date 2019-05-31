@@ -7,11 +7,13 @@ import (
 	"sync"
 
 	"github.com/QuarkChain/goquarkchain/cluster/config"
+	"github.com/QuarkChain/goquarkchain/cluster/miner"
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
 	"github.com/QuarkChain/goquarkchain/cluster/service"
 	synchronizer "github.com/QuarkChain/goquarkchain/cluster/sync"
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/consensus/doublesha256"
+	"github.com/QuarkChain/goquarkchain/consensus/ethash"
 	"github.com/QuarkChain/goquarkchain/consensus/qkchash"
 	"github.com/QuarkChain/goquarkchain/core"
 	"github.com/QuarkChain/goquarkchain/core/rawdb"
@@ -36,6 +38,7 @@ type ShardBackend struct {
 	gspec *core.Genesis
 	conn  ConnManager
 
+	miner           *miner.Miner
 	MinorBlockChain *core.MinorBlockChain
 
 	mBPool newBlockPool
@@ -53,7 +56,7 @@ func New(ctx *service.ServiceContext, rBlock *types.RootBlock, conn ConnManager,
 		return nil, errors.New("Failed to create shard, cluster config is nil ")
 	}
 	var (
-		shard = ShardBackend{
+		shard = &ShardBackend{
 			fullShardId:       fullshardId,
 			genesisRootHeight: cfg.Quarkchain.GetShardConfigByFullShardID(fullshardId).Genesis.RootHeight,
 			Config:            cfg.Quarkchain.GetShardConfigByFullShardID(fullshardId),
@@ -77,6 +80,8 @@ func New(ctx *service.ServiceContext, rBlock *types.RootBlock, conn ConnManager,
 		return nil, err
 	}
 
+	shard.miner = miner.New(shard, shard.engine, shard.Config.ConsensusConfig.TargetBlockTime)
+
 	chainConfig, genesisHash, genesisErr := core.SetupGenesisMinorBlock(shard.chainDb, shard.gspec, rBlock, fullshardId)
 	// TODO check config err
 	if genesisErr != nil {
@@ -91,24 +96,18 @@ func New(ctx *service.ServiceContext, rBlock *types.RootBlock, conn ConnManager,
 	}
 	shard.synchronizer = synchronizer.NewSynchronizer(shard.MinorBlockChain)
 
-	return &shard, nil
+	return shard, nil
 }
 
 func (s *ShardBackend) Stop() {
+	s.miner.Stop()
 	s.eventMux.Stop()
 	s.engine.Close()
 	s.chainDb.Close()
 }
 
-func (s *ShardBackend) StartMining(threads int) bool {
-	s.engine.SetThreads(threads)
-	// TODO content need to be filled.
-	return false
-}
-
-func (s *ShardBackend) StopMining() {
-	// TODO content need to be filled.
-	s.engine.SetThreads(-1)
+func (s *ShardBackend) SetMining(mining bool) {
+	s.miner.SetMining(mining)
 }
 
 func createDB(ctx *service.ServiceContext, name string, clean bool) (ethdb.Database, error) {
@@ -131,13 +130,13 @@ func createConsensusEngine(ctx *service.ServiceContext, cfg *config.ShardConfig)
 	case config.PoWSimulate: //TODO pow_simulate is fake
 		return &consensus.FakeEngine{}, nil
 	case config.PoWEthash:
-		panic(errors.New("not support PoWEthash PoWSimulate"))
+		return ethash.New(ethash.Config{CachesInMem: 3, CachesOnDisk: 10, CacheDir: "", PowMode: ethash.ModeNormal}, &diffCalculator, cfg.ConsensusConfig.RemoteMine), nil
 	case config.PoWQkchash:
 		return qkchash.New(cfg.ConsensusConfig.RemoteMine, &diffCalculator, cfg.ConsensusConfig.RemoteMine), nil
 	case config.PoWDoubleSha256:
 		return doublesha256.New(&diffCalculator, cfg.ConsensusConfig.RemoteMine), nil
 	}
-	return nil, fmt.Errorf("Failed to create consensus engine consensus type %s", cfg.ConsensusType)
+	return nil, fmt.Errorf("Failed to create consensus engine consensus type %s ", cfg.ConsensusType)
 }
 
 func (s *ShardBackend) initGenesisState(rootBlock *types.RootBlock) error {

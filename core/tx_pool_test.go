@@ -24,6 +24,7 @@ import (
 	"math/big"
 	"math/rand"
 	"os"
+	"sync"
 	"testing"
 	"time"
 
@@ -41,7 +42,10 @@ import (
 
 // testTxPoolConfig is a transaction pool configuration without stateful disk
 // sideeffects used during testing.
-var testTxPoolConfig TxPoolConfig
+var (
+	testTxPoolConfig TxPoolConfig
+	mu               sync.RWMutex
+)
 
 func init() {
 	testTxPoolConfig = DefaultTxPoolConfig
