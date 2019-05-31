@@ -205,7 +205,7 @@ func (s *QKCMasterBackend) GasPrice(branch account.Branch) (uint64, error) {
 // return root chain work if branch is nil
 func (s *QKCMasterBackend) GetWork(branch account.Branch) (*consensus.MiningWork, error) {
 	if branch.Value == 0 {
-		return s.engine.GetWork()
+		return s.miner.GetWork()
 	}
 	slaveConn := s.getOneSlaveConnection(branch)
 	if slaveConn == nil {
@@ -217,7 +217,7 @@ func (s *QKCMasterBackend) GetWork(branch account.Branch) (*consensus.MiningWork
 // submit root chain work if branch is nil
 func (s *QKCMasterBackend) SubmitWork(branch account.Branch, headerHash common.Hash, nonce uint64, mixHash common.Hash) (bool, error) {
 	if branch.Value == 0 {
-		return s.engine.SubmitWork(nonce, headerHash, mixHash), nil
+		return s.miner.SubmitWork(nonce, headerHash, mixHash), nil
 	}
 	slaveConn := s.getOneSlaveConnection(branch)
 	if slaveConn == nil {
@@ -261,4 +261,14 @@ func (s *QKCMasterBackend) NetWorkInfo() map[string]interface{} {
 		"shardServerCount": hexutil.Uint(len(s.clientPool)),
 	}
 	return fileds
+}
+
+// miner api
+func (s *QKCMasterBackend) CreateBlockToMine() (types.IBlock, error) {
+	return s.createRootBlockToMine(s.clusterConfig.Quarkchain.Root.CoinbaseAddress)
+}
+
+func (s *QKCMasterBackend) InsertMinedBlock(block types.IBlock) error {
+	rBlock := block.(*types.RootBlock)
+	return s.AddRootBlock(rBlock)
 }

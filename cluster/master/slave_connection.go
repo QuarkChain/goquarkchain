@@ -634,3 +634,12 @@ func (s *SlaveConnection) AddBlockListForSync(request *rpc.AddBlockListForSyncRe
 	}
 	return shardStatus, nil
 }
+
+func (s *SlaveConnection) SetMining(mining bool) error {
+	bytes, err := serialize.SerializeToBytes(mining)
+	if err != nil {
+		return err
+	}
+	_, err = s.client.Call(s.target, &rpc.Request{Op: rpc.OpSetMining, Data: bytes})
+	return err
+}

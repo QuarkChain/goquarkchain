@@ -45,14 +45,14 @@ func TestRemoteSealer(t *testing.T) {
 	if _, err := qkc.GetWork(); err.Error() != errNoMiningWork.Error() {
 		t.Error("expect to return an error indicate there is no mining work")
 	}
-	hash := block.Hash()
+	hash := block.Header().SealHash()
 
 	var (
 		work *consensus.MiningWork
 		err  error
 	)
 	qkc.Seal(nil, block, nil, nil)
-	if work, err = qkc.GetWork(); err != nil || work.HeaderHash.Hex() != hash.Hex() {
+	if work, err = qkc.GetWork(); err != nil || work.HeaderHash != hash {
 		t.Error("expect to return a mining work has same hash")
 	}
 

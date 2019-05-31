@@ -171,7 +171,6 @@ func (c *fakeRpcClient) Call(hostport string, req *rpc.Request) (*rpc.Response, 
 		if err != nil {
 			return nil, err
 		}
-		//fmt.Println("data----", hex.EncodeToString(data))
 		return &rpc.Response{Data: data}, nil
 	case rpc.OpGetTransactionListByAddress:
 		rsp := new(rpc.GetTransactionListByAddressResponse)
@@ -393,6 +392,7 @@ func TestAddTransaction(t *testing.T) {
 		TxType: types.EvmTx,
 	}
 	err = master.AddTransaction(tx)
+	fmt.Println("err", err)
 	assert.NoError(t, err)
 
 	evmTx = types.NewEvmTransaction(0, id1.GetRecipient(), new(big.Int), 0, new(big.Int), 100, 2, 1, 0, []byte{})

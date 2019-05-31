@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/ethereum/go-ethereum/common"
@@ -24,6 +25,8 @@ const (
 	PoWSimulate = "POW_SIMULATE"
 	// PoWQkchash is the consensus type running qkchash algorithm.
 	PoWQkchash = "POW_QKCHASH"
+
+	HeartbeatInterval = time.Duration(4 * time.Second)
 )
 
 var (
@@ -96,32 +99,59 @@ func NewRootGenesis() *RootGenesis {
 type RootConfig struct {
 	// To ignore super old blocks from peers
 	// This means the network will fork permanently after a long partition
-	MaxStaleRootBlockHeightDiff    uint64       `json:"MAX_STALE_ROOT_BLOCK_HEIGHT_DIFF"`
-	ConsensusType                  string       `json:"CONSENSUS_TYPE"`
-	ConsensusConfig                *POWConfig   `json:"CONSENSUS_CONFIG"`
-	Genesis                        *RootGenesis `json:"GENESIS"`
-	CoinbaseAddress                string       `json:"COINBASE_ADDRESS"`
-	CoinbaseAmount                 *big.Int     `json:"COINBASE_AMOUNT"`
-	DifficultyAdjustmentCutoffTime uint32       `json:"DIFFICULTY_ADJUSTMENT_CUTOFF_TIME"`
-	DifficultyAdjustmentFactor     uint32       `json:"DIFFICULTY_ADJUSTMENT_FACTOR"`
-	Ip                             string       `json:"-"`
-	Port                           uint16       `json:"-"`
+	MaxStaleRootBlockHeightDiff    uint64          `json:"MAX_STALE_ROOT_BLOCK_HEIGHT_DIFF"`
+	ConsensusType                  string          `json:"CONSENSUS_TYPE"`
+	ConsensusConfig                *POWConfig      `json:"CONSENSUS_CONFIG"`
+	Genesis                        *RootGenesis    `json:"GENESIS"`
+	CoinbaseAddress                account.Address `json:"-"`
+	CoinbaseAmount                 *big.Int        `json:"COINBASE_AMOUNT"`
+	DifficultyAdjustmentCutoffTime uint32          `json:"DIFFICULTY_ADJUSTMENT_CUTOFF_TIME"`
+	DifficultyAdjustmentFactor     uint32          `json:"DIFFICULTY_ADJUSTMENT_FACTOR"`
+	Ip                             string          `json:"-"`
+	Port                           uint16          `json:"-"`
 }
 
 func NewRootConfig() *RootConfig {
 	return &RootConfig{
-		MaxStaleRootBlockHeightDiff: 60,
-		ConsensusType:               PoWNone,
-		ConsensusConfig:             nil,
-		Genesis:                     NewRootGenesis(),
-		// TODO address serialization type shuld to be replaced
-		CoinbaseAddress:                "",
+		MaxStaleRootBlockHeightDiff:    60,
+		ConsensusType:                  PoWNone,
+		ConsensusConfig:                nil,
+		Genesis:                        NewRootGenesis(),
+		CoinbaseAddress:                account.CreatEmptyAddress(0),
 		CoinbaseAmount:                 new(big.Int).Mul(big.NewInt(120), QuarkashToJiaozi),
 		DifficultyAdjustmentCutoffTime: 40,
 		DifficultyAdjustmentFactor:     1024,
 		Ip:                             "127.0.0.1",
 		Port:                           38591,
 	}
+}
+
+type RootConfigAlias RootConfig
+
+func (r *RootConfig) MarshalJSON() ([]byte, error) {
+	addr := r.CoinbaseAddress.ToHex()
+	jsonConfig := struct {
+		RootConfigAlias
+		CoinbaseAddress string `json:"COINBASE_ADDRESS"`
+	}{RootConfigAlias: RootConfigAlias(*r), CoinbaseAddress: addr}
+	return json.Marshal(jsonConfig)
+}
+
+func (r *RootConfig) UnmarshalJSON(input []byte) error {
+	var jsonConfig struct {
+		RootConfigAlias
+		CoinbaseAddress string `json:"COINBASE_ADDRESS"`
+	}
+	if err := json.Unmarshal(input, &jsonConfig); err != nil {
+		return err
+	}
+	*r = RootConfig(jsonConfig.RootConfigAlias)
+	address, err := account.CreatAddressFromBytes(common.FromHex(jsonConfig.CoinbaseAddress))
+	if err != nil {
+		return err
+	}
+	r.CoinbaseAddress = address
+	return nil
 }
 
 func (r *RootConfig) MaxRootBlocksInMemory() uint64 {
