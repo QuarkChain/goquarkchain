@@ -24,14 +24,10 @@ type TxGenerator struct {
 }
 
 func NewTxGenerator(genesisDir string, fullShardId uint32, cfg *config.QuarkChainConfig) (*TxGenerator, error) {
-	accounts, err := config.LoadtestAccounts(genesisDir)
-	if err != nil {
-		return nil, err
-	}
 	return &TxGenerator{
 		cfg:         cfg,
 		fullShardId: fullShardId,
-		accounts:    accounts,
+		accounts:    config.LoadtestAccounts(genesisDir),
 		once:        sync.Once{},
 	}, nil
 }
@@ -46,8 +42,12 @@ func (t *TxGenerator) Generate(genTxs *rpc.GenTxRequest,
 		xShardPercent = int(genTxs.XShardPercent)
 		total         = 0
 	)
+	// return err if accounts is empty.
+	if t.accounts == nil {
+		return fmt.Errorf("accounts is empty, can't create transactions")
+	}
 	if numTx == 0 {
-		return fmt.Errorf("Create txs operation, numTx ")
+		return fmt.Errorf("create txs operation, numTx is zero")
 	}
 	log.Info("Start Generating transactions", "tx count", numTx, "cross-shard tx count", xShardPercent)
 

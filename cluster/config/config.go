@@ -297,24 +297,28 @@ func UpdateGenesisAlloc(cluserConfig *ClusterConfig) error {
 	return nil
 }
 
-func LoadtestAccounts(genesisDir string) ([]*account.Account, error) {
+func LoadtestAccounts(genesisDir string) []*account.Account {
 	var (
 		accounts = make([]*account.Account, 0)
-		testFile = "loadtest.json"
 		err      error
 	)
+	if genesisDir == "" {
+		return nil
+	}
 	loadtestFile := filepath.Join(genesisDir, testFile)
 	items, err := loadGenesisAddrs(loadtestFile)
 	if err != nil {
-		return nil, fmt.Errorf(testErrMsg, loadtestFile, err)
+		log.Error("load test file", "err", err)
+		return nil
 	}
 	for _, item := range items {
 		key := account.BytesToIdentityKey(common.FromHex(item.PrivKey))
 		acc, err := account.NewAccountWithKey(key)
 		if err != nil {
-			return nil, err
+			log.Error("create account by key", "err", err)
+			return nil
 		}
 		accounts = append(accounts, &acc)
 	}
-	return accounts, nil
+	return accounts
 }
