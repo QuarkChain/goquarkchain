@@ -49,7 +49,7 @@ func (t *TxGenerator) Generate(genTxs *rpc.GenTxRequest,
 		total         = 0
 		g             errgroup.Group
 	)
-	if numTx <= 0 {
+	if numTx == 0 {
 		return fmt.Errorf("Create txs operation, numTx ")
 	}
 	log.Info("Start Generating transactions", "tx count", numTx, "cross-shard tx count", xShardPercent)
@@ -86,11 +86,11 @@ func (t *TxGenerator) Generate(genTxs *rpc.GenTxRequest,
 }
 
 func (t *TxGenerator) createTransaction(acc *account.Account, nonce uint64,
-	xShardPercent int, sampleTx *types.EvmTransaction) (*types.EvmTransaction, error) {
+	xShardPercent int, sampleTx *types.Transaction) (*types.EvmTransaction, error) {
 	var (
-		fromFullShardKey = sampleTx.FromFullShardKey()
+		fromFullShardKey = sampleTx.EvmTx.FromFullShardKey()
 		toFullShardKey   = fromFullShardKey
-		recipient        = *sampleTx.To()
+		recipient        = *sampleTx.EvmTx.To()
 	)
 	if t.cfg.GetFullShardIdByFullShardKey(fromFullShardKey) != t.fullShardId {
 		return nil, errors.New("fromFullShardId not match")
@@ -108,14 +108,14 @@ func (t *TxGenerator) createTransaction(acc *account.Account, nonce uint64,
 		idx := uint32(t.random(len(fullShardIds)))
 		toFullShardKey = fullShardIds[idx]
 	}
-	value := sampleTx.Value()
+	value := sampleTx.EvmTx.Value()
 	if value == big.NewInt(0) {
 		rv := t.random(100)
 		value = value.Mul(big.NewInt(int64(rv)), config.QuarkashToJiaozi)
 	}
 
-	evmTx := types.NewEvmTransaction(nonce, recipient, value, sampleTx.Gas(),
-		sampleTx.GasPrice(), fromFullShardKey, toFullShardKey, t.cfg.NetworkID, 0, sampleTx.Data())
+	evmTx := types.NewEvmTransaction(nonce, recipient, value, sampleTx.EvmTx.Gas(),
+		sampleTx.EvmTx.GasPrice(), fromFullShardKey, toFullShardKey, t.cfg.NetworkID, 0, sampleTx.EvmTx.Data())
 
 	return t.sign(evmTx, acc.PrivateKey())
 }

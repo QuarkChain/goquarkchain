@@ -87,11 +87,10 @@ func (s *SlaveServerSideOp) GenTx(ctx context.Context, req *rpc.Request) (*rpc.R
 	if err = serialize.DeserializeFromBytes(req.Data, &gReq); err != nil {
 		return nil, err
 	}
-
-	// TODO CreateTransactions
-
+	if err = s.slave.GenTx(&gReq); err != nil {
+		return nil, err
+	}
 	return response, nil
-
 }
 
 func (s *SlaveServerSideOp) AddRootBlock(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
@@ -603,21 +602,6 @@ func (s *SlaveServerSideOp) HandleNewMinorBlock(ctx context.Context, req *rpc.Re
 		return nil, err
 	}
 	if err = s.slave.NewMinorBlock(&gReq); err != nil {
-		return nil, err
-	}
-	return response, nil
-}
-
-func (s *SlaveServerSideOp) CreateTransactions(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
-	var (
-		gReq     rpc.GenTxRequest
-		response = &rpc.Response{RpcId: req.RpcId}
-		err      error
-	)
-	if err = serialize.DeserializeFromBytes(req.Data, &gReq); err != nil {
-		return nil, err
-	}
-	if err = s.slave.CreateTransactions(&gReq); err != nil {
 		return nil, err
 	}
 	return response, nil

@@ -80,8 +80,6 @@ service SlaveServerSideOp {
     }
     rpc HandleNewMinorBlock (Request) returns (Response) {
     }
-    rpc CreateTransactions (Request) returns (Response) {
-    }
 }
 
 // request data

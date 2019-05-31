@@ -590,8 +590,8 @@ func (s *QKCMasterBackend) SetMining(mining bool) error {
 // CreateTransactions Create transactions and add to the network for load testing
 func (s *QKCMasterBackend) CreateTransactions(numTxPerShard, xShardPercent uint32, tx *types.Transaction) error {
 	var g errgroup.Group
-	for index := range s.clientPool {
-		i := index
+	for idx := range s.clientPool {
+		i := idx
 		g.Go(func() error {
 			return s.clientPool[i].GenTx(numTxPerShard, xShardPercent, tx)
 		})
