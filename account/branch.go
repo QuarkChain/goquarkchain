@@ -7,6 +7,7 @@ import (
 
 // Branch branch include it's value
 type Branch struct {
+	// TODO Value->value
 	Value uint32
 }
 

@@ -2,16 +2,17 @@ package core
 
 import (
 	"errors"
+	"math"
+	"math/big"
+	"sort"
+	"time"
+
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
 	"github.com/QuarkChain/goquarkchain/core/rawdb"
 	"github.com/QuarkChain/goquarkchain/core/vm"
 	"github.com/QuarkChain/goquarkchain/params"
 	"github.com/QuarkChain/goquarkchain/serialize"
-	"math"
-	"math/big"
-	"sort"
-	"time"
 
 	"github.com/QuarkChain/goquarkchain/account"
 	qkcCommon "github.com/QuarkChain/goquarkchain/common"
@@ -122,6 +123,8 @@ func (m *MinorBlockChain) validateTx(tx *types.Transaction, evmState *state.Stat
 	}
 	evmTx := tx.EvmTx
 	if fromAddress != nil {
+		nonce := evmState.GetNonce(fromAddress.Recipient)
+		evmTx.SetNonce(nonce)
 		if evmTx.FromFullShardKey() != fromAddress.FullShardKey {
 			return nil, errors.New("from full shard id not match")
 		}
@@ -393,7 +396,7 @@ func (m *MinorBlockChain) FinalizeAndAddBlock(block *types.MinorBlock) (*types.M
 	}
 	coinbaseAmount := new(big.Int).Add(m.getCoinbaseAmount(), evmState.GetBlockFee())
 	block.Finalize(receipts, evmState.IntermediateRoot(true), evmState.GetGasUsed(), evmState.GetXShardReceiveGasUsed(), coinbaseAmount)
-	_, _, err = m.InsertChain([]types.IBlock{block}) // will lock
+	_, err = m.InsertChain([]types.IBlock{block}) // will lock
 	if err != nil {
 		return nil, nil, err
 	}
@@ -588,9 +591,17 @@ func (m *MinorBlockChain) ExecuteTx(tx *types.Transaction, fromAddress *account.
 		return nil, err
 	}
 	gp := new(GasPool).AddGas(mBlock.Header().GetGasLimit().Uint64())
-	usedGas := new(uint64)
-	ret, _, _, err := ApplyTransaction(m.ethChainConfig, m, gp, state, mBlock.IHeader().(*types.MinorBlockHeader), evmTx, usedGas, *m.GetVMConfig())
+
+	to := evmTx.EvmTx.To()
+	msg := types.NewMessage(fromAddress.Recipient, to, evmTx.EvmTx.Nonce(), evmTx.EvmTx.Value(), evmTx.EvmTx.Gas(), evmTx.EvmTx.GasPrice(), evmTx.EvmTx.Data(), false, tx.EvmTx.FromShardID(), tx.EvmTx.ToShardID())
+	evmState.SetFullShardKey(tx.EvmTx.ToFullShardKey())
+	context := NewEVMContext(msg, m.CurrentBlock().IHeader().(*types.MinorBlockHeader), m)
+	evmEnv := vm.NewEVM(context, evmState, m.ethChainConfig, m.vmConfig)
+
+	localFee := getLocalFeeRate(m.clusterConfig.Quarkchain)
+	ret, _, _, err := ApplyMessage(evmEnv, msg, gp, localFee)
 	return ret, err
+
 }
 
 func checkEqual(a, b types.IHeader) bool {
@@ -1140,7 +1151,7 @@ func (m *MinorBlockChain) EstimateGas(tx *types.Transaction, fromAddress account
 		context := NewEVMContext(msg, m.CurrentBlock().IHeader().(*types.MinorBlockHeader), m)
 		evmEnv := vm.NewEVM(context, evmState, m.ethChainConfig, m.vmConfig)
 
-		localFee := big.NewRat(1, 1)
+		localFee := getLocalFeeRate(m.clusterConfig.Quarkchain)
 		_, _, _, err = ApplyMessage(evmEnv, msg, gp, localFee)
 		return err
 	}

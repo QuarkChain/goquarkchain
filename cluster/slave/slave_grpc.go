@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/core/types"
@@ -230,7 +231,14 @@ func (s *SlaveServerSideOp) ExecuteTransaction(ctx context.Context, req *rpc.Req
 	if err = serialize.DeserializeFromBytes(req.Data, &gReq); err != nil {
 		return nil, err
 	}
-
+	toShardSize := s.slave.clstrCfg.Quarkchain.GetShardSizeByChainId(gReq.Tx.EvmTx.ToChainID())
+	if err := gReq.Tx.EvmTx.SetToShardSize(toShardSize); err != nil {
+		return nil, err
+	}
+	fromShardSize := s.slave.clstrCfg.Quarkchain.GetShardSizeByChainId(gReq.Tx.EvmTx.FromChainID())
+	if err := gReq.Tx.EvmTx.SetFromShardSize(fromShardSize); err != nil {
+		return nil, err
+	}
 	if gRes.Result, err = s.slave.ExecuteTx(gReq.Tx, gReq.FromAddress); err != nil {
 		return nil, err
 	}
@@ -543,7 +551,7 @@ func (s *SlaveServerSideOp) GetMinorBlockHeaderList(ctx context.Context, req *rp
 
 func (s *SlaveServerSideOp) HandleNewTip(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
 	var (
-		gReq     p2p.Tip
+		gReq     rpc.HandleNewTipRequest
 		response = &rpc.Response{RpcId: req.RpcId}
 		err      error
 	)

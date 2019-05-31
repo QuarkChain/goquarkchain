@@ -777,7 +777,7 @@ func TestXShardTxSent(t *testing.T) {
 	checkErr(err)
 	assert.Equal(t, len(shardState.currentEvmState.GetXShardList()), int(1))
 	temp := shardState.currentEvmState.GetXShardList()[0]
-	assert.Equal(t, temp.TxHash, tx.Hash())
+	assert.Equal(t, temp.TxHash, tx.EvmTx.Hash())
 	assert.Equal(t, temp.From.ToBytes(), acc1.ToBytes())
 	assert.Equal(t, temp.To.ToBytes(), acc2.ToBytes())
 	assert.Equal(t, temp.Value.Value.Uint64(), uint64(888888))
@@ -856,7 +856,7 @@ func TestXShardTxReceiver(t *testing.T) {
 	b1.AddTx(tx)
 	txList := types.CrossShardTransactionDepositList{}
 	txList.TXList = append(txList.TXList, &types.CrossShardTransactionDeposit{
-		TxHash:   tx.Hash(),
+		TxHash:   tx.EvmTx.Hash(),
 		From:     acc2,
 		To:       acc1,
 		Value:    &serialize.Uint256{Value: new(big.Int).SetUint64(888888)},
@@ -1527,7 +1527,7 @@ func TestAddBlockReceiptRootNotMatch(t *testing.T) {
 	b1 = types.NewMinorBlock(b1.Header(), b1Meta, b1.Transactions(), nil, nil)
 
 	rawdb.DeleteMinorBlock(shardState.db, b1.Hash())
-	_, _, err = shardState.InsertChain([]types.IBlock{b1})
+	_, err = shardState.InsertChain([]types.IBlock{b1})
 	assert.Equal(t, ErrMetaHash, err)
 
 }

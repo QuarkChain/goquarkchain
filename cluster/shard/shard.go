@@ -3,9 +3,13 @@ package shard
 import (
 	"errors"
 	"fmt"
+	"math/big"
+	"sync"
+
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
 	"github.com/QuarkChain/goquarkchain/cluster/service"
+	synchronizer "github.com/QuarkChain/goquarkchain/cluster/sync"
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/consensus/doublesha256"
 	"github.com/QuarkChain/goquarkchain/consensus/qkchash"
@@ -18,8 +22,6 @@ import (
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
-	"math/big"
-	"sync"
 )
 
 type ShardBackend struct {
@@ -39,9 +41,10 @@ type ShardBackend struct {
 	mBPool      newBlockPool
 	txGenerator *TxGenerator
 
-	mu       sync.Mutex
-	eventMux *event.TypeMux
-	logInfo  string
+	mu           sync.Mutex
+	eventMux     *event.TypeMux
+	synchronizer synchronizer.Synchronizer
+	logInfo      string
 }
 
 func New(ctx *service.ServiceContext, rBlock *types.RootBlock, conn ConnManager,
@@ -51,7 +54,7 @@ func New(ctx *service.ServiceContext, rBlock *types.RootBlock, conn ConnManager,
 		return nil, errors.New("Failed to create shard, cluster config is nil ")
 	}
 	var (
-		shrd = &ShardBackend{
+		shard = &ShardBackend{
 			fullShardId:       fullshardId,
 			genesisRootHeight: cfg.Quarkchain.GetShardConfigByFullShardID(fullshardId).Genesis.RootHeight,
 			Config:            cfg.Quarkchain.GetShardConfigByFullShardID(fullshardId),
@@ -63,37 +66,38 @@ func New(ctx *service.ServiceContext, rBlock *types.RootBlock, conn ConnManager,
 		}
 		err error
 	)
-	shrd.maxBlocks = shrd.Config.MaxBlocksPerShardInOneRootBlock()
+	shard.maxBlocks = shard.Config.MaxBlocksPerShardInOneRootBlock()
 
-	shrd.chainDb, err = createDB(ctx, fmt.Sprintf("shard-%d.db", fullshardId), cfg.Clean)
+	shard.chainDb, err = createDB(ctx, fmt.Sprintf("shard-%d.db", fullshardId), cfg.Clean)
 	if err != nil {
 		return nil, err
 	}
 
-	shrd.txGenerator, err = NewTxGenerator(cfg.GenesisDir, shrd.fullShardId, cfg.Quarkchain)
+	shard.txGenerator, err = NewTxGenerator(cfg.GenesisDir, shard.fullShardId, cfg.Quarkchain)
 	if err != nil {
 		return nil, err
 	}
 
-	shrd.engine, err = createConsensusEngine(ctx, shrd.Config)
+	shard.engine, err = createConsensusEngine(ctx, shard.Config)
 	if err != nil {
 		return nil, err
 	}
 
-	chainConfig, genesisHash, genesisErr := core.SetupGenesisMinorBlock(shrd.chainDb, shrd.gspec, rBlock, fullshardId)
+	chainConfig, genesisHash, genesisErr := core.SetupGenesisMinorBlock(shard.chainDb, shard.gspec, rBlock, fullshardId)
 	// TODO check config err
 	if genesisErr != nil {
 		log.Info("Fill in block into chain db.")
-		rawdb.WriteChainConfig(shrd.chainDb, genesisHash, cfg.Quarkchain)
+		rawdb.WriteChainConfig(shard.chainDb, genesisHash, cfg.Quarkchain)
 	}
 	log.Info("Initialised chain configuration", "config", chainConfig)
 
-	shrd.MinorBlockChain, err = core.NewMinorBlockChain(shrd.chainDb, nil, &params.ChainConfig{}, cfg, shrd.engine, vm.Config{}, nil, fullshardId)
+	shard.MinorBlockChain, err = core.NewMinorBlockChain(shard.chainDb, nil, &params.ChainConfig{}, cfg, shard.engine, vm.Config{}, nil, fullshardId)
 	if err != nil {
 		return nil, err
 	}
+	shard.synchronizer = synchronizer.NewSynchronizer(shard.MinorBlockChain)
 
-	return shrd, nil
+	return shard, nil
 }
 
 func (s *ShardBackend) Stop() {
