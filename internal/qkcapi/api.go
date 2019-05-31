@@ -343,6 +343,7 @@ func (p *PrivateBlockChainAPI) GetBlockCount() (map[uint32]map[account.Recipient
 func (p *PrivateBlockChainAPI) CreateTransactions(NumTxPreShard hexutil.Uint) error {
 	args := CreateTxArgs{
 		NumTxPreShard: NumTxPreShard,
+		// after that are default values, create tx func will fill.
 		XShardPrecent: 0,
 		To:            common.Address{},
 		Gas:           (*hexutil.Big)(big.NewInt(0)),
