@@ -179,4 +179,8 @@ func TestReadTxFromFile(t *testing.T) {
 	s := new(types.EvmTransaction)
 	err = rlp.DecodeBytes(data, s)
 	fmt.Println("data_to_json_rpc", hex.EncodeToString(data))
+	vv, rr, ss := tx.RawSignatureValues()
+	fmt.Printf("%x\n", vv)
+	fmt.Printf("%x\n", rr)
+	fmt.Printf("%x\n", ss)
 }

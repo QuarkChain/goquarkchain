@@ -1357,18 +1357,13 @@ func (m *MinorBlockChain) GetTransactionByAddress(address account.Address, start
 	it := qkcDB.NewIterator()
 	it.SeekForPrev(start)
 	for it.Valid() {
-		limit--
-		if limit < 0 {
-			break
-		}
 		if len(it.Key().Data()) != 38 {
-			it.Prev()
-			continue
+			//TODO ?? delete it
+			panic(errors.New("unexpected err"))
 		}
 
-		if !(bytes.Compare(it.Key().Data(), start) < 0 && bytes.Compare(it.Key().Data(), end) > 0) {
-			it.Prev()
-			continue
+		if bytes.Compare(it.Key().Data(), end) < 0 {
+			break
 		}
 
 		height, crossShard, index, err := decodeAddressTxKey(it.Key().Data())
@@ -1433,11 +1428,15 @@ func (m *MinorBlockChain) GetTransactionByAddress(address account.Address, start
 		}
 		next = bytesSubOne(it.Key().Data())
 		it.Prev()
+		limit--
+		if limit == 0 {
+			break
+		}
 	}
 	return txList, next, nil
 }
 func (m *MinorBlockChain) putTxIndexDB(key []byte) error {
-	err := m.db.Put(key, []byte("no empty")) //TODO????
+	err := m.db.Put(key, []byte("1")) //TODO????
 	return err
 }
 func (m *MinorBlockChain) deleteTxIndexDB(key []byte) error {
