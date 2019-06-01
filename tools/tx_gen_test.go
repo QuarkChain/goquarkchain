@@ -150,10 +150,13 @@ func TestReadTxFromFile(t *testing.T) {
 	var evmTx *types.EvmTransaction
 	if txFromFile.To != nil {
 		fmt.Println("normal tx")
-		evmTx = types.NewEvmTransaction(txFromFile.Nonce, *txFromFile.To, txFromFile.Value, txFromFile.Gas, txFromFile.GasPrice, txFromFile.FromFullShardKey, txFromFile.ToFullShardKey, txFromFile.NetWorkID, 0, txFromFile.Data)
+		evmTx = types.NewEvmTransaction(txFromFile.Nonce, *txFromFile.To, txFromFile.Value, txFromFile.Gas,
+			txFromFile.GasPrice, txFromFile.FromFullShardKey, txFromFile.ToFullShardKey, txFromFile.NetWorkID,
+			0, txFromFile.Data)
 	} else {
 		fmt.Println("contract")
-		evmTx = types.NewEvmContractCreation(txFromFile.Nonce, txFromFile.Value, txFromFile.Gas, txFromFile.GasPrice, txFromFile.FromFullShardKey, txFromFile.ToFullShardKey, txFromFile.NetWorkID, 0, txFromFile.Data)
+		evmTx = types.NewEvmContractCreation(txFromFile.Nonce, txFromFile.Value, txFromFile.Gas, txFromFile.GasPrice,
+			txFromFile.FromFullShardKey, txFromFile.ToFullShardKey, txFromFile.NetWorkID, 0, txFromFile.Data)
 
 	}
 
@@ -176,4 +179,8 @@ func TestReadTxFromFile(t *testing.T) {
 	s := new(types.EvmTransaction)
 	err = rlp.DecodeBytes(data, s)
 	fmt.Println("data_to_json_rpc", hex.EncodeToString(data))
+	vv, rr, ss := tx.RawSignatureValues()
+	fmt.Printf("%x\n", vv)
+	fmt.Printf("%x\n", rr)
+	fmt.Printf("%x\n", ss)
 }

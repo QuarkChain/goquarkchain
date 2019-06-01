@@ -43,7 +43,14 @@ func (s *QKCMasterBackend) GetPeers() []rpc.PeerInfoForDisPlay {
 
 func (s *QKCMasterBackend) AddTransaction(tx *types.Transaction) error {
 	evmTx := tx.EvmTx
-	//TODO :SetQKCConfig
+	toShardSize := s.clusterConfig.Quarkchain.GetShardSizeByChainId(tx.EvmTx.ToChainID())
+	if err := tx.EvmTx.SetToShardSize(toShardSize); err != nil {
+		return errors.New("SetToShardSize err")
+	}
+	fromShardSize := s.clusterConfig.Quarkchain.GetShardSizeByChainId(tx.EvmTx.FromChainID())
+	if err := tx.EvmTx.SetFromShardSize(fromShardSize); err != nil {
+		return errors.New("SetFromShardSize err")
+	}
 	branch := account.Branch{Value: evmTx.FromFullShardId()}
 	slaves := s.getAllSlaveConnection(branch.Value)
 	if len(slaves) == 0 {

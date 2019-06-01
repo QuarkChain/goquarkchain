@@ -238,7 +238,7 @@ func (s *SlaveServerSideOp) ExecuteTransaction(ctx context.Context, req *rpc.Req
 	if err := gReq.Tx.EvmTx.SetFromShardSize(fromShardSize); err != nil {
 		return nil, err
 	}
-	if gRes.Result, err = s.slave.ExecuteTx(gReq.Tx, gReq.FromAddress); err != nil {
+	if gRes.Result, err = s.slave.ExecuteTx(gReq.Tx, gReq.FromAddress, gReq.BlockHeight); err != nil {
 		return nil, err
 	}
 
@@ -347,7 +347,7 @@ func (s *SlaveServerSideOp) GetStorageAt(ctx context.Context, req *rpc.Request) 
 		return nil, err
 	}
 
-	if gRes.Result, err = s.slave.GetStorageAt(gReq.Address, gReq.Key, *gReq.BlockHeight); err != nil {
+	if gRes.Result, err = s.slave.GetStorageAt(gReq.Address, gReq.Key, gReq.BlockHeight); err != nil {
 		return nil, err
 	}
 
@@ -369,7 +369,7 @@ func (s *SlaveServerSideOp) GetCode(ctx context.Context, req *rpc.Request) (*rpc
 		return nil, err
 	}
 
-	if gRes.Result, err = s.slave.GetCode(gReq.Address, *gReq.BlockHeight); err != nil {
+	if gRes.Result, err = s.slave.GetCode(gReq.Address, gReq.BlockHeight); err != nil {
 		return nil, err
 	}
 

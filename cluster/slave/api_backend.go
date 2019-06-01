@@ -129,9 +129,9 @@ func (s *SlaveBackend) AddTx(tx *types.Transaction) (err error) {
 	return ErrMsg("AddTx")
 }
 
-func (s *SlaveBackend) ExecuteTx(tx *types.Transaction, address *account.Address) ([]byte, error) {
+func (s *SlaveBackend) ExecuteTx(tx *types.Transaction, address *account.Address, height *uint64) ([]byte, error) {
 	if shard, ok := s.shards[tx.EvmTx.FromFullShardId()]; ok {
-		return shard.MinorBlockChain.ExecuteTx(tx, address, nil)
+		return shard.MinorBlockChain.ExecuteTx(tx, address, height)
 	}
 	return nil, ErrMsg("ExecuteTx")
 }
@@ -246,18 +246,18 @@ func (s *SlaveBackend) EstimateGas(tx *types.Transaction, address *account.Addre
 	return 0, ErrMsg("EstimateGas")
 }
 
-func (s *SlaveBackend) GetStorageAt(address *account.Address, key common.Hash, height uint64) ([32]byte, error) {
+func (s *SlaveBackend) GetStorageAt(address *account.Address, key common.Hash, height *uint64) ([32]byte, error) {
 	branch := s.getBranch(address)
 	if shard, ok := s.shards[branch.Value]; ok {
-		return shard.MinorBlockChain.GetStorageAt(address.Recipient, key, &height)
+		return shard.MinorBlockChain.GetStorageAt(address.Recipient, key, height)
 	}
 	return common.Hash{}, ErrMsg("GetStorageAt")
 }
 
-func (s *SlaveBackend) GetCode(address *account.Address, height uint64) ([]byte, error) {
+func (s *SlaveBackend) GetCode(address *account.Address, height *uint64) ([]byte, error) {
 	branch := s.getBranch(address)
 	if shard, ok := s.shards[branch.Value]; ok {
-		return shard.MinorBlockChain.GetCode(address.Recipient, &height)
+		return shard.MinorBlockChain.GetCode(address.Recipient, height)
 	}
 	return nil, ErrMsg("GetCode")
 }

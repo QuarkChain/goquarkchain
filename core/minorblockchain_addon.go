@@ -1,6 +1,7 @@
 package core
 
 import (
+	"bytes"
 	"errors"
 	"math"
 	"math/big"
@@ -12,6 +13,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/core/rawdb"
 	"github.com/QuarkChain/goquarkchain/core/vm"
 	"github.com/QuarkChain/goquarkchain/params"
+	"github.com/QuarkChain/goquarkchain/qkcdb"
 	"github.com/QuarkChain/goquarkchain/serialize"
 
 	"github.com/QuarkChain/goquarkchain/account"
@@ -418,9 +420,11 @@ func minBigInt(a, b *big.Int) *big.Int {
 
 // AddTx add tx to txPool
 func (m *MinorBlockChain) AddTx(tx *types.Transaction) error {
+	m.mu.RLock()
 	if m.txPool.all.Count() > int(m.clusterConfig.Quarkchain.TransactionQueueSizeLimitPerShard) {
 		return errors.New("txpool queue full")
 	}
+	m.mu.RUnlock()
 	txHash := tx.Hash()
 	txInDB, _, _ := rawdb.ReadTransaction(m.db, txHash)
 	if txInDB != nil {
@@ -1049,13 +1053,13 @@ func (m *MinorBlockChain) GetTransactionByHash(hash common.Hash) (*types.MinorBl
 	_, mHash, txIndex := rawdb.ReadTransaction(m.db, hash)
 	if mHash == qkcCommon.EmptyHash { //TODO need? for test???
 		txs := make([]*types.Transaction, 0)
-		m.txPool.mu.Lock() // to lock txpool.all
+		m.txPool.mu.RLock() // to lock txpool.all
 		tx, ok := m.txPool.all.all[hash]
 		if !ok {
 			return nil, 0
 		}
 		txs = append(txs, tx)
-		m.txPool.mu.Unlock()
+		m.txPool.mu.RUnlock()
 		temp := types.NewMinorBlock(&types.MinorBlockHeader{}, &types.MinorBlockMeta{}, txs, nil, nil)
 		return temp, 0
 	}
@@ -1075,11 +1079,6 @@ func (m *MinorBlockChain) GetTransactionReceipt(hash common.Hash) (*types.MinorB
 		}
 	}
 	return nil, 0, nil
-}
-
-// GetTransactionListByAddress get txList by addr
-func (m *MinorBlockChain) GetTransactionListByAddress(address account.Address, start, limit uint64) {
-	panic(errors.New("not implement"))
 }
 
 // GetShardStatus show shardStatus
@@ -1107,6 +1106,9 @@ func (m *MinorBlockChain) GetShardStatus() (*rpc.ShardStatus, error) {
 	if staleBlockCount < 0 {
 		return nil, errors.New("staleBlockCount should >=0")
 	}
+	m.mu.RLock()
+	pendingTxCount := len(m.txPool.pending)
+	m.mu.RUnlock()
 	return &rpc.ShardStatus{
 		Branch:             m.branch,
 		Height:             cblock.IHeader().NumberU64(),
@@ -1114,7 +1116,7 @@ func (m *MinorBlockChain) GetShardStatus() (*rpc.ShardStatus, error) {
 		CoinbaseAddress:    cblock.IHeader().GetCoinbase(),
 		Timestamp:          cblock.IHeader().GetTime(),
 		TxCount60s:         txCount,
-		PendingTxCount:     uint32(len(m.txPool.pending)),
+		PendingTxCount:     uint32(pendingTxCount),
 		TotalTxCount:       *m.getTotalTxCount(cblock.Hash()),
 		BlockCount60s:      blockCount,
 		StaleBlockCount60s: staleBlockCount,
@@ -1245,5 +1247,269 @@ func (m *MinorBlockChain) GetBranch() account.Branch {
 }
 
 func (m *MinorBlockChain) GetRootTip() *types.RootBlockHeader {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
 	return m.rootTip
+}
+func encodeAddressTxKey(adddress account.Address, height uint64, index int, crossShard bool) []byte {
+	crossShardBytes := make([]byte, 0)
+	if crossShard {
+		crossShardBytes = append(crossShardBytes, byte(0))
+	} else {
+		crossShardBytes = append(crossShardBytes, byte(1))
+	}
+	addressBytes, err := serialize.SerializeToBytes(adddress)
+	if err != nil {
+		panic(err)
+	}
+	heightBytes := qkcCommon.Uint32ToBytes(uint32(height))
+	indexBytes := qkcCommon.Uint32ToBytes(uint32(index))
+
+	rs := make([]byte, 0)
+	rs = append(rs, []byte("addr_")...)
+	rs = append(rs, addressBytes...)
+	rs = append(rs, heightBytes...)
+	rs = append(rs, crossShardBytes...)
+	rs = append(rs, indexBytes...)
+	return rs
+}
+func decodeAddressTxKey(data []byte) (uint64, bool, uint32, error) {
+	// 38=5+24+4+1+4
+	// 5="addr_"
+	// 24=len(account.Address)
+	// 4=height
+	// 1=isCrossShard
+	// 4=index
+	if len(data) != 38 {
+		return 0, false, 0, errors.New("input err")
+	}
+	height := qkcCommon.BytesToUint32(data[5+24 : 5+24+4])
+	flag := false
+	if data[5+24+4] == byte(1) {
+		flag = true
+	}
+	index := qkcCommon.BytesToUint32(data[5+24+4+1:])
+	return uint64(height), flag, index, nil
+
+}
+
+func (m *MinorBlockChain) putTxIndexFromBlock(batch rawdb.DatabaseWriter, block types.IBlock) error {
+	rawdb.WriteBlockContentLookupEntries(batch, block) // put eth's tx lookup
+	if !m.clusterConfig.EnableTransactionHistory {
+		return nil
+	}
+	minorBlock, ok := block.(*types.MinorBlock)
+	if !ok {
+		return errors.New("minor block is nil")
+	}
+	for index, tx := range minorBlock.Transactions() { // put qkc's inshard tx
+		if err := m.putTxHistoryIndex(tx, minorBlock.Number(), index); err != nil {
+			return err
+		}
+	}
+	return m.putTxHistoryIndexFromBlock(minorBlock) // put qkc's xshard tx
+}
+func (m *MinorBlockChain) removeTxIndexFromBlock(db rawdb.DatabaseDeleter, txs types.Transactions) error {
+	slovedBlock := make(map[common.Hash]bool)
+	for _, tx := range txs {
+		blockHash, _ := rawdb.ReadBlockContentLookupEntry(m.db, tx.Hash())
+		rawdb.DeleteBlockContentLookupEntry(db, tx.Hash()) //delete eth's tx lookup
+
+		if !m.clusterConfig.EnableTransactionHistory {
+			continue
+		}
+
+		if _, ok := slovedBlock[blockHash]; ok {
+			continue
+		}
+		slovedBlock[blockHash] = true
+		block, ok := m.GetBlock(blockHash).(*types.MinorBlock) // find old block
+		if !ok {
+			return errors.New("get minor block err")
+		}
+		for oldBlockTxIndex, oldBlockTx := range block.Transactions() { // delete qkc's oldBlock's tx
+			if err := m.removeTxHistoryIndex(oldBlockTx, block.Number(), oldBlockTxIndex); err != nil {
+				return err
+			}
+		}
+		if err := m.removeTxHistoryIndexFromBlock(block); err != nil { //delete qkc's crossShard tx
+			return err
+		}
+	}
+	return nil
+}
+
+func bytesSubOne(data []byte) []byte {
+	bigData := new(big.Int).SetBytes(data)
+	return bigData.Sub(bigData, new(big.Int).SetUint64(1)).Bytes()
+}
+func bytesAddOne(data []byte) []byte {
+	bigData := new(big.Int).SetBytes(data)
+	return bigData.Add(bigData, new(big.Int).SetUint64(1)).Bytes()
+}
+func (m *MinorBlockChain) GetTransactionByAddress(address account.Address, start []byte, limit uint32) ([]*rpc.TransactionDetail, []byte, error) {
+	if !m.clusterConfig.EnableTransactionHistory {
+		return []*rpc.TransactionDetail{}, []byte{}, nil
+	}
+	endEncodeAddressTxKey := make([]byte, 0)
+	endEncodeAddressTxKey = append(endEncodeAddressTxKey, []byte("addr_")...)
+	tAdd, err := serialize.SerializeToBytes(address)
+	if err != nil {
+		panic(err)
+	}
+	endEncodeAddressTxKey = append(endEncodeAddressTxKey, tAdd...)
+	originalStartBytes := bytesAddOne(endEncodeAddressTxKey)
+
+	next := make([]byte, 0)
+	next = append(next, endEncodeAddressTxKey...)
+
+	if len(start) == 0 || bytes.Compare(start, originalStartBytes) > 0 {
+		start = originalStartBytes
+	}
+
+	qkcDB, ok := m.db.(*qkcdb.RDBDatabase)
+	if !ok {
+		return nil, nil, errors.New("only support qkcdb now")
+	}
+
+	txList := make([]*rpc.TransactionDetail, 0)
+	it := qkcDB.NewIterator()
+	it.SeekForPrev(start)
+	for it.Valid() {
+		if len(it.Key().Data()) != 38 {
+			//TODO ?? delete it
+			panic(errors.New("unexpected err"))
+		}
+
+		if bytes.Compare(it.Key().Data(), endEncodeAddressTxKey) < 0 {
+			break
+		}
+
+		height, crossShard, index, err := decodeAddressTxKey(it.Key().Data())
+		if err != nil {
+			return nil, nil, err
+		}
+		if crossShard {
+			mBlock, ok := m.GetBlockByNumber(height).(*types.MinorBlock)
+			if !ok {
+				log.Error(m.logInfo, "get minor block fialed height", height)
+				return nil, nil, errors.New("get minBlock failed")
+			}
+			xShardReceiveTxList := rawdb.ReadConfirmedCrossShardTxList(m.db, mBlock.Hash())
+			if index >= uint32(len(xShardReceiveTxList.TXList)) {
+				return nil, nil, errors.New("tx's index bigger than txs's len ")
+			}
+			tx := xShardReceiveTxList.TXList[index]
+			txList = append(txList, &rpc.TransactionDetail{
+				TxHash:      tx.TxHash,
+				FromAddress: tx.From,
+				ToAddress:   &tx.To,
+				Value:       serialize.Uint256{Value: tx.Value.Value},
+				BlockHeight: height,
+				Timestamp:   mBlock.IHeader().GetTime(),
+				Success:     true,
+			})
+		} else {
+			mBlock, ok := m.GetBlockByNumber(height).(*types.MinorBlock)
+			if !ok {
+				log.Error(m.logInfo, "get minor block fialed height", height)
+				return nil, nil, errors.New("get minBlock failed")
+			}
+			tx := mBlock.Transactions()[index]
+			receipt, _, _ := rawdb.ReadReceipt(m.db, tx.Hash())
+			evmTx := tx.EvmTx
+			sender, err := types.Sender(types.MakeSigner(m.clusterConfig.Quarkchain.NetworkID), evmTx)
+			if err != nil {
+				return nil, nil, err
+			}
+			to := account.Address{
+				FullShardKey: evmTx.ToFullShardKey(),
+			}
+			if tx.EvmTx.To() != nil {
+				to.Recipient = *tx.EvmTx.To()
+			}
+			succFlag := false
+			if receipt.Status == 1 {
+				succFlag = true
+			}
+			txList = append(txList, &rpc.TransactionDetail{
+				TxHash: tx.Hash(),
+				FromAddress: account.Address{
+					Recipient:    sender,
+					FullShardKey: evmTx.FromFullShardKey(),
+				},
+				ToAddress:   &to,
+				Value:       serialize.Uint256{Value: evmTx.Value()},
+				BlockHeight: height,
+				Timestamp:   mBlock.IHeader().GetTime(),
+				Success:     succFlag,
+			})
+		}
+		next = bytesSubOne(it.Key().Data())
+		limit--
+		if limit == 0 {
+			break
+		}
+		it.Prev()
+	}
+	return txList, next, nil
+}
+func (m *MinorBlockChain) putTxIndexDB(key []byte) error {
+	err := m.db.Put(key, []byte("1")) //TODO????
+	return err
+}
+func (m *MinorBlockChain) deleteTxIndexDB(key []byte) error {
+	return m.db.Delete(key)
+}
+func (m *MinorBlockChain) updateTxHistoryIndex(tx *types.Transaction, height uint64, index int, f func(key []byte) error) error {
+	evmtx := tx.EvmTx
+	sender, err := types.Sender(types.MakeSigner(m.clusterConfig.Quarkchain.NetworkID), evmtx)
+	if err != nil {
+		return err
+	}
+	addr := account.Address{
+		Recipient:    sender,
+		FullShardKey: evmtx.FromFullShardKey(),
+	}
+	key := encodeAddressTxKey(addr, height, index, false)
+	if err := f(key); err != nil {
+		return err
+	}
+	if evmtx.To() != nil && m.branch.IsInBranch(evmtx.ToFullShardKey()) {
+		toAddr := account.Address{
+			Recipient:    *evmtx.To(),
+			FullShardKey: evmtx.ToFullShardKey(),
+		}
+		key := encodeAddressTxKey(toAddr, height, index, false)
+		if err := f(key); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+func (m *MinorBlockChain) putTxHistoryIndex(tx *types.Transaction, height uint64, index int) error {
+	return m.updateTxHistoryIndex(tx, height, index, m.putTxIndexDB)
+}
+func (m *MinorBlockChain) removeTxHistoryIndex(tx *types.Transaction, height uint64, index int) error {
+	return m.updateTxHistoryIndex(tx, height, index, m.deleteTxIndexDB)
+}
+
+func (m *MinorBlockChain) updateTxHistoryIndexFromBlock(block *types.MinorBlock, f func([]byte) error) error {
+	xShardReceiveTxList := rawdb.ReadConfirmedCrossShardTxList(m.db, block.Hash())
+	for index, tx := range xShardReceiveTxList.TXList {
+		if bytes.Equal(tx.TxHash.Bytes(), common.Hash{}.Bytes()) {
+			continue // coinbase reward for root block miner
+		}
+		key := encodeAddressTxKey(tx.To, block.Number(), index, true)
+		if err := f(key); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+func (m *MinorBlockChain) putTxHistoryIndexFromBlock(block *types.MinorBlock) error {
+	return m.updateTxHistoryIndexFromBlock(block, m.putTxIndexDB)
+}
+func (m *MinorBlockChain) removeTxHistoryIndexFromBlock(block *types.MinorBlock) error {
+	return m.updateTxHistoryIndexFromBlock(block, m.deleteTxIndexDB)
 }
