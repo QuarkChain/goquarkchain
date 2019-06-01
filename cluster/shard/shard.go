@@ -94,7 +94,7 @@ func New(ctx *service.ServiceContext, rBlock *types.RootBlock, conn ConnManager,
 	if err != nil {
 		return nil, err
 	}
-	shard.MinorBlockChain.SetAddMinorBlockAndBroadCastFunc(shard.AddMinorBlock)
+	shard.MinorBlockChain.SetBroadcastMinorBlockFunc(shard.AddMinorBlock)
 	shard.synchronizer = synchronizer.NewSynchronizer(shard.MinorBlockChain)
 
 	return shard, nil

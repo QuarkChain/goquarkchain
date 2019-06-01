@@ -1263,7 +1263,7 @@ func (bc *RootBlockChain) SetEnableCountMinorBlocks(flag bool) {
 	bc.countMinorBlocks = flag
 }
 
-func (bc *RootBlockChain) SetBroadRootBlockFunc(f func(block *types.RootBlock) error) {
+func (bc *RootBlockChain) SetBroadcastRootBlockFunc(f func(block *types.RootBlock) error) {
 	bc.addBlockAndBroad = f
 }
 

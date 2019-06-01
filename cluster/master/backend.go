@@ -124,7 +124,7 @@ func New(ctx *service.ServiceContext, cfg *config.ClusterConfig) (*QKCMasterBack
 	}
 
 	mstr.rootBlockChain.SetEnableCountMinorBlocks(cfg.EnableTransactionHistory)
-	mstr.rootBlockChain.SetBroadRootBlockFunc(mstr.AddRootBlock)
+	mstr.rootBlockChain.SetBroadcastRootBlockFunc(mstr.AddRootBlock)
 	for _, cfg := range cfg.SlaveList {
 		target := fmt.Sprintf("%s:%d", cfg.IP, cfg.Port)
 		client := NewSlaveConn(target, cfg.ChainMaskList, cfg.ID)

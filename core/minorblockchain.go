@@ -225,9 +225,10 @@ func NewMinorBlockChain(
 	return bc, nil
 }
 
-func (m *MinorBlockChain) SetAddMinorBlockAndBroadCastFunc(f func(block *types.MinorBlock) error) {
+func (m *MinorBlockChain) SetBroadcastMinorBlockFunc(f func(block *types.MinorBlock) error) {
 	m.addMinorBlockAndBroad = f
 }
+
 func (m *MinorBlockChain) AddBlock(block types.IBlock) error {
 	minorBlock, ok := block.(*types.MinorBlock)
 	if !ok {
@@ -980,11 +981,6 @@ func (m *MinorBlockChain) InsertChain(chain []types.IBlock) (int, error) {
 // InsertChainForDeposits also return cross-shard transaction deposits in addition
 // to content returned from `InsertChain`.
 func (m *MinorBlockChain) InsertChainForDeposits(chain []types.IBlock) (int, [][]*types.CrossShardTransactionDeposit, error) {
-	if len(chain) > 0 {
-		log.Info(m.logInfo, "MinorBlockChain InsertChain len", chain[0].NumberU64())
-		defer log.Info(m.logInfo, "MinorBlockChain InsertChain", "end")
-	}
-
 	// Sanity check that we have something meaningful to import
 	if len(chain) == 0 {
 		return 0, nil, nil

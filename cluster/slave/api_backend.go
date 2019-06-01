@@ -67,8 +67,6 @@ func (s *SlaveBackend) CreateShards(rootBlock *types.RootBlock) (err error) {
 }
 
 func (s *SlaveBackend) AddBlockListForSync(mHashList []common.Hash, peerId string, branch uint32) (*rpc.ShardStatus, error) {
-	log.Info("AddBlockListForSync", "len", len(mHashList))
-	defer log.Info("AddBlockListForSync", "end", "end")
 	shard, ok := s.shards[branch]
 	if !ok {
 		return nil, ErrMsg("AddBlockListForSync")
