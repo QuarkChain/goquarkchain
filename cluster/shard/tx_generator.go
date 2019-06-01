@@ -52,7 +52,7 @@ func (t *TxGenerator) Generate(genTxs *rpc.GenTxRequest,
 	log.Info("Start Generating transactions", "tx count", numTx, "cross-shard tx count", xShardPercent)
 
 	start := time.Now()
-	for total <= numTx {
+	for total < numTx {
 		for _, acc := range t.accounts {
 			nonce, err := getTxCount(acc.Identity.GetRecipient(), nil)
 			if err != nil {
@@ -62,11 +62,11 @@ func (t *TxGenerator) Generate(genTxs *rpc.GenTxRequest,
 			if err != nil {
 				continue
 			}
-			txList = append(txList, &types.Transaction{TxType: types.EvmTx, EvmTx: tx})
-			total++
-			if total > numTx {
+			if total >= numTx {
 				break
 			}
+			total++
+			txList = append(txList, &types.Transaction{TxType: types.EvmTx, EvmTx: tx})
 			if total%batchScale == 0 {
 				if err := addTxList(txList); err != nil {
 					return err
