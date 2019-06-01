@@ -116,6 +116,7 @@ type RootBlockChain struct {
 	badBlocks        *lru.Cache                        // Bad block cache
 	shouldPreserve   func(block *types.RootBlock) bool // Function used to determine whether should preserve the given block.
 	countMinorBlocks bool
+	addBlockAndBroad func(block *types.RootBlock) error
 }
 
 // NewBlockChain returns a fully initialized block chain using information
@@ -167,7 +168,9 @@ func NewRootBlockChain(db ethdb.Database, cacheConfig *CacheConfig, chainConfig 
 	go bc.update()
 	return bc, nil
 }
-
+func (bc *RootBlockChain) AddBlockAndBroadcastFunc(block *types.MinorBlock) error {
+	return nil
+}
 func (bc *RootBlockChain) getProcInterrupt() bool {
 	return atomic.LoadInt32(&bc.procInterrupt) == 1
 }
@@ -1261,6 +1264,19 @@ func (bc *RootBlockChain) GetCommittingBlockHash() common.Hash {
 func (bc *RootBlockChain) SetEnableCountMinorBlocks(flag bool) {
 	bc.countMinorBlocks = flag
 }
+
+func (bc *RootBlockChain) SetBroadRootBlockFunc(f func(block *types.RootBlock) error) {
+	bc.addBlockAndBroad = f
+}
+
+func (bc *RootBlockChain) AddBlock(block types.IBlock) error {
+	rootBlock, ok := block.(*types.RootBlock)
+	if !ok {
+		return errors.New("block is not rootBlock")
+	}
+	return bc.addBlockAndBroad(rootBlock)
+}
+
 func (bc *RootBlockChain) PutRootBlockIndex(block *types.RootBlock) error {
 	rawdb.WriteCanonicalHash(bc.db, rawdb.ChainTypeRoot, block.Hash(), block.NumberU64())
 

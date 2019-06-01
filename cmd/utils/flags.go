@@ -334,7 +334,7 @@ func SetP2PConfig(ctx *cli.Context, cfg *p2p.Config, clstrCfg *config.ClusterCon
 	setBootstrapNodes(ctx, cfg, clstrCfg)
 
 	cfg.MaxPeers = int(clstrCfg.P2P.MaxPeers)
-	log.Info("Maximum peer count", "QKC", cfg.MaxPeers, "total", cfg.MaxPeers)
+	log.Info("Maximum peer count", "total", cfg.MaxPeers)
 
 	if ctx.GlobalIsSet(MaxPendingPeersFlag.Name) {
 		cfg.MaxPendingPeers = ctx.GlobalInt(MaxPendingPeersFlag.Name)

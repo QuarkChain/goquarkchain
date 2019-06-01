@@ -3,6 +3,7 @@ package core
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"math"
 	"math/big"
 	"sort"
@@ -878,6 +879,7 @@ func (m *MinorBlockChain) AddRootBlock(rBlock *types.RootBlock) (bool, error) {
 
 	shardHeaders := make([]*types.MinorBlockHeader, 0)
 	for _, mHeader := range rBlock.MinorBlockHeaders() {
+		fmt.Println("rootBlock", rBlock.Number(), rBlock.Hash().String(), mHeader.Number)
 		h := mHeader.Hash()
 		if mHeader.Branch == m.branch {
 			if !m.HasBlock(h) {
@@ -900,6 +902,7 @@ func (m *MinorBlockChain) AddRootBlock(rBlock *types.RootBlock) (bool, error) {
 		}
 
 		if data := rawdb.ReadCrossShardTxList(m.db, h); data == nil {
+			fmt.Println("???????????crossXshard not found>>>", h.String(), mHeader.Number)
 			errXshardListNotHave := errors.New("not have")
 			log.Error(m.logInfo, "addrootBlock err", errXshardListNotHave)
 			return false, errXshardListNotHave

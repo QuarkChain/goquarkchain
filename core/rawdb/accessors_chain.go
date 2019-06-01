@@ -3,6 +3,7 @@ package rawdb
 
 import (
 	"encoding/binary"
+	"fmt"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/serialize"
 	"github.com/ethereum/go-ethereum/common"
@@ -300,7 +301,7 @@ func WriteMinorBlock(db DatabaseWriter, block *types.MinorBlock) {
 	if err != nil {
 		log.Crit("Failed to serialize body", "err", err)
 	}
-	log.Info(DBLOG, "Write MinorBlock branch", block.Header().Branch.Value, "height", block.NumberU64(), "hash", block.Hash(), "len(tx),", len(block.Transactions()))
+	log.Info(DBLOG, "Write MinorBlock branch", block.Header().Branch.Value, "height", block.NumberU64(), "hash", block.Hash().String(), "len(tx),", len(block.Transactions()))
 	if err := db.Put(blockKey(block.Hash()), data); err != nil {
 		log.Crit("Failed to store minor block body", "err", err)
 	}
@@ -577,6 +578,7 @@ func ReadConfirmedCrossShardTxList(db DatabaseReader, hash common.Hash) *types.C
 }
 
 func WriteCrossShardTxList(db DatabaseWriter, hash common.Hash, list types.CrossShardTransactionDepositList) {
+	log.Info("WriteCrossShardTxList", "hash", hash.String())
 	data, err := serialize.SerializeToBytes(list)
 	if err != nil {
 		log.Crit("can not serialize CrossShardTransactionDepositList")
@@ -587,8 +589,10 @@ func WriteCrossShardTxList(db DatabaseWriter, hash common.Hash, list types.Cross
 	}
 }
 func ReadCrossShardTxList(db DatabaseReader, hash common.Hash) *types.CrossShardTransactionDepositList {
+	fmt.Println("ReadCrossShardTxList", hash.String())
 	data, _ := db.Get(makeXShardTxList(hash))
 	if len(data) == 0 {
+		fmt.Println("HHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHH")
 		return nil
 	}
 	list := new(types.CrossShardTransactionDepositList)

@@ -14,6 +14,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/p2p"
 	"github.com/QuarkChain/goquarkchain/serialize"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/log"
 )
 
 type SlaveConnection struct {
@@ -493,6 +494,8 @@ func (s *SlaveConnection) GetAccountData(address *account.Address, height *uint6
 }
 
 func (s *SlaveConnection) AddRootBlock(rootBlock *types.RootBlock, expectSwitch bool) error {
+	log.Info("broad Add RootBlock ", "height", rootBlock.NumberU64())
+	defer log.Info("broad add root Block end ")
 	var (
 		req = rpc.AddRootBlockRequest{
 			RootBlock:    rootBlock,

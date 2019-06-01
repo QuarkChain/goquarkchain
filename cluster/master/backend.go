@@ -117,19 +117,20 @@ func New(ctx *service.ServiceContext, cfg *config.ClusterConfig) (*QKCMasterBack
 		log.Info("Fill in block into chain db.")
 		rawdb.WriteChainConfig(mstr.chainDb, genesisHash, cfg.Quarkchain)
 	}
-	log.Info("Initialised chain configuration", "config", chainConfig)
+	log.Debug("Initialised chain configuration", "config", chainConfig)
 
 	if mstr.rootBlockChain, err = core.NewRootBlockChain(mstr.chainDb, nil, cfg.Quarkchain, mstr.engine, nil); err != nil {
 		return nil, err
 	}
 
 	mstr.rootBlockChain.SetEnableCountMinorBlocks(cfg.EnableTransactionHistory)
+	mstr.rootBlockChain.SetBroadRootBlockFunc(mstr.AddRootBlock)
 	for _, cfg := range cfg.SlaveList {
 		target := fmt.Sprintf("%s:%d", cfg.IP, cfg.Port)
 		client := NewSlaveConn(target, cfg.ChainMaskList, cfg.ID)
 		mstr.clientPool[target] = client
 	}
-	log.Info("qkc api backend", "slave client pool", len(mstr.clientPool))
+	log.Info(mstr.logInfo, "slave client pool", len(mstr.clientPool))
 
 	mstr.synchronizer = Synchronizer.NewSynchronizer(mstr.rootBlockChain)
 	if mstr.protocolManager, err = NewProtocolManager(*cfg, mstr.rootBlockChain, mstr.shardStatsChan, mstr.synchronizer, mstr.getShardConnForP2P); err != nil {
@@ -214,7 +215,6 @@ func (s *QKCMasterBackend) Start(srvr *p2p.Server) error {
 	s.updateShardStatsLoop()
 	s.Heartbeat()
 	// s.disPlayPeers()
-	go s.broadcastRpcLoop()
 	s.miner.Start()
 	return nil
 }
@@ -322,29 +322,6 @@ func (s *QKCMasterBackend) updateShardStatsLoop() {
 			select {
 			case stats := <-s.shardStatsChan:
 				s.UpdateShardStatus(stats)
-			}
-		}
-	}()
-}
-
-func (s *QKCMasterBackend) broadcastRpcLoop() {
-	go func() {
-		for true {
-			select {
-			// TODO verify whether rootChainChan & rootChainSideChan would be blocked,
-			// as the chan len is 256, they should not be blocked
-			case event := <-s.rootChainChan:
-				s.broadcastRootBlockToSlaves(event.Block)
-				// Err() channel will be closed when unsubscribing.
-			case err := <-s.rootChainEventSub.Err():
-				log.Error("rootChainEventSub error in broadcastRpcLoop ", "error", err)
-				return
-			case event := <-s.rootChainSideChan:
-				s.broadcastRootBlockToSlaves(event.Block)
-				// Err() channel will be closed when unsubscribing.
-			case err := <-s.rootChainSideEventSub.Err():
-				log.Error("rootChainSideEventSub error in broadcastRpcLoop", "error", err)
-				return
 			}
 		}
 	}()
@@ -549,14 +526,7 @@ func (s *QKCMasterBackend) AddRootBlock(rootBlock *types.RootBlock) error {
 	if err != nil {
 		return err
 	}
-	var g errgroup.Group
-	for index := range s.clientPool {
-		i := index
-		g.Go(func() error {
-			return s.clientPool[i].AddRootBlock(rootBlock, false)
-		})
-	}
-	if err := g.Wait(); err != nil {
+	if err := s.broadcastRootBlockToSlaves(rootBlock); err != nil {
 		return err
 	}
 	s.rootBlockChain.ClearCommittingHash()
