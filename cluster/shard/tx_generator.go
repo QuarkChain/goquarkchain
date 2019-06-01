@@ -54,6 +54,10 @@ func (t *TxGenerator) Generate(genTxs *rpc.GenTxRequest,
 	start := time.Now()
 	for total < numTx {
 		for _, acc := range t.accounts {
+			if total >= numTx {
+				break
+			}
+			total++
 			nonce, err := getTxCount(acc.Identity.GetRecipient(), nil)
 			if err != nil {
 				continue
@@ -62,10 +66,6 @@ func (t *TxGenerator) Generate(genTxs *rpc.GenTxRequest,
 			if err != nil {
 				continue
 			}
-			if total >= numTx {
-				break
-			}
-			total++
 			txList = append(txList, &types.Transaction{TxType: types.EvmTx, EvmTx: tx})
 			if total%batchScale == 0 {
 				if err := addTxList(txList); err != nil {

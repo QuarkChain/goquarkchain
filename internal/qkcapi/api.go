@@ -493,7 +493,7 @@ func (p *PrivateBlockChainAPI) CreateTransactions(NumTxPreShard hexutil.Uint) er
 		// after that are default values, create tx func will fill.
 		XShardPrecent: 0,
 		To:            common.Address{},
-		Gas:           (*hexutil.Big)(big.NewInt(900000)),
+		Gas:           (*hexutil.Big)(big.NewInt(30000)),
 		GasPrice:      (*hexutil.Big)(big.NewInt(21000)),
 		Value:         (*hexutil.Big)(big.NewInt(0)),
 	}
