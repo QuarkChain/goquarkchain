@@ -192,15 +192,15 @@ func (v *MinorBlockValidator) ValidateBlock(mBlock types.IBlock) error {
 
 // ValidateHeader calls underlying engine's header verification method plus some sanity check.
 func (v *MinorBlockValidator) ValidateHeader(header types.IHeader) error {
-	//h, ok := header.(*types.MinorBlockHeader)
-	//if !ok {
-	//	log.Crit("Failed to cast minor block header from validator, panic")
-	//}
-	//rh := v.bc.getRootBlockHeaderByHash(h.GetPrevRootBlockHash())
-	//if rh == nil {
-	//	log.Error(v.logInfo, "err", ErrRootBlockIsNil, "height", h.Number, "parentRootBlockHash", h.GetPrevRootBlockHash().String())
-	//	return ErrRootBlockIsNil
-	//}
+	h, ok := header.(*types.MinorBlockHeader)
+	if !ok {
+		log.Crit("Failed to cast minor block header from validator, panic")
+	}
+	rh := v.bc.getRootBlockHeaderByHash(h.GetPrevRootBlockHash())
+	if rh == nil {
+		log.Error(v.logInfo, "err", ErrRootBlockIsNil, "height", h.Number, "parentRootBlockHash", h.GetPrevRootBlockHash().String())
+		return ErrRootBlockIsNil
+	}
 	return v.engine.VerifyHeader(v.bc, header, true)
 }
 

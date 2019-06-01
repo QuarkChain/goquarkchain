@@ -2,8 +2,6 @@ package sync
 
 import (
 	"errors"
-	"fmt"
-	"reflect"
 	"strings"
 	"time"
 
@@ -31,8 +29,6 @@ type task struct {
 
 // Run will execute the synchronization task.
 func (t *task) Run(bc blockchain) error {
-	fmt.Println("kaishi tongbu", reflect.TypeOf(t.header), t.header.NumberU64())
-	defer fmt.Println("jiesu tongbu", reflect.TypeOf(t.header), t.header.NumberU64())
 	if bc.HasBlock(t.header.Hash()) {
 		return nil
 	}
@@ -101,11 +97,9 @@ func (t *task) Run(bc blockchain) error {
 			// Simple profiling.
 			ts := time.Now()
 			if t.syncBlock != nil { // Used by root chain blocks.
-				log.Info("syncMinorBlock start", "a", "b")
 				if err := t.syncBlock(b, bc); err != nil {
 					return err
 				}
-				log.Info("syncMinorBlock end", "a", "b")
 			}
 			// TODO: may optimize by batch and insert once?
 

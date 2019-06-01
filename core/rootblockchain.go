@@ -168,9 +168,7 @@ func NewRootBlockChain(db ethdb.Database, cacheConfig *CacheConfig, chainConfig 
 	go bc.update()
 	return bc, nil
 }
-func (bc *RootBlockChain) AddBlockAndBroadcastFunc(block *types.MinorBlock) error {
-	return nil
-}
+
 func (bc *RootBlockChain) getProcInterrupt() bool {
 	return atomic.LoadInt32(&bc.procInterrupt) == 1
 }

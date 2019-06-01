@@ -66,7 +66,7 @@ func (s *ShardBackend) AddMinorBlock(block *types.MinorBlock) error {
 	var (
 		oldTip = s.MinorBlockChain.CurrentHeader()
 	)
-	fmt.Println("shard_api_backebd.go 69")
+
 	_, xshardLst, err := s.MinorBlockChain.InsertChainForDeposits([]types.IBlock{block})
 	if err != nil || len(xshardLst) != 1 {
 		log.Error("Failed to add minor block", "err", err)
@@ -149,7 +149,6 @@ func (s *ShardBackend) AddBlockListForSync(blockLst []*types.MinorBlock) error {
 		if block.Header().Branch.GetFullShardID() != s.fullShardId || s.MinorBlockChain.HasBlock(block.Hash()) {
 			continue
 		}
-		fmt.Println("InsertChainForDeposits 152")
 		_, xshardLst, err := s.MinorBlockChain.InsertChainForDeposits([]types.IBlock{block})
 		if err != nil || len(xshardLst) != 1 {
 			log.Error("Failed to add minor block", "err", err)
@@ -196,7 +195,6 @@ func (s *ShardBackend) HandleNewTip(rBHeader *types.RootBlockHeader, mBHeader *t
 		return nil
 	}
 	peer := &peer{cm: s.conn, peerID: peerID}
-	fmt.Println("AddTask-minorBlock", mBHeader.Number)
 	err := s.synchronizer.AddTask(synchronizer.NewMinorChainTask(peer, mBHeader))
 	if err != nil {
 		log.Error("Failed to add minor chain task,", "hash", mBHeader.Hash(), "height", mBHeader.Number)
