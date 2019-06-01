@@ -191,7 +191,7 @@ func (s *ShardBackend) HandleNewTip(rBHeader *types.RootBlockHeader, mBHeader *t
 	}
 
 	if s.MinorBlockChain.GetRootBlockByHash(mBHeader.PrevRootBlockHash) == nil {
-		log.Warn(s.logInfo, "preRootBlockHash do not have height", mBHeader.Number, "preRootHash", mBHeader.PrevRootBlockHash.String())
+		log.Warn(s.logInfo, "preRootBlockHash do not have height ,no need to add task", mBHeader.Number, "preRootHash", mBHeader.PrevRootBlockHash.String())
 		return nil
 	}
 	peer := &peer{cm: s.conn, peerID: peerID}
