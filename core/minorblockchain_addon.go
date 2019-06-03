@@ -446,7 +446,7 @@ func (m *MinorBlockChain) AddTx(tx *types.Transaction) error {
 	if txInDB != nil {
 		return errors.New("tx already have")
 	}
-	evmState, err := m.State()
+	evmState, err := m.StateAt(m.CurrentBlock().Root())
 	if err != nil {
 		return err
 	}
@@ -854,6 +854,7 @@ func (m *MinorBlockChain) CreateBlockToMine(createTime *uint64, address *account
 	//if gasLimit != nil {
 	//	evmState.SetGasLimit(gasLimit)
 	//}
+	evmState = evmState.Copy()
 
 	prevHeader := m.CurrentBlock()
 	ancestorRootHeader := m.GetRootBlockByHash(prevHeader.Header().PrevRootBlockHash).Header()

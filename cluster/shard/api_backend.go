@@ -256,10 +256,9 @@ func (s *ShardBackend) addTxList(txs []*types.Transaction) error {
 	fmt.Println("addTxList", len(txs))
 	var g errgroup.Group
 	for index := range txs {
-		idx := index
-		g.Go(func() error {
-			return s.MinorBlockChain.AddTx(txs[idx])
-		})
+		if err := s.MinorBlockChain.AddTx(txs[index]); err != nil {
+			return err
+		}
 	}
 	return g.Wait()
 }
