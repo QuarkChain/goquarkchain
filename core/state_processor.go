@@ -18,6 +18,7 @@ package core
 
 import (
 	"errors"
+	"fmt"
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/core/state"
@@ -57,6 +58,7 @@ func NewStateProcessor(config *params.ChainConfig, bc *MinorBlockChain, engine c
 func (p *StateProcessor) Process(block *types.MinorBlock, statedb *state.StateDB, cfg vm.Config, evmTxIncluded []*types.Transaction, xShardReceiveTxList []*types.CrossShardTransactionDeposit) (types.Receipts, []*types.Log, uint64, error) {
 	statedb.SetQuarkChainConfig(p.bc.clusterConfig.Quarkchain)
 	statedb.SetBlockCoinbase(block.IHeader().GetCoinbase().Recipient)
+	statedb.SetGasLimit(block.GasLimit())
 	if evmTxIncluded == nil {
 		evmTxIncluded = make([]*types.Transaction, 0)
 	}
@@ -138,7 +140,9 @@ func ValidateTransaction(state vm.StateDB, tx *types.Transaction, fromAddress *a
 	}
 
 	blockLimit := new(big.Int).Add(state.GetGasUsed(), new(big.Int).SetUint64(tx.EvmTx.Gas()))
+	fmt.Println("hahahahah", tx.Hash().String(), state.GetGasUsed(), tx.EvmTx.Gas(), state.GetGasLimit())
 	if blockLimit.Cmp(state.GetGasLimit()) > 0 {
+		fmt.Println("jiesu")
 		return errors.New("gasLimit is too low")
 	}
 	return nil

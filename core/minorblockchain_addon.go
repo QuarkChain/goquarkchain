@@ -3,6 +3,7 @@ package core
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"math"
 	"math/big"
 	"sort"
@@ -150,6 +151,7 @@ func (m *MinorBlockChain) validateTx(tx *types.Transaction, evmState *state.Stat
 		return nil, ErrNetWorkID
 	}
 	if !m.branch.IsInBranch(evmTx.FromFullShardId()) {
+		fmt.Println("??????????", m.branch, evmTx.FromFullShardId())
 		return nil, ErrBranch
 	}
 
@@ -420,11 +422,22 @@ func minBigInt(a, b *big.Int) *big.Int {
 
 // AddTx add tx to txPool
 func (m *MinorBlockChain) AddTx(tx *types.Transaction) error {
+	log.Info(m.logInfo, "add tx", tx.EvmTx.FromFullShardKey(), "fullShardID", tx.EvmTx.FromFullShardId())
 	m.mu.RLock()
 	if m.txPool.all.Count() > int(m.clusterConfig.Quarkchain.TransactionQueueSizeLimitPerShard) {
 		return errors.New("txpool queue full")
 	}
 	m.mu.RUnlock()
+
+	toShardSize := m.clusterConfig.Quarkchain.GetShardSizeByChainId(tx.EvmTx.ToChainID())
+	if err := tx.EvmTx.SetToShardSize(toShardSize); err != nil {
+		return err
+	}
+	fromShardSize := m.clusterConfig.Quarkchain.GetShardSizeByChainId(tx.EvmTx.FromChainID())
+	if err := tx.EvmTx.SetFromShardSize(fromShardSize); err != nil {
+		return err
+	}
+
 	txHash := tx.Hash()
 	txInDB, _, _ := rawdb.ReadTransaction(m.db, txHash)
 	if txInDB != nil {
@@ -798,6 +811,7 @@ func (m *MinorBlockChain) checkTxBeforeApply(stateT *state.StateDB, tx *types.Tr
 
 // CreateBlockToMine create block to mine
 func (m *MinorBlockChain) CreateBlockToMine(createTime *uint64, address *account.Address, gasLimit *big.Int) (*types.MinorBlock, error) {
+	fmt.Println("CreateBlockToMine", gasLimit)
 	m.mu.Lock() // to lock txpool and getEvmStateForNewBlock
 	defer m.mu.Unlock()
 	realCreateTime := uint64(time.Now().Unix())
@@ -818,7 +832,16 @@ func (m *MinorBlockChain) CreateBlockToMine(createTime *uint64, address *account
 	}
 	//newGasLimit, err := m.computeGasLimit(prevBlock.Header().GetGasLimit().Uint64(), prevBlock.GetMetaData().GasUsed.Value.Uint64(), m.shardConfig.Genesis.GasLimit)
 
+	if m.clusterConfig.Quarkchain.GetFullShardIdByFullShardKey(address.FullShardKey) != m.branch.Value {
+		t := address.AddressInBranch(m.branch)
+		address = &t
+	}
+	fu := m.clusterConfig.Quarkchain.GetFullShardIdByFullShardKey(address.FullShardKey)
+	fmt.Println("CCCCCCCCCCCCCC", m.branch, fu)
+
+	fmt.Println("preVBlockTo", gasLimit)
 	block := prevBlock.CreateBlockToAppend(&realCreateTime, difficulty, address, nil, gasLimit, nil, nil)
+	fmt.Println("createBlock end", block.GasLimit())
 	evmState, err := m.getEvmStateForNewBlock(block, true)
 	//if gasLimit != nil {
 	//	evmState.SetGasLimit(gasLimit)
@@ -835,9 +858,15 @@ func (m *MinorBlockChain) CreateBlockToMine(createTime *uint64, address *account
 	if err != nil {
 		return nil, err
 	}
+	fmt.Println("add trans ", block.GasLimit(), time.Now().Unix())
 	newBlock, recipiets, err := m.addTransactionToBlock(rootHeader.Hash(), block, evmState)
 	if err != nil {
 		return nil, err
+	}
+	fmt.Println("add succ", block.GasLimit(), time.Now().Unix())
+	lenTx := len(newBlock.Transactions())
+	for index := 0; index < lenTx; index++ {
+		fmt.Println("jiao yi index", index, newBlock.Transactions()[index].EvmTx.Gas())
 	}
 
 	pureCoinbaseAmount := m.getCoinbaseAmount()
@@ -849,6 +878,7 @@ func (m *MinorBlockChain) CreateBlockToMine(createTime *uint64, address *account
 
 	coinbaseAmount := new(big.Int).Add(pureCoinbaseAmount, evmState.GetBlockFee())
 	newBlock.Finalize(recipiets, evmState.IntermediateRoot(true), evmState.GetGasUsed(), evmState.GetXShardReceiveGasUsed(), coinbaseAmount)
+	fmt.Println("JJJJJJJJJJJJJJJJJ", newBlock.GasLimit(), len(newBlock.Transactions()))
 	return newBlock, nil
 }
 

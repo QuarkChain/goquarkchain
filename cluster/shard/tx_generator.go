@@ -93,7 +93,10 @@ func (t *TxGenerator) createTransaction(acc *account.Account, nonce uint64,
 		toFullShardKey   = fromFullShardKey
 		recipient        = *sampleTx.EvmTx.To()
 	)
-
+	if fromFullShardKey == 0 {
+		fmt.Println("chongxinfuzhi")
+		fromFullShardKey = t.fullShardId
+	}
 	if recipient == (common.Address{}) {
 		idx := t.random(len(t.accounts))
 		toAddr := t.accounts[idx]
