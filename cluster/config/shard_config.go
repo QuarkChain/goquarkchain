@@ -31,7 +31,7 @@ func NewShardGenesis() *ShardGenesis {
 		ExtraData:          common.FromHex("497420776173207468652062657374206f662074696d65732c206974207761732074686520776f727374206f662074696d65732c202e2e2e202d20436861726c6573204469636b656e73"),
 		Timestamp:          NewRootGenesis().Timestamp,
 		Difficulty:         10000,
-		GasLimit:           30000 * 400,
+		GasLimit:           30000 * 2000,
 		Nonce:              0,
 		Alloc:              make(map[account.Address]*big.Int),
 	}

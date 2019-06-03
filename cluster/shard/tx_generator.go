@@ -66,12 +66,15 @@ func (t *TxGenerator) Generate(genTxs *rpc.GenTxRequest,
 			if err != nil {
 				continue
 			}
+			if tx == nil {
+				panic("tx is sb")
+			}
 			txList = append(txList, &types.Transaction{TxType: types.EvmTx, EvmTx: tx})
 			if total%batchScale == 0 {
 				if err := addTxList(txList); err != nil {
 					return err
 				}
-				txList = make([]*types.Transaction, batchScale)
+				txList = make([]*types.Transaction, 0, batchScale)
 				time.Sleep(time.Second * 2)
 			}
 		}
@@ -94,7 +97,6 @@ func (t *TxGenerator) createTransaction(acc *account.Account, nonce uint64,
 		recipient        = *sampleTx.EvmTx.To()
 	)
 	if fromFullShardKey == 0 {
-		fmt.Println("chongxinfuzhi")
 		fromFullShardKey = t.fullShardId
 	}
 	if recipient == (common.Address{}) {

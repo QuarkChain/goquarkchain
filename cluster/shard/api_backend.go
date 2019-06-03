@@ -253,6 +253,7 @@ func (s *ShardBackend) NewMinorBlock(block *types.MinorBlock) (err error) {
 }
 
 func (s *ShardBackend) addTxList(txs []*types.Transaction) error {
+	fmt.Println("addTxList", len(txs))
 	var g errgroup.Group
 	for index := range txs {
 		idx := index

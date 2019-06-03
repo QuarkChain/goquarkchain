@@ -422,12 +422,15 @@ func minBigInt(a, b *big.Int) *big.Int {
 
 // AddTx add tx to txPool
 func (m *MinorBlockChain) AddTx(tx *types.Transaction) error {
-	log.Info(m.logInfo, "add tx", tx.EvmTx.FromFullShardKey(), "fullShardID", tx.EvmTx.FromFullShardId())
-	m.mu.RLock()
+	if tx == nil {
+		panic("SB tx")
+	}
+	m.txPool.mu.RLock()
 	if m.txPool.all.Count() > int(m.clusterConfig.Quarkchain.TransactionQueueSizeLimitPerShard) {
+		m.txPool.mu.RUnlock()
 		return errors.New("txpool queue full")
 	}
-	m.mu.RUnlock()
+	m.txPool.mu.RUnlock()
 
 	toShardSize := m.clusterConfig.Quarkchain.GetShardSizeByChainId(tx.EvmTx.ToChainID())
 	if err := tx.EvmTx.SetToShardSize(toShardSize); err != nil {
@@ -713,20 +716,24 @@ func (m *MinorBlockChain) getXShardTxLimits(rBlock *types.RootBlock) map[uint32]
 
 func (m *MinorBlockChain) addTransactionToBlock(rootBlockHash common.Hash, block *types.MinorBlock, evmState *state.StateDB) (*types.MinorBlock, types.Receipts, error) {
 	// have locked by upper call
+	fmt.Println("11111111")
 	pending, err := m.txPool.Pending() // txpool already locked
+	fmt.Println("2222222")
 	if err != nil {
 		return nil, nil, err
 	}
-	txs, err := types.NewTransactionsByPriceAndNonce(types.NewEIP155Signer(uint32(m.Config().NetworkID)), pending)
 
+	txs, err := types.NewTransactionsByPriceAndNonce(types.NewEIP155Signer(uint32(m.Config().NetworkID)), pending)
+	fmt.Println("333333")
 	xShardTxCounters := make(map[uint32]uint32, 0)
 	xShardTxLimits := m.getXShardTxLimits(m.GetRootBlockByHash(rootBlockHash))
 	gp := new(GasPool).AddGas(block.Header().GetGasLimit().Uint64())
 	usedGas := new(uint64)
-
+	fmt.Println("444444444", len(pending))
 	receipts := make([]*types.Receipt, 0)
 	txsInBlock := make([]*types.Transaction, 0)
 
+	fmt.Println("for start")
 	stateT := evmState
 	for stateT.GetGasUsed().Cmp(stateT.GetGasLimit()) < 0 {
 		tx := txs.Peek()
@@ -769,6 +776,7 @@ func (m *MinorBlockChain) addTransactionToBlock(rootBlockHash common.Hash, block
 		}
 
 	}
+	fmt.Println("for end")
 	bHeader := block.Header()
 	bHeader.PrevRootBlockHash = rootBlockHash
 	return types.NewMinorBlock(bHeader, block.Meta(), txsInBlock, receipts, nil), receipts, nil
@@ -864,10 +872,6 @@ func (m *MinorBlockChain) CreateBlockToMine(createTime *uint64, address *account
 		return nil, err
 	}
 	fmt.Println("add succ", block.GasLimit(), time.Now().Unix())
-	lenTx := len(newBlock.Transactions())
-	for index := 0; index < lenTx; index++ {
-		fmt.Println("jiao yi index", index, newBlock.Transactions()[index].EvmTx.Gas())
-	}
 
 	pureCoinbaseAmount := m.getCoinbaseAmount()
 	evmState.AddBalance(evmState.GetBlockCoinbase(), pureCoinbaseAmount)
@@ -1086,6 +1090,7 @@ func (m *MinorBlockChain) GetTransactionByHash(hash common.Hash) (*types.MinorBl
 		m.txPool.mu.RLock() // to lock txpool.all
 		tx, ok := m.txPool.all.all[hash]
 		if !ok {
+			m.txPool.mu.RUnlock()
 			return nil, 0
 		}
 		txs = append(txs, tx)
@@ -1136,9 +1141,9 @@ func (m *MinorBlockChain) GetShardStatus() (*rpc.ShardStatus, error) {
 	if staleBlockCount < 0 {
 		return nil, errors.New("staleBlockCount should >=0")
 	}
-	m.mu.RLock()
+	m.txPool.mu.RLock()
 	pendingTxCount := len(m.txPool.pending)
-	m.mu.RUnlock()
+	m.txPool.mu.RUnlock()
 	return &rpc.ShardStatus{
 		Branch:             m.branch,
 		Height:             cblock.IHeader().NumberU64(),

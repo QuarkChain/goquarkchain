@@ -18,7 +18,6 @@ package core
 
 import (
 	"errors"
-	"fmt"
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/core/state"
@@ -140,9 +139,7 @@ func ValidateTransaction(state vm.StateDB, tx *types.Transaction, fromAddress *a
 	}
 
 	blockLimit := new(big.Int).Add(state.GetGasUsed(), new(big.Int).SetUint64(tx.EvmTx.Gas()))
-	fmt.Println("hahahahah", tx.Hash().String(), state.GetGasUsed(), tx.EvmTx.Gas(), state.GetGasLimit())
 	if blockLimit.Cmp(state.GetGasLimit()) > 0 {
-		fmt.Println("jiesu")
 		return errors.New("gasLimit is too low")
 	}
 	return nil
