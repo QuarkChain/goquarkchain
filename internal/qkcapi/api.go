@@ -487,8 +487,16 @@ func (p *PrivateBlockChainAPI) GetBlockCount() (map[uint32]map[account.Recipient
 }
 
 //TODO txGenerate implement
-func (p *PrivateBlockChainAPI) CreateTransactions(args *CreateTxArgs) error {
-	args.setDefaults()
+func (p *PrivateBlockChainAPI) CreateTransactions(NumTxPreShard hexutil.Uint) error {
+	args := CreateTxArgs{
+		NumTxPreShard: NumTxPreShard,
+		// after that are default values, create tx func will fill.
+		XShardPrecent: 0,
+		To:            common.Address{},
+		Gas:           (*hexutil.Big)(big.NewInt(30000)),
+		GasPrice:      (*hexutil.Big)(big.NewInt(21000)),
+		Value:         (*hexutil.Big)(big.NewInt(0)),
+	}
 	tx := args.toTx(p.b.GetClusterConfig().Quarkchain)
 	return p.b.CreateTransactions(uint32(args.NumTxPreShard), uint32(args.XShardPrecent), tx)
 }
