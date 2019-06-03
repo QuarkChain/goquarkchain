@@ -420,12 +420,9 @@ func minBigInt(a, b *big.Int) *big.Int {
 
 // AddTx add tx to txPool
 func (m *MinorBlockChain) AddTx(tx *types.Transaction) error {
-	m.txPool.mu.RLock()
 	if m.txPool.all.Count() > int(m.clusterConfig.Quarkchain.TransactionQueueSizeLimitPerShard) {
-		m.txPool.mu.RUnlock()
 		return errors.New("txpool queue full")
 	}
-	m.txPool.mu.RUnlock()
 
 	toShardSize := m.clusterConfig.Quarkchain.GetShardSizeByChainId(tx.EvmTx.ToChainID())
 	if err := tx.EvmTx.SetToShardSize(toShardSize); err != nil {
@@ -1074,14 +1071,11 @@ func (m *MinorBlockChain) GetTransactionByHash(hash common.Hash) (*types.MinorBl
 	_, mHash, txIndex := rawdb.ReadTransaction(m.db, hash)
 	if mHash == qkcCommon.EmptyHash { //TODO need? for test???
 		txs := make([]*types.Transaction, 0)
-		m.txPool.mu.RLock() // to lock txpool.all
-		tx, ok := m.txPool.all.all[hash]
-		if !ok {
-			m.txPool.mu.RUnlock()
+		tx := m.txPool.all.Get(hash)
+		if tx == nil {
 			return nil, 0
 		}
 		txs = append(txs, tx)
-		m.txPool.mu.RUnlock()
 		temp := types.NewMinorBlock(&types.MinorBlockHeader{}, &types.MinorBlockMeta{}, txs, nil, nil)
 		return temp, 0
 	}
@@ -1128,9 +1122,11 @@ func (m *MinorBlockChain) GetShardStatus() (*rpc.ShardStatus, error) {
 	if staleBlockCount < 0 {
 		return nil, errors.New("staleBlockCount should >=0")
 	}
-	m.txPool.mu.RLock()
-	pendingTxCount := len(m.txPool.pending)
-	m.txPool.mu.RUnlock()
+	pending, err := m.txPool.Pending()
+	if err != nil {
+		return nil, err
+	}
+
 	return &rpc.ShardStatus{
 		Branch:             m.branch,
 		Height:             cblock.IHeader().NumberU64(),
@@ -1138,7 +1134,7 @@ func (m *MinorBlockChain) GetShardStatus() (*rpc.ShardStatus, error) {
 		CoinbaseAddress:    cblock.IHeader().GetCoinbase(),
 		Timestamp:          cblock.IHeader().GetTime(),
 		TxCount60s:         txCount,
-		PendingTxCount:     uint32(pendingTxCount),
+		PendingTxCount:     uint32(len(pending)),
 		TotalTxCount:       *m.getTotalTxCount(cblock.Hash()),
 		BlockCount60s:      blockCount,
 		StaleBlockCount60s: staleBlockCount,
