@@ -13,6 +13,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
+	"golang.org/x/sync/errgroup"
 )
 
 func (s *SlaveBackend) GetUnconfirmedHeaderList() ([]*rpc.HeadersInfo, error) {
@@ -362,6 +363,17 @@ func (s *SlaveBackend) NewMinorBlock(block *types.MinorBlock) error {
 		return shard.NewMinorBlock(block)
 	}
 	return ErrMsg("MinorBlock")
+}
+
+func (s *SlaveBackend) GenTx(genTxs *rpc.GenTxRequest) error {
+	var g errgroup.Group
+	for _, shrd := range s.shards {
+		sd := shrd
+		g.Go(func() error {
+			return sd.GenTx(genTxs)
+		})
+	}
+	return g.Wait()
 }
 
 func (s *SlaveBackend) SetMining(mining bool) {

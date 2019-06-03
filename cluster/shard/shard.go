@@ -41,7 +41,8 @@ type ShardBackend struct {
 	miner           *miner.Miner
 	MinorBlockChain *core.MinorBlockChain
 
-	mBPool newBlockPool
+	mBPool      newBlockPool
+	txGenerator *TxGenerator
 
 	mu           sync.Mutex
 	eventMux     *event.TypeMux
@@ -71,6 +72,11 @@ func New(ctx *service.ServiceContext, rBlock *types.RootBlock, conn ConnManager,
 	shard.maxBlocks = shard.Config.MaxBlocksPerShardInOneRootBlock()
 
 	shard.chainDb, err = createDB(ctx, fmt.Sprintf("shard-%d.db", fullshardId), cfg.Clean)
+	if err != nil {
+		return nil, err
+	}
+
+	shard.txGenerator, err = NewTxGenerator(cfg.GenesisDir, shard.fullShardId, cfg.Quarkchain)
 	if err != nil {
 		return nil, err
 	}
