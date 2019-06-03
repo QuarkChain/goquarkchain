@@ -829,6 +829,11 @@ func (m *MinorBlockChain) CreateBlockToMine(createTime *uint64, address *account
 	}
 	//newGasLimit, err := m.computeGasLimit(prevBlock.Header().GetGasLimit().Uint64(), prevBlock.GetMetaData().GasUsed.Value.Uint64(), m.shardConfig.Genesis.GasLimit)
 
+	if address == nil {
+		t := account.CreatEmptyAddress(0)
+		address = &t
+	}
+
 	if m.clusterConfig.Quarkchain.GetFullShardIdByFullShardKey(address.FullShardKey) != m.branch.Value {
 		t := address.AddressInBranch(m.branch)
 		address = &t
