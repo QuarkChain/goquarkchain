@@ -3,7 +3,6 @@ package core
 import (
 	"bytes"
 	"errors"
-	"fmt"
 	"math"
 	"math/big"
 	"sort"
@@ -151,7 +150,6 @@ func (m *MinorBlockChain) validateTx(tx *types.Transaction, evmState *state.Stat
 		return nil, ErrNetWorkID
 	}
 	if !m.branch.IsInBranch(evmTx.FromFullShardId()) {
-		fmt.Println("??????????", m.branch, evmTx.FromFullShardId())
 		return nil, ErrBranch
 	}
 
@@ -422,10 +420,7 @@ func minBigInt(a, b *big.Int) *big.Int {
 
 // AddTx add tx to txPool
 func (m *MinorBlockChain) AddTx(tx *types.Transaction) error {
-	if tx == nil {
-		panic("SB tx")
-	}
-	m.txPool.mu.RLock()
+	m.mu.RLock()
 	if m.txPool.all.Count() > int(m.clusterConfig.Quarkchain.TransactionQueueSizeLimitPerShard) {
 		m.txPool.mu.RUnlock()
 		return errors.New("txpool queue full")
@@ -716,24 +711,20 @@ func (m *MinorBlockChain) getXShardTxLimits(rBlock *types.RootBlock) map[uint32]
 
 func (m *MinorBlockChain) addTransactionToBlock(rootBlockHash common.Hash, block *types.MinorBlock, evmState *state.StateDB) (*types.MinorBlock, types.Receipts, error) {
 	// have locked by upper call
-	fmt.Println("11111111")
 	pending, err := m.txPool.Pending() // txpool already locked
-	fmt.Println("2222222")
 	if err != nil {
 		return nil, nil, err
 	}
-
 	txs, err := types.NewTransactionsByPriceAndNonce(types.NewEIP155Signer(uint32(m.Config().NetworkID)), pending)
-	fmt.Println("333333")
+
 	xShardTxCounters := make(map[uint32]uint32, 0)
 	xShardTxLimits := m.getXShardTxLimits(m.GetRootBlockByHash(rootBlockHash))
 	gp := new(GasPool).AddGas(block.Header().GetGasLimit().Uint64())
 	usedGas := new(uint64)
-	fmt.Println("444444444", len(pending))
+
 	receipts := make([]*types.Receipt, 0)
 	txsInBlock := make([]*types.Transaction, 0)
 
-	fmt.Println("for start")
 	stateT := evmState
 	for stateT.GetGasUsed().Cmp(stateT.GetGasLimit()) < 0 {
 		tx := txs.Peek()
@@ -776,7 +767,6 @@ func (m *MinorBlockChain) addTransactionToBlock(rootBlockHash common.Hash, block
 		}
 
 	}
-	fmt.Println("for end")
 	bHeader := block.Header()
 	bHeader.PrevRootBlockHash = rootBlockHash
 	return types.NewMinorBlock(bHeader, block.Meta(), txsInBlock, receipts, nil), receipts, nil
@@ -819,7 +809,6 @@ func (m *MinorBlockChain) checkTxBeforeApply(stateT *state.StateDB, tx *types.Tr
 
 // CreateBlockToMine create block to mine
 func (m *MinorBlockChain) CreateBlockToMine(createTime *uint64, address *account.Address, gasLimit *big.Int) (*types.MinorBlock, error) {
-	fmt.Println("CreateBlockToMine", gasLimit)
 	m.mu.Lock() // to lock txpool and getEvmStateForNewBlock
 	defer m.mu.Unlock()
 	realCreateTime := uint64(time.Now().Unix())
@@ -844,12 +833,7 @@ func (m *MinorBlockChain) CreateBlockToMine(createTime *uint64, address *account
 		t := address.AddressInBranch(m.branch)
 		address = &t
 	}
-	fu := m.clusterConfig.Quarkchain.GetFullShardIdByFullShardKey(address.FullShardKey)
-	fmt.Println("CCCCCCCCCCCCCC", m.branch, fu)
-
-	fmt.Println("preVBlockTo", gasLimit)
 	block := prevBlock.CreateBlockToAppend(&realCreateTime, difficulty, address, nil, gasLimit, nil, nil)
-	fmt.Println("createBlock end", block.GasLimit())
 	evmState, err := m.getEvmStateForNewBlock(block, true)
 	//if gasLimit != nil {
 	//	evmState.SetGasLimit(gasLimit)
@@ -867,12 +851,10 @@ func (m *MinorBlockChain) CreateBlockToMine(createTime *uint64, address *account
 	if err != nil {
 		return nil, err
 	}
-	fmt.Println("add trans ", block.GasLimit(), time.Now().Unix())
 	newBlock, recipiets, err := m.addTransactionToBlock(rootHeader.Hash(), block, evmState)
 	if err != nil {
 		return nil, err
 	}
-	fmt.Println("add succ", block.GasLimit(), time.Now().Unix())
 
 	pureCoinbaseAmount := m.getCoinbaseAmount()
 	evmState.AddBalance(evmState.GetBlockCoinbase(), pureCoinbaseAmount)
@@ -883,7 +865,6 @@ func (m *MinorBlockChain) CreateBlockToMine(createTime *uint64, address *account
 
 	coinbaseAmount := new(big.Int).Add(pureCoinbaseAmount, evmState.GetBlockFee())
 	newBlock.Finalize(recipiets, evmState.IntermediateRoot(true), evmState.GetGasUsed(), evmState.GetXShardReceiveGasUsed(), coinbaseAmount)
-	fmt.Println("JJJJJJJJJJJJJJJJJ", newBlock.GasLimit(), len(newBlock.Transactions()))
 	return newBlock, nil
 }
 

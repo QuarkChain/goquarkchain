@@ -66,9 +66,6 @@ func (t *TxGenerator) Generate(genTxs *rpc.GenTxRequest,
 			if err != nil {
 				continue
 			}
-			if tx == nil {
-				panic("tx is sb")
-			}
 			txList = append(txList, &types.Transaction{TxType: types.EvmTx, EvmTx: tx})
 			if total%batchScale == 0 {
 				if err := addTxList(txList); err != nil {

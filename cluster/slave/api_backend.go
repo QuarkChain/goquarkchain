@@ -46,8 +46,6 @@ func (s *SlaveBackend) AddRootBlock(block *types.RootBlock) (switched bool, err 
 // Create shards based on GENESIS config and root block height if they have
 // not been created yet.
 func (s *SlaveBackend) CreateShards(rootBlock *types.RootBlock) (err error) {
-	log.Info(s.logInfo, "CreateShards root number", rootBlock.Number(), "root hash", rootBlock.Hash().String())
-	defer log.Info(s.logInfo, "CreateShards end len(shards)", len(s.shards))
 	fullShardList := s.getFullShardList()
 	for _, id := range fullShardList {
 		if _, ok := s.shards[id]; ok {

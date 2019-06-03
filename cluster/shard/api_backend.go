@@ -13,7 +13,6 @@ import (
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
-	"golang.org/x/sync/errgroup"
 )
 
 var (
@@ -64,8 +63,6 @@ func (s *ShardBackend) broadcastNewTip() (err error) {
 // Returns true if block is successfully added. False on any error.
 // called by 1. local miner (will not run if syncing) 2. SyncTask
 func (s *ShardBackend) AddMinorBlock(block *types.MinorBlock) error {
-	log.Info(s.logInfo, "shardBackend addminorBlock number", block.Number(), "hash", block.Hash().String())
-	defer log.Info(s.logInfo, "shardBackend addminorBlock", "end")
 	var (
 		oldTip = s.MinorBlockChain.CurrentHeader()
 	)
@@ -193,6 +190,10 @@ func (s *ShardBackend) HandleNewTip(rBHeader *types.RootBlockHeader, mBHeader *t
 		return nil
 	}
 
+	if s.MinorBlockChain.GetRootBlockByHash(mBHeader.PrevRootBlockHash) == nil {
+		log.Warn(s.logInfo, "preRootBlockHash do not have height ,no need to add task", mBHeader.Number, "preRootHash", mBHeader.PrevRootBlockHash.String())
+		return nil
+	}
 	peer := &peer{cm: s.conn, peerID: peerID}
 	err := s.synchronizer.AddTask(synchronizer.NewMinorChainTask(peer, mBHeader))
 	if err != nil {
@@ -253,7 +254,6 @@ func (s *ShardBackend) NewMinorBlock(block *types.MinorBlock) (err error) {
 }
 
 func (s *ShardBackend) addTxList(txs []*types.Transaction) error {
-	fmt.Println("addTxList", len(txs))
 	var g errgroup.Group
 	for index := range txs {
 		if err := s.MinorBlockChain.AddTx(txs[index]); err != nil {

@@ -94,12 +94,13 @@ func New(ctx *service.ServiceContext, rBlock *types.RootBlock, conn ConnManager,
 		log.Info("Fill in block into chain db.")
 		rawdb.WriteChainConfig(shard.chainDb, genesisHash, cfg.Quarkchain)
 	}
-	log.Info("Initialised chain configuration", "config", chainConfig)
+	log.Debug("Initialised chain configuration", "config", chainConfig)
 
 	shard.MinorBlockChain, err = core.NewMinorBlockChain(shard.chainDb, nil, &params.ChainConfig{}, cfg, shard.engine, vm.Config{}, nil, fullshardId)
 	if err != nil {
 		return nil, err
 	}
+	shard.MinorBlockChain.SetBroadcastMinorBlockFunc(shard.AddMinorBlock)
 	shard.synchronizer = synchronizer.NewSynchronizer(shard.MinorBlockChain)
 
 	return shard, nil
