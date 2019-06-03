@@ -67,8 +67,6 @@ func (v *MinorBlockValidator) ValidateBlock(mBlock types.IBlock) error {
 		log.Error(v.logInfo, "check block err", ErrInvalidMinorBlock)
 		return ErrInvalidMinorBlock
 	}
-	log.Info(v.logInfo, "begin validate height", mBlock.NumberU64(), "hash", mBlock.Hash().String())
-	defer log.Info(v.logInfo, "end validate height", mBlock.NumberU64())
 
 	blockHeight := block.NumberU64()
 	if blockHeight < 1 {

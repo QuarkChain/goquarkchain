@@ -79,11 +79,13 @@ func (bc *mockblockchain) HasBlock(hash common.Hash) bool {
 
 }
 
-func (bc *mockblockchain) InsertChain(blocks []types.IBlock) (int, error) {
+func (bc *mockblockchain) AddBlock(block types.IBlock) error {
 	if bc.rbc != nil {
-		return bc.rbc.InsertChain(blocks)
+		_, err := bc.rbc.InsertChain([]types.IBlock{block})
+		return err
 	}
-	return bc.mbc.InsertChain(blocks)
+	_, err := bc.mbc.InsertChain([]types.IBlock{block})
+	return err
 }
 
 func (bc *mockblockchain) CurrentHeader() types.IHeader {

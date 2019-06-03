@@ -102,9 +102,11 @@ func (t *task) Run(bc blockchain) error {
 				}
 			}
 			// TODO: may optimize by batch and insert once?
-			if _, err := bc.InsertChain([]types.IBlock{b}); err != nil {
+
+			if err := bc.AddBlock(b); err != nil {
 				return err
 			}
+
 			elapsed := time.Now().Sub(ts).Seconds()
 			logger.Info("Syncing block finishes", "height", h.NumberU64(), "hash", h.Hash(), "elapsed", elapsed)
 		}

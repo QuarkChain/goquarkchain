@@ -189,7 +189,7 @@ func (pm *ProtocolManager) handleMsg(peer *peer) error {
 		return err
 	}
 
-	log.Info(pm.log, " receive QKC Msgop", qkcMsg.Op.String())
+	log.Debug(pm.log, " receive QKC Msgop", qkcMsg.Op.String())
 	switch {
 	case qkcMsg.Op == p2p.Hello:
 		return errors.New("Unexpected Hello msg")

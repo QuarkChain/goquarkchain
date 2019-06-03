@@ -30,7 +30,7 @@ func NewMinorChainTask(
 			name:             fmt.Sprintf("shard-%d", header.Branch.GetShardID()),
 			maxSyncStaleness: 22500 * 6, // TODO: derive from root chain?
 			getHeaders: func(hash common.Hash, limit uint32) (ret []types.IHeader, err error) {
-				mheaders, err := p.GetMinorBlockHeaderList(hash, limit, 0, true)
+				mheaders, err := p.GetMinorBlockHeaderList(hash, limit, header.Branch.Value, true)
 				if err != nil {
 					return nil, err
 				}
@@ -40,7 +40,7 @@ func NewMinorChainTask(
 				return ret, nil
 			},
 			getBlocks: func(hashes []common.Hash) (ret []types.IBlock, err error) {
-				mblocks, err := p.GetMinorBlockList(hashes, 0)
+				mblocks, err := p.GetMinorBlockList(hashes, header.Branch.Value)
 				if err != nil {
 					return nil, err
 				}
