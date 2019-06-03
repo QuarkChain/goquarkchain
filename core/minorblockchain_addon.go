@@ -420,7 +420,7 @@ func minBigInt(a, b *big.Int) *big.Int {
 
 // AddTx add tx to txPool
 func (m *MinorBlockChain) AddTx(tx *types.Transaction) error {
-	m.mu.RLock()
+	m.txPool.mu.RLock()
 	if m.txPool.all.Count() > int(m.clusterConfig.Quarkchain.TransactionQueueSizeLimitPerShard) {
 		m.txPool.mu.RUnlock()
 		return errors.New("txpool queue full")
