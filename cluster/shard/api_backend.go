@@ -13,7 +13,6 @@ import (
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
-	"golang.org/x/sync/errgroup"
 )
 
 var (
@@ -255,13 +254,12 @@ func (s *ShardBackend) NewMinorBlock(block *types.MinorBlock) (err error) {
 }
 
 func (s *ShardBackend) addTxList(txs []*types.Transaction) error {
-	var g errgroup.Group
 	for index := range txs {
 		if err := s.MinorBlockChain.AddTx(txs[index]); err != nil {
 			return err
 		}
 	}
-	return g.Wait()
+	return nil
 }
 
 func (s *ShardBackend) GenTx(genTxs *rpc.GenTxRequest) error {
