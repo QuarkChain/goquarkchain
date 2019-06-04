@@ -22,7 +22,7 @@ type ShardConnForP2P interface {
 	// or existed in tx pool will not be included in return hash list
 	AddTransactions(request *p2p.NewTransactionList) (*HashList, error)
 
-	GetMinorBlocks(request *p2p.GetMinorBlockListRequest) (*p2p.GetMinorBlockListResponse, error)
+	GetMinorBlocks(request *GetMinorBlockListRequest) (*p2p.GetMinorBlockListResponse, error)
 
 	GetMinorBlockHeaders(request *p2p.GetMinorBlockHeaderListRequest) (*p2p.GetMinorBlockHeaderListResponse, error)
 

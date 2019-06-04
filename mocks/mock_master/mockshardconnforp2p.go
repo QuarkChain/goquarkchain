@@ -5,14 +5,14 @@
 package mock_master
 
 import (
-	"github.com/QuarkChain/goquarkchain/account"
-	"github.com/QuarkChain/goquarkchain/cluster/rpc"
-	"github.com/QuarkChain/goquarkchain/consensus"
-	"github.com/QuarkChain/goquarkchain/core/types"
-	"github.com/QuarkChain/goquarkchain/p2p"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/golang/mock/gomock"
-	"reflect"
+	account "github.com/QuarkChain/goquarkchain/account"
+	rpc "github.com/QuarkChain/goquarkchain/cluster/rpc"
+	consensus "github.com/QuarkChain/goquarkchain/consensus"
+	types "github.com/QuarkChain/goquarkchain/core/types"
+	p2p "github.com/QuarkChain/goquarkchain/p2p"
+	common "github.com/ethereum/go-ethereum/common"
+	gomock "github.com/golang/mock/gomock"
+	reflect "reflect"
 )
 
 // MockShardConnForP2P is a mock of ShardConnForP2P interface
@@ -54,7 +54,7 @@ func (mr *MockShardConnForP2PMockRecorder) AddTransactions(request interface{}) 
 }
 
 // GetMinorBlocks mocks base method
-func (m *MockShardConnForP2P) GetMinorBlocks(request *p2p.GetMinorBlockListRequest) (*p2p.GetMinorBlockListResponse, error) {
+func (m *MockShardConnForP2P) GetMinorBlocks(request *rpc.GetMinorBlockListRequest) (*p2p.GetMinorBlockListResponse, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetMinorBlocks", request)
 	ret0, _ := ret[0].(*p2p.GetMinorBlockListResponse)
@@ -167,7 +167,7 @@ func (mr *MockISlaveConnMockRecorder) AddTransactions(request interface{}) *gomo
 }
 
 // GetMinorBlocks mocks base method
-func (m *MockISlaveConn) GetMinorBlocks(request *p2p.GetMinorBlockListRequest) (*p2p.GetMinorBlockListResponse, error) {
+func (m *MockISlaveConn) GetMinorBlocks(request *rpc.GetMinorBlockListRequest) (*p2p.GetMinorBlockListResponse, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetMinorBlocks", request)
 	ret0, _ := ret[0].(*p2p.GetMinorBlockListResponse)

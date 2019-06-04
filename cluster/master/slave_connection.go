@@ -553,7 +553,7 @@ func (s *SlaveConnection) AddTransactions(request *p2p.NewTransactionList) (*rpc
 	return rsp, nil
 }
 
-func (s *SlaveConnection) GetMinorBlocks(request *p2p.GetMinorBlockListRequest) (*p2p.GetMinorBlockListResponse, error) {
+func (s *SlaveConnection) GetMinorBlocks(request *rpc.GetMinorBlockListRequest) (*p2p.GetMinorBlockListResponse, error) {
 	var (
 		rsp = new(p2p.GetMinorBlockListResponse)
 		res = new(rpc.Response)

@@ -328,7 +328,7 @@ func (pm *ProtocolManager) handleMsg(peer *peer) error {
 			return err
 		}
 
-		return peer.SendResponse(p2p.GetMinorBlockHeaderListResponseMsg, p2p.Metadata{Branch: 0}, qkcMsg.RpcID, resp)
+		return peer.SendResponse(p2p.GetMinorBlockHeaderListResponseMsg, p2p.Metadata{Branch: qkcMsg.MetaData.Branch}, qkcMsg.RpcID, resp)
 
 	case qkcMsg.Op == p2p.GetMinorBlockHeaderListResponseMsg:
 		var minorHeaderResp p2p.GetMinorBlockHeaderListResponse
@@ -348,12 +348,12 @@ func (pm *ProtocolManager) handleMsg(peer *peer) error {
 			return err
 		}
 
-		resp, err := pm.HandleGetMinorBlockListRequest(qkcMsg.RpcID, qkcMsg.MetaData.Branch, &minorBlockReq)
+		resp, err := pm.HandleGetMinorBlockListRequest(peer.id, qkcMsg.RpcID, qkcMsg.MetaData.Branch, &minorBlockReq)
 		if err != nil {
 			return err
 		}
-
-		return peer.SendResponse(p2p.GetMinorBlockListResponseMsg, p2p.Metadata{Branch: 0}, qkcMsg.RpcID, resp)
+		resp.MinorBlockList[0].NumberU64()
+		return peer.SendResponse(p2p.GetMinorBlockListResponseMsg, p2p.Metadata{Branch: qkcMsg.MetaData.Branch}, qkcMsg.RpcID, resp)
 
 	case qkcMsg.Op == p2p.GetMinorBlockListResponseMsg:
 		var minorBlockResp p2p.GetMinorBlockListResponse
@@ -555,7 +555,7 @@ func (pm *ProtocolManager) HandleGetMinorBlockHeaderListRequest(rpcId uint64, br
 	return result, nil
 }
 
-func (pm *ProtocolManager) HandleGetMinorBlockListRequest(rpcId uint64, branch uint32, request *p2p.GetMinorBlockListRequest) (*p2p.GetMinorBlockListResponse, error) {
+func (pm *ProtocolManager) HandleGetMinorBlockListRequest(peerId string, rpcId uint64, branch uint32, request *p2p.GetMinorBlockListRequest) (*p2p.GetMinorBlockListResponse, error) {
 	if len(request.MinorBlockHashList) > minorBlockBatchSize {
 		return nil, fmt.Errorf("bad number of minor blocks requested. rpcId: %d; branch: %d; limit: %d; expected limit: %d",
 			rpcId, branch, len(request.MinorBlockHashList), minorBlockBatchSize)
@@ -564,7 +564,7 @@ func (pm *ProtocolManager) HandleGetMinorBlockListRequest(rpcId uint64, branch u
 	if len(clients) == 0 {
 		return nil, fmt.Errorf("invalid branch %d for rpc request %d", rpcId, branch)
 	}
-	result, err := clients[0].GetMinorBlocks(request)
+	result, err := clients[0].GetMinorBlocks(&rpc.GetMinorBlockListRequest{Branch: branch, PeerId: peerId, MinorBlockHashList: request.MinorBlockHashList})
 	if err != nil {
 		return nil, fmt.Errorf("branch %d HandleGetMinorBlockListRequest failed with error: %v", branch, err.Error())
 	}
