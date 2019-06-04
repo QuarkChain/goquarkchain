@@ -1,7 +1,7 @@
 {
-  "Nonce": 0,
+  "Nonce": 1,
   "GasPrice": 21000,
-  "Gas": 30000,
+  "Gas": 900000,
   "Value":10000000,
   "FromFullShardKey": "0x00000000",
   "ToFullShardKey": "0x00000000",

@@ -102,14 +102,13 @@ func (t *task) Run(bc blockchain) error {
 			ts := time.Now()
 			if t.syncBlock != nil { // Used by root chain blocks.
 				if err := t.syncBlock(b, bc); err != nil {
-					fmt.Println("sync err", err)
+					fmt.Println("sync err")
 					return err
 				}
 			}
 			// TODO: may optimize by batch and insert once?
 
 			if err := bc.AddBlock(b); err != nil {
-				fmt.Println("add block err", err)
 				return err
 			}
 
