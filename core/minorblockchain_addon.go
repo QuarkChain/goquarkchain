@@ -369,8 +369,6 @@ func (m *MinorBlockChain) getEvmStateFromHeight(height *uint64) (*state.StateDB,
 }
 
 func (m *MinorBlockChain) runBlock(block *types.MinorBlock) (*state.StateDB, types.Receipts, error) {
-	m.mu.Lock() // to lock Process
-	defer m.mu.Unlock()
 	parent := m.GetMinorBlock(block.ParentHash())
 	if qkcCommon.IsNil(parent) {
 		log.Error(m.logInfo, "err-runBlock", ErrRootBlockIsNil, "parentHash", block.ParentHash().String())
@@ -537,8 +535,6 @@ func (m *MinorBlockChain) GetStorageAt(recipient account.Recipient, key common.H
 
 // ExecuteTx execute tx
 func (m *MinorBlockChain) ExecuteTx(tx *types.Transaction, fromAddress *account.Address, height *uint64) ([]byte, error) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
 	if height == nil {
 		temp := m.CurrentBlock().NumberU64()
 		height = &temp
