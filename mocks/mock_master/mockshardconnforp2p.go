@@ -54,7 +54,7 @@ func (mr *MockShardConnForP2PMockRecorder) AddTransactions(request interface{}) 
 }
 
 // GetMinorBlocks mocks base method
-func (m *MockShardConnForP2P) GetMinorBlocks(request *p2p.GetMinorBlockListRequest) (*p2p.GetMinorBlockListResponse, error) {
+func (m *MockShardConnForP2P) GetMinorBlocks(request *rpc.GetMinorBlockListRequest) (*p2p.GetMinorBlockListResponse, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetMinorBlocks", request)
 	ret0, _ := ret[0].(*p2p.GetMinorBlockListResponse)
@@ -167,7 +167,7 @@ func (mr *MockISlaveConnMockRecorder) AddTransactions(request interface{}) *gomo
 }
 
 // GetMinorBlocks mocks base method
-func (m *MockISlaveConn) GetMinorBlocks(request *p2p.GetMinorBlockListRequest) (*p2p.GetMinorBlockListResponse, error) {
+func (m *MockISlaveConn) GetMinorBlocks(request *rpc.GetMinorBlockListRequest) (*p2p.GetMinorBlockListResponse, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetMinorBlocks", request)
 	ret0, _ := ret[0].(*p2p.GetMinorBlockListResponse)
@@ -610,4 +610,18 @@ func (m *MockISlaveConn) SubmitWork(work *rpc.SubmitWorkRequest) (bool, error) {
 func (mr *MockISlaveConnMockRecorder) SubmitWork(work interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SubmitWork", reflect.TypeOf((*MockISlaveConn)(nil).SubmitWork), work)
+}
+
+// SetMining mocks base method
+func (m *MockISlaveConn) SetMining(mining bool) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SetMining", mining)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// SetMining indicates an expected call of SetMining
+func (mr *MockISlaveConnMockRecorder) SetMining(mining interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetMining", reflect.TypeOf((*MockISlaveConn)(nil).SetMining), mining)
 }

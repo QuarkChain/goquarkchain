@@ -15,8 +15,8 @@ var (
 
 	DefaultStateDBGasLimit = new(big.Int).SetUint64(3141592)
 
-	DefaultStartGas  = new(big.Int).SetUint64(100 * 1000)
-	DEFAULT_GASPRICE = new(big.Int).Mul(new(big.Int).SetUint64(10), DenomsValue.GWei)
+	DefaultStartGas = new(big.Int).SetUint64(100 * 1000)
+	DefaultGasPrice = new(big.Int).Mul(new(big.Int).SetUint64(10), DenomsValue.GWei)
 )
 
 type Denoms struct {

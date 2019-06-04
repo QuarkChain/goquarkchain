@@ -3,6 +3,7 @@ package consensus
 import (
 	"errors"
 	"fmt"
+	"github.com/hashicorp/golang-lru"
 	"time"
 
 	"github.com/QuarkChain/goquarkchain/core/types"
@@ -16,7 +17,7 @@ const (
 )
 
 var (
-	errNoMiningWork      = errors.New("no mining work available yet")
+	ErrNoMiningWork      = errors.New("no mining work available yet")
 	errInvalidSealResult = errors.New("invalid or stale proof-of-work solution")
 )
 
@@ -40,21 +41,27 @@ type sealWork struct {
 
 func (c *CommonEngine) remote() {
 	var (
-		works = make(map[common.Hash]types.IBlock)
-
 		results      chan<- types.IBlock
 		currentBlock types.IBlock = nil
 		currentWork  MiningWork
 	)
+	works, err := lru.New(staleThreshold)
+	if err != nil {
+		log.Error("Failed to create unmined block cache", "err", err)
+		return
+	}
 
 	makeWork := func(block types.IBlock) {
-		hash := block.Hash()
+		hash := block.IHeader().SealHash()
+		if works.Contains(hash) {
+			return
+		}
 		currentWork.HeaderHash = hash
 		currentWork.Number = block.NumberU64()
 		currentWork.Difficulty = block.IHeader().GetDifficulty()
 
 		currentBlock = block
-		works[hash] = block
+		works.Add(hash, block)
 	}
 
 	submitWork := func(nonce uint64, mixDigest common.Hash, sealhash common.Hash) bool {
@@ -62,7 +69,11 @@ func (c *CommonEngine) remote() {
 			log.Error("Pending work without block", "sealhash", sealhash)
 			return false
 		}
-		block := works[sealhash]
+		var block types.IBlock
+		value, ok := works.Get(sealhash)
+		if ok {
+			block = value.(types.IBlock)
+		}
 		if block == nil {
 			log.Warn("Work submitted but none pending", "sealhash", sealhash, "curnumber", currentBlock.NumberU64())
 			return false
@@ -75,8 +86,9 @@ func (c *CommonEngine) remote() {
 
 		solution := block.WithMingResult(nonce, mixDigest)
 		start := time.Now()
-		if err := c.spec.VerifySeal(nil, block.IHeader(), block.IHeader().GetDifficulty()); err != nil {
-			log.Warn("Invalid proof-of-work submitted", "sealhash", sealhash, "elapsed", time.Since(start), "err", err)
+		if err := c.spec.VerifySeal(nil, solution.IHeader(), solution.IHeader().GetDifficulty()); err != nil {
+			log.Warn("Invalid proof-of-work submitted", "sealhash", sealhash.Hex(), "elapsed", time.Since(start), "err", err)
+			return false
 		}
 		if solution.NumberU64()+staleThreshold > currentBlock.NumberU64() {
 			select {
@@ -101,7 +113,7 @@ func (c *CommonEngine) remote() {
 
 		case work := <-c.fetchWorkCh:
 			if currentBlock == nil {
-				work.errc <- errNoMiningWork
+				work.errc <- ErrNoMiningWork
 			} else {
 				work.res <- currentWork
 			}

@@ -102,9 +102,11 @@ func (t *task) Run(bc blockchain) error {
 				}
 			}
 			// TODO: may optimize by batch and insert once?
-			if _, err := bc.InsertChain([]types.IBlock{b}); err != nil {
+
+			if err := bc.AddBlock(b); err != nil {
 				return err
 			}
+
 			elapsed := time.Now().Sub(ts).Seconds()
 			logger.Info("Syncing block finishes", "height", h.NumberU64(), "hash", h.Hash(), "elapsed", elapsed)
 		}
@@ -126,7 +128,10 @@ func (t *task) validateHeaderList(bc blockchain, headers []types.IHeader) error 
 				return errors.New("should have blocks correctly linked")
 			}
 		}
-		if err := bc.Validator().ValidateHeader(h); err != nil {
+		if h.NumberU64() == 0 {
+			break
+		}
+		if err := bc.Validator().ValidatorSeal(h); err != nil {
 			return err
 		}
 		prev = h

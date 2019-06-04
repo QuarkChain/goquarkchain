@@ -2,29 +2,30 @@ package ethash
 
 import (
 	"bytes"
+	"github.com/QuarkChain/goquarkchain/consensus"
 	"math/big"
 	"runtime"
 
 	"github.com/ethereum/go-ethereum/common"
 
-	qkconsensus "github.com/QuarkChain/goquarkchain/consensus"
-	qkctypes "github.com/QuarkChain/goquarkchain/core/types"
+	"github.com/QuarkChain/goquarkchain/core/state"
+	"github.com/QuarkChain/goquarkchain/core/types"
 )
 
 // QEthash is our wrapper over geth ethash implementation.
 type QEthash struct {
 	*Ethash
-	*qkconsensus.CommonEngine
+	*consensus.CommonEngine
 }
 
-func (q *QEthash) hashAlgo(height uint64, hash []byte, nonce uint64) (ret qkconsensus.MiningResult, err error) {
+func (q *QEthash) hashAlgo(height uint64, hash []byte, nonce uint64) (ret consensus.MiningResult, err error) {
 	cache := q.cache(height)
 	size := datasetSize(height)
 	if q.config.PowMode == ModeTest {
 		size = 32 * 1024
 	}
 	digest, result := hashimotoLight(size, cache.cache, hash, nonce)
-	return qkconsensus.MiningResult{
+	return consensus.MiningResult{
 		Digest: common.BytesToHash(digest),
 		Result: result,
 		Nonce:  nonce,
@@ -33,7 +34,7 @@ func (q *QEthash) hashAlgo(height uint64, hash []byte, nonce uint64) (ret qkcons
 
 // verifySeal implements consensus.Engine, checking whether the given block satisfies
 // the PoW difficulty requirements.
-func (q *QEthash) verifySeal(chain qkconsensus.ChainReader, header qkctypes.IHeader, adjustedDiff *big.Int) error {
+func (q *QEthash) verifySeal(chain consensus.ChainReader, header types.IHeader, adjustedDiff *big.Int) error {
 	// Ensure that we have a valid difficulty for the block
 	if header.GetDifficulty().Sign() <= 0 {
 		return errInvalidDifficulty
@@ -71,21 +72,32 @@ func (q *QEthash) verifySeal(chain qkconsensus.ChainReader, header qkctypes.IHea
 	return nil
 }
 
+// Prepare initializes the consensus fields of a block header according to the
+// rules of a particular engine. The changes are executed inline.
+func (q *QEthash) Prepare(chain consensus.ChainReader, header types.IHeader) error {
+	panic("not implemented")
+}
+
+func (q *QEthash) Finalize(chain consensus.ChainReader, header types.IHeader, state *state.StateDB, txs []*types.Transaction,
+	receipts []*types.Receipt) (types.IBlock, error) {
+	panic("not implemented")
+}
+
 // New returns a Ethash scheme.
 func New(
 	config Config,
-	diffCalculator qkconsensus.DifficultyCalculator,
+	diffCalculator consensus.DifficultyCalculator,
 	remote bool,
 ) *QEthash {
 	ethash := newEthash(config)
 	q := &QEthash{
 		Ethash: ethash,
 	}
-	spec := qkconsensus.MiningSpec{
+	spec := consensus.MiningSpec{
 		Name:       "Ethash",
 		HashAlgo:   q.hashAlgo,
 		VerifySeal: q.verifySeal,
 	}
-	q.CommonEngine = qkconsensus.NewCommonEngine(spec, diffCalculator, remote)
+	q.CommonEngine = consensus.NewCommonEngine(spec, diffCalculator, remote)
 	return q
 }

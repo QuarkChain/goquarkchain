@@ -178,6 +178,7 @@ type TransactionDetail struct {
 	BlockHeight uint64            `json:"block_height" gencodec:"required"`
 	Timestamp   uint64            `json:"timestamp" gencodec:"required"`
 	Success     bool              `json:"success" gencodec:"required"`
+	//TODO support tokenID
 }
 
 type GetTransactionListByAddressResponse struct {

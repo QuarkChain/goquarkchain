@@ -13,6 +13,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
+	"golang.org/x/sync/errgroup"
 )
 
 func (s *SlaveBackend) GetUnconfirmedHeaderList() ([]*rpc.HeadersInfo, error) {
@@ -45,8 +46,6 @@ func (s *SlaveBackend) AddRootBlock(block *types.RootBlock) (switched bool, err 
 // Create shards based on GENESIS config and root block height if they have
 // not been created yet.
 func (s *SlaveBackend) CreateShards(rootBlock *types.RootBlock) (err error) {
-	log.Info(s.logInfo, "CreateShards root number", rootBlock.Number(), "root hash", rootBlock.Hash().String())
-	defer log.Info(s.logInfo, "CreateShards end len(shards)", len(s.shards))
 	fullShardList := s.getFullShardList()
 	for _, id := range fullShardList {
 		if _, ok := s.shards[id]; ok {
@@ -128,9 +127,9 @@ func (s *SlaveBackend) AddTx(tx *types.Transaction) (err error) {
 	return ErrMsg("AddTx")
 }
 
-func (s *SlaveBackend) ExecuteTx(tx *types.Transaction, address *account.Address) ([]byte, error) {
+func (s *SlaveBackend) ExecuteTx(tx *types.Transaction, address *account.Address, height *uint64) ([]byte, error) {
 	if shard, ok := s.shards[tx.EvmTx.FromFullShardId()]; ok {
-		return shard.MinorBlockChain.ExecuteTx(tx, address, nil)
+		return shard.MinorBlockChain.ExecuteTx(tx, address, height)
 	}
 	return nil, ErrMsg("ExecuteTx")
 }
@@ -245,18 +244,18 @@ func (s *SlaveBackend) EstimateGas(tx *types.Transaction, address *account.Addre
 	return 0, ErrMsg("EstimateGas")
 }
 
-func (s *SlaveBackend) GetStorageAt(address *account.Address, key common.Hash, height uint64) ([32]byte, error) {
+func (s *SlaveBackend) GetStorageAt(address *account.Address, key common.Hash, height *uint64) ([32]byte, error) {
 	branch := s.getBranch(address)
 	if shard, ok := s.shards[branch.Value]; ok {
-		return shard.MinorBlockChain.GetStorageAt(address.Recipient, key, &height)
+		return shard.MinorBlockChain.GetStorageAt(address.Recipient, key, height)
 	}
 	return common.Hash{}, ErrMsg("GetStorageAt")
 }
 
-func (s *SlaveBackend) GetCode(address *account.Address, height uint64) ([]byte, error) {
+func (s *SlaveBackend) GetCode(address *account.Address, height *uint64) ([]byte, error) {
 	branch := s.getBranch(address)
 	if shard, ok := s.shards[branch.Value]; ok {
-		return shard.MinorBlockChain.GetCode(address.Recipient, &height)
+		return shard.MinorBlockChain.GetCode(address.Recipient, height)
 	}
 	return nil, ErrMsg("GetCode")
 }
@@ -332,7 +331,7 @@ func (s *SlaveBackend) GetMinorBlockHeaderList(mHash common.Hash,
 	if !ok {
 		return nil, ErrMsg("GetMinorBlockHeaderList")
 	}
-	if !qcom.IsNil(shard.MinorBlockChain.GetHeader(mHash)) {
+	if qcom.IsNil(shard.MinorBlockChain.GetHeader(mHash)) {
 		return nil, fmt.Errorf("Minor block hash is not exist, minorHash: %s, slave id: %s ", mHash.Hex(), s.config.ID)
 	}
 	for i := uint32(0); i < limit; i++ {
@@ -364,4 +363,21 @@ func (s *SlaveBackend) NewMinorBlock(block *types.MinorBlock) error {
 		return shard.NewMinorBlock(block)
 	}
 	return ErrMsg("MinorBlock")
+}
+
+func (s *SlaveBackend) GenTx(genTxs *rpc.GenTxRequest) error {
+	var g errgroup.Group
+	for _, shrd := range s.shards {
+		sd := shrd
+		g.Go(func() error {
+			return sd.GenTx(genTxs)
+		})
+	}
+	return g.Wait()
+}
+
+func (s *SlaveBackend) SetMining(mining bool) {
+	for _, shrd := range s.shards {
+		shrd.SetMining(mining)
+	}
 }

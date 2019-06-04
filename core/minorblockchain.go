@@ -133,6 +133,7 @@ type MinorBlockChain struct {
 	heightToMinorBlockHashes map[uint64]map[common.Hash]struct{}
 	currentEvmState          *state.StateDB
 	logInfo                  string
+	addMinorBlockAndBroad    func(block *types.MinorBlock) error
 }
 
 // NewMinorBlockChain returns a fully initialised block chain using information
@@ -222,6 +223,18 @@ func NewMinorBlockChain(
 	// Take ownership of this particular state
 	go bc.update()
 	return bc, nil
+}
+
+func (m *MinorBlockChain) SetBroadcastMinorBlockFunc(f func(block *types.MinorBlock) error) {
+	m.addMinorBlockAndBroad = f
+}
+
+func (m *MinorBlockChain) AddBlock(block types.IBlock) error {
+	minorBlock, ok := block.(*types.MinorBlock)
+	if !ok {
+		return errors.New("block is not minorBlock")
+	}
+	return m.addMinorBlockAndBroad(minorBlock)
 }
 
 func (m *MinorBlockChain) getProcInterrupt() bool {
@@ -372,6 +385,13 @@ func (m *MinorBlockChain) State() (*state.StateDB, error) {
 
 // StateAt returns a new mutable state based on a particular point in time.
 func (m *MinorBlockChain) StateAt(root common.Hash) (*state.StateDB, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return m.stateAt(root)
+}
+
+// stateAt returns a new mutable state based on a particular point in time.
+func (m *MinorBlockChain) stateAt(root common.Hash) (*state.StateDB, error) {
 	return state.New(root, m.stateCache)
 }
 
@@ -970,8 +990,6 @@ func (m *MinorBlockChain) InsertChain(chain []types.IBlock) (int, error) {
 // InsertChainForDeposits also return cross-shard transaction deposits in addition
 // to content returned from `InsertChain`.
 func (m *MinorBlockChain) InsertChainForDeposits(chain []types.IBlock) (int, [][]*types.CrossShardTransactionDeposit, error) {
-	log.Info(m.logInfo, "MinorBlockChain InsertChain len", len(chain))
-	defer log.Info(m.logInfo, "MinorBlockChain InsertChain", "end")
 	// Sanity check that we have something meaningful to import
 	if len(chain) == 0 {
 		return 0, nil, nil

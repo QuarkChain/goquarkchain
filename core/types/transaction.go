@@ -32,6 +32,7 @@ var (
 type EvmTransaction struct {
 	data txdata
 	// caches
+	updated       bool
 	hash          atomic.Value
 	size          atomic.Value
 	from          atomic.Value
@@ -64,15 +65,19 @@ func NewEvmTransaction(nonce uint64, to account.Recipient, amount *big.Int, gasL
 }
 func (e *EvmTransaction) SetGas(data uint64) {
 	e.data.GasLimit = data
+	e.updated = true
 }
 func (e *EvmTransaction) SetNonce(data uint64) {
 	e.data.AccountNonce = data
+	e.updated = true
 }
 func (e *EvmTransaction) SetVRS(v, r, s *big.Int) {
 	e.data.V = v
 	e.data.R = r
 	e.data.S = s
+	e.updated = true
 }
+
 func NewEvmContractCreation(nonce uint64, amount *big.Int, gasLimit uint64, gasPrice *big.Int, fromFullShardKey uint32, toFullShardKey uint32, networkId uint32, version uint32, data []byte) *EvmTransaction {
 	return newEvmTransaction(nonce, nil, amount, gasLimit, gasPrice, fromFullShardKey, toFullShardKey, networkId, version, data)
 }
@@ -215,7 +220,7 @@ func (tx *EvmTransaction) To() *account.Recipient {
 // Hash hashes the RLP encoding of tx.
 // It uniquely identifies the transaction.
 func (tx *EvmTransaction) Hash() common.Hash {
-	if hash := tx.hash.Load(); hash != nil {
+	if hash := tx.hash.Load(); hash != nil && !tx.updated {
 		return hash.(common.Hash)
 	}
 	v := rlpHash(tx)
