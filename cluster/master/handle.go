@@ -158,7 +158,7 @@ func (pm *ProtocolManager) handle(peer *peer) error {
 		return err
 	}
 	defer pm.removePeer(peer.id)
-
+	log.Info(pm.log, "peer add succ id ", peer.PeerID())
 	pm.newPeerCh <- peer
 
 	// currently we do not broadcast old transaction when connect

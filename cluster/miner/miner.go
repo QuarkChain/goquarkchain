@@ -102,7 +102,7 @@ func (m *Miner) mainLoop(recommit time.Duration) {
 func (m *Miner) Start() {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	m.engine.SetThreads(threads / 2)
+	m.engine.SetThreads(1)
 }
 
 func (m *Miner) Stop() {
