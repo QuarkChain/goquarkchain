@@ -133,7 +133,10 @@ func (t *task) validateHeaderList(bc blockchain, headers []types.IHeader) error 
 				return errors.New("should have blocks correctly linked")
 			}
 		}
-		if err := bc.Validator().ValidateHeader(h); err != nil {
+		if h.NumberU64() == 0 {
+			break
+		}
+		if err := bc.Validator().ValidatorSeal(h); err != nil {
 			return err
 		}
 		prev = h

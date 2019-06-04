@@ -538,6 +538,7 @@ func newPeerSet() *peerSet {
 // peer is already known. If a new peer it registered, its broadcast loop is also
 // started.
 func (ps *peerSet) Register(p *peer) error {
+	fmt.Println("RRRRRRRR", p.id)
 	ps.lock.Lock()
 	defer ps.lock.Unlock()
 
@@ -606,6 +607,7 @@ func (ps *peerSet) BestPeer() *peer {
 		bestPeer   *peer
 		bestHeight uint64
 	)
+	fmt.Println("lll", len(ps.peers))
 	// TODO will update to TD when td add to rootblock
 	for _, p := range ps.peers {
 		if head := p.RootHead(); head != nil && (bestPeer == nil || head.NumberU64() > bestHeight) {

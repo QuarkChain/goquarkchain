@@ -183,8 +183,8 @@ func (v *MinorBlockValidator) ValidateBlock(mBlock types.IBlock) error {
 		log.Error(v.logInfo, "err", errMustBeOneRootChain, "long", block.Header().GetPrevRootBlockHash().String(), "short", prevHeader.(*types.MinorBlockHeader).GetPrevRootBlockHash().String())
 		return errMustBeOneRootChain
 	}
-	if err := v.ValidatorMinorBlockSeal(block); err != nil {
-		log.Error(v.logInfo, "ValidatorMinorBlockSeal err", err)
+	if err := v.ValidatorSeal(block.Header()); err != nil {
+		log.Error(v.logInfo, "ValidatorBlockSeal err", err)
 		return err
 	}
 	return nil
@@ -225,14 +225,17 @@ func (v *MinorBlockValidator) ValidateGasLimit(gasLimit, preGasLimit uint64) err
 	return nil
 }
 
-// ValidatorMinorBlockSeal validate minor block seal when validate block
-func (v *MinorBlockValidator) ValidatorMinorBlockSeal(block *types.MinorBlock) error {
-	branch := block.Header().GetBranch()
+// ValidatorBlockSeal validate minor block seal when validate block
+func (v *MinorBlockValidator) ValidatorSeal(mHeader types.IHeader) error {
+	header, ok := mHeader.(*types.MinorBlockHeader)
+	if !ok {
+		return errors.New("validator minor  seal failed , mBlock is nil")
+	}
+	branch := header.GetBranch()
 	fullShardID := branch.GetFullShardID()
 	shardConfig := v.quarkChainConfig.GetShardConfigByFullShardID(fullShardID)
 	consensusType := shardConfig.ConsensusType
-	return v.validateSeal(block.IHeader(), consensusType, nil)
-
+	return v.validateSeal(header, consensusType, nil)
 }
 
 func (v *MinorBlockValidator) validateSeal(header types.IHeader, consensusType string, diff *uint64) error {

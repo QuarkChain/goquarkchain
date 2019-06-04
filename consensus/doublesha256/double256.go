@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -51,6 +52,7 @@ func hashAlgo(height uint64, hash []byte, nonce uint64) (consensus.MiningResult,
 }
 
 func verifySeal(chain consensus.ChainReader, header types.IHeader, adjustedDiff *big.Int) error {
+	fmt.Println("???????????", header.NumberU64())
 	if header.GetDifficulty().Sign() <= 0 {
 		return consensus.ErrInvalidDifficulty
 	}
@@ -62,6 +64,7 @@ func verifySeal(chain consensus.ChainReader, header types.IHeader, adjustedDiff 
 	target := new(big.Int).Div(two256, diff)
 	miningRes, _ := hashAlgo(0 /* not used */, header.SealHash().Bytes(), header.GetNonce())
 	if new(big.Int).SetBytes(miningRes.Result).Cmp(target) > 0 {
+		fmt.Println("hahahah", header.NumberU64(), new(big.Int).SetBytes(miningRes.Result).String(), target.String())
 		return consensus.ErrInvalidPoW
 	}
 	return nil
