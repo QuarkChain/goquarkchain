@@ -501,7 +501,7 @@ func (bc *RootBlockChain) WriteBlockWithState(block *types.RootBlock) (status Wr
 	// Calculate the total difficulty of the block
 	ptd := bc.GetTd(block.ParentHash())
 	if ptd == nil {
-		return NonStatTy, errors.New("")
+		return NonStatTy, errors.New("unknown ancestor")
 	}
 	// Make sure no inconsistent state is leaked during insertion
 	bc.mu.Lock()

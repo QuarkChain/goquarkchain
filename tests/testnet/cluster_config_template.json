@@ -7,7 +7,7 @@
   "LOG_LEVEL": "info",
   "START_SIMULATED_MINING": false,
   "CLEAN": true,
-    "GENESIS_DIR": "",
+  "GENESIS_DIR": "",
   "QUARKCHAIN": {
     "CHAIN_SIZE": 2,
     "MAX_NEIGHBORS": 32,

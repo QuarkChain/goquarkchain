@@ -1086,10 +1086,7 @@ func (m *MinorBlockChain) GetShardStatus() (*rpc.ShardStatus, error) {
 	if staleBlockCount < 0 {
 		return nil, errors.New("staleBlockCount should >=0")
 	}
-	pending, err := m.txPool.Pending()
-	if err != nil {
-		return nil, err
-	}
+	pendingCount := m.txPool.PendingCount()
 
 	return &rpc.ShardStatus{
 		Branch:             m.branch,
@@ -1098,7 +1095,7 @@ func (m *MinorBlockChain) GetShardStatus() (*rpc.ShardStatus, error) {
 		CoinbaseAddress:    cblock.IHeader().GetCoinbase(),
 		Timestamp:          cblock.IHeader().GetTime(),
 		TxCount60s:         txCount,
-		PendingTxCount:     uint32(len(pending)),
+		PendingTxCount:     uint32(pendingCount),
 		TotalTxCount:       *m.getTotalTxCount(cblock.Hash()),
 		BlockCount60s:      blockCount,
 		StaleBlockCount60s: staleBlockCount,

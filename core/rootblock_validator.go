@@ -167,7 +167,6 @@ func (v *RootBlockValidator) ValidatorSeal(rHeader types.IHeader) error {
 	if !ok {
 		return errors.New("validate root block Seal failed, root block is nil")
 	}
-	fmt.Println("enfine", reflect.TypeOf(v.engine))
 	return v.engine.VerifySeal(v.blockChain, header, nil)
 }
 

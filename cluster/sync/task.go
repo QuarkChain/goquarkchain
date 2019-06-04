@@ -2,7 +2,6 @@ package sync
 
 import (
 	"errors"
-	"fmt"
 	"strings"
 	"time"
 
@@ -53,12 +52,10 @@ func (t *task) Run(bc blockchain) error {
 		downloadSz := uint32(headerDownloadSize)
 		receivedHeaders, err := t.getHeaders(lastHeader.GetParentHash(), downloadSz)
 		if err != nil {
-			log.Info("tttt", "getHeaders hash", lastHeader.GetParentHash().String(), "number", lastHeader.NumberU64(), "err", err)
 			return err
 		}
 		err = t.validateHeaderList(bc, receivedHeaders)
 		if err != nil {
-			log.Info("tttt", "validateHeaderList", len(receivedHeaders), "err", err)
 			return err
 		}
 		for _, h := range receivedHeaders {
@@ -83,7 +80,6 @@ func (t *task) Run(bc blockchain) error {
 		headersForDownload := chain[start:end]
 		blocks, err := t.getBlocks(headersForDownload)
 		if err != nil {
-			log.Info("ttttt", "getBlocks err", err, "len", len(headersForDownload))
 			return err
 		}
 		if len(blocks) != end-start {
@@ -102,7 +98,6 @@ func (t *task) Run(bc blockchain) error {
 			ts := time.Now()
 			if t.syncBlock != nil { // Used by root chain blocks.
 				if err := t.syncBlock(b, bc); err != nil {
-					fmt.Println("sync err")
 					return err
 				}
 			}

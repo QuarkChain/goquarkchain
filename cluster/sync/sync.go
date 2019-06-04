@@ -1,7 +1,6 @@
 package sync
 
 import (
-	"fmt"
 	"github.com/QuarkChain/goquarkchain/core"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
@@ -39,7 +38,6 @@ type synchronizer struct {
 
 // AddTask sends a root block from peers to the main loop for processing.
 func (s *synchronizer) AddTask(task Task) error {
-	fmt.Println("???????????????")
 	s.taskRecvCh <- task
 	return nil
 }

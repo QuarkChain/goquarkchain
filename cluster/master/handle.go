@@ -349,7 +349,6 @@ func (pm *ProtocolManager) handleMsg(peer *peer) error {
 		if err != nil {
 			return err
 		}
-		resp.MinorBlockList[0].NumberU64()
 		return peer.SendResponse(p2p.GetMinorBlockListResponseMsg, p2p.Metadata{Branch: qkcMsg.MetaData.Branch}, qkcMsg.RpcID, resp)
 
 	case qkcMsg.Op == p2p.GetMinorBlockListResponseMsg:
@@ -629,14 +628,11 @@ func (pm *ProtocolManager) syncer() {
 
 // synchronise tries to sync up our local block chain with a remote peer.
 func (pm *ProtocolManager) synchronise(peer *peer) {
-	fmt.Println("AAAAAAAAAA")
 	// Short circuit if no peers are available
 	if peer == nil {
-		fmt.Println("?????????????????????")
 		return
 	}
 	if peer.RootHead() != nil {
-		fmt.Println("AAAAAAAAAAAAAAAAAAAAA")
 		err := pm.synchronizer.AddTask(synchronizer.NewRootChainTask(peer, peer.RootHead(), pm.statsChan, pm.getShardConnFunc))
 		if err != nil {
 			log.Error("AddTask to synchronizer.", "error", err.Error())

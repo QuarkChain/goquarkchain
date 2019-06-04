@@ -527,6 +527,12 @@ func (pool *TxPool) Pending() (map[common.Address]types.Transactions, error) {
 	return pending, nil
 }
 
+func (pool *TxPool) PendingCount() int {
+	pool.mu.Lock()
+	defer pool.mu.Unlock()
+	return len(pool.pending)
+}
+
 // Locals retrieves the accounts currently considered local by the pool.
 func (pool *TxPool) Locals() []common.Address {
 	pool.mu.Lock()
