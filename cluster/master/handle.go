@@ -352,7 +352,6 @@ func (pm *ProtocolManager) handleMsg(peer *peer) error {
 		if err != nil {
 			return err
 		}
-		resp.MinorBlockList[0].NumberU64()
 		return peer.SendResponse(p2p.GetMinorBlockListResponseMsg, p2p.Metadata{Branch: qkcMsg.MetaData.Branch}, qkcMsg.RpcID, resp)
 
 	case qkcMsg.Op == p2p.GetMinorBlockListResponseMsg:
