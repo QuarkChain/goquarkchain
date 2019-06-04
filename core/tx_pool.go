@@ -527,7 +527,7 @@ func (pool *TxPool) Pending() (map[common.Address]types.Transactions, error) {
 	return pending, nil
 }
 
-func (pool TxPool) PendingCount() int {
+func (pool *TxPool) PendingCount() int {
 	pool.mu.Lock()
 	defer pool.mu.Unlock()
 	return len(pool.pending)
