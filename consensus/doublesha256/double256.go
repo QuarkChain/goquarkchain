@@ -52,7 +52,6 @@ func hashAlgo(height uint64, hash []byte, nonce uint64) (consensus.MiningResult,
 }
 
 func verifySeal(chain consensus.ChainReader, header types.IHeader, adjustedDiff *big.Int) error {
-	fmt.Println("???????????", header.NumberU64())
 	if header.GetDifficulty().Sign() <= 0 {
 		return consensus.ErrInvalidDifficulty
 	}

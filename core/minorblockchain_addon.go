@@ -71,7 +71,7 @@ func (m *MinorBlockChain) putMinorBlock(mBlock *types.MinorBlock, xShardReceiveT
 }
 func (m *MinorBlockChain) updateTip(state *state.StateDB, block *types.MinorBlock) (bool, error) {
 	// Don't update tip if the block depends on a root block that is not root_tip or root_tip's ancestor
-	if !m.isSameRootChain(m.rootTip, m.getRootBlockHeaderByHash(block.Header().PrevRootBlockHash)) {
+	if !m.isSameRootChain(m.GetRootTip(), m.getRootBlockHeaderByHash(block.Header().PrevRootBlockHash)) {
 		return false, nil
 	}
 	updateTip := false
@@ -155,7 +155,7 @@ func (m *MinorBlockChain) validateTx(tx *types.Transaction, evmState *state.Stat
 
 	toBranch := account.Branch{Value: evmTx.ToFullShardId()}
 
-	initializedFullShardIDs := m.clusterConfig.Quarkchain.GetInitializedShardIdsBeforeRootHeight(m.rootTip.Number)
+	initializedFullShardIDs := m.clusterConfig.Quarkchain.GetInitializedShardIdsBeforeRootHeight(m.GetRootTip().Number)
 
 	if evmTx.IsCrossShard() {
 		hasInit := false
