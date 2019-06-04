@@ -325,8 +325,8 @@ func TestGetMinorBlocks(t *testing.T) {
 	for i, tt := range tests {
 		go handleMsg(clientPeer)
 		for _, conn := range shardConns {
-			conn.(*mock_master.MockShardConnForP2P).EXPECT().GetMinorBlocks(&p2p.GetMinorBlockListRequest{MinorBlockHashList: tt.hashList}).Return(
-				&p2p.GetMinorBlockListResponse{MinorBlockList: tt.expect}, nil).AnyTimes()
+			conn.(*mock_master.MockShardConnForP2P).EXPECT().GetMinorBlocks(gomock.Any()).Return(
+				&p2p.GetMinorBlockListResponse{MinorBlockList: tt.expect}, nil).Times(1)
 		}
 		rheaders, err := clientPeer.GetMinorBlockList(tt.hashList, 2)
 
