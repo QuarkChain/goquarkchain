@@ -420,43 +420,7 @@ func minBigInt(a, b *big.Int) *big.Int {
 
 // AddTx add tx to txPool
 func (m *MinorBlockChain) AddTx(tx *types.Transaction) error {
-	if m.txPool.all.Count() > int(m.clusterConfig.Quarkchain.TransactionQueueSizeLimitPerShard) {
-		return errors.New("txpool queue full")
-	}
-
-	toShardSize := m.clusterConfig.Quarkchain.GetShardSizeByChainId(tx.EvmTx.ToChainID())
-	if err := tx.EvmTx.SetToShardSize(toShardSize); err != nil {
-		return err
-	}
-	fromShardSize := m.clusterConfig.Quarkchain.GetShardSizeByChainId(tx.EvmTx.FromChainID())
-	if err := tx.EvmTx.SetFromShardSize(fromShardSize); err != nil {
-		return err
-	}
-
-	txHash := tx.Hash()
-	txInDB, _, _ := rawdb.ReadTransaction(m.db, txHash)
-	if txInDB != nil {
-		return errors.New("tx already have")
-	}
-	evmState, err := m.StateAt(m.CurrentBlock().Root())
-	if err != nil {
-		return err
-	}
-	evmState = evmState.Copy()
-	evmState.SetGasUsed(new(big.Int).SetUint64(0))
-	if _, err = evmState.Commit(true); err != nil {
-		return err
-	}
-
-	if tx, err = m.validateTx(tx, evmState, nil, nil); err != nil {
-		return err
-	}
-
-	err = m.txPool.AddLocal(tx) // txpool.addTx have lock already
-	if err != nil {
-		return err
-	}
-	return nil
+	return m.txPool.AddLocal(tx)
 }
 
 func (m *MinorBlockChain) computeGasLimit(parentGasLimit, parentGasUsed, gasLimitFloor uint64) (*big.Int, error) {
