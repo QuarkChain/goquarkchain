@@ -420,35 +420,7 @@ func minBigInt(a, b *big.Int) *big.Int {
 
 // AddTx add tx to txPool
 func (m *MinorBlockChain) AddTx(tx *types.Transaction) error {
-	m.mu.RLock()
-	if m.txPool.all.Count() > int(m.clusterConfig.Quarkchain.TransactionQueueSizeLimitPerShard) {
-		return errors.New("txpool queue full")
-	}
-	m.mu.RUnlock()
-	txHash := tx.Hash()
-	txInDB, _, _ := rawdb.ReadTransaction(m.db, txHash)
-	if txInDB != nil {
-		return errors.New("tx already have")
-	}
-	evmState, err := m.State()
-	if err != nil {
-		return err
-	}
-	evmState = evmState.Copy()
-	evmState.SetGasUsed(new(big.Int).SetUint64(0))
-	if _, err = evmState.Commit(true); err != nil {
-		return err
-	}
-
-	if tx, err = m.validateTx(tx, evmState, nil, nil); err != nil {
-		return err
-	}
-
-	err = m.txPool.AddLocal(tx) // txpool.addTx have lock already
-	if err != nil {
-		return err
-	}
-	return nil
+	return m.txPool.AddLocal(tx)
 }
 
 func (m *MinorBlockChain) computeGasLimit(parentGasLimit, parentGasUsed, gasLimitFloor uint64) (*big.Int, error) {
@@ -818,11 +790,21 @@ func (m *MinorBlockChain) CreateBlockToMine(createTime *uint64, address *account
 	}
 	//newGasLimit, err := m.computeGasLimit(prevBlock.Header().GetGasLimit().Uint64(), prevBlock.GetMetaData().GasUsed.Value.Uint64(), m.shardConfig.Genesis.GasLimit)
 
+	if address == nil {
+		t := account.CreatEmptyAddress(0)
+		address = &t
+	}
+
+	if m.clusterConfig.Quarkchain.GetFullShardIdByFullShardKey(address.FullShardKey) != m.branch.Value {
+		t := address.AddressInBranch(m.branch)
+		address = &t
+	}
 	block := prevBlock.CreateBlockToAppend(&realCreateTime, difficulty, address, nil, gasLimit, nil, nil)
 	evmState, err := m.getEvmStateForNewBlock(block, true)
 	//if gasLimit != nil {
 	//	evmState.SetGasLimit(gasLimit)
 	//}
+	evmState = evmState.Copy()
 
 	prevHeader := m.CurrentBlock()
 	ancestorRootHeader := m.GetRootBlockByHash(prevHeader.Header().PrevRootBlockHash).Header()
@@ -1053,13 +1035,11 @@ func (m *MinorBlockChain) GetTransactionByHash(hash common.Hash) (*types.MinorBl
 	_, mHash, txIndex := rawdb.ReadTransaction(m.db, hash)
 	if mHash == qkcCommon.EmptyHash { //TODO need? for test???
 		txs := make([]*types.Transaction, 0)
-		m.txPool.mu.RLock() // to lock txpool.all
-		tx, ok := m.txPool.all.all[hash]
-		if !ok {
+		tx := m.txPool.all.Get(hash)
+		if tx == nil {
 			return nil, 0
 		}
 		txs = append(txs, tx)
-		m.txPool.mu.RUnlock()
 		temp := types.NewMinorBlock(&types.MinorBlockHeader{}, &types.MinorBlockMeta{}, txs, nil, nil)
 		return temp, 0
 	}
@@ -1106,9 +1086,8 @@ func (m *MinorBlockChain) GetShardStatus() (*rpc.ShardStatus, error) {
 	if staleBlockCount < 0 {
 		return nil, errors.New("staleBlockCount should >=0")
 	}
-	m.mu.RLock()
-	pendingTxCount := len(m.txPool.pending)
-	m.mu.RUnlock()
+	pendingCount := m.txPool.PendingCount()
+
 	return &rpc.ShardStatus{
 		Branch:             m.branch,
 		Height:             cblock.IHeader().NumberU64(),
@@ -1116,7 +1095,7 @@ func (m *MinorBlockChain) GetShardStatus() (*rpc.ShardStatus, error) {
 		CoinbaseAddress:    cblock.IHeader().GetCoinbase(),
 		Timestamp:          cblock.IHeader().GetTime(),
 		TxCount60s:         txCount,
-		PendingTxCount:     uint32(pendingTxCount),
+		PendingTxCount:     uint32(pendingCount),
 		TotalTxCount:       *m.getTotalTxCount(cblock.Hash()),
 		BlockCount60s:      blockCount,
 		StaleBlockCount60s: staleBlockCount,

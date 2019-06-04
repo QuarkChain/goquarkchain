@@ -71,7 +71,7 @@ func (t *TxGenerator) Generate(genTxs *rpc.GenTxRequest,
 				if err := addTxList(txList); err != nil {
 					return err
 				}
-				txList = make([]*types.Transaction, batchScale)
+				txList = make([]*types.Transaction, 0, batchScale)
 				time.Sleep(time.Second * 2)
 			}
 		}
@@ -93,7 +93,9 @@ func (t *TxGenerator) createTransaction(acc *account.Account, nonce uint64,
 		toFullShardKey   = fromFullShardKey
 		recipient        = *sampleTx.EvmTx.To()
 	)
-
+	if fromFullShardKey == 0 {
+		fromFullShardKey = t.fullShardId
+	}
 	if recipient == (common.Address{}) {
 		idx := t.random(len(t.accounts))
 		toAddr := t.accounts[idx]
