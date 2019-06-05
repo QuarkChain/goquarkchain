@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"sync/atomic"
 	"time"
 
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
@@ -27,7 +26,7 @@ func NewServerSideOp(slave *SlaveBackend) *SlaveServerSideOp {
 }
 
 func (s *SlaveServerSideOp) HeartBeat(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
-	atomic.StoreInt64(&s.slave.ctx.Timestamp, time.Now().Unix())
+	s.slave.ctx.Timestamp = time.Now()
 	return &rpc.Response{}, nil
 }
 

@@ -9,6 +9,7 @@ import (
 	"github.com/ethereum/go-ethereum/rpc"
 	"os"
 	"reflect"
+	"time"
 )
 
 // ServiceContext is a collection of service independent options inherited from
@@ -18,7 +19,7 @@ type ServiceContext struct {
 	config    *Config
 	services  map[reflect.Type]Service // Index of the already constructed services
 	Shutdown  chan os.Signal
-	Timestamp int64
+	Timestamp time.Time
 	EventMux  *event.TypeMux // Event multiplexer used for decoupled notifications
 }
 

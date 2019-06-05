@@ -32,7 +32,6 @@ import (
 	"reflect"
 	"sort"
 	"sync"
-	"sync/atomic"
 	"syscall"
 	"time"
 )
@@ -350,7 +349,7 @@ func (s *QKCMasterBackend) Heartbeat() {
 	go func(normal bool) {
 		for normal {
 			timeGap := time.Now()
-			atomic.StoreInt64(&s.ctx.Timestamp, timeGap.Unix())
+			s.ctx.Timestamp = timeGap
 			for endpoint := range s.clientPool {
 				normal = s.clientPool[endpoint].HeartBeat()
 				if !normal {

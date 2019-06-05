@@ -32,7 +32,7 @@ type Miner struct {
 	exitCh    chan struct{}
 	now       time.Time
 	mu        sync.RWMutex
-	timestamp *int64
+	timestamp *time.Time
 	isMining  uint32
 }
 
@@ -65,7 +65,7 @@ func (m *Miner) mainLoop(recommit time.Duration) {
 	}
 	commit := func() {
 		// don't allow to mine
-		if atomic.LoadUint32(&m.isMining) == 0 || time.Now().Unix()-deadtime > atomic.LoadInt64(m.timestamp) {
+		if atomic.LoadUint32(&m.isMining) == 0 || time.Now().Sub(*m.timestamp) > deadtime {
 			return
 		}
 		interrupt()
