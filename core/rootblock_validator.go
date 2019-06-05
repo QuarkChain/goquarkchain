@@ -167,6 +167,9 @@ func (v *RootBlockValidator) ValidatorSeal(rHeader types.IHeader) error {
 	if !ok {
 		return errors.New("validate root block Seal failed, root block is nil")
 	}
+	if header.NumberU64() == 0 {
+		return nil
+	}
 	return v.engine.VerifySeal(v.blockChain, header, nil)
 }
 
