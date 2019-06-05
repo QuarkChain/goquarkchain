@@ -2,6 +2,7 @@ package miner
 
 import (
 	"fmt"
+	"github.com/QuarkChain/goquarkchain/cluster/service"
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/common"
@@ -10,6 +11,10 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+)
+
+const (
+	deadtime = 120
 )
 
 var (
@@ -21,20 +26,22 @@ type Miner struct {
 	engine        consensus.Engine
 	minerInterval time.Duration
 
-	resultCh chan types.IBlock
-	workCh   chan types.IBlock
-	startCh  chan struct{}
-	exitCh   chan struct{}
-	now      time.Time
-	mu       sync.RWMutex
-	isMining uint32
+	resultCh  chan types.IBlock
+	workCh    chan types.IBlock
+	startCh   chan struct{}
+	exitCh    chan struct{}
+	now       time.Time
+	mu        sync.RWMutex
+	timestamp *int64
+	isMining  uint32
 }
 
-func New(api MinerAPI, engine consensus.Engine, interval uint32) *Miner {
+func New(ctx *service.ServiceContext, api MinerAPI, engine consensus.Engine, interval uint32) *Miner {
 	miner := &Miner{
 		api:           api,
 		engine:        engine,
 		minerInterval: time.Duration(interval) * time.Second,
+		timestamp:     &ctx.Timestamp,
 		resultCh:      make(chan types.IBlock, 1),
 		workCh:        make(chan types.IBlock, 1),
 		startCh:       make(chan struct{}, 1),
@@ -58,7 +65,7 @@ func (m *Miner) mainLoop(recommit time.Duration) {
 	}
 	commit := func() {
 		// don't allow to mine
-		if atomic.LoadUint32(&m.isMining) == 0 {
+		if atomic.LoadUint32(&m.isMining) == 0 || time.Now().Unix()-deadtime > atomic.LoadInt64(m.timestamp) {
 			return
 		}
 		interrupt()
@@ -102,7 +109,7 @@ func (m *Miner) mainLoop(recommit time.Duration) {
 func (m *Miner) Start() {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	m.engine.SetThreads(threads / 2)
+	m.engine.SetThreads(1)
 }
 
 func (m *Miner) Stop() {
