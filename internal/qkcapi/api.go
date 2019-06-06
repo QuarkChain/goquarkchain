@@ -479,7 +479,7 @@ func (p *PrivateBlockChainAPI) GetSyncStats() {
 	//need to discuss
 	panic("not implemented")
 }
-func (p *PrivateBlockChainAPI) GetStats() map[string]interface{} {
+func (p *PrivateBlockChainAPI) GetStats() (map[string]interface{}, error) {
 	return p.b.GetStats()
 }
 func (p *PrivateBlockChainAPI) GetBlockCount() (map[uint32]map[account.Recipient]uint32, error) {

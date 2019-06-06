@@ -385,8 +385,6 @@ func (m *MinorBlockChain) State() (*state.StateDB, error) {
 
 // StateAt returns a new mutable state based on a particular point in time.
 func (m *MinorBlockChain) StateAt(root common.Hash) (*state.StateDB, error) {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
 	return m.stateAt(root)
 }
 

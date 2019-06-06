@@ -23,7 +23,7 @@ import (
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
 	ethRPC "github.com/ethereum/go-ethereum/rpc"
-	"github.com/shirou/gopsutil/mem"
+	"github.com/shirou/gopsutil/cpu"
 	"golang.org/x/sync/errgroup"
 	"gopkg.in/karalabe/cookiejar.v1/collections/deque"
 	"math/big"
@@ -601,7 +601,7 @@ func (s *QKCMasterBackend) GetBlockCount() (map[uint32]map[account.Recipient]uin
 	return s.rootBlockChain.GetBlockCount(headerTip.Number())
 }
 
-func (s *QKCMasterBackend) GetStats() map[string]interface{} {
+func (s *QKCMasterBackend) GetStats() (map[string]interface{}, error) {
 	s.lock.RLock()
 	defer s.lock.RUnlock()
 	branchToShardStats := s.branchToShardStats
@@ -669,30 +669,33 @@ func (s *QKCMasterBackend) GetStats() map[string]interface{} {
 		}
 		peerForDisplay = append(peerForDisplay, temp)
 	}
-	v, _ := mem.VirtualMemory()
+	cc, err := cpu.Percent(time.Second, true)
+	if err != nil {
+		return nil, err
+	}
 	return map[string]interface{}{
-		"networkId":           s.clusterConfig.Quarkchain.NetworkID,
-		"chainSize":           s.clusterConfig.Quarkchain.ChainSize,
-		"shardServerCount":    len(s.clientPool),
-		"rootHeight":          s.rootBlockChain.CurrentBlock().Number(),
-		"rootDifficulty":      s.rootBlockChain.CurrentBlock().Difficulty(),
-		"rootCoinbaseAddress": hexutil.Bytes(s.rootBlockChain.CurrentBlock().Coinbase().ToBytes()),
-		"rootTimestamp":       s.rootBlockChain.CurrentBlock().Time(),
-		"rootLastBlockTime":   rootLastBlockTime,
-		"txCount60s":          sumTxCount60s,
-		"blockCount60s":       sumBlockCount60,
-		"staleBlockCount60s":  sumStaleBlockCount60s,
-		"pendingTxCount":      sumPendingTxCount,
-		"totalTxCount":        sumTotalTxCount,
-		//"syncing":s.synchronizer.Running TODO running
-		// "mining": root_miner.is_enabled()
+		"networkId":            s.clusterConfig.Quarkchain.NetworkID,
+		"chainSize":            s.clusterConfig.Quarkchain.ChainSize,
+		"shardServerCount":     len(s.clientPool),
+		"rootHeight":           s.rootBlockChain.CurrentBlock().Number(),
+		"rootDifficulty":       s.rootBlockChain.CurrentBlock().Difficulty(),
+		"rootCoinbaseAddress":  hexutil.Bytes(s.rootBlockChain.CurrentBlock().Coinbase().ToBytes()),
+		"rootTimestamp":        s.rootBlockChain.CurrentBlock().Time(),
+		"rootLastBlockTime":    rootLastBlockTime,
+		"txCount60s":           sumTxCount60s,
+		"blockCount60s":        sumBlockCount60,
+		"staleBlockCount60s":   sumStaleBlockCount60s,
+		"pendingTxCount":       sumPendingTxCount,
+		"totalTxCount":         sumTotalTxCount,
+		"syncing":              false, //TODO fake
+		"mining":               false, //TODO fake
 		"shards":               shards,
 		"peers":                peerForDisplay,
 		"minor_block_interval": s.artificialTxConfig.TargetMinorBlockTime,
 		"root_block_interval":  s.artificialTxConfig.TargetRootBlockTime,
-		"cpus":                 v.UsedPercent,
+		"cpus":                 cc,
 		"txCountHistory":       txCountHistory,
-	}
+	}, nil
 }
 
 func (s *QKCMasterBackend) isSyning() bool {
