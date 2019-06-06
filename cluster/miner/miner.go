@@ -65,7 +65,7 @@ func (m *Miner) mainLoop(recommit time.Duration) {
 	}
 	commit := func() {
 		// don't allow to mine
-		if atomic.LoadUint32(&m.isMining) == 0 || time.Now().Sub(*m.timestamp) > deadtime {
+		if atomic.LoadUint32(&m.isMining) == 0 || time.Now().Sub(*m.timestamp).Seconds() > deadtime {
 			return
 		}
 		interrupt()

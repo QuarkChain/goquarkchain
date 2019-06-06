@@ -146,6 +146,7 @@ func (c *rpcClient) Call(hostport string, req *Request) (*Response, error) {
 	if !ok {
 		return nil, errors.New("invalid op")
 	}
+	req.RpcId = c.addRpcId()
 	return c.grpcOp(hostport, req)
 }
 
