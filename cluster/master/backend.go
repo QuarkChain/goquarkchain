@@ -54,6 +54,7 @@ type TxForQueue struct {
 
 // QKCMasterBackend masterServer include connections
 type QKCMasterBackend struct {
+	ctx                *service.ServiceContext
 	gspc               *core.Genesis
 	lock               sync.RWMutex
 	engine             consensus.Engine
@@ -84,6 +85,7 @@ type QKCMasterBackend struct {
 func New(ctx *service.ServiceContext, cfg *config.ClusterConfig) (*QKCMasterBackend, error) {
 	var (
 		mstr = &QKCMasterBackend{
+			ctx:                ctx,
 			clusterConfig:      cfg,
 			gspc:               core.NewGenesis(cfg.Quarkchain),
 			eventMux:           ctx.EventMux,
@@ -109,7 +111,7 @@ func New(ctx *service.ServiceContext, cfg *config.ClusterConfig) (*QKCMasterBack
 		return nil, err
 	}
 
-	mstr.miner = miner.New(mstr, mstr.engine, cfg.Quarkchain.Root.ConsensusConfig.TargetBlockTime)
+	mstr.miner = miner.New(ctx, mstr, mstr.engine, cfg.Quarkchain.Root.ConsensusConfig.TargetBlockTime)
 
 	chainConfig, genesisHash, genesisErr := core.SetupGenesisRootBlock(mstr.chainDb, mstr.gspc)
 	// TODO check config err
@@ -347,6 +349,7 @@ func (s *QKCMasterBackend) Heartbeat() {
 	go func(normal bool) {
 		for normal {
 			timeGap := time.Now()
+			s.ctx.Timestamp = timeGap
 			for endpoint := range s.clientPool {
 				normal = s.clientPool[endpoint].HeartBeat()
 				if !normal {

@@ -2,24 +2,25 @@
 package service
 
 import (
-	"github.com/QuarkChain/goquarkchain/qkcdb"
-	"os"
-	"reflect"
-
 	"github.com/QuarkChain/goquarkchain/p2p"
+	"github.com/QuarkChain/goquarkchain/qkcdb"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/rpc"
+	"os"
+	"reflect"
+	"time"
 )
 
 // ServiceContext is a collection of service independent options inherited from
 // the protocol stack, that is passed to all constructors to be optionally used;
 // as well as utility methods to operate on the service environment.
 type ServiceContext struct {
-	config   *Config
-	services map[reflect.Type]Service // Index of the already constructed services
-	Shutdown chan os.Signal
-	EventMux *event.TypeMux // Event multiplexer used for decoupled notifications
+	config    *Config
+	services  map[reflect.Type]Service // Index of the already constructed services
+	Shutdown  chan os.Signal
+	Timestamp time.Time
+	EventMux  *event.TypeMux // Event multiplexer used for decoupled notifications
 }
 
 // OpenDatabase opens an existing database with the given name (or creates one
