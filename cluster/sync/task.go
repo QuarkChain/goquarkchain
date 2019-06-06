@@ -2,6 +2,7 @@ package sync
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 
@@ -36,7 +37,9 @@ func (t *task) Run(bc blockchain) error {
 	logger := log.New("synctask", t.name, "start", t.header.NumberU64())
 	headerTip := bc.CurrentHeader()
 	tipHeight := headerTip.NumberU64()
-
+	if err := bc.Validator().ValidatorSeal(t.header); err != nil {
+		return fmt.Errorf("validator tip failed number:%d,hash:%v", t.header.NumberU64(), t.header.Hash().String())
+	}
 	// Prepare for downloading.
 	chain := []common.Hash{t.header.Hash()}
 	lastHeader := t.header
@@ -49,7 +52,7 @@ func (t *task) Run(bc blockchain) error {
 
 		logger.Info("Downloading block header list", "height", height, "hash", hash)
 		// Order should be descending. Download size is min(500, h-tip) if h > tip.
-		downloadSz := uint32(headerDownloadSize)
+		downloadSz := uint32(headerDownloadSize) //TODO minor and root have different data
 		receivedHeaders, err := t.getHeaders(lastHeader.GetParentHash(), downloadSz)
 		if err != nil {
 			return err
@@ -128,7 +131,7 @@ func (t *task) validateHeaderList(bc blockchain, headers []types.IHeader) error 
 				return errors.New("should have blocks correctly linked")
 			}
 		}
-		if err := bc.Validator().ValidateHeader(h); err != nil {
+		if err := bc.Validator().ValidatorSeal(h); err != nil {
 			return err
 		}
 		prev = h

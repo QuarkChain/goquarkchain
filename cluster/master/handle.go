@@ -28,7 +28,7 @@ const (
 	QKCProtocolLength   = 16
 	chainHeadChanSize   = 10
 	forceSyncCycle      = 1000 * time.Second
-	minDesiredPeerCount = 5
+	minDesiredPeerCount = 0
 )
 
 // ProtocolManager QKC manager
@@ -75,14 +75,9 @@ func NewProtocolManager(env config.ClusterConfig, rootBlockChain *core.RootBlock
 		Length:  QKCProtocolLength,
 		Run: func(p *p2p.Peer, rw p2p.MsgReadWriter) error {
 			peer := newPeer(int(QKCProtocolVersion), p, rw)
-			select {
-			case manager.newPeerCh <- peer:
-				manager.wg.Add(1)
-				defer manager.wg.Done()
-				return manager.handle(peer)
-			case <-manager.quitSync:
-				return p2p.DiscQuitting
-			}
+
+			return manager.handle(peer)
+
 		},
 	}
 	manager.subProtocols = []p2p.Protocol{protocol}
@@ -163,6 +158,8 @@ func (pm *ProtocolManager) handle(peer *peer) error {
 		return err
 	}
 	defer pm.removePeer(peer.id)
+	log.Info(pm.log, "peer add succ id ", peer.PeerID())
+	pm.newPeerCh <- peer
 
 	// currently we do not broadcast old transaction when connect
 	// so the first few block may not have transaction verification failed

@@ -105,6 +105,7 @@ func minorBlockEncoder(block *types.MinorBlock, includeTransaction bool) (map[st
 		"nonce":              hexutil.Uint64(header.Nonce),
 		"hashMerkleRoot":     meta.TxHash,
 		"hashEvmStateRoot":   meta.Root,
+		"receiptHash":        meta.ReceiptHash,
 		"miner":              DataEncoder(minerData),
 		"coinbase":           (*hexutil.Big)(header.CoinbaseAmount.Value),
 		"difficulty":         (*hexutil.Big)(header.Difficulty),
