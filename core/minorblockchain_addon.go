@@ -71,7 +71,7 @@ func (m *MinorBlockChain) putMinorBlock(mBlock *types.MinorBlock, xShardReceiveT
 }
 func (m *MinorBlockChain) updateTip(state *state.StateDB, block *types.MinorBlock) (bool, error) {
 	// Don't update tip if the block depends on a root block that is not root_tip or root_tip's ancestor
-	if !m.isSameRootChain(m.GetRootTip(), m.getRootBlockHeaderByHash(block.Header().PrevRootBlockHash)) {
+	if !m.isSameRootChain(m.rootTip, m.getRootBlockHeaderByHash(block.Header().PrevRootBlockHash)) {
 		return false, nil
 	}
 	updateTip := false
@@ -155,7 +155,7 @@ func (m *MinorBlockChain) validateTx(tx *types.Transaction, evmState *state.Stat
 
 	toBranch := account.Branch{Value: evmTx.ToFullShardId()}
 
-	initializedFullShardIDs := m.clusterConfig.Quarkchain.GetInitializedShardIdsBeforeRootHeight(m.GetRootTip().Number)
+	initializedFullShardIDs := m.clusterConfig.Quarkchain.GetInitializedShardIdsBeforeRootHeight(m.rootTip.Number)
 
 	if evmTx.IsCrossShard() {
 		hasInit := false
@@ -226,6 +226,7 @@ func (m *MinorBlockChain) GetTransactionCount(recipient account.Recipient, heigh
 	}
 	return evmState.GetNonce(recipient), nil
 }
+
 func (m *MinorBlockChain) isSameRootChain(long types.IHeader, short types.IHeader) bool {
 	return isSameRootChain(m.db, long, short)
 }
@@ -284,6 +285,7 @@ func (m *MinorBlockChain) putTotalTxCount(mBlock *types.MinorBlock) error {
 		}
 		prevCount += *dbPreCount
 	}
+	prevCount += uint32(len(mBlock.Transactions()))
 	rawdb.WriteTotalTx(m.db, mBlock.Header().Hash(), prevCount)
 	return nil
 }
@@ -1070,7 +1072,11 @@ func (m *MinorBlockChain) GetShardStatus() (*rpc.ShardStatus, error) {
 	for cblock.IHeader().NumberU64() > 0 && cblock.IHeader().GetTime() > cutoff {
 		txCount += uint32(len(cblock.GetTransactions()))
 		blockCount++
-		staleBlockCount = uint32(m.getBlockCountByHeight(cblock.Header().Number))
+		tStale := uint32(m.getBlockCountByHeight(cblock.Header().Number))
+		staleBlockCount += tStale
+		if tStale >= 1 {
+			staleBlockCount--
+		}
 		cblock = m.GetMinorBlock(cblock.IHeader().GetParentHash())
 		if cblock == nil {
 			return nil, ErrMinorBlockIsNil
@@ -1083,7 +1089,7 @@ func (m *MinorBlockChain) GetShardStatus() (*rpc.ShardStatus, error) {
 		return nil, errors.New("staleBlockCount should >=0")
 	}
 	pendingCount := m.txPool.PendingCount()
-
+	cblock = m.CurrentBlock()
 	return &rpc.ShardStatus{
 		Branch:             m.branch,
 		Height:             cblock.IHeader().NumberU64(),
@@ -1260,7 +1266,7 @@ func decodeAddressTxKey(data []byte) (uint64, bool, uint32, error) {
 	}
 	height := qkcCommon.BytesToUint32(data[5+24 : 5+24+4])
 	flag := false
-	if data[5+24+4] == byte(1) {
+	if data[5+24+4] == byte(0) {
 		flag = true
 	}
 	index := qkcCommon.BytesToUint32(data[5+24+4+1:])
@@ -1351,10 +1357,6 @@ func (m *MinorBlockChain) GetTransactionByAddress(address account.Address, start
 	it := qkcDB.NewIterator()
 	it.SeekForPrev(start)
 	for it.Valid() {
-		if len(it.Key().Data()) != 38 {
-			//TODO ?? delete it
-			panic(errors.New("unexpected err"))
-		}
 
 		if bytes.Compare(it.Key().Data(), endEncodeAddressTxKey) < 0 {
 			break
