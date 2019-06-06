@@ -24,6 +24,7 @@ import (
 	"math/big"
 	"math/rand"
 	"os"
+	"sync"
 	"testing"
 	"time"
 
@@ -41,7 +42,10 @@ import (
 
 // testTxPoolConfig is a transaction pool configuration without stateful disk
 // sideeffects used during testing.
-var testTxPoolConfig TxPoolConfig
+var (
+	testTxPoolConfig TxPoolConfig
+	mu               sync.RWMutex
+)
 
 func init() {
 	testTxPoolConfig = DefaultTxPoolConfig
@@ -74,7 +78,9 @@ func (bc *testBlockChain) SubscribeChainHeadEvent(ch chan<- MinorChainHeadEvent)
 func (bc *testBlockChain) Config() *config.QuarkChainConfig {
 	return config.NewQuarkChainConfig()
 }
-
+func (m *testBlockChain) validateTx(tx *types.Transaction, evmState *state.StateDB, fromAddress *account.Address, gas *uint64) (*types.Transaction, error) {
+	return tx, nil
+}
 func transaction(nonce uint64, gaslimit uint64, key *ecdsa.PrivateKey) *types.Transaction {
 	return pricedTransaction(nonce, gaslimit, big.NewInt(1), key)
 }

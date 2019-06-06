@@ -8,37 +8,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/serialize"
 	ethCommon "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
-	"math/big"
 )
-
-// SendTxArgs represents the arguments to sumbit a new transaction into the transaction pool.
-type SendTxArgs struct {
-	From     ethCommon.Address  `json:"from"`
-	To       *ethCommon.Address `json:"to"`
-	Gas      *hexutil.Uint64    `json:"gas"`
-	GasPrice *hexutil.Big       `json:"gasPrice"`
-	Value    *hexutil.Big       `json:"value"`
-	Nonce    *hexutil.Uint64    `json:"nonce"`
-	// We accept "data" and "input" for backwards-compatibility reasons. "input" is the
-	// newer name and should be preferred by clients.
-	Data             *hexutil.Bytes  `json:"data"`
-	FromFullShardKey *hexutil.Uint64 `json:"fromFullShardId"`
-	ToFullShardKey   *hexutil.Uint64 `json:"toFullShardId"`
-}
-
-var (
-	DEFAULT_STARTGAS = uint64(100 * 1000)
-	DEFAULT_GASPRICE = new(big.Int).Mul(new(big.Int).SetUint64(10), new(big.Int).SetUint64(1000000000))
-)
-
-// setDefaults is a helper function that fills in default values for unspecified tx fields.
-func (args *SendTxArgs) setDefaults() {
-	panic(-1)
-}
-
-func (args *SendTxArgs) toTransaction(networkID uint32) (*types.Transaction, error) {
-	panic(-1)
-}
 
 func IDEncoder(hashByte []byte, fullShardKey uint32) hexutil.Bytes {
 	hashByte = append(hashByte, common.Uint32ToBytes(fullShardKey)...)
@@ -55,15 +25,7 @@ func IDDecoder(bytes []byte) (ethCommon.Hash, uint32, error) {
 func DataEncoder(bytes []byte) hexutil.Bytes {
 	return hexutil.Bytes(bytes)
 }
-func DataDecoder(bytes []byte) (hexutil.Bytes, error) {
-	if len(bytes) >= 2 && bytes[0] == '0' && bytes[1] == 'x' {
-		return hexutil.Bytes(bytes[2:]), nil
-	}
-	return nil, errors.New("should have 0x")
-}
-func FullShardKeyEncoder(fullShardKey uint32) hexutil.Bytes {
-	panic(-1)
-}
+
 func rootBlockEncoder(rootBlock *types.RootBlock) (map[string]interface{}, error) {
 	serData, err := serialize.SerializeToBytes(rootBlock)
 	if err != nil {
@@ -143,6 +105,7 @@ func minorBlockEncoder(block *types.MinorBlock, includeTransaction bool) (map[st
 		"nonce":              hexutil.Uint64(header.Nonce),
 		"hashMerkleRoot":     meta.TxHash,
 		"hashEvmStateRoot":   meta.Root,
+		"receiptHash":        meta.ReceiptHash,
 		"miner":              DataEncoder(minerData),
 		"coinbase":           (*hexutil.Big)(header.CoinbaseAmount.Value),
 		"difficulty":         (*hexutil.Big)(header.Difficulty),

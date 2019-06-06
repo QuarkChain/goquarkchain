@@ -536,3 +536,15 @@ func (s *SlaveServerSideOp) HandleNewMinorBlock(ctx context.Context, req *rpc.Re
 
 	return response, nil
 }
+
+func (s *SlaveServerSideOp) SetMining(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
+	var (
+		mining   bool
+		response = &rpc.Response{RpcId: req.RpcId}
+		err      error
+	)
+	if err = serialize.DeserializeFromBytes(req.Data, &mining); err != nil {
+		return nil, err
+	}
+	return response, nil
+}

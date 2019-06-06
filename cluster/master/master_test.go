@@ -171,7 +171,6 @@ func (c *fakeRpcClient) Call(hostport string, req *rpc.Request) (*rpc.Response, 
 		if err != nil {
 			return nil, err
 		}
-		//fmt.Println("data----", hex.EncodeToString(data))
 		return &rpc.Response{Data: data}, nil
 	case rpc.OpGetTransactionListByAddress:
 		rsp := new(rpc.GetTransactionListByAddressResponse)
@@ -393,13 +392,18 @@ func TestAddTransaction(t *testing.T) {
 		TxType: types.EvmTx,
 	}
 	err = master.AddTransaction(tx)
+	fmt.Println("err", err)
 	assert.NoError(t, err)
 
-	evmTx = types.NewEvmTransaction(0, id1.GetRecipient(), new(big.Int), 0, new(big.Int), 100, 2, 1, 0, []byte{})
+	fmt.Println(master.clusterConfig.Quarkchain.GetGenesisShardIds())
+	//fromFullShardKey 00040000 -> chainID =4
+	// config->chainID : 1,2,3
+	evmTx = types.NewEvmTransaction(0, id1.GetRecipient(), new(big.Int), 0, new(big.Int), 262144, 2, 1, 0, []byte{})
 	tx = &types.Transaction{
 		EvmTx:  evmTx,
 		TxType: types.EvmTx,
 	}
+	fmt.Println("err", err)
 	err = master.AddTransaction(tx)
 	assert.Error(t, err)
 }

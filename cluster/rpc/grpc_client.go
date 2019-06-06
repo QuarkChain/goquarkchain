@@ -54,11 +54,12 @@ const (
 	OpHandleNewTip
 	OpAddTransactions
 	OpHandleNewMinorBlock
+	OpSetMining
 
 	MasterServer = serverType(1)
 	SlaveServer  = serverType(0)
 
-	timeOut = 10
+	timeOut = 500
 )
 
 var (
@@ -100,6 +101,7 @@ var (
 		OpGetWork:                     {name: "GetWork"},
 		OpSubmitWork:                  {name: "SubmitWork"},
 		OpAddMinorBlockListForSync:    {name: "AddMinorBlockListForSync"},
+		OpSetMining:                   {name: "SetMining"},
 		// p2p api
 		OpGetMinorBlockList:       {name: "GetMinorBlockList"},
 		OpGetMinorBlockHeaderList: {name: "GetMinorBlockHeaderList"},

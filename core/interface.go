@@ -33,6 +33,7 @@ type Validator interface {
 	ValidateHeader(header types.IHeader) error
 	// ValidateState validate state
 	ValidateState(block, parent types.IBlock, state *state.StateDB, receipts types.Receipts, usedGas uint64) error
+	ValidatorSeal(rHeader types.IHeader) error
 }
 
 // Processor is an interface for processing blocks using a given initial state.

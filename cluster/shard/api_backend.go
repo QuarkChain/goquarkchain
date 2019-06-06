@@ -47,7 +47,7 @@ func (p *peer) PeerID() string {
 
 func (s *ShardBackend) GetUnconfirmedHeaderList() ([]*types.MinorBlockHeader, error) {
 	headers := s.MinorBlockChain.GetUnconfirmedHeaderList()
-	return headers[0:s.maxBlocks], nil
+	return headers, nil
 }
 
 func (s *ShardBackend) broadcastNewTip() (err error) {
@@ -63,8 +63,6 @@ func (s *ShardBackend) broadcastNewTip() (err error) {
 // Returns true if block is successfully added. False on any error.
 // called by 1. local miner (will not run if syncing) 2. SyncTask
 func (s *ShardBackend) AddMinorBlock(block *types.MinorBlock) error {
-	log.Info(s.logInfo, "shardBackend addminorBlock number", block.Number(), "hash", block.Hash().String())
-	defer log.Info(s.logInfo, "shardBackend addminorBlock", "end")
 	var (
 		oldTip = s.MinorBlockChain.CurrentHeader()
 	)
@@ -160,13 +158,13 @@ func (s *ShardBackend) AddBlockListForSync(blockLst []*types.MinorBlock) error {
 		prevRootHeight := s.MinorBlockChain.GetRootBlockByHash(block.Header().PrevRootBlockHash)
 		blockHashToXShardList[blockHash] = &XshardListTuple{XshardTxList: xshardLst[0], PrevRootHeight: prevRootHeight.Number()}
 	}
+	// interrupt the current miner and restart
 	return s.conn.BatchBroadcastXshardTxList(blockHashToXShardList, blockLst[0].Header().Branch)
 }
 
-// TODO 当前版本暂不添加
 func (s *ShardBackend) GetTransactionListByAddress(address *account.Address,
 	start []byte, limit uint32) ([]*rpc.TransactionDetail, []byte, error) {
-	panic("not implemented")
+	return s.MinorBlockChain.GetTransactionByAddress(*address, start, limit)
 }
 
 // TODO 当前版本暂不添加
@@ -177,11 +175,11 @@ func (s *ShardBackend) PoswDiffAdjust(block *types.MinorBlock) (*big.Int, error)
 }
 
 func (s *ShardBackend) GetWork() (*consensus.MiningWork, error) {
-	return s.engine.GetWork()
+	return s.miner.GetWork()
 }
 
 func (s *ShardBackend) SubmitWork(headerHash common.Hash, nonce uint64, mixHash common.Hash) error {
-	if ok := s.engine.SubmitWork(nonce, headerHash, mixHash); ok {
+	if ok := s.miner.SubmitWork(nonce, headerHash, mixHash); ok {
 		return nil
 	}
 	return errors.New("submit mined work failed")
@@ -192,6 +190,10 @@ func (s *ShardBackend) HandleNewTip(rBHeader *types.RootBlockHeader, mBHeader *t
 		return nil
 	}
 
+	if s.MinorBlockChain.GetRootBlockByHash(mBHeader.PrevRootBlockHash) == nil {
+		log.Warn(s.logInfo, "preRootBlockHash do not have height ,no need to add task", mBHeader.Number, "preRootHash", mBHeader.PrevRootBlockHash.String())
+		return nil
+	}
 	peer := &peer{cm: s.conn, peerID: peerID}
 	err := s.synchronizer.AddTask(synchronizer.NewMinorChainTask(peer, mBHeader))
 	if err != nil {
@@ -249,4 +251,26 @@ func (s *ShardBackend) NewMinorBlock(block *types.MinorBlock) (err error) {
 		return err
 	}
 	return s.AddMinorBlock(block)
+}
+
+func (s *ShardBackend) addTxList(txs []*types.Transaction) error {
+	for index := range txs {
+		if err := s.MinorBlockChain.AddTx(txs[index]); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *ShardBackend) GenTx(genTxs *rpc.GenTxRequest) error {
+	return s.txGenerator.Generate(genTxs, s.MinorBlockChain.GetTransactionCount, s.addTxList)
+}
+
+// miner api
+func (s *ShardBackend) CreateBlockToMine() (types.IBlock, error) {
+	return s.MinorBlockChain.CreateBlockToMine(nil, &s.Config.CoinbaseAddress, nil)
+}
+
+func (s *ShardBackend) InsertMinedBlock(block types.IBlock) error {
+	return s.AddMinorBlock(block.(*types.MinorBlock))
 }
