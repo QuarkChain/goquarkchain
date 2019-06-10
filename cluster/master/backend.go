@@ -38,8 +38,6 @@ import (
 
 const (
 	disPlayPeerInfoInterval = time.Duration(5 * time.Second)
-	rootChainChanSize       = 256
-	rootChainSideChanSize   = 256
 )
 
 var (
