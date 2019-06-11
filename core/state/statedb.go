@@ -557,6 +557,7 @@ func (s *StateDB) Copy() *StateDB {
 	}
 	state.SetGasLimit(s.gasLimit)
 	state.SetQuarkChainConfig(s.GetQuarkChainConfig())
+	state.SetBlockCoinbase(s.blockCoinbase)
 	return state
 }
 
