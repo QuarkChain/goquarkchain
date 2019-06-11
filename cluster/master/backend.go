@@ -204,7 +204,7 @@ func (s *QKCMasterBackend) Start(srvr *p2p.Server) error {
 	s.updateShardStatsLoop()
 	s.Heartbeat()
 	// s.disPlayPeers()
-	s.miner.Start()
+	s.miner.Init()
 	return nil
 }
 

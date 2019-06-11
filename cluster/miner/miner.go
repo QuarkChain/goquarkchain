@@ -106,7 +106,7 @@ func (m *Miner) mainLoop(recommit time.Duration) {
 	}
 }
 
-func (m *Miner) Start() {
+func (m *Miner) Init() {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.engine.SetThreads(1)
