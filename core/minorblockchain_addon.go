@@ -31,17 +31,20 @@ func (m *MinorBlockChain) getLastConfirmedMinorBlockHeaderAtRootBlock(hash commo
 	}
 	return rawdb.ReadMinorBlockHeader(m.db, rMinorHeaderHash)
 }
-
 func (m *MinorBlockChain) isSameMinorChain(long types.IHeader, short types.IHeader) bool {
 	// already locked by insertChain
 	if short.NumberU64() > long.NumberU64() {
 		return false
 	}
+	if short.NumberU64() == long.NumberU64() {
+		return long.Hash() == short.Hash()
+	}
+
 	header := long
-	for index := 0; index < int(long.NumberU64()-short.NumberU64()); index++ {
+	for index := 0; index < int(long.NumberU64()-short.NumberU64())-1; index++ {
 		header = m.GetHeaderByHash(header.GetParentHash())
 	}
-	return header.Hash() == short.Hash()
+	return short.Hash() == header.GetParentHash()
 }
 func getLocalFeeRate(qkcConfig *config.QuarkChainConfig) *big.Rat {
 	ret := new(big.Rat).SetInt64(1)
@@ -120,6 +123,9 @@ func (m *MinorBlockChain) runCrossShardTxList(evmState *state.StateDB, descendan
 }
 
 func (m *MinorBlockChain) validateTx(tx *types.Transaction, evmState *state.StateDB, fromAddress *account.Address, gas *uint64) (*types.Transaction, error) {
+	if evmState == nil && fromAddress != nil {
+		return nil, errors.New("validateTx params err")
+	}
 	if tx.TxType != types.EvmTx {
 		return nil, errors.New("unexpected tx type")
 	}
@@ -155,9 +161,8 @@ func (m *MinorBlockChain) validateTx(tx *types.Transaction, evmState *state.Stat
 
 	toBranch := account.Branch{Value: evmTx.ToFullShardId()}
 
-	initializedFullShardIDs := m.clusterConfig.Quarkchain.GetInitializedShardIdsBeforeRootHeight(m.rootTip.Number)
-
 	if evmTx.IsCrossShard() {
+		initializedFullShardIDs := m.clusterConfig.Quarkchain.GetInitializedShardIdsBeforeRootHeight(m.rootTip.Number)
 		hasInit := false
 		for _, v := range initializedFullShardIDs {
 			if toBranch.GetFullShardID() == v {
@@ -172,13 +177,15 @@ func (m *MinorBlockChain) validateTx(tx *types.Transaction, evmState *state.Stat
 	if evmTx.IsCrossShard() && !m.isNeighbor(toBranch, nil) {
 		return nil, ErrNotNeighbor
 	}
-	if err := ValidateTransaction(evmState, tx, fromAddress); err != nil {
-		return nil, err
-	}
-
 	tx = &types.Transaction{
 		TxType: types.EvmTx,
 		EvmTx:  evmTx,
+	}
+	if evmState == nil {
+		return tx, nil //txpool.validateTx,validateTransaction will add in txpool,to avoid write and read txpool.currentEvmState frequently
+	}
+	if err := ValidateTransaction(evmState, tx, fromAddress); err != nil {
+		return nil, err
 	}
 	return tx, nil
 }
@@ -188,10 +195,7 @@ func (m *MinorBlockChain) InitGenesisState(rBlock *types.RootBlock) (*types.Mino
 	m.mu.Lock() // used in initFromRootBlock and addRootBlock, so should lock
 	defer m.mu.Unlock()
 	var err error
-	gBlock, err := NewGenesis(m.clusterConfig.Quarkchain).CreateMinorBlock(rBlock, m.branch.Value, m.db)
-	if err != nil {
-		return nil, err
-	}
+	gBlock := m.genesisBlock
 	rawdb.WriteTd(m.db, gBlock.Hash(), gBlock.Difficulty())
 	height := m.clusterConfig.Quarkchain.GetGenesisRootHeight(m.branch.Value)
 	if rBlock.Header().Number != height {

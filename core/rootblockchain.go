@@ -40,17 +40,12 @@ var (
 )
 
 const (
-	bodyCacheLimit            = 256
-	blockCacheLimit           = 256
+	blockCacheLimit           = 32
 	receiptsCacheLimit        = 32
-	maxFutureBlocks           = 256
+	maxFutureBlocks           = 32
 	maxTimeFutureBlocks       = 30
-	badBlockLimit             = 10
-	triesInMemory             = 128
-	validatedMinorBlockHashes = 2048
-
-	// BlockChainVersion ensures that an incompatible database forces a resync from scratch.
-	BlockChainVersion = 3
+	triesInMemory             = 32
+	validatedMinorBlockHashes = 128
 )
 
 // CacheConfig contains the configuration values for the trie caching/pruning
@@ -113,7 +108,6 @@ type RootBlockChain struct {
 	engine    consensus.Engine
 	validator Validator // block and state validator interface
 
-	badBlocks        *lru.Cache                        // Bad block cache
 	shouldPreserve   func(block *types.RootBlock) bool // Function used to determine whether should preserve the given block.
 	countMinorBlocks bool
 	addBlockAndBroad func(block *types.RootBlock) error
@@ -132,7 +126,6 @@ func NewRootBlockChain(db ethdb.Database, cacheConfig *CacheConfig, chainConfig 
 	}
 	blockCache, _ := lru.New(blockCacheLimit)
 	futureBlocks, _ := lru.New(maxFutureBlocks)
-	badBlocks, _ := lru.New(badBlockLimit)
 	validatedMinorBlockHashCache, _ := lru.New(validatedMinorBlockHashes)
 
 	bc := &RootBlockChain{
@@ -145,7 +138,6 @@ func NewRootBlockChain(db ethdb.Database, cacheConfig *CacheConfig, chainConfig 
 		blockCache:               blockCache,
 		futureBlocks:             futureBlocks,
 		engine:                   engine,
-		badBlocks:                badBlocks,
 		validatedMinorBlockCache: validatedMinorBlockHashCache,
 	}
 	bc.SetValidator(NewRootBlockValidator(chainConfig, bc, engine))
@@ -991,26 +983,9 @@ func (bc *RootBlockChain) update() {
 	}
 }
 
-// BadBlocks returns a list of the last 'bad blocks' that the client has seen on the network
-func (bc *RootBlockChain) BadBlocks() []*types.RootBlock {
-	blocks := make([]*types.RootBlock, 0, bc.badBlocks.Len())
-	for _, hash := range bc.badBlocks.Keys() {
-		if blk, exist := bc.badBlocks.Peek(hash); exist {
-			block := blk.(*types.RootBlock)
-			blocks = append(blocks, block)
-		}
-	}
-	return blocks
-}
-
-// addBadBlock adds a bad block to the bad-block LRU cache
-func (bc *RootBlockChain) addBadBlock(block *types.RootBlock) {
-	bc.badBlocks.Add(block.Hash(), block)
-}
 
 // reportBlock logs a bad block error.
 func (bc *RootBlockChain) reportBlock(block types.IBlock, err error) {
-	bc.addBadBlock(block.(*types.RootBlock))
 
 	log.Error(fmt.Sprintf(`
 ########## BAD BLOCK #########

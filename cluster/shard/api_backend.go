@@ -254,11 +254,17 @@ func (s *ShardBackend) NewMinorBlock(block *types.MinorBlock) (err error) {
 }
 
 func (s *ShardBackend) addTxList(txs []*types.Transaction) error {
+	ts := time.Now()
 	for index := range txs {
 		if err := s.MinorBlockChain.AddTx(txs[index]); err != nil {
 			return err
 		}
+		if index%1000 == 0 {
+			log.Info("time-tx-insert-loop", "time", time.Now().Sub(ts).Seconds(), "index", index)
+			ts = time.Now()
+		}
 	}
+	log.Info("time-tx-insert-end", "time", time.Now().Sub(ts).Seconds(), "len(tx)", len(txs))
 	return nil
 }
 

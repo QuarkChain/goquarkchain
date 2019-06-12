@@ -101,8 +101,6 @@ type MinorBlockChain struct {
 	currentBlock atomic.Value // Current head of the block chain
 
 	stateCache    state.Database // State database to reuse between imports (contains state cache)
-	bodyCache     *lru.Cache     // Cache for the most recent block bodies
-	bodyRLPCache  *lru.Cache     // Cache for the most recent block bodies in RLP encoded format
 	receiptsCache *lru.Cache     // Cache for the most recent receipts per block
 	blockCache    *lru.Cache     // Cache for the most recent entire blocks
 	futureBlocks  *lru.Cache     // future blocks are blocks added for later processing
@@ -155,19 +153,15 @@ func NewMinorBlockChain(
 	}
 	if cacheConfig == nil {
 		cacheConfig = &CacheConfig{
-			TrieCleanLimit: 256,
-			TrieDirtyLimit: 256,
+			TrieCleanLimit: 64,
+			TrieDirtyLimit: 64,
 			TrieTimeLimit:  5 * time.Minute,
 			Disabled:       true, //update trieDB every block
 		}
 	}
-	bodyCache, _ := lru.New(bodyCacheLimit)
-	bodyRLPCache, _ := lru.New(bodyCacheLimit)
 	receiptsCache, _ := lru.New(receiptsCacheLimit)
 	blockCache, _ := lru.New(blockCacheLimit)
 	futureBlocks, _ := lru.New(maxFutureBlocks)
-	badBlocks, _ := lru.New(badBlockLimit)
-
 	bc := &MinorBlockChain{
 		ethChainConfig:           chainConfig,
 		clusterConfig:            clusterConfig,
@@ -177,14 +171,11 @@ func NewMinorBlockChain(
 		stateCache:               state.NewDatabaseWithCache(db, cacheConfig.TrieCleanLimit),
 		quit:                     make(chan struct{}),
 		shouldPreserve:           shouldPreserve,
-		bodyCache:                bodyCache,
-		bodyRLPCache:             bodyRLPCache,
 		receiptsCache:            receiptsCache,
 		blockCache:               blockCache,
 		futureBlocks:             futureBlocks,
 		engine:                   engine,
 		vmConfig:                 vmConfig,
-		badBlocks:                badBlocks,
 		heightToMinorBlockHashes: make(map[uint64]map[common.Hash]struct{}),
 		currentEvmState:          new(state.StateDB),
 		branch:                   account.Branch{Value: fullShardID},
@@ -309,8 +300,6 @@ func (m *MinorBlockChain) SetHead(head uint64) error {
 	currentHeader := m.hc.CurrentHeader()
 
 	// Clear out any stale content from the caches
-	m.bodyCache.Purge()
-	m.bodyRLPCache.Purge()
 	m.receiptsCache.Purge()
 	m.blockCache.Purge()
 	m.futureBlocks.Purge()
@@ -539,6 +528,11 @@ func (m *MinorBlockChain) HasBlockAndState(hash common.Hash) bool {
 // GetBlock retrieves a block from the database by hash and number,
 // caching it if found.
 func (m *MinorBlockChain) GetBlock(hash common.Hash) types.IBlock {
+	return m.GetMinorBlock(hash)
+}
+
+// GetMinorBlock retrieves a block from the database by hash, caching it if found.
+func (m *MinorBlockChain) GetMinorBlock(hash common.Hash) *types.MinorBlock {
 	// Short circuit if the block's already in the cache, retrieve otherwise
 	if block, ok := m.blockCache.Get(hash); ok {
 		return block.(*types.MinorBlock)
@@ -550,11 +544,6 @@ func (m *MinorBlockChain) GetBlock(hash common.Hash) types.IBlock {
 	// Cache the found block for next time and return
 	m.blockCache.Add(block.Hash(), block)
 	return block
-}
-
-// GetMinorBlock retrieves a block from the database by hash, caching it if found.
-func (m *MinorBlockChain) GetMinorBlock(hash common.Hash) *types.MinorBlock {
-	return rawdb.ReadMinorBlock(m.db, hash)
 }
 
 // GetBlockByNumber retrieves a block from the database by number, caching it

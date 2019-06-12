@@ -582,7 +582,7 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 	if !local && pool.gasPrice.Cmp(tx.EvmTx.GasPrice()) > 0 {
 		return ErrUnderpriced
 	}
-	return ValidateTransaction(pool.currentState, tx, nil)
+	return ValidateTransaction(pool.currentState,tx,nil)
 }
 
 // add validates a transaction and inserts it into the non-executable queue for
@@ -760,12 +760,11 @@ func (pool *TxPool) AddRemotes(txs []*types.Transaction) []error {
 
 // addTx enqueues a single transaction into the pool if it is valid.
 func (pool *TxPool) addTx(tx *types.Transaction, local bool) error {
-	pool.mu.Lock()
-	defer pool.mu.Unlock()
 	if err := pool.CheckTxBeforeAdd(tx); err != nil {
 		return err
 	}
-
+	pool.mu.Lock()
+	defer pool.mu.Unlock()
 	// Try to inject the transaction and update any state
 	replace, err := pool.add(tx, local)
 	if err != nil {
@@ -964,9 +963,10 @@ func (pool *TxPool) promoteExecutables(accounts []common.Address) {
 		// Assemble a spam order to penalize large transactors first
 		spammers := prque.New(nil)
 		for addr, list := range pool.pending {
+			listLen:=list.Len()
 			// Only evict transactions from high rollers
-			if !pool.locals.contains(addr) && uint64(list.Len()) > pool.config.AccountSlots {
-				spammers.Push(addr, int64(list.Len()))
+			if !pool.locals.contains(addr) && uint64(listLen) > pool.config.AccountSlots {
+				spammers.Push(addr, int64(listLen))
 			}
 		}
 		// Gradually drop transactions from offenders
@@ -1244,19 +1244,7 @@ func (m *TxPool) CheckTxBeforeAdd(tx *types.Transaction) error {
 	if m.all.Count() > int(m.quarkConfig.TransactionQueueSizeLimitPerShard) {
 		return errors.New("txpool queue full")
 	}
-
-	toShardSize := m.quarkConfig.GetShardSizeByChainId(tx.EvmTx.ToChainID())
-	if err := tx.EvmTx.SetToShardSize(toShardSize); err != nil {
-		return err
-	}
-	fromShardSize := m.quarkConfig.GetShardSizeByChainId(tx.EvmTx.FromChainID())
-	if err := tx.EvmTx.SetFromShardSize(fromShardSize); err != nil {
-		return err
-	}
-
-	m.currentState.SetGasUsed(new(big.Int).SetUint64(0))
-
-	tx, err := m.chain.validateTx(tx, m.currentState, nil, nil)
+	tx, err := m.chain.validateTx(tx, nil, nil, nil)
 	if err != nil {
 		return err
 	}
