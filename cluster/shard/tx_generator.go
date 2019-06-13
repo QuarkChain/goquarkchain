@@ -45,6 +45,7 @@ func (t *TxGenerator) Generate(genTxs *rpc.GenTxRequest, addTxList func(txs []*t
 	var (
 		batchScale    = uint32(3000)
 		txList        = make([]*types.Transaction, 0, batchScale)
+		numTx         = int(genTxs.NumTxPerShard)
 		xShardPercent = int(genTxs.XShardPercent)
 		total         = uint32(0)
 	)
@@ -52,10 +53,12 @@ func (t *TxGenerator) Generate(genTxs *rpc.GenTxRequest, addTxList func(txs []*t
 	if t.accounts == nil {
 		return fmt.Errorf("accounts is empty, can't create transactions")
 	}
-
-	log.Info("Start Generating transactions", "tx count", genTxs.NumTxPerShard, "cross-shard tx count", xShardPercent)
+	if numTx == 0 {
+		return fmt.Errorf("create txs operation, numTx is zero")
+	}
+	log.Info("Start Generating transactions", "tx count", numTx, "cross-shard tx count", xShardPercent)
 	for t.accountIndex < t.lenAccounts {
-		if total >= genTxs.NumTxPerShard {
+			if total >= numTx {
 			break
 		}
 		acc := t.accounts[t.accountIndex]
