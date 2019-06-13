@@ -731,7 +731,7 @@ func (bc *RootBlockChain) insertChain(chain []types.IBlock, verifySeals bool) (i
 		}
 		blockInsertTimer.UpdateSince(start)
 		stats.processed++
-		stats.report(chain, it.index)
+		//stats.report(chain, it.index)
 	}
 	// Any blocks remaining here? The only ones we care about are the future ones
 	if block != nil && err == ErrFutureBlock {
@@ -982,7 +982,6 @@ func (bc *RootBlockChain) update() {
 		}
 	}
 }
-
 
 // reportBlock logs a bad block error.
 func (bc *RootBlockChain) reportBlock(block types.IBlock, err error) {

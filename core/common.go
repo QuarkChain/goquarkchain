@@ -14,15 +14,18 @@ func isSameRootChain(db rawdb.DatabaseReader, longerChainHeader, shorterChainHea
 	if longerChainHeader.NumberU64() < shorterChainHeader.NumberU64() {
 		log.Crit("wrong parameter order", "long.Number", longerChainHeader.NumberU64(), "long.Hash", longerChainHeader.Hash().String(), "short.Number", shorterChainHeader.NumberU64(), "short.hash", shorterChainHeader.Hash().String())
 	}
+	if shorterChainHeader.NumberU64() == longerChainHeader.NumberU64() {
+		return shorterChainHeader.Hash() == longerChainHeader.Hash()
+	}
 
 	header := longerChainHeader
 
-	for i := uint64(0); i < longerChainHeader.NumberU64()-shorterChainHeader.NumberU64(); i++ {
+	for i := int(0); i < int(longerChainHeader.NumberU64()-shorterChainHeader.NumberU64())-1; i++ {
 		header = rawdb.ReadRootBlockHeader(db, header.GetParentHash())
 		if common.IsNil(header) {
 			log.Crit("mysteriously missing blocks", "long.Number", longerChainHeader.NumberU64(), "long.Hash", longerChainHeader.Hash().String(), "short.Number", shorterChainHeader.NumberU64(), "short.hash", shorterChainHeader.Hash().String())
 		}
 	}
 
-	return header.Hash() == shorterChainHeader.Hash()
+	return header.GetParentHash() == shorterChainHeader.Hash()
 }

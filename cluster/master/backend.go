@@ -296,11 +296,14 @@ func (s *QKCMasterBackend) getSlaveInfoListFromClusterConfig() []*rpc.SlaveInfo 
 	return slaveInfos
 }
 func (s *QKCMasterBackend) initShards() error {
+	var g errgroup.Group
 	ip, port := s.clusterConfig.Quarkchain.Root.Ip, s.clusterConfig.Quarkchain.Root.Port
-	for endpoint := range s.clientPool {
-		if err := s.clientPool[endpoint].MasterInfo(ip, port, s.rootBlockChain.CurrentBlock()); err != nil {
+	for _, client := range s.clientPool {
+		client := client
+		g.Go(func() error {
+			err := client.MasterInfo(ip, port, s.rootBlockChain.CurrentBlock())
 			return err
-		}
+		})
 	}
 	return nil
 }

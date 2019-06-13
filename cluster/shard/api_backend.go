@@ -120,8 +120,6 @@ func (s *ShardBackend) InitFromRootBlock(rBlock *types.RootBlock) error {
 }
 
 func (s *ShardBackend) AddRootBlock(rBlock *types.RootBlock) (switched bool, err error) {
-	log.Info(s.logInfo, "AddRootBlock height", rBlock.Number(), "hash", rBlock.Hash().String())
-	defer log.Info(s.logInfo, "AddRootBlock ", "end")
 	switched = false
 	if rBlock.Header().Number > s.genesisRootHeight {
 		switched, err = s.MinorBlockChain.AddRootBlock(rBlock)
@@ -269,7 +267,7 @@ func (s *ShardBackend) addTxList(txs []*types.Transaction) error {
 }
 
 func (s *ShardBackend) GenTx(genTxs *rpc.GenTxRequest) error {
-	return s.txGenerator.Generate(genTxs, s.MinorBlockChain.GetTransactionCount, s.addTxList)
+	return s.txGenerator.Generate(genTxs, s.addTxList)
 }
 
 // miner api

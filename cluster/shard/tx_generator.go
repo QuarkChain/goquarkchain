@@ -22,76 +22,73 @@ type TxGenerator struct {
 	accounts     []*account.Account
 	once         sync.Once
 	lenAccounts  int
-	turn         uint64
 	accountIndex int
+	turn         uint64
 }
 
-func NewTxGenerator(genesisDir string, fullShardId uint32, cfg *config.QuarkChainConfig) (*TxGenerator, error) {
+func NewTxGenerator(genesisDir string, fullShardId uint32, cfg *config.QuarkChainConfig) *TxGenerator {
 	accounts := config.LoadtestAccounts(genesisDir)
-	return &TxGenerator{
+	txG := &TxGenerator{
 		cfg:          cfg,
 		fullShardId:  fullShardId,
 		accounts:     accounts,
 		once:         sync.Once{},
-		turn:         0,
-		accountIndex: -1,
 		lenAccounts:  len(accounts),
-	}, nil
+		accountIndex: 0,
+		turn:         0,
+	}
+	return txG
 }
 
-func (t *TxGenerator) Generate(genTxs *rpc.GenTxRequest,
-	getTxCount func(recipient account.Recipient, height *uint64) (uint64, error),
-	addTxList func(txs []*types.Transaction) error) error {
+func (t *TxGenerator) Generate(genTxs *rpc.GenTxRequest, addTxList func(txs []*types.Transaction) error) error {
+	ts := time.Now()
 	var (
-		numTx         = int(genTxs.NumTxPerShard)
-		txList        = make([]*types.Transaction, 0, numTx)
+		batchScale    = 3000
+		txList        = make([]*types.Transaction, 0, batchScale)
 		xShardPercent = int(genTxs.XShardPercent)
-		total         = 0
+		total         = uint32(0)
 	)
 	// return err if accounts is empty.
 	if t.accounts == nil {
 		return fmt.Errorf("accounts is empty, can't create transactions")
 	}
-	if numTx == 0 {
-		return fmt.Errorf("create txs operation, numTx is zero")
-	}
-	log.Info("Start Generating transactions", "tx count", numTx, "cross-shard tx count", xShardPercent)
 
-	start := time.Now()
-	timeOneTrun := time.Now()
-	for total < numTx {
-		for index, acc := range t.accounts {
-			if total >= numTx {
-				t.accountIndex = index - 1
-				t.turn++
-				break
-			}
-			total++
-			nonce := t.turn
-			if t.accountIndex == -1 { //from head
-				nonce = t.turn
-			} else if index > t.accountIndex { //not be used in last turn
-				nonce--
-			}
-			tx, err := t.createTransaction(acc, nonce, xShardPercent, genTxs.Tx)
-			if err != nil {
-				continue
-			}
-			txList = append(txList, &types.Transaction{TxType: types.EvmTx, EvmTx: tx})
+	log.Info("Start Generating transactions", "tx count", genTxs.NumTxPerShard, "cross-shard tx count", xShardPercent)
+	for t.accountIndex < t.lenAccounts {
+		if total >= genTxs.NumTxPerShard {
+			break
 		}
-		t.accountIndex = -1
-		t.turn++
-		log.Info("create_tx-loop", "t-loop", time.Now().Sub(timeOneTrun).Seconds(), "total", total)
-		timeOneTrun = time.Now()
+		acc := t.accounts[t.accountIndex]
+		total++
 
+		tx, err := t.createTransaction(acc, t.turn, xShardPercent, genTxs.Tx)
+		if err != nil {
+			continue
+		}
+		txList = append(txList, &types.Transaction{TxType: types.EvmTx, EvmTx: tx})
+
+		if len(txList) == batchScale {
+			if err := addTxList(txList); err != nil {
+				return err
+			}
+			txList = make([]*types.Transaction, 0, batchScale)
+			time.Sleep(3 * time.Second)
+		}
+
+		t.accountIndex++
+		if t.accountIndex == t.lenAccounts {
+			t.turn++
+			t.accountIndex = 0
+		}
 	}
+
 	if len(txList) != 0 {
 		if err := addTxList(txList); err != nil {
 			return err
 		}
 	}
 
-	log.Info("Finish Generating transactions", "fullShardId", t.fullShardId, "tx count", total, "use seconds", time.Now().Sub(start))
+	log.Info("Finish Generating transactions", "fullShardId", t.fullShardId, "tx count", total, "use seconds", time.Now().Sub(ts))
 	return nil
 }
 
