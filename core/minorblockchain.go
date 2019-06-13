@@ -1641,8 +1641,12 @@ func (m *MinorBlockChain) getRootBlockHeaderByHash(hash common.Hash) *types.Root
 		return data.(*types.RootBlock).Header()
 	}
 	data := rawdb.ReadRootBlock(m.db, hash)
-	m.rootBlockCache.Add(hash, data)
-	return data.Header()
+	if data != nil {
+		m.rootBlockCache.Add(hash, data)
+		return data.Header()
+	}
+
+	return nil
 }
 
 // GetRootBlockByHash get rootBlock by hash in minorBlockChain
@@ -1651,6 +1655,9 @@ func (m *MinorBlockChain) GetRootBlockByHash(hash common.Hash) *types.RootBlock 
 		return data.(*types.RootBlock)
 	}
 	data := rawdb.ReadRootBlock(m.db, hash)
-	m.rootBlockCache.Add(hash, data)
-	return data
+	if data != nil {
+		m.rootBlockCache.Add(hash, data)
+		return data
+	}
+	return nil
 }

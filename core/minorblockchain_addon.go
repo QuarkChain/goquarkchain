@@ -204,6 +204,13 @@ func (m *MinorBlockChain) InitGenesisState(rBlock *types.RootBlock) (*types.Mino
 	defer m.mu.Unlock()
 	var err error
 	gBlock := m.genesisBlock
+	if m.genesisBlock.PrevRootBlockHash() != rBlock.Hash() {
+		gBlock, err = NewGenesis(m.clusterConfig.Quarkchain).CreateMinorBlock(rBlock, m.branch.Value, m.db)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	rawdb.WriteTd(m.db, gBlock.Hash(), gBlock.Difficulty())
 	height := m.clusterConfig.Quarkchain.GetGenesisRootHeight(m.branch.Value)
 	if rBlock.Header().Number != height {
@@ -766,7 +773,6 @@ func (m *MinorBlockChain) checkTxBeforeApply(stateT *state.StateDB, tx *types.Tr
 
 // CreateBlockToMine create block to mine
 func (m *MinorBlockChain) CreateBlockToMine(createTime *uint64, address *account.Address, gasLimit *big.Int) (*types.MinorBlock, error) {
-	ts := time.Now()
 	realCreateTime := uint64(time.Now().Unix())
 	if createTime == nil {
 		if realCreateTime < m.CurrentBlock().IHeader().GetTime()+1 {
@@ -1482,6 +1488,9 @@ func (m *MinorBlockChain) ReadCrossShardTxList(hash common.Hash) *types.CrossSha
 		return data.(*types.CrossShardTransactionDepositList)
 	}
 	data := rawdb.ReadCrossShardTxList(m.db, hash)
-	m.crossShardTxListCache.Add(hash, data)
-	return data
+	if data != nil {
+		m.crossShardTxListCache.Add(hash, data)
+		return data
+	}
+	return nil
 }
