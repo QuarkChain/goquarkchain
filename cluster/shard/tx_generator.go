@@ -67,12 +67,12 @@ func (t *TxGenerator) Generate(genTxs *rpc.GenTxRequest, addTxList func(txs []*t
 		}
 		txList = append(txList, &types.Transaction{TxType: types.EvmTx, EvmTx: tx})
 
-		if len(txList) == batchScale {
+			if total%batchScale == 0 {
 			if err := addTxList(txList); err != nil {
 				return err
 			}
 			txList = make([]*types.Transaction, 0, batchScale)
-			time.Sleep(3 * time.Second)
+				time.Sleep(time.Second * 2)
 		}
 
 		t.accountIndex++

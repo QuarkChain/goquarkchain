@@ -25,12 +25,10 @@ import (
 )
 
 func (m *MinorBlockChain) ReadLastConfirmedMinorBlockHeaderAtRootBlock(hash common.Hash) common.Hash {
-	// Short circuit if the block's already in the cache, retrieve otherwise
 	if data, ok := m.lastConfirmCache.Get(hash); ok {
 		return data.(common.Hash)
 	}
 	data := rawdb.ReadLastConfirmedMinorBlockHeaderAtRootBlock(m.db, hash)
-	// Cache the found block for next time and return
 	m.lastConfirmCache.Add(hash, data)
 	return data
 }
@@ -679,7 +677,7 @@ func (m *MinorBlockChain) addTransactionToBlock(rootBlockHash common.Hash, block
 		return nil, nil, err
 	}
 	txs, err := types.NewTransactionsByPriceAndNonce(types.NewEIP155Signer(uint32(m.Config().NetworkID)), pending)
-	//log.Info("addtx", "pending", len(pending))
+
 	xShardTxCounters := make(map[uint32]uint32, 0)
 	xShardTxLimits := m.getXShardTxLimits(m.GetRootBlockByHash(rootBlockHash))
 	gp := new(GasPool).AddGas(block.Header().GetGasLimit().Uint64())
@@ -809,9 +807,7 @@ func (m *MinorBlockChain) CreateBlockToMine(createTime *uint64, address *account
 	if err != nil {
 		return nil, err
 	}
-	log.Info("add tx-begin", "time", time.Now().Sub(ts).Seconds(), "pending", m.txPool.PendingCount())
 	newBlock, recipiets, err := m.addTransactionToBlock(rootHeader.Hash(), block, evmState)
-	log.Info("add tx-end", "time", time.Now().Sub(ts).Seconds(), "len", len(newBlock.Transactions()), "gasLimit/21000", newBlock.GasLimit().Uint64()/21000)
 	if err != nil {
 		return nil, err
 	}
@@ -820,7 +816,6 @@ func (m *MinorBlockChain) CreateBlockToMine(createTime *uint64, address *account
 	evmState.AddBalance(evmState.GetBlockCoinbase(), pureCoinbaseAmount)
 	coinbaseAmount := new(big.Int).Add(pureCoinbaseAmount, evmState.GetBlockFee())
 	newBlock.Finalize(recipiets, evmState.IntermediateRoot(true), evmState.GetGasUsed(), evmState.GetXShardReceiveGasUsed(), coinbaseAmount)
-	//log.Info("---------------", "-finalize", time.Now().Sub(ts).Seconds())
 	return newBlock, nil
 }
 
@@ -1053,7 +1048,6 @@ func (m *MinorBlockChain) GetShardStatus() (*rpc.ShardStatus, error) {
 	// getBlockCountByHeight have lock
 	cblock := m.CurrentBlock()
 	cutoff := cblock.IHeader().GetTime() - 60
-	log.Info("GetShardStatus", "cBlock", cblock.NumberU64(), "indexTime", cblock.Time(), "cutoff", cutoff)
 
 	txCount := uint32(0)
 	blockCount := uint32(0)
@@ -1061,7 +1055,6 @@ func (m *MinorBlockChain) GetShardStatus() (*rpc.ShardStatus, error) {
 	lastBlockTime := uint64(0)
 	for cblock.IHeader().NumberU64() > 0 && cblock.IHeader().GetTime() > cutoff {
 		txCount += uint32(len(cblock.GetTransactions()))
-		log.Info("GetShardStatue", "height", cblock.NumberU64(), "indexLen", len(cblock.GetTransactions()), "cutoff", cblock.IHeader().GetTime(), "len", txCount)
 		blockCount++
 		tStale := uint32(m.getBlockCountByHeight(cblock.Header().Number))
 		staleBlockCount += tStale
@@ -1076,13 +1069,11 @@ func (m *MinorBlockChain) GetShardStatus() (*rpc.ShardStatus, error) {
 			lastBlockTime = m.CurrentBlock().IHeader().GetTime() - cblock.IHeader().GetTime()
 		}
 	}
-	log.Info("GetShardStatus", "txCount", txCount, "tps", txCount/60)
 	if staleBlockCount < 0 {
 		return nil, errors.New("staleBlockCount should >=0")
 	}
 	pendingCount := m.txPool.PendingCount()
 	cblock = m.CurrentBlock()
-	log.Info("GetShardStatus", "cBlock-ebd", cblock.NumberU64())
 	return &rpc.ShardStatus{
 		Branch:             m.branch,
 		Height:             cblock.IHeader().NumberU64(),
@@ -1487,12 +1478,10 @@ func (m *MinorBlockChain) removeTxHistoryIndexFromBlock(block *types.MinorBlock)
 }
 
 func (m *MinorBlockChain) ReadCrossShardTxList(hash common.Hash) *types.CrossShardTransactionDepositList {
-	// Short circuit if the block's already in the cache, retrieve otherwise
 	if data, ok := m.crossShardTxListCache.Get(hash); ok {
 		return data.(*types.CrossShardTransactionDepositList)
 	}
 	data := rawdb.ReadCrossShardTxList(m.db, hash)
-	// Cache the found block for next time and return
 	m.crossShardTxListCache.Add(hash, data)
 	return data
 }

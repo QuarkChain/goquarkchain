@@ -1637,24 +1637,20 @@ func (m *MinorBlockChain) SubscribeLogsEvent(ch chan<- []*types.Log) event.Subsc
 }
 
 func (m *MinorBlockChain) getRootBlockHeaderByHash(hash common.Hash) *types.RootBlockHeader {
-	// Short circuit if the block's already in the cache, retrieve otherwise
 	if data, ok := m.rootBlockCache.Get(hash); ok {
 		return data.(*types.RootBlock).Header()
 	}
 	data := rawdb.ReadRootBlock(m.db, hash)
-	// Cache the found block for next time and return
 	m.rootBlockCache.Add(hash, data)
 	return data.Header()
 }
 
 // GetRootBlockByHash get rootBlock by hash in minorBlockChain
 func (m *MinorBlockChain) GetRootBlockByHash(hash common.Hash) *types.RootBlock {
-	// Short circuit if the block's already in the cache, retrieve otherwise
 	if data, ok := m.rootBlockCache.Get(hash); ok {
 		return data.(*types.RootBlock)
 	}
 	data := rawdb.ReadRootBlock(m.db, hash)
-	// Cache the found block for next time and return
 	m.rootBlockCache.Add(hash, data)
 	return data
 }
