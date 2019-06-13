@@ -45,7 +45,7 @@ func (t *TxGenerator) Generate(genTxs *rpc.GenTxRequest, addTxList func(txs []*t
 	var (
 		batchScale    = uint32(3000)
 		txList        = make([]*types.Transaction, 0, batchScale)
-		numTx         = int(genTxs.NumTxPerShard)
+		numTx         = genTxs.NumTxPerShard
 		xShardPercent = int(genTxs.XShardPercent)
 		total         = uint32(0)
 	)
@@ -58,7 +58,7 @@ func (t *TxGenerator) Generate(genTxs *rpc.GenTxRequest, addTxList func(txs []*t
 	}
 	log.Info("Start Generating transactions", "tx count", numTx, "cross-shard tx count", xShardPercent)
 	for t.accountIndex < t.lenAccounts {
-			if total >= numTx {
+		if total >= numTx {
 			break
 		}
 		acc := t.accounts[t.accountIndex]
