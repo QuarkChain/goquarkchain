@@ -87,6 +87,7 @@ func New(ctx *service.ServiceContext, rBlock *types.RootBlock, conn ConnManager,
 	}
 
 	shard.miner = miner.New(ctx, shard, shard.engine, shard.Config.ConsensusConfig.TargetBlockTime)
+	shard.miner.Init()
 
 	chainConfig, genesisHash, genesisErr := core.SetupGenesisMinorBlock(shard.chainDb, shard.gspec, rBlock, fullshardId)
 	// TODO check config err
