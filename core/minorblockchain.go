@@ -1003,9 +1003,7 @@ func (m *MinorBlockChain) InsertChainForDeposits(chain []types.IBlock) (int, [][
 	m.wg.Done()
 
 	m.PostChainEvents(events, logs)
-	m.mu.RLock()
 	confirmed := m.confirmedHeaderTip
-	m.mu.RUnlock()
 	if confirmed == nil {
 		log.Warn("confirmed is nil")
 	} else {

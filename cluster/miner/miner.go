@@ -35,6 +35,7 @@ type Miner struct {
 	isMining  uint32
 	tipHeight uint64
 	stopCh    chan struct{}
+	logInfo   string
 }
 
 func New(ctx *service.ServiceContext, api MinerAPI, engine consensus.Engine, interval uint32) *Miner {
@@ -48,6 +49,7 @@ func New(ctx *service.ServiceContext, api MinerAPI, engine consensus.Engine, int
 		startCh:       make(chan struct{}, 1),
 		exitCh:        make(chan struct{}),
 		stopCh:        make(chan struct{}),
+		logInfo:       "miner",
 	}
 	go miner.mainLoop(miner.minerInterval)
 	return miner
@@ -69,7 +71,7 @@ func (m *Miner) commit() {
 	m.interrupt()
 	block, err := m.api.CreateBlockToMine()
 	if err != nil {
-		log.Error("create block to mine", "err", err)
+		log.Error(m.logInfo, "create block to mine err", err)
 		// retry to create block to mine
 		time.Sleep(2 * time.Second)
 		m.startCh <- struct{}{}
@@ -78,7 +80,7 @@ func (m *Miner) commit() {
 	m.mu.RLock()
 	if block.NumberU64() <= m.tipHeight {
 		m.mu.RUnlock()
-		log.Error("miner", "block's height small than tipHeight after commit blockNumber ,no need to seal", block.NumberU64(), "tip", m.tipHeight)
+		log.Error(m.logInfo, "block's height small than tipHeight after commit blockNumber ,no need to seal", block.NumberU64(), "tip", m.tipHeight)
 		return
 	}
 	m.workCh <- block
@@ -93,16 +95,16 @@ func (m *Miner) mainLoop(recommit time.Duration) {
 			m.commit()
 
 		case work := <-m.workCh:
-			log.Info("miner", "ready to seal height", work.NumberU64())
+			log.Info(m.logInfo, "ready to seal height", work.NumberU64())
 			if err := m.engine.Seal(nil, work, m.resultCh, m.stopCh); err != nil {
-				log.Error("Seal block to mine", "err", err)
+				log.Error(m.logInfo, "Seal block to mine err", err)
 				m.commit()
 			}
 
 		case rBlock := <-m.resultCh:
-			log.Info("miner", "seal succ number", rBlock.NumberU64(), "hash", rBlock.Hash().String())
+			log.Info(m.logInfo, "seal succ number", rBlock.NumberU64(), "hash", rBlock.Hash().String())
 			if err := m.api.InsertMinedBlock(rBlock); err != nil {
-				log.Error("add minered block", "block hash", rBlock.Hash().Hex(), "err", err)
+				log.Error(m.logInfo, "add minered block err block hash", rBlock.Hash().Hex(), "err", err)
 				time.Sleep(time.Duration(3) * time.Second)
 				m.commit()
 			}
@@ -161,7 +163,7 @@ func (m *Miner) SubmitWork(nonce uint64, hash, digest common.Hash) bool {
 
 func (m *Miner) NewTip(height uint64) {
 	m.mu.Lock()
-	log.Info("miner", "handle new tip: height", height, "tip", m.tipHeight)
+	log.Info(m.logInfo, "handle new tip: height", height, "tip", m.tipHeight)
 	//if height<=m.tipHeight{//TODO need?
 	//	m.mu.Unlock()
 	//	return

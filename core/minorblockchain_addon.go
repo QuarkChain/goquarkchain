@@ -251,9 +251,7 @@ func (m *MinorBlockChain) isSameRootChain(long types.IHeader, short types.IHeade
 }
 
 func (m *MinorBlockChain) isMinorBlockLinkedToRootTip(mBlock *types.MinorBlock) bool {
-	m.mu.RLock()
 	confirmed := m.confirmedHeaderTip
-	m.mu.RUnlock()
 	if confirmed == nil {
 		return true
 	}
