@@ -38,8 +38,6 @@ import (
 
 const (
 	disPlayPeerInfoInterval = time.Duration(5 * time.Second)
-	rootChainChanSize       = 256
-	rootChainSideChanSize   = 256
 )
 
 var (
@@ -67,8 +65,6 @@ type QKCMasterBackend struct {
 	branchToShardStats map[uint32]*rpc.ShardStatus
 	shardStatsChan     chan *rpc.ShardStatus
 
-	rootChainChan         chan core.RootChainEvent
-	rootChainEventSub     event.Subscription
 	miner *miner.Miner
 
 	artificialTxConfig *rpc.ArtificialTxConfig
@@ -202,8 +198,6 @@ func (s *QKCMasterBackend) Stop() error {
 
 // Start start node -> start qkcMaster
 func (s *QKCMasterBackend) Start(srvr *p2p.Server) error {
-	s.rootChainChan = make(chan core.RootChainEvent, rootChainChanSize)
-	s.rootChainEventSub = s.rootBlockChain.SubscribeChainEvent(s.rootChainChan)
 	maxPeers := srvr.MaxPeers
 	s.protocolManager.Start(maxPeers)
 	// start heart beat pre 3 seconds.
@@ -211,7 +205,6 @@ func (s *QKCMasterBackend) Start(srvr *p2p.Server) error {
 	s.Heartbeat()
 	// s.disPlayPeers()
 	s.miner.Init()
-//	go s.tipLoop()
 	return nil
 }
 
@@ -425,14 +418,6 @@ func (s *QKCMasterBackend) createRootBlockToMine(address account.Address) (*type
 	fullShardIDToHeaderList := make(map[uint32][]*types.MinorBlockHeader, 0)
 	for index := 0; index < len(s.clientPool); index++ {
 		resp := <-rspList
-		log.Info("++++++++++++++++++++++","++++++++++++++++++","+++++++++++++")
-		for _,v:=range resp.HeadersInfoList{
-			log.Info("detail ","branch",v.Branch)
-			for _,vv:=range v.HeaderList{
-				log.Info("432","branch",v.Branch,"number",vv.Number,"hash",vv.Hash().String())
-			}
-		}
-		log.Info("++++++++++++++++++++++","end","end")
 		for _, headersInfo := range resp.HeadersInfoList {
 			if _, ok := fullShardIDToHeaderList[headersInfo.Branch]; ok { // to avoid overlap
 				continue // skip it if has added
@@ -460,19 +445,10 @@ func (s *QKCMasterBackend) createRootBlockToMine(address account.Address) (*type
 		headers := fullShardIDToHeaderList[fullShardID]
 		headerList = append(headerList, headers...)
 	}
-	fmt.Println("AAAAAAAAAAAAAAAAAA",address.ToHex())
 	newblock, err := s.rootBlockChain.CreateBlockToMine(headerList, &address, nil)
 	if err != nil {
 		return nil, err
 	}
-
-
-	log.Info("master:create_block_to_mine","newBlock number",newblock.NumberU64(),"len(minorheader)",len(newblock.MinorBlockHeaders()))
-
-	for _,v:=range newblock.MinorBlockHeaders(){
-		log.Info("miner header","number",v.Number,"branch",v.Branch,"hash",v.Hash().String())
-	}
-	fmt.Println("NNNNNNNNNNNNN",newblock.Header().Coinbase.ToHex())
 	return newblock, nil
 }
 
@@ -547,6 +523,7 @@ func (s *QKCMasterBackend) AddRootBlock(rootBlock *types.RootBlock) error {
 		return err
 	}
 	s.rootBlockChain.ClearCommittingHash()
+	go s.miner.NewTip(s.rootBlockChain.CurrentBlock().NumberU64())
 	return nil
 }
 

@@ -130,16 +130,6 @@ func (s *SlaveServerSideOp) GetUnconfirmedHeaderList(ctx context.Context, req *r
 		return nil, err
 	}
 
-	log.Info("GetUnconfirmedHeaderList","len",len(gRes.HeadersInfoList))
-	for _,v:=range gRes.HeadersInfoList{
-		log.Info("detail","branch",v.Branch)
-		for _,vv:=range v.HeaderList{
-			log.Info("137","beanch",vv.Branch,"number",vv.Number,"hash",vv.Hash().String())
-		}
-	}
-
-
-	log.Info("GetUnconfirmedHeaderList","end","end")
 	if response.Data, err = serialize.SerializeToBytes(gRes); err != nil {
 		return nil, err
 	}

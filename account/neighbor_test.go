@@ -23,9 +23,9 @@ func TestIsNeighbor(t *testing.T) {
 	b2 = NewBranch(3<<16 | 2 | 1)
 	assert.False(t, IsNeighbor(b1, b2, 33))
 }
-func TestTransFromBlock(t *testing.T) {
-	asd:=12
 
-	abs:=fmt.Sprintf("0x%x",asd)
-	fmt.Println("abs",asd,abs)
+func TestAccount_Address(t *testing.T) {
+	allHeight:=int64(-1)
+	headerList := make([]string, allHeight)
+	fmt.Println("headList",len(headerList))
 }

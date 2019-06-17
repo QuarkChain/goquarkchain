@@ -2,7 +2,6 @@ package qkcapi
 
 import (
 	"errors"
-	"fmt"
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/core/types"
@@ -28,7 +27,6 @@ func DataEncoder(bytes []byte) hexutil.Bytes {
 }
 
 func rootBlockEncoder(rootBlock *types.RootBlock) (map[string]interface{}, error) {
-	fmt.Println(">>>>>>>>>>>>>>>>>>>>>>",rootBlock.Header().Coinbase.ToHex())
 	serData, err := serialize.SerializeToBytes(rootBlock)
 	if err != nil {
 		return nil, err

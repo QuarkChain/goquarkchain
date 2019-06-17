@@ -105,6 +105,7 @@ func (s *ShardBackend) AddMinorBlock(block *types.MinorBlock) error {
 	if err != nil {
 		return err
 	}
+	go s.miner.NewTip(s.MinorBlockChain.CurrentBlock().Number())
 	return nil
 }
 
@@ -277,6 +278,5 @@ func (s *ShardBackend) CreateBlockToMine() (types.IBlock, error) {
 
 func (s *ShardBackend) InsertMinedBlock(block types.IBlock) error {
 	err:= s.AddMinorBlock(block.(*types.MinorBlock))
-	go s.miner.NewTip(block.NumberU64())
 	return err
 }

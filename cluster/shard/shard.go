@@ -26,10 +26,6 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 )
 
-const   (
-	rootChainChanSize       = 256
-	rootChainSideChanSize   = 256
-)
 type ShardBackend struct {
 	Config            *config.ShardConfig
 	fullShardId       uint32
@@ -42,8 +38,6 @@ type ShardBackend struct {
 	gspec *core.Genesis
 	conn  ConnManager
 
-	rootChainChan         chan core.MinorChainEvent
-	rootChainEventSub     event.Subscription
 	miner           *miner.Miner
 	MinorBlockChain *core.MinorBlockChain
 
@@ -106,22 +100,10 @@ func New(ctx *service.ServiceContext, rBlock *types.RootBlock, conn ConnManager,
 	}
 	shard.MinorBlockChain.SetBroadcastMinorBlockFunc(shard.AddMinorBlock)
 	shard.synchronizer = synchronizer.NewSynchronizer(shard.MinorBlockChain)
-	shard.rootChainChan = make(chan core.MinorChainEvent, rootChainChanSize)
-	shard.rootChainEventSub = shard.MinorBlockChain.SubscribeChainEvent(shard.rootChainChan)
-
-	//go shard.tipLoop()
 
 	return shard, nil
 }
-//func (s *ShardBackend) tipLoop(){
-//	for true {
-//		select {
-//		case data:=<-s.rootChainChan:
-//			go s.miner.NewTip(data.Block.NumberU64())
-//
-//		}
-//	}
-//}
+
 func (s *ShardBackend) Stop() {
 	s.miner.Stop()
 	s.eventMux.Stop()

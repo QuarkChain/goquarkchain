@@ -146,7 +146,6 @@ func (n *Node) Start() error {
 		n.serverConfig.NodeDatabase = n.config.NodeDB()
 	}
 	running := &p2p.Server{Config: n.serverConfig}
-	n.log.Info("Starting peer-to-peer node", "instance", n.serverConfig.Name)
 
 	// Otherwise copy and specialize the P2P configuration
 	services := make(map[reflect.Type]Service)
@@ -176,11 +175,6 @@ func (n *Node) Start() error {
 	for _, service := range services {
 		running.Protocols = append(running.Protocols, service.Protocols()...)
 	}
-	if n.IsMaster() {
-		if err := running.Start(); err != nil {
-			return convertFileLockError(err)
-		}
-	}
 	// Start each of the services
 	var started []reflect.Type
 	for kind, service := range services {
@@ -196,6 +190,12 @@ func (n *Node) Start() error {
 		// Mark the service started for potential cleanup
 		started = append(started, kind)
 	}
+	if n.IsMaster() {
+		if err := running.Start(); err != nil {
+			return convertFileLockError(err)
+		}
+	}
+	n.log.Info("Starting peer-to-peer node", "instance", n.serverConfig.Name)
 	// Lastly start the configured RPC interfaces
 	if err := n.startRPC(services); err != nil {
 		for _, service := range services {

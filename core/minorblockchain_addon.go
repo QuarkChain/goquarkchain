@@ -614,7 +614,6 @@ func (m *MinorBlockChain) getAllUnconfirmedHeaderList() []*types.MinorBlockHeade
 	)
 
 	confirmedHeaderTip := m.confirmedHeaderTip
-
 	header, ok = m.CurrentHeader().(*types.MinorBlockHeader)
 	if !ok {
 		panic(errors.New("current not exist"))
@@ -625,6 +624,9 @@ func (m *MinorBlockChain) getAllUnconfirmedHeaderList() []*types.MinorBlockHeade
 	}
 
 	allHeight := int(header.NumberU64()) - int(startHeight)
+	if allHeight<0{
+		allHeight=0
+	}
 	headerList := make([]*types.MinorBlockHeader, allHeight)
 	for index := allHeight - 1; index >= 0; index-- {
 		headerList[index] = header
