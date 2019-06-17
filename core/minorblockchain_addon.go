@@ -251,7 +251,9 @@ func (m *MinorBlockChain) isSameRootChain(long types.IHeader, short types.IHeade
 }
 
 func (m *MinorBlockChain) isMinorBlockLinkedToRootTip(mBlock *types.MinorBlock) bool {
+	m.mu.RLock()
 	confirmed := m.confirmedHeaderTip
+	m.mu.RUnlock()
 	if confirmed == nil {
 		return true
 	}
@@ -916,7 +918,7 @@ func (m *MinorBlockChain) AddRootBlock(rBlock *types.RootBlock) (bool, error) {
 	if shardHeader != nil {
 		origBlock := m.GetBlockByNumber(shardHeader.Number)
 		if qkcCommon.IsNil(origBlock) || origBlock.Hash() != shardHeader.Hash() {
-			log.Error(m.logInfo, "ready to set current header height", shardHeader.Number, "hash", shardHeader.Hash().String(), "status", qkcCommon.IsNil(origBlock))
+			log.Warn(m.logInfo, "ready to set current header height", shardHeader.Number, "hash", shardHeader.Hash().String(), "status", qkcCommon.IsNil(origBlock))
 			m.hc.SetCurrentHeader(shardHeader)
 			block := m.GetMinorBlock(shardHeader.Hash())
 			m.currentBlock.Store(block)
@@ -956,7 +958,7 @@ func (m *MinorBlockChain) AddRootBlock(rBlock *types.RootBlock) (bool, error) {
 	if m.CurrentHeader().Hash() != origHeaderTip.Hash() {
 		origBlock := m.GetMinorBlock(origHeaderTip.Hash())
 		newBlock := m.GetMinorBlock(m.CurrentHeader().Hash())
-		log.Warn("reWrite", origBlock.Number(), origBlock.Hash().String(), newBlock.Number(), newBlock.Hash().String())
+		log.Warn("reWrite","orig_number", origBlock.Number(), "orig_hash",origBlock.Hash().String(),"new_number", newBlock.Number(),"new_hash", newBlock.Hash().String())
 		if err := m.reWriteBlockIndexTo(origBlock, newBlock); err != nil {
 			return false, err
 		}

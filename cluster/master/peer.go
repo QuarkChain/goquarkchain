@@ -14,6 +14,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/p2p"
 	"github.com/QuarkChain/goquarkchain/serialize"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/log"
 )
 
 var (
@@ -305,6 +306,7 @@ func (p *peer) requestRootBlockHeaderList(rpcId uint64, hash common.Hash, amount
 }
 
 func (p *peer) GetRootBlockHeaderList(hash common.Hash, amount uint32, reverse bool) ([]*types.RootBlockHeader, error) {
+	log.Info("scf","GetRootBlockHeaderList-start",hash,"number",amount,"reverse",reverse)
 	rpcId, rpcchan := p.getRpcIdWithChan()
 	defer p.deleteChan(rpcId)
 
@@ -358,7 +360,7 @@ func (p *peer) GetMinorBlockHeaderList(origin common.Hash, amount uint32, branch
 			return ret, nil
 		}
 	case <-timeout.C:
-		return nil, fmt.Errorf("peer %v return disc Read Time out for rpcid %d", p.id, rpcId)
+		return nil, fmt.Errorf("peer %v return GetMinorBlockHeaderList disc Read Time out for rpcid %d", p.id, rpcId)
 	}
 }
 
@@ -391,7 +393,7 @@ func (p *peer) GetRootBlockList(hashes []common.Hash) ([]*types.RootBlock, error
 			return ret, nil
 		}
 	case <-timeout.C:
-		return nil, fmt.Errorf("peer %v return disc Read Time out for rpcid %d", p.id, rpcId)
+		return nil, fmt.Errorf("peer %v return GetRootBlockList disc Read Time out for rpcid %d", p.id, rpcId)
 	}
 }
 
@@ -422,7 +424,7 @@ func (p *peer) GetMinorBlockList(hashes []common.Hash, branch uint32) ([]*types.
 			return ret, nil
 		}
 	case <-timeout.C:
-		return nil, fmt.Errorf("peer %v return disc Read Time out for rpcid %d", p.id, rpcId)
+		return nil, fmt.Errorf("peer %v return GetMinorBlockList disc Read Time out for rpcid %d", p.id, rpcId)
 	}
 }
 
@@ -467,7 +469,7 @@ func (p *peer) Handshake(protoVersion, networkId uint32, peerId common.Hash, pee
 				return err
 			}
 		case <-timeout.C:
-			fmt.Println("return disc Read Time out")
+			fmt.Println("return Handshake disc Read Time out")
 			return p2p.DiscReadTimeout
 		}
 	}

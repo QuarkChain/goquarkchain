@@ -267,16 +267,17 @@ func (pm *ProtocolManager) handleMsg(peer *peer) error {
 		}
 
 	case qkcMsg.Op == p2p.GetRootBlockHeaderListRequestMsg:
+		log.Info("scf","receive GetRootBlockHeaderListRequestMsg","")
 		var blockHeaderReq p2p.GetRootBlockHeaderListRequest
 		if err := serialize.DeserializeFromBytes(qkcMsg.Data, &blockHeaderReq); err != nil {
 			return err
 		}
-
+		log.Info("scf","begin handle","")
 		resp, err := pm.HandleGetRootBlockHeaderListRequest(&blockHeaderReq)
 		if err != nil {
 			return err
 		}
-
+		log.Info("scf","end handle","")
 		return peer.SendResponse(p2p.GetRootBlockHeaderListResponseMsg, p2p.Metadata{Branch: 0}, qkcMsg.RpcID, resp)
 
 	case qkcMsg.Op == p2p.GetRootBlockHeaderListResponseMsg:

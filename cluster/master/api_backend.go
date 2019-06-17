@@ -265,10 +265,23 @@ func (s *QKCMasterBackend) NetWorkInfo() map[string]interface{} {
 
 // miner api
 func (s *QKCMasterBackend) CreateBlockToMine() (types.IBlock, error) {
+	fmt.Println("CCCCCCCCCCCCCCCCCC",s.clusterConfig.Quarkchain.Root.CoinbaseAddress.ToHex())
 	return s.createRootBlockToMine(s.clusterConfig.Quarkchain.Root.CoinbaseAddress)
 }
 
 func (s *QKCMasterBackend) InsertMinedBlock(block types.IBlock) error {
 	rBlock := block.(*types.RootBlock)
-	return s.AddRootBlock(rBlock)
+	err:= s.AddRootBlock(rBlock)
+	go s.miner.NewTip(rBlock.NumberU64())
+	return err
 }
+
+//func (s *QKCMasterBackend) tipLoop(){
+//	for true {
+//		select {
+//		case data:=<-s.rootChainChan:
+//			go s.miner.NewTip(data.Block.NumberU64())
+//
+//		}
+//	}
+//}

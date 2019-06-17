@@ -384,12 +384,14 @@ func (bc *RootBlockChain) HasBlock(hash common.Hash) bool {
 func (bc *RootBlockChain) GetBlock(hash common.Hash) types.IBlock {
 	// Short circuit if the block's already in the cache, retrieve otherwise
 	if block, ok := bc.blockCache.Get(hash); ok {
+		fmt.Println("????????????????")
 		return block.(*types.RootBlock)
 	}
 	block := rawdb.ReadRootBlock(bc.db, hash)
 	if block == nil {
 		return nil
 	}
+	fmt.Println("392",block.Header().Coinbase.ToHex())
 	// Cache the found block for next time and return
 	bc.blockCache.Add(block.Hash(), block)
 	return block
@@ -575,6 +577,7 @@ func (bc *RootBlockChain) addFutureBlock(block types.IBlock) error {
 //
 // After insertion is done, all accumulated events will be fired.
 func (bc *RootBlockChain) InsertChain(chain []types.IBlock) (int, error) {
+	fmt.Println("IIIIIIIIIIIIIIIII",chain[0].IHeader().GetCoinbase().ToHex())
 	// Sanity check that we have something meaningful to import
 	if len(chain) == 0 {
 		return 0, nil

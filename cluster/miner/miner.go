@@ -34,6 +34,8 @@ type Miner struct {
 	mu        sync.RWMutex
 	timestamp *time.Time
 	isMining  uint32
+	tipHeight uint64// Notice:only use length as tip simply
+	stopCh chan struct{}
 }
 
 func New(ctx *service.ServiceContext, api MinerAPI, engine consensus.Engine, interval uint32) *Miner {
@@ -46,59 +48,67 @@ func New(ctx *service.ServiceContext, api MinerAPI, engine consensus.Engine, int
 		workCh:        make(chan types.IBlock, 1),
 		startCh:       make(chan struct{}, 1),
 		exitCh:        make(chan struct{}),
+		stopCh:        make(chan struct{}),
 	}
 	go miner.mainLoop(miner.minerInterval)
 	return miner
 }
+// interrupt aborts the minering work
+func (m *Miner)interrupt() {
+	if m.stopCh != nil {
+		close(m.stopCh)
+		m.stopCh = make(chan struct{})
+	}
+}
+
+func (m *Miner) commit() {
+	// don't allow to mine
+	if atomic.LoadUint32(&m.isMining) == 0 || time.Now().Sub(*m.timestamp).Seconds() > deadtime {
+		return
+	}
+	m.interrupt()
+	block, err := m.api.CreateBlockToMine()
+	if err != nil {
+		log.Error("create block to mine", "err", err)
+		// retry to create block to mine
+		time.Sleep(2 * time.Second)
+		m.startCh <- struct{}{}
+		return
+	}
+	m.mu.RLock()
+	if block.NumberU64()<=m.tipHeight{
+		m.mu.RUnlock()
+		log.Error("scf","block's height small than tipHeight after commit blockNumber ,no need to seal",block.NumberU64(),"tip",m.tipHeight)
+		return
+	}
+	m.mu.RUnlock()
+	m.workCh <- block
+	log.Info("create new block to mine", "height", block.NumberU64(),"coinbase",block.IHeader().GetCoinbase().ToHex(),"diff",block.IHeader().GetDifficulty(),"tip",m.tipHeight)
+	m.now = time.Now()
+}
 
 func (m *Miner) mainLoop(recommit time.Duration) {
-	var (
-		stopCh chan struct{}
-	)
-
-	// interrupt aborts the minering work
-	interrupt := func() {
-		if stopCh != nil {
-			close(stopCh)
-			stopCh = make(chan struct{})
-		}
-	}
-	commit := func() {
-		// don't allow to mine
-		if atomic.LoadUint32(&m.isMining) == 0 || time.Now().Sub(*m.timestamp).Seconds() > deadtime {
-			return
-		}
-		interrupt()
-		block, err := m.api.CreateBlockToMine()
-		if err != nil {
-			log.Error("create block to mine", "err", err)
-			// retry to create block to mine
-			time.Sleep(2 * time.Second)
-			m.startCh <- struct{}{}
-			return
-		}
-		m.workCh <- block
-		log.Info("create new block to mine", "height", block.NumberU64())
-		m.now = time.Now()
-	}
 
 	for {
 		select {
 		case <-m.startCh:
-			commit()
+			m.commit()
 
 		case work := <-m.workCh:
-			if err := m.engine.Seal(nil, work, m.resultCh, stopCh); err != nil {
+			log.Info("miner","ready to seal height",work.NumberU64())
+			if err := m.engine.Seal(nil, work, m.resultCh, m.stopCh); err != nil {
 				log.Error("Seal block to mine", "err", err)
-				commit()
+				m.commit()
 			}
 
 		case rBlock := <-m.resultCh:
+			log.Info("miner","seal succ number",rBlock.NumberU64(),"hash",rBlock.Hash().String())
+			fmt.Println("RRRRRRRRRRRRRRR",rBlock.IHeader().GetCoinbase().ToHex())
 			if err := m.api.InsertMinedBlock(rBlock); err != nil {
 				log.Error("add minered block", "block hash", rBlock.Hash().Hex(), "err", err)
 				time.Sleep(time.Duration(3) * time.Second)
 			}
-			commit()
+		//	m.commit()
 
 		case <-m.exitCh:
 			return
@@ -150,4 +160,17 @@ func (m *Miner) SubmitWork(nonce uint64, hash, digest common.Hash) bool {
 		return false
 	}
 	return m.engine.SubmitWork(nonce, hash, digest)
+}
+
+func (m *Miner)NewTip(height uint64)  {
+	fmt.Println("NNNNNNNNNNNNNNNNNNN",height)
+	m.mu.Lock()
+	if height<=m.tipHeight{
+		m.mu.Unlock()
+		return
+	}
+	m.tipHeight=height
+	m.mu.Unlock()
+	m.commit()
+
 }
