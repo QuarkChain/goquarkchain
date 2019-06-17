@@ -624,8 +624,8 @@ func (m *MinorBlockChain) getAllUnconfirmedHeaderList() []*types.MinorBlockHeade
 	}
 
 	allHeight := int(header.NumberU64()) - int(startHeight)
-	if allHeight<0{
-		allHeight=0
+	if allHeight < 0 {
+		allHeight = 0
 	}
 	headerList := make([]*types.MinorBlockHeader, allHeight)
 	for index := allHeight - 1; index >= 0; index-- {
@@ -960,7 +960,7 @@ func (m *MinorBlockChain) AddRootBlock(rBlock *types.RootBlock) (bool, error) {
 	if m.CurrentHeader().Hash() != origHeaderTip.Hash() {
 		origBlock := m.GetMinorBlock(origHeaderTip.Hash())
 		newBlock := m.GetMinorBlock(m.CurrentHeader().Hash())
-		log.Warn("reWrite","orig_number", origBlock.Number(), "orig_hash",origBlock.Hash().String(),"new_number", newBlock.Number(),"new_hash", newBlock.Hash().String())
+		log.Warn("reWrite", "orig_number", origBlock.Number(), "orig_hash", origBlock.Hash().String(), "new_number", newBlock.Number(), "new_hash", newBlock.Hash().String())
 		if err := m.reWriteBlockIndexTo(origBlock, newBlock); err != nil {
 			return false, err
 		}

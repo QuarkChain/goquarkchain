@@ -33,8 +33,8 @@ type Miner struct {
 	mu        sync.RWMutex
 	timestamp *time.Time
 	isMining  uint32
-	tipHeight uint64// Notice:only use length as tip simply
-	stopCh chan struct{}
+	tipHeight uint64
+	stopCh    chan struct{}
 }
 
 func New(ctx *service.ServiceContext, api MinerAPI, engine consensus.Engine, interval uint32) *Miner {
@@ -52,8 +52,9 @@ func New(ctx *service.ServiceContext, api MinerAPI, engine consensus.Engine, int
 	go miner.mainLoop(miner.minerInterval)
 	return miner
 }
+
 // interrupt aborts the minering work
-func (m *Miner)interrupt() {
+func (m *Miner) interrupt() {
 	if m.stopCh != nil {
 		close(m.stopCh)
 		m.stopCh = make(chan struct{})
@@ -76,9 +77,9 @@ func (m *Miner) commit() {
 		return
 	}
 	m.mu.RLock()
-	if block.NumberU64()<=m.tipHeight{
+	if block.NumberU64() <= m.tipHeight {
 		m.mu.RUnlock()
-		log.Error("scf","block's height small than tipHeight after commit blockNumber ,no need to seal",block.NumberU64(),"tip",m.tipHeight)
+		log.Error("scf", "block's height small than tipHeight after commit blockNumber ,no need to seal", block.NumberU64(), "tip", m.tipHeight)
 		return
 	}
 	m.workCh <- block
@@ -94,14 +95,14 @@ func (m *Miner) mainLoop(recommit time.Duration) {
 			m.commit()
 
 		case work := <-m.workCh:
-			log.Info("miner","ready to seal height",work.NumberU64())
+			log.Info("miner", "ready to seal height", work.NumberU64())
 			if err := m.engine.Seal(nil, work, m.resultCh, m.stopCh); err != nil {
 				log.Error("Seal block to mine", "err", err)
 				m.commit()
 			}
 
 		case rBlock := <-m.resultCh:
-			log.Info("miner","seal succ number",rBlock.NumberU64(),"hash",rBlock.Hash().String())
+			log.Info("miner", "seal succ number", rBlock.NumberU64(), "hash", rBlock.Hash().String())
 			if err := m.api.InsertMinedBlock(rBlock); err != nil {
 				log.Error("add minered block", "block hash", rBlock.Hash().Hex(), "err", err)
 				time.Sleep(time.Duration(3) * time.Second)
@@ -160,14 +161,14 @@ func (m *Miner) SubmitWork(nonce uint64, hash, digest common.Hash) bool {
 	return m.engine.SubmitWork(nonce, hash, digest)
 }
 
-func (m *Miner)NewTip(height uint64)  {
+func (m *Miner) NewTip(height uint64) {
 	m.mu.Lock()
-	log.Info("miner","TTTTTTTTTTTTTTT height",height,"tip",m.tipHeight)
-	if height<=m.tipHeight{
-		m.mu.Unlock()
-		return
-	}
-	m.tipHeight=height
+	log.Info("miner", "handle new tip: height", height, "tip", m.tipHeight)
+	//if height<=m.tipHeight{
+	//	m.mu.Unlock()
+	//	return
+	//}
+	m.tipHeight = height
 	m.mu.Unlock()
 	m.commit()
 

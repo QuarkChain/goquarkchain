@@ -270,6 +270,5 @@ func (s *QKCMasterBackend) CreateBlockToMine() (types.IBlock, error) {
 
 func (s *QKCMasterBackend) InsertMinedBlock(block types.IBlock) error {
 	rBlock := block.(*types.RootBlock)
-	err:= s.AddRootBlock(rBlock)
-	return err
+	return s.AddRootBlock(rBlock)
 }

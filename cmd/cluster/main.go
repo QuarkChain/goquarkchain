@@ -155,5 +155,4 @@ func startService(ctx *cli.Context, stack *service.Node) {
 			utils.Fatalf("slave service not running %v", err)
 		}
 	}
-
 }

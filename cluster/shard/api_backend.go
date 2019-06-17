@@ -277,6 +277,5 @@ func (s *ShardBackend) CreateBlockToMine() (types.IBlock, error) {
 }
 
 func (s *ShardBackend) InsertMinedBlock(block types.IBlock) error {
-	err:= s.AddMinorBlock(block.(*types.MinorBlock))
-	return err
+	return s.AddMinorBlock(block.(*types.MinorBlock))
 }

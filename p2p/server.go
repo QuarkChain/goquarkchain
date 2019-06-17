@@ -22,7 +22,6 @@ import (
 	"crypto/ecdsa"
 	"encoding/hex"
 	"errors"
-	"fmt"
 	"net"
 	"sort"
 	"sync"
@@ -409,7 +408,6 @@ func (s *sharedUDPConn) Close() error {
 // Start starts running the server.
 // Servers can not be re-used after stopping.
 func (srv *Server) Start() (err error) {
-	fmt.Println("SSSSSSSSSSSSSSSSSS","start")
 	srv.lock.Lock()
 	defer srv.lock.Unlock()
 	if srv.running {
