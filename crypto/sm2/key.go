@@ -26,7 +26,7 @@ func PrivKeyFromBytes(priv []byte) *PrivateKey {
 
 	privateKey := new(PrivateKey)
 	privateKey.D = new(big.Int).SetBytes(priv)
-	privateKey.PublicKey = ecdsa.PublicKey{Sm2Curve(), x, y}
+	privateKey.PublicKey = ecdsa.PublicKey{Curve:Sm2Curve(),X: x, Y: y}
 	return privateKey
 }
 
@@ -37,7 +37,7 @@ func GenerateKey(rand io.Reader) (*ecdsa.PrivateKey, error) {
 	}
 	privateKey := new(ecdsa.PrivateKey)
 	privateKey.D = new(big.Int).SetBytes(priv)
-	privateKey.PublicKey = ecdsa.PublicKey{Sm2Curve(), x, y}
+	privateKey.PublicKey = ecdsa.PublicKey{Curve:Sm2Curve(),X: x, Y: y}
 
 	return privateKey, nil
 }
