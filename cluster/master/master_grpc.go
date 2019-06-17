@@ -2,10 +2,9 @@ package master
 
 import (
 	"context"
-	"sync"
-
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
 	"github.com/QuarkChain/goquarkchain/serialize"
+	"sync"
 )
 
 type MasterServerSideOp struct {
@@ -28,8 +27,7 @@ func (m *MasterServerSideOp) AddMinorBlockHeader(ctx context.Context, req *rpc.R
 	}
 	m.master.rootBlockChain.AddValidatedMinorBlockHeader(data.MinorBlockHeader.Hash())
 	m.master.UpdateShardStatus(data.ShardStats)
-	// TODO call that func after rm the panic
-	// m.master.UpdateTxCountHistory(data.TxCount, data.XShardTxCount, data.MinorBlockHeader.Time)
+	m.master.UpdateTxCountHistory(data.TxCount, data.XShardTxCount, data.MinorBlockHeader.Time)
 
 	rsp := new(rpc.AddMinorBlockHeaderResponse)
 	rsp.ArtificialTxConfig = m.master.artificialTxConfig
@@ -116,13 +114,13 @@ func (m *MasterServerSideOp) GetMinorBlockHeaderList(ctx context.Context, req *r
 		return nil, err
 	}
 	//hash common.Hash, amount uint32, branch uint32, reverse bool, peerId string
-	getMinorBlockHeaderListRes.MinorBlockHeaderList, err = m.p2pApi.GetMinorBlockHeaders(
-		getMinorBlockHeaderListReq.BlockHash,
-		getMinorBlockHeaderListReq.Limit,
-		getMinorBlockHeaderListReq.Branch,
-		getMinorBlockHeaderListReq.Direction == directionToGenesis,
-		getMinorBlockHeaderListReq.PeerID,
-	)
+	getMinorBlockHeaderListRes.MinorBlockHeaderList, err =
+		m.p2pApi.GetMinorBlockHeaders(
+			getMinorBlockHeaderListReq.BlockHash,
+			getMinorBlockHeaderListReq.Limit,
+			getMinorBlockHeaderListReq.Branch,
+			getMinorBlockHeaderListReq.Direction == directionToGenesis,
+			getMinorBlockHeaderListReq.PeerID)
 	if err != nil {
 		return nil, err
 	}

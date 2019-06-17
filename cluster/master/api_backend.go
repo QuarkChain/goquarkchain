@@ -9,7 +9,6 @@ import (
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/core/types"
-	"github.com/QuarkChain/goquarkchain/p2p"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	ethRpc "github.com/ethereum/go-ethereum/rpc"
@@ -25,14 +24,14 @@ func ip2uint32(ip string) uint32 {
 }
 
 func (s *QKCMasterBackend) GetPeers() []rpc.PeerInfoForDisPlay {
-	fakePeers := make([]p2p.Peer, 0) //TODO use real peerList
+	peers := s.protocolManager.peers.Peers() //TODO use real peerList
 	result := make([]rpc.PeerInfoForDisPlay, 0)
-	for k := range fakePeers {
+	for k := range peers {
 		temp := rpc.PeerInfoForDisPlay{}
-		if tcp, ok := fakePeers[k].RemoteAddr().(*net.TCPAddr); ok {
+		if tcp, ok := peers[k].RemoteAddr().(*net.TCPAddr); ok {
 			temp.IP = ip2uint32(tcp.IP.String())
 			temp.Port = uint32(tcp.Port)
-			temp.ID = fakePeers[k].ID().Bytes()
+			temp.ID = peers[k].ID().Bytes()
 		} else {
 			panic(fmt.Errorf("not tcp? real type %v", reflect.TypeOf(tcp)))
 		}
@@ -44,7 +43,14 @@ func (s *QKCMasterBackend) GetPeers() []rpc.PeerInfoForDisPlay {
 
 func (s *QKCMasterBackend) AddTransaction(tx *types.Transaction) error {
 	evmTx := tx.EvmTx
-	//TODO :SetQKCConfig
+	toShardSize := s.clusterConfig.Quarkchain.GetShardSizeByChainId(tx.EvmTx.ToChainID())
+	if err := tx.EvmTx.SetToShardSize(toShardSize); err != nil {
+		return errors.New("SetToShardSize err")
+	}
+	fromShardSize := s.clusterConfig.Quarkchain.GetShardSizeByChainId(tx.EvmTx.FromChainID())
+	if err := tx.EvmTx.SetFromShardSize(fromShardSize); err != nil {
+		return errors.New("SetFromShardSize err")
+	}
 	branch := account.Branch{Value: evmTx.FromFullShardId()}
 	slaves := s.getAllSlaveConnection(branch.Value)
 	if len(slaves) == 0 {
@@ -199,7 +205,7 @@ func (s *QKCMasterBackend) GasPrice(branch account.Branch) (uint64, error) {
 // return root chain work if branch is nil
 func (s *QKCMasterBackend) GetWork(branch account.Branch) (*consensus.MiningWork, error) {
 	if branch.Value == 0 {
-		return s.engine.GetWork()
+		return s.miner.GetWork()
 	}
 	slaveConn := s.getOneSlaveConnection(branch)
 	if slaveConn == nil {
@@ -211,7 +217,7 @@ func (s *QKCMasterBackend) GetWork(branch account.Branch) (*consensus.MiningWork
 // submit root chain work if branch is nil
 func (s *QKCMasterBackend) SubmitWork(branch account.Branch, headerHash common.Hash, nonce uint64, mixHash common.Hash) (bool, error) {
 	if branch.Value == 0 {
-		return s.engine.SubmitWork(nonce, headerHash, mixHash), nil
+		return s.miner.SubmitWork(nonce, headerHash, mixHash), nil
 	}
 	slaveConn := s.getOneSlaveConnection(branch)
 	if slaveConn == nil {
@@ -255,4 +261,14 @@ func (s *QKCMasterBackend) NetWorkInfo() map[string]interface{} {
 		"shardServerCount": hexutil.Uint(len(s.clientPool)),
 	}
 	return fileds
+}
+
+// miner api
+func (s *QKCMasterBackend) CreateBlockToMine() (types.IBlock, error) {
+	return s.createRootBlockToMine(s.clusterConfig.Quarkchain.Root.CoinbaseAddress)
+}
+
+func (s *QKCMasterBackend) InsertMinedBlock(block types.IBlock) error {
+	rBlock := block.(*types.RootBlock)
+	return s.AddRootBlock(rBlock)
 }

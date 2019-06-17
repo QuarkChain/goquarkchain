@@ -57,6 +57,7 @@ func NewStateProcessor(config *params.ChainConfig, bc *MinorBlockChain, engine c
 func (p *StateProcessor) Process(block *types.MinorBlock, statedb *state.StateDB, cfg vm.Config, evmTxIncluded []*types.Transaction, xShardReceiveTxList []*types.CrossShardTransactionDeposit) (types.Receipts, []*types.Log, uint64, error) {
 	statedb.SetQuarkChainConfig(p.bc.clusterConfig.Quarkchain)
 	statedb.SetBlockCoinbase(block.IHeader().GetCoinbase().Recipient)
+	statedb.SetGasLimit(block.GasLimit())
 	if evmTxIncluded == nil {
 		evmTxIncluded = make([]*types.Transaction, 0)
 	}

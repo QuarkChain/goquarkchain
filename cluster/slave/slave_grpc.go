@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
 	"github.com/QuarkChain/goquarkchain/consensus"
@@ -25,6 +26,7 @@ func NewServerSideOp(slave *SlaveBackend) *SlaveServerSideOp {
 }
 
 func (s *SlaveServerSideOp) HeartBeat(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
+	s.slave.ctx.Timestamp = time.Now()
 	return &rpc.Response{}, nil
 }
 
@@ -87,11 +89,10 @@ func (s *SlaveServerSideOp) GenTx(ctx context.Context, req *rpc.Request) (*rpc.R
 	if err = serialize.DeserializeFromBytes(req.Data, &gReq); err != nil {
 		return nil, err
 	}
-
-	// TODO CreateTransactions
-
+	if err = s.slave.GenTx(&gReq); err != nil {
+		return nil, err
+	}
 	return response, nil
-
 }
 
 func (s *SlaveServerSideOp) AddRootBlock(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
@@ -231,8 +232,15 @@ func (s *SlaveServerSideOp) ExecuteTransaction(ctx context.Context, req *rpc.Req
 	if err = serialize.DeserializeFromBytes(req.Data, &gReq); err != nil {
 		return nil, err
 	}
-
-	if gRes.Result, err = s.slave.ExecuteTx(gReq.Tx, gReq.FromAddress); err != nil {
+	toShardSize := s.slave.clstrCfg.Quarkchain.GetShardSizeByChainId(gReq.Tx.EvmTx.ToChainID())
+	if err := gReq.Tx.EvmTx.SetToShardSize(toShardSize); err != nil {
+		return nil, err
+	}
+	fromShardSize := s.slave.clstrCfg.Quarkchain.GetShardSizeByChainId(gReq.Tx.EvmTx.FromChainID())
+	if err := gReq.Tx.EvmTx.SetFromShardSize(fromShardSize); err != nil {
+		return nil, err
+	}
+	if gRes.Result, err = s.slave.ExecuteTx(gReq.Tx, gReq.FromAddress, gReq.BlockHeight); err != nil {
 		return nil, err
 	}
 
@@ -341,7 +349,7 @@ func (s *SlaveServerSideOp) GetStorageAt(ctx context.Context, req *rpc.Request) 
 		return nil, err
 	}
 
-	if gRes.Result, err = s.slave.GetStorageAt(gReq.Address, gReq.Key, *gReq.BlockHeight); err != nil {
+	if gRes.Result, err = s.slave.GetStorageAt(gReq.Address, gReq.Key, gReq.BlockHeight); err != nil {
 		return nil, err
 	}
 
@@ -363,7 +371,7 @@ func (s *SlaveServerSideOp) GetCode(ctx context.Context, req *rpc.Request) (*rpc
 		return nil, err
 	}
 
-	if gRes.Result, err = s.slave.GetCode(gReq.Address, *gReq.BlockHeight); err != nil {
+	if gRes.Result, err = s.slave.GetCode(gReq.Address, gReq.BlockHeight); err != nil {
 		return nil, err
 	}
 
@@ -598,6 +606,18 @@ func (s *SlaveServerSideOp) HandleNewMinorBlock(ctx context.Context, req *rpc.Re
 	if err = s.slave.NewMinorBlock(&gReq); err != nil {
 		return nil, err
 	}
+	return response, nil
+}
 
+func (s *SlaveServerSideOp) SetMining(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
+	var (
+		mining   bool
+		response = &rpc.Response{RpcId: req.RpcId}
+		err      error
+	)
+	if err = serialize.DeserializeFromBytes(req.Data, &mining); err != nil {
+		return nil, err
+	}
+	s.slave.SetMining(mining)
 	return response, nil
 }

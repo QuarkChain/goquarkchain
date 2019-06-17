@@ -236,12 +236,14 @@ func (c *CommonEngine) FindNonce(
 	}
 
 	go func() {
-		var result MiningResult
 		select {
 		case <-stop:
 			close(abort)
-		case result = <-found:
-			results <- result
+			return
+		case result := <-found:
+			select {
+			case results <- result:
+			}
 			close(abort)
 		}
 		pend.Wait()
@@ -271,26 +273,21 @@ func (c *CommonEngine) localSeal(
 	stop <-chan struct{},
 ) error {
 
-	abort := make(chan struct{})
 	found := make(chan MiningResult)
 	header := block.IHeader()
 	work := MiningWork{HeaderHash: header.SealHash(), Number: header.NumberU64(), Difficulty: header.GetDifficulty()}
-	if err := c.FindNonce(work, found, abort); err != nil {
+	if err := c.FindNonce(work, found, stop); err != nil {
 		return err
 	}
 	// Convert found header to block
 	go func() {
-		var result MiningResult
 		select {
-		case <-stop:
-			close(abort)
-		case result = <-found:
+		case result := <-found:
 			select {
 			case results <- block.WithMingResult(result.Nonce, result.Digest):
 			default:
 				log.Warn("Sealing result is not read by miner", "mode", "local", "sealhash", work.HeaderHash)
 			}
-			close(abort)
 		}
 	}()
 	return nil
@@ -300,7 +297,7 @@ func (c *CommonEngine) mine(
 	work MiningWork,
 	id int,
 	startNonce uint64,
-	abort chan struct{},
+	abort <-chan struct{},
 	found chan MiningResult,
 ) {
 
@@ -435,5 +432,6 @@ func NewCommonEngine(spec MiningSpec, diffCalc DifficultyCalculator, remote bool
 		c.exitCh = make(chan chan error)
 		go c.remote()
 	}
+
 	return c
 }

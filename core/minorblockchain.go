@@ -133,6 +133,7 @@ type MinorBlockChain struct {
 	heightToMinorBlockHashes map[uint64]map[common.Hash]struct{}
 	currentEvmState          *state.StateDB
 	logInfo                  string
+	addMinorBlockAndBroad    func(block *types.MinorBlock) error
 }
 
 // NewMinorBlockChain returns a fully initialised block chain using information
@@ -222,6 +223,18 @@ func NewMinorBlockChain(
 	// Take ownership of this particular state
 	go bc.update()
 	return bc, nil
+}
+
+func (m *MinorBlockChain) SetBroadcastMinorBlockFunc(f func(block *types.MinorBlock) error) {
+	m.addMinorBlockAndBroad = f
+}
+
+func (m *MinorBlockChain) AddBlock(block types.IBlock) error {
+	minorBlock, ok := block.(*types.MinorBlock)
+	if !ok {
+		return errors.New("block is not minorBlock")
+	}
+	return m.addMinorBlockAndBroad(minorBlock)
 }
 
 func (m *MinorBlockChain) getProcInterrupt() bool {
@@ -913,7 +926,9 @@ func (m *MinorBlockChain) WriteBlockWithState(block *types.MinorBlock, receipts 
 			}
 		}
 		// Write the positional metadata for transaction/receipt lookups and preimages
-		rawdb.WriteBlockContentLookupEntries(batch, block)
+		if err := m.putTxIndexFromBlock(batch, block); err != nil {
+			panic(err)
+		}
 		rawdb.WritePreimages(batch, state.Preimages())
 		status = CanonStatTy
 
@@ -959,8 +974,6 @@ func (m *MinorBlockChain) InsertChain(chain []types.IBlock) (int, error) {
 // InsertChainForDeposits also return cross-shard transaction deposits in addition
 // to content returned from `InsertChain`.
 func (m *MinorBlockChain) InsertChainForDeposits(chain []types.IBlock) (int, [][]*types.CrossShardTransactionDeposit, error) {
-	log.Info(m.logInfo, "MinorBlockChain InsertChain len", len(chain))
-	defer log.Info(m.logInfo, "MinorBlockChain InsertChain", "end")
 	// Sanity check that we have something meaningful to import
 	if len(chain) == 0 {
 		return 0, nil, nil
@@ -1380,7 +1393,9 @@ func (m *MinorBlockChain) reorg(oldBlock, newBlock types.IBlock) error {
 		// insert the block in the canonical way, re-writing history
 		m.insert(newChain[i].(*types.MinorBlock))
 		// write lookup entries for hash based transaction/receipt searches
-		rawdb.WriteBlockContentLookupEntries(m.db, newChain[i])
+		if err := m.putTxIndexFromBlock(m.db, newChain[i]); err != nil {
+			return err
+		}
 		addedTxs = append(addedTxs, newChain[i].(*types.MinorBlock).GetTransactions()...)
 	}
 	// calculate the difference between deleted and added transactions
@@ -1388,8 +1403,8 @@ func (m *MinorBlockChain) reorg(oldBlock, newBlock types.IBlock) error {
 	// When transactions get deleted from the database that means the
 	// receipts that were created in the fork must also be deleted
 	batch := m.db.NewBatch()
-	for _, tx := range diff {
-		rawdb.DeleteBlockContentLookupEntry(batch, tx.Hash())
+	if err := m.removeTxIndexFromBlock(batch, diff); err != nil {
+		return err
 	}
 	batch.Write()
 

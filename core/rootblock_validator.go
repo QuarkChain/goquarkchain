@@ -162,6 +162,16 @@ func (v *RootBlockValidator) ValidateState(block, parent types.IBlock, statedb *
 func (v *RootBlockValidator) ValidateHeader(header types.IHeader) error {
 	return v.engine.VerifyHeader(v.blockChain, header, true)
 }
+func (v *RootBlockValidator) ValidatorSeal(rHeader types.IHeader) error {
+	header, ok := rHeader.(*types.RootBlockHeader)
+	if !ok {
+		return errors.New("validate root block Seal failed, root block is nil")
+	}
+	if header.NumberU64() == 0 {
+		return nil
+	}
+	return v.engine.VerifySeal(v.blockChain, header, nil)
+}
 
 type fakeRootBlockValidator struct {
 	Err error
@@ -177,4 +187,7 @@ func (v *fakeRootBlockValidator) ValidateHeader(header types.IHeader) error {
 
 func (v *fakeRootBlockValidator) ValidateState(block, parent types.IBlock, statedb *state.StateDB, receipts types.Receipts, usedGas uint64) error {
 	panic(errors.New("not implement"))
+}
+func (v *fakeRootBlockValidator) ValidatorSeal(rHeader types.IHeader) error {
+	return nil
 }

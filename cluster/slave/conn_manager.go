@@ -91,8 +91,6 @@ func (s *ConnManager) BatchAddXshardTxList(fullShardId uint32, xshardReqs []*rpc
 // Broadcast x-shard transactions to their recipient shards
 func (s *ConnManager) BroadcastXshardTxList(block *types.MinorBlock,
 	xshardTxList []*types.CrossShardTransactionDeposit, height uint32) error {
-	log.Info(s.logInfo, "BroadcastXshardTxList number", block.Number(), "len(xShardTxList)", len(xshardTxList), "rootBlockNumber", height)
-	defer log.Info(s.logInfo, "BroadcastXshardTxList", "end")
 	var (
 		hash      = block.Header().Hash()
 		shardSize = len(s.qkcCfg.GetInitializedShardIdsBeforeRootHeight(height))

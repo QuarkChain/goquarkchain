@@ -19,6 +19,7 @@ package core
 import (
 	"errors"
 	"fmt"
+	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"math"
 	"math/big"
@@ -120,6 +121,7 @@ type minorBlockChain interface {
 	StateAt(root common.Hash) (*state.StateDB, error)
 	Config() *config.QuarkChainConfig
 	SubscribeChainHeadEvent(ch chan<- MinorChainHeadEvent) event.Subscription
+	validateTx(tx *types.Transaction, evmState *state.StateDB, fromAddress *account.Address, gas *uint64) (*types.Transaction, error)
 }
 
 // TxPoolConfig are the configuration parameters of the transaction pool.
@@ -229,7 +231,6 @@ func NewTxPool(config TxPoolConfig, chain minorBlockChain) *TxPool {
 	}
 	pool.locals = newAccountSet(pool.signer)
 	for _, addr := range config.Locals {
-		log.Info("Setting new local account", "address", addr)
 		pool.locals.add(addr)
 	}
 	pool.priced = newTxPricedList(pool.all)
@@ -391,7 +392,6 @@ func (pool *TxPool) reset(oldBlock, newBlock *types.MinorBlock) {
 	if newBlock == nil {
 		newBlock = pool.chain.CurrentBlock() // Special case during testing
 	}
-
 	statedb, err := pool.chain.StateAt(newBlock.Meta().Root)
 	if err != nil {
 		log.Error("Failed to reset txpool state", "err", err)
@@ -526,6 +526,12 @@ func (pool *TxPool) Pending() (map[common.Address]types.Transactions, error) {
 	return pending, nil
 }
 
+func (pool *TxPool) PendingCount() int {
+	pool.mu.Lock()
+	defer pool.mu.Unlock()
+	return len(pool.pending)
+}
+
 // Locals retrieves the accounts currently considered local by the pool.
 func (pool *TxPool) Locals() []common.Address {
 	pool.mu.Lock()
@@ -649,7 +655,6 @@ func (pool *TxPool) add(tx *types.Transaction, local bool) (bool, error) {
 	// Mark local addresses and journal local transactions
 	if local {
 		if !pool.locals.contains(from) {
-			log.Info("Setting new local account", "address", from)
 			pool.locals.add(from)
 		}
 	}
@@ -757,6 +762,9 @@ func (pool *TxPool) AddRemotes(txs []*types.Transaction) []error {
 func (pool *TxPool) addTx(tx *types.Transaction, local bool) error {
 	pool.mu.Lock()
 	defer pool.mu.Unlock()
+	if err := pool.CheckTxBeforeAdd(tx); err != nil {
+		return err
+	}
 
 	// Try to inject the transaction and update any state
 	replace, err := pool.add(tx, local)
@@ -1230,4 +1238,27 @@ func (t *txLookup) Remove(hash common.Hash) {
 	defer t.lock.Unlock()
 
 	delete(t.all, hash)
+}
+
+func (m *TxPool) CheckTxBeforeAdd(tx *types.Transaction) error {
+	if m.all.Count() > int(m.quarkConfig.TransactionQueueSizeLimitPerShard) {
+		return errors.New("txpool queue full")
+	}
+
+	toShardSize := m.quarkConfig.GetShardSizeByChainId(tx.EvmTx.ToChainID())
+	if err := tx.EvmTx.SetToShardSize(toShardSize); err != nil {
+		return err
+	}
+	fromShardSize := m.quarkConfig.GetShardSizeByChainId(tx.EvmTx.FromChainID())
+	if err := tx.EvmTx.SetFromShardSize(fromShardSize); err != nil {
+		return err
+	}
+
+	m.currentState.SetGasUsed(new(big.Int).SetUint64(0))
+
+	tx, err := m.chain.validateTx(tx, m.currentState, nil, nil)
+	if err != nil {
+		return err
+	}
+	return nil
 }

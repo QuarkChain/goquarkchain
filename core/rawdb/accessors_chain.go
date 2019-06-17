@@ -300,7 +300,7 @@ func WriteMinorBlock(db DatabaseWriter, block *types.MinorBlock) {
 	if err != nil {
 		log.Crit("Failed to serialize body", "err", err)
 	}
-	log.Info(DBLOG, "Write MinorBlock branch", block.Header().Branch.Value, "height", block.NumberU64(), "hash", block.Hash())
+	log.Info(DBLOG, "Write MinorBlock branch", block.Header().Branch.Value, "height", block.NumberU64(), "hash", block.Hash().String(), "len(tx)", len(block.Transactions()))
 	if err := db.Put(blockKey(block.Hash()), data); err != nil {
 		log.Crit("Failed to store minor block body", "err", err)
 	}
@@ -611,4 +611,18 @@ func ReadLastConfirmedMinorBlockHeaderAtRootBlock(db DatabaseReader, rHash commo
 		return common.Hash{}
 	}
 	return common.BytesToHash(data)
+}
+
+func WriteMinorBlockCnt(db DatabaseWriter, fullShardID uint32, height uint32, data []byte) {
+	if err := db.Put(makeMinorCount(fullShardID, height), data); err != nil {
+		log.Crit("failed to store minor block cnt")
+	}
+}
+
+func GetMinorBlockCnt(db DatabaseReader, fullShardID uint32, height uint32) []byte {
+	data, _ := db.Get(makeMinorCount(fullShardID, height))
+	if len(data) == 0 {
+		return []byte{}
+	}
+	return data
 }
