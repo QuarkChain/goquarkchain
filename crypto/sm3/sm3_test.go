@@ -132,3 +132,4 @@ func TestPerformance3(t *testing.T) {
 	}
 	fmt.Println(time.Now().Sub(tm).Seconds())
 }
+

@@ -111,14 +111,16 @@ func (sm3 *sm3Hash) Write(p []byte) (int, error) {
 	// if buffer + p is larger than or equal to 64 bytes,
 	// process block and set the offset to 0,
 	// till the size is smaller than 64 bytes
-	for sm3.bufOffset+size >= BufferSize {
-		for j, len := 0, BufferSize-sm3.bufOffset; j < len; j++ {
+	for sm3.bufOffset + size >= BufferSize {
+		l := BufferSize-sm3.bufOffset
+		for j := 0; j < l; j++ {
 			sm3.buffer[sm3.bufOffset] = p[index]
 			sm3.bufOffset++
 			index++
 		}
 		sm3.processBlock()
-		size = size - BufferSize
+		size = size - l
+		sm3.bufOffset = 0
 	}
 
 	// save the remaining data to buffer
