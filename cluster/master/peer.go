@@ -14,7 +14,6 @@ import (
 	"github.com/QuarkChain/goquarkchain/p2p"
 	"github.com/QuarkChain/goquarkchain/serialize"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/log"
 )
 
 var (
@@ -306,7 +305,6 @@ func (p *peer) requestRootBlockHeaderList(rpcId uint64, hash common.Hash, amount
 }
 
 func (p *peer) GetRootBlockHeaderList(hash common.Hash, amount uint32, reverse bool) ([]*types.RootBlockHeader, error) {
-	log.Info("scf","GetRootBlockHeaderList-start",hash,"number",amount,"reverse",reverse)
 	rpcId, rpcchan := p.getRpcIdWithChan()
 	defer p.deleteChan(rpcId)
 

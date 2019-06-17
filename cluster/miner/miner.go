@@ -64,7 +64,6 @@ func (m *Miner) interrupt() {
 func (m *Miner) commit() {
 	// don't allow to mine
 	if atomic.LoadUint32(&m.isMining) == 0 || time.Now().Sub(*m.timestamp).Seconds() > deadtime {
-		fmt.Println("???????????????????????????")
 		return
 	}
 	m.interrupt()
@@ -79,11 +78,10 @@ func (m *Miner) commit() {
 	m.mu.RLock()
 	if block.NumberU64() <= m.tipHeight {
 		m.mu.RUnlock()
-		log.Error("scf", "block's height small than tipHeight after commit blockNumber ,no need to seal", block.NumberU64(), "tip", m.tipHeight)
+		log.Error("miner", "block's height small than tipHeight after commit blockNumber ,no need to seal", block.NumberU64(), "tip", m.tipHeight)
 		return
 	}
 	m.workCh <- block
-	//log.Info("create new block to mine", "height", block.NumberU64(),"coinbase",block.IHeader().GetCoinbase().ToHex(),"diff",block.IHeader().GetDifficulty(),"tip",m.tipHeight)
 	m.mu.RUnlock()
 }
 
@@ -164,7 +162,7 @@ func (m *Miner) SubmitWork(nonce uint64, hash, digest common.Hash) bool {
 func (m *Miner) NewTip(height uint64) {
 	m.mu.Lock()
 	log.Info("miner", "handle new tip: height", height, "tip", m.tipHeight)
-	//if height<=m.tipHeight{
+	//if height<=m.tipHeight{//TODO need?
 	//	m.mu.Unlock()
 	//	return
 	//}
