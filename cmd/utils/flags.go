@@ -312,7 +312,7 @@ func setGRPC(ctx *cli.Context, cfg *service.Config, clstrCfg *config.ClusterConf
 	if ctx.GlobalIsSet(GRPCPortFlag.Name) {
 		cfg.SvrPort = uint16(ctx.GlobalInt(GRPCPortFlag.Name))
 	}
-	cfg.SvrHost = "127.0.0.1"
+	cfg.SvrHost = clstrCfg.Quarkchain.Root.Ip
 }
 
 // setIPC creates an IPC path configuration from the set command line flags,
