@@ -22,19 +22,10 @@ const (
 )
 
 var (
-	cfgFile           = flag.String("config", "", "config file")
-	difficulty        = flag.Int("diff", 1000000, "difficulty of shard chain")
-	chainSize         = flag.Int("num_chains", 1, "total chains")
-	shardSizePerChain = flag.Int("num_shards_per_chain", 1, "shard num in pre chain")
-	rootBlockTime     = flag.Int("root_block_time", 30, "root block time")
-	minorBlockTime    = flag.Int("minor_block_time", 10, "minor block time")
-	coinBaseAddress   = flag.String("coinbase", "0xb067ac9ebeeecb10bbcd1088317959d58d1e38f6b0ee10d5", "coinbase address in root chain and shard chain")
-	numSlaves         = flag.Int("num_slaves", config.DefaultNumSlaves, "sum of slaves")
-	slaveIpList       = flag.String("ip_list", defaultIp, "etc: ip,ip,ip")
-	privatekey        = flag.String("private_key", defaultPriv, "private key in p2p config")
+	initConf = flag.String("init_params", "", "init conf for gen full conf")
 )
 
-func loadConfig(file string, cfg *config.ClusterConfig) error {
+func loadConfig(file string, cfg *genConfigParams) error {
 	var (
 		content []byte
 		err     error
@@ -45,37 +36,33 @@ func loadConfig(file string, cfg *config.ClusterConfig) error {
 	return json.Unmarshal(content, cfg)
 }
 
-func updateShardConfig(cfg *config.ClusterConfig) {
-	address := common.HexToAddress(string(regexp.MustCompile("0x[0-9a-fA-F]{40}").FindString(*coinBaseAddress)))
+func updateShardConfig(cfg *config.ClusterConfig, initParams *genConfigParams) {
+	address := common.HexToAddress(string(regexp.MustCompile("0x[0-9a-fA-F]{40}").FindString(initParams.CoinBaseAddress)))
 	fullShardIds := cfg.Quarkchain.GetGenesisShardIds()
 	for _, fullShardId := range fullShardIds {
 		shard := cfg.Quarkchain.GetShardConfigByFullShardID(fullShardId)
-		shard.ConsensusType = config.PoWDoubleSha256
-		shard.Genesis.Difficulty = uint64(*difficulty)
+		shard.ConsensusType = initParams.ConsensusType
+		shard.Genesis.Difficulty = uint64(*initParams.Difficulty)
 		addr := account.NewAddress(address, fullShardId)
 		shard.Genesis.Alloc[addr] = new(big.Int).Mul(big.NewInt(1000000), config.QuarkashToJiaozi)
 		shard.CoinbaseAddress = addr
 	}
 }
 
-func updateChains(cfg *config.ClusterConfig, chainSize, shardSizePerChain, rootBlockTime, minorBlockTime uint32) {
-	if chainSize == 0 && shardSizePerChain == 0 && rootBlockTime == 0 && minorBlockTime == 0 {
+func updateChains(cfg *config.ClusterConfig, initParams *genConfigParams) {
+	if uint32(*initParams.ChainSize) == 0 && uint32(*initParams.ShardSizePerChain) == 0 && uint32(*initParams.RootBlockTime) == 0 && uint32(*initParams.MinorBlockTime) == 0 {
 		return
 	}
-	if chainSize == 0 {
-		chainSize = cfg.Quarkchain.ChainSize
-	}
-	if shardSizePerChain == 0 {
-		shardSizePerChain = cfg.Quarkchain.Chains[0].ShardSize
-	}
-	if rootBlockTime == 0 {
-		rootBlockTime = cfg.Quarkchain.Root.ConsensusConfig.TargetBlockTime
-	}
-	if minorBlockTime == 0 {
-		minorBlockTime = cfg.Quarkchain.Chains[0].ConsensusConfig.TargetBlockTime
-	}
-	cfg.Quarkchain.Update(chainSize, shardSizePerChain, rootBlockTime, minorBlockTime)
-	updateShardConfig(cfg)
+	cfg.GenesisDir = initParams.GenesisDir
+	cfg.Clean = true
+	cfg.Quarkchain.NetworkID = uint32(*initParams.NetworkId)
+
+	cfg.Quarkchain.Update(uint32(*initParams.ChainSize), uint32(*initParams.ShardSizePerChain), uint32(*initParams.RootBlockTime), uint32(*initParams.MinorBlockTime))
+	cfg.Quarkchain.Root.ConsensusType = initParams.ConsensusType
+	receipt := common.HexToAddress(string(regexp.MustCompile("0x[0-9a-fA-F]{40}").FindString(initParams.CoinBaseAddress)))
+	qkcAddress := account.NewAddress(receipt, 0)
+	cfg.Quarkchain.Root.CoinbaseAddress = qkcAddress
+	updateShardConfig(cfg, initParams)
 }
 
 func updateSlaves(cfg *config.ClusterConfig, numSlaves int, slaveIpList string) {
@@ -98,27 +85,24 @@ func updateSlaves(cfg *config.ClusterConfig, numSlaves int, slaveIpList string) 
 	}
 }
 
-func updateP2P(cfg *config.ClusterConfig) {
-	if *privatekey != "" {
-		cfg.P2P.PrivKey = *privatekey
-	}
-}
-
 func main() {
 	flag.Parse()
-	cfg := config.NewClusterConfig()
-	err := loadConfig(*cfgFile, cfg)
-	if err != nil {
-		utils.Fatalf("Failed to load config file %v", err)
+	initParams := new(genConfigParams)
+	if initParams == nil {
+		utils.Fatalf("please set init config")
 	}
-	updateChains(cfg, uint32(*chainSize), uint32(*shardSizePerChain), uint32(*rootBlockTime), uint32(*minorBlockTime))
-	updateSlaves(cfg, *numSlaves, *slaveIpList)
-	updateP2P(cfg)
+	if err := loadConfig(*initConf, initParams); err != nil {
+		utils.Fatalf("%v", err)
+	}
+	cfg := config.NewClusterConfig()
+	updateChains(cfg, initParams)
+	updateSlaves(cfg, int(*initParams.NumSlaves), initParams.SlaveIpList)
+	cfg.P2P.PrivKey = initParams.Privatekey
 	bytes, err := json.MarshalIndent(cfg, "", "	")
 	if err != nil {
 		utils.Fatalf("Failed to marshal json file content, %v", err)
 	}
-	err = ioutil.WriteFile(*cfgFile, bytes, 0644)
+	err = ioutil.WriteFile(initParams.CfgFile, bytes, 0644)
 	if err != nil {
 		utils.Fatalf("Failed to write file, %v", err)
 	}
