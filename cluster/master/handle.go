@@ -271,10 +271,12 @@ func (pm *ProtocolManager) handleMsg(peer *peer) error {
 		if err := serialize.DeserializeFromBytes(qkcMsg.Data, &blockHeaderReq); err != nil {
 			return err
 		}
+
 		resp, err := pm.HandleGetRootBlockHeaderListRequest(&blockHeaderReq)
 		if err != nil {
 			return err
 		}
+
 		return peer.SendResponse(p2p.GetRootBlockHeaderListResponseMsg, p2p.Metadata{Branch: 0}, qkcMsg.RpcID, resp)
 
 	case qkcMsg.Op == p2p.GetRootBlockHeaderListResponseMsg:

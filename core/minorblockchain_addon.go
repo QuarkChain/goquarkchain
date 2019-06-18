@@ -612,6 +612,7 @@ func (m *MinorBlockChain) getAllUnconfirmedHeaderList() []*types.MinorBlockHeade
 	)
 
 	confirmedHeaderTip := m.confirmedHeaderTip
+
 	header, ok = m.CurrentHeader().(*types.MinorBlockHeader)
 	if !ok {
 		panic(errors.New("current not exist"))
