@@ -303,7 +303,11 @@ func setHTTP(ctx *cli.Context, cfg *service.Config, clstrCfg *config.ClusterConf
 		if ctx.GlobalIsSet(PrivateRPCPortFlag.Name) {
 			port = uint16(ctx.GlobalInt(PrivateRPCPortFlag.Name))
 		}
-		cfg.HTTPPrivEndpoint = fmt.Sprintf("localhost:%d", port)
+		host := "localhost"
+		if ctx.GlobalIsSet(PrivateRPCListenAddrFlag.Name) {
+			host = ctx.GlobalString(PrivateRPCListenAddrFlag.Name)
+		}
+		cfg.HTTPPrivEndpoint = fmt.Sprintf("%s:%d", host, port)
 	}
 }
 
