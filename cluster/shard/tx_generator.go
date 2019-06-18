@@ -83,6 +83,7 @@ func (t *TxGenerator) Generate(genTxs *rpc.GenTxRequest, addTxList func(txs []*t
 			t.turn++
 			t.accountIndex = 0
 		}
+		log.Info("txGen-create_tx", "turn", t.turn)
 	}
 
 	if len(txList) != 0 {
