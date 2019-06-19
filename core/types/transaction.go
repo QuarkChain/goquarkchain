@@ -349,6 +349,9 @@ func (tx *Transaction) Deserialize(bb *serialize.ByteBuffer) error {
 // Hash return the hash of the transaction it contained
 func (tx *Transaction) Hash() (h common.Hash) {
 	if tx.TxType == EvmTx {
+		if hash:=tx.hash.Load();hash!=nil{
+			return hash.(common.Hash)
+		}
 		hw := sha3.NewKeccak256()
 		serialTxBytes, err := serialize.SerializeToBytes(tx)
 		if err != nil {
@@ -358,6 +361,7 @@ func (tx *Transaction) Hash() (h common.Hash) {
 		}
 		hw.Write(serialTxBytes)
 		hw.Sum(h[:0])
+		tx.hash.Store(h)
 		return h
 	}
 
