@@ -161,8 +161,6 @@ func (pm *ProtocolManager) handle(peer *peer) error {
 	log.Info(pm.log, "peer add succ id ", peer.PeerID())
 	pm.newPeerCh <- peer
 
-	pm.newPeerCh <- peer
-
 	// currently we do not broadcast old transaction when connect
 	// so the first few block may not have transaction verification failed
 	// or transaction drop issue which is temp issue
