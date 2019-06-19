@@ -726,10 +726,6 @@ func (s *QKCMasterBackend) GetSlavePoolLen() int {
 	return len(s.clientPool)
 }
 
-func (s *QKCMasterBackend) GetBranchToSlaver() map[uint32][]rpc.ISlaveConn {
-	return s.branchToSlaves
-}
-
 //TODO need delete later
 func (s *QKCMasterBackend) disPlayPeers() {
 	go func() {
