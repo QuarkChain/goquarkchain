@@ -231,6 +231,9 @@ func (v *MinorBlockValidator) ValidatorSeal(mHeader types.IHeader) error {
 	if !ok {
 		return errors.New("validator minor  seal failed , mBlock is nil")
 	}
+	if header.NumberU64() == 0 {
+		return nil
+	}
 	branch := header.GetBranch()
 	fullShardID := branch.GetFullShardID()
 	shardConfig := v.quarkChainConfig.GetShardConfigByFullShardID(fullShardID)

@@ -239,7 +239,8 @@ func loadGenesisAddrs(file string) ([]GenesisAddress, error) {
 	var addresses []GenesisAddress
 	fp, err := os.Open(file)
 	if err != nil {
-		return nil, err
+		log.Warn("loadGenesisAddr", "no such file", file)
+		return addresses, nil
 	}
 	defer fp.Close()
 	decoder := json.NewDecoder(fp)

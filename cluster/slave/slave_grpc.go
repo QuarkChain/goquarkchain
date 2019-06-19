@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
 	"github.com/QuarkChain/goquarkchain/consensus"
@@ -25,6 +26,7 @@ func NewServerSideOp(slave *SlaveBackend) *SlaveServerSideOp {
 }
 
 func (s *SlaveServerSideOp) HeartBeat(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
+	s.slave.ctx.Timestamp = time.Now()
 	return &rpc.Response{}, nil
 }
 

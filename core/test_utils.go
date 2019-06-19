@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"math/big"
+	"time"
 
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
@@ -93,6 +94,12 @@ func createDefaultShardState(env *fakeEnv, shardID *uint32, diffCalc consensus.D
 		shardID = &temp
 	}
 
+	cacheConfig := &CacheConfig{
+		TrieCleanLimit: 32,
+		TrieDirtyLimit: 32,
+		TrieTimeLimit:  5 * time.Minute,
+		Disabled:       true, //update trieDB every block
+	}
 	rBlock := NewGenesis(env.clusterConfig.Quarkchain).MustCommitRootBlock(env.db)
 
 	genesisManager := NewGenesis(env.clusterConfig.Quarkchain)
@@ -104,12 +111,12 @@ func createDefaultShardState(env *fakeEnv, shardID *uint32, diffCalc consensus.D
 	var err error
 	chainConfig := params.TestChainConfig
 	if flagEngine != nil {
-		shardState, err = NewMinorBlockChain(env.db, nil, chainConfig, env.clusterConfig, doublesha256.New(diffCalc, false), vm.Config{}, nil, fullShardID)
+		shardState, err = NewMinorBlockChain(env.db, cacheConfig, chainConfig, env.clusterConfig, doublesha256.New(diffCalc, false), vm.Config{}, nil, fullShardID)
 		if err != nil {
 			panic(err)
 		}
 	} else {
-		shardState, err = NewMinorBlockChain(env.db, nil, chainConfig, env.clusterConfig, new(consensus.FakeEngine), vm.Config{}, nil, fullShardID)
+		shardState, err = NewMinorBlockChain(env.db, cacheConfig, chainConfig, env.clusterConfig, new(consensus.FakeEngine), vm.Config{}, nil, fullShardID)
 		if err != nil {
 			panic(err)
 		}

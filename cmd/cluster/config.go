@@ -91,6 +91,7 @@ func makeConfigNode(ctx *cli.Context) (*service.Node, qkcConfig) {
 			utils.Fatalf("service type is error: %v", err)
 		}
 		cfg.Service.Name = ServiceName
+		cfg.Service.SvrHost = slv.IP
 		cfg.Service.SvrPort = slv.Port
 	}
 

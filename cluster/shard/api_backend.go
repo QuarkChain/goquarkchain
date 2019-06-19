@@ -105,6 +105,7 @@ func (s *ShardBackend) AddMinorBlock(block *types.MinorBlock) error {
 	if err != nil {
 		return err
 	}
+	go s.miner.HandleNewTip(s.MinorBlockChain.CurrentBlock().Number())
 	return nil
 }
 
@@ -120,8 +121,6 @@ func (s *ShardBackend) InitFromRootBlock(rBlock *types.RootBlock) error {
 }
 
 func (s *ShardBackend) AddRootBlock(rBlock *types.RootBlock) (switched bool, err error) {
-	log.Info(s.logInfo, "AddRootBlock height", rBlock.Number(), "hash", rBlock.Hash().String())
-	defer log.Info(s.logInfo, "AddRootBlock ", "end")
 	switched = false
 	if rBlock.Header().Number > s.genesisRootHeight {
 		switched, err = s.MinorBlockChain.AddRootBlock(rBlock)
@@ -256,16 +255,28 @@ func (s *ShardBackend) NewMinorBlock(block *types.MinorBlock) (err error) {
 }
 
 func (s *ShardBackend) addTxList(txs []*types.Transaction) error {
+	ts := time.Now()
 	for index := range txs {
 		if err := s.MinorBlockChain.AddTx(txs[index]); err != nil {
 			return err
 		}
+		if index%1000 == 0 {
+			log.Info("time-tx-insert-loop", "time", time.Now().Sub(ts).Seconds(), "index", index)
+			ts = time.Now()
+		}
 	}
+	log.Info("time-tx-insert-end", "time", time.Now().Sub(ts).Seconds(), "len(tx)", len(txs))
 	return nil
 }
 
 func (s *ShardBackend) GenTx(genTxs *rpc.GenTxRequest) error {
-	return s.txGenerator.Generate(genTxs, s.MinorBlockChain.GetTransactionCount, s.addTxList)
+	go func() {
+		err := s.txGenerator.Generate(genTxs, s.addTxList)
+		if err != nil {
+			log.Error(s.logInfo, "GenTx err", err)
+		}
+	}()
+	return nil
 }
 
 // miner api

@@ -23,7 +23,7 @@ import (
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
 	ethRPC "github.com/ethereum/go-ethereum/rpc"
-	"github.com/shirou/gopsutil/mem"
+	"github.com/shirou/gopsutil/cpu"
 	"golang.org/x/sync/errgroup"
 	"gopkg.in/karalabe/cookiejar.v1/collections/deque"
 	"math/big"
@@ -38,8 +38,6 @@ import (
 
 const (
 	disPlayPeerInfoInterval = time.Duration(5 * time.Second)
-	rootChainChanSize       = 256
-	rootChainSideChanSize   = 256
 )
 
 var (
@@ -54,6 +52,7 @@ type TxForQueue struct {
 
 // QKCMasterBackend masterServer include connections
 type QKCMasterBackend struct {
+	ctx                *service.ServiceContext
 	gspc               *core.Genesis
 	lock               sync.RWMutex
 	engine             consensus.Engine
@@ -66,11 +65,7 @@ type QKCMasterBackend struct {
 	branchToShardStats map[uint32]*rpc.ShardStatus
 	shardStatsChan     chan *rpc.ShardStatus
 
-	rootChainChan         chan core.RootChainEvent
-	rootChainSideChan     chan core.RootChainSideEvent
-	rootChainEventSub     event.Subscription
-	rootChainSideEventSub event.Subscription
-	miner                 *miner.Miner
+	miner *miner.Miner
 
 	artificialTxConfig *rpc.ArtificialTxConfig
 	rootBlockChain     *core.RootBlockChain
@@ -84,6 +79,7 @@ type QKCMasterBackend struct {
 func New(ctx *service.ServiceContext, cfg *config.ClusterConfig) (*QKCMasterBackend, error) {
 	var (
 		mstr = &QKCMasterBackend{
+			ctx:                ctx,
 			clusterConfig:      cfg,
 			gspc:               core.NewGenesis(cfg.Quarkchain),
 			eventMux:           ctx.EventMux,
@@ -109,7 +105,7 @@ func New(ctx *service.ServiceContext, cfg *config.ClusterConfig) (*QKCMasterBack
 		return nil, err
 	}
 
-	mstr.miner = miner.New(mstr, mstr.engine, cfg.Quarkchain.Root.ConsensusConfig.TargetBlockTime)
+	mstr.miner = miner.New(ctx, mstr, mstr.engine, cfg.Quarkchain.Root.ConsensusConfig.TargetBlockTime)
 
 	chainConfig, genesisHash, genesisErr := core.SetupGenesisRootBlock(mstr.chainDb, mstr.gspc)
 	// TODO check config err
@@ -195,8 +191,6 @@ func (s *QKCMasterBackend) Stop() error {
 	s.miner.Stop()
 	s.engine.Close()
 	s.protocolManager.Stop()
-	s.rootChainEventSub.Unsubscribe()
-	s.rootChainSideEventSub.Unsubscribe()
 	s.eventMux.Stop()
 	s.chainDb.Close()
 	return nil
@@ -204,18 +198,13 @@ func (s *QKCMasterBackend) Stop() error {
 
 // Start start node -> start qkcMaster
 func (s *QKCMasterBackend) Start(srvr *p2p.Server) error {
-	s.rootChainChan = make(chan core.RootChainEvent, rootChainChanSize)
-	s.rootChainEventSub = s.rootBlockChain.SubscribeChainEvent(s.rootChainChan)
-	s.rootChainSideChan = make(chan core.RootChainSideEvent, rootChainSideChanSize)
-	s.rootChainSideEventSub = s.rootBlockChain.SubscribeChainSideEvent(s.rootChainSideChan)
-
 	maxPeers := srvr.MaxPeers
 	s.protocolManager.Start(maxPeers)
 	// start heart beat pre 3 seconds.
 	s.updateShardStatsLoop()
 	s.Heartbeat()
 	// s.disPlayPeers()
-	s.miner.Start()
+	s.miner.Init()
 	return nil
 }
 
@@ -307,11 +296,14 @@ func (s *QKCMasterBackend) getSlaveInfoListFromClusterConfig() []*rpc.SlaveInfo 
 	return slaveInfos
 }
 func (s *QKCMasterBackend) initShards() error {
+	var g errgroup.Group
 	ip, port := s.clusterConfig.Quarkchain.Root.Ip, s.clusterConfig.Quarkchain.Root.Port
-	for endpoint := range s.clientPool {
-		if err := s.clientPool[endpoint].MasterInfo(ip, port, s.rootBlockChain.CurrentBlock()); err != nil {
+	for _, client := range s.clientPool {
+		client := client
+		g.Go(func() error {
+			err := client.MasterInfo(ip, port, s.rootBlockChain.CurrentBlock())
 			return err
-		}
+		})
 	}
 	return nil
 }
@@ -347,6 +339,7 @@ func (s *QKCMasterBackend) Heartbeat() {
 	go func(normal bool) {
 		for normal {
 			timeGap := time.Now()
+			s.ctx.Timestamp = timeGap
 			for endpoint := range s.clientPool {
 				normal = s.clientPool[endpoint].HeartBeat()
 				if !normal {
@@ -530,6 +523,7 @@ func (s *QKCMasterBackend) AddRootBlock(rootBlock *types.RootBlock) error {
 		return err
 	}
 	s.rootBlockChain.ClearCommittingHash()
+	go s.miner.HandleNewTip(s.rootBlockChain.CurrentBlock().NumberU64())
 	return nil
 }
 
@@ -611,7 +605,7 @@ func (s *QKCMasterBackend) GetBlockCount() (map[uint32]map[account.Recipient]uin
 	return s.rootBlockChain.GetBlockCount(headerTip.Number())
 }
 
-func (s *QKCMasterBackend) GetStats() map[string]interface{} {
+func (s *QKCMasterBackend) GetStats() (map[string]interface{}, error) {
 	s.lock.RLock()
 	defer s.lock.RUnlock()
 	branchToShardStats := s.branchToShardStats
@@ -679,30 +673,33 @@ func (s *QKCMasterBackend) GetStats() map[string]interface{} {
 		}
 		peerForDisplay = append(peerForDisplay, temp)
 	}
-	v, _ := mem.VirtualMemory()
+	cc, err := cpu.Percent(time.Second, true)
+	if err != nil {
+		return nil, err
+	}
 	return map[string]interface{}{
-		"networkId":           s.clusterConfig.Quarkchain.NetworkID,
-		"chainSize":           s.clusterConfig.Quarkchain.ChainSize,
-		"shardServerCount":    len(s.clientPool),
-		"rootHeight":          s.rootBlockChain.CurrentBlock().Number(),
-		"rootDifficulty":      s.rootBlockChain.CurrentBlock().Difficulty(),
-		"rootCoinbaseAddress": hexutil.Bytes(s.rootBlockChain.CurrentBlock().Coinbase().ToBytes()),
-		"rootTimestamp":       s.rootBlockChain.CurrentBlock().Time(),
-		"rootLastBlockTime":   rootLastBlockTime,
-		"txCount60s":          sumTxCount60s,
-		"blockCount60s":       sumBlockCount60,
-		"staleBlockCount60s":  sumStaleBlockCount60s,
-		"pendingTxCount":      sumPendingTxCount,
-		"totalTxCount":        sumTotalTxCount,
-		//"syncing":s.synchronizer.Running TODO running
-		// "mining": root_miner.is_enabled()
+		"networkId":            s.clusterConfig.Quarkchain.NetworkID,
+		"chainSize":            s.clusterConfig.Quarkchain.ChainSize,
+		"shardServerCount":     len(s.clientPool),
+		"rootHeight":           s.rootBlockChain.CurrentBlock().Number(),
+		"rootDifficulty":       s.rootBlockChain.CurrentBlock().Difficulty(),
+		"rootCoinbaseAddress":  hexutil.Bytes(s.rootBlockChain.CurrentBlock().Coinbase().ToBytes()),
+		"rootTimestamp":        s.rootBlockChain.CurrentBlock().Time(),
+		"rootLastBlockTime":    rootLastBlockTime,
+		"txCount60s":           sumTxCount60s,
+		"blockCount60s":        sumBlockCount60,
+		"staleBlockCount60s":   sumStaleBlockCount60s,
+		"pendingTxCount":       sumPendingTxCount,
+		"totalTxCount":         sumTotalTxCount,
+		"syncing":              false, //TODO fake
+		"mining":               false, //TODO fake
 		"shards":               shards,
 		"peers":                peerForDisplay,
 		"minor_block_interval": s.artificialTxConfig.TargetMinorBlockTime,
 		"root_block_interval":  s.artificialTxConfig.TargetRootBlockTime,
-		"cpus":                 v.UsedPercent,
+		"cpus":                 cc,
 		"txCountHistory":       txCountHistory,
-	}
+	}, nil
 }
 
 func (s *QKCMasterBackend) isSyning() bool {
@@ -720,10 +717,10 @@ func (s *QKCMasterBackend) CurrentBlock() *types.RootBlock {
 }
 
 func (s *QKCMasterBackend) IsSyncing() bool {
-	panic("@junjia")
+	return false //TODO  need add?
 }
 func (s *QKCMasterBackend) IsMining() bool {
-	panic("@liuhuan")
+	return false //TODO need add
 }
 func (s *QKCMasterBackend) GetSlavePoolLen() int {
 	return len(s.clientPool)
