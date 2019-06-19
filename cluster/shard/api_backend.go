@@ -105,7 +105,7 @@ func (s *ShardBackend) AddMinorBlock(block *types.MinorBlock) error {
 	if err != nil {
 		return err
 	}
-	go s.miner.NewTip(s.MinorBlockChain.CurrentBlock().Number())
+	go s.miner.HandleNewTip(s.MinorBlockChain.CurrentBlock().Number())
 	return nil
 }
 

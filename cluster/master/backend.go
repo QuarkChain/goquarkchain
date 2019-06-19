@@ -523,7 +523,7 @@ func (s *QKCMasterBackend) AddRootBlock(rootBlock *types.RootBlock) error {
 		return err
 	}
 	s.rootBlockChain.ClearCommittingHash()
-	go s.miner.NewTip(s.rootBlockChain.CurrentBlock().NumberU64())
+	go s.miner.HandleNewTip(s.rootBlockChain.CurrentBlock().NumberU64())
 	return nil
 }
 

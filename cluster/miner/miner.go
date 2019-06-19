@@ -54,6 +54,17 @@ func New(ctx *service.ServiceContext, api MinerAPI, engine consensus.Engine, int
 	go miner.mainLoop(miner.minerInterval)
 	return miner
 }
+func (m *Miner) getTip() uint64 {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return m.tipHeight
+}
+
+func (m *Miner) setTip(height uint64) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.tipHeight = height
+}
 
 // interrupt aborts the minering work
 func (m *Miner) interrupt() {
@@ -77,14 +88,12 @@ func (m *Miner) commit() {
 		m.startCh <- struct{}{}
 		return
 	}
-	m.mu.RLock()
-	if block.NumberU64() <= m.tipHeight {
-		m.mu.RUnlock()
+	tip := m.getTip()
+	if block.NumberU64() <= tip {
 		log.Error(m.logInfo, "block's height small than tipHeight after commit blockNumber ,no need to seal", block.NumberU64(), "tip", m.tipHeight)
 		return
 	}
 	m.workCh <- block
-	m.mu.RUnlock()
 }
 
 func (m *Miner) mainLoop(recommit time.Duration) {
@@ -161,15 +170,9 @@ func (m *Miner) SubmitWork(nonce uint64, hash, digest common.Hash) bool {
 	return m.engine.SubmitWork(nonce, hash, digest)
 }
 
-func (m *Miner) NewTip(height uint64) {
-	m.mu.Lock()
+func (m *Miner) HandleNewTip(height uint64) {
 	log.Info(m.logInfo, "handle new tip: height", height, "tip", m.tipHeight)
-	//if height<=m.tipHeight{//TODO need?
-	//	m.mu.Unlock()
-	//	return
-	//}
-	m.tipHeight = height
-	m.mu.Unlock()
+	m.setTip(height)
 	m.commit()
 
 }
