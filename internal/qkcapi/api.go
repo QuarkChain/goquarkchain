@@ -482,8 +482,12 @@ func (p *PrivateBlockChainAPI) GetSyncStats() {
 func (p *PrivateBlockChainAPI) GetStats() (map[string]interface{}, error) {
 	return p.b.GetStats()
 }
-func (p *PrivateBlockChainAPI) GetBlockCount() (map[uint32]map[account.Recipient]uint32, error) {
-	return p.b.GetBlockCount()
+func (p *PrivateBlockChainAPI) GetBlockCount() (map[string]interface{}, error) {
+	data, err := p.b.GetBlockCount()
+	return map[string]interface{}{
+		"rootHeight": hexutil.Uint64(p.b.CurrentBlock().Number()),
+		"shardRC":    data,
+	}, err
 }
 
 //TODO txGenerate implement

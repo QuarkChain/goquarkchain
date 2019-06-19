@@ -707,10 +707,10 @@ func (s *QKCMasterBackend) CurrentBlock() *types.RootBlock {
 }
 
 func (s *QKCMasterBackend) IsSyncing() bool {
-	panic("@junjia")
+	return false //TODO  need add?
 }
 func (s *QKCMasterBackend) IsMining() bool {
-	panic("@liuhuan")
+	return false //TODO need add
 }
 func (s *QKCMasterBackend) GetSlavePoolLen() int {
 	return len(s.clientPool)
