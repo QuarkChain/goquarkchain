@@ -1203,8 +1203,7 @@ func (m *MinorBlockChain) GasPrice() (uint64, error) {
 func (m *MinorBlockChain) getBlockCountByHeight(height uint64) uint64 {
 	m.mu.RLock() //to lock heightToMinorBlockHashes
 	defer m.mu.RUnlock()
-	data := m.heightToMinorBlockHashes
-	rs, ok := data[height]
+	rs, ok := m.heightToMinorBlockHashes[height]
 	if !ok {
 		return 0
 	}
