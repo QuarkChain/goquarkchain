@@ -40,7 +40,7 @@ var (
 )
 
 const (
-	blockCacheLimit           = 32
+	blockCacheLimit           = 256
 	receiptsCacheLimit        = 32
 	maxFutureBlocks           = 32
 	maxTimeFutureBlocks       = 30
