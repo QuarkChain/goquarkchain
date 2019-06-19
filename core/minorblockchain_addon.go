@@ -3,6 +3,7 @@ package core
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"math"
 	"math/big"
 	"sort"
@@ -49,7 +50,8 @@ func (m *MinorBlockChain) isSameMinorChain(long types.IHeader, short types.IHead
 	}
 
 	header := long
-	for index := 0; index < int(long.NumberU64()-short.NumberU64())-1; index++ {
+	diff := long.NumberU64() - short.NumberU64()
+	for index := uint64(0); index < diff-1; index++ {
 		header = m.GetHeaderByHash(header.GetParentHash())
 	}
 	return short.Hash() == header.GetParentHash()
@@ -507,6 +509,14 @@ func (m *MinorBlockChain) getCrossShardTxListByRootBlockHash(hash common.Hash) (
 
 func (m *MinorBlockChain) getEvmStateByHeight(height *uint64) (*state.StateDB, error) {
 	mBlock := m.CurrentBlock()
+	if height != nil {
+		var ok bool
+		mBlock, ok = m.GetBlockByNumber(*height).(*types.MinorBlock)
+		if !ok {
+			return nil, fmt.Errorf("no such block:height %v", *height)
+		}
+	}
+
 	evmState, err := m.StateAt(mBlock.GetMetaData().Root)
 	if err != nil {
 		return nil, err
@@ -1189,8 +1199,8 @@ func (m *MinorBlockChain) GasPrice() (uint64, error) {
 
 func (m *MinorBlockChain) getBlockCountByHeight(height uint64) uint64 {
 	m.mu.RLock() //to lock heightToMinorBlockHashes
+	defer m.mu.RUnlock()
 	data := m.heightToMinorBlockHashes
-	m.mu.RUnlock()
 	rs, ok := data[height]
 	if !ok {
 		return 0
