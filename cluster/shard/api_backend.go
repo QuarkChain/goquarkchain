@@ -105,6 +105,7 @@ func (s *ShardBackend) AddMinorBlock(block *types.MinorBlock) error {
 	if err != nil {
 		return err
 	}
+	go s.miner.HandleNewTip(s.MinorBlockChain.CurrentBlock().Number())
 	return nil
 }
 
@@ -267,7 +268,13 @@ func (s *ShardBackend) addTxList(txs []*types.Transaction) error {
 }
 
 func (s *ShardBackend) GenTx(genTxs *rpc.GenTxRequest) error {
-	return s.txGenerator.Generate(genTxs, s.addTxList)
+	go func() {
+		err := s.txGenerator.Generate(genTxs, s.addTxList)
+		if err != nil {
+			log.Error(s.logInfo, "GenTx err", err)
+		}
+	}()
+	return nil
 }
 
 // miner api

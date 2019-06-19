@@ -633,6 +633,9 @@ func (m *MinorBlockChain) getAllUnconfirmedHeaderList() []*types.MinorBlockHeade
 	}
 
 	allHeight := int(header.NumberU64()) - int(startHeight)
+	if allHeight < 0 {
+		allHeight = 0
+	}
 	headerList := make([]*types.MinorBlockHeader, allHeight)
 	for index := allHeight - 1; index >= 0; index-- {
 		headerList[index] = header
@@ -926,7 +929,7 @@ func (m *MinorBlockChain) AddRootBlock(rBlock *types.RootBlock) (bool, error) {
 	if shardHeader != nil {
 		origBlock := m.GetBlockByNumber(shardHeader.Number)
 		if qkcCommon.IsNil(origBlock) || origBlock.Hash() != shardHeader.Hash() {
-			log.Error(m.logInfo, "ready to set current header height", shardHeader.Number, "hash", shardHeader.Hash().String(), "status", qkcCommon.IsNil(origBlock))
+			log.Warn(m.logInfo, "ready to set current header height", shardHeader.Number, "hash", shardHeader.Hash().String(), "status", qkcCommon.IsNil(origBlock))
 			m.hc.SetCurrentHeader(shardHeader)
 			block := m.GetMinorBlock(shardHeader.Hash())
 			m.currentBlock.Store(block)
@@ -966,7 +969,7 @@ func (m *MinorBlockChain) AddRootBlock(rBlock *types.RootBlock) (bool, error) {
 	if m.CurrentHeader().Hash() != origHeaderTip.Hash() {
 		origBlock := m.GetMinorBlock(origHeaderTip.Hash())
 		newBlock := m.GetMinorBlock(m.CurrentHeader().Hash())
-		log.Warn("reWrite", origBlock.Number(), origBlock.Hash().String(), newBlock.Number(), newBlock.Hash().String())
+		log.Warn("reWrite", "orig_number", origBlock.Number(), "orig_hash", origBlock.Hash().String(), "new_number", newBlock.Number(), "new_hash", newBlock.Hash().String())
 		if err := m.reWriteBlockIndexTo(origBlock, newBlock); err != nil {
 			return false, err
 		}

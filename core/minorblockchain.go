@@ -1003,6 +1003,13 @@ func (m *MinorBlockChain) InsertChainForDeposits(chain []types.IBlock) (int, [][
 	m.wg.Done()
 
 	m.PostChainEvents(events, logs)
+	confirmed := m.confirmedHeaderTip
+	if confirmed == nil {
+		log.Warn("confirmed is nil")
+	} else {
+		log.Info("add Minor block End", "tip", m.CurrentBlock().NumberU64(), "to add", chain[0].NumberU64(), "confirmed", confirmed.Number)
+	}
+
 	return n, xShardList, err
 }
 

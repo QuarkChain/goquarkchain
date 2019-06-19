@@ -494,7 +494,7 @@ func (p *PrivateBlockChainAPI) CreateTransactions(NumTxPreShard hexutil.Uint) er
 		XShardPrecent: 0,
 		To:            common.Address{},
 		Gas:           (*hexutil.Big)(big.NewInt(30000)),
-		GasPrice:      (*hexutil.Big)(big.NewInt(21000)),
+		GasPrice:      (*hexutil.Big)(big.NewInt(1)),
 		Value:         (*hexutil.Big)(big.NewInt(0)),
 	}
 	tx := args.toTx(p.b.GetClusterConfig().Quarkchain)
