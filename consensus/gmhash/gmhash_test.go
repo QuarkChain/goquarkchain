@@ -1,4 +1,4 @@
-package doublesha256
+package gmhash
 
 import (
 	"math/big"
