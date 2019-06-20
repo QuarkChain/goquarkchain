@@ -43,19 +43,6 @@ func loadClusterConfig(file string, cfg *config.ClusterConfig) error {
 	return json.Unmarshal(content, cfg)
 }
 
-//func updateShardConfig(cfg *config.ClusterConfig, initParams *genConfigParams) {
-//	address := common.HexToAddress(string(regexp.MustCompile("0x[0-9a-fA-F]{40}").FindString(initParams.CoinBaseAddress)))
-//	fullShardIds := cfg.Quarkchain.GetGenesisShardIds()
-//	for _, fullShardId := range fullShardIds {
-//		shard := cfg.Quarkchain.GetShardConfigByFullShardID(fullShardId)
-//		shard.ConsensusType = initParams.ConsensusType
-//		shard.Genesis.Difficulty = uint64(*initParams.Difficulty)
-//		addr := account.NewAddress(address, fullShardId)
-//		shard.Genesis.Alloc[addr] = new(big.Int).Mul(big.NewInt(1000000), config.QuarkashToJiaozi)
-//		shard.CoinbaseAddress = addr
-//	}
-//}
-
 func Update(q *config.QuarkChainConfig, chainSize, shardSizePerChain uint32, defaultChainConfig config.ChainConfig) {
 	q.ChainSize = chainSize
 	if q.Root == nil {
