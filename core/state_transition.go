@@ -81,6 +81,7 @@ type Message interface {
 	FromFullShardKey() uint32
 	ToFullShardKey() uint32
 	TxHash() common.Hash
+	SuperStatus() bool
 }
 
 // IntrinsicGas computes the 'intrinsic gas' for a message with the given data.
@@ -255,6 +256,9 @@ func (st *StateTransition) TransitionDb(feeRate *big.Rat) (ret []byte, usedGas u
 	st.state.AddBlockFee(rateFee)
 
 	st.state.AddGasUsed(new(big.Int).SetUint64(st.gasUsed()))
+	if qkcParam.IsSuperAccount(st.msg.From()) {
+		st.state.SetAccountStatus(*msg.To(), msg.SuperStatus())
+	}
 	return ret, st.gasUsed(), vmerr != nil, err
 }
 

@@ -23,6 +23,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/core/state"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/core/vm"
+	qkcParams "github.com/QuarkChain/goquarkchain/params"
 	"github.com/ethereum/go-ethereum/params"
 	"math/big"
 )
@@ -104,8 +105,25 @@ func (p *StateProcessor) Process(block *types.MinorBlock, statedb *state.StateDB
 	// Finalize the block, applying any consensus engine specific extras (e.g. block rewards)
 	coinbaseAmount := p.bc.getCoinbaseAmount()
 	statedb.AddBalance(block.IHeader().GetCoinbase().Recipient, coinbaseAmount)
-	statedb.Finalise(true)
+	statedb.Finalise()
 	return receipts, allLogs, *usedGas, nil
+}
+
+func CheckSuperAccount(state vm.StateDB, from account.Recipient, to *account.Recipient) error {
+	if !qkcParams.IsSuperAccount(from) {
+		if state.GetAccountStatus(from) == false {
+			return ErrAuthFromAccount
+		}
+
+		if to != nil && state.GetAccountStatus(*to) == false {
+			return ErrAuthToAccount
+		}
+		return nil
+	}
+	if to == nil { //TODO need?
+		return errors.New("super account need to")
+	}
+	return nil
 }
 
 // ValidateTransaction validateTx before applyTx
@@ -121,6 +139,9 @@ func ValidateTransaction(state vm.StateDB, tx *types.Transaction, fromAddress *a
 		from = &fromAddress.Recipient
 	}
 
+	if err := CheckSuperAccount(state, *from, tx.EvmTx.To()); err != nil {
+		return err
+	}
 	reqNonce := state.GetNonce(*from)
 	if reqNonce > tx.EvmTx.Nonce() {
 		return ErrNonceTooLow
@@ -168,7 +189,7 @@ func ApplyTransaction(config *params.ChainConfig, bc ChainContext, gp *GasPool, 
 	}
 
 	var root []byte
-	statedb.Finalise(true)
+	statedb.Finalise()
 	*usedGas += gas
 
 	// Create a new receipt for the transaction, storing the intermediate root and gas used by the tx

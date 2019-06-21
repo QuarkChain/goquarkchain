@@ -376,8 +376,11 @@ func (s *SlaveBackend) GenTx(genTxs *rpc.GenTxRequest) error {
 	return g.Wait()
 }
 
-func (s *SlaveBackend) SetMining(mining bool) {
+func (s *SlaveBackend) SetMining(mining bool) error {
 	for _, shrd := range s.shards {
-		shrd.SetMining(mining)
+		if err := shrd.SetMining(mining); err != nil {
+			return err
+		}
 	}
+	return nil
 }

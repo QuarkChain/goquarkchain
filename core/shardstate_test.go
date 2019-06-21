@@ -93,6 +93,13 @@ func TestGasPrice(t *testing.T) {
 
 	fakeData := uint64(10000000)
 	env := setUp(&accList[0], &fakeData, nil)
+	for _, v := range env.clusterConfig.Quarkchain.GetGenesisShardIds() {
+		for _, vv := range accList {
+			addr := vv.AddressInShard(v)
+			shardConfig := env.clusterConfig.Quarkchain.GetShardConfigByFullShardID(v)
+			shardConfig.Genesis.Alloc[addr] = new(big.Int).SetUint64(100000000000000)
+		}
+	}
 	shardState := createDefaultShardState(env, nil, nil, nil, nil)
 	fakeChan := make(chan uint64, 100)
 	shardState.txPool.fakeChanForReset = fakeChan
@@ -187,7 +194,7 @@ func TestExecuteTx(t *testing.T) {
 	id1, err := account.CreatRandomIdentity()
 	checkErr(err)
 	acc1 := account.CreatAddressFromIdentity(id1, 0)
-	acc2, err := account.CreatRandomAccountWithFullShardKey(0)
+	//acc2, err := account.CreatRandomAccountWithFullShardKey(0)
 	checkErr(err)
 	fakeMoney := uint64(10000000)
 	env := setUp(&acc1, &fakeMoney, nil)
@@ -198,7 +205,7 @@ func TestExecuteTx(t *testing.T) {
 	rootBlock := shardState.rootTip.CreateBlockToAppend(nil, nil, nil, nil, nil).Finalize(nil, nil)
 	_, err = shardState.AddRootBlock(rootBlock)
 	checkErr(err)
-	tx := createTransferTransaction(shardState, id1.GetKey().Bytes(), acc1, acc2, new(big.Int).SetUint64(12345), nil, nil, nil, nil)
+	tx := createTransferTransaction(shardState, id1.GetKey().Bytes(), acc1, acc1, new(big.Int).SetUint64(12345), nil, nil, nil, nil)
 	currentEvmState, err := shardState.State()
 	checkErr(err)
 
@@ -244,7 +251,7 @@ func TestOneTx(t *testing.T) {
 	checkErr(err)
 
 	fakeGas := uint64(50000)
-	tx := createTransferTransaction(shardState, id1.GetKey().Bytes(), acc1, acc2, new(big.Int).SetUint64(12345), &fakeGas, nil, nil, nil)
+	tx := createTransferTransaction(shardState, id1.GetKey().Bytes(), acc1, acc1, new(big.Int).SetUint64(12345), &fakeGas, nil, nil, nil)
 	currState, err := shardState.State()
 	checkErr(err)
 	currState.SetGasUsed(currState.GetGasLimit())
@@ -259,12 +266,12 @@ func TestOneTx(t *testing.T) {
 	assert.Equal(t, i, uint32(0))
 
 	// tx claims to use more gas than the limit and thus not included
-	b1, err := shardState.CreateBlockToMine(nil, &acc3, new(big.Int).SetUint64(49999))
+	b1, err := shardState.CreateBlockToMine(nil, &acc1, new(big.Int).SetUint64(49999))
 	checkErr(err)
 	assert.Equal(t, b1.Header().Number, uint64(1))
 	assert.Equal(t, len(b1.Transactions()), 0)
 
-	b2, err := shardState.CreateBlockToMine(nil, &acc3, nil)
+	b2, err := shardState.CreateBlockToMine(nil, &acc1, nil)
 	checkErr(err)
 	assert.Equal(t, len(b2.Transactions()), 1)
 	assert.Equal(t, b2.Header().Number, uint64(1))
@@ -1126,7 +1133,7 @@ func TestRootChainFirstConsensus(t *testing.T) {
 
 	b1 := shardState1.CurrentBlock().CreateBlockToAppend(nil, nil, nil, nil, nil, nil, nil)
 	evmState, reps, err := shardState1.runBlock(b1)
-	b1.Finalize(reps, evmState.IntermediateRoot(true), evmState.GetGasUsed(), evmState.GetXShardReceiveGasUsed(), evmState.GetBlockFee())
+	b1.Finalize(reps, evmState.IntermediateRoot(), evmState.GetGasUsed(), evmState.GetXShardReceiveGasUsed(), evmState.GetBlockFee())
 	rootBlock := shardState0.rootTip.CreateBlockToAppend(nil, nil, nil, nil, nil)
 	rootBlock.AddMinorBlockHeader(genesis.Header())
 	rootBlock.AddMinorBlockHeader(b0.Header())
@@ -1180,7 +1187,7 @@ func TestShardStateAddRootBlock(t *testing.T) {
 
 	b1 := shardState1.CurrentBlock().CreateBlockToAppend(nil, nil, nil, nil, nil, nil, nil)
 	evmState, reps, err := shardState1.runBlock(b1)
-	b1.Finalize(reps, evmState.IntermediateRoot(true), evmState.GetGasUsed(), evmState.GetXShardReceiveGasUsed(), evmState.GetBlockFee())
+	b1.Finalize(reps, evmState.IntermediateRoot(), evmState.GetGasUsed(), evmState.GetXShardReceiveGasUsed(), evmState.GetBlockFee())
 
 	// Add one empty root block
 	emptyRoot := shardState0.rootTip.CreateBlockToAppend(nil, nil, nil, nil, nil).Finalize(nil, nil)
@@ -1495,8 +1502,8 @@ func TestShardStateTecoveryFromGenesis(t *testing.T) {
 	CURRState, err := recoveredState.State()
 	checkErr(err)
 
-	roo1, err := currState.Commit(true)
-	root2, err := CURRState.Commit(true)
+	roo1, err := currState.Commit()
+	root2, err := CURRState.Commit()
 	assert.Equal(t, genesis.(*types.MinorBlock).GetMetaData().Root.String(), roo1.String())
 	assert.Equal(t, roo1.String(), root2.String())
 }
@@ -1520,7 +1527,7 @@ func TestAddBlockReceiptRootNotMatch(t *testing.T) {
 
 	evmState, reps, err := shardState.runBlock(b1)
 	checkErr(err)
-	b1.Finalize(reps, evmState.IntermediateRoot(true), evmState.GetGasUsed(), evmState.GetXShardReceiveGasUsed(), b1.Header().CoinbaseAmount.Value)
+	b1.Finalize(reps, evmState.IntermediateRoot(), evmState.GetGasUsed(), evmState.GetXShardReceiveGasUsed(), b1.Header().CoinbaseAmount.Value)
 
 	b1Meta := b1.Meta()
 	b1Meta.Root = common.Hash{}

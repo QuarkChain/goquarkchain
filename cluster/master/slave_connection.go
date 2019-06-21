@@ -635,8 +635,12 @@ func (s *SlaveConnection) AddBlockListForSync(request *rpc.AddBlockListForSyncRe
 	return shardStatus, nil
 }
 
-func (s *SlaveConnection) SetMining(mining bool) error {
-	bytes, err := serialize.SerializeToBytes(mining)
+func (s *SlaveConnection) SetMining(mining bool, addr account.Recipient) error {
+	data := rpc.SetMiningRequest{
+		Status:       mining,
+		RootCoinBase: addr,
+	}
+	bytes, err := serialize.SerializeToBytes(data)
 	if err != nil {
 		return err
 	}

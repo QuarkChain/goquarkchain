@@ -54,7 +54,7 @@ func TestUpdateLeaks(t *testing.T) {
 		if i%3 == 0 {
 			state.SetCode(addr, []byte{i, i, i, i, i})
 		}
-		state.IntermediateRoot(false)
+		state.IntermediateRoot()
 	}
 	// Ensure that no data was leaked into the database
 	for _, key := range db.Keys() {
@@ -89,7 +89,7 @@ func TestIntermediateLeaks(t *testing.T) {
 		modify(transState, common.Address{byte(i)}, i, 0)
 	}
 	// Write modifications to trie.
-	transState.IntermediateRoot(false)
+	transState.IntermediateRoot()
 
 	// Overwrite all the data with new values in the transient database.
 	for i := byte(0); i < 255; i++ {
@@ -98,10 +98,10 @@ func TestIntermediateLeaks(t *testing.T) {
 	}
 
 	// Commit and cross check the databases.
-	if _, err := transState.Commit(false); err != nil {
+	if _, err := transState.Commit(); err != nil {
 		t.Fatalf("failed to commit transition state: %v", err)
 	}
-	if _, err := finalState.Commit(false); err != nil {
+	if _, err := finalState.Commit(); err != nil {
 		t.Fatalf("failed to commit final state: %v", err)
 	}
 	for _, key := range finalDb.Keys() {
@@ -130,7 +130,7 @@ func TestCopy(t *testing.T) {
 		obj.AddBalance(big.NewInt(int64(i)))
 		orig.updateStateObject(obj)
 	}
-	orig.Finalise(false)
+	orig.Finalise()
 
 	// Copy the state, modify both in-memory
 	copy := orig.Copy()
@@ -148,10 +148,10 @@ func TestCopy(t *testing.T) {
 	// Finalise the changes on both concurrently
 	done := make(chan struct{})
 	go func() {
-		orig.Finalise(true)
+		orig.Finalise()
 		close(done)
 	}()
-	copy.Finalise(true)
+	copy.Finalise()
 	<-done
 
 	// Verify that the two states have been updated independently
@@ -407,7 +407,7 @@ func (test *snapshotTest) checkEqual(state, checkstate *StateDB) error {
 
 func (s *StateSuite) TestTouchDelete(c *check.C) {
 	s.state.GetOrNewStateObject(common.Address{})
-	root, _ := s.state.Commit(false)
+	root, _ := s.state.Commit()
 	s.state.Reset(root)
 
 	snapshot := s.state.Snapshot()

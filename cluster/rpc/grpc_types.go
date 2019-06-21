@@ -379,6 +379,11 @@ type SubmitWorkResponse struct {
 	Success bool `json:"success" gencodec:"required"`
 }
 
+type SetMiningRequest struct {
+	Status       bool
+	RootCoinBase account.Recipient
+}
+
 type PeerInfoForDisPlay struct {
 	ID   []byte
 	IP   uint32

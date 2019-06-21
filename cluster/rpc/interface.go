@@ -60,5 +60,5 @@ type ISlaveConn interface {
 	GasPrice(branch account.Branch) (uint64, error)
 	GetWork(branch account.Branch) (*consensus.MiningWork, error)
 	SubmitWork(work *SubmitWorkRequest) (success bool, err error)
-	SetMining(mining bool) error
+	SetMining(mining bool, addr account.Recipient) error
 }

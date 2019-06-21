@@ -111,8 +111,16 @@ func (s *ShardBackend) Stop() {
 	s.chainDb.Close()
 }
 
-func (s *ShardBackend) SetMining(mining bool) {
+func (s *ShardBackend) SetMining(mining bool) error {
+	currState, err := s.MinorBlockChain.State()
+	if err != nil {
+		return err
+	}
+	if currState.GetAccountStatus(s.Config.CoinbaseAddress.Recipient) == false {
+		return errors.New("account do not been auth")
+	}
 	s.miner.SetMining(mining)
+	return nil
 }
 
 func createDB(ctx *service.ServiceContext, name string, clean bool) (ethdb.Database, error) {

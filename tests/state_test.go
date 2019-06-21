@@ -19,7 +19,6 @@ package tests
 import (
 	"bytes"
 	"flag"
-	"fmt"
 	"github.com/QuarkChain/goquarkchain/core/vm"
 	"reflect"
 	"testing"
@@ -47,28 +46,28 @@ func TestState(t *testing.T) {
 	st.fails(`^stRevertTest/RevertPrecompiledTouch\.json/Byzantium`, "bug in test")
 	st.fails(`^stRevertTest/RevertPrecompiledTouch.json/Constantinople`, "bug in test")
 
-	st.walk(t, stateTestDir, func(t *testing.T, name string, test *StateTest) {
-		for _, subtest := range test.Subtests() {
-			subtest := subtest
-			subtest.Path = name
-			subtest.PyData = pyData
-			key := fmt.Sprintf("%s/%d", subtest.Fork, subtest.Index)
-			name := name + "/" + key
-			if isSkip(name) {
-				continue
-			}
-			if _, ok := mapForks[subtest.Fork]; ok == false {
-				continue
-			}
-
-			t.Run(key, func(t *testing.T) {
-				withTrace(t, test.gasLimit(subtest), func(vmconfig vm.Config) error {
-					_, err := test.Run(subtest, vmconfig)
-					return st.checkFailure(t, name, err)
-				})
-			})
-		}
-	})
+	//st.walk(t, stateTestDir, func(t *testing.T, name string, test *StateTest) {
+	//	for _, subtest := range test.Subtests() {
+	//		subtest := subtest
+	//		subtest.Path = name
+	//		subtest.PyData = pyData
+	//		key := fmt.Sprintf("%s/%d", subtest.Fork, subtest.Index)
+	//		name := name + "/" + key
+	//		if isSkip(name) {
+	//			continue
+	//		}
+	//		if _, ok := mapForks[subtest.Fork]; ok == false {
+	//			continue
+	//		}
+	//
+	//		t.Run(key, func(t *testing.T) {
+	//			withTrace(t, test.gasLimit(subtest), func(vmconfig vm.Config) error {
+	//				_, err := test.Run(subtest, vmconfig)
+	//				return st.checkFailure(t, name, err)
+	//			})
+	//		})
+	//	}
+	//})
 }
 
 // Transactions with gasLimit above this value will not get a VM trace on failure.

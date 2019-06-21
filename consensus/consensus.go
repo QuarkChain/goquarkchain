@@ -42,7 +42,8 @@ var (
 
 	// ErrNotRemote is returned if GetWork be called in local mining
 	// is not remote
-	ErrNotRemote = errors.New("is not remote mining")
+	ErrNotRemote         = errors.New("is not remote mining")
+	ErrAccountNotBeMiner = errors.New("address can not be used as miner")
 )
 
 // Various error messages to mark blocks invalid. These should be private to

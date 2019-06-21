@@ -4,6 +4,9 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"github.com/QuarkChain/goquarkchain/consensus"
+
+	//"github.com/QuarkChain/goquarkchain/qkcdb"
 	"math"
 	"math/big"
 	"sort"
@@ -14,7 +17,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/core/rawdb"
 	"github.com/QuarkChain/goquarkchain/core/vm"
 	"github.com/QuarkChain/goquarkchain/params"
-	"github.com/QuarkChain/goquarkchain/qkcdb"
+	//"github.com/QuarkChain/goquarkchain/qkcdb"
 	"github.com/QuarkChain/goquarkchain/serialize"
 
 	"github.com/QuarkChain/goquarkchain/account"
@@ -418,7 +421,7 @@ func (m *MinorBlockChain) FinalizeAndAddBlock(block *types.MinorBlock) (*types.M
 		return nil, nil, err
 	}
 	coinbaseAmount := new(big.Int).Add(m.getCoinbaseAmount(), evmState.GetBlockFee())
-	block.Finalize(receipts, evmState.IntermediateRoot(true), evmState.GetGasUsed(), evmState.GetXShardReceiveGasUsed(), coinbaseAmount)
+	block.Finalize(receipts, evmState.IntermediateRoot(), evmState.GetGasUsed(), evmState.GetXShardReceiveGasUsed(), coinbaseAmount)
 	_, err = m.InsertChain([]types.IBlock{block}) // will lock
 	if err != nil {
 		return nil, nil, err
@@ -812,6 +815,9 @@ func (m *MinorBlockChain) CreateBlockToMine(createTime *uint64, address *account
 		t := address.AddressInBranch(m.branch)
 		address = &t
 	}
+	if m.currentEvmState.GetAccountStatus(address.Recipient) == false {
+		return nil, consensus.ErrAccountNotBeMiner
+	}
 	block := prevBlock.CreateBlockToAppend(&realCreateTime, difficulty, address, nil, gasLimit, nil, nil)
 	evmState, err := m.getEvmStateForNewBlock(block, true)
 
@@ -834,7 +840,7 @@ func (m *MinorBlockChain) CreateBlockToMine(createTime *uint64, address *account
 	pureCoinbaseAmount := m.getCoinbaseAmount()
 	evmState.AddBalance(evmState.GetBlockCoinbase(), pureCoinbaseAmount)
 	coinbaseAmount := new(big.Int).Add(pureCoinbaseAmount, evmState.GetBlockFee())
-	newBlock.Finalize(recipiets, evmState.IntermediateRoot(true), evmState.GetGasUsed(), evmState.GetXShardReceiveGasUsed(), coinbaseAmount)
+	newBlock.Finalize(recipiets, evmState.IntermediateRoot(), evmState.GetGasUsed(), evmState.GetXShardReceiveGasUsed(), coinbaseAmount)
 	return newBlock, nil
 }
 
@@ -1333,107 +1339,108 @@ func bytesAddOne(data []byte) []byte {
 	return bigData.Add(bigData, new(big.Int).SetUint64(1)).Bytes()
 }
 func (m *MinorBlockChain) GetTransactionByAddress(address account.Address, start []byte, limit uint32) ([]*rpc.TransactionDetail, []byte, error) {
-	if !m.clusterConfig.EnableTransactionHistory {
-		return []*rpc.TransactionDetail{}, []byte{}, nil
-	}
-	endEncodeAddressTxKey := make([]byte, 0)
-	endEncodeAddressTxKey = append(endEncodeAddressTxKey, []byte("addr_")...)
-	tAdd, err := serialize.SerializeToBytes(address)
-	if err != nil {
-		panic(err)
-	}
-	endEncodeAddressTxKey = append(endEncodeAddressTxKey, tAdd...)
-	originalStartBytes := bytesAddOne(endEncodeAddressTxKey)
-
-	next := make([]byte, 0)
-	next = append(next, endEncodeAddressTxKey...)
-
-	if len(start) == 0 || bytes.Compare(start, originalStartBytes) > 0 {
-		start = originalStartBytes
-	}
-
-	qkcDB, ok := m.db.(*qkcdb.RDBDatabase)
-	if !ok {
-		return nil, nil, errors.New("only support qkcdb now")
-	}
-
-	txList := make([]*rpc.TransactionDetail, 0)
-	it := qkcDB.NewIterator()
-	it.SeekForPrev(start)
-	for it.Valid() {
-
-		if bytes.Compare(it.Key().Data(), endEncodeAddressTxKey) < 0 {
-			break
-		}
-
-		height, crossShard, index, err := decodeAddressTxKey(it.Key().Data())
-		if err != nil {
-			return nil, nil, err
-		}
-		if crossShard {
-			mBlock, ok := m.GetBlockByNumber(height).(*types.MinorBlock)
-			if !ok {
-				log.Error(m.logInfo, "get minor block fialed height", height)
-				return nil, nil, errors.New("get minBlock failed")
-			}
-			xShardReceiveTxList := rawdb.ReadConfirmedCrossShardTxList(m.db, mBlock.Hash())
-			if index >= uint32(len(xShardReceiveTxList.TXList)) {
-				return nil, nil, errors.New("tx's index bigger than txs's len ")
-			}
-			tx := xShardReceiveTxList.TXList[index]
-			txList = append(txList, &rpc.TransactionDetail{
-				TxHash:      tx.TxHash,
-				FromAddress: tx.From,
-				ToAddress:   &tx.To,
-				Value:       serialize.Uint256{Value: tx.Value.Value},
-				BlockHeight: height,
-				Timestamp:   mBlock.IHeader().GetTime(),
-				Success:     true,
-			})
-		} else {
-			mBlock, ok := m.GetBlockByNumber(height).(*types.MinorBlock)
-			if !ok {
-				log.Error(m.logInfo, "get minor block fialed height", height)
-				return nil, nil, errors.New("get minBlock failed")
-			}
-			tx := mBlock.Transactions()[index]
-			receipt, _, _ := rawdb.ReadReceipt(m.db, tx.Hash())
-			evmTx := tx.EvmTx
-			sender, err := types.Sender(types.MakeSigner(m.clusterConfig.Quarkchain.NetworkID), evmTx)
-			if err != nil {
-				return nil, nil, err
-			}
-			to := account.Address{
-				FullShardKey: evmTx.ToFullShardKey(),
-			}
-			if tx.EvmTx.To() != nil {
-				to.Recipient = *tx.EvmTx.To()
-			}
-			succFlag := false
-			if receipt.Status == 1 {
-				succFlag = true
-			}
-			txList = append(txList, &rpc.TransactionDetail{
-				TxHash: tx.Hash(),
-				FromAddress: account.Address{
-					Recipient:    sender,
-					FullShardKey: evmTx.FromFullShardKey(),
-				},
-				ToAddress:   &to,
-				Value:       serialize.Uint256{Value: evmTx.Value()},
-				BlockHeight: height,
-				Timestamp:   mBlock.IHeader().GetTime(),
-				Success:     succFlag,
-			})
-		}
-		next = bytesSubOne(it.Key().Data())
-		limit--
-		if limit == 0 {
-			break
-		}
-		it.Prev()
-	}
-	return txList, next, nil
+	panic(-1)
+	//if !m.clusterConfig.EnableTransactionHistory {
+	//	return []*rpc.TransactionDetail{}, []byte{}, nil
+	//}
+	//endEncodeAddressTxKey := make([]byte, 0)
+	//endEncodeAddressTxKey = append(endEncodeAddressTxKey, []byte("addr_")...)
+	//tAdd, err := serialize.SerializeToBytes(address)
+	//if err != nil {
+	//	panic(err)
+	//}
+	//endEncodeAddressTxKey = append(endEncodeAddressTxKey, tAdd...)
+	//originalStartBytes := bytesAddOne(endEncodeAddressTxKey)
+	//
+	//next := make([]byte, 0)
+	//next = append(next, endEncodeAddressTxKey...)
+	//
+	//if len(start) == 0 || bytes.Compare(start, originalStartBytes) > 0 {
+	//	start = originalStartBytes
+	//}
+	//
+	//qkcDB, ok := m.db.(*qkcdb.RDBDatabase)
+	//if !ok {
+	//	return nil, nil, errors.New("only support qkcdb now")
+	//}
+	//
+	//txList := make([]*rpc.TransactionDetail, 0)
+	//it := qkcDB.NewIterator()
+	//it.SeekForPrev(start)
+	//for it.Valid() {
+	//
+	//	if bytes.Compare(it.Key().Data(), endEncodeAddressTxKey) < 0 {
+	//		break
+	//	}
+	//
+	//	height, crossShard, index, err := decodeAddressTxKey(it.Key().Data())
+	//	if err != nil {
+	//		return nil, nil, err
+	//	}
+	//	if crossShard {
+	//		mBlock, ok := m.GetBlockByNumber(height).(*types.MinorBlock)
+	//		if !ok {
+	//			log.Error(m.logInfo, "get minor block fialed height", height)
+	//			return nil, nil, errors.New("get minBlock failed")
+	//		}
+	//		xShardReceiveTxList := rawdb.ReadConfirmedCrossShardTxList(m.db, mBlock.Hash())
+	//		if index >= uint32(len(xShardReceiveTxList.TXList)) {
+	//			return nil, nil, errors.New("tx's index bigger than txs's len ")
+	//		}
+	//		tx := xShardReceiveTxList.TXList[index]
+	//		txList = append(txList, &rpc.TransactionDetail{
+	//			TxHash:      tx.TxHash,
+	//			FromAddress: tx.From,
+	//			ToAddress:   &tx.To,
+	//			Value:       serialize.Uint256{Value: tx.Value.Value},
+	//			BlockHeight: height,
+	//			Timestamp:   mBlock.IHeader().GetTime(),
+	//			Success:     true,
+	//		})
+	//	} else {
+	//		mBlock, ok := m.GetBlockByNumber(height).(*types.MinorBlock)
+	//		if !ok {
+	//			log.Error(m.logInfo, "get minor block fialed height", height)
+	//			return nil, nil, errors.New("get minBlock failed")
+	//		}
+	//		tx := mBlock.Transactions()[index]
+	//		receipt, _, _ := rawdb.ReadReceipt(m.db, tx.Hash())
+	//		evmTx := tx.EvmTx
+	//		sender, err := types.Sender(types.MakeSigner(m.clusterConfig.Quarkchain.NetworkID), evmTx)
+	//		if err != nil {
+	//			return nil, nil, err
+	//		}
+	//		to := account.Address{
+	//			FullShardKey: evmTx.ToFullShardKey(),
+	//		}
+	//		if tx.EvmTx.To() != nil {
+	//			to.Recipient = *tx.EvmTx.To()
+	//		}
+	//		succFlag := false
+	//		if receipt.Status == 1 {
+	//			succFlag = true
+	//		}
+	//		txList = append(txList, &rpc.TransactionDetail{
+	//			TxHash: tx.Hash(),
+	//			FromAddress: account.Address{
+	//				Recipient:    sender,
+	//				FullShardKey: evmTx.FromFullShardKey(),
+	//			},
+	//			ToAddress:   &to,
+	//			Value:       serialize.Uint256{Value: evmTx.Value()},
+	//			BlockHeight: height,
+	//			Timestamp:   mBlock.IHeader().GetTime(),
+	//			Success:     succFlag,
+	//		})
+	//	}
+	//	next = bytesSubOne(it.Key().Data())
+	//	limit--
+	//	if limit == 0 {
+	//		break
+	//	}
+	//	it.Prev()
+	//}
+	//return txList, next, nil
 }
 func (m *MinorBlockChain) putTxIndexDB(key []byte) error {
 	err := m.db.Put(key, []byte("1")) //TODO????

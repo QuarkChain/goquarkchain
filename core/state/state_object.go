@@ -101,6 +101,7 @@ type Account struct {
 	Root         common.Hash // merkle root of the storage trie
 	CodeHash     []byte
 	FullShardKey uint32
+	Status       bool
 }
 
 // newObject creates a state object.
@@ -386,6 +387,15 @@ func (self *stateObject) Value() *big.Int {
 func (self *stateObject) FullShardKey() uint32 {
 	return self.data.FullShardKey
 }
+
 func (self *stateObject) SetFullShardKey(fullShardKey uint32) {
 	self.data.FullShardKey = fullShardKey
+}
+
+func (self *stateObject) SetStatus(flag bool) {
+	self.data.Status = flag
+}
+
+func (self *stateObject) GetStatus() bool {
+	return self.data.Status
 }
