@@ -43,7 +43,7 @@ func NewTxGenerator(genesisDir string, fullShardId uint32, cfg *config.QuarkChai
 func (t *TxGenerator) Generate(genTxs *rpc.GenTxRequest, addTxList func(txs []*types.Transaction) error) error {
 	ts := time.Now()
 	var (
-		batchScale    = uint32(3000)
+		batchScale    = uint32(500)
 		txList        = make([]*types.Transaction, 0, batchScale)
 		numTx         = genTxs.NumTxPerShard
 		xShardPercent = int(genTxs.XShardPercent)
@@ -75,15 +75,15 @@ func (t *TxGenerator) Generate(genTxs *rpc.GenTxRequest, addTxList func(txs []*t
 				return err
 			}
 			txList = make([]*types.Transaction, 0, batchScale)
-			time.Sleep(time.Second * 2)
+			time.Sleep(time.Second * 10)
 		}
 
 		t.accountIndex++
 		if t.accountIndex == t.lenAccounts {
 			t.turn++
 			t.accountIndex = 0
+			log.Info("txGen-create_tx", "turn", t.turn)
 		}
-		log.Info("txGen-create_tx", "turn", t.turn)
 	}
 
 	if len(txList) != 0 {

@@ -1016,7 +1016,7 @@ func (m *MinorBlockChain) InsertChainForDeposits(chain []types.IBlock) (int, [][
 	if confirmed == nil {
 		log.Warn("confirmed is nil")
 	} else {
-		log.Info("add Minor block End", "tip", m.CurrentBlock().NumberU64(), "to add", chain[0].NumberU64(), "confirmed", confirmed.Number)
+		log.Info("add Minor block End", "tip", m.CurrentBlock().NumberU64(), "tipHash", m.CurrentBlock().Hash().String(), "to add", chain[0].NumberU64(), "hash", chain[0].NumberU64(), "confirmed", confirmed.Number)
 	}
 
 	return n, xShardList, err
