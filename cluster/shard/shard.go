@@ -76,10 +76,7 @@ func New(ctx *service.ServiceContext, rBlock *types.RootBlock, conn ConnManager,
 		return nil, err
 	}
 
-	shard.txGenerator, err = NewTxGenerator(cfg.GenesisDir, shard.fullShardId, cfg.Quarkchain)
-	if err != nil {
-		return nil, err
-	}
+	shard.txGenerator = NewTxGenerator(cfg.GenesisDir, shard.fullShardId, cfg.Quarkchain)
 
 	shard.engine, err = createConsensusEngine(ctx, shard.Config)
 	if err != nil {
@@ -87,6 +84,7 @@ func New(ctx *service.ServiceContext, rBlock *types.RootBlock, conn ConnManager,
 	}
 
 	shard.miner = miner.New(ctx, shard, shard.engine, shard.Config.ConsensusConfig.TargetBlockTime)
+	shard.miner.Init()
 
 	chainConfig, genesisHash, genesisErr := core.SetupGenesisMinorBlock(shard.chainDb, shard.gspec, rBlock, fullshardId)
 	// TODO check config err

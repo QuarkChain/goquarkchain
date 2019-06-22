@@ -61,8 +61,6 @@ func (s *ConnManager) GetConnectionsByFullShardId(id uint32) []*SlaveConn {
 }
 
 func (s *ConnManager) AddXshardTxList(fullShardId uint32, xshardReq *rpc.AddXshardTxListRequest) error {
-	log.Info(s.logInfo, "AddXshardTxList fullShardID", fullShardId, "xshardReq", len(xshardReq.TxList))
-	defer log.Info(s.logInfo, "AddXshardTxList", "end")
 	var g errgroup.Group
 	if clients, ok := s.fullShardIdToSlaves[fullShardId]; ok {
 		for _, client := range clients {
