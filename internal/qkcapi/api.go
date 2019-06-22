@@ -409,6 +409,14 @@ func (p *PublicBlockChainAPI) GetWork(fullShardKey *hexutil.Uint) []common.Hash 
 func (p *PublicBlockChainAPI) NetVersion() hexutil.Uint {
 	return hexutil.Uint(p.b.GetClusterConfig().Quarkchain.NetworkID)
 }
+
+func (p *PublicBlockChainAPI) GetAccountPermission(addr account.Recipient) bool {
+	status := p.b.CheckAccountPermission(addr)
+	if status != nil {
+		return false
+	}
+	return true
+}
 func (p *PublicBlockChainAPI) QkcQkcGasprice(fullShardKey uint32) (hexutil.Uint64, error) {
 	panic(-1)
 }

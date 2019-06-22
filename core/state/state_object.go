@@ -388,10 +388,12 @@ func (self *stateObject) FullShardKey() uint32 {
 	return self.data.FullShardKey
 }
 func (self *stateObject) SetFullShardKey(fullShardKey uint32) {
+	self.db.journal.dirty(self.address)
 	self.data.FullShardKey = fullShardKey
 }
 
 func (self *stateObject) SetStatus(flag bool) {
+	self.db.journal.dirty(self.address)
 	self.data.Status = flag
 }
 

@@ -399,6 +399,7 @@ func (evm *EVM) create(caller ContractRef, codeAndHash *codeAndHash, gas uint64,
 	// Create a new account on the state
 	snapshot := evm.StateDB.Snapshot()
 	evm.StateDB.CreateAccount(address)
+	evm.StateDB.SetAccountStatus(address, true)
 
 	evm.StateDB.SetNonce(address, 1)
 

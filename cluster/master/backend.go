@@ -517,7 +517,7 @@ func (s *QKCMasterBackend) CheckAccountPermission(account account.Recipient) err
 	for index := range s.clientPool {
 		i := index
 		g.Go(func() error {
-			return s.clientPool[i].CheckAccountPermission(account) //TODO need add jsonRPC?
+			return s.clientPool[i].CheckAccountPermission(account)
 		})
 	}
 	return g.Wait()
