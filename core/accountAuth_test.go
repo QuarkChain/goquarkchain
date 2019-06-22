@@ -2,7 +2,6 @@ package core
 
 import (
 	"github.com/QuarkChain/goquarkchain/account"
-	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/params"
 	"github.com/stretchr/testify/assert"
 	"math/big"
@@ -205,6 +204,6 @@ func TestAsMiner(t *testing.T) {
 	checkErr(err)
 
 	b2, err = shardState.CreateBlockToMine(nil, &acc1, nil)
-	assert.Equal(t, err, consensus.ErrAccountNotBeMiner)
+	assert.Equal(t, err, ErrAccountNotBeMiner)
 
 }

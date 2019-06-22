@@ -4,9 +4,6 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"github.com/QuarkChain/goquarkchain/consensus"
-
-	//"github.com/QuarkChain/goquarkchain/qkcdb"
 	"math"
 	"math/big"
 	"sort"
@@ -816,7 +813,7 @@ func (m *MinorBlockChain) CreateBlockToMine(createTime *uint64, address *account
 		address = &t
 	}
 	if m.currentEvmState.GetAccountStatus(address.Recipient) == false {
-		return nil, consensus.ErrAccountNotBeMiner
+		return nil, ErrAccountNotBeMiner
 	}
 	block := prevBlock.CreateBlockToAppend(&realCreateTime, difficulty, address, nil, gasLimit, nil, nil)
 	evmState, err := m.getEvmStateForNewBlock(block, true)

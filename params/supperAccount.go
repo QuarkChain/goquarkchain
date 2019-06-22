@@ -8,8 +8,6 @@ import (
 var (
 	superAccountStrList = []string{"0x438befb16aed2d01bc0ba111eee12c65dcdb5275"}
 	superAccount        = make(map[account.Recipient]struct{}, 0)
-	// data=='0':newAccount
-	//data=='1':disable account
 )
 
 func init() {
@@ -20,7 +18,6 @@ func init() {
 }
 
 func IsSuperAccount(addr account.Recipient) bool {
-	//fmt.Println("???????")
 	_, ok := superAccount[addr]
 	return ok
 }

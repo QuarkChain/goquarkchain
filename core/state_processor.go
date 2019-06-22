@@ -110,7 +110,6 @@ func (p *StateProcessor) Process(block *types.MinorBlock, statedb *state.StateDB
 }
 
 func CheckSuperAccount(state vm.StateDB, from account.Recipient, to *account.Recipient) error {
-	//	return nil
 	if !qkcParams.IsSuperAccount(from) {
 		if state.GetAccountStatus(from) == false {
 			return ErrAuthFromAccount

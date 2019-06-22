@@ -95,7 +95,7 @@ func (v *MinorBlockValidator) ValidateBlock(mBlock types.IBlock) error {
 		return err
 	}
 	if !preState.GetAccountStatus(block.Header().Coinbase.Recipient) {
-		return consensus.ErrAccountNotBeMiner
+		return ErrAccountNotBeMiner
 	}
 	if common.IsNil(prevHeader) {
 		log.Error(v.logInfo, "parent header is not exist", ErrInvalidMinorBlock, "parent height", block.Header().Number-1, "parent hash", block.Header().ParentHash.String())
