@@ -384,3 +384,12 @@ func (s *SlaveBackend) SetMining(mining bool) error {
 	}
 	return nil
 }
+
+func (s *SlaveBackend) CheckAccountPermission(addr account.Recipient) bool {
+	for _, shard := range s.shards {
+		if flag := shard.MinorBlockChain.CheckAccountPermission(addr); !flag {
+			return flag
+		}
+	}
+	return true
+}

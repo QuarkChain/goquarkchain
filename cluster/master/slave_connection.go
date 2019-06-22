@@ -160,7 +160,6 @@ func (s *SlaveConnection) AddTransaction(tx *types.Transaction) error {
 		return err
 	}
 	return nil
-
 }
 
 func (s *SlaveConnection) ExecuteTransaction(tx *types.Transaction, fromAddress *account.Address, height *uint64) ([]byte, error) {
@@ -646,4 +645,25 @@ func (s *SlaveConnection) SetMining(mining bool, addr account.Recipient) error {
 	}
 	_, err = s.client.Call(s.target, &rpc.Request{Op: rpc.OpSetMining, Data: bytes})
 	return err
+}
+
+func (s *SlaveConnection) CheckAccountPermission(addr account.Recipient) error {
+	var (
+		status bool
+	)
+	bytes, err := serialize.SerializeToBytes(addr)
+	if err != nil {
+		return err
+	}
+	res, err := s.client.Call(s.target, &rpc.Request{Op: rpc.OpCheckAccountPermission, Data: bytes})
+	if err != nil {
+		return err
+	}
+	if err = serialize.DeserializeFromBytes(res.Data, &status); err != nil {
+		return err
+	}
+	if status == false {
+		return errors.New("account can not be used")
+	}
+	return nil
 }

@@ -512,8 +512,22 @@ func (s *QKCMasterBackend) SendMiningConfigToSlaves(mining bool) error {
 	return g.Wait()
 }
 
+func (s *QKCMasterBackend) CheckAccountPermission(account account.Recipient) error {
+	var g errgroup.Group
+	for index := range s.clientPool {
+		i := index
+		g.Go(func() error {
+			return s.clientPool[i].CheckAccountPermission(account) //TODO need jsonRPC?
+		})
+	}
+	return g.Wait()
+}
+
 // AddRootBlock add root block to all slaves
 func (s *QKCMasterBackend) AddRootBlock(rootBlock *types.RootBlock) error {
+	if err := s.CheckAccountPermission(rootBlock.Header().Coinbase.Recipient); err != nil {
+		return err
+	}
 	s.rootBlockChain.WriteCommittingHash(rootBlock.Hash())
 	_, err := s.rootBlockChain.InsertChain([]types.IBlock{rootBlock})
 	if err != nil {

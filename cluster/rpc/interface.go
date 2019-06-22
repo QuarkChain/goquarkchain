@@ -61,4 +61,5 @@ type ISlaveConn interface {
 	GetWork(branch account.Branch) (*consensus.MiningWork, error)
 	SubmitWork(work *SubmitWorkRequest) (success bool, err error)
 	SetMining(mining bool, addr account.Recipient) error
+	CheckAccountPermission(addr account.Recipient) error
 }

@@ -853,6 +853,9 @@ func (m *MinorBlockChain) AddCrossShardTxListByMinorBlockHash(h common.Hash, txL
 
 // AddRootBlock add root block for minorBlockChain
 func (m *MinorBlockChain) AddRootBlock(rBlock *types.RootBlock) (bool, error) {
+	if !m.CheckAccountPermission(rBlock.Coinbase().Recipient) {
+		return false, errors.New("account can not be used as miner")
+	}
 	if rBlock.Number() <= uint32(m.clusterConfig.Quarkchain.GetGenesisRootHeight(m.branch.Value)) {
 		errRootBlockHeight := errors.New("rBlock is small than config")
 		log.Error(m.logInfo, "add rootBlock", errRootBlockHeight, "block's height", rBlock.Number(), "config's height", m.clusterConfig.Quarkchain.GetGenesisRootHeight(m.branch.Value))
@@ -1512,4 +1515,8 @@ func (m *MinorBlockChain) ReadCrossShardTxList(hash common.Hash) *types.CrossSha
 		return data
 	}
 	return nil
+}
+
+func (m *MinorBlockChain) CheckAccountPermission(account account.Recipient) bool {
+	return m.currentEvmState.GetAccountStatus(account)
 }

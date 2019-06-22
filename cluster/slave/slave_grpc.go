@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/QuarkChain/goquarkchain/account"
 	"time"
 
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
@@ -604,6 +605,22 @@ func (s *SlaveServerSideOp) HandleNewMinorBlock(ctx context.Context, req *rpc.Re
 		return nil, err
 	}
 	if err = s.slave.NewMinorBlock(&gReq); err != nil {
+		return nil, err
+	}
+	return response, nil
+}
+
+func (s *SlaveServerSideOp) HandleCheckAccountPermission(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
+	var (
+		gReq     account.Recipient
+		response = &rpc.Response{RpcId: req.RpcId}
+		err      error
+	)
+	if err = serialize.DeserializeFromBytes(req.Data, &gReq); err != nil {
+		return nil, err
+	}
+	flag := s.slave.CheckAccountPermission(gReq)
+	if response.Data, err = serialize.SerializeToBytes(flag); err != nil {
 		return nil, err
 	}
 	return response, nil
