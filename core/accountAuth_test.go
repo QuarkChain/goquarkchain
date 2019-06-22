@@ -19,7 +19,7 @@ func TestGenesisAccountStatus(t *testing.T) {
 	acc2 := account.CreatAddressFromIdentity(id2, 0)
 
 	fakeMoney := uint64(10000000)
-	env := setUp(&acc1, &fakeMoney, nil)
+	env := setUp([]account.Address{acc1}, &fakeMoney, nil)
 	shardState := createDefaultShardState(env, nil, nil, nil, nil)
 	defer shardState.Stop()
 	currStateDB, err := shardState.StateAt(shardState.CurrentBlock().Meta().Root)
@@ -38,7 +38,7 @@ func TestSendTxFailed(t *testing.T) {
 	acc2 := account.CreatAddressFromIdentity(id2, 0)
 
 	fakeMoney := uint64(10000000)
-	env := setUp(&acc1, &fakeMoney, nil)
+	env := setUp([]account.Address{acc1}, &fakeMoney, nil)
 	shardState := createDefaultShardState(env, nil, nil, nil, nil)
 	defer shardState.Stop()
 	// Add a root block to have all the shards initialized
@@ -75,7 +75,7 @@ func TestSendSuperAccountSucc(t *testing.T) {
 	params.SetSuperAccount(superAcc.Recipient)
 
 	fakeMoney := uint64(1000000000000)
-	env := setUp(&superAcc, &fakeMoney, nil)
+	env := setUp([]account.Address{superAcc}, &fakeMoney, nil)
 	shardState := createDefaultShardState(env, nil, nil, nil, nil)
 	defer shardState.Stop()
 	// Add a root block to have all the shards initialized
@@ -171,7 +171,7 @@ func TestAsMiner(t *testing.T) {
 	params.SetSuperAccount(superAcc.Recipient)
 
 	fakeMoney := uint64(1000000000000)
-	env := setUp(&superAcc, &fakeMoney, nil)
+	env := setUp([]account.Address{superAcc}, &fakeMoney, nil)
 	shardState := createDefaultShardState(env, nil, nil, nil, nil)
 	defer shardState.Stop()
 	// Add a root block to have all the shards initialized

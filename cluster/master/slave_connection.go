@@ -160,6 +160,7 @@ func (s *SlaveConnection) AddTransaction(tx *types.Transaction) error {
 		return err
 	}
 	return nil
+
 }
 
 func (s *SlaveConnection) ExecuteTransaction(tx *types.Transaction, fromAddress *account.Address, height *uint64) ([]byte, error) {

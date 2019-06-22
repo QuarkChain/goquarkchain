@@ -17,9 +17,11 @@
 package core
 
 import (
+	"bou.ke/monkey"
 	"crypto/ecdsa"
 	"fmt"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
+	"github.com/QuarkChain/goquarkchain/core/vm"
 	"io/ioutil"
 	"math/big"
 	"math/rand"
@@ -193,6 +195,9 @@ func (c *testChain) State() (*state.StateDB, error) {
 // state reset and tests whether the pending state is in sync with the
 // block head event that initiated the resetState().
 func TestStateChangeDuringTransactionPoolReset(t *testing.T) {
+	monkey.Patch(CheckSuperAccount, func(state vm.StateDB, from account.Recipient, to *account.Recipient) error {
+		return nil
+	})
 	t.Parallel()
 
 	var (

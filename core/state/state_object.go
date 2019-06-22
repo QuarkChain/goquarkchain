@@ -387,7 +387,6 @@ func (self *stateObject) Value() *big.Int {
 func (self *stateObject) FullShardKey() uint32 {
 	return self.data.FullShardKey
 }
-
 func (self *stateObject) SetFullShardKey(fullShardKey uint32) {
 	self.data.FullShardKey = fullShardKey
 }

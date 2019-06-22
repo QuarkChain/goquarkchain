@@ -110,6 +110,7 @@ func (p *StateProcessor) Process(block *types.MinorBlock, statedb *state.StateDB
 }
 
 func CheckSuperAccount(state vm.StateDB, from account.Recipient, to *account.Recipient) error {
+	//	return nil
 	if !qkcParams.IsSuperAccount(from) {
 		if state.GetAccountStatus(from) == false {
 			return ErrAuthFromAccount
@@ -148,6 +149,7 @@ func ValidateTransaction(state vm.StateDB, tx *types.Transaction, fromAddress *a
 	}
 
 	if state.GetBalance(*from).Cmp(tx.EvmTx.Cost()) < 0 {
+		//	fmt.Println("?????", (*from).String(), state.GetBalance(*from), tx.EvmTx.Cost())
 		return ErrInsufficientFunds
 	}
 

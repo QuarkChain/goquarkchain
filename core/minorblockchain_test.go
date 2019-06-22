@@ -72,9 +72,9 @@ func newMinorCanonical(cacheConfig *CacheConfig, engine consensus.Engine, n int,
 	for _, v := range ids {
 		shardConfig := gspec.qkcConfig.GetShardConfigByFullShardID(v)
 		addr := addr0.AddressInBranch(account.Branch{Value: v})
-		shardConfig.Genesis.Alloc[addr] = big.NewInt(1000000)
+		shardConfig.Genesis.Alloc[addr] = big.NewInt(0)
 		addr = addr1.AddressInBranch(account.Branch{Value: v})
-		shardConfig.Genesis.Alloc[addr] = big.NewInt(1000000)
+		shardConfig.Genesis.Alloc[addr] = big.NewInt(0)
 	}
 	rootBlock := gspec.CreateRootBlock()
 	genesis := gspec.MustCommitMinorBlock(db, rootBlock, fakeFullShardID)
@@ -587,9 +587,9 @@ func TestMinorFastVsFullChains(t *testing.T) {
 	for _, v := range ids {
 		addr := addr1.AddressInShard(v)
 		shardConfig := clusterConfig.Quarkchain.GetShardConfigByFullShardID(v)
-		shardConfig.Genesis.Alloc[addr] = big.NewInt(1000000)
+		shardConfig.Genesis.Alloc[addr] = big.NewInt(10000000000)
 		addr = addr0.AddressInShard(v)
-		shardConfig.Genesis.Alloc[addr] = big.NewInt(1000000)
+		shardConfig.Genesis.Alloc[addr] = big.NewInt(0)
 	}
 
 	clusterConfig.Quarkchain.SkipRootCoinbaseCheck = true
@@ -690,7 +690,7 @@ func TestMinorLightVsFastVsFullChainHeads(t *testing.T) {
 	for _, v := range ids {
 		addr := addr0.AddressInShard(v)
 		shardConfig := clusterConfig.Quarkchain.GetShardConfigByFullShardID(v)
-		shardConfig.Genesis.Alloc[addr] = big.NewInt(1000000)
+		shardConfig.Genesis.Alloc[addr] = big.NewInt(0)
 
 	}
 	rootBlock := gspec.CreateRootBlock()
@@ -817,7 +817,7 @@ func TestMinorChainTxReorgs(t *testing.T) {
 	for _, v := range ids {
 		addr := addr0.AddressInShard(v)
 		shardConfig := clusterConfig.Quarkchain.GetShardConfigByFullShardID(v)
-		shardConfig.Genesis.Alloc[addr] = big.NewInt(1000000)
+		shardConfig.Genesis.Alloc[addr] = big.NewInt(0)
 
 		addr = addr1.AddressInShard(v)
 		shardConfig = clusterConfig.Quarkchain.GetShardConfigByFullShardID(v)
@@ -964,7 +964,7 @@ func TestMinorLogReorgs(t *testing.T) {
 		shardConfig := clusterConfig.Quarkchain.GetShardConfigByFullShardID(v)
 		shardConfig.Genesis.Alloc[addr] = big.NewInt(1000000)
 		addr = addr0.AddressInShard(v)
-		shardConfig.Genesis.Alloc[addr] = big.NewInt(1000000)
+		shardConfig.Genesis.Alloc[addr] = big.NewInt(0)
 
 	}
 	engine := &consensus.FakeEngine{}
@@ -1036,7 +1036,7 @@ func TestMinorReorgSideEvent(t *testing.T) {
 		shardConfig := clusterConfig.Quarkchain.GetShardConfigByFullShardID(v)
 		shardConfig.Genesis.Alloc[addr] = big.NewInt(1000000)
 		addr = addr0.AddressInShard(v)
-		shardConfig.Genesis.Alloc[addr] = big.NewInt(1000000)
+		shardConfig.Genesis.Alloc[addr] = big.NewInt(0)
 
 	}
 	engine := &consensus.FakeEngine{}
@@ -1193,9 +1193,9 @@ func TestMinorEIP161AccountRemoval(t *testing.T) {
 		shardConfig.Genesis.Alloc[addr] = big.NewInt(1000000)
 
 		addr = addr0.AddressInShard(v)
-		shardConfig.Genesis.Alloc[addr] = big.NewInt(1000000)
+		shardConfig.Genesis.Alloc[addr] = big.NewInt(0)
 		addr = addr2.AddressInShard(v)
-		shardConfig.Genesis.Alloc[addr] = big.NewInt(1000000)
+		shardConfig.Genesis.Alloc[addr] = big.NewInt(0)
 
 	}
 	chainConfig := &params.ChainConfig{
@@ -1236,7 +1236,7 @@ func TestMinorEIP161AccountRemoval(t *testing.T) {
 	if _, err := blockchain.InsertChain([]types.IBlock{blocks[0]}); err != nil {
 		t.Fatal(err)
 	}
-	if st := blockchain.currentEvmState; st.Exist(addr2.Recipient) {
+	if st := blockchain.currentEvmState; !st.Exist(addr2.Recipient) {
 		t.Error("expected account to exist")
 	}
 
@@ -1244,7 +1244,7 @@ func TestMinorEIP161AccountRemoval(t *testing.T) {
 	if _, err := blockchain.InsertChain([]types.IBlock{blocks[1]}); err != nil {
 		t.Fatal(err)
 	}
-	if st, _ := blockchain.State(); st.Exist(addr2.Recipient) {
+	if st, _ := blockchain.State(); !st.Exist(addr2.Recipient) {
 		t.Error("account should  exist")
 	}
 
@@ -1252,7 +1252,7 @@ func TestMinorEIP161AccountRemoval(t *testing.T) {
 	if _, err := blockchain.InsertChain([]types.IBlock{blocks[2]}); err != nil {
 		t.Fatal(err)
 	}
-	if st, _ := blockchain.State(); st.Exist(addr2.Recipient) {
+	if st, _ := blockchain.State(); !st.Exist(addr2.Recipient) {
 		t.Error("account should  exist")
 	}
 }
@@ -1279,9 +1279,9 @@ func TestMinorBlockchainHeaderchainReorgConsistency(t *testing.T) {
 	for _, v := range ids {
 		shardConfig := clusterConfig.Quarkchain.GetShardConfigByFullShardID(v)
 		addr := addr1.AddressInBranch(account.Branch{Value: v})
-		shardConfig.Genesis.Alloc[addr] = big.NewInt(1000000)
+		shardConfig.Genesis.Alloc[addr] = big.NewInt(0)
 		addr = addr2.AddressInBranch(account.Branch{Value: v})
-		shardConfig.Genesis.Alloc[addr] = big.NewInt(1000000)
+		shardConfig.Genesis.Alloc[addr] = big.NewInt(0)
 
 	}
 	clusterConfig.Quarkchain.SkipRootDifficultyCheck = true
@@ -1354,9 +1354,9 @@ func TestMinorTrieForkGC(t *testing.T) {
 	for _, v := range ids {
 		shardConfig := gspec.qkcConfig.GetShardConfigByFullShardID(v)
 		addr := addr0.AddressInBranch(account.Branch{Value: v})
-		shardConfig.Genesis.Alloc[addr] = big.NewInt(1000000)
+		shardConfig.Genesis.Alloc[addr] = big.NewInt(0)
 		addr = addr2.AddressInBranch(account.Branch{Value: v})
-		shardConfig.Genesis.Alloc[addr] = big.NewInt(1000000)
+		shardConfig.Genesis.Alloc[addr] = big.NewInt(0)
 	}
 	clusterConfig.Quarkchain.SkipRootDifficultyCheck = true
 	clusterConfig.Quarkchain.SkipMinorDifficultyCheck = true
@@ -1432,11 +1432,11 @@ func TestMinorLargeReorgTrieGC(t *testing.T) {
 	for _, v := range ids {
 		shardConfig := gspec.qkcConfig.GetShardConfigByFullShardID(v)
 		addr := addr0.AddressInBranch(account.Branch{Value: v})
-		shardConfig.Genesis.Alloc[addr] = big.NewInt(1000000)
+		shardConfig.Genesis.Alloc[addr] = big.NewInt(0)
 		addr = addr2.AddressInBranch(account.Branch{Value: v})
-		shardConfig.Genesis.Alloc[addr] = big.NewInt(1000000)
+		shardConfig.Genesis.Alloc[addr] = big.NewInt(0)
 		addr = addr3.AddressInBranch(account.Branch{Value: v})
-		shardConfig.Genesis.Alloc[addr] = big.NewInt(1000000)
+		shardConfig.Genesis.Alloc[addr] = big.NewInt(0)
 	}
 	genesis := gspec.MustCommitMinorBlock(db, rootBlock, clusterConfig.Quarkchain.Chains[0].ShardSize|0)
 	shared, _ := GenerateMinorBlockChain(params.TestChainConfig, clusterConfig.Quarkchain, genesis, engine, db, 64, func(config *config.QuarkChainConfig, i int, b *MinorBlockGen) {
