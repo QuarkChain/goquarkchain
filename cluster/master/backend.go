@@ -213,7 +213,7 @@ func (s *QKCMasterBackend) SetMining(mining bool) {
 	for _, slvConn := range s.clientPool {
 		conn := slvConn
 		g.Go(func() error {
-			return conn.SetMining(mining, s.clusterConfig.Quarkchain.Root.CoinbaseAddress.Recipient)
+			return conn.SetMining(mining)
 		})
 	}
 	if err := g.Wait(); err != nil {

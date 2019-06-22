@@ -95,7 +95,6 @@ func (v *MinorBlockValidator) ValidateBlock(mBlock types.IBlock) error {
 		return err
 	}
 	if !preState.GetAccountStatus(block.Header().Coinbase.Recipient) {
-		//fmt.Println("????", block.Header().Coinbase.Recipient.String(), block.Header().Number)
 		return consensus.ErrAccountNotBeMiner
 	}
 	if common.IsNil(prevHeader) {

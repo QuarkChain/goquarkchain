@@ -149,7 +149,6 @@ func ValidateTransaction(state vm.StateDB, tx *types.Transaction, fromAddress *a
 	}
 
 	if state.GetBalance(*from).Cmp(tx.EvmTx.Cost()) < 0 {
-		//	fmt.Println("?????", (*from).String(), state.GetBalance(*from), tx.EvmTx.Cost())
 		return ErrInsufficientFunds
 	}
 

@@ -376,13 +376,10 @@ func (s *SlaveBackend) GenTx(genTxs *rpc.GenTxRequest) error {
 	return g.Wait()
 }
 
-func (s *SlaveBackend) SetMining(mining bool) error {
+func (s *SlaveBackend) SetMining(mining bool) {
 	for _, shrd := range s.shards {
-		if err := shrd.SetMining(mining); err != nil {
-			return err
-		}
+		shrd.SetMining(mining)
 	}
-	return nil
 }
 
 func (s *SlaveBackend) CheckAccountPermission(addr account.Recipient) bool {

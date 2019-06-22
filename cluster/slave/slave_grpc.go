@@ -628,22 +628,13 @@ func (s *SlaveServerSideOp) HandleCheckAccountPermission(ctx context.Context, re
 
 func (s *SlaveServerSideOp) SetMining(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
 	var (
-		mining   rpc.SetMiningRequest
+		mining   bool
 		response = &rpc.Response{RpcId: req.RpcId}
 		err      error
 	)
 	if err = serialize.DeserializeFromBytes(req.Data, &mining); err != nil {
 		return nil, err
 	}
-	for _, v := range s.slave.shards {
-		currState, err := v.MinorBlockChain.State()
-		if err != nil {
-			return nil, err
-		}
-		if currState.GetAccountStatus(mining.RootCoinBase) == false {
-			return nil, errors.New("account not have auth")
-		}
-	}
-	err = s.slave.SetMining(mining.Status)
-	return response, err
+	s.slave.SetMining(mining)
+	return response, nil
 }

@@ -49,7 +49,6 @@ func (g *Genesis) CreateRootBlock() *types.RootBlock {
 }
 
 func (g *Genesis) CreateMinorBlock(rootBlock *types.RootBlock, fullShardId uint32, db ethdb.Database) (*types.MinorBlock, error) {
-	//fmt.Println("CCCCCCCCCCCCCCCCC")
 	if db == nil {
 		db = ethdb.NewMemDatabase()
 	}
@@ -64,7 +63,7 @@ func (g *Genesis) CreateMinorBlock(rootBlock *types.RootBlock, fullShardId uint3
 
 	statedb, _ := state.New(common.Hash{}, state.NewDatabase(db))
 	branch := account.Branch{Value: fullShardId}
-	//fmt.Println("AAAAAAAAAAAA", len(genesis.Alloc))
+
 	for addr, balance := range genesis.Alloc {
 		if g.qkcConfig.GetFullShardIdByFullShardKey(addr.FullShardKey) != fullShardId {
 			continue
@@ -73,7 +72,6 @@ func (g *Genesis) CreateMinorBlock(rootBlock *types.RootBlock, fullShardId uint3
 		recipient.SetBytes(addr.Recipient.Bytes())
 		statedb.SetFullShardKey(addr.FullShardKey)
 		statedb.AddBalance(*recipient, balance)
-		//	fmt.Println("-==============", (*recipient).String(), balance)
 		statedb.SetAccountStatus(*recipient, true)
 	}
 
