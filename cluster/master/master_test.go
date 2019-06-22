@@ -248,6 +248,14 @@ func (c *fakeRpcClient) Call(hostport string, req *rpc.Request) (*rpc.Response, 
 			return nil, err
 		}
 		return &rpc.Response{Data: data}, nil
+	case rpc.OpCheckAccountPermission:
+		flag := true
+		data, err := serialize.SerializeToBytes(flag)
+		if err != nil {
+			return nil, err
+		}
+		return &rpc.Response{Data: data}, nil
+
 	default:
 		fmt.Println("codeM", req.Op)
 		return nil, errors.New("unkown code")
