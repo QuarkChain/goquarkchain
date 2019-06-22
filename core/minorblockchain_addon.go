@@ -812,7 +812,7 @@ func (m *MinorBlockChain) CreateBlockToMine(createTime *uint64, address *account
 		t := address.AddressInBranch(m.branch)
 		address = &t
 	}
-	if m.currentEvmState.GetAccountStatus(address.Recipient) == false {
+	if m.CheckAccountPermission(address.Recipient) == false {
 		return nil, ErrAccountNotBeMiner
 	}
 	block := prevBlock.CreateBlockToAppend(&realCreateTime, difficulty, address, nil, gasLimit, nil, nil)

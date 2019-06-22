@@ -121,7 +121,7 @@ func CheckSuperAccount(state vm.StateDB, from account.Recipient, to *account.Rec
 		return nil
 	}
 	if to == nil { //TODO need?
-		return errors.New("super account need to")
+		return errors.New("super account need set to")
 	}
 	return nil
 }
