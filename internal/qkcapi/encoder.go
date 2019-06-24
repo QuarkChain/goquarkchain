@@ -156,7 +156,7 @@ func txEncoder(block *types.MinorBlock, i int, cfg *config.ClusterConfig) (map[s
 	}
 	branch := block.Header().Branch
 	field := map[string]interface{}{
-		"id":               IDEncoder(tx.Hash().Bytes(), evmtx.FromFullShardId()),
+		"id":               IDEncoder(tx.Hash().Bytes(), evmtx.FromFullShardKey()),
 		"hash":             tx.Hash(),
 		"nonce":            hexutil.Uint64(evmtx.Nonce()),
 		"timestamp":        hexutil.Uint64(header.Time),
