@@ -303,7 +303,11 @@ func setHTTP(ctx *cli.Context, cfg *service.Config, clstrCfg *config.ClusterConf
 		if ctx.GlobalIsSet(PrivateRPCPortFlag.Name) {
 			port = uint16(ctx.GlobalInt(PrivateRPCPortFlag.Name))
 		}
-		cfg.HTTPPrivEndpoint = fmt.Sprintf("localhost:%d", port)
+		host := "localhost"
+		if ctx.GlobalIsSet(PrivateRPCListenAddrFlag.Name) {
+			host = ctx.GlobalString(PrivateRPCListenAddrFlag.Name)
+		}
+		cfg.HTTPPrivEndpoint = fmt.Sprintf("%s:%d", host, port)
 	}
 }
 
@@ -312,7 +316,7 @@ func setGRPC(ctx *cli.Context, cfg *service.Config, clstrCfg *config.ClusterConf
 	if ctx.GlobalIsSet(GRPCPortFlag.Name) {
 		cfg.SvrPort = uint16(ctx.GlobalInt(GRPCPortFlag.Name))
 	}
-	cfg.SvrHost = "127.0.0.1"
+	cfg.SvrHost = clstrCfg.Quarkchain.Root.Ip
 }
 
 // setIPC creates an IPC path configuration from the set command line flags,

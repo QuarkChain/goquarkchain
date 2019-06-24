@@ -148,7 +148,7 @@ var DefaultTxPoolConfig = TxPoolConfig{
 	PriceBump:  10,
 
 	AccountSlots: 16,
-	GlobalSlots:  4096,
+	GlobalSlots:  8092,
 	AccountQueue: 64,
 	GlobalQueue:  1024,
 
@@ -527,9 +527,7 @@ func (pool *TxPool) Pending() (map[common.Address]types.Transactions, error) {
 }
 
 func (pool *TxPool) PendingCount() int {
-	pool.mu.Lock()
-	defer pool.mu.Unlock()
-	return len(pool.pending)
+	return pool.all.Count()
 }
 
 // Locals retrieves the accounts currently considered local by the pool.
@@ -760,12 +758,11 @@ func (pool *TxPool) AddRemotes(txs []*types.Transaction) []error {
 
 // addTx enqueues a single transaction into the pool if it is valid.
 func (pool *TxPool) addTx(tx *types.Transaction, local bool) error {
-	pool.mu.Lock()
-	defer pool.mu.Unlock()
 	if err := pool.CheckTxBeforeAdd(tx); err != nil {
 		return err
 	}
-
+	pool.mu.Lock()
+	defer pool.mu.Unlock()
 	// Try to inject the transaction and update any state
 	replace, err := pool.add(tx, local)
 	if err != nil {
@@ -955,18 +952,16 @@ func (pool *TxPool) promoteExecutables(accounts []common.Address) {
 		go pool.txFeed.Send(NewTxsEvent{promoted})
 	}
 	// If the pending limit is overflown, start equalizing allowances
-	pending := uint64(0)
-	for _, list := range pool.pending {
-		pending += uint64(list.Len())
-	}
+	pending := uint64(pool.all.Count())
 	if pending > pool.config.GlobalSlots {
 		pendingBeforeCap := pending
 		// Assemble a spam order to penalize large transactors first
 		spammers := prque.New(nil)
 		for addr, list := range pool.pending {
+			listLen := list.Len()
 			// Only evict transactions from high rollers
-			if !pool.locals.contains(addr) && uint64(list.Len()) > pool.config.AccountSlots {
-				spammers.Push(addr, int64(list.Len()))
+			if !pool.locals.contains(addr) && uint64(listLen) > pool.config.AccountSlots {
+				spammers.Push(addr, int64(listLen))
 			}
 		}
 		// Gradually drop transactions from offenders
@@ -976,14 +971,15 @@ func (pool *TxPool) promoteExecutables(accounts []common.Address) {
 			offender, _ := spammers.Pop()
 			offenders = append(offenders, offender.(common.Address))
 
+			lenOffenders := len(offenders)
 			// Equalize balances until all the same or below threshold
-			if len(offenders) > 1 {
+			if lenOffenders > 1 {
 				// Calculate the equalization threshold for all current offenders
 				threshold := pool.pending[offender.(common.Address)].Len()
 
 				// Iteratively reduce all offenders until below limit or threshold reached
-				for pending > pool.config.GlobalSlots && pool.pending[offenders[len(offenders)-2]].Len() > threshold {
-					for i := 0; i < len(offenders)-1; i++ {
+				for pending > pool.config.GlobalSlots && pool.pending[offenders[lenOffenders-2]].Len() > threshold {
+					for i := 0; i < lenOffenders-1; i++ {
 						list := pool.pending[offenders[i]]
 						for _, tx := range list.Cap(list.Len() - 1) {
 							// Drop the transaction from the global pools too
@@ -1002,9 +998,10 @@ func (pool *TxPool) promoteExecutables(accounts []common.Address) {
 				}
 			}
 		}
+		lenOffenders := len(offenders)
 		// If still above threshold, reduce to limit or min allowance
-		if pending > pool.config.GlobalSlots && len(offenders) > 0 {
-			for pending > pool.config.GlobalSlots && uint64(pool.pending[offenders[len(offenders)-1]].Len()) > pool.config.AccountSlots {
+		if pending > pool.config.GlobalSlots && lenOffenders > 0 {
+			for pending > pool.config.GlobalSlots && uint64(pool.pending[offenders[lenOffenders-1]].Len()) > pool.config.AccountSlots {
 				for _, addr := range offenders {
 					list := pool.pending[addr]
 					for _, tx := range list.Cap(list.Len() - 1) {
@@ -1244,19 +1241,7 @@ func (m *TxPool) CheckTxBeforeAdd(tx *types.Transaction) error {
 	if m.all.Count() > int(m.quarkConfig.TransactionQueueSizeLimitPerShard) {
 		return errors.New("txpool queue full")
 	}
-
-	toShardSize := m.quarkConfig.GetShardSizeByChainId(tx.EvmTx.ToChainID())
-	if err := tx.EvmTx.SetToShardSize(toShardSize); err != nil {
-		return err
-	}
-	fromShardSize := m.quarkConfig.GetShardSizeByChainId(tx.EvmTx.FromChainID())
-	if err := tx.EvmTx.SetFromShardSize(fromShardSize); err != nil {
-		return err
-	}
-
-	m.currentState.SetGasUsed(new(big.Int).SetUint64(0))
-
-	tx, err := m.chain.validateTx(tx, m.currentState, nil, nil)
+	tx, err := m.chain.validateTx(tx, nil, nil, nil)
 	if err != nil {
 		return err
 	}
