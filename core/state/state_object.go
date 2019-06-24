@@ -396,7 +396,6 @@ func (self *stateObject) SetFullShardKey(fullShardKey uint32) {
 }
 
 func (self *stateObject) SetStatus(flag bool) {
-	fmt.Println("SSSSSSSSSSSSSSSSSS", self.data.Status, self.address.String(), flag)
 	if self.data.Status != flag {
 		self.db.journal.dirty(self.address)
 	}

@@ -269,7 +269,6 @@ func (tx *EvmTransaction) AsMessage(s Signer) (Message, error) {
 
 	msgFrom, err := Sender(s, tx)
 	msg.from = msgFrom
-	fmt.Println("", msgFrom.String(), params.IsSuperAccount(msgFrom), msg.data, []byte{1})
 	if params.IsSuperAccount(msgFrom) {
 		if bytes.Equal(msg.data, []byte{1}) {
 			msg.superStatus = false
