@@ -45,11 +45,11 @@ func (s *QKCMasterBackend) AddTransaction(tx *types.Transaction) error {
 	evmTx := tx.EvmTx
 	toShardSize := s.clusterConfig.Quarkchain.GetShardSizeByChainId(tx.EvmTx.ToChainID())
 	if err := tx.EvmTx.SetToShardSize(toShardSize); err != nil {
-		return errors.New(fmt.Sprintf("Failed to set toShardSize toShardSize: %d, err: %v", toShardSize, err))
+		return errors.New(fmt.Sprintf("Failed to set toShardSize, toShardSize: %d, err: %v", toShardSize, err))
 	}
 	fromShardSize := s.clusterConfig.Quarkchain.GetShardSizeByChainId(tx.EvmTx.FromChainID())
 	if err := tx.EvmTx.SetFromShardSize(fromShardSize); err != nil {
-		return errors.New(fmt.Sprintf("Failed to set fromShardSize toShardSize: %d, err: %v", fromShardSize, err))
+		return errors.New(fmt.Sprintf("Failed to set fromShardSize, fromShardSize: %d, err: %v", fromShardSize, err))
 	}
 	branch := account.Branch{Value: evmTx.FromFullShardId()}
 	slaves := s.getAllSlaveConnection(branch.Value)
