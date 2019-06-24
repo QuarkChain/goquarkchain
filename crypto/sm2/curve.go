@@ -79,7 +79,6 @@ func (curve *sm2Curve) Double(x1, y1 *big.Int) (*big.Int, *big.Int) {
 }
 
 func (curve *sm2Curve) ScalarMult(Bx, By *big.Int, k []byte) (*big.Int, *big.Int) {
-	//Bz := new(big.Int).SetInt64(1)
 	Bz := zForAffine(Bx, By)
 	x, y, z := new(big.Int), new(big.Int), new(big.Int)
 

@@ -22,6 +22,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"github.com/QuarkChain/goquarkchain/crypto/sm2"
+	"github.com/stretchr/testify/assert"
 	"io/ioutil"
 	"math/big"
 	"os"
@@ -117,7 +118,7 @@ func TestLoadECDSAFile(t *testing.T) {
 	fileName0 := "test_key0"
 	fileName1 := "test_key1"
 	checkKey := func(k *ecdsa.PrivateKey) {
-		checkAddr(t, PubkeyToAddress(k.PublicKey), common.HexToAddress(testAddrHex))
+		assert.Equal(t, PubkeyToAddress(k.PublicKey), common.HexToAddress(testAddrHex))
 		loadedKeyBytes := FromECDSA(k)
 		if !bytes.Equal(loadedKeyBytes, keyBytes) {
 			t.Fatalf("private key mismatch: want: %x have: %x", keyBytes, loadedKeyBytes)
@@ -147,12 +148,6 @@ func TestLoadECDSAFile(t *testing.T) {
 	checkKey(key1)
 }
 
-func checkAddr(t *testing.T, addr0, addr1 common.Address) {
-	if addr0 != addr1 {
-		t.Fatalf("address mismatch: want: %x have: %x", addr0, addr1)
-	}
-}
-
 func TestPerformance(t *testing.T) {
 	privKey, _ := GenerateKey()
 	curve := sm2.Sm2Curve()
@@ -174,7 +169,7 @@ func TestPerformance(t *testing.T) {
 	if !ValidateSignatureValues(signresult[64], new(big.Int).SetBytes(signresult[:32]), new(big.Int).SetBytes(signresult[32:64])) {
 		t.Errorf("ValidateSignatureValues failed ")
 	}
-	//	VerifySignature()
+		VerifySignature( (*sm2.PublicKey)(&privKey.PublicKey).SerializeUncompressed(), hash, signresult )
 
 	pubKey, _ := Ecrecover(hash, signresult)
 
