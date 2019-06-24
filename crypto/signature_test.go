@@ -19,7 +19,7 @@ package crypto
 import (
 	"bytes"
 	"crypto/ecdsa"
-	"github.com/QuarkChain/gos/crypto/sm2"
+	"github.com/QuarkChain/goquarkchain/crypto/sm2"
 	"reflect"
 	"testing"
 

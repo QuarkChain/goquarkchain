@@ -4,7 +4,7 @@ import (
 	"crypto/ecdsa"
 	"errors"
 	"fmt"
-	"github.com/QuarkChain/gos/crypto/sm2"
+	"github.com/QuarkChain/goquarkchain/crypto/sm2"
 	"math/big"
 )
 
