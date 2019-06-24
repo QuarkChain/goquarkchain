@@ -198,6 +198,7 @@ func (s *QKCMasterBackend) Stop() error {
 
 // Start start node -> start qkcMaster
 func (s *QKCMasterBackend) Start(srvr *p2p.Server) error {
+	fmt.Println("SSSSSSSSSSSSSSSs")
 	maxPeers := srvr.MaxPeers
 	s.protocolManager.Start(maxPeers)
 	// start heart beat pre 3 seconds.
@@ -208,7 +209,12 @@ func (s *QKCMasterBackend) Start(srvr *p2p.Server) error {
 	return nil
 }
 
-func (s *QKCMasterBackend) SetMining(mining bool) {
+func (s *QKCMasterBackend) SetMining(mining bool) error {
+	fmt.Println("111111111")
+	if err := s.CheckAccountPermission(s.clusterConfig.Quarkchain.Root.CoinbaseAddress.Recipient); err != nil {
+		return err
+	}
+	fmt.Println("222222222")
 	var g errgroup.Group
 	for _, slvConn := range s.clientPool {
 		conn := slvConn
@@ -216,12 +222,16 @@ func (s *QKCMasterBackend) SetMining(mining bool) {
 			return conn.SetMining(mining)
 		})
 	}
+	fmt.Println("33333333")
 	if err := g.Wait(); err != nil {
 		log.Error("Set slave mining failed", "err", err)
-		return
+		return err
 	}
 
+	fmt.Println("44444444")
+
 	s.miner.SetMining(mining)
+	return nil
 }
 
 // InitCluster init cluster :
@@ -231,6 +241,8 @@ func (s *QKCMasterBackend) SetMining(mining bool) {
 // 4.setup slave to slave
 // 5:init shards
 func (s *QKCMasterBackend) InitCluster() error {
+	fmt.Println("IIIII")
+	defer fmt.Println("IIIII-end")
 	if err := s.ConnectToSlaves(); err != nil {
 		return err
 	}
@@ -336,6 +348,7 @@ func (s *QKCMasterBackend) broadcastRootBlockToSlaves(block *types.RootBlock) er
 }
 
 func (s *QKCMasterBackend) Heartbeat() {
+	fmt.Println("HHHHHHHHHHHHHHHH")
 	go func(normal bool) {
 		for normal {
 			timeGap := time.Now()

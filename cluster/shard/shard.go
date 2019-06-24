@@ -155,13 +155,14 @@ func (s *ShardBackend) initGenesisState(rootBlock *types.RootBlock) error {
 	if err != nil {
 		return err
 	}
-
+	//fmt.Println("1111111")
 	if err = s.conn.BroadcastXshardTxList(minorBlock, xshardList, rootBlock.Header().Number); err != nil {
 		return err
 	}
 	if status, err = s.MinorBlockChain.GetShardStatus(); err != nil {
 		return err
 	}
+	//fmt.Println("22222222")
 	return s.conn.SendMinorBlockHeaderToMaster(minorBlock.Header(), uint32(len(minorBlock.GetTransactions())), uint32(len(xshardList)), status)
 }
 

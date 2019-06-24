@@ -47,23 +47,29 @@ func (s *SlaveBackend) AddRootBlock(block *types.RootBlock) (switched bool, err 
 // not been created yet.
 func (s *SlaveBackend) CreateShards(rootBlock *types.RootBlock) (err error) {
 	fullShardList := s.getFullShardList()
+	//fmt.Println("CCCCCCCCCCCCCCCCCCCCCCc", fullShardList)
 	for _, id := range fullShardList {
 		if _, ok := s.shards[id]; ok {
 			continue
 		}
 		shardCfg := s.clstrCfg.Quarkchain.GetShardConfigByFullShardID(id)
 		if rootBlock.Header().Number >= shardCfg.Genesis.RootHeight {
+			//	fmt.Println("NNNNNN-1")
 			shard, err := shard.New(s.ctx, rootBlock, s.connManager, s.clstrCfg, id)
 			if err != nil {
 				log.Error("Failed to create shard", "slave id", s.config.ID, "shard id", shardCfg.ShardID, "err", err)
 				return err
 			}
+			//	fmt.Println("NNNN-end")
 			if err = shard.InitFromRootBlock(rootBlock); err != nil {
+				//fmt.Println("EEEEEEEEEEEEEEEEEEEEEEE", err)
 				return err
 			}
+			//fmt.Println("SSSSSSSSSSSSSSSet", id)
 			s.shards[id] = shard
 		}
 	}
+	//fmt.Println("eeeeeeeeeeee")
 	return nil
 }
 

@@ -1,6 +1,7 @@
 package slave
 
 import (
+	"fmt"
 	"reflect"
 
 	"github.com/QuarkChain/goquarkchain/account"
@@ -38,12 +39,14 @@ func New(ctx *service.ServiceContext, clusterCfg *config.ClusterConfig, cfg *con
 	}
 
 	fullShardIds := slave.clstrCfg.Quarkchain.GetGenesisShardIds()
+	fmt.Println("42---new", fullShardIds)
 	for _, id := range fullShardIds {
 		if !slave.coverShardId(id) {
 			continue
 		}
 		slave.fullShardList = append(slave.fullShardList, id)
 	}
+	fmt.Println("49-new", slave.fullShardList)
 
 	slave.connManager = NewToSlaveConnManager(slave.clstrCfg, slave)
 	return slave, nil

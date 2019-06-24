@@ -32,6 +32,8 @@ func (s *SlaveServerSideOp) HeartBeat(ctx context.Context, req *rpc.Request) (*r
 }
 
 func (s *SlaveServerSideOp) MasterInfo(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
+	fmt.Println("MMMM")
+	defer fmt.Println("MMMM-end")
 	var (
 		gReq     rpc.MasterInfo
 		response = &rpc.Response{RpcId: req.RpcId}
@@ -47,6 +49,7 @@ func (s *SlaveServerSideOp) MasterInfo(ctx context.Context, req *rpc.Request) (*
 		return nil, errors.New("handle masterInfo err:rootTip is nil")
 	}
 	//createShards
+	fmt.Println("MAster Infoi")
 	if err = s.slave.CreateShards(gReq.RootTip); err != nil {
 		return nil, err
 	}
@@ -97,6 +100,7 @@ func (s *SlaveServerSideOp) GenTx(ctx context.Context, req *rpc.Request) (*rpc.R
 }
 
 func (s *SlaveServerSideOp) AddRootBlock(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
+	//fmt.Println("AAAAAAAAAAAAAAAAAAAAAAAAAAA")
 	var (
 		gReq     rpc.AddRootBlockRequest
 		gRes     rpc.AddRootBlockResponse
