@@ -168,9 +168,9 @@ func (p *PublicBlockChainAPI) GetAccountData(address account.Address, blockNr *r
 	for branch, accountBranchData := range branchToAccountBranchData {
 		branch := account.Branch{Value: branch}
 		shardData := map[string]interface{}{
-			"fullShardId":      branch.GetFullShardID(),
-			"shardId":          branch.GetShardID(),
-			"chainId":          branch.GetChainID(),
+			"fullShardId":      hexutil.Uint(branch.GetFullShardID()),
+			"shardId":          hexutil.Uint(branch.GetShardID()),
+			"chainId":          hexutil.Uint(branch.GetChainID()),
 			"balances":         hexutil.Big(*accountBranchData.Balance),
 			"transactionCount": hexutil.Uint(accountBranchData.TransactionCount),
 			"isContract":       accountBranchData.IsContract,
@@ -251,7 +251,7 @@ func (p *PublicBlockChainAPI) GetMinorBlockById(blockID hexutil.Bytes, includeTx
 	if minorBlock == nil {
 		return nil, errors.New("minor block is nil")
 	}
-	return minorBlockEncoder(minorBlock, *includeTxs)
+	return minorBlockEncoder(minorBlock, *includeTxs, p.clusterConfig)
 
 }
 func (p *PublicBlockChainAPI) GetMinorBlockByHeight(fullShardKeyInput hexutil.Uint, heightInput *hexutil.Uint64, includeTxs *bool) (map[string]interface{}, error) {
@@ -272,7 +272,7 @@ func (p *PublicBlockChainAPI) GetMinorBlockByHeight(fullShardKeyInput hexutil.Ui
 	if minorBlock == nil {
 		return nil, errors.New("minor block is nil")
 	}
-	return minorBlockEncoder(minorBlock, *includeTxs)
+	return minorBlockEncoder(minorBlock, *includeTxs, p.clusterConfig)
 }
 func (p *PublicBlockChainAPI) GetTransactionById(txID hexutil.Bytes) (map[string]interface{}, error) {
 	txHash, fullShardKey, err := IDDecoder(txID)
@@ -287,7 +287,7 @@ func (p *PublicBlockChainAPI) GetTransactionById(txID hexutil.Bytes) (map[string
 	if len(minorBlock.Transactions()) <= int(index) {
 		return nil, errors.New("index bigger than block's tx")
 	}
-	return txEncoder(minorBlock, int(index))
+	return txEncoder(minorBlock, int(index), p.clusterConfig)
 }
 func (p *PublicBlockChainAPI) Call(data CallArgs, blockNr *rpc.BlockNumber) (hexutil.Bytes, error) {
 	if blockNr == nil {

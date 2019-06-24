@@ -3,6 +3,7 @@ package qkcapi
 import (
 	"errors"
 	"github.com/QuarkChain/goquarkchain/account"
+	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/serialize"
@@ -81,7 +82,7 @@ func rootBlockEncoder(rootBlock *types.RootBlock) (map[string]interface{}, error
 	return fields, nil
 }
 
-func minorBlockEncoder(block *types.MinorBlock, includeTransaction bool) (map[string]interface{}, error) {
+func minorBlockEncoder(block *types.MinorBlock, includeTransaction bool, cfg *config.ClusterConfig) (map[string]interface{}, error) {
 	serData, err := serialize.SerializeToBytes(block)
 	if err != nil {
 		return nil, err
@@ -119,7 +120,7 @@ func minorBlockEncoder(block *types.MinorBlock, includeTransaction bool) (map[st
 	if includeTransaction {
 		txForDisplay := make([]map[string]interface{}, 0)
 		for txIndex, _ := range block.Transactions() {
-			temp, err := txEncoder(block, txIndex)
+			temp, err := txEncoder(block, txIndex, cfg)
 			if err != nil {
 				return nil, err
 			}
@@ -136,7 +137,7 @@ func minorBlockEncoder(block *types.MinorBlock, includeTransaction bool) (map[st
 	return field, nil
 }
 
-func txEncoder(block *types.MinorBlock, i int) (map[string]interface{}, error) {
+func txEncoder(block *types.MinorBlock, i int, cfg *config.ClusterConfig) (map[string]interface{}, error) {
 	header := block.Header()
 	tx := block.Transactions()[i]
 	evmtx := tx.EvmTx
@@ -148,6 +149,10 @@ func txEncoder(block *types.MinorBlock, i int) (map[string]interface{}, error) {
 	var toBytes []byte
 	if evmtx.To() != nil {
 		toBytes = evmtx.To().Bytes()
+	}
+	fromShardSize := cfg.Quarkchain.GetShardSizeByChainId(evmtx.FromChainID())
+	if err := evmtx.SetFromShardSize(fromShardSize); err != nil {
+		return nil, err
 	}
 	branch := block.Header().Branch
 	field := map[string]interface{}{
