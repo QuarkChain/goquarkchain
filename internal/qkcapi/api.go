@@ -1,7 +1,9 @@
 package qkcapi
 
 import (
+	"encoding/json"
 	"errors"
+	"fmt"
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	qkcRPC "github.com/QuarkChain/goquarkchain/cluster/rpc"
@@ -206,6 +208,10 @@ func (p *PublicBlockChainAPI) SendRawTransaction(encodedTx hexutil.Bytes) (hexut
 	tx := &types.Transaction{
 		EvmTx:  evmTx,
 		TxType: types.EvmTx,
+	}
+	jsonConfig, err := json.MarshalIndent(tx, "", "\t")
+	if err == nil {
+		fmt.Println("------------", string(jsonConfig))
 	}
 	if err := p.b.AddTransaction(tx); err != nil {
 		return IDEncoder(common.Hash{}.Bytes(), 0), err //TODO need return err?
