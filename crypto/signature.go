@@ -4,10 +4,8 @@ import (
 	"crypto/ecdsa"
 	"errors"
 	"fmt"
-	"github.com/QuarkChain/goquarkchain/crypto/sm2"
+	"github.com/QuarkChain/gos/crypto/sm2"
 	"math/big"
-
-	"github.com/btcsuite/btcd/btcec"
 )
 
 var (
@@ -48,7 +46,7 @@ func Sign(hash []byte, prv *ecdsa.PrivateKey) ([]byte, error) {
 		return nil, fmt.Errorf("hash is required to be exactly 32 bytes (%d)", len(hash))
 	}
 	if prv.Curve != sm2.Sm2Curve() {
-		return nil, fmt.Errorf("private key curve is not secp256k1")
+		return nil, fmt.Errorf("private key curve is not Sm2Curve")
 	}
 	sig, err := sm2.SignCompact(sm2.Sm2Curve(), (*sm2.PrivateKey)(prv), hash, false)
 	if err != nil {
@@ -74,7 +72,7 @@ func VerifySignature(pubkey, hash, signature []byte) bool {
 	if err != nil {
 		return false
 	}
-	// Reject malleable signatures. libsecp256k1 does this check but btcec doesn't.
+	// Reject malleable signatures.
 	if s.Cmp(halfN) > 0 {
 		return false
 	}
@@ -95,5 +93,5 @@ func DecompressPubkey(pubkey []byte) (*ecdsa.PublicKey, error) {
 
 // CompressPubkey encodes a public key to the 33-byte compressed format.
 func CompressPubkey(pubkey *ecdsa.PublicKey) []byte {
-	return (*btcec.PublicKey)(pubkey).SerializeCompressed()
+	return (*sm2.PublicKey)(pubkey).SerializeCompressed()
 }
