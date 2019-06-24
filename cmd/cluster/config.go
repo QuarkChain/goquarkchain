@@ -60,6 +60,8 @@ func defaultNodeConfig() service.Config {
 	cfg.Version = params.VersionWithCommit(gitCommit)
 	cfg.IPCPath = "qkc.ipc"
 	cfg.SvrModule = "rpc."
+	cfg.SvrPort = config.GrpcPort
+	cfg.SvrHost = "127.0.0.1"
 	return cfg
 }
 
@@ -91,8 +93,15 @@ func makeConfigNode(ctx *cli.Context) (*service.Node, qkcConfig) {
 			utils.Fatalf("service type is error: %v", err)
 		}
 		cfg.Service.Name = ServiceName
-		cfg.Service.SvrHost = slv.IP
-		cfg.Service.SvrPort = slv.Port
+		if slv.IP != config.GrpcHost {
+			cfg.Service.SvrHost = slv.IP
+		}
+		if slv.Port != config.GrpcPort {
+			cfg.Service.SvrPort = slv.Port
+		}
+	} else {
+		cfg.Cluster.Quarkchain.Root.GRCPHost = cfg.Service.SvrHost
+		cfg.Cluster.Quarkchain.Root.GRPCPort = cfg.Service.SvrPort
 	}
 
 	stack, err := service.New(&cfg.Service)

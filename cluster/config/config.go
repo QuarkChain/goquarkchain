@@ -26,6 +26,9 @@ const (
 	// PoWQkchash is the consensus type running qkchash algorithm.
 	PoWQkchash = "POW_QKCHASH"
 
+	GrpcPort uint16 = 38591
+	GrpcHost        = "127.0.0.1"
+
 	HeartbeatInterval = time.Duration(4 * time.Second)
 )
 
@@ -114,8 +117,8 @@ type RootConfig struct {
 	CoinbaseAmount                 *big.Int        `json:"COINBASE_AMOUNT"`
 	DifficultyAdjustmentCutoffTime uint32          `json:"DIFFICULTY_ADJUSTMENT_CUTOFF_TIME"`
 	DifficultyAdjustmentFactor     uint32          `json:"DIFFICULTY_ADJUSTMENT_FACTOR"`
-	Ip                             string          `json:"-"`
-	Port                           uint16          `json:"-"`
+	GRCPHost                       string          `json:"-"`
+	GRPCPort                       uint16          `json:"-"`
 }
 
 func NewRootConfig() *RootConfig {
@@ -128,8 +131,8 @@ func NewRootConfig() *RootConfig {
 		CoinbaseAmount:                 new(big.Int).Mul(big.NewInt(120), QuarkashToJiaozi),
 		DifficultyAdjustmentCutoffTime: 40,
 		DifficultyAdjustmentFactor:     1024,
-		Ip:                             "127.0.0.1",
-		Port:                           38591,
+		GRCPHost:                       "127.0.0.1",
+		GRPCPort:                       GrpcPort,
 	}
 }
 
