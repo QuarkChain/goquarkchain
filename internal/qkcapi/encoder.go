@@ -212,7 +212,7 @@ func receiptEncoder(block *types.MinorBlock, i int, receipt *types.Receipt) (map
 		return nil, errors.New("block is nil")
 	}
 	if len(block.Transactions()) <= i {
-		return nil, errors.New("tx not exist")
+		return nil, nil
 	}
 	if receipt == nil {
 		return nil, errors.New("receipt is nil")
@@ -222,7 +222,7 @@ func receiptEncoder(block *types.MinorBlock, i int, receipt *types.Receipt) (map
 	header := block.Header()
 
 	field := map[string]interface{}{
-		"transactionId":     IDEncoder(tx.Hash().Bytes(), evmtx.FromFullShardId()), //TODO fullShardKey
+		"transactionId":     IDEncoder(tx.Hash().Bytes(), evmtx.FromFullShardKey()), //TODO fullShardKey
 		"transactionHash":   tx.Hash(),
 		"transactionIndex":  hexutil.Uint64(i),
 		"blockId":           IDEncoder(header.Hash().Bytes(), header.Branch.GetFullShardID()),

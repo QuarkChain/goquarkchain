@@ -296,6 +296,7 @@ func (s *QKCMasterBackend) getSlaveInfoListFromClusterConfig() []*rpc.SlaveInfo 
 	}
 	return slaveInfos
 }
+
 func (s *QKCMasterBackend) initShards() error {
 	var g errgroup.Group
 	ip, port := s.clusterConfig.Quarkchain.Root.GRCPHost, s.clusterConfig.Quarkchain.Root.GRPCPort
