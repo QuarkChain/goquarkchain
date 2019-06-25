@@ -62,7 +62,12 @@ func (s *QKCMasterBackend) AddTransaction(tx *types.Transaction) error {
 			return slaves[i].AddTransaction(tx)
 		})
 	}
-	return g.Wait() //TODO?? peer broadcast
+	err := g.Wait() //TODO?? peer broadcast
+	if err != nil {
+		return err
+	}
+	go s.protocolManager.BroadcastTransactions(branch.Value, []*types.Transaction{tx}, "")
+	return nil
 }
 
 func (s *QKCMasterBackend) ExecuteTransaction(tx *types.Transaction, address *account.Address, height *uint64) ([]byte, error) {

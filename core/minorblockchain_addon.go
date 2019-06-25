@@ -875,7 +875,7 @@ func (m *MinorBlockChain) AddRootBlock(rBlock *types.RootBlock) (bool, error) {
 		if prevRootHeader == nil || prevRootHeader.Number() == uint32(m.clusterConfig.Quarkchain.GetGenesisRootHeight(m.branch.Value)) || !m.isNeighbor(mHeader.Branch, &prevRootHeader.Header().Number) {
 			if data := m.ReadCrossShardTxList(h); data != nil {
 				errXshardListAlreadyHave := errors.New("already have")
-				log.Error(m.logInfo, "addrootBlock err", errXshardListAlreadyHave)
+				log.Error(m.logInfo, "addrootBlock err-1", errXshardListAlreadyHave)
 				return false, errXshardListAlreadyHave
 			}
 			continue
@@ -883,7 +883,7 @@ func (m *MinorBlockChain) AddRootBlock(rBlock *types.RootBlock) (bool, error) {
 
 		if data := m.ReadCrossShardTxList(h); data == nil {
 			errXshardListNotHave := errors.New("not have")
-			log.Error(m.logInfo, "addrootBlock err", errXshardListNotHave)
+			log.Error(m.logInfo, "addrootBlock err-2", errXshardListNotHave)
 			return false, errXshardListNotHave
 		}
 

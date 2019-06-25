@@ -43,8 +43,8 @@ const (
 
 	rootBlockHeaderListLimit  = 500
 	rootBlockBatchSize        = 100
-	minorBlockHeaderListLimit = 100
-	minorBlockBatchSize       = 50
+	minorBlockHeaderListLimit = 500 //TODO 100 50
+	minorBlockBatchSize       = 100
 
 	directionToGenesis = uint8(0)
 	directionToTip     = uint8(1)

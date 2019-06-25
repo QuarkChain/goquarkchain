@@ -195,6 +195,10 @@ func (s *ShardBackend) HandleNewTip(rBHeader *types.RootBlockHeader, mBHeader *t
 		log.Warn(s.logInfo, "preRootBlockHash do not have height ,no need to add task", mBHeader.Number, "preRootHash", mBHeader.PrevRootBlockHash.String())
 		return nil
 	}
+	if s.MinorBlockChain.CurrentBlock().Number() >= mBHeader.Number {
+		log.Info(s.logInfo, "no need t sync curr height", s.MinorBlockChain.CurrentBlock().Number(), "tipHeight", mBHeader.Number)
+		return nil
+	}
 	peer := &peer{cm: s.conn, peerID: peerID}
 	err := s.synchronizer.AddTask(synchronizer.NewMinorChainTask(peer, mBHeader))
 	if err != nil {
@@ -258,13 +262,18 @@ func (s *ShardBackend) addTxList(txs []*types.Transaction) error {
 	ts := time.Now()
 	for index := range txs {
 		if err := s.MinorBlockChain.AddTx(txs[index]); err != nil {
-			return err
+			return err //TODO ? need return err?
 		}
 		if index%1000 == 0 {
 			log.Info("time-tx-insert-loop", "time", time.Now().Sub(ts).Seconds(), "index", index)
 			ts = time.Now()
 		}
 	}
+	go func() {
+		if err := s.conn.BroadcastTransactions(txs, s.fullShardId); err != nil {
+			log.Error(s.logInfo, "broadcastTransaction err", err)
+		}
+	}()
 	log.Info("time-tx-insert-end", "time", time.Now().Sub(ts).Seconds(), "len(tx)", len(txs))
 	return nil
 }
@@ -285,5 +294,5 @@ func (s *ShardBackend) CreateBlockToMine() (types.IBlock, error) {
 }
 
 func (s *ShardBackend) InsertMinedBlock(block types.IBlock) error {
-	return s.AddMinorBlock(block.(*types.MinorBlock))
+	return s.NewMinorBlock(block.(*types.MinorBlock))
 }
