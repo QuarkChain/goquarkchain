@@ -162,7 +162,7 @@ func TestGasPrice(t *testing.T) {
 }
 
 func TestEstimateGas(t *testing.T) {
-	monkey.Patch(IsAccountEnable, func(state vm.StateDB, from account.Recipient, to *account.Recipient) error {
+	monkey.Patch(IsAccountEnable, func(state vm.StateDB, from account.Recipient, to *account.Recipient, data []byte) error {
 		return nil
 	})
 	id1, err := account.CreatRandomIdentity()
@@ -770,7 +770,7 @@ func TestXShardTxSent(t *testing.T) {
 	_, err = shardState.AddRootBlock(rootBlock)
 	checkErr(err)
 
-	fakeGas := uint64(21000 + 9000)
+	fakeGas := uint64(31000 + 9000)
 	tx := createTransferTransaction(shardState, id1.GetKey().Bytes(), acc1, acc2, new(big.Int).SetUint64(888888), &fakeGas, nil, nil, nil)
 	err = shardState.AddTx(tx)
 	checkErr(err)

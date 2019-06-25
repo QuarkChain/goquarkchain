@@ -75,7 +75,6 @@ func TestSendTxFailed(t *testing.T) {
 }
 
 func TestSendSuperAccountSucc(t *testing.T) {
-
 	superID, err := account.CreatRandomIdentity()
 	id1, err := account.CreatRandomIdentity()
 	id2, err := account.CreatRandomIdentity()
@@ -107,17 +106,16 @@ func TestSendSuperAccountSucc(t *testing.T) {
 	err = shardState.AddTx(tx)
 	assert.Equal(t, err, ErrAuthFromAccount)
 
-	tx = createTransferTransaction(shardState, superID.GetKey().Bytes(), superAcc, acc2, new(big.Int).SetUint64(1000000), &fakeGas, nil, nil, nil)
+	tx = createTransferTransaction(shardState, superID.GetKey().Bytes(), superAcc, acc2, new(big.Int).SetUint64(1000000), &fakeGas, nil, nil, params.AccountEnabled)
 	currState.SetGasUsed(currState.GetGasLimit())
 	err = shardState.AddTx(tx)
 	checkErr(err)
 
 	tNonce := uint64(1)
-	tx = createTransferTransaction(shardState, superID.GetKey().Bytes(), superAcc, acc1, new(big.Int).SetUint64(100000), &fakeGas, nil, &tNonce, nil)
+	tx = createTransferTransaction(shardState, superID.GetKey().Bytes(), superAcc, acc1, new(big.Int).SetUint64(100000), &fakeGas, nil, &tNonce, params.AccountEnabled)
 	currState.SetGasUsed(currState.GetGasLimit())
 	err = shardState.AddTx(tx)
 	checkErr(err)
-
 	b2, err := shardState.CreateBlockToMine(nil, &superAcc, nil)
 	checkErr(err)
 	assert.Equal(t, len(b2.Transactions()), 2)
@@ -155,7 +153,7 @@ func TestSendSuperAccountSucc(t *testing.T) {
 	assert.Equal(t, currState.GetAccountStatus(acc2.Recipient), true)
 	assert.Equal(t, currState.GetAccountStatus(superAcc.Recipient), true)
 
-	tx = createTransferTransaction(shardState, superID.GetKey().Bytes(), superAcc, acc1, new(big.Int).SetUint64(100000), &fakeGas, nil, nil, []byte{0})
+	tx = createTransferTransaction(shardState, superID.GetKey().Bytes(), superAcc, acc1, new(big.Int).SetUint64(100000), &fakeGas, nil, nil, params.AccountDisabled)
 	currState.SetGasUsed(currState.GetGasLimit())
 	err = shardState.AddTx(tx)
 	checkErr(err)
@@ -195,7 +193,7 @@ func TestAsMiner(t *testing.T) {
 	checkErr(err)
 
 	fakeGas := uint64(50000)
-	tx := createTransferTransaction(shardState, superID.GetKey().Bytes(), superAcc, acc2, new(big.Int).SetUint64(12345), &fakeGas, nil, nil, nil)
+	tx := createTransferTransaction(shardState, superID.GetKey().Bytes(), superAcc, acc2, new(big.Int).SetUint64(12345), &fakeGas, nil, nil, params.AccountEnabled)
 	currState, err := shardState.State()
 	checkErr(err)
 	currState.SetGasUsed(currState.GetGasLimit())
@@ -292,7 +290,8 @@ func TestContractCall(t *testing.T) {
 		Recipient:    re.ContractAddress,
 		FullShardKey: addr1.FullShardKey,
 	}
-	tx := createTransferTransaction(blockchain, id1.GetKey().Bytes(), addr1, contractAddr, new(big.Int), nil, nil, nil, nil)
+	fakeGas := uint64(31000)
+	tx := createTransferTransaction(blockchain, id1.GetKey().Bytes(), addr1, contractAddr, new(big.Int), &fakeGas, nil, nil, nil)
 	err = blockchain.AddTx(tx)
 	checkErr(err) //can send tx
 
@@ -306,8 +305,8 @@ func TestContractCall(t *testing.T) {
 	checkErr(err)
 	assert.Equal(t, len(res), 1)
 
-	fakeGas := uint64(30000)
-	tx = createTransferTransaction(blockchain, superID.GetKey().Bytes(), superAcc, contractAddr, new(big.Int), &fakeGas, nil, nil, []byte{0})
+	fakeGas = uint64(30000)
+	tx = createTransferTransaction(blockchain, superID.GetKey().Bytes(), superAcc, contractAddr, new(big.Int), &fakeGas, nil, nil, params.AccountDisabled)
 	err = blockchain.AddTx(tx)
 	checkErr(err) //can send tx
 
