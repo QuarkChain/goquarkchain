@@ -5,8 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/QuarkChain/goquarkchain/account"
-	"time"
-
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/core/types"
@@ -14,6 +12,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/serialize"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
+	"time"
 )
 
 type SlaveServerSideOp struct {
@@ -612,14 +611,17 @@ func (s *SlaveServerSideOp) HandleNewMinorBlock(ctx context.Context, req *rpc.Re
 
 func (s *SlaveServerSideOp) HandleCheckAccountPermission(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
 	var (
-		gReq     account.Recipient
+		gReq     account.Address
 		response = &rpc.Response{RpcId: req.RpcId}
 		err      error
+		flag bool
 	)
 	if err = serialize.DeserializeFromBytes(req.Data, &gReq); err != nil {
 		return nil, err
 	}
-	flag := s.slave.CheckAccountPermission(gReq)
+	if flag ,err= s.slave.CheckAccountPermission(gReq);err!=nil{
+		return nil,err
+	}
 	if response.Data, err = serialize.SerializeToBytes(flag); err != nil {
 		return nil, err
 	}

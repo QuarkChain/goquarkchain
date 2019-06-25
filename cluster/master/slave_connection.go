@@ -644,7 +644,7 @@ func (s *SlaveConnection) SetMining(mining bool) error {
 	return err
 }
 
-func (s *SlaveConnection) CheckAccountPermission(addr account.Recipient) error {
+func (s *SlaveConnection) CheckAccountPermission(addr account.Address) error {
 	var (
 		status bool
 	)

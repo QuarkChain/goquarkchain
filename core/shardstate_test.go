@@ -162,7 +162,7 @@ func TestGasPrice(t *testing.T) {
 }
 
 func TestEstimateGas(t *testing.T) {
-	monkey.Patch(CheckSuperAccount, func(state vm.StateDB, from account.Recipient, to *account.Recipient) error {
+	monkey.Patch(IsAccountEnable, func(state vm.StateDB, from account.Recipient, to *account.Recipient) error {
 		return nil
 	})
 	id1, err := account.CreatRandomIdentity()

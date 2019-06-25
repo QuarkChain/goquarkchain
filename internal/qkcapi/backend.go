@@ -41,7 +41,7 @@ type Backend interface {
 	IsSyncing() bool
 	IsMining() bool
 	GetSlavePoolLen() int
-	CheckAccountPermission(account account.Recipient) error
+	CheckAccountPermission(account account.Address) error
 }
 
 func GetAPIs(apiBackend Backend) []rpc.API {

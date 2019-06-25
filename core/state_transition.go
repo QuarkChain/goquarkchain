@@ -17,6 +17,7 @@
 package core
 
 import (
+	"bytes"
 	"errors"
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/core/types"
@@ -81,7 +82,6 @@ type Message interface {
 	FromFullShardKey() uint32
 	ToFullShardKey() uint32
 	TxHash() common.Hash
-	SuperStatus() bool
 }
 
 // IntrinsicGas computes the 'intrinsic gas' for a message with the given data.
@@ -257,7 +257,11 @@ func (st *StateTransition) TransitionDb(feeRate *big.Rat) (ret []byte, usedGas u
 
 	st.state.AddGasUsed(new(big.Int).SetUint64(st.gasUsed()))
 	if qkcParam.IsSuperAccount(st.msg.From()) {
-		st.state.SetAccountStatus(*msg.To(), msg.SuperStatus())
+		status := false
+		if bytes.Equal(st.msg.Data(), qkcParam.AccountEnabled) {
+			status = true
+		}
+		st.state.SetAccountStatus(st.msg.From(), status)
 	}
 	return ret, st.gasUsed(), vmerr != nil, err
 }

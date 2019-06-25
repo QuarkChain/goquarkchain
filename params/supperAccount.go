@@ -6,6 +6,8 @@ import (
 )
 
 var (
+	AccountEnabled      = []byte{0}
+	AccountDisabled     = []byte{1}
 	superAccountStrList = []string{"0x438befb16aed2d01bc0ba111eee12c65dcdb5275"}
 	superAccount        = make(map[account.Recipient]struct{}, 0)
 )

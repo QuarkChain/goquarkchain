@@ -17,6 +17,7 @@
 package core
 
 import (
+	"bytes"
 	"errors"
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/consensus"
@@ -109,7 +110,7 @@ func (p *StateProcessor) Process(block *types.MinorBlock, statedb *state.StateDB
 	return receipts, allLogs, *usedGas, nil
 }
 
-func CheckSuperAccount(state vm.StateDB, from account.Recipient, to *account.Recipient) error {
+func IsAccountEnable(state vm.StateDB, from account.Recipient, to *account.Recipient, data []byte) error {
 	if !qkcParams.IsSuperAccount(from) {
 		if state.GetAccountStatus(from) == false {
 			return ErrAuthFromAccount
@@ -120,8 +121,17 @@ func CheckSuperAccount(state vm.StateDB, from account.Recipient, to *account.Rec
 		}
 		return nil
 	}
+
 	if to == nil { //TODO need?
 		return errors.New("super account need set to")
+	}
+
+	if len(data) != 1 {
+		return errors.New("data's len should 1")
+	}
+
+	if !bytes.Equal(data, qkcParams.AccountDisabled) || !bytes.Equal(data, qkcParams.AccountEnabled) {
+		return errors.New("data should 0 or 1")
 	}
 	return nil
 }
@@ -139,7 +149,7 @@ func ValidateTransaction(state vm.StateDB, tx *types.Transaction, fromAddress *a
 		from = &fromAddress.Recipient
 	}
 
-	if err := CheckSuperAccount(state, *from, tx.EvmTx.To()); err != nil {
+	if err := IsAccountEnable(state, *from, tx.EvmTx.To(), tx.EvmTx.Data()); err != nil {
 		return err
 	}
 	reqNonce := state.GetNonce(*from)

@@ -3,13 +3,11 @@
 package types
 
 import (
-	"bytes"
 	"container/heap"
 	"errors"
 	"fmt"
 	"github.com/QuarkChain/goquarkchain/account"
 	qkcCommon "github.com/QuarkChain/goquarkchain/common"
-	"github.com/QuarkChain/goquarkchain/params"
 	"github.com/QuarkChain/goquarkchain/serialize"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto/sha3"
@@ -264,19 +262,10 @@ func (tx *EvmTransaction) AsMessage(s Signer) (Message, error) {
 		toFullShardKey:   tx.data.ToFullShardKey,
 		txHash:           tx.Hash(),
 		isCrossShard:     tx.IsCrossShard(),
-		superStatus:      true,
 	}
 
 	msgFrom, err := Sender(s, tx)
 	msg.from = msgFrom
-	if params.IsSuperAccount(msgFrom) {
-		if bytes.Equal(msg.data, []byte{1}) {
-			msg.superStatus = false
-		} else {
-			msg.superStatus = true
-		}
-		msg.data = []byte{}
-	}
 	return msg, err
 }
 
@@ -572,7 +561,6 @@ type Message struct {
 	toFullShardKey   uint32
 	txHash           common.Hash
 	isCrossShard     bool
-	superStatus      bool
 }
 
 func NewMessage(from common.Address, to *common.Address, nonce uint64, amount *big.Int, gasLimit uint64, gasPrice *big.Int, data []byte, checkNonce bool, fromShardId, toShardId uint32) Message {

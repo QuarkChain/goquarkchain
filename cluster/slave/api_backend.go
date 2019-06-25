@@ -382,11 +382,11 @@ func (s *SlaveBackend) SetMining(mining bool) {
 	}
 }
 
-func (s *SlaveBackend) CheckAccountPermission(addr account.Recipient) bool {
-	for _, shard := range s.shards {
-		if flag := shard.MinorBlockChain.CheckAccountPermission(addr); !flag {
-			return flag
-		}
+func (s *SlaveBackend) CheckAccountPermission(addr account.Address) (bool,error) {
+	fullShardID:=s.clstrCfg.Quarkchain.GetFullShardIdByFullShardKey(addr.FullShardKey)
+	shard,ok:=s.shards[fullShardID]
+	if !ok{
+		return false,fmt.Errorf("no such fullShardID:%v",fullShardID)
 	}
-	return true
+	return shard.MinorBlockChain.CheckAccountPermission(addr.Recipient),nil
 }

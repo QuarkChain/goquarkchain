@@ -410,7 +410,7 @@ func (p *PublicBlockChainAPI) NetVersion() hexutil.Uint {
 	return hexutil.Uint(p.b.GetClusterConfig().Quarkchain.NetworkID)
 }
 
-func (p *PublicBlockChainAPI) GetAccountPermission(addr account.Recipient) bool {
+func (p *PublicBlockChainAPI) GetAccountPermission(addr account.Address) bool {
 	status := p.b.CheckAccountPermission(addr)
 	if status != nil {
 		return false
