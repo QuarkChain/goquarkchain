@@ -121,6 +121,7 @@ func GenConfigDependInitConfig() {
 	updateChains(cfg, initParams, defaultChainConfig)
 	WriteConfigToFile(cfg, initParams.CfgFile)
 }
+
 func GenDefaultConfig() {
 	cfg := config.NewClusterConfig()
 	cfg.Quarkchain.Update(1, 1, 10, 30)
