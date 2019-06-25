@@ -216,7 +216,7 @@ func (q *QuarkChainConfig) initAndValidate() {
 		shardSize := shardCfg.ShardSize
 		shardID := shardCfg.ShardID
 		realID := (chainID << 16) | shardSize | shardID
-		//fmt.Println("fullShardID=", fullShardId, "realID=", realID, "chainID=", chainID, "shardSize=", shardSize, "shardID=", shardID)
+
 		if fullShardId != realID {
 			panic(fmt.Sprintf("full_shard_id is not right, target=%d, actual=%d", realID, fullShardId))
 		} else {
@@ -311,4 +311,9 @@ func NewQuarkChainConfig() *QuarkChainConfig {
 	}
 	ret.initAndValidate()
 	return &ret
+}
+
+func (q *QuarkChainConfig) SetShardsAndValidate(shards map[uint32]*ShardConfig) { // only used in gen config
+	q.shards = shards
+	q.initAndValidate()
 }

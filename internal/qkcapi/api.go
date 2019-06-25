@@ -321,7 +321,25 @@ func (p *PublicBlockChainAPI) GetTransactionReceipt(txID hexutil.Bytes) (map[str
 	}
 	return receiptEncoder(minorBlock, int(index), receipt)
 }
-func (p *PublicBlockChainAPI) GetLogs() { panic("@scf") }
+func (p *PublicBlockChainAPI) GetLogs(args *FilterQuery, fullShardKey hexutil.Uint) ([]map[string]interface{}, error) {
+	fullShardID := p.b.GetClusterConfig().Quarkchain.GetFullShardIdByFullShardKey(uint32(fullShardKey))
+	lastBlockHeight, err := p.b.GetLastMinorBlockByFullShardID(fullShardID)
+	if err != nil {
+		return nil, err
+	}
+	if args.FromBlock == nil || args.FromBlock.Int64() == rpc.LatestBlockNumber.Int64() {
+		args.FromBlock = new(big.Int).SetUint64(lastBlockHeight)
+	}
+	if args.ToBlock == nil || args.ToBlock.Int64() == rpc.LatestBlockNumber.Int64() {
+		args.ToBlock = new(big.Int).SetUint64(lastBlockHeight)
+	}
+	if args.FromBlock.Int64() == rpc.PendingBlockNumber.Int64() || args.ToBlock.Int64() == rpc.PendingBlockNumber.Int64() {
+		return nil, errors.New("not support pending")
+	}
+
+	log, err := p.b.GetLogs(account.Branch{Value: fullShardID}, args.Addresses, args.Topics, args.FromBlock.Uint64(), args.ToBlock.Uint64())
+	return logListEncoder(log), nil
+}
 func (p *PublicBlockChainAPI) GetStorageAt(address account.Address, key common.Hash, blockNr *rpc.BlockNumber) (hexutil.Bytes, error) {
 	blockNumber, err := decodeBlockNumberToUint64(p.b, blockNr)
 	if err != nil {

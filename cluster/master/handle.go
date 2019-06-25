@@ -491,43 +491,47 @@ func (pm *ProtocolManager) HandleNewTransactionListRequest(peerId string, rpcId 
 	if len(clients) == 0 {
 		return fmt.Errorf("invalid branch %d for rpc request %d", rpcId, branch)
 	}
-	var hashList []common.Hash
-	sameResponse := true
-	// todo make the client call in Parallelized
-	for _, client := range clients {
-		result, err := client.AddTransactions(request)
-		if err != nil {
-			return fmt.Errorf("branch %d HandleNewTransactionListRequest failed with error: %v", rpcId, err.Error())
-		}
-		if hashList == nil {
-			hashList = result.Hashes
-		} else if len(hashList) != len(result.Hashes) {
-			sameResponse = false
-		} else {
-			for i := 0; i < len(hashList); i++ {
-				if hashList[i] != result.Hashes[i] {
-					sameResponse = false
-					break
+	go func() {
+		var hashList []common.Hash
+		sameResponse := true
+		// todo make the client call in Parallelized
+		for _, client := range clients {
+			result, err := client.AddTransactions(request)
+			if err != nil {
+				log.Error("addTransaction err", "branch", branch, "HandleNewTransactionListRequest failed with error: ", err.Error())
+				//TODO need err
+			}
+			if hashList == nil {
+				hashList = result.Hashes
+			} else if len(hashList) != len(result.Hashes) {
+				sameResponse = false
+			} else {
+				for i := 0; i < len(hashList); i++ {
+					if hashList[i] != result.Hashes[i] {
+						sameResponse = false
+						break
+					}
 				}
 			}
 		}
-	}
 
-	if !sameResponse {
-		panic("same shard in different slave is inconsistent")
-	}
-	if len(hashList) > 0 {
-		tx2broadcast := make([]*types.Transaction, 0, len(request.TransactionList))
-		for _, tx := range request.TransactionList {
-			for _, hash := range hashList {
-				if tx.Hash() == hash {
-					tx2broadcast = append(tx2broadcast, tx)
-					break
+		if !sameResponse {
+			panic("same shard in different slave is inconsistent")
+		}
+		if len(hashList) > 0 {
+			tx2broadcast := make([]*types.Transaction, 0, len(request.TransactionList))
+			for _, tx := range request.TransactionList {
+				for _, hash := range hashList {
+					if tx.Hash() == hash {
+						tx2broadcast = append(tx2broadcast, tx)
+						break
+					}
 				}
 			}
+			pm.BroadcastTransactions(branch, tx2broadcast, peerId)
 		}
-		pm.BroadcastTransactions(branch, tx2broadcast, peerId)
-	}
+	}()
+
 	return nil
 }
 
