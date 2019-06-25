@@ -19,6 +19,7 @@ package core
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/core/state"
@@ -130,7 +131,8 @@ func IsAccountEnable(state vm.StateDB, from account.Recipient, to *account.Recip
 		return errors.New("data's len should 1")
 	}
 
-	if !bytes.Equal(data, qkcParams.AccountDisabled) || !bytes.Equal(data, qkcParams.AccountEnabled) {
+	if !bytes.Equal(data, qkcParams.AccountDisabled) && !bytes.Equal(data, qkcParams.AccountEnabled) {
+		fmt.Println("data", data, qkcParams.AccountEnabled, qkcParams.AccountDisabled)
 		return errors.New("data should 0 or 1")
 	}
 	return nil

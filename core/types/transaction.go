@@ -590,4 +590,3 @@ func (m Message) IsCrossShard() bool       { return m.isCrossShard }
 func (m Message) FromFullShardKey() uint32 { return m.fromFullShardKey }
 func (m Message) ToFullShardKey() uint32   { return m.toFullShardKey }
 func (m Message) TxHash() common.Hash      { return m.txHash }
-func (m Message) SuperStatus() bool        { return m.superStatus }

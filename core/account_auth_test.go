@@ -155,7 +155,7 @@ func TestSendSuperAccountSucc(t *testing.T) {
 	assert.Equal(t, currState.GetAccountStatus(acc2.Recipient), true)
 	assert.Equal(t, currState.GetAccountStatus(superAcc.Recipient), true)
 
-	tx = createTransferTransaction(shardState, superID.GetKey().Bytes(), superAcc, acc1, new(big.Int).SetUint64(100000), &fakeGas, nil, nil, []byte{1})
+	tx = createTransferTransaction(shardState, superID.GetKey().Bytes(), superAcc, acc1, new(big.Int).SetUint64(100000), &fakeGas, nil, nil, []byte{0})
 	currState.SetGasUsed(currState.GetGasLimit())
 	err = shardState.AddTx(tx)
 	checkErr(err)
@@ -307,7 +307,7 @@ func TestContractCall(t *testing.T) {
 	assert.Equal(t, len(res), 1)
 
 	fakeGas := uint64(30000)
-	tx = createTransferTransaction(blockchain, superID.GetKey().Bytes(), superAcc, contractAddr, new(big.Int), &fakeGas, nil, nil, []byte{1})
+	tx = createTransferTransaction(blockchain, superID.GetKey().Bytes(), superAcc, contractAddr, new(big.Int), &fakeGas, nil, nil, []byte{0})
 	err = blockchain.AddTx(tx)
 	checkErr(err) //can send tx
 

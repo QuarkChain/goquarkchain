@@ -168,6 +168,9 @@ func createTransferTransaction(
 	if gas != nil {
 		realGas = *gas
 	}
+	if data == nil {
+		data = []byte{1}
+	}
 	tempTx := types.NewEvmTransaction(realNonce, toAddress.Recipient, value, realGas,
 		new(big.Int).SetUint64(realGasPrice), fromAddress.FullShardKey, toAddress.FullShardKey, fakeNetworkID, 0, data)
 
