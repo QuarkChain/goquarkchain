@@ -167,7 +167,9 @@ func (s *ShardBackend) GetTransactionListByAddress(address *account.Address,
 }
 
 // TODO 当前版本暂不添加
-func (s *ShardBackend) GetLogs() ([]*types.Log, error) { panic("not implemented") }
+func (s *ShardBackend) GetLogs(start uint64, end uint64, address []account.Address, topics [][]common.Hash) ([]*types.Log, error) {
+	return s.MinorBlockChain.GetLogsByAddressAndTopic(start, end, address, topics)
+}
 
 func (s *ShardBackend) PoswDiffAdjust(block *types.MinorBlock) (*big.Int, error) {
 	panic("not implemented")

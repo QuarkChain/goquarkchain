@@ -95,6 +95,7 @@ func main() {
 		utils.Fatalf("%v", err)
 	}
 	cfg := config.NewClusterConfig()
+	initParams.SetDefault()
 	updateChains(cfg, initParams)
 	updateSlaves(cfg, int(*initParams.NumSlaves), initParams.SlaveIpList)
 	cfg.P2P.PrivKey = initParams.Privatekey

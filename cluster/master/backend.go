@@ -564,6 +564,16 @@ func (s *QKCMasterBackend) UpdateShardStatus(status *rpc.ShardStatus) {
 	s.lock.Unlock()
 }
 
+func (s *QKCMasterBackend) GetLastMinorBlockByFullShardID(fullShardId uint32) (uint64, error) {
+	s.lock.RLock()
+	defer s.lock.RUnlock()
+	data, ok := s.branchToShardStats[fullShardId]
+	if !ok {
+		return 0, errors.New("no such fullShardId") //TODO 0?
+	}
+	return data.Height, nil
+}
+
 // UpdateTxCountHistory update Tx count queue
 func (s *QKCMasterBackend) UpdateTxCountHistory(txCount, xShardTxCount uint32, createTime uint64) {
 	s.lock.Lock()
