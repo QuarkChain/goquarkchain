@@ -50,13 +50,10 @@ func (s *SlaveBackend) CreateShards(rootBlock *types.RootBlock) (err error) {
 	var g errgroup.Group
 	for _, id := range fullShardList {
 		id := id
+		if _, ok := s.shards[id]; ok {
+			continue
+		}
 		g.Go(func() error {
-			s.mu.RLock()
-			_, ok := s.shards[id]
-			s.mu.RUnlock()
-			if ok {
-				return nil
-			}
 			shardCfg := s.clstrCfg.Quarkchain.GetShardConfigByFullShardID(id)
 			if rootBlock.Header().Number >= shardCfg.Genesis.RootHeight {
 				shard, err := shard.New(s.ctx, rootBlock, s.connManager, s.clstrCfg, id)
@@ -65,6 +62,7 @@ func (s *SlaveBackend) CreateShards(rootBlock *types.RootBlock) (err error) {
 					return err
 				}
 				if err = shard.InitFromRootBlock(rootBlock); err != nil {
+					shard.Stop()
 					return err
 				}
 				s.mu.Lock()

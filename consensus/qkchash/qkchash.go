@@ -3,8 +3,6 @@ package qkchash
 import (
 	"encoding/binary"
 
-	"github.com/ethereum/go-ethereum/common"
-
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/core/state"
 	"github.com/QuarkChain/goquarkchain/core/types"
@@ -33,21 +31,14 @@ func (q *QKCHash) Finalize(chain consensus.ChainReader, header types.IHeader, st
 	panic("not implemented")
 }
 
-func (q *QKCHash) hashAlgo(height uint64, hash []byte, nonce uint64) (res consensus.MiningResult, err error) {
+func (q *QKCHash) hashAlgo(height uint64, hash []byte, nonce uint64) ([] byte, []byte, error) {
 	nonceBytes := make([]byte, 8)
 	binary.LittleEndian.PutUint64(nonceBytes, nonce)
 
-	var digest, result []byte
 	if q.useNative {
-		digest, result, err = qkcHashNative(hash, nonceBytes, q.cache)
-	} else {
-		digest, result, err = qkcHashGo(hash, nonceBytes, q.cache)
+		return qkcHashNative(hash, nonceBytes, q.cache)
 	}
-	if err != nil {
-		return res, err
-	}
-	res = consensus.MiningResult{Digest: common.BytesToHash(digest), Result: result, Nonce: nonce}
-	return res, nil
+	return qkcHashGo(hash, nonceBytes, q.cache)
 }
 
 // New returns a QKCHash scheme.

@@ -6,8 +6,6 @@ import (
 	"math/big"
 	"runtime"
 
-	"github.com/ethereum/go-ethereum/common"
-
 	"github.com/QuarkChain/goquarkchain/core/state"
 	"github.com/QuarkChain/goquarkchain/core/types"
 )
@@ -18,18 +16,14 @@ type QEthash struct {
 	*consensus.CommonEngine
 }
 
-func (q *QEthash) hashAlgo(height uint64, hash []byte, nonce uint64) (ret consensus.MiningResult, err error) {
+func (q *QEthash) hashAlgo(height uint64, hash []byte, nonce uint64) ([]byte, []byte, error) {
 	cache := q.cache(height)
 	size := datasetSize(height)
 	if q.config.PowMode == ModeTest {
 		size = 32 * 1024
 	}
 	digest, result := hashimotoLight(size, cache.cache, hash, nonce)
-	return consensus.MiningResult{
-		Digest: common.BytesToHash(digest),
-		Result: result,
-		Nonce:  nonce,
-	}, nil
+	return digest, result, nil
 }
 
 // verifySeal implements consensus.Engine, checking whether the given block satisfies

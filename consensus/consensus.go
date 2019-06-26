@@ -73,7 +73,7 @@ type MiningResult struct {
 // MiningSpec contains a PoW algo's basic info and hash algo
 type MiningSpec struct {
 	Name       string
-	HashAlgo   func(height uint64, hash []byte, nonce uint64) (MiningResult, error)
+	HashAlgo   func(height uint64, hash []byte, nonce uint64) ([]byte, []byte, error)
 	VerifySeal func(chain ChainReader, header types.IHeader, adjustedDiff *big.Int) error
 }
 
@@ -323,15 +323,15 @@ search:
 				c.hashrate.Mark(attempts)
 				attempts = 0
 			}
-			miningRes, err := c.spec.HashAlgo(height, hash, nonce)
+			digest, result, err := c.spec.HashAlgo(height, hash, nonce)
 			if err != nil {
 				logger.Warn("Failed to run hash algo", "miner", c.spec.Name, "error", err)
 				continue // Continue the for loop. Nonce not incremented
 			}
-			if new(big.Int).SetBytes(miningRes.Result).Cmp(target) <= 0 {
+			if new(big.Int).SetBytes(result).Cmp(target) <= 0 {
 				// Nonce found
 				select {
-				case found <- miningRes:
+				case found <- MiningResult{Digest: common.BytesToHash(digest), Result: result, Nonce: nonce}:
 					logger.Trace("Nonce found and reported", "minerName", c.spec.Name, "attempts", nonce-startNonce, "nonce", nonce)
 				case <-abort:
 					logger.Trace("Nonce nonce found but discarded", "minerName", c.spec.Name, "attempts", nonce-startNonce, "nonce", nonce)
