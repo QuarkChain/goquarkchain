@@ -242,6 +242,7 @@ func (s *QKCMasterBackend) InitCluster() error {
 	if err := s.initShards(); err != nil {
 		return err
 	}
+	log.Info("Init cluster successful", "slaveSize", len(s.clientPool))
 	return nil
 }
 
@@ -295,9 +296,10 @@ func (s *QKCMasterBackend) getSlaveInfoListFromClusterConfig() []*rpc.SlaveInfo 
 	}
 	return slaveInfos
 }
+
 func (s *QKCMasterBackend) initShards() error {
 	var g errgroup.Group
-	ip, port := s.clusterConfig.Quarkchain.Root.Ip, s.clusterConfig.Quarkchain.Root.Port
+	ip, port := s.clusterConfig.Quarkchain.Root.GRPCHost, s.clusterConfig.Quarkchain.Root.GRPCPort
 	for _, client := range s.clientPool {
 		client := client
 		g.Go(func() error {
@@ -305,7 +307,7 @@ func (s *QKCMasterBackend) initShards() error {
 			return err
 		})
 	}
-	return nil
+	return g.Wait()
 }
 
 func (s *QKCMasterBackend) updateShardStatsLoop() {
