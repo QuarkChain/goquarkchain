@@ -42,6 +42,7 @@ type Backend interface {
 	IsMining() bool
 	GetSlavePoolLen() int
 	CheckAccountPermission(account account.Address) error
+	GetLastMinorBlockByFullShardID(fullShardId uint32) (uint64, error)
 }
 
 func GetAPIs(apiBackend Backend) []rpc.API {
