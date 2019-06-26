@@ -100,7 +100,7 @@ func makeConfigNode(ctx *cli.Context) (*service.Node, qkcConfig) {
 			cfg.Service.SvrPort = slv.Port
 		}
 	} else {
-		cfg.Cluster.Quarkchain.Root.GRCPHost = cfg.Service.SvrHost
+		cfg.Cluster.Quarkchain.Root.GRPCHost = cfg.Service.SvrHost
 		cfg.Cluster.Quarkchain.Root.GRPCPort = cfg.Service.SvrPort
 	}
 

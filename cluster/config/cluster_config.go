@@ -143,7 +143,7 @@ func (q *QuarkChainConfig) UnmarshalJSON(input []byte) error {
 		num         = int64(jsonConfig.RewardTaxRate * float64(denom))
 	)
 	q.Root.GRPCPort = GrpcPort
-	q.Root.GRCPHost, _ = common.GetIPV4Addr()
+	q.Root.GRPCHost, _ = common.GetIPV4Addr()
 	q.RewardTaxRate = big.NewRat(num, denom)
 	q.initAndValidate()
 	return nil

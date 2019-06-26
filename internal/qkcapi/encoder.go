@@ -150,10 +150,6 @@ func txEncoder(block *types.MinorBlock, i int, cfg *config.ClusterConfig) (map[s
 	if evmtx.To() != nil {
 		toBytes = evmtx.To().Bytes()
 	}
-	fromShardSize := cfg.Quarkchain.GetShardSizeByChainId(evmtx.FromChainID())
-	if err := evmtx.SetFromShardSize(fromShardSize); err != nil {
-		return nil, err
-	}
 	branch := block.Header().Branch
 	field := map[string]interface{}{
 		"id":               IDEncoder(tx.Hash().Bytes(), evmtx.FromFullShardKey()),
