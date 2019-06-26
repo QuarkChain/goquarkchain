@@ -6,8 +6,6 @@ import (
 	"errors"
 	"math/big"
 
-	"github.com/ethereum/go-ethereum/common"
-
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/core/state"
 	"github.com/QuarkChain/goquarkchain/core/types"
@@ -35,7 +33,7 @@ func (d *DoubleSHA256) Finalize(chain consensus.ChainReader, header types.IHeade
 	panic(errors.New("not finalize"))
 }
 
-func hashAlgo(height uint64, hash []byte, nonce uint64) (consensus.MiningResult, error) {
+func hashAlgo(height uint64, hash []byte, nonce uint64) ([]byte, []byte, error) {
 	nonceBytes := make([]byte, 8)
 	// Note it's big endian here
 	binary.BigEndian.PutUint64(nonceBytes, nonce)
@@ -43,11 +41,7 @@ func hashAlgo(height uint64, hash []byte, nonce uint64) (consensus.MiningResult,
 
 	hashOnce := sha256.Sum256(hashNonceBytes)
 	resultArray := sha256.Sum256(hashOnce[:])
-	return consensus.MiningResult{
-		Digest: common.Hash{},
-		Result: resultArray[:],
-		Nonce:  nonce,
-	}, nil
+	return []byte{}, resultArray[:], nil
 }
 
 func verifySeal(chain consensus.ChainReader, header types.IHeader, adjustedDiff *big.Int) error {
@@ -60,8 +54,8 @@ func verifySeal(chain consensus.ChainReader, header types.IHeader, adjustedDiff 
 	}
 
 	target := new(big.Int).Div(two256, diff)
-	miningRes, _ := hashAlgo(0 /* not used */, header.SealHash().Bytes(), header.GetNonce())
-	if new(big.Int).SetBytes(miningRes.Result).Cmp(target) > 0 {
+	_, result, _ := hashAlgo(0 /* not used */, header.SealHash().Bytes(), header.GetNonce())
+	if new(big.Int).SetBytes(result).Cmp(target) > 0 {
 		return consensus.ErrInvalidPoW
 	}
 	return nil

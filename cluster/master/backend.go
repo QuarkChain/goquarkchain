@@ -300,10 +300,14 @@ func (s *QKCMasterBackend) getSlaveInfoListFromClusterConfig() []*rpc.SlaveInfo 
 func (s *QKCMasterBackend) initShards() error {
 	var g errgroup.Group
 	ip, port := s.clusterConfig.Quarkchain.Root.GRPCHost, s.clusterConfig.Quarkchain.Root.GRPCPort
+	rootBlock := s.rootBlockChain.CurrentBlock()
+	if rootBlock.NumberU64() != 0 {
+		rootBlock = s.rootBlockChain.GetBlockByNumber(rootBlock.NumberU64() - 1).(*types.RootBlock)
+	}
 	for _, client := range s.clientPool {
 		client := client
 		g.Go(func() error {
-			err := client.MasterInfo(ip, port, s.rootBlockChain.CurrentBlock())
+			err := client.MasterInfo(ip, port, rootBlock)
 			return err
 		})
 	}

@@ -23,7 +23,7 @@ type SlaveBackend struct {
 	shards map[uint32]*shard.ShardBackend
 
 	ctx      *service.ServiceContext
-	mu       sync.RWMutex
+	mu       sync.Mutex
 	eventMux *event.TypeMux
 	logInfo  string
 }
