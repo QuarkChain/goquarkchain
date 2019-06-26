@@ -813,7 +813,7 @@ func (m *MinorBlockChain) CreateBlockToMine(createTime *uint64, address *account
 		t := address.AddressInBranch(m.branch)
 		address = &t
 	}
-	if m.CheckAccountPermission(address.Recipient) == false {
+	if m.IsAccountEnable(address.Recipient) == false {
 		return nil, ErrAccountNotBeMiner
 	}
 	block := prevBlock.CreateBlockToAppend(&realCreateTime, difficulty, address, nil, gasLimit, nil, nil)
@@ -851,7 +851,7 @@ func (m *MinorBlockChain) AddCrossShardTxListByMinorBlockHash(h common.Hash, txL
 
 // AddRootBlock add root block for minorBlockChain
 func (m *MinorBlockChain) AddRootBlock(rBlock *types.RootBlock) (bool, error) {
-	if !m.CheckAccountPermission(rBlock.Coinbase().Recipient) {
+	if !m.IsAccountEnable(rBlock.Coinbase().Recipient) {
 		return false, fmt.Errorf("account:%v can not be used as root block's miner", rBlock.Coinbase().Recipient.String())
 	}
 	if rBlock.Number() <= uint32(m.clusterConfig.Quarkchain.GetGenesisRootHeight(m.branch.Value)) {
@@ -1535,6 +1535,6 @@ func (m *MinorBlockChain) ReadCrossShardTxList(hash common.Hash) *types.CrossSha
 	return nil
 }
 
-func (m *MinorBlockChain) CheckAccountPermission(account account.Recipient) bool {
+func (m *MinorBlockChain) IsAccountEnable(account account.Recipient) bool {
 	return m.currentEvmState.GetAccountStatus(account)
 }

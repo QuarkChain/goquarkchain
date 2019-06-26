@@ -614,13 +614,13 @@ func (s *SlaveServerSideOp) HandleCheckAccountPermission(ctx context.Context, re
 		gReq     account.Address
 		response = &rpc.Response{RpcId: req.RpcId}
 		err      error
-		flag bool
+		flag     bool
 	)
 	if err = serialize.DeserializeFromBytes(req.Data, &gReq); err != nil {
 		return nil, err
 	}
-	if flag ,err= s.slave.CheckAccountPermission(gReq);err!=nil{
-		return nil,err
+	if flag, err = s.slave.CheckAccountPermission(gReq); err != nil {
+		return nil, err
 	}
 	if response.Data, err = serialize.SerializeToBytes(flag); err != nil {
 		return nil, err
@@ -637,6 +637,8 @@ func (s *SlaveServerSideOp) SetMining(ctx context.Context, req *rpc.Request) (*r
 	if err = serialize.DeserializeFromBytes(req.Data, &mining); err != nil {
 		return nil, err
 	}
-	s.slave.SetMining(mining)
+	if err := s.slave.SetMining(mining); err != nil {
+		return nil, err
+	}
 	return response, nil
 }
