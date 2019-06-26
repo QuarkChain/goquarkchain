@@ -494,6 +494,7 @@ func (s *QKCMasterBackend) GetPrimaryAccountData(address *account.Address, block
 	if slaveConn == nil {
 		return nil, ErrNoBranchConn
 	}
+	fmt.Println("GetPrimaryData fullShardID", fullShardID)
 	rsp, err := slaveConn.GetAccountData(address, blockHeight)
 	if err != nil {
 		return nil, err
@@ -519,12 +520,12 @@ func (s *QKCMasterBackend) SendMiningConfigToSlaves(mining bool) error {
 }
 
 func (s *QKCMasterBackend) CheckAccountPermission(addr account.Address) error {
-	fullShardID:=s.clusterConfig.Quarkchain.GetFullShardIdByFullShardKey(addr.FullShardKey)
-	slave,ok:=s.branchToSlaves[fullShardID]
-	if !ok{
-		return fmt.Errorf("no such fullShardID:%v fullShardKey:%v",fullShardID,addr.FullShardKey)
+	fullShardID := s.clusterConfig.Quarkchain.GetFullShardIdByFullShardKey(addr.FullShardKey)
+	slave, ok := s.branchToSlaves[fullShardID]
+	if !ok {
+		return fmt.Errorf("no such fullShardID:%v fullShardKey:%v", fullShardID, addr.FullShardKey)
 	}
-	if len(slave)==0{
+	if len(slave) == 0 {
 		return errors.New("slave len is 0")
 	}
 	return slave[0].CheckAccountPermission(addr)
