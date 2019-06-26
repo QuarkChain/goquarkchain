@@ -494,7 +494,6 @@ func (s *QKCMasterBackend) GetPrimaryAccountData(address *account.Address, block
 	if slaveConn == nil {
 		return nil, ErrNoBranchConn
 	}
-	fmt.Println("GetPrimaryData fullShardID", fullShardID)
 	rsp, err := slaveConn.GetAccountData(address, blockHeight)
 	if err != nil {
 		return nil, err

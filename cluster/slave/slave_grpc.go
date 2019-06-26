@@ -137,7 +137,6 @@ func (s *SlaveServerSideOp) GetUnconfirmedHeaderList(ctx context.Context, req *r
 }
 
 func (s *SlaveServerSideOp) GetAccountData(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
-	fmt.Println("AAAAAAAAAAAAAAAAAAAAAAAAAA")
 	var (
 		gReq     rpc.GetAccountDataRequest
 		gRes     rpc.GetAccountDataResponse

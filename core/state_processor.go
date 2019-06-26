@@ -132,7 +132,6 @@ func IsAccountEnable(state vm.StateDB, from account.Recipient, to *account.Recip
 	}
 
 	if !bytes.Equal(data, qkcParams.AccountDisabled) && !bytes.Equal(data, qkcParams.AccountEnabled) {
-		fmt.Println("data", data, qkcParams.AccountEnabled, qkcParams.AccountDisabled)
 		return errors.New("data should 0 or 1")
 	}
 	return nil
