@@ -246,6 +246,7 @@ func (s *QKCMasterBackend) InitCluster() error {
 	if err := s.initShards(); err != nil {
 		return err
 	}
+	log.Info("Init cluster successful", "slaveSize", len(s.clientPool))
 	return nil
 }
 
@@ -299,9 +300,10 @@ func (s *QKCMasterBackend) getSlaveInfoListFromClusterConfig() []*rpc.SlaveInfo 
 	}
 	return slaveInfos
 }
+
 func (s *QKCMasterBackend) initShards() error {
 	var g errgroup.Group
-	ip, port := s.clusterConfig.Quarkchain.Root.Ip, s.clusterConfig.Quarkchain.Root.Port
+	ip, port := s.clusterConfig.Quarkchain.Root.GRPCHost, s.clusterConfig.Quarkchain.Root.GRPCPort
 	for _, client := range s.clientPool {
 		client := client
 		g.Go(func() error {
@@ -309,7 +311,7 @@ func (s *QKCMasterBackend) initShards() error {
 			return err
 		})
 	}
-	return nil
+	return g.Wait()
 }
 
 func (s *QKCMasterBackend) updateShardStatsLoop() {
@@ -581,6 +583,16 @@ func (s *QKCMasterBackend) UpdateShardStatus(status *rpc.ShardStatus) {
 	s.lock.Lock()
 	s.branchToShardStats[status.Branch.Value] = status
 	s.lock.Unlock()
+}
+
+func (s *QKCMasterBackend) GetLastMinorBlockByFullShardID(fullShardId uint32) (uint64, error) {
+	s.lock.RLock()
+	defer s.lock.RUnlock()
+	data, ok := s.branchToShardStats[fullShardId]
+	if !ok {
+		return 0, errors.New("no such fullShardId") //TODO 0?
+	}
+	return data.Height, nil
 }
 
 // UpdateTxCountHistory update Tx count queue

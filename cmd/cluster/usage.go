@@ -61,6 +61,7 @@ var AppHelpFlagGroups = []flagGroup{
 			utils.NumSlavesFlag,
 			utils.PortStartFlag,
 			utils.DbPathRootFlag,
+			utils.GRPCAddrFlag,
 			utils.GRPCPortFlag,
 			utils.EnableTransactionHistoryFlag,
 		},
@@ -89,7 +90,6 @@ var AppHelpFlagGroups = []flagGroup{
 	{
 		Name: "PRIVATE API",
 		Flags: []cli.Flag{
-			utils.PrivateRPCEnableFlag,
 			utils.PrivateRPCListenAddrFlag,
 			utils.PrivateRPCPortFlag,
 		},

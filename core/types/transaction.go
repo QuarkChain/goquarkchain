@@ -77,6 +77,7 @@ func (e *EvmTransaction) SetVRS(v, r, s *big.Int) {
 	e.data.S = s
 	e.updated = true
 }
+
 func NewEvmContractCreation(nonce uint64, amount *big.Int, gasLimit uint64, gasPrice *big.Int, fromFullShardKey uint32, toFullShardKey uint32, networkId uint32, version uint32, data []byte) *EvmTransaction {
 	return newEvmTransaction(nonce, nil, amount, gasLimit, gasPrice, fromFullShardKey, toFullShardKey, networkId, version, data)
 }

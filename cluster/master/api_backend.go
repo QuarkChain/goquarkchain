@@ -11,7 +11,6 @@ import (
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
-	ethRpc "github.com/ethereum/go-ethereum/rpc"
 	"golang.org/x/sync/errgroup"
 	"net"
 	"reflect"
@@ -45,11 +44,11 @@ func (s *QKCMasterBackend) AddTransaction(tx *types.Transaction) error {
 	evmTx := tx.EvmTx
 	toShardSize := s.clusterConfig.Quarkchain.GetShardSizeByChainId(tx.EvmTx.ToChainID())
 	if err := tx.EvmTx.SetToShardSize(toShardSize); err != nil {
-		return errors.New("SetToShardSize err")
+		return errors.New(fmt.Sprintf("Failed to set toShardSize, toShardSize: %d, err: %v", toShardSize, err))
 	}
 	fromShardSize := s.clusterConfig.Quarkchain.GetShardSizeByChainId(tx.EvmTx.FromChainID())
 	if err := tx.EvmTx.SetFromShardSize(fromShardSize); err != nil {
-		return errors.New("SetFromShardSize err")
+		return errors.New(fmt.Sprintf("Failed to set fromShardSize, fromShardSize: %d, err: %v", fromShardSize, err))
 	}
 	branch := account.Branch{Value: evmTx.FromFullShardId()}
 	slaves := s.getAllSlaveConnection(branch.Value)
@@ -63,7 +62,12 @@ func (s *QKCMasterBackend) AddTransaction(tx *types.Transaction) error {
 			return slaves[i].AddTransaction(tx)
 		})
 	}
-	return g.Wait() //TODO?? peer broadcast
+	err := g.Wait() //TODO?? peer broadcast
+	if err != nil {
+		return err
+	}
+	go s.protocolManager.BroadcastTransactions(branch.Value, []*types.Transaction{tx}, "")
+	return nil
 }
 
 func (s *QKCMasterBackend) ExecuteTransaction(tx *types.Transaction, address *account.Address, height *uint64) ([]byte, error) {
@@ -148,21 +152,12 @@ func (s *QKCMasterBackend) GetTransactionsByAddress(address *account.Address, st
 	return slaveConn.GetTransactionsByAddress(address, start, limit)
 }
 
-func (s *QKCMasterBackend) GetLogs(branch account.Branch, address []*account.Address, topics []*rpc.Topic, startBlockNumber, endBlockNumber ethRpc.BlockNumber) ([]*types.Log, error) {
+func (s *QKCMasterBackend) GetLogs(branch account.Branch, address []account.Address, topics [][]common.Hash, startBlockNumber, endBlockNumber uint64) ([]*types.Log, error) {
 	// not support earlist and pending
 	slaveConn := s.getOneSlaveConnection(branch)
 	if slaveConn == nil {
 		return nil, ErrNoBranchConn
 	}
-
-	s.lock.RLock()
-	if startBlockNumber == ethRpc.LatestBlockNumber {
-		startBlockNumber = ethRpc.BlockNumber(s.branchToShardStats[branch.Value].Height)
-	}
-	if endBlockNumber == ethRpc.LatestBlockNumber {
-		endBlockNumber = ethRpc.BlockNumber(s.branchToShardStats[branch.Value].Height)
-	}
-	s.lock.RUnlock() // lock branchToShardStats
 	return slaveConn.GetLogs(branch, address, topics, uint64(startBlockNumber), uint64(endBlockNumber))
 }
 

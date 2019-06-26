@@ -508,7 +508,7 @@ func (mr *MockISlaveConnMockRecorder) GetTransactionsByAddress(address, start, l
 }
 
 // GetLogs mocks base method
-func (m *MockISlaveConn) GetLogs(branch account.Branch, address []*account.Address, topics []*rpc.Topic, startBlock, endBlock uint64) ([]*types.Log, error) {
+func (m *MockISlaveConn) GetLogs(branch account.Branch, address []account.Address, topics [][]common.Hash, startBlock, endBlock uint64) ([]*types.Log, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetLogs", branch, address, topics, startBlock, endBlock)
 	ret0, _ := ret[0].([]*types.Log)

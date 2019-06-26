@@ -1,7 +1,9 @@
 package qkcapi
 
 import (
+	"encoding/json"
 	"errors"
+	"fmt"
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	qkcRPC "github.com/QuarkChain/goquarkchain/cluster/rpc"
@@ -168,9 +170,9 @@ func (p *PublicBlockChainAPI) GetAccountData(address account.Address, blockNr *r
 	for branch, accountBranchData := range branchToAccountBranchData {
 		branch := account.Branch{Value: branch}
 		shardData := map[string]interface{}{
-			"fullShardId":      branch.GetFullShardID(),
-			"shardId":          branch.GetShardID(),
-			"chainId":          branch.GetChainID(),
+			"fullShardId":      hexutil.Uint(branch.GetFullShardID()),
+			"shardId":          hexutil.Uint(branch.GetShardID()),
+			"chainId":          hexutil.Uint(branch.GetChainID()),
 			"balances":         hexutil.Big(*accountBranchData.Balance),
 			"transactionCount": hexutil.Uint(accountBranchData.TransactionCount),
 			"isContract":       accountBranchData.IsContract,
@@ -206,6 +208,10 @@ func (p *PublicBlockChainAPI) SendRawTransaction(encodedTx hexutil.Bytes) (hexut
 	tx := &types.Transaction{
 		EvmTx:  evmTx,
 		TxType: types.EvmTx,
+	}
+	jsonConfig, err := json.MarshalIndent(tx, "", "\t")
+	if err == nil {
+		fmt.Println("------------", string(jsonConfig))
 	}
 	if err := p.b.AddTransaction(tx); err != nil {
 		return IDEncoder(common.Hash{}.Bytes(), 0), err //TODO need return err?
@@ -251,7 +257,7 @@ func (p *PublicBlockChainAPI) GetMinorBlockById(blockID hexutil.Bytes, includeTx
 	if minorBlock == nil {
 		return nil, errors.New("minor block is nil")
 	}
-	return minorBlockEncoder(minorBlock, *includeTxs)
+	return minorBlockEncoder(minorBlock, *includeTxs, p.clusterConfig)
 
 }
 func (p *PublicBlockChainAPI) GetMinorBlockByHeight(fullShardKeyInput hexutil.Uint, heightInput *hexutil.Uint64, includeTxs *bool) (map[string]interface{}, error) {
@@ -272,7 +278,7 @@ func (p *PublicBlockChainAPI) GetMinorBlockByHeight(fullShardKeyInput hexutil.Ui
 	if minorBlock == nil {
 		return nil, errors.New("minor block is nil")
 	}
-	return minorBlockEncoder(minorBlock, *includeTxs)
+	return minorBlockEncoder(minorBlock, *includeTxs, p.clusterConfig)
 }
 func (p *PublicBlockChainAPI) GetTransactionById(txID hexutil.Bytes) (map[string]interface{}, error) {
 	txHash, fullShardKey, err := IDDecoder(txID)
@@ -287,7 +293,7 @@ func (p *PublicBlockChainAPI) GetTransactionById(txID hexutil.Bytes) (map[string
 	if len(minorBlock.Transactions()) <= int(index) {
 		return nil, errors.New("index bigger than block's tx")
 	}
-	return txEncoder(minorBlock, int(index))
+	return txEncoder(minorBlock, int(index), p.clusterConfig)
 }
 func (p *PublicBlockChainAPI) Call(data CallArgs, blockNr *rpc.BlockNumber) (hexutil.Bytes, error) {
 	if blockNr == nil {
@@ -315,7 +321,25 @@ func (p *PublicBlockChainAPI) GetTransactionReceipt(txID hexutil.Bytes) (map[str
 	}
 	return receiptEncoder(minorBlock, int(index), receipt)
 }
-func (p *PublicBlockChainAPI) GetLogs() { panic("@scf") }
+func (p *PublicBlockChainAPI) GetLogs(args *FilterQuery, fullShardKey hexutil.Uint) ([]map[string]interface{}, error) {
+	fullShardID := p.b.GetClusterConfig().Quarkchain.GetFullShardIdByFullShardKey(uint32(fullShardKey))
+	lastBlockHeight, err := p.b.GetLastMinorBlockByFullShardID(fullShardID)
+	if err != nil {
+		return nil, err
+	}
+	if args.FromBlock == nil || args.FromBlock.Int64() == rpc.LatestBlockNumber.Int64() {
+		args.FromBlock = new(big.Int).SetUint64(lastBlockHeight)
+	}
+	if args.ToBlock == nil || args.ToBlock.Int64() == rpc.LatestBlockNumber.Int64() {
+		args.ToBlock = new(big.Int).SetUint64(lastBlockHeight)
+	}
+	if args.FromBlock.Int64() == rpc.PendingBlockNumber.Int64() || args.ToBlock.Int64() == rpc.PendingBlockNumber.Int64() {
+		return nil, errors.New("not support pending")
+	}
+
+	log, err := p.b.GetLogs(account.Branch{Value: fullShardID}, args.Addresses, args.Topics, args.FromBlock.Uint64(), args.ToBlock.Uint64())
+	return logListEncoder(log), nil
+}
 func (p *PublicBlockChainAPI) GetStorageAt(address account.Address, key common.Hash, blockNr *rpc.BlockNumber) (hexutil.Bytes, error) {
 	blockNumber, err := decodeBlockNumberToUint64(p.b, blockNr)
 	if err != nil {
