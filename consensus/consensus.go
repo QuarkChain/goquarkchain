@@ -61,6 +61,7 @@ type MiningWork struct {
 	HeaderHash common.Hash
 	Number     uint64
 	Difficulty *big.Int
+	// Block types.IBlock
 }
 
 // MiningResult represents the found digest and result bytes.
@@ -348,23 +349,43 @@ func (c *CommonEngine) GetWork() (*MiningWork, error) {
 		return nil, ErrNotRemote
 	}
 	var (
-		workCh = make(chan MiningWork, 1)
-		errc   = make(chan error, 1)
+		workCh  = make(chan MiningWork, 1)
+		blockCh = make(chan types.IBlock, 1)
+		errc    = make(chan error, 1)
 	)
 	select {
-	case c.fetchWorkCh <- &sealWork{errc: errc, res: workCh}:
+	case c.fetchWorkCh <- &sealWork{errc: errc, res: workCh, bCh: blockCh}:
 	case <-c.exitCh:
 		return nil, errors.New(fmt.Sprintf("%s hash stoped", c.Name()))
 	}
 
 	select {
 	case work := <-workCh:
+		log.Warn("[PoWS] engine GetWork", "work", work)
+		return &work, nil
+	case err := <-errc:
+		return nil, err
+	}
+}
 
-		return &MiningWork{
-			work.HeaderHash,
-			work.Number,
-			work.Difficulty,
-		}, nil
+func (c *CommonEngine) GetMiningBlock() (*types.IBlock, error) {
+	if !c.isRemote {
+		return nil, ErrNotRemote
+	}
+	var (
+		workCh  = make(chan MiningWork, 1)
+		blockCh = make(chan types.IBlock, 1)
+		errc    = make(chan error, 1)
+	)
+	select {
+	case c.fetchWorkCh <- &sealWork{errc: errc, res: workCh, bCh: blockCh}:
+	case <-c.exitCh:
+		return nil, errors.New(fmt.Sprintf("%s hash stoped", c.Name()))
+	}
+	select {
+	case block := <-blockCh:
+		log.Warn("[PoWS] engine GetMiningBlock", "block", block)
+		return &block, nil
 	case err := <-errc:
 		return nil, err
 	}

@@ -3,8 +3,9 @@ package consensus
 import (
 	"errors"
 	"fmt"
-	"github.com/hashicorp/golang-lru"
 	"time"
+
+	lru "github.com/hashicorp/golang-lru"
 
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/common"
@@ -37,6 +38,7 @@ type mineResult struct {
 type sealWork struct {
 	errc chan error
 	res  chan MiningWork
+	bCh  chan types.IBlock
 }
 
 func (c *CommonEngine) remote() {
@@ -59,7 +61,7 @@ func (c *CommonEngine) remote() {
 		currentWork.HeaderHash = hash
 		currentWork.Number = block.NumberU64()
 		currentWork.Difficulty = block.IHeader().GetDifficulty()
-
+		// currentWork.Block = block
 		currentBlock = block
 		works.Add(hash, block)
 	}
@@ -116,6 +118,7 @@ func (c *CommonEngine) remote() {
 				work.errc <- ErrNoMiningWork
 			} else {
 				work.res <- currentWork
+				work.bCh <- currentBlock
 			}
 
 		case result := <-c.submitWorkCh:

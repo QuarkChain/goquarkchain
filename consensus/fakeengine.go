@@ -1,12 +1,13 @@
 package consensus
 
 import (
+	"math/big"
+	"time"
+
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/core/state"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/common"
-	"math/big"
-	"time"
 )
 
 type FakeEngine struct {
@@ -102,4 +103,7 @@ func (e *FakeEngine) Close() error {
 func (e *FakeEngine) Finalize(chain ChainReader, header types.IHeader, state *state.StateDB, txs []*types.Transaction,
 	receipts []*types.Receipt) (types.IBlock, error) {
 	panic("no need for test")
+}
+func (e *FakeEngine) GetMiningBlock() (*types.IBlock, error) {
+	panic(-1)
 }

@@ -66,7 +66,6 @@ type gasPriceSuggestionOracle struct {
 	CheckBlocks uint64
 	Percentile  uint64
 }
-
 // MinorBlockChain represents the canonical chain given a database with a genesis
 // block. The Blockchain manages chain imports, reverts, chain reorganisations.
 //
@@ -133,7 +132,7 @@ type MinorBlockChain struct {
 	rootTip                  *types.RootBlockHeader
 	confirmedHeaderTip       *types.MinorBlockHeader
 	initialized              bool
-	coinbaseAddrCache        map[common.Hash]heightAndAddrs
+	coinbaseAddrCache        map[uint32]map[common.Hash]heightAndAddrs
 	rewardCalc               *qkcCommon.ConstMinorBlockRewardCalculator
 	gasPriceSuggestionOracle *gasPriceSuggestionOracle
 	heightToMinorBlockHashes map[uint64]map[common.Hash]struct{}
@@ -191,6 +190,7 @@ func NewMinorBlockChain(
 		engine:                   engine,
 		vmConfig:                 vmConfig,
 		heightToMinorBlockHashes: make(map[uint64]map[common.Hash]struct{}),
+		coinbaseAddrCache:        make(map[uint32]map[common.Hash]heightAndAddrs),
 		currentEvmState:          new(state.StateDB),
 		branch:                   account.Branch{Value: fullShardID},
 		shardConfig:              clusterConfig.Quarkchain.GetShardConfigByFullShardID(fullShardID),

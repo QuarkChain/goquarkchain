@@ -20,6 +20,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"strconv"
 
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
@@ -183,7 +184,27 @@ func (v *MinorBlockValidator) ValidateBlock(mBlock types.IBlock) error {
 		log.Error(v.logInfo, "err", errMustBeOneRootChain, "long", block.Header().GetPrevRootBlockHash().String(), "short", prevHeader.(*types.MinorBlockHeader).GetPrevRootBlockHash().String())
 		return errMustBeOneRootChain
 	}
-	if err := v.ValidatorSeal(block.Header()); err != nil {
+	header := block.Header()
+	branch := header.GetBranch()
+	fullShardID := branch.GetFullShardID()
+	shardConfig := v.quarkChainConfig.GetShardConfigByFullShardID(fullShardID)
+	consensusType := shardConfig.ConsensusType
+	var diff *big.Int
+	var err error
+	if shardConfig.ChainConfig.PoswConfig.Enabled {
+		diff, err = v.bc.PoSWDiffAdjust(block)
+		if err != nil {
+			log.Error(v.logInfo, "PoSWDiffAdjust err", err)
+			return err
+		}
+		diffStr := diff.Text(10)
+		diffInt64, _ := strconv.ParseUint(diffStr, 10, 64)
+		diffUint64 := uint64(diffInt64)
+		err = v.validateSeal(header, consensusType, &diffUint64)
+	} else {
+		err = v.validateSeal(header, consensusType, nil)
+	}
+	if  err != nil {
 		log.Error(v.logInfo, "ValidatorBlockSeal err", err)
 		return err
 	}
