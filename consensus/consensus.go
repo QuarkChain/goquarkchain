@@ -56,6 +56,15 @@ var (
 	ErrPreTime           = errors.New("parent time is smaller than time for CalculateDifficulty")
 )
 
+type ShareCache struct {
+	Digest []byte
+	Result []byte
+	Height uint64
+	Hash   []byte
+	Nonce  uint64
+	Seed   []byte
+}
+
 // MiningWork represents the params of mining work.
 type MiningWork struct {
 	HeaderHash common.Hash
@@ -73,7 +82,7 @@ type MiningResult struct {
 // MiningSpec contains a PoW algo's basic info and hash algo
 type MiningSpec struct {
 	Name       string
-	HashAlgo   func(height uint64, hash []byte, nonce uint64) ([]byte, []byte, error)
+	HashAlgo   func(result *ShareCache) error
 	VerifySeal func(chain ChainReader, header types.IHeader, adjustedDiff *big.Int) error
 }
 
@@ -302,11 +311,13 @@ func (c *CommonEngine) mine(
 ) {
 
 	var (
-		height   = work.Number
-		hash     = work.HeaderHash.Bytes()
 		target   = new(big.Int).Div(two256, work.Difficulty)
 		attempts = int64(0)
-		nonce    = startNonce
+		minerRes = ShareCache{
+			Height: work.Number,
+			Hash:   work.HeaderHash.Bytes(),
+			Seed:   make([]byte, 40),
+			Nonce:  startNonce}
 	)
 	logger := log.New("miner", "spec", strings.ToLower(c.spec.Name), "id", id)
 	logger.Trace("Started search for new nonces", "minerName", c.spec.Name, "startNonce", startNonce)
@@ -314,7 +325,7 @@ search:
 	for {
 		select {
 		case <-abort:
-			logger.Trace("Nonce search aborted", "minerName", c.spec.Name, "attempts", nonce-startNonce)
+			logger.Trace("Nonce search aborted", "minerName", c.spec.Name, "attempts", minerRes.Nonce-startNonce)
 			c.hashrate.Mark(attempts)
 			break search
 		default:
@@ -323,23 +334,27 @@ search:
 				c.hashrate.Mark(attempts)
 				attempts = 0
 			}
-			digest, result, err := c.spec.HashAlgo(height, hash, nonce)
+			err := c.spec.HashAlgo(&minerRes)
 			if err != nil {
 				logger.Warn("Failed to run hash algo", "miner", c.spec.Name, "error", err)
 				continue // Continue the for loop. Nonce not incremented
 			}
-			if new(big.Int).SetBytes(result).Cmp(target) <= 0 {
+			if new(big.Int).SetBytes(minerRes.Result).Cmp(target) <= 0 {
 				// Nonce found
 				select {
-				case found <- MiningResult{Digest: common.BytesToHash(digest), Result: result, Nonce: nonce}:
-					logger.Trace("Nonce found and reported", "minerName", c.spec.Name, "attempts", nonce-startNonce, "nonce", nonce)
+				case found <- MiningResult{
+					Nonce:  minerRes.Nonce,
+					Result: minerRes.Result,
+					Digest: common.BytesToHash(minerRes.Digest),
+				}:
+					logger.Trace("Nonce found and reported", "minerName", c.spec.Name, "attempts", minerRes.Nonce-startNonce, "nonce", minerRes.Nonce)
 				case <-abort:
-					logger.Trace("Nonce nonce found but discarded", "minerName", c.spec.Name, "attempts", nonce-startNonce, "nonce", nonce)
+					logger.Trace("Nonce nonce found but discarded", "minerName", c.spec.Name, "attempts", minerRes.Nonce-startNonce, "nonce", minerRes.Nonce)
 				}
 				break search
 			}
 		}
-		nonce++
+		minerRes.Nonce++
 	}
 }
 

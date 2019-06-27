@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"errors"
+	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"math/big"
 
 	"github.com/QuarkChain/goquarkchain/consensus"
@@ -33,15 +34,15 @@ func (d *DoubleSHA256) Finalize(chain consensus.ChainReader, header types.IHeade
 	panic(errors.New("not finalize"))
 }
 
-func hashAlgo(height uint64, hash []byte, nonce uint64) ([]byte, []byte, error) {
-	nonceBytes := make([]byte, 8)
+func hashAlgo(cache *consensus.ShareCache) error {
+	copy(cache.Seed, cache.Hash)
 	// Note it's big endian here
-	binary.BigEndian.PutUint64(nonceBytes, nonce)
-	hashNonceBytes := append(hash, nonceBytes...)
+	binary.BigEndian.PutUint64(cache.Seed[32:], cache.Nonce)
 
-	hashOnce := sha256.Sum256(hashNonceBytes)
-	resultArray := sha256.Sum256(hashOnce[:])
-	return []byte{}, resultArray[:], nil
+	hashOnce := sha256.Sum256(cache.Seed)
+	result := sha256.Sum256(hashOnce[:])
+	cache.Result = result[:]
+	return nil
 }
 
 func verifySeal(chain consensus.ChainReader, header types.IHeader, adjustedDiff *big.Int) error {
@@ -54,8 +55,13 @@ func verifySeal(chain consensus.ChainReader, header types.IHeader, adjustedDiff 
 	}
 
 	target := new(big.Int).Div(two256, diff)
-	_, result, _ := hashAlgo(0 /* not used */, header.SealHash().Bytes(), header.GetNonce())
-	if new(big.Int).SetBytes(result).Cmp(target) > 0 {
+	minerRes := consensus.ShareCache{
+		Hash:  header.SealHash().Bytes(),
+		Seed:  make([]byte, 40),
+		Nonce: header.GetNonce(),
+	}
+	_ = hashAlgo(&minerRes)
+	if new(big.Int).SetBytes(minerRes.Result).Cmp(target) > 0 {
 		return consensus.ErrInvalidPoW
 	}
 	return nil
@@ -64,7 +70,7 @@ func verifySeal(chain consensus.ChainReader, header types.IHeader, adjustedDiff 
 // New returns a DoubleSHA256 scheme.
 func New(diffCalculator consensus.DifficultyCalculator, remote bool) *DoubleSHA256 {
 	spec := consensus.MiningSpec{
-		Name:       "DoubleSHA256",
+		Name:       config.PoWDoubleSha256,
 		HashAlgo:   hashAlgo,
 		VerifySeal: verifySeal,
 	}

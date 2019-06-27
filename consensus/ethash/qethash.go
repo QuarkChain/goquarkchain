@@ -14,16 +14,23 @@ import (
 type QEthash struct {
 	*Ethash
 	*consensus.CommonEngine
+	height    uint64
+	qethCache *cache
+	qethSize  uint64
 }
 
-func (q *QEthash) hashAlgo(height uint64, hash []byte, nonce uint64) ([]byte, []byte, error) {
-	cache := q.cache(height)
-	size := datasetSize(height)
-	if q.config.PowMode == ModeTest {
-		size = 32 * 1024
+func (q *QEthash) hashAlgo(cache *consensus.ShareCache) error {
+	if q.height != cache.Height {
+		q.height = cache.Height
+		q.qethCache = q.cache(q.height)
+		q.qethSize = datasetSize(q.height)
+		if q.config.PowMode == ModeTest {
+			q.qethSize = 32 * 1024
+		}
 	}
-	digest, result := hashimotoLight(size, cache.cache, hash, nonce)
-	return digest, result, nil
+
+	cache.Digest, cache.Result = hashimotoLight(q.qethSize, q.qethCache.cache, cache.Hash, cache.Nonce)
+	return nil
 }
 
 // verifySeal implements consensus.Engine, checking whether the given block satisfies
