@@ -33,7 +33,7 @@ func (q *QKCHash) Finalize(chain consensus.ChainReader, header types.IHeader, st
 	panic("not implemented")
 }
 
-func (q *QKCHash) hashAlgo(height uint64, hash []byte, nonce uint64) (res consensus.MiningResult, err error) {
+func (q *QKCHash) hashAlgo(height uint64, hash []byte, nonce uint64) (res *consensus.MiningResult, err error) {
 	nonceBytes := make([]byte, 8)
 	binary.LittleEndian.PutUint64(nonceBytes, nonce)
 
@@ -46,7 +46,7 @@ func (q *QKCHash) hashAlgo(height uint64, hash []byte, nonce uint64) (res consen
 	if err != nil {
 		return res, err
 	}
-	res = consensus.MiningResult{Digest: common.BytesToHash(digest), Result: result, Nonce: nonce}
+	res = &consensus.MiningResult{Digest: common.BytesToHash(digest), Result: result, Nonce: nonce}
 	return res, nil
 }
 

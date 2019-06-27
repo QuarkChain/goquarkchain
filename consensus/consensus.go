@@ -73,7 +73,7 @@ type MiningResult struct {
 // MiningSpec contains a PoW algo's basic info and hash algo
 type MiningSpec struct {
 	Name       string
-	HashAlgo   func(height uint64, hash []byte, nonce uint64) (MiningResult, error)
+	HashAlgo   func(height uint64, hash []byte, nonce uint64) (*MiningResult, error)
 	VerifySeal func(chain ChainReader, header types.IHeader, adjustedDiff *big.Int) error
 }
 
@@ -331,7 +331,7 @@ search:
 			if new(big.Int).SetBytes(miningRes.Result).Cmp(target) <= 0 {
 				// Nonce found
 				select {
-				case found <- miningRes:
+				case found <- *miningRes:
 					logger.Trace("Nonce found and reported", "minerName", c.spec.Name, "attempts", nonce-startNonce, "nonce", nonce)
 				case <-abort:
 					logger.Trace("Nonce nonce found but discarded", "minerName", c.spec.Name, "attempts", nonce-startNonce, "nonce", nonce)

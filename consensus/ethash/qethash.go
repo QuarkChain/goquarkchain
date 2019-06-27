@@ -18,14 +18,14 @@ type QEthash struct {
 	*consensus.CommonEngine
 }
 
-func (q *QEthash) hashAlgo(height uint64, hash []byte, nonce uint64) (ret consensus.MiningResult, err error) {
+func (q *QEthash) hashAlgo(height uint64, hash []byte, nonce uint64) (ret *consensus.MiningResult, err error) {
 	cache := q.cache(height)
 	size := datasetSize(height)
 	if q.config.PowMode == ModeTest {
 		size = 32 * 1024
 	}
 	digest, result := hashimotoLight(size, cache.cache, hash, nonce)
-	return consensus.MiningResult{
+	return &consensus.MiningResult{
 		Digest: common.BytesToHash(digest),
 		Result: result,
 		Nonce:  nonce,

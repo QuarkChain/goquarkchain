@@ -35,7 +35,7 @@ func (d *DoubleSHA256) Finalize(chain consensus.ChainReader, header types.IHeade
 	panic(errors.New("not finalize"))
 }
 
-func hashAlgo(height uint64, hash []byte, nonce uint64) (consensus.MiningResult, error) {
+func hashAlgo(height uint64, hash []byte, nonce uint64) (*consensus.MiningResult, error) {
 	nonceBytes := make([]byte, 8)
 	// Note it's big endian here
 	binary.BigEndian.PutUint64(nonceBytes, nonce)
@@ -43,7 +43,7 @@ func hashAlgo(height uint64, hash []byte, nonce uint64) (consensus.MiningResult,
 
 	hashOnce := sha256.Sum256(hashNonceBytes)
 	resultArray := sha256.Sum256(hashOnce[:])
-	return consensus.MiningResult{
+	return &consensus.MiningResult{
 		Digest: common.Hash{},
 		Result: resultArray[:],
 		Nonce:  nonce,
