@@ -80,9 +80,6 @@ func makeConfigNode(ctx *cli.Context) (*service.Node, qkcConfig) {
 	} else {
 		utils.SetClusterConfig(ctx, &cfg.Cluster)
 	}
-	if err := config.UpdateGenesisAlloc(&cfg.Cluster); err != nil {
-		utils.Fatalf("Update genesis alloc err: %v", err)
-	}
 	// Load default cluster config.
 	utils.SetNodeConfig(ctx, &cfg.Service, &cfg.Cluster)
 
@@ -91,6 +88,9 @@ func makeConfigNode(ctx *cli.Context) (*service.Node, qkcConfig) {
 		slv, err := cfg.Cluster.GetSlaveConfig(ServiceName)
 		if err != nil {
 			utils.Fatalf("service type is error: %v", err)
+		}
+		if err := config.UpdateGenesisAlloc(&cfg.Cluster); err != nil {
+			utils.Fatalf("Update genesis alloc err: %v", err)
 		}
 		cfg.Service.Name = ServiceName
 		if slv.IP != config.GrpcHost {
