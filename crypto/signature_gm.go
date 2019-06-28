@@ -1,3 +1,5 @@
+//+build gm
+
 package crypto
 
 import (
