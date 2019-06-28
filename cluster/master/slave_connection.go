@@ -3,12 +3,10 @@ package master
 import (
 	"errors"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
-	qcom "github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/p2p"
@@ -75,10 +73,6 @@ func (s *SlaveConnection) MasterInfo(ip string, port uint16, rootTip *types.Root
 	var (
 		gReq = rpc.MasterInfo{Ip: ip, Port: port, RootTip: rootTip}
 	)
-	endpoint := strings.Split(s.target, ":")
-	if qcom.IsLocalIP(endpoint[0]) {
-		gReq.Ip = endpoint[0]
-	}
 	bytes, err := serialize.SerializeToBytes(gReq)
 	if err != nil {
 		return err
@@ -287,7 +281,7 @@ func (s *SlaveConnection) GetTransactionsByAddress(address *account.Address, sta
 	return trans.TxList, trans.Next, nil
 }
 
-func (s *SlaveConnection) GetLogs(branch account.Branch, address []*account.Address, topics []*rpc.Topic, startBlock, endBlock uint64) ([]*types.Log, error) {
+func (s *SlaveConnection) GetLogs(branch account.Branch, address []account.Address, topics [][]common.Hash, startBlock, endBlock uint64) ([]*types.Log, error) {
 	var (
 		req = rpc.GetLogRequest{
 			Branch:     branch.Value,

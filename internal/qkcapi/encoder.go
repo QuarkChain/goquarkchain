@@ -3,6 +3,7 @@ package qkcapi
 import (
 	"errors"
 	"github.com/QuarkChain/goquarkchain/account"
+	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/serialize"
@@ -81,7 +82,7 @@ func rootBlockEncoder(rootBlock *types.RootBlock) (map[string]interface{}, error
 	return fields, nil
 }
 
-func minorBlockEncoder(block *types.MinorBlock, includeTransaction bool) (map[string]interface{}, error) {
+func minorBlockEncoder(block *types.MinorBlock, includeTransaction bool, cfg *config.ClusterConfig) (map[string]interface{}, error) {
 	serData, err := serialize.SerializeToBytes(block)
 	if err != nil {
 		return nil, err
@@ -119,7 +120,7 @@ func minorBlockEncoder(block *types.MinorBlock, includeTransaction bool) (map[st
 	if includeTransaction {
 		txForDisplay := make([]map[string]interface{}, 0)
 		for txIndex, _ := range block.Transactions() {
-			temp, err := txEncoder(block, txIndex)
+			temp, err := txEncoder(block, txIndex, cfg)
 			if err != nil {
 				return nil, err
 			}
@@ -136,7 +137,7 @@ func minorBlockEncoder(block *types.MinorBlock, includeTransaction bool) (map[st
 	return field, nil
 }
 
-func txEncoder(block *types.MinorBlock, i int) (map[string]interface{}, error) {
+func txEncoder(block *types.MinorBlock, i int, cfg *config.ClusterConfig) (map[string]interface{}, error) {
 	header := block.Header()
 	tx := block.Transactions()[i]
 	evmtx := tx.EvmTx
@@ -151,7 +152,7 @@ func txEncoder(block *types.MinorBlock, i int) (map[string]interface{}, error) {
 	}
 	branch := block.Header().Branch
 	field := map[string]interface{}{
-		"id":               IDEncoder(tx.Hash().Bytes(), evmtx.FromFullShardId()),
+		"id":               IDEncoder(tx.Hash().Bytes(), evmtx.FromFullShardKey()),
 		"hash":             tx.Hash(),
 		"nonce":            hexutil.Uint64(evmtx.Nonce()),
 		"timestamp":        hexutil.Uint64(header.Time),
@@ -207,7 +208,7 @@ func receiptEncoder(block *types.MinorBlock, i int, receipt *types.Receipt) (map
 		return nil, errors.New("block is nil")
 	}
 	if len(block.Transactions()) <= i {
-		return nil, errors.New("tx not exist")
+		return nil, nil
 	}
 	if receipt == nil {
 		return nil, errors.New("receipt is nil")
@@ -217,7 +218,7 @@ func receiptEncoder(block *types.MinorBlock, i int, receipt *types.Receipt) (map
 	header := block.Header()
 
 	field := map[string]interface{}{
-		"transactionId":     IDEncoder(tx.Hash().Bytes(), evmtx.FromFullShardId()), //TODO fullShardKey
+		"transactionId":     IDEncoder(tx.Hash().Bytes(), evmtx.FromFullShardKey()), //TODO fullShardKey
 		"transactionHash":   tx.Hash(),
 		"transactionIndex":  hexutil.Uint64(i),
 		"blockId":           IDEncoder(header.Hash().Bytes(), header.Branch.GetFullShardID()),

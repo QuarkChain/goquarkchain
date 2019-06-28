@@ -60,11 +60,11 @@ var (
 		utils.RPCDisabledFlag,
 		utils.RPCListenAddrFlag,
 		utils.RPCPortFlag,
-		utils.PrivateRPCEnableFlag,
 		utils.PrivateRPCListenAddrFlag,
 		utils.PrivateRPCPortFlag,
 		utils.IPCEnableFlag,
 		utils.IPCPathFlag,
+		utils.GRPCAddrFlag,
 		utils.GRPCPortFlag,
 	}
 )
