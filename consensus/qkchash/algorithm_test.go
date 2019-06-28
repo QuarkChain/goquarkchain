@@ -27,14 +27,15 @@ func TestQKCHash(t *testing.T) {
 
 	// Failure case, mismatched native flag and hash algo
 	cache := generateCache(cacheEntryCnt, nil, false /* not native */)
-	_, _, err := qkcHashNative([]byte{}, []byte{}, cache) // Native
+	seed := make([]byte, 40)
+	_, _, err := qkcHashNative(seed, cache) // Native
 	assert.Error(err,
 		"should have error because native cache is not populated by wrong flag")
 
 	// Successful test cases
 	testcases := []struct {
 		useNative   bool
-		qkcHashAlgo func([]byte, []byte, qkcCache) ([]byte, []byte, error)
+		qkcHashAlgo func([]byte, qkcCache) ([]byte, []byte, error)
 	}{
 		{false, qkcHashGo},
 		{true, qkcHashNative},
@@ -42,7 +43,7 @@ func TestQKCHash(t *testing.T) {
 	for _, tc := range testcases {
 		cache = generateCache(cacheEntryCnt, nil, tc.useNative)
 
-		digest, result, err := tc.qkcHashAlgo([]byte{}, []byte{}, cache)
+		digest, result, err := tc.qkcHashAlgo(append([]byte{}, []byte{}...), cache)
 		assert.NoError(err)
 		assert.Equal(
 			"be3913b35b8815a61146f4d8dcce89a2bd8a262698c7263a56abe14b8e29595c",
@@ -53,7 +54,7 @@ func TestQKCHash(t *testing.T) {
 			fmt.Sprintf("%x", result),
 		)
 
-		digest, result, err = tc.qkcHashAlgo([]byte("Hello World!"), []byte{}, cache)
+		digest, result, err = tc.qkcHashAlgo(append([]byte("Hello World!"), []byte{}...), cache)
 		assert.NoError(err)
 		assert.Equal(
 			"53423968b44d02b1861e9a000d035d74bc0fa515e8f702261bcfcc3e5fb4bd3d",
@@ -94,7 +95,9 @@ func BenchmarkQKCHashGo(b *testing.B) {
 	var err error
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, _, err = qkcHashGo([]byte("HELLOW"), []byte{}, cache)
+		seed := make([]byte, 40)
+		copy(seed, []byte("HELLOW"))
+		_, _, err = qkcHashGo(seed, cache)
 	}
 	benchErr = err
 }
@@ -104,7 +107,9 @@ func BenchmarkQKCHashNative(b *testing.B) {
 	var err error
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, _, err = qkcHashNative([]byte("HELLOW"), []byte{}, cache)
+		seed := make([]byte, 40)
+		copy(seed, []byte("HELLOW"))
+		_, _, err = qkcHashNative(seed, cache)
 		// Note native cache is not destroyed
 	}
 	benchErr = err
