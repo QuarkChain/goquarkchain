@@ -169,13 +169,9 @@ func (s *ShardBackend) GetTransactionListByAddress(address *account.Address,
 // TODO 当前版本暂不添加
 func (s *ShardBackend) GetLogs() ([]*types.Log, error) { panic("not implemented") }
 
-func (s *ShardBackend) PoSWDiffAdjust(block types.IBlock) (*big.Int, error) {
-	return s.MinorBlockChain.PoSWDiffAdjust(block)
-}
-
 func (s *ShardBackend) GetWork() (*consensus.MiningWork, error) {
 	var miningWork *consensus.MiningWork
-	if s.Config.ChainConfig.PoswConfig.Enabled {
+	if s.posw.Config.Enabled {
 		miningBlock, err := s.miner.GetMiningBlock()
 		if err != nil {
 			return nil, err
@@ -185,12 +181,12 @@ func (s *ShardBackend) GetWork() (*consensus.MiningWork, error) {
 		hash := (*miningBlock).IHeader().SealHash()
 		miningWork.HeaderHash = hash
 		miningWork.Number = (*miningBlock).NumberU64()
-		diffAdjusted, err := s.PoSWDiffAdjust(*miningBlock)
+		diffAdjusted, err := s.posw.PoSWDiffAdjust((*miningBlock).IHeader())
 		if err != nil {
 			log.Error("[PoSW]Failed to compute PoSW difficulty.", err)
 		}
 		miningWork.Difficulty = diffAdjusted
-		log.Info("[PoSW]GetWork", "fullShardId", s.fullShardId, "number", miningWork.Number, "diff", diff, "diffAdjusted", diffAdjusted)
+		log.Info("[PoSW]ShardBackend.GetWork", "fullShardId", s.fullShardId, "number", miningWork.Number, "diff", diff, "diffAdjusted", diffAdjusted)
 	} else {
 		var err error
 		miningWork, err = s.miner.GetWork()

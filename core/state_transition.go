@@ -216,6 +216,14 @@ func (st *StateTransition) TransitionDb(feeRate *big.Rat) (ret []byte, usedGas u
 		// error.
 		vmerr error
 	)
+	senderAddr := sender.Address()
+	if v, ok := evm.StateDB.GetSenderDisallowMap()[senderAddr]; ok {
+		if new(big.Int).Add(msg.Value(), v).Cmp(evm.StateDB.GetBalance(senderAddr)) == 1 {
+			log.Warn("SENDER NOT ALLOWED", "sender", senderAddr)
+			return nil, 0, false, errors.New("SENDER NOT ALLOWED")
+		}
+	}
+
 	if contractCreation {
 		ret, _, st.gas, vmerr = evm.Create(sender, st.data, st.gas, st.value, msg.IsCrossShard())
 	} else {

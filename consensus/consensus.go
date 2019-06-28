@@ -361,7 +361,7 @@ func (c *CommonEngine) GetWork() (*MiningWork, error) {
 
 	select {
 	case work := <-workCh:
-		log.Warn("[PoWS] engine GetWork", "work", work)
+		log.Warn("[PoSW]CommonEngine GetWork", "work", work)
 		return &work, nil
 	case err := <-errc:
 		return nil, err
@@ -384,7 +384,7 @@ func (c *CommonEngine) GetMiningBlock() (*types.IBlock, error) {
 	}
 	select {
 	case block := <-blockCh:
-		log.Warn("[PoWS] engine GetMiningBlock", "block", block)
+		log.Info("[PoSW]CommonEngine GetMiningBlock", "block", block.NumberU64())
 		return &block, nil
 	case err := <-errc:
 		return nil, err

@@ -41,6 +41,7 @@ type MinorBlockValidator struct {
 	engine           consensus.Engine         // Consensus engine used for validating
 	branch           account.Branch
 	logInfo          string
+	posw			*consensus.PoSW
 }
 
 // NewBlockValidator returns a new block validator which is safe for re-use
@@ -51,6 +52,7 @@ func NewBlockValidator(quarkChainConfig *config.QuarkChainConfig, blockchain *Mi
 		bc:               blockchain,
 		branch:           branch,
 		logInfo:          fmt.Sprintf("minorBlock validate branch:%v", branch),
+		posw:             consensus.NewPoSW(blockchain),
 	}
 	return validator
 }
@@ -184,27 +186,7 @@ func (v *MinorBlockValidator) ValidateBlock(mBlock types.IBlock) error {
 		log.Error(v.logInfo, "err", errMustBeOneRootChain, "long", block.Header().GetPrevRootBlockHash().String(), "short", prevHeader.(*types.MinorBlockHeader).GetPrevRootBlockHash().String())
 		return errMustBeOneRootChain
 	}
-	header := block.Header()
-	branch := header.GetBranch()
-	fullShardID := branch.GetFullShardID()
-	shardConfig := v.quarkChainConfig.GetShardConfigByFullShardID(fullShardID)
-	consensusType := shardConfig.ConsensusType
-	var diff *big.Int
-	var err error
-	if shardConfig.ChainConfig.PoswConfig.Enabled {
-		diff, err = v.bc.PoSWDiffAdjust(block)
-		if err != nil {
-			log.Error(v.logInfo, "PoSWDiffAdjust err", err)
-			return err
-		}
-		diffStr := diff.Text(10)
-		diffInt64, _ := strconv.ParseUint(diffStr, 10, 64)
-		diffUint64 := uint64(diffInt64)
-		err = v.validateSeal(header, consensusType, &diffUint64)
-	} else {
-		err = v.validateSeal(header, consensusType, nil)
-	}
-	if  err != nil {
+	if err := v.ValidatorSeal(block.Header()); err != nil {
 		log.Error(v.logInfo, "ValidatorBlockSeal err", err)
 		return err
 	}
@@ -259,7 +241,18 @@ func (v *MinorBlockValidator) ValidatorSeal(mHeader types.IHeader) error {
 	fullShardID := branch.GetFullShardID()
 	shardConfig := v.quarkChainConfig.GetShardConfigByFullShardID(fullShardID)
 	consensusType := shardConfig.ConsensusType
-	return v.validateSeal(header, consensusType, nil)
+	var diff uint64
+	if v.posw.Config.Enabled {
+		diffBig, err := v.posw.PoSWDiffAdjust(mHeader)
+		if err != nil {
+			log.Error(v.logInfo, "PoSWDiffAdjust err", err)
+			return err
+		}
+		diffStr := diffBig.Text(10)
+		diffInt64, _ := strconv.ParseUint(diffStr, 10, 64)
+		diff = uint64(diffInt64)
+	}
+	return v.validateSeal(header, consensusType, &diff)
 }
 
 func (v *MinorBlockValidator) validateSeal(header types.IHeader, consensusType string, diff *uint64) error {

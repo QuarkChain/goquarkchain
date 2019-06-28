@@ -8,7 +8,6 @@ import (
 	"math/big"
 	"sort"
 	"time"
-	"strconv"
 
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
@@ -230,7 +229,7 @@ func (m *MinorBlockChain) InitGenesisState(rBlock *types.RootBlock) (*types.Mino
 	}
 	m.rootTip = rBlock.Header()
 	m.confirmedHeaderTip = nil
-	m.currentEvmState, err = m.createEvmState(gBlock.Meta().Root, gBlock.Hash())
+	m.currentEvmState, err = m.createEvmState(gBlock.Meta().Root, gBlock.Hash(), map[account.Recipient]*big.Int{})
 	if err != nil {
 		return nil, err
 	}
@@ -282,73 +281,14 @@ func (m *MinorBlockChain) putRootBlock(rBlock *types.RootBlock, minorHeader *typ
 	rawdb.WriteLastConfirmedMinorBlockHeaderAtRootBlock(m.db, rBlockHash, mHash)
 }
 
-func (m *MinorBlockChain) createEvmState(trieRootHash common.Hash, headerHash common.Hash) (*state.StateDB, error) {
+func (m *MinorBlockChain) createEvmState(trieRootHash common.Hash, headerHash common.Hash, senderDisallowMap map[account.Recipient]*big.Int) (*state.StateDB, error) {
 	evmState, err := m.StateAt(trieRootHash)
 	if err != nil {
 		return nil, err
 	}
 	evmState.SetShardConfig(m.shardConfig)
+	evmState.SetSenderDisallowMap(senderDisallowMap)
 	return evmState, nil
-}
-	/*PoSW needed function: get coinbase addresses up until the given block
-		hash (inclusive) along with block counts within the PoSW window.
-	*/
-func (m *MinorBlockChain) GetPoSWCoinbaseBlockCnt(headerHash common.Hash, length uint32) (map[account.Recipient]uint32, error) {
-	coinbaseAddrs, err := m.getCoinbaseAddressUntilBlock(headerHash, length)
-	if err != nil {
-		return nil, err
-	}
-	recipientCountMap := make(map[account.Recipient]uint32)
-	for _, ca := range coinbaseAddrs {
-		if _, ok := recipientCountMap[ca]; ok {
-			recipientCountMap[ca]++
-		} else {
-			recipientCountMap[ca]=1
-		}
-	}
-	return recipientCountMap, nil
-}
-/*
-*Get coinbase addresses up until block of given hash within the window.
-*/
-func (m *MinorBlockChain) getCoinbaseAddressUntilBlock(headerHash common.Hash, length uint32) ([]account.Recipient, error) {
-	var header types.IHeader
-	var addrs []account.Recipient
-	if header = m.GetHeaderByHash(headerHash); qkcCommon.IsNil(header) {
-		return nil, fmt.Errorf("curr block not found: hash %x", headerHash)
-	}
-	height := header.NumberU64()
-	prevHash := header.GetParentHash()
-	cache := m.coinbaseAddrCache[length]
-	if haddrs, ok := cache[prevHash]; ok {//mem cache hit
-		addrs = haddrs.addrs
-		if uint32(len(addrs)) == length {
-			addrs = addrs[1:]
-		}
-		addrs = append(addrs, header.GetCoinbase().Recipient)
-	} else {//miss, iterating DB
-		cache = make(map[common.Hash]heightAndAddrs)
-		lgth := int(length)
-		addrs = make([]account.Recipient, lgth)
-		for i := lgth; i > 0; i++ {
-			addrs[i-1] = header.GetCoinbase().Recipient
-			if header.NumberU64() == 0 {
-				break
-			}
-			header = m.GetHeaderByHash(header.GetParentHash())
-			if header == nil {
-				return nil, errors.New("mysteriously missing block.")
-			}
-		}
-	}
-	cache[headerHash] = heightAndAddrs{height, addrs}
-	//in case cached too much, clean up
-	if len(cache) > 128 {//size around 640KB if window size 256
-			//TODO keep most recent ones
-		// m.coinbaseAddrCache[length] =  
-		 
-	}
-	return addrs, nil
 }
 
 func (m *MinorBlockChain) putTotalTxCount(mBlock *types.MinorBlock) error {
@@ -399,13 +339,14 @@ func (m *MinorBlockChain) InitFromRootBlock(rBlock *types.RootBlock) error {
 
 	m.rootTip = rBlock.Header()
 	m.confirmedHeaderTip = confirmedHeaderTip
-
-	block := rawdb.ReadMinorBlock(m.db, headerTip.Hash())
+	headerTipHash := headerTip.Hash()
+	block := rawdb.ReadMinorBlock(m.db, headerTipHash)
 	if block == nil {
 		return ErrMinorBlockIsNil
 	}
+	senderDisallowMap := m.senderDisallowMapBuilder.BuildSenderDisallowMap(headerTipHash, account.Recipient{})
 	var err error
-	m.currentEvmState, err = m.createEvmState(block.Meta().Root, block.Hash())
+	m.currentEvmState, err = m.createEvmState(block.Meta().Root, block.Hash(), senderDisallowMap)
 	if err != nil {
 		return err
 	}
@@ -413,23 +354,25 @@ func (m *MinorBlockChain) InitFromRootBlock(rBlock *types.RootBlock) error {
 }
 
 // getEvmStateForNewBlock get evmState for new block.should have locked
-func (m *MinorBlockChain) getEvmStateForNewBlock(mBlock types.IBlock, ephemeral bool) (*state.StateDB, error) {
-	block := mBlock.(*types.MinorBlock)
-	preMinorBlock := m.GetMinorBlock(block.IHeader().GetParentHash())
+func (m *MinorBlockChain) GetEvmStateForNewBlock(mHeader types.IHeader, ephemeral bool) (*state.StateDB, error) {
+	prevHash := mHeader.GetParentHash()
+	preMinorBlock := m.GetMinorBlock(prevHash)
 	if preMinorBlock == nil {
 		return nil, errInsufficientBalanceForGas
 	}
+	recipient := mHeader.GetCoinbase().Recipient
 	rootHash := preMinorBlock.GetMetaData().Root
-	evmState, err := m.createEvmState(rootHash, block.IHeader().GetParentHash())
+	senderDisallowMap := m.senderDisallowMapBuilder.BuildSenderDisallowMap(prevHash, recipient)
+	evmState, err := m.createEvmState(rootHash, prevHash, senderDisallowMap)
 	if err != nil {
 		return nil, err
 	}
-
 	if ephemeral {
 		evmState = evmState.Copy()
 	}
-	evmState.SetBlockCoinbase(block.IHeader().GetCoinbase().Recipient)
-	evmState.SetGasLimit(block.Header().GetGasLimit())
+	evmState.SetBlockCoinbase(recipient)
+	header := mHeader.(*types.MinorBlockHeader)
+	evmState.SetGasLimit(header.GetGasLimit())
 	evmState.SetQuarkChainConfig(m.clusterConfig.Quarkchain)
 	return evmState, nil
 }
@@ -438,11 +381,11 @@ func (m *MinorBlockChain) getEvmStateFromHeight(height *uint64) (*state.StateDB,
 	if height == nil || *height == m.CurrentBlock().NumberU64() {
 		return m.State()
 	}
-	block := m.GetBlockByNumber(*height + 1)
-	if block != nil {
+	header := m.GetHeaderByNumber(*height + 1)
+	if header != nil {
 		return nil, ErrMinorBlockIsNil
 	}
-	return m.getEvmStateForNewBlock(block, true)
+	return m.GetEvmStateForNewBlock(header, true)
 }
 
 func (m *MinorBlockChain) runBlock(block *types.MinorBlock) (*state.StateDB, types.Receipts, error) {
@@ -867,7 +810,7 @@ func (m *MinorBlockChain) CreateBlockToMine(createTime *uint64, address *account
 		address = &t
 	}
 	block := prevBlock.CreateBlockToAppend(&realCreateTime, difficulty, address, nil, gasLimit, nil, nil)
-	evmState, err := m.getEvmStateForNewBlock(block, true)
+	evmState, err := m.GetEvmStateForNewBlock(block.IHeader(), true)
 
 	prevHeader := m.CurrentBlock()
 	ancestorRootHeader := m.GetRootBlockByHash(prevHeader.Header().PrevRootBlockHash).Header()
@@ -1274,45 +1217,6 @@ func (m *MinorBlockChain) reWriteBlockIndexTo(oldBlock *types.MinorBlock, newBlo
 	}
 	return m.SetHead(newBlock.NumberU64())
 }
-
-// PoSWDiffAdjust PoSW diff calc,already locked by insertChain
-func (m *MinorBlockChain) PoSWDiffAdjust(block types.IBlock) (*big.Int, error) {
-	header := block.IHeader()
-	diff := header.GetDifficulty()
-	coinBaseRecipient := header.GetCoinbase().Recipient
-	// Evaluate stakes before the to-be-added block
-	evmState, err := m.getEvmStateForNewBlock(block, false)
-	if err != nil {
-		return nil, err
-	}
-	config := m.shardConfig.PoswConfig
-	stakes := evmState.GetBalance(coinBaseRecipient)
-	blockThreshold := new(big.Int).Div(stakes, config.TotalStakePerBlock)
-	blockThresholdStr := blockThreshold.Text(10)
-	blockThresholdInt64, err := strconv.ParseUint(blockThresholdStr, 10, 32)
-	if err != nil {
-		log.Error("Failed to compute blockThreshold", err)
-		return nil, errors.New("Failed to compute blockThreshold")
-	}
-	blockThresholdInt32 := uint32(blockThresholdInt64)
-	if blockThresholdInt32 > config.WindowSize {
-		blockThresholdInt32 = config.WindowSize
-	}
-	// The func is inclusive, so need to fetch block counts until prev block
-	// Also only fetch prev window_size - 1 block counts because the
-	// new window should count the current block
-	blockCnt, err := m.GetPoSWCoinbaseBlockCnt(header.GetParentHash(), config.WindowSize - 1)
-	if err != nil {
-		return nil, err
-	}
-	cnt := blockCnt[coinBaseRecipient]
-	if cnt < blockThresholdInt32 {
-		diff = new(big.Int).Div(diff, big.NewInt(int64(config.DiffDivider)))
-	}
-	log.Warn("[PoSW]Adjusted PoSW ", "from", header.GetDifficulty(), "to", diff)
-	return diff, nil
-}
-
 func (m *MinorBlockChain) GetBranch() account.Branch {
 	return m.branch
 }
@@ -1591,4 +1495,8 @@ func (m *MinorBlockChain) ReadCrossShardTxList(hash common.Hash) *types.CrossSha
 		return data
 	}
 	return nil
+}
+
+func (m *MinorBlockChain) GetPoSWConfig() *config.POSWConfig {
+	return m.shardConfig.PoswConfig
 }

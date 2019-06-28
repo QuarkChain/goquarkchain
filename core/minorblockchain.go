@@ -55,11 +55,6 @@ const (
 	maxLastConfirmLimit = 256
 )
 
-type heightAndAddrs struct {
-	height uint64
-	addrs  []account.Recipient
-}
-
 type gasPriceSuggestionOracle struct {
 	LastPrice   uint64
 	LastHead    common.Hash
@@ -132,13 +127,17 @@ type MinorBlockChain struct {
 	rootTip                  *types.RootBlockHeader
 	confirmedHeaderTip       *types.MinorBlockHeader
 	initialized              bool
-	coinbaseAddrCache        map[uint32]map[common.Hash]heightAndAddrs
 	rewardCalc               *qkcCommon.ConstMinorBlockRewardCalculator
 	gasPriceSuggestionOracle *gasPriceSuggestionOracle
 	heightToMinorBlockHashes map[uint64]map[common.Hash]struct{}
 	currentEvmState          *state.StateDB
 	logInfo                  string
 	addMinorBlockAndBroad    func(block *types.MinorBlock) error
+	senderDisallowMapBuilder SenderDisallowMapBuilder
+}
+
+type SenderDisallowMapBuilder interface {
+	BuildSenderDisallowMap(headerHash common.Hash, recipient account.Recipient) map[account.Recipient]*big.Int
 }
 
 // NewMinorBlockChain returns a fully initialised block chain using information
@@ -190,7 +189,6 @@ func NewMinorBlockChain(
 		engine:                   engine,
 		vmConfig:                 vmConfig,
 		heightToMinorBlockHashes: make(map[uint64]map[common.Hash]struct{}),
-		coinbaseAddrCache:        make(map[uint32]map[common.Hash]heightAndAddrs),
 		currentEvmState:          new(state.StateDB),
 		branch:                   account.Branch{Value: fullShardID},
 		shardConfig:              clusterConfig.Quarkchain.GetShardConfigByFullShardID(fullShardID),
@@ -225,6 +223,7 @@ func NewMinorBlockChain(
 	}
 
 	bc.txPool = NewTxPool(DefaultTxPoolConfig, bc)
+	bc.senderDisallowMapBuilder = consensus.NewPoSW(bc)
 	// Take ownership of this particular state
 	go bc.update()
 	return bc, nil
@@ -1138,7 +1137,8 @@ func (m *MinorBlockChain) insertChain(chain []types.IBlock, verifySeals bool) (i
 		}
 		t2 := time.Now()
 		proctime := time.Since(start)
-
+		senderDisallowMap := m.senderDisallowMapBuilder.BuildSenderDisallowMap(block.Hash(), account.Recipient{})
+		state.SetSenderDisallowMap(senderDisallowMap)
 		updateTip, err := m.updateTip(state, mBlock)
 		if err != nil {
 			return it.index, events, coalescedLogs, xShardList, err
