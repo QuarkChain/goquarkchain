@@ -65,9 +65,7 @@ func (s *SlaveBackend) CreateShards(rootBlock *types.RootBlock) (err error) {
 					shard.Stop()
 					return err
 				}
-				s.mu.Lock()
 				s.shards[id] = shard
-				s.mu.Unlock()
 			}
 			return nil
 		})
