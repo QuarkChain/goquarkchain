@@ -1,9 +1,6 @@
 package slave
 
 import (
-	"reflect"
-	"sync"
-
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/cluster/service"
@@ -11,6 +8,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/p2p"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/rpc"
+	"reflect"
 )
 
 type SlaveBackend struct {
