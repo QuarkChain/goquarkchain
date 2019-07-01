@@ -18,6 +18,7 @@ import (
 	"github.com/ethereum/go-ethereum/metrics"
 
 	"github.com/QuarkChain/goquarkchain/account"
+	"github.com/QuarkChain/goquarkchain/consensus/posw"
 	"github.com/QuarkChain/goquarkchain/core/types"
 )
 
@@ -455,4 +456,12 @@ func NewCommonEngine(spec MiningSpec, diffCalc DifficultyCalculator, remote bool
 	}
 
 	return c
+}
+
+func CreatePoSWCalculator(mbc posw.MinorBlockChainPoSWHelper) PoSWCalculator {
+	return posw.NewPoSW(mbc)
+}
+
+func CreateSenderDisallowMapBuilder(mbc posw.MinorBlockChainPoSWHelper) SenderDisallowMapBuilder {
+	return posw.NewPoSW(mbc)
 }

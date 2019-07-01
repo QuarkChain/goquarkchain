@@ -1,4 +1,4 @@
-package consensus
+package posw
 
 import (
 	"fmt"
@@ -61,7 +61,7 @@ func (p *PoSW) PoSWDiffAdjust(header types.IHeader) (*big.Int, error) {
 	// The func is inclusive, so need to fetch block counts until prev block
 	// Also only fetch prev window_size - 1 block counts because the
 	// new window should count the current block
-	blockCnt, err := p.GetPoSWCoinbaseBlockCnt(header.GetParentHash(), p.Config.WindowSize - 1)
+	blockCnt, err := p.GetPoSWCoinbaseBlockCnt(header.GetParentHash(), p.Config.WindowSize-1)
 	if err != nil {
 		return nil, err
 	}
@@ -160,4 +160,8 @@ func (p *PoSW) BuildSenderDisallowMap(headerHash common.Hash, recipient account.
 		disallowMap[k] = new(big.Int).Mul(big.NewInt(int64(v)), stakePerBlock)
 	}
 	return disallowMap
+}
+
+func (p *PoSW) IsPoSWEnabled() bool {
+	return p.Config.Enabled
 }

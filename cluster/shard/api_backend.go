@@ -171,22 +171,22 @@ func (s *ShardBackend) GetLogs() ([]*types.Log, error) { panic("not implemented"
 
 func (s *ShardBackend) GetWork() (*consensus.MiningWork, error) {
 	var miningWork *consensus.MiningWork
-	if s.posw.Config.Enabled {
-		miningBlock, err := s.miner.GetMiningBlock()
-		if err != nil {
-			return nil, err
-		}
-		diff := (*miningBlock).IHeader().GetDifficulty()
-		miningWork = &consensus.MiningWork{}
-		hash := (*miningBlock).IHeader().SealHash()
-		miningWork.HeaderHash = hash
-		miningWork.Number = (*miningBlock).NumberU64()
-		diffAdjusted, err := s.posw.PoSWDiffAdjust((*miningBlock).IHeader())
-		if err != nil {
-			log.Error("[PoSW]Failed to compute PoSW difficulty.", err)
-		}
-		miningWork.Difficulty = diffAdjusted
-		log.Info("[PoSW]ShardBackend.GetWork", "fullShardId", s.fullShardId, "number", miningWork.Number, "diff", diff, "diffAdjusted", diffAdjusted)
+	if s.posw.IsPoSWEnabled() {
+		//miningHeader, err := s.miner.GetMiningBlockHeader()
+		//if err != nil {
+		//	return nil, err
+		//}
+		//diff := (*miningHeader).GetDifficulty()
+		//miningWork = &consensus.MiningWork{}
+		//hash := (*miningHeader).SealHash()
+		//miningWork.HeaderHash = hash
+		//miningWork.Number = (*miningHeader).NumberU64()
+		//diffAdjusted, err := s.posw.PoSWDiffAdjust((*miningHeader)())
+		//if err != nil {
+		//	log.Error("[PoSW]Failed to compute PoSW difficulty.", err)
+		//}
+		//miningWork.Difficulty = diffAdjusted
+		//log.Info("[PoSW]ShardBackend.GetWork", "fullShardId", s.fullShardId, "number", miningWork.Number, "diff", diff, "diffAdjusted", diffAdjusted)
 	} else {
 		var err error
 		miningWork, err = s.miner.GetWork()

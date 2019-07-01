@@ -164,21 +164,6 @@ func (m *Miner) GetWork() (*consensus.MiningWork, error) {
 	return m.engine.GetWork()
 }
 
-func (m *Miner) GetMiningBlock() (*types.IBlock, error) {
-	if atomic.LoadUint32(&m.isMining) == 0 {
-		return nil, fmt.Errorf("Should only be used for remote miner ")
-	}
-	block, err := m.engine.GetMiningBlock()
-	if err == nil {
-		return block, nil
-	}
-	if err == consensus.ErrNoMiningWork {
-		m.startCh <- struct{}{}
-		time.Sleep(2)
-	}
-	return m.engine.GetMiningBlock()
-}
-
 func (m *Miner) SubmitWork(nonce uint64, hash, digest common.Hash) bool {
 	if atomic.LoadUint32(&m.isMining) == 0 {
 		return false

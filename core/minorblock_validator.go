@@ -41,7 +41,7 @@ type MinorBlockValidator struct {
 	engine           consensus.Engine         // Consensus engine used for validating
 	branch           account.Branch
 	logInfo          string
-	posw			*consensus.PoSW
+	posw             consensus.PoSWCalculator
 }
 
 // NewBlockValidator returns a new block validator which is safe for re-use
@@ -52,7 +52,7 @@ func NewBlockValidator(quarkChainConfig *config.QuarkChainConfig, blockchain *Mi
 		bc:               blockchain,
 		branch:           branch,
 		logInfo:          fmt.Sprintf("minorBlock validate branch:%v", branch),
-		posw:             consensus.NewPoSW(blockchain),
+		posw:             consensus.CreatePoSWCalculator(blockchain),
 	}
 	return validator
 }
@@ -242,7 +242,7 @@ func (v *MinorBlockValidator) ValidatorSeal(mHeader types.IHeader) error {
 	shardConfig := v.quarkChainConfig.GetShardConfigByFullShardID(fullShardID)
 	consensusType := shardConfig.ConsensusType
 	var diff uint64
-	if v.posw.Config.Enabled {
+	if v.posw.IsPoSWEnabled() {
 		diffBig, err := v.posw.PoSWDiffAdjust(mHeader)
 		if err != nil {
 			log.Error(v.logInfo, "PoSWDiffAdjust err", err)

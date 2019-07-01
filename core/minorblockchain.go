@@ -61,6 +61,7 @@ type gasPriceSuggestionOracle struct {
 	CheckBlocks uint64
 	Percentile  uint64
 }
+
 // MinorBlockChain represents the canonical chain given a database with a genesis
 // block. The Blockchain manages chain imports, reverts, chain reorganisations.
 //
@@ -133,11 +134,7 @@ type MinorBlockChain struct {
 	currentEvmState          *state.StateDB
 	logInfo                  string
 	addMinorBlockAndBroad    func(block *types.MinorBlock) error
-	senderDisallowMapBuilder SenderDisallowMapBuilder
-}
-
-type SenderDisallowMapBuilder interface {
-	BuildSenderDisallowMap(headerHash common.Hash, recipient account.Recipient) map[account.Recipient]*big.Int
+	senderDisallowMapBuilder consensus.SenderDisallowMapBuilder
 }
 
 // NewMinorBlockChain returns a fully initialised block chain using information
@@ -223,7 +220,7 @@ func NewMinorBlockChain(
 	}
 
 	bc.txPool = NewTxPool(DefaultTxPoolConfig, bc)
-	bc.senderDisallowMapBuilder = consensus.NewPoSW(bc)
+	bc.senderDisallowMapBuilder = consensus.CreateSenderDisallowMapBuilder(bc)
 	// Take ownership of this particular state
 	go bc.update()
 	return bc, nil

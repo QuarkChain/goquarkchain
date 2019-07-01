@@ -104,6 +104,3 @@ func (e *FakeEngine) Finalize(chain ChainReader, header types.IHeader, state *st
 	receipts []*types.Receipt) (types.IBlock, error) {
 	panic("no need for test")
 }
-func (e *FakeEngine) GetMiningBlock() (*types.IBlock, error) {
-	panic(-1)
-}

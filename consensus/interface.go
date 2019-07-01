@@ -76,8 +76,6 @@ type Engine interface {
 
 	GetWork() (*MiningWork, error)
 
-	GetMiningBlock() (*types.IBlock, error)
-
 	SubmitWork(nonce uint64, hash, digest common.Hash) bool
 
 	SetThreads(threads int)
@@ -94,4 +92,13 @@ type PoW interface {
 	Hashrate() float64
 	FindNonce(work MiningWork, results chan<- MiningResult, stop <-chan struct{}) error
 	Name() string
+}
+
+type SenderDisallowMapBuilder interface {
+	BuildSenderDisallowMap(headerHash common.Hash, recipient account.Recipient) map[account.Recipient]*big.Int
+}
+
+type PoSWCalculator interface {
+	PoSWDiffAdjust(header types.IHeader) (*big.Int, error)
+	IsPoSWEnabled() bool
 }
