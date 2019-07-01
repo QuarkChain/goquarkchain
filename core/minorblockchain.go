@@ -646,17 +646,19 @@ func (m *MinorBlockChain) Stop() {
 			currNumber = m.CurrentBlock().NumberU64()
 			heightDiff = []uint64{0, 1, triesInMemory - 1}
 		)
-		headerTip := m.getLastConfirmedMinorBlockHeaderAtRootBlock(m.rootTip.Hash())
-		if headerTip != nil && headerTip.Number < currNumber {
-			heightDiff = append(heightDiff, currNumber-headerTip.Number)
+		if m.rootTip != nil {
+			headerTip := m.getLastConfirmedMinorBlockHeaderAtRootBlock(m.rootTip.Hash())
+			if headerTip != nil && headerTip.Number < currNumber {
+				heightDiff = append(heightDiff, currNumber-headerTip.Number)
+			}
+			headerTip = m.getLastConfirmedMinorBlockHeaderAtRootBlock(m.rootTip.ParentHash)
+			if headerTip != nil && headerTip.Number < currNumber {
+				heightDiff = append(heightDiff, currNumber-headerTip.Number)
+			}
+			sort.Slice(heightDiff, func(i, j int) bool {
+				return heightDiff[i] < heightDiff[j]
+			})
 		}
-		headerTip = m.getLastConfirmedMinorBlockHeaderAtRootBlock(m.rootTip.ParentHash)
-		if headerTip != nil && headerTip.Number < currNumber {
-			heightDiff = append(heightDiff, currNumber-headerTip.Number)
-		}
-		sort.Slice(heightDiff, func(i, j int) bool {
-			return heightDiff[i] < heightDiff[j]
-		})
 
 		for _, offset := range heightDiff {
 			if currNumber > offset {
