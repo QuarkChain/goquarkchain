@@ -14,22 +14,15 @@ import (
 type QEthash struct {
 	*Ethash
 	*consensus.CommonEngine
-	height    uint64
-	qethCache *cache
-	qethSize  uint64
 }
 
-func (q *QEthash) hashAlgo(cache *consensus.ShareCache) error {
-	if q.height != cache.Height {
-		q.height = cache.Height
-		q.qethCache = q.cache(q.height)
-		q.qethSize = datasetSize(q.height)
-		if q.config.PowMode == ModeTest {
-			q.qethSize = 32 * 1024
-		}
+func (q *QEthash) hashAlgo(shareCache *consensus.ShareCache) (err error) {
+	cache := q.cache(shareCache.Height)
+	size := datasetSize(shareCache.Height)
+	if q.config.PowMode == ModeTest {
+		size = 32 * 1024
 	}
-
-	cache.Digest, cache.Result = hashimotoLight(q.qethSize, q.qethCache.cache, cache.Hash, cache.Nonce)
+	shareCache.Digest, shareCache.Result = hashimotoLight(size, cache.cache, shareCache.Hash, shareCache.Nonce)
 	return nil
 }
 

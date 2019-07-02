@@ -304,7 +304,6 @@ func (c *CommonEngine) mine(
 
 	var (
 		target   = new(big.Int).Div(two256, work.Difficulty)
-		attempts = int64(0)
 		minerRes = ShareCache{
 			Height: work.Number,
 			Hash:   work.HeaderHash.Bytes(),
@@ -317,10 +316,10 @@ search:
 	for {
 		select {
 		case <-abort:
-			logger.Trace("Nonce search aborted", "minerName", c.spec.Name, "attempts", nonce-startNonce)
+			logger.Trace("Nonce search aborted", "minerName", c.spec.Name, "attempts", minerRes.Nonce-startNonce)
 			break search
 		default:
-			miningRes, err := c.spec.HashAlgo(height, hash, nonce)
+			err := c.spec.HashAlgo(&minerRes)
 			if err != nil {
 				logger.Warn("Failed to run hash algo", "miner", c.spec.Name, "error", err)
 				continue // Continue the for loop. Nonce not incremented
