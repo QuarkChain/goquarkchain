@@ -56,13 +56,14 @@ func (s *SlaveBackend) CreateShards(rootBlock *types.RootBlock) (err error) {
 		g.Go(func() error {
 			shardCfg := s.clstrCfg.Quarkchain.GetShardConfigByFullShardID(id)
 			if rootBlock.Header().Number >= shardCfg.Genesis.RootHeight {
-				s.shards[id], err = shard.New(s.ctx, rootBlock, s.connManager, s.clstrCfg, id)
+				shard, err := shard.New(s.ctx, rootBlock, s.connManager, s.clstrCfg, id)
 				if err != nil {
 					log.Error("Failed to create shard", "slave id", s.config.ID, "shard id", shardCfg.ShardID, "err", err)
 					return err
 				}
-				if err = s.shards[id].InitFromRootBlock(rootBlock); err != nil {
-					s.shards[id].Stop()
+				s.shards[id] = shard
+				if err = shard.InitFromRootBlock(rootBlock); err != nil {
+					shard.Stop()
 					return err
 				}
 			}
