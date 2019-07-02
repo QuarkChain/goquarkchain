@@ -478,6 +478,7 @@ func TestBroadcastNewRootBlockTip(t *testing.T) {
 	defer peer.close()
 	timeout := time.NewTimer(time.Duration(2 * time.Second))
 	defer timeout.Stop()
+	fmt.Printf("========== %p\t%d\n", sync, time.Now().Unix())
 	select {
 	case <-sync.Task:
 	case <-timeout.C:
