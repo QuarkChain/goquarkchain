@@ -1,13 +1,12 @@
 package consensus
 
 import (
-	"math/big"
-	"time"
-
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/core/state"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/common"
+	"math/big"
+	"time"
 )
 
 type FakeEngine struct {

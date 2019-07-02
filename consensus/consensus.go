@@ -62,7 +62,6 @@ type MiningWork struct {
 	HeaderHash common.Hash
 	Number     uint64
 	Difficulty *big.Int
-	// Block types.IBlock
 }
 
 // MiningResult represents the found digest and result bytes.
@@ -364,29 +363,6 @@ func (c *CommonEngine) GetWork() (*MiningWork, error) {
 	case work := <-workCh:
 		log.Warn("[PoSW]CommonEngine GetWork", "work", work)
 		return &work, nil
-	case err := <-errc:
-		return nil, err
-	}
-}
-
-func (c *CommonEngine) GetMiningBlock() (*types.IBlock, error) {
-	if !c.isRemote {
-		return nil, ErrNotRemote
-	}
-	var (
-		workCh  = make(chan MiningWork, 1)
-		blockCh = make(chan types.IBlock, 1)
-		errc    = make(chan error, 1)
-	)
-	select {
-	case c.fetchWorkCh <- &sealWork{errc: errc, res: workCh, bCh: blockCh}:
-	case <-c.exitCh:
-		return nil, errors.New(fmt.Sprintf("%s hash stoped", c.Name()))
-	}
-	select {
-	case block := <-blockCh:
-		log.Info("[PoSW]CommonEngine GetMiningBlock", "block", block.NumberU64())
-		return &block, nil
 	case err := <-errc:
 		return nil, err
 	}

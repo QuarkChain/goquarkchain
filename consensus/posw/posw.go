@@ -25,7 +25,7 @@ type MinorBlockChainPoSWHelper interface {
 }
 
 type PoSW struct {
-	Config            *config.POSWConfig
+	config            *config.POSWConfig
 	coinbaseAddrCache map[uint32]map[common.Hash]heightAndAddrs
 	minorBCHelper     MinorBlockChainPoSWHelper
 }
@@ -33,7 +33,7 @@ type PoSW struct {
 func NewPoSW(minorBlockChain MinorBlockChainPoSWHelper) *PoSW {
 	return &PoSW{
 		minorBCHelper:     minorBlockChain,
-		Config:            minorBlockChain.GetPoSWConfig(),
+		config:            minorBlockChain.GetPoSWConfig(),
 		coinbaseAddrCache: make(map[uint32]map[common.Hash]heightAndAddrs),
 	}
 }
@@ -47,7 +47,7 @@ func (p *PoSW) PoSWDiffAdjust(header types.IHeader) (*big.Int, error) {
 	}
 	coinBaseRecipient := header.GetCoinbase().Recipient
 	stakes := evmState.GetBalance(coinBaseRecipient)
-	blockThreshold := new(big.Int).Div(stakes, p.Config.TotalStakePerBlock)
+	blockThreshold := new(big.Int).Div(stakes, p.config.TotalStakePerBlock)
 	blockThresholdStr := blockThreshold.Text(10)
 	blockThresholdInt64, err := strconv.ParseUint(blockThresholdStr, 10, 32)
 	if err != nil {
@@ -55,20 +55,20 @@ func (p *PoSW) PoSWDiffAdjust(header types.IHeader) (*big.Int, error) {
 		return nil, err
 	}
 	blockThresholdInt32 := uint32(blockThresholdInt64)
-	if blockThresholdInt32 > p.Config.WindowSize {
-		blockThresholdInt32 = p.Config.WindowSize
+	if blockThresholdInt32 > p.config.WindowSize {
+		blockThresholdInt32 = p.config.WindowSize
 	}
 	// The func is inclusive, so need to fetch block counts until prev block
 	// Also only fetch prev window_size - 1 block counts because the
 	// new window should count the current block
-	blockCnt, err := p.GetPoSWCoinbaseBlockCnt(header.GetParentHash(), p.Config.WindowSize-1)
+	blockCnt, err := p.GetPoSWCoinbaseBlockCnt(header.GetParentHash(), p.config.WindowSize-1)
 	if err != nil {
 		return nil, err
 	}
 	cnt := blockCnt[coinBaseRecipient]
 	diff := header.GetDifficulty()
 	if cnt < blockThresholdInt32 {
-		diff = new(big.Int).Div(diff, big.NewInt(int64(p.Config.DiffDivider)))
+		diff = new(big.Int).Div(diff, big.NewInt(int64(p.config.DiffDivider)))
 		log.Info("[PoSW]Adjusted PoSW ", "from", header.GetDifficulty(), "to", diff)
 	}
 	return diff, nil
@@ -90,6 +90,7 @@ func (p *PoSW) GetPoSWCoinbaseBlockCnt(headerHash common.Hash, length uint32) (m
 			recipientCountMap[ca] = 1
 		}
 	}
+	fmt.Printf("recipientCountMap %x\n",recipientCountMap)
 	return recipientCountMap, nil
 }
 
@@ -143,16 +144,16 @@ func (p *PoSW) getCoinbaseAddressUntilBlock(headerHash common.Hash, length uint3
 *Take an additional recipient parameter and add its block count.
  */
 func (p *PoSW) BuildSenderDisallowMap(headerHash common.Hash, recipient account.Recipient) map[account.Recipient]*big.Int {
-	if !p.Config.Enabled {
+	if !p.config.Enabled {
 		return nil
 	}
-	length := p.Config.WindowSize - 1
-	stakePerBlock := p.Config.TotalStakePerBlock
+	length := p.config.WindowSize - 1
+	stakePerBlock := p.config.TotalStakePerBlock
 	blockCnt, err := p.GetPoSWCoinbaseBlockCnt(headerHash, length)
 	if err != nil {
 		return nil
 	}
-	if len(recipient) != 0 {
+	if (account.Recipient{}) != recipient {
 		blockCnt[recipient] += 1
 	}
 	disallowMap := make(map[account.Recipient]*big.Int)
@@ -163,5 +164,10 @@ func (p *PoSW) BuildSenderDisallowMap(headerHash common.Hash, recipient account.
 }
 
 func (p *PoSW) IsPoSWEnabled() bool {
-	return p.Config.Enabled
+	return p.config.Enabled
 }
+//for test only
+func (p *PoSW) GetCoinbaseAddrCache() map[uint32]map[common.Hash]heightAndAddrs{
+	return p.coinbaseAddrCache
+}
+

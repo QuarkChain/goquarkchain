@@ -193,3 +193,16 @@ func checkErr(err error) {
 		panic(err)
 	}
 }
+
+func CreateFakeMinorCanonical(acc1 account.Address) ( *MinorBlockChain, error){
+	env := setUp(&acc1, nil, nil)
+	shardState := createDefaultShardState(env, nil, nil, nil, nil)
+	return shardState, nil
+}
+
+
+func CreateFakeMinorCanonicalShardId(acc1 account.Address, shardId *uint32) ( *MinorBlockChain, error){
+	env := setUp(&acc1, nil, nil)
+	shardState := createDefaultShardState(env, shardId, nil, nil, nil)
+	return shardState, nil
+}

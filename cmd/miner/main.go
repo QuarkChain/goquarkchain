@@ -175,7 +175,7 @@ func fetchWorkRPC(shardID *uint32) (work consensus.MiningWork, err error) {
 	if err != nil {
 		return work, err
 	}
-	fmt.Printf("[PoSW] miner fetchWorkRPC %v\n", ret)
+
 	headerHash := common.HexToHash(ret[0])
 	if headerHash == (common.Hash{}) {
 		return work, errors.New("Empty work can't be used ")

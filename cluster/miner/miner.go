@@ -2,16 +2,15 @@ package miner
 
 import (
 	"fmt"
-	"runtime"
-	"sync"
-	"sync/atomic"
-	"time"
-
 	"github.com/QuarkChain/goquarkchain/cluster/service"
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
+	"runtime"
+	"sync"
+	"sync/atomic"
+	"time"
 )
 
 const (
