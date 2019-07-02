@@ -1132,10 +1132,8 @@ func (m *MinorBlockChain) insertChain(chain []types.IBlock, verifySeals bool) (i
 		}
 		xShardReceiveTxList := make([]*types.CrossShardTransactionDeposit, 0)
 		// Process block using the parent state as reference point.
-		t0 := time.Now()
 
 		receipts, logs, usedGas, err := m.processor.Process(mBlock, state, m.vmConfig, evmTxIncluded, xShardReceiveTxList)
-		t1 := time.Now()
 		if err != nil {
 			m.reportBlock(block, receipts, err)
 			return it.index, events, coalescedLogs, xShardList, err
@@ -1145,7 +1143,6 @@ func (m *MinorBlockChain) insertChain(chain []types.IBlock, verifySeals bool) (i
 			m.reportBlock(block, receipts, err)
 			return it.index, events, coalescedLogs, xShardList, err
 		}
-		t2 := time.Now()
 		proctime := time.Since(start)
 
 		updateTip, err := m.updateTip(state, mBlock)
@@ -1154,14 +1151,9 @@ func (m *MinorBlockChain) insertChain(chain []types.IBlock, verifySeals bool) (i
 		}
 		// Write the block to the chain and get the status.
 		status, err := m.WriteBlockWithState(mBlock, receipts, state, xShardReceiveTxList, updateTip)
-		t3 := time.Now()
 		if err != nil {
 			return it.index, events, coalescedLogs, xShardList, err
 		}
-		blockInsertTimer.UpdateSince(start)
-		blockExecutionTimer.Update(t1.Sub(t0))
-		blockValidationTimer.Update(t2.Sub(t1))
-		blockWriteTimer.Update(t3.Sub(t2))
 		switch status {
 		case CanonStatTy:
 			log.Debug("Inserted new block", "number", mBlock.NumberU64(), "hash", mBlock.Hash(),
@@ -1183,7 +1175,6 @@ func (m *MinorBlockChain) insertChain(chain []types.IBlock, verifySeals bool) (i
 				"root", mBlock.GetMetaData().Root)
 			events = append(events, MinorChainSideEvent{mBlock})
 		}
-		blockInsertTimer.UpdateSince(start)
 		stats.processed++
 		stats.usedGas += usedGas
 

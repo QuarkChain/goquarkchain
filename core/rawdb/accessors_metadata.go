@@ -63,6 +63,4 @@ func WritePreimages(db DatabaseWriter, preimages map[common.Hash][]byte) {
 			log.Crit("Failed to store trie preimage", "err", err)
 		}
 	}
-	preimageCounter.Inc(int64(len(preimages)))
-	preimageHitCounter.Inc(int64(len(preimages)))
 }

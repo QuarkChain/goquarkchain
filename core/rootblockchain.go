@@ -26,16 +26,10 @@ import (
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
-	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/hashicorp/golang-lru"
 )
 
 var (
-	blockInsertTimer     = metrics.NewRegisteredTimer("chain/inserts", nil)
-	blockValidationTimer = metrics.NewRegisteredTimer("chain/validation", nil)
-	blockExecutionTimer  = metrics.NewRegisteredTimer("chain/execution", nil)
-	blockWriteTimer      = metrics.NewRegisteredTimer("chain/write", nil)
-
 	ErrNoGenesis = errors.New("Genesis not found in chain")
 )
 
@@ -691,7 +685,6 @@ func (bc *RootBlockChain) insertChain(chain []types.IBlock, verifySeals bool) (i
 		if parent == nil {
 			parent = bc.GetBlock(block.IHeader().GetParentHash())
 		}
-		t0 := time.Now()
 		if err != nil {
 			bc.reportBlock(block, err)
 			return it.index, events, err
@@ -701,18 +694,13 @@ func (bc *RootBlockChain) insertChain(chain []types.IBlock, verifySeals bool) (i
 			bc.reportBlock(block, err)
 			return it.index, events, err
 		}
-		t1 := time.Now()
 		proctime := time.Since(start)
 
 		// Write the block to the chain and get the status.
 		status, err := bc.WriteBlockWithState(block.(*types.RootBlock))
-		t2 := time.Now()
 		if err != nil {
 			return it.index, events, err
 		}
-		blockInsertTimer.UpdateSince(start)
-		blockValidationTimer.Update(t1.Sub(t0))
-		blockValidationTimer.Update(t2.Sub(t1))
 		switch status {
 		case CanonStatTy:
 			log.Debug("Inserted new block", "number", block.NumberU64(), "hash", block.Hash(),
@@ -729,7 +717,6 @@ func (bc *RootBlockChain) insertChain(chain []types.IBlock, verifySeals bool) (i
 				"headblock", len(block.Content()))
 			events = append(events, RootChainSideEvent{block.(*types.RootBlock)})
 		}
-		blockInsertTimer.UpdateSince(start)
 		stats.processed++
 		//stats.report(chain, it.index)
 	}
