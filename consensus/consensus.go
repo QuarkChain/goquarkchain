@@ -12,13 +12,11 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/QuarkChain/goquarkchain/account"
+	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/log"
-	"github.com/ethereum/go-ethereum/metrics"
-
-	"github.com/QuarkChain/goquarkchain/account"
-	"github.com/QuarkChain/goquarkchain/core/types"
 )
 
 var (
@@ -89,8 +87,7 @@ type MiningSpec struct {
 // CommonEngine contains the common parts for consensus engines, where engine-specific
 // logic is provided in func args as template pattern.
 type CommonEngine struct {
-	spec     MiningSpec
-	hashrate metrics.Meter
+	spec MiningSpec
 
 	// Remote sealer related fields
 	isRemote     bool
@@ -110,11 +107,6 @@ type CommonEngine struct {
 // Name returns the consensus engine's name.
 func (c *CommonEngine) Name() string {
 	return c.spec.Name
-}
-
-// Hashrate returns the current mining hashrate of a PoW consensus engine.
-func (c *CommonEngine) Hashrate() float64 {
-	return c.hashrate.Rate1()
 }
 
 // Author returns coinbase address.
@@ -325,16 +317,10 @@ search:
 	for {
 		select {
 		case <-abort:
-			logger.Trace("Nonce search aborted", "minerName", c.spec.Name, "attempts", minerRes.Nonce-startNonce)
-			c.hashrate.Mark(attempts)
+			logger.Trace("Nonce search aborted", "minerName", c.spec.Name, "attempts", nonce-startNonce)
 			break search
 		default:
-			attempts++
-			if (attempts % (1 << 15)) == 0 {
-				c.hashrate.Mark(attempts)
-				attempts = 0
-			}
-			err := c.spec.HashAlgo(&minerRes)
+			miningRes, err := c.spec.HashAlgo(height, hash, nonce)
 			if err != nil {
 				logger.Warn("Failed to run hash algo", "miner", c.spec.Name, "error", err)
 				continue // Continue the for loop. Nonce not incremented
@@ -436,7 +422,6 @@ func (c *CommonEngine) Close() error {
 func NewCommonEngine(spec MiningSpec, diffCalc DifficultyCalculator, remote bool) *CommonEngine {
 	c := &CommonEngine{
 		spec:     spec,
-		hashrate: metrics.NewMeter(),
 		diffCalc: diffCalc,
 	}
 	if remote {
