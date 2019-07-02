@@ -275,7 +275,7 @@ func initEnv(t *testing.T, chanOp chan uint32) *QKCMasterBackend {
 	if err != nil {
 		panic(err)
 	}
-	if err := master.InitCluster(); err != nil {
+	if err := master.Init(nil); err != nil {
 		assert.NoError(t, err)
 	}
 	return master

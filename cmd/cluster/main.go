@@ -146,7 +146,7 @@ func startService(ctx *cli.Context, stack *service.Node) {
 		if err := stack.Service(&master); err != nil {
 			utils.Fatalf("master service not running %v", err)
 		}
-		if err := master.InitCluster(); err != nil {
+		if err := master.Start(); err != nil {
 			utils.Fatalf("Failed to init cluster service", "err", err)
 		}
 	} else {

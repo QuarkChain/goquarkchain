@@ -67,6 +67,7 @@ type QKCMasterBackend struct {
 
 	miner *miner.Miner
 
+	p2pSvr             *p2p.Server
 	artificialTxConfig *rpc.ArtificialTxConfig
 	rootBlockChain     *core.RootBlockChain
 	protocolManager    *ProtocolManager
@@ -187,23 +188,31 @@ func (s *QKCMasterBackend) APIs() []ethRPC.API {
 
 // Stop stop node -> stop qkcMaster
 func (s *QKCMasterBackend) Stop() error {
-	s.rootBlockChain.Stop()
 	s.miner.Stop()
 	s.engine.Close()
+	s.rootBlockChain.Stop()
 	s.protocolManager.Stop()
+	s.p2pSvr.Stop()
 	s.eventMux.Stop()
 	s.chainDb.Close()
 	return nil
 }
 
 // Start start node -> start qkcMaster
-func (s *QKCMasterBackend) Start(srvr *p2p.Server) error {
-	maxPeers := srvr.MaxPeers
-	s.protocolManager.Start(maxPeers)
-	// start heart beat pre 3 seconds.
-	s.updateShardStatsLoop()
+func (s *QKCMasterBackend) Init(srvr *p2p.Server) error {
+	s.p2pSvr = srvr
+	if err := s.ConnectToSlaves(); err != nil {
+		return err
+	}
+	s.logSummary()
+
+	if err := s.hasAllShards(); err != nil {
+		return err
+	}
+	if err := s.initShards(); err != nil {
+		return err
+	}
 	s.Heartbeat()
-	// s.disPlayPeers()
 	s.miner.Init()
 	return nil
 }
@@ -230,19 +239,14 @@ func (s *QKCMasterBackend) SetMining(mining bool) {
 // 3:check if has all shards
 // 4.setup slave to slave
 // 5:init shards
-func (s *QKCMasterBackend) InitCluster() error {
-	if err := s.ConnectToSlaves(); err != nil {
-		return err
+func (s *QKCMasterBackend) Start() error {
+	if s.p2pSvr != nil {
+		maxPeers := s.p2pSvr.MaxPeers
+		s.protocolManager.Start(maxPeers)
+		// start heart beat pre 3 seconds.
+		s.updateShardStatsLoop()
 	}
-	s.logSummary()
-
-	if err := s.hasAllShards(); err != nil {
-		return err
-	}
-	if err := s.initShards(); err != nil {
-		return err
-	}
-	log.Info("Init cluster successful", "slaveSize", len(s.clientPool))
+	log.Info("Start cluster successful", "slaveSize", len(s.clientPool))
 	return nil
 }
 

@@ -95,6 +95,6 @@ func (s *SlaveBackend) Stop() error {
 	return nil
 }
 
-func (s *SlaveBackend) Start(srvr *p2p.Server) error {
+func (s *SlaveBackend) Init(srvr *p2p.Server) error {
 	return nil
 }
