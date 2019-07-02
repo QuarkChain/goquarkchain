@@ -49,6 +49,12 @@ import (
 	"github.com/hashicorp/golang-lru"
 )
 
+const (
+	maxCrossShardLimit  = 256
+	maxRootBlockLimit   = 256
+	maxLastConfirmLimit = 256
+)
+
 type heightAndAddrs struct {
 	height uint64
 	addrs  []account.Recipient
@@ -100,12 +106,13 @@ type MinorBlockChain struct {
 	checkpoint   int          // checkpoint counts towards the new checkpoint
 	currentBlock atomic.Value // Current head of the block chain
 
-	stateCache    state.Database // State database to reuse between imports (contains state cache)
-	bodyCache     *lru.Cache     // Cache for the most recent block bodies
-	bodyRLPCache  *lru.Cache     // Cache for the most recent block bodies in RLP encoded format
-	receiptsCache *lru.Cache     // Cache for the most recent receipts per block
-	blockCache    *lru.Cache     // Cache for the most recent entire blocks
-	futureBlocks  *lru.Cache     // future blocks are blocks added for later processing
+	stateCache            state.Database // State database to reuse between imports (contains state cache)
+	receiptsCache         *lru.Cache     // Cache for the most recent receipts per block
+	blockCache            *lru.Cache     // Cache for the most recent entire blocks
+	futureBlocks          *lru.Cache     // future blocks are blocks added for later processing
+	crossShardTxListCache *lru.Cache
+	rootBlockCache        *lru.Cache
+	lastConfirmCache      *lru.Cache
 
 	quit    chan struct{} // blockchain quit channel
 	running int32         // running must be called atomically
@@ -118,7 +125,6 @@ type MinorBlockChain struct {
 	validator Validator // block and state validator interface
 	vmConfig  vm.Config
 
-	badBlocks      *lru.Cache                   // Bad block cache
 	shouldPreserve func(*types.MinorBlock) bool // Function used to determine whether should preserve the given block.
 
 	txPool                   *TxPool
@@ -158,16 +164,15 @@ func NewMinorBlockChain(
 			TrieCleanLimit: 256,
 			TrieDirtyLimit: 256,
 			TrieTimeLimit:  5 * time.Minute,
-			Disabled:       true, //update trieDB every block
+			Disabled:       false, //update trieDB every block
 		}
 	}
-	bodyCache, _ := lru.New(bodyCacheLimit)
-	bodyRLPCache, _ := lru.New(bodyCacheLimit)
 	receiptsCache, _ := lru.New(receiptsCacheLimit)
 	blockCache, _ := lru.New(blockCacheLimit)
 	futureBlocks, _ := lru.New(maxFutureBlocks)
-	badBlocks, _ := lru.New(badBlockLimit)
-
+	crossShardCache, _ := lru.New(maxCrossShardLimit)
+	rootBlockCache, _ := lru.New(maxRootBlockLimit)
+	lastConfimCache, _ := lru.New(maxLastConfirmLimit)
 	bc := &MinorBlockChain{
 		ethChainConfig:           chainConfig,
 		clusterConfig:            clusterConfig,
@@ -177,14 +182,14 @@ func NewMinorBlockChain(
 		stateCache:               state.NewDatabaseWithCache(db, cacheConfig.TrieCleanLimit),
 		quit:                     make(chan struct{}),
 		shouldPreserve:           shouldPreserve,
-		bodyCache:                bodyCache,
-		bodyRLPCache:             bodyRLPCache,
 		receiptsCache:            receiptsCache,
 		blockCache:               blockCache,
 		futureBlocks:             futureBlocks,
+		crossShardTxListCache:    crossShardCache,
+		rootBlockCache:           rootBlockCache,
+		lastConfirmCache:         lastConfimCache,
 		engine:                   engine,
 		vmConfig:                 vmConfig,
-		badBlocks:                badBlocks,
 		heightToMinorBlockHashes: make(map[uint64]map[common.Hash]struct{}),
 		currentEvmState:          new(state.StateDB),
 		branch:                   account.Branch{Value: fullShardID},
@@ -309,11 +314,12 @@ func (m *MinorBlockChain) SetHead(head uint64) error {
 	currentHeader := m.hc.CurrentHeader()
 
 	// Clear out any stale content from the caches
-	m.bodyCache.Purge()
-	m.bodyRLPCache.Purge()
 	m.receiptsCache.Purge()
 	m.blockCache.Purge()
 	m.futureBlocks.Purge()
+	m.crossShardTxListCache.Purge()
+	m.rootBlockCache.Purge()
+	m.lastConfirmCache.Purge()
 
 	// Rewind the block chain, ensuring we don't end up with a stateless head block
 	if currentBlock := m.CurrentBlock(); currentBlock != nil && currentHeader.NumberU64() < currentBlock.IHeader().NumberU64() {
@@ -539,6 +545,11 @@ func (m *MinorBlockChain) HasBlockAndState(hash common.Hash) bool {
 // GetBlock retrieves a block from the database by hash and number,
 // caching it if found.
 func (m *MinorBlockChain) GetBlock(hash common.Hash) types.IBlock {
+	return m.GetMinorBlock(hash)
+}
+
+// GetMinorBlock retrieves a block from the database by hash, caching it if found.
+func (m *MinorBlockChain) GetMinorBlock(hash common.Hash) *types.MinorBlock {
 	// Short circuit if the block's already in the cache, retrieve otherwise
 	if block, ok := m.blockCache.Get(hash); ok {
 		return block.(*types.MinorBlock)
@@ -550,11 +561,6 @@ func (m *MinorBlockChain) GetBlock(hash common.Hash) types.IBlock {
 	// Cache the found block for next time and return
 	m.blockCache.Add(block.Hash(), block)
 	return block
-}
-
-// GetMinorBlock retrieves a block from the database by hash, caching it if found.
-func (m *MinorBlockChain) GetMinorBlock(hash common.Hash) *types.MinorBlock {
-	return rawdb.ReadMinorBlock(m.db, hash)
 }
 
 // GetBlockByNumber retrieves a block from the database by number, caching it
@@ -579,6 +585,15 @@ func (m *MinorBlockChain) GetReceiptsByHash(hash common.Hash) types.Receipts {
 	receipts := rawdb.ReadReceipts(m.db, hash)
 	m.receiptsCache.Add(hash, receipts)
 	return receipts
+}
+
+func (m *MinorBlockChain) GetLogs(hash common.Hash) [][]*types.Log {
+	receipts := m.GetReceiptsByHash(hash)
+	logs := make([][]*types.Log, len(receipts))
+	for index, receipt := range receipts {
+		logs[index] = receipt.Logs
+	}
+	return logs
 }
 
 // GetBlocksFromHash returns the block corresponding to hash and up to n-1 ancestors.
@@ -997,6 +1012,13 @@ func (m *MinorBlockChain) InsertChainForDeposits(chain []types.IBlock) (int, [][
 	m.wg.Done()
 
 	m.PostChainEvents(events, logs)
+	confirmed := m.confirmedHeaderTip
+	if confirmed == nil {
+		log.Warn("confirmed is nil")
+	} else {
+		log.Info("add Minor block End", "tip", m.CurrentBlock().NumberU64(), "tipHash", m.CurrentBlock().Hash().String(), "to add", chain[0].NumberU64(), "hash", chain[0].NumberU64(), "confirmed", confirmed.Number)
+	}
+
 	return n, xShardList, err
 }
 
@@ -1165,7 +1187,7 @@ func (m *MinorBlockChain) insertChain(chain []types.IBlock, verifySeals bool) (i
 		stats.processed++
 		stats.usedGas += usedGas
 
-		stats.report(chain, it.index)
+		//	stats.report(chain, it.index)
 		xShardList = append(xShardList, state.GetXShardList())
 	}
 	// Any blocks remaining here? The only ones we care about are the future ones
@@ -1457,26 +1479,8 @@ func (m *MinorBlockChain) update() {
 	}
 }
 
-// BadBlocks returns a list of the last 'bad blocks' that the client has seen on the network
-func (m *MinorBlockChain) BadBlocks() []*types.MinorBlock {
-	blocks := make([]*types.MinorBlock, 0, m.badBlocks.Len())
-	for _, hash := range m.badBlocks.Keys() {
-		if blk, exist := m.badBlocks.Peek(hash); exist {
-			block := blk.(*types.MinorBlock)
-			blocks = append(blocks, block)
-		}
-	}
-	return blocks
-}
-
-// addBadBlock adds a bad block to the bad-block LRU cache
-func (m *MinorBlockChain) addBadBlock(block types.IBlock) {
-	m.badBlocks.Add(block.Hash(), block)
-}
-
 // reportBlock logs a bad block error.
 func (m *MinorBlockChain) reportBlock(block types.IBlock, receipts types.Receipts, err error) {
-	m.addBadBlock(block)
 
 	var receiptString string
 	for i, receipt := range receipts {
@@ -1649,14 +1653,27 @@ func (m *MinorBlockChain) SubscribeLogsEvent(ch chan<- []*types.Log) event.Subsc
 }
 
 func (m *MinorBlockChain) getRootBlockHeaderByHash(hash common.Hash) *types.RootBlockHeader {
-	rootBlock := rawdb.ReadRootBlock(m.db, hash)
-	if rootBlock == nil {
-		return nil
+	if data, ok := m.rootBlockCache.Get(hash); ok {
+		return data.(*types.RootBlock).Header()
 	}
-	return rootBlock.Header()
+	data := rawdb.ReadRootBlock(m.db, hash)
+	if data != nil {
+		m.rootBlockCache.Add(hash, data)
+		return data.Header()
+	}
+
+	return nil
 }
 
 // GetRootBlockByHash get rootBlock by hash in minorBlockChain
 func (m *MinorBlockChain) GetRootBlockByHash(hash common.Hash) *types.RootBlock {
-	return rawdb.ReadRootBlock(m.db, hash)
+	if data, ok := m.rootBlockCache.Get(hash); ok {
+		return data.(*types.RootBlock)
+	}
+	data := rawdb.ReadRootBlock(m.db, hash)
+	if data != nil {
+		m.rootBlockCache.Add(hash, data)
+		return data
+	}
+	return nil
 }

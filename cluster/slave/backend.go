@@ -2,6 +2,7 @@ package slave
 
 import (
 	"reflect"
+	"sync"
 
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
@@ -22,6 +23,7 @@ type SlaveBackend struct {
 	shards map[uint32]*shard.ShardBackend
 
 	ctx      *service.ServiceContext
+	mu       sync.RWMutex
 	eventMux *event.TypeMux
 	logInfo  string
 }

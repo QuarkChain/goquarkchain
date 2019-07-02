@@ -43,7 +43,7 @@ const (
 
 	rootBlockHeaderListLimit  = 500
 	rootBlockBatchSize        = 100
-	minorBlockHeaderListLimit = 500
+	minorBlockHeaderListLimit = 500 //TODO 100 50
 	minorBlockBatchSize       = 100
 
 	directionToGenesis = uint8(0)
@@ -358,7 +358,7 @@ func (p *peer) GetMinorBlockHeaderList(origin common.Hash, amount uint32, branch
 			return ret, nil
 		}
 	case <-timeout.C:
-		return nil, fmt.Errorf("peer %v return disc Read Time out for rpcid %d", p.id, rpcId)
+		return nil, fmt.Errorf("peer %v return GetMinorBlockHeaderList disc Read Time out for rpcid %d", p.id, rpcId)
 	}
 }
 
@@ -391,7 +391,7 @@ func (p *peer) GetRootBlockList(hashes []common.Hash) ([]*types.RootBlock, error
 			return ret, nil
 		}
 	case <-timeout.C:
-		return nil, fmt.Errorf("peer %v return disc Read Time out for rpcid %d", p.id, rpcId)
+		return nil, fmt.Errorf("peer %v return GetRootBlockList disc Read Time out for rpcid %d", p.id, rpcId)
 	}
 }
 
@@ -422,7 +422,7 @@ func (p *peer) GetMinorBlockList(hashes []common.Hash, branch uint32) ([]*types.
 			return ret, nil
 		}
 	case <-timeout.C:
-		return nil, fmt.Errorf("peer %v return disc Read Time out for rpcid %d", p.id, rpcId)
+		return nil, fmt.Errorf("peer %v return GetMinorBlockList disc Read Time out for rpcid %d", p.id, rpcId)
 	}
 }
 
@@ -467,7 +467,7 @@ func (p *peer) Handshake(protoVersion, networkId uint32, peerId common.Hash, pee
 				return err
 			}
 		case <-timeout.C:
-			fmt.Println("return disc Read Time out")
+			fmt.Println("return Handshake disc Read Time out")
 			return p2p.DiscReadTimeout
 		}
 	}
