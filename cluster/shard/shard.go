@@ -80,6 +80,7 @@ func New(ctx *service.ServiceContext, rBlock *types.RootBlock, conn ConnManager,
 
 	shard.engine, err = createConsensusEngine(ctx, shard.Config)
 	if err != nil {
+		shard.chainDb.Close()
 		return nil, err
 	}
 
@@ -96,6 +97,7 @@ func New(ctx *service.ServiceContext, rBlock *types.RootBlock, conn ConnManager,
 
 	shard.MinorBlockChain, err = core.NewMinorBlockChain(shard.chainDb, nil, &params.ChainConfig{}, cfg, shard.engine, vm.Config{}, nil, fullshardId)
 	if err != nil {
+		shard.chainDb.Close()
 		return nil, err
 	}
 	shard.MinorBlockChain.SetBroadcastMinorBlockFunc(shard.AddMinorBlock)
