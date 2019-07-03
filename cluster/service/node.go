@@ -195,6 +195,7 @@ func (n *Node) Start() error {
 				services[kind].Stop()
 			}
 			running.Stop()
+			n.stopRPC()
 			return err
 		}
 		// Mark the service started for potential cleanup
@@ -266,12 +267,7 @@ func (n *Node) startRPC(services map[reflect.Type]Service) error {
 	n.rpcAPIs = apis
 	return nil
 FALSE:
-	n.stopGRPC()
-	if n.IsMaster() {
-		n.stopIPC()
-		n.stopHTTP()
-		n.stopPrivHTTP()
-	}
+	n.stopRPC()
 	return err
 }
 
@@ -328,6 +324,15 @@ func (n *Node) startGRPC(endpoint string, apis []rpc.API) error {
 	n.svrHandler = handler
 	n.log.Info("grpc endpoint opened", "url", n.svrEndpoint)
 	return nil
+}
+
+func (n *Node) stopRPC() {
+	n.stopGRPC()
+	if n.IsMaster() {
+		n.stopIPC()
+		n.stopHTTP()
+		n.stopPrivHTTP()
+	}
 }
 
 func (n *Node) stopGRPC() {
@@ -419,10 +424,7 @@ func (n *Node) Stop() error {
 	}
 
 	// Terminate the API, services and the p2p server.
-	n.stopGRPC()
-	n.stopHTTP()
-	n.stopPrivHTTP()
-	n.stopIPC()
+	n.stopRPC()
 	n.rpcAPIs = nil
 	failure := &StopError{
 		Services: make(map[reflect.Type]error),
