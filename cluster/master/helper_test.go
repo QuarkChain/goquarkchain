@@ -22,7 +22,6 @@ package master
 import (
 	"crypto/ecdsa"
 	"crypto/rand"
-	"fmt"
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
@@ -41,7 +40,6 @@ import (
 	"sort"
 	"sync"
 	"testing"
-	"time"
 )
 
 var (
@@ -271,7 +269,6 @@ func NewFakeSynchronizer(n int) *fakeSynchronizer {
 }
 
 func (s *fakeSynchronizer) AddTask(task synchronizer.Task) error {
-	fmt.Printf("---------- %p\t%d\n", s, time.Now().Unix())
 	s.Task <- task
 	return nil
 }
