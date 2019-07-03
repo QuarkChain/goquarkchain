@@ -9,6 +9,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/hashicorp/golang-lru"
 	"math/big"
 	"strconv"
 )
@@ -26,15 +27,16 @@ type MinorBlockChainPoSWHelper interface {
 
 type PoSW struct {
 	config            *config.POSWConfig
-	coinbaseAddrCache map[uint32]map[common.Hash]heightAndAddrs
+	coinbaseAddrCache *lru.Cache
 	minorBCHelper     MinorBlockChainPoSWHelper
 }
 
 func NewPoSW(minorBlockChain MinorBlockChainPoSWHelper) *PoSW {
+	cache, _ := lru.New(128)
 	return &PoSW{
 		minorBCHelper:     minorBlockChain,
 		config:            minorBlockChain.GetPoSWConfig(),
-		coinbaseAddrCache: make(map[uint32]map[common.Hash]heightAndAddrs),
+		coinbaseAddrCache: cache,
 	}
 }
 
@@ -90,7 +92,7 @@ func (p *PoSW) GetPoSWCoinbaseBlockCnt(headerHash common.Hash, length uint32) (m
 			recipientCountMap[ca] = 1
 		}
 	}
-	fmt.Printf("recipientCountMap %x\n",recipientCountMap)
+	fmt.Printf("recipientCountMap %x\n", recipientCountMap)
 	return recipientCountMap, nil
 }
 
@@ -105,9 +107,16 @@ func (p *PoSW) getCoinbaseAddressUntilBlock(headerHash common.Hash, length uint3
 	}
 	height := header.NumberU64()
 	prevHash := header.GetParentHash()
-	log.Info("[PoSW]Size of p.coinbaseAddrCache:", "size", len(p.coinbaseAddrCache))
-	cache := p.coinbaseAddrCache[length]
-	if haddrs, ok := cache[prevHash]; ok { //mem cache hit
+	log.Info("[PoSW]Size of p.coinbaseAddrCache:", "size", p.coinbaseAddrCache.Len())
+	var cache map[common.Hash]heightAndAddrs
+	if p.coinbaseAddrCache.Contains(length) {
+		ca, _ := p.coinbaseAddrCache.Get(length)
+		cache = ca.(map[common.Hash]heightAndAddrs)
+	} else {
+		cache = make(map[common.Hash]heightAndAddrs)
+		p.coinbaseAddrCache.Add(length, cache)
+	}
+	if haddrs, ok := cache[prevHash]; ok {
 		addrs = haddrs.addrs
 		if uint32(len(addrs)) == length {
 			addrs = addrs[1:]
@@ -115,7 +124,6 @@ func (p *PoSW) getCoinbaseAddressUntilBlock(headerHash common.Hash, length uint3
 		addrs = append(addrs, header.GetCoinbase().Recipient)
 		log.Info("[PoSW]Using Cache of coinbaseAddrCache:", "prevHash", prevHash)
 	} else { //miss, iterating DB
-		cache = make(map[common.Hash]heightAndAddrs)
 		lgth := int(length)
 		addrs = make([]account.Recipient, lgth)
 		for i := lgth; i > 0; i-- {
@@ -127,16 +135,9 @@ func (p *PoSW) getCoinbaseAddressUntilBlock(headerHash common.Hash, length uint3
 				return nil, fmt.Errorf("mysteriously missing block %x", header.GetParentHash())
 			}
 		}
-		p.coinbaseAddrCache[length] = cache
 	}
 	log.Info("[PoSW] getCoinbaseAddressUntilBlock", "size of addrs", len(addrs), "last addrs", addrs[len(addrs)-1])
 	cache[headerHash] = heightAndAddrs{height, addrs}
-	//in case cached too much, clean up
-	if len(cache) > 128 { //size around 640KB if window size 256
-		//TODO keep most recent ones
-		// minorBlockChain.coinbaseAddrCache[length] =
-
-	}
 	return addrs, nil
 }
 
@@ -166,8 +167,12 @@ func (p *PoSW) BuildSenderDisallowMap(headerHash common.Hash, recipient account.
 func (p *PoSW) IsPoSWEnabled() bool {
 	return p.config.Enabled
 }
+
 //for test only
-func (p *PoSW) GetCoinbaseAddrCache() map[uint32]map[common.Hash]heightAndAddrs{
-	return p.coinbaseAddrCache
+func getCoinbaseAddrCache(p *PoSW, length uint32) (interface{}, bool) {
+	return p.coinbaseAddrCache.Get(length)
 }
 
+func getCoinbaseAddrCacheLen(p *PoSW) int {
+	return p.coinbaseAddrCache.Len()
+}

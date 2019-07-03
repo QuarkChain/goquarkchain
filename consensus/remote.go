@@ -59,6 +59,7 @@ func (c *CommonEngine) remote() {
 		currentWork.HeaderHash = hash
 		currentWork.Number = block.NumberU64()
 		currentWork.Difficulty = block.IHeader().GetDifficulty()
+
 		currentBlock = block
 		works.Add(hash, block)
 	}
