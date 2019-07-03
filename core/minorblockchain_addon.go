@@ -26,11 +26,7 @@ import (
 )
 
 func (m *MinorBlockChain) ReadLastConfirmedMinorBlockHeaderAtRootBlock(hash common.Hash) common.Hash {
-	//if data, ok := m.lastConfirmCache.Get(hash); ok {
-	//	return data.(common.Hash)
-	//}
 	data := rawdb.ReadLastConfirmedMinorBlockHeaderAtRootBlock(m.db, hash)
-	//m.lastConfirmCache.Add(hash, data)
 	return data
 }
 func (m *MinorBlockChain) getLastConfirmedMinorBlockHeaderAtRootBlock(hash common.Hash) *types.MinorBlockHeader {
@@ -332,23 +328,21 @@ func (m *MinorBlockChain) InitFromRootBlock(rBlock *types.RootBlock) error {
 		return errors.New("rootBlock height small than config's height")
 	}
 	if m.initialized == true {
-		log.Error("MasterInfo???", "InitFromBlock", rBlock.Number())
+		log.Warn("ReInitFromBlock", "InitFromBlock", rBlock.Number())
 	}
 	m.initialized = true
 
 	confirmedHeaderTip := m.getLastConfirmedMinorBlockHeaderAtRootBlock(rBlock.Hash())
 	if confirmedHeaderTip == nil {
 		m.rootTip = m.getRootBlockHeaderByHash(rBlock.ParentHash())
-		//	fmt.Println("ready----------------add", rBlock.Number())
 		_, err := m.AddRootBlock(rBlock)
-		//	fmt.Println("scf-display", m.rootTip.Number, m.CurrentBlock().Number())
 		if err != nil {
 			m.Stop()
-			panic(err)
+			log.Error(m.logInfo, "InitFromRootBlock-addRootBlock number", rBlock.NumberU64())
+			return err
 		}
 	}
 	confirmedHeaderTip = m.getLastConfirmedMinorBlockHeaderAtRootBlock(rBlock.Hash())
-	//fmt.Println("ggggggggg-2", confirmedHeaderTip)
 	headerTip := confirmedHeaderTip
 	if headerTip == nil {
 		headerTip = m.GetBlockByNumber(0).IHeader().(*types.MinorBlockHeader)
@@ -863,6 +857,7 @@ func (m *MinorBlockChain) AddRootBlock(rBlock *types.RootBlock) (bool, error) {
 		log.Error(m.logInfo, "add rootBlock", errRootBlockHeight, "block's height", rBlock.Number(), "config's height", m.clusterConfig.Quarkchain.GetGenesisRootHeight(m.branch.Value))
 		return false, errRootBlockHeight
 	}
+
 	if m.GetRootBlockByHash(rBlock.Hash()) != nil {
 		return false, nil
 	}
