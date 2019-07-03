@@ -3,7 +3,6 @@ package shard
 import (
 	"errors"
 	"fmt"
-	"math/big"
 	"time"
 
 	"github.com/QuarkChain/goquarkchain/account"
@@ -170,31 +169,7 @@ func (s *ShardBackend) GetTransactionListByAddress(address *account.Address,
 func (s *ShardBackend) GetLogs() ([]*types.Log, error) { panic("not implemented") }
 
 func (s *ShardBackend) GetWork() (*consensus.MiningWork, error) {
-	var miningWork *consensus.MiningWork
-	if s.posw.IsPoSWEnabled() {
-		//miningHeader, err := s.miner.GetMiningBlockHeader()
-		//if err != nil {
-		//	return nil, err
-		//}
-		//diff := (*miningHeader).GetDifficulty()
-		//miningWork = &consensus.MiningWork{}
-		//hash := (*miningHeader).SealHash()
-		//miningWork.HeaderHash = hash
-		//miningWork.Number = (*miningHeader).NumberU64()
-		//diffAdjusted, err := s.posw.PoSWDiffAdjust((*miningHeader)())
-		//if err != nil {
-		//	log.Error("[PoSW]Failed to compute PoSW difficulty.", err)
-		//}
-		//miningWork.Difficulty = diffAdjusted
-		//log.Info("[PoSW]ShardBackend.GetWork", "fullShardId", s.fullShardId, "number", miningWork.Number, "diff", diff, "diffAdjusted", diffAdjusted)
-	} else {
-		var err error
-		miningWork, err = s.miner.GetWork()
-		if err != nil {
-			return nil, err
-		}
-	}
-	return miningWork, nil
+	return s.miner.GetWork()
 }
 
 func (s *ShardBackend) SubmitWork(headerHash common.Hash, nonce uint64, mixHash common.Hash) error {
@@ -250,12 +225,7 @@ func (s *ShardBackend) NewMinorBlock(block *types.MinorBlock) (err error) {
 	}
 
 	header := block.Header()
-	diff := header.Difficulty
-	diffDivider := big.NewInt(int64(s.Config.PoswConfig.DiffDivider))
-	if s.Config.PoswConfig.Enabled {
-		diff = diff.Div(diff, diffDivider)
-	}
-	if err = s.engine.VerifySeal(s.MinorBlockChain, header, diff); err != nil {
+	if err = s.MinorBlockChain.Validator().ValidatorSeal(header); err != nil {
 		log.Error("got block with bad seal in handle_new_block", "branch", header.Branch.Value, "err", err)
 		return err
 	}
@@ -299,7 +269,21 @@ func (s *ShardBackend) GenTx(genTxs *rpc.GenTxRequest) error {
 
 // miner api
 func (s *ShardBackend) CreateBlockToMine() (types.IBlock, error) {
-	return s.MinorBlockChain.CreateBlockToMine(nil, &s.Config.CoinbaseAddress, nil)
+	mnrBlk, err := s.MinorBlockChain.CreateBlockToMine(nil, &s.Config.CoinbaseAddress, nil)
+	if err != nil {
+		return nil, err
+	}
+	if s.posw.IsPoSWEnabled() {
+		header := mnrBlk.Header()
+		diff := header.GetDifficulty()
+		diffAdjusted, err := s.posw.PoSWDiffAdjust(header)
+		if err != nil {
+			log.Error("[PoSW]Failed to compute PoSW difficulty.", err)
+		}
+		header.SetDifficulty(diffAdjusted)
+		log.Info("[PoSW]ShardBackend.CreateBlockToMine", "fullShardId", s.fullShardId, "number", mnrBlk.Number, "diff", diff, "diffAdjusted", diffAdjusted)
+	}
+	return mnrBlk, nil
 }
 
 func (s *ShardBackend) InsertMinedBlock(block types.IBlock) error {

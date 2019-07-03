@@ -350,19 +350,21 @@ func (c *CommonEngine) GetWork() (*MiningWork, error) {
 	}
 	var (
 		workCh  = make(chan MiningWork, 1)
-		blockCh = make(chan types.IBlock, 1)
 		errc    = make(chan error, 1)
 	)
 	select {
-	case c.fetchWorkCh <- &sealWork{errc: errc, res: workCh, bCh: blockCh}:
+	case c.fetchWorkCh <- &sealWork{errc: errc, res: workCh}:
 	case <-c.exitCh:
 		return nil, errors.New(fmt.Sprintf("%s hash stoped", c.Name()))
 	}
 
 	select {
 	case work := <-workCh:
-		log.Warn("[PoSW]CommonEngine GetWork", "work", work)
-		return &work, nil
+		return &MiningWork{
+			work.HeaderHash,
+			work.Number,
+			work.Difficulty,
+		}, nil
 	case err := <-errc:
 		return nil, err
 	}

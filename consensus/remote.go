@@ -37,7 +37,6 @@ type mineResult struct {
 type sealWork struct {
 	errc chan error
 	res  chan MiningWork
-	bCh  chan types.IBlock
 }
 
 func (c *CommonEngine) remote() {
@@ -116,7 +115,6 @@ func (c *CommonEngine) remote() {
 				work.errc <- ErrNoMiningWork
 			} else {
 				work.res <- currentWork
-				work.bCh <- currentBlock
 			}
 
 		case result := <-c.submitWorkCh:
