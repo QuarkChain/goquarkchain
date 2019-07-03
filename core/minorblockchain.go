@@ -642,25 +642,9 @@ func (m *MinorBlockChain) Stop() {
 	if !m.cacheConfig.Disabled {
 		triedb := m.stateCache.TrieDB()
 
-		var (
-			currNumber = m.CurrentBlock().NumberU64()
-			heightDiff = []uint64{0, 1, triesInMemory - 1}
-		)
-		headerTip := m.getLastConfirmedMinorBlockHeaderAtRootBlock(m.rootTip.Hash())
-		if headerTip != nil && headerTip.Number < currNumber {
-			heightDiff = append(heightDiff, currNumber-headerTip.Number)
-		}
-		headerTip = m.getLastConfirmedMinorBlockHeaderAtRootBlock(m.rootTip.ParentHash)
-		if headerTip != nil && headerTip.Number < currNumber {
-			heightDiff = append(heightDiff, currNumber-headerTip.Number)
-		}
-		sort.Slice(heightDiff, func(i, j int) bool {
-			return heightDiff[i] < heightDiff[j]
-		})
-
-		for _, offset := range heightDiff {
-			if currNumber > offset {
-				recentBlockInterface := m.GetBlockByNumber(currNumber - offset)
+		for _, offset := range []uint64{0, 1, triesInMemory - 1} {
+			if number := m.CurrentBlock().NumberU64(); number > offset {
+				recentBlockInterface := m.GetBlockByNumber(number - offset)
 				if qkcCommon.IsNil(recentBlockInterface) {
 					log.Error("block is nil", "err", errInsufficientBalanceForGas)
 					continue
@@ -673,7 +657,6 @@ func (m *MinorBlockChain) Stop() {
 				}
 			}
 		}
-
 		for !m.triegc.Empty() {
 			triedb.Dereference(m.triegc.PopItem().(common.Hash))
 		}
