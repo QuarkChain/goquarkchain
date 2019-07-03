@@ -339,16 +339,16 @@ func (m *MinorBlockChain) InitFromRootBlock(rBlock *types.RootBlock) error {
 	confirmedHeaderTip := m.getLastConfirmedMinorBlockHeaderAtRootBlock(rBlock.Hash())
 	if confirmedHeaderTip == nil {
 		m.rootTip = m.getRootBlockHeaderByHash(rBlock.ParentHash())
-		fmt.Println("ready----------------add", rBlock.Number())
+		//	fmt.Println("ready----------------add", rBlock.Number())
 		_, err := m.AddRootBlock(rBlock)
-		fmt.Println("scf-display", m.rootTip.Number, m.CurrentBlock().Number())
+		//	fmt.Println("scf-display", m.rootTip.Number, m.CurrentBlock().Number())
 		if err != nil {
 			m.Stop()
 			panic(err)
 		}
 	}
 	confirmedHeaderTip = m.getLastConfirmedMinorBlockHeaderAtRootBlock(rBlock.Hash())
-	fmt.Println("ggggggggg-2", confirmedHeaderTip)
+	//fmt.Println("ggggggggg-2", confirmedHeaderTip)
 	headerTip := confirmedHeaderTip
 	if headerTip == nil {
 		headerTip = m.GetBlockByNumber(0).IHeader().(*types.MinorBlockHeader)

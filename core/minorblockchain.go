@@ -634,20 +634,13 @@ func (m *MinorBlockChain) getNeedStoreHeight(rootHash common.Hash, heightDiff []
 		if headerTip.Number >= triesInMemory {
 			heightDiff = append(heightDiff, currNumber-(headerTip.Number-triesInMemory))
 		}
-	}
+		currBlockNumber := m.CurrentBlock().Number()
+		for index := headerTip.Number; index <= currBlockNumber; index++ {
+			heightDiff = append(heightDiff, currBlockNumber-index)
+		}
 
-	currBlockNumber := m.CurrentBlock().Number()
-	for index := headerTip.Number; index <= currBlockNumber; index++ {
-		heightDiff = append(heightDiff, currBlockNumber-index)
 	}
 	return heightDiff
-}
-
-func display(heightDiff []uint64, currNumber uint64) {
-	fmt.Println("cccccccc", currNumber)
-	for _, v := range heightDiff {
-		fmt.Println("display", currNumber-v)
-	}
 }
 
 // Stop stops the blockchain service. If any imports are currently in progress
@@ -669,7 +662,6 @@ func (m *MinorBlockChain) Stop() {
 	//  - HEAD-1:   So we don't do large reorgs if our HEAD becomes an uncle
 	//  - HEAD-127: So we have a hard limit on the number of blocks reexecuted
 	if !m.cacheConfig.Disabled {
-		fmt.Println("????-Disabled false")
 		triedb := m.stateCache.TrieDB()
 		var (
 			currNumber = m.CurrentBlock().NumberU64()
@@ -677,7 +669,6 @@ func (m *MinorBlockChain) Stop() {
 		)
 		if m.rootTip != nil {
 			heightDiff = m.getNeedStoreHeight(m.rootTip.Hash(), heightDiff)
-			display(heightDiff, currNumber)
 			sort.Slice(heightDiff, func(i, j int) bool {
 				return heightDiff[i] < heightDiff[j]
 			})
