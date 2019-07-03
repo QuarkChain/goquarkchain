@@ -181,6 +181,11 @@ func (n *Node) Start() error {
 		}
 		n.log.Info("Starting peer-to-peer node", "instance", n.serverConfig.Name)
 	}
+	// Lastly start the configured RPC interfaces
+	if err := n.startRPC(services); err != nil {
+		running.Stop()
+		return err
+	}
 	// Start each of the services
 	var started []reflect.Type
 	for kind, service := range services {
@@ -190,19 +195,10 @@ func (n *Node) Start() error {
 				services[kind].Stop()
 			}
 			running.Stop()
-
 			return err
 		}
 		// Mark the service started for potential cleanup
 		started = append(started, kind)
-	}
-	// Lastly start the configured RPC interfaces
-	if err := n.startRPC(services); err != nil {
-		for _, service := range services {
-			service.Stop()
-		}
-		running.Stop()
-		return err
 	}
 	// Finish initializing the startup
 	n.services = services
