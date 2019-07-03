@@ -67,7 +67,7 @@ type QKCMasterBackend struct {
 
 	miner *miner.Miner
 
-	p2pSvr             *p2p.Server
+	maxPeers           int
 	artificialTxConfig *rpc.ArtificialTxConfig
 	rootBlockChain     *core.RootBlockChain
 	protocolManager    *ProtocolManager
@@ -192,7 +192,6 @@ func (s *QKCMasterBackend) Stop() error {
 	s.engine.Close()
 	s.rootBlockChain.Stop()
 	s.protocolManager.Stop()
-	s.p2pSvr.Stop()
 	s.eventMux.Stop()
 	s.chainDb.Close()
 	return nil
@@ -200,7 +199,7 @@ func (s *QKCMasterBackend) Stop() error {
 
 // Start start node -> start qkcMaster
 func (s *QKCMasterBackend) Init(srvr *p2p.Server) error {
-	s.p2pSvr = srvr
+	s.maxPeers = srvr.MaxPeers
 	if err := s.ConnectToSlaves(); err != nil {
 		return err
 	}
@@ -240,12 +239,9 @@ func (s *QKCMasterBackend) SetMining(mining bool) {
 // 4.setup slave to slave
 // 5:init shards
 func (s *QKCMasterBackend) Start() error {
-	if s.p2pSvr != nil {
-		maxPeers := s.p2pSvr.MaxPeers
-		s.protocolManager.Start(maxPeers)
-		// start heart beat pre 3 seconds.
-		s.updateShardStatsLoop()
-	}
+	s.protocolManager.Start(s.maxPeers)
+	// start heart beat pre 3 seconds.
+	s.updateShardStatsLoop()
 	log.Info("Start cluster successful", "slaveSize", len(s.clientPool))
 	return nil
 }
