@@ -174,5 +174,8 @@ func (m *Miner) HandleNewTip(height uint64) {
 	log.Info(m.logInfo, "handle new tip: height", height, "tip", m.tipHeight)
 	m.setTip(height)
 	m.commit()
+}
 
+func (m *Miner) IsMining() bool {
+	return atomic.LoadUint32(&m.isMining) != 0
 }

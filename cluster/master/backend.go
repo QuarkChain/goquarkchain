@@ -704,26 +704,18 @@ func (s *QKCMasterBackend) GetStats() (map[string]interface{}, error) {
 	}, nil
 }
 
-func (s *QKCMasterBackend) isSyning() bool {
-	// TODO @liuhuan
-	return false
+func (s *QKCMasterBackend) IsSyncing() bool {
+	return s.synchronizer.IsSyncing()
 }
 
-func (s *QKCMasterBackend) isMining() bool {
-	// TODO @liuhuan
-	return false
+func (s *QKCMasterBackend) IsMining() bool {
+	return s.miner.IsMining()
 }
 
 func (s *QKCMasterBackend) CurrentBlock() *types.RootBlock {
 	return s.rootBlockChain.CurrentBlock()
 }
 
-func (s *QKCMasterBackend) IsSyncing() bool {
-	return false //TODO  need add?
-}
-func (s *QKCMasterBackend) IsMining() bool {
-	return false //TODO need add
-}
 func (s *QKCMasterBackend) GetSlavePoolLen() int {
 	return len(s.clientPool)
 }
