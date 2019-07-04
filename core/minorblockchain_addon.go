@@ -26,7 +26,14 @@ import (
 )
 
 func (m *MinorBlockChain) ReadLastConfirmedMinorBlockHeaderAtRootBlock(hash common.Hash) common.Hash {
+	if data, ok := m.lastConfirmCache.Get(hash); ok {
+		return data.(common.Hash)
+	}
 	data := rawdb.ReadLastConfirmedMinorBlockHeaderAtRootBlock(m.db, hash)
+	if !bytes.Equal(data.Bytes(), common.Hash{}.Bytes()) {
+		m.lastConfirmCache.Add(hash, data)
+	}
+
 	return data
 }
 func (m *MinorBlockChain) getLastConfirmedMinorBlockHeaderAtRootBlock(hash common.Hash) *types.MinorBlockHeader {
@@ -341,8 +348,9 @@ func (m *MinorBlockChain) InitFromRootBlock(rBlock *types.RootBlock) error {
 			log.Error(m.logInfo, "InitFromRootBlock-addRootBlock number", rBlock.NumberU64())
 			return err
 		}
+		confirmedHeaderTip = m.getLastConfirmedMinorBlockHeaderAtRootBlock(rBlock.Hash())
 	}
-	confirmedHeaderTip = m.getLastConfirmedMinorBlockHeaderAtRootBlock(rBlock.Hash())
+
 	headerTip := confirmedHeaderTip
 	if headerTip == nil {
 		headerTip = m.GetBlockByNumber(0).IHeader().(*types.MinorBlockHeader)
