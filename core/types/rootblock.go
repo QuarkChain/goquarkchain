@@ -25,6 +25,7 @@ type RootBlockHeader struct {
 	CoinbaseAmount  *serialize.Uint256 `json:"coinbaseAmount"   gencodec:"required"`
 	Time            uint64             `json:"timestamp"        gencodec:"required"`
 	Difficulty      *big.Int           `json:"difficulty"       gencodec:"required"`
+	ToTalDifficulty *big.Int           `json:"total_difficulty"       gencodec:"required"`
 	Nonce           uint64             `json:"nonce"`
 	Extra           []byte             `json:"extraData"        gencodec:"required"   bytesizeofslicelen:"2"`
 	MixDigest       common.Hash        `json:"mixHash"`
@@ -66,6 +67,7 @@ func (h *RootBlockHeader) GetCoinbase() account.Address { return h.Coinbase }
 func (h *RootBlockHeader) GetCoinbaseAmount() *big.Int  { return h.CoinbaseAmount.Value }
 func (h *RootBlockHeader) GetTime() uint64              { return h.Time }
 func (h *RootBlockHeader) GetDifficulty() *big.Int      { return new(big.Int).Set(h.Difficulty) }
+func (h *RootBlockHeader) GetTotalDifficulty() *big.Int { return new(big.Int).Set(h.ToTalDifficulty) }
 func (h *RootBlockHeader) GetNonce() uint64             { return h.Nonce }
 func (h *RootBlockHeader) GetExtra() []byte {
 	if h.Extra != nil {
@@ -102,7 +104,7 @@ func (h *RootBlockHeader) CreateBlockToAppend(createTime *uint64, difficulty *bi
 	if difficulty == nil {
 		difficulty = h.Difficulty
 	}
-
+	totalDifficulty := new(big.Int).Add(h.ToTalDifficulty, difficulty)
 	if address == nil {
 		empty := account.CreatEmptyAddress(0)
 		address = &empty
@@ -126,6 +128,7 @@ func (h *RootBlockHeader) CreateBlockToAppend(createTime *uint64, difficulty *bi
 		CoinbaseAmount:  &serialize.Uint256{Value: new(big.Int)},
 		Time:            *createTime,
 		Difficulty:      difficulty,
+		ToTalDifficulty: totalDifficulty,
 		Nonce:           *nonce,
 		Extra:           extraData,
 	}
@@ -208,6 +211,9 @@ func CopyRootBlockHeader(h *RootBlockHeader) *RootBlockHeader {
 	}
 	if cpy.Difficulty = new(big.Int); h.Difficulty != nil {
 		cpy.Difficulty.Set(h.Difficulty)
+	}
+	if cpy.ToTalDifficulty = new(big.Int); h.ToTalDifficulty != nil {
+		cpy.ToTalDifficulty.Set(h.ToTalDifficulty)
 	}
 	if len(h.Extra) > 0 {
 		cpy.Extra = make([]byte, len(h.Extra))
