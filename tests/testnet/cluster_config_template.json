@@ -6,7 +6,7 @@
   "DB_PATH_ROOT": "./qkc-data/testnet24",
   "LOG_LEVEL": "info",
   "START_SIMULATED_MINING": false,
-  "CLEAN": false,
+  "CLEAN": true,
     "GENESIS_DIR": "",
     "QUARKCHAIN": {
       "CHAIN_SIZE": 2,
