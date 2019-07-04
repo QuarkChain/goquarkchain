@@ -164,5 +164,8 @@ func (m *Miner) SubmitWork(nonce uint64, hash, digest common.Hash) bool {
 func (m *Miner) HandleNewTip() {
 	log.Info(m.logInfo, "handle new tip: height", m.getTip())
 	m.commit()
+}
 
+func (m *Miner) IsMining() bool {
+	return atomic.LoadUint32(&m.isMining) != 0
 }

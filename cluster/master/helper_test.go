@@ -268,6 +268,10 @@ func NewFakeSynchronizer(n int) *fakeSynchronizer {
 	return &fakeSynchronizer{make(chan synchronizer.Task, n)}
 }
 
+func (s *fakeSynchronizer) IsSyncing() bool {
+	return false
+}
+
 func (s *fakeSynchronizer) AddTask(task synchronizer.Task) error {
 	s.Task <- task
 	return nil

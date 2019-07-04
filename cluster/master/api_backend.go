@@ -251,8 +251,8 @@ func (s *QKCMasterBackend) NetWorkInfo() map[string]interface{} {
 		"networkId":        hexutil.Uint(s.clusterConfig.Quarkchain.NetworkID),
 		"chainSize":        hexutil.Uint(s.clusterConfig.Quarkchain.ChainSize),
 		"shardSizes":       shardSizeList,
-		"syncing":          s.isSyning(),
-		"mining":           s.isMining(),
+		"syncing":          s.IsSyncing(),
+		"mining":           s.IsMining(),
 		"shardServerCount": hexutil.Uint(len(s.clientPool)),
 	}
 	return fileds
