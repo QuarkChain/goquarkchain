@@ -91,7 +91,6 @@ type Engine interface {
 type PoW interface {
 	Engine
 	// Hashrate returns the current mining hashrate of a PoW consensus engine.
-	Hashrate() float64
 	FindNonce(work MiningWork, results chan<- MiningResult, stop <-chan struct{}) error
 	Name() string
 }
