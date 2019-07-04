@@ -38,7 +38,7 @@ const (
 	receiptsCacheLimit        = 32
 	maxFutureBlocks           = 32
 	maxTimeFutureBlocks       = 30
-	triesInMemory             = 32
+	triesInMemory             = 256
 	validatedMinorBlockHashes = 128
 )
 
@@ -67,7 +67,6 @@ type CacheConfig struct {
 // canonical chain.
 type RootBlockChain struct {
 	chainConfig *config.QuarkChainConfig // Chain & network configuration
-	cacheConfig *CacheConfig             // Cache configuration for pruning
 
 	db     ethdb.Database // Low level persistent database to store final content in
 	triegc *prque.Prque   // Priority queue mapping block numbers to tries to gc
@@ -110,21 +109,13 @@ type RootBlockChain struct {
 // NewBlockChain returns a fully initialized block chain using information
 // available in the database. It initializes the default Ethereum Validator and
 // Processor.
-func NewRootBlockChain(db ethdb.Database, cacheConfig *CacheConfig, chainConfig *config.QuarkChainConfig, engine consensus.Engine, shouldPreserve func(block *types.RootBlock) bool) (*RootBlockChain, error) {
-	if cacheConfig == nil {
-		cacheConfig = &CacheConfig{
-			TrieCleanLimit: 256,
-			TrieDirtyLimit: 256,
-			TrieTimeLimit:  5 * time.Minute,
-		}
-	}
+func NewRootBlockChain(db ethdb.Database, chainConfig *config.QuarkChainConfig, engine consensus.Engine, shouldPreserve func(block *types.RootBlock) bool) (*RootBlockChain, error) {
 	blockCache, _ := lru.New(blockCacheLimit)
 	futureBlocks, _ := lru.New(maxFutureBlocks)
 	validatedMinorBlockHashCache, _ := lru.New(validatedMinorBlockHashes)
 
 	bc := &RootBlockChain{
 		chainConfig:              chainConfig,
-		cacheConfig:              cacheConfig,
 		db:                       db,
 		triegc:                   prque.New(nil),
 		quit:                     make(chan struct{}),
