@@ -464,6 +464,7 @@ func (p *PublicBlockChainAPI) CallOrEstimateGas(args *CallArgs, height *uint64, 
 	if isCall {
 		res, err := p.b.ExecuteTransaction(tx, args.From, height)
 		if err != nil {
+			log.Error("call ", "to", tx.EvmTx.To().String(), "err", err)
 			return nil, err
 		}
 		return (hexutil.Bytes)(res), nil

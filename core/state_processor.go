@@ -114,11 +114,11 @@ func (p *StateProcessor) Process(block *types.MinorBlock, statedb *state.StateDB
 func IsAccountEnable(state vm.StateDB, from account.Recipient, to *account.Recipient, data []byte) error {
 	if !qkcParams.IsSuperAccount(from) {
 		if state.GetAccountStatus(from) == false {
-			return fmt.Errorf("account:%v can be used as from account", from)
+			return fmt.Errorf("account:%v can be used as from account", from.String())
 		}
 
 		if to != nil && state.GetAccountStatus(*to) == false {
-			return fmt.Errorf("account:%v can be used as to account", *to)
+			return fmt.Errorf("account:%v can be used as to account", (*to).String())
 		}
 		return nil
 	}
