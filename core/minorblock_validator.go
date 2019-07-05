@@ -88,7 +88,7 @@ func (v *MinorBlockValidator) ValidateBlock(mBlock types.IBlock) error {
 			log.Error(v.logInfo, "parent block do not have", consensus.ErrUnknownAncestor, "parent height", block.Header().Number-1, "hash", block.Header().ParentHash.String())
 			return consensus.ErrUnknownAncestor
 		}
-		log.Warn(v.logInfo, "will insert side chain", ErrPrunedAncestor, "parent height", block.Header().Number-1, "hash", block.Header().ParentHash.String())
+		log.Warn(v.logInfo, "will insert side chain", ErrPrunedAncestor, "parent height", block.Header().Number-1, "hash", block.Header().ParentHash.String(), "currHash", block.Hash().String())
 		return ErrPrunedAncestor
 	}
 

@@ -583,6 +583,15 @@ func (m *MinorBlockChain) GetReceiptsByHash(hash common.Hash) types.Receipts {
 	return receipts
 }
 
+func (m *MinorBlockChain) GetLogs(hash common.Hash) [][]*types.Log {
+	receipts := m.GetReceiptsByHash(hash)
+	logs := make([][]*types.Log, len(receipts))
+	for index, receipt := range receipts {
+		logs[index] = receipt.Logs
+	}
+	return logs
+}
+
 // GetBlocksFromHash returns the block corresponding to hash and up to n-1 ancestors.
 // [deprecated by eth/62]
 func (m *MinorBlockChain) GetBlocksFromHash(hash common.Hash, n int) (blocks []types.IBlock) {
@@ -608,6 +617,28 @@ func (m *MinorBlockChain) TrieNode(hash common.Hash) ([]byte, error) {
 	return m.stateCache.TrieDB().Node(hash)
 }
 
+func (m *MinorBlockChain) getNeedStoreHeight(rootHash common.Hash, heightDiff []uint64) []uint64 {
+	var (
+		currNumber = m.CurrentBlock().NumberU64()
+	)
+	headerTip := m.getLastConfirmedMinorBlockHeaderAtRootBlock(rootHash)
+	if headerTip != nil && headerTip.Number < currNumber {
+		heightDiff = append(heightDiff, currNumber-headerTip.Number)
+		if headerTip.Number >= 1 {
+			heightDiff = append(heightDiff, currNumber-(headerTip.Number-1))
+		}
+		if headerTip.Number >= triesInMemory {
+			heightDiff = append(heightDiff, currNumber-(headerTip.Number-triesInMemory))
+		}
+		currBlockNumber := m.CurrentBlock().Number()
+		for index := headerTip.Number; index <= currBlockNumber; index++ {
+			heightDiff = append(heightDiff, currBlockNumber-index)
+		}
+
+	}
+	return heightDiff
+}
+
 // Stop stops the blockchain service. If any imports are currently in progress
 // it will abort them using the procInterrupt.
 func (m *MinorBlockChain) Stop() {
@@ -628,10 +659,19 @@ func (m *MinorBlockChain) Stop() {
 	//  - HEAD-127: So we have a hard limit on the number of blocks reexecuted
 	if !m.cacheConfig.Disabled {
 		triedb := m.stateCache.TrieDB()
-
-		for _, offset := range []uint64{0, 1, triesInMemory - 1} {
-			if number := m.CurrentBlock().NumberU64(); number > offset {
-				recentBlockInterface := m.GetBlockByNumber(number - offset)
+		var (
+			currNumber = m.CurrentBlock().NumberU64()
+			heightDiff = []uint64{0, 1, triesInMemory - 1}
+		)
+		if m.rootTip != nil {
+			heightDiff = m.getNeedStoreHeight(m.rootTip.Hash(), heightDiff)
+			sort.Slice(heightDiff, func(i, j int) bool {
+				return heightDiff[i] < heightDiff[j]
+			})
+		}
+		for _, offset := range heightDiff {
+			if currNumber > offset {
+				recentBlockInterface := m.GetBlockByNumber(currNumber - offset)
 				if qkcCommon.IsNil(recentBlockInterface) {
 					log.Error("block is nil", "err", errInsufficientBalanceForGas)
 					continue
@@ -1003,7 +1043,7 @@ func (m *MinorBlockChain) InsertChainForDeposits(chain []types.IBlock) (int, [][
 	if confirmed == nil {
 		log.Warn("confirmed is nil")
 	} else {
-		log.Info("add Minor block End", "tip", m.CurrentBlock().NumberU64(), "to add", chain[0].NumberU64(), "confirmed", confirmed.Number)
+		log.Info("add Minor block End", "tip", m.CurrentBlock().NumberU64(), "tipHash", m.CurrentBlock().Hash().String(), "to add", chain[0].NumberU64(), "hash", chain[0].NumberU64(), "confirmed", confirmed.Number)
 	}
 
 	return n, xShardList, err
@@ -1119,10 +1159,8 @@ func (m *MinorBlockChain) insertChain(chain []types.IBlock, verifySeals bool) (i
 		}
 		xShardReceiveTxList := make([]*types.CrossShardTransactionDeposit, 0)
 		// Process block using the parent state as reference point.
-		t0 := time.Now()
 
 		receipts, logs, usedGas, err := m.processor.Process(mBlock, state, m.vmConfig, evmTxIncluded, xShardReceiveTxList)
-		t1 := time.Now()
 		if err != nil {
 			m.reportBlock(block, receipts, err)
 			return it.index, events, coalescedLogs, xShardList, err
@@ -1132,30 +1170,26 @@ func (m *MinorBlockChain) insertChain(chain []types.IBlock, verifySeals bool) (i
 			m.reportBlock(block, receipts, err)
 			return it.index, events, coalescedLogs, xShardList, err
 		}
-		t2 := time.Now()
 		proctime := time.Since(start)
+
 		updateTip, err := m.updateTip(state, mBlock)
 		if err != nil {
 			return it.index, events, coalescedLogs, xShardList, err
 		}
-		if updateTip {
-			fmt.Println("[BuildSenderDisallowMap]InsertChain")
-			senderDisallowMap, err := m.senderDisallowMapBuilder.BuildSenderDisallowMap(block.Hash(), nil)
-			if err != nil {
-				return it.index, events, coalescedLogs, xShardList, err
-			}
-			state.SetSenderDisallowMap(senderDisallowMap)
-		}
+		//TODO senderDisallowMap
+		//if updateTip {
+		//	fmt.Println("[BuildSenderDisallowMap]InsertChain")
+		//	senderDisallowMap, err := m.senderDisallowMapBuilder.BuildSenderDisallowMap(block.Hash(), nil)
+		//	if err != nil {
+		//		return it.index, events, coalescedLogs, xShardList, err
+		//	}
+		//	state.SetSenderDisallowMap(senderDisallowMap)
+		//}
 		// Write the block to the chain and get the status.
 		status, err := m.WriteBlockWithState(mBlock, receipts, state, xShardReceiveTxList, updateTip)
-		t3 := time.Now()
 		if err != nil {
 			return it.index, events, coalescedLogs, xShardList, err
 		}
-		blockInsertTimer.UpdateSince(start)
-		blockExecutionTimer.Update(t1.Sub(t0))
-		blockValidationTimer.Update(t2.Sub(t1))
-		blockWriteTimer.Update(t3.Sub(t2))
 		switch status {
 		case CanonStatTy:
 			log.Debug("Inserted new block", "number", mBlock.NumberU64(), "hash", mBlock.Hash(),
@@ -1177,7 +1211,6 @@ func (m *MinorBlockChain) insertChain(chain []types.IBlock, verifySeals bool) (i
 				"root", mBlock.GetMetaData().Root)
 			events = append(events, MinorChainSideEvent{mBlock})
 		}
-		blockInsertTimer.UpdateSince(start)
 		stats.processed++
 		stats.usedGas += usedGas
 

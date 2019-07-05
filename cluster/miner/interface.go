@@ -8,4 +8,5 @@ import (
 type MinerAPI interface {
 	CreateBlockToMine() (types.IBlock, *big.Int, error)
 	InsertMinedBlock(types.IBlock) error
+	GetTip() uint64
 }

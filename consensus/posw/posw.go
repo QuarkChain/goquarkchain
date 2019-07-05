@@ -131,7 +131,7 @@ func (p *PoSW) getCoinbaseAddressUntilBlock(headerHash common.Hash, length uint3
 		addrs = make([]account.Recipient, lgth)
 		for i := lgth; i > 0; i-- {
 			addrs[i-1] = header.GetCoinbase().Recipient
-			fmt.Printf("header.NumberU64() == 0%t\n",header.NumberU64() == 0)
+			fmt.Printf("header.NumberU64() == 0%t\n", header.NumberU64() == 0)
 			if header.NumberU64() == 0 {
 				break
 			}
@@ -139,7 +139,7 @@ func (p *PoSW) getCoinbaseAddressUntilBlock(headerHash common.Hash, length uint3
 				return nil, fmt.Errorf("mysteriously missing block %x", header.GetParentHash())
 			}
 		}
-		fmt.Printf("length=%d,addrs=%x\n",length,addrs)
+		//fmt.Printf("length=%d,addrs=%x\n", length, addrs)
 	}
 	log.Info("[PoSW] getCoinbaseAddressUntilBlock", "size of addrs", len(addrs), "last addrs", addrs[len(addrs)-1])
 	cache[headerHash] = heightAndAddrs{height, addrs}
@@ -157,7 +157,7 @@ func (p *PoSW) BuildSenderDisallowMap(headerHash common.Hash, recipient *account
 		return nil, nil
 	}
 	fmt.Printf("[PoSW] BuildSenderDisallowMap() headerHash=%x, recipient=%x\n", headerHash, recipient)
-	blockCnt, err := p.GetPoSWCoinbaseBlockCnt(headerHash, p.config.WindowSize - 1)
+	blockCnt, err := p.GetPoSWCoinbaseBlockCnt(headerHash, p.config.WindowSize-1)
 	if err != nil {
 		return nil, err
 	}

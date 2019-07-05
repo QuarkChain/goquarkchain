@@ -61,15 +61,7 @@ func New(ctx *service.ServiceContext, api MinerAPI, engine consensus.Engine, int
 	return miner
 }
 func (m *Miner) getTip() uint64 {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-	return m.tipHeight
-}
-
-func (m *Miner) setTip(height uint64) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	m.tipHeight = height
+	return m.api.GetTip()
 }
 
 // interrupt aborts the minering work
@@ -96,7 +88,7 @@ func (m *Miner) commit() {
 	}
 	tip := m.getTip()
 	if block.NumberU64() <= tip {
-		log.Error(m.logInfo, "block's height small than tipHeight after commit blockNumber ,no need to seal", block.NumberU64(), "tip", m.tipHeight)
+		log.Error(m.logInfo, "block's height small than tipHeight after commit blockNumber ,no need to seal", block.NumberU64(), "tip", m.getTip())
 		return
 	}
 	m.workCh <- workAdjusted{block, diff}
@@ -176,9 +168,11 @@ func (m *Miner) SubmitWork(nonce uint64, hash, digest common.Hash) bool {
 	return m.engine.SubmitWork(nonce, hash, digest)
 }
 
-func (m *Miner) HandleNewTip(height uint64) {
-	log.Info(m.logInfo, "handle new tip: height", height, "tip", m.tipHeight)
-	m.setTip(height)
+func (m *Miner) HandleNewTip() {
+	log.Info(m.logInfo, "handle new tip: height", m.getTip())
 	m.commit()
+}
 
+func (m *Miner) IsMining() bool {
+	return atomic.LoadUint32(&m.isMining) != 0
 }

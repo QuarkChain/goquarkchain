@@ -182,16 +182,11 @@ var (
 	RPCListenAddrFlag = cli.StringFlag{
 		Name:  "json_rpc_addr",
 		Usage: "HTTP-RPC server listening interface",
-		Value: service.DefaultHTTPHost,
+		Value: "0.0.0.0",
 	}
 	RPCPortFlag = cli.IntFlag{
 		Name:  "json_rpc_port",
 		Usage: "public HTTP-RPC server listening port",
-	}
-	// RPC settings
-	PrivateRPCEnableFlag = cli.BoolFlag{
-		Name:  "json_rpc_private_enable",
-		Usage: "disable the public HTTP-RPC server",
 	}
 	PrivateRPCListenAddrFlag = cli.StringFlag{
 		Name:  "json_rpc_private_addr",
@@ -203,9 +198,15 @@ var (
 		Usage: "public HTTP-RPC server listening port",
 	}
 
+	GRPCAddrFlag = cli.StringFlag{
+		Name:  "grpc_addr",
+		Usage: "master or slave grpc address",
+		Value: config.GrpcHost,
+	}
 	GRPCPortFlag = cli.IntFlag{
 		Name:  "grpc_port",
 		Usage: "public json rpc port",
+		Value: int(config.GrpcPort),
 	}
 	P2pPortFlag = cli.IntFlag{
 		Name:  "p2p_port",
@@ -292,31 +293,22 @@ func setHTTP(ctx *cli.Context, cfg *service.Config, clstrCfg *config.ClusterConf
 		if ctx.GlobalIsSet(RPCPortFlag.Name) {
 			port = uint16(ctx.GlobalInt(RPCPortFlag.Name))
 		}
-		host := "localhost"
-		if ctx.GlobalIsSet(RPCListenAddrFlag.Name) {
-			host = ctx.GlobalString(RPCListenAddrFlag.Name)
-		}
-		cfg.HTTPEndpoint = fmt.Sprintf("%s:%d", host, port)
+		cfg.HTTPEndpoint = fmt.Sprintf("%s:%d", ctx.GlobalString(RPCListenAddrFlag.Name), port)
 	}
-	if ctx.GlobalBool(PrivateRPCEnableFlag.Name) {
-		port := clstrCfg.PrivateJSONRPCPort
-		if ctx.GlobalIsSet(PrivateRPCPortFlag.Name) {
-			port = uint16(ctx.GlobalInt(PrivateRPCPortFlag.Name))
-		}
-		host := "localhost"
-		if ctx.GlobalIsSet(PrivateRPCListenAddrFlag.Name) {
-			host = ctx.GlobalString(PrivateRPCListenAddrFlag.Name)
-		}
-		cfg.HTTPPrivEndpoint = fmt.Sprintf("%s:%d", host, port)
+	port := clstrCfg.PrivateJSONRPCPort
+	if ctx.GlobalIsSet(PrivateRPCPortFlag.Name) {
+		port = uint16(ctx.GlobalInt(PrivateRPCPortFlag.Name))
 	}
+	cfg.HTTPPrivEndpoint = fmt.Sprintf("%s:%d", ctx.GlobalString(PrivateRPCListenAddrFlag.Name), port)
 }
 
-func setGRPC(ctx *cli.Context, cfg *service.Config, clstrCfg *config.ClusterConfig) {
-	cfg.SvrPort = clstrCfg.Quarkchain.Root.Port
+func setGRPC(ctx *cli.Context, cfg *service.Config) {
 	if ctx.GlobalIsSet(GRPCPortFlag.Name) {
 		cfg.SvrPort = uint16(ctx.GlobalInt(GRPCPortFlag.Name))
 	}
-	cfg.SvrHost = clstrCfg.Quarkchain.Root.Ip
+	if ctx.GlobalIsSet(GRPCAddrFlag.Name) {
+		cfg.SvrHost = ctx.GlobalString(GRPCAddrFlag.Name)
+	}
 }
 
 // setIPC creates an IPC path configuration from the set command line flags,
@@ -471,16 +463,6 @@ func SetClusterConfig(ctx *cli.Context, cfg *config.ClusterConfig) {
 	if ctx.GlobalBool(UpnpFlag.Name) {
 		cfg.P2P.UPnP = true
 	}
-
-	var err error
-	cfg.Quarkchain.Root.Ip, err = common.GetIPV4Addr()
-	if err != nil {
-		Fatalf("Failed to get ip address", "err", err)
-	}
-	if ctx.GlobalIsSet(GRPCPortFlag.Name) {
-		cfg.Quarkchain.Root.Port = uint16(ctx.GlobalInt(GRPCPortFlag.Name))
-	}
-
 }
 
 // SetNodeConfig applies node-related command line flags to the config.
@@ -488,13 +470,11 @@ func SetNodeConfig(ctx *cli.Context, cfg *service.Config, clstrCfg *config.Clust
 	SetP2PConfig(ctx, &cfg.P2P, clstrCfg)
 	setIPC(ctx, cfg)
 	setHTTP(ctx, cfg, clstrCfg)
-	setGRPC(ctx, cfg, clstrCfg)
+	setGRPC(ctx, cfg)
 	setDataDir(ctx, cfg, clstrCfg)
 }
 
 func setDataDir(ctx *cli.Context, cfg *service.Config, clstrCfg *config.ClusterConfig) {
-	cfg.Name = ctx.GlobalString(ServiceFlag.Name)
-	cfg.DataDir = service.DefaultDataDir()
 	if ctx.GlobalIsSet(DataDirFlag.Name) {
 		cfg.DataDir = ctx.GlobalString(DataDirFlag.Name)
 	}

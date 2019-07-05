@@ -6,19 +6,16 @@ import (
 	"github.com/QuarkChain/goquarkchain/cluster/master"
 	"github.com/QuarkChain/goquarkchain/cluster/service"
 	"github.com/QuarkChain/goquarkchain/cluster/slave"
+	"github.com/QuarkChain/goquarkchain/cmd/utils"
+	"github.com/QuarkChain/goquarkchain/internal/debug"
+	"github.com/elastic/gosigar"
+	"github.com/ethereum/go-ethereum/log"
+	"gopkg.in/urfave/cli.v1"
 	"math"
 	"os"
 	godebug "runtime/debug"
 	"sort"
 	"strconv"
-	"time"
-
-	"github.com/QuarkChain/goquarkchain/cmd/utils"
-	"github.com/QuarkChain/goquarkchain/internal/debug"
-	"github.com/elastic/gosigar"
-	"github.com/ethereum/go-ethereum/log"
-	"github.com/ethereum/go-ethereum/metrics"
-	"gopkg.in/urfave/cli.v1"
 )
 
 const (
@@ -60,11 +57,11 @@ var (
 		utils.RPCDisabledFlag,
 		utils.RPCListenAddrFlag,
 		utils.RPCPortFlag,
-		utils.PrivateRPCEnableFlag,
 		utils.PrivateRPCListenAddrFlag,
 		utils.PrivateRPCPortFlag,
 		utils.IPCEnableFlag,
 		utils.IPCPathFlag,
+		utils.GRPCAddrFlag,
 		utils.GRPCPortFlag,
 	}
 )
@@ -99,9 +96,6 @@ func init() {
 		gogc := math.Max(20, math.Min(100, 100/(float64(cache)/1024)))
 		log.Debug("Sanitizing Go's GC trigger", "percent", int(gogc))
 		godebug.SetGCPercent(int(gogc))
-
-		// Start system runtime metrics collection
-		go metrics.CollectProcessMetrics(3 * time.Second)
 
 		return nil
 	}

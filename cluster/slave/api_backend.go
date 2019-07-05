@@ -45,26 +45,39 @@ func (s *SlaveBackend) AddRootBlock(block *types.RootBlock) (switched bool, err 
 
 // Create shards based on GENESIS config and root block height if they have
 // not been created yet.
-func (s *SlaveBackend) CreateShards(rootBlock *types.RootBlock) (err error) {
+func (s *SlaveBackend) CreateShards(rootBlock *types.RootBlock, forceInit bool) (err error) {
 	fullShardList := s.getFullShardList()
+	var g errgroup.Group
 	for _, id := range fullShardList {
-		if _, ok := s.shards[id]; ok {
-			continue
-		}
-		shardCfg := s.clstrCfg.Quarkchain.GetShardConfigByFullShardID(id)
-		if rootBlock.Header().Number >= shardCfg.Genesis.RootHeight {
-			shard, err := shard.New(s.ctx, rootBlock, s.connManager, s.clstrCfg, id)
-			if err != nil {
-				log.Error("Failed to create shard", "slave id", s.config.ID, "shard id", shardCfg.ShardID, "err", err)
-				return err
+		id := id
+		g.Go(func() error {
+			s.mu.RLock()
+			shd, ok := s.shards[id]
+			s.mu.RUnlock()
+			if ok {
+				if forceInit {
+					return shd.InitFromRootBlock(rootBlock)
+				}
+				return nil
 			}
-			if err = shard.InitFromRootBlock(rootBlock); err != nil {
-				return err
+			shardCfg := s.clstrCfg.Quarkchain.GetShardConfigByFullShardID(id)
+			if rootBlock.Header().Number >= shardCfg.Genesis.RootHeight {
+				shard, err := shard.New(s.ctx, rootBlock, s.connManager, s.clstrCfg, id)
+				if err != nil {
+					log.Error("Failed to create shard", "slave id", s.config.ID, "shard id", shardCfg.ShardID, "err", err)
+					return err
+				}
+				if err = shard.InitFromRootBlock(rootBlock); err != nil {
+					return err
+				}
+				s.mu.Lock()
+				s.shards[id] = shard
+				s.mu.Unlock()
 			}
-			s.shards[id] = shard
-		}
+			return nil
+		})
 	}
-	return nil
+	return g.Wait()
 }
 
 func (s *SlaveBackend) AddBlockListForSync(mHashList []common.Hash, peerId string, branch uint32) (*rpc.ShardStatus, error) {
@@ -229,9 +242,9 @@ func (s *SlaveBackend) GetTransactionListByAddress(address *account.Address, sta
 	return nil, nil, ErrMsg("GetTransactionListByAddress")
 }
 
-func (s *SlaveBackend) GetLogs(address []*account.Address, start uint64, end uint64, branch uint32) ([]*types.Log, error) {
+func (s *SlaveBackend) GetLogs(topics [][]common.Hash, address []account.Address, start uint64, end uint64, branch uint32) ([]*types.Log, error) {
 	if shard, ok := s.shards[branch]; ok {
-		return shard.GetLogs()
+		return shard.GetLogs(start, end, address, topics)
 	}
 	return nil, ErrMsg("GetLogs")
 }

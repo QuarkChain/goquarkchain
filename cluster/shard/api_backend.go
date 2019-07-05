@@ -105,7 +105,7 @@ func (s *ShardBackend) AddMinorBlock(block *types.MinorBlock) error {
 	if err != nil {
 		return err
 	}
-	go s.miner.HandleNewTip(s.MinorBlockChain.CurrentBlock().Number())
+	go s.miner.HandleNewTip()
 	return nil
 }
 
@@ -166,8 +166,9 @@ func (s *ShardBackend) GetTransactionListByAddress(address *account.Address,
 	return s.MinorBlockChain.GetTransactionByAddress(*address, start, limit)
 }
 
-// TODO 当前版本暂不添加
-func (s *ShardBackend) GetLogs() ([]*types.Log, error) { panic("not implemented") }
+func (s *ShardBackend) GetLogs(start uint64, end uint64, address []account.Address, topics [][]common.Hash) ([]*types.Log, error) {
+	return s.MinorBlockChain.GetLogsByAddressAndTopic(start, end, address, topics)
+}
 
 func (s *ShardBackend) GetWork() (*consensus.MiningWork, error) {
 	return s.miner.GetWork()
@@ -187,6 +188,10 @@ func (s *ShardBackend) HandleNewTip(rBHeader *types.RootBlockHeader, mBHeader *t
 
 	if s.MinorBlockChain.GetRootBlockByHash(mBHeader.PrevRootBlockHash) == nil {
 		log.Warn(s.logInfo, "preRootBlockHash do not have height ,no need to add task", mBHeader.Number, "preRootHash", mBHeader.PrevRootBlockHash.String())
+		return nil
+	}
+	if s.MinorBlockChain.CurrentBlock().Number() >= mBHeader.Number {
+		log.Info(s.logInfo, "no need t sync curr height", s.MinorBlockChain.CurrentBlock().Number(), "tipHeight", mBHeader.Number)
 		return nil
 	}
 	peer := &peer{cm: s.conn, peerID: peerID}
@@ -247,13 +252,18 @@ func (s *ShardBackend) addTxList(txs []*types.Transaction) error {
 	ts := time.Now()
 	for index := range txs {
 		if err := s.MinorBlockChain.AddTx(txs[index]); err != nil {
-			return err
+			return err //TODO ? need return err?
 		}
 		if index%1000 == 0 {
 			log.Info("time-tx-insert-loop", "time", time.Now().Sub(ts).Seconds(), "index", index)
 			ts = time.Now()
 		}
 	}
+	go func() {
+		if err := s.conn.BroadcastTransactions(txs, s.fullShardId); err != nil {
+			log.Error(s.logInfo, "broadcastTransaction err", err)
+		}
+	}()
 	log.Info("time-tx-insert-end", "time", time.Now().Sub(ts).Seconds(), "len(tx)", len(txs))
 	return nil
 }
@@ -289,4 +299,7 @@ func (s *ShardBackend) CreateBlockToMine() (types.IBlock, *big.Int, error) {
 
 func (s *ShardBackend) InsertMinedBlock(block types.IBlock) error {
 	return s.AddMinorBlock(block.(*types.MinorBlock))
+}
+func (s *ShardBackend) GetTip() uint64 {
+	return s.MinorBlockChain.CurrentBlock().NumberU64()
 }
