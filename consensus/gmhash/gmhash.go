@@ -24,12 +24,11 @@ type GmSm3Hash struct {
 }
 
 func hashAlgo(height uint64, hash []byte, nonce uint64) (consensus.MiningResult, error) {
-	nonceBytes := make([]byte, 8)
-	// Note it's big endian here
-	binary.BigEndian.PutUint64(nonceBytes, nonce)
-	hashNonceBytes := append(hash, nonceBytes...)
+	seed := make([]byte, 40)
+	copy(seed, hash)
+	binary.LittleEndian.PutUint64(seed[32:], nonce)
 
-	hashOnce := crypto.SM3Hash(hashNonceBytes)
+	hashOnce := crypto.SM3Hash(seed)
 	resultArray := crypto.SM3Hash(hashOnce[:])
 	return consensus.MiningResult{
 		Digest: common.Hash{},
