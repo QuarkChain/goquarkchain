@@ -24,7 +24,7 @@ var (
 
 type sealTask struct {
 	block   types.IBlock
-	diff *big.Int
+	diff    *big.Int
 	results chan<- types.IBlock
 }
 
@@ -53,15 +53,18 @@ func (c *CommonEngine) remote() {
 		return
 	}
 
-	makeWork := func(block types.IBlock) {
+	makeWork := func(block types.IBlock, diff *big.Int) {
 		hash := block.IHeader().SealHash()
 		if works.Contains(hash) {
 			return
 		}
 		currentWork.HeaderHash = hash
 		currentWork.Number = block.NumberU64()
-		currentWork.Difficulty = block.IHeader().GetDifficulty()
-
+		if diff == nil {
+			currentWork.Difficulty = block.IHeader().GetDifficulty()
+		} else {
+			currentWork.Difficulty = diff
+		}
 		currentBlock = block
 		works.Add(hash, block)
 	}
@@ -111,7 +114,7 @@ func (c *CommonEngine) remote() {
 		select {
 		case work := <-c.workCh:
 			results = work.results
-			makeWork(work.block)
+			makeWork(work.block, work.diff)
 
 		case work := <-c.fetchWorkCh:
 			if currentBlock == nil {
