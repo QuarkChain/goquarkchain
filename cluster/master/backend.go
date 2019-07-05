@@ -221,6 +221,10 @@ func (s *QKCMasterBackend) SetMining(mining bool) error {
 	}
 	if err := g.Wait(); err != nil {
 		log.Error("Set slave mining failed", "err", err)
+		for _, slvConn := range s.clientPool {
+			conn := slvConn
+			conn.SetMining(false)
+		}
 		return err
 	}
 
