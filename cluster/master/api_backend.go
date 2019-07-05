@@ -267,3 +267,7 @@ func (s *QKCMasterBackend) InsertMinedBlock(block types.IBlock) error {
 	rBlock := block.(*types.RootBlock)
 	return s.AddRootBlock(rBlock)
 }
+
+func (s *QKCMasterBackend) GetTip() uint64 {
+	return s.rootBlockChain.CurrentBlock().NumberU64()
+}

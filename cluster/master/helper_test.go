@@ -57,7 +57,7 @@ func newTestProtocolManager(blocks int, generator func(int, *core.RootBlockGen),
 		db            = ethdb.NewMemDatabase()
 		genesis       = core.NewGenesis(qkcconfig)
 		genesisBlock  = genesis.MustCommitRootBlock(db)
-		blockChain, _ = core.NewRootBlockChain(db, nil, qkcconfig, engine, nil)
+		blockChain, _ = core.NewRootBlockChain(db, qkcconfig, engine, nil)
 	)
 	qkcconfig.SkipRootCoinbaseCheck = true
 	clusterconfig.P2P.PrivKey = privKey

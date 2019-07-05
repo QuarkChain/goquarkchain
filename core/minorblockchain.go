@@ -621,6 +621,28 @@ func (m *MinorBlockChain) TrieNode(hash common.Hash) ([]byte, error) {
 	return m.stateCache.TrieDB().Node(hash)
 }
 
+func (m *MinorBlockChain) getNeedStoreHeight(rootHash common.Hash, heightDiff []uint64) []uint64 {
+	var (
+		currNumber = m.CurrentBlock().NumberU64()
+	)
+	headerTip := m.getLastConfirmedMinorBlockHeaderAtRootBlock(rootHash)
+	if headerTip != nil && headerTip.Number < currNumber {
+		heightDiff = append(heightDiff, currNumber-headerTip.Number)
+		if headerTip.Number >= 1 {
+			heightDiff = append(heightDiff, currNumber-(headerTip.Number-1))
+		}
+		if headerTip.Number >= triesInMemory {
+			heightDiff = append(heightDiff, currNumber-(headerTip.Number-triesInMemory))
+		}
+		currBlockNumber := m.CurrentBlock().Number()
+		for index := headerTip.Number; index <= currBlockNumber; index++ {
+			heightDiff = append(heightDiff, currBlockNumber-index)
+		}
+
+	}
+	return heightDiff
+}
+
 // Stop stops the blockchain service. If any imports are currently in progress
 // it will abort them using the procInterrupt.
 func (m *MinorBlockChain) Stop() {
@@ -641,10 +663,19 @@ func (m *MinorBlockChain) Stop() {
 	//  - HEAD-127: So we have a hard limit on the number of blocks reexecuted
 	if !m.cacheConfig.Disabled {
 		triedb := m.stateCache.TrieDB()
-
-		for _, offset := range []uint64{0, 1, triesInMemory - 1} {
-			if number := m.CurrentBlock().NumberU64(); number > offset {
-				recentBlockInterface := m.GetBlockByNumber(number - offset)
+		var (
+			currNumber = m.CurrentBlock().NumberU64()
+			heightDiff = []uint64{0, 1, triesInMemory - 1}
+		)
+		if m.rootTip != nil {
+			heightDiff = m.getNeedStoreHeight(m.rootTip.Hash(), heightDiff)
+			sort.Slice(heightDiff, func(i, j int) bool {
+				return heightDiff[i] < heightDiff[j]
+			})
+		}
+		for _, offset := range heightDiff {
+			if currNumber > offset {
+				recentBlockInterface := m.GetBlockByNumber(currNumber - offset)
 				if qkcCommon.IsNil(recentBlockInterface) {
 					log.Error("block is nil", "err", errInsufficientBalanceForGas)
 					continue

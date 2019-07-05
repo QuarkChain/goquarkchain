@@ -115,7 +115,7 @@ func New(ctx *service.ServiceContext, cfg *config.ClusterConfig) (*QKCMasterBack
 	}
 	log.Debug("Initialised chain configuration", "config", chainConfig)
 
-	if mstr.rootBlockChain, err = core.NewRootBlockChain(mstr.chainDb, nil, cfg.Quarkchain, mstr.engine, nil); err != nil {
+	if mstr.rootBlockChain, err = core.NewRootBlockChain(mstr.chainDb, cfg.Quarkchain, mstr.engine, nil); err != nil {
 		return nil, err
 	}
 
@@ -345,6 +345,7 @@ func (s *QKCMasterBackend) Heartbeat() {
 			for endpoint := range s.clientPool {
 				normal = s.clientPool[endpoint].HeartBeat()
 				if !normal {
+					s.SetMining(false)
 					s.shutdown <- syscall.SIGTERM
 					break
 				}
@@ -525,7 +526,7 @@ func (s *QKCMasterBackend) AddRootBlock(rootBlock *types.RootBlock) error {
 		return err
 	}
 	s.rootBlockChain.ClearCommittingHash()
-	go s.miner.HandleNewTip(s.rootBlockChain.CurrentBlock().NumberU64())
+	go s.miner.HandleNewTip()
 	return nil
 }
 

@@ -39,7 +39,7 @@ func newCanonical(engine consensus.Engine, n int, full bool) (ethdb.Database, *R
 
 	qkcconfig.SkipRootCoinbaseCheck = true
 	// Initialize a fresh chain with only a genesis block
-	blockchain, _ := NewRootBlockChain(db, nil, qkcconfig, engine, nil)
+	blockchain, _ := NewRootBlockChain(db, qkcconfig, engine, nil)
 	// Create and inject the requested chain
 	if n == 0 {
 		return db, blockchain, nil
@@ -531,7 +531,7 @@ func TestReorgSideEvent(t *testing.T) {
 		engine  = new(consensus.FakeEngine)
 	)
 
-	blockchain, _ := NewRootBlockChain(db, nil, gspec.qkcConfig, engine, nil)
+	blockchain, _ := NewRootBlockChain(db, gspec.qkcConfig, engine, nil)
 	blockchain.validator = new(fakeRootBlockValidator)
 	defer blockchain.Stop()
 
@@ -674,7 +674,7 @@ func TestBlockchainHeaderchainReorgConsistency(t *testing.T) {
 	diskdb := ethdb.NewMemDatabase()
 	genesis.MustCommitRootBlock(diskdb)
 
-	chain, err := NewRootBlockChain(diskdb, nil, qkcconfig, engine, nil)
+	chain, err := NewRootBlockChain(diskdb, qkcconfig, engine, nil)
 	if err != nil {
 		t.Fatalf("failed to create tester chain: %v", err)
 	}
@@ -723,7 +723,7 @@ func TestTrieForkGC(t *testing.T) {
 	diskdb := ethdb.NewMemDatabase()
 	genesis.MustCommitRootBlock(diskdb)
 
-	chain, err := NewRootBlockChain(diskdb, nil, qkcconfig, engine, nil)
+	chain, err := NewRootBlockChain(diskdb, qkcconfig, engine, nil)
 	if err != nil {
 		t.Fatalf("failed to create tester chain: %v", err)
 	}
@@ -761,7 +761,7 @@ func TestLargeReorgTrieGC(t *testing.T) {
 	diskdb := ethdb.NewMemDatabase()
 	genesis.MustCommitRootBlock(diskdb)
 
-	chain, err := NewRootBlockChain(diskdb, nil, qkcconfig, engine, nil)
+	chain, err := NewRootBlockChain(diskdb, qkcconfig, engine, nil)
 	if err != nil {
 		t.Fatalf("failed to create tester chain: %v", err)
 	}
@@ -813,7 +813,7 @@ func TestGetBlockCnt(t *testing.T) {
 	})
 
 	// Import the chain. This runs all block validation rules.
-	blockchain, err := NewRootBlockChain(db, nil, qkcconfig, engine, nil)
+	blockchain, err := NewRootBlockChain(db, qkcconfig, engine, nil)
 	if err != nil {
 		fmt.Printf("new root block chain error %v\n", err)
 		return
@@ -862,7 +862,7 @@ func benchmarkLargeNumberOfValueToNonexisting(b *testing.B, numItems, numBlocks 
 		diskdb := ethdb.NewMemDatabase()
 		gspec.MustCommitRootBlock(diskdb)
 
-		chain, err := NewRootBlockChain(diskdb, nil, qkcconfig, engine, nil)
+		chain, err := NewRootBlockChain(diskdb, qkcconfig, engine, nil)
 		chain.validator = new(fakeRootBlockValidator)
 		if err != nil {
 			b.Fatalf("failed to create tester chain: %v", err)
