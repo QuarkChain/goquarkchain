@@ -46,7 +46,7 @@ func (s *SlaveServerSideOp) MasterInfo(ctx context.Context, req *rpc.Request) (*
 		return nil, errors.New("handle masterInfo err:rootTip is nil")
 	}
 	//createShards
-	if err = s.slave.CreateShards(gReq.RootTip); err != nil {
+	if err = s.slave.CreateShards(gReq.RootTip, true); err != nil {
 		return nil, err
 	}
 
@@ -114,7 +114,7 @@ func (s *SlaveServerSideOp) AddRootBlock(ctx context.Context, req *rpc.Request) 
 		return nil, err
 	}
 
-	if err = s.slave.CreateShards(gReq.RootBlock); err != nil {
+	if err = s.slave.CreateShards(gReq.RootBlock, false); err != nil {
 		return nil, err
 	}
 	return response, nil

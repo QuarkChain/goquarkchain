@@ -27,13 +27,19 @@ type rootblockchain interface {
 type Synchronizer interface {
 	AddTask(Task) error
 	Close() error
+	IsSyncing() bool
 }
 
 type synchronizer struct {
 	blockchain   blockchain
 	taskRecvCh   chan Task
 	taskAssignCh chan Task
+	running      bool
 	abortCh      chan struct{}
+}
+
+func (s *synchronizer) IsSyncing() bool {
+	return s.running
 }
 
 // AddTask sends a root block from peers to the main loop for processing.
@@ -52,11 +58,15 @@ func (s *synchronizer) loop() {
 	go func() {
 		logger := log.New("synchronizer", "runner")
 		for t := range s.taskAssignCh {
+			if !s.running {
+				s.running = true
+			}
 			if err := t.Run(s.blockchain); err != nil {
 				logger.Error("Running sync task failed", "error", err)
 			} else {
 				logger.Info("Done sync task", "height", t.Priority())
 			}
+			s.running = false
 		}
 	}()
 
