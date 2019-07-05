@@ -26,6 +26,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/core/vm"
 	qkcParams "github.com/QuarkChain/goquarkchain/params"
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
 	"math/big"
 )
@@ -114,11 +115,13 @@ func (p *StateProcessor) Process(block *types.MinorBlock, statedb *state.StateDB
 func IsAccountEnable(state vm.StateDB, from account.Recipient, to *account.Recipient, data []byte) error {
 	if !qkcParams.IsSuperAccount(from) {
 		if state.GetAccountStatus(from) == false {
-			return fmt.Errorf("account:%v can be used as from account", from.String())
+			log.Error("check account auth", "account can not be used as from account", from.String())
+			return ErrAuthFromAccount
 		}
 
 		if to != nil && state.GetAccountStatus(*to) == false {
-			return fmt.Errorf("account:%v can be used as to account", (*to).String())
+			log.Error("check account auth", "account can not be used as to account", (*to).String())
+			return ErrAuthToAccount
 		}
 		return nil
 	}
