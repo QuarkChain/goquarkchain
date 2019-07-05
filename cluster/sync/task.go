@@ -21,18 +21,18 @@ type Task interface {
 }
 
 type task struct {
-	header               types.IHeader
-	name                 string
-	maxSyncStaleness     int // TODO: should use config.
-	getHeaders           func(common.Hash, uint32) ([]types.IHeader, error)
-	getBlocks            func([]common.Hash) ([]types.IBlock, error)
-	syncBlock            func(types.IBlock, blockchain) error
-	checkTotalDifficulty func(types.IHeader, blockchain) bool
+	header                    types.IHeader
+	name                      string
+	maxSyncStaleness          int // TODO: should use config.
+	getHeaders                func(common.Hash, uint32) ([]types.IHeader, error)
+	getBlocks                 func([]common.Hash) ([]types.IBlock, error)
+	syncBlock                 func(types.IBlock, blockchain) error
+	needSkipByTotalDifficulty func(types.IHeader, blockchain) bool
 }
 
 // Run will execute the synchronization task.
 func (t *task) Run(bc blockchain) error {
-	if t.checkTotalDifficulty != nil && t.checkTotalDifficulty(t.header, bc) {
+	if t.needSkipByTotalDifficulty != nil && t.needSkipByTotalDifficulty(t.header, bc) {
 		return nil
 	}
 	if bc.HasBlock(t.header.Hash()) {

@@ -67,7 +67,7 @@ func NewRootChainTask(
 				rbc := bc.(rootblockchain)
 				return syncMinorBlocks(p.PeerID(), rbc, rb, statusChan, getShardConnFunc)
 			},
-			checkTotalDifficulty: func(header types.IHeader, b blockchain) bool {
+			needSkipByTotalDifficulty: func(header types.IHeader, b blockchain) bool {
 				if header.GetTotalDifficulty().Cmp(b.CurrentHeader().GetTotalDifficulty()) <= 0 {
 					return true
 				}
