@@ -51,7 +51,7 @@ func ExampleGenerateRootBlockChain() {
 	})
 
 	// Import the chain. This runs all block validation rules.
-	blockchain, err := NewRootBlockChain(db, nil, qkcconfig, engine, nil)
+	blockchain, err := NewRootBlockChain(db, qkcconfig, engine, nil)
 	if err != nil {
 		fmt.Printf("new root block chain error %v\n", err)
 		return
