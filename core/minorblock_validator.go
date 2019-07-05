@@ -243,6 +243,7 @@ func (v *MinorBlockValidator) ValidatorSeal(mHeader types.IHeader) error {
 	consensusType := shardConfig.ConsensusType
 	var diff uint64
 	if v.posw.IsPoSWEnabled() {
+		fmt.Println("[ValidatorSeal]PoSWDiffAdjust")
 		diffBig, err := v.posw.PoSWDiffAdjust(mHeader)
 		if err != nil {
 			log.Error(v.logInfo, "PoSWDiffAdjust err", err)
@@ -251,6 +252,7 @@ func (v *MinorBlockValidator) ValidatorSeal(mHeader types.IHeader) error {
 		diffStr := diffBig.Text(10)
 		diffInt64, _ := strconv.ParseUint(diffStr, 10, 64)
 		diff = uint64(diffInt64)
+		fmt.Printf("[PoSW]ValidatorSeal - PoSWDiffAdjust from %v to %v\n", mHeader.GetDifficulty(), diff)
 	}
 	return v.validateSeal(header, consensusType, &diff)
 }

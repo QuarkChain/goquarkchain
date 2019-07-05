@@ -3,6 +3,7 @@ package shard
 import (
 	"errors"
 	"fmt"
+	"math/big"
 	"time"
 
 	"github.com/QuarkChain/goquarkchain/account"
@@ -268,22 +269,22 @@ func (s *ShardBackend) GenTx(genTxs *rpc.GenTxRequest) error {
 }
 
 // miner api
-func (s *ShardBackend) CreateBlockToMine() (types.IBlock, error) {
+func (s *ShardBackend) CreateBlockToMine() (types.IBlock, *big.Int, error) {
 	mnrBlk, err := s.MinorBlockChain.CreateBlockToMine(nil, &s.Config.CoinbaseAddress, nil)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
+	diff :=  mnrBlk.Difficulty()
 	if s.posw.IsPoSWEnabled() {
 		header := mnrBlk.Header()
-		diff := header.GetDifficulty()
 		diffAdjusted, err := s.posw.PoSWDiffAdjust(header)
 		if err != nil {
 			log.Error("[PoSW]Failed to compute PoSW difficulty.", err)
 		}
-		header.SetDifficulty(diffAdjusted)
+		diff = diffAdjusted
 		log.Info("[PoSW]ShardBackend.CreateBlockToMine", "fullShardId", s.fullShardId, "number", mnrBlk.Number, "diff", diff, "diffAdjusted", diffAdjusted)
 	}
-	return mnrBlk, nil
+	return mnrBlk, diff, nil
 }
 
 func (s *ShardBackend) InsertMinedBlock(block types.IBlock) error {

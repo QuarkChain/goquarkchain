@@ -1,9 +1,6 @@
 package posw
-// test only
-var (
-	GetCoinbaseAddrCache = getCoinbaseAddrCache
-	GetCoinbaseAddrCacheLen = getCoinbaseAddrCacheLen
 
-)
+// test only
+var GetCoinbaseAddrCache = getCoinbaseAddrCache
 
 type  HeightAndAddrs = heightAndAddrs

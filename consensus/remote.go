@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/hashicorp/golang-lru"
+	"math/big"
 	"time"
 
 	"github.com/QuarkChain/goquarkchain/core/types"
@@ -23,6 +24,7 @@ var (
 
 type sealTask struct {
 	block   types.IBlock
+	diff *big.Int
 	results chan<- types.IBlock
 }
 

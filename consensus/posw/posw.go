@@ -11,6 +11,7 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/hashicorp/golang-lru"
 	"math/big"
+	"runtime/debug"
 	"strconv"
 )
 
@@ -43,6 +44,7 @@ func NewPoSW(minorBlockChain MinorBlockChainPoSWHelper) *PoSW {
 // PoSWDiffAdjust PoSW diff calc,already locked by insertChain
 func (p *PoSW) PoSWDiffAdjust(header types.IHeader) (*big.Int, error) {
 	// Evaluate stakes before the to-be-added block
+	fmt.Println("[PoSWDiffAdjust]GetEvmStateForNewBlock")
 	evmState, err := p.minorBCHelper.GetEvmStateForNewBlock(header, false)
 	if err != nil {
 		return nil, err
@@ -92,7 +94,7 @@ func (p *PoSW) GetPoSWCoinbaseBlockCnt(headerHash common.Hash, length uint32) (m
 			recipientCountMap[ca] = 1
 		}
 	}
-	fmt.Printf("recipientCountMap %x\n", recipientCountMap)
+	fmt.Printf("[PoSW]GetPoSWCoinbaseBlockCnt() recipientCountMap %x\n", recipientCountMap)
 	return recipientCountMap, nil
 }
 
@@ -103,11 +105,12 @@ func (p *PoSW) getCoinbaseAddressUntilBlock(headerHash common.Hash, length uint3
 	var header types.IHeader
 	var addrs []account.Recipient
 	if header = p.minorBCHelper.GetHeaderByHash(headerHash); qkcCommon.IsNil(header) {
-		return nil, fmt.Errorf("curr block not found: hash %x", headerHash)
+		return nil, fmt.Errorf("curr block not found: hash %x, %s", headerHash, string(debug.Stack()))
 	}
+	fmt.Printf("tip=%d\n", header.NumberU64())
 	height := header.NumberU64()
 	prevHash := header.GetParentHash()
-	log.Info("[PoSW]Size of p.coinbaseAddrCache:", "size", p.coinbaseAddrCache.Len())
+	fmt.Printf("[PoSW]p.coinbaseAddrCache: size=%d\n", p.coinbaseAddrCache.Len())
 	var cache map[common.Hash]heightAndAddrs
 	if p.coinbaseAddrCache.Contains(length) {
 		ca, _ := p.coinbaseAddrCache.Get(length)
@@ -117,7 +120,7 @@ func (p *PoSW) getCoinbaseAddressUntilBlock(headerHash common.Hash, length uint3
 		p.coinbaseAddrCache.Add(length, cache)
 	}
 	if haddrs, ok := cache[prevHash]; ok {
-		addrs = haddrs.addrs
+		addrs = append(addrs, haddrs.addrs...)
 		if uint32(len(addrs)) == length {
 			addrs = addrs[1:]
 		}
@@ -128,6 +131,7 @@ func (p *PoSW) getCoinbaseAddressUntilBlock(headerHash common.Hash, length uint3
 		addrs = make([]account.Recipient, lgth)
 		for i := lgth; i > 0; i-- {
 			addrs[i-1] = header.GetCoinbase().Recipient
+			fmt.Printf("header.NumberU64() == 0%t\n",header.NumberU64() == 0)
 			if header.NumberU64() == 0 {
 				break
 			}
@@ -135,33 +139,38 @@ func (p *PoSW) getCoinbaseAddressUntilBlock(headerHash common.Hash, length uint3
 				return nil, fmt.Errorf("mysteriously missing block %x", header.GetParentHash())
 			}
 		}
+		fmt.Printf("length=%d,addrs=%x\n",length,addrs)
 	}
 	log.Info("[PoSW] getCoinbaseAddressUntilBlock", "size of addrs", len(addrs), "last addrs", addrs[len(addrs)-1])
 	cache[headerHash] = heightAndAddrs{height, addrs}
+	if len(addrs) > int(length) {
+		return nil, fmt.Errorf("Unexpected result: len(addrs)=%d > length=%d\n", len(addrs), length)
+	}
 	return addrs, nil
 }
 
 /*
 *Take an additional recipient parameter and add its block count.
  */
-func (p *PoSW) BuildSenderDisallowMap(headerHash common.Hash, recipient account.Recipient) map[account.Recipient]*big.Int {
+func (p *PoSW) BuildSenderDisallowMap(headerHash common.Hash, recipient *account.Recipient) (map[account.Recipient]*big.Int, error) {
 	if !p.config.Enabled {
-		return nil
+		return nil, nil
 	}
-	length := p.config.WindowSize - 1
-	stakePerBlock := p.config.TotalStakePerBlock
-	blockCnt, err := p.GetPoSWCoinbaseBlockCnt(headerHash, length)
+	fmt.Printf("[PoSW] BuildSenderDisallowMap() headerHash=%x, recipient=%x\n", headerHash, recipient)
+	blockCnt, err := p.GetPoSWCoinbaseBlockCnt(headerHash, p.config.WindowSize - 1)
 	if err != nil {
-		return nil
+		return nil, err
 	}
-	if (account.Recipient{}) != recipient {
-		blockCnt[recipient] += 1
+	if recipient != nil {
+		blockCnt[*recipient] += 1
 	}
+	stakePerBlock := p.config.TotalStakePerBlock
 	disallowMap := make(map[account.Recipient]*big.Int)
 	for k, v := range blockCnt {
 		disallowMap[k] = new(big.Int).Mul(big.NewInt(int64(v)), stakePerBlock)
 	}
-	return disallowMap
+	fmt.Printf("disallowMap=%x\n", disallowMap)
+	return disallowMap, nil
 }
 
 func (p *PoSW) IsPoSWEnabled() bool {
@@ -169,10 +178,6 @@ func (p *PoSW) IsPoSWEnabled() bool {
 }
 
 //for test only
-func getCoinbaseAddrCache(p *PoSW, length uint32) (interface{}, bool) {
-	return p.coinbaseAddrCache.Get(length)
-}
-
-func getCoinbaseAddrCacheLen(p *PoSW) int {
-	return p.coinbaseAddrCache.Len()
+func getCoinbaseAddrCache(p *PoSW) *lru.Cache {
+	return p.coinbaseAddrCache
 }

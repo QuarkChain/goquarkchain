@@ -7,6 +7,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/common"
 	"math/big"
+	"reflect"
 	"testing"
 )
 
@@ -16,7 +17,7 @@ func TestPoSWFetchPreviousCoinbaseAddress(t *testing.T) {
 		t.Fatalf("error create id %v", id1)
 	}
 	acc := account.CreatAddressFromIdentity(id1, 0)
-	blockchain, err := core.CreateFakeMinorCanonical(acc)
+	blockchain, err := core.CreateFakeMinorCanonicalPoSW(acc)
 	if err != nil {
 		t.Fatalf("failed to create fake minor chain: %v", err)
 	}
@@ -77,11 +78,11 @@ func TestPoSWFetchPreviousCoinbaseAddress(t *testing.T) {
 		prevAddr = randomAcc.Recipient
 	}
 	//Cached should have certain items
-	if l := posw.GetCoinbaseAddrCacheLen(poswa); l != 1 {
+	if l := posw.GetCoinbaseAddrCache(poswa).Len(); l != 1 {
 		t.Errorf("len of CoinbaseAddrCache: expected %d, got %d", 1, l)
 	}
 
-	if c, ok := posw.GetCoinbaseAddrCache(poswa, 2); ok {
+	if c, ok := posw.GetCoinbaseAddrCache(poswa).Get(2); ok {
 		m := c.(map[common.Hash]posw.HeightAndAddrs)
 		if l2 := len(m); l2 != 5 {
 			t.Errorf("len of CoinbaseAddrCache[2]: expected %d, got %d", 5, l2)
@@ -95,7 +96,7 @@ func TestPoSWCoinbaseAddrsCntByDiffLen(t *testing.T) {
 		t.Fatalf("error create id %v", id1)
 	}
 	acc := account.CreatAddressFromIdentity(id1, 0)
-	blockchain, err := core.CreateFakeMinorCanonical(acc)
+	blockchain, err := core.CreateFakeMinorCanonicalPoSW(acc)
 	if err != nil {
 		t.Fatalf("failed to create fake minor chain: %v", err)
 	}
@@ -132,7 +133,7 @@ func TestPoSWCoinbaseAddrsCntByDiffLen(t *testing.T) {
 		}
 	}
 	//Make sure internal cache state is correct
-	if cacheLen := posw.GetCoinbaseAddrCacheLen(poswa); cacheLen != 4 {
+	if cacheLen := posw.GetCoinbaseAddrCache(poswa).Len(); cacheLen != 4 {
 		t.Errorf("cache length: expected %d, got %d", cacheLen, 4)
 	}
 }
@@ -143,15 +144,14 @@ func TestPoSWCoinBaseSendUnderLimit(t *testing.T) {
 		t.Fatalf("error create id %v", id1)
 	}
 	acc1 := account.CreatAddressFromIdentity(id1, 0)
-	blockchain, err := core.CreateFakeMinorCanonical(acc1)
+	blockchain, err := core.CreateFakeMinorCanonicalPoSW(acc1)
 	if err != nil {
 		t.Fatalf("failed to create fake minor chain: %v", err)
 	}
 	defer blockchain.Stop()
 
-	fullShardId := blockchain.Config().GetGenesisShardIds()[0]
-	t.Logf("fullshardId %d", fullShardId)
-	shardConfig := blockchain.Config().GetShardConfigByFullShardID(fullShardId)
+	fullShardID := blockchain.Config().Chains[0].ShardSize | 0
+	shardConfig := blockchain.Config().GetShardConfigByFullShardID(fullShardID)
 	shardConfig.CoinbaseAmount = big.NewInt(8)
 	shardConfig.PoswConfig.TotalStakePerBlock = big.NewInt(2)
 	shardConfig.PoswConfig.WindowSize = 4
@@ -160,7 +160,7 @@ func TestPoSWCoinBaseSendUnderLimit(t *testing.T) {
 	// another shard to allow x-shard tx TO that shard
 	rootBlk := blockchain.GetRootTip().CreateBlockToAppend(nil, nil, nil, nil, nil)
 	var sId uint32 = 1
-	blockchain2, err := core.CreateFakeMinorCanonicalShardId(acc1, &sId)
+	blockchain2, err := core.CreateFakeMinorCanonicalPoSWShardId(acc1, &sId)
 	if err != nil {
 		t.Fatalf("failed to create fake minor chain: %v", err)
 	}
@@ -176,21 +176,28 @@ func TestPoSWCoinBaseSendUnderLimit(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to FinalizeAndAddBlock: %v", err)
 	}
-	//poswa := posw.NewPoSW(blockchain)
-	//disallowMap := poswa.BuildSenderDisallowMap()
-	state, err := blockchain.State()
+	evmState, err := blockchain.State()
 	if err != nil {
 		t.Fatalf("failed to get State: %v", err)
 	}
-	disallowMap := state.GetSenderDisallowMap()
-	t.Logf("disallowMap=%x", disallowMap)
-	//lenDislmp := len(disallowMap)
-	//if lenDislmp != 2 {
-	//	t.Errorf("len of Sender Disallow map: expect %d, got %d", 2, lenDislmp)
-	//}
-	//balance := state.GetBalance(acc1.Recipient)
-	//balanceEx := new(big.Int).Div(shardConfig.CoinbaseAmount, big.NewInt(2))
-	//if balance != balanceEx {
-	//	t.Errorf("Balance: expected %v, got %v", balanceEx, balance)
-	//}
+	disallowMap := evmState.GetSenderDisallowMap()
+	//t.Logf("disallowMap=%x", disallowMap)
+	lenDislmp := len(disallowMap)
+	if lenDislmp != 2 {
+		t.Errorf("len of Sender Disallow map: expect %d, got %d", 2, lenDislmp)
+	}
+	balance := evmState.GetBalance(acc1.Recipient)
+	balanceExp := new(big.Int).Div(shardConfig.CoinbaseAmount, big.NewInt(2))// tax rate is 0.5
+	if balance.Cmp(balanceExp) != 0 {
+		t.Errorf("Balance: expected %v, got %v", balanceExp, balance)
+	}
+	coinbaseBytes := make([]byte, 20)
+	coinbase := account.BytesToIdentityRecipient(coinbaseBytes)
+	disallowMapExp := map[account.Recipient]*big.Int{
+		coinbase: big.NewInt(int64(2)),
+		acc1.Recipient: big.NewInt(2),
+	}
+	if !reflect.DeepEqual(disallowMap, disallowMapExp) {
+		t.Errorf("disallowMap: expected %x, got %x", disallowMapExp, disallowMap)
+	}
 }

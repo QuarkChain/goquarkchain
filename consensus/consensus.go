@@ -257,26 +257,31 @@ func (c *CommonEngine) FindNonce(
 func (c *CommonEngine) Seal(
 	chain ChainReader,
 	block types.IBlock,
+	diff *big.Int,
 	results chan<- types.IBlock,
 	stop <-chan struct{}) error {
 	if c.isRemote {
-		c.SetWork(block, results)
+		c.SetWork(block, diff, results)
 		return nil
 	}
-	return c.localSeal(block, results, stop)
+	return c.localSeal(block, diff, results, stop)
 }
 
 // localSeal generates a new block for the given input block with the local miner's
 // seal place on top.
 func (c *CommonEngine) localSeal(
 	block types.IBlock,
+	diff *big.Int,
 	results chan<- types.IBlock,
 	stop <-chan struct{},
 ) error {
 
 	found := make(chan MiningResult)
 	header := block.IHeader()
-	work := MiningWork{HeaderHash: header.SealHash(), Number: header.NumberU64(), Difficulty: header.GetDifficulty()}
+	if diff == nil {
+		diff = header.GetDifficulty()
+	}
+	work := MiningWork{HeaderHash: header.SealHash(), Number: header.NumberU64(), Difficulty: diff}
 	if err := c.FindNonce(work, found, stop); err != nil {
 		return err
 	}
@@ -396,8 +401,8 @@ func (c *CommonEngine) SetThreads(threads int) {
 	c.threads = threads
 }
 
-func (c *CommonEngine) SetWork(block types.IBlock, results chan<- types.IBlock) {
-	c.workCh <- &sealTask{block: block, results: results}
+func (c *CommonEngine) SetWork(block types.IBlock, diff *big.Int, results chan<- types.IBlock) {
+	c.workCh <- &sealTask{block, diff, results}
 }
 
 func (c *CommonEngine) Close() error {

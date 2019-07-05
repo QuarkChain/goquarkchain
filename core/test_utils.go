@@ -105,6 +105,12 @@ func createDefaultShardState(env *fakeEnv, shardID *uint32, diffCalc consensus.D
 	genesisManager := NewGenesis(env.clusterConfig.Quarkchain)
 
 	fullShardID := env.clusterConfig.Quarkchain.Chains[0].ShardSize | *shardID
+
+	if *poswOverride {
+		poswConfig := env.clusterConfig.Quarkchain.GetShardConfigByFullShardID(fullShardID).PoswConfig
+		poswConfig.Enabled = true
+	}
+
 	genesisManager.MustCommitMinorBlock(env.db, rBlock, fullShardID)
 
 	var shardState *MinorBlockChain
@@ -194,15 +200,17 @@ func checkErr(err error) {
 	}
 }
 
-func CreateFakeMinorCanonical(acc1 account.Address) ( *MinorBlockChain, error){
+func CreateFakeMinorCanonicalPoSW(acc1 account.Address) ( *MinorBlockChain, error){
 	env := setUp(&acc1, nil, nil)
-	shardState := createDefaultShardState(env, nil, nil, nil, nil)
+	poswOverride := true
+	shardState := createDefaultShardState(env, nil, nil, &poswOverride, nil)
 	return shardState, nil
 }
 
 
-func CreateFakeMinorCanonicalShardId(acc1 account.Address, shardId *uint32) ( *MinorBlockChain, error){
+func CreateFakeMinorCanonicalPoSWShardId(acc1 account.Address, shardId *uint32) ( *MinorBlockChain, error){
 	env := setUp(&acc1, nil, nil)
-	shardState := createDefaultShardState(env, shardId, nil, nil, nil)
+	poswOverride := true
+	shardState := createDefaultShardState(env, shardId, nil, &poswOverride, nil)
 	return shardState, nil
 }

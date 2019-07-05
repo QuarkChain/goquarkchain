@@ -68,7 +68,7 @@ type Engine interface {
 	//
 	// Note, the method returns immediately and will send the result async. More
 	// than one result may also be returned depending on the consensus algorithm.
-	Seal(chain ChainReader, block types.IBlock, results chan<- types.IBlock, stop <-chan struct{}) error
+	Seal(chain ChainReader, block types.IBlock, diff *big.Int, results chan<- types.IBlock, stop <-chan struct{}) error
 
 	// CalcDifficulty is the difficulty adjustment algorithm. It returns the difficulty
 	// that a new block should have.
@@ -95,7 +95,7 @@ type PoW interface {
 }
 
 type SenderDisallowMapBuilder interface {
-	BuildSenderDisallowMap(headerHash common.Hash, recipient account.Recipient) map[account.Recipient]*big.Int
+	BuildSenderDisallowMap(headerHash common.Hash, recipient *account.Recipient) (map[account.Recipient]*big.Int, error)
 }
 
 type PoSWCalculator interface {

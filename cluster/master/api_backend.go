@@ -13,6 +13,7 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	ethRpc "github.com/ethereum/go-ethereum/rpc"
 	"golang.org/x/sync/errgroup"
+	"math/big"
 	"net"
 	"reflect"
 )
@@ -264,8 +265,14 @@ func (s *QKCMasterBackend) NetWorkInfo() map[string]interface{} {
 }
 
 // miner api
-func (s *QKCMasterBackend) CreateBlockToMine() (types.IBlock, error) {
-	return s.createRootBlockToMine(s.clusterConfig.Quarkchain.Root.CoinbaseAddress)
+func (s *QKCMasterBackend) CreateBlockToMine() (types.IBlock, *big.Int, error) {
+	block, err := s.createRootBlockToMine(s.clusterConfig.Quarkchain.Root.CoinbaseAddress)
+	if err != nil {
+		return nil, nil, err
+	}
+	diff := block.Header().Difficulty
+	adjustedDiff := diff.Div(diff, new(big.Int).SetUint64(1000))
+	return block, adjustedDiff, nil
 }
 
 func (s *QKCMasterBackend) InsertMinedBlock(block types.IBlock) error {

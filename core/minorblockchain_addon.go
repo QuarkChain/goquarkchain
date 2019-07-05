@@ -344,8 +344,10 @@ func (m *MinorBlockChain) InitFromRootBlock(rBlock *types.RootBlock) error {
 	if block == nil {
 		return ErrMinorBlockIsNil
 	}
-	senderDisallowMap := m.senderDisallowMapBuilder.BuildSenderDisallowMap(headerTipHash, account.Recipient{})
-	var err error
+	senderDisallowMap, err := m.senderDisallowMapBuilder.BuildSenderDisallowMap(headerTipHash, nil)
+	if err != nil {
+		return err
+	}
 	m.currentEvmState, err = m.createEvmState(block.Meta().Root, block.Hash(), senderDisallowMap)
 	if err != nil {
 		return err
@@ -362,7 +364,11 @@ func (m *MinorBlockChain) GetEvmStateForNewBlock(mHeader types.IHeader, ephemera
 	}
 	recipient := mHeader.GetCoinbase().Recipient
 	rootHash := preMinorBlock.GetMetaData().Root
-	senderDisallowMap := m.senderDisallowMapBuilder.BuildSenderDisallowMap(prevHash, recipient)
+	fmt.Println("[BuildSenderDisallowMap]GetEvmStateForNewBlock")
+	senderDisallowMap, err := m.senderDisallowMapBuilder.BuildSenderDisallowMap(prevHash, &recipient)
+	if err != nil {
+		return nil, err
+	}
 	evmState, err := m.createEvmState(rootHash, prevHash, senderDisallowMap)
 	if err != nil {
 		return nil, err
@@ -385,6 +391,7 @@ func (m *MinorBlockChain) getEvmStateFromHeight(height *uint64) (*state.StateDB,
 	if header != nil {
 		return nil, ErrMinorBlockIsNil
 	}
+	fmt.Println("[getEvmStateFromHeight]getEvmStateFromHeight")
 	return m.GetEvmStateForNewBlock(header, true)
 }
 
@@ -812,6 +819,7 @@ func (m *MinorBlockChain) CreateBlockToMine(createTime *uint64, address *account
 	block := prevBlock.CreateBlockToAppend(&realCreateTime, difficulty, address, nil, gasLimit, nil, nil)
 	evmState, err := m.GetEvmStateForNewBlock(block.IHeader(), true)
 
+	fmt.Println("[CreateBlockToMine]GetState")
 	prevHeader := m.CurrentBlock()
 	ancestorRootHeader := m.GetRootBlockByHash(prevHeader.Header().PrevRootBlockHash).Header()
 	if !m.isSameRootChain(m.rootTip, ancestorRootHeader) {
@@ -964,10 +972,19 @@ func (m *MinorBlockChain) AddRootBlock(rBlock *types.RootBlock) (bool, error) {
 	}
 
 	if m.CurrentHeader().Hash() != origHeaderTip.Hash() {
+		headerTipHash := m.CurrentHeader().Hash()
 		origBlock := m.GetMinorBlock(origHeaderTip.Hash())
-		newBlock := m.GetMinorBlock(m.CurrentHeader().Hash())
+		newBlock := m.GetMinorBlock(headerTipHash)
 		log.Warn("reWrite", "orig_number", origBlock.Number(), "orig_hash", origBlock.Hash().String(), "new_number", newBlock.Number(), "new_hash", newBlock.Hash().String())
-		if err := m.reWriteBlockIndexTo(origBlock, newBlock); err != nil {
+		senderDisallowMap, err := m.senderDisallowMapBuilder.BuildSenderDisallowMap(headerTipHash, nil)
+		if err != nil {
+			return false, err
+		}
+		m.currentEvmState, err = m.createEvmState(newBlock.Meta().Root, headerTipHash, senderDisallowMap)
+		if err != nil {
+			return false, err
+		}
+		if err = m.reWriteBlockIndexTo(origBlock, newBlock); err != nil {
 			return false, err
 		}
 	}
