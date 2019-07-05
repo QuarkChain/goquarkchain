@@ -50,8 +50,9 @@ import (
 )
 
 const (
-	maxCrossShardLimit = 256
-	maxRootBlockLimit  = 256
+	maxCrossShardLimit  = 256
+	maxRootBlockLimit   = 256
+	maxLastConfirmLimit = 256
 )
 
 type heightAndAddrs struct {
@@ -111,6 +112,7 @@ type MinorBlockChain struct {
 	futureBlocks          *lru.Cache     // future blocks are blocks added for later processing
 	crossShardTxListCache *lru.Cache
 	rootBlockCache        *lru.Cache
+	lastConfirmCache      *lru.Cache
 
 	quit    chan struct{} // blockchain quit channel
 	running int32         // running must be called atomically
@@ -170,6 +172,7 @@ func NewMinorBlockChain(
 	futureBlocks, _ := lru.New(maxFutureBlocks)
 	crossShardCache, _ := lru.New(maxCrossShardLimit)
 	rootBlockCache, _ := lru.New(maxRootBlockLimit)
+	lastConfimCache, _ := lru.New(maxLastConfirmLimit)
 	bc := &MinorBlockChain{
 		ethChainConfig:           chainConfig,
 		clusterConfig:            clusterConfig,
@@ -184,6 +187,7 @@ func NewMinorBlockChain(
 		futureBlocks:             futureBlocks,
 		crossShardTxListCache:    crossShardCache,
 		rootBlockCache:           rootBlockCache,
+		lastConfirmCache:         lastConfimCache,
 		engine:                   engine,
 		vmConfig:                 vmConfig,
 		heightToMinorBlockHashes: make(map[uint64]map[common.Hash]struct{}),
@@ -315,6 +319,7 @@ func (m *MinorBlockChain) SetHead(head uint64) error {
 	m.futureBlocks.Purge()
 	m.crossShardTxListCache.Purge()
 	m.rootBlockCache.Purge()
+	m.lastConfirmCache.Purge()
 
 	// Rewind the block chain, ensuring we don't end up with a stateless head block
 	if currentBlock := m.CurrentBlock(); currentBlock != nil && currentHeader.NumberU64() < currentBlock.IHeader().NumberU64() {
