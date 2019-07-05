@@ -3,6 +3,7 @@ package sync
 import (
 	"errors"
 	"fmt"
+	"math/big"
 	"strings"
 	"time"
 
@@ -15,7 +16,7 @@ import (
 // Task represents a synchronization task for the synchronizer.
 type Task interface {
 	Run(blockchain) error
-	Priority() uint
+	Priority() *big.Int
 	PeerID() string
 }
 

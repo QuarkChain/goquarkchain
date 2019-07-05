@@ -2,6 +2,7 @@ package sync
 
 import (
 	"fmt"
+	"math/big"
 
 	"golang.org/x/sync/errgroup"
 
@@ -77,9 +78,8 @@ func NewRootChainTask(
 	}
 }
 
-func (r *rootChainTask) Priority() uint {
-	// TODO: should use total diff
-	return uint(r.task.header.NumberU64())
+func (r *rootChainTask) Priority() *big.Int {
+	return r.task.header.GetTotalDifficulty()
 }
 
 func (r *rootChainTask) PeerID() string {

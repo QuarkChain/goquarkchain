@@ -2,6 +2,7 @@ package sync
 
 import (
 	"fmt"
+	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
 
@@ -54,8 +55,8 @@ func NewMinorChainTask(
 	}
 }
 
-func (m *minorChainTask) Priority() uint {
-	return uint(m.task.header.NumberU64())
+func (m *minorChainTask) Priority() *big.Int {
+	return new(big.Int).SetUint64(m.task.header.NumberU64())
 }
 
 func (m *minorChainTask) PeerID() string {

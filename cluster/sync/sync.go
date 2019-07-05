@@ -2,10 +2,10 @@ package sync
 
 import (
 	"github.com/QuarkChain/goquarkchain/core"
+	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
-
-	"github.com/QuarkChain/goquarkchain/core/types"
+	"math/big"
 )
 
 // A lightweight wrapper over shard chain or root chain.
@@ -94,10 +94,10 @@ func (s *synchronizer) loop() {
 
 // Find the next task according to their priorities.
 func getNextTask(taskMap map[string]Task) (ret Task) {
-	prio := uint(0)
+	prio := new(big.Int)
 	for _, t := range taskMap {
 		newPrio := t.Priority()
-		if ret == nil || newPrio > prio {
+		if ret == nil || newPrio.Cmp(prio) > 0 {
 			ret = t
 			prio = newPrio
 		}
