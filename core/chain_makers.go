@@ -100,7 +100,7 @@ func GenerateRootBlockChain(parent *types.RootBlock, engine consensus.Engine, n 
 		if gen != nil {
 			gen(i, b)
 		}
-		b.SetTotalDifficulty(new(big.Int).Add(parent.Header().GetTotalDifficulty(), b.header.Difficulty))
+		b.SetTotalDifficulty(new(big.Int).Add(parent.TotalDifficulty(), b.header.Difficulty))
 		return types.NewRootBlock(b.header, b.Headers, nil)
 	}
 	for i := 0; i < n; i++ {

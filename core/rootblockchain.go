@@ -482,7 +482,7 @@ func (bc *RootBlockChain) WriteBlockWithState(block *types.RootBlock) (status Wr
 	defer bc.mu.Unlock()
 
 	currentBlock := bc.CurrentBlock()
-	localTd := currentBlock.Header().GetTotalDifficulty()
+	localTd := currentBlock.TotalDifficulty()
 	externTd := new(big.Int).Add(block.Difficulty(), ptd)
 
 	// Irrelevant of the canonical status, write the block itself to the database

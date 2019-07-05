@@ -50,6 +50,12 @@ func NewMinorChainTask(
 				}
 				return ret, nil
 			},
+			needSkip: func(header types.IHeader, b blockchain) bool {
+				if header.NumberU64() <= b.CurrentHeader().NumberU64() {
+					return true
+				}
+				return false
+			},
 		},
 		peer: p,
 	}
