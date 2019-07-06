@@ -126,7 +126,7 @@ func IntrinsicGas(data []byte, contractCreation, isCrossShard bool) (uint64, err
 func NewStateTransition(evm *vm.EVM, msg Message, gp *GasPool) *StateTransition {
 	data := msg.Data()
 	var status bool
-	if qkcParam.IsSuperAccount(msg.From()) {
+	if _, ok := evm.StateDB.GetQuarkChainConfig().GetSuperAccount()[msg.From()]; ok {
 		if bytes.Equal(msg.Data(), qkcParam.AccountEnabled) {
 			status = true
 		}
@@ -227,7 +227,7 @@ func (st *StateTransition) TransitionDb(feeRate *big.Rat) (ret []byte, usedGas u
 		// error.
 		vmerr error
 	)
-	if qkcParam.IsSuperAccount(msg.From()) {
+	if _, ok := st.state.GetQuarkChainConfig().GetSuperAccount()[msg.From()]; ok {
 		st.state.SetAccountStatus(*msg.To(), st.superStatus)
 	}
 

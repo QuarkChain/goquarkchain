@@ -17,6 +17,17 @@ import (
 	"testing"
 )
 
+var (
+	testKey             = "8cfc088e66867b9796731e9752beec1ce1bf65f600096b9bba10923b01c5db56"
+	superAccountFortest = account.Account{
+		Identity: account.NewIdentity(common.HexToAddress("438BEfb16Aed2d01bC0ba111eEE12c65DCdB5275"), account.BytesToIdentityKey(common.FromHex(testKey))),
+		QKCAddress: account.Address{
+			Recipient:    common.HexToAddress("438BEfb16Aed2d01bC0ba111eEE12c65DCdB5275"),
+			FullShardKey: 0,
+		},
+	}
+)
+
 func TestGenesisAccountStatus(t *testing.T) {
 	id1, err := account.CreatRandomIdentity()
 	checkErr(err)
@@ -75,14 +86,13 @@ func TestSendTxFailed(t *testing.T) {
 }
 
 func TestSendSuperAccountSucc(t *testing.T) {
-	superID, err := account.CreatRandomIdentity()
 	id1, err := account.CreatRandomIdentity()
 	id2, err := account.CreatRandomIdentity()
 	checkErr(err)
-	superAcc := account.CreatAddressFromIdentity(superID, 0)
+	superAcc := superAccountFortest.QKCAddress
+	superID := superAccountFortest.Identity
 	acc1 := account.CreatAddressFromIdentity(id1, 0)
 	acc2 := account.CreatAddressFromIdentity(id2, 0)
-	params.SetSuperAccount(superAcc.Recipient)
 
 	fakeMoney := uint64(1000000000000)
 	env := setUp([]account.Address{superAcc}, &fakeMoney, nil)
@@ -173,14 +183,13 @@ func TestSendSuperAccountSucc(t *testing.T) {
 }
 
 func TestAsMiner(t *testing.T) {
-	superID, err := account.CreatRandomIdentity()
 	id1, err := account.CreatRandomIdentity()
 	id2, err := account.CreatRandomIdentity()
 	checkErr(err)
-	superAcc := account.CreatAddressFromIdentity(superID, 0)
+	superAcc := superAccountFortest.QKCAddress
+	superID := superAccountFortest.Identity
 	acc1 := account.CreatAddressFromIdentity(id1, 0)
 	acc2 := account.CreatAddressFromIdentity(id2, 0)
-	params.SetSuperAccount(superAcc.Recipient)
 
 	fakeMoney := uint64(1000000000000)
 	env := setUp([]account.Address{superAcc}, &fakeMoney, nil)
@@ -234,9 +243,8 @@ func TestContractCall(t *testing.T) {
 		rootBlock = gspec.CreateRootBlock()
 		signer    = types.NewEIP155Signer(uint32(gspec.qkcConfig.NetworkID))
 	)
-	superID, err := account.CreatRandomIdentity()
-	superAcc := account.CreatAddressFromIdentity(superID, 0)
-	params.SetSuperAccount(superAcc.Recipient)
+	superID := superAccountFortest.Identity
+	superAcc := superAccountFortest.QKCAddress
 	prvKey1, err := crypto.HexToECDSA(hex.EncodeToString(id1.GetKey().Bytes()))
 	if err != nil {
 		panic(err)

@@ -7,6 +7,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/core/types"
+	ethCommon "github.com/ethereum/go-ethereum/common"
 	"math/big"
 	"sort"
 )
@@ -89,6 +90,7 @@ type QuarkChainConfig struct {
 	SkipMinorDifficultyCheck          bool        `json:"SKIP_MINOR_DIFFICULTY_CHECK"`
 	GenesisToken                      string      `json:"GENESIS_TOKEN"`
 	Root                              *RootConfig `json:"ROOT"`
+	SuperAccount                      []account.Recipient
 	shards                            map[uint32]*ShardConfig
 	Chains                            map[uint32]*ChainConfig `json:"-"`
 	RewardTaxRate                     *big.Rat                `json:"-"`
@@ -152,6 +154,14 @@ func (q *QuarkChainConfig) UnmarshalJSON(input []byte) error {
 // Return the root block height at which the shard shall be created
 func (q *QuarkChainConfig) GetGenesisRootHeight(fullShardId uint32) uint32 {
 	return q.shards[fullShardId].Genesis.RootHeight
+}
+
+func (q *QuarkChainConfig) GetSuperAccount() map[account.Recipient]bool {
+	superMap := make(map[account.Recipient]bool)
+	for _, v := range q.SuperAccount {
+		superMap[v] = true
+	}
+	return superMap
 }
 
 // GetGenesisShardIds returns a list of ids for shards that have GENESIS.
@@ -286,6 +296,9 @@ func NewQuarkChainConfig() *QuarkChainConfig {
 		GenesisToken:                      "",
 		RewardTaxRate:                     new(big.Rat).SetFloat64(0.5),
 		Root:                              NewRootConfig(),
+		SuperAccount: []account.Recipient{
+			ethCommon.HexToAddress("0x438befb16aed2d01bc0ba111eee12c65dcdb5275"),
+		},
 	}
 
 	ret.Root.ConsensusType = PoWSimulate
