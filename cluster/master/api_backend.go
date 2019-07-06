@@ -251,8 +251,8 @@ func (s *QKCMasterBackend) NetWorkInfo() map[string]interface{} {
 		"networkId":        hexutil.Uint(s.clusterConfig.Quarkchain.NetworkID),
 		"chainSize":        hexutil.Uint(s.clusterConfig.Quarkchain.ChainSize),
 		"shardSizes":       shardSizeList,
-		"syncing":          s.isSyning(),
-		"mining":           s.isMining(),
+		"syncing":          s.IsSyncing(),
+		"mining":           s.IsMining(),
 		"shardServerCount": hexutil.Uint(len(s.clientPool)),
 	}
 	return fileds
@@ -266,4 +266,8 @@ func (s *QKCMasterBackend) CreateBlockToMine() (types.IBlock, error) {
 func (s *QKCMasterBackend) InsertMinedBlock(block types.IBlock) error {
 	rBlock := block.(*types.RootBlock)
 	return s.AddRootBlock(rBlock)
+}
+
+func (s *QKCMasterBackend) GetTip() uint64 {
+	return s.rootBlockChain.CurrentBlock().NumberU64()
 }
