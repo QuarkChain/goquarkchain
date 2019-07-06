@@ -19,7 +19,7 @@ func TestSealAndVerifySeal(t *testing.T) {
 		q := New(qkcHashNativeFlag, &diffCalculator, false)
 		rootBlock := types.NewRootBlockWithHeader(header)
 		resultsCh := make(chan types.IBlock)
-		err := q.Seal(nil, rootBlock, resultsCh, nil)
+		err := q.Seal(nil, rootBlock, nil, resultsCh, nil)
 		assert.NoError(err, "should have no problem sealing the block")
 		block := <-resultsCh
 
@@ -51,7 +51,7 @@ func TestRemoteSealer(t *testing.T) {
 		work *consensus.MiningWork
 		err  error
 	)
-	qkc.Seal(nil, block, nil, nil)
+	qkc.Seal(nil, block, nil, nil, nil)
 	if work, err = qkc.GetWork(); err != nil || work.HeaderHash != hash {
 		t.Error("expect to return a mining work has same hash")
 	}
@@ -104,7 +104,7 @@ func TestStaleSubmission(t *testing.T) {
 
 	for id, c := range testcases {
 		for _, h := range c.headers {
-			_ = qkchash.Seal(nil, types.NewRootBlockWithHeader(h), resultsCh, stop)
+			_ = qkchash.Seal(nil, types.NewRootBlockWithHeader(h), nil, resultsCh, stop)
 		}
 
 		if !c.submitRes {
