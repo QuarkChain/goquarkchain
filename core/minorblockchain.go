@@ -1176,19 +1176,18 @@ func (m *MinorBlockChain) insertChain(chain []types.IBlock, verifySeals bool) (i
 		if err != nil {
 			return it.index, events, coalescedLogs, xShardList, err
 		}
-		//TODO senderDisallowMap
-		//if updateTip {
-		//	fmt.Println("[BuildSenderDisallowMap]InsertChain")
-		//	senderDisallowMap, err := m.senderDisallowMapBuilder.BuildSenderDisallowMap(block.Hash(), nil)
-		//	if err != nil {
-		//		return it.index, events, coalescedLogs, xShardList, err
-		//	}
-		//	state.SetSenderDisallowMap(senderDisallowMap)
-		//}
 		// Write the block to the chain and get the status.
 		status, err := m.WriteBlockWithState(mBlock, receipts, state, xShardReceiveTxList, updateTip)
 		if err != nil {
 			return it.index, events, coalescedLogs, xShardList, err
+		}
+		if updateTip {
+			fmt.Println("[BuildSenderDisallowMap]InsertChain")
+			senderDisallowMap, err := m.senderDisallowMapBuilder.BuildSenderDisallowMap(block.Hash(), nil)
+			if err != nil {
+				return it.index, events, coalescedLogs, xShardList, err
+			}
+			state.SetSenderDisallowMap(senderDisallowMap)
 		}
 		switch status {
 		case CanonStatTy:

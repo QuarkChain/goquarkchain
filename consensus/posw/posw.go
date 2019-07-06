@@ -2,6 +2,10 @@ package posw
 
 import (
 	"fmt"
+	"math/big"
+	"runtime/debug"
+	"strconv"
+
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	qkcCommon "github.com/QuarkChain/goquarkchain/common"
@@ -9,10 +13,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
-	"github.com/hashicorp/golang-lru"
-	"math/big"
-	"runtime/debug"
-	"strconv"
+	lru "github.com/hashicorp/golang-lru"
 )
 
 type heightAndAddrs struct {
@@ -127,10 +128,9 @@ func (p *PoSW) getCoinbaseAddressUntilBlock(headerHash common.Hash, length uint3
 		addrs = append(addrs, header.GetCoinbase().Recipient)
 		log.Info("[PoSW]Using Cache of coinbaseAddrCache:", "prevHash", prevHash)
 	} else { //miss, iterating DB
-		lgth := int(length)
-		addrs = make([]account.Recipient, lgth)
-		for i := lgth; i > 0; i-- {
-			addrs[i-1] = header.GetCoinbase().Recipient
+		for i := 0; i < int(length); i++ {
+			addrsNew := []account.Recipient{header.GetCoinbase().Recipient}
+			addrs = append(addrsNew, addrs...)
 			fmt.Printf("header.NumberU64() == 0%t\n", header.NumberU64() == 0)
 			if header.NumberU64() == 0 {
 				break

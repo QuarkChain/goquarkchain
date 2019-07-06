@@ -181,7 +181,6 @@ func TestPoSWCoinBaseSendUnderLimit(t *testing.T) {
 		t.Fatalf("failed to get State: %v", err)
 	}
 	disallowMap := evmState.GetSenderDisallowMap()
-	//t.Logf("disallowMap=%x", disallowMap)
 	lenDislmp := len(disallowMap)
 	if lenDislmp != 2 {
 		t.Errorf("len of Sender Disallow map: expect %d, got %d", 2, lenDislmp)
