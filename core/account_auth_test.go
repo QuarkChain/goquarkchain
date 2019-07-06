@@ -2,6 +2,7 @@ package core
 
 import (
 	"encoding/hex"
+	"errors"
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/consensus"
@@ -15,6 +16,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"math/big"
 	"testing"
+	"time"
 )
 
 var (
@@ -104,6 +106,9 @@ func TestSendSuperAccountSucc(t *testing.T) {
 	_, err = shardState.AddRootBlock(rootBlock)
 	checkErr(err)
 
+	fakeChan := make(chan uint64, 100)
+	shardState.txPool.fakeChanForReset = fakeChan
+
 	fakeGas := uint64(50000)
 	tx := createTransferTransaction(shardState, id1.GetKey().Bytes(), acc1, acc2, new(big.Int).SetUint64(12345), &fakeGas, nil, nil, nil)
 	currState, err := shardState.StateAt(shardState.CurrentBlock().Meta().Root)
@@ -135,6 +140,19 @@ func TestSendSuperAccountSucc(t *testing.T) {
 	assert.Equal(t, currState.GetAccountStatus(superAcc.Recipient), true)
 	// Should succeed
 	b2, _, err = shardState.FinalizeAndAddBlock(b2)
+
+	forRe := true
+	for forRe == true {
+		select {
+		case result := <-fakeChan:
+			if result == shardState.CurrentBlock().NumberU64() {
+				forRe = false
+			}
+		case <-time.After(2 * time.Second):
+			panic(errors.New("should end here"))
+
+		}
+	}
 
 	currState, err = shardState.StateAt(b2.Meta().Root)
 	assert.Equal(t, currState.GetAccountStatus(acc1.Recipient), true)
@@ -267,6 +285,9 @@ func TestContractCall(t *testing.T) {
 	engine := &consensus.FakeEngine{}
 	genesis := gspec.MustCommitMinorBlock(db, rootBlock, clusterConfig.Quarkchain.Chains[0].ShardSize|0)
 	blockchain, _ := NewMinorBlockChain(db, nil, ethParams.TestChainConfig, clusterConfig, engine, vm.Config{}, nil, config.NewClusterConfig().Quarkchain.Chains[0].ShardSize|0)
+
+	fakeChan := make(chan uint64, 100)
+	blockchain.txPool.fakeChanForReset = fakeChan
 	genesis, err = blockchain.InitGenesisState(rootBlock)
 	if err != nil {
 		panic(err)
@@ -287,6 +308,19 @@ func TestContractCall(t *testing.T) {
 
 	if _, err := blockchain.InsertChain(toMinorBlocks(chain)); err != nil {
 		t.Fatalf("failed to insert chain: %v", err)
+	}
+
+	forRe := true
+	for forRe == true {
+		select {
+		case result := <-fakeChan:
+			if result == blockchain.CurrentBlock().NumberU64() {
+				forRe = false
+			}
+		case <-time.After(2 * time.Second):
+			panic(errors.New("should end here"))
+
+		}
 	}
 	data, index, re := blockchain.GetTransactionReceipt(tempHash)
 	assert.Equal(t, data.Transactions()[index].Hash(), tempHash)
