@@ -156,7 +156,7 @@ func (q *QuarkChainConfig) GetGenesisRootHeight(fullShardId uint32) uint32 {
 	return q.shards[fullShardId].Genesis.RootHeight
 }
 
-func (q *QuarkChainConfig) GetSuperAccount() map[account.Recipient]bool {
+func (q *QuarkChainConfig) GetSuperAccounts() map[account.Recipient]bool {
 	superMap := make(map[account.Recipient]bool)
 	for _, v := range q.SuperAccount {
 		superMap[v] = true

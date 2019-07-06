@@ -197,7 +197,7 @@ func (m *MinorBlockChain) validateTx(tx *types.Transaction, evmState *state.Stat
 	if evmState == nil {
 		return tx, nil //txpool.validateTx,validateTransaction will add in txpool,to avoid write and read txpool.currentEvmState frequently
 	}
-	if err := ValidateTransaction(evmState, tx, fromAddress, m.clusterConfig.Quarkchain.GetSuperAccount()); err != nil {
+	if err := ValidateTransaction(evmState, tx, fromAddress, m.clusterConfig.Quarkchain.GetSuperAccounts()); err != nil {
 		return nil, err
 	}
 	return tx, nil
