@@ -106,7 +106,7 @@ func createDefaultShardState(env *fakeEnv, shardID *uint32, diffCalc consensus.D
 
 	fullShardID := env.clusterConfig.Quarkchain.Chains[0].ShardSize | *shardID
 
-	if *poswOverride {
+	if poswOverride != nil && *poswOverride  {
 		poswConfig := env.clusterConfig.Quarkchain.GetShardConfigByFullShardID(fullShardID).PoswConfig
 		poswConfig.Enabled = true
 	}
