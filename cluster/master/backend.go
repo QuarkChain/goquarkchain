@@ -205,6 +205,10 @@ func (s *QKCMasterBackend) Start(srvr *p2p.Server) error {
 	s.Heartbeat()
 	// s.disPlayPeers()
 	s.miner.Init()
+	log.Info(s.logInfo, "superAccount len", len(s.clusterConfig.Quarkchain.SuperAccount))
+	for _, v := range s.clusterConfig.Quarkchain.SuperAccount {
+		log.Info(s.logInfo, "super account", v.String())
+	}
 	return nil
 }
 
