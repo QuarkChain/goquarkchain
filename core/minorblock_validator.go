@@ -89,13 +89,23 @@ func (v *MinorBlockValidator) ValidateBlock(mBlock types.IBlock) error {
 		return ErrPrunedAncestor
 	}
 
-	prevHeader := v.bc.GetHeader(block.IHeader().GetParentHash())
-	if common.IsNil(prevHeader) {
+	prevBlock, ok := v.bc.GetBlock(block.IHeader().GetParentHash()).(*types.MinorBlock)
+	if !ok {
+		return fmt.Errorf("no such block hash:%v", block.IHeader().GetParentHash().String())
+	}
+	preState, err := v.bc.StateAt(prevBlock.Meta().Root)
+	if err != nil {
+		return err
+	}
+	if !preState.GetAccountStatus(block.Header().Coinbase.Recipient) {
+		return ErrAccountNotBeMiner
+	}
+	if common.IsNil(prevBlock) {
 		log.Error(v.logInfo, "parent header is not exist", ErrInvalidMinorBlock, "parent height", block.Header().Number-1, "parent hash", block.Header().ParentHash.String())
 		return ErrInvalidMinorBlock
 	}
-	if blockHeight != prevHeader.NumberU64()+1 {
-		log.Error(v.logInfo, "err", ErrHeightMismatch, "blockHeight", blockHeight, "prevHeader", prevHeader.NumberU64())
+	if blockHeight != prevBlock.NumberU64()+1 {
+		log.Error(v.logInfo, "err", ErrHeightMismatch, "blockHeight", blockHeight, "prevHeader", prevBlock.NumberU64())
 		return ErrHeightMismatch
 	}
 
@@ -104,8 +114,8 @@ func (v *MinorBlockValidator) ValidateBlock(mBlock types.IBlock) error {
 		return ErrBranch
 	}
 
-	if block.IHeader().GetTime() <= prevHeader.GetTime() {
-		log.Error(v.logInfo, "err", ErrTime, "block.Time", block.IHeader().GetTime(), "prevHeader.Time", prevHeader.GetTime())
+	if block.IHeader().GetTime() <= prevBlock.Header().GetTime() {
+		log.Error(v.logInfo, "err", ErrTime, "block.Time", block.IHeader().GetTime(), "prevHeader.Time", prevBlock.Header().GetTime())
 		return ErrTime
 	}
 
@@ -124,7 +134,7 @@ func (v *MinorBlockValidator) ValidateBlock(mBlock types.IBlock) error {
 		return ErrTrackLimit
 	}
 
-	if err := v.ValidateGasLimit(block.Header().GetGasLimit().Uint64(), prevHeader.(*types.MinorBlockHeader).GetGasLimit().Uint64()); err != nil {
+	if err := v.ValidateGasLimit(block.Header().GetGasLimit().Uint64(), prevBlock.Header().GetGasLimit().Uint64()); err != nil {
 		log.Error(v.logInfo, "validate gas limit err", err)
 		return err
 	}
@@ -141,7 +151,7 @@ func (v *MinorBlockValidator) ValidateBlock(mBlock types.IBlock) error {
 	}
 
 	if !v.quarkChainConfig.SkipMinorDifficultyCheck {
-		diff, err := v.engine.CalcDifficulty(v.bc, block.IHeader().GetTime(), prevHeader)
+		diff, err := v.engine.CalcDifficulty(v.bc, block.IHeader().GetTime(), prevBlock.Header())
 		if err != nil {
 			log.Error(v.logInfo, "check diff err", err)
 			return err
@@ -158,29 +168,29 @@ func (v *MinorBlockValidator) ValidateBlock(mBlock types.IBlock) error {
 		return ErrRootBlockIsNil
 	}
 
-	prevRootHeader := v.bc.getRootBlockHeaderByHash(prevHeader.(*types.MinorBlockHeader).GetPrevRootBlockHash())
+	prevRootHeader := v.bc.getRootBlockHeaderByHash(prevBlock.Header().GetPrevRootBlockHash())
 	if prevRootHeader == nil {
-		log.Error(v.logInfo, "err", ErrRootBlockIsNil, "prevHeader's height", prevHeader.NumberU64(), "preHeader's prevRootBlockHash", prevHeader.(*types.MinorBlockHeader).GetPrevRootBlockHash().String())
+		log.Error(v.logInfo, "err", ErrRootBlockIsNil, "prevHeader's height", prevBlock.NumberU64(), "preHeader's prevRootBlockHash", prevBlock.Header().GetPrevRootBlockHash().String())
 		return ErrRootBlockIsNil
 	}
 	if rootBlockHeader.NumberU64() < prevRootHeader.NumberU64() {
 		errRootBlockOrder := errors.New("pre root block height must be non-decreasing")
-		log.Error(v.logInfo, "err", errRootBlockOrder, "rootBlockHeader's number", rootBlockHeader.Number, "preRootHeader.Number", prevHeader.NumberU64())
+		log.Error(v.logInfo, "err", errRootBlockOrder, "rootBlockHeader's number", rootBlockHeader.Number, "preRootHeader.Number", prevBlock.NumberU64())
 		return errRootBlockOrder
 	}
 
 	prevConfirmedMinorHeader := v.bc.getLastConfirmedMinorBlockHeaderAtRootBlock(block.Header().PrevRootBlockHash)
-	if prevConfirmedMinorHeader != nil && !v.bc.isSameMinorChain(prevHeader, prevConfirmedMinorHeader) {
+	if prevConfirmedMinorHeader != nil && !v.bc.isSameMinorChain(prevBlock.Header(), prevConfirmedMinorHeader) {
 		errMustBeOneMinorChain := errors.New("prev root block's minor block is not in the same chain as the minor block")
 		log.Error(v.logInfo, "err", errMustBeOneMinorChain, "prevConfirmedMinor's height", prevConfirmedMinorHeader.Number, "prevConfirmedMinor's hash", prevConfirmedMinorHeader.Hash().String(),
-			"preHeader's height", prevHeader.NumberU64(), "preHeader's hash", prevHeader.Hash().String())
+			"preHeader's height", prevBlock.NumberU64(), "preHeader's hash", prevBlock.Hash().String())
 		return errMustBeOneMinorChain
 	}
 
 	if !v.bc.isSameRootChain(v.bc.getRootBlockHeaderByHash(block.Header().GetPrevRootBlockHash()),
-		v.bc.getRootBlockHeaderByHash(prevHeader.(*types.MinorBlockHeader).GetPrevRootBlockHash())) {
+		v.bc.getRootBlockHeaderByHash(prevBlock.Header().GetPrevRootBlockHash())) {
 		errMustBeOneRootChain := errors.New("prev root blocks are not on the same chain")
-		log.Error(v.logInfo, "err", errMustBeOneRootChain, "long", block.Header().GetPrevRootBlockHash().String(), "short", prevHeader.(*types.MinorBlockHeader).GetPrevRootBlockHash().String())
+		log.Error(v.logInfo, "err", errMustBeOneRootChain, "long", block.Header().GetPrevRootBlockHash().String(), "short", prevBlock.Header().GetPrevRootBlockHash().String())
 		return errMustBeOneRootChain
 	}
 	if err := v.ValidatorSeal(block.Header()); err != nil {
@@ -289,7 +299,7 @@ func (v *MinorBlockValidator) ValidateState(mBlock, parent types.IBlock, statedb
 	}
 	// Validate the state root against the received state root and throw
 	// an error if they don't match.
-	if root := statedb.IntermediateRoot(true); block.GetMetaData().Root != root {
+	if root := statedb.IntermediateRoot(); block.GetMetaData().Root != root {
 		return fmt.Errorf("invalid merkle root (remote: %x local: %x)", block.GetMetaData().Root, root)
 	}
 	return nil

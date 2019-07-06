@@ -1,9 +1,7 @@
 package qkcapi
 
 import (
-	"encoding/json"
 	"errors"
-	"fmt"
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	qkcRPC "github.com/QuarkChain/goquarkchain/cluster/rpc"
@@ -209,11 +207,8 @@ func (p *PublicBlockChainAPI) SendRawTransaction(encodedTx hexutil.Bytes) (hexut
 		EvmTx:  evmTx,
 		TxType: types.EvmTx,
 	}
-	jsonConfig, err := json.MarshalIndent(tx, "", "\t")
-	if err == nil {
-		fmt.Println("------------", string(jsonConfig))
-	}
 	if err := p.b.AddTransaction(tx); err != nil {
+		log.Error("sendRawTx err", "err", err)
 		return IDEncoder(common.Hash{}.Bytes(), 0), err //TODO need return err?
 	}
 	return IDEncoder(tx.Hash().Bytes(), tx.EvmTx.FromFullShardKey()), nil
@@ -433,6 +428,14 @@ func (p *PublicBlockChainAPI) GetWork(fullShardKey *hexutil.Uint) []common.Hash 
 func (p *PublicBlockChainAPI) NetVersion() hexutil.Uint {
 	return hexutil.Uint(p.b.GetClusterConfig().Quarkchain.NetworkID)
 }
+
+func (p *PublicBlockChainAPI) GetAccountPermission(addr account.Address) bool {
+	status := p.b.CheckAccountPermission(addr)
+	if status != nil {
+		return false
+	}
+	return true
+}
 func (p *PublicBlockChainAPI) QkcQkcGasprice(fullShardKey uint32) (hexutil.Uint64, error) {
 	panic(-1)
 }
@@ -461,6 +464,7 @@ func (p *PublicBlockChainAPI) CallOrEstimateGas(args *CallArgs, height *uint64, 
 	if isCall {
 		res, err := p.b.ExecuteTransaction(tx, args.From, height)
 		if err != nil {
+			log.Error("call ", "to", tx.EvmTx.To().String(), "err", err)
 			return nil, err
 		}
 		return (hexutil.Bytes)(res), nil
@@ -531,8 +535,8 @@ func (p *PrivateBlockChainAPI) CreateTransactions(NumTxPreShard hexutil.Uint) er
 func (p *PrivateBlockChainAPI) SetTargetBlockTime(rootBlockTime *uint32, minorBlockTime *uint32) error {
 	return p.b.SetTargetBlockTime(rootBlockTime, minorBlockTime)
 }
-func (p *PrivateBlockChainAPI) SetMining(flag bool) {
-	p.b.SetMining(flag)
+func (p *PrivateBlockChainAPI) SetMining(flag bool) error {
+	return p.b.SetMining(flag)
 }
 
 //TODO ?? necessary?

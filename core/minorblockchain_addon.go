@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"github.com/QuarkChain/goquarkchain/qkcdb"
 	"math"
 	"math/big"
 	"sort"
@@ -14,7 +15,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/core/rawdb"
 	"github.com/QuarkChain/goquarkchain/core/vm"
 	"github.com/QuarkChain/goquarkchain/params"
-	"github.com/QuarkChain/goquarkchain/qkcdb"
+	//"github.com/QuarkChain/goquarkchain/qkcdb"
 	"github.com/QuarkChain/goquarkchain/serialize"
 
 	"github.com/QuarkChain/goquarkchain/account"
@@ -431,7 +432,7 @@ func (m *MinorBlockChain) FinalizeAndAddBlock(block *types.MinorBlock) (*types.M
 		return nil, nil, err
 	}
 	coinbaseAmount := new(big.Int).Add(m.getCoinbaseAmount(), evmState.GetBlockFee())
-	block.Finalize(receipts, evmState.IntermediateRoot(true), evmState.GetGasUsed(), evmState.GetXShardReceiveGasUsed(), coinbaseAmount)
+	block.Finalize(receipts, evmState.IntermediateRoot(), evmState.GetGasUsed(), evmState.GetXShardReceiveGasUsed(), coinbaseAmount)
 	_, err = m.InsertChain([]types.IBlock{block}) // will lock
 	if err != nil {
 		return nil, nil, err
@@ -825,6 +826,9 @@ func (m *MinorBlockChain) CreateBlockToMine(createTime *uint64, address *account
 		t := address.AddressInBranch(m.branch)
 		address = &t
 	}
+	if m.IsAccountEnable(address.Recipient) == false {
+		return nil, ErrAccountNotBeMiner
+	}
 	block := prevBlock.CreateBlockToAppend(&realCreateTime, difficulty, address, nil, gasLimit, nil, nil)
 	evmState, err := m.getEvmStateForNewBlock(block, true)
 
@@ -847,7 +851,7 @@ func (m *MinorBlockChain) CreateBlockToMine(createTime *uint64, address *account
 	pureCoinbaseAmount := m.getCoinbaseAmount()
 	evmState.AddBalance(evmState.GetBlockCoinbase(), pureCoinbaseAmount)
 	coinbaseAmount := new(big.Int).Add(pureCoinbaseAmount, evmState.GetBlockFee())
-	newBlock.Finalize(recipiets, evmState.IntermediateRoot(true), evmState.GetGasUsed(), evmState.GetXShardReceiveGasUsed(), coinbaseAmount)
+	newBlock.Finalize(recipiets, evmState.IntermediateRoot(), evmState.GetGasUsed(), evmState.GetXShardReceiveGasUsed(), coinbaseAmount)
 	return newBlock, nil
 }
 
@@ -1543,4 +1547,8 @@ func (m *MinorBlockChain) ReadCrossShardTxList(hash common.Hash) *types.CrossSha
 		return data
 	}
 	return nil
+}
+
+func (m *MinorBlockChain) IsAccountEnable(account account.Recipient) bool {
+	return m.currentEvmState.GetAccountStatus(account)
 }

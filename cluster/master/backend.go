@@ -208,7 +208,10 @@ func (s *QKCMasterBackend) Start(srvr *p2p.Server) error {
 	return nil
 }
 
-func (s *QKCMasterBackend) SetMining(mining bool) {
+func (s *QKCMasterBackend) SetMining(mining bool) error {
+	if err := s.CheckAccountPermission(s.clusterConfig.Quarkchain.Root.CoinbaseAddress); err != nil {
+		return err
+	}
 	var g errgroup.Group
 	for _, slvConn := range s.clientPool {
 		conn := slvConn
@@ -218,10 +221,15 @@ func (s *QKCMasterBackend) SetMining(mining bool) {
 	}
 	if err := g.Wait(); err != nil {
 		log.Error("Set slave mining failed", "err", err)
-		return
+		for _, slvConn := range s.clientPool {
+			conn := slvConn
+			conn.SetMining(false)
+		}
+		return err
 	}
 
 	s.miner.SetMining(mining)
+	return nil
 }
 
 // InitCluster init cluster :
@@ -515,8 +523,23 @@ func (s *QKCMasterBackend) SendMiningConfigToSlaves(mining bool) error {
 	return g.Wait()
 }
 
+func (s *QKCMasterBackend) CheckAccountPermission(addr account.Address) error {
+	fullShardID := s.clusterConfig.Quarkchain.GetFullShardIdByFullShardKey(addr.FullShardKey)
+	slave, ok := s.branchToSlaves[fullShardID]
+	if !ok {
+		return fmt.Errorf("no such fullShardID:%v fullShardKey:%v", fullShardID, addr.FullShardKey)
+	}
+	if len(slave) == 0 {
+		return errors.New("slave len is 0")
+	}
+	return slave[0].CheckAccountPermission(addr)
+}
+
 // AddRootBlock add root block to all slaves
 func (s *QKCMasterBackend) AddRootBlock(rootBlock *types.RootBlock) error {
+	if err := s.CheckAccountPermission(rootBlock.Header().Coinbase); err != nil {
+		return err
+	}
 	s.rootBlockChain.WriteCommittingHash(rootBlock.Hash())
 	_, err := s.rootBlockChain.InsertChain([]types.IBlock{rootBlock})
 	if err != nil {

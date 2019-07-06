@@ -36,11 +36,12 @@ type Backend interface {
 	GetStats() (map[string]interface{}, error)
 	GetBlockCount() (map[uint32]map[account.Recipient]uint32, error)
 	SetTargetBlockTime(rootBlockTime *uint32, minorBlockTime *uint32) error
-	SetMining(mining bool)
+	SetMining(mining bool) error
 	CreateTransactions(numTxPerShard, xShardPercent uint32, tx *types.Transaction) error
 	IsSyncing() bool
 	IsMining() bool
 	GetSlavePoolLen() int
+	CheckAccountPermission(account account.Address) error
 	GetLastMinorBlockByFullShardID(fullShardId uint32) (uint64, error)
 }
 

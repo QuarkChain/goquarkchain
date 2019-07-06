@@ -76,7 +76,9 @@ var (
 	// ErrOversizedData is returned if the input data of a transaction is greater
 	// than some meaningful limit a user might use. This is not a consensus error
 	// making the transaction invalid, rather a DOS protection.
-	ErrOversizedData = errors.New("oversized data")
+	ErrOversizedData   = errors.New("oversized data")
+	ErrAuthFromAccount = errors.New("err auth from account")
+	ErrAuthToAccount   = errors.New("err auth to account")
 )
 
 var (

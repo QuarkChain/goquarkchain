@@ -17,12 +17,16 @@
 package core
 
 import (
+	"bytes"
 	"errors"
+	"fmt"
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/core/state"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/core/vm"
+	qkcParams "github.com/QuarkChain/goquarkchain/params"
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
 	"math/big"
 )
@@ -104,8 +108,36 @@ func (p *StateProcessor) Process(block *types.MinorBlock, statedb *state.StateDB
 	// Finalize the block, applying any consensus engine specific extras (e.g. block rewards)
 	coinbaseAmount := p.bc.getCoinbaseAmount()
 	statedb.AddBalance(block.IHeader().GetCoinbase().Recipient, coinbaseAmount)
-	statedb.Finalise(true)
+	statedb.Finalise()
 	return receipts, allLogs, *usedGas, nil
+}
+
+func IsAccountEnable(state vm.StateDB, from account.Recipient, to *account.Recipient, data []byte) error {
+	if !qkcParams.IsSuperAccount(from) {
+		if state.GetAccountStatus(from) == false {
+			log.Error("check account auth", "account can not be used as from account", from.String())
+			return ErrAuthFromAccount
+		}
+
+		if to != nil && state.GetAccountStatus(*to) == false {
+			log.Error("check account auth", "account can not be used as to account", (*to).String())
+			return ErrAuthToAccount
+		}
+		return nil
+	}
+
+	if to == nil { //TODO need?
+		return errors.New("super account need set to")
+	}
+
+	if len(data) != 1 {
+		return errors.New("data's len should 1")
+	}
+
+	if !bytes.Equal(data, qkcParams.AccountDisabled) && !bytes.Equal(data, qkcParams.AccountEnabled) {
+		return errors.New("data should 0 or 1")
+	}
+	return nil
 }
 
 // ValidateTransaction validateTx before applyTx
@@ -121,12 +153,16 @@ func ValidateTransaction(state vm.StateDB, tx *types.Transaction, fromAddress *a
 		from = &fromAddress.Recipient
 	}
 
+	if err := IsAccountEnable(state, *from, tx.EvmTx.To(), tx.EvmTx.Data()); err != nil {
+		return err
+	}
 	reqNonce := state.GetNonce(*from)
 	if reqNonce > tx.EvmTx.Nonce() {
 		return ErrNonceTooLow
 	}
 
 	if state.GetBalance(*from).Cmp(tx.EvmTx.Cost()) < 0 {
+		fmt.Println("money is litter", from.String(), state.GetBalance(*from), tx.EvmTx.Cost())
 		return ErrInsufficientFunds
 	}
 
@@ -168,7 +204,7 @@ func ApplyTransaction(config *params.ChainConfig, bc ChainContext, gp *GasPool, 
 	}
 
 	var root []byte
-	statedb.Finalise(true)
+	statedb.Finalise()
 	*usedGas += gas
 
 	// Create a new receipt for the transaction, storing the intermediate root and gas used by the tx

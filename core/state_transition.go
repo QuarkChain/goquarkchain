@@ -17,6 +17,7 @@
 package core
 
 import (
+	"bytes"
 	"errors"
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/core/types"
@@ -53,15 +54,16 @@ The state transitioning model does all the necessary work to work out a valid ne
 6) Derive new state root
 */
 type StateTransition struct {
-	gp         *GasPool
-	msg        Message
-	gas        uint64
-	gasPrice   *big.Int
-	initialGas uint64
-	value      *big.Int
-	data       []byte
-	state      vm.StateDB
-	evm        *vm.EVM
+	gp          *GasPool
+	msg         Message
+	gas         uint64
+	gasPrice    *big.Int
+	initialGas  uint64
+	value       *big.Int
+	data        []byte
+	state       vm.StateDB
+	evm         *vm.EVM
+	superStatus bool
 }
 
 // Message represents a message sent to a contract.
@@ -122,14 +124,23 @@ func IntrinsicGas(data []byte, contractCreation, isCrossShard bool) (uint64, err
 
 // NewStateTransition initialises and returns a new state transition object.
 func NewStateTransition(evm *vm.EVM, msg Message, gp *GasPool) *StateTransition {
+	data := msg.Data()
+	var status bool
+	if qkcParam.IsSuperAccount(msg.From()) {
+		if bytes.Equal(msg.Data(), qkcParam.AccountEnabled) {
+			status = true
+		}
+		data = []byte{}
+	}
 	return &StateTransition{
-		gp:       gp,
-		evm:      evm,
-		msg:      msg,
-		gasPrice: msg.GasPrice(),
-		value:    msg.Value(),
-		data:     msg.Data(),
-		state:    evm.StateDB,
+		gp:          gp,
+		evm:         evm,
+		msg:         msg,
+		gasPrice:    msg.GasPrice(),
+		value:       msg.Value(),
+		data:        data,
+		state:       evm.StateDB,
+		superStatus: status,
 	}
 }
 
@@ -216,6 +227,10 @@ func (st *StateTransition) TransitionDb(feeRate *big.Rat) (ret []byte, usedGas u
 		// error.
 		vmerr error
 	)
+	if qkcParam.IsSuperAccount(msg.From()) {
+		st.state.SetAccountStatus(*msg.To(), st.superStatus)
+	}
+
 	if contractCreation {
 		ret, _, st.gas, vmerr = evm.Create(sender, st.data, st.gas, st.value, msg.IsCrossShard())
 	} else {

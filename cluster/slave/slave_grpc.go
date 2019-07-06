@@ -4,8 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"time"
-
+	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/core/types"
@@ -13,6 +12,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/serialize"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
+	"time"
 )
 
 type SlaveServerSideOp struct {
@@ -609,6 +609,25 @@ func (s *SlaveServerSideOp) HandleNewMinorBlock(ctx context.Context, req *rpc.Re
 	return response, nil
 }
 
+func (s *SlaveServerSideOp) HandleCheckAccountPermission(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
+	var (
+		gReq     account.Address
+		response = &rpc.Response{RpcId: req.RpcId}
+		err      error
+		flag     bool
+	)
+	if err = serialize.DeserializeFromBytes(req.Data, &gReq); err != nil {
+		return nil, err
+	}
+	if flag, err = s.slave.CheckAccountPermission(gReq); err != nil {
+		return nil, err
+	}
+	if response.Data, err = serialize.SerializeToBytes(flag); err != nil {
+		return nil, err
+	}
+	return response, nil
+}
+
 func (s *SlaveServerSideOp) SetMining(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
 	var (
 		mining   bool
@@ -618,6 +637,8 @@ func (s *SlaveServerSideOp) SetMining(ctx context.Context, req *rpc.Request) (*r
 	if err = serialize.DeserializeFromBytes(req.Data, &mining); err != nil {
 		return nil, err
 	}
-	s.slave.SetMining(mining)
+	if err := s.slave.SetMining(mining); err != nil {
+		return nil, err
+	}
 	return response, nil
 }

@@ -55,6 +55,7 @@ const (
 	OpAddTransactions
 	OpHandleNewMinorBlock
 	OpSetMining
+	OpCheckAccountPermission
 
 	MasterServer = serverType(1)
 	SlaveServer  = serverType(0)
@@ -108,6 +109,7 @@ var (
 		OpHandleNewTip:            {name: "HandleNewTip"},
 		OpAddTransactions:         {name: "AddTransactions"},
 		OpHandleNewMinorBlock:     {name: "HandleNewMinorBlock"},
+		OpCheckAccountPermission:  {name: "HandleCheckAccountPermission"},
 	}
 )
 

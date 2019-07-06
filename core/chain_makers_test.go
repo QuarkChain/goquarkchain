@@ -12,6 +12,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/core/vm"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/params"
@@ -89,11 +90,18 @@ func ExampleGenerateMinorBlockChain() {
 		panic(err)
 	}
 
+	addr0 := account.NewAddress(account.BytesToIdentityRecipient(common.Address{0}.Bytes()), 0)
 	ids := fakeClusterConfig.Quarkchain.GetGenesisShardIds()
 	for _, v := range ids {
 		addr := addr1.AddressInShard(v)
 		shardConfig := fakeClusterConfig.Quarkchain.GetShardConfigByFullShardID(v)
 		shardConfig.Genesis.Alloc[addr] = big.NewInt(1000000)
+		addr = addr0.AddressInShard(v)
+		shardConfig.Genesis.Alloc[addr] = big.NewInt(0)
+		addr = addr2.AddressInShard(v)
+		shardConfig.Genesis.Alloc[addr] = big.NewInt(0)
+		addr = addr3.AddressInShard(v)
+		shardConfig.Genesis.Alloc[addr] = big.NewInt(0)
 	}
 	fakeClusterConfig.Quarkchain.SkipMinorDifficultyCheck = true
 	// Ensure that key1 has some funds in the genesis block.

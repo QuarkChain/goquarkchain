@@ -114,8 +114,12 @@ func (s *ShardBackend) Stop() {
 	s.chainDb.Close()
 }
 
-func (s *ShardBackend) SetMining(mining bool) {
+func (s *ShardBackend) SetMining(mining bool) error {
+	if !s.MinorBlockChain.IsAccountEnable(s.Config.CoinbaseAddress.Recipient) {
+		return fmt.Errorf("addr:%v can's be used as miner", s.Config.CoinbaseAddress.ToHex())
+	}
 	s.miner.SetMining(mining)
+	return nil
 }
 
 func createDB(ctx *service.ServiceContext, name string, clean bool) (ethdb.Database, error) {
