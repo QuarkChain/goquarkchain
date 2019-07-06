@@ -563,7 +563,7 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 	if !local && pool.gasPrice.Cmp(tx.EvmTx.GasPrice()) > 0 {
 		return ErrUnderpriced
 	}
-	return ValidateTransaction(pool.currentState, tx, nil)
+	return ValidateTransaction(pool.currentState, tx, nil, pool.quarkConfig.GetSuperAccounts())
 }
 
 // add validates a transaction and inserts it into the non-executable queue for

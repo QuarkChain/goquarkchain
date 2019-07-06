@@ -25,7 +25,6 @@ import (
 	"github.com/QuarkChain/goquarkchain/core/state"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/core/vm"
-	qkcParams "github.com/QuarkChain/goquarkchain/params"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
 	"math/big"
@@ -112,8 +111,9 @@ func (p *StateProcessor) Process(block *types.MinorBlock, statedb *state.StateDB
 	return receipts, allLogs, *usedGas, nil
 }
 
-func IsAccountEnable(state vm.StateDB, from account.Recipient, to *account.Recipient, data []byte) error {
-	if !qkcParams.IsSuperAccount(from) {
+func IsAccountEnable(state vm.StateDB, from account.Recipient, to *account.Recipient, data []byte, superAccounts map[account.Recipient]bool) error {
+	_, ok := superAccounts[from]
+	if !ok {
 		if state.GetAccountStatus(from) == false {
 			log.Error("check account auth", "account can not be used as from account", from.String())
 			return ErrAuthFromAccount
@@ -134,14 +134,14 @@ func IsAccountEnable(state vm.StateDB, from account.Recipient, to *account.Recip
 		return errors.New("data's len should 1")
 	}
 
-	if !bytes.Equal(data, qkcParams.AccountDisabled) && !bytes.Equal(data, qkcParams.AccountEnabled) {
+	if !bytes.Equal(data, AccountDisabled) && !bytes.Equal(data, AccountEnabled) {
 		return errors.New("data should 0 or 1")
 	}
 	return nil
 }
 
 // ValidateTransaction validateTx before applyTx
-func ValidateTransaction(state vm.StateDB, tx *types.Transaction, fromAddress *account.Address) error {
+func ValidateTransaction(state vm.StateDB, tx *types.Transaction, fromAddress *account.Address, superAccount map[account.Recipient]bool) error {
 	from := new(account.Recipient)
 	if fromAddress == nil {
 		tempFrom, err := tx.Sender(types.MakeSigner(tx.EvmTx.NetworkId()))
@@ -153,7 +153,7 @@ func ValidateTransaction(state vm.StateDB, tx *types.Transaction, fromAddress *a
 		from = &fromAddress.Recipient
 	}
 
-	if err := IsAccountEnable(state, *from, tx.EvmTx.To(), tx.EvmTx.Data()); err != nil {
+	if err := IsAccountEnable(state, *from, tx.EvmTx.To(), tx.EvmTx.Data(), superAccount); err != nil {
 		return err
 	}
 	reqNonce := state.GetNonce(*from)

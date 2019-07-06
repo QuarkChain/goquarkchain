@@ -195,7 +195,7 @@ func (c *testChain) State() (*state.StateDB, error) {
 // state reset and tests whether the pending state is in sync with the
 // block head event that initiated the resetState().
 func TestStateChangeDuringTransactionPoolReset(t *testing.T) {
-	monkey.Patch(IsAccountEnable, func(state vm.StateDB, from account.Recipient, to *account.Recipient, data []byte) error {
+	monkey.Patch(IsAccountEnable, func(state vm.StateDB, from account.Recipient, to *account.Recipient, data []byte, superAccount map[account.Recipient]bool) error {
 		return nil
 	})
 	t.Parallel()

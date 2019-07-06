@@ -2,6 +2,7 @@ package core
 
 import (
 	"encoding/hex"
+	"errors"
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/common"
@@ -9,6 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"math/big"
 	"testing"
+	"time"
 )
 
 // contract code
@@ -35,6 +37,9 @@ func TestGetLog(t *testing.T) {
 	env := setUp([]account.Address{acc1, acc3}, &fakeMoney, nil)
 	shardState := createDefaultShardState(env, nil, nil, nil, nil)
 	defer shardState.Stop()
+
+	fakeChan := make(chan uint64, 100)
+	shardState.txPool.fakeChanForReset = fakeChan
 	// Add a root block to have all the shards initialized
 	rootBlock := shardState.rootTip.CreateBlockToAppend(nil, nil, nil, nil, nil).Finalize(nil, nil)
 
@@ -70,6 +75,18 @@ func TestGetLog(t *testing.T) {
 	// Should succeed
 	b2, re, err := shardState.FinalizeAndAddBlock(b2)
 	checkErr(err)
+	forRe := true
+	for forRe == true {
+		select {
+		case result := <-fakeChan:
+			if result == shardState.CurrentBlock().NumberU64() {
+				forRe = false
+			}
+		case <-time.After(2 * time.Second):
+			panic(errors.New("should end here"))
+
+		}
+	}
 	assert.Equal(t, shardState.CurrentBlock().IHeader().NumberU64(), uint64(1))
 	assert.Equal(t, shardState.CurrentBlock().IHeader().(*types.MinorBlockHeader).Hash(), b2.Header().Hash())
 	assert.Equal(t, shardState.CurrentBlock().GetTransactions()[0].Hash(), tx.Hash())

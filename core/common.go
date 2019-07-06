@@ -8,6 +8,11 @@ import (
 	"github.com/QuarkChain/goquarkchain/core/types"
 )
 
+var (
+	AccountEnabled  = []byte{1}
+	AccountDisabled = []byte{0}
+)
+
 //TODO finish IsSameMinorChain
 
 func isSameRootChain(db rawdb.DatabaseReader, longerChainHeader, shorterChainHeader types.IHeader) bool {
