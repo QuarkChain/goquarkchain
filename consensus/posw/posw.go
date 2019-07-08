@@ -55,7 +55,7 @@ func (p *PoSW) PoSWDiffAdjust(header types.IHeader, stakes *big.Int) (*big.Int, 
 	diff := header.GetDifficulty()
 	if blockCnt[header.GetCoinbase().Recipient] < blockThreshold {
 		diff = new(big.Int).Div(diff, big.NewInt(int64(p.config.DiffDivider)))
-		log.Info("[PoSW]Adjusted PoSW ", "from", header.GetDifficulty(), "to", diff)
+		log.Info("[PoSW]Adjusted PoSW", "height", header.NumberU64(), "from", header.GetDifficulty(), "to", diff)
 	}
 	return diff, nil
 }
@@ -72,7 +72,7 @@ func (p *PoSW) GetPoSWCoinbaseBlockCnt(headerHash common.Hash) (map[account.Reci
 	for _, ca := range coinbaseAddrs {
 		recipientCountMap[ca]++
 	}
-	fmt.Printf("[PoSW]GetPoSWCoinbaseBlockCnt() recipientCountMap %x\n", recipientCountMap)
+	// fmt.Printf("[PoSW]GetPoSWCoinbaseBlockCnt() recipientCountMap %x\n", recipientCountMap)
 	return recipientCountMap, nil
 }
 
@@ -91,14 +91,13 @@ func (p *PoSW) getCoinbaseAddressUntilBlock(headerHash common.Hash) ([]account.R
 	if p.coinbaseAddrCache.Contains(prevHash) {
 		ha, _ := p.coinbaseAddrCache.Get(prevHash)
 		haddrs := ha.(heightAndAddrs)
+		addrs = append(addrs, haddrs.addrs...)
 		if len(addrs) == length {
-			addrs = append(addrs, haddrs.addrs[0:length-1]...)
-		} else {
-			addrs = append(addrs, haddrs.addrs...)
+			addrs = addrs[:length-1]
 		}
 		addrs = append(addrs, header.GetCoinbase().Recipient)
 	} else { //miss, iterating DB
-		for i := 0; i < int(length); i++ {
+		for i := 0; i < length; i++ {
 			addrsNew := []account.Recipient{header.GetCoinbase().Recipient}
 			addrs = append(addrsNew, addrs...)
 			if header.NumberU64() == 0 {
@@ -110,7 +109,8 @@ func (p *PoSW) getCoinbaseAddressUntilBlock(headerHash common.Hash) ([]account.R
 		}
 	}
 	p.coinbaseAddrCache.Add(headerHash, heightAndAddrs{height, addrs})
-	if len(addrs) > int(length) {
+	//fmt.Printf("[PoSW]coinbaseAddrCache.Len()=%x\n", p.coinbaseAddrCache.Len())
+	if len(addrs) > length {
 		panic("Unexpected result: len(addrs) > length\n")
 	}
 	return addrs, nil

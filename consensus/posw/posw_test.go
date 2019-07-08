@@ -23,7 +23,10 @@ func TestPoSWFetchPreviousCoinbaseAddress(t *testing.T) {
 		t.Fatalf("failed to create fake minor chain: %v", err)
 	}
 	defer blockchain.Stop()
-	const POSW_WINDOW_LEN = 2
+	fullShardID := blockchain.Config().Chains[0].ShardSize | 0
+	shardConfig := blockchain.Config().GetShardConfigByFullShardID(fullShardID)
+	shardConfig.PoswConfig.WindowSize = 3
+
 	tip := blockchain.GetMinorBlock(blockchain.CurrentHeader().Hash())
 	newBlock := tip.CreateBlockToAppend(nil, nil, &acc, nil, nil, nil, nil)
 	poswa := posw.NewPoSW(blockchain, blockchain.GetPoSWConfig())
@@ -39,9 +42,10 @@ func TestPoSWFetchPreviousCoinbaseAddress(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to FinalizeAndAddBlock: %v", err)
 	}
+	const LOOP_SIZE = 4
 	//t.Logf("new block coinbase: %x, height: %d", newBlock.Coinbase(), newBlock.Number())
 	var prevAddr account.Recipient
-	for i := 0; i < 4; i++ {
+	for i := 0; i < LOOP_SIZE; i++ {
 		randomAcc, err := account.CreatRandomAccountWithFullShardKey(0)
 		if err != nil {
 			t.Fatalf("failed to create random account: %v", err)
@@ -53,9 +57,9 @@ func TestPoSWFetchPreviousCoinbaseAddress(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to get PoSW coinbase block count: %v", err)
 		}
-		//t.Logf("GetPoSWCoinbaseBlockCnt %x", coinbaseBlkCnt)
-		if len(coinbaseBlkCnt) != 2 {
-			t.Errorf("PoSW coinbase block count: expected %d, got %d", 2, len(coinbaseBlkCnt))
+		// len(coinbaseBlkCnt) always is window-1
+		if len(coinbaseBlkCnt) != int(shardConfig.PoswConfig.WindowSize-1) {
+			t.Errorf("PoSW coinbase block count: expected %d, got %d", shardConfig.PoswConfig.WindowSize-1, len(coinbaseBlkCnt))
 		}
 		theValue := -1
 		for _, v := range coinbaseBlkCnt {
@@ -67,6 +71,7 @@ func TestPoSWFetchPreviousCoinbaseAddress(t *testing.T) {
 		if theValue != 1 {
 			t.Errorf("PoSW coinbase value expected %d, got %d", 1, theValue)
 		}
+
 		if len(prevAddr) > 0 {
 			if _, ok := coinbaseBlkCnt[prevAddr]; !ok {
 				t.Errorf("PoSW coinbase block count should always contain previous block's coinbase: expected %t, got %t", true, ok)
@@ -79,14 +84,14 @@ func TestPoSWFetchPreviousCoinbaseAddress(t *testing.T) {
 		prevAddr = randomAcc.Recipient
 	}
 	//Cached should have certain items
-	if l := posw.GetCoinbaseAddrCache(poswa).Len(); l != 1 {
-		t.Errorf("len of CoinbaseAddrCache: expected %d, got %d", 1, l)
+	if l := posw.GetCoinbaseAddrCache(poswa).Len(); l != LOOP_SIZE+1 {
+		t.Errorf("len of CoinbaseAddrCache: expected %d, got %d", LOOP_SIZE+1, l)
 	}
 
 	if c, ok := posw.GetCoinbaseAddrCache(poswa).Get(2); ok {
 		m := c.(map[common.Hash]posw.HeightAndAddrs)
-		if l2 := len(m); l2 != 5 {
-			t.Errorf("len of CoinbaseAddrCache[2]: expected %d, got %d", 5, l2)
+		if l2 := len(m); l2 != LOOP_SIZE+1 {
+			t.Errorf("len of CoinbaseAddrCache[2]: expected %d, got %d", LOOP_SIZE+1, l2)
 		}
 	}
 }
@@ -102,6 +107,10 @@ func TestPoSWCoinbaseAddrsCntByDiffLen(t *testing.T) {
 		t.Fatalf("failed to create fake minor chain: %v", err)
 	}
 	defer blockchain.Stop()
+	fullShardID := blockchain.Config().Chains[0].ShardSize | 0
+	shardConfig := blockchain.Config().GetShardConfigByFullShardID(fullShardID)
+	shardConfig.PoswConfig.WindowSize = 3
+
 	var newBlock *types.MinorBlock
 	for i := 0; i < 4; i++ {
 		randomAcc, err := account.CreatRandomAccountWithFullShardKey(0)
@@ -115,7 +124,8 @@ func TestPoSWCoinbaseAddrsCntByDiffLen(t *testing.T) {
 			t.Fatalf("failed to FinalizeAndAddBlock: %v", err)
 		}
 	}
-	poswa := posw.NewPoSW(blockchain, blockchain.GetPoSWConfig())
+	//should pass if export PoSW from minorBlockChain.
+	/* poswa := core.GetPoSW(blockchain).(*posw.PoSW)
 	sumCnt := func(m map[account.Recipient]uint64) int {
 		count := 0
 		for _, v := range m {
@@ -123,20 +133,22 @@ func TestPoSWCoinbaseAddrsCntByDiffLen(t *testing.T) {
 		}
 		return count
 	}
-	for length := 1; length < 5; length++ {
+	length := int(shardConfig.PoswConfig.WindowSize - 1)
+	for i := 0; i < 5; i++ {
 		coinbaseBlkCnt, err := poswa.GetPoSWCoinbaseBlockCnt(newBlock.Hash())
 		if err != nil {
 			t.Fatalf("failed to get PoSW coinbase block count: %v", err)
 		}
 		sum := sumCnt(coinbaseBlkCnt)
 		if sum != length {
-			t.Errorf("sum of PoSW coinbase block count: expected %d, got %d", sum, length)
+			t.Errorf("sum of PoSW coinbase block count: expected %d, got %d", length, sum)
 		}
 	}
+
 	//Make sure internal cache state is correct
 	if cacheLen := posw.GetCoinbaseAddrCache(poswa).Len(); cacheLen != 4 {
-		t.Errorf("cache length: expected %d, got %d", cacheLen, 4)
-	}
+		t.Errorf("cache length: expected %d, got %d", length, cacheLen)
+	} */
 }
 
 func TestPoSWCoinBaseSendUnderLimit(t *testing.T) {
