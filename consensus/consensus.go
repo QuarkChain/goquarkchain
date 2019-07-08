@@ -160,8 +160,10 @@ func (c *CommonEngine) VerifyHeader(
 			}
 		}
 	}
-
-	return c.spec.VerifySeal(chain, header, adjustedDiff)
+	if seal {
+		return c.spec.VerifySeal(chain, header, adjustedDiff)
+	}
+	return nil
 }
 
 // VerifySeal checks whether the crypto seal on a header is valid according to
@@ -185,7 +187,7 @@ func (c *CommonEngine) VerifyHeaders(
 	errorsOut := make(chan error, len(headers))
 	go func() {
 		for _, h := range headers {
-			err := c.VerifyHeader(chain, h, true /*seal flag not used*/)
+			err := c.VerifyHeader(chain, h, false /*seal flag not used*/)
 			errorsOut <- err
 		}
 	}()
