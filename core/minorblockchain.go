@@ -134,7 +134,7 @@ type MinorBlockChain struct {
 	currentEvmState          *state.StateDB
 	logInfo                  string
 	addMinorBlockAndBroad    func(block *types.MinorBlock) error
-	senderDisallowMapBuilder consensus.SenderDisallowMapBuilder
+	posw                     consensus.SenderDisallowMapBuilder
 }
 
 // NewMinorBlockChain returns a fully initialised block chain using information
@@ -220,7 +220,7 @@ func NewMinorBlockChain(
 	}
 
 	bc.txPool = NewTxPool(DefaultTxPoolConfig, bc)
-	bc.senderDisallowMapBuilder = consensus.CreateSenderDisallowMapBuilder(bc)
+	bc.posw = consensus.CreateSenderDisallowMapBuilder(bc, bc.shardConfig.PoswConfig)
 	// Take ownership of this particular state
 	go bc.update()
 	return bc, nil
@@ -1182,8 +1182,7 @@ func (m *MinorBlockChain) insertChain(chain []types.IBlock, verifySeals bool) (i
 			return it.index, events, coalescedLogs, xShardList, err
 		}
 		if updateTip {
-			fmt.Println("[BuildSenderDisallowMap]InsertChain")
-			senderDisallowMap, err := m.senderDisallowMapBuilder.BuildSenderDisallowMap(block.Hash(), nil)
+			senderDisallowMap, err := m.posw.BuildSenderDisallowMap(block.Hash(), nil)
 			if err != nil {
 				return it.index, events, coalescedLogs, xShardList, err
 			}

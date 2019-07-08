@@ -13,8 +13,9 @@ import (
 	"sync"
 
 	"github.com/QuarkChain/goquarkchain/account"
-	"github.com/QuarkChain/goquarkchain/core/types"
+	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/consensus/posw"
+	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/log"
@@ -339,8 +340,8 @@ func (c *CommonEngine) GetWork() (*MiningWork, error) {
 		return nil, ErrNotRemote
 	}
 	var (
-		workCh  = make(chan MiningWork, 1)
-		errc    = make(chan error, 1)
+		workCh = make(chan MiningWork, 1)
+		errc   = make(chan error, 1)
 	)
 	select {
 	case c.fetchWorkCh <- &sealWork{errc: errc, res: workCh}:
@@ -425,10 +426,10 @@ func NewCommonEngine(spec MiningSpec, diffCalc DifficultyCalculator, remote bool
 	return c
 }
 
-func CreatePoSWCalculator(mbc posw.MinorBlockChainPoSWHelper) PoSWCalculator {
-	return posw.NewPoSW(mbc)
+func CreatePoSWCalculator(cr ChainReader, poswConfig *config.POSWConfig) PoSWCalculator {
+	return posw.NewPoSW(cr, poswConfig)
 }
 
-func CreateSenderDisallowMapBuilder(mbc posw.MinorBlockChainPoSWHelper) SenderDisallowMapBuilder {
-	return posw.NewPoSW(mbc)
+func CreateSenderDisallowMapBuilder(cr ChainReader, poswConfig *config.POSWConfig) SenderDisallowMapBuilder {
+	return posw.NewPoSW(cr, poswConfig)
 }

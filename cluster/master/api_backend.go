@@ -11,6 +11,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/ethereum/go-ethereum/crypto"
 	"golang.org/x/sync/errgroup"
 	"math/big"
 	"net"
@@ -266,8 +267,11 @@ func (s *QKCMasterBackend) CreateBlockToMine() (types.IBlock, *big.Int, error) {
 		return nil, nil, err
 	}
 	diff := block.Header().Difficulty
-	adjustedDiff := diff.Div(diff, new(big.Int).SetUint64(1000))
-	return block, adjustedDiff, nil
+	if crypto.VerifySignature(common.Hex2Bytes(s.clusterConfig.Quarkchain.GuardianPublicKey), block.Header().Hash().Bytes(), block.Header().Signature[:]) {
+		adjustedDiff := diff.Div(diff, new(big.Int).SetUint64(1000))
+		return block, adjustedDiff, nil
+	}
+	return block, diff, nil
 }
 
 func (s *QKCMasterBackend) InsertMinedBlock(block types.IBlock) error {

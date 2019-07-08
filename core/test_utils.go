@@ -214,3 +214,9 @@ func CreateFakeMinorCanonicalPoSWShardId(acc1 account.Address, shardId *uint32) 
 	shardState := createDefaultShardState(env, shardId, nil, &poswOverride, nil)
 	return shardState, nil
 }
+
+func CreateFreeTx(shardState *MinorBlockChain, key []byte,
+	from account.Address, to account.Address, value *big.Int) *types.Transaction  {
+		var gasPrice uint64 = 0
+		return createTransferTransaction(shardState, key, from, to, value, nil, &gasPrice, nil, nil)
+}

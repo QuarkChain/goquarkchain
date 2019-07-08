@@ -1,14 +1,15 @@
 package posw_test
 
 import (
+	"math/big"
+	"reflect"
+	"testing"
+
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/consensus/posw"
 	"github.com/QuarkChain/goquarkchain/core"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/common"
-	"math/big"
-	"reflect"
-	"testing"
 )
 
 func TestPoSWFetchPreviousCoinbaseAddress(t *testing.T) {
@@ -25,8 +26,8 @@ func TestPoSWFetchPreviousCoinbaseAddress(t *testing.T) {
 	const POSW_WINDOW_LEN = 2
 	tip := blockchain.GetMinorBlock(blockchain.CurrentHeader().Hash())
 	newBlock := tip.CreateBlockToAppend(nil, nil, &acc, nil, nil, nil, nil)
-	poswa := posw.NewPoSW(blockchain)
-	coinbaseBlkCnt, err := poswa.GetPoSWCoinbaseBlockCnt(newBlock.ParentHash(), POSW_WINDOW_LEN)
+	poswa := posw.NewPoSW(blockchain, blockchain.GetPoSWConfig())
+	coinbaseBlkCnt, err := poswa.GetPoSWCoinbaseBlockCnt(newBlock.ParentHash())
 	if err != nil {
 		t.Fatalf("failed to get PoSW coinbase block count: %v", err)
 	}
@@ -48,7 +49,7 @@ func TestPoSWFetchPreviousCoinbaseAddress(t *testing.T) {
 		tip := blockchain.GetMinorBlock(blockchain.CurrentHeader().Hash())
 		newBlock = tip.CreateBlockToAppend(nil, nil, &randomAcc, nil, nil, nil, nil)
 		//t.Logf("new block coinbase: %x, height: %d", newBlock.Coinbase(), newBlock.Number())
-		coinbaseBlkCnt, err = poswa.GetPoSWCoinbaseBlockCnt(newBlock.ParentHash(), POSW_WINDOW_LEN)
+		coinbaseBlkCnt, err = poswa.GetPoSWCoinbaseBlockCnt(newBlock.ParentHash())
 		if err != nil {
 			t.Fatalf("failed to get PoSW coinbase block count: %v", err)
 		}
@@ -114,8 +115,8 @@ func TestPoSWCoinbaseAddrsCntByDiffLen(t *testing.T) {
 			t.Fatalf("failed to FinalizeAndAddBlock: %v", err)
 		}
 	}
-	poswa := posw.NewPoSW(blockchain)
-	sumCnt := func(m map[account.Recipient]uint32) int {
+	poswa := posw.NewPoSW(blockchain, blockchain.GetPoSWConfig())
+	sumCnt := func(m map[account.Recipient]uint64) int {
 		count := 0
 		for _, v := range m {
 			count += int(v)
@@ -123,7 +124,7 @@ func TestPoSWCoinbaseAddrsCntByDiffLen(t *testing.T) {
 		return count
 	}
 	for length := 1; length < 5; length++ {
-		coinbaseBlkCnt, err := poswa.GetPoSWCoinbaseBlockCnt(newBlock.Hash(), uint32(length))
+		coinbaseBlkCnt, err := poswa.GetPoSWCoinbaseBlockCnt(newBlock.Hash())
 		if err != nil {
 			t.Fatalf("failed to get PoSW coinbase block count: %v", err)
 		}
@@ -186,17 +187,62 @@ func TestPoSWCoinBaseSendUnderLimit(t *testing.T) {
 		t.Errorf("len of Sender Disallow map: expect %d, got %d", 2, lenDislmp)
 	}
 	balance := evmState.GetBalance(acc1.Recipient)
-	balanceExp := new(big.Int).Div(shardConfig.CoinbaseAmount, big.NewInt(2))// tax rate is 0.5
+	balanceExp := new(big.Int).Div(shardConfig.CoinbaseAmount, big.NewInt(2)) // tax rate is 0.5
 	if balance.Cmp(balanceExp) != 0 {
 		t.Errorf("Balance: expected %v, got %v", balanceExp, balance)
 	}
 	coinbaseBytes := make([]byte, 20)
 	coinbase := account.BytesToIdentityRecipient(coinbaseBytes)
+
+	bn2 := big.NewInt(2)
 	disallowMapExp := map[account.Recipient]*big.Int{
-		coinbase: big.NewInt(int64(2)),
-		acc1.Recipient: big.NewInt(2),
+		coinbase:       bn2,
+		acc1.Recipient: bn2,
 	}
 	if !reflect.DeepEqual(disallowMap, disallowMapExp) {
 		t.Errorf("disallowMap: expected %x, got %x", disallowMapExp, disallowMap)
+	}
+	// Try to send money from that account
+	id2, err := account.CreatRandomIdentity()
+	if err != nil {
+		t.Fatalf("error create id %v", id2)
+	}
+	acc2 := account.CreatAddressFromIdentity(id2, 0)
+	tx0 := core.CreateFreeTx(blockchain, id1.GetKey().Bytes(), acc1, acc2, new(big.Int).SetUint64(1))
+	if _, err := blockchain.ExecuteTx(tx0, &acc1, nil); err != nil {
+		t.Errorf("tx failed: %v", err)
+	}
+	//Create a block including that tx, receipt should also report error
+	if err := blockchain.AddTx(tx0); err != nil {
+		t.Errorf("add tx failed: %v", err)
+	}
+	var mb *types.MinorBlock
+	if mb, err = blockchain.CreateBlockToMine(nil, &acc2, nil); err != nil {
+		t.Fatalf("create block failed: %v", err)
+	}
+	if mb, _, err = blockchain.FinalizeAndAddBlock(mb); err != nil {
+		t.Fatalf("finalize and add block failed: %v", err)
+	}
+	var blc *big.Int
+	if blc, err = blockchain.GetBalance(acc1.Recipient, nil); err != nil {
+		t.Fatalf("get balance failed: %v", err)
+	}
+	balanceExp = new(big.Int).Sub(balanceExp, big.NewInt(1))
+	if balanceExp.Cmp(blc) != 0 {
+		t.Errorf("Balance: expected %v, got %v", balanceExp, blc)
+	}
+
+	disallowMapExp1 := map[account.Recipient]*big.Int{
+		coinbase:       bn2,
+		acc1.Recipient: bn2,
+		acc2.Recipient: bn2,
+	}
+	evmState1, err := blockchain.State()
+	if err != nil {
+		t.Fatalf("failed to get State: %v", err)
+	}
+	disallowMap1 := evmState1.GetSenderDisallowMap()
+	if !reflect.DeepEqual(disallowMap1, disallowMapExp1) {
+		t.Errorf("disallowMap: expected %x, got %x", disallowMapExp1, disallowMap1)
 	}
 }

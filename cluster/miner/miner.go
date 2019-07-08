@@ -23,8 +23,8 @@ var (
 )
 
 type workAdjusted struct {
-	block types.IBlock
-	diffAdjusted *big.Int
+	block             types.IBlock
+	adjustedDifficuty *big.Int
 }
 
 type Miner struct {
@@ -103,7 +103,7 @@ func (m *Miner) mainLoop(recommit time.Duration) {
 
 		case work := <-m.workCh:
 			log.Info(m.logInfo, "ready to seal height", work.block.NumberU64())
-			if err := m.engine.Seal(nil, work.block, work.diffAdjusted, m.resultCh, m.stopCh); err != nil {
+			if err := m.engine.Seal(nil, work.block, work.adjustedDifficuty, m.resultCh, m.stopCh); err != nil {
 				log.Error(m.logInfo, "Seal block to mine err", err)
 				m.commit()
 			}

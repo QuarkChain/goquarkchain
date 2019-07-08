@@ -4,75 +4,56 @@ import (
 	"fmt"
 	"math/big"
 	"runtime/debug"
-	"strconv"
 
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	qkcCommon "github.com/QuarkChain/goquarkchain/common"
-	"github.com/QuarkChain/goquarkchain/core/state"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
 	lru "github.com/hashicorp/golang-lru"
 )
 
+type headReader interface {
+	GetHeader(hash common.Hash) types.IHeader
+}
+
 type heightAndAddrs struct {
 	height uint64
 	addrs  []account.Recipient
 }
 
-type MinorBlockChainPoSWHelper interface {
-	GetEvmStateForNewBlock(header types.IHeader, ephemeral bool) (*state.StateDB, error)
-	GetPoSWConfig() *config.POSWConfig
-	GetHeaderByHash(hash common.Hash) types.IHeader
-}
-
 type PoSW struct {
 	config            *config.POSWConfig
 	coinbaseAddrCache *lru.Cache
-	minorBCHelper     MinorBlockChainPoSWHelper
+	minorBCHelper     headReader
 }
 
-func NewPoSW(minorBlockChain MinorBlockChainPoSWHelper) *PoSW {
+func NewPoSW(headReader headReader, config *config.POSWConfig) *PoSW {
 	cache, _ := lru.New(128)
 	return &PoSW{
-		minorBCHelper:     minorBlockChain,
-		config:            minorBlockChain.GetPoSWConfig(),
+		minorBCHelper:     headReader,
+		config:            config,
 		coinbaseAddrCache: cache,
 	}
 }
 
 // PoSWDiffAdjust PoSW diff calc,already locked by insertChain
-func (p *PoSW) PoSWDiffAdjust(header types.IHeader) (*big.Int, error) {
+func (p *PoSW) PoSWDiffAdjust(header types.IHeader, stakes *big.Int) (*big.Int, error) {
 	// Evaluate stakes before the to-be-added block
-	fmt.Println("[PoSWDiffAdjust]GetEvmStateForNewBlock")
-	evmState, err := p.minorBCHelper.GetEvmStateForNewBlock(header, false)
-	if err != nil {
-		return nil, err
-	}
-	coinBaseRecipient := header.GetCoinbase().Recipient
-	stakes := evmState.GetBalance(coinBaseRecipient)
-	blockThreshold := new(big.Int).Div(stakes, p.config.TotalStakePerBlock)
-	blockThresholdStr := blockThreshold.Text(10)
-	blockThresholdInt64, err := strconv.ParseUint(blockThresholdStr, 10, 32)
-	if err != nil {
-		log.Error("failed to compute blockThreshold", err)
-		return nil, err
-	}
-	blockThresholdInt32 := uint32(blockThresholdInt64)
-	if blockThresholdInt32 > p.config.WindowSize {
-		blockThresholdInt32 = p.config.WindowSize
+	blockThreshold := new(big.Int).Div(stakes, p.config.TotalStakePerBlock).Uint64()
+	if blockThreshold > p.config.WindowSize {
+		blockThreshold = p.config.WindowSize
 	}
 	// The func is inclusive, so need to fetch block counts until prev block
 	// Also only fetch prev window_size - 1 block counts because the
 	// new window should count the current block
-	blockCnt, err := p.GetPoSWCoinbaseBlockCnt(header.GetParentHash(), p.config.WindowSize-1)
+	blockCnt, err := p.GetPoSWCoinbaseBlockCnt(header.GetParentHash())
 	if err != nil {
 		return nil, err
 	}
-	cnt := blockCnt[coinBaseRecipient]
 	diff := header.GetDifficulty()
-	if cnt < blockThresholdInt32 {
+	if blockCnt[header.GetCoinbase().Recipient] < blockThreshold {
 		diff = new(big.Int).Div(diff, big.NewInt(int64(p.config.DiffDivider)))
 		log.Info("[PoSW]Adjusted PoSW ", "from", header.GetDifficulty(), "to", diff)
 	}
@@ -82,18 +63,14 @@ func (p *PoSW) PoSWDiffAdjust(header types.IHeader) (*big.Int, error) {
 /*PoSW needed function: get coinbase addresses up until the given block
 hash (inclusive) along with block counts within the PoSW window.
 */
-func (p *PoSW) GetPoSWCoinbaseBlockCnt(headerHash common.Hash, length uint32) (map[account.Recipient]uint32, error) {
-	coinbaseAddrs, err := p.getCoinbaseAddressUntilBlock(headerHash, length)
+func (p *PoSW) GetPoSWCoinbaseBlockCnt(headerHash common.Hash) (map[account.Recipient]uint64, error) {
+	coinbaseAddrs, err := p.getCoinbaseAddressUntilBlock(headerHash)
 	if err != nil {
 		return nil, err
 	}
-	recipientCountMap := make(map[account.Recipient]uint32)
+	recipientCountMap := make(map[account.Recipient]uint64)
 	for _, ca := range coinbaseAddrs {
-		if _, ok := recipientCountMap[ca]; ok {
-			recipientCountMap[ca]++
-		} else {
-			recipientCountMap[ca] = 1
-		}
+		recipientCountMap[ca]++
 	}
 	fmt.Printf("[PoSW]GetPoSWCoinbaseBlockCnt() recipientCountMap %x\n", recipientCountMap)
 	return recipientCountMap, nil
@@ -102,49 +79,39 @@ func (p *PoSW) GetPoSWCoinbaseBlockCnt(headerHash common.Hash, length uint32) (m
 /*
 *Get coinbase addresses up until block of given hash within the window.
  */
-func (p *PoSW) getCoinbaseAddressUntilBlock(headerHash common.Hash, length uint32) ([]account.Recipient, error) {
+func (p *PoSW) getCoinbaseAddressUntilBlock(headerHash common.Hash) ([]account.Recipient, error) {
 	var header types.IHeader
-	var addrs []account.Recipient
-	if header = p.minorBCHelper.GetHeaderByHash(headerHash); qkcCommon.IsNil(header) {
+	length := int(p.config.WindowSize - 1)
+	addrs := make([]account.Recipient, 0, length)
+	if header = p.minorBCHelper.GetHeader(headerHash); qkcCommon.IsNil(header) {
 		return nil, fmt.Errorf("curr block not found: hash %x, %s", headerHash, string(debug.Stack()))
 	}
-	fmt.Printf("tip=%d\n", header.NumberU64())
 	height := header.NumberU64()
 	prevHash := header.GetParentHash()
-	fmt.Printf("[PoSW]p.coinbaseAddrCache: size=%d\n", p.coinbaseAddrCache.Len())
-	var cache map[common.Hash]heightAndAddrs
-	if p.coinbaseAddrCache.Contains(length) {
-		ca, _ := p.coinbaseAddrCache.Get(length)
-		cache = ca.(map[common.Hash]heightAndAddrs)
-	} else {
-		cache = make(map[common.Hash]heightAndAddrs)
-		p.coinbaseAddrCache.Add(length, cache)
-	}
-	if haddrs, ok := cache[prevHash]; ok {
-		addrs = append(addrs, haddrs.addrs...)
-		if uint32(len(addrs)) == length {
-			addrs = addrs[1:]
+	if p.coinbaseAddrCache.Contains(prevHash) {
+		ha, _ := p.coinbaseAddrCache.Get(prevHash)
+		haddrs := ha.(heightAndAddrs)
+		if len(addrs) == length {
+			addrs = append(addrs, haddrs.addrs[0:length-1]...)
+		} else {
+			addrs = append(addrs, haddrs.addrs...)
 		}
 		addrs = append(addrs, header.GetCoinbase().Recipient)
-		log.Info("[PoSW]Using Cache of coinbaseAddrCache:", "prevHash", prevHash)
 	} else { //miss, iterating DB
 		for i := 0; i < int(length); i++ {
 			addrsNew := []account.Recipient{header.GetCoinbase().Recipient}
 			addrs = append(addrsNew, addrs...)
-			fmt.Printf("header.NumberU64() == 0%t\n", header.NumberU64() == 0)
 			if header.NumberU64() == 0 {
 				break
 			}
-			if header = p.minorBCHelper.GetHeaderByHash(header.GetParentHash()); qkcCommon.IsNil(header) {
+			if header = p.minorBCHelper.GetHeader(header.GetParentHash()); qkcCommon.IsNil(header) {
 				return nil, fmt.Errorf("mysteriously missing block %x", header.GetParentHash())
 			}
 		}
-		//fmt.Printf("length=%d,addrs=%x\n", length, addrs)
 	}
-	log.Info("[PoSW] getCoinbaseAddressUntilBlock", "size of addrs", len(addrs), "last addrs", addrs[len(addrs)-1])
-	cache[headerHash] = heightAndAddrs{height, addrs}
+	p.coinbaseAddrCache.Add(headerHash, heightAndAddrs{height, addrs})
 	if len(addrs) > int(length) {
-		return nil, fmt.Errorf("Unexpected result: len(addrs)=%d > length=%d\n", len(addrs), length)
+		panic("Unexpected result: len(addrs) > length\n")
 	}
 	return addrs, nil
 }
@@ -152,17 +119,17 @@ func (p *PoSW) getCoinbaseAddressUntilBlock(headerHash common.Hash, length uint3
 /*
 *Take an additional recipient parameter and add its block count.
  */
-func (p *PoSW) BuildSenderDisallowMap(headerHash common.Hash, recipient *account.Recipient) (map[account.Recipient]*big.Int, error) {
+func (p *PoSW) BuildSenderDisallowMap(headerHash common.Hash, coinbase *account.Recipient) (map[account.Recipient]*big.Int, error) {
 	if !p.config.Enabled {
 		return nil, nil
 	}
-	fmt.Printf("[PoSW] BuildSenderDisallowMap() headerHash=%x, recipient=%x\n", headerHash, recipient)
-	blockCnt, err := p.GetPoSWCoinbaseBlockCnt(headerHash, p.config.WindowSize-1)
+	fmt.Printf("[PoSW] BuildSenderDisallowMap() headerHash=%x, recipient=%x\n", headerHash, coinbase)
+	blockCnt, err := p.GetPoSWCoinbaseBlockCnt(headerHash)
 	if err != nil {
 		return nil, err
 	}
-	if recipient != nil {
-		blockCnt[*recipient] += 1
+	if coinbase != nil {
+		blockCnt[*coinbase] += 1
 	}
 	stakePerBlock := p.config.TotalStakePerBlock
 	disallowMap := make(map[account.Recipient]*big.Int)

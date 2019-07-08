@@ -54,6 +54,7 @@ func (c *CommonEngine) remote() {
 	}
 
 	makeWork := func(block types.IBlock, diff *big.Int) {
+		fmt.Printf("[remote]makeWork: diff=%v\n", diff)
 		hash := block.IHeader().SealHash()
 		if works.Contains(hash) {
 			return
@@ -91,7 +92,7 @@ func (c *CommonEngine) remote() {
 
 		solution := block.WithMingResult(nonce, mixDigest)
 		start := time.Now()
-		if err := c.spec.VerifySeal(nil, solution.IHeader(), solution.IHeader().GetDifficulty()); err != nil {
+		if err := c.spec.VerifySeal(nil, solution.IHeader(), currentWork.Difficulty); err != nil {
 			log.Warn("Invalid proof-of-work submitted", "sealhash", sealhash.Hex(), "elapsed", time.Since(start), "err", err)
 			return false
 		}

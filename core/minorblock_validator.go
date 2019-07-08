@@ -19,9 +19,6 @@ package core
 import (
 	"errors"
 	"fmt"
-	"math/big"
-	"strconv"
-
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/common"
@@ -29,6 +26,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/core/state"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/log"
+	"math/big"
 )
 
 // MinorBlockValidator is responsible for validating block Headers, uncles and
@@ -52,7 +50,7 @@ func NewBlockValidator(quarkChainConfig *config.QuarkChainConfig, blockchain *Mi
 		bc:               blockchain,
 		branch:           branch,
 		logInfo:          fmt.Sprintf("minorBlock validate branch:%v", branch),
-		posw:             consensus.CreatePoSWCalculator(blockchain),
+		posw:             consensus.CreatePoSWCalculator(blockchain, blockchain.shardConfig.PoswConfig),
 	}
 	return validator
 }
@@ -243,15 +241,16 @@ func (v *MinorBlockValidator) ValidatorSeal(mHeader types.IHeader) error {
 	consensusType := shardConfig.ConsensusType
 	var diff uint64
 	if v.posw.IsPoSWEnabled() {
-		fmt.Println("[ValidatorSeal]PoSWDiffAdjust")
-		diffBig, err := v.posw.PoSWDiffAdjust(mHeader)
+		balance, err := v.bc.GetBalance(header.GetCoinbase().Recipient, nil)
+		if err != nil {
+			log.Error("failed to get coinbase balance", err)
+		}
+		diffBig, err := v.posw.PoSWDiffAdjust(mHeader, balance)
 		if err != nil {
 			log.Error(v.logInfo, "PoSWDiffAdjust err", err)
 			return err
 		}
-		diffStr := diffBig.Text(10)
-		diffInt64, _ := strconv.ParseUint(diffStr, 10, 64)
-		diff = uint64(diffInt64)
+		diff = diffBig.Uint64()
 		fmt.Printf("[PoSW]ValidatorSeal - PoSWDiffAdjust from %v to %v\n", mHeader.GetDifficulty(), diff)
 	}
 	return v.validateSeal(header, consensusType, &diff)

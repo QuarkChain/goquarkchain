@@ -280,21 +280,25 @@ func (s *ShardBackend) GenTx(genTxs *rpc.GenTxRequest) error {
 
 // miner api
 func (s *ShardBackend) CreateBlockToMine() (types.IBlock, *big.Int, error) {
-	mnrBlk, err := s.MinorBlockChain.CreateBlockToMine(nil, &s.Config.CoinbaseAddress, nil)
+	minorBlock, err := s.MinorBlockChain.CreateBlockToMine(nil, &s.Config.CoinbaseAddress, nil)
 	if err != nil {
 		return nil, nil, err
 	}
-	diff :=  mnrBlk.Difficulty()
+	diff := minorBlock.Difficulty()
 	if s.posw.IsPoSWEnabled() {
-		header := mnrBlk.Header()
-		diffAdjusted, err := s.posw.PoSWDiffAdjust(header)
+		header := minorBlock.Header()
+		balance, err := s.MinorBlockChain.GetBalance(header.GetCoinbase().Recipient, nil)
+		if err != nil {
+			log.Error("failed to get coinbase balance", err)
+		}
+		adjustedDifficulty, err := s.posw.PoSWDiffAdjust(header, balance)
 		if err != nil {
 			log.Error("[PoSW]Failed to compute PoSW difficulty.", err)
 		}
-		diff = diffAdjusted
-		log.Info("[PoSW]ShardBackend.CreateBlockToMine", "fullShardId", s.fullShardId, "number", mnrBlk.Number, "diff", diff, "diffAdjusted", diffAdjusted)
+		log.Debug("[PoSW]ShardBackend.CreateBlockToMine", "fullShardId", s.fullShardId, "number", minorBlock.Number, "diff", header.Difficulty, "adjusted to", adjustedDifficulty)
+		return minorBlock, adjustedDifficulty, nil
 	}
-	return mnrBlk, diff, nil
+	return minorBlock, diff, nil
 }
 
 func (s *ShardBackend) InsertMinedBlock(block types.IBlock) error {
