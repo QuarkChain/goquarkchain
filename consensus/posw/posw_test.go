@@ -171,4 +171,8 @@ func TestPoSWCoinBaseSendUnderLimit(t *testing.T) {
 	if !reflect.DeepEqual(disallowMap1, disallowMapExp1) {
 		t.Errorf("disallowMap: expected %x, got %x", disallowMapExp1, disallowMap1)
 	}
+	tx1 := core.CreateFreeTx(blockchain, id1.GetKey().Bytes(), acc1, account.Address{}, new(big.Int).SetUint64(2))
+	if rslt, _ := blockchain.ExecuteTx(tx1, &acc1, nil); rslt != nil {
+		t.Error("tx should fail", rslt)
+	}
 }

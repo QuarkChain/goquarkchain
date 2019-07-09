@@ -19,7 +19,7 @@ func TestVerifySeal(t *testing.T) {
 	d := New(&diffCalculator, false)
 
 	resultsCh := make(chan types.IBlock)
-	err := d.Seal(nil, rootBlock,nil, resultsCh, nil)
+	err := d.Seal(nil, rootBlock, nil, resultsCh, nil)
 	assert.NoError(err, "should have no problem sealing the block")
 	block := <-resultsCh
 

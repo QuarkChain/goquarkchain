@@ -251,7 +251,7 @@ func (v *MinorBlockValidator) ValidatorSeal(mHeader types.IHeader) error {
 			return err
 		}
 		diff = diffBig.Uint64()
-		fmt.Printf("[PoSW]ValidatorSeal - PoSWDiffAdjust from %v to %v\n", mHeader.GetDifficulty(), diff)
+		log.Info("[PoSW]ValidatorSeal", "number", header.Number, "diff", header.Difficulty, "adjusted to", diff)
 	}
 	return v.validateSeal(header, consensusType, &diff)
 }

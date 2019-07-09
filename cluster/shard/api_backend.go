@@ -295,14 +295,14 @@ func (s *ShardBackend) CreateBlockToMine() (types.IBlock, *big.Int, error) {
 		if err != nil {
 			log.Error("[PoSW]Failed to compute PoSW difficulty.", err)
 		}
-		log.Debug("[PoSW]ShardBackend.CreateBlockToMine", "fullShardId", s.fullShardId, "number", minorBlock.Number, "diff", header.Difficulty, "adjusted to", adjustedDifficulty)
+		log.Info("[PoSW]CreateBlockToMine", "number", header.Number, "diff", header.Difficulty, "adjusted to", adjustedDifficulty)
 		return minorBlock, adjustedDifficulty, nil
 	}
 	return minorBlock, diff, nil
 }
 
 func (s *ShardBackend) InsertMinedBlock(block types.IBlock) error {
-	return s.AddMinorBlock(block.(*types.MinorBlock))
+	return s.NewMinorBlock(block.(*types.MinorBlock))
 }
 func (s *ShardBackend) GetTip() uint64 {
 	return s.MinorBlockChain.CurrentBlock().NumberU64()

@@ -1,6 +1,7 @@
 package posw
 
 import (
+	"bytes"
 	"fmt"
 	"math/big"
 	"runtime/debug"
@@ -10,7 +11,6 @@ import (
 	qkcCommon "github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/log"
 	lru "github.com/hashicorp/golang-lru"
 )
 
@@ -55,7 +55,6 @@ func (p *PoSW) PoSWDiffAdjust(header types.IHeader, stakes *big.Int) (*big.Int, 
 	diff := header.GetDifficulty()
 	if *blockCnt < blockThreshold {
 		diff = new(big.Int).Div(diff, big.NewInt(int64(p.config.DiffDivider)))
-		log.Info("[PoSW]Adjusted PoSW", "height", header.NumberU64(), "from", header.GetDifficulty(), "to", diff)
 	}
 	return diff, nil
 }
@@ -74,10 +73,10 @@ func (p *PoSW) BuildSenderDisallowMap(headerHash common.Hash, coinbase *account.
 		recipientCountMap[ca]++
 	}
 	if coinbase != nil {
-		recipientCountMap[*coinbase] += 1
+		recipientCountMap[*coinbase]++
 	}
 	disallowMap := make(map[account.Recipient]*big.Int)
-	fmt.Printf("disallowMap:\n")
+	fmt.Println("disallowMap:")
 	for k, v := range recipientCountMap {
 		disallowMap[k] = new(big.Int).Mul(big.NewInt(int64(v)), p.config.TotalStakePerBlock)
 		fmt.Printf("[%x: %d]\n", k, disallowMap[k])
@@ -94,9 +93,10 @@ func (p *PoSW) countCoinbaseBlockUntil(headerHash common.Hash, coinbase account.
 	if err != nil {
 		return nil, err
 	}
+	coinbaseBytes := common.Address(coinbase).Bytes()
 	var count uint64 = 0
 	for _, cb := range coinbases {
-		if cb == coinbase {
+		if bytes.Compare(common.Address(cb).Bytes(), coinbaseBytes) == 0 {
 			count++
 		}
 	}
@@ -105,7 +105,7 @@ func (p *PoSW) countCoinbaseBlockUntil(headerHash common.Hash, coinbase account.
 
 func (p *PoSW) getCoinbaseAddressUntilBlock(headerHash common.Hash) ([]account.Recipient, error) {
 	var header types.IHeader
-	length := int(p.config.WindowSize - 1)
+	length := int(p.config.WindowSize)
 	addrs := make([]account.Recipient, 0, length)
 	if header = p.minorBCHelper.GetHeader(headerHash); qkcCommon.IsNil(header) {
 		return nil, fmt.Errorf("curr block not found: hash %x, %s", headerHash, string(debug.Stack()))
@@ -119,7 +119,8 @@ func (p *PoSW) getCoinbaseAddressUntilBlock(headerHash common.Hash) ([]account.R
 		if len(addrs) == length {
 			addrs = addrs[:length-1]
 		}
-		addrs = append(addrs, header.GetCoinbase().Recipient)
+		addrsNew := []account.Recipient{header.GetCoinbase().Recipient}
+		addrs = append(addrsNew, addrs...)
 	} else { //miss, iterating DB
 		for i := 0; i < length; i++ {
 			addrsNew := []account.Recipient{header.GetCoinbase().Recipient}

@@ -368,7 +368,7 @@ func (m *MinorBlockChain) InitFromRootBlock(rBlock *types.RootBlock) error {
 }
 
 // getEvmStateForNewBlock get evmState for new block.should have locked
-func (m *MinorBlockChain) GetEvmStateForNewBlock(mHeader types.IHeader, ephemeral bool) (*state.StateDB, error) {
+func (m *MinorBlockChain) getEvmStateForNewBlock(mHeader types.IHeader, ephemeral bool) (*state.StateDB, error) {
 	prevHash := mHeader.GetParentHash()
 	preMinorBlock := m.GetMinorBlock(prevHash)
 	if preMinorBlock == nil {
@@ -402,7 +402,7 @@ func (m *MinorBlockChain) getEvmStateFromHeight(height *uint64) (*state.StateDB,
 	if header != nil {
 		return nil, ErrMinorBlockIsNil
 	}
-	return m.GetEvmStateForNewBlock(header, true)
+	return m.getEvmStateForNewBlock(header, true)
 }
 
 func (m *MinorBlockChain) runBlock(block *types.MinorBlock) (*state.StateDB, types.Receipts, error) {
@@ -827,7 +827,7 @@ func (m *MinorBlockChain) CreateBlockToMine(createTime *uint64, address *account
 		address = &t
 	}
 	block := prevBlock.CreateBlockToAppend(&realCreateTime, difficulty, address, nil, gasLimit, nil, nil)
-	evmState, err := m.GetEvmStateForNewBlock(block.IHeader(), true)
+	evmState, err := m.getEvmStateForNewBlock(block.IHeader(), true)
 	prevHeader := m.CurrentBlock()
 	ancestorRootHeader := m.GetRootBlockByHash(prevHeader.Header().PrevRootBlockHash).Header()
 	if !m.isSameRootChain(m.rootTip, ancestorRootHeader) {
