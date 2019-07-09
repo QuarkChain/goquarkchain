@@ -222,10 +222,10 @@ func (s *StateDB) Empty(addr common.Address) bool {
 }
 
 // Retrieve the balance from the given address or 0 if object not found
-func (s *StateDB) GetBalance(addr common.Address) *big.Int {
+func (s *StateDB) GetBalance(addr common.Address, tokenID *big.Int) *big.Int {
 	stateObject := s.getStateObject(addr)
 	if stateObject != nil {
-		return stateObject.Balance()
+		return stateObject.Balance(tokenID)
 	}
 	return common.Big0
 }
@@ -335,25 +335,25 @@ func (s *StateDB) HasSuicided(addr common.Address) bool {
  */
 
 // AddBalance adds amount to the account associated with addr.
-func (s *StateDB) AddBalance(addr common.Address, amount *big.Int) {
+func (s *StateDB) AddBalance(addr common.Address, amount *big.Int, tokenID *big.Int) {
 	stateObject := s.GetOrNewStateObject(addr)
 	if stateObject != nil {
-		stateObject.AddBalance(amount)
+		stateObject.AddBalance(amount, tokenID)
 	}
 }
 
 // SubBalance subtracts amount from the account associated with addr.
-func (s *StateDB) SubBalance(addr common.Address, amount *big.Int) {
+func (s *StateDB) SubBalance(addr common.Address, amount *big.Int, tokenID *big.Int) {
 	stateObject := s.GetOrNewStateObject(addr)
 	if stateObject != nil {
-		stateObject.SubBalance(amount)
+		stateObject.SubBalance(amount, tokenID)
 	}
 }
 
-func (s *StateDB) SetBalance(addr common.Address, amount *big.Int) {
+func (s *StateDB) SetBalance(addr common.Address, amount *big.Int, tokenID *big.Int) {
 	stateObject := s.GetOrNewStateObject(addr)
 	if stateObject != nil {
-		stateObject.SetBalance(amount)
+		stateObject.SetBalance(amount, tokenID)
 	}
 }
 
@@ -391,10 +391,10 @@ func (s *StateDB) Suicide(addr common.Address) bool {
 	s.journal.append(suicideChange{
 		account:     &addr,
 		prev:        stateObject.suicided,
-		prevbalance: new(big.Int).Set(stateObject.Balance()),
+		prevbalance: stateObject.data.TokenBalances.Balances,
 	})
 	stateObject.markSuicided()
-	stateObject.data.Balance = new(big.Int)
+	stateObject.data.TokenBalances, _ = NewTokenBalances([]byte{})
 
 	return true
 }
@@ -489,7 +489,7 @@ func (s *StateDB) createObject(addr common.Address) (newobj, prev *stateObject) 
 func (s *StateDB) CreateAccount(addr common.Address) {
 	new, prev := s.createObject(addr)
 	if prev != nil {
-		new.setBalance(prev.data.Balance)
+		new.SetBalances(prev.data.TokenBalances.Balances)
 	}
 }
 

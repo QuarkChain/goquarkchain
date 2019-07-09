@@ -37,7 +37,7 @@ func NewChainConfig() *ChainConfig {
 	return &ChainConfig{
 		ChainID:                            0,
 		ShardSize:                          2,
-		DefaultChainToken:                  "",
+		DefaultChainToken:                  DefaultToken,
 		ConsensusType:                      PoWNone,
 		ConsensusConfig:                    nil,
 		Genesis:                            NewShardGenesis(),

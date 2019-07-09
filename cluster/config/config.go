@@ -35,6 +35,7 @@ const (
 var (
 	QuarkashToJiaozi = big.NewInt(1000000000000000000)
 	DefaultNumSlaves = 4
+	DefaultToken     = "QKC"
 )
 
 var (

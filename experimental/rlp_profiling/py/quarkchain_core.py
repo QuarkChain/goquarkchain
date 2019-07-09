@@ -489,7 +489,7 @@ class Code(Serializable):
 
     def getEvmTransaction(self):
         assert(self.isEvm())
-        return rlp.decode(self.code[1:], EvmTransaction)
+        return code(self.code[1:], EvmTransaction)
 
 
 class Transaction(Serializable):

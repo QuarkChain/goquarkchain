@@ -94,6 +94,7 @@ type QuarkChainConfig struct {
 	RewardTaxRate                     *big.Rat                `json:"-"`
 	chainIdToShardSize                map[uint32]uint32
 	chainIdToShardIds                 map[uint32][]uint32
+	defaultChainToken                 *big.Int
 }
 
 type QuarkChainConfigAlias QuarkChainConfig
@@ -194,6 +195,7 @@ func (q *QuarkChainConfig) Update(chainSize, shardSizePerChain, rootBlockTime, m
 		chainCfg.ConsensusType = PoWSimulate
 		chainCfg.ConsensusConfig = NewPOWConfig()
 		chainCfg.ConsensusConfig.TargetBlockTime = minorBlockTime
+		chainCfg.DefaultChainToken = DefaultToken
 		q.Chains[chainId] = chainCfg
 		for shardId := uint32(0); shardId < shardSizePerChain; shardId++ {
 			shardCfg := NewShardConfig(chainCfg)
@@ -316,4 +318,10 @@ func NewQuarkChainConfig() *QuarkChainConfig {
 func (q *QuarkChainConfig) SetShardsAndValidate(shards map[uint32]*ShardConfig) { // only used in gen config
 	q.shards = shards
 	q.initAndValidate()
+}
+
+func (q *QuarkChainConfig) GetDefaultChainToken() *big.Int {
+	if q.defaultChainToken == nil {
+		q.defaultChainToken = to
+	}
 }
