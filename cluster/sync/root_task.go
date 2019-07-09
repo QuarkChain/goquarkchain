@@ -6,15 +6,9 @@ import (
 	"golang.org/x/sync/errgroup"
 
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
+	qkcCommon "github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/common"
-)
-
-const (
-	// Number of root block headers to download from peers.
-	headerDownloadSize = 500
-	// Number root blocks to download from peers.
-	blockDownloadSize = 100
 )
 
 type rootSyncerPeer interface {
@@ -65,6 +59,9 @@ func NewRootChainTask(
 				rb := block.(*types.RootBlock)
 				rbc := bc.(rootblockchain)
 				return syncMinorBlocks(p.PeerID(), rbc, rb, statusChan, getShardConnFunc)
+			},
+			getSizeLimit: func() (u uint64, u2 uint64) {
+				return qkcCommon.RootBlockBatchSize, qkcCommon.RootBlockHeaderListLimit
 			},
 		},
 		peer: p,

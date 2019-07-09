@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/QuarkChain/goquarkchain/account"
+	qkcCommon "github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/p2p"
 	"github.com/QuarkChain/goquarkchain/serialize"
@@ -40,11 +41,6 @@ const (
 	handshakeTimeout = 5 * time.Second
 
 	requestTimeout = 5 * time.Second
-
-	rootBlockHeaderListLimit  = 500
-	rootBlockBatchSize        = 100
-	minorBlockHeaderListLimit = 500 //TODO 100 50
-	minorBlockBatchSize       = 100
 
 	directionToGenesis = uint8(0)
 	directionToTip     = uint8(1)
@@ -289,7 +285,7 @@ func (p *peer) deleteChan(rpcId uint64) {
 // specified header hashList, based on the hash of an origin block.
 func (p *peer) requestRootBlockHeaderList(rpcId uint64, hash common.Hash, amount uint32, reverse bool) error {
 	if amount == 0 {
-		amount = rootBlockHeaderListLimit
+		amount = qkcCommon.RootBlockHeaderListLimit
 	}
 	var direction uint8 = directionToGenesis // 0 to genesis
 	if !reverse {
