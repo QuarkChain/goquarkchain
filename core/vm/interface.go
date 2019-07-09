@@ -28,9 +28,10 @@ import (
 type StateDB interface {
 	CreateAccount(common.Address)
 
-	SubBalance(common.Address, *big.Int)
-	AddBalance(common.Address, *big.Int)
-	GetBalance(common.Address) *big.Int
+	SubBalance(common.Address, *big.Int, *big.Int)
+	AddBalance(common.Address, *big.Int, *big.Int)
+	GetBalance(common.Address, *big.Int) *big.Int
+	GetBalances(address common.Address) map[*big.Int]*big.Int
 
 	GetNonce(common.Address) uint64
 	SetNonce(common.Address, uint64)
@@ -72,8 +73,8 @@ type StateDB interface {
 	GetXShardList() []*types.CrossShardTransactionDeposit
 	SetFullShardKey(uint32)
 	GetFullShardKey(common.Address) uint32
-	AddBlockFee(*big.Int)
-	GetBlockFee() *big.Int
+	AddBlockFee(map[*big.Int]*big.Int)
+	GetBlockFee() map[*big.Int]*big.Int
 	GetQuarkChainConfig() *config.QuarkChainConfig
 	SetQuarkChainConfig(*config.QuarkChainConfig)
 	GetGasUsed() *big.Int

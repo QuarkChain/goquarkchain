@@ -7,8 +7,9 @@ import (
 
 var (
 	DenomsValue = Denoms{
-		Wei:  new(big.Int).SetUint64(1),
-		GWei: new(big.Int).SetUint64(1000000000), //10^9
+		Wei:   new(big.Int).SetUint64(1),
+		GWei:  new(big.Int).SetUint64(1000000000), //10^9
+		Ether: new(big.Int).Mul(new(big.Int).SetUint64(1000000000), new(big.Int).SetUint64(1000000000)),
 	}
 	GCallValueTransfer = new(big.Int).SetUint64(9000)
 	GtxxShardCost      = GCallValueTransfer // x-shard tx deposit gas
@@ -20,8 +21,9 @@ var (
 )
 
 type Denoms struct {
-	Wei  *big.Int
-	GWei *big.Int
+	Wei   *big.Int
+	GWei  *big.Int
+	Ether *big.Int
 }
 
 var (

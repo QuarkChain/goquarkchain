@@ -92,7 +92,7 @@ type StateDB struct {
 	nextRevisionId int
 
 	xShardReceiveGasUsed *big.Int
-	blockFee             *big.Int
+	blockFee             map[*big.Int]*big.Int
 	xShardList           []*types.CrossShardTransactionDeposit
 	fullShardKey         uint32
 	quarkChainConfig     *config.QuarkChainConfig
@@ -223,11 +223,22 @@ func (s *StateDB) Empty(addr common.Address) bool {
 
 // Retrieve the balance from the given address or 0 if object not found
 func (s *StateDB) GetBalance(addr common.Address, tokenID *big.Int) *big.Int {
+	if tokenID == nil {
+		tokenID = s.quarkChainConfig.GetDefaultChainToken()
+	}
 	stateObject := s.getStateObject(addr)
 	if stateObject != nil {
 		return stateObject.Balance(tokenID)
 	}
 	return common.Big0
+}
+
+func (s *StateDB) GetBalances(addr common.Address) map[*big.Int]*big.Int {
+	stateObject := s.getStateObject(addr)
+	if stateObject != nil {
+		return stateObject.data.TokenBalances.Balances
+	}
+	return make(map[*big.Int]*big.Int)
 }
 
 func (s *StateDB) GetNonce(addr common.Address) uint64 {
@@ -721,18 +732,20 @@ func (s *StateDB) GetFullShardKey(addr common.Address) uint32 {
 
 }
 
-func (s *StateDB) AddBlockFee(fee *big.Int) {
+func (s *StateDB) AddBlockFee(fee map[*big.Int]*big.Int) {
 	if s.blockFee == nil {
-		s.blockFee = new(big.Int)
+		s.blockFee = fee
 	}
-	s.blockFee.Add(s.blockFee, fee)
+	for k, v := range fee {
+		s.blockFee[k] = v
+	}
 }
 
-func (s *StateDB) GetBlockFee() *big.Int {
+func (s *StateDB) GetBlockFee() map[*big.Int]*big.Int {
 	if s.blockFee == nil {
-		return new(big.Int)
+		return make(map[*big.Int]*big.Int)
 	}
-	return new(big.Int).Set(s.blockFee)
+	return s.blockFee
 }
 func (s *StateDB) GetQuarkChainConfig() *config.QuarkChainConfig {
 	return s.quarkChainConfig

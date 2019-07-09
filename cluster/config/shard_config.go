@@ -8,17 +8,17 @@ import (
 )
 
 type ShardGenesis struct {
-	RootHeight         uint32                       `json:"ROOT_HEIGHT"`
-	Version            uint32                       `json:"VERSION"`
-	Height             uint64                       `json:"HEIGHT"`
-	HashPrevMinorBlock string                       `json:"HASH_PREV_MINOR_BLOCK"`
-	HashMerkleRoot     string                       `json:"HASH_MERKLE_ROOT"`
-	ExtraData          []byte                       `json:"-"`
-	Timestamp          uint64                       `json:"TIMESTAMP"`
-	Difficulty         uint64                       `json:"DIFFICULTY"`
-	GasLimit           uint64                       `json:"GAS_LIMIT"`
-	Nonce              uint32                       `json:"NONCE"`
-	Alloc              map[account.Address]*big.Int `json:"-"`
+	RootHeight         uint32                                  `json:"ROOT_HEIGHT"`
+	Version            uint32                                  `json:"VERSION"`
+	Height             uint64                                  `json:"HEIGHT"`
+	HashPrevMinorBlock string                                  `json:"HASH_PREV_MINOR_BLOCK"`
+	HashMerkleRoot     string                                  `json:"HASH_MERKLE_ROOT"`
+	ExtraData          []byte                                  `json:"-"`
+	Timestamp          uint64                                  `json:"TIMESTAMP"`
+	Difficulty         uint64                                  `json:"DIFFICULTY"`
+	GasLimit           uint64                                  `json:"GAS_LIMIT"`
+	Nonce              uint32                                  `json:"NONCE"`
+	Alloc              map[account.Address]map[string]*big.Int `json:"-"`
 }
 
 func NewShardGenesis() *ShardGenesis {
@@ -33,21 +33,21 @@ func NewShardGenesis() *ShardGenesis {
 		Difficulty:         10000,
 		GasLimit:           30000 * 400,
 		Nonce:              0,
-		Alloc:              make(map[account.Address]*big.Int),
+		Alloc:              make(map[account.Address]map[string]*big.Int),
 	}
 }
 
 type ShardGenesisAlias ShardGenesis
 
 func (s *ShardGenesis) MarshalJSON() ([]byte, error) {
-	var alloc = make(map[string]*big.Int)
+	var alloc = make(map[string]map[string]*big.Int)
 	for addr, val := range s.Alloc {
 		alloc[string(addr.ToHex())] = val
 	}
 	jsonConfig := struct {
 		ShardGenesisAlias
-		ExtraData string              `json:"EXTRA_DATA"`
-		Alloc     map[string]*big.Int `json:"ALLOC"`
+		ExtraData string                         `json:"EXTRA_DATA"`
+		Alloc     map[string]map[string]*big.Int `json:"ALLOC"`
 	}{ShardGenesisAlias(*s), common.Bytes2Hex(s.ExtraData), alloc}
 	return json.Marshal(jsonConfig)
 }
@@ -55,15 +55,15 @@ func (s *ShardGenesis) MarshalJSON() ([]byte, error) {
 func (s *ShardGenesis) UnmarshalJSON(input []byte) error {
 	var jsonConfig struct {
 		ShardGenesisAlias
-		ExtraData string              `json:"EXTRA_DATA"`
-		Alloc     map[string]*big.Int `json:"ALLOC"`
+		ExtraData string                         `json:"EXTRA_DATA"`
+		Alloc     map[string]map[string]*big.Int `json:"ALLOC"`
 	}
 	if err := json.Unmarshal(input, &jsonConfig); err != nil {
 		return err
 	}
 	*s = ShardGenesis(jsonConfig.ShardGenesisAlias)
 	s.ExtraData = common.Hex2Bytes(jsonConfig.ExtraData)
-	s.Alloc = make(map[account.Address]*big.Int)
+	s.Alloc = make(map[account.Address]map[string]*big.Int)
 	for addr, val := range jsonConfig.Alloc {
 		address, err := account.CreatAddressFromBytes(common.FromHex(addr))
 		if err != nil {

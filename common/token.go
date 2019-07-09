@@ -12,9 +12,9 @@ var (
 	TOKENMAX   = "ZZZZZZZZZZZZ"
 )
 
-func TokenIDEncode(str string) (*big.Int, error) {
+func TokenIDEncode(str string) *big.Int {
 	if len(str) >= 13 {
-		return nil, errors.New("name too long")
+		panic(errors.New("name too long"))
 	}
 	// TODO check name can only contain 0-9, A-Z
 
@@ -26,7 +26,7 @@ func TokenIDEncode(str string) (*big.Int, error) {
 		id += base * (TokenCharEncode(str[index] + 1))
 		base *= TOKENBASE
 	}
-	return new(big.Int).SetUint64(uint64(id)), nil
+	return new(big.Int).SetUint64(uint64(id))
 }
 
 func TokenCharEncode(char byte) uint64 {

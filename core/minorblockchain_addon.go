@@ -63,11 +63,29 @@ func getLocalFeeRate(qkcConfig *config.QuarkChainConfig) *big.Rat {
 	ret := new(big.Rat).SetInt64(1)
 	return ret.Sub(ret, qkcConfig.RewardTaxRate)
 }
-func (m *MinorBlockChain) getCoinbaseAmount() *big.Int {
-	// no need to lock
-	localFeeRate := getLocalFeeRate(m.clusterConfig.Quarkchain)
-	coinbaseAmount := qkcCommon.BigIntMulBigRat(m.clusterConfig.Quarkchain.GetShardConfigByFullShardID(m.branch.Value).CoinbaseAmount, localFeeRate)
-	return coinbaseAmount
+func (m *MinorBlockChain) getCoinbaseAmount(height uint64) *types.TokenBalanceMap {
+	config := m.clusterConfig.Quarkchain.GetShardConfigByFullShardID(uint32(m.branch.Value))
+	h := new(big.Int).SetUint64(height)
+	epoch := new(big.Int).Div(h, config.EpochInterval)
+
+	decayNumerator := new(big.Int).Mul(m.clusterConfig.Quarkchain.BlockRewardDecayFactor.Num(), epoch)
+	decayDenominator := new(big.Int).Mul(m.clusterConfig.Quarkchain.BlockRewardDecayFactor.Denom(), epoch)
+	coinbaseAmount := new(big.Int).Mul(config.CoinbaseAmount, m.clusterConfig.Quarkchain.RewardTaxRate.Num())
+	coinbaseAmount = new(big.Int).Mul(coinbaseAmount, decayNumerator)
+	coinbaseAmount = new(big.Int).Div(coinbaseAmount, m.clusterConfig.Quarkchain.RewardTaxRate.Denom())
+	coinbaseAmount = new(big.Int).Div(coinbaseAmount, decayDenominator)
+
+	data := make(map[*big.Int]*big.Int)
+	tokenID, err := qkcCommon.TokenIDEncode(m.clusterConfig.Quarkchain.GenesisToken)
+	if err != nil {
+		return &types.TokenBalanceMap{
+			BalanceMap: data,
+		}
+	}
+	data[tokenID] = coinbaseAmount
+	return &types.TokenBalanceMap{
+		BalanceMap: data,
+	}
 }
 
 func (m *MinorBlockChain) putMinorBlock(mBlock *types.MinorBlock, xShardReceiveTxList []*types.CrossShardTransactionDeposit) error {
@@ -430,7 +448,10 @@ func (m *MinorBlockChain) FinalizeAndAddBlock(block *types.MinorBlock) (*types.M
 	if err != nil {
 		return nil, nil, err
 	}
-	coinbaseAmount := new(big.Int).Add(m.getCoinbaseAmount(), evmState.GetBlockFee())
+	coinbaseAmount := m.getCoinbaseAmount(block.Header().Number)
+
+	blockFee := evmState.GetBlockFee()
+	coinbaseAmount.Add(blockFee)
 	block.Finalize(receipts, evmState.IntermediateRoot(true), evmState.GetGasUsed(), evmState.GetXShardReceiveGasUsed(), coinbaseAmount)
 	_, err = m.InsertChain([]types.IBlock{block}) // will lock
 	if err != nil {
@@ -538,13 +559,13 @@ func (m *MinorBlockChain) getEvmStateByHeight(height *uint64) (*state.StateDB, e
 }
 
 // GetBalance get balance for address
-func (m *MinorBlockChain) GetBalance(recipient account.Recipient, height *uint64) (*big.Int, error) {
+func (m *MinorBlockChain) GetBalance(recipient account.Recipient, height *uint64) (map[*big.Int]*big.Int, error) {
 	// no need to lock
 	evmState, err := m.getEvmStateByHeight(height)
 	if err != nil {
 		return nil, err
 	}
-	return evmState.GetBalance(recipient), nil
+	return evmState.GetBalances(recipient), nil
 }
 
 // GetCode get code for addr
@@ -844,7 +865,7 @@ func (m *MinorBlockChain) CreateBlockToMine(createTime *uint64, address *account
 		return nil, err
 	}
 
-	pureCoinbaseAmount := m.getCoinbaseAmount()
+	pureCoinbaseAmount := m.getCoinbaseAmount(block.Header().Number)
 	evmState.AddBalance(evmState.GetBlockCoinbase(), pureCoinbaseAmount)
 	coinbaseAmount := new(big.Int).Add(pureCoinbaseAmount, evmState.GetBlockFee())
 	newBlock.Finalize(recipiets, evmState.IntermediateRoot(true), evmState.GetGasUsed(), evmState.GetXShardReceiveGasUsed(), coinbaseAmount)

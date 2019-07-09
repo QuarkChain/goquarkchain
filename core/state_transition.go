@@ -81,6 +81,8 @@ type Message interface {
 	FromFullShardKey() uint32
 	ToFullShardKey() uint32
 	TxHash() common.Hash
+	GasTokenID() *big.Int
+	TransferTokenID() *big.Int
 }
 
 // IntrinsicGas computes the 'intrinsic gas' for a message with the given data.

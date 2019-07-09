@@ -39,17 +39,19 @@ type ChainContext interface {
 func NewEVMContext(msg types.Message, mheader types.IHeader, chain ChainContext) vm.Context {
 	header := mheader.(*types.MinorBlockHeader)
 	return vm.Context{
-		CanTransfer:    CanTransfer,
-		Transfer:       Transfer,
-		GetHash:        GetHashFn(header, chain),
-		Origin:         msg.From(),
-		Coinbase:       header.GetCoinbase().Recipient,
-		BlockNumber:    new(big.Int).SetUint64(header.NumberU64()),
-		Time:           new(big.Int).SetUint64(header.GetTime()),
-		Difficulty:     new(big.Int).Set(header.GetDifficulty()),
-		GasLimit:       header.GasLimit.Value.Uint64(),
-		GasPrice:       new(big.Int).Set(msg.GasPrice()),
-		ToFullShardKey: msg.ToFullShardKey(),
+		CanTransfer:     CanTransfer,
+		Transfer:        Transfer,
+		GetHash:         GetHashFn(header, chain),
+		Origin:          msg.From(),
+		Coinbase:        header.GetCoinbase().Recipient,
+		BlockNumber:     new(big.Int).SetUint64(header.NumberU64()),
+		Time:            new(big.Int).SetUint64(header.GetTime()),
+		Difficulty:      new(big.Int).Set(header.GetDifficulty()),
+		GasLimit:        header.GasLimit.Value.Uint64(),
+		GasPrice:        new(big.Int).Set(msg.GasPrice()),
+		ToFullShardKey:  msg.ToFullShardKey(),
+		GasTokenID:      msg.GasTokenID(),
+		TransferTokenID: msg.TransferTokenID(),
 	}
 }
 
@@ -81,12 +83,12 @@ func GetHashFn(ref types.IHeader, chain ChainContext) func(n uint64) common.Hash
 
 // CanTransfer checks whether there are enough funds in the address' account to make a transfer.
 // This does not take the necessary gas in to account to make the transfer valid.
-func CanTransfer(db vm.StateDB, addr common.Address, amount *big.Int) bool {
-	return db.GetBalance(addr).Cmp(amount) >= 0
+func CanTransfer(db vm.StateDB, addr common.Address, amount *big.Int, tokenID *big.Int) bool {
+	return db.GetBalance(addr, tokenID).Cmp(amount) >= 0
 }
 
 // Transfer subtracts amount from sender and adds amount to recipient using the given Db
-func Transfer(db vm.StateDB, sender, recipient common.Address, amount *big.Int) {
-	db.SubBalance(sender, amount)
-	db.AddBalance(recipient, amount)
+func Transfer(db vm.StateDB, sender, recipient common.Address, amount *big.Int, tokenID *big.Int) {
+	db.SubBalance(sender, amount, tokenID)
+	db.AddBalance(recipient, amount, tokenID)
 }

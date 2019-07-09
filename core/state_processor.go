@@ -102,8 +102,10 @@ func (p *StateProcessor) Process(block *types.MinorBlock, statedb *state.StateDB
 	}
 
 	// Finalize the block, applying any consensus engine specific extras (e.g. block rewards)
-	coinbaseAmount := p.bc.getCoinbaseAmount()
-	statedb.AddBalance(block.IHeader().GetCoinbase().Recipient, coinbaseAmount)
+	coinbaseAmount := p.bc.getCoinbaseAmount(block.Number())
+	for k, v := range coinbaseAmount.BalanceMap {
+		statedb.AddBalance(block.IHeader().GetCoinbase().Recipient, k, v)
+	}
 	statedb.Finalise(true)
 	return receipts, allLogs, *usedGas, nil
 }
@@ -126,10 +128,6 @@ func ValidateTransaction(state vm.StateDB, tx *types.Transaction, fromAddress *a
 		return ErrNonceTooLow
 	}
 
-	if state.GetBalance(*from).Cmp(tx.EvmTx.Cost()) < 0 {
-		return ErrInsufficientFunds
-	}
-
 	totalGas, err := IntrinsicGas(tx.EvmTx.Data(), tx.EvmTx.To() == nil, tx.EvmTx.ToFullShardId() != tx.EvmTx.FromFullShardId())
 	if err != nil {
 		return err
@@ -137,6 +135,10 @@ func ValidateTransaction(state vm.StateDB, tx *types.Transaction, fromAddress *a
 	if tx.EvmTx.Gas() < totalGas {
 		return ErrIntrinsicGas
 	}
+
+	if
+
+
 
 	blockLimit := new(big.Int).Add(state.GetGasUsed(), new(big.Int).SetUint64(tx.EvmTx.Gas()))
 	if blockLimit.Cmp(state.GetGasLimit()) > 0 {
