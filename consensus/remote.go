@@ -54,7 +54,6 @@ func (c *CommonEngine) remote() {
 	}
 
 	makeWork := func(block types.IBlock, diff *big.Int) {
-		fmt.Printf("[remote]makeWork: diff=%v\n", diff)
 		hash := block.IHeader().SealHash()
 		if works.Contains(hash) {
 			return

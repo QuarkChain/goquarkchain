@@ -38,7 +38,7 @@ func NewPoSW(headReader headReader, config *config.POSWConfig) *PoSW {
 	}
 }
 
-// PoSWDiffAdjust PoSW diff calc,already locked by insertChain
+/*PoSWDiffAdjust PoSW diff calc,already locked by insertChain*/
 func (p *PoSW) PoSWDiffAdjust(header types.IHeader, stakes *big.Int) (*big.Int, error) {
 	// Evaluate stakes before the to-be-added block
 	blockThreshold := new(big.Int).Div(stakes, p.config.TotalStakePerBlock).Uint64()
@@ -48,22 +48,23 @@ func (p *PoSW) PoSWDiffAdjust(header types.IHeader, stakes *big.Int) (*big.Int, 
 	// The func is inclusive, so need to fetch block counts until prev block
 	// Also only fetch prev window_size - 1 block counts because the
 	// new window should count the current block
-	blockCnt, err := p.GetPoSWCoinbaseBlockCnt(header.GetParentHash())
+	blockCnt, err := p.countCoinbaseBlockUntil(header.GetParentHash(), header.GetCoinbase().Recipient)
 	if err != nil {
 		return nil, err
 	}
 	diff := header.GetDifficulty()
-	if blockCnt[header.GetCoinbase().Recipient] < blockThreshold {
+	if *blockCnt < blockThreshold {
 		diff = new(big.Int).Div(diff, big.NewInt(int64(p.config.DiffDivider)))
 		log.Info("[PoSW]Adjusted PoSW", "height", header.NumberU64(), "from", header.GetDifficulty(), "to", diff)
 	}
 	return diff, nil
 }
 
-/*PoSW needed function: get coinbase addresses up until the given block
-hash (inclusive) along with block counts within the PoSW window.
-*/
-func (p *PoSW) GetPoSWCoinbaseBlockCnt(headerHash common.Hash) (map[account.Recipient]uint64, error) {
+/*Take an additional recipient parameter and add its block count.*/
+func (p *PoSW) BuildSenderDisallowMap(headerHash common.Hash, coinbase *account.Recipient) (map[account.Recipient]*big.Int, error) {
+	if !p.config.Enabled {
+		return nil, nil
+	}
 	coinbaseAddrs, err := p.getCoinbaseAddressUntilBlock(headerHash)
 	if err != nil {
 		return nil, err
@@ -72,13 +73,36 @@ func (p *PoSW) GetPoSWCoinbaseBlockCnt(headerHash common.Hash) (map[account.Reci
 	for _, ca := range coinbaseAddrs {
 		recipientCountMap[ca]++
 	}
-	// fmt.Printf("[PoSW]GetPoSWCoinbaseBlockCnt() recipientCountMap %x\n", recipientCountMap)
-	return recipientCountMap, nil
+	if coinbase != nil {
+		recipientCountMap[*coinbase] += 1
+	}
+	disallowMap := make(map[account.Recipient]*big.Int)
+	fmt.Printf("disallowMap:\n")
+	for k, v := range recipientCountMap {
+		disallowMap[k] = new(big.Int).Mul(big.NewInt(int64(v)), p.config.TotalStakePerBlock)
+		fmt.Printf("[%x: %d]\n", k, disallowMap[k])
+	}
+	return disallowMap, nil
 }
 
-/*
-*Get coinbase addresses up until block of given hash within the window.
- */
+func (p *PoSW) IsPoSWEnabled() bool {
+	return p.config.Enabled
+}
+
+func (p *PoSW) countCoinbaseBlockUntil(headerHash common.Hash, coinbase account.Recipient) (*uint64, error) {
+	coinbases, err := p.getCoinbaseAddressUntilBlock(headerHash)
+	if err != nil {
+		return nil, err
+	}
+	var count uint64 = 0
+	for _, cb := range coinbases {
+		if cb == coinbase {
+			count++
+		}
+	}
+	return &count, nil
+}
+
 func (p *PoSW) getCoinbaseAddressUntilBlock(headerHash common.Hash) ([]account.Recipient, error) {
 	var header types.IHeader
 	length := int(p.config.WindowSize - 1)
@@ -109,39 +133,10 @@ func (p *PoSW) getCoinbaseAddressUntilBlock(headerHash common.Hash) ([]account.R
 		}
 	}
 	p.coinbaseAddrCache.Add(headerHash, heightAndAddrs{height, addrs})
-	//fmt.Printf("[PoSW]coinbaseAddrCache.Len()=%x\n", p.coinbaseAddrCache.Len())
 	if len(addrs) > length {
 		panic("Unexpected result: len(addrs) > length\n")
 	}
 	return addrs, nil
-}
-
-/*
-*Take an additional recipient parameter and add its block count.
- */
-func (p *PoSW) BuildSenderDisallowMap(headerHash common.Hash, coinbase *account.Recipient) (map[account.Recipient]*big.Int, error) {
-	if !p.config.Enabled {
-		return nil, nil
-	}
-	fmt.Printf("[PoSW] BuildSenderDisallowMap() headerHash=%x, recipient=%x\n", headerHash, coinbase)
-	blockCnt, err := p.GetPoSWCoinbaseBlockCnt(headerHash)
-	if err != nil {
-		return nil, err
-	}
-	if coinbase != nil {
-		blockCnt[*coinbase] += 1
-	}
-	stakePerBlock := p.config.TotalStakePerBlock
-	disallowMap := make(map[account.Recipient]*big.Int)
-	for k, v := range blockCnt {
-		disallowMap[k] = new(big.Int).Mul(big.NewInt(int64(v)), stakePerBlock)
-	}
-	fmt.Printf("disallowMap=%x\n", disallowMap)
-	return disallowMap, nil
-}
-
-func (p *PoSW) IsPoSWEnabled() bool {
-	return p.config.Enabled
 }
 
 //for test only

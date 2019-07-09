@@ -106,7 +106,7 @@ func createDefaultShardState(env *fakeEnv, shardID *uint32, diffCalc consensus.D
 
 	fullShardID := env.clusterConfig.Quarkchain.Chains[0].ShardSize | *shardID
 
-	if poswOverride != nil && *poswOverride  {
+	if poswOverride != nil && *poswOverride {
 		poswConfig := env.clusterConfig.Quarkchain.GetShardConfigByFullShardID(fullShardID).PoswConfig
 		poswConfig.Enabled = true
 	}
@@ -200,15 +200,14 @@ func checkErr(err error) {
 	}
 }
 
-func CreateFakeMinorCanonicalPoSW(acc1 account.Address) ( *MinorBlockChain, error){
+func CreateFakeMinorCanonicalPoSW(acc1 account.Address) (*MinorBlockChain, error) {
 	env := setUp(&acc1, nil, nil)
 	poswOverride := true
 	shardState := createDefaultShardState(env, nil, nil, &poswOverride, nil)
 	return shardState, nil
 }
 
-
-func CreateFakeMinorCanonicalPoSWShardId(acc1 account.Address, shardId *uint32) ( *MinorBlockChain, error){
+func CreateFakeMinorCanonicalPoSWShardId(acc1 account.Address, shardId *uint32) (*MinorBlockChain, error) {
 	env := setUp(&acc1, nil, nil)
 	poswOverride := true
 	shardState := createDefaultShardState(env, shardId, nil, &poswOverride, nil)
@@ -216,7 +215,7 @@ func CreateFakeMinorCanonicalPoSWShardId(acc1 account.Address, shardId *uint32) 
 }
 
 func CreateFreeTx(shardState *MinorBlockChain, key []byte,
-	from account.Address, to account.Address, value *big.Int) *types.Transaction  {
-		var gasPrice uint64 = 0
-		return createTransferTransaction(shardState, key, from, to, value, nil, &gasPrice, nil, nil)
+	from account.Address, to account.Address, value *big.Int) *types.Transaction {
+	var gasPrice uint64 = 0
+	return createTransferTransaction(shardState, key, from, to, value, nil, &gasPrice, nil, nil)
 }
