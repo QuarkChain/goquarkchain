@@ -160,16 +160,23 @@ func (c *CommonEngine) VerifyHeader(
 			}
 		}
 	}
-	if seal {
-		return c.spec.VerifySeal(chain, header, adjustedDiff)
-	}
-	return nil
+	return c.VerifySeal(chain, header, adjustedDiff)
 }
 
 // VerifySeal checks whether the crypto seal on a header is valid according to
 // the consensus rules of the given engine.
 func (c *CommonEngine) VerifySeal(chain ChainReader, header types.IHeader, adjustedDiff *big.Int) error {
-	return c.spec.VerifySeal(chain, header, adjustedDiff)
+	diff := header.GetDifficulty()
+	if minorHeader, ok := header.(*types.MinorBlockHeader); ok {
+		branch := minorHeader.GetBranch()
+		fullShardID := branch.GetFullShardID()
+		poswConfig := chain.Config().GetShardConfigByFullShardID(fullShardID).PoswConfig
+		if poswConfig.Enabled {
+			diffDivider := big.NewInt(int64(poswConfig.DiffDivider))
+			diff = diff.Div(diff, diffDivider)
+		}
+	}
+	return c.spec.VerifySeal(chain, header, diff)
 }
 
 // VerifyHeaders is similar to VerifyHeader, but verifies a batch of headers
@@ -181,13 +188,11 @@ func (c *CommonEngine) VerifyHeaders(
 	headers []types.IHeader,
 	seals []bool,
 ) (chan<- struct{}, <-chan error) {
-
-	// TODO: verify concurrently, and support aborting
 	abort := make(chan struct{})
 	errorsOut := make(chan error, len(headers))
 	go func() {
 		for _, h := range headers {
-			err := c.VerifyHeader(chain, h, false /*seal flag not used*/)
+			err := c.VerifyHeader(chain, h, true /*seal flag not used*/)
 			errorsOut <- err
 		}
 	}()

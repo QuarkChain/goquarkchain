@@ -1546,6 +1546,3 @@ func (m *MinorBlockChain) ReadCrossShardTxList(hash common.Hash) *types.CrossSha
 	}
 	return nil
 }
-func (m *MinorBlockChain) GetPoSWConfig() *config.POSWConfig {
-	return m.shardConfig.PoswConfig
-}

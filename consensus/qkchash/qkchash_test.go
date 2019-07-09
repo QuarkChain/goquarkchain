@@ -63,8 +63,8 @@ func TestVerifyHeaderAndHeaders(t *testing.T) {
 				noErrCnt++
 			}
 		}
-		assert.Equal(5, noErrCnt)
-		assert.Equal(0, errCnt)
+		assert.Equal(4, noErrCnt)
+		assert.Equal(1, errCnt)
 	}
 }
 
