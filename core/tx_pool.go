@@ -507,6 +507,17 @@ func (pool *TxPool) Pending() (map[common.Address]types.Transactions, error) {
 	return pending, nil
 }
 
+func (pool *TxPool) Queue() (map[common.Address]types.Transactions, error) {
+	pool.mu.Lock()
+	defer pool.mu.Unlock()
+
+	queue := make(map[common.Address]types.Transactions)
+	for addr, list := range pool.queue {
+		queue[addr] = list.Flatten()
+	}
+	return queue, nil
+}
+
 func (pool *TxPool) PendingCount() int {
 	return pool.all.Count()
 }
