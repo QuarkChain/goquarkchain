@@ -3,6 +3,7 @@ package sync
 import (
 	"errors"
 	"fmt"
+	"math/big"
 	"strings"
 	"time"
 
@@ -15,7 +16,7 @@ import (
 // Task represents a synchronization task for the synchronizer.
 type Task interface {
 	Run(blockchain) error
-	Priority() uint
+	Priority() *big.Int
 	PeerID() string
 }
 
@@ -26,10 +27,14 @@ type task struct {
 	getHeaders       func(common.Hash, uint32) ([]types.IHeader, error)
 	getBlocks        func([]common.Hash) ([]types.IBlock, error)
 	syncBlock        func(types.IBlock, blockchain) error
+	needSkip         func(types.IHeader, blockchain) bool
 }
 
 // Run will execute the synchronization task.
 func (t *task) Run(bc blockchain) error {
+	if t.needSkip(t.header, bc) {
+		return nil
+	}
 	if bc.HasBlock(t.header.Hash()) {
 		return nil
 	}

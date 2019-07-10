@@ -16,6 +16,7 @@ type IHeader interface {
 	GetTime() uint64
 	//GetCoinbaseAmount() *big.Int
 	GetDifficulty() *big.Int
+	GetTotalDifficulty() *big.Int
 	GetNonce() uint64
 	GetExtra() []byte
 	SetCoinbase(account.Address)

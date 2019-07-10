@@ -74,9 +74,10 @@ func (h *MinorBlockHeader) GetCoinbase() account.Address      { return h.Coinbas
 /*func (h *MinorBlockHeader) GetCoinbaseAmount() *big.Int {
 	return h.CoinbaseAmount.Value
 }*/
-func (h *MinorBlockHeader) GetTime() uint64         { return h.Time }
-func (h *MinorBlockHeader) GetDifficulty() *big.Int { return new(big.Int).Set(h.Difficulty) }
-func (h *MinorBlockHeader) GetNonce() uint64        { return h.Nonce }
+func (h *MinorBlockHeader) GetTime() uint64              { return h.Time }
+func (h *MinorBlockHeader) GetDifficulty() *big.Int      { return new(big.Int).Set(h.Difficulty) }
+func (h *MinorBlockHeader) GetTotalDifficulty() *big.Int { panic(-1) }
+func (h *MinorBlockHeader) GetNonce() uint64             { return h.Nonce }
 func (h *MinorBlockHeader) GetExtra() []byte {
 	if h.Extra != nil {
 		return common.CopyBytes(h.Extra)
@@ -419,7 +420,7 @@ func (b *MinorBlock) GetSize() common.StorageSize {
 	return b.Size()
 }
 
-func (m *MinorBlock) Finalize(receipts Receipts, rootHash common.Hash, gasUsed *big.Int, xShardReceiveGasUsed *big.Int, coinbaseAmount *TokenBalanceMap, xShardTxCursorInfo *XShardTxCursorInfo) {
+func (m *MinorBlock) Finalize(receipts Receipts, rootHash common.Hash, gasUsed *big.Int, xShardReceiveGasUsed *big.Int, coinbaseAmount *big.Int) {
 	if gasUsed == nil {
 		gasUsed = new(big.Int)
 	}
@@ -431,7 +432,7 @@ func (m *MinorBlock) Finalize(receipts Receipts, rootHash common.Hash, gasUsed *
 	m.meta.Root = rootHash
 	m.meta.GasUsed = &serialize.Uint256{Value: gasUsed}
 	m.meta.CrossShardGasUsed = &serialize.Uint256{Value: xShardReceiveGasUsed}
-	m.header.CoinbaseAmount = coinbaseAmount
+	m.header.CoinbaseAmount = &serialize.Uint256{Value: new(big.Int).Set(coinbaseAmount)}
 	m.meta.TxHash = CalculateMerkleRoot(m.Transactions())
 	m.meta.ReceiptHash = DeriveSha(receipts)
 	m.header.MetaHash = m.meta.Hash()
@@ -474,7 +475,7 @@ func (h *MinorBlock) CreateBlockToAppend(createTime *uint64, difficulty *big.Int
 		Number:            h.Number() + 1,
 		Branch:            h.Branch(),
 		Coinbase:          *address,
-		CoinbaseAmount:    coinbaseAmount,
+		CoinbaseAmount:    &serialize.Uint256{Value: coinbaseAmount},
 		ParentHash:        h.Hash(),
 		PrevRootBlockHash: h.PrevRootBlockHash(),
 		GasLimit:          &serialize.Uint256{Value: gasLimit},
