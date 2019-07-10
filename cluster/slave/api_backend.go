@@ -126,11 +126,17 @@ func (s *SlaveBackend) AddBlockListForSync(mHashList []common.Hash, peerId strin
 }
 
 func (s *SlaveBackend) AddTx(tx *types.Transaction) (err error) {
-	toShardSize := s.clstrCfg.Quarkchain.GetShardSizeByChainId(tx.EvmTx.ToChainID())
+	toShardSize, err := s.clstrCfg.Quarkchain.GetShardSizeByChainId(tx.EvmTx.ToChainID())
+	if err != nil {
+		return err
+	}
 	if err := tx.EvmTx.SetToShardSize(toShardSize); err != nil {
 		return err
 	}
-	fromShardSize := s.clstrCfg.Quarkchain.GetShardSizeByChainId(tx.EvmTx.FromChainID())
+	fromShardSize, err := s.clstrCfg.Quarkchain.GetShardSizeByChainId(tx.EvmTx.FromChainID())
+	if err != nil {
+		return err
+	}
 	if err := tx.EvmTx.SetFromShardSize(fromShardSize); err != nil {
 		return err
 	}
@@ -148,7 +154,10 @@ func (s *SlaveBackend) ExecuteTx(tx *types.Transaction, address *account.Address
 }
 
 func (s *SlaveBackend) GetTransactionCount(address *account.Address) (uint64, error) {
-	branch := s.getBranch(address)
+	branch, err := s.getBranch(address)
+	if err != nil {
+		return 0, err
+	}
 	if shard, ok := s.shards[branch.Value]; ok {
 		return shard.MinorBlockChain.GetTransactionCount(address.Recipient, nil)
 	}
@@ -156,7 +165,10 @@ func (s *SlaveBackend) GetTransactionCount(address *account.Address) (uint64, er
 }
 
 func (s *SlaveBackend) GetBalances(address *account.Address) (*big.Int, error) {
-	branch := s.getBranch(address)
+	branch, err := s.getBranch(address)
+	if err != nil {
+		return nil, err
+	}
 	if shard, ok := s.shards[branch.Value]; ok {
 		return shard.MinorBlockChain.GetBalance(address.Recipient, nil)
 	}
@@ -164,7 +176,10 @@ func (s *SlaveBackend) GetBalances(address *account.Address) (*big.Int, error) {
 }
 
 func (s *SlaveBackend) GetTokenBalance(address *account.Address) (*big.Int, error) {
-	branch := s.getBranch(address)
+	branch, err := s.getBranch(address)
+	if err != nil {
+		return nil, err
+	}
 	if shard, ok := s.shards[branch.Value]; ok {
 		return shard.MinorBlockChain.GetBalance(address.Recipient, nil)
 	}
@@ -235,7 +250,10 @@ func (s *SlaveBackend) GetTransactionReceipt(txHash common.Hash, branch uint32) 
 }
 
 func (s *SlaveBackend) GetTransactionListByAddress(address *account.Address, start []byte, limit uint32) ([]*rpc.TransactionDetail, []byte, error) {
-	branch := s.getBranch(address)
+	branch, err := s.getBranch(address)
+	if err != nil {
+		return nil, nil, err
+	}
 	if shard, ok := s.shards[branch.Value]; ok {
 		return shard.GetTransactionListByAddress(address, start, limit)
 	}
@@ -257,8 +275,11 @@ func (s *SlaveBackend) EstimateGas(tx *types.Transaction, address *account.Addre
 	return 0, ErrMsg("EstimateGas")
 }
 
-func (s *SlaveBackend) GetStorageAt(address *account.Address, key common.Hash, height *uint64) ([32]byte, error) {
-	branch := s.getBranch(address)
+func (s *SlaveBackend) GetStorageAt(address *account.Address, key common.Hash, height *uint64) (common.Hash, error) {
+	branch, err := s.getBranch(address)
+	if err != nil {
+		return common.Hash{}, err
+	}
 	if shard, ok := s.shards[branch.Value]; ok {
 		return shard.MinorBlockChain.GetStorageAt(address.Recipient, key, height)
 	}
@@ -266,7 +287,10 @@ func (s *SlaveBackend) GetStorageAt(address *account.Address, key common.Hash, h
 }
 
 func (s *SlaveBackend) GetCode(address *account.Address, height *uint64) ([]byte, error) {
-	branch := s.getBranch(address)
+	branch, err := s.getBranch(address)
+	if err != nil {
+		return nil, err
+	}
 	if shard, ok := s.shards[branch.Value]; ok {
 		return shard.MinorBlockChain.GetCode(address.Recipient, height)
 	}

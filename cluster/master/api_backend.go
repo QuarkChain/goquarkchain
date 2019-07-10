@@ -42,11 +42,17 @@ func (s *QKCMasterBackend) GetPeers() []rpc.PeerInfoForDisPlay {
 
 func (s *QKCMasterBackend) AddTransaction(tx *types.Transaction) error {
 	evmTx := tx.EvmTx
-	toShardSize := s.clusterConfig.Quarkchain.GetShardSizeByChainId(tx.EvmTx.ToChainID())
+	toShardSize, err := s.clusterConfig.Quarkchain.GetShardSizeByChainId(tx.EvmTx.ToChainID())
+	if err != nil {
+		return err
+	}
 	if err := tx.EvmTx.SetToShardSize(toShardSize); err != nil {
 		return errors.New(fmt.Sprintf("Failed to set toShardSize, toShardSize: %d, err: %v", toShardSize, err))
 	}
-	fromShardSize := s.clusterConfig.Quarkchain.GetShardSizeByChainId(tx.EvmTx.FromChainID())
+	fromShardSize, err := s.clusterConfig.Quarkchain.GetShardSizeByChainId(tx.EvmTx.FromChainID())
+	if err != nil {
+		return err
+	}
 	if err := tx.EvmTx.SetFromShardSize(fromShardSize); err != nil {
 		return errors.New(fmt.Sprintf("Failed to set fromShardSize, fromShardSize: %d, err: %v", fromShardSize, err))
 	}
@@ -62,7 +68,7 @@ func (s *QKCMasterBackend) AddTransaction(tx *types.Transaction) error {
 			return slaves[i].AddTransaction(tx)
 		})
 	}
-	err := g.Wait() //TODO?? peer broadcast
+	err = g.Wait() //TODO?? peer broadcast
 	if err != nil {
 		return err
 	}
@@ -144,7 +150,10 @@ func (s *QKCMasterBackend) GetTransactionReceipt(txHash common.Hash, branch acco
 }
 
 func (s *QKCMasterBackend) GetTransactionsByAddress(address *account.Address, start []byte, limit uint32) ([]*rpc.TransactionDetail, []byte, error) {
-	fullShardID := s.clusterConfig.Quarkchain.GetFullShardIdByFullShardKey(address.FullShardKey)
+	fullShardID, err := s.clusterConfig.Quarkchain.GetFullShardIdByFullShardKey(address.FullShardKey)
+	if err != nil {
+		return nil, nil, err
+	}
 	slaveConn := s.getOneSlaveConnection(account.Branch{Value: fullShardID})
 	if slaveConn == nil {
 		return nil, nil, ErrNoBranchConn
@@ -172,7 +181,10 @@ func (s *QKCMasterBackend) EstimateGas(tx *types.Transaction, fromAddress *accou
 }
 
 func (s *QKCMasterBackend) GetStorageAt(address *account.Address, key common.Hash, height *uint64) (common.Hash, error) {
-	fullShardID := s.clusterConfig.Quarkchain.GetFullShardIdByFullShardKey(address.FullShardKey)
+	fullShardID, err := s.clusterConfig.Quarkchain.GetFullShardIdByFullShardKey(address.FullShardKey)
+	if err != nil {
+		return common.Hash{}, err
+	}
 	slaveConn := s.getOneSlaveConnection(account.Branch{Value: fullShardID})
 	if slaveConn == nil {
 		return common.Hash{}, ErrNoBranchConn
@@ -181,7 +193,10 @@ func (s *QKCMasterBackend) GetStorageAt(address *account.Address, key common.Has
 }
 
 func (s *QKCMasterBackend) GetCode(address *account.Address, height *uint64) ([]byte, error) {
-	fullShardID := s.clusterConfig.Quarkchain.GetFullShardIdByFullShardKey(address.FullShardKey)
+	fullShardID, err := s.clusterConfig.Quarkchain.GetFullShardIdByFullShardKey(address.FullShardKey)
+	if err != nil {
+		return nil, err
+	}
 	slaveConn := s.getOneSlaveConnection(account.Branch{Value: fullShardID})
 	if slaveConn == nil {
 		return nil, ErrNoBranchConn

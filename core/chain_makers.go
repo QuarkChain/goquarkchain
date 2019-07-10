@@ -205,7 +205,10 @@ func (b *MinorBlockGen) AddTxWithChain(quarkChainConfig *config.QuarkChainConfig
 	}
 	b.statedb.Prepare(tx.Hash(), common.Hash{}, len(b.txs))
 	b.statedb.SetQuarkChainConfig(quarkChainConfig)
-	toShardSize := quarkChainConfig.GetShardSizeByChainId(tx.EvmTx.ToChainID())
+	toShardSize, err := quarkChainConfig.GetShardSizeByChainId(tx.EvmTx.ToChainID())
+	if err != nil {
+		panic(err)
+	}
 	if err := tx.EvmTx.SetToShardSize(toShardSize); err != nil {
 		panic(err)
 	}
