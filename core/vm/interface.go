@@ -87,6 +87,7 @@ type StateDB interface {
 	GetSenderDisallowList() []account.Recipient
 	GetBlockCoinbase() account.Recipient
 	SetBlockCoinbase(recipient account.Recipient)
+	GetXshardTxCursorInfo() *types.XShardTxCursorInfo
 }
 
 // CallContext provides a basic interface for the EVM calling conventions. The EVM

@@ -20,7 +20,7 @@ type MinorBlockHeader struct {
 	Branch            account.Branch     `json:"branch"                     gencodec:"required"`
 	Number            uint64             `json:"number"                     gencodec:"required"`
 	Coinbase          account.Address    `json:"miner"                      gencodec:"required"`
-	CoinbaseAmount    *serialize.Uint256 `json:"coinbaseAmount"             gencodec:"required"`
+	CoinbaseAmount    *TokenBalanceMap   `json:"coinbaseAmount"             gencodec:"required"`
 	ParentHash        common.Hash        `json:"parentHash"                 gencodec:"required"`
 	PrevRootBlockHash common.Hash        `json:"prevRootBlockHash"          gencodec:"required"`
 	GasLimit          *serialize.Uint256 `json:"gasLimit"                   gencodec:"required"`
@@ -34,11 +34,13 @@ type MinorBlockHeader struct {
 }
 
 type MinorBlockMeta struct {
-	TxHash            common.Hash        `json:"transactionsRoot"           gencodec:"required"`
-	Root              common.Hash        `json:"stateRoot"                  gencodec:"required"`
-	ReceiptHash       common.Hash        `json:"receiptsRoot"               gencodec:"required"`
-	GasUsed           *serialize.Uint256 `json:"gasUsed"                    gencodec:"required"`
-	CrossShardGasUsed *serialize.Uint256 `json:"crossShardGasUsed"          gencodec:"required"`
+	TxHash             common.Hash        `json:"transactionsRoot"           gencodec:"required"`
+	Root               common.Hash        `json:"stateRoot"                  gencodec:"required"`
+	ReceiptHash        common.Hash        `json:"receiptsRoot"               gencodec:"required"`
+	GasUsed            *serialize.Uint256 `json:"gasUsed"                    gencodec:"required"`
+	CrossShardGasUsed  *serialize.Uint256 `json:"crossShardGasUsed"          gencodec:"required"`
+	XShardTxCursorInfo *XShardTxCursorInfo
+	XshardGasLimit     *serialize.Uint256
 }
 
 func (m *MinorBlockMeta) Hash() common.Hash {
@@ -68,9 +70,10 @@ func (h *MinorBlockHeader) Size() common.StorageSize {
 func (h *MinorBlockHeader) GetParentHash() common.Hash        { return h.ParentHash }
 func (h *MinorBlockHeader) GetPrevRootBlockHash() common.Hash { return h.PrevRootBlockHash }
 func (h *MinorBlockHeader) GetCoinbase() account.Address      { return h.Coinbase }
-func (h *MinorBlockHeader) GetCoinbaseAmount() *big.Int {
+
+/*func (h *MinorBlockHeader) GetCoinbaseAmount() *big.Int {
 	return h.CoinbaseAmount.Value
-}
+}*/
 func (h *MinorBlockHeader) GetTime() uint64         { return h.Time }
 func (h *MinorBlockHeader) GetDifficulty() *big.Int { return new(big.Int).Set(h.Difficulty) }
 func (h *MinorBlockHeader) GetNonce() uint64        { return h.Nonce }
@@ -221,8 +224,10 @@ func CopyMinorBlockHeader(h *MinorBlockHeader) *MinorBlockHeader {
 	if cpy.Difficulty = new(big.Int); h.Difficulty != nil {
 		cpy.Difficulty.Set(h.Difficulty)
 	}
-	if cpy.CoinbaseAmount = new(serialize.Uint256); h.CoinbaseAmount != nil && h.CoinbaseAmount.Value != nil {
-		cpy.CoinbaseAmount.Value = new(big.Int).Set(h.CoinbaseAmount.Value)
+	if cpy.CoinbaseAmount = NewTokenBalanceMap(); h.CoinbaseAmount != nil && h.CoinbaseAmount.BalanceMap != nil {
+		for k, v := range h.CoinbaseAmount.BalanceMap {
+			cpy.CoinbaseAmount.BalanceMap[k] = v
+		}
 	}
 	if cpy.GasLimit = new(serialize.Uint256); h.GasLimit != nil && h.GasLimit.Value != nil {
 		cpy.GasLimit.Value = new(big.Int).Set(h.GasLimit.Value)
@@ -288,11 +293,20 @@ func (b *MinorBlock) Transaction(hash common.Hash) *Transaction {
 func (b *MinorBlock) TrackingData() []byte { return b.trackingdata }
 
 //header properties
-func (b *MinorBlock) Version() uint32                { return b.header.Version }
-func (b *MinorBlock) Branch() account.Branch         { return b.header.Branch }
-func (b *MinorBlock) Number() uint64                 { return b.header.Number }
-func (b *MinorBlock) Coinbase() account.Address      { return b.header.Coinbase }
-func (b *MinorBlock) CoinbaseAmount() *big.Int       { return new(big.Int).Set(b.header.CoinbaseAmount.Value) }
+func (b *MinorBlock) Version() uint32           { return b.header.Version }
+func (b *MinorBlock) Branch() account.Branch    { return b.header.Branch }
+func (b *MinorBlock) Number() uint64            { return b.header.Number }
+func (b *MinorBlock) Coinbase() account.Address { return b.header.Coinbase }
+func (b *MinorBlock) CoinbaseAmount() *TokenBalanceMap {
+	if b.header.CoinbaseAmount != nil && b.header.CoinbaseAmount.BalanceMap != nil {
+		return &TokenBalanceMap{
+			BalanceMap: map[*big.Int]*big.Int(b.header.CoinbaseAmount.BalanceMap),
+		}
+	}
+	return &TokenBalanceMap{
+		BalanceMap: map[*big.Int]*big.Int{},
+	}
+}
 func (b *MinorBlock) ParentHash() common.Hash        { return b.header.ParentHash }
 func (b *MinorBlock) PrevRootBlockHash() common.Hash { return b.header.PrevRootBlockHash }
 func (b *MinorBlock) GasLimit() *big.Int             { return new(big.Int).Set(b.header.GasLimit.Value) }
@@ -405,7 +419,7 @@ func (b *MinorBlock) GetSize() common.StorageSize {
 	return b.Size()
 }
 
-func (m *MinorBlock) Finalize(receipts Receipts, rootHash common.Hash, gasUsed *big.Int, xShardReceiveGasUsed *big.Int, coinbaseAmount *big.Int) {
+func (m *MinorBlock) Finalize(receipts Receipts, rootHash common.Hash, gasUsed *big.Int, xShardReceiveGasUsed *big.Int, coinbaseAmount *TokenBalanceMap, xShardTxCursorInfo *XShardTxCursorInfo) {
 	if gasUsed == nil {
 		gasUsed = new(big.Int)
 	}
@@ -413,17 +427,18 @@ func (m *MinorBlock) Finalize(receipts Receipts, rootHash common.Hash, gasUsed *
 		xShardReceiveGasUsed = new(big.Int)
 	}
 
+	m.meta.XShardTxCursorInfo = xShardTxCursorInfo
 	m.meta.Root = rootHash
 	m.meta.GasUsed = &serialize.Uint256{Value: gasUsed}
 	m.meta.CrossShardGasUsed = &serialize.Uint256{Value: xShardReceiveGasUsed}
-	m.header.CoinbaseAmount = &serialize.Uint256{Value: new(big.Int).Set(coinbaseAmount)}
+	m.header.CoinbaseAmount = coinbaseAmount
 	m.meta.TxHash = CalculateMerkleRoot(m.Transactions())
 	m.meta.ReceiptHash = DeriveSha(receipts)
 	m.header.MetaHash = m.meta.Hash()
 	m.header.Bloom = CreateBloom(receipts)
 	m.hash.Store(m.header.Hash())
 }
-func (h *MinorBlock) CreateBlockToAppend(createTime *uint64, difficulty *big.Int, address *account.Address, nonce *uint64, gasLimit *big.Int, extraData []byte, coinbaseAmount *big.Int) *MinorBlock {
+func (h *MinorBlock) CreateBlockToAppend(createTime *uint64, difficulty *big.Int, address *account.Address, nonce *uint64, gasLimit *big.Int, extraData []byte, coinbaseAmount *TokenBalanceMap) *MinorBlock {
 	if createTime == nil {
 		preTime := h.Time() + 1
 		createTime = &preTime
@@ -452,14 +467,14 @@ func (h *MinorBlock) CreateBlockToAppend(createTime *uint64, difficulty *big.Int
 	}
 
 	if coinbaseAmount == nil {
-		coinbaseAmount = new(big.Int)
+		coinbaseAmount = NewTokenBalanceMap()
 	}
 	header := &MinorBlockHeader{
 		Version:           h.Version(),
 		Number:            h.Number() + 1,
 		Branch:            h.Branch(),
 		Coinbase:          *address,
-		CoinbaseAmount:    &serialize.Uint256{Value: coinbaseAmount},
+		CoinbaseAmount:    coinbaseAmount,
 		ParentHash:        h.Hash(),
 		PrevRootBlockHash: h.PrevRootBlockHash(),
 		GasLimit:          &serialize.Uint256{Value: gasLimit},
@@ -469,8 +484,9 @@ func (h *MinorBlock) CreateBlockToAppend(createTime *uint64, difficulty *big.Int
 		Extra:             extraData,
 	}
 	meta := MinorBlockMeta{
-		GasUsed:           &serialize.Uint256{Value: new(big.Int)},
-		CrossShardGasUsed: &serialize.Uint256{Value: new(big.Int)},
+		GasUsed:            &serialize.Uint256{Value: new(big.Int)},
+		CrossShardGasUsed:  &serialize.Uint256{Value: new(big.Int)},
+		XShardTxCursorInfo: h.meta.XShardTxCursorInfo,
 	}
 	return &MinorBlock{
 		header:       header,

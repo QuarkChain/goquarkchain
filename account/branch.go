@@ -50,9 +50,9 @@ func (Self *Branch) IsInBranch(fullShardKey uint32) bool {
 }
 
 // CreatBranch create branch depend shardSize and shardID
-func CreatBranch(shardSize uint32, shardID uint32) (Branch, error) {
+func CreatBranch(chainID uint32, shardSize uint32, shardID uint32) (Branch, error) {
 	if common.IsP2(shardSize) == false {
 		return Branch{}, errors.New("shardSize is not correct")
 	}
-	return NewBranch(shardSize | shardID), nil
+	return NewBranch(chainID<<16 | shardSize | shardID), nil
 }

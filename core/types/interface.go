@@ -14,7 +14,7 @@ type IHeader interface {
 	GetParentHash() common.Hash
 	GetCoinbase() account.Address
 	GetTime() uint64
-	GetCoinbaseAmount() *big.Int
+	//GetCoinbaseAmount() *big.Int
 	GetDifficulty() *big.Int
 	GetNonce() uint64
 	GetExtra() []byte
@@ -33,7 +33,7 @@ type IBlock interface {
 	Content() []IHashable
 	GetTrackingData() []byte
 	GetSize() common.StorageSize
-	CoinbaseAmount() *big.Int
+	CoinbaseAmount() *TokenBalanceMap
 }
 
 type IHashable interface {

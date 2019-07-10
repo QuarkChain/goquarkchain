@@ -155,7 +155,7 @@ func (s *SlaveBackend) GetTransactionCount(address *account.Address) (uint64, er
 	return 0, ErrMsg("GetTransactionCount")
 }
 
-func (s *SlaveBackend) GetBalances(address *account.Address) (*big.Int, error) {
+func (s *SlaveBackend) GetBalances(address *account.Address) (map[*big.Int]*big.Int, error) {
 	branch := s.getBranch(address)
 	if shard, ok := s.shards[branch.Value]; ok {
 		return shard.MinorBlockChain.GetBalance(address.Recipient, nil)
