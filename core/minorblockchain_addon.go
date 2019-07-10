@@ -315,7 +315,7 @@ func (m *MinorBlockChain) getCoinbaseAddressUntilBlock(headerHash common.Hash, l
 
 func (m *MinorBlockChain) putTotalTxCount(mBlock *types.MinorBlock) error {
 	prevCount := uint32(0)
-	if mBlock.Header().Number > 2 {
+	if mBlock.Header().Number > 1 {
 		dbPreCount := m.getTotalTxCount(mBlock.Header().ParentHash)
 		if dbPreCount == nil {
 			return errors.New("get totalTx failed")

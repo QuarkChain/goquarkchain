@@ -21,3 +21,9 @@ func (t *TokenBalanceMap) Add(other map[*big.Int]*big.Int) {
 		t.BalanceMap[k] = prevAmount
 	}
 }
+
+type XShardTxCursorInfo struct {
+	RootBlockHeight    uint64
+	MinorBlockIndex    uint64
+	XShardDepositIndex uint64
+}

@@ -804,3 +804,7 @@ func (s *StateDB) GetBlockCoinbase() qkcaccount.Recipient {
 func (s *StateDB) SetBlockCoinbase(data qkcaccount.Recipient) {
 	s.blockCoinbase = data
 }
+
+func (s *StateDB) GetXshardTxCursorInfo() *types.XShardTxCursorInfo {
+	panic("not implement")
+}
