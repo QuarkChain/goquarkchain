@@ -18,16 +18,16 @@ import (
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/internal/qkcapi"
 	"github.com/QuarkChain/goquarkchain/p2p"
-	"github.com/ethereum/go-ethereum/common/hexutil"
+	//	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
 	ethRPC "github.com/ethereum/go-ethereum/rpc"
-	"github.com/shirou/gopsutil/cpu"
+	//"github.com/shirou/gopsutil/cpu"
 	"golang.org/x/sync/errgroup"
-	"gopkg.in/karalabe/cookiejar.v1/collections/deque"
+	//	"gopkg.in/karalabe/cookiejar.v1/collections/deque"
 	"math/big"
-	"net"
+	//	"net"
 	"os"
 	"reflect"
 	"sort"
@@ -71,8 +71,8 @@ type QKCMasterBackend struct {
 	rootBlockChain     *core.RootBlockChain
 	protocolManager    *ProtocolManager
 	synchronizer       Synchronizer.Synchronizer
-	txCountHistory     *deque.Deque
-	logInfo            string
+	//txCountHistory     *deque.Deque
+	logInfo string
 }
 
 // New new master with config
@@ -91,9 +91,9 @@ func New(ctx *service.ServiceContext, cfg *config.ClusterConfig) (*QKCMasterBack
 				TargetRootBlockTime:  cfg.Quarkchain.Root.ConsensusConfig.TargetBlockTime,
 				TargetMinorBlockTime: cfg.Quarkchain.GetShardConfigByFullShardID(cfg.Quarkchain.GetGenesisShardIds()[0]).ConsensusConfig.TargetBlockTime,
 			},
-			logInfo:        "masterServer",
-			shutdown:       ctx.Shutdown,
-			txCountHistory: deque.New(),
+			logInfo:  "masterServer",
+			shutdown: ctx.Shutdown,
+			//txCountHistory: deque.New(),
 		}
 		err error
 	)
@@ -580,25 +580,25 @@ func (s *QKCMasterBackend) GetLastMinorBlockByFullShardID(fullShardId uint32) (u
 func (s *QKCMasterBackend) UpdateTxCountHistory(txCount, xShardTxCount uint32, createTime uint64) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
-	minute := createTime / 60 * 60
-	if s.txCountHistory.Size() == 0 || s.txCountHistory.Right().(TxForQueue).Time < minute {
-		s.txCountHistory.PushRight(TxForQueue{
-			Time:          minute,
-			TxCount:       txCount,
-			XShardTxCount: xShardTxCount,
-		})
-	} else {
-		old := s.txCountHistory.PopRight().(TxForQueue)
-		s.txCountHistory.PushRight(TxForQueue{
-			Time:          old.Time,
-			TxCount:       old.TxCount + txCount,
-			XShardTxCount: old.XShardTxCount + xShardTxCount,
-		})
-	}
+	/*	minute := createTime / 60 * 60
+		if s.txCountHistory.Size() == 0 || s.txCountHistory.Right().(TxForQueue).Time < minute {
+				s.txCountHistory.PushRight(TxForQueue{
+					Time:          minute,
+					TxCount:       txCount,
+					XShardTxCount: xShardTxCount,
+				})
+			} else {
+				old := s.txCountHistory.PopRight().(TxForQueue)
+				s.txCountHistory.PushRight(TxForQueue{
+					Time:          old.Time,
+					TxCount:       old.TxCount + txCount,
+					XShardTxCount: old.XShardTxCount + xShardTxCount,
+				})
+			}
 
-	for s.txCountHistory.Size() > 0 && s.txCountHistory.Right().(TxForQueue).Time < uint64(time.Now().Unix()-3600*12) {
-		s.txCountHistory.PopLeft()
-	}
+			for s.txCountHistory.Size() > 0 && s.txCountHistory.Right().(TxForQueue).Time < uint64(time.Now().Unix()-3600*12) {
+				s.txCountHistory.PopLeft()
+			}*/
 
 }
 
@@ -608,7 +608,7 @@ func (s *QKCMasterBackend) GetBlockCount() (map[uint32]map[account.Recipient]uin
 }
 
 func (s *QKCMasterBackend) GetStats() (map[string]interface{}, error) {
-	s.lock.RLock()
+	/*s.lock.RLock()
 	defer s.lock.RUnlock()
 	branchToShardStats := s.branchToShardStats
 	shards := make([]map[string]interface{}, 0)
@@ -701,7 +701,8 @@ func (s *QKCMasterBackend) GetStats() (map[string]interface{}, error) {
 		"root_block_interval":  s.artificialTxConfig.TargetRootBlockTime,
 		"cpus":                 cc,
 		"txCountHistory":       txCountHistory,
-	}, nil
+	}, nil*/
+	return nil, nil
 }
 
 func (s *QKCMasterBackend) IsSyncing() bool {

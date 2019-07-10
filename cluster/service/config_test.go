@@ -10,7 +10,7 @@ import (
 	"testing"
 
 	"github.com/QuarkChain/goquarkchain/p2p"
-	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/QuarkChain/goquarkchain/crypto"
 )
 
 // Tests that datadirs can be successfully created, be them manually configured

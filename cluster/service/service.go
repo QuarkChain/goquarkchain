@@ -3,7 +3,6 @@ package service
 
 import (
 	"github.com/QuarkChain/goquarkchain/p2p"
-	"github.com/QuarkChain/goquarkchain/qkcdb"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/rpc"
@@ -27,13 +26,14 @@ type ServiceContext struct {
 // if no previous can be found) from within the node's data directory. If the
 // node is an ephemeral one, a memory database is returned.
 func (ctx *ServiceContext) OpenDatabase(name string, clean bool) (ethdb.Database, error) {
-	if ctx.config.DataDir == "" {
+	/*if ctx.config.DataDir == "" {
 		return ethdb.NewMemDatabase(), nil
 	}
 	db, err := qkcdb.NewRDBDatabase(ctx.config.ResolvePath(name), clean)
 	if err != nil {
 		return nil, err
-	}
+	}*/
+	db := ethdb.NewMemDatabase()
 	return db, nil
 }
 

@@ -21,7 +21,7 @@ import (
 	"math/rand"
 	"testing"
 
-	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/QuarkChain/goquarkchain/crypto"
 )
 
 // Tests that transactions can be added to strict lists and list contents and

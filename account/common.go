@@ -5,7 +5,7 @@ import (
 	"crypto/cipher"
 	"crypto/ecdsa"
 	"encoding/binary"
-	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/QuarkChain/goquarkchain/crypto"
 	"io/ioutil"
 	"os"
 	"path/filepath"

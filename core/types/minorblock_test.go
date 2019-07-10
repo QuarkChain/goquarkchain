@@ -2,7 +2,7 @@ package types
 
 import (
 	"github.com/QuarkChain/goquarkchain/serialize"
-	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/QuarkChain/goquarkchain/crypto"
 	"math/big"
 	"reflect"
 	"testing"

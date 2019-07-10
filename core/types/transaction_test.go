@@ -4,11 +4,11 @@ import (
 	"bytes"
 	"crypto/ecdsa"
 	"github.com/QuarkChain/goquarkchain/account"
+	"github.com/QuarkChain/goquarkchain/crypto"
 	"math/big"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/rlp"
 )
 
@@ -132,7 +132,7 @@ func TestRecipientNormal(t *testing.T) {
 // Tests that transactions can be correctly sorted according to their price in
 // decreasing order, but at the same time with increasing nonces when issued by
 // the same account.
-func TestTransactionPriceNonceSort(t *testing.T) {
+/*func TestTransactionPriceNonceSort(t *testing.T) {
 	// Generate a batch of accounts to start with
 	keys := make([]*ecdsa.PrivateKey, 25)
 	for i := 0; i < len(keys); i++ {
@@ -184,4 +184,4 @@ func TestTransactionPriceNonceSort(t *testing.T) {
 			}
 		}
 	}
-}
+}*/

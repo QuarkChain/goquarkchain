@@ -7,8 +7,8 @@ import (
 	"github.com/QuarkChain/goquarkchain/cmd/utils"
 	"github.com/QuarkChain/goquarkchain/core"
 	"github.com/QuarkChain/goquarkchain/core/rawdb"
-	"github.com/QuarkChain/goquarkchain/qkcdb"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/ethdb"
 	"gopkg.in/urfave/cli.v1"
 	"path/filepath"
 )
@@ -57,11 +57,11 @@ func initGenesis(ctx *cli.Context) error {
 	}
 	path = filepath.Join(path, isMstr, cfg.DbPathRoot)
 
-	db, err := qkcdb.NewRDBDatabase(path, false)
+	/*db, err := qkcdb.NewRDBDatabase(path, false)
 	if err != nil {
 		return err
-	}
-
+	}*/
+	db := ethdb.NewMemDatabase()
 	genesis := core.NewGenesis(cfg.Quarkchain)
 
 	stored := rawdb.ReadCanonicalHash(db, rawdb.ChainType(chainType), 0)

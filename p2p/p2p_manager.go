@@ -2,11 +2,10 @@ package p2p
 
 import (
 	"crypto/ecdsa"
-	"crypto/rand"
 	"encoding/hex"
 	"fmt"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
-	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/QuarkChain/goquarkchain/crypto"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"math/big"
@@ -112,8 +111,7 @@ func getNodesFromConfig(configNodes string) ([]*enode.Node, error) {
 
 func GetPrivateKeyFromConfig(configKey string) (*ecdsa.PrivateKey, error) {
 	if configKey == "" {
-		sk, err := ecdsa.GenerateKey(crypto.S256(), rand.Reader)
-		return sk, err
+		return crypto.GenerateKey()
 	}
 	configKeyValue, err := hex.DecodeString(configKey)
 	if err != nil {
@@ -123,11 +121,7 @@ func GetPrivateKeyFromConfig(configKey string) (*ecdsa.PrivateKey, error) {
 	if err != nil {
 		return nil, err
 	}
-	sk := new(ecdsa.PrivateKey)
-	sk.PublicKey.Curve = crypto.S256()
-	sk.D = keyValue
-	sk.PublicKey.X, sk.PublicKey.Y = crypto.S256().ScalarBaseMult(keyValue.Bytes())
-	return sk, nil
+	return crypto.ToECDSA(keyValue.Bytes())
 }
 
 // Stop stop p2p manager
