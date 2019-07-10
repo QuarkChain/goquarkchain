@@ -798,7 +798,7 @@ func (m *MinorBlockChain) CreateBlockToMine(createTime *uint64, address *account
 		return nil, err
 	}
 	prevBlock := m.CurrentBlock()
-	gasLimit, err = m.getGasLimitAll(gasLimit)
+	gasLimit = m.getGasLimitAll(gasLimit)
 
 	if address == nil {
 		t := account.CreatEmptyAddress(0)
