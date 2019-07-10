@@ -27,6 +27,22 @@ func DataEncoder(bytes []byte) hexutil.Bytes {
 	return hexutil.Bytes(bytes)
 }
 
+func balancesEncoder(balances *types.TokenBalanceMap) []map[string]interface{} {
+	balanceList := make([]map[string]interface{}, 0)
+	for k, v := range balances.BalanceMap {
+		tokenStr, err := common.TokenIdDecode(k)
+		if err != nil {
+			panic(err) //TODO ??
+		}
+		balanceList = append(balanceList, map[string]interface{}{
+			"tokenId":  (*hexutil.Big)(k),
+			"tokenStr": tokenStr,
+			"balance":  (*hexutil.Big)(v),
+		})
+	}
+	return balanceList
+}
+
 func rootBlockEncoder(rootBlock *types.RootBlock) (map[string]interface{}, error) {
 	serData, err := serialize.SerializeToBytes(rootBlock)
 	if err != nil {
@@ -48,7 +64,7 @@ func rootBlockEncoder(rootBlock *types.RootBlock) (map[string]interface{}, error
 		"nonce":          hexutil.Uint64(header.Nonce),
 		"hashMerkleRoot": header.MinorHeaderHash,
 		"miner":          DataEncoder(minerData),
-		"coinbase":       (*hexutil.Big)(header.CoinbaseAmount.Value),
+		"coinbase":       balancesEncoder(header.CoinbaseAmount),
 		"difficulty":     (*hexutil.Big)(header.Difficulty),
 		"timestamp":      hexutil.Uint64(header.Time),
 		"size":           hexutil.Uint64(len(serData)),
@@ -73,7 +89,7 @@ func rootBlockEncoder(rootBlock *types.RootBlock) (map[string]interface{}, error
 			"nonce":              hexutil.Uint64(header.Nonce),
 			"difficulty":         (*hexutil.Big)(header.Difficulty),
 			"miner":              DataEncoder(minerData),
-			"coinbase":           (*hexutil.Big)(header.CoinbaseAmount.Value),
+			"coinbase":           balancesEncoder(header.CoinbaseAmount),
 			"timestamp":          hexutil.Uint64(header.Time),
 		}
 		minorHeaders = append(minorHeaders, h)
@@ -108,7 +124,7 @@ func minorBlockEncoder(block *types.MinorBlock, includeTransaction bool, cfg *co
 		"hashEvmStateRoot":   meta.Root,
 		"receiptHash":        meta.ReceiptHash,
 		"miner":              DataEncoder(minerData),
-		"coinbase":           (*hexutil.Big)(header.CoinbaseAmount.Value),
+		"coinbase":           (balancesEncoder)(header.CoinbaseAmount),
 		"difficulty":         (*hexutil.Big)(header.Difficulty),
 		"extraData":          hexutil.Bytes(header.Extra),
 		"gasLimit":           (*hexutil.Big)(header.GasLimit.Value),

@@ -76,12 +76,7 @@ func (m *MinorBlockChain) getCoinbaseAmount(height uint64) *types.TokenBalanceMa
 	coinbaseAmount = new(big.Int).Div(coinbaseAmount, decayDenominator)
 
 	data := make(map[*big.Int]*big.Int)
-	tokenID, err := qkcCommon.TokenIDEncode(m.clusterConfig.Quarkchain.GenesisToken)
-	if err != nil {
-		return &types.TokenBalanceMap{
-			BalanceMap: data,
-		}
-	}
+	tokenID := qkcCommon.TokenIDEncode(m.clusterConfig.Quarkchain.GenesisToken)
 	data[tokenID] = coinbaseAmount
 	return &types.TokenBalanceMap{
 		BalanceMap: data,
@@ -534,7 +529,7 @@ func (m *MinorBlockChain) getCrossShardTxListByRootBlockHash(hash common.Hash) (
 			TxHash:   common.Hash{},
 			From:     account.CreatEmptyAddress(0),
 			To:       rBlock.Header().Coinbase,
-			Value:    rBlock.Header().CoinbaseAmount,
+			Value:    rBlock.Header().CoinbaseAmount.BalanceMap,
 			GasPrice: &serialize.Uint256{Value: new(big.Int).SetUint64(0)},
 		})
 	}
@@ -705,15 +700,15 @@ func (m *MinorBlockChain) getMaxBlocksInOneRootBlock() uint64 {
 	return uint64(m.shardConfig.MaxBlocksPerShardInOneRootBlock())
 }
 
-// GetUnconfirmedHeadersCoinbaseAmount get unconfirmed Headers coinbase amount
-func (m *MinorBlockChain) GetUnconfirmedHeadersCoinbaseAmount() uint64 {
-	amount := uint64(0)
-	headers := m.GetUnconfirmedHeaderList() // have lock
-	for _, header := range headers {
-		amount += header.CoinbaseAmount.Value.Uint64()
-	}
-	return amount
-}
+//// GetUnconfirmedHeadersCoinbaseAmount get unconfirmed Headers coinbase amount
+//func (m *MinorBlockChain) GetUnconfirmedHeadersCoinbaseAmount() uint64 {
+//	amount := uint64(0)
+//	headers := m.GetUnconfirmedHeaderList() // have lock
+//	for _, header := range headers {
+//		amount += header.CoinbaseAmount.Value.Uint64()
+//	}
+//	return amount
+//}
 
 func (m *MinorBlockChain) getXShardTxLimits(rBlock *types.RootBlock) map[uint32]uint32 {
 	// no need to lock
@@ -866,9 +861,11 @@ func (m *MinorBlockChain) CreateBlockToMine(createTime *uint64, address *account
 	}
 
 	pureCoinbaseAmount := m.getCoinbaseAmount(block.Header().Number)
-	evmState.AddBalance(evmState.GetBlockCoinbase(), pureCoinbaseAmount)
-	coinbaseAmount := new(big.Int).Add(pureCoinbaseAmount, evmState.GetBlockFee())
-	newBlock.Finalize(recipiets, evmState.IntermediateRoot(true), evmState.GetGasUsed(), evmState.GetXShardReceiveGasUsed(), coinbaseAmount)
+	for k, v := range pureCoinbaseAmount.BalanceMap {
+		evmState.AddBalance(evmState.GetBlockCoinbase(), k, v)
+	}
+	pureCoinbaseAmount.Add(evmState.GetBlockFee())
+	newBlock.Finalize(recipiets, evmState.IntermediateRoot(true), evmState.GetGasUsed(), evmState.GetXShardReceiveGasUsed(), pureCoinbaseAmount)
 	return newBlock, nil
 }
 

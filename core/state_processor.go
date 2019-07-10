@@ -18,6 +18,7 @@ package core
 
 import (
 	"errors"
+	"fmt"
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/core/state"
@@ -136,9 +137,31 @@ func ValidateTransaction(state vm.StateDB, tx *types.Transaction, fromAddress *a
 		return ErrIntrinsicGas
 	}
 
-	if
+	allowTransferTokens := state.GetQuarkChainConfig().AllowedTransferTokenIDs()
+	allowGasTokens := state.GetQuarkChainConfig().AllowedGasTokenIDs()
+	if _, ok := allowTransferTokens[tx.EvmTx.TransferTokenID()]; ok == false {
+		return fmt.Errorf("token %v is not allowed transferToken list %v", tx.EvmTx.TransferTokenID(), allowTransferTokens)
+	}
 
+	if _, ok := allowGasTokens[tx.EvmTx.GasTokenID()]; ok == false {
+		return fmt.Errorf("token %v is not allowed gasToken list %v", tx.EvmTx.GasTokenID(), allowGasTokens)
+	}
 
+	if tx.EvmTx.TransferTokenID() == tx.EvmTx.GasTokenID() {
+		totalCost := new(big.Int).Mul(tx.EvmTx.GasPrice(), new(big.Int).SetUint64(tx.EvmTx.Gas()))
+		totalCost = new(big.Int).Add(totalCost, tx.EvmTx.Value())
+		if state.GetBalance(*from, tx.EvmTx.TransferTokenID()).Cmp(totalCost) < 0 {
+			return fmt.Errorf("money is low: token:%v balance %v,totalCost %v", tx.EvmTx.TransferTokenID(), state.GetBalance(*from, tx.EvmTx.TransferTokenID()), totalCost)
+		}
+	} else {
+		if state.GetBalance(*from, tx.EvmTx.TransferTokenID()).Cmp(tx.EvmTx.Value()) < 0 {
+			return fmt.Errorf("money is low: token:%v balance %v, value:%v", tx.EvmTx.TransferTokenID(), state.GetBalance(*from, tx.EvmTx.TransferTokenID()), tx.EvmTx.Value())
+		}
+		gasCost := new(big.Int).Mul(tx.EvmTx.GasPrice(), new(big.Int).SetUint64(tx.EvmTx.Gas()))
+		if state.GetBalance(*from, tx.EvmTx.GasTokenID()).Cmp(gasCost) < 0 {
+			return fmt.Errorf("money is low: token %v balance %v value %v", tx.EvmTx.GasTokenID(), state.GetBalance(*from, tx.EvmTx.GasTokenID()), gasCost)
+		}
+	}
 
 	blockLimit := new(big.Int).Add(state.GetGasUsed(), new(big.Int).SetUint64(tx.EvmTx.Gas()))
 	if blockLimit.Cmp(state.GetGasLimit()) > 0 {

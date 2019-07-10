@@ -545,11 +545,14 @@ func (t *TransactionsByPriceAndNonce) Pop() {
 }
 
 type CrossShardTransactionDeposit struct {
-	TxHash   common.Hash
-	From     account.Address
-	To       account.Address
-	Value    *serialize.Uint256
-	GasPrice *serialize.Uint256
+	TxHash          common.Hash
+	From            account.Address
+	To              account.Address
+	Value           *serialize.Uint256
+	GasPrice        *serialize.Uint256
+	GasTokenID      uint64
+	TransferTokenID uint64
+	isFromRootChain bool
 }
 
 type CrossShardTransactionDepositList struct {

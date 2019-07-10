@@ -331,7 +331,7 @@ func (q *QuarkChainConfig) GetDefaultChainToken() *big.Int {
 	return q.defaultChainToken
 }
 
-func (q *QuarkChainConfig) AllowedTokenIds() map[*big.Int]bool {
+func (q *QuarkChainConfig) allowedTokenIds() map[*big.Int]bool {
 	if q.allowTokenIDs == nil {
 		q.allowTokenIDs = make(map[*big.Int]bool, 0)
 		q.allowTokenIDs[common.TokenIDEncode(q.GenesisToken)] = true
@@ -344,4 +344,12 @@ func (q *QuarkChainConfig) AllowedTokenIds() map[*big.Int]bool {
 		}
 	}
 	return q.allowTokenIDs
+}
+
+func (q *QuarkChainConfig) AllowedTransferTokenIDs() map[*big.Int]bool {
+	return q.allowedTokenIds()
+}
+
+func (q *QuarkChainConfig) AllowedGasTokenIDs() map[*big.Int]bool {
+	return q.allowedTokenIds()
 }
