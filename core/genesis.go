@@ -251,6 +251,7 @@ func (g *Genesis) CommitMinorBlock(db ethdb.Database, rootBlock *types.RootBlock
 		return nil, fmt.Errorf("can't commit genesis block with number > 0")
 	}
 	rawdb.WriteTd(db, block.Hash(), block.Difficulty())
+	rawdb.WriteMinorBlock(db, block)
 	rawdb.WriteReceipts(db, block.Hash(), nil)
 	rawdb.WriteCanonicalHash(db, rawdb.ChainTypeMinor, block.Hash(), block.Number())
 	rawdb.WriteHeadBlockHash(db, block.Hash())
