@@ -27,11 +27,11 @@ type RootBlockHeader struct {
 	CoinbaseAmount  *TokenBalanceMap `json:"coinbaseAmount"   gencodec:"required"`
 	Time            uint64           `json:"timestamp"        gencodec:"required"`
 	Difficulty      *big.Int         `json:"difficulty"       gencodec:"required"`
-	ToTalDifficulty *big.Int           `json:"total_difficulty"       gencodec:"required"`
-	Nonce           uint64      `json:"nonce"`
-	Extra           []byte      `json:"extraData"        gencodec:"required"   bytesizeofslicelen:"2"`
-	MixDigest       common.Hash `json:"mixHash"`
-	Signature       [65]byte    `json:"signature"        gencodec:"required"`
+	ToTalDifficulty *big.Int         `json:"total_difficulty"       gencodec:"required"`
+	Nonce           uint64           `json:"nonce"`
+	Extra           []byte           `json:"extraData"        gencodec:"required"   bytesizeofslicelen:"2"`
+	MixDigest       common.Hash      `json:"mixHash"`
+	Signature       [65]byte         `json:"signature"        gencodec:"required"`
 }
 
 // Hash returns the block hash of the header, which is simply the keccak256 hash of its
@@ -68,10 +68,10 @@ func (h *RootBlockHeader) GetParentHash() common.Hash   { return h.ParentHash }
 func (h *RootBlockHeader) GetCoinbase() account.Address { return h.Coinbase }
 
 //func (h *RootBlockHeader) GetCoinbaseAmount() *big.Int  { return h.CoinbaseAmount.Value }
-func (h *RootBlockHeader) GetTime() uint64         { return h.Time }
-func (h *RootBlockHeader) GetDifficulty() *big.Int { return new(big.Int).Set(h.Difficulty) }
+func (h *RootBlockHeader) GetTime() uint64              { return h.Time }
+func (h *RootBlockHeader) GetDifficulty() *big.Int      { return new(big.Int).Set(h.Difficulty) }
 func (h *RootBlockHeader) GetTotalDifficulty() *big.Int { return new(big.Int).Set(h.ToTalDifficulty) }
-func (h *RootBlockHeader) GetNonce() uint64        { return h.Nonce }
+func (h *RootBlockHeader) GetNonce() uint64             { return h.Nonce }
 func (h *RootBlockHeader) GetExtra() []byte {
 	if h.Extra != nil {
 		return common.CopyBytes(h.Extra)
@@ -281,7 +281,7 @@ func (b *RootBlock) CoinbaseAmount() *TokenBalanceMap {
 			BalanceMap: map[*big.Int]*big.Int(b.header.CoinbaseAmount.BalanceMap),
 		}
 	}
-	return new(big.Int)
+	return NewTokenBalanceMap()
 }
 func (b *RootBlock) Time() uint64              { return b.header.Time }
 func (b *RootBlock) Difficulty() *big.Int      { return new(big.Int).Set(b.header.Difficulty) }

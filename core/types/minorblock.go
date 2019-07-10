@@ -420,7 +420,7 @@ func (b *MinorBlock) GetSize() common.StorageSize {
 	return b.Size()
 }
 
-func (m *MinorBlock) Finalize(receipts Receipts, rootHash common.Hash, gasUsed *big.Int, xShardReceiveGasUsed *big.Int, coinbaseAmount *big.Int) {
+func (m *MinorBlock) Finalize(receipts Receipts, rootHash common.Hash, gasUsed *big.Int, xShardReceiveGasUsed *big.Int, coinbaseAmount *TokenBalanceMap, xShardTxCursorInfo *XShardTxCursorInfo) {
 	if gasUsed == nil {
 		gasUsed = new(big.Int)
 	}
@@ -432,7 +432,7 @@ func (m *MinorBlock) Finalize(receipts Receipts, rootHash common.Hash, gasUsed *
 	m.meta.Root = rootHash
 	m.meta.GasUsed = &serialize.Uint256{Value: gasUsed}
 	m.meta.CrossShardGasUsed = &serialize.Uint256{Value: xShardReceiveGasUsed}
-	m.header.CoinbaseAmount = &serialize.Uint256{Value: new(big.Int).Set(coinbaseAmount)}
+	m.header.CoinbaseAmount = coinbaseAmount
 	m.meta.TxHash = CalculateMerkleRoot(m.Transactions())
 	m.meta.ReceiptHash = DeriveSha(receipts)
 	m.header.MetaHash = m.meta.Hash()
@@ -475,7 +475,7 @@ func (h *MinorBlock) CreateBlockToAppend(createTime *uint64, difficulty *big.Int
 		Number:            h.Number() + 1,
 		Branch:            h.Branch(),
 		Coinbase:          *address,
-		CoinbaseAmount:    &serialize.Uint256{Value: coinbaseAmount},
+		CoinbaseAmount:    coinbaseAmount,
 		ParentHash:        h.Hash(),
 		PrevRootBlockHash: h.PrevRootBlockHash(),
 		GasLimit:          &serialize.Uint256{Value: gasLimit},

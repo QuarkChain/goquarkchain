@@ -20,6 +20,5 @@ func serHash(val interface{}, excludeList map[string]bool) (h common.Hash) {
 	hw := sha3.NewKeccak256()
 	hw.Write(*bytes)
 	hw.Sum(h[:0])
-	CalculateMerkleRoot()
 	return h
 }
