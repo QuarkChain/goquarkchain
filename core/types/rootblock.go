@@ -23,15 +23,15 @@ type RootBlockHeader struct {
 	ParentHash      common.Hash `json:"parentHash"       gencodec:"required"`
 	MinorHeaderHash common.Hash `json:"transactionsRoot" gencodec:"required"`
 	Root            common.Hash
-	Coinbase        account.Address    `json:"miner"            gencodec:"required"`
-	CoinbaseAmount  *serialize.Uint256 `json:"coinbaseAmount"   gencodec:"required"`
-	Time            uint64             `json:"timestamp"        gencodec:"required"`
-	Difficulty      *big.Int           `json:"difficulty"       gencodec:"required"`
-	ToTalDifficulty *big.Int           `json:"total_difficulty"       gencodec:"required"`
-	Nonce           uint64             `json:"nonce"`
-	Extra           []byte             `json:"extraData"        gencodec:"required"   bytesizeofslicelen:"2"`
-	MixDigest       common.Hash        `json:"mixHash"`
-	Signature       [65]byte           `json:"signature"        gencodec:"required"`
+	Coinbase        account.Address  `json:"miner"            gencodec:"required"`
+	CoinbaseAmount  *TokenBalanceMap `json:"coinbaseAmount"   gencodec:"required"`
+	Time            uint64           `json:"timestamp"        gencodec:"required"`
+	Difficulty      *big.Int         `json:"difficulty"       gencodec:"required"`
+	ToTalDifficulty *big.Int         `json:"total_difficulty"       gencodec:"required"`
+	Nonce           uint64           `json:"nonce"`
+	Extra           []byte           `json:"extraData"        gencodec:"required"   bytesizeofslicelen:"2"`
+	MixDigest       common.Hash      `json:"mixHash"`
+	Signature       [65]byte         `json:"signature"        gencodec:"required"`
 }
 
 // Hash returns the block hash of the header, which is simply the keccak256 hash of its
