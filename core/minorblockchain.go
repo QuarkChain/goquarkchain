@@ -1187,6 +1187,7 @@ func (m *MinorBlockChain) insertChain(chain []types.IBlock, verifySeals bool) (i
 				return it.index, events, coalescedLogs, xShardList, err
 			}
 			state.SetSenderDisallowMap(senderDisallowMap)
+			m.currentEvmState = state
 		}
 		switch status {
 		case CanonStatTy:

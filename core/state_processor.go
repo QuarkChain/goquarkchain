@@ -78,6 +78,11 @@ func (p *StateProcessor) Process(block *types.MinorBlock, statedb *state.StateDB
 		return nil, nil, 0, err
 	}
 	xShardReceiveTxList = append(xShardReceiveTxList, txList...)
+	senderDisallowMap, err := p.bc.posw.BuildSenderDisallowMap(block.ParentHash(), nil)
+	if err != nil {
+		return nil, nil, 0, err
+	}
+	statedb.SetSenderDisallowMap(senderDisallowMap)
 	var (
 		receipts types.Receipts
 		usedGas  = new(uint64)

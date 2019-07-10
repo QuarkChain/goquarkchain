@@ -109,6 +109,7 @@ func createDefaultShardState(env *fakeEnv, shardID *uint32, diffCalc consensus.D
 	if poswOverride != nil && *poswOverride {
 		poswConfig := env.clusterConfig.Quarkchain.GetShardConfigByFullShardID(fullShardID).PoswConfig
 		poswConfig.Enabled = true
+		poswConfig.WindowSize = 3
 	}
 
 	genesisManager.MustCommitMinorBlock(env.db, rBlock, fullShardID)
