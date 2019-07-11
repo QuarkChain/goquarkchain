@@ -442,18 +442,6 @@ func (m *MinorBlockChain) AddTx(tx *types.Transaction) error {
 	return m.txPool.AddLocal(tx)
 }
 
-func (m *MinorBlockChain) getGasLimitAll(gasLimit *big.Int) *big.Int {
-	//TODO master should support xshardGasLimit
-	if gasLimit == nil {
-		data, err := m.clusterConfig.Quarkchain.GasLimit(m.branch.Value)
-		if err != nil {
-			panic(err)
-		}
-		return data
-	}
-	return gasLimit
-}
-
 func (m *MinorBlockChain) getCrossShardTxListByRootBlockHash(hash common.Hash) ([]*types.CrossShardTransactionDeposit, error) {
 	// no need to lock
 	rBlock := m.GetRootBlockByHash(hash)
@@ -787,7 +775,9 @@ func (m *MinorBlockChain) CreateBlockToMine(createTime *uint64, address *account
 		return nil, err
 	}
 	prevBlock := m.CurrentBlock()
-	gasLimit = m.getGasLimitAll(gasLimit)
+	if gasLimit == nil {
+		gasLimit = m.gasLimit
+	}
 
 	if address == nil {
 		t := account.CreatEmptyAddress(0)
