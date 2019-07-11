@@ -147,6 +147,13 @@ func (s *SlaveBackend) AddTx(tx *types.Transaction) (err error) {
 }
 
 func (s *SlaveBackend) ExecuteTx(tx *types.Transaction, address *account.Address, height *uint64) ([]byte, error) {
+	fromShardSize, err := s.clstrCfg.Quarkchain.GetShardSizeByChainId(tx.EvmTx.FromChainID())
+	if err != nil {
+		return nil, err
+	}
+	if err := tx.EvmTx.SetFromShardSize(fromShardSize); err != nil {
+		return nil, err
+	}
 	if shard, ok := s.shards[tx.EvmTx.FromFullShardId()]; ok {
 		return shard.MinorBlockChain.ExecuteTx(tx, address, height)
 	}
@@ -268,6 +275,13 @@ func (s *SlaveBackend) GetLogs(topics [][]common.Hash, address []account.Address
 }
 
 func (s *SlaveBackend) EstimateGas(tx *types.Transaction, address *account.Address) (uint32, error) {
+	fromShardSize, err := s.clstrCfg.Quarkchain.GetShardSizeByChainId(tx.EvmTx.FromChainID())
+	if err != nil {
+		return 0, err
+	}
+	if err := tx.EvmTx.SetFromShardSize(fromShardSize); err != nil {
+		return 0, err
+	}
 	branch := account.NewBranch(tx.EvmTx.FromFullShardId()).Value
 	if shard, ok := s.shards[branch]; ok {
 		return shard.MinorBlockChain.EstimateGas(tx, *address)

@@ -37,20 +37,6 @@ func (c *CallArgs) toTx(config *config.QuarkChainConfig) (*types.Transaction, er
 		EvmTx:  evmTx,
 		TxType: types.EvmTx,
 	}
-	toShardSize, err := config.GetShardSizeByChainId(tx.EvmTx.ToChainID())
-	if err != nil {
-		return nil, err
-	}
-	if err := tx.EvmTx.SetToShardSize(toShardSize); err != nil {
-		return nil, errors.New("SetToShardSize err")
-	}
-	fromShardSize, err := config.GetShardSizeByChainId(tx.EvmTx.FromChainID())
-	if err != nil {
-		return nil, err
-	}
-	if err := tx.EvmTx.SetFromShardSize(fromShardSize); err != nil {
-		return nil, errors.New("SetFromShardSize err")
-	}
 	return tx, nil
 }
 
