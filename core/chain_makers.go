@@ -70,6 +70,10 @@ func (b *RootBlockGen) SetDifficulty(value uint64) {
 	b.header.Difficulty = new(big.Int).SetUint64(value)
 }
 
+func (b *RootBlockGen) SetTotalDifficulty(value *big.Int) {
+	b.header.ToTalDifficulty = new(big.Int).Set(value)
+}
+
 // GenerateRootBlockChain creates a chain of n blocks. The first block's
 // parent will be the provided parent. db is used to store
 // intermediate states and should contain the parent's state trie.
@@ -96,7 +100,7 @@ func GenerateRootBlockChain(parent *types.RootBlock, engine consensus.Engine, n 
 		if gen != nil {
 			gen(i, b)
 		}
-
+		b.SetTotalDifficulty(new(big.Int).Add(parent.TotalDifficulty(), b.header.Difficulty))
 		return types.NewRootBlock(b.header, b.Headers, nil)
 	}
 	for i := 0; i < n; i++ {

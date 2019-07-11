@@ -80,9 +80,6 @@ func makeConfigNode(ctx *cli.Context) (*service.Node, qkcConfig) {
 	} else {
 		utils.SetClusterConfig(ctx, &cfg.Cluster)
 	}
-	if err := config.UpdateGenesisAlloc(&cfg.Cluster); err != nil {
-		utils.Fatalf("Update genesis alloc err: %v", err)
-	}
 	// Load default cluster config.
 	utils.SetNodeConfig(ctx, &cfg.Service, &cfg.Cluster)
 
@@ -93,11 +90,14 @@ func makeConfigNode(ctx *cli.Context) (*service.Node, qkcConfig) {
 			utils.Fatalf("service type is error: %v", err)
 		}
 		cfg.Service.Name = ServiceName
-		if slv.IP != config.GrpcHost {
+		if cfg.Service.SvrHost == config.GrpcHost {
 			cfg.Service.SvrHost = slv.IP
 		}
-		if slv.Port != config.GrpcPort {
+		if cfg.Service.SvrPort == config.GrpcPort {
 			cfg.Service.SvrPort = slv.Port
+		}
+		if err := config.UpdateGenesisAlloc(&cfg.Cluster); err != nil {
+			utils.Fatalf("Update genesis alloc err: %v", err)
 		}
 	} else {
 		cfg.Cluster.Quarkchain.Root.GRPCHost = cfg.Service.SvrHost
