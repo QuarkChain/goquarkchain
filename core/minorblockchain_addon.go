@@ -60,7 +60,10 @@ func (m *MinorBlockChain) putMinorBlock(mBlock *types.MinorBlock, xShardReceiveT
 		m.heightToMinorBlockHashes[mBlock.NumberU64()] = make(map[common.Hash]struct{})
 	}
 	m.heightToMinorBlockHashes[mBlock.NumberU64()][mBlock.Hash()] = struct{}{}
-	rawdb.WriteMinorBlock(m.db, mBlock)
+	if !m.HasBlock(mBlock.Hash()) {
+		rawdb.WriteMinorBlock(m.db, mBlock)
+	}
+
 	if err := m.putTotalTxCount(mBlock); err != nil {
 		return err
 	}
