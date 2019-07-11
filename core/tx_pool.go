@@ -783,12 +783,20 @@ func (pool *TxPool) addTxsLocked(txs []*types.Transaction, local bool) []error {
 	errs := make([]error, len(txs))
 
 	for i, tx := range txs {
-		fromShardSize := pool.quarkConfig.GetShardSizeByChainId(tx.EvmTx.FromChainID())
+		fromShardSize, err := pool.quarkConfig.GetShardSizeByChainId(tx.EvmTx.FromChainID())
+		if err != nil {
+			errs[i] = err
+			continue
+		}
 		if err := tx.EvmTx.SetFromShardSize(fromShardSize); err != nil {
 			errs[i] = err
 			continue
 		}
-		toShardSize := pool.quarkConfig.GetShardSizeByChainId(tx.EvmTx.ToChainID())
+		toShardSize, err := pool.quarkConfig.GetShardSizeByChainId(tx.EvmTx.ToChainID())
+		if err != nil {
+			errs[i] = err
+			continue
+		}
 		if err := tx.EvmTx.SetToShardSize(toShardSize); err != nil {
 			errs[i] = err
 			continue

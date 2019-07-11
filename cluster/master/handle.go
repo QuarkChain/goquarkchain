@@ -216,11 +216,10 @@ func (pm *ProtocolManager) handleMsg(peer *peer) error {
 		}
 		branchTxMap := make(map[uint32][]*types.Transaction)
 		for _, tx := range trans.TransactionList {
-			toShardSize := pm.clusterConfig.Quarkchain.GetShardSizeByChainId(tx.EvmTx.ToChainID())
-			if err := tx.EvmTx.SetToShardSize(toShardSize); err != nil {
+			fromShardSize, err := pm.clusterConfig.Quarkchain.GetShardSizeByChainId(tx.EvmTx.FromChainID())
+			if err != nil {
 				return err
 			}
-			fromShardSize := pm.clusterConfig.Quarkchain.GetShardSizeByChainId(tx.EvmTx.FromChainID())
 			if err := tx.EvmTx.SetFromShardSize(fromShardSize); err != nil {
 				return err
 			}

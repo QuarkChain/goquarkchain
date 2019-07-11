@@ -144,11 +144,17 @@ func (m *MinorBlockChain) validateTx(tx *types.Transaction, evmState *state.Stat
 		evmTx.SetGas(evmTxGas)
 	}
 
-	toShardSize := m.clusterConfig.Quarkchain.GetShardSizeByChainId(tx.EvmTx.ToChainID())
+	toShardSize, err := m.clusterConfig.Quarkchain.GetShardSizeByChainId(tx.EvmTx.ToChainID())
+	if err != nil {
+		return nil, err
+	}
 	if err := tx.EvmTx.SetToShardSize(toShardSize); err != nil {
 		return nil, err
 	}
-	fromShardSize := m.clusterConfig.Quarkchain.GetShardSizeByChainId(tx.EvmTx.FromChainID())
+	fromShardSize, err := m.clusterConfig.Quarkchain.GetShardSizeByChainId(tx.EvmTx.FromChainID())
+	if err != nil {
+		return nil, err
+	}
 	if err := tx.EvmTx.SetFromShardSize(fromShardSize); err != nil {
 		return nil, err
 	}
@@ -746,7 +752,10 @@ func (m *MinorBlockChain) checkTxBeforeApply(stateT *state.StateDB, tx *types.Tr
 	if tx.EvmTx.Gas() > diff.Uint64() {
 		return ErrorTxContinue
 	}
-	toShardSize := m.clusterConfig.Quarkchain.GetShardSizeByChainId(tx.EvmTx.ToChainID())
+	toShardSize, err := m.clusterConfig.Quarkchain.GetShardSizeByChainId(tx.EvmTx.ToChainID())
+	if err != nil {
+		return err
+	}
 	if err := tx.EvmTx.SetToShardSize(toShardSize); err != nil {
 		return ErrorTxContinue
 	}
@@ -787,7 +796,11 @@ func (m *MinorBlockChain) CreateBlockToMine(createTime *uint64, address *account
 		address = &t
 	}
 
-	if m.clusterConfig.Quarkchain.GetFullShardIdByFullShardKey(address.FullShardKey) != m.branch.Value {
+	fullShardID, err := m.clusterConfig.Quarkchain.GetFullShardIdByFullShardKey(address.FullShardKey)
+	if err != nil {
+		return nil, err
+	}
+	if fullShardID != m.branch.Value {
 		t := address.AddressInBranch(m.branch)
 		address = &t
 	}
@@ -1459,7 +1472,11 @@ func (m *MinorBlockChain) GetLogsByAddressAndTopic(start uint64, end uint64, add
 	if len(mapFullShardKey) != 1 {
 		return nil, errors.New("should have same full_shard_key for the given addresses")
 	}
-	if m.clusterConfig.Quarkchain.GetFullShardIdByFullShardKey(addresses[0].FullShardKey) != m.branch.Value {
+	fullShardID, err := m.clusterConfig.Quarkchain.GetFullShardIdByFullShardKey(addresses[0].FullShardKey)
+	if err != nil {
+		return nil, err
+	}
+	if fullShardID != m.branch.Value {
 		return nil, errors.New("not in this branch")
 	}
 	topicsValue := make([][]common.Hash, 0)

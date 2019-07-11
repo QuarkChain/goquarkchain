@@ -61,8 +61,12 @@ func (s *SlaveBackend) coverShardId(id uint32) bool {
 	return false
 }
 
-func (s *SlaveBackend) getBranch(address *account.Address) account.Branch {
-	return account.NewBranch(s.clstrCfg.Quarkchain.GetFullShardIdByFullShardKey(address.FullShardKey))
+func (s *SlaveBackend) getBranch(address *account.Address) (account.Branch, error) {
+	fullShardID, err := s.clstrCfg.Quarkchain.GetFullShardIdByFullShardKey(address.FullShardKey)
+	if err != nil {
+		return account.Branch{}, err
+	}
+	return account.NewBranch(fullShardID), nil
 }
 
 func (s *SlaveBackend) GetConfig() *config.SlaveConfig {
