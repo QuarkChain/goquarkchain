@@ -43,22 +43,7 @@ func (m *MinorBlockChain) getLastConfirmedMinorBlockHeaderAtRootBlock(hash commo
 	}
 	return m.GetHeader(rMinorHeaderHash).(*types.MinorBlockHeader)
 }
-func (m *MinorBlockChain) isSameMinorChain(long types.IHeader, short types.IHeader) bool {
-	// already locked by insertChain
-	if short.NumberU64() > long.NumberU64() {
-		return false
-	}
-	if short.NumberU64() == long.NumberU64() {
-		return long.Hash() == short.Hash()
-	}
 
-	header := long
-	diff := long.NumberU64() - short.NumberU64()
-	for index := uint64(0); index < diff-1; index++ {
-		header = m.GetHeaderByHash(header.GetParentHash())
-	}
-	return short.Hash() == header.GetParentHash()
-}
 func getLocalFeeRate(qkcConfig *config.QuarkChainConfig) *big.Rat {
 	ret := new(big.Rat).SetInt64(1)
 	return ret.Sub(ret, qkcConfig.RewardTaxRate)
@@ -252,7 +237,7 @@ func (m *MinorBlockChain) GetTransactionCount(recipient account.Recipient, heigh
 }
 
 func (m *MinorBlockChain) isSameRootChain(long types.IHeader, short types.IHeader) bool {
-	return isSameRootChain(m.db, long, short)
+	return isSameChain(m.db, long, short)
 }
 
 func (m *MinorBlockChain) isMinorBlockLinkedToRootTip(mBlock *types.MinorBlock) bool {
@@ -263,7 +248,7 @@ func (m *MinorBlockChain) isMinorBlockLinkedToRootTip(mBlock *types.MinorBlock) 
 	if mBlock.Header().Number <= confirmed.Number {
 		return false
 	}
-	return m.isSameMinorChain(mBlock.Header(), confirmed)
+	return isSameChain(m.db, mBlock.Header(), confirmed)
 }
 func (m *MinorBlockChain) isNeighbor(remoteBranch account.Branch, rootHeight *uint32) bool {
 	if rootHeight == nil {
@@ -302,7 +287,7 @@ func (m *MinorBlockChain) getCoinbaseAddressUntilBlock(headerHash common.Hash, l
 
 func (m *MinorBlockChain) putTotalTxCount(mBlock *types.MinorBlock) error {
 	prevCount := uint32(0)
-	if mBlock.Header().Number > 2 {
+	if mBlock.Header().Number > 1 {
 		dbPreCount := m.getTotalTxCount(mBlock.Header().ParentHash)
 		if dbPreCount == nil {
 			return errors.New("get totalTx failed")

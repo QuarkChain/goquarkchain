@@ -11,13 +11,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 )
 
-const (
-	// Number of root block headers to download from peers.
-	headerDownloadSize = 500
-	// Number root blocks to download from peers.
-	blockDownloadSize = 100
-)
-
 type rootSyncerPeer interface {
 	GetRootBlockHeaderList(hash common.Hash, amount uint32, reverse bool) ([]*types.RootBlockHeader, error)
 	GetRootBlockList(hashes []common.Hash) ([]*types.RootBlock, error)
@@ -73,6 +66,10 @@ func NewRootChainTask(
 				}
 				return false
 			},
+						getSizeLimit: func() (u uint64, u2 uint64) {
+				return RootBlockBatchSize, RootBlockHeaderListLimit
+			},
+
 		},
 		peer: p,
 	}

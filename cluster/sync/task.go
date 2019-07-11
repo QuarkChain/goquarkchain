@@ -13,6 +13,13 @@ import (
 	"github.com/QuarkChain/goquarkchain/core/types"
 )
 
+const (
+	RootBlockHeaderListLimit  = 500
+	RootBlockBatchSize        = 100
+	MinorBlockHeaderListLimit = 100 //TODO 100 50
+	MinorBlockBatchSize       = 50
+)
+
 // Task represents a synchronization task for the synchronizer.
 type Task interface {
 	Run(blockchain) error
@@ -28,6 +35,7 @@ type task struct {
 	getBlocks        func([]common.Hash) ([]types.IBlock, error)
 	syncBlock        func(types.IBlock, blockchain) error
 	needSkip         func(types.IHeader, blockchain) bool
+	getSizeLimit     func() (uint64, uint64)
 }
 
 // Run will execute the synchronization task.
@@ -48,6 +56,7 @@ func (t *task) Run(bc blockchain) error {
 	// Prepare for downloading.
 	chain := []common.Hash{t.header.Hash()}
 	lastHeader := t.header
+	downloadSz, blockDownloadSize := t.getSizeLimit() //TODO minor and root have different data
 	for !bc.HasBlock(lastHeader.GetParentHash()) {
 		height, hash := lastHeader.NumberU64(), lastHeader.Hash()
 		if tipHeight > height && tipHeight-height > uint64(t.maxSyncStaleness) {
@@ -57,8 +66,7 @@ func (t *task) Run(bc blockchain) error {
 
 		logger.Info("Downloading block header list", "height", height, "hash", hash)
 		// Order should be descending. Download size is min(500, h-tip) if h > tip.
-		downloadSz := uint32(headerDownloadSize) //TODO minor and root have different data
-		receivedHeaders, err := t.getHeaders(lastHeader.GetParentHash(), downloadSz)
+		receivedHeaders, err := t.getHeaders(lastHeader.GetParentHash(), uint32(downloadSz))
 		if err != nil {
 			return err
 		}
@@ -81,7 +89,7 @@ func (t *task) Run(bc blockchain) error {
 	i := len(chain)
 	for i > 0 {
 		// Exclusive.
-		start, end := i-blockDownloadSize, i
+		start, end := i-int(blockDownloadSize), i
 		if start < 0 {
 			start = 0
 		}
