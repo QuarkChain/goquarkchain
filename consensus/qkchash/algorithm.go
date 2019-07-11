@@ -61,9 +61,9 @@ func generateCache(cnt int, seed []byte, genNativeCache bool) qkcCache {
 }
 
 // qkcHashNative calls the native c++ implementation through SWIG.
-func qkcHashNative(hash, nonceBytes []byte, cache qkcCache) (digest []byte, result []byte, err error) {
+func qkcHashNative(seed []byte, cache qkcCache) (digest []byte, result []byte, err error) {
 	// Combine header+nonce into a seed
-	seed := crypto.Keccak512(append(hash, nonceBytes...))
+	seed = crypto.Keccak512(seed)
 	var seedArray [8]uint64
 	for i := 0; i < 8; i++ {
 		seedArray[i] = binary.LittleEndian.Uint64(seed[i*8:])
@@ -82,7 +82,7 @@ func qkcHashNative(hash, nonceBytes []byte, cache qkcCache) (digest []byte, resu
 }
 
 // qkcHashGo is the Go implementation.
-func qkcHashGo(hash, nonceBytes []byte, cache qkcCache) (digest []byte, result []byte, err error) {
+func qkcHashGo(seed []byte, cache qkcCache) (digest []byte, result []byte, err error) {
 	const mixBytes = 128
 	// Copy the cache since modification is needed
 	cacheLs := make([]uint64, len(cache.ls))
@@ -91,8 +91,6 @@ func qkcHashGo(hash, nonceBytes []byte, cache qkcCache) (digest []byte, result [
 	for k, v := range cache.set {
 		cacheSet[k] = v
 	}
-	// Combine header+nonce into a seed
-	seed := append(hash, nonceBytes...)
 	seed = crypto.Keccak512(seed)
 	seedHead := binary.LittleEndian.Uint64(seed)
 

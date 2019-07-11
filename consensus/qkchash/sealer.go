@@ -24,15 +24,20 @@ func (q *QKCHash) verifySeal(chain consensus.ChainReader, header types.IHeader, 
 	if diff == nil || diff.Cmp(big.NewInt(0)) == 0 {
 		diff = header.GetDifficulty()
 	}
-	miningRes, err := q.hashAlgo(0 /* TODO: not used */, header.SealHash().Bytes(), header.GetNonce())
+	minerRes := consensus.ShareCache{
+		Hash:  header.SealHash().Bytes(),
+		Seed:  make([]byte, 40),
+		Nonce: header.GetNonce(),
+	}
+	err := q.hashAlgo(&minerRes)
 	if err != nil {
 		return err
 	}
-	if !bytes.Equal(header.GetMixDigest().Bytes(), miningRes.Digest.Bytes()) {
+	if !bytes.Equal(header.GetMixDigest().Bytes(), minerRes.Digest) {
 		return consensus.ErrInvalidMixDigest
 	}
 	target := new(big.Int).Div(two256, diff)
-	if new(big.Int).SetBytes(miningRes.Result).Cmp(target) > 0 {
+	if new(big.Int).SetBytes(minerRes.Result).Cmp(target) > 0 {
 		return consensus.ErrInvalidPoW
 	}
 	return nil
