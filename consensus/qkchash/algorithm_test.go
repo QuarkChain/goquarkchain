@@ -27,14 +27,15 @@ func TestQKCHash(t *testing.T) {
 
 	// Failure case, mismatched native flag and hash algo
 	cache := generateCache(cacheEntryCnt, nil, false /* not native */)
-	_, _, err := qkcHashNative([]byte{}, []byte{}, cache) // Native
+	seed := make([]byte, 40)
+	_, _, err := qkcHashNative(seed, cache) // Native
 	assert.Error(err,
 		"should have error because native cache is not populated by wrong flag")
 
 	// Successful test cases
 	testcases := []struct {
 		useNative   bool
-		qkcHashAlgo func([]byte, []byte, qkcCache) ([]byte, []byte, error)
+		qkcHashAlgo func([]byte, qkcCache) ([]byte, []byte, error)
 	}{
 		{false, qkcHashGo},
 		{true, qkcHashNative},
@@ -42,25 +43,28 @@ func TestQKCHash(t *testing.T) {
 	for _, tc := range testcases {
 		cache = generateCache(cacheEntryCnt, nil, tc.useNative)
 
-		digest, result, err := tc.qkcHashAlgo([]byte{}, []byte{}, cache)
+		seed = make([]byte, 40)
+		digest, result, err := tc.qkcHashAlgo(seed, cache)
 		assert.NoError(err)
 		assert.Equal(
-			"be3913b35b8815a61146f4d8dcce89a2bd8a262698c7263a56abe14b8e29595c",
+			"22da7bf17b573e402c71211a9c96e5631dafcbeda1fc5b7812a2d6529408b207",
 			fmt.Sprintf("%x", digest),
 		)
 		assert.Equal(
-			"bee2c41fce7183e73823dbefa846439817af68d28891f58ce8331cca7a871504",
+			"776fb98b9328713a3d45f5e2e6a3e2238acc55749ad9b4c6d21bfbf8c940ab60",
 			fmt.Sprintf("%x", result),
 		)
 
-		digest, result, err = tc.qkcHashAlgo([]byte("Hello World!"), []byte{}, cache)
+		seed = make([]byte, 40)
+		copy(seed, []byte("Hello World!"))
+		digest, result, err = tc.qkcHashAlgo(seed, cache)
 		assert.NoError(err)
 		assert.Equal(
-			"53423968b44d02b1861e9a000d035d74bc0fa515e8f702261bcfcc3e5fb4bd3d",
+			"37e6b7575e9bcf572bb9f4f60baacb738a75d0f1692f3be6c526488d30fe198f",
 			fmt.Sprintf("%x", digest),
 		)
 		assert.Equal(
-			"992923af6a261ef3f0b7c82b57ab28c055e31021d0d6258f7dcfd9d6195e0c70",
+			"bf36c170967632ce8d55c6bb7f2dafbe1d1a5d94fa542a671362e17f803940ce",
 			fmt.Sprintf("%x", result),
 		)
 	}
@@ -94,7 +98,9 @@ func BenchmarkQKCHashGo(b *testing.B) {
 	var err error
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, _, err = qkcHashGo([]byte("HELLOW"), []byte{}, cache)
+		seed := make([]byte, 40)
+		copy(seed, []byte("HELLOW"))
+		_, _, err = qkcHashGo(seed, cache)
 	}
 	benchErr = err
 }
@@ -104,7 +110,9 @@ func BenchmarkQKCHashNative(b *testing.B) {
 	var err error
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, _, err = qkcHashNative([]byte("HELLOW"), []byte{}, cache)
+		seed := make([]byte, 40)
+		copy(seed, []byte("HELLOW"))
+		_, _, err = qkcHashNative(seed, cache)
 		// Note native cache is not destroyed
 	}
 	benchErr = err
