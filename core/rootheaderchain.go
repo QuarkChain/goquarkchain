@@ -346,7 +346,7 @@ func (hc *RootHeaderChain) GetAncestor(hash common.Hash, number, ancestor uint64
 }
 
 func (hc *RootHeaderChain) isSameChain(longerChainHeader, shorterChainHeader *types.RootBlockHeader) bool {
-	return sameRootChain(hc.chainDb, longerChainHeader, shorterChainHeader)
+	return isSameChain(hc.chainDb, longerChainHeader, shorterChainHeader)
 }
 
 // GetTd retrieves a block's total difficulty in the canonical chain from the
