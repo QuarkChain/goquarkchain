@@ -1,6 +1,9 @@
 package types
 
-import "math/big"
+import (
+	"github.com/QuarkChain/goquarkchain/common"
+	"math/big"
+)
 
 type TokenBalanceMap struct {
 	BalanceMap map[*big.Int]*big.Int
@@ -20,6 +23,10 @@ func (t *TokenBalanceMap) Add(other map[*big.Int]*big.Int) {
 		prevAmount = prevAmount.Add(prevAmount, v)
 		t.BalanceMap[k] = prevAmount
 	}
+}
+
+func (t *TokenBalanceMap)GetDefaultTokenBalance()*big.Int  {
+	return new(big.Int).Set(t.BalanceMap[common.TokenIDEncode("QKC")])
 }
 
 type XShardTxCursorInfo struct {

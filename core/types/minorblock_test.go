@@ -59,7 +59,7 @@ func TestMinorBlockHeaderSerializing(t *testing.T) {
 	check("Height", blockHeader.Number, uint64(2))
 	check("coinbase_Recipient", blockHeader.Coinbase.Recipient[:], common.FromHex("d3f86deb4a2bbf85048b3e790460c40dbab1f621"))
 	check("coinbase_FullShardKey", uint32(blockHeader.Coinbase.FullShardKey), uint32(0xd32b3e0d))
-	check("CoinbaseAmount", blockHeader.CoinbaseAmount.Value, big.NewInt(3))
+	check("CoinbaseAmount", blockHeader.CoinbaseAmount.GetDefaultTokenBalance(), big.NewInt(3))
 	check("ParentHash", blockHeader.ParentHash, common.HexToHash("0000000000000000000000000000000000000000000000000000000000000001"))
 	check("PrevRootBlockHash", blockHeader.PrevRootBlockHash, common.HexToHash("0000000000000000000000000000000000000000000000000000000000000002"))
 	check("GasLimit", blockHeader.GasLimit.Value.Uint64(), uint64(4))

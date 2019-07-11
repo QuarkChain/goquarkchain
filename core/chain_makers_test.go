@@ -93,7 +93,10 @@ func ExampleGenerateMinorBlockChain() {
 	for _, v := range ids {
 		addr := addr1.AddressInShard(v)
 		shardConfig := fakeClusterConfig.Quarkchain.GetShardConfigByFullShardID(v)
-		shardConfig.Genesis.Alloc[addr] = big.NewInt(1000000)
+		temp:=map[string]*big.Int{
+			"QKC":big.NewInt(1000000),
+		}
+		shardConfig.Genesis.Alloc[addr] =temp
 	}
 	fakeClusterConfig.Quarkchain.SkipMinorDifficultyCheck = true
 	// Ensure that key1 has some funds in the genesis block.

@@ -36,7 +36,7 @@ func TestRootBlockEncoding(t *testing.T) {
 	check("MinorHeaderHash", common.Bytes2Hex(blockHeader.MinorHeaderHash.Bytes()), "297d6ae9803346cdb059a671dea7e37b684dcabfa767f2d872026ad0a3aba495")
 	check("coinbase_Recipient", common.Bytes2Hex(blockHeader.Coinbase.Recipient[:]), "d3f86deb4a2bbf85048b3e790460c40dbab1f621")
 	check("coinbase_FullShardKey", uint32(blockHeader.Coinbase.FullShardKey), uint32(1023))
-	check("CoinbaseAmount", blockHeader.CoinbaseAmount.Value, big.NewInt(1000))
+	check("CoinbaseAmount", blockHeader.CoinbaseAmount.GetDefaultTokenBalance(), big.NewInt(1000))
 	check("Time", blockHeader.Time, uint64(10000000))
 	check("Difficulty", blockHeader.Difficulty, big.NewInt(10000))
 	check("TotalDifficulty", blockHeader.ToTalDifficulty, big.NewInt(10000))

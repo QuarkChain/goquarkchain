@@ -72,7 +72,7 @@ func (g *Genesis) CreateMinorBlock(rootBlock *types.RootBlock, fullShardId uint3
 		recipient := new(common.Address)
 		recipient.SetBytes(addr.Recipient.Bytes())
 		statedb.SetFullShardKey(addr.FullShardKey)
-		statedb.AddBalance(*recipient, balance)
+		statedb.AddBalance(*recipient, balance["QKC"])//TODO-master
 	}
 
 	meta := types.MinorBlockMeta{
@@ -83,8 +83,8 @@ func (g *Genesis) CreateMinorBlock(rootBlock *types.RootBlock, fullShardId uint3
 		CrossShardGasUsed: &serialize.Uint256{Value: new(big.Int)},
 	}
 
-	coinbaseAmount := new(serialize.Uint256)
-	coinbaseAmount.Value = qkcCommon.BigIntMulBigRat(shardConfig.CoinbaseAmount, g.qkcConfig.RewardTaxRate)
+	coinbaseAmountTokens:=types.NewTokenBalanceMap()
+	coinbaseAmountTokens.BalanceMap[qkcCommon.TokenIDEncode(g.qkcConfig.GenesisToken)]=qkcCommon.BigIntMulBigRat(shardConfig.CoinbaseAmount, g.qkcConfig.RewardTaxRate)
 
 	gasLimit := new(serialize.Uint256)
 	gasLimit.Value = new(big.Int).SetUint64(genesis.GasLimit)
@@ -102,7 +102,7 @@ func (g *Genesis) CreateMinorBlock(rootBlock *types.RootBlock, fullShardId uint3
 		GasLimit:          gasLimit,
 		MetaHash:          meta.Hash(),
 		Coinbase:          coinbase,
-		CoinbaseAmount:    coinbaseAmount,
+		CoinbaseAmount:    coinbaseAmountTokens,
 		Time:              genesis.Timestamp,
 		Difficulty:        new(big.Int).SetUint64(genesis.Difficulty),
 		Extra:             extra,

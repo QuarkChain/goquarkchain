@@ -280,7 +280,7 @@ func (v *MinorBlockValidator) ValidateState(mBlock, parent types.IBlock, statedb
 		return ErrGasUsed
 	}
 	coinbaseAmount := new(big.Int).Add(v.bc.getCoinbaseAmount(), statedb.GetBlockFee())
-	if coinbaseAmount.Cmp(block.CoinbaseAmount()) != 0 {
+	if coinbaseAmount.Cmp(block.CoinbaseAmount().BalanceMap[common.TokenIDEncode("QKC")]) != 0 {
 		return ErrCoinbaseAmount
 	}
 
