@@ -76,10 +76,10 @@ func (p *PoSW) BuildSenderDisallowMap(headerHash common.Hash, coinbase *account.
 		recipientCountMap[*coinbase]++
 	}
 	disallowMap := make(map[account.Recipient]*big.Int)
-	fmt.Println("disallowMap:")
+	// fmt.Println("disallowMap:")
 	for k, v := range recipientCountMap {
 		disallowMap[k] = new(big.Int).Mul(big.NewInt(int64(v)), p.config.TotalStakePerBlock)
-		fmt.Printf("[%x: %d]\n", k, disallowMap[k])
+		// fmt.Printf("[%x: %d]\n", k, disallowMap[k])
 	}
 	return disallowMap, nil
 }
