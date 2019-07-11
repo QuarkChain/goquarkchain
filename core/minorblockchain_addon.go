@@ -445,7 +445,11 @@ func (m *MinorBlockChain) AddTx(tx *types.Transaction) error {
 func (m *MinorBlockChain) getGasLimitAll(gasLimit *big.Int) *big.Int {
 	//TODO master should support xshardGasLimit
 	if gasLimit == nil {
-		return m.clusterConfig.Quarkchain.GasLimit(m.branch.Value)
+		data, err := m.clusterConfig.Quarkchain.GasLimit(m.branch.Value)
+		if err != nil {
+			panic(err)
+		}
+		return data
 	}
 	return gasLimit
 }
