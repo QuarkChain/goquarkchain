@@ -61,6 +61,10 @@ func checkPublicToRecipient(key Key, recipient Recipient) error {
 //2.go.exe to check
 //   2.1 checkRecipent
 func TestIdentity(t *testing.T) {
+	if crypto.CryptoType == "gm" {
+		fmt.Println("ignore TestIdentity as it is gm")
+		return
+	}
 	JSONParse := NewJSONStruct()
 	v := []IdentityTestStruct{}
 	err := JSONParse.Load("./testdata/testIdentity.json", &v) //analysis test data

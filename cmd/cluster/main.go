@@ -7,6 +7,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/cluster/service"
 	"github.com/QuarkChain/goquarkchain/cluster/slave"
 	"github.com/QuarkChain/goquarkchain/cmd/utils"
+	"github.com/QuarkChain/goquarkchain/crypto"
 	"github.com/QuarkChain/goquarkchain/internal/debug"
 	"github.com/elastic/gosigar"
 	"github.com/ethereum/go-ethereum/log"
@@ -120,6 +121,7 @@ func cluster(ctx *cli.Context) error {
 	if args := ctx.Args(); len(args) > 0 {
 		return fmt.Errorf("invalid command: %q", args[0])
 	}
+	fmt.Println("crypto.CryptoType=: ", crypto.CryptoType)
 	node := makeFullNode(ctx)
 	startService(ctx, node)
 	node.Wait()

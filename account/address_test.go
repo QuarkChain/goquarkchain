@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"github.com/QuarkChain/goquarkchain/crypto"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
@@ -100,6 +101,10 @@ func CheckAddressUnitTest(data AddressTestStruct) bool {
 //   2.4 checkAddressInBranch
 //   2.5 checkShardIDInBranch
 func TestAddress(t *testing.T) {
+	if crypto.CryptoType == "gm" {
+		fmt.Println("ignore TestAddress as it is gm")
+		return
+	}
 	JSONParse := NewJSONStruct()
 	data := []AddressTestStruct{}
 	err := JSONParse.Load("./testdata/testAddress.json", &data) //analysis test data

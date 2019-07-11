@@ -68,8 +68,9 @@ func GenerateKey() (*ecdsa.PrivateKey, error) {
 // ValidateSignatureValues verifies whether the signature values are valid with
 // the given chain rules. The v value is assumed to be either 0 or 1.
 func ValidateSignatureValues(v byte, r, s *big.Int, homestead bool) bool {
-	return crypto.ValidateSignatureValues(v, r, s, true)
+	return crypto.ValidateSignatureValues(v, r, s, homestead)
 }
+
 func PubkeyToAddress(p ecdsa.PublicKey) common.Address {
 	return crypto.PubkeyToAddress(p)
 }

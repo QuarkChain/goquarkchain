@@ -9,11 +9,11 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"github.com/QuarkChain/gos/crypto/sm2"
-	"github.com/QuarkChain/gos/crypto/sm3"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/goscn/gos/crypto/sm2"
+	"github.com/goscn/gos/crypto/sm3"
 	"io"
 	"io/ioutil"
 	"math/big"
@@ -35,6 +35,7 @@ func Keccak256Hash(data ...[]byte) (h common.Hash) {
 
 // SM3 calculates and returns the SM3 hash of the input data.
 func SM3(data ...[]byte) []byte {
+	fmt.Println("----------------------CryptoType:gm; Fun: SM3----------------------")
 	s := sm3.NewSM3Hash()
 	for _, b := range data {
 		s.Write(b)
@@ -45,6 +46,7 @@ func SM3(data ...[]byte) []byte {
 // SM3Hash calculates and returns the SM3 hash of the input data,
 // converting it to an internal Hash data structure.
 func SM3Hash(data ...[]byte) (h common.Hash) {
+	fmt.Println("----------------------CryptoType:gm; Fun: SM3Hash------------------")
 	s := sm3.NewSM3Hash()
 	for _, b := range data {
 		s.Write(b)
@@ -61,6 +63,7 @@ func CreateAddress2(b common.Address, salt [32]byte, inithash []byte) common.Add
 
 // ToECDSA creates a private key with the given D value.
 func ToECDSA(d []byte) (*ecdsa.PrivateKey, error) {
+	fmt.Println("----------------------CryptoType:gm; Fun: ToECDSA------------------")
 	priv := new(ecdsa.PrivateKey)
 	priv.Curve = sm2.Sm2Curve()
 	if 8*len(d) != priv.Curve.Params().BitSize {
@@ -87,6 +90,7 @@ func ToECDSA(d []byte) (*ecdsa.PrivateKey, error) {
 
 // FromECDSA exports a private key into a binary dump.
 func FromECDSA(priv *ecdsa.PrivateKey) []byte {
+	fmt.Println("----------------------CryptoType:gm; Fun: FromECDSA------------------")
 	if priv == nil {
 		return nil
 	}
@@ -95,6 +99,7 @@ func FromECDSA(priv *ecdsa.PrivateKey) []byte {
 
 // UnmarshalPubkey converts bytes to a public key.
 func UnmarshalPubkey(pub []byte) (*ecdsa.PublicKey, error) {
+	fmt.Println("----------------------CryptoType:gm; Fun: UnmarshalPubkey------------------")
 	x, y := elliptic.Unmarshal(sm2.Sm2Curve(), pub)
 	if x == nil {
 		return nil, errInvalidPubkey
@@ -103,6 +108,7 @@ func UnmarshalPubkey(pub []byte) (*ecdsa.PublicKey, error) {
 }
 
 func FromECDSAPub(pub *ecdsa.PublicKey) []byte {
+	fmt.Println("----------------------CryptoType:gm; Fun: FromECDSAPub------------------")
 	if pub == nil || pub.X == nil || pub.Y == nil {
 		return nil
 	}
@@ -111,6 +117,7 @@ func FromECDSAPub(pub *ecdsa.PublicKey) []byte {
 
 // HexToECDSA parses a private key.
 func HexToECDSA(hexkey string) (*ecdsa.PrivateKey, error) {
+	fmt.Println("----------------------CryptoType:gm; Fun: HexToECDSA------------------")
 	b, err := hex.DecodeString(hexkey)
 	if err != nil {
 		return nil, errors.New("invalid hex string")
@@ -145,12 +152,14 @@ func SaveECDSA(file string, key *ecdsa.PrivateKey) error {
 }
 
 func GenerateKey() (*ecdsa.PrivateKey, error) {
+	fmt.Println("----------------------CryptoType:gm; Fun: GenerateKey------------------")
 	return sm2.GenerateKey(rand.Reader)
 }
 
 // ValidateSignatureValues verifies whether the signature values are valid with
 // the given chain rules. The v value is assumed to be either 0 or 1.
-func ValidateSignatureValues(v byte, r, s *big.Int) bool {
+func ValidateSignatureValues(v byte, r, s *big.Int, homestead bool) bool {
+	fmt.Println("----------------------CryptoType:gm; Fun: ValidateSignatureValues------------------")
 	curve := sm2.Sm2Curve()
 	if r.Cmp(common.Big1) < 0 || s.Cmp(common.Big1) < 0 {
 		return false
@@ -160,6 +169,7 @@ func ValidateSignatureValues(v byte, r, s *big.Int) bool {
 	return r.Cmp(curve.N) < 0 && s.Cmp(curve.N) < 0 && (v == 0 || v == 1)
 }
 func PubkeyToAddress(p ecdsa.PublicKey) common.Address {
+	fmt.Println("----------------------CryptoType:gm; Fun: PubkeyToAddress------------------")
 	pubBytes := FromECDSAPub(&p)
 	return common.BytesToAddress(SM3(pubBytes[1:])[12:])
 }

@@ -7,6 +7,8 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 )
 
+const CryptoType = "nogm"
+
 // Ecrecover returns the uncompressed public key that created the given signature.
 func Ecrecover(hash, sig []byte) ([]byte, error) {
 	return crypto.Ecrecover(hash, sig)
@@ -14,7 +16,7 @@ func Ecrecover(hash, sig []byte) ([]byte, error) {
 
 // SigToPub returns the public key that created the given signature.
 func SigToPub(hash, sig []byte) (*ecdsa.PublicKey, error) {
-	return crypto.SigToPub(hash,sig)
+	return crypto.SigToPub(hash, sig)
 }
 
 // Sm2Sign calculates an ECDSA signature.

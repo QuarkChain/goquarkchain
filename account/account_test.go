@@ -2,6 +2,7 @@ package account
 
 import (
 	"fmt"
+	"github.com/QuarkChain/goquarkchain/crypto"
 	"io/ioutil"
 	"os"
 	"strings"
@@ -53,7 +54,7 @@ func CheckAccountUnitTest(data AccountTestStruct, pathAll []string) bool {
 		return false
 	}
 	address := account.Address()
-	if "0x"+data.Address != address { //address is not match
+	if crypto.CryptoType == "nogm" && "0x"+data.Address != address { //address is not match
 		fmt.Printf("address is not match unexcepted %s,excepted %s\n", data.Address, address)
 		return false
 	}

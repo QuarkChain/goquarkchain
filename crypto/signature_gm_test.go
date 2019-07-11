@@ -8,10 +8,10 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/QuarkChain/gos/crypto/sm2"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/common/math"
+	"github.com/goscn/gos/crypto/sm2"
 )
 
 var (

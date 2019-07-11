@@ -18,11 +18,13 @@ package core
 
 import (
 	"errors"
+	"fmt"
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/core/state"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/core/vm"
+	"github.com/QuarkChain/goquarkchain/crypto"
 	"github.com/ethereum/go-ethereum/params"
 	"math/big"
 )
@@ -86,8 +88,10 @@ func (p *StateProcessor) Process(block *types.MinorBlock, statedb *state.StateDB
 		gp       = new(GasPool).AddGas(block.Header().GetGasLimit().Uint64())
 	)
 
+	fmt.Printf("block hash: %v; tx count: %d\n", block.Hash().Hex(), len(block.Transactions()))
 	// Iterate over and process the individual transactions
 	for i, tx := range block.GetTransactions() {
+		fmt.Printf("  tx %d in block %v\n tx hash: %v\n sign cryptotype: %v\n", i, block.Hash().Hex(), tx.Hash().Hex(), crypto.CryptoType)
 		evmTx, err := p.bc.validateTx(tx, statedb, nil, nil)
 		if err != nil {
 			return nil, nil, 0, err

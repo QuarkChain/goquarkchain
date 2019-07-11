@@ -159,6 +159,8 @@ func createConsensusEngine(ctx *service.ServiceContext, cfg *config.RootConfig) 
 		return qkchash.New(true, &diffCalculator, cfg.ConsensusConfig.RemoteMine), nil
 	case config.PoWDoubleSha256:
 		return doublesha256.New(&diffCalculator, cfg.ConsensusConfig.RemoteMine), nil
+	case config.PoWDoubleSha256:
+		return doublesha256.New(&diffCalculator, cfg.ConsensusConfig.RemoteMine), nil
 	}
 	return nil, fmt.Errorf("Failed to create consensus engine consensus type %s ", cfg.ConsensusType)
 }

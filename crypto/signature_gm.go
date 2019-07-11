@@ -6,9 +6,11 @@ import (
 	"crypto/ecdsa"
 	"errors"
 	"fmt"
-	"github.com/QuarkChain/gos/crypto/sm2"
+	"github.com/goscn/gos/crypto/sm2"
 	"math/big"
 )
+
+const CryptoType = "gm"
 
 var (
 	halfN = new(big.Int).Rsh(sm2.Sm2Curve().N, 1)
@@ -16,6 +18,7 @@ var (
 
 // Ecrecover returns the uncompressed public key that created the given signature.
 func Ecrecover(hash, sig []byte) ([]byte, error) {
+	fmt.Println("----------------------CryptoType:gm; Fun: Ecrecover----------------------")
 	pub, err := SigToPub(hash, sig)
 	if err != nil {
 		return nil, err
@@ -26,6 +29,7 @@ func Ecrecover(hash, sig []byte) ([]byte, error) {
 
 // SigToPub returns the public key that created the given signature.
 func SigToPub(hash, sig []byte) (*sm2.PublicKey, error) {
+	fmt.Println("----------------------CryptoType:gm; Fun: SigToPub----------------------")
 	// Convert to btcec input format with 'recovery id' v at the beginning.
 	sign := make([]byte, 65)
 	sign[0] = sig[64] + 27
@@ -44,6 +48,7 @@ func SigToPub(hash, sig []byte) (*sm2.PublicKey, error) {
 //
 // The produced signature is in the [R || S || V] format where V is 0 or 1.
 func Sign(hash []byte, prv *ecdsa.PrivateKey) ([]byte, error) {
+	fmt.Println("----------------------CryptoType:gm; Fun: Sign----------------------")
 	if len(hash) != 32 {
 		return nil, fmt.Errorf("hash is required to be exactly 32 bytes (%d)", len(hash))
 	}
@@ -65,6 +70,7 @@ func Sign(hash []byte, prv *ecdsa.PrivateKey) ([]byte, error) {
 // The public key should be in compressed (33 bytes) or uncompressed (65 bytes) format.
 // The signature should have the 64 byte [R || S] format.
 func VerifySignature(pubkey, hash, signature []byte) bool {
+	fmt.Println("----------------------CryptoType:gm; Fun: VerifySignature----------------------")
 	if len(signature) != 64 {
 		return false
 	}
@@ -83,6 +89,7 @@ func VerifySignature(pubkey, hash, signature []byte) bool {
 
 // DecompressPubkey parses a public key in the 33-byte compressed format.
 func DecompressPubkey(pubkey []byte) (*ecdsa.PublicKey, error) {
+	fmt.Println("----------------------CryptoType:gm; Fun: DecompressPubkey----------------------")
 	if len(pubkey) != 33 {
 		return nil, errors.New("invalid compressed public key length")
 	}
@@ -95,5 +102,6 @@ func DecompressPubkey(pubkey []byte) (*ecdsa.PublicKey, error) {
 
 // CompressPubkey encodes a public key to the 33-byte compressed format.
 func CompressPubkey(pubkey *ecdsa.PublicKey) []byte {
+	fmt.Println("----------------------CryptoType:gm; Fun: CompressPubkey----------------------")
 	return (*sm2.PublicKey)(pubkey).SerializeCompressed()
 }
