@@ -476,16 +476,13 @@ func (bc *RootBlockChain) WriteBlockWithState(block *types.RootBlock) (status Wr
 	defer bc.wg.Done()
 
 	// Calculate the total difficulty of the block
-	ptd := bc.GetTd(block.ParentHash())
-	if ptd == nil {
-		return NonStatTy, errors.New("unknown ancestor")
-	}
+	ptd := bc.GetBlock(block.ParentHash()).IHeader().GetTotalDifficulty()
 	// Make sure no inconsistent state is leaked during insertion
 	bc.mu.Lock()
 	defer bc.mu.Unlock()
 
 	currentBlock := bc.CurrentBlock()
-	localTd := bc.GetTd(currentBlock.Hash())
+	localTd := currentBlock.TotalDifficulty()
 	externTd := new(big.Int).Add(block.Difficulty(), ptd)
 
 	// Irrelevant of the canonical status, write the block itself to the database

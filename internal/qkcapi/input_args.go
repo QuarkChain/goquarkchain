@@ -48,7 +48,7 @@ type CreateTxArgs struct {
 	GasPrice         *hexutil.Big   `json:"gasPrice"`
 	Value            *hexutil.Big   `json:"value"`
 	Data             hexutil.Bytes  `json:"data"`
-	FromFullShardKey hexutil.Uint   `json:"fromFullShardId"`
+	FromFullShardKey hexutil.Uint   `json:"fromFullShardKey"`
 }
 
 func (c *CreateTxArgs) setDefaults() {
@@ -80,8 +80,8 @@ type SendTxArgs struct {
 	// We accept "data" and "input" for backwards-compatibility reasons. "input" is the
 	// newer name and should be preferred by clients.
 	Data             *hexutil.Bytes `json:"data"`
-	FromFullShardKey *hexutil.Uint  `json:"fromFullShardId"`
-	ToFullShardKey   *hexutil.Uint  `json:"toFullShardId"`
+	FromFullShardKey *hexutil.Uint  `json:"fromFullShardKey"`
+	ToFullShardKey   *hexutil.Uint  `json:"toFullShardKey"`
 	V                *hexutil.Big   `json:"v"`
 	R                *hexutil.Big   `json:"r"`
 	S                *hexutil.Big   `json:"s"`
