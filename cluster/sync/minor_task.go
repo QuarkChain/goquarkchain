@@ -49,6 +49,9 @@ func NewMinorChainTask(
 				}
 				return ret, nil
 			},
+			getSizeLimit: func() (u uint64, u2 uint64) {
+				return MinorBlockBatchSize, MinorBlockHeaderListLimit
+			},
 		},
 		peer: p,
 	}
