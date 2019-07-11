@@ -1337,9 +1337,39 @@ func bytesAddOne(data []byte) []byte {
 	bigData := new(big.Int).SetBytes(data)
 	return bigData.Add(bigData, new(big.Int).SetUint64(1)).Bytes()
 }
+
+func (m *MinorBlockChain) getPendingTxByAddress(address account.Address) ([]*rpc.TransactionDetail, []byte, error) {
+	txList := make([]*rpc.TransactionDetail, 0)
+	txs := m.txPool.GetPendingTxsFromAddress(address.Recipient)
+	txs = append(txs, m.txPool.GetQueueTxsFromAddress(address.Recipient)...)
+
+	for _, tx := range txs {
+		to := new(account.Address)
+		if tx.EvmTx.To() == nil {
+			to = nil
+		} else {
+			to.Recipient = *tx.EvmTx.To()
+			to.FullShardKey = tx.EvmTx.ToFullShardKey()
+		}
+		txList = append(txList, &rpc.TransactionDetail{
+			TxHash:      tx.EvmTx.Hash(),
+			FromAddress: address,
+			ToAddress:   to,
+			Value:       serialize.Uint256{Value: tx.EvmTx.Value()},
+			BlockHeight: 0,
+			Timestamp:   0,
+			Success:     false,
+		})
+	}
+	return txList, []byte{}, nil
+}
 func (m *MinorBlockChain) GetTransactionByAddress(address account.Address, start []byte, limit uint32) ([]*rpc.TransactionDetail, []byte, error) {
 	if !m.clusterConfig.EnableTransactionHistory {
 		return []*rpc.TransactionDetail{}, []byte{}, nil
+	}
+
+	if bytes.Equal(start, []byte{1}) { //get pending tx
+		return m.getPendingTxByAddress(address)
 	}
 	endEncodeAddressTxKey := make([]byte, 0)
 	endEncodeAddressTxKey = append(endEncodeAddressTxKey, []byte("addr_")...)
