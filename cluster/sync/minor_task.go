@@ -2,6 +2,7 @@ package sync
 
 import (
 	"fmt"
+	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
 
@@ -52,13 +53,19 @@ func NewMinorChainTask(
 			getSizeLimit: func() (u uint64, u2 uint64) {
 				return MinorBlockBatchSize, MinorBlockHeaderListLimit
 			},
+			needSkip: func(header types.IHeader, b blockchain) bool {
+				if header.NumberU64() <= b.CurrentHeader().NumberU64() {
+					return true
+				}
+				return false
+			},
 		},
 		peer: p,
 	}
 }
 
-func (m *minorChainTask) Priority() uint {
-	return uint(m.task.header.NumberU64())
+func (m *minorChainTask) Priority() *big.Int {
+	return new(big.Int).SetUint64(m.task.header.NumberU64())
 }
 
 func (m *minorChainTask) PeerID() string {

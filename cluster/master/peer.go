@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"math/big"
 	"sync"
 	"time"
 
@@ -598,13 +599,13 @@ func (ps *peerSet) BestPeer() *peer {
 	defer ps.lock.RUnlock()
 
 	var (
-		bestPeer   *peer
-		bestHeight uint64
+		bestPeer      *peer
+		bestTotalDiff *big.Int
 	)
-	// TODO will update to TD when td add to rootblock
+
 	for _, p := range ps.peers {
-		if head := p.RootHead(); head != nil && (bestPeer == nil || head.NumberU64() > bestHeight) {
-			bestPeer, bestHeight = p, head.NumberU64()
+		if head := p.RootHead(); head != nil && (bestPeer == nil || head.GetTotalDifficulty().Cmp(bestTotalDiff) > 0) {
+			bestPeer, bestTotalDiff = p, head.GetTotalDifficulty()
 		}
 	}
 	return bestPeer

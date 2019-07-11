@@ -2,6 +2,7 @@ package sync
 
 import (
 	"fmt"
+	"math/big"
 
 	"golang.org/x/sync/errgroup"
 
@@ -59,17 +60,23 @@ func NewRootChainTask(
 				rbc := bc.(rootblockchain)
 				return syncMinorBlocks(p.PeerID(), rbc, rb, statusChan, getShardConnFunc)
 			},
-			getSizeLimit: func() (u uint64, u2 uint64) {
+			needSkip: func(header types.IHeader, b blockchain) bool {
+				if header.GetTotalDifficulty().Cmp(b.CurrentHeader().GetTotalDifficulty()) <= 0 {
+					return true
+				}
+				return false
+			},
+						getSizeLimit: func() (u uint64, u2 uint64) {
 				return RootBlockBatchSize, RootBlockHeaderListLimit
 			},
+
 		},
 		peer: p,
 	}
 }
 
-func (r *rootChainTask) Priority() uint {
-	// TODO: should use total diff
-	return uint(r.task.header.NumberU64())
+func (r *rootChainTask) Priority() *big.Int {
+	return r.task.header.GetTotalDifficulty()
 }
 
 func (r *rootChainTask) PeerID() string {
