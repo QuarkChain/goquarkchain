@@ -18,7 +18,6 @@ package core
 
 import (
 	"errors"
-	"fmt"
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/core/state"
@@ -128,7 +127,6 @@ func ValidateTransaction(state vm.StateDB, tx *types.Transaction, fromAddress *a
 	}
 
 	if state.GetBalance(*from).Cmp(tx.EvmTx.Cost()) < 0 {
-		fmt.Println("------------", from.Hex(), state.GetBalance(*from), tx.EvmTx.Cost().Uint64())
 		return ErrInsufficientFunds
 	}
 

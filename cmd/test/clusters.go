@@ -1,6 +1,7 @@
 package test
 
 import (
+	"crypto/ecdsa"
 	"fmt"
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
@@ -11,7 +12,10 @@ import (
 	"github.com/QuarkChain/goquarkchain/cmd/utils"
 	"github.com/QuarkChain/goquarkchain/core"
 	"github.com/QuarkChain/goquarkchain/core/types"
+	"github.com/QuarkChain/goquarkchain/p2p"
+	"github.com/ethereum/go-ethereum/p2p/enode"
 	"math/big"
+	"strings"
 	"time"
 )
 
@@ -64,6 +68,8 @@ shardSize, slaveSize uint32, geneRHeights map[uint32]uint32) *config.ClusterConf
 	cfg.Quarkchain.Root.ConsensusType = config.PoWSimulate
 	cfg.Quarkchain.Root.DifficultyAdjustmentCutoffTime = 40
 	cfg.Quarkchain.Root.MaxStaleRootBlockHeightDiff = 1024
+	cfg.P2P.PrivKey = privKey
+	cfg.P2P.BootNodes = bootNode
 
 	fullShardIds := cfg.Quarkchain.GetGenesisShardIds()
 	for _, fullShardId := range fullShardIds {
@@ -110,11 +116,31 @@ shardSize, slaveSize uint32, geneRHeights map[uint32]uint32) *config.ClusterConf
 	return cfg
 }
 
-func makeConfigNode(index uint16, geneAcc *account.Account, chainSize, shardSize, slaveSize uint32, geneRHeights map[uint32]uint32) (*config.ClusterConfig, map[string]*service.Node) {
+func makeConfigNode(index uint16, geneAcc *account.Account, chainSize, shardSize, slaveSize uint32,
+	geneRHeights map[uint32]uint32) (*config.ClusterConfig, map[string]*service.Node) {
 	var (
-		nodeList = make(map[string]*service.Node)
-		clstrCfg = getClusterConfig(index, geneAcc, chainSize, shardSize, slaveSize, geneRHeights)
+		nodeList  = make(map[string]*service.Node)
+		clstrCfg  = getClusterConfig(index, geneAcc, chainSize, shardSize, slaveSize, geneRHeights)
+		bootNodes = make([]*enode.Node, 0, 0)
+		priv      *ecdsa.PrivateKey
 	)
+	if index == 0 && clstrCfg.P2P.PrivKey != "" {
+		var err error
+		priv, err = p2p.GetPrivateKeyFromConfig(clstrCfg.P2P.PrivKey)
+		if err != nil {
+			utils.Fatalf("failed to transfer privkey", "err", err)
+		}
+	}
+	if clstrCfg.P2P.BootNodes != "" {
+		urls := strings.Split(clstrCfg.P2P.BootNodes, ",")
+		for _, url := range urls {
+			node, err := enode.ParseV4(url)
+			if err != nil {
+				utils.Fatalf("Bootstrap URL invalid", "enode", url, "err", err)
+			}
+			bootNodes = append(bootNodes, node)
+		}
+	}
 
 	// slave nodes
 	for idx, slaveCfg := range clstrCfg.SlaveList {
@@ -123,6 +149,8 @@ func makeConfigNode(index uint16, geneAcc *account.Account, chainSize, shardSize
 		svrCfg.SvrHost = slaveCfg.IP
 		svrCfg.SvrPort = slaveCfg.Port
 		svrCfg.IPCPath = ""
+		svrCfg.P2P.PrivateKey = priv
+		svrCfg.P2P.BootstrapNodes = bootNodes
 		svrCfg.DataDir = fmt.Sprintf("./data/%s_%d_%d", slaveCfg.ID, index, idx)
 		svrCfg.P2P.ListenAddr = fmt.Sprintf(":%d", clstrCfg.P2PPort)
 		svrCfg.P2P.MaxPeers = int(clstrCfg.P2P.MaxPeers)
@@ -140,6 +168,8 @@ func makeConfigNode(index uint16, geneAcc *account.Account, chainSize, shardSize
 	svrCfg.Name = clientIdentifier
 	svrCfg.SvrPort = clstrCfg.Quarkchain.Root.GRPCPort
 	svrCfg.IPCPath = ""
+	svrCfg.P2P.PrivateKey = priv
+	svrCfg.P2P.BootstrapNodes = bootNodes
 	svrCfg.DataDir = fmt.Sprintf("./data/%s_%d", clientIdentifier, index)
 	node, err := service.New(svrCfg)
 	if err != nil {
@@ -260,41 +290,37 @@ func (c *clusterNode) GetShardState(fullShardId uint32) *core.MinorBlockChain {
 	return nil
 }
 
-func (c *clusterNode) CreateAndInsertBlocks(fullShardId uint32) (rBlock *types.RootBlock) {
-	var (
-		mstr = c.GetMaster()
-		// slaveList = c.GetSlavelist()
-	)
+func (c *clusterNode) createAllShardsBlock(fullShardIds []uint32) {
+	for _, fullShardId := range fullShardIds {
+		shrd := c.GetShard(fullShardId)
+		if shrd == nil {
+			utils.Fatalf("has no such shard, fullShardId: %d", fullShardId)
+		}
+		iBlock, err := shrd.CreateBlockToMine()
+		if err != nil {
+			utils.Fatalf("can't create minor block, fullShardId: %d, err: %v", fullShardId, err)
+		}
+		if err := shrd.AddMinorBlock(iBlock.(*types.MinorBlock)); err != nil {
+			utils.Fatalf("failed to add minor block, err: %v", err)
+		}
+	}
+}
+
+func (c *clusterNode) CreateAndInsertBlocks(fullShards []uint32, seconds time.Duration) (rBlock *types.RootBlock) {
+	if fullShards != nil && len(fullShards) > 0 {
+		c.createAllShardsBlock(fullShards)
+	}
+	time.Sleep(seconds * time.Second)
 	// insert root block
-	iBlock, err := mstr.CreateBlockToMine()
+	iBlock, err := c.GetMaster().CreateBlockToMine()
 	if err != nil {
 		goto FAILED
 	}
 	rBlock = iBlock.(*types.RootBlock)
-	fmt.Println("----------------", rBlock.Number(), rBlock.Time())
-	for _, hd := range rBlock.MinorBlockHeaders() {
-		fmt.Println("--------", hd.Hash().Hex(), hd.Number, hd.Time)
-	}
-
-	if err = mstr.AddRootBlock(rBlock); err != nil {
+	if err = c.GetMaster().AddRootBlock(rBlock); err != nil {
 		goto FAILED
 	}
 
-	// insert minor block
-	/*for _, slv := range slaveList {
-		shrd := slv.GetShard(fullShardId)
-		if shrd == nil {
-			continue
-		}
-		if iBlock, err = shrd.CreateBlockToMine(); err != nil {
-			goto FAILED
-		}
-		mBlock := iBlock.(*types.MinorBlock)
-		fmt.Println("----------- minor: ", mBlock.Header().Time)
-		if err = shrd.AddMinorBlock(mBlock); err != nil {
-			goto FAILED
-		}
-	}*/
 	return
 FAILED:
 	utils.Fatalf("failed to create and add root/minor block", "err", err)

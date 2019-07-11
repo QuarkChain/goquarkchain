@@ -56,8 +56,7 @@ type ProtocolManager struct {
 }
 
 // NewQKCManager  new qkc manager
-func NewProtocolManager(env config.ClusterConfig, rootBlockChain *core.RootBlockChain, statsChan chan *rpc.ShardStatus, synchronizer synchronizer.Synchronizer,
-	getShardConnFunc func(fullShardId uint32) []rpc.ShardConnForP2P) (*ProtocolManager, error) {
+func NewProtocolManager(env config.ClusterConfig, rootBlockChain *core.RootBlockChain, statsChan chan *rpc.ShardStatus, synchronizer synchronizer.Synchronizer, getShardConnFunc func(fullShardId uint32) []rpc.ShardConnForP2P) (*ProtocolManager, error) {
 	manager := &ProtocolManager{
 		networkID:        env.Quarkchain.NetworkID,
 		rootBlockChain:   rootBlockChain,

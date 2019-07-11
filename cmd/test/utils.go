@@ -12,8 +12,8 @@ import (
 )
 
 var (
-	privKey  = "0x966a253dd39a1832306487c6218da1425e429fae01c1a40eb50965dff31a04ed"
-	bootNode = ""
+	privKey  = "966a253dd39a1832306487c6218da1425e429fae01c1a40eb50965dff31a04ed"
+	bootNode = "enode://9fb2a4ae5e0271638ac9ab77567ba3ccfcc10403f3263b053c7c714696f712566a624355588b733ac2dc40f103ad23edc25027427e80113c5cdf2bc0f060ce4b@127.0.0.1:38291"
 )
 
 func defaultNodeConfig() *service.Config {
