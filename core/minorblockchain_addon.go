@@ -1340,12 +1340,9 @@ func bytesAddOne(data []byte) []byte {
 
 func (m *MinorBlockChain) getPendingTxByAddress(address account.Address) ([]*rpc.TransactionDetail, []byte, error) {
 	txList := make([]*rpc.TransactionDetail, 0)
-	pending := m.txPool.GetPendingTxsFromAddress(address.Recipient)
-	queue := m.txPool.GetQueueTxsFromAddress(address.Recipient)
+	txs := m.txPool.GetPendingTxsFromAddress(address.Recipient)
+	txs = append(txs, m.txPool.GetQueueTxsFromAddress(address.Recipient)...)
 
-	txs := make([]*types.Transaction, 0)
-	txs = append(txs, []*types.Transaction(pending)...)
-	txs = append(txs, []*types.Transaction(queue)...)
 	for _, tx := range txs {
 		to := new(account.Address)
 		if tx.EvmTx.To() == nil {

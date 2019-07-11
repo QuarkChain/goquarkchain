@@ -518,8 +518,8 @@ func (pool *TxPool) GetQueueTxsFromAddress(addr account.Recipient) types.Transac
 }
 
 func (pool *TxPool) GetPendingTxsFromAddress(addr account.Recipient) types.Transactions {
-	pool.mu.Lock()
-	defer pool.mu.Unlock()
+	pool.mu.RLock()
+	defer pool.mu.RUnlock()
 	data, ok := pool.pending[addr]
 	if !ok {
 		return make(types.Transactions, 0)
