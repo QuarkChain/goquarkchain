@@ -30,7 +30,10 @@ func (m *MinorBlockChain) ReadLastConfirmedMinorBlockHeaderAtRootBlock(hash comm
 		return data.(common.Hash)
 	}
 	data := rawdb.ReadLastConfirmedMinorBlockHeaderAtRootBlock(m.db, hash)
-	m.lastConfirmCache.Add(hash, data)
+	if !bytes.Equal(data.Bytes(), common.Hash{}.Bytes()) {
+		m.lastConfirmCache.Add(hash, data)
+	}
+
 	return data
 }
 func (m *MinorBlockChain) getLastConfirmedMinorBlockHeaderAtRootBlock(hash common.Hash) *types.MinorBlockHeader {
@@ -271,7 +274,7 @@ func (m *MinorBlockChain) isNeighbor(remoteBranch account.Branch, rootHeight *ui
 }
 
 func (m *MinorBlockChain) putRootBlock(rBlock *types.RootBlock, minorHeader *types.MinorBlockHeader) {
-	log.Info(m.logInfo, "putRootBlock number", rBlock.Number(), "hash", rBlock.Hash().String())
+	log.Info(m.logInfo, "putRootBlock number", rBlock.Number(), "hash", rBlock.Hash().String(), "lenMinor", len(rBlock.MinorBlockHeaders()))
 	rBlockHash := rBlock.Hash()
 	rawdb.WriteRootBlock(m.db, rBlock)
 	var mHash common.Hash
@@ -299,7 +302,7 @@ func (m *MinorBlockChain) getCoinbaseAddressUntilBlock(headerHash common.Hash, l
 
 func (m *MinorBlockChain) putTotalTxCount(mBlock *types.MinorBlock) error {
 	prevCount := uint32(0)
-	if mBlock.Header().Number > 2 {
+	if mBlock.Header().Number > 1 {
 		dbPreCount := m.getTotalTxCount(mBlock.Header().ParentHash)
 		if dbPreCount == nil {
 			return errors.New("get totalTx failed")
@@ -328,16 +331,26 @@ func (m *MinorBlockChain) putConfirmedCrossShardTransactionDepositList(hash comm
 func (m *MinorBlockChain) InitFromRootBlock(rBlock *types.RootBlock) error {
 	log.Info(m.logInfo, "InitFromRootBlock number", rBlock.Number(), "hash", rBlock.Hash().String())
 	defer log.Info(m.logInfo, "InitFromRootBlock", "end")
-	m.mu.Lock() // to lock rootTip  confirmedHeaderTip...
-	defer m.mu.Unlock()
 	if rBlock.Header().Number <= uint32(m.clusterConfig.Quarkchain.GetGenesisRootHeight(m.branch.Value)) {
 		return errors.New("rootBlock height small than config's height")
 	}
 	if m.initialized == true {
-		return errors.New("already initialized")
+		log.Warn("ReInitFromBlock", "InitFromBlock", rBlock.Number())
 	}
 	m.initialized = true
+
 	confirmedHeaderTip := m.getLastConfirmedMinorBlockHeaderAtRootBlock(rBlock.Hash())
+	if confirmedHeaderTip == nil {
+		m.rootTip = m.getRootBlockHeaderByHash(rBlock.ParentHash())
+		_, err := m.AddRootBlock(rBlock)
+		if err != nil {
+			m.Stop()
+			log.Error(m.logInfo, "InitFromRootBlock-addRootBlock number", rBlock.NumberU64())
+			return err
+		}
+		confirmedHeaderTip = m.getLastConfirmedMinorBlockHeaderAtRootBlock(rBlock.Hash())
+	}
+
 	headerTip := confirmedHeaderTip
 	if headerTip == nil {
 		headerTip = m.GetBlockByNumber(0).IHeader().(*types.MinorBlockHeader)
@@ -851,6 +864,10 @@ func (m *MinorBlockChain) AddRootBlock(rBlock *types.RootBlock) (bool, error) {
 		errRootBlockHeight := errors.New("rBlock is small than config")
 		log.Error(m.logInfo, "add rootBlock", errRootBlockHeight, "block's height", rBlock.Number(), "config's height", m.clusterConfig.Quarkchain.GetGenesisRootHeight(m.branch.Value))
 		return false, errRootBlockHeight
+	}
+
+	if m.GetRootBlockByHash(rBlock.Hash()) != nil {
+		return false, nil
 	}
 
 	if m.GetRootBlockByHash(rBlock.ParentHash()) == nil {

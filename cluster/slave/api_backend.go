@@ -45,12 +45,17 @@ func (s *SlaveBackend) AddRootBlock(block *types.RootBlock) (switched bool, err 
 
 // Create shards based on GENESIS config and root block height if they have
 // not been created yet.
-func (s *SlaveBackend) CreateShards(rootBlock *types.RootBlock) (err error) {
+func (s *SlaveBackend) CreateShards(rootBlock *types.RootBlock, forceInit bool) (err error) {
 	fullShardList := s.getFullShardList()
 	var g errgroup.Group
 	for _, id := range fullShardList {
 		id := id
-		if _, ok := s.shards[id]; ok {
+		if shd, ok := s.shards[id]; ok {
+			if forceInit {
+				if err := shd.InitFromRootBlock(rootBlock); err != nil {
+					return err
+				}
+			}
 			continue
 		}
 		g.Go(func() error {
