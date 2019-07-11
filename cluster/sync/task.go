@@ -12,6 +12,13 @@ import (
 	"github.com/QuarkChain/goquarkchain/core/types"
 )
 
+const (
+	RootBlockHeaderListLimit  = 500
+	RootBlockBatchSize        = 100
+	MinorBlockHeaderListLimit = 100 //TODO 100 50
+	MinorBlockBatchSize       = 50
+)
+
 // Task represents a synchronization task for the synchronizer.
 type Task interface {
 	Run(blockchain) error

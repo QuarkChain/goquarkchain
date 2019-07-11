@@ -5,7 +5,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 
-	qkcCommon "github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/core/types"
 )
 
@@ -51,7 +50,7 @@ func NewMinorChainTask(
 				return ret, nil
 			},
 			getSizeLimit: func() (u uint64, u2 uint64) {
-				return qkcCommon.MinorBlockBatchSize, qkcCommon.MinorBlockHeaderListLimit
+				return MinorBlockBatchSize, MinorBlockHeaderListLimit
 			},
 		},
 		peer: p,

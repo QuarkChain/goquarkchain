@@ -6,7 +6,6 @@ import (
 	"golang.org/x/sync/errgroup"
 
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
-	qkcCommon "github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/common"
 )
@@ -61,7 +60,7 @@ func NewRootChainTask(
 				return syncMinorBlocks(p.PeerID(), rbc, rb, statusChan, getShardConnFunc)
 			},
 			getSizeLimit: func() (u uint64, u2 uint64) {
-				return qkcCommon.RootBlockBatchSize, qkcCommon.RootBlockHeaderListLimit
+				return RootBlockBatchSize, RootBlockHeaderListLimit
 			},
 		},
 		peer: p,
