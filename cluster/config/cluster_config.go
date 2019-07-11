@@ -317,3 +317,11 @@ func (q *QuarkChainConfig) SetShardsAndValidate(shards map[uint32]*ShardConfig) 
 	q.shards = shards
 	q.initAndValidate()
 }
+
+func (q *QuarkChainConfig) GasLimit(fullShardID uint32) (*big.Int, error) {
+	data, ok := q.shards[fullShardID]
+	if !ok {
+		return nil, fmt.Errorf("no such fullShardID %v", fullShardID)
+	}
+	return new(big.Int).SetUint64(data.Genesis.GasLimit), nil
+}

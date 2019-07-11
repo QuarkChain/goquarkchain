@@ -445,28 +445,6 @@ func (m *MinorBlockChain) AddTx(tx *types.Transaction) error {
 	return m.txPool.AddLocal(tx)
 }
 
-func (m *MinorBlockChain) computeGasLimit(parentGasLimit, parentGasUsed, gasLimitFloor uint64) (*big.Int, error) {
-	// no need to lock
-	shardConfig := m.shardConfig
-	if gasLimitFloor < shardConfig.GasLimitMinimum {
-		return nil, errors.New("gas limit floor is too low")
-	}
-	decay := parentGasLimit / uint64(shardConfig.GasLimitEmaDenominator)
-	usageIncrease := uint64(0)
-	if parentGasUsed != 0 {
-		usageIncrease = parentGasUsed * uint64(shardConfig.GasLimitUsageAdjustmentNumerator) / uint64(shardConfig.GasLimitUsageAdjustmentDenominator) / uint64(shardConfig.GasLimitEmaDenominator)
-	}
-	gasLimit := shardConfig.GasLimitMinimum
-	if gasLimit < parentGasLimit-decay+usageIncrease {
-		gasLimit = parentGasLimit - decay + usageIncrease
-	}
-
-	if gasLimit < gasLimitFloor {
-		return new(big.Int).SetUint64(parentGasLimit + decay), nil
-	}
-	return new(big.Int).SetUint64(gasLimit), nil
-}
-
 func (m *MinorBlockChain) getCrossShardTxListByRootBlockHash(hash common.Hash) ([]*types.CrossShardTransactionDeposit, error) {
 	// no need to lock
 	rBlock := m.GetRootBlockByHash(hash)
@@ -801,7 +779,7 @@ func (m *MinorBlockChain) CreateBlockToMine(createTime *uint64, address *account
 	}
 	prevBlock := m.CurrentBlock()
 	if gasLimit == nil {
-		gasLimit, err = m.computeGasLimit(prevBlock.Header().GetGasLimit().Uint64(), prevBlock.GetMetaData().GasUsed.Value.Uint64(), m.shardConfig.Genesis.GasLimit)
+		gasLimit = m.gasLimit
 	}
 
 	if address == nil {
