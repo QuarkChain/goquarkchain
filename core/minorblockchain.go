@@ -204,11 +204,10 @@ func NewMinorBlockChain(
 		},
 	}
 	var err error
-	gasLimit, err := bc.clusterConfig.Quarkchain.GasLimit(bc.branch.Value)
+	bc.gasLimit, err = bc.clusterConfig.Quarkchain.GasLimit(bc.branch.Value)
 	if err != nil {
 		return nil, err
 	}
-	bc.gasLimit = gasLimit
 	//TODO xShardGasLimit
 	bc.SetValidator(NewBlockValidator(clusterConfig.Quarkchain, bc, engine, bc.branch))
 	bc.SetProcessor(NewStateProcessor(bc.ethChainConfig, bc, engine))

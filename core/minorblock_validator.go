@@ -124,8 +124,7 @@ func (v *MinorBlockValidator) ValidateBlock(mBlock types.IBlock) error {
 		return ErrTrackLimit
 	}
 
-	gasLimit := v.bc.gasLimit
-	if block.Header().GasLimit.Value.Cmp(gasLimit) != 0 {
+	if block.Header().GasLimit.Value.Cmp(v.bc.gasLimit) != 0 {
 		return errors.New("gasLimit is not match")
 	}
 
