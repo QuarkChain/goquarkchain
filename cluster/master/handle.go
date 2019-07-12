@@ -75,9 +75,14 @@ func NewProtocolManager(env config.ClusterConfig, rootBlockChain *core.RootBlock
 		Length:  QKCProtocolLength,
 		Run: func(p *p2p.Peer, rw p2p.MsgReadWriter) error {
 			peer := newPeer(int(QKCProtocolVersion), p, rw)
-
-			return manager.handle(peer)
-
+			select {
+			case manager.newPeerCh <- peer:
+				manager.wg.Add(1)
+				defer manager.wg.Done()
+				return manager.handle(peer)
+			case <-manager.quitSync:
+				return p2p.DiscQuitting
+			}
 		},
 	}
 	manager.subProtocols = []p2p.Protocol{protocol}
@@ -159,7 +164,6 @@ func (pm *ProtocolManager) handle(peer *peer) error {
 	}
 	defer pm.removePeer(peer.id)
 	log.Info(pm.log, "peer add succ id ", peer.PeerID())
-	pm.newPeerCh <- peer
 
 	// currently we do not broadcast old transaction when connect
 	// so the first few block may not have transaction verification failed
@@ -216,11 +220,10 @@ func (pm *ProtocolManager) handleMsg(peer *peer) error {
 		}
 		branchTxMap := make(map[uint32][]*types.Transaction)
 		for _, tx := range trans.TransactionList {
-			toShardSize := pm.clusterConfig.Quarkchain.GetShardSizeByChainId(tx.EvmTx.ToChainID())
-			if err := tx.EvmTx.SetToShardSize(toShardSize); err != nil {
+			fromShardSize, err := pm.clusterConfig.Quarkchain.GetShardSizeByChainId(tx.EvmTx.FromChainID())
+			if err != nil {
 				return err
 			}
-			fromShardSize := pm.clusterConfig.Quarkchain.GetShardSizeByChainId(tx.EvmTx.FromChainID())
 			if err := tx.EvmTx.SetFromShardSize(fromShardSize); err != nil {
 				return err
 			}
@@ -442,8 +445,8 @@ func (pm *ProtocolManager) HandleGetRootBlockHeaderListRequest(blockHeaderReq *p
 	if !pm.rootBlockChain.HasHeader(blockHeaderReq.BlockHash) {
 		return nil, fmt.Errorf("hash %v do not exist", blockHeaderReq.BlockHash.Hex())
 	}
-	if blockHeaderReq.Limit > rootBlockHeaderListLimit {
-		return nil, fmt.Errorf("limit in request is larger than expected, limit: %d, want: %d", blockHeaderReq.Limit, rootBlockHeaderListLimit)
+	if blockHeaderReq.Limit > synchronizer.RootBlockHeaderListLimit {
+		return nil, fmt.Errorf("limit in request is larger than expected, limit: %d, want: %d", blockHeaderReq.Limit, synchronizer.RootBlockHeaderListLimit)
 	}
 	if blockHeaderReq.Direction != directionToGenesis {
 		return nil, errors.New("Bad direction")
@@ -470,8 +473,8 @@ func (pm *ProtocolManager) HandleGetRootBlockHeaderListRequest(blockHeaderReq *p
 
 func (pm *ProtocolManager) HandleGetRootBlockListRequest(request *p2p.GetRootBlockListRequest) (*p2p.GetRootBlockListResponse, error) {
 	size := len(request.RootBlockHashList)
-	if size > rootBlockBatchSize {
-		return nil, fmt.Errorf("len of RootBlockHashList is larger than expected, limit: %d, want: %d", size, rootBlockBatchSize)
+	if size > synchronizer.RootBlockBatchSize {
+		return nil, fmt.Errorf("len of RootBlockHashList is larger than expected, limit: %d, want: %d", size, synchronizer.RootBlockBatchSize)
 	}
 	response := p2p.GetRootBlockListResponse{
 		RootBlockList: make([]*types.RootBlock, 0, size),
@@ -536,9 +539,9 @@ func (pm *ProtocolManager) HandleNewTransactionListRequest(peerId string, rpcId 
 }
 
 func (pm *ProtocolManager) HandleGetMinorBlockHeaderListRequest(rpcId uint64, branch uint32, request *p2p.GetMinorBlockHeaderListRequest) (*p2p.GetMinorBlockHeaderListResponse, error) {
-	if request.Limit > minorBlockHeaderListLimit {
+	if request.Limit > synchronizer.MinorBlockHeaderListLimit {
 		return nil, fmt.Errorf("bad limit. rpcId: %d; branch: %d; limit: %d; expected limit: %d",
-			rpcId, branch, request.Limit, minorBlockHeaderListLimit)
+			rpcId, branch, request.Limit, synchronizer.MinorBlockHeaderListLimit)
 	}
 	if request.Direction != directionToGenesis {
 		return nil, fmt.Errorf("Bad direction. rpcId: %d; branch: %d; ", rpcId, branch)
@@ -556,9 +559,9 @@ func (pm *ProtocolManager) HandleGetMinorBlockHeaderListRequest(rpcId uint64, br
 }
 
 func (pm *ProtocolManager) HandleGetMinorBlockListRequest(peerId string, rpcId uint64, branch uint32, request *p2p.GetMinorBlockListRequest) (*p2p.GetMinorBlockListResponse, error) {
-	if len(request.MinorBlockHashList) > minorBlockBatchSize {
+	if len(request.MinorBlockHashList) > synchronizer.MinorBlockBatchSize {
 		return nil, fmt.Errorf("bad number of minor blocks requested. rpcId: %d; branch: %d; limit: %d; expected limit: %d",
-			rpcId, branch, len(request.MinorBlockHashList), minorBlockBatchSize)
+			rpcId, branch, len(request.MinorBlockHashList), synchronizer.MinorBlockBatchSize)
 	}
 	clients := pm.getShardConnFunc(branch)
 	if len(clients) == 0 {
@@ -614,12 +617,16 @@ func (pm *ProtocolManager) syncer() {
 
 	for {
 		select {
-		case <-pm.newPeerCh:
+		case peer := <-pm.newPeerCh:
 			// Make sure we have peers to select from, then sync
 			if pm.peers.Len() < minDesiredPeerCount {
 				break
 			}
-			go pm.synchronise(pm.peers.BestPeer())
+			bestPeer := pm.peers.BestPeer()
+			if bestPeer == nil {
+				bestPeer = peer
+			}
+			go pm.synchronise(bestPeer)
 
 		case <-forceSync.C:
 			go pm.synchronise(pm.peers.BestPeer())

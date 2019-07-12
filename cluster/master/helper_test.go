@@ -57,7 +57,7 @@ func newTestProtocolManager(blocks int, generator func(int, *core.RootBlockGen),
 		db            = ethdb.NewMemDatabase()
 		genesis       = core.NewGenesis(qkcconfig)
 		genesisBlock  = genesis.MustCommitRootBlock(db)
-		blockChain, _ = core.NewRootBlockChain(db, nil, qkcconfig, engine, nil)
+		blockChain, _ = core.NewRootBlockChain(db, qkcconfig, engine, nil)
 	)
 	qkcconfig.SkipRootCoinbaseCheck = true
 	clusterconfig.P2P.PrivKey = privKey
@@ -266,6 +266,10 @@ type fakeSynchronizer struct {
 
 func NewFakeSynchronizer(n int) *fakeSynchronizer {
 	return &fakeSynchronizer{make(chan synchronizer.Task, n)}
+}
+
+func (s *fakeSynchronizer) IsSyncing() bool {
+	return false
 }
 
 func (s *fakeSynchronizer) AddTask(task synchronizer.Task) error {

@@ -293,7 +293,10 @@ func main() {
 			if err != nil {
 				log.Fatal("ERROR: invalid shard ID")
 			}
-			fullShardId := cfg.Quarkchain.GetFullShardIdByFullShardKey(uint32(s))
+			fullShardId, err := cfg.Quarkchain.GetFullShardIdByFullShardKey(uint32(s))
+			if err != nil {
+				panic(err)
+			}
 			shardCfg := cfg.Quarkchain.GetShardConfigByFullShardID(fullShardId)
 			shardCfgs[uint32(s)] = shardCfg
 		}
