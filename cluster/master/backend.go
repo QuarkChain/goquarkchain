@@ -133,7 +133,7 @@ func New(ctx *service.ServiceContext, cfg *config.ClusterConfig) (*QKCMasterBack
 		return nil, err
 	}
 
-	mstr.miner = miner.New(ctx, mstr, mstr.engine, mstr.synchronizer.IsSyncing)
+	mstr.miner = miner.New(ctx, mstr, mstr.engine)
 
 	return mstr, nil
 }

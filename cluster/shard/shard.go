@@ -100,7 +100,7 @@ func New(ctx *service.ServiceContext, rBlock *types.RootBlock, conn ConnManager,
 	shard.MinorBlockChain.SetBroadcastMinorBlockFunc(shard.AddMinorBlock)
 	shard.synchronizer = synchronizer.NewSynchronizer(shard.MinorBlockChain)
 
-	shard.miner = miner.New(ctx, shard, shard.engine, shard.synchronizer.IsSyncing)
+	shard.miner = miner.New(ctx, shard, shard.engine)
 
 	return shard, nil
 }

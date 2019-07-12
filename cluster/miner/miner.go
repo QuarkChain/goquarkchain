@@ -31,17 +31,15 @@ type Miner struct {
 	mu        sync.RWMutex
 	timestamp *time.Time
 	isMining  bool
-	isSyncing func() bool
 	stopCh    chan struct{}
 	logInfo   string
 }
 
-func New(ctx *service.ServiceContext, api MinerAPI, engine consensus.Engine, isSyncing func() bool) *Miner {
+func New(ctx *service.ServiceContext, api MinerAPI, engine consensus.Engine) *Miner {
 	miner := &Miner{
 		api:       api,
 		engine:    engine,
 		timestamp: &ctx.Timestamp,
-		isSyncing: isSyncing,
 		resultCh:  make(chan types.IBlock, 1),
 		workCh:    make(chan types.IBlock, 1),
 		startCh:   make(chan struct{}, 1),
@@ -67,7 +65,7 @@ func (m *Miner) interrupt() {
 
 func (m *Miner) checkStatus() bool {
 	if m.IsMining() ||
-		!m.isSyncing() ||
+		!m.api.IsSyncIng() ||
 		time.Now().Sub(*m.timestamp).Seconds() > deadtime {
 		return false
 	}
