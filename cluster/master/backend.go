@@ -92,6 +92,7 @@ func New(ctx *service.ServiceContext, cfg *config.ClusterConfig) (*QKCMasterBack
 				TargetRootBlockTime:  cfg.Quarkchain.Root.ConsensusConfig.TargetBlockTime,
 				TargetMinorBlockTime: cfg.Quarkchain.GetShardConfigByFullShardID(cfg.Quarkchain.GetGenesisShardIds()[0]).ConsensusConfig.TargetBlockTime,
 			},
+			maxPeers:       25,
 			logInfo:        "masterServer",
 			shutdown:       ctx.Shutdown,
 			txCountHistory: deque.New(),
@@ -199,7 +200,9 @@ func (s *QKCMasterBackend) Stop() error {
 
 // Start start node -> start qkcMaster
 func (s *QKCMasterBackend) Init(srvr *p2p.Server) error {
-	s.maxPeers = srvr.MaxPeers
+	if srvr != nil {
+		s.maxPeers = srvr.MaxPeers
+	}
 	if err := s.ConnectToSlaves(); err != nil {
 		return err
 	}

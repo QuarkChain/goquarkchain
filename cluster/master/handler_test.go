@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"io/ioutil"
-	sync2 "sync"
 	"testing"
 	"time"
 
@@ -470,7 +469,6 @@ func TestBroadcastNewMinorBlockTip(t *testing.T) {
 }
 
 func TestBroadcastNewRootBlockTip(t *testing.T) {
-	var w sync2.WaitGroup
 	sync := NewFakeSynchronizer(1)
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
@@ -480,38 +478,35 @@ func TestBroadcastNewRootBlockTip(t *testing.T) {
 	defer peer.close()
 	timeout := time.NewTimer(time.Duration(2 * time.Second))
 	defer timeout.Stop()
-	w.Add(1)
-	go func() {
-		defer w.Done()
-		select {
-		case <-sync.Task:
-		case <-timeout.C:
-			t.Errorf("synchronize task missed")
-		}
-	}()
-
+	select {
+	case <-sync.Task:
+	case <-timeout.C:
+		t.Errorf("synchronize task missed")
+	}
 	err := clientPeer.SendNewTip(0, &p2p.Tip{RootBlockHeader: pm.rootBlockChain.CurrentBlock().Header(), MinorBlockHeaderList: nil})
 	if err != nil {
 		t.Errorf("make message failed: %v", err.Error())
 	}
 	timeout = time.NewTimer(time.Duration(2 * time.Second))
 	defer timeout.Stop()
-	w.Add(1)
-	go func() {
-		defer w.Done()
-		select {
-		case <-sync.Task:
-			t.Errorf("unexpected task")
-		case <-timeout.C:
-		}
-	}()
+	select {
+	case <-sync.Task:
+		t.Errorf("unexpected task")
+	case <-timeout.C:
+	}
 
 	blocks := core.GenerateRootBlockChain(pm.rootBlockChain.CurrentBlock(), pm.rootBlockChain.Engine(), 1, nil)
 	err = clientPeer.SendNewTip(0, &p2p.Tip{RootBlockHeader: blocks[0].Header(), MinorBlockHeaderList: nil})
 	if err != nil {
 		t.Errorf("make message failed: %v", err.Error())
 	}
-	w.Wait()
+	timeout = time.NewTimer(time.Duration(3 * time.Second))
+	defer timeout.Stop()
+	select {
+	case <-sync.Task:
+	case <-timeout.C:
+		t.Errorf("synchronize task missed")
+	}
 }
 
 func getShardConnForP2P(n int, ctrl *gomock.Controller) []rpc.ShardConnForP2P {
