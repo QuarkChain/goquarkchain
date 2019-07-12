@@ -488,7 +488,10 @@ func (s *QKCMasterBackend) GetAccountData(address *account.Address, height *uint
 
 // GetPrimaryAccountData get primary account data for jsonRpc
 func (s *QKCMasterBackend) GetPrimaryAccountData(address *account.Address, blockHeight *uint64) (*rpc.AccountBranchData, error) {
-	fullShardID := s.clusterConfig.Quarkchain.GetFullShardIdByFullShardKey(address.FullShardKey)
+	fullShardID, err := s.clusterConfig.Quarkchain.GetFullShardIdByFullShardKey(address.FullShardKey)
+	if err != nil {
+		return nil, err
+	}
 	slaveConn := s.getOneSlaveConnection(account.Branch{Value: fullShardID})
 	if slaveConn == nil {
 		return nil, ErrNoBranchConn

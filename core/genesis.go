@@ -43,6 +43,7 @@ func (g *Genesis) CreateRootBlock() *types.RootBlock {
 		MinorHeaderHash: common.HexToHash(genesis.HashMerkleRoot),
 		Time:            genesis.Timestamp,
 		Difficulty:      new(big.Int).SetUint64(genesis.Difficulty),
+		ToTalDifficulty: new(big.Int).SetUint64(genesis.Difficulty),
 	}
 
 	return types.NewRootBlock(&header, make([]*types.MinorBlockHeader, 0, 0), nil)
@@ -65,7 +66,11 @@ func (g *Genesis) CreateMinorBlock(rootBlock *types.RootBlock, fullShardId uint3
 	branch := account.Branch{Value: fullShardId}
 
 	for addr, balance := range genesis.Alloc {
-		if g.qkcConfig.GetFullShardIdByFullShardKey(addr.FullShardKey) != fullShardId {
+		fullShardIDByConfig, err := g.qkcConfig.GetFullShardIdByFullShardKey(addr.FullShardKey)
+		if err != nil {
+			return nil, err
+		}
+		if fullShardIDByConfig != fullShardId {
 			continue
 		}
 		recipient := new(common.Address)
