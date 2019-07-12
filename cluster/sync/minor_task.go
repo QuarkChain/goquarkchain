@@ -51,7 +51,7 @@ func NewMinorChainTask(
 				return ret, nil
 			},
 			getSizeLimit: func() (u uint64, u2 uint64) {
-				return MinorBlockBatchSize, MinorBlockHeaderListLimit
+				return MinorBlockHeaderListLimit, MinorBlockBatchSize
 			},
 			needSkip: func(header types.IHeader, b blockchain) bool {
 				if header.NumberU64() <= b.CurrentHeader().NumberU64() {
