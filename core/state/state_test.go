@@ -50,7 +50,7 @@ func (s *StateSuite) TestNull(c *checker.C) {
 	var value common.Hash
 
 	s.state.SetState(address, common.Hash{}, value)
-	s.state.Commit(false)
+	s.state.Commit()
 
 	if value := s.state.GetState(address, common.Hash{}); value != (common.Hash{}) {
 		c.Errorf("expected empty current value, got %x", value)
@@ -114,7 +114,7 @@ func TestSnapshot2(t *testing.T) {
 	so0.deleted = false
 	state.setStateObject(so0)
 
-	root, _ := state.Commit(false)
+	root, _ := state.Commit()
 	state.Reset(root)
 
 	// and one with deleted == true

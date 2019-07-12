@@ -76,7 +76,9 @@ var (
 	// ErrOversizedData is returned if the input data of a transaction is greater
 	// than some meaningful limit a user might use. This is not a consensus error
 	// making the transaction invalid, rather a DOS protection.
-	ErrOversizedData = errors.New("oversized data")
+	ErrOversizedData   = errors.New("oversized data")
+	ErrAuthFromAccount = errors.New("err auth from account")
+	ErrAuthToAccount   = errors.New("err auth to account")
 )
 
 var (
@@ -581,7 +583,7 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 	if !local && pool.gasPrice.Cmp(tx.EvmTx.GasPrice()) > 0 {
 		return ErrUnderpriced
 	}
-	return ValidateTransaction(pool.currentState, tx, nil)
+	return ValidateTransaction(pool.currentState, tx, nil, pool.quarkConfig.GetSuperAccounts())
 }
 
 // add validates a transaction and inserts it into the non-executable queue for

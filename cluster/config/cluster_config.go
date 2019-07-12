@@ -7,6 +7,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/core/types"
+	ethCommon "github.com/ethereum/go-ethereum/common"
 	"math/big"
 	"sort"
 )
@@ -75,20 +76,21 @@ func (c *ClusterConfig) GetSlaveConfig(id string) (*SlaveConfig, error) {
 }
 
 type QuarkChainConfig struct {
-	ChainSize                         uint32      `json:"CHAIN_SIZE"`
-	MaxNeighbors                      uint32      `json:"MAX_NEIGHBORS"`
-	NetworkID                         uint32      `json:"NETWORK_ID"`
-	TransactionQueueSizeLimitPerShard uint64      `json:"TRANSACTION_QUEUE_SIZE_LIMIT_PER_SHARD"`
-	BlockExtraDataSizeLimit           uint32      `json:"BLOCK_EXTRA_DATA_SIZE_LIMIT"`
-	GuardianPublicKey                 string      `json:"GUARDIAN_PUBLIC_KEY"`
-	GuardianPrivateKey                []byte      `json:"GUARDIAN_PRIVATE_KEY"`
-	P2PProtocolVersion                uint32      `json:"P2P_PROTOCOL_VERSION"`
-	P2PCommandSizeLimit               uint32      `json:"P2P_COMMAND_SIZE_LIMIT"`
-	SkipRootDifficultyCheck           bool        `json:"SKIP_ROOT_DIFFICULTY_CHECK"`
-	SkipRootCoinbaseCheck             bool        `json:"SKIP_ROOT_COINBASE_CHECK"`
-	SkipMinorDifficultyCheck          bool        `json:"SKIP_MINOR_DIFFICULTY_CHECK"`
-	GenesisToken                      string      `json:"GENESIS_TOKEN"`
-	Root                              *RootConfig `json:"ROOT"`
+	ChainSize                         uint32              `json:"CHAIN_SIZE"`
+	MaxNeighbors                      uint32              `json:"MAX_NEIGHBORS"`
+	NetworkID                         uint32              `json:"NETWORK_ID"`
+	TransactionQueueSizeLimitPerShard uint64              `json:"TRANSACTION_QUEUE_SIZE_LIMIT_PER_SHARD"`
+	BlockExtraDataSizeLimit           uint32              `json:"BLOCK_EXTRA_DATA_SIZE_LIMIT"`
+	GuardianPublicKey                 string              `json:"GUARDIAN_PUBLIC_KEY"`
+	GuardianPrivateKey                []byte              `json:"GUARDIAN_PRIVATE_KEY"`
+	P2PProtocolVersion                uint32              `json:"P2P_PROTOCOL_VERSION"`
+	P2PCommandSizeLimit               uint32              `json:"P2P_COMMAND_SIZE_LIMIT"`
+	SkipRootDifficultyCheck           bool                `json:"SKIP_ROOT_DIFFICULTY_CHECK"`
+	SkipRootCoinbaseCheck             bool                `json:"SKIP_ROOT_COINBASE_CHECK"`
+	SkipMinorDifficultyCheck          bool                `json:"SKIP_MINOR_DIFFICULTY_CHECK"`
+	GenesisToken                      string              `json:"GENESIS_TOKEN"`
+	Root                              *RootConfig         `json:"ROOT"`
+	SuperAccount                      []account.Recipient `json:"SUPER_ACCOUNT"`
 	shards                            map[uint32]*ShardConfig
 	Chains                            map[uint32]*ChainConfig `json:"-"`
 	RewardTaxRate                     *big.Rat                `json:"-"`
@@ -152,6 +154,14 @@ func (q *QuarkChainConfig) UnmarshalJSON(input []byte) error {
 // Return the root block height at which the shard shall be created
 func (q *QuarkChainConfig) GetGenesisRootHeight(fullShardId uint32) uint32 {
 	return q.shards[fullShardId].Genesis.RootHeight
+}
+
+func (q *QuarkChainConfig) GetSuperAccounts() map[account.Recipient]bool {
+	superMap := make(map[account.Recipient]bool)
+	for _, v := range q.SuperAccount {
+		superMap[v] = true
+	}
+	return superMap
 }
 
 // GetGenesisShardIds returns a list of ids for shards that have GENESIS.
@@ -296,6 +306,9 @@ func NewQuarkChainConfig() *QuarkChainConfig {
 		GenesisToken:                      "",
 		RewardTaxRate:                     new(big.Rat).SetFloat64(0.5),
 		Root:                              NewRootConfig(),
+		SuperAccount: []account.Recipient{
+			ethCommon.HexToAddress("0x438befb16aed2d01bc0ba111eee12c65dcdb5275"),
+		},
 	}
 
 	ret.Root.ConsensusType = PoWSimulate

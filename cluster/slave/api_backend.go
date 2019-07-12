@@ -425,8 +425,23 @@ func (s *SlaveBackend) GenTx(genTxs *rpc.GenTxRequest) error {
 	return g.Wait()
 }
 
-func (s *SlaveBackend) SetMining(mining bool) {
+func (s *SlaveBackend) SetMining(mining bool) error {
 	for _, shrd := range s.shards {
-		shrd.SetMining(mining)
+		if err := shrd.SetMining(mining); err != nil {
+			return err
+		}
 	}
+	return nil
+}
+
+func (s *SlaveBackend) CheckAccountPermission(addr account.Address) (bool, error) {
+	fullShardID, err := s.clstrCfg.Quarkchain.GetFullShardIdByFullShardKey(addr.FullShardKey)
+	if err != nil {
+		return false, err
+	}
+	shard, ok := s.shards[fullShardID]
+	if !ok {
+		return false, fmt.Errorf("no such fullShardID:%v", fullShardID)
+	}
+	return shard.MinorBlockChain.IsAccountEnable(addr.Recipient), nil
 }

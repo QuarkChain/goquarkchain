@@ -58,4 +58,5 @@ var (
 	ErrNetWorkID         = errors.New("network id not match")
 	ErrNotNeighbor       = errors.New("is not a neighbor")
 	ErrNotSameRootChain  = errors.New("is not same root chain")
+	ErrAccountNotBeMiner = errors.New("address can not be used as miner")
 )

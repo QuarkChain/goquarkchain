@@ -8,6 +8,11 @@ import (
 	"github.com/QuarkChain/goquarkchain/core/types"
 )
 
+var (
+	AccountEnabled  = []byte{1}
+	AccountDisabled = []byte{0}
+)
+
 func isSameChain(db rawdb.DatabaseReader, longerChainHeader, shorterChainHeader types.IHeader) bool {
 	if longerChainHeader.NumberU64() < shorterChainHeader.NumberU64() {
 		log.Crit("wrong parameter order", "long.Number", longerChainHeader.NumberU64(), "long.Hash", longerChainHeader.Hash().String(), "short.Number", shorterChainHeader.NumberU64(), "short.hash", shorterChainHeader.Hash().String())

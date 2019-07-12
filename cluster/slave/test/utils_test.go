@@ -12,13 +12,11 @@ type SlaveServerSideOp struct {
 }
 
 func NewFakeServerSideOp() *SlaveServerSideOp {
-	return &SlaveServerSideOp{
-	}
+	return &SlaveServerSideOp{}
 }
 
 func (s *SlaveServerSideOp) HeartBeat(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
-	return &rpc.Response{
-	}, nil
+	return &rpc.Response{}, nil
 }
 
 func (s *SlaveServerSideOp) MasterInfo(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
@@ -546,5 +544,12 @@ func (s *SlaveServerSideOp) SetMining(ctx context.Context, req *rpc.Request) (*r
 	if err = serialize.DeserializeFromBytes(req.Data, &mining); err != nil {
 		return nil, err
 	}
+	return response, nil
+}
+
+func (s *SlaveServerSideOp) HandleCheckAccountPermission(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
+	var (
+		response = &rpc.Response{RpcId: req.RpcId}
+	)
 	return response, nil
 }

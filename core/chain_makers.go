@@ -291,8 +291,8 @@ func GenerateMinorBlockChain(config *params.ChainConfig, quarkChainConfig *confi
 		coinbaseAmount := qkcCommon.BigIntMulBigRat(quarkChainConfig.GetShardConfigByFullShardID(quarkChainConfig.Chains[0].ShardSize|0).CoinbaseAmount, quarkChainConfig.RewardTaxRate)
 		statedb.AddBalance(block.Header().Coinbase.Recipient, coinbaseAmount)
 
-		b.statedb.Finalise(true)
-		rootHash, err := b.statedb.Commit(true)
+		b.statedb.Finalise()
+		rootHash, err := b.statedb.Commit()
 		if err != nil {
 			panic(fmt.Sprintf("state write error: %v", err))
 		}
@@ -329,7 +329,7 @@ func makeHeaderChain(parent *types.MinorBlockHeader, metaData *types.MinorBlockM
 // makeBlockChain creates a deterministic chain of blocks rooted at parent.
 func makeBlockChain(parent *types.MinorBlock, n int, engine consensus.Engine, db ethdb.Database, seed int) []*types.MinorBlock {
 	blocks, _ := GenerateMinorBlockChain(params.TestChainConfig, config.NewQuarkChainConfig(), parent, engine, db, n, func(config *config.QuarkChainConfig, i int, b *MinorBlockGen) {
-		b.SetCoinbase(account.Address{Recipient: account.Recipient{0: byte(seed), 19: byte(i)}, FullShardKey: 0})
+		b.SetCoinbase(account.Address{Recipient: common.Address{1}, FullShardKey: 0})
 	})
 	return blocks
 }

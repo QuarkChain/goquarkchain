@@ -467,6 +467,7 @@ func (s *StateDB) createObject(addr common.Address) (newobj, prev *stateObject) 
 	newobj = newObject(s, addr, Account{})
 	newobj.setNonce(0) // sets the object to dirty
 	newobj.SetFullShardKey(s.fullShardKey)
+	newobj.SetStatus(false)
 	if prev == nil {
 		s.journal.append(createObjectChange{account: &addr})
 	} else {
@@ -592,7 +593,8 @@ func (s *StateDB) GetRefund() uint64 {
 
 // Finalise finalises the state by removing the self destructed objects
 // and clears the journal as well as the refunds.
-func (s *StateDB) Finalise(deleteEmptyObjects bool) {
+func (s *StateDB) Finalise() {
+	deleteEmptyObjects := false
 	for addr := range s.journal.dirties {
 		stateObject, exist := s.stateObjects[addr]
 		if !exist {
@@ -620,8 +622,8 @@ func (s *StateDB) Finalise(deleteEmptyObjects bool) {
 // IntermediateRoot computes the current root hash of the state trie.
 // It is called in between transactions to get the root hash that
 // goes into transaction receipts.
-func (s *StateDB) IntermediateRoot(deleteEmptyObjects bool) common.Hash {
-	s.Finalise(deleteEmptyObjects)
+func (s *StateDB) IntermediateRoot() common.Hash {
+	s.Finalise()
 	return s.trie.Hash()
 }
 
@@ -640,7 +642,8 @@ func (s *StateDB) clearJournalAndRefund() {
 }
 
 // Commit writes the state to the underlying in-memory trie database.
-func (s *StateDB) Commit(deleteEmptyObjects bool) (root common.Hash, err error) {
+func (s *StateDB) Commit() (root common.Hash, err error) {
+	deleteEmptyObjects := false
 	defer s.clearJournalAndRefund()
 
 	for addr := range s.journal.dirties {
@@ -790,4 +793,16 @@ func (s *StateDB) GetBlockCoinbase() qkcaccount.Recipient {
 
 func (s *StateDB) SetBlockCoinbase(data qkcaccount.Recipient) {
 	s.blockCoinbase = data
+}
+
+func (s *StateDB) SetAccountStatus(addr common.Address, flag bool) {
+	stateObject := s.GetOrNewStateObject(addr)
+	if stateObject != nil {
+		stateObject.SetStatus(flag)
+	}
+}
+
+func (s *StateDB) GetAccountStatus(addr common.Address) bool {
+	stateObject := s.GetOrNewStateObject(addr)
+	return stateObject.GetStatus()
 }

@@ -3,6 +3,8 @@ package sync
 import (
 	"errors"
 	"fmt"
+	"github.com/QuarkChain/goquarkchain/account"
+	"math/big"
 	"math/rand"
 	"testing"
 
@@ -43,12 +45,19 @@ func newMinorBlockChain(sz int) (blockchain, ethdb.Database) {
 		clusterConfig = config.NewClusterConfig()
 		rootBlock     = genesis.CreateRootBlock()
 		fullShardID   = qkcconfig.Chains[0].ShardSize | 0
-		minorGenesis  = genesis.MustCommitMinorBlock(db, rootBlock, fullShardID)
 	)
 	clusterConfig.Quarkchain = qkcconfig
 	qkcconfig.SkipRootCoinbaseCheck = true
 	qkcconfig.SkipMinorDifficultyCheck = true
 	qkcconfig.SkipRootDifficultyCheck = true
+	addr0 := account.NewAddress(account.BytesToIdentityRecipient(common.Address{0}.Bytes()), 0)
+	ids := qkcconfig.GetGenesisShardIds()
+	for _, v := range ids {
+		shardConfig := qkcconfig.GetShardConfigByFullShardID(v)
+		addr := addr0.AddressInBranch(account.Branch{Value: v})
+		shardConfig.Genesis.Alloc[addr] = big.NewInt(0)
+	}
+	minorGenesis := genesis.MustCommitMinorBlock(db, rootBlock, fullShardID)
 	minorBlocks, _ := core.GenerateMinorBlockChain(params.TestChainConfig, qkcconfig, minorGenesis, engine, db, sz, nil)
 
 	var blocks []types.IBlock

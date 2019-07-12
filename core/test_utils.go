@@ -14,6 +14,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/core/vm"
 	"github.com/QuarkChain/goquarkchain/crypto"
+	ethCommon "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/params"
 )
@@ -29,10 +30,10 @@ type fakeEnv struct {
 	clusterConfig *config.ClusterConfig
 }
 
-func getTestEnv(genesisAccount *account.Address, genesisMinorQuarkHash *uint64, chainSize *uint32, shardSize *uint32, genesisRootHeights *map[uint32]uint32, remoteMining *bool) *fakeEnv {
+func getTestEnv(genesisAccount []account.Address, genesisMinorQuarkHash *uint64, chainSize *uint32, shardSize *uint32, genesisRootHeights *map[uint32]uint32, remoteMining *bool) *fakeEnv {
 	if genesisAccount == nil {
 		temp := account.CreatEmptyAddress(0)
-		genesisAccount = &temp
+		genesisAccount = []account.Address{temp}
 	}
 
 	if genesisMinorQuarkHash == nil {
@@ -78,12 +79,21 @@ func getTestEnv(genesisAccount *account.Address, genesisMinorQuarkHash *uint64, 
 	env.clusterConfig.Quarkchain.SkipRootCoinbaseCheck = true
 	env.clusterConfig.Quarkchain.SkipRootCoinbaseCheck = true
 	env.clusterConfig.EnableTransactionHistory = true
-
+	addr0 := account.NewAddress(account.BytesToIdentityRecipient(ethCommon.Address{0}.Bytes()), 0)
 	ids := env.clusterConfig.Quarkchain.GetGenesisShardIds()
-	for _, v := range ids {
-		addr := genesisAccount.AddressInShard(v)
-		shardConfig := fakeClusterConfig.Quarkchain.GetShardConfigByFullShardID(v)
-		shardConfig.Genesis.Alloc[addr] = new(big.Int).SetUint64(*genesisMinorQuarkHash)
+
+	for index, vv := range genesisAccount {
+		data := uint64(0)
+		if index == 0 {
+			data = uint64(*genesisMinorQuarkHash)
+		}
+		for _, v := range ids {
+			addr := vv.AddressInShard(v)
+			shardConfig := fakeClusterConfig.Quarkchain.GetShardConfigByFullShardID(v)
+			shardConfig.Genesis.Alloc[addr] = new(big.Int).SetUint64(data)
+			addr = addr0.AddressInShard(v)
+			shardConfig.Genesis.Alloc[addr] = new(big.Int).SetUint64(0)
+		}
 	}
 	return env
 }
@@ -130,7 +140,7 @@ func createDefaultShardState(env *fakeEnv, shardID *uint32, diffCalc consensus.D
 
 }
 
-func setUp(genesisAccount *account.Address, genesisMinotQuarkash *uint64, shardSize *uint32) *fakeEnv {
+func setUp(genesisAccount []account.Address, genesisMinotQuarkash *uint64, shardSize *uint32) *fakeEnv {
 	env := getTestEnv(genesisAccount, genesisMinotQuarkash, nil, shardSize, nil, nil)
 	return env
 }

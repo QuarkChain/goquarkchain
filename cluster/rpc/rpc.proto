@@ -82,6 +82,8 @@ service SlaveServerSideOp {
     }
     rpc SetMining (Request) returns (Response) {
     }
+    rpc HandleCheckAccountPermission (Request) returns (Response) {
+     }
 }
 
 // request data

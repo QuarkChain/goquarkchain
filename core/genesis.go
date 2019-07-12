@@ -77,10 +77,11 @@ func (g *Genesis) CreateMinorBlock(rootBlock *types.RootBlock, fullShardId uint3
 		recipient.SetBytes(addr.Recipient.Bytes())
 		statedb.SetFullShardKey(addr.FullShardKey)
 		statedb.AddBalance(*recipient, balance)
+		statedb.SetAccountStatus(*recipient, true)
 	}
 
 	meta := types.MinorBlockMeta{
-		Root:              statedb.IntermediateRoot(true),
+		Root:              statedb.IntermediateRoot(),
 		TxHash:            common.HexToHash(genesis.HashMerkleRoot),
 		ReceiptHash:       common.Hash{},
 		GasUsed:           &serialize.Uint256{Value: new(big.Int)},
@@ -112,7 +113,7 @@ func (g *Genesis) CreateMinorBlock(rootBlock *types.RootBlock, fullShardId uint3
 		Extra:             extra,
 	}
 
-	if _, err := statedb.Commit(true); err != nil {
+	if _, err := statedb.Commit(); err != nil {
 		return nil, err
 	}
 	if err := statedb.Database().TrieDB().Commit(meta.Root, true); err != nil {

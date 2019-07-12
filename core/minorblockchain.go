@@ -907,7 +907,7 @@ func (m *MinorBlockChain) WriteBlockWithState(block *types.MinorBlock, receipts 
 		return NonStatTy, err
 	}
 
-	root, err := state.Commit(true)
+	root, err := state.Commit()
 	if err != nil {
 		return NonStatTy, err
 	}
