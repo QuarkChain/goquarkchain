@@ -250,25 +250,26 @@ func (n *Node) startRPC(services map[reflect.Type]Service) error {
 		}
 	}
 	if err = n.startGRPC(n.svrEndpoint, grpcApis); err != nil {
-		goto FALSE
+		n.stopRPC()
+		return err
 	}
 	if n.IsMaster() {
 		if err = n.startIPC(apis); err != nil {
-			goto FALSE
+			n.stopRPC()
+			return err
 		}
 		if err = n.startHTTP(apis, n.config.HTTPModules, n.config.HTTPTimeouts); err != nil {
-			goto FALSE
+			n.stopRPC()
+			return err
 		}
 		if err = n.startPrivHTTP(apis, n.config.HTTPModules, n.config.HTTPTimeouts); err != nil {
-			goto FALSE
+			n.stopRPC()
+			return err
 		}
 	}
 	// All API endpoints started successfully
 	n.rpcAPIs = apis
 	return nil
-FALSE:
-	n.stopRPC()
-	return err
 }
 
 func (n *Node) apiFilter(nodeApis []rpc.API, isPublic bool, modules []string) []rpc.API {
