@@ -481,28 +481,16 @@ func TestBroadcastNewRootBlockTip(t *testing.T) {
 	sync := NewFakeSynchronizer(1)
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
-	pm, _ := newTestProtocolManagerMust(t, 15, nil, sync, nil)
+	pm, _ := newTestProtocolManagerMust(t, 14, nil, sync, nil)
 	peer, _ := newTestPeer("peer", int(qkcconfig.P2PProtocolVersion), pm, true)
 	clientPeer := newTestClientPeer(int(qkcconfig.P2PProtocolVersion), peer.app)
 	defer peer.close()
-	err := clientPeer.SendNewTip(0, &p2p.Tip{RootBlockHeader: pm.rootBlockChain.CurrentBlock().Header(), MinorBlockHeaderList: nil})
-	if err != nil {
-		t.Errorf("make message failed: %v", err.Error())
-	}
-	timeout := time.NewTimer(time.Duration(2 * time.Second))
-	defer timeout.Stop()
-	select {
-	case <-sync.Task:
-		t.Errorf("unexpected task")
-	case <-timeout.C:
-	}
-
 	blocks := core.GenerateRootBlockChain(pm.rootBlockChain.CurrentBlock(), pm.rootBlockChain.Engine(), 1, nil)
-	err = clientPeer.SendNewTip(0, &p2p.Tip{RootBlockHeader: blocks[0].Header(), MinorBlockHeaderList: nil})
+	err := clientPeer.SendNewTip(0, &p2p.Tip{RootBlockHeader: blocks[0].Header(), MinorBlockHeaderList: nil})
 	if err != nil {
 		t.Errorf("make message failed: %v", err.Error())
 	}
-	timeout = time.NewTimer(time.Duration(3 * time.Second))
+	timeout := time.NewTimer(time.Duration(3 * time.Second))
 	defer timeout.Stop()
 	select {
 	case <-sync.Task:
