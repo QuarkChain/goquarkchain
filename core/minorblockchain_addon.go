@@ -275,6 +275,10 @@ func (m *MinorBlockChain) putRootBlock(rBlock *types.RootBlock, minorHeader *typ
 	if minorHeader != nil {
 		mHash = minorHeader.Hash()
 	}
+	if _, ok := m.rootHeightToHashes[rBlock.NumberU64()]; !ok {
+		m.rootHeightToHashes[rBlock.NumberU64()] = make(map[common.Hash]common.Hash)
+	}
+	m.rootHeightToHashes[rBlock.NumberU64()][rBlock.Hash()] = mHash
 	rawdb.WriteLastConfirmedMinorBlockHeaderAtRootBlock(m.db, rBlockHash, mHash)
 }
 

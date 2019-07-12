@@ -137,6 +137,7 @@ type MinorBlockChain struct {
 	rewardCalc               *qkcCommon.ConstMinorBlockRewardCalculator
 	gasPriceSuggestionOracle *gasPriceSuggestionOracle
 	heightToMinorBlockHashes map[uint64]map[common.Hash]struct{}
+	rootHeightToHashes       map[uint64]map[common.Hash]common.Hash // [rootBlockHeight][rootBlockHash][confirmedMinorHash]
 	currentEvmState          *state.StateDB
 	logInfo                  string
 	addMinorBlockAndBroad    func(block *types.MinorBlock) error
@@ -192,6 +193,7 @@ func NewMinorBlockChain(
 		engine:                   engine,
 		vmConfig:                 vmConfig,
 		heightToMinorBlockHashes: make(map[uint64]map[common.Hash]struct{}),
+		rootHeightToHashes:       make(map[uint64]map[common.Hash]common.Hash),
 		currentEvmState:          new(state.StateDB),
 		branch:                   account.Branch{Value: fullShardID},
 		shardConfig:              clusterConfig.Quarkchain.GetShardConfigByFullShardID(fullShardID),
@@ -673,7 +675,9 @@ func (m *MinorBlockChain) Stop() {
 			heightDiff = []uint64{0, 1, triesInMemory - 1}
 		)
 		if m.rootTip != nil {
-			heightDiff = m.getNeedStoreHeight(m.rootTip.Hash(), heightDiff)
+			for _, hash := range m.rootHeightToHashes[m.rootTip.NumberU64()] {
+				heightDiff = m.getNeedStoreHeight(hash, heightDiff)
+			}
 			sort.Slice(heightDiff, func(i, j int) bool {
 				return heightDiff[i] < heightDiff[j]
 			})
