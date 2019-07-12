@@ -678,9 +678,7 @@ func (m *MinorBlockChain) Stop() {
 			for _, hash := range m.rootHeightToHashes[m.rootTip.NumberU64()] {
 				heightDiff = m.getNeedStoreHeight(hash, heightDiff)
 			}
-			sort.Slice(heightDiff, func(i, j int) bool {
-				return heightDiff[i] < heightDiff[j]
-			})
+			heightDiff = qkcCommon.RemoveDuplicate(heightDiff)
 		}
 		for _, offset := range heightDiff {
 			if currNumber > offset {
