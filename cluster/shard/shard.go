@@ -110,6 +110,7 @@ func (s *ShardBackend) Stop() {
 	s.miner.Stop()
 	s.eventMux.Stop()
 	s.engine.Close()
+	s.MinorBlockChain.Stop()
 	s.chainDb.Close()
 }
 

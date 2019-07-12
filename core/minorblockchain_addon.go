@@ -30,7 +30,10 @@ func (m *MinorBlockChain) ReadLastConfirmedMinorBlockHeaderAtRootBlock(hash comm
 		return data.(common.Hash)
 	}
 	data := rawdb.ReadLastConfirmedMinorBlockHeaderAtRootBlock(m.db, hash)
-	m.lastConfirmCache.Add(hash, data)
+	if !bytes.Equal(data.Bytes(), common.Hash{}.Bytes()) {
+		m.lastConfirmCache.Add(hash, data)
+	}
+
 	return data
 }
 func (m *MinorBlockChain) getLastConfirmedMinorBlockHeaderAtRootBlock(hash common.Hash) *types.MinorBlockHeader {
@@ -40,22 +43,7 @@ func (m *MinorBlockChain) getLastConfirmedMinorBlockHeaderAtRootBlock(hash commo
 	}
 	return m.GetHeader(rMinorHeaderHash).(*types.MinorBlockHeader)
 }
-func (m *MinorBlockChain) isSameMinorChain(long types.IHeader, short types.IHeader) bool {
-	// already locked by insertChain
-	if short.NumberU64() > long.NumberU64() {
-		return false
-	}
-	if short.NumberU64() == long.NumberU64() {
-		return long.Hash() == short.Hash()
-	}
 
-	header := long
-	diff := long.NumberU64() - short.NumberU64()
-	for index := uint64(0); index < diff-1; index++ {
-		header = m.GetHeaderByHash(header.GetParentHash())
-	}
-	return short.Hash() == header.GetParentHash()
-}
 func getLocalFeeRate(qkcConfig *config.QuarkChainConfig) *big.Rat {
 	ret := new(big.Rat).SetInt64(1)
 	return ret.Sub(ret, qkcConfig.RewardTaxRate)
@@ -72,7 +60,10 @@ func (m *MinorBlockChain) putMinorBlock(mBlock *types.MinorBlock, xShardReceiveT
 		m.heightToMinorBlockHashes[mBlock.NumberU64()] = make(map[common.Hash]struct{})
 	}
 	m.heightToMinorBlockHashes[mBlock.NumberU64()][mBlock.Hash()] = struct{}{}
-	rawdb.WriteMinorBlock(m.db, mBlock)
+	if !m.HasBlock(mBlock.Hash()) {
+		rawdb.WriteMinorBlock(m.db, mBlock)
+	}
+
 	if err := m.putTotalTxCount(mBlock); err != nil {
 		return err
 	}
@@ -153,11 +144,17 @@ func (m *MinorBlockChain) validateTx(tx *types.Transaction, evmState *state.Stat
 		evmTx.SetGas(evmTxGas)
 	}
 
-	toShardSize := m.clusterConfig.Quarkchain.GetShardSizeByChainId(tx.EvmTx.ToChainID())
+	toShardSize, err := m.clusterConfig.Quarkchain.GetShardSizeByChainId(tx.EvmTx.ToChainID())
+	if err != nil {
+		return nil, err
+	}
 	if err := tx.EvmTx.SetToShardSize(toShardSize); err != nil {
 		return nil, err
 	}
-	fromShardSize := m.clusterConfig.Quarkchain.GetShardSizeByChainId(tx.EvmTx.FromChainID())
+	fromShardSize, err := m.clusterConfig.Quarkchain.GetShardSizeByChainId(tx.EvmTx.FromChainID())
+	if err != nil {
+		return nil, err
+	}
 	if err := tx.EvmTx.SetFromShardSize(fromShardSize); err != nil {
 		return nil, err
 	}
@@ -249,7 +246,7 @@ func (m *MinorBlockChain) GetTransactionCount(recipient account.Recipient, heigh
 }
 
 func (m *MinorBlockChain) isSameRootChain(long types.IHeader, short types.IHeader) bool {
-	return isSameRootChain(m.db, long, short)
+	return isSameChain(m.db, long, short)
 }
 
 func (m *MinorBlockChain) isMinorBlockLinkedToRootTip(mBlock *types.MinorBlock) bool {
@@ -260,7 +257,7 @@ func (m *MinorBlockChain) isMinorBlockLinkedToRootTip(mBlock *types.MinorBlock) 
 	if mBlock.Header().Number <= confirmed.Number {
 		return false
 	}
-	return m.isSameMinorChain(mBlock.Header(), confirmed)
+	return isSameChain(m.db, mBlock.Header(), confirmed)
 }
 func (m *MinorBlockChain) isNeighbor(remoteBranch account.Branch, rootHeight *uint32) bool {
 	if rootHeight == nil {
@@ -271,7 +268,7 @@ func (m *MinorBlockChain) isNeighbor(remoteBranch account.Branch, rootHeight *ui
 }
 
 func (m *MinorBlockChain) putRootBlock(rBlock *types.RootBlock, minorHeader *types.MinorBlockHeader) {
-	log.Info(m.logInfo, "putRootBlock number", rBlock.Number(), "hash", rBlock.Hash().String())
+	log.Info(m.logInfo, "putRootBlock number", rBlock.Number(), "hash", rBlock.Hash().String(), "lenMinor", len(rBlock.MinorBlockHeaders()))
 	rBlockHash := rBlock.Hash()
 	rawdb.WriteRootBlock(m.db, rBlock)
 	var mHash common.Hash
@@ -299,7 +296,7 @@ func (m *MinorBlockChain) getCoinbaseAddressUntilBlock(headerHash common.Hash, l
 
 func (m *MinorBlockChain) putTotalTxCount(mBlock *types.MinorBlock) error {
 	prevCount := uint32(0)
-	if mBlock.Header().Number > 2 {
+	if mBlock.Header().Number > 1 {
 		dbPreCount := m.getTotalTxCount(mBlock.Header().ParentHash)
 		if dbPreCount == nil {
 			return errors.New("get totalTx failed")
@@ -328,16 +325,26 @@ func (m *MinorBlockChain) putConfirmedCrossShardTransactionDepositList(hash comm
 func (m *MinorBlockChain) InitFromRootBlock(rBlock *types.RootBlock) error {
 	log.Info(m.logInfo, "InitFromRootBlock number", rBlock.Number(), "hash", rBlock.Hash().String())
 	defer log.Info(m.logInfo, "InitFromRootBlock", "end")
-	m.mu.Lock() // to lock rootTip  confirmedHeaderTip...
-	defer m.mu.Unlock()
 	if rBlock.Header().Number <= uint32(m.clusterConfig.Quarkchain.GetGenesisRootHeight(m.branch.Value)) {
 		return errors.New("rootBlock height small than config's height")
 	}
 	if m.initialized == true {
-		return errors.New("already initialized")
+		log.Warn("ReInitFromBlock", "InitFromBlock", rBlock.Number())
 	}
 	m.initialized = true
+
 	confirmedHeaderTip := m.getLastConfirmedMinorBlockHeaderAtRootBlock(rBlock.Hash())
+	if confirmedHeaderTip == nil {
+		m.rootTip = m.getRootBlockHeaderByHash(rBlock.ParentHash())
+		_, err := m.AddRootBlock(rBlock)
+		if err != nil {
+			m.Stop()
+			log.Error(m.logInfo, "InitFromRootBlock-addRootBlock number", rBlock.NumberU64())
+			return err
+		}
+		confirmedHeaderTip = m.getLastConfirmedMinorBlockHeaderAtRootBlock(rBlock.Hash())
+	}
+
 	headerTip := confirmedHeaderTip
 	if headerTip == nil {
 		headerTip = m.GetBlockByNumber(0).IHeader().(*types.MinorBlockHeader)
@@ -442,28 +449,6 @@ func minBigInt(a, b *big.Int) *big.Int {
 // AddTx add tx to txPool
 func (m *MinorBlockChain) AddTx(tx *types.Transaction) error {
 	return m.txPool.AddLocal(tx)
-}
-
-func (m *MinorBlockChain) computeGasLimit(parentGasLimit, parentGasUsed, gasLimitFloor uint64) (*big.Int, error) {
-	// no need to lock
-	shardConfig := m.shardConfig
-	if gasLimitFloor < shardConfig.GasLimitMinimum {
-		return nil, errors.New("gas limit floor is too low")
-	}
-	decay := parentGasLimit / uint64(shardConfig.GasLimitEmaDenominator)
-	usageIncrease := uint64(0)
-	if parentGasUsed != 0 {
-		usageIncrease = parentGasUsed * uint64(shardConfig.GasLimitUsageAdjustmentNumerator) / uint64(shardConfig.GasLimitUsageAdjustmentDenominator) / uint64(shardConfig.GasLimitEmaDenominator)
-	}
-	gasLimit := shardConfig.GasLimitMinimum
-	if gasLimit < parentGasLimit-decay+usageIncrease {
-		gasLimit = parentGasLimit - decay + usageIncrease
-	}
-
-	if gasLimit < gasLimitFloor {
-		return new(big.Int).SetUint64(parentGasLimit + decay), nil
-	}
-	return new(big.Int).SetUint64(gasLimit), nil
 }
 
 func (m *MinorBlockChain) getCrossShardTxListByRootBlockHash(hash common.Hash) ([]*types.CrossShardTransactionDeposit, error) {
@@ -767,7 +752,10 @@ func (m *MinorBlockChain) checkTxBeforeApply(stateT *state.StateDB, tx *types.Tr
 	if tx.EvmTx.Gas() > diff.Uint64() {
 		return ErrorTxContinue
 	}
-	toShardSize := m.clusterConfig.Quarkchain.GetShardSizeByChainId(tx.EvmTx.ToChainID())
+	toShardSize, err := m.clusterConfig.Quarkchain.GetShardSizeByChainId(tx.EvmTx.ToChainID())
+	if err != nil {
+		return err
+	}
 	if err := tx.EvmTx.SetToShardSize(toShardSize); err != nil {
 		return ErrorTxContinue
 	}
@@ -800,7 +788,7 @@ func (m *MinorBlockChain) CreateBlockToMine(createTime *uint64, address *account
 	}
 	prevBlock := m.CurrentBlock()
 	if gasLimit == nil {
-		gasLimit, err = m.computeGasLimit(prevBlock.Header().GetGasLimit().Uint64(), prevBlock.GetMetaData().GasUsed.Value.Uint64(), m.shardConfig.Genesis.GasLimit)
+		gasLimit = m.gasLimit
 	}
 
 	if address == nil {
@@ -808,7 +796,11 @@ func (m *MinorBlockChain) CreateBlockToMine(createTime *uint64, address *account
 		address = &t
 	}
 
-	if m.clusterConfig.Quarkchain.GetFullShardIdByFullShardKey(address.FullShardKey) != m.branch.Value {
+	fullShardID, err := m.clusterConfig.Quarkchain.GetFullShardIdByFullShardKey(address.FullShardKey)
+	if err != nil {
+		return nil, err
+	}
+	if fullShardID != m.branch.Value {
 		t := address.AddressInBranch(m.branch)
 		address = &t
 	}
@@ -851,6 +843,10 @@ func (m *MinorBlockChain) AddRootBlock(rBlock *types.RootBlock) (bool, error) {
 		errRootBlockHeight := errors.New("rBlock is small than config")
 		log.Error(m.logInfo, "add rootBlock", errRootBlockHeight, "block's height", rBlock.Number(), "config's height", m.clusterConfig.Quarkchain.GetGenesisRootHeight(m.branch.Value))
 		return false, errRootBlockHeight
+	}
+
+	if m.GetRootBlockByHash(rBlock.Hash()) != nil {
+		return false, nil
 	}
 
 	if m.GetRootBlockByHash(rBlock.ParentHash()) == nil {
@@ -1332,9 +1328,39 @@ func bytesAddOne(data []byte) []byte {
 	bigData := new(big.Int).SetBytes(data)
 	return bigData.Add(bigData, new(big.Int).SetUint64(1)).Bytes()
 }
+
+func (m *MinorBlockChain) getPendingTxByAddress(address account.Address) ([]*rpc.TransactionDetail, []byte, error) {
+	txList := make([]*rpc.TransactionDetail, 0)
+	txs := m.txPool.GetPendingTxsFromAddress(address.Recipient)
+	txs = append(txs, m.txPool.GetQueueTxsFromAddress(address.Recipient)...)
+
+	for _, tx := range txs {
+		to := new(account.Address)
+		if tx.EvmTx.To() == nil {
+			to = nil
+		} else {
+			to.Recipient = *tx.EvmTx.To()
+			to.FullShardKey = tx.EvmTx.ToFullShardKey()
+		}
+		txList = append(txList, &rpc.TransactionDetail{
+			TxHash:      tx.EvmTx.Hash(),
+			FromAddress: address,
+			ToAddress:   to,
+			Value:       serialize.Uint256{Value: tx.EvmTx.Value()},
+			BlockHeight: 0,
+			Timestamp:   0,
+			Success:     false,
+		})
+	}
+	return txList, []byte{}, nil
+}
 func (m *MinorBlockChain) GetTransactionByAddress(address account.Address, start []byte, limit uint32) ([]*rpc.TransactionDetail, []byte, error) {
 	if !m.clusterConfig.EnableTransactionHistory {
 		return []*rpc.TransactionDetail{}, []byte{}, nil
+	}
+
+	if bytes.Equal(start, []byte{1}) { //get pending tx
+		return m.getPendingTxByAddress(address)
 	}
 	endEncodeAddressTxKey := make([]byte, 0)
 	endEncodeAddressTxKey = append(endEncodeAddressTxKey, []byte("addr_")...)
@@ -1446,7 +1472,11 @@ func (m *MinorBlockChain) GetLogsByAddressAndTopic(start uint64, end uint64, add
 	if len(mapFullShardKey) != 1 {
 		return nil, errors.New("should have same full_shard_key for the given addresses")
 	}
-	if m.clusterConfig.Quarkchain.GetFullShardIdByFullShardKey(addresses[0].FullShardKey) != m.branch.Value {
+	fullShardID, err := m.clusterConfig.Quarkchain.GetFullShardIdByFullShardKey(addresses[0].FullShardKey)
+	if err != nil {
+		return nil, err
+	}
+	if fullShardID != m.branch.Value {
 		return nil, errors.New("not in this branch")
 	}
 	topicsValue := make([][]common.Hash, 0)

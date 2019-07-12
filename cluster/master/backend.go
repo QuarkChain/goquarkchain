@@ -117,7 +117,7 @@ func New(ctx *service.ServiceContext, cfg *config.ClusterConfig) (*QKCMasterBack
 	}
 	log.Debug("Initialised chain configuration", "config", chainConfig)
 
-	if mstr.rootBlockChain, err = core.NewRootBlockChain(mstr.chainDb, nil, cfg.Quarkchain, mstr.engine, nil); err != nil {
+	if mstr.rootBlockChain, err = core.NewRootBlockChain(mstr.chainDb, cfg.Quarkchain, mstr.engine, nil); err != nil {
 		return nil, err
 	}
 
@@ -348,6 +348,7 @@ func (s *QKCMasterBackend) Heartbeat() {
 			for endpoint := range s.clientPool {
 				normal = s.clientPool[endpoint].HeartBeat()
 				if !normal {
+					s.SetMining(false)
 					s.shutdown <- syscall.SIGTERM
 					break
 				}
@@ -488,7 +489,10 @@ func (s *QKCMasterBackend) GetAccountData(address *account.Address, height *uint
 
 // GetPrimaryAccountData get primary account data for jsonRpc
 func (s *QKCMasterBackend) GetPrimaryAccountData(address *account.Address, blockHeight *uint64) (*rpc.AccountBranchData, error) {
-	fullShardID := s.clusterConfig.Quarkchain.GetFullShardIdByFullShardKey(address.FullShardKey)
+	fullShardID, err := s.clusterConfig.Quarkchain.GetFullShardIdByFullShardKey(address.FullShardKey)
+	if err != nil {
+		return nil, err
+	}
 	slaveConn := s.getOneSlaveConnection(account.Branch{Value: fullShardID})
 	if slaveConn == nil {
 		return nil, ErrNoBranchConn
@@ -528,7 +532,7 @@ func (s *QKCMasterBackend) AddRootBlock(rootBlock *types.RootBlock) error {
 		return err
 	}
 	s.rootBlockChain.ClearCommittingHash()
-	go s.miner.HandleNewTip(s.rootBlockChain.CurrentBlock().NumberU64())
+	go s.miner.HandleNewTip()
 	return nil
 }
 
@@ -707,26 +711,18 @@ func (s *QKCMasterBackend) GetStats() (map[string]interface{}, error) {
 	}, nil
 }
 
-func (s *QKCMasterBackend) isSyning() bool {
-	// TODO @liuhuan
-	return false
+func (s *QKCMasterBackend) IsSyncing() bool {
+	return s.synchronizer.IsSyncing()
 }
 
-func (s *QKCMasterBackend) isMining() bool {
-	// TODO @liuhuan
-	return false
+func (s *QKCMasterBackend) IsMining() bool {
+	return s.miner.IsMining()
 }
 
 func (s *QKCMasterBackend) CurrentBlock() *types.RootBlock {
 	return s.rootBlockChain.CurrentBlock()
 }
 
-func (s *QKCMasterBackend) IsSyncing() bool {
-	return false //TODO  need add?
-}
-func (s *QKCMasterBackend) IsMining() bool {
-	return false //TODO need add
-}
 func (s *QKCMasterBackend) GetSlavePoolLen() int {
 	return len(s.clientPool)
 }

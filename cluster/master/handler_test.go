@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
+	"github.com/QuarkChain/goquarkchain/cluster/sync"
 	"github.com/QuarkChain/goquarkchain/core"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/mocks/mock_master"
@@ -16,6 +17,14 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/golang/mock/gomock"
 	"github.com/pkg/errors"
+)
+
+var (
+	// only used in Test
+	rootBlockHeaderListLimit  = sync.RootBlockHeaderListLimit
+	rootBlockBatchSize        = sync.RootBlockBatchSize
+	minorBlockHeaderListLimit = sync.MinorBlockHeaderListLimit
+	minorBlockBatchSize       = sync.MinorBlockBatchSize
 )
 
 // Tests that protocol versions and modes of operations are matched up properly.
