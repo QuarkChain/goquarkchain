@@ -481,7 +481,7 @@ func TestBroadcastNewRootBlockTip(t *testing.T) {
 	sync := NewFakeSynchronizer(1)
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
-	pm, _ := newTestProtocolManagerMust(t, 14, nil, sync, nil)
+	pm, _ := newTestProtocolManagerMust(t, 15, nil, sync, nil)
 	peer, _ := newTestPeer("peer", int(qkcconfig.P2PProtocolVersion), pm, true)
 	clientPeer := newTestClientPeer(int(qkcconfig.P2PProtocolVersion), peer.app)
 	defer peer.close()
