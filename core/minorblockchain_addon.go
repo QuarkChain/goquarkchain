@@ -535,11 +535,15 @@ func (m *MinorBlockChain) getEvmStateByHeight(height *uint64) (*state.StateDB, e
 			return nil, fmt.Errorf("no such block:height %v", *height)
 		}
 	}
-
 	evmState, err := m.StateAt(mBlock.GetMetaData().Root)
 	if err != nil {
 		return nil, err
 	}
+	senderDisallowMap, err := m.posw.BuildSenderDisallowMap(mBlock.Hash(), nil)
+	if err != nil {
+		return nil, err
+	}
+	evmState.SetSenderDisallowMap(senderDisallowMap)
 	return evmState, nil
 }
 
@@ -600,7 +604,11 @@ func (m *MinorBlockChain) ExecuteTx(tx *types.Transaction, fromAddress *account.
 	} else {
 		gas = state.GetGasLimit().Uint64()
 	}
-
+	senderDisallowMap, err := m.posw.BuildSenderDisallowMap(mBlock.Hash(), nil)
+	if err != nil {
+		return nil, err
+	}
+	state.SetSenderDisallowMap(senderDisallowMap)
 	evmTx, err := m.validateTx(tx, state, fromAddress, &gas)
 	if err != nil {
 		return nil, err
@@ -610,11 +618,7 @@ func (m *MinorBlockChain) ExecuteTx(tx *types.Transaction, fromAddress *account.
 	to := evmTx.EvmTx.To()
 	msg := types.NewMessage(fromAddress.Recipient, to, evmTx.EvmTx.Nonce(), evmTx.EvmTx.Value(), evmTx.EvmTx.Gas(), evmTx.EvmTx.GasPrice(), evmTx.EvmTx.Data(), false, tx.EvmTx.FromShardID(), tx.EvmTx.ToShardID())
 	evmState.SetFullShardKey(tx.EvmTx.ToFullShardKey())
-	senderDisallowMap, err := m.posw.BuildSenderDisallowMap(mBlock.Hash(), nil)
-	if err != nil {
-		return nil, err
-	}
-	evmState.SetSenderDisallowMap(senderDisallowMap)
+
 	context := NewEVMContext(msg, m.CurrentBlock().IHeader().(*types.MinorBlockHeader), m)
 	evmEnv := vm.NewEVM(context, evmState, m.ethChainConfig, m.vmConfig)
 
@@ -731,11 +735,6 @@ func (m *MinorBlockChain) addTransactionToBlock(rootBlockHash common.Hash, block
 	txsInBlock := make([]*types.Transaction, 0)
 
 	stateT := evmState
-	senderDisallowMap, err := m.posw.BuildSenderDisallowMap(block.ParentHash(), nil)
-	if err != nil {
-		return nil, nil, err
-	}
-	stateT.SetSenderDisallowMap(senderDisallowMap)
 	for stateT.GetGasUsed().Cmp(stateT.GetGasLimit()) < 0 {
 		tx := txs.Peek()
 		// Pop skip all txs about this account

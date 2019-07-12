@@ -267,7 +267,8 @@ func (s *QKCMasterBackend) CreateBlockToMine() (types.IBlock, *big.Int, error) {
 		return nil, nil, err
 	}
 	diff := block.Header().Difficulty
-	if crypto.VerifySignature(common.Hex2Bytes(s.clusterConfig.Quarkchain.GuardianPublicKey), block.Header().Hash().Bytes(), block.Header().Signature[:]) {
+	if crypto.VerifySignature(common.Hex2Bytes(s.clusterConfig.Quarkchain.GuardianPublicKey),
+		block.Header().Hash().Bytes(), block.Header().Signature[:]) {
 		adjustedDiff := diff.Div(diff, new(big.Int).SetUint64(1000))
 		return block, adjustedDiff, nil
 	}

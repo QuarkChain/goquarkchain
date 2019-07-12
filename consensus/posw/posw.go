@@ -26,13 +26,13 @@ type heightAndAddrs struct {
 type PoSW struct {
 	config            *config.POSWConfig
 	coinbaseAddrCache *lru.Cache
-	minorBCHelper     headReader
+	hReader           headReader
 }
 
 func NewPoSW(headReader headReader, config *config.POSWConfig) *PoSW {
 	cache, _ := lru.New(128)
 	return &PoSW{
-		minorBCHelper:     headReader,
+		hReader:           headReader,
 		config:            config,
 		coinbaseAddrCache: cache,
 	}
@@ -53,7 +53,7 @@ func (p *PoSW) PoSWDiffAdjust(header types.IHeader, stakes *big.Int) (*big.Int, 
 		return nil, err
 	}
 	diff := header.GetDifficulty()
-	if *blockCnt < blockThreshold {
+	if blockCnt < blockThreshold {
 		diff = new(big.Int).Div(diff, big.NewInt(int64(p.config.DiffDivider)))
 	}
 	return diff, nil
@@ -76,10 +76,8 @@ func (p *PoSW) BuildSenderDisallowMap(headerHash common.Hash, coinbase *account.
 		recipientCountMap[*coinbase]++
 	}
 	disallowMap := make(map[account.Recipient]*big.Int)
-	// fmt.Println("disallowMap:")
 	for k, v := range recipientCountMap {
 		disallowMap[k] = new(big.Int).Mul(big.NewInt(int64(v)), p.config.TotalStakePerBlock)
-		// fmt.Printf("[%x: %d]\n", k, disallowMap[k])
 	}
 	return disallowMap, nil
 }
@@ -88,10 +86,10 @@ func (p *PoSW) IsPoSWEnabled() bool {
 	return p.config.Enabled
 }
 
-func (p *PoSW) countCoinbaseBlockUntil(headerHash common.Hash, coinbase account.Recipient) (*uint64, error) {
+func (p *PoSW) countCoinbaseBlockUntil(headerHash common.Hash, coinbase account.Recipient) (uint64, error) {
 	coinbases, err := p.getCoinbaseAddressUntilBlock(headerHash)
 	if err != nil {
-		return nil, err
+		return 0, err
 	}
 	coinbaseBytes := common.Address(coinbase).Bytes()
 	var count uint64 = 0
@@ -100,27 +98,26 @@ func (p *PoSW) countCoinbaseBlockUntil(headerHash common.Hash, coinbase account.
 			count++
 		}
 	}
-	return &count, nil
+	return count, nil
 }
 
 func (p *PoSW) getCoinbaseAddressUntilBlock(headerHash common.Hash) ([]account.Recipient, error) {
-	var header types.IHeader
-	length := int(p.config.WindowSize)
-	addrs := make([]account.Recipient, 0, length)
-	if header = p.minorBCHelper.GetHeader(headerHash); qkcCommon.IsNil(header) {
+	header := p.hReader.GetHeader(headerHash)
+	if qkcCommon.IsNil(header) {
 		return nil, fmt.Errorf("curr block not found: hash %x, %s", headerHash, string(debug.Stack()))
 	}
+	length := int(p.config.WindowSize)
+	addrs := make([]account.Recipient, 0, length)
 	height := header.NumberU64()
 	prevHash := header.GetParentHash()
 	if p.coinbaseAddrCache.Contains(prevHash) {
 		ha, _ := p.coinbaseAddrCache.Get(prevHash)
 		haddrs := ha.(heightAndAddrs)
-		addrs = append(addrs, haddrs.addrs...)
+		addrs = haddrs.addrs
 		if len(addrs) == length {
-			addrs = addrs[:length-1]
+			addrs = addrs[1:]
 		}
-		addrsNew := []account.Recipient{header.GetCoinbase().Recipient}
-		addrs = append(addrsNew, addrs...)
+		addrs = append(addrs, header.GetCoinbase().Recipient)
 	} else { //miss, iterating DB
 		for i := 0; i < length; i++ {
 			addrsNew := []account.Recipient{header.GetCoinbase().Recipient}
@@ -128,7 +125,7 @@ func (p *PoSW) getCoinbaseAddressUntilBlock(headerHash common.Hash) ([]account.R
 			if header.NumberU64() == 0 {
 				break
 			}
-			if header = p.minorBCHelper.GetHeader(header.GetParentHash()); qkcCommon.IsNil(header) {
+			if header = p.hReader.GetHeader(header.GetParentHash()); qkcCommon.IsNil(header) {
 				return nil, fmt.Errorf("mysteriously missing block %x", header.GetParentHash())
 			}
 		}

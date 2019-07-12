@@ -289,11 +289,12 @@ func (s *ShardBackend) CreateBlockToMine() (types.IBlock, *big.Int, error) {
 		header := minorBlock.Header()
 		balance, err := s.MinorBlockChain.GetBalance(header.GetCoinbase().Recipient, nil)
 		if err != nil {
-			log.Error("failed to get coinbase balance", err)
+			return nil, nil, err
 		}
 		adjustedDifficulty, err := s.posw.PoSWDiffAdjust(header, balance)
 		if err != nil {
 			log.Error("[PoSW]Failed to compute PoSW difficulty.", err)
+			return nil, nil, err
 		}
 		log.Info("[PoSW]CreateBlockToMine", "number", header.Number, "diff", header.Difficulty, "adjusted to", adjustedDifficulty)
 		return minorBlock, adjustedDifficulty, nil

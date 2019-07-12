@@ -166,8 +166,14 @@ func (c *CommonEngine) VerifyHeader(
 // VerifySeal checks whether the crypto seal on a header is valid according to
 // the consensus rules of the given engine.
 func (c *CommonEngine) VerifySeal(chain ChainReader, header types.IHeader, adjustedDiff *big.Int) error {
-	diff := header.GetDifficulty()
+	diff := big.NewInt(0)
+	if adjustedDiff != nil {
+		diff = diff.Set(adjustedDiff)
+	}
 	if minorHeader, ok := header.(*types.MinorBlockHeader); ok {
+		if diff.Cmp(big.NewInt(0)) == 0 {
+			diff = minorHeader.GetDifficulty()
+		}
 		branch := minorHeader.GetBranch()
 		fullShardID := branch.GetFullShardID()
 		poswConfig := chain.Config().GetShardConfigByFullShardID(fullShardID).PoswConfig

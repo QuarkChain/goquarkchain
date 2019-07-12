@@ -78,11 +78,6 @@ func (p *StateProcessor) Process(block *types.MinorBlock, statedb *state.StateDB
 		return nil, nil, 0, err
 	}
 	xShardReceiveTxList = append(xShardReceiveTxList, txList...)
-	senderDisallowMap, err := p.bc.posw.BuildSenderDisallowMap(block.ParentHash(), nil)
-	if err != nil {
-		return nil, nil, 0, err
-	}
-	statedb.SetSenderDisallowMap(senderDisallowMap)
 	var (
 		receipts types.Receipts
 		usedGas  = new(uint64)
@@ -131,8 +126,14 @@ func ValidateTransaction(state vm.StateDB, tx *types.Transaction, fromAddress *a
 		return ErrNonceTooLow
 	}
 
-	if state.GetBalance(*from).Cmp(tx.EvmTx.Cost()) < 0 {
+	if balance := state.GetBalance(*from); balance.Cmp(tx.EvmTx.Cost()) < 0 {
 		return ErrInsufficientFunds
+	} else {
+		if v, ok := state.GetSenderDisallowMap()[*from]; ok {
+			if new(big.Int).Add(tx.EvmTx.Value(), v).Cmp(balance) == 1 {
+				return ErrPoSWSenderNotAllowed
+			}
+		}
 	}
 
 	totalGas, err := IntrinsicGas(tx.EvmTx.Data(), tx.EvmTx.To() == nil, tx.EvmTx.ToFullShardId() != tx.EvmTx.FromFullShardId())
