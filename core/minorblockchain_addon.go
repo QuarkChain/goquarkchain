@@ -362,8 +362,7 @@ func (m *MinorBlockChain) InitFromRootBlock(rBlock *types.RootBlock) error {
 	if err != nil {
 		return err
 	}
-	return nil
-	//return m.reWriteBlockIndexTo(nil, block)
+	return m.reWriteBlockIndexTo(nil, block)
 }
 
 // getEvmStateForNewBlock get evmState for new block.should have locked
