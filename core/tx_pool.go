@@ -500,14 +500,34 @@ func (pool *TxPool) Content() (map[common.Address]types.Transactions, map[common
 // account and sorted by nonce. The returned transaction set is a copy and can be
 // freely modified by calling code.
 func (pool *TxPool) Pending() (map[common.Address]types.Transactions, error) {
-	pool.mu.Lock()
-	defer pool.mu.Unlock()
+	pool.mu.RLock()
+	defer pool.mu.RUnlock()
 
 	pending := make(map[common.Address]types.Transactions)
 	for addr, list := range pool.pending {
 		pending[addr] = list.Flatten()
 	}
 	return pending, nil
+}
+
+func (pool *TxPool) GetQueueTxsFromAddress(addr account.Recipient) types.Transactions {
+	pool.mu.RLock()
+	defer pool.mu.RUnlock()
+	data, ok := pool.queue[addr]
+	if !ok {
+		return make(types.Transactions, 0)
+	}
+	return data.Flatten()
+}
+
+func (pool *TxPool) GetPendingTxsFromAddress(addr account.Recipient) types.Transactions {
+	pool.mu.RLock()
+	defer pool.mu.RUnlock()
+	data, ok := pool.pending[addr]
+	if !ok {
+		return make(types.Transactions, 0)
+	}
+	return data.Flatten()
 }
 
 func (pool *TxPool) PendingCount() int {
@@ -766,12 +786,20 @@ func (pool *TxPool) addTxsLocked(txs []*types.Transaction, local bool) []error {
 	errs := make([]error, len(txs))
 
 	for i, tx := range txs {
-		fromShardSize := pool.quarkConfig.GetShardSizeByChainId(tx.EvmTx.FromChainID())
+		fromShardSize, err := pool.quarkConfig.GetShardSizeByChainId(tx.EvmTx.FromChainID())
+		if err != nil {
+			errs[i] = err
+			continue
+		}
 		if err := tx.EvmTx.SetFromShardSize(fromShardSize); err != nil {
 			errs[i] = err
 			continue
 		}
-		toShardSize := pool.quarkConfig.GetShardSizeByChainId(tx.EvmTx.ToChainID())
+		toShardSize, err := pool.quarkConfig.GetShardSizeByChainId(tx.EvmTx.ToChainID())
+		if err != nil {
+			errs[i] = err
+			continue
+		}
 		if err := tx.EvmTx.SetToShardSize(toShardSize); err != nil {
 			errs[i] = err
 			continue

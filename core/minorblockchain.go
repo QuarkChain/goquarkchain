@@ -131,10 +131,12 @@ type MinorBlockChain struct {
 	rewardCalc               *qkcCommon.ConstMinorBlockRewardCalculator
 	gasPriceSuggestionOracle *gasPriceSuggestionOracle
 	heightToMinorBlockHashes map[uint64]map[common.Hash]struct{}
+	rootHeightToHashes       map[uint64]map[common.Hash]common.Hash // [rootBlockHeight][rootBlockHash][confirmedMinorHash]
 	currentEvmState          *state.StateDB
 	logInfo                  string
 	addMinorBlockAndBroad    func(block *types.MinorBlock) error
 	posw                     consensus.SenderDisallowMapBuilder
+	gasLimit                 *big.Int
 }
 
 // NewMinorBlockChain returns a fully initialised block chain using information
@@ -186,6 +188,7 @@ func NewMinorBlockChain(
 		engine:                   engine,
 		vmConfig:                 vmConfig,
 		heightToMinorBlockHashes: make(map[uint64]map[common.Hash]struct{}),
+		rootHeightToHashes:       make(map[uint64]map[common.Hash]common.Hash),
 		currentEvmState:          new(state.StateDB),
 		branch:                   account.Branch{Value: fullShardID},
 		shardConfig:              clusterConfig.Quarkchain.GetShardConfigByFullShardID(fullShardID),
@@ -198,7 +201,11 @@ func NewMinorBlockChain(
 		},
 	}
 	var err error
-
+	bc.gasLimit, err = bc.clusterConfig.Quarkchain.GasLimit(bc.branch.Value)
+	if err != nil {
+		return nil, err
+	}
+	//TODO xShardGasLimit
 	bc.SetValidator(NewBlockValidator(clusterConfig.Quarkchain, bc, engine, bc.branch))
 	bc.SetProcessor(NewStateProcessor(bc.ethChainConfig, bc, engine))
 
@@ -664,10 +671,10 @@ func (m *MinorBlockChain) Stop() {
 			heightDiff = []uint64{0, 1, triesInMemory - 1}
 		)
 		if m.rootTip != nil {
-			heightDiff = m.getNeedStoreHeight(m.rootTip.Hash(), heightDiff)
-			sort.Slice(heightDiff, func(i, j int) bool {
-				return heightDiff[i] < heightDiff[j]
-			})
+			for _, hash := range m.rootHeightToHashes[m.rootTip.NumberU64()] {
+				heightDiff = m.getNeedStoreHeight(hash, heightDiff)
+			}
+			heightDiff = qkcCommon.RemoveDuplicate(heightDiff)
 		}
 		for _, offset := range heightDiff {
 			if currNumber > offset {

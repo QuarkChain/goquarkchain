@@ -125,9 +125,8 @@ func (v *MinorBlockValidator) ValidateBlock(mBlock types.IBlock) error {
 		return ErrTrackLimit
 	}
 
-	if err := v.ValidateGasLimit(block.Header().GetGasLimit().Uint64(), prevHeader.(*types.MinorBlockHeader).GetGasLimit().Uint64()); err != nil {
-		log.Error(v.logInfo, "validate gas limit err", err)
-		return err
+	if block.Header().GasLimit.Value.Cmp(v.bc.gasLimit) != 0 {
+		return errors.New("gasLimit is not match")
 	}
 
 	txHash := types.CalculateMerkleRoot(block.GetTransactions())
@@ -171,7 +170,7 @@ func (v *MinorBlockValidator) ValidateBlock(mBlock types.IBlock) error {
 	}
 
 	prevConfirmedMinorHeader := v.bc.getLastConfirmedMinorBlockHeaderAtRootBlock(block.Header().PrevRootBlockHash)
-	if prevConfirmedMinorHeader != nil && !v.bc.isSameMinorChain(prevHeader, prevConfirmedMinorHeader) {
+	if prevConfirmedMinorHeader != nil && !isSameChain(v.bc.db, prevHeader, prevConfirmedMinorHeader) {
 		errMustBeOneMinorChain := errors.New("prev root block's minor block is not in the same chain as the minor block")
 		log.Error(v.logInfo, "err", errMustBeOneMinorChain, "prevConfirmedMinor's height", prevConfirmedMinorHeader.Number, "prevConfirmedMinor's hash", prevConfirmedMinorHeader.Hash().String(),
 			"preHeader's height", prevHeader.NumberU64(), "preHeader's hash", prevHeader.Hash().String())
@@ -203,27 +202,6 @@ func (v *MinorBlockValidator) ValidateHeader(header types.IHeader) error {
 		return ErrRootBlockIsNil
 	}
 	return v.engine.VerifyHeader(v.bc, header, true)
-}
-
-// ValidateGasLimit validate gasLimit when validateBlock
-func (v *MinorBlockValidator) ValidateGasLimit(gasLimit, preGasLimit uint64) error {
-	shardConfig := v.quarkChainConfig.GetShardConfigByFullShardID(v.branch.Value)
-	computeGasLimitBounds := func(parentGasLimit uint64) (uint64, uint64) {
-		boundaryRange := parentGasLimit / uint64(shardConfig.GasLimitAdjustmentFactor)
-		upperBound := parentGasLimit + boundaryRange
-		lowBound := shardConfig.GasLimitMinimum
-		if lowBound < parentGasLimit-boundaryRange {
-			lowBound = parentGasLimit - boundaryRange
-		}
-		return lowBound, upperBound
-	}
-	lowBound, upperBound := computeGasLimitBounds(preGasLimit)
-	if gasLimit < lowBound {
-		return errors.New("gaslimit < lowBound")
-	} else if gasLimit > upperBound {
-		return errors.New("gasLimit>upperBound")
-	}
-	return nil
 }
 
 // ValidatorBlockSeal validate minor block seal when validate block

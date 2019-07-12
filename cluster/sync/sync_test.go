@@ -2,6 +2,7 @@ package sync
 
 import (
 	"fmt"
+	"math/big"
 	"testing"
 )
 
@@ -22,8 +23,8 @@ func (t *trivialTask) PeerID() string {
 	return fmt.Sprintf("%d", t.id)
 }
 
-func (t *trivialTask) Priority() uint {
-	return t.prio
+func (t *trivialTask) Priority() *big.Int {
+	return new(big.Int).SetUint64(uint64(t.prio))
 }
 
 func TestRunOneTask(t *testing.T) {
