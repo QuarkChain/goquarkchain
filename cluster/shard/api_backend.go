@@ -262,6 +262,10 @@ func (s *ShardBackend) NewMinorBlock(block *types.MinorBlock) (err error) {
 		return
 	}
 
+	if s.MinorBlockChain.GetRootBlockByHash(block.Header().PrevRootBlockHash) == nil {
+		log.Warn(s.logInfo, "add minor block:preRootBlock have not exist", block.Header().PrevRootBlockHash.String())
+		return nil
+	}
 	s.mBPool.setBlockInPool(block)
 	if err = s.conn.BroadcastMinorBlock(block, s.fullShardId); err != nil {
 		return err

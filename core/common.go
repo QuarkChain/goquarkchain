@@ -17,17 +17,22 @@ func isSameChain(db rawdb.DatabaseReader, longerChainHeader, shorterChainHeader 
 	}
 
 	header := longerChainHeader
+	var chainType rawdb.ChainType
+	switch {
+	case reflect.TypeOf(header) == reflect.TypeOf(new(types.RootBlockHeader)):
+		chainType = rawdb.ChainTypeRoot
+	case reflect.TypeOf(header) == reflect.TypeOf(new(types.MinorBlockHeader)):
+		chainType = rawdb.ChainTypeMinor
+	default:
+		log.Crit("bad header type", "type", reflect.TypeOf(header))
+	}
 	diff := longerChainHeader.NumberU64() - shorterChainHeader.NumberU64()
 	for i := uint64(0); i < diff-1; i++ {
-		switch {
-		case reflect.TypeOf(header) == reflect.TypeOf(new(types.RootBlockHeader)):
+		if chainType == rawdb.ChainTypeRoot {
 			header = rawdb.ReadRootBlockHeader(db, header.GetParentHash())
-		case reflect.TypeOf(header) == reflect.TypeOf(new(types.MinorBlockHeader)):
+		} else {
 			header = rawdb.ReadMinorBlockHeader(db, header.GetParentHash())
-		default:
-			log.Crit("bad header type", "type", reflect.TypeOf(header))
 		}
-
 		if common.IsNil(header) {
 			log.Crit("mysteriously missing blocks", "long.Number", longerChainHeader.NumberU64(), "long.Hash", longerChainHeader.Hash().String(), "short.Number", shorterChainHeader.NumberU64(), "short.hash", shorterChainHeader.Hash().String())
 		}

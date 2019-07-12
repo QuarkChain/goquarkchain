@@ -92,9 +92,7 @@ func syncMinorBlocks(
 	downloadMap := make(map[uint32][]common.Hash)
 	for _, header := range rootBlock.MinorBlockHeaders() {
 		hash := header.Hash()
-		if !rbc.IsMinorBlockValidated(hash) {
-			downloadMap[header.Branch.Value] = append(downloadMap[header.Branch.Value], hash)
-		}
+		downloadMap[header.Branch.Value] = append(downloadMap[header.Branch.Value], hash)
 	}
 
 	var g errgroup.Group
