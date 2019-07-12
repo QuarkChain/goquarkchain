@@ -60,6 +60,12 @@ func (s *ShardBackend) broadcastNewTip() (err error) {
 	return
 }
 
+func (s *ShardBackend) setHead(head uint64) {
+	if err := s.MinorBlockChain.SetHead(head); err != nil {
+		panic(err)
+	}
+}
+
 // Returns true if block is successfully added. False on any error.
 // called by 1. local miner (will not run if syncing) 2. SyncTask
 func (s *ShardBackend) AddMinorBlock(block *types.MinorBlock) error {
@@ -67,6 +73,7 @@ func (s *ShardBackend) AddMinorBlock(block *types.MinorBlock) error {
 		oldTip = s.MinorBlockChain.CurrentHeader()
 	)
 
+	currHead := s.MinorBlockChain.CurrentBlock().Number()
 	_, xshardLst, err := s.MinorBlockChain.InsertChainForDeposits([]types.IBlock{block})
 	if err != nil || len(xshardLst) != 1 {
 		log.Error("Failed to add minor block", "err", err)
@@ -79,6 +86,7 @@ func (s *ShardBackend) AddMinorBlock(block *types.MinorBlock) error {
 	// block has been added to local state, broadcast tip so that peers can sync if needed
 	if oldTip.Hash() != s.MinorBlockChain.CurrentHeader().Hash() {
 		if err = s.broadcastNewTip(); err != nil {
+			s.setHead(currHead)
 			return err
 		}
 	}
@@ -90,10 +98,12 @@ func (s *ShardBackend) AddMinorBlock(block *types.MinorBlock) error {
 
 	prevRootHeight := s.MinorBlockChain.GetRootBlockByHash(block.Header().PrevRootBlockHash).Header().Number
 	if err := s.conn.BroadcastXshardTxList(block, xshardLst[0], prevRootHeight); err != nil {
+		s.setHead(currHead)
 		return err
 	}
 	status, err := s.MinorBlockChain.GetShardStatus()
 	if err != nil {
+		s.setHead(currHead)
 		return err
 	}
 	err = s.conn.SendMinorBlockHeaderToMaster(
@@ -103,6 +113,7 @@ func (s *ShardBackend) AddMinorBlock(block *types.MinorBlock) error {
 		status,
 	)
 	if err != nil {
+		s.setHead(currHead)
 		return err
 	}
 	go s.miner.HandleNewTip()
