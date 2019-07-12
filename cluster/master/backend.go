@@ -132,6 +132,7 @@ func New(ctx *service.ServiceContext, cfg *config.ClusterConfig) (*QKCMasterBack
 	if mstr.protocolManager, err = NewProtocolManager(*cfg, mstr.rootBlockChain, mstr.shardStatsChan, mstr.synchronizer, mstr.getShardConnForP2P); err != nil {
 		return nil, err
 	}
+	mstr.synchronizer.AddTask()
 
 	return mstr, nil
 }

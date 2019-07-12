@@ -43,6 +43,7 @@ func (cl Clusterlist) Start() {
 		}
 		started = append(started, idx)
 	}
+	time.Sleep(3 * time.Second)
 }
 
 func (cl Clusterlist) Stop() {
@@ -81,16 +82,8 @@ shardSize, slaveSize uint32, geneRHeights map[uint32]uint32) *config.ClusterConf
 		shardCfg.ConsensusType = config.PoWSimulate
 		shardCfg.Genesis.Difficulty = 10
 		shardCfg.PoswConfig.WindowSize = 2
-	}
-
-	// make different genesis root height
-	if geneRHeights != nil && len(geneRHeights) == int(chainSize*shardSize) {
-		for chainId := 0; chainId < int(chainSize); chainId++ {
-			for shardId := 0; shardId < int(shardSize); shardId++ {
-				fullShardId := chainId<<16 | int(shardSize) | shardId
-				shardCfg := cfg.Quarkchain.GetShardConfigByFullShardID(uint32(fullShardId))
-				shardCfg.Genesis.RootHeight = geneRHeights[uint32(fullShardId)]
-			}
+		if _, ok := geneRHeights[fullShardId]; ok {
+			shardCfg.Genesis.RootHeight = geneRHeights[fullShardId]
 		}
 	}
 
@@ -124,6 +117,7 @@ func makeConfigNode(index uint16, geneAcc *account.Account, chainSize, shardSize
 		bootNodes = make([]*enode.Node, 0, 0)
 		priv      *ecdsa.PrivateKey
 	)
+
 	if index == 0 && clstrCfg.P2P.PrivKey != "" {
 		var err error
 		priv, err = p2p.GetPrivateKeyFromConfig(clstrCfg.P2P.PrivKey)
