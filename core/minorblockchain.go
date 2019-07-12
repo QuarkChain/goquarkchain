@@ -634,6 +634,7 @@ func (m *MinorBlockChain) getNeedStoreHeight(rootHash common.Hash, heightDiff []
 	)
 	headerTip := m.getLastConfirmedMinorBlockHeaderAtRootBlock(rootHash)
 	if headerTip != nil && headerTip.Number < currNumber {
+		log.Info("trie", "tip", headerTip.Number, "rootHash", rootHash.String())
 		heightDiff = append(heightDiff, currNumber-headerTip.Number)
 		if headerTip.Number >= 1 {
 			heightDiff = append(heightDiff, currNumber-(headerTip.Number-1))
@@ -675,7 +676,9 @@ func (m *MinorBlockChain) Stop() {
 			heightDiff = []uint64{0, 1, triesInMemory - 1}
 		)
 		if m.rootTip != nil {
-			for _, hash := range m.rootHeightToHashes[m.rootTip.NumberU64()] {
+			log.Info("need stored tire", "number", m.rootTip.Number)
+
+			for hash, _ := range m.rootHeightToHashes[m.rootTip.NumberU64()] {
 				heightDiff = m.getNeedStoreHeight(hash, heightDiff)
 			}
 			heightDiff = qkcCommon.RemoveDuplicate(heightDiff)

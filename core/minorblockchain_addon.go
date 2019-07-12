@@ -278,6 +278,7 @@ func (m *MinorBlockChain) putRootBlock(rBlock *types.RootBlock, minorHeader *typ
 	if _, ok := m.rootHeightToHashes[rBlock.NumberU64()]; !ok {
 		m.rootHeightToHashes[rBlock.NumberU64()] = make(map[common.Hash]common.Hash)
 	}
+	log.Info("putRootBlock", "rBlock", rBlock.NumberU64(), "rHash", rBlock.Hash().String(), "mHash", mHash.String())
 	m.rootHeightToHashes[rBlock.NumberU64()][rBlock.Hash()] = mHash
 	rawdb.WriteLastConfirmedMinorBlockHeaderAtRootBlock(m.db, rBlockHash, mHash)
 }
@@ -361,6 +362,8 @@ func (m *MinorBlockChain) InitFromRootBlock(rBlock *types.RootBlock) error {
 	if block == nil {
 		return ErrMinorBlockIsNil
 	}
+	log.Info(m.logInfo, "tipMinor", block.Number(), "hash", block.Hash().String(),
+		"mete.root", block.Meta().Root.String(), "rootBlock", rBlock.NumberU64(), "rootTip", m.rootTip.Number)
 	var err error
 	m.currentEvmState, err = m.createEvmState(block.Meta().Root, block.Hash())
 	if err != nil {
