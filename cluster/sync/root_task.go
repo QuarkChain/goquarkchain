@@ -66,7 +66,7 @@ func NewRootChainTask(
 				}
 				return false
 			},
-			getSizeLimit: func() (u uint64, u2 uint64) {
+			getSizeLimit: func() (uint64, uint64) {
 				return RootBlockHeaderListLimit, RootBlockBatchSize
 			},
 		},
