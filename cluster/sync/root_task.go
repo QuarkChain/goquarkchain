@@ -66,10 +66,9 @@ func NewRootChainTask(
 				}
 				return false
 			},
-						getSizeLimit: func() (u uint64, u2 uint64) {
-				return RootBlockBatchSize, RootBlockHeaderListLimit
+			getSizeLimit: func() (uint64, uint64) {
+				return RootBlockHeaderListLimit, RootBlockBatchSize
 			},
-
 		},
 		peer: p,
 	}
@@ -93,9 +92,7 @@ func syncMinorBlocks(
 	downloadMap := make(map[uint32][]common.Hash)
 	for _, header := range rootBlock.MinorBlockHeaders() {
 		hash := header.Hash()
-		if !rbc.IsMinorBlockValidated(hash) {
-			downloadMap[header.Branch.Value] = append(downloadMap[header.Branch.Value], hash)
-		}
+		downloadMap[header.Branch.Value] = append(downloadMap[header.Branch.Value], hash)
 	}
 
 	var g errgroup.Group

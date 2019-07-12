@@ -859,7 +859,7 @@ func (m *MinorBlockChain) AddRootBlock(rBlock *types.RootBlock) (bool, error) {
 		h := mHeader.Hash()
 		if mHeader.Branch == m.branch {
 			if !m.HasBlock(h) {
-				log.Error(m.logInfo, "add rootBlock err", "block not exist", "height", mHeader.Number, "hash", mHeader.Hash().String())
+				log.Error(m.logInfo, "add rootBlock err", "block not exist", "height", mHeader.Number, "hash", mHeader.Hash().String(), "blockNumber", rBlock.NumberU64())
 				return false, ErrMinorBlockIsNil
 			}
 			shardHeaders = append(shardHeaders, mHeader)
