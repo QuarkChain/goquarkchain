@@ -476,18 +476,11 @@ func TestBroadcastNewRootBlockTip(t *testing.T) {
 	peer, _ := newTestPeer("peer", int(qkcconfig.P2PProtocolVersion), pm, true)
 	clientPeer := newTestClientPeer(int(qkcconfig.P2PProtocolVersion), peer.app)
 	defer peer.close()
-	timeout := time.NewTimer(time.Duration(2 * time.Second))
-	defer timeout.Stop()
-	select {
-	case <-sync.Task:
-	case <-timeout.C:
-		t.Errorf("synchronize task missed")
-	}
 	err := clientPeer.SendNewTip(0, &p2p.Tip{RootBlockHeader: pm.rootBlockChain.CurrentBlock().Header(), MinorBlockHeaderList: nil})
 	if err != nil {
 		t.Errorf("make message failed: %v", err.Error())
 	}
-	timeout = time.NewTimer(time.Duration(2 * time.Second))
+	timeout := time.NewTimer(time.Duration(2 * time.Second))
 	defer timeout.Stop()
 	select {
 	case <-sync.Task:
