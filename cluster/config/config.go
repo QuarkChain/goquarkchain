@@ -275,7 +275,10 @@ func UpdateGenesisAlloc(cluserConfig *ClusterConfig) error {
 			if err != nil {
 				return fmt.Errorf(tempErrMsg, allocFile, err)
 			}
-			fullShardId := qkcConfig.GetFullShardIdByFullShardKey(address.FullShardKey)
+			fullShardId, err := qkcConfig.GetFullShardIdByFullShardKey(address.FullShardKey)
+			if err != nil {
+				return err
+			}
 			shard, ok := qkcConfig.shards[fullShardId]
 			if !ok {
 				continue
