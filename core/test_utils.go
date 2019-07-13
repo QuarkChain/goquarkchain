@@ -201,15 +201,8 @@ func checkErr(err error) {
 	}
 }
 
-func CreateFakeMinorCanonicalPoSW(acc1 account.Address) (*MinorBlockChain, error) {
-	env := setUp(&acc1, nil, nil)
-	poswOverride := true
-	shardState := createDefaultShardState(env, nil, nil, &poswOverride, nil)
-	return shardState, nil
-}
-
-func CreateFakeMinorCanonicalPoSWShardId(acc1 account.Address, shardId *uint32) (*MinorBlockChain, error) {
-	env := setUp(&acc1, nil, nil)
+func CreateFakeMinorCanonicalPoSW(acc1 account.Address, shardId *uint32, genesisMinorQuarkash *uint64) (*MinorBlockChain, error) {
+	env := setUp(&acc1, genesisMinorQuarkash, nil)
 	poswOverride := true
 	shardState := createDefaultShardState(env, shardId, nil, &poswOverride, nil)
 	return shardState, nil
