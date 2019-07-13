@@ -53,17 +53,17 @@ func (c *CommonEngine) remote() {
 		return
 	}
 
-	makeWork := func(block types.IBlock, diff *big.Int) {
+	makeWork := func(block types.IBlock, adjustedDiff *big.Int) {
 		hash := block.IHeader().SealHash()
 		if works.Contains(hash) {
 			return
 		}
 		currentWork.HeaderHash = hash
 		currentWork.Number = block.NumberU64()
-		if diff == nil {
+		if adjustedDiff == nil {
 			currentWork.Difficulty = block.IHeader().GetDifficulty()
 		} else {
-			currentWork.Difficulty = diff
+			currentWork.Difficulty = adjustedDiff
 		}
 		currentBlock = block
 		works.Add(hash, block)

@@ -136,8 +136,3 @@ func (p *PoSW) getCoinbaseAddressUntilBlock(headerHash common.Hash) ([]account.R
 	}
 	return addrs, nil
 }
-
-//for test only
-func getCoinbaseAddrCache(p *PoSW) *lru.Cache {
-	return p.coinbaseAddrCache
-}
