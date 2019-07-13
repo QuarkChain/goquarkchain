@@ -9,7 +9,6 @@ import (
 	"math/big"
 )
 
-
 // Keccak256 calculates and returns the Keccak256 hash of the input data.
 func Keccak256(data ...[]byte) []byte {
 	return crypto.Keccak256(data...)
@@ -68,9 +67,10 @@ func GenerateKey() (*ecdsa.PrivateKey, error) {
 
 // ValidateSignatureValues verifies whether the signature values are valid with
 // the given chain rules. The v value is assumed to be either 0 or 1.
-func ValidateSignatureValues(v byte, r, s *big.Int) bool {
-	return crypto.ValidateSignatureValues(v, r, s, true)
+func ValidateSignatureValues(v byte, r, s *big.Int, homestead bool) bool {
+	return crypto.ValidateSignatureValues(v, r, s, homestead)
 }
+
 func PubkeyToAddress(p ecdsa.PublicKey) common.Address {
 	return crypto.PubkeyToAddress(p)
 }

@@ -18,10 +18,9 @@ package core
 
 import (
 	"github.com/QuarkChain/goquarkchain/core/types"
+	"github.com/QuarkChain/goquarkchain/crypto"
 	"math/rand"
 	"testing"
-
-	"github.com/ethereum/go-ethereum/crypto"
 )
 
 // Tests that transactions can be added to strict lists and list contents and
