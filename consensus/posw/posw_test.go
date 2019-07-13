@@ -1,13 +1,13 @@
 package posw_test
 
 import (
-	"fmt"
-	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"math/big"
 	"reflect"
 	"testing"
+	"time"
 
 	"github.com/QuarkChain/goquarkchain/account"
+	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/core"
 	"github.com/QuarkChain/goquarkchain/core/types"
 )
@@ -137,7 +137,7 @@ func TestPoSWCoinBaseSendUnderLimit(t *testing.T) {
 		t.Errorf("tx failed: %v", err)
 	}
 	//Create a block including that tx, receipt should also report error
-	if err := blockchain.AddTx(tx0); err != nil {
+	if err := tryAddTx(blockchain, tx0); err != nil {
 		t.Errorf("add tx failed: %v", err)
 	}
 	id2, err := account.CreatRandomIdentity()
@@ -179,8 +179,8 @@ func TestPoSWCoinBaseSendUnderLimit(t *testing.T) {
 		t.Error("tx should fail")
 	}
 	//Create a block including that tx, receipt should also report error
-	if err := blockchain.AddTx(tx1); err != nil { //txPool.AddLocal(tx) will be called and no state available. so posw disallow check error will not happen here.
-		t.Fatalf("error adding tx %v", tx1)
+	if err := tryAddTx(blockchain, tx1); err != nil { //txPool.AddLocal(tx) will be called and no state available. so posw disallow check error will not happen here.
+		t.Fatalf("error adding tx %v", err)
 	}
 	var mb1 *types.MinorBlock
 	if mb1, err = blockchain.CreateBlockToMine(nil, &acc2, nil); err != nil {
@@ -295,7 +295,7 @@ func TestPoSWCoinbaseSendEqualLocked(t *testing.T) {
 	//Try to send money from that account, the expected locked tokens are 4
 	tx0 := core.CreateFreeTx(blockchain, id1.GetKey().Bytes(), acc1, account.Address{}, new(big.Int).SetUint64(1), nil, nil)
 
-	if err = blockchain.AddTx(tx0); err != nil {
+	if err = tryAddTx(blockchain, tx0); err != nil {
 		t.Fatalf("add tx failed: %v", err)
 	}
 	if minorBlock, err := blockchain.CreateBlockToMine(nil, &acc1, nil); err != nil {
@@ -387,7 +387,7 @@ func TestPoSWCoinbaseSendAboveLocked(t *testing.T) {
 	//Try to send money from that account, the expected locked tokens are 4
 	tx0 := core.CreateFreeTx(blockchain, id1.GetKey().Bytes(), acc1, account.Address{}, new(big.Int).SetUint64(2), nil, nil)
 
-	if err = blockchain.AddTx(tx0); err != nil {
+	if err = tryAddTx(blockchain, tx0); err != nil {
 		t.Fatalf("add tx failed: %v", err)
 	}
 	acc2 := account.CreatAddressFromIdentity(id1, 1)
@@ -395,14 +395,14 @@ func TestPoSWCoinbaseSendAboveLocked(t *testing.T) {
 	var nonce uint64 = 1
 	var gas1 uint64 = 30000
 	tx1 = core.CreateFreeTx(blockchain, id1.GetKey().Bytes(), acc1, acc2, new(big.Int).SetUint64(2), &gas1, &nonce)
-	if err = blockchain.AddTx(tx1); err != nil {
+	if err = tryAddTx(blockchain, tx1); err != nil {
 		t.Fatalf("add tx failed: %v", err)
 	}
 
 	if minorBlock, err := blockchain.CreateBlockToMine(nil, &acc1, nil); err != nil {
 		t.Fatalf("failed to CreateBlockToMine: %v", err)
 	} else {
-		fmt.Printf("gaslimit=%v\n", minorBlock.GasLimit())
+		//fmt.Printf("gaslimit=%v\n", minorBlock.GasLimit())
 		if size := len(minorBlock.Transactions()); size != 2 {
 			t.Errorf("tx len in block: expected %d, got %d", 2, size)
 		}
@@ -426,6 +426,15 @@ func TestPoSWCoinbaseSendAboveLocked(t *testing.T) {
 			t.Errorf("balance: expected %v, got %v", balanceExp, balance)
 		}
 	}
+}
+
+func tryAddTx(blockchain *core.MinorBlockChain, tx *types.Transaction) error {
+	var err error
+	if err = blockchain.AddTx(tx); err != nil {
+		time.Sleep(time.Duration(2) * time.Second)
+		return blockchain.AddTx(tx)
+	}
+	return nil
 }
 
 func TestPoSWValidateMinorBlockSeal(t *testing.T) {
@@ -459,8 +468,6 @@ func TestPoSWValidateMinorBlockSeal(t *testing.T) {
 	}
 	reci0 := account.BytesToIdentityRecipient(make([]byte, 20))
 	genesis := account.NewAddress(reci0, 0)
-	fmt.Printf("acc     = %x \n", acc)
-	fmt.Printf("genesis = %x \n", genesis)
 	if balance, err := blockchain.GetBalance(reci0, nil); err != nil {
 		t.Fatalf("failed to get balance %v", err)
 	} else {
