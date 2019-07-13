@@ -63,9 +63,9 @@ func (m *Miner) interrupt() {
 	}
 }
 
-func (m *Miner) checkStatus() bool {
-	if m.IsMining() ||
-		!m.api.IsSyncIng() ||
+func (m *Miner) allowMining() bool {
+	if !m.IsMining() ||
+		m.api.IsSyncIng() ||
 		time.Now().Sub(*m.timestamp).Seconds() > deadtime {
 		return false
 	}
@@ -74,7 +74,7 @@ func (m *Miner) checkStatus() bool {
 
 func (m *Miner) commit() {
 	// don't allow to mine
-	if !m.checkStatus() {
+	if !m.allowMining() {
 		return
 	}
 	m.interrupt()
@@ -155,7 +155,7 @@ func (m *Miner) GetWork() (*consensus.MiningWork, error) {
 }
 
 func (m *Miner) SubmitWork(nonce uint64, hash, digest common.Hash) bool {
-	if !m.IsMining() {
+	if !m.IsMining() || m.api.IsSyncIng() {
 		return false
 	}
 	return m.engine.SubmitWork(nonce, hash, digest)
