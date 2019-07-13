@@ -3,15 +3,14 @@ package posw
 import (
 	"bytes"
 	"fmt"
-	"math/big"
-	"runtime/debug"
-
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	qkcCommon "github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/common"
 	lru "github.com/hashicorp/golang-lru"
+	"math/big"
+	"runtime/debug"
 )
 
 type headReader interface {
