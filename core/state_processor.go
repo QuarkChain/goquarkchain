@@ -126,13 +126,14 @@ func ValidateTransaction(state vm.StateDB, tx *types.Transaction, fromAddress *a
 		return ErrNonceTooLow
 	}
 
-	if balance := state.GetBalance(*from); balance.Cmp(tx.EvmTx.Cost()) < 0 {
+	balance := state.GetBalance(*from)
+	if balance.Cmp(tx.EvmTx.Cost()) < 0 {
 		return ErrInsufficientFunds
-	} else {
-		if v, ok := state.GetSenderDisallowMap()[*from]; ok {
-			if new(big.Int).Add(tx.EvmTx.Value(), v).Cmp(balance) == 1 {
-				return ErrPoSWSenderNotAllowed
-			}
+	}
+
+	if v, ok := state.GetSenderDisallowMap()[*from]; ok {
+		if new(big.Int).Add(tx.EvmTx.Value(), v).Cmp(balance) == 1 {
+			return ErrPoSWSenderNotAllowed
 		}
 	}
 

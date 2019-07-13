@@ -113,7 +113,7 @@ func (p *PoSW) getCoinbaseAddressUntilBlock(headerHash common.Hash) ([]account.R
 	if p.coinbaseAddrCache.Contains(prevHash) {
 		ha, _ := p.coinbaseAddrCache.Get(prevHash)
 		haddrs := ha.(heightAndAddrs)
-		addrs = haddrs.addrs
+		addrs = append(addrs, haddrs.addrs...)
 		if len(addrs) == length {
 			addrs = addrs[1:]
 		}
