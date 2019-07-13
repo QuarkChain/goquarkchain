@@ -622,17 +622,10 @@ func (pm *ProtocolManager) syncer() {
 
 	for {
 		select {
-		case peer := <-pm.newPeerCh:
-			// Make sure we have peers to select from, then sync
-			if pm.peers.Len() < minDesiredPeerCount {
-				break
-			}
-			bestPeer := pm.peers.BestPeer()
-			if bestPeer == nil {
-				bestPeer = peer
-			}
-			go pm.synchronise(bestPeer)
-
+		case <-pm.newPeerCh:
+			// no need to add task,
+			// will add task after handshake
+			// only used to control p2p service not start before cluster init
 		case <-forceSync.C:
 			go pm.synchronise(pm.peers.BestPeer())
 
