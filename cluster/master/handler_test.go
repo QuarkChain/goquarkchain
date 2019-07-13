@@ -112,7 +112,7 @@ func TestGetRootBlockHeaders(t *testing.T) {
 
 func TestCloseConnWithErr(t *testing.T) {
 	chainLength := uint64(1024)
-	pm, _ := newTestProtocolManagerMust(t, int(chainLength), nil, NewFakeSynchronizer(1), nil)
+	pm, _ := newTestProtocolManagerMust(t, int(chainLength), nil, NewFakeSynchronizer(10), nil)
 
 	// Create a "random" unknown hash for testing
 	var unknown common.Hash
