@@ -320,7 +320,7 @@ func TestGetRootBlockHeaderSyncWithFork(t *testing.T) {
 	}
 }
 
-func TestShardGenesisFork(t *testing.T) {
+func TestShardGenesisForkFork(t *testing.T) {
 	var (
 		shardSize    uint32 = 2
 		id0                 = uint32(0<<16 | shardSize | 0)
@@ -409,6 +409,32 @@ func TestGetWorkFromSlave(t *testing.T) {
 	mstr0.GetRootTip()
 }
 
+func TestShardSynchronizerWithFork(t *testing.T) {}
+
+func TestBroadcastCrossShardTransactionsToNeighborOnly(t *testing.T) {}
+
+func TestHandleGetMinorBlockListRequestWithTotalDiff(t *testing.T) {}
+
+func TestNewBlockHeaderPool(t *testing.T) {}
+
+func TestGetRootBlockHeadersWithSkip(t *testing.T) {}
+
+func TestGetRootBlockHeaderSyncFromGenesis(t *testing.T) {}
+
+func TestGetRootBlockHeaderSyncFromHeight3(t *testing.T) {}
+
+func TestGetRootBlockHeaderSyncWithStaleness(t *testing.T) {}
+
+func TestGetRootBlockHeaderSyncWithMultipleLookup(t *testing.T) {}
+
+func TestGetRootBlockHeaderSyncWithStartEqualEnd(t *testing.T) {}
+
+func TestGetRootBlockHeaderSyncWithBestAncestor(t *testing.T) {}
+
 func TestGetMinorBlockHeadersWithSkip(t *testing.T) {
+	var (
+		chainSize, shardSize uint32 = 2, 2
+	)
+	geneAcc, clstrList := CreateClusterList(2, chainSize, shardSize, chainSize, nil)
 
 }
