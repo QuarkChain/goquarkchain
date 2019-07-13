@@ -167,9 +167,6 @@ func (c *CommonEngine) VerifyHeader(
 			}
 		}
 	}
-	if new(big.Int).Add(header.GetDifficulty(), parent.GetTotalDifficulty()).Cmp(header.GetTotalDifficulty()) != 0 {
-		return fmt.Errorf("error total diff header.diff:%v parent.total:%v,header.total:%v", header.GetDifficulty(), parent.GetTotalDifficulty(), header.GetTotalDifficulty())
-	}
 	return c.spec.VerifySeal(chain, header, adjustedDiff)
 }
 

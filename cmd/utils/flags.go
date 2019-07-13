@@ -329,6 +329,19 @@ func SetP2PConfig(ctx *cli.Context, cfg *p2p.Config, clstrCfg *config.ClusterCon
 	cfg.ListenAddr = fmt.Sprintf(":%d", clstrCfg.P2PPort)
 	setBootstrapNodes(ctx, cfg, clstrCfg)
 
+	// load p2p privkey
+	priv := clstrCfg.P2P.PrivKey
+	if ctx.GlobalIsSet(PrivkeyFlag.Name) {
+		priv = ctx.GlobalString(PrivkeyFlag.Name)
+	}
+	if priv != "" {
+		privkey, err := p2p.GetPrivateKeyFromConfig(ctx.GlobalString(PrivkeyFlag.Name))
+		if err != nil {
+			Fatalf("failed to transfer privkey", "err", err)
+		}
+		cfg.PrivateKey = privkey
+	}
+
 	cfg.MaxPeers = int(clstrCfg.P2P.MaxPeers)
 	log.Info("Maximum peer count", "QKC", cfg.MaxPeers, "total", cfg.MaxPeers)
 

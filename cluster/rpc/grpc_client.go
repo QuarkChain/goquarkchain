@@ -164,7 +164,7 @@ func (c *rpcClient) getConn(hostport string) (*opNode, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	node, ok := c.connVals[hostport]
-	if !ok || node.conn.GetState() > connectivity.TransientFailure {
+	if !ok || node.conn.GetState() >= connectivity.TransientFailure {
 		return c.addConn(hostport)
 	}
 
