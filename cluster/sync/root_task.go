@@ -11,13 +11,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 )
 
-const (
-	// Number of root block headers to download from peers.
-	headerDownloadSize = 500
-	// Number root blocks to download from peers.
-	blockDownloadSize = 100
-)
-
 type rootSyncerPeer interface {
 	GetRootBlockHeaderList(hash common.Hash, amount uint32, reverse bool) ([]*types.RootBlockHeader, error)
 	GetRootBlockList(hashes []common.Hash) ([]*types.RootBlock, error)
@@ -73,6 +66,9 @@ func NewRootChainTask(
 				}
 				return false
 			},
+			getSizeLimit: func() (uint64, uint64) {
+				return RootBlockHeaderListLimit, RootBlockBatchSize
+			},
 		},
 		peer: p,
 	}
@@ -96,9 +92,7 @@ func syncMinorBlocks(
 	downloadMap := make(map[uint32][]common.Hash)
 	for _, header := range rootBlock.MinorBlockHeaders() {
 		hash := header.Hash()
-		if !rbc.IsMinorBlockValidated(hash) {
-			downloadMap[header.Branch.Value] = append(downloadMap[header.Branch.Value], hash)
-		}
+		downloadMap[header.Branch.Value] = append(downloadMap[header.Branch.Value], hash)
 	}
 
 	var g errgroup.Group

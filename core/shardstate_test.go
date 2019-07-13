@@ -1669,7 +1669,7 @@ func TestAddRootBlockRevertHeaderTip(t *testing.T) {
 	assert.Equal(t, shardState.CurrentBlock().Hash().String(), m2.Header().Hash().String())
 }
 
-func TestTotalDifficulty(t *testing.T) {
+func TestTotalTxCount(t *testing.T) {
 	id1, err := account.CreatRandomIdentity()
 	checkErr(err)
 	acc1 := account.CreatAddressFromIdentity(id1, 0)
@@ -1728,5 +1728,67 @@ func TestTotalDifficulty(t *testing.T) {
 	b2, err = shardState.CreateBlockToMine(nil, &acc3, nil)
 	b2, _, err = shardState.FinalizeAndAddBlock(b2)
 	assert.Equal(t, uint32(3), *shardState.getTotalTxCount(shardState.CurrentBlock().Hash()))
+
+}
+
+func TestGetPendingTxFromAddress(t *testing.T) {
+	id1, err := account.CreatRandomIdentity()
+	checkErr(err)
+	acc1 := account.CreatAddressFromIdentity(id1, 0)
+	acc2, err := account.CreatRandomAccountWithFullShardKey(0)
+	acc3, err := account.CreatRandomAccountWithFullShardKey(0)
+
+	fakeMoney := uint64(10000000)
+	env := setUp(&acc1, &fakeMoney, nil)
+	shardState := createDefaultShardState(env, nil, nil, nil, nil)
+	defer shardState.Stop()
+
+	fakeChan := make(chan uint64, 100)
+	shardState.txPool.fakeChanForReset = fakeChan
+	// Add a root block to have all the shards initialized
+	rootBlock := shardState.rootTip.CreateBlockToAppend(nil, nil, nil, nil, nil).Finalize(nil, nil)
+
+	_, err = shardState.AddRootBlock(rootBlock)
+	checkErr(err)
+
+	fakeGas := uint64(50000)
+	tx := createTransferTransaction(shardState, id1.GetKey().Bytes(), acc1, acc2, new(big.Int).SetUint64(12345), &fakeGas, nil, nil, nil)
+	err = shardState.AddTx(tx)
+	checkErr(err)
+
+	data, _, err := shardState.getPendingTxByAddress(acc1)
+	checkErr(err)
+	assert.Equal(t, 1, len(data))
+	assert.Equal(t, data[0].Value.Value, new(big.Int).SetUint64(12345))
+	assert.Equal(t, data[0].TxHash, tx.EvmTx.Hash())
+	assert.Equal(t, data[0].FromAddress, acc1)
+	assert.Equal(t, data[0].ToAddress, &acc2)
+	assert.Equal(t, data[0].BlockHeight, uint64(0))
+	assert.Equal(t, data[0].Timestamp, uint64(0))
+	assert.Equal(t, data[0].Success, false)
+
+	b2, err := shardState.CreateBlockToMine(nil, &acc3, nil)
+	checkErr(err)
+
+	// Should succeed
+	b2, _, err = shardState.FinalizeAndAddBlock(b2)
+	checkErr(err)
+
+	forRe := true
+	for forRe == true {
+		select {
+		case result := <-fakeChan:
+			if result == uint64(0+1) {
+				forRe = false
+			}
+		case <-time.After(2 * time.Second):
+			panic(errors.New("should end here"))
+
+		}
+	}
+
+	data, _, err = shardState.getPendingTxByAddress(acc1)
+	checkErr(err)
+	assert.Equal(t, 0, len(data))
 
 }

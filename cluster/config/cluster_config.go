@@ -234,7 +234,10 @@ func (q *QuarkChainConfig) initAndValidate() {
 	chainIDMap := make(map[uint32]uint32)
 	for chainID, shardIDs := range q.chainIdToShardIds {
 		chainIDMap[chainID] = chainID
-		shardSize := q.GetShardSizeByChainId(chainID)
+		shardSize, err := q.GetShardSizeByChainId(chainID)
+		if err != nil {
+			panic(err)
+		}
 		if len(shardIDs) != int(shardSize) {
 			panic(fmt.Sprintf("shard_size length is not right, target=%d, actual=%d", shardSize, len(shardIDs)))
 		}
@@ -262,15 +265,22 @@ func (q *QuarkChainConfig) GetShardConfigByFullShardID(fullShardID uint32) *Shar
 	return q.shards[fullShardID]
 }
 
-func (q *QuarkChainConfig) GetFullShardIdByFullShardKey(fullShardKey uint32) uint32 {
+func (q *QuarkChainConfig) GetFullShardIdByFullShardKey(fullShardKey uint32) (uint32, error) {
 	chainID := fullShardKey >> 16
-	shardSize := q.GetShardSizeByChainId(chainID)
+	shardSize, err := q.GetShardSizeByChainId(chainID)
+	if err != nil {
+		return 0, err
+	}
 	shardID := fullShardKey & (shardSize - 1)
-	return (chainID << 16) | shardSize | shardID
+	return (chainID << 16) | shardSize | shardID, nil
 }
 
-func (q *QuarkChainConfig) GetShardSizeByChainId(ID uint32) uint32 {
-	return q.chainIdToShardSize[ID]
+func (q *QuarkChainConfig) GetShardSizeByChainId(ID uint32) (uint32, error) {
+	data, ok := q.chainIdToShardSize[ID]
+	if !ok {
+		return 0, errors.New("no such chainID")
+	}
+	return data, nil
 }
 
 func NewQuarkChainConfig() *QuarkChainConfig {
@@ -353,3 +363,11 @@ func (q *QuarkChainConfig) AllowedTransferTokenIDs() map[*big.Int]bool {
 func (q *QuarkChainConfig) AllowedGasTokenIDs() map[*big.Int]bool {
 	return q.allowedTokenIds()
 }
+func (q *QuarkChainConfig) GasLimit(fullShardID uint32) (*big.Int, error) {
+	data, ok := q.shards[fullShardID]
+	if !ok {
+		return nil, fmt.Errorf("no such fullShardID %v", fullShardID)
+	}
+	return new(big.Int).SetUint64(data.Genesis.GasLimit), nil
+}
+
