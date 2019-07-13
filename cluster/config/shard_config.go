@@ -3,6 +3,7 @@ package config
 import (
 	"encoding/json"
 	"github.com/QuarkChain/goquarkchain/account"
+	qcom "github.com/QuarkChain/goquarkchain/common"
 	"github.com/ethereum/go-ethereum/common"
 	"math/big"
 )
@@ -81,10 +82,11 @@ type ShardConfig struct {
 }
 
 func NewShardConfig(chainCfg *ChainConfig) *ShardConfig {
-
+	var cfg = new(ChainConfig)
+	_ = qcom.DeepCopy(cfg, chainCfg)
 	shardConfig := &ShardConfig{
 		ShardID:     0,
-		ChainConfig: chainCfg,
+		ChainConfig: cfg,
 	}
 	return shardConfig
 }
