@@ -165,6 +165,11 @@ func (pm *ProtocolManager) handle(peer *peer) error {
 	defer pm.removePeer(peer.id)
 	log.Info(pm.log, "peer add succ id ", peer.PeerID())
 
+	err := pm.synchronizer.AddTask(synchronizer.NewRootChainTask(peer, peer.RootHead(), pm.statsChan, pm.getShardConnFunc))
+	if err != nil {
+		return err
+	}
+
 	// currently we do not broadcast old transaction when connect
 	// so the first few block may not have transaction verification failed
 	// or transaction drop issue which is temp issue
@@ -617,17 +622,10 @@ func (pm *ProtocolManager) syncer() {
 
 	for {
 		select {
-		case peer := <-pm.newPeerCh:
-			// Make sure we have peers to select from, then sync
-			if pm.peers.Len() < minDesiredPeerCount {
-				break
-			}
-			bestPeer := pm.peers.BestPeer()
-			if bestPeer == nil {
-				bestPeer = peer
-			}
-			go pm.synchronise(bestPeer)
-
+		case <-pm.newPeerCh:
+			// no need to add task,
+			// will add task after handshake
+			// only used to control p2p service not start before cluster init
 		case <-forceSync.C:
 			go pm.synchronise(pm.peers.BestPeer())
 
