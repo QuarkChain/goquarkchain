@@ -948,8 +948,11 @@ func (m *MinorBlockChain) AddRootBlock(rBlock *types.RootBlock) (bool, error) {
 		if qkcCommon.IsNil(origBlock) || origBlock.Hash() != shardHeader.Hash() {
 			log.Warn(m.logInfo, "ready to set current header height", shardHeader.Number, "hash", shardHeader.Hash().String(), "status", qkcCommon.IsNil(origBlock))
 			m.hc.SetCurrentHeader(shardHeader)
-			block := m.GetMinorBlock(shardHeader.Hash())
-			m.currentBlock.Store(block)
+
+			newTipBlock := m.GetBlock(shardHeader.Hash())
+			if err := m.reorg(m.CurrentBlock(), newTipBlock); err != nil {
+				return false, err
+			}
 		}
 	}
 
