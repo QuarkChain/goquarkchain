@@ -4,8 +4,8 @@ import (
 	"errors"
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
-	"github.com/QuarkChain/goquarkchain/consensus"
 	qkcCommon "github.com/QuarkChain/goquarkchain/common"
+	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/core/rawdb"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/core/vm"
@@ -45,7 +45,7 @@ func TestInitGenesisState(t *testing.T) {
 	fakeNonce := uint64(1234)
 	rootBlock := shardState.rootTip.CreateBlockToAppend(nil, nil, nil, &fakeNonce, nil)
 	rootBlock = modifyNumber(rootBlock, 0)
-	rootBlock.Finalize(nil, nil,common.Hash{})
+	rootBlock.Finalize(nil, nil, common.Hash{})
 
 	newGenesisBlock, err := shardState.InitGenesisState(rootBlock)
 	checkErr(err)
@@ -66,7 +66,7 @@ func TestInitGenesisState(t *testing.T) {
 
 	// extending the root block will change the header_tip
 	newRootBlock := rootBlock.Header().CreateBlockToAppend(nil, nil, nil, &fakeNonce, nil)
-	newRootBlock.Finalize(nil, nil,common.Hash{})
+	newRootBlock.Finalize(nil, nil, common.Hash{})
 	_, err = shardState.AddRootBlock(newRootBlock)
 	checkErr(err)
 
@@ -101,7 +101,7 @@ func TestGasPrice(t *testing.T) {
 
 	// Add a root block to have all the shards initialized
 	rootBlock := shardState.rootTip.CreateBlockToAppend(nil, nil, nil, nil, nil)
-	rootBlock.Finalize(nil, nil,common.Hash{})
+	rootBlock.Finalize(nil, nil, common.Hash{})
 
 	_, err := shardState.AddRootBlock(rootBlock)
 	checkErr(err)
@@ -166,7 +166,7 @@ func TestEstimateGas(t *testing.T) {
 	shardState := createDefaultShardState(env, nil, nil, nil, nil)
 	defer shardState.Stop()
 	// Add a root block to have all the shards initialized
-	rootBlock := shardState.rootTip.CreateBlockToAppend(nil, nil, nil, nil, nil).Finalize(nil, nil,common.Hash{})
+	rootBlock := shardState.rootTip.CreateBlockToAppend(nil, nil, nil, nil, nil).Finalize(nil, nil, common.Hash{})
 	_, err = shardState.AddRootBlock(rootBlock)
 	checkErr(err)
 	txGen := func(data []byte) *types.Transaction {
@@ -196,7 +196,7 @@ func TestExecuteTx(t *testing.T) {
 
 	defer shardState.Stop()
 	// Add a root block to have all the shards initialized
-	rootBlock := shardState.rootTip.CreateBlockToAppend(nil, nil, nil, nil, nil).Finalize(nil, nil,common.Hash{})
+	rootBlock := shardState.rootTip.CreateBlockToAppend(nil, nil, nil, nil, nil).Finalize(nil, nil, common.Hash{})
 	_, err = shardState.AddRootBlock(rootBlock)
 	checkErr(err)
 	tx := createTransferTransaction(shardState, id1.GetKey().Bytes(), acc1, acc2, new(big.Int).SetUint64(12345), nil, nil, nil, nil)
@@ -239,7 +239,7 @@ func TestOneTx(t *testing.T) {
 	shardState := createDefaultShardState(env, nil, nil, nil, nil)
 	defer shardState.Stop()
 	// Add a root block to have all the shards initialized
-	rootBlock := shardState.rootTip.CreateBlockToAppend(nil, nil, nil, nil, nil).Finalize(nil, nil,common.Hash{})
+	rootBlock := shardState.rootTip.CreateBlockToAppend(nil, nil, nil, nil, nil).Finalize(nil, nil, common.Hash{})
 
 	_, err = shardState.AddRootBlock(rootBlock)
 	checkErr(err)
@@ -330,7 +330,7 @@ func TestDuplicatedTx(t *testing.T) {
 	shardState := createDefaultShardState(env, nil, nil, nil, nil)
 	defer shardState.Stop()
 	// Add a root block to have all the shards initialized
-	rootBlock := shardState.rootTip.CreateBlockToAppend(nil, nil, nil, nil, nil).Finalize(nil, nil,common.Hash{})
+	rootBlock := shardState.rootTip.CreateBlockToAppend(nil, nil, nil, nil, nil).Finalize(nil, nil, common.Hash{})
 	_, err = shardState.AddRootBlock(rootBlock)
 	checkErr(err)
 
@@ -413,7 +413,7 @@ func TestAddNonNeighborTxFail(t *testing.T) {
 	shardState := createDefaultShardState(env, nil, nil, nil, nil)
 	defer shardState.Stop()
 	// Add a root block to have all the shards initialized
-	rootBlock := shardState.rootTip.CreateBlockToAppend(nil, nil, nil, nil, nil).Finalize(nil, nil,common.Hash{})
+	rootBlock := shardState.rootTip.CreateBlockToAppend(nil, nil, nil, nil, nil).Finalize(nil, nil, common.Hash{})
 	_, err = shardState.AddRootBlock(rootBlock)
 	checkErr(err)
 
@@ -448,7 +448,7 @@ func TestExceedingXShardLimit(t *testing.T) {
 	shardState := createDefaultShardState(env, nil, nil, nil, nil)
 	defer shardState.Stop()
 	// Add a root block to have all the shards initialized
-	rootBlock := shardState.rootTip.CreateBlockToAppend(nil, nil, nil, nil, nil).Finalize(nil, nil,common.Hash{})
+	rootBlock := shardState.rootTip.CreateBlockToAppend(nil, nil, nil, nil, nil).Finalize(nil, nil, common.Hash{})
 	_, err = shardState.AddRootBlock(rootBlock)
 	checkErr(err)
 
@@ -489,7 +489,7 @@ func TestTwoTxInOneBlock(t *testing.T) {
 	fakeChan := make(chan uint64, 100)
 	shardState.txPool.fakeChanForReset = fakeChan
 	// Add a root block to have all the shards initialized
-	rootBlock := shardState.rootTip.CreateBlockToAppend(nil, nil, nil, nil, nil).Finalize(nil, nil,common.Hash{})
+	rootBlock := shardState.rootTip.CreateBlockToAppend(nil, nil, nil, nil, nil).Finalize(nil, nil, common.Hash{})
 	_, err = shardState.AddRootBlock(rootBlock)
 	checkErr(err)
 
@@ -604,7 +604,7 @@ func TestForkDoesNotConfirmTx(t *testing.T) {
 	shardState.txPool.fakeChanForReset = fakeChain
 	defer shardState.Stop()
 	// Add a root block to have all the shards initialized
-	rootBlock := shardState.rootTip.CreateBlockToAppend(nil, nil, nil, nil, nil).Finalize(nil, nil,common.Hash{})
+	rootBlock := shardState.rootTip.CreateBlockToAppend(nil, nil, nil, nil, nil).Finalize(nil, nil, common.Hash{})
 	_, err = shardState.AddRootBlock(rootBlock)
 	checkErr(err)
 
@@ -661,7 +661,7 @@ func TestRevertForkPutTxBackToQueue(t *testing.T) {
 	fakeChain := make(chan uint64, 100)
 	shardState.txPool.fakeChanForReset = fakeChain
 	// Add a root block to have all the shards initialized
-	rootBlock := shardState.rootTip.CreateBlockToAppend(nil, nil, nil, nil, nil).Finalize(nil, nil,common.Hash{})
+	rootBlock := shardState.rootTip.CreateBlockToAppend(nil, nil, nil, nil, nil).Finalize(nil, nil, common.Hash{})
 	_, err = shardState.AddRootBlock(rootBlock)
 	checkErr(err)
 
@@ -755,7 +755,7 @@ func TestXShardTxSent(t *testing.T) {
 	rootBlock := shardState.rootTip.CreateBlockToAppend(nil, nil, nil, nil, nil)
 	rootBlock.AddMinorBlockHeader(shardState.CurrentHeader().(*types.MinorBlockHeader))
 	rootBlock.AddMinorBlockHeader(shardState1.CurrentHeader().(*types.MinorBlockHeader))
-	rootBlock = rootBlock.Finalize(nil, nil,common.Hash{})
+	rootBlock = rootBlock.Finalize(nil, nil, common.Hash{})
 	_, err = shardState.AddRootBlock(rootBlock)
 	checkErr(err)
 
@@ -836,7 +836,7 @@ func TestXShardTxReceiver(t *testing.T) {
 	rootBlock := shardState0.rootTip.CreateBlockToAppend(nil, nil, nil, nil, nil)
 	rootBlock.AddMinorBlockHeader(shardState0.CurrentHeader().(*types.MinorBlockHeader))
 	rootBlock.AddMinorBlockHeader(shardState1.CurrentHeader().(*types.MinorBlockHeader))
-	rootBlock.Finalize(nil, nil,common.Hash{})
+	rootBlock.Finalize(nil, nil, common.Hash{})
 	_, err0 := shardState0.AddRootBlock(rootBlock)
 	checkErr(err0)
 
@@ -869,7 +869,7 @@ func TestXShardTxReceiver(t *testing.T) {
 	rootBlock = shardState0.rootTip.CreateBlockToAppend(nil, nil, nil, nil, nil)
 	rootBlock.AddMinorBlockHeader(b0.Header())
 	rootBlock.AddMinorBlockHeader(b1.Header())
-	rootBlock.Finalize(nil, nil,common.Hash{})
+	rootBlock.Finalize(nil, nil, common.Hash{})
 	_, err = shardState0.AddRootBlock(rootBlock)
 	checkErr(err)
 
@@ -919,7 +919,7 @@ func TestXShardTxReceivedExcludeNonNeighbor(t *testing.T) {
 	rootBlock := shardState0.rootTip.CreateBlockToAppend(nil, nil, nil, nil, nil)
 	rootBlock.AddMinorBlockHeader(b0.Header())
 	rootBlock.AddMinorBlockHeader(b1.Header())
-	rootBlock.Finalize(nil, nil,common.Hash{})
+	rootBlock.Finalize(nil, nil, common.Hash{})
 	_, err = shardState0.AddRootBlock(rootBlock)
 	checkErr(err)
 
@@ -964,7 +964,7 @@ func TestXShardForTwoRootBlocks(t *testing.T) {
 	rootBlock := shardState0.rootTip.CreateBlockToAppend(nil, nil, nil, nil, nil)
 	rootBlock.AddMinorBlockHeader(shardState0.CurrentHeader().(*types.MinorBlockHeader))
 	rootBlock.AddMinorBlockHeader(shardState1.CurrentHeader().(*types.MinorBlockHeader))
-	rootBlock.Finalize(nil, nil,common.Hash{})
+	rootBlock.Finalize(nil, nil, common.Hash{})
 
 	_, err = shardState0.AddRootBlock(rootBlock)
 
@@ -1001,7 +1001,7 @@ func TestXShardForTwoRootBlocks(t *testing.T) {
 	rootBlock0 := shardState0.rootTip.CreateBlockToAppend(nil, nil, nil, nil, nil)
 	rootBlock0.AddMinorBlockHeader(b0.Header())
 	rootBlock0.AddMinorBlockHeader(b1.Header())
-	rootBlock0.Finalize(nil, nil,common.Hash{})
+	rootBlock0.Finalize(nil, nil, common.Hash{})
 	_, err = shardState0.AddRootBlock(rootBlock0)
 	checkErr(err)
 	b2 := shardState0.CurrentBlock().CreateBlockToAppend(nil, nil, nil, nil, nil, nil, nil)
@@ -1027,7 +1027,7 @@ func TestXShardForTwoRootBlocks(t *testing.T) {
 	rootBlock1 := shardState0.rootTip.CreateBlockToAppend(nil, nil, nil, nil, nil)
 	rootBlock1.AddMinorBlockHeader(b2.Header())
 	rootBlock1.AddMinorBlockHeader(b3.Header())
-	rootBlock1.Finalize(nil, nil,common.Hash{})
+	rootBlock1.Finalize(nil, nil, common.Hash{})
 	_, err = shardState0.AddRootBlock(rootBlock1)
 	checkErr(err)
 
@@ -1127,14 +1127,14 @@ func TestRootChainFirstConsensus(t *testing.T) {
 
 	b1 := shardState1.CurrentBlock().CreateBlockToAppend(nil, nil, nil, nil, nil, nil, nil)
 	evmState, reps, err := shardState1.runBlock(b1)
-	temp:=types.NewTokenBalanceMap()
-	temp.BalanceMap[qkcCommon.TokenIDEncode("QKC")]=evmState.GetBlockFee()
-	b1.Finalize(reps, evmState.IntermediateRoot(true), evmState.GetGasUsed(), evmState.GetXShardReceiveGasUsed(),temp,&types.XShardTxCursorInfo{})
+	temp := types.NewTokenBalanceMap()
+	temp.BalanceMap[qkcCommon.TokenIDEncode("QKC")] = evmState.GetBlockFee()
+	b1.Finalize(reps, evmState.IntermediateRoot(true), evmState.GetGasUsed(), evmState.GetXShardReceiveGasUsed(), temp, &types.XShardTxCursorInfo{})
 	rootBlock := shardState0.rootTip.CreateBlockToAppend(nil, nil, nil, nil, nil)
 	rootBlock.AddMinorBlockHeader(genesis.Header())
 	rootBlock.AddMinorBlockHeader(b0.Header())
 	rootBlock.AddMinorBlockHeader(b1.Header())
-	rootBlock.Finalize(nil, nil,common.Hash{})
+	rootBlock.Finalize(nil, nil, common.Hash{})
 	_, err = shardState0.AddRootBlock(rootBlock)
 	checkErr(err)
 
@@ -1183,12 +1183,12 @@ func TestShardStateAddRootBlock(t *testing.T) {
 
 	b1 := shardState1.CurrentBlock().CreateBlockToAppend(nil, nil, nil, nil, nil, nil, nil)
 	evmState, reps, err := shardState1.runBlock(b1)
-	temp:=types.NewTokenBalanceMap()
-	temp.BalanceMap[qkcCommon.TokenIDEncode("QKC")]=evmState.GetBlockFee()
-	b1.Finalize(reps, evmState.IntermediateRoot(true), evmState.GetGasUsed(), evmState.GetXShardReceiveGasUsed(), temp,&types.XShardTxCursorInfo{})
+	temp := types.NewTokenBalanceMap()
+	temp.BalanceMap[qkcCommon.TokenIDEncode("QKC")] = evmState.GetBlockFee()
+	b1.Finalize(reps, evmState.IntermediateRoot(true), evmState.GetGasUsed(), evmState.GetXShardReceiveGasUsed(), temp, &types.XShardTxCursorInfo{})
 
 	// Add one empty root block
-	emptyRoot := shardState0.rootTip.CreateBlockToAppend(nil, nil, nil, nil, nil).Finalize(nil, nil,common.Hash{})
+	emptyRoot := shardState0.rootTip.CreateBlockToAppend(nil, nil, nil, nil, nil).Finalize(nil, nil, common.Hash{})
 	_, err = shardState0.AddRootBlock(emptyRoot)
 	checkErr(err)
 
@@ -1196,13 +1196,13 @@ func TestShardStateAddRootBlock(t *testing.T) {
 	rootBlock.AddMinorBlockHeader(genesis.Header())
 	rootBlock.AddMinorBlockHeader(b0.Header())
 	rootBlock.AddMinorBlockHeader(b1.Header())
-	rootBlock.Finalize(nil, nil,common.Hash{})
+	rootBlock.Finalize(nil, nil, common.Hash{})
 
 	rootBlock1 := shardState0.rootTip.CreateBlockToAppend(nil, nil, nil, nil, nil)
 	rootBlock1.AddMinorBlockHeader(genesis.Header())
 	rootBlock1.AddMinorBlockHeader(b2.Header())
 	rootBlock1.AddMinorBlockHeader(b1.Header())
-	rootBlock1.Finalize(nil, nil,common.Hash{})
+	rootBlock1.Finalize(nil, nil, common.Hash{})
 
 	_, err = shardState0.AddRootBlock(rootBlock)
 	checkErr(err)
@@ -1232,14 +1232,14 @@ func TestShardStateAddRootBlock(t *testing.T) {
 	_, err = shardState0.AddRootBlock(rootBlock1)
 
 	// Add one empty root block
-	emptyRoot = rootBlock1.Header().CreateBlockToAppend(nil, nil, nil, nil, nil).Finalize(nil, nil,common.Hash{})
+	emptyRoot = rootBlock1.Header().CreateBlockToAppend(nil, nil, nil, nil, nil).Finalize(nil, nil, common.Hash{})
 	_, err = shardState0.AddRootBlock(emptyRoot)
 	checkErr(err)
 	rootBlock2 := emptyRoot.Header().CreateBlockToAppend(nil, nil, nil, nil, nil)
 	rootBlock2.AddMinorBlockHeader(b3.Header())
 	rootBlock2.AddMinorBlockHeader(b4.Header())
 	rootBlock2.AddMinorBlockHeader(b5.Header())
-	rootBlock2.Finalize(nil, nil,common.Hash{})
+	rootBlock2.Finalize(nil, nil, common.Hash{})
 
 	assert.Equal(t, shardState0.CurrentBlock().Hash().String(), b2.Header().Hash().String())
 	_, err = shardState0.AddRootBlock(rootBlock2)
@@ -1277,7 +1277,7 @@ func TestShardStateAddRootBlockTooManyMinorBlocks(t *testing.T) {
 
 	rootBlock := shardState.rootTip.CreateBlockToAppend(nil, nil, nil, nil, nil)
 	rootBlock.ExtendMinorBlockHeaderList(headers)
-	rootBlock.Finalize(nil, nil,common.Hash{})
+	rootBlock.Finalize(nil, nil, common.Hash{})
 
 	// Too many blocks
 	_, err = shardState.AddRootBlock(rootBlock)
@@ -1291,7 +1291,7 @@ func TestShardStateAddRootBlockTooManyMinorBlocks(t *testing.T) {
 
 	// 10 blocks is okay
 	rootBlock1 := types.NewRootBlock(rootBlock.Header(), headers[:13], nil)
-	rootBlock1.Finalize(nil, nil,common.Hash{})
+	rootBlock1.Finalize(nil, nil, common.Hash{})
 	_, err = shardState.AddRootBlock(rootBlock1)
 	checkErr(err)
 }
@@ -1310,7 +1310,7 @@ func TestShardStateForkResolveWithHigherRootChain(t *testing.T) {
 	b0 := shardState.CurrentBlock()
 	rootBlock := shardState.rootTip.CreateBlockToAppend(nil, nil, nil, nil, nil)
 	rootBlock.AddMinorBlockHeader(b0.Header())
-	rootBlock.Finalize(nil, nil,common.Hash{})
+	rootBlock.Finalize(nil, nil, common.Hash{})
 
 	assert.Equal(t, shardState.CurrentHeader().Hash().String(), b0.Header().Hash().String())
 	_, err = shardState.AddRootBlock(rootBlock)
@@ -1426,7 +1426,7 @@ func TestShardStateRecoveryFromRootBlock(t *testing.T) {
 
 	rootBlock := shardState.rootTip.CreateBlockToAppend(nil, nil, nil, nil, nil)
 	rootBlock.ExtendMinorBlockHeaderList(blockHeaders[:5])
-	rootBlock.Finalize(nil, nil,common.Hash{})
+	rootBlock.Finalize(nil, nil, common.Hash{})
 	_, err = shardState.AddRootBlock(rootBlock)
 	checkErr(err)
 
@@ -1525,9 +1525,9 @@ func TestAddBlockReceiptRootNotMatch(t *testing.T) {
 
 	evmState, reps, err := shardState.runBlock(b1)
 	checkErr(err)
-	temp:=types.NewTokenBalanceMap()
-	temp.BalanceMap[qkcCommon.TokenIDEncode("QKC")]=b1.Header().CoinbaseAmount.GetDefaultTokenBalance()
-	b1.Finalize(reps, evmState.IntermediateRoot(true), evmState.GetGasUsed(), evmState.GetXShardReceiveGasUsed(), temp,&types.XShardTxCursorInfo{})
+	temp := types.NewTokenBalanceMap()
+	temp.BalanceMap[qkcCommon.TokenIDEncode("QKC")] = b1.Header().CoinbaseAmount.GetDefaultTokenBalance()
+	b1.Finalize(reps, evmState.IntermediateRoot(true), evmState.GetGasUsed(), evmState.GetXShardReceiveGasUsed(), temp, &types.XShardTxCursorInfo{})
 
 	b1Meta := b1.Meta()
 	b1Meta.Root = common.Hash{}
@@ -1571,7 +1571,7 @@ func TestNotUpdateTipOnRootFork(t *testing.T) {
 	r1 := shardState.rootTip.CreateBlockToAppend(nil, nil, nil, nil, nil)
 	r2 := shardState.rootTip.CreateBlockToAppend(nil, nil, nil, nil, nil)
 	r1.AddMinorBlockHeader(m1.IHeader().(*types.MinorBlockHeader))
-	r1.Finalize(nil, nil,common.Hash{})
+	r1.Finalize(nil, nil, common.Hash{})
 
 	_, err = shardState.AddRootBlock(r1)
 	checkErr(err)
@@ -1580,7 +1580,7 @@ func TestNotUpdateTipOnRootFork(t *testing.T) {
 	r2Header := r2.Header()
 	r2Header.Time = r1.Header().Time + 1
 	r2 = types.NewRootBlock(r2Header, r2.MinorBlockHeaders(), nil)
-	r2.Finalize(nil, nil,common.Hash{})
+	r2.Finalize(nil, nil, common.Hash{})
 	assert.Equal(t, false, reflect.DeepEqual(r1.Header().Hash().String(), r2.Header().Hash().String()))
 
 	_, err = shardState.AddRootBlock(r2)
@@ -1637,7 +1637,7 @@ func TestAddRootBlockRevertHeaderTip(t *testing.T) {
 	r1 := shardState.rootTip.CreateBlockToAppend(nil, nil, nil, nil, nil)
 	r2 := shardState.rootTip.CreateBlockToAppend(nil, nil, nil, nil, nil)
 	r1.AddMinorBlockHeader(m1.IHeader().(*types.MinorBlockHeader))
-	r1.Finalize(nil, nil,common.Hash{})
+	r1.Finalize(nil, nil, common.Hash{})
 
 	_, err = shardState.AddRootBlock(r1)
 	checkErr(err)
@@ -1646,7 +1646,7 @@ func TestAddRootBlockRevertHeaderTip(t *testing.T) {
 	r2Header := r2.Header()
 	r2Header.Time = r1.Header().Time + 1
 	r2 = types.NewRootBlock(r2Header, r2.MinorBlockHeaders(), nil)
-	r2.Finalize(nil, nil,common.Hash{})
+	r2.Finalize(nil, nil, common.Hash{})
 	assert.Equal(t, false, reflect.DeepEqual(r1.Header().Hash().String(), r2.Header().Hash().String()))
 	_, err = shardState.AddRootBlock(r2)
 	checkErr(err)
@@ -1660,7 +1660,7 @@ func TestAddRootBlockRevertHeaderTip(t *testing.T) {
 
 	r3 := r2.Header().CreateBlockToAppend(nil, nil, &acc1, nil, nil)
 	r3.AddMinorBlockHeader(m2.Header())
-	r3.Finalize(nil, nil,common.Hash{})
+	r3.Finalize(nil, nil, common.Hash{})
 	_, err = shardState.AddRootBlock(r3)
 	checkErr(err)
 
@@ -1681,7 +1681,7 @@ func TestTotalTxCount(t *testing.T) {
 	shardState := createDefaultShardState(env, nil, nil, nil, nil)
 	defer shardState.Stop()
 	// Add a root block to have all the shards initialized
-	rootBlock := shardState.rootTip.CreateBlockToAppend(nil, nil, nil, nil, nil).Finalize(nil, nil,common.Hash{})
+	rootBlock := shardState.rootTip.CreateBlockToAppend(nil, nil, nil, nil, nil).Finalize(nil, nil, common.Hash{})
 
 	_, err = shardState.AddRootBlock(rootBlock)
 	checkErr(err)
@@ -1746,7 +1746,7 @@ func TestGetPendingTxFromAddress(t *testing.T) {
 	fakeChan := make(chan uint64, 100)
 	shardState.txPool.fakeChanForReset = fakeChan
 	// Add a root block to have all the shards initialized
-	rootBlock := shardState.rootTip.CreateBlockToAppend(nil, nil, nil, nil, nil).Finalize(nil, nil)
+	rootBlock := shardState.rootTip.CreateBlockToAppend(nil, nil, nil, nil, nil).Finalize(nil, nil, common.Hash{})
 
 	_, err = shardState.AddRootBlock(rootBlock)
 	checkErr(err)
