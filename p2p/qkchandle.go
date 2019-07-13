@@ -3,13 +3,17 @@ package p2p
 import (
 	"bytes"
 	"crypto/cipher"
+	"crypto/ecdsa"
 	"crypto/hmac"
+	"crypto/rand"
 	"encoding/binary"
+	"encoding/hex"
 	"errors"
-	"github.com/ethereum/go-ethereum/log"
 	"github.com/golang/snappy"
+	"github.com/ethereum/go-ethereum/crypto"
 	"io"
 	"io/ioutil"
+	"math/big"
 	"net"
 	"time"
 )
@@ -18,39 +22,24 @@ var (
 	msgHandleLog = "qkcMsgHandle"
 )
 
-func qkcMsgHandle(peer *Peer, ws MsgReadWriter) error {
-	for {
-		msg, err := ws.ReadMsg()
-		if err != nil {
-			log.Error(msgHandleLog, "readMsg err", err)
-			return err
-		}
-
-		qkcBody, err := ioutil.ReadAll(msg.Payload)
-		if err != nil {
-			log.Error(msgHandleLog, "read payload failed err", err)
-			return err
-		}
-		qkcMsg, err := DecodeQKCMsg(qkcBody)
-		if err != nil {
-			log.Error(msgHandleLog, "decode qkc msg err", err)
-			return err
-		}
-		log.Info(msgHandleLog, "recv qkc Op", qkcMsg.Op, "rpcId", qkcMsg.RpcID, "MetaData", qkcMsg.MetaData)
-
-		if _, ok := OPSerializerMap[qkcMsg.Op]; !ok {
-			log.Error(msgHandleLog, "unExcepted Op", qkcMsg.Op)
-			return err
-		}
-
-		if HandleFunc, ok := OPNonRPCMap[qkcMsg.Op]; ok {
-			HandleFunc(qkcMsg.Op, qkcMsg.Data)
-		} else if HandleFunc, ok := OpRPCMap[qkcMsg.Op]; ok {
-			HandleFunc.handleFunc(qkcMsg.Data)
-		} else {
-			//TODO future
-		}
+func GetPrivateKeyFromConfig(configKey string) (*ecdsa.PrivateKey, error) {
+	if configKey == "" {
+		sk, err := ecdsa.GenerateKey(crypto.S256(), rand.Reader)
+		return sk, err
 	}
+	configKeyValue, err := hex.DecodeString(configKey)
+	if err != nil {
+		return nil, err
+	}
+	keyValue := new(big.Int).SetBytes(configKeyValue)
+	if err != nil {
+		return nil, err
+	}
+	sk := new(ecdsa.PrivateKey)
+	sk.PublicKey.Curve = crypto.S256()
+	sk.D = keyValue
+	sk.PublicKey.X, sk.PublicKey.Y = crypto.S256().ScalarBaseMult(keyValue.Bytes())
+	return sk, nil
 }
 
 type qkcRlp struct {
