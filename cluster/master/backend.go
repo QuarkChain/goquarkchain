@@ -522,12 +522,16 @@ func (s *QKCMasterBackend) SendMiningConfigToSlaves(mining bool) error {
 
 // AddRootBlock add root block to all slaves
 func (s *QKCMasterBackend) AddRootBlock(rootBlock *types.RootBlock) error {
+	head := s.rootBlockChain.CurrentBlock().NumberU64()
 	s.rootBlockChain.WriteCommittingHash(rootBlock.Hash())
 	_, err := s.rootBlockChain.InsertChain([]types.IBlock{rootBlock})
 	if err != nil {
 		return err
 	}
 	if err := s.broadcastRootBlockToSlaves(rootBlock); err != nil {
+		if err := s.rootBlockChain.SetHead(head); err != nil {
+			panic(err)
+		}
 		return err
 	}
 	s.rootBlockChain.ClearCommittingHash()
