@@ -132,8 +132,8 @@ func (m *Miner) Stop() {
 // TODO when p2p is syncing block how to stop miner.
 func (m *Miner) SetMining(mining bool) {
 	m.mu.Lock()
-	defer m.mu.Unlock()
 	m.isMining = mining
+	m.mu.Unlock()
 	if mining {
 		m.startCh <- struct{}{}
 	}
