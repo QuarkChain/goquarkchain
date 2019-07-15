@@ -86,9 +86,6 @@ func New(ctx *service.ServiceContext, rBlock *types.RootBlock, conn ConnManager,
 		return nil, err
 	}
 
-	shard.miner = miner.New(ctx, shard, shard.engine, shard.Config.ConsensusConfig.TargetBlockTime)
-	shard.miner.Init()
-
 	chainConfig, genesisHash, genesisErr := core.SetupGenesisMinorBlock(shard.chainDb, shard.gspec, rBlock, fullshardId)
 	// TODO check config err
 	if genesisErr != nil {
@@ -105,6 +102,8 @@ func New(ctx *service.ServiceContext, rBlock *types.RootBlock, conn ConnManager,
 	shard.MinorBlockChain.SetBroadcastMinorBlockFunc(shard.AddMinorBlock)
 	shard.synchronizer = synchronizer.NewSynchronizer(shard.MinorBlockChain)
 	shard.posw = consensus.CreatePoSWCalculator(shard.MinorBlockChain, shard.Config.PoswConfig)
+
+	shard.miner = miner.New(ctx, shard, shard.engine)
 
 	return shard, nil
 }

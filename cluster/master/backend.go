@@ -107,8 +107,6 @@ func New(ctx *service.ServiceContext, cfg *config.ClusterConfig) (*QKCMasterBack
 		return nil, err
 	}
 
-	mstr.miner = miner.New(ctx, mstr, mstr.engine, cfg.Quarkchain.Root.ConsensusConfig.TargetBlockTime)
-
 	chainConfig, genesisHash, genesisErr := core.SetupGenesisRootBlock(mstr.chainDb, mstr.gspc)
 	// TODO check config err
 	if genesisErr != nil {
@@ -134,6 +132,8 @@ func New(ctx *service.ServiceContext, cfg *config.ClusterConfig) (*QKCMasterBack
 	if mstr.protocolManager, err = NewProtocolManager(*cfg, mstr.rootBlockChain, mstr.shardStatsChan, mstr.synchronizer, mstr.getShardConnForP2P); err != nil {
 		return nil, err
 	}
+
+	mstr.miner = miner.New(ctx, mstr, mstr.engine)
 
 	return mstr, nil
 }
@@ -215,7 +215,6 @@ func (s *QKCMasterBackend) Init(srvr *p2p.Server) error {
 		return err
 	}
 	s.Heartbeat()
-	s.miner.Init()
 	return nil
 }
 

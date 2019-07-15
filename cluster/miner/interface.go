@@ -8,5 +8,6 @@ import (
 type MinerAPI interface {
 	CreateBlockToMine() (types.IBlock, *big.Int, error)
 	InsertMinedBlock(types.IBlock) error
+	IsSyncIng() bool
 	GetTip() uint64
 }

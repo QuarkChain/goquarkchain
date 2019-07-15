@@ -323,3 +323,7 @@ func (s *ShardBackend) InsertMinedBlock(block types.IBlock) error {
 func (s *ShardBackend) GetTip() uint64 {
 	return s.MinorBlockChain.CurrentBlock().NumberU64()
 }
+
+func (s *ShardBackend) IsSyncIng() bool {
+	return s.synchronizer.IsSyncing()
+}
