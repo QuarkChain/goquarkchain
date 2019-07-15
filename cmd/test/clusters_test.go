@@ -441,7 +441,30 @@ func TestGetMinorBlockHeadersWithSkip(t *testing.T) {
 	clstrList.Start()
 	defer clstrList.Stop()
 
-	mstr0 := clstrList[0].GetMaster()
-	mHeaders := make([]*types.MinorBlockHeader, 0, 2)
-	mHeaders = append(mHeaders, clstrList[0].GetShard(id0).HandleNewTip())
+	var (
+		shrd0 = clstrList[0].GetShard(id0)
+		shrd1 = clstrList[0].GetShard(id1)
+		mstr0 = clstrList[0].GetMaster()
+		mstr1 = clstrList[1].GetMaster()
+	)
+	mHeaders := make([]*types.MinorBlockHeader, 0, 0)
+	for i := 0; i < 10; i++ {
+		iBlock, err := shrd0.CreateBlockToMine()
+		if err != nil {
+			t.Error("failed to create block", "fullShardId", id0, "err", err)
+		}
+		err = shrd0.InsertMinedBlock(iBlock)
+		if err != nil {
+			t.Error("failed to insert mined minor block", "fullShardId", id0, "err", err)
+		}
+		mBlock := iBlock.(*types.MinorBlock)
+		mHeaders = append(mHeaders, mBlock.Header())
+	}
+
+	// assert the height in minor chain.
+	assert.Equal(t, assertTrueWithTimeout(func() bool {
+		return mHeaders[len(mHeaders)-1].Number == uint64(11)
+	}, 1), true)
+
+	clstrList[1].GetShard(id0)
 }
