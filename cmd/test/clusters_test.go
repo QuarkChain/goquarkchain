@@ -434,7 +434,14 @@ func TestGetRootBlockHeaderSyncWithBestAncestor(t *testing.T) {}
 func TestGetMinorBlockHeadersWithSkip(t *testing.T) {
 	var (
 		chainSize, shardSize uint32 = 2, 2
+		id0                         = uint32(0<<16 | shardSize | 0)
+		id1                         = uint32(0<<16 | shardSize | 1)
 	)
 	geneAcc, clstrList := CreateClusterList(2, chainSize, shardSize, chainSize, nil)
+	clstrList.Start()
+	defer clstrList.Stop()
 
+	mstr0 := clstrList[0].GetMaster()
+	mHeaders := make([]*types.MinorBlockHeader, 0, 2)
+	mHeaders = append(mHeaders, clstrList[0].GetShard(id0).HandleNewTip())
 }
