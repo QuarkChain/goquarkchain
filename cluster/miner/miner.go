@@ -47,7 +47,7 @@ func New(ctx *service.ServiceContext, api MinerAPI, engine consensus.Engine) *Mi
 		engine:    engine,
 		timestamp: &ctx.Timestamp,
 		resultCh:  make(chan types.IBlock, 1),
-		workCh:    make(chan types.IBlock, 1),
+		workCh:    make(chan workAdjusted, 1),
 		startCh:   make(chan struct{}, 1),
 		exitCh:    make(chan struct{}),
 		stopCh:    make(chan struct{}),
