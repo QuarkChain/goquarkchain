@@ -2,12 +2,9 @@ package account
 
 import (
 	"bytes"
-	"crypto/ecdsa"
-	"crypto/rand"
 	"encoding/binary"
 	"fmt"
-	"github.com/ethereum/go-ethereum/crypto"
-	"math/big"
+	"github.com/QuarkChain/goquarkchain/crypto"
 )
 
 // Identity include recipient and key
@@ -26,7 +23,7 @@ func NewIdentity(recipient Recipient, key Key) Identity {
 
 // CreatRandomIdentity create a random identity
 func CreatRandomIdentity() (Identity, error) {
-	sk, err := ecdsa.GenerateKey(crypto.S256(), rand.Reader)
+	sk, err := crypto.GenerateKey()
 	if err != nil {
 		return Identity{}, ErrGenIdentityKey
 	}
@@ -49,12 +46,10 @@ func CreatRandomIdentity() (Identity, error) {
 
 // CreatIdentityFromKey creat identity from key
 func CreatIdentityFromKey(key Key) (Identity, error) {
-	keyValue := big.NewInt(0)
-	keyValue.SetBytes(key.Bytes())
-	sk := new(ecdsa.PrivateKey)
-	sk.PublicKey.Curve = crypto.S256()
-	sk.D = keyValue
-	sk.PublicKey.X, sk.PublicKey.Y = crypto.S256().ScalarBaseMult(keyValue.Bytes())
+	sk, err := crypto.ToECDSA(key.Bytes())
+	if err != nil {
+		return Identity{}, err
+	}
 	if len(crypto.FromECDSAPub(&sk.PublicKey)) != 2*KeyLength+1 {
 		return Identity{}, fmt.Errorf("fromECDSAPub len is not match :unexcepted %d,excepted %d", len(crypto.FromECDSAPub(&sk.PublicKey)), 2*KeyLength+1)
 	}

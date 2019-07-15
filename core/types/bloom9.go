@@ -20,8 +20,8 @@ import (
 	"fmt"
 	"math/big"
 
+	"github.com/QuarkChain/goquarkchain/crypto"
 	"github.com/ethereum/go-ethereum/common/hexutil"
-	"github.com/ethereum/go-ethereum/crypto"
 )
 
 type bytesBacked interface {

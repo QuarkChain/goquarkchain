@@ -22,8 +22,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/QuarkChain/goquarkchain/crypto"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rlp"
 )

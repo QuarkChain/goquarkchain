@@ -7,16 +7,16 @@ import (
 	"crypto/ecdsa"
 	"encoding/hex"
 	"fmt"
-	"github.com/QuarkChain/gos/crypto/sm2"
-	"github.com/stretchr/testify/assert"
 	"io/ioutil"
 	"math/big"
 	"os"
 	"reflect"
 	"testing"
 
+	"github.com/QuarkChain/gos/crypto/sm2"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/stretchr/testify/assert"
 )
 
 var testAddrHex = "d187504d7eef58c1f1d0e72ebd077acfecc9b22e"
@@ -30,7 +30,6 @@ func TestToECDSAErrors(t *testing.T) {
 		t.Fatal("HexToECDSA should've returned error")
 	}
 }
-
 
 func TestUnmarshalPubkey(t *testing.T) {
 	key, err := UnmarshalPubkey(nil)
@@ -152,10 +151,10 @@ func TestPerformance(t *testing.T) {
 		return
 	}
 
-	if !ValidateSignatureValues(signresult[64], new(big.Int).SetBytes(signresult[:32]), new(big.Int).SetBytes(signresult[32:64])) {
+	if !ValidateSignatureValues(signresult[64], new(big.Int).SetBytes(signresult[:32]), new(big.Int).SetBytes(signresult[32:64]), true) {
 		t.Errorf("ValidateSignatureValues failed ")
 	}
-		VerifySignature( (*sm2.PublicKey)(&privKey.PublicKey).SerializeUncompressed(), hash, signresult )
+	VerifySignature((*sm2.PublicKey)(&privKey.PublicKey).SerializeUncompressed(), hash, signresult)
 
 	pubKey, _ := Ecrecover(hash, signresult)
 

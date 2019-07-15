@@ -20,7 +20,7 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/QuarkChain/goquarkchain/crypto"
 )
 
 func TestEIP155Signing(t *testing.T) {

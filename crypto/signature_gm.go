@@ -10,6 +10,8 @@ import (
 	"math/big"
 )
 
+const CryptoType = "gm"
+
 var (
 	halfN = new(big.Int).Rsh(sm2.Sm2Curve().N, 1)
 )

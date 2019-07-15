@@ -2,11 +2,10 @@ package account
 
 import (
 	"bytes"
-	"crypto/ecdsa"
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/QuarkChain/goquarkchain/crypto"
 	"math/big"
 	"testing"
 )
@@ -42,13 +41,7 @@ func CheckIdentityUnitTest(data IdentityTestStruct) bool {
 }
 
 func checkPublicToRecipient(key Key, recipient Recipient) error {
-	keyValue := big.NewInt(0)
-	keyValue.SetBytes(key.Bytes())
-	sk := new(ecdsa.PrivateKey)
-	sk.PublicKey.Curve = crypto.S256()
-	sk.D = keyValue
-	sk.PublicKey.X, sk.PublicKey.Y = crypto.S256().ScalarBaseMult(keyValue.Bytes())
-
+	sk, _ := crypto.ToECDSA(key.Bytes())
 	recipientData := PublicKeyToRecipient(sk.PublicKey)
 	if bytes.Equal(recipientData.Bytes(), recipient.Bytes()) {
 		return nil

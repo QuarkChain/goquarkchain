@@ -13,6 +13,7 @@ import (
 	"github.com/QuarkChain/gos/crypto/sm3"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/math"
+	"github.com/ethereum/go-ethereum/crypto"
 	"io"
 	"io/ioutil"
 	"math/big"
@@ -20,6 +21,17 @@ import (
 )
 
 var errInvalidPubkey = errors.New("invalid sm2 public key")
+
+// Keccak256 calculates and returns the Keccak256 hash of the input data.
+func Keccak256(data ...[]byte) []byte {
+	return crypto.Keccak256(data...)
+}
+
+// Keccak256Hash calculates and returns the Keccak256 hash of the input data,
+// converting it to an internal Hash data structure.
+func Keccak256Hash(data ...[]byte) (h common.Hash) {
+	return crypto.Keccak256Hash(data...)
+}
 
 // SM3 calculates and returns the SM3 hash of the input data.
 func SM3(data ...[]byte) []byte {
@@ -138,7 +150,7 @@ func GenerateKey() (*ecdsa.PrivateKey, error) {
 
 // ValidateSignatureValues verifies whether the signature values are valid with
 // the given chain rules. The v value is assumed to be either 0 or 1.
-func ValidateSignatureValues(v byte, r, s *big.Int) bool {
+func ValidateSignatureValues(v byte, r, s *big.Int, homestead bool) bool {
 	curve := sm2.Sm2Curve()
 	if r.Cmp(common.Big1) < 0 || s.Cmp(common.Big1) < 0 {
 		return false
