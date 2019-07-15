@@ -55,11 +55,6 @@ const (
 	maxLastConfirmLimit = 256
 )
 
-type heightAndAddrs struct {
-	height uint64
-	addrs  []account.Recipient
-}
-
 type gasPriceSuggestionOracle struct {
 	LastPrice   uint64
 	LastHead    common.Hash
@@ -133,7 +128,6 @@ type MinorBlockChain struct {
 	rootTip                  *types.RootBlockHeader
 	confirmedHeaderTip       *types.MinorBlockHeader
 	initialized              bool
-	coinbaseAddrCache        map[common.Hash]heightAndAddrs
 	rewardCalc               *qkcCommon.ConstMinorBlockRewardCalculator
 	gasPriceSuggestionOracle *gasPriceSuggestionOracle
 	heightToMinorBlockHashes map[uint64]map[common.Hash]struct{}
@@ -141,6 +135,7 @@ type MinorBlockChain struct {
 	currentEvmState          *state.StateDB
 	logInfo                  string
 	addMinorBlockAndBroad    func(block *types.MinorBlock) error
+	posw                     consensus.SenderDisallowMapBuilder
 	gasLimit                 *big.Int
 }
 
@@ -232,6 +227,7 @@ func NewMinorBlockChain(
 	}
 
 	bc.txPool = NewTxPool(DefaultTxPoolConfig, bc)
+	bc.posw = consensus.CreateSenderDisallowMapBuilder(bc, bc.shardConfig.PoswConfig)
 	// Take ownership of this particular state
 	go bc.update()
 	return bc, nil
@@ -1194,6 +1190,14 @@ func (m *MinorBlockChain) insertChain(chain []types.IBlock, verifySeals bool) (i
 		status, err := m.WriteBlockWithState(mBlock, receipts, state, xShardReceiveTxList, updateTip)
 		if err != nil {
 			return it.index, events, coalescedLogs, xShardList, err
+		}
+		if updateTip {
+			senderDisallowMap, err := m.posw.BuildSenderDisallowMap(block.Hash(), nil)
+			if err != nil {
+				return it.index, events, coalescedLogs, xShardList, err
+			}
+			state.SetSenderDisallowMap(senderDisallowMap)
+			m.currentEvmState = state
 		}
 		switch status {
 		case CanonStatTy:

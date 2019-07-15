@@ -107,6 +107,13 @@ func createDefaultShardState(env *fakeEnv, shardID *uint32, diffCalc consensus.D
 	genesisManager := NewGenesis(env.clusterConfig.Quarkchain)
 
 	fullShardID := env.clusterConfig.Quarkchain.Chains[0].ShardSize | *shardID
+
+	if poswOverride != nil && *poswOverride {
+		poswConfig := env.clusterConfig.Quarkchain.GetShardConfigByFullShardID(fullShardID).PoswConfig
+		poswConfig.Enabled = true
+		poswConfig.WindowSize = 3
+	}
+
 	genesisManager.MustCommitMinorBlock(env.db, rBlock, fullShardID)
 
 	var shardState *MinorBlockChain
@@ -194,4 +201,21 @@ func checkErr(err error) {
 	if err != nil {
 		panic(err)
 	}
+}
+
+func CreateFakeMinorCanonicalPoSW(acc1 account.Address, shardId *uint32, genesisMinorQuarkash *uint64) (*MinorBlockChain, error) {
+	env := setUp(&acc1, genesisMinorQuarkash, nil)
+	poswOverride := true
+	shardState := createDefaultShardState(env, shardId, nil, &poswOverride, nil)
+	return shardState, nil
+}
+
+func CreateFreeTx(shardState *MinorBlockChain, key []byte,
+	from account.Address, to account.Address, value *big.Int, gas, nonce *uint64) *types.Transaction {
+	var gasPrice uint64 = 0
+	if gas == nil {
+		gas = new(uint64)
+		*gas = 21000
+	}
+	return createTransferTransaction(shardState, key, from, to, value, gas, &gasPrice, nonce, nil)
 }
