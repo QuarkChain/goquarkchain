@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/hashicorp/golang-lru"
+	"math/big"
 	"time"
 
 	"github.com/QuarkChain/goquarkchain/core/types"
@@ -23,6 +24,7 @@ var (
 
 type sealTask struct {
 	block   types.IBlock
+	diff    *big.Int
 	results chan<- types.IBlock
 }
 
@@ -51,15 +53,18 @@ func (c *CommonEngine) remote() {
 		return
 	}
 
-	makeWork := func(block types.IBlock) {
+	makeWork := func(block types.IBlock, adjustedDiff *big.Int) {
 		hash := block.IHeader().SealHash()
 		if works.Contains(hash) {
 			return
 		}
 		currentWork.HeaderHash = hash
 		currentWork.Number = block.NumberU64()
-		currentWork.Difficulty = block.IHeader().GetDifficulty()
-
+		if adjustedDiff == nil {
+			currentWork.Difficulty = block.IHeader().GetDifficulty()
+		} else {
+			currentWork.Difficulty = adjustedDiff
+		}
 		currentBlock = block
 		works.Add(hash, block)
 	}
@@ -86,7 +91,7 @@ func (c *CommonEngine) remote() {
 
 		solution := block.WithMingResult(nonce, mixDigest)
 		start := time.Now()
-		if err := c.spec.VerifySeal(nil, solution.IHeader(), solution.IHeader().GetDifficulty()); err != nil {
+		if err := c.spec.VerifySeal(nil, solution.IHeader(), currentWork.Difficulty); err != nil {
 			log.Warn("Invalid proof-of-work submitted", "sealhash", sealhash.Hex(), "elapsed", time.Since(start), "err", err)
 			return false
 		}
@@ -109,7 +114,7 @@ func (c *CommonEngine) remote() {
 		select {
 		case work := <-c.workCh:
 			results = work.results
-			makeWork(work.block)
+			makeWork(work.block, work.diff)
 
 		case work := <-c.fetchWorkCh:
 			if currentBlock == nil {

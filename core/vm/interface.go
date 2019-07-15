@@ -83,8 +83,8 @@ type StateDB interface {
 	SetGasLimit(*big.Int)
 	GetShardConfig() *config.ShardConfig
 	SetShardConfig(shardConfig *config.ShardConfig)
-	SetSenderDisallowList([]account.Recipient)
-	GetSenderDisallowList() []account.Recipient
+	SetSenderDisallowMap(map[account.Recipient]*big.Int)
+	GetSenderDisallowMap() map[account.Recipient]*big.Int
 	GetBlockCoinbase() account.Recipient
 	SetBlockCoinbase(recipient account.Recipient)
 }

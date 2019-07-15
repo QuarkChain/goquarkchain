@@ -60,7 +60,7 @@ func TestVerifySeal(t *testing.T) {
 	e := New(Config{CachesInMem: 3, CachesOnDisk: 10, PowMode: ModeTest}, &diffCalculator, false)
 
 	resultsCh := make(chan types.IBlock)
-	err := e.Seal(nil, rootBlock, resultsCh, nil)
+	err := e.Seal(nil, rootBlock, nil, resultsCh, nil)
 	assert.NoError(err, "should have no problem sealing the block")
 	block := <-resultsCh
 

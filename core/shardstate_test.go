@@ -1785,3 +1785,49 @@ func TestGetPendingTxFromAddress(t *testing.T) {
 	assert.Equal(t, 0, len(data))
 
 }
+
+func TestResetToOldChain(t *testing.T) {
+	id1, err := account.CreatRandomIdentity()
+	checkErr(err)
+	acc1 := account.CreatAddressFromIdentity(id1, 0)
+	acc3, err := account.CreatRandomAccountWithFullShardKey(0)
+
+	fakeMoney := uint64(10000000)
+	env := setUp(&acc1, &fakeMoney, nil)
+	shardState := createDefaultShardState(env, nil, nil, nil, nil)
+	defer shardState.Stop()
+
+	// Add a root block to have all the shards initialized
+	rootBlock := shardState.rootTip.CreateBlockToAppend(nil, nil, nil, nil, nil).Finalize(nil, nil)
+	_, err = shardState.AddRootBlock(rootBlock)
+	checkErr(err)
+
+	r0 := shardState.CurrentBlock()
+
+	rs1 := r0.CreateBlockToAppend(nil, nil, nil, nil, nil, nil, nil)
+	rs1, _, err = shardState.FinalizeAndAddBlock(rs1)
+	assert.NoError(t, err)
+
+	rr1 := r0.CreateBlockToAppend(nil, nil, nil, nil, nil, nil, nil)
+	tHeader := rr1.Header()
+	tHeader.SetCoinbase(acc3)
+	rr1 = types.NewMinorBlock(tHeader, rr1.Meta(), rr1.Transactions(), nil, nil)
+	rr1, _, err = shardState.FinalizeAndAddBlock(rr1)
+	assert.NoError(t, err)
+
+	assert.Equal(t, shardState.CurrentBlock(), rs1)
+
+	rr2 := rr1.CreateBlockToAppend(nil, nil, nil, nil, nil, nil, nil)
+	rr2, _, err = shardState.FinalizeAndAddBlock(rr2)
+	assert.NoError(t, err)
+	assert.Equal(t, shardState.CurrentBlock(), rr2)
+
+	assert.Equal(t, shardState.GetBlockByNumber(1).Hash(), rr1.Hash())
+	assert.Equal(t, shardState.GetBlockByNumber(2).Hash(), rr2.Hash())
+
+	err = shardState.reorg(shardState.CurrentBlock(), rs1)
+	assert.NoError(t, err)
+	assert.Equal(t, shardState.CurrentBlock().Hash(), rs1.Hash())
+	assert.Equal(t, shardState.GetBlockByNumber(1).Hash(), rs1.Hash())
+	assert.Equal(t, shardState.GetBlockByNumber(2).Hash(), rr2.Hash())
+}

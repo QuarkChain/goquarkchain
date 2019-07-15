@@ -48,6 +48,8 @@ type ShardBackend struct {
 	eventMux     *event.TypeMux
 	synchronizer synchronizer.Synchronizer
 	logInfo      string
+
+	posw consensus.PoSWCalculator
 }
 
 func New(ctx *service.ServiceContext, rBlock *types.RootBlock, conn ConnManager,
@@ -99,6 +101,7 @@ func New(ctx *service.ServiceContext, rBlock *types.RootBlock, conn ConnManager,
 	}
 	shard.MinorBlockChain.SetBroadcastMinorBlockFunc(shard.AddMinorBlock)
 	shard.synchronizer = synchronizer.NewSynchronizer(shard.MinorBlockChain)
+	shard.posw = consensus.CreatePoSWCalculator(shard.MinorBlockChain, shard.Config.PoswConfig)
 
 	shard.miner = miner.New(ctx, shard, shard.engine)
 

@@ -58,8 +58,8 @@ func NewPOWConfig() *POWConfig {
 
 type POSWConfig struct {
 	Enabled            bool     `json:"ENABLED"`
-	DiffDivider        uint32   `json:"DIFF_DIVIDER"`
-	WindowSize         uint32   `json:"WINDOW_SIZE"`
+	DiffDivider        uint64   `json:"DIFF_DIVIDER"`
+	WindowSize         uint64   `json:"WINDOW_SIZE"`
 	TotalStakePerBlock *big.Int `json:"TOTAL_STAKE_PER_BLOCK"`
 }
 
