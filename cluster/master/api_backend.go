@@ -303,3 +303,7 @@ func (s *QKCMasterBackend) InsertMinedBlock(block types.IBlock) error {
 func (s *QKCMasterBackend) GetTip() uint64 {
 	return s.rootBlockChain.CurrentBlock().NumberU64()
 }
+
+func (s *QKCMasterBackend) IsSyncIng() bool {
+	return s.synchronizer.IsSyncing()
+}

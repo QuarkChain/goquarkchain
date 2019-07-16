@@ -66,7 +66,7 @@ type peerHead struct {
 	minorTips map[uint32]*p2p.Tip
 }
 
-type peer struct {
+type Peer struct {
 	id    string
 	rpcId uint64
 
@@ -87,8 +87,8 @@ type peer struct {
 	chans            map[uint64]chan interface{}
 }
 
-func newPeer(version int, p *p2p.Peer, rw p2p.MsgReadWriter) *peer {
-	return &peer{
+func newPeer(version int, p *p2p.Peer, rw p2p.MsgReadWriter) *Peer {
+	return &Peer{
 		Peer:             p,
 		rw:               rw,
 		version:          version,
@@ -105,7 +105,7 @@ func newPeer(version int, p *p2p.Peer, rw p2p.MsgReadWriter) *peer {
 // broadcast is a write loop that multiplexes block propagations, announcements
 // and transaction broadcasts into the remote peer. The goal is to have an async
 // writer that does not lock up node internals.
-func (p *peer) broadcast() {
+func (p *Peer) broadcast() {
 	for {
 		select {
 		case nTxs := <-p.queuedTxs:
@@ -139,18 +139,18 @@ func (p *peer) broadcast() {
 }
 
 // close signals the broadcast goroutine to terminate.
-func (p *peer) close() {
+func (p *Peer) close() {
 	close(p.term)
 }
 
-func (p *peer) getRpcId() uint64 {
+func (p *Peer) getRpcId() uint64 {
 	p.lock.Lock()
 	defer p.lock.Unlock()
 	p.rpcId = p.rpcId + 1
 	return p.rpcId
 }
 
-func (p *peer) getRpcIdWithChan() (uint64, chan interface{}) {
+func (p *Peer) getRpcIdWithChan() (uint64, chan interface{}) {
 	p.lock.Lock()
 	defer p.lock.Unlock()
 	p.rpcId = p.rpcId + 1
@@ -161,7 +161,7 @@ func (p *peer) getRpcIdWithChan() (uint64, chan interface{}) {
 
 // RootHead retrieves a copy of the current root head of the
 // peer.
-func (p *peer) RootHead() *types.RootBlockHeader {
+func (p *Peer) RootHead() *types.RootBlockHeader {
 	p.lock.RLock()
 	defer p.lock.RUnlock()
 
@@ -169,7 +169,7 @@ func (p *peer) RootHead() *types.RootBlockHeader {
 }
 
 // SetRootHead updates the root head of the peer.
-func (p *peer) SetRootHead(rootTip *types.RootBlockHeader) {
+func (p *Peer) SetRootHead(rootTip *types.RootBlockHeader) {
 	p.lock.Lock()
 	defer p.lock.Unlock()
 
@@ -178,7 +178,7 @@ func (p *peer) SetRootHead(rootTip *types.RootBlockHeader) {
 
 // RootHead retrieves a copy of the current root head of the
 // peer.
-func (p *peer) MinorHead(branch uint32) *p2p.Tip {
+func (p *Peer) MinorHead(branch uint32) *p2p.Tip {
 	p.lock.RLock()
 	defer p.lock.RUnlock()
 
@@ -186,20 +186,20 @@ func (p *peer) MinorHead(branch uint32) *p2p.Tip {
 }
 
 // SetRootHead updates the root head of the peer.
-func (p *peer) SetMinorHead(branch uint32, minorTip *p2p.Tip) {
+func (p *Peer) SetMinorHead(branch uint32, minorTip *p2p.Tip) {
 	p.lock.Lock()
 	defer p.lock.Unlock()
 
 	p.head.minorTips[branch] = minorTip
 }
 
-func (p *peer) PeerID() string {
+func (p *Peer) PeerID() string {
 	return p.id
 }
 
 // SendTransactions sends transactions to the peer and includes the hashes
 // in its transaction hash set for future reference.
-func (p *peer) SendTransactions(branch uint32, txs []*types.Transaction) error {
+func (p *Peer) SendTransactions(branch uint32, txs []*types.Transaction) error {
 	data := p2p.NewTransactionList{}
 	data.TransactionList = txs
 
@@ -212,7 +212,7 @@ func (p *peer) SendTransactions(branch uint32, txs []*types.Transaction) error {
 
 // AsyncSendTransactions queues list of transactions propagation to a remote
 // peer. If the peer's broadcast queue is full, the event is silently dropped.
-func (p *peer) AsyncSendTransactions(branch uint32, txs []*types.Transaction) {
+func (p *Peer) AsyncSendTransactions(branch uint32, txs []*types.Transaction) {
 	select {
 	case p.queuedTxs <- newTxs{branch: branch, txs: txs}:
 		p.Log().Debug("add transaction to broadcast queue", "count", len(txs))
@@ -222,7 +222,7 @@ func (p *peer) AsyncSendTransactions(branch uint32, txs []*types.Transaction) {
 }
 
 // SendNewTip announces the head of each shard or root.
-func (p *peer) SendNewTip(branch uint32, tip *p2p.Tip) error {
+func (p *Peer) SendNewTip(branch uint32, tip *p2p.Tip) error {
 	msg, err := p2p.MakeMsg(p2p.NewTipMsg, 0, p2p.Metadata{Branch: branch}, tip) //NewTipMsg should rpc=0
 	if err != nil {
 		return err
@@ -232,7 +232,7 @@ func (p *peer) SendNewTip(branch uint32, tip *p2p.Tip) error {
 
 // AsyncSendNewTip queues the head block for propagation to a remote peer.
 // If the peer's broadcast queue is full, the event is silently dropped.
-func (p *peer) AsyncSendNewTip(branch uint32, tip *p2p.Tip) {
+func (p *Peer) AsyncSendNewTip(branch uint32, tip *p2p.Tip) {
 	select {
 	case p.queuedTip <- newTip{branch: branch, tip: tip}:
 		p.Log().Debug("Add new tip to broadcast queue", "", tip.RootBlockHeader.NumberU64(), "branch", branch)
@@ -242,7 +242,7 @@ func (p *peer) AsyncSendNewTip(branch uint32, tip *p2p.Tip) {
 }
 
 // SendNewMinorBlock propagates an entire minor block to a remote peer.
-func (p *peer) SendNewMinorBlock(branch uint32, block *types.MinorBlock) error {
+func (p *Peer) SendNewMinorBlock(branch uint32, block *types.MinorBlock) error {
 	data := p2p.NewBlockMinor{Block: block}
 
 	msg, err := p2p.MakeMsg(p2p.NewBlockMinorMsg, 0, p2p.Metadata{Branch: branch}, data)
@@ -254,7 +254,7 @@ func (p *peer) SendNewMinorBlock(branch uint32, block *types.MinorBlock) error {
 
 // AsyncSendNewMinorBlock queues an entire minor block for propagation to a remote peer. If
 // the peer's broadcast queue is full, the event is silently dropped.
-func (p *peer) AsyncSendNewMinorBlock(branch uint32, block *types.MinorBlock) {
+func (p *Peer) AsyncSendNewMinorBlock(branch uint32, block *types.MinorBlock) {
 	select {
 	case p.queuedMinorBlock <- newMinorBlock{branch: branch, block: block}:
 		p.Log().Debug("add minor block to broadcast queue", "number", block.NumberU64(), "hash", block.Hash())
@@ -263,19 +263,19 @@ func (p *peer) AsyncSendNewMinorBlock(branch uint32, block *types.MinorBlock) {
 	}
 }
 
-func (p *peer) getChan(rpcId uint64) chan interface{} {
+func (p *Peer) getChan(rpcId uint64) chan interface{} {
 	p.chanLock.Lock()
 	defer p.chanLock.Unlock()
 	return p.chans[rpcId]
 }
 
-func (p *peer) addChan(rpcId uint64, rpcchan chan interface{}) {
+func (p *Peer) addChan(rpcId uint64, rpcchan chan interface{}) {
 	p.chanLock.Lock()
 	defer p.chanLock.Unlock()
 	p.chans[rpcId] = rpcchan
 }
 
-func (p *peer) deleteChan(rpcId uint64) {
+func (p *Peer) deleteChan(rpcId uint64) {
 	p.chanLock.Lock()
 	defer p.chanLock.Unlock()
 	delete(p.chans, rpcId)
@@ -283,7 +283,7 @@ func (p *peer) deleteChan(rpcId uint64) {
 
 // requestRootBlockHeaderList fetches a batch of root blocks' headers corresponding to the
 // specified header hashList, based on the hash of an origin block.
-func (p *peer) requestRootBlockHeaderList(rpcId uint64, hash common.Hash, amount uint32, reverse bool) error {
+func (p *Peer) requestRootBlockHeaderList(rpcId uint64, hash common.Hash, amount uint32, reverse bool) error {
 	if amount == 0 {
 		panic("amount should not 0")
 	}
@@ -300,7 +300,7 @@ func (p *peer) requestRootBlockHeaderList(rpcId uint64, hash common.Hash, amount
 	return p.rw.WriteMsg(msg)
 }
 
-func (p *peer) GetRootBlockHeaderList(hash common.Hash, amount uint32, reverse bool) ([]*types.RootBlockHeader, error) {
+func (p *Peer) GetRootBlockHeaderList(hash common.Hash, amount uint32, reverse bool) ([]*types.RootBlockHeader, error) {
 	rpcId, rpcchan := p.getRpcIdWithChan()
 	defer p.deleteChan(rpcId)
 
@@ -322,7 +322,7 @@ func (p *peer) GetRootBlockHeaderList(hash common.Hash, amount uint32, reverse b
 	}
 }
 
-func (p *peer) requestMinorBlockHeaderList(rpcId uint64, hash common.Hash, amount uint32, branch uint32, reverse bool) error {
+func (p *Peer) requestMinorBlockHeaderList(rpcId uint64, hash common.Hash, amount uint32, branch uint32, reverse bool) error {
 	var direction uint8 = directionToGenesis
 	if !reverse {
 		direction = directionToTip
@@ -336,7 +336,7 @@ func (p *peer) requestMinorBlockHeaderList(rpcId uint64, hash common.Hash, amoun
 	return p.rw.WriteMsg(msg)
 }
 
-func (p *peer) GetMinorBlockHeaderList(origin common.Hash, amount uint32, branch uint32, reverse bool) ([]*types.MinorBlockHeader, error) {
+func (p *Peer) GetMinorBlockHeaderList(origin common.Hash, amount uint32, branch uint32, reverse bool) ([]*types.MinorBlockHeader, error) {
 	rpcId, rpcchan := p.getRpcIdWithChan()
 	defer p.deleteChan(rpcId)
 
@@ -360,7 +360,7 @@ func (p *peer) GetMinorBlockHeaderList(origin common.Hash, amount uint32, branch
 
 // requestRootBlockList fetches a batch of root blocks' corresponding to the hashes
 // specified.
-func (p *peer) requestRootBlockList(rpcId uint64, hashList []common.Hash) error {
+func (p *Peer) requestRootBlockList(rpcId uint64, hashList []common.Hash) error {
 	data := p2p.GetRootBlockListRequest{RootBlockHashList: hashList}
 	msg, err := p2p.MakeMsg(p2p.GetRootBlockListRequestMsg, rpcId, p2p.Metadata{}, data)
 	if err != nil {
@@ -369,7 +369,7 @@ func (p *peer) requestRootBlockList(rpcId uint64, hashList []common.Hash) error 
 	return p.rw.WriteMsg(msg)
 }
 
-func (p *peer) GetRootBlockList(hashes []common.Hash) ([]*types.RootBlock, error) {
+func (p *Peer) GetRootBlockList(hashes []common.Hash) ([]*types.RootBlock, error) {
 	rpcId, rpcchan := p.getRpcIdWithChan()
 	defer p.deleteChan(rpcId)
 
@@ -391,7 +391,7 @@ func (p *peer) GetRootBlockList(hashes []common.Hash) ([]*types.RootBlock, error
 	}
 }
 
-func (p *peer) requestMinorBlockList(rpcId uint64, hashList []common.Hash, branch uint32) error {
+func (p *Peer) requestMinorBlockList(rpcId uint64, hashList []common.Hash, branch uint32) error {
 	data := p2p.GetMinorBlockListRequest{MinorBlockHashList: hashList}
 	msg, err := p2p.MakeMsg(p2p.GetMinorBlockListRequestMsg, rpcId, p2p.Metadata{Branch: branch}, data)
 	if err != nil {
@@ -400,7 +400,7 @@ func (p *peer) requestMinorBlockList(rpcId uint64, hashList []common.Hash, branc
 	return p.rw.WriteMsg(msg)
 }
 
-func (p *peer) GetMinorBlockList(hashes []common.Hash, branch uint32) ([]*types.MinorBlock, error) {
+func (p *Peer) GetMinorBlockList(hashes []common.Hash, branch uint32) ([]*types.MinorBlock, error) {
 	rpcId, rpcchan := p.getRpcIdWithChan()
 	defer p.deleteChan(rpcId)
 
@@ -422,7 +422,7 @@ func (p *peer) GetMinorBlockList(hashes []common.Hash, branch uint32) ([]*types.
 	}
 }
 
-func (p *peer) SendResponse(op p2p.P2PCommandOp, metadata p2p.Metadata, rpcId uint64, response interface{}) error {
+func (p *Peer) SendResponse(op p2p.P2PCommandOp, metadata p2p.Metadata, rpcId uint64, response interface{}) error {
 	msg, err := p2p.MakeMsg(op, rpcId, metadata, response)
 	if err != nil {
 		return err
@@ -432,7 +432,7 @@ func (p *peer) SendResponse(op p2p.P2PCommandOp, metadata p2p.Metadata, rpcId ui
 
 // Handshake executes the eth protocol handshake, negotiating version number,
 // network IDs, difficulties, head and genesis blocks.
-func (p *peer) Handshake(protoVersion, networkId uint32, peerId common.Hash, peerPort uint16, rootBlockHeader *types.RootBlockHeader) error {
+func (p *Peer) Handshake(protoVersion, networkId uint32, peerId common.Hash, peerPort uint16, rootBlockHeader *types.RootBlockHeader) error {
 	// Send out own handshake in a new thread
 	errc := make(chan error, 2)
 
@@ -470,7 +470,7 @@ func (p *peer) Handshake(protoVersion, networkId uint32, peerId common.Hash, pee
 	return nil
 }
 
-func (p *peer) readStatus(protoVersion, networkId uint32) (err error) {
+func (p *Peer) readStatus(protoVersion, networkId uint32) (err error) {
 	msg, err := p.rw.ReadMsg()
 	if err != nil {
 		return err
@@ -509,7 +509,7 @@ func (p *peer) readStatus(protoVersion, networkId uint32) (err error) {
 }
 
 // String implements fmt.Stringer.
-func (p *peer) String() string {
+func (p *Peer) String() string {
 	return fmt.Sprintf("Peer %s [%s]", p.id,
 		fmt.Sprintf("eth/%2d", p.version),
 	)
@@ -518,7 +518,7 @@ func (p *peer) String() string {
 // peerSet represents the collection of active peers currently participating in
 // the sub-protocol.
 type peerSet struct {
-	peers  map[string]*peer
+	peers  map[string]*Peer
 	lock   sync.RWMutex
 	closed bool
 }
@@ -526,14 +526,14 @@ type peerSet struct {
 // newPeerSet creates a new peer set to track the active participants.
 func newPeerSet() *peerSet {
 	return &peerSet{
-		peers: make(map[string]*peer),
+		peers: make(map[string]*Peer),
 	}
 }
 
 // Register injects a new peer into the working set, or returns an error if the
 // peer is already known. If a new peer it registered, its broadcast loop is also
 // started.
-func (ps *peerSet) Register(p *peer) error {
+func (ps *peerSet) Register(p *Peer) error {
 	ps.lock.Lock()
 	defer ps.lock.Unlock()
 
@@ -566,7 +566,7 @@ func (ps *peerSet) Unregister(id string) error {
 }
 
 // Peer retrieves the registered peer with the given id.
-func (ps *peerSet) Peer(id string) *peer {
+func (ps *peerSet) Peer(id string) *Peer {
 	ps.lock.RLock()
 	defer ps.lock.RUnlock()
 
@@ -574,11 +574,11 @@ func (ps *peerSet) Peer(id string) *peer {
 }
 
 // Peers retrieves all registered peers as a slice
-func (ps *peerSet) Peers() []*peer {
+func (ps *peerSet) Peers() []*Peer {
 	ps.lock.RLock()
 	defer ps.lock.RUnlock()
 
-	peers := make([]*peer, 0, len(ps.peers))
+	peers := make([]*Peer, 0, len(ps.peers))
 	for _, peer := range ps.peers {
 		peers = append(peers, peer)
 	}
@@ -594,12 +594,12 @@ func (ps *peerSet) Len() int {
 }
 
 // BestPeer retrieves the known peer with the currently highest total difficulty.
-func (ps *peerSet) BestPeer() *peer {
+func (ps *peerSet) BestPeer() *Peer {
 	ps.lock.RLock()
 	defer ps.lock.RUnlock()
 
 	var (
-		bestPeer      *peer
+		bestPeer      *Peer
 		bestTotalDiff *big.Int
 	)
 
