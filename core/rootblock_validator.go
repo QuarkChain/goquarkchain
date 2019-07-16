@@ -6,8 +6,8 @@ import (
 	"math/big"
 	"reflect"
 
-	"github.com/QuarkChain/goquarkchain/core/state"
 	qkcCommon "github.com/QuarkChain/goquarkchain/common"
+	"github.com/QuarkChain/goquarkchain/core/state"
 	"github.com/ethereum/go-ethereum/common"
 
 	"github.com/QuarkChain/goquarkchain/cluster/config"
@@ -69,6 +69,7 @@ func (v *RootBlockValidator) ValidateBlock(block types.IBlock) error {
 	}
 
 	mheaderHash := types.CalculateMerkleRoot(rootBlock.MinorBlockHeaders())
+	//fmt.Println("RootNumber", rootBlock.Header().Number, len(rootBlock.MinorBlockHeaders()))
 	if mheaderHash != rootBlock.Header().MinorHeaderHash {
 		return fmt.Errorf("incorrect merkle root %v - %v ",
 			rootBlock.Header().MinorHeaderHash.String(),

@@ -1805,7 +1805,7 @@ func TestResetToOldChain(t *testing.T) {
 	defer shardState.Stop()
 
 	// Add a root block to have all the shards initialized
-	rootBlock := shardState.rootTip.CreateBlockToAppend(nil, nil, nil, nil, nil).Finalize(nil, nil)
+	rootBlock := shardState.rootTip.CreateBlockToAppend(nil, nil, nil, nil, nil).Finalize(nil, nil, common.Hash{})
 	_, err = shardState.AddRootBlock(rootBlock)
 	checkErr(err)
 

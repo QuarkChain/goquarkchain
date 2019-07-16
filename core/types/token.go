@@ -8,38 +8,38 @@ import (
 	"sort"
 )
 
-type TokenType struct {
-	Key uint64
-}
-
-func NewTokenType(value uint64) TokenType {
-	return TokenType{
-		Key: value,
-	}
-}
+//type TokenType struct {
+//	Key uint64
+//}
+//
+//func NewTokenType(value uint64) TokenType {
+//	return TokenType{
+//		Key: value,
+//	}
+//}
 
 type TokenBalanceMap struct {
-	BalanceMap map[TokenType]*big.Int
+	BalanceMap map[uint64]*big.Int
 }
 
 func NewTokenBalanceMap() *TokenBalanceMap {
 	return &TokenBalanceMap{
-		BalanceMap: make(map[TokenType]*big.Int),
+		BalanceMap: make(map[uint64]*big.Int),
 	}
 }
 func (t *TokenBalanceMap) Add(other map[uint64]*big.Int) {
 	for k, v := range other {
 		prevAmount := new(big.Int)
-		if data, ok := t.BalanceMap[NewTokenType(k)]; ok {
+		if data, ok := t.BalanceMap[k]; ok {
 			prevAmount = prevAmount.Add(prevAmount, data)
 		}
 		prevAmount = prevAmount.Add(prevAmount, v)
-		t.BalanceMap[NewTokenType(k)] = prevAmount
+		t.BalanceMap[k] = prevAmount
 	}
 }
 
 func (t *TokenBalanceMap) GetDefaultTokenBalance() *big.Int {
-	return new(big.Int).Set(t.BalanceMap[NewTokenType(common.TokenIDEncode("QKC").Uint64())])
+	return new(big.Int).Set(t.BalanceMap[common.TokenIDEncode("QKC")])
 }
 
 func (t *TokenBalanceMap) Serialize(w *[]byte) error {
@@ -49,7 +49,7 @@ func (t *TokenBalanceMap) Serialize(w *[]byte) error {
 		if v.Cmp(ethCommon.Big0) == 0 {
 			continue
 		}
-		keys = append(keys, k.Key)
+		keys = append(keys, k)
 		num++
 	}
 	sort.Slice(keys, func(i, j int) bool { return keys[i] < keys[j] })
@@ -57,7 +57,7 @@ func (t *TokenBalanceMap) Serialize(w *[]byte) error {
 		return err
 	}
 	for _, key := range keys {
-		v := t.BalanceMap[TokenType{Key: key}]
+		v := t.BalanceMap[key]
 		if v.Cmp(ethCommon.Big0) == 0 {
 			continue
 		}
@@ -72,7 +72,7 @@ func (t *TokenBalanceMap) Serialize(w *[]byte) error {
 }
 
 func (t *TokenBalanceMap) Deserialize(bb *serialize.ByteBuffer) error {
-	t.BalanceMap = make(map[TokenType]*big.Int)
+	t.BalanceMap = make(map[uint64]*big.Int)
 	num, err := bb.GetUInt32()
 	if err != nil {
 		return err
@@ -89,7 +89,7 @@ func (t *TokenBalanceMap) Deserialize(bb *serialize.ByteBuffer) error {
 		if v.Cmp(ethCommon.Big0) == 0 {
 			continue
 		}
-		t.BalanceMap[NewTokenType(k.Uint64())] = v
+		t.BalanceMap[k.Uint64()] = v
 	}
 	return nil
 }

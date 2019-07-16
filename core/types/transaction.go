@@ -140,8 +140,8 @@ type txdataUnsigned struct {
 	NetworkId        uint32                     `json:"networkid"          gencodec:"required"`
 	FromFullShardKey *qkcCommon.NewRlpForUint32 `json:"fromfullshardid"    gencodec:"required"`
 	ToFullShardKey   *qkcCommon.NewRlpForUint32 `json:"tofullshardid"      gencodec:"required"`
-	GasTokenID       *big.Int                   `json:"tofullshardid"      gencodec:"required"`
-	TransferTokenID  *big.Int                   `json:"tofullshardid"      gencodec:"required"`
+	GasTokenID       *big.Int                   `json:"gasTokenID"      gencodec:"required"`
+	TransferTokenID  *big.Int                   `json:"transferTokenID"      gencodec:"required"`
 }
 
 func (tx *EvmTransaction) getUnsignedHash() common.Hash {

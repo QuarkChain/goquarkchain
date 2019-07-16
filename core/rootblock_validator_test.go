@@ -28,7 +28,7 @@ func TestValidateBlock(t *testing.T) {
 		engine           = new(consensus.FakeEngine)
 		rootBlocks       = GenerateRootBlockChain(genesisrootBlock, engine, 8, func(i int, b *RootBlockGen) {
 			b.header.CoinbaseAmount = &types.TokenBalanceMap{
-				BalanceMap: map[*big.Int]*big.Int{
+				BalanceMap: map[uint64]*big.Int{
 					common.TokenIDEncode("QKC"): qkcconfig.Root.CoinbaseAmount,
 				},
 			}

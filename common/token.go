@@ -12,7 +12,7 @@ var (
 	TOKENMAX   = "ZZZZZZZZZZZZ"
 )
 
-func TokenIDEncode(str string) *big.Int {
+func TokenIDEncode(str string) uint64 {
 	if len(str) >= 13 {
 		panic(errors.New("name too long"))
 	}
@@ -26,7 +26,7 @@ func TokenIDEncode(str string) *big.Int {
 		id += base * (TokenCharEncode(str[index] + 1))
 		base *= TOKENBASE
 	}
-	return new(big.Int).SetUint64(uint64(id))
+	return id
 }
 
 func TokenIdDecode(id *big.Int) (string, error) {

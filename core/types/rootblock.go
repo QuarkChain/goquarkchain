@@ -279,7 +279,7 @@ func (b *RootBlock) Coinbase() account.Address    { return b.header.Coinbase }
 func (b *RootBlock) CoinbaseAmount() *TokenBalanceMap {
 	if b.header.CoinbaseAmount != nil && b.header.CoinbaseAmount.BalanceMap != nil {
 		return &TokenBalanceMap{
-			BalanceMap: map[TokenType]*big.Int(b.header.CoinbaseAmount.BalanceMap),
+			BalanceMap: map[uint64]*big.Int(b.header.CoinbaseAmount.BalanceMap),
 		}
 	}
 	return NewTokenBalanceMap()

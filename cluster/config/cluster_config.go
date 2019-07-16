@@ -95,8 +95,8 @@ type QuarkChainConfig struct {
 	BlockRewardDecayFactor            *big.Rat                `json:"-"`
 	chainIdToShardSize                map[uint32]uint32
 	chainIdToShardIds                 map[uint32][]uint32
-	defaultChainToken                 *big.Int
-	allowTokenIDs                     map[*big.Int]bool
+	defaultChainToken                 uint64
+	allowTokenIDs                     map[uint64]bool
 }
 
 type QuarkChainConfigAlias QuarkChainConfig
@@ -333,17 +333,17 @@ func (q *QuarkChainConfig) SetShardsAndValidate(shards map[uint32]*ShardConfig) 
 	q.initAndValidate()
 }
 
-func (q *QuarkChainConfig) GetDefaultChainToken() *big.Int {
-	if q.defaultChainToken == nil {
+func (q *QuarkChainConfig) GetDefaultChainToken() uint64 {
+	if q.defaultChainToken == 0 {
 		q.defaultChainToken = common.TokenIDEncode(q.GenesisToken)
 
 	}
 	return q.defaultChainToken
 }
 
-func (q *QuarkChainConfig) allowedTokenIds() map[*big.Int]bool {
+func (q *QuarkChainConfig) allowedTokenIds() map[uint64]bool {
 	if q.allowTokenIDs == nil {
-		q.allowTokenIDs = make(map[*big.Int]bool, 0)
+		q.allowTokenIDs = make(map[uint64]bool, 0)
 		q.allowTokenIDs[common.TokenIDEncode(q.GenesisToken)] = true
 		for _, shard := range q.shards {
 			for _, tokenDict := range shard.Genesis.Alloc {
@@ -356,11 +356,11 @@ func (q *QuarkChainConfig) allowedTokenIds() map[*big.Int]bool {
 	return q.allowTokenIDs
 }
 
-func (q *QuarkChainConfig) AllowedTransferTokenIDs() map[*big.Int]bool {
+func (q *QuarkChainConfig) AllowedTransferTokenIDs() map[uint64]bool {
 	return q.allowedTokenIds()
 }
 
-func (q *QuarkChainConfig) AllowedGasTokenIDs() map[*big.Int]bool {
+func (q *QuarkChainConfig) AllowedGasTokenIDs() map[uint64]bool {
 	return q.allowedTokenIds()
 }
 func (q *QuarkChainConfig) GasLimit(fullShardID uint32) (*big.Int, error) {
@@ -370,4 +370,3 @@ func (q *QuarkChainConfig) GasLimit(fullShardID uint32) (*big.Int, error) {
 	}
 	return new(big.Int).SetUint64(data.Genesis.GasLimit), nil
 }
-
