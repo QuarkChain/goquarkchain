@@ -19,8 +19,6 @@ package core
 import (
 	"errors"
 	"fmt"
-	"math/big"
-
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/common"
@@ -28,6 +26,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/core/state"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/log"
+	"math/big"
 )
 
 // MinorBlockValidator is responsible for validating block Headers, uncles and
@@ -40,6 +39,7 @@ type MinorBlockValidator struct {
 	engine           consensus.Engine         // Consensus engine used for validating
 	branch           account.Branch
 	logInfo          string
+	posw             consensus.PoSWCalculator
 }
 
 // NewBlockValidator returns a new block validator which is safe for re-use
@@ -50,6 +50,7 @@ func NewBlockValidator(quarkChainConfig *config.QuarkChainConfig, blockchain *Mi
 		bc:               blockchain,
 		branch:           branch,
 		logInfo:          fmt.Sprintf("minorBlock validate branch:%v", branch),
+		posw:             consensus.CreatePoSWCalculator(blockchain, blockchain.shardConfig.PoswConfig),
 	}
 	return validator
 }
@@ -124,9 +125,8 @@ func (v *MinorBlockValidator) ValidateBlock(mBlock types.IBlock) error {
 		return ErrTrackLimit
 	}
 
-	if err := v.ValidateGasLimit(block.Header().GetGasLimit().Uint64(), prevHeader.(*types.MinorBlockHeader).GetGasLimit().Uint64()); err != nil {
-		log.Error(v.logInfo, "validate gas limit err", err)
-		return err
+	if block.Header().GasLimit.Value.Cmp(v.bc.gasLimit) != 0 {
+		return errors.New("gasLimit is not match")
 	}
 
 	txHash := types.CalculateMerkleRoot(block.GetTransactions())
@@ -170,7 +170,7 @@ func (v *MinorBlockValidator) ValidateBlock(mBlock types.IBlock) error {
 	}
 
 	prevConfirmedMinorHeader := v.bc.getLastConfirmedMinorBlockHeaderAtRootBlock(block.Header().PrevRootBlockHash)
-	if prevConfirmedMinorHeader != nil && !v.bc.isSameMinorChain(prevHeader, prevConfirmedMinorHeader) {
+	if prevConfirmedMinorHeader != nil && !isSameChain(v.bc.db, prevHeader, prevConfirmedMinorHeader) {
 		errMustBeOneMinorChain := errors.New("prev root block's minor block is not in the same chain as the minor block")
 		log.Error(v.logInfo, "err", errMustBeOneMinorChain, "prevConfirmedMinor's height", prevConfirmedMinorHeader.Number, "prevConfirmedMinor's hash", prevConfirmedMinorHeader.Hash().String(),
 			"preHeader's height", prevHeader.NumberU64(), "preHeader's hash", prevHeader.Hash().String())
@@ -204,27 +204,6 @@ func (v *MinorBlockValidator) ValidateHeader(header types.IHeader) error {
 	return v.engine.VerifyHeader(v.bc, header, true)
 }
 
-// ValidateGasLimit validate gasLimit when validateBlock
-func (v *MinorBlockValidator) ValidateGasLimit(gasLimit, preGasLimit uint64) error {
-	shardConfig := v.quarkChainConfig.GetShardConfigByFullShardID(v.branch.Value)
-	computeGasLimitBounds := func(parentGasLimit uint64) (uint64, uint64) {
-		boundaryRange := parentGasLimit / uint64(shardConfig.GasLimitAdjustmentFactor)
-		upperBound := parentGasLimit + boundaryRange
-		lowBound := shardConfig.GasLimitMinimum
-		if lowBound < parentGasLimit-boundaryRange {
-			lowBound = parentGasLimit - boundaryRange
-		}
-		return lowBound, upperBound
-	}
-	lowBound, upperBound := computeGasLimitBounds(preGasLimit)
-	if gasLimit < lowBound {
-		return errors.New("gaslimit < lowBound")
-	} else if gasLimit > upperBound {
-		return errors.New("gasLimit>upperBound")
-	}
-	return nil
-}
-
 // ValidatorBlockSeal validate minor block seal when validate block
 func (v *MinorBlockValidator) ValidatorSeal(mHeader types.IHeader) error {
 	header, ok := mHeader.(*types.MinorBlockHeader)
@@ -241,12 +220,11 @@ func (v *MinorBlockValidator) ValidatorSeal(mHeader types.IHeader) error {
 	return v.validateSeal(header, consensusType, nil)
 }
 
-func (v *MinorBlockValidator) validateSeal(header types.IHeader, consensusType string, diff *uint64) error {
+func (v *MinorBlockValidator) validateSeal(header types.IHeader, consensusType string, diff *big.Int) error {
 	if diff == nil {
-		headerDifficult := header.GetDifficulty().Uint64()
-		diff = &headerDifficult
+		diff = header.GetDifficulty()
 	}
-	return v.engine.VerifySeal(v.bc, header, new(big.Int).SetUint64(*diff))
+	return v.engine.VerifySeal(v.bc, header, diff)
 }
 
 // ValidateState validates the various changes that happen after a state
@@ -279,8 +257,9 @@ func (v *MinorBlockValidator) ValidateState(mBlock, parent types.IBlock, statedb
 	if statedb.GetGasUsed().Cmp(block.GetMetaData().GasUsed.Value) != 0 {
 		return ErrGasUsed
 	}
-	coinbaseAmount := new(big.Int).Add(v.bc.getCoinbaseAmount(), statedb.GetBlockFee())
-	if coinbaseAmount.Cmp(block.CoinbaseAmount()) != 0 {
+	coinbaseAmount := v.bc.getCoinbaseAmount(block.Header().Number)
+	coinbaseAmount.Add(statedb.GetBlockFee())
+	if coinbaseAmount != block.Header().CoinbaseAmount {
 		return ErrCoinbaseAmount
 	}
 

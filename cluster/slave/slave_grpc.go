@@ -27,6 +27,9 @@ func NewServerSideOp(slave *SlaveBackend) *SlaveServerSideOp {
 
 func (s *SlaveServerSideOp) HeartBeat(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
 	s.slave.ctx.Timestamp = time.Now()
+	if len(s.slave.shards)==0{
+		return nil,errors.New("shards uninitialized")
+	}
 	return &rpc.Response{}, nil
 }
 
@@ -230,14 +233,6 @@ func (s *SlaveServerSideOp) ExecuteTransaction(ctx context.Context, req *rpc.Req
 		err      error
 	)
 	if err = serialize.DeserializeFromBytes(req.Data, &gReq); err != nil {
-		return nil, err
-	}
-	toShardSize := s.slave.clstrCfg.Quarkchain.GetShardSizeByChainId(gReq.Tx.EvmTx.ToChainID())
-	if err := gReq.Tx.EvmTx.SetToShardSize(toShardSize); err != nil {
-		return nil, err
-	}
-	fromShardSize := s.slave.clstrCfg.Quarkchain.GetShardSizeByChainId(gReq.Tx.EvmTx.FromChainID())
-	if err := gReq.Tx.EvmTx.SetFromShardSize(fromShardSize); err != nil {
 		return nil, err
 	}
 	if gRes.Result, err = s.slave.ExecuteTx(gReq.Tx, gReq.FromAddress, gReq.BlockHeight); err != nil {

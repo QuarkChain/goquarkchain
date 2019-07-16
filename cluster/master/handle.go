@@ -47,7 +47,7 @@ type ProtocolManager struct {
 
 	maxPeers    int
 	peers       *peerSet // Set of active peers from which rootDownloader can proceed
-	newPeerCh   chan *peer
+	newPeerCh   chan *Peer
 	quitSync    chan struct{}
 	noMorePeers chan struct{}
 
@@ -62,7 +62,7 @@ func NewProtocolManager(env config.ClusterConfig, rootBlockChain *core.RootBlock
 		rootBlockChain:   rootBlockChain,
 		clusterConfig:    &env,
 		peers:            newPeerSet(),
-		newPeerCh:        make(chan *peer),
+		newPeerCh:        make(chan *Peer),
 		quitSync:         make(chan struct{}),
 		noMorePeers:      make(chan struct{}),
 		statsChan:        statsChan,
@@ -75,9 +75,14 @@ func NewProtocolManager(env config.ClusterConfig, rootBlockChain *core.RootBlock
 		Length:  QKCProtocolLength,
 		Run: func(p *p2p.Peer, rw p2p.MsgReadWriter) error {
 			peer := newPeer(int(QKCProtocolVersion), p, rw)
-
-			return manager.handle(peer)
-
+			select {
+			case manager.newPeerCh <- peer:
+				manager.wg.Add(1)
+				defer manager.wg.Done()
+				return manager.handle(peer)
+			case <-manager.quitSync:
+				return p2p.DiscQuitting
+			}
 		},
 	}
 	manager.subProtocols = []p2p.Protocol{protocol}
@@ -135,7 +140,7 @@ func (pm *ProtocolManager) Stop() {
 	log.Info("cluster protocol stopped")
 }
 
-func (pm *ProtocolManager) handle(peer *peer) error {
+func (pm *ProtocolManager) handle(peer *Peer) error {
 	if pm.peers.Len() >= pm.maxPeers {
 		return p2p.DiscTooManyPeers
 	}
@@ -159,7 +164,11 @@ func (pm *ProtocolManager) handle(peer *peer) error {
 	}
 	defer pm.removePeer(peer.id)
 	log.Info(pm.log, "peer add succ id ", peer.PeerID())
-	pm.newPeerCh <- peer
+
+	err := pm.synchronizer.AddTask(synchronizer.NewRootChainTask(peer, peer.RootHead(), pm.statsChan, pm.getShardConnFunc))
+	if err != nil {
+		return err
+	}
 
 	// currently we do not broadcast old transaction when connect
 	// so the first few block may not have transaction verification failed
@@ -175,7 +184,7 @@ func (pm *ProtocolManager) handle(peer *peer) error {
 	}
 }
 
-func (pm *ProtocolManager) handleMsg(peer *peer) error {
+func (pm *ProtocolManager) handleMsg(peer *Peer) error {
 	msg, err := peer.rw.ReadMsg()
 	if err != nil {
 		return err
@@ -216,11 +225,10 @@ func (pm *ProtocolManager) handleMsg(peer *peer) error {
 		}
 		branchTxMap := make(map[uint32][]*types.Transaction)
 		for _, tx := range trans.TransactionList {
-			toShardSize := pm.clusterConfig.Quarkchain.GetShardSizeByChainId(tx.EvmTx.ToChainID())
-			if err := tx.EvmTx.SetToShardSize(toShardSize); err != nil {
+			fromShardSize, err := pm.clusterConfig.Quarkchain.GetShardSizeByChainId(tx.EvmTx.FromChainID())
+			if err != nil {
 				return err
 			}
-			fromShardSize := pm.clusterConfig.Quarkchain.GetShardSizeByChainId(tx.EvmTx.FromChainID())
 			if err := tx.EvmTx.SetFromShardSize(fromShardSize); err != nil {
 				return err
 			}
@@ -368,7 +376,7 @@ func (pm *ProtocolManager) handleMsg(peer *peer) error {
 	return nil
 }
 
-func (pm *ProtocolManager) HandleNewRootTip(tip *p2p.Tip, peer *peer) error {
+func (pm *ProtocolManager) HandleNewRootTip(tip *p2p.Tip, peer *Peer) error {
 	if len(tip.MinorBlockHeaderList) != 0 {
 		return errors.New("minor block header list must not be empty")
 	}
@@ -389,7 +397,7 @@ func (pm *ProtocolManager) HandleNewRootTip(tip *p2p.Tip, peer *peer) error {
 	return nil
 }
 
-func (pm *ProtocolManager) HandleNewMinorTip(branch uint32, tip *p2p.Tip, peer *peer) error {
+func (pm *ProtocolManager) HandleNewMinorTip(branch uint32, tip *p2p.Tip, peer *Peer) error {
 	// handle minor tip when branch != 0 and the minor block only contain 1 heard which is the tip block
 	if len(tip.MinorBlockHeaderList) != 1 {
 		return fmt.Errorf("invalid NewTip Request: len of MinorBlockHeaderList is %d for branch %d from peer %v",
@@ -442,8 +450,8 @@ func (pm *ProtocolManager) HandleGetRootBlockHeaderListRequest(blockHeaderReq *p
 	if !pm.rootBlockChain.HasHeader(blockHeaderReq.BlockHash) {
 		return nil, fmt.Errorf("hash %v do not exist", blockHeaderReq.BlockHash.Hex())
 	}
-	if blockHeaderReq.Limit > rootBlockHeaderListLimit {
-		return nil, fmt.Errorf("limit in request is larger than expected, limit: %d, want: %d", blockHeaderReq.Limit, rootBlockHeaderListLimit)
+	if blockHeaderReq.Limit > synchronizer.RootBlockHeaderListLimit {
+		return nil, fmt.Errorf("limit in request is larger than expected, limit: %d, want: %d", blockHeaderReq.Limit, synchronizer.RootBlockHeaderListLimit)
 	}
 	if blockHeaderReq.Direction != directionToGenesis {
 		return nil, errors.New("Bad direction")
@@ -470,8 +478,8 @@ func (pm *ProtocolManager) HandleGetRootBlockHeaderListRequest(blockHeaderReq *p
 
 func (pm *ProtocolManager) HandleGetRootBlockListRequest(request *p2p.GetRootBlockListRequest) (*p2p.GetRootBlockListResponse, error) {
 	size := len(request.RootBlockHashList)
-	if size > rootBlockBatchSize {
-		return nil, fmt.Errorf("len of RootBlockHashList is larger than expected, limit: %d, want: %d", size, rootBlockBatchSize)
+	if size > synchronizer.RootBlockBatchSize {
+		return nil, fmt.Errorf("len of RootBlockHashList is larger than expected, limit: %d, want: %d", size, synchronizer.RootBlockBatchSize)
 	}
 	response := p2p.GetRootBlockListResponse{
 		RootBlockList: make([]*types.RootBlock, 0, size),
@@ -536,9 +544,9 @@ func (pm *ProtocolManager) HandleNewTransactionListRequest(peerId string, rpcId 
 }
 
 func (pm *ProtocolManager) HandleGetMinorBlockHeaderListRequest(rpcId uint64, branch uint32, request *p2p.GetMinorBlockHeaderListRequest) (*p2p.GetMinorBlockHeaderListResponse, error) {
-	if request.Limit > minorBlockHeaderListLimit {
+	if request.Limit > synchronizer.MinorBlockHeaderListLimit {
 		return nil, fmt.Errorf("bad limit. rpcId: %d; branch: %d; limit: %d; expected limit: %d",
-			rpcId, branch, request.Limit, minorBlockHeaderListLimit)
+			rpcId, branch, request.Limit, synchronizer.MinorBlockHeaderListLimit)
 	}
 	if request.Direction != directionToGenesis {
 		return nil, fmt.Errorf("Bad direction. rpcId: %d; branch: %d; ", rpcId, branch)
@@ -556,9 +564,9 @@ func (pm *ProtocolManager) HandleGetMinorBlockHeaderListRequest(rpcId uint64, br
 }
 
 func (pm *ProtocolManager) HandleGetMinorBlockListRequest(peerId string, rpcId uint64, branch uint32, request *p2p.GetMinorBlockListRequest) (*p2p.GetMinorBlockListResponse, error) {
-	if len(request.MinorBlockHashList) > minorBlockBatchSize {
+	if len(request.MinorBlockHashList) > synchronizer.MinorBlockBatchSize {
 		return nil, fmt.Errorf("bad number of minor blocks requested. rpcId: %d; branch: %d; limit: %d; expected limit: %d",
-			rpcId, branch, len(request.MinorBlockHashList), minorBlockBatchSize)
+			rpcId, branch, len(request.MinorBlockHashList), synchronizer.MinorBlockBatchSize)
 	}
 	clients := pm.getShardConnFunc(branch)
 	if len(clients) == 0 {
@@ -615,12 +623,9 @@ func (pm *ProtocolManager) syncer() {
 	for {
 		select {
 		case <-pm.newPeerCh:
-			// Make sure we have peers to select from, then sync
-			if pm.peers.Len() < minDesiredPeerCount {
-				break
-			}
-			go pm.synchronise(pm.peers.BestPeer())
-
+			// no need to add task,
+			// will add task after handshake
+			// only used to control p2p service not start before cluster init
 		case <-forceSync.C:
 			go pm.synchronise(pm.peers.BestPeer())
 
@@ -631,7 +636,7 @@ func (pm *ProtocolManager) syncer() {
 }
 
 // synchronise tries to sync up our local block chain with a remote peer.
-func (pm *ProtocolManager) synchronise(peer *peer) {
+func (pm *ProtocolManager) synchronise(peer *Peer) {
 	// Short circuit if no peers are available
 	if peer == nil {
 		return

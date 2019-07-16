@@ -28,10 +28,10 @@ import (
 type StateDB interface {
 	CreateAccount(common.Address)
 
-	SubBalance(common.Address, *big.Int, *big.Int)
-	AddBalance(common.Address, *big.Int, *big.Int)
-	GetBalance(common.Address, *big.Int) *big.Int
-	GetBalances(address common.Address) map[*big.Int]*big.Int
+	SubBalance(common.Address, *big.Int, uint64)
+	AddBalance(common.Address, *big.Int, uint64)
+	GetBalance(common.Address, uint64) *big.Int
+	GetBalances(address common.Address) map[uint64]*big.Int
 
 	GetNonce(common.Address) uint64
 	SetNonce(common.Address, uint64)
@@ -73,8 +73,8 @@ type StateDB interface {
 	GetXShardList() []*types.CrossShardTransactionDeposit
 	SetFullShardKey(uint32)
 	GetFullShardKey(common.Address) uint32
-	AddBlockFee(map[*big.Int]*big.Int)
-	GetBlockFee() map[*big.Int]*big.Int
+	AddBlockFee(map[uint64]*big.Int)
+	GetBlockFee() map[uint64]*big.Int
 	GetQuarkChainConfig() *config.QuarkChainConfig
 	SetQuarkChainConfig(*config.QuarkChainConfig)
 	GetGasUsed() *big.Int
@@ -84,8 +84,8 @@ type StateDB interface {
 	SetGasLimit(*big.Int)
 	GetShardConfig() *config.ShardConfig
 	SetShardConfig(shardConfig *config.ShardConfig)
-	SetSenderDisallowList([]account.Recipient)
-	GetSenderDisallowList() []account.Recipient
+	SetSenderDisallowMap(map[account.Recipient]*big.Int)
+	GetSenderDisallowMap() map[account.Recipient]*big.Int
 	GetBlockCoinbase() account.Recipient
 	SetBlockCoinbase(recipient account.Recipient)
 	GetXshardTxCursorInfo() *types.XShardTxCursorInfo

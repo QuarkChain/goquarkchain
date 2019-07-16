@@ -69,7 +69,7 @@ func (e *FakeEngine) Prepare(chain ChainReader, header types.IHeader) error {
 //
 // Note, the method returns immediately and will send the result async. More
 // than one result may also be returned depending on the consensus algorithm.
-func (e *FakeEngine) Seal(chain ChainReader, block types.IBlock, results chan<- types.IBlock, stop <-chan struct{}) error {
+func (e *FakeEngine) Seal(chain ChainReader, block types.IBlock, diff *big.Int, results chan<- types.IBlock, stop <-chan struct{}) error {
 	if block.NumberU64() == e.NumberToFail {
 		return e.Err
 	}

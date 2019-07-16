@@ -55,11 +55,6 @@ const (
 	maxLastConfirmLimit = 256
 )
 
-type heightAndAddrs struct {
-	height uint64
-	addrs  []account.Recipient
-}
-
 type gasPriceSuggestionOracle struct {
 	LastPrice   uint64
 	LastHead    common.Hash
@@ -133,13 +128,15 @@ type MinorBlockChain struct {
 	rootTip                  *types.RootBlockHeader
 	confirmedHeaderTip       *types.MinorBlockHeader
 	initialized              bool
-	coinbaseAddrCache        map[common.Hash]heightAndAddrs
 	rewardCalc               *qkcCommon.ConstMinorBlockRewardCalculator
 	gasPriceSuggestionOracle *gasPriceSuggestionOracle
 	heightToMinorBlockHashes map[uint64]map[common.Hash]struct{}
+	rootHeightToHashes       map[uint64]map[common.Hash]common.Hash // [rootBlockHeight][rootBlockHash][confirmedMinorHash]
 	currentEvmState          *state.StateDB
 	logInfo                  string
 	addMinorBlockAndBroad    func(block *types.MinorBlock) error
+	posw                     consensus.SenderDisallowMapBuilder
+	gasLimit                 *big.Int
 }
 
 // NewMinorBlockChain returns a fully initialised block chain using information
@@ -191,6 +188,7 @@ func NewMinorBlockChain(
 		engine:                   engine,
 		vmConfig:                 vmConfig,
 		heightToMinorBlockHashes: make(map[uint64]map[common.Hash]struct{}),
+		rootHeightToHashes:       make(map[uint64]map[common.Hash]common.Hash),
 		currentEvmState:          new(state.StateDB),
 		branch:                   account.Branch{Value: fullShardID},
 		shardConfig:              clusterConfig.Quarkchain.GetShardConfigByFullShardID(fullShardID),
@@ -203,7 +201,11 @@ func NewMinorBlockChain(
 		},
 	}
 	var err error
-
+	bc.gasLimit, err = bc.clusterConfig.Quarkchain.GasLimit(bc.branch.Value)
+	if err != nil {
+		return nil, err
+	}
+	//TODO xShardGasLimit
 	bc.SetValidator(NewBlockValidator(clusterConfig.Quarkchain, bc, engine, bc.branch))
 	bc.SetProcessor(NewStateProcessor(bc.ethChainConfig, bc, engine))
 
@@ -225,6 +227,7 @@ func NewMinorBlockChain(
 	}
 
 	bc.txPool = NewTxPool(DefaultTxPoolConfig, bc)
+	bc.posw = consensus.CreateSenderDisallowMapBuilder(bc, bc.shardConfig.PoswConfig)
 	// Take ownership of this particular state
 	go bc.update()
 	return bc, nil
@@ -627,6 +630,7 @@ func (m *MinorBlockChain) getNeedStoreHeight(rootHash common.Hash, heightDiff []
 	)
 	headerTip := m.getLastConfirmedMinorBlockHeaderAtRootBlock(rootHash)
 	if headerTip != nil && headerTip.Number < currNumber {
+		log.Info("trie", "tip", headerTip.Number, "rootHash", rootHash.String())
 		heightDiff = append(heightDiff, currNumber-headerTip.Number)
 		if headerTip.Number >= 1 {
 			heightDiff = append(heightDiff, currNumber-(headerTip.Number-1))
@@ -668,10 +672,12 @@ func (m *MinorBlockChain) Stop() {
 			heightDiff = []uint64{0, 1, triesInMemory - 1}
 		)
 		if m.rootTip != nil {
-			heightDiff = m.getNeedStoreHeight(m.rootTip.Hash(), heightDiff)
-			sort.Slice(heightDiff, func(i, j int) bool {
-				return heightDiff[i] < heightDiff[j]
-			})
+			log.Info("need stored tire", "number", m.rootTip.Number)
+
+			for hash, _ := range m.rootHeightToHashes[m.rootTip.NumberU64()] {
+				heightDiff = m.getNeedStoreHeight(hash, heightDiff)
+			}
+			heightDiff = qkcCommon.RemoveDuplicate(heightDiff)
 		}
 		for _, offset := range heightDiff {
 			if currNumber > offset {
@@ -1184,6 +1190,14 @@ func (m *MinorBlockChain) insertChain(chain []types.IBlock, verifySeals bool) (i
 		status, err := m.WriteBlockWithState(mBlock, receipts, state, xShardReceiveTxList, updateTip)
 		if err != nil {
 			return it.index, events, coalescedLogs, xShardList, err
+		}
+		if updateTip {
+			senderDisallowMap, err := m.posw.BuildSenderDisallowMap(block.Hash(), nil)
+			if err != nil {
+				return it.index, events, coalescedLogs, xShardList, err
+			}
+			state.SetSenderDisallowMap(senderDisallowMap)
+			m.currentEvmState = state
 		}
 		switch status {
 		case CanonStatTy:

@@ -18,11 +18,12 @@ package core
 
 import (
 	"errors"
+	"math"
+	"math/big"
+
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/serialize"
-	"math"
-	"math/big"
 
 	"github.com/QuarkChain/goquarkchain/core/vm"
 	qkcParam "github.com/QuarkChain/goquarkchain/params"
@@ -81,8 +82,8 @@ type Message interface {
 	FromFullShardKey() uint32
 	ToFullShardKey() uint32
 	TxHash() common.Hash
-	GasTokenID() *big.Int
-	TransferTokenID() *big.Int
+	GasTokenID() uint64
+	TransferTokenID() uint64
 }
 
 // IntrinsicGas computes the 'intrinsic gas' for a message with the given data.

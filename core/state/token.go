@@ -14,13 +14,13 @@ type TokenBalancePair struct {
 
 type TokenBalances struct {
 	//TODO:store token balances in trie when TOKEN_TRIE_THRESHOLD is crossed
-	Balances map[*big.Int]*big.Int
+	Balances map[uint64]*big.Int
 	enum     byte
 }
 
 func NewTokenBalances(data []byte) (*TokenBalances, error) {
 	tokenBalances := &TokenBalances{
-		Balances: make(map[*big.Int]*big.Int, 0),
+		Balances: make(map[uint64]*big.Int, 0),
 	}
 	if len(data) == 0 {
 		return tokenBalances, nil
@@ -34,7 +34,7 @@ func NewTokenBalances(data []byte) (*TokenBalances, error) {
 			return nil, err
 		}
 		for _, v := range balanceList {
-			tokenBalances.Balances[v.TokenID] = v.Balance
+			tokenBalances.Balances[v.TokenID.Uint64()] = v.Balance
 		}
 	case byte(1):
 		return nil, fmt.Errorf("Token balance trie is not yet implemented")
@@ -58,7 +58,7 @@ func (b *TokenBalances) Serialize(w *[]byte) error {
 				continue
 			}
 			list = append(list, &TokenBalancePair{
-				TokenID: k,
+				TokenID: new(big.Int).SetUint64(k),
 				Balance: v,
 			})
 		}
@@ -77,7 +77,7 @@ func (b *TokenBalances) Serialize(w *[]byte) error {
 	return nil
 }
 
-func (b *TokenBalances) Balance(tokenID *big.Int) *big.Int {
+func (b *TokenBalances) Balance(tokenID uint64) *big.Int {
 	balance, ok := b.Balances[tokenID]
 	if !ok {
 		return new(big.Int)

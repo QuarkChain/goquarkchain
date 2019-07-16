@@ -34,9 +34,9 @@ var emptyCodeHash = crypto.Keccak256Hash(nil)
 
 type (
 	// CanTransferFunc is the signature of a transfer guard function
-	CanTransferFunc func(StateDB, common.Address, *big.Int, *big.Int) bool
+	CanTransferFunc func(StateDB, common.Address, *big.Int, uint64) bool
 	// TransferFunc is the signature of a transfer function
-	TransferFunc func(StateDB, common.Address, common.Address, *big.Int, *big.Int)
+	TransferFunc func(StateDB, common.Address, common.Address, *big.Int, uint64)
 	// GetHashFunc returns the nth block hash in the blockchain
 	// and is used by the BLOCKHASH EVM op code.
 	GetHashFunc func(uint64) common.Hash
@@ -91,8 +91,8 @@ type Context struct {
 	Time            *big.Int       // Provides information for TIME
 	Difficulty      *big.Int       // Provides information for DIFFICULTY
 	ToFullShardKey  uint32
-	GasTokenID      *big.Int
-	TransferTokenID *big.Int
+	GasTokenID      uint64
+	TransferTokenID uint64
 }
 
 // EVM is the Ethereum Virtual Machine base object and provides

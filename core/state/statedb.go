@@ -92,14 +92,14 @@ type StateDB struct {
 	nextRevisionId int
 
 	xShardReceiveGasUsed *big.Int
-	blockFee             map[*big.Int]*big.Int
+	blockFee             map[uint64]*big.Int
 	xShardList           []*types.CrossShardTransactionDeposit
 	fullShardKey         uint32
 	quarkChainConfig     *config.QuarkChainConfig
 	gasUsed              *big.Int
 	gasLimit             *big.Int
 	shardConfig          *config.ShardConfig
-	senderDisallowList   []qkcaccount.Recipient
+	senderDisallowMap    map[qkcaccount.Recipient]*big.Int
 	blockCoinbase        common.Address
 }
 
@@ -222,8 +222,8 @@ func (s *StateDB) Empty(addr common.Address) bool {
 }
 
 // Retrieve the balance from the given address or 0 if object not found
-func (s *StateDB) GetBalance(addr common.Address, tokenID *big.Int) *big.Int {
-	if tokenID == nil {
+func (s *StateDB) GetBalance(addr common.Address, tokenID uint64) *big.Int {
+	if tokenID == 0 {
 		tokenID = s.quarkChainConfig.GetDefaultChainToken()
 	}
 	stateObject := s.getStateObject(addr)
@@ -233,12 +233,12 @@ func (s *StateDB) GetBalance(addr common.Address, tokenID *big.Int) *big.Int {
 	return common.Big0
 }
 
-func (s *StateDB) GetBalances(addr common.Address) map[*big.Int]*big.Int {
+func (s *StateDB) GetBalances(addr common.Address) map[uint64]*big.Int {
 	stateObject := s.getStateObject(addr)
 	if stateObject != nil {
 		return stateObject.data.TokenBalances.Balances
 	}
-	return make(map[*big.Int]*big.Int)
+	return make(map[uint64]*big.Int)
 }
 
 func (s *StateDB) GetNonce(addr common.Address) uint64 {
@@ -346,7 +346,7 @@ func (s *StateDB) HasSuicided(addr common.Address) bool {
  */
 
 // AddBalance adds amount to the account associated with addr.
-func (s *StateDB) AddBalance(addr common.Address, amount *big.Int, tokenID *big.Int) {
+func (s *StateDB) AddBalance(addr common.Address, amount *big.Int, tokenID uint64) {
 	stateObject := s.GetOrNewStateObject(addr)
 	if stateObject != nil {
 		stateObject.AddBalance(amount, tokenID)
@@ -354,14 +354,14 @@ func (s *StateDB) AddBalance(addr common.Address, amount *big.Int, tokenID *big.
 }
 
 // SubBalance subtracts amount from the account associated with addr.
-func (s *StateDB) SubBalance(addr common.Address, amount *big.Int, tokenID *big.Int) {
+func (s *StateDB) SubBalance(addr common.Address, amount *big.Int, tokenID uint64) {
 	stateObject := s.GetOrNewStateObject(addr)
 	if stateObject != nil {
 		stateObject.SubBalance(amount, tokenID)
 	}
 }
 
-func (s *StateDB) SetBalance(addr common.Address, amount *big.Int, tokenID *big.Int) {
+func (s *StateDB) SetBalance(addr common.Address, amount *big.Int, tokenID uint64) {
 	stateObject := s.GetOrNewStateObject(addr)
 	if stateObject != nil {
 		stateObject.SetBalance(amount, tokenID)
@@ -732,7 +732,7 @@ func (s *StateDB) GetFullShardKey(addr common.Address) uint32 {
 
 }
 
-func (s *StateDB) AddBlockFee(fee map[*big.Int]*big.Int) {
+func (s *StateDB) AddBlockFee(fee map[uint64]*big.Int) {
 	if s.blockFee == nil {
 		s.blockFee = fee
 	}
@@ -741,9 +741,9 @@ func (s *StateDB) AddBlockFee(fee map[*big.Int]*big.Int) {
 	}
 }
 
-func (s *StateDB) GetBlockFee() map[*big.Int]*big.Int {
+func (s *StateDB) GetBlockFee() map[uint64]*big.Int {
 	if s.blockFee == nil {
-		return make(map[*big.Int]*big.Int)
+		return make(map[uint64]*big.Int)
 	}
 	return s.blockFee
 }
@@ -790,11 +790,11 @@ func (s *StateDB) SetShardConfig(config *config.ShardConfig) {
 	s.shardConfig = config
 }
 
-func (s *StateDB) SetSenderDisallowList(data []qkcaccount.Recipient) {
-	s.senderDisallowList = data
+func (s *StateDB) SetSenderDisallowMap(data map[qkcaccount.Recipient]*big.Int) {
+	s.senderDisallowMap = data
 }
-func (s *StateDB) GetSenderDisallowList() []qkcaccount.Recipient {
-	return s.senderDisallowList
+func (s *StateDB) GetSenderDisallowMap() map[qkcaccount.Recipient]*big.Int {
+	return s.senderDisallowMap
 }
 
 func (s *StateDB) GetBlockCoinbase() qkcaccount.Recipient {

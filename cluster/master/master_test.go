@@ -3,7 +3,6 @@ package master
 import (
 	"bou.ke/monkey"
 	"errors"
-	"fmt"
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
@@ -249,7 +248,6 @@ func (c *fakeRpcClient) Call(hostport string, req *rpc.Request) (*rpc.Response, 
 		}
 		return &rpc.Response{Data: data}, nil
 	default:
-		fmt.Println("codeM", req.Op)
 		return nil, errors.New("unkown code")
 	}
 }
@@ -275,7 +273,7 @@ func initEnv(t *testing.T, chanOp chan uint32) *QKCMasterBackend {
 	if err != nil {
 		panic(err)
 	}
-	if err := master.InitCluster(); err != nil {
+	if err := master.Init(nil); err != nil {
 		assert.NoError(t, err)
 	}
 	return master
@@ -327,14 +325,14 @@ func TestCreateRootBlockToMine(t *testing.T) {
 	rootBlock, err := master.createRootBlockToMine(add1)
 	assert.NoError(t, err)
 	assert.Equal(t, rootBlock.Header().Coinbase, add1)
-	assert.Equal(t, rootBlock.Header().CoinbaseAmount.Value.String(), "120000000000000000000")
+	assert.Equal(t, rootBlock.Header().CoinbaseAmount.GetDefaultTokenBalance().String(), "120000000000000000000")
 	assert.Equal(t, rootBlock.Header().Difficulty, new(big.Int).SetUint64(1000000))
 
 	rawdb.DeleteBlock(master.chainDb, minorBlock.Hash())
 	rootBlock, err = master.createRootBlockToMine(add1)
 	assert.NoError(t, err)
 	assert.Equal(t, rootBlock.Header().Coinbase, add1)
-	assert.Equal(t, rootBlock.Header().CoinbaseAmount.Value.String(), "120000000000000000000")
+	assert.Equal(t, rootBlock.Header().CoinbaseAmount.GetDefaultTokenBalance().String(), "120000000000000000000")
 	assert.Equal(t, rootBlock.Header().Difficulty, new(big.Int).SetUint64(1000000))
 	assert.Equal(t, len(rootBlock.MinorBlockHeaders()), 0)
 }
@@ -392,10 +390,8 @@ func TestAddTransaction(t *testing.T) {
 		TxType: types.EvmTx,
 	}
 	err = master.AddTransaction(tx)
-	fmt.Println("err", err)
 	assert.NoError(t, err)
 
-	fmt.Println(master.clusterConfig.Quarkchain.GetGenesisShardIds())
 	//fromFullShardKey 00040000 -> chainID =4
 	// config->chainID : 1,2,3
 	evmTx = types.NewEvmTransaction(0, id1.GetRecipient(), new(big.Int), 0, new(big.Int), 262144, 2, 1, 0, []byte{})
@@ -403,7 +399,6 @@ func TestAddTransaction(t *testing.T) {
 		EvmTx:  evmTx,
 		TxType: types.EvmTx,
 	}
-	fmt.Println("err", err)
 	err = master.AddTransaction(tx)
 	assert.Error(t, err)
 }

@@ -27,12 +27,12 @@ import (
 )
 
 type DumpAccount struct {
-	Balance  map[*big.Int]*big.Int `json:"balance"`
-	Nonce    uint64                `json:"nonce"`
-	Root     string                `json:"root"`
-	CodeHash string                `json:"codeHash"`
-	Code     string                `json:"code"`
-	Storage  map[string]string     `json:"storage"`
+	Balance  map[uint64]*big.Int `json:"balance"`
+	Nonce    uint64              `json:"nonce"`
+	Root     string              `json:"root"`
+	CodeHash string              `json:"codeHash"`
+	Code     string              `json:"code"`
+	Storage  map[string]string   `json:"storage"`
 }
 
 type Dump struct {

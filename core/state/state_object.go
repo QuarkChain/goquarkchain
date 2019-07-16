@@ -260,7 +260,7 @@ func (self *stateObject) CommitTrie(db Database) error {
 
 // AddBalance removes amount from c's balance.
 // It is used to add funds to the destination account of a transfer.
-func (c *stateObject) AddBalance(amount *big.Int, tokenID *big.Int) {
+func (c *stateObject) AddBalance(amount *big.Int, tokenID uint64) {
 	// EIP158: We must check emptiness for the objects such that the account
 	// clearing (0,0,0 objects) can take effect.
 	if amount.Sign() == 0 {
@@ -275,15 +275,15 @@ func (c *stateObject) AddBalance(amount *big.Int, tokenID *big.Int) {
 
 // SubBalance removes amount from c's balance.
 // It is used to remove funds from the origin account of a transfer.
-func (c *stateObject) SubBalance(amount *big.Int, tokenID *big.Int) {
+func (c *stateObject) SubBalance(amount *big.Int, tokenID uint64) {
 	if amount.Sign() == 0 {
 		return
 	}
 	c.setTokenBalance(new(big.Int).Sub(c.Balance(tokenID), amount), tokenID)
 }
 
-func (self *stateObject) SetBalance(amount *big.Int, tokenID *big.Int) {
-	prev := make(map[*big.Int]*big.Int)
+func (self *stateObject) SetBalance(amount *big.Int, tokenID uint64) {
+	prev := make(map[uint64]*big.Int)
 	prevBalance := self.data.TokenBalances.Balance(tokenID)
 	prev[tokenID] = prevBalance
 	self.db.journal.append(balanceChange{
@@ -293,8 +293,8 @@ func (self *stateObject) SetBalance(amount *big.Int, tokenID *big.Int) {
 	self.setTokenBalance(amount, tokenID)
 }
 
-func (self *stateObject) SetBalances(balances map[*big.Int]*big.Int) {
-	prev := make(map[*big.Int]*big.Int)
+func (self *stateObject) SetBalances(balances map[uint64]*big.Int) {
+	prev := make(map[uint64]*big.Int)
 	prev = self.data.TokenBalances.Balances
 	self.db.journal.append(balanceChange{
 		account: &self.address,
@@ -303,11 +303,11 @@ func (self *stateObject) SetBalances(balances map[*big.Int]*big.Int) {
 	self.setBalances(balances)
 }
 
-func (self *stateObject) setTokenBalance(amount *big.Int, tokenID *big.Int) {
+func (self *stateObject) setTokenBalance(amount *big.Int, tokenID uint64) {
 	self.data.TokenBalances.Balances[tokenID] = amount
 }
 
-func (self *stateObject) setBalances(balances map[*big.Int]*big.Int) {
+func (self *stateObject) setBalances(balances map[uint64]*big.Int) {
 	self.data.TokenBalances.Balances = balances
 }
 
@@ -385,7 +385,7 @@ func (self *stateObject) CodeHash() []byte {
 	return self.data.CodeHash
 }
 
-func (self *stateObject) Balance(tokenID *big.Int) *big.Int {
+func (self *stateObject) Balance(tokenID uint64) *big.Int {
 	return self.data.TokenBalances.Balance(tokenID)
 }
 

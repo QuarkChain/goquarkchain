@@ -11,7 +11,9 @@ import (
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/ethereum/go-ethereum/crypto"
 	"golang.org/x/sync/errgroup"
+	"math/big"
 	"net"
 	"reflect"
 )
@@ -42,11 +44,10 @@ func (s *QKCMasterBackend) GetPeers() []rpc.PeerInfoForDisPlay {
 
 func (s *QKCMasterBackend) AddTransaction(tx *types.Transaction) error {
 	evmTx := tx.EvmTx
-	toShardSize := s.clusterConfig.Quarkchain.GetShardSizeByChainId(tx.EvmTx.ToChainID())
-	if err := tx.EvmTx.SetToShardSize(toShardSize); err != nil {
-		return errors.New(fmt.Sprintf("Failed to set toShardSize, toShardSize: %d, err: %v", toShardSize, err))
+	fromShardSize, err := s.clusterConfig.Quarkchain.GetShardSizeByChainId(tx.EvmTx.FromChainID())
+	if err != nil {
+		return err
 	}
-	fromShardSize := s.clusterConfig.Quarkchain.GetShardSizeByChainId(tx.EvmTx.FromChainID())
 	if err := tx.EvmTx.SetFromShardSize(fromShardSize); err != nil {
 		return errors.New(fmt.Sprintf("Failed to set fromShardSize, fromShardSize: %d, err: %v", fromShardSize, err))
 	}
@@ -62,7 +63,7 @@ func (s *QKCMasterBackend) AddTransaction(tx *types.Transaction) error {
 			return slaves[i].AddTransaction(tx)
 		})
 	}
-	err := g.Wait() //TODO?? peer broadcast
+	err = g.Wait() //TODO?? peer broadcast
 	if err != nil {
 		return err
 	}
@@ -72,7 +73,13 @@ func (s *QKCMasterBackend) AddTransaction(tx *types.Transaction) error {
 
 func (s *QKCMasterBackend) ExecuteTransaction(tx *types.Transaction, address *account.Address, height *uint64) ([]byte, error) {
 	evmTx := tx.EvmTx
-	//TODO setQuarkChain
+	fromShardSize, err := s.clusterConfig.Quarkchain.GetShardSizeByChainId(tx.EvmTx.FromChainID())
+	if err != nil {
+		return nil, err
+	}
+	if err := tx.EvmTx.SetFromShardSize(fromShardSize); err != nil {
+		return nil, errors.New(fmt.Sprintf("Failed to set fromShardSize, fromShardSize: %d, err: %v", fromShardSize, err))
+	}
 	branch := account.Branch{Value: evmTx.FromFullShardId()}
 	slaves := s.getAllSlaveConnection(branch.Value)
 	if len(slaves) == 0 {
@@ -144,7 +151,10 @@ func (s *QKCMasterBackend) GetTransactionReceipt(txHash common.Hash, branch acco
 }
 
 func (s *QKCMasterBackend) GetTransactionsByAddress(address *account.Address, start []byte, limit uint32) ([]*rpc.TransactionDetail, []byte, error) {
-	fullShardID := s.clusterConfig.Quarkchain.GetFullShardIdByFullShardKey(address.FullShardKey)
+	fullShardID, err := s.clusterConfig.Quarkchain.GetFullShardIdByFullShardKey(address.FullShardKey)
+	if err != nil {
+		return nil, nil, err
+	}
 	slaveConn := s.getOneSlaveConnection(account.Branch{Value: fullShardID})
 	if slaveConn == nil {
 		return nil, nil, ErrNoBranchConn
@@ -163,7 +173,13 @@ func (s *QKCMasterBackend) GetLogs(branch account.Branch, address []account.Addr
 
 func (s *QKCMasterBackend) EstimateGas(tx *types.Transaction, fromAddress *account.Address) (uint32, error) {
 	evmTx := tx.EvmTx
-	//TODO set config
+	fromShardSize, err := s.clusterConfig.Quarkchain.GetShardSizeByChainId(tx.EvmTx.FromChainID())
+	if err != nil {
+		return 0, err
+	}
+	if err := tx.EvmTx.SetFromShardSize(fromShardSize); err != nil {
+		return 0, errors.New(fmt.Sprintf("Failed to set fromShardSize, fromShardSize: %d, err: %v", fromShardSize, err))
+	}
 	slaveConn := s.getOneSlaveConnection(account.Branch{Value: evmTx.FromFullShardId()})
 	if slaveConn == nil {
 		return 0, ErrNoBranchConn
@@ -172,7 +188,10 @@ func (s *QKCMasterBackend) EstimateGas(tx *types.Transaction, fromAddress *accou
 }
 
 func (s *QKCMasterBackend) GetStorageAt(address *account.Address, key common.Hash, height *uint64) (common.Hash, error) {
-	fullShardID := s.clusterConfig.Quarkchain.GetFullShardIdByFullShardKey(address.FullShardKey)
+	fullShardID, err := s.clusterConfig.Quarkchain.GetFullShardIdByFullShardKey(address.FullShardKey)
+	if err != nil {
+		return common.Hash{}, err
+	}
 	slaveConn := s.getOneSlaveConnection(account.Branch{Value: fullShardID})
 	if slaveConn == nil {
 		return common.Hash{}, ErrNoBranchConn
@@ -181,7 +200,10 @@ func (s *QKCMasterBackend) GetStorageAt(address *account.Address, key common.Has
 }
 
 func (s *QKCMasterBackend) GetCode(address *account.Address, height *uint64) ([]byte, error) {
-	fullShardID := s.clusterConfig.Quarkchain.GetFullShardIdByFullShardKey(address.FullShardKey)
+	fullShardID, err := s.clusterConfig.Quarkchain.GetFullShardIdByFullShardKey(address.FullShardKey)
+	if err != nil {
+		return nil, err
+	}
 	slaveConn := s.getOneSlaveConnection(account.Branch{Value: fullShardID})
 	if slaveConn == nil {
 		return nil, ErrNoBranchConn
@@ -259,8 +281,18 @@ func (s *QKCMasterBackend) NetWorkInfo() map[string]interface{} {
 }
 
 // miner api
-func (s *QKCMasterBackend) CreateBlockToMine() (types.IBlock, error) {
-	return s.createRootBlockToMine(s.clusterConfig.Quarkchain.Root.CoinbaseAddress)
+func (s *QKCMasterBackend) CreateBlockToMine() (types.IBlock, *big.Int, error) {
+	block, err := s.createRootBlockToMine(s.clusterConfig.Quarkchain.Root.CoinbaseAddress)
+	if err != nil {
+		return nil, nil, err
+	}
+	diff := block.Header().Difficulty
+	if crypto.VerifySignature(common.Hex2Bytes(s.clusterConfig.Quarkchain.GuardianPublicKey),
+		block.Header().Hash().Bytes(), block.Header().Signature[:]) {
+		adjustedDiff := diff.Div(diff, new(big.Int).SetUint64(1000))
+		return block, adjustedDiff, nil
+	}
+	return block, diff, nil
 }
 
 func (s *QKCMasterBackend) InsertMinedBlock(block types.IBlock) error {
@@ -270,4 +302,8 @@ func (s *QKCMasterBackend) InsertMinedBlock(block types.IBlock) error {
 
 func (s *QKCMasterBackend) GetTip() uint64 {
 	return s.rootBlockChain.CurrentBlock().NumberU64()
+}
+
+func (s *QKCMasterBackend) IsSyncIng() bool {
+	return s.synchronizer.IsSyncing()
 }

@@ -95,13 +95,13 @@ type (
 	suicideChange struct {
 		account     *common.Address
 		prev        bool // whether account had already suicided
-		prevbalance map[*big.Int]*big.Int
+		prevbalance map[uint64]*big.Int
 	}
 
 	// Changes to individual accounts.
 	balanceChange struct {
 		account *common.Address
-		prev    map[*big.Int]*big.Int
+		prev    map[uint64]*big.Int
 	}
 	nonceChange struct {
 		account *common.Address

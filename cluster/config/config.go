@@ -60,8 +60,8 @@ func NewPOWConfig() *POWConfig {
 
 type POSWConfig struct {
 	Enabled            bool     `json:"ENABLED"`
-	DiffDivider        uint32   `json:"DIFF_DIVIDER"`
-	WindowSize         uint32   `json:"WINDOW_SIZE"`
+	DiffDivider        uint64   `json:"DIFF_DIVIDER"`
+	WindowSize         uint64   `json:"WINDOW_SIZE"`
 	TotalStakePerBlock *big.Int `json:"TOTAL_STAKE_PER_BLOCK"`
 }
 
@@ -273,13 +273,13 @@ func UpdateGenesisAlloc(cluserConfig *ClusterConfig) error {
 	qetc = new(big.Int).Mul(qetc, eight)
 
 	qfb := new(big.Int).Mul(new(big.Int).SetUint64(3), params.DenomsValue.Ether)
-	qetc = new(big.Int).Mul(qetc, eight)
+	qfb = new(big.Int).Mul(qetc, eight)
 
 	qaapl := new(big.Int).Mul(new(big.Int).SetUint64(4), params.DenomsValue.Ether)
-	qetc = new(big.Int).Mul(qetc, eight)
+	qaapl = new(big.Int).Mul(qetc, eight)
 
 	qtsla := new(big.Int).Mul(new(big.Int).SetUint64(5), params.DenomsValue.Ether)
-	qetc = new(big.Int).Mul(qetc, eight)
+	qtsla = new(big.Int).Mul(qetc, eight)
 
 	allocation := map[string]*big.Int{
 		qkcConfig.GenesisToken: genesis,
@@ -300,7 +300,10 @@ func UpdateGenesisAlloc(cluserConfig *ClusterConfig) error {
 			if err != nil {
 				return fmt.Errorf(tempErrMsg, allocFile, err)
 			}
-			fullShardId := qkcConfig.GetFullShardIdByFullShardKey(address.FullShardKey)
+			fullShardId, err := qkcConfig.GetFullShardIdByFullShardKey(address.FullShardKey)
+			if err != nil {
+				return err
+			}
 			shard, ok := qkcConfig.shards[fullShardId]
 			if !ok {
 				continue

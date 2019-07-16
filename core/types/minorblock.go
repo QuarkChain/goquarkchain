@@ -34,13 +34,13 @@ type MinorBlockHeader struct {
 }
 
 type MinorBlockMeta struct {
-	TxHash             common.Hash        `json:"transactionsRoot"           gencodec:"required"`
-	Root               common.Hash        `json:"stateRoot"                  gencodec:"required"`
-	ReceiptHash        common.Hash        `json:"receiptsRoot"               gencodec:"required"`
-	GasUsed            *serialize.Uint256 `json:"gasUsed"                    gencodec:"required"`
-	CrossShardGasUsed  *serialize.Uint256 `json:"crossShardGasUsed"          gencodec:"required"`
-	XShardTxCursorInfo *XShardTxCursorInfo
-	XshardGasLimit     *serialize.Uint256
+	TxHash             common.Hash         `json:"transactionsRoot"           gencodec:"required"`
+	Root               common.Hash         `json:"stateRoot"                  gencodec:"required"`
+	ReceiptHash        common.Hash         `json:"receiptsRoot"               gencodec:"required"`
+	GasUsed            *serialize.Uint256  `json:"gasUsed"                    gencodec:"required"`
+	CrossShardGasUsed  *serialize.Uint256  `json:"crossShardGasUsed"          gencodec:"required"`
+	XShardTxCursorInfo *XShardTxCursorInfo `json:"xShardTxCursorInfo"          gencodec:"required"`
+	XshardGasLimit     *serialize.Uint256  `json:"xShardGasLimit"          gencodec:"required"`
 }
 
 func (m *MinorBlockMeta) Hash() common.Hash {
@@ -301,11 +301,11 @@ func (b *MinorBlock) Coinbase() account.Address { return b.header.Coinbase }
 func (b *MinorBlock) CoinbaseAmount() *TokenBalanceMap {
 	if b.header.CoinbaseAmount != nil && b.header.CoinbaseAmount.BalanceMap != nil {
 		return &TokenBalanceMap{
-			BalanceMap: map[*big.Int]*big.Int(b.header.CoinbaseAmount.BalanceMap),
+			BalanceMap: map[uint64]*big.Int(b.header.CoinbaseAmount.BalanceMap),
 		}
 	}
 	return &TokenBalanceMap{
-		BalanceMap: map[*big.Int]*big.Int{},
+		BalanceMap: map[uint64]*big.Int{},
 	}
 }
 func (b *MinorBlock) ParentHash() common.Hash        { return b.header.ParentHash }
