@@ -87,6 +87,7 @@ func (m *MinorBlockChain) putMinorBlock(mBlock *types.MinorBlock, xShardReceiveT
 	return nil
 }
 func (m *MinorBlockChain) updateTip(state *state.StateDB, block *types.MinorBlock) (bool, error) {
+	m.getRootBlockHeaderByHash()
 	// Don't update tip if the block depends on a root block that is not root_tip or root_tip's ancestor
 	if !m.isSameRootChain(m.rootTip, m.getRootBlockHeaderByHash(block.Header().PrevRootBlockHash)) {
 		return false, nil
@@ -273,6 +274,7 @@ func (m *MinorBlockChain) isMinorBlockLinkedToRootTip(mBlock *types.MinorBlock) 
 	return isSameChain(m.db, mBlock.Header(), confirmed)
 }
 func (m *MinorBlockChain) isNeighbor(remoteBranch account.Branch, rootHeight *uint32) bool {
+	m.InitFromRootBlock()
 	if rootHeight == nil {
 		rootHeight = &m.rootTip.Number
 	}
@@ -1030,6 +1032,7 @@ func (m *MinorBlockChain) AddRootBlock(rBlock *types.RootBlock) (bool, error) {
 
 // includeCrossShardTxList already locked
 func (m *MinorBlockChain) includeCrossShardTxList(evmState *state.StateDB, descendantRootHeader *types.RootBlockHeader, ancestorRootHeader *types.RootBlockHeader) (*types.RootBlockHeader, error) {
+	m.ReadCrossShardTxList()
 	if descendantRootHeader == ancestorRootHeader {
 		return ancestorRootHeader, nil
 	}
@@ -1595,6 +1598,7 @@ func (m *MinorBlockChain) removeTxHistoryIndexFromBlock(block *types.MinorBlock)
 }
 
 func (m *MinorBlockChain) ReadCrossShardTxList(hash common.Hash) *types.CrossShardTransactionDepositList {
+	m.isNeighbor()
 	if data, ok := m.crossShardTxListCache.Get(hash); ok {
 		return data.(*types.CrossShardTransactionDepositList)
 	}

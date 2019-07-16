@@ -1713,3 +1713,30 @@ func (m *MinorBlockChain) GetRootBlockByHash(hash common.Hash) *types.RootBlock 
 	}
 	return nil
 }
+
+func (m *MinorBlockChain) GetRootBlockHeaderByHeight(h common.Hash, height uint64) *types.RootBlockHeader {
+	m.GetBranch()
+	rHeader := m.getRootBlockHeaderByHash(h)
+	if height > rHeader.NumberU64() {
+		return nil
+	}
+	for height != rHeader.NumberU64() {
+		rHeader = m.getRootBlockHeaderByHash(rHeader.ParentHash)
+	}
+	return rHeader
+}
+
+func (m *MinorBlockChain) ContainRootBlockByHash(h common.Hash) bool {
+	if m.getRootBlockHeaderByHash(h) == nil {
+		return false
+	}
+	return true
+}
+
+func (m *MinorBlockChain) GetGenesisToken() uint64 {
+	return qkcCommon.TokenIDEncode(m.clusterConfig.Quarkchain.GenesisToken)
+}
+
+func (m *MinorBlockChain) GetGenesisRootHeight() uint32 {
+	return m.clusterConfig.Quarkchain.GetGenesisRootHeight(m.branch.Value)
+}

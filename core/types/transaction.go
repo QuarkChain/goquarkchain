@@ -560,7 +560,7 @@ type CrossShardTransactionDeposit struct {
 	GasPrice        *serialize.Uint256
 	GasTokenID      uint64
 	TransferTokenID uint64
-	isFromRootChain bool
+	IsFromRootChain bool
 }
 
 type CrossShardTransactionDepositList struct {
