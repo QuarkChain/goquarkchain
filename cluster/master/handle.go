@@ -47,7 +47,7 @@ type ProtocolManager struct {
 
 	maxPeers    int
 	peers       *peerSet // Set of active peers from which rootDownloader can proceed
-	newPeerCh   chan *peer
+	newPeerCh   chan *Peer
 	quitSync    chan struct{}
 	noMorePeers chan struct{}
 
@@ -62,7 +62,7 @@ func NewProtocolManager(env config.ClusterConfig, rootBlockChain *core.RootBlock
 		rootBlockChain:   rootBlockChain,
 		clusterConfig:    &env,
 		peers:            newPeerSet(),
-		newPeerCh:        make(chan *peer),
+		newPeerCh:        make(chan *Peer),
 		quitSync:         make(chan struct{}),
 		noMorePeers:      make(chan struct{}),
 		statsChan:        statsChan,
@@ -140,7 +140,7 @@ func (pm *ProtocolManager) Stop() {
 	log.Info("cluster protocol stopped")
 }
 
-func (pm *ProtocolManager) handle(peer *peer) error {
+func (pm *ProtocolManager) handle(peer *Peer) error {
 	if pm.peers.Len() >= pm.maxPeers {
 		return p2p.DiscTooManyPeers
 	}
@@ -184,7 +184,7 @@ func (pm *ProtocolManager) handle(peer *peer) error {
 	}
 }
 
-func (pm *ProtocolManager) handleMsg(peer *peer) error {
+func (pm *ProtocolManager) handleMsg(peer *Peer) error {
 	msg, err := peer.rw.ReadMsg()
 	if err != nil {
 		return err
@@ -376,7 +376,7 @@ func (pm *ProtocolManager) handleMsg(peer *peer) error {
 	return nil
 }
 
-func (pm *ProtocolManager) HandleNewRootTip(tip *p2p.Tip, peer *peer) error {
+func (pm *ProtocolManager) HandleNewRootTip(tip *p2p.Tip, peer *Peer) error {
 	if len(tip.MinorBlockHeaderList) != 0 {
 		return errors.New("minor block header list must not be empty")
 	}
@@ -397,7 +397,7 @@ func (pm *ProtocolManager) HandleNewRootTip(tip *p2p.Tip, peer *peer) error {
 	return nil
 }
 
-func (pm *ProtocolManager) HandleNewMinorTip(branch uint32, tip *p2p.Tip, peer *peer) error {
+func (pm *ProtocolManager) HandleNewMinorTip(branch uint32, tip *p2p.Tip, peer *Peer) error {
 	// handle minor tip when branch != 0 and the minor block only contain 1 heard which is the tip block
 	if len(tip.MinorBlockHeaderList) != 1 {
 		return fmt.Errorf("invalid NewTip Request: len of MinorBlockHeaderList is %d for branch %d from peer %v",
@@ -636,7 +636,7 @@ func (pm *ProtocolManager) syncer() {
 }
 
 // synchronise tries to sync up our local block chain with a remote peer.
-func (pm *ProtocolManager) synchronise(peer *peer) {
+func (pm *ProtocolManager) synchronise(peer *Peer) {
 	// Short circuit if no peers are available
 	if peer == nil {
 		return
