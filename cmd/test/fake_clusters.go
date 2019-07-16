@@ -82,6 +82,8 @@ shardSize, slaveSize uint32, geneRHeights map[uint32]uint32) *config.ClusterConf
 		shardCfg.ConsensusType = config.PoWSimulate
 		shardCfg.Genesis.Difficulty = 10
 		shardCfg.PoswConfig.WindowSize = 2
+		// extra minor block headers in root block.
+		shardCfg.ExtraShardBlocksInRootBlock = 10
 		if _, ok := geneRHeights[fullShardId]; ok {
 			shardCfg.Genesis.RootHeight = geneRHeights[fullShardId]
 		}

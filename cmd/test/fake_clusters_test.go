@@ -435,6 +435,8 @@ func TestGetMinorBlockHeadersWithSkip(t *testing.T) {
 	var (
 		numCluster                  = 2
 		chainSize, shardSize uint32 = 2, 2
+		id0                         = uint32(0<<16 | shardSize | 0)
+		id1                         = uint32(0<<16 | shardSize | 1)
 	)
 	_, clstrList := CreateClusterList(numCluster, chainSize, shardSize, chainSize, nil)
 	clstrList.Start()
