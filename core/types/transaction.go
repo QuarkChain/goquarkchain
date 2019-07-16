@@ -19,8 +19,7 @@ import (
 )
 
 const (
-	InvalidTxType = iota
-	EvmTx
+	EvmTx = 0
 )
 
 //go:generate gencodec -type txdata -field-override txdataMarshaling -out gen_tx_json.go
@@ -41,18 +40,18 @@ type EvmTransaction struct {
 }
 
 type txdata struct {
-	AccountNonce     uint64             `json:"nonce"              gencodec:"required"`
-	Price            *big.Int           `json:"gasPrice"           gencodec:"required"`
-	GasLimit         uint64             `json:"gas"                gencodec:"required"`
-	Recipient        *account.Recipient `json:"to"                 rlp:"nil"` // nil means contract creation
-	Amount           *big.Int           `json:"value"              gencodec:"required"`
-	Payload          []byte             `json:"input"              gencodec:"required"`
-	NetworkId        uint32             `json:"networkId"          gencodec:"required"`
-	FromFullShardKey uint32             `json:"fromfullshardkey"    gencodec:"required"`
-	ToFullShardKey   uint32             `json:"tofullshardkey"      gencodec:"required"`
-	GasTokenID       *big.Int           `json:"gas_token_id"    gencodec:"required"`
-	TransferTokenID  *big.Int           `json:"transfer_token_id"    gencodec:"required"`
-	Version          uint32             `json:"version"            gencodec:"required"`
+	AccountNonce     uint64                     `json:"nonce"              gencodec:"required"`
+	Price            *big.Int                   `json:"gasPrice"           gencodec:"required"`
+	GasLimit         uint64                     `json:"gas"                gencodec:"required"`
+	Recipient        *account.Recipient         `json:"to"                 rlp:"nil"` // nil means contract creation
+	Amount           *big.Int                   `json:"value"              gencodec:"required"`
+	Payload          []byte                     `json:"input"              gencodec:"required"`
+	NetworkId        uint32                     `json:"networkId"          gencodec:"required"`
+	FromFullShardKey *qkcCommon.NewRlpForUint32 `json:"fromfullshardkey"    gencodec:"required"`
+	ToFullShardKey   *qkcCommon.NewRlpForUint32 `json:"tofullshardkey"      gencodec:"required"`
+	GasTokenID       *big.Int                   `json:"gas_token_id"    gencodec:"required"`
+	TransferTokenID  *big.Int                   `json:"transfer_token_id"    gencodec:"required"`
+	Version          uint32                     `json:"version"            gencodec:"required"`
 	// Signature values
 	V *big.Int `json:"v"             gencodec:"required"`
 	R *big.Int `json:"r"             gencodec:"required"`
@@ -95,8 +94,10 @@ func newEvmTransaction(nonce uint64, to *account.Recipient, amount *big.Int, gas
 		Amount:           new(big.Int),
 		GasLimit:         gasLimit,
 		Price:            new(big.Int),
-		FromFullShardKey: fromFullShardKey,
-		ToFullShardKey:   toFullShardKey,
+		FromFullShardKey: &qkcCommon.NewRlpForUint32{Value: fromFullShardKey},
+		ToFullShardKey:   &qkcCommon.NewRlpForUint32{Value: toFullShardKey},
+		GasTokenID:       new(big.Int),
+		TransferTokenID:  new(big.Int),
 		NetworkId:        networkId,
 		Version:          version,
 		V:                new(big.Int),
@@ -130,15 +131,17 @@ func (tx *EvmTransaction) DecodeRLP(s *rlp.Stream) error {
 }
 
 type txdataUnsigned struct {
-	AccountNonce     uint64             `json:"nonce"              gencodec:"required"`
-	Price            *big.Int           `json:"gasPrice"           gencodec:"required"`
-	GasLimit         uint64             `json:"gas"                gencodec:"required"`
-	Recipient        *account.Recipient `json:"to"                 rlp:"nil"` // nil means contract creation
-	Amount           *big.Int           `json:"value"              gencodec:"required"`
-	Payload          []byte             `json:"input"              gencodec:"required"`
-	NetworkId        uint32             `json:"networkid"          gencodec:"required"`
-	FromFullShardKey uint32             `json:"fromfullshardid"    gencodec:"required"`
-	ToFullShardKey   uint32             `json:"tofullshardid"      gencodec:"required"`
+	AccountNonce     uint64                     `json:"nonce"              gencodec:"required"`
+	Price            *big.Int                   `json:"gasPrice"           gencodec:"required"`
+	GasLimit         uint64                     `json:"gas"                gencodec:"required"`
+	Recipient        *account.Recipient         `json:"to"                 rlp:"nil"` // nil means contract creation
+	Amount           *big.Int                   `json:"value"              gencodec:"required"`
+	Payload          []byte                     `json:"input"              gencodec:"required"`
+	NetworkId        uint32                     `json:"networkid"          gencodec:"required"`
+	FromFullShardKey *qkcCommon.NewRlpForUint32 `json:"fromfullshardid"    gencodec:"required"`
+	ToFullShardKey   *qkcCommon.NewRlpForUint32 `json:"tofullshardid"      gencodec:"required"`
+	GasTokenID       *big.Int                   `json:"tofullshardid"      gencodec:"required"`
+	TransferTokenID  *big.Int                   `json:"tofullshardid"      gencodec:"required"`
 }
 
 func (tx *EvmTransaction) getUnsignedHash() common.Hash {
@@ -149,9 +152,12 @@ func (tx *EvmTransaction) getUnsignedHash() common.Hash {
 		Recipient:        tx.data.Recipient,
 		Amount:           tx.data.Amount,
 		Payload:          tx.data.Payload,
-		FromFullShardKey: tx.data.FromFullShardKey,
-		ToFullShardKey:   tx.data.ToFullShardKey,
-		NetworkId:        tx.data.NetworkId,
+		FromFullShardKey: &qkcCommon.NewRlpForUint32{Value: tx.data.FromFullShardKey.Value},
+		ToFullShardKey:   &qkcCommon.NewRlpForUint32{Value: tx.data.ToFullShardKey.Value},
+		GasTokenID:       tx.data.GasTokenID,
+		TransferTokenID:  tx.data.TransferTokenID,
+
+		NetworkId: tx.data.NetworkId,
 	}
 
 	return rlpHash(unsigntx)
@@ -180,10 +186,10 @@ func (tx *EvmTransaction) GasTokenID() *big.Int {
 func (tx *EvmTransaction) TransferTokenID() *big.Int {
 	return tx.data.TransferTokenID
 }
-func (tx *EvmTransaction) FromFullShardKey() uint32 { return tx.data.FromFullShardKey }
-func (tx *EvmTransaction) ToFullShardKey() uint32   { return tx.data.ToFullShardKey }
-func (tx *EvmTransaction) FromChainID() uint32      { return tx.data.FromFullShardKey >> 16 }
-func (tx *EvmTransaction) ToChainID() uint32        { return tx.data.ToFullShardKey >> 16 }
+func (tx *EvmTransaction) FromFullShardKey() uint32 { return tx.data.FromFullShardKey.Value }
+func (tx *EvmTransaction) ToFullShardKey() uint32   { return tx.data.ToFullShardKey.Value }
+func (tx *EvmTransaction) FromChainID() uint32      { return tx.data.FromFullShardKey.Value >> 16 }
+func (tx *EvmTransaction) ToChainID() uint32        { return tx.data.ToFullShardKey.Value >> 16 }
 func (tx *EvmTransaction) FromShardSize() uint32 {
 	return tx.FromShardsize
 }
@@ -207,11 +213,11 @@ func (tx *EvmTransaction) SetToShardSize(shardSize uint32) error {
 
 func (tx *EvmTransaction) FromShardID() uint32 {
 	shardMask := tx.FromShardSize() - 1
-	return tx.data.FromFullShardKey & shardMask
+	return tx.data.FromFullShardKey.Value & shardMask
 }
 func (tx *EvmTransaction) ToShardID() uint32 {
 	shardMask := tx.ToShardSize() - 1
-	return tx.data.ToFullShardKey & shardMask
+	return tx.data.ToFullShardKey.Value & shardMask
 }
 
 // To returns the recipient address of the transaction.
@@ -267,8 +273,8 @@ func (tx *EvmTransaction) AsMessage(s Signer) (Message, error) {
 		amount:           tx.data.Amount,
 		data:             tx.data.Payload,
 		checkNonce:       true,
-		fromFullShardKey: tx.data.FromFullShardKey,
-		toFullShardKey:   tx.data.ToFullShardKey,
+		fromFullShardKey: tx.data.FromFullShardKey.Value,
+		toFullShardKey:   tx.data.ToFullShardKey.Value,
 		txHash:           tx.Hash(), //TODO ???? wrong
 		isCrossShard:     tx.IsCrossShard(),
 		transferTokenID:  tx.data.TransferTokenID,

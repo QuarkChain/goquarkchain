@@ -18,11 +18,11 @@ import (
 
 // RootBlockHeader represents a root block header in the QuarkChain.
 type RootBlockHeader struct {
-	Version         uint32      `json:"version"          gencodec:"required"`
-	Number          uint32      `json:"number"           gencodec:"required"`
-	ParentHash      common.Hash `json:"parentHash"       gencodec:"required"`
-	MinorHeaderHash common.Hash `json:"transactionsRoot" gencodec:"required"`
-	Root            common.Hash
+	Version         uint32           `json:"version"          gencodec:"required"`
+	Number          uint32           `json:"number"           gencodec:"required"`
+	ParentHash      common.Hash      `json:"parentHash"       gencodec:"required"`
+	MinorHeaderHash common.Hash      `json:"transactionsRoot" gencodec:"required"`
+	Root            common.Hash      `json:"root" gencodec:"required"`
 	Coinbase        account.Address  `json:"miner"            gencodec:"required"`
 	CoinbaseAmount  *TokenBalanceMap `json:"coinbaseAmount"   gencodec:"required"`
 	Time            uint64           `json:"timestamp"        gencodec:"required"`
@@ -37,7 +37,8 @@ type RootBlockHeader struct {
 // Hash returns the block hash of the header, which is simply the keccak256 hash of its
 // Serialize encoding.
 func (h *RootBlockHeader) Hash() common.Hash {
-	return serHash(*h, map[string]bool{"Signature": true})
+	//return serHash(*h, map[string]bool{"Signature": true})
+	return serHash(*h, map[string]bool{})
 }
 
 // SealHash returns the block hash of the header, which is keccak256 hash of its
@@ -278,7 +279,7 @@ func (b *RootBlock) Coinbase() account.Address    { return b.header.Coinbase }
 func (b *RootBlock) CoinbaseAmount() *TokenBalanceMap {
 	if b.header.CoinbaseAmount != nil && b.header.CoinbaseAmount.BalanceMap != nil {
 		return &TokenBalanceMap{
-			BalanceMap: map[*big.Int]*big.Int(b.header.CoinbaseAmount.BalanceMap),
+			BalanceMap: map[TokenType]*big.Int(b.header.CoinbaseAmount.BalanceMap),
 		}
 	}
 	return NewTokenBalanceMap()

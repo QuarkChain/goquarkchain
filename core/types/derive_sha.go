@@ -47,21 +47,22 @@ func CalculateMerkleRoot(list interface{}) (h common.Hash) {
 			hashList[i] = sha3_256(bytes)
 		}
 	}
-
 	zBytes := common.Hash{}
 	for len(hashList) != 1 {
+		tempList := make([]common.Hash, 0)
 		length := len(hashList)
 		if length%2 == 1 {
 			hashList = append(hashList, zBytes)
 		}
 		for i := 0; i < length-1; {
-			hashList = append(hashList,
+			tempList = append(tempList,
 				sha3_256(append(hashList[i].Bytes(), hashList[i+1].Bytes()...)))
 			i = i + 2
 		}
+		hashList = tempList
 		zBytes = sha3_256(append(zBytes.Bytes(), zBytes.Bytes()...))
 	}
-	return sha3_256(append(hashList[0].Bytes(), qkcCommon.Uint64ToBytes(uint64(len(hashList)))...))
+	return sha3_256(append(hashList[0].Bytes(), qkcCommon.Uint64ToBytes(uint64(val.Len()))...))
 }
 
 func sha3_256(bytes []byte) (hash common.Hash) {

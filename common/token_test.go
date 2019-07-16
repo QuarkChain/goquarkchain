@@ -1,6 +1,7 @@
 package common
 
 import (
+	"encoding/hex"
 	"fmt"
 	"testing"
 )
@@ -15,7 +16,9 @@ func TestTokenCharDecode(t *testing.T) {
 }
 
 func TestTokenCharEncode(t *testing.T) {
-
+	EmptyString := []byte{0x80}
+	fmt.Println(TOKENIDMAX)
+	fmt.Println(len(EmptyString), hex.EncodeToString(EmptyString))
 }
 
 func TestTokenIdDecode(t *testing.T) {

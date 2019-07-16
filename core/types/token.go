@@ -5,49 +5,63 @@ import (
 	"github.com/QuarkChain/goquarkchain/serialize"
 	ethCommon "github.com/ethereum/go-ethereum/common"
 	"math/big"
+	"sort"
 )
 
+type TokenType struct {
+	Key uint64
+}
+
+func NewTokenType(value uint64) TokenType {
+	return TokenType{
+		Key: value,
+	}
+}
+
 type TokenBalanceMap struct {
-	BalanceMap map[*big.Int]*big.Int
+	BalanceMap map[TokenType]*big.Int
 }
 
 func NewTokenBalanceMap() *TokenBalanceMap {
 	return &TokenBalanceMap{
-		BalanceMap: make(map[*big.Int]*big.Int),
+		BalanceMap: make(map[TokenType]*big.Int),
 	}
 }
-func (t *TokenBalanceMap) Add(other map[*big.Int]*big.Int) {
+func (t *TokenBalanceMap) Add(other map[uint64]*big.Int) {
 	for k, v := range other {
 		prevAmount := new(big.Int)
-		if data, ok := t.BalanceMap[k]; ok {
+		if data, ok := t.BalanceMap[NewTokenType(k)]; ok {
 			prevAmount = prevAmount.Add(prevAmount, data)
 		}
 		prevAmount = prevAmount.Add(prevAmount, v)
-		t.BalanceMap[k] = prevAmount
+		t.BalanceMap[NewTokenType(k)] = prevAmount
 	}
 }
 
 func (t *TokenBalanceMap) GetDefaultTokenBalance() *big.Int {
-	return new(big.Int).Set(t.BalanceMap[common.TokenIDEncode("QKC")])
+	return new(big.Int).Set(t.BalanceMap[NewTokenType(common.TokenIDEncode("QKC").Uint64())])
 }
 
 func (t *TokenBalanceMap) Serialize(w *[]byte) error {
+	keys := make([]uint64, 0, len(t.BalanceMap))
 	num := uint32(0)
-	for _, v := range t.BalanceMap {
-		if v.Cmp(ethCommon.Big0) == 0 {
-			continue
-		}
-		num++
-	}
-
-	if err := serialize.Serialize(w, num); err != nil {
-		return err
-	}
 	for k, v := range t.BalanceMap {
 		if v.Cmp(ethCommon.Big0) == 0 {
 			continue
 		}
-		if err := serialize.Serialize(w, k); err != nil {
+		keys = append(keys, k.Key)
+		num++
+	}
+	sort.Slice(keys, func(i, j int) bool { return keys[i] < keys[j] })
+	if err := serialize.Serialize(w, num); err != nil {
+		return err
+	}
+	for _, key := range keys {
+		v := t.BalanceMap[TokenType{Key: key}]
+		if v.Cmp(ethCommon.Big0) == 0 {
+			continue
+		}
+		if err := serialize.Serialize(w, new(big.Int).SetUint64(key)); err != nil {
 			return err
 		}
 		if err := serialize.Serialize(w, v); err != nil {
@@ -58,6 +72,7 @@ func (t *TokenBalanceMap) Serialize(w *[]byte) error {
 }
 
 func (t *TokenBalanceMap) Deserialize(bb *serialize.ByteBuffer) error {
+	t.BalanceMap = make(map[TokenType]*big.Int)
 	num, err := bb.GetUInt32()
 	if err != nil {
 		return err
@@ -74,7 +89,7 @@ func (t *TokenBalanceMap) Deserialize(bb *serialize.ByteBuffer) error {
 		if v.Cmp(ethCommon.Big0) == 0 {
 			continue
 		}
-		t.BalanceMap[k] = v
+		t.BalanceMap[NewTokenType(k.Uint64())] = v
 	}
 	return nil
 }
