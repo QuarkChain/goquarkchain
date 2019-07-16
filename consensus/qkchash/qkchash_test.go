@@ -22,12 +22,13 @@ func TestVerifyHeaderAndHeaders(t *testing.T) {
 	for _, qkcHashNativeFlag := range []bool{true, false} {
 		q := New(qkcHashNativeFlag, &diffCalculator, false)
 
-		parent := &types.RootBlockHeader{Number: 1, Difficulty: big.NewInt(3), Time: 42}
+		parent := &types.RootBlockHeader{Number: 1, Difficulty: big.NewInt(3), Time: 42, ToTalDifficulty: big.NewInt(3)}
 		header := &types.RootBlockHeader{
-			Number:     2,
-			Difficulty: big.NewInt(3), // mock diff
-			Time:       43,            // greater than parent
-			ParentHash: parent.Hash(),
+			Number:          2,
+			Difficulty:      big.NewInt(3), // mock diff
+			Time:            43,            // greater than parent
+			ParentHash:      parent.Hash(),
+			ToTalDifficulty: big.NewInt(6),
 		}
 		sealBlock(t, q, header)
 
@@ -72,7 +73,7 @@ func sealBlock(t *testing.T, q *QKCHash, h *types.RootBlockHeader) {
 	resultsCh := make(chan types.IBlock)
 	rootBlock := types.NewRootBlockWithHeader(h)
 	stop := make(chan struct{})
-	err := q.Seal(nil, rootBlock, resultsCh, stop)
+	err := q.Seal(nil, rootBlock, nil, resultsCh, stop)
 	assert.NoError(t, err, "should have no problem sealing the block")
 	block := <-resultsCh
 	close(stop)

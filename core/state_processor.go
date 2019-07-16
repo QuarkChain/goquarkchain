@@ -126,8 +126,15 @@ func ValidateTransaction(state vm.StateDB, tx *types.Transaction, fromAddress *a
 		return ErrNonceTooLow
 	}
 
-	if state.GetBalance(*from).Cmp(tx.EvmTx.Cost()) < 0 {
+	balance := state.GetBalance(*from)
+	if balance.Cmp(tx.EvmTx.Cost()) < 0 {
 		return ErrInsufficientFunds
+	}
+
+	if v, ok := state.GetSenderDisallowMap()[*from]; ok {
+		if new(big.Int).Add(tx.EvmTx.Value(), v).Cmp(balance) == 1 {
+			return ErrPoSWSenderNotAllowed
+		}
 	}
 
 	totalGas, err := IntrinsicGas(tx.EvmTx.Data(), tx.EvmTx.To() == nil, tx.EvmTx.ToFullShardId() != tx.EvmTx.FromFullShardId())

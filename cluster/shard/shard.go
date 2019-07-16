@@ -48,6 +48,8 @@ type ShardBackend struct {
 	eventMux     *event.TypeMux
 	synchronizer synchronizer.Synchronizer
 	logInfo      string
+
+	posw consensus.PoSWCalculator
 }
 
 func New(ctx *service.ServiceContext, rBlock *types.RootBlock, conn ConnManager,
@@ -80,11 +82,9 @@ func New(ctx *service.ServiceContext, rBlock *types.RootBlock, conn ConnManager,
 
 	shard.engine, err = createConsensusEngine(ctx, shard.Config)
 	if err != nil {
+		shard.chainDb.Close()
 		return nil, err
 	}
-
-	shard.miner = miner.New(ctx, shard, shard.engine, shard.Config.ConsensusConfig.TargetBlockTime)
-	shard.miner.Init()
 
 	chainConfig, genesisHash, genesisErr := core.SetupGenesisMinorBlock(shard.chainDb, shard.gspec, rBlock, fullshardId)
 	// TODO check config err
@@ -96,10 +96,14 @@ func New(ctx *service.ServiceContext, rBlock *types.RootBlock, conn ConnManager,
 
 	shard.MinorBlockChain, err = core.NewMinorBlockChain(shard.chainDb, nil, &params.ChainConfig{}, cfg, shard.engine, vm.Config{}, nil, fullshardId)
 	if err != nil {
+		shard.chainDb.Close()
 		return nil, err
 	}
 	shard.MinorBlockChain.SetBroadcastMinorBlockFunc(shard.AddMinorBlock)
 	shard.synchronizer = synchronizer.NewSynchronizer(shard.MinorBlockChain)
+	shard.posw = consensus.CreatePoSWCalculator(shard.MinorBlockChain, shard.Config.PoswConfig)
+
+	shard.miner = miner.New(ctx, shard, shard.engine)
 
 	return shard, nil
 }
@@ -108,6 +112,7 @@ func (s *ShardBackend) Stop() {
 	s.miner.Stop()
 	s.eventMux.Stop()
 	s.engine.Close()
+	s.MinorBlockChain.Stop()
 	s.chainDb.Close()
 }
 

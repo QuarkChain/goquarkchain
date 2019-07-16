@@ -12,7 +12,7 @@ import (
 )
 
 func tipGen(geneAcc *account.Account, shrd *shard.ShardBackend) *types.MinorBlock {
-	iBlock, err := shrd.CreateBlockToMine()
+	iBlock, _, err := shrd.CreateBlockToMine()
 	if err != nil {
 		utils.Fatalf("failed to create minor block to mine: %v", err)
 	}
@@ -262,7 +262,7 @@ func TestAddRootBlockRequestList(t *testing.T) {
 	assert.Equal(t, rBlockTip0.Header().Hash(), rBlock0.Header().Hash())
 	// make sure the root tip of cluster 1 is changed
 	assert.Equal(t, assertTrueWithTimeout(func() bool {
-		return mstr0.GetRootTip().Hash() == rBlock0.Header().Hash()
+		return mstr0.GetCurrRootHeader().Hash() == rBlock0.Header().Hash()
 	}, 2), true)
 
 	assert.Equal(t, assertTrueWithTimeout(func() bool {
@@ -293,7 +293,7 @@ func TestGetRootBlockHeaderSyncWithFork(t *testing.T) {
 		rootBlockList = make([]*types.RootBlock, 0, 10)
 	)
 	for i := 0; i < 10; i++ {
-		iBlock, err := mstr0.CreateBlockToMine()
+		iBlock, _, err := mstr0.CreateBlockToMine()
 		if err != nil {
 			assert.Error(t, err)
 		}
@@ -309,7 +309,7 @@ func TestGetRootBlockHeaderSyncWithFork(t *testing.T) {
 		}
 	}
 	for i := 0; i < 3; i++ {
-		iBlock, err := mstr1.CreateBlockToMine()
+		iBlock, _, err := mstr1.CreateBlockToMine()
 		if err != nil {
 			assert.Error(t, err)
 		}
@@ -362,7 +362,7 @@ func TestShardGenesisForkFork(t *testing.T) {
 	root2 := clstrList[1].CreateAndInsertBlocks([]uint32{id0, id1}, 3)
 	// after minered check roottip
 	assert.Equal(t, assertTrueWithTimeout(func() bool {
-		return clstrList[1].GetMaster().GetRootTip().Number == uint32(2)
+		return clstrList[1].GetMaster().GetCurrRootHeader().Number == uint32(2)
 	}, 1), true)
 
 	// check the two cluster genesis root hash is the same
@@ -406,7 +406,7 @@ func TestGetWorkFromSlave(t *testing.T) {
 	defer clstrList.Stop()
 
 	mstr0 := clstrList[0].GetMaster()
-	mstr0.GetRootTip()
+	mstr0.GetCurrRootHeader()
 }
 
 func TestShardSynchronizerWithFork(t *testing.T) {}
@@ -433,8 +433,14 @@ func TestGetRootBlockHeaderSyncWithBestAncestor(t *testing.T) {}
 
 func TestGetMinorBlockHeadersWithSkip(t *testing.T) {
 	var (
+		numCluster                  = 2
 		chainSize, shardSize uint32 = 2, 2
 	)
-	geneAcc, clstrList := CreateClusterList(2, chainSize, shardSize, chainSize, nil)
+	_, clstrList := CreateClusterList(numCluster, chainSize, shardSize, chainSize, nil)
+	clstrList.Start()
+	defer clstrList.Stop()
 
+	for _, clstr := range clstrList {
+		clstr.GetPeers()
+	}
 }

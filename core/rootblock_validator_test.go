@@ -36,7 +36,7 @@ func TestValidateBlock(t *testing.T) {
 		blocks[i] = block
 	}
 	// Run the header checker for blocks one-by-one, checking for both valid and invalid nonces
-	chain, _ := NewRootBlockChain(testdb, nil, qkcconfig, engine, nil)
+	chain, _ := NewRootBlockChain(testdb, qkcconfig, engine, nil)
 	defer chain.Stop()
 
 	for i := 0; i < len(blocks); i++ {
@@ -115,13 +115,13 @@ func testHeaderConcurrentVerification(t *testing.T, threads int) {
 
 		if valid {
 			engine.Err = nil
-			chain, _ := NewRootBlockChain(testdb, nil, qkcconfig, engine, nil)
+			chain, _ := NewRootBlockChain(testdb, qkcconfig, engine, nil)
 			_, results = chain.engine.VerifyHeaders(chain, headers, seals)
 			chain.Stop()
 		} else {
 			engine.Err = fmt.Errorf("engine VerifyHeader error for block %d", i)
 			engine.NumberToFail = blocks[len(headers)-1].NumberU64()
-			chain, _ := NewRootBlockChain(testdb, nil, qkcconfig, engine, nil)
+			chain, _ := NewRootBlockChain(testdb, qkcconfig, engine, nil)
 			_, results = chain.engine.VerifyHeaders(chain, headers, seals)
 			chain.Stop()
 		}

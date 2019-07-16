@@ -58,8 +58,8 @@ func NewPOWConfig() *POWConfig {
 
 type POSWConfig struct {
 	Enabled            bool     `json:"ENABLED"`
-	DiffDivider        uint32   `json:"DIFF_DIVIDER"`
-	WindowSize         uint32   `json:"WINDOW_SIZE"`
+	DiffDivider        uint64   `json:"DIFF_DIVIDER"`
+	WindowSize         uint64   `json:"WINDOW_SIZE"`
 	TotalStakePerBlock *big.Int `json:"TOTAL_STAKE_PER_BLOCK"`
 }
 
@@ -275,7 +275,10 @@ func UpdateGenesisAlloc(cluserConfig *ClusterConfig) error {
 			if err != nil {
 				return fmt.Errorf(tempErrMsg, allocFile, err)
 			}
-			fullShardId := qkcConfig.GetFullShardIdByFullShardKey(address.FullShardKey)
+			fullShardId, err := qkcConfig.GetFullShardIdByFullShardKey(address.FullShardKey)
+			if err != nil {
+				return err
+			}
 			shard, ok := qkcConfig.shards[fullShardId]
 			if !ok {
 				continue

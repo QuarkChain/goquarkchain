@@ -2,10 +2,11 @@ package sync
 
 import (
 	"github.com/QuarkChain/goquarkchain/core"
+	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
-
-	"github.com/QuarkChain/goquarkchain/core/types"
+	"math/big"
+	"sync"
 )
 
 // A lightweight wrapper over shard chain or root chain.
@@ -27,6 +28,7 @@ type rootblockchain interface {
 type Synchronizer interface {
 	AddTask(Task) error
 	Close() error
+	IsSyncing() bool
 }
 
 type synchronizer struct {
@@ -34,6 +36,21 @@ type synchronizer struct {
 	taskRecvCh   chan Task
 	taskAssignCh chan Task
 	abortCh      chan struct{}
+
+	mu      sync.RWMutex
+	running bool
+}
+
+func (s *synchronizer) IsSyncing() bool {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.running
+}
+
+func (s *synchronizer) setSyncing(isSync bool) {
+	s.mu.Lock()
+	s.running = isSync
+	s.mu.Unlock()
 }
 
 // AddTask sends a root block from peers to the main loop for processing.
@@ -52,11 +69,15 @@ func (s *synchronizer) loop() {
 	go func() {
 		logger := log.New("synchronizer", "runner")
 		for t := range s.taskAssignCh {
+			if !s.IsSyncing() {
+				s.setSyncing(true)
+			}
 			if err := t.Run(s.blockchain); err != nil {
 				logger.Error("Running sync task failed", "error", err)
 			} else {
-				logger.Info("Done sync task", "height", t.Priority())
+				logger.Info("Done sync task", "priority", t.Priority())
 			}
+			s.setSyncing(false)
 		}
 	}()
 
@@ -84,10 +105,10 @@ func (s *synchronizer) loop() {
 
 // Find the next task according to their priorities.
 func getNextTask(taskMap map[string]Task) (ret Task) {
-	prio := uint(0)
+	prio := new(big.Int)
 	for _, t := range taskMap {
 		newPrio := t.Priority()
-		if ret == nil || newPrio > prio {
+		if ret == nil || newPrio.Cmp(prio) > 0 {
 			ret = t
 			prio = newPrio
 		}

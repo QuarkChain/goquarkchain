@@ -1660,5 +1660,174 @@ func TestAddRootBlockRevertHeaderTip(t *testing.T) {
 	assert.Equal(t, shardState.rootTip.Hash().String(), r3.Header().Hash().String())
 	assert.Equal(t, shardState.CurrentHeader().Hash().String(), m2.Header().Hash().String())
 	assert.Equal(t, shardState.CurrentBlock().Hash().String(), m2.Header().Hash().String())
+}
 
+func TestTotalTxCount(t *testing.T) {
+	id1, err := account.CreatRandomIdentity()
+	checkErr(err)
+	acc1 := account.CreatAddressFromIdentity(id1, 0)
+	acc2, err := account.CreatRandomAccountWithFullShardKey(0)
+	acc3, err := account.CreatRandomAccountWithFullShardKey(0)
+
+	fakeMoney := uint64(10000000)
+	env := setUp(&acc1, &fakeMoney, nil)
+	shardState := createDefaultShardState(env, nil, nil, nil, nil)
+	defer shardState.Stop()
+	// Add a root block to have all the shards initialized
+	rootBlock := shardState.rootTip.CreateBlockToAppend(nil, nil, nil, nil, nil).Finalize(nil, nil)
+
+	_, err = shardState.AddRootBlock(rootBlock)
+	checkErr(err)
+
+	fakeGas := uint64(50000)
+	tx := createTransferTransaction(shardState, id1.GetKey().Bytes(), acc1, acc2, new(big.Int).SetUint64(12345), &fakeGas, nil, nil, nil)
+	currState, err := shardState.State()
+	checkErr(err)
+	currState.SetGasUsed(currState.GetGasLimit())
+
+	err = shardState.AddTx(tx)
+	checkErr(err)
+
+	block, i := shardState.GetTransactionByHash(tx.Hash())
+	assert.NotNil(t, block)
+	assert.Equal(t, block.GetTransactions()[0].Hash(), tx.Hash())
+	assert.Equal(t, block.Header().Time, uint64(0))
+	assert.Equal(t, i, uint32(0))
+
+	b2, err := shardState.CreateBlockToMine(nil, &acc3, nil)
+	checkErr(err)
+	assert.Equal(t, len(b2.Transactions()), 1)
+	assert.Equal(t, b2.Header().Number, uint64(1))
+
+	// Should succeed
+	b2, _, err = shardState.FinalizeAndAddBlock(b2)
+	checkErr(err)
+	assert.Equal(t, shardState.CurrentBlock().IHeader().NumberU64(), uint64(1))
+	assert.Equal(t, shardState.CurrentBlock().IHeader().(*types.MinorBlockHeader).Hash(), b2.Header().Hash())
+	assert.Equal(t, shardState.CurrentBlock().GetTransactions()[0].Hash(), tx.Hash())
+
+	assert.Equal(t, uint32(1), *shardState.getTotalTxCount(shardState.CurrentBlock().Hash()))
+
+	fakeGas = uint64(50000)
+	tx = createTransferTransaction(shardState, id1.GetKey().Bytes(), acc1, acc2, new(big.Int).SetUint64(12345), &fakeGas, nil, nil, nil)
+	err = shardState.AddTx(tx)
+	b2, err = shardState.CreateBlockToMine(nil, &acc3, nil)
+	b2, _, err = shardState.FinalizeAndAddBlock(b2)
+	assert.Equal(t, uint32(2), *shardState.getTotalTxCount(shardState.CurrentBlock().Hash()))
+
+	fakeGas = uint64(50000)
+	tx = createTransferTransaction(shardState, id1.GetKey().Bytes(), acc1, acc2, new(big.Int).SetUint64(12345), &fakeGas, nil, nil, nil)
+	err = shardState.AddTx(tx)
+	b2, err = shardState.CreateBlockToMine(nil, &acc3, nil)
+	b2, _, err = shardState.FinalizeAndAddBlock(b2)
+	assert.Equal(t, uint32(3), *shardState.getTotalTxCount(shardState.CurrentBlock().Hash()))
+
+}
+
+func TestGetPendingTxFromAddress(t *testing.T) {
+	id1, err := account.CreatRandomIdentity()
+	checkErr(err)
+	acc1 := account.CreatAddressFromIdentity(id1, 0)
+	acc2, err := account.CreatRandomAccountWithFullShardKey(0)
+	acc3, err := account.CreatRandomAccountWithFullShardKey(0)
+
+	fakeMoney := uint64(10000000)
+	env := setUp(&acc1, &fakeMoney, nil)
+	shardState := createDefaultShardState(env, nil, nil, nil, nil)
+	defer shardState.Stop()
+
+	fakeChan := make(chan uint64, 100)
+	shardState.txPool.fakeChanForReset = fakeChan
+	// Add a root block to have all the shards initialized
+	rootBlock := shardState.rootTip.CreateBlockToAppend(nil, nil, nil, nil, nil).Finalize(nil, nil)
+
+	_, err = shardState.AddRootBlock(rootBlock)
+	checkErr(err)
+
+	fakeGas := uint64(50000)
+	tx := createTransferTransaction(shardState, id1.GetKey().Bytes(), acc1, acc2, new(big.Int).SetUint64(12345), &fakeGas, nil, nil, nil)
+	err = shardState.AddTx(tx)
+	checkErr(err)
+
+	data, _, err := shardState.getPendingTxByAddress(acc1)
+	checkErr(err)
+	assert.Equal(t, 1, len(data))
+	assert.Equal(t, data[0].Value.Value, new(big.Int).SetUint64(12345))
+	assert.Equal(t, data[0].TxHash, tx.EvmTx.Hash())
+	assert.Equal(t, data[0].FromAddress, acc1)
+	assert.Equal(t, data[0].ToAddress, &acc2)
+	assert.Equal(t, data[0].BlockHeight, uint64(0))
+	assert.Equal(t, data[0].Timestamp, uint64(0))
+	assert.Equal(t, data[0].Success, false)
+
+	b2, err := shardState.CreateBlockToMine(nil, &acc3, nil)
+	checkErr(err)
+
+	// Should succeed
+	b2, _, err = shardState.FinalizeAndAddBlock(b2)
+	checkErr(err)
+
+	forRe := true
+	for forRe == true {
+		select {
+		case result := <-fakeChan:
+			if result == uint64(0+1) {
+				forRe = false
+			}
+		case <-time.After(2 * time.Second):
+			panic(errors.New("should end here"))
+
+		}
+	}
+
+	data, _, err = shardState.getPendingTxByAddress(acc1)
+	checkErr(err)
+	assert.Equal(t, 0, len(data))
+
+}
+
+func TestResetToOldChain(t *testing.T) {
+	id1, err := account.CreatRandomIdentity()
+	checkErr(err)
+	acc1 := account.CreatAddressFromIdentity(id1, 0)
+	acc3, err := account.CreatRandomAccountWithFullShardKey(0)
+
+	fakeMoney := uint64(10000000)
+	env := setUp(&acc1, &fakeMoney, nil)
+	shardState := createDefaultShardState(env, nil, nil, nil, nil)
+	defer shardState.Stop()
+
+	// Add a root block to have all the shards initialized
+	rootBlock := shardState.rootTip.CreateBlockToAppend(nil, nil, nil, nil, nil).Finalize(nil, nil)
+	_, err = shardState.AddRootBlock(rootBlock)
+	checkErr(err)
+
+	r0 := shardState.CurrentBlock()
+
+	rs1 := r0.CreateBlockToAppend(nil, nil, nil, nil, nil, nil, nil)
+	rs1, _, err = shardState.FinalizeAndAddBlock(rs1)
+	assert.NoError(t, err)
+
+	rr1 := r0.CreateBlockToAppend(nil, nil, nil, nil, nil, nil, nil)
+	tHeader := rr1.Header()
+	tHeader.SetCoinbase(acc3)
+	rr1 = types.NewMinorBlock(tHeader, rr1.Meta(), rr1.Transactions(), nil, nil)
+	rr1, _, err = shardState.FinalizeAndAddBlock(rr1)
+	assert.NoError(t, err)
+
+	assert.Equal(t, shardState.CurrentBlock(), rs1)
+
+	rr2 := rr1.CreateBlockToAppend(nil, nil, nil, nil, nil, nil, nil)
+	rr2, _, err = shardState.FinalizeAndAddBlock(rr2)
+	assert.NoError(t, err)
+	assert.Equal(t, shardState.CurrentBlock(), rr2)
+
+	assert.Equal(t, shardState.GetBlockByNumber(1).Hash(), rr1.Hash())
+	assert.Equal(t, shardState.GetBlockByNumber(2).Hash(), rr2.Hash())
+
+	err = shardState.reorg(shardState.CurrentBlock(), rs1)
+	assert.NoError(t, err)
+	assert.Equal(t, shardState.CurrentBlock().Hash(), rs1.Hash())
+	assert.Equal(t, shardState.GetBlockByNumber(1).Hash(), rs1.Hash())
+	assert.Equal(t, shardState.GetBlockByNumber(2).Hash(), rr2.Hash())
 }

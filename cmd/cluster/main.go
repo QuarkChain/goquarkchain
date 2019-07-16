@@ -93,7 +93,7 @@ func init() {
 		}
 		// Ensure Go's GC ignores the database cache for trigger percentage
 		cache := ctx.GlobalInt(utils.CacheFlag.Name)
-		gogc := math.Max(20, math.Min(100, 100/(float64(cache)/1024)))
+		gogc := math.Max(20, math.Min(80, 100/(float64(cache)/1024)))
 		log.Debug("Sanitizing Go's GC trigger", "percent", int(gogc))
 		godebug.SetGCPercent(int(gogc))
 
@@ -140,7 +140,7 @@ func startService(ctx *cli.Context, stack *service.Node) {
 		if err := stack.Service(&master); err != nil {
 			utils.Fatalf("master service not running %v", err)
 		}
-		if err := master.InitCluster(); err != nil {
+		if err := master.Start(); err != nil {
 			utils.Fatalf("Failed to init cluster service", "err", err)
 		}
 	} else {

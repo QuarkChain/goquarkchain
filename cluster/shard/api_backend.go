@@ -60,6 +60,12 @@ func (s *ShardBackend) broadcastNewTip() (err error) {
 	return
 }
 
+func (s *ShardBackend) setHead(head uint64) {
+	if err := s.MinorBlockChain.SetHead(head); err != nil {
+		panic(err)
+	}
+}
+
 // Returns true if block is successfully added. False on any error.
 // called by 1. local miner (will not run if syncing) 2. SyncTask
 func (s *ShardBackend) AddMinorBlock(block *types.MinorBlock) error {
@@ -67,6 +73,7 @@ func (s *ShardBackend) AddMinorBlock(block *types.MinorBlock) error {
 		oldTip = s.MinorBlockChain.CurrentHeader()
 	)
 
+	currHead := s.MinorBlockChain.CurrentBlock().Number()
 	_, xshardLst, err := s.MinorBlockChain.InsertChainForDeposits([]types.IBlock{block})
 	if err != nil || len(xshardLst) != 1 {
 		log.Error("Failed to add minor block", "err", err)
@@ -79,6 +86,7 @@ func (s *ShardBackend) AddMinorBlock(block *types.MinorBlock) error {
 	// block has been added to local state, broadcast tip so that peers can sync if needed
 	if oldTip.Hash() != s.MinorBlockChain.CurrentHeader().Hash() {
 		if err = s.broadcastNewTip(); err != nil {
+			s.setHead(currHead)
 			return err
 		}
 	}
@@ -90,10 +98,12 @@ func (s *ShardBackend) AddMinorBlock(block *types.MinorBlock) error {
 
 	prevRootHeight := s.MinorBlockChain.GetRootBlockByHash(block.Header().PrevRootBlockHash).Header().Number
 	if err := s.conn.BroadcastXshardTxList(block, xshardLst[0], prevRootHeight); err != nil {
+		s.setHead(currHead)
 		return err
 	}
 	status, err := s.MinorBlockChain.GetShardStatus()
 	if err != nil {
+		s.setHead(currHead)
 		return err
 	}
 	err = s.conn.SendMinorBlockHeaderToMaster(
@@ -103,9 +113,10 @@ func (s *ShardBackend) AddMinorBlock(block *types.MinorBlock) error {
 		status,
 	)
 	if err != nil {
+		s.setHead(currHead)
 		return err
 	}
-	go s.miner.HandleNewTip(s.MinorBlockChain.CurrentBlock().Number())
+	go s.miner.HandleNewTip()
 	return nil
 }
 
@@ -166,13 +177,8 @@ func (s *ShardBackend) GetTransactionListByAddress(address *account.Address,
 	return s.MinorBlockChain.GetTransactionByAddress(*address, start, limit)
 }
 
-// TODO 当前版本暂不添加
 func (s *ShardBackend) GetLogs(start uint64, end uint64, address []account.Address, topics [][]common.Hash) ([]*types.Log, error) {
 	return s.MinorBlockChain.GetLogsByAddressAndTopic(start, end, address, topics)
-}
-
-func (s *ShardBackend) PoswDiffAdjust(block *types.MinorBlock) (*big.Int, error) {
-	panic("not implemented")
 }
 
 func (s *ShardBackend) GetWork() (*consensus.MiningWork, error) {
@@ -236,12 +242,7 @@ func (s *ShardBackend) NewMinorBlock(block *types.MinorBlock) (err error) {
 	}
 
 	header := block.Header()
-	diff := header.Difficulty
-	diffDivider := big.NewInt(int64(s.Config.PoswConfig.DiffDivider))
-	if s.Config.PoswConfig.Enabled {
-		diff = diff.Div(diff, diffDivider)
-	}
-	if err = s.engine.VerifySeal(s.MinorBlockChain, header, diff); err != nil {
+	if err = s.engine.VerifySeal(s.MinorBlockChain, header, header.Difficulty); err != nil {
 		log.Error("got block with bad seal in handle_new_block", "branch", header.Branch.Value, "err", err)
 		return err
 	}
@@ -251,6 +252,10 @@ func (s *ShardBackend) NewMinorBlock(block *types.MinorBlock) (err error) {
 		return
 	}
 
+	if s.MinorBlockChain.GetRootBlockByHash(block.Header().PrevRootBlockHash) == nil {
+		log.Warn(s.logInfo, "add minor block:preRootBlock have not exist", block.Header().PrevRootBlockHash.String())
+		return nil
+	}
 	s.mBPool.setBlockInPool(block)
 	if err = s.conn.BroadcastMinorBlock(block, s.fullShardId); err != nil {
 		return err
@@ -289,10 +294,36 @@ func (s *ShardBackend) GenTx(genTxs *rpc.GenTxRequest) error {
 }
 
 // miner api
-func (s *ShardBackend) CreateBlockToMine() (types.IBlock, error) {
-	return s.MinorBlockChain.CreateBlockToMine(nil, &s.Config.CoinbaseAddress, nil)
+func (s *ShardBackend) CreateBlockToMine() (types.IBlock, *big.Int, error) {
+	minorBlock, err := s.MinorBlockChain.CreateBlockToMine(nil, &s.Config.CoinbaseAddress, nil)
+	if err != nil {
+		return nil, nil, err
+	}
+	diff := minorBlock.Difficulty()
+	if s.posw.IsPoSWEnabled() {
+		header := minorBlock.Header()
+		balance, err := s.MinorBlockChain.GetBalance(header.GetCoinbase().Recipient, nil)
+		if err != nil {
+			return nil, nil, err
+		}
+		adjustedDifficulty, err := s.posw.PoSWDiffAdjust(header, balance)
+		if err != nil {
+			log.Error("[PoSW]Failed to compute PoSW difficulty.", err)
+			return nil, nil, err
+		}
+		log.Info("[PoSW]CreateBlockToMine", "number", header.Number, "diff", header.Difficulty, "adjusted to", adjustedDifficulty)
+		return minorBlock, adjustedDifficulty, nil
+	}
+	return minorBlock, diff, nil
 }
 
 func (s *ShardBackend) InsertMinedBlock(block types.IBlock) error {
 	return s.NewMinorBlock(block.(*types.MinorBlock))
+}
+func (s *ShardBackend) GetTip() uint64 {
+	return s.MinorBlockChain.CurrentBlock().NumberU64()
+}
+
+func (s *ShardBackend) IsSyncIng() bool {
+	return s.synchronizer.IsSyncing()
 }

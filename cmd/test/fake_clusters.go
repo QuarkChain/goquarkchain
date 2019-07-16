@@ -1,7 +1,7 @@
 package test
 
 import (
-	"crypto/ecdsa"
+	"crypto/rand"
 	"fmt"
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
@@ -69,7 +69,7 @@ shardSize, slaveSize uint32, geneRHeights map[uint32]uint32) *config.ClusterConf
 	cfg.Quarkchain.Root.ConsensusType = config.PoWSimulate
 	cfg.Quarkchain.Root.DifficultyAdjustmentCutoffTime = 40
 	cfg.Quarkchain.Root.MaxStaleRootBlockHeightDiff = 1024
-	cfg.P2P.PrivKey = privKey
+	cfg.P2P.PrivKey = privStrs[index]
 	cfg.P2P.BootNodes = bootNode
 
 	fullShardIds := cfg.Quarkchain.GetGenesisShardIds()
@@ -115,16 +115,9 @@ func makeConfigNode(index uint16, geneAcc *account.Account, chainSize, shardSize
 		nodeList  = make(map[string]*service.Node)
 		clstrCfg  = getClusterConfig(index, geneAcc, chainSize, shardSize, slaveSize, geneRHeights)
 		bootNodes = make([]*enode.Node, 0, 0)
-		priv      *ecdsa.PrivateKey
+		priv      = getPrivKeyByIndex(int(index))
 	)
 
-	if index == 0 && clstrCfg.P2P.PrivKey != "" {
-		var err error
-		priv, err = p2p.GetPrivateKeyFromConfig(clstrCfg.P2P.PrivKey)
-		if err != nil {
-			utils.Fatalf("failed to transfer privkey", "err", err)
-		}
-	}
 	if clstrCfg.P2P.BootNodes != "" {
 		urls := strings.Split(clstrCfg.P2P.BootNodes, ",")
 		for _, url := range urls {
@@ -177,15 +170,12 @@ func makeConfigNode(index uint16, geneAcc *account.Account, chainSize, shardSize
 
 func CreateClusterList(numCluster int, chainSize, shardSize, slaveSize uint32, geneRHeights map[uint32]uint32) (*account.Account, Clusterlist) {
 	clusterList := make([]*clusterNode, 0, numCluster)
-	geneAcc, err := createAcc()
-	if err != nil {
-		utils.Fatalf("failed to create cluster list: %v", err)
-	}
+	geneAcc := getAccByIndex(numCluster)
 	for i := 0; i < numCluster; i++ {
-		clstrCfg, nodeList := makeConfigNode(uint16(i), &geneAcc, chainSize, shardSize, slaveSize, geneRHeights)
+		clstrCfg, nodeList := makeConfigNode(uint16(i), geneAcc, chainSize, shardSize, slaveSize, geneRHeights)
 		clusterList = append(clusterList, &clusterNode{clstrCfg: clstrCfg, services: nodeList})
 	}
-	return &geneAcc, clusterList
+	return geneAcc, clusterList
 }
 
 func (c *clusterNode) Stop() {
@@ -225,7 +215,7 @@ func (c *clusterNode) Start() (err error) {
 		}
 	}
 	mstr := c.GetMaster()
-	return mstr.InitCluster()
+	return mstr.Start()
 }
 
 func (c *clusterNode) GetMaster() *master.QKCMasterBackend {
@@ -290,7 +280,7 @@ func (c *clusterNode) createAllShardsBlock(fullShardIds []uint32) {
 		if shrd == nil {
 			utils.Fatalf("has no such shard, fullShardId: %d", fullShardId)
 		}
-		iBlock, err := shrd.CreateBlockToMine()
+		iBlock, _, err := shrd.CreateBlockToMine()
 		if err != nil {
 			utils.Fatalf("can't create minor block, fullShardId: %d, err: %v", fullShardId, err)
 		}
@@ -306,7 +296,7 @@ func (c *clusterNode) CreateAndInsertBlocks(fullShards []uint32, seconds time.Du
 	}
 	time.Sleep(seconds * time.Second)
 	// insert root block
-	iBlock, err := c.GetMaster().CreateBlockToMine()
+	iBlock, _, err := c.GetMaster().CreateBlockToMine()
 	if err != nil {
 		goto FAILED
 	}
@@ -319,4 +309,33 @@ func (c *clusterNode) CreateAndInsertBlocks(fullShards []uint32, seconds time.Du
 FAILED:
 	utils.Fatalf("failed to create and add root/minor block", "err", err)
 	return
+}
+
+func (c *clusterNode) getProtocol() *p2p.Protocol {
+	mstr := c.GetMaster()
+	subProtocols := mstr.Protocols()
+	return &subProtocols[0]
+}
+
+func (c *clusterNode) getP2PServer() *p2p.Server {
+	return c.services[clientIdentifier].Server()
+}
+
+func (c *clusterNode) GetPeers() *p2p.Peer {
+	protocol := c.getProtocol()
+	_, net := p2p.MsgPipe()
+	var id enode.ID
+	_, _ = rand.Read(id[:])
+	fmt.Println("==============", id.String())
+	err := protocol.Run(p2p.NewPeer(id, "peer_test", nil), net)
+	if err != nil {
+		utils.Fatalf("failed to call Run func", "err", err)
+	}
+
+	p2pSvr := c.services[clientIdentifier].Server()
+	peers := p2pSvr.Peers()
+	for _, pr := range peers {
+		fmt.Println("-------------", pr.Name(), pr.ID().String(), pr.Node().String())
+	}
+	return peers[0]
 }
