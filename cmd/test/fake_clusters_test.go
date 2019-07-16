@@ -39,25 +39,36 @@ func TestThreeClusters(t *testing.T) {
 
 func TestCreateShardAtDifferentHeight(t *testing.T) {
 	var (
-		id1          = uint32(0<<16 | 1 | 0)
-		id2          = uint32(1<<16 | 1 | 0)
-		geneRHeights = map[uint32]uint32{
-			id1: 1,
-			id2: 2,
+		shardSize    uint32 = 2
+		id0                 = uint32(0<<16 | shardSize | 0)
+		id1                 = uint32(0<<16 | shardSize | 1)
+		id2                 = uint32(1<<16 | shardSize | 0)
+		id3                 = uint32(1<<16 | shardSize | 1)
+		geneRHeights        = map[uint32]uint32{
+			id0: 1,
+			id1: 2,
 		}
-		shardSize uint32 = 2
 	)
 
 	_, clstrList := CreateClusterList(1, 2, shardSize, 1, geneRHeights)
 	clstrList.Start()
 	defer clstrList.Stop()
 
-	rBlock := clstrList[0].CreateAndInsertBlocks([]uint32{id1, id2}, 0)
+	rBlock := clstrList[0].CreateAndInsertBlocks([]uint32{id2, id3}, 0)
 	assert.Equal(t, rBlock.NumberU64(), uint64(1))
-	assert.Equal(t, rBlock.MinorBlockHeaders().Len(), 0)
+	assert.Equal(t, rBlock.MinorBlockHeaders().Len(), 4)
 
-	assert.NotEqual(t, clstrList[0].GetShard(id1), (*shard.ShardBackend)(nil))
-	assert.Equal(t, clstrList[0].GetShard(id2), (*shard.ShardBackend)(nil))
+	assert.Equal(t, assertTrueWithTimeout(func() bool {
+		shrd := clstrList[0].GetShard(id0)
+		if shrd == nil {
+			return false
+		}
+		return clstrList[0].GetShard(id0) != (*shard.ShardBackend)(nil)
+	}, 1), true)
+
+	assert.Equal(t, assertTrueWithTimeout(func() bool {
+		return clstrList[0].GetShard(id1) == (*shard.ShardBackend)(nil)
+	}, 1), true)
 
 	/*shardState, err := clstrList[0].GetShardState(id1)
 	if err != nil {
@@ -103,6 +114,10 @@ func TestAddTransaction(t *testing.T) {
 	clstrList.Start()
 	defer clstrList.Stop()
 
+	clstrList[0].GetPeer()
+
+	time.Sleep(10 * time.Second)
+
 	var (
 		id0            = uint32(0<<16 | shardSize | 0)
 		id1            = uint32(0<<16 | shardSize | 1)
@@ -140,7 +155,6 @@ func TestAddTransaction(t *testing.T) {
 	}, 1), true)
 
 	// check another cluster' pending pool
-	// time.Sleep(10 * time.Second)
 	assert.Equal(t, assertTrueWithTimeout(func() bool {
 		state0, err := clstrList[1].GetShard(fullShardId).MinorBlockChain.GetShardStatus()
 		if err != nil {
@@ -435,14 +449,14 @@ func TestGetMinorBlockHeadersWithSkip(t *testing.T) {
 	var (
 		numCluster                  = 2
 		chainSize, shardSize uint32 = 2, 2
-		id0                         = uint32(0<<16 | shardSize | 0)
-		id1                         = uint32(0<<16 | shardSize | 1)
+		//id0                         = uint32(0<<16 | shardSize | 0)
+		//id1                         = uint32(0<<16 | shardSize | 1)
 	)
 	_, clstrList := CreateClusterList(numCluster, chainSize, shardSize, chainSize, nil)
 	clstrList.Start()
 	defer clstrList.Stop()
 
 	for _, clstr := range clstrList {
-		clstr.GetPeers()
+		clstr.GetPeer()
 	}
 }

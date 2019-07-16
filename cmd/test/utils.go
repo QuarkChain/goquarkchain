@@ -12,6 +12,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"math/big"
+	"net"
 )
 
 var (
@@ -24,9 +25,10 @@ var (
 		"2c757b4d8aa63527a515f5febaffde0fefa859959411223fce05c0be3962d1f4",
 		"37c16fa19244957bb2f23811d5761bc5bf7ef62384950c760c3fe6abd391f693",
 	}
-	privKeyList = make([]*ecdsa.PrivateKey, len(privStrs), len(privStrs))
-	geneAccList = make([]*account.Account, len(privStrs), len(privStrs))
-	bootNode    = "enode://9fb2a4ae5e0271638ac9ab77567ba3ccfcc10403f3263b053c7c714696f712566a624355588b733ac2dc40f103ad23edc25027427e80113c5cdf2bc0f060ce4b@127.0.0.1:38291"
+	clstrCfgList = make([]*config.ClusterConfig, len(privStrs), len(privStrs))
+	privKeyList  = make([]*ecdsa.PrivateKey, len(privStrs), len(privStrs))
+	geneAccList  = make([]*account.Account, len(privStrs), len(privStrs))
+	bootNode     = "enode://9fb2a4ae5e0271638ac9ab77567ba3ccfcc10403f3263b053c7c714696f712566a624355588b733ac2dc40f103ad23edc25027427e80113c5cdf2bc0f060ce4b@127.0.0.1:38291"
 )
 
 func defaultNodeConfig() *service.Config {
@@ -93,9 +95,8 @@ func newkey() *ecdsa.PrivateKey {
 	return key
 }
 
-func createNode(ip string, port int) *enode.Node {
-	remid := &newkey().PublicKey
-	nd := enode.NewV4(remid, []byte(ip), port, 0)
-	nd.ID()
-	return nd
+func (c *clusterNode) createNode() *enode.Node {
+	remid := getPrivKeyByIndex(c.index).PublicKey
+	port := c.clstrCfg.P2PPort
+	return enode.NewV4(&remid, net.IPv4(127, 0, 0, 1), int(port), int(port))
 }
