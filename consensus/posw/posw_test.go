@@ -108,6 +108,7 @@ func TestPoSWCoinBaseSendUnderLimit(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to FinalizeAndAddBlock: %v", err)
 	}
+
 	evmState, err := blockchain.State()
 	if err != nil {
 		t.Fatalf("failed to get State: %v", err)

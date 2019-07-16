@@ -102,7 +102,7 @@ func GenerateRootBlockChain(parent *types.RootBlock, engine consensus.Engine, n 
 		}
 		b.SetTotalDifficulty(new(big.Int).Add(parent.TotalDifficulty(), b.header.Difficulty))
 		block := types.NewRootBlock(b.header, b.Headers, nil)
-		block.Finalize(nil, nil, common.Hash{})
+		block.Finalize(b.header.CoinbaseAmount, nil, common.Hash{})
 		return block
 	}
 	for i := 0; i < n; i++ {

@@ -42,7 +42,7 @@ func TestValidateBlock(t *testing.T) {
 	}
 	// Run the header checker for blocks one-by-one, checking for both valid and invalid nonces
 	chain, _ := NewRootBlockChain(testdb, qkcconfig, engine, nil)
-	defer chain.Stop()
+	//	defer chain.Stop()
 
 	for i := 0; i < len(blocks); i++ {
 		for j, valid := range []bool{true, false} {
