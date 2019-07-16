@@ -69,7 +69,6 @@ func (v *RootBlockValidator) ValidateBlock(block types.IBlock) error {
 	}
 
 	mheaderHash := types.CalculateMerkleRoot(rootBlock.MinorBlockHeaders())
-	//fmt.Println("RootNumber", rootBlock.Header().Number, len(rootBlock.MinorBlockHeaders()))
 	if mheaderHash != rootBlock.Header().MinorHeaderHash {
 		return fmt.Errorf("incorrect merkle root %v - %v ",
 			rootBlock.Header().MinorHeaderHash.String(),
