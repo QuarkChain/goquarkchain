@@ -273,13 +273,13 @@ func UpdateGenesisAlloc(cluserConfig *ClusterConfig) error {
 	qetc = new(big.Int).Mul(qetc, eight)
 
 	qfb := new(big.Int).Mul(new(big.Int).SetUint64(3), params.DenomsValue.Ether)
-	qetc = new(big.Int).Mul(qetc, eight)
+	qfb = new(big.Int).Mul(qetc, eight)
 
 	qaapl := new(big.Int).Mul(new(big.Int).SetUint64(4), params.DenomsValue.Ether)
-	qetc = new(big.Int).Mul(qetc, eight)
+	qaapl = new(big.Int).Mul(qetc, eight)
 
 	qtsla := new(big.Int).Mul(new(big.Int).SetUint64(5), params.DenomsValue.Ether)
-	qetc = new(big.Int).Mul(qetc, eight)
+	qtsla = new(big.Int).Mul(qetc, eight)
 
 	allocation := map[string]*big.Int{
 		qkcConfig.GenesisToken: genesis,
