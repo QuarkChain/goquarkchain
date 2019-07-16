@@ -576,7 +576,7 @@ func ExpectMsg(r p2p.MsgReader, op p2p.P2PCommandOp, metadata p2p.Metadata, cont
 	return &qkcMsg, nil
 }
 
-func handleMsg(peer *QPeer) error {
+func handleMsg(peer *Peer) error {
 	msg, err := peer.rw.ReadMsg()
 	if err != nil {
 		return err
