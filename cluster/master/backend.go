@@ -248,7 +248,6 @@ func (s *QKCMasterBackend) Start() error {
 	s.protocolManager.Start(s.maxPeers)
 	// start heart beat pre 3 seconds.
 	s.updateShardStatsLoop()
-	s.disPlayPeers()
 	log.Info("Start cluster successful", "slaveSize", len(s.clientPool))
 	return nil
 }
