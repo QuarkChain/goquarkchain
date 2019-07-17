@@ -1,4 +1,4 @@
-//+build framework
+// +build framework
 package test
 
 import (
