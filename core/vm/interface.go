@@ -89,6 +89,12 @@ type StateDB interface {
 	GetBlockCoinbase() account.Recipient
 	SetBlockCoinbase(recipient account.Recipient)
 	GetXshardTxCursorInfo() *types.XShardTxCursorInfo
+	GetTimeStamp() uint64
+	SetTimeStamp(uint64)
+	GetBlockNumber() uint64
+	SetBlockNumber(uint64)
+	SetTxCursorInfo(info *types.XShardTxCursorInfo)
+	GetTxCursorInfo() *types.XShardTxCursorInfo
 }
 
 // CallContext provides a basic interface for the EVM calling conventions. The EVM

@@ -266,10 +266,11 @@ type HashList struct {
 	Piggyback the ShardStatus in the same request.
 */
 type AddMinorBlockHeaderRequest struct {
-	MinorBlockHeader *types.MinorBlockHeader `json:"minor_block_header" gencodec:"required"`
-	TxCount          uint32                  `json:"tx_count" gencodec:"required"`
-	XShardTxCount    uint32                  `json:"x_shard_tx_count" gencodec:"required"`
-	ShardStats       *ShardStatus            `json:"shard_stats" gencodec:"required"`
+	MinorBlockHeader  *types.MinorBlockHeader `json:"minor_block_header" gencodec:"required"`
+	TxCount           uint32                  `json:"tx_count" gencodec:"required"`
+	XShardTxCount     uint32                  `json:"x_shard_tx_count" gencodec:"required"`
+	CoinbaseAmountMap *types.TokenBalanceMap  `json:"coinbase_amount_map" gencodec:"required"`
+	ShardStats        *ShardStatus            `json:"shard_stats" gencodec:"required"`
 }
 
 type AddMinorBlockHeaderResponse struct {

@@ -8,8 +8,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 )
 
-func (s *ConnManager) SendMinorBlockHeaderToMaster(minorHeader *types.MinorBlockHeader,
-	txCount, xshardCount uint32, state *rpc.ShardStatus) error {
+func (s *ConnManager) SendMinorBlockHeaderToMaster(*rpc.AddMinorBlockHeaderRequest) error {
 	var (
 		gRep rpc.AddMinorBlockHeaderResponse
 	)

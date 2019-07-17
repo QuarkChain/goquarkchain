@@ -27,6 +27,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/log"
 	"math/big"
+	"time"
 )
 
 // MinorBlockValidator is responsible for validating block Headers, uncles and
@@ -69,6 +70,10 @@ func (v *MinorBlockValidator) ValidateBlock(mBlock types.IBlock) error {
 		return ErrInvalidMinorBlock
 	}
 
+	if block.Header().Version != 0 {
+		return errors.New("incorrect minor block version")
+	}
+
 	blockHeight := block.NumberU64()
 	if blockHeight < 1 {
 		errBlockHeight := errors.New("block.Number <1")
@@ -105,6 +110,10 @@ func (v *MinorBlockValidator) ValidateBlock(mBlock types.IBlock) error {
 		return ErrBranch
 	}
 
+	if block.Header().Time > uint64(time.Now().Nanosecond()/1000)+ALLOWED_FUTURE_BLOCKS_TIME_VALIDATION {
+		return fmt.Errorf("block too far into future")
+	}
+
 	if block.IHeader().GetTime() <= prevHeader.GetTime() {
 		log.Error(v.logInfo, "err", ErrTime, "block.Time", block.IHeader().GetTime(), "prevHeader.Time", prevHeader.GetTime())
 		return ErrTime
@@ -125,8 +134,15 @@ func (v *MinorBlockValidator) ValidateBlock(mBlock types.IBlock) error {
 		return ErrTrackLimit
 	}
 
-	if block.Header().GasLimit.Value.Cmp(v.bc.gasLimit) != 0 {
-		return errors.New("gasLimit is not match")
+	//gasLimit check
+	if block.Header().GetGasLimit().Cmp(v.bc.gasLimit) != 0 {
+		return fmt.Errorf("incorrect gasLimit %v %v", block.Header().GasLimit, v.bc.gasLimit)
+	}
+	if block.Meta().XshardGasLimit.Value.Cmp(block.Header().GasLimit.Value) >= 0 {
+		return fmt.Errorf("xshard gas limit should not exceed total gas limit %v %v", block.Meta().XshardGasLimit, block.Header().GasLimit.Value)
+	}
+	if block.Meta().XshardGasLimit.Value.Cmp(v.bc.xShardGasLimit) != 0 {
+		return fmt.Errorf("incorrect xshard gas limit %v %v", block.Meta().XshardGasLimit, v.bc.xShardGasLimit)
 	}
 
 	txHash := types.CalculateMerkleRoot(block.GetTransactions())
@@ -183,9 +199,11 @@ func (v *MinorBlockValidator) ValidateBlock(mBlock types.IBlock) error {
 		log.Error(v.logInfo, "err", errMustBeOneRootChain, "long", block.Header().GetPrevRootBlockHash().String(), "short", prevHeader.(*types.MinorBlockHeader).GetPrevRootBlockHash().String())
 		return errMustBeOneRootChain
 	}
-	if err := v.ValidatorSeal(block.Header()); err != nil {
-		log.Error(v.logInfo, "ValidatorBlockSeal err", err)
-		return err
+	if !v.bc.clusterConfig.Quarkchain.DisbalePowCheck {
+		if err := v.ValidatorSeal(block.Header()); err != nil {
+			log.Error(v.logInfo, "ValidatorBlockSeal err", err)
+			return err
+		}
 	}
 	return nil
 }
@@ -227,6 +245,35 @@ func (v *MinorBlockValidator) validateSeal(header types.IHeader, consensusType s
 	return v.engine.VerifySeal(v.bc, header, diff)
 }
 
+func compareXshardTxCursor(a, b *types.XShardTxCursorInfo) bool {
+	if a.XShardDepositIndex != b.XShardDepositIndex {
+		return false
+	}
+	if a.MinorBlockIndex != b.MinorBlockIndex {
+		return false
+	}
+	if a.RootBlockHeight != b.RootBlockHeight {
+		return false
+	}
+	return true
+}
+
+func compareCoinbaseAmountMap(a, b map[uint64]*big.Int) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for k, v := range a {
+		data, ok := b[k]
+		if !ok {
+			return false
+		}
+		if data.Cmp(v) != 0 {
+			return false
+		}
+	}
+	return true
+}
+
 // ValidateState validates the various changes that happen after a state
 // transition, such as amount of used gas, the receipt roots and the state root
 // itself. ValidateState returns a database batch if the validation was a success
@@ -250,6 +297,11 @@ func (v *MinorBlockValidator) ValidateState(mBlock, parent types.IBlock, statedb
 		return fmt.Errorf("invalid bloom (remote: %x  local: %x)", mHeader.GetBloom(), bloom)
 	}
 
+	if !compareXshardTxCursor(statedb.GetTxCursorInfo(), block.Meta().XShardTxCursorInfo) {
+		return fmt.Errorf("cross-hard transaction cursor info mismatches! %v %v", statedb.GetTxCursorInfo(), block.Meta().XShardTxCursorInfo)
+	}
+
+	receipts = append(receipts, statedb.GetXShardDepositReceipt()...)
 	receiptSha := types.DeriveSha(receipts)
 	if receiptSha != block.GetMetaData().ReceiptHash {
 		return fmt.Errorf("invalid receipt root hash (remote: %x local: %x)", block.GetMetaData().ReceiptHash, receiptSha)
@@ -259,7 +311,7 @@ func (v *MinorBlockValidator) ValidateState(mBlock, parent types.IBlock, statedb
 	}
 	coinbaseAmount := v.bc.getCoinbaseAmount(block.Header().Number)
 	coinbaseAmount.Add(statedb.GetBlockFee())
-	if coinbaseAmount != block.Header().CoinbaseAmount {
+	if !compareCoinbaseAmountMap(coinbaseAmount.BalanceMap, block.Header().CoinbaseAmount.BalanceMap) {
 		return ErrCoinbaseAmount
 	}
 

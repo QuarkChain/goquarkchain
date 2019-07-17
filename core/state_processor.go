@@ -55,30 +55,11 @@ func NewStateProcessor(config *params.ChainConfig, bc *MinorBlockChain, engine c
 // Process returns the receipts and logs accumulated during the process and
 // returns the amount of gas that was used in the process. If any of the
 // transactions failed to execute due to insufficient gas it will return an error.
-func (p *StateProcessor) Process(block *types.MinorBlock, statedb *state.StateDB, cfg vm.Config, evmTxIncluded []*types.Transaction, xShardReceiveTxList []*types.CrossShardTransactionDeposit) (types.Receipts, []*types.Log, uint64, error) {
+func (p *StateProcessor) Process(block *types.MinorBlock, statedb *state.StateDB, cfg vm.Config) (types.Receipts, []*types.Log, uint64, error) {
 	statedb.SetQuarkChainConfig(p.bc.clusterConfig.Quarkchain)
 	statedb.SetBlockCoinbase(block.IHeader().GetCoinbase().Recipient)
 	statedb.SetGasLimit(block.GasLimit())
-	if evmTxIncluded == nil {
-		evmTxIncluded = make([]*types.Transaction, 0)
-	}
-	if xShardReceiveTxList == nil {
-		xShardReceiveTxList = make([]*types.CrossShardTransactionDeposit, 0)
-	}
 
-	rootBlockHeader := p.bc.getRootBlockHeaderByHash(block.Header().GetPrevRootBlockHash())
-	preBlock := p.bc.GetMinorBlock(block.IHeader().GetParentHash())
-	if preBlock == nil {
-		return nil, nil, 0, errors.New("preBlock is nil")
-	}
-
-	preRootHeader := p.bc.getRootBlockHeaderByHash(preBlock.Header().GetPrevRootBlockHash())
-
-	txList, err := p.bc.runCrossShardTxList(statedb, rootBlockHeader, preRootHeader)
-	if err != nil {
-		return nil, nil, 0, err
-	}
-	xShardReceiveTxList = append(xShardReceiveTxList, txList...)
 	var (
 		receipts types.Receipts
 		usedGas  = new(uint64)
@@ -89,7 +70,7 @@ func (p *StateProcessor) Process(block *types.MinorBlock, statedb *state.StateDB
 
 	// Iterate over and process the individual transactions
 	for i, tx := range block.GetTransactions() {
-		evmTx, err := p.bc.validateTx(tx, statedb, nil, nil)
+		evmTx, err := p.bc.validateTx(tx, statedb, nil, nil, block.Meta().XshardGasLimit.Value)
 		if err != nil {
 			return nil, nil, 0, err
 		}

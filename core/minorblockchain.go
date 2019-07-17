@@ -137,6 +137,7 @@ type MinorBlockChain struct {
 	addMinorBlockAndBroad    func(block *types.MinorBlock) error
 	posw                     consensus.SenderDisallowMapBuilder
 	gasLimit                 *big.Int
+	xShardGasLimit           *big.Int
 }
 
 // NewMinorBlockChain returns a fully initialised block chain using information
@@ -205,6 +206,8 @@ func NewMinorBlockChain(
 	if err != nil {
 		return nil, err
 	}
+	bc.xShardGasLimit = new(big.Int).Set(bc.gasLimit)
+	bc.xShardGasLimit = bc.xShardGasLimit.Div(bc.xShardGasLimit, new(big.Int).SetUint64(2))
 	//TODO xShardGasLimit
 	bc.SetValidator(NewBlockValidator(clusterConfig.Quarkchain, bc, engine, bc.branch))
 	bc.SetProcessor(NewStateProcessor(bc.ethChainConfig, bc, engine))
@@ -971,6 +974,11 @@ func (m *MinorBlockChain) WriteBlockWithState(block *types.MinorBlock, receipts 
 	rawdb.WriteReceipts(batch, block.Hash(), receipts)
 
 	if updateTip {
+		senderMap, err := m.posw.BuildSenderDisallowMap(block.Hash(), nil)
+		if err != nil {
+			return NonStatTy, err
+		}
+		state.SetSenderDisallowMap(senderMap)
 		// Reorganise the chain if the parent is not the head block
 		if block.ParentHash() != currentBlock.Hash() {
 			if err := m.reorg(currentBlock, block); err != nil {
@@ -1018,14 +1026,14 @@ func (m *MinorBlockChain) addFutureBlock(block types.IBlock) error {
 // wrong.
 //
 // After insertion is done, all accumulated events will be fired.
-func (m *MinorBlockChain) InsertChain(chain []types.IBlock) (int, error) {
-	n, _, err := m.InsertChainForDeposits(chain)
+func (m *MinorBlockChain) InsertChain(chain []types.IBlock, shipIfTooOld, force, writeDB bool) (int, error) {
+	n, _, err := m.InsertChainForDeposits(chain, shipIfTooOld, force, writeDB)
 	return n, err
 }
 
 // InsertChainForDeposits also return cross-shard transaction deposits in addition
 // to content returned from `InsertChain`.
-func (m *MinorBlockChain) InsertChainForDeposits(chain []types.IBlock) (int, [][]*types.CrossShardTransactionDeposit, error) {
+func (m *MinorBlockChain) InsertChainForDeposits(chain []types.IBlock, shipIfTooOld, force, writeDB bool) (int, [][]*types.CrossShardTransactionDeposit, error) {
 	// Sanity check that we have something meaningful to import
 	if len(chain) == 0 {
 		return 0, nil, nil
@@ -1044,7 +1052,7 @@ func (m *MinorBlockChain) InsertChainForDeposits(chain []types.IBlock) (int, [][
 	// Pre-checks passed, start the full block imports
 	m.wg.Add(1)
 	m.chainmu.Lock()
-	n, events, logs, xShardList, err := m.insertChain(chain, true)
+	n, events, logs, xShardList, err := m.insertChain(chain, true, shipIfTooOld, force, writeDB)
 	m.chainmu.Unlock()
 	m.wg.Done()
 
@@ -1067,9 +1075,8 @@ func (m *MinorBlockChain) InsertChainForDeposits(chain []types.IBlock) (int, [][
 // racey behaviour. If a sidechain import is in progress, and the historic state
 // is imported, but then new canon-head is added before the actual sidechain
 // completes, then the historic state could be pruned again
-func (m *MinorBlockChain) insertChain(chain []types.IBlock, verifySeals bool) (int, []interface{}, []*types.Log, [][]*types.CrossShardTransactionDeposit, error) {
+func (m *MinorBlockChain) insertChain(chain []types.IBlock, verifySeals bool, shipIfTooOld, force, writeDB bool) (int, []interface{}, []*types.Log, [][]*types.CrossShardTransactionDeposit, error) {
 	xShardList := make([][]*types.CrossShardTransactionDeposit, 0)
-	evmTxIncluded := make([]*types.Transaction, 0)
 	// If the chain is terminating, don't even bother starting u
 	if atomic.LoadInt32(&m.procInterrupt) == 1 {
 		return 0, nil, nil, xShardList, nil
@@ -1162,15 +1169,10 @@ func (m *MinorBlockChain) insertChain(chain []types.IBlock, verifySeals bool) (i
 		if qkcCommon.IsNil(parent) {
 			return it.index, events, coalescedLogs, xShardList, err
 		}
-
-		state, err := state.New(parent.(*types.MinorBlock).GetMetaData().Root, m.stateCache)
-		if err != nil {
-			return it.index, events, coalescedLogs, xShardList, err
-		}
 		xShardReceiveTxList := make([]*types.CrossShardTransactionDeposit, 0)
 		// Process block using the parent state as reference point.
 
-		receipts, logs, usedGas, err := m.processor.Process(mBlock, state, m.vmConfig, evmTxIncluded, xShardReceiveTxList)
+		state, receipts, logs, usedGas, err := m.runBlock(mBlock, &xShardReceiveTxList)
 		if err != nil {
 			m.reportBlock(block, receipts, err)
 			return it.index, events, coalescedLogs, xShardList, err
@@ -1182,6 +1184,10 @@ func (m *MinorBlockChain) insertChain(chain []types.IBlock, verifySeals bool) (i
 		}
 		proctime := time.Since(start)
 
+		if !writeDB {
+			xShardList = append(xShardList, state.GetXShardList())
+			return 0, events, coalescedLogs, xShardList, nil
+		}
 		updateTip, err := m.updateTip(state, mBlock)
 		if err != nil {
 			return it.index, events, coalescedLogs, xShardList, err

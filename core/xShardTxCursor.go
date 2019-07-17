@@ -79,7 +79,7 @@ func (x *XShardTxCursor) getCurrentTx() (*types.CrossShardTransactionDeposit, er
 
 func (x *XShardTxCursor) getNextTx() (*types.CrossShardTransactionDeposit, error) {
 	if x.rBlock == nil {
-		return nil, errors.New("rBlock is nil")
+		return nil, nil
 	}
 	x.xShardDepositIndex += 1
 	tx, err := x.getCurrentTx()

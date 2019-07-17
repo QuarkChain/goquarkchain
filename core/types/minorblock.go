@@ -439,7 +439,7 @@ func (m *MinorBlock) Finalize(receipts Receipts, rootHash common.Hash, gasUsed *
 	m.header.Bloom = CreateBloom(receipts)
 	m.hash.Store(m.header.Hash())
 }
-func (h *MinorBlock) CreateBlockToAppend(createTime *uint64, difficulty *big.Int, address *account.Address, nonce *uint64, gasLimit *big.Int, extraData []byte, coinbaseAmount *TokenBalanceMap) *MinorBlock {
+func (h *MinorBlock) CreateBlockToAppend(createTime *uint64, difficulty *big.Int, address *account.Address, nonce *uint64, gasLimit, xShardGasLimit *big.Int, extraData []byte, coinbaseAmount *TokenBalanceMap) *MinorBlock {
 	if createTime == nil {
 		preTime := h.Time() + 1
 		createTime = &preTime
@@ -488,6 +488,7 @@ func (h *MinorBlock) CreateBlockToAppend(createTime *uint64, difficulty *big.Int
 		GasUsed:            &serialize.Uint256{Value: new(big.Int)},
 		CrossShardGasUsed:  &serialize.Uint256{Value: new(big.Int)},
 		XShardTxCursorInfo: h.meta.XShardTxCursorInfo,
+		XshardGasLimit:     &serialize.Uint256{Value: new(big.Int).Set(xShardGasLimit)},
 	}
 	return &MinorBlock{
 		header:       header,

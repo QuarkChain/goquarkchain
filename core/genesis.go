@@ -4,6 +4,7 @@ package core
 import (
 	"fmt"
 	"math/big"
+	"unicode"
 
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
@@ -44,6 +45,7 @@ func (g *Genesis) CreateRootBlock() *types.RootBlock {
 		Time:            genesis.Timestamp,
 		Difficulty:      new(big.Int).SetUint64(genesis.Difficulty),
 		ToTalDifficulty: new(big.Int).SetUint64(genesis.Difficulty),
+		Nonce:           uint64(genesis.Nonce),
 	}
 
 	return types.NewRootBlock(&header, make([]*types.MinorBlockHeader, 0, 0), nil)
@@ -76,7 +78,9 @@ func (g *Genesis) CreateMinorBlock(rootBlock *types.RootBlock, fullShardId uint3
 		recipient := new(common.Address)
 		recipient.SetBytes(addr.Recipient.Bytes())
 		statedb.SetFullShardKey(addr.FullShardKey)
-		statedb.AddBalance(*recipient, balance["QKC"], qkcCommon.TokenIDEncode("QKC")) //TODO-master
+		for k, v := range balance {
+			statedb.AddBalance(*recipient, v, qkcCommon.TokenIDEncode(k))
+		}
 	}
 
 	meta := types.MinorBlockMeta{
@@ -85,10 +89,17 @@ func (g *Genesis) CreateMinorBlock(rootBlock *types.RootBlock, fullShardId uint3
 		ReceiptHash:       common.Hash{},
 		GasUsed:           &serialize.Uint256{Value: new(big.Int)},
 		CrossShardGasUsed: &serialize.Uint256{Value: new(big.Int)},
+		XShardTxCursorInfo: &types.XShardTxCursorInfo{
+			RootBlockHeight:    rootBlock.Header().NumberU64(),
+			MinorBlockIndex:    0,
+			XShardDepositIndex: 0,
+		},
 	}
 
+	one := big.NewRat(1, 1)
+	localFeeRate := one.Sub(one, g.qkcConfig.RewardTaxRate)
 	coinbaseAmountTokens := types.NewTokenBalanceMap()
-	coinbaseAmountTokens.BalanceMap[qkcCommon.TokenIDEncode(g.qkcConfig.GenesisToken)] = qkcCommon.BigIntMulBigRat(shardConfig.CoinbaseAmount, g.qkcConfig.RewardTaxRate)
+	coinbaseAmountTokens.BalanceMap[qkcCommon.TokenIDEncode(g.qkcConfig.GenesisToken)] = qkcCommon.BigIntMulBigRat(shardConfig.CoinbaseAmount, localFeeRate)
 
 	gasLimit := new(serialize.Uint256)
 	gasLimit.Value = new(big.Int).SetUint64(genesis.GasLimit)
