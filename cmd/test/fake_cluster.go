@@ -15,6 +15,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/p2p"
 	"github.com/ethereum/go-ethereum/p2p/enode"
+	"golang.org/x/sync/errgroup"
 	"math/big"
 	"runtime/debug"
 	"strings"
@@ -33,28 +34,6 @@ type clusterNode struct {
 	services  map[string]*service.Node
 }
 
-type Clusterlist []*clusterNode
-
-func (cl Clusterlist) Start() {
-	var started []int
-	for idx, clstr := range cl {
-		if err := clstr.Start(); err != nil {
-			for _, idx := range started {
-				cl[idx].Stop()
-			}
-			utils.Fatalf("failed to start cluster, index: %d: %v", idx, err)
-		}
-		started = append(started, idx)
-	}
-	time.Sleep(3 * time.Second)
-}
-
-func (cl Clusterlist) Stop() {
-	for _, clstr := range cl {
-		clstr.Stop()
-	}
-}
-
 func getClusterConfig(index uint16, geneAcc *account.Account, chainSize,
 shardSize, slaveSize uint32, geneRHeights map[uint32]uint32) *config.ClusterConfig {
 	cfg := config.NewClusterConfig()
@@ -69,10 +48,13 @@ shardSize, slaveSize uint32, geneRHeights map[uint32]uint32) *config.ClusterConf
 	cfg.Quarkchain.Update(chainSize, shardSize, 10, 5)
 	cfg.Quarkchain.Root.GRPCPort += index
 	cfg.Quarkchain.Root.ConsensusConfig.TargetBlockTime = 10
+	cfg.Quarkchain.Root.ConsensusConfig.RemoteMine = true
 	cfg.Quarkchain.Root.ConsensusType = config.PoWSimulate
 	cfg.Quarkchain.Root.DifficultyAdjustmentCutoffTime = 40
 	cfg.Quarkchain.Root.MaxStaleRootBlockHeightDiff = 1024
-	cfg.P2P.PrivKey = privStrs[index]
+	if int(index) < len(privStrs) {
+		cfg.P2P.PrivKey = privStrs[index]
+	}
 	cfg.P2P.BootNodes = bootNode
 
 	fullShardIds := cfg.Quarkchain.GetGenesisShardIds()
@@ -80,8 +62,10 @@ shardSize, slaveSize uint32, geneRHeights map[uint32]uint32) *config.ClusterConf
 		shardCfg := cfg.Quarkchain.GetShardConfigByFullShardID(fullShardId)
 		addr := geneAcc.QKCAddress.AddressInShard(fullShardId)
 		shardCfg.Genesis.Alloc[addr] = big.NewInt(10000000000)
+		shardCfg.Genesis.Difficulty = 10
 		shardCfg.DifficultyAdjustmentCutoffTime = 7
 		shardCfg.DifficultyAdjustmentFactor = 512
+		shardCfg.ConsensusConfig.RemoteMine = true
 		shardCfg.ConsensusType = config.PoWSimulate
 		shardCfg.Genesis.Difficulty = 10
 		shardCfg.PoswConfig.WindowSize = 2
@@ -91,6 +75,10 @@ shardSize, slaveSize uint32, geneRHeights map[uint32]uint32) *config.ClusterConf
 			shardCfg.Genesis.RootHeight = geneRHeights[fullShardId]
 		}
 	}
+	/*for _, fullShardId := range fullShardIds {
+		shardCfg := cfg.Quarkchain.GetShardConfigByFullShardID(fullShardId)
+		fmt.Println("===============", shardCfg.ShardID, shardCfg.Genesis.Difficulty, shardCfg.ConsensusConfig.RemoteMine)
+	}*/
 
 	cfg.SlaveList = make([]*config.SlaveConfig, 0, 1)
 	for i := 0; i < int(slaveSize); i++ {
@@ -111,8 +99,72 @@ shardSize, slaveSize uint32, geneRHeights map[uint32]uint32) *config.ClusterConf
 	cfg.DbPathRoot = ""
 
 	// TODO think about how to use mem db
-	clstrCfgList[index] = cfg
 	return cfg
+}
+
+func fakeClusterNode(clstrNum int, geneAcc *account.Account, chainSize, shardSize, slaveSize uint32,
+	geneRHeights map[uint32]uint32) (*config.ClusterConfig, map[string]*service.Node) {
+	var (
+		nodeList  = make(map[string]*service.Node)
+		clstrCfg  = getClusterConfig(uint16(clstrNum), geneAcc, chainSize, shardSize, slaveSize, geneRHeights)
+		bootNodes = make([]*enode.Node, 0, 0)
+		priv      *ecdsa.PrivateKey
+	)
+
+	urls := strings.Split(fakeBootNode, ",")
+	for idx, url := range urls {
+		if idx >= clstrNum {
+			break
+		}
+		node, err := enode.ParseV4(url)
+		if err != nil {
+			utils.Fatalf("Bootstrap URL invalid", "enode", url, "err", err)
+		}
+		bootNodes = append(bootNodes, node)
+	}
+
+	// slave nodes
+	for idx, slaveCfg := range clstrCfg.SlaveList {
+		var svrCfg = new(service.Config)
+		_ = common.DeepCopy(&svrCfg, defaultNodeConfig())
+		svrCfg.P2P.PrivateKey = priv
+		svrCfg.P2P.BootstrapNodes = bootNodes
+		svrCfg.P2P.ListenAddr = fmt.Sprintf("127.0.0.1:%d", clstrCfg.P2PPort)
+		svrCfg.P2P.MaxPeers = int(clstrCfg.P2P.MaxPeers)
+		svrCfg.IPCPath = ""
+		svrCfg.Name = slaveCfg.ID
+		svrCfg.SvrHost = slaveCfg.IP
+		svrCfg.SvrPort = slaveCfg.Port
+		svrCfg.DataDir = fmt.Sprintf("./data/%s_%d_%d", slaveCfg.ID, clstrNum, idx)
+		node, err := service.New(svrCfg)
+		if err != nil {
+			utils.Fatalf("Failed to create the slave_%s: %v", svrCfg.Name, err)
+		}
+		node.SetIsMaster(false)
+		utils.RegisterSlaveService(node, clstrCfg, slaveCfg)
+		nodeList[svrCfg.Name] = node
+	}
+
+	// master node
+	var svrCfg = new(service.Config)
+	_ = common.DeepCopy(svrCfg, defaultNodeConfig())
+	svrCfg.P2P.PrivateKey = priv
+	svrCfg.P2P.BootstrapNodes = bootNodes
+	svrCfg.P2P.ListenAddr = fmt.Sprintf("127.0.0.1:%d", clstrCfg.P2PPort)
+	svrCfg.P2P.MaxPeers = int(clstrCfg.P2P.MaxPeers)
+	svrCfg.IPCPath = ""
+	svrCfg.Name = clientIdentifier
+	svrCfg.SvrHost = clstrCfg.Quarkchain.Root.GRPCHost
+	svrCfg.SvrPort = clstrCfg.Quarkchain.Root.GRPCPort
+	svrCfg.DataDir = fmt.Sprintf("./data/%s_%d", clientIdentifier, clstrNum)
+	node, err := service.New(svrCfg)
+	if err != nil {
+		utils.Fatalf("Failed to create the master: %v", err)
+	}
+	node.SetIsMaster(true)
+	utils.RegisterMasterService(node, clstrCfg)
+	nodeList[clientIdentifier] = node
+	return clstrCfg, nodeList
 }
 
 func makeClusterNode(index uint16, geneAcc *account.Account, chainSize, shardSize, slaveSize uint32,
@@ -121,11 +173,12 @@ func makeClusterNode(index uint16, geneAcc *account.Account, chainSize, shardSiz
 		nodeList  = make(map[string]*service.Node)
 		clstrCfg  = getClusterConfig(index, geneAcc, chainSize, shardSize, slaveSize, geneRHeights)
 		bootNodes = make([]*enode.Node, 0, 0)
-		priv      *ecdsa.PrivateKey
+		priv      = getPrivKeyByIndex(int(index))
 	)
-	if index == 0 {
-		priv = getPrivKeyByIndex(0)
-	} else if clstrCfg.P2P.BootNodes != "" {
+	/*jsonCfg, _ := json.MarshalIndent(clstrCfg, "", "\t")
+	fmt.Println("--------- cluster config", string(jsonCfg))*/
+
+	if index != 0 && clstrCfg.P2P.BootNodes != "" {
 		urls := strings.Split(clstrCfg.P2P.BootNodes, ",")
 		for _, url := range urls {
 			node, err := enode.ParseV4(url)
@@ -135,19 +188,16 @@ func makeClusterNode(index uint16, geneAcc *account.Account, chainSize, shardSiz
 			bootNodes = append(bootNodes, node)
 		}
 	}
-	serviceCfg := defaultNodeConfig()
-	serviceCfg.IPCPath = ""
-	serviceCfg.P2P.PrivateKey = priv
-	serviceCfg.P2P.BootstrapNodes = bootNodes
-	serviceCfg.P2P.ListenAddr = fmt.Sprintf("127.0.0.1:%d", clstrCfg.P2PPort)
-	serviceCfg.P2P.MaxPeers = int(clstrCfg.P2P.MaxPeers)
-
-	fmt.Println("------------------- service p2p: ", serviceCfg.P2P.ListenAddr)
 
 	// slave nodes
 	for idx, slaveCfg := range clstrCfg.SlaveList {
 		var svrCfg = new(service.Config)
-		_ = common.DeepCopy(&svrCfg, serviceCfg)
+		_ = common.DeepCopy(&svrCfg, defaultNodeConfig())
+		svrCfg.P2P.PrivateKey = priv
+		svrCfg.P2P.BootstrapNodes = bootNodes
+		svrCfg.P2P.ListenAddr = fmt.Sprintf("127.0.0.1:%d", clstrCfg.P2PPort)
+		svrCfg.P2P.MaxPeers = int(clstrCfg.P2P.MaxPeers)
+		svrCfg.IPCPath = ""
 		svrCfg.Name = slaveCfg.ID
 		svrCfg.SvrHost = slaveCfg.IP
 		svrCfg.SvrPort = slaveCfg.Port
@@ -162,12 +212,15 @@ func makeClusterNode(index uint16, geneAcc *account.Account, chainSize, shardSiz
 	}
 
 	// master node
-	var svrCfg = new(service.Config)
-	_ = common.DeepCopy(svrCfg, serviceCfg)
+	var svrCfg = defaultNodeConfig()
+	svrCfg.P2P.PrivateKey = priv
+	svrCfg.P2P.BootstrapNodes = bootNodes
+	svrCfg.P2P.ListenAddr = fmt.Sprintf("127.0.0.1:%d", clstrCfg.P2PPort)
+	svrCfg.P2P.MaxPeers = int(clstrCfg.P2P.MaxPeers)
+	svrCfg.IPCPath = ""
 	svrCfg.Name = clientIdentifier
 	svrCfg.SvrHost = clstrCfg.Quarkchain.Root.GRPCHost
 	svrCfg.SvrPort = clstrCfg.Quarkchain.Root.GRPCPort
-	fmt.Println("---------,, master, grpc: ", svrCfg.SvrHost, svrCfg.SvrPort)
 	svrCfg.DataDir = fmt.Sprintf("./data/%s_%d", clientIdentifier, index)
 	node, err := service.New(svrCfg)
 	if err != nil {
@@ -180,19 +233,33 @@ func makeClusterNode(index uint16, geneAcc *account.Account, chainSize, shardSiz
 }
 
 func CreateClusterList(numCluster int, chainSize, shardSize, slaveSize uint32, geneRHeights map[uint32]uint32) (*account.Account, Clusterlist) {
-	clusterList := make([]*clusterNode, 0, numCluster)
+	clusterList := make([]*clusterNode, numCluster+1, numCluster+1)
 	geneAcc := getAccByIndex(0)
-	for i := 0; i < numCluster; i++ {
-		cfg, nodeList := makeClusterNode(uint16(i), geneAcc, chainSize, shardSize, slaveSize, geneRHeights)
-		clusterList = append(clusterList, &clusterNode{index: numCluster, clstrCfg: cfg, services: nodeList})
+	var g errgroup.Group
+	for i := 0; i <= numCluster; i++ {
+		i := i
+		g.Go(func() error {
+			var (
+				cfg      *config.ClusterConfig
+				nodeList map[string]*service.Node
+			)
+			if i < numCluster {
+				cfg, nodeList = makeClusterNode(uint16(i), geneAcc, chainSize, shardSize, slaveSize, geneRHeights)
+			} else {
+				cfg, nodeList = fakeClusterNode(numCluster, geneAcc, chainSize, shardSize, slaveSize, nil)
+			}
+			clusterList[i] = &clusterNode{index: i, clstrCfg: cfg, services: nodeList}
+			return nil
+		})
 	}
+	defer g.Wait()
 	return geneAcc, clusterList
 }
 
 func (c *clusterNode) Stop() {
-	if err := c.services[clientIdentifier].Stop(); err != nil {
+	/*if err := c.services[clientIdentifier].Stop(); err != nil {
 		utils.Fatalf("Failed to stop %s: %v", clientIdentifier, err)
-	}
+	}*/
 	for key, node := range c.services {
 		if key != clientIdentifier {
 			if err := node.Stop(); err != nil {
@@ -203,29 +270,47 @@ func (c *clusterNode) Stop() {
 }
 
 func (c *clusterNode) Start() (err error) {
-	var started []*service.Node
+	var (
+		started = make([]*service.Node, len(c.services), len(c.services))
+		g       errgroup.Group
+		idx     int
+	)
+
 	for key, node := range c.services {
 		if key == clientIdentifier {
 			continue
 		}
-		if err = node.Start(); err != nil {
-			utils.Fatalf("failed to start %s: %v", key, err)
-			for _, nd := range started {
-				if er := nd.Stop(); er != nil {
-					utils.Fatalf("failed to stop slave, when can't start %s: %v", key, er)
+		node := node
+		i := idx
+		g.Go(func() error {
+			err := node.Start()
+			if err == nil {
+				started[i] = node
+			}
+			return err
+		})
+		idx++
+	}
+
+	stop := func() {
+		for _, nd := range started {
+			if nd != nil {
+				if err := nd.Stop(); err != nil {
+					fmt.Println("failed to stop slave", "err", err)
 				}
 			}
-			break
-		}
-		started = append(started, node)
-	}
-	if err = c.services[clientIdentifier].Start(); err != nil {
-		for _, nd := range started {
-			if err := nd.Stop(); err != nil {
-				utils.Fatalf("failed to stop master, when can't start %s: %v", clientIdentifier, err)
-			}
 		}
 	}
+	if err = g.Wait(); err != nil {
+		stop()
+		return
+	} else {
+		if err = c.services[clientIdentifier].Start(); err != nil {
+			stop()
+			return
+		}
+	}
+
 	mstr := c.GetMaster()
 	return mstr.Start()
 }
@@ -320,7 +405,7 @@ func (c *clusterNode) CreateAndInsertBlocks(fullShards []uint32, seconds time.Du
 
 	return
 FAILED:
-	utils.Fatalf("failed to create and add root/minor block", "err", err)
+	utils.Fatalf("failed to create and add root/minor block, err: %v", err)
 	return
 }
 
@@ -332,22 +417,4 @@ func (c *clusterNode) getProtocol() *p2p.Protocol {
 
 func (c *clusterNode) getP2PServer() *p2p.Server {
 	return c.services[clientIdentifier].Server()
-}
-
-func (c *clusterNode) GetPeer() {
-	node := c.createNode()
-	fmt.Println("-----------,, node id: ", node.ID().String())
-	p2pSvr := c.getP2PServer()
-	peers := p2pSvr.Peers()
-	for _, pr := range peers {
-		fmt.Println("++++++++++++", pr.ID().String(), pr.Node().String())
-	}
-
-	/*fd, err := p2pSvr.Dialer.Dial(node)
-	if err != nil {
-		utils.Fatalf("failed to dial in p2p server", "err", err)
-	}
-	if err = p2pSvr.SetupConn(fd, 4, node); err != nil {
-		utils.Fatalf("failed to setup p2p conn", "err", err)
-	}*/
 }

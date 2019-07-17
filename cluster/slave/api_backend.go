@@ -50,7 +50,6 @@ func (s *SlaveBackend) CreateShards(rootBlock *types.RootBlock, forceInit bool) 
 	var g errgroup.Group
 	for _, id := range fullShardList {
 		id := id
-
 		if shd, ok := s.shards[id]; ok {
 			if forceInit {
 				if err := shd.InitFromRootBlock(rootBlock); err != nil {

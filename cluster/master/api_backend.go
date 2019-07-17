@@ -25,7 +25,11 @@ func ip2uint32(ip string) uint32 {
 	return long
 }
 
-func (s *QKCMasterBackend) GetPeers() []rpc.PeerInfoForDisPlay {
+func (s *QKCMasterBackend) GetPeerList() []*Peer {
+	return s.protocolManager.peers.Peers()
+}
+
+func (s *QKCMasterBackend) GetPeerInfolist() []rpc.PeerInfoForDisPlay {
 	peers := s.protocolManager.peers.Peers() //TODO use real peerList
 	result := make([]rpc.PeerInfoForDisPlay, 0)
 	for k := range peers {
@@ -40,7 +44,6 @@ func (s *QKCMasterBackend) GetPeers() []rpc.PeerInfoForDisPlay {
 		result = append(result, temp)
 	}
 	return result
-
 }
 
 func (s *QKCMasterBackend) AddTransaction(tx *types.Transaction) error {

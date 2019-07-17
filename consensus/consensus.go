@@ -279,6 +279,7 @@ func (c *CommonEngine) Seal(
 		c.SetWork(block, diff, results)
 		return nil
 	}
+	fmt.Println("============ is Remote: ", c.isRemote)
 	return c.localSeal(block, diff, results, stop)
 }
 
@@ -417,6 +418,7 @@ func (c *CommonEngine) SetThreads(threads int) {
 
 func (c *CommonEngine) SetWork(block types.IBlock, diff *big.Int, results chan<- types.IBlock) {
 	c.workCh <- &sealTask{block, diff, results}
+	fmt.Println("---------- remote work")
 }
 
 func (c *CommonEngine) Close() error {

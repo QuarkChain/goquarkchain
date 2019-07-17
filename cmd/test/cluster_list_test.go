@@ -1,6 +1,7 @@
 package test
 
 import (
+	"fmt"
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/shard"
 	"github.com/QuarkChain/goquarkchain/cmd/utils"
@@ -29,12 +30,116 @@ func assertTrueWithTimeout(f func() bool, duration int64) bool {
 
 func TestSingleCluster(t *testing.T) {
 	_, clstrList := CreateClusterList(1, 1, 1, 1, nil)
-	assert.Equal(t, len(clstrList), 1)
+	assert.Equal(t, len(clstrList)-1, 1)
 }
 
 func TestThreeClusters(t *testing.T) {
 	_, clstrList := CreateClusterList(3, 1, 1, 1, nil)
-	assert.Equal(t, len(clstrList), 3)
+	assert.Equal(t, len(clstrList)-1, 3)
+}
+
+func TestShardGenesisForkFork(t *testing.T) {
+	var (
+		shardSize    uint32 = 2
+		id0                 = uint32(0<<16 | shardSize | 0)
+		id1                 = uint32(0<<16 | shardSize | 1)
+		geneRHeights        = map[uint32]uint32{
+			id0: 0,
+			id1: 1,
+		}
+		mHeader0, mHeader1 *types.MinorBlockHeader
+	)
+	_, clstrList := CreateClusterList(2, 1, shardSize, 1, geneRHeights)
+	clstrList.Start(5 * time.Second)
+	defer clstrList.Stop()
+
+	root0 := clstrList[0].CreateAndInsertBlocks([]uint32{id0}, 3)
+	assert.Equal(t, assertTrueWithTimeout(func() bool {
+		genesis0 := clstrList[0].GetShard(id1).MinorBlockChain.GetBlockByNumber(0)
+		if root0 == nil || common.IsNil(genesis0) {
+			return false
+		}
+		mHeader0 = genesis0.IHeader().(*types.MinorBlockHeader)
+		return root0.Hash() == mHeader0.PrevRootBlockHash
+	}, 1), true)
+
+	// root1 := clstrList[1].CreateAndInsertBlocks([]uint32{id0, id1}, 3)
+	assert.Equal(t, assertTrueWithTimeout(func() bool {
+		rootHeight := uint64(1)
+		root1, _ := clstrList[1].GetMaster().GetRootBlockByNumber(&rootHeight)
+		genesis1 := clstrList[1].GetShard(id1).MinorBlockChain.GetBlockByNumber(0)
+		if root1 == nil || common.IsNil(genesis1) {
+			return false
+		}
+		mHeader1 = genesis1.IHeader().(*types.MinorBlockHeader)
+		return root1.Hash() == mHeader1.PrevRootBlockHash
+	}, 10), true)
+
+	assert.Equal(t, mHeader0.Hash() == mHeader1.Hash(), true)
+
+	root2 := clstrList[1].CreateAndInsertBlocks([]uint32{id0, id1}, 3)
+	// after minered check roottip
+	assert.Equal(t, assertTrueWithTimeout(func() bool {
+		return clstrList[1].GetMaster().GetCurrRootHeader().Number == uint32(2)
+	}, 1), true)
+
+	// check the two cluster genesis root hash is the same
+	assert.Equal(t, assertTrueWithTimeout(func() bool {
+		iBlock := clstrList[0].GetShard(id1).MinorBlockChain.GetBlockByNumber(0)
+		if common.IsNil(iBlock) {
+			return false
+		}
+		mHeader := iBlock.IHeader().(*types.MinorBlockHeader)
+		return mHeader.Hash() == mHeader1.Hash()
+	}, 1), true)
+
+	assert.Equal(t, assertTrueWithTimeout(func() bool {
+		mHeaderTip := clstrList[0].GetShard(id1).MinorBlockChain.GetRootTip()
+		return mHeaderTip.Hash() == root2.Hash()
+	}, 10), true)
+}
+
+func TestGetMinorBlockHeadersWithSkip(t *testing.T) {
+	var (
+		numCluster                  = 2
+		chainSize, shardSize uint32 = 1, 2
+	)
+	_, clstrList := CreateClusterList(numCluster, chainSize, shardSize, chainSize, nil)
+	clstrList.Start(5 * time.Second)
+	defer clstrList.Stop()
+	// clstrList.PeerList()
+
+	var (
+		id0       = uint32(0<<16 | shardSize | 0)
+		peer1     = clstrList.GetPeerByIndex(1)
+		mBHeaders = make([]*types.MinorBlockHeader, 0, 10)
+	)
+
+	for i := 0; i < 3; i++ {
+		iBlock, _, err := clstrList[0].GetShard(id0).CreateBlockToMine()
+		if err != nil {
+			t.Errorf("failed to create block, fullShardId: %d, err: %v", id0, err)
+		}
+		mBlock := iBlock.(*types.MinorBlock)
+		if err := clstrList[0].GetShard(id0).InsertMinedBlock(iBlock); err != nil {
+			t.Errorf("failed to insert minered block, fullShardId:%d, err: %v", id0, err)
+		}
+		mBHeaders = append(mBHeaders, mBlock.Header())
+	}
+	assert.Equal(t, mBHeaders[len(mBHeaders)-1].Number, uint64(3))
+
+	clstrList[0].CreateAndInsertBlocks(nil, 6)
+
+	// TODO reverse == false can't use.
+	// TODO skip parameter need to be added.
+	mHeaders, err := peer1.GetMinorBlockHeaderList(mBHeaders[2].Hash(), 3, id0, true)
+	if err != nil {
+		t.Errorf("failed to get minor block header list by peer, err: %v", err)
+	}
+	assert.Equal(t, len(mHeaders), 3)
+	assert.Equal(t, mHeaders[2].Hash(), mBHeaders[0].Hash())
+	assert.Equal(t, mHeaders[1].Hash(), mBHeaders[1].Hash())
+	assert.Equal(t, mHeaders[0].Hash(), mBHeaders[2].Hash())
 }
 
 func TestCreateShardAtDifferentHeight(t *testing.T) {
@@ -51,7 +156,7 @@ func TestCreateShardAtDifferentHeight(t *testing.T) {
 	)
 
 	_, clstrList := CreateClusterList(1, 2, shardSize, 1, geneRHeights)
-	clstrList.Start()
+	clstrList.Start(0)
 	defer clstrList.Stop()
 
 	rBlock := clstrList[0].CreateAndInsertBlocks([]uint32{id2, id3}, 0)
@@ -79,7 +184,7 @@ func TestCreateShardAtDifferentHeight(t *testing.T) {
 func TestGetPrimaryAccountData(t *testing.T) {
 	geneAcc, clstrList := CreateClusterList(1, 1, 2, 2, nil)
 	fullShardId, _ := geneAcc.QKCAddress.GetFullShardID(2)
-	clstrList.Start()
+	clstrList.Start(0)
 	defer clstrList.Stop()
 
 	mstr := clstrList[0].GetMaster()
@@ -111,12 +216,8 @@ func TestGetPrimaryAccountData(t *testing.T) {
 func TestAddTransaction(t *testing.T) {
 	var shardSize uint32 = 2
 	geneAcc, clstrList := CreateClusterList(2, 1, shardSize, 1, nil)
-	clstrList.Start()
+	clstrList.Start(5 * time.Second)
 	defer clstrList.Stop()
-
-	clstrList[0].GetPeer()
-
-	time.Sleep(10 * time.Second)
 
 	var (
 		id0            = uint32(0<<16 | shardSize | 0)
@@ -196,7 +297,7 @@ func TestAddTransaction(t *testing.T) {
 func TestAddMinorBlockRequestList(t *testing.T) {
 	var shardSize uint32 = 2
 	_, clstrList := CreateClusterList(2, 1, shardSize, 1, nil)
-	clstrList.Start()
+	clstrList.Start(5 * time.Second)
 	defer clstrList.Stop()
 
 	var (
@@ -238,7 +339,7 @@ func TestAddRootBlockRequestList(t *testing.T) {
 	// fullShardId, _ := geneAcc.QKCAddress.GetFullShardID(2)
 	var shardSIze uint32 = 2
 	geneAcc, clstrList := CreateClusterList(2, 1, shardSIze, 1, nil)
-	clstrList.Start()
+	clstrList.Start(5 * time.Second)
 	defer clstrList.Stop()
 
 	var (
@@ -298,7 +399,7 @@ func TestAddRootBlockRequestList(t *testing.T) {
 
 func TestGetRootBlockHeaderSyncWithFork(t *testing.T) {
 	_, clstrList := CreateClusterList(2, 1, 1, 1, nil)
-	clstrList.Start()
+	clstrList.Start(5 * time.Second)
 	defer clstrList.Stop()
 
 	var (
@@ -317,6 +418,8 @@ func TestGetRootBlockHeaderSyncWithFork(t *testing.T) {
 		}
 		rootBlockList = append(rootBlockList, rBlock)
 	}
+	clstrList[0].CreateAndInsertBlocks(nil, 10)
+
 	for i := 0; i < 2; i++ {
 		if err := mstr1.AddRootBlock(rootBlockList[i]); err != nil {
 			assert.Error(t, err)
@@ -334,67 +437,6 @@ func TestGetRootBlockHeaderSyncWithFork(t *testing.T) {
 	}
 }
 
-func TestShardGenesisForkFork(t *testing.T) {
-	var (
-		shardSize    uint32 = 2
-		id0                 = uint32(0<<16 | shardSize | 0)
-		id1                 = uint32(0<<16 | shardSize | 1)
-		geneRHeights        = map[uint32]uint32{
-			id0: 0,
-			id1: 1,
-		}
-		mHeader0, mHeader1 *types.MinorBlockHeader
-	)
-	_, clstrList := CreateClusterList(2, 1, shardSize, 1, geneRHeights)
-	clstrList.Start()
-	defer clstrList.Stop()
-
-	root0 := clstrList[0].CreateAndInsertBlocks([]uint32{id0}, 3)
-	assert.Equal(t, assertTrueWithTimeout(func() bool {
-		genesis0 := clstrList[0].GetShard(id1).MinorBlockChain.GetBlockByNumber(0)
-		if root0 == nil || common.IsNil(genesis0) {
-			return false
-		}
-		mHeader0 = genesis0.IHeader().(*types.MinorBlockHeader)
-		return root0.Hash() == mHeader0.PrevRootBlockHash
-	}, 1), true)
-
-	// root1 := clstrList[1].CreateAndInsertBlocks([]uint32{id0, id1}, 3)
-	assert.Equal(t, assertTrueWithTimeout(func() bool {
-		rootHeight := uint64(1)
-		root1, _ := clstrList[1].GetMaster().GetRootBlockByNumber(&rootHeight)
-		genesis1 := clstrList[1].GetShard(id1).MinorBlockChain.GetBlockByNumber(0)
-		if root1 == nil || common.IsNil(genesis1) {
-			return false
-		}
-		mHeader1 = genesis1.IHeader().(*types.MinorBlockHeader)
-		return root1.Hash() == mHeader1.PrevRootBlockHash
-	}, 10), true)
-
-	assert.Equal(t, mHeader0.Hash() == mHeader1.Hash(), true)
-
-	root2 := clstrList[1].CreateAndInsertBlocks([]uint32{id0, id1}, 3)
-	// after minered check roottip
-	assert.Equal(t, assertTrueWithTimeout(func() bool {
-		return clstrList[1].GetMaster().GetCurrRootHeader().Number == uint32(2)
-	}, 1), true)
-
-	// check the two cluster genesis root hash is the same
-	assert.Equal(t, assertTrueWithTimeout(func() bool {
-		iBlock := clstrList[0].GetShard(id1).MinorBlockChain.GetBlockByNumber(0)
-		if common.IsNil(iBlock) {
-			return false
-		}
-		mHeader := iBlock.IHeader().(*types.MinorBlockHeader)
-		return mHeader.Hash() == mHeader1.Hash()
-	}, 1), true)
-
-	assert.Equal(t, assertTrueWithTimeout(func() bool {
-		mHeaderTip := clstrList[0].GetShard(id1).MinorBlockChain.GetRootTip()
-		return mHeaderTip.Hash() == root2.Hash()
-	}, 10), true)
-}
-
 func TestBroadcastCrossShardTransactions(t *testing.T) {
 	var (
 		chainSize uint32 = 2
@@ -403,7 +445,7 @@ func TestBroadcastCrossShardTransactions(t *testing.T) {
 		//id1              = uint32(0<<16 | shardSize | 1)
 	)
 	_, clstrList := CreateClusterList(1, chainSize, shardSize, chainSize, nil)
-	clstrList.Start()
+	clstrList.Start(0)
 	defer clstrList.Stop()
 	// root := clstrList[0].CreateAndInsertBlocks([]uint32{id0, id1}, 3)
 }
@@ -412,15 +454,28 @@ func TestGetWorkFromSlave(t *testing.T) {
 	var (
 		chainSize uint32 = 2
 		shardSize uint32 = 2
-		//id0              = uint32(0<<16 | shardSize | 0)
-		//id1              = uint32(0<<16 | shardSize | 1)
+		id0              = uint32(0<<16 | shardSize | 0)
+		// id1              = uint32(0<<16 | shardSize | 1)
 	)
-	_, clstrList := CreateClusterList(2, chainSize, shardSize, chainSize, nil)
-	clstrList.Start()
+	_, clstrList := CreateClusterList(1, chainSize, shardSize, chainSize, nil)
+	clstrList.Start(5 * time.Second)
 	defer clstrList.Stop()
+	var (
+		slave = clstrList[0].GetSlavelist()[0]
+		mstr  = clstrList[0].GetMaster()
+	)
+	slave.SetMining(true)
 
-	mstr0 := clstrList[0].GetMaster()
-	mstr0.GetCurrRootHeader()
+	assert.Equal(t, assertTrueWithTimeout(func() bool {
+		work, err := mstr.GetWork(account.NewBranch(id0))
+		if err != nil {
+			t.Log("failed to get work from slave", "slave id", slave.GetConfig().ID)
+			return false
+		}
+		fmt.Println(work.Number, work.Difficulty.Uint64())
+		return work.Difficulty.Uint64() == uint64(10)
+	}, 3), true)
+	// TODO need to change remote type test.
 }
 
 func TestShardSynchronizerWithFork(t *testing.T) {}
@@ -444,19 +499,3 @@ func TestGetRootBlockHeaderSyncWithMultipleLookup(t *testing.T) {}
 func TestGetRootBlockHeaderSyncWithStartEqualEnd(t *testing.T) {}
 
 func TestGetRootBlockHeaderSyncWithBestAncestor(t *testing.T) {}
-
-func TestGetMinorBlockHeadersWithSkip(t *testing.T) {
-	var (
-		numCluster                  = 2
-		chainSize, shardSize uint32 = 2, 2
-		//id0                         = uint32(0<<16 | shardSize | 0)
-		//id1                         = uint32(0<<16 | shardSize | 1)
-	)
-	_, clstrList := CreateClusterList(numCluster, chainSize, shardSize, chainSize, nil)
-	clstrList.Start()
-	defer clstrList.Stop()
-
-	for _, clstr := range clstrList {
-		clstr.GetPeer()
-	}
-}

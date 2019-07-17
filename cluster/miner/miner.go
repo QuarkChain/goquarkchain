@@ -108,6 +108,7 @@ func (m *Miner) mainLoop() {
 			m.commit()
 
 		case work := <-m.workCh:
+			fmt.Println("--------------- start create unminered block", work.block.NumberU64())
 			log.Info(m.logInfo, "ready to seal height", work.block.NumberU64())
 			if err := m.engine.Seal(nil, work.block, work.adjustedDifficuty, m.resultCh, m.stopCh); err != nil {
 				log.Error(m.logInfo, "Seal block to mine err", err)
