@@ -29,17 +29,25 @@ func NewTokenBalanceMap() *TokenBalanceMap {
 }
 func (t *TokenBalanceMap) Add(other map[uint64]*big.Int) {
 	for k, v := range other {
-		prevAmount := new(big.Int)
 		if data, ok := t.BalanceMap[k]; ok {
-			prevAmount = prevAmount.Add(prevAmount, data)
+			t.BalanceMap[k] = new(big.Int).Add(v, data)
+		} else {
+			t.BalanceMap[k] = new(big.Int).Set(v)
 		}
-		prevAmount = prevAmount.Add(prevAmount, v)
-		t.BalanceMap[k] = prevAmount
 	}
 }
 
 func (t *TokenBalanceMap) GetDefaultTokenBalance() *big.Int {
 	return new(big.Int).Set(t.BalanceMap[common.TokenIDEncode("QKC")])
+}
+
+func (t *TokenBalanceMap) Copy() *TokenBalanceMap {
+	data := NewTokenBalanceMap()
+	data.BalanceMap = make(map[uint64]*big.Int)
+	for k, v := range t.BalanceMap {
+		data.BalanceMap[k] = v
+	}
+	return data
 }
 
 func (t *TokenBalanceMap) Serialize(w *[]byte) error {
@@ -58,9 +66,6 @@ func (t *TokenBalanceMap) Serialize(w *[]byte) error {
 	}
 	for _, key := range keys {
 		v := t.BalanceMap[key]
-		if v.Cmp(ethCommon.Big0) == 0 {
-			continue
-		}
 		if err := serialize.Serialize(w, new(big.Int).SetUint64(key)); err != nil {
 			return err
 		}
@@ -83,6 +88,7 @@ func (t *TokenBalanceMap) Deserialize(bb *serialize.ByteBuffer) error {
 			return err
 		}
 		v := new(big.Int)
+
 		if err := serialize.Deserialize(bb, v); err != nil {
 			return err
 		}

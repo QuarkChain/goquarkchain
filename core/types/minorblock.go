@@ -71,9 +71,14 @@ func (h *MinorBlockHeader) GetParentHash() common.Hash        { return h.ParentH
 func (h *MinorBlockHeader) GetPrevRootBlockHash() common.Hash { return h.PrevRootBlockHash }
 func (h *MinorBlockHeader) GetCoinbase() account.Address      { return h.Coinbase }
 
-/*func (h *MinorBlockHeader) GetCoinbaseAmount() *big.Int {
-	return h.CoinbaseAmount.Value
-}*/
+func (h *MinorBlockHeader) GetCoinbaseAmount() *TokenBalanceMap {
+	if h.CoinbaseAmount != nil && h.CoinbaseAmount.BalanceMap != nil {
+		return h.CoinbaseAmount.Copy()
+	}
+	return &TokenBalanceMap{
+		BalanceMap: map[uint64]*big.Int{},
+	}
+}
 func (h *MinorBlockHeader) GetTime() uint64              { return h.Time }
 func (h *MinorBlockHeader) GetDifficulty() *big.Int      { return new(big.Int).Set(h.Difficulty) }
 func (h *MinorBlockHeader) GetTotalDifficulty() *big.Int { panic(-1) }
@@ -225,10 +230,8 @@ func CopyMinorBlockHeader(h *MinorBlockHeader) *MinorBlockHeader {
 	if cpy.Difficulty = new(big.Int); h.Difficulty != nil {
 		cpy.Difficulty.Set(h.Difficulty)
 	}
-	if cpy.CoinbaseAmount = NewTokenBalanceMap(); h.CoinbaseAmount != nil && h.CoinbaseAmount.BalanceMap != nil {
-		for k, v := range h.CoinbaseAmount.BalanceMap {
-			cpy.CoinbaseAmount.BalanceMap[k] = v
-		}
+	if h.CoinbaseAmount != nil && h.CoinbaseAmount.BalanceMap != nil {
+		cpy.CoinbaseAmount = h.CoinbaseAmount.Copy()
 	}
 	if cpy.GasLimit = new(serialize.Uint256); h.GasLimit != nil && h.GasLimit.Value != nil {
 		cpy.GasLimit.Value = new(big.Int).Set(h.GasLimit.Value)
@@ -294,20 +297,10 @@ func (b *MinorBlock) Transaction(hash common.Hash) *Transaction {
 func (b *MinorBlock) TrackingData() []byte { return b.trackingdata }
 
 //header properties
-func (b *MinorBlock) Version() uint32           { return b.header.Version }
-func (b *MinorBlock) Branch() account.Branch    { return b.header.Branch }
-func (b *MinorBlock) Number() uint64            { return b.header.Number }
-func (b *MinorBlock) Coinbase() account.Address { return b.header.Coinbase }
-func (b *MinorBlock) CoinbaseAmount() *TokenBalanceMap {
-	if b.header.CoinbaseAmount != nil && b.header.CoinbaseAmount.BalanceMap != nil {
-		return &TokenBalanceMap{
-			BalanceMap: map[uint64]*big.Int(b.header.CoinbaseAmount.BalanceMap),
-		}
-	}
-	return &TokenBalanceMap{
-		BalanceMap: map[uint64]*big.Int{},
-	}
-}
+func (b *MinorBlock) Version() uint32                { return b.header.Version }
+func (b *MinorBlock) Branch() account.Branch         { return b.header.Branch }
+func (b *MinorBlock) Number() uint64                 { return b.header.Number }
+func (b *MinorBlock) Coinbase() account.Address      { return b.header.Coinbase }
 func (b *MinorBlock) ParentHash() common.Hash        { return b.header.ParentHash }
 func (b *MinorBlock) PrevRootBlockHash() common.Hash { return b.header.PrevRootBlockHash }
 func (b *MinorBlock) GasLimit() *big.Int             { return new(big.Int).Set(b.header.GasLimit.Value) }

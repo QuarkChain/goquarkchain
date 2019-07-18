@@ -22,12 +22,12 @@ type RootBlockHeader struct {
 	Number          uint32           `json:"number"           gencodec:"required"`
 	ParentHash      common.Hash      `json:"parentHash"       gencodec:"required"`
 	MinorHeaderHash common.Hash      `json:"transactionsRoot" gencodec:"required"`
-	Root            common.Hash      `json:"root" gencodec:"required"`
+	Root            common.Hash      `json:"root"             gencodec:"required"`
 	Coinbase        account.Address  `json:"miner"            gencodec:"required"`
 	CoinbaseAmount  *TokenBalanceMap `json:"coinbaseAmount"   gencodec:"required"`
 	Time            uint64           `json:"timestamp"        gencodec:"required"`
 	Difficulty      *big.Int         `json:"difficulty"       gencodec:"required"`
-	ToTalDifficulty *big.Int         `json:"total_difficulty"       gencodec:"required"`
+	ToTalDifficulty *big.Int         `json:"total_difficulty" gencodec:"required"`
 	Nonce           uint64           `json:"nonce"`
 	Extra           []byte           `json:"extraData"        gencodec:"required"   bytesizeofslicelen:"2"`
 	MixDigest       common.Hash      `json:"mixHash"`
@@ -68,7 +68,6 @@ func (h *RootBlockHeader) SignWithPrivateKey(prv *ecdsa.PrivateKey) error {
 func (h *RootBlockHeader) GetParentHash() common.Hash   { return h.ParentHash }
 func (h *RootBlockHeader) GetCoinbase() account.Address { return h.Coinbase }
 
-//func (h *RootBlockHeader) GetCoinbaseAmount() *big.Int  { return h.CoinbaseAmount.Value }
 func (h *RootBlockHeader) GetTime() uint64              { return h.Time }
 func (h *RootBlockHeader) GetDifficulty() *big.Int      { return new(big.Int).Set(h.Difficulty) }
 func (h *RootBlockHeader) GetTotalDifficulty() *big.Int { return new(big.Int).Set(h.ToTalDifficulty) }
@@ -79,6 +78,16 @@ func (h *RootBlockHeader) GetExtra() []byte {
 	}
 	return nil
 }
+
+func (b *RootBlockHeader) GetCoinbaseAmount() *TokenBalanceMap {
+	if b.CoinbaseAmount != nil && b.CoinbaseAmount.BalanceMap != nil {
+		return &TokenBalanceMap{
+			BalanceMap: map[uint64]*big.Int(b.CoinbaseAmount.BalanceMap),
+		}
+	}
+	return NewTokenBalanceMap()
+}
+
 func (h *RootBlockHeader) GetMixDigest() common.Hash { return h.MixDigest }
 
 func (h *RootBlockHeader) NumberU64() uint64 { return uint64(h.Number) }
@@ -210,10 +219,8 @@ func NewRootBlockWithHeader(header *RootBlockHeader) *RootBlock {
 // modifying a header variable.
 func CopyRootBlockHeader(h *RootBlockHeader) *RootBlockHeader {
 	cpy := *h
-	if cpy.CoinbaseAmount = NewTokenBalanceMap(); h.CoinbaseAmount != nil && h.CoinbaseAmount.BalanceMap != nil {
-		for k, v := range h.CoinbaseAmount.BalanceMap {
-			cpy.CoinbaseAmount.BalanceMap[k] = v
-		}
+	if h.CoinbaseAmount != nil && h.CoinbaseAmount.BalanceMap != nil {
+		cpy.CoinbaseAmount = h.CoinbaseAmount.Copy()
 	}
 	if cpy.Difficulty = new(big.Int); h.Difficulty != nil {
 		cpy.Difficulty.Set(h.Difficulty)
@@ -276,14 +283,7 @@ func (b *RootBlock) NumberU64() uint64            { return uint64(b.header.Numbe
 func (b *RootBlock) ParentHash() common.Hash      { return b.header.ParentHash }
 func (b *RootBlock) MinorHeaderHash() common.Hash { return b.header.MinorHeaderHash }
 func (b *RootBlock) Coinbase() account.Address    { return b.header.Coinbase }
-func (b *RootBlock) CoinbaseAmount() *TokenBalanceMap {
-	if b.header.CoinbaseAmount != nil && b.header.CoinbaseAmount.BalanceMap != nil {
-		return &TokenBalanceMap{
-			BalanceMap: map[uint64]*big.Int(b.header.CoinbaseAmount.BalanceMap),
-		}
-	}
-	return NewTokenBalanceMap()
-}
+
 func (b *RootBlock) Time() uint64              { return b.header.Time }
 func (b *RootBlock) Difficulty() *big.Int      { return new(big.Int).Set(b.header.Difficulty) }
 func (b *RootBlock) TotalDifficulty() *big.Int { return new(big.Int).Set(b.header.ToTalDifficulty) }
@@ -381,6 +381,7 @@ func (b *RootBlock) Finalize(coinbaseAmount *TokenBalanceMap, coinbaseAddress *a
 	} else {
 		b.header.Root = EmptyTrieHash
 	}
+	b.hash.Store(b.header.Hash())
 	return b
 }
 func (b *RootBlock) AddMinorBlockHeader(header *MinorBlockHeader) {

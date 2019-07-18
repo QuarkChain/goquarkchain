@@ -29,7 +29,7 @@ func TokenIDEncode(str string) uint64 {
 }
 
 func TokenIdDecode(id uint64) (string, error) {
-	if !(id >= 0 && id <= TOKENIDMAX) {
+	if id > TOKENIDMAX {
 		return "", errors.New("it too big or negative")
 	}
 	name := make([]byte, 0)

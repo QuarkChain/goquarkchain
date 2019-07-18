@@ -855,6 +855,7 @@ func (m *MinorBlockChain) CreateBlockToMine(createTime *uint64, address *account
 	pureCoinbaseAmount := m.getCoinbaseAmount()
 	evmState.AddBalance(evmState.GetBlockCoinbase(), pureCoinbaseAmount)
 	coinbaseAmount := new(big.Int).Add(pureCoinbaseAmount, evmState.GetBlockFee())
+	//TODO-master
 	temp := types.NewTokenBalanceMap()
 	temp.BalanceMap[qkcCommon.TokenIDEncode("QKC")] = coinbaseAmount
 	newBlock.Finalize(recipiets, evmState.IntermediateRoot(true), evmState.GetGasUsed(), evmState.GetXShardReceiveGasUsed(), temp, &types.XShardTxCursorInfo{})
