@@ -77,11 +77,11 @@ func (v *RootBlockValidator) ValidateBlock(block types.IBlock) error {
 
 	if !v.config.SkipRootCoinbaseCheck {
 		coinbaseAmount := v.blockChain.CalculateRootBlockCoinBase(rootBlock)
-		if coinbaseAmount.Cmp(rootBlock.CoinbaseAmount().BalanceMap[qkcCommon.TokenIDEncode("QKC")]) != 0 {
+		if coinbaseAmount.Cmp(rootBlock.Header().GetCoinbaseAmount().BalanceMap[qkcCommon.TokenIDEncode("QKC")]) != 0 {
 			return fmt.Errorf("bad coinbase amount for root block %v. expect %d but got %d.",
 				rootBlock.Hash().String(),
 				coinbaseAmount,
-				rootBlock.CoinbaseAmount())
+				rootBlock.Header().GetCoinbaseAmount())
 		}
 	}
 

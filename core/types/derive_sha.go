@@ -49,7 +49,7 @@ func CalculateMerkleRoot(list interface{}) (h common.Hash) {
 	}
 	zBytes := common.Hash{}
 	for len(hashList) != 1 {
-		tempList := make([]common.Hash, 0)
+		tempList := make([]common.Hash, 0, (len(hashList)+1)/2)
 		length := len(hashList)
 		if length%2 == 1 {
 			hashList = append(hashList, zBytes)
