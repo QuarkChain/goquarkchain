@@ -1,4 +1,3 @@
-// +build framework
 package test
 
 import (
@@ -39,7 +38,7 @@ func TestThreeClusters(t *testing.T) {
 	assert.Equal(t, len(clstrList)-1, 3)
 }
 
-func TestShardGenesisForkFork(t *testing.T) {
+func TestShardGenesisForkForkTestShardGenesisForkFork(t *testing.T) {
 	var (
 		shardSize    uint32 = 2
 		id0                 = uint32(0<<16 | shardSize | 0)
@@ -108,7 +107,7 @@ func TestGetMinorBlockHeadersWithSkip(t *testing.T) {
 	_, clstrList := CreateClusterList(numCluster, chainSize, shardSize, chainSize, nil)
 	clstrList.Start(5 * time.Second)
 	defer clstrList.Stop()
-	// clstrList.PeerList()
+	clstrList.PeerList()
 
 	var (
 		id0       = uint32(0<<16 | shardSize | 0)
@@ -198,7 +197,7 @@ func TestGetPrimaryAccountData(t *testing.T) {
 	}
 	assert.Equal(t, accData[fullShardId].TransactionCount, uint64(0))
 
-	tx := createTx(geneAcc.QKCAddress)
+	tx := createTx(geneAcc.QKCAddress, nil)
 	if err := mstr.AddTransaction(tx); err != nil {
 		t.Error("failed to add tx", "err", err)
 	}
@@ -230,7 +229,7 @@ func TestAddTransaction(t *testing.T) {
 	)
 
 	// send tx in shard 0
-	tx0 := createTx(geneAcc.QKCAddress)
+	tx0 := createTx(geneAcc.QKCAddress, nil)
 	if err := mstr0.AddTransaction(tx0); err != nil {
 		t.Error("failed to add transaction", "err", err)
 	}
@@ -244,7 +243,7 @@ func TestAddTransaction(t *testing.T) {
 
 	// send the same tx in shard 1
 	addr := geneAcc.QKCAddress.AddressInShard(id1)
-	tx1 := createTx(addr)
+	tx1 := createTx(addr, nil)
 	if err := mstr0.AddTransaction(tx1); err != nil {
 		t.Error("failed to add transaction", "err", err)
 	}

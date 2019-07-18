@@ -17,7 +17,7 @@ import (
 
 var (
 	defaultP2PPort = 38291
-	privStrs   = []string{
+	privStrs       = []string{
 		"966a253dd39a1832306487c6218da1425e429fae01c1a40eb50965dff31a04ed",
 		"653088d87cac950f7134f7aaf727dd173dba00706f30699fad03898b1d0acf0d",
 		"8d298c57e269a379c4956583f095b2557c8f07226410e02ae852bc4563864790",
@@ -78,14 +78,17 @@ func getAccByIndex(idx int) *account.Account {
 	return geneAccList[idx]
 }
 
-func createTx(acc account.Address) *types.Transaction {
+func createTx(acc account.Address, to *account.Address) *types.Transaction {
+	if to == nil {
+		to = &acc
+	}
 	evmTx := types.NewEvmTransaction(0,
-		acc.Recipient,
+		to.Recipient,
 		big.NewInt(0),
 		uint64(30000),
 		big.NewInt(1),
 		uint32(acc.FullShardKey),
-		uint32(acc.FullShardKey),
+		uint32(to.FullShardKey),
 		3,
 		0,
 		[]byte{})
