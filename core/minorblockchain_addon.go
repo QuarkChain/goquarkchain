@@ -265,7 +265,6 @@ func (m *MinorBlockChain) InitGenesisState(rBlock *types.RootBlock) (*types.Mino
 
 // GetTransactionCount get txCount for addr
 func (m *MinorBlockChain) GetTransactionCount(recipient account.Recipient, height *uint64) (uint64, error) {
-	m.GetTransactionByAddress()
 	// no need to lock
 	evmState, err := m.getEvmStateByHeight(height)
 	if err != nil {
@@ -486,7 +485,7 @@ func (m *MinorBlockChain) FinalizeAndAddBlock(block *types.MinorBlock) (*types.M
 	coinbaseAmount.Add(evmState.GetBlockFee())
 
 	block.Finalize(receipts, evmState.IntermediateRoot(true), evmState.GetGasUsed(), evmState.GetXShardReceiveGasUsed(), coinbaseAmount, &types.XShardTxCursorInfo{})
-	_, err = m.InsertChain([]types.IBlock{block}, true, false, true) // will lock
+	_, err = m.InsertChain([]types.IBlock{block}, nil) // will lock
 	if err != nil {
 		return nil, nil, err
 	}
@@ -544,7 +543,6 @@ func (m *MinorBlockChain) getCrossShardTxListByRootBlockHash(hash common.Hash) (
 }
 
 func (m *MinorBlockChain) getEvmStateByHeight(height *uint64) (*state.StateDB, error) {
-	m.GasPrice()
 	mBlock := m.CurrentBlock()
 	if height != nil {
 		var ok bool
@@ -833,7 +831,11 @@ func (m *MinorBlockChain) checkTxBeforeApply(stateT *state.StateDB, tx *types.Tr
 }
 
 // CreateBlockToMine create block to mine
-func (m *MinorBlockChain) CreateBlockToMine(createTime *uint64, address *account.Address, gasLimit, xShardGasLimit *big.Int, includeTx bool) (*types.MinorBlock, error) {
+func (m *MinorBlockChain) CreateBlockToMine(createTime *uint64, address *account.Address, gasLimit, xShardGasLimit *big.Int, includeTx *bool) (*types.MinorBlock, error) {
+	if includeTx == nil {
+		t := true
+		includeTx = &t
+	}
 	realCreateTime := uint64(time.Now().Unix())
 	if createTime == nil {
 		if realCreateTime < m.CurrentBlock().IHeader().GetTime()+1 {
@@ -874,7 +876,7 @@ func (m *MinorBlockChain) CreateBlockToMine(createTime *uint64, address *account
 		return nil, ErrNotSameRootChain
 	}
 
-	xTxList, txCursor, err := m.runCrossShardTxWithCursor(evmState, block)
+	_, txCursor, err := m.runCrossShardTxWithCursor(evmState, block)
 	if err != nil {
 		return nil, err
 	}
@@ -886,7 +888,7 @@ func (m *MinorBlockChain) CreateBlockToMine(createTime *uint64, address *account
 		evmState.SetGasLimit(diff)
 	}
 	recipiets := make(types.Receipts, 0)
-	if includeTx {
+	if *includeTx {
 		block, recipiets, err = m.addTransactionToBlock(m.rootTip.Hash(), block, evmState)
 		if err != nil {
 			return nil, err
@@ -1162,7 +1164,7 @@ func (m *MinorBlockChain) EstimateGas(tx *types.Transaction, fromAddress account
 		evmState := currentState.Copy()
 		evmState.SetGasUsed(new(big.Int).SetUint64(0))
 		uint64Gas := uint64(gas)
-		evmTx, err := m.validateTx(tx, evmState, &fromAddress, &uint64Gas)
+		evmTx, err := m.validateTx(tx, evmState, &fromAddress, &uint64Gas, nil)
 		if err != nil {
 			return err
 		}
@@ -1600,6 +1602,7 @@ func (m *MinorBlockChain) runOneXShardTx(evmState *state.StateDB, deposit *types
 			gasUsedStart = qkcParams.GtxxShardCost.Uint64()
 		}
 	}
+	fmt.Println("???", m.clusterConfig.Quarkchain.EnableTxTimeStamp, evmState.GetTimeStamp(), m.clusterConfig.Quarkchain.EnableTxTimeStamp)
 
 	if m.clusterConfig.Quarkchain.EnableTxTimeStamp != 0 && evmState.GetTimeStamp() < m.clusterConfig.Quarkchain.EnableTxTimeStamp {
 		tx := deposit

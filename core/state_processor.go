@@ -106,19 +106,11 @@ func ValidateTransaction(state vm.StateDB, tx *types.Transaction, fromAddress *a
 	}
 
 	reqNonce := state.GetNonce(*from)
+	if fromAddress.IsEmpty() {
+		reqNonce = 0
+	}
 	if reqNonce > tx.EvmTx.Nonce() {
 		return ErrNonceTooLow
-	}
-
-	balance := state.GetBalance(*from)
-	if balance.Cmp(tx.EvmTx.Cost()) < 0 {
-		return ErrInsufficientFunds
-	}
-
-	if v, ok := state.GetSenderDisallowMap()[*from]; ok {
-		if new(big.Int).Add(tx.EvmTx.Value(), v).Cmp(balance) == 1 {
-			return ErrPoSWSenderNotAllowed
-		}
 	}
 
 	totalGas, err := IntrinsicGas(tx.EvmTx.Data(), tx.EvmTx.To() == nil, tx.EvmTx.ToFullShardId() != tx.EvmTx.FromFullShardId())
@@ -131,11 +123,11 @@ func ValidateTransaction(state vm.StateDB, tx *types.Transaction, fromAddress *a
 
 	allowTransferTokens := state.GetQuarkChainConfig().AllowedTransferTokenIDs()
 	allowGasTokens := state.GetQuarkChainConfig().AllowedGasTokenIDs()
-	if _, ok := allowTransferTokens[tx.EvmTx.TransferTokenID()]; ok == false {
+	if _, ok := allowTransferTokens[tx.EvmTx.TransferTokenID()]; !ok {
 		return fmt.Errorf("token %v is not allowed transferToken list %v", tx.EvmTx.TransferTokenID(), allowTransferTokens)
 	}
 
-	if _, ok := allowGasTokens[tx.EvmTx.GasTokenID()]; ok == false {
+	if _, ok := allowGasTokens[tx.EvmTx.GasTokenID()]; !ok {
 		return fmt.Errorf("token %v is not allowed gasToken list %v", tx.EvmTx.GasTokenID(), allowGasTokens)
 	}
 
@@ -159,6 +151,8 @@ func ValidateTransaction(state vm.StateDB, tx *types.Transaction, fromAddress *a
 	if blockLimit.Cmp(state.GetGasLimit()) > 0 {
 		return errors.New("gasLimit is too low")
 	}
+
+	//TODO EIP86-specific restrictions?
 	return nil
 }
 

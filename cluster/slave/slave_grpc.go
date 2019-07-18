@@ -27,8 +27,8 @@ func NewServerSideOp(slave *SlaveBackend) *SlaveServerSideOp {
 
 func (s *SlaveServerSideOp) HeartBeat(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
 	s.slave.ctx.Timestamp = time.Now()
-	if len(s.slave.shards)==0{
-		return nil,errors.New("shards uninitialized")
+	if len(s.slave.shards) == 0 {
+		return nil, errors.New("shards uninitialized")
 	}
 	return &rpc.Response{}, nil
 }
@@ -388,7 +388,7 @@ func (s *SlaveServerSideOp) GasPrice(ctx context.Context, req *rpc.Request) (*rp
 		return nil, err
 	}
 
-	if gRes.Result, err = s.slave.GasPrice(gReq.Branch); err != nil {
+	if gRes.Result, err = s.slave.GasPrice(gReq.Branch, gReq.TokenID); err != nil {
 		return nil, err
 	}
 

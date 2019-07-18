@@ -2,6 +2,7 @@
 package types
 
 import (
+	"fmt"
 	"math/big"
 	"sync/atomic"
 	"time"
@@ -304,13 +305,16 @@ func (b *MinorBlock) Coinbase() account.Address      { return b.header.Coinbase 
 func (b *MinorBlock) ParentHash() common.Hash        { return b.header.ParentHash }
 func (b *MinorBlock) PrevRootBlockHash() common.Hash { return b.header.PrevRootBlockHash }
 func (b *MinorBlock) GasLimit() *big.Int             { return new(big.Int).Set(b.header.GasLimit.Value) }
-func (b *MinorBlock) MetaHash() common.Hash          { return b.header.MetaHash }
-func (b *MinorBlock) Time() uint64                   { return b.header.Time }
-func (b *MinorBlock) Difficulty() *big.Int           { return new(big.Int).Set(b.header.Difficulty) }
-func (b *MinorBlock) Nonce() uint64                  { return b.header.Nonce }
-func (b *MinorBlock) Extra() []byte                  { return common.CopyBytes(b.header.Extra) }
-func (b *MinorBlock) Bloom() Bloom                   { return b.header.Bloom }
-func (b *MinorBlock) MixDigest() common.Hash         { return b.header.MixDigest }
+func (b *MinorBlock) GetXShardGasLimit() *big.Int {
+	return new(big.Int).Set(b.Meta().XshardGasLimit.Value)
+}
+func (b *MinorBlock) MetaHash() common.Hash  { return b.header.MetaHash }
+func (b *MinorBlock) Time() uint64           { return b.header.Time }
+func (b *MinorBlock) Difficulty() *big.Int   { return new(big.Int).Set(b.header.Difficulty) }
+func (b *MinorBlock) Nonce() uint64          { return b.header.Nonce }
+func (b *MinorBlock) Extra() []byte          { return common.CopyBytes(b.header.Extra) }
+func (b *MinorBlock) Bloom() Bloom           { return b.header.Bloom }
+func (b *MinorBlock) MixDigest() common.Hash { return b.header.MixDigest }
 
 //meta properties
 func (b *MinorBlock) Root() common.Hash        { return b.meta.Root }
@@ -432,7 +436,7 @@ func (m *MinorBlock) Finalize(receipts Receipts, rootHash common.Hash, gasUsed *
 	m.header.Bloom = CreateBloom(receipts)
 	m.hash.Store(m.header.Hash())
 }
-func (h *MinorBlock) CreateBlockToAppend(createTime *uint64, difficulty *big.Int, address *account.Address, nonce *uint64, gasLimit, xShardGasLimit *big.Int, extraData []byte, coinbaseAmount *TokenBalanceMap) *MinorBlock {
+func (h *MinorBlock) CreateBlockToAppend(createTime *uint64, difficulty *big.Int, address *account.Address, nonce *uint64, gasLimit *big.Int, xShardGasLimit *big.Int, extraData []byte, coinbaseAmount *TokenBalanceMap) *MinorBlock {
 	if createTime == nil {
 		preTime := h.Time() + 1
 		createTime = &preTime
@@ -454,6 +458,11 @@ func (h *MinorBlock) CreateBlockToAppend(createTime *uint64, difficulty *big.Int
 
 	if gasLimit == nil {
 		gasLimit = h.GasLimit()
+	}
+
+	if xShardGasLimit == nil {
+		fmt.Println(h.Meta().XshardGasLimit)
+		xShardGasLimit = h.GetXShardGasLimit()
 	}
 
 	if extraData == nil {

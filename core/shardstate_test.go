@@ -53,7 +53,7 @@ func TestInitGenesisState(t *testing.T) {
 	// header tip is still the old genesis header
 	assert.Equal(t, shardState.CurrentBlock().IHeader().Hash(), genesisHeader.Hash())
 
-	block := newGenesisBlock.CreateBlockToAppend(nil, nil, nil, nil, nil, nil, nil)
+	block := newGenesisBlock.CreateBlockToAppend(nil, nil, nil, nil, 0, nil, nil)
 
 	_, _, err = shardState.FinalizeAndAddBlock(block)
 	checkErr(err)

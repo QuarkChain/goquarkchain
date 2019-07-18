@@ -254,8 +254,11 @@ func (st *StateTransition) TransitionDb(feeRate *big.Rat) (ret []byte, usedGas u
 	rateFee := new(big.Int).Mul(fee, feeRate.Num())
 	rateFee = new(big.Int).Div(rateFee, feeRate.Denom())
 
-	st.state.AddBalance(st.evm.Coinbase, rateFee)
-	st.state.AddBlockFee(rateFee)
+	st.state.AddBalance(st.evm.Coinbase, rateFee, st.msg.GasTokenID())
+
+	blockFee := make(map[uint64]*big.Int)
+	blockFee[st.msg.GasTokenID()] = rateFee
+	st.state.AddBlockFee(blockFee)
 
 	st.state.AddGasUsed(new(big.Int).SetUint64(st.gasUsed()))
 	return ret, st.gasUsed(), vmerr != nil, err
@@ -271,7 +274,7 @@ func (st *StateTransition) refundGas() {
 
 	// Return ETH for remaining gas, exchanged at the original rate.
 	remaining := new(big.Int).Mul(new(big.Int).SetUint64(st.gas), st.gasPrice)
-	st.state.AddBalance(st.msg.From(), remaining)
+	st.state.AddBalance(st.msg.From(), remaining, st.msg.GasTokenID())
 
 	// Also return remaining gas to the block gas counter so it is
 	// available for the next transaction.
@@ -286,7 +289,7 @@ func (st *StateTransition) gasUsed() uint64 {
 func (st *StateTransition) handleCrossShardTx() (ret []byte, usedGas uint64, err error) {
 	evm := st.evm
 	msg := st.msg
-	if !evm.CanTransfer(evm.StateDB, msg.From(), st.value) {
+	if !evm.CanTransfer(evm.StateDB, msg.From(), st.value, st.msg.GasTokenID()) {
 		return nil, 0, vm.ErrInsufficientBalance
 	}
 	crossShardValue := new(serialize.Uint256)
@@ -307,7 +310,7 @@ func (st *StateTransition) handleCrossShardTx() (ret []byte, usedGas uint64, err
 		Value:    crossShardValue,
 		GasPrice: crossShardGasPrice,
 	}
-	evm.StateDB.SubBalance(msg.From(), st.value)
+	evm.StateDB.SubBalance(msg.From(), st.value, st.msg.GasTokenID())
 	evm.StateDB.AppendXShardList(crossShardData)
 	return nil, st.gas, nil
 }

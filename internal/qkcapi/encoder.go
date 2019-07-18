@@ -35,7 +35,7 @@ func balancesEncoder(balances *types.TokenBalanceMap) []map[string]interface{} {
 			panic(err) //TODO ??
 		}
 		balanceList = append(balanceList, map[string]interface{}{
-			"tokenId":  (*hexutil.Big)(k),
+			"tokenId":  (hexutil.Uint64)(k),
 			"tokenStr": tokenStr,
 			"balance":  (*hexutil.Big)(v),
 		})

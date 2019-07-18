@@ -4,7 +4,6 @@ package core
 import (
 	"fmt"
 	"math/big"
-	"unicode"
 
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/config"

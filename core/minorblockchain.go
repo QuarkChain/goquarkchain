@@ -718,7 +718,7 @@ func (m *MinorBlockChain) procFutureBlocks() {
 		sort.Slice(blocks, func(i, j int) bool { return blocks[i].NumberU64() < blocks[j].NumberU64() })
 		// Insert one by one as chain insertion needs contiguous ancestry between blocks
 		for i := range blocks {
-			m.InsertChain(blocks[i : i+1])
+			m.InsertChain(blocks[i:i+1], nil)
 		}
 	}
 }
@@ -1026,14 +1026,14 @@ func (m *MinorBlockChain) addFutureBlock(block types.IBlock) error {
 // wrong.
 //
 // After insertion is done, all accumulated events will be fired.
-func (m *MinorBlockChain) InsertChain(chain []types.IBlock, shipIfTooOld, force, writeDB bool) (int, error) {
-	n, _, err := m.InsertChainForDeposits(chain, shipIfTooOld, force, writeDB)
+func (m *MinorBlockChain) InsertChain(chain []types.IBlock, params *InsertChainParams) (int, error) {
+	n, _, err := m.InsertChainForDeposits(chain, params)
 	return n, err
 }
 
 // InsertChainForDeposits also return cross-shard transaction deposits in addition
 // to content returned from `InsertChain`.
-func (m *MinorBlockChain) InsertChainForDeposits(chain []types.IBlock, shipIfTooOld, force, writeDB bool) (int, [][]*types.CrossShardTransactionDeposit, error) {
+func (m *MinorBlockChain) InsertChainForDeposits(chain []types.IBlock, params *InsertChainParams) (int, [][]*types.CrossShardTransactionDeposit, error) {
 	// Sanity check that we have something meaningful to import
 	if len(chain) == 0 {
 		return 0, nil, nil
@@ -1052,7 +1052,7 @@ func (m *MinorBlockChain) InsertChainForDeposits(chain []types.IBlock, shipIfToo
 	// Pre-checks passed, start the full block imports
 	m.wg.Add(1)
 	m.chainmu.Lock()
-	n, events, logs, xShardList, err := m.insertChain(chain, true, shipIfTooOld, force, writeDB)
+	n, events, logs, xShardList, err := m.insertChain(chain, true, params)
 	m.chainmu.Unlock()
 	m.wg.Done()
 
@@ -1075,7 +1075,10 @@ func (m *MinorBlockChain) InsertChainForDeposits(chain []types.IBlock, shipIfToo
 // racey behaviour. If a sidechain import is in progress, and the historic state
 // is imported, but then new canon-head is added before the actual sidechain
 // completes, then the historic state could be pruned again
-func (m *MinorBlockChain) insertChain(chain []types.IBlock, verifySeals bool, shipIfTooOld, force, writeDB bool) (int, []interface{}, []*types.Log, [][]*types.CrossShardTransactionDeposit, error) {
+func (m *MinorBlockChain) insertChain(chain []types.IBlock, verifySeals bool, params *InsertChainParams) (int, []interface{}, []*types.Log, [][]*types.CrossShardTransactionDeposit, error) {
+	if params == nil {
+		params = GetDefaultInsertChainParams()
+	}
 	xShardList := make([][]*types.CrossShardTransactionDeposit, 0)
 	// If the chain is terminating, don't even bother starting u
 	if atomic.LoadInt32(&m.procInterrupt) == 1 {
@@ -1184,7 +1187,7 @@ func (m *MinorBlockChain) insertChain(chain []types.IBlock, verifySeals bool, sh
 		}
 		proctime := time.Since(start)
 
-		if !writeDB {
+		if !params.WriteDB {
 			xShardList = append(xShardList, state.GetXShardList())
 			return 0, events, coalescedLogs, xShardList, nil
 		}
@@ -1348,7 +1351,7 @@ func (m *MinorBlockChain) insertSidechain(it *insertIterator) (int, []interface{
 		// memory here.
 		if len(blocks) >= 2048 || memory > 64*1024*1024 {
 			log.Info("Importing heavy sidechain segment", "blocks", len(blocks), "start", blocks[0].NumberU64(), "end", block.NumberU64())
-			if _, _, _, _, err := m.insertChain(blocks, false); err != nil {
+			if _, _, _, _, err := m.insertChain(blocks, false, nil); err != nil {
 				return 0, nil, nil, nil, err
 			}
 			blocks, memory = blocks[:0], 0
@@ -1362,7 +1365,7 @@ func (m *MinorBlockChain) insertSidechain(it *insertIterator) (int, []interface{
 	}
 	if len(blocks) > 0 {
 		log.Info("Importing sidechain segment", "start", blocks[0].NumberU64(), "end", blocks[len(blocks)-1].NumberU64())
-		return m.insertChain(blocks, false)
+		return m.insertChain(blocks, false, nil)
 	}
 	return 0, nil, nil, nil, nil
 }

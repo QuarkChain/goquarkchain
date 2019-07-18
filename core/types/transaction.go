@@ -279,8 +279,8 @@ func (tx *EvmTransaction) AsMessage(s Signer) (Message, error) {
 		toFullShardKey:   tx.data.ToFullShardKey.getValue(),
 		txHash:           tx.Hash(), //TODO ???? wrong
 		isCrossShard:     tx.IsCrossShard(),
-		transferTokenID:  tx.data.TransferTokenID.Uint64(),
-		gasTokenID:       tx.data.GasTokenID.Uint64(),
+		transferTokenID:  tx.data.TransferTokenID,
+		gasTokenID:       tx.data.GasTokenID,
 	}
 
 	msgFrom, err := Sender(s, tx)

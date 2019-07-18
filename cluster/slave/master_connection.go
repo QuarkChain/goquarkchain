@@ -8,7 +8,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 )
 
-func (s *ConnManager) SendMinorBlockHeaderToMaster(*rpc.AddMinorBlockHeaderRequest) error {
+func (s *ConnManager) SendMinorBlockHeaderToMaster(request *rpc.AddMinorBlockHeaderRequest) error {
 	var (
 		gRep rpc.AddMinorBlockHeaderResponse
 	)
@@ -16,13 +16,8 @@ func (s *ConnManager) SendMinorBlockHeaderToMaster(*rpc.AddMinorBlockHeaderReque
 	if s.masterClient.target == "" {
 		return errors.New("master endpoint is empty")
 	}
-	gReq := rpc.AddMinorBlockHeaderRequest{
-		MinorBlockHeader: minorHeader,
-		TxCount:          txCount,
-		XShardTxCount:    xshardCount,
-		ShardStats:       state,
-	}
-	data, err := serialize.SerializeToBytes(gReq)
+
+	data, err := serialize.SerializeToBytes(request)
 	if err != nil {
 		return err
 	}

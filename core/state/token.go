@@ -2,7 +2,9 @@ package state
 
 import (
 	"fmt"
+	"github.com/QuarkChain/goquarkchain/serialize"
 	"github.com/ethereum/go-ethereum/rlp"
+	"io"
 	"math/big"
 	"sort"
 )
@@ -77,6 +79,28 @@ func (b *TokenBalances) Serialize(w *[]byte) error {
 	return nil
 }
 
+func (b *TokenBalances) EncodeRLP(w io.Writer) error {
+	data, err := serialize.SerializeToBytes(b)
+	if err != nil {
+		return nil
+	}
+	_, err = w.Write(data)
+	return err
+}
+
+func (b *TokenBalances) DecodeRLP(s *rlp.Stream) error {
+	data, err := s.Raw()
+	if err != nil {
+		return err
+	}
+	t, err := NewTokenBalances(data)
+	if err != nil {
+		return err
+	}
+	b = t
+	return err
+}
+
 func (b *TokenBalances) Balance(tokenID uint64) *big.Int {
 	balance, ok := b.Balances[tokenID]
 	if !ok {
@@ -93,4 +117,15 @@ func (b *TokenBalances) IsEmpty() bool {
 		}
 	}
 	return flag
+}
+
+func (b *TokenBalances) Copy() *TokenBalances {
+	t := &TokenBalances{
+		Balances: make(map[uint64]*big.Int),
+		enum:     b.enum,
+	}
+	for k, v := range b.Balances {
+		t.Balances[k] = v
+	}
+	return t
 }

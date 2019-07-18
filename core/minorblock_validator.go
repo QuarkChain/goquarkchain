@@ -110,7 +110,8 @@ func (v *MinorBlockValidator) ValidateBlock(mBlock types.IBlock) error {
 		return ErrBranch
 	}
 
-	if block.Header().Time > uint64(time.Now().Nanosecond()/1000)+ALLOWED_FUTURE_BLOCKS_TIME_VALIDATION {
+	if block.Header().Time > uint64(time.Now().Unix())+ALLOWED_FUTURE_BLOCKS_TIME_VALIDATION {
+		fmt.Println(">>>>", block.Header().Time, time.Now().Unix(), ALLOWED_FUTURE_BLOCKS_TIME_VALIDATION)
 		return fmt.Errorf("block too far into future")
 	}
 

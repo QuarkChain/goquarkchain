@@ -242,10 +242,10 @@ type GetAccountDataRequest struct {
 }
 
 type AccountBranchData struct {
-	Branch           uint32   `json:"branch" gencodec:"required"`
-	TransactionCount uint64   `json:"transaction_count" gencodec:"required"`
-	Balance          *big.Int `json:"token_balances" gencodec:"required" bytesizeofslicelen:"4"`
-	IsContract       bool     `json:"is_contract" gencodec:"required"`
+	Branch           uint32                 `json:"branch" gencodec:"required"`
+	TransactionCount uint64                 `json:"transaction_count" gencodec:"required"`
+	Balance          *types.TokenBalanceMap `json:"token_balances" gencodec:"required" bytesizeofslicelen:"4"`
+	IsContract       bool                   `json:"is_contract" gencodec:"required"`
 }
 
 type GetAccountDataResponse struct {
@@ -348,7 +348,8 @@ type GetCodeResponse struct {
 }
 
 type GasPriceRequest struct {
-	Branch uint32 `json:"branch" gencodec:"required"`
+	Branch  uint32 `json:"branch" gencodec:"required"`
+	TokenID uint64 `json:"tokenID" gencodec:"required"`
 }
 
 type GasPriceResponse struct {

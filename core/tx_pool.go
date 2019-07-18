@@ -105,7 +105,7 @@ type minorBlockChain interface {
 	StateAt(root common.Hash) (*state.StateDB, error)
 	Config() *config.QuarkChainConfig
 	SubscribeChainHeadEvent(ch chan<- MinorChainHeadEvent) event.Subscription
-	validateTx(tx *types.Transaction, evmState *state.StateDB, fromAddress *account.Address, gas *uint64) (*types.Transaction, error)
+	validateTx(tx *types.Transaction, evmState *state.StateDB, fromAddress *account.Address, gas *uint64, xShardGasLimit *big.Int) (*types.Transaction, error)
 }
 
 // TxPoolConfig are the configuration parameters of the transaction pool.
@@ -918,7 +918,7 @@ func (pool *TxPool) promoteExecutables(accounts []common.Address) {
 			pool.priced.Removed()
 		}
 		// Drop all transactions that are too costly (low balance or out of gas)
-		drops, _ := list.Filter(pool.currentState.GetBalance(addr), pool.currentMaxGas)
+		drops, _ := list.Filter(pool.currentState.GetBalance(addr, 0), pool.currentMaxGas)
 		for _, tx := range drops {
 			hash := tx.Hash()
 			log.Trace("Removed unpayable queued transaction", "hash", hash)
@@ -1076,7 +1076,7 @@ func (pool *TxPool) demoteUnexecutables() {
 			pool.priced.Removed()
 		}
 		// Drop all transactions that are too costly (low balance or out of gas), and queue any invalids back for later
-		drops, invalids := list.Filter(pool.currentState.GetBalance(addr), pool.currentMaxGas)
+		drops, invalids := list.Filter(pool.currentState.GetBalance(addr, 0), pool.currentMaxGas)
 		for _, tx := range drops {
 			hash := tx.Hash()
 			log.Trace("Removed unpayable pending transaction", "hash", hash)
@@ -1236,7 +1236,7 @@ func (m *TxPool) CheckTxBeforeAdd(tx *types.Transaction) error {
 	if m.all.Count() > int(m.quarkConfig.TransactionQueueSizeLimitPerShard) {
 		return errors.New("txpool queue full")
 	}
-	tx, err := m.chain.validateTx(tx, nil, nil, nil)
+	tx, err := m.chain.validateTx(tx, nil, nil, nil, nil)
 	if err != nil {
 		return err
 	}

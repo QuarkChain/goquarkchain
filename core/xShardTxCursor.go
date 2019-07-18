@@ -55,7 +55,8 @@ func (x *XShardTxCursor) getCurrentTx() (*types.CrossShardTransactionDeposit, er
 		if x.xShardDepositIndex != 1 && x.xShardDepositIndex != 2 {
 			return nil, errors.New("shardDepositIndex should 1 or 2")
 		}
-		if x.bc.GetBranch().IsInBranch(x.rBlock.Header().Coinbase.FullShardKey) {
+		branch := x.bc.GetBranch()
+		if branch.IsInBranch(x.rBlock.Header().Coinbase.FullShardKey) {
 			coinbaseAmount := new(big.Int)
 			if data, ok := x.rBlock.Header().CoinbaseAmount.BalanceMap[x.bc.GetGenesisToken()]; ok {
 				coinbaseAmount = new(big.Int).Set(data)
