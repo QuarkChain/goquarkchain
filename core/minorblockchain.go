@@ -21,16 +21,18 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"github.com/QuarkChain/goquarkchain/account"
-	"github.com/QuarkChain/goquarkchain/cluster/config"
-	qkcParams "github.com/QuarkChain/goquarkchain/params"
-	"github.com/QuarkChain/goquarkchain/serialize"
 	"io"
 	"math/big"
 	"sort"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/QuarkChain/goquarkchain/account"
+	"github.com/QuarkChain/goquarkchain/cluster/config"
+	qkcParams "github.com/QuarkChain/goquarkchain/params"
+	"github.com/QuarkChain/goquarkchain/serialize"
+	lru "github.com/hashicorp/golang-lru"
 
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/core/rawdb"
@@ -46,7 +48,6 @@ import (
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
-	"github.com/hashicorp/golang-lru"
 )
 
 const (
@@ -1167,6 +1168,12 @@ func (m *MinorBlockChain) insertChain(chain []types.IBlock, verifySeals bool) (i
 		if err != nil {
 			return it.index, events, coalescedLogs, xShardList, err
 		}
+		coinbase := parent.IHeader().GetCoinbase().Recipient
+		senderDisallowMap, err := m.posw.BuildSenderDisallowMap(mBlock.Header().GetParentHash(), &coinbase)
+		if err != nil {
+			return it.index, events, coalescedLogs, xShardList, err
+		}
+		state.SetSenderDisallowMap(senderDisallowMap)
 		xShardReceiveTxList := make([]*types.CrossShardTransactionDeposit, 0)
 		// Process block using the parent state as reference point.
 

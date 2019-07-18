@@ -131,12 +131,6 @@ func ValidateTransaction(state vm.StateDB, tx *types.Transaction, fromAddress *a
 		return ErrInsufficientFunds
 	}
 
-	if v, ok := state.GetSenderDisallowMap()[*from]; ok {
-		if new(big.Int).Add(tx.EvmTx.Value(), v).Cmp(balance) == 1 {
-			return ErrPoSWSenderNotAllowed
-		}
-	}
-
 	totalGas, err := IntrinsicGas(tx.EvmTx.Data(), tx.EvmTx.To() == nil, tx.EvmTx.ToFullShardId() != tx.EvmTx.FromFullShardId())
 	if err != nil {
 		return err

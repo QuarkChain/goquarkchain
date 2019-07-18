@@ -218,14 +218,17 @@ func CreateFakeMinorCanonicalPoSW(acc1 account.Address, shardId *uint32, genesis
 	return shardState, nil
 }
 
-func CreateFreeTx(shardState *MinorBlockChain, key []byte,
-	from account.Address, to account.Address, value *big.Int, gas, nonce *uint64) *types.Transaction {
-	var gasPrice uint64 = 0
+func CreateTransferTx(shardState *MinorBlockChain, key []byte,
+	from account.Address, to account.Address, value *big.Int, gas, gasPrice, nonce *uint64) *types.Transaction {
+	if gasPrice == nil {
+		gasPrice = new(uint64)
+		*gasPrice = 0
+	}
 	if gas == nil {
 		gas = new(uint64)
 		*gas = 21000
 	}
-	return createTransferTransaction(shardState, key, from, to, value, gas, &gasPrice, nonce, nil)
+	return createTransferTransaction(shardState, key, from, to, value, gas, gasPrice, nonce, nil)
 }
 
 func GetPoSW(chain *MinorBlockChain) *posw.PoSW {
