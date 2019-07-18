@@ -75,10 +75,6 @@ shardSize, slaveSize uint32, geneRHeights map[uint32]uint32) *config.ClusterConf
 			shardCfg.Genesis.RootHeight = geneRHeights[fullShardId]
 		}
 	}
-	/*for _, fullShardId := range fullShardIds {
-		shardCfg := cfg.Quarkchain.GetShardConfigByFullShardID(fullShardId)
-		fmt.Println("===============", shardCfg.ShardID, shardCfg.Genesis.Difficulty, shardCfg.ConsensusConfig.RemoteMine)
-	}*/
 
 	cfg.SlaveList = make([]*config.SlaveConfig, 0, 1)
 	for i := 0; i < int(slaveSize); i++ {
