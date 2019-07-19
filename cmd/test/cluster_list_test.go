@@ -653,16 +653,9 @@ func TestBroadcastCrossShardTransactionsToNeighborOnly(t *testing.T) {
 	_, err = mstr.AddMinorBlock(mBlock.Branch().Value, mBlock)
 	assert.NoError(t, err)
 
-	pow2 := func(n int) int {
-		var res = 1
-		for i := 0; i < n; i++ {
-			res = res << 1
-		}
-		return res
-	}
 	nborShards := make(map[int]bool)
 	for i := 0; i < 6; i++ {
-		nborShards[pow2(i)] = true
+		nborShards[1<<uint32(i)] = true
 	}
 	for shardId := 0; shardId < 64; shardId++ {
 		shrdI := clstrList[0].GetShard(shardSize | uint32(shardId))
