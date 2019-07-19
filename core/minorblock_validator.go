@@ -89,23 +89,13 @@ func (v *MinorBlockValidator) ValidateBlock(mBlock types.IBlock) error {
 		return ErrPrunedAncestor
 	}
 
-	prevBlock, ok := v.bc.GetBlock(block.IHeader().GetParentHash()).(*types.MinorBlock)
-	if !ok {
-		return fmt.Errorf("no such block hash:%v", block.IHeader().GetParentHash().String())
-	}
-	preState, err := v.bc.StateAt(prevBlock.Meta().Root)
-	if err != nil {
-		return err
-	}
-	if !preState.GetAccountStatus(block.Header().Coinbase.Recipient) {
-		return ErrAccountNotBeMiner
-	}
-	if common.IsNil(prevBlock) {
+	prevHeader := v.bc.GetHeader(block.IHeader().GetParentHash())
+	if common.IsNil(prevHeader) {
 		log.Error(v.logInfo, "parent header is not exist", ErrInvalidMinorBlock, "parent height", block.Header().Number-1, "parent hash", block.Header().ParentHash.String())
 		return ErrInvalidMinorBlock
 	}
-	if blockHeight != prevBlock.NumberU64()+1 {
-		log.Error(v.logInfo, "err", ErrHeightMismatch, "blockHeight", blockHeight, "prevHeader", prevBlock.NumberU64())
+	if blockHeight != prevHeader.NumberU64()+1 {
+		log.Error(v.logInfo, "err", ErrHeightMismatch, "blockHeight", blockHeight, "prevHeader", prevHeader.NumberU64())
 		return ErrHeightMismatch
 	}
 
@@ -114,8 +104,8 @@ func (v *MinorBlockValidator) ValidateBlock(mBlock types.IBlock) error {
 		return ErrBranch
 	}
 
-	if block.IHeader().GetTime() <= prevBlock.Header().GetTime() {
-		log.Error(v.logInfo, "err", ErrTime, "block.Time", block.IHeader().GetTime(), "prevHeader.Time", prevBlock.Header().GetTime())
+	if block.IHeader().GetTime() <= prevHeader.GetTime() {
+		log.Error(v.logInfo, "err", ErrTime, "block.Time", block.IHeader().GetTime(), "prevHeader.Time", prevHeader.GetTime())
 		return ErrTime
 	}
 
@@ -134,9 +124,8 @@ func (v *MinorBlockValidator) ValidateBlock(mBlock types.IBlock) error {
 		return ErrTrackLimit
 	}
 
-	if err := v.ValidateGasLimit(block.Header().GetGasLimit().Uint64(), prevBlock.Header().GetGasLimit().Uint64()); err != nil {
-		log.Error(v.logInfo, "validate gas limit err", err)
-		return err
+	if block.Header().GasLimit.Value.Cmp(v.bc.gasLimit) != 0 {
+		return errors.New("gasLimit is not match")
 	}
 
 	txHash := types.CalculateMerkleRoot(block.GetTransactions())
@@ -151,7 +140,7 @@ func (v *MinorBlockValidator) ValidateBlock(mBlock types.IBlock) error {
 	}
 
 	if !v.quarkChainConfig.SkipMinorDifficultyCheck {
-		diff, err := v.engine.CalcDifficulty(v.bc, block.IHeader().GetTime(), prevBlock.Header())
+		diff, err := v.engine.CalcDifficulty(v.bc, block.IHeader().GetTime(), prevHeader)
 		if err != nil {
 			log.Error(v.logInfo, "check diff err", err)
 			return err
@@ -168,29 +157,29 @@ func (v *MinorBlockValidator) ValidateBlock(mBlock types.IBlock) error {
 		return ErrRootBlockIsNil
 	}
 
-	prevRootHeader := v.bc.getRootBlockHeaderByHash(prevBlock.Header().GetPrevRootBlockHash())
+	prevRootHeader := v.bc.getRootBlockHeaderByHash(prevHeader.(*types.MinorBlockHeader).GetPrevRootBlockHash())
 	if prevRootHeader == nil {
-		log.Error(v.logInfo, "err", ErrRootBlockIsNil, "prevHeader's height", prevBlock.NumberU64(), "preHeader's prevRootBlockHash", prevBlock.Header().GetPrevRootBlockHash().String())
+		log.Error(v.logInfo, "err", ErrRootBlockIsNil, "prevHeader's height", prevHeader.NumberU64(), "preHeader's prevRootBlockHash", prevHeader.(*types.MinorBlockHeader).GetPrevRootBlockHash().String())
 		return ErrRootBlockIsNil
 	}
 	if rootBlockHeader.NumberU64() < prevRootHeader.NumberU64() {
 		errRootBlockOrder := errors.New("pre root block height must be non-decreasing")
-		log.Error(v.logInfo, "err", errRootBlockOrder, "rootBlockHeader's number", rootBlockHeader.Number, "preRootHeader.Number", prevBlock.NumberU64())
+		log.Error(v.logInfo, "err", errRootBlockOrder, "rootBlockHeader's number", rootBlockHeader.Number, "preRootHeader.Number", prevHeader.NumberU64())
 		return errRootBlockOrder
 	}
 
 	prevConfirmedMinorHeader := v.bc.getLastConfirmedMinorBlockHeaderAtRootBlock(block.Header().PrevRootBlockHash)
-	if prevConfirmedMinorHeader != nil && !v.bc.isSameMinorChain(prevBlock.Header(), prevConfirmedMinorHeader) {
+	if prevConfirmedMinorHeader != nil && !isSameChain(v.bc.db, prevHeader, prevConfirmedMinorHeader) {
 		errMustBeOneMinorChain := errors.New("prev root block's minor block is not in the same chain as the minor block")
 		log.Error(v.logInfo, "err", errMustBeOneMinorChain, "prevConfirmedMinor's height", prevConfirmedMinorHeader.Number, "prevConfirmedMinor's hash", prevConfirmedMinorHeader.Hash().String(),
-			"preHeader's height", prevBlock.NumberU64(), "preHeader's hash", prevBlock.Hash().String())
+			"preHeader's height", prevHeader.NumberU64(), "preHeader's hash", prevHeader.Hash().String())
 		return errMustBeOneMinorChain
 	}
 
 	if !v.bc.isSameRootChain(v.bc.getRootBlockHeaderByHash(block.Header().GetPrevRootBlockHash()),
-		v.bc.getRootBlockHeaderByHash(prevBlock.Header().GetPrevRootBlockHash())) {
+		v.bc.getRootBlockHeaderByHash(prevHeader.(*types.MinorBlockHeader).GetPrevRootBlockHash())) {
 		errMustBeOneRootChain := errors.New("prev root blocks are not on the same chain")
-		log.Error(v.logInfo, "err", errMustBeOneRootChain, "long", block.Header().GetPrevRootBlockHash().String(), "short", prevBlock.Header().GetPrevRootBlockHash().String())
+		log.Error(v.logInfo, "err", errMustBeOneRootChain, "long", block.Header().GetPrevRootBlockHash().String(), "short", prevHeader.(*types.MinorBlockHeader).GetPrevRootBlockHash().String())
 		return errMustBeOneRootChain
 	}
 	if err := v.ValidatorSeal(block.Header()); err != nil {
@@ -212,27 +201,6 @@ func (v *MinorBlockValidator) ValidateHeader(header types.IHeader) error {
 		return ErrRootBlockIsNil
 	}
 	return v.engine.VerifyHeader(v.bc, header, true)
-}
-
-// ValidateGasLimit validate gasLimit when validateBlock
-func (v *MinorBlockValidator) ValidateGasLimit(gasLimit, preGasLimit uint64) error {
-	shardConfig := v.quarkChainConfig.GetShardConfigByFullShardID(v.branch.Value)
-	computeGasLimitBounds := func(parentGasLimit uint64) (uint64, uint64) {
-		boundaryRange := parentGasLimit / uint64(shardConfig.GasLimitAdjustmentFactor)
-		upperBound := parentGasLimit + boundaryRange
-		lowBound := shardConfig.GasLimitMinimum
-		if lowBound < parentGasLimit-boundaryRange {
-			lowBound = parentGasLimit - boundaryRange
-		}
-		return lowBound, upperBound
-	}
-	lowBound, upperBound := computeGasLimitBounds(preGasLimit)
-	if gasLimit < lowBound {
-		return errors.New("gaslimit < lowBound")
-	} else if gasLimit > upperBound {
-		return errors.New("gasLimit>upperBound")
-	}
-	return nil
 }
 
 // ValidatorBlockSeal validate minor block seal when validate block

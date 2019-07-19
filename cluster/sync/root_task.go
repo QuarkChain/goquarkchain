@@ -2,19 +2,13 @@ package sync
 
 import (
 	"fmt"
+	"math/big"
 
 	"golang.org/x/sync/errgroup"
 
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/common"
-)
-
-const (
-	// Number of root block headers to download from peers.
-	headerDownloadSize = 500
-	// Number root blocks to download from peers.
-	blockDownloadSize = 100
 )
 
 type rootSyncerPeer interface {
@@ -66,14 +60,22 @@ func NewRootChainTask(
 				rbc := bc.(rootblockchain)
 				return syncMinorBlocks(p.PeerID(), rbc, rb, statusChan, getShardConnFunc)
 			},
+			needSkip: func(header types.IHeader, b blockchain) bool {
+				if header.GetTotalDifficulty().Cmp(b.CurrentHeader().GetTotalDifficulty()) <= 0 {
+					return true
+				}
+				return false
+			},
+			getSizeLimit: func() (uint64, uint64) {
+				return RootBlockHeaderListLimit, RootBlockBatchSize
+			},
 		},
 		peer: p,
 	}
 }
 
-func (r *rootChainTask) Priority() uint {
-	// TODO: should use total diff
-	return uint(r.task.header.NumberU64())
+func (r *rootChainTask) Priority() *big.Int {
+	return r.task.header.GetTotalDifficulty()
 }
 
 func (r *rootChainTask) PeerID() string {
@@ -90,9 +92,7 @@ func syncMinorBlocks(
 	downloadMap := make(map[uint32][]common.Hash)
 	for _, header := range rootBlock.MinorBlockHeaders() {
 		hash := header.Hash()
-		if !rbc.IsMinorBlockValidated(hash) {
-			downloadMap[header.Branch.Value] = append(downloadMap[header.Branch.Value], hash)
-		}
+		downloadMap[header.Branch.Value] = append(downloadMap[header.Branch.Value], hash)
 	}
 
 	var g errgroup.Group

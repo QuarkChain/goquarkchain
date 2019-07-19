@@ -2,8 +2,7 @@ package qkchash
 
 import (
 	"encoding/binary"
-
-	"github.com/ethereum/go-ethereum/common"
+	"github.com/QuarkChain/goquarkchain/cluster/config"
 
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/core/state"
@@ -33,21 +32,16 @@ func (q *QKCHash) Finalize(chain consensus.ChainReader, header types.IHeader, st
 	panic("not implemented")
 }
 
-func (q *QKCHash) hashAlgo(height uint64, hash []byte, nonce uint64) (res consensus.MiningResult, err error) {
-	nonceBytes := make([]byte, 8)
-	binary.LittleEndian.PutUint64(nonceBytes, nonce)
+func (q *QKCHash) hashAlgo(cache *consensus.ShareCache) (err error) {
+	copy(cache.Seed, cache.Hash)
+	binary.LittleEndian.PutUint64(cache.Seed[32:], cache.Nonce)
 
-	var digest, result []byte
 	if q.useNative {
-		digest, result, err = qkcHashNative(hash, nonceBytes, q.cache)
+		cache.Digest, cache.Result, err = qkcHashNative(cache.Seed, q.cache)
 	} else {
-		digest, result, err = qkcHashGo(hash, nonceBytes, q.cache)
+		cache.Digest, cache.Result, err = qkcHashGo(cache.Seed, q.cache)
 	}
-	if err != nil {
-		return res, err
-	}
-	res = consensus.MiningResult{Digest: common.BytesToHash(digest), Result: result, Nonce: nonce}
-	return res, nil
+	return
 }
 
 // New returns a QKCHash scheme.
@@ -58,7 +52,7 @@ func New(useNative bool, diffCalculator consensus.DifficultyCalculator, remote b
 		cache: generateCache(cacheEntryCnt, cacheSeed, useNative),
 	}
 	spec := consensus.MiningSpec{
-		Name:       "QKCHash",
+		Name:       config.PoWQkchash,
 		HashAlgo:   q.hashAlgo,
 		VerifySeal: q.verifySeal,
 	}

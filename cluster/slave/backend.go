@@ -1,9 +1,6 @@
 package slave
 
 import (
-	"reflect"
-	"sync"
-
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/cluster/service"
@@ -11,6 +8,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/p2p"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/rpc"
+	"reflect"
 )
 
 type SlaveBackend struct {
@@ -23,7 +21,6 @@ type SlaveBackend struct {
 	shards map[uint32]*shard.ShardBackend
 
 	ctx      *service.ServiceContext
-	mu       sync.RWMutex
 	eventMux *event.TypeMux
 	logInfo  string
 }
@@ -64,8 +61,12 @@ func (s *SlaveBackend) coverShardId(id uint32) bool {
 	return false
 }
 
-func (s *SlaveBackend) getBranch(address *account.Address) account.Branch {
-	return account.NewBranch(s.clstrCfg.Quarkchain.GetFullShardIdByFullShardKey(address.FullShardKey))
+func (s *SlaveBackend) getBranch(address *account.Address) (account.Branch, error) {
+	fullShardID, err := s.clstrCfg.Quarkchain.GetFullShardIdByFullShardKey(address.FullShardKey)
+	if err != nil {
+		return account.Branch{}, err
+	}
+	return account.NewBranch(fullShardID), nil
 }
 
 func (s *SlaveBackend) GetConfig() *config.SlaveConfig {
@@ -95,6 +96,6 @@ func (s *SlaveBackend) Stop() error {
 	return nil
 }
 
-func (s *SlaveBackend) Start(srvr *p2p.Server) error {
+func (s *SlaveBackend) Init(srvr *p2p.Server) error {
 	return nil
 }

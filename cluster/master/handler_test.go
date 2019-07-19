@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
+	"github.com/QuarkChain/goquarkchain/cluster/sync"
 	"github.com/QuarkChain/goquarkchain/core"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/mocks/mock_master"
@@ -16,6 +17,14 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/golang/mock/gomock"
 	"github.com/pkg/errors"
+)
+
+var (
+	// only used in Test
+	rootBlockHeaderListLimit  = sync.RootBlockHeaderListLimit
+	rootBlockBatchSize        = sync.RootBlockBatchSize
+	minorBlockHeaderListLimit = sync.MinorBlockHeaderListLimit
+	minorBlockBatchSize       = sync.MinorBlockBatchSize
 )
 
 // Tests that protocol versions and modes of operations are matched up properly.
@@ -103,7 +112,7 @@ func TestGetRootBlockHeaders(t *testing.T) {
 
 func TestCloseConnWithErr(t *testing.T) {
 	chainLength := uint64(1024)
-	pm, _ := newTestProtocolManagerMust(t, int(chainLength), nil, NewFakeSynchronizer(1), nil)
+	pm, _ := newTestProtocolManagerMust(t, int(chainLength), nil, NewFakeSynchronizer(10), nil)
 
 	// Create a "random" unknown hash for testing
 	var unknown common.Hash
@@ -476,31 +485,12 @@ func TestBroadcastNewRootBlockTip(t *testing.T) {
 	peer, _ := newTestPeer("peer", int(qkcconfig.P2PProtocolVersion), pm, true)
 	clientPeer := newTestClientPeer(int(qkcconfig.P2PProtocolVersion), peer.app)
 	defer peer.close()
-	timeout := time.NewTimer(time.Duration(2 * time.Second))
-	defer timeout.Stop()
-	select {
-	case <-sync.Task:
-	case <-timeout.C:
-		t.Errorf("synchronize task missed")
-	}
-	err := clientPeer.SendNewTip(0, &p2p.Tip{RootBlockHeader: pm.rootBlockChain.CurrentBlock().Header(), MinorBlockHeaderList: nil})
-	if err != nil {
-		t.Errorf("make message failed: %v", err.Error())
-	}
-	timeout = time.NewTimer(time.Duration(2 * time.Second))
-	defer timeout.Stop()
-	select {
-	case <-sync.Task:
-		t.Errorf("unexpected task")
-	case <-timeout.C:
-	}
-
 	blocks := core.GenerateRootBlockChain(pm.rootBlockChain.CurrentBlock(), pm.rootBlockChain.Engine(), 1, nil)
-	err = clientPeer.SendNewTip(0, &p2p.Tip{RootBlockHeader: blocks[0].Header(), MinorBlockHeaderList: nil})
+	err := clientPeer.SendNewTip(0, &p2p.Tip{RootBlockHeader: blocks[0].Header(), MinorBlockHeaderList: nil})
 	if err != nil {
 		t.Errorf("make message failed: %v", err.Error())
 	}
-	timeout = time.NewTimer(time.Duration(3 * time.Second))
+	timeout := time.NewTimer(time.Duration(3 * time.Second))
 	defer timeout.Stop()
 	select {
 	case <-sync.Task:
