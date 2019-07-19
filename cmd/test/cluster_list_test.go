@@ -809,7 +809,7 @@ func TestGetRootBlockHeaderSyncFromGenesis(t *testing.T) {
 
 func TestGetRootBlockHeaderSyncFromHeight3(t *testing.T) {
 	_, clstrList := CreateClusterList(2, 1, 1, 1, nil)
-	clstrList.Start(5*time.Second, true)
+	clstrList.Start(5*time.Second, false)
 	defer clstrList.Stop()
 
 	var (
@@ -829,8 +829,9 @@ func TestGetRootBlockHeaderSyncFromHeight3(t *testing.T) {
 		assert.NoError(t, err)
 	}
 	assert.Equal(t, assertTrueWithTimeout(func() bool {
-		return mstr1.CurrentBlock().Hash() == mstr0.CurrentBlock().Hash()
+		return mstr1.CurrentBlock().Hash() == rootBlockList[2].Hash()
 	}, 3), true)
+	clstrList.Start(5*time.Second, true)
 	assert.Equal(t, assertTrueWithTimeout(func() bool {
 		return mstr1.CurrentBlock().Hash() == rootBlockList[len(rootBlockList)-1].Hash()
 	}, 3), true)
@@ -838,7 +839,7 @@ func TestGetRootBlockHeaderSyncFromHeight3(t *testing.T) {
 
 func TestGetRootBlockHeaderSyncWithStaleness(t *testing.T) {
 	_, clstrList := CreateClusterList(2, 1, 1, 1, nil)
-	clstrList.Start(5*time.Second, true)
+	clstrList.Start(5*time.Second, false)
 	defer clstrList.Stop()
 
 	var (
@@ -862,9 +863,10 @@ func TestGetRootBlockHeaderSyncWithStaleness(t *testing.T) {
 		assert.NoError(t, err)
 		err = mstr1.AddRootBlock(rBlock.(*types.RootBlock))
 		assert.NoError(t, err)
-		rootBlockList = append(rootBlockList, rBlock.(*types.RootBlock))
 	}
 	assert.Equal(t, mstr1.CurrentBlock().Hash(), rBlock.Hash())
+
+	clstrList.Start(5*time.Second, true)
 	b0 := rootBlockList[len(rootBlockList)-1]
 	assert.Equal(t, assertTrueWithTimeout(func() bool {
 		return mstr1.CurrentBlock().Hash() == b0.Hash()
