@@ -607,11 +607,25 @@ func TestShardSynchronizerWithFork(t *testing.T) {
 	_, err = mstr.AddMinorBlock(mBlock.Branch().Value, mBlock)
 	assert.NoError(t, err)
 
-	/*for _, blk := range blockList {
+	for _, blk := range blockList {
 		assert.Equal(t, assertTrueWithTimeout(func() bool {
-			shard10.
+			if shard10.GetMinorBlock(blk.Hash(), nil) != nil {
+				return true
+			}
+			return false
 		}, 1), true)
-	}*/
+		assert.Equal(t, assertTrueWithTimeout(func() bool {
+			mBlock, err := mstr1.GetMinorBlockByHash(blk.Hash(), blk.Branch())
+			if err != nil || mBlock == nil {
+				return false
+			}
+			return true
+		}, 1), true)
+	}
+
+	assert.Equal(t, assertTrueWithTimeout(func() bool {
+		return shard00.GetTip() == shard10.GetTip()
+	}, 1), true)
 }
 
 func TestBroadcastCrossShardTransactionsToNeighborOnly(t *testing.T) {}
