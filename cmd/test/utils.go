@@ -2,6 +2,7 @@ package test
 
 import (
 	"crypto/ecdsa"
+	"fmt"
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/cluster/service"
@@ -84,7 +85,7 @@ func createTx(acc account.Address, to *account.Address) *types.Transaction {
 	}
 	evmTx := types.NewEvmTransaction(0,
 		to.Recipient,
-		big.NewInt(0),
+		big.NewInt(100),
 		uint64(30000),
 		big.NewInt(1),
 		uint32(acc.FullShardKey),
@@ -92,6 +93,7 @@ func createTx(acc account.Address, to *account.Address) *types.Transaction {
 		3,
 		0,
 		[]byte{})
+	fmt.Println("++++++++", evmTx.ToFullShardId())
 	tx, _ := sign(evmTx)
 	return &types.Transaction{
 		EvmTx:  tx,

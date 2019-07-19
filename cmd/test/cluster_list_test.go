@@ -441,13 +441,107 @@ func TestBroadcastCrossShardTransactions(t *testing.T) {
 	var (
 		chainSize uint32 = 2
 		shardSize uint32 = 2
-		//id0              = uint32(0<<16 | shardSize | 0)
-		//id1              = uint32(0<<16 | shardSize | 1)
+		id0              = uint32(0<<16 | shardSize | 0)
+		id1              = uint32(0<<16 | shardSize | 1)
 	)
-	_, clstrList := CreateClusterList(1, chainSize, shardSize, chainSize, nil)
+	geneAcc, clstrList := CreateClusterList(1, chainSize, shardSize, chainSize, nil)
 	clstrList.Start(0)
 	defer clstrList.Stop()
 	// root := clstrList[0].CreateAndInsertBlocks([]uint32{id0, id1}, 3)
+	var (
+		toAddr, _ = account.CreatRandomAccountWithFullShardKey(id1)
+		mstr      = clstrList[0].GetMaster()
+		shrd0     = clstrList[0].GetShard(id0)
+		shrd1     = clstrList[0].GetShard(id1)
+	)
+	// create a root block
+	clstrList[0].CreateAndInsertBlocks(nil, 3)
+
+	tx := createTx(geneAcc.QKCAddress, &toAddr)
+	if err := mstr.AddTransaction(tx); err != nil {
+		t.Error("failed to add cross shard tx", "err", err)
+	}
+
+	iB0, _, err := shrd0.CreateBlockToMine()
+	if err != nil {
+		t.Error("failed to create block to mine", "fullShardId", id0, "err", err)
+	}
+	iB1, _, err := shrd0.CreateBlockToMine()
+	if err != nil {
+		t.Error("failed to create block to mine", "fullShardId", id0, "err", err)
+	}
+	b0 := iB0.(*types.MinorBlock)
+	b1 := iB1.(*types.MinorBlock)
+	b1.Header().Time += 1
+	assert.Equal(t, b0.Hash(), b1.Hash())
+	if err := shrd0.InsertMinedBlock(iB0); err != nil {
+		t.Error("failed to insert mined block", "fullShardId", id0, "err", err)
+	}
+	// clstrList[0].CreateAndInsertBlocks([]uint32{id0, id1}, 3)
+
+	txDepositList := clstrList[0].GetShard(id1).MinorBlockChain.ReadCrossShardTxList(b1.Hash())
+	xshardList := txDepositList.TXList
+	assert.Equal(t, len(xshardList), 1)
+	assert.Equal(t, xshardList[0].TxHash, tx.EvmTx.Hash())
+	assert.Equal(t, xshardList[0].From, geneAcc.QKCAddress)
+	assert.Equal(t, xshardList[0].To, toAddr)
+	assert.Equal(t, xshardList[0].Value.Value.Uint64(), uint64(100))
+
+	if err := shrd0.InsertMinedBlock(iB1); err != nil {
+		t.Error("failed to insert mined block", "fullShardId", id0, "err", err)
+	}
+	assert.Equal(t, assertTrueWithTimeout(func() bool {
+		return shrd0.MinorBlockChain.CurrentBlock().Hash() == iB0.Hash()
+	}, 3), true)
+
+	txDepositList = clstrList[0].GetShard(id1).MinorBlockChain.ReadCrossShardTxList(b0.Hash())
+	xshardList = txDepositList.TXList
+	assert.Equal(t, len(xshardList), 1)
+	assert.Equal(t, xshardList[0].TxHash, tx.EvmTx.Hash())
+	assert.Equal(t, xshardList[0].From, geneAcc.QKCAddress)
+	assert.Equal(t, xshardList[0].To, toAddr)
+	assert.Equal(t, xshardList[0].Value.Value.Uint64(), uint64(100))
+
+	iB2, _, err := shrd1.CreateBlockToMine()
+	if err != nil {
+		t.Error("failed to create block to mine", "fullShardId", id1, "err", err)
+	}
+	b2 := iB2.(*types.MinorBlock)
+	_, err = mstr.AddMinorBlock(b2.Branch().Value, b2)
+	// push one root block.
+	clstrList[0].CreateAndInsertBlocks(nil, 3)
+
+	iB3, _, err := shrd1.CreateBlockToMine()
+	if err != nil {
+		t.Error("failed to create minor block to mine", "fullShardId", id1, "err", err)
+	}
+	b3 := iB3.(*types.MinorBlock)
+
+	_, err = mstr.AddMinorBlock(b0.Branch().Value, b0)
+	if err != nil {
+		t.Error("failed to add minor block by master api", "fullShardId", b0.Branch().Value, "err", err)
+	}
+	_, err = mstr.AddMinorBlock(b1.Branch().Value, b1)
+	if err != nil {
+		t.Error("failed to add minor block by master api", "fullShardId", b1.Branch().Value, "err", err)
+	}
+	_, err = mstr.AddMinorBlock(b2.Branch().Value, b2)
+	if err != nil {
+		t.Error("failed to add minor block by master api", "fullShardId", b2.Branch().Value, "err", err)
+	}
+	_, err = mstr.AddMinorBlock(b3.Branch().Value, b3)
+	if err != nil {
+		t.Error("failed to add minor block by master api", "fullShardId", b3.Branch().Value, "err", err)
+	}
+	clstrList[0].CreateAndInsertBlocks(nil, 3)
+
+	assert.Equal(t, assertTrueWithTimeout(func() bool {
+		accData, err := mstr.GetAccountData(&toAddr, nil)
+		if err != nil {
+			return false
+		}
+		return accData[id1].Balance.Uint64() == uint64(100)
+	}, 1), true)
 }
 
 func TestGetWorkFromSlave(t *testing.T) {
