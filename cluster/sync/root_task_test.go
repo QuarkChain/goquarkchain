@@ -69,6 +69,10 @@ type mockblockchain struct {
 	validator core.Validator
 }
 
+func (bc *mockblockchain) GetMinorBlockChain() *core.MinorBlockChain {
+	return bc.mbc
+}
+
 func (bc *mockblockchain) HasBlock(hash common.Hash) bool {
 	if bc.rbc != nil {
 		header := bc.rbc.GetHeader(hash)

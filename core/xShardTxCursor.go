@@ -55,23 +55,27 @@ func (x *XShardTxCursor) getCurrentTx() (*types.CrossShardTransactionDeposit, er
 		if x.xShardDepositIndex != 1 && x.xShardDepositIndex != 2 {
 			return nil, errors.New("shardDepositIndex should 1 or 2")
 		}
-		branch := x.bc.GetBranch()
-		if branch.IsInBranch(x.rBlock.Header().Coinbase.FullShardKey) {
-			coinbaseAmount := new(big.Int)
-			if data, ok := x.rBlock.Header().CoinbaseAmount.BalanceMap[x.bc.GetGenesisToken()]; ok {
-				coinbaseAmount = new(big.Int).Set(data)
+		if x.xShardDepositIndex == 1 {
+			branch := x.bc.GetBranch()
+			if branch.IsInBranch(x.rBlock.Header().Coinbase.FullShardKey) {
+				coinbaseAmount := new(big.Int)
+				if data, ok := x.rBlock.Header().CoinbaseAmount.BalanceMap[x.bc.GetGenesisToken()]; ok {
+					coinbaseAmount = new(big.Int).Set(data)
+				}
+				return &types.CrossShardTransactionDeposit{
+					TxHash:          x.rBlock.Header().Hash(),
+					From:            account.CreatEmptyAddress(0),
+					To:              x.rBlock.Header().Coinbase,
+					Value:           &serialize.Uint256{Value: new(big.Int).Set(coinbaseAmount)},
+					GasPrice:        &serialize.Uint256{Value: new(big.Int)},
+					GasTokenID:      x.bc.GetGenesisToken(),
+					TransferTokenID: x.bc.GetGenesisToken(),
+					IsFromRootChain: true,
+				}, nil
 			}
-			return &types.CrossShardTransactionDeposit{
-				TxHash:          x.rBlock.Header().Hash(),
-				From:            account.CreatEmptyAddress(0),
-				To:              x.rBlock.Header().Coinbase,
-				Value:           &serialize.Uint256{Value: new(big.Int).Set(coinbaseAmount)},
-				GasPrice:        &serialize.Uint256{Value: new(big.Int)},
-				GasTokenID:      x.bc.GetGenesisToken(),
-				TransferTokenID: x.bc.GetGenesisToken(),
-				IsFromRootChain: true,
-			}, nil
 		}
+
+		return nil, nil
 	} else if x.xShardDepositIndex < uint64(len(x.xTxList.TXList)) {
 		return x.xTxList.TXList[x.xShardDepositIndex], nil
 	}

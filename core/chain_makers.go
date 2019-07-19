@@ -273,7 +273,7 @@ func (b *MinorBlockGen) SetDifficulty(value uint64) {
 // Blocks created by GenerateChain do not contain valid proof of work
 // values. Inserting them into MinorBlockChain requires use of FakePow or
 // a similar non-validating proof of work implementation.
-func GenerateMinorBlockChain(config *params.ChainConfig, quarkChainConfig *config.QuarkChainConfig, parent *types.MinorBlock, engine consensus.Engine, db ethdb.Database, n int, gen func(*config.QuarkChainConfig, int, *MinorBlockGen)) ([]*types.MinorBlock, []types.Receipts) {
+func GenerateMinorBlockChain(bc *MinorBlockChain, config *params.ChainConfig, quarkChainConfig *config.QuarkChainConfig, parent *types.MinorBlock, engine consensus.Engine, db ethdb.Database, n int, gen func(*config.QuarkChainConfig, int, *MinorBlockGen)) ([]*types.MinorBlock, []types.Receipts) {
 	if config == nil {
 		config = params.TestChainConfig
 	}
@@ -290,6 +290,11 @@ func GenerateMinorBlockChain(config *params.ChainConfig, quarkChainConfig *confi
 			block.AddTx(v)
 		}
 
+		_, txCursor, err := bc.RunCrossShardTxWithCursor(statedb, block)
+		if err != nil {
+			panic(err)
+		}
+		statedb.SetTxCursorInfo(txCursor)
 		coinbaseAmount := qkcCommon.BigIntMulBigRat(quarkChainConfig.GetShardConfigByFullShardID(quarkChainConfig.Chains[0].ShardSize|0).CoinbaseAmount, quarkChainConfig.RewardTaxRate)
 		statedb.AddBalance(block.Header().Coinbase.Recipient, coinbaseAmount, 0)
 
@@ -305,7 +310,8 @@ func GenerateMinorBlockChain(config *params.ChainConfig, quarkChainConfig *confi
 		//TODO-master
 		temp := types.NewTokenBalanceMap()
 		temp.BalanceMap[qkcCommon.TokenIDEncode("QKC")] = coinbaseAmount
-		block.Finalize(b.receipts, rootHash, statedb.GetGasUsed(), statedb.GetXShardReceiveGasUsed(), temp, &types.XShardTxCursorInfo{})
+		block.Finalize(b.receipts, rootHash, statedb.GetGasUsed(), statedb.GetXShardReceiveGasUsed(), temp, statedb.GetTxCursorInfo())
+		bc.InsertChain([]types.IBlock{block}, nil)
 		return block, b.receipts
 	}
 	for i := 0; i < n; i++ {
@@ -322,8 +328,8 @@ func GenerateMinorBlockChain(config *params.ChainConfig, quarkChainConfig *confi
 }
 
 // makeHeaderChain creates a deterministic chain of Headers rooted at parent.
-func makeHeaderChain(parent *types.MinorBlockHeader, metaData *types.MinorBlockMeta, n int, engine consensus.Engine, db ethdb.Database, seed int) []*types.MinorBlockHeader {
-	blocks := makeBlockChain(types.NewMinorBlockWithHeader(parent, metaData), n, engine, db, seed)
+func makeHeaderChain(bc *MinorBlockChain, parent *types.MinorBlockHeader, metaData *types.MinorBlockMeta, n int, engine consensus.Engine, db ethdb.Database, seed int) []*types.MinorBlockHeader {
+	blocks := makeBlockChain(bc, types.NewMinorBlockWithHeader(parent, metaData), n, engine, db, seed)
 	headers := make([]*types.MinorBlockHeader, len(blocks))
 	for i, block := range blocks {
 		headers[i] = block.Header()
@@ -332,8 +338,8 @@ func makeHeaderChain(parent *types.MinorBlockHeader, metaData *types.MinorBlockM
 }
 
 // makeBlockChain creates a deterministic chain of blocks rooted at parent.
-func makeBlockChain(parent *types.MinorBlock, n int, engine consensus.Engine, db ethdb.Database, seed int) []*types.MinorBlock {
-	blocks, _ := GenerateMinorBlockChain(params.TestChainConfig, config.NewQuarkChainConfig(), parent, engine, db, n, func(config *config.QuarkChainConfig, i int, b *MinorBlockGen) {
+func makeBlockChain(bc *MinorBlockChain, parent *types.MinorBlock, n int, engine consensus.Engine, db ethdb.Database, seed int) []*types.MinorBlock {
+	blocks, _ := GenerateMinorBlockChain(bc, params.TestChainConfig, config.NewQuarkChainConfig(), parent, engine, db, n, func(config *config.QuarkChainConfig, i int, b *MinorBlockGen) {
 		b.SetCoinbase(account.Address{Recipient: account.Recipient{0: byte(seed), 19: byte(i)}, FullShardKey: 0})
 	})
 	return blocks

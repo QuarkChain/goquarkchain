@@ -49,13 +49,6 @@ func newMinorBlockChain(sz int) (blockchain, ethdb.Database) {
 	qkcconfig.SkipRootCoinbaseCheck = true
 	qkcconfig.SkipMinorDifficultyCheck = true
 	qkcconfig.SkipRootDifficultyCheck = true
-	minorBlocks, _ := core.GenerateMinorBlockChain(params.TestChainConfig, qkcconfig, minorGenesis, engine, db, sz, nil)
-
-	var blocks []types.IBlock
-	for _, mb := range minorBlocks {
-		blocks = append(blocks, mb)
-	}
-
 	blockchain, err := core.NewMinorBlockChain(db, nil, params.TestChainConfig, clusterConfig, engine, vm.Config{}, nil, fullShardID)
 	if err != nil {
 		panic(fmt.Sprintf("failed to create minor blockchain: %v", err))
@@ -64,6 +57,13 @@ func newMinorBlockChain(sz int) (blockchain, ethdb.Database) {
 	if err != nil {
 		panic(fmt.Sprintf("failed to init minor blockchain: %v", err))
 	}
+	minorBlocks, _ := core.GenerateMinorBlockChain(blockchain, params.TestChainConfig, qkcconfig, minorGenesis, engine, db, sz, nil)
+
+	var blocks []types.IBlock
+	for _, mb := range minorBlocks {
+		blocks = append(blocks, mb)
+	}
+
 	if _, err := blockchain.InsertChain(blocks, nil); err != nil {
 		panic(fmt.Sprintf("failed to insert minor blocks: %v", err))
 	}
@@ -79,7 +79,7 @@ func TestMinorChainTaskRun(t *testing.T) {
 	var mt Task = NewMinorChainTask(p, currHeader)
 
 	// Prepare future blocks for downloading.
-	mbChain, mhChain := makeMinorChains(mbc.CurrentBlock(), db, false)
+	mbChain, mhChain := makeMinorChains(bc.(*mockblockchain).mbc, mbc.CurrentBlock(), db, false)
 
 	// No error if already have the target block.
 	assert.NoError(t, mt.Run(bc))
@@ -126,7 +126,7 @@ func TestMinorChainTaskRun(t *testing.T) {
 	assert.Equal(t, uint64(10), bc.CurrentHeader().NumberU64())
 
 	// Sync older forks. Starting from block 6, up to 11.
-	mbChain, mhChain = makeMinorChains(mbChain[0], db, true)
+	mbChain, mhChain = makeMinorChains(bc.(*mockblockchain).mbc, mbChain[0], db, true)
 	for _, rh := range mhChain {
 		assert.False(t, bc.HasBlock(rh.Hash()))
 	}
@@ -144,14 +144,14 @@ func TestMinorChainTaskRun(t *testing.T) {
  Test helpers.
 */
 
-func makeMinorChains(parent *types.MinorBlock, db ethdb.Database, random bool) ([]*types.MinorBlock, []*types.MinorBlockHeader) {
+func makeMinorChains(bc *core.MinorBlockChain, parent *types.MinorBlock, db ethdb.Database, random bool) ([]*types.MinorBlock, []*types.MinorBlockHeader) {
 	var gen func(config *config.QuarkChainConfig, i int, b *core.MinorBlockGen)
 	if random {
 		gen = func(config *config.QuarkChainConfig, i int, b *core.MinorBlockGen) {
 			b.SetExtra([]byte{byte(i)})
 		}
 	}
-	blockchain, _ := core.GenerateMinorBlockChain(params.TestChainConfig, qkcconfig, parent, engine, db, 5, gen)
+	blockchain, _ := core.GenerateMinorBlockChain(bc, params.TestChainConfig, qkcconfig, parent, engine, db, 5, gen)
 	var headerchain []*types.MinorBlockHeader
 	for _, mb := range blockchain {
 		headerchain = append(headerchain, mb.Header())
