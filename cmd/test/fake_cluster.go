@@ -28,6 +28,7 @@ var (
 
 type clusterNode struct {
 	index     int
+	status    bool
 	master    *master.QKCMasterBackend
 	slavelist []*slave.SlaveBackend
 	clstrCfg  *config.ClusterConfig
@@ -55,7 +56,7 @@ shardSize, slaveSize uint32, geneRHeights map[uint32]uint32) *config.ClusterConf
 	if int(index) < len(privStrs) {
 		cfg.P2P.PrivKey = privStrs[index]
 	}
-	cfg.P2P.BootNodes = bootNode
+	cfg.P2P.BootNodes = "" // bootNode
 
 	fullShardIds := cfg.Quarkchain.GetGenesisShardIds()
 	for _, fullShardId := range fullShardIds {
@@ -256,6 +257,10 @@ func (c *clusterNode) Stop() {
 	/*if err := c.services[clientIdentifier].Stop(); err != nil {
 		utils.Fatalf("Failed to stop %s: %v", clientIdentifier, err)
 	}*/
+	if !c.status {
+		return
+	}
+	c.status = false
 	for key, node := range c.services {
 		if key != clientIdentifier {
 			if err := node.Stop(); err != nil {
@@ -271,6 +276,9 @@ func (c *clusterNode) Start() (err error) {
 		g       errgroup.Group
 		idx     int
 	)
+	if c.status {
+		return
+	}
 
 	for key, node := range c.services {
 		if key == clientIdentifier {
@@ -308,7 +316,10 @@ func (c *clusterNode) Start() (err error) {
 	}
 
 	mstr := c.GetMaster()
-	return mstr.Start()
+	if err = mstr.Start(); err == nil {
+		c.status = true
+	}
+	return err
 }
 
 func (c *clusterNode) GetMaster() *master.QKCMasterBackend {
