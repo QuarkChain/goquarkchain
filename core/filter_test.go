@@ -36,13 +36,13 @@ func TestGetLog(t *testing.T) {
 	shardState := createDefaultShardState(env, nil, nil, nil, nil)
 	defer shardState.Stop()
 	// Add a root block to have all the shards initialized
-	rootBlock := shardState.rootTip.CreateBlockToAppend(nil, nil, nil, nil, nil).Finalize(nil, nil,common.Hash{})
+	rootBlock := shardState.rootTip.CreateBlockToAppend(nil, nil, nil, nil, nil).Finalize(nil, nil, common.Hash{})
 
 	_, err = shardState.AddRootBlock(rootBlock)
 	checkErr(err)
 
 	data := common.FromHex("6080604052348015600f57600080fd5b5060d88061001e6000396000f3fe6080604052600436106039576000357c01000000000000000000000000000000000000000000000000000000009004806326121ff014603e575b600080fd5b60446046565b005b6000624200429050806001023373ffffffffffffffffffffffffffffffffffffffff166001027f50cb9fe53daa9737b786ab3646f04d0150dc50ef4e75f59509d83667ad5adb20600102346001026040518082815260200191505060405180910390a35056fea165627a7a72305820eb8d6b105e05bbc4bc155f248007b36f41e06228c6981f30f35e534c87ed92500029")
-	evmtx := types.NewEvmContractCreation(0, new(big.Int), 1000000, new(big.Int).SetUint64(10000000000), 0, 0, 3, 0, data)
+	evmtx := types.NewEvmContractCreation(0, new(big.Int), 1000000, new(big.Int).SetUint64(10000000000), 0, 0, 3, 0, data, 0, 0)
 	prvKey, err := crypto.HexToECDSA(hex.EncodeToString(id1.GetKey().Bytes()))
 	if err != nil {
 		panic(err)
@@ -62,7 +62,7 @@ func TestGetLog(t *testing.T) {
 	err = shardState.AddTx(tx)
 	checkErr(err)
 
-	b2, err := shardState.CreateBlockToMine(nil, &acc3, nil)
+	b2, err := shardState.CreateBlockToMine(nil, &acc3, nil, nil, nil)
 	checkErr(err)
 	assert.Equal(t, len(b2.Transactions()), 1)
 	assert.Equal(t, b2.Header().Number, uint64(1))
@@ -77,7 +77,7 @@ func TestGetLog(t *testing.T) {
 
 	//second contract
 	data = common.FromHex("26121ff0")
-	evmtx = types.NewEvmTransaction(1, contractAddr, new(big.Int), 1000000, new(big.Int).SetUint64(10000000000), 0, 0, 3, 0, data)
+	evmtx = types.NewEvmTransaction(1, contractAddr, new(big.Int), 1000000, new(big.Int).SetUint64(10000000000), 0, 0, 3, 0, data, 0, 0)
 
 	evmtx, err = types.SignTx(evmtx, types.MakeSigner(3), prvKey)
 	if err != nil {
@@ -94,7 +94,7 @@ func TestGetLog(t *testing.T) {
 	err = shardState.AddTx(tx)
 	checkErr(err)
 
-	b3, err := shardState.CreateBlockToMine(nil, &acc3, nil)
+	b3, err := shardState.CreateBlockToMine(nil, &acc3, nil, nil, nil)
 	checkErr(err)
 	assert.Equal(t, len(b3.Transactions()), 1)
 	assert.Equal(t, b3.Header().Number, uint64(2))

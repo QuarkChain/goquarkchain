@@ -2,7 +2,6 @@
 package types
 
 import (
-	"fmt"
 	"math/big"
 	"sync/atomic"
 	"time"
@@ -461,8 +460,7 @@ func (h *MinorBlock) CreateBlockToAppend(createTime *uint64, difficulty *big.Int
 	}
 
 	if xShardGasLimit == nil {
-		fmt.Println(h.Meta().XshardGasLimit)
-		xShardGasLimit = h.GetXShardGasLimit()
+		xShardGasLimit = new(big.Int).Div(h.GasLimit(), new(big.Int).SetUint64(2))
 	}
 
 	if extraData == nil {

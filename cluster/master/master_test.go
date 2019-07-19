@@ -384,7 +384,7 @@ func TestAddTransaction(t *testing.T) {
 	master := initEnv(t, nil)
 	id1, err := account.CreatRandomIdentity()
 	assert.NoError(t, err)
-	evmTx := types.NewEvmTransaction(0, id1.GetRecipient(), new(big.Int), 0, new(big.Int), 2, 2, 1, 0, []byte{})
+	evmTx := types.NewEvmTransaction(0, id1.GetRecipient(), new(big.Int), 0, new(big.Int), 2, 2, 1, 0, []byte{}, 0, 0)
 	tx := &types.Transaction{
 		EvmTx:  evmTx,
 		TxType: types.EvmTx,
@@ -394,7 +394,7 @@ func TestAddTransaction(t *testing.T) {
 
 	//fromFullShardKey 00040000 -> chainID =4
 	// config->chainID : 1,2,3
-	evmTx = types.NewEvmTransaction(0, id1.GetRecipient(), new(big.Int), 0, new(big.Int), 262144, 2, 1, 0, []byte{})
+	evmTx = types.NewEvmTransaction(0, id1.GetRecipient(), new(big.Int), 0, new(big.Int), 262144, 2, 1, 0, []byte{}, 0, 0)
 	tx = &types.Transaction{
 		EvmTx:  evmTx,
 		TxType: types.EvmTx,
@@ -407,7 +407,7 @@ func TestExecuteTransaction(t *testing.T) {
 	id1, err := account.CreatRandomIdentity()
 	assert.NoError(t, err)
 	add1 := account.NewAddress(id1.GetRecipient(), 3)
-	evmTx := types.NewEvmTransaction(0, id1.GetRecipient(), new(big.Int), 0, new(big.Int), 2, 2, 1, 0, []byte{})
+	evmTx := types.NewEvmTransaction(0, id1.GetRecipient(), new(big.Int), 0, new(big.Int), 2, 2, 1, 0, []byte{}, 0, 0)
 	tx := &types.Transaction{
 		EvmTx:  evmTx,
 		TxType: types.EvmTx,
@@ -416,7 +416,7 @@ func TestExecuteTransaction(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, data, []byte("qkc"))
 
-	evmTx = types.NewEvmTransaction(0, id1.GetRecipient(), new(big.Int), 0, new(big.Int), 222222222, 2, 1, 0, []byte{})
+	evmTx = types.NewEvmTransaction(0, id1.GetRecipient(), new(big.Int), 0, new(big.Int), 222222222, 2, 1, 0, []byte{}, 0, 0)
 	tx = &types.Transaction{
 		EvmTx:  evmTx,
 		TxType: types.EvmTx,
@@ -456,7 +456,7 @@ func TestGetTransactionByHash(t *testing.T) {
 	master := initEnv(t, nil)
 	id1, err := account.CreatRandomIdentity()
 	assert.NoError(t, err)
-	evmTx := types.NewEvmTransaction(0, id1.GetRecipient(), new(big.Int), 0, new(big.Int), 2, 2, 1, 0, []byte{})
+	evmTx := types.NewEvmTransaction(0, id1.GetRecipient(), new(big.Int), 0, new(big.Int), 2, 2, 1, 0, []byte{}, 0, 0)
 	tx := &types.Transaction{
 		EvmTx:  evmTx,
 		TxType: types.EvmTx,
@@ -472,7 +472,7 @@ func TestGetTransactionReceipt(t *testing.T) {
 	master := initEnv(t, nil)
 	id1, err := account.CreatRandomIdentity()
 	assert.NoError(t, err)
-	evmTx := types.NewEvmTransaction(0, id1.GetRecipient(), new(big.Int), 0, new(big.Int), 2, 2, 1, 0, []byte{})
+	evmTx := types.NewEvmTransaction(0, id1.GetRecipient(), new(big.Int), 0, new(big.Int), 2, 2, 1, 0, []byte{}, 0, 0)
 	tx := &types.Transaction{
 		EvmTx:  evmTx,
 		TxType: types.EvmTx,
@@ -511,7 +511,7 @@ func TestEstimateGas(t *testing.T) {
 	id1, err := account.CreatRandomIdentity()
 	assert.NoError(t, err)
 	add1 := account.NewAddress(id1.GetRecipient(), 3)
-	evmTx := types.NewEvmTransaction(0, id1.GetRecipient(), new(big.Int), 0, new(big.Int), 2, 2, 1, 0, []byte{})
+	evmTx := types.NewEvmTransaction(0, id1.GetRecipient(), new(big.Int), 0, new(big.Int), 2, 2, 1, 0, []byte{}, 0, 0)
 	tx := &types.Transaction{
 		EvmTx:  evmTx,
 		TxType: types.EvmTx,
@@ -520,7 +520,7 @@ func TestEstimateGas(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, data, uint32(123))
 
-	evmTx = types.NewEvmTransaction(0, id1.GetRecipient(), new(big.Int), 0, new(big.Int), 2222222, 2, 1, 0, []byte{})
+	evmTx = types.NewEvmTransaction(0, id1.GetRecipient(), new(big.Int), 0, new(big.Int), 2222222, 2, 1, 0, []byte{}, 0, 0)
 	tx = &types.Transaction{
 		EvmTx:  evmTx,
 		TxType: types.EvmTx,

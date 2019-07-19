@@ -61,8 +61,8 @@ type txdata struct {
 	Hash *common.Hash `json:"hash"              rlp:"-"`
 }
 
-func NewEvmTransaction(nonce uint64, to account.Recipient, amount *big.Int, gasLimit uint64, gasPrice *big.Int, fromFullShardKey uint32, toFullShardKey uint32, networkId uint32, version uint32, data []byte) *EvmTransaction {
-	return newEvmTransaction(nonce, &to, amount, gasLimit, gasPrice, fromFullShardKey, toFullShardKey, networkId, version, data)
+func NewEvmTransaction(nonce uint64, to account.Recipient, amount *big.Int, gasLimit uint64, gasPrice *big.Int, fromFullShardKey uint32, toFullShardKey uint32, networkId uint32, version uint32, data []byte, gasTokenID, transferTokenID uint64) *EvmTransaction {
+	return newEvmTransaction(nonce, &to, amount, gasLimit, gasPrice, fromFullShardKey, toFullShardKey, networkId, version, data, gasTokenID, transferTokenID)
 }
 func (e *EvmTransaction) SetGas(data uint64) {
 	e.data.GasLimit = data
@@ -79,11 +79,11 @@ func (e *EvmTransaction) SetVRS(v, r, s *big.Int) {
 	e.updated = true
 }
 
-func NewEvmContractCreation(nonce uint64, amount *big.Int, gasLimit uint64, gasPrice *big.Int, fromFullShardKey uint32, toFullShardKey uint32, networkId uint32, version uint32, data []byte) *EvmTransaction {
-	return newEvmTransaction(nonce, nil, amount, gasLimit, gasPrice, fromFullShardKey, toFullShardKey, networkId, version, data)
+func NewEvmContractCreation(nonce uint64, amount *big.Int, gasLimit uint64, gasPrice *big.Int, fromFullShardKey uint32, toFullShardKey uint32, networkId uint32, version uint32, data []byte, gasTokenID, transferTokenID uint64) *EvmTransaction {
+	return newEvmTransaction(nonce, nil, amount, gasLimit, gasPrice, fromFullShardKey, toFullShardKey, networkId, version, data, gasTokenID, transferTokenID)
 }
 
-func newEvmTransaction(nonce uint64, to *account.Recipient, amount *big.Int, gasLimit uint64, gasPrice *big.Int, fromFullShardKey uint32, toFullShardKey uint32, networkId uint32, version uint32, data []byte) *EvmTransaction {
+func newEvmTransaction(nonce uint64, to *account.Recipient, amount *big.Int, gasLimit uint64, gasPrice *big.Int, fromFullShardKey uint32, toFullShardKey uint32, networkId uint32, version uint32, data []byte, gasTokenID, transferTokenID uint64) *EvmTransaction {
 	newFromFullShardKey := Uint32(fromFullShardKey)
 	newToFullShardKey := Uint32(toFullShardKey)
 	if len(data) > 0 {
@@ -98,8 +98,8 @@ func newEvmTransaction(nonce uint64, to *account.Recipient, amount *big.Int, gas
 		Price:            new(big.Int),
 		FromFullShardKey: &newFromFullShardKey,
 		ToFullShardKey:   &newToFullShardKey,
-		GasTokenID:       0,
-		TransferTokenID:  0,
+		GasTokenID:       gasTokenID,
+		TransferTokenID:  transferTokenID,
 		NetworkId:        networkId,
 		Version:          version,
 		V:                new(big.Int),

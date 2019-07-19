@@ -19,7 +19,7 @@ var (
 		0,
 		reciept,
 		big.NewInt(0), 0, big.NewInt(0),
-		0, 0, 1, 0, nil,
+		0, 0, 1, 0, nil, 0, 0,
 	)
 	emptyTx = Transaction{TxType: 0, EvmTx: emptyEvmTx}
 	//nonce , to , amount , gasLimit , gasPrice, fromFullShardKey , toFullShardKey , networkId , version , data
@@ -33,7 +33,7 @@ var (
 		0,
 		1,
 		0,
-		nil,
+		nil, 0, 0,
 	)
 	signTx, _ = rightvrsTx.WithSignature(
 		NewEIP155Signer(1),
@@ -145,7 +145,7 @@ func TestTransactionPriceNonceSort(t *testing.T) {
 	for start, key := range keys {
 		recipient := publicKey2Recipient(&key.PublicKey)
 		for i := 0; i < 25; i++ {
-			tx, _ := SignTx(NewEvmTransaction(uint64(start+i), account.Recipient{}, big.NewInt(100), 100, big.NewInt(int64(start+i)), 0, 0, 1, 0, nil), signer, key)
+			tx, _ := SignTx(NewEvmTransaction(uint64(start+i), account.Recipient{}, big.NewInt(100), 100, big.NewInt(int64(start+i)), 0, 0, 1, 0, nil, 0, 0), signer, key)
 			groups[recipient] = append(groups[recipient], &Transaction{TxType: EvmTx, EvmTx: tx})
 		}
 	}

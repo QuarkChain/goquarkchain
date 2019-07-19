@@ -1236,7 +1236,7 @@ func (m *TxPool) CheckTxBeforeAdd(tx *types.Transaction) error {
 	if m.all.Count() > int(m.quarkConfig.TransactionQueueSizeLimitPerShard) {
 		return errors.New("txpool queue full")
 	}
-	tx, err := m.chain.validateTx(tx, nil, nil, nil, nil)
+	tx, err := m.chain.validateTx(tx, m.currentState, nil, nil, nil)
 	if err != nil {
 		return err
 	}

@@ -88,7 +88,6 @@ type StateDB interface {
 	GetSenderDisallowMap() map[account.Recipient]*big.Int
 	GetBlockCoinbase() account.Recipient
 	SetBlockCoinbase(recipient account.Recipient)
-	GetXshardTxCursorInfo() *types.XShardTxCursorInfo
 	GetTimeStamp() uint64
 	SetTimeStamp(uint64)
 	GetBlockNumber() uint64

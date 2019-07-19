@@ -98,7 +98,7 @@ type QuarkChainConfig struct {
 	chainIdToShardIds                 map[uint32][]uint32
 	defaultChainToken                 uint64
 	allowTokenIDs                     map[uint64]bool
-	txWhiteListSenders                []account.Recipient `json:"TX_WHITELIST_SENDERS"`
+	TxWhiteListSenders                []account.Recipient `json:"TX_WHITELIST_SENDERS"`
 	txWhiteMapSenders                 map[account.Recipient]bool
 	DisbalePowCheck                   bool     `json:"DISABLE_POW_CHECK"`
 	XShardGasDDOSFixRootHeight        uint64   `json:"XSHARD_GAS_DDOS_FIX_ROOT_HEIGHT"`
@@ -387,7 +387,7 @@ func (q *QuarkChainConfig) GasLimit(fullShardID uint32) (*big.Int, error) {
 func (q *QuarkChainConfig) IsWhiteSender(addr account.Recipient) bool {
 	if q.txWhiteMapSenders == nil {
 		q.txWhiteMapSenders = make(map[account.Recipient]bool)
-		for _, v := range q.txWhiteListSenders {
+		for _, v := range q.TxWhiteListSenders {
 			q.txWhiteMapSenders[v] = true
 		}
 	}

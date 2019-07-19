@@ -106,7 +106,7 @@ func ValidateTransaction(state vm.StateDB, tx *types.Transaction, fromAddress *a
 	}
 
 	reqNonce := state.GetNonce(*from)
-	if fromAddress.IsEmpty() {
+	if fromAddress == nil || fromAddress.IsEmpty() {
 		reqNonce = 0
 	}
 	if reqNonce > tx.EvmTx.Nonce() {
@@ -135,6 +135,7 @@ func ValidateTransaction(state vm.StateDB, tx *types.Transaction, fromAddress *a
 		totalCost := new(big.Int).Mul(tx.EvmTx.GasPrice(), new(big.Int).SetUint64(tx.EvmTx.Gas()))
 		totalCost = new(big.Int).Add(totalCost, tx.EvmTx.Value())
 		if state.GetBalance(*from, tx.EvmTx.TransferTokenID()).Cmp(totalCost) < 0 {
+			fmt.Println("????", tx.EvmTx.TransferTokenID())
 			return fmt.Errorf("money is low: token:%v balance %v,totalCost %v", tx.EvmTx.TransferTokenID(), state.GetBalance(*from, tx.EvmTx.TransferTokenID()), totalCost)
 		}
 	} else {

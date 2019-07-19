@@ -151,7 +151,6 @@ func (m *MinorBlockChain) validateTx(tx *types.Transaction, evmState *state.Stat
 		}
 		evmTx.SetGas(evmTxGas)
 	}
-
 	toShardSize, err := m.clusterConfig.Quarkchain.GetShardSizeByChainId(tx.EvmTx.ToChainID())
 	if err != nil {
 		return nil, err
@@ -230,6 +229,7 @@ func (m *MinorBlockChain) validateTx(tx *types.Transaction, evmState *state.Stat
 	if evmState == nil {
 		return tx, nil //txpool.validateTx,validateTransaction will add in txpool,to avoid write and read txpool.currentEvmState frequently
 	}
+	evmState.SetQuarkChainConfig(m.clusterConfig.Quarkchain)
 	if err := ValidateTransaction(evmState, tx, fromAddress); err != nil {
 		return nil, err
 	}
@@ -469,9 +469,10 @@ func (m *MinorBlockChain) runBlock(block *types.MinorBlock, xShardReceiveTxList 
 	if err != nil {
 		return nil, nil, nil, 0, err
 	}
-	if xShardReceiveTxList == nil {
+	if xShardReceiveTxList != nil {
 		*xShardReceiveTxList = append(*xShardReceiveTxList, xTxList...)
 	}
+
 	evmState.SetTxCursorInfo(txCursorInfo)
 	if evmState.GetGasUsed().Cmp(block.Meta().XshardGasLimit.Value) < 0 {
 		evmState.SetGasLimit(new(big.Int).Sub(block.Meta().XshardGasLimit.Value, evmState.GetGasUsed()))
@@ -495,7 +496,7 @@ func (m *MinorBlockChain) FinalizeAndAddBlock(block *types.MinorBlock) (*types.M
 	coinbaseAmount := m.getCoinbaseAmount(block.Header().NumberU64())
 	coinbaseAmount.Add(evmState.GetBlockFee())
 
-	block.Finalize(receipts, evmState.IntermediateRoot(true), evmState.GetGasUsed(), evmState.GetXShardReceiveGasUsed(), coinbaseAmount, &types.XShardTxCursorInfo{})
+	block.Finalize(receipts, evmState.IntermediateRoot(true), evmState.GetGasUsed(), evmState.GetXShardReceiveGasUsed(), coinbaseAmount, evmState.GetTxCursorInfo())
 	_, err = m.InsertChain([]types.IBlock{block}, nil) // will lock
 	if err != nil {
 		return nil, nil, err

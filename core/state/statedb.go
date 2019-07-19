@@ -809,10 +809,6 @@ func (s *StateDB) SetBlockCoinbase(data qkcaccount.Recipient) {
 	s.blockCoinbase = data
 }
 
-func (s *StateDB) GetXshardTxCursorInfo() *types.XShardTxCursorInfo {
-	panic("not implement")
-}
-
 func (s *StateDB) SetTimeStamp(data uint64) {
 	s.timeStamp = data
 }

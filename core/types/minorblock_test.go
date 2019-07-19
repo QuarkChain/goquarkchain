@@ -17,7 +17,7 @@ var (
 		0,
 		reciept,
 		big.NewInt(0), 0, big.NewInt(0),
-		0, 0, 1, 0, nil,
+		0, 0, 1, 0, nil, 0, 0,
 	)
 	tx1 = Transaction{TxType: 0, EvmTx: evmTx1}
 	//nonce , to , amount , gasLimit , gasPrice, fromFullShardKey , toFullShardKey , networkId , version , data
@@ -31,7 +31,7 @@ var (
 		0,
 		1,
 		0,
-		nil,
+		nil, 0, 0,
 	)
 	tx2 = Transaction{TxType: 0, EvmTx: evmTx2}
 )

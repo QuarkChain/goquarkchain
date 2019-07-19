@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
+	qkcCommon "github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/params"
 	"github.com/ethereum/go-ethereum/common"
@@ -16,12 +17,14 @@ import (
 
 // CallArgs represents the arguments for a call.
 type CallArgs struct {
-	From     *account.Address `json:"from"`
-	To       *account.Address `json:"to"`
-	Gas      hexutil.Big      `json:"gas"`
-	GasPrice hexutil.Big      `json:"gasPrice"`
-	Value    hexutil.Big      `json:"value"`
-	Data     hexutil.Bytes    `json:"data"`
+	From            *account.Address `json:"from"`
+	To              *account.Address `json:"to"`
+	Gas             hexutil.Big      `json:"gas"`
+	GasPrice        hexutil.Big      `json:"gasPrice"`
+	Value           hexutil.Big      `json:"value"`
+	Data            hexutil.Bytes    `json:"data"`
+	GasTokenID      *hexutil.Uint64  `json:"gas_token_id"`
+	TransferTokenID *hexutil.Uint64  `json:"transfer_token_id"`
 }
 
 func (c *CallArgs) setDefaults() {
@@ -31,8 +34,15 @@ func (c *CallArgs) setDefaults() {
 	}
 }
 func (c *CallArgs) toTx(config *config.QuarkChainConfig) (*types.Transaction, error) {
+	gasTokenID, transferTokenID := qkcCommon.TokenIDEncode(config.GenesisToken), qkcCommon.TokenIDEncode(config.GenesisToken)
+	if c.GasTokenID == nil {
+		gasTokenID = uint64(*c.GasTokenID)
+	}
+	if c.TransferTokenID == nil {
+		transferTokenID = uint64(*c.TransferTokenID)
+	}
 	evmTx := types.NewEvmTransaction(0, c.To.Recipient, c.Value.ToInt(), c.Gas.ToInt().Uint64(),
-		c.GasPrice.ToInt(), c.From.FullShardKey, c.To.FullShardKey, config.NetworkID, 0, c.Data)
+		c.GasPrice.ToInt(), c.From.FullShardKey, c.To.FullShardKey, config.NetworkID, 0, c.Data, gasTokenID, transferTokenID)
 	tx := &types.Transaction{
 		EvmTx:  evmTx,
 		TxType: types.EvmTx,
@@ -41,14 +51,16 @@ func (c *CallArgs) toTx(config *config.QuarkChainConfig) (*types.Transaction, er
 }
 
 type CreateTxArgs struct {
-	NumTxPreShard    hexutil.Uint   `json:"numTxPerShard"`
-	XShardPrecent    hexutil.Uint   `json:"xShardPercent"`
-	To               common.Address `json:"to"`
-	Gas              *hexutil.Big   `json:"gas"`
-	GasPrice         *hexutil.Big   `json:"gasPrice"`
-	Value            *hexutil.Big   `json:"value"`
-	Data             hexutil.Bytes  `json:"data"`
-	FromFullShardKey hexutil.Uint   `json:"fromFullShardKey"`
+	NumTxPreShard    hexutil.Uint    `json:"numTxPerShard"`
+	XShardPrecent    hexutil.Uint    `json:"xShardPercent"`
+	To               common.Address  `json:"to"`
+	Gas              *hexutil.Big    `json:"gas"`
+	GasPrice         *hexutil.Big    `json:"gasPrice"`
+	Value            *hexutil.Big    `json:"value"`
+	Data             hexutil.Bytes   `json:"data"`
+	FromFullShardKey hexutil.Uint    `json:"fromFullShardKey"`
+	GasTokenID       *hexutil.Uint64 `json:"gas_token_id"`
+	TransferTokenID  *hexutil.Uint64 `json:"transfer_token_id"`
 }
 
 func (c *CreateTxArgs) setDefaults() {
@@ -60,8 +72,15 @@ func (c *CreateTxArgs) setDefaults() {
 	}
 }
 func (c *CreateTxArgs) toTx(config *config.QuarkChainConfig) *types.Transaction {
+	gasTokenID, transferTokenID := qkcCommon.TokenIDEncode(config.GenesisToken), qkcCommon.TokenIDEncode(config.GenesisToken)
+	if c.GasTokenID == nil {
+		gasTokenID = uint64(*c.GasTokenID)
+	}
+	if c.TransferTokenID == nil {
+		transferTokenID = uint64(*c.TransferTokenID)
+	}
 	evmTx := types.NewEvmTransaction(0, c.To, c.Value.ToInt(), c.Gas.ToInt().Uint64(), c.GasPrice.ToInt(),
-		uint32(c.FromFullShardKey), 0, config.NetworkID, 0, c.Data)
+		uint32(c.FromFullShardKey), 0, config.NetworkID, 0, c.Data, gasTokenID, transferTokenID)
 	tx := &types.Transaction{
 		EvmTx:  evmTx,
 		TxType: types.EvmTx,
@@ -79,13 +98,15 @@ type SendTxArgs struct {
 	Nonce    *hexutil.Uint64 `json:"nonce"`
 	// We accept "data" and "input" for backwards-compatibility reasons. "input" is the
 	// newer name and should be preferred by clients.
-	Data             *hexutil.Bytes `json:"data"`
-	FromFullShardKey *hexutil.Uint  `json:"fromFullShardKey"`
-	ToFullShardKey   *hexutil.Uint  `json:"toFullShardKey"`
-	V                *hexutil.Big   `json:"v"`
-	R                *hexutil.Big   `json:"r"`
-	S                *hexutil.Big   `json:"s"`
-	NetWorkID        *hexutil.Uint  `json:"networkid"`
+	Data             *hexutil.Bytes  `json:"data"`
+	FromFullShardKey *hexutil.Uint   `json:"fromFullShardKey"`
+	ToFullShardKey   *hexutil.Uint   `json:"toFullShardKey"`
+	V                *hexutil.Big    `json:"v"`
+	R                *hexutil.Big    `json:"r"`
+	S                *hexutil.Big    `json:"s"`
+	NetWorkID        *hexutil.Uint   `json:"networkid"`
+	GasTokenID       *hexutil.Uint64 `json:"gas_token_id"`
+	TransferTokenID  *hexutil.Uint64 `json:"transfer_token_id"`
 }
 
 // setDefaults is a helper function that fills in default values for unspecified tx fields.
@@ -103,7 +124,7 @@ func (args *SendTxArgs) setDefaults() {
 	}
 }
 
-func (args *SendTxArgs) toTransaction(networkID uint32, withVRS bool) (*types.Transaction, error) {
+func (args *SendTxArgs) toTransaction(config *config.QuarkChainConfig, withVRS bool) (*types.Transaction, error) {
 	if args.Nonce == nil {
 		return nil, errors.New("nonce is missing")
 	}
@@ -113,12 +134,20 @@ func (args *SendTxArgs) toTransaction(networkID uint32, withVRS bool) (*types.Tr
 	if args.ToFullShardKey == nil {
 		args.ToFullShardKey = args.FromFullShardKey
 	}
+	networkID := config.NetworkID
 	if args.NetWorkID != nil {
 		networkID = uint32(*args.NetWorkID)
 	}
+	gasTokenID, transferTokenID := qkcCommon.TokenIDEncode(config.GenesisToken), qkcCommon.TokenIDEncode(config.GenesisToken)
+	if args.GasTokenID == nil {
+		gasTokenID = uint64(*args.GasTokenID)
+	}
+	if args.TransferTokenID == nil {
+		transferTokenID = uint64(*args.TransferTokenID)
+	}
 	evmTx := types.NewEvmTransaction(uint64(*args.Nonce), account.BytesToIdentityRecipient(args.To.Bytes()),
 		(*big.Int)(args.Value), args.Gas.ToInt().Uint64(), (*big.Int)(args.GasPrice), uint32(*args.FromFullShardKey),
-		uint32(*args.ToFullShardKey), networkID, 0, *args.Data)
+		uint32(*args.ToFullShardKey), networkID, 0, *args.Data, gasTokenID, transferTokenID)
 
 	if withVRS {
 		if args.V != nil && args.R != nil && args.S != nil {

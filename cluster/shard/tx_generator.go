@@ -125,7 +125,7 @@ func (t *TxGenerator) createTransaction(acc *account.Account, nonce uint64,
 	}
 
 	evmTx := types.NewEvmTransaction(nonce, recipient, value, sampleTx.EvmTx.Gas(),
-		sampleTx.EvmTx.GasPrice(), fromFullShardKey, toFullShardKey, t.cfg.NetworkID, 0, sampleTx.EvmTx.Data())
+		sampleTx.EvmTx.GasPrice(), fromFullShardKey, toFullShardKey, t.cfg.NetworkID, 0, sampleTx.EvmTx.Data(), 0, 0)
 
 	return t.sign(evmTx, acc.PrivateKey())
 }

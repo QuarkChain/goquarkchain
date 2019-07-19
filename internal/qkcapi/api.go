@@ -195,7 +195,7 @@ func (p *PublicBlockChainAPI) GetAccountData(address account.Address, blockNr *r
 
 func (p *PublicBlockChainAPI) SendTransaction(args SendTxArgs) (hexutil.Bytes, error) {
 	args.setDefaults()
-	tx, err := args.toTransaction(p.b.GetClusterConfig().Quarkchain.NetworkID, true)
+	tx, err := args.toTransaction(p.b.GetClusterConfig().Quarkchain, true)
 	if err != nil {
 		return nil, err
 	}
