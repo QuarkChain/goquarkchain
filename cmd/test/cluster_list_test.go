@@ -653,23 +653,17 @@ func TestHandleGetMinorBlockListRequestWithTotalDiff(t *testing.T) {
 	}
 	tipNumber := cluster[0].master.GetTip()
 	rb0, err := cluster[0].master.GetRootBlockByNumber(&tipNumber)
-	if err != nil {
-		assert.Error(t, err)
-	}
+	assert.NoError(t, err)
 	var z uint64 = 0
 	block0, err := cluster[0].master.GetRootBlockByNumber(&z)
-	if err != nil {
-		assert.Error(t, err)
-	}
+	assert.NoError(t, err)
 	//Cluster 0 generates a root block of height 1 with 1e6 difficulty
 	coinbaseAmount := calCoinBase(block0)
 	rb1 := rb0.Header().CreateBlockToAppend(nil, big.NewInt(1000000), nil, nil,
 		nil).Finalize(coinbaseAmount, nil)
 	//Cluster 0 broadcasts the root block to cluster 1
 	err = cluster[0].master.AddRootBlock(rb1)
-	if err != nil {
-		assert.Error(t, err)
-	}
+	assert.NoError(t, err)
 	assert.Equal(t, cluster[0].master.CurrentBlock().Hash(), rb1.Header().Hash())
 	//Make sure the root block tip of cluster 1 is changed
 	assertTrueWithTimeout(func() bool {
@@ -679,9 +673,7 @@ func TestHandleGetMinorBlockListRequestWithTotalDiff(t *testing.T) {
 	b1 := tipGen(nil, cluster[1].GetShard(2))
 	assertTrueWithTimeout(func() bool {
 		success, err := cluster[1].master.AddMinorBlock(b1.Header().Branch.Value, b1)
-		if err != nil {
-			assert.Error(t, err)
-		}
+		assert.NoError(t, err)
 		return success
 	}, 2)
 	//Make sure another cluster received the new minor block
@@ -692,26 +684,20 @@ func TestHandleGetMinorBlockListRequestWithTotalDiff(t *testing.T) {
 
 	assertTrueWithTimeout(func() bool {
 		b, err := cluster[0].master.GetMinorBlockByHash(b1.Hash(), b1.Header().Branch)
-		if err != nil {
-			assert.Error(t, err)
-		}
+		assert.NoError(t, err)
 		return b != nil
 	}, 2)
 	//Cluster 1 generates a new root block with higher total difficulty
 	rb2 := rb0.Header().CreateBlockToAppend(nil, big.NewInt(3000000), nil, nil,
 		nil).Finalize(coinbaseAmount, nil)
 	err = cluster[1].master.AddRootBlock(rb2)
-	if err != nil {
-		assert.Error(t, err)
-	}
+	assert.NoError(t, err)
 	assert.Equal(t, cluster[1].master.CurrentBlock().Hash(), rb2.Header().Hash())
 	//Generate a minor block b2
 	b2 := tipGen(nil, cluster[1].GetShard(2))
 	assertTrueWithTimeout(func() bool {
 		success, err := cluster[1].master.AddMinorBlock(b2.Header().Branch.Value, b2)
-		if err != nil {
-			assert.Error(t, err)
-		}
+		assert.NoError(t, err)
 		return success
 	}, 2)
 	//Make sure another cluster received the new minor block
@@ -722,9 +708,7 @@ func TestHandleGetMinorBlockListRequestWithTotalDiff(t *testing.T) {
 
 	assertTrueWithTimeout(func() bool {
 		b, err := cluster[0].master.GetMinorBlockByHash(b1.Hash(), b2.Header().Branch)
-		if err != nil {
-			assert.Error(t, err)
-		}
+		assert.NoError(t, err)
 		return b != nil
 	}, 2)
 }
@@ -736,9 +720,7 @@ func TestNewBlockHeaderPool(t *testing.T) {
 	b1 := tipGen(nil, cluster[0].GetShard(2))
 	assertTrueWithTimeout(func() bool {
 		success, err := cluster[0].master.AddMinorBlock(b1.Header().Branch.Value, b1)
-		if err != nil {
-			assert.Error(t, err)
-		}
+		assert.NoError(t, err)
 		return success
 	}, 2)
 	// Update config to force checking diff
@@ -775,13 +757,9 @@ func TestGetRootBlockHeadersWithSkip(t *testing.T) {
 	rootBlockHeaderList := []types.IHeader{master.GetCurrRootHeader()}
 	for i := 0; i < 10; i++ {
 		rootBlock, _, err := master.CreateBlockToMine()
-		if err != nil {
-			assert.Error(t, err)
-		}
+		assert.NoError(t, err)
 		err = master.AddRootBlock(rootBlock.(*types.RootBlock))
-		if err != nil {
-			assert.Error(t, err)
-		}
+		assert.NoError(t, err)
 		rootBlockHeaderList = append(rootBlockHeaderList, rootBlock.IHeader())
 	}
 	assert.Equal(t, rootBlockHeaderList[len(rootBlockHeaderList)-1].NumberU64(), uint64(10))
@@ -792,10 +770,7 @@ func TestGetRootBlockHeadersWithSkip(t *testing.T) {
 	peer := cluster.GetPeerByIndex(1)
 	//# Test Case 1 ###################################################
 	blockHeaders, err := peer.GetRootBlockHeaderList(rootBlockHeaderList[2].Hash(), 3, true)
-
-	if err != nil {
-		assert.Error(t, err)
-	}
+	assert.NoError(t, err)
 	assert.Equal(t, len(blockHeaders), 3)
 	assert.Equal(t, blockHeaders[0].Hash(), rootBlockHeaderList[2].Hash())
 	assert.Equal(t, blockHeaders[1].Hash(), rootBlockHeaderList[1].Hash())
