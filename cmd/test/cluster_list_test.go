@@ -1,3 +1,5 @@
+// +build integrationTest
+
 package test
 
 import (
@@ -628,7 +630,43 @@ func TestShardSynchronizerWithFork(t *testing.T) {
 	}, 1), true)
 }
 
-func TestBroadcastCrossShardTransactionsToNeighborOnly(t *testing.T) {}
+func TestBroadcastCrossShardTransactionsToNeighborOnly(t *testing.T) {
+	var (
+		chainSize uint32 = 2
+		shardSize uint32 = 64
+		id0              = uint32(0<<16 | shardSize | 0)
+		// id1              = uint32(0<<16 | shardSize | 1)
+	)
+	_, clstrList := CreateClusterList(1, chainSize, shardSize, 4, nil)
+	clstrList.Start(5*time.Second, false)
+	defer clstrList.Stop()
+	clstrList.PeerList()
+
+	var (
+		mstr  = clstrList[0].GetMaster()
+		shrd0 = clstrList[0].GetShard(id0)
+	)
+	clstrList[0].CreateAndInsertBlocks(nil, 2)
+	iBlock, _, err := shrd0.CreateBlockToMine()
+	assert.NoError(t, err)
+	mBlock := iBlock.(*types.MinorBlock)
+	_, err = mstr.AddMinorBlock(mBlock.Branch().Value, mBlock)
+	assert.NoError(t, err)
+
+	nborShards := make(map[int]bool)
+	for i := 0; i < 6; i++ {
+		nborShards[1<<uint32(i)] = true
+	}
+	for shardId := 0; shardId < 64; shardId++ {
+		shrdI := clstrList[0].GetShard(shardSize | uint32(shardId))
+		xshardTxList := shrdI.MinorBlockChain.ReadCrossShardTxList(mBlock.Hash())
+		if nborShards[shardId] {
+			assert.NotNil(t, xshardTxList)
+		} else {
+			assert.Nil(t, xshardTxList)
+		}
+	}
+}
 
 func TestHandleGetMinorBlockListRequestWithTotalDiff(t *testing.T) {
 	_, cluster := CreateClusterList(2, 2, 2, 2, nil)
@@ -809,7 +847,7 @@ func TestGetRootBlockHeaderSyncFromGenesis(t *testing.T) {
 
 func TestGetRootBlockHeaderSyncFromHeight3(t *testing.T) {
 	_, clstrList := CreateClusterList(2, 1, 1, 1, nil)
-	clstrList.Start(5*time.Second, true)
+	clstrList.Start(5*time.Second, false)
 	defer clstrList.Stop()
 
 	var (
@@ -829,8 +867,9 @@ func TestGetRootBlockHeaderSyncFromHeight3(t *testing.T) {
 		assert.NoError(t, err)
 	}
 	assert.Equal(t, assertTrueWithTimeout(func() bool {
-		return mstr1.CurrentBlock().Hash() == mstr0.CurrentBlock().Hash()
+		return mstr1.CurrentBlock().Hash() == rootBlockList[2].Hash()
 	}, 3), true)
+	clstrList.Start(5*time.Second, true)
 	assert.Equal(t, assertTrueWithTimeout(func() bool {
 		return mstr1.CurrentBlock().Hash() == rootBlockList[len(rootBlockList)-1].Hash()
 	}, 3), true)
@@ -838,7 +877,7 @@ func TestGetRootBlockHeaderSyncFromHeight3(t *testing.T) {
 
 func TestGetRootBlockHeaderSyncWithStaleness(t *testing.T) {
 	_, clstrList := CreateClusterList(2, 1, 1, 1, nil)
-	clstrList.Start(5*time.Second, true)
+	clstrList.Start(5*time.Second, false)
 	defer clstrList.Stop()
 
 	var (
@@ -862,9 +901,10 @@ func TestGetRootBlockHeaderSyncWithStaleness(t *testing.T) {
 		assert.NoError(t, err)
 		err = mstr1.AddRootBlock(rBlock.(*types.RootBlock))
 		assert.NoError(t, err)
-		rootBlockList = append(rootBlockList, rBlock.(*types.RootBlock))
 	}
 	assert.Equal(t, mstr1.CurrentBlock().Hash(), rBlock.Hash())
+
+	clstrList.Start(5*time.Second, true)
 	b0 := rootBlockList[len(rootBlockList)-1]
 	assert.Equal(t, assertTrueWithTimeout(func() bool {
 		return mstr1.CurrentBlock().Hash() == b0.Hash()
