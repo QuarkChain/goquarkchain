@@ -871,8 +871,144 @@ func TestGetRootBlockHeaderSyncWithStaleness(t *testing.T) {
 	}, 1), true)
 }
 
-func TestGetRootBlockHeaderSyncWithMultipleLookup(t *testing.T) {}
+func TestGetRootBlockHeaderSyncWithMultipleLookup(t *testing.T) {
+	_, clstrList := CreateClusterList(2, 1, 1, 1, nil)
+	clstrList.Start(5*time.Second, false)
+	defer clstrList.Stop()
 
-func TestGetRootBlockHeaderSyncWithStartEqualEnd(t *testing.T) {}
+	var (
+		blockCount    = 12
+		mstr0         = clstrList[0].GetMaster()
+		mstr1         = clstrList[1].GetMaster()
+		rootBlockList = make([]*types.RootBlock, 0, blockCount)
+	)
+	for i := 0; i < blockCount; i++ {
+		iBlock, _, err := mstr0.CreateBlockToMine()
+		if err != nil {
+			assert.Error(t, err)
+		}
+		rBlock := iBlock.(*types.RootBlock)
+		if err := mstr0.AddRootBlock(rBlock); err != nil {
+			assert.Error(t, err)
+		}
+		rootBlockList = append(rootBlockList, rBlock)
+	}
+	assert.True(t, mstr0.CurrentBlock().Hash() == rootBlockList[len(rootBlockList)-1].Hash(),
+		"tip block hash do not match")
 
-func TestGetRootBlockHeaderSyncWithBestAncestor(t *testing.T) {}
+	for i := 0; i < 4; i++ {
+		if err := mstr1.AddRootBlock(rootBlockList[i]); err != nil {
+			assert.Error(t, err)
+		}
+	}
+	for i := 0; i < 4; i++ {
+		iBlock, _, err := mstr1.CreateBlockToMine()
+		if err != nil {
+			assert.Error(t, err)
+		}
+		rBlock := iBlock.(*types.RootBlock)
+		if err := mstr1.AddRootBlock(rBlock); err != nil {
+			assert.Error(t, err)
+		}
+	}
+
+	clstrList.Start(5*time.Second, true)
+
+	assert.Equal(t, assertTrueWithTimeout(func() bool {
+		return mstr0.CurrentBlock().Hash() == rootBlockList[len(rootBlockList)-1].Hash()
+	}, 2), true)
+}
+
+func TestGetRootBlockHeaderSyncWithStartEqualEnd(t *testing.T) {
+	_, clstrList := CreateClusterList(2, 1, 1, 1, nil)
+	clstrList.Start(5*time.Second, false)
+	defer clstrList.Stop()
+
+	var (
+		blockCount    = 5
+		mstr0         = clstrList[0].GetMaster()
+		mstr1         = clstrList[1].GetMaster()
+		rootBlockList = make([]*types.RootBlock, 0, blockCount)
+	)
+	for i := 0; i < blockCount; i++ {
+		iBlock, _, err := mstr0.CreateBlockToMine()
+		if err != nil {
+			assert.Error(t, err)
+		}
+		rBlock := iBlock.(*types.RootBlock)
+		if err := mstr0.AddRootBlock(rBlock); err != nil {
+			assert.Error(t, err)
+		}
+		rootBlockList = append(rootBlockList, rBlock)
+	}
+	assert.True(t, mstr0.CurrentBlock().Hash() == rootBlockList[len(rootBlockList)-1].Hash(),
+		"tip block hash do not match")
+
+	for i := 0; i < 3; i++ {
+		if err := mstr1.AddRootBlock(rootBlockList[i]); err != nil {
+			assert.Error(t, err)
+		}
+	}
+	for i := 0; i < 1; i++ {
+		iBlock, _, err := mstr1.CreateBlockToMine()
+		if err != nil {
+			assert.Error(t, err)
+		}
+		rBlock := iBlock.(*types.RootBlock)
+		if err := mstr1.AddRootBlock(rBlock); err != nil {
+			assert.Error(t, err)
+		}
+	}
+	clstrList.Start(5*time.Second, true)
+
+	assert.Equal(t, assertTrueWithTimeout(func() bool {
+		return mstr0.CurrentBlock().Hash() == rootBlockList[len(rootBlockList)-1].Hash()
+	}, 2), true)
+}
+
+func TestGetRootBlockHeaderSyncWithBestAncestor(t *testing.T) {
+	_, clstrList := CreateClusterList(2, 1, 1, 1, nil)
+	clstrList.Start(5*time.Second, false)
+	defer clstrList.Stop()
+
+	var (
+		blockCount    = 5
+		mstr0         = clstrList[0].GetMaster()
+		mstr1         = clstrList[1].GetMaster()
+		rootBlockList = make([]*types.RootBlock, 0, blockCount)
+	)
+	for i := 0; i < blockCount; i++ {
+		iBlock, _, err := mstr0.CreateBlockToMine()
+		if err != nil {
+			assert.Error(t, err)
+		}
+		rBlock := iBlock.(*types.RootBlock)
+		if err := mstr0.AddRootBlock(rBlock); err != nil {
+			assert.Error(t, err)
+		}
+		rootBlockList = append(rootBlockList, rBlock)
+	}
+	assert.True(t, mstr0.CurrentBlock().Hash() == rootBlockList[len(rootBlockList)-1].Hash(),
+		"tip block hash do not match")
+
+	for i := 0; i < 2; i++ {
+		if err := mstr1.AddRootBlock(rootBlockList[i]); err != nil {
+			assert.Error(t, err)
+		}
+	}
+	for i := 0; i < 2; i++ {
+		iBlock, _, err := mstr1.CreateBlockToMine()
+		if err != nil {
+			assert.Error(t, err)
+		}
+		rBlock := iBlock.(*types.RootBlock)
+		if err := mstr1.AddRootBlock(rBlock); err != nil {
+			assert.Error(t, err)
+		}
+	}
+	clstrList.Start(5*time.Second, true)
+
+	assert.Equal(t, assertTrueWithTimeout(func() bool {
+		return mstr0.CurrentBlock().Hash() == rootBlockList[len(rootBlockList)-1].Hash()
+	}, 2), true)
+}
