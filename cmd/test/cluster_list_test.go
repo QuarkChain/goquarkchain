@@ -630,12 +630,12 @@ func TestGetRootBlockHeaderSyncFromHeight3(t *testing.T) {
 		err := mstr1.AddRootBlock(rootBlockList[index])
 		assert.NoError(t, err)
 	}
-	assert.Equal(t, mstr1.CurrentBlock().Hash(), rootBlockList[2].Hash())
-	b0 := rootBlockList[len(rootBlockList)-1]
 	assert.Equal(t, assertTrueWithTimeout(func() bool {
-		return mstr1.CurrentBlock().Hash() == b0.Hash()
-	}, 1), true)
-
+		return mstr1.CurrentBlock().Hash() == mstr0.CurrentBlock().Hash()
+	}, 3), true)
+	assert.Equal(t, assertTrueWithTimeout(func() bool {
+		return mstr1.CurrentBlock().Hash() == rootBlockList[len(rootBlockList)-1].Hash()
+	}, 3), true)
 }
 
 func TestGetRootBlockHeaderSyncWithStaleness(t *testing.T) {
