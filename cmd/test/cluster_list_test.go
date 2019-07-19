@@ -628,7 +628,50 @@ func TestShardSynchronizerWithFork(t *testing.T) {
 	}, 1), true)
 }
 
-func TestBroadcastCrossShardTransactionsToNeighborOnly(t *testing.T) {}
+func TestBroadcastCrossShardTransactionsToNeighborOnly(t *testing.T) {
+	var (
+		chainSize uint32 = 2
+		shardSize uint32 = 64
+		id0              = uint32(0<<16 | shardSize | 0)
+		// id1              = uint32(0<<16 | shardSize | 1)
+	)
+	_, clstrList := CreateClusterList(1, chainSize, shardSize, 4, nil)
+	clstrList.Start(5*time.Second, false)
+	defer clstrList.Stop()
+	clstrList.PeerList()
+
+	var (
+		mstr  = clstrList[0].GetMaster()
+		shrd0 = clstrList[0].GetShard(id0)
+	)
+	clstrList[0].CreateAndInsertBlocks(nil, 2)
+	iBlock, _, err := shrd0.CreateBlockToMine()
+	assert.NoError(t, err)
+	mBlock := iBlock.(*types.MinorBlock)
+	_, err = mstr.AddMinorBlock(mBlock.Branch().Value, mBlock)
+	assert.NoError(t, err)
+
+	pow2 := func(n int) int {
+		var res = 1
+		for i := 0; i < n; i++ {
+			res = res << 1
+		}
+		return res
+	}
+	nborShards := make(map[int]bool)
+	for i := 0; i < 6; i++ {
+		nborShards[pow2(i)] = true
+	}
+	for shardId := 0; shardId < 64; shardId++ {
+		shrdI := clstrList[0].GetShard(shardSize | uint32(shardId))
+		xshardTxList := shrdI.MinorBlockChain.ReadCrossShardTxList(mBlock.Hash())
+		if nborShards[shardId] {
+			assert.NotNil(t, xshardTxList)
+		} else {
+			assert.Nil(t, xshardTxList)
+		}
+	}
+}
 
 func TestHandleGetMinorBlockListRequestWithTotalDiff(t *testing.T) {
 	_, cluster := CreateClusterList(2, 2, 2, 2, nil)
