@@ -972,7 +972,6 @@ func (m *MinorBlockChain) WriteBlockWithState(block *types.MinorBlock, receipts 
 	// Write other block data using a batch.
 	batch := m.db.NewBatch()
 	rawdb.WriteReceipts(batch, block.Hash(), receipts)
-
 	if updateTip {
 		senderMap, err := m.posw.BuildSenderDisallowMap(block.Hash(), nil)
 		if err != nil {
@@ -1374,6 +1373,7 @@ func (m *MinorBlockChain) insertSidechain(it *insertIterator) (int, []interface{
 // to be part of the new canonical chain and accumulates potential missing transactions and post an
 // event about them
 func (m *MinorBlockChain) reorg(oldBlock, newBlock types.IBlock) error {
+	fmt.Println("reorg", oldBlock.NumberU64(), oldBlock.Hash().String(), newBlock.NumberU64(), newBlock.Hash().String(), newBlock.IHeader().GetParentHash().String())
 	if qkcCommon.IsNil(oldBlock) || qkcCommon.IsNil(newBlock) {
 		return errors.New("reorg err:block is nil")
 	}
@@ -1417,6 +1417,7 @@ func (m *MinorBlockChain) reorg(oldBlock, newBlock types.IBlock) error {
 			newChain = append(newChain, newBlock)
 		}
 	}
+	fmt.Println("??????", oldBlock, qkcCommon.IsNil(oldBlock))
 	if qkcCommon.IsNil(oldBlock) {
 		return fmt.Errorf("Invalid old chain")
 	}
@@ -1435,6 +1436,7 @@ func (m *MinorBlockChain) reorg(oldBlock, newBlock types.IBlock) error {
 		deletedTxs = append(deletedTxs, oldBlock.(*types.MinorBlock).GetTransactions()...)
 		collectLogs(oldBlock.Hash())
 
+		fmt.Println("??????", newBlock.IHeader().GetParentHash().String())
 		oldBlock, newBlock = m.GetBlock(oldBlock.IHeader().GetParentHash()), m.GetBlock(newBlock.IHeader().GetParentHash())
 		if qkcCommon.IsNil(oldBlock) {
 			return fmt.Errorf("Invalid old chain")

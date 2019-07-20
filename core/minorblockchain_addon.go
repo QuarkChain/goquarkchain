@@ -108,7 +108,7 @@ func (m *MinorBlockChain) updateTip(state *state.StateDB, block *types.MinorBloc
 		return false, errors.New("missing prev block")
 	}
 
-	tipPrevRootHeader := m.getRootBlockHeaderByHash(m.CurrentBlock().PrevRootBlockHash())
+	tipPrevRootHeader := m.getRootBlockHeaderByHash(block.PrevRootBlockHash())
 	// Don't update tip if the block depends on a root block that is not root_tip or root_tip's ancestor
 	if !m.isSameRootChain(m.rootTip, tipPrevRootHeader) {
 		return false, nil
@@ -291,11 +291,13 @@ func (m *MinorBlockChain) isSameRootChain(long types.IHeader, short types.IHeade
 func (m *MinorBlockChain) isMinorBlockLinkedToRootTip(mBlock *types.MinorBlock) bool {
 	confirmed := m.confirmedHeaderTip
 	if confirmed == nil {
+		fmt.Println("111--297")
 		return true
 	}
 	if mBlock.Header().Number <= confirmed.Number {
 		return false
 	}
+	fmt.Println("isSame", isSameChain(m.db, mBlock.Header(), confirmed))
 	return isSameChain(m.db, mBlock.Header(), confirmed)
 }
 func (m *MinorBlockChain) isNeighbor(remoteBranch account.Branch, rootHeight *uint32) bool {
@@ -489,10 +491,12 @@ func (m *MinorBlockChain) runBlock(block *types.MinorBlock, xShardReceiveTxList 
 // FinalizeAndAddBlock finalize minor block and add it to chain
 // only used in test now
 func (m *MinorBlockChain) FinalizeAndAddBlock(block *types.MinorBlock) (*types.MinorBlock, types.Receipts, error) {
+	fmt.Println("222")
 	evmState, receipts, _, _, err := m.runBlock(block, nil) // will lock
 	if err != nil {
 		return nil, nil, err
 	}
+	fmt.Println("333")
 	coinbaseAmount := m.getCoinbaseAmount(block.Header().NumberU64())
 	coinbaseAmount.Add(evmState.GetBlockFee())
 
@@ -645,10 +649,11 @@ func (m *MinorBlockChain) ExecuteTx(tx *types.Transaction, fromAddress *account.
 
 	to := evmTx.EvmTx.To()
 	msg := types.NewMessage(fromAddress.Recipient, to, evmTx.EvmTx.Nonce(), evmTx.EvmTx.Value(), evmTx.EvmTx.Gas(), evmTx.EvmTx.GasPrice(), evmTx.EvmTx.Data(), false, tx.EvmTx.FromShardID(), tx.EvmTx.ToShardID())
-	evmState.SetFullShardKey(tx.EvmTx.ToFullShardKey())
+	state.SetFullShardKey(tx.EvmTx.ToFullShardKey())
+	state.SetQuarkChainConfig(m.clusterConfig.Quarkchain)
 
 	context := NewEVMContext(msg, m.CurrentBlock().IHeader().(*types.MinorBlockHeader), m)
-	evmEnv := vm.NewEVM(context, evmState, m.ethChainConfig, m.vmConfig)
+	evmEnv := vm.NewEVM(context, state, m.ethChainConfig, m.vmConfig)
 
 	localFee := getLocalFeeRate(m.clusterConfig.Quarkchain)
 	ret, _, _, err := ApplyMessage(evmEnv, msg, gp, localFee)
@@ -822,9 +827,10 @@ func (m *MinorBlockChain) checkTxBeforeApply(stateT *state.StateDB, tx *types.Tr
 		return ErrorTxContinue
 	}
 
-	if tx.EvmTx.GasPrice().Cmp(m.clusterConfig.Quarkchain.MinMiningGasPrice) <= 0 {
-		return ErrorTxContinue
-	}
+	////TODO to add
+	//if tx.EvmTx.GasPrice().Cmp(m.clusterConfig.Quarkchain.MinMiningGasPrice) <= 0 {
+	//	return ErrorTxContinue
+	//}
 
 	sender, err := tx.Sender(types.NewEIP155Signer(m.clusterConfig.Quarkchain.NetworkID))
 	if err != nil {

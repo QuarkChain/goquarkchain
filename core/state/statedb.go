@@ -18,6 +18,7 @@
 package state
 
 import (
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"math/big"
@@ -423,8 +424,22 @@ func (s *StateDB) updateStateObject(stateObject *stateObject) {
 	addr := stateObject.Address()
 	data, err := rlp.EncodeToBytes(stateObject)
 	if err != nil {
+		fmt.Println("UUUUUUU", addr.String(), hex.EncodeToString(data))
+		fmt.Println("detail")
+		fmt.Println(stateObject.data.Nonce)
+		fmt.Println(stateObject.data.TokenBalances)
+		fmt.Println(stateObject.data.Root)
+		fmt.Println(stateObject.data.CodeHash)
+		fmt.Println(stateObject.data.FullShardKey)
 		panic(fmt.Errorf("can't encode object at %x: %v", addr[:], err))
 	}
+	//fmt.Println("UUUUUUU", addr.String(), hex.EncodeToString(data))
+	//fmt.Println("detail")
+	//fmt.Println(stateObject.data.Nonce)
+	//fmt.Println(stateObject.data.TokenBalances)
+	//fmt.Println(stateObject.data.Root)
+	//fmt.Println(stateObject.data.CodeHash)
+	//fmt.Println(stateObject.data.FullShardKey)
 	s.setError(s.trie.TryUpdate(addr[:], data))
 }
 
@@ -453,6 +468,7 @@ func (s *StateDB) getStateObject(addr common.Address) (stateObject *stateObject)
 	}
 	var data Account
 	if err := rlp.DecodeBytes(enc, &data); err != nil {
+		fmt.Println("err", err)
 		log.Error("Failed to decode state object", "addr", addr, "err", err)
 		return nil
 	}

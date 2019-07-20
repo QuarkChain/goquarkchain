@@ -382,6 +382,7 @@ func (pool *TxPool) reset(oldBlock, newBlock *types.MinorBlock) {
 		return
 	}
 	pool.currentState = statedb
+	pool.currentState.SetQuarkChainConfig(pool.chain.Config())
 	pool.pendingState = state.ManageState(statedb)
 	pool.currentMaxGas = newBlock.Header().GasLimit.Value.Uint64()
 

@@ -163,6 +163,7 @@ func printMinorChain(bc *MinorBlockChain) {
 // the database if successful.
 func testMinorBlockChainImport(chain []types.IBlock, blockchain *MinorBlockChain) error {
 	for _, block := range chain {
+		//fmt.Println("block", block.NumberU64())
 		// Try and process the block
 		err := blockchain.engine.VerifyHeader(blockchain, block.IHeader(), true)
 		if err == nil {
@@ -178,6 +179,7 @@ func testMinorBlockChainImport(chain []types.IBlock, blockchain *MinorBlockChain
 		if err != nil {
 			return err
 		}
+		statedb.SetTxCursorInfo(block.(*types.MinorBlock).Meta().XShardTxCursorInfo)
 		receipts, _, usedGas, err := blockchain.Processor().Process(block.(*types.MinorBlock), statedb, vm.Config{})
 		if err != nil {
 			blockchain.reportBlock(block, receipts, err)
@@ -230,7 +232,7 @@ func TestMinorLastBlock(t *testing.T) {
 		t.Fatalf("failed to create pristine chain: %v", err)
 	}
 	defer blockchain.Stop()
-
+	fmt.Println("233333")
 	blocks := makeBlockChain(blockchain.CurrentBlock(), 1, engine, blockchain.db, 0)
 	if _, err := blockchain.InsertChain(toMinorBlocks(blocks), nil); err != nil {
 		t.Fatalf("Failed to insert block: %v", err)
@@ -593,7 +595,7 @@ func TestMinorFastVsFullChains(t *testing.T) {
 		// If the block number is multiple of 3, send a few bonus transactions to the miner
 		if i%3 == 2 {
 			for j := 0; j < i%4+1; j++ {
-				tx, err := types.SignTx(types.NewEvmTransaction(block.TxNonce(addr1.Recipient), account.Recipient, big.NewInt(1000), params.TxGas, nil, 0, 0, 3, 0, nil, 0, 0), types.MakeSigner(0), prvKey1)
+				tx, err := types.SignTx(types.NewEvmTransaction(block.TxNonce(addr1.Recipient), account.Recipient, big.NewInt(1000), params.TxGas, nil, 0, 0, 3, 0, nil, genesisTokenID, genesisTokenID), types.MakeSigner(0), prvKey1)
 				if err != nil {
 					panic(err)
 				}
@@ -815,8 +817,8 @@ func TestMinorChainTxReorgs(t *testing.T) {
 	// Create two transactions shared between the chains:
 	//  - postponed: transaction included at a later block in the forked chain
 	//  - swapped: transaction included at the same block number in the forked chain
-	postponed, _ := types.SignTx(types.NewEvmTransaction(0, addr1.Recipient, big.NewInt(1000), params.TxGas, nil, 0, 0, 3, 0, nil, 0, 0), signer, prvKey1)
-	swapped, _ := types.SignTx(types.NewEvmTransaction(1, addr1.Recipient, big.NewInt(1000), params.TxGas, nil, 0, 0, 3, 0, nil, 0, 0), signer, prvKey1)
+	postponed, _ := types.SignTx(types.NewEvmTransaction(0, addr1.Recipient, big.NewInt(1000), params.TxGas, nil, 0, 0, 3, 0, nil, genesisTokenID, genesisTokenID), signer, prvKey1)
+	swapped, _ := types.SignTx(types.NewEvmTransaction(1, addr1.Recipient, big.NewInt(1000), params.TxGas, nil, 0, 0, 3, 0, nil, genesisTokenID, genesisTokenID), signer, prvKey1)
 
 	// Create two transactions that will be dropped by the forked chain:
 	//  - pastDrop: transaction dropped retroactively from a past block
@@ -832,13 +834,13 @@ func TestMinorChainTxReorgs(t *testing.T) {
 	chain, _ := GenerateMinorBlockChain(params.TestChainConfig, clusterConfig.Quarkchain, genesis, engine, db, 3, func(config *config.QuarkChainConfig, i int, gen *MinorBlockGen) {
 		switch i {
 		case 0:
-			pastDrop, _ = types.SignTx(types.NewEvmTransaction(gen.TxNonce(addr2.Recipient), addr2.Recipient, big.NewInt(1000), params.TxGas, nil, 0, 0, 3, 0, nil, 0, 0), signer, prvKey2)
+			pastDrop, _ = types.SignTx(types.NewEvmTransaction(gen.TxNonce(addr2.Recipient), addr2.Recipient, big.NewInt(1000), params.TxGas, nil, 0, 0, 3, 0, nil, genesisTokenID, genesisTokenID), signer, prvKey2)
 
 			gen.AddTx(config, transEvmTxToTx(pastDrop))  // This transaction will be dropped in the fork from below the split point
 			gen.AddTx(config, transEvmTxToTx(postponed)) // This transaction will be postponed till block #3 in the fork
 
 		case 2:
-			freshDrop, _ = types.SignTx(types.NewEvmTransaction(gen.TxNonce(addr2.Recipient), addr2.Recipient, big.NewInt(1000), params.TxGas, nil, 0, 0, 3, 0, nil, 0, 0), signer, prvKey2)
+			freshDrop, _ = types.SignTx(types.NewEvmTransaction(gen.TxNonce(addr2.Recipient), addr2.Recipient, big.NewInt(1000), params.TxGas, nil, 0, 0, 3, 0, nil, genesisTokenID, genesisTokenID), signer, prvKey2)
 
 			gen.AddTx(config, transEvmTxToTx(freshDrop)) // This transaction will be dropped in the fork from exactly at the split point
 			gen.AddTx(config, transEvmTxToTx(swapped))   // This transaction will be swapped out at the exact height
@@ -862,18 +864,18 @@ func TestMinorChainTxReorgs(t *testing.T) {
 	chain, _ = GenerateMinorBlockChain(params.TestChainConfig, clusterConfig.Quarkchain, genesis, engine, db, 5, func(config *config.QuarkChainConfig, i int, gen *MinorBlockGen) {
 		switch i {
 		case 0:
-			pastAdd, _ = types.SignTx(types.NewEvmTransaction(gen.TxNonce(addr3.Recipient), addr3.Recipient, big.NewInt(1000), params.TxGas, nil, 0, 0, 3, 0, nil, 0, 0), signer, prvKey3)
+			pastAdd, _ = types.SignTx(types.NewEvmTransaction(gen.TxNonce(addr3.Recipient), addr3.Recipient, big.NewInt(1000), params.TxGas, nil, 0, 0, 3, 0, nil, genesisTokenID, genesisTokenID), signer, prvKey3)
 			gen.AddTx(config, transEvmTxToTx(pastAdd)) // This transaction needs to be injected during reorg
 
 		case 2:
 			gen.AddTx(config, transEvmTxToTx(postponed)) // This transaction was postponed from block #1 in the original chain
 			gen.AddTx(config, transEvmTxToTx(swapped))   // This transaction was swapped from the exact current spot in the original chain
 
-			freshAdd, _ = types.SignTx(types.NewEvmTransaction(gen.TxNonce(addr3.Recipient), addr3.Recipient, big.NewInt(1000), params.TxGas, nil, 0, 0, 3, 0, nil, 0, 0), signer, prvKey3)
+			freshAdd, _ = types.SignTx(types.NewEvmTransaction(gen.TxNonce(addr3.Recipient), addr3.Recipient, big.NewInt(1000), params.TxGas, nil, 0, 0, 3, 0, nil, genesisTokenID, genesisTokenID), signer, prvKey3)
 			gen.AddTx(config, transEvmTxToTx(freshAdd)) // This transaction will be added exactly at reorg time
 
 		case 3:
-			futureAdd, _ = types.SignTx(types.NewEvmTransaction(gen.TxNonce(addr3.Recipient), addr3.Recipient, big.NewInt(1000), params.TxGas, nil, 0, 0, 3, 0, nil, 0, 0), signer, prvKey3)
+			futureAdd, _ = types.SignTx(types.NewEvmTransaction(gen.TxNonce(addr3.Recipient), addr3.Recipient, big.NewInt(1000), params.TxGas, nil, 0, 0, 3, 0, nil, genesisTokenID, genesisTokenID), signer, prvKey3)
 			gen.AddTx(config, transEvmTxToTx(futureAdd)) // This transaction will be added after a full reorg
 		}
 	})
@@ -956,7 +958,7 @@ func TestMinorLogReorgs(t *testing.T) {
 	blockchain.SubscribeRemovedLogsEvent(rmLogsCh)
 	chain, _ := GenerateMinorBlockChain(params.TestChainConfig, clusterConfig.Quarkchain, genesis, engine, db, 2, func(config *config.QuarkChainConfig, i int, gen *MinorBlockGen) {
 		if i == 1 {
-			tx, err := types.SignTx(types.NewEvmContractCreation(gen.TxNonce(addr1.Recipient), new(big.Int), 1000000, new(big.Int), 0, 0, 3, 0, code, 0, 0), signer, prvKey1)
+			tx, err := types.SignTx(types.NewEvmContractCreation(gen.TxNonce(addr1.Recipient), new(big.Int), 1000000, new(big.Int), 0, 0, 3, 0, code, genesisTokenID, genesisTokenID), signer, prvKey1)
 			if err != nil {
 				t.Fatalf("failed to create tx: %v", err)
 			}
@@ -1029,7 +1031,7 @@ func TestMinorReorgSideEvent(t *testing.T) {
 	}
 
 	replacementBlocks, _ := GenerateMinorBlockChain(params.TestChainConfig, clusterConfig.Quarkchain, genesis, engine, db, 4, func(config *config.QuarkChainConfig, i int, gen *MinorBlockGen) {
-		tx, err := types.SignTx(types.NewEvmContractCreation(gen.TxNonce(addr1.Recipient), new(big.Int), 1000000, new(big.Int), 0, 0, 3, 0, nil, 0, 0), signer, prvKey1)
+		tx, err := types.SignTx(types.NewEvmContractCreation(gen.TxNonce(addr1.Recipient), new(big.Int), 1000000, new(big.Int), 0, 0, 3, 0, nil, genesisTokenID, genesisTokenID), signer, prvKey1)
 		if i == 2 {
 			gen.SetDifficulty(100000000)
 		}
@@ -1192,11 +1194,11 @@ func TestMinorEIP161AccountRemoval(t *testing.T) {
 		)
 		switch i {
 		case 0:
-			tx, err = types.SignTx(types.NewEvmTransaction(block.TxNonce(addr1.Recipient), addr2.Recipient, new(big.Int), 21000, new(big.Int), 0, 0, 3, 0, nil, 0, 0), signer, prvKey1)
+			tx, err = types.SignTx(types.NewEvmTransaction(block.TxNonce(addr1.Recipient), addr2.Recipient, new(big.Int), 21000, new(big.Int), 0, 0, 3, 0, nil, genesisTokenID, genesisTokenID), signer, prvKey1)
 		case 1:
-			tx, err = types.SignTx(types.NewEvmTransaction(block.TxNonce(addr1.Recipient), addr2.Recipient, new(big.Int), 21000, new(big.Int), 0, 0, 3, 0, nil, 0, 0), signer, prvKey1)
+			tx, err = types.SignTx(types.NewEvmTransaction(block.TxNonce(addr1.Recipient), addr2.Recipient, new(big.Int), 21000, new(big.Int), 0, 0, 3, 0, nil, genesisTokenID, genesisTokenID), signer, prvKey1)
 		case 2:
-			tx, err = types.SignTx(types.NewEvmTransaction(block.TxNonce(addr1.Recipient), addr2.Recipient, new(big.Int), 21000, new(big.Int), 0, 0, 3, 0, nil, 0, 0), signer, prvKey1)
+			tx, err = types.SignTx(types.NewEvmTransaction(block.TxNonce(addr1.Recipient), addr2.Recipient, new(big.Int), 21000, new(big.Int), 0, 0, 3, 0, nil, genesisTokenID, genesisTokenID), signer, prvKey1)
 		}
 		if err != nil {
 			t.Fatal(err)

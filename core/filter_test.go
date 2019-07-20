@@ -3,6 +3,7 @@ package core
 import (
 	"encoding/hex"
 	"github.com/QuarkChain/goquarkchain/account"
+	qkcCommon "github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -25,6 +26,10 @@ import (
 //);
 //}
 //}
+var (
+	genesisTokenID = qkcCommon.TokenIDEncode("QKC")
+)
+
 func TestGetLog(t *testing.T) {
 	id1, err := account.CreatRandomIdentity()
 	acc3, err := account.CreatRandomAccountWithFullShardKey(0)
@@ -42,7 +47,7 @@ func TestGetLog(t *testing.T) {
 	checkErr(err)
 
 	data := common.FromHex("6080604052348015600f57600080fd5b5060d88061001e6000396000f3fe6080604052600436106039576000357c01000000000000000000000000000000000000000000000000000000009004806326121ff014603e575b600080fd5b60446046565b005b6000624200429050806001023373ffffffffffffffffffffffffffffffffffffffff166001027f50cb9fe53daa9737b786ab3646f04d0150dc50ef4e75f59509d83667ad5adb20600102346001026040518082815260200191505060405180910390a35056fea165627a7a72305820eb8d6b105e05bbc4bc155f248007b36f41e06228c6981f30f35e534c87ed92500029")
-	evmtx := types.NewEvmContractCreation(0, new(big.Int), 1000000, new(big.Int).SetUint64(10000000000), 0, 0, 3, 0, data, 0, 0)
+	evmtx := types.NewEvmContractCreation(0, new(big.Int), 1000000, new(big.Int).SetUint64(10000000000), 0, 0, 3, 0, data, genesisTokenID, genesisTokenID)
 	prvKey, err := crypto.HexToECDSA(hex.EncodeToString(id1.GetKey().Bytes()))
 	if err != nil {
 		panic(err)
@@ -77,7 +82,7 @@ func TestGetLog(t *testing.T) {
 
 	//second contract
 	data = common.FromHex("26121ff0")
-	evmtx = types.NewEvmTransaction(1, contractAddr, new(big.Int), 1000000, new(big.Int).SetUint64(10000000000), 0, 0, 3, 0, data, 0, 0)
+	evmtx = types.NewEvmTransaction(1, contractAddr, new(big.Int), 1000000, new(big.Int).SetUint64(10000000000), 0, 0, 3, 0, data, genesisTokenID, genesisTokenID)
 
 	evmtx, err = types.SignTx(evmtx, types.MakeSigner(3), prvKey)
 	if err != nil {

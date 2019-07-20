@@ -211,7 +211,6 @@ func (st *StateTransition) TransitionDb(feeRate *big.Rat) (ret []byte, usedGas u
 	if err = st.useGas(gas); err != nil {
 		return nil, 0, false, err
 	}
-
 	var (
 		evm = st.evm
 		// vm errors do not effect consensus and are therefor
@@ -229,9 +228,7 @@ func (st *StateTransition) TransitionDb(feeRate *big.Rat) (ret []byte, usedGas u
 		} else {
 			ret, st.gas, vmerr = evm.Call(sender, st.to(), st.data, st.gas, st.value)
 		}
-
 	}
-
 	if vmerr != nil {
 		log.Debug("VM returned with error", "err", vmerr)
 		// The only possible consensus-error would be if there wasn't

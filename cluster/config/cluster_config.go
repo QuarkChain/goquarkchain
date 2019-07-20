@@ -307,6 +307,7 @@ func NewQuarkChainConfig() *QuarkChainConfig {
 		RewardTaxRate:                     new(big.Rat).SetFloat64(0.5),
 		BlockRewardDecayFactor:            new(big.Rat).SetFloat64(0.5),
 		Root:                              NewRootConfig(),
+		MinMiningGasPrice:                 new(big.Int).SetUint64(1000000000),
 	}
 
 	ret.Root.ConsensusType = PoWSimulate

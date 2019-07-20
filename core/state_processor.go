@@ -173,12 +173,13 @@ func ApplyTransaction(config *params.ChainConfig, bc ChainContext, gp *GasPool, 
 	}
 	context := NewEVMContext(msg, header, bc)
 	vmenv := vm.NewEVM(context, statedb, config, cfg)
-
+	//fmt.Println(">>>>", statedb.GetBalances(msg.From()))
 	ret, gas, failed, err := ApplyMessage(vmenv, msg, gp, localFeeRate)
 	if err != nil {
 		return nil, nil, 0, err
 	}
 
+	//fmt.Println(">>>>", statedb.GetBalances(msg.From()))
 	var root []byte
 	statedb.Finalise(true)
 	*usedGas += gas

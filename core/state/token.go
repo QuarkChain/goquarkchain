@@ -17,7 +17,14 @@ type TokenBalancePair struct {
 type TokenBalances struct {
 	//TODO:store token balances in trie when TOKEN_TRIE_THRESHOLD is crossed
 	Balances map[uint64]*big.Int
-	enum     byte
+	Enum     byte
+}
+
+func NewEmptyTokenBalances() *TokenBalances {
+	return &TokenBalances{
+		Balances: map[uint64]*big.Int{},
+		Enum:     byte(0),
+	}
 }
 
 func NewTokenBalances(data []byte) (*TokenBalances, error) {
@@ -28,11 +35,12 @@ func NewTokenBalances(data []byte) (*TokenBalances, error) {
 		return tokenBalances, nil
 	}
 
-	tokenBalances.enum = data[0]
+	tokenBalances.Enum = data[0]
 	switch data[0] {
 	case byte(0):
 		balanceList := make([]*TokenBalancePair, 0)
-		if err := rlp.DecodeBytes(data[1:], balanceList); err != nil {
+		if err := rlp.DecodeBytes(data[1:], &balanceList); err != nil {
+			//fmt.Println(">>>>>>>>>>>>>>>>>>>>>", err, hex.EncodeToString(data))
 			return nil, err
 		}
 		for _, v := range balanceList {
@@ -51,8 +59,8 @@ func (b *TokenBalances) Serialize(w *[]byte) error {
 	if len(b.Balances) == 0 {
 		return nil
 	}
-	*w = append(*w, b.enum)
-	switch b.enum {
+	*w = append(*w, b.Enum)
+	switch b.Enum {
 	case byte(0):
 		list := make([]*TokenBalancePair, 0)
 		for k, v := range b.Balances {
@@ -79,12 +87,22 @@ func (b *TokenBalances) Serialize(w *[]byte) error {
 	return nil
 }
 
+// Deserialize deserialize the QKC root block
+func (b *TokenBalances) Deserialize(bb *serialize.ByteBuffer) error {
+	panic(-1)
+	return nil
+}
+
 func (b *TokenBalances) EncodeRLP(w io.Writer) error {
 	data, err := serialize.SerializeToBytes(b)
 	if err != nil {
-		return nil
+		return err
 	}
-	_, err = w.Write(data)
+	data1, err := rlp.EncodeToBytes(data)
+	if err != nil {
+		return err
+	}
+	_, err = w.Write(data1)
 	return err
 }
 
@@ -93,11 +111,16 @@ func (b *TokenBalances) DecodeRLP(s *rlp.Stream) error {
 	if err != nil {
 		return err
 	}
-	t, err := NewTokenBalances(data)
+	data1 := new([]byte)
+	err = rlp.DecodeBytes(data, data1)
+	if err != nil {
+		panic(err)
+	}
+	t, err := NewTokenBalances(*data1)
 	if err != nil {
 		return err
 	}
-	b = t
+	*b = *t
 	return err
 }
 
@@ -122,7 +145,7 @@ func (b *TokenBalances) IsEmpty() bool {
 func (b *TokenBalances) Copy() *TokenBalances {
 	t := &TokenBalances{
 		Balances: make(map[uint64]*big.Int),
-		enum:     b.enum,
+		Enum:     b.Enum,
 	}
 	for k, v := range b.Balances {
 		t.Balances[k] = v

@@ -298,6 +298,7 @@ func (v *MinorBlockValidator) ValidateState(mBlock, parent types.IBlock, statedb
 		return fmt.Errorf("invalid bloom (remote: %x  local: %x)", mHeader.GetBloom(), bloom)
 	}
 
+	//	fmt.Println(">>>>>>>>", mBlock.NumberU64(), statedb.GetTxCursorInfo(), block.Meta().XShardTxCursorInfo)
 	if !compareXshardTxCursor(statedb.GetTxCursorInfo(), block.Meta().XShardTxCursorInfo) {
 		return fmt.Errorf("cross-hard transaction cursor info mismatches! %v %v", statedb.GetTxCursorInfo(), block.Meta().XShardTxCursorInfo)
 	}

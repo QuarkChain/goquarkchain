@@ -218,9 +218,9 @@ func (evm *EVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 		}
 		evm.StateDB.CreateAccount(addr)
 	}
-
+	//fmt.Println("scf", evm.StateDB.GetBalances(caller.Address()), evm.TransferTokenID)
 	evm.Transfer(evm.StateDB, caller.Address(), to.Address(), value, evm.TransferTokenID)
-
+	//fmt.Println("scf", evm.StateDB.GetBalances(caller.Address()))
 	// Initialise a new contract and set the code that is to be used by the EVM.
 	// The contract is a scoped environment for this execution context only.
 	contract := NewContract(caller, to, value, gas)
@@ -249,6 +249,7 @@ func (evm *EVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 			contract.UseGas(contract.Gas)
 		}
 	}
+	//fmt.Println("scf-1", evm.StateDB.GetBalances(caller.Address()))
 	return ret, contract.Gas, err
 }
 
