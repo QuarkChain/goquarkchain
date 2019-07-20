@@ -24,7 +24,7 @@ func tipGen(geneAcc *account.Account, shrd *shard.ShardBackend) *types.MinorBloc
 	return iBlock.(*types.MinorBlock)
 }
 
-func assertTrueWithTimeout(f func() bool, duration int64) bool {
+func retryTrueWithTimeout(f func() bool, duration int64) bool {
 	deadLine := time.Now().Unix() + duration
 	for !f() && time.Now().Unix() < deadLine {
 		time.Sleep(500 * time.Millisecond) // 0.5 second
@@ -58,7 +58,7 @@ func TestShardGenesisForkFork(t *testing.T) {
 	defer clstrList.Stop()
 
 	root0 := clstrList[0].CreateAndInsertBlocks([]uint32{id0}, 3)
-	assert.Equal(t, assertTrueWithTimeout(func() bool {
+	assert.Equal(t, retryTrueWithTimeout(func() bool {
 		genesis0 := clstrList[0].GetShard(id1).MinorBlockChain.GetBlockByNumber(0)
 		if root0 == nil || common.IsNil(genesis0) {
 			return false
@@ -67,7 +67,7 @@ func TestShardGenesisForkFork(t *testing.T) {
 		return root0.Hash() == mHeader0.PrevRootBlockHash
 	}, 1), true)
 
-	assert.Equal(t, assertTrueWithTimeout(func() bool {
+	assert.Equal(t, retryTrueWithTimeout(func() bool {
 		rootHeight := uint64(1)
 		root1, _ := clstrList[1].GetMaster().GetRootBlockByNumber(&rootHeight)
 		genesis1 := clstrList[1].GetShard(id1).MinorBlockChain.GetBlockByNumber(0)
@@ -82,12 +82,12 @@ func TestShardGenesisForkFork(t *testing.T) {
 
 	root2 := clstrList[1].CreateAndInsertBlocks([]uint32{id0, id1}, 3)
 	// after minered check roottip
-	assert.Equal(t, assertTrueWithTimeout(func() bool {
+	assert.Equal(t, retryTrueWithTimeout(func() bool {
 		return clstrList[1].GetMaster().GetCurrRootHeader().Number == uint32(2)
 	}, 1), true)
 
 	// check the two cluster genesis root hash is the same
-	assert.Equal(t, assertTrueWithTimeout(func() bool {
+	assert.Equal(t, retryTrueWithTimeout(func() bool {
 		iBlock := clstrList[0].GetShard(id1).MinorBlockChain.GetBlockByNumber(0)
 		if common.IsNil(iBlock) {
 			return false
@@ -96,7 +96,7 @@ func TestShardGenesisForkFork(t *testing.T) {
 		return mHeader.Hash() == mHeader1.Hash()
 	}, 1), true)
 
-	assert.Equal(t, assertTrueWithTimeout(func() bool {
+	assert.Equal(t, retryTrueWithTimeout(func() bool {
 		mHeaderTip := clstrList[0].GetShard(id1).MinorBlockChain.GetRootTip()
 		return mHeaderTip.Hash() == root2.Hash()
 	}, 10), true)
@@ -166,7 +166,7 @@ func TestCreateShardAtDifferentHeight(t *testing.T) {
 	assert.Equal(t, rBlock.NumberU64(), uint64(1))
 	assert.Equal(t, rBlock.MinorBlockHeaders().Len(), 4)
 
-	assert.Equal(t, assertTrueWithTimeout(func() bool {
+	assert.Equal(t, retryTrueWithTimeout(func() bool {
 		shrd := clstrList[0].GetShard(id0)
 		if shrd == nil {
 			return false
@@ -174,7 +174,7 @@ func TestCreateShardAtDifferentHeight(t *testing.T) {
 		return clstrList[0].GetShard(id0) != (*shard.ShardBackend)(nil)
 	}, 1), true)
 
-	assert.Equal(t, assertTrueWithTimeout(func() bool {
+	assert.Equal(t, retryTrueWithTimeout(func() bool {
 		return clstrList[0].GetShard(id1) == (*shard.ShardBackend)(nil)
 	}, 1), true)
 }
@@ -231,7 +231,7 @@ func TestAddTransaction(t *testing.T) {
 	if err := mstr0.AddTransaction(tx0); err != nil {
 		t.Error("failed to add transaction", "err", err)
 	}
-	assert.Equal(t, assertTrueWithTimeout(func() bool {
+	assert.Equal(t, retryTrueWithTimeout(func() bool {
 		state0, err := shard0.MinorBlockChain.GetShardStatus()
 		if err != nil {
 			return false
@@ -245,7 +245,7 @@ func TestAddTransaction(t *testing.T) {
 	if err := mstr0.AddTransaction(tx1); err != nil {
 		t.Error("failed to add transaction", "err", err)
 	}
-	assert.Equal(t, assertTrueWithTimeout(func() bool {
+	assert.Equal(t, retryTrueWithTimeout(func() bool {
 		state0, err := shard0.MinorBlockChain.GetShardStatus()
 		if err != nil {
 			return false
@@ -254,7 +254,7 @@ func TestAddTransaction(t *testing.T) {
 	}, 1), true)
 
 	// check another cluster' pending pool
-	assert.Equal(t, assertTrueWithTimeout(func() bool {
+	assert.Equal(t, retryTrueWithTimeout(func() bool {
 		state0, err := clstrList[1].GetShard(fullShardId).MinorBlockChain.GetShardStatus()
 		if err != nil {
 			return false
@@ -269,7 +269,7 @@ func TestAddTransaction(t *testing.T) {
 	assert.Equal(t, accdata[fullShardId].TransactionCount, uint64(1))
 
 	// sleep 10 seconds so that another can sync blocks
-	assert.Equal(t, assertTrueWithTimeout(func() bool {
+	assert.Equal(t, retryTrueWithTimeout(func() bool {
 		rBlockTip, err := mstr1.GetRootBlockByNumber(nil)
 		if err != nil {
 			return false
@@ -314,17 +314,17 @@ func TestAddMinorBlockRequestList(t *testing.T) {
 	if err != nil {
 		t.Error("failed to get root block by number", "err", err)
 	}
-	assert.Equal(t, assertTrueWithTimeout(func() bool {
+	assert.Equal(t, retryTrueWithTimeout(func() bool {
 		return rBlock.Hash() == rBlockTip0.Hash()
 	}, 1), true)
 
-	assert.Equal(t, assertTrueWithTimeout(func() bool {
+	assert.Equal(t, retryTrueWithTimeout(func() bool {
 		rBlockTip := shard0.MinorBlockChain.GetRootTip()
 		return rBlockTip.Hash() == rBlock.Hash()
 	}, 1), true)
 
 	// check neighbor cluster is the same height
-	assert.Equal(t, assertTrueWithTimeout(func() bool {
+	assert.Equal(t, retryTrueWithTimeout(func() bool {
 		rBlockTip1, err := mstr1.GetRootBlockByNumber(nil)
 		if err != nil {
 			return false
@@ -374,19 +374,19 @@ func TestAddRootBlockRequestList(t *testing.T) {
 	}
 	assert.Equal(t, rBlockTip0.Header().Hash(), rBlock0.Header().Hash())
 	// make sure the root tip of cluster 1 is changed
-	assert.Equal(t, assertTrueWithTimeout(func() bool {
+	assert.Equal(t, retryTrueWithTimeout(func() bool {
 		return mstr0.GetCurrRootHeader().Hash() == rBlock0.Header().Hash()
 	}, 2), true)
 
-	assert.Equal(t, assertTrueWithTimeout(func() bool {
+	assert.Equal(t, retryTrueWithTimeout(func() bool {
 		return shard0.MinorBlockChain.GetMinorTip().Hash() == b0.Hash()
 	}, 1), true)
-	assert.Equal(t, assertTrueWithTimeout(func() bool {
+	assert.Equal(t, retryTrueWithTimeout(func() bool {
 		return shard1.MinorBlockChain.GetMinorTip().Hash() == b1.Hash()
 	}, 1), true)
 
 	// check neighbor cluster is the same height
-	assert.Equal(t, assertTrueWithTimeout(func() bool {
+	assert.Equal(t, retryTrueWithTimeout(func() bool {
 		rBlockTip1, err := mstr1.GetRootBlockByNumber(nil)
 		if err != nil {
 			return false
@@ -482,7 +482,7 @@ func TestBroadcastCrossShardTransactions(t *testing.T) {
 	if err := shrd0.InsertMinedBlock(iB1); err != nil {
 		t.Error("failed to insert mined block", "fullShardId", id0, "err", err)
 	}
-	assert.Equal(t, assertTrueWithTimeout(func() bool {
+	assert.Equal(t, retryTrueWithTimeout(func() bool {
 		return shrd0.MinorBlockChain.CurrentBlock().Hash() == iB0.Hash()
 	}, 3), true)
 
@@ -515,7 +515,7 @@ func TestBroadcastCrossShardTransactions(t *testing.T) {
 	assert.NoError(t, err)
 
 	clstrList[0].CreateAndInsertBlocks(nil, 3)
-	assert.Equal(t, assertTrueWithTimeout(func() bool {
+	assert.Equal(t, retryTrueWithTimeout(func() bool {
 		accData, err := mstr.GetAccountData(&toAddr, nil)
 		if err != nil {
 			return false
@@ -540,7 +540,7 @@ func TestGetWorkFromSlave(t *testing.T) {
 	)
 	slave.SetMining(true)
 
-	assert.Equal(t, assertTrueWithTimeout(func() bool {
+	assert.Equal(t, retryTrueWithTimeout(func() bool {
 		work, err := mstr.GetWork(account.NewBranch(id0))
 		if err != nil {
 			t.Log("failed to get work from slave", "slave id", slave.GetConfig().ID)
@@ -599,13 +599,13 @@ func TestShardSynchronizerWithFork(t *testing.T) {
 	assert.NoError(t, err)
 
 	for _, blk := range blockList {
-		assert.Equal(t, assertTrueWithTimeout(func() bool {
+		assert.Equal(t, retryTrueWithTimeout(func() bool {
 			if shard10.GetMinorBlock(blk.Hash(), nil) != nil {
 				return true
 			}
 			return false
 		}, 1), true)
-		assert.Equal(t, assertTrueWithTimeout(func() bool {
+		assert.Equal(t, retryTrueWithTimeout(func() bool {
 			mBlock, err := mstr1.GetMinorBlockByHash(blk.Hash(), blk.Branch())
 			if err != nil || mBlock == nil {
 				return false
@@ -614,7 +614,7 @@ func TestShardSynchronizerWithFork(t *testing.T) {
 		}, 1), true)
 	}
 
-	assert.Equal(t, assertTrueWithTimeout(func() bool {
+	assert.Equal(t, retryTrueWithTimeout(func() bool {
 		return shard00.GetTip() == shard10.GetTip()
 	}, 1), true)
 }
@@ -692,7 +692,7 @@ func TestHandleGetMinorBlockListRequestWithTotalDiff(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, cluster[0].master.CurrentBlock().Hash(), rb1.Header().Hash())
 	//Make sure the root block tip of cluster 1 is changed
-	assert.Equal(t, assertTrueWithTimeout(func() bool {
+	assert.Equal(t, retryTrueWithTimeout(func() bool {
 		return cluster[1].master.CurrentBlock().Hash() == rb1.Hash()
 	}, 2), true)
 
@@ -701,12 +701,12 @@ func TestHandleGetMinorBlockListRequestWithTotalDiff(t *testing.T) {
 	err = cluster[1].master.AddMinorBlock(b1.Header().Branch.Value, b1)
 	assert.NoError(t, err)
 	//Make sure another cluster received the new minor block
-	assert.Equal(t, assertTrueWithTimeout(func() bool {
+	assert.Equal(t, retryTrueWithTimeout(func() bool {
 		b := cluster[1].GetShardState(2).GetBlock(b1.Hash())
 		return b != nil
 	}, 2), true)
 
-	assert.Equal(t, assertTrueWithTimeout(func() bool {
+	assert.Equal(t, retryTrueWithTimeout(func() bool {
 		b, err := cluster[0].master.GetMinorBlockByHash(b1.Hash(), b1.Header().Branch)
 		if err != nil || b == nil {
 			return false
@@ -726,12 +726,12 @@ func TestHandleGetMinorBlockListRequestWithTotalDiff(t *testing.T) {
 	assert.NoError(t, err)
 	//Make sure another cluster received the new minor block
 
-	assert.Equal(t, assertTrueWithTimeout(func() bool {
+	assert.Equal(t, retryTrueWithTimeout(func() bool {
 		b := cluster[1].GetShardState(2).GetBlock(b2.Hash())
 		return b != nil
 	}, 2), true)
 
-	assert.Equal(t, assertTrueWithTimeout(func() bool {
+	assert.Equal(t, retryTrueWithTimeout(func() bool {
 		b, err := cluster[0].master.GetMinorBlockByHash(b1.Hash(), b2.Header().Branch)
 		if err != nil || b == nil {
 			return false
@@ -788,7 +788,7 @@ func TestGetRootBlockHeadersWithSkip(t *testing.T) {
 		rootBlockHeaderList = append(rootBlockHeaderList, rootBlock.IHeader())
 	}
 	assert.Equal(t, rootBlockHeaderList[len(rootBlockHeaderList)-1].NumberU64(), uint64(10))
-	assert.Equal(t, assertTrueWithTimeout(func() bool {
+	assert.Equal(t, retryTrueWithTimeout(func() bool {
 		return cluster[1].master.GetTip() == 10
 	}, 2), true)
 
@@ -826,7 +826,7 @@ func TestGetRootBlockHeaderSyncFromGenesis(t *testing.T) {
 		rootBlockList = append(rootBlockList, rBlock.(*types.RootBlock))
 	}
 	b0 := rootBlockList[len(rootBlockList)-1]
-	assert.Equal(t, assertTrueWithTimeout(func() bool {
+	assert.Equal(t, retryTrueWithTimeout(func() bool {
 		return mstr1.CurrentBlock().Hash() == b0.Hash()
 	}, 1), true)
 	//TODO test synchronisze.status
@@ -853,11 +853,11 @@ func TestGetRootBlockHeaderSyncFromHeight3(t *testing.T) {
 		err := mstr1.AddRootBlock(rootBlockList[index])
 		assert.NoError(t, err)
 	}
-	assert.Equal(t, assertTrueWithTimeout(func() bool {
+	assert.Equal(t, retryTrueWithTimeout(func() bool {
 		return mstr1.CurrentBlock().Hash() == rootBlockList[2].Hash()
 	}, 3), true)
 	clstrList.Start(5*time.Second, true)
-	assert.Equal(t, assertTrueWithTimeout(func() bool {
+	assert.Equal(t, retryTrueWithTimeout(func() bool {
 		return mstr1.CurrentBlock().Hash() == rootBlockList[len(rootBlockList)-1].Hash()
 	}, 3), true)
 }
@@ -893,7 +893,7 @@ func TestGetRootBlockHeaderSyncWithStaleness(t *testing.T) {
 
 	clstrList.Start(5*time.Second, true)
 	b0 := rootBlockList[len(rootBlockList)-1]
-	assert.Equal(t, assertTrueWithTimeout(func() bool {
+	assert.Equal(t, retryTrueWithTimeout(func() bool {
 		return mstr1.CurrentBlock().Hash() == b0.Hash()
 	}, 1), true)
 }
@@ -941,7 +941,7 @@ func TestGetRootBlockHeaderSyncWithMultipleLookup(t *testing.T) {
 
 	clstrList.Start(5*time.Second, true)
 
-	assert.Equal(t, assertTrueWithTimeout(func() bool {
+	assert.Equal(t, retryTrueWithTimeout(func() bool {
 		return mstr0.CurrentBlock().Hash() == rootBlockList[len(rootBlockList)-1].Hash()
 	}, 2), true)
 }
@@ -988,7 +988,7 @@ func TestGetRootBlockHeaderSyncWithStartEqualEnd(t *testing.T) {
 	}
 	clstrList.Start(5*time.Second, true)
 
-	assert.Equal(t, assertTrueWithTimeout(func() bool {
+	assert.Equal(t, retryTrueWithTimeout(func() bool {
 		return mstr0.CurrentBlock().Hash() == rootBlockList[len(rootBlockList)-1].Hash()
 	}, 2), true)
 }
@@ -1035,7 +1035,7 @@ func TestGetRootBlockHeaderSyncWithBestAncestor(t *testing.T) {
 	}
 	clstrList.Start(5*time.Second, true)
 
-	assert.Equal(t, assertTrueWithTimeout(func() bool {
+	assert.Equal(t, retryTrueWithTimeout(func() bool {
 		return mstr0.CurrentBlock().Hash() == rootBlockList[len(rootBlockList)-1].Hash()
 	}, 2), true)
 }
