@@ -516,11 +516,6 @@ func (m *MinorBlockChain) getEvmStateByHeight(height *uint64) (*state.StateDB, e
 	if err != nil {
 		return nil, err
 	}
-	senderDisallowMap, err := m.posw.BuildSenderDisallowMap(mBlock.Hash(), nil)
-	if err != nil {
-		return nil, err
-	}
-	evmState.SetSenderDisallowMap(senderDisallowMap)
 	return evmState, nil
 }
 

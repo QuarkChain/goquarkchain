@@ -1168,7 +1168,7 @@ func (m *MinorBlockChain) insertChain(chain []types.IBlock, verifySeals bool) (i
 		if err != nil {
 			return it.index, events, coalescedLogs, xShardList, err
 		}
-		coinbase := parent.IHeader().GetCoinbase().Recipient
+		coinbase := mBlock.IHeader().GetCoinbase().Recipient
 		senderDisallowMap, err := m.posw.BuildSenderDisallowMap(mBlock.Header().GetParentHash(), &coinbase)
 		if err != nil {
 			return it.index, events, coalescedLogs, xShardList, err

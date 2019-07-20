@@ -135,86 +135,86 @@ func TestPoSWCoinBaseSendUnderLimit(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error create id %v", id2)
 	}
-	//acc2 := account.CreatAddressFromIdentity(id2, 0)
-	//appendNewBlock(blockchain, acc2, t)
-	//var blc *big.Int
-	//if blc, err = blockchain.GetBalance(acc1.Recipient, nil); err != nil {
-	//	t.Fatalf("get balance failed: %v", err)
-	//}
-	//balanceExp1 := new(big.Int).Sub(balanceExp, big.NewInt(1))
-	//if balanceExp1.Cmp(blc) != 0 {
-	//	t.Errorf("Balance: expected %v, got %v", balanceExp1, blc)
-	//}
-	//
-	//disallowMapExp1 := map[account.Recipient]*big.Int{
-	//	coinbase:       bn2,
-	//	acc1.Recipient: bn2,
-	//	acc2.Recipient: bn2,
-	//}
-	//evmState1, err := blockchain.State()
-	//if err != nil {
-	//	t.Fatalf("failed to get State: %v", err)
-	//}
-	//disallowMap1 := evmState1.GetSenderDisallowMap()
-	//if !reflect.DeepEqual(disallowMap1, disallowMapExp1) {
-	//	t.Errorf("disallowMap: expected %x, got %x", disallowMapExp1, disallowMap1)
-	//}
-	//tx1 := core.CreateTransferTx(blockchain, id1.GetKey().Bytes(), acc1, account.Address{},
-	//	new(big.Int).SetUint64(2), nil, nil, nil)
-	//if _, err := blockchain.ExecuteTx(tx1, &acc1, nil); err == nil {
-	//	t.Error("tx should fail")
-	//}
-	////Create a block including that tx, receipt should also report error
-	//// txPool.AddLocal(tx) will be called and no state available. so posw disallow check error will not happen here.
-	//if err := tryAddTx(blockchain, tx1); err != nil {
-	//	t.Fatalf("error adding tx %v", err)
-	//}
-	//var mb1 *types.MinorBlock
-	//if mb1, err = blockchain.CreateBlockToMine(nil, &acc2, nil); err != nil {
-	//	t.Fatalf("error creating block %v", err)
-	//}
-	//if _, _, err = blockchain.FinalizeAndAddBlock(mb1); err == nil {
-	//	t.Error("finalize and add block should fail due to SENDER NOT ALLOWED")
-	//}
-	//var tb1 *big.Int
-	//if tb1, err = blockchain.GetBalance(acc1.Recipient, nil); err != nil {
-	//	t.Fatalf("get balance error %v", err)
-	//}
-	//if tb1.Cmp(balanceExp1) != 0 {
-	//	t.Errorf("Balance: expected %v, got %v", balanceExp1, tb1)
-	//}
-	//
-	//if tb2, err := blockchain.GetBalance(acc2.Recipient, nil); err != nil {
-	//	t.Fatalf("get balance error %v", err)
-	//} else if tb2.Cmp(balanceExp) != 0 { //acc2 only mined 1 block successfully
-	//	t.Errorf("Balance: expected %v, got %v", balanceExp, tb2)
-	//}
-	//
-	//disallowMapExp2 := map[account.Recipient]*big.Int{
-	//	coinbase:       bn2,
-	//	acc1.Recipient: bn2,
-	//	acc2.Recipient: bn2,
-	//}
-	//evmState2, err := blockchain.State()
-	//if err != nil {
-	//	t.Fatalf("failed to get State: %v", err)
-	//}
-	//disallowMap2 := evmState2.GetSenderDisallowMap()
-	//if !reflect.DeepEqual(disallowMap2, disallowMapExp2) {
-	//	t.Errorf("disallowMap: expected %x, got %x", disallowMapExp2, disallowMap2)
-	//}
-	//
-	//tx2 := core.CreateTransferTx(blockchain, id2.GetKey().Bytes(), acc2, account.Address{},
-	//	new(big.Int).SetUint64(3), nil, nil, nil)
-	//if _, err := blockchain.ExecuteTx(tx2, &acc2, nil); err == nil {
-	//	t.Error("tx should fail")
-	//}
-	////ok to transfer 1 because 1+2(disallow)<4(balance)
-	//tx3 := core.CreateTransferTx(blockchain, id2.GetKey().Bytes(), acc2, account.Address{},
-	//	new(big.Int).SetUint64(1), nil, nil, nil)
-	//if _, err := blockchain.ExecuteTx(tx3, &acc2, nil); err != nil {
-	//	t.Errorf("tx should succeed but get: %v", err)
-	//}
+	acc2 := account.CreatAddressFromIdentity(id2, 0)
+	appendNewBlock(blockchain, acc2, t)
+	var blc *big.Int
+	if blc, err = blockchain.GetBalance(acc1.Recipient, nil); err != nil {
+		t.Fatalf("get balance failed: %v", err)
+	}
+	balanceExp1 := new(big.Int).Sub(balanceExp, big.NewInt(1))
+	if balanceExp1.Cmp(blc) != 0 {
+		t.Errorf("Balance: expected %v, got %v", balanceExp1, blc)
+	}
+
+	disallowMapExp1 := map[account.Recipient]*big.Int{
+		coinbase:       bn2,
+		acc1.Recipient: bn2,
+		acc2.Recipient: bn2,
+	}
+	evmState1, err := blockchain.State()
+	if err != nil {
+		t.Fatalf("failed to get State: %v", err)
+	}
+	disallowMap1 := evmState1.GetSenderDisallowMap()
+	if !reflect.DeepEqual(disallowMap1, disallowMapExp1) {
+		t.Errorf("disallowMap: expected %x, got %x", disallowMapExp1, disallowMap1)
+	}
+	tx1 := core.CreateTransferTx(blockchain, id1.GetKey().Bytes(), acc1, account.Address{},
+		new(big.Int).SetUint64(2), nil, nil, nil)
+	if ret, _ := blockchain.ExecuteTx(tx1, &acc1, nil); ret != nil {
+		t.Error("tx should fail")
+	}
+	//Create a block including that tx, receipt should also report error
+	// txPool.AddLocal(tx) will be called and no state available. so posw disallow check error will not happen here.
+	if err := tryAddTx(blockchain, tx1); err != nil {
+		t.Fatalf("error adding tx %v", err)
+	}
+	var mb1 *types.MinorBlock
+	if mb1, err = blockchain.CreateBlockToMine(nil, &acc2, nil); err != nil {
+		t.Fatalf("error creating block %v", err)
+	}
+	if _, _, err = blockchain.FinalizeAndAddBlock(mb1); err == nil {
+		t.Error("finalize and add block should fail due to SENDER NOT ALLOWED")
+	}
+	var tb1 *big.Int
+	if tb1, err = blockchain.GetBalance(acc1.Recipient, nil); err != nil {
+		t.Fatalf("get balance error %v", err)
+	}
+	if tb1.Cmp(balanceExp1) != 0 {
+		t.Errorf("Balance: expected %v, got %v", balanceExp1, tb1)
+	}
+
+	if tb2, err := blockchain.GetBalance(acc2.Recipient, nil); err != nil {
+		t.Fatalf("get balance error %v", err)
+	} else if tb2.Cmp(balanceExp) != 0 { //acc2 only mined 1 block successfully
+		t.Errorf("Balance: expected %v, got %v", balanceExp, tb2)
+	}
+
+	disallowMapExp2 := map[account.Recipient]*big.Int{
+		coinbase:       bn2,
+		acc1.Recipient: bn2,
+		acc2.Recipient: bn2,
+	}
+	evmState2, err := blockchain.State()
+	if err != nil {
+		t.Fatalf("failed to get State: %v", err)
+	}
+	disallowMap2 := evmState2.GetSenderDisallowMap()
+	if !reflect.DeepEqual(disallowMap2, disallowMapExp2) {
+		t.Errorf("disallowMap: expected %x, got %x", disallowMapExp2, disallowMap2)
+	}
+
+	tx2 := core.CreateTransferTx(blockchain, id2.GetKey().Bytes(), acc2, account.Address{},
+		new(big.Int).SetUint64(3), nil, nil, nil)
+	if ret, _ := blockchain.ExecuteTx(tx2, &acc2, nil); ret != nil {
+		t.Error("tx should fail")
+	}
+	//ok to transfer 1 because 1+2(disallow)<4(balance)
+	tx3 := core.CreateTransferTx(blockchain, id2.GetKey().Bytes(), acc2, account.Address{},
+		new(big.Int).SetUint64(1), nil, nil, nil)
+	if _, err := blockchain.ExecuteTx(tx3, &acc2, nil); err != nil {
+		t.Errorf("tx should succeed but get: %v", err)
+	}
 }
 func TestPoSWCoinbaseSendEqualLocked(t *testing.T) {
 
