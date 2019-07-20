@@ -3,6 +3,7 @@ package core
 import (
 	"errors"
 	"fmt"
+	"math/big"
 	"reflect"
 
 	"github.com/QuarkChain/goquarkchain/core/state"
@@ -55,6 +56,13 @@ func (v *RootBlockValidator) ValidateBlock(block types.IBlock) error {
 		return err
 	}
 
+	parent, ok := v.blockChain.GetBlock(block.IHeader().GetParentHash()).(*types.RootBlock)
+	if !ok {
+		return fmt.Errorf("no such root block:%v %v", block.IHeader().NumberU64()-1, block.IHeader().GetParentHash().String())
+	}
+	if new(big.Int).Add(header.GetDifficulty(), parent.IHeader().GetTotalDifficulty()).Cmp(header.GetTotalDifficulty()) != 0 {
+		return fmt.Errorf("error total diff header.diff:%v parent.total:%v,header.total:%v", header.GetDifficulty(), parent.IHeader().GetTotalDifficulty(), header.GetTotalDifficulty())
+	}
 	if uint32(len(rootBlock.TrackingData())) > v.config.BlockExtraDataSizeLimit {
 		return errors.New("tracking data in block is too large")
 	}
@@ -99,7 +107,7 @@ func (v *RootBlockValidator) ValidateBlock(block types.IBlock) error {
 			return fmt.Errorf("mheader.Number must equal to prev header + 1, header number %d, prev number %d", mheader.Number, parentHeader.Number)
 		} else if mheader.ParentHash != parentHeader.Hash() {
 			return fmt.Errorf("1-minor block %v does not link to previous block %v, height %v %v",
-				mheader.Hash().String(), parentHeader.Hash().String(),mheader.Hash(),parentHeader.Hash())
+				mheader.Hash().String(), parentHeader.Hash().String(), mheader.Hash(), parentHeader.Hash())
 		}
 
 		prevRootBlockHashList[mheader.PrevRootBlockHash] = true
@@ -144,7 +152,7 @@ func (v *RootBlockValidator) ValidateBlock(block types.IBlock) error {
 
 		if prevHeader != nil && (prevHeader.Number+1 != minorHeaders[0].Number || prevHeader.Hash() != minorHeaders[0].ParentHash) {
 			return fmt.Errorf("2-minor block %v does not link to previous block %v,height %v %v",
-				minorHeaders[0].Hash().String(), prevHeader.Hash().String(),minorHeaders[0].Number,prevHeader.Number)
+				minorHeaders[0].Hash().String(), prevHeader.Hash().String(), minorHeaders[0].Number, prevHeader.Number)
 		}
 
 		latestMinorBlockHeaders[fullShardId] = minorHeaders[len(minorHeaders)-1]

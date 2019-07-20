@@ -12,6 +12,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/p2p"
 	"github.com/QuarkChain/goquarkchain/serialize"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/log"
 )
 
 type SlaveConnection struct {
@@ -63,6 +64,7 @@ func (s *SlaveConnection) HeartBeat() bool {
 		}
 		return true
 	}
+	log.Error(s.logInfo,"heartBeat err","will shut down")
 	return false
 }
 

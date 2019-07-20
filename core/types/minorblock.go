@@ -71,9 +71,10 @@ func (h *MinorBlockHeader) GetCoinbase() account.Address      { return h.Coinbas
 func (h *MinorBlockHeader) GetCoinbaseAmount() *big.Int {
 	return h.CoinbaseAmount.Value
 }
-func (h *MinorBlockHeader) GetTime() uint64         { return h.Time }
-func (h *MinorBlockHeader) GetDifficulty() *big.Int { return new(big.Int).Set(h.Difficulty) }
-func (h *MinorBlockHeader) GetNonce() uint64        { return h.Nonce }
+func (h *MinorBlockHeader) GetTime() uint64              { return h.Time }
+func (h *MinorBlockHeader) GetDifficulty() *big.Int      { return new(big.Int).Set(h.Difficulty) }
+func (h *MinorBlockHeader) GetTotalDifficulty() *big.Int { panic(-1) }
+func (h *MinorBlockHeader) GetNonce() uint64             { return h.Nonce }
 func (h *MinorBlockHeader) GetExtra() []byte {
 	if h.Extra != nil {
 		return common.CopyBytes(h.Extra)

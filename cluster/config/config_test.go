@@ -85,8 +85,12 @@ func TestClusterConfig(t *testing.T) {
 		t.Fatalf("the list of ids should be empty.")
 	}
 	quarkchain.Update(chainSize, shardSizePerChain, 10, 10)
-	if quarkchain.GetShardSizeByChainId(1) != 4 {
-		t.Fatalf("quarkchain update function set shard size failed, shard size: %d", quarkchain.GetShardSizeByChainId(1))
+	fullShardIDByConfig, err := quarkchain.GetShardSizeByChainId(1)
+	if err != nil {
+		panic(err)
+	}
+	if fullShardIDByConfig != 4 {
+		t.Fatalf("quarkchain update function set shard size failed, shard size: %d", fullShardIDByConfig)
 	}
 }
 
