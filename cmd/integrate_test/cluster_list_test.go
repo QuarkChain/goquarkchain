@@ -1,5 +1,3 @@
-// +build integrationTest
-
 package test
 
 import (
@@ -112,7 +110,7 @@ func TestGetMinorBlockHeadersWithSkip(t *testing.T) {
 	_, clstrList := CreateClusterList(numCluster, chainSize, shardSize, chainSize, nil)
 	clstrList.Start(5*time.Second, true)
 	defer clstrList.Stop()
-	clstrList.PeerList()
+	clstrList.PrintPeerList()
 
 	var (
 		id0       = uint32(0<<16 | shardSize | 0)
@@ -499,7 +497,7 @@ func TestBroadcastCrossShardTransactions(t *testing.T) {
 	iB2, _, err := shrd1.CreateBlockToMine()
 	assert.NoError(t, err)
 	b2 := iB2.(*types.MinorBlock)
-	_, err = mstr.AddMinorBlock(b2.Branch().Value, b2)
+	err = mstr.AddMinorBlock(b2.Branch().Value, b2)
 	// push one root block.
 	clstrList[0].CreateAndInsertBlocks(nil, 3)
 
@@ -507,13 +505,13 @@ func TestBroadcastCrossShardTransactions(t *testing.T) {
 	assert.NoError(t, err)
 	b3 := iB3.(*types.MinorBlock)
 
-	_, err = mstr.AddMinorBlock(b0.Branch().Value, b0)
+	err = mstr.AddMinorBlock(b0.Branch().Value, b0)
 	assert.NoError(t, err)
-	_, err = mstr.AddMinorBlock(b1.Branch().Value, b1)
+	err = mstr.AddMinorBlock(b1.Branch().Value, b1)
 	assert.NoError(t, err)
-	_, err = mstr.AddMinorBlock(b2.Branch().Value, b2)
+	err = mstr.AddMinorBlock(b2.Branch().Value, b2)
 	assert.NoError(t, err)
-	_, err = mstr.AddMinorBlock(b3.Branch().Value, b3)
+	err = mstr.AddMinorBlock(b3.Branch().Value, b3)
 	assert.NoError(t, err)
 
 	clstrList[0].CreateAndInsertBlocks(nil, 3)
@@ -563,7 +561,7 @@ func TestShardSynchronizerWithFork(t *testing.T) {
 	_, clstrList := CreateClusterList(2, chainSize, shardSize, chainSize, nil)
 	clstrList.Start(5*time.Second, false)
 	defer clstrList.Stop()
-	clstrList.PeerList()
+	clstrList.PrintPeerList()
 
 	var (
 		mstr      = clstrList[0].GetMaster()
@@ -577,7 +575,7 @@ func TestShardSynchronizerWithFork(t *testing.T) {
 		assert.NoError(t, err)
 		mBlock := iBlock.(*types.MinorBlock)
 		blockList = append(blockList, mBlock)
-		_, err = mstr.AddMinorBlock(mBlock.Branch().Value, mBlock)
+		err = mstr.AddMinorBlock(mBlock.Branch().Value, mBlock)
 		assert.NoError(t, err)
 	}
 	assert.Equal(t, shard00.GetTip(), uint64(13))
@@ -586,18 +584,18 @@ func TestShardSynchronizerWithFork(t *testing.T) {
 		iBlock, _, err := shard10.CreateBlockToMine()
 		assert.NoError(t, err)
 		mBlock := iBlock.(*types.MinorBlock)
-		_, err = mstr1.AddMinorBlock(mBlock.Branch().Value, mBlock)
+		err = mstr1.AddMinorBlock(mBlock.Branch().Value, mBlock)
 		assert.NoError(t, err)
 	}
 	assert.Equal(t, shard10.GetTip(), uint64(12))
 	clstrList.Start(5*time.Second, true)
-	clstrList.PeerList()
+	clstrList.PrintPeerList()
 
 	iBlock, _, err := shard00.CreateBlockToMine()
 	assert.NoError(t, err)
 	mBlock := iBlock.(*types.MinorBlock)
 	blockList = append(blockList, mBlock)
-	_, err = mstr.AddMinorBlock(mBlock.Branch().Value, mBlock)
+	err = mstr.AddMinorBlock(mBlock.Branch().Value, mBlock)
 	assert.NoError(t, err)
 
 	for _, blk := range blockList {
@@ -630,7 +628,7 @@ func TestBroadcastCrossShardTransactionsToNeighborOnly(t *testing.T) {
 	_, clstrList := CreateClusterList(1, chainSize, shardSize, 4, nil)
 	clstrList.Start(5*time.Second, false)
 	defer clstrList.Stop()
-	clstrList.PeerList()
+	clstrList.PrintPeerList()
 
 	var (
 		mstr  = clstrList[0].GetMaster()
@@ -640,7 +638,7 @@ func TestBroadcastCrossShardTransactionsToNeighborOnly(t *testing.T) {
 	iBlock, _, err := shrd0.CreateBlockToMine()
 	assert.NoError(t, err)
 	mBlock := iBlock.(*types.MinorBlock)
-	_, err = mstr.AddMinorBlock(mBlock.Branch().Value, mBlock)
+	err = mstr.AddMinorBlock(mBlock.Branch().Value, mBlock)
 	assert.NoError(t, err)
 
 	nborShards := make(map[int]bool)
@@ -694,27 +692,28 @@ func TestHandleGetMinorBlockListRequestWithTotalDiff(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, cluster[0].master.CurrentBlock().Hash(), rb1.Header().Hash())
 	//Make sure the root block tip of cluster 1 is changed
-	assertTrueWithTimeout(func() bool {
+	assert.Equal(t, assertTrueWithTimeout(func() bool {
 		return cluster[1].master.CurrentBlock().Hash() == rb1.Hash()
-	}, 2)
+	}, 2), true)
+
 	//Cluster 1 generates a minor block and broadcasts to cluster 0
 	b1 := tipGen(nil, cluster[1].GetShard(2))
-	assertTrueWithTimeout(func() bool {
-		success, err := cluster[1].master.AddMinorBlock(b1.Header().Branch.Value, b1)
-		assert.NoError(t, err)
-		return success
-	}, 2)
+	err = cluster[1].master.AddMinorBlock(b1.Header().Branch.Value, b1)
+	assert.NoError(t, err)
 	//Make sure another cluster received the new minor block
-	assertTrueWithTimeout(func() bool {
+	assert.Equal(t, assertTrueWithTimeout(func() bool {
 		b := cluster[1].GetShardState(2).GetBlock(b1.Hash())
 		return b != nil
-	}, 2)
+	}, 2), true)
 
-	assertTrueWithTimeout(func() bool {
+	assert.Equal(t, assertTrueWithTimeout(func() bool {
 		b, err := cluster[0].master.GetMinorBlockByHash(b1.Hash(), b1.Header().Branch)
-		assert.NoError(t, err)
-		return b != nil
-	}, 2)
+		if err != nil || b == nil {
+			return false
+		}
+		return true
+	}, 2), true)
+
 	//Cluster 1 generates a new root block with higher total difficulty
 	rb2 := rb0.Header().CreateBlockToAppend(nil, big.NewInt(3000000), nil, nil,
 		nil).Finalize(coinbaseAmount, nil)
@@ -723,22 +722,23 @@ func TestHandleGetMinorBlockListRequestWithTotalDiff(t *testing.T) {
 	assert.Equal(t, cluster[1].master.CurrentBlock().Hash(), rb2.Header().Hash())
 	//Generate a minor block b2
 	b2 := tipGen(nil, cluster[1].GetShard(2))
-	assertTrueWithTimeout(func() bool {
-		success, err := cluster[1].master.AddMinorBlock(b2.Header().Branch.Value, b2)
-		assert.NoError(t, err)
-		return success
-	}, 2)
+	err = cluster[1].master.AddMinorBlock(b2.Header().Branch.Value, b2)
+	assert.NoError(t, err)
 	//Make sure another cluster received the new minor block
-	assertTrueWithTimeout(func() bool {
+
+	assert.Equal(t, assertTrueWithTimeout(func() bool {
 		b := cluster[1].GetShardState(2).GetBlock(b2.Hash())
 		return b != nil
-	}, 2)
+	}, 2), true)
 
-	assertTrueWithTimeout(func() bool {
+	assert.Equal(t, assertTrueWithTimeout(func() bool {
 		b, err := cluster[0].master.GetMinorBlockByHash(b1.Hash(), b2.Header().Branch)
-		assert.NoError(t, err)
-		return b != nil
-	}, 2)
+		if err != nil || b == nil {
+			return false
+		}
+		return true
+	}, 2), true)
+
 }
 
 func TestNewBlockHeaderPool(t *testing.T) {
@@ -746,11 +746,8 @@ func TestNewBlockHeaderPool(t *testing.T) {
 	cluster.Start(5*time.Second, true)
 	defer cluster.Stop()
 	b1 := tipGen(nil, cluster[0].GetShard(2))
-	assertTrueWithTimeout(func() bool {
-		success, err := cluster[0].master.AddMinorBlock(b1.Header().Branch.Value, b1)
-		assert.NoError(t, err)
-		return success
-	}, 2)
+	err := cluster[0].master.AddMinorBlock(b1.Header().Branch.Value, b1)
+	assert.NoError(t, err)
 	// Update config to force checking diff
 	cluster[0].clstrCfg.Quarkchain.SkipMinorDifficultyCheck = false
 	b2 := b1.CreateBlockToAppend(nil, big.NewInt(12345), nil, nil, nil,
@@ -791,9 +788,9 @@ func TestGetRootBlockHeadersWithSkip(t *testing.T) {
 		rootBlockHeaderList = append(rootBlockHeaderList, rootBlock.IHeader())
 	}
 	assert.Equal(t, rootBlockHeaderList[len(rootBlockHeaderList)-1].NumberU64(), uint64(10))
-	assertTrueWithTimeout(func() bool {
+	assert.Equal(t, assertTrueWithTimeout(func() bool {
 		return cluster[1].master.GetTip() == 10
-	}, 2)
+	}, 2), true)
 
 	peer := cluster.GetPeerByIndex(1)
 	//# Test Case 1 ###################################################

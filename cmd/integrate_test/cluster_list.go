@@ -63,7 +63,7 @@ func (cl Clusterlist) Stop() {
 	}
 }
 
-func (cl Clusterlist) PeerList() {
+func (cl Clusterlist) PrintPeerList() {
 	for _, c := range cl {
 		p2pSvr := c.getP2PServer()
 		if p2pSvr == nil {
@@ -83,7 +83,6 @@ func (cl Clusterlist) GetPeerByIndex(idx int) (peer *master.Peer) {
 		if defaultP2PPort+idx == tcp.Port {
 			return pr
 		}
-		// fmt.Println("+++++++", mntClstr.index, pr.Node().String(), pr.ID().String(), tcp.IP.String(), tcp.Port)
 	}
 	return
 }

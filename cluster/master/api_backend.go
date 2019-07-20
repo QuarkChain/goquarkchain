@@ -308,17 +308,22 @@ func (s *QKCMasterBackend) InsertMinedBlock(block types.IBlock) error {
 	return s.AddRootBlock(rBlock)
 }
 
-func (s *QKCMasterBackend) AddMinorBlock(branch uint32, mBlock *types.MinorBlock) (bool, error) {
+func (s *QKCMasterBackend) AddMinorBlock(branch uint32, mBlock *types.MinorBlock) error {
 	clients := s.getShardConnForP2P(branch)
 	if len(clients) == 0 {
-		return false, errors.New(fmt.Sprintf("slave is not exist, branch: %d", branch))
+		return errors.New(fmt.Sprintf("slave is not exist, branch: %d", branch))
 	}
+	var (
+		g errgroup.Group
+	)
 	for _, cli := range clients {
-		if ok, err := cli.HandleNewMinorBlock(&p2p.NewBlockMinor{Block: mBlock}); err != nil {
-			return ok, err
-		}
+		cli := cli
+		g.Go(func() error {
+			_, err := cli.HandleNewMinorBlock(&p2p.NewBlockMinor{Block: mBlock})
+			return err
+		})
 	}
-	return true, nil
+	return g.Wait()
 }
 
 func (s *QKCMasterBackend) GetTip() uint64 {

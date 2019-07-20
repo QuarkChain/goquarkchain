@@ -77,7 +77,7 @@ shardSize, slaveSize uint32, geneRHeights map[uint32]uint32) *config.ClusterConf
 		}
 	}
 
-	cfg.SlaveList = make([]*config.SlaveConfig, 0, 1)
+	cfg.SlaveList = make([]*config.SlaveConfig, 0, slaveSize)
 	for i := 0; i < int(slaveSize); i++ {
 		slave := config.NewDefaultSlaveConfig()
 		slave.Port = 38000 + uint16(i) + index
