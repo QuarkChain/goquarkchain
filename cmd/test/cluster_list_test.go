@@ -1,5 +1,3 @@
-// +build integrationTest
-
 package test
 
 import (
@@ -69,7 +67,6 @@ func TestShardGenesisForkFork(t *testing.T) {
 		return root0.Hash() == mHeader0.PrevRootBlockHash
 	}, 1), true)
 
-	// root1 := clstrList[1].CreateAndInsertBlocks([]uint32{id0, id1}, 3)
 	assert.Equal(t, assertTrueWithTimeout(func() bool {
 		rootHeight := uint64(1)
 		root1, _ := clstrList[1].GetMaster().GetRootBlockByNumber(&rootHeight)
@@ -180,11 +177,6 @@ func TestCreateShardAtDifferentHeight(t *testing.T) {
 	assert.Equal(t, assertTrueWithTimeout(func() bool {
 		return clstrList[0].GetShard(id1) == (*shard.ShardBackend)(nil)
 	}, 1), true)
-
-	/*shardState, err := clstrList[0].GetShardState(id1)
-	if err != nil {
-		t.Error("failed to get shard state", "fullshardId", id1, "err", err)
-	}*/
 }
 
 func TestGetPrimaryAccountData(t *testing.T) {
@@ -453,7 +445,6 @@ func TestBroadcastCrossShardTransactions(t *testing.T) {
 	geneAcc, clstrList := CreateClusterList(1, chainSize, shardSize, chainSize, nil)
 	clstrList.Start(0, true)
 	defer clstrList.Stop()
-	// root := clstrList[0].CreateAndInsertBlocks([]uint32{id0, id1}, 3)
 	var (
 		toAddr, _ = account.CreatRandomAccountWithFullShardKey(id1)
 		mstr      = clstrList[0].GetMaster()
@@ -479,7 +470,6 @@ func TestBroadcastCrossShardTransactions(t *testing.T) {
 	if err := shrd0.InsertMinedBlock(iB0); err != nil {
 		t.Error("failed to insert mined block", "fullShardId", id0, "err", err)
 	}
-	// clstrList[0].CreateAndInsertBlocks([]uint32{id0, id1}, 3)
 
 	txDepositList := clstrList[0].GetShard(id1).MinorBlockChain.ReadCrossShardTxList(b1.Hash())
 	xshardList := txDepositList.TXList
@@ -567,7 +557,6 @@ func TestShardSynchronizerWithFork(t *testing.T) {
 		chainSize uint32 = 2
 		shardSize uint32 = 2
 		id0              = uint32(0<<16 | shardSize | 0)
-		// id1              = uint32(0<<16 | shardSize | 1)
 	)
 	_, clstrList := CreateClusterList(2, chainSize, shardSize, chainSize, nil)
 	clstrList.Start(5*time.Second, false)
@@ -635,7 +624,6 @@ func TestBroadcastCrossShardTransactionsToNeighborOnly(t *testing.T) {
 		chainSize uint32 = 2
 		shardSize uint32 = 64
 		id0              = uint32(0<<16 | shardSize | 0)
-		// id1              = uint32(0<<16 | shardSize | 1)
 	)
 	_, clstrList := CreateClusterList(1, chainSize, shardSize, 4, nil)
 	clstrList.Start(5*time.Second, false)
@@ -767,7 +755,7 @@ func TestNewBlockHeaderPool(t *testing.T) {
 		nil, nil)
 	shard := cluster[0].slavelist[0].GetShard(b2.Header().Branch.Value)
 	_ = shard.HandleNewTip(nil, b2.Header(), "")
-	//Also the block should not exist in new block pool
+	// Also the block should not exist in new block pool
 	inPool := func(bHash ethCommon.Hash) bool {
 		v := reflect.ValueOf(*shard)
 		f := v.FieldByName("mBPool")
