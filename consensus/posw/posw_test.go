@@ -189,7 +189,7 @@ func TestPoSWCoinBaseSendUnderLimit(t *testing.T) {
 		t.Errorf("disallowMap: expected %x, got %x", disallowMapExp1, disallowMap1)
 	}
 	tx1 := core.CreateFreeTx(blockchain, id1.GetKey().Bytes(), acc1, account.Address{}, new(big.Int).SetUint64(2), nil, nil)
-	if _, err := blockchain.ExecuteTx(tx1, &acc1, nil); err == nil {
+	if ret, _ := blockchain.ExecuteTx(tx1, &acc1, nil); ret != nil {
 		t.Error("tx should fail")
 	}
 	//Create a block including that tx, receipt should also report error

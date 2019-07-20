@@ -232,7 +232,6 @@ func TestMinorLastBlock(t *testing.T) {
 		t.Fatalf("failed to create pristine chain: %v", err)
 	}
 	defer blockchain.Stop()
-	fmt.Println("233333")
 	blocks := makeBlockChain(blockchain.CurrentBlock(), 1, engine, blockchain.db, 0)
 	if _, err := blockchain.InsertChain(toMinorBlocks(blocks), nil); err != nil {
 		t.Fatalf("Failed to insert block: %v", err)

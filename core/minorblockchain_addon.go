@@ -291,7 +291,6 @@ func (m *MinorBlockChain) isSameRootChain(long types.IHeader, short types.IHeade
 func (m *MinorBlockChain) isMinorBlockLinkedToRootTip(mBlock *types.MinorBlock) bool {
 	confirmed := m.confirmedHeaderTip
 	if confirmed == nil {
-		fmt.Println("111--297")
 		return true
 	}
 	if mBlock.Header().Number <= confirmed.Number {
@@ -501,6 +500,7 @@ func (m *MinorBlockChain) FinalizeAndAddBlock(block *types.MinorBlock) (*types.M
 	coinbaseAmount.Add(evmState.GetBlockFee())
 
 	block.Finalize(receipts, evmState.IntermediateRoot(true), evmState.GetGasUsed(), evmState.GetXShardReceiveGasUsed(), coinbaseAmount, evmState.GetTxCursorInfo())
+	fmt.Println("5033333", block.Meta().XShardTxCursorInfo)
 	_, err = m.InsertChain([]types.IBlock{block}, nil) // will lock
 	if err != nil {
 		return nil, nil, err
@@ -1218,7 +1218,7 @@ func (m *MinorBlockChain) GasPrice(tokenID uint64) (uint64, error) {
 	//TODO later to fix
 	// no need to lock
 	if !m.clusterConfig.Quarkchain.IsAllowedTokenID(tokenID) {
-		return 0, errors.New("not support tokenID")
+		return 0, fmt.Errorf("no support tokenID %v", tokenID)
 	}
 	currHead := m.CurrentBlock().Hash()
 	if currHead == m.gasPriceSuggestionOracle.LastHead {
@@ -1666,6 +1666,7 @@ func (m *MinorBlockChain) RunCrossShardTxWithCursor(evmState *state.StateDB, mBl
 		if err := m.runOneXShardTx(evmState, xShardDepositTx, cursor.rBlock.Header().NumberU64() >= m.clusterConfig.Quarkchain.XShardGasDDOSFixRootHeight); err != nil {
 			return nil, nil, err
 		}
+		fmt.Println("16677777", mBlock.Meta().XShardTxCursorInfo)
 		if evmState.GetGasUsed().Cmp(mBlock.Meta().XshardGasLimit.Value) >= 0 {
 			break
 		}
