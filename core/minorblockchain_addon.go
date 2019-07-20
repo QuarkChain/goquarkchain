@@ -226,7 +226,7 @@ func (m *MinorBlockChain) InitGenesisState(rBlock *types.RootBlock) (*types.Mino
 	}
 	m.rootTip = rBlock.Header()
 	m.confirmedHeaderTip = nil
-	m.currentEvmState, err = m.createEvmState(gBlock.Meta().Root, gBlock.Hash())
+	m.currentEvmState, err = m.StateAt(gBlock.Meta().Root)
 	if err != nil {
 		return nil, err
 	}
@@ -281,15 +281,6 @@ func (m *MinorBlockChain) putRootBlock(rBlock *types.RootBlock, minorHeader *typ
 	log.Info("putRootBlock", "rBlock", rBlock.NumberU64(), "rHash", rBlock.Hash().String(), "mHash", mHash.String())
 	m.rootHeightToHashes[rBlock.NumberU64()][rBlock.Hash()] = mHash
 	rawdb.WriteLastConfirmedMinorBlockHeaderAtRootBlock(m.db, rBlockHash, mHash)
-}
-
-func (m *MinorBlockChain) createEvmState(trieRootHash common.Hash, headerHash common.Hash) (*state.StateDB, error) {
-	evmState, err := m.StateAt(trieRootHash)
-	if err != nil {
-		return nil, err
-	}
-	evmState.SetShardConfig(m.shardConfig)
-	return evmState, nil
 }
 
 func (m *MinorBlockChain) putTotalTxCount(mBlock *types.MinorBlock) error {
@@ -357,7 +348,7 @@ func (m *MinorBlockChain) InitFromRootBlock(rBlock *types.RootBlock) error {
 	log.Info(m.logInfo, "tipMinor", block.Number(), "hash", block.Hash().String(),
 		"mete.root", block.Meta().Root.String(), "rootBlock", rBlock.NumberU64(), "rootTip", m.rootTip.Number)
 	var err error
-	m.currentEvmState, err = m.createEvmState(block.Meta().Root, block.Hash())
+	m.currentEvmState, err = m.StateAt(block.Meta().Root)
 	if err != nil {
 		return err
 	}
@@ -373,7 +364,7 @@ func (m *MinorBlockChain) getEvmStateForNewBlock(mHeader types.IHeader, ephemera
 	}
 	recipient := mHeader.GetCoinbase().Recipient
 	rootHash := preMinorBlock.GetMetaData().Root
-	evmState, err := m.createEvmState(rootHash, prevHash)
+	evmState, err := m.stateAtWithSenderDisallowMap(rootHash, prevHash, &recipient)
 	if err != nil {
 		return nil, err
 	}
@@ -384,11 +375,6 @@ func (m *MinorBlockChain) getEvmStateForNewBlock(mHeader types.IHeader, ephemera
 	header := mHeader.(*types.MinorBlockHeader)
 	evmState.SetGasLimit(header.GetGasLimit())
 	evmState.SetQuarkChainConfig(m.clusterConfig.Quarkchain)
-	senderDisallowMap, err := m.posw.BuildSenderDisallowMap(prevHash, &recipient)
-	if err != nil {
-		return nil, err
-	}
-	evmState.SetSenderDisallowMap(senderDisallowMap)
 	return evmState, nil
 }
 
@@ -562,17 +548,10 @@ func (m *MinorBlockChain) ExecuteTx(tx *types.Transaction, fromAddress *account.
 	if !ok {
 		return nil, ErrMinorBlockIsNil
 	}
-
-	evmState, err := m.StateAt(mBlock.GetMetaData().Root)
+	evmState, err := m.stateAtWithSenderDisallowMap(mBlock.GetMetaData().Root, mBlock.Hash(), nil)
 	if err != nil {
 		return nil, err
 	}
-
-	senderDisallowMap, err := m.posw.BuildSenderDisallowMap(mBlock.Hash(), nil)
-	if err != nil {
-		return nil, err
-	}
-	evmState.SetSenderDisallowMap(senderDisallowMap)
 	state := evmState.Copy()
 	state.SetGasUsed(new(big.Int).SetUint64(0))
 	var gas uint64
@@ -984,7 +963,7 @@ func (m *MinorBlockChain) AddRootBlock(rBlock *types.RootBlock) (bool, error) {
 		newBlock := m.GetMinorBlock(headerTipHash)
 		log.Warn("reWrite", "orig_number", origBlock.Number(), "orig_hash", origBlock.Hash().String(), "new_number", newBlock.Number(), "new_hash", newBlock.Hash().String())
 		var err error
-		m.currentEvmState, err = m.createEvmState(newBlock.Meta().Root, headerTipHash)
+		m.currentEvmState, err = m.StateAt(newBlock.Meta().Root)
 		if err != nil {
 			return false, err
 		}

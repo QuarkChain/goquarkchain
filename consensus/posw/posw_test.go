@@ -376,7 +376,7 @@ func TestPoSWCoinbaseSendAboveLocked(t *testing.T) {
 		t.Fatalf("add tx failed: %v", err)
 	}
 
-	block, _ := appendNewBlock(blockchain, acc1, t) //posw failed tx will not included
+	block, _ := appendNewBlock(blockchain, acc1, t)
 	if txl := len(block.Transactions()); txl != 2 {
 		t.Errorf("tx len expected 2, got %d", txl)
 	}

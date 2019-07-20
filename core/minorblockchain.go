@@ -395,7 +395,25 @@ func (m *MinorBlockChain) State() (*state.StateDB, error) {
 
 // StateAt returns a new mutable state based on a particular point in time.
 func (m *MinorBlockChain) StateAt(root common.Hash) (*state.StateDB, error) {
-	return state.New(root, m.stateCache)
+	evmState, err := state.New(root, m.stateCache)
+	if err != nil {
+		return nil, err
+	}
+	evmState.SetShardConfig(m.shardConfig)
+	return evmState, nil
+}
+
+func (m *MinorBlockChain) stateAtWithSenderDisallowMap(root common.Hash, minorBlockHash common.Hash, coinbase *account.Recipient) (*state.StateDB, error) {
+	evmState, err := m.StateAt(root)
+	if err != nil {
+		return nil, err
+	}
+	senderDisallowMap, err := m.posw.BuildSenderDisallowMap(minorBlockHash, coinbase)
+	if err != nil {
+		return nil, err
+	}
+	evmState.SetSenderDisallowMap(senderDisallowMap)
+	return evmState, nil
 }
 
 // StateCache returns the caching database underpinning the blockchain instance.
@@ -1197,14 +1215,6 @@ func (m *MinorBlockChain) insertChain(chain []types.IBlock, verifySeals bool) (i
 		status, err := m.WriteBlockWithState(mBlock, receipts, state, xShardReceiveTxList, updateTip)
 		if err != nil {
 			return it.index, events, coalescedLogs, xShardList, err
-		}
-		if updateTip {
-			senderDisallowMap, err := m.posw.BuildSenderDisallowMap(block.Hash(), nil)
-			if err != nil {
-				return it.index, events, coalescedLogs, xShardList, err
-			}
-			state.SetSenderDisallowMap(senderDisallowMap)
-			m.currentEvmState = state
 		}
 		switch status {
 		case CanonStatTy:
