@@ -9,6 +9,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/core/types"
+	"github.com/QuarkChain/goquarkchain/p2p"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"golang.org/x/sync/errgroup"
@@ -280,6 +281,10 @@ func (s *QKCMasterBackend) NetWorkInfo() map[string]interface{} {
 	return fileds
 }
 
+func (s *QKCMasterBackend) GetCurrRootHeader() *types.RootBlockHeader {
+	return s.rootBlockChain.CurrentHeader().(*types.RootBlockHeader)
+}
+
 // miner api
 func (s *QKCMasterBackend) CreateBlockToMine() (types.IBlock, error) {
 	return s.createRootBlockToMine(s.clusterConfig.Quarkchain.Root.CoinbaseAddress)
@@ -288,6 +293,24 @@ func (s *QKCMasterBackend) CreateBlockToMine() (types.IBlock, error) {
 func (s *QKCMasterBackend) InsertMinedBlock(block types.IBlock) error {
 	rBlock := block.(*types.RootBlock)
 	return s.AddRootBlock(rBlock)
+}
+
+func (s *QKCMasterBackend) AddMinorBlock(branch uint32, mBlock *types.MinorBlock) error {
+	clients := s.getShardConnForP2P(branch)
+	if len(clients) == 0 {
+		return errors.New(fmt.Sprintf("slave is not exist, branch: %d", branch))
+	}
+	var (
+		g errgroup.Group
+	)
+	for _, cli := range clients {
+		cli := cli
+		g.Go(func() error {
+			_, err := cli.HandleNewMinorBlock(&p2p.NewBlockMinor{Block: mBlock})
+			return err
+		})
+	}
+	return g.Wait()
 }
 
 func (s *QKCMasterBackend) GetTip() uint64 {

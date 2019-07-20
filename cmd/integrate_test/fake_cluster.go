@@ -63,6 +63,7 @@ shardSize, slaveSize uint32, geneRHeights map[uint32]uint32) *config.ClusterConf
 		shardCfg := cfg.Quarkchain.GetShardConfigByFullShardID(fullShardId)
 		addr := geneAcc.QKCAddress.AddressInShard(fullShardId)
 		shardCfg.Genesis.Alloc[addr] = big.NewInt(10000000000)
+		shardCfg.Genesis.Alloc[shardCfg.CoinbaseAddress] = big.NewInt(10000000000)
 		shardCfg.Genesis.Difficulty = 10
 		shardCfg.DifficultyAdjustmentCutoffTime = 7
 		shardCfg.DifficultyAdjustmentFactor = 512

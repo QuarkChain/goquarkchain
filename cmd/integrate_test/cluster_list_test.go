@@ -1,4 +1,4 @@
-// +build integrationTest
+
 
 package test
 
@@ -19,7 +19,7 @@ import (
 )
 
 func tipGen(geneAcc *account.Account, shrd *shard.ShardBackend) *types.MinorBlock {
-	iBlock, _, err := shrd.CreateBlockToMine()
+	iBlock,  err := shrd.CreateBlockToMine()
 	if err != nil {
 		utils.Fatalf("failed to create minor block to mine: %v", err)
 	}
@@ -121,7 +121,7 @@ func TestGetMinorBlockHeadersWithSkip(t *testing.T) {
 	)
 
 	for i := 0; i < 3; i++ {
-		iBlock, _, err := clstrList[0].GetShard(id0).CreateBlockToMine()
+		iBlock,  err := clstrList[0].GetShard(id0).CreateBlockToMine()
 		if err != nil {
 			t.Errorf("failed to create block, fullShardId: %d, err: %v", id0, err)
 		}
@@ -408,7 +408,7 @@ func TestGetRootBlockHeaderSyncWithFork(t *testing.T) {
 		rootBlockList = make([]*types.RootBlock, 0, 10)
 	)
 	for i := 0; i < 10; i++ {
-		iBlock, _, err := mstr0.CreateBlockToMine()
+		iBlock,  err := mstr0.CreateBlockToMine()
 		if err != nil {
 			assert.Error(t, err)
 		}
@@ -426,7 +426,7 @@ func TestGetRootBlockHeaderSyncWithFork(t *testing.T) {
 		}
 	}
 	for i := 0; i < 3; i++ {
-		iBlock, _, err := mstr1.CreateBlockToMine()
+		iBlock,  err := mstr1.CreateBlockToMine()
 		if err != nil {
 			assert.Error(t, err)
 		}
@@ -460,9 +460,9 @@ func TestBroadcastCrossShardTransactions(t *testing.T) {
 	err := mstr.AddTransaction(tx)
 	assert.NoError(t, err)
 
-	iB0, _, err := shrd0.CreateBlockToMine()
+	iB0, err := shrd0.CreateBlockToMine()
 	assert.NoError(t, err)
-	iB1, _, err := shrd0.CreateBlockToMine()
+	iB1,  err := shrd0.CreateBlockToMine()
 	assert.NoError(t, err)
 
 	b0 := iB0.(*types.MinorBlock)
@@ -496,14 +496,14 @@ func TestBroadcastCrossShardTransactions(t *testing.T) {
 	assert.Equal(t, xshardList[0].To, toAddr)
 	assert.Equal(t, xshardList[0].Value.Value.Uint64(), uint64(100))
 
-	iB2, _, err := shrd1.CreateBlockToMine()
+	iB2, err := shrd1.CreateBlockToMine()
 	assert.NoError(t, err)
 	b2 := iB2.(*types.MinorBlock)
 	err = mstr.AddMinorBlock(b2.Branch().Value, b2)
 	// push one root block.
 	clstrList[0].CreateAndInsertBlocks(nil, 3)
 
-	iB3, _, err := shrd1.CreateBlockToMine()
+	iB3, err := shrd1.CreateBlockToMine()
 	assert.NoError(t, err)
 	b3 := iB3.(*types.MinorBlock)
 
@@ -573,7 +573,7 @@ func TestShardSynchronizerWithFork(t *testing.T) {
 		blockList = make([]*types.MinorBlock, 0, 13)
 	)
 	for i := 0; i < 13; i++ {
-		iBlock, _, err := shard00.CreateBlockToMine()
+		iBlock, err := shard00.CreateBlockToMine()
 		assert.NoError(t, err)
 		mBlock := iBlock.(*types.MinorBlock)
 		blockList = append(blockList, mBlock)
@@ -583,7 +583,7 @@ func TestShardSynchronizerWithFork(t *testing.T) {
 	assert.Equal(t, shard00.GetTip(), uint64(13))
 
 	for i := 0; i < 12; i++ {
-		iBlock, _, err := shard10.CreateBlockToMine()
+		iBlock,  err := shard10.CreateBlockToMine()
 		assert.NoError(t, err)
 		mBlock := iBlock.(*types.MinorBlock)
 		err = mstr1.AddMinorBlock(mBlock.Branch().Value, mBlock)
@@ -593,7 +593,7 @@ func TestShardSynchronizerWithFork(t *testing.T) {
 	clstrList.Start(5*time.Second, true)
 	clstrList.PrintPeerList()
 
-	iBlock, _, err := shard00.CreateBlockToMine()
+	iBlock,  err := shard00.CreateBlockToMine()
 	assert.NoError(t, err)
 	mBlock := iBlock.(*types.MinorBlock)
 	blockList = append(blockList, mBlock)
@@ -637,7 +637,7 @@ func TestBroadcastCrossShardTransactionsToNeighborOnly(t *testing.T) {
 		shrd0 = clstrList[0].GetShard(id0)
 	)
 	clstrList[0].CreateAndInsertBlocks(nil, 2)
-	iBlock, _, err := shrd0.CreateBlockToMine()
+	iBlock,err := shrd0.CreateBlockToMine()
 	assert.NoError(t, err)
 	mBlock := iBlock.(*types.MinorBlock)
 	err = mstr.AddMinorBlock(mBlock.Branch().Value, mBlock)
@@ -783,7 +783,7 @@ func TestGetRootBlockHeadersWithSkip(t *testing.T) {
 	master := cluster[0].master
 	rootBlockHeaderList := []types.IHeader{master.GetCurrRootHeader()}
 	for i := 0; i < 10; i++ {
-		rootBlock, _, err := master.CreateBlockToMine()
+		rootBlock,  err := master.CreateBlockToMine()
 		assert.NoError(t, err)
 		err = master.AddRootBlock(rootBlock.(*types.RootBlock))
 		assert.NoError(t, err)
@@ -821,7 +821,7 @@ func TestGetRootBlockHeaderSyncFromGenesis(t *testing.T) {
 	rootBlockList = append(rootBlockList, mstr0.CurrentBlock())
 
 	for index := 0; index < 10; index++ {
-		rBlock, _, err := mstr0.CreateBlockToMine()
+		rBlock,  err := mstr0.CreateBlockToMine()
 		assert.NoError(t, err)
 		err = mstr0.AddRootBlock(rBlock.(*types.RootBlock))
 		assert.NoError(t, err)
@@ -845,7 +845,7 @@ func TestGetRootBlockHeaderSyncFromHeight3(t *testing.T) {
 		rootBlockList = make([]*types.RootBlock, 0, 10)
 	)
 	for index := 0; index < 10; index++ {
-		rBlock, _, err := mstr0.CreateBlockToMine()
+		rBlock, err := mstr0.CreateBlockToMine()
 		assert.NoError(t, err)
 		err = mstr0.AddRootBlock(rBlock.(*types.RootBlock))
 		assert.NoError(t, err)
@@ -878,7 +878,7 @@ func TestGetRootBlockHeaderSyncWithStaleness(t *testing.T) {
 	)
 
 	for index := 0; index < 10; index++ {
-		rBlock, _, err = mstr0.CreateBlockToMine()
+		rBlock,  err = mstr0.CreateBlockToMine()
 		assert.NoError(t, err)
 		err = mstr0.AddRootBlock(rBlock.(*types.RootBlock))
 		assert.NoError(t, err)
@@ -886,7 +886,7 @@ func TestGetRootBlockHeaderSyncWithStaleness(t *testing.T) {
 	}
 	assert.Equal(t, mstr0.CurrentBlock().Hash(), rBlock.Hash())
 	for index := 0; index < 8; index++ {
-		rBlock, _, err = mstr1.CreateBlockToMine()
+		rBlock,  err = mstr1.CreateBlockToMine()
 		assert.NoError(t, err)
 		err = mstr1.AddRootBlock(rBlock.(*types.RootBlock))
 		assert.NoError(t, err)
@@ -912,7 +912,7 @@ func TestGetRootBlockHeaderSyncWithMultipleLookup(t *testing.T) {
 		rootBlockList = make([]*types.RootBlock, 0, blockCount)
 	)
 	for i := 0; i < blockCount; i++ {
-		iBlock, _, err := mstr0.CreateBlockToMine()
+		iBlock,  err := mstr0.CreateBlockToMine()
 		if err != nil {
 			assert.Error(t, err)
 		}
@@ -931,7 +931,7 @@ func TestGetRootBlockHeaderSyncWithMultipleLookup(t *testing.T) {
 		}
 	}
 	for i := 0; i < 4; i++ {
-		iBlock, _, err := mstr1.CreateBlockToMine()
+		iBlock, err := mstr1.CreateBlockToMine()
 		if err != nil {
 			assert.Error(t, err)
 		}
@@ -960,7 +960,7 @@ func TestGetRootBlockHeaderSyncWithStartEqualEnd(t *testing.T) {
 		rootBlockList = make([]*types.RootBlock, 0, blockCount)
 	)
 	for i := 0; i < blockCount; i++ {
-		iBlock, _, err := mstr0.CreateBlockToMine()
+		iBlock, err := mstr0.CreateBlockToMine()
 		if err != nil {
 			assert.Error(t, err)
 		}
@@ -979,7 +979,7 @@ func TestGetRootBlockHeaderSyncWithStartEqualEnd(t *testing.T) {
 		}
 	}
 	for i := 0; i < 1; i++ {
-		iBlock, _, err := mstr1.CreateBlockToMine()
+		iBlock, err := mstr1.CreateBlockToMine()
 		if err != nil {
 			assert.Error(t, err)
 		}
@@ -1007,7 +1007,7 @@ func TestGetRootBlockHeaderSyncWithBestAncestor(t *testing.T) {
 		rootBlockList = make([]*types.RootBlock, 0, blockCount)
 	)
 	for i := 0; i < blockCount; i++ {
-		iBlock, _, err := mstr0.CreateBlockToMine()
+		iBlock,  err := mstr0.CreateBlockToMine()
 		if err != nil {
 			assert.Error(t, err)
 		}
@@ -1026,7 +1026,7 @@ func TestGetRootBlockHeaderSyncWithBestAncestor(t *testing.T) {
 		}
 	}
 	for i := 0; i < 2; i++ {
-		iBlock, _, err := mstr1.CreateBlockToMine()
+		iBlock,err := mstr1.CreateBlockToMine()
 		if err != nil {
 			assert.Error(t, err)
 		}
