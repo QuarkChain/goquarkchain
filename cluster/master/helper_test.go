@@ -146,30 +146,30 @@ func newTestTransaction(from *ecdsa.PrivateKey, nonce uint64, datasize int) *typ
 	return &types.Transaction{EvmTx: tx, TxType: types.EvmTx}
 }
 
-// testPeer is a simulated peer to allow testing direct network calls.
+// testPeer is a simulated Peer to allow testing direct network calls.
 type testPeer struct {
 	net p2p.MsgReadWriter // Network layer reader/writer to simulate remote messaging
 	app *p2p.MsgPipeRW    // Application layer reader/writer to simulate the local side
-	*peer
+	*Peer
 }
 
-// newTestPeer creates a new peer registered at the given protocol manager.
+// newTestPeer creates a new Peer registered at the given protocol manager.
 func newTestPeer(name string, version int, pm *ProtocolManager, shake bool) (*testPeer, <-chan error) {
 	// Create a message pipe to communicate through
 	app, net := p2p.MsgPipe()
 
-	// Generate a random id and create the peer
+	// Generate a random id and create the Peer
 	var id enode.ID
 	rand.Read(id[:])
 
 	peer := newPeer(version, p2p.NewPeer(id, name, nil), net)
 
-	// Start the peer on a new thread
+	// Start the Peer on a new thread
 	errc := make(chan error, 1)
 	go func() {
 		errc <- pm.handle(peer)
 	}()
-	tp := &testPeer{app: app, net: net, peer: peer}
+	tp := &testPeer{app: app, net: net, Peer: peer}
 	// Execute any implicitly requested handshakes and return
 	if shake {
 		tp.handshake(nil, pm.rootBlockChain.CurrentBlock().Header())
@@ -177,7 +177,7 @@ func newTestPeer(name string, version int, pm *ProtocolManager, shake bool) (*te
 	return tp, errc
 }
 
-func newTestClientPeer(version int, msgrw p2p.MsgReadWriter) *peer {
+func newTestClientPeer(version int, msgrw p2p.MsgReadWriter) *Peer {
 	var id enode.ID
 	rand.Read(id[:])
 
@@ -218,7 +218,7 @@ func toIBlocks(rootBlocks []*types.RootBlock) []types.IBlock {
 	return blocks
 }
 
-// close terminates the local side of the peer, notifying the remote protocol
+// close terminates the local side of the Peer, notifying the remote protocol
 // manager of termination.
 func (p *testPeer) close() {
 	p.app.Close()

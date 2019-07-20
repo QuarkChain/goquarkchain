@@ -21,7 +21,9 @@ func ip2uint32(ip string) uint32 {
 	_ = binary.Read(bytes.NewBuffer(net.ParseIP(ip).To4()), binary.BigEndian, &long)
 	return long
 }
-
+func (s *QKCMasterBackend) GetPeerList() []*Peer {
+	return s.protocolManager.peers.Peers()
+}
 func (s *QKCMasterBackend) GetPeers() []rpc.PeerInfoForDisPlay {
 	peers := s.protocolManager.peers.Peers() //TODO use real peerList
 	result := make([]rpc.PeerInfoForDisPlay, 0)
@@ -61,7 +63,7 @@ func (s *QKCMasterBackend) AddTransaction(tx *types.Transaction) error {
 			return slaves[i].AddTransaction(tx)
 		})
 	}
-	err = g.Wait() //TODO?? peer broadcast
+	err = g.Wait() //TODO?? Peer broadcast
 	if err != nil {
 		return err
 	}

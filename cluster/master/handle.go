@@ -47,7 +47,7 @@ type ProtocolManager struct {
 
 	maxPeers    int
 	peers       *peerSet // Set of active peers from which rootDownloader can proceed
-	newPeerCh   chan *peer
+	newPeerCh   chan *Peer
 	quitSync    chan struct{}
 	noMorePeers chan struct{}
 
@@ -62,7 +62,7 @@ func NewProtocolManager(env config.ClusterConfig, rootBlockChain *core.RootBlock
 		rootBlockChain:   rootBlockChain,
 		clusterConfig:    &env,
 		peers:            newPeerSet(),
-		newPeerCh:        make(chan *peer),
+		newPeerCh:        make(chan *Peer),
 		quitSync:         make(chan struct{}),
 		noMorePeers:      make(chan struct{}),
 		statsChan:        statsChan,
@@ -91,15 +91,15 @@ func NewProtocolManager(env config.ClusterConfig, rootBlockChain *core.RootBlock
 }
 
 func (pm *ProtocolManager) removePeer(id string) {
-	// Short circuit if the peer was already removed
+	// Short circuit if the Peer was already removed
 	peer := pm.peers.Peer(id)
 	if peer == nil {
 		return
 	}
-	log.Debug("Removing peer", "peer", id)
+	log.Debug("Removing Peer", "Peer", id)
 
 	if err := pm.peers.Unregister(id); err != nil {
-		log.Error("Peer removal failed", "peer", id, "err", err)
+		log.Error("Peer removal failed", "Peer", id, "err", err)
 	}
 	// Hard disconnect at the networking layer
 	if peer != nil {
@@ -129,22 +129,22 @@ func (pm *ProtocolManager) Stop() {
 	close(pm.quitSync)
 
 	// Disconnect existing sessions.
-	// This also closes the gate for any new registrations on the peer set.
+	// This also closes the gate for any new registrations on the Peer set.
 	// sessions which are already established but not added to pm.peers yet
 	// will exit when they try to register.
 	pm.peers.Close()
 
-	// Wait for all peer handler goroutines and the loops to come down.
+	// Wait for all Peer handler goroutines and the loops to come down.
 	pm.wg.Wait()
 
 	log.Info("cluster protocol stopped")
 }
 
-func (pm *ProtocolManager) handle(peer *peer) error {
+func (pm *ProtocolManager) handle(peer *Peer) error {
 	if pm.peers.Len() >= pm.maxPeers {
 		return p2p.DiscTooManyPeers
 	}
-	peer.Log().Debug("peer connected", "name", peer.Name())
+	peer.Log().Debug("Peer connected", "name", peer.Name())
 
 	privateKey, _ := p2p.GetPrivateKeyFromConfig(pm.clusterConfig.P2P.PrivKey)
 	id := crypto.FromECDSAPub(&privateKey.PublicKey)
@@ -157,13 +157,13 @@ func (pm *ProtocolManager) handle(peer *peer) error {
 		return err
 	}
 
-	// Register the peer locally
+	// Register the Peer locally
 	if err := pm.peers.Register(peer); err != nil {
-		peer.Log().Error("peer registration failed", "err", err)
+		peer.Log().Error("Peer registration failed", "err", err)
 		return err
 	}
 	defer pm.removePeer(peer.id)
-	log.Info(pm.log, "peer add succ id ", peer.PeerID())
+	log.Info(pm.log, "Peer add succ id ", peer.PeerID())
 
 	err := pm.synchronizer.AddTask(synchronizer.NewRootChainTask(peer, peer.RootHead(), pm.statsChan, pm.getShardConnFunc))
 	if err != nil {
@@ -184,7 +184,7 @@ func (pm *ProtocolManager) handle(peer *peer) error {
 	}
 }
 
-func (pm *ProtocolManager) handleMsg(peer *peer) error {
+func (pm *ProtocolManager) handleMsg(peer *Peer) error {
 	msg, err := peer.rw.ReadMsg()
 	if err != nil {
 		return err
@@ -248,7 +248,7 @@ func (pm *ProtocolManager) handleMsg(peer *peer) error {
 			return err
 		}
 		if branch != newBlockMinor.Block.Branch().Value {
-			return fmt.Errorf("invalid NewBlockMinor Request: mismatch branch value from peer %v. in request meta: %d, in minor header: %d",
+			return fmt.Errorf("invalid NewBlockMinor Request: mismatch branch value from Peer %v. in request meta: %d, in minor header: %d",
 				peer.id, branch, newBlockMinor.Block.Branch().Value)
 		}
 		tip := peer.MinorHead(branch)
@@ -376,7 +376,7 @@ func (pm *ProtocolManager) handleMsg(peer *peer) error {
 	return nil
 }
 
-func (pm *ProtocolManager) HandleNewRootTip(tip *p2p.Tip, peer *peer) error {
+func (pm *ProtocolManager) HandleNewRootTip(tip *p2p.Tip, peer *Peer) error {
 	if len(tip.MinorBlockHeaderList) != 0 {
 		return errors.New("minor block header list must not be empty")
 	}
@@ -397,14 +397,14 @@ func (pm *ProtocolManager) HandleNewRootTip(tip *p2p.Tip, peer *peer) error {
 	return nil
 }
 
-func (pm *ProtocolManager) HandleNewMinorTip(branch uint32, tip *p2p.Tip, peer *peer) error {
+func (pm *ProtocolManager) HandleNewMinorTip(branch uint32, tip *p2p.Tip, peer *Peer) error {
 	// handle minor tip when branch != 0 and the minor block only contain 1 heard which is the tip block
 	if len(tip.MinorBlockHeaderList) != 1 {
-		return fmt.Errorf("invalid NewTip Request: len of MinorBlockHeaderList is %d for branch %d from peer %v",
+		return fmt.Errorf("invalid NewTip Request: len of MinorBlockHeaderList is %d for branch %d from Peer %v",
 			len(tip.MinorBlockHeaderList), branch, peer.id)
 	}
 	if branch != tip.MinorBlockHeaderList[0].Branch.Value {
-		return fmt.Errorf("invalid NewTip Request: mismatch branch value from peer %v. in request meta: %d, in minor header: %d",
+		return fmt.Errorf("invalid NewTip Request: mismatch branch value from Peer %v. in request meta: %d, in minor header: %d",
 			peer.id, branch, tip.MinorBlockHeaderList[0].Branch.Value)
 	}
 	if minorTip := peer.MinorHead(branch); minorTip != nil && minorTip.RootBlockHeader != nil {
@@ -425,7 +425,7 @@ func (pm *ProtocolManager) HandleNewMinorTip(branch uint32, tip *p2p.Tip, peer *
 	peer.SetMinorHead(branch, tip)
 	clients := pm.getShardConnFunc(branch)
 	if len(clients) == 0 {
-		return fmt.Errorf("invalid branch %d for rpc request from peer %v", branch, peer.id)
+		return fmt.Errorf("invalid branch %d for rpc request from Peer %v", branch, peer.id)
 	}
 	// todo make the client call in Parallelized
 	for _, client := range clients {
@@ -635,8 +635,8 @@ func (pm *ProtocolManager) syncer() {
 	}
 }
 
-// synchronise tries to sync up our local block chain with a remote peer.
-func (pm *ProtocolManager) synchronise(peer *peer) {
+// synchronise tries to sync up our local block chain with a remote Peer.
+func (pm *ProtocolManager) synchronise(peer *Peer) {
 	// Short circuit if no peers are available
 	if peer == nil {
 		return

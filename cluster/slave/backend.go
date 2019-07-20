@@ -73,6 +73,10 @@ func (s *SlaveBackend) GetConfig() *config.SlaveConfig {
 	return s.config
 }
 
+func (s *SlaveBackend) GetShard(fullShardId uint32) *shard.ShardBackend {
+	return s.shards[fullShardId]
+}
+
 func (s *SlaveBackend) Protocols() (protos []p2p.Protocol) { return nil }
 
 func (s *SlaveBackend) APIs() []rpc.API {

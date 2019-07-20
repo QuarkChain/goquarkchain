@@ -713,7 +713,7 @@ func (s *QKCMasterBackend) GetStats() (map[string]interface{}, error) {
 		if tcp, ok := v.RemoteAddr().(*net.TCPAddr); ok {
 			temp = fmt.Sprintf("%s:%v", tcp.IP.String(), tcp.Port)
 		} else {
-			panic(errors.New("peer not tcp?"))
+			panic(errors.New("Peer not tcp?"))
 		}
 		peerForDisplay = append(peerForDisplay, temp)
 	}
