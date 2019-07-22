@@ -274,7 +274,7 @@ func (m *MinorBlockChain) loadLastState() error {
 	}
 
 	// Make sure the state associated with the block is available
-	if _, err := state.New(currentBlock.GetMetaData().Root, m.stateCache); err != nil {
+	if _, err := m.StateAt(currentBlock.GetMetaData().Root); err != nil {
 		// Dangling block without a state associated, init from scratch
 		log.Warn("Head state missing, repairing chain", "number", currentBlock.NumberU64(), "hash", currentBlock.Hash())
 		if err := m.repair(&currentBlock); err != nil {
@@ -330,7 +330,7 @@ func (m *MinorBlockChain) SetHead(head uint64) error {
 		m.currentBlock.Store(m.GetBlock(currentHeader.Hash()))
 	}
 	if currentBlock := m.CurrentBlock(); currentBlock != nil {
-		if _, err := state.New(currentBlock.GetMetaData().Root, m.stateCache); err != nil {
+		if _, err := m.StateAt(currentBlock.GetMetaData().Root); err != nil {
 			// Rewound state missing, rolled back to before pivot, reset to genesis
 			m.currentBlock.Store(m.genesisBlock)
 		}
@@ -458,7 +458,7 @@ func (m *MinorBlockChain) ResetWithGenesisBlock(genesis *types.MinorBlock) error
 func (m *MinorBlockChain) repair(head **types.MinorBlock) error {
 	for {
 		// Abort if we've rewound to a head block that does have associated state
-		if _, err := state.New((*head).Root(), m.stateCache); err == nil {
+		if _, err := m.StateAt((*head).Root()); err == nil {
 			log.Info("Rewound blockchain to past state", "number", (*head).Number(), "hash", (*head).Hash())
 			return nil
 		}
@@ -1181,17 +1181,11 @@ func (m *MinorBlockChain) insertChain(chain []types.IBlock, verifySeals bool) (i
 		if qkcCommon.IsNil(parent) {
 			return it.index, events, coalescedLogs, xShardList, err
 		}
-
-		state, err := state.New(parent.(*types.MinorBlock).GetMetaData().Root, m.stateCache)
-		if err != nil {
-			return it.index, events, coalescedLogs, xShardList, err
-		}
 		coinbase := mBlock.IHeader().GetCoinbase().Recipient
-		senderDisallowMap, err := m.posw.BuildSenderDisallowMap(mBlock.Header().GetParentHash(), &coinbase)
+		state, err := m.stateAtWithSenderDisallowMap(parent.(*types.MinorBlock).GetMetaData().Root, mBlock.Header().GetParentHash(), &coinbase)
 		if err != nil {
 			return it.index, events, coalescedLogs, xShardList, err
 		}
-		state.SetSenderDisallowMap(senderDisallowMap)
 		xShardReceiveTxList := make([]*types.CrossShardTransactionDeposit, 0)
 		// Process block using the parent state as reference point.
 

@@ -84,7 +84,9 @@ func getTestEnv(genesisAccount *account.Address, genesisMinorQuarkHash *uint64, 
 	for _, v := range ids {
 		addr := genesisAccount.AddressInShard(v)
 		shardConfig := fakeClusterConfig.Quarkchain.GetShardConfigByFullShardID(v)
-		shardConfig.Genesis.Alloc[addr] = new(big.Int).SetUint64(*genesisMinorQuarkHash)
+		temp:=make(map[string]*big.Int)
+		temp["QKC"]= new(big.Int).SetUint64(*genesisMinorQuarkHash)
+		shardConfig.Genesis.Alloc[addr] =temp
 	}
 	return env
 }

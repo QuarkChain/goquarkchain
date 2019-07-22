@@ -396,17 +396,12 @@ func (m *MinorBlockChain) runBlock(block *types.MinorBlock) (*state.StateDB, typ
 		return nil, nil, ErrRootBlockIsNil
 	}
 
-	preEvmState, err := m.StateAt(parent.GetMetaData().Root)
+	coinbase := block.Coinbase().Recipient
+	preEvmState, err := m.stateAtWithSenderDisallowMap(parent.GetMetaData().Root, block.ParentHash(), &coinbase)
 	if err != nil {
 		return nil, nil, err
 	}
 	evmState := preEvmState.Copy()
-	coinbase := block.Coinbase().Recipient
-	senderDisallowMap, err := m.posw.BuildSenderDisallowMap(block.ParentHash(), &coinbase)
-	if err != nil {
-		return nil, nil, err
-	}
-	evmState.SetSenderDisallowMap(senderDisallowMap)
 	receipts, _, _, err := m.processor.Process(block, evmState, m.vmConfig, nil, nil)
 	if err != nil {
 		return nil, nil, err
@@ -422,7 +417,10 @@ func (m *MinorBlockChain) FinalizeAndAddBlock(block *types.MinorBlock) (*types.M
 		return nil, nil, err
 	}
 	coinbaseAmount := new(big.Int).Add(m.getCoinbaseAmount(), evmState.GetBlockFee())
-	block.Finalize(receipts, evmState.IntermediateRoot(true), evmState.GetGasUsed(), evmState.GetXShardReceiveGasUsed(), coinbaseAmount)
+	//TODO-master
+	temp := types.NewTokenBalanceMap()
+	temp.BalanceMap[qkcCommon.TokenIDEncode("QKC")] = coinbaseAmount
+	block.Finalize(receipts, evmState.IntermediateRoot(true), evmState.GetGasUsed(), evmState.GetXShardReceiveGasUsed(), temp, &types.XShardTxCursorInfo{})
 	_, err = m.InsertChain([]types.IBlock{block}) // will lock
 	if err != nil {
 		return nil, nil, err
@@ -478,11 +476,15 @@ func (m *MinorBlockChain) getCrossShardTxListByRootBlockHash(hash common.Hash) (
 		txList = append(txList, xShardTxList.TXList...)
 	}
 	if m.branch.IsInBranch(rBlock.Header().GetCoinbase().FullShardKey) { // Apply root block coinbase
+		value := new(big.Int)
+		if data, ok := rBlock.Header().CoinbaseAmount.BalanceMap[qkcCommon.TokenIDEncode(m.clusterConfig.Quarkchain.GenesisToken)]; ok {
+			value.Set(data)
+		}
 		txList = append(txList, &types.CrossShardTransactionDeposit{
 			TxHash:   common.Hash{},
 			From:     account.CreatEmptyAddress(0),
 			To:       rBlock.Header().Coinbase,
-			Value:    rBlock.Header().CoinbaseAmount,
+			Value:    &serialize.Uint256{Value: value}, //TODO-master
 			GasPrice: &serialize.Uint256{Value: new(big.Int).SetUint64(0)},
 		})
 	}
@@ -653,10 +655,11 @@ func (m *MinorBlockChain) getMaxBlocksInOneRootBlock() uint64 {
 // GetUnconfirmedHeadersCoinbaseAmount get unconfirmed Headers coinbase amount
 func (m *MinorBlockChain) GetUnconfirmedHeadersCoinbaseAmount() uint64 {
 	amount := uint64(0)
-	headers := m.GetUnconfirmedHeaderList() // have lock
-	for _, header := range headers {
-		amount += header.CoinbaseAmount.Value.Uint64()
-	}
+	//TODO-master
+	//headers := m.GetUnconfirmedHeaderList() // have lock
+	//for _, header := range headers {
+	//	//amount += header.CoinbaseAmount.Value.Uint64()
+	//}
 	return amount
 }
 
@@ -818,7 +821,10 @@ func (m *MinorBlockChain) CreateBlockToMine(createTime *uint64, address *account
 	pureCoinbaseAmount := m.getCoinbaseAmount()
 	evmState.AddBalance(evmState.GetBlockCoinbase(), pureCoinbaseAmount)
 	coinbaseAmount := new(big.Int).Add(pureCoinbaseAmount, evmState.GetBlockFee())
-	newBlock.Finalize(recipiets, evmState.IntermediateRoot(true), evmState.GetGasUsed(), evmState.GetXShardReceiveGasUsed(), coinbaseAmount)
+	//TODO-master
+	temp := types.NewTokenBalanceMap()
+	temp.BalanceMap[qkcCommon.TokenIDEncode("QKC")] = coinbaseAmount
+	newBlock.Finalize(recipiets, evmState.IntermediateRoot(true), evmState.GetGasUsed(), evmState.GetXShardReceiveGasUsed(), temp, &types.XShardTxCursorInfo{})
 	return newBlock, nil
 }
 

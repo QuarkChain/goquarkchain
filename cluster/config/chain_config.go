@@ -20,6 +20,8 @@ type ChainConfig struct {
 	CoinbaseAddress account.Address `json:"-"`
 	CoinbaseAmount  *big.Int        `json:"COINBASE_AMOUNT"`
 
+	EpochInterval *big.Int
+
 	// Gas Limit
 	GasLimitEmaDenominator             uint32      `json:"GAS_LIMIT_EMA_DENOMINATOR"`
 	GasLimitAdjustmentFactor           uint32      `json:"GAS_LIMIT_ADJUSTMENT_FACTOR"`
@@ -37,7 +39,7 @@ func NewChainConfig() *ChainConfig {
 	return &ChainConfig{
 		ChainID:                            0,
 		ShardSize:                          2,
-		DefaultChainToken:                  "",
+		DefaultChainToken:                  DefaultToken,
 		ConsensusType:                      PoWNone,
 		ConsensusConfig:                    nil,
 		Genesis:                            NewShardGenesis(),

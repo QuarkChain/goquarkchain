@@ -92,8 +92,11 @@ type QuarkChainConfig struct {
 	shards                            map[uint32]*ShardConfig
 	Chains                            map[uint32]*ChainConfig `json:"-"`
 	RewardTaxRate                     *big.Rat                `json:"-"`
+	BlockRewardDecayFactor            *big.Rat                `json:"-"`
 	chainIdToShardSize                map[uint32]uint32
 	chainIdToShardIds                 map[uint32][]uint32
+	defaultChainToken                 uint64
+	allowTokenIDs                     map[uint64]bool
 }
 
 type QuarkChainConfigAlias QuarkChainConfig
@@ -196,6 +199,7 @@ func (q *QuarkChainConfig) Update(chainSize, shardSizePerChain, rootBlockTime, m
 		chainCfg.ConsensusType = PoWSimulate
 		chainCfg.ConsensusConfig = NewPOWConfig()
 		chainCfg.ConsensusConfig.TargetBlockTime = minorBlockTime
+		chainCfg.DefaultChainToken = DefaultToken
 		q.Chains[chainId] = chainCfg
 		for shardId := uint32(0); shardId < shardSizePerChain; shardId++ {
 			var cfg = new(ChainConfig)
@@ -297,8 +301,9 @@ func NewQuarkChainConfig() *QuarkChainConfig {
 		SkipRootDifficultyCheck:           false,
 		SkipRootCoinbaseCheck:             false,
 		SkipMinorDifficultyCheck:          false,
-		GenesisToken:                      "",
+		GenesisToken:                      DefaultToken,
 		RewardTaxRate:                     new(big.Rat).SetFloat64(0.5),
+		BlockRewardDecayFactor:            new(big.Rat).SetFloat64(0.5),
 		Root:                              NewRootConfig(),
 	}
 
@@ -334,6 +339,36 @@ func (q *QuarkChainConfig) SetShardsAndValidate(shards map[uint32]*ShardConfig) 
 	q.initAndValidate()
 }
 
+func (q *QuarkChainConfig) GetDefaultChainToken() uint64 {
+	if q.defaultChainToken == 0 {
+		q.defaultChainToken = common.TokenIDEncode(q.GenesisToken)
+
+	}
+	return q.defaultChainToken
+}
+
+func (q *QuarkChainConfig) allowedTokenIds() map[uint64]bool {
+	if q.allowTokenIDs == nil {
+		q.allowTokenIDs = make(map[uint64]bool, 0)
+		q.allowTokenIDs[common.TokenIDEncode(q.GenesisToken)] = true
+		for _, shard := range q.shards {
+			for _, tokenDict := range shard.Genesis.Alloc {
+				for tokenID, _ := range tokenDict {
+					q.allowTokenIDs[common.TokenIDEncode(tokenID)] = true
+				}
+			}
+		}
+	}
+	return q.allowTokenIDs
+}
+
+func (q *QuarkChainConfig) AllowedTransferTokenIDs() map[uint64]bool {
+	return q.allowedTokenIds()
+}
+
+func (q *QuarkChainConfig) AllowedGasTokenIDs() map[uint64]bool {
+	return q.allowedTokenIds()
+}
 func (q *QuarkChainConfig) GasLimit(fullShardID uint32) (*big.Int, error) {
 	data, ok := q.shards[fullShardID]
 	if !ok {

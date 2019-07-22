@@ -6,6 +6,7 @@ import (
 	"math/big"
 	"reflect"
 
+	qkcCommon "github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/core/state"
 	"github.com/ethereum/go-ethereum/common"
 
@@ -76,11 +77,11 @@ func (v *RootBlockValidator) ValidateBlock(block types.IBlock) error {
 
 	if !v.config.SkipRootCoinbaseCheck {
 		coinbaseAmount := v.blockChain.CalculateRootBlockCoinBase(rootBlock)
-		if coinbaseAmount.Cmp(rootBlock.CoinbaseAmount()) != 0 {
+		if coinbaseAmount.Cmp(rootBlock.Header().GetCoinbaseAmount().BalanceMap[qkcCommon.TokenIDEncode("QKC")]) != 0 {
 			return fmt.Errorf("bad coinbase amount for root block %v. expect %d but got %d.",
 				rootBlock.Hash().String(),
 				coinbaseAmount,
-				rootBlock.CoinbaseAmount())
+				rootBlock.Header().GetCoinbaseAmount())
 		}
 	}
 

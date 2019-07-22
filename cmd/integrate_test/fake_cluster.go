@@ -36,7 +36,7 @@ type clusterNode struct {
 }
 
 func getClusterConfig(index uint16, geneAcc *account.Account, chainSize,
-shardSize, slaveSize uint32, geneRHeights map[uint32]uint32) *config.ClusterConfig {
+	shardSize, slaveSize uint32, geneRHeights map[uint32]uint32) *config.ClusterConfig {
 	cfg := config.NewClusterConfig()
 	cfg.Clean = true
 	cfg.GenesisDir = ""
@@ -62,7 +62,9 @@ shardSize, slaveSize uint32, geneRHeights map[uint32]uint32) *config.ClusterConf
 	for _, fullShardId := range fullShardIds {
 		shardCfg := cfg.Quarkchain.GetShardConfigByFullShardID(fullShardId)
 		addr := geneAcc.QKCAddress.AddressInShard(fullShardId)
-		shardCfg.Genesis.Alloc[addr] = big.NewInt(10000000000)
+		shardCfg.Genesis.Alloc[addr] = map[string]*big.Int{
+			"QKC": big.NewInt(10000000000),
+		}
 		shardCfg.Genesis.Difficulty = 10
 		shardCfg.DifficultyAdjustmentCutoffTime = 7
 		shardCfg.DifficultyAdjustmentFactor = 512
