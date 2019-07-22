@@ -21,16 +21,18 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"github.com/QuarkChain/goquarkchain/account"
-	"github.com/QuarkChain/goquarkchain/cluster/config"
-	qkcParams "github.com/QuarkChain/goquarkchain/params"
-	"github.com/QuarkChain/goquarkchain/serialize"
 	"io"
 	"math/big"
 	"sort"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/QuarkChain/goquarkchain/account"
+	"github.com/QuarkChain/goquarkchain/cluster/config"
+	qkcParams "github.com/QuarkChain/goquarkchain/params"
+	"github.com/QuarkChain/goquarkchain/serialize"
+	lru "github.com/hashicorp/golang-lru"
 
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/core/rawdb"
@@ -46,7 +48,6 @@ import (
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
-	"github.com/hashicorp/golang-lru"
 )
 
 const (
@@ -276,7 +277,7 @@ func (m *MinorBlockChain) loadLastState() error {
 	}
 
 	// Make sure the state associated with the block is available
-	if _, err := state.New(currentBlock.GetMetaData().Root, m.stateCache); err != nil {
+	if _, err := m.StateAt(currentBlock.GetMetaData().Root); err != nil {
 		// Dangling block without a state associated, init from scratch
 		log.Warn("Head state missing, repairing chain", "number", currentBlock.NumberU64(), "hash", currentBlock.Hash())
 		if err := m.repair(&currentBlock); err != nil {
@@ -332,7 +333,7 @@ func (m *MinorBlockChain) SetHead(head uint64) error {
 		m.currentBlock.Store(m.GetBlock(currentHeader.Hash()))
 	}
 	if currentBlock := m.CurrentBlock(); currentBlock != nil {
-		if _, err := state.New(currentBlock.GetMetaData().Root, m.stateCache); err != nil {
+		if _, err := m.StateAt(currentBlock.GetMetaData().Root); err != nil {
 			// Rewound state missing, rolled back to before pivot, reset to genesis
 			m.currentBlock.Store(m.genesisBlock)
 		}
@@ -397,7 +398,25 @@ func (m *MinorBlockChain) State() (*state.StateDB, error) {
 
 // StateAt returns a new mutable state based on a particular point in time.
 func (m *MinorBlockChain) StateAt(root common.Hash) (*state.StateDB, error) {
-	return state.New(root, m.stateCache)
+	evmState, err := state.New(root, m.stateCache)
+	if err != nil {
+		return nil, err
+	}
+	evmState.SetShardConfig(m.shardConfig)
+	return evmState, nil
+}
+
+func (m *MinorBlockChain) stateAtWithSenderDisallowMap(root common.Hash, minorBlockHash common.Hash, coinbase *account.Recipient) (*state.StateDB, error) {
+	evmState, err := m.StateAt(root)
+	if err != nil {
+		return nil, err
+	}
+	senderDisallowMap, err := m.posw.BuildSenderDisallowMap(minorBlockHash, coinbase)
+	if err != nil {
+		return nil, err
+	}
+	evmState.SetSenderDisallowMap(senderDisallowMap)
+	return evmState, nil
 }
 
 // StateCache returns the caching database underpinning the blockchain instance.
@@ -442,7 +461,7 @@ func (m *MinorBlockChain) ResetWithGenesisBlock(genesis *types.MinorBlock) error
 func (m *MinorBlockChain) repair(head **types.MinorBlock) error {
 	for {
 		// Abort if we've rewound to a head block that does have associated state
-		if _, err := state.New((*head).Root(), m.stateCache); err == nil {
+		if _, err := m.StateAt((*head).Root()); err == nil {
 			log.Info("Rewound blockchain to past state", "number", (*head).Number(), "hash", (*head).Hash())
 			return nil
 		}
@@ -1373,7 +1392,6 @@ func (m *MinorBlockChain) insertSidechain(it *insertIterator) (int, []interface{
 // to be part of the new canonical chain and accumulates potential missing transactions and post an
 // event about them
 func (m *MinorBlockChain) reorg(oldBlock, newBlock types.IBlock) error {
-	//fmt.Println("reorg", oldBlock.NumberU64(), oldBlock.Hash().String(), newBlock.NumberU64(), newBlock.Hash().String(), newBlock.IHeader().GetParentHash().String())
 	if qkcCommon.IsNil(oldBlock) || qkcCommon.IsNil(newBlock) {
 		return errors.New("reorg err:block is nil")
 	}
@@ -1417,7 +1435,6 @@ func (m *MinorBlockChain) reorg(oldBlock, newBlock types.IBlock) error {
 			newChain = append(newChain, newBlock)
 		}
 	}
-	//fmt.Println("??????", oldBlock, qkcCommon.IsNil(oldBlock))
 	if qkcCommon.IsNil(oldBlock) {
 		return fmt.Errorf("Invalid old chain")
 	}
@@ -1436,7 +1453,6 @@ func (m *MinorBlockChain) reorg(oldBlock, newBlock types.IBlock) error {
 		deletedTxs = append(deletedTxs, oldBlock.(*types.MinorBlock).GetTransactions()...)
 		collectLogs(oldBlock.Hash())
 
-	//	fmt.Println("??????", newBlock.IHeader().GetParentHash().String())
 		oldBlock, newBlock = m.GetBlock(oldBlock.IHeader().GetParentHash()), m.GetBlock(newBlock.IHeader().GetParentHash())
 		if qkcCommon.IsNil(oldBlock) {
 			return fmt.Errorf("Invalid old chain")

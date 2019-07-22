@@ -521,7 +521,7 @@ func (p *PrivateBlockChainAPI) GetPeers() map[string]interface{} {
 	fields := make(map[string]interface{})
 
 	list := make([]map[string]interface{}, 0)
-	peerList := p.b.GetPeers()
+	peerList := p.b.GetPeerInfolist()
 	for _, v := range peerList {
 		list = append(list, map[string]interface{}{
 			"id":   hexutil.Bytes(v.ID),

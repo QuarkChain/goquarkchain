@@ -165,6 +165,10 @@ func createConsensusEngine(ctx *service.ServiceContext, cfg *config.RootConfig) 
 	return nil, fmt.Errorf("Failed to create consensus engine consensus type %s ", cfg.ConsensusType)
 }
 
+func (s *QKCMasterBackend) GetProtocolManager() *ProtocolManager {
+	return s.protocolManager
+}
+
 func (s *QKCMasterBackend) GetClusterConfig() *config.ClusterConfig {
 	return s.clusterConfig
 }
@@ -674,7 +678,6 @@ func (s *QKCMasterBackend) GetStats() (map[string]interface{}, error) {
 		txCountHistory = append(txCountHistory, field)
 		s.txCountHistory.PushRight(right)
 	}
-	s.GetPeers()
 	peerForDisplay := make([]string, 0)
 	for _, v := range s.protocolManager.peers.Peers() {
 		var temp string
@@ -736,7 +739,6 @@ func (s *QKCMasterBackend) disPlayPeers() {
 		for true {
 			time.Sleep(disPlayPeerInfoInterval)
 			peers := s.protocolManager.peers.Peers()
-			log.Info(s.logInfo, "len(peers)", len(peers))
 			for _, v := range peers {
 				log.Info(s.logInfo, "remote addr", v.RemoteAddr().String())
 			}
