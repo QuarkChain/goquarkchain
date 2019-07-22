@@ -32,7 +32,7 @@ type Backend interface {
 	CurrentBlock() *types.RootBlock
 	GetAccountData(address *account.Address, height *uint64) (map[uint32]*qkcRPC.AccountBranchData, error)
 	GetClusterConfig() *config.ClusterConfig
-	GetPeers() []qkcRPC.PeerInfoForDisPlay
+	GetPeerInfolist() []qkcRPC.PeerInfoForDisPlay
 	GetStats() (map[string]interface{}, error)
 	GetBlockCount() (map[uint32]map[account.Recipient]uint32, error)
 	SetTargetBlockTime(rootBlockTime *uint32, minorBlockTime *uint32) error
