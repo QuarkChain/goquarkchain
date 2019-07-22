@@ -11,6 +11,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/consensus/doublesha256"
+	"github.com/QuarkChain/goquarkchain/consensus/posw"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -205,17 +206,33 @@ func checkErr(err error) {
 
 func CreateFakeMinorCanonicalPoSW(acc1 account.Address, shardId *uint32, genesisMinorQuarkash *uint64) (*MinorBlockChain, error) {
 	env := setUp(&acc1, genesisMinorQuarkash, nil)
-	poswOverride := true
-	shardState := createDefaultShardState(env, shardId, nil, &poswOverride, nil)
+	chainConfig := env.clusterConfig.Quarkchain.Chains[0]
+	fullShardID := chainConfig.ChainID<<16 | chainConfig.ShardSize | 0
+	shardConfig := env.clusterConfig.Quarkchain.GetShardConfigByFullShardID(fullShardID)
+	diffCalculator := &consensus.EthDifficultyCalculator{
+		MinimumDifficulty: big.NewInt(int64(shardConfig.Genesis.Difficulty)),
+		AdjustmentCutoff:  shardConfig.DifficultyAdjustmentCutoffTime,
+		AdjustmentFactor:  shardConfig.DifficultyAdjustmentFactor,
+	}
+	poswFlag := true
+	engineFlag := true
+	shardState := createDefaultShardState(env, shardId, diffCalculator, &poswFlag, &engineFlag)
 	return shardState, nil
 }
 
-func CreateFreeTx(shardState *MinorBlockChain, key []byte,
-	from account.Address, to account.Address, value *big.Int, gas, nonce *uint64) *types.Transaction {
-	var gasPrice uint64 = 0
+func CreateTransferTx(shardState *MinorBlockChain, key []byte,
+	from account.Address, to account.Address, value *big.Int, gas, gasPrice, nonce *uint64) *types.Transaction {
+	if gasPrice == nil {
+		gasPrice = new(uint64)
+		*gasPrice = 0
+	}
 	if gas == nil {
 		gas = new(uint64)
 		*gas = 21000
 	}
-	return createTransferTransaction(shardState, key, from, to, value, gas, &gasPrice, nonce, nil)
+	return createTransferTransaction(shardState, key, from, to, value, gas, gasPrice, nonce, nil)
+}
+
+func GetPoSW(chain *MinorBlockChain) *posw.PoSW {
+	return chain.posw.(*posw.PoSW)
 }

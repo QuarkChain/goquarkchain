@@ -523,6 +523,7 @@ func (s *StateDB) Copy() *StateDB {
 		logSize:           s.logSize,
 		preimages:         make(map[common.Hash][]byte),
 		journal:           newJournal(),
+		senderDisallowMap: make(map[qkcaccount.Recipient]*big.Int, len(s.senderDisallowMap)),
 	}
 	// Copy the dirty states, logs, and preimages
 	for addr := range s.journal.dirties {
@@ -554,6 +555,9 @@ func (s *StateDB) Copy() *StateDB {
 	}
 	for hash, preimage := range s.preimages {
 		state.preimages[hash] = preimage
+	}
+	for k, v := range s.senderDisallowMap {
+		state.senderDisallowMap[k] = v
 	}
 	state.SetGasLimit(s.gasLimit)
 	state.SetQuarkChainConfig(s.GetQuarkChainConfig())

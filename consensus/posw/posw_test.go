@@ -3,6 +3,7 @@ package posw_test
 import (
 	"math/big"
 	"reflect"
+	"runtime/debug"
 	"testing"
 	"time"
 
@@ -12,6 +13,31 @@ import (
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/common"
 )
+
+func appendNewBlock(blockchain *core.MinorBlockChain, acc1 account.Address, t *testing.T) (*types.MinorBlock, types.Receipts) {
+	newBlock, err := blockchain.CreateBlockToMine(nil, &acc1, nil)
+	if err != nil {
+		t.Fatalf("failed to CreateBlockToMine: %v", err)
+	}
+	resultsCh := make(chan types.IBlock)
+	if balance, err := blockchain.GetBalance(newBlock.Coinbase().Recipient, nil); err != nil {
+		t.Fatalf("failed to get balance: %v", err)
+	} else {
+		adjustedDiff, err := core.GetPoSW(blockchain).PoSWDiffAdjust(newBlock.Header(), balance)
+		if err != nil {
+			t.Fatalf("failed to adjust posw diff: %v", err)
+		}
+		if err = blockchain.Engine().Seal(nil, newBlock, adjustedDiff, resultsCh, nil); err != nil {
+			t.Fatalf("problem sealing the block: %v", err)
+		}
+	}
+	minedBlock := <-resultsCh
+	block, rs, err := blockchain.FinalizeAndAddBlock(minedBlock.(*types.MinorBlock))
+	if err != nil {
+		t.Fatalf("failed to FinalizeAndAddBlock: %v, %v", err, string(debug.Stack()))
+	}
+	return block, rs
+}
 
 func TestPoSWCoinbaseAddrsCntByDiffLen(t *testing.T) {
 	id1, err := account.CreatRandomIdentity()
@@ -29,44 +55,13 @@ func TestPoSWCoinbaseAddrsCntByDiffLen(t *testing.T) {
 	shardConfig := blockchain.Config().GetShardConfigByFullShardID(fullShardID)
 	shardConfig.PoswConfig.WindowSize = 3
 
-	var newBlock *types.MinorBlock
 	for i := 0; i < 4; i++ {
 		randomAcc, err := account.CreatRandomAccountWithFullShardKey(0)
 		if err != nil {
 			t.Fatalf("failed to create random account: %v", err)
 		}
-		tip := blockchain.GetMinorBlock(blockchain.CurrentHeader().Hash())
-		newBlock = tip.CreateBlockToAppend(nil, nil, &randomAcc, nil, nil, nil, nil)
-		newBlock, _, err = blockchain.FinalizeAndAddBlock(newBlock)
-		if err != nil {
-			t.Fatalf("failed to FinalizeAndAddBlock: %v", err)
-		}
+		appendNewBlock(blockchain, randomAcc, t)
 	}
-	//should pass if export PoSW from minorBlockChain.
-	/* poswa := core.GetPoSW(blockchain).(*posw.PoSW)
-	sumCnt := func(m map[account.Recipient]uint64) int {
-		count := 0
-		for _, v := range m {
-			count += int(v)
-		}
-		return count
-	}
-	length := int(shardConfig.PoswConfig.WindowSize - 1)
-	for i := 0; i < 5; i++ {
-		coinbaseBlkCnt, err := poswa.GetPoSWCoinbaseBlockCnt(newBlock.Hash())
-		if err != nil {
-			t.Fatalf("failed to get PoSW coinbase block count: %v", err)
-		}
-		sum := sumCnt(coinbaseBlkCnt)
-		if sum != length {
-			t.Errorf("sum of PoSW coinbase block count: expected %d, got %d", length, sum)
-		}
-	}
-
-	//Make sure internal cache state is correct
-	if cacheLen := posw.GetCoinbaseAddrCache(poswa).Len(); cacheLen != 4 {
-		t.Errorf("cache length: expected %d, got %d", length, cacheLen)
-	} */
 }
 
 func TestPoSWCoinBaseSendUnderLimit(t *testing.T) {
@@ -102,13 +97,7 @@ func TestPoSWCoinBaseSendUnderLimit(t *testing.T) {
 	if err != nil || !added {
 		t.Fatalf("failed to add root block: %v", err)
 	}
-	tip := blockchain.GetMinorBlock(blockchain.CurrentHeader().Hash())
-	newBlock := tip.CreateBlockToAppend(nil, nil, &acc1, nil, nil, nil, nil)
-	newBlock, _, err = blockchain.FinalizeAndAddBlock(newBlock)
-	if err != nil {
-		t.Fatalf("failed to FinalizeAndAddBlock: %v", err)
-	}
-
+	appendNewBlock(blockchain, acc1, t)
 	evmState, err := blockchain.State()
 	if err != nil {
 		t.Fatalf("failed to get State: %v", err)
@@ -134,7 +123,8 @@ func TestPoSWCoinBaseSendUnderLimit(t *testing.T) {
 		t.Errorf("disallowMap: expected %x, got %x", disallowMapExp, disallowMap)
 	}
 	// Try to send money from that account
-	tx0 := core.CreateFreeTx(blockchain, id1.GetKey().Bytes(), acc1, account.Address{}, new(big.Int).SetUint64(1), nil, nil)
+	tx0 := core.CreateTransferTx(blockchain, id1.GetKey().Bytes(), acc1, account.Address{},
+		new(big.Int).SetUint64(1), nil, nil, nil)
 	if _, err = blockchain.ExecuteTx(tx0, &acc1, nil); err != nil {
 		t.Errorf("tx failed: %v", err)
 	}
@@ -147,13 +137,7 @@ func TestPoSWCoinBaseSendUnderLimit(t *testing.T) {
 		t.Fatalf("error create id %v", id2)
 	}
 	acc2 := account.CreatAddressFromIdentity(id2, 0)
-	var mb *types.MinorBlock
-	if mb, err = blockchain.CreateBlockToMine(nil, &acc2, nil); err != nil {
-		t.Fatalf("create block failed: %v", err)
-	}
-	if mb, _, err = blockchain.FinalizeAndAddBlock(mb); err != nil {
-		t.Fatalf("finalize and add block failed: %v", err)
-	}
+	appendNewBlock(blockchain, acc2, t)
 	var blc *big.Int
 	if blc, err = blockchain.GetBalance(acc1.Recipient, nil); err != nil {
 		t.Fatalf("get balance failed: %v", err)
@@ -176,12 +160,14 @@ func TestPoSWCoinBaseSendUnderLimit(t *testing.T) {
 	if !reflect.DeepEqual(disallowMap1, disallowMapExp1) {
 		t.Errorf("disallowMap: expected %x, got %x", disallowMapExp1, disallowMap1)
 	}
-	tx1 := core.CreateFreeTx(blockchain, id1.GetKey().Bytes(), acc1, account.Address{}, new(big.Int).SetUint64(2), nil, nil)
-	if _, err := blockchain.ExecuteTx(tx1, &acc1, nil); err == nil {
+	tx1 := core.CreateTransferTx(blockchain, id1.GetKey().Bytes(), acc1, account.Address{},
+		new(big.Int).SetUint64(2), nil, nil, nil)
+	if ret, _ := blockchain.ExecuteTx(tx1, &acc1, nil); ret != nil {
 		t.Error("tx should fail")
 	}
 	//Create a block including that tx, receipt should also report error
-	if err := tryAddTx(blockchain, tx1); err != nil { //txPool.AddLocal(tx) will be called and no state available. so posw disallow check error will not happen here.
+	// txPool.AddLocal(tx) will be called and no state available. so posw disallow check error will not happen here.
+	if err := tryAddTx(blockchain, tx1); err != nil {
 		t.Fatalf("error adding tx %v", err)
 	}
 	var mb1 *types.MinorBlock
@@ -219,12 +205,14 @@ func TestPoSWCoinBaseSendUnderLimit(t *testing.T) {
 		t.Errorf("disallowMap: expected %x, got %x", disallowMapExp2, disallowMap2)
 	}
 
-	tx2 := core.CreateFreeTx(blockchain, id2.GetKey().Bytes(), acc2, account.Address{}, new(big.Int).SetUint64(3), nil, nil)
-	if _, err := blockchain.ExecuteTx(tx2, &acc2, nil); err == nil {
+	tx2 := core.CreateTransferTx(blockchain, id2.GetKey().Bytes(), acc2, account.Address{},
+		new(big.Int).SetUint64(3), nil, nil, nil)
+	if ret, _ := blockchain.ExecuteTx(tx2, &acc2, nil); ret != nil {
 		t.Error("tx should fail")
 	}
 	//ok to transfer 1 because 1+2(disallow)<4(balance)
-	tx3 := core.CreateFreeTx(blockchain, id2.GetKey().Bytes(), acc2, account.Address{}, new(big.Int).SetUint64(1), nil, nil)
+	tx3 := core.CreateTransferTx(blockchain, id2.GetKey().Bytes(), acc2, account.Address{},
+		new(big.Int).SetUint64(1), nil, nil, nil)
 	if _, err := blockchain.ExecuteTx(tx3, &acc2, nil); err != nil {
 		t.Errorf("tx should succeed but get: %v", err)
 	}
@@ -252,7 +240,8 @@ func TestPoSWCoinbaseSendEqualLocked(t *testing.T) {
 
 	//Add a root block to have all the shards initialized, also include the genesis from
 	// another shard to allow x-shard tx TO that shard
-	rootBlk := blockchain.GetRootTip().CreateBlockToAppend(nil, nil, nil, nil, nil)
+	rootBlk := blockchain.GetRootTip().CreateBlockToAppend(nil, nil, nil, nil,
+		nil)
 	var sId uint32 = 1
 	blockchain2, err := core.CreateFakeMinorCanonicalPoSW(acc1, &sId, nil)
 	if err != nil {
@@ -264,13 +253,7 @@ func TestPoSWCoinbaseSendEqualLocked(t *testing.T) {
 	if err != nil || !added {
 		t.Fatalf("failed to add root block: %v", err)
 	}
-	if minorBlock, err := blockchain.CreateBlockToMine(nil, &acc1, nil); err != nil {
-		t.Fatalf("failed to CreateBlockToMine: %v", err)
-	} else {
-		if _, _, err = blockchain.FinalizeAndAddBlock(minorBlock); err != nil {
-			t.Fatalf("failed to FinalizeAndAddBlock: %v", err)
-		}
-	}
+	appendNewBlock(blockchain, acc1, t)
 	if evmState, err := blockchain.State(); err != nil {
 		t.Fatalf("error get state: %v", err)
 	} else {
@@ -295,21 +278,16 @@ func TestPoSWCoinbaseSendEqualLocked(t *testing.T) {
 		}
 	}
 	//Try to send money from that account, the expected locked tokens are 4
-	tx0 := core.CreateFreeTx(blockchain, id1.GetKey().Bytes(), acc1, account.Address{}, new(big.Int).SetUint64(1), nil, nil)
+	tx0 := core.CreateTransferTx(blockchain, id1.GetKey().Bytes(), acc1, account.Address{}, new(big.Int).SetUint64(1),
+		nil, nil, nil)
 
 	if err = tryAddTx(blockchain, tx0); err != nil {
 		t.Fatalf("add tx failed: %v", err)
 	}
-	if minorBlock, err := blockchain.CreateBlockToMine(nil, &acc1, nil); err != nil {
-		t.Fatalf("CreateBlockToMine failed: %v", err)
-	} else {
-		if _, rs, err := blockchain.FinalizeAndAddBlock(minorBlock); err != nil {
-			t.Fatalf("failed to FinalizeAndAddBlock: %v", err)
-		} else {
-			if rs[0].Status != uint64(1) {
-				t.Errorf("tx status wrong: expected 1, got %d", rs[2].Status)
-			}
-		}
+
+	_, rs := appendNewBlock(blockchain, acc1, t)
+	if rs[0].Status != uint64(1) {
+		t.Errorf("tx status wrong: expected 1, got %d", rs[2].Status)
 	}
 	if tb1, err := blockchain.GetBalance(acc1.Recipient, nil); err != nil {
 		t.Fatalf("get balance error %v", err)
@@ -329,7 +307,8 @@ func TestPoSWCoinbaseSendAboveLocked(t *testing.T) {
 	}
 	acc1 := account.CreatAddressFromIdentity(id1, 0)
 	// t.Logf("account1=%x", acc1.Recipient)
-	blockchain, err := core.CreateFakeMinorCanonicalPoSW(acc1, nil, nil)
+	var quarkash uint64 = 1000000
+	blockchain, err := core.CreateFakeMinorCanonicalPoSW(acc1, nil, &quarkash)
 	if err != nil {
 		t.Fatalf("failed to create fake minor chain: %v", err)
 	}
@@ -338,12 +317,13 @@ func TestPoSWCoinbaseSendAboveLocked(t *testing.T) {
 	fullShardID := chainConfig.ChainID<<16 | chainConfig.ShardSize | 0
 	shardConfig := blockchain.Config().GetShardConfigByFullShardID(fullShardID)
 	shardConfig.CoinbaseAmount = big.NewInt(10)
-	shardConfig.PoswConfig.TotalStakePerBlock = big.NewInt(2)
+	shardConfig.PoswConfig.TotalStakePerBlock = big.NewInt(500000)
 	shardConfig.PoswConfig.WindowSize = 4
 
 	//Add a root block to have all the shards initialized, also include the genesis from
 	// another shard to allow x-shard tx TO that shard
-	rootBlk := blockchain.GetRootTip().CreateBlockToAppend(nil, nil, nil, nil, nil)
+	rootBlk := blockchain.GetRootTip().CreateBlockToAppend(nil, nil, nil, nil,
+		nil)
 	var sId uint32 = 1
 	blockchain2, err := core.CreateFakeMinorCanonicalPoSW(acc1, &sId, nil)
 	if err != nil {
@@ -355,14 +335,7 @@ func TestPoSWCoinbaseSendAboveLocked(t *testing.T) {
 	if err != nil || !added {
 		t.Fatalf("failed to add root block: %v", err)
 	}
-
-	if minorBlock, err := blockchain.CreateBlockToMine(nil, &acc1, nil); err != nil {
-		t.Fatalf("failed to CreateBlockToMine: %v", err)
-	} else {
-		if _, _, err = blockchain.FinalizeAndAddBlock(minorBlock); err != nil {
-			t.Fatalf("failed to FinalizeAndAddBlock: %v", err)
-		}
-	}
+	appendNewBlock(blockchain, acc1, t)
 	if evmState, err := blockchain.State(); err != nil {
 		t.Fatalf("error get state: %v", err)
 	} else {
@@ -370,13 +343,14 @@ func TestPoSWCoinbaseSendAboveLocked(t *testing.T) {
 			t.Errorf("len of sender disallow map: expected %d, got %d", 2, len(sdMap))
 		}
 		balance := evmState.GetBalance(acc1.Recipient)
-		balanceExp := new(big.Int).Div(shardConfig.CoinbaseAmount, big.NewInt(2))
+		balanceExp := new(big.Int).Add(big.NewInt(1000000), new(big.Int).Div(shardConfig.CoinbaseAmount,
+			big.NewInt(2)))
 		if balanceExp.Cmp(balance) != 0 {
 			t.Errorf("balance: expected %v, got %v", balanceExp, balance)
 		}
 		coinbaseBytes := make([]byte, 20)
 		coinbase := account.BytesToIdentityRecipient(coinbaseBytes)
-		bn2 := big.NewInt(2)
+		bn2 := big.NewInt(500000)
 		disallowMapExp := map[account.Recipient]*big.Int{
 			coinbase:       bn2,
 			acc1.Recipient: bn2,
@@ -386,36 +360,31 @@ func TestPoSWCoinbaseSendAboveLocked(t *testing.T) {
 			t.Errorf("disallowMap: expected %x, got %x", disallowMapExp, disallowMap)
 		}
 	}
-	//Try to send money from that account, the expected locked tokens are 4
-	tx0 := core.CreateFreeTx(blockchain, id1.GetKey().Bytes(), acc1, account.Address{}, new(big.Int).SetUint64(2), nil, nil)
-
-	if err = tryAddTx(blockchain, tx0); err != nil {
+	//Try to send money from that account, the expected locked tokens are 2 * 500000
+	tx0 := core.CreateTransferTx(blockchain, id1.GetKey().Bytes(), acc1, account.Address{}, new(big.Int).SetUint64(100),
+		nil, nil, nil)
+	if err = tryAddTx(blockchain, tx0); err != nil { //addTx will not check posw sender disallow map
 		t.Fatalf("add tx failed: %v", err)
 	}
+
 	acc2 := account.CreatAddressFromIdentity(id1, 1)
 	var tx1 *types.Transaction
-	var nonce uint64 = 1
 	var gas1 uint64 = 30000
-	tx1 = core.CreateFreeTx(blockchain, id1.GetKey().Bytes(), acc1, acc2, new(big.Int).SetUint64(2), &gas1, &nonce)
+	var gasPrice uint64 = 1
+	nonce := tx0.EvmTx.Nonce() + 1
+	tx1 = core.CreateTransferTx(blockchain, id1.GetKey().Bytes(), acc1, acc2, new(big.Int).SetUint64(2), &gas1, &gasPrice, &nonce)
 	if err = tryAddTx(blockchain, tx1); err != nil {
 		t.Fatalf("add tx failed: %v", err)
 	}
 
-	if minorBlock, err := blockchain.CreateBlockToMine(nil, &acc1, nil); err != nil {
-		t.Fatalf("failed to CreateBlockToMine: %v", err)
-	} else {
-		//fmt.Printf("gaslimit=%v\n", minorBlock.GasLimit())
-		if size := len(minorBlock.Transactions()); size != 2 {
-			t.Errorf("tx len in block: expected %d, got %d", 2, size)
-		}
-		if _, _, err = blockchain.FinalizeAndAddBlock(minorBlock); err == nil {
-			t.Fatalf("FinalizeAndAddBlock should fail due to posw")
-		}
+	block, _ := appendNewBlock(blockchain, acc1, t)
+	if txl := len(block.Transactions()); txl != 2 {
+		t.Errorf("tx len expected 2, got %d", txl)
 	}
-	if _, _, r0 := blockchain.GetTransactionReceipt(tx0.Hash()); r0 != nil {
+	if _, _, r0 := blockchain.GetTransactionReceipt(tx0.Hash()); r0.Status != 0 {
 		t.Errorf("tx0 should fail")
 	}
-	if _, _, r1 := blockchain.GetTransactionReceipt(tx1.Hash()); r1 != nil {
+	if _, _, r1 := blockchain.GetTransactionReceipt(tx1.Hash()); r1.Status != 0 {
 		t.Errorf("tx1 should fail")
 	}
 
@@ -423,7 +392,7 @@ func TestPoSWCoinbaseSendAboveLocked(t *testing.T) {
 		t.Fatalf("error get state: %v", err)
 	} else { //only one block succeed.
 		balance := evmState.GetBalance(acc1.Recipient)
-		balanceExp := new(big.Int).Div(shardConfig.CoinbaseAmount, big.NewInt(2))
+		balanceExp := new(big.Int).SetUint64(1000000 + 10 - gas1/2)
 		if balanceExp.Cmp(balance) != 0 {
 			t.Errorf("balance: expected %v, got %v", balanceExp, balance)
 		}
@@ -452,7 +421,10 @@ func TestPoSWValidateMinorBlockSeal(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create fake minor chain: %v", err)
 	}
+	defer blockchain.Stop()
+
 	chainConfig := blockchain.Config().Chains[0]
+	blockchain.Config().SkipRootDifficultyCheck = true
 	fullShardID := chainConfig.ChainID<<16 | chainConfig.ShardSize | 0
 	shardConfig := blockchain.Config().GetShardConfigByFullShardID(fullShardID)
 	shardConfig.ConsensusType = config.PoWDoubleSha256
@@ -481,20 +453,16 @@ func TestPoSWValidateMinorBlockSeal(t *testing.T) {
 	diff := big.NewInt(1000)
 	//Genesis already has 1 block but zero stake, so no change to block diff
 
-	tip := blockchain.GetMinorBlock(blockchain.CurrentHeader().Hash())
-	newBlock := tip.CreateBlockToAppend(nil, diff, &genesis, nil, nil, nil, nil)
-	if _, _, err = blockchain.FinalizeAndAddBlock(newBlock); err != nil {
-		t.Fatalf("failed to FinalizeAndAddBlock: %v", err)
-	}
-
+	appendNewBlock(blockchain, genesis, t)
 	// Total stake * block PoSW is 256, so acc should pass the check no matter
 	//  how many blocks he mined before
 
 	for i := 0; i < 4; i++ {
+		var newBlock *types.MinorBlock
+		tip := blockchain.GetMinorBlock(blockchain.CurrentHeader().Hash())
 		for n := 0; n < 4; n++ {
 			nonce := uint64(n)
-			tip := blockchain.GetMinorBlock(blockchain.CurrentHeader().Hash())
-			newBlock := tip.CreateBlockToAppend(nil, diff, &acc, &nonce, nil, nil, nil)
+			newBlock = tip.CreateBlockToAppend(nil, diff, &acc, &nonce, nil, nil, nil)
 			if err := blockchain.Validator().ValidatorSeal(newBlock.IHeader()); err != nil {
 				t.Errorf("validate block error %v", err)
 			}
@@ -502,5 +470,58 @@ func TestPoSWValidateMinorBlockSeal(t *testing.T) {
 		if _, _, err = blockchain.FinalizeAndAddBlock(newBlock); err != nil {
 			t.Errorf("failed to FinalizeAndAddBlock: %v", err)
 		}
+	}
+}
+
+func TestPoSWWindowEdgeCases(t *testing.T) {
+	accb := make([]byte, 20)
+	for i, _ := range accb {
+		accb[i] = 1
+	}
+	reci := account.BytesToIdentityRecipient(accb)
+	acc := account.NewAddress(reci, 0)
+	var alloc uint64 = 500
+	var shardId uint32 = 0
+	blockchain, err := core.CreateFakeMinorCanonicalPoSW(acc, &shardId, &alloc)
+	if err != nil {
+		t.Fatalf("failed to create fake minor chain: %v", err)
+	}
+	defer blockchain.Stop()
+
+	chainConfig := blockchain.Config().Chains[0]
+	blockchain.Config().SkipRootDifficultyCheck = true
+	fullShardID := chainConfig.ChainID<<16 | chainConfig.ShardSize | 0
+	shardConfig := blockchain.Config().GetShardConfigByFullShardID(fullShardID)
+	shardConfig.CoinbaseAmount = big.NewInt(0)
+	shardConfig.ConsensusType = config.PoWDoubleSha256
+	shardConfig.PoswConfig.TotalStakePerBlock = big.NewInt(500)
+	shardConfig.PoswConfig.WindowSize = 2
+	shardConfig.PoswConfig.DiffDivider = 1000
+
+	// Use 0 to denote blocks mined by others, 1 for blocks mined by acc,
+	// stake * state per block = 1 for acc, 0 <- [curr], so current block
+	// should enjoy the diff adjustment
+
+	diff := big.NewInt(1000)
+	tip := blockchain.GetMinorBlock(blockchain.CurrentHeader().Hash())
+	newBlock := tip.CreateBlockToAppend(nil, diff, &acc, nil, nil, nil, nil)
+	if _, _, err = blockchain.FinalizeAndAddBlock(newBlock); err != nil {
+		t.Fatalf("failed to FinalizeAndAddBlock: %v", err)
+	}
+	//Make sure stakes didn't change
+	if balance, err := blockchain.GetBalance(reci, nil); err != nil {
+		t.Fatalf("failed to get balance %v", err)
+	} else {
+		balanceExp := big.NewInt(int64(alloc))
+		if balanceExp.Cmp(balance) != 0 {
+			t.Errorf("balance: expected: %v, got %v", balanceExp, balance)
+		}
+	}
+	//0 <- 1 <- [curr], the window already has one block with PoSW benefit,
+	// mining new blocks should fail
+	tip1 := blockchain.GetMinorBlock(blockchain.CurrentHeader().Hash())
+	newBlock1 := tip1.CreateBlockToAppend(nil, diff, &acc, nil, nil, nil, nil)
+	if _, _, err = blockchain.FinalizeAndAddBlock(newBlock1); err != nil {
+		t.Fatalf("failed to FinalizeAndAddBlock: %v", err)
 	}
 }

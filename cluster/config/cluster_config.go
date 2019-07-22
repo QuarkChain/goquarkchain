@@ -133,7 +133,9 @@ func (q *QuarkChainConfig) UnmarshalJSON(input []byte) error {
 	for _, chainCfg := range jsonConfig.Chains {
 		q.Chains[chainCfg.ChainID] = chainCfg
 		for shardID := uint32(0); shardID < chainCfg.ShardSize; shardID++ {
-			shardCfg := NewShardConfig(chainCfg)
+			var cfg = new(ChainConfig)
+			_ = common.DeepCopy(cfg, chainCfg)
+			shardCfg := NewShardConfig(cfg)
 			shardCfg.SetRootConfig(q.Root)
 			shardCfg.ShardID = shardID
 			shardCfg.CoinbaseAddress = chainCfg.CoinbaseAddress
@@ -200,7 +202,9 @@ func (q *QuarkChainConfig) Update(chainSize, shardSizePerChain, rootBlockTime, m
 		chainCfg.DefaultChainToken = DefaultToken
 		q.Chains[chainId] = chainCfg
 		for shardId := uint32(0); shardId < shardSizePerChain; shardId++ {
-			shardCfg := NewShardConfig(chainCfg)
+			var cfg = new(ChainConfig)
+			_ = common.DeepCopy(cfg, chainCfg)
+			shardCfg := NewShardConfig(cfg)
 			shardCfg.SetRootConfig(q.Root)
 			shardCfg.ShardID = shardId
 			// shardCfg.CoinbaseAddress = account.CreatEmptyAddress(shardCfg.GetFullShardId())
@@ -317,7 +321,9 @@ func NewQuarkChainConfig() *QuarkChainConfig {
 		cfg.ConsensusConfig.TargetBlockTime = 3
 		ret.Chains[chainID] = cfg
 		for shardID := uint32(0); shardID < cfg.ShardSize; shardID++ {
-			shardCfg := NewShardConfig(cfg)
+			var chainCfg = new(ChainConfig)
+			_ = common.DeepCopy(chainCfg, cfg)
+			shardCfg := NewShardConfig(chainCfg)
 			shardCfg.SetRootConfig(ret.Root)
 			shardCfg.ShardID = shardID
 			shardCfg.CoinbaseAddress = account.CreatEmptyAddress(shardCfg.GetFullShardId())
