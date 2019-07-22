@@ -109,6 +109,12 @@ func Uint32ToBytes(n uint32) []byte {
 	return Bytes
 }
 
+func Uint64ToBytes(n uint64) []byte {
+	Bytes := make([]byte, 8)
+	binary.BigEndian.PutUint64(Bytes, n)
+	return Bytes
+}
+
 func BytesToUint32(byte []byte) uint32 {
 	bytesBuffer := bytes.NewBuffer(byte)
 	var x uint32

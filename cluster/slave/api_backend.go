@@ -169,13 +169,18 @@ func (s *SlaveBackend) GetTransactionCount(address *account.Address) (uint64, er
 	return 0, ErrMsg("GetTransactionCount")
 }
 
-func (s *SlaveBackend) GetBalances(address *account.Address) (*big.Int, error) {
+func (s *SlaveBackend) GetBalances(address *account.Address) (map[uint64]*big.Int, error) {
 	branch, err := s.getBranch(address)
 	if err != nil {
 		return nil, err
 	}
 	if shard, ok := s.shards[branch.Value]; ok {
-		return shard.MinorBlockChain.GetBalance(address.Recipient, nil)
+		//TODO-master
+		data, err := shard.MinorBlockChain.GetBalance(address.Recipient, nil)
+		temp := map[uint64]*big.Int{
+			qcom.TokenIDEncode("QKC"): data,
+		}
+		return temp, err
 	}
 	return nil, ErrMsg("GetBalances")
 }

@@ -257,8 +257,10 @@ func (v *MinorBlockValidator) ValidateState(mBlock, parent types.IBlock, statedb
 	if statedb.GetGasUsed().Cmp(block.GetMetaData().GasUsed.Value) != 0 {
 		return ErrGasUsed
 	}
+
+	//TODO-master
 	coinbaseAmount := new(big.Int).Add(v.bc.getCoinbaseAmount(), statedb.GetBlockFee())
-	if coinbaseAmount.Cmp(block.CoinbaseAmount()) != 0 {
+	if coinbaseAmount.Cmp(block.Header().GetCoinbaseAmount().BalanceMap[common.TokenIDEncode("QKC")]) != 0 {
 		return ErrCoinbaseAmount
 	}
 

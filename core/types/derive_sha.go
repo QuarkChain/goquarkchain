@@ -4,6 +4,7 @@ package types
 
 import (
 	"bytes"
+	qkcCommon "github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/serialize"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto/sha3"
@@ -37,32 +38,31 @@ func CalculateMerkleRoot(list interface{}) (h common.Hash) {
 	if val.Type().Kind() != reflect.Slice {
 		panic("expect slice input for CalculateMerkleRoot")
 	}
-
-	if val.Len() == 0 {
-		return common.Hash{}
-	}
-
 	hashList := make([]common.Hash, val.Len())
-	for i := 0; i < val.Len(); i++ {
-		bytes, _ := serialize.SerializeToBytes(val.Index(i).Interface())
-		hashList[i] = sha3_256(bytes)
+	if val.Len() == 0 {
+		hashList = append(hashList, common.Hash{})
+	} else {
+		for i := 0; i < val.Len(); i++ {
+			bytes, _ := serialize.SerializeToBytes(val.Index(i).Interface())
+			hashList[i] = sha3_256(bytes)
+		}
 	}
-
+	zBytes := common.Hash{}
 	for len(hashList) != 1 {
-		tempList := make([]common.Hash, 0)
+		tempList := make([]common.Hash, 0, (len(hashList)+1)/2)
 		length := len(hashList)
+		if length%2 == 1 {
+			hashList = append(hashList, zBytes)
+		}
 		for i := 0; i < length-1; {
 			tempList = append(tempList,
 				sha3_256(append(hashList[i].Bytes(), hashList[i+1].Bytes()...)))
 			i = i + 2
 		}
-		if length%2 == 1 {
-			tempList = append(tempList,
-				sha3_256(append(hashList[length-1].Bytes(), hashList[length-1].Bytes()...)))
-		}
 		hashList = tempList
+		zBytes = sha3_256(append(zBytes.Bytes(), zBytes.Bytes()...))
 	}
-	return hashList[0]
+	return sha3_256(append(hashList[0].Bytes(), qkcCommon.Uint64ToBytes(uint64(val.Len()))...))
 }
 
 func sha3_256(bytes []byte) (hash common.Hash) {

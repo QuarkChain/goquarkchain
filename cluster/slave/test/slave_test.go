@@ -11,6 +11,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/serialize"
 	"github.com/ethereum/go-ethereum/rpc"
+	"math/big"
 	"reflect"
 	"testing"
 )
@@ -29,8 +30,9 @@ func fakeSlaveBackend() (*slave.SlaveBackend, error) {
 }
 
 func casesData(t *testing.T, slv *slave.SlaveBackend) map[int]*grpc.Request {
+	evmTx := types.NewEvmTransaction(0, account.Recipient{}, new(big.Int), 0, new(big.Int), 0, 0, 0, 0, nil)
 	var (
-		fakeTx   = &types.Transaction{EvmTx: &types.EvmTransaction{}, TxType: types.EvmTx}
+		fakeTx   = &types.Transaction{EvmTx: evmTx, TxType: types.EvmTx}
 		fakeAddr = account.CreatEmptyAddress(0)
 		fakeHash = common.EmptyHash
 		dt       = make(map[int]*grpc.Request)

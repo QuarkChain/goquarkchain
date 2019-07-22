@@ -11,6 +11,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/core"
 	"github.com/QuarkChain/goquarkchain/core/types"
+	"github.com/ethereum/go-ethereum/common"
 )
 
 func appendNewBlock(blockchain *core.MinorBlockChain, acc1 account.Address, t *testing.T) (*types.MinorBlock, types.Receipts) {
@@ -92,7 +93,7 @@ func TestPoSWCoinBaseSendUnderLimit(t *testing.T) {
 	}
 	rootBlk.AddMinorBlockHeader(blockchain2.CurrentBlock().Header())
 
-	added, err := blockchain.AddRootBlock(rootBlk.Finalize(nil, nil))
+	added, err := blockchain.AddRootBlock(rootBlk.Finalize(nil, nil, common.Hash{}))
 	if err != nil || !added {
 		t.Fatalf("failed to add root block: %v", err)
 	}
@@ -248,7 +249,7 @@ func TestPoSWCoinbaseSendEqualLocked(t *testing.T) {
 	}
 	rootBlk.AddMinorBlockHeader(blockchain2.CurrentBlock().Header())
 
-	added, err := blockchain.AddRootBlock(rootBlk.Finalize(nil, nil))
+	added, err := blockchain.AddRootBlock(rootBlk.Finalize(nil, nil, common.Hash{}))
 	if err != nil || !added {
 		t.Fatalf("failed to add root block: %v", err)
 	}
@@ -330,7 +331,7 @@ func TestPoSWCoinbaseSendAboveLocked(t *testing.T) {
 	}
 	rootBlk.AddMinorBlockHeader(blockchain2.CurrentBlock().Header())
 
-	added, err := blockchain.AddRootBlock(rootBlk.Finalize(nil, nil))
+	added, err := blockchain.AddRootBlock(rootBlk.Finalize(nil, nil, common.Hash{}))
 	if err != nil || !added {
 		t.Fatalf("failed to add root block: %v", err)
 	}

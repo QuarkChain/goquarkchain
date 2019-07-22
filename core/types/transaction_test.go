@@ -21,7 +21,7 @@ var (
 		big.NewInt(0), 0, big.NewInt(0),
 		0, 0, 1, 0, nil,
 	)
-	emptyTx = Transaction{TxType: 1, EvmTx: emptyEvmTx}
+	emptyTx = Transaction{TxType: 0, EvmTx: emptyEvmTx}
 	//nonce , to , amount , gasLimit , gasPrice, fromFullShardKey , toFullShardKey , networkId , version , data
 	rightvrsTx = NewEvmTransaction(
 		3,
@@ -33,7 +33,7 @@ var (
 		0,
 		1,
 		0,
-		common.FromHex("35353434"),
+		nil,
 	)
 	signTx, _ = rightvrsTx.WithSignature(
 		NewEIP155Signer(1),
@@ -44,18 +44,18 @@ var (
 func TestTransactionSigHash(t *testing.T) {
 	var signer = NewEIP155Signer(1)
 	//hash unsigned
-	if signer.Hash(emptyEvmTx) != common.HexToHash("cb98da1db0ec788afcfd4f72772af83a4ac0b646c9cea1c60c990ba4e13b5fa2") {
+	if signer.Hash(emptyEvmTx) != common.HexToHash("15e523e4a18884f01753358af140664007e19b2c67cfa6618cadb85de14f3bd0") {
 		t.Errorf("empty transaction unsigned hash mismatch, got %x, expect %x", signer.Hash(emptyEvmTx), common.HexToHash("297d6ae9803346cdb059a671dea7e37b684dcabfa767f2d872026ad0a3aba495"))
 	}
-	if emptyEvmTx.Hash() != common.HexToHash("2f58fa6e75fcaba333fa002429441fa34e4ae82169f0f15dfbff61a2c104f797") {
+	if emptyEvmTx.Hash() != common.HexToHash("a04873d41928c8acc76d4d6495fec31fb58afc7d5a5782d9ba4bb30fdbf1b147") {
 		t.Errorf("empty transaction hash mismatch, got %x, expect %x", emptyTx.Hash(), common.HexToHash("a40920ae6f758f88c61b405f9fc39fdd6274666462b14e3887522166e6537a97"))
 	}
 
 	//hash unsigned
-	if signer.Hash(rightvrsTx) != common.HexToHash("b6a154dad08db55a52ae5aa135a35dc3c68597b8a10306b72ba143a78582c353") {
+	if signer.Hash(rightvrsTx) != common.HexToHash("a8915d9a38bacbdc640ab287d4beb9b06ea1af52da8568c298739c9d7514e87b") {
 		t.Errorf("RightVRS transaction unsigned hash mismatch, got %x, expect %x", signer.Hash(rightvrsTx), common.HexToHash("e4f3c1dd000045bf26006df7eb7cb0a882f70a6ab81723d93638151f6418f78a"))
 	}
-	if rightvrsTx.Hash() != common.HexToHash("75792618f65b677f0dcf7cf9def243a0f9d3274045db8c084a37123346106633") {
+	if rightvrsTx.Hash() != common.HexToHash("4bf87b2a5b39b7894b4b4b197ffe1ef7e67085bbc60d599ed3d4d587aa72af76") {
 		t.Errorf("RightVRS transaction hash mismatch, got %x, expect %x", rightvrsTx.Hash(), common.HexToHash("df227f34313c2bc4a4a986817ea46437f049873f2fca8e2b89b1ecd0f9e67a28"))
 	}
 }
@@ -66,7 +66,7 @@ func TestTransactionEncode(t *testing.T) {
 		t.Fatalf("encode error: %v", err)
 	}
 
-	should := common.FromHex("e703018207d094b94f5374fce5edbc8e2a8697c15331677e6ebf0b0a843535343401808080808080")
+	should := common.FromHex("ed03018207d094b94f5374fce5edbc8e2a8697c15331677e6ebf0b0a800184000000008400000000808080808080")
 	if !bytes.Equal(txb, should) {
 		t.Errorf("encoded RLP mismatch, got %x", txb)
 	}
@@ -93,7 +93,7 @@ func defaultTestKey() (*ecdsa.PrivateKey, account.Recipient) {
 
 func TestRecipientEmpty(t *testing.T) {
 	_, addr := defaultTestKey()
-	tx, err := decodeTx(common.Hex2Bytes("f86180808094b94f5374fce5edbc8e2a8697c15331677e6ebf0b8080808001801ca0fab2cc481eb33edacc4016fe35f30051014109cf0d227679003dd36534247845a019c29e2b33a1a8adf95dabf603cc62758775ce73c3d78098160818dcd7c0970d"))
+	tx, err := decodeTx(common.Hex2Bytes("f86b80808094b94f5374fce5edbc8e2a8697c15331677e6ebf0b808001840000000084000000008080801ba0d7265f92d763da5e2ea5016b837bf56f5bf42d22aead9ad5e7be2ddf01efcc68a07159634972d77349a76108c6db0634ea7b65768881b152c656deca190df6e427"))
 	if err != nil {
 		t.Error(err)
 		t.FailNow()
@@ -112,7 +112,7 @@ func TestRecipientEmpty(t *testing.T) {
 func TestRecipientNormal(t *testing.T) {
 	_, addr := defaultTestKey()
 
-	tx, err := decodeTx(common.Hex2Bytes("f86703018207d094b94f5374fce5edbc8e2a8697c15331677e6ebf0b0a8435353434018080801ca03bffe222c359fcc09a9860e1e6c1f0652bb1bf65c78c05eaa5b895fd29c90698a01976cd9b54c1476388d9a7132da1fe31eeb28fdd840fc3bb349970774f8b0aa8"))
+	tx, err := decodeTx(common.Hex2Bytes("f86b80808094b94f5374fce5edbc8e2a8697c15331677e6ebf0b808001840000000084000000008080801ba0d7265f92d763da5e2ea5016b837bf56f5bf42d22aead9ad5e7be2ddf01efcc68a07159634972d77349a76108c6db0634ea7b65768881b152c656deca190df6e427"))
 	if err != nil {
 		t.Error(err)
 		t.FailNow()

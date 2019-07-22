@@ -16,6 +16,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/account"
 
 	"github.com/QuarkChain/goquarkchain/cluster/config"
+	qkcCommon "github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/core/rawdb"
 	"github.com/QuarkChain/goquarkchain/core/types"
@@ -1098,16 +1099,6 @@ func (bc *RootBlockChain) SetLatestMinorBlockHeaders(hash common.Hash, headerMap
 	rawdb.WriteLatestMinorBlockHeaders(bc.db, hash, headers)
 }
 
-func CalculateRootBlockCoinbase(config *config.QuarkChainConfig, block *types.RootBlock) *big.Int {
-	totalAmount := new(big.Int).SetUint64(0)
-	rate := config.RewardTaxRate
-	for _, header := range block.MinorBlockHeaders() {
-		totalAmount = new(big.Int).Add(totalAmount, header.CoinbaseAmount.Value)
-	}
-	totalAmount = new(big.Int).Div(new(big.Int).Mul(totalAmount, new(big.Int).Sub(rate.Denom(), rate.Num())), rate.Denom())
-	return new(big.Int).Add(config.Root.CoinbaseAmount, totalAmount)
-}
-
 // GetHeaderByNumber retrieves a block header from the database by number,
 // caching it (associated with its hash) if found.
 func (bc *RootBlockChain) GetHeaderByNumber(number uint64) types.IHeader {
@@ -1158,7 +1149,10 @@ func (bc *RootBlockChain) CreateBlockToMine(mHeaderList []*types.MinorBlockHeade
 	}
 	block := bc.CurrentBlock().Header().CreateBlockToAppend(createTime, difficulty, address, nil, nil)
 	block.ExtendMinorBlockHeaderList(mHeaderList)
-	block.Finalize(bc.CalculateRootBlockCoinBase(block), address)
+	data := bc.CalculateRootBlockCoinBase(block)
+	temp := types.NewTokenBalanceMap()
+	temp.BalanceMap[qkcCommon.TokenIDEncode("QKC")] = data
+	block.Finalize(temp, address, common.Hash{})
 	return block, nil
 }
 
@@ -1171,7 +1165,7 @@ func (bc *RootBlockChain) CalculateRootBlockCoinBase(rootBlock *types.RootBlock)
 
 	minorBlockFee := new(big.Int)
 	for _, header := range rootBlock.MinorBlockHeaders() {
-		minorBlockFee.Add(minorBlockFee, header.CoinbaseAmount.Value)
+		minorBlockFee.Add(minorBlockFee, header.CoinbaseAmount.BalanceMap[qkcCommon.TokenIDEncode("QKC")])
 	}
 	minorBlockFee.Mul(minorBlockFee, ratio.Num())
 	minorBlockFee.Div(minorBlockFee, ratio.Denom())
