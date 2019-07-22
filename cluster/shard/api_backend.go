@@ -309,10 +309,10 @@ func (s *ShardBackend) CreateBlockToMine() (types.IBlock, *big.Int, error) {
 		if err != nil {
 			return nil, nil, err
 		}
-		balance, ok := balances[s.MinorBlockChain.GetGenesisToken()]
-		if !ok {
-			return nil, nil, fmt.Errorf("no such token id %v", balance)
-		}
+		balance := balances.GetBalancesFromTokenID(s.MinorBlockChain.GetGenesisToken())
+		//if !ok {
+		//	return nil, nil, fmt.Errorf("no such token id %v", balance)
+		//}
 		adjustedDifficulty, err := s.posw.PoSWDiffAdjust(header, balance)
 		if err != nil {
 			log.Error("[PoSW]Failed to compute PoSW difficulty.", err)

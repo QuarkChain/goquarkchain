@@ -6,10 +6,12 @@ import (
 	ethCommon "github.com/ethereum/go-ethereum/common"
 	"math/big"
 	"sort"
+	"sync"
 )
 
 type TokenBalanceMap struct {
 	BalanceMap map[uint64]*big.Int
+	mu         sync.RWMutex
 }
 
 func NewTokenBalanceMap() *TokenBalanceMap {
@@ -18,6 +20,8 @@ func NewTokenBalanceMap() *TokenBalanceMap {
 	}
 }
 func (t *TokenBalanceMap) Add(other map[uint64]*big.Int) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
 	for k, v := range other {
 		if data, ok := t.BalanceMap[k]; ok {
 			t.BalanceMap[k] = new(big.Int).Add(v, data)
@@ -25,6 +29,17 @@ func (t *TokenBalanceMap) Add(other map[uint64]*big.Int) {
 			t.BalanceMap[k] = new(big.Int).Set(v)
 		}
 	}
+}
+
+func (t *TokenBalanceMap) GetBalancesFromTokenID(tokenID uint64) *big.Int {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+
+	data, ok := t.BalanceMap[tokenID]
+	if !ok {
+		return new(big.Int)
+	}
+	return new(big.Int).Set(data)
 }
 
 func (t *TokenBalanceMap) GetDefaultTokenBalance() *big.Int {

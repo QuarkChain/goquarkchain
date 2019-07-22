@@ -3,6 +3,7 @@ package qkchash
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"math/big"
 
 	"github.com/QuarkChain/goquarkchain/consensus"
@@ -38,6 +39,7 @@ func (q *QKCHash) verifySeal(chain consensus.ChainReader, header types.IHeader, 
 	}
 	target := new(big.Int).Div(two256, diff)
 	if new(big.Int).SetBytes(minerRes.Result).Cmp(target) > 0 {
+		fmt.Println("?????", "dsadsada")
 		return consensus.ErrInvalidPoW
 	}
 	return nil

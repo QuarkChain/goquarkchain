@@ -31,7 +31,7 @@ type StateDB interface {
 	SubBalance(common.Address, *big.Int, uint64)
 	AddBalance(common.Address, *big.Int, uint64)
 	GetBalance(common.Address, uint64) *big.Int
-	GetBalances(address common.Address) map[uint64]*big.Int
+	GetBalances(address common.Address) *types.TokenBalanceMap
 
 	GetNonce(common.Address) uint64
 	SetNonce(common.Address, uint64)

@@ -295,7 +295,7 @@ func (self *stateObject) SetBalance(amount *big.Int, tokenID uint64) {
 
 func (self *stateObject) SetBalances(balances map[uint64]*big.Int) {
 	prev := make(map[uint64]*big.Int)
-	prev = self.data.TokenBalances.Balances
+	prev = self.data.TokenBalances.Balances.BalanceMap
 	self.db.journal.append(balanceChange{
 		account: &self.address,
 		prev:    prev,
@@ -304,11 +304,11 @@ func (self *stateObject) SetBalances(balances map[uint64]*big.Int) {
 }
 
 func (self *stateObject) setTokenBalance(amount *big.Int, tokenID uint64) {
-	self.data.TokenBalances.Balances[tokenID] = amount
+	self.data.TokenBalances.Balances.BalanceMap[tokenID] = amount
 }
 
 func (self *stateObject) setBalances(balances map[uint64]*big.Int) {
-	self.data.TokenBalances.Balances = balances
+	self.data.TokenBalances.Balances.BalanceMap = balances
 }
 
 // Return the gas back to the origin. Used by the Virtual machine or Closures

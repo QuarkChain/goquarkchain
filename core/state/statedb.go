@@ -238,12 +238,12 @@ func (s *StateDB) GetBalance(addr common.Address, tokenID uint64) *big.Int {
 	return common.Big0
 }
 
-func (s *StateDB) GetBalances(addr common.Address) map[uint64]*big.Int {
+func (s *StateDB) GetBalances(addr common.Address) *types.TokenBalanceMap {
 	stateObject := s.getStateObject(addr)
 	if stateObject != nil {
 		return stateObject.data.TokenBalances.Balances
 	}
-	return make(map[uint64]*big.Int)
+	return types.NewTokenBalanceMap()
 }
 
 func (s *StateDB) GetNonce(addr common.Address) uint64 {
@@ -407,7 +407,7 @@ func (s *StateDB) Suicide(addr common.Address) bool {
 	s.journal.append(suicideChange{
 		account:     &addr,
 		prev:        stateObject.suicided,
-		prevbalance: stateObject.data.TokenBalances.Balances,
+		prevbalance: stateObject.data.TokenBalances.Balances.BalanceMap,
 	})
 	stateObject.markSuicided()
 	stateObject.data.TokenBalances, _ = NewTokenBalances([]byte{})
@@ -519,7 +519,7 @@ func (s *StateDB) createObject(addr common.Address) (newobj, prev *stateObject) 
 func (s *StateDB) CreateAccount(addr common.Address) {
 	new, prev := s.createObject(addr)
 	if prev != nil {
-		new.SetBalances(prev.data.TokenBalances.Balances)
+		new.SetBalances(prev.data.TokenBalances.Balances.BalanceMap)
 	}
 }
 

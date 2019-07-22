@@ -561,7 +561,7 @@ func (m *MinorBlockChain) getEvmStateByHeight(height *uint64) (*state.StateDB, e
 }
 
 // GetBalance get balance for address
-func (m *MinorBlockChain) GetBalance(recipient account.Recipient, height *uint64) (map[uint64]*big.Int, error) {
+func (m *MinorBlockChain) GetBalance(recipient account.Recipient, height *uint64) (*types.TokenBalanceMap, error) {
 	// no need to lock
 	evmState, err := m.getEvmStateByHeight(height)
 	if err != nil {

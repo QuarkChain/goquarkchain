@@ -2,6 +2,7 @@ package state
 
 import (
 	"fmt"
+	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/serialize"
 	"github.com/ethereum/go-ethereum/rlp"
 	"io"
@@ -17,22 +18,20 @@ type TokenBalancePair struct {
 
 type TokenBalances struct {
 	//TODO:store token balances in trie when TOKEN_TRIE_THRESHOLD is crossed
-	Balances map[uint64]*big.Int
+	Balances *types.TokenBalanceMap
 	Enum     byte
 	mu       sync.RWMutex
 }
 
 func NewEmptyTokenBalances() *TokenBalances {
 	return &TokenBalances{
-		Balances: map[uint64]*big.Int{},
+		Balances: types.NewTokenBalanceMap(),
 		Enum:     byte(0),
 	}
 }
 
 func NewTokenBalances(data []byte) (*TokenBalances, error) {
-	tokenBalances := &TokenBalances{
-		Balances: make(map[uint64]*big.Int, 0),
-	}
+	tokenBalances := NewEmptyTokenBalances()
 	if len(data) == 0 {
 		return tokenBalances, nil
 	}
@@ -46,7 +45,7 @@ func NewTokenBalances(data []byte) (*TokenBalances, error) {
 			return nil, err
 		}
 		for _, v := range balanceList {
-			tokenBalances.Balances[v.TokenID.Uint64()] = v.Balance
+			tokenBalances.Balances.BalanceMap[v.TokenID.Uint64()] = v.Balance
 		}
 	case byte(1):
 		return nil, fmt.Errorf("Token balance trie is not yet implemented")
@@ -57,16 +56,16 @@ func NewTokenBalances(data []byte) (*TokenBalances, error) {
 	return tokenBalances, nil
 }
 
-func (b *TokenBalances) AddBalancesMap(data map[uint64]*big.Int) {
+func (b *TokenBalances) SetBalancesMap(data map[uint64]*big.Int) {
 	b.mu.Lock()
 	defer b.mu.RUnlock()
-	b.Balances = data
+	b.Balances.BalanceMap = data
 }
 
 func (b *TokenBalances) GetBalanceFromTokenID(tokenID uint64) *big.Int {
 	b.mu.RLock()
 	defer b.mu.RUnlock()
-	data, ok := b.Balances[tokenID]
+	data, ok := b.Balances.BalanceMap[tokenID]
 	if !ok {
 		return new(big.Int)
 	}
@@ -78,14 +77,14 @@ func (b *TokenBalances) AddBalance() {
 }
 
 func (b *TokenBalances) Serialize(w *[]byte) error {
-	if len(b.Balances) == 0 {
+	if len(b.Balances.BalanceMap) == 0 {
 		return nil
 	}
 	*w = append(*w, b.Enum)
 	switch b.Enum {
 	case byte(0):
 		list := make([]*TokenBalancePair, 0)
-		for k, v := range b.Balances {
+		for k, v := range b.Balances.BalanceMap {
 			if v.Cmp(new(big.Int)) == 0 {
 				continue
 			}
@@ -148,7 +147,7 @@ func (b *TokenBalances) DecodeRLP(s *rlp.Stream) error {
 }
 
 func (b *TokenBalances) Balance(tokenID uint64) *big.Int {
-	balance, ok := b.Balances[tokenID]
+	balance, ok := b.Balances.BalanceMap[tokenID]
 	if !ok {
 		return new(big.Int)
 	}
@@ -157,7 +156,7 @@ func (b *TokenBalances) Balance(tokenID uint64) *big.Int {
 
 func (b *TokenBalances) IsEmpty() bool {
 	flag := true
-	for _, v := range b.Balances {
+	for _, v := range b.Balances.BalanceMap {
 		if v.Cmp(new(big.Int)) != 0 {
 			return false
 		}
@@ -167,11 +166,11 @@ func (b *TokenBalances) IsEmpty() bool {
 
 func (b *TokenBalances) Copy() *TokenBalances {
 	t := &TokenBalances{
-		Balances: make(map[uint64]*big.Int),
+		Balances: types.NewTokenBalanceMap(),
 		Enum:     b.Enum,
 	}
-	for k, v := range b.Balances {
-		t.Balances[k] = v
+	for k, v := range b.Balances.BalanceMap {
+		t.Balances.BalanceMap[k] = v
 	}
 	return t
 }

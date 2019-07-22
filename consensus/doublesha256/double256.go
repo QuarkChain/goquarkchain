@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"math/big"
 
@@ -62,6 +63,7 @@ func verifySeal(chain consensus.ChainReader, header types.IHeader, adjustedDiff 
 	}
 	_ = hashAlgo(&minerRes)
 	if new(big.Int).SetBytes(minerRes.Result).Cmp(target) > 0 {
+		fmt.Println("dsaddadadasdsa")
 		return consensus.ErrInvalidPoW
 	}
 	return nil
