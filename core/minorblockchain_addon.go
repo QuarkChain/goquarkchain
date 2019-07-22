@@ -396,17 +396,12 @@ func (m *MinorBlockChain) runBlock(block *types.MinorBlock) (*state.StateDB, typ
 		return nil, nil, ErrRootBlockIsNil
 	}
 
-	preEvmState, err := m.StateAt(parent.GetMetaData().Root)
+	coinbase := block.Coinbase().Recipient
+	preEvmState, err := m.stateAtWithSenderDisallowMap(parent.GetMetaData().Root, block.ParentHash(), &coinbase)
 	if err != nil {
 		return nil, nil, err
 	}
 	evmState := preEvmState.Copy()
-	coinbase := block.Coinbase().Recipient
-	senderDisallowMap, err := m.posw.BuildSenderDisallowMap(block.ParentHash(), &coinbase)
-	if err != nil {
-		return nil, nil, err
-	}
-	evmState.SetSenderDisallowMap(senderDisallowMap)
 	receipts, _, _, err := m.processor.Process(block, evmState, m.vmConfig, nil, nil)
 	if err != nil {
 		return nil, nil, err
