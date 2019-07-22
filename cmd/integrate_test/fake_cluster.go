@@ -57,11 +57,13 @@ shardSize, slaveSize uint32, geneRHeights map[uint32]uint32) *config.ClusterConf
 		cfg.P2P.PrivKey = privStrs[index]
 	}
 	cfg.P2P.BootNodes = "" // bootNode
+	coinBaseAddr := getAccByIndex(1).QKCAddress
 
 	fullShardIds := cfg.Quarkchain.GetGenesisShardIds()
 	for _, fullShardId := range fullShardIds {
 		shardCfg := cfg.Quarkchain.GetShardConfigByFullShardID(fullShardId)
 		addr := geneAcc.QKCAddress.AddressInShard(fullShardId)
+		shardCfg.CoinbaseAddress = coinBaseAddr.AddressInShard(fullShardId)
 		shardCfg.Genesis.Alloc[addr] = big.NewInt(10000000000)
 		shardCfg.Genesis.Alloc[shardCfg.CoinbaseAddress] = big.NewInt(10000000000)
 		shardCfg.Genesis.Difficulty = 10
