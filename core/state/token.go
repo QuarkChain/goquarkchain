@@ -7,6 +7,7 @@ import (
 	"io"
 	"math/big"
 	"sort"
+	"sync"
 )
 
 type TokenBalancePair struct {
@@ -18,6 +19,7 @@ type TokenBalances struct {
 	//TODO:store token balances in trie when TOKEN_TRIE_THRESHOLD is crossed
 	Balances map[uint64]*big.Int
 	Enum     byte
+	mu       sync.RWMutex
 }
 
 func NewEmptyTokenBalances() *TokenBalances {
@@ -53,6 +55,26 @@ func NewTokenBalances(data []byte) (*TokenBalances, error) {
 
 	}
 	return tokenBalances, nil
+}
+
+func (b *TokenBalances) AddBalancesMap(data map[uint64]*big.Int) {
+	b.mu.Lock()
+	defer b.mu.RUnlock()
+	b.Balances = data
+}
+
+func (b *TokenBalances) GetBalanceFromTokenID(tokenID uint64) *big.Int {
+	b.mu.RLock()
+	defer b.mu.RUnlock()
+	data, ok := b.Balances[tokenID]
+	if !ok {
+		return new(big.Int)
+	}
+	return new(big.Int).Set(data)
+}
+
+func (b *TokenBalances) AddBalance() {
+
 }
 
 func (b *TokenBalances) Serialize(w *[]byte) error {

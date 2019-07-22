@@ -8,16 +8,6 @@ import (
 	"sort"
 )
 
-//type TokenType struct {
-//	Key uint64
-//}
-//
-//func NewTokenType(value uint64) TokenType {
-//	return TokenType{
-//		Key: value,
-//	}
-//}
-
 type TokenBalanceMap struct {
 	BalanceMap map[uint64]*big.Int
 }

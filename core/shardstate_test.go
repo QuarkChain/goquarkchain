@@ -373,6 +373,7 @@ func TestDuplicatedTx(t *testing.T) {
 	block, _ = shardState.GetTransactionByHash(tx.Hash())
 	assert.NotNil(t, block)
 
+	//fmt.Println("37777777777777")
 	// tx already confirmed
 	err = shardState.AddTx(tx)
 	assert.Error(t, err)
@@ -460,7 +461,7 @@ func TestExceedingXShardLimit(t *testing.T) {
 
 	b1, err := shardState.CreateBlockToMine(nil, &acc3, nil, nil, nil)
 	checkErr(err)
-	assert.Equal(t, len(b1.Transactions()), 0)
+	assert.Equal(t, len(b1.Transactions()), 1)
 	fakeGasPrice := uint64(2)
 	// inshard tx
 	tx = createTransferTransaction(shardState, id1.GetKey().Bytes(), acc1, acc3, new(big.Int).SetUint64(12345), &fakeGas, &fakeGasPrice, nil, nil, nil, nil)

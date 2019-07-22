@@ -1237,6 +1237,10 @@ func (m *TxPool) CheckTxBeforeAdd(tx *types.Transaction) error {
 	if m.all.Count() > int(m.quarkConfig.TransactionQueueSizeLimitPerShard) {
 		return errors.New("txpool queue full")
 	}
+
+
+	//from,_:=tx.Sender(types.NewEIP155Signer(m.chain.Config().NetworkID))
+	//fmt.Println("???",m.currentState.GetNonce(from))
 	tx, err := m.chain.validateTx(tx, m.currentState, nil, nil, nil)
 	if err != nil {
 		return err

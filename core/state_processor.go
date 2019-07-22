@@ -17,6 +17,7 @@
 package core
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"github.com/QuarkChain/goquarkchain/account"
@@ -106,9 +107,11 @@ func ValidateTransaction(state vm.StateDB, tx *types.Transaction, fromAddress *a
 	}
 
 	reqNonce := state.GetNonce(*from)
-	if fromAddress == nil || fromAddress.IsEmpty() {
+//	fmt.Println("fromAddress",from)
+	if bytes.Equal(from.Bytes(),account.Recipient{}.Bytes()) {
 		reqNonce = 0
 	}
+//	fmt.Println("?????-112",reqNonce,tx.EvmTx.Nonce())
 	if reqNonce > tx.EvmTx.Nonce() {
 		return ErrNonceTooLow
 	}
@@ -135,7 +138,7 @@ func ValidateTransaction(state vm.StateDB, tx *types.Transaction, fromAddress *a
 		totalCost := new(big.Int).Mul(tx.EvmTx.GasPrice(), new(big.Int).SetUint64(tx.EvmTx.Gas()))
 		totalCost = new(big.Int).Add(totalCost, tx.EvmTx.Value())
 		if state.GetBalance(*from, tx.EvmTx.TransferTokenID()).Cmp(totalCost) < 0 {
-			fmt.Println("????", tx.EvmTx.TransferTokenID())
+			//fmt.Println("????", tx.EvmTx.TransferTokenID())
 			return fmt.Errorf("money is low: token:%v balance %v,totalCost %v", tx.EvmTx.TransferTokenID(), state.GetBalance(*from, tx.EvmTx.TransferTokenID()), totalCost)
 		}
 	} else {

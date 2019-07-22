@@ -219,11 +219,13 @@ func (m *MinorBlockChain) validateTx(tx *types.Transaction, evmState *state.Stat
 		reqNonce = evmState.GetNonce(sender)
 	}
 
+	//fmt.Println("RRRRRRRRRRRR",reqNonce,evmTx.Nonce())
 	tx = &types.Transaction{
 		TxType: types.EvmTx,
 		EvmTx:  evmTx,
 	}
-	if reqNonce < evmTx.Nonce() && evmTx.Nonce() < reqNonce+MAX_FUTURE_TX_NONCE {
+	if reqNonce < evmTx.Nonce() && evmTx.Nonce() < reqNonce+MAX_FUTURE_TX_NONCE {//TODO fix
+	//	fmt.Println("?????")
 		return tx, nil
 	}
 	if evmState == nil {
@@ -490,17 +492,17 @@ func (m *MinorBlockChain) runBlock(block *types.MinorBlock, xShardReceiveTxList 
 // FinalizeAndAddBlock finalize minor block and add it to chain
 // only used in test now
 func (m *MinorBlockChain) FinalizeAndAddBlock(block *types.MinorBlock) (*types.MinorBlock, types.Receipts, error) {
-	fmt.Println("222")
+	//fmt.Println("222")
 	evmState, receipts, _, _, err := m.runBlock(block, nil) // will lock
 	if err != nil {
 		return nil, nil, err
 	}
-	fmt.Println("333")
+	//fmt.Println("333")
 	coinbaseAmount := m.getCoinbaseAmount(block.Header().NumberU64())
 	coinbaseAmount.Add(evmState.GetBlockFee())
 
 	block.Finalize(receipts, evmState.IntermediateRoot(true), evmState.GetGasUsed(), evmState.GetXShardReceiveGasUsed(), coinbaseAmount, evmState.GetTxCursorInfo())
-	fmt.Println("5033333", block.Meta().XShardTxCursorInfo)
+	//fmt.Println("5033333", block.Meta().XShardTxCursorInfo)
 	_, err = m.InsertChain([]types.IBlock{block}, nil) // will lock
 	if err != nil {
 		return nil, nil, err
@@ -1666,7 +1668,7 @@ func (m *MinorBlockChain) RunCrossShardTxWithCursor(evmState *state.StateDB, mBl
 		if err := m.runOneXShardTx(evmState, xShardDepositTx, cursor.rBlock.Header().NumberU64() >= m.clusterConfig.Quarkchain.XShardGasDDOSFixRootHeight); err != nil {
 			return nil, nil, err
 		}
-		fmt.Println("16677777", mBlock.Meta().XShardTxCursorInfo)
+		//fmt.Println("16677777", mBlock.Meta().XShardTxCursorInfo)
 		if evmState.GetGasUsed().Cmp(mBlock.Meta().XshardGasLimit.Value) >= 0 {
 			break
 		}
