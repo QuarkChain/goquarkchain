@@ -237,7 +237,7 @@ func CreateTransferTx(shardState *MinorBlockChain, key []byte,
 		gas = new(uint64)
 		*gas = 21000
 	}
-	return createTransferTransaction(shardState, key, from, to, value, gas, gasPrice, nonce, nil)
+	return createTransferTransaction(shardState, key, from, to, value, gas, gasPrice, nonce, nil, nil, nil)
 }
 
 func GetPoSW(chain *MinorBlockChain) *posw.PoSW {

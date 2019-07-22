@@ -224,8 +224,8 @@ func (m *MinorBlockChain) validateTx(tx *types.Transaction, evmState *state.Stat
 		TxType: types.EvmTx,
 		EvmTx:  evmTx,
 	}
-	if reqNonce < evmTx.Nonce() && evmTx.Nonce() < reqNonce+MAX_FUTURE_TX_NONCE {//TODO fix
-	//	fmt.Println("?????")
+	if reqNonce < evmTx.Nonce() && evmTx.Nonce() < reqNonce+MAX_FUTURE_TX_NONCE { //TODO fix
+		//	fmt.Println("?????")
 		return tx, nil
 	}
 	if evmState == nil {
@@ -267,7 +267,7 @@ func (m *MinorBlockChain) InitGenesisState(rBlock *types.RootBlock) (*types.Mino
 	}
 	m.rootTip = rBlock.Header()
 	m.confirmedHeaderTip = nil
-	m.currentEvmState, err = m.createEvmState(gBlock.Meta().Root, map[account.Recipient]*big.Int{})
+	m.currentEvmState, err = m.StateAt(gBlock.Meta().Root)
 	if err != nil {
 		return nil, err
 	}
@@ -443,7 +443,7 @@ func (m *MinorBlockChain) runBlock(block *types.MinorBlock, xShardReceiveTxList 
 	coinbase := block.Coinbase().Recipient
 	preEvmState, err := m.stateAtWithSenderDisallowMap(parent.GetMetaData().Root, block.ParentHash(), &coinbase)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, 0, err
 	}
 	evmState := preEvmState.Copy()
 	senderDisallowMap, err := m.posw.BuildSenderDisallowMap(block.ParentHash(), nil) //TODO need check
@@ -615,7 +615,7 @@ func (m *MinorBlockChain) ExecuteTx(tx *types.Transaction, fromAddress *account.
 	} else {
 		gas = state.GetGasLimit().Uint64()
 	}
-	evmTx, err := m.validateTx(tx, state, fromAddress, &gas)
+	evmTx, err := m.validateTx(tx, state, fromAddress, &gas, nil)
 	if err != nil {
 		return nil, err
 	}

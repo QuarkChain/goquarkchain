@@ -112,7 +112,7 @@ func (b *TokenBalances) Serialize(w *[]byte) error {
 // Deserialize deserialize the QKC root block
 func (b *TokenBalances) Deserialize(bb *serialize.ByteBuffer) error {
 	panic(-1)
-	return nil
+	//return nil
 }
 
 func (b *TokenBalances) EncodeRLP(w io.Writer) error {
@@ -142,7 +142,8 @@ func (b *TokenBalances) DecodeRLP(s *rlp.Stream) error {
 	if err != nil {
 		return err
 	}
-	*b = *t
+	(*b).Balances = (*t).Balances
+	(*b).Enum = (*t).Enum
 	return err
 }
 

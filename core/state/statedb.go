@@ -857,3 +857,7 @@ func (s *StateDB) AddXshardDepositReceipt(receipt *types.Receipt) {
 		s.xShardDepositReceipts = make([]*types.Receipt, 0)
 	}
 	s.xShardDepositReceipts = append(s.xShardDepositReceipts, receipt)
+}
+func (s *StateDB) GetXShardDepositReceipt() []*types.Receipt {
+	return s.xShardDepositReceipts
+}
