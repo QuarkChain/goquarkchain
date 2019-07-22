@@ -5,15 +5,13 @@ import (
 	"crypto/cipher"
 	"crypto/ecdsa"
 	"crypto/hmac"
-	"crypto/rand"
 	"encoding/binary"
 	"encoding/hex"
 	"errors"
-	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/QuarkChain/goquarkchain/crypto"
 	"github.com/golang/snappy"
 	"io"
 	"io/ioutil"
-	"math/big"
 	"net"
 	"time"
 )
@@ -24,22 +22,14 @@ var (
 
 func GetPrivateKeyFromConfig(configKey string) (*ecdsa.PrivateKey, error) {
 	if configKey == "" {
-		sk, err := ecdsa.GenerateKey(crypto.S256(), rand.Reader)
+		sk, err := crypto.GenerateKey()
 		return sk, err
 	}
 	configKeyValue, err := hex.DecodeString(configKey)
 	if err != nil {
 		return nil, err
 	}
-	keyValue := new(big.Int).SetBytes(configKeyValue)
-	if err != nil {
-		return nil, err
-	}
-	sk := new(ecdsa.PrivateKey)
-	sk.PublicKey.Curve = crypto.S256()
-	sk.D = keyValue
-	sk.PublicKey.X, sk.PublicKey.Y = crypto.S256().ScalarBaseMult(keyValue.Bytes())
-	return sk, nil
+	return crypto.ToECDSA(configKeyValue)
 }
 
 type qkcRlp struct {

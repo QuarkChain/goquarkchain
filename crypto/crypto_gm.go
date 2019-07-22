@@ -14,6 +14,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/crypto"
+	"hash"
 	"io"
 	"io/ioutil"
 	"math/big"
@@ -31,6 +32,10 @@ func Keccak256(data ...[]byte) []byte {
 // converting it to an internal Hash data structure.
 func Keccak256Hash(data ...[]byte) (h common.Hash) {
 	return crypto.Keccak256Hash(data...)
+}
+
+func New256Hash() hash.Hash {
+	return sm3.NewSM3Hash()
 }
 
 // SM3 calculates and returns the SM3 hash of the input data.
@@ -159,6 +164,7 @@ func ValidateSignatureValues(v byte, r, s *big.Int, homestead bool) bool {
 	// Frontier: allow s to be in full N range
 	return r.Cmp(curve.N) < 0 && s.Cmp(curve.N) < 0 && (v == 0 || v == 1)
 }
+
 func PubkeyToAddress(p ecdsa.PublicKey) common.Address {
 	pubBytes := FromECDSAPub(&p)
 	return common.BytesToAddress(SM3(pubBytes[1:])[12:])

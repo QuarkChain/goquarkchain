@@ -99,3 +99,8 @@ func DecompressPubkey(pubkey []byte) (*ecdsa.PublicKey, error) {
 func CompressPubkey(pubkey *ecdsa.PublicKey) []byte {
 	return (*sm2.PublicKey)(pubkey).SerializeCompressed()
 }
+
+// S256 returns an instance of the sm2 curve.
+func S256() elliptic.Curve {
+	return sm2.Sm2Curve()
+}
