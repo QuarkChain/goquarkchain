@@ -60,7 +60,7 @@ func TestShardGenesisForkFork(t *testing.T) {
 	_, clstrList := CreateClusterList(2, cfglist)
 	clstrList.Start(5*time.Second, true)
 	defer clstrList.Stop()
-	clstrList.PrintPeerList()
+	// clstrList.PrintPeerList()
 
 	root0 := clstrList[0].CreateAndInsertBlocks([]uint32{id0}, 3)
 	assert.Equal(t, retryTrueWithTimeout(func() bool {
@@ -552,7 +552,7 @@ func TestGetWorkFromSlave(t *testing.T) {
 	_, clstrList := CreateClusterList(1, cfglist)
 	clstrList.Start(5*time.Second, true)
 	defer clstrList.Stop()
-	clstrList.PrintPeerList()
+	// clstrList.PrintPeerList()
 	var (
 		slave = clstrList[0].GetSlavelist()[0]
 		mstr  = clstrList[0].GetMaster()
@@ -581,7 +581,7 @@ func TestShardSynchronizerWithFork(t *testing.T) {
 	_, clstrList := CreateClusterList(2, cfglist)
 	clstrList.Start(5*time.Second, false)
 	defer clstrList.Stop()
-	clstrList.PrintPeerList()
+	// clstrList.PrintPeerList()
 
 	var (
 		mstr      = clstrList[0].GetMaster()
@@ -647,7 +647,7 @@ func TestBroadcastCrossShardTransactionListToNeighborOnly(t *testing.T) {
 	_, clstrList := CreateClusterList(1, cfglist)
 	clstrList.Start(5*time.Second, false)
 	defer clstrList.Stop()
-	clstrList.PrintPeerList()
+	// clstrList.PrintPeerList()
 
 	var (
 		mstr = clstrList[0].GetMaster()
