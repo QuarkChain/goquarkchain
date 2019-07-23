@@ -110,24 +110,24 @@ func (m *MinorBlockChain) updateTip(state *state.StateDB, block *types.MinorBloc
 
 	tipPrevRootHeader := m.getRootBlockHeaderByHash(m.CurrentBlock().PrevRootBlockHash())
 	// Don't update tip if the block depends on a root block that is not root_tip or root_tip's ancestor
-	if !m.isSameRootChain(m.rootTip, tipPrevRootHeader) {
+	if !m.isSameRootChain(m.rootTip, preRootHeader) {
 		return false, nil
 	}
 	updateTip := false
 	currentTip := m.CurrentBlock().IHeader().(*types.MinorBlockHeader)
 	if block.Header().ParentHash == currentTip.Hash() {
-		//fmt.Println("111111111")
+		//	fmt.Println("111111111")
 		updateTip = true
 	} else if m.isMinorBlockLinkedToRootTip(block) {
 		if block.Header().Number > currentTip.NumberU64() {
-			//	fmt.Println("22222")
+			//fmt.Println("22222")
 			updateTip = true
 		} else if block.Header().Number == currentTip.NumberU64() {
 			//	fmt.Println("333333333", preRootHeader.Number, tipPrevRootHeader.Number)
 			updateTip = preRootHeader.Number > tipPrevRootHeader.Number
 		}
 	}
-
+	//fmt.Println("updateTip", updateTip)
 	if updateTip {
 		m.currentEvmState = state
 	}
@@ -301,7 +301,7 @@ func (m *MinorBlockChain) isMinorBlockLinkedToRootTip(mBlock *types.MinorBlock) 
 	if mBlock.Header().Number <= confirmed.Number {
 		return false
 	}
-	//fmt.Println("isSame", isSameChain(m.db, mBlock.Header(), confirmed))
+	fmt.Println("isSame", isSameChain(m.db, mBlock.Header(), confirmed))
 	return isSameChain(m.db, mBlock.Header(), confirmed)
 }
 func (m *MinorBlockChain) isNeighbor(remoteBranch account.Branch, rootHeight *uint32) bool {

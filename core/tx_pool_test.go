@@ -20,6 +20,7 @@ import (
 	"crypto/ecdsa"
 	"fmt"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
+	qkcCommon "github.com/QuarkChain/goquarkchain/common"
 	"io/ioutil"
 	"math/big"
 	"math/rand"
@@ -45,6 +46,7 @@ import (
 var (
 	testTxPoolConfig TxPoolConfig
 	mu               sync.RWMutex
+	testGenesisToken = qkcCommon.TokenIDEncode("QKC")
 )
 
 func init() {
@@ -86,7 +88,7 @@ func transaction(nonce uint64, gaslimit uint64, key *ecdsa.PrivateKey) *types.Tr
 }
 
 func pricedTransaction(nonce uint64, gaslimit uint64, gasprice *big.Int, key *ecdsa.PrivateKey) *types.Transaction {
-	tx, _ := types.SignTx(types.NewEvmTransaction(nonce, account.BytesToIdentityRecipient(common.Address{}.Bytes()), big.NewInt(100), gaslimit, gasprice, 0, 0, 3, 0, []byte{}, 0, 0), types.MakeSigner(0), key)
+	tx, _ := types.SignTx(types.NewEvmTransaction(nonce, account.BytesToIdentityRecipient(common.Address{}.Bytes()), big.NewInt(100), gaslimit, gasprice, 0, 0, 3, 0, []byte{}, testGenesisToken, testGenesisToken), types.MakeSigner(0), key)
 	return &types.Transaction{
 		TxType: types.EvmTx,
 		EvmTx:  tx,
@@ -1365,7 +1367,7 @@ func TestTransactionPoolUnderpricing(t *testing.T) {
 	keys := make([]*ecdsa.PrivateKey, 4)
 	for i := 0; i < len(keys); i++ {
 		keys[i], _ = crypto.GenerateKey()
-		pool.currentState.AddBalance(crypto.PubkeyToAddress(keys[i].PublicKey), big.NewInt(1000000), 0)
+		pool.currentState.AddBalance(crypto.PubkeyToAddress(keys[i].PublicKey), big.NewInt(1000000), testGenesisToken)
 	}
 	// Generate and queue a batch of transactions, both pending and queued
 	txs := types.Transactions{}
@@ -1627,8 +1629,8 @@ func testTransactionJournaling(t *testing.T, nolocals bool) {
 	local, _ := crypto.GenerateKey()
 	remote, _ := crypto.GenerateKey()
 
-	pool.currentState.AddBalance(crypto.PubkeyToAddress(local.PublicKey), big.NewInt(1000000000), 0)
-	pool.currentState.AddBalance(crypto.PubkeyToAddress(remote.PublicKey), big.NewInt(1000000000), 0)
+	pool.currentState.AddBalance(crypto.PubkeyToAddress(local.PublicKey), big.NewInt(1000000000), testGenesisToken)
+	pool.currentState.AddBalance(crypto.PubkeyToAddress(remote.PublicKey), big.NewInt(1000000000), testGenesisToken)
 
 	// Add three local and a remote transactions and ensure they are queued up
 	if err := pool.AddLocal(pricedTransaction(0, 100000, big.NewInt(1), local)); err != nil {

@@ -603,6 +603,7 @@ func (pool *TxPool) add(tx *types.Transaction, local bool) (bool, error) {
 	}
 	// If the transaction fails basic validation, discard it
 	if err := pool.validateTx(tx, local); err != nil {
+		fmt.Println("err", err)
 		log.Trace("Discarding invalid transaction", "hash", hash, "err", err)
 		return false, err
 	}
@@ -1235,7 +1236,6 @@ func (m *TxPool) CheckTxBeforeAdd(tx *types.Transaction) error {
 	if m.all.Count() > int(m.quarkConfig.TransactionQueueSizeLimitPerShard) {
 		return errors.New("txpool queue full")
 	}
-
 
 	//from,_:=tx.Sender(types.NewEIP155Signer(m.chain.Config().NetworkID))
 	//fmt.Println("???",m.currentState.GetNonce(from))

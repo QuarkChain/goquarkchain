@@ -56,6 +56,7 @@ func TestInitGenesisState(t *testing.T) {
 
 	block := newGenesisBlock.CreateBlockToAppend(nil, nil, nil, nil, nil, nil, nil, nil)
 
+	//fmt.Println("FFFFFFFFFFFFF")
 	_, _, err = shardState.FinalizeAndAddBlock(block)
 	checkErr(err)
 
