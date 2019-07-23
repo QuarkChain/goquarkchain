@@ -577,6 +577,7 @@ func ReadConfirmedCrossShardTxList(db DatabaseReader, hash common.Hash) *types.C
 }
 
 func WriteCrossShardTxList(db DatabaseWriter, hash common.Hash, list types.CrossShardTransactionDepositList) {
+	//fmt.Println("WWWWWWWWWWWW", hash.String(), list)
 	data, err := serialize.SerializeToBytes(list)
 	if err != nil {
 		log.Crit("can not serialize CrossShardTransactionDepositList")

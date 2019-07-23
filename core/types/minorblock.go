@@ -459,6 +459,7 @@ func (h *MinorBlock) CreateBlockToAppend(createTime *uint64, difficulty *big.Int
 		gasLimit = h.GasLimit()
 	}
 
+	//fmt.Println("4622222", gasLimit, h.GasLimit())
 	if xShardGasLimit == nil {
 		xShardGasLimit = new(big.Int).Div(h.GasLimit(), new(big.Int).SetUint64(2))
 	}

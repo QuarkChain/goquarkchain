@@ -51,6 +51,9 @@ func NewXShardTxCursor(bc blockchain, mBlockHeader *types.MinorBlockHeader, curs
 }
 
 func (x *XShardTxCursor) getCurrentTx() (*types.CrossShardTransactionDeposit, error) {
+	//fmt.Println("getCurrentTx", x.xShardDepositIndex, x.mBlockIndex)
+	//fmt.Println("getCurrentTx=1", x.xTxList)
+
 	if x.mBlockIndex == 0 {
 		if x.xShardDepositIndex != 1 && x.xShardDepositIndex != 2 {
 			return nil, errors.New("shardDepositIndex should 1 or 2")
@@ -78,8 +81,9 @@ func (x *XShardTxCursor) getCurrentTx() (*types.CrossShardTransactionDeposit, er
 		return nil, nil
 	} else if x.xShardDepositIndex < uint64(len(x.xTxList.TXList)) {
 		return x.xTxList.TXList[x.xShardDepositIndex], nil
+	} else {
+		return nil, nil
 	}
-	return nil, errors.New("no tx yet")
 }
 
 func (x *XShardTxCursor) getNextTx() (*types.CrossShardTransactionDeposit, error) {
@@ -99,13 +103,16 @@ func (x *XShardTxCursor) getNextTx() (*types.CrossShardTransactionDeposit, error
 
 	for x.mBlockIndex <= uint64(len(x.rBlock.MinorBlockHeaders())) {
 		mBlockHeader := x.rBlock.MinorBlockHeaders()[x.mBlockIndex-1]
+		//fmt.Println("x10666666666666", x.rBlock.Hash().String(), mBlockHeader.Hash().String(), x.mBlockIndex)
 		if !x.bc.isNeighbor(mBlockHeader.Branch, &x.rBlock.Header().Number) || mBlockHeader.Branch == x.bc.GetBranch() {
 			if x.xShardDepositIndex != 0 {
 				return nil, errors.New("xShardDepositIndex should 0")
 			}
 			x.mBlockIndex += 1
+			//fmt.Println("CCCCCCCCCCCCCCCCCCCCCCCCCCCCC")
+			continue
 		}
-
+		//fmt.Println("162222222", mBlockHeader.Number, mBlockHeader.Hash().String())
 		prevRootHeader := x.bc.GetRootBlockByHash(mBlockHeader.PrevRootBlockHash)
 		if prevRootHeader.Number() <= x.bc.GetGenesisRootHeight() {
 			if x.xShardDepositIndex != 0 {
@@ -118,6 +125,7 @@ func (x *XShardTxCursor) getNextTx() (*types.CrossShardTransactionDeposit, error
 			continue
 		}
 		x.xTxList = x.bc.ReadCrossShardTxList(mBlockHeader.Hash())
+		//fmt.Println("125555555555555", mBlockHeader.Hash().String(), x.xTxList)
 		tx, err := x.getCurrentTx()
 		if err != nil {
 			return nil, err

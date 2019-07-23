@@ -79,7 +79,7 @@ func TestMinorChainTaskRun(t *testing.T) {
 	var mt Task = NewMinorChainTask(p, currHeader)
 
 	// Prepare future blocks for downloading.
-	mbChain, mhChain := makeMinorChains(bc.(*mockblockchain).mbc, mbc.CurrentBlock(), db, false)
+	mbChain, mhChain := makeMinorChains(mbc.CurrentBlock(), db, false)
 
 	// No error if already have the target block.
 	assert.NoError(t, mt.Run(bc))
@@ -125,8 +125,9 @@ func TestMinorChainTaskRun(t *testing.T) {
 	assert.NoError(t, mt.Run(bc))
 	assert.Equal(t, uint64(10), bc.CurrentHeader().NumberU64())
 
+	//TODO need to fix
 	// Sync older forks. Starting from block 6, up to 11.
-	mbChain, mhChain = makeMinorChains(bc.(*mockblockchain).mbc, mbChain[0], db, true)
+	mbChain, mhChain = makeMinorChains(mbChain[0], db, true)
 	//	for _, rh := range mhChain {
 	////		assert.False(t, bc.HasBlock(rh.Hash()))
 	//	}
@@ -144,7 +145,7 @@ func TestMinorChainTaskRun(t *testing.T) {
  Test helpers.
 */
 
-func makeMinorChains(bc *core.MinorBlockChain, parent *types.MinorBlock, db ethdb.Database, random bool) ([]*types.MinorBlock, []*types.MinorBlockHeader) {
+func makeMinorChains(parent *types.MinorBlock, db ethdb.Database, random bool) ([]*types.MinorBlock, []*types.MinorBlockHeader) {
 	var gen func(config *config.QuarkChainConfig, i int, b *core.MinorBlockGen)
 	if random {
 		gen = func(config *config.QuarkChainConfig, i int, b *core.MinorBlockGen) {

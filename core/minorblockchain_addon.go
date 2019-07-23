@@ -108,7 +108,7 @@ func (m *MinorBlockChain) updateTip(state *state.StateDB, block *types.MinorBloc
 		return false, errors.New("missing prev block")
 	}
 
-	tipPrevRootHeader := m.getRootBlockHeaderByHash(block.PrevRootBlockHash())
+	tipPrevRootHeader := m.getRootBlockHeaderByHash(m.CurrentBlock().PrevRootBlockHash())
 	// Don't update tip if the block depends on a root block that is not root_tip or root_tip's ancestor
 	if !m.isSameRootChain(m.rootTip, tipPrevRootHeader) {
 		return false, nil
@@ -116,11 +116,14 @@ func (m *MinorBlockChain) updateTip(state *state.StateDB, block *types.MinorBloc
 	updateTip := false
 	currentTip := m.CurrentBlock().IHeader().(*types.MinorBlockHeader)
 	if block.Header().ParentHash == currentTip.Hash() {
+		//fmt.Println("111111111")
 		updateTip = true
 	} else if m.isMinorBlockLinkedToRootTip(block) {
 		if block.Header().Number > currentTip.NumberU64() {
+			//	fmt.Println("22222")
 			updateTip = true
 		} else if block.Header().Number == currentTip.NumberU64() {
+			//	fmt.Println("333333333", preRootHeader.Number, tipPrevRootHeader.Number)
 			updateTip = preRootHeader.Number > tipPrevRootHeader.Number
 		}
 	}
@@ -298,7 +301,7 @@ func (m *MinorBlockChain) isMinorBlockLinkedToRootTip(mBlock *types.MinorBlock) 
 	if mBlock.Header().Number <= confirmed.Number {
 		return false
 	}
-	fmt.Println("isSame", isSameChain(m.db, mBlock.Header(), confirmed))
+	//fmt.Println("isSame", isSameChain(m.db, mBlock.Header(), confirmed))
 	return isSameChain(m.db, mBlock.Header(), confirmed)
 }
 func (m *MinorBlockChain) isNeighbor(remoteBranch account.Branch, rootHeight *uint32) bool {
@@ -419,6 +422,7 @@ func (m *MinorBlockChain) getEvmStateForNewBlock(mHeader types.IHeader, ephemera
 	header := mHeader.(*types.MinorBlockHeader)
 	evmState.SetGasLimit(header.GetGasLimit())
 	evmState.SetQuarkChainConfig(m.clusterConfig.Quarkchain)
+	//fmt.Println("$$$$$$$$$$$$$$$$$$$$$$$$$", header.GetGasLimit(), evmState.GetGasLimit())
 	return evmState, nil
 }
 
@@ -741,6 +745,7 @@ func (m *MinorBlockChain) addTransactionToBlock(rootBlockHash common.Hash, block
 	txsInBlock := make([]*types.Transaction, 0)
 
 	stateT := evmState
+	//fmt.Println("sss", stateT.GetGasUsed(), stateT.GetGasLimit())
 	for stateT.GetGasUsed().Cmp(stateT.GetGasLimit()) < 0 {
 		tx := txs.Peek()
 		// Pop skip all txs about this account
@@ -844,6 +849,7 @@ func (m *MinorBlockChain) CreateBlockToMine(createTime *uint64, address *account
 	if gasLimit == nil {
 		gasLimit = m.gasLimit
 	}
+	//fmt.Println("8499999999999", gasLimit, m.gasLimit)
 	if xShardGasLimit == nil {
 		xShardGasLimit = new(big.Int).Set(m.xShardGasLimit)
 	}
@@ -862,6 +868,7 @@ func (m *MinorBlockChain) CreateBlockToMine(createTime *uint64, address *account
 	}
 	block := prevBlock.CreateBlockToAppend(&realCreateTime, difficulty, address, nil, gasLimit, xShardGasLimit, nil, nil)
 	evmState, err := m.getEvmStateForNewBlock(block.IHeader(), true)
+	//fmt.Println("create", evmState.GetGasLimit())
 	prevHeader := m.CurrentBlock()
 	ancestorRootHeader := m.GetRootBlockByHash(prevHeader.Header().PrevRootBlockHash).Header()
 	if !m.isSameRootChain(m.rootTip, ancestorRootHeader) {
@@ -874,13 +881,16 @@ func (m *MinorBlockChain) CreateBlockToMine(createTime *uint64, address *account
 	}
 	evmState.SetTxCursorInfo(txCursor)
 
+	//fmt.Println("????-878", evmState.GetGasUsed(), xShardGasLimit, evmState.GetGasLimit())
 	if evmState.GetGasUsed().Cmp(xShardGasLimit) <= 0 {
 		diff := new(big.Int).Sub(xShardGasLimit, evmState.GetGasUsed())
 		diff = new(big.Int).Sub(evmState.GetGasLimit(), diff)
+		//fmt.Println("Diff", diff)
 		evmState.SetGasLimit(diff)
 	}
 	recipiets := make(types.Receipts, 0)
 	if *includeTx {
+		//	fmt.Println("885", evmState.GetGasUsed(), evmState.GetGasLimit())
 		block, recipiets, err = m.addTransactionToBlock(m.rootTip.Hash(), block, evmState)
 		if err != nil {
 			return nil, err
@@ -1580,6 +1590,7 @@ func (m *MinorBlockChain) ReadCrossShardTxList(hash common.Hash) *types.CrossSha
 		return data.(*types.CrossShardTransactionDepositList)
 	}
 	data := rawdb.ReadCrossShardTxList(m.db, hash)
+	//fmt.Println("RRRRRRRRRRRR", hash.String(), data)
 	if data != nil {
 		m.crossShardTxListCache.Add(hash, data)
 		return data
@@ -1630,6 +1641,7 @@ func (m *MinorBlockChain) RunCrossShardTxWithCursor(evmState *state.StateDB, mBl
 	}
 	cursorInfo := preMinorBlock.Meta().XShardTxCursorInfo
 	cursor := NewXShardTxCursor(m, mBlock.Header(), cursorInfo)
+	//fmt.Println("NNNNNNNNNNNNNNNNN", cursor.xShardDepositIndex, cursor.mBlockIndex)
 	txList := make([]*types.CrossShardTransactionDeposit, 0)
 	for true {
 		xShardDepositTx, err := cursor.getNextTx()
@@ -1643,7 +1655,7 @@ func (m *MinorBlockChain) RunCrossShardTxWithCursor(evmState *state.StateDB, mBl
 		if err := m.runOneXShardTx(evmState, xShardDepositTx, cursor.rBlock.Header().NumberU64() >= m.clusterConfig.Quarkchain.XShardGasDDOSFixRootHeight); err != nil {
 			return nil, nil, err
 		}
-		//fmt.Println("16677777", mBlock.Meta().XShardTxCursorInfo)
+		//fmt.Println("16677777", mBlock.Number(), mBlock.Hash().String(), mBlock.Meta().XShardTxCursorInfo)
 		if evmState.GetGasUsed().Cmp(mBlock.Meta().XshardGasLimit.Value) >= 0 {
 			break
 		}
