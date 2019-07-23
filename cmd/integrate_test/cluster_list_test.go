@@ -678,7 +678,8 @@ func TestHandleGetMinorBlockListRequestWithTotalDiff(t *testing.T) {
 	cluster.Start(5*time.Second, true)
 	defer cluster.Stop()
 
-	calCoinBase := func(rootBlock *types.RootBlock) *big.Int {
+	calCoinBase := func(rootBlock *types.RootBlock) map[string]*big.Int {
+		res := make(map[string]*big.Int)
 		ret := new(big.Int).Set(cluster[0].clstrCfg.Quarkchain.Root.CoinbaseAmount)
 		rewardTaxRate := cluster[0].clstrCfg.Quarkchain.RewardTaxRate
 		ratio := big.NewRat(1, 1)
@@ -687,12 +688,13 @@ func TestHandleGetMinorBlockListRequestWithTotalDiff(t *testing.T) {
 
 		minorBlockFee := new(big.Int)
 		for _, header := range rootBlock.MinorBlockHeaders() {
-			minorBlockFee.Add(minorBlockFee, header.CoinbaseAmount.Value)
+			minorBlockFee.Add(minorBlockFee, header.CoinbaseAmount.BalanceMap)
 		}
 		minorBlockFee.Mul(minorBlockFee, ratio.Num())
 		minorBlockFee.Div(minorBlockFee, ratio.Denom())
 		ret.Add(ret, minorBlockFee)
-		return ret
+		res["qkc"] = ret
+		return res
 	}
 	tipNumber := cluster[0].master.GetTip()
 	rb0, err := cluster[0].master.GetRootBlockByNumber(&tipNumber)
