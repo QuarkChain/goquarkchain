@@ -89,6 +89,7 @@ func CanTransfer(db vm.StateDB, addr common.Address, amount *big.Int, tokenID ui
 
 // Transfer subtracts amount from sender and adds amount to recipient using the given Db
 func Transfer(db vm.StateDB, sender, recipient common.Address, amount *big.Int, tokenID uint64) {
+	//fmt.Println("933333")
 	db.SubBalance(sender, amount, tokenID)
 	db.AddBalance(recipient, amount, tokenID)
 }

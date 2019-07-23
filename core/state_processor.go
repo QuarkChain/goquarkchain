@@ -57,6 +57,8 @@ func NewStateProcessor(config *params.ChainConfig, bc *MinorBlockChain, engine c
 // returns the amount of gas that was used in the process. If any of the
 // transactions failed to execute due to insufficient gas it will return an error.
 func (p *StateProcessor) Process(block *types.MinorBlock, statedb *state.StateDB, cfg vm.Config) (types.Receipts, []*types.Log, uint64, error) {
+	//fmt.Println("process","start")
+	//defer fmt.Println("process","end")
 	statedb.SetQuarkChainConfig(p.bc.clusterConfig.Quarkchain)
 	statedb.SetBlockCoinbase(block.IHeader().GetCoinbase().Recipient)
 	statedb.SetGasLimit(block.GasLimit())
@@ -87,7 +89,9 @@ func (p *StateProcessor) Process(block *types.MinorBlock, statedb *state.StateDB
 	// Finalize the block, applying any consensus engine specific extras (e.g. block rewards)
 	coinbaseAmount := p.bc.getCoinbaseAmount(block.Number())
 	for k, v := range coinbaseAmount.BalanceMap {
+		//fmt.Println("900000000")
 		statedb.AddBalance(block.IHeader().GetCoinbase().Recipient, v, k)
+		//fmt.Println("900000000=end")
 	}
 	statedb.Finalise(true)
 	return receipts, allLogs, *usedGas, nil
@@ -121,7 +125,7 @@ func ValidateTransaction(state vm.StateDB, tx *types.Transaction, fromAddress *a
 		return err
 	}
 	if tx.EvmTx.Gas() < totalGas {
-		fmt.Println("txxx",tx.EvmTx.Gas(),totalGas)
+		//fmt.Println("txxx",tx.EvmTx.Gas(),totalGas)
 		return ErrIntrinsicGas
 	}
 
@@ -163,6 +167,8 @@ func ValidateTransaction(state vm.StateDB, tx *types.Transaction, fromAddress *a
 
 // ApplyTransaction apply tx
 func ApplyTransaction(config *params.ChainConfig, bc ChainContext, gp *GasPool, statedb *state.StateDB, header types.IHeader, tx *types.Transaction, usedGas *uint64, cfg vm.Config) ([]byte, *types.Receipt, uint64, error) {
+	//fmt.Println("Apply","start",tx.Hash().String())
+	//defer fmt.Println("Apply","end")
 	statedb.SetFullShardKey(tx.EvmTx.ToFullShardKey())
 	localFeeRate := big.NewRat(1, 1)
 	if qkcConfig := statedb.GetQuarkChainConfig(); qkcConfig != nil {

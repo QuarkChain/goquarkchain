@@ -603,7 +603,7 @@ func (pool *TxPool) add(tx *types.Transaction, local bool) (bool, error) {
 	}
 	// If the transaction fails basic validation, discard it
 	if err := pool.validateTx(tx, local); err != nil {
-		fmt.Println("err", err)
+		//fmt.Println("err", err)
 		log.Trace("Discarding invalid transaction", "hash", hash, "err", err)
 		return false, err
 	}

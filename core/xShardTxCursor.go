@@ -2,7 +2,6 @@ package core
 
 import (
 	"errors"
-	"fmt"
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/serialize"
@@ -36,7 +35,7 @@ func NewXShardTxCursor(bc blockchain, mBlockHeader *types.MinorBlockHeader, curs
 		mBlockHeader: mBlockHeader,
 	}
 	c.maxRootBlockHeader = bc.GetRootBlockByHash(mBlockHeader.PrevRootBlockHash).Header()
-	fmt.Println("NewXshardTxCursor",c.maxRootBlockHeader.Number)
+	//fmt.Println("NewXshardTxCursor",c.maxRootBlockHeader.Number,mBlockHeader.PrevRootBlockHash.String())
 	rBlockHeader := bc.GetRootBlockHeaderByHeight(mBlockHeader.PrevRootBlockHash, cursorInfo.RootBlockHeight)
 	c.mBlockIndex = cursorInfo.MinorBlockIndex
 	c.xShardDepositIndex = cursorInfo.XShardDepositIndex
@@ -154,7 +153,7 @@ func (x *XShardTxCursor) getNextTx() (*types.CrossShardTransactionDeposit, error
 }
 
 func (x *XShardTxCursor) getCursorInfo() *types.XShardTxCursorInfo {
-	fmt.Println("GGGGGGGGGGGGGGGGGGGGG",x.rBlock,x.maxRootBlockHeader.NumberU64())
+	//fmt.Println("GGGGGGGGGGGGGGGGGGGGG",x.rBlock,x.maxRootBlockHeader.NumberU64())
 	rootBlockHeight := x.maxRootBlockHeader.NumberU64() + 1
 	if x.rBlock != nil {
 		rootBlockHeight = x.rBlock.Header().NumberU64()

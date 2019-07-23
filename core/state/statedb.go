@@ -352,6 +352,7 @@ func (s *StateDB) HasSuicided(addr common.Address) bool {
 
 // AddBalance adds amount to the account associated with addr.
 func (s *StateDB) AddBalance(addr common.Address, amount *big.Int, tokenID uint64) {
+	//fmt.Println("AAAAAAAAAAAAAAAAAAAAAAAAAA",addr.String(),amount,tokenID)
 	stateObject := s.GetOrNewStateObject(addr)
 	if stateObject != nil {
 		stateObject.AddBalance(amount, tokenID)
@@ -360,6 +361,7 @@ func (s *StateDB) AddBalance(addr common.Address, amount *big.Int, tokenID uint6
 
 // SubBalance subtracts amount from the account associated with addr.
 func (s *StateDB) SubBalance(addr common.Address, amount *big.Int, tokenID uint64) {
+	//fmt.Println("SSSSSSSSSSSSSSS",addr.String(),amount,tokenID)
 	stateObject := s.GetOrNewStateObject(addr)
 	if stateObject != nil {
 		stateObject.SubBalance(amount, tokenID)
@@ -367,6 +369,7 @@ func (s *StateDB) SubBalance(addr common.Address, amount *big.Int, tokenID uint6
 }
 
 func (s *StateDB) SetBalance(addr common.Address, amount *big.Int, tokenID uint64) {
+	//fmt.Println("ttttttttttttttttttttttttt",addr.String(),amount,tokenID)
 	stateObject := s.GetOrNewStateObject(addr)
 	if stateObject != nil {
 		stateObject.SetBalance(amount, tokenID)
@@ -436,7 +439,7 @@ func (s *StateDB) updateStateObject(stateObject *stateObject) {
 	//fmt.Println("UUUUUUU", addr.String(), hex.EncodeToString(data))
 	//fmt.Println("detail")
 	//fmt.Println(stateObject.data.Nonce)
-	//fmt.Println(stateObject.data.TokenBalances)
+	//fmt.Println(stateObject.data.TokenBalances.Balances)
 	//fmt.Println(stateObject.data.Root)
 	//fmt.Println(stateObject.data.CodeHash)
 	//fmt.Println(stateObject.data.FullShardKey)
@@ -627,6 +630,8 @@ func (s *StateDB) GetRefund() uint64 {
 // Finalise finalises the state by removing the self destructed objects
 // and clears the journal as well as the refunds.
 func (s *StateDB) Finalise(deleteEmptyObjects bool) {
+	//fmt.Println("FFFFFFFFFF start")
+	//defer fmt.Println("FFFFFFFFF end")
 	for addr := range s.journal.dirties {
 		stateObject, exist := s.stateObjects[addr]
 		if !exist {
@@ -675,6 +680,8 @@ func (s *StateDB) clearJournalAndRefund() {
 
 // Commit writes the state to the underlying in-memory trie database.
 func (s *StateDB) Commit(deleteEmptyObjects bool) (root common.Hash, err error) {
+	//fmt.Println("CCCCCC","start")
+	//defer fmt.Println("CCCCCCCCC","end")
 	defer s.clearJournalAndRefund()
 
 	for addr := range s.journal.dirties {

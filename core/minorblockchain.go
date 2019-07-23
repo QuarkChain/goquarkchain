@@ -995,11 +995,6 @@ func (m *MinorBlockChain) WriteBlockWithState(block *types.MinorBlock, receipts 
 	batch := m.db.NewBatch()
 	rawdb.WriteReceipts(batch, block.Hash(), receipts)
 	if updateTip {
-		senderMap, err := m.posw.BuildSenderDisallowMap(block.Hash(), nil)
-		if err != nil {
-			return NonStatTy, err
-		}
-		state.SetSenderDisallowMap(senderMap)
 		// Reorganise the chain if the parent is not the head block
 		if block.ParentHash() != currentBlock.Hash() {
 			if err := m.reorg(currentBlock, block); err != nil {
@@ -1224,11 +1219,6 @@ func (m *MinorBlockChain) insertChain(chain []types.IBlock, verifySeals bool, pa
 			return it.index, events, coalescedLogs, xShardList, err
 		}
 		if updateTip {
-			senderDisallowMap, err := m.posw.BuildSenderDisallowMap(block.Hash(), nil)
-			if err != nil {
-				return it.index, events, coalescedLogs, xShardList, err
-			}
-			state.SetSenderDisallowMap(senderDisallowMap)
 			m.currentEvmState = state
 		}
 		switch status {
@@ -1397,7 +1387,7 @@ func (m *MinorBlockChain) insertSidechain(it *insertIterator) (int, []interface{
 // to be part of the new canonical chain and accumulates potential missing transactions and post an
 // event about them
 func (m *MinorBlockChain) reorg(oldBlock, newBlock types.IBlock) error {
-	fmt.Println("reorg", oldBlock.NumberU64(), oldBlock.Hash().String(), newBlock.NumberU64(), newBlock.Hash().String())
+	//fmt.Println("reorg", oldBlock.NumberU64(), oldBlock.Hash().String(), newBlock.NumberU64(), newBlock.Hash().String())
 	if qkcCommon.IsNil(oldBlock) || qkcCommon.IsNil(newBlock) {
 		return errors.New("reorg err:block is nil")
 	}
@@ -1460,10 +1450,10 @@ func (m *MinorBlockChain) reorg(oldBlock, newBlock types.IBlock) error {
 		deletedTxs = append(deletedTxs, oldBlock.(*types.MinorBlock).GetTransactions()...)
 		collectLogs(oldBlock.Hash())
 
-		fmt.Println("oldBlock", oldBlock.IHeader().GetParentHash(), oldBlock.NumberU64())
+	//	fmt.Println("oldBlock", oldBlock.IHeader().GetParentHash(), oldBlock.NumberU64())
 		oldBlock, newBlock = m.GetBlock(oldBlock.IHeader().GetParentHash()), m.GetBlock(newBlock.IHeader().GetParentHash())
 		if qkcCommon.IsNil(oldBlock) {
-			fmt.Println("1111")
+			//fmt.Println("1111")
 			return fmt.Errorf("Invalid old chain")
 		}
 		if qkcCommon.IsNil(newBlock) {

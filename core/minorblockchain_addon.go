@@ -301,7 +301,7 @@ func (m *MinorBlockChain) isMinorBlockLinkedToRootTip(mBlock *types.MinorBlock) 
 	if mBlock.Header().Number <= confirmed.Number {
 		return false
 	}
-	fmt.Println("isSame", isSameChain(m.db, mBlock.Header(), confirmed))
+	//fmt.Println("isSame", isSameChain(m.db, mBlock.Header(), confirmed))
 	return isSameChain(m.db, mBlock.Header(), confirmed)
 }
 func (m *MinorBlockChain) isNeighbor(remoteBranch account.Branch, rootHeight *uint32) bool {
@@ -450,16 +450,12 @@ func (m *MinorBlockChain) runBlock(block *types.MinorBlock, xShardReceiveTxList 
 		return nil, nil, nil, 0, err
 	}
 	evmState := preEvmState.Copy()
-	senderDisallowMap, err := m.posw.BuildSenderDisallowMap(block.ParentHash(), nil) //TODO need check
-	if err != nil {
-		return nil, nil, nil, 0, err
-	}
-	evmState.SetSenderDisallowMap(senderDisallowMap)
 
 	xTxList, txCursorInfo, err := m.RunCrossShardTxWithCursor(evmState, block)
 	if err != nil {
 		return nil, nil, nil, 0, err
 	}
+	//fmt.Println("run cross ","end")
 	if xShardReceiveTxList != nil {
 		*xShardReceiveTxList = append(*xShardReceiveTxList, xTxList...)
 	}
@@ -481,14 +477,14 @@ func (m *MinorBlockChain) runBlock(block *types.MinorBlock, xShardReceiveTxList 
 // only used in test now
 func (m *MinorBlockChain) FinalizeAndAddBlock(block *types.MinorBlock) (*types.MinorBlock, types.Receipts, error) {
 	//fmt.Println("222")
-	fmt.Println("MMMMMMMMMMMMMMM-1",block.NumberU64(),block.Header().SealHash().String(),block.MetaHash().String())
-	fmt.Println("MMMMM-TxHash",block.Meta().TxHash.String())
-	fmt.Println("MMMMM-root",block.Meta().Root.String())
-	fmt.Println("MMMMM-ReceiptHash",block.Meta().ReceiptHash.String())
-	fmt.Println("MMMMM-GasUsed",block.Meta().GasUsed)
-	fmt.Println("MMMMM-CrossShardGasUsed",block.Meta().CrossShardGasUsed)
-	fmt.Println("MMMMM-XShardTxCursorInfo",block.Meta().XShardTxCursorInfo)
-	fmt.Println("MMMMM-XshardGasLimit",block.Meta().XshardGasLimit)
+	//fmt.Println("MMMMMMMMMMMMMMM-1",block.NumberU64(),block.Header().SealHash().String(),block.MetaHash().String())
+	//fmt.Println("MMMMM-TxHash",block.Meta().TxHash.String())
+	//fmt.Println("MMMMM-root",block.Meta().Root.String())
+	//fmt.Println("MMMMM-ReceiptHash",block.Meta().ReceiptHash.String())
+	//fmt.Println("MMMMM-GasUsed",block.Meta().GasUsed)
+	//fmt.Println("MMMMM-CrossShardGasUsed",block.Meta().CrossShardGasUsed)
+	//fmt.Println("MMMMM-XShardTxCursorInfo",block.Meta().XShardTxCursorInfo)
+	//fmt.Println("MMMMM-XshardGasLimit",block.Meta().XshardGasLimit)
 	evmState, receipts, _, _, err := m.runBlock(block, nil) // will lock
 	if err != nil {
 		return nil, nil, err
@@ -498,15 +494,15 @@ func (m *MinorBlockChain) FinalizeAndAddBlock(block *types.MinorBlock) (*types.M
 	coinbaseAmount.Add(evmState.GetBlockFee())
 
 	block.Finalize(receipts, evmState.IntermediateRoot(true), evmState.GetGasUsed(), evmState.GetXShardReceiveGasUsed(), coinbaseAmount, evmState.GetTxCursorInfo())
-	fmt.Println("MMMMMMMMMMMMMMM-2",block.Header().SealHash().String(),block.MetaHash().String())
-	fmt.Println("MMMMM-TxHash",block.Meta().TxHash.String())
-	fmt.Println("MMMMM-root",block.Meta().Root.String())
-	fmt.Println("MMMMM-ReceiptHash",block.Meta().ReceiptHash.String())
-	fmt.Println("MMMMM-GasUsed",block.Meta().GasUsed)
-	fmt.Println("MMMMM-CrossShardGasUsed",block.Meta().CrossShardGasUsed)
-	fmt.Println("MMMMM-XShardTxCursorInfo",block.Meta().XShardTxCursorInfo)
-	fmt.Println("MMMMM-XshardGasLimit",block.Meta().XshardGasLimit)
-	fmt.Println("5033333", block.Meta().XShardTxCursorInfo)
+	//fmt.Println("MMMMMMMMMMMMMMM-2",block.Header().SealHash().String(),block.MetaHash().String())
+	//fmt.Println("MMMMM-TxHash",block.Meta().TxHash.String())
+	//fmt.Println("MMMMM-root",block.Meta().Root.String())
+	//fmt.Println("MMMMM-ReceiptHash",block.Meta().ReceiptHash.String())
+	//fmt.Println("MMMMM-GasUsed",block.Meta().GasUsed)
+	//fmt.Println("MMMMM-CrossShardGasUsed",block.Meta().CrossShardGasUsed)
+	//fmt.Println("MMMMM-XShardTxCursorInfo",block.Meta().XShardTxCursorInfo)
+	//fmt.Println("MMMMM-XshardGasLimit",block.Meta().XshardGasLimit)
+	//fmt.Println("5033333", block.Meta().XShardTxCursorInfo)
 	_, err = m.InsertChain([]types.IBlock{block}, nil) // will lock
 	if err != nil {
 		return nil, nil, err
@@ -746,7 +742,7 @@ func (m *MinorBlockChain) getXShardTxLimits(rBlock *types.RootBlock) map[uint32]
 	return results
 }
 
-func (m *MinorBlockChain) addTransactionToBlock(rootBlockHash common.Hash, block *types.MinorBlock, evmState *state.StateDB) (*types.MinorBlock, types.Receipts, error) {
+func (m *MinorBlockChain) addTransactionToBlock(block *types.MinorBlock, evmState *state.StateDB) (*types.MinorBlock, types.Receipts, error) {
 	// have locked by upper call
 	pending, err := m.txPool.Pending() // txpool already locked
 	if err != nil {
@@ -803,7 +799,6 @@ func (m *MinorBlockChain) addTransactionToBlock(rootBlockHash common.Hash, block
 
 	}
 	bHeader := block.Header()
-	bHeader.PrevRootBlockHash = rootBlockHash
 	return types.NewMinorBlock(bHeader, block.Meta(), txsInBlock, receipts, nil), receipts, nil
 }
 
@@ -891,11 +886,18 @@ func (m *MinorBlockChain) CreateBlockToMine(createTime *uint64, address *account
 		return nil, ErrNotSameRootChain
 	}
 
+	bHeader := block.Header()
+	bHeader.PrevRootBlockHash = m.rootTip.Hash()
+	block=types.NewMinorBlock(bHeader, block.Meta(), nil, nil, nil)
+
+	//fmt.Println("block.par",block.PrevRootBlockHash().String())
 	_, txCursor, err := m.RunCrossShardTxWithCursor(evmState, block)
+	//fmt.Println("block.par",block.PrevRootBlockHash().String())
 	if err != nil {
 		return nil, err
 	}
 	evmState.SetTxCursorInfo(txCursor)
+	//fmt.Println("run-cross","end")
 
 	//fmt.Println("????-878", evmState.GetGasUsed(), xShardGasLimit, evmState.GetGasLimit())
 	if evmState.GetGasUsed().Cmp(xShardGasLimit) <= 0 {
@@ -907,11 +909,18 @@ func (m *MinorBlockChain) CreateBlockToMine(createTime *uint64, address *account
 	recipiets := make(types.Receipts, 0)
 	if *includeTx {
 		//	fmt.Println("885", evmState.GetGasUsed(), evmState.GetGasLimit())
-		block, recipiets, err = m.addTransactionToBlock(m.rootTip.Hash(), block, evmState)
+	//	fmt.Println("mmmmm",m.rootTip.Number,m.rootTip.Hash().String())
+	//	fmt.Println("block",block.Header().PrevRootBlockHash.String())
+	//	sb:=m.getRootBlockHeaderByHash(block.Header().PrevRootBlockHash)
+		//fmt.Println("sb",sb.Number)
+
+		block, recipiets, err = m.addTransactionToBlock(block, evmState)
 		if err != nil {
 			return nil, err
 		}
 	}
+
+	//fmt.Println("add block","end")
 
 	pureCoinbaseAmount := m.getCoinbaseAmount(block.Header().Number)
 	for k, v := range pureCoinbaseAmount.BalanceMap {
@@ -919,6 +928,8 @@ func (m *MinorBlockChain) CreateBlockToMine(createTime *uint64, address *account
 	}
 	pureCoinbaseAmount.Add(evmState.GetBlockFee())
 	block.Finalize(recipiets, evmState.IntermediateRoot(true), evmState.GetGasUsed(), evmState.GetXShardReceiveGasUsed(), pureCoinbaseAmount,evmState.GetTxCursorInfo())
+	//fmt.Println("FFinalze","end")
+//	fmt.Println("block.par",block.PrevRootBlockHash().String())
 	return block, nil
 }
 
@@ -1657,7 +1668,7 @@ func (m *MinorBlockChain) RunCrossShardTxWithCursor(evmState *state.StateDB, mBl
 	}
 	cursorInfo := preMinorBlock.Meta().XShardTxCursorInfo
 	cursor := NewXShardTxCursor(m, mBlock.Header(), cursorInfo)
-	fmt.Println("strt",mBlock.NumberU64(),cursor.getCursorInfo().XShardDepositIndex,cursor.getCursorInfo().RootBlockHeight,cursor.getCursorInfo().MinorBlockIndex)
+	//fmt.Println("strt",mBlock.NumberU64(),cursor.getCursorInfo().XShardDepositIndex,cursor.getCursorInfo().RootBlockHeight,cursor.getCursorInfo().MinorBlockIndex)
 	txList := make([]*types.CrossShardTransactionDeposit, 0)
 	for true {
 		xShardDepositTx, err := cursor.getNextTx()
@@ -1677,6 +1688,6 @@ func (m *MinorBlockChain) RunCrossShardTxWithCursor(evmState *state.StateDB, mBl
 		}
 	}
 	evmState.SetXShardReceiveGasUsed(evmState.GetGasUsed())
-	fmt.Println("end",mBlock.NumberU64(),cursor.getCursorInfo().XShardDepositIndex,cursor.getCursorInfo().RootBlockHeight,cursor.getCursorInfo().MinorBlockIndex)
+	//fmt.Println("end",mBlock.NumberU64(),cursor.getCursorInfo().XShardDepositIndex,cursor.getCursorInfo().RootBlockHeight,cursor.getCursorInfo().MinorBlockIndex)
 	return txList, cursor.getCursorInfo(), nil
 }

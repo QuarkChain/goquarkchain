@@ -20,7 +20,10 @@ var (
 )
 
 func appendNewBlock(blockchain *core.MinorBlockChain, acc1 account.Address, t *testing.T) (*types.MinorBlock, types.Receipts) {
+	//fmt.Println("LLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL")
+//	fmt.Println("ready to create block")
 	newBlock, err := blockchain.CreateBlockToMine(nil, &acc1, nil, nil, nil)
+	//fmt.Println("ready to create block end",newBlock.PrevRootBlockHash().String())
 	if err != nil {
 		t.Fatalf("failed to CreateBlockToMine: %v", err)
 	}
@@ -39,7 +42,7 @@ func appendNewBlock(blockchain *core.MinorBlockChain, acc1 account.Address, t *t
 		}
 	}
 	minedBlock := <-resultsCh
-	//fmt.Println("minedBloak",minedBlock.IHeader().SealHash().String(),minedBlock.IHeader().(*types.MinorBlockHeader).MetaHash.String(),minedBlock.IHeader().(*types.MinorBlockHeader))
+	//fmt.Println("minedBloak",minedBlock.IHeader().(*types.MinorBlockHeader).PrevRootBlockHash.String())
 	block, rs, err := blockchain.FinalizeAndAddBlock(minedBlock.(*types.MinorBlock))
 	if err != nil {
 		t.Fatalf("failed to FinalizeAndAddBlock: %v, %v", err, string(debug.Stack()))
