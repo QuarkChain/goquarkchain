@@ -93,7 +93,7 @@ func defaultClusterConfig(chainSize, shardSize, slaveSize uint32, geneRHeights m
 		for _, addr := range addrList {
 			addr := addr.AddressInShard(fullShardId)
 			shardCfg.Genesis.Alloc[addr] = map[string]*big.Int{
-				"qkc": big.NewInt(int64(genesisBalance)),
+				"QKC": big.NewInt(int64(genesisBalance)),
 			}
 		}
 		// shardCfg.Genesis.Alloc[account.CreatEmptyAddress(fullShardId)] = big.NewInt(int64(genesisBalance))

@@ -18,6 +18,9 @@ import (
 	"time"
 )
 
+var(
+	testGenesisTokenID=common.TokenIDEncode("QKC")
+)
 func tipGen(geneAcc *account.Account, shrd *shard.ShardBackend) *types.MinorBlock {
 	iBlock, _, err := shrd.CreateBlockToMine()
 	if err != nil {
@@ -680,7 +683,7 @@ func TestHandleGetMinorBlockListRequestWithTotalDiff(t *testing.T) {
 	cluster.Start(5*time.Second, true)
 	defer cluster.Stop()
 
-	calCoinBase := func(rootBlock *types.RootBlock) map[string]*big.Int {
+	calCoinBase := func(rootBlock *types.RootBlock) *types.TokenBalanceMap {
 		res := make(map[string]*big.Int)
 		ret := new(big.Int).Set(cluster[0].clstrCfg.Quarkchain.Root.CoinbaseAmount)
 		rewardTaxRate := cluster[0].clstrCfg.Quarkchain.RewardTaxRate
@@ -690,13 +693,15 @@ func TestHandleGetMinorBlockListRequestWithTotalDiff(t *testing.T) {
 
 		minorBlockFee := new(big.Int)
 		for _, header := range rootBlock.MinorBlockHeaders() {
-			minorBlockFee.Add(minorBlockFee, header.CoinbaseAmount.BalanceMap)
+			minorBlockFee.Add(minorBlockFee, header.CoinbaseAmount.BalanceMap[testGenesisTokenID])
 		}
 		minorBlockFee.Mul(minorBlockFee, ratio.Num())
 		minorBlockFee.Div(minorBlockFee, ratio.Denom())
 		ret.Add(ret, minorBlockFee)
-		res["qkc"] = ret
-		return res
+		res["QKC"] = ret
+		t:=types.NewTokenBalanceMap()
+		t.BalanceMap[testGenesisTokenID]=ret
+		return t
 	}
 	tipNumber := cluster[0].master.GetTip()
 	rb0, err := cluster[0].master.GetRootBlockByNumber(&tipNumber)
@@ -707,7 +712,7 @@ func TestHandleGetMinorBlockListRequestWithTotalDiff(t *testing.T) {
 	//Cluster 0 generates a root block of height 1 with 1e6 difficulty
 	coinbaseAmount := calCoinBase(block0)
 	rb1 := rb0.Header().CreateBlockToAppend(nil, big.NewInt(1000000), nil, nil,
-		nil).Finalize(coinbaseAmount, nil)
+		nil).Finalize(coinbaseAmount, nil,common.EmptyHash)
 	//Cluster 0 broadcasts the root block to cluster 1
 	err = cluster[0].master.AddRootBlock(rb1)
 	assert.NoError(t, err)
@@ -737,7 +742,7 @@ func TestHandleGetMinorBlockListRequestWithTotalDiff(t *testing.T) {
 
 	//Cluster 1 generates a new root block with higher total difficulty
 	rb2 := rb0.Header().CreateBlockToAppend(nil, big.NewInt(3000000), nil, nil,
-		nil).Finalize(coinbaseAmount, nil)
+		nil).Finalize(coinbaseAmount, nil,common.EmptyHash)
 	err = cluster[1].master.AddRootBlock(rb2)
 	assert.NoError(t, err)
 	assert.Equal(t, cluster[1].master.CurrentBlock().Hash(), rb2.Header().Hash())
