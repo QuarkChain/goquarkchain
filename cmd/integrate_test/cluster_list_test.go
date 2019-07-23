@@ -791,7 +791,7 @@ func TestNewBlockHeaderPool(t *testing.T) {
 
 //Test the broadcast is only done to the neighbors
 func TestGetRootBlockHeadersWithSkip(t *testing.T) {
-	cfglist := GetClusterConfig(2, 2, 2, 2, nil, "", config.PoWSimulate, true)
+	cfglist := GetClusterConfig(2, 2, 2, 2, nil, defaultbootNode, config.PoWSimulate, true)
 	_, cluster := CreateClusterList(2, cfglist)
 	cluster.Start(5*time.Second, true)
 	defer cluster.Stop()
