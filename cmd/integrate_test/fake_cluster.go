@@ -157,16 +157,14 @@ func (c *clusterNode) Start() (err error) {
 	}
 
 	mstr := c.GetMaster()
-	retryTimes := 3
+	retryTimes := 7
 	for retryTimes > 0 {
 		if err = mstr.Start(); err == nil {
 			c.status = true
 			return
-		} else {
-			retryTimes--
-			time.Sleep(2 * time.Second)
-			continue
 		}
+		retryTimes--
+		time.Sleep(1 * time.Second)
 	}
 
 	return err
