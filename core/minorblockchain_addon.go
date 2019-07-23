@@ -1242,6 +1242,13 @@ func (m *MinorBlockChain) GetBranch() account.Branch {
 	return m.branch
 }
 
+func (m *MinorBlockChain) GetMinorTip() *types.MinorBlockHeader {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return m.confirmedHeaderTip
+}
+
+
 func (m *MinorBlockChain) GetRootTip() *types.RootBlockHeader {
 	m.mu.RLock()
 	defer m.mu.RUnlock()

@@ -40,7 +40,7 @@ func TestProtocolCompatibility(t *testing.T) {
 
 func TestGetRootBlockHeaders(t *testing.T) {
 	pm, _ := newTestProtocolManagerMust(t, rootBlockHeaderListLimit+15, nil, NewFakeSynchronizer(1), nil)
-	peer, _ := newTestPeer("peer", int(qkcconfig.P2PProtocolVersion), pm, true)
+	peer, _ := newTestPeer("Peer", int(qkcconfig.P2PProtocolVersion), pm, true)
 	clientPeer := newTestClientPeer(int(qkcconfig.P2PProtocolVersion), peer.app)
 	defer peer.close()
 
@@ -100,11 +100,11 @@ func TestGetRootBlockHeaders(t *testing.T) {
 		}
 
 		if len(rheaders) != len(headers) {
-			t.Errorf("test %d: peer result count is mismatch: got %d, want %d", i, len(rheaders), len(headers))
+			t.Errorf("test %d: Peer result count is mismatch: got %d, want %d", i, len(rheaders), len(headers))
 		}
 		for index, header := range rheaders {
 			if header.Hash() != headers[index].Hash() {
-				t.Errorf("test %d: peer result %d count is mismatch: got %v, want %v", i, index, header.Hash(), headers[index].Hash())
+				t.Errorf("test %d: Peer result %d count is mismatch: got %v, want %v", i, index, header.Hash(), headers[index].Hash())
 			}
 		}
 	}
@@ -130,7 +130,7 @@ func TestCloseConnWithErr(t *testing.T) {
 	}
 	// Run each of the tests and verify the results against the chain
 	for i, request := range invalidReqs {
-		peer, _ := newTestPeer("peer", int(qkcconfig.P2PProtocolVersion), pm, true)
+		peer, _ := newTestPeer("Peer", int(qkcconfig.P2PProtocolVersion), pm, true)
 
 		// Send the hash request and verify the response
 		msg, err := p2p.MakeMsg(request.op, peer.getRpcId(), p2p.Metadata{}, request.content)
@@ -144,14 +144,14 @@ func TestCloseConnWithErr(t *testing.T) {
 			t.Errorf("test %d: read msg should be timeout", i)
 		}
 		if pm.peers.Peer(peer.id) != nil {
-			t.Errorf("test %d: peer should be Unregister", i)
+			t.Errorf("test %d: Peer should be Unregister", i)
 		}
 	}
 }
 
 func TestGetRootBlocks(t *testing.T) {
 	pm, _ := newTestProtocolManagerMust(t, rootBlockBatchSize+15, nil, NewFakeSynchronizer(1), nil)
-	peer, _ := newTestPeer("peer", int(qkcconfig.P2PProtocolVersion), pm, true)
+	peer, _ := newTestPeer("Peer", int(qkcconfig.P2PProtocolVersion), pm, true)
 	clientPeer := newTestClientPeer(int(qkcconfig.P2PProtocolVersion), peer.app)
 	defer peer.close()
 
@@ -193,11 +193,11 @@ func TestGetRootBlocks(t *testing.T) {
 			t.Errorf("test %d: make message failed: %v", i, err)
 		}
 		if len(rblocks) != len(blocks) {
-			t.Errorf("test %d: peer result count is mismatch: got %d, want %d", i, len(rblocks), len(blocks))
+			t.Errorf("test %d: Peer result count is mismatch: got %d, want %d", i, len(rblocks), len(blocks))
 		}
 		for index, block := range rblocks {
 			if block.Hash() != blocks[index].Hash() {
-				t.Errorf("test %d: peer result %d count is mismatch: got %v, want %v", i, index, block.Hash(), blocks[index].Hash())
+				t.Errorf("test %d: Peer result %d count is mismatch: got %v, want %v", i, index, block.Hash(), blocks[index].Hash())
 			}
 		}
 	}
@@ -216,7 +216,7 @@ func TestGetMinorBlockHeaders(t *testing.T) {
 		minorHeaders[i] = block.Header()
 	}
 
-	peer, _ := newTestPeer("peer", int(qkcconfig.P2PProtocolVersion), pm, true)
+	peer, _ := newTestPeer("Peer", int(qkcconfig.P2PProtocolVersion), pm, true)
 	clientPeer := newTestClientPeer(int(qkcconfig.P2PProtocolVersion), peer.app)
 	defer peer.close()
 
@@ -271,11 +271,11 @@ func TestGetMinorBlockHeaders(t *testing.T) {
 		}
 
 		if len(rheaders) != len(tt.expect) {
-			t.Errorf("test %d: peer result count is mismatch: got %d, want %d", i, len(rheaders), len(tt.expect))
+			t.Errorf("test %d: Peer result count is mismatch: got %d, want %d", i, len(rheaders), len(tt.expect))
 		}
 		for index, header := range rheaders {
 			if header.Hash() != tt.expect[index].Hash() {
-				t.Errorf("test %d: peer result %d count is mismatch: got %v, want %v", i, index, header.Hash(), tt.expect[index].Hash())
+				t.Errorf("test %d: Peer result %d count is mismatch: got %v, want %v", i, index, header.Hash(), tt.expect[index].Hash())
 			}
 		}
 	}
@@ -293,7 +293,7 @@ func TestGetMinorBlocks(t *testing.T) {
 	for i, block := range minorBlocks {
 		hashList[i] = block.Hash()
 	}
-	peer, _ := newTestPeer("peer", int(qkcconfig.P2PProtocolVersion), pm, true)
+	peer, _ := newTestPeer("Peer", int(qkcconfig.P2PProtocolVersion), pm, true)
 	clientPeer := newTestClientPeer(int(qkcconfig.P2PProtocolVersion), peer.app)
 	defer peer.close()
 
@@ -344,11 +344,11 @@ func TestGetMinorBlocks(t *testing.T) {
 		}
 
 		if len(rheaders) != len(tt.expect) {
-			t.Errorf("test %d: peer result count is mismatch: got %d, want %d", i, len(rheaders), len(tt.expect))
+			t.Errorf("test %d: Peer result count is mismatch: got %d, want %d", i, len(rheaders), len(tt.expect))
 		}
 		for index, header := range rheaders {
 			if header.Hash() != tt.expect[index].Hash() {
-				t.Errorf("test %d: peer result %d count is mismatch: got %v, want %v", i, index, header.Hash(), tt.expect[index].Hash())
+				t.Errorf("test %d: Peer result %d count is mismatch: got %v, want %v", i, index, header.Hash(), tt.expect[index].Hash())
 			}
 		}
 	}
@@ -364,7 +364,7 @@ func TestBroadcastMinorBlock(t *testing.T) {
 		return shardConns
 	})
 	minorBlock := generateMinorBlocks(1)[0]
-	peer, _ := newTestPeer("peer", int(qkcconfig.P2PProtocolVersion), pm, true)
+	peer, _ := newTestPeer("Peer", int(qkcconfig.P2PProtocolVersion), pm, true)
 	clientPeer := newTestClientPeer(int(qkcconfig.P2PProtocolVersion), peer.app)
 	defer peer.close()
 
@@ -392,7 +392,7 @@ func TestBroadcastMinorBlock(t *testing.T) {
 	}
 	time.Sleep(2 * time.Second)
 	if pm.peers.Peer(peer.id) != nil {
-		t.Errorf("peer should be Unregister")
+		t.Errorf("Peer should be Unregister")
 	}
 }
 
@@ -409,7 +409,7 @@ func TestBroadcastTransactions(t *testing.T) {
 	for _, tx := range txs {
 		hashList = append(hashList, tx.Hash())
 	}
-	peer, _ := newTestPeer("peer", int(qkcconfig.P2PProtocolVersion), pm, true)
+	peer, _ := newTestPeer("Peer", int(qkcconfig.P2PProtocolVersion), pm, true)
 	clientPeer := newTestClientPeer(int(qkcconfig.P2PProtocolVersion), peer.app)
 	defer peer.close()
 
@@ -438,7 +438,7 @@ func TestBroadcastNewMinorBlockTip(t *testing.T) {
 		return shardConns
 	})
 	minorBlocks := generateMinorBlocks(30)
-	peer, _ := newTestPeer("peer", int(qkcconfig.P2PProtocolVersion), pm, true)
+	peer, _ := newTestPeer("Peer", int(qkcconfig.P2PProtocolVersion), pm, true)
 	clientPeer := newTestClientPeer(int(qkcconfig.P2PProtocolVersion), peer.app)
 	defer peer.close()
 
@@ -453,7 +453,7 @@ func TestBroadcastNewMinorBlockTip(t *testing.T) {
 	}
 	time.Sleep(1 * time.Second)
 	if pm.peers.Peer(peer.id) == nil {
-		t.Errorf("peer should not be unregister")
+		t.Errorf("Peer should not be unregister")
 	}
 	for _, conn := range shardConns {
 		conn.(*mock_master.MockShardConnForP2P).EXPECT().
@@ -473,7 +473,7 @@ func TestBroadcastNewMinorBlockTip(t *testing.T) {
 	}
 	time.Sleep(2 * time.Second)
 	if pm.peers.Peer(peer.id) != nil {
-		t.Errorf("peer should be unregister")
+		t.Errorf("Peer should be unregister")
 	}
 }
 
@@ -482,7 +482,7 @@ func TestBroadcastNewRootBlockTip(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	pm, _ := newTestProtocolManagerMust(t, 15, nil, sync, nil)
-	peer, _ := newTestPeer("peer", int(qkcconfig.P2PProtocolVersion), pm, true)
+	peer, _ := newTestPeer("Peer", int(qkcconfig.P2PProtocolVersion), pm, true)
 	clientPeer := newTestClientPeer(int(qkcconfig.P2PProtocolVersion), peer.app)
 	defer peer.close()
 	blocks := core.GenerateRootBlockChain(pm.rootBlockChain.CurrentBlock(), pm.rootBlockChain.Engine(), 1, nil)
@@ -576,7 +576,7 @@ func ExpectMsg(r p2p.MsgReader, op p2p.P2PCommandOp, metadata p2p.Metadata, cont
 	return &qkcMsg, nil
 }
 
-func handleMsg(peer *peer) error {
+func handleMsg(peer *Peer) error {
 	msg, err := peer.rw.ReadMsg()
 	if err != nil {
 		return err

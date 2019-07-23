@@ -11,7 +11,7 @@ type PrivateP2PAPI struct {
 	peers *peerSet
 }
 
-// NewPrivateP2PAPI creates a new peer shard p2p protocol API.
+// NewPrivateP2PAPI creates a new Peer shard p2p protocol API.
 func NewPrivateP2PAPI(peers *peerSet) *PrivateP2PAPI {
 	return &PrivateP2PAPI{peers}
 }
@@ -31,7 +31,7 @@ func (api *PrivateP2PAPI) BroadcastMinorBlock(branch uint32, block *types.MinorB
 }
 
 // BroadcastTransactions only be called when run performance test which the txs
-// are created by shard itself, so broadcast to all the peer
+// are created by shard itself, so broadcast to all the Peer
 func (api *PrivateP2PAPI) BroadcastTransactions(branch uint32, txs []*types.Transaction) {
 	for _, peer := range api.peers.Peers() {
 		peer.AsyncSendTransactions(branch, txs)
