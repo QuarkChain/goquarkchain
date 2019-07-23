@@ -283,7 +283,6 @@ func TestPoSWCoinbaseSendEqualLocked(t *testing.T) {
 	if err = tryAddTx(blockchain, tx0); err != nil {
 		t.Fatalf("add tx failed: %v", err)
 	}
-
 	_, rs := appendNewBlock(blockchain, acc1, t)
 	if rs[0].Status != uint64(1) {
 		t.Errorf("tx status wrong: expected 1, got %d", rs[2].Status)
@@ -520,7 +519,7 @@ func TestPoSWWindowEdgeCases(t *testing.T) {
 	// mining new blocks should fail
 	tip1 := blockchain.GetMinorBlock(blockchain.CurrentHeader().Hash())
 	newBlock1 := tip1.CreateBlockToAppend(nil, diff, &acc, nil, nil, nil, nil)
-	if _, _, err = blockchain.FinalizeAndAddBlock(newBlock1); err != nil {
-		t.Fatalf("failed to FinalizeAndAddBlock: %v", err)
+	if _, _, err = blockchain.FinalizeAndAddBlock(newBlock1); err == nil {
+		t.Error("Should fail due to PoSW")
 	}
 }

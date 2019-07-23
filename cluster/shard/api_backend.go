@@ -242,7 +242,7 @@ func (s *ShardBackend) NewMinorBlock(block *types.MinorBlock) (err error) {
 	}
 
 	header := block.Header()
-	if err = s.engine.VerifySeal(s.MinorBlockChain, header, header.Difficulty); err != nil {
+	if err = s.engine.VerifySeal(s.MinorBlockChain, header, nil); err != nil {
 		log.Error("got block with bad seal in handle_new_block", "branch", header.Branch.Value, "err", err)
 		return err
 	}

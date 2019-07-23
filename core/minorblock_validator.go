@@ -213,16 +213,18 @@ func (v *MinorBlockValidator) ValidatorSeal(mHeader types.IHeader) error {
 	if header.NumberU64() == 0 {
 		return nil
 	}
-	branch := header.GetBranch()
-	fullShardID := branch.GetFullShardID()
-	shardConfig := v.quarkChainConfig.GetShardConfigByFullShardID(fullShardID)
-	consensusType := shardConfig.ConsensusType
-	return v.validateSeal(header, consensusType, nil)
-}
-
-func (v *MinorBlockValidator) validateSeal(header types.IHeader, consensusType string, diff *big.Int) error {
-	if diff == nil {
-		diff = header.GetDifficulty()
+	var diff *big.Int
+	if v.posw.IsPoSWEnabled() {
+		balance, err := v.bc.GetBalance(header.GetCoinbase().Recipient, nil)
+		if err != nil {
+			log.Error("failed to get coinbase balance", err)
+		}
+		diff, err = v.posw.PoSWDiffAdjust(mHeader, balance)
+		if err != nil {
+			log.Error(v.logInfo, "PoSWDiffAdjust err", err)
+			return err
+		}
+		log.Info("[PoSW]ValidatorSeal", "number", header.Number, "diff", header.Difficulty, "adjusted to", diff)
 	}
 	return v.engine.VerifySeal(v.bc, header, diff)
 }

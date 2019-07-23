@@ -151,7 +151,7 @@ func (c *CommonEngine) VerifyHeader(
 			header.GetTime(), parent.GetTime())
 	}
 
-	adjustedDiff := new(big.Int).SetUint64(0)
+	var adjustedDiff *big.Int
 	if !chain.Config().SkipRootDifficultyCheck {
 		expectedDiff, err := c.diffCalc.CalculateDifficulty(parent, header.GetTime())
 		if err != nil {
@@ -176,10 +176,9 @@ func (c *CommonEngine) VerifyHeader(
 // the consensus rules of the given engine.
 func (c *CommonEngine) VerifySeal(chain ChainReader, header types.IHeader, adjustedDiff *big.Int) error {
 	diff := big.NewInt(0)
-	if adjustedDiff != nil {
+	if adjustedDiff != nil { //non-nil means already adjusted.
 		diff = diff.Set(adjustedDiff)
-	}
-	if minorHeader, ok := header.(*types.MinorBlockHeader); ok {
+	} else if minorHeader, ok := header.(*types.MinorBlockHeader); ok {
 		if diff.Cmp(big.NewInt(0)) == 0 {
 			diff = minorHeader.GetDifficulty()
 		}
