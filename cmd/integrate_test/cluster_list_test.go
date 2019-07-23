@@ -1,11 +1,9 @@
-// +build integrationTest
-
 package test
 
 import (
 	"bytes"
-	"fmt"
 	"github.com/QuarkChain/goquarkchain/account"
+	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/cluster/shard"
 	"github.com/QuarkChain/goquarkchain/cmd/utils"
 	"github.com/QuarkChain/goquarkchain/common"
@@ -35,12 +33,14 @@ func retryTrueWithTimeout(f func() bool, duration int64) bool {
 }
 
 func TestSingleCluster(t *testing.T) {
-	_, clstrList := CreateClusterList(1, 1, 1, 1, nil)
+	cfgs := GetClusterConfig(1, 1, 1, 1, nil, defaultbootNode, config.PoWSimulate, true)
+	_, clstrList := CreateClusterList(1, cfgs)
 	assert.Equal(t, len(clstrList)-1, 1)
 }
 
 func TestThreeClusters(t *testing.T) {
-	_, clstrList := CreateClusterList(3, 1, 1, 1, nil)
+	cfglist := GetClusterConfig(3, 1, 1, 1, nil, defaultbootNode, config.PoWSimulate, true)
+	_, clstrList := CreateClusterList(3, cfglist)
 	assert.Equal(t, len(clstrList)-1, 3)
 }
 
@@ -55,9 +55,11 @@ func TestShardGenesisForkFork(t *testing.T) {
 		}
 		mHeader0, mHeader1 *types.MinorBlockHeader
 	)
-	_, clstrList := CreateClusterList(2, 1, shardSize, 1, geneRHeights)
+	cfglist := GetClusterConfig(2, 1, shardSize, 1, geneRHeights, defaultbootNode, config.PoWSimulate, true)
+	_, clstrList := CreateClusterList(2, cfglist)
 	clstrList.Start(5*time.Second, true)
 	defer clstrList.Stop()
+	// clstrList.PrintPeerList()
 
 	root0 := clstrList[0].CreateAndInsertBlocks([]uint32{id0}, 3)
 	assert.Equal(t, retryTrueWithTimeout(func() bool {
@@ -72,8 +74,12 @@ func TestShardGenesisForkFork(t *testing.T) {
 	assert.Equal(t, retryTrueWithTimeout(func() bool {
 		rootHeight := uint64(1)
 		root1, _ := clstrList[1].GetMaster().GetRootBlockByNumber(&rootHeight)
-		genesis1 := clstrList[1].GetShard(id1).MinorBlockChain.GetBlockByNumber(0)
-		if root1 == nil || common.IsNil(genesis1) {
+		shrd1 := clstrList[1].GetShard(id1)
+		if root1 == nil || shrd1 == nil {
+			return false
+		}
+		genesis1 := shrd1.MinorBlockChain.GetBlockByNumber(0)
+		if common.IsNil(genesis1) {
 			return false
 		}
 		mHeader1 = genesis1.IHeader().(*types.MinorBlockHeader)
@@ -109,10 +115,11 @@ func TestGetMinorBlockHeadersWithSkip(t *testing.T) {
 		numCluster                  = 2
 		chainSize, shardSize uint32 = 1, 2
 	)
-	_, clstrList := CreateClusterList(numCluster, chainSize, shardSize, chainSize, nil)
+	cfglist := GetClusterConfig(numCluster, chainSize, shardSize, chainSize, nil, defaultbootNode, config.PoWSimulate, true)
+	_, clstrList := CreateClusterList(numCluster, cfglist)
 	clstrList.Start(5*time.Second, true)
 	defer clstrList.Stop()
-	clstrList.PrintPeerList()
+	// clstrList.PrintPeerList()
 
 	var (
 		id0       = uint32(0<<16 | shardSize | 0)
@@ -159,8 +166,9 @@ func TestCreateShardAtDifferentHeight(t *testing.T) {
 			id1: 2,
 		}
 	)
+	cfglist := GetClusterConfig(1, 2, shardSize, 1, geneRHeights, defaultbootNode, config.PoWSimulate, true)
 
-	_, clstrList := CreateClusterList(1, 2, shardSize, 1, geneRHeights)
+	_, clstrList := CreateClusterList(1, cfglist)
 	clstrList.Start(0, true)
 	defer clstrList.Stop()
 
@@ -182,7 +190,8 @@ func TestCreateShardAtDifferentHeight(t *testing.T) {
 }
 
 func TestGetPrimaryAccountData(t *testing.T) {
-	geneAcc, clstrList := CreateClusterList(1, 1, 2, 2, nil)
+	cfglist := GetClusterConfig(1, 1, 2, 2, nil, defaultbootNode, config.PoWSimulate, true)
+	geneAcc, clstrList := CreateClusterList(1, cfglist)
 	fullShardId, _ := geneAcc.QKCAddress.GetFullShardID(2)
 	clstrList.Start(0, true)
 	defer clstrList.Stop()
@@ -215,7 +224,8 @@ func TestGetPrimaryAccountData(t *testing.T) {
 
 func TestAddTransaction(t *testing.T) {
 	var shardSize uint32 = 2
-	geneAcc, clstrList := CreateClusterList(2, 1, shardSize, 1, nil)
+	cfglist := GetClusterConfig(2, 1, shardSize, 2, nil, defaultbootNode, config.PoWSimulate, true)
+	geneAcc, clstrList := CreateClusterList(2, cfglist)
 	clstrList.Start(5*time.Second, true)
 	defer clstrList.Stop()
 
@@ -296,7 +306,8 @@ func TestAddTransaction(t *testing.T) {
 
 func TestAddMinorBlockRequestList(t *testing.T) {
 	var shardSize uint32 = 2
-	_, clstrList := CreateClusterList(2, 1, shardSize, 1, nil)
+	cfglist := GetClusterConfig(2, 1, shardSize, 2, nil, defaultbootNode, config.PoWSimulate, true)
+	_, clstrList := CreateClusterList(2, cfglist)
 	clstrList.Start(5*time.Second, true)
 	defer clstrList.Stop()
 
@@ -337,16 +348,17 @@ func TestAddMinorBlockRequestList(t *testing.T) {
 
 func TestAddRootBlockRequestList(t *testing.T) {
 	// fullShardId, _ := geneAcc.QKCAddress.GetFullShardID(2)
-	var shardSIze uint32 = 2
-	geneAcc, clstrList := CreateClusterList(2, 1, shardSIze, 1, nil)
+	var shardSize uint32 = 2
+	cfglist := GetClusterConfig(2, 1, shardSize, 2, nil, defaultbootNode, config.PoWSimulate, true)
+	geneAcc, clstrList := CreateClusterList(2, cfglist)
 	clstrList.Start(5*time.Second, true)
 	defer clstrList.Stop()
 
 	var (
 		mstr0     = clstrList[0].GetMaster()
 		mstr1     = clstrList[1].GetMaster()
-		id0       = uint32(0<<16 | shardSIze | 0)
-		id1       = uint32(0<<16 | shardSIze | 1)
+		id0       = uint32(0<<16 | shardSize | 0)
+		id1       = uint32(0<<16 | shardSize | 1)
 		shard0    = clstrList[0].GetShard(id0)
 		shard1    = clstrList[0].GetShard(id1)
 		maxBlocks = shard0.Config.MaxBlocksPerShardInOneRootBlock() - 1
@@ -398,7 +410,8 @@ func TestAddRootBlockRequestList(t *testing.T) {
 }
 
 func TestGetRootBlockHeaderSyncWithFork(t *testing.T) {
-	_, clstrList := CreateClusterList(2, 1, 1, 1, nil)
+	cfglist := GetClusterConfig(2, 1, 1, 2, nil, defaultbootNode, config.PoWSimulate, true)
+	_, clstrList := CreateClusterList(2, cfglist)
 	clstrList.Start(5*time.Second, true)
 	defer clstrList.Stop()
 
@@ -439,22 +452,23 @@ func TestGetRootBlockHeaderSyncWithFork(t *testing.T) {
 
 func TestBroadcastCrossShardTransactions(t *testing.T) {
 	var (
-		chainSize uint32 = 2
 		shardSize uint32 = 2
 		id0              = uint32(0<<16 | shardSize | 0)
 		id1              = uint32(0<<16 | shardSize | 1)
 	)
-	geneAcc, clstrList := CreateClusterList(1, chainSize, shardSize, chainSize, nil)
-	clstrList.Start(0, true)
+	cfglist := GetClusterConfig(1, 1, shardSize, 2, nil, defaultbootNode, config.PoWSimulate, true)
+	geneAcc, clstrList := CreateClusterList(1, cfglist)
+	clstrList.Start(5*time.Second, true)
 	defer clstrList.Stop()
+	// clstrList.PrintPeerList()
 	var (
-		toAddr, _ = account.CreatRandomAccountWithFullShardKey(id1)
-		mstr      = clstrList[0].GetMaster()
-		shrd0     = clstrList[0].GetShard(id0)
-		shrd1     = clstrList[0].GetShard(id1)
+		toAddr = getAccByIndex(2).QKCAddress.AddressInShard(id1)
+		mstr   = clstrList[0].GetMaster()
+		shrd0  = clstrList[0].GetShard(id0)
+		shrd1  = clstrList[0].GetShard(id1)
 	)
 	// create a root block
-	clstrList[0].CreateAndInsertBlocks(nil, 3)
+	clstrList[0].CreateAndInsertBlocks([]uint32{id0, id1}, 3)
 
 	tx := createTx(geneAcc.QKCAddress, &toAddr)
 	err := mstr.AddTransaction(tx)
@@ -522,7 +536,7 @@ func TestBroadcastCrossShardTransactions(t *testing.T) {
 		if err != nil {
 			return false
 		}
-		return accData[id1].Balance.Uint64() == uint64(100)
+		return accData[id1].Balance.Uint64() == uint64(genesisBalance+100)
 	}, 1), true)
 }
 
@@ -533,14 +547,16 @@ func TestGetWorkFromSlave(t *testing.T) {
 		id0              = uint32(0<<16 | shardSize | 0)
 		// id1              = uint32(0<<16 | shardSize | 1)
 	)
-	_, clstrList := CreateClusterList(1, chainSize, shardSize, chainSize, nil)
+	cfglist := GetClusterConfig(1, chainSize, shardSize, chainSize, nil, defaultbootNode, config.PoWDoubleSha256, true)
+	_, clstrList := CreateClusterList(1, cfglist)
 	clstrList.Start(5*time.Second, true)
 	defer clstrList.Stop()
+	// clstrList.PrintPeerList()
 	var (
 		slave = clstrList[0].GetSlavelist()[0]
 		mstr  = clstrList[0].GetMaster()
 	)
-	slave.SetMining(true)
+	mstr.SetMining(true)
 
 	assert.Equal(t, retryTrueWithTimeout(func() bool {
 		work, err := mstr.GetWork(account.NewBranch(id0))
@@ -548,7 +564,6 @@ func TestGetWorkFromSlave(t *testing.T) {
 			t.Log("failed to get work from slave", "slave id", slave.GetConfig().ID)
 			return false
 		}
-		fmt.Println(work.Number, work.Difficulty.Uint64())
 		return work.Difficulty.Uint64() == uint64(10)
 	}, 3), true)
 	// TODO need to change remote type test.
@@ -560,10 +575,10 @@ func TestShardSynchronizerWithFork(t *testing.T) {
 		shardSize uint32 = 2
 		id0              = uint32(0<<16 | shardSize | 0)
 	)
-	_, clstrList := CreateClusterList(2, chainSize, shardSize, chainSize, nil)
+	cfglist := GetClusterConfig(2, chainSize, shardSize, chainSize, nil, "", config.PoWSimulate, false)
+	_, clstrList := CreateClusterList(2, cfglist)
 	clstrList.Start(5*time.Second, false)
 	defer clstrList.Stop()
-	clstrList.PrintPeerList()
 
 	var (
 		mstr      = clstrList[0].GetMaster()
@@ -591,7 +606,6 @@ func TestShardSynchronizerWithFork(t *testing.T) {
 	}
 	assert.Equal(t, shard10.GetTip(), uint64(12))
 	clstrList.Start(5*time.Second, true)
-	clstrList.PrintPeerList()
 
 	iBlock, _, err := shard00.CreateBlockToMine()
 	assert.NoError(t, err)
@@ -621,23 +635,22 @@ func TestShardSynchronizerWithFork(t *testing.T) {
 	}, 1), true)
 }
 
-func TestBroadcastCrossShardTransactionsToNeighborOnly(t *testing.T) {
+func TestBroadcastCrossShardTransactionListToNeighborOnly(t *testing.T) {
 	var (
 		chainSize uint32 = 2
 		shardSize uint32 = 64
-		id0              = uint32(0<<16 | shardSize | 0)
 	)
-	_, clstrList := CreateClusterList(1, chainSize, shardSize, 4, nil)
+	cfglist := GetClusterConfig(1, chainSize, shardSize, 4, nil, defaultbootNode, config.PoWSimulate, true)
+	_, clstrList := CreateClusterList(1, cfglist)
 	clstrList.Start(5*time.Second, false)
 	defer clstrList.Stop()
-	clstrList.PrintPeerList()
 
 	var (
-		mstr  = clstrList[0].GetMaster()
-		shrd0 = clstrList[0].GetShard(id0)
+		mstr = clstrList[0].GetMaster()
+		shrd = clstrList[0].GetShard(shardSize)
 	)
 	clstrList[0].CreateAndInsertBlocks(nil, 2)
-	iBlock, _, err := shrd0.CreateBlockToMine()
+	iBlock, _, err := shrd.CreateBlockToMine()
 	assert.NoError(t, err)
 	mBlock := iBlock.(*types.MinorBlock)
 	err = mstr.AddMinorBlock(mBlock.Branch().Value, mBlock)
@@ -647,19 +660,21 @@ func TestBroadcastCrossShardTransactionsToNeighborOnly(t *testing.T) {
 	for i := 0; i < 6; i++ {
 		nborShards[1<<uint32(i)] = true
 	}
-	for shardId := 0; shardId < 64; shardId++ {
+	for shardId := 0; shardId < int(shardSize); shardId++ {
 		shrdI := clstrList[0].GetShard(shardSize | uint32(shardId))
 		xshardTxList := shrdI.MinorBlockChain.ReadCrossShardTxList(mBlock.Hash())
 		if nborShards[shardId] {
 			assert.NotNil(t, xshardTxList)
 		} else {
+			// TODO need to check and compare.
 			assert.Nil(t, xshardTxList)
 		}
 	}
 }
 
 func TestHandleGetMinorBlockListRequestWithTotalDiff(t *testing.T) {
-	_, cluster := CreateClusterList(2, 2, 2, 2, nil)
+	cfglist := GetClusterConfig(2, 2, 2, 2, nil, defaultbootNode, config.PoWSimulate, true)
+	_, cluster := CreateClusterList(2, cfglist)
 	cluster.Start(5*time.Second, true)
 	defer cluster.Stop()
 
@@ -744,7 +759,8 @@ func TestHandleGetMinorBlockListRequestWithTotalDiff(t *testing.T) {
 }
 
 func TestNewBlockHeaderPool(t *testing.T) {
-	_, cluster := CreateClusterList(1, 2, 2, 2, nil)
+	cfglist := GetClusterConfig(1, 2, 2, 2, nil, defaultbootNode, config.PoWSimulate, true)
+	_, cluster := CreateClusterList(1, cfglist)
 	cluster.Start(5*time.Second, true)
 	defer cluster.Stop()
 	b1 := tipGen(nil, cluster[0].GetShard(2))
@@ -775,7 +791,8 @@ func TestNewBlockHeaderPool(t *testing.T) {
 
 //Test the broadcast is only done to the neighbors
 func TestGetRootBlockHeadersWithSkip(t *testing.T) {
-	_, cluster := CreateClusterList(2, 2, 2, 2, nil)
+	cfglist := GetClusterConfig(2, 2, 2, 2, nil, "", config.PoWSimulate, true)
+	_, cluster := CreateClusterList(2, cfglist)
 	cluster.Start(5*time.Second, true)
 	defer cluster.Stop()
 	//Add a root block first so that later minor blocks referring to this root
@@ -808,8 +825,8 @@ func TestGetRootBlockHeadersWithSkip(t *testing.T) {
 }
 
 func TestGetRootBlockHeaderSyncFromGenesis(t *testing.T) {
-
-	_, clstrList := CreateClusterList(2, 1, 1, 1, nil)
+	cfglist := GetClusterConfig(2, 1, 1, 1, nil, "", config.PoWSimulate, true)
+	_, clstrList := CreateClusterList(2, cfglist)
 	clstrList.Start(5*time.Second, true)
 	defer clstrList.Stop()
 
@@ -835,7 +852,8 @@ func TestGetRootBlockHeaderSyncFromGenesis(t *testing.T) {
 }
 
 func TestGetRootBlockHeaderSyncFromHeight3(t *testing.T) {
-	_, clstrList := CreateClusterList(2, 1, 1, 1, nil)
+	cfglist := GetClusterConfig(2, 1, 1, 1, nil, "", config.PoWSimulate, true)
+	_, clstrList := CreateClusterList(2, cfglist)
 	clstrList.Start(5*time.Second, false)
 	defer clstrList.Stop()
 
@@ -865,7 +883,8 @@ func TestGetRootBlockHeaderSyncFromHeight3(t *testing.T) {
 }
 
 func TestGetRootBlockHeaderSyncWithStaleness(t *testing.T) {
-	_, clstrList := CreateClusterList(2, 1, 1, 1, nil)
+	cfglist := GetClusterConfig(2, 1, 1, 1, nil, "", config.PoWSimulate, true)
+	_, clstrList := CreateClusterList(2, cfglist)
 	clstrList.Start(5*time.Second, false)
 	defer clstrList.Stop()
 
@@ -901,7 +920,8 @@ func TestGetRootBlockHeaderSyncWithStaleness(t *testing.T) {
 }
 
 func TestGetRootBlockHeaderSyncWithMultipleLookup(t *testing.T) {
-	_, clstrList := CreateClusterList(2, 1, 1, 1, nil)
+	cfglist := GetClusterConfig(2, 1, 1, 1, nil, "", config.PoWSimulate, true)
+	_, clstrList := CreateClusterList(2, cfglist)
 	clstrList.Start(5*time.Second, false)
 	defer clstrList.Stop()
 
@@ -949,7 +969,8 @@ func TestGetRootBlockHeaderSyncWithMultipleLookup(t *testing.T) {
 }
 
 func TestGetRootBlockHeaderSyncWithStartEqualEnd(t *testing.T) {
-	_, clstrList := CreateClusterList(2, 1, 1, 1, nil)
+	cfglist := GetClusterConfig(2, 1, 1, 1, nil, "", config.PoWSimulate, true)
+	_, clstrList := CreateClusterList(2, cfglist)
 	clstrList.Start(5*time.Second, false)
 	defer clstrList.Stop()
 
@@ -996,7 +1017,8 @@ func TestGetRootBlockHeaderSyncWithStartEqualEnd(t *testing.T) {
 }
 
 func TestGetRootBlockHeaderSyncWithBestAncestor(t *testing.T) {
-	_, clstrList := CreateClusterList(2, 1, 1, 1, nil)
+	cfglist := GetClusterConfig(2, 1, 1, 1, nil, "", config.PoWSimulate, true)
+	_, clstrList := CreateClusterList(2, cfglist)
 	clstrList.Start(5*time.Second, false)
 	defer clstrList.Stop()
 
