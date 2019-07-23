@@ -4,7 +4,6 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"errors"
-	"fmt"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"math/big"
 
@@ -54,16 +53,19 @@ func verifySeal(chain consensus.ChainReader, header types.IHeader, adjustedDiff 
 	if diff == nil || diff.Cmp(big.NewInt(0)) == 0 {
 		diff = header.GetDifficulty()
 	}
-
+	//fmt.Println("verifySeal",header.SealHash().String(),header.NumberU64(),adjustedDiff,diff)
+	//fmt.Println("Header",header.(*types.MinorBlockHeader))
 	target := new(big.Int).Div(two256, diff)
+	//fmt.Println("????",header.SealHash().String())
 	minerRes := consensus.ShareCache{
 		Hash:  header.SealHash().Bytes(),
 		Seed:  make([]byte, 40),
 		Nonce: header.GetNonce(),
 	}
 	_ = hashAlgo(&minerRes)
+	//fmt.Println("???????",new(big.Int).SetBytes(minerRes.Result),target.String())
 	if new(big.Int).SetBytes(minerRes.Result).Cmp(target) > 0 {
-		fmt.Println("dsaddadadasdsa")
+		//fmt.Println("dsaddadadasdsa")
 		return consensus.ErrInvalidPoW
 	}
 	return nil

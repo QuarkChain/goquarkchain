@@ -481,6 +481,14 @@ func (m *MinorBlockChain) runBlock(block *types.MinorBlock, xShardReceiveTxList 
 // only used in test now
 func (m *MinorBlockChain) FinalizeAndAddBlock(block *types.MinorBlock) (*types.MinorBlock, types.Receipts, error) {
 	//fmt.Println("222")
+	fmt.Println("MMMMMMMMMMMMMMM-1",block.NumberU64(),block.Header().SealHash().String(),block.MetaHash().String())
+	fmt.Println("MMMMM-TxHash",block.Meta().TxHash.String())
+	fmt.Println("MMMMM-root",block.Meta().Root.String())
+	fmt.Println("MMMMM-ReceiptHash",block.Meta().ReceiptHash.String())
+	fmt.Println("MMMMM-GasUsed",block.Meta().GasUsed)
+	fmt.Println("MMMMM-CrossShardGasUsed",block.Meta().CrossShardGasUsed)
+	fmt.Println("MMMMM-XShardTxCursorInfo",block.Meta().XShardTxCursorInfo)
+	fmt.Println("MMMMM-XshardGasLimit",block.Meta().XshardGasLimit)
 	evmState, receipts, _, _, err := m.runBlock(block, nil) // will lock
 	if err != nil {
 		return nil, nil, err
@@ -490,7 +498,15 @@ func (m *MinorBlockChain) FinalizeAndAddBlock(block *types.MinorBlock) (*types.M
 	coinbaseAmount.Add(evmState.GetBlockFee())
 
 	block.Finalize(receipts, evmState.IntermediateRoot(true), evmState.GetGasUsed(), evmState.GetXShardReceiveGasUsed(), coinbaseAmount, evmState.GetTxCursorInfo())
-	//fmt.Println("5033333", block.Meta().XShardTxCursorInfo)
+	fmt.Println("MMMMMMMMMMMMMMM-2",block.Header().SealHash().String(),block.MetaHash().String())
+	fmt.Println("MMMMM-TxHash",block.Meta().TxHash.String())
+	fmt.Println("MMMMM-root",block.Meta().Root.String())
+	fmt.Println("MMMMM-ReceiptHash",block.Meta().ReceiptHash.String())
+	fmt.Println("MMMMM-GasUsed",block.Meta().GasUsed)
+	fmt.Println("MMMMM-CrossShardGasUsed",block.Meta().CrossShardGasUsed)
+	fmt.Println("MMMMM-XShardTxCursorInfo",block.Meta().XShardTxCursorInfo)
+	fmt.Println("MMMMM-XshardGasLimit",block.Meta().XshardGasLimit)
+	fmt.Println("5033333", block.Meta().XShardTxCursorInfo)
 	_, err = m.InsertChain([]types.IBlock{block}, nil) // will lock
 	if err != nil {
 		return nil, nil, err
@@ -902,7 +918,7 @@ func (m *MinorBlockChain) CreateBlockToMine(createTime *uint64, address *account
 		evmState.AddBalance(evmState.GetBlockCoinbase(), v, k)
 	}
 	pureCoinbaseAmount.Add(evmState.GetBlockFee())
-	block.Finalize(recipiets, evmState.IntermediateRoot(true), evmState.GetGasUsed(), evmState.GetXShardReceiveGasUsed(), pureCoinbaseAmount, &types.XShardTxCursorInfo{})
+	block.Finalize(recipiets, evmState.IntermediateRoot(true), evmState.GetGasUsed(), evmState.GetXShardReceiveGasUsed(), pureCoinbaseAmount,evmState.GetTxCursorInfo())
 	return block, nil
 }
 
@@ -1641,7 +1657,7 @@ func (m *MinorBlockChain) RunCrossShardTxWithCursor(evmState *state.StateDB, mBl
 	}
 	cursorInfo := preMinorBlock.Meta().XShardTxCursorInfo
 	cursor := NewXShardTxCursor(m, mBlock.Header(), cursorInfo)
-	//fmt.Println("NNNNNNNNNNNNNNNNN", cursor.xShardDepositIndex, cursor.mBlockIndex)
+	fmt.Println("strt",mBlock.NumberU64(),cursor.getCursorInfo().XShardDepositIndex,cursor.getCursorInfo().RootBlockHeight,cursor.getCursorInfo().MinorBlockIndex)
 	txList := make([]*types.CrossShardTransactionDeposit, 0)
 	for true {
 		xShardDepositTx, err := cursor.getNextTx()
@@ -1661,5 +1677,6 @@ func (m *MinorBlockChain) RunCrossShardTxWithCursor(evmState *state.StateDB, mBl
 		}
 	}
 	evmState.SetXShardReceiveGasUsed(evmState.GetGasUsed())
+	fmt.Println("end",mBlock.NumberU64(),cursor.getCursorInfo().XShardDepositIndex,cursor.getCursorInfo().RootBlockHeight,cursor.getCursorInfo().MinorBlockIndex)
 	return txList, cursor.getCursorInfo(), nil
 }

@@ -33,11 +33,13 @@ func appendNewBlock(blockchain *core.MinorBlockChain, acc1 account.Address, t *t
 		if err != nil {
 			t.Fatalf("failed to adjust posw diff: %v", err)
 		}
+		//fmt.Println("newBlock",newBlock.Header().SealHash().String(),newBlock.Header())
 		if err = blockchain.Engine().Seal(nil, newBlock, adjustedDiff, resultsCh, nil); err != nil {
 			t.Fatalf("problem sealing the block: %v", err)
 		}
 	}
 	minedBlock := <-resultsCh
+	//fmt.Println("minedBloak",minedBlock.IHeader().SealHash().String(),minedBlock.IHeader().(*types.MinorBlockHeader).MetaHash.String(),minedBlock.IHeader().(*types.MinorBlockHeader))
 	block, rs, err := blockchain.FinalizeAndAddBlock(minedBlock.(*types.MinorBlock))
 	if err != nil {
 		t.Fatalf("failed to FinalizeAndAddBlock: %v, %v", err, string(debug.Stack()))

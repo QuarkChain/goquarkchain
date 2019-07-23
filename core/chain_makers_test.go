@@ -111,13 +111,13 @@ func ExampleGenerateMinorBlockChain() {
 		switch i {
 		case 0:
 			// In block 1, addr1 sends addr2 some ether.
-			tx, _ := types.SignTx(types.NewEvmTransaction(gen.TxNonce(addr1.Recipient), account.BytesToIdentityRecipient(addr2.Recipient.Bytes()), big.NewInt(100000), params.TxGas, nil, 0, 0, 3, 0, nil, 0, 0), types.MakeSigner(0), prvKey1)
+			tx, _ := types.SignTx(types.NewEvmTransaction(gen.TxNonce(addr1.Recipient), account.BytesToIdentityRecipient(addr2.Recipient.Bytes()), big.NewInt(100000), params.TxGas, nil, 0, 0, 3, 0, nil, genesisTokenID, genesisTokenID), types.MakeSigner(0), prvKey1)
 			gen.AddTx(config, transEvmTxToTx(tx))
 		case 1:
 			// In block 2, addr1 sends some more ether to addr2.
 			// addr2 passes it on to addr3.
-			tx1, _ := types.SignTx(types.NewEvmTransaction(gen.TxNonce(addr1.Recipient), account.BytesToIdentityRecipient(addr2.Recipient.Bytes()), big.NewInt(1000), params.TxGas, nil, 0, 0, 3, 0, nil, 0, 0), types.MakeSigner(0), prvKey1)
-			tx2, _ := types.SignTx(types.NewEvmTransaction(gen.TxNonce(addr2.Recipient), account.BytesToIdentityRecipient(addr3.Recipient.Bytes()), big.NewInt(1000), params.TxGas, nil, 0, 0, 3, 0, nil, 0, 0), types.MakeSigner(0), prvKey2)
+			tx1, _ := types.SignTx(types.NewEvmTransaction(gen.TxNonce(addr1.Recipient), account.BytesToIdentityRecipient(addr2.Recipient.Bytes()), big.NewInt(1000), params.TxGas, nil, 0, 0, 3, 0, nil, genesisTokenID, genesisTokenID), types.MakeSigner(0), prvKey1)
+			tx2, _ := types.SignTx(types.NewEvmTransaction(gen.TxNonce(addr2.Recipient), account.BytesToIdentityRecipient(addr3.Recipient.Bytes()), big.NewInt(1000), params.TxGas, nil, 0, 0, 3, 0, nil, genesisTokenID, genesisTokenID), types.MakeSigner(0), prvKey2)
 			gen.AddTx(config, transEvmTxToTx(tx1))
 			gen.AddTx(config, transEvmTxToTx(tx2))
 		case 2:
@@ -145,7 +145,7 @@ func ExampleGenerateMinorBlockChain() {
 	state, _ := blockchain.State()
 	fmt.Printf("last block: #%d\n", blockchain.CurrentBlock().Number())
 	fmt.Println("balance of addr1:", state.GetBalance(addr1.Recipient, 0))
-	fmt.Println("balance of addr2:", state.GetBalance(addr2.Recipient, 9))
+	fmt.Println("balance of addr2:", state.GetBalance(addr2.Recipient, 0))
 	fmt.Println("balance of addr3:", state.GetBalance(addr3.Recipient, 0))
 	// Output:
 	// last block: #5

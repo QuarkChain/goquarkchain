@@ -17,6 +17,7 @@
 package core
 
 import (
+	"fmt"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/mclock"
@@ -103,6 +104,7 @@ func (it *insertIterator) next() (types.IBlock, error) {
 	}
 	it.index++
 	if err := <-it.results; err != nil {
+		fmt.Println("result",err)
 		return it.chain[it.index], err
 	}
 	return it.chain[it.index], it.validator.ValidateBlock(it.chain[it.index])

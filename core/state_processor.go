@@ -121,6 +121,7 @@ func ValidateTransaction(state vm.StateDB, tx *types.Transaction, fromAddress *a
 		return err
 	}
 	if tx.EvmTx.Gas() < totalGas {
+		fmt.Println("txxx",tx.EvmTx.Gas(),totalGas)
 		return ErrIntrinsicGas
 	}
 
@@ -138,7 +139,7 @@ func ValidateTransaction(state vm.StateDB, tx *types.Transaction, fromAddress *a
 		totalCost := new(big.Int).Mul(tx.EvmTx.GasPrice(), new(big.Int).SetUint64(tx.EvmTx.Gas()))
 		totalCost = new(big.Int).Add(totalCost, tx.EvmTx.Value())
 		if state.GetBalance(*from, tx.EvmTx.TransferTokenID()).Cmp(totalCost) < 0 {
-			//fmt.Println("????", tx.EvmTx.TransferTokenID())
+			fmt.Println("????", tx.EvmTx.TransferTokenID(),totalCost)
 			return fmt.Errorf("money is low: token:%v balance %v,totalCost %v", tx.EvmTx.TransferTokenID(), state.GetBalance(*from, tx.EvmTx.TransferTokenID()), totalCost)
 		}
 	} else {
