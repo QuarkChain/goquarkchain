@@ -3,45 +3,48 @@ package service
 
 import (
 	"fmt"
+	"io/ioutil"
+	"os"
+	"path/filepath"
 	"testing"
 )
 
-//// Tests that databases are correctly created persistent or ephemeral based on
-//// the configured service context.
-//func TestContextDatabases(t *testing.T) {
-//	// Create a temporary folder and ensure no database is contained within
-//	dir, err := ioutil.TempDir("", "")
-//	if err != nil {
-//		t.Fatalf("failed to create temporary data directory: %v", err)
-//	}
-//	defer os.RemoveAll(dir)
-//
-//	if _, err := os.Stat(filepath.Join(dir, "database")); err == nil {
-//		t.Fatalf("non-created database already exists")
-//	}
-//	// Request the opening/creation of a database and ensure it persists to disk
-//	ctx := &ServiceContext{config: &Config{Name: "unit-test", DataDir: dir}}
-//	db, err := ctx.OpenDatabase("persistent", false)
-//	if err != nil {
-//		t.Fatalf("failed to open persistent database: %v", err)
-//	}
-//	db.Close()
-//
-//	if _, err := os.Stat(filepath.Join(dir, "unit-test", "persistent")); err != nil {
-//		t.Fatalf("persistent database doesn't exists: %v", err)
-//	}
-//	// Request th opening/creation of an ephemeral database and ensure it's not persisted
-//	ctx = &ServiceContext{config: &Config{DataDir: ""}}
-//	db, err = ctx.OpenDatabase("ephemeral", false)
-//	if err != nil {
-//		t.Fatalf("failed to open ephemeral database: %v", err)
-//	}
-//	db.Close()
-//
-//	if _, err := os.Stat(filepath.Join(dir, "ephemeral")); err == nil {
-//		t.Fatalf("ephemeral database exists")
-//	}
-//}
+// Tests that databases are correctly created persistent or ephemeral based on
+// the configured service context.
+func TestContextDatabases(t *testing.T) {
+	// Create a temporary folder and ensure no database is contained within
+	dir, err := ioutil.TempDir("", "")
+	if err != nil {
+		t.Fatalf("failed to create temporary data directory: %v", err)
+	}
+	defer os.RemoveAll(dir)
+
+	if _, err := os.Stat(filepath.Join(dir, "database")); err == nil {
+		t.Fatalf("non-created database already exists")
+	}
+	// Request the opening/creation of a database and ensure it persists to disk
+	ctx := &ServiceContext{config: &Config{Name: "unit-test", DataDir: dir}}
+	db, err := ctx.OpenDatabase("persistent", false)
+	if err != nil {
+		t.Fatalf("failed to open persistent database: %v", err)
+	}
+	db.Close()
+
+	if _, err := os.Stat(filepath.Join(dir, "unit-test", "persistent")); err != nil {
+		t.Fatalf("persistent database doesn't exists: %v", err)
+	}
+	// Request th opening/creation of an ephemeral database and ensure it's not persisted
+	ctx = &ServiceContext{config: &Config{DataDir: ""}}
+	db, err = ctx.OpenDatabase("ephemeral", false)
+	if err != nil {
+		t.Fatalf("failed to open ephemeral database: %v", err)
+	}
+	db.Close()
+
+	if _, err := os.Stat(filepath.Join(dir, "ephemeral")); err == nil {
+		t.Fatalf("ephemeral database exists")
+	}
+}
 
 // Tests that already constructed services can be retrieves by later ones.
 func TestContextServices(t *testing.T) {
