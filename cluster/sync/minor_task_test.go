@@ -49,6 +49,13 @@ func newMinorBlockChain(sz int) (blockchain, ethdb.Database) {
 	qkcconfig.SkipRootCoinbaseCheck = true
 	qkcconfig.SkipMinorDifficultyCheck = true
 	qkcconfig.SkipRootDifficultyCheck = true
+	minorBlocks, _ := core.GenerateMinorBlockChain(params.TestChainConfig, qkcconfig, minorGenesis, engine, db, sz, nil)
+
+	var blocks []types.IBlock
+	for _, mb := range minorBlocks {
+		blocks = append(blocks, mb)
+	}
+
 	blockchain, err := core.NewMinorBlockChain(db, nil, params.TestChainConfig, clusterConfig, engine, vm.Config{}, nil, fullShardID)
 	if err != nil {
 		panic(fmt.Sprintf("failed to create minor blockchain: %v", err))
@@ -57,13 +64,6 @@ func newMinorBlockChain(sz int) (blockchain, ethdb.Database) {
 	if err != nil {
 		panic(fmt.Sprintf("failed to init minor blockchain: %v", err))
 	}
-	minorBlocks, _ := core.GenerateMinorBlockChain(params.TestChainConfig, qkcconfig, minorGenesis, engine, db, sz, nil)
-
-	var blocks []types.IBlock
-	for _, mb := range minorBlocks {
-		blocks = append(blocks, mb)
-	}
-
 	if _, err := blockchain.InsertChain(blocks, nil); err != nil {
 		panic(fmt.Sprintf("failed to insert minor blocks: %v", err))
 	}
@@ -125,12 +125,11 @@ func TestMinorChainTaskRun(t *testing.T) {
 	assert.NoError(t, mt.Run(bc))
 	assert.Equal(t, uint64(10), bc.CurrentHeader().NumberU64())
 
-	//TODO need to fix
 	// Sync older forks. Starting from block 6, up to 11.
 	mbChain, mhChain = makeMinorChains(mbChain[0], db, true)
-	//	for _, rh := range mhChain {
-	////		assert.False(t, bc.HasBlock(rh.Hash()))
-	//	}
+	for _, rh := range mhChain {
+		assert.False(t, bc.HasBlock(rh.Hash()))
+	}
 	mt.(*minorChainTask).header = mbChain[4].Header()
 	p.retMHeaders, p.retMBlocks = reverseMHeaders(mhChain), reverseMBlocks(mbChain)
 	assert.NoError(t, mt.Run(bc))

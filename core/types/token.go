@@ -86,7 +86,6 @@ func (t *TokenBalanceMap) Copy() *TokenBalanceMap {
 	t.mu.RLock()
 	defer t.mu.RUnlock()
 	data := NewTokenBalanceMap()
-	data.balanceMap = make(map[uint64]*big.Int)
 	for k, v := range t.balanceMap {
 		data.balanceMap[k] = v
 	}
