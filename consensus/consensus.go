@@ -13,6 +13,8 @@ import (
 	"sync"
 
 	"github.com/QuarkChain/goquarkchain/account"
+	"github.com/QuarkChain/goquarkchain/cluster/config"
+	"github.com/QuarkChain/goquarkchain/consensus/posw"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -167,13 +169,29 @@ func (c *CommonEngine) VerifyHeader(
 			}
 		}
 	}
-	return c.spec.VerifySeal(chain, header, adjustedDiff)
+	return c.VerifySeal(chain, header, adjustedDiff)
 }
 
 // VerifySeal checks whether the crypto seal on a header is valid according to
 // the consensus rules of the given engine.
 func (c *CommonEngine) VerifySeal(chain ChainReader, header types.IHeader, adjustedDiff *big.Int) error {
-	return c.spec.VerifySeal(chain, header, adjustedDiff)
+	diff := big.NewInt(0)
+	if adjustedDiff != nil {
+		diff = diff.Set(adjustedDiff)
+	}
+	if minorHeader, ok := header.(*types.MinorBlockHeader); ok {
+		if diff.Cmp(big.NewInt(0)) == 0 {
+			diff = minorHeader.GetDifficulty()
+		}
+		branch := minorHeader.GetBranch()
+		fullShardID := branch.GetFullShardID()
+		poswConfig := chain.Config().GetShardConfigByFullShardID(fullShardID).PoswConfig
+		if poswConfig.Enabled {
+			diffDivider := big.NewInt(int64(poswConfig.DiffDivider))
+			diff = diff.Div(diff, diffDivider)
+		}
+	}
+	return c.spec.VerifySeal(chain, header, diff)
 }
 
 // VerifyHeaders is similar to VerifyHeader, but verifies a batch of headers
@@ -185,8 +203,6 @@ func (c *CommonEngine) VerifyHeaders(
 	headers []types.IHeader,
 	seals []bool,
 ) (chan<- struct{}, <-chan error) {
-
-	// TODO: verify concurrently, and support aborting
 	abort := make(chan struct{})
 	errorsOut := make(chan error, len(headers))
 	go func() {
@@ -256,26 +272,31 @@ func (c *CommonEngine) FindNonce(
 func (c *CommonEngine) Seal(
 	chain ChainReader,
 	block types.IBlock,
+	diff *big.Int,
 	results chan<- types.IBlock,
 	stop <-chan struct{}) error {
 	if c.isRemote {
-		c.SetWork(block, results)
+		c.SetWork(block, diff, results)
 		return nil
 	}
-	return c.localSeal(block, results, stop)
+	return c.localSeal(block, diff, results, stop)
 }
 
 // localSeal generates a new block for the given input block with the local miner's
 // seal place on top.
 func (c *CommonEngine) localSeal(
 	block types.IBlock,
+	diff *big.Int,
 	results chan<- types.IBlock,
 	stop <-chan struct{},
 ) error {
 
 	found := make(chan MiningResult)
 	header := block.IHeader()
-	work := MiningWork{HeaderHash: header.SealHash(), Number: header.NumberU64(), Difficulty: header.GetDifficulty()}
+	if diff == nil {
+		diff = header.GetDifficulty()
+	}
+	work := MiningWork{HeaderHash: header.SealHash(), Number: header.NumberU64(), Difficulty: diff}
 	if err := c.FindNonce(work, found, stop); err != nil {
 		return err
 	}
@@ -358,7 +379,6 @@ func (c *CommonEngine) GetWork() (*MiningWork, error) {
 
 	select {
 	case work := <-workCh:
-
 		return &MiningWork{
 			work.HeaderHash,
 			work.Number,
@@ -395,8 +415,8 @@ func (c *CommonEngine) SetThreads(threads int) {
 	c.threads = threads
 }
 
-func (c *CommonEngine) SetWork(block types.IBlock, results chan<- types.IBlock) {
-	c.workCh <- &sealTask{block: block, results: results}
+func (c *CommonEngine) SetWork(block types.IBlock, diff *big.Int, results chan<- types.IBlock) {
+	c.workCh <- &sealTask{block, diff, results}
 }
 
 func (c *CommonEngine) Close() error {
@@ -432,4 +452,12 @@ func NewCommonEngine(spec MiningSpec, diffCalc DifficultyCalculator, remote bool
 	}
 
 	return c
+}
+
+func CreatePoSWCalculator(cr ChainReader, poswConfig *config.POSWConfig) PoSWCalculator {
+	return posw.NewPoSW(cr, poswConfig)
+}
+
+func CreateSenderDisallowMapBuilder(cr ChainReader, poswConfig *config.POSWConfig) SenderDisallowMapBuilder {
+	return posw.NewPoSW(cr, poswConfig)
 }

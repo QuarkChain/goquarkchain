@@ -107,8 +107,6 @@ func New(ctx *service.ServiceContext, cfg *config.ClusterConfig) (*QKCMasterBack
 		return nil, err
 	}
 
-	mstr.miner = miner.New(ctx, mstr, mstr.engine, cfg.Quarkchain.Root.ConsensusConfig.TargetBlockTime)
-
 	chainConfig, genesisHash, genesisErr := core.SetupGenesisRootBlock(mstr.chainDb, mstr.gspc)
 	// TODO check config err
 	if genesisErr != nil {
@@ -134,6 +132,8 @@ func New(ctx *service.ServiceContext, cfg *config.ClusterConfig) (*QKCMasterBack
 	if mstr.protocolManager, err = NewProtocolManager(*cfg, mstr.rootBlockChain, mstr.shardStatsChan, mstr.synchronizer, mstr.getShardConnForP2P); err != nil {
 		return nil, err
 	}
+
+	mstr.miner = miner.New(ctx, mstr, mstr.engine)
 
 	return mstr, nil
 }
@@ -163,6 +163,10 @@ func createConsensusEngine(ctx *service.ServiceContext, cfg *config.RootConfig) 
 		return doublesha256.New(&diffCalculator, cfg.ConsensusConfig.RemoteMine), nil
 	}
 	return nil, fmt.Errorf("Failed to create consensus engine consensus type %s ", cfg.ConsensusType)
+}
+
+func (s *QKCMasterBackend) GetProtocolManager() *ProtocolManager {
+	return s.protocolManager
 }
 
 func (s *QKCMasterBackend) GetClusterConfig() *config.ClusterConfig {
@@ -215,7 +219,6 @@ func (s *QKCMasterBackend) Init(srvr *p2p.Server) error {
 		return err
 	}
 	s.Heartbeat()
-	s.miner.Init()
 	return nil
 }
 
@@ -675,7 +678,6 @@ func (s *QKCMasterBackend) GetStats() (map[string]interface{}, error) {
 		txCountHistory = append(txCountHistory, field)
 		s.txCountHistory.PushRight(right)
 	}
-	s.GetPeers()
 	peerForDisplay := make([]string, 0)
 	for _, v := range s.protocolManager.peers.Peers() {
 		var temp string
@@ -737,7 +739,6 @@ func (s *QKCMasterBackend) disPlayPeers() {
 		for true {
 			time.Sleep(disPlayPeerInfoInterval)
 			peers := s.protocolManager.peers.Peers()
-			log.Info(s.logInfo, "len(peers)", len(peers))
 			for _, v := range peers {
 				log.Info(s.logInfo, "remote addr", v.RemoteAddr().String())
 			}

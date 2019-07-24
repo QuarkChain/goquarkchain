@@ -18,11 +18,12 @@ package core
 
 import (
 	"errors"
+	"math"
+	"math/big"
+
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/serialize"
-	"math"
-	"math/big"
 
 	"github.com/QuarkChain/goquarkchain/core/vm"
 	qkcParam "github.com/QuarkChain/goquarkchain/params"
@@ -221,12 +222,15 @@ func (st *StateTransition) TransitionDb(feeRate *big.Rat) (ret []byte, usedGas u
 	} else {
 		// Increment the nonce for the next transaction
 		st.state.SetNonce(msg.From(), st.state.GetNonce(sender.Address())+1)
-		if msg.IsCrossShard() {
-			ret, st.gas, vmerr = st.handleCrossShardTx()
+		if st.transferFailureByPoSWBalanceCheck() {
+			ret, st.gas, vmerr = nil, 0, vm.ErrPoSWSenderNotAllowed
 		} else {
-			ret, st.gas, vmerr = evm.Call(sender, st.to(), st.data, st.gas, st.value)
+			if msg.IsCrossShard() {
+				ret, st.gas, vmerr = st.handleCrossShardTx()
+			} else {
+				ret, st.gas, vmerr = evm.Call(sender, st.to(), st.data, st.gas, st.value)
+			}
 		}
-
 	}
 
 	if vmerr != nil {
@@ -241,7 +245,7 @@ func (st *StateTransition) TransitionDb(feeRate *big.Rat) (ret []byte, usedGas u
 	st.refundGas()
 
 	finalGasUsed := st.gasUsed()
-	if st.msg.IsCrossShard() {
+	if st.msg.IsCrossShard() && vmerr != vm.ErrPoSWSenderNotAllowed {
 		if finalGasUsed < qkcParam.GtxxShardCost.Uint64() {
 			return nil, 0, false, errors.New("crossShard ")
 		}
@@ -255,6 +259,9 @@ func (st *StateTransition) TransitionDb(feeRate *big.Rat) (ret []byte, usedGas u
 	st.state.AddBlockFee(rateFee)
 
 	st.state.AddGasUsed(new(big.Int).SetUint64(st.gasUsed()))
+	if vmerr == vm.ErrPoSWSenderNotAllowed {
+		return nil, st.gasUsed(), true, nil
+	}
 	return ret, st.gasUsed(), vmerr != nil, err
 }
 
@@ -307,4 +314,13 @@ func (st *StateTransition) handleCrossShardTx() (ret []byte, usedGas uint64, err
 	evm.StateDB.SubBalance(msg.From(), st.value)
 	evm.StateDB.AppendXShardList(crossShardData)
 	return nil, st.gas, nil
+}
+
+func (st *StateTransition) transferFailureByPoSWBalanceCheck() bool {
+	if v, ok := st.state.GetSenderDisallowMap()[st.msg.From()]; ok {
+		if new(big.Int).Add(st.msg.Value(), v).Cmp(st.state.GetBalance(st.msg.From())) == 1 {
+			return true
+		}
+	}
+	return false
 }

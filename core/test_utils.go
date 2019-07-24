@@ -11,6 +11,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/consensus/doublesha256"
+	"github.com/QuarkChain/goquarkchain/consensus/posw"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -83,7 +84,9 @@ func getTestEnv(genesisAccount *account.Address, genesisMinorQuarkHash *uint64, 
 	for _, v := range ids {
 		addr := genesisAccount.AddressInShard(v)
 		shardConfig := fakeClusterConfig.Quarkchain.GetShardConfigByFullShardID(v)
-		shardConfig.Genesis.Alloc[addr] = new(big.Int).SetUint64(*genesisMinorQuarkHash)
+		temp:=make(map[string]*big.Int)
+		temp["QKC"]= new(big.Int).SetUint64(*genesisMinorQuarkHash)
+		shardConfig.Genesis.Alloc[addr] =temp
 	}
 	return env
 }
@@ -105,6 +108,13 @@ func createDefaultShardState(env *fakeEnv, shardID *uint32, diffCalc consensus.D
 	genesisManager := NewGenesis(env.clusterConfig.Quarkchain)
 
 	fullShardID := env.clusterConfig.Quarkchain.Chains[0].ShardSize | *shardID
+
+	if poswOverride != nil && *poswOverride {
+		poswConfig := env.clusterConfig.Quarkchain.GetShardConfigByFullShardID(fullShardID).PoswConfig
+		poswConfig.Enabled = true
+		poswConfig.WindowSize = 3
+	}
+
 	genesisManager.MustCommitMinorBlock(env.db, rBlock, fullShardID)
 
 	var shardState *MinorBlockChain
@@ -192,4 +202,37 @@ func checkErr(err error) {
 	if err != nil {
 		panic(err)
 	}
+}
+
+func CreateFakeMinorCanonicalPoSW(acc1 account.Address, shardId *uint32, genesisMinorQuarkash *uint64) (*MinorBlockChain, error) {
+	env := setUp(&acc1, genesisMinorQuarkash, nil)
+	chainConfig := env.clusterConfig.Quarkchain.Chains[0]
+	fullShardID := chainConfig.ChainID<<16 | chainConfig.ShardSize | 0
+	shardConfig := env.clusterConfig.Quarkchain.GetShardConfigByFullShardID(fullShardID)
+	diffCalculator := &consensus.EthDifficultyCalculator{
+		MinimumDifficulty: big.NewInt(int64(shardConfig.Genesis.Difficulty)),
+		AdjustmentCutoff:  shardConfig.DifficultyAdjustmentCutoffTime,
+		AdjustmentFactor:  shardConfig.DifficultyAdjustmentFactor,
+	}
+	poswFlag := true
+	engineFlag := true
+	shardState := createDefaultShardState(env, shardId, diffCalculator, &poswFlag, &engineFlag)
+	return shardState, nil
+}
+
+func CreateTransferTx(shardState *MinorBlockChain, key []byte,
+	from account.Address, to account.Address, value *big.Int, gas, gasPrice, nonce *uint64) *types.Transaction {
+	if gasPrice == nil {
+		gasPrice = new(uint64)
+		*gasPrice = 0
+	}
+	if gas == nil {
+		gas = new(uint64)
+		*gas = 21000
+	}
+	return createTransferTransaction(shardState, key, from, to, value, gas, gasPrice, nonce, nil)
+}
+
+func GetPoSW(chain *MinorBlockChain) *posw.PoSW {
+	return chain.posw.(*posw.PoSW)
 }

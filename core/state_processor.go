@@ -126,7 +126,8 @@ func ValidateTransaction(state vm.StateDB, tx *types.Transaction, fromAddress *a
 		return ErrNonceTooLow
 	}
 
-	if state.GetBalance(*from).Cmp(tx.EvmTx.Cost()) < 0 {
+	balance := state.GetBalance(*from)
+	if balance.Cmp(tx.EvmTx.Cost()) < 0 {
 		return ErrInsufficientFunds
 	}
 

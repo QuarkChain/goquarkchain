@@ -48,7 +48,7 @@ func rootBlockEncoder(rootBlock *types.RootBlock) (map[string]interface{}, error
 		"nonce":          hexutil.Uint64(header.Nonce),
 		"hashMerkleRoot": header.MinorHeaderHash,
 		"miner":          DataEncoder(minerData),
-		"coinbase":       (*hexutil.Big)(header.CoinbaseAmount.Value),
+	//	"coinbase":       (*hexutil.Big)(header.CoinbaseAmount.Value),//TODO-master
 		"difficulty":     (*hexutil.Big)(header.Difficulty),
 		"timestamp":      hexutil.Uint64(header.Time),
 		"size":           hexutil.Uint64(len(serData)),
@@ -73,7 +73,7 @@ func rootBlockEncoder(rootBlock *types.RootBlock) (map[string]interface{}, error
 			"nonce":              hexutil.Uint64(header.Nonce),
 			"difficulty":         (*hexutil.Big)(header.Difficulty),
 			"miner":              DataEncoder(minerData),
-			"coinbase":           (*hexutil.Big)(header.CoinbaseAmount.Value),
+		//	"coinbase":           (*hexutil.Big)(header.CoinbaseAmount.Value),//TODO-master
 			"timestamp":          hexutil.Uint64(header.Time),
 		}
 		minorHeaders = append(minorHeaders, h)
@@ -108,7 +108,7 @@ func minorBlockEncoder(block *types.MinorBlock, includeTransaction bool, cfg *co
 		"hashEvmStateRoot":   meta.Root,
 		"receiptHash":        meta.ReceiptHash,
 		"miner":              DataEncoder(minerData),
-		"coinbase":           (*hexutil.Big)(header.CoinbaseAmount.Value),
+	//	"coinbase":           (*hexutil.Big)(header.CoinbaseAmount.Value),//TODO-master
 		"difficulty":         (*hexutil.Big)(header.Difficulty),
 		"extraData":          hexutil.Bytes(header.Extra),
 		"gasLimit":           (*hexutil.Big)(header.GasLimit.Value),

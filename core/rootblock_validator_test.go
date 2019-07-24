@@ -4,7 +4,8 @@ package core
 
 import (
 	"fmt"
-	"github.com/QuarkChain/goquarkchain/serialize"
+	"github.com/QuarkChain/goquarkchain/common"
+	"math/big"
 	"runtime"
 	"testing"
 	"time"
@@ -26,7 +27,11 @@ func TestValidateBlock(t *testing.T) {
 		genesisrootBlock = gspec.MustCommitRootBlock(testdb)
 		engine           = new(consensus.FakeEngine)
 		rootBlocks       = GenerateRootBlockChain(genesisrootBlock, engine, 8, func(i int, b *RootBlockGen) {
-			b.header.CoinbaseAmount = &serialize.Uint256{Value: qkcconfig.Root.CoinbaseAmount}
+			b.header.CoinbaseAmount = &types.TokenBalanceMap{
+				BalanceMap: map[uint64]*big.Int{
+					common.TokenIDEncode("QKC"): qkcconfig.Root.CoinbaseAmount,
+				},
+			}
 		})
 	)
 	headers := make([]types.IHeader, len(rootBlocks))

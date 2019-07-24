@@ -19,8 +19,6 @@ package core
 import (
 	"errors"
 	"fmt"
-	"math/big"
-
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/common"
@@ -28,6 +26,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/core/state"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/log"
+	"math/big"
 )
 
 // MinorBlockValidator is responsible for validating block Headers, uncles and
@@ -40,6 +39,7 @@ type MinorBlockValidator struct {
 	engine           consensus.Engine         // Consensus engine used for validating
 	branch           account.Branch
 	logInfo          string
+	posw             consensus.PoSWCalculator
 }
 
 // NewBlockValidator returns a new block validator which is safe for re-use
@@ -50,6 +50,7 @@ func NewBlockValidator(quarkChainConfig *config.QuarkChainConfig, blockchain *Mi
 		bc:               blockchain,
 		branch:           branch,
 		logInfo:          fmt.Sprintf("minorBlock validate branch:%v", branch),
+		posw:             consensus.CreatePoSWCalculator(blockchain, blockchain.shardConfig.PoswConfig),
 	}
 	return validator
 }
@@ -219,12 +220,11 @@ func (v *MinorBlockValidator) ValidatorSeal(mHeader types.IHeader) error {
 	return v.validateSeal(header, consensusType, nil)
 }
 
-func (v *MinorBlockValidator) validateSeal(header types.IHeader, consensusType string, diff *uint64) error {
+func (v *MinorBlockValidator) validateSeal(header types.IHeader, consensusType string, diff *big.Int) error {
 	if diff == nil {
-		headerDifficult := header.GetDifficulty().Uint64()
-		diff = &headerDifficult
+		diff = header.GetDifficulty()
 	}
-	return v.engine.VerifySeal(v.bc, header, new(big.Int).SetUint64(*diff))
+	return v.engine.VerifySeal(v.bc, header, diff)
 }
 
 // ValidateState validates the various changes that happen after a state
@@ -257,8 +257,10 @@ func (v *MinorBlockValidator) ValidateState(mBlock, parent types.IBlock, statedb
 	if statedb.GetGasUsed().Cmp(block.GetMetaData().GasUsed.Value) != 0 {
 		return ErrGasUsed
 	}
+
+	//TODO-master
 	coinbaseAmount := new(big.Int).Add(v.bc.getCoinbaseAmount(), statedb.GetBlockFee())
-	if coinbaseAmount.Cmp(block.CoinbaseAmount()) != 0 {
+	if coinbaseAmount.Cmp(block.Header().GetCoinbaseAmount().BalanceMap[common.TokenIDEncode("QKC")]) != 0 {
 		return ErrCoinbaseAmount
 	}
 

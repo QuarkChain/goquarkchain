@@ -39,7 +39,7 @@ type BranchTestStruct struct {
 }
 
 func CheckBranchUnitTest(data BranchTestStruct) bool {
-	tempBranch, err := CreatBranch(data.Size, data.Key) //create branch depend on special size ans key
+	tempBranch, err := CreatBranch(0, data.Size, data.Key) //create branch depend on special size ans key
 	if err != nil {
 		fmt.Printf("CreatBranch err %v\n", err)
 		return false

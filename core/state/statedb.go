@@ -99,7 +99,7 @@ type StateDB struct {
 	gasUsed              *big.Int
 	gasLimit             *big.Int
 	shardConfig          *config.ShardConfig
-	senderDisallowList   []qkcaccount.Recipient
+	senderDisallowMap    map[qkcaccount.Recipient]*big.Int
 	blockCoinbase        common.Address
 }
 
@@ -523,6 +523,7 @@ func (s *StateDB) Copy() *StateDB {
 		logSize:           s.logSize,
 		preimages:         make(map[common.Hash][]byte),
 		journal:           newJournal(),
+		senderDisallowMap: make(map[qkcaccount.Recipient]*big.Int, len(s.senderDisallowMap)),
 	}
 	// Copy the dirty states, logs, and preimages
 	for addr := range s.journal.dirties {
@@ -554,6 +555,9 @@ func (s *StateDB) Copy() *StateDB {
 	}
 	for hash, preimage := range s.preimages {
 		state.preimages[hash] = preimage
+	}
+	for k, v := range s.senderDisallowMap {
+		state.senderDisallowMap[k] = v
 	}
 	state.SetGasLimit(s.gasLimit)
 	state.SetQuarkChainConfig(s.GetQuarkChainConfig())
@@ -777,11 +781,11 @@ func (s *StateDB) SetShardConfig(config *config.ShardConfig) {
 	s.shardConfig = config
 }
 
-func (s *StateDB) SetSenderDisallowList(data []qkcaccount.Recipient) {
-	s.senderDisallowList = data
+func (s *StateDB) SetSenderDisallowMap(data map[qkcaccount.Recipient]*big.Int) {
+	s.senderDisallowMap = data
 }
-func (s *StateDB) GetSenderDisallowList() []qkcaccount.Recipient {
-	return s.senderDisallowList
+func (s *StateDB) GetSenderDisallowMap() map[qkcaccount.Recipient]*big.Int {
+	return s.senderDisallowMap
 }
 
 func (s *StateDB) GetBlockCoinbase() qkcaccount.Recipient {
@@ -790,4 +794,8 @@ func (s *StateDB) GetBlockCoinbase() qkcaccount.Recipient {
 
 func (s *StateDB) SetBlockCoinbase(data qkcaccount.Recipient) {
 	s.blockCoinbase = data
+}
+
+func (s *StateDB) GetXshardTxCursorInfo() *types.XShardTxCursorInfo {
+	panic("not implement")
 }

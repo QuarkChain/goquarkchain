@@ -3,6 +3,7 @@ package config
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/QuarkChain/goquarkchain/params"
 	"math/big"
 	"os"
 	"path/filepath"
@@ -35,6 +36,7 @@ const (
 var (
 	QuarkashToJiaozi = big.NewInt(1000000000000000000)
 	DefaultNumSlaves = 4
+	DefaultToken     = "QKC"
 )
 
 var (
@@ -58,8 +60,8 @@ func NewPOWConfig() *POWConfig {
 
 type POSWConfig struct {
 	Enabled            bool     `json:"ENABLED"`
-	DiffDivider        uint32   `json:"DIFF_DIVIDER"`
-	WindowSize         uint32   `json:"WINDOW_SIZE"`
+	DiffDivider        uint64   `json:"DIFF_DIVIDER"`
+	WindowSize         uint64   `json:"WINDOW_SIZE"`
 	TotalStakePerBlock *big.Int `json:"TOTAL_STAKE_PER_BLOCK"`
 }
 
@@ -264,6 +266,29 @@ func UpdateGenesisAlloc(cluserConfig *ClusterConfig) error {
 	loadtestFile := filepath.Join(cluserConfig.GenesisDir, testFile)
 	qkcConfig := cluserConfig.Quarkchain
 
+	eight := new(big.Int).SetUint64(10000000)
+	genesis := new(big.Int).Mul(new(big.Int).SetUint64(1000000), params.DenomsValue.Ether)
+
+	qetc := new(big.Int).Mul(new(big.Int).SetUint64(2), params.DenomsValue.Ether)
+	qetc = new(big.Int).Mul(qetc, eight)
+
+	qfb := new(big.Int).Mul(new(big.Int).SetUint64(3), params.DenomsValue.Ether)
+	qfb = new(big.Int).Mul(qetc, eight)
+
+	qaapl := new(big.Int).Mul(new(big.Int).SetUint64(4), params.DenomsValue.Ether)
+	qaapl = new(big.Int).Mul(qetc, eight)
+
+	qtsla := new(big.Int).Mul(new(big.Int).SetUint64(5), params.DenomsValue.Ether)
+	qtsla = new(big.Int).Mul(qetc, eight)
+
+	allocation := map[string]*big.Int{
+		qkcConfig.GenesisToken: genesis,
+		"QETC":                 qetc,
+		"QFB":                  qfb,
+		"QAAPL":                qaapl,
+		"QTSLA":                qtsla,
+	}
+
 	for chainId := 0; chainId < int(qkcConfig.ChainSize); chainId++ {
 		allocFile := filepath.Join(cluserConfig.GenesisDir, fmt.Sprintf(templateFile, chainId))
 		addresses, err := loadGenesisAddrs(allocFile)
@@ -283,7 +308,7 @@ func UpdateGenesisAlloc(cluserConfig *ClusterConfig) error {
 			if !ok {
 				continue
 			}
-			shard.Genesis.Alloc[address] = new(big.Int).Mul(big.NewInt(1000000), QuarkashToJiaozi)
+			shard.Genesis.Alloc[address] = allocation
 		}
 		log.Info("Load template genesis accounts", "chain id", chainId, "imported", len(addresses), "config file", allocFile)
 	}
@@ -296,7 +321,7 @@ func UpdateGenesisAlloc(cluserConfig *ClusterConfig) error {
 		bytes := common.FromHex(item.Address)
 		for fullShardId, shardCfg := range qkcConfig.shards {
 			addr := account.NewAddress(common.BytesToAddress(bytes[:20]), fullShardId)
-			shardCfg.Genesis.Alloc[addr] = new(big.Int).Mul(big.NewInt(1000), QuarkashToJiaozi)
+			shardCfg.Genesis.Alloc[addr] = allocation
 		}
 	}
 	log.Info("Loadtest accounts", "loadtest file", loadtestFile, "imported", len(items))
