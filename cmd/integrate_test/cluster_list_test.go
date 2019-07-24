@@ -834,9 +834,9 @@ func TestGetRootBlockHeadersWithSkip(t *testing.T) {
 }
 
 func TestGetRootBlockHeaderSyncFromGenesis(t *testing.T) {
-	cfglist := GetClusterConfig(2, 1, 1, 1, nil, "", config.PoWSimulate, true)
+	cfglist := GetClusterConfig(2, 1, 1, 1, nil, defaultbootNode, config.PoWSimulate, true)
 	_, clstrList := CreateClusterList(2, cfglist)
-	clstrList.Start(5*time.Second, true)
+	clstrList.Start(5*time.Second, false)
 	defer clstrList.Stop()
 
 	var (

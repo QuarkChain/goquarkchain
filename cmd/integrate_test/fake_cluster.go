@@ -14,6 +14,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/p2p"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"golang.org/x/sync/errgroup"
+	"math/rand"
 	"time"
 )
 
@@ -35,7 +36,8 @@ func makeClusterNode(index uint16, clstrCfg *config.ClusterConfig, bootNodes []*
 		nodeList = make(map[string]*service.Node)
 		priv     = getPrivKeyByIndex(int(index))
 	)
-
+	rand.Seed(time.Now().Unix())
+	random := rand.Int() % 100000
 	// slave nodes
 	for idx, slaveCfg := range clstrCfg.SlaveList {
 		var svrCfg = defaultNodeConfig()
@@ -47,7 +49,7 @@ func makeClusterNode(index uint16, clstrCfg *config.ClusterConfig, bootNodes []*
 		svrCfg.Name = slaveCfg.ID
 		svrCfg.SvrHost = slaveCfg.IP
 		svrCfg.SvrPort = slaveCfg.Port
-		svrCfg.DataDir = fmt.Sprintf("./data/%s_%d_%d", slaveCfg.ID, index, idx)
+		svrCfg.DataDir = fmt.Sprintf("./data/%d/%s_%d_%d", random, slaveCfg.ID, index, idx)
 		node, err := service.New(svrCfg)
 		if err != nil {
 			utils.Fatalf("Failed to create the slave_%s: %v", svrCfg.Name, err)
@@ -67,7 +69,7 @@ func makeClusterNode(index uint16, clstrCfg *config.ClusterConfig, bootNodes []*
 	svrCfg.Name = clientIdentifier
 	svrCfg.SvrHost = clstrCfg.Quarkchain.Root.GRPCHost
 	svrCfg.SvrPort = clstrCfg.Quarkchain.Root.GRPCPort
-	svrCfg.DataDir = fmt.Sprintf("./data/%s_%d", clientIdentifier, index)
+	svrCfg.DataDir = fmt.Sprintf("./data/%d/%s_%d", random, clientIdentifier, index)
 	node, err := service.New(svrCfg)
 	if err != nil {
 		utils.Fatalf("Failed to create the master: %v", err)
@@ -145,29 +147,34 @@ func (c *clusterNode) Start() (err error) {
 				}
 			}
 		}
+		started = make([]*service.Node, 0)
 	}
 	if err = g.Wait(); err != nil {
 		stop()
 		return
-	} else {
-		if err = c.services[clientIdentifier].Start(); err != nil {
-			stop()
-			return
-		}
 	}
-
-	mstr := c.GetMaster()
-	retryTimes := 7
+	retryTimes := 3
 	for retryTimes > 0 {
-		if err = mstr.Start(); err == nil {
-			c.status = true
-			return
+		time.Sleep(2 * time.Second)
+		if err = c.services[clientIdentifier].Start(); err == nil {
+			break
 		}
 		retryTimes--
-		time.Sleep(1 * time.Second)
+		c.services[clientIdentifier].Stop()
+	}
+	if err != nil {
+		stop()
+		return
 	}
 
-	return err
+	if err = c.GetMaster().Start(); err == nil {
+		c.status = true
+		return
+	}
+
+	c.services[clientIdentifier].Stop()
+	stop()
+	return
 }
 
 func (c *clusterNode) GetMaster() *master.QKCMasterBackend {
