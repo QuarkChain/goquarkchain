@@ -295,7 +295,7 @@ func (c *stateObject) SubBalance(amount *big.Int, tokenID uint64) {
 
 func (self *stateObject) SetBalance(amount *big.Int, tokenID uint64) {
 	prev := make(map[uint64]*big.Int)
-	prevBalance := self.data.TokenBalances.Balance(tokenID)
+	prevBalance := self.data.TokenBalances.GetBalanceFromTokenID(tokenID)
 	prev[tokenID] = prevBalance
 	self.db.journal.append(balanceChange{
 		account: &self.address,
@@ -306,7 +306,7 @@ func (self *stateObject) SetBalance(amount *big.Int, tokenID uint64) {
 
 func (self *stateObject) SetBalances(balances map[uint64]*big.Int) {
 	prev := make(map[uint64]*big.Int)
-	prev = self.data.TokenBalances.Balances.Copy().BalanceMap
+	prev = self.data.TokenBalances.Balances.GetBalanceMap()
 	self.db.journal.append(balanceChange{
 		account: &self.address,
 		prev:    prev,
@@ -315,11 +315,11 @@ func (self *stateObject) SetBalances(balances map[uint64]*big.Int) {
 }
 
 func (self *stateObject) setTokenBalance(amount *big.Int, tokenID uint64) {
-	self.data.TokenBalances.Balances.BalanceMap[tokenID] = amount
+	self.data.TokenBalances.Balances.SetValue(amount, tokenID)
 }
 
 func (self *stateObject) setBalances(balances map[uint64]*big.Int) {
-	self.data.TokenBalances.Balances.BalanceMap = balances
+	self.data.TokenBalances.Balances.SetBalanceMap(balances)
 }
 
 // Return the gas back to the origin. Used by the Virtual machine or Closures
@@ -397,7 +397,7 @@ func (self *stateObject) CodeHash() []byte {
 }
 
 func (self *stateObject) Balance(tokenID uint64) *big.Int {
-	return self.data.TokenBalances.Balance(tokenID)
+	return self.data.TokenBalances.GetBalanceFromTokenID(tokenID)
 }
 
 func (self *stateObject) Nonce() uint64 {

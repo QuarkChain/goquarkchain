@@ -313,7 +313,7 @@ func (v *MinorBlockValidator) ValidateState(mBlock, parent types.IBlock, statedb
 	}
 	coinbaseAmount := v.bc.getCoinbaseAmount(block.Header().Number)
 	coinbaseAmount.Add(statedb.GetBlockFee())
-	if !compareCoinbaseAmountMap(coinbaseAmount.BalanceMap, block.Header().CoinbaseAmount.BalanceMap) {
+	if !compareCoinbaseAmountMap(coinbaseAmount.GetBalanceMap(), block.Header().CoinbaseAmount.GetBalanceMap()) {
 		return ErrCoinbaseAmount
 	}
 

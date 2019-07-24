@@ -29,7 +29,8 @@ func DataEncoder(bytes []byte) hexutil.Bytes {
 
 func balancesEncoder(balances *types.TokenBalanceMap) []map[string]interface{} {
 	balanceList := make([]map[string]interface{}, 0)
-	for k, v := range balances.BalanceMap {
+	bMap := balances.GetBalanceMap()
+	for k, v := range bMap {
 		tokenStr, err := common.TokenIdDecode(k)
 		if err != nil {
 			panic(err) //TODO ??

@@ -79,9 +79,9 @@ func (m *MinorBlockChain) getCoinbaseAmount(height uint64) *types.TokenBalanceMa
 	data := make(map[uint64]*big.Int)
 	tokenID := qkcCommon.TokenIDEncode(m.clusterConfig.Quarkchain.GenesisToken)
 	data[tokenID] = coinbaseAmount
-	return &types.TokenBalanceMap{
-		BalanceMap: data,
-	}
+	t := types.NewTokenBalanceMap()
+	t.SetBalanceMap(data)
+	return t
 }
 
 func (m *MinorBlockChain) putMinorBlock(mBlock *types.MinorBlock, xShardReceiveTxList []*types.CrossShardTransactionDeposit) error {
@@ -545,10 +545,7 @@ func (m *MinorBlockChain) getCrossShardTxListByRootBlockHash(hash common.Hash) (
 		txList = append(txList, xShardTxList.TXList...)
 	}
 	if m.branch.IsInBranch(rBlock.Header().GetCoinbase().FullShardKey) { // Apply root block coinbase
-		value := new(big.Int)
-		if data, ok := rBlock.Header().CoinbaseAmount.BalanceMap[qkcCommon.TokenIDEncode(m.clusterConfig.Quarkchain.GenesisToken)]; ok {
-			value.Set(data)
-		}
+		value := rBlock.Header().CoinbaseAmount.GetBalancesFromTokenID(qkcCommon.TokenIDEncode(m.clusterConfig.Quarkchain.GenesisToken))
 		txList = append(txList, &types.CrossShardTransactionDeposit{
 			TxHash:   common.Hash{},
 			From:     account.CreatEmptyAddress(0),
@@ -888,7 +885,7 @@ func (m *MinorBlockChain) CreateBlockToMine(createTime *uint64, address *account
 
 	bHeader := block.Header()
 	bHeader.PrevRootBlockHash = m.rootTip.Hash()
-	block=types.NewMinorBlock(bHeader, block.Meta(), nil, nil, nil)
+	block = types.NewMinorBlock(bHeader, block.Meta(), nil, nil, nil)
 
 	//fmt.Println("block.par",block.PrevRootBlockHash().String())
 	_, txCursor, err := m.RunCrossShardTxWithCursor(evmState, block)
@@ -908,28 +905,21 @@ func (m *MinorBlockChain) CreateBlockToMine(createTime *uint64, address *account
 	}
 	recipiets := make(types.Receipts, 0)
 	if *includeTx {
-		//	fmt.Println("885", evmState.GetGasUsed(), evmState.GetGasLimit())
-	//	fmt.Println("mmmmm",m.rootTip.Number,m.rootTip.Hash().String())
-	//	fmt.Println("block",block.Header().PrevRootBlockHash.String())
-	//	sb:=m.getRootBlockHeaderByHash(block.Header().PrevRootBlockHash)
-		//fmt.Println("sb",sb.Number)
-
 		block, recipiets, err = m.addTransactionToBlock(block, evmState)
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	//fmt.Println("add block","end")
-
 	pureCoinbaseAmount := m.getCoinbaseAmount(block.Header().Number)
-	for k, v := range pureCoinbaseAmount.BalanceMap {
+	bMap := pureCoinbaseAmount.GetBalanceMap()
+	for k, v := range bMap {
 		evmState.AddBalance(evmState.GetBlockCoinbase(), v, k)
 	}
 	pureCoinbaseAmount.Add(evmState.GetBlockFee())
-	block.Finalize(recipiets, evmState.IntermediateRoot(true), evmState.GetGasUsed(), evmState.GetXShardReceiveGasUsed(), pureCoinbaseAmount,evmState.GetTxCursorInfo())
+	block.Finalize(recipiets, evmState.IntermediateRoot(true), evmState.GetGasUsed(), evmState.GetXShardReceiveGasUsed(), pureCoinbaseAmount, evmState.GetTxCursorInfo())
 	//fmt.Println("FFinalze","end")
-//	fmt.Println("block.par",block.PrevRootBlockHash().String())
+	//	fmt.Println("block.par",block.PrevRootBlockHash().String())
 	return block, nil
 }
 

@@ -1153,7 +1153,7 @@ func (bc *RootBlockChain) CreateBlockToMine(mHeaderList []*types.MinorBlockHeade
 	block.ExtendMinorBlockHeaderList(mHeaderList)
 	data := bc.CalculateRootBlockCoinBase(block)
 	temp := types.NewTokenBalanceMap()
-	temp.BalanceMap[qkcCommon.TokenIDEncode("QKC")] = data
+	temp.SetValue(data, qkcCommon.TokenIDEncode("QKC"))
 	block.Finalize(temp, address, common.Hash{})
 	return block, nil
 }
@@ -1167,7 +1167,7 @@ func (bc *RootBlockChain) CalculateRootBlockCoinBase(rootBlock *types.RootBlock)
 
 	minorBlockFee := new(big.Int)
 	for _, header := range rootBlock.MinorBlockHeaders() {
-		minorBlockFee.Add(minorBlockFee, header.CoinbaseAmount.BalanceMap[qkcCommon.TokenIDEncode("QKC")])
+		minorBlockFee.Add(minorBlockFee, header.CoinbaseAmount.GetBalancesFromTokenID(qkcCommon.TokenIDEncode("QKC")))
 	}
 	minorBlockFee.Mul(minorBlockFee, ratio.Num())
 	minorBlockFee.Div(minorBlockFee, ratio.Denom())

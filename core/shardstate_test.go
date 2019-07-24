@@ -1545,7 +1545,7 @@ func TestAddBlockReceiptRootNotMatch(t *testing.T) {
 	evmState, reps, _, _, err := shardState.runBlock(b1, nil)
 	checkErr(err)
 	temp := types.NewTokenBalanceMap()
-	temp.BalanceMap[qkcCommon.TokenIDEncode("QKC")] = b1.Header().CoinbaseAmount.GetDefaultTokenBalance()
+	temp.SetValue(b1.Header().CoinbaseAmount.GetDefaultTokenBalance(), qkcCommon.TokenIDEncode("QKC"))
 	b1.Finalize(reps, evmState.IntermediateRoot(true), evmState.GetGasUsed(), evmState.GetXShardReceiveGasUsed(), temp, &types.XShardTxCursorInfo{})
 
 	b1Meta := b1.Meta()

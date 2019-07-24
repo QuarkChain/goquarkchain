@@ -88,7 +88,8 @@ func (p *StateProcessor) Process(block *types.MinorBlock, statedb *state.StateDB
 
 	// Finalize the block, applying any consensus engine specific extras (e.g. block rewards)
 	coinbaseAmount := p.bc.getCoinbaseAmount(block.Number())
-	for k, v := range coinbaseAmount.BalanceMap {
+	bMap := coinbaseAmount.GetBalanceMap()
+	for k, v := range bMap {
 		//fmt.Println("900000000")
 		statedb.AddBalance(block.IHeader().GetCoinbase().Recipient, v, k)
 		//fmt.Println("900000000=end")

@@ -312,7 +312,7 @@ func GenerateMinorBlockChain(config *params.ChainConfig, quarkChainConfig *confi
 		//	coinbaseAmount.Add(coinbaseAmount, statedb.GetBlockFee())
 		//TODO-master
 		temp := types.NewTokenBalanceMap()
-		temp.BalanceMap[qkcCommon.TokenIDEncode("QKC")] = coinbaseAmount
+		temp.SetValue(coinbaseAmount, qkcCommon.TokenIDEncode("QKC"))
 		block.Finalize(b.receipts, rootHash, statedb.GetGasUsed(), statedb.GetXShardReceiveGasUsed(), temp, statedb.GetTxCursorInfo())
 		//	bc.InsertChain([]types.IBlock{block}, nil)
 		return block, b.receipts

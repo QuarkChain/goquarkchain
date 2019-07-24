@@ -62,10 +62,7 @@ func (x *XShardTxCursor) getCurrentTx() (*types.CrossShardTransactionDeposit, er
 		if x.xShardDepositIndex == 1 {
 			branch := x.bc.GetBranch()
 			if branch.IsInBranch(x.rBlock.Header().Coinbase.FullShardKey) {
-				coinbaseAmount := new(big.Int)
-				if data, ok := x.rBlock.Header().CoinbaseAmount.BalanceMap[x.bc.GetGenesisToken()]; ok {
-					coinbaseAmount = new(big.Int).Set(data)
-				}
+				coinbaseAmount := x.rBlock.Header().CoinbaseAmount.GetBalancesFromTokenID(x.bc.GetGenesisToken())
 				return &types.CrossShardTransactionDeposit{
 					TxHash:          x.rBlock.Header().Hash(),
 					From:            account.CreatEmptyAddress(0),

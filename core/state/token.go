@@ -8,7 +8,6 @@ import (
 	"io"
 	"math/big"
 	"sort"
-	"sync"
 )
 
 type TokenBalancePair struct {
@@ -20,7 +19,6 @@ type TokenBalances struct {
 	//TODO:store token balances in trie when TOKEN_TRIE_THRESHOLD is crossed
 	Balances *types.TokenBalanceMap
 	Enum     byte
-	mu       sync.RWMutex
 }
 
 func NewEmptyTokenBalances() *TokenBalances {
@@ -41,11 +39,10 @@ func NewTokenBalances(data []byte) (*TokenBalances, error) {
 	case byte(0):
 		balanceList := make([]*TokenBalancePair, 0)
 		if err := rlp.DecodeBytes(data[1:], &balanceList); err != nil {
-			//fmt.Println(">>>>>>>>>>>>>>>>>>>>>", err, hex.EncodeToString(data))
 			return nil, err
 		}
 		for _, v := range balanceList {
-			tokenBalances.Balances.BalanceMap[v.TokenID.Uint64()] = v.Balance
+			tokenBalances.Balances.SetValue(v.Balance, v.TokenID.Uint64())
 		}
 	case byte(1):
 		return nil, fmt.Errorf("Token balance trie is not yet implemented")
@@ -56,20 +53,16 @@ func NewTokenBalances(data []byte) (*TokenBalances, error) {
 	return tokenBalances, nil
 }
 
+func (b *TokenBalances) Len() int {
+	return b.Balances.Len()
+}
+
 func (b *TokenBalances) SetBalancesMap(data map[uint64]*big.Int) {
-	b.mu.Lock()
-	defer b.mu.RUnlock()
-	b.Balances.BalanceMap = data
+	b.Balances.SetBalanceMap(data)
 }
 
 func (b *TokenBalances) GetBalanceFromTokenID(tokenID uint64) *big.Int {
-	b.mu.RLock()
-	defer b.mu.RUnlock()
-	data, ok := b.Balances.BalanceMap[tokenID]
-	if !ok {
-		return new(big.Int)
-	}
-	return new(big.Int).Set(data)
+	return b.Balances.GetBalancesFromTokenID(tokenID)
 }
 
 func (b *TokenBalances) AddBalance() {
@@ -77,14 +70,15 @@ func (b *TokenBalances) AddBalance() {
 }
 
 func (b *TokenBalances) Serialize(w *[]byte) error {
-	if len(b.Balances.BalanceMap) == 0 {
+	if b.Balances.Len() == 0 {
 		return nil
 	}
 	*w = append(*w, b.Enum)
 	switch b.Enum {
 	case byte(0):
 		list := make([]*TokenBalancePair, 0)
-		for k, v := range b.Balances.BalanceMap {
+		balancesMap := b.Balances.GetBalanceMap()
+		for k, v := range balancesMap {
 			if v.Cmp(new(big.Int)) == 0 {
 				continue
 			}
@@ -146,31 +140,13 @@ func (b *TokenBalances) DecodeRLP(s *rlp.Stream) error {
 	return err
 }
 
-func (b *TokenBalances) Balance(tokenID uint64) *big.Int {
-	balance, ok := b.Balances.BalanceMap[tokenID]
-	if !ok {
-		return new(big.Int)
-	}
-	return new(big.Int).Set(balance)
-}
-
 func (b *TokenBalances) IsEmpty() bool {
-	flag := true
-	for _, v := range b.Balances.BalanceMap {
-		if v.Cmp(new(big.Int)) != 0 {
-			return false
-		}
-	}
-	return flag
+	return b.Balances.IsEmpty()
 }
 
 func (b *TokenBalances) Copy() *TokenBalances {
-	t := &TokenBalances{
-		Balances: types.NewTokenBalanceMap(),
+	return &TokenBalances{
+		Balances: b.Balances.Copy(),
 		Enum:     b.Enum,
 	}
-	for k, v := range b.Balances.BalanceMap {
-		t.Balances.BalanceMap[k] = v
-	}
-	return t
 }
