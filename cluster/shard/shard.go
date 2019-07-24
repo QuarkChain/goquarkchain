@@ -44,6 +44,7 @@ type ShardBackend struct {
 	mBPool      newBlockPool
 	txGenerator *TxGenerator
 
+	running      bool
 	mu           sync.Mutex
 	eventMux     *event.TypeMux
 	synchronizer synchronizer.Synchronizer
@@ -66,6 +67,7 @@ func New(ctx *service.ServiceContext, rBlock *types.RootBlock, conn ConnManager,
 			gspec:             core.NewGenesis(cfg.Quarkchain),
 			eventMux:          ctx.EventMux,
 			logInfo:           fmt.Sprintf("shard:%d", fullshardId),
+			running:           true,
 		}
 		err error
 	)
@@ -107,6 +109,12 @@ func New(ctx *service.ServiceContext, rBlock *types.RootBlock, conn ConnManager,
 }
 
 func (s *ShardBackend) Stop() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if !s.running {
+		return
+	}
+	s.running = false
 	s.miner.Stop()
 	s.eventMux.Stop()
 	s.engine.Close()

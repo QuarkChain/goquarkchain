@@ -2,7 +2,6 @@ package test
 
 import (
 	"bytes"
-	"fmt"
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/cluster/shard"
@@ -565,7 +564,6 @@ func TestGetWorkFromSlave(t *testing.T) {
 			t.Log("failed to get work from slave", "slave id", slave.GetConfig().ID)
 			return false
 		}
-		fmt.Println(work.Number, work.Difficulty.Uint64(), work.HeaderHash.Hex())
 		return work.Difficulty.Uint64() == uint64(10)
 	}, 3), true)
 	// TODO need to change remote type test.
@@ -829,9 +827,9 @@ func TestGetRootBlockHeadersWithSkip(t *testing.T) {
 }
 
 func TestGetRootBlockHeaderSyncFromGenesis(t *testing.T) {
-	cfglist := GetClusterConfig(2, 1, 1, 1, nil, "", config.PoWSimulate, true)
+	cfglist := GetClusterConfig(2, 1, 1, 1, nil, defaultbootNode, config.PoWSimulate, true)
 	_, clstrList := CreateClusterList(2, cfglist)
-	clstrList.Start(5*time.Second, true)
+	clstrList.Start(5*time.Second, false)
 	defer clstrList.Stop()
 
 	var (
