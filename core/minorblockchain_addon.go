@@ -1607,7 +1607,6 @@ func (m *MinorBlockChain) ReadCrossShardTxList(hash common.Hash) *types.CrossSha
 		return data.(*types.CrossShardTransactionDepositList)
 	}
 	data := rawdb.ReadCrossShardTxList(m.db, hash)
-	//fmt.Println("RRRRRRRRRRRR", hash.String(), data)
 	if data != nil {
 		m.crossShardTxListCache.Add(hash, data)
 		return data
@@ -1656,9 +1655,8 @@ func (m *MinorBlockChain) RunCrossShardTxWithCursor(evmState *state.StateDB, mBl
 	if preMinorBlock == nil {
 		return nil, nil, errors.New("no pre block")
 	}
-	cursorInfo := preMinorBlock.Meta().XShardTxCursorInfo
-	cursor := NewXShardTxCursor(m, mBlock.Header(), cursorInfo)
-	//fmt.Println("strt",mBlock.NumberU64(),cursor.getCursorInfo().XShardDepositIndex,cursor.getCursorInfo().RootBlockHeight,cursor.getCursorInfo().MinorBlockIndex)
+	cursor := NewXShardTxCursor(m, mBlock.Header(), preMinorBlock.Meta().XShardTxCursorInfo)
+
 	txList := make([]*types.CrossShardTransactionDeposit, 0)
 	for true {
 		xShardDepositTx, err := cursor.getNextTx()
@@ -1672,12 +1670,10 @@ func (m *MinorBlockChain) RunCrossShardTxWithCursor(evmState *state.StateDB, mBl
 		if err := m.runOneXShardTx(evmState, xShardDepositTx, cursor.rBlock.Header().NumberU64() >= m.clusterConfig.Quarkchain.XShardGasDDOSFixRootHeight); err != nil {
 			return nil, nil, err
 		}
-		//fmt.Println("16677777", mBlock.Number(), mBlock.Hash().String(), mBlock.Meta().XShardTxCursorInfo)
 		if evmState.GetGasUsed().Cmp(mBlock.Meta().XshardGasLimit.Value) >= 0 {
 			break
 		}
 	}
 	evmState.SetXShardReceiveGasUsed(evmState.GetGasUsed())
-	//fmt.Println("end",mBlock.NumberU64(),cursor.getCursorInfo().XShardDepositIndex,cursor.getCursorInfo().RootBlockHeight,cursor.getCursorInfo().MinorBlockIndex)
 	return txList, cursor.getCursorInfo(), nil
 }

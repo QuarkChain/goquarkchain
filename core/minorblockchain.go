@@ -1733,13 +1733,13 @@ func (m *MinorBlockChain) GetRootBlockByHash(hash common.Hash) *types.RootBlock 
 }
 
 func (m *MinorBlockChain) GetRootBlockHeaderByHeight(h common.Hash, height uint64) *types.RootBlockHeader {
-	m.GetBranch()
 	rHeader := m.getRootBlockHeaderByHash(h)
 	if height > rHeader.NumberU64() {
 		return nil
 	}
 	for height != rHeader.NumberU64() {
 		rHeader = m.getRootBlockHeaderByHash(rHeader.ParentHash)
+		log.Crit("bug should fix", "GetRootBlockHeaderByHeight rootBlock is nil hash", rHeader.ParentHash, "currNumber", rHeader.NumberU64(), "currHash", rHeader.Hash().String())
 	}
 	return rHeader
 }
