@@ -375,7 +375,7 @@ func (test *snapshotTest) checkEqual(state, checkstate *StateDB) error {
 		// Check basic accessor methods.
 		checkeq("Exist", state.Exist(addr), checkstate.Exist(addr))
 		checkeq("HasSuicided", state.HasSuicided(addr), checkstate.HasSuicided(addr))
-		checkeq("GetBalance", state.GetBalance(addr, 0), checkstate.GetBalance(addr, 0))
+		checkeq("GetBalance", state.GetBalance(addr, genesisTokenID), checkstate.GetBalance(addr, genesisTokenID))
 		checkeq("GetNonce", state.GetNonce(addr), checkstate.GetNonce(addr))
 		checkeq("GetCode", state.GetCode(addr), checkstate.GetCode(addr))
 		checkeq("GetCodeHash", state.GetCodeHash(addr), checkstate.GetCodeHash(addr))
