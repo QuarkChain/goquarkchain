@@ -90,7 +90,6 @@ type stateObject struct {
 
 // empty returns whether the account is considered empty.
 func (s *stateObject) empty() bool {
-	//fmt.Println("?????", s.data.Nonce, s.data.TokenBalances.IsEmpty(), hex.EncodeToString(s.data.CodeHash), hex.EncodeToString(emptyCodeHash))
 	return s.data.Nonce == 0 && s.data.TokenBalances.IsEmpty() && bytes.Equal(s.data.CodeHash, emptyCodeHash)
 }
 
@@ -270,10 +269,8 @@ func (self *stateObject) CommitTrie(db Database) error {
 // AddBalance removes amount from c's balance.
 // It is used to add funds to the destination account of a transfer.
 func (c *stateObject) AddBalance(amount *big.Int, tokenID uint64) {
-	//fmt.Println("AAAAAAAA",amount,tokenID,c.address.Hex())
 	// EIP158: We must check emptiness for the objects such that the account
 	// clearing (0,0,0 objects) can take effect.
-	//fmt.Println("????", amount, amount.Sign(), c.empty())
 	if amount.Sign() == 0 {
 		if c.empty() {
 			c.touch()

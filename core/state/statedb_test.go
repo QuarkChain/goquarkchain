@@ -348,12 +348,10 @@ func (test *snapshotTest) run() bool {
 	// Revert all snapshots in reverse order. Each revert must yield a state
 	// that is equivalent to fresh state with all actions up the snapshot applied.
 	for sindex--; sindex >= 0; sindex-- {
-		//fmt.Println("sindex-------------", sindex)
 		checkstate, _ := New(common.Hash{}, state.Database())
 		for _, action := range test.actions[:test.snapshots[sindex]] {
 			action.fn(action, checkstate)
 		}
-
 		state.RevertToSnapshot(snapshotRevs[sindex])
 		if err := test.checkEqual(state, checkstate); err != nil {
 			test.err = fmt.Errorf("state mismatch after revert to snapshot %d\n%v", sindex, err)
@@ -377,11 +375,7 @@ func (test *snapshotTest) checkEqual(state, checkstate *StateDB) error {
 		// Check basic accessor methods.
 		checkeq("Exist", state.Exist(addr), checkstate.Exist(addr))
 		checkeq("HasSuicided", state.HasSuicided(addr), checkstate.HasSuicided(addr))
-		if state.GetBalance(addr, genesisTokenID).Uint64() != checkstate.GetBalance(addr, genesisTokenID).Uint64() {
-			fmt.Println("????", "addr", addr.String(), state.GetBalance(addr, genesisTokenID), checkstate.GetBalance(addr, genesisTokenID))
-		}
-
-		checkeq("GetBalance", state.GetBalance(addr, genesisTokenID), checkstate.GetBalance(addr, genesisTokenID))
+		checkeq("GetBalance", state.GetBalance(addr, 0), checkstate.GetBalance(addr, 0))
 		checkeq("GetNonce", state.GetNonce(addr), checkstate.GetNonce(addr))
 		checkeq("GetCode", state.GetCode(addr), checkstate.GetCode(addr))
 		checkeq("GetCodeHash", state.GetCodeHash(addr), checkstate.GetCodeHash(addr))
