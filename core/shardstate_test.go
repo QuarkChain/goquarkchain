@@ -868,7 +868,7 @@ func TestXShardTxReceiver(t *testing.T) {
 		GasPrice: &serialize.Uint256{Value: new(big.Int).SetUint64(2)},
 	})
 	// Add a x-shard tx from remote peer
-	fmt.Println("?????", b1.Header().Hash().String(), b1.Header().Number, txList)
+	//fmt.Println("?????", b1.Header().Hash().String(), b1.Header().Number, txList)
 	shardState0.AddCrossShardTxListByMinorBlockHash(b1.Header().Hash(), txList) // write db
 	fmt.Println("87222", shardState0.CurrentBlock().Number(), shardState0.CurrentBlock().Hash().String())
 	// Create a root block containing the block with the x-shard tx

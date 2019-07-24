@@ -1,10 +1,9 @@
 package state
 
 import (
-	"encoding/hex"
-	"fmt"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/rlp"
+	"github.com/stretchr/testify/assert"
 	"math/big"
 	"testing"
 )
@@ -30,16 +29,16 @@ func TestRLP(t *testing.T) {
 	//t1.TokenBalances.Enum = byte(0)
 
 	data, err := rlp.EncodeToBytes(t1)
-	fmt.Println("err", err, "data", hex.EncodeToString(data))
-
+	//	fmt.Println("err", err, "data", hex.EncodeToString(data))
+	assert.NoError(t, err)
 	tt1 := new(AAccount)
 	err = rlp.DecodeBytes(data, tt1)
-
-	fmt.Println("err", err)
-	fmt.Println("Nonce", tt1.Nonce)
-	fmt.Println("TokenBalances", tt1.TokenBalances)
-	fmt.Println("Root", tt1.Root.String())
-	fmt.Println("CodeHash", tt1.CodeHash)
-	fmt.Println("FullShardKey", tt1.FullShardKey)
+	assert.NoError(t, err)
+	//fmt.Println("err", err)
+	//fmt.Println("Nonce", tt1.Nonce)
+	//fmt.Println("TokenBalances", tt1.TokenBalances)
+	//fmt.Println("Root", tt1.Root.String())
+	//fmt.Println("CodeHash", tt1.CodeHash)
+	//fmt.Println("FullShardKey", tt1.FullShardKey)
 
 }

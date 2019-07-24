@@ -90,6 +90,7 @@ type stateObject struct {
 
 // empty returns whether the account is considered empty.
 func (s *stateObject) empty() bool {
+	//fmt.Println("?????", s.data.Nonce, s.data.TokenBalances.IsEmpty(), hex.EncodeToString(s.data.CodeHash), hex.EncodeToString(emptyCodeHash))
 	return s.data.Nonce == 0 && s.data.TokenBalances.IsEmpty() && bytes.Equal(s.data.CodeHash, emptyCodeHash)
 }
 
@@ -105,17 +106,25 @@ type Account struct {
 
 // newObject creates a state object.
 func newObject(db *StateDB, address common.Address, data Account) *stateObject {
-	if data.TokenBalances == nil {
-		data.TokenBalances, _ = NewTokenBalances([]byte{})
+	newData := Account{
+		Nonce:        data.Nonce,
+		Root:         data.Root,
+		CodeHash:     data.CodeHash,
+		FullShardKey: data.FullShardKey,
 	}
-	if data.CodeHash == nil {
-		data.CodeHash = emptyCodeHash
+	if data.TokenBalances == nil {
+		newData.TokenBalances, _ = NewTokenBalances([]byte{})
+	} else {
+		newData.TokenBalances = data.TokenBalances.Copy()
+	}
+	if newData.CodeHash == nil {
+		newData.CodeHash = emptyCodeHash
 	}
 	return &stateObject{
 		db:            db,
 		address:       address,
 		addrHash:      crypto.Keccak256Hash(address[:]),
-		data:          data,
+		data:          newData,
 		originStorage: make(Storage),
 		dirtyStorage:  make(Storage),
 	}
@@ -261,8 +270,10 @@ func (self *stateObject) CommitTrie(db Database) error {
 // AddBalance removes amount from c's balance.
 // It is used to add funds to the destination account of a transfer.
 func (c *stateObject) AddBalance(amount *big.Int, tokenID uint64) {
+	//fmt.Println("AAAAAAAA",amount,tokenID,c.address.Hex())
 	// EIP158: We must check emptiness for the objects such that the account
 	// clearing (0,0,0 objects) can take effect.
+	//fmt.Println("????", amount, amount.Sign(), c.empty())
 	if amount.Sign() == 0 {
 		if c.empty() {
 			c.touch()
@@ -295,7 +306,7 @@ func (self *stateObject) SetBalance(amount *big.Int, tokenID uint64) {
 
 func (self *stateObject) SetBalances(balances map[uint64]*big.Int) {
 	prev := make(map[uint64]*big.Int)
-	prev = self.data.TokenBalances.Balances.BalanceMap
+	prev = self.data.TokenBalances.Balances.Copy().BalanceMap
 	self.db.journal.append(balanceChange{
 		account: &self.address,
 		prev:    prev,

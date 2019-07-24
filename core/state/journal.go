@@ -172,7 +172,11 @@ func (ch touchChange) dirtied() *common.Address {
 }
 
 func (ch balanceChange) revert(s *StateDB) {
-	s.getStateObject(*ch.account).SetBalances(ch.prev)
+	prev := make(map[uint64]*big.Int)
+	for k, v := range ch.prev {
+		prev[k] = v
+	}
+	s.getStateObject(*ch.account).SetBalances(prev)
 }
 
 func (ch balanceChange) dirtied() *common.Address {

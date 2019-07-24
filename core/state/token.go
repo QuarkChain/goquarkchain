@@ -151,7 +151,7 @@ func (b *TokenBalances) Balance(tokenID uint64) *big.Int {
 	if !ok {
 		return new(big.Int)
 	}
-	return balance
+	return new(big.Int).Set(balance)
 }
 
 func (b *TokenBalances) IsEmpty() bool {
