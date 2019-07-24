@@ -1738,8 +1738,9 @@ func (m *MinorBlockChain) GetRootBlockHeaderByHeight(h common.Hash, height uint6
 		return nil
 	}
 	for height != rHeader.NumberU64() {
-		rHeader = m.getRootBlockHeaderByHash(rHeader.ParentHash)
-		log.Crit("bug should fix", "GetRootBlockHeaderByHeight rootBlock is nil hash", rHeader.ParentHash, "currNumber", rHeader.NumberU64(), "currHash", rHeader.Hash().String())
+		if rHeader = m.getRootBlockHeaderByHash(rHeader.ParentHash); rHeader == nil {
+			log.Crit("bug should fix", "GetRootBlockHeaderByHeight rootBlock is nil hash", rHeader.ParentHash, "currNumber", rHeader.NumberU64(), "currHash", rHeader.Hash().String())
+		}
 	}
 	return rHeader
 }
