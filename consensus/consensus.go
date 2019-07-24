@@ -149,10 +149,6 @@ func (c *CommonEngine) VerifyHeader(
 			header.GetTime(), parent.GetTime())
 	}
 
-	if uint32(len(header.GetExtra())) > chain.Config().BlockExtraDataSizeLimit {
-		return errors.New("extra_data in block is too large")
-	}
-
 	if !chain.SkipDifficultyCheck() {
 		expectedDiff, err := c.diffCalc.CalculateDifficulty(parent, header.GetTime())
 		if err != nil {

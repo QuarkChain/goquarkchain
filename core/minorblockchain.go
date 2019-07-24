@@ -426,6 +426,7 @@ func (m *MinorBlockChain) GetAdjustedDifficulty(header types.IHeader) (*big.Int,
 		balance, err := m.GetBalance(header.GetCoinbase().Recipient, nil)
 		if err != nil {
 			log.Error("failed to get coinbase balance", err)
+			return nil, err
 		}
 
 		diff, err = m.posw.PoSWDiffAdjust(header, balance)
