@@ -167,7 +167,14 @@ func (s *ShardBackend) initGenesisState(rootBlock *types.RootBlock) error {
 	if status, err = s.MinorBlockChain.GetShardStatus(); err != nil {
 		return err
 	}
-	return s.conn.SendMinorBlockHeaderToMaster(minorBlock.Header(), uint32(len(minorBlock.GetTransactions())), uint32(len(xshardList)), status)
+	request := &rpc.AddMinorBlockHeaderRequest{
+		MinorBlockHeader:  minorBlock.Header(),
+		TxCount:           uint32(len(minorBlock.GetTransactions())),
+		XShardTxCount:     uint32(len(xshardList)),
+		ShardStats:        status,
+		CoinbaseAmountMap: minorBlock.Header().CoinbaseAmount,
+	}
+	return s.conn.SendMinorBlockHeaderToMaster(request)
 }
 
 // minor block pool

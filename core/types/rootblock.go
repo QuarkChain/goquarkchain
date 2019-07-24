@@ -80,9 +80,9 @@ func (h *RootBlockHeader) GetExtra() []byte {
 }
 
 func (b *RootBlockHeader) GetCoinbaseAmount() *TokenBalanceMap {
-	if b.CoinbaseAmount != nil && b.CoinbaseAmount.BalanceMap != nil {
+	if b.CoinbaseAmount != nil && b.CoinbaseAmount.balanceMap != nil {
 		return &TokenBalanceMap{
-			BalanceMap: map[uint64]*big.Int(b.CoinbaseAmount.BalanceMap),
+			balanceMap: map[uint64]*big.Int(b.CoinbaseAmount.balanceMap),
 		}
 	}
 	return NewTokenBalanceMap()
@@ -219,7 +219,7 @@ func NewRootBlockWithHeader(header *RootBlockHeader) *RootBlock {
 // modifying a header variable.
 func CopyRootBlockHeader(h *RootBlockHeader) *RootBlockHeader {
 	cpy := *h
-	if h.CoinbaseAmount != nil && h.CoinbaseAmount.BalanceMap != nil {
+	if h.CoinbaseAmount != nil && h.CoinbaseAmount.balanceMap != nil {
 		cpy.CoinbaseAmount = h.CoinbaseAmount.Copy()
 	}
 	if cpy.Difficulty = new(big.Int); h.Difficulty != nil {

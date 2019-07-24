@@ -72,11 +72,11 @@ func (h *MinorBlockHeader) GetPrevRootBlockHash() common.Hash { return h.PrevRoo
 func (h *MinorBlockHeader) GetCoinbase() account.Address      { return h.Coinbase }
 
 func (h *MinorBlockHeader) GetCoinbaseAmount() *TokenBalanceMap {
-	if h.CoinbaseAmount != nil && h.CoinbaseAmount.BalanceMap != nil {
+	if h.CoinbaseAmount != nil && h.CoinbaseAmount.balanceMap != nil {
 		return h.CoinbaseAmount.Copy()
 	}
 	return &TokenBalanceMap{
-		BalanceMap: map[uint64]*big.Int{},
+		balanceMap: map[uint64]*big.Int{},
 	}
 }
 func (h *MinorBlockHeader) GetTime() uint64              { return h.Time }
@@ -230,7 +230,7 @@ func CopyMinorBlockHeader(h *MinorBlockHeader) *MinorBlockHeader {
 	if cpy.Difficulty = new(big.Int); h.Difficulty != nil {
 		cpy.Difficulty.Set(h.Difficulty)
 	}
-	if h.CoinbaseAmount != nil && h.CoinbaseAmount.BalanceMap != nil {
+	if h.CoinbaseAmount != nil && h.CoinbaseAmount.balanceMap != nil {
 		cpy.CoinbaseAmount = h.CoinbaseAmount.Copy()
 	}
 	if cpy.GasLimit = new(serialize.Uint256); h.GasLimit != nil && h.GasLimit.Value != nil {
@@ -304,13 +304,16 @@ func (b *MinorBlock) Coinbase() account.Address      { return b.header.Coinbase 
 func (b *MinorBlock) ParentHash() common.Hash        { return b.header.ParentHash }
 func (b *MinorBlock) PrevRootBlockHash() common.Hash { return b.header.PrevRootBlockHash }
 func (b *MinorBlock) GasLimit() *big.Int             { return new(big.Int).Set(b.header.GasLimit.Value) }
-func (b *MinorBlock) MetaHash() common.Hash          { return b.header.MetaHash }
-func (b *MinorBlock) Time() uint64                   { return b.header.Time }
-func (b *MinorBlock) Difficulty() *big.Int           { return new(big.Int).Set(b.header.Difficulty) }
-func (b *MinorBlock) Nonce() uint64                  { return b.header.Nonce }
-func (b *MinorBlock) Extra() []byte                  { return common.CopyBytes(b.header.Extra) }
-func (b *MinorBlock) Bloom() Bloom                   { return b.header.Bloom }
-func (b *MinorBlock) MixDigest() common.Hash         { return b.header.MixDigest }
+func (b *MinorBlock) GetXShardGasLimit() *big.Int {
+	return new(big.Int).Set(b.Meta().XshardGasLimit.Value)
+}
+func (b *MinorBlock) MetaHash() common.Hash  { return b.header.MetaHash }
+func (b *MinorBlock) Time() uint64           { return b.header.Time }
+func (b *MinorBlock) Difficulty() *big.Int   { return new(big.Int).Set(b.header.Difficulty) }
+func (b *MinorBlock) Nonce() uint64          { return b.header.Nonce }
+func (b *MinorBlock) Extra() []byte          { return common.CopyBytes(b.header.Extra) }
+func (b *MinorBlock) Bloom() Bloom           { return b.header.Bloom }
+func (b *MinorBlock) MixDigest() common.Hash { return b.header.MixDigest }
 
 //meta properties
 func (b *MinorBlock) Root() common.Hash        { return b.meta.Root }
@@ -432,7 +435,7 @@ func (m *MinorBlock) Finalize(receipts Receipts, rootHash common.Hash, gasUsed *
 	m.header.Bloom = CreateBloom(receipts)
 	m.hash.Store(m.header.Hash())
 }
-func (h *MinorBlock) CreateBlockToAppend(createTime *uint64, difficulty *big.Int, address *account.Address, nonce *uint64, gasLimit *big.Int, extraData []byte, coinbaseAmount *TokenBalanceMap) *MinorBlock {
+func (h *MinorBlock) CreateBlockToAppend(createTime *uint64, difficulty *big.Int, address *account.Address, nonce *uint64, gasLimit *big.Int, xShardGasLimit *big.Int, extraData []byte, coinbaseAmount *TokenBalanceMap) *MinorBlock {
 	if createTime == nil {
 		preTime := h.Time() + 1
 		createTime = &preTime
@@ -454,6 +457,10 @@ func (h *MinorBlock) CreateBlockToAppend(createTime *uint64, difficulty *big.Int
 
 	if gasLimit == nil {
 		gasLimit = h.GasLimit()
+	}
+
+	if xShardGasLimit == nil {
+		xShardGasLimit = new(big.Int).Div(h.GasLimit(), new(big.Int).SetUint64(2))
 	}
 
 	if extraData == nil {
@@ -481,6 +488,7 @@ func (h *MinorBlock) CreateBlockToAppend(createTime *uint64, difficulty *big.Int
 		GasUsed:            &serialize.Uint256{Value: new(big.Int)},
 		CrossShardGasUsed:  &serialize.Uint256{Value: new(big.Int)},
 		XShardTxCursorInfo: h.meta.XShardTxCursorInfo,
+		XshardGasLimit:     &serialize.Uint256{Value: new(big.Int).Set(xShardGasLimit)},
 	}
 	return &MinorBlock{
 		header:       header,

@@ -28,7 +28,7 @@ func TestEIP155Signing(t *testing.T) {
 	recipient := publicKey2Recipient(&key.PublicKey)
 
 	signer := NewEIP155Signer(1)
-	tx, err := SignTx(NewEvmTransaction(0, recipient, new(big.Int), 0, new(big.Int), 0, 0, 1, 0, nil), signer, key)
+	tx, err := SignTx(NewEvmTransaction(0, recipient, new(big.Int), 0, new(big.Int), 0, 0, 1, 0, nil, 0, 0), signer, key)
 	if err != nil {
 		t.Fatal(err)
 	}

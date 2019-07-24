@@ -7,6 +7,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/cluster/service"
 	"github.com/QuarkChain/goquarkchain/cmd/utils"
+	qkcCommon "github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/p2p"
 	"github.com/ethereum/go-ethereum/common"
@@ -17,8 +18,9 @@ import (
 )
 
 var (
-	defaultP2PPort = 38291
-	privStrs       = []string{
+	testGenesisTokenID = qkcCommon.TokenIDEncode("QKC")
+	defaultP2PPort     = 38291
+	privStrs           = []string{
 		"966a253dd39a1832306487c6218da1425e429fae01c1a40eb50965dff31a04ed",
 		"653088d87cac950f7134f7aaf727dd173dba00706f30699fad03898b1d0acf0d",
 		"8d298c57e269a379c4956583f095b2557c8f07226410e02ae852bc4563864790",
@@ -92,7 +94,7 @@ func createTx(acc account.Address, to *account.Address) *types.Transaction {
 		uint32(to.FullShardKey),
 		3,
 		0,
-		[]byte{})
+		[]byte{}, testGenesisTokenID, testGenesisTokenID)
 	fmt.Println("++++++++", evmTx.ToFullShardId())
 	tx, _ := sign(evmTx)
 	return &types.Transaction{

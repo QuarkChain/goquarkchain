@@ -9,13 +9,18 @@ import (
 
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
+	qkcCommon "github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/core"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/common"
 )
 
+var (
+	testGenesisTokenID = qkcCommon.TokenIDEncode("QKC")
+)
+
 func appendNewBlock(blockchain *core.MinorBlockChain, acc1 account.Address, t *testing.T) (*types.MinorBlock, types.Receipts) {
-	newBlock, err := blockchain.CreateBlockToMine(nil, &acc1, nil)
+	newBlock, err := blockchain.CreateBlockToMine(nil, &acc1, nil, nil, nil)
 	if err != nil {
 		t.Fatalf("failed to CreateBlockToMine: %v", err)
 	}
@@ -23,7 +28,8 @@ func appendNewBlock(blockchain *core.MinorBlockChain, acc1 account.Address, t *t
 	if balance, err := blockchain.GetBalance(newBlock.Coinbase().Recipient, nil); err != nil {
 		t.Fatalf("failed to get balance: %v", err)
 	} else {
-		adjustedDiff, err := core.GetPoSW(blockchain).PoSWDiffAdjust(newBlock.Header(), balance)
+
+		adjustedDiff, err := core.GetPoSW(blockchain).PoSWDiffAdjust(newBlock.Header(), balance.GetBalancesFromTokenID(testGenesisTokenID))
 		if err != nil {
 			t.Fatalf("failed to adjust posw diff: %v", err)
 		}
@@ -107,7 +113,7 @@ func TestPoSWCoinBaseSendUnderLimit(t *testing.T) {
 	if lenDislmp != 2 {
 		t.Errorf("len of Sender Disallow map: expect %d, got %d", 2, lenDislmp)
 	}
-	balance := evmState.GetBalance(acc1.Recipient)
+	balance := evmState.GetBalance(acc1.Recipient, testGenesisTokenID)
 	balanceExp := new(big.Int).Div(shardConfig.CoinbaseAmount, big.NewInt(2)) // tax rate is 0.5
 	if balance.Cmp(balanceExp) != 0 {
 		t.Errorf("Balance: expected %v, got %v", balanceExp, balance)
@@ -138,12 +144,12 @@ func TestPoSWCoinBaseSendUnderLimit(t *testing.T) {
 	}
 	acc2 := account.CreatAddressFromIdentity(id2, 0)
 	appendNewBlock(blockchain, acc2, t)
-	var blc *big.Int
+	blc := types.NewTokenBalanceMap()
 	if blc, err = blockchain.GetBalance(acc1.Recipient, nil); err != nil {
 		t.Fatalf("get balance failed: %v", err)
 	}
 	balanceExp1 := new(big.Int).Sub(balanceExp, big.NewInt(1))
-	if balanceExp1.Cmp(blc) != 0 {
+	if balanceExp1.Cmp(blc.GetBalancesFromTokenID(testGenesisTokenID)) != 0 {
 		t.Errorf("Balance: expected %v, got %v", balanceExp1, blc)
 	}
 
@@ -171,23 +177,23 @@ func TestPoSWCoinBaseSendUnderLimit(t *testing.T) {
 		t.Fatalf("error adding tx %v", err)
 	}
 	var mb1 *types.MinorBlock
-	if mb1, err = blockchain.CreateBlockToMine(nil, &acc2, nil); err != nil {
+	if mb1, err = blockchain.CreateBlockToMine(nil, &acc2, nil, nil, nil); err != nil {
 		t.Fatalf("error creating block %v", err)
 	}
 	if _, _, err = blockchain.FinalizeAndAddBlock(mb1); err == nil {
 		t.Error("finalize and add block should fail due to SENDER NOT ALLOWED")
 	}
-	var tb1 *big.Int
+	tb1 := types.NewTokenBalanceMap()
 	if tb1, err = blockchain.GetBalance(acc1.Recipient, nil); err != nil {
 		t.Fatalf("get balance error %v", err)
 	}
-	if tb1.Cmp(balanceExp1) != 0 {
+	if tb1.GetBalancesFromTokenID(testGenesisTokenID).Cmp(balanceExp1) != 0 {
 		t.Errorf("Balance: expected %v, got %v", balanceExp1, tb1)
 	}
 
 	if tb2, err := blockchain.GetBalance(acc2.Recipient, nil); err != nil {
 		t.Fatalf("get balance error %v", err)
-	} else if tb2.Cmp(balanceExp) != 0 { //acc2 only mined 1 block successfully
+	} else if tb2.GetBalancesFromTokenID(testGenesisTokenID).Cmp(balanceExp) != 0 { //acc2 only mined 1 block successfully
 		t.Errorf("Balance: expected %v, got %v", balanceExp, tb2)
 	}
 
@@ -260,7 +266,7 @@ func TestPoSWCoinbaseSendEqualLocked(t *testing.T) {
 		if sdMap := evmState.GetSenderDisallowMap(); len(sdMap) != 2 {
 			t.Errorf("len of sender disallow map: expected %d, got %d", 2, len(sdMap))
 		}
-		balance := evmState.GetBalance(acc1.Recipient)
+		balance := evmState.GetBalance(acc1.Recipient, testGenesisTokenID)
 		balanceExp := new(big.Int).Div(shardConfig.CoinbaseAmount, big.NewInt(2))
 		if balanceExp.Cmp(balance) != 0 {
 			t.Errorf("balance: expected %v, got %v", balanceExp, balance)
@@ -293,7 +299,7 @@ func TestPoSWCoinbaseSendEqualLocked(t *testing.T) {
 		t.Fatalf("get balance error %v", err)
 	} else {
 		balanceExp := new(big.Int).Sub(shardConfig.CoinbaseAmount, big.NewInt(1))
-		if tb1.Cmp(balanceExp) != 0 {
+		if tb1.GetBalancesFromTokenID(testGenesisTokenID).Cmp(balanceExp) != 0 {
 			t.Errorf("Balance: expected %v, got %v", balanceExp, tb1)
 		}
 	}
@@ -342,7 +348,7 @@ func TestPoSWCoinbaseSendAboveLocked(t *testing.T) {
 		if sdMap := evmState.GetSenderDisallowMap(); len(sdMap) != 2 {
 			t.Errorf("len of sender disallow map: expected %d, got %d", 2, len(sdMap))
 		}
-		balance := evmState.GetBalance(acc1.Recipient)
+		balance := evmState.GetBalance(acc1.Recipient, testGenesisTokenID)
 		balanceExp := new(big.Int).Add(big.NewInt(1000000), new(big.Int).Div(shardConfig.CoinbaseAmount,
 			big.NewInt(2)))
 		if balanceExp.Cmp(balance) != 0 {
@@ -391,7 +397,7 @@ func TestPoSWCoinbaseSendAboveLocked(t *testing.T) {
 	if evmState, err := blockchain.State(); err != nil {
 		t.Fatalf("error get state: %v", err)
 	} else { //only one block succeed.
-		balance := evmState.GetBalance(acc1.Recipient)
+		balance := evmState.GetBalance(acc1.Recipient, testGenesisTokenID)
 		balanceExp := new(big.Int).SetUint64(1000000 + 10 - gas1/2)
 		if balanceExp.Cmp(balance) != 0 {
 			t.Errorf("balance: expected %v, got %v", balanceExp, balance)
@@ -436,7 +442,7 @@ func TestPoSWValidateMinorBlockSeal(t *testing.T) {
 		t.Fatalf("failed to get balance %v", err)
 	} else {
 		balanceExp := big.NewInt(int64(alloc))
-		if balanceExp.Cmp(balance) != 0 {
+		if balanceExp.Cmp(balance.GetBalancesFromTokenID(testGenesisTokenID)) != 0 {
 			t.Errorf("balance: expected: %v, got %v", balanceExp, balance)
 		}
 	}
@@ -446,7 +452,7 @@ func TestPoSWValidateMinorBlockSeal(t *testing.T) {
 		t.Fatalf("failed to get balance %v", err)
 	} else {
 		balanceExp := big.NewInt(0)
-		if balanceExp.Cmp(balance) != 0 {
+		if balanceExp.Cmp(balance.GetBalancesFromTokenID(testGenesisTokenID)) != 0 {
 			t.Errorf("balance: expected: %v, got %v", balanceExp, balance)
 		}
 	}
@@ -462,7 +468,7 @@ func TestPoSWValidateMinorBlockSeal(t *testing.T) {
 		tip := blockchain.GetMinorBlock(blockchain.CurrentHeader().Hash())
 		for n := 0; n < 4; n++ {
 			nonce := uint64(n)
-			newBlock = tip.CreateBlockToAppend(nil, diff, &acc, &nonce, nil, nil, nil)
+			newBlock = tip.CreateBlockToAppend(nil, diff, &acc, &nonce, nil, nil, nil, nil)
 			if err := blockchain.Validator().ValidatorSeal(newBlock.IHeader()); err != nil {
 				t.Errorf("validate block error %v", err)
 			}
@@ -504,7 +510,7 @@ func TestPoSWWindowEdgeCases(t *testing.T) {
 
 	diff := big.NewInt(1000)
 	tip := blockchain.GetMinorBlock(blockchain.CurrentHeader().Hash())
-	newBlock := tip.CreateBlockToAppend(nil, diff, &acc, nil, nil, nil, nil)
+	newBlock := tip.CreateBlockToAppend(nil, diff, &acc, nil, nil, nil, nil, nil)
 	if _, _, err = blockchain.FinalizeAndAddBlock(newBlock); err != nil {
 		t.Fatalf("failed to FinalizeAndAddBlock: %v", err)
 	}
@@ -513,14 +519,14 @@ func TestPoSWWindowEdgeCases(t *testing.T) {
 		t.Fatalf("failed to get balance %v", err)
 	} else {
 		balanceExp := big.NewInt(int64(alloc))
-		if balanceExp.Cmp(balance) != 0 {
+		if balanceExp.Cmp(balance.GetBalancesFromTokenID(testGenesisTokenID)) != 0 {
 			t.Errorf("balance: expected: %v, got %v", balanceExp, balance)
 		}
 	}
 	//0 <- 1 <- [curr], the window already has one block with PoSW benefit,
 	// mining new blocks should fail
 	tip1 := blockchain.GetMinorBlock(blockchain.CurrentHeader().Hash())
-	newBlock1 := tip1.CreateBlockToAppend(nil, diff, &acc, nil, nil, nil, nil)
+	newBlock1 := tip1.CreateBlockToAppend(nil, diff, &acc, nil, nil, nil, nil, nil)
 	if _, _, err = blockchain.FinalizeAndAddBlock(newBlock1); err != nil {
 		t.Fatalf("failed to FinalizeAndAddBlock: %v", err)
 	}
