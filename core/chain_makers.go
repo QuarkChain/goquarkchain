@@ -290,10 +290,6 @@ func GenerateMinorBlockChain(config *params.ChainConfig, quarkChainConfig *confi
 			block.AddTx(v)
 		}
 
-		//_, txCursor, err := bc.RunCrossShardTxWithCursor(statedb, block)
-		//if err != nil {
-		//	panic(err)
-		//}
 		txCursor := &types.XShardTxCursorInfo{
 			RootBlockHeight: 1,
 		}

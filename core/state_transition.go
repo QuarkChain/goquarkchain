@@ -175,7 +175,6 @@ func (st *StateTransition) buyGas() error {
 	st.gas += st.msg.Gas()
 
 	st.initialGas = st.msg.Gas()
-	//fmt.Println("179999")
 	st.state.SubBalance(st.msg.From(), mgval, st.evm.GasTokenID)
 	return nil
 }
@@ -212,6 +211,7 @@ func (st *StateTransition) TransitionDb(feeRate *big.Rat) (ret []byte, usedGas u
 	if err = st.useGas(gas); err != nil {
 		return nil, 0, false, err
 	}
+
 	var (
 		evm = st.evm
 		// vm errors do not effect consensus and are therefor
@@ -219,24 +219,22 @@ func (st *StateTransition) TransitionDb(feeRate *big.Rat) (ret []byte, usedGas u
 		// error.
 		vmerr error
 	)
-	//fmt.Println("222222222222222222",contractCreation)
 	if contractCreation {
 		ret, _, st.gas, vmerr = evm.Create(sender, st.data, st.gas, st.value, msg.IsCrossShard())
 	} else {
 		// Increment the nonce for the next transaction
 		st.state.SetNonce(msg.From(), st.state.GetNonce(sender.Address())+1)
 		if st.transferFailureByPoSWBalanceCheck() {
-	//		fmt.Println("???????????????????/")
 			ret, st.gas, vmerr = nil, 0, vm.ErrPoSWSenderNotAllowed
 		} else {
 			if msg.IsCrossShard() {
 				ret, st.gas, vmerr = st.handleCrossShardTx()
 			} else {
-	//			fmt.Println("CALALLLL")
 				ret, st.gas, vmerr = evm.Call(sender, st.to(), st.data, st.gas, st.value)
 			}
 		}
 	}
+
 	if vmerr != nil {
 		log.Debug("VM returned with error", "err", vmerr)
 		// The only possible consensus-error would be if there wasn't
@@ -318,18 +316,13 @@ func (st *StateTransition) handleCrossShardTx() (ret []byte, usedGas uint64, err
 		Value:    crossShardValue,
 		GasPrice: crossShardGasPrice,
 	}
-	//fmt.Println("3199999")
 	evm.StateDB.SubBalance(msg.From(), st.value, st.msg.GasTokenID())
 	evm.StateDB.AppendXShardList(crossShardData)
 	return nil, st.gas, nil
 }
 
 func (st *StateTransition) transferFailureByPoSWBalanceCheck() bool {
-	//fmt.Println("check")
-	//fmt.Println(st.state.GetSenderDisallowMap()[st.msg.From()])
-	//fmt.Println("check end")
 	if v, ok := st.state.GetSenderDisallowMap()[st.msg.From()]; ok {
-		//fmt.Println("????",st.msg.From().String(),st.msg.Value(), v,st.state.GetBalance(st.msg.From(), st.msg.GasTokenID()))
 		if new(big.Int).Add(st.msg.Value(), v).Cmp(st.state.GetBalance(st.msg.From(), st.msg.GasTokenID())) == 1 {
 			return true
 		}

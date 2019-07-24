@@ -111,7 +111,6 @@ func (v *MinorBlockValidator) ValidateBlock(mBlock types.IBlock) error {
 	}
 
 	if block.Header().Time > uint64(time.Now().Unix())+ALLOWED_FUTURE_BLOCKS_TIME_VALIDATION {
-		fmt.Println(">>>>", block.Header().Time, time.Now().Unix(), ALLOWED_FUTURE_BLOCKS_TIME_VALIDATION)
 		return fmt.Errorf("block too far into future")
 	}
 
@@ -298,7 +297,6 @@ func (v *MinorBlockValidator) ValidateState(mBlock, parent types.IBlock, statedb
 		return fmt.Errorf("invalid bloom (remote: %x  local: %x)", mHeader.GetBloom(), bloom)
 	}
 
-	//	fmt.Println(">>>>>>>>", mBlock.NumberU64(), statedb.GetTxCursorInfo(), block.Meta().XShardTxCursorInfo)
 	if !compareXshardTxCursor(statedb.GetTxCursorInfo(), block.Meta().XShardTxCursorInfo) {
 		return fmt.Errorf("cross-hard transaction cursor info mismatches! %v %v", statedb.GetTxCursorInfo(), block.Meta().XShardTxCursorInfo)
 	}

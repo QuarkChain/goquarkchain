@@ -163,7 +163,6 @@ func printMinorChain(bc *MinorBlockChain) {
 // the database if successful.
 func testMinorBlockChainImport(chain []types.IBlock, blockchain *MinorBlockChain) error {
 	for _, block := range chain {
-		//fmt.Println("block", block.NumberU64())
 		// Try and process the block
 		err := blockchain.engine.VerifyHeader(blockchain, block.IHeader(), true)
 		if err == nil {
@@ -232,6 +231,7 @@ func TestMinorLastBlock(t *testing.T) {
 		t.Fatalf("failed to create pristine chain: %v", err)
 	}
 	defer blockchain.Stop()
+
 	blocks := makeBlockChain(blockchain.CurrentBlock(), 1, engine, blockchain.db, 0)
 	if _, err := blockchain.InsertChain(toMinorBlocks(blocks), nil); err != nil {
 		t.Fatalf("Failed to insert block: %v", err)

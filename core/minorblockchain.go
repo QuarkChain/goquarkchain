@@ -207,11 +207,8 @@ func NewMinorBlockChain(
 	if err != nil {
 		return nil, err
 	}
-	//fmt.Println("@@@@@@@@@@@@@@@@@@@@", bc.gasLimit)
 	bc.xShardGasLimit = new(big.Int).Set(bc.gasLimit)
 	bc.xShardGasLimit = bc.xShardGasLimit.Div(bc.xShardGasLimit, new(big.Int).SetUint64(2))
-
-	//fmt.Println("222222222222222222222222222222222", bc.gasLimit, bc.xShardGasLimit)
 	//TODO xShardGasLimit
 	bc.SetValidator(NewBlockValidator(clusterConfig.Quarkchain, bc, engine, bc.branch))
 	bc.SetProcessor(NewStateProcessor(bc.ethChainConfig, bc, engine))
@@ -994,6 +991,7 @@ func (m *MinorBlockChain) WriteBlockWithState(block *types.MinorBlock, receipts 
 	// Write other block data using a batch.
 	batch := m.db.NewBatch()
 	rawdb.WriteReceipts(batch, block.Hash(), receipts)
+
 	if updateTip {
 		// Reorganise the chain if the parent is not the head block
 		if block.ParentHash() != currentBlock.Hash() {
@@ -1125,7 +1123,6 @@ func (m *MinorBlockChain) insertChain(chain []types.IBlock, verifySeals bool, pa
 		headers[i] = block.IHeader()
 		seals[i] = verifySeals
 	}
-	//fmt.Println("heaaadddd",headers[0].(*types.MinorBlockHeader))
 	abort, results := m.engine.VerifyHeaders(m, headers, seals)
 	defer close(abort)
 
@@ -1212,7 +1209,6 @@ func (m *MinorBlockChain) insertChain(chain []types.IBlock, verifySeals bool, pa
 		if err != nil {
 			return it.index, events, coalescedLogs, xShardList, err
 		}
-		//fmt.Println("updateTip", updateTip)
 		// Write the block to the chain and get the status.
 		status, err := m.WriteBlockWithState(mBlock, receipts, state, xShardReceiveTxList, updateTip)
 		if err != nil {
@@ -1387,7 +1383,6 @@ func (m *MinorBlockChain) insertSidechain(it *insertIterator) (int, []interface{
 // to be part of the new canonical chain and accumulates potential missing transactions and post an
 // event about them
 func (m *MinorBlockChain) reorg(oldBlock, newBlock types.IBlock) error {
-	//fmt.Println("reorg", oldBlock.NumberU64(), oldBlock.Hash().String(), newBlock.NumberU64(), newBlock.Hash().String())
 	if qkcCommon.IsNil(oldBlock) || qkcCommon.IsNil(newBlock) {
 		return errors.New("reorg err:block is nil")
 	}
@@ -1432,7 +1427,6 @@ func (m *MinorBlockChain) reorg(oldBlock, newBlock types.IBlock) error {
 		}
 	}
 	if qkcCommon.IsNil(oldBlock) {
-		fmt.Println("2222")
 		return fmt.Errorf("Invalid old chain")
 	}
 	if qkcCommon.IsNil(newBlock) {
@@ -1450,10 +1444,8 @@ func (m *MinorBlockChain) reorg(oldBlock, newBlock types.IBlock) error {
 		deletedTxs = append(deletedTxs, oldBlock.(*types.MinorBlock).GetTransactions()...)
 		collectLogs(oldBlock.Hash())
 
-	//	fmt.Println("oldBlock", oldBlock.IHeader().GetParentHash(), oldBlock.NumberU64())
 		oldBlock, newBlock = m.GetBlock(oldBlock.IHeader().GetParentHash()), m.GetBlock(newBlock.IHeader().GetParentHash())
 		if qkcCommon.IsNil(oldBlock) {
-			//fmt.Println("1111")
 			return fmt.Errorf("Invalid old chain")
 		}
 		if qkcCommon.IsNil(newBlock) {

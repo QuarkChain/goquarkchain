@@ -863,8 +863,6 @@ func (bc *RootBlockChain) reorg(oldBlock, newBlock types.IBlock) error {
 			newChain = append(newChain, newBlock)
 		}
 	}
-
-	//fmt.Println("?????", oldBlock, oldBlock == nil)
 	if oldBlock == nil {
 		return fmt.Errorf("Invalid old chain")
 	}

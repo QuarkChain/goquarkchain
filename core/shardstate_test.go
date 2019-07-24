@@ -2,7 +2,6 @@ package core
 
 import (
 	"errors"
-	"fmt"
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	qkcCommon "github.com/QuarkChain/goquarkchain/common"
@@ -56,7 +55,6 @@ func TestInitGenesisState(t *testing.T) {
 
 	block := newGenesisBlock.CreateBlockToAppend(nil, nil, nil, nil, nil, nil, nil, nil)
 
-	//fmt.Println("FFFFFFFFFFFFF")
 	_, _, err = shardState.FinalizeAndAddBlock(block)
 	checkErr(err)
 
@@ -375,7 +373,6 @@ func TestDuplicatedTx(t *testing.T) {
 	block, _ = shardState.GetTransactionByHash(tx.Hash())
 	assert.NotNil(t, block)
 
-	//fmt.Println("37777777777777")
 	// tx already confirmed
 	err = shardState.AddTx(tx)
 	assert.Error(t, err)
@@ -542,7 +539,6 @@ func TestTwoTxInOneBlock(t *testing.T) {
 	err = shardState.AddTx(createTransferTransaction(shardState, id2.GetKey().Bytes(), acc2, acc1, new(big.Int).SetUint64(54321), &fakeGas, nil, nil, nil, nil, nil))
 	checkErr(err)
 
-	//fmt.Println("?????")
 	// # Should succeed
 	b1, err := shardState.CreateBlockToMine(nil, &acc3, new(big.Int).SetUint64(40000), new(big.Int), nil)
 	checkErr(err)
@@ -868,25 +864,19 @@ func TestXShardTxReceiver(t *testing.T) {
 		GasPrice: &serialize.Uint256{Value: new(big.Int).SetUint64(2)},
 	})
 	// Add a x-shard tx from remote peer
-	//fmt.Println("?????", b1.Header().Hash().String(), b1.Header().Number, txList)
 	shardState0.AddCrossShardTxListByMinorBlockHash(b1.Header().Hash(), txList) // write db
-	fmt.Println("87222", shardState0.CurrentBlock().Number(), shardState0.CurrentBlock().Hash().String())
 	// Create a root block containing the block with the x-shard tx
 	rootBlock = shardState0.rootTip.CreateBlockToAppend(nil, nil, nil, nil, nil)
 	rootBlock.AddMinorBlockHeader(b0.Header())
 	rootBlock.AddMinorBlockHeader(b1.Header())
 	rootBlock.Finalize(nil, nil, common.Hash{})
-
-	fmt.Println("rootBlock0p-ppp", rootBlock.Hash().String(), rootBlock.MinorBlockHeaders()[0].Hash().String(), rootBlock.MinorBlockHeaders()[1].Hash().String())
 	_, err = shardState0.AddRootBlock(rootBlock)
 	checkErr(err)
 
 	// Add b0 and make sure all x-shard tx's are added
 	b2, err := shardState0.CreateBlockToMine(nil, &acc3, nil, nil, nil)
 	checkErr(err)
-	fmt.Println("FFFFFF-b2", b2.Number(), b2.Header().Hash().String(), b2.Header().ParentHash.String())
 	b2, _, err = shardState0.FinalizeAndAddBlock(b2)
-	fmt.Println("EEEEEEEEEEEEEEEEEEEE")
 	checkErr(err)
 	//TODO neet to fix runOneXShardTx
 	//acc1Value := shardState0.currentEvmState.GetBalance(acc1.Recipient, 0)
@@ -1345,14 +1335,9 @@ func TestShardStateForkResolveWithHigherRootChain(t *testing.T) {
 	checkErr(err)
 	assert.Equal(t, shardState.CurrentHeader().Hash().String(), b1.Header().Hash().String())
 
-	//fmt.Println("FFFFFFFFFFFFFFF-2")
 	// Fork happens, although they have the same height, b2 survives since it confirms root block
 	b2, _, err = shardState.FinalizeAndAddBlock(b2)
 	checkErr(err)
-	//fmt.Println("ssss", shardState.CurrentBlock().Number(), shardState.CurrentBlock().Hash().String())
-	//fmt.Println("b1", b1.Number(), b1.Header().Hash().String())
-	//fmt.Println("b2", b2.Number(), b2.Header().Hash().String())
-	//fmt.Println("b3", b3.Number(), b3.Header().Hash().String())
 	assert.Equal(t, shardState.CurrentHeader().Hash().String(), b2.Header().Hash().String())
 
 	// b3 confirms the same root block as b2, so it will not override b2
