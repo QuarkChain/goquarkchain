@@ -560,6 +560,10 @@ func (pool *TxPool) local() map[common.Address]types.Transactions {
 // validateTx checks whether a transaction is valid according to the consensus
 // rules and adheres to some heuristic limits of the local node (price and size).
 func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
+	if err := pool.checkTxAboutQKC(tx); err != nil {
+		return err
+	}
+
 	// Heuristic limit, reject transactions over 32KB to prevent DOS attacks
 	if tx.EvmTx.Size() > 32*1024 {
 		return ErrOversizedData
@@ -751,9 +755,6 @@ func (pool *TxPool) AddRemotes(txs []*types.Transaction) []error {
 
 // addTx enqueues a single transaction into the pool if it is valid.
 func (pool *TxPool) addTx(tx *types.Transaction, local bool) error {
-	if err := pool.CheckTxBeforeAdd(tx); err != nil {
-		return err
-	}
 	pool.mu.Lock()
 	defer pool.mu.Unlock()
 	// Try to inject the transaction and update any state
@@ -1103,6 +1104,18 @@ func (pool *TxPool) demoteUnexecutables() {
 	}
 }
 
+func (m *TxPool) checkTxAboutQKC(tx *types.Transaction) error {
+	if m.all.Count() > int(m.quarkConfig.TransactionQueueSizeLimitPerShard) {
+		return errors.New("txpool queue full")
+	}
+
+	tx, err := m.chain.validateTx(tx, m.currentState, nil, nil, nil)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 // addressByHeartbeat is an account address tagged with its last activity timestamp.
 type addressByHeartbeat struct {
 	address   common.Address
@@ -1229,16 +1242,4 @@ func (t *txLookup) Remove(hash common.Hash) {
 	defer t.lock.Unlock()
 
 	delete(t.all, hash)
-}
-
-func (m *TxPool) CheckTxBeforeAdd(tx *types.Transaction) error {
-	if m.all.Count() > int(m.quarkConfig.TransactionQueueSizeLimitPerShard) {
-		return errors.New("txpool queue full")
-	}
-
-	tx, err := m.chain.validateTx(tx, m.currentState, nil, nil, nil)
-	if err != nil {
-		return err
-	}
-	return nil
 }
