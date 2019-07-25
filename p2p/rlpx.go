@@ -38,7 +38,6 @@ import (
 	"github.com/ethereum/go-ethereum/common/bitutil"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/crypto/ecies"
-	"github.com/ethereum/go-ethereum/crypto/secp256k1"
 	"github.com/ethereum/go-ethereum/crypto/sha3"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/golang/snappy"
@@ -107,9 +106,9 @@ func (t *rlpx) close(err error) {
 	defer t.wmu.Unlock()
 	// Tell the remote end why we're disconnecting if possible.
 	if t.rw != nil {
+		// if the connection is net.Pipe (in-memory simulation)
 		if r, ok := err.(DiscReason); ok && r != DiscNetworkError {
 			// rlpx tries to send DiscReason to disconnected peer
-			// if the connection is net.Pipe (in-memory simulation)
 			// it hangs forever, since net.Pipe does not implement
 			// a write deadline. Because of this only try to send
 			// the disconnect reason message if there is no error.
@@ -400,7 +399,7 @@ func (h *encHandshake) handleAuthMsg(msg *authMsgV4, prv *ecdsa.PrivateKey) erro
 		return err
 	}
 	signedMsg := xor(token, h.initNonce)
-	remoteRandomPub, err := secp256k1.RecoverPubkey(signedMsg, msg.Signature[:])
+	remoteRandomPub, err := crypto.Ecrecover(signedMsg, msg.Signature[:])
 	if err != nil {
 		return err
 	}

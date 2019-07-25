@@ -6,6 +6,8 @@ import (
 	"crypto/ecdsa"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/crypto/sha3"
+	"hash"
 	"math/big"
 )
 
@@ -18,6 +20,10 @@ func Keccak256(data ...[]byte) []byte {
 // converting it to an internal Hash data structure.
 func Keccak256Hash(data ...[]byte) (h common.Hash) {
 	return crypto.Keccak256Hash(data...)
+}
+
+func New256Hash() hash.Hash {
+	return sha3.NewKeccak256()
 }
 
 // CreateAddress2 creates an qkc address given the address bytes, initial

@@ -4,6 +4,7 @@ package crypto
 
 import (
 	"crypto/ecdsa"
+	"crypto/elliptic"
 	"errors"
 	"fmt"
 	"github.com/QuarkChain/gos/crypto/sm2"
@@ -98,4 +99,9 @@ func DecompressPubkey(pubkey []byte) (*ecdsa.PublicKey, error) {
 // CompressPubkey encodes a public key to the 33-byte compressed format.
 func CompressPubkey(pubkey *ecdsa.PublicKey) []byte {
 	return (*sm2.PublicKey)(pubkey).SerializeCompressed()
+}
+
+// S256 returns an instance of the sm2 curve.
+func S256() elliptic.Curve {
+	return sm2.Sm2Curve()
 }
