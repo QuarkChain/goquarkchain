@@ -29,7 +29,7 @@ func appendNewBlock(blockchain *core.MinorBlockChain, acc1 account.Address, t *t
 		t.Fatalf("failed to get balance: %v", err)
 	} else {
 
-		adjustedDiff, err := core.GetPoSW(blockchain).PoSWDiffAdjust(newBlock.Header(), balance.GetBalancesFromTokenID(testGenesisTokenID))
+		adjustedDiff, err := core.GetPoSW(blockchain).PoSWDiffAdjust(newBlock.Header(), balance.GetBalanceFromTokenID(testGenesisTokenID))
 		if err != nil {
 			t.Fatalf("failed to adjust posw diff: %v", err)
 		}
@@ -144,12 +144,12 @@ func TestPoSWCoinBaseSendUnderLimit(t *testing.T) {
 	}
 	acc2 := account.CreatAddressFromIdentity(id2, 0)
 	appendNewBlock(blockchain, acc2, t)
-	blc := types.NewTokenBalanceMap()
+	blc := types.NewEmptyTokenBalances()
 	if blc, err = blockchain.GetBalance(acc1.Recipient, nil); err != nil {
 		t.Fatalf("get balance failed: %v", err)
 	}
 	balanceExp1 := new(big.Int).Sub(balanceExp, big.NewInt(1))
-	if balanceExp1.Cmp(blc.GetBalancesFromTokenID(testGenesisTokenID)) != 0 {
+	if balanceExp1.Cmp(blc.GetBalanceFromTokenID(testGenesisTokenID)) != 0 {
 		t.Errorf("Balance: expected %v, got %v", balanceExp1, blc)
 	}
 
@@ -183,17 +183,17 @@ func TestPoSWCoinBaseSendUnderLimit(t *testing.T) {
 	if _, _, err = blockchain.FinalizeAndAddBlock(mb1); err == nil {
 		t.Error("finalize and add block should fail due to SENDER NOT ALLOWED")
 	}
-	tb1 := types.NewTokenBalanceMap()
+	tb1 := types.NewEmptyTokenBalances()
 	if tb1, err = blockchain.GetBalance(acc1.Recipient, nil); err != nil {
 		t.Fatalf("get balance error %v", err)
 	}
-	if tb1.GetBalancesFromTokenID(testGenesisTokenID).Cmp(balanceExp1) != 0 {
+	if tb1.GetBalanceFromTokenID(testGenesisTokenID).Cmp(balanceExp1) != 0 {
 		t.Errorf("Balance: expected %v, got %v", balanceExp1, tb1)
 	}
 
 	if tb2, err := blockchain.GetBalance(acc2.Recipient, nil); err != nil {
 		t.Fatalf("get balance error %v", err)
-	} else if tb2.GetBalancesFromTokenID(testGenesisTokenID).Cmp(balanceExp) != 0 { //acc2 only mined 1 block successfully
+	} else if tb2.GetBalanceFromTokenID(testGenesisTokenID).Cmp(balanceExp) != 0 { //acc2 only mined 1 block successfully
 		t.Errorf("Balance: expected %v, got %v", balanceExp, tb2)
 	}
 
@@ -299,7 +299,7 @@ func TestPoSWCoinbaseSendEqualLocked(t *testing.T) {
 		t.Fatalf("get balance error %v", err)
 	} else {
 		balanceExp := new(big.Int).Sub(shardConfig.CoinbaseAmount, big.NewInt(1))
-		if tb1.GetBalancesFromTokenID(testGenesisTokenID).Cmp(balanceExp) != 0 {
+		if tb1.GetBalanceFromTokenID(testGenesisTokenID).Cmp(balanceExp) != 0 {
 			t.Errorf("Balance: expected %v, got %v", balanceExp, tb1)
 		}
 	}
@@ -442,7 +442,7 @@ func TestPoSWValidateMinorBlockSeal(t *testing.T) {
 		t.Fatalf("failed to get balance %v", err)
 	} else {
 		balanceExp := big.NewInt(int64(alloc))
-		if balanceExp.Cmp(balance.GetBalancesFromTokenID(testGenesisTokenID)) != 0 {
+		if balanceExp.Cmp(balance.GetBalanceFromTokenID(testGenesisTokenID)) != 0 {
 			t.Errorf("balance: expected: %v, got %v", balanceExp, balance)
 		}
 	}
@@ -452,7 +452,7 @@ func TestPoSWValidateMinorBlockSeal(t *testing.T) {
 		t.Fatalf("failed to get balance %v", err)
 	} else {
 		balanceExp := big.NewInt(0)
-		if balanceExp.Cmp(balance.GetBalancesFromTokenID(testGenesisTokenID)) != 0 {
+		if balanceExp.Cmp(balance.GetBalanceFromTokenID(testGenesisTokenID)) != 0 {
 			t.Errorf("balance: expected: %v, got %v", balanceExp, balance)
 		}
 	}
@@ -519,7 +519,7 @@ func TestPoSWWindowEdgeCases(t *testing.T) {
 		t.Fatalf("failed to get balance %v", err)
 	} else {
 		balanceExp := big.NewInt(int64(alloc))
-		if balanceExp.Cmp(balance.GetBalancesFromTokenID(testGenesisTokenID)) != 0 {
+		if balanceExp.Cmp(balance.GetBalanceFromTokenID(testGenesisTokenID)) != 0 {
 			t.Errorf("balance: expected: %v, got %v", balanceExp, balance)
 		}
 	}

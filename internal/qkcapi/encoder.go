@@ -27,7 +27,7 @@ func DataEncoder(bytes []byte) hexutil.Bytes {
 	return hexutil.Bytes(bytes)
 }
 
-func balancesEncoder(balances *types.TokenBalanceMap) []map[string]interface{} {
+func balancesEncoder(balances *types.TokenBalances) []map[string]interface{} {
 	balanceList := make([]map[string]interface{}, 0)
 	bMap := balances.GetBalanceMap()
 	for k, v := range bMap {

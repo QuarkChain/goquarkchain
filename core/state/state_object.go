@@ -19,6 +19,7 @@ package state
 import (
 	"bytes"
 	"fmt"
+	"github.com/QuarkChain/goquarkchain/core/types"
 	"io"
 	"math/big"
 
@@ -97,7 +98,7 @@ func (s *stateObject) empty() bool {
 // These objects are stored in the main account trie.
 type Account struct {
 	Nonce         uint64
-	TokenBalances *TokenBalances
+	TokenBalances *types.TokenBalances
 	Root          common.Hash // merkle root of the storage trie
 	CodeHash      []byte
 	FullShardKey  uint32
@@ -112,7 +113,7 @@ func newObject(db *StateDB, address common.Address, data Account) *stateObject {
 		FullShardKey: data.FullShardKey,
 	}
 	if data.TokenBalances == nil {
-		newData.TokenBalances, _ = NewTokenBalances([]byte{})
+		newData.TokenBalances, _ = types.NewTokenBalances([]byte{})
 	} else {
 		newData.TokenBalances = data.TokenBalances.Copy()
 	}
@@ -303,7 +304,7 @@ func (self *stateObject) SetBalance(amount *big.Int, tokenID uint64) {
 
 func (self *stateObject) SetBalances(balances map[uint64]*big.Int) {
 	prev := make(map[uint64]*big.Int)
-	prev = self.data.TokenBalances.Balances.GetBalanceMap()
+	prev = self.data.TokenBalances.GetBalanceMap()
 	self.db.journal.append(balanceChange{
 		account: &self.address,
 		prev:    prev,
@@ -312,11 +313,11 @@ func (self *stateObject) SetBalances(balances map[uint64]*big.Int) {
 }
 
 func (self *stateObject) setTokenBalance(amount *big.Int, tokenID uint64) {
-	self.data.TokenBalances.Balances.SetValue(amount, tokenID)
+	self.data.TokenBalances.SetValue(amount, tokenID)
 }
 
 func (self *stateObject) setBalances(balances map[uint64]*big.Int) {
-	self.data.TokenBalances.Balances.SetBalanceMap(balances)
+	self.data.TokenBalances = types.NewTokenBalancesWithMap(balances)
 }
 
 // Return the gas back to the origin. Used by the Virtual machine or Closures

@@ -56,7 +56,7 @@ func (self *StateDB) RawDump() Dump {
 
 		obj := newObject(nil, common.BytesToAddress(addr), data)
 		account := DumpAccount{
-			Balance:  data.TokenBalances.Balances.GetBalanceMap(),
+			Balance:  data.TokenBalances.GetBalanceMap(),
 			Nonce:    data.Nonce,
 			Root:     common.Bytes2Hex(data.Root[:]),
 			CodeHash: common.Bytes2Hex(data.CodeHash),

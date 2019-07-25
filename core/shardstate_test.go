@@ -33,7 +33,7 @@ func TestShardStateSimple(t *testing.T) {
 	rootBlock := shardState.GetRootBlockByHash(shardState.rootTip.Hash())
 	assert.NotNil(t, rootBlock)
 	// make sure genesis minor block has the right coinbase after-tax
-	assert.NotNil(t, shardState.CurrentBlock().Header().CoinbaseAmount.GetDefaultTokenBalance(), testShardCoinbaseAmount)
+	assert.NotNil(t, shardState.CurrentBlock().Header().CoinbaseAmount.GetBalanceFromTokenID(genesisTokenID), testShardCoinbaseAmount)
 }
 
 func TestInitGenesisState(t *testing.T) {
@@ -1131,7 +1131,7 @@ func TestRootChainFirstConsensus(t *testing.T) {
 
 	b1 := shardState1.CurrentBlock().CreateBlockToAppend(nil, nil, nil, nil, nil, nil, nil, nil)
 	evmState, reps, _, _, err := shardState1.runBlock(b1, nil)
-	temp := types.NewTokenBalanceMap()
+	temp := types.NewEmptyTokenBalances()
 	temp.Add(evmState.GetBlockFee())
 	b1.Finalize(reps, evmState.IntermediateRoot(true), evmState.GetGasUsed(), evmState.GetXShardReceiveGasUsed(), temp, &types.XShardTxCursorInfo{})
 	rootBlock := shardState0.rootTip.CreateBlockToAppend(nil, nil, nil, nil, nil)
@@ -1187,7 +1187,7 @@ func TestShardStateAddRootBlock(t *testing.T) {
 
 	b1 := shardState1.CurrentBlock().CreateBlockToAppend(nil, nil, nil, nil, nil, nil, nil, nil)
 	evmState, reps, _, _, err := shardState1.runBlock(b1, nil)
-	temp := types.NewTokenBalanceMap()
+	temp := types.NewEmptyTokenBalances()
 	temp.Add(evmState.GetBlockFee())
 	b1.Finalize(reps, evmState.IntermediateRoot(true), evmState.GetGasUsed(), evmState.GetXShardReceiveGasUsed(), temp, &types.XShardTxCursorInfo{})
 
@@ -1529,8 +1529,8 @@ func TestAddBlockReceiptRootNotMatch(t *testing.T) {
 
 	evmState, reps, _, _, err := shardState.runBlock(b1, nil)
 	checkErr(err)
-	temp := types.NewTokenBalanceMap()
-	temp.SetValue(b1.Header().CoinbaseAmount.GetDefaultTokenBalance(), qkcCommon.TokenIDEncode("QKC"))
+	temp := types.NewEmptyTokenBalances()
+	temp.SetValue(b1.Header().CoinbaseAmount.GetBalanceFromTokenID(genesisTokenID), qkcCommon.TokenIDEncode("QKC"))
 	b1.Finalize(reps, evmState.IntermediateRoot(true), evmState.GetGasUsed(), evmState.GetXShardReceiveGasUsed(), temp, &types.XShardTxCursorInfo{})
 
 	b1Meta := b1.Meta()

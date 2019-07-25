@@ -7,6 +7,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
 	"github.com/QuarkChain/goquarkchain/cluster/service"
+	qkcCommon "github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/core/rawdb"
 	"github.com/QuarkChain/goquarkchain/core/types"
@@ -18,6 +19,10 @@ import (
 	"math/big"
 	"testing"
 	"time"
+)
+
+var (
+	testGenesisTokenID = qkcCommon.TokenIDEncode("QKC")
 )
 
 type fakeRpcClient struct {
@@ -325,14 +330,14 @@ func TestCreateRootBlockToMine(t *testing.T) {
 	rootBlock, err := master.createRootBlockToMine(add1)
 	assert.NoError(t, err)
 	assert.Equal(t, rootBlock.Header().Coinbase, add1)
-	assert.Equal(t, rootBlock.Header().CoinbaseAmount.GetDefaultTokenBalance().String(), "120000000000000000000")
+	assert.Equal(t, rootBlock.Header().CoinbaseAmount.GetBalanceFromTokenID(testGenesisTokenID).String(), "120000000000000000000")
 	assert.Equal(t, rootBlock.Header().Difficulty, new(big.Int).SetUint64(1000000))
 
 	rawdb.DeleteBlock(master.chainDb, minorBlock.Hash())
 	rootBlock, err = master.createRootBlockToMine(add1)
 	assert.NoError(t, err)
 	assert.Equal(t, rootBlock.Header().Coinbase, add1)
-	assert.Equal(t, rootBlock.Header().CoinbaseAmount.GetDefaultTokenBalance().String(), "120000000000000000000")
+	assert.Equal(t, rootBlock.Header().CoinbaseAmount.GetBalanceFromTokenID(testGenesisTokenID).String(), "120000000000000000000")
 	assert.Equal(t, rootBlock.Header().Difficulty, new(big.Int).SetUint64(1000000))
 	assert.Equal(t, len(rootBlock.MinorBlockHeaders()), 0)
 }

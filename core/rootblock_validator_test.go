@@ -27,8 +27,7 @@ func TestValidateBlock(t *testing.T) {
 		genesisrootBlock = gspec.MustCommitRootBlock(testdb)
 		engine           = new(consensus.FakeEngine)
 		rootBlocks       = GenerateRootBlockChain(genesisrootBlock, engine, 8, func(i int, b *RootBlockGen) {
-			t := types.NewTokenBalanceMap()
-			t.SetBalanceMap(map[uint64]*big.Int{
+			t := types.NewTokenBalancesWithMap(map[uint64]*big.Int{
 				common.TokenIDEncode("QKC"): qkcconfig.Root.CoinbaseAmount,
 			})
 			b.header.CoinbaseAmount = t

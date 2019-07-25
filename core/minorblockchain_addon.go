@@ -65,7 +65,7 @@ func powerBigInt(data *big.Int, p uint64) *big.Int {
 	return t
 }
 
-func (m *MinorBlockChain) getCoinbaseAmount(height uint64) *types.TokenBalanceMap {
+func (m *MinorBlockChain) getCoinbaseAmount(height uint64) *types.TokenBalances {
 	config := m.clusterConfig.Quarkchain.GetShardConfigByFullShardID(uint32(m.branch.Value))
 	epoch := new(big.Int).Div(new(big.Int).SetUint64(height), config.EpochInterval)
 
@@ -79,9 +79,7 @@ func (m *MinorBlockChain) getCoinbaseAmount(height uint64) *types.TokenBalanceMa
 	data := make(map[uint64]*big.Int)
 	tokenID := qkcCommon.TokenIDEncode(m.clusterConfig.Quarkchain.GenesisToken)
 	data[tokenID] = coinbaseAmount
-	t := types.NewTokenBalanceMap()
-	t.SetBalanceMap(data)
-	return t
+	return types.NewTokenBalancesWithMap(data)
 }
 
 func (m *MinorBlockChain) putMinorBlock(mBlock *types.MinorBlock, xShardReceiveTxList []*types.CrossShardTransactionDeposit) error {
@@ -545,7 +543,7 @@ func (m *MinorBlockChain) getCrossShardTxListByRootBlockHash(hash common.Hash) (
 		txList = append(txList, xShardTxList.TXList...)
 	}
 	if m.branch.IsInBranch(rBlock.Header().GetCoinbase().FullShardKey) { // Apply root block coinbase
-		value := rBlock.Header().CoinbaseAmount.GetBalancesFromTokenID(qkcCommon.TokenIDEncode(m.clusterConfig.Quarkchain.GenesisToken))
+		value := rBlock.Header().CoinbaseAmount.GetBalanceFromTokenID(qkcCommon.TokenIDEncode(m.clusterConfig.Quarkchain.GenesisToken))
 		txList = append(txList, &types.CrossShardTransactionDeposit{
 			TxHash:   common.Hash{},
 			From:     account.CreatEmptyAddress(0),
@@ -574,7 +572,7 @@ func (m *MinorBlockChain) getEvmStateByHeight(height *uint64) (*state.StateDB, e
 }
 
 // GetBalance get balance for address
-func (m *MinorBlockChain) GetBalance(recipient account.Recipient, height *uint64) (*types.TokenBalanceMap, error) {
+func (m *MinorBlockChain) GetBalance(recipient account.Recipient, height *uint64) (*types.TokenBalances, error) {
 	// no need to lock
 	evmState, err := m.getEvmStateByHeight(height)
 	if err != nil {
