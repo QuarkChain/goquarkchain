@@ -181,7 +181,7 @@ func (s *SlaveBackend) GetBalances(address *account.Address) (map[uint64]*big.In
 	return nil, ErrMsg("GetBalances")
 }
 
-func (s *SlaveBackend) GetTokenBalance(address *account.Address) (map[uint64]*big.Int, error) {
+func (s *SlaveBackend) GetTokenBalanceMap(address *account.Address) (map[uint64]*big.Int, error) {
 	branch, err := s.getBranch(address)
 	if err != nil {
 		return nil, err
@@ -210,8 +210,7 @@ func (s *SlaveBackend) GetAccountData(address *account.Address, height *uint64) 
 		if err != nil {
 			return nil, err
 		}
-		data.Balance = types.NewTokenBalanceMap()
-		data.Balance.SetBalanceMap(tokenBalances.GetBalanceMap())
+		data.Balance = tokenBalances.Copy()
 		if bt, err = shard.MinorBlockChain.GetCode(address.Recipient, height); err != nil {
 			return nil, err
 		}

@@ -242,10 +242,10 @@ type GetAccountDataRequest struct {
 }
 
 type AccountBranchData struct {
-	Branch           uint32                 `json:"branch" gencodec:"required"`
-	TransactionCount uint64                 `json:"transaction_count" gencodec:"required"`
-	Balance          *types.TokenBalanceMap `json:"token_balances" gencodec:"required" bytesizeofslicelen:"4"`
-	IsContract       bool                   `json:"is_contract" gencodec:"required"`
+	Branch           uint32               `json:"branch" gencodec:"required"`
+	TransactionCount uint64               `json:"transaction_count" gencodec:"required"`
+	Balance          *types.TokenBalances `json:"token_balances" gencodec:"required" bytesizeofslicelen:"4"`
+	IsContract       bool                 `json:"is_contract" gencodec:"required"`
 }
 
 type GetAccountDataResponse struct {
@@ -269,7 +269,7 @@ type AddMinorBlockHeaderRequest struct {
 	MinorBlockHeader  *types.MinorBlockHeader `json:"minor_block_header" gencodec:"required"`
 	TxCount           uint32                  `json:"tx_count" gencodec:"required"`
 	XShardTxCount     uint32                  `json:"x_shard_tx_count" gencodec:"required"`
-	CoinbaseAmountMap *types.TokenBalanceMap  `json:"coinbase_amount_map" gencodec:"required"`
+	CoinbaseAmountMap *types.TokenBalances    `json:"coinbase_amount_map" gencodec:"required"`
 	ShardStats        *ShardStatus            `json:"shard_stats" gencodec:"required"`
 }
 

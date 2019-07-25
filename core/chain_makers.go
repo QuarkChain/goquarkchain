@@ -280,7 +280,7 @@ func GenerateMinorBlockChain(config *params.ChainConfig, quarkChainConfig *confi
 	blocks, receipts := make([]*types.MinorBlock, n), make([]types.Receipts, n)
 	genblock := func(i int, parent *types.MinorBlock, statedb *state.StateDB) (*types.MinorBlock, types.Receipts) {
 		b := &MinorBlockGen{i: i, chain: blocks, parent: parent, statedb: statedb, config: config, engine: engine}
-		block := parent.CreateBlockToAppend(nil, nil, nil, nil, nil, nil, nil)
+		block := parent.CreateBlockToAppend(nil, nil, nil, nil, nil, new(big.Int).Div(parent.GasLimit(), new(big.Int).SetUint64(2)), nil, nil)
 		b.header = block.Header()
 		if gen != nil {
 			gen(quarkChainConfig, i, b)
@@ -290,8 +290,12 @@ func GenerateMinorBlockChain(config *params.ChainConfig, quarkChainConfig *confi
 			block.AddTx(v)
 		}
 
+		txCursor := &types.XShardTxCursorInfo{
+			RootBlockHeight: 1,
+		}
+		statedb.SetTxCursorInfo(txCursor)
 		coinbaseAmount := qkcCommon.BigIntMulBigRat(quarkChainConfig.GetShardConfigByFullShardID(quarkChainConfig.Chains[0].ShardSize|0).CoinbaseAmount, quarkChainConfig.RewardTaxRate)
-		statedb.AddBalance(block.Header().Coinbase.Recipient, coinbaseAmount)
+		statedb.AddBalance(block.Header().Coinbase.Recipient, coinbaseAmount, qkcCommon.TokenIDEncode("QKC"))
 
 		b.statedb.Finalise(true)
 		rootHash, err := b.statedb.Commit(true)
@@ -301,11 +305,12 @@ func GenerateMinorBlockChain(config *params.ChainConfig, quarkChainConfig *confi
 		if err := b.statedb.Database().TrieDB().Commit(rootHash, true); err != nil {
 			panic(fmt.Sprintf("trie write error: %v", err))
 		}
-		coinbaseAmount.Add(coinbaseAmount, statedb.GetBlockFee())
+		//	coinbaseAmount.Add(coinbaseAmount, statedb.GetBlockFee())
 		//TODO-master
-		temp := types.NewTokenBalanceMap()
-		temp.BalanceMap[qkcCommon.TokenIDEncode("QKC")] = coinbaseAmount
-		block.Finalize(b.receipts, rootHash, statedb.GetGasUsed(), statedb.GetXShardReceiveGasUsed(), temp, &types.XShardTxCursorInfo{})
+		temp := types.NewEmptyTokenBalances()
+		temp.SetValue(coinbaseAmount, qkcCommon.TokenIDEncode("QKC"))
+		block.Finalize(b.receipts, rootHash, statedb.GetGasUsed(), statedb.GetXShardReceiveGasUsed(), temp, statedb.GetTxCursorInfo())
+		//	bc.InsertChain([]types.IBlock{block}, nil)
 		return block, b.receipts
 	}
 	for i := 0; i < n; i++ {

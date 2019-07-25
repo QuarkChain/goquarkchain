@@ -91,16 +91,20 @@ type StateDB struct {
 	validRevisions []revision
 	nextRevisionId int
 
-	xShardReceiveGasUsed *big.Int
-	blockFee             *big.Int
-	xShardList           []*types.CrossShardTransactionDeposit
-	fullShardKey         uint32
-	quarkChainConfig     *config.QuarkChainConfig
-	gasUsed              *big.Int
-	gasLimit             *big.Int
-	shardConfig          *config.ShardConfig
-	senderDisallowMap    map[qkcaccount.Recipient]*big.Int
-	blockCoinbase        common.Address
+	xShardReceiveGasUsed  *big.Int
+	blockFee              map[uint64]*big.Int
+	xShardList            []*types.CrossShardTransactionDeposit
+	fullShardKey          uint32
+	quarkChainConfig      *config.QuarkChainConfig
+	gasUsed               *big.Int
+	gasLimit              *big.Int
+	shardConfig           *config.ShardConfig
+	senderDisallowMap     map[qkcaccount.Recipient]*big.Int
+	blockCoinbase         common.Address
+	timeStamp             uint64
+	blockNumber           uint64
+	xShardTxCursorInfo    *types.XShardTxCursorInfo
+	xShardDepositReceipts []*types.Receipt
 }
 
 // Create a new state from a given trie.
@@ -222,12 +226,23 @@ func (s *StateDB) Empty(addr common.Address) bool {
 }
 
 // Retrieve the balance from the given address or 0 if object not found
-func (s *StateDB) GetBalance(addr common.Address) *big.Int {
+func (s *StateDB) GetBalance(addr common.Address, tokenID uint64) *big.Int {
+	if tokenID == 0 {
+		tokenID = s.quarkChainConfig.GetDefaultChainToken()
+	}
 	stateObject := s.getStateObject(addr)
 	if stateObject != nil {
-		return stateObject.Balance()
+		return stateObject.Balance(tokenID)
 	}
 	return common.Big0
+}
+
+func (s *StateDB) GetBalances(addr common.Address) *types.TokenBalances {
+	stateObject := s.getStateObject(addr)
+	if stateObject != nil {
+		return stateObject.data.TokenBalances.Copy()
+	}
+	return types.NewEmptyTokenBalances()
 }
 
 func (s *StateDB) GetNonce(addr common.Address) uint64 {
@@ -335,25 +350,25 @@ func (s *StateDB) HasSuicided(addr common.Address) bool {
  */
 
 // AddBalance adds amount to the account associated with addr.
-func (s *StateDB) AddBalance(addr common.Address, amount *big.Int) {
+func (s *StateDB) AddBalance(addr common.Address, amount *big.Int, tokenID uint64) {
 	stateObject := s.GetOrNewStateObject(addr)
 	if stateObject != nil {
-		stateObject.AddBalance(amount)
+		stateObject.AddBalance(amount, tokenID)
 	}
 }
 
 // SubBalance subtracts amount from the account associated with addr.
-func (s *StateDB) SubBalance(addr common.Address, amount *big.Int) {
+func (s *StateDB) SubBalance(addr common.Address, amount *big.Int, tokenID uint64) {
 	stateObject := s.GetOrNewStateObject(addr)
 	if stateObject != nil {
-		stateObject.SubBalance(amount)
+		stateObject.SubBalance(amount, tokenID)
 	}
 }
 
-func (s *StateDB) SetBalance(addr common.Address, amount *big.Int) {
+func (s *StateDB) SetBalance(addr common.Address, amount *big.Int, tokenID uint64) {
 	stateObject := s.GetOrNewStateObject(addr)
 	if stateObject != nil {
-		stateObject.SetBalance(amount)
+		stateObject.SetBalance(amount, tokenID)
 	}
 }
 
@@ -391,10 +406,10 @@ func (s *StateDB) Suicide(addr common.Address) bool {
 	s.journal.append(suicideChange{
 		account:     &addr,
 		prev:        stateObject.suicided,
-		prevbalance: new(big.Int).Set(stateObject.Balance()),
+		prevbalance: stateObject.data.TokenBalances.GetBalanceMap(),
 	})
 	stateObject.markSuicided()
-	stateObject.data.Balance = new(big.Int)
+	stateObject.data.TokenBalances, _ = types.NewTokenBalances([]byte{})
 
 	return true
 }
@@ -489,7 +504,7 @@ func (s *StateDB) createObject(addr common.Address) (newobj, prev *stateObject) 
 func (s *StateDB) CreateAccount(addr common.Address) {
 	new, prev := s.createObject(addr)
 	if prev != nil {
-		new.setBalance(prev.data.Balance)
+		new.SetBalances(prev.data.TokenBalances.GetBalanceMap())
 	}
 }
 
@@ -725,18 +740,20 @@ func (s *StateDB) GetFullShardKey(addr common.Address) uint32 {
 
 }
 
-func (s *StateDB) AddBlockFee(fee *big.Int) {
+func (s *StateDB) AddBlockFee(fee map[uint64]*big.Int) {
 	if s.blockFee == nil {
-		s.blockFee = new(big.Int)
+		s.blockFee = fee
 	}
-	s.blockFee.Add(s.blockFee, fee)
+	for k, v := range fee {
+		s.blockFee[k] = v
+	}
 }
 
-func (s *StateDB) GetBlockFee() *big.Int {
+func (s *StateDB) GetBlockFee() map[uint64]*big.Int {
 	if s.blockFee == nil {
-		return new(big.Int)
+		return make(map[uint64]*big.Int)
 	}
-	return new(big.Int).Set(s.blockFee)
+	return s.blockFee
 }
 func (s *StateDB) GetQuarkChainConfig() *config.QuarkChainConfig {
 	return s.quarkChainConfig
@@ -796,6 +813,36 @@ func (s *StateDB) SetBlockCoinbase(data qkcaccount.Recipient) {
 	s.blockCoinbase = data
 }
 
-func (s *StateDB) GetXshardTxCursorInfo() *types.XShardTxCursorInfo {
-	panic("not implement")
+func (s *StateDB) SetTimeStamp(data uint64) {
+	s.timeStamp = data
+}
+
+func (s *StateDB) GetTimeStamp() uint64 {
+	return s.timeStamp
+}
+
+func (s *StateDB) SetBlockNumber(data uint64) {
+	s.blockNumber = data
+}
+
+func (s *StateDB) GetBlockNumber() uint64 {
+	return s.blockNumber
+}
+
+func (s *StateDB) SetTxCursorInfo(info *types.XShardTxCursorInfo) {
+	s.xShardTxCursorInfo = info
+}
+
+func (s *StateDB) GetTxCursorInfo() *types.XShardTxCursorInfo {
+	return s.xShardTxCursorInfo
+}
+
+func (s *StateDB) AddXshardDepositReceipt(receipt *types.Receipt) {
+	if s.xShardDepositReceipts == nil {
+		s.xShardDepositReceipts = make([]*types.Receipt, 0)
+	}
+	s.xShardDepositReceipts = append(s.xShardDepositReceipts, receipt)
+}
+func (s *StateDB) GetXShardDepositReceipt() []*types.Receipt {
+	return s.xShardDepositReceipts
 }

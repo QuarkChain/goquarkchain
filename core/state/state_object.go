@@ -19,6 +19,7 @@ package state
 import (
 	"bytes"
 	"fmt"
+	"github.com/QuarkChain/goquarkchain/core/types"
 	"io"
 	"math/big"
 
@@ -90,32 +91,40 @@ type stateObject struct {
 
 // empty returns whether the account is considered empty.
 func (s *stateObject) empty() bool {
-	return s.data.Nonce == 0 && s.data.Balance.Sign() == 0 && bytes.Equal(s.data.CodeHash, emptyCodeHash)
+	return s.data.Nonce == 0 && s.data.TokenBalances.IsEmpty() && bytes.Equal(s.data.CodeHash, emptyCodeHash)
 }
 
 // Account is the Ethereum consensus representation of accounts.
 // These objects are stored in the main account trie.
 type Account struct {
-	Nonce        uint64
-	Balance      *big.Int
-	Root         common.Hash // merkle root of the storage trie
-	CodeHash     []byte
-	FullShardKey uint32
+	Nonce         uint64
+	TokenBalances *types.TokenBalances
+	Root          common.Hash // merkle root of the storage trie
+	CodeHash      []byte
+	FullShardKey  uint32
 }
 
 // newObject creates a state object.
 func newObject(db *StateDB, address common.Address, data Account) *stateObject {
-	if data.Balance == nil {
-		data.Balance = new(big.Int)
+	newData := Account{
+		Nonce:        data.Nonce,
+		Root:         data.Root,
+		CodeHash:     data.CodeHash,
+		FullShardKey: data.FullShardKey,
 	}
-	if data.CodeHash == nil {
-		data.CodeHash = emptyCodeHash
+	if data.TokenBalances == nil {
+		newData.TokenBalances, _ = types.NewTokenBalances([]byte{})
+	} else {
+		newData.TokenBalances = data.TokenBalances.Copy()
+	}
+	if newData.CodeHash == nil {
+		newData.CodeHash = emptyCodeHash
 	}
 	return &stateObject{
 		db:            db,
 		address:       address,
 		addrHash:      crypto.Keccak256Hash(address[:]),
-		data:          data,
+		data:          newData,
 		originStorage: make(Storage),
 		dirtyStorage:  make(Storage),
 	}
@@ -260,7 +269,7 @@ func (self *stateObject) CommitTrie(db Database) error {
 
 // AddBalance removes amount from c's balance.
 // It is used to add funds to the destination account of a transfer.
-func (c *stateObject) AddBalance(amount *big.Int) {
+func (c *stateObject) AddBalance(amount *big.Int, tokenID uint64) {
 	// EIP158: We must check emptiness for the objects such that the account
 	// clearing (0,0,0 objects) can take effect.
 	if amount.Sign() == 0 {
@@ -270,28 +279,45 @@ func (c *stateObject) AddBalance(amount *big.Int) {
 
 		return
 	}
-	c.SetBalance(new(big.Int).Add(c.Balance(), amount))
+	c.SetBalance(new(big.Int).Add(c.Balance(tokenID), amount), tokenID)
 }
 
 // SubBalance removes amount from c's balance.
 // It is used to remove funds from the origin account of a transfer.
-func (c *stateObject) SubBalance(amount *big.Int) {
+func (c *stateObject) SubBalance(amount *big.Int, tokenID uint64) {
 	if amount.Sign() == 0 {
 		return
 	}
-	c.SetBalance(new(big.Int).Sub(c.Balance(), amount))
+	c.setTokenBalance(new(big.Int).Sub(c.Balance(tokenID), amount), tokenID)
 }
 
-func (self *stateObject) SetBalance(amount *big.Int) {
+func (self *stateObject) SetBalance(amount *big.Int, tokenID uint64) {
+	prev := make(map[uint64]*big.Int)
+	prevBalance := self.data.TokenBalances.GetBalanceFromTokenID(tokenID)
+	prev[tokenID] = prevBalance
 	self.db.journal.append(balanceChange{
 		account: &self.address,
-		prev:    new(big.Int).Set(self.data.Balance),
+		prev:    prev,
 	})
-	self.setBalance(amount)
+	self.setTokenBalance(amount, tokenID)
 }
 
-func (self *stateObject) setBalance(amount *big.Int) {
-	self.data.Balance = amount
+func (self *stateObject) SetBalances(balances map[uint64]*big.Int) {
+	prev := make(map[uint64]*big.Int)
+	prev = self.data.TokenBalances.GetBalanceMap()
+	self.db.journal.append(balanceChange{
+		account: &self.address,
+		prev:    prev,
+	})
+	self.setBalances(balances)
+}
+
+func (self *stateObject) setTokenBalance(amount *big.Int, tokenID uint64) {
+	self.data.TokenBalances.SetValue(amount, tokenID)
+}
+
+func (self *stateObject) setBalances(balances map[uint64]*big.Int) {
+	self.data.TokenBalances = types.NewTokenBalancesWithMap(balances)
 }
 
 // Return the gas back to the origin. Used by the Virtual machine or Closures
@@ -368,8 +394,8 @@ func (self *stateObject) CodeHash() []byte {
 	return self.data.CodeHash
 }
 
-func (self *stateObject) Balance() *big.Int {
-	return self.data.Balance
+func (self *stateObject) Balance(tokenID uint64) *big.Int {
+	return self.data.TokenBalances.GetBalanceFromTokenID(tokenID)
 }
 
 func (self *stateObject) Nonce() uint64 {
