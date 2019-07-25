@@ -25,7 +25,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/QuarkChain/goquarkchain/crypto"
+	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/crypto/sha3"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/p2p/enr"
@@ -47,8 +48,8 @@ func newTestTransport(rpub *ecdsa.PublicKey, fd net.Conn) transport {
 	wrapped.rw = newRLPXFrameRW(fd, secrets{
 		MAC:        zero16,
 		AES:        zero16,
-		IngressMAC: crypto.New256Hash(),
-		EgressMAC:  crypto.New256Hash(),
+		IngressMAC: sha3.NewKeccak256(),
+		EgressMAC:  sha3.NewKeccak256(),
 	})
 	return &testTransport{rpub: rpub, rlpx: wrapped}
 }

@@ -4,6 +4,7 @@ package crypto
 
 import (
 	"crypto/ecdsa"
+	"crypto/elliptic"
 	"errors"
 	"fmt"
 	"github.com/QuarkChain/gos/crypto/sm2"

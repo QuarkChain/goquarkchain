@@ -7,7 +7,6 @@ import (
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/p2p"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"math/big"
 	"net"
@@ -106,14 +105,6 @@ func createTx(acc account.Address, to *account.Address) *types.Transaction {
 
 func sign(evmTx *types.EvmTransaction) (*types.EvmTransaction, error) {
 	return types.SignTx(evmTx, types.MakeSigner(evmTx.NetworkId()), privKeyList[0])
-}
-
-func newkey() *ecdsa.PrivateKey {
-	key, err := crypto.GenerateKey()
-	if err != nil {
-		panic("couldn't generate key: " + err.Error())
-	}
-	return key
 }
 
 func (c *clusterNode) createNode() *enode.Node {

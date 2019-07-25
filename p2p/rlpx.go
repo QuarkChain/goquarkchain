@@ -35,9 +35,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/QuarkChain/goquarkchain/crypto"
 	"github.com/ethereum/go-ethereum/common/bitutil"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/crypto/ecies"
+	"github.com/ethereum/go-ethereum/crypto/sha3"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/golang/snappy"
 )
@@ -105,9 +106,9 @@ func (t *rlpx) close(err error) {
 	defer t.wmu.Unlock()
 	// Tell the remote end why we're disconnecting if possible.
 	if t.rw != nil {
+		// if the connection is net.Pipe (in-memory simulation)
 		if r, ok := err.(DiscReason); ok && r != DiscNetworkError {
 			// rlpx tries to send DiscReason to disconnected peer
-			// if the connection is net.Pipe (in-memory simulation)
 			// it hangs forever, since net.Pipe does not implement
 			// a write deadline. Because of this only try to send
 			// the disconnect reason message if there is no error.
@@ -251,10 +252,10 @@ func (h *encHandshake) secrets(auth, authResp []byte) (secrets, error) {
 	}
 
 	// setup sha3 instances for the MACs
-	mac1 := crypto.New256Hash()
+	mac1 := sha3.NewKeccak256()
 	mac1.Write(xor(s.MAC, h.respNonce))
 	mac1.Write(auth)
-	mac2 := crypto.New256Hash()
+	mac2 := sha3.NewKeccak256()
 	mac2.Write(xor(s.MAC, h.initNonce))
 	mac2.Write(authResp)
 	if h.initiator {

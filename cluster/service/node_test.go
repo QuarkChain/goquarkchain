@@ -10,8 +10,8 @@ import (
 	"testing"
 
 	"github.com/QuarkChain/goquarkchain/cluster/config"
-	"github.com/QuarkChain/goquarkchain/crypto"
 	"github.com/QuarkChain/goquarkchain/p2p"
+	"github.com/ethereum/go-ethereum/crypto"
 )
 
 var (
