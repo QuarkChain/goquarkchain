@@ -131,10 +131,8 @@ func (m *Miner) mainLoop() {
 func (m *Miner) Stop() {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	if m.exitCh != nil {
-		close(m.exitCh)
-		m.exitCh = nil
-	}
+	m.isMining = false
+	close(m.exitCh)
 }
 
 // TODO when p2p is syncing block how to stop miner.
