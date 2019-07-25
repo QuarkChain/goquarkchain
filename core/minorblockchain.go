@@ -136,7 +136,7 @@ type MinorBlockChain struct {
 	currentEvmState          *state.StateDB
 	logInfo                  string
 	addMinorBlockAndBroad    func(block *types.MinorBlock) error
-	posw                     consensus.SenderDisallowMapBuilder
+	posw                     consensus.PoSWCalculator
 	gasLimit                 *big.Int
 	xShardGasLimit           *big.Int
 }
@@ -231,7 +231,7 @@ func NewMinorBlockChain(
 	}
 
 	bc.txPool = NewTxPool(DefaultTxPoolConfig, bc)
-	bc.posw = consensus.CreateSenderDisallowMapBuilder(bc, bc.shardConfig.PoswConfig)
+	bc.posw = consensus.CreatePoSWCalculator(bc, bc.shardConfig.PoswConfig)
 	// Take ownership of this particular state
 	go bc.update()
 	return bc, nil
@@ -417,6 +417,29 @@ func (m *MinorBlockChain) stateAtWithSenderDisallowMap(root common.Hash, minorBl
 	}
 	evmState.SetSenderDisallowMap(senderDisallowMap)
 	return evmState, nil
+}
+
+func (m *MinorBlockChain) SkipDifficultyCheck() bool {
+	return m.Config().SkipMinorDifficultyCheck
+}
+
+func (m *MinorBlockChain) GetAdjustedDifficulty(header types.IHeader) (*big.Int, error) {
+	diff := header.GetDifficulty()
+	if m.posw.IsPoSWEnabled() {
+		balance, err := m.GetBalance(header.GetCoinbase().Recipient, nil)
+		if err != nil {
+			log.Error("failed to get coinbase balance", err)
+			return nil, err
+		}
+
+		diff, err = m.posw.PoSWDiffAdjust(header, balance.GetBalanceFromTokenID(qkcCommon.TokenIDEncode(m.clusterConfig.Quarkchain.GenesisToken)))
+		if err != nil {
+			log.Error(m.logInfo, "PoSWDiffAdjust err", err)
+			return nil, err
+		}
+		log.Info("[PoSW]ValidatorSeal", "number", header.NumberU64(), "diff", header.GetDifficulty(), "adjusted to", diff)
+	}
+	return diff, nil
 }
 
 // StateCache returns the caching database underpinning the blockchain instance.

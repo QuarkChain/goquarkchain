@@ -129,20 +129,8 @@ func (v *MinorBlockValidator) ValidateBlock(mBlock types.IBlock) error {
 		return ErrExtraLimit
 	}
 
-	if len(block.GetTrackingData()) > int(v.quarkChainConfig.BlockExtraDataSizeLimit) {
-		log.Error(v.logInfo, "err", ErrTrackLimit, "len block's tracking data", len(block.GetTrackingData()), "config's limit", v.quarkChainConfig.BlockExtraDataSizeLimit)
-		return ErrTrackLimit
-	}
-
-	//gasLimit check
-	if block.Header().GetGasLimit().Cmp(v.bc.gasLimit) != 0 {
-		return fmt.Errorf("incorrect gasLimit %v %v", block.Header().GasLimit, v.bc.gasLimit)
-	}
-	if block.Meta().XshardGasLimit.Value.Cmp(block.Header().GasLimit.Value) >= 0 {
-		return fmt.Errorf("xshard gas limit should not exceed total gas limit %v %v", block.Meta().XshardGasLimit, block.Header().GasLimit.Value)
-	}
-	if block.Meta().XshardGasLimit.Value.Cmp(v.bc.xShardGasLimit) != 0 {
-		return fmt.Errorf("incorrect xshard gas limit %v %v", block.Meta().XshardGasLimit, v.bc.xShardGasLimit)
+	if block.Header().GasLimit.Value.Cmp(v.bc.gasLimit) != 0 {
+		return errors.New("gasLimit is not match")
 	}
 
 	txHash := types.CalculateMerkleRoot(block.GetTransactions())
@@ -200,7 +188,7 @@ func (v *MinorBlockValidator) ValidateBlock(mBlock types.IBlock) error {
 		return errMustBeOneRootChain
 	}
 	if !v.bc.clusterConfig.Quarkchain.DisbalePowCheck {
-		if err := v.ValidatorSeal(block.Header()); err != nil {
+		if err := v.ValidateSeal(block.Header()); err != nil {
 			log.Error(v.logInfo, "ValidatorBlockSeal err", err)
 			return err
 		}
@@ -208,22 +196,8 @@ func (v *MinorBlockValidator) ValidateBlock(mBlock types.IBlock) error {
 	return nil
 }
 
-// ValidateHeader calls underlying engine's header verification method plus some sanity check.
-func (v *MinorBlockValidator) ValidateHeader(header types.IHeader) error {
-	h, ok := header.(*types.MinorBlockHeader)
-	if !ok {
-		log.Crit("Failed to cast minor block header from validator, panic")
-	}
-	rh := v.bc.getRootBlockHeaderByHash(h.GetPrevRootBlockHash())
-	if rh == nil {
-		log.Error(v.logInfo, "err", ErrRootBlockIsNil, "height", h.Number, "parentRootBlockHash", h.GetPrevRootBlockHash().String())
-		return ErrRootBlockIsNil
-	}
-	return v.engine.VerifyHeader(v.bc, header, true)
-}
-
 // ValidatorBlockSeal validate minor block seal when validate block
-func (v *MinorBlockValidator) ValidatorSeal(mHeader types.IHeader) error {
+func (v *MinorBlockValidator) ValidateSeal(mHeader types.IHeader) error {
 	header, ok := mHeader.(*types.MinorBlockHeader)
 	if !ok {
 		return errors.New("validator minor  seal failed , mBlock is nil")
@@ -231,20 +205,13 @@ func (v *MinorBlockValidator) ValidatorSeal(mHeader types.IHeader) error {
 	if header.NumberU64() == 0 {
 		return nil
 	}
-	branch := header.GetBranch()
-	fullShardID := branch.GetFullShardID()
-	shardConfig := v.quarkChainConfig.GetShardConfigByFullShardID(fullShardID)
-	consensusType := shardConfig.ConsensusType
-	return v.validateSeal(header, consensusType, nil)
-}
 
-func (v *MinorBlockValidator) validateSeal(header types.IHeader, consensusType string, diff *big.Int) error {
-	if diff == nil {
-		diff = header.GetDifficulty()
+	adjustedDiff, err := v.bc.GetAdjustedDifficulty(header)
+	if err != nil {
+		return err
 	}
-	return v.engine.VerifySeal(v.bc, header, diff)
+	return v.engine.VerifySeal(v.bc, header, adjustedDiff)
 }
-
 func compareXshardTxCursor(a, b *types.XShardTxCursorInfo) bool {
 	if a.XShardDepositIndex != b.XShardDepositIndex {
 		return false

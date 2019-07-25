@@ -469,7 +469,7 @@ func TestPoSWValidateMinorBlockSeal(t *testing.T) {
 		for n := 0; n < 4; n++ {
 			nonce := uint64(n)
 			newBlock = tip.CreateBlockToAppend(nil, diff, &acc, &nonce, nil, nil, nil, nil)
-			if err := blockchain.Validator().ValidatorSeal(newBlock.IHeader()); err != nil {
+			if err := blockchain.Validator().ValidateSeal(newBlock.IHeader()); err != nil {
 				t.Errorf("validate block error %v", err)
 			}
 		}
@@ -527,7 +527,7 @@ func TestPoSWWindowEdgeCases(t *testing.T) {
 	// mining new blocks should fail
 	tip1 := blockchain.GetMinorBlock(blockchain.CurrentHeader().Hash())
 	newBlock1 := tip1.CreateBlockToAppend(nil, diff, &acc, nil, nil, nil, nil, nil)
-	if _, _, err = blockchain.FinalizeAndAddBlock(newBlock1); err != nil {
-		t.Fatalf("failed to FinalizeAndAddBlock: %v", err)
+	if _, _, err = blockchain.FinalizeAndAddBlock(newBlock1); err == nil {
+		t.Error("Should fail due to PoSW")
 	}
 }
