@@ -370,6 +370,15 @@ func (hc *HeaderChain) GetTd(hash common.Hash, number uint64) *big.Int {
 	return td
 }
 
+func (m *HeaderChain) SkipDifficultyCheck() bool {
+	return m.Config().SkipMinorDifficultyCheck
+}
+
+func (m *HeaderChain) GetAdjustedDifficulty(header types.IHeader) (*big.Int, error) {
+	// todo add logic or move the header chain later
+	return header.GetDifficulty(), nil
+}
+
 // GetTdByHash retrieves a block's total difficulty in the canonical chain from the
 // database by hash, caching it if found.
 func (hc *HeaderChain) GetTdByHash(hash common.Hash) *big.Int {

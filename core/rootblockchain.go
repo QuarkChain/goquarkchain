@@ -5,6 +5,7 @@ package core
 import (
 	"errors"
 	"fmt"
+	"github.com/ethereum/go-ethereum/crypto"
 	"io"
 	"math/big"
 	mrand "math/rand"
@@ -1110,6 +1111,19 @@ func (bc *RootBlockChain) Config() *config.QuarkChainConfig { return bc.chainCon
 
 // Engine retrieves the blockchain's consensus engine.
 func (bc *RootBlockChain) Engine() consensus.Engine { return bc.engine }
+
+func (m *RootBlockChain) SkipDifficultyCheck() bool {
+	return m.Config().SkipRootDifficultyCheck
+}
+
+func (m *RootBlockChain) GetAdjustedDifficulty(header types.IHeader) (*big.Int, error) {
+	rHeader := header.(*types.RootBlockHeader)
+	adjustedDiff := rHeader.GetDifficulty()
+	if crypto.VerifySignature(common.Hex2Bytes(m.Config().GuardianPublicKey), rHeader.Hash().Bytes(), rHeader.Signature[:]) {
+		adjustedDiff = new(big.Int).Div(rHeader.GetDifficulty(), new(big.Int).SetUint64(1000))
+	}
+	return adjustedDiff, nil
+}
 
 // SubscribeRemovedLogsEvent registers a subscription of RemovedLogsEvent.
 func (bc *RootBlockChain) SubscribeRemovedLogsEvent(ch chan<- RemovedLogsEvent) event.Subscription {

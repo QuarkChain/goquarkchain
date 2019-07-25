@@ -39,7 +39,6 @@ type MinorBlockValidator struct {
 	engine           consensus.Engine         // Consensus engine used for validating
 	branch           account.Branch
 	logInfo          string
-	posw             consensus.PoSWCalculator
 }
 
 // NewBlockValidator returns a new block validator which is safe for re-use
@@ -50,7 +49,6 @@ func NewBlockValidator(quarkChainConfig *config.QuarkChainConfig, blockchain *Mi
 		bc:               blockchain,
 		branch:           branch,
 		logInfo:          fmt.Sprintf("minorBlock validate branch:%v", branch),
-		posw:             consensus.CreatePoSWCalculator(blockchain, blockchain.shardConfig.PoswConfig),
 	}
 	return validator
 }
@@ -120,11 +118,6 @@ func (v *MinorBlockValidator) ValidateBlock(mBlock types.IBlock) error {
 		return ErrExtraLimit
 	}
 
-	if len(block.GetTrackingData()) > int(v.quarkChainConfig.BlockExtraDataSizeLimit) {
-		log.Error(v.logInfo, "err", ErrTrackLimit, "len block's tracking data", len(block.GetTrackingData()), "config's limit", v.quarkChainConfig.BlockExtraDataSizeLimit)
-		return ErrTrackLimit
-	}
-
 	if block.Header().GasLimit.Value.Cmp(v.bc.gasLimit) != 0 {
 		return errors.New("gasLimit is not match")
 	}
@@ -183,29 +176,15 @@ func (v *MinorBlockValidator) ValidateBlock(mBlock types.IBlock) error {
 		log.Error(v.logInfo, "err", errMustBeOneRootChain, "long", block.Header().GetPrevRootBlockHash().String(), "short", prevHeader.(*types.MinorBlockHeader).GetPrevRootBlockHash().String())
 		return errMustBeOneRootChain
 	}
-	if err := v.ValidatorSeal(block.Header()); err != nil {
+	if err := v.ValidateSeal(block.Header()); err != nil {
 		log.Error(v.logInfo, "ValidatorBlockSeal err", err)
 		return err
 	}
 	return nil
 }
 
-// ValidateHeader calls underlying engine's header verification method plus some sanity check.
-func (v *MinorBlockValidator) ValidateHeader(header types.IHeader) error {
-	h, ok := header.(*types.MinorBlockHeader)
-	if !ok {
-		log.Crit("Failed to cast minor block header from validator, panic")
-	}
-	rh := v.bc.getRootBlockHeaderByHash(h.GetPrevRootBlockHash())
-	if rh == nil {
-		log.Error(v.logInfo, "err", ErrRootBlockIsNil, "height", h.Number, "parentRootBlockHash", h.GetPrevRootBlockHash().String())
-		return ErrRootBlockIsNil
-	}
-	return v.engine.VerifyHeader(v.bc, header, true)
-}
-
 // ValidatorBlockSeal validate minor block seal when validate block
-func (v *MinorBlockValidator) ValidatorSeal(mHeader types.IHeader) error {
+func (v *MinorBlockValidator) ValidateSeal(mHeader types.IHeader) error {
 	header, ok := mHeader.(*types.MinorBlockHeader)
 	if !ok {
 		return errors.New("validator minor  seal failed , mBlock is nil")
@@ -213,18 +192,12 @@ func (v *MinorBlockValidator) ValidatorSeal(mHeader types.IHeader) error {
 	if header.NumberU64() == 0 {
 		return nil
 	}
-	branch := header.GetBranch()
-	fullShardID := branch.GetFullShardID()
-	shardConfig := v.quarkChainConfig.GetShardConfigByFullShardID(fullShardID)
-	consensusType := shardConfig.ConsensusType
-	return v.validateSeal(header, consensusType, nil)
-}
 
-func (v *MinorBlockValidator) validateSeal(header types.IHeader, consensusType string, diff *big.Int) error {
-	if diff == nil {
-		diff = header.GetDifficulty()
+	adjustedDiff, err := v.bc.GetAdjustedDifficulty(header)
+	if err != nil {
+		return err
 	}
-	return v.engine.VerifySeal(v.bc, header, diff)
+	return v.engine.VerifySeal(v.bc, header, adjustedDiff)
 }
 
 // ValidateState validates the various changes that happen after a state

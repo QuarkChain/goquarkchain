@@ -77,16 +77,16 @@ func getTestEnv(genesisAccount *account.Address, genesisMinorQuarkHash *uint64, 
 	env.clusterConfig.Quarkchain.Root.DifficultyAdjustmentFactor = 1024
 	env.clusterConfig.Quarkchain.SkipMinorDifficultyCheck = true
 	env.clusterConfig.Quarkchain.SkipRootCoinbaseCheck = true
-	env.clusterConfig.Quarkchain.SkipRootCoinbaseCheck = true
+	env.clusterConfig.Quarkchain.SkipRootDifficultyCheck = true
 	env.clusterConfig.EnableTransactionHistory = true
 
 	ids := env.clusterConfig.Quarkchain.GetGenesisShardIds()
 	for _, v := range ids {
 		addr := genesisAccount.AddressInShard(v)
 		shardConfig := fakeClusterConfig.Quarkchain.GetShardConfigByFullShardID(v)
-		temp:=make(map[string]*big.Int)
-		temp["QKC"]= new(big.Int).SetUint64(*genesisMinorQuarkHash)
-		shardConfig.Genesis.Alloc[addr] =temp
+		temp := make(map[string]*big.Int)
+		temp["QKC"] = new(big.Int).SetUint64(*genesisMinorQuarkHash)
+		shardConfig.Genesis.Alloc[addr] = temp
 	}
 	return env
 }

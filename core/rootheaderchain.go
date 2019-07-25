@@ -365,6 +365,15 @@ func (hc *RootHeaderChain) GetTd(hash common.Hash) *big.Int {
 	return td
 }
 
+func (m *RootHeaderChain) SkipDifficultyCheck() bool {
+	return m.Config().SkipRootDifficultyCheck
+}
+
+func (m *RootHeaderChain) GetAdjustedDifficulty(header types.IHeader) (*big.Int, error) {
+	// todo add logic or move the header chain later
+	return header.GetDifficulty(), nil
+}
+
 // WriteTd stores a block's total difficulty into the database, also caching it
 // along the way.
 func (hc *RootHeaderChain) WriteTd(hash common.Hash, td *big.Int) error {
