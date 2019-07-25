@@ -130,7 +130,7 @@ func (p *PublicBlockChainAPI) GetBalances(address account.Address, blockNr *rpc.
 		"fullShardId": hexutil.Uint64(branch.GetFullShardID()),
 		"shardId":     hexutil.Uint64(branch.GetShardID()),
 		"chainId":     hexutil.Uint64(branch.GetChainID()),
-		"balances":    (*hexutil.Big)(balances),
+		"balances":    balancesEncoder(balances),
 	}
 	return fields, nil
 }
@@ -152,7 +152,7 @@ func (p *PublicBlockChainAPI) GetAccountData(address account.Address, blockNr *r
 			"fullShardId":      hexutil.Uint(branch.GetFullShardID()),
 			"shardId":          hexutil.Uint(branch.GetShardID()),
 			"chainId":          hexutil.Uint(branch.GetChainID()),
-			"balances":         hexutil.Big(*accountBranchData.Balance),
+			"balances":         balancesEncoder(accountBranchData.Balance),
 			"transactionCount": hexutil.Uint64(accountBranchData.TransactionCount),
 			"isContract":       accountBranchData.IsContract,
 		}
@@ -173,7 +173,7 @@ func (p *PublicBlockChainAPI) GetAccountData(address account.Address, blockNr *r
 			"fullShardId":      hexutil.Uint(branch.GetFullShardID()),
 			"shardId":          hexutil.Uint(branch.GetShardID()),
 			"chainId":          hexutil.Uint(branch.GetChainID()),
-			"balances":         hexutil.Big(*accountBranchData.Balance),
+			"balances":         balancesEncoder(accountBranchData.Balance),
 			"transactionCount": hexutil.Uint(accountBranchData.TransactionCount),
 			"isContract":       accountBranchData.IsContract,
 		}
@@ -195,7 +195,7 @@ func (p *PublicBlockChainAPI) GetAccountData(address account.Address, blockNr *r
 
 func (p *PublicBlockChainAPI) SendTransaction(args SendTxArgs) (hexutil.Bytes, error) {
 	args.setDefaults()
-	tx, err := args.toTransaction(p.b.GetClusterConfig().Quarkchain.NetworkID, true)
+	tx, err := args.toTransaction(p.b.GetClusterConfig().Quarkchain, true)
 	if err != nil {
 		return nil, err
 	}
