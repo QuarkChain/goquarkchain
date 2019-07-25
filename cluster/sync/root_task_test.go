@@ -125,7 +125,7 @@ func (v *mockvalidator) ValidateState(block, parent types.IBlock, state *state.S
 func (v *mockvalidator) ValidateBlock(types.IBlock) error {
 	return v.err
 }
-func (v *mockvalidator) ValidatorSeal(mHeader types.IHeader) error {
+func (v *mockvalidator) ValidateSeal(mHeader types.IHeader) error {
 	return v.err
 }
 func newRootBlockChain(sz int) blockchain {

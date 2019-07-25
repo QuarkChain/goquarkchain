@@ -7,7 +7,6 @@ import (
 	"math"
 	"math/big"
 	"math/rand"
-	"reflect"
 	"runtime"
 	"strings"
 	"sync"
@@ -17,7 +16,6 @@ import (
 	"github.com/QuarkChain/goquarkchain/consensus/posw"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/log"
 )
 
@@ -146,13 +144,12 @@ func (c *CommonEngine) VerifyHeader(
 		return fmt.Errorf("extra-data too long: %d > %d", len(header.GetExtra()), chain.Config().BlockExtraDataSizeLimit)
 	}
 
-	if header.GetTime() < parent.GetTime() {
+	if header.GetTime() <= parent.GetTime() {
 		return fmt.Errorf("incorrect create time tip time %d, new block time %d",
 			header.GetTime(), parent.GetTime())
 	}
 
-	adjustedDiff := new(big.Int).SetUint64(0)
-	if !chain.Config().SkipRootDifficultyCheck {
+	if !chain.SkipDifficultyCheck() {
 		expectedDiff, err := c.diffCalc.CalculateDifficulty(parent, header.GetTime())
 		if err != nil {
 			return err
@@ -162,36 +159,20 @@ func (c *CommonEngine) VerifyHeader(
 			logger.Error(errMsg)
 			return errors.New(errMsg)
 		}
-		if reflect.TypeOf(header) == reflect.TypeOf(new(types.RootBlockHeader)) {
-			rootHeader := header.(*types.RootBlockHeader)
-			if crypto.VerifySignature(common.Hex2Bytes(chain.Config().GuardianPublicKey), rootHeader.Hash().Bytes(), rootHeader.Signature[:]) {
-				adjustedDiff = expectedDiff.Div(expectedDiff, new(big.Int).SetUint64(1000))
-			}
-		}
 	}
+
+	adjustedDiff, err := chain.GetAdjustedDifficulty(header)
+	if err != nil {
+		return err
+	}
+
 	return c.VerifySeal(chain, header, adjustedDiff)
 }
 
 // VerifySeal checks whether the crypto seal on a header is valid according to
 // the consensus rules of the given engine.
 func (c *CommonEngine) VerifySeal(chain ChainReader, header types.IHeader, adjustedDiff *big.Int) error {
-	diff := big.NewInt(0)
-	if adjustedDiff != nil {
-		diff = diff.Set(adjustedDiff)
-	}
-	if minorHeader, ok := header.(*types.MinorBlockHeader); ok {
-		if diff.Cmp(big.NewInt(0)) == 0 {
-			diff = minorHeader.GetDifficulty()
-		}
-		branch := minorHeader.GetBranch()
-		fullShardID := branch.GetFullShardID()
-		poswConfig := chain.Config().GetShardConfigByFullShardID(fullShardID).PoswConfig
-		if poswConfig.Enabled {
-			diffDivider := big.NewInt(int64(poswConfig.DiffDivider))
-			diff = diff.Div(diff, diffDivider)
-		}
-	}
-	return c.spec.VerifySeal(chain, header, diff)
+	return c.spec.VerifySeal(chain, header, adjustedDiff)
 }
 
 // VerifyHeaders is similar to VerifyHeader, but verifies a batch of headers
@@ -455,9 +436,5 @@ func NewCommonEngine(spec MiningSpec, diffCalc DifficultyCalculator, remote bool
 }
 
 func CreatePoSWCalculator(cr ChainReader, poswConfig *config.POSWConfig) PoSWCalculator {
-	return posw.NewPoSW(cr, poswConfig)
-}
-
-func CreateSenderDisallowMapBuilder(cr ChainReader, poswConfig *config.POSWConfig) SenderDisallowMapBuilder {
 	return posw.NewPoSW(cr, poswConfig)
 }
