@@ -335,7 +335,7 @@ func SetP2PConfig(ctx *cli.Context, cfg *p2p.Config, clstrCfg *config.ClusterCon
 		priv = ctx.GlobalString(PrivkeyFlag.Name)
 	}
 	if priv != "" {
-		privkey, err := p2p.GetPrivateKeyFromConfig(ctx.GlobalString(PrivkeyFlag.Name))
+		privkey, err := p2p.GetPrivateKeyFromConfig(priv)
 		if err != nil {
 			Fatalf("failed to transfer privkey", "err", err)
 		}
