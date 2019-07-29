@@ -432,7 +432,7 @@ func (m *MinorBlockChain) GetAdjustedDifficulty(header types.IHeader) (*big.Int,
 			return nil, err
 		}
 
-		diff, err = m.posw.PoSWDiffAdjust(header, balance.GetBalanceFromTokenID(qkcCommon.TokenIDEncode(m.clusterConfig.Quarkchain.GenesisToken)))
+		diff, err = m.posw.PoSWDiffAdjust(header, balance.GetTokenBalance(qkcCommon.TokenIDEncode(m.clusterConfig.Quarkchain.GenesisToken)))
 		if err != nil {
 			log.Error(m.logInfo, "PoSWDiffAdjust err", err)
 			return nil, err

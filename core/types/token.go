@@ -90,7 +90,7 @@ func (b *TokenBalances) SetValue(amount *big.Int, tokenID uint64) {
 	b.balances[tokenID] = amount
 }
 
-func (b *TokenBalances) GetBalanceFromTokenID(tokenID uint64) *big.Int {
+func (b *TokenBalances) GetTokenBalance(tokenID uint64) *big.Int {
 	data, ok := b.balances[tokenID]
 	if !ok {
 		return new(big.Int)

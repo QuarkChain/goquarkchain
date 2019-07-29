@@ -1179,7 +1179,7 @@ func (bc *RootBlockChain) CalculateRootBlockCoinBase(rootBlock *types.RootBlock)
 
 	minorBlockFee := new(big.Int)
 	for _, header := range rootBlock.MinorBlockHeaders() {
-		minorBlockFee.Add(minorBlockFee, header.CoinbaseAmount.GetBalanceFromTokenID(qkcCommon.TokenIDEncode("QKC")))
+		minorBlockFee.Add(minorBlockFee, header.CoinbaseAmount.GetTokenBalance(qkcCommon.TokenIDEncode("QKC")))
 	}
 	minorBlockFee.Mul(minorBlockFee, ratio.Num())
 	minorBlockFee.Div(minorBlockFee, ratio.Denom())

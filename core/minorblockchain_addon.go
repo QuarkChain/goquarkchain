@@ -543,7 +543,7 @@ func (m *MinorBlockChain) getCrossShardTxListByRootBlockHash(hash common.Hash) (
 		txList = append(txList, xShardTxList.TXList...)
 	}
 	if m.branch.IsInBranch(rBlock.Header().GetCoinbase().FullShardKey) { // Apply root block coinbase
-		value := rBlock.Header().CoinbaseAmount.GetBalanceFromTokenID(qkcCommon.TokenIDEncode(m.clusterConfig.Quarkchain.GenesisToken))
+		value := rBlock.Header().CoinbaseAmount.GetTokenBalance(qkcCommon.TokenIDEncode(m.clusterConfig.Quarkchain.GenesisToken))
 		txList = append(txList, &types.CrossShardTransactionDeposit{
 			TxHash:   common.Hash{},
 			From:     account.CreatEmptyAddress(0),

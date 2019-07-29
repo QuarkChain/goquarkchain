@@ -293,7 +293,7 @@ func (c *stateObject) SubBalance(amount *big.Int, tokenID uint64) {
 
 func (self *stateObject) SetBalance(amount *big.Int, tokenID uint64) {
 	prev := make(map[uint64]*big.Int)
-	prevBalance := self.data.TokenBalances.GetBalanceFromTokenID(tokenID)
+	prevBalance := self.data.TokenBalances.GetTokenBalance(tokenID)
 	prev[tokenID] = prevBalance
 	self.db.journal.append(balanceChange{
 		account: &self.address,
@@ -395,7 +395,7 @@ func (self *stateObject) CodeHash() []byte {
 }
 
 func (self *stateObject) Balance(tokenID uint64) *big.Int {
-	return self.data.TokenBalances.GetBalanceFromTokenID(tokenID)
+	return self.data.TokenBalances.GetTokenBalance(tokenID)
 }
 
 func (self *stateObject) Nonce() uint64 {
