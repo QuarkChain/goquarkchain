@@ -106,12 +106,15 @@ func (s *ShardBackend) AddMinorBlock(block *types.MinorBlock) error {
 		s.setHead(currHead)
 		return err
 	}
-	err = s.conn.SendMinorBlockHeaderToMaster(
-		block.Header(),
-		uint32(block.Transactions().Len()),
-		uint32(len(xshardLst[0])),
-		status,
-	)
+
+	requests := &rpc.AddMinorBlockHeaderRequest{
+		MinorBlockHeader:  block.Header(),
+		TxCount:           uint32(block.Transactions().Len()),
+		XShardTxCount:     uint32(len(xshardLst[0])),
+		ShardStats:        status,
+		CoinbaseAmountMap: block.Header().CoinbaseAmount,
+	}
+	err = s.conn.SendMinorBlockHeaderToMaster(requests)
 	if err != nil {
 		s.setHead(currHead)
 		return err
@@ -299,17 +302,18 @@ func (s *ShardBackend) GenTx(genTxs *rpc.GenTxRequest) error {
 
 // miner api
 func (s *ShardBackend) CreateBlockToMine() (types.IBlock, *big.Int, error) {
-	minorBlock, err := s.MinorBlockChain.CreateBlockToMine(nil, &s.Config.CoinbaseAddress, nil)
+	minorBlock, err := s.MinorBlockChain.CreateBlockToMine(nil, &s.Config.CoinbaseAddress, nil, nil, nil)
 	if err != nil {
 		return nil, nil, err
 	}
 	diff := minorBlock.Difficulty()
 	if s.posw.IsPoSWEnabled() {
 		header := minorBlock.Header()
-		balance, err := s.MinorBlockChain.GetBalance(header.GetCoinbase().Recipient, nil)
+		balances, err := s.MinorBlockChain.GetBalance(header.GetCoinbase().Recipient, nil)
 		if err != nil {
 			return nil, nil, err
 		}
+		balance := balances.GetTokenBalance(s.MinorBlockChain.GetGenesisToken())
 		adjustedDifficulty, err := s.posw.PoSWDiffAdjust(header, balance)
 		if err != nil {
 			log.Error("[PoSW]Failed to compute PoSW difficulty.", err)

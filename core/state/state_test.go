@@ -16,17 +16,21 @@
 
 package state
 
+
 import (
 	"bytes"
 	"math/big"
 	"testing"
-
+ qkcCommon "github.com/QuarkChain/goquarkchain/common"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethdb"
 	checker "gopkg.in/check.v1"
 )
 
+var(
+	genesisTokenID=qkcCommon.TokenIDEncode("QKC")
+)
 type StateSuite struct {
 	db    *ethdb.MemDatabase
 	state *StateDB
@@ -107,7 +111,7 @@ func TestSnapshot2(t *testing.T) {
 
 	// db, trie are already non-empty values
 	so0 := state.getStateObject(stateobjaddr0)
-	so0.SetBalance(big.NewInt(42))
+	so0.SetBalance(big.NewInt(42),genesisTokenID)
 	so0.SetNonce(43)
 	so0.SetCode(crypto.Keccak256Hash([]byte{'c', 'a', 'f', 'e'}), []byte{'c', 'a', 'f', 'e'})
 	so0.suicided = false
@@ -119,7 +123,7 @@ func TestSnapshot2(t *testing.T) {
 
 	// and one with deleted == true
 	so1 := state.getStateObject(stateobjaddr1)
-	so1.SetBalance(big.NewInt(52))
+	so1.SetBalance(big.NewInt(52),genesisTokenID)
 	so1.SetNonce(53)
 	so1.SetCode(crypto.Keccak256Hash([]byte{'c', 'a', 'f', 'e', '2'}), []byte{'c', 'a', 'f', 'e', '2'})
 	so1.suicided = true
@@ -152,8 +156,8 @@ func compareStateObjects(so0, so1 *stateObject, t *testing.T) {
 	if so0.Address() != so1.Address() {
 		t.Fatalf("Address mismatch: have %v, want %v", so0.address, so1.address)
 	}
-	if so0.Balance().Cmp(so1.Balance()) != 0 {
-		t.Fatalf("Balance mismatch: have %v, want %v", so0.Balance(), so1.Balance())
+	if so0.Balance(genesisTokenID).Cmp(so1.Balance(genesisTokenID)) != 0 {
+		t.Fatalf("Balance mismatch: have %v, want %v", so0.Balance(genesisTokenID), so1.Balance(genesisTokenID))
 	}
 	if so0.Nonce() != so1.Nonce() {
 		t.Fatalf("Nonce mismatch: have %v, want %v", so0.Nonce(), so1.Nonce())

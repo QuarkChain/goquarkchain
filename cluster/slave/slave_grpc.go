@@ -388,7 +388,7 @@ func (s *SlaveServerSideOp) GasPrice(ctx context.Context, req *rpc.Request) (*rp
 		return nil, err
 	}
 
-	if gRes.Result, err = s.slave.GasPrice(gReq.Branch); err != nil {
+	if gRes.Result, err = s.slave.GasPrice(gReq.Branch, gReq.TokenID); err != nil {
 		return nil, err
 	}
 
