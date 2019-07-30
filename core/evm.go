@@ -52,6 +52,27 @@ func NewEVMContext(msg types.Message, mheader types.IHeader, chain ChainContext)
 		ToFullShardKey: msg.ToFullShardKey(),
 	}
 }
+func NewCrossShardEVMContext(msg types.Message, mheader types.IHeader, chain ChainContext) vm.Context {
+	header := mheader.(*types.MinorBlockHeader)
+	return vm.Context{
+		CanTransfer: func(db vm.StateDB, addr common.Address, amount *big.Int) bool {
+			return true
+		},
+		Transfer: func(db vm.StateDB, sender, recipient common.Address, amount *big.Int) {
+			db.AddBalance(recipient, amount)
+		},
+		GetHash:        GetHashFn(header, chain),
+		Origin:         msg.From(),
+		Coinbase:       header.GetCoinbase().Recipient,
+		BlockNumber:    new(big.Int).SetUint64(header.NumberU64()),
+		Time:           new(big.Int).SetUint64(header.GetTime()),
+		Difficulty:     new(big.Int).Set(header.GetDifficulty()),
+		GasLimit:       header.GasLimit.Value.Uint64(),
+		GasPrice:       new(big.Int).Set(msg.GasPrice()),
+		ToFullShardKey: msg.ToFullShardKey(),
+		IsCrossShard:   true,
+	}
+}
 
 // GetHashFn returns a GetHashFunc which retrieves header hashes by number
 func GetHashFn(ref types.IHeader, chain ChainContext) func(n uint64) common.Hash {

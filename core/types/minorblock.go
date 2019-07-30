@@ -40,7 +40,7 @@ type MinorBlockMeta struct {
 	GasUsed            *serialize.Uint256  `json:"gasUsed"                    gencodec:"required"`
 	CrossShardGasUsed  *serialize.Uint256  `json:"crossShardGasUsed"          gencodec:"required"`
 	XShardTxCursorInfo *XShardTxCursorInfo `json:"xShardTxCursorInfo"          gencodec:"required"`
-	XshardGasLimit     *serialize.Uint256  `json:"xShardGasLimit"          gencodec:"required"`
+	XShardGasLimit     *serialize.Uint256  `json:"xShardGasLimit"          gencodec:"required"`
 }
 
 func (m *MinorBlockMeta) Hash() common.Hash {
@@ -251,6 +251,9 @@ func CopyMinorBlockMeta(m *MinorBlockMeta) *MinorBlockMeta {
 	}
 	if cpy.CrossShardGasUsed = new(serialize.Uint256); m.CrossShardGasUsed != nil && m.CrossShardGasUsed.Value != nil {
 		cpy.CrossShardGasUsed.Value = new(big.Int).Set(m.CrossShardGasUsed.Value)
+	}
+	if cpy.XShardGasLimit = new(serialize.Uint256); m.XShardGasLimit != nil && m.XShardGasLimit.Value != nil {
+		cpy.XShardGasLimit.Value = new(big.Int).Set(m.XShardGasLimit.Value)
 	}
 	return &cpy
 }

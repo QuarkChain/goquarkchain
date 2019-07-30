@@ -232,6 +232,18 @@ func CreateTransferTx(shardState *MinorBlockChain, key []byte,
 	}
 	return createTransferTransaction(shardState, key, from, to, value, gas, gasPrice, nonce, nil)
 }
+func CreateCallContractTx(shardState *MinorBlockChain, key []byte,
+	from account.Address, to account.Address, value *big.Int, gas, gasPrice, nonce *uint64, data []byte) *types.Transaction {
+	if gasPrice == nil {
+		gasPrice = new(uint64)
+		*gasPrice = 0
+	}
+	if gas == nil {
+		gas = new(uint64)
+		*gas = 21000
+	}
+	return createTransferTransaction(shardState, key, from, to, value, gas, gasPrice, nonce, data)
+}
 
 func GetPoSW(chain *MinorBlockChain) *posw.PoSW {
 	return chain.posw.(*posw.PoSW)

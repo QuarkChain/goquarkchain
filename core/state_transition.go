@@ -18,6 +18,7 @@ package core
 
 import (
 	"errors"
+	"fmt"
 	"math"
 	"math/big"
 
@@ -142,7 +143,11 @@ func NewStateTransition(evm *vm.EVM, msg Message, gp *GasPool) *StateTransition 
 // indicates a core error meaning that the message would always fail for that particular
 // state and would never be accepted within a block.
 func ApplyMessage(evm *vm.EVM, msg Message, gp *GasPool, feeRate *big.Rat) ([]byte, uint64, bool, error) {
-	return NewStateTransition(evm, msg, gp).TransitionDb(feeRate)
+	return NewStateTransition(evm, msg, gp).TransitionDb(feeRate, false)
+}
+
+func ApplyCrossShardMessage(evm *vm.EVM, msg Message, gp *GasPool, feeRate *big.Rat) ([]byte, uint64, bool, error) {
+	return NewStateTransition(evm, msg, gp).TransitionDb(feeRate, true)
 }
 
 // to returns the recipient of the message.
@@ -193,9 +198,11 @@ func (st *StateTransition) preCheck() error {
 // TransitionDb will transition the state by applying the current message and
 // returning the result including the used gas. It returns an error if failed.
 // An error indicates a consensus issue.
-func (st *StateTransition) TransitionDb(feeRate *big.Rat) (ret []byte, usedGas uint64, failed bool, err error) {
-	if err = st.preCheck(); err != nil {
-		return
+func (st *StateTransition) TransitionDb(feeRate *big.Rat, applyCrossShardMsg bool) (ret []byte, usedGas uint64, failed bool, err error) {
+	if !applyCrossShardMsg {
+		if err = st.preCheck(); err != nil {
+			return
+		}
 	}
 	msg := st.msg
 	sender := vm.AccountRef(msg.From())
@@ -206,10 +213,11 @@ func (st *StateTransition) TransitionDb(feeRate *big.Rat) (ret []byte, usedGas u
 	if err != nil {
 		return nil, 0, false, err
 	}
-	if err = st.useGas(gas); err != nil {
-		return nil, 0, false, err
+	if !applyCrossShardMsg {
+		if err = st.useGas(gas); err != nil {
+			return nil, 0, false, err
+		}
 	}
-
 	var (
 		evm = st.evm
 		// vm errors do not effect consensus and are therefor
@@ -226,14 +234,23 @@ func (st *StateTransition) TransitionDb(feeRate *big.Rat) (ret []byte, usedGas u
 			ret, st.gas, vmerr = nil, 0, vm.ErrPoSWSenderNotAllowed
 		} else {
 			if msg.IsCrossShard() {
-				ret, st.gas, vmerr = st.handleCrossShardTx()
+				ret, st.gas, vmerr = st.AddCrossShardTxDeposit(gas)
 			} else {
-				ret, st.gas, vmerr = evm.Call(sender, st.to(), st.data, st.gas, st.value)
+				if len(st.data) > 0 {
+
+					fmt.Printf("st.data=%x\n", st.data)
+					ret, st.gas, vmerr = evm.Call(sender, st.to(), st.data, st.gas, st.value)
+				} else {
+
+					ret, st.gas, vmerr = evm.Call(sender, st.to(), st.data, st.gas, st.value)
+				}
+
 			}
 		}
 	}
 
 	if vmerr != nil {
+		fmt.Printf("vmerr=%v\n", vmerr)
 		log.Debug("VM returned with error", "err", vmerr)
 		// The only possible consensus-error would be if there wasn't
 		// sufficient balance to make the transfer happen. The first
@@ -287,17 +304,19 @@ func (st *StateTransition) gasUsed() uint64 {
 	return st.initialGas - st.gas
 }
 
-func (st *StateTransition) handleCrossShardTx() (ret []byte, usedGas uint64, err error) {
+func (st *StateTransition) AddCrossShardTxDeposit(intrinsicGas uint64) (ret []byte, usedGas uint64, err error) {
 	evm := st.evm
 	msg := st.msg
 	if !evm.CanTransfer(evm.StateDB, msg.From(), st.value) {
 		return nil, 0, vm.ErrInsufficientBalance
 	}
+	remoteGasReserved := msg.Gas() - intrinsicGas
 	crossShardValue := new(serialize.Uint256)
 	crossShardValue.Value = new(big.Int).Set(msg.Value())
-
 	crossShardGasPrice := new(serialize.Uint256)
 	crossShardGasPrice.Value = new(big.Int).Set(msg.GasPrice())
+	crossShardGas := new(serialize.Uint256)
+	crossShardGas.Value = new(big.Int).SetUint64(remoteGasReserved)
 	crossShardData := &types.CrossShardTransactionDeposit{
 		TxHash: msg.TxHash(),
 		From: account.Address{
@@ -308,8 +327,11 @@ func (st *StateTransition) handleCrossShardTx() (ret []byte, usedGas uint64, err
 			Recipient:    account.Recipient(*msg.To()),
 			FullShardKey: msg.ToFullShardKey(),
 		},
-		Value:    crossShardValue,
-		GasPrice: crossShardGasPrice,
+		Value:          crossShardValue,
+		GasPrice:       crossShardGasPrice,
+		MessageData:    msg.Data(),
+		CreateContract: false,
+		GasRemained:    crossShardGas,
 	}
 	evm.StateDB.SubBalance(msg.From(), st.value)
 	evm.StateDB.AppendXShardList(crossShardData)

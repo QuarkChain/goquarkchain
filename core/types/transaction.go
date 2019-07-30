@@ -560,11 +560,19 @@ type CrossShardTransactionDeposit struct {
 	GasPrice        *serialize.Uint256
 	GasTokenID      uint64
 	TransferTokenID uint64
-	isFromRootChain bool
+	IsFromRootChain bool
+	GasRemained     *serialize.Uint256
+	MessageData     []byte
+	CreateContract  bool
 }
 
 type CrossShardTransactionDepositList struct {
 	TXList []*CrossShardTransactionDeposit `bytesizeofslicelen:"4"`
+}
+
+type CrossShardTxWithMinorBlockHeader struct {
+	Tx          CrossShardTransactionDeposit
+	MinorHeader *MinorBlockHeader
 }
 
 // Message is a fully derived transaction and implements core.Message

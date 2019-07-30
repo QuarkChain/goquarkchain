@@ -18,12 +18,15 @@ package core
 
 import (
 	"errors"
+
 	"github.com/QuarkChain/goquarkchain/account"
+	"github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/core/state"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/core/vm"
 	"github.com/ethereum/go-ethereum/params"
+
 	"math/big"
 )
 
@@ -73,7 +76,10 @@ func (p *StateProcessor) Process(block *types.MinorBlock, statedb *state.StateDB
 
 	preRootHeader := p.bc.getRootBlockHeaderByHash(preBlock.Header().GetPrevRootBlockHash())
 
-	txList, err := p.bc.runCrossShardTxList(statedb, rootBlockHeader, preRootHeader)
+	// txList, err := p.bc.runCrossShardTxList(statedb, rootBlockHeader, preRootHeader)
+
+	xShardGasLimit := new(big.Int).Div(p.bc.gasLimit, big.NewInt(2))
+	_, xShardDepositReceipts, txList, err := p.bc.includeCrossShardTxList(statedb, rootBlockHeader, preRootHeader, xShardGasLimit)
 	if err != nil {
 		return nil, nil, 0, err
 	}
@@ -85,7 +91,6 @@ func (p *StateProcessor) Process(block *types.MinorBlock, statedb *state.StateDB
 		allLogs  []*types.Log
 		gp       = new(GasPool).AddGas(block.Header().GetGasLimit().Uint64())
 	)
-
 	// Iterate over and process the individual transactions
 	for i, tx := range block.GetTransactions() {
 		evmTx, err := p.bc.validateTx(tx, statedb, nil, nil)
@@ -101,6 +106,7 @@ func (p *StateProcessor) Process(block *types.MinorBlock, statedb *state.StateDB
 		allLogs = append(allLogs, receipt.Logs...)
 	}
 
+	receipts = append(receipts, xShardDepositReceipts...)
 	// Finalize the block, applying any consensus engine specific extras (e.g. block rewards)
 	coinbaseAmount := p.bc.getCoinbaseAmount()
 	statedb.AddBalance(block.IHeader().GetCoinbase().Recipient, coinbaseAmount)
@@ -188,4 +194,45 @@ func ApplyTransaction(config *params.ChainConfig, bc ChainContext, gp *GasPool, 
 	receipt.ContractFullShardId = tx.EvmTx.ToFullShardKey()
 
 	return ret, receipt, gas, err
+}
+
+func ApplyCrossShardDeposit(config *params.ChainConfig, bc ChainContext, gp *GasPool, header types.IHeader,
+	cfg vm.Config, evmState *state.StateDB, deposit *types.CrossShardTransactionDeposit,
+	localFeeRate *big.Rat) (*types.Receipt, error) {
+	tx := deposit
+	evmState.SetFullShardKey(deposit.To.FullShardKey)
+	var gas uint64
+	var fail bool
+	//var gasUsedStart uint64
+	usedGas := new(uint64)
+	if common.IsNil(header) {
+		//gasUsedStart = 0
+		evmState.AddBalance(tx.To.Recipient, tx.Value.Value)
+	} else {
+		//gasUsedStart = qkcParams.GtxxShardCost.Uint64()
+		evmState.AddBalance(deposit.From.Recipient, deposit.Value.Value)
+		msg := types.NewMessage(tx.From.Recipient, &tx.To.Recipient, 0, tx.Value.Value, tx.GasRemained.Value.Uint64(),
+			tx.GasPrice.Value, tx.MessageData, false, tx.From.FullShardKey, tx.To.FullShardKey)
+		context := NewCrossShardEVMContext(msg, header, bc)
+		vmenv := vm.NewEVM(context, evmState, config, cfg)
+		_, _, failed, err := ApplyCrossShardMessage(vmenv, msg, gp, localFeeRate)
+		if err != nil {
+			return nil, err
+		}
+		fail = failed
+		*usedGas += evmState.GetGasUsed().Uint64()
+	}
+
+	var root []byte
+	// Create a new receipt for the transaction, storing the intermediate root and gas used by the tx
+	// based on the eip phase, we're passing whether the root touch-delete accounts.
+	receipt := types.NewReceipt(root, fail, *usedGas)
+	receipt.TxHash = tx.TxHash
+	receipt.GasUsed = gas
+	// Set the receipt logs and create a bloom for filtering
+	receipt.Logs = evmState.GetLogs(tx.TxHash)
+	receipt.Bloom = types.CreateBloom(types.Receipts{receipt})
+	receipt.ContractFullShardId = tx.To.FullShardKey
+
+	return receipt, nil
 }
