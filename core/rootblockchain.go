@@ -1164,6 +1164,7 @@ func (bc *RootBlockChain) CreateBlockToMine(mHeaderList []*types.MinorBlockHeade
 	block := bc.CurrentBlock().Header().CreateBlockToAppend(createTime, difficulty, address, nil, nil)
 	block.ExtendMinorBlockHeaderList(mHeaderList)
 	data := bc.CalculateRootBlockCoinBase(block)
+	//TODO need modify later
 	temp := types.NewEmptyTokenBalances()
 	temp.SetValue(data, qkcCommon.TokenIDEncode("QKC"))
 	block.Finalize(temp, address, common.Hash{})
@@ -1171,6 +1172,7 @@ func (bc *RootBlockChain) CreateBlockToMine(mHeaderList []*types.MinorBlockHeade
 }
 
 func (bc *RootBlockChain) CalculateRootBlockCoinBase(rootBlock *types.RootBlock) *big.Int {
+	//TODO need modify later
 	ret := new(big.Int).Set(bc.Config().Root.CoinbaseAmount)
 	rewardTaxRate := bc.Config().RewardTaxRate
 	ratio := big.NewRat(1, 1)

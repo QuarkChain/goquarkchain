@@ -209,7 +209,6 @@ func NewMinorBlockChain(
 	}
 	bc.xShardGasLimit = new(big.Int).Set(bc.gasLimit)
 	bc.xShardGasLimit = bc.xShardGasLimit.Div(bc.xShardGasLimit, new(big.Int).SetUint64(2))
-	//TODO xShardGasLimit
 	bc.SetValidator(NewBlockValidator(clusterConfig.Quarkchain, bc, engine, bc.branch))
 	bc.SetProcessor(NewStateProcessor(bc.ethChainConfig, bc, engine))
 
@@ -1236,9 +1235,6 @@ func (m *MinorBlockChain) insertChain(chain []types.IBlock, verifySeals bool, pa
 		status, err := m.WriteBlockWithState(mBlock, receipts, state, xShardReceiveTxList, updateTip)
 		if err != nil {
 			return it.index, events, coalescedLogs, xShardList, err
-		}
-		if updateTip {
-			m.currentEvmState = state
 		}
 		switch status {
 		case CanonStatTy:
