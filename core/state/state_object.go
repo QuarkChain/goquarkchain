@@ -117,7 +117,7 @@ func newObject(db *StateDB, address common.Address, data Account) *stateObject {
 	} else {
 		newData.TokenBalances = data.TokenBalances.Copy()
 	}
-	if newData.CodeHash == nil {
+	if data.CodeHash == nil {
 		newData.CodeHash = emptyCodeHash
 	}
 	return &stateObject{
@@ -292,22 +292,17 @@ func (c *stateObject) SubBalance(amount *big.Int, tokenID uint64) {
 }
 
 func (self *stateObject) SetBalance(amount *big.Int, tokenID uint64) {
-	prev := make(map[uint64]*big.Int)
-	prevBalance := self.data.TokenBalances.GetTokenBalance(tokenID)
-	prev[tokenID] = prevBalance
 	self.db.journal.append(balanceChange{
 		account: &self.address,
-		prev:    prev,
+		prev:    self.data.TokenBalances.GetBalanceMap(),
 	})
 	self.setTokenBalance(amount, tokenID)
 }
 
 func (self *stateObject) SetBalances(balances map[uint64]*big.Int) {
-	prev := make(map[uint64]*big.Int)
-	prev = self.data.TokenBalances.GetBalanceMap()
 	self.db.journal.append(balanceChange{
 		account: &self.address,
-		prev:    prev,
+		prev:    self.data.TokenBalances.GetBalanceMap(),
 	})
 	self.setBalances(balances)
 }

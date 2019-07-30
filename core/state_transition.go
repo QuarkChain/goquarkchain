@@ -293,9 +293,10 @@ func (st *StateTransition) gasUsed() uint64 {
 }
 
 func (st *StateTransition) handleCrossShardTx() (ret []byte, usedGas uint64, err error) {
+	//TODO may be need modify beyond pyquarkchain @DL
 	evm := st.evm
 	msg := st.msg
-	if !evm.CanTransfer(evm.StateDB, msg.From(), st.value, st.msg.GasTokenID()) {
+	if !evm.CanTransfer(evm.StateDB, msg.From(), st.value, st.msg.TransferTokenID()) {
 		return nil, 0, vm.ErrInsufficientBalance
 	}
 	crossShardValue := new(serialize.Uint256)
@@ -316,14 +317,14 @@ func (st *StateTransition) handleCrossShardTx() (ret []byte, usedGas uint64, err
 		Value:    crossShardValue,
 		GasPrice: crossShardGasPrice,
 	}
-	evm.StateDB.SubBalance(msg.From(), st.value, st.msg.GasTokenID())
+	evm.StateDB.SubBalance(msg.From(), st.value, st.msg.TransferTokenID())
 	evm.StateDB.AppendXShardList(crossShardData)
 	return nil, st.gas, nil
 }
 
 func (st *StateTransition) transferFailureByPoSWBalanceCheck() bool {
 	if v, ok := st.state.GetSenderDisallowMap()[st.msg.From()]; ok {
-		if new(big.Int).Add(st.msg.Value(), v).Cmp(st.state.GetBalance(st.msg.From(), st.msg.GasTokenID())) == 1 {
+		if new(big.Int).Add(st.msg.Value(), v).Cmp(st.state.GetBalance(st.msg.From(), 0)) == 1 {
 			return true
 		}
 	}

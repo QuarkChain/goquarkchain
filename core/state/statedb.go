@@ -745,7 +745,11 @@ func (s *StateDB) AddBlockFee(fee map[uint64]*big.Int) {
 		s.blockFee = fee
 	}
 	for k, v := range fee {
-		s.blockFee[k] = v
+		preBalance, ok := s.blockFee[k]
+		if !ok {
+			preBalance = new(big.Int)
+		}
+		s.blockFee[k] = new(big.Int).Add(v, preBalance)
 	}
 }
 
