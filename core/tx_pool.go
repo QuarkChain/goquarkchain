@@ -103,7 +103,7 @@ type minorBlockChain interface {
 	StateAt(root common.Hash) (*state.StateDB, error)
 	Config() *config.QuarkChainConfig
 	SubscribeChainHeadEvent(ch chan<- MinorChainHeadEvent) event.Subscription
-	validateTx(tx *types.Transaction, evmState *state.StateDB, fromAddress *account.Address, gas *uint64) (*types.Transaction, error)
+	validateTx(tx *types.Transaction, evmState *state.StateDB, fromAddress *account.Address, gas *uint64, xShardGasLimit *big.Int) (*types.Transaction, error)
 }
 
 // TxPoolConfig are the configuration parameters of the transaction pool.
@@ -380,6 +380,7 @@ func (pool *TxPool) reset(oldBlock, newBlock *types.MinorBlock) {
 		return
 	}
 	pool.currentState = statedb
+	pool.currentState.SetQuarkChainConfig(pool.chain.Config())
 	pool.pendingState = state.ManageState(statedb)
 	pool.currentMaxGas = newBlock.Header().GasLimit.Value.Uint64()
 
@@ -559,6 +560,10 @@ func (pool *TxPool) local() map[common.Address]types.Transactions {
 // validateTx checks whether a transaction is valid according to the consensus
 // rules and adheres to some heuristic limits of the local node (price and size).
 func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
+	if err := pool.checkTxAboutQKC(tx); err != nil {
+		return err
+	}
+
 	// Heuristic limit, reject transactions over 32KB to prevent DOS attacks
 	if tx.EvmTx.Size() > 32*1024 {
 		return ErrOversizedData
@@ -750,9 +755,6 @@ func (pool *TxPool) AddRemotes(txs []*types.Transaction) []error {
 
 // addTx enqueues a single transaction into the pool if it is valid.
 func (pool *TxPool) addTx(tx *types.Transaction, local bool) error {
-	if err := pool.CheckTxBeforeAdd(tx); err != nil {
-		return err
-	}
 	pool.mu.Lock()
 	defer pool.mu.Unlock()
 	// Try to inject the transaction and update any state
@@ -916,7 +918,7 @@ func (pool *TxPool) promoteExecutables(accounts []common.Address) {
 			pool.priced.Removed()
 		}
 		// Drop all transactions that are too costly (low balance or out of gas)
-		drops, _ := list.Filter(pool.currentState.GetBalance(addr), pool.currentMaxGas)
+		drops, _ := list.Filter(pool.currentState.GetBalance(addr, 0), pool.currentMaxGas)
 		for _, tx := range drops {
 			hash := tx.Hash()
 			log.Trace("Removed unpayable queued transaction", "hash", hash)
@@ -1074,7 +1076,7 @@ func (pool *TxPool) demoteUnexecutables() {
 			pool.priced.Removed()
 		}
 		// Drop all transactions that are too costly (low balance or out of gas), and queue any invalids back for later
-		drops, invalids := list.Filter(pool.currentState.GetBalance(addr), pool.currentMaxGas)
+		drops, invalids := list.Filter(pool.currentState.GetBalance(addr, 0), pool.currentMaxGas)
 		for _, tx := range drops {
 			hash := tx.Hash()
 			log.Trace("Removed unpayable pending transaction", "hash", hash)
@@ -1100,6 +1102,18 @@ func (pool *TxPool) demoteUnexecutables() {
 			delete(pool.beats, addr)
 		}
 	}
+}
+
+func (m *TxPool) checkTxAboutQKC(tx *types.Transaction) error {
+	if m.all.Count() > int(m.quarkConfig.TransactionQueueSizeLimitPerShard) {
+		return errors.New("txpool queue full")
+	}
+
+	tx, err := m.chain.validateTx(tx, m.currentState, nil, nil, nil)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 // addressByHeartbeat is an account address tagged with its last activity timestamp.
@@ -1228,15 +1242,4 @@ func (t *txLookup) Remove(hash common.Hash) {
 	defer t.lock.Unlock()
 
 	delete(t.all, hash)
-}
-
-func (m *TxPool) CheckTxBeforeAdd(tx *types.Transaction) error {
-	if m.all.Count() > int(m.quarkConfig.TransactionQueueSizeLimitPerShard) {
-		return errors.New("txpool queue full")
-	}
-	tx, err := m.chain.validateTx(tx, nil, nil, nil)
-	if err != nil {
-		return err
-	}
-	return nil
 }

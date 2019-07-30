@@ -138,6 +138,7 @@ type MinorBlockChain struct {
 	addMinorBlockAndBroad    func(block *types.MinorBlock) error
 	posw                     consensus.PoSWCalculator
 	gasLimit                 *big.Int
+	xShardGasLimit           *big.Int
 }
 
 // NewMinorBlockChain returns a fully initialised block chain using information
@@ -206,6 +207,8 @@ func NewMinorBlockChain(
 	if err != nil {
 		return nil, err
 	}
+	bc.xShardGasLimit = new(big.Int).Set(bc.gasLimit)
+	bc.xShardGasLimit = bc.xShardGasLimit.Div(bc.xShardGasLimit, new(big.Int).SetUint64(2))
 	//TODO xShardGasLimit
 	bc.SetValidator(NewBlockValidator(clusterConfig.Quarkchain, bc, engine, bc.branch))
 	bc.SetProcessor(NewStateProcessor(bc.ethChainConfig, bc, engine))
@@ -429,7 +432,7 @@ func (m *MinorBlockChain) GetAdjustedDifficulty(header types.IHeader) (*big.Int,
 			return nil, err
 		}
 
-		diff, err = m.posw.PoSWDiffAdjust(header, balance)
+		diff, err = m.posw.PoSWDiffAdjust(header, balance.GetTokenBalance(qkcCommon.TokenIDEncode(m.clusterConfig.Quarkchain.GenesisToken)))
 		if err != nil {
 			log.Error(m.logInfo, "PoSWDiffAdjust err", err)
 			return nil, err
@@ -757,7 +760,7 @@ func (m *MinorBlockChain) procFutureBlocks() {
 		sort.Slice(blocks, func(i, j int) bool { return blocks[i].NumberU64() < blocks[j].NumberU64() })
 		// Insert one by one as chain insertion needs contiguous ancestry between blocks
 		for i := range blocks {
-			m.InsertChain(blocks[i : i+1])
+			m.InsertChain(blocks[i:i+1], nil)
 		}
 	}
 }
@@ -1060,14 +1063,14 @@ func (m *MinorBlockChain) addFutureBlock(block types.IBlock) error {
 // wrong.
 //
 // After insertion is done, all accumulated events will be fired.
-func (m *MinorBlockChain) InsertChain(chain []types.IBlock) (int, error) {
-	n, _, err := m.InsertChainForDeposits(chain)
+func (m *MinorBlockChain) InsertChain(chain []types.IBlock, params *InsertChainParams) (int, error) {
+	n, _, err := m.InsertChainForDeposits(chain, params)
 	return n, err
 }
 
 // InsertChainForDeposits also return cross-shard transaction deposits in addition
 // to content returned from `InsertChain`.
-func (m *MinorBlockChain) InsertChainForDeposits(chain []types.IBlock) (int, [][]*types.CrossShardTransactionDeposit, error) {
+func (m *MinorBlockChain) InsertChainForDeposits(chain []types.IBlock, params *InsertChainParams) (int, [][]*types.CrossShardTransactionDeposit, error) {
 	// Sanity check that we have something meaningful to import
 	if len(chain) == 0 {
 		return 0, nil, nil
@@ -1086,7 +1089,7 @@ func (m *MinorBlockChain) InsertChainForDeposits(chain []types.IBlock) (int, [][
 	// Pre-checks passed, start the full block imports
 	m.wg.Add(1)
 	m.chainmu.Lock()
-	n, events, logs, xShardList, err := m.insertChain(chain, true)
+	n, events, logs, xShardList, err := m.insertChain(chain, true, params)
 	m.chainmu.Unlock()
 	m.wg.Done()
 
@@ -1109,9 +1112,11 @@ func (m *MinorBlockChain) InsertChainForDeposits(chain []types.IBlock) (int, [][
 // racey behaviour. If a sidechain import is in progress, and the historic state
 // is imported, but then new canon-head is added before the actual sidechain
 // completes, then the historic state could be pruned again
-func (m *MinorBlockChain) insertChain(chain []types.IBlock, verifySeals bool) (int, []interface{}, []*types.Log, [][]*types.CrossShardTransactionDeposit, error) {
+func (m *MinorBlockChain) insertChain(chain []types.IBlock, verifySeals bool, params *InsertChainParams) (int, []interface{}, []*types.Log, [][]*types.CrossShardTransactionDeposit, error) {
+	if params == nil {
+		params = GetDefaultInsertChainParams()
+	}
 	xShardList := make([][]*types.CrossShardTransactionDeposit, 0)
-	evmTxIncluded := make([]*types.Transaction, 0)
 	// If the chain is terminating, don't even bother starting u
 	if atomic.LoadInt32(&m.procInterrupt) == 1 {
 		return 0, nil, nil, xShardList, nil
@@ -1204,15 +1209,10 @@ func (m *MinorBlockChain) insertChain(chain []types.IBlock, verifySeals bool) (i
 		if qkcCommon.IsNil(parent) {
 			return it.index, events, coalescedLogs, xShardList, err
 		}
-		coinbase := mBlock.IHeader().GetCoinbase().Recipient
-		state, err := m.stateAtWithSenderDisallowMap(parent.(*types.MinorBlock).GetMetaData().Root, mBlock.Header().GetParentHash(), &coinbase)
-		if err != nil {
-			return it.index, events, coalescedLogs, xShardList, err
-		}
 		xShardReceiveTxList := make([]*types.CrossShardTransactionDeposit, 0)
 		// Process block using the parent state as reference point.
 
-		receipts, logs, usedGas, err := m.processor.Process(mBlock, state, m.vmConfig, evmTxIncluded, xShardReceiveTxList)
+		state, receipts, logs, usedGas, err := m.runBlock(mBlock, &xShardReceiveTxList)
 		if err != nil {
 			m.reportBlock(block, receipts, err)
 			return it.index, events, coalescedLogs, xShardList, err
@@ -1224,6 +1224,10 @@ func (m *MinorBlockChain) insertChain(chain []types.IBlock, verifySeals bool) (i
 		}
 		proctime := time.Since(start)
 
+		if !params.WriteDB {
+			xShardList = append(xShardList, state.GetXShardList())
+			return 0, events, coalescedLogs, xShardList, nil
+		}
 		updateTip, err := m.updateTip(state, mBlock)
 		if err != nil {
 			return it.index, events, coalescedLogs, xShardList, err
@@ -1232,6 +1236,9 @@ func (m *MinorBlockChain) insertChain(chain []types.IBlock, verifySeals bool) (i
 		status, err := m.WriteBlockWithState(mBlock, receipts, state, xShardReceiveTxList, updateTip)
 		if err != nil {
 			return it.index, events, coalescedLogs, xShardList, err
+		}
+		if updateTip {
+			m.currentEvmState = state
 		}
 		switch status {
 		case CanonStatTy:
@@ -1376,7 +1383,7 @@ func (m *MinorBlockChain) insertSidechain(it *insertIterator) (int, []interface{
 		// memory here.
 		if len(blocks) >= 2048 || memory > 64*1024*1024 {
 			log.Info("Importing heavy sidechain segment", "blocks", len(blocks), "start", blocks[0].NumberU64(), "end", block.NumberU64())
-			if _, _, _, _, err := m.insertChain(blocks, false); err != nil {
+			if _, _, _, _, err := m.insertChain(blocks, false, nil); err != nil {
 				return 0, nil, nil, nil, err
 			}
 			blocks, memory = blocks[:0], 0
@@ -1390,7 +1397,7 @@ func (m *MinorBlockChain) insertSidechain(it *insertIterator) (int, []interface{
 	}
 	if len(blocks) > 0 {
 		log.Info("Importing sidechain segment", "start", blocks[0].NumberU64(), "end", blocks[len(blocks)-1].NumberU64())
-		return m.insertChain(blocks, false)
+		return m.insertChain(blocks, false, nil)
 	}
 	return 0, nil, nil, nil, nil
 }

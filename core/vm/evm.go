@@ -34,9 +34,9 @@ var emptyCodeHash = crypto.Keccak256Hash(nil)
 
 type (
 	// CanTransferFunc is the signature of a transfer guard function
-	CanTransferFunc func(StateDB, common.Address, *big.Int) bool
+	CanTransferFunc func(StateDB, common.Address, *big.Int, uint64) bool
 	// TransferFunc is the signature of a transfer function
-	TransferFunc func(StateDB, common.Address, common.Address, *big.Int)
+	TransferFunc func(StateDB, common.Address, common.Address, *big.Int, uint64)
 	// GetHashFunc returns the nth block hash in the blockchain
 	// and is used by the BLOCKHASH EVM op code.
 	GetHashFunc func(uint64) common.Hash
@@ -85,12 +85,14 @@ type Context struct {
 	GasPrice *big.Int       // Provides information for GASPRICE
 
 	// Block information
-	Coinbase       common.Address // Provides information for COINBASE
-	GasLimit       uint64         // Provides information for GASLIMIT
-	BlockNumber    *big.Int       // Provides information for NUMBER
-	Time           *big.Int       // Provides information for TIME
-	Difficulty     *big.Int       // Provides information for DIFFICULTY
-	ToFullShardKey uint32
+	Coinbase        common.Address // Provides information for COINBASE
+	GasLimit        uint64         // Provides information for GASLIMIT
+	BlockNumber     *big.Int       // Provides information for NUMBER
+	Time            *big.Int       // Provides information for TIME
+	Difficulty      *big.Int       // Provides information for DIFFICULTY
+	ToFullShardKey  uint32
+	GasTokenID      uint64
+	TransferTokenID uint64
 }
 
 // EVM is the Ethereum Virtual Machine base object and provides
@@ -191,7 +193,7 @@ func (evm *EVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 		return nil, gas, ErrDepth
 	}
 	// Fail if we're trying to transfer more than the available balance
-	if !evm.Context.CanTransfer(evm.StateDB, caller.Address(), value) {
+	if !evm.Context.CanTransfer(evm.StateDB, caller.Address(), value, evm.TransferTokenID) {
 		return nil, gas, ErrInsufficientBalance
 	}
 
@@ -217,7 +219,7 @@ func (evm *EVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 		evm.StateDB.CreateAccount(addr)
 	}
 
-	evm.Transfer(evm.StateDB, caller.Address(), to.Address(), value)
+	evm.Transfer(evm.StateDB, caller.Address(), to.Address(), value, evm.TransferTokenID)
 
 	// Initialise a new contract and set the code that is to be used by the EVM.
 	// The contract is a scoped environment for this execution context only.
@@ -267,7 +269,7 @@ func (evm *EVM) CallCode(caller ContractRef, addr common.Address, input []byte, 
 		return nil, gas, ErrDepth
 	}
 	// Fail if we're trying to transfer more than the available balance
-	if !evm.CanTransfer(evm.StateDB, caller.Address(), value) {
+	if !evm.CanTransfer(evm.StateDB, caller.Address(), value, evm.TransferTokenID) {
 		return nil, gas, ErrInsufficientBalance
 	}
 
@@ -351,7 +353,7 @@ func (evm *EVM) StaticCall(caller ContractRef, addr common.Address, input []byte
 	// This doesn't matter on Mainnet, where all empties are gone at the time of Byzantium,
 	// but is the correct thing to do and matters on other networks, in tests, and potential
 	// future scenarios
-	evm.StateDB.AddBalance(addr, bigZero)
+	//evm.StateDB.AddBalance(addr, bigZero)
 
 	// When an error was returned by the EVM or when setting the creation code
 	// above we revert to the snapshot and consume any gas remaining. Additionally
@@ -385,7 +387,7 @@ func (evm *EVM) create(caller ContractRef, codeAndHash *codeAndHash, gas uint64,
 	if evm.depth > int(params.CallCreateDepth) {
 		return nil, common.Address{}, gas, ErrDepth
 	}
-	if !evm.CanTransfer(evm.StateDB, caller.Address(), value) {
+	if !evm.CanTransfer(evm.StateDB, caller.Address(), value, evm.TransferTokenID) {
 		return nil, common.Address{}, gas, ErrInsufficientBalance
 	}
 	nonce := evm.StateDB.GetNonce(caller.Address())
@@ -402,7 +404,7 @@ func (evm *EVM) create(caller ContractRef, codeAndHash *codeAndHash, gas uint64,
 
 	evm.StateDB.SetNonce(address, 1)
 
-	evm.Transfer(evm.StateDB, caller.Address(), address, value)
+	evm.Transfer(evm.StateDB, caller.Address(), address, value, evm.TransferTokenID)
 
 	// initialise a new contract and set the code that is to be used by the
 	// EVM. The contract is a scoped environment for this execution context

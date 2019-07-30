@@ -82,6 +82,8 @@ type Message interface {
 	FromFullShardKey() uint32
 	ToFullShardKey() uint32
 	TxHash() common.Hash
+	GasTokenID() uint64
+	TransferTokenID() uint64
 }
 
 // IntrinsicGas computes the 'intrinsic gas' for a message with the given data.
@@ -164,7 +166,7 @@ func (st *StateTransition) useGas(amount uint64) error {
 
 func (st *StateTransition) buyGas() error {
 	mgval := new(big.Int).Mul(new(big.Int).SetUint64(st.msg.Gas()), st.gasPrice)
-	if st.state.GetBalance(st.msg.From()).Cmp(mgval) < 0 {
+	if st.state.GetBalance(st.msg.From(), st.evm.GasTokenID).Cmp(mgval) < 0 {
 		return errInsufficientBalanceForGas
 	}
 	if err := st.gp.SubGas(st.msg.Gas()); err != nil {
@@ -173,7 +175,7 @@ func (st *StateTransition) buyGas() error {
 	st.gas += st.msg.Gas()
 
 	st.initialGas = st.msg.Gas()
-	st.state.SubBalance(st.msg.From(), mgval)
+	st.state.SubBalance(st.msg.From(), mgval, st.evm.GasTokenID)
 	return nil
 }
 
@@ -255,8 +257,11 @@ func (st *StateTransition) TransitionDb(feeRate *big.Rat) (ret []byte, usedGas u
 	rateFee := new(big.Int).Mul(fee, feeRate.Num())
 	rateFee = new(big.Int).Div(rateFee, feeRate.Denom())
 
-	st.state.AddBalance(st.evm.Coinbase, rateFee)
-	st.state.AddBlockFee(rateFee)
+	st.state.AddBalance(st.evm.Coinbase, rateFee, st.msg.GasTokenID())
+
+	blockFee := make(map[uint64]*big.Int)
+	blockFee[st.msg.GasTokenID()] = rateFee
+	st.state.AddBlockFee(blockFee)
 
 	st.state.AddGasUsed(new(big.Int).SetUint64(st.gasUsed()))
 	if vmerr == vm.ErrPoSWSenderNotAllowed {
@@ -275,7 +280,7 @@ func (st *StateTransition) refundGas() {
 
 	// Return ETH for remaining gas, exchanged at the original rate.
 	remaining := new(big.Int).Mul(new(big.Int).SetUint64(st.gas), st.gasPrice)
-	st.state.AddBalance(st.msg.From(), remaining)
+	st.state.AddBalance(st.msg.From(), remaining, st.msg.GasTokenID())
 
 	// Also return remaining gas to the block gas counter so it is
 	// available for the next transaction.
@@ -290,7 +295,7 @@ func (st *StateTransition) gasUsed() uint64 {
 func (st *StateTransition) handleCrossShardTx() (ret []byte, usedGas uint64, err error) {
 	evm := st.evm
 	msg := st.msg
-	if !evm.CanTransfer(evm.StateDB, msg.From(), st.value) {
+	if !evm.CanTransfer(evm.StateDB, msg.From(), st.value, st.msg.GasTokenID()) {
 		return nil, 0, vm.ErrInsufficientBalance
 	}
 	crossShardValue := new(serialize.Uint256)
@@ -311,14 +316,14 @@ func (st *StateTransition) handleCrossShardTx() (ret []byte, usedGas uint64, err
 		Value:    crossShardValue,
 		GasPrice: crossShardGasPrice,
 	}
-	evm.StateDB.SubBalance(msg.From(), st.value)
+	evm.StateDB.SubBalance(msg.From(), st.value, st.msg.GasTokenID())
 	evm.StateDB.AppendXShardList(crossShardData)
 	return nil, st.gas, nil
 }
 
 func (st *StateTransition) transferFailureByPoSWBalanceCheck() bool {
 	if v, ok := st.state.GetSenderDisallowMap()[st.msg.From()]; ok {
-		if new(big.Int).Add(st.msg.Value(), v).Cmp(st.state.GetBalance(st.msg.From())) == 1 {
+		if new(big.Int).Add(st.msg.Value(), v).Cmp(st.state.GetBalance(st.msg.From(), st.msg.GasTokenID())) == 1 {
 			return true
 		}
 	}
