@@ -305,12 +305,9 @@ func GenerateMinorBlockChain(config *params.ChainConfig, quarkChainConfig *confi
 		if err := b.statedb.Database().TrieDB().Commit(rootHash, true); err != nil {
 			panic(fmt.Sprintf("trie write error: %v", err))
 		}
-		//	coinbaseAmount.Add(coinbaseAmount, statedb.GetBlockFee())
-		//TODO-master
 		temp := types.NewEmptyTokenBalances()
 		temp.SetValue(coinbaseAmount, qkcCommon.TokenIDEncode("QKC"))
 		block.Finalize(b.receipts, rootHash, statedb.GetGasUsed(), statedb.GetXShardReceiveGasUsed(), temp, statedb.GetTxCursorInfo())
-		//	bc.InsertChain([]types.IBlock{block}, nil)
 		return block, b.receipts
 	}
 	for i := 0; i < n; i++ {
