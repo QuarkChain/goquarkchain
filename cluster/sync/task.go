@@ -50,7 +50,7 @@ func (t *task) Run(bc blockchain) error {
 	logger := log.New("synctask", t.name, "start", t.header.NumberU64())
 	headerTip := bc.CurrentHeader()
 	tipHeight := headerTip.NumberU64()
-	if err := bc.Validator().ValidatorSeal(t.header); err != nil {
+	if err := bc.Validator().ValidateSeal(t.header); err != nil {
 		return fmt.Errorf("validator tip failed number:%d,hash:%v", t.header.NumberU64(), t.header.Hash().String())
 	}
 	// Prepare for downloading.
@@ -144,7 +144,7 @@ func (t *task) validateHeaderList(bc blockchain, headers []types.IHeader) error 
 				return errors.New("should have blocks correctly linked")
 			}
 		}
-		if err := bc.Validator().ValidatorSeal(h); err != nil {
+		if err := bc.Validator().ValidateSeal(h); err != nil {
 			return err
 		}
 		prev = h
