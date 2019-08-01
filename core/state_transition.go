@@ -18,7 +18,6 @@ package core
 
 import (
 	"errors"
-	"fmt"
 	"math"
 	"math/big"
 
@@ -143,11 +142,7 @@ func NewStateTransition(evm *vm.EVM, msg Message, gp *GasPool) *StateTransition 
 // indicates a core error meaning that the message would always fail for that particular
 // state and would never be accepted within a block.
 func ApplyMessage(evm *vm.EVM, msg Message, gp *GasPool, feeRate *big.Rat) ([]byte, uint64, bool, error) {
-	return NewStateTransition(evm, msg, gp).TransitionDb(feeRate, false)
-}
-
-func ApplyCrossShardMessage(evm *vm.EVM, msg Message, gp *GasPool, feeRate *big.Rat) ([]byte, uint64, bool, error) {
-	return NewStateTransition(evm, msg, gp).TransitionDb(feeRate, true)
+	return NewStateTransition(evm, msg, gp).TransitionDb(feeRate)
 }
 
 // to returns the recipient of the message.
@@ -198,59 +193,53 @@ func (st *StateTransition) preCheck() error {
 // TransitionDb will transition the state by applying the current message and
 // returning the result including the used gas. It returns an error if failed.
 // An error indicates a consensus issue.
-func (st *StateTransition) TransitionDb(feeRate *big.Rat, applyCrossShardMsg bool) (ret []byte, usedGas uint64, failed bool, err error) {
-	if !applyCrossShardMsg {
-		if err = st.preCheck(); err != nil {
-			return
-		}
-	}
-	msg := st.msg
-	sender := vm.AccountRef(msg.From())
-	contractCreation := msg.To() == nil
-
-	// Pay intrinsic gas
-	gas, err := IntrinsicGas(st.data, contractCreation, st.msg.IsCrossShard())
-	if err != nil {
-		return nil, 0, false, err
-	}
-	if !applyCrossShardMsg {
-		if err = st.useGas(gas); err != nil {
-			return nil, 0, false, err
-		}
-	}
+func (st *StateTransition) TransitionDb(feeRate *big.Rat) (ret []byte, usedGas uint64, failed bool, err error) {
 	var (
+		msg = st.msg
 		evm = st.evm
 		// vm errors do not effect consensus and are therefor
 		// not assigned to err, except for insufficient balance
 		// error.
-		vmerr error
+		vmerr            error
+		gas              uint64
+		contractCreation = msg.To() == nil
 	)
+	if !st.evm.IsApplyXShard {
+		if err = st.preCheck(); err != nil {
+			return
+		}
+		// Pay intrinsic gas
+		gas, err = IntrinsicGas(st.data, contractCreation, msg.IsCrossShard())
+		if err != nil {
+			return nil, 0, false, err
+		}
+		if err = st.useGas(gas); err != nil {
+			return nil, 0, false, err
+		}
+	} else {
+		xShardCost := qkcParam.GtxxShardCost.Uint64()
+		st.gas += st.msg.Gas() + xShardCost
+		st.initialGas = st.msg.Gas() + xShardCost
+		_ = st.useGas(xShardCost)
+	}
+	sender := vm.AccountRef(msg.From())
+	if msg.IsCrossShard() {
+		st.state.SetNonce(msg.From(), st.state.GetNonce(sender.Address())+1)
+		return st.AddCrossShardTxDeposit(gas, feeRate)
+	}
 	if contractCreation {
 		ret, _, st.gas, vmerr = evm.Create(sender, st.data, st.gas, st.value, msg.IsCrossShard())
 	} else {
-		// Increment the nonce for the next transaction
-		st.state.SetNonce(msg.From(), st.state.GetNonce(sender.Address())+1)
 		if st.transferFailureByPoSWBalanceCheck() {
 			ret, st.gas, vmerr = nil, 0, vm.ErrPoSWSenderNotAllowed
 		} else {
-			if msg.IsCrossShard() {
-				ret, st.gas, vmerr = st.AddCrossShardTxDeposit(gas)
-			} else {
-				if len(st.data) > 0 {
-
-					fmt.Printf("st.data=%x\n", st.data)
-					ret, st.gas, vmerr = evm.Call(sender, st.to(), st.data, st.gas, st.value)
-				} else {
-
-					ret, st.gas, vmerr = evm.Call(sender, st.to(), st.data, st.gas, st.value)
-				}
-
-			}
+			// Increment the nonce for the next transaction
+			st.state.SetNonce(msg.From(), st.state.GetNonce(sender.Address())+1)
+			ret, st.gas, vmerr = evm.Call(sender, st.to(), st.data, st.gas, st.value)
 		}
 	}
 
 	if vmerr != nil {
-		fmt.Printf("vmerr=%v\n", vmerr)
 		log.Debug("VM returned with error", "err", vmerr)
 		// The only possible consensus-error would be if there wasn't
 		// sufficient balance to make the transfer happen. The first
@@ -261,14 +250,7 @@ func (st *StateTransition) TransitionDb(feeRate *big.Rat, applyCrossShardMsg boo
 	}
 	st.refundGas()
 
-	finalGasUsed := st.gasUsed()
-	if st.msg.IsCrossShard() && vmerr != vm.ErrPoSWSenderNotAllowed {
-		if finalGasUsed < qkcParam.GtxxShardCost.Uint64() {
-			return nil, 0, false, errors.New("crossShard ")
-		}
-		finalGasUsed -= qkcParam.GtxxShardCost.Uint64()
-	}
-	fee := new(big.Int).Mul(new(big.Int).SetUint64(finalGasUsed), st.gasPrice)
+	fee := new(big.Int).Mul(new(big.Int).SetUint64(st.gasUsed()), st.gasPrice)
 	rateFee := new(big.Int).Mul(fee, feeRate.Num())
 	rateFee = new(big.Int).Div(rateFee, feeRate.Denom())
 
@@ -304,12 +286,19 @@ func (st *StateTransition) gasUsed() uint64 {
 	return st.initialGas - st.gas
 }
 
-func (st *StateTransition) AddCrossShardTxDeposit(intrinsicGas uint64) (ret []byte, usedGas uint64, err error) {
+func (st *StateTransition) AddCrossShardTxDeposit(intrinsicGas uint64, feeRate *big.Rat) (ret []byte, leftOver uint64, failed bool, err error) {
 	evm := st.evm
 	msg := st.msg
 	if !evm.CanTransfer(evm.StateDB, msg.From(), st.value) {
-		return nil, 0, vm.ErrInsufficientBalance
+		return nil, st.gas, false, vm.ErrInsufficientBalance
 	}
+	if st.transferFailureByPoSWBalanceCheck() {
+		//Currently, burn all gas
+		st.gas = 0
+		failed = true
+		err = vm.ErrPoSWSenderNotAllowed
+	}
+	evm.StateDB.SubBalance(msg.From(), st.value)
 	remoteGasReserved := msg.Gas() - intrinsicGas
 	crossShardValue := new(serialize.Uint256)
 	crossShardValue.Value = new(big.Int).Set(msg.Value())
@@ -333,9 +322,25 @@ func (st *StateTransition) AddCrossShardTxDeposit(intrinsicGas uint64) (ret []by
 		CreateContract: false,
 		GasRemained:    crossShardGas,
 	}
-	evm.StateDB.SubBalance(msg.From(), st.value)
 	evm.StateDB.AppendXShardList(crossShardData)
-	return nil, st.gas, nil
+	failed = false
+
+	localGasUsed := st.gasUsed()
+	//refund
+	gasRemained := msg.Gas() - localGasUsed - remoteGasReserved
+	fund := new(big.Int).Mul(new(big.Int).SetUint64(gasRemained), st.gasPrice)
+	st.state.AddBalance(msg.From(), fund)
+	if !failed {
+		//reserve part of the gas for the target shard miner for fee
+		localGasUsed -= qkcParam.GtxxShardCost.Uint64()
+	}
+	fee := new(big.Int).Mul(new(big.Int).SetUint64(localGasUsed), st.gasPrice)
+	rateFee := new(big.Int).Mul(fee, feeRate.Num())
+	rateFee = new(big.Int).Div(rateFee, feeRate.Denom())
+	st.state.AddBalance(st.evm.Coinbase, rateFee)
+	st.state.AddBlockFee(rateFee)
+	st.state.AddGasUsed(new(big.Int).SetUint64(localGasUsed))
+	return nil, st.gas, failed, nil
 }
 
 func (st *StateTransition) transferFailureByPoSWBalanceCheck() bool {

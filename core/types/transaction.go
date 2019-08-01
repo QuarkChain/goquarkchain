@@ -259,7 +259,7 @@ func (tx *EvmTransaction) Size() common.StorageSize {
 // AsMessage returns the transaction as a core.Message.
 // AsMessage requires a signer to derive the sender.
 // XXX Rename message to something less arbitrary?
-func (tx *EvmTransaction) AsMessage(s Signer) (Message, error) {
+func (tx *EvmTransaction) AsMessage(s Signer, txHash common.Hash) (Message, error) {
 	msgTo := new(common.Address)
 	if tx.data.Recipient != nil {
 		msgTo.SetBytes(tx.data.Recipient.Bytes())
@@ -277,7 +277,7 @@ func (tx *EvmTransaction) AsMessage(s Signer) (Message, error) {
 		checkNonce:       true,
 		fromFullShardKey: tx.data.FromFullShardKey.getValue(),
 		toFullShardKey:   tx.data.ToFullShardKey.getValue(),
-		txHash:           tx.Hash(), //TODO ???? wrong
+		txHash:           txHash,
 		isCrossShard:     tx.IsCrossShard(),
 		transferTokenID:  tx.data.TransferTokenID,
 		gasTokenID:       tx.data.GasTokenID,

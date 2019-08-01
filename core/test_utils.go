@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"math/big"
+	"strings"
 	"time"
 
 	"github.com/QuarkChain/goquarkchain/account"
@@ -84,9 +85,9 @@ func getTestEnv(genesisAccount *account.Address, genesisMinorQuarkHash *uint64, 
 	for _, v := range ids {
 		addr := genesisAccount.AddressInShard(v)
 		shardConfig := fakeClusterConfig.Quarkchain.GetShardConfigByFullShardID(v)
-		temp:=make(map[string]*big.Int)
-		temp["QKC"]= new(big.Int).SetUint64(*genesisMinorQuarkHash)
-		shardConfig.Genesis.Alloc[addr] =temp
+		temp := make(map[string]*big.Int)
+		temp["QKC"] = new(big.Int).SetUint64(*genesisMinorQuarkHash)
+		shardConfig.Genesis.Alloc[addr] = temp
 	}
 	return env
 }
@@ -247,4 +248,38 @@ func CreateCallContractTx(shardState *MinorBlockChain, key []byte,
 
 func GetPoSW(chain *MinorBlockChain) *posw.PoSW {
 	return chain.posw.(*posw.PoSW)
+}
+
+const CONTRACT = "6080604052348015600f57600080fd5b5060c68061001e6000396000f3fe6080604052600436106039576000357c010000000000000000000000000000000000000000000000000000000090048063c2e171d714603e575b600080fd5b348015604957600080fd5b5060506052565b005b61162e600160003373ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff1681526020019081526020016000208190555056fea165627a7a72305820fe440b2cadff2d38365becb4339baa8c7b29ce933a2ad1b43f49feea0e1f7a7e0029"
+
+func ZFill64(input string) string {
+	return strings.Repeat("0", 64-len(input)) + input
+}
+
+func CreateContract(mBlockChain *MinorBlockChain, key account.Key, fromAddress account.Address,
+	toFullShardKey uint32, bytecode string) (*types.Transaction, error) {
+
+	z := big.NewInt(0)
+	one := big.NewInt(1)
+	nonce, err := mBlockChain.GetTransactionCount(fromAddress.Recipient, nil)
+	if err != nil {
+		return nil, err
+	}
+	bytecodeb, err := hex.DecodeString(bytecode)
+
+	if err != nil {
+		return nil, err
+	}
+	evmTx := types.NewEvmContractCreation(nonce, z, 1000000, one, fromAddress.FullShardKey, toFullShardKey,
+		mBlockChain.Config().NetworkID, 0, bytecodeb)
+
+	prvKey, err := crypto.HexToECDSA(hex.EncodeToString(key.Bytes()))
+	if err != nil {
+		return nil, err
+	}
+	evmTx, err = types.SignTx(evmTx, types.MakeSigner(evmTx.NetworkId()), prvKey)
+	if err != nil {
+		return nil, err
+	}
+	return &types.Transaction{TxType: types.EvmTx, EvmTx: evmTx}, nil
 }

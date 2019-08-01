@@ -1017,11 +1017,10 @@ func (m *MinorBlockChain) runOneCrossShardTxListByRootBlockHash(hash common.Hash
 		return nil, nil, err
 	}
 
+	localFeeRate := getLocalFeeRate(evmState.GetQuarkChainConfig())
 	var receipts types.Receipts
 	for _, txByHeader := range txsByHeaders {
-		localFeeRate := getLocalFeeRate(evmState.GetQuarkChainConfig())
-		gp := new(GasPool).AddGas(evmState.GetGasLimit().Uint64())
-		receipt, err := ApplyCrossShardDeposit(m.ethChainConfig, m, gp, txByHeader.MinorHeader,
+		receipt, err := ApplyCrossShardDeposit(m.ethChainConfig, m, txByHeader.MinorHeader,
 			*m.GetVMConfig(), evmState, &txByHeader.Tx, localFeeRate)
 		if err != nil {
 			continue

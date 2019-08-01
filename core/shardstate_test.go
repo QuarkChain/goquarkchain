@@ -4,6 +4,12 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"math/big"
+	"math/rand"
+	"reflect"
+	"testing"
+	"time"
+
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	qkcCommon "github.com/QuarkChain/goquarkchain/common"
@@ -16,12 +22,6 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	ethParams "github.com/ethereum/go-ethereum/params"
 	"github.com/stretchr/testify/assert"
-	"math/big"
-	"math/rand"
-	"reflect"
-	"strings"
-	"testing"
-	"time"
 )
 
 func TestShardStateSimple(t *testing.T) {
@@ -782,7 +782,7 @@ func TestXShardTxSent(t *testing.T) {
 	checkErr(err)
 	assert.Equal(t, len(shardState.currentEvmState.GetXShardList()), int(1))
 	temp := shardState.currentEvmState.GetXShardList()[0]
-	assert.Equal(t, temp.TxHash, tx.EvmTx.Hash())
+	assert.Equal(t, temp.TxHash, tx.Hash())
 	assert.Equal(t, temp.From.ToBytes(), acc1.ToBytes())
 	assert.Equal(t, temp.To.ToBytes(), acc2.ToBytes())
 	assert.Equal(t, temp.Value.Value.Uint64(), uint64(888888))
@@ -883,7 +883,7 @@ func TestXShardTxReceiver(t *testing.T) {
 	b2, _, err = shardState0.FinalizeAndAddBlock(b2)
 	checkErr(err)
 	acc1Value := shardState0.currentEvmState.GetBalance(acc1.Recipient)
-	assert.Equal(t, acc1Value.Int64(), 10000000+888888)
+	assert.Equal(t, acc1Value.Int64(), int64(10000000+888888))
 
 	// Half collected by root
 	acc3Value := shardState0.currentEvmState.GetBalance(acc3.Recipient)
@@ -1843,10 +1843,6 @@ func TestResetToOldChain(t *testing.T) {
 	assert.Equal(t, shardState.GetBlockByNumber(2).Hash(), rr2.Hash())
 }
 
-func zfill64(input string) string {
-	return strings.Repeat("0", 64-len(input)) + input
-}
-
 func TestContractCall(t *testing.T) {
 	id1, err := account.CreatRandomIdentity()
 	assert.NoError(t, err)
@@ -1854,54 +1850,47 @@ func TestContractCall(t *testing.T) {
 	assert.NoError(t, err)
 	acc1 := account.CreatAddressFromIdentity(id1, 0)
 	acc2 := account.CreatAddressFromIdentity(id2, 0)
-	storageKeyStr := zfill64(hex.EncodeToString(acc2.Recipient[:])) + zfill64("1")
+	storageKeyStr := ZFill64(hex.EncodeToString(acc2.Recipient[:])) + ZFill64("1")
 	storageKeyBytes, err := hex.DecodeString(storageKeyStr)
 	assert.NoError(t, err)
-	storageKey := common.BytesToHash(storageKeyBytes)
-	fmt.Printf("storagekey=%x\n", storageKey)
-
+	storageKey := crypto.Keccak256Hash(storageKeyBytes)
 	fakeMoney := uint64(10000000)
 	env := setUp(&acc1, &fakeMoney, nil)
 	shardState := createDefaultShardState(env, nil, nil, nil, nil)
 	defer shardState.Stop()
 
-	// Add a root block to have all the shards initialized
 	rootBlock := shardState.rootTip.CreateBlockToAppend(nil, nil, nil, nil, nil).Finalize(nil, nil, common.Hash{})
 	_, err = shardState.AddRootBlock(rootBlock)
 	checkErr(err)
 
-	b0 := shardState.CurrentBlock()
-
-	b1 := b0.CreateBlockToAppend(nil, nil, nil, nil, nil, nil, nil)
+	b1, err := shardState.CreateBlockToMine(nil, &acc2, nil)
+	assert.NoError(t, err)
 	b1, _, err = shardState.FinalizeAndAddBlock(b1)
 	assert.NoError(t, err)
 
-	tx0, err := createContract(shardState, id1.GetKey(), acc2, acc2.FullShardKey, CONTRACT)
+	tx0, err := CreateContract(shardState, id1.GetKey(), acc1, acc1.FullShardKey, CONTRACT)
 	assert.NoError(t, err)
 	err = shardState.AddTx(tx0)
 	assert.NoError(t, err)
-	b2, err := shardState.CreateBlockToMine(nil, &acc1, nil)
+	b2, err := shardState.CreateBlockToMine(nil, &acc2, nil)
 	assert.NoError(t, err)
-	b2, receipts, err := shardState.FinalizeAndAddBlock(b2)
+	b2, _, err = shardState.FinalizeAndAddBlock(b2)
 	assert.NoError(t, err)
-	assert.Equal(t, 2, len(receipts))
 	_, _, contractReceipt := shardState.GetTransactionReceipt(tx0.Hash())
 	assert.Equal(t, uint64(0x1), contractReceipt.Status)
 	contractAddress := account.NewAddress(contractReceipt.ContractAddress, contractReceipt.ContractFullShardId)
-	fmt.Printf("contractAddress=%x\n", contractAddress)
 
 	data, err := hex.DecodeString("c2e171d7")
-	value, gasPrice, gas := big.NewInt(0), uint64(1), uint64(30000+700000)
-	tx3 := CreateCallContractTx(shardState, id1.GetKey().Bytes(), acc1, contractAddress,
+	value, gasPrice, gas := big.NewInt(0), uint64(1), uint64(50000)
+	tx3 := createTransferTransaction(shardState, id2.GetKey().Bytes(), acc2, contractAddress,
 		value, &gas, &gasPrice, nil, data)
 	err = shardState.AddTx(tx3)
 	assert.NoError(t, err)
 	b3, err := shardState.CreateBlockToMine(nil, &acc2, nil)
 	assert.NoError(t, err)
-	b3, receipts, err = shardState.FinalizeAndAddBlock(b3)
+	b3, receipts, err := shardState.FinalizeAndAddBlock(b3)
 	assert.NoError(t, err)
 	assert.Equal(t, 1, len(receipts))
-	//shn := shardState.GetMinorTip().Number
 	code, err := shardState.GetCode(contractAddress.Recipient, nil)
 	assert.NoError(t, err)
 	fmt.Printf("code=%x\n", code)
@@ -1911,37 +1900,6 @@ func TestContractCall(t *testing.T) {
 	v1 := "000000000000000000000000000000000000000000000000000000000000162e"
 	assert.Equal(t, v1, hex.EncodeToString(result.Bytes()))
 	_, _, receipt := shardState.GetTransactionReceipt(tx3.Hash())
-	assert.NoError(t, err)
 	assert.Equal(t, uint64(0x1), receipt.Status)
 
-}
-
-const CONTRACT = "6080604052348015600f57600080fd5b5060c68061001e6000396000f3fe6080604052600436106039576000357c010000000000000000000000000000000000000000000000000000000090048063c2e171d714603e575b600080fd5b348015604957600080fd5b5060506052565b005b61162e600160003373ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff1681526020019081526020016000208190555056fea165627a7a72305820fe440b2cadff2d38365becb4339baa8c7b29ce933a2ad1b43f49feea0e1f7a7e0029"
-
-func createContract(mBlockChain *MinorBlockChain, key account.Key, fromAddress account.Address,
-	toFullShardKey uint32, bytecode string) (*types.Transaction, error) {
-
-	z := big.NewInt(0)
-	one := big.NewInt(1)
-	nonce, err := mBlockChain.GetTransactionCount(fromAddress.Recipient, nil)
-	if err != nil {
-		return nil, err
-	}
-	bytecodeb, err := hex.DecodeString(bytecode)
-
-	if err != nil {
-		return nil, err
-	}
-	evmTx := types.NewEvmContractCreation(nonce, z, 1000000, one, fromAddress.FullShardKey, toFullShardKey,
-		mBlockChain.Config().NetworkID, 0, bytecodeb)
-
-	prvKey, err := crypto.HexToECDSA(hex.EncodeToString(key.Bytes()))
-	if err != nil {
-		return nil, err
-	}
-	evmTx, err = types.SignTx(evmTx, types.MakeSigner(evmTx.NetworkId()), prvKey)
-	if err != nil {
-		return nil, err
-	}
-	return &types.Transaction{TxType: types.EvmTx, EvmTx: evmTx}, nil
 }
