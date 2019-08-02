@@ -97,6 +97,7 @@ type QuarkChainConfig struct {
 	chainIdToShardIds                 map[uint32][]uint32
 	defaultChainToken                 uint64
 	allowTokenIDs                     map[uint64]bool
+	XShardAddReceiptTimestamp         uint64
 }
 
 type QuarkChainConfigAlias QuarkChainConfig
