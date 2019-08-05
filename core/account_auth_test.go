@@ -19,11 +19,11 @@ import (
 )
 
 var (
-	testKey             = "8cfc088e66867b9796731e9752beec1ce1bf65f600096b9bba10923b01c5db56"
+	prvKey, _           = crypto.ToECDSA(common.FromHex("8cfc088e66867b9796731e9752beec1ce1bf65f600096b9bba10923b01c5db56"))
 	superAccountFortest = account.Account{
-		Identity: account.NewIdentity(common.HexToAddress("438BEfb16Aed2d01bC0ba111eEE12c65DCdB5275"), account.BytesToIdentityKey(common.FromHex(testKey))),
+		Identity: account.NewIdentity(crypto.PubkeyToAddress(prvKey.PublicKey), account.BytesToIdentityKey(prvKey.D.Bytes())),
 		QKCAddress: account.Address{
-			Recipient:    common.HexToAddress("438BEfb16Aed2d01bC0ba111eEE12c65DCdB5275"),
+			Recipient:    crypto.PubkeyToAddress(prvKey.PublicKey),
 			FullShardKey: 0,
 		},
 	}

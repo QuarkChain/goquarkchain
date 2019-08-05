@@ -28,8 +28,8 @@ import (
 
 	qkcaccount "github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/core/types"
-	"github.com/QuarkChain/goquarkchain/crypto"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/trie"
@@ -42,10 +42,10 @@ type revision struct {
 
 var (
 	// emptyState is the known hash of an empty state trie entry.
-	emptyState = crypto.Hash256Hash(nil)
+	emptyState = crypto.Keccak256Hash(nil)
 
 	// emptyCode is the known hash of the empty EVM bytecode.
-	emptyCode = crypto.Hash256Hash(nil)
+	emptyCode = crypto.Keccak256Hash(nil)
 )
 
 type proofList [][]byte
@@ -282,7 +282,7 @@ func (s *StateDB) GetState(addr common.Address, hash common.Hash) common.Hash {
 // GetProof returns the MerkleProof for a given Account
 func (s *StateDB) GetProof(a common.Address) ([][]byte, error) {
 	var proof proofList
-	err := s.trie.Prove(crypto.Hash256(a.Bytes()), 0, &proof)
+	err := s.trie.Prove(crypto.Keccak256(a.Bytes()), 0, &proof)
 	return [][]byte(proof), err
 }
 
@@ -293,7 +293,7 @@ func (s *StateDB) GetStorageProof(a common.Address, key common.Hash) ([][]byte, 
 	if trie == nil {
 		return proof, errors.New("storage trie for requested address does not exist")
 	}
-	err := trie.Prove(crypto.Hash256(key.Bytes()), 0, &proof)
+	err := trie.Prove(crypto.Keccak256(key.Bytes()), 0, &proof)
 	return [][]byte(proof), err
 }
 
@@ -367,7 +367,7 @@ func (s *StateDB) SetNonce(addr common.Address, nonce uint64) {
 func (s *StateDB) SetCode(addr common.Address, code []byte) {
 	stateObject := s.GetOrNewStateObject(addr)
 	if stateObject != nil {
-		stateObject.SetCode(crypto.Hash256Hash(code), code)
+		stateObject.SetCode(crypto.Keccak256Hash(code), code)
 	}
 }
 

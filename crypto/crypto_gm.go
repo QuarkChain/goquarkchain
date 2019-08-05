@@ -24,7 +24,6 @@ var errInvalidPubkey = errors.New("invalid sm2 public key")
 
 // Hash256 calculates and returns the Hash256 hash of the input data.
 func Hash256(data ...[]byte) []byte {
-	fmt.Println("gm")
 	s := sm3.NewSM3Hash()
 	for _, b := range data {
 		s.Write(b)
@@ -35,7 +34,6 @@ func Hash256(data ...[]byte) []byte {
 // Hash256Hash calculates and returns the Hash256 hash of the input data,
 // converting it to an internal Hash data structure.
 func Hash256Hash(data ...[]byte) (h common.Hash) {
-	fmt.Println("gm")
 	s := sm3.NewSM3Hash()
 	for _, b := range data {
 		s.Write(b)

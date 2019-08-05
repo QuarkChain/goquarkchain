@@ -22,12 +22,12 @@ import (
 	"io"
 	"math/big"
 
-	"github.com/QuarkChain/goquarkchain/crypto"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/rlp"
 )
 
-var emptyCodeHash = crypto.Hash256(nil)
+var emptyCodeHash = crypto.Keccak256(nil)
 
 type Code []byte
 
@@ -115,7 +115,7 @@ func newObject(db *StateDB, address common.Address, data Account) *stateObject {
 	return &stateObject{
 		db:            db,
 		address:       address,
-		addrHash:      crypto.Hash256Hash(address[:]),
+		addrHash:      crypto.Keccak256Hash(address[:]),
 		data:          data,
 		originStorage: make(Storage),
 		dirtyStorage:  make(Storage),
