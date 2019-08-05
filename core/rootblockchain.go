@@ -685,11 +685,7 @@ func (bc *RootBlockChain) insertChain(chain []types.IBlock, verifySeals bool, pa
 			bc.reportBlock(block, err)
 			return it.index, events, err
 		}
-		diff := bc.CurrentBlock().Header().NumberU64() - block.NumberU64()
-		if bc.CurrentBlock().Header().NumberU64() < block.NumberU64() {
-			diff = block.NumberU64() - bc.CurrentBlock().Header().NumberU64()
-		}
-		if params.ShipIfTooOld && diff > bc.Config().Root.MaxStaleRootBlockHeightDiff {
+		if params.ShipIfTooOld && absUint64(bc.CurrentBlock().Header().NumberU64(), block.NumberU64()) > bc.Config().Root.MaxStaleRootBlockHeightDiff {
 			log.Warn("Insert Root Block", "drop block height", block.NumberU64(), "tip height", bc.CurrentBlock().NumberU64())
 			return it.index, events, fmt.Errorf("block is too old %v %v", block.IHeader().NumberU64(), bc.CurrentBlock().NumberU64())
 		}

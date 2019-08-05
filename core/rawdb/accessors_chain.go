@@ -124,28 +124,6 @@ func HasHeader(db DatabaseReader, hash common.Hash) bool {
 	return true
 }
 
-//// ReadMinorBlockHeader retrieves the block header corresponding to the hash.
-//func ReadValidateMinorBlockHash(db DatabaseReader, hash common.Hash) bool {
-//	if has, err := db.Has(validatedMinorHeaderHashKey(hash)); !has || err != nil {
-//		return false
-//	}
-//	return true
-//}
-//
-//func WriteValidateMinorBlockHash(db DatabaseWriter, hash common.Hash) {
-//	key := validatedMinorHeaderHashKey(hash)
-//	if err := db.Put(key, []byte{0x01}); err != nil {
-//		log.Crit("Failed to store hash to number mapping", "err", err)
-//	}
-//}
-//
-//// DeleteMinorBlockHeader removes all block header data associated with a hash.
-//func DeleteValidateMinorBlockHash(db DatabaseDeleter, hash common.Hash) {
-//	if err := db.Delete(validatedMinorHeaderHashKey(hash)); err != nil {
-//		log.Crit("Failed to delete validated minor block hash", "err", err)
-//	}
-//}
-
 // ReadMinorBlockHeader retrieves the block header corresponding to the hash.
 func ReadMinorBlockHeader(db DatabaseReader, hash common.Hash) *types.MinorBlockHeader {
 	data, _ := db.Get(headerKey(hash))
@@ -651,7 +629,6 @@ func GetMinorBlockCoinbaseToken(db DatabaseReader, hash common.Hash) *types.Toke
 	return tokens
 }
 
-// HasHeader verifies the existence of a block header corresponding to the hash.
 func ContainMinorBlockByHash(db DatabaseReader, hash common.Hash) bool {
 	if has, err := db.Has(makeMinorBlockCoinbase(hash)); !has || err != nil {
 		return false
