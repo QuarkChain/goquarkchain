@@ -371,11 +371,13 @@ func BenchmarkOpEq(b *testing.B) {
 
 	opBenchmark(b, opEq, x, y)
 }
+
 func BenchmarkOpEq2(b *testing.B) {
 	x := "FBCDEF090807060504030201ffffffffFBCDEF090807060504030201ffffffff"
 	y := "FBCDEF090807060504030201ffffffffFBCDEF090807060504030201fffffffe"
 	opBenchmark(b, opEq, x, y)
 }
+
 func BenchmarkOpAnd(b *testing.B) {
 	x := "ABCDEF090807060504030201ffffffffffffffffffffffffffffffffffffffff"
 	y := "ABCDEF090807060504030201ffffffffffffffffffffffffffffffffffffffff"
@@ -426,18 +428,21 @@ func BenchmarkOpSHL(b *testing.B) {
 
 	opBenchmark(b, opSHL, x, y)
 }
+
 func BenchmarkOpSHR(b *testing.B) {
 	x := "FBCDEF090807060504030201ffffffffFBCDEF090807060504030201ffffffff"
 	y := "ff"
 
 	opBenchmark(b, opSHR, x, y)
 }
+
 func BenchmarkOpSAR(b *testing.B) {
 	x := "FBCDEF090807060504030201ffffffffFBCDEF090807060504030201ffffffff"
 	y := "ff"
 
 	opBenchmark(b, opSAR, x, y)
 }
+
 func BenchmarkOpIsZero(b *testing.B) {
 	x := "FBCDEF090807060504030201ffffffffFBCDEF090807060504030201ffffffff"
 	opBenchmark(b, opIszero, x)
@@ -515,54 +520,62 @@ func BenchmarkOpSHA3(bench *testing.B) {
 
 func TestCreate2Addreses(t *testing.T) {
 	type testcase struct {
-		origin   string
-		salt     string
-		code     string
-		expected string
+		origin     string
+		salt       string
+		code       string
+		expected   string
+		gmexpected string
 	}
 
 	for i, tt := range []testcase{
 		{
-			origin:   "0x0000000000000000000000000000000000000000",
-			salt:     "0x0000000000000000000000000000000000000000",
-			code:     "0x00",
-			expected: "0x4d1a2e2bb4f88f0250f26ffff098b0b30b26bf38",
+			origin:     "0x0000000000000000000000000000000000000000",
+			salt:       "0x0000000000000000000000000000000000000000",
+			code:       "0x00",
+			expected:   "0x4d1a2e2bb4f88f0250f26ffff098b0b30b26bf38",
+			gmexpected: "0x3B42752EB3DC01F024dCC415f74C11607c2DAfd3",
 		},
 		{
-			origin:   "0xdeadbeef00000000000000000000000000000000",
-			salt:     "0x0000000000000000000000000000000000000000",
-			code:     "0x00",
-			expected: "0xB928f69Bb1D91Cd65274e3c79d8986362984fDA3",
+			origin:     "0xdeadbeef00000000000000000000000000000000",
+			salt:       "0x0000000000000000000000000000000000000000",
+			code:       "0x00",
+			expected:   "0xB928f69Bb1D91Cd65274e3c79d8986362984fDA3",
+			gmexpected: "0xd062fdf950fF0Ac7e1DF38aE03336Fb26Cc8fbf1",
 		},
 		{
-			origin:   "0xdeadbeef00000000000000000000000000000000",
-			salt:     "0xfeed000000000000000000000000000000000000",
-			code:     "0x00",
-			expected: "0xD04116cDd17beBE565EB2422F2497E06cC1C9833",
+			origin:     "0xdeadbeef00000000000000000000000000000000",
+			salt:       "0xfeed000000000000000000000000000000000000",
+			code:       "0x00",
+			expected:   "0xD04116cDd17beBE565EB2422F2497E06cC1C9833",
+			gmexpected: "0xdaBd6Eb88E30315BF889064A29960CC3d952E061",
 		},
 		{
-			origin:   "0x0000000000000000000000000000000000000000",
-			salt:     "0x0000000000000000000000000000000000000000",
-			code:     "0xdeadbeef",
-			expected: "0x70f2b2914A2a4b783FaEFb75f459A580616Fcb5e",
+			origin:     "0x0000000000000000000000000000000000000000",
+			salt:       "0x0000000000000000000000000000000000000000",
+			code:       "0xdeadbeef",
+			expected:   "0x70f2b2914A2a4b783FaEFb75f459A580616Fcb5e",
+			gmexpected: "0xb9d2147C3a4a4B9BD0f3Aec1c84C281b74C6c77f",
 		},
 		{
-			origin:   "0x00000000000000000000000000000000deadbeef",
-			salt:     "0xcafebabe",
-			code:     "0xdeadbeef",
-			expected: "0x60f3f640a8508fC6a86d45DF051962668E1e8AC7",
+			origin:     "0x00000000000000000000000000000000deadbeef",
+			salt:       "0xcafebabe",
+			code:       "0xdeadbeef",
+			expected:   "0x60f3f640a8508fC6a86d45DF051962668E1e8AC7",
+			gmexpected: "0x6AF69725bD63d13DFE077d9A987a0592B3944997",
 		},
 		{
-			origin:   "0x00000000000000000000000000000000deadbeef",
-			salt:     "0xcafebabe",
-			code:     "0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
-			expected: "0x1d8bfDC5D46DC4f61D6b6115972536eBE6A8854C",
+			origin:     "0x00000000000000000000000000000000deadbeef",
+			salt:       "0xcafebabe",
+			code:       "0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
+			expected:   "0x1d8bfDC5D46DC4f61D6b6115972536eBE6A8854C",
+			gmexpected: "0xd840202D8B9C94D30e556Cf02ae5769483e9e0F5",
 		},
 		{
-			origin:   "0x0000000000000000000000000000000000000000",
-			salt:     "0x0000000000000000000000000000000000000000",
-			code:     "0x",
-			expected: "0xE33C0C7F7df4809055C3ebA6c09CFe4BaF1BD9e0",
+			origin:     "0x0000000000000000000000000000000000000000",
+			salt:       "0x0000000000000000000000000000000000000000",
+			code:       "0x",
+			expected:   "0xE33C0C7F7df4809055C3ebA6c09CFe4BaF1BD9e0",
+			gmexpected: "0x98162C86f085BA9e6DFb03ECd686B678B1929F54",
 		},
 	} {
 
@@ -581,6 +594,9 @@ func TestCreate2Addreses(t *testing.T) {
 			fmt.Printf("Example %d\n* address `0x%x`\n* salt `0x%x`\n* init_code `0x%x`\n* gas (assuming no mem expansion): `%v`\n* result: `%s`\n\n", i,origin, salt, code, gas, address.String())
 		*/
 		expected := common.BytesToAddress(common.FromHex(tt.expected))
+		if crypto.CryptoType == "gm" {
+			expected = common.BytesToAddress(common.FromHex(tt.gmexpected))
+		}
 		if !bytes.Equal(expected.Bytes(), address.Bytes()) {
 			t.Errorf("test %d: expected %s, got %s", i, expected.String(), address.String())
 		}
