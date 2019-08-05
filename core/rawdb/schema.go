@@ -25,13 +25,13 @@ var (
 	fastTrieProgressKey = []byte("TrieSync")
 
 	// Data item prefixes (use single byte to avoid mixing data types, avoid `i`, used for indexes).
-	headerPrefix                   = []byte("h")    // headerPrefix + hash -> header
-	latestMHeaderPrefix            = []byte("lmh")  //latestMHeaderPrefix + hash -> latest minor header list
-	headerTDSuffix                 = []byte("t")    // headerPrefix + hash + headerTDSuffix -> td
-	rootHashPrefix                 = []byte("rn")   // rootHashPrefix + num (uint64 big endian) -> root hash
-	minorHashPrefix                = []byte("mn")   // minorHashPrefix + num (uint64 big endian) -> minorhash
-	headerNumberPrefix             = []byte("H")    // headerNumberPrefix + hash -> num (uint64 big endian)
-	validatedMinorHeaderHashPrefix = []byte("vmhh") //validatedMinorHeaderHashPrefix + hash -> empty, use to record whether this header has been validated
+	headerPrefix        = []byte("h")   // headerPrefix + hash -> header
+	latestMHeaderPrefix = []byte("lmh") //latestMHeaderPrefix + hash -> latest minor header list
+	headerTDSuffix      = []byte("t")   // headerPrefix + hash + headerTDSuffix -> td
+	rootHashPrefix      = []byte("rn")  // rootHashPrefix + num (uint64 big endian) -> root hash
+	minorHashPrefix     = []byte("mn")  // minorHashPrefix + num (uint64 big endian) -> minorhash
+	headerNumberPrefix  = []byte("H")   // headerNumberPrefix + hash -> num (uint64 big endian)
+	//validatedMinorHeaderHashPrefix = []byte("vmhh") //validatedMinorHeaderHashPrefix + hash -> empty, use to record whether this header has been validated
 
 	blockPrefix         = []byte("b") // blockPrefix + hash -> block rootBlockBody
 	blockReceiptsPrefix = []byte("r") // blockReceiptsPrefix + num (uint64 big endian) + hash -> block receipts
@@ -52,6 +52,7 @@ var (
 	rBlock             = []byte("rBlock")
 	genesis            = []byte("genesis")
 	countMinor         = []byte("cntM")
+	mHeader            = []byte("mheader")
 )
 
 type ChainType byte
@@ -125,10 +126,10 @@ func lookupKey(hash common.Hash) []byte {
 	return append(lookupPrefix, hash.Bytes()...)
 }
 
-// validatedMinorHeaderHashKey = validatedMinorHeaderHashPrefix + hash
-func validatedMinorHeaderHashKey(hash common.Hash) []byte {
-	return append(validatedMinorHeaderHashPrefix, hash.Bytes()...)
-}
+//// validatedMinorHeaderHashKey = validatedMinorHeaderHashPrefix + hash
+//func validatedMinorHeaderHashKey(hash common.Hash) []byte {
+//	return append(validatedMinorHeaderHashPrefix, hash.Bytes()...)
+//}
 
 // bloomBitsKey = bloomBitsPrefix + bit (uint16 big endian) + section (uint64 big endian) + hash
 func bloomBitsKey(bit uint, section uint64, hash common.Hash) []byte {
@@ -174,4 +175,14 @@ func makeRootBlockForShard(hash common.Hash) []byte {
 func makeMinorCount(fullShardID uint32, height uint32) []byte {
 	data := append(countMinor, encodeUint32(fullShardID)...)
 	return append(data, encodeUint32(height)...)
+}
+
+func makeMinorBlockCoinbase(mHash common.Hash) []byte {
+	data := append(mHeader, mHash.Bytes()...)
+	return data
+}
+
+func makeRootBlockConfirmingMinorBlock(mHash common.Hash, fullShardID uint32) []byte {
+	data := append(mHash.Bytes(), encodeUint32(fullShardID)...)
+	return data
 }

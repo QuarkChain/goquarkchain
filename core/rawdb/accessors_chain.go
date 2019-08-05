@@ -124,27 +124,27 @@ func HasHeader(db DatabaseReader, hash common.Hash) bool {
 	return true
 }
 
-// ReadMinorBlockHeader retrieves the block header corresponding to the hash.
-func ReadValidateMinorBlockHash(db DatabaseReader, hash common.Hash) bool {
-	if has, err := db.Has(validatedMinorHeaderHashKey(hash)); !has || err != nil {
-		return false
-	}
-	return true
-}
-
-func WriteValidateMinorBlockHash(db DatabaseWriter, hash common.Hash) {
-	key := validatedMinorHeaderHashKey(hash)
-	if err := db.Put(key, []byte{0x01}); err != nil {
-		log.Crit("Failed to store hash to number mapping", "err", err)
-	}
-}
-
-// DeleteMinorBlockHeader removes all block header data associated with a hash.
-func DeleteValidateMinorBlockHash(db DatabaseDeleter, hash common.Hash) {
-	if err := db.Delete(validatedMinorHeaderHashKey(hash)); err != nil {
-		log.Crit("Failed to delete validated minor block hash", "err", err)
-	}
-}
+//// ReadMinorBlockHeader retrieves the block header corresponding to the hash.
+//func ReadValidateMinorBlockHash(db DatabaseReader, hash common.Hash) bool {
+//	if has, err := db.Has(validatedMinorHeaderHashKey(hash)); !has || err != nil {
+//		return false
+//	}
+//	return true
+//}
+//
+//func WriteValidateMinorBlockHash(db DatabaseWriter, hash common.Hash) {
+//	key := validatedMinorHeaderHashKey(hash)
+//	if err := db.Put(key, []byte{0x01}); err != nil {
+//		log.Crit("Failed to store hash to number mapping", "err", err)
+//	}
+//}
+//
+//// DeleteMinorBlockHeader removes all block header data associated with a hash.
+//func DeleteValidateMinorBlockHash(db DatabaseDeleter, hash common.Hash) {
+//	if err := db.Delete(validatedMinorHeaderHashKey(hash)); err != nil {
+//		log.Crit("Failed to delete validated minor block hash", "err", err)
+//	}
+//}
 
 // ReadMinorBlockHeader retrieves the block header corresponding to the hash.
 func ReadMinorBlockHeader(db DatabaseReader, hash common.Hash) *types.MinorBlockHeader {
@@ -625,4 +625,50 @@ func GetMinorBlockCnt(db DatabaseReader, fullShardID uint32, height uint32) []by
 		return []byte{}
 	}
 	return data
+}
+
+func PutMinorBlockCoinbase(db DatabaseWriter, mHash common.Hash, coinbaseToken *types.TokenBalances) {
+	tokenBytes, err := serialize.SerializeToBytes(coinbaseToken)
+	if err != nil {
+		log.Crit("failed to put minor block coinbase", "serialize err", err)
+	}
+	if err := db.Put(makeMinorBlockCoinbase(mHash), tokenBytes); err != nil {
+		log.Crit("failed to put minor block coinbase ", "put err", err)
+
+	}
+}
+
+func GetMinorBlockCoinbaseToken(db DatabaseReader, hash common.Hash) *types.TokenBalances {
+	data, _ := db.Get(makeMinorBlockCoinbase(hash))
+	if len(data) == 0 {
+		return nil
+	}
+	tokens := new(types.TokenBalances)
+	if err := serialize.DeserializeFromBytes(data, tokens); err != nil {
+		log.Error("GetMinorBlockCoinbaseToken", "deserialize err", err)
+		return nil
+	}
+	return tokens
+}
+
+// HasHeader verifies the existence of a block header corresponding to the hash.
+func ContainMinorBlockByHash(db DatabaseReader, hash common.Hash) bool {
+	if has, err := db.Has(makeMinorBlockCoinbase(hash)); !has || err != nil {
+		return false
+	}
+	return true
+}
+
+func PutRootBlockConfirmingMinorBlock(db DatabaseWriter, mHash common.Hash, fullShardID uint32, rHash common.Hash) {
+	if err := db.Put(makeRootBlockConfirmingMinorBlock(mHash, fullShardID), rHash.Bytes()); err != nil {
+		log.Crit("failed to put rootBlock confirming minor block", "err", err)
+	}
+}
+
+func GetRootBlockConfirmingMinorBlock(db DatabaseReader, mHash common.Hash, fullShardID uint32) common.Hash {
+	data, _ := db.Get(makeRootBlockConfirmingMinorBlock(mHash, fullShardID))
+	if len(data) == 0 {
+		return common.Hash{}
+	}
+	return common.BytesToHash(data)
 }
