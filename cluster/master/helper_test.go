@@ -62,7 +62,7 @@ func newTestProtocolManager(blocks int, generator func(int, *core.RootBlockGen),
 	qkcconfig.SkipRootCoinbaseCheck = true
 	clusterconfig.P2P.PrivKey = privKey
 	chain := core.GenerateRootBlockChain(genesisBlock, engine, blocks, generator)
-	if _, err := blockChain.InsertChain(toIBlocks(chain)); err != nil {
+	if _, err := blockChain.InsertChain(toIBlocks(chain), nil); err != nil {
 		panic(err)
 	}
 

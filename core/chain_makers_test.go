@@ -58,7 +58,7 @@ func ExampleGenerateRootBlockChain() {
 	defer blockchain.Stop()
 
 	blockchain.SetValidator(&fakeRootBlockValidator{nil})
-	if i, err := blockchain.InsertChain(ToBlocks(chain)); err != nil {
+	if i, err := blockchain.InsertChain(ToBlocks(chain), nil); err != nil {
 		fmt.Printf("insert error (block %d): %v\n", chain[i].NumberU64(), err)
 		return
 	}

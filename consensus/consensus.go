@@ -129,6 +129,9 @@ func (c *CommonEngine) VerifyHeader(
 	// Short-circuit if the header is known, or parent not
 	number := header.NumberU64()
 	logger := log.New("engine")
+	if header.GetVersion() != 0 {
+		return errors.New("incorrect block's version")
+	}
 
 	if chain.GetHeader(header.Hash()) != nil {
 		return nil

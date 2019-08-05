@@ -56,6 +56,10 @@ func NewBlockValidator(quarkChainConfig *config.QuarkChainConfig, blockchain *Mi
 	return validator
 }
 
+func (v *MinorBlockValidator) SetWriteDBFlag(flag bool) {
+	panic("no need to implement")
+}
+
 // ValidateBlock validates the given block's uncles and verifies the block
 // header's transaction and uncle roots. The Headers are assumed to be already
 // validated at this point.

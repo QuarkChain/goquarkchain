@@ -528,7 +528,7 @@ func (s *QKCMasterBackend) SendMiningConfigToSlaves(mining bool) error {
 func (s *QKCMasterBackend) AddRootBlock(rootBlock *types.RootBlock) error {
 	head := s.rootBlockChain.CurrentBlock().NumberU64()
 	s.rootBlockChain.WriteCommittingHash(rootBlock.Hash())
-	_, err := s.rootBlockChain.InsertChain([]types.IBlock{rootBlock})
+	_, err := s.rootBlockChain.InsertChain([]types.IBlock{rootBlock}, nil)
 	if err != nil {
 		return err
 	}

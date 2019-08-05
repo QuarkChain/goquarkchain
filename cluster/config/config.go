@@ -126,7 +126,7 @@ type RootConfig struct {
 
 func NewRootConfig() *RootConfig {
 	return &RootConfig{
-		MaxStaleRootBlockHeightDiff:    60,
+		MaxStaleRootBlockHeightDiff:    22500,
 		ConsensusType:                  PoWNone,
 		ConsensusConfig:                nil,
 		Genesis:                        NewRootGenesis(),

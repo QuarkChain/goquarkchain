@@ -81,7 +81,7 @@ func (bc *mockblockchain) HasBlock(hash common.Hash) bool {
 
 func (bc *mockblockchain) AddBlock(block types.IBlock) error {
 	if bc.rbc != nil {
-		_, err := bc.rbc.InsertChain([]types.IBlock{block})
+		_, err := bc.rbc.InsertChain([]types.IBlock{block}, nil)
 		return err
 	}
 	_, err := bc.mbc.InsertChain([]types.IBlock{block}, nil)
@@ -99,8 +99,8 @@ func (bc *mockblockchain) Validator() core.Validator {
 	return bc.validator
 }
 
-func (bc *mockblockchain) AddValidatedMinorBlockHeader(hash common.Hash) {
-	bc.rbc.AddValidatedMinorBlockHeader(hash)
+func (bc *mockblockchain) AddValidatedMinorBlockHeader(hash common.Hash, coinbaseToken *types.TokenBalances) {
+	bc.rbc.AddValidatedMinorBlockHeader(hash, coinbaseToken)
 }
 
 func (bc *mockblockchain) IsMinorBlockValidated(hash common.Hash) bool {
@@ -124,6 +124,10 @@ func (v *mockvalidator) ValidateBlock(types.IBlock) error {
 func (v *mockvalidator) ValidateSeal(mHeader types.IHeader) error {
 	return v.err
 }
+
+func (v *mockvalidator) SetWriteDBFlag(flag bool) {
+
+}
 func newRootBlockChain(sz int) blockchain {
 	qkcconfig.SkipRootCoinbaseCheck = true
 	db := ethdb.NewMemDatabase()
@@ -138,7 +142,7 @@ func newRootBlockChain(sz int) blockchain {
 		blocks = append(blocks, rb)
 	}
 
-	_, err = blockchain.InsertChain(blocks)
+	_, err = blockchain.InsertChain(blocks, nil)
 	if err != nil {
 		panic(fmt.Sprintf("failed to insert headers: %v", err))
 	}

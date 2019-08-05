@@ -88,7 +88,8 @@ func (b *RootBlockHeader) GetCoinbaseAmount() *TokenBalances {
 
 func (h *RootBlockHeader) GetMixDigest() common.Hash { return h.MixDigest }
 
-func (h *RootBlockHeader) NumberU64() uint64 { return uint64(h.Number) }
+func (h *RootBlockHeader) NumberU64() uint64  { return uint64(h.Number) }
+func (h *RootBlockHeader) GetVersion() uint32 { return h.Version }
 
 func (h *RootBlockHeader) SetExtra(data []byte) {
 	h.Extra = common.CopyBytes(data)

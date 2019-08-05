@@ -69,7 +69,7 @@ func TestValidateBlock(t *testing.T) {
 			case <-time.After(25 * time.Millisecond):
 			}
 		}
-		chain.InsertChain(blocks[i : i+1])
+		chain.InsertChain(blocks[i:i+1], nil)
 	}
 	if chain.CurrentBlock().Header().Number != 0 {
 		t.Fatalf("verify chain CurrentBlock hight, have %d, want 0", chain.CurrentBlock().Header().Number)
@@ -77,7 +77,7 @@ func TestValidateBlock(t *testing.T) {
 
 	engine.Err = nil
 	for i := 0; i < len(blocks); i++ {
-		_, err := chain.InsertChain(blocks[i : i+1])
+		_, err := chain.InsertChain(blocks[i:i+1], nil)
 		if err != nil {
 			t.Fatalf("InsertChain failed with error: %v", err.Error())
 		}
