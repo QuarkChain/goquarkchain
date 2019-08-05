@@ -30,7 +30,7 @@ import (
 
 // emptyCodeHash is used by create to ensure deployment is disallowed to already
 // deployed contract addresses (relevant after the account abstraction).
-var emptyCodeHash = crypto.Keccak256Hash(nil)
+var emptyCodeHash = crypto.Hash256Hash(nil)
 
 type (
 	// CanTransferFunc is the signature of a transfer guard function
@@ -373,7 +373,7 @@ type codeAndHash struct {
 
 func (c *codeAndHash) Hash() common.Hash {
 	if c.hash == (common.Hash{}) {
-		c.hash = crypto.Keccak256Hash(c.code)
+		c.hash = crypto.Hash256Hash(c.code)
 	}
 	return c.hash
 }
@@ -460,7 +460,7 @@ func (evm *EVM) create(caller ContractRef, codeAndHash *codeAndHash, gas uint64,
 // CreateAddress creates an ethereum address given the bytes and the nonce
 func CreateAddress(b common.Address, toFullShardID uint32, nonce uint64) common.Address {
 	data, _ := rlp.EncodeToBytes([]interface{}{b, toFullShardID, nonce})
-	return common.BytesToAddress(crypto.Keccak256(data)[12:])
+	return common.BytesToAddress(crypto.Hash256(data)[12:])
 }
 
 // Create creates a new contract using code as deployment code.

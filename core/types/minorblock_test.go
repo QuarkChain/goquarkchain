@@ -70,7 +70,12 @@ func TestMinorBlockHeaderSerializing(t *testing.T) {
 	check("Bloom", common.Bytes2Hex(blockHeader.Bloom[:]), "00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001")
 	check("Extra", common.Bytes2Hex(blockHeader.Extra), "010203")
 	check("MixDigest", common.Bytes2Hex(blockHeader.MixDigest.Bytes()), "0000000000000000000000000000000000000000000000000000000000000004")
-	check("Hash", common.Bytes2Hex(blockHeader.Hash().Bytes()), "b274edca72087a960cff0dad483392ea36eb87d17dc8da40fe2ceb6616e559e8")
+	if crypto.CryptoType == "gm" {
+		check("Hash", common.Bytes2Hex(blockHeader.Hash().Bytes()), "b274edca72087a960cff0dad483392ea36eb87d17dc8da40fe2ceb6616e559e8")
+	} else {
+		check("Hash", common.Bytes2Hex(blockHeader.Hash().Bytes()), "b274edca72087a960cff0dad483392ea36eb87d17dc8da40fe2ceb6616e559e8")
+	}
+
 	check("serialize", bytes, blocHeaderEnc)
 
 	blocMetaEnc := common.FromHex("a40920ae6f758f88c61b405f9fc39fdd6274666462b14e3887522166e6537a97297d6ae9803346cdb059a671dea7e37b684dcabfa767f2d872026ad0a3aba495df227f34313c2bc4a4a986817ea46437f049873f2fca8e2b89b1ecd0f9e67a280000000000000000000000000000000000000000000000000000000000000064000000000000000000000000000000000000000000000000000000000000012c")
@@ -111,7 +116,7 @@ func TestMinorBlockHeaderSerializing(t *testing.T) {
 	tx2.EvmTx, _ = SignTx(evmTx2, signer, key)
 	check("len(Transactions)", len(trans), 2)
 	check("Transactions[0].Hash", common.Bytes2Hex(trans[0].Hash().Bytes()), common.Bytes2Hex(tx1.Hash().Bytes()))
-	check("Transactions[1]", common.Bytes2Hex(trans[1].Hash().Bytes()), common.Bytes2Hex(tx2.Hash().Bytes()))
+	check("Transactions[1].Hash", common.Bytes2Hex(trans[1].Hash().Bytes()), common.Bytes2Hex(tx2.Hash().Bytes()))
 	check("txserialize", common.Bytes2Hex(bytes), common.Bytes2Hex(transactionsEnc))
 
 	blockEnc := append(blocHeaderEnc, append(blocMetaEnc, append(transactionsEnc, common.Hex2Bytes("00020102")...)...)...)

@@ -45,7 +45,7 @@ func CalculateMerkleRoot(list interface{}) (h common.Hash) {
 	hashList := make([]common.Hash, val.Len())
 	for i := 0; i < val.Len(); i++ {
 		bytes, _ := serialize.SerializeToBytes(val.Index(i).Interface())
-		hashList[i] = crypto.Keccak256Hash(bytes)
+		hashList[i] = crypto.Hash256Hash(bytes)
 	}
 
 	for len(hashList) != 1 {
@@ -53,12 +53,12 @@ func CalculateMerkleRoot(list interface{}) (h common.Hash) {
 		length := len(hashList)
 		for i := 0; i < length-1; {
 			tempList = append(tempList,
-				crypto.Keccak256Hash(append(hashList[i].Bytes(), hashList[i+1].Bytes()...)))
+				crypto.Hash256Hash(append(hashList[i].Bytes(), hashList[i+1].Bytes()...)))
 			i = i + 2
 		}
 		if length%2 == 1 {
 			tempList = append(tempList,
-				crypto.Keccak256Hash(append(hashList[length-1].Bytes(), hashList[length-1].Bytes()...)))
+				crypto.Hash256Hash(append(hashList[length-1].Bytes(), hashList[length-1].Bytes()...)))
 		}
 		hashList = tempList
 	}

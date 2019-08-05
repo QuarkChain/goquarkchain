@@ -137,7 +137,7 @@ func DecodeKeyStoreJSON(keystoreJSONData EncryptedKeyJSON, password string) ([]b
 		return []byte{}, err
 	}
 
-	mac := crypto.Keccak256(derivedKey[16:32], cipherText)
+	mac := crypto.Hash256(derivedKey[16:32], cipherText)
 	macJSON, err := hex.DecodeString(keystoreJSONData.Crypto.MAC)
 	if err != nil {
 		return []byte{}, errors.New("decode Mac failed")
@@ -206,7 +206,7 @@ func (Self *Account) MakeKeyStoreJSON(password string) (EncryptedKeyJSON, error)
 		return EncryptedKeyJSON{}, errors.New("aes error")
 	}
 
-	mac := crypto.Keccak256(derivedKey[16:32], cipherText)
+	mac := crypto.Hash256(derivedKey[16:32], cipherText)
 	cryptoData := CryptoJSON{
 		Cipher:     cryptoCipher,
 		CipherText: hex.EncodeToString(cipherText),

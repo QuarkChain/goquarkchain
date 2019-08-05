@@ -4,6 +4,7 @@ package crypto
 
 import (
 	"crypto/ecdsa"
+	"fmt"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/crypto/sha3"
@@ -11,14 +12,16 @@ import (
 	"math/big"
 )
 
-// Keccak256 calculates and returns the Keccak256 hash of the input data.
-func Keccak256(data ...[]byte) []byte {
+// Hash256 calculates and returns the Hash256 hash of the input data.
+func Hash256(data ...[]byte) []byte {
+	fmt.Println("nogm")
 	return crypto.Keccak256(data...)
 }
 
-// Keccak256Hash calculates and returns the Keccak256 hash of the input data,
+// Hash256Hash calculates and returns the Hash256 hash of the input data,
 // converting it to an internal Hash data structure.
-func Keccak256Hash(data ...[]byte) (h common.Hash) {
+func Hash256Hash(data ...[]byte) (h common.Hash) {
+	fmt.Println("nogm")
 	return crypto.Keccak256Hash(data...)
 }
 

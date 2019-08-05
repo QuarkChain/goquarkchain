@@ -81,7 +81,7 @@ func decodeTx(data []byte) (*EvmTransaction, error) {
 
 func publicKey2Recipient(pk *ecdsa.PublicKey) account.Recipient {
 	pubBytes := crypto.FromECDSAPub(pk)
-	recipient := account.BytesToIdentityRecipient(crypto.Keccak256(pubBytes[1:])[12:])
+	recipient := account.BytesToIdentityRecipient(crypto.Hash256(pubBytes[1:])[12:])
 	return recipient
 }
 

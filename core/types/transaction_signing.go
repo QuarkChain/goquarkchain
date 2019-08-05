@@ -153,6 +153,6 @@ func recoverPlain(sighash common.Hash, R, S, Vb *big.Int, homestead bool) (accou
 		return account.Recipient{}, errors.New("invalid public key")
 	}
 	var addr account.Recipient
-	copy(addr[:], crypto.Keccak256(pub[1:])[12:])
+	copy(addr[:], crypto.Hash256(pub[1:])[12:])
 	return addr, nil
 }

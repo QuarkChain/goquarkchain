@@ -21,8 +21,8 @@ import (
 	"math/big"
 	"testing"
 
+	"github.com/QuarkChain/goquarkchain/crypto"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/trie"
 )
@@ -54,7 +54,7 @@ func makeTestState() (Database, common.Hash, []*testAccount) {
 		acc.nonce = uint64(42 * i)
 
 		if i%3 == 0 {
-			obj.SetCode(crypto.Keccak256Hash([]byte{i, i, i, i, i}), []byte{i, i, i, i, i})
+			obj.SetCode(crypto.Hash256Hash([]byte{i, i, i, i, i}), []byte{i, i, i, i, i})
 			acc.code = []byte{i, i, i, i, i}
 		}
 		state.updateStateObject(obj)
@@ -324,7 +324,7 @@ func TestIncompleteStateSync(t *testing.T) {
 	checkSubtries:
 		for _, hash := range added {
 			for _, acc := range srcAccounts {
-				if hash == crypto.Keccak256Hash(acc.code) {
+				if hash == crypto.Hash256Hash(acc.code) {
 					continue checkSubtries // skip trie check of code nodes.
 				}
 			}

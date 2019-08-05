@@ -36,7 +36,7 @@ func CreatRandomIdentity() (Identity, error) {
 		return Identity{}, fmt.Errorf("fromECDSAPub len is not match :unexcepted %d,excepted 65", len(crypto.FromECDSAPub(&sk.PublicKey)))
 	}
 
-	recipient := crypto.Keccak256(crypto.FromECDSAPub(&sk.PublicKey)[1:])
+	recipient := crypto.Hash256(crypto.FromECDSAPub(&sk.PublicKey)[1:])
 	if len(recipient) != KeyLength {
 		return Identity{}, fmt.Errorf("recipient len is not match:unexceptd %d,exceptd 32", len(recipient))
 	}
@@ -54,7 +54,7 @@ func CreatIdentityFromKey(key Key) (Identity, error) {
 		return Identity{}, fmt.Errorf("fromECDSAPub len is not match :unexcepted %d,excepted %d", len(crypto.FromECDSAPub(&sk.PublicKey)), 2*KeyLength+1)
 	}
 
-	recipient := crypto.Keccak256(crypto.FromECDSAPub(&sk.PublicKey)[1:]) //"0x04"+64
+	recipient := crypto.Hash256(crypto.FromECDSAPub(&sk.PublicKey)[1:]) //"0x04"+64
 	if len(recipient) != KeyLength {
 		return Identity{}, fmt.Errorf("recipient len is not match:unexceptd %d,exceptd 32", len(recipient))
 	}
