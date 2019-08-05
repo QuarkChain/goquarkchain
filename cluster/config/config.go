@@ -26,6 +26,8 @@ const (
 	// PoWQkchash is the consensus type running qkchash algorithm.
 	PoWQkchash = "POW_QKCHASH"
 
+	PoWGmhash = "POW_GMHASH"
+
 	GrpcPort uint16 = 38591
 	GrpcHost        = "127.0.0.1"
 

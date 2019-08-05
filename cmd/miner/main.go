@@ -6,8 +6,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"github.com/QuarkChain/goquarkchain/cluster/config"
-	"github.com/QuarkChain/goquarkchain/consensus/ethash"
 	"io/ioutil"
 	"log"
 	"math/big"
@@ -15,8 +13,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/consensus/doublesha256"
+	"github.com/QuarkChain/goquarkchain/consensus/ethash"
+	"github.com/QuarkChain/goquarkchain/consensus/gmhash"
 	"github.com/QuarkChain/goquarkchain/consensus/qkchash"
 	"github.com/ethereum/go-ethereum/common"
 	ethlog "github.com/ethereum/go-ethereum/log"
@@ -236,6 +237,8 @@ func createMiner(consensusType string, diffCalculator *consensus.EthDifficultyCa
 		return qkchash.New(true, diffCalculator, false)
 	case config.PoWDoubleSha256:
 		return doublesha256.New(diffCalculator, false)
+	case config.PoWGmhash:
+		return gmhash.New(diffCalculator, false)
 	default:
 		ethlog.Error("Failed to create consensus engine consensus type is not known", "consensus type", consensusType)
 		return nil
