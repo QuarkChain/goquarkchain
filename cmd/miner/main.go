@@ -316,6 +316,7 @@ func main() {
 			log.Fatal("ERROR: unsupported shard / mining algorithm")
 		}
 		pow.SetThreads(*preThreads)
+		shardID := shardID
 		w := worker{
 			shardID:      &shardID,
 			pow:          pow,
