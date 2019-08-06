@@ -97,6 +97,7 @@ func TestSendSuperAccountSucc(t *testing.T) {
 
 	fakeMoney := uint64(1000000000000)
 	env := setUp([]account.Address{superAcc}, &fakeMoney, nil)
+	env.SetSuperAccount(superAcc.Recipient)
 	shardState := createDefaultShardState(env, nil, nil, nil, nil)
 	defer shardState.Stop()
 	// Add a root block to have all the shards initialized
@@ -210,6 +211,7 @@ func TestAsMiner(t *testing.T) {
 
 	fakeMoney := uint64(1000000000000)
 	env := setUp([]account.Address{superAcc}, &fakeMoney, nil)
+	env.SetSuperAccount(superAcc.Recipient)
 	shardState := createDefaultShardState(env, nil, nil, nil, nil)
 	defer shardState.Stop()
 	// Add a root block to have all the shards initialized
