@@ -781,10 +781,11 @@ func (m *MinorBlockChain) checkTxBeforeApply(stateT *state.StateDB, tx *types.Tr
 		return ErrorTxContinue
 	}
 
-	////TODO to add
-	//if tx.EvmTx.GasPrice().Cmp(m.clusterConfig.Quarkchain.MinMiningGasPrice) <= 0 {
-	//	return ErrorTxContinue
-	//}
+	if tx.EvmTx.GasPrice().Cmp(m.clusterConfig.Quarkchain.MinMiningGasPrice) <= 0 {
+		fmt.Println("????", tx.EvmTx.GasPrice(), m.clusterConfig.Quarkchain.MinMiningGasPrice)
+		panic("smalll")
+		return ErrorTxContinue
+	}
 
 	sender, err := tx.Sender(types.NewEIP155Signer(m.clusterConfig.Quarkchain.NetworkID))
 	if err != nil {
