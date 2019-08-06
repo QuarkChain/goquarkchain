@@ -308,6 +308,7 @@ func NewQuarkChainConfig() *QuarkChainConfig {
 		Root:                              NewRootConfig(),
 		SuperAccount: []account.Recipient{
 			ethCommon.HexToAddress("0x438befb16aed2d01bc0ba111eee12c65dcdb5275"),
+			ethCommon.HexToAddress("0x02E73D70cd5f3B6385c6eEA85a1B738238e7F04a"),
 		},
 	}
 
