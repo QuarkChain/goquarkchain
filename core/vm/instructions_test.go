@@ -533,56 +533,56 @@ func TestCreate2Addreses(t *testing.T) {
 			salt:       "0x0000000000000000000000000000000000000000",
 			code:       "0x00",
 			expected:   "0x4d1a2e2bb4f88f0250f26ffff098b0b30b26bf38",
-			gmexpected: "0x3B42752EB3DC01F024dCC415f74C11607c2DAfd3",
+			gmexpected: "0xb451CDFC646B486a0D5aa0D740089ca39F7a8aE0",
 		},
 		{
 			origin:     "0xdeadbeef00000000000000000000000000000000",
 			salt:       "0x0000000000000000000000000000000000000000",
 			code:       "0x00",
 			expected:   "0xB928f69Bb1D91Cd65274e3c79d8986362984fDA3",
-			gmexpected: "0xd062fdf950fF0Ac7e1DF38aE03336Fb26Cc8fbf1",
+			gmexpected: "0x1A593839808f0f2001Be1Bf7B9A6fFea3b0F49fF",
 		},
 		{
 			origin:     "0xdeadbeef00000000000000000000000000000000",
 			salt:       "0xfeed000000000000000000000000000000000000",
 			code:       "0x00",
 			expected:   "0xD04116cDd17beBE565EB2422F2497E06cC1C9833",
-			gmexpected: "0xdaBd6Eb88E30315BF889064A29960CC3d952E061",
+			gmexpected: "0xd2FE7b88F964253c80d83f04c94788C1C14bdded",
 		},
 		{
 			origin:     "0x0000000000000000000000000000000000000000",
 			salt:       "0x0000000000000000000000000000000000000000",
 			code:       "0xdeadbeef",
 			expected:   "0x70f2b2914A2a4b783FaEFb75f459A580616Fcb5e",
-			gmexpected: "0xb9d2147C3a4a4B9BD0f3Aec1c84C281b74C6c77f",
+			gmexpected: "0x468FAa2f35D298713aEfb9795B3807e94759bAf5",
 		},
 		{
 			origin:     "0x00000000000000000000000000000000deadbeef",
 			salt:       "0xcafebabe",
 			code:       "0xdeadbeef",
 			expected:   "0x60f3f640a8508fC6a86d45DF051962668E1e8AC7",
-			gmexpected: "0x6AF69725bD63d13DFE077d9A987a0592B3944997",
+			gmexpected: "0xB3aeEfa0D51CcaFC2Db97117F22b56F933CCDd69",
 		},
 		{
 			origin:     "0x00000000000000000000000000000000deadbeef",
 			salt:       "0xcafebabe",
 			code:       "0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
 			expected:   "0x1d8bfDC5D46DC4f61D6b6115972536eBE6A8854C",
-			gmexpected: "0xd840202D8B9C94D30e556Cf02ae5769483e9e0F5",
+			gmexpected: "0x52632b4dc317a834cE2bf08166f67974a38d6Be3",
 		},
 		{
 			origin:     "0x0000000000000000000000000000000000000000",
 			salt:       "0x0000000000000000000000000000000000000000",
 			code:       "0x",
 			expected:   "0xE33C0C7F7df4809055C3ebA6c09CFe4BaF1BD9e0",
-			gmexpected: "0x98162C86f085BA9e6DFb03ECd686B678B1929F54",
+			gmexpected: "0x3085Cc1f9eB00Ffb0FCEb0F0A20DD51bF57b67aA",
 		},
 	} {
 
 		origin := common.BytesToAddress(common.FromHex(tt.origin))
 		salt := common.BytesToHash(common.FromHex(tt.salt))
 		code := common.FromHex(tt.code)
-		codeHash := crypto.Keccak256(code)
+		codeHash := crypto.Hash256(code)
 		address := crypto.CreateAddress2(origin, salt, codeHash)
 		/*
 			stack          := newstack()

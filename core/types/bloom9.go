@@ -113,7 +113,7 @@ func LogsBloom(logs []*Log) *big.Int {
 }
 
 func bloom9(b []byte) *big.Int {
-	b = crypto.Keccak256(b)
+	b = crypto.Hash256(b)
 
 	r := new(big.Int)
 

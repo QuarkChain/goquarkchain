@@ -30,6 +30,10 @@ type fakeEnv struct {
 	clusterConfig *config.ClusterConfig
 }
 
+func (e *fakeEnv) SetSuperAccount(addr account.Recipient) {
+	e.clusterConfig.Quarkchain.SuperAccount = make([]account.Recipient, 0)
+	e.clusterConfig.Quarkchain.SuperAccount = append(e.clusterConfig.Quarkchain.SuperAccount, addr)
+}
 func getTestEnv(genesisAccount []account.Address, genesisMinorQuarkHash *uint64, chainSize *uint32, shardSize *uint32, genesisRootHeights *map[uint32]uint32, remoteMining *bool) *fakeEnv {
 	if genesisAccount == nil {
 		temp := account.CreatEmptyAddress(0)
@@ -72,7 +76,6 @@ func getTestEnv(genesisAccount []account.Address, genesisMinorQuarkHash *uint64,
 		env.clusterConfig.Quarkchain.Root.ConsensusType = config.PoWDoubleSha256
 		env.clusterConfig.Quarkchain.Root.Genesis.Difficulty = 10
 	}
-
 	env.clusterConfig.Quarkchain.Root.DifficultyAdjustmentCutoffTime = 40
 	env.clusterConfig.Quarkchain.Root.DifficultyAdjustmentFactor = 1024
 	env.clusterConfig.Quarkchain.SkipMinorDifficultyCheck = true

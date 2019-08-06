@@ -17,11 +17,19 @@
 package types
 
 import (
+	"crypto/ecdsa"
+	"github.com/QuarkChain/goquarkchain/account"
 	"math/big"
 	"testing"
 
 	"github.com/QuarkChain/goquarkchain/crypto"
 )
+
+func publicKey2Recipient(pk *ecdsa.PublicKey) account.Recipient {
+	pubBytes := crypto.FromECDSAPub(pk)
+	recipient := account.BytesToIdentityRecipient(crypto.Hash256(pubBytes[1:])[12:])
+	return recipient
+}
 
 func TestEIP155Signing(t *testing.T) {
 	key, _ := crypto.GenerateKey()

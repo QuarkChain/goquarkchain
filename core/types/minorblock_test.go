@@ -1,18 +1,19 @@
 package types
 
 import (
-	"github.com/QuarkChain/goquarkchain/crypto"
-	"github.com/QuarkChain/goquarkchain/serialize"
+	"github.com/QuarkChain/goquarkchain/account"
 	"math/big"
 	"reflect"
 	"testing"
 
+	"github.com/QuarkChain/goquarkchain/crypto"
+	"github.com/QuarkChain/goquarkchain/serialize"
 	"github.com/ethereum/go-ethereum/common"
 )
 
 var (
-	//	reciept, _ = account.BytesToIdentityRecipient(common.Hex2Bytes("b94f5374fce5edbc8e2a8697c15331677e6ebf0b"))
-	evmTx1 = NewEvmTransaction(
+	reciept = account.BytesToIdentityRecipient(common.Hex2Bytes("b94f5374fce5edbc8e2a8697c15331677e6ebf0b"))
+	evmTx1  = NewEvmTransaction(
 		0,
 		reciept,
 		big.NewInt(0), 0, big.NewInt(0),
@@ -70,7 +71,12 @@ func TestMinorBlockHeaderSerializing(t *testing.T) {
 	check("Bloom", common.Bytes2Hex(blockHeader.Bloom[:]), "00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001")
 	check("Extra", common.Bytes2Hex(blockHeader.Extra), "010203")
 	check("MixDigest", common.Bytes2Hex(blockHeader.MixDigest.Bytes()), "0000000000000000000000000000000000000000000000000000000000000004")
-	check("Hash", common.Bytes2Hex(blockHeader.Hash().Bytes()), "b274edca72087a960cff0dad483392ea36eb87d17dc8da40fe2ceb6616e559e8")
+	if crypto.CryptoType == "gm" {
+		check("Hash", common.Bytes2Hex(blockHeader.Hash().Bytes()), "ba27c963b0b2244b29d4c0bfa0d04e5aff647d6a371ec124b58b59550ac9f874")
+	} else {
+		check("Hash", common.Bytes2Hex(blockHeader.Hash().Bytes()), "b274edca72087a960cff0dad483392ea36eb87d17dc8da40fe2ceb6616e559e8")
+	}
+
 	check("serialize", bytes, blocHeaderEnc)
 
 	blocMetaEnc := common.FromHex("a40920ae6f758f88c61b405f9fc39fdd6274666462b14e3887522166e6537a97297d6ae9803346cdb059a671dea7e37b684dcabfa767f2d872026ad0a3aba495df227f34313c2bc4a4a986817ea46437f049873f2fca8e2b89b1ecd0f9e67a280000000000000000000000000000000000000000000000000000000000000064000000000000000000000000000000000000000000000000000000000000012c")
@@ -107,11 +113,14 @@ func TestMinorBlockHeaderSerializing(t *testing.T) {
 		t.Fatal("Serialize error: ", err)
 	}
 
-	tx1.EvmTx, _ = SignTx(evmTx1, signer, key)
-	tx2.EvmTx, _ = SignTx(evmTx2, signer, key)
 	check("len(Transactions)", len(trans), 2)
-	check("Transactions[0].Hash", common.Bytes2Hex(trans[0].Hash().Bytes()), common.Bytes2Hex(tx1.Hash().Bytes()))
-	check("Transactions[1]", common.Bytes2Hex(trans[1].Hash().Bytes()), common.Bytes2Hex(tx2.Hash().Bytes()))
+	if crypto.CryptoType == "nogm" {
+		tx1.EvmTx, _ = SignTx(evmTx1, signer, key)
+		tx2.EvmTx, _ = SignTx(evmTx2, signer, key)
+		check("Transactions[0].Hash", common.Bytes2Hex(trans[0].Hash().Bytes()), common.Bytes2Hex(tx1.Hash().Bytes()))
+		check("Transactions[1].Hash", common.Bytes2Hex(trans[1].Hash().Bytes()), common.Bytes2Hex(tx2.Hash().Bytes()))
+
+	}
 	check("txserialize", common.Bytes2Hex(bytes), common.Bytes2Hex(transactionsEnc))
 
 	blockEnc := append(blocHeaderEnc, append(blocMetaEnc, append(transactionsEnc, common.Hex2Bytes("00020102")...)...)...)
@@ -132,7 +141,12 @@ func TestMinorBlockHeaderSerializing(t *testing.T) {
 	check("transactions[0]", block.transactions[0].Hash(), trans[0].Hash())
 	check("transactions[1]", block.transactions[1].Hash(), trans[1].Hash())
 	check("trackingdata", common.Bytes2Hex(block.trackingdata), "0102")
-	check("blockhash", common.Bytes2Hex(block.Hash().Bytes()), "b274edca72087a960cff0dad483392ea36eb87d17dc8da40fe2ceb6616e559e8")
+	if crypto.CryptoType == "gm" {
+		check("blockhash", common.Bytes2Hex(block.Hash().Bytes()), "ba27c963b0b2244b29d4c0bfa0d04e5aff647d6a371ec124b58b59550ac9f874")
+	} else {
+		check("blockhash", common.Bytes2Hex(block.Hash().Bytes()), "b274edca72087a960cff0dad483392ea36eb87d17dc8da40fe2ceb6616e559e8")
+	}
+
 	check("serialize", common.Bytes2Hex(bytes), common.Bytes2Hex(blockEnc))
 
 }
@@ -157,7 +171,13 @@ func TestCalculateMerkleRoot(t *testing.T) {
 		}
 	}
 
-	check("header", list[0].Hash().Hex(), "0x48683020cb768970b700f0fa43f7c6622d0f6b3f45d3c10bf209c7c1272ca9c7")
-	check("header", list[1].Hash().Hex(), "0x3f1c7abb6f6ae734a0c4ecd7b1610a543c67d67349254c3784794785d7d3e02e")
-	check("header", CalculateMerkleRoot(list).Hex(), "0xbf3becc8ee28d3602634c6f5ca1989cbc34e1809b4fc6b5e258c0f3557e84119")
+	if crypto.CryptoType == "nogm" {
+		check("header[0]", list[0].Hash().Hex(), "0x48683020cb768970b700f0fa43f7c6622d0f6b3f45d3c10bf209c7c1272ca9c7")
+		check("header[1]", list[1].Hash().Hex(), "0x3f1c7abb6f6ae734a0c4ecd7b1610a543c67d67349254c3784794785d7d3e02e")
+		check("root", CalculateMerkleRoot(list).Hex(), "0xbf3becc8ee28d3602634c6f5ca1989cbc34e1809b4fc6b5e258c0f3557e84119")
+	} else {
+		check("header[0]", list[0].Hash().Hex(), "0xb2c90714c27fa087fc2b35d7d325a747e6144aad11e51dcb195c6611f768cabe")
+		check("header[1]", list[1].Hash().Hex(), "0x761eaf81313a0a8029618a192382ad80adefa8c322d9161ddc786c9694884790")
+		check("root", CalculateMerkleRoot(list).Hex(), "0x51d4066d2f6629b5253fc878fb360917ca6abf0c819f74303b0cf7c66f9deee4")
+	}
 }
