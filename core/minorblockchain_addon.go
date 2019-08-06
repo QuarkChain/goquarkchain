@@ -782,8 +782,6 @@ func (m *MinorBlockChain) checkTxBeforeApply(stateT *state.StateDB, tx *types.Tr
 	}
 
 	if tx.EvmTx.GasPrice().Cmp(m.clusterConfig.Quarkchain.MinMiningGasPrice) <= 0 {
-		fmt.Println("????", tx.EvmTx.GasPrice(), m.clusterConfig.Quarkchain.MinMiningGasPrice)
-		panic("smalll")
 		return ErrorTxContinue
 	}
 
