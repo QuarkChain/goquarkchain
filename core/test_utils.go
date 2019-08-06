@@ -73,6 +73,10 @@ func getTestEnv(genesisAccount []account.Address, genesisMinorQuarkHash *uint64,
 		env.clusterConfig.Quarkchain.Root.Genesis.Difficulty = 10
 	}
 
+	env.clusterConfig.Quarkchain.SuperAccount = make([]account.Recipient, 0)
+	for _, v := range genesisAccount {
+		env.clusterConfig.Quarkchain.SuperAccount = append(env.clusterConfig.Quarkchain.SuperAccount, v.Recipient)
+	}
 	env.clusterConfig.Quarkchain.Root.DifficultyAdjustmentCutoffTime = 40
 	env.clusterConfig.Quarkchain.Root.DifficultyAdjustmentFactor = 1024
 	env.clusterConfig.Quarkchain.SkipMinorDifficultyCheck = true

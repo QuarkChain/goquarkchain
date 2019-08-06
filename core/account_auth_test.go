@@ -266,6 +266,8 @@ func TestContractCall(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
+	clusterConfig.Quarkchain.SuperAccount = make([]account.Recipient, 0)
+	clusterConfig.Quarkchain.SuperAccount = append(clusterConfig.Quarkchain.SuperAccount, superAcc.Recipient)
 	clusterConfig.Quarkchain.SkipRootDifficultyCheck = true
 	clusterConfig.Quarkchain.SkipMinorDifficultyCheck = true
 	clusterConfig.Quarkchain.SkipRootCoinbaseCheck = true
