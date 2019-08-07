@@ -101,6 +101,7 @@ func (m *MinorBlockChain) runCrossShardTxList(evmState *state.StateDB, descendan
 	rHeader := descendantRootHeader
 	xShardGasLimit := new(big.Int).Div(m.gasLimit, big.NewInt(2))
 	var receiptsAll types.Receipts
+	gasUsed := new(uint64)
 	for rHeader.Hash() != ancestorRootHeader.Hash() {
 		if rHeader.Number == ancestorRootHeader.Number {
 			return nil, nil, errors.New("incorrect ancestor root header")
@@ -108,12 +109,13 @@ func (m *MinorBlockChain) runCrossShardTxList(evmState *state.StateDB, descendan
 		if evmState.GetGasUsed().Cmp(evmState.GetGasLimit()) > 0 {
 			return nil, nil, errors.New("gas consumed by cross-shard tx exceeding limit")
 		}
-		onTxList, receipts, err := m.runOneCrossShardTxListByRootBlockHash(rHeader.Hash(), evmState, xShardGasLimit)
+		onTxList, receipts, err := m.runOneCrossShardTxListByRootBlockHash(rHeader.Hash(), evmState, xShardGasLimit, gasUsed)
 		if err != nil {
 			return nil, nil, err
 		}
 		txList = append(txList, onTxList...)
 		receiptsAll = append(receiptsAll, receipts...)
+		evmState.SetXShardReceiveGasUsed(new(big.Int).SetUint64(*gasUsed))
 		rHeader = m.getRootBlockHeaderByHash(rHeader.ParentHash)
 		if rHeader == nil {
 			log.Info(m.logInfo, "err-runCrossShardTxList", ErrRootBlockIsNil, "parentHash", rHeader.ParentHash.String())
@@ -979,19 +981,21 @@ func (m *MinorBlockChain) includeCrossShardTxList(evmState *state.StateDB, desce
 		rHeader = m.getRootBlockHeaderByHash(rHeader.ParentHash)
 	}
 	var receiptsAll types.Receipts
+	var gasUsed = new(uint64)
 	for index := len(headerList) - 1; index >= 0; index-- {
-		txs, receipts, err := m.runOneCrossShardTxListByRootBlockHash(headerList[index].Hash(), evmState, xShardGasLimit)
+		txs, receipts, err := m.runOneCrossShardTxListByRootBlockHash(headerList[index].Hash(), evmState, xShardGasLimit, gasUsed)
 		if err != nil {
 			return nil, nil, nil, err
 		}
 		receiptsAll = append(receiptsAll, receipts...)
 		txList = append(txList, txs...)
 	}
+	evmState.SetXShardReceiveGasUsed(new(big.Int).SetUint64(*gasUsed))
 	return descendantRootHeader, receiptsAll, txList, nil
 }
 
 func (m *MinorBlockChain) runOneCrossShardTxListByRootBlockHash(hash common.Hash, evmState *state.StateDB,
-	xShardGasLimit *big.Int) ([]*types.CrossShardTransactionDeposit, types.Receipts, error) {
+	xShardGasLimit *big.Int, gasUsed *uint64) ([]*types.CrossShardTransactionDeposit, types.Receipts, error) {
 	rBlock := m.GetRootBlockByHash(hash)
 	if rBlock == nil {
 		log.Error(m.logInfo, "err-runOneCrossShardTxListByRootBlockHash", ErrRootBlockIsNil, "parenthash", hash.String())
@@ -1026,7 +1030,7 @@ func (m *MinorBlockChain) runOneCrossShardTxListByRootBlockHash(hash common.Hash
 	var receipts types.Receipts
 	for _, txByHeader := range txsByHeaders {
 		receipt, err := ApplyCrossShardDeposit(m.ethChainConfig, m, txByHeader.MinorHeader,
-			*m.GetVMConfig(), evmState, &txByHeader.Tx, localFeeRate)
+			*m.GetVMConfig(), evmState, &txByHeader.Tx, gasUsed, localFeeRate)
 		if err != nil {
 			break
 		}
@@ -1038,7 +1042,6 @@ func (m *MinorBlockChain) runOneCrossShardTxListByRootBlockHash(hash common.Hash
 			break
 		}
 	}
-	evmState.SetXShardReceiveGasUsed(evmState.GetGasUsed())
 	return txList, receipts, nil
 }
 
@@ -1304,6 +1307,7 @@ func (m *MinorBlockChain) putTxIndexFromBlock(batch rawdb.DatabaseWriter, block 
 	}
 	return m.putTxHistoryIndexFromBlock(minorBlock) // put qkc's xshard tx
 }
+
 func (m *MinorBlockChain) removeTxIndexFromBlock(db rawdb.DatabaseDeleter, txs types.Transactions) error {
 	slovedBlock := make(map[common.Hash]bool)
 	for _, tx := range txs {

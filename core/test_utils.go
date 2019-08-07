@@ -250,6 +250,18 @@ func GetPoSW(chain *MinorBlockChain) *posw.PoSW {
 	return chain.posw.(*posw.PoSW)
 }
 
+/*
+pragma solidity ^0.5.1;
+
+contract Storage {
+	uint pos0;
+	mapping(address => uint) pos1;
+	function Save() public {
+		pos1[msg.sender] = 5678;
+	}
+}
+*/
+
 const CONTRACT = "6080604052348015600f57600080fd5b5060c68061001e6000396000f3fe6080604052600436106039576000357c010000000000000000000000000000000000000000000000000000000090048063c2e171d714603e575b600080fd5b348015604957600080fd5b5060506052565b005b61162e600160003373ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff1681526020019081526020016000208190555056fea165627a7a72305820fe440b2cadff2d38365becb4339baa8c7b29ce933a2ad1b43f49feea0e1f7a7e0029"
 
 func ZFill64(input string) string {

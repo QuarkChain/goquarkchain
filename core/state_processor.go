@@ -194,12 +194,15 @@ func ApplyTransaction(config *params.ChainConfig, bc ChainContext, gp *GasPool, 
 }
 
 func ApplyCrossShardDeposit(config *params.ChainConfig, bc ChainContext, header types.IHeader,
-	cfg vm.Config, evmState *state.StateDB, tx *types.CrossShardTransactionDeposit,
+	cfg vm.Config, evmState *state.StateDB, tx *types.CrossShardTransactionDeposit, usedGas *uint64,
 	localFeeRate *big.Rat) (*types.Receipt, error) {
 	evmState.SetFullShardKey(tx.To.FullShardKey)
-	var gas uint64
-	var fail bool
-	usedGas := new(uint64)
+	var (
+		gas  uint64
+		fail bool
+		err  error
+	)
+
 	if tx.IsFromRootChain {
 		evmState.AddBalance(tx.To.Recipient, tx.Value.Value)
 	} else {
@@ -211,12 +214,11 @@ func ApplyCrossShardDeposit(config *params.ChainConfig, bc ChainContext, header 
 		context.IsApplyXShard = true
 		vmenv := vm.NewEVM(context, evmState, config, cfg)
 		gp := new(GasPool).AddGas(evmState.GetGasLimit().Uint64())
-		_, _, failed, err := ApplyMessage(vmenv, msg, gp, localFeeRate)
+		_, gas, fail, err = ApplyMessage(vmenv, msg, gp, localFeeRate)
 		if err != nil {
 			return nil, err
 		}
-		fail = failed
-		*usedGas += evmState.GetGasUsed().Uint64()
+		*usedGas += gas
 	}
 	if evmState.GetQuarkChainConfig().XShardAddReceiptTimestamp != 0 {
 		var root []byte
