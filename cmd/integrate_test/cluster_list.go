@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"github.com/QuarkChain/goquarkchain/cluster/master"
 	"github.com/QuarkChain/goquarkchain/cmd/utils"
-	"golang.org/x/sync/errgroup"
 	"net"
 	"time"
 )
@@ -18,26 +17,21 @@ func (cl Clusterlist) Start(duration time.Duration, prCtrol bool) {
 	}
 	var (
 		started = make([]*clusterNode, length, length)
-		g       errgroup.Group
 	)
 	for i := 0; i < length; i++ {
 		idx := i
-		g.Go(func() error {
-			err := cl[idx].Start()
-			if err == nil {
-				started[idx] = cl[idx]
+		err := cl[idx].Start()
+		if err == nil {
+			started[idx] = cl[idx]
+		} else {
+			for idx, nd := range started {
+				if nd != nil {
+					nd.Stop()
+					cl[idx] = nil
+				}
 			}
-			return err
-		})
-	}
-	if err := g.Wait(); err != nil {
-		for idx, nd := range started {
-			if nd != nil {
-				nd.Stop()
-				cl[idx] = nil
-			}
+			utils.Fatalf("failed to start clusters, err: %v", err)
 		}
-		utils.Fatalf("failed to start clusters, err: %v", err)
 	}
 
 	// wait p2p connection for at last $duration seconds.
@@ -46,7 +40,7 @@ func (cl Clusterlist) Start(duration time.Duration, prCtrol bool) {
 		if mntorClstr != nil {
 			p2pSvr := mntorClstr.getP2PServer()
 			now := time.Now()
-			for p2pSvr.PeerCount() == mntorClstr.index && time.Now().Sub(now) < duration {
+			for p2pSvr.PeerCount() < mntorClstr.index && time.Now().Sub(now) < duration {
 				time.Sleep(500 * time.Millisecond)
 			}
 			fmt.Printf("start %d clusters successful\n\n", p2pSvr.PeerCount())

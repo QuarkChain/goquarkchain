@@ -13,8 +13,8 @@ import (
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/p2p"
 	"github.com/ethereum/go-ethereum/p2p/enode"
-	"golang.org/x/sync/errgroup"
 	"math/rand"
+	"runtime/debug"
 	"time"
 )
 
@@ -83,19 +83,14 @@ func makeClusterNode(index uint16, clstrCfg *config.ClusterConfig, bootNodes []*
 func CreateClusterList(numCluster int, clstrCfg []*config.ClusterConfig) (*account.Account, Clusterlist) {
 	clusterList := make([]*clusterNode, numCluster+1, numCluster+1)
 	geneAcc := getAccByIndex(0)
-	var g errgroup.Group
 	for i := 0; i <= numCluster; i++ {
-		i := i
-		g.Go(func() error {
-			nodes := getBootNodes(clstrCfg[i].P2P.BootNodes)
-			if i == numCluster && len(nodes) > numCluster {
-				nodes = nodes[:i+1]
-			}
-			clusterList[i] = makeClusterNode(uint16(i), clstrCfg[i], nodes)
-			return nil
-		})
+		idx := i
+		nodes := getBootNodes(clstrCfg[idx].P2P.BootNodes)
+		if idx == numCluster && len(nodes) > numCluster {
+			nodes = nodes[:idx+1]
+		}
+		clusterList[idx] = makeClusterNode(uint16(idx), clstrCfg[idx], nodes)
 	}
-	defer g.Wait()
 	return geneAcc, clusterList
 }
 
@@ -103,7 +98,9 @@ func (c *clusterNode) Stop() {
 	if !c.status {
 		return
 	}
-	c.status = false
+	if err := c.services[clientIdentifier].Stop(); err != nil {
+		utils.Fatalf("Failed to stop %s: %v", clientIdentifier, err)
+	}
 	for key, node := range c.services {
 		if key != clientIdentifier {
 			if err := node.Stop(); err != nil {
@@ -111,13 +108,12 @@ func (c *clusterNode) Stop() {
 			}
 		}
 	}
+	c.status = false
 }
 
 func (c *clusterNode) Start() (err error) {
 	var (
-		started = make([]*service.Node, len(c.services), len(c.services))
-		g       errgroup.Group
-		idx     int
+		started = make(map[string]*service.Node)
 	)
 	if c.status {
 		return
@@ -127,53 +123,27 @@ func (c *clusterNode) Start() (err error) {
 		if key == clientIdentifier {
 			continue
 		}
-		node := node
-		i := idx
-		g.Go(func() error {
-			err := node.Start()
-			if err == nil {
-				started[i] = node
-			}
-			return err
-		})
-		idx++
-	}
-
-	stop := func() {
-		for _, nd := range started {
-			if nd != nil {
-				if err := nd.Stop(); err != nil {
-					fmt.Println("failed to stop slave", "err", err)
-				}
-			}
+		key := key
+		err := node.Start()
+		if err == nil {
+			started[key] = node
+		} else {
+			c.Stop()
 		}
-		started = make([]*service.Node, 0)
 	}
-	if err = g.Wait(); err != nil {
-		stop()
-		return
-	}
-	retryTimes := 3
-	for retryTimes > 0 {
-		time.Sleep(2 * time.Second)
-		if err = c.services[clientIdentifier].Start(); err == nil {
-			break
-		}
-		retryTimes--
-		c.services[clientIdentifier].Stop()
-	}
-	if err != nil {
-		stop()
+
+	time.Sleep(1 * time.Second)
+	if err = c.services[clientIdentifier].Start(); err != nil {
+		c.Stop()
 		return
 	}
 
-	if err = c.GetMaster().Start(); err == nil {
-		c.status = true
+	if err = c.GetMaster().Start(); err != nil {
+		c.Stop()
 		return
 	}
 
-	c.services[clientIdentifier].Stop()
-	stop()
+	c.status = true
 	return
 }
 
@@ -182,7 +152,7 @@ func (c *clusterNode) GetMaster() *master.QKCMasterBackend {
 		return c.master
 	}
 	if err := c.services[clientIdentifier].Service(&c.master); err != nil {
-		utils.Fatalf("master service not running %v", err)
+		utils.Fatalf("master service not running, cluster index: %d, err: %v", c.index, err)
 	}
 	return c.master
 }
@@ -195,7 +165,8 @@ func (c *clusterNode) GetSlavelist() []*slave.SlaveBackend {
 		var sv *slave.SlaveBackend
 		if err := c.services[slv.ID].Service(&sv); err != nil {
 			c.slavelist = nil
-			utils.Fatalf("slave service not running %v", err)
+			debug.PrintStack()
+			utils.Fatalf("slave service not running, cluster index: %d, slave id: %s, err: %v", c.index, slv.ID, err)
 		}
 		c.slavelist = append(c.slavelist, sv)
 	}
@@ -249,24 +220,36 @@ func (c *clusterNode) createAllShardsBlock(fullShardIds []uint32) {
 	}
 }
 
-func (c *clusterNode) CreateAndInsertBlocks(fullShards []uint32, seconds time.Duration) (rBlock *types.RootBlock) {
+func (c *clusterNode) CreateAndInsertBlocks(fullShards []uint32) (rBlock *types.RootBlock) {
+
 	if fullShards != nil && len(fullShards) > 0 {
 		c.createAllShardsBlock(fullShards)
 	}
-	time.Sleep(seconds * time.Second)
+	start := time.Now().Unix() - 2
+	var seconds int64 = 0
+	fullShardIdList := c.clstrCfg.Quarkchain.GetGenesisShardIds()
+	for _, id := range fullShardIdList {
+		shrd := c.GetShard(id)
+		if shrd == nil {
+			continue
+		}
+		mBlock := shrd.MinorBlockChain.CurrentBlock()
+		diff := int64(mBlock.Time()) - start
+		if diff > seconds {
+			seconds = diff
+		}
+	}
+
+	time.Sleep(time.Duration(seconds) * time.Second)
 	// insert root block
 	iBlock, _, err := c.GetMaster().CreateBlockToMine()
 	if err != nil {
-		goto FAILED
+		utils.Fatalf("failed to create and add root/minor block, err: %v", err)
 	}
 	rBlock = iBlock.(*types.RootBlock)
 	if err = c.GetMaster().AddRootBlock(rBlock); err != nil {
-		goto FAILED
+		utils.Fatalf("failed to create and add root/minor block, err: %v", err)
 	}
-
-	return
-FAILED:
-	utils.Fatalf("failed to create and add root/minor block, err: %v", err)
 	return
 }
 
