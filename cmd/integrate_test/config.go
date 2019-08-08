@@ -123,7 +123,6 @@ func defaultClusterConfig(chainSize, shardSize, slaveSize uint32, geneRHeights m
 	cfg.Quarkchain.SkipMinorDifficultyCheck = true
 	cfg.Quarkchain.SkipRootDifficultyCheck = true
 	cfg.EnableTransactionHistory = true
-	cfg.DbPathRoot = ""
 
 	// TODO think about how to use mem db
 	return cfg

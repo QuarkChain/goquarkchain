@@ -50,7 +50,7 @@ func makeClusterNode(index uint16, clstrCfg *config.ClusterConfig, bootNodes []*
 		svrCfg.Name = slaveCfg.ID
 		svrCfg.SvrHost = slaveCfg.IP
 		svrCfg.SvrPort = slaveCfg.Port
-		svrCfg.DataDir = fmt.Sprintf("./data/%d/%s_%d_%d", random, slaveCfg.ID, index, idx)
+		svrCfg.DataDir = fmt.Sprintf("/tmp/integrate_test/%d/%s_%d_%d", random, slaveCfg.ID, index, idx)
 		node, err := service.New(svrCfg)
 		if err != nil {
 			utils.Fatalf("Failed to create the slave_%s: %v", svrCfg.Name, err)
@@ -70,7 +70,7 @@ func makeClusterNode(index uint16, clstrCfg *config.ClusterConfig, bootNodes []*
 	svrCfg.Name = clientIdentifier
 	svrCfg.SvrHost = clstrCfg.Quarkchain.Root.GRPCHost
 	svrCfg.SvrPort = clstrCfg.Quarkchain.Root.GRPCPort
-	svrCfg.DataDir = fmt.Sprintf("./data/%d/%s_%d", random, clientIdentifier, index)
+	svrCfg.DataDir = fmt.Sprintf("/tmp/integrate_test/%d/%s_%d", random, clientIdentifier, index)
 	node, err := service.New(svrCfg)
 	if err != nil {
 		utils.Fatalf("Failed to create the master: %v", err)
