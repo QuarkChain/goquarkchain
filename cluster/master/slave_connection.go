@@ -3,6 +3,7 @@ package master
 import (
 	"errors"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/QuarkChain/goquarkchain/account"
@@ -21,6 +22,7 @@ type SlaveConnection struct {
 	client        rpc.Client
 	slaveID       string
 	logInfo       string
+	mu            sync.Mutex
 }
 
 // create slave connection manager
@@ -64,7 +66,7 @@ func (s *SlaveConnection) HeartBeat() bool {
 		}
 		return true
 	}
-	log.Error(s.logInfo,"heartBeat err","will shut down")
+	log.Error(s.logInfo, "heartBeat err", "will shut down")
 	return false
 }
 
