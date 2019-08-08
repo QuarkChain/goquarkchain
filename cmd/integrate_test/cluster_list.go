@@ -49,6 +49,7 @@ func (cl Clusterlist) Start(duration time.Duration, prCtrol bool) {
 }
 
 func (cl Clusterlist) Stop() {
+	time.Sleep(3 * time.Second)
 	for idx, clstr := range cl {
 		if clstr != nil {
 			clstr.Stop()

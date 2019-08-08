@@ -14,6 +14,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/p2p"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"math/rand"
+	"runtime"
 	"runtime/debug"
 	"time"
 )
@@ -81,6 +82,8 @@ func makeClusterNode(index uint16, clstrCfg *config.ClusterConfig, bootNodes []*
 }
 
 func CreateClusterList(numCluster int, clstrCfg []*config.ClusterConfig) (*account.Account, Clusterlist) {
+	runtime.GOMAXPROCS(runtime.NumCPU() * 4)
+	debug.SetGCPercent(60)
 	clusterList := make([]*clusterNode, numCluster+1, numCluster+1)
 	geneAcc := getAccByIndex(0)
 	for i := 0; i <= numCluster; i++ {
