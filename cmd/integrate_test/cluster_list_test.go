@@ -1,17 +1,14 @@
 package test
 
 import (
-	"bytes"
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/cluster/shard"
 	"github.com/QuarkChain/goquarkchain/cmd/utils"
 	"github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/core/types"
-	ethCommon "github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/assert"
 	"math/big"
-	"reflect"
 	"runtime"
 	"testing"
 	"time"
@@ -739,13 +736,13 @@ func TestBroadcastCrossShardTransactionListToNeighborOnly(t *testing.T) {
 
 func TestHandleGetMinorBlockListRequestWithTotalDiff(t *testing.T) {
 	cfglist := GetClusterConfig(2, 2, 2, 2, nil, defaultbootNode, config.PoWSimulate, true)
-	_, cluster := CreateClusterList(2, cfglist)
-	cluster.Start(5*time.Second, true)
+	_, clstrList := CreateClusterList(2, cfglist)
+	clstrList.Start(5*time.Second, true)
 
 	calCoinBase := func(rootBlock *types.RootBlock) *types.TokenBalanceMap {
 		res := make(map[string]*big.Int)
-		ret := new(big.Int).Set(cluster[0].clstrCfg.Quarkchain.Root.CoinbaseAmount)
-		rewardTaxRate := cluster[0].clstrCfg.Quarkchain.RewardTaxRate
+		ret := new(big.Int).Set(clstrList[0].clstrCfg.Quarkchain.Root.CoinbaseAmount)
+		rewardTaxRate := clstrList[0].clstrCfg.Quarkchain.RewardTaxRate
 		ratio := big.NewRat(1, 1)
 		ratio.Sub(ratio, rewardTaxRate)
 		ratio.Quo(ratio, rewardTaxRate)
@@ -762,37 +759,37 @@ func TestHandleGetMinorBlockListRequestWithTotalDiff(t *testing.T) {
 		t.BalanceMap[testGenesisTokenID] = ret
 		return t
 	}
-	tipNumber := cluster[0].master.GetTip()
-	rb0, err := cluster[0].master.GetRootBlockByNumber(&tipNumber)
+	tipNumber := clstrList[0].master.GetTip()
+	rb0, err := clstrList[0].master.GetRootBlockByNumber(&tipNumber)
 	assert.NoError(t, err)
 	var z uint64 = 0
-	block0, err := cluster[0].master.GetRootBlockByNumber(&z)
+	block0, err := clstrList[0].master.GetRootBlockByNumber(&z)
 	assert.NoError(t, err)
 	//Cluster 0 generates a root block of height 1 with 1e6 difficulty
 	coinbaseAmount := calCoinBase(block0)
 	rb1 := rb0.Header().CreateBlockToAppend(nil, big.NewInt(1000000), nil, nil,
 		nil).Finalize(coinbaseAmount, nil, common.EmptyHash)
-	//Cluster 0 broadcasts the root block to cluster 1
-	err = cluster[0].master.AddRootBlock(rb1)
+	//Cluster 0 broadcasts the root block to clstrList 1
+	err = clstrList[0].master.AddRootBlock(rb1)
 	assert.NoError(t, err)
-	assert.Equal(t, cluster[0].master.CurrentBlock().Hash(), rb1.Header().Hash())
-	//Make sure the root block tip of cluster 1 is changed
+	assert.Equal(t, clstrList[0].master.CurrentBlock().Hash(), rb1.Header().Hash())
+	//Make sure the root block tip of clstrList 1 is changed
 	assert.Equal(t, retryTrueWithTimeout(func() bool {
-		return cluster[1].master.CurrentBlock().Hash() == rb1.Hash()
+		return clstrList[1].master.CurrentBlock().Hash() == rb1.Hash()
 	}, 2), true)
 
-	//Cluster 1 generates a minor block and broadcasts to cluster 0
-	b1 := tipGen(nil, cluster[1].GetShard(2))
-	err = cluster[1].master.AddMinorBlock(b1.Header().Branch.Value, b1)
+	//Cluster 1 generates a minor block and broadcasts to clstrList 0
+	b1 := tipGen(nil, clstrList[1].GetShard(2))
+	err = clstrList[1].master.AddMinorBlock(b1.Header().Branch.Value, b1)
 	assert.NoError(t, err)
-	//Make sure another cluster received the new minor block
+	//Make sure another clstrList received the new minor block
 	assert.Equal(t, retryTrueWithTimeout(func() bool {
-		b := cluster[1].GetShardState(2).GetBlock(b1.Hash())
+		b := clstrList[1].GetShardState(2).GetBlock(b1.Hash())
 		return b != nil
 	}, 2), true)
 
 	assert.Equal(t, retryTrueWithTimeout(func() bool {
-		b, err := cluster[0].master.GetMinorBlockByHash(b1.Hash(), b1.Header().Branch)
+		b, err := clstrList[0].master.GetMinorBlockByHash(b1.Hash(), b1.Header().Branch)
 		if err != nil || b == nil {
 			return false
 		}
@@ -802,46 +799,46 @@ func TestHandleGetMinorBlockListRequestWithTotalDiff(t *testing.T) {
 	//Cluster 1 generates a new root block with higher total difficulty
 	rb2 := rb0.Header().CreateBlockToAppend(nil, big.NewInt(3000000), nil, nil,
 		nil).Finalize(coinbaseAmount, nil, common.EmptyHash)
-	err = cluster[1].master.AddRootBlock(rb2)
+	err = clstrList[1].master.AddRootBlock(rb2)
 	assert.NoError(t, err)
-	assert.Equal(t, cluster[1].master.CurrentBlock().Hash(), rb2.Header().Hash())
+	assert.Equal(t, clstrList[1].master.CurrentBlock().Hash(), rb2.Header().Hash())
 	//Generate a minor block b2
-	b2 := tipGen(nil, cluster[1].GetShard(2))
-	err = cluster[1].master.AddMinorBlock(b2.Header().Branch.Value, b2)
+	b2 := tipGen(nil, clstrList[1].GetShard(2))
+	err = clstrList[1].master.AddMinorBlock(b2.Header().Branch.Value, b2)
 	assert.NoError(t, err)
-	//Make sure another cluster received the new minor block
+	//Make sure another clstrList received the new minor block
 
 	assert.Equal(t, retryTrueWithTimeout(func() bool {
-		b := cluster[1].GetShardState(2).GetBlock(b2.Hash())
+		b := clstrList[1].GetShardState(2).GetBlock(b2.Hash())
 		return b != nil
 	}, 2), true)
 
 	assert.Equal(t, retryTrueWithTimeout(func() bool {
-		b, err := cluster[0].master.GetMinorBlockByHash(b1.Hash(), b2.Header().Branch)
+		b, err := clstrList[0].master.GetMinorBlockByHash(b1.Hash(), b2.Header().Branch)
 		if err != nil || b == nil {
 			return false
 		}
 		return true
 	}, 2), true)
 
-	cluster.Stop()
+	clstrList.Stop()
 	time.Sleep(1 * time.Second)
 	runtime.GC()
 }
 
-func TestNewBlockHeaderPool(t *testing.T) {
+/*func TestNewBlockHeaderPool(t *testing.T) {
 	cfglist := GetClusterConfig(1, 2, 2, 2, nil, defaultbootNode, config.PoWSimulate, true)
-	_, cluster := CreateClusterList(1, cfglist)
-	cluster.Start(5*time.Second, true)
+	_, clstrList := CreateClusterList(1, cfglist)
+	clstrList.Start(5*time.Second, true)
 
-	b1 := tipGen(nil, cluster[0].GetShard(2))
-	err := cluster[0].master.AddMinorBlock(b1.Header().Branch.Value, b1)
+	b1 := tipGen(nil, clstrList[0].GetShard(2))
+	err := clstrList[0].master.AddMinorBlock(b1.Header().Branch.Value, b1)
 	assert.NoError(t, err)
 	// Update config to force checking diff
-	cluster[0].clstrCfg.Quarkchain.SkipMinorDifficultyCheck = false
+	clstrList[0].clstrCfg.Quarkchain.SkipMinorDifficultyCheck = false
 	b2 := b1.CreateBlockToAppend(nil, big.NewInt(12345), nil, nil, nil,
 		nil, nil)
-	shard := cluster[0].slavelist[0].GetShard(b2.Header().Branch.Value)
+	shard := clstrList[0].slavelist[0].GetShard(b2.Header().Branch.Value)
 	_ = shard.HandleNewTip(nil, b2.Header(), "")
 	// Also the block should not exist in new block pool
 	inPool := func(bHash ethCommon.Hash) bool {
@@ -861,20 +858,20 @@ func TestNewBlockHeaderPool(t *testing.T) {
 		return !inPool(b2.Header().Hash())
 	}, 10), true)
 
-	cluster.Stop()
+	clstrList.Stop()
 	time.Sleep(1 * time.Second)
 	runtime.GC()
-}
+}*/
 
 //Test the broadcast is only done to the neighbors
 func TestGetRootBlockHeadersWithSkip(t *testing.T) {
 	cfglist := GetClusterConfig(2, 2, 2, 2, nil, defaultbootNode, config.PoWSimulate, true)
-	_, cluster := CreateClusterList(2, cfglist)
-	cluster.Start(10*time.Second, true)
+	_, clstrList := CreateClusterList(2, cfglist)
+	clstrList.Start(10*time.Second, true)
 
 	//Add a root block first so that later minor blocks referring to this root
 	//can be broadcasted to other shards
-	master := cluster[0].master
+	master := clstrList[0].master
 	rootBlockHeaderList := []types.IHeader{master.GetCurrRootHeader()}
 	for i := 0; i < 10; i++ {
 		rootBlock, _, err := master.CreateBlockToMine()
@@ -885,10 +882,10 @@ func TestGetRootBlockHeadersWithSkip(t *testing.T) {
 	}
 	assert.Equal(t, rootBlockHeaderList[len(rootBlockHeaderList)-1].NumberU64(), uint64(10))
 	assert.Equal(t, retryTrueWithTimeout(func() bool {
-		return cluster[1].master.GetTip() == 10
+		return clstrList[1].master.GetTip() == 10
 	}, 10), true)
 
-	peer := cluster.GetPeerByIndex(1)
+	peer := clstrList.GetPeerByIndex(1)
 	assert.NotNil(t, peer)
 	//# Test Case 1 ###################################################
 	blockHeaders, err := peer.GetRootBlockHeaderList(rootBlockHeaderList[2].Hash(), 3, true)
@@ -901,7 +898,7 @@ func TestGetRootBlockHeadersWithSkip(t *testing.T) {
 	// TODO reverse == false can't use.
 	// TODO skip parameter need to be added.
 
-	cluster.Stop()
+	clstrList.Stop()
 	time.Sleep(1 * time.Second)
 	runtime.GC()
 }

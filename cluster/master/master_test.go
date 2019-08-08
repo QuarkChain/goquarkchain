@@ -52,6 +52,8 @@ func (c *fakeRpcClient) GetOpName(op uint32) string {
 	return "SB"
 }
 
+func (c *fakeRpcClient) Close() {}
+
 func (c *fakeRpcClient) coverShardID(fullShardID uint32) bool {
 	for _, chainMask := range c.chainMaskLst {
 		if chainMask.ContainFullShardId(fullShardID) {
@@ -61,6 +63,7 @@ func (c *fakeRpcClient) coverShardID(fullShardID uint32) bool {
 	return false
 
 }
+
 func (c *fakeRpcClient) Call(hostport string, req *rpc.Request) (*rpc.Response, error) {
 	switch req.Op {
 	case rpc.OpHeartBeat:
