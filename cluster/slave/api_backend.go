@@ -75,7 +75,14 @@ func (s *SlaveBackend) CreateShards(rootBlock *types.RootBlock, forceInit bool) 
 			return nil
 		})
 	}
-	return g.Wait()
+	if err := g.Wait(); err != nil {
+		for _, slv := range s.shards {
+			slv.Stop()
+		}
+		s.shards = make(map[uint32]*shard.ShardBackend)
+		return err
+	}
+	return nil
 }
 
 func (s *SlaveBackend) AddBlockListForSync(mHashList []common.Hash, peerId string, branch uint32) (*rpc.ShardStatus, error) {
