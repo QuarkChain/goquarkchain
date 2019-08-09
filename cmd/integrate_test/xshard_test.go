@@ -1,10 +1,10 @@
-//+build integration test
+// +build integrationTest
 
 package test
 
 import (
 	"encoding/hex"
-	"fmt"
+	"github.com/QuarkChain/goquarkchain/cluster/master"
 	"math/big"
 	"testing"
 	"time"
@@ -17,6 +17,46 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/assert"
 )
+
+const GTXCOST = 21000
+
+func assertBalance(t *testing.T, master *master.QKCMasterBackend, acc account.Address, exp *big.Int) {
+	ad, err := master.GetPrimaryAccountData(&acc, nil)
+	assert.NoError(t, err)
+	result := exp.Cmp(ad.Balance)
+	assert.Equal(t, 0, result)
+	if result != 0 {
+		t.Errorf("balance expected %v, got %v\n", exp, ad.Balance)
+	}
+}
+
+type counter struct {
+	mst *master.QKCMasterBackend
+	exp map[*account.Address]uint64
+	t   *testing.T
+}
+
+func newCounter(t *testing.T, mstr *master.QKCMasterBackend) counter {
+	return counter{
+		exp: make(map[*account.Address]uint64),
+		t:   t,
+		mst: mstr,
+	}
+}
+
+func (b *counter) assertAll() {
+	for acc, value := range b.exp {
+		assertBalance(b.t, b.mst, *acc, new(big.Int).SetUint64(value))
+	}
+}
+
+func (b *counter) sum() uint64 {
+	total := uint64(0)
+	for _, value := range b.exp {
+		total += value
+	}
+	return total
+}
 
 //Test the cross shard transactions are broadcasted to the destination shards
 func TestBroadcastCrossShardTransactionsWithExtraGas(t *testing.T) {
@@ -54,7 +94,7 @@ func TestBroadcastCrossShardTransactionsWithExtraGas(t *testing.T) {
 	err = master.AddRootBlock(rb.(*types.RootBlock))
 	assert.NoError(t, err)
 	val := big.NewInt(54321)
-	gas := uint64(21000) + params.GtxxShardCost.Uint64() + uint64(12345)
+	gas := uint64(GTXCOST) + params.GtxxShardCost.Uint64() + uint64(12345)
 	gasPrice := uint64(1)
 	tx1 := core.CreateTransferTx(minorBlockChainA, id1.GetKey().Bytes(), acc1, acc3, val, &gas, &gasPrice, nil)
 	err = slaves[0].AddTx(tx1)
@@ -143,7 +183,7 @@ func TestCrossShardContractCall(t *testing.T) {
 	assert.NoError(t, err)
 
 	val := big.NewInt(1500000)
-	gas := uint64(21000)
+	gas := uint64(GTXCOST)
 	tx1 := core.CreateTransferTx(minorBlockChainA, id1.GetKey().Bytes(), acc1, acc3, val, &gas, nil, nil)
 	err = slaves[0].AddTx(tx1)
 	assert.NoError(t, err)
@@ -199,10 +239,8 @@ func TestCrossShardContractCall(t *testing.T) {
 	ad, err = master.GetPrimaryAccountData(&acc4, nil)
 	assert.NoError(t, err)
 	assert.Equal(t, 0, int(ad.Balance.Int64()))
-	fmt.Printf("srch receipt %x\n", tx2.Hash())
 	_, _, receipt, err = master.GetTransactionReceipt(tx2.Hash(), b3.Header().Branch)
 	assert.NoError(t, err)
-	fmt.Printf("find receipt %x, %v\n", receipt.TxHash, receipt)
 	//TODO enable xshard receipt retrieve
 	//make sure receipt actually found
 	//assert.Equal(t, tx2.Hash(), receipt.TxHash)
@@ -277,7 +315,7 @@ func TestCrossShardTransfer(t *testing.T) {
 	err = master.AddRootBlock(rb.(*types.RootBlock))
 	assert.NoError(t, err)
 	val := big.NewInt(1500000)
-	gas := uint64(21000) + params.GtxxShardCost.Uint64()
+	gas := uint64(GTXCOST) + params.GtxxShardCost.Uint64()
 	tx1 := core.CreateTransferTx(minorBlockChainA, id1.GetKey().Bytes(), acc1, acc4, val, &gas, nil, nil)
 	err = slaves[0].AddTx(tx1)
 	assert.NoError(t, err)
@@ -302,4 +340,264 @@ func TestCrossShardTransfer(t *testing.T) {
 	_, _, receipt, err := master.GetTransactionReceipt(tx1.Hash(), b0.Header().Branch)
 	assert.NoError(t, err)
 	assert.Equal(t, uint64(0x1), receipt.Status)
+}
+
+//Test the cross shard transactions are broadcasted to the destination shards
+func TestBroadcastCrossShardTransaction1x2(t *testing.T) {
+	id1, err := account.CreatRandomIdentity()
+	assert.NoError(t, err)
+	acc1 := account.CreatAddressFromIdentity(id1, 0)
+	acc3, err := account.CreatRandomAccountWithFullShardKey(2 << 16)
+	assert.NoError(t, err)
+	acc4, err := account.CreatRandomAccountWithFullShardKey(3 << 16)
+	assert.NoError(t, err)
+	chainSize := 8
+	shardSize := 1
+	_, cluster := CreateClusterList(1, uint32(chainSize), uint32(shardSize), 2, nil)
+	c := cluster[0]
+	alloc := map[string]*big.Int{c.clstrCfg.Quarkchain.GenesisToken: big.NewInt(1000000)}
+	for _, fsId := range c.clstrCfg.Quarkchain.GetGenesisShardIds() {
+		shardCfg := c.clstrCfg.Quarkchain.GetShardConfigByFullShardID(fsId)
+		acc1s := acc1.AddressInShard(fsId)
+		shardCfg.Genesis.Alloc[acc1s] = alloc
+	}
+	cluster.Start(5*time.Second, true)
+	defer cluster.Stop()
+	master := c.master
+	slaves := c.GetSlavelist()
+	minorBlockChainA := c.GetShardState(1)
+	minorBlockChainB := c.GetShardState(2<<16 + 1)
+	minorBlockChainC := c.GetShardState(3<<16 + 1)
+
+	rb, _, err := master.CreateBlockToMine()
+	assert.NoError(t, err)
+	assert.NoError(t, master.AddRootBlock(rb.(*types.RootBlock)))
+
+	gasLimit := GTXCOST + params.GtxxShardCost.Uint64()
+	value1 := big.NewInt(54321)
+	tx1 := core.CreateTransferTx(minorBlockChainA, id1.GetKey().Bytes(), acc1, acc3, value1, &gasLimit, nil, nil)
+	assert.NoError(t, slaves[0].AddTx(tx1))
+	value2 := big.NewInt(1234)
+	nonce, err := minorBlockChainA.GetTransactionCount(acc1.Recipient, nil)
+	nonce = nonce + 1
+	assert.NoError(t, err)
+	tx2 := core.CreateTransferTx(minorBlockChainA, id1.GetKey().Bytes(), acc1, acc4, value2, &gasLimit, nil, &nonce)
+	assert.NoError(t, slaves[0].AddTx(tx2))
+
+	b1, err := minorBlockChainA.CreateBlockToMine(nil, &acc1, nil)
+	assert.NoError(t, err)
+	time.Sleep(1 * time.Second)
+	b2, err := minorBlockChainA.CreateBlockToMine(nil, &acc1, nil)
+	assert.NoError(t, err)
+
+	assert.NoError(t, c.GetShard(1).AddMinorBlock(b1))
+	//expect chain 2 got the CrossShardTransactionList of b1
+	xShardTxList := minorBlockChainB.ReadCrossShardTxList(b1.Hash())
+	assert.Equal(t, 1, len(xShardTxList.TXList))
+	assert.Equal(t, tx1.Hash(), xShardTxList.TXList[0].TxHash)
+	assert.Equal(t, acc1, xShardTxList.TXList[0].From)
+	assert.Equal(t, acc3, xShardTxList.TXList[0].To)
+	assert.Equal(t, value1, xShardTxList.TXList[0].Value.Value)
+	//expect chain 3 got the CrossShardTransactionList of b1
+	xShardTxList = minorBlockChainC.ReadCrossShardTxList(b1.Hash())
+	assert.Equal(t, 1, len(xShardTxList.TXList))
+	assert.Equal(t, tx2.Hash(), xShardTxList.TXList[0].TxHash)
+	assert.Equal(t, acc1, xShardTxList.TXList[0].From)
+	assert.Equal(t, acc4, xShardTxList.TXList[0].To)
+	assert.Equal(t, value2, xShardTxList.TXList[0].Value.Value)
+
+	assert.NoError(t, c.GetShard(1).AddMinorBlock(b2))
+	//b2 doesn't update tip
+	assert.Equal(t, b1.Header().Hash(), minorBlockChainA.CurrentBlock().Hash())
+	//expect chain 2 got the CrossShardTransactionList of b1
+	xShardTxList = minorBlockChainB.ReadCrossShardTxList(b2.Hash())
+	assert.Equal(t, 1, len(xShardTxList.TXList))
+	assert.Equal(t, tx1.Hash(), xShardTxList.TXList[0].TxHash)
+	assert.Equal(t, acc1, xShardTxList.TXList[0].From)
+	assert.Equal(t, acc3, xShardTxList.TXList[0].To)
+	assert.Equal(t, value1, xShardTxList.TXList[0].Value.Value)
+	//expect chain 3 got the CrossShardTransactionList of b1
+	xShardTxList = minorBlockChainC.ReadCrossShardTxList(b2.Hash())
+	assert.Equal(t, 1, len(xShardTxList.TXList))
+	assert.Equal(t, tx2.Hash(), xShardTxList.TXList[0].TxHash)
+	assert.Equal(t, acc1, xShardTxList.TXList[0].From)
+	assert.Equal(t, acc4, xShardTxList.TXList[0].To)
+	assert.Equal(t, value2, xShardTxList.TXList[0].Value.Value)
+	acc1InB := acc1.AddressInShard(2 << 16)
+	b3, err := minorBlockChainB.CreateBlockToMine(nil, &acc1InB, nil)
+	assert.NoError(t, err)
+	assert.NoError(t, master.AddMinorBlock(b3.Header().Branch.Value, b3))
+
+	rb, _, err = master.CreateBlockToMine()
+	assert.NoError(t, err)
+	assert.NoError(t, master.AddRootBlock(rb.(*types.RootBlock)))
+	//b4 should include the withdraw of tx1
+	b4, err := minorBlockChainB.CreateBlockToMine(nil, &acc1InB, nil)
+	assert.NoError(t, err)
+	assert.NoError(t, master.AddMinorBlock(b4.Header().Branch.Value, b4))
+	ad3, err := master.GetPrimaryAccountData(&acc3, nil)
+	assert.NoError(t, err)
+	assert.Equal(t, value1, ad3.Balance)
+	//b5 should include the withdraw of tx2
+	acc1InC := acc1.AddressInShard(3 << 16)
+	b5, err := minorBlockChainC.CreateBlockToMine(nil, &acc1InC, nil)
+	assert.NoError(t, err)
+	assert.NoError(t, master.AddMinorBlock(b5.Header().Branch.Value, b5))
+	ad4, err := master.GetPrimaryAccountData(&acc4, nil)
+	assert.NoError(t, err)
+	assert.Equal(t, value2, ad4.Balance)
+}
+
+//Test the cross shard transactions are broadcasted to the destination shards
+func TestBroadcastCrossShardTransaction2x1(t *testing.T) {
+	id1, err := account.CreatRandomIdentity()
+	assert.NoError(t, err)
+	id2, err := account.CreatRandomIdentity()
+	assert.NoError(t, err)
+	acc1 := account.CreatAddressFromIdentity(id1, 0)
+	acc2 := account.CreatAddressFromIdentity(id2, 1<<16)
+	acc3, err := account.CreatRandomAccountWithFullShardKey(2 << 16)
+	assert.NoError(t, err)
+	acc4, err := account.CreatRandomAccountWithFullShardKey(1 << 16)
+	assert.NoError(t, err)
+	acc5, err := account.CreatRandomAccountWithFullShardKey(0)
+	assert.NoError(t, err)
+	chainSize := 8
+	shardSize := 1
+	_, cluster := CreateClusterList(1, uint32(chainSize), uint32(shardSize), 2, nil)
+	c := cluster[0]
+	minorCoinbase := big.NewInt(1000000)
+	genesis := map[string]*big.Int{c.clstrCfg.Quarkchain.GenesisToken: big.NewInt(1000000)}
+	c.clstrCfg.Quarkchain.Root.CoinbaseAmount = big.NewInt(10)
+	for _, fsId := range c.clstrCfg.Quarkchain.GetGenesisShardIds() {
+		shardCfg := c.clstrCfg.Quarkchain.GetShardConfigByFullShardID(fsId)
+		acc1s := acc1.AddressInShard(fsId)
+		shardCfg.Genesis.Alloc[acc1s] = genesis
+		shardCfg.CoinbaseAmount = minorCoinbase
+	}
+	cluster.Start(5*time.Second, true)
+	defer cluster.Stop()
+	mstr := c.GetMaster()
+	slaves := c.GetSlavelist()
+	minorBlockChainA := c.GetShardState(1)
+	minorBlockChainB := c.GetShardState(1<<16 + 1)
+	minorBlockChainC := c.GetShardState(2<<16 + 1)
+	shardA := c.GetShard(1)
+	shardB := c.GetShard(1<<16 + 1)
+
+	rb, _, err := mstr.CreateBlockToMine()
+	assert.NoError(t, err)
+	assert.NoError(t, mstr.AddRootBlock(rb.(*types.RootBlock)))
+
+	b0, err := minorBlockChainB.CreateBlockToMine(nil, &acc2, nil)
+	assert.NoError(t, shardB.AddMinorBlock(b0))
+
+	assertBalance(t, mstr, acc1, new(big.Int).SetUint64(1000000))
+	assertBalance(t, mstr, acc2, new(big.Int).SetUint64(500000))
+
+	gasLimit := GTXCOST + params.GtxxShardCost.Uint64()
+	value1 := big.NewInt(54321)
+	gasPrice1 := uint64(1)
+	tx1 := core.CreateTransferTx(minorBlockChainA, id1.GetKey().Bytes(), acc1, acc3, value1, &gasLimit, &gasPrice1, nil)
+	assert.NoError(t, slaves[0].AddTx(tx1))
+	value2 := big.NewInt(5555)
+	nonce, err := minorBlockChainA.GetTransactionCount(acc1.Recipient, nil)
+	nonce = nonce + 1
+	gasPrice2 := uint64(3)
+	assert.NoError(t, err)
+	value3 := big.NewInt(7787)
+	tx2 := core.CreateTransferTx(minorBlockChainA, id1.GetKey().Bytes(), acc1, acc3, value2, &gasLimit, &gasPrice2, &nonce)
+	assert.NoError(t, slaves[0].AddTx(tx2))
+	gasPrice3 := uint64(2)
+	tx3 := core.CreateTransferTx(minorBlockChainA, id2.GetKey().Bytes(), acc2, acc3, value3, &gasLimit, &gasPrice3, nil)
+	assert.NoError(t, slaves[1].AddTx(tx3))
+
+	b1, err := minorBlockChainA.CreateBlockToMine(nil, &acc5, nil)
+	assert.NoError(t, err)
+	time.Sleep(1 * time.Second)
+	b2, err := minorBlockChainB.CreateBlockToMine(nil, &acc4, nil)
+	assert.NoError(t, err)
+	assert.NoError(t, shardA.AddMinorBlock(b1))
+	assert.NoError(t, shardB.AddMinorBlock(b2))
+
+	acc1S2 := acc1.AddressInShard(2 << 16)
+	cntr := newCounter(t, mstr)
+
+	cntr.exp[&acc1] = 1000000 - 54321 - 5555 - (params.GtxxShardCost.Uint64()+GTXCOST)*(gasPrice1+gasPrice2)
+	cntr.exp[&acc1S2] = 1000000
+	cntr.exp[&acc2] = 500000 - 7787 - (params.GtxxShardCost.Uint64()+GTXCOST)*2
+	cntr.exp[&acc3] = 0
+	cntr.exp[&acc4] = GTXCOST + 500000
+	cntr.exp[&acc5] = GTXCOST*2 + 500000
+	cntr.assertAll()
+
+	//expect chain 2 got the CrossShardTransactionList of b1
+	xShardTxList := minorBlockChainC.ReadCrossShardTxList(b1.Hash())
+	assert.Equal(t, 2, len(xShardTxList.TXList))
+	assert.Equal(t, tx1.Hash(), xShardTxList.TXList[0].TxHash)
+	assert.Equal(t, tx2.Hash(), xShardTxList.TXList[1].TxHash)
+	xShardTxList = minorBlockChainC.ReadCrossShardTxList(b2.Hash())
+	assert.Equal(t, 1, len(xShardTxList.TXList))
+	assert.Equal(t, tx3.Hash(), xShardTxList.TXList[0].TxHash)
+
+	c.clstrCfg.Quarkchain.Root.CoinbaseAddress = acc1
+	rb, _, err = mstr.CreateBlockToMine()
+	assert.NoError(t, mstr.AddRootBlock(rb.(*types.RootBlock)))
+
+	//b3 should include the deposits of tx1, t2, t3
+	b3, err := minorBlockChainC.CreateBlockToMine(nil, &acc1S2, nil)
+	assert.NoError(t, err)
+	assert.NoError(t, mstr.AddMinorBlock(b3.Branch().Value, b3))
+
+	cntr.exp[&acc1S2] += 500000 + params.GtxxShardCost.Uint64()*3
+	cntr.exp[&acc3] += 54321 + 5555 + 7787
+	cntr.assertAll()
+
+	b4, err := minorBlockChainA.CreateBlockToMine(nil, &acc1, nil)
+	assert.NoError(t, err)
+	assert.NoError(t, mstr.AddMinorBlock(b4.Branch().Value, b4))
+
+	cntr.exp[&acc1] += c.clstrCfg.Quarkchain.Root.CoinbaseAmount.Uint64() +
+		1500000 + // root block tax reward (3 blocks) from minor block tax
+		500000 + // minor block reward FIXME: 1500000 for python?
+		GTXCOST*3 //root block tax reward from tx fee
+	cntr.assertAll()
+
+	c.clstrCfg.Quarkchain.Root.CoinbaseAddress = acc3
+	rb, _, err = mstr.CreateBlockToMine()
+	assert.NoError(t, mstr.AddRootBlock(rb.(*types.RootBlock)))
+
+	//no change
+	cntr.assertAll()
+
+	b5, err := minorBlockChainC.CreateBlockToMine(nil, &acc3, nil)
+	assert.NoError(t, err)
+	assert.NoError(t, mstr.AddMinorBlock(b5.Branch().Value, b5))
+
+	cntr.exp[&acc3] += c.clstrCfg.Quarkchain.Root.CoinbaseAmount.Uint64() +
+		1000000 + // root block tax reward (1 block) from minor blocks b4+b5
+		500000 +
+		params.GtxxShardCost.Uint64()*3 // root block tax reward from tx fee
+	cntr.assertAll()
+
+	c.clstrCfg.Quarkchain.Root.CoinbaseAddress = acc4
+	rb, _, err = mstr.CreateBlockToMine()
+	assert.NoError(t, mstr.AddRootBlock(rb.(*types.RootBlock)))
+
+	//no change
+	cntr.assertAll()
+
+	b6, err := minorBlockChainB.CreateBlockToMine(nil, &acc4, nil)
+	assert.NoError(t, err)
+	assert.NoError(t, mstr.AddMinorBlock(b6.Branch().Value, b6))
+
+	cntr.exp[&acc4] += c.clstrCfg.Quarkchain.Root.CoinbaseAmount.Uint64() +
+		1000000
+	cntr.assertAll()
+
+	total := 3*c.clstrCfg.Quarkchain.Root.CoinbaseAmount.Uint64() +
+		6*minorCoinbase.Uint64() +
+		2*genesis[c.clstrCfg.Quarkchain.GenesisToken].Uint64() +
+		500000 //post-tax mblock coinbase
+	assert.Equal(t, total, cntr.sum())
 }

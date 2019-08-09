@@ -1900,5 +1900,67 @@ func TestContractCall(t *testing.T) {
 	assert.Equal(t, v1, hex.EncodeToString(result.Bytes()))
 	_, _, receipt := shardState.GetTransactionReceipt(tx3.Hash())
 	assert.Equal(t, uint64(0x1), receipt.Status)
+}
 
+func TestXShardRootBlockCoinbase(t *testing.T) {
+	id1, err := account.CreatRandomIdentity()
+	assert.NoError(t, err)
+	acc1 := account.CreatAddressFromIdentity(id1, 0)
+	acc2 := account.CreatAddressFromIdentity(id1, 1<<16)
+
+	genesis := uint64(10000000)
+	shardSize := uint32(64)
+	shardId0 := uint32(0)
+	shardId := uint32(16)
+	env1 := setUp(&acc1, &genesis, &shardSize)
+	shardState1 := createDefaultShardState(env1, &shardId0, nil, nil, nil)
+	shardState1.shardConfig.Genesis.GasLimit = params.GtxxShardCost.Uint64() * 2
+	env2 := setUp(&acc2, &genesis, &shardSize)
+	shardState2 := createDefaultShardState(env2, &shardId, nil, nil, nil)
+	shardState2.shardConfig.Genesis.GasLimit = params.GtxxShardCost.Uint64() * 2
+	defer func() {
+		shardState1.Stop()
+		shardState2.Stop()
+	}()
+
+	rootBlock := shardState1.rootTip.CreateBlockToAppend(nil, nil, nil, nil, nil)
+	rootBlock.AddMinorBlockHeader(shardState1.CurrentHeader().(*types.MinorBlockHeader))
+	rootBlock.AddMinorBlockHeader(shardState2.CurrentHeader().(*types.MinorBlockHeader))
+	rootBlock.Finalize(nil, nil, common.Hash{})
+	_, err = shardState1.AddRootBlock(rootBlock)
+	checkErr(err)
+	_, err = shardState2.AddRootBlock(rootBlock)
+	checkErr(err)
+
+	//Create a root block containing the block with the x-shard tx
+	rootBlock = shardState1.rootTip.CreateBlockToAppend(nil, nil, nil, nil, nil)
+	coinbase := types.NewTokenBalanceMap()
+	coinbase.BalanceMap[qkcCommon.TokenIDEncode("QKC")] = big.NewInt(1000000)
+	rootBlock.Finalize(coinbase, &acc1, common.Hash{})
+	_, err = shardState1.AddRootBlock(rootBlock)
+	checkErr(err)
+	_, err = shardState2.AddRootBlock(rootBlock)
+	checkErr(err)
+
+	//Add b0 and make sure one x-shard tx's are added
+	b0, err := shardState1.CreateBlockToMine(nil, nil, nil)
+	checkErr(err)
+	b0, _, err = shardState1.FinalizeAndAddBlock(b0)
+	checkErr(err)
+
+	//Root block coinbase does not consume xshard gas
+	blc, err := shardState1.GetBalance(acc1.Recipient, nil)
+	checkErr(err)
+	assert.Equal(t, big.NewInt(10000000+1000000), blc)
+
+	//Add b0 and make sure one x-shard tx's are added
+	b0, err = shardState2.CreateBlockToMine(nil, nil, nil)
+	checkErr(err)
+	b0, _, err = shardState2.FinalizeAndAddBlock(b0)
+	checkErr(err)
+
+	//Root block coinbase does not consume xshard gas
+	blc, err = shardState2.GetBalance(acc1.Recipient, nil)
+	checkErr(err)
+	assert.Equal(t, big.NewInt(10000000), blc)
 }
