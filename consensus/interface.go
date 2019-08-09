@@ -28,6 +28,10 @@ type ChainReader interface {
 
 	// GetBlock retrieves a block from the database by hash and number.
 	GetBlock(hash common.Hash) types.IBlock
+
+	GetAdjustedDifficulty(header types.IHeader) (*big.Int, error)
+
+	SkipDifficultyCheck() bool
 }
 
 // Engine is an algorithm agnostic consensus engine.
@@ -93,11 +97,8 @@ type PoW interface {
 	Name() string
 }
 
-type SenderDisallowMapBuilder interface {
-	BuildSenderDisallowMap(headerHash common.Hash, recipient *account.Recipient) (map[account.Recipient]*big.Int, error)
-}
-
 type PoSWCalculator interface {
+	BuildSenderDisallowMap(headerHash common.Hash, recipient *account.Recipient) (map[account.Recipient]*big.Int, error)
 	PoSWDiffAdjust(header types.IHeader, balance *big.Int) (*big.Int, error)
 	IsPoSWEnabled() bool
 }

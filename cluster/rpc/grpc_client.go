@@ -124,6 +124,7 @@ type opNode struct {
 type Client interface {
 	Call(hostport string, req *Request) (*Response, error)
 	GetOpName(uint32) string
+	Close()
 }
 
 type rpcClient struct {
@@ -156,6 +157,7 @@ func (c *rpcClient) Close() {
 	for _, node := range c.connVals {
 		node.conn.Close()
 	}
+	c.connVals = make(map[string]*opNode)
 }
 
 func (c *rpcClient) getConn(hostport string) (*opNode, error) {
@@ -198,14 +200,19 @@ func (c *rpcClient) grpcOp(hostport string, req *Request) (*Response, error) {
 }
 
 func (c *rpcClient) addConn(hostport string) (*opNode, error) {
-
-	delete(c.connVals, hostport)
 	opts := []grpc.DialOption{grpc.WithInsecure()}
 	conn, err := grpc.Dial(hostport, opts...)
 	if err != nil {
 		return nil, err
 	}
 
+	nd := c.connVals[hostport]
+	if nd != nil {
+		if nd.conn != nil {
+			nd.conn.Close()
+		}
+		delete(c.connVals, hostport)
+	}
 	switch c.tp {
 	case MasterServer:
 		c.connVals[hostport] = &opNode{conn: conn, client: reflect.ValueOf(NewMasterServerSideOpClient(conn))}

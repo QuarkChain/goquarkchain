@@ -9,6 +9,7 @@ import (
 	types "github.com/QuarkChain/goquarkchain/core/types"
 	common "github.com/ethereum/go-ethereum/common"
 	gomock "github.com/golang/mock/gomock"
+	big "math/big"
 	reflect "reflect"
 )
 
@@ -103,4 +104,33 @@ func (m *MockChainReader) GetBlock(hash common.Hash) types.IBlock {
 func (mr *MockChainReaderMockRecorder) GetBlock(hash interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetBlock", reflect.TypeOf((*MockChainReader)(nil).GetBlock), hash)
+}
+
+// GetAdjustedDifficulty mocks base method
+func (m *MockChainReader) GetAdjustedDifficulty(header types.IHeader) (*big.Int, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetAdjustedDifficulty", header)
+	ret0, _ := ret[0].(*big.Int)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetAdjustedDifficulty indicates an expected call of GetAdjustedDifficulty
+func (mr *MockChainReaderMockRecorder) GetAdjustedDifficulty(header interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAdjustedDifficulty", reflect.TypeOf((*MockChainReader)(nil).GetAdjustedDifficulty), header)
+}
+
+// SkipDifficultyCheck mocks base method
+func (m *MockChainReader) SkipDifficultyCheck() bool {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SkipDifficultyCheck")
+	ret0, _ := ret[0].(bool)
+	return ret0
+}
+
+// SkipDifficultyCheck indicates an expected call of SkipDifficultyCheck
+func (mr *MockChainReaderMockRecorder) SkipDifficultyCheck() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SkipDifficultyCheck", reflect.TypeOf((*MockChainReader)(nil).SkipDifficultyCheck))
 }

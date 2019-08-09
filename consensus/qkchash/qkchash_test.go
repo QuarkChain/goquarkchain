@@ -37,6 +37,8 @@ func TestVerifyHeaderAndHeaders(t *testing.T) {
 		cr.EXPECT().Config().Return(config.NewQuarkChainConfig()).AnyTimes()
 		cr.EXPECT().GetHeader(header.Hash()).Return(nil).AnyTimes()
 		cr.EXPECT().GetHeader(parent.Hash()).Return(parent).AnyTimes()
+		cr.EXPECT().SkipDifficultyCheck().Return(true).AnyTimes()
+		cr.EXPECT().GetAdjustedDifficulty(gomock.Any()).Return(header.Difficulty, nil).AnyTimes()
 		err := q.VerifyHeader(cr, header, true)
 		assert.NoError(err)
 
