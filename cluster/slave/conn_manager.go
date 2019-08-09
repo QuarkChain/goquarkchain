@@ -3,6 +3,7 @@ package slave
 import (
 	"errors"
 	"fmt"
+	"sync"
 
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
@@ -34,6 +35,7 @@ type ConnManager struct {
 
 	artificialTxConfig *rpc.ArtificialTxConfig
 	logInfo            string
+	mu                 sync.Mutex
 }
 
 // TODO need to be called in somowhere
@@ -214,4 +216,19 @@ func NewToSlaveConnManager(cfg *config.ClusterConfig, slave *SlaveBackend) *Conn
 		client: rpc.NewClient(rpc.MasterServer),
 	}
 	return slaveConnManager
+}
+
+func (s *ConnManager) Stop() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.masterClient != nil {
+		s.masterClient.client.Close()
+		s.masterClient = nil
+	}
+	for _, slv := range s.slavesConn {
+		if slv.client != nil {
+			slv.client.Close()
+		}
+	}
+	s.slavesConn = make(map[string]*SlaveConn)
 }

@@ -97,6 +97,7 @@ func (s *SlaveBackend) Stop() error {
 		s.shards[target].Stop()
 		delete(s.shards, target)
 	}
+	s.connManager.Stop()
 	return nil
 }
 
