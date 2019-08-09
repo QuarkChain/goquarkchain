@@ -74,6 +74,7 @@ type QKCMasterBackend struct {
 	synchronizer       Synchronizer.Synchronizer
 	txCountHistory     *deque.Deque
 	logInfo            string
+	exitCh             chan struct{}
 }
 
 // New new master with config
@@ -96,6 +97,7 @@ func New(ctx *service.ServiceContext, cfg *config.ClusterConfig) (*QKCMasterBack
 			logInfo:        "masterServer",
 			shutdown:       ctx.Shutdown,
 			txCountHistory: deque.New(),
+			exitCh:         make(chan struct{}),
 		}
 		err error
 	)
@@ -198,7 +200,13 @@ func (s *QKCMasterBackend) Stop() error {
 	s.rootBlockChain.Stop()
 	s.protocolManager.Stop()
 	s.eventMux.Stop()
+	s.synchronizer.Close()
 	s.chainDb.Close()
+	close(s.exitCh)
+	for _, slv := range s.clientPool {
+		conn := slv.(*SlaveConnection)
+		conn.client.Close()
+	}
 	return nil
 }
 
@@ -215,6 +223,7 @@ func (s *QKCMasterBackend) Init(srvr *p2p.Server) error {
 	if err := s.hasAllShards(); err != nil {
 		return err
 	}
+
 	if err := s.initShards(); err != nil {
 		return err
 	}
@@ -322,6 +331,8 @@ func (s *QKCMasterBackend) updateShardStatsLoop() {
 			select {
 			case stats := <-s.shardStatsChan:
 				s.UpdateShardStatus(stats)
+			case <-s.exitCh:
+				return
 			}
 		}
 	}()
