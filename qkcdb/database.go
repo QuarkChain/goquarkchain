@@ -20,10 +20,8 @@ type RDBDatabase struct {
 	ro *gorocksdb.ReadOptions
 	wo *gorocksdb.WriteOptions
 
-	quitLock sync.Mutex      // Mutex protecting the quit channel access
-	quitChan chan chan error // Quit channel to stop the metrics collection before closing the database
-
-	log log.Logger // Contextual logger tracking the database path
+	closeOnce sync.Once
+	log       log.Logger // Contextual logger tracking the database path
 }
 
 // NewRDBDatabase returns a rocksdb wrapped object.
@@ -126,19 +124,9 @@ func (db *RDBDatabase) NewIteratorWithPrefix(prefix []byte) *gorocksdb.Iterator 
 }
 
 func (db *RDBDatabase) Close() {
-	// Stop the metrics collection to avoid internal database races
-	db.quitLock.Lock()
-	defer db.quitLock.Unlock()
-
-	if db.quitChan != nil {
-		errc := make(chan error)
-		db.quitChan <- errc
-		if err := <-errc; err != nil {
-			db.log.Error("Metrics collection failed", "err", err)
-		}
-		db.quitChan = nil
-	}
-	db.db.Close()
+	db.closeOnce.Do(func() {
+		db.db.Close()
+	})
 }
 
 func (db *RDBDatabase) NewBatch() Batch {
