@@ -228,7 +228,7 @@ func (s *StateDB) Empty(addr common.Address) bool {
 // Retrieve the balance from the given address or 0 if object not found
 func (s *StateDB) GetBalance(addr common.Address, tokenID uint64) *big.Int {
 	if tokenID == 0 {
-		tokenID = s.quarkChainConfig.GetDefaultChainToken()
+		tokenID = s.quarkChainConfig.GetDefaultChainTokenID()
 	}
 	stateObject := s.getStateObject(addr)
 	if stateObject != nil {
@@ -713,15 +713,15 @@ func (s *StateDB) GetXShardReceiveGasUsed() *big.Int {
 	return new(big.Int).Set(s.xShardReceiveGasUsed)
 }
 
-func (s *StateDB) SetXShardReceiveGasUsed(data *big.Int) {
-	s.xShardReceiveGasUsed = data
+func (s *StateDB) SetXShardReceiveGasUsed(xShardReceivedGasUsed *big.Int) {
+	s.xShardReceiveGasUsed = xShardReceivedGasUsed
 }
 
-func (s *StateDB) AppendXShardList(data *types.CrossShardTransactionDeposit) {
+func (s *StateDB) AppendXShardList(crossShardTxDeposit *types.CrossShardTransactionDeposit) {
 	if s.xShardList == nil {
 		s.xShardList = make([]*types.CrossShardTransactionDeposit, 0)
 	}
-	s.xShardList = append(s.xShardList, data)
+	s.xShardList = append(s.xShardList, crossShardTxDeposit)
 }
 
 func (s *StateDB) GetXShardList() []*types.CrossShardTransactionDeposit {
@@ -763,8 +763,8 @@ func (s *StateDB) GetQuarkChainConfig() *config.QuarkChainConfig {
 	return s.quarkChainConfig
 }
 
-func (s *StateDB) SetQuarkChainConfig(data *config.QuarkChainConfig) {
-	s.quarkChainConfig = data
+func (s *StateDB) SetQuarkChainConfig(config *config.QuarkChainConfig) {
+	s.quarkChainConfig = config
 }
 func (s *StateDB) GetGasUsed() *big.Int {
 	if s.gasUsed == nil {
@@ -773,15 +773,15 @@ func (s *StateDB) GetGasUsed() *big.Int {
 	return new(big.Int).Set(s.gasUsed)
 }
 
-func (s *StateDB) AddGasUsed(data *big.Int) {
+func (s *StateDB) AddGasUsed(gasUsed *big.Int) {
 	if s.gasUsed == nil {
 		s.gasUsed = new(big.Int)
 	}
-	s.gasUsed.Add(s.gasUsed, data)
+	s.gasUsed.Add(s.gasUsed, gasUsed)
 }
 
-func (s *StateDB) SetGasUsed(data *big.Int) {
-	s.gasUsed = data
+func (s *StateDB) SetGasUsed(gasUsed *big.Int) {
+	s.gasUsed = gasUsed
 }
 func (s *StateDB) GetGasLimit() *big.Int {
 	if s.gasLimit == nil {
@@ -790,8 +790,8 @@ func (s *StateDB) GetGasLimit() *big.Int {
 	return new(big.Int).Set(s.gasLimit)
 }
 
-func (s *StateDB) SetGasLimit(data *big.Int) {
-	s.gasLimit = data
+func (s *StateDB) SetGasLimit(gasLimit *big.Int) {
+	s.gasLimit = gasLimit
 }
 
 func (s *StateDB) GetShardConfig() *config.ShardConfig {
@@ -802,8 +802,8 @@ func (s *StateDB) SetShardConfig(config *config.ShardConfig) {
 	s.shardConfig = config
 }
 
-func (s *StateDB) SetSenderDisallowMap(data map[qkcaccount.Recipient]*big.Int) {
-	s.senderDisallowMap = data
+func (s *StateDB) SetSenderDisallowMap(senderDisallowMap map[qkcaccount.Recipient]*big.Int) {
+	s.senderDisallowMap = senderDisallowMap
 }
 func (s *StateDB) GetSenderDisallowMap() map[qkcaccount.Recipient]*big.Int {
 	return s.senderDisallowMap
@@ -813,20 +813,20 @@ func (s *StateDB) GetBlockCoinbase() qkcaccount.Recipient {
 	return s.blockCoinbase
 }
 
-func (s *StateDB) SetBlockCoinbase(data qkcaccount.Recipient) {
-	s.blockCoinbase = data
+func (s *StateDB) SetBlockCoinbase(blockCoinbase qkcaccount.Recipient) {
+	s.blockCoinbase = blockCoinbase
 }
 
-func (s *StateDB) SetTimeStamp(data uint64) {
-	s.timeStamp = data
+func (s *StateDB) SetTimeStamp(time uint64) {
+	s.timeStamp = time
 }
 
 func (s *StateDB) GetTimeStamp() uint64 {
 	return s.timeStamp
 }
 
-func (s *StateDB) SetBlockNumber(data uint64) {
-	s.blockNumber = data
+func (s *StateDB) SetBlockNumber(blockNumber uint64) {
+	s.blockNumber = blockNumber
 }
 
 func (s *StateDB) GetBlockNumber() uint64 {

@@ -440,7 +440,7 @@ func (m *MinorBlock) Finalize(receipts Receipts, rootHash common.Hash, gasUsed *
 	m.header.Bloom = CreateBloom(receipts)
 	m.hash.Store(m.header.Hash())
 }
-func (h *MinorBlock) CreateBlockToAppend(createTime *uint64, difficulty *big.Int, address *account.Address, nonce *uint64, gasLimit *big.Int, xShardGasLimit *big.Int, extraData []byte, coinbaseAmount *TokenBalances) *MinorBlock {
+func (h *MinorBlock) CreateBlockToAppend(createTime *uint64, difficulty *big.Int, address *account.Address, nonce *uint64, gasLimit *big.Int, xShardGasLimit *big.Int, extraData []byte, coinbaseAmount *TokenBalances, prevRootHash *common.Hash) *MinorBlock {
 	if createTime == nil {
 		preTime := h.Time() + 1
 		createTime = &preTime
@@ -475,6 +475,11 @@ func (h *MinorBlock) CreateBlockToAppend(createTime *uint64, difficulty *big.Int
 	if coinbaseAmount == nil {
 		coinbaseAmount = NewEmptyTokenBalances()
 	}
+
+	if prevRootHash == nil {
+		preHash := h.PrevRootBlockHash()
+		prevRootHash = &preHash
+	}
 	header := &MinorBlockHeader{
 		Version:           h.Version(),
 		Number:            h.Number() + 1,
@@ -482,7 +487,7 @@ func (h *MinorBlock) CreateBlockToAppend(createTime *uint64, difficulty *big.Int
 		Coinbase:          *address,
 		CoinbaseAmount:    coinbaseAmount,
 		ParentHash:        h.Hash(),
-		PrevRootBlockHash: h.PrevRootBlockHash(),
+		PrevRootBlockHash: *prevRootHash,
 		GasLimit:          &serialize.Uint256{Value: gasLimit},
 		Time:              *createTime,
 		Difficulty:        difficulty,

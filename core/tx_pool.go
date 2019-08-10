@@ -560,7 +560,12 @@ func (pool *TxPool) local() map[common.Address]types.Transactions {
 // validateTx checks whether a transaction is valid according to the consensus
 // rules and adheres to some heuristic limits of the local node (price and size).
 func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
-	if err := pool.checkTxAboutQKC(tx); err != nil {
+	if pool.all.Count() > int(pool.quarkConfig.TransactionQueueSizeLimitPerShard) {
+		return errors.New("txpool queue full")
+	}
+
+	tx, err := pool.chain.validateTx(tx, pool.currentState, nil, nil, nil)
+	if err != nil {
 		return err
 	}
 
@@ -1102,18 +1107,6 @@ func (pool *TxPool) demoteUnexecutables() {
 			delete(pool.beats, addr)
 		}
 	}
-}
-
-func (m *TxPool) checkTxAboutQKC(tx *types.Transaction) error {
-	if m.all.Count() > int(m.quarkConfig.TransactionQueueSizeLimitPerShard) {
-		return errors.New("txpool queue full")
-	}
-
-	tx, err := m.chain.validateTx(tx, m.currentState, nil, nil, nil)
-	if err != nil {
-		return err
-	}
-	return nil
 }
 
 // addressByHeartbeat is an account address tagged with its last activity timestamp.
