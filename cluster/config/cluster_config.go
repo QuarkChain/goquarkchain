@@ -103,6 +103,7 @@ type QuarkChainConfig struct {
 	DisbalePowCheck                   bool     `json:"DISABLE_POW_CHECK"`
 	XShardGasDDOSFixRootHeight        uint64   `json:"XSHARD_GAS_DDOS_FIX_ROOT_HEIGHT"`
 	MinMiningGasPrice                 *big.Int `json:"MIN_MINING_GAS_PRICE"`
+	MINTXPOOLGASPRICE                 *big.Int `json:"MIN_TX_POOL_GAS_PRICE"`
 }
 
 type QuarkChainConfigAlias QuarkChainConfig
@@ -312,6 +313,7 @@ func NewQuarkChainConfig() *QuarkChainConfig {
 		BlockRewardDecayFactor:            new(big.Rat).SetFloat64(0.5),
 		Root:                              NewRootConfig(),
 		MinMiningGasPrice:                 new(big.Int).SetUint64(1000000000),
+		MINTXPOOLGASPRICE:                 new(big.Int).SetUint64(1000000000),
 	}
 
 	ret.Root.ConsensusType = PoWSimulate

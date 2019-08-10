@@ -43,7 +43,7 @@ func (cl Clusterlist) Start(duration time.Duration, prCtrol bool) {
 			for p2pSvr.PeerCount() < mntorClstr.index && time.Now().Sub(now) < duration {
 				time.Sleep(500 * time.Millisecond)
 			}
-			fmt.Printf("start %d clusters successful\n\n", p2pSvr.PeerCount())
+			//fmt.Printf("start %d clusters successful\n\n", p2pSvr.PeerCount())
 		}
 	}
 }
