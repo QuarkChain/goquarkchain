@@ -827,6 +827,7 @@ func (m *MinorBlockChain) CreateBlockToMine(createTime *uint64, address *account
 	evmState.SetTxCursorInfo(txCursor)
 
 	if evmState.GetGasUsed().Cmp(xShardGasLimit) <= 0 {
+		// ensure inshard gasLimit = 1/2 default gasLimit
 		diff := new(big.Int).Sub(xShardGasLimit, evmState.GetGasUsed())
 		diff = new(big.Int).Sub(evmState.GetGasLimit(), diff)
 		evmState.SetGasLimit(diff)
