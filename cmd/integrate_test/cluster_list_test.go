@@ -1,4 +1,4 @@
-//+build gm
+//+build integrate_test
 
 package test
 
@@ -15,6 +15,7 @@ import (
 	"testing"
 	"time"
 )
+
 func tipGen(geneAcc *account.Account, shrd *shard.ShardBackend) *types.MinorBlock {
 	iBlock, _, err := shrd.CreateBlockToMine()
 	if err != nil {
@@ -753,7 +754,7 @@ func TestHandleGetMinorBlockListRequestWithTotalDiff(t *testing.T) {
 		ret.Add(ret, minorBlockFee)
 		res["QKC"] = ret
 		t := types.NewEmptyTokenBalances()
-		t.SetValue(ret,testGenesisTokenID)
+		t.SetValue(ret, testGenesisTokenID)
 		return t
 	}
 	tipNumber := clstrList[0].master.GetTip()

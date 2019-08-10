@@ -33,7 +33,7 @@ func (c *CallArgs) setDefaults() {
 	}
 }
 func (c *CallArgs) toTx(config *config.QuarkChainConfig) (*types.Transaction, error) {
-	gasTokenID, transferTokenID := config.GetDefaultChainToken(), config.GetDefaultChainToken()
+	gasTokenID, transferTokenID := config.GetDefaultChainTokenID(), config.GetDefaultChainTokenID()
 	if c.GasTokenID == nil {
 		gasTokenID = uint64(*c.GasTokenID)
 	}
@@ -71,7 +71,7 @@ func (c *CreateTxArgs) setDefaults() {
 	}
 }
 func (c *CreateTxArgs) toTx(config *config.QuarkChainConfig) *types.Transaction {
-	gasTokenID, transferTokenID := config.GetDefaultChainToken(), config.GetDefaultChainToken()
+	gasTokenID, transferTokenID := config.GetDefaultChainTokenID(), config.GetDefaultChainTokenID()
 	if c.GasTokenID == nil {
 		gasTokenID = uint64(*c.GasTokenID)
 	}
@@ -137,7 +137,7 @@ func (args *SendTxArgs) toTransaction(config *config.QuarkChainConfig, withVRS b
 	if args.NetWorkID != nil {
 		networkID = uint32(*args.NetWorkID)
 	}
-	gasTokenID, transferTokenID := config.GetDefaultChainToken(), config.GetDefaultChainToken()
+	gasTokenID, transferTokenID := config.GetDefaultChainTokenID(), config.GetDefaultChainTokenID()
 	if args.GasTokenID == nil {
 		gasTokenID = uint64(*args.GasTokenID)
 	}

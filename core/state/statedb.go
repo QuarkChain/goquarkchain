@@ -228,7 +228,7 @@ func (s *StateDB) Empty(addr common.Address) bool {
 // Retrieve the balance from the given address or 0 if object not found
 func (s *StateDB) GetBalance(addr common.Address, tokenID uint64) *big.Int {
 	if tokenID == 0 {
-		tokenID = s.quarkChainConfig.GetDefaultChainToken()
+		tokenID = s.quarkChainConfig.GetDefaultChainTokenID()
 	}
 	stateObject := s.getStateObject(addr)
 	if stateObject != nil {

@@ -431,7 +431,7 @@ func (m *MinorBlockChain) GetAdjustedDifficulty(header types.IHeader) (*big.Int,
 			return nil, err
 		}
 
-		diff, err = m.posw.PoSWDiffAdjust(header, balance.GetTokenBalance(m.clusterConfig.Quarkchain.GetDefaultChainToken()))
+		diff, err = m.posw.PoSWDiffAdjust(header, balance.GetTokenBalance(m.clusterConfig.Quarkchain.GetDefaultChainTokenID()))
 		if err != nil {
 			log.Error(m.logInfo, "PoSWDiffAdjust err", err)
 			return nil, err
@@ -1771,7 +1771,7 @@ func (m *MinorBlockChain) ContainRootBlockByHash(h common.Hash) bool {
 }
 
 func (m *MinorBlockChain) GetGenesisToken() uint64 {
-	return m.clusterConfig.Quarkchain.GetDefaultChainToken()
+	return m.clusterConfig.Quarkchain.GetDefaultChainTokenID()
 }
 
 func (m *MinorBlockChain) GetGenesisRootHeight() uint32 {
