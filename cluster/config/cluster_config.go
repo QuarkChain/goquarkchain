@@ -93,17 +93,14 @@ type QuarkChainConfig struct {
 	Chains                            map[uint32]*ChainConfig `json:"-"`
 	RewardTaxRate                     *big.Rat                `json:"-"`
 	BlockRewardDecayFactor            *big.Rat                `json:"-"`
-	EnableTxTimeStamp                 uint64                  `json:"ENABLE_TX_TIMESTAMP"`
 	chainIdToShardSize                map[uint32]uint32
 	chainIdToShardIds                 map[uint32][]uint32
 	defaultChainToken                 uint64
 	allowTokenIDs                     map[uint64]bool
 	TxWhiteListSenders                []account.Recipient `json:"TX_WHITELIST_SENDERS"`
-	txWhiteMapSenders                 map[account.Recipient]bool
-	DisbalePowCheck                   bool     `json:"DISABLE_POW_CHECK"`
-	XShardGasDDOSFixRootHeight        uint64   `json:"XSHARD_GAS_DDOS_FIX_ROOT_HEIGHT"`
-	MinMiningGasPrice                 *big.Int `json:"MIN_MINING_GAS_PRICE"`
-	MINTXPOOLGASPRICE                 *big.Int `json:"MIN_TX_POOL_GAS_PRICE"`
+	DisbalePowCheck                   bool                `json:"DISABLE_POW_CHECK"`
+	XShardGasDDOSFixRootHeight        uint64              `json:"XSHARD_GAS_DDOS_FIX_ROOT_HEIGHT"`
+	MinMiningGasPrice                 *big.Int            `json:"MIN_MINING_GAS_PRICE"`
 }
 
 type QuarkChainConfigAlias QuarkChainConfig
@@ -313,7 +310,6 @@ func NewQuarkChainConfig() *QuarkChainConfig {
 		BlockRewardDecayFactor:            new(big.Rat).SetFloat64(0.5),
 		Root:                              NewRootConfig(),
 		MinMiningGasPrice:                 new(big.Int).SetUint64(1000000000),
-		MINTXPOOLGASPRICE:                 new(big.Int).SetUint64(1000000000),
 	}
 
 	ret.Root.ConsensusType = PoWSimulate
@@ -380,10 +376,8 @@ func (q *QuarkChainConfig) AllowedGasTokenIDs() map[uint64]bool {
 }
 
 func (q *QuarkChainConfig) IsAllowedTokenID(tokenID uint64) bool {
-	if _, ok := q.allowedTokenIds()[tokenID]; ok {
-		return true
-	}
-	return false
+	_, ok := q.allowedTokenIds()[tokenID]
+	return ok
 }
 func (q *QuarkChainConfig) GasLimit(fullShardID uint32) (*big.Int, error) {
 	data, ok := q.shards[fullShardID]
@@ -391,17 +385,4 @@ func (q *QuarkChainConfig) GasLimit(fullShardID uint32) (*big.Int, error) {
 		return nil, fmt.Errorf("no such fullShardID %v", fullShardID)
 	}
 	return new(big.Int).SetUint64(data.Genesis.GasLimit), nil
-}
-
-func (q *QuarkChainConfig) IsWhiteSender(addr account.Recipient) bool {
-	if q.txWhiteMapSenders == nil {
-		q.txWhiteMapSenders = make(map[account.Recipient]bool)
-		for _, v := range q.TxWhiteListSenders {
-			q.txWhiteMapSenders[v] = true
-		}
-	}
-	if _, ok := q.txWhiteMapSenders[addr]; ok {
-		return true
-	}
-	return false
 }

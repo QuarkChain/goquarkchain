@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
-	qkcCommon "github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/params"
 	"github.com/ethereum/go-ethereum/common"
@@ -34,7 +33,7 @@ func (c *CallArgs) setDefaults() {
 	}
 }
 func (c *CallArgs) toTx(config *config.QuarkChainConfig) (*types.Transaction, error) {
-	gasTokenID, transferTokenID := qkcCommon.TokenIDEncode(config.GenesisToken), qkcCommon.TokenIDEncode(config.GenesisToken)
+	gasTokenID, transferTokenID := config.GetDefaultChainToken(), config.GetDefaultChainToken()
 	if c.GasTokenID == nil {
 		gasTokenID = uint64(*c.GasTokenID)
 	}
@@ -72,7 +71,7 @@ func (c *CreateTxArgs) setDefaults() {
 	}
 }
 func (c *CreateTxArgs) toTx(config *config.QuarkChainConfig) *types.Transaction {
-	gasTokenID, transferTokenID := qkcCommon.TokenIDEncode(config.GenesisToken), qkcCommon.TokenIDEncode(config.GenesisToken)
+	gasTokenID, transferTokenID := config.GetDefaultChainToken(), config.GetDefaultChainToken()
 	if c.GasTokenID == nil {
 		gasTokenID = uint64(*c.GasTokenID)
 	}
@@ -138,7 +137,7 @@ func (args *SendTxArgs) toTransaction(config *config.QuarkChainConfig, withVRS b
 	if args.NetWorkID != nil {
 		networkID = uint32(*args.NetWorkID)
 	}
-	gasTokenID, transferTokenID := qkcCommon.TokenIDEncode(config.GenesisToken), qkcCommon.TokenIDEncode(config.GenesisToken)
+	gasTokenID, transferTokenID := config.GetDefaultChainToken(), config.GetDefaultChainToken()
 	if args.GasTokenID == nil {
 		gasTokenID = uint64(*args.GasTokenID)
 	}

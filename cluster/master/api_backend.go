@@ -48,9 +48,6 @@ func (s *QKCMasterBackend) GetPeerInfolist() []rpc.PeerInfoForDisPlay {
 
 func (s *QKCMasterBackend) AddTransaction(tx *types.Transaction) error {
 	evmTx := tx.EvmTx
-	if evmTx.GasPrice().Cmp(s.clusterConfig.Quarkchain.MINTXPOOLGASPRICE) < 0 {
-		return errors.New("gasPrice small than MINTXPOOLGASPRICE")
-	}
 	fromShardSize, err := s.clusterConfig.Quarkchain.GetShardSizeByChainId(tx.EvmTx.FromChainID())
 	if err != nil {
 		return err

@@ -431,7 +431,7 @@ func (m *MinorBlockChain) GetAdjustedDifficulty(header types.IHeader) (*big.Int,
 			return nil, err
 		}
 
-		diff, err = m.posw.PoSWDiffAdjust(header, balance.GetTokenBalance(qkcCommon.TokenIDEncode(m.clusterConfig.Quarkchain.GenesisToken)))
+		diff, err = m.posw.PoSWDiffAdjust(header, balance.GetTokenBalance(m.clusterConfig.Quarkchain.GetDefaultChainToken()))
 		if err != nil {
 			log.Error(m.logInfo, "PoSWDiffAdjust err", err)
 			return nil, err
@@ -1208,10 +1208,9 @@ func (m *MinorBlockChain) insertChain(chain []types.IBlock, verifySeals bool, pa
 		if qkcCommon.IsNil(parent) {
 			return it.index, events, coalescedLogs, xShardList, err
 		}
-		xShardReceiveTxList := make([]*types.CrossShardTransactionDeposit, 0)
 		// Process block using the parent state as reference point.
 
-		state, receipts, logs, usedGas, err := m.runBlock(mBlock, &xShardReceiveTxList)
+		state, receipts, logs, usedGas, xShardReceiveTxList, err := m.runBlock(mBlock, nil)
 		if err != nil {
 			m.reportBlock(block, receipts, err)
 			return it.index, events, coalescedLogs, xShardList, err
@@ -1753,7 +1752,7 @@ func (m *MinorBlockChain) GetRootBlockByHash(hash common.Hash) *types.RootBlock 
 
 func (m *MinorBlockChain) GetRootBlockHeaderByHeight(h common.Hash, height uint64) *types.RootBlockHeader {
 	rHeader := m.getRootBlockHeaderByHash(h)
-	if height > rHeader.NumberU64() {
+	if rHeader == nil || height > rHeader.NumberU64() {
 		return nil
 	}
 	for height != rHeader.NumberU64() {
@@ -1772,7 +1771,7 @@ func (m *MinorBlockChain) ContainRootBlockByHash(h common.Hash) bool {
 }
 
 func (m *MinorBlockChain) GetGenesisToken() uint64 {
-	return qkcCommon.TokenIDEncode(m.clusterConfig.Quarkchain.GenesisToken)
+	return m.clusterConfig.Quarkchain.GetDefaultChainToken()
 }
 
 func (m *MinorBlockChain) GetGenesisRootHeight() uint32 {
