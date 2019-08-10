@@ -1130,7 +1130,7 @@ func TestRootChainFirstConsensus(t *testing.T) {
 	checkErr(err)
 
 	b1 := shardState1.CurrentBlock().CreateBlockToAppend(nil, nil, nil, nil, nil, nil, nil, nil)
-	evmState, reps, _, _, err := shardState1.runBlock(b1, nil)
+	evmState, reps, _, _, _, err := shardState1.runBlock(b1, nil)
 	temp := types.NewEmptyTokenBalances()
 	temp.Add(evmState.GetBlockFee())
 	b1.Finalize(reps, evmState.IntermediateRoot(true), evmState.GetGasUsed(), evmState.GetXShardReceiveGasUsed(), temp, &types.XShardTxCursorInfo{})
@@ -1186,7 +1186,7 @@ func TestShardStateAddRootBlock(t *testing.T) {
 	checkErr(err)
 
 	b1 := shardState1.CurrentBlock().CreateBlockToAppend(nil, nil, nil, nil, nil, nil, nil, nil)
-	evmState, reps, _, _, err := shardState1.runBlock(b1, nil)
+	evmState, reps, _, _, _, err := shardState1.runBlock(b1, nil)
 	temp := types.NewEmptyTokenBalances()
 	temp.Add(evmState.GetBlockFee())
 	b1.Finalize(reps, evmState.IntermediateRoot(true), evmState.GetGasUsed(), evmState.GetXShardReceiveGasUsed(), temp, &types.XShardTxCursorInfo{})
@@ -1527,7 +1527,7 @@ func TestAddBlockReceiptRootNotMatch(t *testing.T) {
 	b1, _, err = shardState.FinalizeAndAddBlock(b1)
 	checkErr(err)
 
-	evmState, reps, _, _, err := shardState.runBlock(b1, nil)
+	evmState, reps, _, _, _, err := shardState.runBlock(b1, nil)
 	checkErr(err)
 	temp := types.NewEmptyTokenBalances()
 	temp.SetValue(b1.Header().CoinbaseAmount.GetTokenBalance(genesisTokenID), qkcCommon.TokenIDEncode("QKC"))
