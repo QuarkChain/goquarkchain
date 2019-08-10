@@ -95,10 +95,10 @@ type QuarkChainConfig struct {
 	BlockRewardDecayFactor            *big.Rat                `json:"-"`
 	chainIdToShardSize                map[uint32]uint32
 	chainIdToShardIds                 map[uint32][]uint32
-	defaultChainToken                 uint64
+	defaultChainTokenID               uint64
 	allowTokenIDs                     map[uint64]bool
 	TxWhiteListSenders                []account.Recipient `json:"TX_WHITELIST_SENDERS"`
-	DisbalePowCheck                   bool                `json:"DISABLE_POW_CHECK"`
+	DisablePowCheck                   bool                `json:"DISABLE_POW_CHECK"`
 	XShardGasDDOSFixRootHeight        uint64              `json:"XSHARD_GAS_DDOS_FIX_ROOT_HEIGHT"`
 	MinMiningGasPrice                 *big.Int            `json:"MIN_MINING_GAS_PRICE"`
 }
@@ -344,12 +344,12 @@ func (q *QuarkChainConfig) SetShardsAndValidate(shards map[uint32]*ShardConfig) 
 	q.initAndValidate()
 }
 
-func (q *QuarkChainConfig) GetDefaultChainToken() uint64 {
-	if q.defaultChainToken == 0 {
-		q.defaultChainToken = common.TokenIDEncode(q.GenesisToken)
+func (q *QuarkChainConfig) GetDefaultChainTokenID() uint64 {
+	if q.defaultChainTokenID == 0 {
+		q.defaultChainTokenID = common.TokenIDEncode(q.GenesisToken)
 
 	}
-	return q.defaultChainToken
+	return q.defaultChainTokenID
 }
 
 func (q *QuarkChainConfig) allowedTokenIds() map[uint64]bool {

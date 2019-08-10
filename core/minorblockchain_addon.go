@@ -77,7 +77,7 @@ func (m *MinorBlockChain) getCoinbaseAmount(height uint64) *types.TokenBalances 
 	coinbaseAmount = new(big.Int).Div(coinbaseAmount, decayDenominator)
 
 	data := make(map[uint64]*big.Int)
-	data[m.clusterConfig.Quarkchain.GetDefaultChainToken()] = coinbaseAmount
+	data[m.clusterConfig.Quarkchain.GetDefaultChainTokenID()] = coinbaseAmount
 	return types.NewTokenBalancesWithMap(data)
 }
 
@@ -498,7 +498,7 @@ func (m *MinorBlockChain) getCrossShardTxListByRootBlockHash(hash common.Hash) (
 		txList = append(txList, xShardTxList.TXList...)
 	}
 	if m.branch.IsInBranch(rBlock.Header().GetCoinbase().FullShardKey) { // Apply root block coinbase
-		value := rBlock.Header().CoinbaseAmount.GetTokenBalance(m.clusterConfig.Quarkchain.GetDefaultChainToken())
+		value := rBlock.Header().CoinbaseAmount.GetTokenBalance(m.clusterConfig.Quarkchain.GetDefaultChainTokenID())
 		txList = append(txList, &types.CrossShardTransactionDeposit{
 			TxHash:   common.Hash{},
 			From:     account.CreatEmptyAddress(0),
@@ -712,7 +712,6 @@ func (m *MinorBlockChain) addTransactionToBlock(block *types.MinorBlock, evmStat
 		// Pop skip all txs about this account
 		//Shift skip this tx ,goto next tx about this account
 		if err := m.checkTxBeforeApply(stateT, tx, block); err != nil {
-			fmt.Println("err", err)
 			if err == ErrorTxBreak {
 				break
 			} else if err == ErrorTxContinue {
@@ -813,16 +812,13 @@ func (m *MinorBlockChain) CreateBlockToMine(createTime *uint64, address *account
 		t := address.AddressInBranch(m.branch)
 		address = &t
 	}
-	block := prevBlock.CreateBlockToAppend(&realCreateTime, difficulty, address, nil, gasLimit, xShardGasLimit, nil, nil)
+	currRootTipHash := m.rootTip.Hash()
+	block := prevBlock.CreateBlockToAppend(&realCreateTime, difficulty, address, nil, gasLimit, xShardGasLimit, nil, nil, &currRootTipHash)
 	evmState, err := m.getEvmStateForNewBlock(block.IHeader(), true)
 	ancestorRootHeader := m.GetRootBlockByHash(m.CurrentBlock().Header().PrevRootBlockHash).Header()
 	if !m.isSameRootChain(m.rootTip, ancestorRootHeader) {
 		return nil, ErrNotSameRootChain
 	}
-
-	bHeader := block.Header()
-	bHeader.PrevRootBlockHash = m.rootTip.Hash()
-	block = types.NewMinorBlock(bHeader, block.Meta(), nil, nil, nil)
 
 	_, txCursor, err := m.RunCrossShardTxWithCursor(evmState, block)
 	if err != nil {
@@ -831,6 +827,7 @@ func (m *MinorBlockChain) CreateBlockToMine(createTime *uint64, address *account
 	evmState.SetTxCursorInfo(txCursor)
 
 	if evmState.GetGasUsed().Cmp(xShardGasLimit) <= 0 {
+		// ensure inshard gasLimit = 1/2 default gasLimit
 		diff := new(big.Int).Sub(xShardGasLimit, evmState.GetGasUsed())
 		diff = new(big.Int).Sub(evmState.GetGasLimit(), diff)
 		evmState.SetGasLimit(diff)

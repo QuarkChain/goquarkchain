@@ -280,7 +280,7 @@ func GenerateMinorBlockChain(config *params.ChainConfig, quarkChainConfig *confi
 	blocks, receipts := make([]*types.MinorBlock, n), make([]types.Receipts, n)
 	genblock := func(i int, parent *types.MinorBlock, statedb *state.StateDB) (*types.MinorBlock, types.Receipts) {
 		b := &MinorBlockGen{i: i, chain: blocks, parent: parent, statedb: statedb, config: config, engine: engine}
-		block := parent.CreateBlockToAppend(nil, nil, nil, nil, nil, nil, nil, nil)
+		block := parent.CreateBlockToAppend(nil, nil, nil, nil, nil, nil, nil, nil, nil)
 		b.header = block.Header()
 		if gen != nil {
 			gen(quarkChainConfig, i, b)

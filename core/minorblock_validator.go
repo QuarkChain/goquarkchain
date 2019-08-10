@@ -185,7 +185,7 @@ func (v *MinorBlockValidator) ValidateBlock(mBlock types.IBlock) error {
 		log.Error(v.logInfo, "err", errMustBeOneRootChain, "long", block.Header().GetPrevRootBlockHash().String(), "short", prevHeader.(*types.MinorBlockHeader).GetPrevRootBlockHash().String())
 		return errMustBeOneRootChain
 	}
-	if !v.bc.clusterConfig.Quarkchain.DisbalePowCheck {
+	if !v.bc.clusterConfig.Quarkchain.DisablePowCheck {
 		if err := v.ValidateSeal(block.Header()); err != nil {
 			log.Error(v.logInfo, "ValidatorBlockSeal err", err)
 			return err
