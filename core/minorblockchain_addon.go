@@ -361,27 +361,28 @@ func (m *MinorBlockChain) getEvmStateFromHeight(height *uint64) (*state.StateDB,
 	return m.getEvmStateForNewBlock(header, true)
 }
 
-func (m *MinorBlockChain) runBlock(block *types.MinorBlock, xShardReceiveTxList *[]*types.CrossShardTransactionDeposit) (*state.StateDB, types.Receipts, []*types.Log, uint64, error) {
+func (m *MinorBlockChain) runBlock(block *types.MinorBlock, xShardReceiveTxList []*types.CrossShardTransactionDeposit) (*state.StateDB, types.Receipts, []*types.Log, uint64, []*types.CrossShardTransactionDeposit, error) {
 	parent := m.GetMinorBlock(block.ParentHash())
 	if qkcCommon.IsNil(parent) {
 		log.Error(m.logInfo, "err-runBlock", ErrRootBlockIsNil, "parentHash", block.ParentHash().String())
-		return nil, nil, nil, 0, ErrRootBlockIsNil
+		return nil, nil, nil, 0, nil, ErrRootBlockIsNil
 	}
 
+	if xShardReceiveTxList == nil {
+		xShardReceiveTxList = make([]*types.CrossShardTransactionDeposit, 0)
+	}
 	coinbase := block.Coinbase().Recipient
 	preEvmState, err := m.stateAtWithSenderDisallowMap(parent.GetMetaData().Root, block.ParentHash(), &coinbase)
 	if err != nil {
-		return nil, nil, nil, 0, err
+		return nil, nil, nil, 0, nil, err
 	}
 	evmState := preEvmState.Copy()
 
 	xTxList, txCursorInfo, err := m.RunCrossShardTxWithCursor(evmState, block)
 	if err != nil {
-		return nil, nil, nil, 0, err
+		return nil, nil, nil, 0, nil, err
 	}
-	if xShardReceiveTxList != nil {
-		*xShardReceiveTxList = append(*xShardReceiveTxList, xTxList...)
-	}
+	xShardReceiveTxList = append(xShardReceiveTxList, xTxList...)
 
 	evmState.SetTxCursorInfo(txCursorInfo)
 	if evmState.GetGasUsed().Cmp(block.Meta().XshardGasLimit.Value) < 0 {
@@ -390,16 +391,16 @@ func (m *MinorBlockChain) runBlock(block *types.MinorBlock, xShardReceiveTxList 
 
 	receipts, logs, usedGas, err := m.processor.Process(block, evmState, m.vmConfig)
 	if err != nil {
-		return nil, nil, nil, 0, err
+		return nil, nil, nil, 0, nil, err
 	}
 	//types.Receipts, []*types.Log, uint64, error
-	return evmState, receipts, logs, usedGas, nil
+	return evmState, receipts, logs, usedGas, xShardReceiveTxList, nil
 }
 
 // FinalizeAndAddBlock finalize minor block and add it to chain
 // only used in test now
 func (m *MinorBlockChain) FinalizeAndAddBlock(block *types.MinorBlock) (*types.MinorBlock, types.Receipts, error) {
-	evmState, receipts, _, _, err := m.runBlock(block, nil) // will lock
+	evmState, receipts, _, _, _, err := m.runBlock(block, nil) // will lock
 	if err != nil {
 		return nil, nil, err
 	}
@@ -780,8 +781,7 @@ func (m *MinorBlockChain) CreateBlockToMine(createTime *uint64, address *account
 	}
 	block := prevBlock.CreateBlockToAppend(&realCreateTime, difficulty, address, nil, gasLimit, xShardGasLimit, nil, nil)
 	evmState, err := m.getEvmStateForNewBlock(block.IHeader(), true)
-	prevHeader := m.CurrentBlock()
-	ancestorRootHeader := m.GetRootBlockByHash(prevHeader.Header().PrevRootBlockHash).Header()
+	ancestorRootHeader := m.GetRootBlockByHash(m.CurrentBlock().Header().PrevRootBlockHash).Header()
 	if !m.isSameRootChain(m.rootTip, ancestorRootHeader) {
 		return nil, ErrNotSameRootChain
 	}
@@ -1516,7 +1516,7 @@ func (m *MinorBlockChain) runOneXShardTx(evmState *state.StateDB, deposit *types
 		tx := deposit
 		evmState.AddBalance(tx.To.Recipient, tx.Value.Value, tx.TransferTokenID)
 
-		gasUsed := new(big.Int).Add(evmState.GetGasLimit(), new(big.Int).SetUint64(gasUsedStart))
+		gasUsed := new(big.Int).Add(evmState.GetGasUsed(), new(big.Int).SetUint64(gasUsedStart))
 		evmState.SetGasUsed(gasUsed)
 
 		xShardFee := new(big.Int).Mul(params.GtxxShardCost, tx.GasPrice.Value)
