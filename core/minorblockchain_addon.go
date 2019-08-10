@@ -21,7 +21,6 @@ import (
 	qkcCommon "github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/core/state"
 	"github.com/QuarkChain/goquarkchain/core/types"
-	qkcParams "github.com/QuarkChain/goquarkchain/params"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
 )
@@ -78,8 +77,7 @@ func (m *MinorBlockChain) getCoinbaseAmount(height uint64) *types.TokenBalances 
 	coinbaseAmount = new(big.Int).Div(coinbaseAmount, decayDenominator)
 
 	data := make(map[uint64]*big.Int)
-	tokenID := qkcCommon.TokenIDEncode(m.clusterConfig.Quarkchain.GenesisToken)
-	data[tokenID] = coinbaseAmount
+	data[m.clusterConfig.Quarkchain.GetDefaultChainToken()] = coinbaseAmount
 	return types.NewTokenBalancesWithMap(data)
 }
 
@@ -201,26 +199,12 @@ func (m *MinorBlockChain) validateTx(tx *types.Transaction, evmState *state.Stat
 	if err != nil {
 		return nil, err
 	}
-	if m.clusterConfig.Quarkchain.EnableTxTimeStamp != 0 && evmState.GetTimeStamp() < m.clusterConfig.Quarkchain.EnableTxTimeStamp {
-		if !m.clusterConfig.Quarkchain.IsWhiteSender(sender) {
-			return nil, fmt.Errorf("unwhitelisted senders not allowed before tx is enabled %v", sender.String())
-		}
-
-		if evmTx.To() == nil || evmTx.Data() != nil {
-			return nil, fmt.Errorf("smart contract tx is not allowed before evm is enabled")
-		}
-	}
-	reqNonce := uint64(0)
-	if bytes.Equal(sender.Bytes(), common.Address{}.Bytes()) {
-		reqNonce = 0
-	} else {
-		reqNonce = evmState.GetNonce(sender)
-	}
 
 	tx = &types.Transaction{
 		TxType: types.EvmTx,
 		EvmTx:  evmTx,
 	}
+	reqNonce := evmState.GetNonce(sender)
 	if reqNonce < evmTx.Nonce() && evmTx.Nonce() < reqNonce+MAX_FUTURE_TX_NONCE { //TODO fix
 		return tx, nil
 	}
@@ -514,7 +498,7 @@ func (m *MinorBlockChain) getCrossShardTxListByRootBlockHash(hash common.Hash) (
 		txList = append(txList, xShardTxList.TXList...)
 	}
 	if m.branch.IsInBranch(rBlock.Header().GetCoinbase().FullShardKey) { // Apply root block coinbase
-		value := rBlock.Header().CoinbaseAmount.GetTokenBalance(qkcCommon.TokenIDEncode(m.clusterConfig.Quarkchain.GenesisToken))
+		value := rBlock.Header().CoinbaseAmount.GetTokenBalance(m.clusterConfig.Quarkchain.GetDefaultChainToken())
 		txList = append(txList, &types.CrossShardTransactionDeposit{
 			TxHash:   common.Hash{},
 			From:     account.CreatEmptyAddress(0),
@@ -728,6 +712,7 @@ func (m *MinorBlockChain) addTransactionToBlock(block *types.MinorBlock, evmStat
 		// Pop skip all txs about this account
 		//Shift skip this tx ,goto next tx about this account
 		if err := m.checkTxBeforeApply(stateT, tx, block); err != nil {
+			fmt.Println("err", err)
 			if err == ErrorTxBreak {
 				break
 			} else if err == ErrorTxContinue {
@@ -786,19 +771,6 @@ func (m *MinorBlockChain) checkTxBeforeApply(stateT *state.StateDB, tx *types.Tr
 		return ErrorTxContinue
 	}
 
-	sender, err := tx.Sender(types.NewEIP155Signer(m.clusterConfig.Quarkchain.NetworkID))
-	if err != nil {
-		return ErrorTxContinue
-	}
-	if m.clusterConfig.Quarkchain.EnableTxTimeStamp != 0 && mBlock.Header().GetTime() < m.clusterConfig.Quarkchain.EnableTxTimeStamp {
-		if !m.clusterConfig.Quarkchain.IsWhiteSender(sender) {
-			return ErrorTxContinue
-		}
-
-		if tx.EvmTx.To() == nil || len(tx.EvmTx.Data()) != 0 {
-			return ErrorTxContinue
-		}
-	}
 	return nil
 }
 
@@ -1572,34 +1544,9 @@ func (m *MinorBlockChain) ReadCrossShardTxList(hash common.Hash) *types.CrossSha
 }
 
 func (m *MinorBlockChain) runOneXShardTx(evmState *state.StateDB, deposit *types.CrossShardTransactionDeposit, checkIsFromRootChain bool) error {
-	gasUsedStart := uint64(0)
-	if checkIsFromRootChain {
-		if !deposit.IsFromRootChain {
-			gasUsedStart = qkcParams.GtxxShardCost.Uint64()
-		}
-	} else {
-		if deposit.GasPrice.Value.Uint64() != 0 {
-			gasUsedStart = qkcParams.GtxxShardCost.Uint64()
-		}
-	}
-	if m.clusterConfig.Quarkchain.EnableTxTimeStamp != 0 && evmState.GetTimeStamp() < m.clusterConfig.Quarkchain.EnableTxTimeStamp {
-		tx := deposit
-		evmState.AddBalance(tx.To.Recipient, tx.Value.Value, tx.TransferTokenID)
-
-		gasUsed := new(big.Int).Add(evmState.GetGasUsed(), new(big.Int).SetUint64(gasUsedStart))
-		evmState.SetGasUsed(gasUsed)
-
-		xShardFee := new(big.Int).Mul(params.GtxxShardCost, tx.GasPrice.Value)
-		xShardFee = qkcCommon.BigIntMulBigRat(xShardFee, getLocalFeeRate(m.clusterConfig.Quarkchain))
-		t := map[uint64]*big.Int{
-			tx.GasTokenID: xShardFee,
-		}
-		evmState.AddBlockFee(t)
-		evmState.AddBalance(evmState.GetBlockCoinbase(), xShardFee, tx.GasTokenID)
-	} else {
-		//	panic("not implement")
-		//apply_xshard_desposit(evm_state, deposit, gas_used_start)
-	}
+	// TODO @DL
+	//	panic("not implement")
+	//apply_xshard_desposit(evm_state, deposit, gas_used_start)
 
 	if evmState.GetGasUsed().Cmp(evmState.GetGasLimit()) >= 0 {
 		return fmt.Errorf("gas_used should <= gasLimit %v %v", evmState.GetGasUsed(), evmState.GetGasLimit())
