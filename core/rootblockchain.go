@@ -590,6 +590,13 @@ func (bc *RootBlockChain) InsertChain(chain []types.IBlock, params *InsertChainP
 	return n, err
 }
 
+func absUint64(a, b uint64) uint64 {
+	if a > b {
+		return a - b
+	}
+	return b - a
+}
+
 // insertChain is the internal implementation of insertChain, which assumes that
 // 1) chains are contiguous, and 2) The chain mutex is held.
 //
