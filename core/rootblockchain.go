@@ -17,7 +17,6 @@ import (
 	"github.com/QuarkChain/goquarkchain/account"
 
 	"github.com/QuarkChain/goquarkchain/cluster/config"
-	qkcCommon "github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/core/rawdb"
 	"github.com/QuarkChain/goquarkchain/core/types"
@@ -1215,7 +1214,7 @@ func (bc *RootBlockChain) CalculateRootBlockCoinBase(rootBlock *types.RootBlock)
 		value = value.Div(value, ratio.Num())
 		rewardTokenMap.SetValue(value, token)
 	}
-	genesisToken := qkcCommon.TokenIDEncode(bc.Config().GenesisToken)
+	genesisToken := bc.Config().GetDefaultChainTokenID()
 	genesisTokenBalance := rewardTokenMap.GetTokenBalance(genesisToken)
 	genesisTokenBalance.Add(genesisTokenBalance, coinbaseAmount)
 	rewardTokenMap.SetValue(genesisTokenBalance, genesisToken)
