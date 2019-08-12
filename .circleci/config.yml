@@ -11,7 +11,7 @@ jobs:
       # Build qkchash c++
       - run: cd consensus/qkchash/native && make && cd -
       - run: go vet ./...
-      - run: go test ./... -gcflags=-l
+      - run: go test -v ./... -gcflags=-l
       - save_cache:
           key: go-mod-v2-{{ checksum "go.sum" }}
           paths:
