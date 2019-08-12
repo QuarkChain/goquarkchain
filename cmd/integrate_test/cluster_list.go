@@ -24,6 +24,8 @@ func (cl Clusterlist) Start(duration time.Duration, prCtrol bool) {
 		if err == nil {
 			started[idx] = cl[idx]
 		} else {
+			fmt.Println("unexpect err", err)
+			panic(err)
 			for idx, nd := range started {
 				if nd != nil {
 					nd.Stop()
@@ -75,6 +77,7 @@ func (cl Clusterlist) GetPeerByIndex(idx int) (peer *master.Peer) {
 	peers := mstr.GetPeerList()
 	for _, pr := range peers {
 		tcp := pr.RemoteAddr().(*net.TCPAddr)
+		fmt.Println("78", defaultP2PPort, idx, tcp.Port)
 		if defaultP2PPort+idx == tcp.Port {
 			return pr
 		}
