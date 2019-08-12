@@ -18,20 +18,20 @@ import (
 
 // RootBlockHeader represents a root block header in the QuarkChain.
 type RootBlockHeader struct {
-	Version         uint32           `json:"version"          gencodec:"required"`
-	Number          uint32           `json:"number"           gencodec:"required"`
-	ParentHash      common.Hash      `json:"parentHash"       gencodec:"required"`
-	MinorHeaderHash common.Hash      `json:"transactionsRoot" gencodec:"required"`
-	Root            common.Hash      `json:"root"             gencodec:"required"`
-	Coinbase        account.Address  `json:"miner"            gencodec:"required"`
-	CoinbaseAmount  *TokenBalanceMap `json:"coinbaseAmount"   gencodec:"required"`
-	Time            uint64           `json:"timestamp"        gencodec:"required"`
-	Difficulty      *big.Int         `json:"difficulty"       gencodec:"required"`
-	ToTalDifficulty *big.Int         `json:"total_difficulty" gencodec:"required"`
-	Nonce           uint64           `json:"nonce"`
-	Extra           []byte           `json:"extraData"        gencodec:"required"   bytesizeofslicelen:"2"`
-	MixDigest       common.Hash      `json:"mixHash"`
-	Signature       [65]byte         `json:"signature"        gencodec:"required"`
+	Version         uint32          `json:"version"          gencodec:"required"`
+	Number          uint32          `json:"number"           gencodec:"required"`
+	ParentHash      common.Hash     `json:"parentHash"       gencodec:"required"`
+	MinorHeaderHash common.Hash     `json:"transactionsRoot" gencodec:"required"`
+	Root            common.Hash     `json:"root"             gencodec:"required"`
+	Coinbase        account.Address `json:"miner"            gencodec:"required"`
+	CoinbaseAmount  *TokenBalances  `json:"coinbaseAmount"   gencodec:"required"`
+	Time            uint64          `json:"timestamp"        gencodec:"required"`
+	Difficulty      *big.Int        `json:"difficulty"       gencodec:"required"`
+	ToTalDifficulty *big.Int        `json:"total_difficulty" gencodec:"required"`
+	Nonce           uint64          `json:"nonce"`
+	Extra           []byte          `json:"extraData"        gencodec:"required"   bytesizeofslicelen:"2"`
+	MixDigest       common.Hash     `json:"mixHash"`
+	Signature       [65]byte        `json:"signature"        gencodec:"required"`
 }
 
 // Hash returns the block hash of the header, which is simply the keccak256 hash of its
@@ -79,13 +79,11 @@ func (h *RootBlockHeader) GetExtra() []byte {
 	return nil
 }
 
-func (b *RootBlockHeader) GetCoinbaseAmount() *TokenBalanceMap {
-	if b.CoinbaseAmount != nil && b.CoinbaseAmount.BalanceMap != nil {
-		return &TokenBalanceMap{
-			BalanceMap: map[uint64]*big.Int(b.CoinbaseAmount.BalanceMap),
-		}
+func (b *RootBlockHeader) GetCoinbaseAmount() *TokenBalances {
+	if b.CoinbaseAmount != nil && b.CoinbaseAmount.GetBalanceMap() != nil {
+		return NewTokenBalancesWithMap(b.CoinbaseAmount.GetBalanceMap())
 	}
-	return NewTokenBalanceMap()
+	return NewEmptyTokenBalances()
 }
 
 func (h *RootBlockHeader) GetMixDigest() common.Hash { return h.MixDigest }
@@ -138,7 +136,7 @@ func (h *RootBlockHeader) CreateBlockToAppend(createTime *uint64, difficulty *bi
 		ParentHash:      h.Hash(),
 		MinorHeaderHash: common.Hash{},
 		Coinbase:        *address,
-		CoinbaseAmount:  NewTokenBalanceMap(),
+		CoinbaseAmount:  NewEmptyTokenBalances(),
 		Time:            *createTime,
 		Difficulty:      difficulty,
 		ToTalDifficulty: totalDifficulty,
@@ -219,7 +217,7 @@ func NewRootBlockWithHeader(header *RootBlockHeader) *RootBlock {
 // modifying a header variable.
 func CopyRootBlockHeader(h *RootBlockHeader) *RootBlockHeader {
 	cpy := *h
-	if h.CoinbaseAmount != nil && h.CoinbaseAmount.BalanceMap != nil {
+	if h.CoinbaseAmount != nil && h.CoinbaseAmount.GetBalanceMap() != nil {
 		cpy.CoinbaseAmount = h.CoinbaseAmount.Copy()
 	}
 	if cpy.Difficulty = new(big.Int); h.Difficulty != nil {
@@ -364,9 +362,9 @@ func (b *RootBlock) GetSize() common.StorageSize {
 	return b.Size()
 }
 
-func (b *RootBlock) Finalize(coinbaseAmount *TokenBalanceMap, coinbaseAddress *account.Address, root common.Hash) *RootBlock {
+func (b *RootBlock) Finalize(coinbaseAmount *TokenBalances, coinbaseAddress *account.Address, root common.Hash) *RootBlock {
 	if coinbaseAmount == nil {
-		coinbaseAmount = NewTokenBalanceMap()
+		coinbaseAmount = NewEmptyTokenBalances()
 	}
 
 	if coinbaseAddress == nil {

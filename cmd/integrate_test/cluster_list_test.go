@@ -1,3 +1,5 @@
+//+build integrate_test
+
 package test
 
 import (
@@ -12,10 +14,6 @@ import (
 	"runtime"
 	"testing"
 	"time"
-)
-
-var (
-	testGenesisTokenID = common.TokenIDEncode("QKC")
 )
 
 func tipGen(geneAcc *account.Account, shrd *shard.ShardBackend) *types.MinorBlock {
@@ -328,7 +326,7 @@ func TestAddTransaction(t *testing.T) {
 	// verify address account and nonce in another cluster
 	accdata1, err := mstr1.GetAccountData(&geneAcc.QKCAddress, nil)
 	assert.Equal(t, accdata1[fullShardId].TransactionCount, uint64(1))
-	assert.Equal(t, accdata1[fullShardId].Balance.Uint64() == accdata[fullShardId].Balance.Uint64(), true)
+	assert.Equal(t, accdata1[fullShardId].Balance.GetTokenBalance(testGenesisTokenID) == accdata[fullShardId].Balance.GetTokenBalance(testGenesisTokenID), true)
 
 	clstrList.Stop()
 	time.Sleep(1 * time.Second)
@@ -581,7 +579,7 @@ func TestBroadcastCrossShardTransactions(t *testing.T) {
 		if err != nil || accData[id1] == nil {
 			return false
 		}
-		return accData[id1].Balance.Uint64() == uint64(genesisBalance+100)
+		return accData[id1].Balance.GetTokenBalance(testGenesisTokenID).Uint64() == uint64(genesisBalance+100)
 	}, 20), true)
 
 	clstrList.Stop()
@@ -739,7 +737,7 @@ func TestHandleGetMinorBlockListRequestWithTotalDiff(t *testing.T) {
 	_, clstrList := CreateClusterList(2, cfglist)
 	clstrList.Start(5*time.Second, true)
 
-	calCoinBase := func(rootBlock *types.RootBlock) *types.TokenBalanceMap {
+	calCoinBase := func(rootBlock *types.RootBlock) *types.TokenBalances {
 		res := make(map[string]*big.Int)
 		ret := new(big.Int).Set(clstrList[0].clstrCfg.Quarkchain.Root.CoinbaseAmount)
 		rewardTaxRate := clstrList[0].clstrCfg.Quarkchain.RewardTaxRate
@@ -749,14 +747,14 @@ func TestHandleGetMinorBlockListRequestWithTotalDiff(t *testing.T) {
 
 		minorBlockFee := new(big.Int)
 		for _, header := range rootBlock.MinorBlockHeaders() {
-			minorBlockFee.Add(minorBlockFee, header.CoinbaseAmount.BalanceMap[testGenesisTokenID])
+			minorBlockFee.Add(minorBlockFee, header.CoinbaseAmount.GetTokenBalance(testGenesisTokenID))
 		}
 		minorBlockFee.Mul(minorBlockFee, ratio.Num())
 		minorBlockFee.Div(minorBlockFee, ratio.Denom())
 		ret.Add(ret, minorBlockFee)
 		res["QKC"] = ret
-		t := types.NewTokenBalanceMap()
-		t.BalanceMap[testGenesisTokenID] = ret
+		t := types.NewEmptyTokenBalances()
+		t.SetValue(ret, testGenesisTokenID)
 		return t
 	}
 	tipNumber := clstrList[0].master.GetTip()

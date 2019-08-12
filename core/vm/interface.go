@@ -28,9 +28,10 @@ import (
 type StateDB interface {
 	CreateAccount(common.Address)
 
-	SubBalance(common.Address, *big.Int)
-	AddBalance(common.Address, *big.Int)
-	GetBalance(common.Address) *big.Int
+	SubBalance(common.Address, *big.Int, uint64)
+	AddBalance(common.Address, *big.Int, uint64)
+	GetBalance(common.Address, uint64) *big.Int
+	GetBalances(address common.Address) *types.TokenBalances
 
 	GetNonce(common.Address) uint64
 	SetNonce(common.Address, uint64)
@@ -72,8 +73,8 @@ type StateDB interface {
 	GetXShardList() []*types.CrossShardTransactionDeposit
 	SetFullShardKey(uint32)
 	GetFullShardKey(common.Address) uint32
-	AddBlockFee(*big.Int)
-	GetBlockFee() *big.Int
+	AddBlockFee(map[uint64]*big.Int)
+	GetBlockFee() map[uint64]*big.Int
 	GetQuarkChainConfig() *config.QuarkChainConfig
 	SetQuarkChainConfig(*config.QuarkChainConfig)
 	GetGasUsed() *big.Int
@@ -87,7 +88,12 @@ type StateDB interface {
 	GetSenderDisallowMap() map[account.Recipient]*big.Int
 	GetBlockCoinbase() account.Recipient
 	SetBlockCoinbase(recipient account.Recipient)
-	GetXshardTxCursorInfo() *types.XShardTxCursorInfo
+	GetTimeStamp() uint64
+	SetTimeStamp(uint64)
+	GetBlockNumber() uint64
+	SetBlockNumber(uint64)
+	SetTxCursorInfo(info *types.XShardTxCursorInfo)
+	GetTxCursorInfo() *types.XShardTxCursorInfo
 }
 
 // CallContext provides a basic interface for the EVM calling conventions. The EVM
