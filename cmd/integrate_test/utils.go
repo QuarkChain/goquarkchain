@@ -6,12 +6,16 @@ import (
 	"github.com/QuarkChain/goquarkchain/cmd/utils"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/p2p"
+	qkcCommon "github.com/QuarkChain/goquarkchain/common"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"math/big"
 	"net"
 	"strings"
+)
+var (
+	testGenesisTokenID = qkcCommon.TokenIDEncode("QKC")
 )
 
 var (
@@ -96,7 +100,7 @@ func createTx(acc account.Address, to *account.Address) *types.Transaction {
 		uint32(to.FullShardKey),
 		3,
 		0,
-		[]byte{})
+		[]byte{},testGenesisTokenID,testGenesisTokenID)
 	tx, _ := sign(evmTx)
 	return &types.Transaction{
 		EvmTx:  tx,

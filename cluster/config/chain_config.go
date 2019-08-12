@@ -54,6 +54,7 @@ func NewChainConfig() *ChainConfig {
 		DifficultyAdjustmentFactor:         512,
 		ExtraShardBlocksInRootBlock:        3,
 		PoswConfig:                         NewPOSWConfig(),
+		EpochInterval:                      new(big.Int).SetUint64(210000 * 60),
 	}
 }
 
