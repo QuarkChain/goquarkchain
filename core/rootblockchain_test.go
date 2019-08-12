@@ -47,7 +47,7 @@ func newCanonical(engine consensus.Engine, n int, full bool) (ethdb.Database, *R
 	if full {
 		// Full block-chain requested
 		blocks := makeRootBlockChain(genesisBlock, n, engine, canonicalSeed)
-		_, err := blockchain.InsertChain(ToBlocks(blocks), nil)
+		_, err := blockchain.InsertChain(ToBlocks(blocks))
 		return db, blockchain, err
 	}
 	// Header-only chain requested
@@ -85,7 +85,7 @@ func testFork(t *testing.T, blockchain *RootBlockChain, i, n int, full bool, com
 	)
 	if full {
 		blockChainB = makeRootBlockChain(blockchain2.CurrentBlock(), n, engine, forkSeed)
-		if _, err := blockchain2.InsertChain(ToBlocks(blockChainB), nil); err != nil {
+		if _, err := blockchain2.InsertChain(ToBlocks(blockChainB)); err != nil {
 			t.Fatalf("failed to insert forking chain: %v", err)
 		}
 	} else {
@@ -162,7 +162,7 @@ func testHeaderChainImport(chain []*types.RootBlockHeader, blockchain *RootBlock
 }
 
 func insertCdhain(done chan bool, blockchain *RootBlockChain, chain []types.IBlock, t *testing.T) {
-	_, err := blockchain.InsertChain(chain, nil)
+	_, err := blockchain.InsertChain(chain)
 	if err != nil {
 		fmt.Println(err)
 		t.FailNow()
@@ -179,7 +179,7 @@ func TestLastBlock(t *testing.T) {
 	defer blockchain.Stop()
 
 	blocks := makeRootBlockChain(blockchain.CurrentBlock(), 1, engine, 0)
-	if _, err := blockchain.InsertChain(ToBlocks(blocks), nil); err != nil {
+	if _, err := blockchain.InsertChain(ToBlocks(blocks)); err != nil {
 		t.Fatalf("Failed to insert block: %v", err)
 	}
 	if blocks[len(blocks)-1].Hash() != rawdb.ReadHeadBlockHash(blockchain.db) {
@@ -380,10 +380,10 @@ func testReorg(t *testing.T, first, second []uint64, td int64, full bool) {
 		b.SetDifficulty(second[i])
 	})
 	if full {
-		if _, err := blockchain.InsertChain(ToBlocks(easyBlocks), nil); err != nil {
+		if _, err := blockchain.InsertChain(ToBlocks(easyBlocks)); err != nil {
 			t.Fatalf("failed to insert easy chain: %v", err)
 		}
-		if _, err := blockchain.InsertChain(ToBlocks(diffBlocks), nil); err != nil {
+		if _, err := blockchain.InsertChain(ToBlocks(diffBlocks)); err != nil {
 			t.Fatalf("failed to insert difficult chain: %v", err)
 		}
 	} else {
@@ -448,8 +448,8 @@ func TestIsSameChain(t *testing.T) {
 		b.SetDifficulty(1100)
 	})
 
-	blockchain.InsertChain(ToBlocks(firstBlocks), nil)
-	blockchain.InsertChain(ToBlocks(secondBlocks), nil)
+	blockchain.InsertChain(ToBlocks(firstBlocks))
+	blockchain.InsertChain(ToBlocks(secondBlocks))
 	if !blockchain.isSameChain(firstBlocks[9].Header(), firstBlocks[3].Header()) ||
 		!blockchain.isSameChain(secondBlocks[9].Header(), secondBlocks[3].Header()) {
 		t.Fatalf("isSameChain result is false, want true")
@@ -489,7 +489,7 @@ func testInsertNonceError(t *testing.T, full bool) {
 
 			engine.NumberToFail = failNum
 			engine.Err = errors.New("fack engine expected fail")
-			failRes, err = blockchain.InsertChain(ToBlocks(blocks), nil)
+			failRes, err = blockchain.InsertChain(ToBlocks(blocks))
 		} else {
 			headers := makeRootBlockHeaderChain(blockchain.CurrentHeader().(*types.RootBlockHeader), i, engine, 0)
 
@@ -536,7 +536,7 @@ func TestReorgSideEvent(t *testing.T) {
 	defer blockchain.Stop()
 
 	chain := GenerateRootBlockChain(genesis, engine, 3, func(i int, gen *RootBlockGen) {})
-	if _, err := blockchain.InsertChain(ToBlocks(chain), nil); err != nil {
+	if _, err := blockchain.InsertChain(ToBlocks(chain)); err != nil {
 		t.Fatalf("failed to insert chain: %v", err)
 	}
 
@@ -547,7 +547,7 @@ func TestReorgSideEvent(t *testing.T) {
 	})
 	chainSideCh := make(chan RootChainSideEvent, 64)
 	blockchain.SubscribeChainSideEvent(chainSideCh)
-	if _, err := blockchain.InsertChain(ToBlocks(replacementBlocks), nil); err != nil {
+	if _, err := blockchain.InsertChain(ToBlocks(replacementBlocks)); err != nil {
 		t.Fatalf("failed to insert chain: %v", err)
 	}
 
@@ -635,7 +635,7 @@ func TestCanonicalBlockRetrieval(t *testing.T) {
 			}
 		}(chain[i])
 
-		if _, err := blockchain.InsertChain([]types.IBlock{chain[i]}, nil); err != nil {
+		if _, err := blockchain.InsertChain([]types.IBlock{chain[i]}); err != nil {
 			t.Fatalf("failed to insert block %d: %v", i, err)
 		}
 	}
@@ -679,13 +679,13 @@ func TestBlockchainHeaderchainReorgConsistency(t *testing.T) {
 		t.Fatalf("failed to create tester chain: %v", err)
 	}
 	for i := 0; i < len(blocks); i++ {
-		if _, err := chain.InsertChain(ToBlocks(blocks[i:i+1]), nil); err != nil {
+		if _, err := chain.InsertChain(ToBlocks(blocks[i : i+1])); err != nil {
 			t.Fatalf("block %d: failed to insert into chain: %v", i, err)
 		}
 		if chain.CurrentBlock().Hash() != chain.CurrentHeader().Hash() {
 			t.Errorf("block %d: current block/header mismatch: block #%d [%x…], header #%d [%x…]", i, chain.CurrentBlock().Number(), chain.CurrentBlock().Hash().Bytes()[:4], chain.CurrentHeader().NumberU64(), chain.CurrentHeader().Hash().Bytes()[:4])
 		}
-		if _, err := chain.InsertChain(ToBlocks(forks[i:i+1]), nil); err != nil {
+		if _, err := chain.InsertChain(ToBlocks(forks[i : i+1])); err != nil {
 			t.Fatalf(" fork %d: failed to insert into chain: %v", i, err)
 		}
 		if chain.CurrentBlock().Hash() != chain.CurrentHeader().Hash() {
@@ -728,10 +728,10 @@ func TestTrieForkGC(t *testing.T) {
 		t.Fatalf("failed to create tester chain: %v", err)
 	}
 	for i := 0; i < len(blocks); i++ {
-		if _, err := chain.InsertChain(ToBlocks(blocks[i:i+1]), nil); err != nil {
+		if _, err := chain.InsertChain(ToBlocks(blocks[i : i+1])); err != nil {
 			t.Fatalf("block %d: failed to insert into chain: %v", i, err)
 		}
-		if _, err := chain.InsertChain(ToBlocks(forks[i:i+1]), nil); err != nil {
+		if _, err := chain.InsertChain(ToBlocks(forks[i : i+1])); err != nil {
 			t.Fatalf("fork %d: failed to insert into chain: %v", i, err)
 		}
 	}
@@ -765,20 +765,20 @@ func TestLargeReorgTrieGC(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create tester chain: %v", err)
 	}
-	if _, err := chain.InsertChain(ToBlocks(shared), nil); err != nil {
+	if _, err := chain.InsertChain(ToBlocks(shared)); err != nil {
 		t.Fatalf("failed to insert shared chain: %v", err)
 	}
-	if _, err := chain.InsertChain(ToBlocks(original), nil); err != nil {
+	if _, err := chain.InsertChain(ToBlocks(original)); err != nil {
 		t.Fatalf("failed to insert original chain: %v", err)
 	}
 	// Import the competitor chain without exceeding the canonical's TD and ensure
 	// we have not processed any of the blocks (protection against malicious blocks)
-	if _, err := chain.InsertChain(ToBlocks(competitor[:len(competitor)-2]), nil); err != nil {
+	if _, err := chain.InsertChain(ToBlocks(competitor[:len(competitor)-2])); err != nil {
 		t.Fatalf("failed to insert competitor chain: %v", err)
 	}
 	// Import the head of the competitor chain, triggering the reorg and ensure we
 	// successfully reprocess all the stashed away blocks.
-	if _, err := chain.InsertChain(ToBlocks(competitor[len(competitor)-2:]), nil); err != nil {
+	if _, err := chain.InsertChain(ToBlocks(competitor[len(competitor)-2:])); err != nil {
 		t.Fatalf("failed to finalize competitor chain: %v", err)
 	}
 }
@@ -822,7 +822,7 @@ func TestGetBlockCnt(t *testing.T) {
 	//defer blockchain.Stop()
 
 	blockchain.SetValidator(&fakeRootBlockValidator{nil})
-	if i, err := blockchain.InsertChain(ToBlocks(chain), nil); err != nil {
+	if i, err := blockchain.InsertChain(ToBlocks(chain)); err != nil {
 		fmt.Printf("insert error (block %d): %v\n", chain[i].NumberU64(), err)
 		return
 	}
@@ -868,7 +868,7 @@ func benchmarkLargeNumberOfValueToNonexisting(b *testing.B, numItems, numBlocks 
 			b.Fatalf("failed to create tester chain: %v", err)
 		}
 		b.StartTimer()
-		if _, err := chain.InsertChain(ToBlocks(shared), nil); err != nil {
+		if _, err := chain.InsertChain(ToBlocks(shared)); err != nil {
 			b.Fatalf("failed to insert shared chain: %v", err)
 		}
 		b.StopTimer()

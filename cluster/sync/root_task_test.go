@@ -81,7 +81,7 @@ func (bc *mockblockchain) HasBlock(hash common.Hash) bool {
 
 func (bc *mockblockchain) AddBlock(block types.IBlock) error {
 	if bc.rbc != nil {
-		_, err := bc.rbc.InsertChain([]types.IBlock{block}, nil)
+		_, err := bc.rbc.InsertChain([]types.IBlock{block})
 		return err
 	}
 	_, err := bc.mbc.InsertChain([]types.IBlock{block}, nil)
@@ -125,9 +125,6 @@ func (v *mockvalidator) ValidateSeal(mHeader types.IHeader) error {
 	return v.err
 }
 
-func (v *mockvalidator) SetWriteDBFlag(flag bool) {
-
-}
 func newRootBlockChain(sz int) blockchain {
 	qkcconfig.SkipRootCoinbaseCheck = true
 	db := ethdb.NewMemDatabase()
@@ -142,7 +139,7 @@ func newRootBlockChain(sz int) blockchain {
 		blocks = append(blocks, rb)
 	}
 
-	_, err = blockchain.InsertChain(blocks, nil)
+	_, err = blockchain.InsertChain(blocks)
 	if err != nil {
 		panic(fmt.Sprintf("failed to insert headers: %v", err))
 	}

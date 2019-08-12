@@ -34,7 +34,6 @@ type Validator interface {
 	ValidateState(block, parent types.IBlock, state *state.StateDB, receipts types.Receipts, usedGas uint64) error
 
 	ValidateSeal(rHeader types.IHeader) error
-	SetWriteDBFlag(flag bool)
 }
 
 // Processor is an interface for processing blocks using a given initial state.

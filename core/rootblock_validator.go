@@ -19,7 +19,6 @@ type RootBlockValidator struct {
 	config     *config.QuarkChainConfig // config configuration options
 	blockChain *RootBlockChain          // root block chain
 	engine     consensus.Engine         // engine engine used for validating
-	writedb    bool
 }
 
 // NewRootBlockValidator returns a new root block validator which is safe for re-use
@@ -30,10 +29,6 @@ func NewRootBlockValidator(config *config.QuarkChainConfig, blockchain *RootBloc
 		blockChain: blockchain,
 	}
 	return validator
-}
-
-func (v *RootBlockValidator) SetWriteDBFlag(flag bool) {
-	v.writedb = flag
 }
 
 // ValidateBlock validates the given block and verifies the block header's roots.
@@ -171,9 +166,7 @@ func (v *RootBlockValidator) ValidateBlock(block types.IBlock) error {
 		latestMinorBlockHeaders[fullShardId] = minorHeaders[len(minorHeaders)-1]
 	}
 
-	if v.writedb {
-		v.blockChain.SetLatestMinorBlockHeaders(block.Hash(), latestMinorBlockHeaders)
-	}
+	v.blockChain.SetLatestMinorBlockHeaders(block.Hash(), latestMinorBlockHeaders)
 	return nil
 }
 
@@ -211,8 +204,4 @@ func (v *fakeRootBlockValidator) ValidateState(block, parent types.IBlock, state
 }
 func (v *fakeRootBlockValidator) ValidateSeal(rHeader types.IHeader) error {
 	return nil
-}
-
-func (v *fakeRootBlockValidator) SetWriteDBFlag(flag bool) {
-
 }

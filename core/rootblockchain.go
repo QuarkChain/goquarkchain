@@ -103,9 +103,10 @@ type RootBlockChain struct {
 	engine    consensus.Engine
 	validator Validator // block and state validator interface
 
-	shouldPreserve   func(block *types.RootBlock) bool // Function used to determine whether should preserve the given block.
-	countMinorBlocks bool
-	addBlockAndBroad func(block *types.RootBlock) error
+	shouldPreserve    func(block *types.RootBlock) bool // Function used to determine whether should preserve the given block.
+	countMinorBlocks  bool
+	addBlockAndBroad  func(block *types.RootBlock) error
+	insertChainParams *InsertChainParams
 }
 
 // NewBlockChain returns a fully initialized block chain using information
@@ -126,6 +127,7 @@ func NewRootBlockChain(db ethdb.Database, chainConfig *config.QuarkChainConfig, 
 		futureBlocks:             futureBlocks,
 		engine:                   engine,
 		validatedMinorBlockCache: validatedMinorBlockHashCache,
+		insertChainParams:        GetDefaultInsertChainParams(),
 	}
 	bc.SetValidator(NewRootBlockValidator(chainConfig, bc, engine))
 
@@ -150,6 +152,11 @@ func NewRootBlockChain(db ethdb.Database, chainConfig *config.QuarkChainConfig, 
 
 func (bc *RootBlockChain) getProcInterrupt() bool {
 	return atomic.LoadInt32(&bc.procInterrupt) == 1
+}
+
+// will set it when check db
+func (bc *RootBlockChain) SetInsertChainParams(params *InsertChainParams) {
+	bc.insertChainParams = params
 }
 
 // loadLastState loads the last known chain state from the database. This method
@@ -419,7 +426,7 @@ func (bc *RootBlockChain) procFutureBlocks() {
 
 		// Insert one by one as chain insertion needs contiguous ancestry between blocks
 		for i := range blocks {
-			bc.InsertChain(blocks[i:i+1], nil)
+			bc.InsertChain(blocks[i : i+1])
 		}
 	}
 }
@@ -473,7 +480,7 @@ func (bc *RootBlockChain) WriteBlockWithoutState(block types.IBlock, td *big.Int
 
 //todo
 // WriteBlockWithState writes the block and all associated state to the database.
-func (bc *RootBlockChain) WriteBlockWithState(block *types.RootBlock, writedb bool) (status WriteStatus, err error) {
+func (bc *RootBlockChain) WriteBlockWithState(block *types.RootBlock) (status WriteStatus, err error) {
 	bc.wg.Add(1)
 	defer bc.wg.Done()
 
@@ -491,7 +498,7 @@ func (bc *RootBlockChain) WriteBlockWithState(block *types.RootBlock, writedb bo
 	if err := bc.headerChain.WriteTd(block.Hash(), externTd); err != nil {
 		return NonStatTy, err
 	}
-	if writedb {
+	if bc.insertChainParams.WriteDB {
 		rawdb.WriteRootBlock(bc.db, block)
 	}
 
@@ -560,10 +567,7 @@ func (bc *RootBlockChain) addFutureBlock(block types.IBlock) error {
 // wrong.
 //
 // After insertion is done, all accumulated events will be fired.
-func (bc *RootBlockChain) InsertChain(chain []types.IBlock, params *InsertChainParams) (int, error) {
-	if params == nil {
-		params = GetDefaultInsertChainParams()
-	}
+func (bc *RootBlockChain) InsertChain(chain []types.IBlock) (int, error) {
 	// Sanity check that we have something meaningful to import
 	if len(chain) == 0 {
 		return 0, nil
@@ -582,7 +586,7 @@ func (bc *RootBlockChain) InsertChain(chain []types.IBlock, params *InsertChainP
 	// Pre-checks passed, start the full block imports
 	bc.wg.Add(1)
 	bc.chainmu.Lock()
-	n, events, err := bc.insertChain(chain, true, params)
+	n, events, err := bc.insertChain(chain, true)
 	bc.chainmu.Unlock()
 	bc.wg.Done()
 
@@ -605,7 +609,7 @@ func absUint64(a, b uint64) uint64 {
 // racey behaviour. If a sidechain import is in progress, and the historic state
 // is imported, but then new canon-head is added before the actual sidechain
 // completes, then the historic state could be pruned again
-func (bc *RootBlockChain) insertChain(chain []types.IBlock, verifySeals bool, params *InsertChainParams) (int, []interface{}, error) {
+func (bc *RootBlockChain) insertChain(chain []types.IBlock, verifySeals bool) (int, []interface{}, error) {
 	// If the chain is terminating, don't even bother starting u
 	if atomic.LoadInt32(&bc.procInterrupt) == 1 {
 		return 0, nil, nil
@@ -631,14 +635,13 @@ func (bc *RootBlockChain) insertChain(chain []types.IBlock, verifySeals bool, pa
 	defer close(abort)
 
 	// Peek the error for the first block to decide the directing import logic
-	bc.Validator().SetWriteDBFlag(params.WriteDB)
 	it := newInsertIterator(chain, results, bc.Validator())
 
 	block, err := it.next()
 	switch {
 	// First block is pruned, insert as sidechain and reorg only if TD grows enough
 	case err == ErrPrunedAncestor:
-		return bc.insertSidechain(it, params)
+		return bc.insertSidechain(it)
 
 	// First block is future, shove it (and all children) to the future queue (unknown ancestor)
 	case err == ErrFutureBlock || (err == ErrUnknownAncestor && bc.futureBlocks.Contains(it.first().IHeader().GetParentHash())):
@@ -692,14 +695,14 @@ func (bc *RootBlockChain) insertChain(chain []types.IBlock, verifySeals bool, pa
 			bc.reportBlock(block, err)
 			return it.index, events, err
 		}
-		if params.ShipIfTooOld && absUint64(bc.CurrentBlock().Header().NumberU64(), block.NumberU64()) > bc.Config().Root.MaxStaleRootBlockHeightDiff {
+		if bc.insertChainParams.ShipIfTooOld && absUint64(bc.CurrentBlock().Header().NumberU64(), block.NumberU64()) > bc.Config().Root.MaxStaleRootBlockHeightDiff {
 			log.Warn("Insert Root Block", "drop block height", block.NumberU64(), "tip height", bc.CurrentBlock().NumberU64())
 			return it.index, events, fmt.Errorf("block is too old %v %v", block.IHeader().NumberU64(), bc.CurrentBlock().NumberU64())
 		}
 		proctime := time.Since(start)
 
 		// Write the block to the chain and get the status.
-		status, err := bc.WriteBlockWithState(block.(*types.RootBlock), params.WriteDB)
+		status, err := bc.WriteBlockWithState(block.(*types.RootBlock))
 		if err != nil {
 			return it.index, events, err
 		}
@@ -751,7 +754,7 @@ func (bc *RootBlockChain) insertChain(chain []types.IBlock, verifySeals bool, pa
 //
 // The method writes all (header-and-body-valid) blocks to disk, then tries to
 // switch over to the new chain if the TD exceeded the current chain.
-func (bc *RootBlockChain) insertSidechain(it *insertIterator, params *InsertChainParams) (int, []interface{}, error) {
+func (bc *RootBlockChain) insertSidechain(it *insertIterator) (int, []interface{}, error) {
 	var (
 		externTd *big.Int
 		current  = bc.CurrentBlock().NumberU64()
@@ -833,7 +836,7 @@ func (bc *RootBlockChain) insertSidechain(it *insertIterator, params *InsertChai
 		// memory here.
 		if len(blocks) >= 2048 {
 			log.Info("Importing heavy sidechain segment", "blocks", len(blocks), "start", blocks[0].NumberU64(), "end", block.NumberU64())
-			if _, _, err := bc.insertChain(blocks, false, params); err != nil {
+			if _, _, err := bc.insertChain(blocks, false); err != nil {
 				return 0, nil, err
 			}
 			blocks = blocks[:0]
@@ -847,7 +850,7 @@ func (bc *RootBlockChain) insertSidechain(it *insertIterator, params *InsertChai
 	}
 	if len(blocks) > 0 {
 		log.Info("Importing sidechain segment", "start", blocks[0].NumberU64(), "end", blocks[len(blocks)-1].NumberU64())
-		return bc.insertChain(blocks, false, params)
+		return bc.insertChain(blocks, false)
 	}
 	return 0, nil, nil
 }
@@ -1100,6 +1103,9 @@ func (bc *RootBlockChain) GetLatestMinorBlockHeaders(hash common.Hash) map[uint3
 }
 
 func (bc *RootBlockChain) SetLatestMinorBlockHeaders(hash common.Hash, headerMap map[uint32]*types.MinorBlockHeader) {
+	if !bc.insertChainParams.WriteDB {
+		return
+	}
 	headers := make([]*types.MinorBlockHeader, 0, len(headerMap))
 	for _, header := range headerMap {
 		headers = append(headers, header)
