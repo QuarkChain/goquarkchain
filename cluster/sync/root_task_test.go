@@ -84,7 +84,7 @@ func (bc *mockblockchain) AddBlock(block types.IBlock) error {
 		_, err := bc.rbc.InsertChain([]types.IBlock{block})
 		return err
 	}
-	_, err := bc.mbc.InsertChain([]types.IBlock{block})
+	_, err := bc.mbc.InsertChain([]types.IBlock{block}, nil)
 	return err
 }
 

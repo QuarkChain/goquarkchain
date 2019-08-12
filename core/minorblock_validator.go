@@ -27,6 +27,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/log"
 	"math/big"
+	"time"
 )
 
 // MinorBlockValidator is responsible for validating block Headers, uncles and
@@ -67,6 +68,10 @@ func (v *MinorBlockValidator) ValidateBlock(mBlock types.IBlock) error {
 		return ErrInvalidMinorBlock
 	}
 
+	if block.Header().Version != 0 {
+		return errors.New("incorrect minor block version")
+	}
+
 	blockHeight := block.NumberU64()
 	if blockHeight < 1 {
 		errBlockHeight := errors.New("block.Number <1")
@@ -101,6 +106,10 @@ func (v *MinorBlockValidator) ValidateBlock(mBlock types.IBlock) error {
 	if block.Branch().Value != v.branch.Value {
 		log.Error(v.logInfo, "err", ErrBranch, "block.branch", block.Branch().Value, "current branch", v.branch.Value)
 		return ErrBranch
+	}
+
+	if block.Header().Time > uint64(time.Now().Unix())+ALLOWED_FUTURE_BLOCKS_TIME_VALIDATION {
+		return fmt.Errorf("block too far into future")
 	}
 
 	if block.IHeader().GetTime() <= prevHeader.GetTime() {
@@ -176,9 +185,11 @@ func (v *MinorBlockValidator) ValidateBlock(mBlock types.IBlock) error {
 		log.Error(v.logInfo, "err", errMustBeOneRootChain, "long", block.Header().GetPrevRootBlockHash().String(), "short", prevHeader.(*types.MinorBlockHeader).GetPrevRootBlockHash().String())
 		return errMustBeOneRootChain
 	}
-	if err := v.ValidateSeal(block.Header()); err != nil {
-		log.Error(v.logInfo, "ValidatorBlockSeal err", err)
-		return err
+	if !v.bc.clusterConfig.Quarkchain.DisablePowCheck {
+		if err := v.ValidateSeal(block.Header()); err != nil {
+			log.Error(v.logInfo, "ValidatorBlockSeal err", err)
+			return err
+		}
 	}
 	return nil
 }
@@ -198,6 +209,34 @@ func (v *MinorBlockValidator) ValidateSeal(mHeader types.IHeader) error {
 		return err
 	}
 	return v.engine.VerifySeal(v.bc, header, adjustedDiff)
+}
+func compareXshardTxCursor(a, b *types.XShardTxCursorInfo) bool {
+	if a.XShardDepositIndex != b.XShardDepositIndex {
+		return false
+	}
+	if a.MinorBlockIndex != b.MinorBlockIndex {
+		return false
+	}
+	if a.RootBlockHeight != b.RootBlockHeight {
+		return false
+	}
+	return true
+}
+
+func compareCoinbaseAmountMap(a, b map[uint64]*big.Int) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for k, v := range a {
+		data, ok := b[k]
+		if !ok {
+			return false
+		}
+		if data.Cmp(v) != 0 {
+			return false
+		}
+	}
+	return true
 }
 
 // ValidateState validates the various changes that happen after a state
@@ -223,6 +262,11 @@ func (v *MinorBlockValidator) ValidateState(mBlock, parent types.IBlock, statedb
 		return fmt.Errorf("invalid bloom (remote: %x  local: %x)", mHeader.GetBloom(), bloom)
 	}
 
+	if !compareXshardTxCursor(statedb.GetTxCursorInfo(), block.Meta().XShardTxCursorInfo) {
+		return fmt.Errorf("cross-hard transaction cursor info mismatches! %v %v", statedb.GetTxCursorInfo(), block.Meta().XShardTxCursorInfo)
+	}
+
+	receipts = append(receipts, statedb.GetXShardDepositReceipt()...)
 	receiptSha := types.DeriveSha(receipts)
 	if receiptSha != block.GetMetaData().ReceiptHash {
 		return fmt.Errorf("invalid receipt root hash (remote: %x local: %x)", block.GetMetaData().ReceiptHash, receiptSha)
@@ -230,10 +274,9 @@ func (v *MinorBlockValidator) ValidateState(mBlock, parent types.IBlock, statedb
 	if statedb.GetGasUsed().Cmp(block.GetMetaData().GasUsed.Value) != 0 {
 		return ErrGasUsed
 	}
-
-	//TODO-master
-	coinbaseAmount := new(big.Int).Add(v.bc.getCoinbaseAmount(), statedb.GetBlockFee())
-	if coinbaseAmount.Cmp(block.Header().GetCoinbaseAmount().BalanceMap[common.TokenIDEncode("QKC")]) != 0 {
+	coinbaseAmount := v.bc.getCoinbaseAmount(block.Header().Number)
+	coinbaseAmount.Add(statedb.GetBlockFee())
+	if !compareCoinbaseAmountMap(coinbaseAmount.GetBalanceMap(), block.Header().CoinbaseAmount.GetBalanceMap()) {
 		return ErrCoinbaseAmount
 	}
 

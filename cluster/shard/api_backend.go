@@ -74,7 +74,7 @@ func (s *ShardBackend) AddMinorBlock(block *types.MinorBlock) error {
 	)
 
 	currHead := s.MinorBlockChain.CurrentBlock().Number()
-	_, xshardLst, err := s.MinorBlockChain.InsertChainForDeposits([]types.IBlock{block})
+	_, xshardLst, err := s.MinorBlockChain.InsertChainForDeposits([]types.IBlock{block}, nil)
 	if err != nil || len(xshardLst) != 1 {
 		log.Error("Failed to add minor block", "err", err)
 		return err
@@ -162,7 +162,7 @@ func (s *ShardBackend) AddBlockListForSync(blockLst []*types.MinorBlock) error {
 		if block.Header().Branch.GetFullShardID() != s.fullShardId || s.MinorBlockChain.HasBlock(block.Hash()) {
 			continue
 		}
-		_, xshardLst, err := s.MinorBlockChain.InsertChainForDeposits([]types.IBlock{block})
+		_, xshardLst, err := s.MinorBlockChain.InsertChainForDeposits([]types.IBlock{block}, nil)
 		if err != nil || len(xshardLst) != 1 {
 			log.Error("Failed to add minor block", "err", err)
 			return err
