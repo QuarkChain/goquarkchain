@@ -431,7 +431,7 @@ func (m *MinorBlockChain) GetAdjustedDifficulty(header types.IHeader) (*big.Int,
 			return nil, err
 		}
 
-		diff, err = m.posw.PoSWDiffAdjust(header, balance.GetTokenBalance(qkcCommon.TokenIDEncode(m.clusterConfig.Quarkchain.GenesisToken)))
+		diff, err = m.posw.PoSWDiffAdjust(header, balance.GetTokenBalance(m.clusterConfig.Quarkchain.GetDefaultChainTokenID()))
 		if err != nil {
 			log.Error(m.logInfo, "PoSWDiffAdjust err", err)
 			return nil, err
@@ -1208,10 +1208,9 @@ func (m *MinorBlockChain) insertChain(chain []types.IBlock, verifySeals bool, pa
 		if qkcCommon.IsNil(parent) {
 			return it.index, events, coalescedLogs, xShardList, err
 		}
-		xShardReceiveTxList := make([]*types.CrossShardTransactionDeposit, 0)
 		// Process block using the parent state as reference point.
 
-		state, receipts, logs, usedGas, err := m.runBlock(mBlock, &xShardReceiveTxList)
+		state, receipts, logs, usedGas, xShardReceiveTxList, err := m.runBlock(mBlock, nil)
 		if err != nil {
 			m.reportBlock(block, receipts, err)
 			return it.index, events, coalescedLogs, xShardList, err
@@ -1749,4 +1748,32 @@ func (m *MinorBlockChain) GetRootBlockByHash(hash common.Hash) *types.RootBlock 
 		return data
 	}
 	return nil
+}
+
+func (m *MinorBlockChain) GetRootBlockHeaderByHeight(h common.Hash, height uint64) *types.RootBlockHeader {
+	rHeader := m.getRootBlockHeaderByHash(h)
+	if rHeader == nil || height > rHeader.NumberU64() {
+		return nil
+	}
+	for height != rHeader.NumberU64() {
+		if rHeader = m.getRootBlockHeaderByHash(rHeader.ParentHash); rHeader == nil {
+			log.Crit("bug should fix", "GetRootBlockHeaderByHeight rootBlock is nil hash", rHeader.ParentHash, "currNumber", rHeader.NumberU64(), "currHash", rHeader.Hash().String())
+		}
+	}
+	return rHeader
+}
+
+func (m *MinorBlockChain) ContainRootBlockByHash(h common.Hash) bool {
+	if m.getRootBlockHeaderByHash(h) == nil {
+		return false
+	}
+	return true
+}
+
+func (m *MinorBlockChain) GetGenesisToken() uint64 {
+	return m.clusterConfig.Quarkchain.GetDefaultChainTokenID()
+}
+
+func (m *MinorBlockChain) GetGenesisRootHeight() uint32 {
+	return m.clusterConfig.Quarkchain.GetGenesisRootHeight(m.branch.Value)
 }
