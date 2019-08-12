@@ -68,7 +68,7 @@ func (x *XShardTxCursor) getCurrentTx() (*types.CrossShardTransactionDeposit, er
 	if x.mBlockIndex == 0 {
 		// 0 is reserved for EOF
 		if x.xShardDepositIndex != 1 && x.xShardDepositIndex != 2 {
-			return nil, errors.New("shardDepositIndex should 1 or 2")
+			return nil, errors.New("shardDepositIndex should be 1 or 2")
 		}
 		if x.xShardDepositIndex == 1 {
 			branch := x.bc.GetBranch()
