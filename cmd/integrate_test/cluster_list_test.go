@@ -670,7 +670,7 @@ func TestShardSynchronizerWithFork(t *testing.T) {
 			return false
 		}, 1), true)
 		assert.Equal(t, retryTrueWithTimeout(func() bool {
-			mBlock, err := mstr1.GetMinorBlockByHash(blk.Hash(), blk.Branch())
+			mBlock, _, err := mstr1.GetMinorBlockByHash(blk.Hash(), blk.Branch(), false)
 			if err != nil || mBlock == nil {
 				return false
 			}
@@ -787,7 +787,7 @@ func TestHandleGetMinorBlockListRequestWithTotalDiff(t *testing.T) {
 	}, 20), true)
 
 	assert.Equal(t, retryTrueWithTimeout(func() bool {
-		b, err := clstrList[0].master.GetMinorBlockByHash(b1.Hash(), b1.Header().Branch)
+		b, _, err := clstrList[0].master.GetMinorBlockByHash(b1.Hash(), b1.Header().Branch, false)
 		if err != nil || b == nil {
 			return false
 		}
@@ -812,7 +812,7 @@ func TestHandleGetMinorBlockListRequestWithTotalDiff(t *testing.T) {
 	}, 20), true)
 
 	assert.Equal(t, retryTrueWithTimeout(func() bool {
-		b, err := clstrList[0].master.GetMinorBlockByHash(b1.Hash(), b2.Header().Branch)
+		b, _, err := clstrList[0].master.GetMinorBlockByHash(b1.Hash(), b2.Header().Branch, false)
 		if err != nil || b == nil {
 			return false
 		}
