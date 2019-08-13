@@ -99,8 +99,8 @@ func (bc *mockblockchain) Validator() core.Validator {
 	return bc.validator
 }
 
-func (bc *mockblockchain) AddValidatedMinorBlockHeader(hash common.Hash) {
-	bc.rbc.AddValidatedMinorBlockHeader(hash)
+func (bc *mockblockchain) AddValidatedMinorBlockHeader(hash common.Hash, coinbaseToken *types.TokenBalances) {
+	bc.rbc.AddValidatedMinorBlockHeader(hash, coinbaseToken)
 }
 
 func (bc *mockblockchain) IsMinorBlockValidated(hash common.Hash) bool {
@@ -124,6 +124,7 @@ func (v *mockvalidator) ValidateBlock(types.IBlock) error {
 func (v *mockvalidator) ValidateSeal(mHeader types.IHeader) error {
 	return v.err
 }
+
 func newRootBlockChain(sz int) blockchain {
 	qkcconfig.SkipRootCoinbaseCheck = true
 	db := ethdb.NewMemDatabase()

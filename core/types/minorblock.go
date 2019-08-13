@@ -107,7 +107,8 @@ func (h *MinorBlockHeader) GetBloom() Bloom {
 }
 func (h *MinorBlockHeader) GetMixDigest() common.Hash { return h.MixDigest }
 
-func (h *MinorBlockHeader) NumberU64() uint64 { return h.Number }
+func (h *MinorBlockHeader) NumberU64() uint64  { return h.Number }
+func (h *MinorBlockHeader) GetVersion() uint32 { return h.Version }
 
 func (h *MinorBlockHeader) SetExtra(data []byte) {
 	h.Extra = common.CopyBytes(data)
