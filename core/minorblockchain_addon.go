@@ -719,12 +719,6 @@ func (m *MinorBlockChain) checkTxBeforeApply(stateT *state.StateDB, tx *types.Tr
 	if tx.EvmTx.GasPrice().Cmp(m.clusterConfig.Quarkchain.MinMiningGasPrice) < 0 {
 		return ErrorTxContinue
 	}
-	toBranch := account.Branch{Value: tx.EvmTx.ToFullShardId()}
-	if toBranch.Value != m.branch.Value {
-		if !m.isNeighbor(toBranch, nil) {
-			return ErrorTxContinue
-		}
-	}
 	return nil
 }
 

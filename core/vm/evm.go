@@ -85,8 +85,6 @@ type Context struct {
 	GasPrice *big.Int       // Provides information for GASPRICE
 
 	// Block information
-	GasTokenID      uint64
-	TransferTokenID uint64
 	Coinbase        common.Address // Provides information for COINBASE
 	GasLimit        uint64         // Provides information for GASLIMIT
 	BlockNumber     *big.Int       // Provides information for NUMBER
@@ -94,6 +92,8 @@ type Context struct {
 	Difficulty      *big.Int       // Provides information for DIFFICULTY
 	ToFullShardKey  uint32
 	IsApplyXShard   bool
+	GasTokenID      uint64
+	TransferTokenID uint64
 }
 
 // EVM is the Ethereum Virtual Machine base object and provides
