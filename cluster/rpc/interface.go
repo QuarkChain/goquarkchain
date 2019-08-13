@@ -48,8 +48,8 @@ type ISlaveConn interface {
 	SendMiningConfigToSlaves(artificialTxConfig *ArtificialTxConfig, mining bool) error
 	AddTransaction(tx *types.Transaction) error
 	ExecuteTransaction(tx *types.Transaction, fromAddress *account.Address, height *uint64) ([]byte, error)
-	GetMinorBlockByHash(blockHash common.Hash, branch account.Branch) (*types.MinorBlock, error)
-	GetMinorBlockByHeight(height uint64, branch account.Branch) (*types.MinorBlock, error)
+	GetMinorBlockByHash(blockHash common.Hash, branch account.Branch, needExtraInfo bool) (*types.MinorBlock, *PoSWInfo, error)
+	GetMinorBlockByHeight(height uint64, branch account.Branch, needExtraInfo bool) (*types.MinorBlock, *PoSWInfo, error)
 	GetTransactionByHash(txHash common.Hash, branch account.Branch) (*types.MinorBlock, uint32, error)
 	GetTransactionReceipt(txHash common.Hash, branch account.Branch) (*types.MinorBlock, uint32, *types.Receipt, error)
 	GetTransactionsByAddress(address *account.Address, start []byte, limit uint32) ([]*TransactionDetail, []byte, error)
