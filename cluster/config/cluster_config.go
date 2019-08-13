@@ -95,9 +95,13 @@ type QuarkChainConfig struct {
 	BlockRewardDecayFactor            *big.Rat                `json:"-"`
 	chainIdToShardSize                map[uint32]uint32
 	chainIdToShardIds                 map[uint32][]uint32
-	defaultChainToken                 uint64
+	defaultChainTokenID               uint64
 	allowTokenIDs                     map[uint64]bool
 	XShardAddReceiptTimestamp         uint64
+	TxWhiteListSenders                []account.Recipient `json:"TX_WHITELIST_SENDERS"`
+	DisablePowCheck                   bool                `json:"DISABLE_POW_CHECK"`
+	XShardGasDDOSFixRootHeight        uint64              `json:"XSHARD_GAS_DDOS_FIX_ROOT_HEIGHT"`
+	MinMiningGasPrice                 *big.Int            `json:"MIN_MINING_GAS_PRICE"`
 }
 
 type QuarkChainConfigAlias QuarkChainConfig
@@ -306,6 +310,7 @@ func NewQuarkChainConfig() *QuarkChainConfig {
 		RewardTaxRate:                     new(big.Rat).SetFloat64(0.5),
 		BlockRewardDecayFactor:            new(big.Rat).SetFloat64(0.5),
 		Root:                              NewRootConfig(),
+		MinMiningGasPrice:                 new(big.Int).SetUint64(1000000000),
 	}
 
 	ret.Root.ConsensusType = PoWSimulate
@@ -340,12 +345,12 @@ func (q *QuarkChainConfig) SetShardsAndValidate(shards map[uint32]*ShardConfig) 
 	q.initAndValidate()
 }
 
-func (q *QuarkChainConfig) GetDefaultChainToken() uint64 {
-	if q.defaultChainToken == 0 {
-		q.defaultChainToken = common.TokenIDEncode(q.GenesisToken)
+func (q *QuarkChainConfig) GetDefaultChainTokenID() uint64 {
+	if q.defaultChainTokenID == 0 {
+		q.defaultChainTokenID = common.TokenIDEncode(q.GenesisToken)
 
 	}
-	return q.defaultChainToken
+	return q.defaultChainTokenID
 }
 
 func (q *QuarkChainConfig) allowedTokenIds() map[uint64]bool {
@@ -369,6 +374,11 @@ func (q *QuarkChainConfig) AllowedTransferTokenIDs() map[uint64]bool {
 
 func (q *QuarkChainConfig) AllowedGasTokenIDs() map[uint64]bool {
 	return q.allowedTokenIds()
+}
+
+func (q *QuarkChainConfig) IsAllowedTokenID(tokenID uint64) bool {
+	_, ok := q.allowedTokenIds()[tokenID]
+	return ok
 }
 func (q *QuarkChainConfig) GasLimit(fullShardID uint32) (*big.Int, error) {
 	data, ok := q.shards[fullShardID]

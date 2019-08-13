@@ -1164,13 +1164,15 @@ func (bc *RootBlockChain) CreateBlockToMine(mHeaderList []*types.MinorBlockHeade
 	block := bc.CurrentBlock().Header().CreateBlockToAppend(createTime, difficulty, address, nil, nil)
 	block.ExtendMinorBlockHeaderList(mHeaderList)
 	data := bc.CalculateRootBlockCoinBase(block)
-	temp := types.NewTokenBalanceMap()
-	temp.BalanceMap[qkcCommon.TokenIDEncode("QKC")] = data
+	//TODO need modify later
+	temp := types.NewEmptyTokenBalances()
+	temp.SetValue(data, qkcCommon.TokenIDEncode("QKC"))
 	block.Finalize(temp, address, common.Hash{})
 	return block, nil
 }
 
 func (bc *RootBlockChain) CalculateRootBlockCoinBase(rootBlock *types.RootBlock) *big.Int {
+	//TODO need modify later
 	ret := new(big.Int).Set(bc.Config().Root.CoinbaseAmount)
 	rewardTaxRate := bc.Config().RewardTaxRate
 	ratio := big.NewRat(1, 1)
@@ -1179,7 +1181,7 @@ func (bc *RootBlockChain) CalculateRootBlockCoinBase(rootBlock *types.RootBlock)
 
 	minorBlockFee := new(big.Int)
 	for _, header := range rootBlock.MinorBlockHeaders() {
-		minorBlockFee.Add(minorBlockFee, header.CoinbaseAmount.BalanceMap[qkcCommon.TokenIDEncode("QKC")])
+		minorBlockFee.Add(minorBlockFee, header.CoinbaseAmount.GetTokenBalance(qkcCommon.TokenIDEncode("QKC")))
 	}
 	minorBlockFee.Mul(minorBlockFee, ratio.Num())
 	minorBlockFee.Div(minorBlockFee, ratio.Denom())

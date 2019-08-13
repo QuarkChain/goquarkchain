@@ -47,7 +47,7 @@ func makeTestState() (Database, common.Hash, []*testAccount) {
 		obj := state.GetOrNewStateObject(common.BytesToAddress([]byte{i}))
 		acc := &testAccount{address: common.BytesToAddress([]byte{i})}
 
-		obj.AddBalance(big.NewInt(int64(11 * i)))
+		obj.AddBalance(big.NewInt(int64(11 * i)),genesisTokenID)
 		acc.balance = big.NewInt(int64(11 * i))
 
 		obj.SetNonce(uint64(42 * i))
@@ -78,7 +78,7 @@ func checkStateAccounts(t *testing.T, db ethdb.Database, root common.Hash, accou
 		t.Fatalf("inconsistent state trie at %x: %v", root, err)
 	}
 	for i, acc := range accounts {
-		if balance := state.GetBalance(acc.address); balance.Cmp(acc.balance) != 0 {
+		if balance := state.GetBalance(acc.address,genesisTokenID); balance.Cmp(acc.balance) != 0 {
 			t.Errorf("account %d: balance mismatch: have %v, want %v", i, balance, acc.balance)
 		}
 		if nonce := state.GetNonce(acc.address); nonce != acc.nonce {

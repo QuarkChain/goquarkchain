@@ -46,7 +46,7 @@ func TestUpdateLeaks(t *testing.T) {
 	// Update it with some accounts
 	for i := byte(0); i < 255; i++ {
 		addr := common.BytesToAddress([]byte{i})
-		state.AddBalance(addr, big.NewInt(int64(11*i)))
+		state.AddBalance(addr, big.NewInt(int64(11*i)), genesisTokenID)
 		state.SetNonce(addr, uint64(42*i))
 		if i%2 == 0 {
 			state.SetState(addr, common.BytesToHash([]byte{i, i, i}), common.BytesToHash([]byte{i, i, i, i}))
@@ -73,7 +73,7 @@ func TestIntermediateLeaks(t *testing.T) {
 	finalState, _ := New(common.Hash{}, NewDatabase(finalDb))
 
 	modify := func(state *StateDB, addr common.Address, i, tweak byte) {
-		state.SetBalance(addr, big.NewInt(int64(11*i)+int64(tweak)))
+		state.SetBalance(addr, big.NewInt(int64(11*i)+int64(tweak)), genesisTokenID)
 		state.SetNonce(addr, uint64(42*i+tweak))
 		if i%2 == 0 {
 			state.SetState(addr, common.Hash{i, i, i, 0}, common.Hash{})
@@ -127,7 +127,7 @@ func TestCopy(t *testing.T) {
 
 	for i := byte(0); i < 255; i++ {
 		obj := orig.GetOrNewStateObject(common.BytesToAddress([]byte{i}))
-		obj.AddBalance(big.NewInt(int64(i)))
+		obj.AddBalance(big.NewInt(int64(i)), genesisTokenID)
 		orig.updateStateObject(obj)
 	}
 	orig.Finalise(false)
@@ -139,8 +139,8 @@ func TestCopy(t *testing.T) {
 		origObj := orig.GetOrNewStateObject(common.BytesToAddress([]byte{i}))
 		copyObj := copy.GetOrNewStateObject(common.BytesToAddress([]byte{i}))
 
-		origObj.AddBalance(big.NewInt(2 * int64(i)))
-		copyObj.AddBalance(big.NewInt(3 * int64(i)))
+		origObj.AddBalance(big.NewInt(2*int64(i)), genesisTokenID)
+		copyObj.AddBalance(big.NewInt(3*int64(i)), genesisTokenID)
 
 		orig.updateStateObject(origObj)
 		copy.updateStateObject(copyObj)
@@ -159,11 +159,11 @@ func TestCopy(t *testing.T) {
 		origObj := orig.GetOrNewStateObject(common.BytesToAddress([]byte{i}))
 		copyObj := copy.GetOrNewStateObject(common.BytesToAddress([]byte{i}))
 
-		if want := big.NewInt(3 * int64(i)); origObj.Balance().Cmp(want) != 0 {
-			t.Errorf("orig obj %d: balance mismatch: have %v, want %v", i, origObj.Balance(), want)
+		if want := big.NewInt(3 * int64(i)); origObj.Balance(genesisTokenID).Cmp(want) != 0 {
+			t.Errorf("orig obj %d: balance mismatch: have %v, want %v", i, origObj.Balance(genesisTokenID), want)
 		}
-		if want := big.NewInt(4 * int64(i)); copyObj.Balance().Cmp(want) != 0 {
-			t.Errorf("copy obj %d: balance mismatch: have %v, want %v", i, copyObj.Balance(), want)
+		if want := big.NewInt(4 * int64(i)); copyObj.Balance(genesisTokenID).Cmp(want) != 0 {
+			t.Errorf("copy obj %d: balance mismatch: have %v, want %v", i, copyObj.Balance(genesisTokenID), want)
 		}
 	}
 }
@@ -210,14 +210,14 @@ func newTestAction(addr common.Address, r *rand.Rand) testAction {
 		{
 			name: "SetBalance",
 			fn: func(a testAction, s *StateDB) {
-				s.SetBalance(addr, big.NewInt(a.args[0]))
+				s.SetBalance(addr, big.NewInt(a.args[0]), genesisTokenID)
 			},
 			args: make([]int64, 1),
 		},
 		{
 			name: "AddBalance",
 			fn: func(a testAction, s *StateDB) {
-				s.AddBalance(addr, big.NewInt(a.args[0]))
+				s.AddBalance(addr, big.NewInt(a.args[0]), genesisTokenID)
 			},
 			args: make([]int64, 1),
 		},
@@ -375,7 +375,7 @@ func (test *snapshotTest) checkEqual(state, checkstate *StateDB) error {
 		// Check basic accessor methods.
 		checkeq("Exist", state.Exist(addr), checkstate.Exist(addr))
 		checkeq("HasSuicided", state.HasSuicided(addr), checkstate.HasSuicided(addr))
-		checkeq("GetBalance", state.GetBalance(addr), checkstate.GetBalance(addr))
+		checkeq("GetBalance", state.GetBalance(addr, genesisTokenID), checkstate.GetBalance(addr, genesisTokenID))
 		checkeq("GetNonce", state.GetNonce(addr), checkstate.GetNonce(addr))
 		checkeq("GetCode", state.GetCode(addr), checkstate.GetCode(addr))
 		checkeq("GetCodeHash", state.GetCodeHash(addr), checkstate.GetCodeHash(addr))
@@ -411,7 +411,7 @@ func (s *StateSuite) TestTouchDelete(c *check.C) {
 	s.state.Reset(root)
 
 	snapshot := s.state.Snapshot()
-	s.state.AddBalance(common.Address{}, new(big.Int))
+	s.state.AddBalance(common.Address{}, new(big.Int), genesisTokenID)
 
 	if len(s.state.journal.dirties) != 1 {
 		c.Fatal("expected one dirty state object")
@@ -427,12 +427,12 @@ func (s *StateSuite) TestTouchDelete(c *check.C) {
 func TestCopyOfCopy(t *testing.T) {
 	sdb, _ := New(common.Hash{}, NewDatabase(ethdb.NewMemDatabase()))
 	addr := common.HexToAddress("aaaa")
-	sdb.SetBalance(addr, big.NewInt(42))
+	sdb.SetBalance(addr, big.NewInt(42), genesisTokenID)
 
-	if got := sdb.Copy().GetBalance(addr).Uint64(); got != 42 {
+	if got := sdb.Copy().GetBalance(addr, genesisTokenID).Uint64(); got != 42 {
 		t.Fatalf("1st copy fail, expected 42, got %v", got)
 	}
-	if got := sdb.Copy().Copy().GetBalance(addr).Uint64(); got != 42 {
+	if got := sdb.Copy().Copy().GetBalance(addr, genesisTokenID).Uint64(); got != 42 {
 		t.Fatalf("2nd copy fail, expected 42, got %v", got)
 	}
 }

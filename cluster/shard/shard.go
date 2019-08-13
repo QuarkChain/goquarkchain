@@ -44,6 +44,7 @@ type ShardBackend struct {
 	mBPool      newBlockPool
 	txGenerator *TxGenerator
 
+	running      bool
 	mu           sync.Mutex
 	eventMux     *event.TypeMux
 	synchronizer synchronizer.Synchronizer
@@ -68,6 +69,7 @@ func New(ctx *service.ServiceContext, rBlock *types.RootBlock, conn ConnManager,
 			gspec:             core.NewGenesis(cfg.Quarkchain),
 			eventMux:          ctx.EventMux,
 			logInfo:           fmt.Sprintf("shard:%d", fullshardId),
+			running:           true,
 		}
 		err error
 	)
@@ -109,9 +111,16 @@ func New(ctx *service.ServiceContext, rBlock *types.RootBlock, conn ConnManager,
 }
 
 func (s *ShardBackend) Stop() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if !s.running {
+		return
+	}
+	s.running = false
 	s.miner.Stop()
 	s.eventMux.Stop()
 	s.engine.Close()
+	s.synchronizer.Close()
 	s.MinorBlockChain.Stop()
 	s.chainDb.Close()
 }
@@ -167,7 +176,14 @@ func (s *ShardBackend) initGenesisState(rootBlock *types.RootBlock) error {
 	if status, err = s.MinorBlockChain.GetShardStatus(); err != nil {
 		return err
 	}
-	return s.conn.SendMinorBlockHeaderToMaster(minorBlock.Header(), uint32(len(minorBlock.GetTransactions())), uint32(len(xshardList)), status)
+	request := &rpc.AddMinorBlockHeaderRequest{
+		MinorBlockHeader:  minorBlock.Header(),
+		TxCount:           uint32(len(minorBlock.GetTransactions())),
+		XShardTxCount:     uint32(len(xshardList)),
+		ShardStats:        status,
+		CoinbaseAmountMap: minorBlock.Header().CoinbaseAmount,
+	}
+	return s.conn.SendMinorBlockHeaderToMaster(request)
 }
 
 // minor block pool

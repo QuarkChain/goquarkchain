@@ -24,6 +24,7 @@ var (
 	// jiaozi 10^18
 	jiaozi                  = new(big.Int).Mul(new(big.Int).SetUint64(1000000000), new(big.Int).SetUint64(1000000000))
 	testShardCoinbaseAmount = new(big.Int).Mul(new(big.Int).SetUint64(5), jiaozi)
+	testGenesisTokenID      = common.TokenIDEncode("QKC")
 )
 
 type fakeEnv struct {
@@ -80,6 +81,7 @@ func getTestEnv(genesisAccount *account.Address, genesisMinorQuarkHash *uint64, 
 	env.clusterConfig.Quarkchain.SkipRootCoinbaseCheck = true
 	env.clusterConfig.Quarkchain.SkipRootDifficultyCheck = true
 	env.clusterConfig.EnableTransactionHistory = true
+	env.clusterConfig.Quarkchain.MinMiningGasPrice = new(big.Int).SetInt64(-1)
 
 	ids := env.clusterConfig.Quarkchain.GetGenesisShardIds()
 	for _, v := range ids {
@@ -149,8 +151,15 @@ func setUp(genesisAccount *account.Address, genesisMinotQuarkash *uint64, shardS
 func createTransferTransaction(
 	shardState *MinorBlockChain, key []byte,
 	fromAddress account.Address, toAddress account.Address,
-	value *big.Int, gas *uint64, gasPrice *uint64, nonce *uint64, data []byte,
+	value *big.Int, gas *uint64, gasPrice *uint64, nonce *uint64, data []byte, gasTokenID *uint64, transferTokenID *uint64,
 ) *types.Transaction {
+	t := shardState.GetGenesisToken()
+	if gasTokenID == nil {
+		gasTokenID = &t
+	}
+	if transferTokenID == nil {
+		transferTokenID = &t
+	}
 	fakeNetworkID := uint32(3) //default QuarkChain is nil
 	realNonce, err := shardState.GetTransactionCount(fromAddress.Recipient, nil)
 	if err != nil {
@@ -170,7 +179,7 @@ func createTransferTransaction(
 		realGas = *gas
 	}
 	tempTx := types.NewEvmTransaction(realNonce, toAddress.Recipient, value, realGas,
-		new(big.Int).SetUint64(realGasPrice), fromAddress.FullShardKey, toAddress.FullShardKey, fakeNetworkID, 0, data)
+		new(big.Int).SetUint64(realGasPrice), fromAddress.FullShardKey, toAddress.FullShardKey, fakeNetworkID, 0, data, *gasTokenID, *transferTokenID)
 
 	prvKey, err := crypto.HexToECDSA(hex.EncodeToString(key))
 	if err != nil {
@@ -231,7 +240,7 @@ func CreateTransferTx(shardState *MinorBlockChain, key []byte,
 		gas = new(uint64)
 		*gas = 21000
 	}
-	return createTransferTransaction(shardState, key, from, to, value, gas, gasPrice, nonce, nil)
+	return createTransferTransaction(shardState, key, from, to, value, gas, gasPrice, nonce, nil, nil, nil)
 }
 func CreateCallContractTx(shardState *MinorBlockChain, key []byte,
 	from account.Address, to account.Address, value *big.Int, gas, gasPrice, nonce *uint64, data []byte) *types.Transaction {
@@ -243,7 +252,7 @@ func CreateCallContractTx(shardState *MinorBlockChain, key []byte,
 		gas = new(uint64)
 		*gas = 21000
 	}
-	return createTransferTransaction(shardState, key, from, to, value, gas, gasPrice, nonce, data)
+	return createTransferTransaction(shardState, key, from, to, value, gas, gasPrice, nonce, data, nil, nil)
 }
 
 func GetPoSW(chain *MinorBlockChain) *posw.PoSW {
@@ -282,8 +291,9 @@ func CreateContract(mBlockChain *MinorBlockChain, key account.Key, fromAddress a
 	if err != nil {
 		return nil, err
 	}
+	t := mBlockChain.GetGenesisToken()
 	evmTx := types.NewEvmContractCreation(nonce, z, 1000000, one, fromAddress.FullShardKey, toFullShardKey,
-		mBlockChain.Config().NetworkID, 0, bytecodeb)
+		mBlockChain.Config().NetworkID, 0, bytecodeb, t, t)
 
 	prvKey, err := crypto.HexToECDSA(hex.EncodeToString(key.Bytes()))
 	if err != nil {

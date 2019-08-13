@@ -61,8 +61,8 @@ type txdata struct {
 	Hash *common.Hash `json:"hash"              rlp:"-"`
 }
 
-func NewEvmTransaction(nonce uint64, to account.Recipient, amount *big.Int, gasLimit uint64, gasPrice *big.Int, fromFullShardKey uint32, toFullShardKey uint32, networkId uint32, version uint32, data []byte) *EvmTransaction {
-	return newEvmTransaction(nonce, &to, amount, gasLimit, gasPrice, fromFullShardKey, toFullShardKey, networkId, version, data)
+func NewEvmTransaction(nonce uint64, to account.Recipient, amount *big.Int, gasLimit uint64, gasPrice *big.Int, fromFullShardKey uint32, toFullShardKey uint32, networkId uint32, version uint32, data []byte, gasTokenID, transferTokenID uint64) *EvmTransaction {
+	return newEvmTransaction(nonce, &to, amount, gasLimit, gasPrice, fromFullShardKey, toFullShardKey, networkId, version, data, gasTokenID, transferTokenID)
 }
 func (e *EvmTransaction) SetGas(data uint64) {
 	e.data.GasLimit = data
@@ -79,11 +79,11 @@ func (e *EvmTransaction) SetVRS(v, r, s *big.Int) {
 	e.updated = true
 }
 
-func NewEvmContractCreation(nonce uint64, amount *big.Int, gasLimit uint64, gasPrice *big.Int, fromFullShardKey uint32, toFullShardKey uint32, networkId uint32, version uint32, data []byte) *EvmTransaction {
-	return newEvmTransaction(nonce, nil, amount, gasLimit, gasPrice, fromFullShardKey, toFullShardKey, networkId, version, data)
+func NewEvmContractCreation(nonce uint64, amount *big.Int, gasLimit uint64, gasPrice *big.Int, fromFullShardKey uint32, toFullShardKey uint32, networkId uint32, version uint32, data []byte, gasTokenID, transferTokenID uint64) *EvmTransaction {
+	return newEvmTransaction(nonce, nil, amount, gasLimit, gasPrice, fromFullShardKey, toFullShardKey, networkId, version, data, gasTokenID, transferTokenID)
 }
 
-func newEvmTransaction(nonce uint64, to *account.Recipient, amount *big.Int, gasLimit uint64, gasPrice *big.Int, fromFullShardKey uint32, toFullShardKey uint32, networkId uint32, version uint32, data []byte) *EvmTransaction {
+func newEvmTransaction(nonce uint64, to *account.Recipient, amount *big.Int, gasLimit uint64, gasPrice *big.Int, fromFullShardKey uint32, toFullShardKey uint32, networkId uint32, version uint32, data []byte, gasTokenID, transferTokenID uint64) *EvmTransaction {
 	newFromFullShardKey := Uint32(fromFullShardKey)
 	newToFullShardKey := Uint32(toFullShardKey)
 	if len(data) > 0 {
@@ -98,8 +98,8 @@ func newEvmTransaction(nonce uint64, to *account.Recipient, amount *big.Int, gas
 		Price:            new(big.Int),
 		FromFullShardKey: &newFromFullShardKey,
 		ToFullShardKey:   &newToFullShardKey,
-		GasTokenID:       0,
-		TransferTokenID:  0,
+		GasTokenID:       gasTokenID,
+		TransferTokenID:  transferTokenID,
 		NetworkId:        networkId,
 		Version:          version,
 		V:                new(big.Int),
@@ -558,8 +558,8 @@ type CrossShardTransactionDeposit struct {
 	To              account.Address
 	Value           *serialize.Uint256
 	GasPrice        *serialize.Uint256
-	GasTokenID      uint64
-	TransferTokenID uint64
+	GasTokenID      *serialize.Uint128
+	TransferTokenID *serialize.Uint128
 	IsFromRootChain bool
 	GasRemained     *serialize.Uint256
 	MessageData     []byte
@@ -568,11 +568,6 @@ type CrossShardTransactionDeposit struct {
 
 type CrossShardTransactionDepositList struct {
 	TXList []*CrossShardTransactionDeposit `bytesizeofslicelen:"4"`
-}
-
-type CrossShardTxWithMinorBlockHeader struct {
-	Tx          CrossShardTransactionDeposit
-	MinorHeader *MinorBlockHeader
 }
 
 // Message is a fully derived transaction and implements core.Message
@@ -595,7 +590,9 @@ type Message struct {
 	gasTokenID       uint64
 }
 
-func NewMessage(from common.Address, to *common.Address, nonce uint64, amount *big.Int, gasLimit uint64, gasPrice *big.Int, data []byte, checkNonce bool, fromShardId, toShardId uint32) Message {
+func NewMessage(from common.Address, to *common.Address, nonce uint64, amount *big.Int, gasLimit uint64, gasPrice *big.Int,
+	data []byte, checkNonce bool, fromShardId, toShardId uint32, transferTokenID, gasTokenID uint64) Message {
+
 	return Message{
 		from:             from,
 		to:               to,
@@ -607,6 +604,8 @@ func NewMessage(from common.Address, to *common.Address, nonce uint64, amount *b
 		checkNonce:       checkNonce,
 		fromFullShardKey: fromShardId,
 		toFullShardKey:   toShardId,
+		transferTokenID:  transferTokenID,
+		gasTokenID:       gasTokenID,
 	}
 }
 

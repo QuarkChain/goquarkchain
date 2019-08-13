@@ -17,7 +17,7 @@ var (
 		0,
 		reciept,
 		big.NewInt(0), 0, big.NewInt(0),
-		0, 0, 1, 0, nil,
+		0, 0, 1, 0, nil, 0, 0,
 	)
 	tx1 = Transaction{TxType: 0, EvmTx: evmTx1}
 	//nonce , to , amount , gasLimit , gasPrice, fromFullShardKey , toFullShardKey , networkId , version , data
@@ -31,7 +31,7 @@ var (
 		0,
 		1,
 		0,
-		nil,
+		nil, 0, 0,
 	)
 	tx2 = Transaction{TxType: 0, EvmTx: evmTx2}
 )
@@ -61,9 +61,9 @@ func TestMinorBlockHeaderSerializing(t *testing.T) {
 	check("Branch", blockHeader.Branch.Value, uint32(1))
 	check("coinbase_Recipient", blockHeader.Coinbase.Recipient[:], common.FromHex("d3f86deb4a2bbf85048b3e790460c40dbab1f621"))
 	check("coinbase_FullShardKey", uint32(blockHeader.Coinbase.FullShardKey), uint32(0x000003ff))
-	check("CoinbaseAmount", blockHeader.CoinbaseAmount.BalanceMap[1], common.Big1)
-	check("CoinbaseAmount", blockHeader.CoinbaseAmount.BalanceMap[2], common.Big2)
-	check("CoinbaseAmount", len(blockHeader.CoinbaseAmount.BalanceMap), 2)
+	check("CoinbaseAmount", blockHeader.CoinbaseAmount.GetBalanceMap()[1], common.Big1)
+	check("CoinbaseAmount", blockHeader.CoinbaseAmount.GetBalanceMap()[2], common.Big2)
+	check("CoinbaseAmount", len(blockHeader.CoinbaseAmount.GetBalanceMap()), 2)
 	check("ParentHash", blockHeader.ParentHash, common.HexToHash("0000000000000000000000000000000000000000000000000000000000000001"))
 	check("PrevRootBlockHash", blockHeader.PrevRootBlockHash, common.HexToHash("0000000000000000000000000000000000000000000000000000000000000002"))
 	check("GasLimit", blockHeader.GasLimit.Value.Uint64(), uint64(4))
