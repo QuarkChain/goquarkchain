@@ -11,6 +11,7 @@ type IHeader interface {
 	Hash() common.Hash
 	SealHash() common.Hash
 	NumberU64() uint64
+	GetVersion() uint32
 	GetParentHash() common.Hash
 	GetCoinbase() account.Address
 	GetTime() uint64

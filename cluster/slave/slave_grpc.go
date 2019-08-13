@@ -198,6 +198,13 @@ func (s *SlaveServerSideOp) GetMinorBlock(ctx context.Context, req *rpc.Request)
 		}
 	}
 
+	if gReq.NeedExtraInfo {
+		gRes.Extra, err = s.slave.GetMinorBlockExtraInfo(gRes.MinorBlock, gReq.Branch)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	if response.Data, err = serialize.SerializeToBytes(gRes); err != nil {
 		return nil, err
 	}

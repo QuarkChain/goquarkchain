@@ -185,43 +185,43 @@ func (s *SlaveConnection) ExecuteTransaction(tx *types.Transaction, fromAddress 
 
 }
 
-func (s *SlaveConnection) GetMinorBlockByHash(blockHash common.Hash, branch account.Branch) (*types.MinorBlock, error) {
+func (s *SlaveConnection) GetMinorBlockByHash(blockHash common.Hash, branch account.Branch, needExtraInfo bool) (*types.MinorBlock, *rpc.PoSWInfo, error) {
 	var (
-		req              = rpc.GetMinorBlockRequest{Branch: branch.Value, MinorBlockHash: blockHash}
+		req              = rpc.GetMinorBlockRequest{Branch: branch.Value, MinorBlockHash: blockHash, NeedExtraInfo: needExtraInfo}
 		minBlockResponse = rpc.GetMinorBlockResponse{}
 		res              *rpc.Response
 	)
 	bytes, err := serialize.SerializeToBytes(req)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	res, err = s.client.Call(s.target, &rpc.Request{Op: rpc.OpGetMinorBlock, Data: bytes})
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	if err = serialize.Deserialize(serialize.NewByteBuffer(res.Data), &minBlockResponse); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return minBlockResponse.MinorBlock, nil
+	return minBlockResponse.MinorBlock, minBlockResponse.Extra, nil
 }
 
-func (s *SlaveConnection) GetMinorBlockByHeight(height uint64, branch account.Branch) (*types.MinorBlock, error) {
+func (s *SlaveConnection) GetMinorBlockByHeight(height uint64, branch account.Branch, needExtraInfo bool) (*types.MinorBlock, *rpc.PoSWInfo, error) {
 	var (
-		req              = rpc.GetMinorBlockRequest{Branch: branch.Value, Height: height}
+		req              = rpc.GetMinorBlockRequest{Branch: branch.Value, Height: height, NeedExtraInfo: needExtraInfo}
 		minBlockResponse = rpc.GetMinorBlockResponse{}
 	)
 	bytes, err := serialize.SerializeToBytes(req)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	res, err := s.client.Call(s.target, &rpc.Request{Op: rpc.OpGetMinorBlock, Data: bytes})
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	if err := serialize.Deserialize(serialize.NewByteBuffer(res.Data), &minBlockResponse); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return minBlockResponse.MinorBlock, nil
+	return minBlockResponse.MinorBlock, minBlockResponse.Extra, nil
 }
 
 func (s *SlaveConnection) GetTransactionByHash(txHash common.Hash, branch account.Branch) (*types.MinorBlock, uint32, error) {
