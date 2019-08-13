@@ -284,6 +284,11 @@ type AddMinorBlockHeaderResponse struct {
 	ArtificialTxConfig *ArtificialTxConfig `json:"artificial_tx_config" gencodec:"required"`
 }
 
+type AddMinorBlockHeaderListRequest struct {
+	MinorBlockHeaderList  []*types.MinorBlockHeader `json:"minor_block_header_list" gencodec:"required" bytesizeofslicelen:"4"`
+	CoinbaseAmountMapList []*types.TokenBalances    `json:"coinbase_amount_map_list" gencodec:"required" bytesizeofslicelen:"4"`
+}
+
 type CrossShardTransactionList struct {
 	TxList []*types.CrossShardTransactionDeposit `json:"tx_list" gencodec:"required" bytesizeofslicelen:"4"`
 }
