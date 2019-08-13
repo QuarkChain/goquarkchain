@@ -195,12 +195,12 @@ func (s *QKCMasterBackend) APIs() []ethRPC.API {
 
 // Stop stop node -> stop qkcMaster
 func (s *QKCMasterBackend) Stop() error {
+	s.synchronizer.Close()
+	s.protocolManager.Stop()
 	s.miner.Stop()
 	s.engine.Close()
 	s.rootBlockChain.Stop()
-	s.protocolManager.Stop()
 	s.eventMux.Stop()
-	s.synchronizer.Close()
 	s.chainDb.Close()
 	close(s.exitCh)
 	for _, slv := range s.clientPool {

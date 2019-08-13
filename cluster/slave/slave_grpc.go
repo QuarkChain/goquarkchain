@@ -11,7 +11,6 @@ import (
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/p2p"
 	"github.com/QuarkChain/goquarkchain/serialize"
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
 )
 
@@ -188,14 +187,8 @@ func (s *SlaveServerSideOp) GetMinorBlock(ctx context.Context, req *rpc.Request)
 		return nil, err
 	}
 
-	if gReq.MinorBlockHash != (common.Hash{}) {
-		if gRes.MinorBlock, err = s.slave.GetMinorBlockByHash(gReq.MinorBlockHash, gReq.Branch); err != nil {
-			return nil, err
-		}
-	} else {
-		if gRes.MinorBlock, err = s.slave.GetMinorBlockByHeight(gReq.Height, gReq.Branch); err != nil {
-			return nil, err
-		}
+	if gRes.MinorBlock, err = s.slave.GetMinorBlock(gReq.MinorBlockHash, gReq.Height, gReq.Branch); err != nil {
+		return nil, err
 	}
 
 	if response.Data, err = serialize.SerializeToBytes(gRes); err != nil {
@@ -615,4 +608,9 @@ func (s *SlaveServerSideOp) SetMining(ctx context.Context, req *rpc.Request) (*r
 	}
 	s.slave.SetMining(mining)
 	return response, nil
+}
+
+func (s *SlaveServerSideOp) GetShardStat(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
+	var ()
+
 }

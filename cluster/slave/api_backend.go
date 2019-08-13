@@ -127,7 +127,7 @@ func (s *SlaveBackend) AddBlockListForSync(mHashList []common.Hash, peerId strin
 
 	log.Info("sync request from master successful", "branch", branch, "peer-id", peerId, "block-size", hashLen)
 
-	return shard.MinorBlockChain.GetShardStatus()
+	return s.GetShardStatus(branch)
 }
 
 func (s *SlaveBackend) AddTx(tx *types.Transaction) (err error) {
@@ -228,26 +228,11 @@ func (s *SlaveBackend) GetAccountData(address *account.Address, height *uint64) 
 	return results, err
 }
 
-func (s *SlaveBackend) GetMinorBlockByHash(hash common.Hash, branch uint32) (*types.MinorBlock, error) {
+func (s *SlaveBackend) GetMinorBlock(hash common.Hash, height *uint64, branch uint32) (*types.MinorBlock, error) {
 	if shard, ok := s.shards[branch]; ok {
-		mBlock := shard.MinorBlockChain.GetMinorBlock(hash)
-		if mBlock == nil {
-			return nil, errors.New(fmt.Sprintf("empty minor block in state, shard id: %d", shard.Config.ShardID))
-		}
-		return mBlock, nil
+		return shard.GetMinorBlock(hash, height), nil
 	}
-	return nil, ErrMsg("GetMinorBlockByHash")
-}
-
-func (s *SlaveBackend) GetMinorBlockByHeight(height uint64, branch uint32) (*types.MinorBlock, error) {
-	if shard, ok := s.shards[branch]; ok {
-		mBlock := shard.MinorBlockChain.GetBlockByNumber(height)
-		if qcom.IsNil(mBlock) {
-			return nil, errors.New(fmt.Sprintf("empty minor block in state, shard id: %d", shard.Config.ShardID))
-		}
-		return mBlock.(*types.MinorBlock), nil
-	}
-	return nil, ErrMsg("GetMinorBlockByHeight")
+	return nil, ErrMsg("GetMinorBlock")
 }
 
 func (s *SlaveBackend) GetTransactionByHash(txHash common.Hash, branch uint32) (*types.MinorBlock, uint32, error) {
@@ -441,4 +426,13 @@ func (s *SlaveBackend) SetMining(mining bool) {
 	for _, shrd := range s.shards {
 		shrd.SetMining(mining)
 	}
+}
+
+func (s *SlaveBackend) GetShardStatus(branch uint32) (*rpc.ShardStatus, error) {
+	shrd, ok := s.shards[branch]
+	if !ok {
+		return nil, ErrMsg("AddBlockListForSync")
+	}
+
+	return shrd.MinorBlockChain.GetShardStatus()
 }

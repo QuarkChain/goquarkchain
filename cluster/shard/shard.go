@@ -117,10 +117,10 @@ func (s *ShardBackend) Stop() {
 		return
 	}
 	s.running = false
+	s.synchronizer.Close()
 	s.miner.Stop()
 	s.eventMux.Stop()
 	s.engine.Close()
-	s.synchronizer.Close()
 	s.MinorBlockChain.Stop()
 	s.chainDb.Close()
 }

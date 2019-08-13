@@ -43,6 +43,14 @@ type ShardStatus struct {
 	LastBlockTime      uint64
 }
 
+type RootBlockSychronizerStats struct {
+	HeadersDownloaded      uint64 `json:"headers_downloaded" gencodec:"required"`
+	BlocksDownloaded       uint64 `json:"blocks_downloaded" gencodec:"required"`
+	BlocksAdded            uint64 `json:"blocks_added" gencodec:"required"`
+	AncestorNotFoundCount  uint64 `json:"ancestor_not_found_count" gencodec:"required"`
+	AncestorLookupRequests uint64 `json:"ancestor_lookup_requests" gencodec:"required"`
+}
+
 // Master instructs a slave to connect to other slaves
 type ConnectToSlavesRequest struct {
 	SlaveInfoList []*SlaveInfo `json:"slave_info_list" gencodec:"required" bytesizeofslicelen:"4"`
@@ -87,7 +95,7 @@ type GenTxRequest struct {
 type GetMinorBlockRequest struct {
 	Branch         uint32      `json:"branch" gencodec:"required"`
 	MinorBlockHash common.Hash `json:"minor_block_hash" gencodec:"required"`
-	Height         uint64      `json:"height" gencodec:"required"`
+	Height         *uint64     `json:"height" gencodec:"required"`
 }
 
 type GetMinorBlockResponse struct {

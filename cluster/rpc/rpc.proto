@@ -82,6 +82,8 @@ service SlaveServerSideOp {
     }
     rpc SetMining (Request) returns (Response) {
     }
+    rpc GetShardStatus (Request) returns (Response) {
+    }
 }
 
 // request data

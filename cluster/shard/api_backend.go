@@ -220,6 +220,8 @@ func (s *ShardBackend) GetMinorBlock(mHash common.Hash, height *uint64) *types.M
 		return s.MinorBlockChain.GetMinorBlock(mHash)
 	} else if height != nil {
 		return s.MinorBlockChain.GetBlockByNumber(*height).(*types.MinorBlock)
+	} else {
+		return s.MinorBlockChain.CurrentBlock()
 	}
 	return nil
 }

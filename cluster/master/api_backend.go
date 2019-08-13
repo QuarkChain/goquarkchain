@@ -135,7 +135,7 @@ func (s *QKCMasterBackend) GetMinorBlockByHeight(height *uint64, branch account.
 		}
 		height = &shardStats.Height
 	}
-	return slaveConn.GetMinorBlockByHeight(*height, branch)
+	return slaveConn.GetMinorBlockByHeight(height, branch)
 }
 
 func (s *QKCMasterBackend) GetTransactionByHash(txHash common.Hash, branch account.Branch) (*types.MinorBlock, uint32, error) {

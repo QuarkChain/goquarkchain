@@ -10,6 +10,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
 	synchronizer "github.com/QuarkChain/goquarkchain/cluster/sync"
+	qkcom "github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/core"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/p2p"
@@ -45,6 +46,7 @@ type ProtocolManager struct {
 	chainHeadEventSub event.Subscription
 	statsChan         chan *rpc.ShardStatus
 
+	stats       *rpc.RootBlockSychronizerStats
 	maxPeers    int
 	peers       *peerSet // Set of active peers from which rootDownloader can proceed
 	newPeerCh   chan *Peer
@@ -68,6 +70,7 @@ func NewProtocolManager(env config.ClusterConfig, rootBlockChain *core.RootBlock
 		statsChan:        statsChan,
 		synchronizer:     synchronizer,
 		getShardConnFunc: getShardConnFunc,
+		stats:            &rpc.RootBlockSychronizerStats{},
 	}
 	protocol := p2p.Protocol{
 		Name:    QKCProtocolName,
@@ -153,6 +156,7 @@ func (pm *ProtocolManager) handle(peer *Peer) error {
 		common.BytesToHash(id),
 		uint16(pm.clusterConfig.P2PPort),
 		pm.rootBlockChain.CurrentBlock().Header(),
+		pm.rootBlockChain.Genesis().Hash(),
 	); err != nil {
 		return err
 	}
@@ -165,7 +169,7 @@ func (pm *ProtocolManager) handle(peer *Peer) error {
 	defer pm.removePeer(peer.id)
 	log.Info(pm.log, "peer add succ id ", peer.PeerID())
 
-	err := pm.synchronizer.AddTask(synchronizer.NewRootChainTask(peer, peer.RootHead(), pm.statsChan, pm.getShardConnFunc))
+	err := pm.synchronizer.AddTask(synchronizer.NewRootChainTask(peer, peer.RootHead(), pm.stats, pm.statsChan, pm.getShardConnFunc))
 	if err != nil {
 		return err
 	}
@@ -370,6 +374,61 @@ func (pm *ProtocolManager) handleMsg(peer *Peer) error {
 			log.Warn(fmt.Sprintf("chan for rpc %d is missing", qkcMsg.RpcID))
 		}
 
+	case qkcMsg.Op == p2p.GetRootBlockHeaderListWithSkipRequestMsg:
+		var rBHeadersSkip p2p.GetRootBlockHeaderListWithSkipRequest
+		if err := serialize.DeserializeFromBytes(qkcMsg.Data, &rBHeadersSkip); err != nil {
+			return err
+		}
+		resp, err := pm.HandleGetRootBlockHeaderListWithSkipRequest(peer.id, qkcMsg.RpcID, &rBHeadersSkip)
+		if err != nil {
+			return err
+		}
+		return peer.SendResponse(p2p.GetRootBlockHeaderListWithSkipResponseMsg, p2p.Metadata{Branch: qkcMsg.MetaData.Branch}, qkcMsg.RpcID, resp)
+
+	case qkcMsg.Op == p2p.GetRootBlockHeaderListWithSkipResponseMsg:
+		var minorBlockResp p2p.GetRootBlockHeaderListResponse
+		if err := serialize.DeserializeFromBytes(qkcMsg.Data, &minorBlockResp); err != nil {
+			return err
+		}
+		if c := peer.getChan(qkcMsg.RpcID); c != nil {
+			c <- minorBlockResp.BlockHeaderList
+		} else {
+			log.Warn(fmt.Sprintf("chan for rpc %d is missing", qkcMsg.RpcID))
+		}
+
+	case qkcMsg.Op == p2p.NewRootBlockMsg:
+		var minorBlockResp p2p.NewBlockMinor
+		if err := serialize.DeserializeFromBytes(qkcMsg.Data, &minorBlockResp); err != nil {
+			return err
+		}
+		if c := peer.getChan(qkcMsg.RpcID); c != nil {
+			c <- minorBlockResp.Block
+		} else {
+			log.Warn(fmt.Sprintf("chan for rpc %d is missing", qkcMsg.RpcID))
+		}
+
+	case qkcMsg.Op == p2p.GetMinorBlockHeaderListWithSkipRequestMsg:
+		var mBHeadersSkip p2p.GetMinorBlockHeaderListWithSkipRequest
+		if err := serialize.DeserializeFromBytes(qkcMsg.Data, &mBHeadersSkip); err != nil {
+			return err
+		}
+		resp, err := pm.HandleGetMinorBlockHeaderListWithSkipRequest(peer.id, qkcMsg.RpcID, &mBHeadersSkip)
+		if err != nil {
+			return err
+		}
+		return peer.SendResponse(p2p.GetMinorBlockHeaderListWithSkipResponseMsg, p2p.Metadata{Branch: qkcMsg.MetaData.Branch}, qkcMsg.RpcID, resp)
+
+	case qkcMsg.Op == p2p.GetMinorBlockHeaderListWithSkipResponseMsg:
+		var minorBlockResp p2p.GetMinorBlockHeaderListResponse
+		if err := serialize.DeserializeFromBytes(qkcMsg.Data, &minorBlockResp); err != nil {
+			return err
+		}
+		if c := peer.getChan(qkcMsg.RpcID); c != nil {
+			c <- minorBlockResp.BlockHeaderList
+		} else {
+			log.Warn(fmt.Sprintf("chan for rpc %d is missing", qkcMsg.RpcID))
+		}
+
 	default:
 		return fmt.Errorf("unknown msg code %d", qkcMsg.Op)
 	}
@@ -389,7 +448,7 @@ func (pm *ProtocolManager) HandleNewRootTip(tip *p2p.Tip, peer *Peer) error {
 	}
 	peer.SetRootHead(tip.RootBlockHeader)
 	if tip.RootBlockHeader.NumberU64() > pm.rootBlockChain.CurrentBlock().NumberU64() {
-		err := pm.synchronizer.AddTask(synchronizer.NewRootChainTask(peer, tip.RootBlockHeader, pm.statsChan, pm.getShardConnFunc))
+		err := pm.synchronizer.AddTask(synchronizer.NewRootChainTask(peer, tip.RootBlockHeader, pm.stats, pm.statsChan, pm.getShardConnFunc))
 		if err != nil {
 			log.Error("Failed to add root chain task,", "hash", tip.RootBlockHeader.Hash(), "height", tip.RootBlockHeader.NumberU64())
 		}
@@ -494,6 +553,60 @@ func (pm *ProtocolManager) HandleGetRootBlockListRequest(request *p2p.GetRootBlo
 	return &response, nil
 }
 
+func (pm *ProtocolManager) HandleGetRootBlockHeaderListWithSkipRequest(peerId string, rpcId uint64,
+	request *p2p.GetRootBlockHeaderListWithSkipRequest) (*p2p.GetRootBlockHeaderListResponse, error) {
+	if request.Limit <= 0 || request.Limit > 2*synchronizer.MinorBlockHeaderListLimit {
+		return nil, errors.New("Bad limit")
+	}
+	if request.Direction != directionToGenesis /*&& request.Direction != directionToTip*/ {
+		return nil, errors.New("Bad direction")
+	}
+	if request.Type != 0 && request.Type != 1 {
+		return nil, errors.New("Bad type value")
+	}
+
+	var (
+		height     uint32
+		hash       common.Hash
+		mBHeader   *types.RootBlockHeader
+		headerlist = make([]*types.RootBlockHeader, 0, request.Limit)
+	)
+
+	rTip := pm.rootBlockChain.CurrentHeader().(*types.RootBlockHeader)
+	if request.Type == 1 {
+		height = *request.GetHeight()
+	} else {
+		hash = request.GetHash()
+		iHeader := pm.rootBlockChain.GetHeader(hash)
+		if qkcom.IsNil(iHeader) {
+			return &p2p.GetRootBlockHeaderListResponse{RootTip: rTip}, nil
+		}
+		mBHeader = iHeader.(*types.RootBlockHeader)
+
+		// Check if it is canonical chain
+		height = mBHeader.Number
+		iHeader = pm.rootBlockChain.GetBlockByNumber(uint64(height)).IHeader()
+		if qkcom.IsNil(iHeader) || mBHeader.Hash() != iHeader.(*types.RootBlockHeader).Hash() {
+			return &p2p.GetRootBlockHeaderListResponse{RootTip: rTip}, nil
+		}
+	}
+
+	for len(headerlist) < int(request.Limit) && height >= 0 && height <= rTip.Number {
+		iHeader := pm.rootBlockChain.GetHeaderByNumber(uint64(height))
+		if qkcom.IsNil(iHeader) {
+			break
+		}
+		headerlist = append(headerlist, iHeader.(*types.RootBlockHeader))
+		if request.Direction == directionToGenesis {
+			height -= request.Skip + 1
+		} /*else {
+			height += request.Skip + 1
+		}*/
+	}
+
+	return &p2p.GetRootBlockHeaderListResponse{RootTip: rTip, BlockHeaderList: headerlist}, nil
+}
+
 func (pm *ProtocolManager) HandleNewTransactionListRequest(peerId string, rpcId uint64, branch uint32, request *p2p.NewTransactionList) error {
 	clients := pm.getShardConnFunc(branch)
 	if len(clients) == 0 {
@@ -564,7 +677,7 @@ func (pm *ProtocolManager) HandleGetMinorBlockHeaderListRequest(rpcId uint64, br
 }
 
 func (pm *ProtocolManager) HandleGetMinorBlockListRequest(peerId string, rpcId uint64, branch uint32, request *p2p.GetMinorBlockListRequest) (*p2p.GetMinorBlockListResponse, error) {
-	if len(request.MinorBlockHashList) > synchronizer.MinorBlockBatchSize {
+	if len(request.MinorBlockHashList) > 2*synchronizer.MinorBlockBatchSize {
 		return nil, fmt.Errorf("bad number of minor blocks requested. rpcId: %d; branch: %d; limit: %d; expected limit: %d",
 			rpcId, branch, len(request.MinorBlockHashList), synchronizer.MinorBlockBatchSize)
 	}
@@ -588,6 +701,64 @@ func (pm *ProtocolManager) BroadcastTip(header *types.RootBlockHeader) {
 		peer.AsyncSendNewTip(0, &p2p.Tip{RootBlockHeader: header, MinorBlockHeaderList: nil})
 	}
 	log.Trace("Announced block", "hash", header.Hash(), "recipients", pm.peers.Len())
+}
+
+func (pm *ProtocolManager) HandleGetMinorBlockHeaderListWithSkipRequest(peerId string, rpcId uint64,
+	request *p2p.GetMinorBlockHeaderListWithSkipRequest) (resp *p2p.GetMinorBlockHeaderListResponse, err error) {
+	if request.Limit <= 0 || request.Limit > 2*synchronizer.MinorBlockHeaderListLimit {
+		return nil, errors.New("Bad limit")
+	}
+	if request.Direction != directionToGenesis /*&& request.Direction != directionToTip*/ {
+		return nil, errors.New("Bad direction")
+	}
+	if request.Type != 0 && request.Type != 1 {
+		return nil, errors.New("Bad type value")
+	}
+	clients := pm.getShardConnFunc(request.Branch.Value)
+	if len(clients) == 0 {
+		return nil, fmt.Errorf("invalid branch %d for rpc request %d", rpcId, request.Branch.Value)
+	}
+
+	var (
+		cli        = clients[0]
+		height     uint64
+		hash       common.Hash
+		mBlock     *types.MinorBlock
+		headerlist = make([]*types.MinorBlockHeader, 0, request.Limit)
+	)
+	rTip := pm.rootBlockChain.CurrentHeader().(*types.RootBlockHeader)
+	mTip, err := cli.GetMinorBlockByHeight(nil, request.Branch)
+	if err != nil {
+		return nil, err
+	}
+	if request.Type == 1 {
+		height = *request.GetHeight()
+	} else {
+		hash = request.GetHash()
+		mBlock, err = cli.GetMinorBlockByHash(hash, request.Branch)
+		if err != nil {
+			return
+		}
+		height = mBlock.Number()
+		if mBlock, err = cli.GetMinorBlockByHeight(&height, request.Branch); err != nil || mBlock.Number() != height {
+			return &p2p.GetMinorBlockHeaderListResponse{RootTip: rTip, ShardTip: mTip.Header()}, nil
+		}
+	}
+
+	for len(headerlist) < int(request.Limit) && height >= 0 && height <= mTip.Number() {
+		mBlock, err = cli.GetMinorBlockByHeight(&height, request.Branch)
+		if err != nil || mBlock == nil {
+			break
+		}
+		headerlist = append(headerlist, mBlock.Header())
+		if request.Direction == directionToGenesis {
+			height -= uint64(request.Skip) + 1
+		} /*else {
+			height += uint64(request.Skip) + 1
+		}*/
+	}
+
+	return &p2p.GetMinorBlockHeaderListResponse{RootTip: rTip, ShardTip: mTip.Header(), BlockHeaderList: headerlist}, nil
 }
 
 func (pm *ProtocolManager) tipBroadcastLoop() {
@@ -642,7 +813,7 @@ func (pm *ProtocolManager) synchronise(peer *Peer) {
 		return
 	}
 	if peer.RootHead() != nil {
-		err := pm.synchronizer.AddTask(synchronizer.NewRootChainTask(peer, peer.RootHead(), pm.statsChan, pm.getShardConnFunc))
+		err := pm.synchronizer.AddTask(synchronizer.NewRootChainTask(peer, peer.RootHead(), pm.stats, pm.statsChan, pm.getShardConnFunc))
 		if err != nil {
 			log.Error("AddTask to synchronizer.", "error", err.Error())
 		}

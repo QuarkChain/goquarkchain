@@ -103,6 +103,41 @@ func verifySerializeData(t *testing.T, decodeMsg QKCMsg, v codeC) error {
 		if err := serialize.DeserializeFromBytes(decodeMsg.Data, &cmd); err != nil {
 			t.Fatal("deserialize from Bytes err", err)
 		}
+	case Ping:
+		cmd := new(PingPongCommand)
+		if err := serialize.DeserializeFromBytes(decodeMsg.Data, &cmd); err != nil {
+			t.Fatal("deserialize from Bytes err", err)
+		}
+	case Pong:
+		cmd := new(PingPongCommand)
+		if err := serialize.DeserializeFromBytes(decodeMsg.Data, &cmd); err != nil {
+			t.Fatal("deserialize from Bytes err", err)
+		}
+	case GetRootBlockHeaderListWithSkipRequestMsg:
+		cmd := new(GetRootBlockHeaderListWithSkipRequest)
+		if err := serialize.DeserializeFromBytes(decodeMsg.Data, &cmd); err != nil {
+			t.Fatal("deserialize from Bytes err", err)
+		}
+	case GetRootBlockHeaderListWithSkipResponseMsg:
+		cmd := new(GetRootBlockHeaderListResponse)
+		if err := serialize.DeserializeFromBytes(decodeMsg.Data, &cmd); err != nil {
+			t.Fatal("deserialize from Bytes err", err)
+		}
+	case NewRootBlockMsg:
+		cmd := new(NewRootBlockCommand)
+		if err := serialize.DeserializeFromBytes(decodeMsg.Data, &cmd); err != nil {
+			t.Fatal("deserialize from Bytes err", err)
+		}
+	case GetMinorBlockHeaderListWithSkipRequestMsg:
+		cmd := new(GetMinorBlockHeaderListWithSkipRequest)
+		if err := serialize.DeserializeFromBytes(decodeMsg.Data, &cmd); err != nil {
+			t.Fatal("deserialize from Bytes err", err)
+		}
+	case GetMinorBlockHeaderListWithSkipResponseMsg:
+		cmd := new(GetMinorBlockHeaderListResponse)
+		if err := serialize.DeserializeFromBytes(decodeMsg.Data, &cmd); err != nil {
+			t.Fatal("deserialize from Bytes err", err)
+		}
 	default:
 		t.Fatal("unexcepted decodeMsg op")
 	}

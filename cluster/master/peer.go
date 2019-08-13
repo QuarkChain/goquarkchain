@@ -391,6 +391,47 @@ func (p *Peer) GetRootBlockList(hashes []common.Hash) ([]*types.RootBlock, error
 	}
 }
 
+func (p *Peer) getRootBlockHeaderListWithSkip(rpcId uint64, request *p2p.GetRootBlockHeaderListWithSkipRequest) error {
+	msg, err := p2p.MakeMsg(p2p.GetRootBlockHeaderListWithSkipRequestMsg, rpcId, p2p.Metadata{}, request)
+	if err != nil {
+		return err
+	}
+	return p.rw.WriteMsg(msg)
+}
+
+func (p *Peer) GetRootBlockHeaderListWithSkip(tp uint8, data common.Hash, limit, skip uint32,
+	direction uint8) (*p2p.GetRootBlockHeaderListResponse, error) {
+	rpcId, rpcchan := p.getRpcIdWithChan()
+	defer p.deleteChan(rpcId)
+
+	err := p.getRootBlockHeaderListWithSkip(rpcId, &p2p.GetRootBlockHeaderListWithSkipRequest{
+		Type:      tp,
+		Data:      data,
+		Limit:     limit,
+		Skip:      skip,
+		Direction: direction,
+	})
+	if err != nil {
+		return nil, err
+	}
+	timeout := time.NewTimer(requestTimeout)
+	select {
+	case obj := <-rpcchan:
+		if ret, ok := obj.(*p2p.GetRootBlockHeaderListResponse); !ok {
+			panic("invalid return result in GetMinorBlockList")
+		} else {
+			return ret, nil
+		}
+	case <-timeout.C:
+		return nil, fmt.Errorf("peer %v return GetMinorBlockList disc Read Time out for rpcid %d", p.id, rpcId)
+	}
+}
+
+// TODO does nothing at the moment
+func (p *Peer) GetNewBlockMinor() (*types.MinorBlock, error) {
+	panic("does nothing at the moment")
+}
+
 func (p *Peer) requestMinorBlockList(rpcId uint64, hashList []common.Hash, branch uint32) error {
 	data := p2p.GetMinorBlockListRequest{MinorBlockHashList: hashList}
 	msg, err := p2p.MakeMsg(p2p.GetMinorBlockListRequestMsg, rpcId, p2p.Metadata{Branch: branch}, data)
@@ -422,6 +463,44 @@ func (p *Peer) GetMinorBlockList(hashes []common.Hash, branch uint32) ([]*types.
 	}
 }
 
+func (p *Peer) requestMinorBlockListWithSkip(rpcId uint64,
+	request *p2p.GetMinorBlockHeaderListWithSkipRequest) error {
+	msg, err := p2p.MakeMsg(p2p.GetMinorBlockHeaderListWithSkipRequestMsg, rpcId, p2p.Metadata{Branch: request.Branch.Value}, request)
+	if err != nil {
+		return err
+	}
+	return p.rw.WriteMsg(msg)
+}
+
+func (p *Peer) GetMinorBlockListWithSkip(tp uint8, data common.Hash, limit, skip uint32, branch uint32,
+	direction uint8) ([]*types.MinorBlockHeader, error) {
+	rpcId, rpcchan := p.getRpcIdWithChan()
+	defer p.deleteChan(rpcId)
+
+	err := p.requestMinorBlockListWithSkip(rpcId, &p2p.GetMinorBlockHeaderListWithSkipRequest{
+		Type:      tp,
+		Data:      data,
+		Limit:     limit,
+		Skip:      skip,
+		Direction: direction,
+		Branch:    account.Branch{Value: branch},
+	})
+	if err != nil {
+		return nil, err
+	}
+	timeout := time.NewTimer(requestTimeout)
+	select {
+	case obj := <-rpcchan:
+		if ret, ok := obj.([]*types.MinorBlockHeader); !ok {
+			panic("invalid return result in GetMinorBlockList")
+		} else {
+			return ret, nil
+		}
+	case <-timeout.C:
+		return nil, fmt.Errorf("peer %v return GetMinorBlockList disc Read Time out for rpcid %d", p.id, rpcId)
+	}
+}
+
 func (p *Peer) SendResponse(op p2p.P2PCommandOp, metadata p2p.Metadata, rpcId uint64, response interface{}) error {
 	msg, err := p2p.MakeMsg(op, rpcId, metadata, response)
 	if err != nil {
@@ -432,23 +511,25 @@ func (p *Peer) SendResponse(op p2p.P2PCommandOp, metadata p2p.Metadata, rpcId ui
 
 // Handshake executes the eth protocol handshake, negotiating version number,
 // network IDs, difficulties, head and genesis blocks.
-func (p *Peer) Handshake(protoVersion, networkId uint32, peerId common.Hash, peerPort uint16, rootBlockHeader *types.RootBlockHeader) error {
+func (p *Peer) Handshake(protoVersion, networkId uint32, peerId common.Hash, peerPort uint16, rootBlockHeader *types.RootBlockHeader,
+	genesisRootBlockHash common.Hash) error {
 	// Send out own handshake in a new thread
 	errc := make(chan error, 2)
 
 	hello, err := p2p.MakeMsg(p2p.Hello, 0, p2p.Metadata{}, p2p.HelloCmd{
-		Version:         protoVersion,
-		NetWorkID:       networkId,
-		PeerID:          peerId,
-		PeerPort:        peerPort,
-		RootBlockHeader: rootBlockHeader,
+		Version:              protoVersion,
+		NetWorkID:            networkId,
+		PeerID:               peerId,
+		PeerPort:             peerPort,
+		RootBlockHeader:      rootBlockHeader,
+		GenesisRootBlockHash: genesisRootBlockHash,
 	})
 	if err != nil {
 		return err
 	}
 
 	go func() {
-		errc <- p.readStatus(protoVersion, networkId)
+		errc <- p.readStatus(protoVersion, networkId, genesisRootBlockHash)
 	}()
 	go func() {
 		errc <- p.rw.WriteMsg(hello)
@@ -470,7 +551,7 @@ func (p *Peer) Handshake(protoVersion, networkId uint32, peerId common.Hash, pee
 	return nil
 }
 
-func (p *Peer) readStatus(protoVersion, networkId uint32) (err error) {
+func (p *Peer) readStatus(protoVersion, networkId uint32, genesisRootBlockHash common.Hash) (err error) {
 	msg, err := p.rw.ReadMsg()
 	if err != nil {
 		return err
@@ -502,6 +583,9 @@ func (p *Peer) readStatus(protoVersion, networkId uint32) (err error) {
 	}
 	if helloCmd.RootBlockHeader == nil {
 		return errors.New("root block header in hello cmd is nil")
+	}
+	if helloCmd.GenesisRootBlockHash != genesisRootBlockHash {
+		return errors.New("genesis block mismatch")
 	}
 
 	p.SetRootHead(helloCmd.RootBlockHeader)
