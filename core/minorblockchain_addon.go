@@ -1552,3 +1552,48 @@ func (m *MinorBlockChain) RunCrossShardTxWithCursor(evmState *state.StateDB,
 	evmState.SetXShardReceiveGasUsed(evmState.GetGasUsed())
 	return txList, cursor.getCursorInfo(), receipts, nil
 }
+
+func CountAddressFromSlice(lists []account.Recipient, recipient account.Recipient) uint64 {
+	cnt := uint64(0)
+	for _, v := range lists {
+		if v.String() == recipient.String() {
+			cnt++
+		}
+	}
+	return cnt
+}
+func (m *MinorBlockChain) PoswInfo(mBlock *types.MinorBlock) (*rpc.PoSWInfo, error) {
+	if mBlock == nil {
+		return nil, errors.New("get powInfo err:mBlock is full")
+	}
+	header := mBlock.Header()
+	if header.Number == 0 {
+		return &rpc.PoSWInfo{
+			EffectiveDifficulty: header.Difficulty,
+			PoswMineableBlocks:  0,
+			PoswMinedBlocks:     0,
+		}, nil
+	}
+	diff := header.Difficulty
+
+	evmState, err := m.getEvmStateForNewBlock(header, true)
+	if err != nil {
+		return nil, err
+	}
+	poswConfig := m.shardConfig.PoswConfig
+	stakes := evmState.GetBalance(header.Coinbase.Recipient, m.clusterConfig.Quarkchain.GetDefaultChainTokenID())
+	blockThreshld := stakes.Div(stakes, poswConfig.TotalStakePerBlock)
+	if poswConfig.WindowSize < blockThreshld.Uint64() {
+		blockThreshld = new(big.Int).SetUint64(poswConfig.WindowSize)
+	}
+	blockCnt, err := m.posw.GetCoinbaseAddressUntilBlock(header.ParentHash)
+	cnt := CountAddressFromSlice(blockCnt, header.Coinbase.Recipient)
+	if cnt < blockThreshld.Uint64() {
+		diff = diff.Div(diff, new(big.Int).SetUint64(poswConfig.DiffDivider))
+	}
+	return &rpc.PoSWInfo{
+		EffectiveDifficulty: diff,
+		PoswMineableBlocks:  blockThreshld.Uint64(),
+		PoswMinedBlocks:     cnt + 1}, nil
+
+}
