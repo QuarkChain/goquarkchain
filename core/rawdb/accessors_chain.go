@@ -605,7 +605,7 @@ func GetMinorBlockCnt(db DatabaseReader, fullShardID uint32, height uint32) []by
 	return data
 }
 
-func PutMinorBlockCoinbase(db DatabaseWriter, mHash common.Hash, coinbaseToken *types.TokenBalances) {
+func WriteMinorBlockCoinbase(db DatabaseWriter, mHash common.Hash, coinbaseToken *types.TokenBalances) {
 	tokenBytes, err := serialize.SerializeToBytes(coinbaseToken)
 	if err != nil {
 		log.Crit("failed to put minor block coinbase", "serialize err", err)

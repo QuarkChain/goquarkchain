@@ -1339,7 +1339,7 @@ func (bc *RootBlockChain) ContainMinorBlockByHash(mHash common.Hash) bool {
 }
 
 func (bc *RootBlockChain) PutMinorBlockCoinbase(mHash common.Hash, coinBaseTokens *types.TokenBalances) {
-	rawdb.PutMinorBlockCoinbase(bc.db, mHash, coinBaseTokens)
+	rawdb.WriteMinorBlockCoinbase(bc.db, mHash, coinBaseTokens)
 }
 
 func (bc *RootBlockChain) GetMinorBlockCoinbaseTokens(mHash common.Hash) *types.TokenBalances {
