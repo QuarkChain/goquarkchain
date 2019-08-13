@@ -720,14 +720,15 @@ func (pm *ProtocolManager) HandleGetMinorBlockHeaderListWithSkipRequest(peerId s
 	}
 
 	var (
-		cli        = clients[0]
-		height     uint64
-		hash       common.Hash
-		mBlock     *types.MinorBlock
-		headerlist = make([]*types.MinorBlockHeader, 0, request.Limit)
+		needExtraInfo = false
+		cli           = clients[0]
+		height        uint64
+		hash          common.Hash
+		mBlock        *types.MinorBlock
+		headerlist    = make([]*types.MinorBlockHeader, 0, request.Limit)
 	)
 	rTip := pm.rootBlockChain.CurrentHeader().(*types.RootBlockHeader)
-	mTip, err := cli.GetMinorBlockByHeight(nil, request.Branch)
+	mTip, _, err := cli.GetMinorBlockByHeight(nil, request.Branch, needExtraInfo)
 	if err != nil {
 		return nil, err
 	}
@@ -735,18 +736,18 @@ func (pm *ProtocolManager) HandleGetMinorBlockHeaderListWithSkipRequest(peerId s
 		height = *request.GetHeight()
 	} else {
 		hash = request.GetHash()
-		mBlock, err = cli.GetMinorBlockByHash(hash, request.Branch)
+		mBlock, _, err = cli.GetMinorBlockByHash(hash, request.Branch, needExtraInfo)
 		if err != nil {
 			return
 		}
 		height = mBlock.Number()
-		if mBlock, err = cli.GetMinorBlockByHeight(&height, request.Branch); err != nil || mBlock.Number() != height {
+		if mBlock, _, err = cli.GetMinorBlockByHeight(&height, request.Branch, needExtraInfo); err != nil || mBlock.Number() != height {
 			return &p2p.GetMinorBlockHeaderListResponse{RootTip: rTip, ShardTip: mTip.Header()}, nil
 		}
 	}
 
 	for len(headerlist) < int(request.Limit) && height >= 0 && height <= mTip.Number() {
-		mBlock, err = cli.GetMinorBlockByHeight(&height, request.Branch)
+		mBlock, _, err = cli.GetMinorBlockByHeight(&height, request.Branch, needExtraInfo)
 		if err != nil || mBlock == nil {
 			break
 		}

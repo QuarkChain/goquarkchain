@@ -182,23 +182,20 @@ func (s *SlaveBackend) GetBalances(address *account.Address) (map[uint64]*big.In
 		return nil, err
 	}
 	if shard, ok := s.shards[branch.Value]; ok {
-		//TODO-master
 		data, err := shard.MinorBlockChain.GetBalance(address.Recipient, nil)
-		temp := map[uint64]*big.Int{
-			qcom.TokenIDEncode("QKC"): data,
-		}
-		return temp, err
+		return data.GetBalanceMap(), err
 	}
 	return nil, ErrMsg("GetBalances")
 }
 
-func (s *SlaveBackend) GetTokenBalance(address *account.Address) (*big.Int, error) {
+func (s *SlaveBackend) GetTokenBalanceMap(address *account.Address) (map[uint64]*big.Int, error) {
 	branch, err := s.getBranch(address)
 	if err != nil {
 		return nil, err
 	}
 	if shard, ok := s.shards[branch.Value]; ok {
-		return shard.MinorBlockChain.GetBalance(address.Recipient, nil)
+		data, err := shard.MinorBlockChain.GetBalance(address.Recipient, nil)
+		return data.GetBalanceMap(), err
 	}
 	return nil, ErrMsg("GetTokenBalance")
 }
@@ -216,9 +213,11 @@ func (s *SlaveBackend) GetAccountData(address *account.Address, height *uint64) 
 		if data.TransactionCount, err = shard.MinorBlockChain.GetTransactionCount(address.Recipient, height); err != nil {
 			return nil, err
 		}
-		if data.Balance, err = shard.MinorBlockChain.GetBalance(address.Recipient, height); err != nil {
+		tokenBalances, err := shard.MinorBlockChain.GetBalance(address.Recipient, height)
+		if err != nil {
 			return nil, err
 		}
+		data.Balance = tokenBalances.Copy()
 		if bt, err = shard.MinorBlockChain.GetCode(address.Recipient, height); err != nil {
 			return nil, err
 		}
@@ -233,6 +232,17 @@ func (s *SlaveBackend) GetMinorBlock(hash common.Hash, height *uint64, branch ui
 		return shard.GetMinorBlock(hash, height), nil
 	}
 	return nil, ErrMsg("GetMinorBlock")
+}
+
+func (s *SlaveBackend) GetMinorBlockExtraInfo(block *types.MinorBlock, branch uint32) (*rpc.PoSWInfo, error) {
+	if shard, ok := s.shards[branch]; ok {
+		extra, err := shard.MinorBlockChain.PoswInfo(block)
+		if err != nil {
+			return nil, err
+		}
+		return extra, nil
+	}
+	return nil, ErrMsg("GetMinorBlockByHeight")
 }
 
 func (s *SlaveBackend) GetTransactionByHash(txHash common.Hash, branch uint32) (*types.MinorBlock, uint32, error) {
@@ -306,9 +316,9 @@ func (s *SlaveBackend) GetCode(address *account.Address, height *uint64) ([]byte
 	return nil, ErrMsg("GetCode")
 }
 
-func (s *SlaveBackend) GasPrice(branch uint32) (uint64, error) {
+func (s *SlaveBackend) GasPrice(branch uint32, tokenID uint64) (uint64, error) {
 	if shard, ok := s.shards[branch]; ok {
-		price, err := shard.MinorBlockChain.GasPrice()
+		price, err := shard.MinorBlockChain.GasPrice(tokenID)
 		if err != nil {
 			return 0, errors.New(fmt.Sprintf("Failed to get gas price, shard id : %d, err: %v", shard.Config.ShardID, err))
 		}

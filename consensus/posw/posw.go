@@ -63,7 +63,7 @@ func (p *PoSW) BuildSenderDisallowMap(headerHash common.Hash, coinbase *account.
 	if !p.config.Enabled {
 		return nil, nil
 	}
-	coinbaseAddrs, err := p.getCoinbaseAddressUntilBlock(headerHash)
+	coinbaseAddrs, err := p.GetCoinbaseAddressUntilBlock(headerHash)
 	if err != nil {
 		return nil, err
 	}
@@ -86,7 +86,7 @@ func (p *PoSW) IsPoSWEnabled() bool {
 }
 
 func (p *PoSW) countCoinbaseBlockUntil(headerHash common.Hash, coinbase account.Recipient) (uint64, error) {
-	coinbases, err := p.getCoinbaseAddressUntilBlock(headerHash)
+	coinbases, err := p.GetCoinbaseAddressUntilBlock(headerHash)
 	if err != nil {
 		return 0, err
 	}
@@ -100,7 +100,7 @@ func (p *PoSW) countCoinbaseBlockUntil(headerHash common.Hash, coinbase account.
 	return count, nil
 }
 
-func (p *PoSW) getCoinbaseAddressUntilBlock(headerHash common.Hash) ([]account.Recipient, error) {
+func (p *PoSW) GetCoinbaseAddressUntilBlock(headerHash common.Hash) ([]account.Recipient, error) {
 	header := p.hReader.GetHeader(headerHash)
 	if qkcCommon.IsNil(header) {
 		return nil, fmt.Errorf("curr block not found: hash %x, %s", headerHash, string(debug.Stack()))

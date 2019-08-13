@@ -101,4 +101,5 @@ type PoSWCalculator interface {
 	BuildSenderDisallowMap(headerHash common.Hash, recipient *account.Recipient) (map[account.Recipient]*big.Int, error)
 	PoSWDiffAdjust(header types.IHeader, balance *big.Int) (*big.Int, error)
 	IsPoSWEnabled() bool
+	GetCoinbaseAddressUntilBlock(headerHash common.Hash) ([]account.Recipient, error)
 }

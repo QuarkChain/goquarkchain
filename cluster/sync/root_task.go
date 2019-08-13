@@ -27,6 +27,7 @@ type rootChainTask struct {
 func NewRootChainTask(
 	p rootSyncerPeer,
 	header *types.RootBlockHeader,
+	stats *rpc.RootBlockSychronizerStats,
 	statusChan chan *rpc.ShardStatus,
 	getShardConnFunc func(fullShardId uint32) []rpc.ShardConnForP2P,
 ) Task {

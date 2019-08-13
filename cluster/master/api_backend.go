@@ -113,29 +113,29 @@ func (s *QKCMasterBackend) ExecuteTransaction(tx *types.Transaction, address *ac
 
 }
 
-func (s *QKCMasterBackend) GetMinorBlockByHash(blockHash common.Hash, branch account.Branch) (*types.MinorBlock, error) {
+func (s *QKCMasterBackend) GetMinorBlockByHash(blockHash common.Hash, branch account.Branch, needExtraInfo bool) (*types.MinorBlock, *rpc.PoSWInfo, error) {
 	slaveConn := s.getOneSlaveConnection(branch)
 	if slaveConn == nil {
-		return nil, ErrNoBranchConn
+		return nil, nil, ErrNoBranchConn
 	}
-	return slaveConn.GetMinorBlockByHash(blockHash, branch)
+	return slaveConn.GetMinorBlockByHash(blockHash, branch, needExtraInfo)
 }
 
-func (s *QKCMasterBackend) GetMinorBlockByHeight(height *uint64, branch account.Branch) (*types.MinorBlock, error) {
+func (s *QKCMasterBackend) GetMinorBlockByHeight(height *uint64, branch account.Branch, needExtraInfo bool) (*types.MinorBlock, *rpc.PoSWInfo, error) {
 	slaveConn := s.getOneSlaveConnection(branch)
 	if slaveConn == nil {
-		return nil, ErrNoBranchConn
+		return nil, nil, ErrNoBranchConn
 	}
 	if height == nil {
 		s.lock.RLock()
 		shardStats, ok := s.branchToShardStats[branch.Value]
 		s.lock.RUnlock()
 		if !ok {
-			return nil, ErrNoBranchConn
+			return nil, nil, ErrNoBranchConn
 		}
 		height = &shardStats.Height
 	}
-	return slaveConn.GetMinorBlockByHeight(height, branch)
+	return slaveConn.GetMinorBlockByHeight(height, branch, needExtraInfo)
 }
 
 func (s *QKCMasterBackend) GetTransactionByHash(txHash common.Hash, branch account.Branch) (*types.MinorBlock, uint32, error) {
