@@ -441,22 +441,22 @@ func TestGetMinorBlockByHeight(t *testing.T) {
 		Height: 0,
 	}
 	master.UpdateShardStatus(&fakeShardStatus)
-	minorBlock, err := master.GetMinorBlockByHeight(nil, account.Branch{Value: 2})
+	minorBlock, _, err := master.GetMinorBlockByHeight(nil, account.Branch{Value: 2}, false)
 
 	assert.NoError(t, err)
 	assert.Equal(t, fakeMinorBlock.Hash(), minorBlock.Hash())
 
-	_, err = master.GetMinorBlockByHeight(nil, account.Branch{Value: 2222})
+	_, _, err = master.GetMinorBlockByHeight(nil, account.Branch{Value: 2222}, false)
 	assert.Error(t, err)
 }
 func TestGetMinorBlockByHash(t *testing.T) {
 	master := initEnv(t, nil)
 	fakeMinorBlock := types.NewMinorBlock(&types.MinorBlockHeader{Version: 111}, &types.MinorBlockMeta{}, nil, nil, nil)
-	minorBlock, err := master.GetMinorBlockByHash(common.Hash{}, account.Branch{Value: 2})
+	minorBlock, _, err := master.GetMinorBlockByHash(common.Hash{}, account.Branch{Value: 2}, false)
 	assert.NoError(t, err)
 	assert.Equal(t, fakeMinorBlock.Hash(), minorBlock.Hash())
 
-	_, err = master.GetMinorBlockByHash(common.Hash{}, account.Branch{Value: 2222})
+	_, _, err = master.GetMinorBlockByHash(common.Hash{}, account.Branch{Value: 2222}, false)
 	assert.Error(t, err)
 }
 

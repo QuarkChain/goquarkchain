@@ -249,6 +249,17 @@ func (s *SlaveBackend) GetMinorBlockByHeight(height uint64, branch uint32) (*typ
 	return nil, ErrMsg("GetMinorBlockByHeight")
 }
 
+func (s *SlaveBackend) GetMinorBlockExtraInfo(block *types.MinorBlock, branch uint32) (*rpc.PoSWInfo, error) {
+	if shard, ok := s.shards[branch]; ok {
+		extra, err := shard.MinorBlockChain.PoswInfo(block)
+		if err != nil {
+			return nil, err
+		}
+		return extra, nil
+	}
+	return nil, ErrMsg("GetMinorBlockByHeight")
+}
+
 func (s *SlaveBackend) GetTransactionByHash(txHash common.Hash, branch uint32) (*types.MinorBlock, uint32, error) {
 	if shard, ok := s.shards[branch]; ok {
 		minorBlock, idx := shard.MinorBlockChain.GetTransactionByHash(txHash)

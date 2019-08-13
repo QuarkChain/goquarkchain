@@ -88,10 +88,17 @@ type GetMinorBlockRequest struct {
 	Branch         uint32      `json:"branch" gencodec:"required"`
 	MinorBlockHash common.Hash `json:"minor_block_hash" gencodec:"required"`
 	Height         uint64      `json:"height" gencodec:"required"`
+	NeedExtraInfo  bool        `json:"need_extra_info" gencodec:"required"`
 }
 
+type PoSWInfo struct {
+	EffectiveDifficulty *big.Int
+	PoswMineableBlocks  uint64
+	PoswMinedBlocks     uint64
+}
 type GetMinorBlockResponse struct {
 	MinorBlock *types.MinorBlock `json:"minor_block" gencodec:"required"`
+	Extra      *PoSWInfo
 }
 
 type GetMinorBlockListRequest struct {
