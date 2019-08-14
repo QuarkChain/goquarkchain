@@ -324,7 +324,7 @@ func TestAddTransaction(t *testing.T) {
 	// verify address account and nonce in another cluster
 	accdata1, err := mstr1.GetAccountData(&geneAcc.QKCAddress, nil)
 	assert.Equal(t, accdata1[fullShardId].TransactionCount, uint64(1))
-	assert.Equal(t, accdata1[fullShardId].Balance.GetTokenBalance(testGenesisTokenID).Cmp(accdata[fullShardId].Balance.GetTokenBalance(testGenesisTokenID)) == 0, true)
+	assert.True(t, accdata1[fullShardId].Balance.GetTokenBalance(testGenesisTokenID).Cmp(accdata[fullShardId].Balance.GetTokenBalance(testGenesisTokenID)) == 0)
 
 	clstrList.Stop()
 	time.Sleep(1 * time.Second)
