@@ -73,7 +73,7 @@ func New(ctx *service.ServiceContext, rBlock *types.RootBlock, conn ConnManager,
 			genesisRootHeight: cfg.Quarkchain.GetShardConfigByFullShardID(fullshardId).Genesis.RootHeight,
 			Config:            cfg.Quarkchain.GetShardConfigByFullShardID(fullshardId),
 			conn:              conn,
-			mBPool:            newBlockPool{BlockPool: make(map[common.Hash]*types.MinorBlockHeader)}, //TODO really need?
+			mBPool:            newBlockPool{BlockPool: make(map[common.Hash]*types.MinorBlockHeader)},
 			gspec:             core.NewGenesis(cfg.Quarkchain),
 			eventMux:          ctx.EventMux,
 			logInfo:           fmt.Sprintf("shard:%d", fullshardId),
@@ -199,7 +199,7 @@ func (s *ShardBackend) getBlockCommitStatusByHash(blockHash common.Hash) BlockCo
 	// - All neighbor shards/slaves receives x-shard tx list
 	// - The block header is sent to master
 	// then return immediately
-	if s.MinorBlockChain.HasBlock(blockHash) {
+	if s.MinorBlockChain.IsMinorBlockCommittedByHash(blockHash) {
 		return BLOCK_COMMITTED
 	}
 
