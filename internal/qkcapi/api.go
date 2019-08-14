@@ -426,7 +426,7 @@ func (p *PublicBlockChainAPI) GasPrice(fullShardKey uint32) (hexutil.Uint64, err
 	return hexutil.Uint64(data), err
 }
 
-func (p *PublicBlockChainAPI) SubmitWork(fullShardKey *hexutil.Uint, headHash common.Hash, nonce hexutil.Uint64, mixHash common.Hash) (bool, error) {
+func (p *PublicBlockChainAPI) SubmitWork(fullShardKey *hexutil.Uint, headHash common.Hash, nonce hexutil.Uint64, mixHash common.Hash, signature *[65]byte) (bool, error) {
 	fullShardId := uint32(0)
 	var err error
 	if fullShardKey != nil {
@@ -435,7 +435,7 @@ func (p *PublicBlockChainAPI) SubmitWork(fullShardKey *hexutil.Uint, headHash co
 			return false, err
 		}
 	}
-	submit, err := p.b.SubmitWork(account.NewBranch(fullShardId), headHash, uint64(nonce), mixHash)
+	submit, err := p.b.SubmitWork(account.NewBranch(fullShardId), headHash, uint64(nonce), mixHash, signature)
 	if err != nil {
 		log.Error("Submit remote minered block", "err", err)
 		return false, nil

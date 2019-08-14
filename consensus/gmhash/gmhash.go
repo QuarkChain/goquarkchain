@@ -5,9 +5,9 @@ package gmhash
 import (
 	"encoding/binary"
 	"github.com/QuarkChain/goquarkchain/consensus"
+	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/crypto"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/QuarkChain/goquarkchain/core/types"
 	"math/big"
 )
 
@@ -56,13 +56,13 @@ func verifySeal(chain consensus.ChainReader, header types.IHeader, adjustedDiff 
 }
 
 // New returns a GmSm3Hash scheme.
-func New(diffCalculator consensus.DifficultyCalculator, remote bool) *GmSm3Hash {
+func New(diffCalculator consensus.DifficultyCalculator, remote bool, pubKey []byte) *GmSm3Hash {
 	spec := consensus.MiningSpec{
 		Name:       "GmSm3Hash",
 		HashAlgo:   hashAlgo,
 		VerifySeal: verifySeal,
 	}
 	return &GmSm3Hash{
-		CommonEngine: consensus.NewCommonEngine(spec, diffCalculator, remote),
+		CommonEngine: consensus.NewCommonEngine(spec, diffCalculator, remote, pubKey),
 	}
 }

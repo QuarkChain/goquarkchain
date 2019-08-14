@@ -9,6 +9,7 @@ import (
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/rpc"
 	"reflect"
+	"sync"
 )
 
 type SlaveBackend struct {
@@ -18,6 +19,7 @@ type SlaveBackend struct {
 
 	connManager *ConnManager
 
+	lock   sync.RWMutex
 	shards map[uint32]*shard.ShardBackend
 
 	ctx      *service.ServiceContext
@@ -67,6 +69,12 @@ func (s *SlaveBackend) getBranch(address *account.Address) (account.Branch, erro
 		return account.Branch{}, err
 	}
 	return account.NewBranch(fullShardID), nil
+}
+
+func (s *SlaveBackend) addShard(id uint32, shard *shard.ShardBackend) {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+	s.shards[id] = shard
 }
 
 func (s *SlaveBackend) GetConfig() *config.SlaveConfig {

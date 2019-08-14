@@ -96,6 +96,7 @@ type CommonEngine struct {
 	submitWorkCh chan *mineResult
 
 	diffCalc DifficultyCalculator
+	pubKey   []byte
 
 	threads int
 	lock    sync.Mutex
@@ -286,7 +287,7 @@ func (c *CommonEngine) localSeal(
 		select {
 		case result := <-found:
 			select {
-			case results <- block.WithMingResult(result.Nonce, result.Digest):
+			case results <- block.WithMingResult(result.Nonce, result.Digest, nil):
 			default:
 				log.Warn("Sealing result is not read by miner", "mode", "local", "sealhash", work.HeaderHash)
 			}
@@ -370,7 +371,7 @@ func (c *CommonEngine) GetWork() (*MiningWork, error) {
 	}
 }
 
-func (c *CommonEngine) SubmitWork(nonce uint64, hash, digest common.Hash) bool {
+func (c *CommonEngine) SubmitWork(nonce uint64, hash, digest common.Hash, signature *[65]byte) bool {
 	if !c.isRemote {
 		return false
 	}
@@ -381,6 +382,7 @@ func (c *CommonEngine) SubmitWork(nonce uint64, hash, digest common.Hash) bool {
 		nonce:     nonce,
 		mixDigest: digest,
 		hash:      hash,
+		signature: signature,
 		errc:      errc,
 	}:
 	case <-c.exitCh:
@@ -418,10 +420,11 @@ func (c *CommonEngine) Close() error {
 }
 
 // NewCommonEngine returns the common engine mixin.
-func NewCommonEngine(spec MiningSpec, diffCalc DifficultyCalculator, remote bool) *CommonEngine {
+func NewCommonEngine(spec MiningSpec, diffCalc DifficultyCalculator, remote bool, pubKey []byte) *CommonEngine {
 	c := &CommonEngine{
 		spec:     spec,
 		diffCalc: diffCalc,
+		pubKey:   pubKey,
 	}
 	if remote {
 		c.isRemote = true

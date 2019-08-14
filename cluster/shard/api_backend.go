@@ -186,7 +186,7 @@ func (s *ShardBackend) GetWork() (*consensus.MiningWork, error) {
 }
 
 func (s *ShardBackend) SubmitWork(headerHash common.Hash, nonce uint64, mixHash common.Hash) error {
-	if ok := s.miner.SubmitWork(nonce, headerHash, mixHash); ok {
+	if ok := s.miner.SubmitWork(nonce, headerHash, mixHash, nil); ok {
 		return nil
 	}
 	return errors.New("submit mined work failed")

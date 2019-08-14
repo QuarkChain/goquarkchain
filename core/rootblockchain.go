@@ -1119,7 +1119,7 @@ func (m *RootBlockChain) SkipDifficultyCheck() bool {
 func (m *RootBlockChain) GetAdjustedDifficulty(header types.IHeader) (*big.Int, error) {
 	rHeader := header.(*types.RootBlockHeader)
 	adjustedDiff := rHeader.GetDifficulty()
-	if crypto.VerifySignature(common.Hex2Bytes(m.Config().GuardianPublicKey), rHeader.Hash().Bytes(), rHeader.Signature[:]) {
+	if crypto.VerifySignature(common.Hex2Bytes(m.Config().GuardianPublicKey), rHeader.SealHash().Bytes(), rHeader.Signature[:]) {
 		adjustedDiff = new(big.Int).Div(rHeader.GetDifficulty(), new(big.Int).SetUint64(1000))
 	}
 	return adjustedDiff, nil
@@ -1166,6 +1166,13 @@ func (bc *RootBlockChain) CreateBlockToMine(mHeaderList []*types.MinorBlockHeade
 	data := bc.CalculateRootBlockCoinBase(block)
 	temp := types.NewTokenBalanceMap()
 	temp.BalanceMap[qkcCommon.TokenIDEncode("QKC")] = data
+	if len(bc.chainConfig.GuardianPrivateKey) > 0 {
+		prvKey, err := crypto.ToECDSA(bc.chainConfig.GuardianPrivateKey)
+		if err != nil {
+			return nil, err
+		}
+		block.SignWithPrivateKey(prvKey)
+	}
 	block.Finalize(temp, address, common.Hash{})
 	return block, nil
 }

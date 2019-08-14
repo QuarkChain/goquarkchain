@@ -381,7 +381,7 @@ func (b *MinorBlock) IHeader() IHeader {
 }
 
 // WithMingResult returns a new block with the data from b and update nonce and mixDigest
-func (b *MinorBlock) WithMingResult(nonce uint64, mixDigest common.Hash) IBlock {
+func (b *MinorBlock) WithMingResult(nonce uint64, mixDigest common.Hash, signature *[65]byte) IBlock {
 	cpy := CopyMinorBlockHeader(b.header)
 	cpy.Nonce = nonce
 	cpy.MixDigest = mixDigest

@@ -12,7 +12,6 @@ import (
 	"github.com/QuarkChain/goquarkchain/p2p"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
-	"github.com/ethereum/go-ethereum/crypto"
 	"golang.org/x/sync/errgroup"
 	"math/big"
 	"net"
@@ -236,9 +235,9 @@ func (s *QKCMasterBackend) GetWork(branch account.Branch) (*consensus.MiningWork
 }
 
 // submit root chain work if branch is nil
-func (s *QKCMasterBackend) SubmitWork(branch account.Branch, headerHash common.Hash, nonce uint64, mixHash common.Hash) (bool, error) {
+func (s *QKCMasterBackend) SubmitWork(branch account.Branch, headerHash common.Hash, nonce uint64, mixHash common.Hash, signature *[65]byte) (bool, error) {
 	if branch.Value == 0 {
-		return s.miner.SubmitWork(nonce, headerHash, mixHash), nil
+		return s.miner.SubmitWork(nonce, headerHash, mixHash, signature), nil
 	}
 	slaveConn := s.getOneSlaveConnection(branch)
 	if slaveConn == nil {
@@ -294,11 +293,9 @@ func (s *QKCMasterBackend) CreateBlockToMine() (types.IBlock, *big.Int, error) {
 	if err != nil {
 		return nil, nil, err
 	}
-	diff := block.Header().Difficulty
-	if crypto.VerifySignature(common.Hex2Bytes(s.clusterConfig.Quarkchain.GuardianPublicKey),
-		block.Header().Hash().Bytes(), block.Header().Signature[:]) {
-		adjustedDiff := diff.Div(diff, new(big.Int).SetUint64(1000))
-		return block, adjustedDiff, nil
+	diff, err := s.rootBlockChain.GetAdjustedDifficulty(block.Header())
+	if err != nil {
+		return nil, nil, err
 	}
 	return block, diff, nil
 }

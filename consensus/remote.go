@@ -3,6 +3,7 @@ package consensus
 import (
 	"errors"
 	"fmt"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/hashicorp/golang-lru"
 	"math/big"
 	"time"
@@ -32,8 +33,8 @@ type mineResult struct {
 	nonce     uint64
 	mixDigest common.Hash
 	hash      common.Hash
-
-	errc chan error
+	signature *[65]byte
+	errc      chan error
 }
 
 type sealWork struct {
@@ -69,7 +70,7 @@ func (c *CommonEngine) remote() {
 		works.Add(hash, block)
 	}
 
-	submitWork := func(nonce uint64, mixDigest common.Hash, sealhash common.Hash) bool {
+	submitWork := func(nonce uint64, mixDigest common.Hash, sealhash common.Hash, signature *[65]byte) bool {
 		if currentBlock == nil {
 			log.Error("Pending work without block", "sealhash", sealhash)
 			return false
@@ -85,13 +86,22 @@ func (c *CommonEngine) remote() {
 		}
 
 		if results == nil {
-			log.Warn("Qkcash result channel is empty, submitted mining result is rejected")
+			log.Warn("Qkc cash result channel is empty, submitted mining result is rejected")
 			return false
 		}
 
-		solution := block.WithMingResult(nonce, mixDigest)
+		solution := block.WithMingResult(nonce, mixDigest, signature)
+		adjustedDiff := currentWork.Difficulty
+		// if tx has been sign by miner and difficulty has not been adjusted before
+		// we can adjust difficulty here if the signature pub key is
+		if signature != nil && adjustedDiff.Cmp(solution.IHeader().GetDifficulty()) == 0 {
+			if crypto.VerifySignature(c.pubKey, solution.IHeader().SealHash().Bytes(), signature[:]) {
+				adjustedDiff = new(big.Int).Div(solution.IHeader().GetDifficulty(), new(big.Int).SetUint64(1000))
+			}
+		}
+
 		start := time.Now()
-		if err := c.spec.VerifySeal(nil, solution.IHeader(), currentWork.Difficulty); err != nil {
+		if err := c.spec.VerifySeal(nil, solution.IHeader(), adjustedDiff); err != nil {
 			log.Warn("Invalid proof-of-work submitted", "sealhash", sealhash.Hex(), "elapsed", time.Since(start), "err", err)
 			return false
 		}
@@ -124,7 +134,7 @@ func (c *CommonEngine) remote() {
 			}
 
 		case result := <-c.submitWorkCh:
-			if submitWork(result.nonce, result.mixDigest, result.hash) {
+			if submitWork(result.nonce, result.mixDigest, result.hash, result.signature) {
 				result.errc <- nil
 			} else {
 				result.errc <- errInvalidSealResult

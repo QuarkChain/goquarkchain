@@ -121,7 +121,7 @@ func createDefaultShardState(env *fakeEnv, shardID *uint32, diffCalc consensus.D
 	var err error
 	chainConfig := params.TestChainConfig
 	if flagEngine != nil {
-		shardState, err = NewMinorBlockChain(env.db, cacheConfig, chainConfig, env.clusterConfig, doublesha256.New(diffCalc, false), vm.Config{}, nil, fullShardID)
+		shardState, err = NewMinorBlockChain(env.db, cacheConfig, chainConfig, env.clusterConfig, doublesha256.New(diffCalc, false, []byte{}), vm.Config{}, nil, fullShardID)
 		if err != nil {
 			panic(err)
 		}
