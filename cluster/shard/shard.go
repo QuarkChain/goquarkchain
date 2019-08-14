@@ -30,7 +30,7 @@ type BlockCommitCode int
 
 const (
 	BLOCK_UNCOMMITTED BlockCommitCode = iota
-	BLOCK_COMMITTING
+	BLOCK_COMMITTING                  // TODO not support yet,need discuss
 	BLOCK_COMMITTED
 )
 
@@ -73,7 +73,7 @@ func New(ctx *service.ServiceContext, rBlock *types.RootBlock, conn ConnManager,
 			genesisRootHeight: cfg.Quarkchain.GetShardConfigByFullShardID(fullshardId).Genesis.RootHeight,
 			Config:            cfg.Quarkchain.GetShardConfigByFullShardID(fullshardId),
 			conn:              conn,
-			mBPool:            newBlockPool{BlockPool: make(map[common.Hash]*types.MinorBlockHeader)},
+			mBPool:            newBlockPool{BlockPool: make(map[common.Hash]*types.MinorBlockHeader)}, //TODO really need?
 			gspec:             core.NewGenesis(cfg.Quarkchain),
 			eventMux:          ctx.EventMux,
 			logInfo:           fmt.Sprintf("shard:%d", fullshardId),

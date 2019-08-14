@@ -44,15 +44,15 @@ func (m *MasterServerSideOp) AddMinorBlockHeader(ctx context.Context, req *rpc.R
 }
 
 func (m *MasterServerSideOp) AddMinorBlockHeaderList(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
-	data := new(rpc.AddMinorBlockHeaderListRequest)
-	if err := serialize.DeserializeFromBytes(req.Data, data); err != nil {
+	gReq := new(rpc.AddMinorBlockHeaderListRequest)
+	if err := serialize.DeserializeFromBytes(req.Data, gReq); err != nil {
 		return nil, err
 	}
-	if len(data.CoinbaseAmountMapList) != len(data.MinorBlockHeaderList) {
+	if len(gReq.CoinbaseAmountMapList) != len(gReq.MinorBlockHeaderList) {
 		return nil, errors.New("headerList len is not match")
 	}
-	for index, header := range data.MinorBlockHeaderList {
-		m.master.rootBlockChain.AddValidatedMinorBlockHeader(header.Hash(), data.CoinbaseAmountMapList[index])
+	for index, header := range gReq.MinorBlockHeaderList {
+		m.master.rootBlockChain.AddValidatedMinorBlockHeader(header.Hash(), gReq.CoinbaseAmountMapList[index])
 	}
 	return &rpc.Response{RpcId: req.RpcId}, nil
 }

@@ -192,7 +192,8 @@ func (s *ShardBackend) AddBlockListForSync(blockLst []*types.MinorBlock) ([]*typ
 		return nil, err
 	}
 	if len(unCommittedCoinbaseAmount) != len(uncommittedBlockHeaderList) {
-		panic("Impossible err")
+		log.Error(s.logInfo, "impossible err", "unCommitted status is not match")
+		return nil, errors.New("impossible err: uncommitted status is not match")
 	}
 
 	req := &rpc.AddMinorBlockHeaderListRequest{
@@ -270,11 +271,10 @@ func (s *ShardBackend) NewMinorBlock(block *types.MinorBlock) (err error) {
 		return
 	}
 
-	//TODO @SCF
-	//if !s.MinorBlockChain.HasBlock(block.Header().ParentHash) && s.mBPool.getBlockInPool(block.ParentHash()) == nil {
-	//	log.Info("prarent block hash be included", "parent hash: ", block.Header().ParentHash.Hex())
-	//	return
-	//}
+	if !s.MinorBlockChain.HasBlock(block.Header().ParentHash) && s.mBPool.getBlockInPool(block.ParentHash()) == nil { //TODO need && ?
+		log.Info("prarent block hash be included", "parent hash: ", block.Header().ParentHash.Hex())
+		return
+	}
 
 	//Sanity check on timestamp and block height
 	if block.Header().Time > uint64(time.Now().Unix())+uint64(ALLOWED_FUTURE_BLOCKS_TIME_BROADCAST) {
@@ -283,8 +283,9 @@ func (s *ShardBackend) NewMinorBlock(block *types.MinorBlock) (err error) {
 		return
 	}
 
-	if s.MinorBlockChain.CurrentBlock() != nil && s.MinorBlockChain.CurrentBlock().NumberU64()-block.NumberU64() >
-		s.MinorBlockChain.Config().GetShardConfigByFullShardID(s.MinorBlockChain.GetBranch().Value).MaxStaleMinorBlockHeightDiff() {
+	if s.MinorBlockChain.CurrentBlock() != nil && s.MinorBlockChain.CurrentBlock().NumberU64() > block.NumberU64() &&
+		s.MinorBlockChain.CurrentBlock().NumberU64()-block.NumberU64() >
+			s.MinorBlockChain.Config().GetShardConfigByFullShardID(s.MinorBlockChain.GetBranch().Value).MaxStaleMinorBlockHeightDiff() {
 		log.Info(s.logInfo, "HandleNewMinorBlock err:old blocks, height", block.NumberU64(),
 			"currTip", s.MinorBlockChain.CurrentBlock().NumberU64())
 	}
