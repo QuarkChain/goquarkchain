@@ -651,7 +651,7 @@ func GetRootBlockConfirmingMinorBlock(db DatabaseReader, mHash common.Hash, full
 }
 
 func WriteCommitMinorBlock(db DatabaseWriter, h common.Hash) {
-	if err := db.Put(makeCommitMinorBlock(h), []byte{}); err != nil {
+	if err := db.Put(makeCommitMinorBlock(h), []byte{1}); err != nil { // value must not empty
 		log.Crit("failed to write commit minor block", "err", err)
 	}
 }
