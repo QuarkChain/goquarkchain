@@ -1623,3 +1623,10 @@ func (m *MinorBlockChain) PoswInfo(mBlock *types.MinorBlock) (*rpc.PoSWInfo, err
 		PoswMinedBlocks:     cnt + 1}, nil
 
 }
+
+func (m *MinorBlockChain) IsMinorBlockCommittedByHash(h common.Hash) bool {
+	return rawdb.HasCommitMinorBlock(m.db, h)
+}
+func (m *MinorBlockChain) CommitMinorBlockByHash(h common.Hash) {
+	rawdb.WriteCommitMinorBlock(m.db, h)
+}

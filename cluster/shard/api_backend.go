@@ -73,8 +73,7 @@ func (s *ShardBackend) AddMinorBlock(block *types.MinorBlock) error {
 		oldTip = s.MinorBlockChain.CurrentHeader()
 	)
 
-	commitStatus := s.getBlockCommitStatusByHash(block.Header().Hash())
-	if commitStatus == BLOCK_COMMITTED {
+	if commitStatus := s.getBlockCommitStatusByHash(block.Header().Hash()); commitStatus == BLOCK_COMMITTED {
 		return nil
 	}
 	//TODO support BLOCK_COMMITTING
@@ -124,6 +123,8 @@ func (s *ShardBackend) AddMinorBlock(block *types.MinorBlock) error {
 		s.setHead(currHead)
 		return err
 	}
+	s.MinorBlockChain.CommitMinorBlockByHash(block.Header().Hash())
+	s.mBPool.delBlockInPool(block.Header())
 	go s.miner.HandleNewTip()
 	return nil
 }
@@ -203,6 +204,10 @@ func (s *ShardBackend) AddBlockListForSync(blockLst []*types.MinorBlock) ([]*typ
 	if err := s.conn.SendMinorBlockHeaderListToMaster(req); err != nil {
 		return nil, err
 	}
+	for _, header := range uncommittedBlockHeaderList {
+		s.MinorBlockChain.CommitMinorBlockByHash(header.Hash())
+		s.mBPool.delBlockInPool(header)
+	}
 	return coinbaseAmountList, nil
 }
 
@@ -271,7 +276,7 @@ func (s *ShardBackend) NewMinorBlock(block *types.MinorBlock) (err error) {
 		return
 	}
 
-	if !s.MinorBlockChain.HasBlock(block.Header().ParentHash) && s.mBPool.getBlockInPool(block.ParentHash()) == nil { //TODO need && ?
+	if !s.MinorBlockChain.HasBlock(block.Header().ParentHash) && s.mBPool.getBlockInPool(block.ParentHash()) == nil {
 		log.Info("prarent block hash be included", "parent hash: ", block.Header().ParentHash.Hex())
 		return
 	}
