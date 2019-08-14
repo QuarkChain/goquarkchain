@@ -214,12 +214,12 @@ func ApplyCrossShardDeposit(config *params.ChainConfig, bc ChainContext, header 
 	)
 
 	if tx.IsFromRootChain {
-		evmState.AddBalance(tx.To.Recipient, tx.Value.Value, tx.TransferTokenID.Value.Uint64())
+		evmState.AddBalance(tx.To.Recipient, tx.Value.Value, tx.TransferTokenID)
 	} else {
-		evmState.AddBalance(tx.From.Recipient, tx.Value.Value, tx.TransferTokenID.Value.Uint64())
+		evmState.AddBalance(tx.From.Recipient, tx.Value.Value, tx.TransferTokenID)
 		msg := types.NewMessage(tx.From.Recipient, &tx.To.Recipient, 0, tx.Value.Value,
 			tx.GasRemained.Value.Uint64(), tx.GasPrice.Value, tx.MessageData, false,
-			tx.From.FullShardKey, tx.To.FullShardKey, tx.TransferTokenID.Value.Uint64(), tx.GasTokenID.Value.Uint64())
+			tx.From.FullShardKey, tx.To.FullShardKey, tx.TransferTokenID, tx.GasTokenID)
 		context := NewEVMContext(msg, header, bc)
 		context.IsApplyXShard = true
 		vmenv := vm.NewEVM(context, evmState, config, cfg)

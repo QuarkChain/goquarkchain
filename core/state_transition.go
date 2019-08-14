@@ -316,10 +316,6 @@ func (st *StateTransition) AddCrossShardTxDeposit(intrinsicGas uint64, feeRate *
 		crossShardGasPrice.Value = new(big.Int).Set(msg.GasPrice())
 		crossShardGas := new(serialize.Uint256)
 		crossShardGas.Value = new(big.Int).SetUint64(remoteGasReserved)
-		transferToken := new(serialize.Uint128)
-		transferToken.Value = new(big.Int).SetUint64(msg.TransferTokenID())
-		gasToken := new(serialize.Uint128)
-		gasToken.Value = new(big.Int).SetUint64(msg.GasTokenID())
 		crossShardData := &types.CrossShardTransactionDeposit{
 			TxHash: msg.TxHash(),
 			From: account.Address{
@@ -331,8 +327,8 @@ func (st *StateTransition) AddCrossShardTxDeposit(intrinsicGas uint64, feeRate *
 				FullShardKey: msg.ToFullShardKey(),
 			},
 			Value:           crossShardValue,
-			GasTokenID:      gasToken,
-			TransferTokenID: transferToken,
+			GasTokenID:      msg.GasTokenID(),
+			TransferTokenID: msg.TransferTokenID(),
 			GasRemained:     crossShardGas,
 			GasPrice:        crossShardGasPrice,
 			MessageData:     msg.Data(),

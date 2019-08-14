@@ -880,8 +880,8 @@ func TestXShardTxReceived(t *testing.T) {
 		Value:           &serialize.Uint256{Value: value},
 		GasPrice:        &serialize.Uint256{Value: new(big.Int).SetUint64(fakeGasPrice)},
 		GasRemained:     crossShardGas,
-		TransferTokenID: &serialize.Uint128{Value: new(big.Int).SetUint64(tx.EvmTx.TransferTokenID())},
-		GasTokenID:      &serialize.Uint128{Value: new(big.Int).SetUint64(tx.EvmTx.GasTokenID())},
+		TransferTokenID: tx.EvmTx.TransferTokenID(),
+		GasTokenID:      tx.EvmTx.GasTokenID(),
 	})
 	// Add a x-shard tx from remote peer
 	shardState0.AddCrossShardTxListByMinorBlockHash(b1.Header().Hash(), txList) // write db
@@ -1018,8 +1018,8 @@ func TestXShardForTwoRootBlocks(t *testing.T) {
 		Value:           &serialize.Uint256{Value: new(big.Int).SetUint64(888888)},
 		GasPrice:        &serialize.Uint256{Value: new(big.Int).SetUint64(2)},
 		GasRemained:     crossShardGas,
-		TransferTokenID: &serialize.Uint128{Value: new(big.Int).SetUint64(tx.EvmTx.TransferTokenID())},
-		GasTokenID:      &serialize.Uint128{Value: new(big.Int).SetUint64(tx.EvmTx.GasTokenID())},
+		TransferTokenID: tx.EvmTx.TransferTokenID(),
+		GasTokenID:      tx.EvmTx.GasTokenID(),
 	})
 	// Add a x-shard tx from state1
 	shardState0.AddCrossShardTxListByMinorBlockHash(b1.Header().Hash(), txList)
@@ -1048,8 +1048,8 @@ func TestXShardForTwoRootBlocks(t *testing.T) {
 		Value:           &serialize.Uint256{Value: new(big.Int).SetUint64(385723)},
 		GasPrice:        &serialize.Uint256{Value: new(big.Int).SetUint64(3)},
 		GasRemained:     crossShardGas,
-		TransferTokenID: &serialize.Uint128{Value: new(big.Int).SetUint64(tx.EvmTx.TransferTokenID())},
-		GasTokenID:      &serialize.Uint128{Value: new(big.Int).SetUint64(tx.EvmTx.GasTokenID())},
+		TransferTokenID: tx.EvmTx.TransferTokenID(),
+		GasTokenID:      tx.EvmTx.GasTokenID(),
 	})
 	// Add a x-shard tx from state1
 	shardState0.AddCrossShardTxListByMinorBlockHash(b3.Header().Hash(), txList)

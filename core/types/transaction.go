@@ -558,8 +558,8 @@ type CrossShardTransactionDeposit struct {
 	To              account.Address
 	Value           *serialize.Uint256
 	GasPrice        *serialize.Uint256
-	GasTokenID      *serialize.Uint128
-	TransferTokenID *serialize.Uint128
+	GasTokenID      uint64
+	TransferTokenID uint64
 	IsFromRootChain bool
 	GasRemained     *serialize.Uint256
 	MessageData     []byte
