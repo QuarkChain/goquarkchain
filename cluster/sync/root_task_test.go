@@ -240,7 +240,7 @@ func TestSyncMinorBlocks(t *testing.T) {
 			}
 		}
 
-		addBlock := func(request *rpc.AddBlockListForSyncRequest) (*rpc.ShardStatus, error) {
+		AddBlockListForSyncFunc := func(request *rpc.AddBlockListForSyncRequest) (*rpc.ShardStatus, error) {
 			for _, header := range block.MinorBlockHeaders() {
 				rbc.AddValidatedMinorBlockHeader(header.Hash(), header.CoinbaseAmount)
 			}
@@ -260,8 +260,7 @@ func TestSyncMinorBlocks(t *testing.T) {
 		}
 
 		for _, conn := range shardConns {
-			//conn.(*mock_master.MockShardConnForP2P).EXPECT().AddBlockListForSync(gomock.Any()).Do(addBlock)
-			conn.(*mock_master.MockShardConnForP2P).EXPECT().AddBlockListForSync(gomock.Any()).DoAndReturn(addBlock).Times(1)
+			conn.(*mock_master.MockShardConnForP2P).EXPECT().AddBlockListForSync(gomock.Any()).DoAndReturn(AddBlockListForSyncFunc).Times(1)
 		}
 
 		err := syncMinorBlocks("", bc.(rootblockchain), block, statusChan, func(fullShardId uint32) []rpc.ShardConnForP2P {
@@ -278,7 +277,7 @@ func TestSyncMinorBlocks(t *testing.T) {
 
 		for _, header := range block.MinorBlockHeaders() {
 			if !rbc.IsMinorBlockValidated(header.Hash()) {
-				t.Errorf("validated minor block hash in block %d is missing %v", block.NumberU64(), block.Hash().String())
+				t.Errorf("validated minor block hash in block %d is missing", block.NumberU64())
 			}
 		}
 	}

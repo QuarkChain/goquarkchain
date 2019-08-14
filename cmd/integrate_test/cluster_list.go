@@ -3,6 +3,7 @@ package test
 import (
 	"fmt"
 	"github.com/QuarkChain/goquarkchain/cluster/master"
+	"github.com/QuarkChain/goquarkchain/cmd/utils"
 	"net"
 	"time"
 )
@@ -23,15 +24,13 @@ func (cl Clusterlist) Start(duration time.Duration, prCtrol bool) {
 		if err == nil {
 			started[idx] = cl[idx]
 		} else {
-			fmt.Println("unexpect err", err)
-			panic(err)
-			//for idx, nd := range started {
-			//	if nd != nil {
-			//		nd.Stop()
-			//		cl[idx] = nil
-			//	}
-			//}
-			//utils.Fatalf("failed to start clusters, err: %v", err)
+			for idx, nd := range started {
+				if nd != nil {
+					nd.Stop()
+					cl[idx] = nil
+				}
+			}
+			utils.Fatalf("failed to start clusters, err: %v", err)
 		}
 	}
 

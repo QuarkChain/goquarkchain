@@ -226,7 +226,7 @@ func TestGetPrimaryAccountData(t *testing.T) {
 
 	tx := createTx(geneAcc.QKCAddress, nil)
 	if err := mstr.AddTransaction(tx); err != nil {
-		t.Fatalf("failed to add tx err%v", err)
+		t.Error("failed to add tx", "err", err)
 	}
 
 	// create and add master|shards blocks
@@ -264,7 +264,7 @@ func TestAddTransaction(t *testing.T) {
 	// send tx in shard 0
 	tx0 := createTx(geneAcc.QKCAddress, nil)
 	if err := mstr0.AddTransaction(tx0); err != nil {
-		t.Fatalf("failed to add transaction %v", err)
+		t.Error("failed to add transaction", "err", err)
 	}
 	assert.Equal(t, retryTrueWithTimeout(func() bool {
 		state0, err := shard0.MinorBlockChain.GetShardStatus()
