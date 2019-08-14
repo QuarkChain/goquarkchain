@@ -551,7 +551,7 @@ func TestTwoTxInOneBlock(t *testing.T) {
 	checkErr(err)
 	assert.Equal(t, len(b1.Transactions()), 0)
 	b1, err = shardState.CreateBlockToMine(nil, &acc3, new(big.Int).SetUint64(40000),
-		nil, nil)
+		new(big.Int), nil)
 	checkErr(err)
 	assert.Equal(t, len(b1.Transactions()), 1)
 	b1, err = shardState.CreateBlockToMine(nil, &acc3, nil, nil, nil)
@@ -1980,4 +1980,54 @@ func TestXShardRootBlockCoinbase(t *testing.T) {
 	blc, err = shardState2.GetBalance(acc1.Recipient, nil)
 	checkErr(err)
 	assert.Equal(t, big.NewInt(10000000), blc.GetTokenBalance(qkcCommon.TokenIDEncode("QKC")))
+}
+func TestXShardSenderGasLimit(t *testing.T) {
+	id1, err := account.CreatRandomIdentity()
+	assert.NoError(t, err)
+	acc1 := account.CreatAddressFromIdentity(id1, 0)
+	acc2 := account.CreatAddressFromIdentity(id1, 1<<16)
+	genesis := uint64(10000000)
+	shardSize := uint32(64)
+	shardId0 := uint32(0)
+	env1 := setUp(&acc1, &genesis, &shardSize)
+	shardState1 := createDefaultShardState(env1, &shardId0, nil, nil, nil)
+	defer shardState1.Stop()
+
+	rootBlock := shardState1.rootTip.CreateBlockToAppend(nil, nil, nil, nil, nil)
+	rootBlock.AddMinorBlockHeader(shardState1.CurrentHeader().(*types.MinorBlockHeader))
+	rootBlock.Finalize(nil, nil, common.Hash{})
+	_, err = shardState1.AddRootBlock(rootBlock)
+
+	var b0 = shardState1.CurrentBlock().CreateBlockToAppend(nil, nil, nil, nil, nil, nil, nil, nil, nil)
+	b0.Header().PrevRootBlockHash = rootBlock.Hash()
+	gas := b0.GetMetaData().XShardGasLimit.Value.Uint64() + 1
+	gasPrice := uint64(1)
+	tx0 := CreateTransferTx(shardState1, id1.GetKey().Bytes(), acc1, acc2, new(big.Int).SetUint64(888888), &gas,
+		&gasPrice, nil)
+	assert.Error(t, shardState1.AddTx(tx0))
+	b0.AddTx(tx0)
+	_, _, err = shardState1.FinalizeAndAddBlock(b0)
+	assert.Error(t, err) //xshard evm tx exceeds xshard gas limit
+	xGasLimit := big.NewInt(21000 * 9)
+	includeTx := false
+	b2, err := shardState1.CreateBlockToMine(nil, nil, nil, xGasLimit, &includeTx)
+	checkErr(err)
+	b2.Header().PrevRootBlockHash = rootBlock.Hash()
+	gas = uint64(21000 * 10)
+	tx2 := CreateTransferTx(shardState1, id1.GetKey().Bytes(), acc1, acc2, new(big.Int).SetUint64(888888), &gas,
+		&gasPrice, nil)
+	//assert.Error(t, shardState1.AddTx(tx2)) //No entry for go: pass extra param xshard_gas_limit=opcodes.GTXCOST * 9
+	b2.AddTx(tx2)
+	_, _, err = shardState1.FinalizeAndAddBlock(b2)
+	assert.Error(t, err) //xshard evm tx exceeds xshard gas limit
+
+	b1, err := shardState1.CreateBlockToMine(nil, nil, nil, nil, nil)
+	checkErr(err)
+	gas = b1.GetMetaData().XShardGasLimit.Value.Uint64()
+	b1.Header().PrevRootBlockHash = rootBlock.Hash()
+	tx1 := CreateTransferTx(shardState1, id1.GetKey().Bytes(), acc1, acc2, new(big.Int).SetUint64(888888), &gas,
+		&gasPrice, nil)
+	b1.AddTx(tx1)
+	_, _, err = shardState1.FinalizeAndAddBlock(b1)
+	assert.NoError(t, err)
 }

@@ -128,7 +128,18 @@ func (v *MinorBlockValidator) ValidateBlock(mBlock types.IBlock) error {
 	}
 
 	if block.Header().GasLimit.Value.Cmp(v.bc.gasLimit) != 0 {
-		return errors.New("gasLimit is not match")
+		return fmt.Errorf("incorrect gas limit, expected %d, actual %d", v.bc.gasLimit.Uint64(),
+			block.Header().GasLimit.Value.Uint64())
+	}
+
+	if block.Meta().XShardGasLimit.Value.Cmp(block.Header().GasLimit.Value) >= 0 {
+		return fmt.Errorf("xshard_gas_limit %d should not exceed total gas_limit %d",
+			block.Meta().XShardGasLimit.Value, block.Header().GasLimit.Value)
+	}
+
+	if block.Meta().XShardGasLimit.Value.Cmp(v.bc.xShardGasLimit) != 0 {
+		return fmt.Errorf("incorrect xshard gas limit, expected %d, actual %d", v.bc.xShardGasLimit,
+			block.Meta().XShardGasLimit.Value)
 	}
 
 	txHash := types.CalculateMerkleRoot(block.GetTransactions())

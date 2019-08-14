@@ -779,9 +779,10 @@ func (m *MinorBlockChain) CreateBlockToMine(createTime *uint64, address *account
 	}
 	evmState.SetTxCursorInfo(txCursor)
 	//Adjust inshard tx limit if xshard gas limit is not exhausted
-	// ensure inshard gasLimit = 1/2 default gasLimit
 	if evmState.GetGasUsed().Cmp(xShardGasLimit) == -1 {
-		evmState.SetGasLimit(new(big.Int).Sub(xShardGasLimit, evmState.GetGasUsed()))
+		// ensure inshard gasLimit = 1/2 default gasLimit
+		left := new(big.Int).Sub(xShardGasLimit, evmState.GetGasUsed())
+		evmState.SetGasLimit(new(big.Int).Sub(evmState.GetGasLimit(), left))
 	}
 	receipts := make(types.Receipts, 0)
 	if *includeTx {
@@ -1492,17 +1493,6 @@ func (m *MinorBlockChain) ReadCrossShardTxList(hash common.Hash) *types.CrossSha
 	if data != nil {
 		m.crossShardTxListCache.Add(hash, data)
 		return data
-	}
-	return nil
-}
-
-func (m *MinorBlockChain) runOneXShardTx(evmState *state.StateDB, deposit *types.CrossShardTransactionDeposit, checkIsFromRootChain bool) error {
-	// TODO @DL
-	//	panic("not implement")
-	//apply_xshard_desposit(evm_state, deposit, gas_used_start)
-
-	if evmState.GetGasUsed().Cmp(evmState.GetGasLimit()) >= 0 {
-		return fmt.Errorf("gas_used should <= gasLimit %v %v", evmState.GetGasUsed(), evmState.GetGasLimit())
 	}
 	return nil
 }
