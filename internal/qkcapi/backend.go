@@ -13,8 +13,8 @@ import (
 type Backend interface {
 	AddTransaction(tx *types.Transaction) error
 	ExecuteTransaction(tx *types.Transaction, address *account.Address, height *uint64) ([]byte, error)
-	GetMinorBlockByHash(blockHash common.Hash, branch account.Branch) (*types.MinorBlock, error)
-	GetMinorBlockByHeight(height *uint64, branch account.Branch) (*types.MinorBlock, error)
+	GetMinorBlockByHash(blockHash common.Hash, branch account.Branch, needExtraInfo bool) (*types.MinorBlock, *qkcRPC.PoSWInfo, error)
+	GetMinorBlockByHeight(height *uint64, branch account.Branch, needExtraInfo bool) (*types.MinorBlock, *qkcRPC.PoSWInfo, error)
 	GetTransactionByHash(txHash common.Hash, branch account.Branch) (*types.MinorBlock, uint32, error)
 	GetTransactionReceipt(txHash common.Hash, branch account.Branch) (*types.MinorBlock, uint32, *types.Receipt, error)
 	GetTransactionsByAddress(address *account.Address, start []byte, limit uint32) ([]*qkcRPC.TransactionDetail, []byte, error)

@@ -117,6 +117,7 @@ type RootConfig struct {
 	Genesis                        *RootGenesis    `json:"GENESIS"`
 	CoinbaseAddress                account.Address `json:"-"`
 	CoinbaseAmount                 *big.Int        `json:"COINBASE_AMOUNT"`
+	EpochInterval                  *big.Int        `json:"EPOCH_INTERVAL"`
 	DifficultyAdjustmentCutoffTime uint32          `json:"DIFFICULTY_ADJUSTMENT_CUTOFF_TIME"`
 	DifficultyAdjustmentFactor     uint32          `json:"DIFFICULTY_ADJUSTMENT_FACTOR"`
 	GRPCHost                       string          `json:"-"`
@@ -125,12 +126,13 @@ type RootConfig struct {
 
 func NewRootConfig() *RootConfig {
 	return &RootConfig{
-		MaxStaleRootBlockHeightDiff:    60,
+		MaxStaleRootBlockHeightDiff:    22500,
 		ConsensusType:                  PoWNone,
 		ConsensusConfig:                nil,
 		Genesis:                        NewRootGenesis(),
 		CoinbaseAddress:                account.CreatEmptyAddress(0),
 		CoinbaseAmount:                 new(big.Int).Mul(big.NewInt(120), QuarkashToJiaozi),
+		EpochInterval:                  new(big.Int).SetUint64(210000 * 10),
 		DifficultyAdjustmentCutoffTime: 40,
 		DifficultyAdjustmentFactor:     1024,
 		GRPCHost:                       "127.0.0.1",

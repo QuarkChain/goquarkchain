@@ -118,7 +118,7 @@ func syncMinorBlocks(
 
 	for _, hashes := range downloadMap {
 		for _, hash := range hashes {
-			rbc.AddValidatedMinorBlockHeader(hash)
+			rbc.AddValidatedMinorBlockHeader(hash, nil) //TODO @sync to modify
 		}
 	}
 	return nil

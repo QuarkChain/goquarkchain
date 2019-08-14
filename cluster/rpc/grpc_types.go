@@ -88,10 +88,17 @@ type GetMinorBlockRequest struct {
 	Branch         uint32      `json:"branch" gencodec:"required"`
 	MinorBlockHash common.Hash `json:"minor_block_hash" gencodec:"required"`
 	Height         uint64      `json:"height" gencodec:"required"`
+	NeedExtraInfo  bool        `json:"need_extra_info" gencodec:"required"`
 }
 
+type PoSWInfo struct {
+	EffectiveDifficulty *big.Int
+	PoswMineableBlocks  uint64
+	PoswMinedBlocks     uint64
+}
 type GetMinorBlockResponse struct {
 	MinorBlock *types.MinorBlock `json:"minor_block" gencodec:"required"`
+	Extra      *PoSWInfo
 }
 
 type GetMinorBlockListRequest struct {
@@ -242,10 +249,10 @@ type GetAccountDataRequest struct {
 }
 
 type AccountBranchData struct {
-	Branch           uint32   `json:"branch" gencodec:"required"`
-	TransactionCount uint64   `json:"transaction_count" gencodec:"required"`
-	Balance          *big.Int `json:"token_balances" gencodec:"required" bytesizeofslicelen:"4"`
-	IsContract       bool     `json:"is_contract" gencodec:"required"`
+	Branch           uint32               `json:"branch" gencodec:"required"`
+	TransactionCount uint64               `json:"transaction_count" gencodec:"required"`
+	Balance          *types.TokenBalances `json:"token_balances" gencodec:"required" bytesizeofslicelen:"4"`
+	IsContract       bool                 `json:"is_contract" gencodec:"required"`
 }
 
 type GetAccountDataResponse struct {
@@ -266,10 +273,11 @@ type HashList struct {
 	Piggyback the ShardStatus in the same request.
 */
 type AddMinorBlockHeaderRequest struct {
-	MinorBlockHeader *types.MinorBlockHeader `json:"minor_block_header" gencodec:"required"`
-	TxCount          uint32                  `json:"tx_count" gencodec:"required"`
-	XShardTxCount    uint32                  `json:"x_shard_tx_count" gencodec:"required"`
-	ShardStats       *ShardStatus            `json:"shard_stats" gencodec:"required"`
+	MinorBlockHeader  *types.MinorBlockHeader `json:"minor_block_header" gencodec:"required"`
+	TxCount           uint32                  `json:"tx_count" gencodec:"required"`
+	XShardTxCount     uint32                  `json:"x_shard_tx_count" gencodec:"required"`
+	CoinbaseAmountMap *types.TokenBalances    `json:"coinbase_amount_map" gencodec:"required"`
+	ShardStats        *ShardStatus            `json:"shard_stats" gencodec:"required"`
 }
 
 type AddMinorBlockHeaderResponse struct {
@@ -347,7 +355,8 @@ type GetCodeResponse struct {
 }
 
 type GasPriceRequest struct {
-	Branch uint32 `json:"branch" gencodec:"required"`
+	Branch  uint32 `json:"branch" gencodec:"required"`
+	TokenID uint64 `json:"tokenID" gencodec:"required"`
 }
 
 type GasPriceResponse struct {

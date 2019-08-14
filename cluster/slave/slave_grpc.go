@@ -198,6 +198,13 @@ func (s *SlaveServerSideOp) GetMinorBlock(ctx context.Context, req *rpc.Request)
 		}
 	}
 
+	if gReq.NeedExtraInfo {
+		gRes.Extra, err = s.slave.GetMinorBlockExtraInfo(gRes.MinorBlock, gReq.Branch)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	if response.Data, err = serialize.SerializeToBytes(gRes); err != nil {
 		return nil, err
 	}
@@ -388,7 +395,7 @@ func (s *SlaveServerSideOp) GasPrice(ctx context.Context, req *rpc.Request) (*rp
 		return nil, err
 	}
 
-	if gRes.Result, err = s.slave.GasPrice(gReq.Branch); err != nil {
+	if gRes.Result, err = s.slave.GasPrice(gReq.Branch, gReq.TokenID); err != nil {
 		return nil, err
 	}
 

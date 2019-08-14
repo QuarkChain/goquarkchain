@@ -141,7 +141,7 @@ func newTestTransactionList(count int) []*types.Transaction {
 
 // newTestTransaction create a new dummy transaction.
 func newTestTransaction(from *ecdsa.PrivateKey, nonce uint64, datasize int) *types.Transaction {
-	tx := types.NewEvmTransaction(nonce, account.Recipient{}, big.NewInt(0), 100000, big.NewInt(0), 0, 1, 0, 1, make([]byte, datasize))
+	tx := types.NewEvmTransaction(nonce, account.Recipient{}, big.NewInt(0), 100000, big.NewInt(0), 0, 1, 0, 1, make([]byte, datasize), 0, 0)
 	tx, _ = types.SignTx(tx, types.MakeSigner(tx.NetworkId()), from)
 	return &types.Transaction{EvmTx: tx, TxType: types.EvmTx}
 }

@@ -30,7 +30,7 @@ func fakeSlaveBackend() (*slave.SlaveBackend, error) {
 }
 
 func casesData(t *testing.T, slv *slave.SlaveBackend) map[int]*grpc.Request {
-	evmTx := types.NewEvmTransaction(0, account.Recipient{}, new(big.Int), 0, new(big.Int), 0, 0, 0, 0, nil)
+	evmTx := types.NewEvmTransaction(0, account.Recipient{}, new(big.Int), 0, new(big.Int), 0, 0, 0, 0, nil, 0, 0)
 	var (
 		fakeTx   = &types.Transaction{EvmTx: evmTx, TxType: types.EvmTx}
 		fakeAddr = account.CreatEmptyAddress(0)
