@@ -76,7 +76,6 @@ func (cl Clusterlist) GetPeerByIndex(idx int) (peer *master.Peer) {
 	peers := mstr.GetPeerList()
 	for _, pr := range peers {
 		tcp := pr.RemoteAddr().(*net.TCPAddr)
-		fmt.Println("78", defaultP2PPort, idx, tcp.Port)
 		if defaultP2PPort+idx == tcp.Port {
 			return pr
 		}
