@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/QuarkChain/goquarkchain/account"
+	qkcom "github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/p2p"
 	"github.com/QuarkChain/goquarkchain/serialize"
@@ -41,9 +42,6 @@ const (
 	handshakeTimeout = 5 * time.Second
 
 	requestTimeout = 5 * time.Second
-
-	directionToGenesis = uint8(0)
-	directionToTip     = uint8(1)
 )
 
 type newMinorBlock struct {
@@ -287,9 +285,9 @@ func (p *Peer) requestRootBlockHeaderList(rpcId uint64, hash common.Hash, amount
 	if amount == 0 {
 		panic("amount should not 0")
 	}
-	var direction uint8 = directionToGenesis // 0 to genesis
+	var direction uint8 = qkcom.DirectionToGenesis // 0 to genesis
 	if !reverse {
-		direction = directionToTip // 1 to tip
+		direction = qkcom.DirectionToTip // 1 to tip
 	}
 
 	data := p2p.GetRootBlockHeaderListRequest{BlockHash: hash, Limit: amount, Direction: direction}
@@ -323,9 +321,9 @@ func (p *Peer) GetRootBlockHeaderList(hash common.Hash, amount uint32, reverse b
 }
 
 func (p *Peer) requestMinorBlockHeaderList(rpcId uint64, hash common.Hash, amount uint32, branch uint32, reverse bool) error {
-	var direction uint8 = directionToGenesis
+	var direction uint8 = qkcom.DirectionToGenesis
 	if !reverse {
-		direction = directionToTip
+		direction = qkcom.DirectionToTip
 	}
 
 	data := p2p.GetMinorBlockHeaderListRequest{BlockHash: hash, Branch: account.Branch{Value: branch}, Limit: amount, Direction: direction}

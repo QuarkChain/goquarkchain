@@ -19,6 +19,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/pkg/errors"
 )
 
@@ -90,7 +91,6 @@ func NewProtocolManager(env config.ClusterConfig, rootBlockChain *core.RootBlock
 	}
 	manager.subProtocols = []p2p.Protocol{protocol}
 	return manager, nil
-
 }
 
 func (pm *ProtocolManager) removePeer(id string) {
@@ -147,6 +147,7 @@ func (pm *ProtocolManager) handle(peer *Peer) error {
 	if pm.peers.Len() >= pm.maxPeers {
 		return p2p.DiscTooManyPeers
 	}
+
 	peer.Log().Debug("peer connected", "name", peer.Name())
 
 	privateKey, _ := p2p.GetPrivateKeyFromConfig(pm.clusterConfig.P2P.PrivKey)
@@ -467,15 +468,15 @@ func (pm *ProtocolManager) HandleNewMinorTip(branch uint32, tip *p2p.Tip, peer *
 			peer.id, branch, tip.MinorBlockHeaderList[0].Branch.Value)
 	}
 	if minorTip := peer.MinorHead(branch); minorTip != nil && minorTip.RootBlockHeader != nil {
-		if minorTip.RootBlockHeader.Number > tip.RootBlockHeader.Number {
+		if minorTip.RootBlockHeader.ToTalDifficulty.Cmp(tip.RootBlockHeader.ToTalDifficulty) > 0 {
 			return fmt.Errorf("best observed root header height is decreasing %d < %d",
 				tip.RootBlockHeader.Number, minorTip.RootBlockHeader.Number)
 		}
-		if minorTip.RootBlockHeader.Number == tip.RootBlockHeader.Number &&
+		if minorTip.RootBlockHeader.ToTalDifficulty.Cmp(tip.RootBlockHeader.ToTalDifficulty) == 0 &&
 			minorTip.RootBlockHeader.Hash() != tip.RootBlockHeader.Hash() {
 			return fmt.Errorf("best observed root header changed with same height %d", minorTip.RootBlockHeader.Number)
 		}
-		if minorTip.RootBlockHeader.Number == tip.RootBlockHeader.Number &&
+		if minorTip.RootBlockHeader.ToTalDifficulty.Cmp(tip.RootBlockHeader.ToTalDifficulty) == 0 &&
 			minorTip.MinorBlockHeaderList[0].Number > tip.MinorBlockHeaderList[0].Number {
 			return fmt.Errorf("best observed minor header is decreasing %d < %d",
 				tip.MinorBlockHeaderList[0].Number, minorTip.MinorBlockHeaderList[0].Number)
@@ -509,10 +510,10 @@ func (pm *ProtocolManager) HandleGetRootBlockHeaderListRequest(blockHeaderReq *p
 	if !pm.rootBlockChain.HasHeader(blockHeaderReq.BlockHash) {
 		return nil, fmt.Errorf("hash %v do not exist", blockHeaderReq.BlockHash.Hex())
 	}
-	if blockHeaderReq.Limit > synchronizer.RootBlockHeaderListLimit {
+	if blockHeaderReq.Limit == 0 || blockHeaderReq.Limit > 2*synchronizer.RootBlockHeaderListLimit {
 		return nil, fmt.Errorf("limit in request is larger than expected, limit: %d, want: %d", blockHeaderReq.Limit, synchronizer.RootBlockHeaderListLimit)
 	}
-	if blockHeaderReq.Direction != directionToGenesis {
+	if blockHeaderReq.Direction != qkcom.DirectionToGenesis {
 		return nil, errors.New("Bad direction")
 	}
 	blockHeaderResp := p2p.GetRootBlockHeaderListResponse{
@@ -537,7 +538,7 @@ func (pm *ProtocolManager) HandleGetRootBlockHeaderListRequest(blockHeaderReq *p
 
 func (pm *ProtocolManager) HandleGetRootBlockListRequest(request *p2p.GetRootBlockListRequest) (*p2p.GetRootBlockListResponse, error) {
 	size := len(request.RootBlockHashList)
-	if size > synchronizer.RootBlockBatchSize {
+	if size > 2*synchronizer.RootBlockBatchSize {
 		return nil, fmt.Errorf("len of RootBlockHashList is larger than expected, limit: %d, want: %d", size, synchronizer.RootBlockBatchSize)
 	}
 	response := p2p.GetRootBlockListResponse{
@@ -558,7 +559,7 @@ func (pm *ProtocolManager) HandleGetRootBlockHeaderListWithSkipRequest(peerId st
 	if request.Limit <= 0 || request.Limit > 2*synchronizer.MinorBlockHeaderListLimit {
 		return nil, errors.New("Bad limit")
 	}
-	if request.Direction != directionToGenesis /*&& request.Direction != directionToTip*/ {
+	if request.Direction != qkcom.DirectionToGenesis /*&& request.Direction != directionToTip*/ {
 		return nil, errors.New("Bad direction")
 	}
 	if request.Type != 0 && request.Type != 1 {
@@ -597,11 +598,11 @@ func (pm *ProtocolManager) HandleGetRootBlockHeaderListWithSkipRequest(peerId st
 			break
 		}
 		headerlist = append(headerlist, iHeader.(*types.RootBlockHeader))
-		if request.Direction == directionToGenesis {
+		if request.Direction == qkcom.DirectionToGenesis {
 			height -= request.Skip + 1
-		} /*else {
+		} else {
 			height += request.Skip + 1
-		}*/
+		}
 	}
 
 	return &p2p.GetRootBlockHeaderListResponse{RootTip: rTip, BlockHeaderList: headerlist}, nil
@@ -657,11 +658,11 @@ func (pm *ProtocolManager) HandleNewTransactionListRequest(peerId string, rpcId 
 }
 
 func (pm *ProtocolManager) HandleGetMinorBlockHeaderListRequest(rpcId uint64, branch uint32, request *p2p.GetMinorBlockHeaderListRequest) (*p2p.GetMinorBlockHeaderListResponse, error) {
-	if request.Limit > synchronizer.MinorBlockHeaderListLimit {
+	if request.Limit <= 0 || request.Limit > 2*synchronizer.MinorBlockHeaderListLimit {
 		return nil, fmt.Errorf("bad limit. rpcId: %d; branch: %d; limit: %d; expected limit: %d",
 			rpcId, branch, request.Limit, synchronizer.MinorBlockHeaderListLimit)
 	}
-	if request.Direction != directionToGenesis {
+	if request.Direction != qkcom.DirectionToGenesis {
 		return nil, fmt.Errorf("Bad direction. rpcId: %d; branch: %d; ", rpcId, branch)
 	}
 	clients := pm.getShardConnFunc(branch)
@@ -708,7 +709,7 @@ func (pm *ProtocolManager) HandleGetMinorBlockHeaderListWithSkipRequest(peerId s
 	if request.Limit <= 0 || request.Limit > 2*synchronizer.MinorBlockHeaderListLimit {
 		return nil, errors.New("Bad limit")
 	}
-	if request.Direction != directionToGenesis /*&& request.Direction != directionToTip*/ {
+	if request.Direction != qkcom.DirectionToGenesis /*&& request.Direction != directionToTip*/ {
 		return nil, errors.New("Bad direction")
 	}
 	if request.Type != 0 && request.Type != 1 {
@@ -752,11 +753,11 @@ func (pm *ProtocolManager) HandleGetMinorBlockHeaderListWithSkipRequest(peerId s
 			break
 		}
 		headerlist = append(headerlist, mBlock.Header())
-		if request.Direction == directionToGenesis {
+		if request.Direction == qkcom.DirectionToGenesis {
 			height -= uint64(request.Skip) + 1
-		} /*else {
+		} else {
 			height += uint64(request.Skip) + 1
-		}*/
+		}
 	}
 
 	return &p2p.GetMinorBlockHeaderListResponse{RootTip: rTip, ShardTip: mTip.Header(), BlockHeaderList: headerlist}, nil

@@ -1,12 +1,15 @@
 package sync
 
 import (
+	"errors"
 	"fmt"
+	"github.com/QuarkChain/goquarkchain/p2p"
 	"math/big"
 
 	"golang.org/x/sync/errgroup"
 
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
+	qkcom "github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/common"
 )
@@ -14,13 +17,16 @@ import (
 type rootSyncerPeer interface {
 	GetRootBlockHeaderList(hash common.Hash, amount uint32, reverse bool) ([]*types.RootBlockHeader, error)
 	GetRootBlockList(hashes []common.Hash) ([]*types.RootBlock, error)
+	GetRootBlockHeaderListWithSkip(tp uint8, data common.Hash, limit, skip uint32, direction uint8) (*p2p.GetRootBlockHeaderListResponse, error)
 	PeerID() string
 }
 
 // All of the sync tasks to are to catch up with the root chain from peers.
 type rootChainTask struct {
 	task
-	peer rootSyncerPeer
+	peer         rootSyncerPeer
+	stats        *rpc.RootBlockSychronizerStats
+	maxStaleness uint64
 }
 
 // NewRootChainTask returns a sync task for root chain.
@@ -71,7 +77,8 @@ func NewRootChainTask(
 				return RootBlockHeaderListLimit, RootBlockBatchSize
 			},
 		},
-		peer: p,
+		peer:  p,
+		stats: stats,
 	}
 }
 
@@ -82,6 +89,32 @@ func (r *rootChainTask) Priority() *big.Int {
 func (r *rootChainTask) PeerID() string {
 	return r.peer.PeerID()
 }
+
+func (r *rootChainTask) downloadBlockHeaderAndCheck(height uint32, skip, limit uint32) (*p2p.GetRootBlockHeaderListResponse, error) {
+	data := big.NewInt(int64(height)).Bytes()
+	resp, err := r.peer.GetRootBlockHeaderListWithSkip(1, common.BytesToHash(data), limit, skip, qkcom.DirectionToTip)
+	if err != nil {
+		return nil, err
+	}
+	r.stats.HeadersDownloaded += uint64(len(resp.BlockHeaderList))
+	if resp.RootTip.ToTalDifficulty.Cmp(r.header.GetDifficulty()) <= 0 {
+		return nil, errors.New("Bad peer sending root block tip with lower TD")
+	}
+	newLimit := (resp.RootTip.Number + 1 - height) / (skip + 1)
+	if newLimit < limit {
+		newLimit = limit
+	}
+	if len(resp.BlockHeaderList) != int(newLimit) {
+		return nil, errors.New("Bad peer sending incorrect number of root block headers")
+	}
+	return resp, nil
+}
+
+/*func (r *rootChainTask) findAncestor(b blockchain) (*types.RootBlockHeader, error) {
+	if r.header.GetParentHash() == b.CurrentHeader().Hash() {
+		return b.CurrentHeader().(*types.RootBlockHeader), nil
+	}
+}*/
 
 func syncMinorBlocks(
 	peerID string,
