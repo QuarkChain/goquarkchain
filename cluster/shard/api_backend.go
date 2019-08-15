@@ -157,10 +157,10 @@ func (s *ShardBackend) AddRootBlock(rBlock *types.RootBlock) (switched bool, err
 // This function only adds blocks to local and propagate xshard list to other shards.
 // It does NOT notify master because the master should already have the minor header list,
 // and will add them once this function returns successfully.
-func (s *ShardBackend) AddBlockListForSync(blockLst []*types.MinorBlock) ([]*types.TokenBalances, error) {
+func (s *ShardBackend) AddBlockListForSync(blockLst []*types.MinorBlock) (map[common.Hash]*types.TokenBalances, error) {
 	blockHashToXShardList := make(map[common.Hash]*XshardListTuple)
 
-	coinbaseAmountList := make([]*types.TokenBalances, 0)
+	coinbaseAmountList := make(map[common.Hash]*types.TokenBalances, 0)
 	if len(blockLst) == 0 {
 		return coinbaseAmountList, nil
 	}
@@ -176,7 +176,7 @@ func (s *ShardBackend) AddBlockListForSync(blockLst []*types.MinorBlock) ([]*typ
 			continue
 		}
 		//TODO:support BLOCK_COMMITTING
-		coinbaseAmountList = append(coinbaseAmountList, block.Header().CoinbaseAmount)
+		coinbaseAmountList [block.Header().Hash()]= block.Header().CoinbaseAmount
 		_, xshardLst, err := s.MinorBlockChain.InsertChainForDeposits([]types.IBlock{block}, nil)
 		if err != nil || len(xshardLst) != 1 {
 			log.Error("Failed to add minor block", "err", err)
@@ -277,7 +277,7 @@ func (s *ShardBackend) NewMinorBlock(block *types.MinorBlock) (err error) {
 	}
 
 	if !s.MinorBlockChain.HasBlock(block.Header().ParentHash) && s.mBPool.getBlockInPool(block.ParentHash()) == nil {
-		log.Info("prarent block hash be included", "parent hash: ", block.Header().ParentHash.Hex())
+		log.Info("prarent block hash not be included", "parent hash: ", block.Header().ParentHash.Hex())
 		return
 	}
 
