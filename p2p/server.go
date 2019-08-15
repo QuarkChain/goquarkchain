@@ -614,7 +614,7 @@ type dialer interface {
 	removeStatic(*enode.Node)
 }
 
-func (pm *Server) setDialoutBlacklist(ip string) {
+func (pm *Server) addDialoutBlacklist(ip string) {
 	if _, ok := pm.WhitelistNodes[ip]; !ok {
 		pm.dialoutBlacklist[ip] = time.Now().Unix() + dialoutBlacklistCooldownSec
 	}
@@ -628,20 +628,6 @@ func (pm *Server) chkDialoutBlacklist(ip string) bool {
 		delete(pm.dialoutBlacklist, ip)
 	}
 	return false
-}
-
-var periodicallyTime = time.Now().Unix()
-
-func (pm *Server) periodicallyUnblacklist() {
-	curTime := time.Now().Unix() + unblacklistInterval
-	if periodicallyTime > curTime {
-		return
-	}
-	periodicallyTime = curTime
-
-	for ip := range pm.dialoutBlacklist {
-		pm.chkDialoutBlacklist(ip)
-	}
 }
 
 func (srv *Server) run(dialstate dialer) {
@@ -804,7 +790,7 @@ running:
 		case pd := <-srv.delpeer:
 			// A peer disconnected.
 			if pd.err != nil {
-				srv.setDialoutBlacklist(pd.RemoteAddr().String())
+				srv.addDialoutBlacklist(pd.RemoteAddr().String())
 			}
 			d := common.PrettyDuration(mclock.Now() - pd.created)
 			pd.log.Debug("Removing p2p peer", "duration", d, "peers", len(peers)-1, "req", pd.requested, "err", pd.err)
