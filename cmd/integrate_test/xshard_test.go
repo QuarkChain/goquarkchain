@@ -570,7 +570,7 @@ func TestBroadcastCrossShardTransaction2x1(t *testing.T) {
 
 	cntr.exp[&acc1] += c.clstrCfg.Quarkchain.Root.CoinbaseAmount.Uint64() +
 		1500000 + // root block tax reward (3 blocks) from minor block tax
-		500000 + 31500 + // minor block reward FIXME: 1500000 for python?
+		1500000 - 979000 + // minor block reward FIXME: 1500000 for python?
 		GTXCOST*3 //root block tax reward from tx fee
 	cntr.assertAll()
 
@@ -587,7 +587,7 @@ func TestBroadcastCrossShardTransaction2x1(t *testing.T) {
 
 	cntr.exp[&acc3] += c.clstrCfg.Quarkchain.Root.CoinbaseAmount.Uint64() +
 		1000000 + // root block tax reward (1 block) from minor blocks b4+b5
-		500000 + 4500 + //FIXME: remove 4500
+		500000 +
 		params.GtxxShardCost.Uint64()*3 // root block tax reward from tx fee
 	cntr.assertAll()
 
@@ -610,6 +610,6 @@ func TestBroadcastCrossShardTransaction2x1(t *testing.T) {
 		6*minorCoinbase.Uint64() +
 		2*genesis[c.clstrCfg.Quarkchain.GenesisToken].Uint64() +
 		500000 + //post-tax mblock coinbase
-		36000 //FIXME remove 36000
+		21000 //FIXME remove 21000
 	assert.Equal(t, int(total), int(cntr.sum()))
 }
