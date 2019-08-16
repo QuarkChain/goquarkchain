@@ -123,7 +123,6 @@ func minorBlockEncoder(block *types.MinorBlock, includeTransaction bool, extraIn
 		"nonce":              hexutil.Uint64(header.Nonce),
 		"hashMerkleRoot":     meta.TxHash,
 		"hashEvmStateRoot":   meta.Root,
-		"receiptHash":        meta.ReceiptHash,
 		"miner":              DataEncoder(minerData),
 		"coinbase":           (balancesEncoder)(header.CoinbaseAmount),
 		"difficulty":         (*hexutil.Big)(header.Difficulty),
@@ -194,10 +193,13 @@ func txEncoder(block *types.MinorBlock, i int) (map[string]interface{}, error) {
 		"gas":              hexutil.Uint64(evmtx.Gas()),
 		"data":             hexutil.Bytes(evmtx.Data()),
 		"networkId":        hexutil.Uint64(evmtx.NetworkId()),
-		//TODO TokenID
-		"r": (*hexutil.Big)(r),
-		"s": (*hexutil.Big)(s),
-		"v": (*hexutil.Big)(v),
+		"transferTokenId":  hexutil.Uint64(evmtx.TransferTokenID()),
+		"gasTokenId":       hexutil.Uint64(evmtx.GasTokenID()),
+		"transferTokenStr": common.TokenIdDecode(evmtx.TransferTokenID()),
+		"gasTokenStr":      common.TokenIdDecode(evmtx.GasTokenID()),
+		"r":                (*hexutil.Big)(r),
+		"s":                (*hexutil.Big)(s),
+		"v":                (*hexutil.Big)(v),
 	}
 	return field, nil
 }

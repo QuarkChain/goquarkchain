@@ -17,6 +17,10 @@ type minorBlockHeaders struct {
 	Headers []*types.MinorBlockHeader `bytesizeofslicelen:"4"`
 }
 
+type HashList struct {
+	HList []common.Hash `bytesizeofslicelen:"4"`
+}
+
 // ReadCanonicalHash retrieves the hash assigned to a canonical block number.
 func ReadCanonicalHash(db DatabaseReader, chainType ChainType, number uint64) common.Hash {
 	data, _ := db.Get(headerHashKey(chainType, number))
@@ -648,4 +652,24 @@ func GetRootBlockConfirmingMinorBlock(db DatabaseReader, mHash common.Hash, full
 		return common.Hash{}
 	}
 	return common.BytesToHash(data)
+}
+
+func PutXShardDepositHashList(db DatabaseWriter, h common.Hash, hList *HashList) {
+	bytes, err := serialize.SerializeToBytes(hList)
+	if err != nil {
+		log.Crit("can not serialize HashList")
+	}
+	if err := db.Put(makeXShardDepositHashList(h), bytes); err != nil {
+		log.Crit("failed to put xshard deposit hash list err", err)
+	}
+}
+
+func GetXShardDepositHashList(db DatabaseReader, h common.Hash) *HashList {
+	data, _ := db.Get(makeXShardDepositHashList(h))
+	hList := new(HashList)
+	if err := serialize.DeserializeFromBytes(data, hList); err != nil {
+		log.Error("GetXShardDepositHashList", "DeserializeFromBytes err", err)
+		return nil
+	}
+	return hList
 }

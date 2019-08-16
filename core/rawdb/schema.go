@@ -52,6 +52,7 @@ var (
 	genesis            = []byte("genesis")
 	countMinor         = []byte("cntM")
 	mHeader            = []byte("mheader")
+	xsHashList         = []byte("xd")
 )
 
 type ChainType byte
@@ -178,5 +179,10 @@ func makeMinorBlockCoinbase(mHash common.Hash) []byte {
 
 func makeRootBlockConfirmingMinorBlock(mHash common.Hash, fullShardID uint32) []byte {
 	data := append(mHash.Bytes(), encodeUint32(fullShardID)...)
+	return data
+}
+
+func makeXShardDepositHashList(h common.Hash) []byte {
+	data := append(xsHashList, h.Bytes()...)
 	return data
 }

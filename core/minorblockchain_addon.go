@@ -97,8 +97,16 @@ func (m *MinorBlockChain) putMinorBlock(mBlock *types.MinorBlock, xShardReceiveT
 	if err := m.putConfirmedCrossShardTransactionDepositList(mBlock.Hash(), xShardReceiveTxList); err != nil {
 		return err
 	}
+
+	hashList := new(rawdb.HashList)
+	hashList.HList = make([]common.Hash, 0)
+	for _, tx := range xShardReceiveTxList {
+		hashList.HList = append(hashList.HList, tx.TxHash)
+	}
+	m.putXShardDepositHashList(mBlock.Hash(), hashList)
 	return nil
 }
+
 func (m *MinorBlockChain) updateTip(state *state.StateDB, block *types.MinorBlock) (bool, error) {
 	preRootHeader := m.getRootBlockHeaderByHash(block.PrevRootBlockHash())
 	if preRootHeader == nil {
@@ -1257,9 +1265,6 @@ func decodeAddressTxKey(data []byte) (uint64, bool, uint32, error) {
 
 func (m *MinorBlockChain) putTxIndexFromBlock(batch rawdb.DatabaseWriter, block types.IBlock) error {
 	rawdb.WriteBlockContentLookupEntries(batch, block) // put eth's tx lookup
-	if !m.clusterConfig.EnableTransactionHistory {
-		return nil
-	}
 	minorBlock, ok := block.(*types.MinorBlock)
 	if !ok {
 		return errors.New("minor block is nil")
@@ -1269,6 +1274,16 @@ func (m *MinorBlockChain) putTxIndexFromBlock(batch rawdb.DatabaseWriter, block 
 			return err
 		}
 	}
+
+	deposit := m.getXShardDepositHashList(block.Hash())
+	if deposit == nil {
+		log.Error("impossible err", "please fix it", "getXshardDepositHashList err")
+		return errors.New("xShardDepositHashList err")
+	}
+	for k, tx := range deposit.HList {
+
+	}
+
 	return m.putTxHistoryIndexFromBlock(minorBlock) // put qkc's xshard tx
 }
 func (m *MinorBlockChain) removeTxIndexFromBlock(db rawdb.DatabaseDeleter, txs types.Transactions) error {
@@ -1522,6 +1537,9 @@ func (m *MinorBlockChain) updateTxHistoryIndexFromBlock(block *types.MinorBlock,
 	return nil
 }
 func (m *MinorBlockChain) putTxHistoryIndexFromBlock(block *types.MinorBlock) error {
+	if !m.clusterConfig.EnableTransactionHistory {
+		return nil
+	}
 	return m.updateTxHistoryIndexFromBlock(block, m.putTxIndexDB)
 }
 func (m *MinorBlockChain) removeTxHistoryIndexFromBlock(block *types.MinorBlock) error {
@@ -1622,4 +1640,12 @@ func (m *MinorBlockChain) PoswInfo(mBlock *types.MinorBlock) (*rpc.PoSWInfo, err
 		PoswMineableBlocks:  blockThreshld.Uint64(),
 		PoswMinedBlocks:     cnt + 1}, nil
 
+}
+
+func (m *MinorBlockChain) putXShardDepositHashList(h common.Hash, hList *rawdb.HashList) {
+	rawdb.PutXShardDepositHashList(m.db, h, hList)
+}
+
+func (m *MinorBlockChain) getXShardDepositHashList(h common.Hash) *rawdb.HashList {
+	return rawdb.GetXShardDepositHashList(m.db, h)
 }
