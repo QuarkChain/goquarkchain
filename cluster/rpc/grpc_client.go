@@ -55,6 +55,7 @@ const (
 	OpAddTransactions
 	OpHandleNewMinorBlock
 	OpSetMining
+	OpAddMinorBlockHeaderList
 
 	MasterServer = serverType(1)
 	SlaveServer  = serverType(0)
@@ -65,7 +66,8 @@ const (
 var (
 	// master apis
 	masterApis = map[uint32]opType{
-		OpAddMinorBlockHeader: {name: "AddMinorBlockHeader"},
+		OpAddMinorBlockHeader:     {name: "AddMinorBlockHeader"},
+		OpAddMinorBlockHeaderList: {name: "AddMinorBlockHeaderList"},
 		// p2p api
 		OpBroadcastNewTip:         {name: "BroadcastNewTip"},
 		OpBroadcastTransactions:   {name: "BroadcastTransactions"},
