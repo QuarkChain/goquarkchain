@@ -2031,3 +2031,175 @@ func TestXShardSenderGasLimit(t *testing.T) {
 	_, _, err = shardState1.FinalizeAndAddBlock(b1)
 	assert.NoError(t, err)
 }
+
+func TestXShardGasLimit(t *testing.T) {
+	id1, err := account.CreatRandomIdentity()
+	checkErr(err)
+	acc1 := account.CreatAddressFromIdentity(id1, 0)
+	acc2 := account.CreatAddressFromIdentity(id1, 1<<16)
+	acc3, err := account.CreatRandomAccountWithFullShardKey(0)
+	checkErr(err)
+
+	genesis := uint64(10000000)
+	shardSize := uint32(64)
+	shardId0 := uint32(0)
+	shardId := uint32(16)
+	env1 := setUp(&acc1, &genesis, &shardSize)
+	shardState1 := createDefaultShardState(env1, &shardId0, nil, nil, nil)
+	env2 := setUp(&acc2, &genesis, &shardSize)
+	shardState2 := createDefaultShardState(env2, &shardId, nil, nil, nil)
+	defer func() {
+		shardState1.Stop()
+		shardState2.Stop()
+	}()
+
+	rootBlock := shardState1.rootTip.CreateBlockToAppend(nil, nil, nil, nil, nil)
+	rootBlock.AddMinorBlockHeader(shardState1.CurrentHeader().(*types.MinorBlockHeader))
+	rootBlock.AddMinorBlockHeader(shardState2.CurrentHeader().(*types.MinorBlockHeader))
+	rootBlock.Finalize(nil, nil, common.Hash{})
+	_, err = shardState1.AddRootBlock(rootBlock)
+	checkErr(err)
+	_, err = shardState2.AddRootBlock(rootBlock)
+	checkErr(err)
+
+	//Add one block in shard 1 with 2 x-shard txs
+	b1, err := shardState2.CreateBlockToMine(nil, nil, nil, nil, nil)
+	checkErr(err)
+	b1.Header().PrevRootBlockHash = rootBlock.Hash()
+	gas := params.GtxxShardCost.Uint64() + 21000
+	gasPrice := uint64(2)
+	value1 := new(big.Int).SetUint64(888888)
+	tx0 := CreateTransferTx(shardState1, id1.GetKey().Bytes(), acc2, acc1, value1, &gas, &gasPrice, nil)
+	b1.AddTx(tx0)
+	value2 := new(big.Int).SetUint64(111111)
+	tx1 := CreateTransferTx(shardState1, id1.GetKey().Bytes(), acc2, acc1, value2, &gas, &gasPrice, nil)
+	b1.AddTx(tx1)
+	//Add a x-shard tx from remote peer
+	crossShardGas := new(serialize.Uint256)
+	intrinsic := params.GtxxShardCost.Uint64() + 21000
+	crossShardGas.Value = new(big.Int).SetUint64(gas - intrinsic)
+	shardState1.AddCrossShardTxListByMinorBlockHash(b1.Hash(), types.CrossShardTransactionDepositList{
+		TXList: []*types.CrossShardTransactionDeposit{
+			{
+				TxHash:          tx0.Hash(),
+				From:            acc2,
+				To:              acc1,
+				Value:           &serialize.Uint256{Value: value1},
+				GasPrice:        &serialize.Uint256{Value: new(big.Int).SetUint64(gasPrice)},
+				GasRemained:     crossShardGas,
+				TransferTokenID: tx0.EvmTx.TransferTokenID(),
+				GasTokenID:      tx0.EvmTx.GasTokenID(),
+			},
+			{
+				TxHash:          tx1.Hash(),
+				From:            acc2,
+				To:              acc1,
+				Value:           &serialize.Uint256{Value: value2},
+				GasPrice:        &serialize.Uint256{Value: new(big.Int).SetUint64(gasPrice)},
+				GasRemained:     crossShardGas,
+				TransferTokenID: tx1.EvmTx.TransferTokenID(),
+				GasTokenID:      tx1.EvmTx.GasTokenID(),
+			},
+		}})
+
+	//Create a root block containing the block with the x-shard tx
+	rootBlock = shardState1.rootTip.CreateBlockToAppend(nil, nil, nil, nil, nil)
+	rootBlock.AddMinorBlockHeader(b1.Header())
+	coinbase := types.NewEmptyTokenBalances()
+	coinbase.SetValue(big.NewInt(1000000), qkcCommon.TokenIDEncode("QKC"))
+	rootBlock.Finalize(coinbase, &acc1, common.Hash{})
+
+	_, err = shardState1.AddRootBlock(rootBlock)
+	checkErr(err)
+	//Add b0 and make sure one x-shard tx's are added
+	xGas := params.GtxxShardCost //xshard gas limit excludes tx1
+	b2, err := shardState1.CreateBlockToMine(nil, &acc3, nil, xGas, nil)
+	checkErr(err)
+	_, _, err = shardState1.FinalizeAndAddBlock(b2) //goquarkchain cannot override xshardGasLimit when validate block
+	assert.Error(t, err, "incorrect xshard gas limit, expected %d, actual %d", 6000000, 9000)
+
+	/*
+		//Include tx one by one controlled by xshard gas limit.
+		//This cannot be tested in goquarkchain because override xshardGasLimit when validate block does not work
+		//Root block coinbase does not consume xshard gas
+		act1 := getDefaultBalance(acc1, *shardState1)
+		assert.Equal(t, 10000000+1000000+888888, int(act1.Uint64()))
+		cfg := shardState1.clusterConfig.Quarkchain.GetShardConfigByFullShardID(uint32(shardState1.branch.Value))
+		reward := params.GtxxShardCost.Uint64()*gasPrice + cfg.CoinbaseAmount.Uint64()
+		rate := getLocalFeeRate(shardState1.clusterConfig.Quarkchain)
+		rewardRated := new(big.Int).Mul(new(big.Int).SetUint64(reward), rate.Num())
+		rewardRated = new(big.Int).Div(rewardRated, rate.Denom())
+		act3 := getDefaultBalance(acc3, *shardState1)
+		//Half collected by root
+		assert.Equal(t, rewardRated, act3)
+		//X-shard gas used
+		assert.Equal(t, params.GtxxShardCost, shardState1.currentEvmState.GetXShardReceiveGasUsed())
+		//Add b2 and make sure all x-shard tx's are added
+		b2, err = shardState1.CreateBlockToMine(nil, &acc3, nil, xGas, nil)
+		checkErr(err)
+		_, _, err = shardState1.FinalizeAndAddBlock(b2)
+		checkErr(err)
+		//Root block coinbase does not consume xshard gas
+		act1 := getDefaultBalance(acc1, *shardState1)
+		assert.Equal(t, 10000000+1000000+888888+111111, int(act1.Uint64()))
+		//X-shard gas used
+		assert.Equal(t, params.GtxxShardCost, shardState1.currentEvmState.GetXShardReceiveGasUsed())
+	*/
+	//Add 2 txs at once: goquarkchain can only use default xshard gas limits for block to be added.
+	b2, err = shardState1.CreateBlockToMine(nil, &acc3, nil, nil, nil)
+	checkErr(err)
+	_, _, err = shardState1.FinalizeAndAddBlock(b2)
+	act1 := getDefaultBalance(acc1, *shardState1)
+	assert.Equal(t, 10000000+1000000+888888+111111, int(act1.Uint64()))
+	cfg := shardState1.clusterConfig.Quarkchain.GetShardConfigByFullShardID(uint32(shardState1.branch.Value))
+	reward := params.GtxxShardCost.Uint64()*gasPrice*2 + cfg.CoinbaseAmount.Uint64()
+	rate := getLocalFeeRate(shardState1.clusterConfig.Quarkchain)
+	rewardRated := new(big.Int).Mul(new(big.Int).SetUint64(reward), rate.Num())
+	rewardRated = new(big.Int).Div(rewardRated, rate.Denom())
+	act3 := getDefaultBalance(acc3, *shardState1)
+	//Half collected by root
+	assert.Equal(t, rewardRated, act3)
+	//X-shard gas used
+	assert.Equal(t, params.GtxxShardCost.Uint64()*2, shardState1.currentEvmState.GetXShardReceiveGasUsed().Uint64())
+
+	//Add b3 and make sure no x-shard tx's are added
+	b3, err := shardState1.CreateBlockToMine(nil, &acc3, nil, nil, nil)
+	checkErr(err)
+	_, _, err = shardState1.FinalizeAndAddBlock(b3)
+	checkErr(err)
+	//Root block coinbase does not consume xshard gas
+	act1 = getDefaultBalance(acc1, *shardState1)
+	assert.Equal(t, 10000000+1000000+888888+111111, int(act1.Uint64()))
+	assert.Equal(t, 0, int(shardState1.currentEvmState.GetXShardReceiveGasUsed().Uint64()))
+
+	b4, err := shardState1.CreateBlockToMine(nil, &acc3, nil, nil, nil)
+	checkErr(err)
+	_, _, err = shardState1.FinalizeAndAddBlock(b4)
+	checkErr(err)
+	//assert.NotEqual(t, b2.GetMetaData().XShardTxCursorInfo, b3.GetMetaData().XShardTxCursorInfo)
+	assert.Equal(t, b3.GetMetaData().XShardTxCursorInfo, b4.GetMetaData().XShardTxCursorInfo)
+	assert.Equal(t, 0, int(shardState1.currentEvmState.GetXShardReceiveGasUsed().Uint64()))
+
+	gas1 := params.GtxxShardCost
+	xGas1 := new(big.Int).SetUint64(2 * params.GtxxShardCost.Uint64())
+	b5, err := shardState1.CreateBlockToMine(nil, &acc3, gas1, xGas1, nil)
+	checkErr(err)
+	_, _, err = shardState1.FinalizeAndAddBlock(b5) //xshard_gas_limit \\d+ should not exceed total gas_limit
+	assert.Error(t, err)                            //gasLimit is not match
+
+	b6, err := shardState1.CreateBlockToMine(nil, &acc3, nil, xGas, nil)
+	checkErr(err)
+	_, _, err = shardState1.FinalizeAndAddBlock(b6)
+	assert.Error(t, err, "incorrect xshard gas limit, expected %d, actual %d", 6000000, 9000)
+}
+
+func getDefaultBalance(acc account.Address, shardState MinorBlockChain) *big.Int {
+	blc1, err := shardState.GetBalance(acc.Recipient, nil)
+	checkErr(err)
+	act1 := blc1.GetTokenBalance(qkcCommon.TokenIDEncode("QKC"))
+	return act1
+}
+
+func test_xshard_gas_limit_from_multiple_shards(t *testing.T) {
+	//id1:=
+}

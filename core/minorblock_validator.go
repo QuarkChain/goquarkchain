@@ -222,6 +222,9 @@ func (v *MinorBlockValidator) ValidateSeal(mHeader types.IHeader) error {
 	return v.engine.VerifySeal(v.bc, header, adjustedDiff)
 }
 func compareXshardTxCursor(a, b *types.XShardTxCursorInfo) bool {
+	if a == nil || b == nil {
+		return false
+	}
 	if a.XShardDepositIndex != b.XShardDepositIndex {
 		return false
 	}

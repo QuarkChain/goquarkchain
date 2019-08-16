@@ -83,6 +83,7 @@ func (x *XShardTxCursor) getCurrentTx() (*types.CrossShardTransactionDeposit, er
 				To:              x.rBlock.Header().Coinbase,
 				Value:           &serialize.Uint256{Value: new(big.Int).Set(coinbaseAmount)},
 				GasPrice:        &serialize.Uint256{Value: new(big.Int)},
+				GasRemained:     &serialize.Uint256{Value: new(big.Int)},
 				GasTokenID:      genesisToken,
 				TransferTokenID: genesisToken,
 				IsFromRootChain: true,

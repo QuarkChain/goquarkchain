@@ -71,6 +71,7 @@ func newMinorCanonical(cacheConfig *CacheConfig, engine consensus.Engine, n int,
 	fakeClusterConfig.Quarkchain.SkipMinorDifficultyCheck = true
 	fakeClusterConfig.Quarkchain.SkipRootDifficultyCheck = true
 	fakeClusterConfig.Quarkchain.SkipRootCoinbaseCheck = true
+	fakeClusterConfig.Quarkchain.SkipRunCrossShardTx = true
 	// Initialize a fresh chain with only a genesis block
 	chainConfig := params.TestChainConfig
 	blockchain, _ := NewMinorBlockChain(db, cacheConfig, chainConfig, fakeClusterConfig, engine, vm.Config{}, nil, fakeFullShardID)
@@ -585,6 +586,7 @@ func TestMinorFastVsFullChains(t *testing.T) {
 	clusterConfig.Quarkchain.SkipRootCoinbaseCheck = true
 	clusterConfig.Quarkchain.SkipMinorDifficultyCheck = true
 	clusterConfig.Quarkchain.SkipRootDifficultyCheck = true
+	clusterConfig.Quarkchain.SkipRunCrossShardTx = true
 	genesis := gspec.MustCommitMinorBlock(gendb, rootBlock, clusterConfig.Quarkchain.Chains[0].ShardSize|0)
 	engine := &consensus.FakeEngine{}
 	chainConfig := params.TestChainConfig
@@ -679,6 +681,7 @@ func TestMinorLightVsFastVsFullChainHeads(t *testing.T) {
 	clusterConfig.Quarkchain.SkipRootCoinbaseCheck = true
 	clusterConfig.Quarkchain.SkipMinorDifficultyCheck = true
 	clusterConfig.Quarkchain.SkipRootDifficultyCheck = true
+	clusterConfig.Quarkchain.SkipRunCrossShardTx = true
 	height := uint64(1024)
 	engine := &consensus.FakeEngine{}
 	blocks, receipts := GenerateMinorBlockChain(params.TestChainConfig, clusterConfig.Quarkchain, genesis, engine, gendb, int(height), nil)
@@ -812,6 +815,7 @@ func TestMinorChainTxReorgs(t *testing.T) {
 	clusterConfig.Quarkchain.SkipRootCoinbaseCheck = true
 	clusterConfig.Quarkchain.SkipMinorDifficultyCheck = true
 	clusterConfig.Quarkchain.SkipRootDifficultyCheck = true
+	clusterConfig.Quarkchain.SkipRunCrossShardTx = true
 	genesis := gspec.MustCommitMinorBlock(db, rootBlock, clusterConfig.Quarkchain.Chains[0].ShardSize|0)
 	// Create two transactions shared between the chains:
 	//  - postponed: transaction included at a later block in the forked chain
@@ -935,6 +939,7 @@ func TestMinorLogReorgs(t *testing.T) {
 	clusterConfig.Quarkchain.SkipRootDifficultyCheck = true
 	clusterConfig.Quarkchain.SkipMinorDifficultyCheck = true
 	clusterConfig.Quarkchain.SkipRootCoinbaseCheck = true
+	clusterConfig.Quarkchain.SkipRunCrossShardTx = true
 	ids := clusterConfig.Quarkchain.GetGenesisShardIds()
 	for _, v := range ids {
 		addr := addr1.AddressInShard(v)
@@ -1006,6 +1011,7 @@ func TestMinorReorgSideEvent(t *testing.T) {
 	clusterConfig.Quarkchain.SkipRootDifficultyCheck = true
 	clusterConfig.Quarkchain.SkipMinorDifficultyCheck = true
 	clusterConfig.Quarkchain.SkipRootCoinbaseCheck = true
+	clusterConfig.Quarkchain.SkipRunCrossShardTx = true
 	ids := clusterConfig.Quarkchain.GetGenesisShardIds()
 	for _, v := range ids {
 		addr := addr1.AddressInShard(v)
@@ -1161,6 +1167,7 @@ func TestMinorEIP161AccountRemoval(t *testing.T) {
 	clusterConfig.Quarkchain.SkipRootDifficultyCheck = true
 	clusterConfig.Quarkchain.SkipMinorDifficultyCheck = true
 	clusterConfig.Quarkchain.SkipRootCoinbaseCheck = true
+	clusterConfig.Quarkchain.SkipRunCrossShardTx = true
 	ids := clusterConfig.Quarkchain.GetGenesisShardIds()
 	for _, v := range ids {
 		addr := addr1.AddressInShard(v)
@@ -1248,6 +1255,7 @@ func TestMinorBlockchainHeaderchainReorgConsistency(t *testing.T) {
 	clusterConfig.Quarkchain.SkipRootDifficultyCheck = true
 	clusterConfig.Quarkchain.SkipMinorDifficultyCheck = true
 	clusterConfig.Quarkchain.SkipRootCoinbaseCheck = true
+	clusterConfig.Quarkchain.SkipRunCrossShardTx = true
 
 	genesis := gspec.MustCommitMinorBlock(db, rootBlock, clusterConfig.Quarkchain.Chains[0].ShardSize|0)
 	blocks, _ := GenerateMinorBlockChain(params.TestChainConfig, clusterConfig.Quarkchain, genesis, engine, db, 64, func(config *config.QuarkChainConfig, i int, b *MinorBlockGen) {
@@ -1311,6 +1319,7 @@ func TestMinorTrieForkGC(t *testing.T) {
 	clusterConfig.Quarkchain.SkipRootDifficultyCheck = true
 	clusterConfig.Quarkchain.SkipMinorDifficultyCheck = true
 	clusterConfig.Quarkchain.SkipRootCoinbaseCheck = true
+	clusterConfig.Quarkchain.SkipRunCrossShardTx = true
 
 	genesis := gspec.MustCommitMinorBlock(db, rootBlock, clusterConfig.Quarkchain.Chains[0].ShardSize|0)
 	blocks, _ := GenerateMinorBlockChain(params.TestChainConfig, clusterConfig.Quarkchain, genesis, engine, db, 2*triesInMemory, func(config *config.QuarkChainConfig, i int, b *MinorBlockGen) {
@@ -1375,7 +1384,7 @@ func TestMinorLargeReorgTrieGC(t *testing.T) {
 	clusterConfig.Quarkchain.SkipRootDifficultyCheck = true
 	clusterConfig.Quarkchain.SkipMinorDifficultyCheck = true
 	clusterConfig.Quarkchain.SkipRootCoinbaseCheck = true
-
+	clusterConfig.Quarkchain.SkipRunCrossShardTx = true
 	genesis := gspec.MustCommitMinorBlock(db, rootBlock, clusterConfig.Quarkchain.Chains[0].ShardSize|0)
 	shared, _ := GenerateMinorBlockChain(params.TestChainConfig, clusterConfig.Quarkchain, genesis, engine, db, 64, func(config *config.QuarkChainConfig, i int, b *MinorBlockGen) {
 		b.SetCoinbase(account.NewAddress(account.BytesToIdentityRecipient(common.Address{1}.Bytes()), 0))

@@ -87,10 +87,7 @@ type Message interface {
 }
 
 // IntrinsicGas computes the 'intrinsic gas' for a message with the given data.
-func IntrinsicGas(data []byte, contractCreation, isCrossShard, isApplyCrossShard bool) (uint64, error) {
-	if isApplyCrossShard {
-		return qkcParam.GtxxShardCost.Uint64(), nil
-	}
+func IntrinsicGas(data []byte, contractCreation, isCrossShard bool) (uint64, error) {
 	// Set the starting gas for the raw transaction
 	var gas uint64
 	if contractCreation {
@@ -217,9 +214,13 @@ func (st *StateTransition) TransitionDb(feeRate *big.Rat) (ret []byte, usedGas u
 		}
 	}
 	// Pay intrinsic gas
-	gas, err = IntrinsicGas(st.data, contractCreation, msg.IsCrossShard(), evm.IsApplyXShard)
-	if err != nil {
-		return nil, 0, false, err
+	if evm.IsApplyXShard {
+		gas = evm.XShardGasUsedStart
+	} else {
+		gas, err = IntrinsicGas(st.data, contractCreation, msg.IsCrossShard())
+		if err != nil {
+			return nil, 0, false, err
+		}
 	}
 	if err = st.useGas(gas); err != nil {
 		return nil, 0, false, err
@@ -290,7 +291,7 @@ func (st *StateTransition) gasUsed() uint64 {
 }
 
 func (st *StateTransition) preFill() {
-	st.gas += st.msg.Gas() + qkcParam.GtxxShardCost.Uint64()
+	st.gas += st.msg.Gas() + st.evm.XShardGasUsedStart
 	st.initialGas = st.gas
 }
 
@@ -338,10 +339,10 @@ func (st *StateTransition) AddCrossShardTxDeposit(intrinsicGas uint64, feeRate *
 		failed = false
 	}
 	localGasUsed := st.gasUsed()
-	//refund
+	//refund: gasRemained is always 0?
 	gasRemained := msg.Gas() - localGasUsed - remoteGasReserved
 	fund := new(big.Int).Mul(new(big.Int).SetUint64(gasRemained), st.gasPrice)
-	state.AddBalance(msg.From(), fund, st.msg.TransferTokenID())
+	state.AddBalance(msg.From(), fund, st.msg.GasTokenID())
 	if !failed {
 		//reserve part of the gas for the target shard miner for fee
 		localGasUsed -= qkcParam.GtxxShardCost.Uint64()

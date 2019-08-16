@@ -27,6 +27,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/core/state"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/core/vm"
+	qkcParam "github.com/QuarkChain/goquarkchain/params"
 	"github.com/ethereum/go-ethereum/params"
 )
 
@@ -116,7 +117,7 @@ func ValidateTransaction(state vm.StateDB, tx *types.Transaction, fromAddress *a
 		return ErrNonceTooLow
 	}
 
-	totalGas, err := IntrinsicGas(tx.EvmTx.Data(), tx.EvmTx.To() == nil, tx.EvmTx.ToFullShardId() != tx.EvmTx.FromFullShardId(), false)
+	totalGas, err := IntrinsicGas(tx.EvmTx.Data(), tx.EvmTx.To() == nil, tx.EvmTx.ToFullShardId() != tx.EvmTx.FromFullShardId())
 	if err != nil {
 		return err
 	}
@@ -203,33 +204,40 @@ func ApplyTransaction(config *params.ChainConfig, bc ChainContext, gp *GasPool, 
 	return ret, receipt, gas, err
 }
 
-func ApplyCrossShardDeposit(config *params.ChainConfig, bc ChainContext, header types.IHeader,
-	cfg vm.Config, evmState *state.StateDB, tx *types.CrossShardTransactionDeposit, usedGas *uint64,
-	localFeeRate *big.Rat) (*types.Receipt, error) {
-	evmState.SetFullShardKey(tx.To.FullShardKey)
+func ApplyCrossShardDeposit(config *params.ChainConfig, bc ChainContext, header types.IHeader, cfg vm.Config,
+	evmState *state.StateDB, tx *types.CrossShardTransactionDeposit, usedGas *uint64, localFeeRate *big.Rat,
+	checkIsFromRootChain bool) (*types.Receipt, error) {
+
 	var (
 		gas  uint64
 		fail bool
 		err  error
 	)
-
-	if tx.IsFromRootChain {
-		evmState.AddBalance(tx.To.Recipient, tx.Value.Value, tx.TransferTokenID)
-	} else {
-		evmState.AddBalance(tx.From.Recipient, tx.Value.Value, tx.TransferTokenID)
-		msg := types.NewMessage(tx.From.Recipient, &tx.To.Recipient, 0, tx.Value.Value,
-			tx.GasRemained.Value.Uint64(), tx.GasPrice.Value, tx.MessageData, false,
-			tx.From.FullShardKey, tx.To.FullShardKey, tx.TransferTokenID, tx.GasTokenID)
-		context := NewEVMContext(msg, header, bc)
-		context.IsApplyXShard = true
-		vmenv := vm.NewEVM(context, evmState, config, cfg)
-		gp := new(GasPool).AddGas(evmState.GetGasLimit().Uint64())
-		_, gas, fail, err = ApplyMessage(vmenv, msg, gp, localFeeRate)
-		if err != nil {
-			return nil, err
+	gasUsedStart := qkcParam.GtxxShardCost.Uint64()
+	if checkIsFromRootChain {
+		if tx.IsFromRootChain {
+			gasUsedStart = 0
 		}
-		*usedGas += gas
+	} else {
+		if tx.GasPrice.Value.Cmp(big.NewInt(0)) == 0 {
+			gasUsedStart = 0
+		}
 	}
+	evmState.SetFullShardKey(tx.To.FullShardKey)
+	evmState.AddBalance(tx.From.Recipient, tx.Value.Value, tx.TransferTokenID)
+	msg := types.NewMessage(tx.From.Recipient, &tx.To.Recipient, 0, tx.Value.Value,
+		tx.GasRemained.Value.Uint64(), tx.GasPrice.Value, tx.MessageData, false,
+		tx.From.FullShardKey, tx.To.FullShardKey, tx.TransferTokenID, tx.GasTokenID)
+	context := NewEVMContext(msg, header, bc)
+	context.IsApplyXShard = true
+	context.XShardGasUsedStart = gasUsedStart
+	vmenv := vm.NewEVM(context, evmState, config, cfg)
+	gp := new(GasPool).AddGas(evmState.GetGasLimit().Uint64())
+	_, gas, fail, err = ApplyMessage(vmenv, msg, gp, localFeeRate)
+	if err != nil {
+		return nil, err
+	}
+	*usedGas += gas
 	if evmState.GetQuarkChainConfig().XShardAddReceiptTimestamp != 0 {
 		var root []byte
 		receipt := types.NewReceipt(root, fail, *usedGas)

@@ -424,23 +424,27 @@ func (m *MinorBlockChain) runBlock(block *types.MinorBlock) (*state.StateDB, typ
 		return nil, nil, nil, 0, nil, err
 	}
 	evmState := preEvmState.Copy()
-
-	xTxList, txCursorInfo, xReceipts, err := m.RunCrossShardTxWithCursor(evmState, block)
-	if err != nil {
-		return nil, nil, nil, 0, nil, err
+	var xReceipts types.Receipts
+	if !m.Config().SkipRunCrossShardTx {
+		xTxList, txCursorInfo, xShardReceipts, err := m.RunCrossShardTxWithCursor(evmState, block)
+		if err != nil {
+			return nil, nil, nil, 0, nil, err
+		}
+		xReceipts = xShardReceipts
+		evmState.SetTxCursorInfo(txCursorInfo)
+		xShardReceiveTxList = append(xShardReceiveTxList, xTxList...)
+	} else {
+		evmState.SetTxCursorInfo(&types.XShardTxCursorInfo{})
 	}
-	xShardReceiveTxList = append(xShardReceiveTxList, xTxList...)
-
-	evmState.SetTxCursorInfo(txCursorInfo)
-	if evmState.GetGasUsed().Cmp(block.Meta().XShardGasLimit.Value) < 0 {
-		evmState.SetGasLimit(new(big.Int).Sub(block.Meta().XShardGasLimit.Value, evmState.GetGasUsed()))
+	xShardGasLimit := block.Meta().XShardGasLimit.Value
+	if evmState.GetGasUsed().Cmp(xShardGasLimit) == -1 {
+		left := new(big.Int).Sub(xShardGasLimit, evmState.GetGasUsed())
+		evmState.SetGasLimit(new(big.Int).Sub(evmState.GetGasLimit(), left))
 	}
-
 	receipts, logs, usedGas, err := m.processor.Process(block, evmState, m.vmConfig)
 	if err != nil {
 		return nil, nil, nil, 0, nil, err
 	}
-
 	receipts = append(receipts, xReceipts...)
 	//types.Receipts, []*types.Log, uint64, error
 	return evmState, receipts, logs, usedGas, xShardReceiveTxList, nil
@@ -1518,11 +1522,11 @@ func (m *MinorBlockChain) RunCrossShardTxWithCursor(evmState *state.StateDB,
 		if xShardDepositTx == nil {
 			break
 		}
+		checkIsFromRootChain := cursor.rBlock.Header().NumberU64() >= m.clusterConfig.Quarkchain.XShardGasDDOSFixRootHeight
 		receipt, err := ApplyCrossShardDeposit(m.ethChainConfig, m, mBlock.Header(),
-			*m.GetVMConfig(), evmState, xShardDepositTx, gasUsed, localFeeRate)
-
+			*m.GetVMConfig(), evmState, xShardDepositTx, gasUsed, localFeeRate, checkIsFromRootChain)
 		if err != nil {
-			break
+			return nil, nil, nil, err
 		}
 		if receipt != nil {
 			receipts = append(receipts, receipt)
