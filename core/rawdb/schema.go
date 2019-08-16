@@ -44,15 +44,15 @@ var (
 	// Chain index prefixes (use `i` + single byte to avoid mixing data types).
 	BloomBitsIndexPrefix = []byte("iB") // BloomBitsIndexPrefix is the data table of a chain indexer to track its progress
 
-	totalTxKey         = []byte("txCount")
-	xConfirmedShardKey = []byte("xr")
-	xShardLists        = []byte("xShard")
-	rLastM             = []byte("rLastM")
-	rBlock             = []byte("rBlock")
+	totalTxKey         = []byte("txC") // total tx count
+	xConfirmedShardKey = []byte("xr")  //ConfirmedCrossShardTxList
+	xShardLists        = []byte("xSL") // CrossShardTxList
+	rLastM             = []byte("rLM") // LastConfirmedMinorBlockHeaderAtRootBlock
 	genesis            = []byte("genesis")
-	countMinor         = []byte("cntM")
-	mHeader            = []byte("mheader")
-	xsHashList         = []byte("xd")
+	countMinor         = []byte("cntM") //minorBlock cnt in rootBlockChain
+	mHeader            = []byte("mhC")  //mHeader coinbase
+	commitBlockByHash  = []byte("cmB")  //CommittedMinorBlock
+		xsHashList         = []byte("xd")
 )
 
 type ChainType byte
@@ -186,3 +186,9 @@ func makeXShardDepositHashList(h common.Hash) []byte {
 	data := append(xsHashList, h.Bytes()...)
 	return data
 }
+
+func makeCommitMinorBlock(h common.Hash) []byte {
+	data := append(commitBlockByHash, h.Bytes()...)
+	return data
+}
+

@@ -653,7 +653,6 @@ func GetRootBlockConfirmingMinorBlock(db DatabaseReader, mHash common.Hash, full
 	}
 	return common.BytesToHash(data)
 }
-
 func PutXShardDepositHashList(db DatabaseWriter, h common.Hash, hList *HashList) {
 	bytes, err := serialize.SerializeToBytes(hList)
 	if err != nil {
@@ -673,3 +672,18 @@ func GetXShardDepositHashList(db DatabaseReader, h common.Hash) *HashList {
 	}
 	return hList
 }
+
+
+func WriteCommitMinorBlock(db DatabaseWriter, h common.Hash) {
+	if err := db.Put(makeCommitMinorBlock(h), []byte{1}); err != nil { // value must not empty
+		log.Crit("failed to write commit minor block", "err", err)
+	}
+}
+
+func HasCommitMinorBlock(db DatabaseReader, h common.Hash) bool {
+	if has, err := db.Has(makeCommitMinorBlock(h)); !has || err != nil {
+		return false
+	}
+	return true
+}
+

@@ -1759,3 +1759,10 @@ func (m *MinorBlockChain) putXShardDepositHashList(h common.Hash, hList *rawdb.H
 func (m *MinorBlockChain) getXShardDepositHashList(h common.Hash) *rawdb.HashList {
 	return rawdb.GetXShardDepositHashList(m.db, h)
 }
+
+func (m *MinorBlockChain) IsMinorBlockCommittedByHash(h common.Hash) bool {
+	return rawdb.HasCommitMinorBlock(m.db, h)
+}
+func (m *MinorBlockChain) CommitMinorBlockByHash(h common.Hash) {
+	rawdb.WriteCommitMinorBlock(m.db, h)
+}

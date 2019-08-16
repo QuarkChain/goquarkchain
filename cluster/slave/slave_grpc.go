@@ -581,7 +581,9 @@ func (s *SlaveServerSideOp) AddTransactions(ctx context.Context, req *rpc.Reques
 	if err = serialize.DeserializeFromBytes(req.Data, &gReq); err != nil {
 		return nil, err
 	}
-
+	if len(gReq.TransactionList) > NEW_TRANSACTION_LIST_LIMIT {
+		return nil, errors.New("too many txs in one command")
+	}
 	for _, tx := range gReq.TransactionList {
 		if err = s.slave.AddTx(tx); err != nil {
 			log.Error("Add transaction failed", "tx", tx, "err", err)
