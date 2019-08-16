@@ -96,12 +96,14 @@ type Config struct {
 	// Use common.MakeName to create a name that follows existing conventions.
 	Name string `toml:"-"`
 
-	// BootstrapNodes are used to establish connectivity
-	// with the rest of the network.
-	BootstrapNodes []*enode.Node
+	NetWorkId uint32
 
 	// BootstrapNodes | preferedNodes
 	WhitelistNodes map[string]*enode.Node
+
+	// BootstrapNodes are used to establish connectivity
+	// with the rest of the network.
+	BootstrapNodes []*enode.Node
 
 	// BootstrapNodesV5 are used to establish connectivity
 	// with the rest of the network using the V5 discovery
@@ -555,6 +557,7 @@ func (srv *Server) setupDiscovery() error {
 			NetRestrict: srv.NetRestrict,
 			Bootnodes:   srv.BootstrapNodes,
 			Unhandled:   unhandled,
+			NetworkId:   srv.NetWorkId,
 		}
 		ntab, err := discover.ListenUDP(conn, srv.localnode, cfg)
 		if err != nil {

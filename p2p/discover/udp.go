@@ -20,6 +20,7 @@ import (
 	"bytes"
 	"container/list"
 	"crypto/ecdsa"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"net"
@@ -62,6 +63,13 @@ const (
 	pongPacket
 	findnodePacket
 	neighborsPacket
+
+	qkcIdStringTemplate = "qkc %d discovery"
+)
+
+var (
+	qkcIdBytes []byte
+	qkcIdLen   = 0
 )
 
 // RPC request structures
@@ -234,6 +242,7 @@ type Config struct {
 	NetRestrict *netutil.Netlist  // network whitelist
 	Bootnodes   []*enode.Node     // list of bootstrap nodes
 	Unhandled   chan<- ReadPacket // unhandled packets are sent on this channel
+	NetworkId   uint32
 }
 
 // ListenUDP returns a new table that listens for UDP packets on laddr.
@@ -246,6 +255,8 @@ func ListenUDP(c conn, ln *enode.LocalNode, cfg Config) (*Table, error) {
 }
 
 func newUDP(c conn, ln *enode.LocalNode, cfg Config) (*Table, *udp, error) {
+	qkcIdBytes, _ = hex.DecodeString(fmt.Sprintf(qkcIdStringTemplate, cfg.NetworkId))
+	qkcIdLen = len(qkcIdBytes)
 	udp := &udp{
 		conn:        c,
 		priv:        cfg.PrivateKey,
@@ -538,6 +549,8 @@ func encodePacket(priv *ecdsa.PrivateKey, ptype byte, req interface{}) (packet, 
 	// The future.
 	hash = crypto.Keccak256(packet[macSize:])
 	copy(packet, hash)
+	// add qkc header
+	packet = append(qkcIdBytes, packet[:]...)
 	return packet, hash, nil
 }
 
@@ -573,6 +586,10 @@ func (t *udp) readLoop(unhandled chan<- ReadPacket) {
 }
 
 func (t *udp) handlePacket(from *net.UDPAddr, buf []byte) error {
+	if len(buf) <= qkcIdLen || bytes.Compare(qkcIdBytes, buf[:qkcIdLen]) != 0 {
+		return errors.New("don't match qkc header message")
+	}
+	buf = buf[qkcIdLen:]
 	packet, fromID, hash, err := decodePacket(buf)
 	if err != nil {
 		log.Debug("Bad discv4 packet", "addr", from, "err", err)

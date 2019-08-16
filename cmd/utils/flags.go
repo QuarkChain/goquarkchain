@@ -344,6 +344,8 @@ func SetP2PConfig(ctx *cli.Context, cfg *p2p.Config, clstrCfg *config.ClusterCon
 		cfg.PrivateKey = privkey
 	}
 
+	cfg.NetWorkId = clstrCfg.Quarkchain.NetworkID
+
 	cfg.MaxPeers = int(clstrCfg.P2P.MaxPeers)
 	log.Info("Maximum peer count", "QKC", cfg.MaxPeers, "total", cfg.MaxPeers)
 
