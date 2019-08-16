@@ -103,7 +103,7 @@ type minorBlockChain interface {
 	StateAt(root common.Hash) (*state.StateDB, error)
 	Config() *config.QuarkChainConfig
 	SubscribeChainHeadEvent(ch chan<- MinorChainHeadEvent) event.Subscription
-	validateTx(tx *types.Transaction, evmState *state.StateDB, fromAddress *account.Address, gas *uint64, xShardGasLimit *big.Int) (*types.Transaction, error)
+	validateTx(tx *types.Transaction, evmState *state.StateDB, fromAddress *account.Address, gas, xShardGasLimit *uint64) (*types.Transaction, error)
 }
 
 // TxPoolConfig are the configuration parameters of the transaction pool.

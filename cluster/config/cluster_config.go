@@ -97,10 +97,12 @@ type QuarkChainConfig struct {
 	chainIdToShardIds                 map[uint32][]uint32
 	defaultChainTokenID               uint64
 	allowTokenIDs                     map[uint64]bool
+	XShardAddReceiptTimestamp         uint64
 	TxWhiteListSenders                []account.Recipient `json:"TX_WHITELIST_SENDERS"`
 	DisablePowCheck                   bool                `json:"DISABLE_POW_CHECK"`
 	XShardGasDDOSFixRootHeight        uint64              `json:"XSHARD_GAS_DDOS_FIX_ROOT_HEIGHT"`
 	MinMiningGasPrice                 *big.Int            `json:"MIN_MINING_GAS_PRICE"`
+	SkipRunCrossShardTx               bool
 }
 
 type QuarkChainConfigAlias QuarkChainConfig
@@ -305,11 +307,13 @@ func NewQuarkChainConfig() *QuarkChainConfig {
 		SkipRootDifficultyCheck:           false,
 		SkipRootCoinbaseCheck:             false,
 		SkipMinorDifficultyCheck:          false,
+		SkipRunCrossShardTx:               false,
 		GenesisToken:                      DefaultToken,
 		RewardTaxRate:                     new(big.Rat).SetFloat64(0.5),
 		BlockRewardDecayFactor:            new(big.Rat).SetFloat64(0.5),
 		Root:                              NewRootConfig(),
 		MinMiningGasPrice:                 new(big.Int).SetUint64(1000000000),
+		XShardGasDDOSFixRootHeight:        90000,
 	}
 
 	ret.Root.ConsensusType = PoWSimulate

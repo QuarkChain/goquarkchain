@@ -148,9 +148,10 @@ func TestPoSWCoinBaseSendUnderLimit(t *testing.T) {
 	if blc, err = blockchain.GetBalance(acc1.Recipient, nil); err != nil {
 		t.Fatalf("get balance failed: %v", err)
 	}
+	b := blc.GetTokenBalance(testGenesisTokenID)
 	balanceExp1 := new(big.Int).Sub(balanceExp, big.NewInt(1))
-	if balanceExp1.Cmp(blc.GetTokenBalance(testGenesisTokenID)) != 0 {
-		t.Errorf("Balance: expected %v, got %v", balanceExp1, blc)
+	if balanceExp1.Cmp(b) != 0 {
+		t.Errorf("Balance: expected %v, got %v", balanceExp1, b)
 	}
 
 	disallowMapExp1 := map[account.Recipient]*big.Int{
