@@ -208,15 +208,12 @@ func (st *StateTransition) TransitionDb(feeRate *big.Rat) (ret []byte, usedGas u
 	)
 	if evm.IsApplyXShard {
 		st.preFill()
+		gas = evm.XShardGasUsedStart
 	} else {
+		// Pay intrinsic gas
 		if err = st.preCheck(); err != nil {
 			return
 		}
-	}
-	// Pay intrinsic gas
-	if evm.IsApplyXShard {
-		gas = evm.XShardGasUsedStart
-	} else {
 		gas, err = IntrinsicGas(st.data, contractCreation, msg.IsCrossShard())
 		if err != nil {
 			return nil, 0, false, err
