@@ -2149,14 +2149,14 @@ func TestXShardGasLimit(t *testing.T) {
 	b2, err = shardState1.CreateBlockToMine(nil, &acc3, nil, nil, nil)
 	checkErr(err)
 	_, _, err = shardState1.FinalizeAndAddBlock(b2)
-	act1 := getDefaultBalance(acc1, *shardState1)
+	act1 := getDefaultBalance(acc1, shardState1)
 	assert.Equal(t, 10000000+1000000+888888+111111, int(act1.Uint64()))
 	cfg := shardState1.clusterConfig.Quarkchain.GetShardConfigByFullShardID(uint32(shardState1.branch.Value))
 	reward := params.GtxxShardCost.Uint64()*gasPrice*2 + cfg.CoinbaseAmount.Uint64()
 	rate := getLocalFeeRate(shardState1.clusterConfig.Quarkchain)
 	rewardRated := new(big.Int).Mul(new(big.Int).SetUint64(reward), rate.Num())
 	rewardRated = new(big.Int).Div(rewardRated, rate.Denom())
-	act3 := getDefaultBalance(acc3, *shardState1)
+	act3 := getDefaultBalance(acc3, shardState1)
 	//Half collected by root
 	assert.Equal(t, rewardRated, act3)
 	//X-shard gas used
@@ -2168,7 +2168,7 @@ func TestXShardGasLimit(t *testing.T) {
 	_, _, err = shardState1.FinalizeAndAddBlock(b3)
 	checkErr(err)
 	//Root block coinbase does not consume xshard gas
-	act1 = getDefaultBalance(acc1, *shardState1)
+	act1 = getDefaultBalance(acc1, shardState1)
 	assert.Equal(t, 10000000+1000000+888888+111111, int(act1.Uint64()))
 	assert.Equal(t, 0, int(shardState1.currentEvmState.GetXShardReceiveGasUsed().Uint64()))
 
@@ -2193,13 +2193,9 @@ func TestXShardGasLimit(t *testing.T) {
 	assert.Error(t, err, "incorrect xshard gas limit, expected %d, actual %d", 6000000, 9000)
 }
 
-func getDefaultBalance(acc account.Address, shardState MinorBlockChain) *big.Int {
+func getDefaultBalance(acc account.Address, shardState *MinorBlockChain) *big.Int {
 	blc1, err := shardState.GetBalance(acc.Recipient, nil)
 	checkErr(err)
 	act1 := blc1.GetTokenBalance(qkcCommon.TokenIDEncode("QKC"))
 	return act1
-}
-
-func test_xshard_gas_limit_from_multiple_shards(t *testing.T) {
-	//id1:=
 }
