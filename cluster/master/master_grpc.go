@@ -2,7 +2,6 @@ package master
 
 import (
 	"context"
-	"errors"
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
 	"github.com/QuarkChain/goquarkchain/serialize"
 	"sync"
@@ -48,11 +47,8 @@ func (m *MasterServerSideOp) AddMinorBlockHeaderList(ctx context.Context, req *r
 	if err := serialize.DeserializeFromBytes(req.Data, gReq); err != nil {
 		return nil, err
 	}
-	if len(gReq.CoinbaseAmountMapList) != len(gReq.MinorBlockHeaderList) {
-		return nil, errors.New("headerList len is not match")
-	}
-	for index, header := range gReq.MinorBlockHeaderList {
-		m.master.rootBlockChain.AddValidatedMinorBlockHeader(header.Hash(), gReq.CoinbaseAmountMapList[index])
+	for _, header := range gReq.MinorBlockHeaderList {
+		m.master.rootBlockChain.AddValidatedMinorBlockHeader(header.Hash(), header.CoinbaseAmount)
 	}
 	return &rpc.Response{RpcId: req.RpcId}, nil
 }

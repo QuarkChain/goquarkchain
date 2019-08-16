@@ -157,16 +157,15 @@ func (s *ShardBackend) AddRootBlock(rBlock *types.RootBlock) (switched bool, err
 // This function only adds blocks to local and propagate xshard list to other shards.
 // It does NOT notify master because the master should already have the minor header list,
 // and will add them once this function returns successfully.
-func (s *ShardBackend) AddBlockListForSync(blockLst []*types.MinorBlock) ([]*types.TokenBalances, error) {
+func (s *ShardBackend) AddBlockListForSync(blockLst []*types.MinorBlock) (map[common.Hash]*types.TokenBalances, error) {
 	blockHashToXShardList := make(map[common.Hash]*XshardListTuple)
 
-	coinbaseAmountList := make([]*types.TokenBalances, 0)
+	coinbaseAmountList := make(map[common.Hash]*types.TokenBalances, 0)
 	if len(blockLst) == 0 {
 		return coinbaseAmountList, nil
 	}
 
 	uncommittedBlockHeaderList := make([]*types.MinorBlockHeader, 0)
-	unCommittedCoinbaseAmount := make([]*types.TokenBalances, 0)
 	for _, block := range blockLst {
 		blockHash := block.Header().Hash()
 		if block.Header().Branch.GetFullShardID() != s.fullShardId {
@@ -176,7 +175,7 @@ func (s *ShardBackend) AddBlockListForSync(blockLst []*types.MinorBlock) ([]*typ
 			continue
 		}
 		//TODO:support BLOCK_COMMITTING
-		coinbaseAmountList = append(coinbaseAmountList, block.Header().CoinbaseAmount)
+		coinbaseAmountList[block.Header().Hash()] = block.Header().CoinbaseAmount
 		_, xshardLst, err := s.MinorBlockChain.InsertChainForDeposits([]types.IBlock{block}, nil)
 		if err != nil || len(xshardLst) != 1 {
 			log.Error("Failed to add minor block", "err", err)
@@ -186,20 +185,14 @@ func (s *ShardBackend) AddBlockListForSync(blockLst []*types.MinorBlock) ([]*typ
 		prevRootHeight := s.MinorBlockChain.GetRootBlockByHash(block.Header().PrevRootBlockHash)
 		blockHashToXShardList[blockHash] = &XshardListTuple{XshardTxList: xshardLst[0], PrevRootHeight: prevRootHeight.Number()}
 		uncommittedBlockHeaderList = append(uncommittedBlockHeaderList, block.Header())
-		unCommittedCoinbaseAmount = append(unCommittedCoinbaseAmount, block.Header().CoinbaseAmount)
 	}
 	// interrupt the current miner and restart
 	if err := s.conn.BatchBroadcastXshardTxList(blockHashToXShardList, blockLst[0].Header().Branch); err != nil {
 		return nil, err
 	}
-	if len(unCommittedCoinbaseAmount) != len(uncommittedBlockHeaderList) {
-		log.Error(s.logInfo, "impossible err", "unCommitted status is not match")
-		return nil, errors.New("impossible err: uncommitted status is not match")
-	}
 
 	req := &rpc.AddMinorBlockHeaderListRequest{
-		MinorBlockHeaderList:  uncommittedBlockHeaderList,
-		CoinbaseAmountMapList: unCommittedCoinbaseAmount,
+		MinorBlockHeaderList: uncommittedBlockHeaderList,
 	}
 	if err := s.conn.SendMinorBlockHeaderListToMaster(req); err != nil {
 		return nil, err
@@ -277,7 +270,7 @@ func (s *ShardBackend) NewMinorBlock(block *types.MinorBlock) (err error) {
 	}
 
 	if !s.MinorBlockChain.HasBlock(block.Header().ParentHash) && s.mBPool.getBlockInPool(block.ParentHash()) == nil {
-		log.Info("prarent block hash be included", "parent hash: ", block.Header().ParentHash.Hex())
+		log.Info("prarent block hash not be included", "parent hash: ", block.Header().ParentHash.Hex())
 		return
 	}
 
