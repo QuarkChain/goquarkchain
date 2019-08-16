@@ -2304,3 +2304,34 @@ func TestXShardTxReceivedDDOSFix(t *testing.T) {
 	assert.Equal(t, params.GtxxShardCost, bb3.GetMetaData().GasUsed.Value)
 	assert.Equal(t, params.GtxxShardCost, bb3.GetMetaData().CrossShardGasUsed.Value)
 }
+
+func TestXShardFromRootBlock(t *testing.T) {
+	id1, err := account.CreatRandomIdentity()
+	checkErr(err)
+	acc1 := account.CreatAddressFromIdentity(id1, 0)
+	id2, err := account.CreatRandomIdentity()
+	checkErr(err)
+	acc2 := account.CreatAddressFromIdentity(id2, 0)
+
+	genesis := uint64(10000000)
+	shardSize := uint32(2)
+	shardId0 := uint32(0)
+	env1 := setUp(&acc1, &genesis, &shardSize)
+	state0 := createDefaultShardState(env1, &shardId0, nil, nil, nil)
+	defer state0.Stop()
+
+	//Create a root block containing the block with the x-shard tx
+	rootBlock := state0.GetRootTip().CreateBlockToAppend(nil, nil, nil, nil, nil)
+	//rootBlock.AddMinorBlockHeader(state0.GetMinorTip())
+	coinbase := types.NewEmptyTokenBalances()
+	coinbase.SetValue(big.NewInt(1000000), qkcCommon.TokenIDEncode("QKC"))
+	rootBlock.Finalize(coinbase, &acc2, common.Hash{})
+	_, err = state0.AddRootBlock(rootBlock)
+	checkErr(err)
+
+	b0, err := state0.CreateBlockToMine(nil, nil, nil, nil, nil)
+	checkErr(err)
+	b0, _, err = state0.FinalizeAndAddBlock(b0)
+	checkErr(err)
+	assert.Equal(t, 1000000, int(getDefaultBalance(acc2, state0).Uint64()))
+}
