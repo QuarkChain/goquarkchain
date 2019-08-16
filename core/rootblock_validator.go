@@ -6,7 +6,6 @@ import (
 	"math/big"
 	"reflect"
 
-	qkcCommon "github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/core/state"
 	"github.com/ethereum/go-ethereum/common"
 
@@ -75,12 +74,20 @@ func (v *RootBlockValidator) ValidateBlock(block types.IBlock) error {
 			mheaderHash.String())
 	}
 
+	if header.Root != types.EmptyTrieHash {
+		return errors.New("incorrect evm state root")
+	}
+
 	if !v.config.SkipRootCoinbaseCheck {
-		coinbaseAmount := v.blockChain.CalculateRootBlockCoinBase(rootBlock)
-		if coinbaseAmount.Cmp(rootBlock.Header().GetCoinbaseAmount().BalanceMap[qkcCommon.TokenIDEncode("QKC")]) != 0 {
+		expectedCoinbaseAmount, err := v.blockChain.CalculateRootBlockCoinBase(rootBlock)
+		if err != nil {
+			return err
+		}
+		actualCoinbaseAmount := header.CoinbaseAmount
+		if !compareCoinbaseAmountMap(expectedCoinbaseAmount.GetBalanceMap(), actualCoinbaseAmount.GetBalanceMap()) {
 			return fmt.Errorf("bad coinbase amount for root block %v. expect %d but got %d.",
 				rootBlock.Hash().String(),
-				coinbaseAmount,
+				expectedCoinbaseAmount,
 				rootBlock.Header().GetCoinbaseAmount())
 		}
 	}
@@ -90,7 +97,7 @@ func (v *RootBlockValidator) ValidateBlock(block types.IBlock) error {
 	prevRootBlockHashList := make(map[common.Hash]bool, 0)
 	var shardIdToMinorHeadersMap = make(map[uint32][]*types.MinorBlockHeader)
 	for _, mheader := range rootBlock.MinorBlockHeaders() {
-		if !v.blockChain.IsMinorBlockValidated(mheader.Hash()) {
+		if !v.blockChain.ContainMinorBlockByHash(mheader.Hash()) {
 			return fmt.Errorf("minor block is not validated. %v-%d",
 				mheader.Coinbase.FullShardKey, mheader.Number)
 		}

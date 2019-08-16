@@ -17,14 +17,18 @@
 package core
 
 import (
+	"bytes"
 	"errors"
+	"fmt"
+	"math/big"
+
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/core/state"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/core/vm"
+	qkcParam "github.com/QuarkChain/goquarkchain/params"
 	"github.com/ethereum/go-ethereum/params"
-	"math/big"
 )
 
 // StateProcessor is a basic Processor, which takes care of transitioning
@@ -54,41 +58,22 @@ func NewStateProcessor(config *params.ChainConfig, bc *MinorBlockChain, engine c
 // Process returns the receipts and logs accumulated during the process and
 // returns the amount of gas that was used in the process. If any of the
 // transactions failed to execute due to insufficient gas it will return an error.
-func (p *StateProcessor) Process(block *types.MinorBlock, statedb *state.StateDB, cfg vm.Config, evmTxIncluded []*types.Transaction, xShardReceiveTxList []*types.CrossShardTransactionDeposit) (types.Receipts, []*types.Log, uint64, error) {
+func (p *StateProcessor) Process(block *types.MinorBlock, statedb *state.StateDB, cfg vm.Config) (types.Receipts, []*types.Log, uint64, error) {
 	statedb.SetQuarkChainConfig(p.bc.clusterConfig.Quarkchain)
 	statedb.SetBlockCoinbase(block.IHeader().GetCoinbase().Recipient)
 	statedb.SetGasLimit(block.GasLimit())
-	if evmTxIncluded == nil {
-		evmTxIncluded = make([]*types.Transaction, 0)
-	}
-	if xShardReceiveTxList == nil {
-		xShardReceiveTxList = make([]*types.CrossShardTransactionDeposit, 0)
-	}
-
-	rootBlockHeader := p.bc.getRootBlockHeaderByHash(block.Header().GetPrevRootBlockHash())
-	preBlock := p.bc.GetMinorBlock(block.IHeader().GetParentHash())
-	if preBlock == nil {
-		return nil, nil, 0, errors.New("preBlock is nil")
-	}
-
-	preRootHeader := p.bc.getRootBlockHeaderByHash(preBlock.Header().GetPrevRootBlockHash())
-
-	txList, err := p.bc.runCrossShardTxList(statedb, rootBlockHeader, preRootHeader)
-	if err != nil {
-		return nil, nil, 0, err
-	}
-	xShardReceiveTxList = append(xShardReceiveTxList, txList...)
 	var (
 		receipts types.Receipts
 		usedGas  = new(uint64)
 		header   = block.IHeader()
 		allLogs  []*types.Log
 		gp       = new(GasPool).AddGas(block.Header().GetGasLimit().Uint64())
+		xGas     = block.Meta().XShardGasLimit.Value.Uint64()
 	)
 
 	// Iterate over and process the individual transactions
 	for i, tx := range block.GetTransactions() {
-		evmTx, err := p.bc.validateTx(tx, statedb, nil, nil)
+		evmTx, err := p.bc.validateTx(tx, statedb, nil, nil, &xGas)
 		if err != nil {
 			return nil, nil, 0, err
 		}
@@ -102,8 +87,11 @@ func (p *StateProcessor) Process(block *types.MinorBlock, statedb *state.StateDB
 	}
 
 	// Finalize the block, applying any consensus engine specific extras (e.g. block rewards)
-	coinbaseAmount := p.bc.getCoinbaseAmount()
-	statedb.AddBalance(block.IHeader().GetCoinbase().Recipient, coinbaseAmount)
+	coinbaseAmount := p.bc.getCoinbaseAmount(block.Number())
+	bMap := coinbaseAmount.GetBalanceMap()
+	for k, v := range bMap {
+		statedb.AddBalance(block.IHeader().GetCoinbase().Recipient, v, k)
+	}
 	statedb.Finalise(true)
 	return receipts, allLogs, *usedGas, nil
 }
@@ -122,13 +110,11 @@ func ValidateTransaction(state vm.StateDB, tx *types.Transaction, fromAddress *a
 	}
 
 	reqNonce := state.GetNonce(*from)
+	if bytes.Equal(from.Bytes(), account.Recipient{}.Bytes()) {
+		reqNonce = 0
+	}
 	if reqNonce > tx.EvmTx.Nonce() {
 		return ErrNonceTooLow
-	}
-
-	balance := state.GetBalance(*from)
-	if balance.Cmp(tx.EvmTx.Cost()) < 0 {
-		return ErrInsufficientFunds
 	}
 
 	totalGas, err := IntrinsicGas(tx.EvmTx.Data(), tx.EvmTx.To() == nil, tx.EvmTx.ToFullShardId() != tx.EvmTx.FromFullShardId())
@@ -139,10 +125,38 @@ func ValidateTransaction(state vm.StateDB, tx *types.Transaction, fromAddress *a
 		return ErrIntrinsicGas
 	}
 
+	allowTransferTokens := state.GetQuarkChainConfig().AllowedTransferTokenIDs()
+	allowGasTokens := state.GetQuarkChainConfig().AllowedGasTokenIDs()
+	if _, ok := allowTransferTokens[tx.EvmTx.TransferTokenID()]; !ok {
+		return fmt.Errorf("token %v is not allowed transferToken list %v", tx.EvmTx.TransferTokenID(), allowTransferTokens)
+	}
+
+	if _, ok := allowGasTokens[tx.EvmTx.GasTokenID()]; !ok {
+		return fmt.Errorf("token %v is not allowed gasToken list %v", tx.EvmTx.GasTokenID(), allowGasTokens)
+	}
+
+	if tx.EvmTx.TransferTokenID() == tx.EvmTx.GasTokenID() {
+		totalCost := new(big.Int).Mul(tx.EvmTx.GasPrice(), new(big.Int).SetUint64(tx.EvmTx.Gas()))
+		totalCost = new(big.Int).Add(totalCost, tx.EvmTx.Value())
+		if state.GetBalance(*from, tx.EvmTx.TransferTokenID()).Cmp(totalCost) < 0 {
+			return fmt.Errorf("money is low: token:%v balance %v,totalCost %v", tx.EvmTx.TransferTokenID(), state.GetBalance(*from, tx.EvmTx.TransferTokenID()), totalCost)
+		}
+	} else {
+		if state.GetBalance(*from, tx.EvmTx.TransferTokenID()).Cmp(tx.EvmTx.Value()) < 0 {
+			return fmt.Errorf("money is low: token:%v balance %v, value:%v", tx.EvmTx.TransferTokenID(), state.GetBalance(*from, tx.EvmTx.TransferTokenID()), tx.EvmTx.Value())
+		}
+		gasCost := new(big.Int).Mul(tx.EvmTx.GasPrice(), new(big.Int).SetUint64(tx.EvmTx.Gas()))
+		if state.GetBalance(*from, tx.EvmTx.GasTokenID()).Cmp(gasCost) < 0 {
+			return fmt.Errorf("money is low: token %v balance %v value %v", tx.EvmTx.GasTokenID(), state.GetBalance(*from, tx.EvmTx.GasTokenID()), gasCost)
+		}
+	}
+
 	blockLimit := new(big.Int).Add(state.GetGasUsed(), new(big.Int).SetUint64(tx.EvmTx.Gas()))
 	if blockLimit.Cmp(state.GetGasLimit()) > 0 {
 		return errors.New("gasLimit is too low")
 	}
+
+	//TODO EIP86-specific restrictions?
 	return nil
 }
 
@@ -156,7 +170,7 @@ func ApplyTransaction(config *params.ChainConfig, bc ChainContext, gp *GasPool, 
 		localFeeRate = big.NewRat(denom-num, denom)
 
 	}
-	msg, err := tx.EvmTx.AsMessage(types.MakeSigner(tx.EvmTx.NetworkId()))
+	msg, err := tx.EvmTx.AsMessage(types.MakeSigner(tx.EvmTx.NetworkId()), tx.Hash())
 	if err != nil {
 		return nil, nil, 0, err
 	}
@@ -188,4 +202,51 @@ func ApplyTransaction(config *params.ChainConfig, bc ChainContext, gp *GasPool, 
 	receipt.ContractFullShardId = tx.EvmTx.ToFullShardKey()
 
 	return ret, receipt, gas, err
+}
+
+func ApplyCrossShardDeposit(config *params.ChainConfig, bc ChainContext, header types.IHeader, cfg vm.Config,
+	evmState *state.StateDB, tx *types.CrossShardTransactionDeposit, usedGas *uint64, localFeeRate *big.Rat,
+	checkIsFromRootChain bool) (*types.Receipt, error) {
+
+	var (
+		gas  uint64
+		fail bool
+		err  error
+	)
+	gasUsedStart := qkcParam.GtxxShardCost.Uint64()
+	if checkIsFromRootChain {
+		if tx.IsFromRootChain {
+			gasUsedStart = 0
+		}
+	} else {
+		if tx.GasPrice.Value.Cmp(big.NewInt(0)) == 0 {
+			gasUsedStart = 0
+		}
+	}
+	evmState.SetFullShardKey(tx.To.FullShardKey)
+	evmState.AddBalance(tx.From.Recipient, tx.Value.Value, tx.TransferTokenID)
+	msg := types.NewMessage(tx.From.Recipient, &tx.To.Recipient, 0, tx.Value.Value,
+		tx.GasRemained.Value.Uint64(), tx.GasPrice.Value, tx.MessageData, false,
+		tx.From.FullShardKey, tx.To.FullShardKey, tx.TransferTokenID, tx.GasTokenID)
+	context := NewEVMContext(msg, header, bc)
+	context.IsApplyXShard = true
+	context.XShardGasUsedStart = gasUsedStart
+	vmenv := vm.NewEVM(context, evmState, config, cfg)
+	gp := new(GasPool).AddGas(evmState.GetGasLimit().Uint64())
+	_, gas, fail, err = ApplyMessage(vmenv, msg, gp, localFeeRate)
+	if err != nil {
+		return nil, err
+	}
+	*usedGas += gas
+	if evmState.GetQuarkChainConfig().XShardAddReceiptTimestamp != 0 {
+		var root []byte
+		receipt := types.NewReceipt(root, fail, *usedGas)
+		receipt.TxHash = tx.TxHash
+		receipt.GasUsed = gas
+		receipt.Logs = evmState.GetLogs(tx.TxHash)
+		receipt.Bloom = types.CreateBloom(types.Receipts{receipt})
+		receipt.ContractFullShardId = tx.To.FullShardKey
+		return receipt, nil
+	}
+	return nil, nil
 }

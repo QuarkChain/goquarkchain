@@ -49,6 +49,7 @@ func newMinorBlockChain(sz int) (blockchain, ethdb.Database) {
 	qkcconfig.SkipRootCoinbaseCheck = true
 	qkcconfig.SkipMinorDifficultyCheck = true
 	qkcconfig.SkipRootDifficultyCheck = true
+	qkcconfig.SkipRunCrossShardTx = true
 	minorBlocks, _ := core.GenerateMinorBlockChain(params.TestChainConfig, qkcconfig, minorGenesis, engine, db, sz, nil)
 
 	var blocks []types.IBlock
@@ -64,7 +65,7 @@ func newMinorBlockChain(sz int) (blockchain, ethdb.Database) {
 	if err != nil {
 		panic(fmt.Sprintf("failed to init minor blockchain: %v", err))
 	}
-	if _, err := blockchain.InsertChain(blocks); err != nil {
+	if _, err := blockchain.InsertChain(blocks, nil); err != nil {
 		panic(fmt.Sprintf("failed to insert minor blocks: %v", err))
 	}
 

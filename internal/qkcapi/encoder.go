@@ -3,7 +3,7 @@ package qkcapi
 import (
 	"errors"
 	"github.com/QuarkChain/goquarkchain/account"
-	"github.com/QuarkChain/goquarkchain/cluster/config"
+	"github.com/QuarkChain/goquarkchain/cluster/rpc"
 	"github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/serialize"
@@ -27,6 +27,23 @@ func DataEncoder(bytes []byte) hexutil.Bytes {
 	return hexutil.Bytes(bytes)
 }
 
+func balancesEncoder(balances *types.TokenBalances) []map[string]interface{} {
+	balanceList := make([]map[string]interface{}, 0)
+	bMap := balances.GetBalanceMap()
+	for k, v := range bMap {
+		tokenStr, err := common.TokenIdDecode(k)
+		if err != nil {
+			panic(err) //TODO ??
+		}
+		balanceList = append(balanceList, map[string]interface{}{
+			"tokenId":  (hexutil.Uint64)(k),
+			"tokenStr": tokenStr,
+			"balance":  (*hexutil.Big)(v),
+		})
+	}
+	return balanceList
+}
+
 func rootBlockEncoder(rootBlock *types.RootBlock) (map[string]interface{}, error) {
 	serData, err := serialize.SerializeToBytes(rootBlock)
 	if err != nil {
@@ -48,7 +65,7 @@ func rootBlockEncoder(rootBlock *types.RootBlock) (map[string]interface{}, error
 		"nonce":          hexutil.Uint64(header.Nonce),
 		"hashMerkleRoot": header.MinorHeaderHash,
 		"miner":          DataEncoder(minerData),
-	//	"coinbase":       (*hexutil.Big)(header.CoinbaseAmount.Value),//TODO-master
+		"coinbase":       balancesEncoder(header.CoinbaseAmount),
 		"difficulty":     (*hexutil.Big)(header.Difficulty),
 		"timestamp":      hexutil.Uint64(header.Time),
 		"size":           hexutil.Uint64(len(serData)),
@@ -73,7 +90,7 @@ func rootBlockEncoder(rootBlock *types.RootBlock) (map[string]interface{}, error
 			"nonce":              hexutil.Uint64(header.Nonce),
 			"difficulty":         (*hexutil.Big)(header.Difficulty),
 			"miner":              DataEncoder(minerData),
-		//	"coinbase":           (*hexutil.Big)(header.CoinbaseAmount.Value),//TODO-master
+			"coinbase":           balancesEncoder(header.CoinbaseAmount),
 			"timestamp":          hexutil.Uint64(header.Time),
 		}
 		minorHeaders = append(minorHeaders, h)
@@ -82,7 +99,7 @@ func rootBlockEncoder(rootBlock *types.RootBlock) (map[string]interface{}, error
 	return fields, nil
 }
 
-func minorBlockEncoder(block *types.MinorBlock, includeTransaction bool, cfg *config.ClusterConfig) (map[string]interface{}, error) {
+func minorBlockEncoder(block *types.MinorBlock, includeTransaction bool, extraInfo *rpc.PoSWInfo) (map[string]interface{}, error) {
 	serData, err := serialize.SerializeToBytes(block)
 	if err != nil {
 		return nil, err
@@ -108,7 +125,7 @@ func minorBlockEncoder(block *types.MinorBlock, includeTransaction bool, cfg *co
 		"hashEvmStateRoot":   meta.Root,
 		"receiptHash":        meta.ReceiptHash,
 		"miner":              DataEncoder(minerData),
-	//	"coinbase":           (*hexutil.Big)(header.CoinbaseAmount.Value),//TODO-master
+		"coinbase":           (balancesEncoder)(header.CoinbaseAmount),
 		"difficulty":         (*hexutil.Big)(header.Difficulty),
 		"extraData":          hexutil.Bytes(header.Extra),
 		"gasLimit":           (*hexutil.Big)(header.GasLimit.Value),
@@ -120,7 +137,7 @@ func minorBlockEncoder(block *types.MinorBlock, includeTransaction bool, cfg *co
 	if includeTransaction {
 		txForDisplay := make([]map[string]interface{}, 0)
 		for txIndex, _ := range block.Transactions() {
-			temp, err := txEncoder(block, txIndex, cfg)
+			temp, err := txEncoder(block, txIndex)
 			if err != nil {
 				return nil, err
 			}
@@ -134,10 +151,16 @@ func minorBlockEncoder(block *types.MinorBlock, includeTransaction bool, cfg *co
 		}
 		field["transactions"] = txHashForDisplay
 	}
+	if extraInfo != nil {
+		field["effectiveDifficulty"] = (*hexutil.Big)(extraInfo.EffectiveDifficulty)
+		field["poswMineableBlocks"] = (hexutil.Uint64)(extraInfo.PoswMineableBlocks)
+		field["poswMinedBlocks"] = (hexutil.Uint64)(extraInfo.PoswMinedBlocks)
+		field["stakingApplied"] = extraInfo.EffectiveDifficulty.Cmp(header.Difficulty) < 0
+	}
 	return field, nil
 }
 
-func txEncoder(block *types.MinorBlock, i int, cfg *config.ClusterConfig) (map[string]interface{}, error) {
+func txEncoder(block *types.MinorBlock, i int) (map[string]interface{}, error) {
 	header := block.Header()
 	tx := block.Transactions()[i]
 	evmtx := tx.EvmTx

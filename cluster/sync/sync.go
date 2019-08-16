@@ -20,7 +20,7 @@ type blockchain interface {
 // Adds rootchain specific logic.
 type rootblockchain interface {
 	blockchain
-	AddValidatedMinorBlockHeader(common.Hash)
+	AddValidatedMinorBlockHeader(common.Hash, *types.TokenBalances)
 	IsMinorBlockValidated(common.Hash) bool
 }
 

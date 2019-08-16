@@ -8,22 +8,16 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 )
 
-func (s *ConnManager) SendMinorBlockHeaderToMaster(minorHeader *types.MinorBlockHeader,
-	txCount, xshardCount uint32, state *rpc.ShardStatus) error {
+func (s *ConnManager) SendMinorBlockHeaderToMaster(request *rpc.AddMinorBlockHeaderRequest) error {
 	var (
-		gRep rpc.AddMinorBlockHeaderResponse
+		gRsp rpc.AddMinorBlockHeaderResponse
 	)
 
 	if s.masterClient.target == "" {
 		return errors.New("master endpoint is empty")
 	}
-	gReq := rpc.AddMinorBlockHeaderRequest{
-		MinorBlockHeader: minorHeader,
-		TxCount:          txCount,
-		XShardTxCount:    xshardCount,
-		ShardStats:       state,
-	}
-	data, err := serialize.SerializeToBytes(gReq)
+
+	data, err := serialize.SerializeToBytes(request)
 	if err != nil {
 		return err
 	}
@@ -32,13 +26,24 @@ func (s *ConnManager) SendMinorBlockHeaderToMaster(minorHeader *types.MinorBlock
 	if err != nil {
 		return err
 	}
-	if err := serialize.DeserializeFromBytes(res.Data, &gRep); err != nil {
+	if err := serialize.DeserializeFromBytes(res.Data, &gRsp); err != nil {
 		return err
 	}
-	s.artificialTxConfig = gRep.ArtificialTxConfig
+	s.artificialTxConfig = gRsp.ArtificialTxConfig
 	return nil
 }
 
+func (s *ConnManager) SendMinorBlockHeaderListToMaster(request *rpc.AddMinorBlockHeaderListRequest) error {
+	data, err := serialize.SerializeToBytes(request)
+	if err != nil {
+		return err
+	}
+	_, err = s.masterClient.client.Call(s.masterClient.target, &rpc.Request{Op: rpc.OpAddMinorBlockListForSync, Data: data})
+	if err != nil {
+		return err
+	}
+	return err
+}
 func (s *ConnManager) BroadcastNewTip(mHeaderLst []*types.MinorBlockHeader,
 	rHeader *types.RootBlockHeader, branch uint32) error {
 	var (

@@ -84,7 +84,7 @@ func (bc *mockblockchain) AddBlock(block types.IBlock) error {
 		_, err := bc.rbc.InsertChain([]types.IBlock{block})
 		return err
 	}
-	_, err := bc.mbc.InsertChain([]types.IBlock{block})
+	_, err := bc.mbc.InsertChain([]types.IBlock{block}, nil)
 	return err
 }
 
@@ -99,8 +99,8 @@ func (bc *mockblockchain) Validator() core.Validator {
 	return bc.validator
 }
 
-func (bc *mockblockchain) AddValidatedMinorBlockHeader(hash common.Hash) {
-	bc.rbc.AddValidatedMinorBlockHeader(hash)
+func (bc *mockblockchain) AddValidatedMinorBlockHeader(hash common.Hash, coinbaseToken *types.TokenBalances) {
+	bc.rbc.AddValidatedMinorBlockHeader(hash, coinbaseToken)
 }
 
 func (bc *mockblockchain) IsMinorBlockValidated(hash common.Hash) bool {
@@ -124,6 +124,7 @@ func (v *mockvalidator) ValidateBlock(types.IBlock) error {
 func (v *mockvalidator) ValidateSeal(mHeader types.IHeader) error {
 	return v.err
 }
+
 func newRootBlockChain(sz int) blockchain {
 	qkcconfig.SkipRootCoinbaseCheck = true
 	db := ethdb.NewMemDatabase()
@@ -239,26 +240,33 @@ func TestSyncMinorBlocks(t *testing.T) {
 			}
 		}
 
-		for _, conn := range shardConns {
-			conn.(*mock_master.MockShardConnForP2P).EXPECT().AddBlockListForSync(gomock.Any()).Return(
-				&rpc.ShardStatus{
-					Branch:             account.Branch{Value: 0},
-					Height:             block.NumberU64(),
-					Difficulty:         block.Difficulty(),
-					CoinbaseAddress:    block.Coinbase(),
-					Timestamp:          block.Time(),
-					TotalTxCount:       0,
-					TxCount60s:         0,
-					PendingTxCount:     0,
-					BlockCount60s:      2,
-					StaleBlockCount60s: 2,
-					LastBlockTime:      block.Time(),
-				}, nil).Times(1)
+		AddBlockListForSyncFunc := func(request *rpc.AddBlockListForSyncRequest) (*rpc.ShardStatus, error) {
+			for _, header := range block.MinorBlockHeaders() {
+				rbc.AddValidatedMinorBlockHeader(header.Hash(), header.CoinbaseAmount)
+			}
+			return &rpc.ShardStatus{
+				Branch:             account.Branch{Value: 0},
+				Height:             block.NumberU64(),
+				Difficulty:         block.Difficulty(),
+				CoinbaseAddress:    block.Coinbase(),
+				Timestamp:          block.Time(),
+				TotalTxCount:       0,
+				TxCount60s:         0,
+				PendingTxCount:     0,
+				BlockCount60s:      2,
+				StaleBlockCount60s: 2,
+				LastBlockTime:      block.Time(),
+			}, nil
 		}
 
-		syncMinorBlocks("", bc.(rootblockchain), block, statusChan, func(fullShardId uint32) []rpc.ShardConnForP2P {
+		for _, conn := range shardConns {
+			conn.(*mock_master.MockShardConnForP2P).EXPECT().AddBlockListForSync(gomock.Any()).DoAndReturn(AddBlockListForSyncFunc).Times(1)
+		}
+
+		err := syncMinorBlocks("", bc.(rootblockchain), block, statusChan, func(fullShardId uint32) []rpc.ShardConnForP2P {
 			return shardConns
 		})
+		assert.NoError(t, err)
 
 		select {
 		case status := <-statusChan:

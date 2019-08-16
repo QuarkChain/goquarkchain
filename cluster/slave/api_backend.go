@@ -16,6 +16,12 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
+var (
+	MINOR_BLOCK_HEADER_LIST_LIMIT = uint32(100)
+	MINOR_BLOCK_BATCH_SIZE        = 50
+	NEW_TRANSACTION_LIST_LIMIT    = 1000
+)
+
 func (s *SlaveBackend) GetUnconfirmedHeaderList() ([]*rpc.HeadersInfo, error) {
 	var (
 		headersInfoLst = make([]*rpc.HeadersInfo, 0)
@@ -119,7 +125,7 @@ func (s *SlaveBackend) AddBlockListForSync(mHashList []common.Hash, peerId strin
 		if len(bList) != hLen {
 			return nil, errors.New("Failed to add minor blocks for syncing root block: length of downloaded block list is incorrect")
 		}
-		if err := shard.AddBlockListForSync(bList); err != nil {
+		if _, err := shard.AddBlockListForSync(bList); err != nil { //TODO?need fix?
 			return nil, err
 		}
 		hashList = hashList[hLen:]
@@ -182,23 +188,20 @@ func (s *SlaveBackend) GetBalances(address *account.Address) (map[uint64]*big.In
 		return nil, err
 	}
 	if shard, ok := s.shards[branch.Value]; ok {
-		//TODO-master
 		data, err := shard.MinorBlockChain.GetBalance(address.Recipient, nil)
-		temp := map[uint64]*big.Int{
-			qcom.TokenIDEncode("QKC"): data,
-		}
-		return temp, err
+		return data.GetBalanceMap(), err
 	}
 	return nil, ErrMsg("GetBalances")
 }
 
-func (s *SlaveBackend) GetTokenBalance(address *account.Address) (*big.Int, error) {
+func (s *SlaveBackend) GetTokenBalanceMap(address *account.Address) (map[uint64]*big.Int, error) {
 	branch, err := s.getBranch(address)
 	if err != nil {
 		return nil, err
 	}
 	if shard, ok := s.shards[branch.Value]; ok {
-		return shard.MinorBlockChain.GetBalance(address.Recipient, nil)
+		data, err := shard.MinorBlockChain.GetBalance(address.Recipient, nil)
+		return data.GetBalanceMap(), err
 	}
 	return nil, ErrMsg("GetTokenBalance")
 }
@@ -216,9 +219,11 @@ func (s *SlaveBackend) GetAccountData(address *account.Address, height *uint64) 
 		if data.TransactionCount, err = shard.MinorBlockChain.GetTransactionCount(address.Recipient, height); err != nil {
 			return nil, err
 		}
-		if data.Balance, err = shard.MinorBlockChain.GetBalance(address.Recipient, height); err != nil {
+		tokenBalances, err := shard.MinorBlockChain.GetBalance(address.Recipient, height)
+		if err != nil {
 			return nil, err
 		}
+		data.Balance = tokenBalances.Copy()
 		if bt, err = shard.MinorBlockChain.GetCode(address.Recipient, height); err != nil {
 			return nil, err
 		}
@@ -246,6 +251,17 @@ func (s *SlaveBackend) GetMinorBlockByHeight(height uint64, branch uint32) (*typ
 			return nil, errors.New(fmt.Sprintf("empty minor block in state, shard id: %d", shard.Config.ShardID))
 		}
 		return mBlock.(*types.MinorBlock), nil
+	}
+	return nil, ErrMsg("GetMinorBlockByHeight")
+}
+
+func (s *SlaveBackend) GetMinorBlockExtraInfo(block *types.MinorBlock, branch uint32) (*rpc.PoSWInfo, error) {
+	if shard, ok := s.shards[branch]; ok {
+		extra, err := shard.MinorBlockChain.PoswInfo(block)
+		if err != nil {
+			return nil, err
+		}
+		return extra, nil
 	}
 	return nil, ErrMsg("GetMinorBlockByHeight")
 }
@@ -321,9 +337,9 @@ func (s *SlaveBackend) GetCode(address *account.Address, height *uint64) ([]byte
 	return nil, ErrMsg("GetCode")
 }
 
-func (s *SlaveBackend) GasPrice(branch uint32) (uint64, error) {
+func (s *SlaveBackend) GasPrice(branch uint32, tokenID uint64) (uint64, error) {
 	if shard, ok := s.shards[branch]; ok {
-		price, err := shard.MinorBlockChain.GasPrice()
+		price, err := shard.MinorBlockChain.GasPrice(tokenID)
 		if err != nil {
 			return 0, errors.New(fmt.Sprintf("Failed to get gas price, shard id : %d, err: %v", shard.Config.ShardID, err))
 		}
@@ -361,6 +377,10 @@ func (s *SlaveBackend) GetMinorBlockListByHashList(mHashList []common.Hash, bran
 		block     *types.MinorBlock
 	)
 
+	if len(mHashList) > 2*MINOR_BLOCK_BATCH_SIZE {
+		return nil, errors.New("Bad number of minor blocks requested")
+	}
+
 	shard, ok := s.shards[branch]
 	if !ok {
 		return nil, ErrMsg("GetMinorBlockListByHashList")
@@ -386,6 +406,10 @@ func (s *SlaveBackend) GetMinorBlockHeaderList(mHash common.Hash,
 
 	if direction != 0 /*directionToGenesis*/ {
 		return nil, errors.New("bad direction")
+	}
+
+	if limit <= 0 || limit > 2*MINOR_BLOCK_HEADER_LIST_LIMIT {
+		return nil, errors.New("bad limit")
 	}
 
 	shard, ok := s.shards[branch]
