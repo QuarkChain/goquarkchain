@@ -509,24 +509,14 @@ func (pool *TxPool) Pending() (map[common.Address]types.Transactions, error) {
 	return pending, nil
 }
 
-func (pool *TxPool) GetQueueTxsFromAddress(addr account.Recipient) types.Transactions {
+func (pool *TxPool) GetAllTxInPool() types.Transactions {
 	pool.mu.RLock()
-	defer pool.mu.RUnlock()
-	data, ok := pool.queue[addr]
-	if !ok {
-		return make(types.Transactions, 0)
+	pool.mu.RUnlock()
+	var txs types.Transactions
+	for _, tx := range pool.all.all {
+		txs = append(txs, tx)
 	}
-	return data.Flatten()
-}
-
-func (pool *TxPool) GetPendingTxsFromAddress(addr account.Recipient) types.Transactions {
-	pool.mu.RLock()
-	defer pool.mu.RUnlock()
-	data, ok := pool.pending[addr]
-	if !ok {
-		return make(types.Transactions, 0)
-	}
-	return data.Flatten()
+	return txs
 }
 
 func (pool *TxPool) PendingCount() int {

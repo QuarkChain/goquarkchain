@@ -37,6 +37,7 @@ const (
 	OpGetMine
 	OpGenTx
 	OpGetTransactionListByAddress
+	OpGetAllTx
 	OpGetLogs
 	OpEstimateGas
 	OpGetStorageAt
@@ -93,6 +94,7 @@ var (
 		OpGetMine:                     {name: "GetMine"},
 		OpGenTx:                       {name: "GenTx"},
 		OpGetTransactionListByAddress: {name: "GetTransactionListByAddress"},
+		OpGetAllTx:                    {name: "GetAllTx"},
 		OpGetLogs:                     {name: "GetLogs"},
 		OpEstimateGas:                 {name: "EstimateGas"},
 		OpGetStorageAt:                {name: "GetStorageAt"},

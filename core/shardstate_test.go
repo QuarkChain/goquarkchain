@@ -1760,7 +1760,7 @@ func TestGetPendingTxFromAddress(t *testing.T) {
 	err = shardState.AddTx(tx)
 	checkErr(err)
 
-	data, _, err := shardState.getPendingTxByAddress(acc1)
+	data, _, err := shardState.getPendingTxByAddress(acc1, nil)
 	checkErr(err)
 	assert.Equal(t, 1, len(data))
 	assert.Equal(t, data[0].Value.Value, new(big.Int).SetUint64(12345))
@@ -1791,7 +1791,7 @@ func TestGetPendingTxFromAddress(t *testing.T) {
 		}
 	}
 
-	data, _, err = shardState.getPendingTxByAddress(acc1)
+	data, _, err = shardState.getPendingTxByAddress(acc1, nil)
 	checkErr(err)
 	assert.Equal(t, 0, len(data))
 

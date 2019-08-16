@@ -43,6 +43,23 @@ func WriteBlockContentLookupEntries(db DatabaseWriter, block types.IBlock) {
 	}
 }
 
+func WriteBlockXShardTxLoopupEntries(db DatabaseWriter, block types.IBlock, hList *HashList) {
+	blockHash := block.Hash()
+	for i, h := range hList.HList {
+		entry := LookupEntry{
+			BlockHash: blockHash,
+			Index:     uint32(i) + uint32(len(block.Content())),
+		}
+		data, err := serialize.SerializeToBytes(entry)
+		if err != nil {
+			log.Crit("Failed to encode content lookup entry", "err", err)
+		}
+		if err := db.Put(lookupKey(h), data); err != nil {
+			log.Crit("Failed to store content lookup entry")
+		}
+	}
+}
+
 // DeleteBlockContentLookupEntry removes all transaction data associated with a hash.
 func DeleteBlockContentLookupEntry(db DatabaseDeleter, hash common.Hash) {
 	db.Delete(lookupKey(hash))

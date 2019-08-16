@@ -285,7 +285,7 @@ func (s *SlaveServerSideOp) GetTransactionListByAddress(ctx context.Context, req
 		return nil, err
 	}
 
-	if gRes.TxList, gRes.Next, err = s.slave.GetTransactionListByAddress(gReq.Address,
+	if gRes.TxList, gRes.Next, err = s.slave.GetTransactionListByAddress(gReq.Address, gReq.TransferTokenID,
 		gReq.Start, gReq.Limit); err != nil {
 		return nil, err
 	}

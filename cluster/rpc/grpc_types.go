@@ -172,20 +172,23 @@ type GetTransactionReceiptResponse struct {
 }
 
 type GetTransactionListByAddressRequest struct {
-	Address *account.Address `json:"address" gencodec:"required"`
-	Start   []byte           `json:"start" gencodec:"required" bytesizeofslicelen:"4"`
-	Limit   uint32           `json:"limit" gencodec:"required"`
+	Address         *account.Address `json:"address" gencodec:"required"`
+	TransferTokenID *uint64          `json:"transfer_token_id" gencodec:"required"`
+	Start           []byte           `json:"start" gencodec:"required" bytesizeofslicelen:"4"`
+	Limit           uint32           `json:"limit" gencodec:"required"`
 }
 
 type TransactionDetail struct {
-	TxHash      common.Hash       `json:"tx_hash" gencodec:"required"`
-	FromAddress account.Address   `json:"from_address" gencodec:"required"`
-	ToAddress   *account.Address  `json:"to_address" ser:"nil"`
-	Value       serialize.Uint256 `json:"value" gencodec:"required"`
-	BlockHeight uint64            `json:"block_height" gencodec:"required"`
-	Timestamp   uint64            `json:"timestamp" gencodec:"required"`
-	Success     bool              `json:"success" gencodec:"required"`
-	//TODO support tokenID
+	TxHash          common.Hash       `json:"tx_hash" gencodec:"required"`
+	FromAddress     account.Address   `json:"from_address" gencodec:"required"`
+	ToAddress       *account.Address  `json:"to_address" ser:"nil"`
+	Value           serialize.Uint256 `json:"value" gencodec:"required"`
+	BlockHeight     uint64            `json:"block_height" gencodec:"required"`
+	Timestamp       uint64            `json:"timestamp" gencodec:"required"`
+	Success         bool              `json:"success" gencodec:"required"`
+	GasTokenID      uint64            `json:"gas_token_id" gencodec:"required"`
+	TransferTokenID uint64            `json:"transfer_token_id" gencodec:"required"`
+	IsFromRootChain bool              `json:"is_from_root_chain" gencodec:"required"`
 }
 
 type GetTransactionListByAddressResponse struct {

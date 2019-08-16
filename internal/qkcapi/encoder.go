@@ -173,6 +173,14 @@ func txEncoder(block *types.MinorBlock, i int) (map[string]interface{}, error) {
 		toBytes = evmtx.To().Bytes()
 	}
 	branch := block.Header().Branch
+	transferTokenStr, err := common.TokenIdDecode(evmtx.TransferTokenID())
+	if err != nil {
+		return nil, err
+	}
+	gasTokenStr, err := common.TokenIdDecode(evmtx.GasTokenID())
+	if err != nil {
+		return nil, err
+	}
 	field := map[string]interface{}{
 		"id":               IDEncoder(tx.Hash().Bytes(), evmtx.FromFullShardKey()),
 		"hash":             tx.Hash(),
@@ -195,8 +203,8 @@ func txEncoder(block *types.MinorBlock, i int) (map[string]interface{}, error) {
 		"networkId":        hexutil.Uint64(evmtx.NetworkId()),
 		"transferTokenId":  hexutil.Uint64(evmtx.TransferTokenID()),
 		"gasTokenId":       hexutil.Uint64(evmtx.GasTokenID()),
-		"transferTokenStr": common.TokenIdDecode(evmtx.TransferTokenID()),
-		"gasTokenStr":      common.TokenIdDecode(evmtx.GasTokenID()),
+		"transferTokenStr": transferTokenStr,
+		"gasTokenStr":      gasTokenStr,
 		"r":                (*hexutil.Big)(r),
 		"s":                (*hexutil.Big)(s),
 		"v":                (*hexutil.Big)(v),
