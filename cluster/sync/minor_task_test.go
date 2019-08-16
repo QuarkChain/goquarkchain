@@ -49,6 +49,7 @@ func newMinorBlockChain(sz int) (blockchain, ethdb.Database) {
 	qkcconfig.SkipRootCoinbaseCheck = true
 	qkcconfig.SkipMinorDifficultyCheck = true
 	qkcconfig.SkipRootDifficultyCheck = true
+	qkcconfig.SkipRunCrossShardTx = true
 	minorBlocks, _ := core.GenerateMinorBlockChain(params.TestChainConfig, qkcconfig, minorGenesis, engine, db, sz, nil)
 
 	var blocks []types.IBlock
