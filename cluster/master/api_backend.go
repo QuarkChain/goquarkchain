@@ -166,6 +166,14 @@ func (s *QKCMasterBackend) GetTransactionsByAddress(address *account.Address, st
 	return slaveConn.GetTransactionsByAddress(address, start, limit)
 }
 
+func (s *QKCMasterBackend) GetAllTx(branch account.Branch, start []byte, limit uint32) ([]*rpc.TransactionDetail, []byte, error) {
+	slaveConn := s.getOneSlaveConnection(branch)
+	if slaveConn == nil {
+		return nil, nil, ErrNoBranchConn
+	}
+	return slaveConn.GetAllTx(branch, start, limit)
+}
+
 func (s *QKCMasterBackend) GetLogs(branch account.Branch, address []account.Address, topics [][]common.Hash, startBlockNumber, endBlockNumber uint64) ([]*types.Log, error) {
 	// not support earlist and pending
 	slaveConn := s.getOneSlaveConnection(branch)

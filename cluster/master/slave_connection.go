@@ -285,6 +285,28 @@ func (s *SlaveConnection) GetTransactionsByAddress(address *account.Address, sta
 	return trans.TxList, trans.Next, nil
 }
 
+func (s *SlaveConnection) GetAllTx(branch account.Branch, start []byte, limit uint32) ([]*rpc.TransactionDetail, []byte, error) {
+	var (
+		req   = rpc.GetAllTxRequest{Branch: branch, Start: start, Limit: limit}
+		trans = rpc.GetAllTxResponse{}
+		res   *rpc.Response
+		bytes []byte
+		err   error
+	)
+	bytes, err = serialize.SerializeToBytes(req)
+	if err != nil {
+		return nil, nil, err
+	}
+	res, err = s.client.Call(s.target, &rpc.Request{Op: rpc.OpGetAllTx, Data: bytes})
+	if err != nil {
+		return nil, nil, err
+	}
+	if err = serialize.Deserialize(serialize.NewByteBuffer(res.Data), &trans); err != nil {
+		return nil, nil, err
+	}
+	return trans.TxList, trans.Next, nil
+}
+
 func (s *SlaveConnection) GetLogs(branch account.Branch, address []account.Address, topics [][]common.Hash, startBlock, endBlock uint64) ([]*types.Log, error) {
 	var (
 		req = rpc.GetLogRequest{

@@ -12,13 +12,11 @@ type SlaveServerSideOp struct {
 }
 
 func NewFakeServerSideOp() *SlaveServerSideOp {
-	return &SlaveServerSideOp{
-	}
+	return &SlaveServerSideOp{}
 }
 
 func (s *SlaveServerSideOp) HeartBeat(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
-	return &rpc.Response{
-	}, nil
+	return &rpc.Response{}, nil
 }
 
 func (s *SlaveServerSideOp) MasterInfo(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
@@ -254,6 +252,25 @@ func (s *SlaveServerSideOp) GetTransactionListByAddress(ctx context.Context, req
 	var (
 		gReq     rpc.GetTransactionListByAddressRequest
 		gRep     rpc.GetTransactionListByAddressResponse
+		buf      = serialize.NewByteBuffer(req.Data)
+		response = &rpc.Response{RpcId: req.RpcId}
+		err      error
+	)
+	response = &rpc.Response{RpcId: req.RpcId}
+	if err = serialize.Deserialize(buf, &gReq); err != nil {
+		return nil, err
+	}
+
+	if response.Data, err = serialize.SerializeToBytes(gRep); err != nil {
+		return nil, err
+	}
+	return response, nil
+}
+
+func (s *SlaveServerSideOp) GetAllTx(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
+	var (
+		gReq     rpc.GetAllTxRequest
+		gRep     rpc.GetAllTxResponse
 		buf      = serialize.NewByteBuffer(req.Data)
 		response = &rpc.Response{RpcId: req.RpcId}
 		err      error

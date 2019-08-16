@@ -209,6 +209,10 @@ func (s *ShardBackend) GetTransactionListByAddress(address *account.Address, tra
 	return s.MinorBlockChain.GetTransactionByAddress(*address, transferTokenID, start, limit)
 }
 
+func (s *ShardBackend) GetAllTx(start []byte, limit uint32) ([]*rpc.TransactionDetail, []byte, error) {
+	return s.MinorBlockChain.GetAllTx(start, limit)
+}
+
 func (s *ShardBackend) GetLogs(start uint64, end uint64, address []account.Address, topics [][]common.Hash) ([]*types.Log, error) {
 	return s.MinorBlockChain.GetLogsByAddressAndTopic(start, end, address, topics)
 }

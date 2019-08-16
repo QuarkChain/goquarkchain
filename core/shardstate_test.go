@@ -1784,7 +1784,7 @@ func TestGetPendingTxFromAddress(t *testing.T) {
 	checkErr(err)
 	assert.Equal(t, 1, len(data))
 	assert.Equal(t, data[0].Value.Value, new(big.Int).SetUint64(12345))
-	assert.Equal(t, data[0].TxHash, tx.EvmTx.Hash())
+	assert.Equal(t, data[0].TxHash, tx.Hash())
 	assert.Equal(t, data[0].FromAddress, acc1)
 	assert.Equal(t, data[0].ToAddress, &acc2)
 	assert.Equal(t, data[0].BlockHeight, uint64(0))

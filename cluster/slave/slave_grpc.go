@@ -298,8 +298,22 @@ func (s *SlaveServerSideOp) GetTransactionListByAddress(ctx context.Context, req
 
 func (s *SlaveServerSideOp) GetAllTx(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
 	var (
-		gReq rpc.Get
+		gReq     rpc.GetAllTxRequest
+		gRes     rpc.GetAllTxResponse
+		response = &rpc.Response{RpcId: req.RpcId}
+		err      error
 	)
+	if err = serialize.DeserializeFromBytes(req.Data, &gReq); err != nil {
+		return nil, err
+	}
+	if gRes.TxList, gRes.Next, err = s.slave.GetAllTx(gReq.Branch, gReq.Start, gReq.Limit); err != nil {
+		return nil, err
+	}
+
+	if response.Data, err = serialize.SerializeToBytes(gReq); err != nil {
+		return nil, err
+	}
+	return response, nil
 }
 
 func (s *SlaveServerSideOp) GetLogs(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {

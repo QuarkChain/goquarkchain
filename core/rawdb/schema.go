@@ -52,7 +52,7 @@ var (
 	countMinor         = []byte("cntM") //minorBlock cnt in rootBlockChain
 	mHeader            = []byte("mhC")  //mHeader coinbase
 	commitBlockByHash  = []byte("cmB")  //CommittedMinorBlock
-		xsHashList         = []byte("xd")
+	xsHashList         = []byte("xd")
 )
 
 type ChainType byte
@@ -164,9 +164,6 @@ func makeRLastMHash(hash common.Hash) []byte {
 	return append(rLastM, hash.Bytes()...)
 }
 
-func makeRootBlockForShard(hash common.Hash) []byte {
-	return append(rBlock, hash.Bytes()...)
-}
 func makeMinorCount(fullShardID uint32, height uint32) []byte {
 	data := append(countMinor, encodeUint32(fullShardID)...)
 	return append(data, encodeUint32(height)...)
@@ -191,4 +188,3 @@ func makeCommitMinorBlock(h common.Hash) []byte {
 	data := append(commitBlockByHash, h.Bytes()...)
 	return data
 }
-

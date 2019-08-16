@@ -293,6 +293,13 @@ func (s *SlaveBackend) GetTransactionListByAddress(address *account.Address, tra
 	return nil, nil, ErrMsg("GetTransactionListByAddress")
 }
 
+func (s *SlaveBackend) GetAllTx(branch account.Branch, start []byte, limit uint32) ([]*rpc.TransactionDetail, []byte, error) {
+	if shard, ok := s.shards[branch.Value]; ok {
+		return shard.GetAllTx(start, limit)
+	}
+	return nil, nil, ErrMsg("GetTransactionListByAddress")
+}
+
 func (s *SlaveBackend) GetLogs(topics [][]common.Hash, address []account.Address, start uint64, end uint64, branch uint32) ([]*types.Log, error) {
 	if shard, ok := s.shards[branch]; ok {
 		return shard.GetLogs(start, end, address, topics)
