@@ -262,10 +262,10 @@ func (c *fakeRpcClient) Call(hostport string, req *rpc.Request) (*rpc.Response, 
 }
 
 func initEnv(t *testing.T, chanOp chan uint32) *QKCMasterBackend {
-	return initEnvWithConsensusType(t, chanOp, config.PoWSimulate)
+	return initEnvWithConsensusType(t, chanOp, config.PoWSimulate, "")
 }
 
-func initEnvWithConsensusType(t *testing.T, chanOp chan uint32, consensusType string) *QKCMasterBackend {
+func initEnvWithConsensusType(t *testing.T, chanOp chan uint32, consensusType string, pubKey string) *QKCMasterBackend {
 	monkey.Patch(NewSlaveConn, func(target string, shardMaskLst []*types.ChainMask, slaveID string) *SlaveConnection {
 		client := NewFakeRPCClient(chanOp, target, shardMaskLst, slaveID, config.NewClusterConfig())
 		return &SlaveConnection{
@@ -283,6 +283,8 @@ func initEnvWithConsensusType(t *testing.T, chanOp chan uint32, consensusType st
 	clusterConfig := config.NewClusterConfig()
 	clusterConfig.Quarkchain.Root.ConsensusType = consensusType
 	clusterConfig.Quarkchain.Root.ConsensusConfig.RemoteMine = true
+	clusterConfig.Quarkchain.Root.Genesis.Difficulty = 1000
+	clusterConfig.Quarkchain.GuardianPublicKey = pubKey
 	master, err := New(ctx, clusterConfig)
 	if err != nil {
 		panic(err)
@@ -341,14 +343,14 @@ func TestCreateRootBlockToMine(t *testing.T) {
 	assert.Equal(t, rootBlock.Header().Signature, [65]byte{})
 	assert.Equal(t, rootBlock.Header().Coinbase, add1)
 	assert.Equal(t, rootBlock.Header().CoinbaseAmount.GetTokenBalance(testGenesisTokenID).String(), "120000000000000000000")
-	assert.Equal(t, rootBlock.Header().Difficulty, new(big.Int).SetUint64(1000000))
+	assert.Equal(t, rootBlock.Header().Difficulty, new(big.Int).SetUint64(1000))
 
 	rawdb.DeleteBlock(master.chainDb, minorBlock.Hash())
 	rootBlock, err = master.createRootBlockToMine(add1)
 	assert.NoError(t, err)
 	assert.Equal(t, rootBlock.Header().Coinbase, add1)
 	assert.Equal(t, rootBlock.Header().CoinbaseAmount.GetTokenBalance(testGenesisTokenID).String(), "120000000000000000000")
-	assert.Equal(t, rootBlock.Header().Difficulty, new(big.Int).SetUint64(1000000))
+	assert.Equal(t, rootBlock.Header().Difficulty, new(big.Int).SetUint64(1000))
 	assert.Equal(t, len(rootBlock.MinorBlockHeaders()), 0)
 }
 
@@ -367,8 +369,8 @@ func TestCreateRootBlockToMineWithSign(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotEqual(t, rootBlock.Header().Signature, [65]byte{})
 	assert.Equal(t, rootBlock.Header().Coinbase, add1)
-	assert.Equal(t, rootBlock.Header().CoinbaseAmount.GetDefaultTokenBalance().String(), "120000000000000000000")
-	assert.Equal(t, rootBlock.Header().Difficulty, new(big.Int).SetUint64(1000000))
+	assert.Equal(t, rootBlock.Header().CoinbaseAmount.GetTokenBalance(master.clusterConfig.Quarkchain.GetDefaultChainTokenID()).String(), "120000000000000000000")
+	assert.Equal(t, rootBlock.Header().Difficulty, new(big.Int).SetUint64(1000))
 }
 
 func TestGetAccountData(t *testing.T) {
@@ -615,16 +617,14 @@ func TestSubmitWorkForRootChain(t *testing.T) {
 	assert.NoError(t, err)
 	branch := account.NewBranch(0)
 	add1 := account.NewAddress(id1.GetRecipient(), 3)
-	master := initEnvWithConsensusType(t, nil, config.PoWDoubleSha256)
-	master.miner.SetMining(true)
-	//	master.clusterConfig.Quarkchain.Root.ConsensusConfig.RemoteMine = true
 	key, err := crypto.ToECDSA(id1.GetKey().Bytes())
-	//assert.NoError(t, err)
-	//master.clusterConfig.Quarkchain.GuardianPrivateKey = id1.GetKey().Bytes()
-	//master.clusterConfig.Quarkchain.GuardianPublicKey = common.ToHex(crypto.FromECDSAPub(&key.PublicKey))
+	assert.NoError(t, err)
+	master := initEnvWithConsensusType(t, nil, config.PoWDoubleSha256, common.ToHex(crypto.FromECDSAPub(&key.PublicKey))) //common.Bytes2Hex(key.PublicKey.X.Bytes())+common.Bytes2Hex(key.PublicKey.Y.Bytes())
+	master.miner.SetMining(true)
 	rawdb.WriteMinorBlock(master.chainDb, minorBlock)
 	rootBlock, err := master.createRootBlockToMine(add1)
-	master.engine.Seal(master.rootBlockChain, rootBlock, rootBlock.Difficulty(), nil, nil)
+	results := make(chan<- types.IBlock)
+	master.engine.Seal(master.rootBlockChain, rootBlock, rootBlock.Difficulty(), results, nil)
 	assert.NoError(t, err)
 	sig, err := crypto.Sign(rootBlock.Header().SealHash().Bytes(), key)
 	assert.NoError(t, err)

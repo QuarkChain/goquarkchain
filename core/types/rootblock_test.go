@@ -23,7 +23,6 @@ func TestRootBlockEncoding(t *testing.T) {
 	}
 
 	key, _ := crypto.HexToECDSA("c987d4506fb6824639f9a9e3b8834584f5165e94680501d1b0044071cd36c3b3")
-	blockHeader.SignWithPrivateKey(key)
 
 	check := func(f string, got, want interface{}) {
 		if !reflect.DeepEqual(got, want) {
@@ -44,7 +43,6 @@ func TestRootBlockEncoding(t *testing.T) {
 	check("Nonce", blockHeader.Nonce, uint64(100))
 	check("Extra", common.Bytes2Hex(blockHeader.Extra), "01020304")
 	check("MixDigest", common.Bytes2Hex(blockHeader.MixDigest.Bytes()), "df227f34313c2bc4a4a986817ea46437f049873f2fca8e2b89b1ecd0f9e67a28")
-	check("Signature", common.Bytes2Hex(blockHeader.Signature[:]), "c758a15769202219b1fce50049eeac1af1dddb28bc282c1fb79a2208fa24f763308b1b191d656a5123ac979067a6c941867f3000d978a5d34810fe6c194dc38101")
 	check("Hash", common.Bytes2Hex(blockHeader.Hash().Bytes()), "725576c58f70f22166767d41d50fd1e22d2913524f967bf1a7fc020cb0e19b10")
 	check("Hash", common.Bytes2Hex(blockHeader.Hash().Bytes()), "725576c58f70f22166767d41d50fd1e22d2913524f967bf1a7fc020cb0e19b10")
 	check("serialize", common.Bytes2Hex(bytes), common.Bytes2Hex(rootBlockHeaderEnc))
@@ -79,12 +77,13 @@ func TestRootBlockEncoding(t *testing.T) {
 		t.Fatal("Serialize error: ", err)
 	}
 
-	block.header.SignWithPrivateKey(key)
+	block.SignWithPrivateKey(key)
 	check("header", block.header, &blockHeader)
 	check("headers", block.minorBlockHeaders.Len(), headers.Len())
 	check("headers[0]", block.minorBlockHeaders[0].Hash(), headers[0].Hash())
 	check("headers[1]", block.minorBlockHeaders[1].Hash(), headers[1].Hash())
 	check("trackingdata", common.Bytes2Hex(block.trackingdata), "0102")
+	check("Signature", common.Bytes2Hex(blockHeader.Signature[:]), "c758a15769202219b1fce50049eeac1af1dddb28bc282c1fb79a2208fa24f763308b1b191d656a5123ac979067a6c941867f3000d978a5d34810fe6c194dc38101")
 	check("blockhash", common.Bytes2Hex(block.Hash().Bytes()), "725576c58f70f22166767d41d50fd1e22d2913524f967bf1a7fc020cb0e19b10")
 	check("serialize", common.Bytes2Hex(bytes), common.Bytes2Hex(blockEnc))
 

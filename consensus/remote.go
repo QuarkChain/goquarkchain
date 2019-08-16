@@ -95,7 +95,7 @@ func (c *CommonEngine) remote() {
 		// if tx has been sign by miner and difficulty has not been adjusted before
 		// we can adjust difficulty here if the signature pub key is
 		if signature != nil && adjustedDiff.Cmp(solution.IHeader().GetDifficulty()) == 0 {
-			if crypto.VerifySignature(c.pubKey, solution.IHeader().SealHash().Bytes(), signature[:]) {
+			if crypto.VerifySignature(c.pubKey, solution.IHeader().SealHash().Bytes(), signature[:64]) {
 				adjustedDiff = new(big.Int).Div(solution.IHeader().GetDifficulty(), new(big.Int).SetUint64(1000))
 			}
 		}
