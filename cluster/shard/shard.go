@@ -26,6 +26,14 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 )
 
+type BlockCommitCode int
+
+const (
+	BLOCK_UNCOMMITTED BlockCommitCode = iota
+	BLOCK_COMMITTING                  // TODO not support yet,need discuss
+	BLOCK_COMMITTED
+)
+
 type ShardBackend struct {
 	Config            *config.ShardConfig
 	fullShardId       uint32
@@ -65,7 +73,7 @@ func New(ctx *service.ServiceContext, rBlock *types.RootBlock, conn ConnManager,
 			genesisRootHeight: cfg.Quarkchain.GetShardConfigByFullShardID(fullshardId).Genesis.RootHeight,
 			Config:            cfg.Quarkchain.GetShardConfigByFullShardID(fullshardId),
 			conn:              conn,
-			mBPool:            newBlockPool{BlockPool: make(map[common.Hash]*types.MinorBlock)},
+			mBPool:            newBlockPool{BlockPool: make(map[common.Hash]*types.MinorBlockHeader)},
 			gspec:             core.NewGenesis(cfg.Quarkchain),
 			eventMux:          ctx.EventMux,
 			logInfo:           fmt.Sprintf("shard:%d", fullshardId),
@@ -187,26 +195,42 @@ func (s *ShardBackend) initGenesisState(rootBlock *types.RootBlock) error {
 	return s.conn.SendMinorBlockHeaderToMaster(request)
 }
 
+func (s *ShardBackend) getBlockCommitStatusByHash(blockHash common.Hash) BlockCommitCode {
+	// If the block is committed, it means
+	// - All neighbor shards/slaves receives x-shard tx list
+	// - The block header is sent to master
+	// then return immediately
+	if s.MinorBlockChain.IsMinorBlockCommittedByHash(blockHash) {
+		return BLOCK_COMMITTED
+	}
+
+	//TODO support BLOCK_COMMITTING???
+
+	// Check if the block is being propagating to other slaves and the master
+	// Let's make sure all the shards and master got it before committing it
+	return BLOCK_UNCOMMITTED
+}
+
 // minor block pool
 type newBlockPool struct {
 	Mu        sync.RWMutex
-	BlockPool map[common.Hash]*types.MinorBlock
+	BlockPool map[common.Hash]*types.MinorBlockHeader
 }
 
-func (n *newBlockPool) getBlockInPool(hash common.Hash) *types.MinorBlock {
+func (n *newBlockPool) getBlockInPool(hash common.Hash) *types.MinorBlockHeader {
 	n.Mu.RLock()
 	defer n.Mu.RUnlock()
 	return n.BlockPool[hash]
 }
 
-func (n *newBlockPool) setBlockInPool(block *types.MinorBlock) {
+func (n *newBlockPool) setBlockInPool(header *types.MinorBlockHeader) {
 	n.Mu.Lock()
 	defer n.Mu.Unlock()
-	n.BlockPool[block.Header().Hash()] = block
+	n.BlockPool[header.Hash()] = header
 }
 
-func (n *newBlockPool) delBlockInPool(block *types.MinorBlock) {
+func (n *newBlockPool) delBlockInPool(header *types.MinorBlockHeader) {
 	n.Mu.Lock()
 	defer n.Mu.Unlock()
-	delete(n.BlockPool, block.Header().Hash())
+	delete(n.BlockPool, header.Hash())
 }

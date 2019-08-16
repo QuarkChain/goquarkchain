@@ -91,20 +91,19 @@ type StateDB struct {
 	validRevisions []revision
 	nextRevisionId int
 
-	xShardReceiveGasUsed  *big.Int
-	blockFee              map[uint64]*big.Int
-	xShardList            []*types.CrossShardTransactionDeposit
-	fullShardKey          uint32
-	quarkChainConfig      *config.QuarkChainConfig
-	gasUsed               *big.Int
-	gasLimit              *big.Int
-	shardConfig           *config.ShardConfig
-	senderDisallowMap     map[qkcaccount.Recipient]*big.Int
-	blockCoinbase         common.Address
-	timeStamp             uint64
-	blockNumber           uint64
-	xShardTxCursorInfo    *types.XShardTxCursorInfo
-	xShardDepositReceipts []*types.Receipt
+	xShardReceiveGasUsed *big.Int
+	blockFee             map[uint64]*big.Int
+	xShardList           []*types.CrossShardTransactionDeposit
+	fullShardKey         uint32
+	quarkChainConfig     *config.QuarkChainConfig
+	gasUsed              *big.Int
+	gasLimit             *big.Int
+	shardConfig          *config.ShardConfig
+	senderDisallowMap    map[qkcaccount.Recipient]*big.Int
+	blockCoinbase        common.Address
+	timeStamp            uint64
+	blockNumber          uint64
+	xShardTxCursorInfo   *types.XShardTxCursorInfo
 }
 
 // Create a new state from a given trie.
@@ -839,14 +838,4 @@ func (s *StateDB) SetTxCursorInfo(info *types.XShardTxCursorInfo) {
 
 func (s *StateDB) GetTxCursorInfo() *types.XShardTxCursorInfo {
 	return s.xShardTxCursorInfo
-}
-
-func (s *StateDB) AddXshardDepositReceipt(receipt *types.Receipt) {
-	if s.xShardDepositReceipts == nil {
-		s.xShardDepositReceipts = make([]*types.Receipt, 0)
-	}
-	s.xShardDepositReceipts = append(s.xShardDepositReceipts, receipt)
-}
-func (s *StateDB) GetXShardDepositReceipt() []*types.Receipt {
-	return s.xShardDepositReceipts
 }

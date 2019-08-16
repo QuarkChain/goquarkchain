@@ -16,6 +16,12 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
+var (
+	MINOR_BLOCK_HEADER_LIST_LIMIT = uint32(100)
+	MINOR_BLOCK_BATCH_SIZE        = 50
+	NEW_TRANSACTION_LIST_LIMIT    = 1000
+)
+
 func (s *SlaveBackend) GetUnconfirmedHeaderList() ([]*rpc.HeadersInfo, error) {
 	var (
 		headersInfoLst = make([]*rpc.HeadersInfo, 0)
@@ -119,7 +125,7 @@ func (s *SlaveBackend) AddBlockListForSync(mHashList []common.Hash, peerId strin
 		if len(bList) != hLen {
 			return nil, errors.New("Failed to add minor blocks for syncing root block: length of downloaded block list is incorrect")
 		}
-		if err := shard.AddBlockListForSync(bList); err != nil {
+		if _, err := shard.AddBlockListForSync(bList); err != nil { //TODO?need fix?
 			return nil, err
 		}
 		hashList = hashList[hLen:]
@@ -371,6 +377,10 @@ func (s *SlaveBackend) GetMinorBlockListByHashList(mHashList []common.Hash, bran
 		block     *types.MinorBlock
 	)
 
+	if len(mHashList) > 2*MINOR_BLOCK_BATCH_SIZE {
+		return nil, errors.New("Bad number of minor blocks requested")
+	}
+
 	shard, ok := s.shards[branch]
 	if !ok {
 		return nil, ErrMsg("GetMinorBlockListByHashList")
@@ -396,6 +406,10 @@ func (s *SlaveBackend) GetMinorBlockHeaderList(mHash common.Hash,
 
 	if direction != 0 /*directionToGenesis*/ {
 		return nil, errors.New("bad direction")
+	}
+
+	if limit <= 0 || limit > 2*MINOR_BLOCK_HEADER_LIST_LIMIT {
+		return nil, errors.New("bad limit")
 	}
 
 	shard, ok := s.shards[branch]

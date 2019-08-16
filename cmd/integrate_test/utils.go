@@ -4,9 +4,9 @@ import (
 	"crypto/ecdsa"
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cmd/utils"
+	qkcCommon "github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/p2p"
-	qkcCommon "github.com/QuarkChain/goquarkchain/common"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/p2p/enode"
@@ -14,6 +14,7 @@ import (
 	"net"
 	"strings"
 )
+
 var (
 	testGenesisTokenID = qkcCommon.TokenIDEncode("QKC")
 )
@@ -39,7 +40,7 @@ var (
 		"enode://748183adf9964295ad09e083eeafb81f971737ab88a9f86b3f5d7ae653a3882db4d97fa39e7367e3d79b03166e2fc29542d2ab59d385a688477036663af24779@127.0.0.1:38295," +
 		"enode://fd71383f642ee33f698ee6e834a6999587bd8aac3bf6ada6b89368e9d9283d0b43d61e5e8a8f0a8ed37e1894fffbba2f96104b1454e2669d952e67468599f933@127.0.0.1:38296," +
 		"enode://e3437973930235be04a58868c51db97c9c4770a198bac1474bdd0757152b34dbb8f44fdb702a68a3d015e0ef00dd4d6541af534bce8e2cbb7ab0159f2c201009@127.0.0.1:38297"
-	genesisBalance = 10000000000
+	genesisBalance = 10000000000000000
 )
 
 func getBootNodes(bootNodes string) []*enode.Node {
@@ -95,12 +96,12 @@ func createTx(acc account.Address, to *account.Address) *types.Transaction {
 		to.Recipient,
 		big.NewInt(100),
 		uint64(30000),
-		big.NewInt(1),
+		new(big.Int).SetUint64(1e9+1),
 		uint32(acc.FullShardKey),
 		uint32(to.FullShardKey),
 		3,
 		0,
-		[]byte{},testGenesisTokenID,testGenesisTokenID)
+		[]byte{}, testGenesisTokenID, testGenesisTokenID)
 	tx, _ := sign(evmTx)
 	return &types.Transaction{
 		EvmTx:  tx,

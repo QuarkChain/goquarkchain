@@ -40,7 +40,7 @@ type MinorBlockMeta struct {
 	GasUsed            *serialize.Uint256  `json:"gasUsed"                    gencodec:"required"`
 	CrossShardGasUsed  *serialize.Uint256  `json:"crossShardGasUsed"          gencodec:"required"`
 	XShardTxCursorInfo *XShardTxCursorInfo `json:"xShardTxCursorInfo"          gencodec:"required"`
-	XshardGasLimit     *serialize.Uint256  `json:"xShardGasLimit"          gencodec:"required"`
+	XShardGasLimit     *serialize.Uint256  `json:"xShardGasLimit"          gencodec:"required"`
 }
 
 type XShardTxCursorInfo struct {
@@ -257,6 +257,9 @@ func CopyMinorBlockMeta(m *MinorBlockMeta) *MinorBlockMeta {
 	if cpy.CrossShardGasUsed = new(serialize.Uint256); m.CrossShardGasUsed != nil && m.CrossShardGasUsed.Value != nil {
 		cpy.CrossShardGasUsed.Value = new(big.Int).Set(m.CrossShardGasUsed.Value)
 	}
+	if cpy.XShardGasLimit = new(serialize.Uint256); m.XShardGasLimit != nil && m.XShardGasLimit.Value != nil {
+		cpy.XShardGasLimit.Value = new(big.Int).Set(m.XShardGasLimit.Value)
+	}
 	return &cpy
 }
 
@@ -303,7 +306,7 @@ func (b *MinorBlock) TrackingData() []byte { return b.trackingdata }
 
 //header properties
 func (b *MinorBlock) GetXShardGasLimit() *big.Int {
-	return new(big.Int).Set(b.Meta().XshardGasLimit.Value)
+	return new(big.Int).Set(b.Meta().XShardGasLimit.Value)
 }
 func (b *MinorBlock) Version() uint32                { return b.header.Version }
 func (b *MinorBlock) Branch() account.Branch         { return b.header.Branch }
@@ -498,7 +501,7 @@ func (h *MinorBlock) CreateBlockToAppend(createTime *uint64, difficulty *big.Int
 		GasUsed:            &serialize.Uint256{Value: new(big.Int)},
 		CrossShardGasUsed:  &serialize.Uint256{Value: new(big.Int)},
 		XShardTxCursorInfo: h.meta.XShardTxCursorInfo,
-		XshardGasLimit:     &serialize.Uint256{Value: new(big.Int).Set(xShardGasLimit)},
+		XShardGasLimit:     &serialize.Uint256{Value: new(big.Int).Set(xShardGasLimit)},
 	}
 	return &MinorBlock{
 		header:       header,

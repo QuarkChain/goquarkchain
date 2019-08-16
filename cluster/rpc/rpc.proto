@@ -6,6 +6,8 @@ package rpc;
 service MasterServerSideOp {
     rpc AddMinorBlockHeader (Request) returns (Response) {
     }
+    rpc AddMinorBlockHeaderList (Request) returns (Response) {
+    }
     // p2p apis
     rpc BroadcastNewTip (Request) returns (Response) {
     }
