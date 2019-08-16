@@ -296,6 +296,12 @@ func (s *SlaveServerSideOp) GetTransactionListByAddress(ctx context.Context, req
 	return response, nil
 }
 
+func (s *SlaveServerSideOp) GetAllTx(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
+	var (
+		gReq rpc.Get
+	)
+}
+
 func (s *SlaveServerSideOp) GetLogs(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
 	var (
 		gReq     rpc.GetLogRequest
