@@ -2153,9 +2153,7 @@ func TestXShardGasLimit(t *testing.T) {
 	assert.Equal(t, 10000000+1000000+888888+111111, int(act1.Uint64()))
 	cfg := shardState1.clusterConfig.Quarkchain.GetShardConfigByFullShardID(uint32(shardState1.branch.Value))
 	reward := params.GtxxShardCost.Uint64()*gasPrice*2 + cfg.CoinbaseAmount.Uint64()
-	rate := getLocalFeeRate(shardState1.clusterConfig.Quarkchain)
-	rewardRated := new(big.Int).Mul(new(big.Int).SetUint64(reward), rate.Num())
-	rewardRated = new(big.Int).Div(rewardRated, rate.Denom())
+	rewardRated := afterTax(reward, shardState1)
 	act3 := getDefaultBalance(acc3, shardState1)
 	//Half collected by root
 	assert.Equal(t, rewardRated, act3)
@@ -2198,4 +2196,111 @@ func getDefaultBalance(acc account.Address, shardState *MinorBlockChain) *big.In
 	checkErr(err)
 	act1 := blc1.GetTokenBalance(qkcCommon.TokenIDEncode("QKC"))
 	return act1
+}
+
+func afterTax(reward uint64, shardState *MinorBlockChain) *big.Int {
+	rate := getLocalFeeRate(shardState.clusterConfig.Quarkchain)
+	rewardRated := new(big.Int).Mul(new(big.Int).SetUint64(reward), rate.Num())
+	rewardRated = new(big.Int).Div(rewardRated, rate.Denom())
+	return rewardRated
+}
+
+func TestXShardTxReceivedDDOSFix(t *testing.T) {
+	id1, err := account.CreatRandomIdentity()
+	checkErr(err)
+	acc1 := account.CreatAddressFromIdentity(id1, 0)
+	acc2 := account.CreatAddressFromIdentity(id1, 1<<16)
+	acc3, err := account.CreatRandomAccountWithFullShardKey(0)
+	checkErr(err)
+
+	genesis := uint64(10000000)
+	shardSize := uint32(64)
+	shardId0 := uint32(0)
+	shardId := uint32(16)
+	env1 := setUp(&acc1, &genesis, &shardSize)
+	state0 := createDefaultShardState(env1, &shardId0, nil, nil, nil)
+	env2 := setUp(&acc2, &genesis, &shardSize)
+	state1 := createDefaultShardState(env2, &shardId, nil, nil, nil)
+	defer func() {
+		state0.Stop()
+		state1.Stop()
+	}()
+
+	rootBlock := state0.GetRootTip().CreateBlockToAppend(nil, nil, nil, nil, nil)
+	rootBlock.AddMinorBlockHeader(state0.CurrentHeader().(*types.MinorBlockHeader))
+	rootBlock.AddMinorBlockHeader(state1.CurrentHeader().(*types.MinorBlockHeader))
+	rootBlock.Finalize(nil, nil, common.Hash{})
+	_, err = state0.AddRootBlock(rootBlock)
+	checkErr(err)
+	_, err = state1.AddRootBlock(rootBlock)
+	checkErr(err)
+
+	b0, err := state0.CreateBlockToMine(nil, nil, nil, nil, nil)
+	checkErr(err)
+	b0, _, err = state0.FinalizeAndAddBlock(b0)
+	checkErr(err)
+
+	rHash := rootBlock.Hash()
+	b1 := state1.CurrentBlock().CreateBlockToAppend(nil, nil, nil, nil, nil,
+		nil, nil, nil, &rHash)
+
+	value1 := new(big.Int).SetUint64(888888)
+	gas := params.GtxxShardCost.Uint64() + 21000
+	var gasPrice uint64 = 0
+	tx := createTransferTransaction(state1, id1.GetKey().Bytes(), acc2, acc1, value1, &gas, &gasPrice, nil, nil, nil, nil)
+	b1.AddTx(tx)
+
+	//Add a x-shard tx from remote peer
+	crossShardGas := new(serialize.Uint256)
+	intrinsic := params.GtxxShardCost.Uint64() + 21000
+	crossShardGas.Value = new(big.Int).SetUint64(gas - intrinsic)
+	state0.AddCrossShardTxListByMinorBlockHash(b1.Hash(), types.CrossShardTransactionDepositList{
+		TXList: []*types.CrossShardTransactionDeposit{
+			{
+				TxHash:          tx.Hash(),
+				From:            acc2,
+				To:              acc1,
+				Value:           &serialize.Uint256{Value: value1},
+				GasPrice:        &serialize.Uint256{Value: new(big.Int).SetUint64(gasPrice)},
+				GasRemained:     crossShardGas,
+				TransferTokenID: tx.EvmTx.TransferTokenID(),
+				GasTokenID:      tx.EvmTx.GasTokenID(),
+			},
+		}})
+
+	//Create a root block containing the block with the x-shard tx
+	rootBlock = state0.GetRootTip().CreateBlockToAppend(nil, nil, nil, nil, nil)
+	//rootBlock.AddMinorBlockHeader(b0.Header())
+	rootBlock.AddMinorBlockHeader(b1.Header())
+	rootBlock.Finalize(nil, nil, common.Hash{})
+	_, err = state0.AddRootBlock(rootBlock)
+	checkErr(err)
+	//Add b0 and make sure all x-shard tx's are adde
+	b2, err := state0.CreateBlockToMine(nil, &acc3, nil, nil, nil)
+	checkErr(err)
+	b2, _, err = state0.FinalizeAndAddBlock(b2)
+	checkErr(err)
+
+	blc1 := getDefaultBalance(acc1, state0)
+	assert.Equal(t, int(genesis+value1.Uint64()), int(blc1.Uint64()))
+	//Half collected by root
+	blc3 := getDefaultBalance(acc3, state0)
+	cfg := state0.clusterConfig.Quarkchain.GetShardConfigByFullShardID(uint32(state0.branch.Value))
+	assert.Equal(t, afterTax(cfg.CoinbaseAmount.Uint64(), state0), blc3)
+
+	//X-shard gas used (to be fixed)
+	assert.Equal(t, uint64(0), state0.currentEvmState.GetXShardReceiveGasUsed().Uint64())
+	assert.Equal(t, uint64(0), b2.GetMetaData().GasUsed.Value.Uint64())
+	assert.Equal(t, uint64(0), b2.GetMetaData().CrossShardGasUsed.Value.Uint64())
+
+	//Apply the fix
+	b2s, err := serialize.SerializeToBytes(b2)
+	var b3 types.MinorBlock
+	err = serialize.DeserializeFromBytes(b2s, &b3)
+	checkErr(err)
+	state0.Config().XShardGasDDOSFixRootHeight = 0
+	bb3, _, err := state0.FinalizeAndAddBlock(&b3)
+	checkErr(err)
+	assert.Equal(t, params.GtxxShardCost, bb3.GetMetaData().GasUsed.Value)
+	assert.Equal(t, params.GtxxShardCost, bb3.GetMetaData().CrossShardGasUsed.Value)
 }
