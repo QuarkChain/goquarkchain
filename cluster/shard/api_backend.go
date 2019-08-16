@@ -166,7 +166,6 @@ func (s *ShardBackend) AddBlockListForSync(blockLst []*types.MinorBlock) (map[co
 	}
 
 	uncommittedBlockHeaderList := make([]*types.MinorBlockHeader, 0)
-	unCommittedCoinbaseAmount := make([]*types.TokenBalances, 0)
 	for _, block := range blockLst {
 		blockHash := block.Header().Hash()
 		if block.Header().Branch.GetFullShardID() != s.fullShardId {
@@ -176,7 +175,7 @@ func (s *ShardBackend) AddBlockListForSync(blockLst []*types.MinorBlock) (map[co
 			continue
 		}
 		//TODO:support BLOCK_COMMITTING
-		coinbaseAmountList [block.Header().Hash()]= block.Header().CoinbaseAmount
+		coinbaseAmountList[block.Header().Hash()] = block.Header().CoinbaseAmount
 		_, xshardLst, err := s.MinorBlockChain.InsertChainForDeposits([]types.IBlock{block}, nil)
 		if err != nil || len(xshardLst) != 1 {
 			log.Error("Failed to add minor block", "err", err)
@@ -186,20 +185,14 @@ func (s *ShardBackend) AddBlockListForSync(blockLst []*types.MinorBlock) (map[co
 		prevRootHeight := s.MinorBlockChain.GetRootBlockByHash(block.Header().PrevRootBlockHash)
 		blockHashToXShardList[blockHash] = &XshardListTuple{XshardTxList: xshardLst[0], PrevRootHeight: prevRootHeight.Number()}
 		uncommittedBlockHeaderList = append(uncommittedBlockHeaderList, block.Header())
-		unCommittedCoinbaseAmount = append(unCommittedCoinbaseAmount, block.Header().CoinbaseAmount)
 	}
 	// interrupt the current miner and restart
 	if err := s.conn.BatchBroadcastXshardTxList(blockHashToXShardList, blockLst[0].Header().Branch); err != nil {
 		return nil, err
 	}
-	if len(unCommittedCoinbaseAmount) != len(uncommittedBlockHeaderList) {
-		log.Error(s.logInfo, "impossible err", "unCommitted status is not match")
-		return nil, errors.New("impossible err: uncommitted status is not match")
-	}
 
 	req := &rpc.AddMinorBlockHeaderListRequest{
-		MinorBlockHeaderList:  uncommittedBlockHeaderList,
-		CoinbaseAmountMapList: unCommittedCoinbaseAmount,
+		MinorBlockHeaderList: uncommittedBlockHeaderList,
 	}
 	if err := s.conn.SendMinorBlockHeaderListToMaster(req); err != nil {
 		return nil, err
