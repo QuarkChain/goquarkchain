@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
-	"reflect"
 	"sync"
 
 	"github.com/QuarkChain/goquarkchain/cluster/config"
@@ -115,7 +114,7 @@ func New(ctx *service.ServiceContext, rBlock *types.RootBlock, conn ConnManager,
 	shard.posw = consensus.CreatePoSWCalculator(shard.MinorBlockChain, shard.Config.PoswConfig)
 
 	shard.miner = miner.New(ctx, shard, shard.engine)
-	fmt.Println("shard.New", reflect.TypeOf(shard.chainDb))
+
 	return shard, nil
 }
 

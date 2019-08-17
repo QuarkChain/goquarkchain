@@ -438,7 +438,6 @@ func (m *MinorBlockChain) runBlock(block *types.MinorBlock) (*state.StateDB, typ
 		if err != nil {
 			return nil, nil, nil, 0, nil, err
 		}
-		//fmt.Println("block.Number", block.Number(), len(xShardReceipts))
 		xReceipts = xShardReceipts
 		evmState.SetTxCursorInfo(txCursorInfo)
 		xShardReceiveTxList = append(xShardReceiveTxList, xTxList...)
@@ -975,7 +974,6 @@ func (m *MinorBlockChain) AddRootBlock(rBlock *types.RootBlock) (bool, error) {
 // GetTransactionByHash get tx by hash
 func (m *MinorBlockChain) GetTransactionByHash(hash common.Hash) (*types.MinorBlock, uint32) {
 	_, mHash, txIndex := rawdb.ReadTransaction(m.db, hash)
-
 	if mHash == qkcCommon.EmptyHash { //TODO need? for test???
 		txs := make([]*types.Transaction, 0)
 		tx := m.txPool.all.Get(hash)
@@ -1469,7 +1467,6 @@ func (m *MinorBlockChain) getTransactionDetails(start, end []byte, limit uint32,
 
 func (m *MinorBlockChain) GetTransactionByAddress(address account.Address, transferTokenID *uint64, start []byte, limit uint32) ([]*rpc.TransactionDetail, []byte, error) {
 	if !m.clusterConfig.EnableTransactionHistory {
-		fmt.Println("1499999")
 		return []*rpc.TransactionDetail{}, []byte{}, nil
 	}
 
@@ -1488,7 +1485,6 @@ func (m *MinorBlockChain) GetTransactionByAddress(address account.Address, trans
 	if len(start) == 0 || bytes.Compare(start, originalStartBytes) > 0 {
 		start = originalStartBytes
 	}
-	//fmt.Println("151515151")
 	return m.getTransactionDetails(start, end, limit, GetTxFromAddress, false, transferTokenID)
 }
 
@@ -1636,7 +1632,6 @@ func (m *MinorBlockChain) RunCrossShardTxWithCursor(evmState *state.StateDB,
 		if err != nil {
 			return nil, nil, nil, err
 		}
-		//fmt.Println("rrrrrrrrrrrrrrrr", receipt)
 		if receipt != nil {
 			receipts = append(receipts, receipt)
 		}

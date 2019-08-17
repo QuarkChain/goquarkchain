@@ -292,7 +292,7 @@ func TestOneTx(t *testing.T) {
 	acc3Value := currentState1.GetBalance(acc3.Recipient, 0)
 	should3 := new(big.Int).Add(new(big.Int).SetUint64(ethParams.TxGas/2), new(big.Int).Div(testShardCoinbaseAmount, new(big.Int).SetUint64(2)))
 	assert.Equal(t, should3, acc3Value)
-	assert.Equal(t, len(re), 1)
+	assert.Equal(t, len(re), 3)
 	assert.Equal(t, re[0].Status, uint64(1))
 	assert.Equal(t, re[0].GasUsed, uint64(21000))
 
@@ -372,7 +372,7 @@ func TestDuplicatedTx(t *testing.T) {
 	assert.Equal(t, currentState.GetBalance(acc3.Recipient, 0).Cmp(shouldAcc3), 0)
 
 	// Check receipts
-	assert.Equal(t, len(reps), 1)
+	assert.Equal(t, len(reps), 3)
 	assert.Equal(t, reps[0].Status, uint64(1))
 	assert.Equal(t, reps[0].GasUsed, uint64(21000))
 
@@ -508,7 +508,7 @@ func TestTwoTxInOneBlock(t *testing.T) {
 	checkErr(err)
 	_, res, err := shardState.FinalizeAndAddBlock(b0)
 	checkErr(err)
-	assert.Equal(t, len(res), 1)
+	assert.Equal(t, len(res), 3)
 
 	currState, err = shardState.State()
 	checkErr(err)

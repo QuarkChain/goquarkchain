@@ -1012,7 +1012,6 @@ func (m *MinorBlockChain) WriteBlockWithState(block *types.MinorBlock, receipts 
 
 	// Write other block data using a batch.
 	batch := m.db.NewBatch()
-	//fmt.Println("writeReceitpe", m.branch.Value, block.Number())
 	rawdb.WriteReceipts(batch, block.Hash(), receipts)
 
 	if updateTip {
