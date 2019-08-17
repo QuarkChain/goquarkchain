@@ -1127,6 +1127,7 @@ func TestTransactionPendingMinimumAllowance(t *testing.T) {
 	// Create the pool to test the limit enforcement with
 	statedb, _ := state.New(common.Hash{}, state.NewDatabase(ethdb.NewMemDatabase()))
 	blockchain := &testBlockChain{statedb, 1000000, new(event.Feed), nil}
+	blockchain.Config().MinTXPoolGasPrice = new(big.Int).SetUint64(1)
 
 	config := testTxPoolConfig
 	config.GlobalSlots = 0

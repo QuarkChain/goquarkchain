@@ -548,7 +548,6 @@ func (s *QKCMasterBackend) AddRootBlock(rootBlock *types.RootBlock) error {
 		if err := s.rootBlockChain.SetHead(head); err != nil {
 			panic(err)
 		}
-		//s.rootBlockChain
 		return err
 	}
 	s.rootBlockChain.ClearCommittingHash()
