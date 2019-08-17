@@ -511,7 +511,7 @@ func (pool *TxPool) Pending() (map[common.Address]types.Transactions, error) {
 
 func (pool *TxPool) GetAllTxInPool() types.Transactions {
 	pool.mu.RLock()
-	pool.mu.RUnlock()
+	defer pool.mu.RUnlock()
 	var txs types.Transactions
 	for _, tx := range pool.all.all {
 		txs = append(txs, tx)

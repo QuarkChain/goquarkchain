@@ -1346,7 +1346,6 @@ const (
 func (m *MinorBlockChain) getTransactionDetails(start, end []byte, limit uint32, getTxType int, skipCoinbaseRewards bool, transferTokenID *uint64) ([]*rpc.TransactionDetail, []byte, error) {
 	qkcDB, ok := m.db.(*qkcdb.RDBDatabase)
 	if !ok {
-		fmt.Println(">>>>>>>>>>>>>>>>>>>")
 		return nil, nil, errors.New("only support qkcdb now")
 	}
 
@@ -1371,7 +1370,7 @@ func (m *MinorBlockChain) getTransactionDetails(start, end []byte, limit uint32,
 		index      uint32
 		txHashes   = make(map[common.Hash]struct{})
 	)
-	//fmt.Println("start", hex.EncodeToString(start), "end", hex.EncodeToString(end))
+
 	it.SeekForPrev(start)
 	for it.Valid() {
 		if bytes.Compare(it.Key().Data(), end) < 0 {

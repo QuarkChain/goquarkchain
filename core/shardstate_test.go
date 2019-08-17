@@ -2477,6 +2477,7 @@ func TestGetTxForJsonRpc(t *testing.T) {
 	assert.Equal(t, len(tTxList), 1)
 	assert.Equal(t, tTxList[0].TxHash, tx.Hash())
 
+	// getAllTx
 	tTxList, _, err = shardState0.GetAllTx([]byte{}, 20)
 	assert.Equal(t, len(tTxList), 1)
 	assert.Equal(t, tTxList[0].TxHash, tx.Hash())

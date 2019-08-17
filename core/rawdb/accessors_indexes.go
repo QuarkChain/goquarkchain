@@ -44,19 +44,16 @@ func WriteBlockContentLookupEntries(db DatabaseWriter, block types.IBlock) {
 }
 
 func WriteBlockXShardTxLoopupEntries(db DatabaseWriter, block types.IBlock, hList *HashList) {
-	//	fmt.Println("4444444444444666666666666666")
 	blockHash := block.Hash()
 	for i, h := range hList.HList {
 		entry := LookupEntry{
 			BlockHash: blockHash,
 			Index:     uint32(i) + uint32(len(block.Content())),
 		}
-		//	fmt.Println("??????", h.String(), i+len(block.Content()))
 		data, err := serialize.SerializeToBytes(entry)
 		if err != nil {
 			log.Crit("Failed to encode content lookup entry", "err", err)
 		}
-		//	fmt.Println("putLoopUpKey", h.String(), hex.EncodeToString(data))
 		if err := db.Put(lookupKey(h), data); err != nil {
 			log.Crit("Failed to store content lookup entry")
 		}
