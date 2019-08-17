@@ -240,19 +240,22 @@ func receiptEncoder(block *types.MinorBlock, i int, receipt *types.Receipt) (map
 	if block == nil {
 		return nil, errors.New("block is nil")
 	}
-	if len(block.Transactions()) <= i {
-		return nil, nil
+	txID := ""
+	txHash := ""
+	if len(block.Transactions()) > i {
+		tx := block.Transactions()[i]
+		evmTx := tx.EvmTx
+		txID = IDEncoder(tx.Hash().Bytes(), evmTx.FromFullShardKey()).String()
+		txHash = tx.Hash().String()
 	}
 	if receipt == nil {
 		return nil, errors.New("receipt is nil")
 	}
-	tx := block.Transactions()[i]
-	evmtx := tx.EvmTx
 	header := block.Header()
 
 	field := map[string]interface{}{
-		"transactionId":     IDEncoder(tx.Hash().Bytes(), evmtx.FromFullShardKey()), //TODO fullShardKey
-		"transactionHash":   tx.Hash(),
+		"transactionId":     txID,
+		"transactionHash":   txHash,
 		"transactionIndex":  hexutil.Uint64(i),
 		"blockId":           IDEncoder(header.Hash().Bytes(), header.Branch.GetFullShardID()),
 		"blockHash":         header.Hash(),
@@ -262,6 +265,7 @@ func receiptEncoder(block *types.MinorBlock, i int, receipt *types.Receipt) (map
 		"gasUsed":           hexutil.Uint64(receipt.GasUsed),
 		"status":            hexutil.Uint64(receipt.Status),
 		"logs":              logListEncoder(receipt.Logs),
+		"timestamp":         hexutil.Uint64(block.Header().Time),
 	}
 	if receipt.ContractAddress.Big().Uint64() == 0 {
 		field["contractAddress"] = make([]struct{}, 0)
