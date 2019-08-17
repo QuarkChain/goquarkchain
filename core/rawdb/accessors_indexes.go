@@ -44,16 +44,19 @@ func WriteBlockContentLookupEntries(db DatabaseWriter, block types.IBlock) {
 }
 
 func WriteBlockXShardTxLoopupEntries(db DatabaseWriter, block types.IBlock, hList *HashList) {
+	//	fmt.Println("4444444444444666666666666666")
 	blockHash := block.Hash()
 	for i, h := range hList.HList {
 		entry := LookupEntry{
 			BlockHash: blockHash,
 			Index:     uint32(i) + uint32(len(block.Content())),
 		}
+		//	fmt.Println("??????", h.String(), i+len(block.Content()))
 		data, err := serialize.SerializeToBytes(entry)
 		if err != nil {
 			log.Crit("Failed to encode content lookup entry", "err", err)
 		}
+		//	fmt.Println("putLoopUpKey", h.String(), hex.EncodeToString(data))
 		if err := db.Put(lookupKey(h), data); err != nil {
 			log.Crit("Failed to store content lookup entry")
 		}
@@ -88,11 +91,14 @@ func ReadTransaction(db DatabaseReader, hash common.Hash) (*types.Transaction, c
 		return nil, common.Hash{}, 0
 	}
 	block := ReadMinorBlock(db, blockHash)
-	if block == nil || len(block.Transactions()) <= int(txIndex) {
+	if block == nil {
 		log.Error("Transaction referenced missing", "hash", blockHash, "index", txIndex)
 		return nil, common.Hash{}, 0
 	}
-	return block.Transactions()[txIndex], blockHash, txIndex
+	if int(txIndex) < len(block.Transactions()) {
+		return block.Transactions()[txIndex], blockHash, txIndex
+	}
+	return nil, blockHash, txIndex //xShardTx
 }
 
 // ReadReceipt retrieves a specific transaction receipt from the database, along with

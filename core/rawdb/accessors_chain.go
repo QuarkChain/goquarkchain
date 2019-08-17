@@ -3,6 +3,7 @@ package rawdb
 
 import (
 	"encoding/binary"
+	"fmt"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/serialize"
 	"github.com/ethereum/go-ethereum/common"
@@ -365,14 +366,18 @@ func HasReceipts(db DatabaseReader, hash common.Hash) bool {
 
 // ReadReceipts retrieves all the transaction receipts belonging to a block.
 func ReadReceipts(db DatabaseReader, hash common.Hash) types.Receipts {
+	//fmt.Println("rrrrrrrrrr", hash.String())
 	// Retrieve the flattened receipt slice
 	data, _ := db.Get(blockReceiptsKey(hash))
 	if len(data) == 0 {
+		fmt.Println("372...")
 		return nil
 	}
+	//fmt.Println("data", hex.EncodeToString(data))
 	// Convert the receipts from their storage form to their internal representation
 	storageReceipts := []*types.ReceiptForStorage{}
 	if err := rlp.DecodeBytes(data, &storageReceipts); err != nil {
+		//	fmt.Println("?????")
 		log.Error("Invalid receipt array RLP", "hash", hash, "err", err)
 		return nil
 	}
@@ -380,11 +385,13 @@ func ReadReceipts(db DatabaseReader, hash common.Hash) types.Receipts {
 	for i, receipt := range storageReceipts {
 		receipts[i] = (*types.Receipt)(receipt)
 	}
+	//	fmt.Println("llll", len(receipts))
 	return receipts
 }
 
 // WriteReceipts stores all the transaction receipts belonging to a block.
 func WriteReceipts(db DatabaseWriter, hash common.Hash, receipts types.Receipts) {
+	//	fmt.Println("wwwwwwwwwwww", hash.String(), len(receipts))
 	// Convert the receipts into their storage form and serialize them
 	storageReceipts := make([]*types.ReceiptForStorage, len(receipts))
 	for i, receipt := range receipts {
@@ -673,7 +680,6 @@ func GetXShardDepositHashList(db DatabaseReader, h common.Hash) *HashList {
 	return hList
 }
 
-
 func WriteCommitMinorBlock(db DatabaseWriter, h common.Hash) {
 	if err := db.Put(makeCommitMinorBlock(h), []byte{1}); err != nil { // value must not empty
 		log.Crit("failed to write commit minor block", "err", err)
@@ -686,4 +692,3 @@ func HasCommitMinorBlock(db DatabaseReader, h common.Hash) bool {
 	}
 	return true
 }
-

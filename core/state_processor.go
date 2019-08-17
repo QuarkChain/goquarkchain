@@ -235,10 +235,12 @@ func ApplyCrossShardDeposit(config *params.ChainConfig, bc ChainContext, header 
 	gp := new(GasPool).AddGas(evmState.GetGasLimit().Uint64())
 	_, gas, fail, err = ApplyMessage(vmenv, msg, gp, localFeeRate)
 	if err != nil {
+		//fmt.Println("111")
 		return nil, err
 	}
 	*usedGas += gas
 	if evmState.GetQuarkChainConfig().XShardAddReceiptTimestamp != 0 {
+		//fmt.Println("?????")
 		var root []byte
 		receipt := types.NewReceipt(root, fail, *usedGas)
 		receipt.TxHash = tx.TxHash
@@ -248,5 +250,6 @@ func ApplyCrossShardDeposit(config *params.ChainConfig, bc ChainContext, header 
 		receipt.ContractFullShardId = tx.To.FullShardKey
 		return receipt, nil
 	}
+	//fmt.Println("@@@@@@@@@@@@@@@@@@@@@", evmState.GetQuarkChainConfig().XShardAddReceiptTimestamp)
 	return nil, nil
 }

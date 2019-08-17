@@ -2335,3 +2335,140 @@ func TestXShardFromRootBlock(t *testing.T) {
 	checkErr(err)
 	assert.Equal(t, 1000000, int(getDefaultBalance(acc2, state0).Uint64()))
 }
+
+func TestGetTxForJsonRpc(t *testing.T) {
+	id1, err := account.CreatRandomIdentity()
+	checkErr(err)
+
+	acc1 := account.CreatAddressFromIdentity(id1, 0)
+	acc2 := account.CreatAddressFromIdentity(id1, 16)
+	acc3, err := account.CreatRandomAccountWithFullShardKey(0)
+	newGenesisMinorQuarkash := uint64(10000000)
+	fakeShardSize := uint32(64)
+	env := setUp(&acc1, &newGenesisMinorQuarkash, &fakeShardSize)
+	env1 := setUp(&acc1, &newGenesisMinorQuarkash, &fakeShardSize)
+	fakeID := uint32(0)
+	shardState0 := createDefaultShardState(env, &fakeID, nil, nil, nil)
+	fakeID = uint32(16)
+	shardState1 := createDefaultShardState(env1, &fakeID, nil, nil, nil)
+	// Add a root block to allow later minor blocks referencing this root block to
+	// be broadcasted
+	rootBlock := shardState0.rootTip.CreateBlockToAppend(nil, nil, nil, nil, nil)
+	rootBlock.AddMinorBlockHeader(shardState0.CurrentHeader().(*types.MinorBlockHeader))
+	rootBlock.AddMinorBlockHeader(shardState1.CurrentHeader().(*types.MinorBlockHeader))
+	rootBlock.Finalize(nil, nil, common.Hash{})
+	_, err0 := shardState0.AddRootBlock(rootBlock)
+	checkErr(err0)
+
+	_, err1 := shardState1.AddRootBlock(rootBlock)
+	checkErr(err1)
+
+	// Add one block in shard 0
+	b0, err := shardState0.CreateBlockToMine(nil, nil, nil, nil, nil)
+	checkErr(err)
+	b0, _, err = shardState0.FinalizeAndAddBlock(b0)
+	b1 := shardState1.CurrentBlock().CreateBlockToAppend(nil, nil, nil, nil, nil, nil, nil, nil, nil)
+	b1Headaer := b1.Header()
+	b1Headaer.PrevRootBlockHash = rootBlock.Header().Hash()
+	b1 = types.NewMinorBlock(b1Headaer, b1.Meta(), b1.Transactions(), nil, nil)
+	fakeGas := uint64(30000)
+	fakeGasPrice := uint64(2)
+	value := new(big.Int).SetUint64(888888)
+	tx := createTransferTransaction(shardState1, id1.GetKey().Bytes(), acc2, acc1, value, &fakeGas, &fakeGasPrice, nil, nil, nil, nil)
+	b1.AddTx(tx)
+	txList := types.CrossShardTransactionDepositList{}
+	crossShardGas := new(serialize.Uint256)
+	intrinsic := uint64(21000) + params.GtxxShardCost.Uint64()
+	crossShardGas.Value = new(big.Int).SetUint64(tx.EvmTx.Gas() - intrinsic)
+	txList.TXList = append(txList.TXList, &types.CrossShardTransactionDeposit{
+		TxHash:          tx.Hash(),
+		From:            acc2,
+		To:              acc1,
+		Value:           &serialize.Uint256{Value: value},
+		GasPrice:        &serialize.Uint256{Value: new(big.Int).SetUint64(fakeGasPrice)},
+		GasRemained:     crossShardGas,
+		TransferTokenID: tx.EvmTx.TransferTokenID(),
+		GasTokenID:      tx.EvmTx.GasTokenID(),
+	})
+	// Add a x-shard tx from remote peer
+	shardState0.AddCrossShardTxListByMinorBlockHash(b1.Header().Hash(), txList) // write db
+	// Create a root block containing the block with the x-shard tx
+	rootBlock = shardState0.rootTip.CreateBlockToAppend(nil, nil, nil, nil, nil)
+	rootBlock.AddMinorBlockHeader(b0.Header())
+	rootBlock.AddMinorBlockHeader(b1.Header())
+	rootBlock.Finalize(nil, nil, common.Hash{})
+	_, err = shardState0.AddRootBlock(rootBlock)
+	checkErr(err)
+
+	// Add b0 and make sure all x-shard tx's are added
+	b2, err := shardState0.CreateBlockToMine(nil, &acc3, nil, nil, nil)
+	checkErr(err)
+	b2, _, err = shardState0.FinalizeAndAddBlock(b2)
+	checkErr(err)
+	acc1Value := shardState0.currentEvmState.GetBalance(acc1.Recipient, shardState0.GetGenesisToken())
+	assert.Equal(t, int64(10000000+888888), acc1Value.Int64())
+
+	// Half collected by root
+	acc3Value := shardState0.currentEvmState.GetBalance(acc3.Recipient, shardState0.GetGenesisToken())
+	acc3Should := new(big.Int).Add(testShardCoinbaseAmount, new(big.Int).SetUint64(9000*2))
+	acc3Should = new(big.Int).Div(acc3Should, new(big.Int).SetUint64(2))
+	assert.Equal(t, acc3Should.String(), acc3Value.String())
+
+	// X-shard gas used
+	assert.Equal(t, uint64(9000), shardState0.currentEvmState.GetXShardReceiveGasUsed().Uint64())
+
+	b1, _, err = shardState1.FinalizeAndAddBlock(b1)
+	checkErr(err)
+
+	//getTxByHash
+	tBlock, index := shardState0.GetTransactionByHash(tx.Hash())
+	assert.Equal(t, tBlock.Number(), uint64(2))
+	assert.Equal(t, len(tBlock.Transactions()), 0)
+	assert.Equal(t, index, uint32(1))
+	tBlock, index = shardState1.GetTransactionByHash(tx.Hash())
+	assert.Equal(t, tBlock.Number(), uint64(1))
+	assert.Equal(t, len(tBlock.Transactions()), 1)
+	assert.Equal(t, index, uint32(0))
+
+	//getReceiptByHash
+	tBlock, index, receipt := shardState0.GetTransactionReceipt(tx.Hash())
+	assert.Equal(t, tBlock.Number(), uint64(2))
+	assert.Equal(t, len(tBlock.Transactions()), 0)
+	assert.Equal(t, index, uint32(1))
+	assert.Equal(t, receipt.GasUsed, uint64(9000))
+	tBlock, index, receipt = shardState1.GetTransactionReceipt(tx.Hash())
+	assert.Equal(t, tBlock.Number(), uint64(1))
+	assert.Equal(t, len(tBlock.Transactions()), 1)
+	assert.Equal(t, index, uint32(0))
+	assert.Equal(t, receipt.GasUsed, uint64(30000))
+
+	tGenesisTokenID := testGenesisTokenID
+	//getTxByAddress
+	tTxList, _, err := shardState0.GetTransactionByAddress(acc1, &tGenesisTokenID, []byte{}, 20)
+	assert.Equal(t, len(tTxList), 1)
+	assert.Equal(t, tTxList[0].TxHash, tx.Hash())
+
+	tTxList, _, err = shardState0.GetTransactionByAddress(acc2, &tGenesisTokenID, []byte{}, 20)
+	assert.Equal(t, len(tTxList), 1)
+	assert.Equal(t, tTxList[0].TxHash, tx.Hash())
+
+	tTxList, _, err = shardState1.GetTransactionByAddress(acc1, &tGenesisTokenID, []byte{}, 20)
+	assert.Equal(t, len(tTxList), 1)
+	assert.Equal(t, tTxList[0].TxHash, tx.Hash())
+
+	tTxList, _, err = shardState1.GetTransactionByAddress(acc2, &tGenesisTokenID, []byte{}, 20)
+	assert.Equal(t, len(tTxList), 1)
+	assert.Equal(t, tTxList[0].TxHash, tx.Hash())
+
+	tTxList, _, err = shardState0.GetAllTx([]byte{}, 20)
+	assert.Equal(t, len(tTxList), 1)
+	assert.Equal(t, tTxList[0].TxHash, tx.Hash())
+
+	tTxList, _, err = shardState1.GetAllTx([]byte{}, 20)
+	assert.Equal(t, len(tTxList), 1)
+	assert.Equal(t, tTxList[0].TxHash, tx.Hash())
+
+	// already compare next with py
+	// account is random and key is not match,so not use assert.Equal there
+	// but next returns the same except for address and key
+}

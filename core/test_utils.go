@@ -3,7 +3,10 @@ package core
 import (
 	"encoding/hex"
 	"errors"
+	"github.com/QuarkChain/goquarkchain/qkcdb"
+	"io/ioutil"
 	"math/big"
+	"os"
 	"strings"
 	"time"
 
@@ -63,8 +66,14 @@ func getTestEnv(genesisAccount *account.Address, genesisMinorQuarkHash *uint64, 
 	}
 
 	fakeClusterConfig := config.NewClusterConfig()
+	dirname, err := ioutil.TempDir(os.TempDir(), "qkcdb_test_")
+	if err != nil {
+		panic("failed to create test file: " + err.Error())
+	}
+	qkcDB, err := qkcdb.NewRDBDatabase(dirname, true)
+	checkErr(err)
 	env := &fakeEnv{
-		db:            ethdb.NewMemDatabase(),
+		db:            qkcDB,
 		clusterConfig: fakeClusterConfig,
 	}
 	env.clusterConfig.Quarkchain.NetworkID = 3
@@ -82,6 +91,7 @@ func getTestEnv(genesisAccount *account.Address, genesisMinorQuarkHash *uint64, 
 	env.clusterConfig.Quarkchain.SkipRootDifficultyCheck = true
 	env.clusterConfig.EnableTransactionHistory = true
 	env.clusterConfig.Quarkchain.MinMiningGasPrice = new(big.Int).SetInt64(-1)
+	env.clusterConfig.Quarkchain.XShardAddReceiptTimestamp = 1
 
 	ids := env.clusterConfig.Quarkchain.GetGenesisShardIds()
 	for _, v := range ids {

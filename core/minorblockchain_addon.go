@@ -438,6 +438,7 @@ func (m *MinorBlockChain) runBlock(block *types.MinorBlock) (*state.StateDB, typ
 		if err != nil {
 			return nil, nil, nil, 0, nil, err
 		}
+		//fmt.Println("block.Number", block.Number(), len(xShardReceipts))
 		xReceipts = xShardReceipts
 		evmState.SetTxCursorInfo(txCursorInfo)
 		xShardReceiveTxList = append(xShardReceiveTxList, xTxList...)
@@ -974,6 +975,7 @@ func (m *MinorBlockChain) AddRootBlock(rBlock *types.RootBlock) (bool, error) {
 // GetTransactionByHash get tx by hash
 func (m *MinorBlockChain) GetTransactionByHash(hash common.Hash) (*types.MinorBlock, uint32) {
 	_, mHash, txIndex := rawdb.ReadTransaction(m.db, hash)
+
 	if mHash == qkcCommon.EmptyHash { //TODO need? for test???
 		txs := make([]*types.Transaction, 0)
 		tx := m.txPool.all.Get(hash)
@@ -1193,8 +1195,8 @@ func getCrossShardBytesIndb(crossShard bool) []byte {
 }
 
 var (
-	addressTxKey = []byte("i_add")
-	allTxKey     = []byte("i_all")
+	addressTxKey = []byte("index_addr_")
+	allTxKey     = []byte("index_alltx_")
 )
 
 func encodeAddressTxKey(addr account.Recipient, height uint64, index int, crossShard bool) []byte {
@@ -1216,6 +1218,19 @@ func encodeAddressTxKey(addr account.Recipient, height uint64, index int, crossS
 	return rs
 }
 
+func decodeTxKey(data []byte, keyLen int, addrLen int) (uint64, bool, uint32, error) {
+	if len(data) != keyLen+addrLen+4+1+4 {
+		return 0, false, 0, errors.New("input err")
+	}
+	height := qkcCommon.BytesToUint32(data[keyLen+addrLen : keyLen+addrLen+4])
+	flag := false
+	if data[keyLen+addrLen+4] == byte(0) {
+		flag = true //TODO use constant
+	}
+	index := qkcCommon.BytesToUint32(data[keyLen+addrLen+4+1:])
+	return uint64(height), flag, index, nil
+}
+
 func encodeAllTxKey(height uint64, index int, crossShard bool) []byte {
 	crossShardBytes := getCrossShardBytesIndb(crossShard)
 	heightBytes := qkcCommon.Uint32ToBytes(uint32(height))
@@ -1227,45 +1242,6 @@ func encodeAllTxKey(height uint64, index int, crossShard bool) []byte {
 	rs = append(rs, indexBytes...)
 	return rs
 
-}
-func decodeAddressTxKey(data []byte) (uint64, bool, uint32, error) {
-	// 34=5+20+4+1+4
-	// 5="i_add"
-	// 20=len(account.Receipt)
-	// 4=height
-	// 1=isCrossShard
-	// 4=index
-	if len(data) != 34 {
-		return 0, false, 0, errors.New("input err")
-	}
-	height := qkcCommon.BytesToUint32(data[5+20 : 5+20+4])
-	flag := false
-	if data[5+20+4] == byte(0) {
-		flag = true //TODO use constant
-	}
-	index := qkcCommon.BytesToUint32(data[5+20+4+1:])
-	return uint64(height), flag, index, nil
-}
-
-//TODO use one
-func decodeAllTxKey(data []byte) (uint64, bool, uint32, error) {
-	// 14= 5+4+1+4
-	// 5="i_all"
-	//4=height
-	//1=isCrossShard
-	//4=index
-
-	if len(data) != 14 {
-		return 0, false, 0, errors.New("input error decodeAllTxKey should len==14")
-	}
-
-	height := qkcCommon.BytesToUint32(data[5 : 5+4])
-	flag := false
-	if data[5+4] == byte(0) {
-		flag = true
-	}
-	index := qkcCommon.BytesToUint32(data[5+4+1:])
-	return uint64(height), flag, index, nil
 }
 
 func (m *MinorBlockChain) putTxIndexFromBlock(batch rawdb.DatabaseWriter, block types.IBlock) error {
@@ -1372,6 +1348,7 @@ const (
 func (m *MinorBlockChain) getTransactionDetails(start, end []byte, limit uint32, getTxType int, skipCoinbaseRewards bool, transferTokenID *uint64) ([]*rpc.TransactionDetail, []byte, error) {
 	qkcDB, ok := m.db.(*qkcdb.RDBDatabase)
 	if !ok {
+		fmt.Println(">>>>>>>>>>>>>>>>>>>")
 		return nil, nil, errors.New("only support qkcdb now")
 	}
 
@@ -1396,15 +1373,16 @@ func (m *MinorBlockChain) getTransactionDetails(start, end []byte, limit uint32,
 		index      uint32
 		txHashes   = make(map[common.Hash]struct{})
 	)
+	//fmt.Println("start", hex.EncodeToString(start), "end", hex.EncodeToString(end))
 	it.SeekForPrev(start)
 	for it.Valid() {
 		if bytes.Compare(it.Key().Data(), end) < 0 {
 			break
 		}
 		if getTxType == GetTxFromAddress {
-			height, crossShard, index, err = decodeAddressTxKey(it.Key().Data())
+			height, crossShard, index, err = decodeTxKey(it.Key().Data(), len(addressTxKey), 20)
 		} else {
-			height, crossShard, index, err = decodeAllTxKey(it.Key().Data())
+			height, crossShard, index, err = decodeTxKey(it.Key().Data(), len(allTxKey), 0)
 		}
 		if err != nil {
 			return nil, nil, err
@@ -1491,6 +1469,7 @@ func (m *MinorBlockChain) getTransactionDetails(start, end []byte, limit uint32,
 
 func (m *MinorBlockChain) GetTransactionByAddress(address account.Address, transferTokenID *uint64, start []byte, limit uint32) ([]*rpc.TransactionDetail, []byte, error) {
 	if !m.clusterConfig.EnableTransactionHistory {
+		fmt.Println("1499999")
 		return []*rpc.TransactionDetail{}, []byte{}, nil
 	}
 
@@ -1509,11 +1488,12 @@ func (m *MinorBlockChain) GetTransactionByAddress(address account.Address, trans
 	if len(start) == 0 || bytes.Compare(start, originalStartBytes) > 0 {
 		start = originalStartBytes
 	}
+	//fmt.Println("151515151")
 	return m.getTransactionDetails(start, end, limit, GetTxFromAddress, false, transferTokenID)
 }
 
 func (m *MinorBlockChain) GetAllTx(start []byte, limit uint32) ([]*rpc.TransactionDetail, []byte, error) {
-	if m.clusterConfig.EnableTransactionHistory {
+	if !m.clusterConfig.EnableTransactionHistory {
 		return []*rpc.TransactionDetail{}, []byte{}, nil
 	}
 	end := make([]byte, 0)
@@ -1656,6 +1636,7 @@ func (m *MinorBlockChain) RunCrossShardTxWithCursor(evmState *state.StateDB,
 		if err != nil {
 			return nil, nil, nil, err
 		}
+		//fmt.Println("rrrrrrrrrrrrrrrr", receipt)
 		if receipt != nil {
 			receipts = append(receipts, receipt)
 		}
