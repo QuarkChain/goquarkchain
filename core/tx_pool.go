@@ -560,6 +560,9 @@ func (pool *TxPool) local() map[common.Address]types.Transactions {
 // validateTx checks whether a transaction is valid according to the consensus
 // rules and adheres to some heuristic limits of the local node (price and size).
 func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
+	if tx.EvmTx.GasPrice().Cmp(pool.quarkConfig.MinTXPoolGasPrice) < 0 {
+		return errors.New(fmt.Sprintf("invalid gasprice: tx min gas price is %d", pool.quarkConfig.MinTXPoolGasPrice.Uint64()))
+	}
 	if pool.all.Count() > int(pool.quarkConfig.TransactionQueueSizeLimitPerShard) {
 		return errors.New("txpool queue full")
 	}

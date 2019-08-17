@@ -279,6 +279,7 @@ func (s *QKCMasterBackend) ConnectToSlaves() error {
 	}
 	return nil
 }
+
 func (s *QKCMasterBackend) logSummary() {
 	for branch, slaves := range s.branchToSlaves {
 		for _, slave := range slaves {
@@ -547,6 +548,7 @@ func (s *QKCMasterBackend) AddRootBlock(rootBlock *types.RootBlock) error {
 		if err := s.rootBlockChain.SetHead(head); err != nil {
 			panic(err)
 		}
+		//s.rootBlockChain
 		return err
 	}
 	s.rootBlockChain.ClearCommittingHash()
