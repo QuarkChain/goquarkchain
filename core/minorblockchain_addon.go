@@ -424,18 +424,12 @@ func (m *MinorBlockChain) runBlock(block *types.MinorBlock) (*state.StateDB, typ
 		return nil, nil, nil, 0, nil, err
 	}
 	evmState := preEvmState.Copy()
-	var xReceipts types.Receipts
-	if !m.Config().SkipRunCrossShardTx {
-		xTxList, txCursorInfo, xShardReceipts, err := m.RunCrossShardTxWithCursor(evmState, block)
-		if err != nil {
-			return nil, nil, nil, 0, nil, err
-		}
-		xReceipts = xShardReceipts
-		evmState.SetTxCursorInfo(txCursorInfo)
-		xShardReceiveTxList = append(xShardReceiveTxList, xTxList...)
-	} else {
-		evmState.SetTxCursorInfo(&types.XShardTxCursorInfo{})
+	xTxList, txCursorInfo, xShardReceipts, err := m.RunCrossShardTxWithCursor(evmState, block)
+	if err != nil {
+		return nil, nil, nil, 0, nil, err
 	}
+	evmState.SetTxCursorInfo(txCursorInfo)
+	xShardReceiveTxList = append(xShardReceiveTxList, xTxList...)
 	xShardGasLimit := block.Meta().XShardGasLimit.Value
 	if evmState.GetGasUsed().Cmp(xShardGasLimit) == -1 {
 		left := new(big.Int).Sub(xShardGasLimit, evmState.GetGasUsed())
@@ -445,7 +439,7 @@ func (m *MinorBlockChain) runBlock(block *types.MinorBlock) (*state.StateDB, typ
 	if err != nil {
 		return nil, nil, nil, 0, nil, err
 	}
-	receipts = append(receipts, xReceipts...)
+	receipts = append(receipts, xShardReceipts...)
 	//types.Receipts, []*types.Log, uint64, error
 	return evmState, receipts, logs, usedGas, xShardReceiveTxList, nil
 }

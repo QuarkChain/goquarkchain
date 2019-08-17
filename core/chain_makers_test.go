@@ -99,7 +99,6 @@ func ExampleGenerateMinorBlockChain() {
 		shardConfig.Genesis.Alloc[addr] = temp
 	}
 	fakeClusterConfig.Quarkchain.SkipMinorDifficultyCheck = true
-	fakeClusterConfig.Quarkchain.SkipRunCrossShardTx = true
 	// Ensure that key1 has some funds in the genesis block.
 	gspec := &Genesis{
 		qkcConfig: fakeClusterConfig.Quarkchain,
