@@ -1185,7 +1185,10 @@ func (bc *RootBlockChain) CreateBlockToMine(mHeaderList []*types.MinorBlockHeade
 		if err != nil {
 			return nil, err
 		}
-		block.SignWithPrivateKey(prvKey)
+		err = block.SignWithPrivateKey(prvKey)
+		if err != nil {
+			return nil, err
+		}
 	}
 	block.Finalize(coinbaseToken, address, common.Hash{})
 	return block, nil

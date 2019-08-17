@@ -382,7 +382,6 @@ type SubmitWorkRequest struct {
 	HeaderHash common.Hash `json:"header_hash" gencodec:"required"`
 	Nonce      uint64      `json:"nonce"       gencodec:"required"`
 	MixHash    common.Hash `json:"mix_hash"    gencodec:"required"`
-	Signature  [65]byte    `json:"signature"   gencodec:"required"`
 }
 
 type SubmitWorkResponse struct {

@@ -106,7 +106,7 @@ func New(ctx *service.ServiceContext, cfg *config.ClusterConfig) (*QKCMasterBack
 		return nil, err
 	}
 
-	if mstr.engine, err = createConsensusEngine(ctx, cfg.Quarkchain.Root, cfg.Quarkchain.GuardianPublicKey); err != nil {
+	if mstr.engine, err = createConsensusEngine(cfg.Quarkchain.Root, cfg.Quarkchain.GuardianPublicKey); err != nil {
 		return nil, err
 	}
 
@@ -149,7 +149,7 @@ func createDB(ctx *service.ServiceContext, name string, clean bool) (ethdb.Datab
 	return db, nil
 }
 
-func createConsensusEngine(ctx *service.ServiceContext, cfg *config.RootConfig, pubKeyStr string) (consensus.Engine, error) {
+func createConsensusEngine(cfg *config.RootConfig, pubKeyStr string) (consensus.Engine, error) {
 	diffCalculator := consensus.EthDifficultyCalculator{
 		MinimumDifficulty: big.NewInt(int64(cfg.Genesis.Difficulty)),
 		AdjustmentCutoff:  cfg.DifficultyAdjustmentCutoffTime,
