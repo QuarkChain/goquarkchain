@@ -279,6 +279,7 @@ func (s *QKCMasterBackend) ConnectToSlaves() error {
 	}
 	return nil
 }
+
 func (s *QKCMasterBackend) logSummary() {
 	for branch, slaves := range s.branchToSlaves {
 		for _, slave := range slaves {

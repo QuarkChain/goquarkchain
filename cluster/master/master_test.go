@@ -392,8 +392,16 @@ func TestAddTransaction(t *testing.T) {
 	master := initEnv(t, nil)
 	id1, err := account.CreatRandomIdentity()
 	assert.NoError(t, err)
-	evmTx := types.NewEvmTransaction(0, id1.GetRecipient(), new(big.Int), 0, new(big.Int), 2, 2, 1, 0, []byte{}, 0, 0)
+	evmTx := types.NewEvmTransaction(0, id1.GetRecipient(), new(big.Int), 0, new(big.Int).SetUint64(10000000), 2, 2, 1, 0, []byte{}, 0, 0)
 	tx := &types.Transaction{
+		EvmTx:  evmTx,
+		TxType: types.EvmTx,
+	}
+	err = master.AddTransaction(tx)
+	assert.Error(t, err)
+
+	evmTx = types.NewEvmTransaction(0, id1.GetRecipient(), new(big.Int), 0, new(big.Int).SetUint64(1000000000), 2, 2, 1, 0, []byte{}, 0, 0)
+	tx = &types.Transaction{
 		EvmTx:  evmTx,
 		TxType: types.EvmTx,
 	}
@@ -402,7 +410,7 @@ func TestAddTransaction(t *testing.T) {
 
 	//fromFullShardKey 00040000 -> chainID =4
 	// config->chainID : 1,2,3
-	evmTx = types.NewEvmTransaction(0, id1.GetRecipient(), new(big.Int), 0, new(big.Int), 262144, 2, 1, 0, []byte{}, 0, 0)
+	evmTx = types.NewEvmTransaction(0, id1.GetRecipient(), new(big.Int), 0, new(big.Int).SetUint64(1000000000), 262144, 2, 1, 0, []byte{}, 0, 0)
 	tx = &types.Transaction{
 		EvmTx:  evmTx,
 		TxType: types.EvmTx,

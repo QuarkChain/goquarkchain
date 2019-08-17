@@ -4,9 +4,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"github.com/QuarkChain/goquarkchain/qkcdb"
-	"io/ioutil"
 	"math/big"
-	"os"
 	"strings"
 	"time"
 
@@ -24,6 +22,7 @@ import (
 )
 
 var (
+	testDBPath = map[int]string{}
 	// jiaozi 10^18
 	jiaozi                  = new(big.Int).Mul(new(big.Int).SetUint64(1000000000), new(big.Int).SetUint64(1000000000))
 	testShardCoinbaseAmount = new(big.Int).Mul(new(big.Int).SetUint64(5), jiaozi)
@@ -35,6 +34,12 @@ type fakeEnv struct {
 	clusterConfig *config.ClusterConfig
 }
 
+func getOneDBPath() (int, string) {
+	for index, v := range testDBPath {
+		return index, v
+	}
+	panic("unexcepted err")
+}
 func getTestEnv(genesisAccount *account.Address, genesisMinorQuarkHash *uint64, chainSize *uint32, shardSize *uint32, genesisRootHeights *map[uint32]uint32, remoteMining *bool) *fakeEnv {
 	if genesisAccount == nil {
 		temp := account.CreatEmptyAddress(0)
@@ -66,16 +71,22 @@ func getTestEnv(genesisAccount *account.Address, genesisMinorQuarkHash *uint64, 
 	}
 
 	fakeClusterConfig := config.NewClusterConfig()
-	dirname, err := ioutil.TempDir(os.TempDir(), "qkcdb_test_")
-	if err != nil {
-		panic("failed to create test file: " + err.Error())
+
+	var fakeDb ethdb.Database
+	var err error
+	if len(testDBPath) != 0 {
+		index, fileName := getOneDBPath()
+		fakeDb, err = qkcdb.NewRDBDatabase(fileName, true)
+		delete(testDBPath, index)
+		checkErr(err)
+	} else {
+		fakeDb = ethdb.NewMemDatabase()
 	}
-	qkcDB, err := qkcdb.NewRDBDatabase(dirname, true)
-	checkErr(err)
 	env := &fakeEnv{
-		db:            qkcDB,
+		db:            fakeDb,
 		clusterConfig: fakeClusterConfig,
 	}
+
 	env.clusterConfig.Quarkchain.NetworkID = 3
 	env.clusterConfig.Quarkchain.Update(*chainSize, *shardSize, 10, 1)
 	if *remoteMining {
@@ -92,7 +103,7 @@ func getTestEnv(genesisAccount *account.Address, genesisMinorQuarkHash *uint64, 
 	env.clusterConfig.EnableTransactionHistory = true
 	env.clusterConfig.Quarkchain.MinMiningGasPrice = new(big.Int).SetInt64(-1)
 	env.clusterConfig.Quarkchain.XShardAddReceiptTimestamp = 1
-
+	env.clusterConfig.Quarkchain.MinTXPoolGasPrice = new(big.Int).SetInt64(-1)
 	ids := env.clusterConfig.Quarkchain.GetGenesisShardIds()
 	for _, v := range ids {
 		addr := genesisAccount.AddressInShard(v)

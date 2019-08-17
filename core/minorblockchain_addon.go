@@ -1138,7 +1138,7 @@ func (m *MinorBlockChain) GasPrice(tokenID uint64) (uint64, error) {
 		prices = append(prices, tempPreBlockPrices...)
 	}
 	if len(prices) == 0 {
-		return 0, errors.New("len(prices)==0")
+		return m.clusterConfig.Quarkchain.MinTXPoolGasPrice.Uint64(), nil
 	}
 
 	sort.Slice(prices, func(i, j int) bool { return prices[i] < prices[j] })

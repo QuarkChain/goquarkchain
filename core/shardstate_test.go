@@ -3,8 +3,10 @@ package core
 import (
 	"encoding/hex"
 	"errors"
+	"io/ioutil"
 	"math/big"
 	"math/rand"
+	"os"
 	"reflect"
 	"testing"
 	"time"
@@ -2337,6 +2339,21 @@ func TestXShardFromRootBlock(t *testing.T) {
 }
 
 func TestGetTxForJsonRpc(t *testing.T) {
+	dirname, err := ioutil.TempDir(os.TempDir(), "qkcdb_test_")
+	if err != nil {
+		panic("failed to create test file: " + err.Error())
+	}
+	testDBPath[1] = dirname
+
+	dirname1, err1 := ioutil.TempDir(os.TempDir(), "qkcdb_test_")
+	if err1 != nil {
+		panic("failed to create test file: " + err.Error())
+	}
+	testDBPath[2] = dirname1
+	defer func() {
+		os.RemoveAll(dirname)
+		os.RemoveAll(dirname1)
+	}()
 	id1, err := account.CreatRandomIdentity()
 	checkErr(err)
 
@@ -2360,7 +2377,7 @@ func TestGetTxForJsonRpc(t *testing.T) {
 	_, err0 := shardState0.AddRootBlock(rootBlock)
 	checkErr(err0)
 
-	_, err1 := shardState1.AddRootBlock(rootBlock)
+	_, err1 = shardState1.AddRootBlock(rootBlock)
 	checkErr(err1)
 
 	// Add one block in shard 0
