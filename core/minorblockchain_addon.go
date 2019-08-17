@@ -27,6 +27,10 @@ import (
 var (
 	MAX_FUTURE_TX_NONCE                   = uint64(64)
 	ALLOWED_FUTURE_BLOCKS_TIME_VALIDATION = uint64(15)
+	addressTxKey                          = []byte("iaddr")
+	allTxKey                              = []byte("iall")
+	ErrorTxContinue                       = errors.New("apply tx continue")
+	ErrorTxBreak                          = errors.New("apply tx break")
 )
 
 func (m *MinorBlockChain) ReadLastConfirmedMinorBlockHeaderAtRootBlock(hash common.Hash) common.Hash {
@@ -715,11 +719,6 @@ func (m *MinorBlockChain) addTransactionToBlock(block *types.MinorBlock, evmStat
 	return types.NewMinorBlock(bHeader, block.Meta(), txsInBlock, receipts, nil), receipts, nil
 }
 
-var (
-	ErrorTxContinue = errors.New("apply tx continue")
-	ErrorTxBreak    = errors.New("apply tx break")
-)
-
 func (m *MinorBlockChain) checkTxBeforeApply(stateT *state.StateDB, tx *types.Transaction) error {
 	if tx == nil {
 		return ErrorTxBreak
@@ -1191,11 +1190,6 @@ func getCrossShardBytesIndb(crossShard bool) []byte {
 	}
 	return crossShardBytes
 }
-
-var (
-	addressTxKey = []byte("index_addr_")
-	allTxKey     = []byte("index_alltx_")
-)
 
 func encodeAddressTxKey(addr account.Recipient, height uint64, index int, crossShard bool) []byte {
 	crossShardBytes := getCrossShardBytesIndb(crossShard)
