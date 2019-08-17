@@ -461,7 +461,7 @@ func (p *Peer) GetMinorBlockList(hashes []common.Hash, branch uint32) ([]*types.
 	}
 }
 
-func (p *Peer) requestMinorBlockListWithSkip(rpcId uint64,
+func (p *Peer) requestMinorBlockHeaderListWithSkip(rpcId uint64,
 	request *p2p.GetMinorBlockHeaderListWithSkipRequest) error {
 	msg, err := p2p.MakeMsg(p2p.GetMinorBlockHeaderListWithSkipRequestMsg, rpcId, p2p.Metadata{Branch: request.Branch.Value}, request)
 	if err != nil {
@@ -470,12 +470,12 @@ func (p *Peer) requestMinorBlockListWithSkip(rpcId uint64,
 	return p.rw.WriteMsg(msg)
 }
 
-func (p *Peer) GetMinorBlockListWithSkip(tp uint8, data common.Hash, limit, skip uint32, branch uint32,
-	direction uint8) ([]*types.MinorBlockHeader, error) {
+func (p *Peer) GetMinorBlockHeaderListWithSkip(tp uint8, data common.Hash, limit, skip uint32, branch uint32,
+	direction uint8) (*p2p.GetMinorBlockHeaderListResponse, error) {
 	rpcId, rpcchan := p.getRpcIdWithChan()
 	defer p.deleteChan(rpcId)
 
-	err := p.requestMinorBlockListWithSkip(rpcId, &p2p.GetMinorBlockHeaderListWithSkipRequest{
+	err := p.requestMinorBlockHeaderListWithSkip(rpcId, &p2p.GetMinorBlockHeaderListWithSkipRequest{
 		Type:      tp,
 		Data:      data,
 		Limit:     limit,
@@ -489,7 +489,7 @@ func (p *Peer) GetMinorBlockListWithSkip(tp uint8, data common.Hash, limit, skip
 	timeout := time.NewTimer(requestTimeout)
 	select {
 	case obj := <-rpcchan:
-		if ret, ok := obj.([]*types.MinorBlockHeader); !ok {
+		if ret, ok := obj.(*p2p.GetMinorBlockHeaderListResponse); !ok {
 			panic("invalid return result in GetMinorBlockList")
 		} else {
 			return ret, nil

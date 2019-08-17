@@ -16,112 +16,195 @@ import (
 
 type rootSyncerPeer interface {
 	GetRootBlockHeaderList(hash common.Hash, amount uint32, reverse bool) ([]*types.RootBlockHeader, error)
-	GetRootBlockList(hashes []common.Hash) ([]*types.RootBlock, error)
 	GetRootBlockHeaderListWithSkip(tp uint8, data common.Hash, limit, skip uint32, direction uint8) (*p2p.GetRootBlockHeaderListResponse, error)
+	GetRootBlockList(hashes []common.Hash) ([]*types.RootBlock, error)
 	PeerID() string
 }
 
 // All of the sync tasks to are to catch up with the root chain from peers.
 type rootChainTask struct {
 	task
-	peer         rootSyncerPeer
-	stats        *rpc.RootBlockSychronizerStats
-	maxStaleness uint64
+	header           *types.RootBlockHeader
+	peer             rootSyncerPeer
+	stats            *RootBlockSychronizerStats
+	statusChan       chan *rpc.ShardStatus
+	getShardConnFunc func(fullShardId uint32) []rpc.ShardConnForP2P
+	maxStaleness     uint32
 }
 
 // NewRootChainTask returns a sync task for root chain.
 func NewRootChainTask(
 	p rootSyncerPeer,
 	header *types.RootBlockHeader,
-	stats *rpc.RootBlockSychronizerStats,
+	stats *RootBlockSychronizerStats,
 	statusChan chan *rpc.ShardStatus,
 	getShardConnFunc func(fullShardId uint32) []rpc.ShardConnForP2P,
 ) Task {
-	return &rootChainTask{
-		task: task{
-			header:           header,
-			name:             "root",
-			maxSyncStaleness: 22500,
-			getHeaders: func(hash common.Hash, limit uint32) (ret []types.IHeader, err error) {
-				rheaders, err := p.GetRootBlockHeaderList(hash, limit, true)
-				if err != nil {
-					return nil, err
-				}
-				for _, rh := range rheaders {
-					ret = append(ret, rh)
-				}
-				return ret, nil
-			},
-			getBlocks: func(hashes []common.Hash) (ret []types.IBlock, err error) {
-				rblocks, err := p.GetRootBlockList(hashes)
-				if err != nil {
-					return nil, err
-				}
-				for _, rb := range rblocks {
-					ret = append(ret, rb)
-				}
-				return ret, nil
-			},
-			syncBlock: func(block types.IBlock, bc blockchain) error {
-				rb := block.(*types.RootBlock)
-				rbc := bc.(rootblockchain)
-				return syncMinorBlocks(p.PeerID(), rbc, rb, statusChan, getShardConnFunc)
-			},
-			needSkip: func(header types.IHeader, b blockchain) bool {
-				if header.GetTotalDifficulty().Cmp(b.CurrentHeader().GetTotalDifficulty()) <= 0 {
-					return true
-				}
-				return false
-			},
-			getSizeLimit: func() (uint64, uint64) {
-				return RootBlockHeaderListLimit, RootBlockBatchSize
-			},
-		},
-		peer:  p,
-		stats: stats,
+	rChain := &rootChainTask{
+		header:           header,
+		peer:             p,
+		stats:            stats,
+		statusChan:       statusChan,
+		getShardConnFunc: getShardConnFunc,
 	}
+	rChain.task = task{
+		name:             "root",
+		maxSyncStaleness: 22500,
+		findAncestor: func(bc blockchain) (types.IHeader, error) {
+			ancestor, err := rChain.findAncestor(bc)
+			if err != nil {
+				rChain.stats.AncestorNotFoundCount += 1
+				return nil, err
+			}
+			if rChain.header.ToTalDifficulty.Cmp(ancestor.ToTalDifficulty) > 0 {
+				return nil, errors.New("ancestor's total difficulty is bigger than current")
+			}
+			return ancestor, nil
+		},
+		getHeaders: func(startHeader types.IHeader) ([]types.IHeader, error) {
+			if startHeader.NumberU64() >= uint64(rChain.header.Number) {
+				return nil, nil
+			}
+
+			limit := RootBlockHeaderListLimit
+			heightDiff := rChain.header.Number - uint32(startHeader.NumberU64())
+			if limit > heightDiff {
+				limit = heightDiff
+			}
+
+			rBHeaders, err := rChain.downloadBlockHeaderListAndCheck(uint32(startHeader.NumberU64()+1), 0, limit)
+			if err != nil {
+				return nil, err
+			}
+
+			if rBHeaders[0].ParentHash != startHeader.Hash() {
+				return nil, errors.New("Bad peer sending incorrect canonical root headers ")
+			}
+
+			iHeaders := make([]types.IHeader, 0, len(rBHeaders))
+			for _, hd := range rBHeaders {
+				hd := hd
+				iHeaders = append(iHeaders, hd)
+			}
+
+			return iHeaders, nil
+		},
+		getBlocks: func(hashes []common.Hash) (ret []types.IBlock, err error) {
+			rblocks, err := p.GetRootBlockList(hashes)
+			if err != nil {
+				return nil, err
+			}
+			for _, rb := range rblocks {
+				ret = append(ret, rb)
+			}
+			return ret, nil
+		},
+		syncBlock: func(bc blockchain, block types.IBlock) error {
+			rb := block.(*types.RootBlock)
+			rbc := bc.(rootblockchain)
+			return rChain.syncMinorBlocks(rbc, rb)
+		},
+	}
+	return rChain
 }
 
 func (r *rootChainTask) Priority() *big.Int {
-	return r.task.header.GetTotalDifficulty()
+	return r.header.GetTotalDifficulty()
 }
 
 func (r *rootChainTask) PeerID() string {
 	return r.peer.PeerID()
 }
 
-func (r *rootChainTask) downloadBlockHeaderAndCheck(height uint32, skip, limit uint32) (*p2p.GetRootBlockHeaderListResponse, error) {
+func (r *rootChainTask) downloadBlockHeaderListAndCheck(height uint32, skip,
+limit uint32) ([]*types.RootBlockHeader, error) {
 	data := big.NewInt(int64(height)).Bytes()
 	resp, err := r.peer.GetRootBlockHeaderListWithSkip(1, common.BytesToHash(data), limit, skip, qkcom.DirectionToTip)
 	if err != nil {
 		return nil, err
 	}
 	r.stats.HeadersDownloaded += uint64(len(resp.BlockHeaderList))
+
+	// check total difficulty
 	if resp.RootTip.ToTalDifficulty.Cmp(r.header.GetDifficulty()) <= 0 {
-		return nil, errors.New("Bad peer sending root block tip with lower TD")
+		return nil, errors.New("Bad peer sending root block tip with lower TD ")
 	}
+
+	if len(resp.BlockHeaderList) == 0 {
+		return nil, errors.New("Remote chain reorg causing empty root block headers ")
+	}
+
 	newLimit := (resp.RootTip.Number + 1 - height) / (skip + 1)
 	if newLimit < limit {
 		newLimit = limit
 	}
 	if len(resp.BlockHeaderList) != int(newLimit) {
-		return nil, errors.New("Bad peer sending incorrect number of root block headers")
+		return nil, errors.New("Bad peer sending incorrect number of root block headers ")
 	}
-	return resp, nil
+
+	if resp.RootTip.Hash() != r.header.Hash() {
+		r.header = resp.RootTip
+	}
+	return resp.BlockHeaderList, nil
 }
 
-/*func (r *rootChainTask) findAncestor(b blockchain) (*types.RootBlockHeader, error) {
-	if r.header.GetParentHash() == b.CurrentHeader().Hash() {
-		return b.CurrentHeader().(*types.RootBlockHeader), nil
+func (r *rootChainTask) findAncestor(bc blockchain) (*types.RootBlockHeader, error) {
+	rtip := bc.CurrentHeader().(*types.RootBlockHeader)
+	if r.header.ParentHash == rtip.Hash() {
+		return rtip, nil
 	}
-}*/
 
-func syncMinorBlocks(
-	peerID string,
+	end := rtip.Number
+	start := rtip.Number - r.maxStaleness
+	if start < 0 {
+		start = 0
+	}
+	if r.header.Number < end {
+		end = r.header.Number
+	}
+
+	var bestAncestor *types.RootBlockHeader
+	for end >= start {
+		r.stats.AncestorLookupRequests += 1
+		span := (end-start)/RootBlockHeaderListLimit + 1
+		blocklist, err := r.downloadBlockHeaderListAndCheck(start, span-1, RootBlockHeaderListLimit)
+		if err != nil {
+			return nil, err
+		}
+
+		var preHeader *types.RootBlockHeader
+		for i := len(blocklist) - 1; i >= 0; i-- {
+			rh := blocklist[i]
+			if rh.Number < start || rh.Number > end {
+				return nil, errors.New("Bad peer returning root block height out of range ")
+			}
+
+			if preHeader != nil && rh.Number >= preHeader.Number {
+				return nil, errors.New("Bad peer returning root block height must be ordered ")
+			}
+			preHeader = rh
+
+			if !bc.HasBlock(rh.Hash()) {
+				end = rh.Number - 1
+				continue
+			}
+			if rh.Number == end {
+				return rh, nil
+			}
+
+			start = rh.Number + 1
+			bestAncestor = rh
+			if start > end {
+				return nil, errors.New("Bad order start and end to download root blocks ")
+			}
+		}
+	}
+	return bestAncestor, nil
+}
+
+func (r *rootChainTask) syncMinorBlocks(
 	rbc rootblockchain,
 	rootBlock *types.RootBlock,
-	statusChan chan *rpc.ShardStatus,
-	getShardConnFunc func(fullShardId uint32) []rpc.ShardConnForP2P,
 ) error {
 	downloadMap := make(map[uint32][]common.Hash)
 	for _, header := range rootBlock.MinorBlockHeaders() {
@@ -132,15 +215,15 @@ func syncMinorBlocks(
 	var g errgroup.Group
 	for branch, hashes := range downloadMap {
 		b, hashList := branch, hashes
-		conns := getShardConnFunc(b)
+		conns := r.getShardConnFunc(b)
 		if len(conns) == 0 {
 			return fmt.Errorf("shard connection for branch %d is missing", b)
 		}
 		// TODO Support to multiple connections
 		g.Go(func() error {
-			status, err := conns[0].AddBlockListForSync(&rpc.AddBlockListForSyncRequest{Branch: b, PeerId: peerID, MinorBlockHashList: hashList})
+			status, err := conns[0].AddBlockListForSync(&rpc.AddBlockListForSyncRequest{Branch: b, PeerId: r.PeerID(), MinorBlockHashList: hashList})
 			if err == nil {
-				statusChan <- status
+				r.statusChan <- status
 			}
 			return err
 		})
