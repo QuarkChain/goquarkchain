@@ -122,7 +122,7 @@ type BroadcastTransactions struct {
 }
 
 type GetMinorBlockHeaderListRequest struct {
-	Height    uint64      `json:"height" gencodec:"required"`
+	Height    *uint64     `json:"height" gencodec:"required"`
 	Hash      common.Hash `json:"data" gencodec:"required"`
 	Skip      uint32      `json:"skip" gencodec:"required"`
 	Limit     uint32      `json:"limit" gencodec:"required"`

@@ -727,49 +727,14 @@ func (pm *ProtocolManager) HandleGetMinorBlockHeaderListWithSkipRequest(peerId s
 		return nil, fmt.Errorf("invalid branch %d for rpc request %d", rpcId, request.Branch.Value)
 	}
 
-	var (
-		needExtraInfo = false
-		cli           = clients[0]
-		height        uint64
-		hash          common.Hash
-		mBlock        *types.MinorBlock
-		headerlist    = make([]*types.MinorBlockHeader, 0, request.Limit)
-	)
-	cli.GetMinorBlockHeaderList()
-
-	rTip := pm.rootBlockChain.CurrentHeader().(*types.RootBlockHeader)
-	mTip, _, err := cli.GetMinorBlockByHeight(nil, request.Branch, needExtraInfo)
-	if err != nil {
-		return nil, err
-	}
-	if request.Type == 1 {
-		height = *request.GetHeight()
-	} else {
-		hash = request.GetHash()
-		mBlock, _, err = cli.GetMinorBlockByHash(hash, request.Branch, needExtraInfo)
-		if err != nil {
-			return
-		}
-		height = mBlock.Number()
-		if mBlock, _, err = cli.GetMinorBlockByHeight(&height, request.Branch, needExtraInfo); err != nil || mBlock.Number() != height {
-			return &p2p.GetMinorBlockHeaderListResponse{RootTip: rTip, ShardTip: mTip.Header()}, nil
-		}
-	}
-
-	for len(headerlist) < int(request.Limit) && height >= 0 && height <= mTip.Number() {
-		mBlock, _, err = cli.GetMinorBlockByHeight(&height, request.Branch, needExtraInfo)
-		if err != nil || mBlock == nil {
-			break
-		}
-		headerlist = append(headerlist, mBlock.Header())
-		if request.Direction == qkcom.DirectionToGenesis {
-			height -= uint64(request.Skip) + 1
-		} else {
-			height += uint64(request.Skip) + 1
-		}
-	}
-
-	return &p2p.GetMinorBlockHeaderListResponse{RootTip: rTip, ShardTip: mTip.Header(), BlockHeaderList: headerlist}, nil
+	return clients[0].GetMinorBlockHeaderList(&rpc.GetMinorBlockHeaderListRequest{
+		Hash:      request.GetHash(),
+		Height:    request.GetHeight(),
+		Skip:      request.Skip,
+		Limit:     request.Limit,
+		Direction: request.Direction,
+		Branch:    request.Branch.Value,
+	})
 }
 
 func (pm *ProtocolManager) tipBroadcastLoop() {

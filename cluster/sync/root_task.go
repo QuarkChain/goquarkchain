@@ -9,12 +9,13 @@ import (
 	"golang.org/x/sync/errgroup"
 
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
+	qcom "github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/common"
 )
 
 type rootSyncerPeer interface {
-	GetRootBlockHeaderList(hash common.Hash, amount uint32, reverse bool) ([]*types.RootBlockHeader, error)
+	GetRootBlockHeaderList(hash common.Hash, amount uint32, direction uint8) ([]*types.RootBlockHeader, error)
 	GetRootBlockHeaderListWithSkip(tp uint8, data common.Hash, limit, skip uint32, direction uint8) (*p2p.GetRootBlockHeaderListResponse, error)
 	GetRootBlockList(hashes []common.Hash) ([]*types.RootBlock, error)
 	PeerID() string
@@ -118,7 +119,7 @@ func (r *rootChainTask) PeerID() string {
 func (r *rootChainTask) downloadBlockHeaderListAndCheck(height uint32, skip,
 limit uint32) ([]*types.RootBlockHeader, error) {
 	data := big.NewInt(int64(height)).Bytes()
-	resp, err := r.peer.GetRootBlockHeaderListWithSkip(1, common.BytesToHash(data), limit, skip, DirectionToTip)
+	resp, err := r.peer.GetRootBlockHeaderListWithSkip(1, common.BytesToHash(data), limit, skip, qcom.DirectionToTip)
 	if err != nil {
 		return nil, err
 	}
