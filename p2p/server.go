@@ -28,13 +28,13 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/QuarkChain/goquarkchain/p2p/discover"
+	"github.com/QuarkChain/goquarkchain/p2p/discv5"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/mclock"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
-	"github.com/ethereum/go-ethereum/p2p/discover"
-	"github.com/ethereum/go-ethereum/p2p/discv5"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/p2p/enr"
 	"github.com/ethereum/go-ethereum/p2p/nat"
@@ -56,6 +56,11 @@ const (
 
 	// Maximum amount of time allowed for writing a complete message.
 	frameWriteTimeout = 20 * time.Second
+
+	// period between adding a dialout_blacklisted node and removing it
+	dialoutBlacklistCooldownSec int64 = 24 * 3600
+	dialinBlacklistCooldownSec  int64 = 8 * 3600
+	unblacklistInterval         int64 = 15 * 60
 )
 
 var errServerStopped = errors.New("server stopped")
@@ -90,6 +95,11 @@ type Config struct {
 	// Name sets the node name of this server.
 	// Use common.MakeName to create a name that follows existing conventions.
 	Name string `toml:"-"`
+
+	NetWorkId uint32
+
+	// BootstrapNodes | preferedNodes
+	WhitelistNodes map[string]*enode.Node
 
 	// BootstrapNodes are used to establish connectivity
 	// with the rest of the network.
@@ -174,6 +184,10 @@ type Server struct {
 	// These are for Peers, PeerCount (and nothing else).
 	peerOp     chan peerOpFunc
 	peerOpDone chan struct{}
+
+	// IP to unblacklist time, we blacklist by IP
+	blklock          sync.Mutex
+	dialoutBlacklist map[string]int64
 
 	quit          chan struct{}
 	addstatic     chan *enode.Node
@@ -442,6 +456,7 @@ func (srv *Server) Start() (err error) {
 	srv.removetrusted = make(chan *enode.Node)
 	srv.peerOp = make(chan peerOpFunc)
 	srv.peerOpDone = make(chan struct{})
+	srv.dialoutBlacklist = make(map[string]int64)
 
 	if err := srv.setupLocalNode(); err != nil {
 		return err
@@ -542,6 +557,7 @@ func (srv *Server) setupDiscovery() error {
 			NetRestrict: srv.NetRestrict,
 			Bootnodes:   srv.BootstrapNodes,
 			Unhandled:   unhandled,
+			NetworkId:   srv.NetWorkId,
 		}
 		ntab, err := discover.ListenUDP(conn, srv.localnode, cfg)
 		if err != nil {
@@ -601,6 +617,22 @@ type dialer interface {
 	removeStatic(*enode.Node)
 }
 
+func (pm *Server) addDialoutBlacklist(ip string) {
+	if _, ok := pm.WhitelistNodes[ip]; !ok {
+		pm.dialoutBlacklist[ip] = time.Now().Unix() + dialoutBlacklistCooldownSec
+	}
+}
+
+func (pm *Server) chkDialoutBlacklist(ip string) bool {
+	if tm, ok := pm.dialoutBlacklist[ip]; ok {
+		if time.Now().Unix() < tm {
+			return true
+		}
+		delete(pm.dialoutBlacklist, ip)
+	}
+	return false
+}
+
 func (srv *Server) run(dialstate dialer) {
 	srv.log.Info("Started P2P networking", "self", srv.localnode.Node())
 	defer srv.loopWG.Done()
@@ -650,9 +682,22 @@ func (srv *Server) run(dialstate dialer) {
 		}
 	}
 
+	periodicallyUnblacklist := func() {
+		for _, peer := range peers {
+			pr := peer
+			if srv.chkDialoutBlacklist(pr.RemoteAddr().String()) {
+				srv.delpeer <- peerDrop{pr, nil, false}
+			}
+		}
+		for ip := range srv.dialoutBlacklist {
+			srv.chkDialoutBlacklist(ip)
+		}
+	}
+
 running:
 	for {
 		scheduleTasks()
+		periodicallyUnblacklist()
 
 		select {
 		case <-srv.quit:
@@ -721,7 +766,7 @@ running:
 			// At this point the connection is past the protocol handshake.
 			// Its capabilities are known and the remote identity is verified.
 			err := srv.protoHandshakeChecks(peers, inboundCount, c)
-			if err == nil {
+			if err == nil && !srv.chkDialoutBlacklist(c.node.IP().String()) {
 				// The handshakes are done and it passed all checks.
 				p := newPeer(c, srv.Protocols)
 				// If message events are enabled, pass the peerFeed
@@ -747,6 +792,9 @@ running:
 			}
 		case pd := <-srv.delpeer:
 			// A peer disconnected.
+			if pd.err != nil {
+				srv.addDialoutBlacklist(pd.RemoteAddr().String())
+			}
 			d := common.PrettyDuration(mclock.Now() - pd.created)
 			pd.log.Debug("Removing p2p peer", "duration", d, "peers", len(peers)-1, "req", pd.requested, "err", pd.err)
 			delete(peers, pd.ID())
