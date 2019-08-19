@@ -9,6 +9,7 @@ import (
 
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
 	"github.com/QuarkChain/goquarkchain/cluster/sync"
+	qcom "github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/core"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/mocks/mock_master"
@@ -39,7 +40,7 @@ func TestProtocolCompatibility(t *testing.T) {
 }
 
 func TestGetRootBlockHeaders(t *testing.T) {
-	pm, _ := newTestProtocolManagerMust(t, rootBlockHeaderListLimit+15, nil, NewFakeSynchronizer(1), nil)
+	pm, _ := newTestProtocolManagerMust(t, int(rootBlockHeaderListLimit)+15, nil, NewFakeSynchronizer(1), nil)
 	peer, _ := newTestPeer("peer", int(qkcconfig.P2PProtocolVersion), pm, true)
 	clientPeer := newTestClientPeer(int(qkcconfig.P2PProtocolVersion), peer.app)
 	defer peer.close()
@@ -94,11 +95,17 @@ func TestGetRootBlockHeaders(t *testing.T) {
 		}
 		// Send the hash request and verify the response
 		go handleMsg(clientPeer)
-		rheaders, err := clientPeer.GetRootBlockHeaderList(tt.query.BlockHash, tt.query.Limit, true)
+		// rheaders, err := clientPeer.GetRootBlockHeaderList(tt.query.BlockHash, tt.query.Limit, qcom.DirectionToGenesis)
+		res, err := clientPeer.GetRootBlockHeaderList(&rpc.GetRootBlockHeaderListRequest{
+			Hash:      tt.query.BlockHash,
+			Limit:     tt.query.Limit,
+			Direction: qcom.DirectionToGenesis,
+		})
 		if err != nil {
 			t.Errorf("test %d: make message failed: %v", i, err)
 		}
 
+		rheaders := res.BlockHeaderList
 		if len(rheaders) != len(headers) {
 			t.Errorf("test %d: peer result count is mismatch: got %d, want %d", i, len(rheaders), len(headers))
 		}
@@ -257,15 +264,21 @@ func TestGetMinorBlockHeaders(t *testing.T) {
 	for i, tt := range tests {
 		go handleMsg(clientPeer)
 		for _, conn := range shardConns {
-			conn.(*mock_master.MockShardConnForP2P).EXPECT().GetMinorBlockHeaders(tt.query).Return(
+			conn.(*mock_master.MockShardConnForP2P).EXPECT().GetMinorBlockHeaderList(tt.query).Return(
 				&p2p.GetMinorBlockHeaderListResponse{
 					RootTip:         pm.rootBlockChain.CurrentHeader().(*types.RootBlockHeader),
 					ShardTip:        minorHeaders[blockcount-1],
 					BlockHeaderList: tt.expect,
 				}, nil).AnyTimes()
 		}
-		rheaders, err := clientPeer.GetMinorBlockHeaderList(tt.query.BlockHash, tt.query.Limit, 0, true)
+		res, err := clientPeer.GetMinorBlockHeaderList(&rpc.GetMinorBlockHeaderListRequest{
+			Hash:      tt.query.BlockHash,
+			Limit:     tt.query.Limit,
+			Branch:    0,
+			Direction: qcom.DirectionToGenesis,
+		})
 
+		rheaders := res.BlockHeaderList
 		if err != nil {
 			t.Errorf("test %d: make message failed: %v", i, err)
 		}

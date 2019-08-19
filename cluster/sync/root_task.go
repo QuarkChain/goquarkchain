@@ -15,8 +15,7 @@ import (
 )
 
 type rootSyncerPeer interface {
-	GetRootBlockHeaderList(hash common.Hash, amount uint32, direction uint8) ([]*types.RootBlockHeader, error)
-	GetRootBlockHeaderListWithSkip(tp uint8, data common.Hash, limit, skip uint32, direction uint8) (*p2p.GetRootBlockHeaderListResponse, error)
+	GetRootBlockHeaderList(*rpc.GetRootBlockHeaderListRequest) (*p2p.GetRootBlockHeaderListResponse, error)
 	GetRootBlockList(hashes []common.Hash) ([]*types.RootBlock, error)
 	PeerID() string
 }
@@ -41,8 +40,8 @@ func NewRootChainTask(
 	getShardConnFunc func(fullShardId uint32) []rpc.ShardConnForP2P,
 ) Task {
 	rChain := &rootChainTask{
-		header:           header,
 		peer:             p,
+		header:           header,
 		stats:            stats,
 		statusChan:       statusChan,
 		getShardConnFunc: getShardConnFunc,
@@ -66,7 +65,7 @@ func NewRootChainTask(
 				return nil, nil
 			}
 
-			limit := RootBlockHeaderListLimit
+			limit := uint32(RootBlockHeaderListLimit)
 			heightDiff := rChain.header.Number - uint32(startHeader.NumberU64())
 			if limit > heightDiff {
 				limit = heightDiff
@@ -118,8 +117,12 @@ func (r *rootChainTask) PeerID() string {
 
 func (r *rootChainTask) downloadBlockHeaderListAndCheck(height uint32, skip,
 limit uint32) ([]*types.RootBlockHeader, error) {
-	data := big.NewInt(int64(height)).Bytes()
-	resp, err := r.peer.GetRootBlockHeaderListWithSkip(1, common.BytesToHash(data), limit, skip, qcom.DirectionToTip)
+	resp, err := r.peer.GetRootBlockHeaderList(&rpc.GetRootBlockHeaderListRequest{
+		Height:    &height,
+		Skip:      skip,
+		Limit:     limit,
+		Direction: qcom.DirectionToTip,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -167,6 +170,7 @@ func (r *rootChainTask) findAncestor(bc blockchain) (*types.RootBlockHeader, err
 	for end >= start {
 		r.stats.AncestorLookupRequests += 1
 		span := (end-start)/RootBlockHeaderListLimit + 1
+		fmt.Println("=======", start, span-1, RootBlockHeaderListLimit)
 		blocklist, err := r.downloadBlockHeaderListAndCheck(start, span-1, RootBlockHeaderListLimit)
 		if err != nil {
 			return nil, err

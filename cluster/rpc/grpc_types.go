@@ -121,6 +121,14 @@ type BroadcastTransactions struct {
 	Txs    []*types.Transaction `json:"txs" gencodec:"required" bytesizeofslicelen:"4"`
 }
 
+type GetRootBlockHeaderListRequest struct {
+	Height    *uint32     `json:"height" gencodec:"required"`
+	Hash      common.Hash `json:"data" gencodec:"required"`
+	Skip      uint32      `json:"skip" gencodec:"required"`
+	Limit     uint32      `json:"limit" gencodec:"required"`
+	Direction uint8       `json:"direction" gencodec:"required"`
+}
+
 type GetMinorBlockHeaderListRequest struct {
 	Height    *uint64     `json:"height" gencodec:"required"`
 	Hash      common.Hash `json:"data" gencodec:"required"`

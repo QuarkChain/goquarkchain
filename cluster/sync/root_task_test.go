@@ -38,15 +38,18 @@ type mockpeer struct {
 	retMBlocks          []*types.MinorBlock       // Order: descending.
 }
 
-func (p *mockpeer) GetRootBlockHeaderList(hash common.Hash, amount uint32, reverse bool) ([]*types.RootBlockHeader, error) {
+func (p *mockpeer) GetRootBlockHeaderList(req *rpc.GetRootBlockHeaderListRequest) (*p2p.GetRootBlockHeaderListResponse, error) {
 	if p.downloadHeaderError != nil {
 		return nil, p.downloadHeaderError
 	}
 	// May return a subset.
+	fmt.Println(p.retRHeaders, *req.Height, req.Hash, req.Skip, req.Direction)
 	for i, h := range p.retRHeaders {
-		if h.Hash() == hash {
+		if h.Hash() == req.Hash {
 			ret := p.retRHeaders[i:len(p.retRHeaders)]
-			return ret, nil
+			return &p2p.GetRootBlockHeaderListResponse{
+				BlockHeaderList: ret,
+			}, nil
 		}
 	}
 	panic("lolwut")
@@ -155,13 +158,12 @@ func TestRootChainTaskRun(t *testing.T) {
 	p := &mockpeer{name: "chunfeng"}
 	bc := newRootBlockChain(5)
 	rbc := bc.(*mockblockchain).rbc
-	var rt Task = NewRootChainTask(p, nil, nil, nil, nil)
+	var rt = NewRootChainTask(p, bc.CurrentHeader().(*types.RootBlockHeader), &RootBlockSychronizerStats{}, nil, nil)
 
 	// Prepare future blocks for downloading.
 	rbChain, rhChain := makeRootChains(rbc.CurrentBlock(), false)
 
 	// No error if already have the target block.
-	rt.(*rootChainTask).header = bc.CurrentHeader().(*types.RootBlockHeader)
 	assert.NoError(t, rt.Run(bc))
 	// Happy path.
 	rt.(*rootChainTask).header = rbChain[4].Header()

@@ -230,7 +230,7 @@ func (s *SlaveBackend) GetAccountData(address *account.Address, height *uint64) 
 
 func (s *SlaveBackend) GetMinorBlock(hash common.Hash, height *uint64, branch uint32) (*types.MinorBlock, error) {
 	if shard, ok := s.shards[branch]; ok {
-		return shard.GetMinorBlock(hash, height), nil
+		return shard.GetMinorBlock(hash, height)
 	}
 	return nil, ErrMsg("GetMinorBlock")
 }
@@ -377,7 +377,7 @@ func (s *SlaveBackend) GetMinorBlockHeaderList(gReq *rpc.GetMinorBlockHeaderList
 		return nil, errors.New("bad direction")
 	}
 
-	mBlock, err := s.GetMinorBlock(gReq.Hash, &gReq.Height, gReq.Branch)
+	mBlock, err := s.GetMinorBlock(gReq.Hash, gReq.Height, gReq.Branch)
 	if err != nil {
 		return nil, err
 	}

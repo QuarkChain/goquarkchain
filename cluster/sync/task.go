@@ -11,10 +11,10 @@ import (
 )
 
 const (
-	RootBlockHeaderListLimit  uint32 = 500
-	RootBlockBatchSize               = 100
-	MinorBlockHeaderListLimit uint64 = 100 //TODO 100 50
-	MinorBlockBatchSize              = 50
+	RootBlockHeaderListLimit  = 500
+	RootBlockBatchSize        = 100
+	MinorBlockHeaderListLimit = 100 //TODO 100 50
+	MinorBlockBatchSize       = 50
 )
 
 // Task represents a synchronization task for the synchronizer.

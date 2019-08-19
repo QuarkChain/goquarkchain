@@ -295,25 +295,53 @@ func (p *Peer) requestRootBlockHeaderList(rpcId uint64, hash common.Hash, amount
 	return p.rw.WriteMsg(msg)
 }
 
-func (p *Peer) GetRootBlockHeaderList(hash common.Hash, amount uint32, direction uint8) ([]*types.RootBlockHeader, error) {
+func (p *Peer) getRootBlockHeaderListWithSkip(rpcId uint64, request *p2p.GetRootBlockHeaderListWithSkipRequest) error {
+	msg, err := p2p.MakeMsg(p2p.GetRootBlockHeaderListWithSkipRequestMsg, rpcId, p2p.Metadata{}, request)
+	if err != nil {
+		return err
+	}
+	return p.rw.WriteMsg(msg)
+}
+
+func (p *Peer) GetRootBlockHeaderList(req *rpc.GetRootBlockHeaderListRequest) (res *p2p.GetRootBlockHeaderListResponse, err error) {
+
+	if req.Hash == (common.Hash{}) && req.Height == nil {
+		return nil, errors.New("invalid params hash and height in GetMinorBlockHeaderList")
+	}
+
 	rpcId, rpcchan := p.getRpcIdWithChan()
 	defer p.deleteChan(rpcId)
 
-	err := p.requestRootBlockHeaderList(rpcId, hash, amount, direction)
+	if req.Skip == 0 && req.Hash != (common.Hash{}) {
+		err = p.requestRootBlockHeaderList(rpcId, req.Hash, req.Limit, req.Direction)
+	} else {
+		skipReq := &p2p.GetRootBlockHeaderListWithSkipRequest{
+			Type:      qkcom.SkipHash,
+			Data:      req.Hash,
+			Skip:      req.Skip,
+			Limit:     req.Limit,
+			Direction: req.Direction,
+		}
+		if req.Hash == (common.Hash{}) && req.Height != nil {
+			skipReq.Type = qkcom.SkipHeight
+			skipReq.Data = common.BytesToHash(big.NewInt(int64(*req.Height)).Bytes())
+		}
+		err = p.getRootBlockHeaderListWithSkip(rpcId, skipReq)
+	}
+
 	if err != nil {
 		return nil, err
 	}
-
 	timeout := time.NewTimer(requestTimeout)
 	select {
 	case obj := <-rpcchan:
-		if ret, ok := obj.([]*types.RootBlockHeader); !ok {
-			panic("invalid return result in GetRootBlockHeaderList")
+		if ret, ok := obj.(*p2p.GetRootBlockHeaderListResponse); !ok {
+			panic("invalid return result in GetMinorBlockList")
 		} else {
 			return ret, nil
 		}
 	case <-timeout.C:
-		return nil, fmt.Errorf("peer %v return GetRootBlockHeaderList Time out for rpcid %d", p.id, rpcId)
+		return nil, fmt.Errorf("peer %v return GetMinorBlockList disc Read Time out for rpcid %d", p.id, rpcId)
 	}
 }
 
@@ -327,29 +355,6 @@ func (p *Peer) requestMinorBlockHeaderList(rpcId uint64, hash common.Hash, amoun
 	return p.rw.WriteMsg(msg)
 }
 
-func (p *Peer) GetMinorBlockHeaderList(origin common.Hash, amount uint32, branch uint32, direction uint8) ([]*types.MinorBlockHeader, error) {
-	rpcId, rpcchan := p.getRpcIdWithChan()
-	defer p.deleteChan(rpcId)
-
-	err := p.requestMinorBlockHeaderList(rpcId, origin, amount, branch, direction)
-	if err != nil {
-		return nil, err
-	}
-
-	timeout := time.NewTimer(requestTimeout)
-	select {
-	case obj := <-rpcchan:
-		if ret, ok := obj.(*p2p.GetMinorBlockHeaderListResponse); !ok {
-			panic("invalid return result in GetMinorBlockHeaderList")
-		} else {
-			return ret.BlockHeaderList, nil
-		}
-	case <-timeout.C:
-		return nil, fmt.Errorf("peer %v return GetMinorBlockHeaderList disc Read Time out for rpcid %d", p.id, rpcId)
-	}
-}
-
-
 func (p *Peer) requestMinorBlockHeaderListWithSkip(rpcId uint64,
 	request *p2p.GetMinorBlockHeaderListWithSkipRequest) error {
 	msg, err := p2p.MakeMsg(p2p.GetMinorBlockHeaderListWithSkipRequestMsg, rpcId, p2p.Metadata{Branch: request.Branch.Value}, request)
@@ -359,7 +364,12 @@ func (p *Peer) requestMinorBlockHeaderListWithSkip(rpcId uint64,
 	return p.rw.WriteMsg(msg)
 }
 
-func (p *Peer) GetMinorBlockHeaderListWithSkip(req *rpc.GetMinorBlockHeaderListRequest) (res *p2p.GetMinorBlockHeaderListResponse, err error) {
+func (p *Peer) GetMinorBlockHeaderList(req *rpc.GetMinorBlockHeaderListRequest) (res *p2p.GetMinorBlockHeaderListResponse, err error) {
+
+	if req.Hash == (common.Hash{}) && req.Height == nil {
+		return nil, errors.New("invalid params hash and height in GetMinorBlockHeaderList")
+	}
+
 	rpcId, rpcchan := p.getRpcIdWithChan()
 	defer p.deleteChan(rpcId)
 
@@ -374,9 +384,9 @@ func (p *Peer) GetMinorBlockHeaderListWithSkip(req *rpc.GetMinorBlockHeaderListR
 			Branch:    account.Branch{Value: req.Branch},
 			Direction: req.Direction,
 		}
-		if req.Hash == (common.Hash{}) {
+		if req.Hash == (common.Hash{}) && req.Height != nil {
 			skipReq.Type = qkcom.SkipHeight
-			skipReq.Data = common.BytesToHash(big.NewInt(int64(req.Height)).Bytes())
+			skipReq.Data = common.BytesToHash(big.NewInt(int64(*req.Height)).Bytes())
 		}
 		err = p.requestMinorBlockHeaderListWithSkip(rpcId, skipReq)
 	}
@@ -427,42 +437,6 @@ func (p *Peer) GetRootBlockList(hashes []common.Hash) ([]*types.RootBlock, error
 		}
 	case <-timeout.C:
 		return nil, fmt.Errorf("peer %v return GetRootBlockList disc Read Time out for rpcid %d", p.id, rpcId)
-	}
-}
-
-func (p *Peer) getRootBlockHeaderListWithSkip(rpcId uint64, request *p2p.GetRootBlockHeaderListWithSkipRequest) error {
-	msg, err := p2p.MakeMsg(p2p.GetRootBlockHeaderListWithSkipRequestMsg, rpcId, p2p.Metadata{}, request)
-	if err != nil {
-		return err
-	}
-	return p.rw.WriteMsg(msg)
-}
-
-func (p *Peer) GetRootBlockHeaderListWithSkip(tp uint8, data common.Hash, limit, skip uint32,
-	direction uint8) (*p2p.GetRootBlockHeaderListResponse, error) {
-	rpcId, rpcchan := p.getRpcIdWithChan()
-	defer p.deleteChan(rpcId)
-
-	err := p.getRootBlockHeaderListWithSkip(rpcId, &p2p.GetRootBlockHeaderListWithSkipRequest{
-		Type:      tp,
-		Data:      data,
-		Limit:     limit,
-		Skip:      skip,
-		Direction: direction,
-	})
-	if err != nil {
-		return nil, err
-	}
-	timeout := time.NewTimer(requestTimeout)
-	select {
-	case obj := <-rpcchan:
-		if ret, ok := obj.(*p2p.GetRootBlockHeaderListResponse); !ok {
-			panic("invalid return result in GetMinorBlockList")
-		} else {
-			return ret, nil
-		}
-	case <-timeout.C:
-		return nil, fmt.Errorf("peer %v return GetMinorBlockList disc Read Time out for rpcid %d", p.id, rpcId)
 	}
 }
 

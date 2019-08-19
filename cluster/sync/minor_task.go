@@ -3,6 +3,8 @@ package sync
 import (
 	"errors"
 	"fmt"
+	"github.com/QuarkChain/goquarkchain/cluster/rpc"
+	qcom "github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/p2p"
 	"github.com/ethereum/go-ethereum/common"
@@ -10,8 +12,8 @@ import (
 )
 
 type minorSyncerPeer interface {
-	GetMinorBlockHeaderList(hash common.Hash, limit, branch uint32, reverse bool) ([]*types.MinorBlockHeader, error)
-	GetMinorBlockHeaderListWithSkip(tp uint8, data common.Hash, limit, skip uint32, branch uint32, direction uint8) (*p2p.GetMinorBlockHeaderListResponse, error)
+	GetMinorBlockHeaderList(gReq *rpc.GetMinorBlockHeaderListRequest) (*p2p.GetMinorBlockHeaderListResponse, error)
+	// GetMinorBlockHeaderList(hash common.Hash, limit, branch uint32, reverse bool) ([]*types.MinorBlockHeader, error)
 	GetMinorBlockList(hashes []common.Hash, branch uint32) ([]*types.MinorBlock, error)
 	PeerID() string
 }
@@ -49,7 +51,7 @@ func NewMinorChainTask(
 			}
 
 			mHeader := startheader.(*types.MinorBlockHeader)
-			limit := MinorBlockHeaderListLimit
+			limit := uint64(MinorBlockHeaderListLimit)
 			heightDiff := mChain.header.Number - mHeader.Number
 			if limit > heightDiff {
 				limit = heightDiff
@@ -94,8 +96,15 @@ func (m *minorChainTask) PeerID() string {
 
 func (m *minorChainTask) downloadBlockHeaderListAndCheck(height, skip,
 limit uint64, branch uint32) ([]*types.MinorBlockHeader, error) {
-	data := big.NewInt(int64(height)).Bytes()
-	resp, err := m.peer.GetMinorBlockHeaderListWithSkip(1, common.BytesToHash(data), uint32(limit), uint32(skip), branch, DirectionToTip)
+	req := &rpc.GetMinorBlockHeaderListRequest{
+		Height:    &height,
+		Hash:      common.Hash{},
+		Skip:      uint32(skip),
+		Limit:     uint32(limit),
+		Direction: qcom.DirectionToTip,
+		Branch:    branch,
+	}
+	resp, err := m.peer.GetMinorBlockHeaderList(req)
 	if err != nil {
 		return nil, err
 	}

@@ -3,6 +3,7 @@ package shard
 import (
 	"errors"
 	"fmt"
+	"github.com/QuarkChain/goquarkchain/p2p"
 	"math/big"
 	"time"
 
@@ -21,15 +22,8 @@ type peer struct {
 	peerID string
 }
 
-func (p *peer) GetMinorBlockHeaderList(hash common.Hash, limit, branch uint32, direction uint8) ([]*types.MinorBlockHeader, error) {
-	req := &rpc.GetMinorBlockHeaderListRequest{
-		Branch:    branch,
-		Hash:      hash,
-		Limit:     limit,
-		Direction: direction,
-		PeerID:    p.peerID,
-	}
-	return p.cm.GetMinorBlockHeaderList(req)
+func (p *peer) GetMinorBlockHeaderList(gReq *rpc.GetMinorBlockHeaderListRequest) (*p2p.GetMinorBlockHeaderListResponse, error) {
+	return p.cm.GetMinorBlockHeaderList(gReq)
 }
 
 func (p *peer) GetMinorBlockList(hashes []common.Hash, branch uint32) ([]*types.MinorBlock, error) {
@@ -213,15 +207,13 @@ func (s *ShardBackend) HandleNewTip(rBHeader *types.RootBlockHeader, mBHeader *t
 	return nil
 }
 
-func (s *ShardBackend) GetMinorBlock(mHash common.Hash, height *uint64) *types.MinorBlock {
+func (s *ShardBackend) GetMinorBlock(mHash common.Hash, height *uint64) (*types.MinorBlock, error) {
 	if mHash != (common.Hash{}) {
-		return s.MinorBlockChain.GetMinorBlock(mHash)
+		return s.MinorBlockChain.GetMinorBlock(mHash), nil
 	} else if height != nil {
-		return s.MinorBlockChain.GetBlockByNumber(*height).(*types.MinorBlock)
-	} else {
-		return s.MinorBlockChain.CurrentBlock()
+		return s.MinorBlockChain.GetBlockByNumber(*height).(*types.MinorBlock), nil
 	}
-	return nil
+	return nil, errors.New("invalied params in GetMinorBlock")
 }
 
 func (s *ShardBackend) NewMinorBlock(block *types.MinorBlock) (err error) {

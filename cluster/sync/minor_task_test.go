@@ -3,6 +3,7 @@ package sync
 import (
 	"errors"
 	"fmt"
+	"github.com/QuarkChain/goquarkchain/cluster/rpc"
 	"github.com/QuarkChain/goquarkchain/p2p"
 	"math/rand"
 	"testing"
@@ -17,15 +18,17 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func (p *mockpeer) GetMinorBlockHeaderList(hash common.Hash, limit, branch uint32, reverse bool) ([]*types.MinorBlockHeader, error) {
+func (p *mockpeer) GetMinorBlockHeaderList(gReq *rpc.GetMinorBlockHeaderListRequest) (*p2p.GetMinorBlockHeaderListResponse, error) {
 	if p.downloadHeaderError != nil {
 		return nil, p.downloadHeaderError
 	}
 	// May return a subset.
 	for i, h := range p.retMHeaders {
-		if h.Hash() == hash {
+		if h.Hash() == gReq.Hash {
 			ret := p.retMHeaders[i:len(p.retMHeaders)]
-			return ret, nil
+			return &p2p.GetMinorBlockHeaderListResponse{
+				BlockHeaderList: ret,
+			}, nil
 		}
 	}
 	panic("lolwut")
@@ -36,10 +39,6 @@ func (p *mockpeer) GetMinorBlockList(hashes []common.Hash, branch uint32) ([]*ty
 		return nil, p.downloadBlockError
 	}
 	return p.retMBlocks, nil
-}
-
-func (p *mockpeer) GetMinorBlockHeaderListWithSkip(tp uint8, data common.Hash, limit, skip uint32, branch uint32, direction uint8) (*p2p.GetMinorBlockHeaderListResponse, error) {
-	return &p2p.GetMinorBlockHeaderListResponse{}, nil
 }
 
 func newMinorBlockChain(sz int) (blockchain, ethdb.Database) {

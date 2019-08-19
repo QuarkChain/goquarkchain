@@ -4,6 +4,7 @@ import (
 	"errors"
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
 	"github.com/QuarkChain/goquarkchain/core/types"
+	"github.com/QuarkChain/goquarkchain/p2p"
 	"github.com/QuarkChain/goquarkchain/serialize"
 	"github.com/ethereum/go-ethereum/common"
 )
@@ -95,9 +96,9 @@ func (s *ConnManager) GetMinorBlocks(mHeaderList []common.Hash, peerId string, b
 	return gRep.MinorBlockList, nil
 }
 
-func (s *ConnManager) GetMinorBlockHeaderList(gReq *rpc.GetMinorBlockHeaderListRequest) ([]*types.MinorBlockHeader, error) {
+func (s *ConnManager) GetMinorBlockHeaderList(gReq *rpc.GetMinorBlockHeaderListRequest) (*p2p.GetMinorBlockHeaderListResponse, error) {
 	var (
-		gRep rpc.GetMinorBlockHeaderListResponse
+		gRep p2p.GetMinorBlockHeaderListResponse
 		res  *rpc.Response
 	)
 	data, err := serialize.SerializeToBytes(gReq)
@@ -114,7 +115,7 @@ func (s *ConnManager) GetMinorBlockHeaderList(gReq *rpc.GetMinorBlockHeaderListR
 		return nil, err
 	}
 
-	return gRep.MinorBlockHeaderList, nil
+	return &gRep, nil
 }
 
 func (s *ConnManager) ModifyTarget(target string) {
