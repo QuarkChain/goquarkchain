@@ -229,13 +229,14 @@ func loadConfig(file string, cfg *config.ClusterConfig) error {
 }
 
 func createMiner(consensusType string, diffCalculator *consensus.EthDifficultyCalculator) consensus.PoW {
+	pubKey := []byte{}
 	switch consensusType {
 	case config.PoWEthash:
-		return ethash.New(ethash.Config{CachesInMem: 3, CachesOnDisk: 10, CacheDir: "", PowMode: ethash.ModeNormal}, diffCalculator, false)
+		return ethash.New(ethash.Config{CachesInMem: 3, CachesOnDisk: 10, CacheDir: "", PowMode: ethash.ModeNormal}, diffCalculator, false, pubKey)
 	case config.PoWQkchash:
-		return qkchash.New(true, diffCalculator, false)
+		return qkchash.New(true, diffCalculator, false, pubKey)
 	case config.PoWDoubleSha256:
-		return doublesha256.New(diffCalculator, false)
+		return doublesha256.New(diffCalculator, false, pubKey)
 	default:
 		ethlog.Error("Failed to create consensus engine consensus type is not known", "consensus type", consensusType)
 		return nil

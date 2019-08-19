@@ -30,7 +30,7 @@ func TestLookupStorage(t *testing.T) {
 	}
 	// Insert all the transactions into the database, and verify contents
 	WriteMinorBlock(db, block)
-	WriteBlockContentLookupEntries(db, block)
+	WriteBlockContentLookupEntriesWithCrossShardHashList(db, block, nil)
 
 	for i, tx := range txs {
 		if txn, hash, index := ReadTransaction(db, tx.Hash()); txn == nil {

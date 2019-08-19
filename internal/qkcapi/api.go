@@ -204,6 +204,7 @@ func (p *PublicBlockChainAPI) SendTransaction(args SendTxArgs) (hexutil.Bytes, e
 	}
 	return IDEncoder(tx.Hash().Bytes(), tx.EvmTx.FromFullShardKey()), nil
 }
+
 func (p *PublicBlockChainAPI) SendRawTransaction(encodedTx hexutil.Bytes) (hexutil.Bytes, error) {
 	evmTx := new(types.EvmTransaction)
 	if err := rlp.DecodeBytes(encodedTx, evmTx); err != nil {
@@ -332,6 +333,7 @@ func (p *PublicBlockChainAPI) Call(data CallArgs, blockNr *rpc.BlockNumber) (hex
 func (p *PublicBlockChainAPI) EstimateGas(data CallArgs) ([]byte, error) {
 	return p.CallOrEstimateGas(&data, nil, false)
 }
+
 func (p *PublicBlockChainAPI) GetTransactionReceipt(txID hexutil.Bytes) (map[string]interface{}, error) {
 	txHash, fullShardKey, err := IDDecoder(txID)
 	if err != nil {
@@ -349,6 +351,7 @@ func (p *PublicBlockChainAPI) GetTransactionReceipt(txID hexutil.Bytes) (map[str
 	}
 	return receiptEncoder(minorBlock, int(index), receipt)
 }
+
 func (p *PublicBlockChainAPI) GetLogs(args *FilterQuery, fullShardKey hexutil.Uint) ([]map[string]interface{}, error) {
 	fullShardID, err := p.b.GetClusterConfig().Quarkchain.GetFullShardIdByFullShardKey(uint32(fullShardKey))
 	if err != nil {
@@ -386,6 +389,7 @@ func (p *PublicBlockChainAPI) GetCode(address account.Address, blockNr *rpc.Bloc
 	}
 	return p.b.GetCode(&address, blockNumber)
 }
+
 func (p *PublicBlockChainAPI) GetTransactionsByAddress(address account.Address, start *hexutil.Bytes, limit *hexutil.Uint) (map[string]interface{}, error) {
 	limitValue := uint32(0)
 	if limit != nil {
@@ -403,20 +407,79 @@ func (p *PublicBlockChainAPI) GetTransactionsByAddress(address account.Address, 
 		return nil, err
 	}
 
+	return makeGetTransactionRes(txs, next)
+}
+
+func txDetailEncode(tx *qkcRPC.TransactionDetail) (map[string]interface{}, error) {
+	toData := "0x"
+	if tx.ToAddress != nil {
+		toData = tx.ToAddress.ToHex()
+	}
+	transferTokenStr, err := qkcCommon.TokenIdDecode(tx.TransferTokenID)
+	if err != nil {
+		return nil, err
+	}
+	gasTokenStr, err := qkcCommon.TokenIdDecode(tx.GasTokenID)
+	if err != nil {
+		return nil, err
+	}
+
+	return map[string]interface{}{
+		"txId":             IDEncoder(tx.TxHash.Bytes(), tx.FromAddress.FullShardKey),
+		"fromAddress":      tx.FromAddress,
+		"toAddress":        toData,
+		"value":            (*hexutil.Big)(tx.Value.Value),
+		"transferTokenId":  hexutil.Uint64(tx.TransferTokenID),
+		"transferTokenStr": transferTokenStr,
+		"gasTokenId":       hexutil.Uint64(tx.GasTokenID),
+		"gasTokenStr":      gasTokenStr,
+		"blockHeight":      hexutil.Uint(tx.BlockHeight),
+		"timestamp":        hexutil.Uint(tx.Timestamp),
+		"success":          tx.Success,
+		"isFromRootChain":  tx.IsFromRootChain,
+	}, nil
+}
+
+func (p *PublicBlockChainAPI) GetAllTransaction(fullShardKey hexutil.Uint, start *hexutil.Bytes, limit *hexutil.Uint) (map[string]interface{}, error) {
+	var (
+		err        error
+		startValue = make([]byte, 0)
+		limitValue = uint32(10)
+	)
+	if start != nil {
+		startValue, err = start.MarshalText()
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if limit != nil {
+		limitValue = uint32(*limit)
+	}
+
+	if limitValue > 20 {
+		limitValue = 20
+	}
+
+	fullShardID, err := p.clusterConfig.Quarkchain.GetFullShardIdByFullShardKey(uint32(fullShardKey))
+	if err != nil {
+		return nil, err
+	}
+	branch := account.Branch{Value: fullShardID}
+	txs, next, err := p.b.GetAllTx(branch, startValue, limitValue)
+	if err != nil {
+		return nil, err
+	}
+	return makeGetTransactionRes(txs, next)
+
+}
+
+func makeGetTransactionRes(txs []*qkcRPC.TransactionDetail, next []byte) (map[string]interface{}, error) {
 	txsFields := make([]map[string]interface{}, 0)
 	for _, tx := range txs {
-		to := account.Address{}
-		if tx.ToAddress != nil {
-			to = *tx.ToAddress
-		}
-		txField := map[string]interface{}{
-			"txId":        IDEncoder(tx.TxHash.Bytes(), tx.FromAddress.FullShardKey),
-			"fromAddress": tx.FromAddress,
-			"toAddress":   to,
-			"value":       (*hexutil.Big)(tx.Value.Value),
-			"blockHeight": hexutil.Uint(tx.BlockHeight),
-			"timestamp":   hexutil.Uint(tx.Timestamp),
-			"success":     tx.Success,
+		txField, err := txDetailEncode(tx)
+		if err != nil {
+			return nil, err
 		}
 		txsFields = append(txsFields, txField)
 	}
@@ -424,8 +487,8 @@ func (p *PublicBlockChainAPI) GetTransactionsByAddress(address account.Address, 
 		"txList": txsFields,
 		"next":   hexutil.Bytes(next),
 	}, nil
-
 }
+
 func (p *PublicBlockChainAPI) GasPrice(fullShardKey uint32) (hexutil.Uint64, error) {
 	fullShardId, err := p.b.GetClusterConfig().Quarkchain.GetFullShardIdByFullShardKey(fullShardKey)
 	if err != nil {
@@ -435,8 +498,9 @@ func (p *PublicBlockChainAPI) GasPrice(fullShardKey uint32) (hexutil.Uint64, err
 	return hexutil.Uint64(data), err
 }
 
-func (p *PublicBlockChainAPI) SubmitWork(fullShardKey *hexutil.Uint, headHash common.Hash, nonce hexutil.Uint64, mixHash common.Hash) (bool, error) {
+func (p *PublicBlockChainAPI) SubmitWork(fullShardKey *hexutil.Uint, headHash common.Hash, nonce hexutil.Uint64, mixHash common.Hash, signature *hexutil.Bytes) (bool, error) {
 	fullShardId := uint32(0)
+	var sig *[65]byte = nil
 	var err error
 	if fullShardKey != nil {
 		fullShardId, err = p.clusterConfig.Quarkchain.GetFullShardIdByFullShardKey(uint32(*fullShardKey))
@@ -444,7 +508,14 @@ func (p *PublicBlockChainAPI) SubmitWork(fullShardKey *hexutil.Uint, headHash co
 			return false, err
 		}
 	}
-	submit, err := p.b.SubmitWork(account.NewBranch(fullShardId), headHash, uint64(nonce), mixHash)
+	if signature != nil && len(*signature) != 65 {
+		return false, errors.New("invalid signature, len should be 65")
+	}
+	if signature != nil {
+		copy(sig[:], *signature)
+	}
+
+	submit, err := p.b.SubmitWork(account.NewBranch(fullShardId), headHash, uint64(nonce), mixHash, sig)
 	if err != nil {
 		log.Error("Submit remote minered block", "err", err)
 		return false, nil

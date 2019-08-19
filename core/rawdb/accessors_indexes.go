@@ -24,13 +24,13 @@ func ReadBlockContentLookupEntry(db DatabaseReader, hash common.Hash) (common.Ha
 	return entry.BlockHash, entry.Index
 }
 
-// WriteBlockContentLookupEntries stores a positional metadata for every transaction from
+// WriteBlockContentLookupEntriesWithCrossShardHashList stores a positional metadata for every transaction from
 // a block, enabling hash based transaction and receipt lookups.
-func WriteBlockContentLookupEntries(db DatabaseWriter, block types.IBlock) {
-	hash := block.Hash()
+func WriteBlockContentLookupEntriesWithCrossShardHashList(db DatabaseWriter, block types.IBlock, hList *HashList) {
+	blockHash := block.Hash()
 	for i, item := range block.Content() {
 		entry := LookupEntry{
-			BlockHash: hash,
+			BlockHash: blockHash,
 			Index:     uint32(i),
 		}
 		data, err := serialize.SerializeToBytes(entry)
@@ -39,6 +39,22 @@ func WriteBlockContentLookupEntries(db DatabaseWriter, block types.IBlock) {
 		}
 		if err := db.Put(lookupKey(item.Hash()), data); err != nil {
 			log.Crit("Failed to store content lookup entry", "err", err)
+		}
+	}
+	if hList == nil || len(hList.HList) == 0 {
+		return
+	}
+	for i, h := range hList.HList {
+		entry := LookupEntry{
+			BlockHash: blockHash,
+			Index:     uint32(i) + uint32(len(block.Content())),
+		}
+		data, err := serialize.SerializeToBytes(entry)
+		if err != nil {
+			log.Crit("Failed to encode xshard tx lookup entry", "err", err)
+		}
+		if err := db.Put(lookupKey(h), data); err != nil {
+			log.Crit("Failed to store xshard tx lookup entry")
 		}
 	}
 }
@@ -71,11 +87,14 @@ func ReadTransaction(db DatabaseReader, hash common.Hash) (*types.Transaction, c
 		return nil, common.Hash{}, 0
 	}
 	block := ReadMinorBlock(db, blockHash)
-	if block == nil || len(block.Transactions()) <= int(txIndex) {
+	if block == nil {
 		log.Error("Transaction referenced missing", "hash", blockHash, "index", txIndex)
 		return nil, common.Hash{}, 0
 	}
-	return block.Transactions()[txIndex], blockHash, txIndex
+	if int(txIndex) < len(block.Transactions()) {
+		return block.Transactions()[txIndex], blockHash, txIndex
+	}
+	return nil, blockHash, txIndex //xShardTx
 }
 
 // ReadReceipt retrieves a specific transaction receipt from the database, along with

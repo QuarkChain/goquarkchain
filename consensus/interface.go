@@ -80,7 +80,7 @@ type Engine interface {
 
 	GetWork() (*MiningWork, error)
 
-	SubmitWork(nonce uint64, hash, digest common.Hash) bool
+	SubmitWork(nonce uint64, hash, digest common.Hash, signature *[65]byte) bool
 
 	SetThreads(threads int)
 

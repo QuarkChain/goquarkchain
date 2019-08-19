@@ -89,7 +89,7 @@ func (e *FakeEngine) GetWork() (*MiningWork, error) {
 	return &MiningWork{}, nil
 }
 
-func (e *FakeEngine) SubmitWork(nonce uint64, hash, digest common.Hash) bool {
+func (e *FakeEngine) SubmitWork(nonce uint64, hash, digest common.Hash, signature *[65]byte) bool {
 	return false
 }
 

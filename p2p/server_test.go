@@ -70,10 +70,11 @@ func (c *testTransport) close(err error) {
 
 func startTestServer(t *testing.T, remoteKey *ecdsa.PublicKey, pf func(*Peer)) *Server {
 	config := Config{
-		Name:       "test",
-		MaxPeers:   10,
-		ListenAddr: "127.0.0.1:0",
-		PrivateKey: newkey(),
+		Name:           "test",
+		MaxPeers:       10,
+		ListenAddr:     "127.0.0.1:0",
+		PrivateKey:     newkey(),
+		WhitelistNodes: make(map[string]*enode.Node),
 	}
 	server := &Server{
 		Config:       config,

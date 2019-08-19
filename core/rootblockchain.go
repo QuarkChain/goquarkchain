@@ -530,7 +530,7 @@ func (bc *RootBlockChain) WriteBlockWithState(block *types.RootBlock) (status Wr
 			}
 		}
 		// Write the positional metadata for transaction/receipt lookups and preimages
-		rawdb.WriteBlockContentLookupEntries(batch, block)
+		rawdb.WriteBlockContentLookupEntriesWithCrossShardHashList(batch, block, nil)
 
 		status = CanonStatTy
 	} else {
@@ -919,7 +919,7 @@ func (bc *RootBlockChain) reorg(oldBlock, newBlock types.IBlock) error {
 		// insert the block in the canonical way, re-writing history
 		bc.insert(newChain[i].(*types.RootBlock))
 		// write lookup entries for hash based transaction/receipt searches
-		rawdb.WriteBlockContentLookupEntries(bc.db, newChain[i].(*types.RootBlock))
+		rawdb.WriteBlockContentLookupEntriesWithCrossShardHashList(bc.db, newChain[i].(*types.RootBlock), nil)
 		addedHeaders = append(addedHeaders, newChain[i].(*types.RootBlock).MinorBlockHeaders()...)
 	}
 	// calculate the difference between deleted and added transactions
@@ -1132,7 +1132,7 @@ func (m *RootBlockChain) SkipDifficultyCheck() bool {
 func (m *RootBlockChain) GetAdjustedDifficulty(header types.IHeader) (*big.Int, error) {
 	rHeader := header.(*types.RootBlockHeader)
 	adjustedDiff := rHeader.GetDifficulty()
-	if crypto.VerifySignature(common.Hex2Bytes(m.Config().GuardianPublicKey), rHeader.Hash().Bytes(), rHeader.Signature[:]) {
+	if crypto.VerifySignature(common.FromHex(m.Config().GuardianPublicKey), rHeader.SealHash().Bytes(), rHeader.Signature[:64]) {
 		adjustedDiff = new(big.Int).Div(rHeader.GetDifficulty(), new(big.Int).SetUint64(1000))
 	}
 	return adjustedDiff, nil
@@ -1179,6 +1179,16 @@ func (bc *RootBlockChain) CreateBlockToMine(mHeaderList []*types.MinorBlockHeade
 	coinbaseToken, err := bc.CalculateRootBlockCoinBase(block)
 	if err != nil {
 		return nil, err
+	}
+	if len(bc.chainConfig.GuardianPrivateKey) > 0 {
+		prvKey, err := crypto.ToECDSA(bc.chainConfig.GuardianPrivateKey)
+		if err != nil {
+			return nil, err
+		}
+		err = block.SignWithPrivateKey(prvKey)
+		if err != nil {
+			return nil, err
+		}
 	}
 	block.Finalize(coinbaseToken, address, common.Hash{})
 	return block, nil
