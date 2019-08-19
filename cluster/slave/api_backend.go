@@ -282,15 +282,22 @@ func (s *SlaveBackend) GetTransactionReceipt(txHash common.Hash, branch uint32) 
 	return nil, 0, nil, ErrMsg("GetTransactionReceipt")
 }
 
-func (s *SlaveBackend) GetTransactionListByAddress(address *account.Address, start []byte, limit uint32) ([]*rpc.TransactionDetail, []byte, error) {
+func (s *SlaveBackend) GetTransactionListByAddress(address *account.Address, transferTokenID *uint64, start []byte, limit uint32) ([]*rpc.TransactionDetail, []byte, error) {
 	branch, err := s.getBranch(address)
 	if err != nil {
 		return nil, nil, err
 	}
 	if shard, ok := s.shards[branch.Value]; ok {
-		return shard.GetTransactionListByAddress(address, start, limit)
+		return shard.GetTransactionListByAddress(address, transferTokenID, start, limit)
 	}
 	return nil, nil, ErrMsg("GetTransactionListByAddress")
+}
+
+func (s *SlaveBackend) GetAllTx(branch account.Branch, start []byte, limit uint32) ([]*rpc.TransactionDetail, []byte, error) {
+	if shard, ok := s.shards[branch.Value]; ok {
+		return shard.GetAllTx(start, limit)
+	}
+	return nil, nil, ErrMsg("GetAllTx")
 }
 
 func (s *SlaveBackend) GetLogs(topics [][]common.Hash, address []account.Address, start uint64, end uint64, branch uint32) ([]*types.Log, error) {
