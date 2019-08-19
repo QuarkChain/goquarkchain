@@ -1114,15 +1114,18 @@ func (m *MinorBlockChain) EstimateGas(tx *types.Transaction, fromAddress account
 
 // GasPrice gas price
 func (m *MinorBlockChain) GasPrice(tokenID uint64) (uint64, error) {
-	//TODO later to fix
-	// no need to lock
 	if !m.clusterConfig.Quarkchain.IsAllowedTokenID(tokenID) {
 		return 0, fmt.Errorf("no support tokenID %v", tokenID)
 	}
+
 	currHead := m.CurrentBlock().Hash()
-	if currHead == m.gasPriceSuggestionOracle.LastHead {
-		return m.gasPriceSuggestionOracle.LastPrice, nil
+	if data, ok := m.gasPriceSuggestionOracle.cache.Get(gasPriceKey{
+		currHead: currHead,
+		tokenID:  tokenID,
+	}); ok {
+		return data.(uint64), nil
 	}
+
 	currHeight := m.CurrentBlock().NumberU64()
 	startHeight := int64(currHeight) - int64(m.gasPriceSuggestionOracle.CheckBlocks) + 1
 	if startHeight < 3 {
@@ -1137,7 +1140,9 @@ func (m *MinorBlockChain) GasPrice(tokenID uint64) (uint64, error) {
 		}
 		tempPreBlockPrices := make([]uint64, 0)
 		for _, tx := range block.GetTransactions() {
-			tempPreBlockPrices = append(tempPreBlockPrices, tx.EvmTx.GasPrice().Uint64())
+			if tx.EvmTx.GasTokenID() == tokenID {
+				tempPreBlockPrices = append(tempPreBlockPrices, tx.EvmTx.GasPrice().Uint64())
+			}
 		}
 		prices = append(prices, tempPreBlockPrices...)
 	}
@@ -1147,8 +1152,6 @@ func (m *MinorBlockChain) GasPrice(tokenID uint64) (uint64, error) {
 
 	sort.Slice(prices, func(i, j int) bool { return prices[i] < prices[j] })
 	price := prices[(len(prices)-1)*int(m.gasPriceSuggestionOracle.Percentile)/100]
-	m.gasPriceSuggestionOracle.LastPrice = price
-	m.gasPriceSuggestionOracle.LastHead = currHead
 	return price, nil
 }
 

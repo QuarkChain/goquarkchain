@@ -51,14 +51,18 @@ import (
 )
 
 const (
-	maxCrossShardLimit  = 256
-	maxRootBlockLimit   = 256
-	maxLastConfirmLimit = 256
+	maxCrossShardLimit    = 256
+	maxRootBlockLimit     = 256
+	maxLastConfirmLimit   = 256
+	maxGasPriceCacheLimit = 128
 )
 
+type gasPriceKey struct {
+	currHead common.Hash
+	tokenID  uint64
+}
 type gasPriceSuggestionOracle struct {
-	LastPrice   uint64
-	LastHead    common.Hash
+	cache       *lru.Cache
 	CheckBlocks uint64
 	Percentile  uint64
 }
@@ -172,6 +176,7 @@ func NewMinorBlockChain(
 	crossShardCache, _ := lru.New(maxCrossShardLimit)
 	rootBlockCache, _ := lru.New(maxRootBlockLimit)
 	lastConfimCache, _ := lru.New(maxLastConfirmLimit)
+	gasPriceCache, _ := lru.New(maxGasPriceCacheLimit)
 	bc := &MinorBlockChain{
 		ethChainConfig:           chainConfig,
 		clusterConfig:            clusterConfig,
@@ -196,8 +201,7 @@ func NewMinorBlockChain(
 		shardConfig:              clusterConfig.Quarkchain.GetShardConfigByFullShardID(fullShardID),
 		rewardCalc:               &qkcCommon.ConstMinorBlockRewardCalculator{},
 		gasPriceSuggestionOracle: &gasPriceSuggestionOracle{
-			LastPrice:   0,
-			LastHead:    common.Hash{},
+			cache:       gasPriceCache,
 			CheckBlocks: 5,
 			Percentile:  50,
 		},

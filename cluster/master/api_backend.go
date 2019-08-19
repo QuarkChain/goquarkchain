@@ -157,7 +157,7 @@ func (s *QKCMasterBackend) GetTransactionReceipt(txHash common.Hash, branch acco
 	return slaveConn.GetTransactionReceipt(txHash, branch)
 }
 
-func (s *QKCMasterBackend) GetTransactionsByAddress(address *account.Address, start []byte, limit uint32) ([]*rpc.TransactionDetail, []byte, error) {
+func (s *QKCMasterBackend) GetTransactionsByAddress(address *account.Address, start []byte, limit uint32, transferTokenID *uint64) ([]*rpc.TransactionDetail, []byte, error) {
 	fullShardID, err := s.clusterConfig.Quarkchain.GetFullShardIdByFullShardKey(address.FullShardKey)
 	if err != nil {
 		return nil, nil, err
@@ -166,7 +166,7 @@ func (s *QKCMasterBackend) GetTransactionsByAddress(address *account.Address, st
 	if slaveConn == nil {
 		return nil, nil, ErrNoBranchConn
 	}
-	return slaveConn.GetTransactionsByAddress(address, start, limit)
+	return slaveConn.GetTransactionsByAddress(address, start, limit, transferTokenID)
 }
 
 func (s *QKCMasterBackend) GetAllTx(branch account.Branch, start []byte, limit uint32) ([]*rpc.TransactionDetail, []byte, error) {
@@ -226,12 +226,12 @@ func (s *QKCMasterBackend) GetCode(address *account.Address, height *uint64) ([]
 	return slaveConn.GetCode(address, height)
 }
 
-func (s *QKCMasterBackend) GasPrice(branch account.Branch) (uint64, error) {
+func (s *QKCMasterBackend) GasPrice(branch account.Branch, tokenID uint64) (uint64, error) {
 	slaveConn := s.getOneSlaveConnection(branch)
 	if slaveConn == nil {
 		return 0, ErrNoBranchConn
 	}
-	return slaveConn.GasPrice(branch)
+	return slaveConn.GasPrice(branch, tokenID)
 }
 
 // return root chain work if branch is nil

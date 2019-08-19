@@ -5,6 +5,7 @@ package core
 import (
 	"errors"
 	"fmt"
+	"github.com/QuarkChain/goquarkchain/internal/qkcapi"
 	"github.com/ethereum/go-ethereum/crypto"
 	"io"
 	"math/big"
@@ -1289,7 +1290,8 @@ func (bc *RootBlockChain) PutRootBlockIndex(block *types.RootBlock) error {
 			shardRecipientCnt[fullShardID] = make(map[account.Recipient]uint32)
 		}
 		shardRecipientCnt[fullShardID][recipient] = newCount
-		bc.PutRootBlockConfirmingMinorBlock(header.Hash(), fullShardID, block.Hash())
+		blockID := qkcapi.IDEncoder(header.Hash().Bytes(), fullShardID)
+		bc.PutRootBlockConfirmingMinorBlock(blockID, block.Hash())
 	}
 	for fullShardID, infoList := range shardRecipientCnt {
 		dataToDb := new(account.CoinbaseStatses)
@@ -1346,11 +1348,11 @@ func (bc *RootBlockChain) GetMinorBlockCoinbaseTokens(mHash common.Hash) *types.
 	return rawdb.GetMinorBlockCoinbaseToken(bc.db, mHash)
 }
 
-func (bc *RootBlockChain) PutRootBlockConfirmingMinorBlock(mHash common.Hash, fullShardID uint32, rHash common.Hash) {
-	rawdb.PutRootBlockConfirmingMinorBlock(bc.db, mHash, fullShardID, rHash)
+func (bc *RootBlockChain) PutRootBlockConfirmingMinorBlock(blockID []byte, rHash common.Hash) {
+	rawdb.PutRootBlockConfirmingMinorBlock(bc.db, blockID, rHash)
 }
 
-func (bc *RootBlockChain) GetRootBlockConfirmingMinorBlock(mHash common.Hash, fullShardID uint32) common.Hash {
+func (bc *RootBlockChain) GetRootBlockConfirmingMinorBlock(blockID []byte) common.Hash {
 	//For json Rpc
-	return rawdb.GetRootBlockConfirmingMinorBlock(bc.db, mHash, fullShardID)
+	return rawdb.GetRootBlockConfirmingMinorBlock(bc.db, blockID)
 }

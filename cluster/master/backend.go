@@ -18,6 +18,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/internal/qkcapi"
 	"github.com/QuarkChain/goquarkchain/p2p"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
@@ -600,6 +601,10 @@ func (s *QKCMasterBackend) GetLastMinorBlockByFullShardID(fullShardId uint32) (u
 		return 0, errors.New("no such fullShardId") //TODO 0?
 	}
 	return data.Height, nil
+}
+
+func (s *QKCMasterBackend) GetRootHashConfirmingMinorBlock(mBlockID []byte) common.Hash {
+	return s.rootBlockChain.GetRootBlockConfirmingMinorBlock(mBlockID)
 }
 
 // UpdateTxCountHistory update Tx count queue
