@@ -16,7 +16,7 @@ func TestVerifySeal(t *testing.T) {
 
 	header := &types.RootBlockHeader{Number: 1, Difficulty: big.NewInt(10)}
 	rootBlock := types.NewRootBlockWithHeader(header)
-	d := New(&diffCalculator, false)
+	d := New(&diffCalculator, false, []byte{})
 
 	resultsCh := make(chan types.IBlock)
 	err := d.Seal(nil, rootBlock, nil, resultsCh, nil)

@@ -378,10 +378,10 @@ type GetWorkResponse struct {
 }
 
 type SubmitWorkRequest struct {
-	Branch     uint32      `json:"branch" gencodec:"required"`
+	Branch     uint32      `json:"branch"      gencodec:"required"`
 	HeaderHash common.Hash `json:"header_hash" gencodec:"required"`
-	Nonce      uint64      `json:"nonce" gencodec:"required"`
-	MixHash    common.Hash `json:"mix_hash" gencodec:"required"`
+	Nonce      uint64      `json:"nonce"       gencodec:"required"`
+	MixHash    common.Hash `json:"mix_hash"    gencodec:"required"`
 }
 
 type SubmitWorkResponse struct {
