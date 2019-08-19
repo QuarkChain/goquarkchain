@@ -343,14 +343,14 @@ func TestCreateRootBlockToMine(t *testing.T) {
 	assert.Equal(t, rootBlock.Header().Signature, [65]byte{})
 	assert.Equal(t, rootBlock.Header().Coinbase, add1)
 	assert.Equal(t, rootBlock.Header().CoinbaseAmount.GetTokenBalance(testGenesisTokenID).String(), "120000000000000000000")
-	assert.Equal(t, rootBlock.Header().Difficulty, new(big.Int).SetUint64(1000))
+	assert.Equal(t, rootBlock.Header().Difficulty, new(big.Int).SetUint64(2000))
 
 	rawdb.DeleteBlock(master.chainDb, minorBlock.Hash())
 	rootBlock, err = master.createRootBlockToMine(add1)
 	assert.NoError(t, err)
 	assert.Equal(t, rootBlock.Header().Coinbase, add1)
 	assert.Equal(t, rootBlock.Header().CoinbaseAmount.GetTokenBalance(testGenesisTokenID).String(), "120000000000000000000")
-	assert.Equal(t, rootBlock.Header().Difficulty, new(big.Int).SetUint64(1000))
+	assert.Equal(t, rootBlock.Header().Difficulty, new(big.Int).SetUint64(2000))
 	assert.Equal(t, len(rootBlock.MinorBlockHeaders()), 0)
 }
 
@@ -370,7 +370,7 @@ func TestCreateRootBlockToMineWithSign(t *testing.T) {
 	assert.NotEqual(t, rootBlock.Header().Signature, [65]byte{})
 	assert.Equal(t, rootBlock.Header().Coinbase, add1)
 	assert.Equal(t, rootBlock.Header().CoinbaseAmount.GetTokenBalance(master.clusterConfig.Quarkchain.GetDefaultChainTokenID()).String(), "120000000000000000000")
-	assert.Equal(t, rootBlock.Header().Difficulty, new(big.Int).SetUint64(1000))
+	assert.Equal(t, rootBlock.Header().Difficulty, new(big.Int).SetUint64(2000))
 }
 
 func TestGetAccountData(t *testing.T) {
@@ -631,7 +631,8 @@ func TestSubmitWorkForRootChain(t *testing.T) {
 	master.miner.SetMining(true)
 	rawdb.WriteMinorBlock(master.chainDb, minorBlock)
 	rootBlock, err := master.createRootBlockToMine(add1)
-	results := make(chan<- types.IBlock)
+	assert.NoError(t, err)
+	results := make(chan<- types.IBlock, 10)
 	master.engine.Seal(master.rootBlockChain, rootBlock, rootBlock.Difficulty(), results, nil)
 	assert.NoError(t, err)
 	sig, err := crypto.Sign(rootBlock.Header().SealHash().Bytes(), key)
@@ -639,7 +640,18 @@ func TestSubmitWorkForRootChain(t *testing.T) {
 	assert.Equal(t, len(sig), 65)
 	signature := [65]byte{}
 	copy(signature[:], sig[:])
-	data, err := master.SubmitWork(branch, rootBlock.Header().SealHash(), 0, common.Hash{}, &signature)
+	nonce := findNonce(master.engine, rootBlock.Header(),
+		new(big.Int).Div(rootBlock.Difficulty(), new(big.Int).SetUint64(1000)))
+	data, err := master.SubmitWork(branch, rootBlock.Header().SealHash(), nonce, common.Hash{}, &signature)
 	assert.NoError(t, err)
-	assert.Equal(t, data, true)
+	assert.Equal(t, true, data)
+}
+
+func findNonce(engine consensus.Engine, header *types.RootBlockHeader, difficalty *big.Int) uint64 {
+	for {
+		if err := engine.VerifySeal(nil, header, difficalty); err == nil {
+			return header.Nonce
+		}
+		header.Nonce = header.Nonce + 1
+	}
 }
