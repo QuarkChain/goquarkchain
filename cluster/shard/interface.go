@@ -21,5 +21,5 @@ type ConnManager interface {
 	BroadcastTransactions(txs []*types.Transaction, branch uint32) error
 	BroadcastMinorBlock(minorBlock *types.MinorBlock, branch uint32) error
 	GetMinorBlocks(mHeaderList []common.Hash, peerId string, branch uint32) ([]*types.MinorBlock, error)
-	GetMinorBlockHeaders(*rpc.GetMinorBlockHeaderListRequest) ([]*types.MinorBlockHeader, error)
+	GetMinorBlockHeaderList(*rpc.GetMinorBlockHeaderListRequest) ([]*types.MinorBlockHeader, error)
 }

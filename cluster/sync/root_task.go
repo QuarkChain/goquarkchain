@@ -9,7 +9,6 @@ import (
 	"golang.org/x/sync/errgroup"
 
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
-	qkcom "github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/common"
 )
@@ -119,7 +118,7 @@ func (r *rootChainTask) PeerID() string {
 func (r *rootChainTask) downloadBlockHeaderListAndCheck(height uint32, skip,
 limit uint32) ([]*types.RootBlockHeader, error) {
 	data := big.NewInt(int64(height)).Bytes()
-	resp, err := r.peer.GetRootBlockHeaderListWithSkip(1, common.BytesToHash(data), limit, skip, qkcom.DirectionToTip)
+	resp, err := r.peer.GetRootBlockHeaderListWithSkip(1, common.BytesToHash(data), limit, skip, DirectionToTip)
 	if err != nil {
 		return nil, err
 	}

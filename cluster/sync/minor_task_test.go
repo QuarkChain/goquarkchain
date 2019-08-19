@@ -3,6 +3,7 @@ package sync
 import (
 	"errors"
 	"fmt"
+	"github.com/QuarkChain/goquarkchain/p2p"
 	"math/rand"
 	"testing"
 
@@ -35,6 +36,10 @@ func (p *mockpeer) GetMinorBlockList(hashes []common.Hash, branch uint32) ([]*ty
 		return nil, p.downloadBlockError
 	}
 	return p.retMBlocks, nil
+}
+
+func (p *mockpeer) GetMinorBlockHeaderListWithSkip(tp uint8, data common.Hash, limit, skip uint32, branch uint32, direction uint8) (*p2p.GetMinorBlockHeaderListResponse, error) {
+	return &p2p.GetMinorBlockHeaderListResponse{}, nil
 }
 
 func newMinorBlockChain(sz int) (blockchain, ethdb.Database) {
@@ -76,7 +81,7 @@ func TestMinorChainTaskRun(t *testing.T) {
 	bc, db := newMinorBlockChain(5)
 	mbc := bc.(*mockblockchain).mbc
 	currHeader := bc.CurrentHeader().(*types.MinorBlockHeader)
-	var mt Task = NewMinorChainTask(p, currHeader)
+	var mt = NewMinorChainTask(p, currHeader)
 
 	// Prepare future blocks for downloading.
 	mbChain, mhChain := makeMinorChains(mbc.CurrentBlock(), db, false)

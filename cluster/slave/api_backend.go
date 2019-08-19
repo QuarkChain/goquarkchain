@@ -3,6 +3,7 @@ package slave
 import (
 	"errors"
 	"fmt"
+	"github.com/QuarkChain/goquarkchain/p2p"
 	"math/big"
 
 	"github.com/QuarkChain/goquarkchain/account"
@@ -353,52 +354,56 @@ func (s *SlaveBackend) AddCrossShardTxListByMinorBlockHash(minorHash common.Hash
 func (s *SlaveBackend) GetMinorBlockListByHashList(mHashList []common.Hash, branch uint32) ([]*types.MinorBlock, error) {
 	var (
 		minorList = make([]*types.MinorBlock, 0, len(mHashList))
-		block     *types.MinorBlock
 	)
 
-	shard, ok := s.shards[branch]
-	if !ok {
-		return nil, ErrMsg("GetMinorBlockListByHashList")
-	}
 	for _, hash := range mHashList {
-		if hash == (common.Hash{}) {
-			return nil, errors.New(fmt.Sprintf("empty hash in GetMinorBlockListByHashList func, slave_id: %s", s.config.ID))
+		block, err := s.GetMinorBlock(hash, nil, branch)
+		if err != nil {
+			return nil, err
 		}
-		block = shard.MinorBlockChain.GetMinorBlock(hash)
-		if block != nil {
-			minorList = append(minorList, block)
-		}
+		minorList = append(minorList, block)
 	}
 	return minorList, nil
 }
 
-func (s *SlaveBackend) GetMinorBlockHeaderList(mHash common.Hash,
-	limit uint32, direction uint8, branch uint32) ([]*types.MinorBlockHeader, error) {
-	var (
-		headerList = make([]*types.MinorBlockHeader, 0, limit)
-		err        error
-	)
+func (s *SlaveBackend) GetMinorBlockHeaderList(gReq *rpc.GetMinorBlockHeaderListRequest) (*p2p.GetMinorBlockHeaderListResponse, error) {
 
-	if direction != 0 /*directionToGenesis*/ {
-		return nil, errors.New("bad direction")
-	}
-
-	shard, ok := s.shards[branch]
+	shrd, ok := s.shards[gReq.Branch]
 	if !ok {
 		return nil, ErrMsg("GetMinorBlockHeaderList")
 	}
-	if qcom.IsNil(shard.MinorBlockChain.GetHeader(mHash)) {
-		return nil, fmt.Errorf("Minor block hash is not exist, minorHash: %s, slave id: %s ", mHash.Hex(), s.config.ID)
+
+	if gReq.Direction != qcom.DirectionToGenesis && gReq.Direction != qcom.DirectionToTip {
+		return nil, errors.New("bad direction")
 	}
-	for i := uint32(0); i < limit; i++ {
-		header := shard.MinorBlockChain.GetHeader(mHash).(*types.MinorBlockHeader)
-		headerList = append(headerList, header)
-		if header.NumberU64() == 0 {
-			return headerList, nil
+
+	mBlock, err := s.GetMinorBlock(gReq.Hash, &gReq.Height, gReq.Branch)
+	if err != nil {
+		return nil, err
+	}
+
+	mTip := shrd.MinorBlockChain.CurrentHeader()
+	height := mBlock.Number()
+	headerList := make([]*types.MinorBlockHeader, 0, gReq.Limit)
+	for i := uint32(0); i < gReq.Limit && height >= 0 && height <= mTip.NumberU64(); i++ {
+		mBlock, err = s.GetMinorBlock(common.Hash{}, &height, gReq.Branch)
+		if err != nil {
+			return nil, err
 		}
-		mHash = header.ParentHash
+		headerList = append(headerList, mBlock.Header())
+
+		if gReq.Direction == qcom.DirectionToGenesis {
+			height -= uint64(gReq.Skip) + 1
+		} else {
+			height += uint64(gReq.Skip) + 1
+		}
 	}
-	return headerList, err
+
+	return &p2p.GetMinorBlockHeaderListResponse{
+		ShardTip:        mTip.(*types.MinorBlockHeader),
+		RootTip:         shrd.MinorBlockChain.GetRootTip(),
+		BlockHeaderList: headerList,
+	}, nil
 }
 
 func (s *SlaveBackend) HandleNewTip(req *rpc.HandleNewTipRequest) error {

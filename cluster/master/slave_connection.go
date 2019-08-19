@@ -539,12 +539,12 @@ func (s *SlaveConnection) GetMinorBlocks(request *rpc.GetMinorBlockListRequest) 
 	return rsp, nil
 }
 
-func (s *SlaveConnection) GetMinorBlockHeaders(request *p2p.GetMinorBlockHeaderListRequest) (*p2p.GetMinorBlockHeaderListResponse, error) {
+func (s *SlaveConnection) GetMinorBlockHeaderList(req *rpc.GetMinorBlockHeaderListRequest) (*p2p.GetMinorBlockHeaderListResponse, error) {
 	var (
 		rsp = new(p2p.GetMinorBlockHeaderListResponse)
 		res = new(rpc.Response)
 	)
-	bytes, err := serialize.SerializeToBytes(request)
+	bytes, err := serialize.SerializeToBytes(req)
 	if err != nil {
 		return nil, err
 	}

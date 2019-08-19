@@ -3,7 +3,6 @@ package sync
 import (
 	"errors"
 	"fmt"
-	qkcom "github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/p2p"
 	"github.com/ethereum/go-ethereum/common"
@@ -96,7 +95,7 @@ func (m *minorChainTask) PeerID() string {
 func (m *minorChainTask) downloadBlockHeaderListAndCheck(height, skip,
 limit uint64, branch uint32) ([]*types.MinorBlockHeader, error) {
 	data := big.NewInt(int64(height)).Bytes()
-	resp, err := m.peer.GetMinorBlockHeaderListWithSkip(1, common.BytesToHash(data), uint32(limit), uint32(skip), branch, qkcom.DirectionToTip)
+	resp, err := m.peer.GetMinorBlockHeaderListWithSkip(1, common.BytesToHash(data), uint32(limit), uint32(skip), branch, DirectionToTip)
 	if err != nil {
 		return nil, err
 	}

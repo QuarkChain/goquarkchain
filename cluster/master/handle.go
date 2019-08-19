@@ -347,7 +347,7 @@ func (pm *ProtocolManager) handleMsg(peer *Peer) error {
 			return err
 		}
 		if c := peer.getChan(qkcMsg.RpcID); c != nil {
-			c <- minorHeaderResp.BlockHeaderList
+			c <- minorHeaderResp
 		} else {
 			log.Warn(fmt.Sprintf("chan for rpc %d is missing", qkcMsg.RpcID))
 		}
@@ -662,14 +662,21 @@ func (pm *ProtocolManager) HandleGetMinorBlockHeaderListRequest(rpcId uint64, br
 		return nil, fmt.Errorf("bad limit. rpcId: %d; branch: %d; limit: %d; expected limit: %d",
 			rpcId, branch, request.Limit, qkcsync.MinorBlockHeaderListLimit)
 	}
-	if request.Direction != qkcom.DirectionToGenesis {
+	if request.Direction != qkcom.DirectionToGenesis && request.Direction != qkcom.DirectionToTip {
 		return nil, fmt.Errorf("Bad direction. rpcId: %d; branch: %d; ", rpcId, branch)
 	}
 	clients := pm.getShardConnFunc(branch)
 	if len(clients) == 0 {
 		return nil, fmt.Errorf("invalid branch %d for rpc request %d", rpcId, branch)
 	}
-	result, err := clients[0].GetMinorBlockHeaders(request)
+
+	req := &rpc.GetMinorBlockHeaderListRequest{
+		Hash:      request.BlockHash,
+		Limit:     request.Limit,
+		Branch:    request.Branch.Value,
+		Direction: request.Direction,
+	}
+	result, err := clients[0].GetMinorBlockHeaderList(req)
 	if err != nil {
 		return nil, fmt.Errorf("branch %d HandleGetMinorBlockHeaderListRequest failed with error: %v", branch, err.Error())
 	}
@@ -709,10 +716,10 @@ func (pm *ProtocolManager) HandleGetMinorBlockHeaderListWithSkipRequest(peerId s
 	if request.Limit <= 0 || uint64(request.Limit) > 2*qkcsync.MinorBlockHeaderListLimit {
 		return nil, errors.New("Bad limit")
 	}
-	if request.Direction != qkcom.DirectionToGenesis /*&& request.Direction != directionToTip*/ {
+	if request.Direction != qkcom.DirectionToGenesis && request.Direction != qkcom.DirectionToTip {
 		return nil, errors.New("Bad direction")
 	}
-	if request.Type != 0 && request.Type != 1 {
+	if request.Type != qkcom.SkipHash && request.Type != qkcom.SkipHeight {
 		return nil, errors.New("Bad type value")
 	}
 	clients := pm.getShardConnFunc(request.Branch.Value)
@@ -728,6 +735,8 @@ func (pm *ProtocolManager) HandleGetMinorBlockHeaderListWithSkipRequest(peerId s
 		mBlock        *types.MinorBlock
 		headerlist    = make([]*types.MinorBlockHeader, 0, request.Limit)
 	)
+	cli.GetMinorBlockHeaderList()
+
 	rTip := pm.rootBlockChain.CurrentHeader().(*types.RootBlockHeader)
 	mTip, _, err := cli.GetMinorBlockByHeight(nil, request.Branch, needExtraInfo)
 	if err != nil {

@@ -1,6 +1,7 @@
 package master
 
 import (
+	"github.com/QuarkChain/goquarkchain/cluster/rpc"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/p2p"
 	"github.com/ethereum/go-ethereum/common"
@@ -75,11 +76,10 @@ func (api *PrivateP2PAPI) GetMinorBlockList(hashList []common.Hash, branch uint3
 	return blocks, err
 }
 
-func (api *PrivateP2PAPI) GetMinorBlockHeaders(hash common.Hash, amount uint32, branch uint32, reverse bool, peerId string) ([]*types.MinorBlockHeader, error) {
-	peer := api.peers.Peer(peerId)
+func (api *PrivateP2PAPI) GetMinorBlockHeaderListWithSkip(req *rpc.GetMinorBlockHeaderListRequest) (*p2p.GetMinorBlockHeaderListResponse, error) {
+	peer := api.peers.Peer(req.PeerID)
 	if peer == nil {
 		return nil, errNotRegistered
 	}
-	headers, err := peer.GetMinorBlockHeaderList(hash, amount, branch, reverse)
-	return headers, err
+	return peer.GetMinorBlockHeaderListWithSkip(req)
 }

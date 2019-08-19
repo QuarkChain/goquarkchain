@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
+	qkcom "github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/serialize"
 	"github.com/ethereum/go-ethereum/common"
@@ -237,7 +238,7 @@ type GetMinorBlockHeaderListWithSkipRequest struct {
 
 func (r *GetMinorBlockHeaderListWithSkipRequest) GetHeight() *uint64 {
 	var height *uint64
-	if r.Type == 1 {
+	if r.Type == qkcom.SkipHeight {
 		h := new(big.Int).SetBytes(r.Data[:]).Uint64()
 		height = &h
 	}
@@ -245,7 +246,7 @@ func (r *GetMinorBlockHeaderListWithSkipRequest) GetHeight() *uint64 {
 }
 
 func (r *GetMinorBlockHeaderListWithSkipRequest) GetHash() common.Hash {
-	if r.Type == 0 {
+	if r.Type == qkcom.SkipHash {
 		return r.Data
 	}
 	return common.Hash{}

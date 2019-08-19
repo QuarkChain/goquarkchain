@@ -91,7 +91,7 @@ type GetMinorBlockRequest struct {
 	NeedExtraInfo  bool        `json:"need_extra_info" gencodec:"required"`
 }
 
-	type PoSWInfo struct {
+type PoSWInfo struct {
 	EffectiveDifficulty *big.Int
 	PoswMineableBlocks  uint64
 	PoswMinedBlocks     uint64
@@ -122,12 +122,13 @@ type BroadcastTransactions struct {
 }
 
 type GetMinorBlockHeaderListRequest struct {
-	Branch    uint32      `json:"branch" gencodec:"required"`
-	BlockHash common.Hash `json:"block_hash" gencodec:"required"`
+	Height    uint64      `json:"height" gencodec:"required"`
+	Hash      common.Hash `json:"data" gencodec:"required"`
+	Skip      uint32      `json:"skip" gencodec:"required"`
 	Limit     uint32      `json:"limit" gencodec:"required"`
-	// value 0: heighter, 1 lower
-	Direction uint8  `json:"direction" gencodec:"required"`
-	PeerID    string `json:"peerid" gencodec:"required"`
+	Direction uint8       `json:"direction" gencodec:"required"`
+	Branch    uint32      `json:"branch" gencodec:"required"`
+	PeerID    string      `json:"peerid" gencodec:"required"`
 }
 
 type GetMinorBlockHeaderListResponse struct {

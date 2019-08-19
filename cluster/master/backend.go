@@ -214,7 +214,6 @@ func (s *QKCMasterBackend) Stop() error {
 func (s *QKCMasterBackend) Init(srvr *p2p.Server) error {
 	if srvr != nil {
 		s.maxPeers = srvr.MaxPeers
-		s.protocolManager.SetWhitelistNodes(srvr.WhitelistNodes)
 	}
 	if err := s.ConnectToSlaves(); err != nil {
 		return err

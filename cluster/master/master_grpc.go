@@ -56,6 +56,7 @@ func (m *MasterServerSideOp) BroadcastNewTip(ctx context.Context, req *rpc.Reque
 		RpcId: req.RpcId,
 	}, nil
 }
+
 func (m *MasterServerSideOp) BroadcastTransactions(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
 	broadcastTxsReq := new(rpc.BroadcastTransactions)
 	if err := serialize.DeserializeFromBytes(req.Data, broadcastTxsReq); err != nil {
@@ -66,6 +67,7 @@ func (m *MasterServerSideOp) BroadcastTransactions(ctx context.Context, req *rpc
 		RpcId: req.RpcId,
 	}, nil
 }
+
 func (m *MasterServerSideOp) BroadcastNewMinorBlock(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
 	broadcastMinorBlockReq := new(rpc.BroadcastMinorBlock)
 	if err := serialize.DeserializeFromBytes(req.Data, broadcastMinorBlockReq); err != nil {
@@ -79,6 +81,7 @@ func (m *MasterServerSideOp) BroadcastNewMinorBlock(ctx context.Context, req *rp
 		RpcId: req.RpcId,
 	}, nil
 }
+
 func (m *MasterServerSideOp) GetMinorBlockList(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
 	var (
 		err                  error
@@ -103,28 +106,22 @@ func (m *MasterServerSideOp) GetMinorBlockList(ctx context.Context, req *rpc.Req
 		RpcId: req.RpcId,
 	}, nil
 }
-func (m *MasterServerSideOp) GetMinorBlockHeaderList(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
+
+func (m *MasterServerSideOp) GetMinorBlockHeaderListWithSkip(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
 	var (
-		err                        error
-		getMinorBlockHeaderListReq = new(rpc.GetMinorBlockHeaderListRequest)
-		getMinorBlockHeaderListRes = new(rpc.GetMinorBlockHeaderListResponse)
+		err             error
+		getMBHeadersReq = new(rpc.GetMinorBlockHeaderListRequest)
 	)
 
-	if err = serialize.DeserializeFromBytes(req.Data, getMinorBlockHeaderListReq); err != nil {
+	if err = serialize.DeserializeFromBytes(req.Data, getMBHeadersReq); err != nil {
 		return nil, err
 	}
 	//hash common.Hash, amount uint32, branch uint32, reverse bool, peerId string
-	getMinorBlockHeaderListRes.MinorBlockHeaderList, err =
-		m.p2pApi.GetMinorBlockHeaders(
-			getMinorBlockHeaderListReq.BlockHash,
-			getMinorBlockHeaderListReq.Limit,
-			getMinorBlockHeaderListReq.Branch,
-			getMinorBlockHeaderListReq.Direction == directionToGenesis,
-			getMinorBlockHeaderListReq.PeerID)
+	gRes, err := m.p2pApi.GetMinorBlockHeaderListWithSkip(getMBHeadersReq)
 	if err != nil {
 		return nil, err
 	}
-	bytes, err := serialize.SerializeToBytes(getMinorBlockHeaderListRes)
+	bytes, err := serialize.SerializeToBytes(gRes)
 	if err != nil {
 		return nil, err
 	}

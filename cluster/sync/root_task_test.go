@@ -3,6 +3,7 @@ package sync
 import (
 	"errors"
 	"fmt"
+	"github.com/QuarkChain/goquarkchain/p2p"
 	"math/rand"
 	"reflect"
 	"testing"
@@ -60,6 +61,11 @@ func (p *mockpeer) GetRootBlockList(hashes []common.Hash) ([]*types.RootBlock, e
 
 func (p *mockpeer) PeerID() string {
 	return p.name
+}
+
+func (p *mockpeer) GetRootBlockHeaderListWithSkip(tp uint8, data common.Hash, limit, skip uint32,
+	direction uint8) (*p2p.GetRootBlockHeaderListResponse, error) {
+	return &p2p.GetRootBlockHeaderListResponse{}, nil
 }
 
 // Only one of `rbc` or `mbc` should be initialized.
@@ -149,7 +155,7 @@ func TestRootChainTaskRun(t *testing.T) {
 	p := &mockpeer{name: "chunfeng"}
 	bc := newRootBlockChain(5)
 	rbc := bc.(*mockblockchain).rbc
-	var rt Task = NewRootChainTask(p, nil, nil, nil)
+	var rt Task = NewRootChainTask(p, nil, nil, nil, nil)
 
 	// Prepare future blocks for downloading.
 	rbChain, rhChain := makeRootChains(rbc.CurrentBlock(), false)
@@ -255,10 +261,6 @@ func TestSyncMinorBlocks(t *testing.T) {
 					LastBlockTime:      block.Time(),
 				}, nil).Times(1)
 		}
-
-		syncMinorBlocks("", bc.(rootblockchain), block, statusChan, func(fullShardId uint32) []rpc.ShardConnForP2P {
-			return shardConns
-		})
 
 		select {
 		case status := <-statusChan:
