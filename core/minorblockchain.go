@@ -879,7 +879,7 @@ func (m *MinorBlockChain) InsertReceiptChain(blockChain []types.IBlock, receiptC
 		}
 		rawdb.WriteMinorBlock(batch, block.(*types.MinorBlock))
 		rawdb.WriteReceipts(batch, block.Hash(), receipts)
-		rawdb.WriteBlockContentLookupEntries(batch, block)
+		rawdb.WriteBlockContentLookupEntriesWithCrossShardHashList(batch, block, nil)
 
 		stats.processed++
 

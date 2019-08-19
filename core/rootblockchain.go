@@ -531,7 +531,7 @@ func (bc *RootBlockChain) WriteBlockWithState(block *types.RootBlock) (status Wr
 			}
 		}
 		// Write the positional metadata for transaction/receipt lookups and preimages
-		rawdb.WriteBlockContentLookupEntries(batch, block)
+		rawdb.WriteBlockContentLookupEntriesWithCrossShardHashList(batch, block, nil)
 
 		status = CanonStatTy
 	} else {
@@ -920,7 +920,7 @@ func (bc *RootBlockChain) reorg(oldBlock, newBlock types.IBlock) error {
 		// insert the block in the canonical way, re-writing history
 		bc.insert(newChain[i].(*types.RootBlock))
 		// write lookup entries for hash based transaction/receipt searches
-		rawdb.WriteBlockContentLookupEntries(bc.db, newChain[i].(*types.RootBlock))
+		rawdb.WriteBlockContentLookupEntriesWithCrossShardHashList(bc.db, newChain[i].(*types.RootBlock), nil)
 		addedHeaders = append(addedHeaders, newChain[i].(*types.RootBlock).MinorBlockHeaders()...)
 	}
 	// calculate the difference between deleted and added transactions
