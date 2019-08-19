@@ -82,6 +82,7 @@ func getTestEnv(genesisAccount *account.Address, genesisMinorQuarkHash *uint64, 
 	env.clusterConfig.Quarkchain.SkipRootDifficultyCheck = true
 	env.clusterConfig.EnableTransactionHistory = true
 	env.clusterConfig.Quarkchain.MinMiningGasPrice = new(big.Int).SetInt64(-1)
+	env.clusterConfig.Quarkchain.MinTXPoolGasPrice = new(big.Int).SetInt64(-1)
 
 	ids := env.clusterConfig.Quarkchain.GetGenesisShardIds()
 	for _, v := range ids {
@@ -124,7 +125,7 @@ func createDefaultShardState(env *fakeEnv, shardID *uint32, diffCalc consensus.D
 	var err error
 	chainConfig := params.TestChainConfig
 	if flagEngine != nil {
-		shardState, err = NewMinorBlockChain(env.db, cacheConfig, chainConfig, env.clusterConfig, doublesha256.New(diffCalc, false), vm.Config{}, nil, fullShardID)
+		shardState, err = NewMinorBlockChain(env.db, cacheConfig, chainConfig, env.clusterConfig, doublesha256.New(diffCalc, false, []byte{}), vm.Config{}, nil, fullShardID)
 		if err != nil {
 			panic(err)
 		}

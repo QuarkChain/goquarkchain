@@ -72,7 +72,7 @@ func (s *SlaveBackend) CreateShards(rootBlock *types.RootBlock, forceInit bool) 
 					log.Error("Failed to create shard", "slave id", s.config.ID, "shard id", shardCfg.ShardID, "err", err)
 					return err
 				}
-				s.shards[id] = shard
+				s.addShard(id, shard)
 				if err = shard.InitFromRootBlock(rootBlock); err != nil {
 					shard.Stop()
 					return err

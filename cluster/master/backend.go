@@ -18,6 +18,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/internal/qkcapi"
 	"github.com/QuarkChain/goquarkchain/p2p"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
@@ -105,7 +106,7 @@ func New(ctx *service.ServiceContext, cfg *config.ClusterConfig) (*QKCMasterBack
 		return nil, err
 	}
 
-	if mstr.engine, err = createConsensusEngine(ctx, cfg.Quarkchain.Root); err != nil {
+	if mstr.engine, err = createConsensusEngine(cfg.Quarkchain.Root, cfg.Quarkchain.GuardianPublicKey); err != nil {
 		return nil, err
 	}
 
@@ -148,21 +149,22 @@ func createDB(ctx *service.ServiceContext, name string, clean bool) (ethdb.Datab
 	return db, nil
 }
 
-func createConsensusEngine(ctx *service.ServiceContext, cfg *config.RootConfig) (consensus.Engine, error) {
+func createConsensusEngine(cfg *config.RootConfig, pubKeyStr string) (consensus.Engine, error) {
 	diffCalculator := consensus.EthDifficultyCalculator{
 		MinimumDifficulty: big.NewInt(int64(cfg.Genesis.Difficulty)),
 		AdjustmentCutoff:  cfg.DifficultyAdjustmentCutoffTime,
 		AdjustmentFactor:  cfg.DifficultyAdjustmentFactor,
 	}
+	pubKey := common.FromHex(pubKeyStr)
 	switch cfg.ConsensusType {
 	case config.PoWSimulate: // TODO pow_simulate is fake
 		return &consensus.FakeEngine{}, nil
 	case config.PoWEthash:
-		return ethash.New(ethash.Config{CachesInMem: 3, CachesOnDisk: 10, CacheDir: "", PowMode: ethash.ModeNormal}, &diffCalculator, cfg.ConsensusConfig.RemoteMine), nil
+		return ethash.New(ethash.Config{CachesInMem: 3, CachesOnDisk: 10, CacheDir: "", PowMode: ethash.ModeNormal}, &diffCalculator, cfg.ConsensusConfig.RemoteMine, pubKey), nil
 	case config.PoWQkchash:
-		return qkchash.New(true, &diffCalculator, cfg.ConsensusConfig.RemoteMine), nil
+		return qkchash.New(true, &diffCalculator, cfg.ConsensusConfig.RemoteMine, pubKey), nil
 	case config.PoWDoubleSha256:
-		return doublesha256.New(&diffCalculator, cfg.ConsensusConfig.RemoteMine), nil
+		return doublesha256.New(&diffCalculator, cfg.ConsensusConfig.RemoteMine, pubKey), nil
 	}
 	return nil, fmt.Errorf("Failed to create consensus engine consensus type %s ", cfg.ConsensusType)
 }
@@ -279,6 +281,7 @@ func (s *QKCMasterBackend) ConnectToSlaves() error {
 	}
 	return nil
 }
+
 func (s *QKCMasterBackend) logSummary() {
 	for branch, slaves := range s.branchToSlaves {
 		for _, slave := range slaves {
