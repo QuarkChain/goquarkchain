@@ -33,6 +33,13 @@ var (
 	ErrorTxBreak                          = errors.New("apply tx break")
 )
 
+type GetTxDetailType byte
+
+const (
+	GetAllTransaction GetTxDetailType = iota
+	GetTxFromAddress
+)
+
 func (m *MinorBlockChain) ReadLastConfirmedMinorBlockHeaderAtRootBlock(hash common.Hash) common.Hash {
 	if data, ok := m.lastConfirmCache.Get(hash); ok {
 		return data.(common.Hash)
@@ -1217,7 +1224,7 @@ func decodeTxKey(data []byte, keyLen int, addrLen int) (uint64, bool, uint32, er
 	height := qkcCommon.BytesToUint32(data[keyLen+addrLen : keyLen+addrLen+4])
 	flag := false
 	if data[keyLen+addrLen+4] == byte(0) {
-		flag = true //TODO use constant
+		flag = true
 	}
 	index := qkcCommon.BytesToUint32(data[keyLen+addrLen+4+1:])
 	return uint64(height), flag, index, nil
@@ -1299,45 +1306,48 @@ func (m *MinorBlockChain) getPendingTxByAddress(address account.Address, transfe
 	txList := make([]*rpc.TransactionDetail, 0)
 	txs := m.txPool.GetAllTxInPool()
 
+	needStore := func(sender account.Recipient, tx *types.Transaction) bool {
+		if sender.String() == address.Recipient.String() || (tx.EvmTx.To() != nil && tx.EvmTx.To().String() == address.Recipient.String()) {
+			if transferTokenID == nil || *transferTokenID == tx.EvmTx.TransferTokenID() {
+				return true
+			}
+		}
+		return false
+	}
+
 	//TODO: could also show incoming pending tx????? need check later
 	for _, tx := range txs {
 		sender, err := types.Sender(types.MakeSigner(m.clusterConfig.Quarkchain.NetworkID), tx.EvmTx)
 		if err != nil {
 			return nil, nil, err
 		}
-		if sender.String() == address.Recipient.String() || (tx.EvmTx.To() != nil && tx.EvmTx.To().String() == address.Recipient.String()) {
-			if transferTokenID == nil || *transferTokenID == tx.EvmTx.TransferTokenID() {
-				to := new(account.Address)
-				if tx.EvmTx.To() == nil {
-					to = nil
-				} else {
-					to.Recipient = *tx.EvmTx.To()
-					to.FullShardKey = tx.EvmTx.ToFullShardKey()
-				}
-				txList = append(txList, &rpc.TransactionDetail{
-					TxHash:          tx.Hash(),
-					FromAddress:     address,
-					ToAddress:       to,
-					Value:           serialize.Uint256{Value: tx.EvmTx.Value()},
-					BlockHeight:     0,
-					Timestamp:       0,
-					Success:         false,
-					GasTokenID:      tx.EvmTx.GasTokenID(),
-					TransferTokenID: tx.EvmTx.TransferTokenID(),
-					IsFromRootChain: false,
-				})
+		if !needStore(sender, tx) {
+			to := new(account.Address)
+			if tx.EvmTx.To() == nil {
+				to = nil
+			} else {
+				to.Recipient = *tx.EvmTx.To()
+				to.FullShardKey = tx.EvmTx.ToFullShardKey()
 			}
+			txList = append(txList, &rpc.TransactionDetail{
+				TxHash:          tx.Hash(),
+				FromAddress:     address,
+				ToAddress:       to,
+				Value:           serialize.Uint256{Value: tx.EvmTx.Value()},
+				BlockHeight:     0,
+				Timestamp:       0,
+				Success:         false,
+				GasTokenID:      tx.EvmTx.GasTokenID(),
+				TransferTokenID: tx.EvmTx.TransferTokenID(),
+				IsFromRootChain: false,
+			})
 		}
+
 	}
 	return txList, []byte{}, nil
 }
 
-const (
-	GetAllTransaction = 1
-	GetTxFromAddress  = 2
-)
-
-func (m *MinorBlockChain) getTransactionDetails(start, end []byte, limit uint32, getTxType int, skipCoinbaseRewards bool, transferTokenID *uint64) ([]*rpc.TransactionDetail, []byte, error) {
+func (m *MinorBlockChain) getTransactionDetails(start, end []byte, limit uint32, getTxType GetTxDetailType, skipCoinbaseRewards bool, transferTokenID *uint64) ([]*rpc.TransactionDetail, []byte, error) {
 	qkcDB, ok := m.db.(*qkcdb.RDBDatabase)
 	if !ok {
 		return nil, nil, errors.New("only support qkcdb now")
@@ -1372,8 +1382,10 @@ func (m *MinorBlockChain) getTransactionDetails(start, end []byte, limit uint32,
 		}
 		if getTxType == GetTxFromAddress {
 			height, crossShard, index, err = decodeTxKey(it.Key().Data(), len(addressTxKey), 20)
-		} else {
+		} else if getTxType == GetAllTransaction {
 			height, crossShard, index, err = decodeTxKey(it.Key().Data(), len(allTxKey), 0)
+		} else {
+			return nil, nil, errors.New("not support yet")
 		}
 		if err != nil {
 			return nil, nil, err
@@ -1526,6 +1538,9 @@ func (m *MinorBlockChain) deleteTxIndexDB(key []byte) error {
 	return m.db.Delete(key)
 }
 func (m *MinorBlockChain) updateTxHistoryIndex(tx *types.Transaction, height uint64, index int, f func(key []byte) error) error {
+	if !m.clusterConfig.EnableTransactionHistory {
+		return nil
+	}
 	evmtx := tx.EvmTx
 	key := encodeAllTxKey(height, index, false)
 	if err := f(key); err != nil {
@@ -1557,6 +1572,9 @@ func (m *MinorBlockChain) removeTxHistoryIndex(tx *types.Transaction, height uin
 }
 
 func (m *MinorBlockChain) updateTxHistoryIndexFromBlock(block *types.MinorBlock, f func([]byte) error) error {
+	if !m.clusterConfig.EnableTransactionHistory {
+		return nil
+	}
 	xShardReceiveTxList := rawdb.ReadConfirmedCrossShardTxList(m.db, block.Hash())
 	for index, tx := range xShardReceiveTxList.TXList {
 		//ignore dummy coinbase reward deposits
@@ -1577,9 +1595,6 @@ func (m *MinorBlockChain) updateTxHistoryIndexFromBlock(block *types.MinorBlock,
 	return nil
 }
 func (m *MinorBlockChain) putTxHistoryIndexFromBlock(block *types.MinorBlock) error {
-	if !m.clusterConfig.EnableTransactionHistory {
-		return nil
-	}
 	return m.updateTxHistoryIndexFromBlock(block, m.putTxIndexDB)
 }
 func (m *MinorBlockChain) removeTxHistoryIndexFromBlock(block *types.MinorBlock) error {

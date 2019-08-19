@@ -180,7 +180,7 @@ func (c *fakeRpcClient) Call(hostport string, req *rpc.Request) (*rpc.Response, 
 		}
 		return &rpc.Response{Data: data}, nil
 	case rpc.OpGetTransactionListByAddress:
-		rsp := new(rpc.GetTransactionListByAddressResponse)
+		rsp := new(rpc.GetTxDetailResponse)
 		rsp.Next = []byte("qkc")
 		rsp.TxList = append(rsp.TxList, &rpc.TransactionDetail{
 			TxHash: common.BigToHash(new(big.Int).SetUint64(11)),

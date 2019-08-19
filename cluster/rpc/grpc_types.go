@@ -191,7 +191,7 @@ type TransactionDetail struct {
 	IsFromRootChain bool              `json:"is_from_root_chain" gencodec:"required"`
 }
 
-type GetTransactionListByAddressResponse struct {
+type GetTxDetailResponse struct {
 	TxList []*TransactionDetail `json:"tx_list" gencodec:"required" bytesizeofslicelen:"4"`
 	Next   []byte               `json:"next" gencodec:"required" bytesizeofslicelen:"4"`
 }
@@ -200,12 +200,6 @@ type GetAllTxRequest struct {
 	Branch account.Branch `json:"address" gencodec:"required"`
 	Start  []byte         `json:"start" gencodec:"required" bytesizeofslicelen:"4"`
 	Limit  uint32         `json:"limit" gencodec:"required"`
-}
-
-//TODO use only one ? GetTransactionListByAddressResponse
-type GetAllTxResponse struct {
-	TxList []*TransactionDetail `json:"tx_list" gencodec:"required" bytesizeofslicelen:"4"`
-	Next   []byte               `json:"next" gencodec:"required" bytesizeofslicelen:"4"`
 }
 
 // RPCs to update blockchains

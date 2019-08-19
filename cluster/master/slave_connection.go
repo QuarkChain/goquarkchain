@@ -266,7 +266,7 @@ func (s *SlaveConnection) GetTransactionReceipt(txHash common.Hash, branch accou
 func (s *SlaveConnection) GetTransactionsByAddress(address *account.Address, start []byte, limit uint32) ([]*rpc.TransactionDetail, []byte, error) {
 	var (
 		req   = rpc.GetTransactionListByAddressRequest{Address: address, Start: start, Limit: limit}
-		trans = rpc.GetTransactionListByAddressResponse{}
+		trans = rpc.GetTxDetailResponse{}
 		res   *rpc.Response
 		bytes []byte
 		err   error
@@ -279,7 +279,7 @@ func (s *SlaveConnection) GetTransactionsByAddress(address *account.Address, sta
 	if err != nil {
 		return nil, nil, err
 	}
-	if err = serialize.Deserialize(serialize.NewByteBuffer(res.Data), &trans); err != nil {
+	if err = serialize.DeserializeFromBytes(res.Data, &trans); err != nil {
 		return nil, nil, err
 	}
 	return trans.TxList, trans.Next, nil
@@ -287,21 +287,21 @@ func (s *SlaveConnection) GetTransactionsByAddress(address *account.Address, sta
 
 func (s *SlaveConnection) GetAllTx(branch account.Branch, start []byte, limit uint32) ([]*rpc.TransactionDetail, []byte, error) {
 	var (
-		req   = rpc.GetAllTxRequest{Branch: branch, Start: start, Limit: limit}
-		trans = rpc.GetAllTxResponse{}
-		res   *rpc.Response
-		bytes []byte
-		err   error
+		req     = rpc.GetAllTxRequest{Branch: branch, Start: start, Limit: limit}
+		trans   = rpc.GetTxDetailResponse{}
+		res     *rpc.Response
+		reqData []byte
+		err     error
 	)
-	bytes, err = serialize.SerializeToBytes(req)
+	reqData, err = serialize.SerializeToBytes(req)
 	if err != nil {
 		return nil, nil, err
 	}
-	res, err = s.client.Call(s.target, &rpc.Request{Op: rpc.OpGetAllTx, Data: bytes})
+	res, err = s.client.Call(s.target, &rpc.Request{Op: rpc.OpGetAllTx, Data: reqData})
 	if err != nil {
 		return nil, nil, err
 	}
-	if err = serialize.Deserialize(serialize.NewByteBuffer(res.Data), &trans); err != nil {
+	if err = serialize.DeserializeFromBytes(res.Data, &trans); err != nil {
 		return nil, nil, err
 	}
 	return trans.TxList, trans.Next, nil

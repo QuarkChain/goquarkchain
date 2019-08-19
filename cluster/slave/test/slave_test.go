@@ -275,12 +275,12 @@ func casesFuncs() map[int]func(t *testing.T, response *grpc.Response) {
 
 	checkFuncs[grpc.OpGetTransactionListByAddress] = func(t *testing.T, res *grpc.Response) {
 		var (
-			gRep grpc.GetTransactionListByAddressResponse
+			gRep grpc.GetTxDetailResponse
 			buf  = serialize.NewByteBuffer(res.Data)
 			err  error
 		)
 		if err = serialize.Deserialize(buf, &gRep); err != nil {
-			t.Fatalf("Failed to deserialize GetTransactionListByAddressResponse, err %v", err)
+			t.Fatalf("Failed to deserialize GetTxDetailResponse, err %v", err)
 		}
 
 	}

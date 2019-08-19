@@ -251,7 +251,7 @@ func (s *SlaveServerSideOp) GetTransactionReceipt(ctx context.Context, req *rpc.
 func (s *SlaveServerSideOp) GetTransactionListByAddress(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
 	var (
 		gReq     rpc.GetTransactionListByAddressRequest
-		gRep     rpc.GetTransactionListByAddressResponse
+		gRep     rpc.GetTxDetailResponse
 		buf      = serialize.NewByteBuffer(req.Data)
 		response = &rpc.Response{RpcId: req.RpcId}
 		err      error
