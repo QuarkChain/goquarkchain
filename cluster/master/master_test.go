@@ -13,6 +13,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/serialize"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethdb"
 	ethRPC "github.com/ethereum/go-ethereum/rpc"
 	"github.com/stretchr/testify/assert"
@@ -261,6 +262,10 @@ func (c *fakeRpcClient) Call(hostport string, req *rpc.Request) (*rpc.Response, 
 }
 
 func initEnv(t *testing.T, chanOp chan uint32) *QKCMasterBackend {
+	return initEnvWithConsensusType(t, chanOp, config.PoWSimulate, "")
+}
+
+func initEnvWithConsensusType(t *testing.T, chanOp chan uint32, consensusType string, pubKey string) *QKCMasterBackend {
 	monkey.Patch(NewSlaveConn, func(target string, shardMaskLst []*types.ChainMask, slaveID string) *SlaveConnection {
 		client := NewFakeRPCClient(chanOp, target, shardMaskLst, slaveID, config.NewClusterConfig())
 		return &SlaveConnection{
@@ -276,7 +281,10 @@ func initEnv(t *testing.T, chanOp chan uint32) *QKCMasterBackend {
 
 	ctx := &service.ServiceContext{}
 	clusterConfig := config.NewClusterConfig()
-	clusterConfig.Quarkchain.Root.ConsensusType = config.PoWSimulate
+	clusterConfig.Quarkchain.Root.ConsensusType = consensusType
+	clusterConfig.Quarkchain.Root.ConsensusConfig.RemoteMine = true
+	clusterConfig.Quarkchain.Root.Genesis.Difficulty = 2000
+	clusterConfig.Quarkchain.GuardianPublicKey = pubKey
 	master, err := New(ctx, clusterConfig)
 	if err != nil {
 		panic(err)
@@ -332,17 +340,37 @@ func TestCreateRootBlockToMine(t *testing.T) {
 	rawdb.WriteMinorBlock(master.chainDb, minorBlock)
 	rootBlock, err := master.createRootBlockToMine(add1)
 	assert.NoError(t, err)
+	assert.Equal(t, rootBlock.Header().Signature, [65]byte{})
 	assert.Equal(t, rootBlock.Header().Coinbase, add1)
 	assert.Equal(t, rootBlock.Header().CoinbaseAmount.GetTokenBalance(testGenesisTokenID).String(), "120000000000000000000")
-	assert.Equal(t, rootBlock.Header().Difficulty, new(big.Int).SetUint64(1000000))
+	assert.Equal(t, rootBlock.Header().Difficulty, new(big.Int).SetUint64(2000))
 
 	rawdb.DeleteBlock(master.chainDb, minorBlock.Hash())
 	rootBlock, err = master.createRootBlockToMine(add1)
 	assert.NoError(t, err)
 	assert.Equal(t, rootBlock.Header().Coinbase, add1)
 	assert.Equal(t, rootBlock.Header().CoinbaseAmount.GetTokenBalance(testGenesisTokenID).String(), "120000000000000000000")
-	assert.Equal(t, rootBlock.Header().Difficulty, new(big.Int).SetUint64(1000000))
+	assert.Equal(t, rootBlock.Header().Difficulty, new(big.Int).SetUint64(2000))
 	assert.Equal(t, len(rootBlock.MinorBlockHeaders()), 0)
+}
+
+func TestCreateRootBlockToMineWithSign(t *testing.T) {
+	minorBlock := types.NewMinorBlock(&types.MinorBlockHeader{}, &types.MinorBlockMeta{}, nil, nil, nil)
+	id1, err := account.CreatRandomIdentity()
+	assert.NoError(t, err)
+	add1 := account.NewAddress(id1.GetRecipient(), 3)
+	master := initEnv(t, nil)
+	key, err := crypto.ToECDSA(id1.GetKey().Bytes())
+	assert.NoError(t, err)
+	master.clusterConfig.Quarkchain.GuardianPrivateKey = id1.GetKey().Bytes()
+	master.clusterConfig.Quarkchain.GuardianPublicKey = common.ToHex(crypto.FromECDSAPub(&key.PublicKey))
+	rawdb.WriteMinorBlock(master.chainDb, minorBlock)
+	rootBlock, err := master.createRootBlockToMine(add1)
+	assert.NoError(t, err)
+	assert.NotEqual(t, rootBlock.Header().Signature, [65]byte{})
+	assert.Equal(t, rootBlock.Header().Coinbase, add1)
+	assert.Equal(t, rootBlock.Header().CoinbaseAmount.GetTokenBalance(master.clusterConfig.Quarkchain.GetDefaultChainTokenID()).String(), "120000000000000000000")
+	assert.Equal(t, rootBlock.Header().Difficulty, new(big.Int).SetUint64(2000))
 }
 
 func TestGetAccountData(t *testing.T) {
@@ -418,6 +446,7 @@ func TestAddTransaction(t *testing.T) {
 	err = master.AddTransaction(tx)
 	assert.Error(t, err)
 }
+
 func TestExecuteTransaction(t *testing.T) {
 	master := initEnv(t, nil)
 	id1, err := account.CreatRandomIdentity()
@@ -457,6 +486,7 @@ func TestGetMinorBlockByHeight(t *testing.T) {
 	_, _, err = master.GetMinorBlockByHeight(nil, account.Branch{Value: 2222}, false)
 	assert.Error(t, err)
 }
+
 func TestGetMinorBlockByHash(t *testing.T) {
 	master := initEnv(t, nil)
 	fakeMinorBlock := types.NewMinorBlock(&types.MinorBlockHeader{Version: 111}, &types.MinorBlockMeta{}, nil, nil, nil)
@@ -554,6 +584,7 @@ func TestGetStorageAt(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, data.Big().Uint64(), uint64(123))
 }
+
 func TestGetCode(t *testing.T) {
 	master := initEnv(t, nil)
 	id1, err := account.CreatRandomIdentity()
@@ -564,6 +595,7 @@ func TestGetCode(t *testing.T) {
 	assert.Equal(t, data, []byte("qkc"))
 
 }
+
 func TestGasPrice(t *testing.T) {
 	master := initEnv(t, nil)
 	data, err := master.GasPrice(account.Branch{Value: 2}, testGenesisTokenID)
@@ -582,7 +614,44 @@ func TestGetWork(t *testing.T) {
 func TestSubmitWork(t *testing.T) {
 	master := initEnv(t, nil)
 	branch := account.NewBranch(2)
-	data, err := master.SubmitWork(branch, common.Hash{}, 0, common.Hash{})
+	data, err := master.SubmitWork(branch, common.Hash{}, 0, common.Hash{}, nil)
 	assert.NoError(t, err)
 	assert.Equal(t, data, true)
+}
+
+func TestSubmitWorkForRootChain(t *testing.T) {
+	minorBlock := types.NewMinorBlock(&types.MinorBlockHeader{}, &types.MinorBlockMeta{}, nil, nil, nil)
+	id1, err := account.CreatRandomIdentity()
+	assert.NoError(t, err)
+	branch := account.NewBranch(0)
+	add1 := account.NewAddress(id1.GetRecipient(), 3)
+	key, err := crypto.ToECDSA(id1.GetKey().Bytes())
+	assert.NoError(t, err)
+	master := initEnvWithConsensusType(t, nil, config.PoWDoubleSha256, common.ToHex(crypto.FromECDSAPub(&key.PublicKey))) //common.Bytes2Hex(key.PublicKey.X.Bytes())+common.Bytes2Hex(key.PublicKey.Y.Bytes())
+	master.miner.SetMining(true)
+	rawdb.WriteMinorBlock(master.chainDb, minorBlock)
+	rootBlock, err := master.createRootBlockToMine(add1)
+	assert.NoError(t, err)
+	results := make(chan<- types.IBlock, 10)
+	master.engine.Seal(master.rootBlockChain, rootBlock, rootBlock.Difficulty(), results, nil)
+	assert.NoError(t, err)
+	sig, err := crypto.Sign(rootBlock.Header().SealHash().Bytes(), key)
+	assert.NoError(t, err)
+	assert.Equal(t, len(sig), 65)
+	signature := [65]byte{}
+	copy(signature[:], sig[:])
+	nonce := findNonce(master.engine, rootBlock.Header(),
+		new(big.Int).Div(rootBlock.Difficulty(), new(big.Int).SetUint64(1000)))
+	data, err := master.SubmitWork(branch, rootBlock.Header().SealHash(), nonce, common.Hash{}, &signature)
+	assert.NoError(t, err)
+	assert.Equal(t, true, data)
+}
+
+func findNonce(engine consensus.Engine, header *types.RootBlockHeader, difficalty *big.Int) uint64 {
+	for {
+		if err := engine.VerifySeal(nil, header, difficalty); err == nil {
+			return header.Nonce
+		}
+		header.Nonce = header.Nonce + 1
+	}
 }

@@ -16,7 +16,7 @@ func TestSealAndVerifySeal(t *testing.T) {
 
 	header := &types.RootBlockHeader{Number: 1, Difficulty: big.NewInt(10)}
 	for _, qkcHashNativeFlag := range []bool{true, false} {
-		q := New(qkcHashNativeFlag, &diffCalculator, false)
+		q := New(qkcHashNativeFlag, &diffCalculator, false, []byte{})
 		rootBlock := types.NewRootBlockWithHeader(header)
 		resultsCh := make(chan types.IBlock)
 		err := q.Seal(nil, rootBlock, nil, resultsCh, nil)
@@ -41,7 +41,7 @@ func TestRemoteSealer(t *testing.T) {
 	header := &types.RootBlockHeader{Number: 1, Difficulty: big.NewInt(100)}
 	block := types.NewRootBlockWithHeader(header)
 
-	qkc := New(true, &diffCalculator, true)
+	qkc := New(true, &diffCalculator, true, []byte{})
 	if _, err := qkc.GetWork(); err.Error() != errNoMiningWork.Error() {
 		t.Error("expect to return an error indicate there is no mining work")
 	}
@@ -56,7 +56,7 @@ func TestRemoteSealer(t *testing.T) {
 		t.Error("expect to return a mining work has same hash")
 	}
 
-	if res := qkc.SubmitWork(0, hash, common.Hash{}); res {
+	if res := qkc.SubmitWork(0, hash, common.Hash{}, nil); res {
 		t.Error("expect to return false when submit a fake solution")
 	}
 }
@@ -65,7 +65,7 @@ func TestStaleSubmission(t *testing.T) {
 
 	diffCalculator := consensus.EthDifficultyCalculator{AdjustmentCutoff: 7, AdjustmentFactor: 512, MinimumDifficulty: big.NewInt(100000)}
 
-	qkchash := New(true, &diffCalculator, false)
+	qkchash := New(true, &diffCalculator, false, []byte{})
 	testcases := []struct {
 		headers     []*types.RootBlockHeader
 		submitIndex int

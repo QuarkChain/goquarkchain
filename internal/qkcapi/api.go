@@ -209,6 +209,7 @@ func (p *PublicBlockChainAPI) SendTransaction(args SendTxArgs) (hexutil.Bytes, e
 	}
 	return IDEncoder(tx.Hash().Bytes(), tx.EvmTx.FromFullShardKey()), nil
 }
+
 func (p *PublicBlockChainAPI) SendRawTransaction(encodedTx hexutil.Bytes) (hexutil.Bytes, error) {
 	evmTx := new(types.EvmTransaction)
 	if err := rlp.DecodeBytes(encodedTx, evmTx); err != nil {
@@ -517,8 +518,9 @@ func (p *PublicBlockChainAPI) GasPrice(fullShardKey uint32, tokenID *string) (he
 	return hexutil.Uint64(data), err
 }
 
-func (p *PublicBlockChainAPI) SubmitWork(fullShardKey *hexutil.Uint, headHash common.Hash, nonce hexutil.Uint64, mixHash common.Hash) (bool, error) {
+func (p *PublicBlockChainAPI) SubmitWork(fullShardKey *hexutil.Uint, headHash common.Hash, nonce hexutil.Uint64, mixHash common.Hash, signature *hexutil.Bytes) (bool, error) {
 	fullShardId := uint32(0)
+	var sig *[65]byte = nil
 	var err error
 	if fullShardKey != nil {
 		fullShardId, err = p.clusterConfig.Quarkchain.GetFullShardIdByFullShardKey(uint32(*fullShardKey))
@@ -526,7 +528,14 @@ func (p *PublicBlockChainAPI) SubmitWork(fullShardKey *hexutil.Uint, headHash co
 			return false, err
 		}
 	}
-	submit, err := p.b.SubmitWork(account.NewBranch(fullShardId), headHash, uint64(nonce), mixHash)
+	if signature != nil && len(*signature) != 65 {
+		return false, errors.New("invalid signature, len should be 65")
+	}
+	if signature != nil {
+		copy(sig[:], *signature)
+	}
+
+	submit, err := p.b.SubmitWork(account.NewBranch(fullShardId), headHash, uint64(nonce), mixHash, sig)
 	if err != nil {
 		log.Error("Submit remote minered block", "err", err)
 		return false, nil
