@@ -1412,7 +1412,6 @@ func (m *MinorBlockChain) reorg(oldBlock, newBlock types.IBlock) error {
 		newChain    []types.IBlock
 		oldChain    []types.IBlock
 		commonBlock types.IBlock
-		deletedTxs  types.Transactions
 		deletedLogs []*types.Log
 		// collectLogs collects the logs that were generated during the
 		// processing of the block that corresponds with the given hash.
@@ -1439,7 +1438,6 @@ func (m *MinorBlockChain) reorg(oldBlock, newBlock types.IBlock) error {
 		// reduce old chain
 		for ; oldBlock != nil && oldBlock.NumberU64() != newBlock.NumberU64(); oldBlock = m.GetBlock(oldBlock.IHeader().GetParentHash()) {
 			oldChain = append(oldChain, oldBlock)
-			deletedTxs = append(deletedTxs, oldBlock.(*types.MinorBlock).GetTransactions()...)
 			collectLogs(oldBlock.Hash())
 		}
 	} else {
@@ -1463,7 +1461,6 @@ func (m *MinorBlockChain) reorg(oldBlock, newBlock types.IBlock) error {
 
 		oldChain = append(oldChain, oldBlock)
 		newChain = append(newChain, newBlock)
-		deletedTxs = append(deletedTxs, oldBlock.(*types.MinorBlock).GetTransactions()...)
 		collectLogs(oldBlock.Hash())
 
 		oldBlock, newBlock = m.GetBlock(oldBlock.IHeader().GetParentHash()), m.GetBlock(newBlock.IHeader().GetParentHash())
@@ -1496,14 +1493,16 @@ func (m *MinorBlockChain) reorg(oldBlock, newBlock types.IBlock) error {
 		}
 		addedTxs = append(addedTxs, newChain[i].(*types.MinorBlock).GetTransactions()...)
 	}
-	// calculate the difference between deleted and added transactions
-	diff := types.TxDifference(deletedTxs, addedTxs)
+
 	// When transactions get deleted from the database that means the
 	// receipts that were created in the fork must also be deleted
 	batch := m.db.NewBatch()
-	if err := m.removeTxIndexFromBlock(batch, diff); err != nil {
-		return err
+	for i := len(oldChain) - 1; i >= 0; i-- {
+		if err := m.removeTxIndexFromBlock(batch, oldChain[i].(*types.MinorBlock)); err != nil {
+			return err
+		}
 	}
+
 	batch.Write()
 
 	if len(deletedLogs) > 0 {

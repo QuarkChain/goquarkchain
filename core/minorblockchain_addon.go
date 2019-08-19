@@ -1141,7 +1141,6 @@ func (m *MinorBlockChain) GasPrice(tokenID uint64) (uint64, error) {
 		prices = append(prices, tempPreBlockPrices...)
 	}
 	if len(prices) == 0 {
-		fmt.Println("11500000", m.clusterConfig.Quarkchain.MinTXPoolGasPrice.Uint64())
 		return m.clusterConfig.Quarkchain.MinTXPoolGasPrice.Uint64(), nil
 	}
 
@@ -1264,34 +1263,22 @@ func (m *MinorBlockChain) putTxIndexFromBlock(batch rawdb.DatabaseWriter, block 
 	return m.putTxHistoryIndexFromBlock(minorBlock) // put qkc's xshard tx
 }
 
-func (m *MinorBlockChain) removeTxIndexFromBlock(db rawdb.DatabaseDeleter, txs types.Transactions) error {
-	slovedBlock := make(map[common.Hash]bool)
-	for _, tx := range txs {
-		blockHash, _ := rawdb.ReadBlockContentLookupEntry(m.db, tx.Hash())
-		rawdb.DeleteBlockContentLookupEntry(db, tx.Hash()) //delete eth's tx lookup
-
-		if !m.clusterConfig.EnableTransactionHistory {
-			continue
-		}
-
-		if _, ok := slovedBlock[blockHash]; ok {
-			continue
-		}
-		slovedBlock[blockHash] = true
-		block, ok := m.GetBlock(blockHash).(*types.MinorBlock) // find old block
-		if !ok {
-			return errors.New("get minor block err")
-		}
-		for oldBlockTxIndex, oldBlockTx := range block.Transactions() { // delete qkc's oldBlock's tx
-			if err := m.removeTxHistoryIndex(oldBlockTx, block.Number(), oldBlockTxIndex); err != nil {
-				return err
-			}
-		}
-		if err := m.removeTxHistoryIndexFromBlock(block); err != nil { //delete qkc's crossShard tx
+func (m *MinorBlockChain) removeTxIndexFromBlock(db rawdb.DatabaseDeleter, block *types.MinorBlock) error {
+	blockTxs := block.Transactions()
+	for index, tx := range blockTxs {
+		if err := m.removeTxHistoryIndex(db, tx, block.NumberU64(), index); err != nil {
 			return err
 		}
 	}
-	return nil
+	depositHList := m.getXShardDepositHashList(block.Hash())
+	if depositHList == nil {
+		log.Error(m.logInfo, "impossible err", "please fix it removeTxIndexFromBlock")
+	} else {
+		for _, hash := range depositHList.HList {
+			rawdb.DeleteBlockContentLookupEntry(db, hash)
+		}
+	}
+	return m.removeTxHistoryIndexFromBlock(block)
 }
 
 func bytesSubOne(data []byte) []byte {
@@ -1568,7 +1555,8 @@ func (m *MinorBlockChain) updateTxHistoryIndex(tx *types.Transaction, height uin
 func (m *MinorBlockChain) putTxHistoryIndex(tx *types.Transaction, height uint64, index int) error {
 	return m.updateTxHistoryIndex(tx, height, index, m.putTxIndexDB)
 }
-func (m *MinorBlockChain) removeTxHistoryIndex(tx *types.Transaction, height uint64, index int) error {
+func (m *MinorBlockChain) removeTxHistoryIndex(db rawdb.DatabaseDeleter, tx *types.Transaction, height uint64, index int) error {
+	rawdb.DeleteBlockContentLookupEntry(db, tx.Hash())
 	return m.updateTxHistoryIndex(tx, height, index, m.deleteTxIndexDB)
 }
 

@@ -3,7 +3,6 @@ package core
 import (
 	"encoding/hex"
 	"errors"
-	"fmt"
 	"github.com/QuarkChain/goquarkchain/qkcdb"
 	"math/big"
 	"strings"
@@ -112,7 +111,6 @@ func getTestEnv(genesisAccount *account.Address, genesisMinorQuarkHash *uint64, 
 		shardConfig := fakeClusterConfig.Quarkchain.GetShardConfigByFullShardID(v)
 		if len(testGenesisMinorTokenBalance) != 0 {
 			shardConfig.Genesis.Alloc[addr] = testGenesisMinorTokenBalance
-			fmt.Println("??????????????")
 			continue
 		}
 		temp := make(map[string]*big.Int)
