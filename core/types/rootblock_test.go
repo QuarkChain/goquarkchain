@@ -10,7 +10,8 @@ import (
 )
 
 func TestRootBlockEncoding(t *testing.T) {
-	rootBlockHeaderEnc := common.FromHex("0000000100000002a40920ae6f758f88c61b405f9fc39fdd6274666462b14e3887522166e6537a97297d6ae9803346cdb059a671dea7e37b684dcabfa767f2d872026ad0a3aba495d3f86deb4a2bbf85048b3e790460c40dbab1f621000003ff00000000000000000000000000000000000000000000000000000000000003e800000000009896800227100227100000000000000064000401020304df227f34313c2bc4a4a986817ea46437f049873f2fca8e2b89b1ecd0f9e67a28ebb1e3be631d473446760c1cec98e9f2922cd5aa849d1e5cdb2b1c55ee77391c627f01155e70f5e55fb998e246cd7733f11ffc83f2c1ae729ed49eb3e1e0262d01")
+	rootBlockHeaderEnc := common.FromHex("0000000100000002a40920ae6f758f88c61b405f9fc39fdd6274666462b14e3887522166e6537a97297d6ae9803346cdb059a671dea7e37b684dcabfa767f2d872026ad0a3aba495d3f86deb4a2bbf85048b3e790460c40dbab1f621000003ff00000000000000000000000000000000000000000000000000000000000003e800000000009896800227100227100000000000000064000401020304df227f34313c2bc4a4a986817ea46437f049873f2fca8e2b89b1ecd0f9e67a28a548f2718797a464bc5f52a8ae18068703edbb2550c78db312ebebb6d8f80c3d1af4416c6b21cf72b5d868fddeb9dbd5d40095c1e74e0b94e9d76915bb0fd1c201")
+	//rootBlockHeaderEnc := common.FromHex("0000000100000002a40920ae6f758f88c61b405f9fc39fdd6274666462b14e3887522166e6537a97297d6ae9803346cdb059a671dea7e37b684dcabfa767f2d872026ad0a3aba495d3f86deb4a2bbf85048b3e790460c40dbab1f621000003ff00000000000000000000000000000000000000000000000000000000000003e800000000009896800227100227100000000000000064000401020304df227f34313c2bc4a4a986817ea46437f049873f2fca8e2b89b1ecd0f9e67a28ebb1e3be631d473446760c1cec98e9f2922cd5aa849d1e5cdb2b1c55ee77391c627f01155e70f5e55fb998e246cd7733f11ffc83f2c1ae729ed49eb3e1e0262d01")
 	var blockHeader RootBlockHeader
 	bb := serialize.NewByteBuffer(rootBlockHeaderEnc)
 	if err := serialize.Deserialize(bb, &blockHeader); err != nil {
@@ -23,7 +24,6 @@ func TestRootBlockEncoding(t *testing.T) {
 	}
 
 	key, _ := crypto.HexToECDSA("c987d4506fb6824639f9a9e3b8834584f5165e94680501d1b0044071cd36c3b3")
-	blockHeader.SignWithPrivateKey(key)
 
 	check := func(f string, got, want interface{}) {
 		if !reflect.DeepEqual(got, want) {
@@ -44,10 +44,10 @@ func TestRootBlockEncoding(t *testing.T) {
 	check("Extra", common.Bytes2Hex(blockHeader.Extra), "01020304")
 	check("MixDigest", common.Bytes2Hex(blockHeader.MixDigest.Bytes()), "df227f34313c2bc4a4a986817ea46437f049873f2fca8e2b89b1ecd0f9e67a28")
 	if crypto.CryptoType == "nogm" {
-		check("Signature", common.Bytes2Hex(blockHeader.Signature[:]), "ebb1e3be631d473446760c1cec98e9f2922cd5aa849d1e5cdb2b1c55ee77391c627f01155e70f5e55fb998e246cd7733f11ffc83f2c1ae729ed49eb3e1e0262d01")
+		check("Signature", common.Bytes2Hex(blockHeader.Signature[:]), "a548f2718797a464bc5f52a8ae18068703edbb2550c78db312ebebb6d8f80c3d1af4416c6b21cf72b5d868fddeb9dbd5d40095c1e74e0b94e9d76915bb0fd1c201")
 		check("Hash", common.Bytes2Hex(blockHeader.Hash().Bytes()), "a6cddb462f647e15298aff364870837904a842c1bc8e8bfd27862f7553da8e0c")
 	} else {
-		check("Signature", common.Bytes2Hex(blockHeader.Signature[:]), "808232568019aac5f0718bf121dc8b445ea17a91734363a5cd6702d1612b00f93f6c71bbee57980bf5186e41b0b33293776ba1fd4407ec94616b89508ba9a33b01")
+		check("Signature", common.Bytes2Hex(blockHeader.Signature[:]), "a548f2718797a464bc5f52a8ae18068703edbb2550c78db312ebebb6d8f80c3d1af4416c6b21cf72b5d868fddeb9dbd5d40095c1e74e0b94e9d76915bb0fd1c201")
 		check("Hash", common.Bytes2Hex(blockHeader.Hash().Bytes()), "5dc4a399af04427b4834acafd9c69461a52b65a9f81b29ee2164f8f4ba07e076")
 	}
 	check("serialize", common.Bytes2Hex(bytes), common.Bytes2Hex(rootBlockHeaderEnc))
@@ -87,7 +87,10 @@ func TestRootBlockEncoding(t *testing.T) {
 		t.Fatal("Serialize error: ", err)
 	}
 
-	block.header.SignWithPrivateKey(key)
+	block.SignWithPrivateKey(key)
+	if crypto.CryptoType == "gm" {
+		blockHeader.Signature = block.header.Signature
+	}
 	check("header", block.header, &blockHeader)
 	check("headers", block.minorBlockHeaders.Len(), headers.Len())
 	check("headers[0]", block.minorBlockHeaders[0].Hash(), headers[0].Hash())
@@ -98,7 +101,6 @@ func TestRootBlockEncoding(t *testing.T) {
 	} else {
 		check("blockhash", common.Bytes2Hex(block.Hash().Bytes()), "5dc4a399af04427b4834acafd9c69461a52b65a9f81b29ee2164f8f4ba07e076")
 	}
-
 	check("serialize", common.Bytes2Hex(bytes), common.Bytes2Hex(blockEnc))
 
 }

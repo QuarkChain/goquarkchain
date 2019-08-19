@@ -7,6 +7,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
+	"math/big"
 	"runtime"
 	"sync"
 	"sync/atomic"
@@ -21,13 +22,18 @@ var (
 	threads = runtime.NumCPU()
 )
 
+type workAdjusted struct {
+	block             types.IBlock
+	adjustedDifficuty *big.Int
+}
+
 type Miner struct {
 	api           MinerAPI
 	engine        consensus.Engine
 	minerInterval time.Duration
 
 	resultCh  chan types.IBlock
-	workCh    chan types.IBlock
+	workCh    chan workAdjusted
 	startCh   chan struct{}
 	exitCh    chan struct{}
 	mu        sync.RWMutex
@@ -44,7 +50,7 @@ func New(ctx *service.ServiceContext, api MinerAPI, engine consensus.Engine, int
 		minerInterval: time.Duration(interval) * time.Second,
 		timestamp:     &ctx.Timestamp,
 		resultCh:      make(chan types.IBlock, 1),
-		workCh:        make(chan types.IBlock, 1),
+		workCh:        make(chan workAdjusted, 1),
 		startCh:       make(chan struct{}, 1),
 		exitCh:        make(chan struct{}),
 		stopCh:        make(chan struct{}),
@@ -71,7 +77,7 @@ func (m *Miner) commit() {
 		return
 	}
 	m.interrupt()
-	block, err := m.api.CreateBlockToMine()
+	block, diff, err := m.api.CreateBlockToMine()
 	if err != nil {
 		log.Error(m.logInfo, "create block to mine err", err)
 		// retry to create block to mine
@@ -84,7 +90,7 @@ func (m *Miner) commit() {
 		log.Error(m.logInfo, "block's height small than tipHeight after commit blockNumber ,no need to seal", block.NumberU64(), "tip", m.getTip())
 		return
 	}
-	m.workCh <- block
+	m.workCh <- workAdjusted{block, diff}
 }
 
 func (m *Miner) mainLoop(recommit time.Duration) {
@@ -95,8 +101,8 @@ func (m *Miner) mainLoop(recommit time.Duration) {
 			m.commit()
 
 		case work := <-m.workCh:
-			log.Info(m.logInfo, "ready to seal height", work.NumberU64())
-			if err := m.engine.Seal(nil, work, m.resultCh, m.stopCh); err != nil {
+			log.Info(m.logInfo, "ready to seal height", work.block.NumberU64())
+			if err := m.engine.Seal(nil, work.block, work.adjustedDifficuty, m.resultCh, m.stopCh); err != nil {
 				log.Error(m.logInfo, "Seal block to mine err", err)
 				m.commit()
 			}
@@ -158,11 +164,11 @@ func (m *Miner) GetWork() (*consensus.MiningWork, error) {
 	return m.engine.GetWork()
 }
 
-func (m *Miner) SubmitWork(nonce uint64, hash, digest common.Hash) bool {
+func (m *Miner) SubmitWork(nonce uint64, hash, digest common.Hash, signature *[65]byte) bool {
 	if atomic.LoadUint32(&m.isMining) == 0 {
 		return false
 	}
-	return m.engine.SubmitWork(nonce, hash, digest)
+	return m.engine.SubmitWork(nonce, hash, digest, signature)
 }
 
 func (m *Miner) HandleNewTip() {

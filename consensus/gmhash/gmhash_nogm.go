@@ -24,6 +24,6 @@ func (g *GmSm3Hash) Finalize(chain consensus.ChainReader, header types.IHeader, 
 }
 
 // New returns a GmSm3Hash scheme.
-func New(diffCalculator consensus.DifficultyCalculator, remote bool) *GmSm3Hash {
+func New(diffCalculator consensus.DifficultyCalculator, remote bool, pubKey []byte) *GmSm3Hash {
 	panic("do not support gm consensus for !gm build")
 }

@@ -19,6 +19,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/core/rawdb"
 	"github.com/QuarkChain/goquarkchain/core/types"
+	"github.com/QuarkChain/goquarkchain/crypto"
 	"github.com/QuarkChain/goquarkchain/serialize"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/mclock"
@@ -1120,6 +1121,19 @@ func (bc *RootBlockChain) Config() *config.QuarkChainConfig { return bc.chainCon
 // Engine retrieves the blockchain's consensus engine.
 func (bc *RootBlockChain) Engine() consensus.Engine { return bc.engine }
 
+func (m *RootBlockChain) SkipDifficultyCheck() bool {
+	return m.Config().SkipRootDifficultyCheck
+}
+
+func (m *RootBlockChain) GetAdjustedDifficulty(header types.IHeader) (*big.Int, error) {
+	rHeader := header.(*types.RootBlockHeader)
+	adjustedDiff := rHeader.GetDifficulty()
+	if crypto.VerifySignature(common.FromHex(m.Config().GuardianPublicKey), rHeader.SealHash().Bytes(), rHeader.Signature[:64]) {
+		adjustedDiff = new(big.Int).Div(rHeader.GetDifficulty(), new(big.Int).SetUint64(1000))
+	}
+	return adjustedDiff, nil
+}
+
 // SubscribeRemovedLogsEvent registers a subscription of RemovedLogsEvent.
 func (bc *RootBlockChain) SubscribeRemovedLogsEvent(ch chan<- RemovedLogsEvent) event.Subscription {
 	return bc.scope.Track(bc.rmLogsFeed.Subscribe(ch))
@@ -1158,6 +1172,16 @@ func (bc *RootBlockChain) CreateBlockToMine(mHeaderList []*types.MinorBlockHeade
 	}
 	block := bc.CurrentBlock().Header().CreateBlockToAppend(createTime, difficulty, address, nil, nil)
 	block.ExtendMinorBlockHeaderList(mHeaderList)
+	if len(bc.chainConfig.GuardianPrivateKey) > 0 {
+		prvKey, err := crypto.ToECDSA(bc.chainConfig.GuardianPrivateKey)
+		if err != nil {
+			return nil, err
+		}
+		err = block.SignWithPrivateKey(prvKey)
+		if err != nil {
+			return nil, err
+		}
+	}
 	block.Finalize(bc.CalculateRootBlockCoinBase(block), address)
 	return block, nil
 }

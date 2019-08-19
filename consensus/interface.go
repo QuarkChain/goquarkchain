@@ -68,7 +68,7 @@ type Engine interface {
 	//
 	// Note, the method returns immediately and will send the result async. More
 	// than one result may also be returned depending on the consensus algorithm.
-	Seal(chain ChainReader, block types.IBlock, results chan<- types.IBlock, stop <-chan struct{}) error
+	Seal(chain ChainReader, block types.IBlock, diff *big.Int, results chan<- types.IBlock, stop <-chan struct{}) error
 
 	// CalcDifficulty is the difficulty adjustment algorithm. It returns the difficulty
 	// that a new block should have.
@@ -76,11 +76,9 @@ type Engine interface {
 
 	GetWork() (*MiningWork, error)
 
-	SubmitWork(nonce uint64, hash, digest common.Hash) bool
+	SubmitWork(nonce uint64, hash, digest common.Hash, signature *[65]byte) bool
 
 	SetThreads(threads int)
-
-
 
 	// Close terminates any background threads maintained by the consensus engine.
 	Close() error

@@ -191,7 +191,7 @@ func (s *ShardBackend) GetWork() (*consensus.MiningWork, error) {
 }
 
 func (s *ShardBackend) SubmitWork(headerHash common.Hash, nonce uint64, mixHash common.Hash) error {
-	if ok := s.miner.SubmitWork(nonce, headerHash, mixHash); ok {
+	if ok := s.miner.SubmitWork(nonce, headerHash, mixHash, nil); ok {
 		return nil
 	}
 	return errors.New("submit mined work failed")
@@ -304,8 +304,14 @@ func (s *ShardBackend) GenTx(genTxs *rpc.GenTxRequest) error {
 }
 
 // miner api
-func (s *ShardBackend) CreateBlockToMine() (types.IBlock, error) {
-	return s.MinorBlockChain.CreateBlockToMine(nil, &s.Config.CoinbaseAddress, nil)
+func (s *ShardBackend) CreateBlockToMine() (types.IBlock, *big.Int, error) {
+	minorBlock, err := s.MinorBlockChain.CreateBlockToMine(nil, &s.Config.CoinbaseAddress, nil)
+	if err != nil {
+
+		return nil, nil, err
+
+	}
+	return minorBlock, minorBlock.Difficulty(), nil
 }
 
 func (s *ShardBackend) InsertMinedBlock(block types.IBlock) error {

@@ -70,13 +70,13 @@ func verifySeal(chain consensus.ChainReader, header types.IHeader, adjustedDiff 
 }
 
 // New returns a GmSm3Hash scheme.
-func New(diffCalculator consensus.DifficultyCalculator, remote bool) *GmSm3Hash {
+func New(diffCalculator consensus.DifficultyCalculator, remote bool, pubKey []byte) *GmSm3Hash {
 	spec := consensus.MiningSpec{
 		Name:       config.PoWGmhash,
 		HashAlgo:   hashAlgo,
 		VerifySeal: verifySeal,
 	}
 	return &GmSm3Hash{
-		CommonEngine: consensus.NewCommonEngine(spec, diffCalculator, remote),
+		CommonEngine: consensus.NewCommonEngine(spec, diffCalculator, remote, pubKey),
 	}
 }
