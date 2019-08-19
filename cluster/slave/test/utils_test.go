@@ -270,7 +270,7 @@ func (s *SlaveServerSideOp) GetTransactionListByAddress(ctx context.Context, req
 func (s *SlaveServerSideOp) GetAllTx(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
 	var (
 		gReq     rpc.GetAllTxRequest
-		gRep     rpc.GetAllTxResponse
+		gRep     rpc.GetTxDetailResponse
 		buf      = serialize.NewByteBuffer(req.Data)
 		response = &rpc.Response{RpcId: req.RpcId}
 		err      error
