@@ -40,10 +40,10 @@ type Receipt struct {
 	Logs              []*Log `json:"logs"              gencodec:"required"`
 
 	// Implementation fields (don't reorder!)
-	TxHash              common.Hash       `json:"transactionHash" gencodec:"required"`
-	ContractAddress     account.Recipient `json:"contractAddress"`
-	ContractFullShardId uint32            `json:"contractFullShardId"`
-	GasUsed             uint64            `json:"gasUsed" gencodec:"required"`
+	TxHash               common.Hash       `json:"transactionHash" gencodec:"required"`
+	ContractAddress      account.Recipient `json:"contractAddress"`
+	ContractFullShardKey uint32            `json:"contractFullShardKey"`
+	GasUsed              uint64            `json:"gasUsed" gencodec:"required"`
 }
 
 type receiptMarshaling struct {
@@ -65,23 +65,23 @@ type receiptSer struct {
 
 // receiptRLP is the consensus encoding of a receipt.
 type receiptRLP struct {
-	PostStateOrStatus   []byte
-	CumulativeGasUsed   uint64
-	Bloom               Bloom
-	Logs                []*Log
-	ContractAddress     account.Recipient
-	ContractFullShardId uint32
+	PostStateOrStatus    []byte
+	CumulativeGasUsed    uint64
+	Bloom                Bloom
+	Logs                 []*Log
+	ContractAddress      account.Recipient
+	ContractFullShardKey uint32
 }
 
 type receiptStorageRLP struct {
-	PostStateOrStatus   []byte
-	CumulativeGasUsed   uint64
-	Bloom               Bloom
-	TxHash              common.Hash
-	ContractAddress     account.Recipient
-	ContractFullShardId uint32
-	Logs                []*LogForStorage
-	GasUsed             uint64
+	PostStateOrStatus    []byte
+	CumulativeGasUsed    uint64
+	Bloom                Bloom
+	TxHash               common.Hash
+	ContractAddress      account.Recipient
+	ContractFullShardKey uint32
+	Logs                 []*LogForStorage
+	GasUsed              uint64
 }
 
 // NewReceipt creates a barebone transaction receipt, copying the init fields.
@@ -105,7 +105,8 @@ func (r *Receipt) Deserialize(bb *serialize.ByteBuffer) error {
 		return err
 	}
 
-	r.CumulativeGasUsed, r.Bloom, r.Logs, r.GasUsed, r.ContractAddress, r.ContractFullShardId = rs.CumulativeGasUsed, rs.Bloom, rs.Logs, rs.CumulativeGasUsed-rs.PrevGasUsed, rs.ContractAddress.Recipient, rs.ContractAddress.FullShardKey
+	r.CumulativeGasUsed, r.Bloom, r.Logs, r.GasUsed, r.ContractAddress, r.ContractFullShardKey = rs.CumulativeGasUsed,
+		rs.Bloom, rs.Logs, rs.CumulativeGasUsed-rs.PrevGasUsed, rs.ContractAddress.Recipient, rs.ContractAddress.FullShardKey
 	return nil
 }
 
@@ -116,7 +117,7 @@ func (r *Receipt) Serialize(w *[]byte) error {
 		r.CumulativeGasUsed,
 		r.GetPrevGasUsed(),
 		r.Bloom,
-		account.Address{Recipient: r.ContractAddress, FullShardKey: r.ContractFullShardId},
+		account.Address{Recipient: r.ContractAddress, FullShardKey: r.ContractFullShardKey},
 		r.Logs,
 	})
 }
@@ -135,7 +136,7 @@ func (r *Receipt) EncodeRLP(w io.Writer) error {
 			r.Bloom,
 			r.Logs,
 			r.ContractAddress,
-			r.ContractFullShardId})
+			r.ContractFullShardKey})
 }
 
 // DecodeRLP implements rlp.Decoder, and loads the consensus fields of a receipt
@@ -148,7 +149,8 @@ func (r *Receipt) DecodeRLP(s *rlp.Stream) error {
 	if err := r.setStatus(dec.PostStateOrStatus); err != nil {
 		return err
 	}
-	r.CumulativeGasUsed, r.Bloom, r.Logs, r.ContractAddress, r.ContractFullShardId = dec.CumulativeGasUsed, dec.Bloom, dec.Logs, dec.ContractAddress, dec.ContractFullShardId
+	r.CumulativeGasUsed, r.Bloom, r.Logs, r.ContractAddress, r.ContractFullShardKey = dec.CumulativeGasUsed,
+		dec.Bloom, dec.Logs, dec.ContractAddress, dec.ContractFullShardKey
 	return nil
 }
 
@@ -196,14 +198,14 @@ type ReceiptForStorage Receipt
 // into an RLP stream.
 func (r *ReceiptForStorage) EncodeRLP(w io.Writer) error {
 	enc := &receiptStorageRLP{
-		PostStateOrStatus:   (*Receipt)(r).statusEncoding(),
-		CumulativeGasUsed:   r.CumulativeGasUsed,
-		Bloom:               r.Bloom,
-		TxHash:              r.TxHash,
-		ContractAddress:     r.ContractAddress,
-		ContractFullShardId: r.ContractFullShardId,
-		Logs:                make([]*LogForStorage, len(r.Logs)),
-		GasUsed:             r.GasUsed,
+		PostStateOrStatus:    (*Receipt)(r).statusEncoding(),
+		CumulativeGasUsed:    r.CumulativeGasUsed,
+		Bloom:                r.Bloom,
+		TxHash:               r.TxHash,
+		ContractAddress:      r.ContractAddress,
+		ContractFullShardKey: r.ContractFullShardKey,
+		Logs:                 make([]*LogForStorage, len(r.Logs)),
+		GasUsed:              r.GasUsed,
 	}
 	for i, log := range r.Logs {
 		enc.Logs[i] = (*LogForStorage)(log)
@@ -228,7 +230,8 @@ func (r *ReceiptForStorage) DecodeRLP(s *rlp.Stream) error {
 		r.Logs[i] = (*Log)(log)
 	}
 	// Assign the implementation fields
-	r.TxHash, r.ContractAddress, r.ContractFullShardId, r.GasUsed = dec.TxHash, dec.ContractAddress, dec.ContractFullShardId, dec.GasUsed
+	r.TxHash, r.ContractAddress, r.ContractFullShardKey, r.GasUsed = dec.TxHash, dec.ContractAddress,
+		dec.ContractFullShardKey, dec.GasUsed
 	return nil
 }
 

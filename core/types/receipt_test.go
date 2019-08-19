@@ -43,7 +43,7 @@ func TestReceiptSerializing(t *testing.T) {
 	check("Logs[0]BlockHash", common.Bytes2Hex(receipt.Logs[0].BlockHash.Bytes()), "df227f34313c2bc4a4a986817ea46437f049873f2fca8e2b89b1ecd0f9e67a28")
 	check("Logs[0]Index", receipt.Logs[0].Index, uint32(200))
 	check("ContractAddress", common.Bytes2Hex(receipt.ContractAddress.Bytes()), "d3f86deb4a2bbf85048b3e790460c40dbab1f621")
-	check("ContractFullShardId", receipt.ContractFullShardId, uint32(10))
+	check("ContractFullShardKey", receipt.ContractFullShardKey, uint32(10))
 	check("GasUsed", receipt.GasUsed, uint64(100))
 	check("serialize", common.Bytes2Hex(bytes), common.Bytes2Hex(receiptEnc))
 
@@ -73,7 +73,7 @@ func TestReceiptSerializing(t *testing.T) {
 	check("Logs[0]Topics[1]", common.Bytes2Hex(receiptRlp.Logs[0].Topics[1].Bytes()), "297d6ae9803346cdb059a671dea7e37b684dcabfa767f2d872026ad0a3aba495")
 	check("Logs[0]data", common.Bytes2Hex(receiptRlp.Logs[0].Data), "010203")
 	check("rlpContractAddress", common.Bytes2Hex(receiptRlp.ContractAddress.Bytes()), "d3f86deb4a2bbf85048b3e790460c40dbab1f621")
-	check("ContractFullShardId", receiptRlp.ContractFullShardId, uint32(10))
+	check("ContractFullShardKey", receiptRlp.ContractFullShardKey, uint32(10))
 	check("rlpserialize", common.Bytes2Hex(bytes), common.Bytes2Hex(receiptRlpEnc))
 
 }

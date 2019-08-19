@@ -1870,7 +1870,7 @@ func TestContractCall(t *testing.T) {
 	assert.NoError(t, err)
 	acc1 := account.CreatAddressFromIdentity(id1, 0)
 	acc2 := account.CreatAddressFromIdentity(id2, 0)
-	storageKeyStr := ZFill64(hex.EncodeToString(acc2.Recipient[:])) + ZFill64("1")
+	storageKeyStr := ZFill64(hex.EncodeToString(acc1.Recipient[:])) + ZFill64("1")
 	storageKeyBytes, err := hex.DecodeString(storageKeyStr)
 	assert.NoError(t, err)
 	storageKey := crypto.Keccak256Hash(storageKeyBytes)
@@ -1898,11 +1898,11 @@ func TestContractCall(t *testing.T) {
 	assert.NoError(t, err)
 	_, _, contractReceipt := shardState.GetTransactionReceipt(tx0.Hash())
 	assert.Equal(t, uint64(0x1), contractReceipt.Status)
-	contractAddress := account.NewAddress(contractReceipt.ContractAddress, contractReceipt.ContractFullShardId)
+	contractAddress := account.NewAddress(contractReceipt.ContractAddress, contractReceipt.ContractFullShardKey)
 
 	data, err := hex.DecodeString("c2e171d7")
 	value, gasPrice, gas := big.NewInt(0), uint64(1), uint64(50000)
-	tx3 := createTransferTransaction(shardState, id2.GetKey().Bytes(), acc2, contractAddress,
+	tx3 := createTransferTransaction(shardState, id1.GetKey().Bytes(), acc1, contractAddress,
 		value, &gas, &gasPrice, nil, data, nil, nil)
 	err = shardState.AddTx(tx3)
 	assert.NoError(t, err)
