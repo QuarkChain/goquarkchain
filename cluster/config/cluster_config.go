@@ -103,7 +103,6 @@ type QuarkChainConfig struct {
 	XShardGasDDOSFixRootHeight        uint64              `json:"XSHARD_GAS_DDOS_FIX_ROOT_HEIGHT"`
 	MinTXPoolGasPrice                 *big.Int            `json:"MIN_TX_POOL_GAS_PRICE"`
 	MinMiningGasPrice                 *big.Int            `json:"MIN_MINING_GAS_PRICE"`
-	SkipRunCrossShardTx               bool
 }
 
 type QuarkChainConfigAlias QuarkChainConfig
@@ -308,7 +307,6 @@ func NewQuarkChainConfig() *QuarkChainConfig {
 		SkipRootDifficultyCheck:           false,
 		SkipRootCoinbaseCheck:             false,
 		SkipMinorDifficultyCheck:          false,
-		SkipRunCrossShardTx:               false,
 		GenesisToken:                      DefaultToken,
 		RewardTaxRate:                     new(big.Rat).SetFloat64(0.5),
 		BlockRewardDecayFactor:            new(big.Rat).SetFloat64(0.5),

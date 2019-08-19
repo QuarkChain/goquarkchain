@@ -82,6 +82,7 @@ func New(
 	config Config,
 	diffCalculator consensus.DifficultyCalculator,
 	remote bool,
+	pubKey []byte,
 ) *QEthash {
 	ethash := newEthash(config)
 	q := &QEthash{
@@ -92,6 +93,6 @@ func New(
 		HashAlgo:   q.hashAlgo,
 		VerifySeal: q.verifySeal,
 	}
-	q.CommonEngine = consensus.NewCommonEngine(spec, diffCalculator, remote)
+	q.CommonEngine = consensus.NewCommonEngine(spec, diffCalculator, remote, pubKey)
 	return q
 }

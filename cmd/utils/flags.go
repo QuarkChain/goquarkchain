@@ -255,12 +255,14 @@ func setBootstrapNodes(ctx *cli.Context, cfg *p2p.Config, clstrCfg *config.Clust
 	}
 
 	cfg.BootstrapNodes = make([]*enode.Node, 0, len(urls))
+	cfg.WhitelistNodes = make(map[string]*enode.Node)
 	for _, url := range urls {
 		node, err := enode.ParseV4(url)
 		if err != nil {
 			log.Crit("Bootstrap URL invalid", "enode", url, "err", err)
 		}
 		cfg.BootstrapNodes = append(cfg.BootstrapNodes, node)
+		cfg.WhitelistNodes[node.IP().String()] = node
 	}
 }
 
@@ -341,6 +343,8 @@ func SetP2PConfig(ctx *cli.Context, cfg *p2p.Config, clstrCfg *config.ClusterCon
 		}
 		cfg.PrivateKey = privkey
 	}
+
+	cfg.NetWorkId = clstrCfg.Quarkchain.NetworkID
 
 	cfg.MaxPeers = int(clstrCfg.P2P.MaxPeers)
 	log.Info("Maximum peer count", "QKC", cfg.MaxPeers, "total", cfg.MaxPeers)

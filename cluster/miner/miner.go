@@ -160,11 +160,11 @@ func (m *Miner) GetWork() (*consensus.MiningWork, error) {
 	return m.engine.GetWork()
 }
 
-func (m *Miner) SubmitWork(nonce uint64, hash, digest common.Hash) bool {
+func (m *Miner) SubmitWork(nonce uint64, hash, digest common.Hash, signature *[65]byte) bool {
 	if !m.IsMining() || m.api.IsSyncIng() {
 		return false
 	}
-	return m.engine.SubmitWork(nonce, hash, digest)
+	return m.engine.SubmitWork(nonce, hash, digest, signature)
 }
 
 func (m *Miner) HandleNewTip() {
