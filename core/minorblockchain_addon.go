@@ -1147,11 +1147,16 @@ func (m *MinorBlockChain) GasPrice(tokenID uint64) (uint64, error) {
 		prices = append(prices, tempPreBlockPrices...)
 	}
 	if len(prices) == 0 {
+		fmt.Println("11500000", m.clusterConfig.Quarkchain.MinTXPoolGasPrice.Uint64())
 		return m.clusterConfig.Quarkchain.MinTXPoolGasPrice.Uint64(), nil
 	}
 
 	sort.Slice(prices, func(i, j int) bool { return prices[i] < prices[j] })
 	price := prices[(len(prices)-1)*int(m.gasPriceSuggestionOracle.Percentile)/100]
+	m.gasPriceSuggestionOracle.cache.Add(gasPriceKey{
+		currHead: currHead,
+		tokenID:  tokenID,
+	}, price)
 	return price, nil
 }
 

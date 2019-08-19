@@ -5,7 +5,6 @@ import (
 	"errors"
 	"io/ioutil"
 	"math/big"
-	"math/rand"
 	"os"
 	"reflect"
 	"testing"
@@ -98,12 +97,26 @@ func TestGasPrice(t *testing.T) {
 		accList = append(accList, account.CreatAddressFromIdentity(v, 0))
 	}
 
-	fakeData := uint64(10000000)
+	testGenesisMinorTokenBalance = map[string]*big.Int{
+		"QKC": new(big.Int).SetUint64(100000000),
+		"QI":  new(big.Int).SetUint64(100000000),
+		"BTC": new(big.Int).SetUint64(100000000),
+	}
+	defer func() {
+		testGenesisMinorTokenBalance = make(map[string]*big.Int)
+	}()
+	fakeData := uint64(100000000)
 	env := setUp(&accList[0], &fakeData, nil)
 	shardState := createDefaultShardState(env, nil, nil, nil, nil)
 	fakeChan := make(chan uint64, 100)
 	shardState.txPool.fakeChanForReset = fakeChan
 	defer shardState.Stop()
+
+	qkcToken := qkcCommon.TokenIDEncode("QKC")
+	qiToken := qkcCommon.TokenIDEncode("QI")
+	btcToken := qkcCommon.TokenIDEncode("BTC")
+	qkcPrices := []uint64{42, 42, 100, 42, 41}
+	qiPrices := []uint64{43, 101, 43, 41, 40}
 
 	// Add a root block to have all the shards initialized
 	rootBlock := shardState.rootTip.CreateBlockToAppend(nil, nil, nil, nil, nil)
@@ -112,16 +125,37 @@ func TestGasPrice(t *testing.T) {
 	_, err := shardState.AddRootBlock(rootBlock)
 	checkErr(err)
 
-	// 5 tx per block, make 3 blocks
-	for blockIndex := 0; blockIndex < 3; blockIndex++ {
-		for txIndex := 0; txIndex < 5; txIndex++ {
-			randomIndex := rand.Int() % 1
-			fakeValue := uint64(0)
-			fakeGasPrice := uint64(42)
-			if txIndex != 0 {
-				fakeGasPrice = 0
+	// 5 tx per block, make 5 blocks
+	for nonce := 0; nonce < 5; nonce++ {
+		for accIndex := 0; accIndex < 5; accIndex++ {
+			var qkcPrice, qiPrice *big.Int
+			if accIndex != 0 {
+				qkcPrice = new(big.Int)
+				qiPrice = new(big.Int)
+			} else {
+				qkcPrice = new(big.Int).SetUint64(qkcPrices[nonce])
+				qiPrice = new(big.Int).SetUint64(qiPrices[nonce])
 			}
-			tempTx := createTransferTransaction(shardState, idList[txIndex].GetKey().Bytes(), accList[txIndex], accList[randomIndex], new(big.Int).SetUint64(fakeValue), nil, &fakeGasPrice, nil, nil, nil, nil)
+
+			randomIndex := (accIndex + 1) % 5
+			fakeGasPrice := qkcPrice.Uint64()
+			fakeNonce := uint64(nonce * 2)
+			fakeToken := qkcToken
+
+			tempTx := createTransferTransaction(shardState, idList[accIndex].GetKey().Bytes(), accList[accIndex],
+				accList[randomIndex], new(big.Int).SetUint64(0), nil, &fakeGasPrice, &fakeNonce,
+				nil, &fakeToken, nil)
+			err = shardState.AddTx(tempTx)
+			checkErr(err)
+
+			randomIndex = (accIndex + 1) % 5
+			fakeGasPrice = qiPrice.Uint64()
+			fakeNonce = uint64(nonce*2) + 1
+			fakeToken = qiToken
+
+			tempTx = createTransferTransaction(shardState, idList[accIndex].GetKey().Bytes(), accList[accIndex],
+				accList[randomIndex], new(big.Int).SetUint64(0), nil, &fakeGasPrice, &fakeNonce,
+				nil, &fakeToken, nil)
 			err = shardState.AddTx(tempTx)
 			checkErr(err)
 		}
@@ -133,30 +167,48 @@ func TestGasPrice(t *testing.T) {
 		for forRe == true {
 			select {
 			case result := <-fakeChan:
-				if result == uint64(blockIndex+1) {
+				if result == uint64(nonce+1) {
 					forRe = false
 				}
 			case <-time.After(2 * time.Second):
 				panic(errors.New("should end here"))
 
 			}
+
 		}
 
 	}
 
 	currentNumber := int(shardState.CurrentBlock().NumberU64())
-	assert.Equal(t, currentNumber, 3)
+	assert.Equal(t, currentNumber, 5)
 	// for testing purposes, update percentile to take max gas price
 	shardState.gasPriceSuggestionOracle.Percentile = 100
-	gasPrice, err := shardState.GasPrice(genesisTokenID)
+	gasPrice, err := shardState.GasPrice(qkcToken)
+	assert.NoError(t, err)
+	assert.Equal(t, gasPrice, uint64(100))
+
+	gasPrice, err = shardState.GasPrice(qiToken)
+	assert.NoError(t, err)
+	assert.Equal(t, gasPrice, uint64(43))
+
+	//clear the cache, update percentile to take the second largest gas price
+	shardState.gasPriceSuggestionOracle.cache.Purge()
+	shardState.gasPriceSuggestionOracle.Percentile = 95
+	gasPrice, err = shardState.GasPrice(qkcToken)
 	assert.NoError(t, err)
 	assert.Equal(t, gasPrice, uint64(42))
 
-	// results should be cached (same header). updating oracle shouldn't take effect
-	shardState.gasPriceSuggestionOracle.Percentile = 50
-	gasPrice2, err := shardState.GasPrice(genesisTokenID)
+	gasPrice, err = shardState.GasPrice(qiToken)
 	assert.NoError(t, err)
-	assert.Equal(t, gasPrice2, uint64(42))
+	assert.Equal(t, gasPrice, uint64(41))
+
+	gasPrice, err = shardState.GasPrice(btcToken)
+	assert.NoError(t, err)
+	assert.Equal(t, gasPrice, uint64(0))
+
+	gasPrice, err = shardState.GasPrice(1)
+	assert.Error(t, err)
+	assert.Equal(t, gasPrice, uint64(0))
 
 }
 
