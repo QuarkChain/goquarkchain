@@ -1321,7 +1321,7 @@ func (m *MinorBlockChain) getPendingTxByAddress(address account.Address, transfe
 		if err != nil {
 			return nil, nil, err
 		}
-		if !needStore(sender, tx) {
+		if needStore(sender, tx) {
 			to := new(account.Address)
 			if tx.EvmTx.To() == nil {
 				to = nil
