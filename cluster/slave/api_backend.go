@@ -297,7 +297,7 @@ func (s *SlaveBackend) GetAllTx(branch account.Branch, start []byte, limit uint3
 	if shard, ok := s.shards[branch.Value]; ok {
 		return shard.GetAllTx(start, limit)
 	}
-	return nil, nil, ErrMsg("GetTransactionListByAddress")
+	return nil, nil, ErrMsg("GetAllTx")
 }
 
 func (s *SlaveBackend) GetLogs(topics [][]common.Hash, address []account.Address, start uint64, end uint64, branch uint32) ([]*types.Log, error) {

@@ -42,6 +42,15 @@ func BytesToIdentityRecipient(b []byte) Recipient {
 	return Recipient(common.BytesToAddress(b))
 }
 
+func IsSameReceipt(a, b Recipient) bool {
+	for index := 0; index < 20; index++ {
+		if a[index] != b[index] {
+			return false
+		}
+	}
+	return true
+}
+
 // Key key type
 type Key [KeyLength]byte
 

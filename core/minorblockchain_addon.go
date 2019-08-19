@@ -253,7 +253,7 @@ func (m *MinorBlockChain) InitGenesisState(rBlock *types.RootBlock) (*types.Mino
 		return nil, errors.New("header number not match")
 	}
 
-	if err := m.putMinorBlock(gBlock, nil); err != nil {
+	if err := m.putMinorBlock(gBlock, []*types.CrossShardTransactionDeposit{}); err != nil {
 		return nil, err
 	}
 	m.putRootBlock(rBlock, nil)
@@ -1238,13 +1238,12 @@ func encodeAllTxKey(height uint64, index int, crossShard bool) []byte {
 }
 
 func (m *MinorBlockChain) putTxIndexFromBlock(batch rawdb.DatabaseWriter, block types.IBlock) error {
-	rawdb.WriteBlockContentLookupEntries(batch, block) // put eth's tx lookup
 	deposit := m.getXShardDepositHashList(block.Hash())
 	if deposit == nil {
 		log.Error("impossible err", "please fix it", "getXshardDepositHashList err")
 		return errors.New("xShardDepositHashList err")
 	}
-	rawdb.WriteBlockXShardTxLoopupEntries(batch, block, deposit)
+	rawdb.WriteBlockContentLookupEntriesWithCrossShardHashList(batch, block, deposit)
 	minorBlock, ok := block.(*types.MinorBlock)
 	if !ok {
 		return errors.New("minor block is nil")
@@ -1301,7 +1300,7 @@ func (m *MinorBlockChain) getPendingTxByAddress(address account.Address, transfe
 	txs := m.txPool.GetAllTxInPool()
 
 	needStore := func(sender account.Recipient, tx *types.Transaction) bool {
-		if sender.String() == address.Recipient.String() || (tx.EvmTx.To() != nil && tx.EvmTx.To().String() == address.Recipient.String()) {
+		if account.IsSameReceipt(sender, address.Recipient) || (tx.EvmTx.To() != nil && tx.EvmTx.To().String() == address.Recipient.String()) {
 			if transferTokenID == nil || *transferTokenID == tx.EvmTx.TransferTokenID() {
 				return true
 			}
@@ -1572,7 +1571,7 @@ func (m *MinorBlockChain) updateTxHistoryIndexFromBlock(block *types.MinorBlock,
 	xShardReceiveTxList := rawdb.ReadConfirmedCrossShardTxList(m.db, block.Hash())
 	for index, tx := range xShardReceiveTxList.TXList {
 		//ignore dummy coinbase reward deposits
-		if tx.IsFromRootChain && tx.Value.Value.Uint64() == 0 { //TODO when tx.Value=0
+		if tx.IsFromRootChain && tx.Value.Value.Uint64() == 0 {
 			continue
 		}
 		key := encodeAddressTxKey(tx.To.Recipient, block.Number(), index, true)
