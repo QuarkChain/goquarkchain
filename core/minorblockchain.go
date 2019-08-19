@@ -1482,17 +1482,6 @@ func (m *MinorBlockChain) reorg(oldBlock, newBlock types.IBlock) error {
 	} else {
 		log.Error("minorBlockChain Impossible reorg, please file an issue", "oldnum", oldBlock.NumberU64(), "oldhash", oldBlock.Hash(), "newnum", newBlock.NumberU64(), "newhash", newBlock.Hash())
 	}
-	// Insert the new chain, taking care of the proper incremental order
-	var addedTxs types.Transactions
-	for i := len(newChain) - 1; i >= 0; i-- {
-		// insert the block in the canonical way, re-writing history
-		m.insert(newChain[i].(*types.MinorBlock))
-		// write lookup entries for hash based transaction/receipt searches
-		if err := m.putTxIndexFromBlock(m.db, newChain[i]); err != nil {
-			return err
-		}
-		addedTxs = append(addedTxs, newChain[i].(*types.MinorBlock).GetTransactions()...)
-	}
 
 	// When transactions get deleted from the database that means the
 	// receipts that were created in the fork must also be deleted
@@ -1504,6 +1493,16 @@ func (m *MinorBlockChain) reorg(oldBlock, newBlock types.IBlock) error {
 	}
 
 	batch.Write()
+
+	// Insert the new chain, taking care of the proper incremental order
+	for i := len(newChain) - 1; i >= 0; i-- {
+		// insert the block in the canonical way, re-writing history
+		m.insert(newChain[i].(*types.MinorBlock))
+		// write lookup entries for hash based transaction/receipt searches
+		if err := m.putTxIndexFromBlock(m.db, newChain[i]); err != nil {
+			return err
+		}
+	}
 
 	if len(deletedLogs) > 0 {
 		go m.rmLogsFeed.Send(RemovedLogsEvent{deletedLogs})
