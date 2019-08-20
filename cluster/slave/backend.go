@@ -22,9 +22,10 @@ type SlaveBackend struct {
 	lock   sync.RWMutex
 	shards map[uint32]*shard.ShardBackend
 
-	ctx      *service.ServiceContext
-	eventMux *event.TypeMux
-	logInfo  string
+	ctx       *service.ServiceContext
+	eventMux  *event.TypeMux
+	logInfo   string
+	canMining bool
 }
 
 func New(ctx *service.ServiceContext, clusterCfg *config.ClusterConfig, cfg *config.SlaveConfig) (*SlaveBackend, error) {

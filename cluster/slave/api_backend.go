@@ -71,6 +71,12 @@ func (s *SlaveBackend) CreateShards(rootBlock *types.RootBlock, forceInit bool) 
 					shard.Stop()
 					return err
 				}
+				if s.canMining {
+					if err := s.SetMining(s.canMining); err != nil {
+						shard.Stop()
+						return err
+					}
+				}
 			}
 			return nil
 		})
@@ -433,6 +439,7 @@ func (s *SlaveBackend) GenTx(genTxs *rpc.GenTxRequest) error {
 }
 
 func (s *SlaveBackend) SetMining(mining bool) error {
+	s.canMining = mining
 	for _, shrd := range s.shards {
 		if err := shrd.SetMining(mining); err != nil {
 			return err

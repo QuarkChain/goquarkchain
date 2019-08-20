@@ -471,8 +471,11 @@ func (m *MinorBlockChain) getCrossShardTxListByRootBlockHash(hash common.Hash) (
 			continue
 		}
 		prevRootHeader := m.getRootBlockHeaderByHash(mHeader.PrevRootBlockHash)
+		//TODO need have all preRootHeader data when create shard?
 		if prevRootHeader == nil {
-			return nil, errors.New("not get pre root header")
+			log.Warn(m.logInfo, "fullShardID", m.branch.Value, "mHeader", mHeader.Number, "mHeader.Branch", mHeader.Branch, "preVRootHeader", mHeader.PrevRootBlockHash)
+			log.Warn("add chain?", "preRootHeader not found", "check it")
+			continue
 		}
 		if !m.isNeighbor(mHeader.Branch, &prevRootHeader.Number) {
 			continue
