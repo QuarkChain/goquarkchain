@@ -251,7 +251,6 @@ func ApplyCrossShardDeposit(config *params.ChainConfig, bc ChainContext, header 
 		if tx.CreateContract {
 			receipt.ContractAddress = *context.ContractAddress
 			receipt.ContractFullShardKey = tx.To.FullShardKey
-			fmt.Printf("created receipt %x addr=%x, key=%d\n", receipt.TxHash, receipt.ContractAddress, receipt.ContractFullShardKey)
 		}
 		return receipt, nil
 	}
