@@ -181,25 +181,34 @@ type GetTransactionReceiptResponse struct {
 }
 
 type GetTransactionListByAddressRequest struct {
-	Address *account.Address `json:"address" gencodec:"required"`
-	Start   []byte           `json:"start" gencodec:"required" bytesizeofslicelen:"4"`
-	Limit   uint32           `json:"limit" gencodec:"required"`
+	Address         *account.Address `json:"address" gencodec:"required"`
+	TransferTokenID *uint64          `json:"transfer_token_id" gencodec:"required"`
+	Start           []byte           `json:"start" gencodec:"required" bytesizeofslicelen:"4"`
+	Limit           uint32           `json:"limit" gencodec:"required"`
 }
 
 type TransactionDetail struct {
-	TxHash      common.Hash       `json:"tx_hash" gencodec:"required"`
-	FromAddress account.Address   `json:"from_address" gencodec:"required"`
-	ToAddress   *account.Address  `json:"to_address" ser:"nil"`
-	Value       serialize.Uint256 `json:"value" gencodec:"required"`
-	BlockHeight uint64            `json:"block_height" gencodec:"required"`
-	Timestamp   uint64            `json:"timestamp" gencodec:"required"`
-	Success     bool              `json:"success" gencodec:"required"`
-	//TODO support tokenID
+	TxHash          common.Hash       `json:"tx_hash" gencodec:"required"`
+	FromAddress     account.Address   `json:"from_address" gencodec:"required"`
+	ToAddress       *account.Address  `json:"to_address" ser:"nil"`
+	Value           serialize.Uint256 `json:"value" gencodec:"required"`
+	BlockHeight     uint64            `json:"block_height" gencodec:"required"`
+	Timestamp       uint64            `json:"timestamp" gencodec:"required"`
+	Success         bool              `json:"success" gencodec:"required"`
+	GasTokenID      uint64            `json:"gas_token_id" gencodec:"required"`
+	TransferTokenID uint64            `json:"transfer_token_id" gencodec:"required"`
+	IsFromRootChain bool              `json:"is_from_root_chain" gencodec:"required"`
 }
 
-type GetTransactionListByAddressResponse struct {
+type GetTxDetailResponse struct {
 	TxList []*TransactionDetail `json:"tx_list" gencodec:"required" bytesizeofslicelen:"4"`
 	Next   []byte               `json:"next" gencodec:"required" bytesizeofslicelen:"4"`
+}
+
+type GetAllTxRequest struct {
+	Branch account.Branch `json:"address" gencodec:"required"`
+	Start  []byte         `json:"start" gencodec:"required" bytesizeofslicelen:"4"`
+	Limit  uint32         `json:"limit" gencodec:"required"`
 }
 
 // RPCs to update blockchains
@@ -293,6 +302,10 @@ type AddMinorBlockHeaderResponse struct {
 	ArtificialTxConfig *ArtificialTxConfig `json:"artificial_tx_config" gencodec:"required"`
 }
 
+type AddMinorBlockHeaderListRequest struct {
+	MinorBlockHeaderList []*types.MinorBlockHeader `json:"minor_block_header_list" gencodec:"required" bytesizeofslicelen:"4"`
+}
+
 type CrossShardTransactionList struct {
 	TxList []*types.CrossShardTransactionDeposit `json:"tx_list" gencodec:"required" bytesizeofslicelen:"4"`
 }
@@ -383,10 +396,10 @@ type GetWorkResponse struct {
 }
 
 type SubmitWorkRequest struct {
-	Branch     uint32      `json:"branch" gencodec:"required"`
+	Branch     uint32      `json:"branch"      gencodec:"required"`
 	HeaderHash common.Hash `json:"header_hash" gencodec:"required"`
-	Nonce      uint64      `json:"nonce" gencodec:"required"`
-	MixHash    common.Hash `json:"mix_hash" gencodec:"required"`
+	Nonce      uint64      `json:"nonce"       gencodec:"required"`
+	MixHash    common.Hash `json:"mix_hash"    gencodec:"required"`
 }
 
 type SubmitWorkResponse struct {

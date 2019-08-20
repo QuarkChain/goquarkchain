@@ -259,7 +259,7 @@ func (tx *EvmTransaction) Size() common.StorageSize {
 // AsMessage returns the transaction as a core.Message.
 // AsMessage requires a signer to derive the sender.
 // XXX Rename message to something less arbitrary?
-func (tx *EvmTransaction) AsMessage(s Signer) (Message, error) {
+func (tx *EvmTransaction) AsMessage(s Signer, txHash common.Hash) (Message, error) {
 	msgTo := new(common.Address)
 	if tx.data.Recipient != nil {
 		msgTo.SetBytes(tx.data.Recipient.Bytes())
@@ -277,7 +277,7 @@ func (tx *EvmTransaction) AsMessage(s Signer) (Message, error) {
 		checkNonce:       true,
 		fromFullShardKey: tx.data.FromFullShardKey.getValue(),
 		toFullShardKey:   tx.data.ToFullShardKey.getValue(),
-		txHash:           tx.Hash(), //TODO ???? wrong
+		txHash:           txHash,
 		isCrossShard:     tx.IsCrossShard(),
 		transferTokenID:  tx.data.TransferTokenID,
 		gasTokenID:       tx.data.GasTokenID,
@@ -561,6 +561,9 @@ type CrossShardTransactionDeposit struct {
 	GasTokenID      uint64
 	TransferTokenID uint64
 	IsFromRootChain bool
+	GasRemained     *serialize.Uint256
+	MessageData     []byte
+	CreateContract  bool
 }
 
 type CrossShardTransactionDepositList struct {
@@ -587,7 +590,9 @@ type Message struct {
 	gasTokenID       uint64
 }
 
-func NewMessage(from common.Address, to *common.Address, nonce uint64, amount *big.Int, gasLimit uint64, gasPrice *big.Int, data []byte, checkNonce bool, fromShardId, toShardId uint32) Message {
+func NewMessage(from common.Address, to *common.Address, nonce uint64, amount *big.Int, gasLimit uint64, gasPrice *big.Int,
+	data []byte, checkNonce bool, fromShardId, toShardId uint32, transferTokenID, gasTokenID uint64) Message {
+
 	return Message{
 		from:             from,
 		to:               to,
@@ -599,6 +604,8 @@ func NewMessage(from common.Address, to *common.Address, nonce uint64, amount *b
 		checkNonce:       checkNonce,
 		fromFullShardKey: fromShardId,
 		toFullShardKey:   toShardId,
+		transferTokenID:  transferTokenID,
+		gasTokenID:       gasTokenID,
 	}
 }
 

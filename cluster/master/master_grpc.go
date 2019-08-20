@@ -25,7 +25,7 @@ func (m *MasterServerSideOp) AddMinorBlockHeader(ctx context.Context, req *rpc.R
 	if err := serialize.DeserializeFromBytes(req.Data, data); err != nil {
 		return nil, err
 	}
-	m.master.rootBlockChain.AddValidatedMinorBlockHeader(data.MinorBlockHeader.Hash())
+	m.master.rootBlockChain.AddValidatedMinorBlockHeader(data.MinorBlockHeader.Hash(), data.CoinbaseAmountMap)
 	m.master.UpdateShardStatus(data.ShardStats)
 	m.master.UpdateTxCountHistory(data.TxCount, data.XShardTxCount, data.MinorBlockHeader.Time)
 
@@ -40,6 +40,17 @@ func (m *MasterServerSideOp) AddMinorBlockHeader(ctx context.Context, req *rpc.R
 		RpcId: req.RpcId,
 		Data:  rspData,
 	}, nil
+}
+
+func (m *MasterServerSideOp) AddMinorBlockHeaderList(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
+	gReq := new(rpc.AddMinorBlockHeaderListRequest)
+	if err := serialize.DeserializeFromBytes(req.Data, gReq); err != nil {
+		return nil, err
+	}
+	for _, header := range gReq.MinorBlockHeaderList {
+		m.master.rootBlockChain.AddValidatedMinorBlockHeader(header.Hash(), header.CoinbaseAmount)
+	}
+	return &rpc.Response{RpcId: req.RpcId}, nil
 }
 
 // p2p apis

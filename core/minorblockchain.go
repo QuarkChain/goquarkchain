@@ -875,7 +875,7 @@ func (m *MinorBlockChain) InsertReceiptChain(blockChain []types.IBlock, receiptC
 		}
 		rawdb.WriteMinorBlock(batch, block.(*types.MinorBlock))
 		rawdb.WriteReceipts(batch, block.Hash(), receipts)
-		rawdb.WriteBlockContentLookupEntries(batch, block)
+		rawdb.WriteBlockContentLookupEntriesWithCrossShardHashList(batch, block, nil)
 
 		stats.processed++
 
@@ -1210,7 +1210,7 @@ func (m *MinorBlockChain) insertChain(chain []types.IBlock, verifySeals bool, pa
 		}
 		// Process block using the parent state as reference point.
 
-		state, receipts, logs, usedGas, xShardReceiveTxList, err := m.runBlock(mBlock, nil)
+		state, receipts, logs, usedGas, xShardReceiveTxList, err := m.runBlock(mBlock)
 		if err != nil {
 			m.reportBlock(block, receipts, err)
 			return it.index, events, coalescedLogs, xShardList, err

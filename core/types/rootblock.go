@@ -5,6 +5,7 @@ package types
 import (
 	"bytes"
 	"crypto/ecdsa"
+	"github.com/ethereum/go-ethereum/crypto"
 	"math/big"
 	"sync/atomic"
 	"time"
@@ -13,7 +14,6 @@ import (
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/serialize"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/crypto"
 )
 
 // RootBlockHeader represents a root block header in the QuarkChain.
@@ -54,17 +54,6 @@ func (h *RootBlockHeader) Size() common.StorageSize {
 		common.StorageSize(len(h.Extra)+(h.Difficulty.BitLen())/8)
 }
 
-func (h *RootBlockHeader) SignWithPrivateKey(prv *ecdsa.PrivateKey) error {
-	hash := h.SealHash()
-	sig, err := crypto.Sign(hash[:], prv)
-	if err != nil {
-		return err
-	}
-
-	copy(h.Signature[:], sig)
-	return nil
-}
-
 func (h *RootBlockHeader) GetParentHash() common.Hash   { return h.ParentHash }
 func (h *RootBlockHeader) GetCoinbase() account.Address { return h.Coinbase }
 
@@ -88,7 +77,8 @@ func (b *RootBlockHeader) GetCoinbaseAmount() *TokenBalances {
 
 func (h *RootBlockHeader) GetMixDigest() common.Hash { return h.MixDigest }
 
-func (h *RootBlockHeader) NumberU64() uint64 { return uint64(h.Number) }
+func (h *RootBlockHeader) NumberU64() uint64  { return uint64(h.Number) }
+func (h *RootBlockHeader) GetVersion() uint32 { return h.Version }
 
 func (h *RootBlockHeader) SetExtra(data []byte) {
 	h.Extra = common.CopyBytes(data)
@@ -310,12 +300,25 @@ func (b *RootBlock) Size() common.StorageSize {
 }
 
 // WithMingResult returns a new block with the data from b and update nonce and mixDigest
-func (b *RootBlock) WithMingResult(nonce uint64, mixDigest common.Hash) IBlock {
+func (b *RootBlock) WithMingResult(nonce uint64, mixDigest common.Hash, signature *[65]byte) IBlock {
 	cpy := CopyRootBlockHeader(b.header)
 	cpy.Nonce = nonce
 	cpy.MixDigest = mixDigest
-
+	if signature != nil {
+		copy(cpy.Signature[:], signature[:])
+	}
 	return b.WithSeal(cpy)
+}
+
+func (b *RootBlock) SignWithPrivateKey(prv *ecdsa.PrivateKey) error {
+	hash := b.header.SealHash()
+	sig, err := crypto.Sign(hash[:], prv)
+	if err != nil {
+		return err
+	}
+
+	copy(b.header.Signature[:], sig)
+	return nil
 }
 
 // WithSeal returns a new block with the data from b but the header replaced with

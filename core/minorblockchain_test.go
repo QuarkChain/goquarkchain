@@ -178,6 +178,7 @@ func testMinorBlockChainImport(chain []types.IBlock, blockchain *MinorBlockChain
 		if err != nil {
 			return err
 		}
+		statedb.SetNonce(common.Address{}, 1)
 		statedb.SetTxCursorInfo(block.(*types.MinorBlock).Meta().XShardTxCursorInfo)
 		receipts, _, usedGas, err := blockchain.Processor().Process(block.(*types.MinorBlock), statedb, vm.Config{})
 		if err != nil {
@@ -1375,7 +1376,6 @@ func TestMinorLargeReorgTrieGC(t *testing.T) {
 	clusterConfig.Quarkchain.SkipRootDifficultyCheck = true
 	clusterConfig.Quarkchain.SkipMinorDifficultyCheck = true
 	clusterConfig.Quarkchain.SkipRootCoinbaseCheck = true
-
 	genesis := gspec.MustCommitMinorBlock(db, rootBlock, clusterConfig.Quarkchain.Chains[0].ShardSize|0)
 	shared, _ := GenerateMinorBlockChain(params.TestChainConfig, clusterConfig.Quarkchain, genesis, engine, db, 64, func(config *config.QuarkChainConfig, i int, b *MinorBlockGen) {
 		b.SetCoinbase(account.NewAddress(account.BytesToIdentityRecipient(common.Address{1}.Bytes()), 0))

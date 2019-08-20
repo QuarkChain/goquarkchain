@@ -97,7 +97,7 @@ func TestMinorBlockHeaderSerializing(t *testing.T) {
 	check("xshard_tx_cursor_info", blockMeta.XShardTxCursorInfo.RootBlockHeight, uint64(1))
 	check("xshard_tx_cursor_info", blockMeta.XShardTxCursorInfo.MinorBlockIndex, uint64(2))
 	check("xshard_tx_cursor_info", blockMeta.XShardTxCursorInfo.XShardDepositIndex, uint64(3))
-	check("evm_xshard_gas_limit", blockMeta.XshardGasLimit.Value.Uint64(), uint64(400))
+	check("evm_xshard_gas_limit", blockMeta.XShardGasLimit.Value.Uint64(), uint64(400))
 	check("bmserialize", bytes, blocMetaEnc)
 
 	signer := NewEIP155Signer(1)

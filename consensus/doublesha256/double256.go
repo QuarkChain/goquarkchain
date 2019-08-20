@@ -68,13 +68,13 @@ func verifySeal(chain consensus.ChainReader, header types.IHeader, adjustedDiff 
 }
 
 // New returns a DoubleSHA256 scheme.
-func New(diffCalculator consensus.DifficultyCalculator, remote bool) *DoubleSHA256 {
+func New(diffCalculator consensus.DifficultyCalculator, remote bool, pubKey []byte) *DoubleSHA256 {
 	spec := consensus.MiningSpec{
 		Name:       config.PoWDoubleSha256,
 		HashAlgo:   hashAlgo,
 		VerifySeal: verifySeal,
 	}
 	return &DoubleSHA256{
-		CommonEngine: consensus.NewCommonEngine(spec, diffCalculator, remote),
+		CommonEngine: consensus.NewCommonEngine(spec, diffCalculator, remote, pubKey),
 	}
 }

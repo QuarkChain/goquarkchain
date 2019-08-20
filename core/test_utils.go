@@ -3,7 +3,9 @@ package core
 import (
 	"encoding/hex"
 	"errors"
+	"github.com/QuarkChain/goquarkchain/qkcdb"
 	"math/big"
+	"strings"
 	"time"
 
 	"github.com/QuarkChain/goquarkchain/account"
@@ -20,9 +22,11 @@ import (
 )
 
 var (
+	testDBPath = map[int]string{}
 	// jiaozi 10^18
 	jiaozi                  = new(big.Int).Mul(new(big.Int).SetUint64(1000000000), new(big.Int).SetUint64(1000000000))
 	testShardCoinbaseAmount = new(big.Int).Mul(new(big.Int).SetUint64(5), jiaozi)
+	testGenesisTokenID      = common.TokenIDEncode("QKC")
 )
 
 type fakeEnv struct {
@@ -30,6 +34,12 @@ type fakeEnv struct {
 	clusterConfig *config.ClusterConfig
 }
 
+func getOneDBPath() (int, string) {
+	for index, v := range testDBPath {
+		return index, v
+	}
+	panic("unexcepted err")
+}
 func getTestEnv(genesisAccount *account.Address, genesisMinorQuarkHash *uint64, chainSize *uint32, shardSize *uint32, genesisRootHeights *map[uint32]uint32, remoteMining *bool) *fakeEnv {
 	if genesisAccount == nil {
 		temp := account.CreatEmptyAddress(0)
@@ -61,10 +71,22 @@ func getTestEnv(genesisAccount *account.Address, genesisMinorQuarkHash *uint64, 
 	}
 
 	fakeClusterConfig := config.NewClusterConfig()
+
+	var fakeDb ethdb.Database
+	var err error
+	if len(testDBPath) != 0 {
+		index, fileName := getOneDBPath()
+		fakeDb, err = qkcdb.NewRDBDatabase(fileName, true)
+		delete(testDBPath, index)
+		checkErr(err)
+	} else {
+		fakeDb = ethdb.NewMemDatabase()
+	}
 	env := &fakeEnv{
-		db:            ethdb.NewMemDatabase(),
+		db:            fakeDb,
 		clusterConfig: fakeClusterConfig,
 	}
+
 	env.clusterConfig.Quarkchain.NetworkID = 3
 	env.clusterConfig.Quarkchain.Update(*chainSize, *shardSize, 10, 1)
 	if *remoteMining {
@@ -80,7 +102,8 @@ func getTestEnv(genesisAccount *account.Address, genesisMinorQuarkHash *uint64, 
 	env.clusterConfig.Quarkchain.SkipRootDifficultyCheck = true
 	env.clusterConfig.EnableTransactionHistory = true
 	env.clusterConfig.Quarkchain.MinMiningGasPrice = new(big.Int).SetInt64(-1)
-
+	env.clusterConfig.Quarkchain.XShardAddReceiptTimestamp = 1
+	env.clusterConfig.Quarkchain.MinTXPoolGasPrice = new(big.Int).SetInt64(-1)
 	ids := env.clusterConfig.Quarkchain.GetGenesisShardIds()
 	for _, v := range ids {
 		addr := genesisAccount.AddressInShard(v)
@@ -122,7 +145,7 @@ func createDefaultShardState(env *fakeEnv, shardID *uint32, diffCalc consensus.D
 	var err error
 	chainConfig := params.TestChainConfig
 	if flagEngine != nil {
-		shardState, err = NewMinorBlockChain(env.db, cacheConfig, chainConfig, env.clusterConfig, doublesha256.New(diffCalc, false), vm.Config{}, nil, fullShardID)
+		shardState, err = NewMinorBlockChain(env.db, cacheConfig, chainConfig, env.clusterConfig, doublesha256.New(diffCalc, false, []byte{}), vm.Config{}, nil, fullShardID)
 		if err != nil {
 			panic(err)
 		}
@@ -240,7 +263,66 @@ func CreateTransferTx(shardState *MinorBlockChain, key []byte,
 	}
 	return createTransferTransaction(shardState, key, from, to, value, gas, gasPrice, nonce, nil, nil, nil)
 }
+func CreateCallContractTx(shardState *MinorBlockChain, key []byte,
+	from account.Address, to account.Address, value *big.Int, gas, gasPrice, nonce *uint64, data []byte) *types.Transaction {
+	if gasPrice == nil {
+		gasPrice = new(uint64)
+		*gasPrice = 0
+	}
+	if gas == nil {
+		gas = new(uint64)
+		*gas = 21000
+	}
+	return createTransferTransaction(shardState, key, from, to, value, gas, gasPrice, nonce, data, nil, nil)
+}
 
 func GetPoSW(chain *MinorBlockChain) *posw.PoSW {
 	return chain.posw.(*posw.PoSW)
+}
+
+/*
+pragma solidity ^0.5.1;
+
+contract Storage {
+	uint pos0;
+	mapping(address => uint) pos1;
+	function Save() public {
+		pos1[msg.sender] = 5678;
+	}
+}
+*/
+
+const CONTRACT = "6080604052348015600f57600080fd5b5060c68061001e6000396000f3fe6080604052600436106039576000357c010000000000000000000000000000000000000000000000000000000090048063c2e171d714603e575b600080fd5b348015604957600080fd5b5060506052565b005b61162e600160003373ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff1681526020019081526020016000208190555056fea165627a7a72305820fe440b2cadff2d38365becb4339baa8c7b29ce933a2ad1b43f49feea0e1f7a7e0029"
+
+func ZFill64(input string) string {
+	return strings.Repeat("0", 64-len(input)) + input
+}
+
+func CreateContract(mBlockChain *MinorBlockChain, key account.Key, fromAddress account.Address,
+	toFullShardKey uint32, bytecode string) (*types.Transaction, error) {
+
+	z := big.NewInt(0)
+	one := big.NewInt(1)
+	nonce, err := mBlockChain.GetTransactionCount(fromAddress.Recipient, nil)
+	if err != nil {
+		return nil, err
+	}
+	bytecodeb, err := hex.DecodeString(bytecode)
+
+	if err != nil {
+		return nil, err
+	}
+	t := mBlockChain.GetGenesisToken()
+	evmTx := types.NewEvmContractCreation(nonce, z, 1000000, one, fromAddress.FullShardKey, toFullShardKey,
+		mBlockChain.Config().NetworkID, 0, bytecodeb, t, t)
+
+	prvKey, err := crypto.HexToECDSA(hex.EncodeToString(key.Bytes()))
+	if err != nil {
+		return nil, err
+	}
+	evmTx, err = types.SignTx(evmTx, types.MakeSigner(evmTx.NetworkId()), prvKey)
+	if err != nil {
+		return nil, err
+	}
+	return &types.Transaction{TxType: types.EvmTx, EvmTx: evmTx}, nil
 }
