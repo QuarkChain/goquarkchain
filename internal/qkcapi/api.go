@@ -87,7 +87,7 @@ func (p *PublicBlockChainAPI) NetworkInfo() map[string]interface{} {
 			shardBeCreated++
 		}
 		if shardBeCreated !=0{
-			ChainIdToShardSizeList = append(ChainIdToShardSizeList, ChainIdToShardSize{chainID: v.ChainID, shardSize: v.ShardSize})
+			ChainIdToShardSizeList = append(ChainIdToShardSizeList, ChainIdToShardSize{chainID: v.ChainID, shardSize: uint32(shardBeCreated)})
 		}
 	}
 	sort.Slice(ChainIdToShardSizeList, func(i, j int) bool { return ChainIdToShardSizeList[i].chainID < ChainIdToShardSizeList[j].chainID }) //Right???
