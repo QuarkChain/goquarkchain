@@ -55,6 +55,7 @@ type receiptMarshaling struct {
 
 // receiptSer is the serialize .
 type receiptSer struct {
+	TxHash            common.Hash
 	PostStateOrStatus []byte
 	CumulativeGasUsed uint64
 	PrevGasUsed       uint64
@@ -105,14 +106,16 @@ func (r *Receipt) Deserialize(bb *serialize.ByteBuffer) error {
 		return err
 	}
 
-	r.CumulativeGasUsed, r.Bloom, r.Logs, r.GasUsed, r.ContractAddress, r.ContractFullShardKey = rs.CumulativeGasUsed,
-		rs.Bloom, rs.Logs, rs.CumulativeGasUsed-rs.PrevGasUsed, rs.ContractAddress.Recipient, rs.ContractAddress.FullShardKey
+	r.TxHash, r.CumulativeGasUsed, r.Bloom, r.Logs, r.GasUsed, r.ContractAddress, r.ContractFullShardKey = rs.TxHash,
+		rs.CumulativeGasUsed, rs.Bloom, rs.Logs, rs.CumulativeGasUsed-rs.PrevGasUsed, rs.ContractAddress.Recipient,
+		rs.ContractAddress.FullShardKey
 	return nil
 }
 
 // Serialize serialize the QKC minor block.
 func (r *Receipt) Serialize(w *[]byte) error {
 	return serialize.Serialize(w, receiptSer{
+		r.TxHash,
 		r.statusEncoding(),
 		r.CumulativeGasUsed,
 		r.GetPrevGasUsed(),
