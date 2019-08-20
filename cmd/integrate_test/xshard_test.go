@@ -4,7 +4,6 @@ package test
 
 import (
 	"encoding/hex"
-	"fmt"
 	"math/big"
 	"testing"
 	"time"
@@ -681,7 +680,6 @@ func TestCrossShardContractCreate(t *testing.T) {
 	assert.Equal(t, tx1.Hash(), receipt.TxHash)
 	assert.Equal(t, 1, int(receipt.Status))
 	contractAddress := account.NewAddress(receipt.ContractAddress, receipt.ContractFullShardKey)
-	fmt.Printf("contract address %x\n", contractAddress)
 	b2n := b2.Header().Number
 	result, err := mstr.GetStorageAt(&contractAddress, storageKeyHash, &b2n)
 	assert.NoError(t, err)
