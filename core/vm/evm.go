@@ -17,7 +17,6 @@
 package vm
 
 import (
-	"github.com/QuarkChain/goquarkchain/account"
 	"math/big"
 	"sync/atomic"
 	"time"
@@ -469,7 +468,7 @@ func CreateAddress(b common.Address, toFullShardID uint32, nonce uint64) common.
 
 // Create creates a new contract using code as deployment code.
 func (evm *EVM) Create(caller ContractRef, code []byte, gas uint64, value *big.Int,
-	contractRecipient *account.Recipient) (ret []byte, contractAddr common.Address, leftOverGas uint64, err error) {
+	contractRecipient *common.Address) (ret []byte, contractAddr common.Address, leftOverGas uint64, err error) {
 
 	if contractRecipient != nil {
 		contractAddr = *contractRecipient
