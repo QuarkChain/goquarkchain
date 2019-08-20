@@ -277,7 +277,7 @@ func (s *SlaveServerSideOp) GetTransactionReceipt(ctx context.Context, req *rpc.
 func (s *SlaveServerSideOp) GetTransactionListByAddress(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
 	var (
 		gReq     rpc.GetTransactionListByAddressRequest
-		gRes     rpc.GetTransactionListByAddressResponse
+		gRes     rpc.GetTxDetailResponse
 		response = &rpc.Response{RpcId: req.RpcId}
 		err      error
 	)
@@ -285,12 +285,32 @@ func (s *SlaveServerSideOp) GetTransactionListByAddress(ctx context.Context, req
 		return nil, err
 	}
 
-	if gRes.TxList, gRes.Next, err = s.slave.GetTransactionListByAddress(gReq.Address,
+	if gRes.TxList, gRes.Next, err = s.slave.GetTransactionListByAddress(gReq.Address, gReq.TransferTokenID,
 		gReq.Start, gReq.Limit); err != nil {
 		return nil, err
 	}
 
 	if response.Data, err = serialize.SerializeToBytes(gRes); err != nil {
+		return nil, err
+	}
+	return response, nil
+}
+
+func (s *SlaveServerSideOp) GetAllTx(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
+	var (
+		gReq     rpc.GetAllTxRequest
+		gRes     rpc.GetTxDetailResponse
+		response = &rpc.Response{RpcId: req.RpcId}
+		err      error
+	)
+	if err = serialize.DeserializeFromBytes(req.Data, &gReq); err != nil {
+		return nil, err
+	}
+	if gRes.TxList, gRes.Next, err = s.slave.GetAllTx(gReq.Branch, gReq.Start, gReq.Limit); err != nil {
+		return nil, err
+	}
+
+	if response.Data, err = serialize.SerializeToBytes(gReq); err != nil {
 		return nil, err
 	}
 	return response, nil
