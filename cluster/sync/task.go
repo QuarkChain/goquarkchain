@@ -47,9 +47,8 @@ func (t *task) Run(bc blockchain) error {
 		return nil
 	}
 
-	lastHeader := ancestor
-	for !qkcom.IsNil(lastHeader) {
-		headers, err := t.getHeaders(lastHeader)
+	for !qkcom.IsNil(ancestor) {
+		headers, err := t.getHeaders(ancestor)
 		if err != nil {
 			return err
 		}
@@ -61,7 +60,7 @@ func (t *task) Run(bc blockchain) error {
 			return err
 		}
 
-		logger.Info("Downloading blocks", "length", len(headers), "from", lastHeader.NumberU64(), "to", headers[len(headers)-1].NumberU64())
+		logger.Info("Downloading blocks", "length", len(headers), "from", ancestor.NumberU64(), "to", headers[len(headers)-1].NumberU64())
 
 		hashlist := make([]common.Hash, 0, len(headers))
 		for _, hd := range headers {
@@ -83,9 +82,9 @@ func (t *task) Run(bc blockchain) error {
 				if err := bc.AddBlock(blk); err != nil {
 					return err
 				}
+				ancestor = blk.IHeader()
 			}
 		}
-		lastHeader = headers[len(headers)-1]
 	}
 	return nil
 }
@@ -94,10 +93,10 @@ func (t *task) validateHeaderList(bc blockchain, headers []types.IHeader) error 
 	var prev types.IHeader
 	for _, h := range headers {
 		if prev != nil {
-			if h.NumberU64()+1 != prev.NumberU64() {
+			if h.NumberU64() != prev.NumberU64()+1 {
 				return errors.New("should have descending order with step 1")
 			}
-			if prev.GetParentHash() != h.Hash() {
+			if prev.Hash() != h.GetParentHash() {
 				return errors.New("should have blocks correctly linked")
 			}
 		}

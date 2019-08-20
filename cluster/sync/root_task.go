@@ -17,6 +17,7 @@ import (
 type rootSyncerPeer interface {
 	GetRootBlockHeaderList(*rpc.GetRootBlockHeaderListRequest) (*p2p.GetRootBlockHeaderListResponse, error)
 	GetRootBlockList(hashes []common.Hash) ([]*types.RootBlock, error)
+	RootHead() *types.RootBlockHeader
 	PeerID() string
 }
 
@@ -61,7 +62,7 @@ func NewRootChainTask(
 				rChain.stats.AncestorNotFoundCount += 1
 				return nil, err
 			}
-			if rChain.header.ToTalDifficulty.Cmp(ancestor.ToTalDifficulty) > 0 {
+			if rChain.header.ToTalDifficulty.Cmp(ancestor.ToTalDifficulty) < 0 {
 				return nil, errors.New("ancestor's total difficulty is bigger than current")
 			}
 			return ancestor, nil
@@ -80,6 +81,10 @@ func NewRootChainTask(
 			rBHeaders, err := rChain.downloadBlockHeaderListAndCheck(uint32(startHeader.NumberU64()+1), 0, limit)
 			if err != nil {
 				return nil, err
+			}
+
+			if len(rBHeaders) == 0 {
+				return nil, errors.New("Remote chain reorg causing empty root block headers ")
 			}
 
 			if rBHeaders[0].ParentHash != startHeader.Hash() {
@@ -121,10 +126,10 @@ func (r *rootChainTask) PeerID() string {
 	return r.peer.PeerID()
 }
 
-func (r *rootChainTask) downloadBlockHeaderListAndCheck(height uint32, skip,
+func (r *rootChainTask) downloadBlockHeaderListAndCheck(start uint32, skip,
 limit uint32) ([]*types.RootBlockHeader, error) {
 	resp, err := r.peer.GetRootBlockHeaderList(&rpc.GetRootBlockHeaderListRequest{
-		Height:    &height,
+		Height:    &start,
 		Skip:      skip,
 		Limit:     limit,
 		Direction: qcom.DirectionToTip,
@@ -143,8 +148,8 @@ limit uint32) ([]*types.RootBlockHeader, error) {
 		return nil, errors.New("Remote chain reorg causing empty root block headers ")
 	}
 
-	newLimit := (resp.RootTip.Number + 1 - height) / (skip + 1)
-	if newLimit < limit {
+	newLimit := (resp.RootTip.Number + 1 - start) / (skip + 1)
+	if newLimit > limit {
 		newLimit = limit
 	}
 	if len(resp.BlockHeaderList) != int(newLimit) {
@@ -163,9 +168,9 @@ func (r *rootChainTask) findAncestor(bc blockchain) (*types.RootBlockHeader, err
 		return rtip, nil
 	}
 
-	end := rtip.Number
-	start := rtip.Number - r.maxStaleness
-	if rtip.Number < r.maxStaleness {
+	end := uint32(r.peer.RootHead().Number)
+	start := end - r.maxStaleness
+	if end < r.maxStaleness {
 		start = 0
 	}
 	if r.header.Number < end {

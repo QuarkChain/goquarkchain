@@ -62,10 +62,15 @@ func NewMinorChainTask(
 				limit = heightDiff
 			}
 
-			mBHeaders, err := mChain.downloadBlockHeaderListAndCheck(startheader.NumberU64(), 0, limit, mHeader.Branch.Value)
+			mBHeaders, err := mChain.downloadBlockHeaderListAndCheck(mHeader.Number+1, 0, limit, mHeader.Branch.Value)
 			if err != nil {
 				return nil, err
 			}
+
+			if len(mBHeaders) == 0 {
+				return nil, errors.New("Remote chain reorg causing empty minor block headers ")
+			}
+
 			if mBHeaders[0].ParentHash != mHeader.Hash() {
 				return nil, errors.New("Bad peer sending incorrect canonical minor headers ")
 			}
@@ -145,7 +150,7 @@ func (m *minorChainTask) findAncestor(bc blockchain) (*types.MinorBlockHeader, e
 
 	end := mtip.Number
 	start := mtip.Number - m.maxStaleness
-	if start < 0 {
+	if mtip.Number < m.maxStaleness {
 		start = 0
 	}
 	if m.header.Number < end {
@@ -155,8 +160,7 @@ func (m *minorChainTask) findAncestor(bc blockchain) (*types.MinorBlockHeader, e
 	var bestAncestor *types.MinorBlockHeader
 	for end >= start {
 		span := (end-start)/MinorBlockHeaderListLimit + 1
-
-		mBHeaders, err := m.downloadBlockHeaderListAndCheck(start, span-1, MinorBlockHeaderListLimit, m.header.Branch.Value)
+		mBHeaders, err := m.downloadBlockHeaderListAndCheck(start, span-1, (end+1-start)/span, m.header.Branch.Value)
 		if err != nil {
 			return nil, err
 		}

@@ -4,8 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"github.com/QuarkChain/goquarkchain/p2p"
-	"math/rand"
 	"reflect"
+	"sort"
 	"testing"
 
 	"github.com/QuarkChain/goquarkchain/account"
@@ -33,8 +33,6 @@ type mockpeer struct {
 	name                string
 	downloadHeaderError error
 	downloadBlockError  error
-	rTip                *types.RootBlockHeader
-	mTip                *types.MinorBlockHeader
 	retRHeaders         []*types.RootBlockHeader  // Order: descending.
 	retRBlocks          []*types.RootBlock        // Order: descending.
 	retMHeaders         []*types.MinorBlockHeader // Order: descending.
@@ -56,24 +54,49 @@ func (p *mockpeer) GetRootBlockHeaderList(request *rpc.GetRootBlockHeaderListReq
 		return nil, errors.New("Bad params ")
 	}
 
+	fmt.Println("----------", *request.Height, request.Limit, request.Skip)
 	// May return a subset.
-	for i, h := range p.retRHeaders {
-		if h.Hash() == request.Hash || h.Number == *request.Height {
-			ret := p.retRHeaders[i:len(p.retRHeaders)]
-			return &p2p.GetRootBlockHeaderListResponse{
-				RootTip:         p.rTip,
-				BlockHeaderList: ret,
-			}, nil
+	sign := 0
+	rBHeaders := make([]*types.RootBlockHeader, 0, request.Limit)
+	for i, hd := range p.retRHeaders {
+		if hd.Hash() == request.Hash || hd.Number == *request.Height {
+			sign = i
+			break
 		}
 	}
-	panic("lolwut")
+
+	direction := int(request.Skip + 1)
+	if request.Direction == qcom.DirectionToGenesis {
+		direction = 0 - direction
+	}
+
+	for ; sign >= 0 && sign < len(p.retRHeaders) && len(rBHeaders) < cap(rBHeaders); sign += direction {
+		rBHeaders = append(rBHeaders, p.retRHeaders[sign])
+	}
+
+	// make root block headers be ordered
+	sort.Slice(rBHeaders, func(i, j int) bool {
+		return rBHeaders[i].Number < rBHeaders[j].Number
+	})
+
+	return &p2p.GetRootBlockHeaderListResponse{
+		RootTip:         p.retRHeaders[len(p.retRHeaders)-1],
+		BlockHeaderList: rBHeaders,
+	}, nil
 }
 
 func (p *mockpeer) GetRootBlockList(hashes []common.Hash) ([]*types.RootBlock, error) {
-	if p.downloadBlockError != nil {
-		return nil, p.downloadBlockError
+	rBlocks := make([]*types.RootBlock, 0, len(hashes))
+	sign := 0
+	for _, rhash := range hashes {
+		for ; sign < len(p.retRBlocks); sign++ {
+			if rhash == p.retRBlocks[sign].Hash() {
+				rBlocks = append(rBlocks, p.retRBlocks[sign])
+				break
+			}
+		}
 	}
-	return p.retRBlocks, nil
+	return rBlocks, nil
 }
 
 func (p *mockpeer) PeerID() string {
@@ -83,6 +106,10 @@ func (p *mockpeer) PeerID() string {
 func (p *mockpeer) GetRootBlockHeaderListWithSkip(tp uint8, data common.Hash, limit, skip uint32,
 	direction uint8) (*p2p.GetRootBlockHeaderListResponse, error) {
 	return &p2p.GetRootBlockHeaderListResponse{}, nil
+}
+
+func (p *mockpeer) RootHead() *types.RootBlockHeader {
+	return p.retRHeaders[len(p.retRHeaders)-1]
 }
 
 // Only one of `rbc` or `mbc` should be initialized.
@@ -155,7 +182,7 @@ func newRootBlockChain(sz int) blockchain {
 	if err != nil {
 		panic(fmt.Sprintf("failed to generate root blockchain: %v", err))
 	}
-	rootBlocks := core.GenerateRootBlockChain(genesisBlock, engine, sz+1, nil)
+	rootBlocks := core.GenerateRootBlockChain(genesisBlock, engine, sz, nil)
 	var blocks []types.IBlock
 	for _, rb := range rootBlocks {
 		blocks = append(blocks, rb)
@@ -168,72 +195,30 @@ func newRootBlockChain(sz int) blockchain {
 	return &mockblockchain{rbc: blockchain}
 }
 
-func TestRootChainTaskRun(t *testing.T) {
+func TestRootChainTaskEmpty(t *testing.T) {
 	p := &mockpeer{name: "chunfeng"}
 	bc := newRootBlockChain(5)
-	rbc := bc.(*mockblockchain).rbc
 	var rt = NewRootChainTask(p, bc.CurrentHeader().(*types.RootBlockHeader), &RootBlockSychronizerStats{}, nil, nil)
-
-	// Prepare future blocks for downloading.
-	rbChain, rhChain := makeRootChains(rbc.CurrentBlock(), false)
-
 	// No error if already have the target block.
-	assert.NoError(t, rt.Run(bc))
-	// Happy path.
-	rt.(*rootChainTask).header = rbChain[4].Header()
+	err := rt.Run(bc)
+	assert.NoError(t, err)
+}
+
+func TestRootChainTaskBigerThanLimit(t *testing.T) {
+	p := &mockpeer{name: "chunfeng"}
+	bc := newRootBlockChain(5)
 	v := &mockvalidator{}
 	bc.(*mockblockchain).validator = v
-	p.rTip, p.retRHeaders, p.retRBlocks = bc.CurrentHeader().(*types.RootBlockHeader), reverseRHeaders(rhChain), reverseRBlocks(rbChain)
-	assert.NoError(t, rt.Run(bc))
-	// Confirm 5 more blocks are successfully added to existing 5-block chain.
-	assert.Equal(t, uint64(10), bc.CurrentHeader().NumberU64())
+	rbc := bc.(*mockblockchain).rbc
 
-	// Rollback and test unhappy path.
-	rbc.SetHead(5)
-	assert.Equal(t, rhChain[0].ParentHash, bc.CurrentHeader().Hash())
-	// Get errors when downloading headers.
-	rt.(*rootChainTask).header = rbChain[4].Header()
-	p.downloadHeaderError = errors.New("download error")
-	assert.Error(t, rt.Run(bc))
-	// Downloading headers succeeds, but block validation failed.
-	p.downloadHeaderError = nil
-	v.err = errors.New("validate error")
-	assert.Error(t, rt.Run(bc))
-	// Block validation succeeds, but block header list not correct.
-	v.err = nil
-	wrongHeaders := reverseRHeaders(rhChain)
-	rand.Shuffle(len(wrongHeaders), func(i, j int) {
-		wrongHeaders[i], wrongHeaders[j] = wrongHeaders[j], wrongHeaders[i]
-	})
-	p.retRHeaders = wrongHeaders
-	assert.Error(t, rt.Run(bc))
-	// Validation succeeds. Should be downloading actual blocks. Mock some errors.
-	p.retRHeaders = reverseRHeaders(rhChain)
-	p.downloadBlockError = errors.New("download error")
-	assert.Error(t, rt.Run(bc))
-	// Downloading blocks succeeds. But make the returned blocks miss one. Insertion should fail.
-	p.downloadBlockError = nil
-	missing := p.retRBlocks[len(p.retRBlocks)-1]
-	p.retRBlocks = p.retRBlocks[0 : len(p.retRBlocks)-1]
-	assert.Error(t, rt.Run(bc))
-	// Add back that missing block. Happy again.
-	p.retRBlocks = append(p.retRBlocks, missing)
-	assert.NoError(t, rt.Run(bc))
-	assert.Equal(t, uint64(10), bc.CurrentHeader().NumberU64())
+	p.retRBlocks, p.retRHeaders = makeRootChains(rbc.GetBlockByNumber(0).(*types.RootBlock), 1000, false)
 
-	// Sync older forks. Starting from block 6, up to 11.
-	rbChain, rhChain = makeRootChains(rbChain[0], true)
-	for _, rh := range rhChain {
-		assert.False(t, bc.HasBlock(rh.Hash()))
-	}
-	rt.(*rootChainTask).header = rbChain[4].Header()
-	p.retRHeaders, p.retRBlocks = reverseRHeaders(rhChain), reverseRBlocks(rbChain)
-	assert.NoError(t, rt.Run(bc))
-	for _, rh := range rhChain {
-		assert.True(t, bc.HasBlock(rh.Hash()))
-	}
-	// Tip should be updated.
-	assert.Equal(t, uint64(11), bc.CurrentHeader().NumberU64())
+	var stats = &RootBlockSychronizerStats{}
+	var rt = NewRootChainTask(p, p.retRHeaders[800], stats, nil, nil)
+
+	err := rt.Run(bc)
+	assert.NoError(t, err)
+	assert.Equal(t, bc.CurrentHeader().NumberU64(), uint64(p.retRHeaders[len(p.retRHeaders)-1].Number))
 }
 
 func TestSyncMinorBlocks(t *testing.T) {
@@ -261,22 +246,35 @@ func TestSyncMinorBlocks(t *testing.T) {
 			}
 		}
 
-		for _, conn := range shardConns {
-			conn.(*mock_master.MockShardConnForP2P).EXPECT().AddBlockListForSync(gomock.Any()).Return(
-				&rpc.ShardStatus{
-					Branch:             account.Branch{Value: 0},
-					Height:             block.NumberU64(),
-					Difficulty:         block.Difficulty(),
-					CoinbaseAddress:    block.Coinbase(),
-					Timestamp:          block.Time(),
-					TotalTxCount:       0,
-					TxCount60s:         0,
-					PendingTxCount:     0,
-					BlockCount60s:      2,
-					StaleBlockCount60s: 2,
-					LastBlockTime:      block.Time(),
-				}, nil).Times(1)
+		AddBlockListForSyncFunc := func(request *rpc.AddBlockListForSyncRequest) (*rpc.ShardStatus, error) {
+			for _, header := range block.MinorBlockHeaders() {
+				rbc.AddValidatedMinorBlockHeader(header.Hash())
+			}
+			return &rpc.ShardStatus{
+				Branch:             account.Branch{Value: 0},
+				Height:             block.NumberU64(),
+				Difficulty:         block.Difficulty(),
+				CoinbaseAddress:    block.Coinbase(),
+				Timestamp:          block.Time(),
+				TotalTxCount:       0,
+				TxCount60s:         0,
+				PendingTxCount:     0,
+				BlockCount60s:      2,
+				StaleBlockCount60s: 2,
+				LastBlockTime:      block.Time(),
+			}, nil
 		}
+
+		for _, conn := range shardConns {
+			conn.(*mock_master.MockShardConnForP2P).EXPECT().AddBlockListForSync(gomock.Any()).DoAndReturn(AddBlockListForSyncFunc).Times(1)
+		}
+
+		var rt = NewRootChainTask(&mockpeer{name: "chunfeng"}, nil, nil, statusChan, func(fullShardId uint32) []rpc.ShardConnForP2P {
+			return shardConns
+		})
+		rTask := rt.(*rootChainTask)
+		err := rTask.syncMinorBlocks(bc.(rootblockchain), block)
+		assert.NoError(t, err)
 
 		select {
 		case status := <-statusChan:
@@ -307,15 +305,22 @@ func getShardConnForP2P(n int, ctrl *gomock.Controller) []rpc.ShardConnForP2P {
  Test helpers.
 */
 
-func makeRootChains(parent *types.RootBlock, random bool) ([]*types.RootBlock, []*types.RootBlockHeader) {
+func makeRootChains(parent *types.RootBlock, height int, random bool) ([]*types.RootBlock, []*types.RootBlockHeader) {
 	var gen func(i int, b *core.RootBlockGen)
 	if random {
 		gen = func(i int, b *core.RootBlockGen) {
 			b.SetExtra([]byte{byte(i)})
 		}
 	}
-	blockchain := core.GenerateRootBlockChain(parent, engine, 5, gen)
-	var headerchain []*types.RootBlockHeader
+
+	var (
+		headerchain []*types.RootBlockHeader
+		blockchain  []*types.RootBlock
+	)
+	/*headerchain = append(headerchain, parent.Header())
+	blockchain = append(blockchain, parent)*/
+
+	blockchain = append(blockchain, core.GenerateRootBlockChain(parent, engine, height, gen)...)
 	for _, rb := range blockchain {
 		headerchain = append(headerchain, rb.Header())
 	}
