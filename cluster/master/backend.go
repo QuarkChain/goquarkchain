@@ -509,9 +509,7 @@ func (s *QKCMasterBackend) GetAccountData(address *account.Address, height *uint
 			branchToAccountBranchData[accountBranchData.Branch] = accountBranchData
 		}
 	}
-	//if len(branchToAccountBranchData) != len(s.clusterConfig.Quarkchain.GetGenesisShardIds()) {//maybe not be created?
-	//	return nil, errors.New("len is not match")
-	//}
+
 	return branchToAccountBranchData, nil
 }
 
