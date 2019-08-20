@@ -1,29 +1,23 @@
 package sync
 
 import (
-	"errors"
 	"fmt"
-	"github.com/QuarkChain/goquarkchain/cluster/rpc"
-	qcom "github.com/QuarkChain/goquarkchain/common"
-	"github.com/QuarkChain/goquarkchain/core/types"
-	"github.com/QuarkChain/goquarkchain/p2p"
-	"github.com/ethereum/go-ethereum/common"
 	"math/big"
+
+	"github.com/ethereum/go-ethereum/common"
+
+	"github.com/QuarkChain/goquarkchain/core/types"
 )
 
 type minorSyncerPeer interface {
-	GetMinorBlockHeaderList(gReq *rpc.GetMinorBlockHeaderListRequest) (*p2p.GetMinorBlockHeaderListResponse, error)
-	// GetMinorBlockHeaderList(hash common.Hash, limit, branch uint32, reverse bool) ([]*types.MinorBlockHeader, error)
+	GetMinorBlockHeaderList(hash common.Hash, limit, branch uint32, reverse bool) ([]*types.MinorBlockHeader, error)
 	GetMinorBlockList(hashes []common.Hash, branch uint32) ([]*types.MinorBlock, error)
 	PeerID() string
 }
 
 type minorChainTask struct {
 	task
-	maxStaleness uint64
-	stat         *MinorBlockSychronizerStats
-	peer         minorSyncerPeer
-	header       *types.MinorBlockHeader
+	peer minorSyncerPeer
 }
 
 // NewMinorChainTask returns a sync task for minor chain.
@@ -31,162 +25,49 @@ func NewMinorChainTask(
 	p minorSyncerPeer,
 	header *types.MinorBlockHeader,
 ) Task {
-	mChain := &minorChainTask{
-		header: header,
-		peer:   p,
+	return &minorChainTask{
+		task: task{
+			header:           header,
+			name:             fmt.Sprintf("shard-%d", header.Branch.GetShardID()),
+			maxSyncStaleness: 22500 * 6, // TODO: derive from root chain?
+			getHeaders: func(hash common.Hash, limit uint32) (ret []types.IHeader, err error) {
+				mheaders, err := p.GetMinorBlockHeaderList(hash, limit, header.Branch.Value, true)
+				if err != nil {
+					return nil, err
+				}
+				for _, mh := range mheaders {
+					ret = append(ret, mh)
+				}
+				return ret, nil
+			},
+			getBlocks: func(hashes []common.Hash) (ret []types.IBlock, err error) {
+				mblocks, err := p.GetMinorBlockList(hashes, header.Branch.Value)
+				if err != nil {
+					return nil, err
+				}
+				for _, mb := range mblocks {
+					ret = append(ret, mb)
+				}
+				return ret, nil
+			},
+			getSizeLimit: func() (uint64, uint64) {
+				return MinorBlockHeaderListLimit, MinorBlockBatchSize
+			},
+			needSkip: func(header types.IHeader, b blockchain) bool {
+				if header.NumberU64() <= b.CurrentHeader().NumberU64() {
+					return true
+				}
+				return false
+			},
+		},
+		peer: p,
 	}
-	mChain.task = task{
-		name:             fmt.Sprintf("shard-%d", header.Branch.GetShardID()),
-		maxSyncStaleness: 22500 * 6, // TODO: derive from root chain?
-		findAncestor: func(bc blockchain) (types.IHeader, error) {
-
-			if bc.HasBlock(mChain.header.Hash()) {
-				return nil, nil
-			}
-
-			ancestor, err := mChain.findAncestor(bc)
-			if err != nil {
-				return nil, err
-			}
-			return ancestor, nil
-		},
-		getHeaders: func(startheader types.IHeader) ([]types.IHeader, error) {
-			if startheader.NumberU64() >= mChain.header.Number {
-				return nil, nil
-			}
-
-			mHeader := startheader.(*types.MinorBlockHeader)
-			limit := uint64(MinorBlockHeaderListLimit)
-			heightDiff := mChain.header.Number - mHeader.Number
-			if limit > heightDiff {
-				limit = heightDiff
-			}
-
-			mBHeaders, err := mChain.downloadBlockHeaderListAndCheck(startheader.NumberU64(), 0, limit, mHeader.Branch.Value)
-			if err != nil {
-				return nil, err
-			}
-			if mBHeaders[0].ParentHash != mHeader.Hash() {
-				return nil, errors.New("Bad peer sending incorrect canonical minor headers ")
-			}
-
-			iHeaders := make([]types.IHeader, 0, len(mBHeaders))
-			for _, hd := range mBHeaders {
-				hd := hd
-				iHeaders = append(iHeaders, hd)
-			}
-			return iHeaders, nil
-		},
-		getBlocks: func(hashes []common.Hash) (ret []types.IBlock, err error) {
-			mblocks, err := p.GetMinorBlockList(hashes, header.Branch.Value)
-			if err != nil {
-				return nil, err
-			}
-			for _, mb := range mblocks {
-				ret = append(ret, mb)
-			}
-			return ret, nil
-		},
-	}
-	return mChain
 }
 
 func (m *minorChainTask) Priority() *big.Int {
-	return new(big.Int).SetUint64(m.header.NumberU64())
+	return new(big.Int).SetUint64(m.task.header.NumberU64())
 }
 
 func (m *minorChainTask) PeerID() string {
 	return m.peer.PeerID()
-}
-
-func (m *minorChainTask) downloadBlockHeaderListAndCheck(height, skip,
-limit uint64, branch uint32) ([]*types.MinorBlockHeader, error) {
-	req := &rpc.GetMinorBlockHeaderListRequest{
-		Height:    &height,
-		Hash:      common.Hash{},
-		Skip:      uint32(skip),
-		Limit:     uint32(limit),
-		Direction: qcom.DirectionToTip,
-		Branch:    branch,
-	}
-	resp, err := m.peer.GetMinorBlockHeaderList(req)
-	if err != nil {
-		return nil, err
-	}
-
-	if resp.ShardTip.Difficulty.Cmp(m.header.Difficulty) < 0 {
-		return nil, errors.New("Bad peer sending minor block tip with lower TD ")
-	}
-
-	if len(resp.BlockHeaderList) == 0 {
-		return nil, errors.New("Remote chain reorg causing empty minor block headers ")
-	}
-
-	newLimit := (resp.ShardTip.Number + 1 - height) / (skip + 1)
-	if newLimit < limit {
-		newLimit = limit
-	}
-
-	if len(resp.BlockHeaderList) != int(newLimit) {
-		return nil, errors.New("Bad peer sending incorrect number of root block headers ")
-	}
-
-	if resp.ShardTip.Hash() != m.header.Hash() {
-		m.header = resp.ShardTip
-	}
-	return resp.BlockHeaderList, nil
-}
-
-func (m *minorChainTask) findAncestor(bc blockchain) (*types.MinorBlockHeader, error) {
-	mtip := bc.CurrentHeader().(*types.MinorBlockHeader)
-	if m.header.Hash() == mtip.Hash() {
-		return mtip, nil
-	}
-
-	end := mtip.Number
-	start := mtip.Number - m.maxStaleness
-	if start < 0 {
-		start = 0
-	}
-	if m.header.Number < end {
-		end = m.header.Number
-	}
-
-	var bestAncestor *types.MinorBlockHeader
-	for end >= start {
-		span := (end-start)/MinorBlockHeaderListLimit + 1
-
-		mBHeaders, err := m.downloadBlockHeaderListAndCheck(start, span-1, MinorBlockHeaderListLimit, m.header.Branch.Value)
-		if err != nil {
-			return nil, err
-		}
-
-		var preHeader *types.MinorBlockHeader
-		for i := len(mBHeaders); i >= 0; i-- {
-			mh := mBHeaders[i]
-			if mh.Number < start || mh.Number > end {
-				return nil, errors.New("Bad peer returning minor block height out of range ")
-			}
-
-			if preHeader != nil && mh.Number > preHeader.Number {
-				return nil, errors.New("Bad peer returning minor block height must be ordered ")
-			}
-			preHeader = mh
-
-			if !bc.HasBlock(mh.Hash()) {
-				end = mh.Number - 1
-				continue
-			}
-			if mh.Number == end {
-				return mh, nil
-			}
-
-			start = mh.Number + 1
-			bestAncestor = mh
-			if start > end {
-				return nil, errors.New("Bad order start and end to download minor blocks ")
-			}
-		}
-	}
-	return bestAncestor, nil
 }

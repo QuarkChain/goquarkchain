@@ -3,8 +3,6 @@ package sync
 import (
 	"errors"
 	"fmt"
-	"github.com/QuarkChain/goquarkchain/cluster/rpc"
-	"github.com/QuarkChain/goquarkchain/p2p"
 	"math/rand"
 	"testing"
 
@@ -18,17 +16,15 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func (p *mockpeer) GetMinorBlockHeaderList(gReq *rpc.GetMinorBlockHeaderListRequest) (*p2p.GetMinorBlockHeaderListResponse, error) {
+func (p *mockpeer) GetMinorBlockHeaderList(hash common.Hash, limit, branch uint32, reverse bool) ([]*types.MinorBlockHeader, error) {
 	if p.downloadHeaderError != nil {
 		return nil, p.downloadHeaderError
 	}
 	// May return a subset.
 	for i, h := range p.retMHeaders {
-		if h.Hash() == gReq.Hash {
+		if h.Hash() == hash {
 			ret := p.retMHeaders[i:len(p.retMHeaders)]
-			return &p2p.GetMinorBlockHeaderListResponse{
-				BlockHeaderList: ret,
-			}, nil
+			return ret, nil
 		}
 	}
 	panic("lolwut")
@@ -80,7 +76,7 @@ func TestMinorChainTaskRun(t *testing.T) {
 	bc, db := newMinorBlockChain(5)
 	mbc := bc.(*mockblockchain).mbc
 	currHeader := bc.CurrentHeader().(*types.MinorBlockHeader)
-	var mt = NewMinorChainTask(p, currHeader)
+	var mt Task = NewMinorChainTask(p, currHeader)
 
 	// Prepare future blocks for downloading.
 	mbChain, mhChain := makeMinorChains(mbc.CurrentBlock(), db, false)
