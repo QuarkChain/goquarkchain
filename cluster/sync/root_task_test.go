@@ -11,6 +11,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
+	qcom "github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/core"
 	"github.com/QuarkChain/goquarkchain/core/state"
@@ -32,22 +33,35 @@ type mockpeer struct {
 	name                string
 	downloadHeaderError error
 	downloadBlockError  error
+	rTip                *types.RootBlockHeader
+	mTip                *types.MinorBlockHeader
 	retRHeaders         []*types.RootBlockHeader  // Order: descending.
 	retRBlocks          []*types.RootBlock        // Order: descending.
 	retMHeaders         []*types.MinorBlockHeader // Order: descending.
 	retMBlocks          []*types.MinorBlock       // Order: descending.
 }
 
-func (p *mockpeer) GetRootBlockHeaderList(req *rpc.GetRootBlockHeaderListRequest) (*p2p.GetRootBlockHeaderListResponse, error) {
+func (p *mockpeer) GetRootBlockHeaderList(request *rpc.GetRootBlockHeaderListRequest) (*p2p.GetRootBlockHeaderListResponse, error) {
 	if p.downloadHeaderError != nil {
 		return nil, p.downloadHeaderError
 	}
+	if request.Limit <= 0 || request.Limit > 2*RootBlockHeaderListLimit {
+		return nil, errors.New("Bad limit ")
+	}
+	if request.Direction != qcom.DirectionToGenesis && request.Direction != qcom.DirectionToTip {
+		return nil, errors.New("Bad direction ")
+	}
+
+	if request.Hash == (common.Hash{}) && request.Height == nil {
+		return nil, errors.New("Bad params ")
+	}
+
 	// May return a subset.
-	fmt.Println(p.retRHeaders, *req.Height, req.Hash, req.Skip, req.Direction)
 	for i, h := range p.retRHeaders {
-		if h.Hash() == req.Hash {
+		if h.Hash() == request.Hash || h.Number == *request.Height {
 			ret := p.retRHeaders[i:len(p.retRHeaders)]
 			return &p2p.GetRootBlockHeaderListResponse{
+				RootTip:         p.rTip,
 				BlockHeaderList: ret,
 			}, nil
 		}
@@ -141,7 +155,7 @@ func newRootBlockChain(sz int) blockchain {
 	if err != nil {
 		panic(fmt.Sprintf("failed to generate root blockchain: %v", err))
 	}
-	rootBlocks := core.GenerateRootBlockChain(genesisBlock, engine, sz, nil)
+	rootBlocks := core.GenerateRootBlockChain(genesisBlock, engine, sz+1, nil)
 	var blocks []types.IBlock
 	for _, rb := range rootBlocks {
 		blocks = append(blocks, rb)
@@ -169,7 +183,7 @@ func TestRootChainTaskRun(t *testing.T) {
 	rt.(*rootChainTask).header = rbChain[4].Header()
 	v := &mockvalidator{}
 	bc.(*mockblockchain).validator = v
-	p.retRHeaders, p.retRBlocks = reverseRHeaders(rhChain), reverseRBlocks(rbChain)
+	p.rTip, p.retRHeaders, p.retRBlocks = bc.CurrentHeader().(*types.RootBlockHeader), reverseRHeaders(rhChain), reverseRBlocks(rbChain)
 	assert.NoError(t, rt.Run(bc))
 	// Confirm 5 more blocks are successfully added to existing 5-block chain.
 	assert.Equal(t, uint64(10), bc.CurrentHeader().NumberU64())

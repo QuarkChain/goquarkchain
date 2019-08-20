@@ -36,9 +36,10 @@ type task struct {
 // Run will execute the synchronization task.
 func (t *task) Run(bc blockchain) error {
 	ancestor, err := t.findAncestor(bc)
-	if err != nil {
+	if err != nil || ancestor == nil {
 		return err
 	}
+
 	logger := log.New("synctask", t.name, "start", ancestor.NumberU64())
 
 	if bc.CurrentHeader().NumberU64()-ancestor.NumberU64() > t.maxSyncStaleness {

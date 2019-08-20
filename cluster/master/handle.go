@@ -559,7 +559,7 @@ func (pm *ProtocolManager) HandleGetRootBlockHeaderListWithSkipRequest(peerId st
 	if request.Limit <= 0 || request.Limit > 2*qkcsync.RootBlockHeaderListLimit {
 		return nil, errors.New("Bad limit")
 	}
-	if request.Direction != qkcom.DirectionToGenesis /*&& request.Direction != directionToTip*/ {
+	if request.Direction != qkcom.DirectionToGenesis && request.Direction != qkcom.DirectionToTip {
 		return nil, errors.New("Bad direction")
 	}
 	if request.Type != 0 && request.Type != 1 {

@@ -892,7 +892,8 @@ func TestGetRootBlockHeadersWithSkip(t *testing.T) {
 	peer := clstrList.GetPeerByIndex(1)
 	assert.NotNil(t, peer)
 	//# Test Case 1 ###################################################
-	blockHeaders, err := peer.GetRootBlockHeaderList(rootBlockHeaderList[2].Hash(), 3, true)
+	res, err := peer.GetRootBlockHeaderList(rootBlockHeaderList[2].Hash(), 3, true)
+	blockHeaders := res.BlockHeaderList
 	assert.NoError(t, err)
 	assert.Equal(t, len(blockHeaders), 3)
 	assert.Equal(t, blockHeaders[0].Hash(), rootBlockHeaderList[2].Hash())

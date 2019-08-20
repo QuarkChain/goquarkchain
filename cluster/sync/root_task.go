@@ -45,11 +45,17 @@ func NewRootChainTask(
 		stats:            stats,
 		statusChan:       statusChan,
 		getShardConnFunc: getShardConnFunc,
+		maxStaleness:     22500,
 	}
 	rChain.task = task{
 		name:             "root",
 		maxSyncStaleness: 22500,
 		findAncestor: func(bc blockchain) (types.IHeader, error) {
+
+			if bc.HasBlock(rChain.header.Hash()) {
+				return nil, nil
+			}
+
 			ancestor, err := rChain.findAncestor(bc)
 			if err != nil {
 				rChain.stats.AncestorNotFoundCount += 1
@@ -159,7 +165,7 @@ func (r *rootChainTask) findAncestor(bc blockchain) (*types.RootBlockHeader, err
 
 	end := rtip.Number
 	start := rtip.Number - r.maxStaleness
-	if start < 0 {
+	if rtip.Number < r.maxStaleness {
 		start = 0
 	}
 	if r.header.Number < end {
@@ -170,8 +176,7 @@ func (r *rootChainTask) findAncestor(bc blockchain) (*types.RootBlockHeader, err
 	for end >= start {
 		r.stats.AncestorLookupRequests += 1
 		span := (end-start)/RootBlockHeaderListLimit + 1
-		fmt.Println("=======", start, span-1, RootBlockHeaderListLimit)
-		blocklist, err := r.downloadBlockHeaderListAndCheck(start, span-1, RootBlockHeaderListLimit)
+		blocklist, err := r.downloadBlockHeaderListAndCheck(start, span-1, (end+1-start)/span)
 		if err != nil {
 			return nil, err
 		}
