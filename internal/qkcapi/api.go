@@ -76,8 +76,18 @@ func (p *PublicBlockChainAPI) NetworkInfo() map[string]interface{} {
 		shardSize uint32
 	}
 	ChainIdToShardSizeList := make([]ChainIdToShardSize, 0)
-	for _, v := range config.Quarkchain.Chains {
-		ChainIdToShardSizeList = append(ChainIdToShardSizeList, ChainIdToShardSize{chainID: v.ChainID, shardSize: v.ShardSize})
+	currRootHeight := p.b.CurrentBlock().Number()
+	for chainID, v := range config.Quarkchain.Chains {
+		isChainBeCreated:=true
+		for index:=uint32(0);index<v.ShardSize;index++{
+			fullShardID:=chainID<<16|v.ShardSize|index
+			if currRootHeight<config.Quarkchain.GetShardConfigByFullShardID(fullShardID).Genesis.RootHeight{
+				isChainBeCreated=false
+			}
+		}
+		if isChainBeCreated{
+			ChainIdToShardSizeList = append(ChainIdToShardSizeList, ChainIdToShardSize{chainID: v.ChainID, shardSize: v.ShardSize})
+		}
 	}
 	sort.Slice(ChainIdToShardSizeList, func(i, j int) bool { return ChainIdToShardSizeList[i].chainID < ChainIdToShardSizeList[j].chainID }) //Right???
 	shardSize := make([]hexutil.Uint, 0)
@@ -86,7 +96,7 @@ func (p *PublicBlockChainAPI) NetworkInfo() map[string]interface{} {
 	}
 	return map[string]interface{}{
 		"networkId":        hexutil.Uint(config.Quarkchain.NetworkID),
-		"chainSize":        hexutil.Uint(config.Quarkchain.ChainSize),
+		"chainSize":        hexutil.Uint(len(ChainIdToShardSizeList)),
 		"shardSizes":       shardSize,
 		"syncing":          p.b.IsSyncing(),
 		"mining":           p.b.IsMining(),
