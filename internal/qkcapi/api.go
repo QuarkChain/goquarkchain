@@ -78,14 +78,15 @@ func (p *PublicBlockChainAPI) NetworkInfo() map[string]interface{} {
 	ChainIdToShardSizeList := make([]ChainIdToShardSize, 0)
 	currRootHeight := p.b.CurrentBlock().Number()
 	for chainID, v := range config.Quarkchain.Chains {
-		isChainBeCreated:=true
+		shardBeCreated :=0
 		for index:=uint32(0);index<v.ShardSize;index++{
 			fullShardID:=chainID<<16|v.ShardSize|index
 			if currRootHeight<config.Quarkchain.GetShardConfigByFullShardID(fullShardID).Genesis.RootHeight{
-				isChainBeCreated=false
+				break
 			}
+			shardBeCreated++
 		}
-		if isChainBeCreated{
+		if shardBeCreated !=0{
 			ChainIdToShardSizeList = append(ChainIdToShardSizeList, ChainIdToShardSize{chainID: v.ChainID, shardSize: v.ShardSize})
 		}
 	}
