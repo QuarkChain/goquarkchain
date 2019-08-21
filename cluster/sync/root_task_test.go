@@ -51,10 +51,9 @@ func (p *mockpeer) GetRootBlockHeaderList(request *rpc.GetRootBlockHeaderListReq
 	}
 
 	if request.Hash == (common.Hash{}) && request.Height == nil {
-		return nil, errors.New("Bad params ")
+		return nil, errors.New("Bad params root block hash and height ")
 	}
 
-	fmt.Println("----------", *request.Height, request.Limit, request.Skip)
 	// May return a subset.
 	sign := 0
 	rBHeaders := make([]*types.RootBlockHeader, 0, request.Limit)
@@ -317,8 +316,7 @@ func makeRootChains(parent *types.RootBlock, height int, random bool) ([]*types.
 		headerchain []*types.RootBlockHeader
 		blockchain  []*types.RootBlock
 	)
-	/*headerchain = append(headerchain, parent.Header())
-	blockchain = append(blockchain, parent)*/
+	blockchain = append(blockchain, parent)
 
 	blockchain = append(blockchain, core.GenerateRootBlockChain(parent, engine, height, gen)...)
 	for _, rb := range blockchain {

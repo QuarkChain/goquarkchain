@@ -3,42 +3,78 @@ package sync
 import (
 	"errors"
 	"fmt"
-	"github.com/QuarkChain/goquarkchain/cluster/rpc"
-	"github.com/QuarkChain/goquarkchain/p2p"
-	"math/rand"
-	"testing"
-
 	"github.com/QuarkChain/goquarkchain/cluster/config"
+	"github.com/QuarkChain/goquarkchain/cluster/rpc"
+	qcom "github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/core"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/core/vm"
+	"github.com/QuarkChain/goquarkchain/p2p"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/stretchr/testify/assert"
+	"testing"
 )
 
-func (p *mockpeer) GetMinorBlockHeaderList(gReq *rpc.GetMinorBlockHeaderListRequest) (*p2p.GetMinorBlockHeaderListResponse, error) {
+func (p *mockpeer) GetMinorBlockHeaderList(req *rpc.GetMinorBlockHeaderListRequest) (*p2p.GetMinorBlockHeaderListResponse, error) {
 	if p.downloadHeaderError != nil {
 		return nil, p.downloadHeaderError
 	}
-	// May return a subset.
-	for i, h := range p.retMHeaders {
-		if h.Hash() == gReq.Hash {
-			ret := p.retMHeaders[i:len(p.retMHeaders)]
-			return &p2p.GetMinorBlockHeaderListResponse{
-				BlockHeaderList: ret,
-			}, nil
+
+	if req.Limit <= 0 || req.Limit > 2*MinorBlockHeaderListLimit {
+		return nil, errors.New("Bad limit ")
+	}
+	if req.Direction != qcom.DirectionToGenesis && req.Direction != qcom.DirectionToTip {
+		return nil, errors.New("Bad direction ")
+	}
+
+	if req.Hash == (common.Hash{}) && req.Height == nil {
+		return nil, errors.New("Bad params minor block hash and height ")
+	}
+
+	sign := 0
+	mBHeaders := make([]*types.MinorBlockHeader, 0, req.Limit)
+	for i, hd := range p.retMHeaders {
+		if hd.Hash() == req.Hash || hd.Number == *req.Height {
+			sign = i
+			break
 		}
 	}
-	panic("lolwut")
+
+	direction := int(req.Skip + 1)
+	if req.Direction == qcom.DirectionToGenesis {
+		direction = 0 - direction
+	}
+
+	for ; sign >= 0 && sign < len(p.retMHeaders) && len(mBHeaders) < cap(mBHeaders); sign += direction {
+		mBHeaders = append(mBHeaders, p.retMHeaders[sign])
+	}
+
+	return &p2p.GetMinorBlockHeaderListResponse{
+		ShardTip:        p.retMHeaders[len(p.retMHeaders)-1],
+		BlockHeaderList: mBHeaders,
+	}, nil
 }
 
 func (p *mockpeer) GetMinorBlockList(hashes []common.Hash, branch uint32) ([]*types.MinorBlock, error) {
-	if p.downloadBlockError != nil {
-		return nil, p.downloadBlockError
+	mBlocks := make([]*types.MinorBlock, 0, len(hashes))
+	sign := 0
+	for _, mhash := range hashes {
+		for ; sign < len(p.retMHeaders); sign++ {
+			if mhash == p.retMBlocks[sign].Hash() {
+				mBlocks = append(mBlocks, p.retMBlocks[sign])
+				break
+			}
+		}
 	}
-	return p.retMBlocks, nil
+	return mBlocks, nil
+}
+
+func (p *mockpeer) MinorHead(branch uint32) *p2p.Tip {
+	return &p2p.Tip{
+		MinorBlockHeaderList: []*types.MinorBlockHeader{p.retMHeaders[len(p.retMHeaders)-1]},
+	}
 }
 
 func newMinorBlockChain(sz int) (blockchain, ethdb.Database) {
@@ -75,88 +111,53 @@ func newMinorBlockChain(sz int) (blockchain, ethdb.Database) {
 	return &mockblockchain{mbc: blockchain}, db
 }
 
-func TestMinorChainTaskRun(t *testing.T) {
+func TestMinorChainTaskEmpty(t *testing.T) {
 	p := &mockpeer{name: "chunfeng"}
-	bc, db := newMinorBlockChain(5)
-	mbc := bc.(*mockblockchain).mbc
+	bc, _ := newMinorBlockChain(5)
 	currHeader := bc.CurrentHeader().(*types.MinorBlockHeader)
 	var mt = NewMinorChainTask(p, currHeader)
 
+	// No error if already have the target block.
+	assert.NoError(t, mt.Run(bc))
+}
+
+func TestMinorChainTaskBigerThanLimit(t *testing.T) {
+	p := &mockpeer{name: "chunfeng"}
+	bc, db := newMinorBlockChain(5)
+	v := &mockvalidator{}
+	bc.(*mockblockchain).validator = v
+	mbc := bc.(*mockblockchain).mbc
+
 	// Prepare future blocks for downloading.
-	mbChain, mhChain := makeMinorChains(mbc.CurrentBlock(), db, false)
+	p.retMBlocks, p.retMHeaders = makeMinorChains(mbc.GetBlockByNumber(0).(*types.MinorBlock), 100, db, false)
+
+	var mt = NewMinorChainTask(p, p.retMHeaders[51])
 
 	// No error if already have the target block.
 	assert.NoError(t, mt.Run(bc))
-	// Happy path.
-	mt.(*minorChainTask).header = mbChain[4].Header()
-	v := &mockvalidator{}
-	bc.(*mockblockchain).validator = v
-	p.retMHeaders, p.retMBlocks = reverseMHeaders(mhChain), reverseMBlocks(mbChain)
-	assert.NoError(t, mt.Run(bc))
-	// Confirm 5 more blocks are successfully added to existing 5-block chain.
-	assert.Equal(t, uint64(10), bc.CurrentHeader().NumberU64())
 
-	// Rollback and test unhappy path.
-	mbc.SetHead(5)
-	assert.Equal(t, mhChain[0].ParentHash, bc.CurrentHeader().Hash())
-	// Get errors when downloading headers.
-	mt.(*minorChainTask).header = mbChain[4].Header()
-	p.downloadHeaderError = errors.New("download error")
-	assert.Error(t, mt.Run(bc))
-	// Downloading headers succeeds, but block validation failed.
-	p.downloadHeaderError = nil
-	v.err = errors.New("validate error")
-	assert.Error(t, mt.Run(bc))
-	// Block validation succeeds, but block header list not correct.
-	v.err = nil
-	wrongHeaders := reverseMHeaders(mhChain)
-	rand.Shuffle(len(wrongHeaders), func(i, j int) {
-		wrongHeaders[i], wrongHeaders[j] = wrongHeaders[j], wrongHeaders[i]
-	})
-	p.retMHeaders = wrongHeaders
-	assert.Error(t, mt.Run(bc))
-	// Validation succeeds. Should be downloading actual blocks. Mock some errors.
-	p.retMHeaders = reverseMHeaders(mhChain)
-	p.downloadBlockError = errors.New("download error")
-	assert.Error(t, mt.Run(bc))
-	// Downloading blocks succeeds. But make the returned blocks miss one. Insertion should fail.
-	p.downloadBlockError = nil
-	missing := p.retMBlocks[len(p.retMBlocks)-1]
-	p.retMBlocks = p.retMBlocks[0 : len(p.retMBlocks)-1]
-	assert.Error(t, mt.Run(bc))
-	// Add back that missing block. Happy again.
-	p.retMBlocks = append(p.retMBlocks, missing)
-	assert.NoError(t, mt.Run(bc))
-	assert.Equal(t, uint64(10), bc.CurrentHeader().NumberU64())
-
-	// Sync older forks. Starting from block 6, up to 11.
-	mbChain, mhChain = makeMinorChains(mbChain[0], db, true)
-	for _, rh := range mhChain {
-		assert.False(t, bc.HasBlock(rh.Hash()))
-	}
-	mt.(*minorChainTask).header = mbChain[4].Header()
-	p.retMHeaders, p.retMBlocks = reverseMHeaders(mhChain), reverseMBlocks(mbChain)
-	assert.NoError(t, mt.Run(bc))
-	for _, mh := range mhChain {
-		assert.True(t, bc.HasBlock(mh.Hash()))
-	}
-	// Tip should be updated.
-	assert.Equal(t, uint64(11), bc.CurrentHeader().NumberU64())
 }
 
 /*
  Test helpers.
 */
 
-func makeMinorChains(parent *types.MinorBlock, db ethdb.Database, random bool) ([]*types.MinorBlock, []*types.MinorBlockHeader) {
+func makeMinorChains(parent *types.MinorBlock, height int, db ethdb.Database, random bool) ([]*types.MinorBlock, []*types.MinorBlockHeader) {
 	var gen func(config *config.QuarkChainConfig, i int, b *core.MinorBlockGen)
 	if random {
 		gen = func(config *config.QuarkChainConfig, i int, b *core.MinorBlockGen) {
 			b.SetExtra([]byte{byte(i)})
 		}
 	}
-	blockchain, _ := core.GenerateMinorBlockChain(params.TestChainConfig, qkcconfig, parent, engine, db, 5, gen)
-	var headerchain []*types.MinorBlockHeader
+
+	var (
+		headerchain []*types.MinorBlockHeader
+		blockchain  []*types.MinorBlock
+	)
+	blockchain = append(blockchain, parent)
+
+	tBlocks, _ := core.GenerateMinorBlockChain(params.TestChainConfig, qkcconfig, parent, engine, db, height, gen)
+	blockchain = append(blockchain, tBlocks...)
 	for _, mb := range blockchain {
 		headerchain = append(headerchain, mb.Header())
 	}

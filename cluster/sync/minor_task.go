@@ -15,6 +15,7 @@ type minorSyncerPeer interface {
 	GetMinorBlockHeaderList(gReq *rpc.GetMinorBlockHeaderListRequest) (*p2p.GetMinorBlockHeaderListResponse, error)
 	// GetMinorBlockHeaderList(hash common.Hash, limit, branch uint32, reverse bool) ([]*types.MinorBlockHeader, error)
 	GetMinorBlockList(hashes []common.Hash, branch uint32) ([]*types.MinorBlock, error)
+	MinorHead(branch uint32) *p2p.Tip
 	PeerID() string
 }
 
@@ -32,8 +33,9 @@ func NewMinorChainTask(
 	header *types.MinorBlockHeader,
 ) Task {
 	mChain := &minorChainTask{
-		header: header,
-		peer:   p,
+		header:       header,
+		peer:         p,
+		maxStaleness: 22500 * 6,
 	}
 	mChain.task = task{
 		name:             fmt.Sprintf("shard-%d", header.Branch.GetShardID()),
@@ -119,16 +121,12 @@ limit uint64, branch uint32) ([]*types.MinorBlockHeader, error) {
 		return nil, err
 	}
 
-	if resp.ShardTip.Difficulty.Cmp(m.header.Difficulty) < 0 {
-		return nil, errors.New("Bad peer sending minor block tip with lower TD ")
-	}
-
 	if len(resp.BlockHeaderList) == 0 {
 		return nil, errors.New("Remote chain reorg causing empty minor block headers ")
 	}
 
 	newLimit := (resp.ShardTip.Number + 1 - height) / (skip + 1)
-	if newLimit < limit {
+	if newLimit > limit {
 		newLimit = limit
 	}
 
@@ -148,9 +146,9 @@ func (m *minorChainTask) findAncestor(bc blockchain) (*types.MinorBlockHeader, e
 		return mtip, nil
 	}
 
-	end := mtip.Number
-	start := mtip.Number - m.maxStaleness
-	if mtip.Number < m.maxStaleness {
+	end := m.peer.MinorHead(m.header.Branch.Value).MinorBlockHeaderList[0].Number
+	start := end - m.maxStaleness
+	if end < m.maxStaleness {
 		start = 0
 	}
 	if m.header.Number < end {
@@ -166,7 +164,7 @@ func (m *minorChainTask) findAncestor(bc blockchain) (*types.MinorBlockHeader, e
 		}
 
 		var preHeader *types.MinorBlockHeader
-		for i := len(mBHeaders); i >= 0; i-- {
+		for i := len(mBHeaders) - 1; i >= 0; i-- {
 			mh := mBHeaders[i]
 			if mh.Number < start || mh.Number > end {
 				return nil, errors.New("Bad peer returning minor block height out of range ")
@@ -190,6 +188,7 @@ func (m *minorChainTask) findAncestor(bc blockchain) (*types.MinorBlockHeader, e
 			if start > end {
 				return nil, errors.New("Bad order start and end to download minor blocks ")
 			}
+			break
 		}
 	}
 	return bestAncestor, nil

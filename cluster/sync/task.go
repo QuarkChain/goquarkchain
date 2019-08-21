@@ -72,18 +72,16 @@ func (t *task) Run(bc blockchain) error {
 			return err
 		}
 
-		if t.syncBlock != nil {
-			for _, blk := range blocks {
-				if t.syncBlock != nil {
-					if err := t.syncBlock(bc, blk); err != nil {
-						return err
-					}
-				}
-				if err := bc.AddBlock(blk); err != nil {
+		for _, blk := range blocks {
+			if t.syncBlock != nil {
+				if err := t.syncBlock(bc, blk); err != nil {
 					return err
 				}
-				ancestor = blk.IHeader()
 			}
+			if err := bc.AddBlock(blk); err != nil {
+				return err
+			}
+			ancestor = blk.IHeader()
 		}
 	}
 	return nil
@@ -92,7 +90,7 @@ func (t *task) Run(bc blockchain) error {
 func (t *task) validateHeaderList(bc blockchain, headers []types.IHeader) error {
 	var prev types.IHeader
 	for _, h := range headers {
-		if prev != nil {
+		if !qkcom.IsNil(prev) {
 			if h.NumberU64() != prev.NumberU64()+1 {
 				return errors.New("should have descending order with step 1")
 			}

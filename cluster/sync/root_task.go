@@ -202,6 +202,7 @@ func (r *rootChainTask) findAncestor(bc blockchain) (*types.RootBlockHeader, err
 				end = rh.Number - 1
 				continue
 			}
+
 			if rh.Number == end {
 				return rh, nil
 			}
@@ -211,6 +212,7 @@ func (r *rootChainTask) findAncestor(bc blockchain) (*types.RootBlockHeader, err
 			if start > end {
 				return nil, errors.New("Bad order start and end to download root blocks ")
 			}
+			break
 		}
 	}
 	return bestAncestor, nil
