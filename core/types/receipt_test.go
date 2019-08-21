@@ -26,7 +26,7 @@ func TestReceiptSerializing(t *testing.T) {
 			t.Errorf("%s mismatch: got %v, want %v", f, got, want)
 		}
 	}
-
+	check("TxHash", common.Bytes2Hex(receipt.TxHash.Bytes()), "497a6ffb5f4a236c2aece4e41ea52f703b255b55b16e439ed44f358017a29eeb")
 	check("PostState", common.Bytes2Hex(receipt.PostState), "df227f34313c2bc4a4a986817ea46437f049873f2fca8e2b89b1ecd0f9e67a28")
 	check("Status", receipt.Status, uint64(0))
 	check("CumulativeGasUsed", receipt.CumulativeGasUsed, uint64(1000))

@@ -176,7 +176,7 @@ func TestCrossShardContractCall(t *testing.T) {
 	assert.NoError(t, err)
 	err = master.AddRootBlock(rb.(*types.RootBlock))
 	assert.NoError(t, err)
-	tx0, err := core.CreateContract(minorBlockChainB, id1.GetKey(), acc2, acc2.FullShardKey, core.CONTRACT)
+	tx0, err := core.CreateContract(minorBlockChainB, id1.GetKey(), acc2, acc2.FullShardKey, core.ContractWithStorage2)
 	assert.NoError(t, err)
 	err = slaves[1].AddTx(tx0)
 	assert.NoError(t, err)
@@ -656,7 +656,7 @@ func TestCrossShardContractCreate(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NoError(t, mstr.AddRootBlock(rb.(*types.RootBlock)))
 
-	tx1, err := core.CreateContract(minorBlockChainB, id1.GetKey(), acc2, acc1.FullShardKey, core.CONTRACT)
+	tx1, err := core.CreateContract(minorBlockChainB, id1.GetKey(), acc2, acc1.FullShardKey, core.ContractWithStorage2)
 	assert.NoError(t, slaves[1].AddTx(tx1))
 
 	b1, err := minorBlockChainB.CreateBlockToMine(nil, &acc2, nil, nil, nil)

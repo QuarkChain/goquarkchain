@@ -249,7 +249,7 @@ func ApplyCrossShardDeposit(config *params.ChainConfig, bc ChainContext, header 
 		receipt.Logs = evmState.GetLogs(tx.TxHash)
 		receipt.Bloom = types.CreateBloom(types.Receipts{receipt})
 		if tx.CreateContract {
-			receipt.ContractAddress = *context.ContractAddress
+			receipt.ContractAddress = tx.To.Recipient
 			receipt.ContractFullShardKey = tx.To.FullShardKey
 		}
 		return receipt, nil
