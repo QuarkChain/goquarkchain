@@ -34,6 +34,10 @@ func (p *peer) PeerID() string {
 	return p.peerID
 }
 
+func (p *peer) MinorHead(branch uint32) (*types.MinorBlockHeader, error) {
+	return p.cm.MinorHead(&rpc.MinorHeadRequest{Branch: branch, PeerID: p.peerID})
+}
+
 func (s *ShardBackend) GetUnconfirmedHeaderList() ([]*types.MinorBlockHeader, error) {
 	headers := s.MinorBlockChain.GetUnconfirmedHeaderList()
 	return headers, nil

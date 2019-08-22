@@ -46,6 +46,7 @@ const (
 	OpSubmitWork
 	OpAddMinorBlockListForSync
 	// p2p api
+	OpMinorHead
 	OpBroadcastNewTip
 	OpBroadcastTransactions
 	OpBroadcastNewMinorBlock
@@ -67,11 +68,12 @@ var (
 	masterApis = map[uint32]opType{
 		OpAddMinorBlockHeader: {name: "AddMinorBlockHeader"},
 		// p2p api
-		OpBroadcastNewTip:                 {name: "BroadcastNewTip"},
-		OpBroadcastTransactions:           {name: "BroadcastTransactions"},
-		OpBroadcastNewMinorBlock:          {name: "BroadcastNewMinorBlock"},
-		OpGetMinorBlockList:               {name: "GetMinorBlockList"},
-		OpGetMinorBlockHeaderList:         {name: "GetMinorBlockHeaderList"},
+		OpMinorHead:               {name: "MinorHead"},
+		OpBroadcastNewTip:         {name: "BroadcastNewTip"},
+		OpBroadcastTransactions:   {name: "BroadcastTransactions"},
+		OpBroadcastNewMinorBlock:  {name: "BroadcastNewMinorBlock"},
+		OpGetMinorBlockList:       {name: "GetMinorBlockList"},
+		OpGetMinorBlockHeaderList: {name: "GetMinorBlockHeaderList"},
 	}
 	// slave apis
 	slaveApis = map[uint32]opType{

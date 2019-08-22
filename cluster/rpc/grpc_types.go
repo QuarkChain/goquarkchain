@@ -139,6 +139,11 @@ type GetMinorBlockHeaderListRequest struct {
 	PeerID    string      `json:"peerid" gencodec:"required"`
 }
 
+type MinorHeadRequest struct {
+	Branch uint32 `json:"branch" gencodec:"required"`
+	PeerID string `json:"peer_id" gencodec:"required"`
+}
+
 type GetMinorBlockHeaderListResponse struct {
 	MinorBlockHeaderList []*types.MinorBlockHeader `json:"minor_block_header" gencodec:"required" bytesizeofslicelen:"4"`
 }

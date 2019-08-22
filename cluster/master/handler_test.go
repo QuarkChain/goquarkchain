@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"io/ioutil"
+	"reflect"
 	"testing"
 	"time"
 
@@ -18,6 +19,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/golang/mock/gomock"
 	"github.com/pkg/errors"
+	"github.com/stretchr/testify/assert"
 )
 
 var (
@@ -41,7 +43,9 @@ func TestProtocolCompatibility(t *testing.T) {
 
 func TestGetRootBlockHeaders(t *testing.T) {
 	pm, _ := newTestProtocolManagerMust(t, int(rootBlockHeaderListLimit)+15, nil, NewFakeSynchronizer(1), nil)
-	peer, _ := newTestPeer("peer", int(qkcconfig.P2PProtocolVersion), pm, true)
+	peer, err := newTestPeer("peer", int(qkcconfig.P2PProtocolVersion), pm, true)
+	assert.NoError(t, err)
+
 	clientPeer := newTestClientPeer(int(qkcconfig.P2PProtocolVersion), peer.app)
 	defer peer.close()
 
@@ -89,7 +93,7 @@ func TestGetRootBlockHeaders(t *testing.T) {
 	// Run each of the tests and verify the results against the chain
 	for i, tt := range tests {
 		// Collect the headers to expect in the response
-		headers := []*types.RootBlockHeader{}
+		var headers []*types.RootBlockHeader
 		for _, hash := range tt.expect {
 			headers = append(headers, pm.rootBlockChain.GetHeader(hash).(*types.RootBlockHeader))
 		}
@@ -137,7 +141,8 @@ func TestCloseConnWithErr(t *testing.T) {
 	}
 	// Run each of the tests and verify the results against the chain
 	for i, request := range invalidReqs {
-		peer, _ := newTestPeer("peer", int(qkcconfig.P2PProtocolVersion), pm, true)
+		peer, err := newTestPeer("peer", int(qkcconfig.P2PProtocolVersion), pm, true)
+		assert.NoError(t, err)
 
 		// Send the hash request and verify the response
 		msg, err := p2p.MakeMsg(request.op, peer.getRpcId(), p2p.Metadata{}, request.content)
@@ -158,7 +163,9 @@ func TestCloseConnWithErr(t *testing.T) {
 
 func TestGetRootBlocks(t *testing.T) {
 	pm, _ := newTestProtocolManagerMust(t, rootBlockBatchSize+15, nil, NewFakeSynchronizer(1), nil)
-	peer, _ := newTestPeer("peer", int(qkcconfig.P2PProtocolVersion), pm, true)
+	peer, err := newTestPeer("peer", int(qkcconfig.P2PProtocolVersion), pm, true)
+	assert.NoError(t, err)
+
 	clientPeer := newTestClientPeer(int(qkcconfig.P2PProtocolVersion), peer.app)
 	defer peer.close()
 
@@ -223,7 +230,9 @@ func TestGetMinorBlockHeaders(t *testing.T) {
 		minorHeaders[i] = block.Header()
 	}
 
-	peer, _ := newTestPeer("peer", int(qkcconfig.P2PProtocolVersion), pm, true)
+	peer, err := newTestPeer("peer", int(qkcconfig.P2PProtocolVersion), pm, true)
+	assert.NoError(t, err)
+
 	clientPeer := newTestClientPeer(int(qkcconfig.P2PProtocolVersion), peer.app)
 	defer peer.close()
 
@@ -262,7 +271,6 @@ func TestGetMinorBlockHeaders(t *testing.T) {
 	}
 	// Run each of the tests and verify the results against the chain
 	for i, tt := range tests {
-		go handleMsg(clientPeer)
 		for _, conn := range shardConns {
 			conn.(*mock_master.MockShardConnForP2P).EXPECT().GetMinorBlockHeaderList(tt.query).Return(
 				&p2p.GetMinorBlockHeaderListResponse{
@@ -271,6 +279,8 @@ func TestGetMinorBlockHeaders(t *testing.T) {
 					BlockHeaderList: tt.expect,
 				}, nil).AnyTimes()
 		}
+
+		go handleMsg(clientPeer)
 		res, err := clientPeer.GetMinorBlockHeaderList(&rpc.GetMinorBlockHeaderListRequest{
 			Hash:      tt.query.BlockHash,
 			Limit:     tt.query.Limit,
@@ -278,6 +288,7 @@ func TestGetMinorBlockHeaders(t *testing.T) {
 			Direction: qcom.DirectionToGenesis,
 		})
 
+		fmt.Println("=========", reflect.TypeOf(res).Name())
 		rheaders := res.BlockHeaderList
 		if err != nil {
 			t.Errorf("test %d: make message failed: %v", i, err)
@@ -306,7 +317,9 @@ func TestGetMinorBlocks(t *testing.T) {
 	for i, block := range minorBlocks {
 		hashList[i] = block.Hash()
 	}
-	peer, _ := newTestPeer("peer", int(qkcconfig.P2PProtocolVersion), pm, true)
+	peer, err := newTestPeer("peer", int(qkcconfig.P2PProtocolVersion), pm, true)
+	assert.NoError(t, err)
+
 	clientPeer := newTestClientPeer(int(qkcconfig.P2PProtocolVersion), peer.app)
 	defer peer.close()
 
@@ -377,7 +390,9 @@ func TestBroadcastMinorBlock(t *testing.T) {
 		return shardConns
 	})
 	minorBlock := generateMinorBlocks(1)[0]
-	peer, _ := newTestPeer("peer", int(qkcconfig.P2PProtocolVersion), pm, true)
+	peer, err := newTestPeer("peer", int(qkcconfig.P2PProtocolVersion), pm, true)
+	assert.NoError(t, err)
+
 	clientPeer := newTestClientPeer(int(qkcconfig.P2PProtocolVersion), peer.app)
 	defer peer.close()
 
@@ -385,7 +400,7 @@ func TestBroadcastMinorBlock(t *testing.T) {
 		conn.(*mock_master.MockShardConnForP2P).EXPECT().
 			HandleNewMinorBlock(gomock.Any()).Return(true, nil).Times(1)
 	}
-	err := clientPeer.SendNewMinorBlock(2, minorBlock)
+	err = clientPeer.SendNewMinorBlock(2, minorBlock)
 	if err != nil {
 		t.Errorf("make message failed: %v", err.Error())
 	}
@@ -422,7 +437,9 @@ func TestBroadcastTransactions(t *testing.T) {
 	for _, tx := range txs {
 		hashList = append(hashList, tx.Hash())
 	}
-	peer, _ := newTestPeer("peer", int(qkcconfig.P2PProtocolVersion), pm, true)
+	peer, err := newTestPeer("peer", int(qkcconfig.P2PProtocolVersion), pm, true)
+	assert.NoError(t, err)
+
 	clientPeer := newTestClientPeer(int(qkcconfig.P2PProtocolVersion), peer.app)
 	defer peer.close()
 
@@ -433,7 +450,7 @@ func TestBroadcastTransactions(t *testing.T) {
 			return &rpc.HashList{Hashes: hashList}, nil
 		}).AnyTimes()
 	}
-	err := clientPeer.SendTransactions(2, txs)
+	err = clientPeer.SendTransactions(2, txs)
 	if err != nil {
 		t.Errorf("make message failed: %v", err.Error())
 	}
@@ -451,7 +468,9 @@ func TestBroadcastNewMinorBlockTip(t *testing.T) {
 		return shardConns
 	})
 	minorBlocks := generateMinorBlocks(30)
-	peer, _ := newTestPeer("peer", int(qkcconfig.P2PProtocolVersion), pm, true)
+	peer, err := newTestPeer("peer", int(qkcconfig.P2PProtocolVersion), pm, true)
+	assert.NoError(t, err)
+
 	clientPeer := newTestClientPeer(int(qkcconfig.P2PProtocolVersion), peer.app)
 	defer peer.close()
 
@@ -459,7 +478,7 @@ func TestBroadcastNewMinorBlockTip(t *testing.T) {
 		conn.(*mock_master.MockShardConnForP2P).EXPECT().
 			HandleNewTip(gomock.Any()).Return(true, nil).Times(1)
 	}
-	err := clientPeer.SendNewTip(2, &p2p.Tip{RootBlockHeader: pm.rootBlockChain.CurrentBlock().Header(),
+	err = clientPeer.SendNewTip(2, &p2p.Tip{RootBlockHeader: pm.rootBlockChain.CurrentBlock().Header(),
 		MinorBlockHeaderList: []*types.MinorBlockHeader{minorBlocks[len(minorBlocks)-2].Header()}})
 	if err != nil {
 		t.Errorf("make message failed: %v", err.Error())
@@ -495,11 +514,13 @@ func TestBroadcastNewRootBlockTip(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	pm, _ := newTestProtocolManagerMust(t, 15, nil, sync, nil)
-	peer, _ := newTestPeer("peer", int(qkcconfig.P2PProtocolVersion), pm, true)
+	peer, err := newTestPeer("peer", int(qkcconfig.P2PProtocolVersion), pm, true)
+	assert.NoError(t, err)
+
 	clientPeer := newTestClientPeer(int(qkcconfig.P2PProtocolVersion), peer.app)
 	defer peer.close()
 	blocks := core.GenerateRootBlockChain(pm.rootBlockChain.CurrentBlock(), pm.rootBlockChain.Engine(), 1, nil)
-	err := clientPeer.SendNewTip(0, &p2p.Tip{RootBlockHeader: blocks[0].Header(), MinorBlockHeaderList: nil})
+	err = clientPeer.SendNewTip(0, &p2p.Tip{RootBlockHeader: blocks[0].Header(), MinorBlockHeaderList: nil})
 	if err != nil {
 		t.Errorf("make message failed: %v", err.Error())
 	}
@@ -566,16 +587,22 @@ func ExpectMsg(r p2p.MsgReader, op p2p.P2PCommandOp, metadata p2p.Metadata, cont
 	}
 
 	payload, err := ioutil.ReadAll(msg.Payload)
+	if err != nil {
+		return nil, err
+	}
 	qkcMsg, err := p2p.DecodeQKCMsg(payload)
 	if err != nil {
 		return nil, err
 	}
+
 	if qkcMsg.Op != op {
 		return &qkcMsg, fmt.Errorf("incorrect op code: got %d, want %d", qkcMsg.Op, op)
 	}
+
 	if qkcMsg.MetaData.Branch != metadata.Branch {
 		return &qkcMsg, fmt.Errorf("MetaData miss match: got %d, want %d", qkcMsg.MetaData.Branch, metadata.Branch)
 	}
+
 	contentEnc, err := p2p.Encrypt(metadata, op, qkcMsg.RpcID, content)
 	if err != nil {
 		panic("content encode error: " + err.Error())
@@ -583,6 +610,7 @@ func ExpectMsg(r p2p.MsgReader, op p2p.P2PCommandOp, metadata p2p.Metadata, cont
 	if int(msg.Size) != len(contentEnc) {
 		return &qkcMsg, fmt.Errorf("message size mismatch: got %d, want %d", msg.Size, len(contentEnc))
 	}
+
 	if !bytes.Equal(payload, contentEnc) {
 		return &qkcMsg, fmt.Errorf("message payload mismatch:\ngot:  %x\nwant: %x", common.Bytes2Hex(payload), common.Bytes2Hex(contentEnc))
 	}
@@ -590,15 +618,20 @@ func ExpectMsg(r p2p.MsgReader, op p2p.P2PCommandOp, metadata p2p.Metadata, cont
 }
 
 func handleMsg(peer *Peer) error {
+	fmt.Println("----------", peer.rpcId)
+
 	msg, err := peer.rw.ReadMsg()
 	if err != nil {
+		fmt.Println("===========,", err)
 		return err
 	}
 	payload, err := ioutil.ReadAll(msg.Payload)
 	qkcMsg, err := p2p.DecodeQKCMsg(payload)
 	if err != nil {
+		fmt.Println("=========,,", err)
 		return err
 	}
+	fmt.Println("----------===", qkcMsg.RpcID)
 
 	switch {
 	case qkcMsg.Op == p2p.GetRootBlockHeaderListResponseMsg:
@@ -607,7 +640,7 @@ func handleMsg(peer *Peer) error {
 			return err
 		}
 		if c := peer.getChan(qkcMsg.RpcID); c != nil {
-			c <- blockHeaderResp.BlockHeaderList
+			c <- &blockHeaderResp
 		}
 
 	case qkcMsg.Op == p2p.GetRootBlockListResponseMsg:
@@ -625,7 +658,7 @@ func handleMsg(peer *Peer) error {
 			return err
 		}
 		if c := peer.getChan(qkcMsg.RpcID); c != nil {
-			c <- minorHeaderResp.BlockHeaderList
+			c <- &minorHeaderResp
 		}
 	case qkcMsg.Op == p2p.GetMinorBlockListResponseMsg:
 		var minorBlockResp p2p.GetMinorBlockListResponse

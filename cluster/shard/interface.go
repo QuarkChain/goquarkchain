@@ -23,4 +23,5 @@ type ConnManager interface {
 	BroadcastMinorBlock(minorBlock *types.MinorBlock, branch uint32) error
 	GetMinorBlocks(mHeaderList []common.Hash, peerId string, branch uint32) ([]*types.MinorBlock, error)
 	GetMinorBlockHeaderList(gReq *rpc.GetMinorBlockHeaderListRequest) (*p2p.GetMinorBlockHeaderListResponse, error)
+	MinorHead(req *rpc.MinorHeadRequest) (*types.MinorBlockHeader, error)
 }

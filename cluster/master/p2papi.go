@@ -83,3 +83,12 @@ func (api *PrivateP2PAPI) GetMinorBlockHeaderList(req *rpc.GetMinorBlockHeaderLi
 	}
 	return peer.GetMinorBlockHeaderList(req)
 }
+
+func (api *PrivateP2PAPI) MinorHead(req *rpc.MinorHeadRequest) (*types.MinorBlockHeader, error) {
+	peer := api.peers.Peer(req.PeerID)
+	if peer == nil {
+		return nil, errNotRegistered
+	}
+	mBHeader := peer.MinorHead(req.Branch).MinorBlockHeaderList[0]
+	return mBHeader, nil
+}

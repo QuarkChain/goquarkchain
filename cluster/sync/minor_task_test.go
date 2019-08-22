@@ -71,10 +71,8 @@ func (p *mockpeer) GetMinorBlockList(hashes []common.Hash, branch uint32) ([]*ty
 	return mBlocks, nil
 }
 
-func (p *mockpeer) MinorHead(branch uint32) *p2p.Tip {
-	return &p2p.Tip{
-		MinorBlockHeaderList: []*types.MinorBlockHeader{p.retMHeaders[len(p.retMHeaders)-1]},
-	}
+func (p *mockpeer) MinorHead(branch uint32) (*types.MinorBlockHeader, error) {
+	return p.retMHeaders[len(p.retMHeaders)-1], nil
 }
 
 func newMinorBlockChain(sz int) (blockchain, ethdb.Database) {

@@ -15,7 +15,7 @@ type minorSyncerPeer interface {
 	GetMinorBlockHeaderList(gReq *rpc.GetMinorBlockHeaderListRequest) (*p2p.GetMinorBlockHeaderListResponse, error)
 	// GetMinorBlockHeaderList(hash common.Hash, limit, branch uint32, reverse bool) ([]*types.MinorBlockHeader, error)
 	GetMinorBlockList(hashes []common.Hash, branch uint32) ([]*types.MinorBlock, error)
-	MinorHead(branch uint32) *p2p.Tip
+	MinorHead(branch uint32) (*types.MinorBlockHeader, error)
 	PeerID() string
 }
 
@@ -146,7 +146,11 @@ func (m *minorChainTask) findAncestor(bc blockchain) (*types.MinorBlockHeader, e
 		return mtip, nil
 	}
 
-	end := m.peer.MinorHead(m.header.Branch.Value).MinorBlockHeaderList[0].Number
+	pTip, err := m.peer.MinorHead(m.header.Branch.Value)
+	if err != nil {
+		return nil, err
+	}
+	end := pTip.Number
 	start := end - m.maxStaleness
 	if end < m.maxStaleness {
 		start = 0

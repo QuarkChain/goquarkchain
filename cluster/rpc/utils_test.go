@@ -52,3 +52,9 @@ func (m *MasterServerSideOp) GetMinorBlockHeaderList(ctx context.Context, req *R
 		RpcId: req.RpcId,
 	}, nil
 }
+
+func (m *MasterServerSideOp) MinorHead(ctx context.Context, req *Request) (*Response, error) {
+	return &Response{
+		RpcId: req.RpcId,
+	}, nil
+}

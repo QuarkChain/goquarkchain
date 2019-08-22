@@ -118,6 +118,24 @@ func (s *ConnManager) GetMinorBlockHeaderList(gReq *rpc.GetMinorBlockHeaderListR
 	return &gRep, nil
 }
 
+func (s *ConnManager) MinorHead(req *rpc.MinorHeadRequest) (*types.MinorBlockHeader, error) {
+	data, err := serialize.SerializeToBytes(req)
+	if err != nil {
+		return nil, err
+	}
+
+	res, err := s.masterClient.client.Call(s.masterClient.target, &rpc.Request{Op: rpc.OpMinorHead, Data: data})
+	if err != nil {
+		return nil, err
+	}
+	var mBlockHeader = new(types.MinorBlockHeader)
+	if err = serialize.DeserializeFromBytes(res.Data, mBlockHeader); err != nil {
+		return nil, err
+	}
+
+	return mBlockHeader, nil
+}
+
 func (s *ConnManager) ModifyTarget(target string) {
 	s.masterClient.target = target
 }
