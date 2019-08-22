@@ -30,7 +30,6 @@ type XShardTxCursor struct {
 }
 
 /*
-
    # Cursor definitions (root_block_height, mblock_index, deposit_index)
    # (x, 0, 0): EOF
    # (x, 0, z), z > 0: Root-block coinbase tx (always exist)
@@ -76,6 +75,7 @@ func (x *XShardTxCursor) getCurrentTx() (*types.CrossShardTransactionDeposit, er
 			if branch.IsInBranch(x.rBlock.Header().Coinbase.FullShardKey) {
 				coinbaseAmount = x.rBlock.Header().CoinbaseAmount.GetTokenBalance(x.bc.GetGenesisToken())
 			}
+			genesisToken := x.bc.GetGenesisToken()
 			// Perform x-shard from root chain coinbase
 			return &types.CrossShardTransactionDeposit{
 				TxHash:          x.rBlock.Header().Hash(),
@@ -83,8 +83,9 @@ func (x *XShardTxCursor) getCurrentTx() (*types.CrossShardTransactionDeposit, er
 				To:              x.rBlock.Header().Coinbase,
 				Value:           &serialize.Uint256{Value: new(big.Int).Set(coinbaseAmount)},
 				GasPrice:        &serialize.Uint256{Value: new(big.Int)},
-				GasTokenID:      x.bc.GetGenesisToken(),
-				TransferTokenID: x.bc.GetGenesisToken(),
+				GasRemained:     &serialize.Uint256{Value: new(big.Int)},
+				GasTokenID:      genesisToken,
+				TransferTokenID: genesisToken,
 				IsFromRootChain: true,
 			}, nil
 		}

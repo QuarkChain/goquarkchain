@@ -249,10 +249,10 @@ func (r *rootChainTask) syncMinorBlocks(
 		return err
 	}
 
-	for _, hashes := range downloadMap {
-		for _, hash := range hashes {
-			rbc.AddValidatedMinorBlockHeader(hash)
-		}
-	}
+	//for _, hashes := range downloadMap {
+	//	for _, hash := range hashes {
+	//		rbc.AddValidatedMinorBlockHeader(hash, nil) //TODO @sync to modify
+	//	}
+	//}
 	return nil
 }

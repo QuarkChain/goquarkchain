@@ -12,7 +12,6 @@ import (
 	"github.com/QuarkChain/goquarkchain/p2p"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
-	"github.com/ethereum/go-ethereum/crypto"
 	"golang.org/x/sync/errgroup"
 	"math/big"
 	"net"
@@ -48,6 +47,9 @@ func (s *QKCMasterBackend) GetPeerInfolist() []rpc.PeerInfoForDisPlay {
 
 func (s *QKCMasterBackend) AddTransaction(tx *types.Transaction) error {
 	evmTx := tx.EvmTx
+	if evmTx.GasPrice().Cmp(s.clusterConfig.Quarkchain.MinTXPoolGasPrice) < 0 {
+		return errors.New(fmt.Sprintf("invalid gasprice: tx min gas price is %d", s.clusterConfig.Quarkchain.MinTXPoolGasPrice.Uint64()))
+	}
 	fromShardSize, err := s.clusterConfig.Quarkchain.GetShardSizeByChainId(tx.EvmTx.FromChainID())
 	if err != nil {
 		return err
@@ -166,6 +168,14 @@ func (s *QKCMasterBackend) GetTransactionsByAddress(address *account.Address, st
 	return slaveConn.GetTransactionsByAddress(address, start, limit)
 }
 
+func (s *QKCMasterBackend) GetAllTx(branch account.Branch, start []byte, limit uint32) ([]*rpc.TransactionDetail, []byte, error) {
+	slaveConn := s.getOneSlaveConnection(branch)
+	if slaveConn == nil {
+		return nil, nil, ErrNoBranchConn
+	}
+	return slaveConn.GetAllTx(branch, start, limit)
+}
+
 func (s *QKCMasterBackend) GetLogs(branch account.Branch, address []account.Address, topics [][]common.Hash, startBlockNumber, endBlockNumber uint64) ([]*types.Log, error) {
 	// not support earlist and pending
 	slaveConn := s.getOneSlaveConnection(branch)
@@ -236,9 +246,9 @@ func (s *QKCMasterBackend) GetWork(branch account.Branch) (*consensus.MiningWork
 }
 
 // submit root chain work if branch is nil
-func (s *QKCMasterBackend) SubmitWork(branch account.Branch, headerHash common.Hash, nonce uint64, mixHash common.Hash) (bool, error) {
+func (s *QKCMasterBackend) SubmitWork(branch account.Branch, headerHash common.Hash, nonce uint64, mixHash common.Hash, signature *[65]byte) (bool, error) {
 	if branch.Value == 0 {
-		return s.miner.SubmitWork(nonce, headerHash, mixHash), nil
+		return s.miner.SubmitWork(nonce, headerHash, mixHash, signature), nil
 	}
 	slaveConn := s.getOneSlaveConnection(branch)
 	if slaveConn == nil {
@@ -294,11 +304,9 @@ func (s *QKCMasterBackend) CreateBlockToMine() (types.IBlock, *big.Int, error) {
 	if err != nil {
 		return nil, nil, err
 	}
-	diff := block.Header().Difficulty
-	if crypto.VerifySignature(common.Hex2Bytes(s.clusterConfig.Quarkchain.GuardianPublicKey),
-		block.Header().Hash().Bytes(), block.Header().Signature[:]) {
-		adjustedDiff := diff.Div(diff, new(big.Int).SetUint64(1000))
-		return block, adjustedDiff, nil
+	diff, err := s.rootBlockChain.GetAdjustedDifficulty(block.Header())
+	if err != nil {
+		return nil, nil, err
 	}
 	return block, diff, nil
 }

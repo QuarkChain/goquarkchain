@@ -103,7 +103,7 @@ type minorBlockChain interface {
 	StateAt(root common.Hash) (*state.StateDB, error)
 	Config() *config.QuarkChainConfig
 	SubscribeChainHeadEvent(ch chan<- MinorChainHeadEvent) event.Subscription
-	validateTx(tx *types.Transaction, evmState *state.StateDB, fromAddress *account.Address, gas *uint64, xShardGasLimit *big.Int) (*types.Transaction, error)
+	validateTx(tx *types.Transaction, evmState *state.StateDB, fromAddress *account.Address, gas, xShardGasLimit *uint64) (*types.Transaction, error)
 }
 
 // TxPoolConfig are the configuration parameters of the transaction pool.
@@ -509,24 +509,16 @@ func (pool *TxPool) Pending() (map[common.Address]types.Transactions, error) {
 	return pending, nil
 }
 
-func (pool *TxPool) GetQueueTxsFromAddress(addr account.Recipient) types.Transactions {
+func (pool *TxPool) GetAllTxInPool() types.Transactions {
 	pool.mu.RLock()
 	defer pool.mu.RUnlock()
-	data, ok := pool.queue[addr]
-	if !ok {
-		return make(types.Transactions, 0)
+	txs := make(types.Transactions, len(pool.all.all))
+	index := 0
+	for _, tx := range pool.all.all {
+		txs[index] = tx
+		index++
 	}
-	return data.Flatten()
-}
-
-func (pool *TxPool) GetPendingTxsFromAddress(addr account.Recipient) types.Transactions {
-	pool.mu.RLock()
-	defer pool.mu.RUnlock()
-	data, ok := pool.pending[addr]
-	if !ok {
-		return make(types.Transactions, 0)
-	}
-	return data.Flatten()
+	return txs
 }
 
 func (pool *TxPool) PendingCount() int {
@@ -560,6 +552,9 @@ func (pool *TxPool) local() map[common.Address]types.Transactions {
 // validateTx checks whether a transaction is valid according to the consensus
 // rules and adheres to some heuristic limits of the local node (price and size).
 func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
+	if tx.EvmTx.GasPrice().Cmp(pool.quarkConfig.MinTXPoolGasPrice) < 0 {
+		return errors.New(fmt.Sprintf("invalid gasprice: tx min gas price is %d", pool.quarkConfig.MinTXPoolGasPrice.Uint64()))
+	}
 	if pool.all.Count() > int(pool.quarkConfig.TransactionQueueSizeLimitPerShard) {
 		return errors.New("txpool queue full")
 	}

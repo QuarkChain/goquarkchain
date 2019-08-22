@@ -55,6 +55,7 @@ type ISlaveConn interface {
 	GetTransactionByHash(txHash common.Hash, branch account.Branch) (*types.MinorBlock, uint32, error)
 	GetTransactionReceipt(txHash common.Hash, branch account.Branch) (*types.MinorBlock, uint32, *types.Receipt, error)
 	GetTransactionsByAddress(address *account.Address, start []byte, limit uint32) ([]*TransactionDetail, []byte, error)
+	GetAllTx(branch account.Branch, start []byte, limit uint32) ([]*TransactionDetail, []byte, error)
 	GetLogs(branch account.Branch, address []account.Address, topics [][]common.Hash, startBlock, endBlock uint64) ([]*types.Log, error)
 	EstimateGas(tx *types.Transaction, fromAddress *account.Address) (uint32, error)
 	GetStorageAt(address *account.Address, key common.Hash, height *uint64) (common.Hash, error)

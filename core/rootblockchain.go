@@ -17,7 +17,6 @@ import (
 	"github.com/QuarkChain/goquarkchain/account"
 
 	"github.com/QuarkChain/goquarkchain/cluster/config"
-	qkcCommon "github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/core/rawdb"
 	"github.com/QuarkChain/goquarkchain/core/types"
@@ -36,7 +35,7 @@ var (
 )
 
 const (
-	blockCacheLimit           = 256
+	blockCacheLimit           = 1024 // TODO really need 1024?
 	receiptsCacheLimit        = 32
 	maxFutureBlocks           = 32
 	maxTimeFutureBlocks       = 30
@@ -103,9 +102,10 @@ type RootBlockChain struct {
 	engine    consensus.Engine
 	validator Validator // block and state validator interface
 
-	shouldPreserve   func(block *types.RootBlock) bool // Function used to determine whether should preserve the given block.
-	countMinorBlocks bool
-	addBlockAndBroad func(block *types.RootBlock) error
+	shouldPreserve    func(block *types.RootBlock) bool // Function used to determine whether should preserve the given block.
+	countMinorBlocks  bool
+	addBlockAndBroad  func(block *types.RootBlock) error
+	insertChainParams *InsertChainParams
 }
 
 // NewBlockChain returns a fully initialized block chain using information
@@ -126,6 +126,7 @@ func NewRootBlockChain(db ethdb.Database, chainConfig *config.QuarkChainConfig, 
 		futureBlocks:             futureBlocks,
 		engine:                   engine,
 		validatedMinorBlockCache: validatedMinorBlockHashCache,
+		insertChainParams:        GetDefaultInsertChainParams(),
 	}
 	bc.SetValidator(NewRootBlockValidator(chainConfig, bc, engine))
 
@@ -150,6 +151,11 @@ func NewRootBlockChain(db ethdb.Database, chainConfig *config.QuarkChainConfig, 
 
 func (bc *RootBlockChain) getProcInterrupt() bool {
 	return atomic.LoadInt32(&bc.procInterrupt) == 1
+}
+
+// will set it when check db
+func (bc *RootBlockChain) SetInsertChainParams(params *InsertChainParams) {
+	bc.insertChainParams = params
 }
 
 // loadLastState loads the last known chain state from the database. This method
@@ -491,7 +497,9 @@ func (bc *RootBlockChain) WriteBlockWithState(block *types.RootBlock) (status Wr
 	if err := bc.headerChain.WriteTd(block.Hash(), externTd); err != nil {
 		return NonStatTy, err
 	}
-	rawdb.WriteRootBlock(bc.db, block)
+	if bc.insertChainParams.WriteDB {
+		rawdb.WriteRootBlock(bc.db, block)
+	}
 
 	// Write other block data using a batch.
 	batch := bc.db.NewBatch()
@@ -522,7 +530,7 @@ func (bc *RootBlockChain) WriteBlockWithState(block *types.RootBlock) (status Wr
 			}
 		}
 		// Write the positional metadata for transaction/receipt lookups and preimages
-		rawdb.WriteBlockContentLookupEntries(batch, block)
+		rawdb.WriteBlockContentLookupEntriesWithCrossShardHashList(batch, block, nil)
 
 		status = CanonStatTy
 	} else {
@@ -583,6 +591,13 @@ func (bc *RootBlockChain) InsertChain(chain []types.IBlock) (int, error) {
 
 	bc.PostChainEvents(events)
 	return n, err
+}
+
+func absUint64(a, b uint64) uint64 {
+	if a > b {
+		return a - b
+	}
+	return b - a
 }
 
 // insertChain is the internal implementation of insertChain, which assumes that
@@ -679,10 +694,9 @@ func (bc *RootBlockChain) insertChain(chain []types.IBlock, verifySeals bool) (i
 			bc.reportBlock(block, err)
 			return it.index, events, err
 		}
-		// Validate the state using the default validator
-		if err := bc.Validator().ValidateBlock(block); err != nil {
-			bc.reportBlock(block, err)
-			return it.index, events, err
+		if bc.insertChainParams.ShipIfTooOld && absUint64(bc.CurrentBlock().Header().NumberU64(), block.NumberU64()) > bc.Config().Root.MaxStaleRootBlockHeightDiff {
+			log.Warn("Insert Root Block", "drop block height", block.NumberU64(), "tip height", bc.CurrentBlock().NumberU64())
+			return it.index, events, fmt.Errorf("block is too old %v %v", block.IHeader().NumberU64(), bc.CurrentBlock().NumberU64())
 		}
 		proctime := time.Since(start)
 
@@ -905,7 +919,7 @@ func (bc *RootBlockChain) reorg(oldBlock, newBlock types.IBlock) error {
 		// insert the block in the canonical way, re-writing history
 		bc.insert(newChain[i].(*types.RootBlock))
 		// write lookup entries for hash based transaction/receipt searches
-		rawdb.WriteBlockContentLookupEntries(bc.db, newChain[i].(*types.RootBlock))
+		rawdb.WriteBlockContentLookupEntriesWithCrossShardHashList(bc.db, newChain[i].(*types.RootBlock), nil)
 		addedHeaders = append(addedHeaders, newChain[i].(*types.RootBlock).MinorBlockHeaders()...)
 	}
 	// calculate the difference between deleted and added transactions
@@ -1073,12 +1087,8 @@ func (bc *RootBlockChain) isSameChain(longerChainHeader, shorterChainHeader *typ
 	return bc.headerChain.isSameChain(longerChainHeader, shorterChainHeader)
 }
 
-func (bc *RootBlockChain) AddValidatedMinorBlockHeader(hash common.Hash) {
-	// Short circuit if the block's already in the cache, retrieve otherwise
-	if !bc.validatedMinorBlockCache.Contains(hash) {
-		bc.validatedMinorBlockCache.Add(hash, []byte{})
-		rawdb.WriteValidateMinorBlockHash(bc.db, hash)
-	}
+func (bc *RootBlockChain) AddValidatedMinorBlockHeader(hash common.Hash, coinbaseToken *types.TokenBalances) {
+	bc.PutMinorBlockCoinbase(hash, coinbaseToken)
 }
 
 func (bc *RootBlockChain) GetLatestMinorBlockHeaders(hash common.Hash) map[uint32]*types.MinorBlockHeader {
@@ -1092,6 +1102,9 @@ func (bc *RootBlockChain) GetLatestMinorBlockHeaders(hash common.Hash) map[uint3
 }
 
 func (bc *RootBlockChain) SetLatestMinorBlockHeaders(hash common.Hash, headerMap map[uint32]*types.MinorBlockHeader) {
+	if !bc.insertChainParams.WriteDB {
+		return
+	}
 	headers := make([]*types.MinorBlockHeader, 0, len(headerMap))
 	for _, header := range headerMap {
 		headers = append(headers, header)
@@ -1119,7 +1132,7 @@ func (m *RootBlockChain) SkipDifficultyCheck() bool {
 func (m *RootBlockChain) GetAdjustedDifficulty(header types.IHeader) (*big.Int, error) {
 	rHeader := header.(*types.RootBlockHeader)
 	adjustedDiff := rHeader.GetDifficulty()
-	if crypto.VerifySignature(common.Hex2Bytes(m.Config().GuardianPublicKey), rHeader.Hash().Bytes(), rHeader.Signature[:]) {
+	if crypto.VerifySignature(common.FromHex(m.Config().GuardianPublicKey), rHeader.SealHash().Bytes(), rHeader.Signature[:64]) {
 		adjustedDiff = new(big.Int).Div(rHeader.GetDifficulty(), new(big.Int).SetUint64(1000))
 	}
 	return adjustedDiff, nil
@@ -1163,36 +1176,63 @@ func (bc *RootBlockChain) CreateBlockToMine(mHeaderList []*types.MinorBlockHeade
 	}
 	block := bc.CurrentBlock().Header().CreateBlockToAppend(createTime, difficulty, address, nil, nil)
 	block.ExtendMinorBlockHeaderList(mHeaderList)
-	data := bc.CalculateRootBlockCoinBase(block)
-	//TODO need modify later
-	temp := types.NewEmptyTokenBalances()
-	temp.SetValue(data, qkcCommon.TokenIDEncode("QKC"))
-	block.Finalize(temp, address, common.Hash{})
+	coinbaseToken, err := bc.CalculateRootBlockCoinBase(block)
+	if err != nil {
+		return nil, err
+	}
+	if len(bc.chainConfig.GuardianPrivateKey) > 0 {
+		prvKey, err := crypto.ToECDSA(bc.chainConfig.GuardianPrivateKey)
+		if err != nil {
+			return nil, err
+		}
+		err = block.SignWithPrivateKey(prvKey)
+		if err != nil {
+			return nil, err
+		}
+	}
+	block.Finalize(coinbaseToken, address, common.Hash{})
 	return block, nil
 }
 
-func (bc *RootBlockChain) CalculateRootBlockCoinBase(rootBlock *types.RootBlock) *big.Int {
-	//TODO need modify later
-	ret := new(big.Int).Set(bc.Config().Root.CoinbaseAmount)
-	rewardTaxRate := bc.Config().RewardTaxRate
-	ratio := big.NewRat(1, 1)
-	ratio.Sub(ratio, rewardTaxRate)
-	ratio.Quo(ratio, rewardTaxRate)
-
-	minorBlockFee := new(big.Int)
+func (bc *RootBlockChain) CalculateRootBlockCoinBase(rootBlock *types.RootBlock) (*types.TokenBalances, error) {
 	for _, header := range rootBlock.MinorBlockHeaders() {
-		minorBlockFee.Add(minorBlockFee, header.CoinbaseAmount.GetTokenBalance(qkcCommon.TokenIDEncode("QKC")))
+		if !bc.ContainMinorBlockByHash(header.Hash()) {
+			return nil, fmt.Errorf("rootBlockChain not contain minorBlock hash:%v", header.Hash().String())
+		}
 	}
-	minorBlockFee.Mul(minorBlockFee, ratio.Num())
-	minorBlockFee.Div(minorBlockFee, ratio.Denom())
-	ret.Add(ret, minorBlockFee)
-	return ret
+	height := new(big.Int).SetUint64(rootBlock.Header().NumberU64())
+	epoch := height.Div(height, bc.Config().Root.EpochInterval)
+	numerator := powerBigInt(bc.Config().BlockRewardDecayFactor.Num(), epoch.Uint64())
+	denominator := powerBigInt(bc.Config().BlockRewardDecayFactor.Denom(), epoch.Uint64())
+	coinbaseAmount := new(big.Int).Mul(bc.Config().Root.CoinbaseAmount, numerator)
+	coinbaseAmount = coinbaseAmount.Div(coinbaseAmount, denominator)
+
+	rewardTaxRate := bc.Config().RewardTaxRate
+	one := big.NewRat(1, 1)
+	ratioT := one.Sub(one, rewardTaxRate)
+	ratio := ratioT.Quo(ratioT, rewardTaxRate)
+
+	rewardTokenMap := types.NewEmptyTokenBalances()
+	for _, mheader := range rootBlock.MinorBlockHeaders() {
+		mToken := bc.GetMinorBlockCoinbaseTokens(mheader.Hash())
+		rewardTokenMap.Add(mToken.GetBalanceMap())
+	}
+
+	tempToken := rewardTokenMap.GetBalanceMap()
+	for token, value := range tempToken {
+		value = value.Mul(value, ratio.Denom())
+		value = value.Div(value, ratio.Num())
+		rewardTokenMap.SetValue(value, token)
+	}
+	genesisToken := bc.Config().GetDefaultChainTokenID()
+	genesisTokenBalance := rewardTokenMap.GetTokenBalance(genesisToken)
+	genesisTokenBalance.Add(genesisTokenBalance, coinbaseAmount)
+	rewardTokenMap.SetValue(genesisTokenBalance, genesisToken)
+	return rewardTokenMap, nil
+
 }
-func (bc *RootBlockChain) IsMinorBlockValidated(hash common.Hash) bool {
-	if bc.validatedMinorBlockCache.Contains(hash) {
-		return true
-	}
-	return rawdb.ReadValidateMinorBlockHash(bc.db, hash)
+func (bc *RootBlockChain) IsMinorBlockValidated(mHash common.Hash) bool {
+	return bc.ContainMinorBlockByHash(mHash)
 }
 
 func (bc *RootBlockChain) GetNextDifficulty(create *uint64) (*big.Int, error) {
@@ -1259,6 +1299,7 @@ func (bc *RootBlockChain) PutRootBlockIndex(block *types.RootBlock) error {
 			shardRecipientCnt[fullShardID] = make(map[account.Recipient]uint32)
 		}
 		shardRecipientCnt[fullShardID][recipient] = newCount
+		bc.PutRootBlockConfirmingMinorBlock(header.Hash(), fullShardID, block.Hash())
 	}
 	for fullShardID, infoList := range shardRecipientCnt {
 		dataToDb := new(account.CoinbaseStatses)
@@ -1301,4 +1342,25 @@ func (bc *RootBlockChain) GetBlockCount(rootHeight uint32) (map[uint32]map[accou
 		}
 	}
 	return shardRecipientCnt, nil
+}
+
+func (bc *RootBlockChain) ContainMinorBlockByHash(mHash common.Hash) bool {
+	return rawdb.ContainMinorBlockByHash(bc.db, mHash)
+}
+
+func (bc *RootBlockChain) PutMinorBlockCoinbase(mHash common.Hash, coinBaseTokens *types.TokenBalances) {
+	rawdb.WriteMinorBlockCoinbase(bc.db, mHash, coinBaseTokens)
+}
+
+func (bc *RootBlockChain) GetMinorBlockCoinbaseTokens(mHash common.Hash) *types.TokenBalances {
+	return rawdb.GetMinorBlockCoinbaseToken(bc.db, mHash)
+}
+
+func (bc *RootBlockChain) PutRootBlockConfirmingMinorBlock(mHash common.Hash, fullShardID uint32, rHash common.Hash) {
+	rawdb.PutRootBlockConfirmingMinorBlock(bc.db, mHash, fullShardID, rHash)
+}
+
+func (bc *RootBlockChain) GetRootBlockConfirmingMinorBlock(mHash common.Hash, fullShardID uint32) common.Hash {
+	//For json Rpc
+	return rawdb.GetRootBlockConfirmingMinorBlock(bc.db, mHash, fullShardID)
 }

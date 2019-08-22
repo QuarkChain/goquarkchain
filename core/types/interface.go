@@ -11,6 +11,7 @@ type IHeader interface {
 	Hash() common.Hash
 	SealHash() common.Hash
 	NumberU64() uint64
+	GetVersion() uint32
 	GetParentHash() common.Hash
 	GetCoinbase() account.Address
 	GetTime() uint64
@@ -30,7 +31,7 @@ type IBlock interface {
 	Hash() common.Hash
 	NumberU64() uint64
 	IHeader() IHeader
-	WithMingResult(nonce uint64, mixDigest common.Hash) IBlock
+	WithMingResult(nonce uint64, mixDigest common.Hash, signature *[65]byte) IBlock
 	Content() []IHashable
 	GetTrackingData() []byte
 	GetSize() common.StorageSize

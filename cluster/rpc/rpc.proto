@@ -6,6 +6,8 @@ package rpc;
 service MasterServerSideOp {
     rpc AddMinorBlockHeader (Request) returns (Response) {
     }
+    rpc AddMinorBlockHeaderList (Request) returns (Response) {
+    }
     // p2p apis
     rpc BroadcastNewTip (Request) returns (Response) {
     }
@@ -49,6 +51,8 @@ service SlaveServerSideOp {
     rpc GetTransactionReceipt (Request) returns (Response) {
     }
     rpc GetTransactionListByAddress (Request) returns (Response) {
+    }
+    rpc GetAllTx (Request) returns (Response) {
     }
     rpc GetLogs (Request) returns (Response) {
     }

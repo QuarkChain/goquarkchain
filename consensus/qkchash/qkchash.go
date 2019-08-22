@@ -45,7 +45,7 @@ func (q *QKCHash) hashAlgo(cache *consensus.ShareCache) (err error) {
 }
 
 // New returns a QKCHash scheme.
-func New(useNative bool, diffCalculator consensus.DifficultyCalculator, remote bool) *QKCHash {
+func New(useNative bool, diffCalculator consensus.DifficultyCalculator, remote bool, pubKey []byte) *QKCHash {
 	q := &QKCHash{
 		useNative: useNative,
 		// TODO: cache may depend on block, so a LRU-stype cache could be helpful
@@ -56,6 +56,6 @@ func New(useNative bool, diffCalculator consensus.DifficultyCalculator, remote b
 		HashAlgo:   q.hashAlgo,
 		VerifySeal: q.verifySeal,
 	}
-	q.CommonEngine = consensus.NewCommonEngine(spec, diffCalculator, remote)
+	q.CommonEngine = consensus.NewCommonEngine(spec, diffCalculator, remote, pubKey)
 	return q
 }

@@ -26,6 +26,13 @@ func (m *MasterServerSideOp) AddMinorBlockHeader(ctx context.Context, req *Reque
 	}, nil
 }
 
+func (m *MasterServerSideOp) AddMinorBlockHeaderList(ctx context.Context, req *Request) (*Response, error) {
+	return &Response{
+		RpcId: req.RpcId,
+		Data:  []byte("AddMinorBlockHeaderList response"),
+	}, nil
+}
+
 // p2p apis
 func (m *MasterServerSideOp) BroadcastNewTip(ctx context.Context, req *Request) (*Response, error) {
 	return &Response{

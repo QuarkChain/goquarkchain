@@ -187,6 +187,7 @@ const _ = grpc.SupportPackageIsVersion4
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type MasterServerSideOpClient interface {
 	AddMinorBlockHeader(ctx context.Context, in *Request, opts ...grpc.CallOption) (*Response, error)
+	AddMinorBlockHeaderList(ctx context.Context, in *Request, opts ...grpc.CallOption) (*Response, error)
 	// p2p apis
 	BroadcastNewTip(ctx context.Context, in *Request, opts ...grpc.CallOption) (*Response, error)
 	BroadcastTransactions(ctx context.Context, in *Request, opts ...grpc.CallOption) (*Response, error)
@@ -207,6 +208,15 @@ func NewMasterServerSideOpClient(cc *grpc.ClientConn) MasterServerSideOpClient {
 func (c *masterServerSideOpClient) AddMinorBlockHeader(ctx context.Context, in *Request, opts ...grpc.CallOption) (*Response, error) {
 	out := new(Response)
 	err := c.cc.Invoke(ctx, "/rpc.MasterServerSideOp/AddMinorBlockHeader", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *masterServerSideOpClient) AddMinorBlockHeaderList(ctx context.Context, in *Request, opts ...grpc.CallOption) (*Response, error) {
+	out := new(Response)
+	err := c.cc.Invoke(ctx, "/rpc.MasterServerSideOp/AddMinorBlockHeaderList", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -270,6 +280,7 @@ func (c *masterServerSideOpClient) MinorHead(ctx context.Context, in *Request, o
 // MasterServerSideOpServer is the server API for MasterServerSideOp service.
 type MasterServerSideOpServer interface {
 	AddMinorBlockHeader(context.Context, *Request) (*Response, error)
+	AddMinorBlockHeaderList(context.Context, *Request) (*Response, error)
 	// p2p apis
 	BroadcastNewTip(context.Context, *Request) (*Response, error)
 	BroadcastTransactions(context.Context, *Request) (*Response, error)
@@ -285,6 +296,9 @@ type UnimplementedMasterServerSideOpServer struct {
 
 func (*UnimplementedMasterServerSideOpServer) AddMinorBlockHeader(ctx context.Context, req *Request) (*Response, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method AddMinorBlockHeader not implemented")
+}
+func (*UnimplementedMasterServerSideOpServer) AddMinorBlockHeaderList(ctx context.Context, req *Request) (*Response, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method AddMinorBlockHeaderList not implemented")
 }
 func (*UnimplementedMasterServerSideOpServer) BroadcastNewTip(ctx context.Context, req *Request) (*Response, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method BroadcastNewTip not implemented")
@@ -323,6 +337,24 @@ func _MasterServerSideOp_AddMinorBlockHeader_Handler(srv interface{}, ctx contex
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(MasterServerSideOpServer).AddMinorBlockHeader(ctx, req.(*Request))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _MasterServerSideOp_AddMinorBlockHeaderList_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Request)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(MasterServerSideOpServer).AddMinorBlockHeaderList(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/rpc.MasterServerSideOp/AddMinorBlockHeaderList",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(MasterServerSideOpServer).AddMinorBlockHeaderList(ctx, req.(*Request))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -444,6 +476,10 @@ var _MasterServerSideOp_serviceDesc = grpc.ServiceDesc{
 			Handler:    _MasterServerSideOp_AddMinorBlockHeader_Handler,
 		},
 		{
+			MethodName: "AddMinorBlockHeaderList",
+			Handler:    _MasterServerSideOp_AddMinorBlockHeaderList_Handler,
+		},
+		{
 			MethodName: "BroadcastNewTip",
 			Handler:    _MasterServerSideOp_BroadcastNewTip_Handler,
 		},
@@ -490,6 +526,7 @@ type SlaveServerSideOpClient interface {
 	ExecuteTransaction(ctx context.Context, in *Request, opts ...grpc.CallOption) (*Response, error)
 	GetTransactionReceipt(ctx context.Context, in *Request, opts ...grpc.CallOption) (*Response, error)
 	GetTransactionListByAddress(ctx context.Context, in *Request, opts ...grpc.CallOption) (*Response, error)
+	GetAllTx(ctx context.Context, in *Request, opts ...grpc.CallOption) (*Response, error)
 	GetLogs(ctx context.Context, in *Request, opts ...grpc.CallOption) (*Response, error)
 	EstimateGas(ctx context.Context, in *Request, opts ...grpc.CallOption) (*Response, error)
 	GetStorageAt(ctx context.Context, in *Request, opts ...grpc.CallOption) (*Response, error)
@@ -629,6 +666,15 @@ func (c *slaveServerSideOpClient) GetTransactionReceipt(ctx context.Context, in 
 func (c *slaveServerSideOpClient) GetTransactionListByAddress(ctx context.Context, in *Request, opts ...grpc.CallOption) (*Response, error) {
 	out := new(Response)
 	err := c.cc.Invoke(ctx, "/rpc.SlaveServerSideOp/GetTransactionListByAddress", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *slaveServerSideOpClient) GetAllTx(ctx context.Context, in *Request, opts ...grpc.CallOption) (*Response, error) {
+	out := new(Response)
+	err := c.cc.Invoke(ctx, "/rpc.SlaveServerSideOp/GetAllTx", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -795,6 +841,7 @@ type SlaveServerSideOpServer interface {
 	ExecuteTransaction(context.Context, *Request) (*Response, error)
 	GetTransactionReceipt(context.Context, *Request) (*Response, error)
 	GetTransactionListByAddress(context.Context, *Request) (*Response, error)
+	GetAllTx(context.Context, *Request) (*Response, error)
 	GetLogs(context.Context, *Request) (*Response, error)
 	EstimateGas(context.Context, *Request) (*Response, error)
 	GetStorageAt(context.Context, *Request) (*Response, error)
@@ -857,6 +904,9 @@ func (*UnimplementedSlaveServerSideOpServer) GetTransactionReceipt(ctx context.C
 }
 func (*UnimplementedSlaveServerSideOpServer) GetTransactionListByAddress(ctx context.Context, req *Request) (*Response, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetTransactionListByAddress not implemented")
+}
+func (*UnimplementedSlaveServerSideOpServer) GetAllTx(ctx context.Context, req *Request) (*Response, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetAllTx not implemented")
 }
 func (*UnimplementedSlaveServerSideOpServer) GetLogs(ctx context.Context, req *Request) (*Response, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetLogs not implemented")
@@ -1141,6 +1191,24 @@ func _SlaveServerSideOp_GetTransactionListByAddress_Handler(srv interface{}, ctx
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(SlaveServerSideOpServer).GetTransactionListByAddress(ctx, req.(*Request))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _SlaveServerSideOp_GetAllTx_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Request)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SlaveServerSideOpServer).GetAllTx(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/rpc.SlaveServerSideOp/GetAllTx",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SlaveServerSideOpServer).GetAllTx(ctx, req.(*Request))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -1488,6 +1556,10 @@ var _SlaveServerSideOp_serviceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetTransactionListByAddress",
 			Handler:    _SlaveServerSideOp_GetTransactionListByAddress_Handler,
+		},
+		{
+			MethodName: "GetAllTx",
+			Handler:    _SlaveServerSideOp_GetAllTx_Handler,
 		},
 		{
 			MethodName: "GetLogs",
