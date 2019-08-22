@@ -2,7 +2,6 @@ package shard
 
 import (
 	"errors"
-	"fmt"
 	"github.com/QuarkChain/goquarkchain/p2p"
 	"math/big"
 	"time"
@@ -14,6 +13,10 @@ import (
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
+)
+
+var (
+	AllowedFutureBlocksTimeBroadcast = 15
 )
 
 // Wrapper over master connection, used by synchronizer.
@@ -272,9 +275,9 @@ func (s *ShardBackend) NewMinorBlock(block *types.MinorBlock) (err error) {
 	}
 
 	//Sanity check on timestamp and block height
-	if block.Header().Time > uint64(time.Now().Unix())+uint64(ALLOWED_FUTURE_BLOCKS_TIME_BROADCAST) {
+	if block.Header().Time > uint64(time.Now().Unix())+uint64(AllowedFutureBlocksTimeBroadcast) {
 		log.Warn(s.logInfo, "HandleNewMinorBlock err time is not right,height", block.Header().Number, "time", block.Header().Time,
-			"now", time.Now().Unix(), "Max", ALLOWED_FUTURE_BLOCKS_TIME_BROADCAST)
+			"now", time.Now().Unix(), "Max", AllowedFutureBlocksTimeBroadcast)
 		return
 	}
 
