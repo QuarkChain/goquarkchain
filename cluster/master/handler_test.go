@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"io/ioutil"
-	"reflect"
 	"testing"
 	"time"
 
@@ -239,33 +238,33 @@ func TestGetMinorBlockHeaders(t *testing.T) {
 	// Create a batch of tests for various scenarios
 	limit := uint64(minorBlockHeaderListLimit)
 	tests := []struct {
-		query  *p2p.GetMinorBlockHeaderListRequest // The hashList to execute for header retrieval
+		query  *rpc.GetMinorBlockHeaderListRequest // The hashList to execute for header retrieval
 		expect []*types.MinorBlockHeader           // The hashes of the block whose headers are expected
 	}{
 		// A single random block should be retrievable by hash
 		{
-			&p2p.GetMinorBlockHeaderListRequest{BlockHash: minorHeaders[limit/2].Hash(), Limit: 1, Direction: 0},
+			&rpc.GetMinorBlockHeaderListRequest{Hash: minorHeaders[limit/2].Hash(), Limit: 1, Direction: 0},
 			[]*types.MinorBlockHeader{minorHeaders[limit/2]},
 		}, {
-			&p2p.GetMinorBlockHeaderListRequest{BlockHash: minorHeaders[limit/2].Hash(), Limit: 3, Direction: 0},
+			&rpc.GetMinorBlockHeaderListRequest{Hash: minorHeaders[limit/2].Hash(), Limit: 3, Direction: 0},
 			minorHeaders[limit/2-2 : limit/2+1],
 		},
 		// The chain endpoints should be retrievable
 		{
-			&p2p.GetMinorBlockHeaderListRequest{BlockHash: minorHeaders[0].Hash(), Limit: 1, Direction: 0},
+			&rpc.GetMinorBlockHeaderListRequest{Hash: minorHeaders[0].Hash(), Limit: 1, Direction: 0},
 			minorHeaders[:1],
 		}, {
-			&p2p.GetMinorBlockHeaderListRequest{BlockHash: minorHeaders[blockcount-1].Hash(), Limit: 1, Direction: 0},
+			&rpc.GetMinorBlockHeaderListRequest{Hash: minorHeaders[blockcount-1].Hash(), Limit: 1, Direction: 0},
 			minorHeaders[blockcount-1:],
 		},
 		// Ensure protocol limits are honored
 		{
-			&p2p.GetMinorBlockHeaderListRequest{BlockHash: minorHeaders[blockcount-1].GetParentHash(), Limit: uint32(limit), Direction: 0},
+			&rpc.GetMinorBlockHeaderListRequest{Hash: minorHeaders[blockcount-1].GetParentHash(), Limit: uint32(limit), Direction: 0},
 			//GetBlockHashesFromHash return hash up to limit which do not include the hash in parameter
 			minorHeaders[blockcount-int(limit) : blockcount-1],
 		}, {
 			// Check that requesting more than available is handled gracefully
-			&p2p.GetMinorBlockHeaderListRequest{BlockHash: pm.rootBlockChain.GetHeaderByNumber(2).Hash(), Limit: 4, Direction: 0},
+			&rpc.GetMinorBlockHeaderListRequest{Hash: pm.rootBlockChain.GetHeaderByNumber(2).Hash(), Limit: 4, Direction: 0},
 			minorHeaders[:3],
 		},
 	}
@@ -282,13 +281,12 @@ func TestGetMinorBlockHeaders(t *testing.T) {
 
 		go handleMsg(clientPeer)
 		res, err := clientPeer.GetMinorBlockHeaderList(&rpc.GetMinorBlockHeaderListRequest{
-			Hash:      tt.query.BlockHash,
+			Hash:      tt.query.Hash,
 			Limit:     tt.query.Limit,
 			Branch:    0,
 			Direction: qcom.DirectionToGenesis,
 		})
 
-		fmt.Println("=========", reflect.TypeOf(res).Name())
 		if err != nil {
 			t.Errorf("test %d: make message failed: %v", i, err)
 		}
@@ -618,20 +616,15 @@ func ExpectMsg(r p2p.MsgReader, op p2p.P2PCommandOp, metadata p2p.Metadata, cont
 }
 
 func handleMsg(peer *Peer) error {
-	fmt.Println("----------", peer.rpcId)
-
 	msg, err := peer.rw.ReadMsg()
 	if err != nil {
-		fmt.Println("===========,", err)
 		return err
 	}
 	payload, err := ioutil.ReadAll(msg.Payload)
 	qkcMsg, err := p2p.DecodeQKCMsg(payload)
 	if err != nil {
-		fmt.Println("=========,,", err)
 		return err
 	}
-	fmt.Println("----------===", qkcMsg.RpcID)
 
 	switch {
 	case qkcMsg.Op == p2p.GetRootBlockHeaderListResponseMsg:

@@ -42,7 +42,7 @@ const (
 
 	handshakeTimeout = 5 * time.Second
 
-	requestTimeout = 10 * time.Second
+	requestTimeout = 5 * time.Second
 )
 
 type newMinorBlock struct {
