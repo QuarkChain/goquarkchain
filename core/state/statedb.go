@@ -350,6 +350,9 @@ func (s *StateDB) HasSuicided(addr common.Address) bool {
 
 // AddBalance adds amount to the account associated with addr.
 func (s *StateDB) AddBalance(addr common.Address, amount *big.Int, tokenID uint64) {
+	if tokenID == 0 {
+		tokenID = s.quarkChainConfig.GetDefaultChainTokenID()
+	}
 	stateObject := s.GetOrNewStateObject(addr)
 	if stateObject != nil {
 		stateObject.AddBalance(amount, tokenID)
@@ -358,6 +361,9 @@ func (s *StateDB) AddBalance(addr common.Address, amount *big.Int, tokenID uint6
 
 // SubBalance subtracts amount from the account associated with addr.
 func (s *StateDB) SubBalance(addr common.Address, amount *big.Int, tokenID uint64) {
+	if tokenID == 0 {
+		tokenID = s.quarkChainConfig.GetDefaultChainTokenID()
+	}
 	stateObject := s.GetOrNewStateObject(addr)
 	if stateObject != nil {
 		stateObject.SubBalance(amount, tokenID)
@@ -365,6 +371,9 @@ func (s *StateDB) SubBalance(addr common.Address, amount *big.Int, tokenID uint6
 }
 
 func (s *StateDB) SetBalance(addr common.Address, amount *big.Int, tokenID uint64) {
+	if tokenID == 0 {
+		tokenID = s.quarkChainConfig.GetDefaultChainTokenID()
+	}
 	stateObject := s.GetOrNewStateObject(addr)
 	if stateObject != nil {
 		stateObject.SetBalance(amount, tokenID)
@@ -424,6 +433,20 @@ func (s *StateDB) updateStateObject(stateObject *stateObject) {
 	if err != nil {
 		panic(fmt.Errorf("can't encode object at %x: %v", addr[:], err))
 	}
+	//fmt.Println("update", hex.EncodeToString(addr[:]), hex.EncodeToString(data))
+	//fmt.Println("ddddddddddddddddddddddd-start")
+	//fmt.Println("", stateObject.data.Nonce)
+	//tt, err := stateObject.data.TokenBalances.SerializeToBytes()
+	//if err != nil {
+	//	panic(err)
+	//}
+	//fmt.Println("", hex.EncodeToString(tt))
+	//fmt.Println("", stateObject.data.Root.String())
+	//fmt.Println("", hex.EncodeToString(stateObject.data.CodeHash))
+	//fmt.Println("", stateObject.data.FullShardKey)
+	//fmt.Println("", stateObject.data.FullShardKey)
+	//fmt.Println("Optial", hex.EncodeToString(stateObject.data.Optial))
+	//fmt.Println("ddddddddddddddddddddddd-end")
 	s.setError(s.trie.TryUpdate(addr[:], data))
 }
 

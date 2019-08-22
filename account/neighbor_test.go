@@ -1,6 +1,8 @@
 package account
 
 import (
+	"fmt"
+	"github.com/QuarkChain/goquarkchain/common"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
@@ -21,4 +23,10 @@ func TestIsNeighbor(t *testing.T) {
 	b1 = NewBranch(1<<16 | 2 | 0)
 	b2 = NewBranch(3<<16 | 2 | 1)
 	assert.False(t, IsNeighbor(b1, b2, 33))
+}
+
+func TestCreatRandomAccountWithFullShardKey(t *testing.T) {
+	data, err := common.TokenIdDecode(4660)
+	fmt.Println("data", data)
+	fmt.Println("err", err)
 }
