@@ -373,10 +373,6 @@ func (s *SlaveBackend) GetMinorBlockListByHashList(mHashList []common.Hash, bran
 		return nil, errors.New("Bad number of minor blocks requested")
 	}
 
-	shard, ok := s.shards[branch]
-	if !ok {
-		return nil, ErrMsg("GetMinorBlockListByHashList")
-	}
 	for _, hash := range mHashList {
 		block, err := s.GetMinorBlock(hash, nil, branch)
 		if err != nil {
@@ -406,7 +402,7 @@ func (s *SlaveBackend) GetMinorBlockHeaderList(gReq *rpc.GetMinorBlockHeaderList
 	mTip := shrd.MinorBlockChain.CurrentHeader()
 	height := mBlock.Number()
 	headerList := make([]*types.MinorBlockHeader, 0, gReq.Limit)
-	for i := uint32(0); i < gReq.Limit && height >= 0 && height <= mTip.NumberU64(); i++ {
+	for len(headerList) < cap(headerList) && height >= 0 && height <= mTip.NumberU64() {
 		mBlock, err = s.GetMinorBlock(common.Hash{}, &height, gReq.Branch)
 		if err != nil {
 			return nil, err
