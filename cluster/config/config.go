@@ -37,7 +37,7 @@ var (
 	QuarkashToJiaozi           = big.NewInt(1000000000000000000)
 	DefaultNumSlaves           = 4
 	DefaultToken               = "QKC"
-	DefaultP2PCmddSizeLimit = 128 * 1024 * 1024
+	DefaultP2PCmddSizeLimit uint32 = 128 * 1024 * 1024
 )
 
 var (

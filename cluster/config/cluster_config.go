@@ -303,7 +303,7 @@ func NewQuarkChainConfig() *QuarkChainConfig {
 		GuardianPublicKey:                 "ab856abd0983a82972021e454fcf66ed5940ed595b0898bcd75cbe2d0a51a00f5358b566df22395a2a8bf6c022c1d51a2c3defe654e91a8d244947783029694d",
 		GuardianPrivateKey:                nil,
 		P2PProtocolVersion:                0,
-		P2PCommandSizeLimit:               uint32(DefaultP2PCmddSizeLimit),
+		P2PCommandSizeLimit:               DefaultP2PCmddSizeLimit,
 		SkipRootDifficultyCheck:           false,
 		SkipRootCoinbaseCheck:             false,
 		SkipMinorDifficultyCheck:          false,

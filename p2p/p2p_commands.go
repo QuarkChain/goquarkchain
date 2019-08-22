@@ -2,10 +2,7 @@ package p2p
 
 import (
 	"bytes"
-	"errors"
-	"fmt"
 	"github.com/QuarkChain/goquarkchain/account"
-	"github.com/QuarkChain/goquarkchain/cluster/config"
 	qkcom "github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/serialize"
@@ -79,9 +76,6 @@ func MakeMsg(op P2PCommandOp, rpcID uint64, metadata Metadata, msg interface{}) 
 	qkcBody, err := Encrypt(metadata, op, rpcID, msg)
 	if err != nil {
 		return Msg{}, err
-	}
-	if len(qkcBody) >= config.DefaultP2PCmddSizeLimit {
-		return Msg{}, errors.New(fmt.Sprintf("%s: command package exceed limit", op.String()))
 	}
 	return Msg{Code: 0, Size: uint32(len(qkcBody)), Payload: bytes.NewReader(qkcBody)}, nil
 }
