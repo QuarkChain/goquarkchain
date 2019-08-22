@@ -277,7 +277,7 @@ func TestGetMinorBlockHeaders(t *testing.T) {
 					RootTip:         pm.rootBlockChain.CurrentHeader().(*types.RootBlockHeader),
 					ShardTip:        minorHeaders[blockcount-1],
 					BlockHeaderList: tt.expect,
-				}, nil).AnyTimes()
+				}, nil).Times(1)
 		}
 
 		go handleMsg(clientPeer)
@@ -289,10 +289,10 @@ func TestGetMinorBlockHeaders(t *testing.T) {
 		})
 
 		fmt.Println("=========", reflect.TypeOf(res).Name())
-		rheaders := res.BlockHeaderList
 		if err != nil {
 			t.Errorf("test %d: make message failed: %v", i, err)
 		}
+		rheaders := res.BlockHeaderList
 
 		if len(rheaders) != len(tt.expect) {
 			t.Errorf("test %d: peer result count is mismatch: got %d, want %d", i, len(rheaders), len(tt.expect))

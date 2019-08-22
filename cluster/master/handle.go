@@ -350,7 +350,6 @@ func (pm *ProtocolManager) handleMsg(peer *Peer) error {
 		}
 
 	case qkcMsg.Op == p2p.GetMinorBlockHeaderListRequestMsg:
-		fmt.Println("-----------------------", qkcMsg.RpcID)
 		var minorHeaderReq p2p.GetMinorBlockHeaderListRequest
 		if err := serialize.DeserializeFromBytes(qkcMsg.Data, &minorHeaderReq); err != nil {
 			return err
