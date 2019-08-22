@@ -62,6 +62,11 @@ func NewRootChainTask(
 				rChain.stats.AncestorNotFoundCount += 1
 				return nil, err
 			}
+
+			if !bc.HasBlock(ancestor.Hash()) {
+				return nil, errors.New("Bad ancestor ")
+			}
+
 			if rChain.header.ToTalDifficulty.Cmp(ancestor.ToTalDifficulty) < 0 {
 				return nil, errors.New("ancestor's total difficulty is bigger than current")
 			}

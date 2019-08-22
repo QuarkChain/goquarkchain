@@ -50,6 +50,11 @@ func NewMinorChainTask(
 			if err != nil {
 				return nil, err
 			}
+
+			if !bc.HasBlock(ancestor.Hash()) {
+				return nil, errors.New("Bad ancestor ")
+			}
+
 			return ancestor, nil
 		},
 		getHeaders: func(startheader types.IHeader) ([]types.IHeader, error) {
