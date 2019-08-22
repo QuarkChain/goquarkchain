@@ -399,15 +399,25 @@ func (s *SlaveBackend) GetMinorBlockHeaderList(gReq *rpc.GetMinorBlockHeaderList
 		return nil, err
 	}
 
-	mTip := shrd.MinorBlockChain.CurrentHeader()
-	height := mBlock.Number()
+	var (
+		hash   = gReq.Hash
+		height = *gReq.Height
+		mTip   = shrd.MinorBlockChain.CurrentHeader()
+	)
+
 	headerList := make([]*types.MinorBlockHeader, 0, gReq.Limit)
-	for len(headerList) < cap(headerList) && height >= 0 && height <= mTip.NumberU64() {
-		mBlock, err = s.GetMinorBlock(common.Hash{}, &height, gReq.Branch)
+	for len(headerList) < cap(headerList) {
+		mBlock, err = s.GetMinorBlock(hash, &height, gReq.Branch)
 		if err != nil {
 			return nil, err
 		}
+		hash = common.Hash{}
 		headerList = append(headerList, mBlock.Header())
+
+		height = mBlock.NumberU64()
+		if height >= mTip.NumberU64() {
+			break
+		}
 
 		if gReq.Direction == qcom.DirectionToGenesis {
 			height -= uint64(gReq.Skip) + 1

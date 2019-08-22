@@ -283,10 +283,6 @@ func (p *Peer) deleteChan(rpcId uint64) {
 // requestRootBlockHeaderList fetches a batch of root blocks' headers corresponding to the
 // specified header hashList, based on the hash of an origin block.
 func (p *Peer) requestRootBlockHeaderList(rpcId uint64, hash common.Hash, amount uint32, direction uint8) error {
-	if amount == 0 {
-		panic("amount should not 0")
-	}
-
 	data := p2p.GetRootBlockHeaderListRequest{BlockHash: hash, Limit: amount, Direction: direction}
 	msg, err := p2p.MakeMsg(p2p.GetRootBlockHeaderListRequestMsg, rpcId, p2p.Metadata{}, data)
 	if err != nil {
@@ -295,7 +291,7 @@ func (p *Peer) requestRootBlockHeaderList(rpcId uint64, hash common.Hash, amount
 	return p.rw.WriteMsg(msg)
 }
 
-func (p *Peer) getRootBlockHeaderListWithSkip(rpcId uint64, request *p2p.GetRootBlockHeaderListWithSkipRequest) error {
+func (p *Peer) requestRootBlockHeaderListWithSkip(rpcId uint64, request *p2p.GetRootBlockHeaderListWithSkipRequest) error {
 	msg, err := p2p.MakeMsg(p2p.GetRootBlockHeaderListWithSkipRequestMsg, rpcId, p2p.Metadata{}, request)
 	if err != nil {
 		return err
@@ -304,6 +300,9 @@ func (p *Peer) getRootBlockHeaderListWithSkip(rpcId uint64, request *p2p.GetRoot
 }
 
 func (p *Peer) GetRootBlockHeaderList(req *rpc.GetRootBlockHeaderListRequest) (res *p2p.GetRootBlockHeaderListResponse, err error) {
+	if req.Limit == 0 {
+		panic("amount should not 0")
+	}
 
 	if req.Hash == (common.Hash{}) && req.Height == nil {
 		return nil, errors.New("invalid params hash and height in GetMinorBlockHeaderList")
@@ -326,7 +325,7 @@ func (p *Peer) GetRootBlockHeaderList(req *rpc.GetRootBlockHeaderListRequest) (r
 			skipReq.Type = qkcom.SkipHeight
 			skipReq.Data = common.BytesToHash(big.NewInt(int64(*req.Height)).Bytes())
 		}
-		err = p.getRootBlockHeaderListWithSkip(rpcId, skipReq)
+		err = p.requestRootBlockHeaderListWithSkip(rpcId, skipReq)
 	}
 
 	if err != nil {

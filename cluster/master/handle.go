@@ -3,7 +3,6 @@ package master
 import (
 	"fmt"
 	"io/ioutil"
-	"reflect"
 	"sync"
 	"time"
 
@@ -506,34 +505,52 @@ func (pm *ProtocolManager) HandleNewMinorTip(branch uint32, tip *p2p.Tip, peer *
 	return nil
 }
 
-func (pm *ProtocolManager) HandleGetRootBlockHeaderListRequest(blockHeaderReq *p2p.GetRootBlockHeaderListRequest) (*p2p.GetRootBlockHeaderListResponse, error) {
-	if !pm.rootBlockChain.HasHeader(blockHeaderReq.BlockHash) {
-		return nil, fmt.Errorf("hash %v do not exist", blockHeaderReq.BlockHash.Hex())
+func (pm *ProtocolManager) HandleGetRootBlockHeaderListRequest(req *p2p.GetRootBlockHeaderListRequest) (*p2p.GetRootBlockHeaderListResponse, error) {
+	if !pm.rootBlockChain.HasHeader(req.BlockHash) {
+		return nil, fmt.Errorf("hash %v do not exist", req.BlockHash.Hex())
 	}
-	if blockHeaderReq.Limit == 0 || blockHeaderReq.Limit > 2*qkcsync.RootBlockHeaderListLimit {
-		return nil, fmt.Errorf("limit in request is larger than expected, limit: %d, want: %d", blockHeaderReq.Limit, qkcsync.RootBlockHeaderListLimit)
+	if req.Limit == 0 || req.Limit > 2*qkcsync.RootBlockHeaderListLimit {
+		return nil, fmt.Errorf("limit in request is larger than expected, limit: %d, want: %d", req.Limit, qkcsync.RootBlockHeaderListLimit)
 	}
-	if blockHeaderReq.Direction != qkcom.DirectionToGenesis {
+	if req.Direction != qkcom.DirectionToGenesis && req.Direction != qkcom.DirectionToTip {
 		return nil, errors.New("Bad direction")
 	}
-	blockHeaderResp := p2p.GetRootBlockHeaderListResponse{
-		RootTip:         pm.rootBlockChain.CurrentHeader().(*types.RootBlockHeader),
-		BlockHeaderList: make([]*types.RootBlockHeader, 0, blockHeaderReq.Limit),
+
+	getHeader := func(hash common.Hash, height uint64) types.IHeader {
+		if height != 0 {
+			return pm.rootBlockChain.GetHeaderByNumber(height)
+		} else {
+			return pm.rootBlockChain.GetHeader(hash)
+		}
 	}
 
-	hash := blockHeaderReq.BlockHash
-	for i := uint32(0); i < blockHeaderReq.Limit; i++ {
-		header := pm.rootBlockChain.GetHeader(hash)
-		if header == nil || reflect.ValueOf(header).IsNil() {
-			panic(fmt.Sprintf("hash %v is missing from DB which is not expected", hash))
+	var (
+		height   uint64 = 0
+		hash            = req.BlockHash
+		rTip            = pm.rootBlockChain.CurrentHeader().(*types.RootBlockHeader)
+		rHeaders        = make([]*types.RootBlockHeader, 0, req.Limit)
+	)
+	for len(rHeaders) < cap(rHeaders) {
+		header := getHeader(hash, height)
+		if qkcom.IsNil(header) {
+			panic(fmt.Sprintf("hash %v is missing from DB which is not expected", req.BlockHash))
 		}
-		hash = header.GetParentHash()
-		blockHeaderResp.BlockHeaderList = append(blockHeaderResp.BlockHeaderList, header.(*types.RootBlockHeader))
-		if header.NumberU64() == 0 {
+		rHeaders = append(rHeaders, header.(*types.RootBlockHeader))
+		height = header.NumberU64()
+
+		if height >= rTip.NumberU64() {
 			break
 		}
+
+		if req.Direction == qkcom.DirectionToGenesis {
+			height -= 1
+		} else {
+			height += 1
+		}
 	}
-	return &blockHeaderResp, nil
+	return &p2p.GetRootBlockHeaderListResponse{
+		RootTip: rTip,
+	}, nil
 }
 
 func (pm *ProtocolManager) HandleGetRootBlockListRequest(request *p2p.GetRootBlockListRequest) (*p2p.GetRootBlockListResponse, error) {
