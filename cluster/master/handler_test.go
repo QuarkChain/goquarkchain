@@ -135,7 +135,7 @@ func TestCloseConnWithErr(t *testing.T) {
 		content interface{}
 	}{
 		{p2p.GetRootBlockHeaderListRequestMsg, &p2p.GetRootBlockHeaderListRequest{BlockHash: pm.rootBlockChain.GetBlockByNumber(chainLength / 2).Hash(), Limit: 1, Direction: 1}},             // Wrong direction}
-		{p2p.GetRootBlockHeaderListRequestMsg, &p2p.GetRootBlockHeaderListRequest{BlockHash: pm.rootBlockChain.Genesis().Hash(), Limit: uint32(rootBlockHeaderListLimit + 10), Direction: 0}}, // limit larger than expected
+		{p2p.GetRootBlockHeaderListRequestMsg, &p2p.GetRootBlockHeaderListRequest{BlockHash: pm.rootBlockChain.Genesis().Hash(), Limit: uint32(2*rootBlockHeaderListLimit + 10), Direction: 0}}, // limit larger than expected
 		{p2p.GetRootBlockHeaderListRequestMsg, &p2p.GetRootBlockHeaderListRequest{BlockHash: unknown, Limit: 1, Direction: 0}},                                                                // no exist block hash
 	}
 	// Run each of the tests and verify the results against the chain
