@@ -173,7 +173,7 @@ func (r *rootChainTask) findAncestor(bc blockchain) (*types.RootBlockHeader, err
 		return rtip, nil
 	}
 
-	end := uint32(r.peer.RootHead().Number)
+	end := r.peer.RootHead().Number
 	start := end - r.maxStaleness
 	if end < r.maxStaleness {
 		start = 0

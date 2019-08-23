@@ -335,7 +335,7 @@ func (p *Peer) GetRootBlockHeaderList(req *rpc.GetRootBlockHeaderListRequest) (r
 	select {
 	case obj := <-rpcchan:
 		if ret, ok := obj.(*p2p.GetRootBlockHeaderListResponse); !ok {
-			panic("invalid return result in GetMinorBlockList")
+			panic("invalid return result in GetRootBlockHeaderList")
 		} else {
 			return ret, nil
 		}
@@ -397,7 +397,7 @@ func (p *Peer) GetMinorBlockHeaderList(req *rpc.GetMinorBlockHeaderListRequest) 
 	select {
 	case obj := <-rpcchan:
 		if ret, ok := obj.(*p2p.GetMinorBlockHeaderListResponse); !ok {
-			panic("invalid return result in GetMinorBlockList")
+			panic("invalid return result in GetMinorBlockHeaderList")
 		} else {
 			return ret, nil
 		}
