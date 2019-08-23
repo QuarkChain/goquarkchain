@@ -39,15 +39,15 @@ func TestQKCState(t *testing.T) {
 				continue
 			}
 			if _, ok := mapForks[subtest.Fork]; ok == false {
-				fmt.Println("?????????????????????", subtest.Fork)
+				//	fmt.Println("?????????????????????", subtest.Fork)
 				continue
 			}
-			fmt.Println("ready to test", key)
+			//fmt.Println("ready to test", key)
 			t.Run(key, func(t *testing.T) {
 				withTrace(t, test.gasLimit(subtest), func(vmconfig vm.Config) error {
 					_, err := test.Run(subtest, vmconfig)
 					if err == errors.New("not support") {
-						fmt.Println("not support yet !!!!!!!!!!!", subtest.Fork)
+						//			fmt.Println("not support yet !!!!!!!!!!!", subtest.Fork)
 						return nil
 					}
 					return st.checkFailure(t, name, err)

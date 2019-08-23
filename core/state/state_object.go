@@ -271,6 +271,7 @@ func (self *stateObject) CommitTrie(db Database) error {
 // AddBalance removes amount from c's balance.
 // It is used to add funds to the destination account of a transfer.
 func (c *stateObject) AddBalance(amount *big.Int, tokenID uint64) {
+	fmt.Println("addBalance", c.address.Hex(), tokenID, amount)
 	// EIP158: We must check emptiness for the objects such that the account
 	// clearing (0,0,0 objects) can take effect.
 	if amount.Sign() == 0 {
@@ -286,6 +287,7 @@ func (c *stateObject) AddBalance(amount *big.Int, tokenID uint64) {
 // SubBalance removes amount from c's balance.
 // It is used to remove funds from the origin account of a transfer.
 func (c *stateObject) SubBalance(amount *big.Int, tokenID uint64) {
+	fmt.Println("SubBalance", c.address.Hex(), tokenID, amount)
 	if amount.Sign() == 0 {
 		return
 	}
@@ -309,7 +311,6 @@ func (self *stateObject) SetBalances(balances map[uint64]*big.Int) {
 }
 
 func (self *stateObject) setTokenBalance(amount *big.Int, tokenID uint64) {
-	fmt.Println("set_token_balance", self.address.String(), tokenID, amount)
 	self.data.TokenBalances.SetValue(amount, tokenID)
 }
 

@@ -20,6 +20,7 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -370,6 +371,7 @@ func (c *currentMntID) RequiredGas(input []byte) uint64 {
 }
 
 func (c *currentMntID) Run(input []byte, evm *EVM, contract *Contract) ([]byte, error) {
+	fmt.Println("?>>>>>>???????????????????")
 	b := make([]byte, 8)
 	binary.BigEndian.PutUint64(b, evm.TransferTokenID)
 	zeors := make([]byte, byte(0), 24)

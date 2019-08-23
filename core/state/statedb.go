@@ -434,6 +434,7 @@ func (s *StateDB) updateStateObject(stateObject *stateObject) {
 		panic(fmt.Errorf("can't encode object at %x: %v", addr[:], err))
 	}
 	//fmt.Println("update", hex.EncodeToString(addr[:]), hex.EncodeToString(data))
+	//fmt.Println("balance", stateObject.data.TokenBalances.GetBalanceMap())
 	//fmt.Println("ddddddddddddddddddddddd-start")
 	//fmt.Println("", stateObject.data.Nonce)
 	//tt, err := stateObject.data.TokenBalances.SerializeToBytes()

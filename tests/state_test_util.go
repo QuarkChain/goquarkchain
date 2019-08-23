@@ -27,6 +27,7 @@ import (
 	"strings"
 
 	qkcConfig "github.com/QuarkChain/goquarkchain/cluster/config"
+	qkcCommon "github.com/QuarkChain/goquarkchain/common"
 	qkcCore "github.com/QuarkChain/goquarkchain/core"
 	"github.com/QuarkChain/goquarkchain/core/state"
 	"github.com/QuarkChain/goquarkchain/core/types"
@@ -74,9 +75,10 @@ type stPostState struct {
 	Root    common.UnprefixedHash `json:"hash"`
 	Logs    common.UnprefixedHash `json:"logs"`
 	Indexes struct {
-		Data  int `json:"data"`
-		Gas   int `json:"gas"`
-		Value int `json:"value"`
+		Data            int `json:"data"`
+		Gas             int `json:"gas"`
+		Value           int `json:"value"`
+		TransferTokenID int `json:"transferTokenId"`
 	}
 }
 
@@ -101,13 +103,14 @@ type stEnvMarshaling struct {
 //go:generate gencodec -type stTransaction -field-override stTransactionMarshaling -out gen_sttransaction.go
 
 type stTransaction struct {
-	GasPrice   *big.Int `json:"gasPrice"`
-	Nonce      uint64   `json:"nonce"`
-	To         string   `json:"to"`
-	Data       []string `json:"data"`
-	GasLimit   []uint64 `json:"gasLimit"`
-	Value      []string `json:"value"`
-	PrivateKey []byte   `json:"secretKey"`
+	GasPrice        *big.Int `json:"gasPrice"`
+	Nonce           uint64   `json:"nonce"`
+	To              string   `json:"to"`
+	Data            []string `json:"data"`
+	GasLimit        []uint64 `json:"gasLimit"`
+	Value           []string `json:"value"`
+	PrivateKey      []byte   `json:"secretKey"`
+	TransferTokenID []uint64 `json:"transferTokenId"`
 }
 
 type stTransactionMarshaling struct {
@@ -158,12 +161,9 @@ func (t *StateTest) Run(subtest StateSubtest, vmconfig vm.Config) (*state.StateD
 	block := t.genesis(config).ToBlock(nil)
 	header := TransFromBlock(block)
 	statedb := MakePreState(ethdb.NewMemDatabase(), t.json.Pre)
-	testQkcConfig.RewardTaxRate = new(big.Rat).SetInt64(0)
-	statedb.SetQuarkChainConfig(testQkcConfig)
 
-	rootHash := statedb.IntermediateRoot(false)
-	fmt.Println("rootHash", rootHash.String())
-
+	rootDis, _ := statedb.Commit(true)
+	fmt.Println("rootDis", rootDis.Hex())
 	post := t.json.Post[subtest.Fork][subtest.Index]
 	msg, err := t.json.Tx.toMessage(post)
 	if err != nil {
@@ -177,13 +177,13 @@ func (t *StateTest) Run(subtest StateSubtest, vmconfig vm.Config) (*state.StateD
 	snapshot := statedb.Snapshot()
 
 	localFee := big.NewRat(1, 1)
+	//fmt.Println("apply_tx")
 	if _, _, _, err := qkcCore.ApplyMessage(evm, msg, gaspool, localFee); err != nil {
 		statedb.RevertToSnapshot(snapshot)
 	}
+	//fmt.Println("apply_tx-end")
 
-	// Commit block
-	statedb.Commit(config.IsEIP158(block.Number()))
-
+	root, err := statedb.Commit(config.IsEIP158(block.Number()))
 	// Add 0-value mining reward. This only makes a difference in the cases
 	// where
 	// - the coinbase suicided, or
@@ -191,10 +191,16 @@ func (t *StateTest) Run(subtest StateSubtest, vmconfig vm.Config) (*state.StateD
 	//   the coinbase gets no txfee, so isn't created, and thus needs to be touched
 	statedb.AddBalance(block.Coinbase(), new(big.Int), 0)
 	// And _now_ get the state root
-	root := statedb.IntermediateRoot(true)
 	// N.B: We need to do this in a two-step process, because the first Commit takes care
 	// of suicides, and we need to touch the coinbase _after_ it has potentially suicided.
-	fmt.Println("root", root.String())
+	if root != common.Hash(post.Root) {
+		return statedb, fmt.Errorf("post state root mismatch: got %x, want %x", root, post.Root)
+	}
+	if logs := rlpHash(statedb.Logs()); logs != common.Hash(post.Logs) {
+		return statedb, fmt.Errorf("post state logs hash mismatch: got %x, want %x", logs, post.Logs)
+	}
+	fmt.Println("YYYYYYYYYYYYYYYY", root.Hex(), common.Hash(post.Root).Hex())
+	//fmt.Println("logs", rlpHash(statedb.Logs()).Hex(), common.Hash(post.Logs).Hex())
 	return statedb, nil
 }
 
@@ -205,6 +211,7 @@ func (t *StateTest) gasLimit(subtest StateSubtest) uint64 {
 func MakePreState(db ethdb.Database, accounts GenesisAlloc) *state.StateDB {
 	sdb := state.NewDatabase(db)
 	statedb, _ := state.New(common.Hash{}, sdb)
+	statedb.SetQuarkChainConfig(testQkcConfig)
 	for addr, a := range accounts {
 		statedb.SetCode(addr, a.Code)
 		statedb.SetNonce(addr, a.Nonce)
@@ -223,6 +230,7 @@ func MakePreState(db ethdb.Database, accounts GenesisAlloc) *state.StateDB {
 	// Commit and re-open to start with a clean state.
 	root, _ := statedb.Commit(false)
 	statedb, _ = state.New(root, sdb)
+	statedb.SetQuarkChainConfig(testQkcConfig)
 	return statedb
 }
 
@@ -266,6 +274,9 @@ func (tx *stTransaction) toMessage(ps stPostState) (*types.Message, error) {
 	if ps.Indexes.Gas > len(tx.GasLimit) {
 		return nil, fmt.Errorf("tx gas limit index %d out of bounds", ps.Indexes.Gas)
 	}
+	if ps.Indexes.TransferTokenID > len(tx.TransferTokenID) {
+		return nil, fmt.Errorf("tx TransferTokenID index %d out of bounds", ps.Indexes.TransferTokenID)
+	}
 	dataHex := tx.Data[ps.Indexes.Data]
 	valueHex := tx.Value[ps.Indexes.Value]
 	gasLimit := tx.GasLimit[ps.Indexes.Gas]
@@ -291,8 +302,13 @@ func (tx *stTransaction) toMessage(ps stPostState) (*types.Message, error) {
 
 		toRecipient = nil
 	}
+	testQKCID := qkcCommon.TokenIDEncode("QKC")
+	transferTokenID := testQKCID
+	if len(tx.TransferTokenID) != 0 {
+		transferTokenID = tx.TransferTokenID[ps.Indexes.TransferTokenID]
+	}
 
-	msg := types.NewMessage(fromRecipient, toRecipient, tx.Nonce, value, gasLimit, tx.GasPrice, data, true, 0, 0, 0, 0)
+	msg := types.NewMessage(fromRecipient, toRecipient, tx.Nonce, value, gasLimit, tx.GasPrice, data, true, 0, 0, transferTokenID, testQKCID)
 	return &msg, nil
 }
 
