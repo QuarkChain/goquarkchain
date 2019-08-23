@@ -288,7 +288,7 @@ func (c *stateObject) SubBalance(amount *big.Int, tokenID uint64) {
 	if amount.Sign() == 0 {
 		return
 	}
-	c.setTokenBalance(new(big.Int).Sub(c.Balance(tokenID), amount), tokenID)
+	c.SetBalance(new(big.Int).Sub(c.Balance(tokenID), amount), tokenID)
 }
 
 func (self *stateObject) SetBalance(amount *big.Int, tokenID uint64) {

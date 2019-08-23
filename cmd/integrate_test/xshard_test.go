@@ -4,17 +4,16 @@ package test
 
 import (
 	"encoding/hex"
-	"github.com/QuarkChain/goquarkchain/cluster/config"
-	"github.com/QuarkChain/goquarkchain/cluster/master"
 	"math/big"
 	"testing"
 	"time"
 
-	"github.com/QuarkChain/goquarkchain/params"
-
 	"github.com/QuarkChain/goquarkchain/account"
+	"github.com/QuarkChain/goquarkchain/cluster/config"
+	"github.com/QuarkChain/goquarkchain/cluster/master"
 	"github.com/QuarkChain/goquarkchain/core"
 	"github.com/QuarkChain/goquarkchain/core/types"
+	"github.com/QuarkChain/goquarkchain/params"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/assert"
 )
@@ -78,6 +77,7 @@ func TestBroadcastCrossShardTransactionsWithExtraGas(t *testing.T) {
 	_, cluster := CreateClusterList(1, cfglist)
 	c := cluster[0]
 	c.clstrCfg.Quarkchain.MinMiningGasPrice = new(big.Int)
+	c.clstrCfg.Quarkchain.MinTXPoolGasPrice = new(big.Int)
 	alloc := map[string]*big.Int{c.clstrCfg.Quarkchain.GenesisToken: big.NewInt(1000000)}
 	for _, fsId := range c.clstrCfg.Quarkchain.GetGenesisShardIds() {
 		shardCfg := c.clstrCfg.Quarkchain.GetShardConfigByFullShardID(fsId)
@@ -153,6 +153,7 @@ func TestCrossShardContractCall(t *testing.T) {
 	c := cluster[0]
 	alloc := map[string]*big.Int{c.clstrCfg.Quarkchain.GenesisToken: big.NewInt(100000000)}
 	c.clstrCfg.Quarkchain.MinMiningGasPrice = new(big.Int)
+	c.clstrCfg.Quarkchain.MinTXPoolGasPrice = new(big.Int)
 	//Enable xshard receipt
 	c.clstrCfg.Quarkchain.XShardAddReceiptTimestamp = 1
 	for i := 0; i < int(chainSize); i++ {
@@ -175,7 +176,7 @@ func TestCrossShardContractCall(t *testing.T) {
 	assert.NoError(t, err)
 	err = master.AddRootBlock(rb.(*types.RootBlock))
 	assert.NoError(t, err)
-	tx0, err := core.CreateContract(minorBlockChainB, id1.GetKey(), acc2, acc2.FullShardKey, core.CONTRACT)
+	tx0, err := core.CreateContract(minorBlockChainB, id1.GetKey(), acc2, acc2.FullShardKey, core.ContractWithStorage2)
 	assert.NoError(t, err)
 	err = slaves[1].AddTx(tx0)
 	assert.NoError(t, err)
@@ -203,7 +204,7 @@ func TestCrossShardContractCall(t *testing.T) {
 	_, _, receipt, err := master.GetTransactionReceipt(tx0.Hash(), b1.Header().Branch)
 	assert.NoError(t, err)
 	assert.Equal(t, uint64(0x1), receipt.Status)
-	contractAddress := account.NewAddress(receipt.ContractAddress, receipt.ContractFullShardId)
+	contractAddress := account.NewAddress(receipt.ContractAddress, receipt.ContractFullShardKey)
 	b1n := b1.Header().Number
 	result, err := master.GetStorageAt(&contractAddress, storageKeyHash, &b1n)
 	assert.NoError(t, err)
@@ -247,12 +248,10 @@ func TestCrossShardContractCall(t *testing.T) {
 	assert.Equal(t, 0, int(ad.Balance.GetTokenBalance(testGenesisTokenID).Int64()))
 	_, _, receipt, err = master.GetTransactionReceipt(tx2.Hash(), b3.Header().Branch)
 	assert.NoError(t, err)
-	//TODO enable xshard receipt retrieve
 	//make sure receipt actually found
-	//assert.Equal(t, tx2.Hash(), receipt.TxHash)
-	//assert.Equal(t, uint64(0x0), receipt.Status)
+	assert.Equal(t, tx2.Hash(), receipt.TxHash)
+	assert.Equal(t, uint64(0x0), receipt.Status)
 	//call the contract with enough gas
-	assert.NoError(t, err)
 	value, gasPrice, gas = big.NewInt(0), uint64(1), uint64(30000+700000)
 	tx3 := core.CreateCallContractTx(minorBlockChainA, id2.GetKey().Bytes(), acc3, contractAddress,
 		value, &gas, &gasPrice, nil, data)
@@ -283,9 +282,8 @@ func TestCrossShardContractCall(t *testing.T) {
 	assert.Equal(t, 679498, int(ad.Balance.GetTokenBalance(testGenesisTokenID).Int64()))
 	_, _, receipt, err = master.GetTransactionReceipt(tx3.Hash(), b5.Header().Branch)
 	assert.NoError(t, err)
-	//TODO enable xshard receipt retrieve
-	//assert.Equal(t, tx3.Hash(), receipt.TxHash)
-	//assert.Equal(t, uint64(0x1), receipt.Status)
+	assert.Equal(t, tx3.Hash(), receipt.TxHash)
+	assert.Equal(t, uint64(0x1), receipt.Status)
 }
 
 func TestCrossShardTransfer(t *testing.T) {
@@ -302,6 +300,7 @@ func TestCrossShardTransfer(t *testing.T) {
 	_, cluster := CreateClusterList(1, cfglist)
 	c := cluster[0]
 	c.clstrCfg.Quarkchain.MinMiningGasPrice = new(big.Int)
+	c.clstrCfg.Quarkchain.MinTXPoolGasPrice = new(big.Int)
 	alloc := map[string]*big.Int{c.clstrCfg.Quarkchain.GenesisToken: big.NewInt(100000000)}
 	for i := 0; i < int(chainSize); i++ {
 		fsId := i<<16 | int(shardSize) | 0
@@ -364,6 +363,7 @@ func TestBroadcastCrossShardTransaction1x2(t *testing.T) {
 	_, cluster := CreateClusterList(1, cfglist)
 	c := cluster[0]
 	c.clstrCfg.Quarkchain.MinMiningGasPrice = new(big.Int)
+	c.clstrCfg.Quarkchain.MinTXPoolGasPrice = new(big.Int)
 	alloc := map[string]*big.Int{c.clstrCfg.Quarkchain.GenesisToken: big.NewInt(1000000)}
 	for _, fsId := range c.clstrCfg.Quarkchain.GetGenesisShardIds() {
 		shardCfg := c.clstrCfg.Quarkchain.GetShardConfigByFullShardID(fsId)
@@ -477,6 +477,7 @@ func TestBroadcastCrossShardTransaction2x1(t *testing.T) {
 	_, cluster := CreateClusterList(1, cfglist)
 	c := cluster[0]
 	c.clstrCfg.Quarkchain.MinMiningGasPrice = new(big.Int)
+	c.clstrCfg.Quarkchain.MinTXPoolGasPrice = new(big.Int)
 	minorCoinbase := big.NewInt(1000000)
 	genesis := map[string]*big.Int{c.clstrCfg.Quarkchain.GenesisToken: big.NewInt(1000000)}
 	c.clstrCfg.Quarkchain.Root.CoinbaseAmount = big.NewInt(10)
@@ -612,4 +613,94 @@ func TestBroadcastCrossShardTransaction2x1(t *testing.T) {
 		500000 + //post-tax mblock coinbase
 		21000 //FIXME remove 21000
 	assert.Equal(t, int(total), int(cntr.sum()))
+}
+
+//Test the cross shard transactions are broadcasted to the destination shards
+func TestCrossShardContractCreate(t *testing.T) {
+	id1, err := account.CreatRandomIdentity()
+	assert.NoError(t, err)
+	acc1 := account.CreatAddressFromIdentity(id1, 0)
+	acc2 := account.CreatAddressFromIdentity(id1, 1<<16)
+	storageKeyStr := core.ZFill64(hex.EncodeToString(acc2.Recipient[:])) + core.ZFill64("1")
+	storageKeyBytes, err := hex.DecodeString(storageKeyStr)
+	assert.NoError(t, err)
+	storageKeyHash := crypto.Keccak256Hash(storageKeyBytes)
+	var chainSize, shardSize, slaveSize uint32 = 8, 1, 2
+	cfglist := GetClusterConfig(1, chainSize, shardSize, slaveSize, nil, defaultbootNode,
+		config.PoWSimulate, true)
+	_, cluster := CreateClusterList(1, cfglist)
+	c := cluster[0]
+	c.clstrCfg.Quarkchain.MinMiningGasPrice = new(big.Int)
+	c.clstrCfg.Quarkchain.MinTXPoolGasPrice = new(big.Int)
+	c.clstrCfg.Quarkchain.XShardGasDDOSFixRootHeight = 0
+	c.clstrCfg.Quarkchain.XShardAddReceiptTimestamp = 1
+	genesis := map[string]*big.Int{c.clstrCfg.Quarkchain.GenesisToken: big.NewInt(1000000)}
+	c.clstrCfg.Quarkchain.Root.CoinbaseAmount = big.NewInt(10)
+	for _, fsId := range c.clstrCfg.Quarkchain.GetGenesisShardIds() {
+		shardCfg := c.clstrCfg.Quarkchain.GetShardConfigByFullShardID(fsId)
+		acc1s := acc1.AddressInShard(fsId)
+		shardCfg.Genesis.Alloc[acc1s] = genesis
+	}
+	cluster.Start(5*time.Second, true)
+	defer cluster.Stop()
+
+	mstr := c.GetMaster()
+	slaves := c.GetSlavelist()
+	minorBlockChainA := c.GetShardState(1)
+	minorBlockChainB := c.GetShardState(1<<16 + 1)
+	shardA := c.GetShard(1)
+	shardB := c.GetShard(1<<16 + 1)
+
+	time.Sleep(500 * time.Millisecond)
+	rb, _, err := mstr.CreateBlockToMine()
+	assert.NoError(t, err)
+	assert.NoError(t, mstr.AddRootBlock(rb.(*types.RootBlock)))
+
+	tx1, err := core.CreateContract(minorBlockChainB, id1.GetKey(), acc2, acc1.FullShardKey, core.ContractWithStorage2)
+	assert.NoError(t, slaves[1].AddTx(tx1))
+
+	b1, err := minorBlockChainB.CreateBlockToMine(nil, &acc2, nil, nil, nil)
+	assert.NoError(t, err)
+	assert.NoError(t, shardB.AddMinorBlock(b1))
+	_, _, receipt, err := mstr.GetTransactionReceipt(tx1.Hash(), b1.Header().Branch)
+	assert.NoError(t, err)
+	assert.Equal(t, 1, int(receipt.Status))
+
+	//should include b1
+	rb, _, err = mstr.CreateBlockToMine()
+	assert.NoError(t, err)
+	assert.NoError(t, mstr.AddRootBlock(rb.(*types.RootBlock)))
+
+	b2, err := minorBlockChainA.CreateBlockToMine(nil, &acc1, nil, nil, nil)
+	assert.NoError(t, err)
+	assert.NoError(t, shardA.AddMinorBlock(b2))
+	//contract should be created
+	_, _, receipt, err = mstr.GetTransactionReceipt(tx1.Hash(), b2.Header().Branch)
+	assert.NoError(t, err)
+	assert.Equal(t, tx1.Hash(), receipt.TxHash)
+	assert.Equal(t, 1, int(receipt.Status))
+	contractAddress := account.NewAddress(receipt.ContractAddress, receipt.ContractFullShardKey)
+	b2n := b2.Header().Number
+	result, err := mstr.GetStorageAt(&contractAddress, storageKeyHash, &b2n)
+	assert.NoError(t, err)
+	assert.Equal(t, "0000000000000000000000000000000000000000000000000000000000000000", hex.EncodeToString(result.Bytes()))
+
+	//	call the contract with enough gas
+	data, err := hex.DecodeString("c2e171d7")
+	assert.NoError(t, err)
+	value, gasPrice, gas := big.NewInt(0), uint64(1), params.GtxxShardCost.Uint64()+700000
+	tx2 := core.CreateCallContractTx(minorBlockChainA, id1.GetKey().Bytes(), acc1, contractAddress,
+		value, &gas, &gasPrice, nil, data)
+	assert.NoError(t, slaves[0].AddTx(tx2))
+	b3, err := minorBlockChainA.CreateBlockToMine(nil, &acc1, nil, nil, nil)
+	assert.NoError(t, err)
+	assert.NoError(t, shardA.AddMinorBlock(b3))
+	_, _, receipt, err = mstr.GetTransactionReceipt(tx2.Hash(), b3.Header().Branch)
+	assert.NoError(t, err)
+	assert.Equal(t, 1, int(receipt.Status))
+
+	b3n := b3.Header().Number
+	result, err = mstr.GetStorageAt(&contractAddress, storageKeyHash, &b3n)
+	assert.NoError(t, err)
+	assert.Equal(t, "000000000000000000000000000000000000000000000000000000000000162e", hex.EncodeToString(result.Bytes()))
 }

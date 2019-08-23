@@ -1924,7 +1924,7 @@ func TestContractCall(t *testing.T) {
 	assert.NoError(t, err)
 	acc1 := account.CreatAddressFromIdentity(id1, 0)
 	acc2 := account.CreatAddressFromIdentity(id2, 0)
-	storageKeyStr := ZFill64(hex.EncodeToString(acc2.Recipient[:])) + ZFill64("1")
+	storageKeyStr := ZFill64(hex.EncodeToString(acc1.Recipient[:])) + ZFill64("1")
 	storageKeyBytes, err := hex.DecodeString(storageKeyStr)
 	assert.NoError(t, err)
 	storageKey := crypto.Keccak256Hash(storageKeyBytes)
@@ -1942,7 +1942,7 @@ func TestContractCall(t *testing.T) {
 	b1, _, err = shardState.FinalizeAndAddBlock(b1)
 	assert.NoError(t, err)
 
-	tx0, err := CreateContract(shardState, id1.GetKey(), acc1, acc1.FullShardKey, CONTRACT)
+	tx0, err := CreateContract(shardState, id1.GetKey(), acc1, acc1.FullShardKey, ContractWithStorage2)
 	assert.NoError(t, err)
 	err = shardState.AddTx(tx0)
 	assert.NoError(t, err)
@@ -1952,11 +1952,11 @@ func TestContractCall(t *testing.T) {
 	assert.NoError(t, err)
 	_, _, contractReceipt := shardState.GetTransactionReceipt(tx0.Hash())
 	assert.Equal(t, uint64(0x1), contractReceipt.Status)
-	contractAddress := account.NewAddress(contractReceipt.ContractAddress, contractReceipt.ContractFullShardId)
+	contractAddress := account.NewAddress(contractReceipt.ContractAddress, contractReceipt.ContractFullShardKey)
 
 	data, err := hex.DecodeString("c2e171d7")
 	value, gasPrice, gas := big.NewInt(0), uint64(1), uint64(50000)
-	tx3 := createTransferTransaction(shardState, id2.GetKey().Bytes(), acc2, contractAddress,
+	tx3 := createTransferTransaction(shardState, id1.GetKey().Bytes(), acc1, contractAddress,
 		value, &gas, &gasPrice, nil, data, nil, nil)
 	err = shardState.AddTx(tx3)
 	assert.NoError(t, err)
@@ -2248,7 +2248,7 @@ func TestXShardGasLimit(t *testing.T) {
 func getDefaultBalance(acc account.Address, shardState *MinorBlockChain) *big.Int {
 	blc1, err := shardState.GetBalance(acc.Recipient, nil)
 	checkErr(err)
-	act1 := blc1.GetTokenBalance(qkcCommon.TokenIDEncode("QKC"))
+	act1 := blc1.GetTokenBalance(qkcCommon.TokenIDEncode(shardState.clusterConfig.Quarkchain.GenesisToken))
 	return act1
 }
 
@@ -2376,9 +2376,9 @@ func TestXShardFromRootBlock(t *testing.T) {
 
 	//Create a root block containing the block with the x-shard tx
 	rootBlock := state0.GetRootTip().CreateBlockToAppend(nil, nil, nil, nil, nil)
-	//rootBlock.AddMinorBlockHeader(state0.GetMinorTip())
+	rootBlock.AddMinorBlockHeader(state0.CurrentBlock().Header())
 	coinbase := types.NewEmptyTokenBalances()
-	coinbase.SetValue(big.NewInt(1000000), qkcCommon.TokenIDEncode("QKC"))
+	coinbase.SetValue(big.NewInt(1000000), qkcCommon.TokenIDEncode(env1.clusterConfig.Quarkchain.GenesisToken))
 	rootBlock.Finalize(coinbase, &acc2, common.Hash{})
 	_, err = state0.AddRootBlock(rootBlock)
 	checkErr(err)
@@ -2388,6 +2388,81 @@ func TestXShardFromRootBlock(t *testing.T) {
 	b0, _, err = state0.FinalizeAndAddBlock(b0)
 	checkErr(err)
 	assert.Equal(t, 1000000, int(getDefaultBalance(acc2, state0).Uint64()))
+}
+
+//separate from test_xshard_from_root_block()
+func TestXShardFromRootBlockWithCoinbaseIsCode(t *testing.T) {
+	id1, err := account.CreatRandomIdentity()
+	checkErr(err)
+	acc1 := account.CreatAddressFromIdentity(id1, 0)
+
+	genesis := uint64(10000000)
+	shardSize := uint32(2)
+	shardId0 := uint32(0)
+	env1 := setUp(&acc1, &genesis, &shardSize)
+	state0 := createDefaultShardState(env1, &shardId0, nil, nil, nil)
+	defer state0.Stop()
+
+	olderHeaderTip := state0.CurrentBlock().Header()
+	tx, err := CreateContract(state0, id1.GetKey(), acc1, 0, ContractCreationByteCode)
+	checkErr(err)
+	assert.NoError(t, state0.AddTx(tx))
+	b, err := state0.CreateBlockToMine(nil, nil, nil, nil, nil)
+	checkErr(err)
+	_, _, err = state0.FinalizeAndAddBlock(b)
+	checkErr(err)
+	_, _, receipt := state0.GetTransactionReceipt(tx.Hash())
+	assert.NotNil(t, receipt.ContractAddress)
+	contractAddress := account.NewAddress(receipt.ContractAddress, receipt.ContractFullShardKey)
+	//Create a root block containing the block with the x-shard tx
+	rootBlock := state0.GetRootTip().CreateBlockToAppend(nil, nil, nil, nil, nil)
+	rootBlock.AddMinorBlockHeader(olderHeaderTip)
+	rootBlock.AddMinorBlockHeader(state0.CurrentBlock().Header())
+	coinbase := types.NewEmptyTokenBalances()
+	coinbase.SetValue(big.NewInt(1000000), qkcCommon.TokenIDEncode(env1.clusterConfig.Quarkchain.GenesisToken))
+	rootBlock = rootBlock.Finalize(coinbase, &contractAddress, common.Hash{})
+	_, err = state0.AddRootBlock(rootBlock)
+	checkErr(err)
+
+	b0, err := state0.CreateBlockToMine(nil, nil, nil, nil, nil)
+	checkErr(err)
+	b0, _, err = state0.FinalizeAndAddBlock(b0)
+	checkErr(err)
+	assert.Equal(t, 1000000, int(getDefaultBalance(contractAddress, state0).Uint64()))
+}
+
+//goquarkchain only
+func TestTransferToContract(t *testing.T) {
+	id1, err := account.CreatRandomIdentity()
+	checkErr(err)
+	acc1 := account.CreatAddressFromIdentity(id1, 0)
+	genesis := uint64(10000000)
+	shardSize := uint32(2)
+	shardId0 := uint32(0)
+	env1 := setUp(&acc1, &genesis, &shardSize)
+	state0 := createDefaultShardState(env1, &shardId0, nil, nil, nil)
+	defer state0.Stop()
+	//need a payable function in contract to receive money
+	tx, err := CreateContract(state0, id1.GetKey(), acc1, 0, ContractCreationByteCodePayable)
+	checkErr(err)
+	assert.NoError(t, state0.AddTx(tx))
+	b, err := state0.CreateBlockToMine(nil, nil, nil, nil, nil)
+	checkErr(err)
+	_, _, err = state0.FinalizeAndAddBlock(b)
+	checkErr(err)
+	_, _, receipt := state0.GetTransactionReceipt(tx.Hash())
+	assert.NotNil(t, receipt.ContractAddress)
+	contractAddress := account.NewAddress(receipt.ContractAddress, receipt.ContractFullShardKey)
+	value := new(big.Int).SetUint64(1000000)
+	gas := uint64(21000 + 100000) //need extra gas to run contract code
+	tx0 := CreateTransferTx(state0, id1.GetKey().Bytes(), acc1, contractAddress, value, &gas, nil, nil)
+	assert.NoError(t, state0.AddTx(tx0))
+	checkErr(err)
+	b0, err := state0.CreateBlockToMine(nil, nil, nil, nil, nil)
+	checkErr(err)
+	b0, _, err = state0.FinalizeAndAddBlock(b0)
+	checkErr(err)
+	assert.Equal(t, 1000000, int(getDefaultBalance(contractAddress, state0).Uint64()))
 }
 
 func TestGetTxForJsonRpc(t *testing.T) {
