@@ -159,7 +159,7 @@ func (args *SendTxArgs) setDefaults(config *config.QuarkChainConfig) error {
 		args.ToFullShardKey = args.FromFullShardKey
 	}
 
-	if args.NetWorkID != nil {
+	if args.NetWorkID == nil {
 		t := hexutil.Uint(config.NetworkID)
 		args.NetWorkID = &t
 	}

@@ -579,25 +579,36 @@ func (p *PublicBlockChainAPI) GetTransactionConfirmedByNumberRootBlocks(txID hex
 	}
 
 	mBlock, _, err := p.b.GetTransactionByHash(txHash, account.Branch{Value: fullShardID})
-	if err != nil || mBlock == nil {
-		return hexutil.Uint(0), err
-	}
-	confirmingHash := p.b.GetRootHashConfirmingMinorBlock(IDEncoder(mBlock.Hash().Bytes(), mBlock.Header().Branch.Value))
-	if bytes.Equal(confirmingHash.Bytes(), common.Hash{}.Bytes()) {
+	if err != nil {
 		return hexutil.Uint(0), err
 	}
 
+	if mBlock == nil {
+		return hexutil.Uint(0), errors.New("GetTxByHash mBlock is nil")
+	}
+
+	confirmingHash := p.b.GetRootHashConfirmingMinorBlock(IDEncoder(mBlock.Hash().Bytes(), mBlock.Header().Branch.Value))
+	if bytes.Equal(confirmingHash.Bytes(), common.Hash{}.Bytes()) {
+		return hexutil.Uint(0), errors.New("confirmingHash is empty hash")
+	}
+
 	confirmingBlock, err := p.b.GetRootBlockByHash(confirmingHash)
-	if err != nil || confirmingBlock == nil {
+	if err != nil {
 		return hexutil.Uint(0), err
+	}
+	if confirmingBlock == nil {
+		return hexutil.Uint(0), errors.New("confirmingBlock is nil")
 	}
 	confirmingHeight := confirmingBlock.NumberU64()
 	canonicalBlock, err := p.b.GetRootBlockByNumber(&confirmingHeight)
-	if err != nil || canonicalBlock == nil {
+	if err != nil {
 		return hexutil.Uint(0), err
 	}
+	if canonicalBlock == nil {
+		return hexutil.Uint(0), errors.New("canonicalBlock is nil")
+	}
 	if !bytes.Equal(canonicalBlock.Hash().Bytes(), confirmingHash.Bytes()) {
-		return hexutil.Uint(0), err
+		return hexutil.Uint(0), errors.New("canonicalBlock's hash !=confirmingHash's hash")
 	}
 	tip := p.b.CurrentBlock()
 	return hexutil.Uint(tip.NumberU64() - confirmingHeight + 1), nil
