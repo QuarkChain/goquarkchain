@@ -819,7 +819,6 @@ func opDelegateCall(pc *uint64, interpreter *EVMInterpreter, contract *Contract,
 	toAddr := common.BigToAddress(addr)
 	// Get arguments from the memory.
 	args := memory.Get(inOffset.Int64(), inSize.Int64())
-
 	ret, returnGas, err := interpreter.evm.DelegateCall(contract, toAddr, args, gas)
 	if err != nil {
 		stack.push(interpreter.intPool.getZero())
@@ -829,6 +828,7 @@ func opDelegateCall(pc *uint64, interpreter *EVMInterpreter, contract *Contract,
 	if err == nil || err == errExecutionReverted {
 		memory.Set(retOffset.Uint64(), retSize.Uint64(), ret)
 	}
+	fmt.Println("deletae.gas", contract.Gas, returnGas)
 	contract.Gas += returnGas
 
 	interpreter.intPool.put(addr, inOffset, inSize, retOffset, retSize)

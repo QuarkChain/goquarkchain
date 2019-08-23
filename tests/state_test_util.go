@@ -154,6 +154,8 @@ var (
 
 // Run executes a specific subtest.
 func (t *StateTest) Run(subtest StateSubtest, vmconfig vm.Config) (*state.StateDB, error) {
+	fmt.Println("RunStart")
+	defer fmt.Println("RunEnd")
 	config, ok := Forks[subtest.Fork]
 	if !ok {
 		return nil, errors.New("not support")

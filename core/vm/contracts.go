@@ -372,6 +372,7 @@ func (c *currentMntID) RequiredGas(input []byte) uint64 {
 
 func (c *currentMntID) Run(input []byte, evm *EVM, contract *Contract) ([]byte, error) {
 	fmt.Println("?>>>>>>???????????????????")
+	contract.SBFLAG = true
 	b := make([]byte, 8)
 	binary.BigEndian.PutUint64(b, evm.TransferTokenID)
 	zeors := make([]byte, byte(0), 24)

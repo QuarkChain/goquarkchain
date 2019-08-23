@@ -42,7 +42,7 @@ func TestQKCState(t *testing.T) {
 				//	fmt.Println("?????????????????????", subtest.Fork)
 				continue
 			}
-			//fmt.Println("ready to test", key)
+			fmt.Println("ready to test", key)
 			t.Run(key, func(t *testing.T) {
 				withTrace(t, test.gasLimit(subtest), func(vmconfig vm.Config) error {
 					_, err := test.Run(subtest, vmconfig)
@@ -125,6 +125,8 @@ func withTrace(t *testing.T, gasLimit uint64, test func(vm.Config) error) {
 		return
 	}
 	tracer := vm.NewStructLogger(nil)
+	fmt.Println("TTTTTTTTTTTTTTT")
+	return
 	err2 := test(vm.Config{Debug: true, Tracer: tracer})
 	if !reflect.DeepEqual(err, err2) {
 		t.Errorf("different error for second run: %v", err2)

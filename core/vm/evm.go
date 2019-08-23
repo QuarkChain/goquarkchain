@@ -17,7 +17,9 @@
 package vm
 
 import (
+	"bytes"
 	"errors"
+	"fmt"
 	"math/big"
 	"sync/atomic"
 	"time"
@@ -239,9 +241,15 @@ func (evm *EVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 			evm.vmConfig.Tracer.CaptureEnd(ret, gas-contract.Gas, time.Since(start), err)
 		}()
 	}
-
+	if bytes.Equal(to.Address().Bytes(), common.FromHex("0x000000000000000000000000000000514b430001")) {
+		caller.SetFlag(true)
+	}
+	fmt.Println("Call-start", to.Address().Hex())
 	ret, err = run(evm, contract, input, false)
-
+	fmt.Println("Call-end", err, contract.SBFLAG)
+	if err == nil && !contract.GetFlag() {
+		err = errExecutionReverted
+	}
 	// When an error was returned by the EVM or when setting the creation code
 	// above we revert to the snapshot and consume any gas remaining. Additionally
 	// when we're in homestead this also counts for code storage gas errors.
@@ -317,14 +325,24 @@ func (evm *EVM) DelegateCall(caller ContractRef, addr common.Address, input []by
 	// Initialise a new contract and make initialise the delegate values
 	contract := NewContract(caller, to, nil, gas).AsDelegate()
 	contract.SetCallCode(&addr, evm.StateDB.GetCodeHash(addr), evm.StateDB.GetCode(addr))
-
+	if bytes.Equal(to.Address().Bytes(), common.FromHex("0x000000000000000000000000000000514b430001")) {
+		caller.SetFlag(true)
+	}
+	fmt.Println("DelegateCall-start")
 	ret, err = run(evm, contract, input, false)
+
+	if err == nil && !contract.GetFlag() {
+		err = errExecutionReverted
+	} else {
+		fmt.Println("不应该")
+	}
 	if err != nil {
 		evm.StateDB.RevertToSnapshot(snapshot)
 		if err != errExecutionReverted {
 			contract.UseGas(contract.Gas)
 		}
 	}
+	fmt.Println("DelegateCall-end", err, contract.GetFlag(), contract.Gas)
 	return ret, contract.Gas, err
 }
 

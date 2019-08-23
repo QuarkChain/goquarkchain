@@ -25,6 +25,8 @@ import (
 // ContractRef is a reference to the contract's backing object
 type ContractRef interface {
 	Address() common.Address
+	SetFlag(flag bool)
+	GetFlag() bool
 }
 
 // AccountRef implements ContractRef.
@@ -38,6 +40,12 @@ type AccountRef common.Address
 
 // Address casts AccountRef to a Address
 func (ar AccountRef) Address() common.Address { return (common.Address)(ar) }
+func (ar AccountRef) SetFlag(bool2 bool) {
+
+}
+func (ar AccountRef) GetFlag() bool {
+	panic(-1)
+}
 
 // Contract represents an ethereum contract in the state database. It contains
 // the contract code, calling arguments. Contract implements ContractRef
@@ -57,8 +65,9 @@ type Contract struct {
 	CodeAddr *common.Address
 	Input    []byte
 
-	Gas   uint64
-	value *big.Int
+	Gas    uint64
+	value  *big.Int
+	SBFLAG bool
 }
 
 // NewContract returns a new contract environment for the execution of EVM.
@@ -81,6 +90,12 @@ func NewContract(caller ContractRef, object ContractRef, value *big.Int, gas uin
 	return c
 }
 
+func (c *Contract) SetFlag(flag bool) {
+	c.SBFLAG = flag
+}
+func (c *Contract) GetFlag() bool {
+	return c.SBFLAG
+}
 func (c *Contract) validJumpdest(dest *big.Int) bool {
 	udest := dest.Uint64()
 	// PC cannot go beyond len(code) and certainly can't be bigger than 63bits.
