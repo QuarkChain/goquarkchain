@@ -195,6 +195,7 @@ func (t *StateTest) Run(subtest StateSubtest, vmconfig vm.Config) (*state.StateD
 	if root != common.Hash(post.Root) {
 		return statedb, fmt.Errorf("post state root mismatch: got %x, want %x", root, post.Root)
 	}
+	fmt.Println("hash match", root.String(), common.Hash(post.Root).String())
 	//if logs := rlpHash(statedb.Logs()); logs != common.Hash(post.Logs) {
 	//	return statedb, fmt.Errorf("post state logs hash mismatch: got %x, want %x", logs, post.Logs)
 	//}

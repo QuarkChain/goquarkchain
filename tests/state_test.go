@@ -29,7 +29,6 @@ func TestEvm(t *testing.T) {
 	//testQKCState(t, ethStateTestDir)
 }
 func testQKCState(t *testing.T, dir string) {
-	count := 0
 	t.Parallel()
 	st := new(testMatcher)
 	st.walk(t, dir, func(t *testing.T, name string, test *StateTest) {
@@ -41,8 +40,6 @@ func testQKCState(t *testing.T, dir string) {
 			t.Run(key, func(t *testing.T) {
 				withTrace(t, test.gasLimit(subtest), func(vmconfig vm.Config) error {
 					_, err := test.Run(subtest, vmconfig)
-					fmt.Println("!!!!!!!!!")
-					count++
 					if err == errors.New("not support") {
 						return nil
 					}
@@ -51,7 +48,6 @@ func testQKCState(t *testing.T, dir string) {
 			})
 		}
 	})
-	fmt.Println("QKC-count", count)
 }
 
 func testETHState(t *testing.T, dir string) {
