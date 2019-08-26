@@ -106,37 +106,40 @@ type QuarkChainConfig struct {
 }
 
 type QuarkChainConfigAlias QuarkChainConfig
+type jsonConfig struct {
+	QuarkChainConfigAlias
+	Chains                 []*ChainConfig `json:"CHAINS"`
+	RewardTaxRate          float64        `json:"REWARD_TAX_RATE"`
+	BlockRewardDecayFactor float64        `json:"BLOCK_REWARD_DECAY_FACTOR"`
+}
 
 func (q *QuarkChainConfig) MarshalJSON() ([]byte, error) {
 	rewardTaxRate, _ := q.RewardTaxRate.Float64()
+	BlockRewardDecayFactor, _ := q.BlockRewardDecayFactor.Float64()
 	chains := make([]*ChainConfig, 0, len(q.Chains))
 	for _, chain := range q.Chains {
 		chains = append(chains, chain)
 	}
-	jsonConfig := struct {
-		QuarkChainConfigAlias
-		Chains        []*ChainConfig `json:"CHAINS"`
-		RewardTaxRate float64        `json:"REWARD_TAX_RATE"`
-	}{QuarkChainConfigAlias(*q), chains, rewardTaxRate}
-	return json.Marshal(jsonConfig)
+	jConfig := jsonConfig{
+		QuarkChainConfigAlias(*q),
+		chains,
+		rewardTaxRate,
+		BlockRewardDecayFactor,
+	}
+	return json.Marshal(jConfig)
 }
 
 func (q *QuarkChainConfig) UnmarshalJSON(input []byte) error {
-	var jsonConfig struct {
-		QuarkChainConfigAlias
-		Chains        []*ChainConfig `json:"CHAINS"`
-		RewardTaxRate float64        `json:"REWARD_TAX_RATE"`
-	}
-	if err := json.Unmarshal(input, &jsonConfig); err != nil {
+	jConfig := &jsonConfig{}
+	if err := json.Unmarshal(input, jConfig); err != nil {
 		return err
 	}
+	sort.Slice(jConfig.Chains, func(i, j int) bool { return jConfig.Chains[i].ChainID < jConfig.Chains[j].ChainID })
 
-	sort.Slice(jsonConfig.Chains, func(i, j int) bool { return jsonConfig.Chains[i].ChainID < jsonConfig.Chains[j].ChainID })
-
-	*q = QuarkChainConfig(jsonConfig.QuarkChainConfigAlias)
+	*q = QuarkChainConfig(jConfig.QuarkChainConfigAlias)
 	q.Chains = make(map[uint32]*ChainConfig)
 	q.shards = make(map[uint32]*ShardConfig)
-	for _, chainCfg := range jsonConfig.Chains {
+	for _, chainCfg := range jConfig.Chains {
 		q.Chains[chainCfg.ChainID] = chainCfg
 		for shardID := uint32(0); shardID < chainCfg.ShardSize; shardID++ {
 			var cfg = new(ChainConfig)
@@ -148,14 +151,11 @@ func (q *QuarkChainConfig) UnmarshalJSON(input []byte) error {
 			q.shards[shardCfg.GetFullShardId()] = shardCfg
 		}
 	}
-
-	var (
-		denom int64 = 1000
-		num         = int64(jsonConfig.RewardTaxRate * float64(denom))
-	)
+	var denom int64 = 1000
 	q.Root.GRPCPort = GrpcPort
 	q.Root.GRPCHost, _ = common.GetIPV4Addr()
-	q.RewardTaxRate = big.NewRat(num, denom)
+	q.RewardTaxRate = big.NewRat(int64(jConfig.RewardTaxRate*float64(denom)), denom)
+	q.BlockRewardDecayFactor = big.NewRat(int64(jConfig.BlockRewardDecayFactor*float64(denom)), denom)
 	q.initAndValidate()
 	return nil
 }
@@ -303,7 +303,7 @@ func NewQuarkChainConfig() *QuarkChainConfig {
 		GuardianPublicKey:                 "ab856abd0983a82972021e454fcf66ed5940ed595b0898bcd75cbe2d0a51a00f5358b566df22395a2a8bf6c022c1d51a2c3defe654e91a8d244947783029694d",
 		GuardianPrivateKey:                nil,
 		P2PProtocolVersion:                0,
-		P2PCommandSizeLimit:               (1 << 32) - 1,
+		P2PCommandSizeLimit:               DefaultP2PCmddSizeLimit,
 		SkipRootDifficultyCheck:           false,
 		SkipRootCoinbaseCheck:             false,
 		SkipMinorDifficultyCheck:          false,

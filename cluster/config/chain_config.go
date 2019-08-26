@@ -20,7 +20,7 @@ type ChainConfig struct {
 	CoinbaseAddress account.Address `json:"-"`
 	CoinbaseAmount  *big.Int        `json:"COINBASE_AMOUNT"`
 
-	EpochInterval *big.Int
+	EpochInterval *big.Int `json:"EPOCH_INTERVAL"`
 
 	// Gas Limit
 	GasLimitEmaDenominator             uint32      `json:"GAS_LIMIT_EMA_DENOMINATOR"`
