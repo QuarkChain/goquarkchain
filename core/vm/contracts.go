@@ -370,9 +370,10 @@ func (c *currentMntID) RequiredGas(input []byte) uint64 {
 }
 
 func (c *currentMntID) Run(input []byte, evm *EVM, contract *Contract) ([]byte, error) {
+	contract.TokenIDQueried = true
 	b := make([]byte, 8)
 	binary.BigEndian.PutUint64(b, evm.TransferTokenID)
-	zeors := make([]byte, byte(0), 24)
+	zeors := make([]byte, 24, 24)
 	return append(zeors, b...), nil
 }
 
@@ -399,7 +400,7 @@ func (c *transferMnt) Run(input []byte, evm *EVM, contract *Contract) ([]byte, e
 	data := getData(input, 96, uint64(len(input)-96))
 	t := evm.TransferTokenID
 	evm.TransferTokenID = mnt.Uint64()
-	ret, remainedGas, err := evm.Call(AccountRef(evm.Origin), toAddr, data, contract.Gas, value)
+	ret, remainedGas, err := evm.Call(contract.caller, toAddr, data, contract.Gas, value)
 	evm.TransferTokenID = t
 	gasUsed := contract.Gas - remainedGas
 	if ok := contract.UseGas(gasUsed); !ok {
