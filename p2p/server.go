@@ -1134,6 +1134,9 @@ func (pm *BlackNodes) chkDialoutBlacklist(ip string) bool {
 		if time.Now().Unix() < tm {
 			return true
 		}
+		pm.mu.Lock()
+		delete(pm.dialoutBlacklist, ip)
+		pm.mu.Unlock()
 	}
 	return false
 }
@@ -1154,6 +1157,9 @@ func (pm *BlackNodes) chkDialinBlacklist(ip string) bool {
 		if time.Now().Unix() < tm {
 			return true
 		}
+		pm.mu.Lock()
+		delete(pm.dialinBlacklist, ip)
+		pm.mu.Unlock()
 	}
 	return false
 }

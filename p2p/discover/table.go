@@ -484,17 +484,18 @@ func (tab *Table) doRevalidate(done chan<- struct{}) {
 		blakTag = true
 	}
 
-	// Ping the selected node and wait for a pong.
-	err := tab.net.ping(last.ID(), last.addr())
-
 	tab.mutex.Lock()
 	defer tab.mutex.Unlock()
 	b := tab.buckets[bi]
-	if err == nil && !blakTag {
-		// The node responded, move it to the front.
-		log.Debug("Revalidated node", "b", bi, "id", last.ID())
-		b.bump(last)
-		return
+	if !blakTag {
+		// Ping the selected node and wait for a pong.
+		err := tab.net.ping(last.ID(), last.addr())
+		if err == nil {
+			// The node responded, move it to the front.
+			log.Debug("Revalidated node", "b", bi, "id", last.ID())
+			b.bump(last)
+			return
+		}
 	}
 	// No reply received, pick a replacement or delete the node if there aren't
 	// any replacements.
