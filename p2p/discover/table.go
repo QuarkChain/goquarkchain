@@ -78,6 +78,8 @@ type Table struct {
 	closeReq   chan struct{}
 	closed     chan struct{}
 
+	chkDialBlacklist func(string) bool
+
 	nodeAddedHook func(*node) // for testing
 }
 
@@ -109,6 +111,9 @@ func newTable(t transport, db *enode.DB, bootnodes []*enode.Node) (*Table, error
 		closed:     make(chan struct{}),
 		rand:       mrand.New(mrand.NewSource(0)),
 		ips:        netutil.DistinctNetSet{Subnet: tableSubnet, Limit: tableIPLimit},
+		chkDialBlacklist: func(s string) bool {
+			return false
+		},
 	}
 	if err := tab.setFallbackNodes(bootnodes); err != nil {
 		return nil, err
@@ -136,6 +141,12 @@ func (tab *Table) seedRand() {
 	tab.mutex.Lock()
 	tab.rand.Seed(int64(binary.BigEndian.Uint64(b[:])))
 	tab.mutex.Unlock()
+}
+
+func (tab *Table) SetChkBlackFunc(chkDialOutFunc func(string) bool) {
+	if chkDialOutFunc != nil {
+		tab.chkDialBlacklist = chkDialOutFunc
+	}
 }
 
 // ReadRandomNodes fills the given slice with random nodes from the table. The results
@@ -305,7 +316,15 @@ func (tab *Table) lookup(targetKey encPubkey, refreshIfEmpty bool) []*node {
 func (tab *Table) findnode(n *node, targetKey encPubkey, reply chan<- []*node) {
 	fails := tab.db.FindFails(n.ID())
 	r, err := tab.net.findnode(n.ID(), n.addr(), targetKey)
-	if err != nil || len(r) == 0 {
+	realr := make([]*node, 0, len(r))
+	for _, nd := range r {
+		nd := nd
+		if !(tab.chkDialBlacklist(nd.addr().String())) {
+			realr = append(realr, nd)
+		}
+	}
+
+	if err != nil || len(realr) == 0 {
 		fails++
 		tab.db.UpdateFindFails(n.ID(), fails)
 		log.Trace("Findnode failed", "id", n.ID(), "failcount", fails, "err", err)
@@ -319,10 +338,10 @@ func (tab *Table) findnode(n *node, targetKey encPubkey, reply chan<- []*node) {
 
 	// Grab as many nodes as possible. Some of them might not be alive anymore, but we'll
 	// just remove those again during revalidation.
-	for _, n := range r {
+	for _, n := range realr {
 		tab.add(n)
 	}
-	reply <- r
+	reply <- realr
 }
 
 func (tab *Table) refresh() <-chan struct{} {
@@ -450,13 +469,19 @@ func (tab *Table) doRevalidate(done chan<- struct{}) {
 		return
 	}
 
+	blakTag := false
+	if tab.chkDialBlacklist(last.addr().String()) {
+		log.Info("black node", "b", bi, "id", last.ID(), "address", last.addr().String())
+		blakTag = true
+	}
+
 	// Ping the selected node and wait for a pong.
 	err := tab.net.ping(last.ID(), last.addr())
 
 	tab.mutex.Lock()
 	defer tab.mutex.Unlock()
 	b := tab.buckets[bi]
-	if err == nil {
+	if err == nil && !blakTag {
 		// The node responded, move it to the front.
 		log.Debug("Revalidated node", "b", bi, "id", last.ID())
 		b.bump(last)
