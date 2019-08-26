@@ -68,7 +68,9 @@ type QKCMasterBackend struct {
 
 	miner *miner.Miner
 
-	maxPeers           int
+	maxPeers int
+	srvr     *p2p.Server
+
 	artificialTxConfig *rpc.ArtificialTxConfig
 	rootBlockChain     *core.RootBlockChain
 	protocolManager    *ProtocolManager
@@ -215,6 +217,7 @@ func (s *QKCMasterBackend) Stop() error {
 // Start start node -> start qkcMaster
 func (s *QKCMasterBackend) Init(srvr *p2p.Server) error {
 	if srvr != nil {
+		s.srvr = srvr
 		s.maxPeers = srvr.MaxPeers
 	}
 	if err := s.ConnectToSlaves(); err != nil {

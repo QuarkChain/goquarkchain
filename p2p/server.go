@@ -185,7 +185,7 @@ type Server struct {
 	peerOp     chan peerOpFunc
 	peerOpDone chan struct{}
 
-	blackNodes *BlackNodes
+	blackNodeFilter *BlackNodes
 
 	quit          chan struct{}
 	addstatic     chan *enode.Node
@@ -454,7 +454,7 @@ func (srv *Server) Start() (err error) {
 	srv.removetrusted = make(chan *enode.Node)
 	srv.peerOp = make(chan peerOpFunc)
 	srv.peerOpDone = make(chan struct{})
-	srv.blackNodes = &BlackNodes{
+	srv.blackNodeFilter = &BlackNodes{
 		WhitelistNodes:   srv.WhitelistNodes,
 		dialoutBlacklist: make(map[string]int64),
 		dialinBlacklist:  make(map[string]int64),
@@ -566,7 +566,7 @@ func (srv *Server) setupDiscovery() error {
 			return err
 		}
 		srv.ntab = ntab
-		srv.ntab.SetChkBlackFunc(srv.blackNodes.chkDialoutBlacklist)
+		srv.ntab.SetChkBlackFunc(srv.blackNodeFilter.chkDialoutBlacklist)
 	}
 	// Discovery V5
 	if srv.DiscoveryV5 {
@@ -672,11 +672,11 @@ func (srv *Server) run(dialstate dialer) {
 	periodicallyUnblacklist := func() {
 		for _, peer := range peers {
 			pr := peer
-			if srv.blackNodes.chkDialoutBlacklist(pr.Node().IP().String()) {
+			if srv.blackNodeFilter.chkDialoutBlacklist(pr.Node().IP().String()) {
 				srv.delpeer <- peerDrop{pr, nil, false}
 			}
 		}
-		srv.blackNodes.periodicallyUnblacklist()
+		srv.blackNodeFilter.periodicallyUnblacklist()
 	}
 
 running:
@@ -751,7 +751,7 @@ running:
 			// At this point the connection is past the protocol handshake.
 			// Its capabilities are known and the remote identity is verified.
 			err := srv.protoHandshakeChecks(peers, inboundCount, c)
-			if err == nil && !srv.blackNodes.chkDialoutBlacklist(c.fd.RemoteAddr().String()) {
+			if err == nil && !srv.blackNodeFilter.chkDialoutBlacklist(c.fd.RemoteAddr().String()) {
 				// The handshakes are done and it passed all checks.
 				p := newPeer(c, srv.Protocols)
 				// If message events are enabled, pass the peerFeed
@@ -778,7 +778,7 @@ running:
 		case pd := <-srv.delpeer:
 			// A peer disconnected.
 			if pd.err != nil {
-				srv.blackNodes.addDialoutBlacklist(pd.RemoteAddr().String())
+				srv.blackNodeFilter.addDialoutBlacklist(pd.RemoteAddr().String())
 			}
 			d := common.PrettyDuration(mclock.Now() - pd.created)
 			pd.log.Debug("Removing p2p peer", "duration", d, "peers", len(peers)-1, "req", pd.requested, "err", pd.err)
@@ -1104,6 +1104,10 @@ func (srv *Server) PeersInfo() []*PeerInfo {
 	return infos
 }
 
+func (srv *Server) GetKadRoutingTable() []string {
+	return srv.ntab.GetKadRoutingTable()
+}
+
 type BlackNodes struct {
 	currTime time.Time
 	// BootstrapNodes | preferedNodes
@@ -1153,8 +1157,6 @@ func (pm *BlackNodes) chkDialinBlacklist(ip string) bool {
 	}
 	return false
 }
-
-
 
 func (b *BlackNodes) periodicallyUnblacklist() {
 	now := time.Now()

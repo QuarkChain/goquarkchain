@@ -78,7 +78,10 @@ type Table struct {
 	closeReq   chan struct{}
 	closed     chan struct{}
 
+	// check black node, default false
 	chkDialBlacklist func(string) bool
+	rLock            sync.RWMutex
+	nodeUrls         []string
 
 	nodeAddedHook func(*node) // for testing
 }
@@ -141,6 +144,12 @@ func (tab *Table) seedRand() {
 	tab.mutex.Lock()
 	tab.rand.Seed(int64(binary.BigEndian.Uint64(b[:])))
 	tab.mutex.Unlock()
+}
+
+func (tab *Table) GetKadRoutingTable() []string {
+	tab.rLock.RLock()
+	defer tab.rLock.RUnlock()
+	return tab.nodeUrls
 }
 
 func (tab *Table) SetChkBlackFunc(chkDialOutFunc func(string) bool) {
@@ -523,6 +532,15 @@ func (tab *Table) nextRevalidateTime() time.Duration {
 func (tab *Table) copyLiveNodes() {
 	tab.mutex.Lock()
 	defer tab.mutex.Unlock()
+
+	tab.rLock.Lock()
+	tab.nodeUrls = make([]string, 0, nBuckets*bucketSize)
+	for _, b := range &tab.buckets {
+		for _, n := range b.entries {
+			tab.nodeUrls = append(tab.nodeUrls, n.Node.String())
+		}
+	}
+	tab.rLock.Unlock()
 
 	now := time.Now()
 	for _, b := range &tab.buckets {

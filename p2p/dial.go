@@ -90,6 +90,7 @@ type discoverTable interface {
 	LookupRandom() []*enode.Node
 	ReadRandomNodes([]*enode.Node) int
 	SetChkBlackFunc(chkDialOutFunc func(string) bool)
+	GetKadRoutingTable() []string
 }
 
 // the dial history remembers recent dials.
