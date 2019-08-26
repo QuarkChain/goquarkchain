@@ -244,7 +244,7 @@ func (in *EVMInterpreter) Run(contract *Contract, input []byte, readOnly bool) (
 		if err != nil || !contract.UseGas(cost) {
 			return nil, ErrOutOfGas
 		}
-		fmt.Println("cccccc", pc+1, op, contract.Gas, cost, stack.data)
+		//fmt.Println("cccccc", pc+1, op, contract.Gas, cost, stack.data)
 		if memorySize > 0 {
 			mem.Resize(memorySize)
 		}

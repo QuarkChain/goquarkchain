@@ -20,7 +20,6 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"errors"
-	"fmt"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -375,7 +374,8 @@ func (c *currentMntID) Run(input []byte, evm *EVM, contract *Contract) ([]byte, 
 	contract.SBFLAG = true
 	b := make([]byte, 8)
 	binary.BigEndian.PutUint64(b, evm.TransferTokenID)
-	zeors := make([]byte, byte(0), 24)
+	zeors := make([]byte, 24, 24)
+	//fmt.Println("RRRRRRRRRRRRRRRRR", len(append(zeors, b...)), hex.EncodeToString(append(zeors, b...)))
 	return append(zeors, b...), nil
 }
 
@@ -402,11 +402,8 @@ func (c *transferMnt) Run(input []byte, evm *EVM, contract *Contract) ([]byte, e
 	data := getData(input, 96, uint64(len(input)-96))
 	t := evm.TransferTokenID
 	evm.TransferTokenID = mnt.Uint64()
-	caller := AccountRef(evm.Origin)
-	fmt.Println("special")
-	ret, remainedGas, err := evm.Call(caller, toAddr, data, contract.Gas, value)
+	ret, remainedGas, err := evm.Call(contract.caller, toAddr, data, contract.Gas, value)
 	err = check(err, contract, data, evm.TransferTokenID, evm.StateDB.GetQuarkChainConfig().GetDefaultChainTokenID(), contract.value)
-	fmt.Println("special-end", remainedGas, err)
 	evm.TransferTokenID = t
 	gasUsed := contract.Gas - remainedGas
 	if ok := contract.UseGas(gasUsed); !ok {

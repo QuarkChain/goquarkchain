@@ -288,6 +288,7 @@ func (s *StateDB) GetCodeHash(addr common.Address) common.Hash {
 func (s *StateDB) GetState(addr common.Address, hash common.Hash) common.Hash {
 	stateObject := s.getStateObject(addr)
 	if stateObject != nil {
+		//fmt.Println("gggggg", hash.String(), stateObject.GetState(s.db, hash).String())
 		return stateObject.GetState(s.db, hash)
 	}
 	return common.Hash{}
@@ -395,6 +396,7 @@ func (s *StateDB) SetCode(addr common.Address, code []byte) {
 }
 
 func (s *StateDB) SetState(addr common.Address, key, value common.Hash) {
+	//fmt.Println("set_storg_data", key.String(), value.String())
 	stateObject := s.GetOrNewStateObject(addr)
 	if stateObject != nil {
 		stateObject.SetState(s.db, key, value)
@@ -434,17 +436,18 @@ func (s *StateDB) updateStateObject(stateObject *stateObject) {
 		panic(fmt.Errorf("can't encode object at %x: %v", addr[:], err))
 	}
 	//fmt.Println("update", hex.EncodeToString(addr[:]), hex.EncodeToString(data))
-	//fmt.Println("balance", stateObject.data.TokenBalances.GetBalanceMap())
-	//fmt.Println("ddddddddddddddddddddddd-start")
-	//fmt.Println("", stateObject.data.Nonce)
+	////fmt.Println("balance", stateObject.data.TokenBalances.GetBalanceMap())
+	////fmt.Println("ddddddddddddddddddddddd-start")
+	//fmt.Println("nonce", stateObject.data.Nonce)
 	//tt, err := stateObject.data.TokenBalances.SerializeToBytes()
 	//if err != nil {
 	//	panic(err)
 	//}
-	//fmt.Println("", hex.EncodeToString(tt))
-	//fmt.Println("", stateObject.data.Root.String())
-	//fmt.Println("", hex.EncodeToString(stateObject.data.CodeHash))
-	//fmt.Println("", stateObject.data.FullShardKey)
+	//fmt.Println("token_balances_value", stateObject.data.TokenBalances.GetBalanceMap())
+	//fmt.Println("token_balances", hex.EncodeToString(tt))
+	//fmt.Println("storage", stateObject.data.Root.String())
+	//fmt.Println("code_hash", hex.EncodeToString(stateObject.data.CodeHash))
+	//fmt.Println("full_shard_key", stateObject.data.FullShardKey)
 	//fmt.Println("", stateObject.data.FullShardKey)
 	//fmt.Println("Optial", hex.EncodeToString(stateObject.data.Optial))
 	//fmt.Println("ddddddddddddddddddddddd-end")

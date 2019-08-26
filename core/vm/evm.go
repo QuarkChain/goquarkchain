@@ -490,8 +490,8 @@ func CreateAddress(b common.Address, toFullShardID uint32, nonce uint64) common.
 
 // Create creates a new contract using code as deployment code.
 func (evm *EVM) Create(caller ContractRef, code []byte, gas uint64, value *big.Int, isCrossShard bool) (ret []byte, contractAddr common.Address, leftOverGas uint64, err error) {
-	fmt.Println("CCCCCCCCCC-start")
-	defer fmt.Println("CCCCCCCCCCCCC-end")
+	//fmt.Println("CCCCCCCCCC-start")
+	//defer fmt.Println("CCCCCCCCCCCCC-end")
 	if isCrossShard {
 		return nil, contractAddr, gas, errors.New("is cross shard tx ,not support create evm")
 	}

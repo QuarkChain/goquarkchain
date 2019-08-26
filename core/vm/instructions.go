@@ -248,6 +248,7 @@ func opEq(pc *uint64, interpreter *EVMInterpreter, contract *Contract, memory *M
 	} else {
 		y.SetUint64(0)
 	}
+	//fmt.Println("x,y", x, y)
 	interpreter.intPool.put(x)
 	return nil, nil
 }
@@ -607,7 +608,7 @@ func opMload(pc *uint64, interpreter *EVMInterpreter, contract *Contract, memory
 	offset := stack.pop()
 	val := interpreter.intPool.get().SetBytes(memory.Get(offset.Int64(), 32))
 	stack.push(val)
-
+	//	fmt.Println("opMload", offset.Int64(), memory.Get(offset.Int64(), 32))
 	interpreter.intPool.put(offset)
 	return nil, nil
 }
@@ -631,13 +632,17 @@ func opMstore8(pc *uint64, interpreter *EVMInterpreter, contract *Contract, memo
 func opSload(pc *uint64, interpreter *EVMInterpreter, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
 	loc := stack.peek()
 	val := interpreter.evm.StateDB.GetState(contract.Address(), common.BigToHash(loc))
+	//fmt.Println("stack", stack.data)
+	//fmt.Println("cal", val, hex.EncodeToString(val.Bytes()))
 	loc.SetBytes(val.Bytes())
+	//fmt.Println("stack-end", stack.data)
 	return nil, nil
 }
 
 func opSstore(pc *uint64, interpreter *EVMInterpreter, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
 	loc := common.BigToHash(stack.pop())
 	val := stack.pop()
+	//fmt.Println("opSStore", loc, val.String())
 	interpreter.evm.StateDB.SetState(contract.Address(), loc, common.BigToHash(val))
 
 	interpreter.intPool.put(val)
@@ -780,7 +785,9 @@ func opCall(pc *uint64, interpreter *EVMInterpreter, contract *Contract, memory 
 		stack.push(interpreter.intPool.get().SetUint64(1))
 	}
 	if err == nil || err == errExecutionReverted {
+		//fmt.Println("7888888888888888", len(memory.store), len(ret), hex.EncodeToString(ret), hex.EncodeToString(memory.store))
 		memory.Set(retOffset.Uint64(), retSize.Uint64(), ret)
+		//fmt.Println("7888888888888888-end", len(memory.store), hex.EncodeToString(memory.store))
 	}
 	contract.Gas += returnGas
 	Trans(contract, toAddr)

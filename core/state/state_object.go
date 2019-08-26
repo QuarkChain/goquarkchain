@@ -175,6 +175,7 @@ func (self *stateObject) GetState(db Database, key common.Hash) common.Hash {
 	// If we have a dirty value for this state entry, return it
 	value, dirty := self.dirtyStorage[key]
 	if dirty {
+		//fmt.Println("is dirty", value)
 		return value
 	}
 	// Otherwise return the entry's original value
@@ -287,7 +288,7 @@ func (c *stateObject) AddBalance(amount *big.Int, tokenID uint64) {
 // SubBalance removes amount from c's balance.
 // It is used to remove funds from the origin account of a transfer.
 func (c *stateObject) SubBalance(amount *big.Int, tokenID uint64) {
-	fmt.Println("SubBalance", c.address.Hex(), tokenID, amount)
+	//fmt.Println("SubBalance", c.address.Hex(), tokenID, amount)
 	if amount.Sign() == 0 {
 		return
 	}
