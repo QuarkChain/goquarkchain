@@ -81,7 +81,7 @@ func TestGetRootBlockHeaders(t *testing.T) {
 			pm.rootBlockChain.GetBlockHashesFromHash(pm.rootBlockChain.CurrentBlock().Hash(), limit),
 		}, {
 			// Check that requesting more than available is handled gracefully
-			&p2p.GetRootBlockHeaderListRequest{BlockHash: pm.rootBlockChain.GetHeaderByNumber(2).Hash(), Limit: 4, Direction: 0},
+			&p2p.GetRootBlockHeaderListRequest{BlockHash: pm.rootBlockChain.GetHeaderByNumber(2).Hash(), Limit: 3, Direction: 0},
 			[]common.Hash{
 				pm.rootBlockChain.GetBlockByNumber(2).Hash(),
 				pm.rootBlockChain.GetBlockByNumber(1).Hash(),
@@ -102,7 +102,7 @@ func TestGetRootBlockHeaders(t *testing.T) {
 		res, err := clientPeer.GetRootBlockHeaderList(&rpc.GetRootBlockHeaderListRequest{
 			Hash:      tt.query.BlockHash,
 			Limit:     tt.query.Limit,
-			Direction: qcom.DirectionToGenesis,
+			Direction: tt.query.Direction, //qcom.DirectionToGenesis,
 		})
 		if err != nil {
 			t.Errorf("test %d: make message failed: %v", i, err)
@@ -134,9 +134,9 @@ func TestCloseConnWithErr(t *testing.T) {
 		op      p2p.P2PCommandOp
 		content interface{}
 	}{
-		{p2p.GetRootBlockHeaderListRequestMsg, &p2p.GetRootBlockHeaderListRequest{BlockHash: pm.rootBlockChain.GetBlockByNumber(chainLength / 2).Hash(), Limit: 1, Direction: 1}},             // Wrong direction}
+		{p2p.GetRootBlockHeaderListRequestMsg, &p2p.GetRootBlockHeaderListRequest{BlockHash: pm.rootBlockChain.GetBlockByNumber(chainLength / 2).Hash(), Limit: 1, Direction: 1}},               // Wrong direction}
 		{p2p.GetRootBlockHeaderListRequestMsg, &p2p.GetRootBlockHeaderListRequest{BlockHash: pm.rootBlockChain.Genesis().Hash(), Limit: uint32(2*rootBlockHeaderListLimit + 10), Direction: 0}}, // limit larger than expected
-		{p2p.GetRootBlockHeaderListRequestMsg, &p2p.GetRootBlockHeaderListRequest{BlockHash: unknown, Limit: 1, Direction: 0}},                                                                // no exist block hash
+		{p2p.GetRootBlockHeaderListRequestMsg, &p2p.GetRootBlockHeaderListRequest{BlockHash: unknown, Limit: 1, Direction: 0}},                                                                  // no exist block hash
 	}
 	// Run each of the tests and verify the results against the chain
 	for i, request := range invalidReqs {

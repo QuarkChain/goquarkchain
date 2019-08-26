@@ -390,7 +390,7 @@ func (s *SlaveBackend) GetMinorBlockHeaderList(gReq *rpc.GetMinorBlockHeaderList
 		return nil, ErrMsg("GetMinorBlockHeaderList")
 	}
 
-	if gReq.Direction != qcom.DirectionToGenesis && gReq.Direction != qcom.DirectionToTip {
+	if gReq.Direction != qcom.DirectionToGenesis /*&& gReq.Direction != qcom.DirectionToTip*/ {
 		return nil, errors.New("bad direction")
 	}
 
