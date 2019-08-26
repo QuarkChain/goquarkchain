@@ -36,7 +36,6 @@ func NewMemory() *Memory {
 
 // Set sets offset + size to value
 func (m *Memory) Set(offset, size uint64, value []byte) {
-	//fmt.Println("Set", offset, size, hex.EncodeToString(value))
 	// It's possible the offset is greater than 0 and size equals 0. This is because
 	// the calcMemSize (common.go) could potentially return 0 when size is zero (NO-OP)
 	if size > 0 {
@@ -52,7 +51,6 @@ func (m *Memory) Set(offset, size uint64, value []byte) {
 // Set32 sets the 32 bytes starting at offset to the value of val, left-padded with zeroes to
 // 32 bytes.
 func (m *Memory) Set32(offset uint64, val *big.Int) {
-	//fmt.Println("Set32", offset, val)
 	// length of store may never be less than offset + size.
 	// The store should be resized PRIOR to setting the memory
 	if offset+32 > uint64(len(m.store)) {

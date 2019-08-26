@@ -17,8 +17,6 @@
 package vm
 
 import (
-	"errors"
-	"fmt"
 	"math/big"
 	"sync/atomic"
 	"time"
@@ -184,7 +182,6 @@ func (evm *EVM) Interpreter() Interpreter {
 }
 
 func check(err error, contract *Contract, input []byte, txansfer, defaultv uint64, value *big.Int) error {
-	fmt.Println("dddddddddddddd", err, len(contract.Code), txansfer != defaultv, "token_id_queried", contract.SBFLAG, value.Uint64() != 0, value.Uint64())
 	if err == nil && len(contract.Code) != 0 && !contract.GetFlag() && txansfer != defaultv && value.Uint64() != 0 {
 		err = errExecutionReverted
 	}
@@ -249,7 +246,7 @@ func (evm *EVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 			evm.vmConfig.Tracer.CaptureEnd(ret, gas-contract.Gas, time.Since(start), err)
 		}()
 	}
-	fmt.Println("Call-start")
+
 	ret, err = run(evm, contract, input, false)
 	err = check(err, contract, input, evm.TransferTokenID, evm.StateDB.GetQuarkChainConfig().GetDefaultChainTokenID(), contract.value)
 	// When an error was returned by the EVM or when setting the creation code
@@ -261,7 +258,6 @@ func (evm *EVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 			contract.UseGas(contract.Gas)
 		}
 	}
-	fmt.Println("Call-end", err, contract.GetFlag(), contract.Gas)
 	return ret, contract.Gas, err
 }
 
@@ -295,7 +291,7 @@ func (evm *EVM) CallCode(caller ContractRef, addr common.Address, input []byte, 
 	// only.
 	contract := NewContract(caller, to, value, gas)
 	contract.SetCallCode(&addr, evm.StateDB.GetCodeHash(addr), evm.StateDB.GetCode(addr))
-	fmt.Println("CallCode-start")
+
 	ret, err = run(evm, contract, input, false)
 	err = check(err, contract, input, evm.TransferTokenID, evm.StateDB.GetQuarkChainConfig().GetDefaultChainTokenID(), contract.value)
 	if err != nil {
@@ -304,7 +300,6 @@ func (evm *EVM) CallCode(caller ContractRef, addr common.Address, input []byte, 
 			contract.UseGas(contract.Gas)
 		}
 	}
-	fmt.Println("CallCode-end", err, contract.GetFlag(), contract.Gas)
 	return ret, contract.Gas, err
 }
 
@@ -330,7 +325,7 @@ func (evm *EVM) DelegateCall(caller ContractRef, addr common.Address, input []by
 	// Initialise a new contract and make initialise the delegate values
 	contract := NewContract(caller, to, nil, gas).AsDelegate()
 	contract.SetCallCode(&addr, evm.StateDB.GetCodeHash(addr), evm.StateDB.GetCode(addr))
-	fmt.Println("DelegateCall-start")
+
 	ret, err = run(evm, contract, input, false)
 
 	err = check(err, contract, input, evm.TransferTokenID, evm.StateDB.GetQuarkChainConfig().GetDefaultChainTokenID(), contract.value)
@@ -340,7 +335,6 @@ func (evm *EVM) DelegateCall(caller ContractRef, addr common.Address, input []by
 			contract.UseGas(contract.Gas)
 		}
 	}
-	fmt.Println("DelegateCall-end", err, contract.GetFlag(), contract.Gas)
 	return ret, contract.Gas, err
 }
 
@@ -376,7 +370,6 @@ func (evm *EVM) StaticCall(caller ContractRef, addr common.Address, input []byte
 	// When an error was returned by the EVM or when setting the creation code
 	// above we revert to the snapshot and consume any gas remaining. Additionally
 	// when we're in Homestead this also counts for code storage gas errors.
-	fmt.Println("StaticCall-start")
 	ret, err = run(evm, contract, input, true)
 	err = check(err, contract, input, evm.TransferTokenID, evm.StateDB.GetQuarkChainConfig().GetDefaultChainTokenID(), contract.value)
 	if err != nil {
@@ -385,7 +378,6 @@ func (evm *EVM) StaticCall(caller ContractRef, addr common.Address, input []byte
 			contract.UseGas(contract.Gas)
 		}
 	}
-	fmt.Println("StaticCall-end", err, contract.GetFlag(), contract.Gas)
 	return ret, contract.Gas, err
 }
 
@@ -406,7 +398,6 @@ func (evm *EVM) create(caller ContractRef, codeAndHash *codeAndHash, gas uint64,
 	// Depth check execution. Fail if we're trying to execute above the
 	// limit.
 	if evm.TransferTokenID != evm.StateDB.GetQuarkChainConfig().GetDefaultChainTokenID() {
-		//fmt.Println("skip", evm.TransferTokenID, evm.StateDB.GetQuarkChainConfig().GetDefaultChainTokenID())
 		return nil, common.Address{}, gas, nil
 	}
 	if evm.depth > int(params.CallCreateDepth) {

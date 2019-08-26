@@ -26,10 +26,14 @@ import (
 	"testing"
 )
 
-func TestQKCState(t *testing.T) {
+func TestEvm(t *testing.T) {
+	testQKCState(t, qkcStateTestDir)
+	//testETHState(t, ethStateTestDir)
+}
+func testQKCState(t *testing.T, dir string) {
 	t.Parallel()
 	st := new(testMatcher)
-	st.walk(t, qkcStateTestDir, func(t *testing.T, name string, test *StateTest) {
+	st.walk(t, dir, func(t *testing.T, name string, test *StateTest) {
 		for _, subtest := range test.Subtests() {
 			subtest := subtest
 			subtest.Path = name
@@ -39,10 +43,8 @@ func TestQKCState(t *testing.T) {
 				continue
 			}
 			if _, ok := mapForks[subtest.Fork]; ok == false {
-				//	fmt.Println("?????????????????????", subtest.Fork)
 				continue
 			}
-			fmt.Println("ready to test", key)
 			t.Run(key, func(t *testing.T) {
 				withTrace(t, test.gasLimit(subtest), func(vmconfig vm.Config) error {
 					_, err := test.Run(subtest, vmconfig)
@@ -57,7 +59,7 @@ func TestQKCState(t *testing.T) {
 	})
 }
 
-func TestETHState(t *testing.T) {
+func testETHState(t *testing.T, dir string) {
 	t.Parallel()
 
 	st := new(testMatcher)
@@ -79,7 +81,7 @@ func TestETHState(t *testing.T) {
 	st.fails(`^stRevertTest/RevertPrecompiledTouch\.json/Byzantium`, "bug in test")
 	st.fails(`^stRevertTest/RevertPrecompiledTouch.json/Constantinople`, "bug in test")
 
-	st.walk(t, ethStateTestDir, func(t *testing.T, name string, test *StateTest) {
+	st.walk(t, dir, func(t *testing.T, name string, test *StateTest) {
 		for _, subtest := range test.Subtests() {
 			subtest := subtest
 			subtest.Path = name

@@ -154,8 +154,6 @@ var (
 
 // Run executes a specific subtest.
 func (t *StateTest) Run(subtest StateSubtest, vmconfig vm.Config) (*state.StateDB, error) {
-	fmt.Println("RunStart")
-	defer fmt.Println("RunEnd")
 	config, ok := Forks[subtest.Fork]
 	if !ok {
 		return nil, errors.New("not support")
@@ -164,8 +162,7 @@ func (t *StateTest) Run(subtest StateSubtest, vmconfig vm.Config) (*state.StateD
 	header := TransFromBlock(block)
 	statedb := MakePreState(ethdb.NewMemDatabase(), t.json.Pre)
 
-	rootDis, _ := statedb.Commit(true)
-	fmt.Println("rootDis", rootDis.Hex())
+	//rootDis, _ := statedb.Commit(true)
 	post := t.json.Post[subtest.Fork][subtest.Index]
 	msg, err := t.json.Tx.toMessage(post)
 	if err != nil {
@@ -201,8 +198,6 @@ func (t *StateTest) Run(subtest StateSubtest, vmconfig vm.Config) (*state.StateD
 	//if logs := rlpHash(statedb.Logs()); logs != common.Hash(post.Logs) {
 	//	return statedb, fmt.Errorf("post state logs hash mismatch: got %x, want %x", logs, post.Logs)
 	//}
-	fmt.Println("YYYYYYYYYYYYYYYY", root.Hex(), common.Hash(post.Root).Hex())
-	//fmt.Println("logs", rlpHash(statedb.Logs()).Hex(), common.Hash(post.Logs).Hex())
 	return statedb, nil
 }
 

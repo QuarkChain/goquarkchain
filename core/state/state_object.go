@@ -175,7 +175,6 @@ func (self *stateObject) GetState(db Database, key common.Hash) common.Hash {
 	// If we have a dirty value for this state entry, return it
 	value, dirty := self.dirtyStorage[key]
 	if dirty {
-		//fmt.Println("is dirty", value)
 		return value
 	}
 	// Otherwise return the entry's original value
@@ -272,7 +271,6 @@ func (self *stateObject) CommitTrie(db Database) error {
 // AddBalance removes amount from c's balance.
 // It is used to add funds to the destination account of a transfer.
 func (c *stateObject) AddBalance(amount *big.Int, tokenID uint64) {
-	fmt.Println("addBalance", c.address.Hex(), tokenID, amount)
 	// EIP158: We must check emptiness for the objects such that the account
 	// clearing (0,0,0 objects) can take effect.
 	if amount.Sign() == 0 {
@@ -288,7 +286,6 @@ func (c *stateObject) AddBalance(amount *big.Int, tokenID uint64) {
 // SubBalance removes amount from c's balance.
 // It is used to remove funds from the origin account of a transfer.
 func (c *stateObject) SubBalance(amount *big.Int, tokenID uint64) {
-	//fmt.Println("SubBalance", c.address.Hex(), tokenID, amount)
 	if amount.Sign() == 0 {
 		return
 	}

@@ -84,7 +84,6 @@ func (b *TokenBalances) Add(other map[uint64]*big.Int) {
 
 func (b *TokenBalances) SetValue(amount *big.Int, tokenID uint64) {
 	if amount.Cmp(new(big.Int)) < 0 {
-		fmt.Println("amount", amount, "tokenID", tokenID)
 		panic("?////////////")
 	}
 	if amount.Cmp(new(big.Int)) == 0 {
