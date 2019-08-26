@@ -24,9 +24,10 @@ import (
 var (
 	testDBPath = map[int]string{}
 	// jiaozi 10^18
-	jiaozi                  = new(big.Int).Mul(new(big.Int).SetUint64(1000000000), new(big.Int).SetUint64(1000000000))
-	testShardCoinbaseAmount = new(big.Int).Mul(new(big.Int).SetUint64(5), jiaozi)
-	testGenesisTokenID      = common.TokenIDEncode("QKC")
+	jiaozi                       = new(big.Int).Mul(new(big.Int).SetUint64(1000000000), new(big.Int).SetUint64(1000000000))
+	testShardCoinbaseAmount      = new(big.Int).Mul(new(big.Int).SetUint64(5), jiaozi)
+	testGenesisTokenID           = common.TokenIDEncode("QKC")
+	testGenesisMinorTokenBalance = make(map[string]*big.Int)
 )
 
 type fakeEnv struct {
@@ -101,13 +102,17 @@ func getTestEnv(genesisAccount *account.Address, genesisMinorQuarkHash *uint64, 
 	env.clusterConfig.Quarkchain.SkipRootCoinbaseCheck = true
 	env.clusterConfig.Quarkchain.SkipRootDifficultyCheck = true
 	env.clusterConfig.EnableTransactionHistory = true
-	env.clusterConfig.Quarkchain.MinMiningGasPrice = new(big.Int).SetInt64(-1)
+	env.clusterConfig.Quarkchain.MinMiningGasPrice = new(big.Int).SetInt64(0)
 	env.clusterConfig.Quarkchain.XShardAddReceiptTimestamp = 1
-	env.clusterConfig.Quarkchain.MinTXPoolGasPrice = new(big.Int).SetInt64(-1)
+	env.clusterConfig.Quarkchain.MinTXPoolGasPrice = new(big.Int).SetInt64(0)
 	ids := env.clusterConfig.Quarkchain.GetGenesisShardIds()
 	for _, v := range ids {
 		addr := genesisAccount.AddressInShard(v)
 		shardConfig := fakeClusterConfig.Quarkchain.GetShardConfigByFullShardID(v)
+		if len(testGenesisMinorTokenBalance) != 0 {
+			shardConfig.Genesis.Alloc[addr] = testGenesisMinorTokenBalance
+			continue
+		}
 		temp := make(map[string]*big.Int)
 		temp["QKC"] = new(big.Int).SetUint64(*genesisMinorQuarkHash)
 		shardConfig.Genesis.Alloc[addr] = temp

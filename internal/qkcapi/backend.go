@@ -17,13 +17,13 @@ type Backend interface {
 	GetMinorBlockByHeight(height *uint64, branch account.Branch, needExtraInfo bool) (*types.MinorBlock, *qkcRPC.PoSWInfo, error)
 	GetTransactionByHash(txHash common.Hash, branch account.Branch) (*types.MinorBlock, uint32, error)
 	GetTransactionReceipt(txHash common.Hash, branch account.Branch) (*types.MinorBlock, uint32, *types.Receipt, error)
-	GetTransactionsByAddress(address *account.Address, start []byte, limit uint32) ([]*qkcRPC.TransactionDetail, []byte, error)
+	GetTransactionsByAddress(address *account.Address, start []byte, limit uint32, transferTokenID *uint64) ([]*qkcRPC.TransactionDetail, []byte, error)
 	GetAllTx(branch account.Branch, start []byte, limit uint32) ([]*qkcRPC.TransactionDetail, []byte, error)
 	GetLogs(branch account.Branch, address []account.Address, topics [][]common.Hash, startBlock, endBlock uint64) ([]*types.Log, error)
 	EstimateGas(tx *types.Transaction, address *account.Address) (uint32, error)
 	GetStorageAt(address *account.Address, key common.Hash, height *uint64) (common.Hash, error)
 	GetCode(address *account.Address, height *uint64) ([]byte, error)
-	GasPrice(branch account.Branch) (uint64, error)
+	GasPrice(branch account.Branch, tokenID uint64) (uint64, error)
 	GetWork(branch account.Branch) (*consensus.MiningWork, error)
 	SubmitWork(branch account.Branch, headerHash common.Hash, nonce uint64, mixHash common.Hash, signature *[65]byte) (bool, error)
 	GetRootBlockByNumber(blockNr *uint64) (*types.RootBlock, error)
@@ -43,6 +43,7 @@ type Backend interface {
 	IsMining() bool
 	GetSlavePoolLen() int
 	GetLastMinorBlockByFullShardID(fullShardId uint32) (uint64, error)
+	GetRootHashConfirmingMinorBlock(mBlockID []byte) common.Hash
 }
 
 func GetAPIs(apiBackend Backend) []rpc.API {
