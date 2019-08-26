@@ -30,6 +30,14 @@ import (
 	"golang.org/x/crypto/ripemd160"
 )
 
+var (
+	currentMntIDAddr = "000000000000000000000000000000514b430001"
+	transferMntAddr  = "000000000000000000000000000000514b430002"
+
+	currentMntIDGas = uint64(3)
+	transferMntGas  = uint64(3)
+)
+
 // PrecompiledContract is the basic interface for native Go contracts. The implementation
 // requires a deterministic gas count based on the input size of the Run method of the
 // contract.
@@ -50,16 +58,16 @@ var PrecompiledContractsHomestead = map[common.Address]PrecompiledContract{
 // PrecompiledContractsByzantium contains the default set of pre-compiled Ethereum
 // contracts used in the Byzantium release.
 var PrecompiledContractsByzantium = map[common.Address]PrecompiledContract{
-	common.BytesToAddress([]byte{1}):                                &ecrecover{},
-	common.BytesToAddress([]byte{2}):                                &sha256hash{},
-	common.BytesToAddress([]byte{3}):                                &ripemd160hash{},
-	common.BytesToAddress([]byte{4}):                                &dataCopy{},
-	common.BytesToAddress([]byte{5}):                                &bigModExp{},
-	common.BytesToAddress([]byte{6}):                                &bn256Add{},
-	common.BytesToAddress([]byte{7}):                                &bn256ScalarMul{},
-	common.BytesToAddress([]byte{8}):                                &bn256Pairing{},
-	common.HexToAddress("000000000000000000000000000000514b430001"): &currentMntID{},
-	common.HexToAddress("000000000000000000000000000000514b430002"): &transferMnt{},
+	common.BytesToAddress([]byte{1}):      &ecrecover{},
+	common.BytesToAddress([]byte{2}):      &sha256hash{},
+	common.BytesToAddress([]byte{3}):      &ripemd160hash{},
+	common.BytesToAddress([]byte{4}):      &dataCopy{},
+	common.BytesToAddress([]byte{5}):      &bigModExp{},
+	common.BytesToAddress([]byte{6}):      &bn256Add{},
+	common.BytesToAddress([]byte{7}):      &bn256ScalarMul{},
+	common.BytesToAddress([]byte{8}):      &bn256Pairing{},
+	common.HexToAddress(currentMntIDAddr): &currentMntID{},
+	common.HexToAddress(transferMntAddr):  &transferMnt{},
 }
 
 // RunPrecompiledContract runs and evaluates the output of a precompiled contract.
@@ -366,11 +374,11 @@ type currentMntID struct {
 }
 
 func (c *currentMntID) RequiredGas(input []byte) uint64 {
-	return 3
+	return currentMntIDGas
 }
 
 func (c *currentMntID) Run(input []byte, evm *EVM, contract *Contract) ([]byte, error) {
-	contract.SBFLAG = true
+	contract.TokenIDQueried = true //TODO later to apply
 	b := make([]byte, 8)
 	binary.BigEndian.PutUint64(b, evm.TransferTokenID)
 	zeors := make([]byte, 24, 24)
@@ -381,7 +389,7 @@ type transferMnt struct {
 }
 
 func (c *transferMnt) RequiredGas(input []byte) uint64 {
-	return 3
+	return transferMntGas
 }
 func (c *transferMnt) Run(input []byte, evm *EVM, contract *Contract) ([]byte, error) {
 	if len(input) < 96 {

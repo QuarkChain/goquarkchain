@@ -51,14 +51,18 @@ import (
 )
 
 const (
-	maxCrossShardLimit  = 256
-	maxRootBlockLimit   = 256
-	maxLastConfirmLimit = 256
+	maxCrossShardLimit    = 256
+	maxRootBlockLimit     = 256
+	maxLastConfirmLimit   = 256
+	maxGasPriceCacheLimit = 128
 )
 
+type gasPriceKey struct {
+	currHead common.Hash
+	tokenID  uint64
+}
 type gasPriceSuggestionOracle struct {
-	LastPrice   uint64
-	LastHead    common.Hash
+	cache       *lru.Cache
 	CheckBlocks uint64
 	Percentile  uint64
 }
@@ -154,7 +158,7 @@ func NewMinorBlockChain(
 	shouldPreserve func(block *types.MinorBlock) bool,
 	fullShardID uint32,
 ) (*MinorBlockChain, error) {
-	chainConfig = &qkcParams.DefaultConstantinople //TODO default is byzantium
+	chainConfig = &qkcParams.DefaultConstantinople //TODO default is constantinople
 	if clusterConfig == nil || chainConfig == nil {
 		return nil, errors.New("can not new minorBlock: config is nil")
 	}
@@ -172,6 +176,7 @@ func NewMinorBlockChain(
 	crossShardCache, _ := lru.New(maxCrossShardLimit)
 	rootBlockCache, _ := lru.New(maxRootBlockLimit)
 	lastConfimCache, _ := lru.New(maxLastConfirmLimit)
+	gasPriceCache, _ := lru.New(maxGasPriceCacheLimit)
 	bc := &MinorBlockChain{
 		ethChainConfig:           chainConfig,
 		clusterConfig:            clusterConfig,
@@ -196,8 +201,7 @@ func NewMinorBlockChain(
 		shardConfig:              clusterConfig.Quarkchain.GetShardConfigByFullShardID(fullShardID),
 		rewardCalc:               &qkcCommon.ConstMinorBlockRewardCalculator{},
 		gasPriceSuggestionOracle: &gasPriceSuggestionOracle{
-			LastPrice:   0,
-			LastHead:    common.Hash{},
+			cache:       gasPriceCache,
 			CheckBlocks: 5,
 			Percentile:  50,
 		},
@@ -1408,7 +1412,6 @@ func (m *MinorBlockChain) reorg(oldBlock, newBlock types.IBlock) error {
 		newChain    []types.IBlock
 		oldChain    []types.IBlock
 		commonBlock types.IBlock
-		deletedTxs  types.Transactions
 		deletedLogs []*types.Log
 		// collectLogs collects the logs that were generated during the
 		// processing of the block that corresponds with the given hash.
@@ -1435,7 +1438,6 @@ func (m *MinorBlockChain) reorg(oldBlock, newBlock types.IBlock) error {
 		// reduce old chain
 		for ; oldBlock != nil && oldBlock.NumberU64() != newBlock.NumberU64(); oldBlock = m.GetBlock(oldBlock.IHeader().GetParentHash()) {
 			oldChain = append(oldChain, oldBlock)
-			deletedTxs = append(deletedTxs, oldBlock.(*types.MinorBlock).GetTransactions()...)
 			collectLogs(oldBlock.Hash())
 		}
 	} else {
@@ -1459,7 +1461,6 @@ func (m *MinorBlockChain) reorg(oldBlock, newBlock types.IBlock) error {
 
 		oldChain = append(oldChain, oldBlock)
 		newChain = append(newChain, newBlock)
-		deletedTxs = append(deletedTxs, oldBlock.(*types.MinorBlock).GetTransactions()...)
 		collectLogs(oldBlock.Hash())
 
 		oldBlock, newBlock = m.GetBlock(oldBlock.IHeader().GetParentHash()), m.GetBlock(newBlock.IHeader().GetParentHash())
@@ -1481,8 +1482,19 @@ func (m *MinorBlockChain) reorg(oldBlock, newBlock types.IBlock) error {
 	} else {
 		log.Error("minorBlockChain Impossible reorg, please file an issue", "oldnum", oldBlock.NumberU64(), "oldhash", oldBlock.Hash(), "newnum", newBlock.NumberU64(), "newhash", newBlock.Hash())
 	}
+
+	// When transactions get deleted from the database that means the
+	// receipts that were created in the fork must also be deleted
+	batch := m.db.NewBatch()
+	for i := len(oldChain) - 1; i >= 0; i-- {
+		if err := m.removeTxIndexFromBlock(batch, oldChain[i].(*types.MinorBlock)); err != nil {
+			return err
+		}
+	}
+
+	batch.Write()
+
 	// Insert the new chain, taking care of the proper incremental order
-	var addedTxs types.Transactions
 	for i := len(newChain) - 1; i >= 0; i-- {
 		// insert the block in the canonical way, re-writing history
 		m.insert(newChain[i].(*types.MinorBlock))
@@ -1490,17 +1502,7 @@ func (m *MinorBlockChain) reorg(oldBlock, newBlock types.IBlock) error {
 		if err := m.putTxIndexFromBlock(m.db, newChain[i]); err != nil {
 			return err
 		}
-		addedTxs = append(addedTxs, newChain[i].(*types.MinorBlock).GetTransactions()...)
 	}
-	// calculate the difference between deleted and added transactions
-	diff := types.TxDifference(deletedTxs, addedTxs)
-	// When transactions get deleted from the database that means the
-	// receipts that were created in the fork must also be deleted
-	batch := m.db.NewBatch()
-	if err := m.removeTxIndexFromBlock(batch, diff); err != nil {
-		return err
-	}
-	batch.Write()
 
 	if len(deletedLogs) > 0 {
 		go m.rmLogsFeed.Send(RemovedLogsEvent{deletedLogs})

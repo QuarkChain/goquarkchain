@@ -57,9 +57,9 @@ type Contract struct {
 	CodeAddr *common.Address
 	Input    []byte
 
-	Gas    uint64
-	value  *big.Int
-	SBFLAG bool
+	Gas            uint64
+	value          *big.Int
+	TokenIDQueried bool
 }
 
 // NewContract returns a new contract environment for the execution of EVM.
@@ -82,12 +82,6 @@ func NewContract(caller ContractRef, object ContractRef, value *big.Int, gas uin
 	return c
 }
 
-func (c *Contract) SetFlag(flag bool) {
-	c.SBFLAG = flag
-}
-func (c *Contract) GetFlag() bool {
-	return c.SBFLAG
-}
 func (c *Contract) validJumpdest(dest *big.Int) bool {
 	udest := dest.Uint64()
 	// PC cannot go beyond len(code) and certainly can't be bigger than 63bits.
