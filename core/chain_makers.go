@@ -289,7 +289,7 @@ func GenerateMinorBlockChain(config *params.ChainConfig, quarkChainConfig *confi
 		for _, v := range b.txs {
 			block.AddTx(v)
 		}
-		statedb.SetNonce(common.Address{}, 1)
+		statedb.SetNonce(quarkChainConfig.Root.CoinbaseAddress.Recipient, 1)
 		txCursor := &types.XShardTxCursorInfo{RootBlockHeight: 1}
 		statedb.SetTxCursorInfo(txCursor)
 		coinbaseAmount := qkcCommon.BigIntMulBigRat(quarkChainConfig.GetShardConfigByFullShardID(quarkChainConfig.Chains[0].ShardSize|0).CoinbaseAmount, quarkChainConfig.RewardTaxRate)
