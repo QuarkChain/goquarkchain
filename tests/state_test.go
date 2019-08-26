@@ -17,12 +17,10 @@
 package tests
 
 import (
-	"bytes"
 	"errors"
 	"flag"
 	"fmt"
 	"github.com/QuarkChain/goquarkchain/core/vm"
-	"reflect"
 	"testing"
 )
 
@@ -126,20 +124,19 @@ func withTrace(t *testing.T, gasLimit uint64, test func(vm.Config) error) {
 		t.Log("gas limit too high for EVM trace")
 		return
 	}
-	tracer := vm.NewStructLogger(nil)
-	fmt.Println("TTTTTTTTTTTTTTT")
+	//tracer := vm.NewStructLogger(nil)
 	return
-	err2 := test(vm.Config{Debug: true, Tracer: tracer})
-	if !reflect.DeepEqual(err, err2) {
-		t.Errorf("different error for second run: %v", err2)
-	}
-	buf := new(bytes.Buffer)
-	vm.WriteTrace(buf, tracer.StructLogs())
-	if buf.Len() == 0 {
-		t.Log("no EVM operation logs generated")
-	} else {
-		t.Log("EVM operation log:\n" + buf.String())
-	}
-	t.Logf("EVM output: 0x%x", tracer.Output())
-	t.Logf("EVM error: %v", tracer.Error())
+	//err2 := test(vm.Config{Debug: true, Tracer: tracer})
+	//if !reflect.DeepEqual(err, err2) {
+	//	t.Errorf("different error for second run: %v", err2)
+	//}
+	//buf := new(bytes.Buffer)
+	//vm.WriteTrace(buf, tracer.StructLogs())
+	//if buf.Len() == 0 {
+	//	t.Log("no EVM operation logs generated")
+	//} else {
+	//	t.Log("EVM operation log:\n" + buf.String())
+	//}
+	//t.Logf("EVM output: 0x%x", tracer.Output())
+	//t.Logf("EVM error: %v", tracer.Error())
 }

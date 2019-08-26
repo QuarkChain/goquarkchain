@@ -62,8 +62,6 @@ func (g *GenesisAccount) UnmarshalJSON(input []byte) error {
 	var dec GenesisAccount
 	var err error
 	if err := json.Unmarshal(input, &dec); err != nil {
-		fmt.Println("777777777777", err)
-		panic(err)
 		return err
 	}
 	if dec.Code != nil { //py use different format to set code in test data !!!!!!!!!!

@@ -753,8 +753,8 @@ func opCreate2(pc *uint64, interpreter *EVMInterpreter, contract *Contract, memo
 }
 
 func Trans(contract *Contract, toAddr common.Address) {
-	if bytes.Equal(toAddr.Bytes(), common.FromHex("0x000000000000000000000000000000514b430001")) {
-		contract.SetFlag(true)
+	if bytes.Equal(toAddr.Bytes(), common.FromHex(currentMntIDAddr)) {
+		contract.TokenIDQueried = true
 	}
 }
 func opCall(pc *uint64, interpreter *EVMInterpreter, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {

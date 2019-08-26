@@ -182,7 +182,7 @@ func (evm *EVM) Interpreter() Interpreter {
 }
 
 func check(err error, contract *Contract, input []byte, txansfer, defaultv uint64, value *big.Int) error {
-	if err == nil && len(contract.Code) != 0 && !contract.GetFlag() && txansfer != defaultv && value.Uint64() != 0 {
+	if err == nil && len(contract.Code) != 0 && !contract.TokenIDQueried && txansfer != defaultv && value.Uint64() != 0 {
 		err = errExecutionReverted
 	}
 	return err
