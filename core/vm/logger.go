@@ -138,7 +138,7 @@ func (l *StructLogger) CaptureStart(from common.Address, to common.Address, crea
 //
 // CaptureState also tracks SSTORE ops to track dirty values.
 func (l *StructLogger) CaptureState(env *EVM, pc uint64, op OpCode, gas, cost uint64, memory *Memory, stack *Stack, contract *Contract, depth int, err error) error {
-	// check if already accumulated the specified number of logs
+	// checkTokenIDQueried if already accumulated the specified number of logs
 	if l.cfg.Limit != 0 && l.cfg.Limit <= len(l.logs) {
 		return ErrTraceLimitReached
 	}

@@ -323,10 +323,10 @@ func (c *bn256ScalarMul) Run(input []byte, evm *EVM, contract *Contract) ([]byte
 }
 
 var (
-	// true32Byte is returned if the bn256 pairing check succeeds.
+	// true32Byte is returned if the bn256 pairing checkTokenIDQueried succeeds.
 	true32Byte = []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}
 
-	// false32Byte is returned if the bn256 pairing check fails.
+	// false32Byte is returned if the bn256 pairing checkTokenIDQueried fails.
 	false32Byte = make([]byte, 32)
 
 	// errBadPairingInput is returned if the bn256 pairing input is invalid.
@@ -409,7 +409,7 @@ func (c *transferMnt) Run(input []byte, evm *EVM, contract *Contract) ([]byte, e
 	t := evm.TransferTokenID
 	evm.TransferTokenID = mnt.Uint64()
 	ret, remainedGas, err := evm.Call(contract.caller, toAddr, data, contract.Gas, value)
-	err = check(err, contract, data, evm.TransferTokenID, evm.StateDB.GetQuarkChainConfig().GetDefaultChainTokenID(), contract.value)
+	err = checkTokenIDQueried(err, contract, evm.TransferTokenID, evm.StateDB.GetQuarkChainConfig().GetDefaultChainTokenID())
 	evm.TransferTokenID = t
 	gasUsed := contract.Gas - remainedGas
 	if ok := contract.UseGas(gasUsed); !ok {

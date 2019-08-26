@@ -705,7 +705,7 @@ func opCreate(pc *uint64, interpreter *EVMInterpreter, contract *Contract, memor
 	contract.UseGas(gas)
 	res, addr, returnGas, suberr := interpreter.evm.Create(contract, input, gas, value, nil)
 	// Push item on the stack based on the returned error. If the ruleset is
-	// homestead we must check for CodeStoreOutOfGasError (homestead only
+	// homestead we must checkTokenIDQueried for CodeStoreOutOfGasError (homestead only
 	// rule) and treat as an error, if the ruleset is frontier we must
 	// ignore this error and pretend the operation was successful.
 	if interpreter.evm.ChainConfig().IsHomestead(interpreter.evm.BlockNumber) && suberr == ErrCodeStoreOutOfGas {
@@ -717,7 +717,7 @@ func opCreate(pc *uint64, interpreter *EVMInterpreter, contract *Contract, memor
 	}
 	contract.Gas += returnGas
 	interpreter.intPool.put(value, offset, size)
-	Trans(contract, *contract.CodeAddr)
+	ModifyTokenIDQueried(contract, *contract.CodeAddr)
 	if suberr == errExecutionReverted {
 		return res, nil
 	}
@@ -752,7 +752,7 @@ func opCreate2(pc *uint64, interpreter *EVMInterpreter, contract *Contract, memo
 	return nil, nil
 }
 
-func Trans(contract *Contract, toAddr common.Address) {
+func ModifyTokenIDQueried(contract *Contract, toAddr common.Address) {
 	if bytes.Equal(toAddr.Bytes(), common.FromHex(currentMntIDAddr)) {
 		contract.TokenIDQueried = true
 	}
@@ -781,7 +781,7 @@ func opCall(pc *uint64, interpreter *EVMInterpreter, contract *Contract, memory 
 		memory.Set(retOffset.Uint64(), retSize.Uint64(), ret)
 	}
 	contract.Gas += returnGas
-	Trans(contract, toAddr)
+	ModifyTokenIDQueried(contract, toAddr)
 	interpreter.intPool.put(addr, value, inOffset, inSize, retOffset, retSize)
 	return ret, nil
 }
@@ -810,7 +810,7 @@ func opCallCode(pc *uint64, interpreter *EVMInterpreter, contract *Contract, mem
 		memory.Set(retOffset.Uint64(), retSize.Uint64(), ret)
 	}
 	contract.Gas += returnGas
-	Trans(contract, toAddr)
+	ModifyTokenIDQueried(contract, toAddr)
 	interpreter.intPool.put(addr, value, inOffset, inSize, retOffset, retSize)
 	return ret, nil
 }
@@ -835,7 +835,7 @@ func opDelegateCall(pc *uint64, interpreter *EVMInterpreter, contract *Contract,
 		memory.Set(retOffset.Uint64(), retSize.Uint64(), ret)
 	}
 	contract.Gas += returnGas
-	Trans(contract, toAddr)
+	ModifyTokenIDQueried(contract, toAddr)
 
 	interpreter.intPool.put(addr, inOffset, inSize, retOffset, retSize)
 	return ret, nil
@@ -861,7 +861,7 @@ func opStaticCall(pc *uint64, interpreter *EVMInterpreter, contract *Contract, m
 		memory.Set(retOffset.Uint64(), retSize.Uint64(), ret)
 	}
 	contract.Gas += returnGas
-	Trans(contract, toAddr)
+	ModifyTokenIDQueried(contract, toAddr)
 	interpreter.intPool.put(addr, inOffset, inSize, retOffset, retSize)
 	return ret, nil
 }

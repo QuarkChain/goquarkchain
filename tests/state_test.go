@@ -26,9 +26,10 @@ import (
 
 func TestEvm(t *testing.T) {
 	testQKCState(t, qkcStateTestDir)
-	//testETHState(t, ethStateTestDir)
+	//testQKCState(t, ethStateTestDir)
 }
 func testQKCState(t *testing.T, dir string) {
+	count := 0
 	t.Parallel()
 	st := new(testMatcher)
 	st.walk(t, dir, func(t *testing.T, name string, test *StateTest) {
@@ -37,17 +38,12 @@ func testQKCState(t *testing.T, dir string) {
 			subtest.Path = name
 			key := fmt.Sprintf("%s/%d", subtest.Fork, subtest.Index)
 			name := name + "/" + key
-			if isSkip(name) {
-				continue
-			}
-			if _, ok := mapForks[subtest.Fork]; ok == false {
-				continue
-			}
 			t.Run(key, func(t *testing.T) {
 				withTrace(t, test.gasLimit(subtest), func(vmconfig vm.Config) error {
 					_, err := test.Run(subtest, vmconfig)
+					fmt.Println("!!!!!!!!!")
+					count++
 					if err == errors.New("not support") {
-						//			fmt.Println("not support yet !!!!!!!!!!!", subtest.Fork)
 						return nil
 					}
 					return st.checkFailure(t, name, err)
@@ -55,6 +51,7 @@ func testQKCState(t *testing.T, dir string) {
 			})
 		}
 	})
+	fmt.Println("QKC-count", count)
 }
 
 func testETHState(t *testing.T, dir string) {
@@ -85,12 +82,6 @@ func testETHState(t *testing.T, dir string) {
 			subtest.Path = name
 			key := fmt.Sprintf("%s/%d", subtest.Fork, subtest.Index)
 			name := name + "/" + key
-			if isSkip(name) {
-				continue
-			}
-			if _, ok := mapForks[subtest.Fork]; ok == false {
-				continue
-			}
 
 			t.Run(key, func(t *testing.T) {
 				withTrace(t, test.gasLimit(subtest), func(vmconfig vm.Config) error {
