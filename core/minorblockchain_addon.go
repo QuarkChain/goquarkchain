@@ -1108,15 +1108,18 @@ func (m *MinorBlockChain) EstimateGas(tx *types.Transaction, fromAddress account
 
 // GasPrice gas price
 func (m *MinorBlockChain) GasPrice(tokenID uint64) (uint64, error) {
-	//TODO later to fix
-	// no need to lock
 	if !m.clusterConfig.Quarkchain.IsAllowedTokenID(tokenID) {
 		return 0, fmt.Errorf("no support tokenID %v", tokenID)
 	}
+
 	currHead := m.CurrentBlock().Hash()
-	if currHead == m.gasPriceSuggestionOracle.LastHead {
-		return m.gasPriceSuggestionOracle.LastPrice, nil
+	if data, ok := m.gasPriceSuggestionOracle.cache.Get(gasPriceKey{
+		currHead: currHead,
+		tokenID:  tokenID,
+	}); ok {
+		return data.(uint64), nil
 	}
+
 	currHeight := m.CurrentBlock().NumberU64()
 	startHeight := int64(currHeight) - int64(m.gasPriceSuggestionOracle.CheckBlocks) + 1
 	if startHeight < 3 {
@@ -1131,7 +1134,9 @@ func (m *MinorBlockChain) GasPrice(tokenID uint64) (uint64, error) {
 		}
 		tempPreBlockPrices := make([]uint64, 0)
 		for _, tx := range block.GetTransactions() {
-			tempPreBlockPrices = append(tempPreBlockPrices, tx.EvmTx.GasPrice().Uint64())
+			if tx.EvmTx.GasTokenID() == tokenID {
+				tempPreBlockPrices = append(tempPreBlockPrices, tx.EvmTx.GasPrice().Uint64())
+			}
 		}
 		prices = append(prices, tempPreBlockPrices...)
 	}
@@ -1141,8 +1146,10 @@ func (m *MinorBlockChain) GasPrice(tokenID uint64) (uint64, error) {
 
 	sort.Slice(prices, func(i, j int) bool { return prices[i] < prices[j] })
 	price := prices[(len(prices)-1)*int(m.gasPriceSuggestionOracle.Percentile)/100]
-	m.gasPriceSuggestionOracle.LastPrice = price
-	m.gasPriceSuggestionOracle.LastHead = currHead
+	m.gasPriceSuggestionOracle.cache.Add(gasPriceKey{
+		currHead: currHead,
+		tokenID:  tokenID,
+	}, price)
 	return price, nil
 }
 
@@ -1256,34 +1263,22 @@ func (m *MinorBlockChain) putTxIndexFromBlock(batch rawdb.DatabaseWriter, block 
 	return m.putTxHistoryIndexFromBlock(minorBlock) // put qkc's xshard tx
 }
 
-func (m *MinorBlockChain) removeTxIndexFromBlock(db rawdb.DatabaseDeleter, txs types.Transactions) error {
-	slovedBlock := make(map[common.Hash]bool)
-	for _, tx := range txs {
-		blockHash, _ := rawdb.ReadBlockContentLookupEntry(m.db, tx.Hash())
-		rawdb.DeleteBlockContentLookupEntry(db, tx.Hash()) //delete eth's tx lookup
-
-		if !m.clusterConfig.EnableTransactionHistory {
-			continue
-		}
-
-		if _, ok := slovedBlock[blockHash]; ok {
-			continue
-		}
-		slovedBlock[blockHash] = true
-		block, ok := m.GetBlock(blockHash).(*types.MinorBlock) // find old block
-		if !ok {
-			return errors.New("get minor block err")
-		}
-		for oldBlockTxIndex, oldBlockTx := range block.Transactions() { // delete qkc's oldBlock's tx
-			if err := m.removeTxHistoryIndex(oldBlockTx, block.Number(), oldBlockTxIndex); err != nil {
-				return err
-			}
-		}
-		if err := m.removeTxHistoryIndexFromBlock(block); err != nil { //delete qkc's crossShard tx
+func (m *MinorBlockChain) removeTxIndexFromBlock(db rawdb.DatabaseDeleter, block *types.MinorBlock) error {
+	blockTxs := block.Transactions()
+	for index, tx := range blockTxs {
+		if err := m.removeTxHistoryIndex(db, tx, block.NumberU64(), index); err != nil {
 			return err
 		}
 	}
-	return nil
+	depositHList := m.getXShardDepositHashList(block.Hash())
+	if depositHList == nil {
+		log.Error(m.logInfo, "impossible err", "please fix it removeTxIndexFromBlock")
+	} else {
+		for _, hash := range depositHList.HList {
+			rawdb.DeleteBlockContentLookupEntry(db, hash)
+		}
+	}
+	return m.removeTxHistoryIndexFromBlock(block)
 }
 
 func bytesSubOne(data []byte) []byte {
@@ -1560,7 +1555,8 @@ func (m *MinorBlockChain) updateTxHistoryIndex(tx *types.Transaction, height uin
 func (m *MinorBlockChain) putTxHistoryIndex(tx *types.Transaction, height uint64, index int) error {
 	return m.updateTxHistoryIndex(tx, height, index, m.putTxIndexDB)
 }
-func (m *MinorBlockChain) removeTxHistoryIndex(tx *types.Transaction, height uint64, index int) error {
+func (m *MinorBlockChain) removeTxHistoryIndex(db rawdb.DatabaseDeleter, tx *types.Transaction, height uint64, index int) error {
+	rawdb.DeleteBlockContentLookupEntry(db, tx.Hash())
 	return m.updateTxHistoryIndex(tx, height, index, m.deleteTxIndexDB)
 }
 
