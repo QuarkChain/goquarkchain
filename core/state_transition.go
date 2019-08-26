@@ -18,6 +18,7 @@ package core
 
 import (
 	"errors"
+	"fmt"
 	"math"
 	"math/big"
 
@@ -229,7 +230,9 @@ func (st *StateTransition) TransitionDb(feeRate *big.Rat) (ret []byte, usedGas u
 		return st.AddCrossShardTxDeposit(gas, feeRate)
 	}
 	if contractCreation {
+		fmt.Println("create")
 		ret, _, st.gas, vmerr = evm.Create(sender, st.data, st.gas, st.value, msg.IsCrossShard())
+		fmt.Println("create end")
 	} else {
 		// Increment the nonce for the next transaction
 		st.state.SetNonce(msg.From(), st.state.GetNonce(sender.Address())+1)

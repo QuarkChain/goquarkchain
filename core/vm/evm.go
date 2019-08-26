@@ -17,7 +17,6 @@
 package vm
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"math/big"
@@ -183,6 +182,14 @@ func (evm *EVM) Interpreter() Interpreter {
 	return evm.interpreter
 }
 
+func check(err error, contract *Contract, input []byte, txansfer, defaultv uint64, value *big.Int) error {
+	fmt.Println("dddddddddddddd", err, len(contract.Code), txansfer != defaultv, "token_id_queried", contract.SBFLAG, value.Uint64() != 0, value.Uint64())
+	if err == nil && len(contract.Code) != 0 && !contract.GetFlag() && txansfer != defaultv && value.Uint64() != 0 {
+		err = errExecutionReverted
+	}
+	return err
+}
+
 // Call executes the contract associated with the addr with the given input as
 // parameters. It also handles any necessary value transfer required and takes
 // the necessary steps to create accounts and reverses the state in case of an
@@ -241,15 +248,9 @@ func (evm *EVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 			evm.vmConfig.Tracer.CaptureEnd(ret, gas-contract.Gas, time.Since(start), err)
 		}()
 	}
-	if bytes.Equal(to.Address().Bytes(), common.FromHex("0x000000000000000000000000000000514b430001")) {
-		caller.SetFlag(true)
-	}
-	fmt.Println("Call-start", to.Address().Hex())
+	fmt.Println("Call-start")
 	ret, err = run(evm, contract, input, false)
-	fmt.Println("Call-end", err, contract.SBFLAG)
-	if err == nil && !contract.GetFlag() {
-		err = errExecutionReverted
-	}
+	err = check(err, contract, input, evm.TransferTokenID, evm.StateDB.GetQuarkChainConfig().GetDefaultChainTokenID(), contract.value)
 	// When an error was returned by the EVM or when setting the creation code
 	// above we revert to the snapshot and consume any gas remaining. Additionally
 	// when we're in homestead this also counts for code storage gas errors.
@@ -259,6 +260,7 @@ func (evm *EVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 			contract.UseGas(contract.Gas)
 		}
 	}
+	fmt.Println("Call-end", err, contract.GetFlag(), contract.Gas)
 	return ret, contract.Gas, err
 }
 
@@ -292,14 +294,16 @@ func (evm *EVM) CallCode(caller ContractRef, addr common.Address, input []byte, 
 	// only.
 	contract := NewContract(caller, to, value, gas)
 	contract.SetCallCode(&addr, evm.StateDB.GetCodeHash(addr), evm.StateDB.GetCode(addr))
-
+	fmt.Println("CallCode-start")
 	ret, err = run(evm, contract, input, false)
+	err = check(err, contract, input, evm.TransferTokenID, evm.StateDB.GetQuarkChainConfig().GetDefaultChainTokenID(), contract.value)
 	if err != nil {
 		evm.StateDB.RevertToSnapshot(snapshot)
 		if err != errExecutionReverted {
 			contract.UseGas(contract.Gas)
 		}
 	}
+	fmt.Println("CallCode-end", err, contract.GetFlag(), contract.Gas)
 	return ret, contract.Gas, err
 }
 
@@ -325,17 +329,10 @@ func (evm *EVM) DelegateCall(caller ContractRef, addr common.Address, input []by
 	// Initialise a new contract and make initialise the delegate values
 	contract := NewContract(caller, to, nil, gas).AsDelegate()
 	contract.SetCallCode(&addr, evm.StateDB.GetCodeHash(addr), evm.StateDB.GetCode(addr))
-	if bytes.Equal(to.Address().Bytes(), common.FromHex("0x000000000000000000000000000000514b430001")) {
-		caller.SetFlag(true)
-	}
 	fmt.Println("DelegateCall-start")
 	ret, err = run(evm, contract, input, false)
 
-	if err == nil && !contract.GetFlag() {
-		err = errExecutionReverted
-	} else {
-		fmt.Println("不应该")
-	}
+	err = check(err, contract, input, evm.TransferTokenID, evm.StateDB.GetQuarkChainConfig().GetDefaultChainTokenID(), contract.value)
 	if err != nil {
 		evm.StateDB.RevertToSnapshot(snapshot)
 		if err != errExecutionReverted {
@@ -378,13 +375,16 @@ func (evm *EVM) StaticCall(caller ContractRef, addr common.Address, input []byte
 	// When an error was returned by the EVM or when setting the creation code
 	// above we revert to the snapshot and consume any gas remaining. Additionally
 	// when we're in Homestead this also counts for code storage gas errors.
+	fmt.Println("StaticCall-start")
 	ret, err = run(evm, contract, input, true)
+	err = check(err, contract, input, evm.TransferTokenID, evm.StateDB.GetQuarkChainConfig().GetDefaultChainTokenID(), contract.value)
 	if err != nil {
 		evm.StateDB.RevertToSnapshot(snapshot)
 		if err != errExecutionReverted {
 			contract.UseGas(contract.Gas)
 		}
 	}
+	fmt.Println("StaticCall-end", err, contract.GetFlag(), contract.Gas)
 	return ret, contract.Gas, err
 }
 
@@ -446,7 +446,7 @@ func (evm *EVM) create(caller ContractRef, codeAndHash *codeAndHash, gas uint64,
 	start := time.Now()
 
 	ret, err := run(evm, contract, nil, false)
-
+	err = check(err, contract, nil, evm.TransferTokenID, evm.StateDB.GetQuarkChainConfig().GetDefaultChainTokenID(), contract.value)
 	// check whether the max code size has been exceeded
 	maxCodeSizeExceeded := evm.ChainConfig().IsEIP158(evm.BlockNumber) && len(ret) > params.MaxCodeSize
 	// if the contract creation ran successfully and no errors were returned
@@ -490,6 +490,8 @@ func CreateAddress(b common.Address, toFullShardID uint32, nonce uint64) common.
 
 // Create creates a new contract using code as deployment code.
 func (evm *EVM) Create(caller ContractRef, code []byte, gas uint64, value *big.Int, isCrossShard bool) (ret []byte, contractAddr common.Address, leftOverGas uint64, err error) {
+	fmt.Println("CCCCCCCCCC-start")
+	defer fmt.Println("CCCCCCCCCCCCC-end")
 	if isCrossShard {
 		return nil, contractAddr, gas, errors.New("is cross shard tx ,not support create evm")
 	}

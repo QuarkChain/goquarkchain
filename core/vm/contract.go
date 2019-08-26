@@ -25,8 +25,8 @@ import (
 // ContractRef is a reference to the contract's backing object
 type ContractRef interface {
 	Address() common.Address
-	SetFlag(flag bool)
-	GetFlag() bool
+	//SetFlag(flag bool)
+	//GetFlag() bool
 }
 
 // AccountRef implements ContractRef.
@@ -40,12 +40,13 @@ type AccountRef common.Address
 
 // Address casts AccountRef to a Address
 func (ar AccountRef) Address() common.Address { return (common.Address)(ar) }
-func (ar AccountRef) SetFlag(bool2 bool) {
 
-}
-func (ar AccountRef) GetFlag() bool {
-	panic(-1)
-}
+//func (ar AccountRef) SetFlag(bool2 bool) {
+//	panic(-2)
+//}
+//func (ar AccountRef) GetFlag() bool {
+//	panic(-1)
+//}
 
 // Contract represents an ethereum contract in the state database. It contains
 // the contract code, calling arguments. Contract implements ContractRef

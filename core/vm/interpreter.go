@@ -271,6 +271,7 @@ func (in *EVMInterpreter) Run(contract *Contract, input []byte, readOnly bool) (
 		case err != nil:
 			return nil, err
 		case operation.reverts:
+			fmt.Println("PPPPPPPPPPPPPPPPPPP", op)
 			return res, errExecutionReverted
 		case operation.halts:
 			return res, nil

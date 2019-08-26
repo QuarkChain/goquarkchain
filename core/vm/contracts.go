@@ -371,7 +371,7 @@ func (c *currentMntID) RequiredGas(input []byte) uint64 {
 }
 
 func (c *currentMntID) Run(input []byte, evm *EVM, contract *Contract) ([]byte, error) {
-	fmt.Println("?>>>>>>???????????????????")
+	//fmt.Println("?>>>>>>???????????????????")
 	contract.SBFLAG = true
 	b := make([]byte, 8)
 	binary.BigEndian.PutUint64(b, evm.TransferTokenID)
@@ -402,7 +402,11 @@ func (c *transferMnt) Run(input []byte, evm *EVM, contract *Contract) ([]byte, e
 	data := getData(input, 96, uint64(len(input)-96))
 	t := evm.TransferTokenID
 	evm.TransferTokenID = mnt.Uint64()
-	ret, remainedGas, err := evm.Call(AccountRef(evm.Origin), toAddr, data, contract.Gas, value)
+	caller := AccountRef(evm.Origin)
+	fmt.Println("special")
+	ret, remainedGas, err := evm.Call(caller, toAddr, data, contract.Gas, value)
+	err = check(err, contract, data, evm.TransferTokenID, evm.StateDB.GetQuarkChainConfig().GetDefaultChainTokenID(), contract.value)
+	fmt.Println("special-end", remainedGas, err)
 	evm.TransferTokenID = t
 	gasUsed := contract.Gas - remainedGas
 	if ok := contract.UseGas(gasUsed); !ok {

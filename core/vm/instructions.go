@@ -17,6 +17,7 @@
 package vm
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"github.com/QuarkChain/goquarkchain/account"
@@ -708,6 +709,7 @@ func opCreate(pc *uint64, interpreter *EVMInterpreter, contract *Contract, memor
 	// homestead we must check for CodeStoreOutOfGasError (homestead only
 	// rule) and treat as an error, if the ruleset is frontier we must
 	// ignore this error and pretend the operation was successful.
+
 	if interpreter.evm.ChainConfig().IsHomestead(interpreter.evm.BlockNumber) && suberr == ErrCodeStoreOutOfGas {
 		stack.push(interpreter.intPool.getZero())
 	} else if suberr != nil && suberr != ErrCodeStoreOutOfGas {
@@ -717,7 +719,7 @@ func opCreate(pc *uint64, interpreter *EVMInterpreter, contract *Contract, memor
 	}
 	contract.Gas += returnGas
 	interpreter.intPool.put(value, offset, size)
-
+	Trans(contract, *contract.CodeAddr)
 	if suberr == errExecutionReverted {
 		return res, nil
 	}
@@ -752,6 +754,11 @@ func opCreate2(pc *uint64, interpreter *EVMInterpreter, contract *Contract, memo
 	return nil, nil
 }
 
+func Trans(contract *Contract, toAddr common.Address) {
+	if bytes.Equal(toAddr.Bytes(), common.FromHex("0x000000000000000000000000000000514b430001")) {
+		contract.SetFlag(true)
+	}
+}
 func opCall(pc *uint64, interpreter *EVMInterpreter, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
 	// Pop gas. The actual gas in interpreter.evm.callGasTemp.
 	interpreter.intPool.put(stack.pop())
@@ -776,7 +783,7 @@ func opCall(pc *uint64, interpreter *EVMInterpreter, contract *Contract, memory 
 		memory.Set(retOffset.Uint64(), retSize.Uint64(), ret)
 	}
 	contract.Gas += returnGas
-
+	Trans(contract, toAddr)
 	interpreter.intPool.put(addr, value, inOffset, inSize, retOffset, retSize)
 	return ret, nil
 }
@@ -805,7 +812,7 @@ func opCallCode(pc *uint64, interpreter *EVMInterpreter, contract *Contract, mem
 		memory.Set(retOffset.Uint64(), retSize.Uint64(), ret)
 	}
 	contract.Gas += returnGas
-
+	Trans(contract, toAddr)
 	interpreter.intPool.put(addr, value, inOffset, inSize, retOffset, retSize)
 	return ret, nil
 }
@@ -828,8 +835,9 @@ func opDelegateCall(pc *uint64, interpreter *EVMInterpreter, contract *Contract,
 	if err == nil || err == errExecutionReverted {
 		memory.Set(retOffset.Uint64(), retSize.Uint64(), ret)
 	}
-	fmt.Println("deletae.gas", contract.Gas, returnGas)
+	//fmt.Println("deletae.gas", contract.Gas, returnGas)
 	contract.Gas += returnGas
+	Trans(contract, toAddr)
 
 	interpreter.intPool.put(addr, inOffset, inSize, retOffset, retSize)
 	return ret, nil
@@ -855,7 +863,7 @@ func opStaticCall(pc *uint64, interpreter *EVMInterpreter, contract *Contract, m
 		memory.Set(retOffset.Uint64(), retSize.Uint64(), ret)
 	}
 	contract.Gas += returnGas
-
+	Trans(contract, toAddr)
 	interpreter.intPool.put(addr, inOffset, inSize, retOffset, retSize)
 	return ret, nil
 }
