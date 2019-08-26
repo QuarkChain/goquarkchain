@@ -141,6 +141,9 @@ func (m *Miner) Stop() {
 func (m *Miner) SetMining(mining bool) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	if mining && atomic.LoadUint32(&m.isMining) == 1 {
+		return
+	}
 	if mining {
 		atomic.StoreUint32(&m.isMining, 1)
 		m.startCh <- struct{}{}
