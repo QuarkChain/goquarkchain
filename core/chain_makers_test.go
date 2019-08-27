@@ -96,7 +96,8 @@ func ExampleGenerateMinorBlockChain() {
 		temp := map[string]*big.Int{
 			"QKC": big.NewInt(1000000),
 		}
-		shardConfig.Genesis.Alloc[addr] = temp
+		alloc := config.Allocation{Balances: temp}
+		shardConfig.Genesis.Alloc[addr] = alloc
 	}
 	fakeClusterConfig.Quarkchain.SkipMinorDifficultyCheck = true
 	// Ensure that key1 has some funds in the genesis block.

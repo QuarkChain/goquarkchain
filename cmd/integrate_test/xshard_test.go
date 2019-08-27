@@ -78,7 +78,8 @@ func TestBroadcastCrossShardTransactionsWithExtraGas(t *testing.T) {
 	c := cluster[0]
 	c.clstrCfg.Quarkchain.MinMiningGasPrice = new(big.Int)
 	c.clstrCfg.Quarkchain.MinTXPoolGasPrice = new(big.Int)
-	alloc := map[string]*big.Int{c.clstrCfg.Quarkchain.GenesisToken: big.NewInt(1000000)}
+	balance := map[string]*big.Int{c.clstrCfg.Quarkchain.GenesisToken: big.NewInt(1000000)}
+	alloc := config.Allocation{Balances: balance}
 	for _, fsId := range c.clstrCfg.Quarkchain.GetGenesisShardIds() {
 		shardCfg := c.clstrCfg.Quarkchain.GetShardConfigByFullShardID(fsId)
 		acc1s := acc1.AddressInShard(fsId)
@@ -151,7 +152,8 @@ func TestCrossShardContractCall(t *testing.T) {
 		config.PoWSimulate, true)
 	_, cluster := CreateClusterList(1, cfglist)
 	c := cluster[0]
-	alloc := map[string]*big.Int{c.clstrCfg.Quarkchain.GenesisToken: big.NewInt(100000000)}
+	balance := map[string]*big.Int{c.clstrCfg.Quarkchain.GenesisToken: big.NewInt(100000000)}
+	alloc := config.Allocation{Balances: balance}
 	c.clstrCfg.Quarkchain.MinMiningGasPrice = new(big.Int)
 	c.clstrCfg.Quarkchain.MinTXPoolGasPrice = new(big.Int)
 	//Enable xshard receipt
@@ -301,7 +303,8 @@ func TestCrossShardTransfer(t *testing.T) {
 	c := cluster[0]
 	c.clstrCfg.Quarkchain.MinMiningGasPrice = new(big.Int)
 	c.clstrCfg.Quarkchain.MinTXPoolGasPrice = new(big.Int)
-	alloc := map[string]*big.Int{c.clstrCfg.Quarkchain.GenesisToken: big.NewInt(100000000)}
+	balance := map[string]*big.Int{c.clstrCfg.Quarkchain.GenesisToken: big.NewInt(100000000)}
+	alloc := config.Allocation{Balances: balance}
 	for i := 0; i < int(chainSize); i++ {
 		fsId := i<<16 | int(shardSize) | 0
 		shardCfg := c.clstrCfg.Quarkchain.GetShardConfigByFullShardID(uint32(fsId))
@@ -364,7 +367,8 @@ func TestBroadcastCrossShardTransaction1x2(t *testing.T) {
 	c := cluster[0]
 	c.clstrCfg.Quarkchain.MinMiningGasPrice = new(big.Int)
 	c.clstrCfg.Quarkchain.MinTXPoolGasPrice = new(big.Int)
-	alloc := map[string]*big.Int{c.clstrCfg.Quarkchain.GenesisToken: big.NewInt(1000000)}
+	balance := map[string]*big.Int{c.clstrCfg.Quarkchain.GenesisToken: big.NewInt(1000000)}
+	alloc := config.Allocation{Balances: balance}
 	for _, fsId := range c.clstrCfg.Quarkchain.GetGenesisShardIds() {
 		shardCfg := c.clstrCfg.Quarkchain.GetShardConfigByFullShardID(fsId)
 		acc1s := acc1.AddressInShard(fsId)
@@ -479,12 +483,13 @@ func TestBroadcastCrossShardTransaction2x1(t *testing.T) {
 	c.clstrCfg.Quarkchain.MinMiningGasPrice = new(big.Int)
 	c.clstrCfg.Quarkchain.MinTXPoolGasPrice = new(big.Int)
 	minorCoinbase := big.NewInt(1000000)
-	genesis := map[string]*big.Int{c.clstrCfg.Quarkchain.GenesisToken: big.NewInt(1000000)}
+	balance := map[string]*big.Int{c.clstrCfg.Quarkchain.GenesisToken: big.NewInt(1000000)}
+	alloc := config.Allocation{Balances: balance}
 	c.clstrCfg.Quarkchain.Root.CoinbaseAmount = big.NewInt(10)
 	for _, fsId := range c.clstrCfg.Quarkchain.GetGenesisShardIds() {
 		shardCfg := c.clstrCfg.Quarkchain.GetShardConfigByFullShardID(fsId)
 		acc1s := acc1.AddressInShard(fsId)
-		shardCfg.Genesis.Alloc[acc1s] = genesis
+		shardCfg.Genesis.Alloc[acc1s] = alloc
 		shardCfg.CoinbaseAmount = minorCoinbase
 	}
 	cluster.Start(5*time.Second, true)
@@ -609,7 +614,7 @@ func TestBroadcastCrossShardTransaction2x1(t *testing.T) {
 
 	total := 3*c.clstrCfg.Quarkchain.Root.CoinbaseAmount.Uint64() +
 		6*minorCoinbase.Uint64() +
-		2*genesis[c.clstrCfg.Quarkchain.GenesisToken].Uint64() +
+		2*balance[c.clstrCfg.Quarkchain.GenesisToken].Uint64() +
 		500000 + //post-tax mblock coinbase
 		21000 //FIXME remove 21000
 	assert.Equal(t, int(total), int(cntr.sum()))
@@ -634,12 +639,13 @@ func TestCrossShardContractCreate(t *testing.T) {
 	c.clstrCfg.Quarkchain.MinTXPoolGasPrice = new(big.Int)
 	c.clstrCfg.Quarkchain.XShardGasDDOSFixRootHeight = 0
 	c.clstrCfg.Quarkchain.XShardAddReceiptTimestamp = 1
-	genesis := map[string]*big.Int{c.clstrCfg.Quarkchain.GenesisToken: big.NewInt(1000000)}
+	balance := map[string]*big.Int{c.clstrCfg.Quarkchain.GenesisToken: big.NewInt(1000000)}
+	alloc := config.Allocation{Balances: balance}
 	c.clstrCfg.Quarkchain.Root.CoinbaseAmount = big.NewInt(10)
 	for _, fsId := range c.clstrCfg.Quarkchain.GetGenesisShardIds() {
 		shardCfg := c.clstrCfg.Quarkchain.GetShardConfigByFullShardID(fsId)
 		acc1s := acc1.AddressInShard(fsId)
-		shardCfg.Genesis.Alloc[acc1s] = genesis
+		shardCfg.Genesis.Alloc[acc1s] = alloc
 	}
 	cluster.Start(5*time.Second, true)
 	defer cluster.Stop()
