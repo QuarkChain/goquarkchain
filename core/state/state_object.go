@@ -249,7 +249,6 @@ func (self *stateObject) setState(key, value common.Hash) {
 func (self *stateObject) updateTrie(db Database) Trie {
 	tr := self.getTrie(db)
 	for key, value := range self.dirtyStorage {
-		//fmt.Println("tttt", key.Big(), value.Big())
 		delete(self.dirtyStorage, key)
 
 		// Skip noop changes, persist actual changes
@@ -265,7 +264,6 @@ func (self *stateObject) updateTrie(db Database) Trie {
 		// Encoding []byte cannot fail, ok to ignore the error.
 		v, _ := rlp.EncodeToBytes(bytes.TrimLeft(value[:], "\x00"))
 		self.setError(tr.TryUpdate(key[:], v))
-		//fmt.Println("yyyyyyyy", hex.EncodeToString(key[:]), hex.EncodeToString(v))
 	}
 	return tr
 }
@@ -285,7 +283,6 @@ func (self *stateObject) CommitTrie(db Database) error {
 	}
 	root, err := self.trie.Commit(nil)
 	if err == nil {
-		//fmt.Println("2888888888888", self.address.String(), root.String())
 		self.data.Root = root
 	}
 	return err

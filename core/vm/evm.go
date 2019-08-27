@@ -395,7 +395,7 @@ func (c *codeAndHash) Hash() common.Hash {
 
 // create creates a new contract using code as deployment code.
 func (evm *EVM) create(caller ContractRef, codeAndHash *codeAndHash, gas uint64, value *big.Int, address common.Address) ([]byte, common.Address, uint64, error) {
-	// Depth checkTokenIDQueried execution. Fail if we're trying to execute above the
+	// Depth check execution. Fail if we're trying to execute above the
 	// limit.
 	if evm.TransferTokenID != evm.StateDB.GetQuarkChainConfig().GetDefaultChainTokenID() {
 		return nil, common.Address{}, gas, nil
@@ -414,14 +414,9 @@ func (evm *EVM) create(caller ContractRef, codeAndHash *codeAndHash, gas uint64,
 	if evm.StateDB.GetNonce(address) != 0 || (contractHash != (common.Hash{}) && contractHash != emptyCodeHash) {
 		return nil, common.Address{}, 0, ErrContractAddressCollision
 	}
-	//fmt.Println("before snao")
-	//for k, v := range evm.StateDB.(*state.StateDB).GetJour() {
-	//	fmt.Println("detail", k.String(), v)
-	//}
 	// Create a new account on the state
 	snapshot := evm.StateDB.Snapshot()
 	evm.StateDB.CreateAccount(address)
-	//fmt.Println("create account end")
 
 	evm.StateDB.SetNonce(address, 1)
 
@@ -442,15 +437,9 @@ func (evm *EVM) create(caller ContractRef, codeAndHash *codeAndHash, gas uint64,
 	}
 	start := time.Now()
 
-	//fmt.Println("before evm")
-	//for k, v := range evm.StateDB.(*state.StateDB).GetJour() {
-	//	fmt.Println("detail", k.String(), v)
-	//}
-
 	ret, err := run(evm, contract, nil, false)
-	//fmt.Println("create-run end", ret, err)
 	err = checkTokenIDQueried(err, contract, evm.TransferTokenID, evm.StateDB.GetQuarkChainConfig().GetDefaultChainTokenID())
-	// checkTokenIDQueried whether the max code size has been exceeded
+	// check whether the max code size has been exceeded
 	maxCodeSizeExceeded := evm.ChainConfig().IsEIP158(evm.BlockNumber) && len(ret) > params.MaxCodeSize
 	// if the contract creation ran successfully and no errors were returned
 	// calculate the gas required to store the code. If the code could not
@@ -465,24 +454,14 @@ func (evm *EVM) create(caller ContractRef, codeAndHash *codeAndHash, gas uint64,
 		}
 	}
 
-	//fmt.Println("45999999-err", err, evm.chainConfig.IsHomestead(evm.BlockNumber), err)
-
 	// When an error was returned by the EVM or when setting the creation code
 	// above we revert to the snapshot and consume any gas remaining. Additionally
 	// when we're in homestead this also counts for code storage gas errors.
 	if maxCodeSizeExceeded || (err != nil && (evm.ChainConfig().IsHomestead(evm.BlockNumber) || err != ErrCodeStoreOutOfGas)) {
-		//fmt.Println("RRRRRRRRRR-1", snapshot)
-		//for k, v := range evm.StateDB.(*state.StateDB).GetJour() {
-		//	fmt.Println("detail", k.String(), v)
-		//}
 		evm.StateDB.RevertToSnapshot(snapshot)
 		if err != errExecutionReverted {
 			contract.UseGas(contract.Gas)
 		}
-		//fmt.Println("RRRRRRRRRR-2")
-		//for k, v := range evm.StateDB.(*state.StateDB).GetJour() {
-		//	fmt.Println("detail", k.String(), v)
-		//}
 	}
 	// Assign err if contract code size exceeds the max while the err is still empty.
 	if maxCodeSizeExceeded && err == nil {

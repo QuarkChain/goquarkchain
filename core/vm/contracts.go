@@ -76,7 +76,6 @@ func RunPrecompiledContract(p PrecompiledContract, input []byte, contract *Contr
 	if contract.UseGas(gas) {
 		return p.Run(input, evm, contract)
 	}
-	//fmt.Println("111")
 	return nil, ErrOutOfGas
 }
 
@@ -324,10 +323,10 @@ func (c *bn256ScalarMul) Run(input []byte, evm *EVM, contract *Contract) ([]byte
 }
 
 var (
-	// true32Byte is returned if the bn256 pairing checkTokenIDQueried succeeds.
+	// true32Byte is returned if the bn256 pairing check succeeds.
 	true32Byte = []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}
 
-	// false32Byte is returned if the bn256 pairing checkTokenIDQueried fails.
+	// false32Byte is returned if the bn256 pairing check fails.
 	false32Byte = make([]byte, 32)
 
 	// errBadPairingInput is returned if the bn256 pairing input is invalid.
@@ -397,7 +396,6 @@ func (c *transferMnt) Run(input []byte, evm *EVM, contract *Contract) ([]byte, e
 		return nil, errors.New("should 96")
 	}
 
-	//fmt.Println("input",len(input),hex.EncodeToString(input))
 	toBytes := getData(input, 0, 32)
 	toAddr := common.BytesToAddress(toBytes)
 
@@ -410,14 +408,11 @@ func (c *transferMnt) Run(input []byte, evm *EVM, contract *Contract) ([]byte, e
 	data := getData(input, 96, uint64(len(input)-96))
 	t := evm.TransferTokenID
 	evm.TransferTokenID = mnt.Uint64()
-
-	//fmt.Println("special",contract.caller.Address().String(),toAddr.String())
 	ret, remainedGas, err := evm.Call(contract.caller, toAddr, data, contract.Gas, value)
 	err = checkTokenIDQueried(err, contract, evm.TransferTokenID, evm.StateDB.GetQuarkChainConfig().GetDefaultChainTokenID())
 	evm.TransferTokenID = t
 	gasUsed := contract.Gas - remainedGas
 	if ok := contract.UseGas(gasUsed); !ok {
-		//fmt.Println("222")
 		return nil, ErrOutOfGas
 	}
 	return ret, err

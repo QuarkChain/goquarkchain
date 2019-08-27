@@ -413,7 +413,6 @@ func opAddress(pc *uint64, interpreter *EVMInterpreter, contract *Contract, memo
 
 func opBalance(pc *uint64, interpreter *EVMInterpreter, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
 	slot := stack.peek()
-	//fmt.Println("4444444444", interpreter.evm.StateDB.GetBalance(common.BigToAddress(slot), 0))
 	slot.Set(interpreter.evm.StateDB.GetBalance(common.BigToAddress(slot), 0))
 	return nil, nil
 }
@@ -706,16 +705,14 @@ func opCreate(pc *uint64, interpreter *EVMInterpreter, contract *Contract, memor
 	contract.UseGas(gas)
 	res, addr, returnGas, suberr := interpreter.evm.Create(contract, input, gas, value, nil)
 	// Push item on the stack based on the returned error. If the ruleset is
-	// homestead we must checkTokenIDQueried for CodeStoreOutOfGasError (homestead only
+	// homestead we must check for CodeStoreOutOfGasError (homestead only
 	// rule) and treat as an error, if the ruleset is frontier we must
 	// ignore this error and pretend the operation was successful.
 	if interpreter.evm.ChainConfig().IsHomestead(interpreter.evm.BlockNumber) && suberr == ErrCodeStoreOutOfGas {
 		stack.push(interpreter.intPool.getZero())
 	} else if suberr != nil && suberr != ErrCodeStoreOutOfGas {
-		//fmt.Println("???-1")
 		stack.push(interpreter.intPool.getZero())
 	} else {
-		//fmt.Println(">>>-2", addr.Big(), addr.String())
 		stack.push(addr.Big())
 	}
 	contract.Gas += returnGas
@@ -774,7 +771,6 @@ func opCall(pc *uint64, interpreter *EVMInterpreter, contract *Contract, memory 
 	if value.Sign() != 0 {
 		gas += params.CallStipend
 	}
-	//fmt.Println("opCall start",len(args),hex.EncodeToString(args))
 	ret, returnGas, err := interpreter.evm.Call(contract, toAddr, args, gas, value)
 	if err != nil {
 		stack.push(interpreter.intPool.getZero())
@@ -784,7 +780,6 @@ func opCall(pc *uint64, interpreter *EVMInterpreter, contract *Contract, memory 
 	if err == nil || err == errExecutionReverted {
 		memory.Set(retOffset.Uint64(), retSize.Uint64(), ret)
 	}
-	//fmt.Println("opCall end", ret, returnGas, err)
 	contract.Gas += returnGas
 	ModifyTokenIDQueried(contract, toAddr)
 	interpreter.intPool.put(addr, value, inOffset, inSize, retOffset, retSize)

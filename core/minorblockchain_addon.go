@@ -13,6 +13,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
 	"github.com/QuarkChain/goquarkchain/core/rawdb"
 	"github.com/QuarkChain/goquarkchain/core/vm"
+	"github.com/QuarkChain/goquarkchain/qkcdb"
 	"github.com/QuarkChain/goquarkchain/serialize"
 
 	"github.com/QuarkChain/goquarkchain/account"
@@ -1337,127 +1338,126 @@ func (m *MinorBlockChain) getPendingTxByAddress(address account.Address, transfe
 }
 
 func (m *MinorBlockChain) getTransactionDetails(start, end []byte, limit uint32, getTxType GetTxDetailType, skipCoinbaseRewards bool, transferTokenID *uint64) ([]*rpc.TransactionDetail, []byte, error) {
-	panic(-1)
-	//qkcDB, ok := m.db.(*qkcdb.RDBDatabase)
-	//if !ok {
-	//	return nil, nil, errors.New("only support qkcdb now")
-	//}
-	//
-	//skipXShard := func(xShardTx *types.CrossShardTransactionDeposit) bool {
-	//	if xShardTx.IsFromRootChain {
-	//		return skipCoinbaseRewards || xShardTx.Value.Value.Uint64() == 0
-	//	}
-	//	return transferTokenID != nil && xShardTx.TransferTokenID != *transferTokenID
-	//}
-	//
-	//skipTx := func(tx *types.EvmTransaction) bool {
-	//	return transferTokenID != nil && tx.TransferTokenID() != *transferTokenID
-	//}
-	//
-	//var (
-	//	next       = end
-	//	txList     = make([]*rpc.TransactionDetail, 0)
-	//	it         = qkcDB.NewIterator()
-	//	height     uint64
-	//	crossShard bool
-	//	err        error
-	//	index      uint32
-	//	txHashes   = make(map[common.Hash]struct{})
-	//)
-	//
-	//it.SeekForPrev(start)
-	//for it.Valid() {
-	//	if bytes.Compare(it.Key().Data(), end) < 0 {
-	//		break
-	//	}
-	//	if getTxType == GetTxFromAddress {
-	//		height, crossShard, index, err = decodeTxKey(it.Key().Data(), len(addressTxKey), 20)
-	//	} else if getTxType == GetAllTransaction {
-	//		height, crossShard, index, err = decodeTxKey(it.Key().Data(), len(allTxKey), 0)
-	//	} else {
-	//		return nil, nil, errors.New("not support yet")
-	//	}
-	//	if err != nil {
-	//		return nil, nil, err
-	//	}
-	//	mBlock, ok := m.GetBlockByNumber(height).(*types.MinorBlock)
-	//	if !ok {
-	//		log.Error(m.logInfo, "get minor block fialed height", height)
-	//		return nil, nil, errors.New("get minBlock failed")
-	//	}
-	//	if crossShard {
-	//		xShardReceiveTxList := rawdb.ReadConfirmedCrossShardTxList(m.db, mBlock.Hash())
-	//		if index >= uint32(len(xShardReceiveTxList.TXList)) {
-	//			return nil, nil, errors.New("tx's index bigger than txs's len ")
-	//		}
-	//		tx := xShardReceiveTxList.TXList[index]
-	//		_, ok := txHashes[tx.TxHash]
-	//		if !ok && !skipXShard(tx) {
-	//			limit--
-	//			txHashes[tx.TxHash] = struct{}{}
-	//			txList = append(txList, &rpc.TransactionDetail{
-	//				TxHash:          tx.TxHash,
-	//				FromAddress:     tx.From,
-	//				ToAddress:       &tx.To,
-	//				Value:           serialize.Uint256{Value: tx.Value.Value},
-	//				BlockHeight:     height,
-	//				Timestamp:       mBlock.IHeader().GetTime(),
-	//				Success:         true,
-	//				GasTokenID:      tx.GasTokenID,
-	//				TransferTokenID: tx.TransferTokenID,
-	//				IsFromRootChain: tx.IsFromRootChain,
-	//			})
-	//		}
-	//	} else {
-	//		tx := mBlock.Transactions()[index]
-	//		txHash := tx.Hash()
-	//		evmTx := tx.EvmTx
-	//		_, ok := txHashes[txHash]
-	//		if !ok && !skipTx(evmTx) {
-	//			limit--
-	//			receipt, _, _ := rawdb.ReadReceipt(m.db, tx.Hash())
-	//			sender, err := types.Sender(types.MakeSigner(m.clusterConfig.Quarkchain.NetworkID), evmTx)
-	//			if err != nil {
-	//				return nil, nil, err
-	//			}
-	//			toAddr := new(account.Address)
-	//			if evmTx.To() == nil {
-	//				toAddr = nil
-	//			} else {
-	//				toAddr.Recipient = *evmTx.To()
-	//				toAddr.FullShardKey = evmTx.ToFullShardKey()
-	//			}
-	//
-	//			succFlag := false
-	//			if receipt.Status == 1 {
-	//				succFlag = true
-	//			}
-	//
-	//			txList = append(txList, &rpc.TransactionDetail{
-	//				TxHash: txHash,
-	//				FromAddress: account.Address{
-	//					Recipient:    sender,
-	//					FullShardKey: evmTx.FromFullShardKey(),
-	//				},
-	//				ToAddress:       toAddr,
-	//				Value:           serialize.Uint256{Value: evmTx.Value()},
-	//				BlockHeight:     height,
-	//				Timestamp:       mBlock.IHeader().GetTime(),
-	//				Success:         succFlag,
-	//				GasTokenID:      evmTx.GasTokenID(),
-	//				TransferTokenID: evmTx.TransferTokenID(),
-	//				IsFromRootChain: false,
-	//			})
-	//		}
-	//
-	//	}
-	//	next = bytesSubOne(it.Key().Data())
-	//	if limit == 0 {
-	//		break
-	//	}
-	//	it.Prev()
-	//}
-	//return txList, next, nil
+	qkcDB, ok := m.db.(*qkcdb.RDBDatabase)
+	if !ok {
+		return nil, nil, errors.New("only support qkcdb now")
+	}
+
+	skipXShard := func(xShardTx *types.CrossShardTransactionDeposit) bool {
+		if xShardTx.IsFromRootChain {
+			return skipCoinbaseRewards || xShardTx.Value.Value.Uint64() == 0
+		}
+		return transferTokenID != nil && xShardTx.TransferTokenID != *transferTokenID
+	}
+
+	skipTx := func(tx *types.EvmTransaction) bool {
+		return transferTokenID != nil && tx.TransferTokenID() != *transferTokenID
+	}
+
+	var (
+		next       = end
+		txList     = make([]*rpc.TransactionDetail, 0)
+		it         = qkcDB.NewIterator()
+		height     uint64
+		crossShard bool
+		err        error
+		index      uint32
+		txHashes   = make(map[common.Hash]struct{})
+	)
+
+	it.SeekForPrev(start)
+	for it.Valid() {
+		if bytes.Compare(it.Key().Data(), end) < 0 {
+			break
+		}
+		if getTxType == GetTxFromAddress {
+			height, crossShard, index, err = decodeTxKey(it.Key().Data(), len(addressTxKey), 20)
+		} else if getTxType == GetAllTransaction {
+			height, crossShard, index, err = decodeTxKey(it.Key().Data(), len(allTxKey), 0)
+		} else {
+			return nil, nil, errors.New("not support yet")
+		}
+		if err != nil {
+			return nil, nil, err
+		}
+		mBlock, ok := m.GetBlockByNumber(height).(*types.MinorBlock)
+		if !ok {
+			log.Error(m.logInfo, "get minor block fialed height", height)
+			return nil, nil, errors.New("get minBlock failed")
+		}
+		if crossShard {
+			xShardReceiveTxList := rawdb.ReadConfirmedCrossShardTxList(m.db, mBlock.Hash())
+			if index >= uint32(len(xShardReceiveTxList.TXList)) {
+				return nil, nil, errors.New("tx's index bigger than txs's len ")
+			}
+			tx := xShardReceiveTxList.TXList[index]
+			_, ok := txHashes[tx.TxHash]
+			if !ok && !skipXShard(tx) {
+				limit--
+				txHashes[tx.TxHash] = struct{}{}
+				txList = append(txList, &rpc.TransactionDetail{
+					TxHash:          tx.TxHash,
+					FromAddress:     tx.From,
+					ToAddress:       &tx.To,
+					Value:           serialize.Uint256{Value: tx.Value.Value},
+					BlockHeight:     height,
+					Timestamp:       mBlock.IHeader().GetTime(),
+					Success:         true,
+					GasTokenID:      tx.GasTokenID,
+					TransferTokenID: tx.TransferTokenID,
+					IsFromRootChain: tx.IsFromRootChain,
+				})
+			}
+		} else {
+			tx := mBlock.Transactions()[index]
+			txHash := tx.Hash()
+			evmTx := tx.EvmTx
+			_, ok := txHashes[txHash]
+			if !ok && !skipTx(evmTx) {
+				limit--
+				receipt, _, _ := rawdb.ReadReceipt(m.db, tx.Hash())
+				sender, err := types.Sender(types.MakeSigner(m.clusterConfig.Quarkchain.NetworkID), evmTx)
+				if err != nil {
+					return nil, nil, err
+				}
+				toAddr := new(account.Address)
+				if evmTx.To() == nil {
+					toAddr = nil
+				} else {
+					toAddr.Recipient = *evmTx.To()
+					toAddr.FullShardKey = evmTx.ToFullShardKey()
+				}
+
+				succFlag := false
+				if receipt.Status == 1 {
+					succFlag = true
+				}
+
+				txList = append(txList, &rpc.TransactionDetail{
+					TxHash: txHash,
+					FromAddress: account.Address{
+						Recipient:    sender,
+						FullShardKey: evmTx.FromFullShardKey(),
+					},
+					ToAddress:       toAddr,
+					Value:           serialize.Uint256{Value: evmTx.Value()},
+					BlockHeight:     height,
+					Timestamp:       mBlock.IHeader().GetTime(),
+					Success:         succFlag,
+					GasTokenID:      evmTx.GasTokenID(),
+					TransferTokenID: evmTx.TransferTokenID(),
+					IsFromRootChain: false,
+				})
+			}
+
+		}
+		next = bytesSubOne(it.Key().Data())
+		if limit == 0 {
+			break
+		}
+		it.Prev()
+	}
+	return txList, next, nil
 }
 
 func (m *MinorBlockChain) GetTransactionByAddress(address account.Address, transferTokenID *uint64, start []byte, limit uint32) ([]*rpc.TransactionDetail, []byte, error) {

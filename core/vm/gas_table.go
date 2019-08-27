@@ -17,11 +17,9 @@
 package vm
 
 import (
-	"fmt"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/params"
-	"math/big"
 )
 
 // memoryGasCosts calculates the quadratic gas for memory expansion. It does so
@@ -117,32 +115,6 @@ func gasReturnDataCopy(gt params.GasTable, evm *EVM, contract *Contract, stack *
 	return gas, nil
 }
 
-//fake_to_pytttt
-func gasSSto_re(gt params.GasTable, evm *EVM, contract *Contract, stack *Stack, mem *Memory, memorySize uint64) (uint64, error) {
-	var (
-		s1, s0 = stack.Back(1), stack.Back(0)
-	)
-	//fmt.Println("624", s0, evm.StateDB.GetCommittedState(contract.Address(), common.BigToHash(s0)).Big().Uint64(), s1)
-	if evm.StateDB.GetCommittedState(contract.Address(), common.BigToHash(s0)).Big().Uint64() != 0 {
-		//fmt.Println("11111", s1)
-		if s1.Cmp(new(big.Int)) != 0 {
-			return 5000, nil
-		} else {
-			evm.StateDB.AddRefund(15000)
-			return 5000, nil
-		}
-	} else {
-		//fmt.Println("2222", s1, s1.Uint64())
-		if s1.Cmp(new(big.Int)) != 0 {
-			//	fmt.Println("2000000000000")
-			return 20000, nil
-		} else {
-			return 5000, nil
-		}
-	}
-}
-
-//init
 func gasSStore(gt params.GasTable, evm *EVM, contract *Contract, stack *Stack, mem *Memory, memorySize uint64) (uint64, error) {
 	var (
 		y, x    = stack.Back(1), stack.Back(0)
@@ -183,11 +155,9 @@ func gasSStore(gt params.GasTable, evm *EVM, contract *Contract, stack *Stack, m
 	//       2.2.2.1. If original value is 0, add 19800 gas to refund counter.
 	// 	     2.2.2.2. Otherwise, add 4800 gas to refund counter.
 	value := common.BigToHash(y)
-	fmt.Println("624", x, current.String(), y.String(), value.String())
-	//if current == value { // noop (1)
-	//	fmt.Println("111")
-	//	return params.NetSstoreNoopGas, nil
-	//}
+	if current == value { // noop (1)
+		return params.NetSstoreNoopGas, nil
+	}
 	original := evm.StateDB.GetCommittedState(contract.Address(), common.BigToHash(x))
 	if original == current {
 		if original == (common.Hash{}) { // create slot (2.1.1)
@@ -212,7 +182,6 @@ func gasSStore(gt params.GasTable, evm *EVM, contract *Contract, stack *Stack, m
 			evm.StateDB.AddRefund(params.NetSstoreResetRefund)
 		}
 	}
-	fmt.Println("222")
 	return params.NetSstoreDirtyGas, nil
 }
 
@@ -411,7 +380,7 @@ func gasExp(gt params.GasTable, evm *EVM, contract *Contract, stack *Stack, mem 
 	expByteLen := uint64((stack.data[stack.len()-2].BitLen() + 7) / 8)
 
 	var (
-		gas      = expByteLen * gt.ExpByte // no overflow checkTokenIDQueried required. Max is 256 * ExpByte gas
+		gas      = expByteLen * gt.ExpByte // no overflow check required. Max is 256 * ExpByte gas
 		overflow bool
 	)
 	if gas, overflow = math.SafeAdd(gas, GasSlowStep); overflow {

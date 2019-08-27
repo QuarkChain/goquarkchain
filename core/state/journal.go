@@ -17,8 +17,9 @@
 package state
 
 import (
-	"github.com/ethereum/go-ethereum/common"
 	"math/big"
+
+	"github.com/ethereum/go-ethereum/common"
 )
 
 // journalEntry is a modification entry in the state change journal that can be
@@ -48,7 +49,6 @@ func newJournal() *journal {
 
 // append inserts a new modification entry to the end of the change journal.
 func (j *journal) append(entry journalEntry) {
-	//fmt.Println("append", entry.dirtied())
 	j.entries = append(j.entries, entry)
 	if addr := entry.dirtied(); addr != nil {
 		j.dirties[*addr]++
@@ -59,7 +59,6 @@ func (j *journal) append(entry journalEntry) {
 // dirty handling too.
 func (j *journal) revert(statedb *StateDB, snapshot int) {
 	for i := len(j.entries) - 1; i >= snapshot; i-- {
-		//fmt.Println("revert", "type", reflect.TypeOf(j.entries[i]))
 		// Undo the changes made by the operation
 		j.entries[i].revert(statedb)
 

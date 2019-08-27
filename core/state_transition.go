@@ -107,13 +107,11 @@ func IntrinsicGas(data []byte, contractCreation, isCrossShard bool) (uint64, err
 		}
 		// Make sure we don't exceed uint64 for all data combinations
 		if (math.MaxUint64-gas)/params.TxDataNonZeroGas < nz {
-			fmt.Println("444")
 			return 0, vm.ErrOutOfGas
 		}
 		gas += nz * params.TxDataNonZeroGas
 		z := uint64(len(data)) - nz
 		if (math.MaxUint64-gas)/params.TxDataZeroGas < z {
-			fmt.Println("555")
 			return 0, vm.ErrOutOfGas
 		}
 		gas += z * params.TxDataZeroGas
@@ -160,7 +158,6 @@ func (st *StateTransition) to() common.Address {
 
 func (st *StateTransition) useGas(amount uint64) error {
 	if st.gas < amount {
-		fmt.Println("666")
 		return vm.ErrOutOfGas
 	}
 	st.gas -= amount
@@ -234,7 +231,6 @@ func (st *StateTransition) TransitionDb(feeRate *big.Rat) (ret []byte, usedGas u
 	}
 	if contractCreation || evm.ContractAddress != nil {
 		ret, _, st.gas, vmerr = evm.Create(sender, st.data, st.gas, st.value, evm.ContractAddress)
-		//fmt.Println("ccccccccccccc-end", ret, st.gas, vmerr)
 	} else {
 		// Increment the nonce for the next transaction
 		st.state.SetNonce(msg.From(), st.state.GetNonce(sender.Address())+1)
@@ -242,7 +238,6 @@ func (st *StateTransition) TransitionDb(feeRate *big.Rat) (ret []byte, usedGas u
 			ret, st.gas, vmerr = nil, 0, vm.ErrPoSWSenderNotAllowed
 		} else {
 			ret, st.gas, vmerr = evm.Call(sender, st.to(), st.data, st.gas, st.value)
-			//fmt.Println("b0ss-206-end", vmerr, st.gas)
 		}
 	}
 
@@ -260,9 +255,7 @@ func (st *StateTransition) TransitionDb(feeRate *big.Rat) (ret []byte, usedGas u
 	fee := new(big.Int).Mul(new(big.Int).SetUint64(st.gasUsed()), st.gasPrice)
 	rateFee := new(big.Int).Mul(fee, feeRate.Num())
 	rateFee = new(big.Int).Div(rateFee, feeRate.Denom())
-	//fmt.Println("259999", fee, feeRate, rateFee, st.gasUsed(), st.gasPrice)
 	st.state.AddBalance(evm.Coinbase, rateFee, msg.GasTokenID())
-	//fmt.Println("259999-end")
 	blockFee := make(map[uint64]*big.Int)
 	blockFee[msg.GasTokenID()] = rateFee
 	st.state.AddBlockFee(blockFee)
@@ -280,7 +273,7 @@ func (st *StateTransition) refundGas() {
 		refund = st.state.GetRefund()
 	}
 	st.gas += refund
-	//fmt.Println("RRR", st.state.GetRefund(), st.gasUsed())
+
 	// Return ETH for remaining gas, exchanged at the original rate.
 	remaining := new(big.Int).Mul(new(big.Int).SetUint64(st.gas), st.gasPrice)
 	st.state.AddBalance(st.msg.From(), remaining, st.msg.GasTokenID())

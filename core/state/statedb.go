@@ -355,7 +355,6 @@ func (s *StateDB) AddBalance(addr common.Address, amount *big.Int, tokenID uint6
 	if tokenID == 0 {
 		tokenID = s.quarkChainConfig.GetDefaultChainTokenID()
 	}
-	//fmt.Println("AddBalance", addr.String(), tokenID, amount)
 	stateObject := s.GetOrNewStateObject(addr)
 	if stateObject != nil {
 		stateObject.AddBalance(amount, tokenID)
@@ -367,7 +366,6 @@ func (s *StateDB) SubBalance(addr common.Address, amount *big.Int, tokenID uint6
 	if tokenID == 0 {
 		tokenID = s.quarkChainConfig.GetDefaultChainTokenID()
 	}
-	//fmt.Println("SubBalance", addr.String(), tokenID, amount)
 	stateObject := s.GetOrNewStateObject(addr)
 	if stateObject != nil {
 		stateObject.SubBalance(amount, tokenID)
@@ -378,7 +376,6 @@ func (s *StateDB) SetBalance(addr common.Address, amount *big.Int, tokenID uint6
 	if tokenID == 0 {
 		tokenID = s.quarkChainConfig.GetDefaultChainTokenID()
 	}
-	//fmt.Println("SetBalance", addr.String(), tokenID, amount)
 	stateObject := s.GetOrNewStateObject(addr)
 	if stateObject != nil {
 		stateObject.SetBalance(amount, tokenID)
@@ -446,12 +443,7 @@ func (s *StateDB) updateStateObject(stateObject *stateObject) {
 			panic(err)
 		}
 	}
-	//fmt.Println("nonce", mockAccount.Nonce)
-	//fmt.Println("token_balances_value", mockAccount.Balance)
-	//fmt.Println("storage", mockAccount.Root.String())
-	//fmt.Println("code_hash", hex.EncodeToString(mockAccount.CodeHash))
 	s.setError(s.trie.TryUpdate(addr[:], data))
-	//fmt.Println("uuuuuuu",s.useMock, hex.EncodeToString(addr[:]), hex.EncodeToString(data))
 }
 
 // deleteStateObject removes the given object from the state trie.
@@ -468,7 +460,6 @@ func (s *StateDB) getStateObject(addr common.Address) (stateObject *stateObject)
 		if obj.deleted {
 			return nil
 		}
-		//	fmt.Println("cache????", obj.data.TokenBalances.GetBalanceMap())
 		return obj
 	}
 
@@ -478,7 +469,6 @@ func (s *StateDB) getStateObject(addr common.Address) (stateObject *stateObject)
 		s.setError(err)
 		return nil
 	}
-	//fmt.Println("ssss", s.useMock)
 	var data Account
 	if s.useMock {
 		var mockAccount MockAccount
@@ -551,7 +541,6 @@ func (s *StateDB) createObject(addr common.Address) (newobj, prev *stateObject) 
 func (s *StateDB) CreateAccount(addr common.Address) {
 	new, prev := s.createObject(addr)
 	if prev != nil {
-		//fmt.Println("??????")
 		new.setBalances(prev.data.TokenBalances.GetBalanceMap())
 	}
 }
@@ -706,42 +695,20 @@ func (s *StateDB) clearJournalAndRefund() {
 	s.refund = 0
 }
 
-func (s *StateDB) GetJour() map[common.Address]int {
-	return s.journal.dirties
-}
-
 // Commit writes the state to the underlying in-memory trie database.
 func (s *StateDB) Commit(deleteEmptyObjects bool) (root common.Hash, err error) {
 	defer s.clearJournalAndRefund()
 
 	for addr := range s.journal.dirties {
-		//fmt.Println("Dirty", addr.String())
 		s.stateObjectsDirty[addr] = struct{}{}
 	}
-	root, err = s.trie.Commit(func(leaf []byte, parent common.Hash) error {
-		var account Account
-		if err := rlp.DecodeBytes(leaf, &account); err != nil {
-			return nil
-		}
-		if account.Root != emptyState {
-			s.db.TrieDB().Reference(account.Root, parent)
-		}
-		code := common.BytesToHash(account.CodeHash)
-		if code != emptyCode {
-			s.db.TrieDB().Reference(code, parent)
-		}
-		return nil
-	})
-	//fmt.Println("ready to commit", len(s.stateObjects), root.String())
 	// Commit objects to the trie.
 	for addr, stateObject := range s.stateObjects {
 		_, isDirty := s.stateObjectsDirty[addr]
-		//fmt.Println("commit-addr", addr.String(), stateObject.suicided, isDirty, deleteEmptyObjects, stateObject.empty())
 		switch {
 		case stateObject.suicided || (isDirty && deleteEmptyObjects && stateObject.empty()):
 			// If the object has been removed, don't bother syncing it
 			// and just mark it for deletion in the trie.
-			//fmt.Println("?DDDDDDDDDDDDDDDDDDDDD",addr.String())
 			s.deleteStateObject(stateObject)
 		case isDirty:
 			// Write any contract code associated with the state object
