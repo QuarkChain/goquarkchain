@@ -24,11 +24,11 @@ import (
 	"testing"
 )
 
-func TestEvm(t *testing.T) {
-	testStateWithFeature(t, qkcStateTestDir, false)
+func TestState(t *testing.T) {
+	testEVMStateWithFeature(t, qkcStateTestDir, false)
 	//testStateWithFeature(t, ethStateTestDir, true)
 }
-func testStateWithFeature(t *testing.T, dir string, useMock bool) {
+func testEVMStateWithFeature(t *testing.T, dir string, useMock bool) {
 	t.Parallel()
 	st := new(testMatcher)
 	// Broken tests:

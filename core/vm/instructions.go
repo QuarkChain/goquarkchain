@@ -712,10 +712,10 @@ func opCreate(pc *uint64, interpreter *EVMInterpreter, contract *Contract, memor
 	if interpreter.evm.ChainConfig().IsHomestead(interpreter.evm.BlockNumber) && suberr == ErrCodeStoreOutOfGas {
 		stack.push(interpreter.intPool.getZero())
 	} else if suberr != nil && suberr != ErrCodeStoreOutOfGas {
-		fmt.Println("???-1")
+		//fmt.Println("???-1")
 		stack.push(interpreter.intPool.getZero())
 	} else {
-		fmt.Println(">>>-2", addr.Big(), addr.String())
+		//fmt.Println(">>>-2", addr.Big(), addr.String())
 		stack.push(addr.Big())
 	}
 	contract.Gas += returnGas
