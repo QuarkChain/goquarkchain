@@ -188,10 +188,10 @@ func (tx *EvmTransaction) GasTokenID() uint64 {
 func (tx *EvmTransaction) TransferTokenID() uint64 {
 	return tx.data.TransferTokenID
 }
-func (tx *EvmTransaction) FromFullShardKey() uint32 { return tx.data.FromFullShardKey.getValue() }
-func (tx *EvmTransaction) ToFullShardKey() uint32   { return tx.data.ToFullShardKey.getValue() }
-func (tx *EvmTransaction) FromChainID() uint32      { return tx.data.FromFullShardKey.getValue() >> 16 }
-func (tx *EvmTransaction) ToChainID() uint32        { return tx.data.ToFullShardKey.getValue() >> 16 }
+func (tx *EvmTransaction) FromFullShardKey() uint32 { return tx.data.FromFullShardKey.GetValue() }
+func (tx *EvmTransaction) ToFullShardKey() uint32   { return tx.data.ToFullShardKey.GetValue() }
+func (tx *EvmTransaction) FromChainID() uint32      { return tx.data.FromFullShardKey.GetValue() >> 16 }
+func (tx *EvmTransaction) ToChainID() uint32        { return tx.data.ToFullShardKey.GetValue() >> 16 }
 func (tx *EvmTransaction) FromShardSize() uint32 {
 	return tx.FromShardsize
 }
@@ -215,11 +215,11 @@ func (tx *EvmTransaction) SetToShardSize(shardSize uint32) error {
 
 func (tx *EvmTransaction) FromShardID() uint32 {
 	shardMask := tx.FromShardSize() - 1
-	return tx.data.FromFullShardKey.getValue() & shardMask
+	return tx.data.FromFullShardKey.GetValue() & shardMask
 }
 func (tx *EvmTransaction) ToShardID() uint32 {
 	shardMask := tx.ToShardSize() - 1
-	return tx.data.ToFullShardKey.getValue() & shardMask
+	return tx.data.ToFullShardKey.GetValue() & shardMask
 }
 
 // To returns the recipient address of the transaction.
@@ -275,8 +275,8 @@ func (tx *EvmTransaction) AsMessage(s Signer, txHash common.Hash) (Message, erro
 		amount:           tx.data.Amount,
 		data:             tx.data.Payload,
 		checkNonce:       true,
-		fromFullShardKey: tx.data.FromFullShardKey.getValue(),
-		toFullShardKey:   tx.data.ToFullShardKey.getValue(),
+		fromFullShardKey: tx.data.FromFullShardKey.GetValue(),
+		toFullShardKey:   tx.data.ToFullShardKey.GetValue(),
 		txHash:           txHash,
 		isCrossShard:     tx.IsCrossShard(),
 		transferTokenID:  tx.data.TransferTokenID,

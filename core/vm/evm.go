@@ -181,6 +181,13 @@ func (evm *EVM) Interpreter() Interpreter {
 	return evm.interpreter
 }
 
+func checkTokenIDQueried(err error, contract *Contract, txansferTokenID, defaultTokenID uint64) error {
+	if err == nil && len(contract.Code) != 0 && !contract.TokenIDQueried && txansferTokenID != defaultTokenID && contract.value.Uint64() != 0 {
+		err = errExecutionReverted
+	}
+	return err
+}
+
 // Call executes the contract associated with the addr with the given input as
 // parameters. It also handles any necessary value transfer required and takes
 // the necessary steps to create accounts and reverses the state in case of an
@@ -241,7 +248,7 @@ func (evm *EVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 	}
 
 	ret, err = run(evm, contract, input, false)
-
+	err = checkTokenIDQueried(err, contract, evm.TransferTokenID, evm.StateDB.GetQuarkChainConfig().GetDefaultChainTokenID())
 	// When an error was returned by the EVM or when setting the creation code
 	// above we revert to the snapshot and consume any gas remaining. Additionally
 	// when we're in homestead this also counts for code storage gas errors.
@@ -286,6 +293,7 @@ func (evm *EVM) CallCode(caller ContractRef, addr common.Address, input []byte, 
 	contract.SetCallCode(&addr, evm.StateDB.GetCodeHash(addr), evm.StateDB.GetCode(addr))
 
 	ret, err = run(evm, contract, input, false)
+	err = checkTokenIDQueried(err, contract, evm.TransferTokenID, evm.StateDB.GetQuarkChainConfig().GetDefaultChainTokenID())
 	if err != nil {
 		evm.StateDB.RevertToSnapshot(snapshot)
 		if err != errExecutionReverted {
@@ -319,6 +327,8 @@ func (evm *EVM) DelegateCall(caller ContractRef, addr common.Address, input []by
 	contract.SetCallCode(&addr, evm.StateDB.GetCodeHash(addr), evm.StateDB.GetCode(addr))
 
 	ret, err = run(evm, contract, input, false)
+
+	err = checkTokenIDQueried(err, contract, evm.TransferTokenID, evm.StateDB.GetQuarkChainConfig().GetDefaultChainTokenID())
 	if err != nil {
 		evm.StateDB.RevertToSnapshot(snapshot)
 		if err != errExecutionReverted {
@@ -361,6 +371,7 @@ func (evm *EVM) StaticCall(caller ContractRef, addr common.Address, input []byte
 	// above we revert to the snapshot and consume any gas remaining. Additionally
 	// when we're in Homestead this also counts for code storage gas errors.
 	ret, err = run(evm, contract, input, true)
+	err = checkTokenIDQueried(err, contract, evm.TransferTokenID, evm.StateDB.GetQuarkChainConfig().GetDefaultChainTokenID())
 	if err != nil {
 		evm.StateDB.RevertToSnapshot(snapshot)
 		if err != errExecutionReverted {
@@ -386,6 +397,9 @@ func (c *codeAndHash) Hash() common.Hash {
 func (evm *EVM) create(caller ContractRef, codeAndHash *codeAndHash, gas uint64, value *big.Int, address common.Address) ([]byte, common.Address, uint64, error) {
 	// Depth check execution. Fail if we're trying to execute above the
 	// limit.
+	if evm.TransferTokenID != evm.StateDB.GetQuarkChainConfig().GetDefaultChainTokenID() {
+		return nil, common.Address{}, gas, nil
+	}
 	if evm.depth > int(params.CallCreateDepth) {
 		return nil, common.Address{}, gas, ErrDepth
 	}
@@ -424,7 +438,7 @@ func (evm *EVM) create(caller ContractRef, codeAndHash *codeAndHash, gas uint64,
 	start := time.Now()
 
 	ret, err := run(evm, contract, nil, false)
-
+	err = checkTokenIDQueried(err, contract, evm.TransferTokenID, evm.StateDB.GetQuarkChainConfig().GetDefaultChainTokenID())
 	// check whether the max code size has been exceeded
 	maxCodeSizeExceeded := evm.ChainConfig().IsEIP158(evm.BlockNumber) && len(ret) > params.MaxCodeSize
 	// if the contract creation ran successfully and no errors were returned

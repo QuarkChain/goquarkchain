@@ -101,7 +101,8 @@ type Account struct {
 	TokenBalances *types.TokenBalances
 	Root          common.Hash // merkle root of the storage trie
 	CodeHash      []byte
-	FullShardKey  uint32
+	FullShardKey  *types.Uint32
+	Optial        []byte
 }
 
 // newObject creates a state object.
@@ -405,8 +406,9 @@ func (self *stateObject) Value() *big.Int {
 }
 
 func (self *stateObject) FullShardKey() uint32 {
-	return self.data.FullShardKey
+	return self.data.FullShardKey.GetValue()
 }
 func (self *stateObject) SetFullShardKey(fullShardKey uint32) {
-	self.data.FullShardKey = fullShardKey
+	t := types.Uint32(fullShardKey)
+	self.data.FullShardKey = &t
 }
