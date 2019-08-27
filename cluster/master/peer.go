@@ -282,12 +282,11 @@ func (p *Peer) deleteChan(rpcId uint64) {
 
 // requestRootBlockHeaderList fetches a batch of root blocks' headers corresponding to the
 // specified header hashList, based on the hash of an origin block.
-func (p *Peer) requestRootBlockHeaderList(rpcId uint64, hash common.Hash, amount uint32, direction uint8) error {
-	if direction != qkcom.DirectionToGenesis {
+func (p *Peer) requestRootBlockHeaderList(rpcId uint64, request *p2p.GetRootBlockHeaderListRequest) error {
+	if request.Direction != qkcom.DirectionToGenesis {
 		return errors.New("bad direction")
 	}
-	data := p2p.GetRootBlockHeaderListRequest{BlockHash: hash, Limit: amount, Direction: direction}
-	msg, err := p2p.MakeMsg(p2p.GetRootBlockHeaderListRequestMsg, rpcId, p2p.Metadata{}, data)
+	msg, err := p2p.MakeMsg(p2p.GetRootBlockHeaderListRequestMsg, rpcId, p2p.Metadata{}, request)
 	if err != nil {
 		return err
 	}
@@ -315,7 +314,7 @@ func (p *Peer) GetRootBlockHeaderList(req *rpc.GetRootBlockHeaderListRequest) (r
 	defer p.deleteChan(rpcId)
 
 	if req.Skip == 0 && req.Hash != (common.Hash{}) {
-		err = p.requestRootBlockHeaderList(rpcId, req.Hash, req.Limit, req.Direction)
+		err = p.requestRootBlockHeaderList(rpcId, &p2p.GetRootBlockHeaderListRequest{BlockHash: req.Hash, Limit: req.Limit, Direction: req.Direction})
 	} else {
 		skipReq := &p2p.GetRootBlockHeaderListWithSkipRequest{
 			Type:      qkcom.SkipHash,
