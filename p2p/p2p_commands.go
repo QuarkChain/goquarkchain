@@ -199,28 +199,6 @@ func (r *GetRootBlockHeaderListWithSkipRequest) GetHash() common.Hash {
 	return common.Hash{}
 }
 
-func (r *GetRootBlockHeaderListWithSkipRequest) CreateForHeight(height uint64, limit,
-skip uint32, direction uint8) *GetRootBlockHeaderListWithSkipRequest {
-	return &GetRootBlockHeaderListWithSkipRequest{
-		Type:      1,
-		Data:      common.BigToHash(big.NewInt(int64(height))),
-		Limit:     limit,
-		Skip:      skip,
-		Direction: direction,
-	}
-}
-
-func (r *GetRootBlockHeaderListWithSkipRequest) CreateForHash(hash common.Hash, limit,
-skip uint32, direction uint8) *GetRootBlockHeaderListWithSkipRequest {
-	return &GetRootBlockHeaderListWithSkipRequest{
-		Type:      0,
-		Data:      hash,
-		Limit:     limit,
-		Skip:      skip,
-		Direction: direction,
-	}
-}
-
 type GetMinorBlockHeaderListWithSkipRequest struct {
 	Type      uint8 // 0 block hash, 1 block height
 	Data      common.Hash
@@ -244,28 +222,4 @@ func (r *GetMinorBlockHeaderListWithSkipRequest) GetHash() common.Hash {
 		return r.Data
 	}
 	return common.Hash{}
-}
-
-func (m *GetMinorBlockHeaderListWithSkipRequest) CreateForHeight(height uint64, branch account.Branch,
-	limit, skip uint32, direction uint8) *GetMinorBlockHeaderListWithSkipRequest {
-	return &GetMinorBlockHeaderListWithSkipRequest{
-		Type:      1,
-		Data:      common.BigToHash(big.NewInt(int64(height))),
-		Limit:     limit,
-		Skip:      skip,
-		Direction: direction,
-		Branch:    branch,
-	}
-}
-
-func (m *GetMinorBlockHeaderListWithSkipRequest) CreateForHash(hash common.Hash, branch account.Branch,
-	limit, skip uint32, direction uint8) *GetMinorBlockHeaderListWithSkipRequest {
-	return &GetMinorBlockHeaderListWithSkipRequest{
-		Type:      0,
-		Data:      hash,
-		Limit:     limit,
-		Skip:      skip,
-		Direction: direction,
-		Branch:    branch,
-	}
 }

@@ -537,7 +537,7 @@ func (pm *ProtocolManager) HandleGetRootBlockHeaderListRequest(req *p2p.GetRootB
 		rHeaders = append(rHeaders, header.(*types.RootBlockHeader))
 		height = header.NumberU64()
 
-		if height >= rTip.NumberU64() {
+		if height == 0 || height >= rTip.NumberU64() {
 			break
 		}
 
@@ -586,7 +586,7 @@ func (pm *ProtocolManager) HandleGetRootBlockHeaderListWithSkipRequest(peerId st
 	var (
 		height     uint32
 		hash       common.Hash
-		mBHeader   *types.RootBlockHeader
+		rBHeader   *types.RootBlockHeader
 		headerlist = make([]*types.RootBlockHeader, 0, request.Limit)
 	)
 
@@ -599,12 +599,12 @@ func (pm *ProtocolManager) HandleGetRootBlockHeaderListWithSkipRequest(peerId st
 		if qkcom.IsNil(iHeader) {
 			return &p2p.GetRootBlockHeaderListResponse{RootTip: rTip}, nil
 		}
-		mBHeader = iHeader.(*types.RootBlockHeader)
+		rBHeader = iHeader.(*types.RootBlockHeader)
 
 		// Check if it is canonical chain
-		height = mBHeader.Number
+		height = rBHeader.Number
 		iHeader = pm.rootBlockChain.GetBlockByNumber(uint64(height)).IHeader()
-		if qkcom.IsNil(iHeader) || mBHeader.Hash() != iHeader.(*types.RootBlockHeader).Hash() {
+		if qkcom.IsNil(iHeader) || rBHeader.Hash() != iHeader.(*types.RootBlockHeader).Hash() {
 			return &p2p.GetRootBlockHeaderListResponse{RootTip: rTip}, nil
 		}
 	}

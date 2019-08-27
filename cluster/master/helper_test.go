@@ -167,11 +167,11 @@ func newTestPeer(name string, version int, pm *ProtocolManager, shake bool) (*te
 	// Start the peer on a new thread
 	var err error
 	go func() {
-		err = pm.handle(peer)
+		pm.handle(peer)
 	}()
 	tp := &testPeer{app: app, net: net, Peer: peer}
 	// Execute any implicitly requested handshakes and return
-	if shake && err == nil {
+	if shake {
 		err = tp.handshake(pm.rootBlockChain.CurrentBlock().Header(), pm.rootBlockChain.GetBlockByNumber(0).Hash())
 	}
 
