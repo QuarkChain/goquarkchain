@@ -43,9 +43,9 @@ func NewShardGenesis() *ShardGenesis {
 }
 
 type Allocation struct {
-	Balances map[string]*big.Int         `json:"balances"`
-	Code     []byte                      `json:"_"`
-	Storage  map[common.Hash]common.Hash `json:"storage"`
+	Balances map[string]*big.Int
+	Code     []byte
+	Storage  map[common.Hash]common.Hash
 }
 
 type AllocMarshalling = struct {
