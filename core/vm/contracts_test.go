@@ -276,7 +276,7 @@ var bn256ScalarMulTests = []precompiledTest{
 	},
 }
 
-// bn256PairingTests are the test and benchmark data for the bn256 pairing checkTokenIDQueried
+// bn256PairingTests are the test and benchmark data for the bn256 pairing check
 // precompiled contract.
 var bn256PairingTests = []precompiledTest{
 	{
@@ -470,14 +470,14 @@ func BenchmarkPrecompiledBn256ScalarMul(bench *testing.B) {
 	}
 }
 
-// Tests the sample inputs from the elliptic curve pairing checkTokenIDQueried EIP 197.
+// Tests the sample inputs from the elliptic curve pairing check EIP 197.
 func TestPrecompiledBn256Pairing(t *testing.T) {
 	for _, test := range bn256PairingTests {
 		testPrecompiled("08", test, t)
 	}
 }
 
-// Behcnmarks the sample inputs from the elliptic curve pairing checkTokenIDQueried EIP 197.
+// Behcnmarks the sample inputs from the elliptic curve pairing check EIP 197.
 func BenchmarkPrecompiledBn256Pairing(bench *testing.B) {
 	for _, test := range bn256PairingTests {
 		benchmarkPrecompiled("08", test, bench)

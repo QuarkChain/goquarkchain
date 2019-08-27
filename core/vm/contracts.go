@@ -323,10 +323,10 @@ func (c *bn256ScalarMul) Run(input []byte, evm *EVM, contract *Contract) ([]byte
 }
 
 var (
-	// true32Byte is returned if the bn256 pairing checkTokenIDQueried succeeds.
+	// true32Byte is returned if the bn256 pairing check succeeds.
 	true32Byte = []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}
 
-	// false32Byte is returned if the bn256 pairing checkTokenIDQueried fails.
+	// false32Byte is returned if the bn256 pairing check fails.
 	false32Byte = make([]byte, 32)
 
 	// errBadPairingInput is returned if the bn256 pairing input is invalid.
