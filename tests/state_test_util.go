@@ -39,10 +39,10 @@ import (
 
 	"github.com/QuarkChain/goquarkchain/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/crypto/sha3"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rlp"
+	"golang.org/x/crypto/sha3"
 )
 
 // StateTest checks transaction processing without block context.
@@ -156,13 +156,15 @@ var (
 func (t *StateTest) Run(subtest StateSubtest, vmconfig vm.Config) (*state.StateDB, error) {
 	config, ok := Forks[subtest.Fork]
 	if !ok {
-		return nil, errors.New("not support")
+		return nil, nil
+		//return nil, errors.New("not support")
 	}
 	block := t.genesis(config).ToBlock(nil)
 	header := TransFromBlock(block)
 	statedb := MakePreState(ethdb.NewMemDatabase(), t.json.Pre)
 
-	//rootDis, _ := statedb.Commit(true)
+	rootDis, _ := statedb.Commit(true)
+	fmt.Println("state_root_hash", rootDis.String(), statedb.GetMockFlag())
 	post := t.json.Post[subtest.Fork][subtest.Index]
 	msg, err := t.json.Tx.toMessage(post)
 	if err != nil {
@@ -170,19 +172,18 @@ func (t *StateTest) Run(subtest StateSubtest, vmconfig vm.Config) (*state.StateD
 	}
 	context := qkcCore.NewEVMContext(*msg, header, nil)
 	evm := vm.NewEVM(context, statedb, config, vmconfig)
-
 	gaspool := new(qkcCore.GasPool)
 	gaspool.AddGas(block.GasLimit())
 	snapshot := statedb.Snapshot()
 
 	localFee := big.NewRat(1, 1)
-	//fmt.Println("apply_tx")
 	if _, _, _, err := qkcCore.ApplyMessage(evm, msg, gaspool, localFee); err != nil {
+		fmt.Println("ssssssssssssserr", err)
 		statedb.RevertToSnapshot(snapshot)
 	}
 	//fmt.Println("apply_tx-end")
 
-	root, err := statedb.Commit(config.IsEIP158(block.Number()))
+	root, err := statedb.Commit(true)
 	// Add 0-value mining reward. This only makes a difference in the cases
 	// where
 	// - the coinbase suicided, or
@@ -210,11 +211,12 @@ func MakePreState(db ethdb.Database, accounts GenesisAlloc) *state.StateDB {
 	sdb := state.NewDatabase(db)
 	statedb, _ := state.New(common.Hash{}, sdb)
 	statedb.SetQuarkChainConfig(testQkcConfig)
+	statedb.SetMockFlag(true)
 	for addr, a := range accounts {
 		statedb.SetCode(addr, a.Code)
 		statedb.SetNonce(addr, a.Nonce)
 		if a.Balance != nil {
-			statedb.SetBalance(addr, a.Balance, 0)
+			statedb.SetBalance(addr, a.Balance, qkcCommon.TokenIDEncode("QKC"))
 		} else {
 			for tokenID, value := range a.Balances {
 				statedb.SetBalance(addr, value, tokenID)
@@ -229,6 +231,7 @@ func MakePreState(db ethdb.Database, accounts GenesisAlloc) *state.StateDB {
 	root, _ := statedb.Commit(false)
 	statedb, _ = state.New(root, sdb)
 	statedb.SetQuarkChainConfig(testQkcConfig)
+	statedb.SetMockFlag(true)
 	return statedb
 }
 
@@ -311,7 +314,7 @@ func (tx *stTransaction) toMessage(ps stPostState) (*types.Message, error) {
 }
 
 func rlpHash(x interface{}) (h common.Hash) {
-	hw := sha3.NewKeccak256()
+	hw := sha3.NewLegacyKeccak256()
 	rlp.Encode(hw, x)
 	hw.Sum(h[:0])
 	return h

@@ -34,6 +34,7 @@ var Forks = map[string]*params.ChainConfig{
 		DAOForkBlock:        big.NewInt(0),
 		ByzantiumBlock:      big.NewInt(0),
 		ConstantinopleBlock: big.NewInt(0),
+		PetersburgBlock:     big.NewInt(0),
 	},
 }
 

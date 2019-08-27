@@ -18,6 +18,7 @@
 package state
 
 import (
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"math/big"
@@ -27,6 +28,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/params"
 
 	qkcaccount "github.com/QuarkChain/goquarkchain/account"
+	qkcCommon "github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -104,6 +106,7 @@ type StateDB struct {
 	timeStamp            uint64
 	blockNumber          uint64
 	xShardTxCursorInfo   *types.XShardTxCursorInfo
+	useMock              bool
 }
 
 // Create a new state from a given trie.
@@ -353,6 +356,7 @@ func (s *StateDB) AddBalance(addr common.Address, amount *big.Int, tokenID uint6
 	if tokenID == 0 {
 		tokenID = s.quarkChainConfig.GetDefaultChainTokenID()
 	}
+	fmt.Println("AddBalance", addr.String(), tokenID, amount)
 	stateObject := s.GetOrNewStateObject(addr)
 	if stateObject != nil {
 		stateObject.AddBalance(amount, tokenID)
@@ -364,6 +368,7 @@ func (s *StateDB) SubBalance(addr common.Address, amount *big.Int, tokenID uint6
 	if tokenID == 0 {
 		tokenID = s.quarkChainConfig.GetDefaultChainTokenID()
 	}
+	fmt.Println("SubBalance", addr.String(), tokenID, amount)
 	stateObject := s.GetOrNewStateObject(addr)
 	if stateObject != nil {
 		stateObject.SubBalance(amount, tokenID)
@@ -374,6 +379,7 @@ func (s *StateDB) SetBalance(addr common.Address, amount *big.Int, tokenID uint6
 	if tokenID == 0 {
 		tokenID = s.quarkChainConfig.GetDefaultChainTokenID()
 	}
+	fmt.Println("SubBalance", addr.String(), tokenID, amount)
 	stateObject := s.GetOrNewStateObject(addr)
 	if stateObject != nil {
 		stateObject.SetBalance(amount, tokenID)
@@ -433,7 +439,20 @@ func (s *StateDB) updateStateObject(stateObject *stateObject) {
 	if err != nil {
 		panic(fmt.Errorf("can't encode object at %x: %v", addr[:], err))
 	}
+	var mockAccount MockAccount
+	if s.useMock {
+		mockAccount = AccountToMock(stateObject.data)
+		data, err = rlp.EncodeToBytes(mockAccount)
+		if err != nil {
+			panic(err)
+		}
+	}
+	//fmt.Println("nonce", mockAccount.Nonce)
+	//fmt.Println("token_balances_value", mockAccount.Balance)
+	//fmt.Println("storage", mockAccount.Root.String())
+	//fmt.Println("code_hash", hex.EncodeToString(mockAccount.CodeHash))
 	s.setError(s.trie.TryUpdate(addr[:], data))
+	fmt.Println("uuuuuuu", s.useMock, hex.EncodeToString(addr[:]), hex.EncodeToString(data))
 }
 
 // deleteStateObject removes the given object from the state trie.
@@ -450,6 +469,7 @@ func (s *StateDB) getStateObject(addr common.Address) (stateObject *stateObject)
 		if obj.deleted {
 			return nil
 		}
+		//	fmt.Println("cache????", obj.data.TokenBalances.GetBalanceMap())
 		return obj
 	}
 
@@ -459,11 +479,31 @@ func (s *StateDB) getStateObject(addr common.Address) (stateObject *stateObject)
 		s.setError(err)
 		return nil
 	}
+	//fmt.Println("ssss", s.useMock)
 	var data Account
-	if err := rlp.DecodeBytes(enc, &data); err != nil {
-		log.Error("Failed to decode state object", "addr", addr, "err", err)
-		return nil
+	if s.useMock {
+		var mockAccount MockAccount
+		if err := rlp.DecodeBytes(enc, &mockAccount); err != nil {
+			log.Error("Failed to decode state object", "addr", addr, "err", err)
+			return nil
+		}
+		rawTokenBalanes := types.NewEmptyTokenBalances()
+		rawTokenBalanes.SetValue(mockAccount.Balance, qkcCommon.TokenIDEncode("QKC"))
+		fullShardKey := types.Uint32(s.fullShardKey)
+		data = Account{
+			Nonce:         mockAccount.Nonce,
+			TokenBalances: rawTokenBalanes,
+			Root:          mockAccount.Root,
+			CodeHash:      mockAccount.CodeHash,
+			FullShardKey:  &fullShardKey,
+		}
+	} else {
+		if err := rlp.DecodeBytes(enc, &data); err != nil {
+			log.Error("Failed to decode state object", "addr", addr, "err", err)
+			return nil
+		}
 	}
+
 	// Insert into the live set.
 	obj := newObject(s, addr, data)
 	s.setStateObject(obj)
@@ -673,13 +713,16 @@ func (s *StateDB) Commit(deleteEmptyObjects bool) (root common.Hash, err error) 
 	for addr := range s.journal.dirties {
 		s.stateObjectsDirty[addr] = struct{}{}
 	}
+	fmt.Println("ready to commit", len(s.stateObjects))
 	// Commit objects to the trie.
 	for addr, stateObject := range s.stateObjects {
 		_, isDirty := s.stateObjectsDirty[addr]
+		fmt.Println("commit-addr", addr.String(), stateObject.suicided, isDirty, deleteEmptyObjects, stateObject.empty())
 		switch {
 		case stateObject.suicided || (isDirty && deleteEmptyObjects && stateObject.empty()):
 			// If the object has been removed, don't bother syncing it
 			// and just mark it for deletion in the trie.
+			fmt.Println("DDDDDDDDDDDDDDDDDDDDD")
 			s.deleteStateObject(stateObject)
 		case isDirty:
 			// Write any contract code associated with the state object
@@ -847,4 +890,11 @@ func (s *StateDB) SetTxCursorInfo(info *types.XShardTxCursorInfo) {
 
 func (s *StateDB) GetTxCursorInfo() *types.XShardTxCursorInfo {
 	return s.xShardTxCursorInfo
+}
+
+func (s *StateDB) SetMockFlag(flag bool) {
+	s.useMock = flag
+}
+func (s *StateDB) GetMockFlag() bool {
+	return s.useMock
 }

@@ -438,6 +438,7 @@ func (evm *EVM) create(caller ContractRef, codeAndHash *codeAndHash, gas uint64,
 	start := time.Now()
 
 	ret, err := run(evm, contract, nil, false)
+	//fmt.Println("create-run end", ret, err)
 	err = checkTokenIDQueried(err, contract, evm.TransferTokenID, evm.StateDB.GetQuarkChainConfig().GetDefaultChainTokenID())
 	// checkTokenIDQueried whether the max code size has been exceeded
 	maxCodeSizeExceeded := evm.ChainConfig().IsEIP158(evm.BlockNumber) && len(ret) > params.MaxCodeSize
@@ -454,10 +455,13 @@ func (evm *EVM) create(caller ContractRef, codeAndHash *codeAndHash, gas uint64,
 		}
 	}
 
+	//fmt.Println("45999999-err", err, evm.chainConfig.IsHomestead(evm.BlockNumber), err)
+
 	// When an error was returned by the EVM or when setting the creation code
 	// above we revert to the snapshot and consume any gas remaining. Additionally
 	// when we're in homestead this also counts for code storage gas errors.
 	if maxCodeSizeExceeded || (err != nil && (evm.ChainConfig().IsHomestead(evm.BlockNumber) || err != ErrCodeStoreOutOfGas)) {
+		//fmt.Println("RRRRRRRRRR")
 		evm.StateDB.RevertToSnapshot(snapshot)
 		if err != errExecutionReverted {
 			contract.UseGas(contract.Gas)
@@ -475,8 +479,14 @@ func (evm *EVM) create(caller ContractRef, codeAndHash *codeAndHash, gas uint64,
 }
 
 // CreateAddress creates an ethereum address given the bytes and the nonce
-func CreateAddress(b common.Address, toFullShardID uint32, nonce uint64) common.Address {
-	data, _ := rlp.EncodeToBytes([]interface{}{b, toFullShardID, nonce})
+func CreateAddress(b common.Address, fullShardKey uint32, nonce uint64) common.Address {
+	var data []byte
+	if fullShardKey != 0 { //right?
+		data, _ = rlp.EncodeToBytes([]interface{}{b, fullShardKey, nonce})
+	} else {
+		data, _ = rlp.EncodeToBytes([]interface{}{b, nonce})
+	}
+
 	return common.BytesToAddress(crypto.Keccak256(data)[12:])
 }
 
@@ -489,6 +499,7 @@ func (evm *EVM) Create(caller ContractRef, code []byte, gas uint64, value *big.I
 	} else {
 		contractAddr = CreateAddress(caller.Address(), evm.Context.ToFullShardKey, evm.StateDB.GetNonce(caller.Address()))
 	}
+	//fmt.Println("CCCCCCCCCCCCCCCCCCCCC", contractAddr.String(), caller.Address().String(), evm.Context.ToFullShardKey, evm.StateDB.GetNonce(caller.Address()))
 	return evm.create(caller, &codeAndHash{code: code}, gas, value, contractAddr)
 }
 

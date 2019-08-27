@@ -19,6 +19,7 @@ package state
 import (
 	"bytes"
 	"fmt"
+	qkcCommon "github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"io"
 	"math/big"
@@ -103,6 +104,25 @@ type Account struct {
 	CodeHash      []byte
 	FullShardKey  *types.Uint32
 	Optial        []byte
+}
+
+type MockAccount struct {
+	Nonce    uint64
+	Balance  *big.Int
+	Root     common.Hash // merkle root of the storage trie
+	CodeHash []byte
+}
+
+func AccountToMock(acc Account) MockAccount {
+	if len(acc.TokenBalances.GetBalanceMap()) > 1 {
+		panic("len should <=1")
+	}
+	return MockAccount{
+		Nonce:    acc.Nonce,
+		Balance:  acc.TokenBalances.GetTokenBalance(qkcCommon.TokenIDEncode("QKC")),
+		Root:     acc.Root,
+		CodeHash: acc.CodeHash,
+	}
 }
 
 // newObject creates a state object.
@@ -229,6 +249,7 @@ func (self *stateObject) setState(key, value common.Hash) {
 func (self *stateObject) updateTrie(db Database) Trie {
 	tr := self.getTrie(db)
 	for key, value := range self.dirtyStorage {
+		//fmt.Println("tttt", key.Big(), value.Big())
 		delete(self.dirtyStorage, key)
 
 		// Skip noop changes, persist actual changes
@@ -263,6 +284,7 @@ func (self *stateObject) CommitTrie(db Database) error {
 	}
 	root, err := self.trie.Commit(nil)
 	if err == nil {
+		//fmt.Println("2888888888888", self.address.String(), root.String())
 		self.data.Root = root
 	}
 	return err

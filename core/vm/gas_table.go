@@ -17,9 +17,11 @@
 package vm
 
 import (
+	"fmt"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/params"
+	"math/big"
 )
 
 // memoryGasCosts calculates the quadratic gas for memory expansion. It does so
@@ -115,13 +117,42 @@ func gasReturnDataCopy(gt params.GasTable, evm *EVM, contract *Contract, stack *
 	return gas, nil
 }
 
+//fake_to_pytttt
+func gasSSto_re(gt params.GasTable, evm *EVM, contract *Contract, stack *Stack, mem *Memory, memorySize uint64) (uint64, error) {
+	var (
+		s1, s0 = stack.Back(1), stack.Back(0)
+	)
+	//fmt.Println("624", s0, evm.StateDB.GetCommittedState(contract.Address(), common.BigToHash(s0)).Big().Uint64(), s1)
+	if evm.StateDB.GetCommittedState(contract.Address(), common.BigToHash(s0)).Big().Uint64() != 0 {
+		//fmt.Println("11111", s1)
+		if s1.Cmp(new(big.Int)) != 0 {
+			return 5000, nil
+		} else {
+			evm.StateDB.AddRefund(15000)
+			return 5000, nil
+		}
+	} else {
+		//fmt.Println("2222", s1, s1.Uint64())
+		if s1.Cmp(new(big.Int)) != 0 {
+			//	fmt.Println("2000000000000")
+			return 20000, nil
+		} else {
+			return 5000, nil
+		}
+	}
+}
+
+//init
 func gasSStore(gt params.GasTable, evm *EVM, contract *Contract, stack *Stack, mem *Memory, memorySize uint64) (uint64, error) {
 	var (
 		y, x    = stack.Back(1), stack.Back(0)
 		current = evm.StateDB.GetState(contract.Address(), common.BigToHash(x))
 	)
 	// The legacy gas metering only takes into consideration the current state
-	if !evm.chainRules.IsConstantinople {
+	// Legacy rules should be applied if we are in Petersburg (removal of EIP-1283)
+	// OR Constantinople is not active
+	if evm.chainRules.IsPetersburg || !evm.chainRules.IsConstantinople {
+
 		// This checks for 3 scenario's and calculates gas accordingly:
 		//
 		// 1. From a zero-value address to a non-zero value         (NEW VALUE)
@@ -152,9 +183,11 @@ func gasSStore(gt params.GasTable, evm *EVM, contract *Contract, stack *Stack, m
 	//       2.2.2.1. If original value is 0, add 19800 gas to refund counter.
 	// 	     2.2.2.2. Otherwise, add 4800 gas to refund counter.
 	value := common.BigToHash(y)
-	if current == value { // noop (1)
-		return params.NetSstoreNoopGas, nil
-	}
+	fmt.Println("624", x, current.String(), y.String(), value.String())
+	//if current == value { // noop (1)
+	//	fmt.Println("111")
+	//	return params.NetSstoreNoopGas, nil
+	//}
 	original := evm.StateDB.GetCommittedState(contract.Address(), common.BigToHash(x))
 	if original == current {
 		if original == (common.Hash{}) { // create slot (2.1.1)
@@ -179,6 +212,7 @@ func gasSStore(gt params.GasTable, evm *EVM, contract *Contract, stack *Stack, m
 			evm.StateDB.AddRefund(params.NetSstoreResetRefund)
 		}
 	}
+	fmt.Println("222")
 	return params.NetSstoreDirtyGas, nil
 }
 

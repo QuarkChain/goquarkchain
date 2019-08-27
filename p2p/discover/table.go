@@ -303,18 +303,18 @@ func (tab *Table) lookup(targetKey encPubkey, refreshIfEmpty bool) []*node {
 }
 
 func (tab *Table) findnode(n *node, targetKey encPubkey, reply chan<- []*node) {
-	fails := tab.db.FindFails(n.ID())
+	fails := tab.db.FindFails(n.ID(), n.IP())
 	r, err := tab.net.findnode(n.ID(), n.addr(), targetKey)
 	if err != nil || len(r) == 0 {
 		fails++
-		tab.db.UpdateFindFails(n.ID(), fails)
+		tab.db.UpdateFindFails(n.ID(), n.IP(), fails)
 		log.Trace("Findnode failed", "id", n.ID(), "failcount", fails, "err", err)
 		if fails >= maxFindnodeFailures {
 			log.Trace("Too many findnode failures, dropping", "id", n.ID(), "failcount", fails)
 			tab.delete(n)
 		}
 	} else if fails > 0 {
-		tab.db.UpdateFindFails(n.ID(), fails-1)
+		tab.db.UpdateFindFails(n.ID(), n.IP(), fails-1)
 	}
 
 	// Grab as many nodes as possible. Some of them might not be alive anymore, but we'll
@@ -433,7 +433,7 @@ func (tab *Table) loadSeedNodes() {
 	seeds = append(seeds, tab.nursery...)
 	for i := range seeds {
 		seed := seeds[i]
-		age := log.Lazy{Fn: func() interface{} { return time.Since(tab.db.LastPongReceived(seed.ID())) }}
+		age := log.Lazy{Fn: func() interface{} { return time.Since(tab.db.LastPongReceived(seed.ID(), seed.IP())) }}
 		log.Trace("Found seed node in database", "id", seed.ID(), "addr", seed.addr(), "age", age)
 		tab.add(seed)
 	}

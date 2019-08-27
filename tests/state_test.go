@@ -25,8 +25,8 @@ import (
 )
 
 func TestEvm(t *testing.T) {
-	testQKCState(t, qkcStateTestDir)
-	//testQKCState(t, ethStateTestDir)
+	//testQKCState(t, qkcStateTestDir)
+	testQKCState(t, ethStateTestDir)
 }
 func testQKCState(t *testing.T, dir string) {
 	t.Parallel()

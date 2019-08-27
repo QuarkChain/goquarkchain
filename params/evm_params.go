@@ -27,7 +27,7 @@ type Denoms struct {
 }
 
 var (
-	DefaultConstantinople=ethParams.ChainConfig{
+	DefaultConstantinople = ethParams.ChainConfig{
 		ChainID:             big.NewInt(1),
 		HomesteadBlock:      big.NewInt(0),
 		EIP150Block:         big.NewInt(0),
@@ -36,5 +36,6 @@ var (
 		DAOForkBlock:        big.NewInt(0),
 		ByzantiumBlock:      big.NewInt(0),
 		ConstantinopleBlock: big.NewInt(0),
+		PetersburgBlock:     big.NewInt(0),
 	}
 )
