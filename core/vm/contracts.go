@@ -397,6 +397,7 @@ func (c *transferMnt) Run(input []byte, evm *EVM, contract *Contract) ([]byte, e
 		return nil, errors.New("should 96")
 	}
 
+	//fmt.Println("input",len(input),hex.EncodeToString(input))
 	toBytes := getData(input, 0, 32)
 	toAddr := common.BytesToAddress(toBytes)
 
@@ -409,6 +410,8 @@ func (c *transferMnt) Run(input []byte, evm *EVM, contract *Contract) ([]byte, e
 	data := getData(input, 96, uint64(len(input)-96))
 	t := evm.TransferTokenID
 	evm.TransferTokenID = mnt.Uint64()
+
+	//fmt.Println("special",contract.caller.Address().String(),toAddr.String())
 	ret, remainedGas, err := evm.Call(contract.caller, toAddr, data, contract.Gas, value)
 	err = checkTokenIDQueried(err, contract, evm.TransferTokenID, evm.StateDB.GetQuarkChainConfig().GetDefaultChainTokenID())
 	evm.TransferTokenID = t

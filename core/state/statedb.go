@@ -451,7 +451,7 @@ func (s *StateDB) updateStateObject(stateObject *stateObject) {
 	//fmt.Println("storage", mockAccount.Root.String())
 	//fmt.Println("code_hash", hex.EncodeToString(mockAccount.CodeHash))
 	s.setError(s.trie.TryUpdate(addr[:], data))
-	//fmt.Println("uuuuuuu", hex.EncodeToString(addr[:]), hex.EncodeToString(data))
+	//fmt.Println("uuuuuuu",s.useMock, hex.EncodeToString(addr[:]), hex.EncodeToString(data))
 }
 
 // deleteStateObject removes the given object from the state trie.
@@ -741,7 +741,7 @@ func (s *StateDB) Commit(deleteEmptyObjects bool) (root common.Hash, err error) 
 		case stateObject.suicided || (isDirty && deleteEmptyObjects && stateObject.empty()):
 			// If the object has been removed, don't bother syncing it
 			// and just mark it for deletion in the trie.
-			//fmt.Println("DDDDDDDDDDDDDDDDDDDDD")
+			//fmt.Println("?DDDDDDDDDDDDDDDDDDDDD",addr.String())
 			s.deleteStateObject(stateObject)
 		case isDirty:
 			// Write any contract code associated with the state object

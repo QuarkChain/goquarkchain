@@ -81,7 +81,7 @@ type Message interface {
 	Data() []byte
 	IsCrossShard() bool
 	FromFullShardKey() uint32
-	ToFullShardKey() uint32
+	ToFullShardKey() *uint32
 	TxHash() common.Hash
 	GasTokenID() uint64
 	TransferTokenID() uint64
@@ -324,6 +324,7 @@ func (st *StateTransition) AddCrossShardTxDeposit(intrinsicGas uint64, feeRate *
 		crossShardGasPrice.Value = new(big.Int).Set(msg.GasPrice())
 		crossShardGas := new(serialize.Uint256)
 		crossShardGas.Value = new(big.Int).SetUint64(remoteGasReserved)
+		t:=msg.ToFullShardKey()
 		crossShardData := &types.CrossShardTransactionDeposit{
 			TxHash: msg.TxHash(),
 			From: account.Address{
@@ -332,7 +333,7 @@ func (st *StateTransition) AddCrossShardTxDeposit(intrinsicGas uint64, feeRate *
 			},
 			To: account.Address{
 				Recipient:    vm.CreateAddress(msg.From(), msg.ToFullShardKey(), state.GetNonce(msg.From())),
-				FullShardKey: msg.ToFullShardKey(),
+				FullShardKey:*t ,
 			},
 			Value:           crossShardValue,
 			GasTokenID:      msg.GasTokenID(),
@@ -354,6 +355,7 @@ func (st *StateTransition) AddCrossShardTxDeposit(intrinsicGas uint64, feeRate *
 		crossShardGasPrice.Value = new(big.Int).Set(msg.GasPrice())
 		crossShardGas := new(serialize.Uint256)
 		crossShardGas.Value = new(big.Int).SetUint64(remoteGasReserved)
+		t:=msg.ToFullShardKey()
 		crossShardData := &types.CrossShardTransactionDeposit{
 			TxHash: msg.TxHash(),
 			From: account.Address{
@@ -362,7 +364,7 @@ func (st *StateTransition) AddCrossShardTxDeposit(intrinsicGas uint64, feeRate *
 			},
 			To: account.Address{
 				Recipient:    account.Recipient(*msg.To()),
-				FullShardKey: msg.ToFullShardKey(),
+				FullShardKey:*t,
 			},
 			Value:           crossShardValue,
 			GasTokenID:      msg.GasTokenID(),

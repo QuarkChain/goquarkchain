@@ -25,11 +25,11 @@ import (
 )
 
 func TestState(t *testing.T) {
+	t.Parallel()
 	testEVMStateWithFeature(t, qkcStateTestDir, false)
-	//testStateWithFeature(t, ethStateTestDir, true)
+	testEVMStateWithFeature(t, ethStateTestDir, true)
 }
 func testEVMStateWithFeature(t *testing.T, dir string, useMock bool) {
-	t.Parallel()
 	st := new(testMatcher)
 	// Broken tests:
 	st.skipLoad(`^stTransactionTest/OverflowGasRequire\.json`) // gasLimit > 256 bits

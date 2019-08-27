@@ -166,7 +166,7 @@ func (t *StateTest) Run(subtest StateSubtest, vmconfig vm.Config, useMock bool) 
 	//rootDis, _ := statedb.Commit(true)
 	//fmt.Println("state_root_hash", rootDis.String(), statedb.GetMockFlag())
 	post := t.json.Post[subtest.Fork][subtest.Index]
-	msg, err := t.json.Tx.toMessage(post)
+	msg, err := t.json.Tx.toMessage(post,useMock)
 	if err != nil {
 		return nil, err
 	}
@@ -251,7 +251,7 @@ func (t *StateTest) genesis(config *params.ChainConfig) *core.Genesis {
 	}
 }
 
-func (tx *stTransaction) toMessage(ps stPostState) (*types.Message, error) {
+func (tx *stTransaction) toMessage(ps stPostState,useMock bool) (*types.Message, error) {
 	// Derive sender from private key if present.
 	var from common.Address
 	if len(tx.PrivateKey) > 0 {
@@ -314,7 +314,12 @@ func (tx *stTransaction) toMessage(ps stPostState) (*types.Message, error) {
 		transferTokenID = tx.TransferTokenID[ps.Indexes.TransferTokenID]
 	}
 
-	msg := types.NewMessage(fromRecipient, toRecipient, tx.Nonce, value, gasLimit, tx.GasPrice, data, true, 0, 0, transferTokenID, testQKCID)
+	uint32Zero:=uint32(0)
+	toFullShardKey:=&uint32Zero
+	if useMock{
+		toFullShardKey=nil
+	}
+	msg := types.NewMessage(fromRecipient, toRecipient, tx.Nonce, value, gasLimit, tx.GasPrice, data, true, 0, toFullShardKey, transferTokenID, testQKCID)
 	return &msg, nil
 }
 

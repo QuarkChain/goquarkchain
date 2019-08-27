@@ -89,7 +89,7 @@ type Context struct {
 	BlockNumber        *big.Int       // Provides information for NUMBER
 	Time               *big.Int       // Provides information for TIME
 	Difficulty         *big.Int       // Provides information for DIFFICULTY
-	ToFullShardKey     uint32
+	ToFullShardKey     *uint32
 	GasTokenID         uint64
 	TransferTokenID    uint64
 	IsApplyXShard      bool
@@ -496,10 +496,10 @@ func (evm *EVM) create(caller ContractRef, codeAndHash *codeAndHash, gas uint64,
 }
 
 // CreateAddress creates an ethereum address given the bytes and the nonce
-func CreateAddress(b common.Address, fullShardKey uint32, nonce uint64) common.Address {
+func CreateAddress(b common.Address, fullShardKey *uint32, nonce uint64) common.Address {
 	var data []byte
-	if fullShardKey != 0 { //right?
-		data, _ = rlp.EncodeToBytes([]interface{}{b, fullShardKey, nonce})
+	if fullShardKey!=nil { //right?
+		data, _ = rlp.EncodeToBytes([]interface{}{b, *fullShardKey, nonce})
 	} else {
 		data, _ = rlp.EncodeToBytes([]interface{}{b, nonce})
 	}
