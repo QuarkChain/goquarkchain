@@ -198,7 +198,7 @@ func newRootBlockChain(sz int) blockchain {
 func TestRootChainTaskEmpty(t *testing.T) {
 	p := &mockpeer{name: "chunfeng"}
 	bc := newRootBlockChain(5)
-	var rt = NewRootChainTask(p, bc.CurrentHeader().(*types.RootBlockHeader), &RootBlockSychronizerStats{}, nil, nil)
+	var rt = NewRootChainTask(p, bc.CurrentHeader().(*types.RootBlockHeader), &BlockSychronizerStats{}, nil, nil)
 	// No error if already have the target block.
 	err := rt.Run(bc)
 	assert.NoError(t, err)
@@ -213,7 +213,7 @@ func TestRootChainTaskBigerThanLimit(t *testing.T) {
 
 	p.retRBlocks, p.retRHeaders = makeRootChains(rbc.GetBlockByNumber(0).(*types.RootBlock), 1000, false)
 
-	var stats = &RootBlockSychronizerStats{}
+	var stats = &BlockSychronizerStats{}
 	var rt = NewRootChainTask(p, p.retRHeaders[800], stats, nil, nil)
 
 	err := rt.Run(bc)

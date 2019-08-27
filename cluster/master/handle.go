@@ -46,7 +46,7 @@ type ProtocolManager struct {
 	statsChan         chan *rpc.ShardStatus
 
 	// TODO can be removed ?
-	stats       *qkcsync.RootBlockSychronizerStats
+	stats       *qkcsync.BlockSychronizerStats
 	maxPeers    int
 	peers       *peerSet // Set of active peers from which rootDownloader can proceed
 	newPeerCh   chan *Peer
@@ -70,7 +70,7 @@ func NewProtocolManager(env config.ClusterConfig, rootBlockChain *core.RootBlock
 		statsChan:        statsChan,
 		synchronizer:     synchronizer,
 		getShardConnFunc: getShardConnFunc,
-		stats:            &qkcsync.RootBlockSychronizerStats{},
+		stats:            &qkcsync.BlockSychronizerStats{},
 	}
 	protocol := p2p.Protocol{
 		Name:    QKCProtocolName,

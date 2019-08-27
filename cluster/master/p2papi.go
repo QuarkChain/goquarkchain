@@ -89,6 +89,8 @@ func (api *PrivateP2PAPI) MinorHead(req *rpc.MinorHeadRequest) (*types.MinorBloc
 	if peer == nil {
 		return nil, errNotRegistered
 	}
-	mBHeader := peer.MinorHead(req.Branch).MinorBlockHeaderList[0]
-	return mBHeader, nil
+	if mTip := peer.MinorHead(req.Branch); mTip != nil && mTip.MinorBlockHeaderList != nil {
+		return mTip.MinorBlockHeaderList[0], nil
+	}
+	return nil, errors.New("empty minor block header")
 }

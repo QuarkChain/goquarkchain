@@ -5,13 +5,13 @@ package master
 import (
 	"errors"
 	"fmt"
-	"github.com/QuarkChain/goquarkchain/cluster/rpc"
 	"io/ioutil"
 	"math/big"
 	"sync"
 	"time"
 
 	"github.com/QuarkChain/goquarkchain/account"
+	"github.com/QuarkChain/goquarkchain/cluster/rpc"
 	qkcom "github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/p2p"
@@ -283,6 +283,9 @@ func (p *Peer) deleteChan(rpcId uint64) {
 // requestRootBlockHeaderList fetches a batch of root blocks' headers corresponding to the
 // specified header hashList, based on the hash of an origin block.
 func (p *Peer) requestRootBlockHeaderList(rpcId uint64, hash common.Hash, amount uint32, direction uint8) error {
+	if direction != qkcom.DirectionToGenesis {
+		return errors.New("bad direction")
+	}
 	data := p2p.GetRootBlockHeaderListRequest{BlockHash: hash, Limit: amount, Direction: direction}
 	msg, err := p2p.MakeMsg(p2p.GetRootBlockHeaderListRequestMsg, rpcId, p2p.Metadata{}, data)
 	if err != nil {
