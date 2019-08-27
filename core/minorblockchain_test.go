@@ -580,7 +580,8 @@ func TestMinorFastVsFullChains(t *testing.T) {
 		shardConfig := clusterConfig.Quarkchain.GetShardConfigByFullShardID(v)
 		temp := make(map[string]*big.Int)
 		temp["QKC"] = big.NewInt(1000000)
-		shardConfig.Genesis.Alloc[addr] = temp
+		alloc := config.Allocation{Balances: temp}
+		shardConfig.Genesis.Alloc[addr] = alloc
 	}
 
 	clusterConfig.Quarkchain.SkipRootCoinbaseCheck = true
@@ -798,17 +799,18 @@ func TestMinorChainTxReorgs(t *testing.T) {
 	for _, v := range ids {
 		temp := make(map[string]*big.Int)
 		temp["QKC"] = big.NewInt(1000000)
+		alloc := config.Allocation{Balances: temp}
 		addr := addr1.AddressInShard(v)
 		shardConfig := clusterConfig.Quarkchain.GetShardConfigByFullShardID(v)
-		shardConfig.Genesis.Alloc[addr] = temp
+		shardConfig.Genesis.Alloc[addr] = alloc
 
 		addr = addr2.AddressInShard(v)
 		shardConfig = clusterConfig.Quarkchain.GetShardConfigByFullShardID(v)
-		shardConfig.Genesis.Alloc[addr] = temp
+		shardConfig.Genesis.Alloc[addr] = alloc
 
 		addr = addr3.AddressInShard(v)
 		shardConfig = clusterConfig.Quarkchain.GetShardConfigByFullShardID(v)
-		shardConfig.Genesis.Alloc[addr] = temp
+		shardConfig.Genesis.Alloc[addr] = alloc
 	}
 	clusterConfig.Quarkchain.SkipRootCoinbaseCheck = true
 	clusterConfig.Quarkchain.SkipMinorDifficultyCheck = true
@@ -942,7 +944,8 @@ func TestMinorLogReorgs(t *testing.T) {
 		shardConfig := clusterConfig.Quarkchain.GetShardConfigByFullShardID(v)
 		temp := make(map[string]*big.Int)
 		temp["QKC"] = big.NewInt(1000000)
-		shardConfig.Genesis.Alloc[addr] = temp
+		alloc := config.Allocation{Balances: temp}
+		shardConfig.Genesis.Alloc[addr] = alloc
 
 	}
 	engine := &consensus.FakeEngine{}
@@ -1013,7 +1016,8 @@ func TestMinorReorgSideEvent(t *testing.T) {
 		shardConfig := clusterConfig.Quarkchain.GetShardConfigByFullShardID(v)
 		temp := make(map[string]*big.Int)
 		temp["QKC"] = big.NewInt(1000000)
-		shardConfig.Genesis.Alloc[addr] = temp
+		alloc := config.Allocation{Balances: temp}
+		shardConfig.Genesis.Alloc[addr] = alloc
 
 	}
 	engine := &consensus.FakeEngine{}
@@ -1168,7 +1172,8 @@ func TestMinorEIP161AccountRemoval(t *testing.T) {
 		shardConfig := clusterConfig.Quarkchain.GetShardConfigByFullShardID(v)
 		temp := make(map[string]*big.Int)
 		temp["QKC"] = big.NewInt(1000000)
-		shardConfig.Genesis.Alloc[addr] = temp
+		alloc := config.Allocation{Balances: temp}
+		shardConfig.Genesis.Alloc[addr] = alloc
 
 	}
 	chainConfig := &params.ChainConfig{
