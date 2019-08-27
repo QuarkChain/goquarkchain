@@ -539,7 +539,7 @@ func TestBroadcastCrossShardTransactions(t *testing.T) {
 	txDepositList := clstrList[0].GetShard(id1).MinorBlockChain.ReadCrossShardTxList(b1.Hash())
 	xshardList := txDepositList.TXList
 	assert.Equal(t, len(xshardList), 1)
-	assert.Equal(t, xshardList[0].TxHash, tx.EvmTx.Hash())
+	assert.Equal(t, xshardList[0].TxHash, tx.Hash())
 	assert.Equal(t, xshardList[0].From, geneAcc.QKCAddress)
 	assert.Equal(t, xshardList[0].To, toAddr)
 	assert.Equal(t, xshardList[0].Value.Value.Uint64(), uint64(100))
@@ -554,7 +554,7 @@ func TestBroadcastCrossShardTransactions(t *testing.T) {
 	txDepositList = clstrList[0].GetShard(id1).MinorBlockChain.ReadCrossShardTxList(b0.Hash())
 	xshardList = txDepositList.TXList
 	assert.Equal(t, len(xshardList), 1)
-	assert.Equal(t, xshardList[0].TxHash, tx.EvmTx.Hash())
+	assert.Equal(t, xshardList[0].TxHash, tx.Hash())
 	assert.Equal(t, xshardList[0].From, geneAcc.QKCAddress)
 	assert.Equal(t, xshardList[0].To, toAddr)
 	assert.Equal(t, xshardList[0].Value.Value.Uint64(), uint64(100))

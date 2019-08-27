@@ -228,8 +228,8 @@ func (st *StateTransition) TransitionDb(feeRate *big.Rat) (ret []byte, usedGas u
 		st.state.SetNonce(msg.From(), st.state.GetNonce(sender.Address())+1)
 		return st.AddCrossShardTxDeposit(gas, feeRate)
 	}
-	if contractCreation {
-		ret, _, st.gas, vmerr = evm.Create(sender, st.data, st.gas, st.value, msg.IsCrossShard())
+	if contractCreation || evm.ContractAddress != nil {
+		ret, _, st.gas, vmerr = evm.Create(sender, st.data, st.gas, st.value, evm.ContractAddress)
 	} else {
 		// Increment the nonce for the next transaction
 		st.state.SetNonce(msg.From(), st.state.GetNonce(sender.Address())+1)
@@ -292,7 +292,9 @@ func (st *StateTransition) preFill() {
 	st.initialGas = st.gas
 }
 
-func (st *StateTransition) AddCrossShardTxDeposit(intrinsicGas uint64, feeRate *big.Rat) (ret []byte, usedGas uint64, failed bool, err error) {
+func (st *StateTransition) AddCrossShardTxDeposit(intrinsicGas uint64, feeRate *big.Rat) (ret []byte, usedGas uint64,
+	failed bool, err error) {
+
 	evm := st.evm
 	msg := st.msg
 	state := evm.StateDB
@@ -305,6 +307,36 @@ func (st *StateTransition) AddCrossShardTxDeposit(intrinsicGas uint64, feeRate *
 		st.gas = 0
 		failed = true
 		err = vm.ErrPoSWSenderNotAllowed
+	} else if msg.To() == nil {
+		state.SubBalance(msg.From(), st.value, msg.TransferTokenID())
+		remoteGasReserved = msg.Gas() - intrinsicGas
+		crossShardValue := new(serialize.Uint256)
+		crossShardValue.Value = new(big.Int).Set(msg.Value())
+		crossShardGasPrice := new(serialize.Uint256)
+		crossShardGasPrice.Value = new(big.Int).Set(msg.GasPrice())
+		crossShardGas := new(serialize.Uint256)
+		crossShardGas.Value = new(big.Int).SetUint64(remoteGasReserved)
+		crossShardData := &types.CrossShardTransactionDeposit{
+			TxHash: msg.TxHash(),
+			From: account.Address{
+				Recipient:    account.Recipient(msg.From()),
+				FullShardKey: msg.FromFullShardKey(),
+			},
+			To: account.Address{
+				Recipient:    vm.CreateAddress(msg.From(), msg.ToFullShardKey(), state.GetNonce(msg.From())),
+				FullShardKey: msg.ToFullShardKey(),
+			},
+			Value:           crossShardValue,
+			GasTokenID:      msg.GasTokenID(),
+			TransferTokenID: msg.TransferTokenID(),
+			GasRemained:     crossShardGas,
+			GasPrice:        crossShardGasPrice,
+			MessageData:     msg.Data(),
+			CreateContract:  true,
+		}
+		state.AppendXShardList(crossShardData)
+		failed = false
+
 	} else {
 		state.SubBalance(msg.From(), st.value, msg.TransferTokenID())
 		remoteGasReserved = msg.Gas() - intrinsicGas

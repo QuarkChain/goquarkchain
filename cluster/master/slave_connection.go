@@ -232,9 +232,9 @@ func (s *SlaveConnection) GetTransactionReceipt(txHash common.Hash, branch accou
 	return rsp.MinorBlock, rsp.Index, rsp.Receipt, nil
 }
 
-func (s *SlaveConnection) GetTransactionsByAddress(address *account.Address, start []byte, limit uint32) ([]*rpc.TransactionDetail, []byte, error) {
+func (s *SlaveConnection) GetTransactionsByAddress(address *account.Address, start []byte, limit uint32, transferTokenID *uint64) ([]*rpc.TransactionDetail, []byte, error) {
 	var (
-		req   = rpc.GetTransactionListByAddressRequest{Address: address, Start: start, Limit: limit}
+		req   = rpc.GetTransactionListByAddressRequest{Address: address, TransferTokenID: transferTokenID, Start: start, Limit: limit}
 		trans = rpc.GetTxDetailResponse{}
 		res   *rpc.Response
 		bytes []byte
@@ -365,10 +365,11 @@ func (s *SlaveConnection) GetCode(address *account.Address, height *uint64) ([]b
 	return rsp.Result, err
 }
 
-func (s *SlaveConnection) GasPrice(branch account.Branch) (uint64, error) {
+func (s *SlaveConnection) GasPrice(branch account.Branch, tokenID uint64) (uint64, error) {
 	var (
 		req = rpc.GasPriceRequest{
-			Branch: branch.Value,
+			Branch:  branch.Value,
+			TokenID: tokenID,
 		}
 		rsp = new(rpc.GasPriceResponse)
 		res = new(rpc.Response)

@@ -604,6 +604,10 @@ func (s *QKCMasterBackend) GetLastMinorBlockByFullShardID(fullShardId uint32) (u
 	return data.Height, nil
 }
 
+func (s *QKCMasterBackend) GetRootHashConfirmingMinorBlock(mBlockID []byte) common.Hash {
+	return s.rootBlockChain.GetRootBlockConfirmingMinorBlock(mBlockID)
+}
+
 // UpdateTxCountHistory update Tx count queue
 func (s *QKCMasterBackend) UpdateTxCountHistory(txCount, xShardTxCount uint32, createTime uint64) {
 	s.lock.Lock()
