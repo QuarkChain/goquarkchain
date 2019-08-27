@@ -455,6 +455,7 @@ func (srv *Server) Start() (err error) {
 	srv.peerOp = make(chan peerOpFunc)
 	srv.peerOpDone = make(chan struct{})
 	srv.blackNodeFilter = &BlackNodes{
+		currTime:         time.Now(),
 		WhitelistNodes:   srv.WhitelistNodes,
 		dialoutBlacklist: make(map[string]int64),
 		dialinBlacklist:  make(map[string]int64),
