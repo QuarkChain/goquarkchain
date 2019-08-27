@@ -414,9 +414,14 @@ func (evm *EVM) create(caller ContractRef, codeAndHash *codeAndHash, gas uint64,
 	if evm.StateDB.GetNonce(address) != 0 || (contractHash != (common.Hash{}) && contractHash != emptyCodeHash) {
 		return nil, common.Address{}, 0, ErrContractAddressCollision
 	}
+	//fmt.Println("before snao")
+	//for k, v := range evm.StateDB.(*state.StateDB).GetJour() {
+	//	fmt.Println("detail", k.String(), v)
+	//}
 	// Create a new account on the state
 	snapshot := evm.StateDB.Snapshot()
 	evm.StateDB.CreateAccount(address)
+	//fmt.Println("create account end")
 
 	evm.StateDB.SetNonce(address, 1)
 
@@ -436,6 +441,11 @@ func (evm *EVM) create(caller ContractRef, codeAndHash *codeAndHash, gas uint64,
 		evm.vmConfig.Tracer.CaptureStart(caller.Address(), address, true, codeAndHash.code, gas, value)
 	}
 	start := time.Now()
+
+	//fmt.Println("before evm")
+	//for k, v := range evm.StateDB.(*state.StateDB).GetJour() {
+	//	fmt.Println("detail", k.String(), v)
+	//}
 
 	ret, err := run(evm, contract, nil, false)
 	//fmt.Println("create-run end", ret, err)
@@ -461,11 +471,18 @@ func (evm *EVM) create(caller ContractRef, codeAndHash *codeAndHash, gas uint64,
 	// above we revert to the snapshot and consume any gas remaining. Additionally
 	// when we're in homestead this also counts for code storage gas errors.
 	if maxCodeSizeExceeded || (err != nil && (evm.ChainConfig().IsHomestead(evm.BlockNumber) || err != ErrCodeStoreOutOfGas)) {
-		//fmt.Println("RRRRRRRRRR")
+		//fmt.Println("RRRRRRRRRR-1", snapshot)
+		//for k, v := range evm.StateDB.(*state.StateDB).GetJour() {
+		//	fmt.Println("detail", k.String(), v)
+		//}
 		evm.StateDB.RevertToSnapshot(snapshot)
 		if err != errExecutionReverted {
 			contract.UseGas(contract.Gas)
 		}
+		//fmt.Println("RRRRRRRRRR-2")
+		//for k, v := range evm.StateDB.(*state.StateDB).GetJour() {
+		//	fmt.Println("detail", k.String(), v)
+		//}
 	}
 	// Assign err if contract code size exceeds the max while the err is still empty.
 	if maxCodeSizeExceeded && err == nil {

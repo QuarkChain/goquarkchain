@@ -242,7 +242,7 @@ func (st *StateTransition) TransitionDb(feeRate *big.Rat) (ret []byte, usedGas u
 			ret, st.gas, vmerr = nil, 0, vm.ErrPoSWSenderNotAllowed
 		} else {
 			ret, st.gas, vmerr = evm.Call(sender, st.to(), st.data, st.gas, st.value)
-			fmt.Println("b0ss-206-end", vmerr, st.gas)
+			//fmt.Println("b0ss-206-end", vmerr, st.gas)
 		}
 	}
 

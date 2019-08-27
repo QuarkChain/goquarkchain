@@ -94,6 +94,33 @@
             ],
             "ConstantinopleFix" : [
                 {
+                    "hash" : "0x22ff43aa98be72ed10c84c46a9c2958240f72fb9e4491ff9160cc9a373aff38d",
+                    "indexes" : {
+                        "data" : 0,
+                        "gas" : 0,
+                        "value" : 0
+                    },
+                    "logs" : "0x1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347"
+                },
+                {
+                    "hash" : "0x87e974092872fa33f217917ae155dff0c3a2632dec86463bed229f82981b220d",
+                    "indexes" : {
+                        "data" : 0,
+                        "gas" : 0,
+                        "value" : 1
+                    },
+                    "logs" : "0x1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347"
+                },
+                {
+                    "hash" : "0x15c7570eb738501a44b6054541736c878786b127f6e5ea01951ae4960c90b6c1",
+                    "indexes" : {
+                        "data" : 0,
+                        "gas" : 1,
+                        "value" : 0
+                    },
+                    "logs" : "0x1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347"
+                },
+                {
                     "hash" : "0x15c7570eb738501a44b6054541736c878786b127f6e5ea01951ae4960c90b6c1",
                     "indexes" : {
                         "data" : 0,

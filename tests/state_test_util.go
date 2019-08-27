@@ -153,7 +153,7 @@ var (
 )
 
 // Run executes a specific subtest.
-func (t *StateTest) Run(subtest StateSubtest, vmconfig vm.Config) (*state.StateDB, error) {
+func (t *StateTest) Run(subtest StateSubtest, vmconfig vm.Config, useMock bool) (*state.StateDB, error) {
 	config, ok := Forks[subtest.Fork]
 	if !ok {
 		return nil, nil
@@ -161,10 +161,10 @@ func (t *StateTest) Run(subtest StateSubtest, vmconfig vm.Config) (*state.StateD
 	}
 	block := t.genesis(config).ToBlock(nil)
 	header := TransFromBlock(block)
-	statedb := MakePreState(ethdb.NewMemDatabase(), t.json.Pre)
+	statedb := MakePreState(ethdb.NewMemDatabase(), t.json.Pre, useMock)
 
-	rootDis, _ := statedb.Commit(true)
-	fmt.Println("state_root_hash", rootDis.String(), statedb.GetMockFlag())
+	//rootDis, _ := statedb.Commit(true)
+	//fmt.Println("state_root_hash", rootDis.String(), statedb.GetMockFlag())
 	post := t.json.Post[subtest.Fork][subtest.Index]
 	msg, err := t.json.Tx.toMessage(post)
 	if err != nil {
@@ -178,25 +178,30 @@ func (t *StateTest) Run(subtest StateSubtest, vmconfig vm.Config) (*state.StateD
 
 	localFee := big.NewRat(1, 1)
 	if _, _, _, err := qkcCore.ApplyMessage(evm, msg, gaspool, localFee); err != nil {
-		fmt.Println("ssssssssssssserr", err)
+		//fmt.Println("ssssssssssssserr", err)
 		statedb.RevertToSnapshot(snapshot)
 	}
 	//fmt.Println("apply_tx-end")
 
+	//fmt.Println("commit-start")
 	root, err := statedb.Commit(true)
+	//fmt.Println("commit-end")
 	// Add 0-value mining reward. This only makes a difference in the cases
 	// where
 	// - the coinbase suicided, or
 	// - there are only 'bad' transactions, which aren't executed. In those cases,
 	//   the coinbase gets no txfee, so isn't created, and thus needs to be touched
 	statedb.AddBalance(block.Coinbase(), new(big.Int), 0)
+	//fmt.Println("IntermediateRoot-start")
+	root = statedb.IntermediateRoot(config.IsEIP158(block.Number()))
+	//fmt.Println("IntermediateRoot-end")
 	// And _now_ get the state root
 	// N.B: We need to do this in a two-step process, because the first Commit takes care
 	// of suicides, and we need to touch the coinbase _after_ it has potentially suicided.
 	if root != common.Hash(post.Root) {
 		return statedb, fmt.Errorf("post state root mismatch: got %x, want %x", root, post.Root)
 	}
-	fmt.Println("hash match", root.String(), common.Hash(post.Root).String())
+	//fmt.Println("hash match", root.String(), common.Hash(post.Root).String())
 	//if logs := rlpHash(statedb.Logs()); logs != common.Hash(post.Logs) {
 	//	return statedb, fmt.Errorf("post state logs hash mismatch: got %x, want %x", logs, post.Logs)
 	//}
@@ -207,11 +212,11 @@ func (t *StateTest) gasLimit(subtest StateSubtest) uint64 {
 	return t.json.Tx.GasLimit[t.json.Post[subtest.Fork][subtest.Index].Indexes.Gas]
 }
 
-func MakePreState(db ethdb.Database, accounts GenesisAlloc) *state.StateDB {
+func MakePreState(db ethdb.Database, accounts GenesisAlloc, useMock bool) *state.StateDB {
 	sdb := state.NewDatabase(db)
 	statedb, _ := state.New(common.Hash{}, sdb)
 	statedb.SetQuarkChainConfig(testQkcConfig)
-	statedb.SetMockFlag(true)
+	statedb.SetMockFlag(useMock)
 	for addr, a := range accounts {
 		statedb.SetCode(addr, a.Code)
 		statedb.SetNonce(addr, a.Nonce)
@@ -231,7 +236,7 @@ func MakePreState(db ethdb.Database, accounts GenesisAlloc) *state.StateDB {
 	root, _ := statedb.Commit(false)
 	statedb, _ = state.New(root, sdb)
 	statedb.SetQuarkChainConfig(testQkcConfig)
-	statedb.SetMockFlag(true)
+	statedb.SetMockFlag(useMock)
 	return statedb
 }
 

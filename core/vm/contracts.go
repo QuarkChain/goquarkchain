@@ -20,7 +20,6 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"errors"
-	"fmt"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -77,7 +76,7 @@ func RunPrecompiledContract(p PrecompiledContract, input []byte, contract *Contr
 	if contract.UseGas(gas) {
 		return p.Run(input, evm, contract)
 	}
-	fmt.Println("111")
+	//fmt.Println("111")
 	return nil, ErrOutOfGas
 }
 
@@ -415,7 +414,7 @@ func (c *transferMnt) Run(input []byte, evm *EVM, contract *Contract) ([]byte, e
 	evm.TransferTokenID = t
 	gasUsed := contract.Gas - remainedGas
 	if ok := contract.UseGas(gasUsed); !ok {
-		fmt.Println("222")
+		//fmt.Println("222")
 		return nil, ErrOutOfGas
 	}
 	return ret, err
