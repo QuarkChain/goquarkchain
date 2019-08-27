@@ -31,10 +31,15 @@ type task struct {
 	getHeaders       func(types.IHeader) ([]types.IHeader, error)
 	getBlocks        func([]common.Hash) ([]types.IBlock, error)
 	syncBlock        func(blockchain, types.IBlock) error
+	needSkip         func(b blockchain) bool
 }
 
 // Run will execute the synchronization task.
 func (t *task) Run(bc blockchain) error {
+	if t.needSkip(bc) {
+		return nil
+	}
+
 	ancestor, err := t.findAncestor(bc)
 	if err != nil || ancestor == nil {
 		return err

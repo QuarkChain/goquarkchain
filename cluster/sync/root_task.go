@@ -119,6 +119,12 @@ func NewRootChainTask(
 			rbc := bc.(rootblockchain)
 			return rChain.syncMinorBlocks(rbc, rb)
 		},
+		needSkip: func(b blockchain) bool {
+			if rChain.header.GetTotalDifficulty().Cmp(b.CurrentHeader().GetTotalDifficulty()) <= 0 {
+				return true
+			}
+			return false
+		},
 	}
 	return rChain
 }

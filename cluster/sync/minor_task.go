@@ -101,6 +101,12 @@ func NewMinorChainTask(
 			}
 			return ret, nil
 		},
+		needSkip: func(b blockchain) bool {
+			if mChain.header.NumberU64() <= b.CurrentHeader().NumberU64() {
+				return true
+			}
+			return false
+		},
 	}
 	return mChain
 }
