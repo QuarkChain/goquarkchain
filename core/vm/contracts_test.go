@@ -18,10 +18,12 @@ package vm
 
 import (
 	"fmt"
+	"github.com/QuarkChain/goquarkchain/params"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/stretchr/testify/assert"
+	"math"
 	"math/big"
 	"testing"
-
-	"github.com/ethereum/go-ethereum/common"
 )
 
 // precompiledTest defines the input/output pairs for precompiled contract tests.
@@ -342,7 +344,7 @@ func testPrecompiled(addr string, test precompiledTest, t *testing.T) {
 	contract := NewContract(AccountRef(common.HexToAddress("1337")),
 		nil, new(big.Int), p.RequiredGas(in))
 	t.Run(fmt.Sprintf("%s-Gas=%d", test.name, contract.Gas), func(t *testing.T) {
-		if res, err := RunPrecompiledContract(p, in, contract); err != nil {
+		if res, err := RunPrecompiledContract(p, in, contract, nil); err != nil {
 			t.Error(err)
 		} else if common.Bytes2Hex(res) != test.expected {
 			t.Errorf("Expected %v, got %v", test.expected, common.Bytes2Hex(res))
@@ -371,7 +373,7 @@ func benchmarkPrecompiled(addr string, test precompiledTest, bench *testing.B) {
 		for i := 0; i < bench.N; i++ {
 			contract.Gas = reqGas
 			copy(data, in)
-			res, err = RunPrecompiledContract(p, data, contract)
+			res, err = RunPrecompiledContract(p, data, contract, nil)
 		}
 		bench.StopTimer()
 		//Check if it is correct
@@ -480,4 +482,25 @@ func BenchmarkPrecompiledBn256Pairing(bench *testing.B) {
 	for _, test := range bn256PairingTests {
 		benchmarkPrecompiled("08", test, bench)
 	}
+}
+
+func TestPrecompiledCurrentMntID(t *testing.T) {
+	evm := NewEVM(Context{}, nil, &params.DefaultConstantinople, Config{})
+	p := PrecompiledContractsByzantium[common.HexToAddress("000000000000000000000000000000514b430001")]
+	in := common.Hex2Bytes("")
+
+	//test case 1: not enough gas
+	contract := NewContract(AccountRef(common.HexToAddress("1337")),
+		nil, new(big.Int), p.RequiredGas(in)-1)
+
+	_, err := RunPrecompiledContract(p, in, contract, evm)
+	assert.Equal(t, err, ErrOutOfGas)
+
+	//  test case 2: normal case
+	evm = NewEVM(Context{TransferTokenID: math.MaxUint64}, nil, &params.DefaultConstantinople, Config{})
+	contract = NewContract(AccountRef(common.HexToAddress("1337")),
+		nil, new(big.Int), p.RequiredGas(in))
+	res, err := RunPrecompiledContract(p, in, contract, evm)
+	assert.NoError(t, err)
+	assert.Equal(t, new(big.Int).SetBytes(res).Uint64(), evm.TransferTokenID)
 }

@@ -27,13 +27,14 @@ type Denoms struct {
 }
 
 var (
-	DefaultByzantium = ethParams.ChainConfig{
-		ChainID:        big.NewInt(1),
-		HomesteadBlock: big.NewInt(0),
-		EIP150Block:    big.NewInt(0),
-		EIP155Block:    big.NewInt(0),
-		EIP158Block:    big.NewInt(0),
-		DAOForkBlock:   big.NewInt(0),
-		ByzantiumBlock: big.NewInt(0),
+	DefaultConstantinople=ethParams.ChainConfig{
+		ChainID:             big.NewInt(1),
+		HomesteadBlock:      big.NewInt(0),
+		EIP150Block:         big.NewInt(0),
+		EIP155Block:         big.NewInt(0),
+		EIP158Block:         big.NewInt(0),
+		DAOForkBlock:        big.NewInt(0),
+		ByzantiumBlock:      big.NewInt(0),
+		ConstantinopleBlock: big.NewInt(0),
 	}
 )
