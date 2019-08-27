@@ -51,6 +51,7 @@ func NewRootChainTask(
 	rTask.task = task{
 		name:             "root",
 		maxSyncStaleness: 22500,
+		batchSize:        RootBlockBatchSize,
 		findAncestor: func(bc blockchain) (types.IHeader, error) {
 
 			if bc.HasBlock(rTask.header.Hash()) {

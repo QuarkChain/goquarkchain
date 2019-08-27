@@ -58,6 +58,10 @@ func (p *mockpeer) GetMinorBlockHeaderList(req *rpc.GetMinorBlockHeaderListReque
 }
 
 func (p *mockpeer) GetMinorBlockList(hashes []common.Hash, branch uint32) ([]*types.MinorBlock, error) {
+	if len(hashes) > 2*MinorBlockBatchSize {
+		return nil, fmt.Errorf("bad number of minor blocks requested. branch: %d; limit: %d; expected limit: %d",
+			branch, MinorBlockHeaderListLimit, MinorBlockBatchSize)
+	}
 	mBlocks := make([]*types.MinorBlock, 0, len(hashes))
 	sign := 0
 	for _, mhash := range hashes {

@@ -85,6 +85,9 @@ func (p *mockpeer) GetRootBlockHeaderList(request *rpc.GetRootBlockHeaderListReq
 }
 
 func (p *mockpeer) GetRootBlockList(hashes []common.Hash) ([]*types.RootBlock, error) {
+	if len(hashes) > 2*RootBlockBatchSize {
+		return nil, fmt.Errorf("len of RootBlockHashList is larger than expected, limit: %d, want: %d", len(hashes), RootBlockBatchSize)
+	}
 	rBlocks := make([]*types.RootBlock, 0, len(hashes))
 	sign := 0
 	for _, rhash := range hashes {
@@ -214,7 +217,7 @@ func TestRootChainTaskBigerThanLimit(t *testing.T) {
 	p.retRBlocks, p.retRHeaders = makeRootChains(rbc.GetBlockByNumber(0).(*types.RootBlock), 1000, false)
 
 	var stats = &BlockSychronizerStats{}
-	var rt = NewRootChainTask(p, p.retRHeaders[800], stats, nil, nil)
+	var rt = NewRootChainTask(p, p.retRHeaders[100], stats, nil, nil)
 
 	err := rt.Run(bc)
 	assert.NoError(t, err)

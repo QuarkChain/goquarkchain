@@ -27,6 +27,7 @@ type Task interface {
 type task struct {
 	name             string
 	maxSyncStaleness uint64
+	batchSize        int
 	findAncestor     func(blockchain) (types.IHeader, error)
 	getHeaders       func(types.IHeader) ([]types.IHeader, error)
 	getBlocks        func([]common.Hash) ([]types.IBlock, error)
@@ -72,21 +73,31 @@ func (t *task) Run(bc blockchain) error {
 			hashlist = append(hashlist, hd.Hash())
 		}
 
-		blocks, err := t.getBlocks(hashlist)
-		if err != nil {
-			return err
-		}
-
-		for _, blk := range blocks {
-			if t.syncBlock != nil {
-				if err := t.syncBlock(bc, blk); err != nil {
-					return err
-				}
+		for len(hashlist) > 0 {
+			var blocks []types.IBlock
+			if len(hashlist) > t.batchSize {
+				blocks, err = t.getBlocks(hashlist[:t.batchSize])
+				hashlist = hashlist[t.batchSize:]
+			} else {
+				blocks, err = t.getBlocks(hashlist)
+				hashlist = nil
 			}
-			if err := bc.AddBlock(blk); err != nil {
+
+			if err != nil {
 				return err
 			}
-			ancestor = blk.IHeader()
+
+			for _, blk := range blocks {
+				if t.syncBlock != nil {
+					if err := t.syncBlock(bc, blk); err != nil {
+						return err
+					}
+				}
+				if err := bc.AddBlock(blk); err != nil {
+					return err
+				}
+				ancestor = blk.IHeader()
+			}
 		}
 	}
 	return nil
