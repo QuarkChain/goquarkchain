@@ -32,24 +32,24 @@ func NewMinorChainTask(
 	p minorSyncerPeer,
 	header *types.MinorBlockHeader,
 ) Task {
-	mChain := &minorChainTask{
+	mTask := &minorChainTask{
 		header:       header,
 		stat:         &BlockSychronizerStats{},
 		peer:         p,
 		maxStaleness: 22500 * 6,
 	}
-	mChain.task = task{
+	mTask.task = task{
 		name:             fmt.Sprintf("shard-%d", header.Branch.GetShardID()),
 		maxSyncStaleness: 22500 * 6, // TODO: derive from root chain?
 		findAncestor: func(bc blockchain) (types.IHeader, error) {
 
-			if bc.HasBlock(mChain.header.Hash()) {
+			if bc.HasBlock(mTask.header.Hash()) {
 				return nil, nil
 			}
 
-			ancestor, err := mChain.findAncestor(bc)
+			ancestor, err := mTask.findAncestor(bc)
 			if err != nil {
-				mChain.stat.AncestorNotFoundCount += 1
+				mTask.stat.AncestorNotFoundCount += 1
 				return nil, err
 			}
 
@@ -60,18 +60,18 @@ func NewMinorChainTask(
 			return ancestor, nil
 		},
 		getHeaders: func(startheader types.IHeader) ([]types.IHeader, error) {
-			if startheader.NumberU64() >= mChain.header.Number {
+			if startheader.NumberU64() >= mTask.header.Number {
 				return nil, nil
 			}
 
 			mHeader := startheader.(*types.MinorBlockHeader)
 			limit := uint64(MinorBlockHeaderListLimit)
-			heightDiff := mChain.header.Number - mHeader.Number
+			heightDiff := mTask.header.Number - mHeader.Number
 			if limit > heightDiff {
 				limit = heightDiff
 			}
 
-			mBHeaders, err := mChain.downloadBlockHeaderListAndCheck(mHeader.Number+1, 0, limit, mHeader.Branch.Value)
+			mBHeaders, err := mTask.downloadBlockHeaderListAndCheck(mHeader.Number+1, 0, limit, mHeader.Branch.Value)
 			if err != nil {
 				return nil, err
 			}
@@ -102,13 +102,13 @@ func NewMinorChainTask(
 			return ret, nil
 		},
 		needSkip: func(b blockchain) bool {
-			if mChain.header.NumberU64() <= b.CurrentHeader().NumberU64() {
+			if mTask.header.NumberU64() <= b.CurrentHeader().NumberU64() {
 				return true
 			}
 			return false
 		},
 	}
-	return mChain
+	return mTask
 }
 
 func (m *minorChainTask) Priority() *big.Int {
@@ -148,7 +148,7 @@ limit uint64, branch uint32) ([]*types.MinorBlockHeader, error) {
 		return nil, errors.New("Bad peer sending incorrect number of root block headers ")
 	}
 
-	if resp.ShardTip.Hash() != m.header.Hash() {
+	if resp.ShardTip.Number > m.header.Number {
 		m.header = resp.ShardTip
 	}
 	return resp.BlockHeaderList, nil

@@ -40,7 +40,7 @@ func NewRootChainTask(
 	statusChan chan *rpc.ShardStatus,
 	getShardConnFunc func(fullShardId uint32) []rpc.ShardConnForP2P,
 ) Task {
-	rChain := &rootChainTask{
+	rTask := &rootChainTask{
 		peer:             p,
 		header:           header,
 		stats:            stats,
@@ -48,18 +48,18 @@ func NewRootChainTask(
 		getShardConnFunc: getShardConnFunc,
 		maxStaleness:     22500,
 	}
-	rChain.task = task{
+	rTask.task = task{
 		name:             "root",
 		maxSyncStaleness: 22500,
 		findAncestor: func(bc blockchain) (types.IHeader, error) {
 
-			if bc.HasBlock(rChain.header.Hash()) {
+			if bc.HasBlock(rTask.header.Hash()) {
 				return nil, nil
 			}
 
-			ancestor, err := rChain.findAncestor(bc)
+			ancestor, err := rTask.findAncestor(bc)
 			if err != nil {
-				rChain.stats.AncestorNotFoundCount += 1
+				rTask.stats.AncestorNotFoundCount += 1
 				return nil, err
 			}
 
@@ -67,23 +67,23 @@ func NewRootChainTask(
 				return nil, errors.New("Bad ancestor ")
 			}
 
-			if rChain.header.ToTalDifficulty.Cmp(ancestor.ToTalDifficulty) < 0 {
+			if rTask.header.ToTalDifficulty.Cmp(ancestor.ToTalDifficulty) < 0 {
 				return nil, errors.New("ancestor's total difficulty is bigger than current")
 			}
 			return ancestor, nil
 		},
 		getHeaders: func(startHeader types.IHeader) ([]types.IHeader, error) {
-			if startHeader.NumberU64() >= uint64(rChain.header.Number) {
+			if startHeader.NumberU64() >= uint64(rTask.header.Number) {
 				return nil, nil
 			}
 
 			limit := uint32(RootBlockHeaderListLimit)
-			heightDiff := rChain.header.Number - uint32(startHeader.NumberU64())
+			heightDiff := rTask.header.Number - uint32(startHeader.NumberU64())
 			if limit > heightDiff {
 				limit = heightDiff
 			}
 
-			rBHeaders, err := rChain.downloadBlockHeaderListAndCheck(uint32(startHeader.NumberU64()+1), 0, limit)
+			rBHeaders, err := rTask.downloadBlockHeaderListAndCheck(uint32(startHeader.NumberU64()+1), 0, limit)
 			if err != nil {
 				return nil, err
 			}
@@ -117,16 +117,16 @@ func NewRootChainTask(
 		syncBlock: func(bc blockchain, block types.IBlock) error {
 			rb := block.(*types.RootBlock)
 			rbc := bc.(rootblockchain)
-			return rChain.syncMinorBlocks(rbc, rb)
+			return rTask.syncMinorBlocks(rbc, rb)
 		},
 		needSkip: func(b blockchain) bool {
-			if rChain.header.GetTotalDifficulty().Cmp(b.CurrentHeader().GetTotalDifficulty()) <= 0 {
+			if rTask.header.GetTotalDifficulty().Cmp(b.CurrentHeader().GetTotalDifficulty()) <= 0 {
 				return true
 			}
 			return false
 		},
 	}
-	return rChain
+	return rTask
 }
 
 func (r *rootChainTask) Priority() *big.Int {
