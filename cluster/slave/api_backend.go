@@ -389,15 +389,15 @@ func (s *SlaveBackend) GetMinorBlockListByHashList(mHashList []common.Hash, bran
 }
 
 func (s *SlaveBackend) getMinorBlockHeaders(req *p2p.GetMinorBlockHeaderListRequest) ([]*types.MinorBlockHeader, error) {
-	var (
-		headerList = make([]*types.MinorBlockHeader, 0, req.Limit)
-		err        error
-	)
-
 	shard, ok := s.shards[req.Branch.Value]
 	if !ok {
 		return nil, ErrMsg("GetMinorBlockHeaderList")
 	}
+
+	var (
+		headerList = make([]*types.MinorBlockHeader, 0, req.Limit)
+		err        error
+	)
 
 	mHash := req.BlockHash
 	if qcom.IsNil(shard.MinorBlockChain.GetHeader(mHash)) {
@@ -431,11 +431,11 @@ func (s *SlaveBackend) getMinorBlockHeadersWithSkip(gReq *p2p.GetMinorBlockHeade
 			return headerlist, nil
 		}
 		mHeader := iHeader.(*types.MinorBlockHeader)
-		height = mHeader.Number
 		iHeader = shrd.MinorBlockChain.GetHeaderByNumber(height)
 		if qcom.IsNil(iHeader) || mHeader.Hash() != iHeader.Hash() {
 			return headerlist, nil
 		}
+		height = mHeader.Number
 	} else {
 		height = *gReq.GetHeight()
 	}
@@ -453,9 +453,11 @@ func (s *SlaveBackend) getMinorBlockHeadersWithSkip(gReq *p2p.GetMinorBlockHeade
 		}
 	}
 
-	sort.Slice(headerlist, func(i, j int) bool {
-		return headerlist[i].Number < headerlist[j].Number
-	})
+	if gReq.Direction == qcom.DirectionToGenesis {
+		sort.Slice(headerlist, func(i, j int) bool {
+			return headerlist[i].Number < headerlist[j].Number
+		})
+	}
 
 	return headerlist, nil
 }

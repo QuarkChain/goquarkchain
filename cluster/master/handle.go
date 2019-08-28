@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"reflect"
+	"sort"
 	"sync"
 	"time"
 
@@ -595,6 +596,12 @@ func (pm *ProtocolManager) HandleGetRootBlockHeaderListWithSkipRequest(peerId st
 		} else {
 			height += request.Skip + 1
 		}
+	}
+
+	if request.Direction == qkcom.DirectionToGenesis {
+		sort.Slice(headerlist, func(i, j int) bool {
+			return headerlist[i].Number < headerlist[j].Number
+		})
 	}
 
 	return &p2p.GetRootBlockHeaderListResponse{RootTip: rTip, BlockHeaderList: headerlist}, nil
