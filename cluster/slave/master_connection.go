@@ -107,7 +107,7 @@ func (s *ConnManager) GetMinorBlocks(mHeaderList []common.Hash, peerId string, b
 	return gRep.MinorBlockList, nil
 }
 
-func (s *ConnManager) GetMinorBlockHeaderList(gReq *rpc.GetMinorBlockHeaderListRequest) (*p2p.GetMinorBlockHeaderListResponse, error) {
+func (s *ConnManager) GetMinorBlockHeaderList(gReq *p2p.MinorHeaderListWithSkip) ([]*types.MinorBlockHeader, error) {
 	var (
 		gRep p2p.GetMinorBlockHeaderListResponse
 		res  *rpc.Response
@@ -126,25 +126,7 @@ func (s *ConnManager) GetMinorBlockHeaderList(gReq *rpc.GetMinorBlockHeaderListR
 		return nil, err
 	}
 
-	return &gRep, nil
-}
-
-func (s *ConnManager) MinorHead(req *rpc.MinorHeadRequest) (*types.MinorBlockHeader, error) {
-	data, err := serialize.SerializeToBytes(req)
-	if err != nil {
-		return nil, err
-	}
-
-	res, err := s.masterClient.client.Call(s.masterClient.target, &rpc.Request{Op: rpc.OpMinorHead, Data: data})
-	if err != nil {
-		return nil, err
-	}
-	var mBlockHeader = new(types.MinorBlockHeader)
-	if err = serialize.DeserializeFromBytes(res.Data, mBlockHeader); err != nil {
-		return nil, err
-	}
-
-	return mBlockHeader, nil
+	return gRep.BlockHeaderList, nil
 }
 
 func (s *ConnManager) ModifyTarget(target string) {

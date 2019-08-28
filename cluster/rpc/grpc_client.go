@@ -47,7 +47,6 @@ const (
 	OpSubmitWork
 	OpAddMinorBlockListForSync
 	// p2p api
-	OpMinorHead
 	OpBroadcastNewTip
 	OpBroadcastTransactions
 	OpBroadcastNewMinorBlock
@@ -71,7 +70,6 @@ var (
 		OpAddMinorBlockHeader:     {name: "AddMinorBlockHeader"},
 		OpAddMinorBlockHeaderList: {name: "AddMinorBlockHeaderList"},
 		// p2p api
-		OpMinorHead:               {name: "MinorHead"},
 		OpBroadcastNewTip:         {name: "BroadcastNewTip"},
 		OpBroadcastTransactions:   {name: "BroadcastTransactions"},
 		OpBroadcastNewMinorBlock:  {name: "BroadcastNewMinorBlock"},

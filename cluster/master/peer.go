@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/QuarkChain/goquarkchain/account"
-	"github.com/QuarkChain/goquarkchain/cluster/rpc"
 	qkcom "github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/p2p"
@@ -301,34 +300,16 @@ func (p *Peer) requestRootBlockHeaderListWithSkip(rpcId uint64, request *p2p.Get
 	return p.rw.WriteMsg(msg)
 }
 
-func (p *Peer) GetRootBlockHeaderList(req *rpc.GetRootBlockHeaderListRequest) (res *p2p.GetRootBlockHeaderListResponse, err error) {
-	if req.Limit == 0 {
-		panic("amount should not 0")
-	}
+func (p *Peer) GetRootBlockHeaderList(req *p2p.GetRootBlockHeaderListWithSkipRequest) (res *p2p.GetRootBlockHeaderListResponse, err error) {
 
-	if req.Hash == (common.Hash{}) && req.Height == nil {
-		return nil, errors.New("invalid params hash and height in GetMinorBlockHeaderList")
+	if req.Limit == 0 || req.Data == (common.Hash{}) {
+		return nil, errors.New("invalid params")
 	}
 
 	rpcId, rpcchan := p.getRpcIdWithChan()
 	defer p.deleteChan(rpcId)
 
-	if req.Skip == 0 && req.Hash != (common.Hash{}) {
-		err = p.requestRootBlockHeaderList(rpcId, &p2p.GetRootBlockHeaderListRequest{BlockHash: req.Hash, Limit: req.Limit, Direction: req.Direction})
-	} else {
-		skipReq := &p2p.GetRootBlockHeaderListWithSkipRequest{
-			Type:      qkcom.SkipHash,
-			Data:      req.Hash,
-			Skip:      req.Skip,
-			Limit:     req.Limit,
-			Direction: req.Direction,
-		}
-		if req.Hash == (common.Hash{}) && req.Height != nil {
-			skipReq.Type = qkcom.SkipHeight
-			skipReq.Data = common.BytesToHash(big.NewInt(int64(*req.Height)).Bytes())
-		}
-		err = p.requestRootBlockHeaderListWithSkip(rpcId, skipReq)
-	}
+	err = p.requestRootBlockHeaderListWithSkip(rpcId, req)
 
 	if err != nil {
 		return nil, err
@@ -358,39 +339,24 @@ func (p *Peer) requestMinorBlockHeaderList(rpcId uint64, hash common.Hash, amoun
 
 func (p *Peer) requestMinorBlockHeaderListWithSkip(rpcId uint64,
 	request *p2p.GetMinorBlockHeaderListWithSkipRequest) error {
-	msg, err := p2p.MakeMsg(p2p.GetMinorBlockHeaderListWithSkipRequestMsg, rpcId, p2p.Metadata{Branch: request.Branch.Value}, request)
+	msg, err := p2p.MakeMsg(p2p.GetMinorBlockHeaderListWithSkipRequestMsg,
+		rpcId, p2p.Metadata{Branch: request.Branch.Value}, request)
 	if err != nil {
 		return err
 	}
 	return p.rw.WriteMsg(msg)
 }
 
-func (p *Peer) GetMinorBlockHeaderList(req *rpc.GetMinorBlockHeaderListRequest) (res *p2p.GetMinorBlockHeaderListResponse, err error) {
+func (p *Peer) GetMinorBlockHeaderList(req *p2p.GetMinorBlockHeaderListWithSkipRequest) (res *p2p.GetMinorBlockHeaderListResponse, err error) {
 
-	if req.Hash == (common.Hash{}) && req.Height == nil {
+	if req.Data == (common.Hash{}) {
 		return nil, errors.New("invalid params hash and height in GetMinorBlockHeaderList")
 	}
 
 	rpcId, rpcchan := p.getRpcIdWithChan()
 	defer p.deleteChan(rpcId)
 
-	if req.Skip == 0 && req.Hash != (common.Hash{}) {
-		err = p.requestMinorBlockHeaderList(rpcId, req.Hash, req.Limit, req.Branch, req.Direction)
-	} else {
-		skipReq := &p2p.GetMinorBlockHeaderListWithSkipRequest{
-			Type:      qkcom.SkipHash,
-			Data:      req.Hash,
-			Skip:      req.Skip,
-			Limit:     req.Limit,
-			Branch:    account.Branch{Value: req.Branch},
-			Direction: req.Direction,
-		}
-		if req.Hash == (common.Hash{}) && req.Height != nil {
-			skipReq.Type = qkcom.SkipHeight
-			skipReq.Data = common.BytesToHash(big.NewInt(int64(*req.Height)).Bytes())
-		}
-		err = p.requestMinorBlockHeaderListWithSkip(rpcId, skipReq)
-	}
+	err = p.requestMinorBlockHeaderListWithSkip(rpcId, req)
 
 	if err != nil {
 		return nil, err

@@ -19,8 +19,6 @@ service MasterServerSideOp {
     }
     rpc GetMinorBlockHeaderList (Request) returns (Response) {
     }
-    rpc MinorHead (Request) returns (Response) {
-    }
 }
 
 // slave operation

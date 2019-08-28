@@ -42,7 +42,7 @@ func (t *task) Run(bc blockchain) error {
 	}
 
 	ancestor, err := t.findAncestor(bc)
-	if err != nil || ancestor == nil {
+	if err != nil || qkcom.IsNil(ancestor) {
 		return err
 	}
 

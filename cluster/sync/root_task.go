@@ -15,7 +15,7 @@ import (
 )
 
 type rootSyncerPeer interface {
-	GetRootBlockHeaderList(*rpc.GetRootBlockHeaderListRequest) (*p2p.GetRootBlockHeaderListResponse, error)
+	GetRootBlockHeaderList(*p2p.GetRootBlockHeaderListWithSkipRequest) (*p2p.GetRootBlockHeaderListResponse, error)
 	GetRootBlockList(hashes []common.Hash) ([]*types.RootBlock, error)
 	RootHead() *types.RootBlockHeader
 	PeerID() string
@@ -140,12 +140,13 @@ func (r *rootChainTask) PeerID() string {
 
 func (r *rootChainTask) downloadBlockHeaderListAndCheck(start uint32, skip,
 limit uint32) ([]*types.RootBlockHeader, error) {
-	resp, err := r.peer.GetRootBlockHeaderList(&rpc.GetRootBlockHeaderListRequest{
-		Height:    &start,
+	rSkip := &p2p.GetRootBlockHeaderListWithSkipRequest{
 		Skip:      skip,
 		Limit:     limit,
 		Direction: qcom.DirectionToTip,
-	})
+	}
+	rSkip.SetHeight(start)
+	resp, err := r.peer.GetRootBlockHeaderList(rSkip)
 	if err != nil {
 		return nil, err
 	}

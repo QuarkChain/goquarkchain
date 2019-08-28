@@ -25,7 +25,7 @@ type peer struct {
 	peerID string
 }
 
-func (p *peer) GetMinorBlockHeaderList(gReq *rpc.GetMinorBlockHeaderListRequest) (*p2p.GetMinorBlockHeaderListResponse, error) {
+func (p *peer) GetMinorBlockHeaderList(gReq *p2p.MinorHeaderListWithSkip) ([]*types.MinorBlockHeader, error) {
 	return p.cm.GetMinorBlockHeaderList(gReq)
 }
 
@@ -35,10 +35,6 @@ func (p *peer) GetMinorBlockList(hashes []common.Hash, branch uint32) ([]*types.
 
 func (p *peer) PeerID() string {
 	return p.peerID
-}
-
-func (p *peer) MinorHead(branch uint32) (*types.MinorBlockHeader, error) {
-	return p.cm.MinorHead(&rpc.MinorHeadRequest{Branch: branch, PeerID: p.peerID})
 }
 
 func (s *ShardBackend) GetUnconfirmedHeaderList() ([]*types.MinorBlockHeader, error) {

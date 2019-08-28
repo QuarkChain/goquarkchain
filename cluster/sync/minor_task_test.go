@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
-	"github.com/QuarkChain/goquarkchain/cluster/rpc"
 	qcom "github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/core"
 	"github.com/QuarkChain/goquarkchain/core/types"
@@ -17,7 +16,7 @@ import (
 	"testing"
 )
 
-func (p *mockpeer) GetMinorBlockHeaderList(req *rpc.GetMinorBlockHeaderListRequest) (*p2p.GetMinorBlockHeaderListResponse, error) {
+func (p *mockpeer) GetMinorBlockHeaderList(req *p2p.MinorHeaderListWithSkip) ([]*types.MinorBlockHeader, error) {
 	if p.downloadHeaderError != nil {
 		return nil, p.downloadHeaderError
 	}
@@ -29,14 +28,18 @@ func (p *mockpeer) GetMinorBlockHeaderList(req *rpc.GetMinorBlockHeaderListReque
 		return nil, errors.New("Bad direction ")
 	}
 
-	if req.Hash == (common.Hash{}) && req.Height == nil {
+	var (
+		hash   = req.GetHash()
+		height = req.GetHeight()
+	)
+	if hash == (common.Hash{}) && height == nil {
 		return nil, errors.New("Bad params minor block hash and height ")
 	}
 
 	sign := 0
 	mBHeaders := make([]*types.MinorBlockHeader, 0, req.Limit)
 	for i, hd := range p.retMHeaders {
-		if hd.Hash() == req.Hash || hd.Number == *req.Height {
+		if hd.Hash() == hash || hd.Number == *height {
 			sign = i
 			break
 		}
@@ -51,10 +54,7 @@ func (p *mockpeer) GetMinorBlockHeaderList(req *rpc.GetMinorBlockHeaderListReque
 		mBHeaders = append(mBHeaders, p.retMHeaders[sign])
 	}
 
-	return &p2p.GetMinorBlockHeaderListResponse{
-		ShardTip:        p.retMHeaders[len(p.retMHeaders)-1],
-		BlockHeaderList: mBHeaders,
-	}, nil
+	return mBHeaders, nil
 }
 
 func (p *mockpeer) GetMinorBlockList(hashes []common.Hash, branch uint32) ([]*types.MinorBlock, error) {
@@ -73,10 +73,6 @@ func (p *mockpeer) GetMinorBlockList(hashes []common.Hash, branch uint32) ([]*ty
 		}
 	}
 	return mBlocks, nil
-}
-
-func (p *mockpeer) MinorHead(branch uint32) (*types.MinorBlockHeader, error) {
-	return p.retMHeaders[len(p.retMHeaders)-1], nil
 }
 
 func newMinorBlockChain(sz int) (blockchain, ethdb.Database) {
@@ -137,7 +133,6 @@ func TestMinorChainTaskBigerThanLimit(t *testing.T) {
 
 	// No error if already have the target block.
 	assert.NoError(t, mt.Run(bc))
-
 }
 
 /*

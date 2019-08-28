@@ -39,10 +39,11 @@ type mockpeer struct {
 	retMBlocks          []*types.MinorBlock       // Order: descending.
 }
 
-func (p *mockpeer) GetRootBlockHeaderList(request *rpc.GetRootBlockHeaderListRequest) (*p2p.GetRootBlockHeaderListResponse, error) {
+func (p *mockpeer) GetRootBlockHeaderList(request *p2p.GetRootBlockHeaderListWithSkipRequest) (*p2p.GetRootBlockHeaderListResponse, error) {
 	if p.downloadHeaderError != nil {
 		return nil, p.downloadHeaderError
 	}
+
 	if request.Limit <= 0 || request.Limit > 2*RootBlockHeaderListLimit {
 		return nil, errors.New("Bad limit ")
 	}
@@ -50,15 +51,19 @@ func (p *mockpeer) GetRootBlockHeaderList(request *rpc.GetRootBlockHeaderListReq
 		return nil, errors.New("Bad direction ")
 	}
 
-	if request.Hash == (common.Hash{}) && request.Height == nil {
-		return nil, errors.New("Bad params root block hash and height ")
+	// May return a subset.
+	var (
+		sign   = 0
+		hash   = request.GetHash()
+		height = request.GetHeight()
+	)
+	if hash == (common.Hash{}) && height == nil {
+		return nil, errors.New("useless hash and height")
 	}
 
-	// May return a subset.
-	sign := 0
 	rBHeaders := make([]*types.RootBlockHeader, 0, request.Limit)
 	for i, hd := range p.retRHeaders {
-		if hd.Hash() == request.Hash || hd.Number == *request.Height {
+		if hd.Hash() == hash || hd.Number == *height {
 			sign = i
 			break
 		}

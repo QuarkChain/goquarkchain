@@ -3,7 +3,6 @@ package sync
 import (
 	"errors"
 	"fmt"
-	"github.com/QuarkChain/goquarkchain/cluster/rpc"
 	qcom "github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/p2p"
@@ -12,10 +11,9 @@ import (
 )
 
 type minorSyncerPeer interface {
-	GetMinorBlockHeaderList(gReq *rpc.GetMinorBlockHeaderListRequest) (*p2p.GetMinorBlockHeaderListResponse, error)
+	GetMinorBlockHeaderList(gReq *p2p.MinorHeaderListWithSkip) ([]*types.MinorBlockHeader, error)
 	// GetMinorBlockHeaderList(hash common.Hash, limit, branch uint32, reverse bool) ([]*types.MinorBlockHeader, error)
 	GetMinorBlockList(hashes []common.Hash, branch uint32) ([]*types.MinorBlock, error)
-	MinorHead(branch uint32) (*types.MinorBlockHeader, error)
 	PeerID() string
 }
 
@@ -120,39 +118,28 @@ func (m *minorChainTask) PeerID() string {
 	return m.peer.PeerID()
 }
 
-func (m *minorChainTask) downloadBlockHeaderListAndCheck(height, skip,
-limit uint64, branch uint32) ([]*types.MinorBlockHeader, error) {
-	req := &rpc.GetMinorBlockHeaderListRequest{
-		Height:    &height,
-		Hash:      common.Hash{},
-		Skip:      uint32(skip),
-		Limit:     uint32(limit),
-		Direction: qcom.DirectionToTip,
-		Branch:    branch,
-	}
-	resp, err := m.peer.GetMinorBlockHeaderList(req)
+func (m *minorChainTask) downloadBlockHeaderListAndCheck(height, skip, limit uint64, branch uint32) ([]*types.MinorBlockHeader, error) {
+	req := p2p.NewMinorSkip(common.Hash{}, &height, uint32(limit), uint32(skip), qcom.DirectionToTip, branch, m.PeerID())
+	mHeaders, err := m.peer.GetMinorBlockHeaderList(req)
 	if err != nil {
 		return nil, err
 	}
-	m.stat.HeadersDownloaded += uint64(len(resp.BlockHeaderList))
+	m.stat.HeadersDownloaded += uint64(len(mHeaders))
 
-	if len(resp.BlockHeaderList) == 0 {
+	if len(mHeaders) == 0 {
 		return nil, errors.New("Remote chain reorg causing empty minor block headers ")
 	}
 
-	newLimit := (resp.ShardTip.Number + 1 - height) / (skip + 1)
+	newLimit := (m.header.Number + 1 - height) / (skip + 1)
 	if newLimit > limit {
 		newLimit = limit
 	}
 
-	if len(resp.BlockHeaderList) != int(newLimit) {
+	if len(mHeaders) != int(newLimit) {
 		return nil, errors.New("Bad peer sending incorrect number of root block headers ")
 	}
 
-	if resp.ShardTip.Number > m.header.Number {
-		m.header = resp.ShardTip
-	}
-	return resp.BlockHeaderList, nil
+	return mHeaders, nil
 }
 
 func (m *minorChainTask) findAncestor(bc blockchain) (*types.MinorBlockHeader, error) {
@@ -161,17 +148,10 @@ func (m *minorChainTask) findAncestor(bc blockchain) (*types.MinorBlockHeader, e
 		return mtip, nil
 	}
 
-	pTip, err := m.peer.MinorHead(m.header.Branch.Value)
-	if err != nil {
-		return nil, err
-	}
-	end := pTip.Number
+	end := m.header.Number
 	start := end - m.maxStaleness
 	if end < m.maxStaleness {
 		start = 0
-	}
-	if m.header.Number < end {
-		end = m.header.Number
 	}
 
 	var bestAncestor *types.MinorBlockHeader

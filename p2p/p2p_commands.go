@@ -183,20 +183,38 @@ type GetRootBlockHeaderListWithSkipRequest struct {
 	Direction uint8 // 0 to genesis, 1 to tip
 }
 
-func (r *GetRootBlockHeaderListWithSkipRequest) GetHeight() *uint32 {
+func (c *GetRootBlockHeaderListWithSkipRequest) SetHeight(height uint32) {
+	c.Type = qkcom.SkipHeight
+	c.Data = common.BytesToHash(big.NewInt(int64(height)).Bytes())
+}
+
+func (c *GetRootBlockHeaderListWithSkipRequest) GetHeight() *uint32 {
 	var height *uint32
-	if r.Type == 1 {
-		h := uint32(new(big.Int).SetBytes(r.Data[:]).Uint64())
+	if c.Type == qkcom.SkipHeight {
+		h := uint32(new(big.Int).SetBytes(c.Data[:]).Uint64())
 		height = &h
 	}
 	return height
 }
 
-func (r *GetRootBlockHeaderListWithSkipRequest) GetHash() common.Hash {
-	if r.Type == 0 {
-		return r.Data
+func (c *GetRootBlockHeaderListWithSkipRequest) GetHash() common.Hash {
+	if c.Type == qkcom.SkipHash {
+		return c.Data
 	}
 	return common.Hash{}
+}
+
+type MinorHeaderListWithSkip struct {
+	GetMinorBlockHeaderListWithSkipRequest
+	PeerID string `json:"peerid" gencodec:"required"`
+}
+
+func NewMinorSkip(hash common.Hash, height *uint64,
+	limit, skip uint32, direction uint8, branch uint32, peerId string) *MinorHeaderListWithSkip {
+	mSkip := MinorHeaderListWithSkip{}
+	mSkip.PeerID = peerId
+	mSkip.setCommon(hash, height, limit, skip, direction, branch)
+	return &mSkip
 }
 
 type GetMinorBlockHeaderListWithSkipRequest struct {
@@ -208,18 +226,35 @@ type GetMinorBlockHeaderListWithSkipRequest struct {
 	Branch    account.Branch
 }
 
-func (r *GetMinorBlockHeaderListWithSkipRequest) GetHeight() *uint64 {
+func (g *GetMinorBlockHeaderListWithSkipRequest) setCommon(hash common.Hash, height *uint64,
+	limit, skip uint32, direction uint8, branch uint32) {
+	g.Data = hash
+	g.Limit = limit
+	g.Skip = skip
+	g.Direction = direction
+	g.Branch = account.Branch{Value: branch}
+	if height != nil {
+		g.setHeight(*height)
+	}
+}
+
+func (c *GetMinorBlockHeaderListWithSkipRequest) setHeight(height uint64) {
+	c.Type = qkcom.SkipHeight
+	c.Data = common.BytesToHash(big.NewInt(int64(height)).Bytes())
+}
+
+func (c *GetMinorBlockHeaderListWithSkipRequest) GetHeight() *uint64 {
 	var height *uint64
-	if r.Type == qkcom.SkipHeight {
-		h := new(big.Int).SetBytes(r.Data[:]).Uint64()
+	if c.Type == qkcom.SkipHeight {
+		h := new(big.Int).SetBytes(c.Data[:]).Uint64()
 		height = &h
 	}
 	return height
 }
 
-func (r *GetMinorBlockHeaderListWithSkipRequest) GetHash() common.Hash {
-	if r.Type == qkcom.SkipHash {
-		return r.Data
+func (c *GetMinorBlockHeaderListWithSkipRequest) GetHash() common.Hash {
+	if c.Type == qkcom.SkipHash {
+		return c.Data
 	}
 	return common.Hash{}
 }

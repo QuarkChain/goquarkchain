@@ -28,7 +28,7 @@ type ShardConnForP2P interface {
 
 	GetMinorBlocks(request *GetMinorBlockListRequest) (*p2p.GetMinorBlockListResponse, error)
 
-	GetMinorBlockHeaderList(req *GetMinorBlockHeaderListRequest) (*p2p.GetMinorBlockHeaderListResponse, error)
+	GetMinorBlockHeaderList(req *p2p.GetMinorBlockHeaderListWithSkipRequest) (*p2p.GetMinorBlockHeaderListResponse, error)
 
 	HandleNewTip(request *HandleNewTipRequest) (bool, error)
 

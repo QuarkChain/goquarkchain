@@ -562,7 +562,7 @@ func (s *SlaveConnection) GetMinorBlocks(request *rpc.GetMinorBlockListRequest) 
 	return rsp, nil
 }
 
-func (s *SlaveConnection) GetMinorBlockHeaderList(req *rpc.GetMinorBlockHeaderListRequest) (*p2p.GetMinorBlockHeaderListResponse, error) {
+func (s *SlaveConnection) GetMinorBlockHeaderList(req *p2p.GetMinorBlockHeaderListWithSkipRequest) (*p2p.GetMinorBlockHeaderListResponse, error) {
 	var (
 		rsp = new(p2p.GetMinorBlockHeaderListResponse)
 		res = new(rpc.Response)
