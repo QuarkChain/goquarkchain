@@ -547,7 +547,7 @@ func (s *SlaveServerSideOp) GetMinorBlockList(ctx context.Context, req *rpc.Requ
 func (s *SlaveServerSideOp) GetMinorBlockHeaderList(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
 	var (
 		gReq     p2p.GetMinorBlockHeaderListWithSkipRequest
-		gRes     *p2p.GetMinorBlockHeaderListResponse
+		gRes     p2p.GetMinorBlockHeaderListResponse
 		response = &rpc.Response{RpcId: req.RpcId}
 		err      error
 	)
@@ -555,7 +555,7 @@ func (s *SlaveServerSideOp) GetMinorBlockHeaderList(ctx context.Context, req *rp
 		return nil, err
 	}
 
-	if gRes, err = s.slave.GetMinorBlockHeaderList(&gReq); err != nil {
+	if gRes.BlockHeaderList, err = s.slave.GetMinorBlockHeaderList(&gReq); err != nil {
 		return nil, err
 	}
 

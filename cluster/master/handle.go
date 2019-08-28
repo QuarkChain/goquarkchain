@@ -654,7 +654,7 @@ func (pm *ProtocolManager) HandleGetMinorBlockHeaderListRequest(rpcId uint64, br
 		return nil, fmt.Errorf("bad limit. rpcId: %d; branch: %d; limit: %d; expected limit: %d",
 			rpcId, branch, req.Limit, qkcsync.MinorBlockHeaderListLimit)
 	}
-	if req.Direction != qkcom.DirectionToGenesis && req.Direction != qkcom.DirectionToTip {
+	if req.Direction != qkcom.DirectionToGenesis {
 		return nil, fmt.Errorf("Bad direction. rpcId: %d; branch: %d; ", rpcId, branch)
 	}
 	clients := pm.getShardConnFunc(branch)
@@ -700,7 +700,7 @@ func (pm *ProtocolManager) BroadcastTip(header *types.RootBlockHeader) {
 
 func (pm *ProtocolManager) HandleGetMinorBlockHeaderListWithSkipRequest(peerId string, rpcId uint64,
 	request *p2p.GetMinorBlockHeaderListWithSkipRequest) (resp *p2p.GetMinorBlockHeaderListResponse, err error) {
-	if request.Limit <= 0 || uint64(request.Limit) > 2*qkcsync.MinorBlockHeaderListLimit || request.Data == (common.Hash{}) {
+	if request.Limit <= 0 || uint64(request.Limit) > 2*qkcsync.MinorBlockHeaderListLimit {
 		return nil, errors.New("Bad limit")
 	}
 	if request.Direction != qkcom.DirectionToGenesis && request.Direction != qkcom.DirectionToTip {

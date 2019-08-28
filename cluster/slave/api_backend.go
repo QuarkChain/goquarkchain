@@ -388,7 +388,33 @@ func (s *SlaveBackend) GetMinorBlockListByHashList(mHashList []common.Hash, bran
 	return minorList, nil
 }
 
-func (s *SlaveBackend) GetMinorBlockHeaderList(gReq *p2p.GetMinorBlockHeaderListWithSkipRequest) (*p2p.GetMinorBlockHeaderListResponse, error) {
+func (s *SlaveBackend) getMinorBlockHeaders(req *p2p.GetMinorBlockHeaderListRequest) ([]*types.MinorBlockHeader, error) {
+	var (
+		headerList = make([]*types.MinorBlockHeader, 0, req.Limit)
+		err        error
+	)
+
+	shard, ok := s.shards[req.Branch.Value]
+	if !ok {
+		return nil, ErrMsg("GetMinorBlockHeaderList")
+	}
+
+	mHash := req.BlockHash
+	if qcom.IsNil(shard.MinorBlockChain.GetHeader(mHash)) {
+		return nil, fmt.Errorf("Minor block hash is not exist, minorHash: %s, slave id: %s ", mHash.Hex(), s.config.ID)
+	}
+	for i := uint32(0); i < req.Limit; i++ {
+		header := shard.MinorBlockChain.GetHeader(mHash).(*types.MinorBlockHeader)
+		headerList = append(headerList, header)
+		if header.NumberU64() == 0 {
+			return headerList, nil
+		}
+		mHash = header.ParentHash
+	}
+	return headerList, err
+}
+
+func (s *SlaveBackend) getMinorBlockHeadersWithSkip(gReq *p2p.GetMinorBlockHeaderListWithSkipRequest) ([]*types.MinorBlockHeader, error) {
 	shrd, ok := s.shards[gReq.Branch.Value]
 	if !ok {
 		return nil, ErrMsg("GetMinorBlockHeaderList")
@@ -397,28 +423,24 @@ func (s *SlaveBackend) GetMinorBlockHeaderList(gReq *p2p.GetMinorBlockHeaderList
 	var (
 		height     uint64
 		headerlist = make([]*types.MinorBlockHeader, 0, gReq.Limit)
-		res        = &p2p.GetMinorBlockHeaderListResponse{
-			ShardTip:        shrd.MinorBlockChain.CurrentBlock().Header(),
-			RootTip:         shrd.MinorBlockChain.GetRootTip(),
-			BlockHeaderList: headerlist,
-		}
+		mTip       = shrd.MinorBlockChain.CurrentHeader()
 	)
 	if gReq.Type == qcom.SkipHash {
 		iHeader := shrd.MinorBlockChain.GetHeaderByHash(gReq.GetHash())
 		if qcom.IsNil(iHeader) {
-			return res, nil
+			return headerlist, nil
 		}
 		mHeader := iHeader.(*types.MinorBlockHeader)
 		height = mHeader.Number
 		iHeader = shrd.MinorBlockChain.GetHeaderByNumber(height)
 		if qcom.IsNil(iHeader) || mHeader.Hash() != iHeader.Hash() {
-			return res, nil
+			return headerlist, nil
 		}
 	} else {
 		height = *gReq.GetHeight()
 	}
 
-	for len(headerlist) < cap(headerlist) && height >= 0 && height < res.ShardTip.NumberU64() {
+	for len(headerlist) < cap(headerlist) && height >= 0 && height < mTip.NumberU64() {
 		iHeader := shrd.MinorBlockChain.GetHeaderByNumber(height)
 		if qcom.IsNil(iHeader) {
 			break
@@ -434,9 +456,20 @@ func (s *SlaveBackend) GetMinorBlockHeaderList(gReq *p2p.GetMinorBlockHeaderList
 	sort.Slice(headerlist, func(i, j int) bool {
 		return headerlist[i].Number < headerlist[j].Number
 	})
-	res.BlockHeaderList = headerlist
 
-	return res, nil
+	return headerlist, nil
+}
+
+func (s *SlaveBackend) GetMinorBlockHeaderList(gReq *p2p.GetMinorBlockHeaderListWithSkipRequest) ([]*types.MinorBlockHeader, error) {
+	if gReq.Type == qcom.SkipHash && gReq.Skip == 0 && gReq.Direction == qcom.DirectionToGenesis {
+		return s.getMinorBlockHeaders(&p2p.GetMinorBlockHeaderListRequest{
+			BlockHash: gReq.GetHash(),
+			Branch:    gReq.Branch,
+			Limit:     gReq.Limit,
+			Direction: gReq.Direction,
+		})
+	}
+	return s.getMinorBlockHeadersWithSkip(gReq)
 }
 
 func (s *SlaveBackend) HandleNewTip(req *rpc.HandleNewTipRequest) error {
