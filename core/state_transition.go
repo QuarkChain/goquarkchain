@@ -143,8 +143,8 @@ func NewStateTransition(evm *vm.EVM, msg Message, gp *GasPool) *StateTransition 
 // the gas used (which includes gas refunds) and an error if it failed. An error always
 // indicates a core error meaning that the message would always fail for that particular
 // state and would never be accepted within a block.
-func ApplyMessage(evm *vm.EVM, msg Message, gp *GasPool, feeRate *big.Rat) ([]byte, uint64, bool, error) {
-	return NewStateTransition(evm, msg, gp).TransitionDb(feeRate)
+func ApplyMessage(evm *vm.EVM, msg Message, gp *GasPool) ([]byte, uint64, bool, error) {
+	return NewStateTransition(evm, msg, gp).TransitionDb()
 }
 
 // to returns the recipient of the message.
@@ -195,7 +195,7 @@ func (st *StateTransition) preCheck() error {
 // TransitionDb will transition the state by applying the current message and
 // returning the result including the used gas. It returns an error if failed.
 // An error indicates a consensus issue.
-func (st *StateTransition) TransitionDb(feeRate *big.Rat) (ret []byte, usedGas uint64, failed bool, err error) {
+func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bool, err error) {
 	var (
 		// vm errors do not effect consensus and are therefor
 		// not assigned to err, except for insufficient balance
@@ -226,7 +226,7 @@ func (st *StateTransition) TransitionDb(feeRate *big.Rat) (ret []byte, usedGas u
 	sender := vm.AccountRef(msg.From())
 	if msg.IsCrossShard() {
 		st.state.SetNonce(msg.From(), st.state.GetNonce(sender.Address())+1)
-		return st.AddCrossShardTxDeposit(gas, feeRate)
+		return st.AddCrossShardTxDeposit(gas)
 	}
 	if contractCreation || evm.ContractAddress != nil {
 		ret, _, st.gas, vmerr = evm.Create(sender, st.data, st.gas, st.value, evm.ContractAddress)
@@ -250,15 +250,7 @@ func (st *StateTransition) TransitionDb(feeRate *big.Rat) (ret []byte, usedGas u
 		}
 	}
 	st.refundGas()
-
-	fee := new(big.Int).Mul(new(big.Int).SetUint64(st.gasUsed()), st.gasPrice)
-	rateFee := new(big.Int).Mul(fee, feeRate.Num())
-	rateFee = new(big.Int).Div(rateFee, feeRate.Denom())
-	st.state.AddBalance(evm.Coinbase, rateFee, msg.GasTokenID())
-	blockFee := make(map[uint64]*big.Int)
-	blockFee[msg.GasTokenID()] = rateFee
-	st.state.AddBlockFee(blockFee)
-	st.state.AddGasUsed(new(big.Int).SetUint64(st.gasUsed()))
+	st.chargeFee(st.gasUsed())
 	if vmerr == vm.ErrPoSWSenderNotAllowed {
 		return nil, st.gasUsed(), true, nil
 	}
@@ -292,7 +284,7 @@ func (st *StateTransition) preFill() {
 	st.initialGas = st.gas
 }
 
-func (st *StateTransition) AddCrossShardTxDeposit(intrinsicGas uint64, feeRate *big.Rat) (ret []byte, usedGas uint64,
+func (st *StateTransition) AddCrossShardTxDeposit(intrinsicGas uint64) (ret []byte, usedGas uint64,
 	failed bool, err error) {
 
 	evm := st.evm
@@ -376,15 +368,21 @@ func (st *StateTransition) AddCrossShardTxDeposit(intrinsicGas uint64, feeRate *
 		//reserve part of the gas for the target shard miner for fee
 		localGasUsed -= qkcParam.GtxxShardCost.Uint64()
 	}
-	fee := new(big.Int).Mul(new(big.Int).SetUint64(localGasUsed), st.gasPrice)
+	st.chargeFee(localGasUsed)
+	return nil, st.gasUsed(), failed, nil
+}
+
+func (st *StateTransition) chargeFee(gasUsed uint64) {
+	//fmt.Println("st.state.GetQuarkChainConfig().RewardTaxRate", st.state.GetQuarkChainConfig().RewardTaxRate)
+	fee := new(big.Int).Mul(new(big.Int).SetUint64(gasUsed), st.gasPrice)
+	feeRate := new(big.Rat).Sub(new(big.Rat).SetInt64(1), st.state.GetQuarkChainConfig().RewardTaxRate)
 	rateFee := new(big.Int).Mul(fee, feeRate.Num())
 	rateFee = new(big.Int).Div(rateFee, feeRate.Denom())
-	state.AddBalance(st.evm.Coinbase, rateFee, msg.GasTokenID())
+	st.state.AddBalance(st.evm.Coinbase, rateFee, st.msg.GasTokenID())
 	blockFee := make(map[uint64]*big.Int)
 	blockFee[st.msg.GasTokenID()] = rateFee
-	state.AddBlockFee(blockFee)
-	state.AddGasUsed(new(big.Int).SetUint64(st.gasUsed()))
-	return nil, st.gasUsed(), failed, nil
+	st.state.AddBlockFee(blockFee)
+	st.state.AddGasUsed(new(big.Int).SetUint64(st.gasUsed()))
 }
 
 func (st *StateTransition) transferFailureByPoSWBalanceCheck() bool {
