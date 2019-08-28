@@ -175,7 +175,7 @@ func (t *StateTest) Run(subtest StateSubtest, vmconfig vm.Config) (*state.StateD
 	gaspool.AddGas(block.GasLimit())
 	snapshot := statedb.Snapshot()
 
-	statedb.GetQuarkChainConfig().RewardTaxRate = big.NewRat(1, 1)
+	statedb.GetQuarkChainConfig().RewardTaxRate = new(big.Rat).SetFloat64(0)
 	//fmt.Println("apply_tx")
 	if _, _, _, err := qkcCore.ApplyMessage(evm, msg, gaspool); err != nil {
 		statedb.RevertToSnapshot(snapshot)
