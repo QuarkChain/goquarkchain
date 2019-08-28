@@ -373,7 +373,6 @@ func (st *StateTransition) AddCrossShardTxDeposit(intrinsicGas uint64) (ret []by
 }
 
 func (st *StateTransition) chargeFee(gasUsed uint64) {
-	//fmt.Println("st.state.GetQuarkChainConfig().RewardTaxRate", st.state.GetQuarkChainConfig().RewardTaxRate)
 	fee := new(big.Int).Mul(new(big.Int).SetUint64(gasUsed), st.gasPrice)
 	feeRate := new(big.Rat).Sub(new(big.Rat).SetInt64(1), st.state.GetQuarkChainConfig().RewardTaxRate)
 	rateFee := new(big.Int).Mul(fee, feeRate.Num())
