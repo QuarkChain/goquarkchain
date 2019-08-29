@@ -2,6 +2,7 @@ package sync
 
 import (
 	"errors"
+	"fmt"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
 	"math/big"
@@ -77,9 +78,15 @@ func (t *task) Run(bc blockchain) error {
 			var blocks []types.IBlock
 			if len(hashlist) > t.batchSize {
 				blocks, err = t.getBlocks(hashlist[:t.batchSize])
+				if len(blocks) != t.batchSize {
+					return fmt.Errorf("unmatched block length, expect: %d, actual: %d", t.batchSize, len(blocks))
+				}
 				hashlist = hashlist[t.batchSize:]
 			} else {
 				blocks, err = t.getBlocks(hashlist)
+				if len(blocks) != len(hashlist) {
+					return fmt.Errorf("unmatched block length, expect: %d, actual: %d", len(hashlist), len(blocks))
+				}
 				hashlist = nil
 			}
 

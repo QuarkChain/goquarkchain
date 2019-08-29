@@ -157,10 +157,13 @@ func (m *minorChainTask) findAncestor(bc blockchain) (*types.MinorBlockHeader, e
 		return mtip, nil
 	}
 
-	end := m.header.Number
+	end := mtip.Number
 	start := end - m.task.maxSyncStaleness
 	if end < m.task.maxSyncStaleness {
 		start = 0
+	}
+	if m.header.Number < end {
+		end = m.header.Number
 	}
 
 	var bestAncestor *types.MinorBlockHeader

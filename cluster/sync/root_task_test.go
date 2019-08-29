@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/QuarkChain/goquarkchain/p2p"
+	"math/rand"
 	"reflect"
 	"sort"
 	"testing"
@@ -90,6 +91,10 @@ func (p *mockpeer) GetRootBlockHeaderList(request *p2p.GetRootBlockHeaderListWit
 }
 
 func (p *mockpeer) GetRootBlockList(hashes []common.Hash) ([]*types.RootBlock, error) {
+	if p.downloadBlockError != nil {
+		return nil, p.downloadBlockError
+	}
+
 	if len(hashes) > 2*RootBlockBatchSize {
 		return nil, fmt.Errorf("len of RootBlockHashList is larger than expected, limit: %d, want: %d", len(hashes), RootBlockBatchSize)
 	}
@@ -203,30 +208,88 @@ func newRootBlockChain(sz int) blockchain {
 	return &mockblockchain{rbc: blockchain}
 }
 
-func TestRootChainTaskEmpty(t *testing.T) {
+func TestRootChainTask(t *testing.T) {
 	p := &mockpeer{name: "chunfeng"}
-	bc := newRootBlockChain(5)
-	var rt = NewRootChainTask(p, bc.CurrentHeader().(*types.RootBlockHeader), &BlockSychronizerStats{}, nil, nil)
-	// No error if already have the target block.
-	err := rt.Run(bc)
-	assert.NoError(t, err)
-}
-
-func TestRootChainTaskBigerThanLimit(t *testing.T) {
-	p := &mockpeer{name: "chunfeng"}
-	bc := newRootBlockChain(5)
+	bc := newRootBlockChain(10)
 	v := &mockvalidator{}
 	bc.(*mockblockchain).validator = v
 	rbc := bc.(*mockblockchain).rbc
 
-	p.retRBlocks, p.retRHeaders = makeRootChains(rbc.GetBlockByNumber(0).(*types.RootBlock), 1000, false)
+	retRBlocks, retRHeaders := makeRootChains(rbc.GetBlockByNumber(0).(*types.RootBlock), 20, false)
 
-	var stats = &BlockSychronizerStats{}
-	var rt = NewRootChainTask(p, p.retRHeaders[100], stats, nil, nil)
+	// No error if already have the target block.
+	var rt = NewRootChainTask(p, bc.CurrentHeader().(*types.RootBlockHeader), &BlockSychronizerStats{}, nil, nil)
+	rTask := rt.(*rootChainTask)
+	assert.NoError(t, rt.Run(bc))
 
-	err := rt.Run(bc)
-	assert.NoError(t, err)
-	assert.Equal(t, bc.CurrentHeader().NumberU64(), uint64(p.retRHeaders[len(p.retRHeaders)-1].Number))
+	// Happy path.
+	p.retRBlocks, p.retRHeaders = retRBlocks, retRHeaders
+	rTask.header = retRHeaders[4]
+	// Confirm 5 more blocks are successfully added to existing 5-block chain.
+	assert.Equal(t, bc.CurrentHeader().NumberU64(), uint64(10))
+
+	// Rollback and test unhappy path.
+	rbc.SetHead(5)
+	assert.Equal(t, bc.CurrentHeader().NumberU64(), retRHeaders[5].NumberU64())
+
+	// Get errors when downloading headers.
+	rTask.header = retRHeaders[11]
+	p.downloadHeaderError = errors.New("download error")
+	assert.Error(t, rt.Run(bc))
+
+	// Downloading headers succeeds, but block validation failed.
+	p.downloadHeaderError = nil
+	v.err = errors.New("validate error")
+	assert.Error(t, rt.Run(bc))
+
+	// Block validation succeeds, but block header list not correct.
+	v.err = nil
+	wrongHeaders := reverseRHeaders(retRHeaders)
+	rand.Shuffle(len(wrongHeaders), func(i, j int) {
+		wrongHeaders[i], wrongHeaders[j] = wrongHeaders[j], wrongHeaders[i]
+	})
+	p.retRHeaders = wrongHeaders
+	assert.Error(t, rt.Run(bc))
+
+	// Validation succeeds. Should be downloading actual blocks. Mock some errors.
+	p.retRHeaders = retRHeaders
+	p.downloadBlockError = errors.New("download error")
+	assert.Error(t, rt.Run(bc))
+
+	// Downloading blocks succeeds. But make the returned blocks miss one. Insertion should fail.
+	p.downloadBlockError = nil
+	missing := p.retRBlocks[len(p.retRBlocks)-1]
+	p.retRBlocks = p.retRBlocks[:len(p.retRBlocks)-1]
+	assert.Error(t, rt.Run(bc))
+
+	// Add back that missing block. Happy again.
+	p.retRBlocks = append(p.retRBlocks, missing)
+	assert.NoError(t, rt.Run(bc))
+	assert.Equal(t, bc.CurrentHeader().NumberU64(), uint64(20))
+
+	// add maxSyncStaleness root blocks
+	rTask.maxSyncStaleness = 1000
+	retRBlocks, retRHeaders = makeRootChains(retRBlocks[len(retRBlocks)-1], 1000, false)
+	p.retRHeaders = append(p.retRHeaders, retRHeaders[1:]...)
+	p.retRBlocks = append(p.retRBlocks, retRBlocks[1:]...)
+	rTask.header = retRHeaders[2]
+	assert.NoError(t, rt.Run(bc))
+	assert.Equal(t, bc.CurrentHeader().NumberU64(), uint64(1000+20))
+
+	// Sync older forks. Starting from block 20, up to 2*maxSyncStaleness.
+	retRBlocks, retRHeaders = makeRootChains(retRBlocks[len(retRBlocks)-1], 1000, true)
+	for _, rh := range retRHeaders[1:] {
+		assert.False(t, bc.HasBlock(rh.Hash()))
+	}
+
+	rt.(*rootChainTask).header = retRHeaders[4]
+	p.retRHeaders, p.retRBlocks = append(p.retRHeaders[20:], retRHeaders...), append(p.retRBlocks[20:], retRBlocks...)
+	assert.NoError(t, rt.Run(bc))
+	for _, rh := range retRHeaders {
+		assert.True(t, bc.HasBlock(rh.Hash()))
+	}
+
+	assert.Equal(t, bc.CurrentHeader().NumberU64(), uint64(2000+20))
 }
 
 func TestSyncMinorBlocks(t *testing.T) {

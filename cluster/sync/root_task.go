@@ -137,13 +137,13 @@ func (r *rootChainTask) PeerID() string {
 
 func (r *rootChainTask) downloadBlockHeaderListAndCheck(start uint32, skip,
 limit uint32) ([]*types.RootBlockHeader, error) {
-	rSkip := &p2p.GetRootBlockHeaderListWithSkipRequest{
+	req := &p2p.GetRootBlockHeaderListWithSkipRequest{
 		Skip:      skip,
 		Limit:     limit,
 		Direction: qcom.DirectionToTip,
 	}
-	rSkip.SetHeight(start)
-	resp, err := r.peer.GetRootBlockHeaderList(rSkip)
+	req.SetHeight(start)
+	resp, err := r.peer.GetRootBlockHeaderList(req)
 	if err != nil {
 		return nil, err
 	}
@@ -178,7 +178,7 @@ func (r *rootChainTask) findAncestor(bc blockchain) (*types.RootBlockHeader, err
 		return rtip, nil
 	}
 
-	end := r.peer.RootHead().Number
+	end := rtip.Number
 	maxSyncStaleness := uint32(r.task.maxSyncStaleness)
 	start := end - maxSyncStaleness
 	if end < maxSyncStaleness {
