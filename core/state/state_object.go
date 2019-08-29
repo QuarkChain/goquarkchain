@@ -19,11 +19,12 @@ package state
 import (
 	"bytes"
 	"fmt"
-	qkcCommon "github.com/QuarkChain/goquarkchain/common"
-	"github.com/QuarkChain/goquarkchain/core/types"
+
 	"io"
 	"math/big"
 
+	qkcCommon "github.com/QuarkChain/goquarkchain/common"
+	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/rlp"
