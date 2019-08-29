@@ -143,29 +143,3 @@ func (m *MasterServerSideOp) GetMinorBlockHeaderList(ctx context.Context, req *r
 		RpcId: req.RpcId,
 	}, nil
 }
-
-func (m *MasterServerSideOp) MinorHead(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
-	var (
-		res = new(rpc.MinorHeadRequest)
-		err error
-	)
-
-	if err = serialize.DeserializeFromBytes(req.Data, res); err != nil {
-		return nil, err
-	}
-
-	mBHeader, err := m.p2pApi.MinorHead(res)
-	if err != nil {
-		return nil, err
-	}
-
-	bytes, err := serialize.SerializeToBytes(mBHeader)
-	if err != nil {
-		return nil, err
-	}
-
-	return &rpc.Response{
-		Data:  bytes,
-		RpcId: req.RpcId,
-	}, nil
-}

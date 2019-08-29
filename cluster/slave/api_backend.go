@@ -3,9 +3,6 @@ package slave
 import (
 	"errors"
 	"fmt"
-	"math/big"
-	"sort"
-
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
 	"github.com/QuarkChain/goquarkchain/cluster/shard"
@@ -16,6 +13,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
 	"golang.org/x/sync/errgroup"
+	"math/big"
 )
 
 var (
@@ -451,12 +449,6 @@ func (s *SlaveBackend) getMinorBlockHeadersWithSkip(gReq *p2p.GetMinorBlockHeade
 		} else {
 			height += uint64(gReq.Skip) + 1
 		}
-	}
-
-	if gReq.Direction == qcom.DirectionToGenesis {
-		sort.Slice(headerlist, func(i, j int) bool {
-			return headerlist[i].Number < headerlist[j].Number
-		})
 	}
 
 	return headerlist, nil

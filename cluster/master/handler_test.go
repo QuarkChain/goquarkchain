@@ -50,15 +50,15 @@ func TestGetRootBlockHeaders(t *testing.T) {
 	// Create a batch of tests for various scenarios
 	limit := uint64(rootBlockHeaderListLimit)
 	tests := []struct {
-		query  *p2p.GetRootBlockHeaderListRequest // The hashList to execute for header retrieval
-		expect []common.Hash                      // The hashes of the block whose headers are expected
+		query  *p2p.GetRootBlockHeaderListWithSkipRequest // The hashList to execute for header retrieval
+		expect []common.Hash                              // The hashes of the block whose headers are expected
 	}{
 		// A single random block should be retrievable by hash
 		{
-			&p2p.GetRootBlockHeaderListRequest{BlockHash: pm.rootBlockChain.GetBlockByNumber(limit / 2).Hash(), Limit: 1, Direction: 0},
+			&p2p.GetRootBlockHeaderListWithSkipRequest{Data: pm.rootBlockChain.GetBlockByNumber(limit / 2).Hash(), Limit: 1, Direction: 0},
 			[]common.Hash{pm.rootBlockChain.GetBlockByNumber(limit / 2).Hash()},
 		}, {
-			&p2p.GetRootBlockHeaderListRequest{BlockHash: pm.rootBlockChain.GetBlockByNumber(limit / 2).Hash(), Limit: 3, Direction: 0},
+			&p2p.GetRootBlockHeaderListWithSkipRequest{Data: pm.rootBlockChain.GetBlockByNumber(limit / 2).Hash(), Limit: 3, Direction: 0},
 			[]common.Hash{
 				pm.rootBlockChain.GetBlockByNumber(limit / 2).Hash(),
 				pm.rootBlockChain.GetBlockByNumber(limit/2 - 1).Hash(),
@@ -67,20 +67,20 @@ func TestGetRootBlockHeaders(t *testing.T) {
 		},
 		// The chain endpoints should be retrievable
 		{
-			&p2p.GetRootBlockHeaderListRequest{BlockHash: pm.rootBlockChain.Genesis().Hash(), Limit: 1, Direction: 0},
+			&p2p.GetRootBlockHeaderListWithSkipRequest{Data: pm.rootBlockChain.Genesis().Hash(), Limit: 1, Direction: 0},
 			[]common.Hash{pm.rootBlockChain.GetBlockByNumber(0).Hash()},
 		}, {
-			&p2p.GetRootBlockHeaderListRequest{BlockHash: pm.rootBlockChain.CurrentBlock().Hash(), Limit: 1, Direction: 0},
+			&p2p.GetRootBlockHeaderListWithSkipRequest{Data: pm.rootBlockChain.CurrentBlock().Hash(), Limit: 1, Direction: 0},
 			[]common.Hash{pm.rootBlockChain.CurrentBlock().Hash()},
 		},
 		// Ensure protocol limits are honored
 		{
-			&p2p.GetRootBlockHeaderListRequest{BlockHash: pm.rootBlockChain.CurrentBlock().ParentHash(), Limit: uint32(limit), Direction: 0},
+			&p2p.GetRootBlockHeaderListWithSkipRequest{Data: pm.rootBlockChain.CurrentBlock().ParentHash(), Limit: uint32(limit), Direction: 0},
 			//GetBlockHashesFromHash return hash up to limit which do not include the hash in parameter
 			pm.rootBlockChain.GetBlockHashesFromHash(pm.rootBlockChain.CurrentBlock().Hash(), limit),
 		}, {
 			// Check that requesting more than available is handled gracefully
-			&p2p.GetRootBlockHeaderListRequest{BlockHash: pm.rootBlockChain.GetHeaderByNumber(2).Hash(), Limit: 3, Direction: 0},
+			&p2p.GetRootBlockHeaderListWithSkipRequest{Data: pm.rootBlockChain.GetHeaderByNumber(2).Hash(), Limit: 3, Direction: 0},
 			[]common.Hash{
 				pm.rootBlockChain.GetBlockByNumber(2).Hash(),
 				pm.rootBlockChain.GetBlockByNumber(1).Hash(),
@@ -98,12 +98,7 @@ func TestGetRootBlockHeaders(t *testing.T) {
 		// Send the hash request and verify the response
 		go handleMsg(clientPeer)
 		// rheaders, err := clientPeer.GetRootBlockHeaderList(tt.query.BlockHash, tt.query.Limit, qcom.DirectionToGenesis)
-		mSkip := &p2p.GetRootBlockHeaderListWithSkipRequest{
-			Data:      tt.query.BlockHash,
-			Limit:     tt.query.Limit,
-			Direction: tt.query.Direction,
-		}
-		res, err := clientPeer.GetRootBlockHeaderList(mSkip)
+		res, err := clientPeer.GetRootBlockHeaderList(tt.query)
 		if err != nil {
 			t.Errorf("test %d: make message failed: %v", i, err)
 		}
@@ -114,7 +109,7 @@ func TestGetRootBlockHeaders(t *testing.T) {
 		}
 		for index, header := range rheaders {
 			if header.Hash() != headers[index].Hash() {
-				t.Errorf("test %d: peer result %d count is mismatch: got %v, want %v", i, index, header.Hash(), headers[index].Hash())
+				t.Errorf("test %d: peer result %d count is mismatch: got %v, want %v", i, index, header.Number, headers[index].Number)
 			}
 		}
 	}
@@ -631,6 +626,15 @@ func handleMsg(peer *Peer) error {
 			c <- &blockHeaderResp
 		}
 
+	case qkcMsg.Op == p2p.GetRootBlockHeaderListWithSkipResponseMsg:
+		var blockHeaderResp p2p.GetRootBlockHeaderListResponse
+		if err := serialize.DeserializeFromBytes(qkcMsg.Data, &blockHeaderResp); err != nil {
+			return err
+		}
+		if c := peer.getChan(qkcMsg.RpcID); c != nil {
+			c <- &blockHeaderResp
+		}
+
 	case qkcMsg.Op == p2p.GetRootBlockListResponseMsg:
 		var blockResp p2p.GetRootBlockListResponse
 		if err := serialize.DeserializeFromBytes(qkcMsg.Data, &blockResp); err != nil {
@@ -639,6 +643,7 @@ func handleMsg(peer *Peer) error {
 		if c := peer.getChan(qkcMsg.RpcID); c != nil {
 			c <- blockResp.RootBlockList
 		}
+
 	case qkcMsg.Op == p2p.GetMinorBlockHeaderListResponseMsg:
 		var minorHeaderResp p2p.GetMinorBlockHeaderListResponse
 
@@ -648,6 +653,16 @@ func handleMsg(peer *Peer) error {
 		if c := peer.getChan(qkcMsg.RpcID); c != nil {
 			c <- &minorHeaderResp
 		}
+
+	case qkcMsg.Op == p2p.GetMinorBlockHeaderListWithSkipResponseMsg:
+		var minorHeaderResp p2p.GetMinorBlockHeaderListResponse
+		if err := serialize.DeserializeFromBytes(qkcMsg.Data, &minorHeaderResp); err != nil {
+			return err
+		}
+		if c := peer.getChan(qkcMsg.RpcID); c != nil {
+			c <- &minorHeaderResp
+		}
+
 	case qkcMsg.Op == p2p.GetMinorBlockListResponseMsg:
 		var minorBlockResp p2p.GetMinorBlockListResponse
 		if err := serialize.DeserializeFromBytes(qkcMsg.Data, &minorBlockResp); err != nil {
