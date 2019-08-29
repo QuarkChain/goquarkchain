@@ -780,6 +780,7 @@ func (s *StateDB) GetFullShardKey(addr common.Address) uint32 {
 func (s *StateDB) AddBlockFee(fee map[uint64]*big.Int) {
 	if s.blockFee == nil {
 		s.blockFee = fee
+		return
 	}
 	for k, v := range fee {
 		preBalance, ok := s.blockFee[k]

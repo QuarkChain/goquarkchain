@@ -542,10 +542,10 @@ func TestBroadcastCrossShardTransaction2x1(t *testing.T) {
 
 	cntr.exp[&acc1] = 1000000 - 54321 - 5555 - (params.GtxxShardCost.Uint64()+GTXCOST)*(gasPrice1+gasPrice2)
 	cntr.exp[&acc1S2] = 1000000
-	cntr.exp[&acc2] = 500000 - 7787 - (params.GtxxShardCost.Uint64()+GTXCOST)*2
+	cntr.exp[&acc2] = 500000 - 7787 - (params.GtxxShardCost.Uint64()+GTXCOST)*gasPrice3
 	cntr.exp[&acc3] = 0
-	cntr.exp[&acc4] = GTXCOST + 500000
-	cntr.exp[&acc5] = GTXCOST*2 + 500000
+	cntr.exp[&acc4] = (1000000 + GTXCOST*gasPrice3) / 2
+	cntr.exp[&acc5] = (1000000 + GTXCOST*gasPrice1 + GTXCOST*gasPrice2) / 2
 	cntr.assertAll()
 
 	//expect chain 2 got the CrossShardTransactionList of b1
@@ -566,7 +566,7 @@ func TestBroadcastCrossShardTransaction2x1(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NoError(t, mstr.AddMinorBlock(b3.Branch().Value, b3))
 
-	cntr.exp[&acc1S2] += 500000 + params.GtxxShardCost.Uint64()*3
+	cntr.exp[&acc1S2] += (1000000 + params.GtxxShardCost.Uint64()*(gasPrice1+gasPrice2+gasPrice3)) / 2
 	cntr.exp[&acc3] += 54321 + 5555 + 7787
 	cntr.assertAll()
 
@@ -576,8 +576,8 @@ func TestBroadcastCrossShardTransaction2x1(t *testing.T) {
 
 	cntr.exp[&acc1] += c.clstrCfg.Quarkchain.Root.CoinbaseAmount.Uint64() +
 		1500000 + // root block tax reward (3 blocks) from minor block tax
-		1500000 - 979000 + // minor block reward FIXME: 1500000 for python?
-		GTXCOST*3 //root block tax reward from tx fee
+		500000 + // minor block reward
+		GTXCOST*(gasPrice1+gasPrice2+gasPrice3)/2 //root block tax reward from tx fee
 	cntr.assertAll()
 
 	c.clstrCfg.Quarkchain.Root.CoinbaseAddress = acc3
@@ -615,8 +615,7 @@ func TestBroadcastCrossShardTransaction2x1(t *testing.T) {
 	total := 3*c.clstrCfg.Quarkchain.Root.CoinbaseAmount.Uint64() +
 		6*minorCoinbase.Uint64() +
 		2*balance[c.clstrCfg.Quarkchain.GenesisToken].Uint64() +
-		500000 + //post-tax mblock coinbase
-		21000 //FIXME remove 21000
+		500000 //post-tax mblock coinbase
 	assert.Equal(t, int(total), int(cntr.sum()))
 }
 
