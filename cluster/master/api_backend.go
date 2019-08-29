@@ -176,7 +176,6 @@ func (s *QKCMasterBackend) GetAllTx(branch account.Branch, start []byte, limit u
 	return slaveConn.GetAllTx(branch, start, limit)
 }
 
-
 func (s *QKCMasterBackend) GetLogs(branch account.Branch, address []account.Address, topics [][]common.Hash, startBlockNumber, endBlockNumber uint64) ([]*types.Log, error) {
 	// not support earlist and pending
 	slaveConn := s.getOneSlaveConnection(branch)
@@ -235,15 +234,27 @@ func (s *QKCMasterBackend) GasPrice(branch account.Branch, tokenID uint64) (uint
 }
 
 // return root chain work if branch is nil
-func (s *QKCMasterBackend) GetWork(branch account.Branch) (*consensus.MiningWork, error) {
+func (s *QKCMasterBackend) GetWork(branch account.Branch, addr *common.Address) (*consensus.MiningWork, error) {
+	coinbaseAddr := &account.Address{}
+	if addr != nil {
+		coinbaseAddr.Recipient = *addr
+		coinbaseAddr.FullShardKey = branch.Value
+	} else {
+		coinbaseAddr = nil
+	}
 	if branch.Value == 0 {
-		return s.miner.GetWork()
+		if coinbaseAddr == nil {
+			coinbaseAddr = new(account.Address)
+			*coinbaseAddr = s.clusterConfig.Quarkchain.Root.CoinbaseAddress
+		}
+		//TODO to fix root's POWS diff cal
+		return s.miner.GetWork(*coinbaseAddr)
 	}
 	slaveConn := s.getOneSlaveConnection(branch)
 	if slaveConn == nil {
 		return nil, ErrNoBranchConn
 	}
-	return slaveConn.GetWork(branch)
+	return slaveConn.GetWork(branch, coinbaseAddr)
 }
 
 // submit root chain work if branch is nil

@@ -59,7 +59,7 @@ type ISlaveConn interface {
 	GetStorageAt(address *account.Address, key common.Hash, height *uint64) (common.Hash, error)
 	GetCode(address *account.Address, height *uint64) ([]byte, error)
 	GasPrice(branch account.Branch, tokenID uint64) (uint64, error)
-	GetWork(branch account.Branch) (*consensus.MiningWork, error)
+	GetWork(branch account.Branch, address *account.Address) (*consensus.MiningWork, error)
 	SubmitWork(work *SubmitWorkRequest) (success bool, err error)
 	SetMining(mining bool) error
 }

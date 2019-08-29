@@ -543,7 +543,7 @@ func (p *PublicBlockChainAPI) SubmitWork(fullShardKey *hexutil.Uint, headHash co
 	return submit, nil
 }
 
-func (p *PublicBlockChainAPI) GetWork(fullShardKey *hexutil.Uint) ([]common.Hash, error) {
+func (p *PublicBlockChainAPI) GetWork(fullShardKey *hexutil.Uint, coinbaseAddress *common.Address) ([]common.Hash, error) {
 	fullShardId := uint32(0)
 	var err error
 	if fullShardKey != nil {
@@ -552,7 +552,7 @@ func (p *PublicBlockChainAPI) GetWork(fullShardKey *hexutil.Uint) ([]common.Hash
 			return nil, err
 		}
 	}
-	work, err := p.b.GetWork(account.NewBranch(fullShardId))
+	work, err := p.b.GetWork(account.NewBranch(fullShardId), coinbaseAddress)
 	if err != nil {
 		return nil, err
 	}

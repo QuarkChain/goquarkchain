@@ -217,8 +217,8 @@ func (s *ShardBackend) GetLogs(start uint64, end uint64, address []account.Addre
 	return s.MinorBlockChain.GetLogsByAddressAndTopic(start, end, address, topics)
 }
 
-func (s *ShardBackend) GetWork() (*consensus.MiningWork, error) {
-	return s.miner.GetWork()
+func (s *ShardBackend) GetWork(coinbaseAddr *account.Address) (*consensus.MiningWork, error) {
+	return s.miner.GetWork(*coinbaseAddr)
 }
 
 func (s *ShardBackend) SubmitWork(headerHash common.Hash, nonce uint64, mixHash common.Hash) error {

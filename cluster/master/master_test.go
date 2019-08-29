@@ -606,7 +606,7 @@ func TestGasPrice(t *testing.T) {
 func TestGetWork(t *testing.T) {
 	master := initEnv(t, nil)
 	branch := account.NewBranch(2)
-	data, err := master.GetWork(branch)
+	data, err := master.GetWork(branch, nil)
 	assert.NoError(t, err)
 	assert.Equal(t, data.Number, uint64(1))
 }

@@ -377,7 +377,8 @@ type GasPriceResponse struct {
 }
 
 type GetWorkRequest struct {
-	Branch uint32 `json:"branch" gencodec:"required"`
+	Branch       uint32           `json:"branch" gencodec:"required"`
+	CoinbaseAddr *account.Address `json:"coinbase_addr" gencodec:"required"`
 }
 
 type GetWorkResponse struct {

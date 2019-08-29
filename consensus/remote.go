@@ -124,12 +124,14 @@ func (c *CommonEngine) remote() {
 		select {
 		case work := <-c.workCh:
 			results = work.results
+			fmt.Println("????????????????????????")
 			makeWork(work.block, work.diff)
 
 		case work := <-c.fetchWorkCh:
 			if currentBlock == nil {
 				work.errc <- ErrNoMiningWork
 			} else {
+				fmt.Println("return currentWork")
 				work.res <- currentWork
 			}
 

@@ -1,7 +1,7 @@
 package miner
 
 import (
-	"fmt"
+	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/service"
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/core/types"
@@ -145,10 +145,7 @@ func (m *Miner) SetMining(mining bool) {
 	}
 }
 
-func (m *Miner) GetWork() (*consensus.MiningWork, error) {
-	if !m.IsMining() {
-		return nil, fmt.Errorf("Should only be used for remote miner ")
-	}
+func (m *Miner) GetWork(coinbaseAddr account.Address) (*consensus.MiningWork, error) {
 	work, err := m.engine.GetWork()
 	if err == nil {
 		return work, nil
