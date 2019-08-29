@@ -358,14 +358,13 @@ func (s *QKCMasterBackend) broadcastRootBlockToSlaves(block *types.RootBlock) er
 }
 
 func (s *QKCMasterBackend) Heartbeat() {
-	heartbeatInterval := time.NewTicker(config.HeartbeatInterval)
 	go func(normal bool) {
 		for normal {
 			select {
 			case <-s.exitCh:
 				normal = false
 				break
-			case <-heartbeatInterval.C:
+			default:
 				timeGap := time.Now()
 				s.ctx.Timestamp = timeGap
 				for endpoint := range s.clientPool {
@@ -377,6 +376,7 @@ func (s *QKCMasterBackend) Heartbeat() {
 					}
 				}
 				log.Trace(s.logInfo, "heart beat duration", time.Now().Sub(timeGap).String())
+				time.Sleep(config.HeartbeatInterval)
 			}
 		}
 	}(true)
