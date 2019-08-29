@@ -228,9 +228,6 @@ func (s *StateDB) Empty(addr common.Address) bool {
 
 // Retrieve the balance from the given address or 0 if object not found
 func (s *StateDB) GetBalance(addr common.Address, tokenID uint64) *big.Int {
-	if tokenID == 0 {
-		tokenID = s.quarkChainConfig.GetDefaultChainTokenID()
-	}
 	stateObject := s.getStateObject(addr)
 	if stateObject != nil {
 		return stateObject.Balance(tokenID)
@@ -352,9 +349,6 @@ func (s *StateDB) HasSuicided(addr common.Address) bool {
 
 // AddBalance adds amount to the account associated with addr.
 func (s *StateDB) AddBalance(addr common.Address, amount *big.Int, tokenID uint64) {
-	if tokenID == 0 {
-		tokenID = s.quarkChainConfig.GetDefaultChainTokenID()
-	}
 	stateObject := s.GetOrNewStateObject(addr)
 	if stateObject != nil {
 		stateObject.AddBalance(amount, tokenID)
@@ -363,9 +357,6 @@ func (s *StateDB) AddBalance(addr common.Address, amount *big.Int, tokenID uint6
 
 // SubBalance subtracts amount from the account associated with addr.
 func (s *StateDB) SubBalance(addr common.Address, amount *big.Int, tokenID uint64) {
-	if tokenID == 0 {
-		tokenID = s.quarkChainConfig.GetDefaultChainTokenID()
-	}
 	stateObject := s.GetOrNewStateObject(addr)
 	if stateObject != nil {
 		stateObject.SubBalance(amount, tokenID)
@@ -373,9 +364,6 @@ func (s *StateDB) SubBalance(addr common.Address, amount *big.Int, tokenID uint6
 }
 
 func (s *StateDB) SetBalance(addr common.Address, amount *big.Int, tokenID uint64) {
-	if tokenID == 0 {
-		tokenID = s.quarkChainConfig.GetDefaultChainTokenID()
-	}
 	stateObject := s.GetOrNewStateObject(addr)
 	if stateObject != nil {
 		stateObject.SetBalance(amount, tokenID)

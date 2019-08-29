@@ -413,7 +413,7 @@ func opAddress(pc *uint64, interpreter *EVMInterpreter, contract *Contract, memo
 
 func opBalance(pc *uint64, interpreter *EVMInterpreter, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
 	slot := stack.peek()
-	slot.Set(interpreter.evm.StateDB.GetBalance(common.BigToAddress(slot), 0))
+	slot.Set(interpreter.evm.StateDB.GetBalance(common.BigToAddress(slot), interpreter.evm.StateDB.GetQuarkChainConfig().GetDefaultChainTokenID()))
 	return nil, nil
 }
 
@@ -887,8 +887,8 @@ func opStop(pc *uint64, interpreter *EVMInterpreter, contract *Contract, memory 
 }
 
 func opSuicide(pc *uint64, interpreter *EVMInterpreter, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
-	balance := interpreter.evm.StateDB.GetBalance(contract.Address(), 0)
-	interpreter.evm.StateDB.AddBalance(common.BigToAddress(stack.pop()), balance, 0)
+	balance := interpreter.evm.StateDB.GetBalance(contract.Address(), interpreter.evm.StateDB.GetQuarkChainConfig().GetDefaultChainTokenID())
+	interpreter.evm.StateDB.AddBalance(common.BigToAddress(stack.pop()), balance, interpreter.evm.StateDB.GetQuarkChainConfig().GetDefaultChainTokenID())
 
 	interpreter.evm.StateDB.Suicide(contract.Address())
 	return nil, nil
