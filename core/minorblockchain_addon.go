@@ -564,9 +564,9 @@ func (m *MinorBlockChain) ExecuteTx(tx *types.Transaction, fromAddress *account.
 	gp := new(GasPool).AddGas(mBlock.Header().GetGasLimit().Uint64())
 
 	to := evmTx.EvmTx.To()
-	t:=tx.EvmTx.ToShardID()
+	toFullShardKey:=tx.EvmTx.ToFullShardKey()
 	msg := types.NewMessage(fromAddress.Recipient, to, evmTx.EvmTx.Nonce(), evmTx.EvmTx.Value(), evmTx.EvmTx.Gas(),
-		evmTx.EvmTx.GasPrice(), evmTx.EvmTx.Data(), false, tx.EvmTx.FromShardID(), &t,
+		evmTx.EvmTx.GasPrice(), evmTx.EvmTx.Data(), false, tx.EvmTx.FromFullShardKey(), &toFullShardKey,
 		tx.EvmTx.TransferTokenID(), tx.EvmTx.GasTokenID())
 	state.SetFullShardKey(tx.EvmTx.ToFullShardKey())
 	state.SetQuarkChainConfig(m.clusterConfig.Quarkchain)
@@ -1081,9 +1081,9 @@ func (m *MinorBlockChain) EstimateGas(tx *types.Transaction, fromAddress account
 
 		gp := new(GasPool).AddGas(evmState.GetGasLimit().Uint64())
 		to := evmTx.EvmTx.To()
-		t:=tx.EvmTx.ToShardID()
+		toFullShardKey:=tx.EvmTx.ToFullShardKey()
 		msg := types.NewMessage(fromAddress.Recipient, to, evmTx.EvmTx.Nonce(), evmTx.EvmTx.Value(), evmTx.EvmTx.Gas(),
-			evmTx.EvmTx.GasPrice(), evmTx.EvmTx.Data(), false, tx.EvmTx.FromShardID(), &t,
+			evmTx.EvmTx.GasPrice(), evmTx.EvmTx.Data(), false, tx.EvmTx.FromFullShardKey(), &toFullShardKey,
 			tx.EvmTx.TransferTokenID(), tx.EvmTx.GasTokenID())
 		evmState.SetFullShardKey(tx.EvmTx.ToFullShardKey())
 		context := NewEVMContext(msg, m.CurrentBlock().IHeader().(*types.MinorBlockHeader), m)

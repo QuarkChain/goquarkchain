@@ -477,9 +477,10 @@ func (evm *EVM) create(caller ContractRef, codeAndHash *codeAndHash, gas uint64,
 // CreateAddress creates an ethereum address given the bytes and the nonce
 func CreateAddress(b common.Address, fullShardKey *uint32, nonce uint64) common.Address {
 	var data []byte
-	if fullShardKey!=nil { //right?
+	if fullShardKey != nil {
 		data, _ = rlp.EncodeToBytes([]interface{}{b, *fullShardKey, nonce})
 	} else {
+		// only happens for backward-compatible EVM tests. for eth-state test
 		data, _ = rlp.EncodeToBytes([]interface{}{b, nonce})
 	}
 
@@ -495,7 +496,6 @@ func (evm *EVM) Create(caller ContractRef, code []byte, gas uint64, value *big.I
 	} else {
 		contractAddr = CreateAddress(caller.Address(), evm.Context.ToFullShardKey, evm.StateDB.GetNonce(caller.Address()))
 	}
-	//fmt.Println("CCCCCCCCCCCCCCCCCCCCC", contractAddr.String(), caller.Address().String(), evm.Context.ToFullShardKey, evm.StateDB.GetNonce(caller.Address()))
 	return evm.create(caller, &codeAndHash{code: code}, gas, value, contractAddr)
 }
 

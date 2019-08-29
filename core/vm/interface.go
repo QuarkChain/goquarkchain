@@ -95,7 +95,6 @@ type StateDB interface {
 	SetTxCursorInfo(info *types.XShardTxCursorInfo)
 	GetTxCursorInfo() *types.XShardTxCursorInfo
 	SetMockFlag(flag bool)
-	GetMockFlag() bool
 }
 
 // CallContext provides a basic interface for the EVM calling conventions. The EVM

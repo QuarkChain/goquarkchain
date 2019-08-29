@@ -267,7 +267,7 @@ func (tx *EvmTransaction) AsMessage(s Signer, txHash common.Hash) (Message, erro
 		msgTo = nil
 	}
 
-	t:=tx.data.ToFullShardKey.GetValue()
+	toFullShardKey:=tx.data.ToFullShardKey.GetValue()
 	msg := Message{
 		nonce:            tx.data.AccountNonce,
 		gasLimit:         tx.data.GasLimit,
@@ -277,7 +277,7 @@ func (tx *EvmTransaction) AsMessage(s Signer, txHash common.Hash) (Message, erro
 		data:             tx.data.Payload,
 		checkNonce:       true,
 		fromFullShardKey: tx.data.FromFullShardKey.GetValue(),
-		toFullShardKey:   &t,
+		toFullShardKey:   &toFullShardKey,
 		txHash:           txHash,
 		isCrossShard:     tx.IsCrossShard(),
 		transferTokenID:  tx.data.TransferTokenID,

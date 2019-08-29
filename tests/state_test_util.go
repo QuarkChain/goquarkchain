@@ -157,16 +157,13 @@ func (t *StateTest) Run(subtest StateSubtest, vmconfig vm.Config, useMock bool) 
 	config, ok := Forks[subtest.Fork]
 	if !ok {
 		return nil, nil
-		//return nil, errors.New("not support")
 	}
 	block := t.genesis(config).ToBlock(nil)
 	header := TransFromBlock(block)
 	statedb := MakePreState(ethdb.NewMemDatabase(), t.json.Pre, useMock)
 
-	//rootDis, _ := statedb.Commit(true)
-	//fmt.Println("state_root_hash", rootDis.String(), statedb.GetMockFlag())
 	post := t.json.Post[subtest.Fork][subtest.Index]
-	msg, err := t.json.Tx.toMessage(post,useMock)
+	msg, err := t.json.Tx.toMessage(post, useMock)
 	if err != nil {
 		return nil, err
 	}
@@ -178,30 +175,24 @@ func (t *StateTest) Run(subtest StateSubtest, vmconfig vm.Config, useMock bool) 
 
 	localFee := big.NewRat(1, 1)
 	if _, _, _, err := qkcCore.ApplyMessage(evm, msg, gaspool, localFee); err != nil {
-		//fmt.Println("ssssssssssssserr", err)
 		statedb.RevertToSnapshot(snapshot)
 	}
-	//fmt.Println("apply_tx-end")
 
-	//fmt.Println("commit-start")
 	root, err := statedb.Commit(true)
-	//fmt.Println("commit-end")
+
 	// Add 0-value mining reward. This only makes a difference in the cases
 	// where
 	// - the coinbase suicided, or
 	// - there are only 'bad' transactions, which aren't executed. In those cases,
 	//   the coinbase gets no txfee, so isn't created, and thus needs to be touched
 	statedb.AddBalance(block.Coinbase(), new(big.Int), 0)
-	//fmt.Println("IntermediateRoot-start")
 	root = statedb.IntermediateRoot(config.IsEIP158(block.Number()))
-	//fmt.Println("IntermediateRoot-end")
 	// And _now_ get the state root
 	// N.B: We need to do this in a two-step process, because the first Commit takes care
 	// of suicides, and we need to touch the coinbase _after_ it has potentially suicided.
 	if root != common.Hash(post.Root) {
 		return statedb, fmt.Errorf("post state root mismatch: got %x, want %x", root, post.Root)
 	}
-	//fmt.Println("hash match", root.String(), common.Hash(post.Root).String())
 	//if logs := rlpHash(statedb.Logs()); logs != common.Hash(post.Logs) {
 	//	return statedb, fmt.Errorf("post state logs hash mismatch: got %x, want %x", logs, post.Logs)
 	//}
@@ -251,7 +242,7 @@ func (t *StateTest) genesis(config *params.ChainConfig) *core.Genesis {
 	}
 }
 
-func (tx *stTransaction) toMessage(ps stPostState,useMock bool) (*types.Message, error) {
+func (tx *stTransaction) toMessage(ps stPostState, useMock bool) (*types.Message, error) {
 	// Derive sender from private key if present.
 	var from common.Address
 	if len(tx.PrivateKey) > 0 {
@@ -314,10 +305,10 @@ func (tx *stTransaction) toMessage(ps stPostState,useMock bool) (*types.Message,
 		transferTokenID = tx.TransferTokenID[ps.Indexes.TransferTokenID]
 	}
 
-	uint32Zero:=uint32(0)
-	toFullShardKey:=&uint32Zero
-	if useMock{
-		toFullShardKey=nil
+	uint32Zero := uint32(0)
+	toFullShardKey := &uint32Zero
+	if useMock {
+		toFullShardKey = nil
 	}
 	msg := types.NewMessage(fromRecipient, toRecipient, tx.Nonce, value, gasLimit, tx.GasPrice, data, true, 0, toFullShardKey, transferTokenID, testQKCID)
 	return &msg, nil

@@ -881,6 +881,3 @@ func (s *StateDB) GetTxCursorInfo() *types.XShardTxCursorInfo {
 func (s *StateDB) SetMockFlag(flag bool) {
 	s.useMock = flag
 }
-func (s *StateDB) GetMockFlag() bool {
-	return s.useMock
-}
