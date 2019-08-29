@@ -324,7 +324,7 @@ func (st *StateTransition) AddCrossShardTxDeposit(intrinsicGas uint64, feeRate *
 			},
 			To: account.Address{
 				Recipient:    vm.CreateAddress(msg.From(), msg.ToFullShardKey(), state.GetNonce(msg.From())),
-				FullShardKey:*msg.ToFullShardKey() ,
+				FullShardKey: *msg.ToFullShardKey(),
 			},
 			Value:           crossShardValue,
 			GasTokenID:      msg.GasTokenID(),
@@ -354,7 +354,7 @@ func (st *StateTransition) AddCrossShardTxDeposit(intrinsicGas uint64, feeRate *
 			},
 			To: account.Address{
 				Recipient:    account.Recipient(*msg.To()),
-				FullShardKey:*msg.ToFullShardKey(),
+				FullShardKey: *msg.ToFullShardKey(),
 			},
 			Value:           crossShardValue,
 			GasTokenID:      msg.GasTokenID(),
@@ -390,7 +390,7 @@ func (st *StateTransition) AddCrossShardTxDeposit(intrinsicGas uint64, feeRate *
 func (st *StateTransition) transferFailureByPoSWBalanceCheck() bool {
 	if v, ok := st.state.GetSenderDisallowMap()[st.msg.From()]; ok {
 		//TODO use default token to replace 0
-		if new(big.Int).Add(st.msg.Value(), v).Cmp(st.state.GetBalance(st.msg.From(), 0)) == 1 {
+		if new(big.Int).Add(st.msg.Value(), v).Cmp(st.state.GetBalance(st.msg.From(), st.evm.StateDB.GetQuarkChainConfig().GetDefaultChainTokenID())) == 1 {
 			return true
 		}
 	}

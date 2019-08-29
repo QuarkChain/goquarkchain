@@ -45,6 +45,10 @@ import (
 	"golang.org/x/crypto/sha3"
 )
 
+var (
+	testTokenID = qkcCommon.TokenIDEncode("QKC")
+)
+
 // StateTest checks transaction processing without block context.
 // See https://github.com/ethereum/EIPs/issues/176 for the test format specification.
 type StateTest struct {
@@ -185,7 +189,7 @@ func (t *StateTest) Run(subtest StateSubtest, vmconfig vm.Config, useMock bool) 
 	// - the coinbase suicided, or
 	// - there are only 'bad' transactions, which aren't executed. In those cases,
 	//   the coinbase gets no txfee, so isn't created, and thus needs to be touched
-	statedb.AddBalance(block.Coinbase(), new(big.Int), 0)
+	statedb.AddBalance(block.Coinbase(), new(big.Int), testTokenID)
 	root = statedb.IntermediateRoot(config.IsEIP158(block.Number()))
 	// And _now_ get the state root
 	// N.B: We need to do this in a two-step process, because the first Commit takes care
@@ -212,7 +216,7 @@ func MakePreState(db ethdb.Database, accounts GenesisAlloc, useMock bool) *state
 		statedb.SetCode(addr, a.Code)
 		statedb.SetNonce(addr, a.Nonce)
 		if a.Balance != nil {
-			statedb.SetBalance(addr, a.Balance, qkcCommon.TokenIDEncode("QKC"))
+			statedb.SetBalance(addr, a.Balance, testTokenID)
 		} else {
 			for tokenID, value := range a.Balances {
 				statedb.SetBalance(addr, value, tokenID)
