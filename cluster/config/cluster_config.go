@@ -98,11 +98,10 @@ type QuarkChainConfig struct {
 	defaultChainTokenID               uint64
 	allowTokenIDs                     map[uint64]bool
 	XShardAddReceiptTimestamp         uint64
-	TxWhiteListSenders                []account.Recipient `json:"TX_WHITELIST_SENDERS"`
-	DisablePowCheck                   bool                `json:"DISABLE_POW_CHECK"`
-	XShardGasDDOSFixRootHeight        uint64              `json:"XSHARD_GAS_DDOS_FIX_ROOT_HEIGHT"`
-	MinTXPoolGasPrice                 *big.Int            `json:"MIN_TX_POOL_GAS_PRICE"`
-	MinMiningGasPrice                 *big.Int            `json:"MIN_MINING_GAS_PRICE"`
+	DisablePowCheck                   bool     `json:"DISABLE_POW_CHECK"`
+	XShardGasDDOSFixRootHeight        uint64   `json:"XSHARD_GAS_DDOS_FIX_ROOT_HEIGHT"`
+	MinTXPoolGasPrice                 *big.Int `json:"MIN_TX_POOL_GAS_PRICE"`
+	MinMiningGasPrice                 *big.Int `json:"MIN_MINING_GAS_PRICE"`
 }
 
 type QuarkChainConfigAlias QuarkChainConfig
@@ -361,8 +360,8 @@ func (q *QuarkChainConfig) allowedTokenIds() map[uint64]bool {
 		q.allowTokenIDs = make(map[uint64]bool, 0)
 		q.allowTokenIDs[common.TokenIDEncode(q.GenesisToken)] = true
 		for _, shard := range q.shards {
-			for _, tokenDict := range shard.Genesis.Alloc {
-				for tokenID, _ := range tokenDict {
+			for _, alloc := range shard.Genesis.Alloc {
+				for tokenID, _ := range alloc.Balances {
 					q.allowTokenIDs[common.TokenIDEncode(tokenID)] = true
 				}
 			}

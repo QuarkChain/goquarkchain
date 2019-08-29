@@ -338,10 +338,10 @@ func TestOneTx(t *testing.T) {
 	currentState1, err := shardState.State()
 	checkErr(err)
 
-	assert.Equal(t, currentState1.GetBalance(id1.GetRecipient(), 0).Uint64(), uint64(10000000-ethParams.TxGas-12345))
-	assert.Equal(t, currentState1.GetBalance(acc2.Recipient, 0).Uint64(), uint64(12345))
+	assert.Equal(t, currentState1.GetBalance(id1.GetRecipient(), testGenesisTokenID).Uint64(), uint64(10000000-ethParams.TxGas-12345))
+	assert.Equal(t, currentState1.GetBalance(acc2.Recipient, testGenesisTokenID).Uint64(), uint64(12345))
 	// shard miner only receives a percentage of reward because of REWARD_TAX_RATE
-	acc3Value := currentState1.GetBalance(acc3.Recipient, 0)
+	acc3Value := currentState1.GetBalance(acc3.Recipient, testGenesisTokenID)
 	should3 := new(big.Int).Add(new(big.Int).SetUint64(ethParams.TxGas/2), new(big.Int).Div(testShardCoinbaseAmount, new(big.Int).SetUint64(2)))
 	assert.Equal(t, should3, acc3Value)
 	assert.Equal(t, len(re), 3)
@@ -416,12 +416,12 @@ func TestDuplicatedTx(t *testing.T) {
 
 	currentState, err := shardState.State()
 	checkErr(err)
-	assert.Equal(t, currentState.GetBalance(id1.GetRecipient(), 0).Uint64(), uint64(10000000-21000-12345))
+	assert.Equal(t, currentState.GetBalance(id1.GetRecipient(), testGenesisTokenID).Uint64(), uint64(10000000-21000-12345))
 
-	assert.Equal(t, currentState.GetBalance(acc2.Recipient, 0).Uint64(), uint64(12345))
+	assert.Equal(t, currentState.GetBalance(acc2.Recipient, testGenesisTokenID).Uint64(), uint64(12345))
 
 	shouldAcc3 := new(big.Int).Add(new(big.Int).Div(testShardCoinbaseAmount, new(big.Int).SetUint64(2)), new(big.Int).SetUint64(21000/2))
-	assert.Equal(t, currentState.GetBalance(acc3.Recipient, 0).Cmp(shouldAcc3), 0)
+	assert.Equal(t, currentState.GetBalance(acc3.Recipient, testGenesisTokenID).Cmp(shouldAcc3), 0)
 
 	// Check receipts
 	assert.Equal(t, len(reps), 3)
@@ -564,9 +564,9 @@ func TestTwoTxInOneBlock(t *testing.T) {
 
 	currState, err = shardState.State()
 	checkErr(err)
-	acc1Value := currState.GetBalance(id1.GetRecipient(), 0)
-	acc2Value := currState.GetBalance(acc2.Recipient, 0)
-	acc3Value := currState.GetBalance(acc3.Recipient, 0)
+	acc1Value := currState.GetBalance(id1.GetRecipient(), testGenesisTokenID)
+	acc2Value := currState.GetBalance(acc2.Recipient, testGenesisTokenID)
+	acc3Value := currState.GetBalance(acc3.Recipient, testGenesisTokenID)
 	assert.Equal(t, acc1Value.Uint64(), uint64(1000000))
 	assert.Equal(t, acc2Value.Uint64(), uint64(1000000))
 
@@ -618,13 +618,13 @@ func TestTwoTxInOneBlock(t *testing.T) {
 	assert.Equal(t, shardState.CurrentHeader().Hash(), b1.Header().Hash())
 	currState, err = shardState.State()
 	checkErr(err)
-	acc1Value = currState.GetBalance(id1.GetRecipient(), 0)
+	acc1Value = currState.GetBalance(id1.GetRecipient(), testGenesisTokenID)
 	assert.Equal(t, acc1Value.Uint64(), uint64(1000000-21000-12345+54321))
 
-	acc2Value = currState.GetBalance(id2.GetRecipient(), 0)
+	acc2Value = currState.GetBalance(id2.GetRecipient(), testGenesisTokenID)
 	assert.Equal(t, acc2Value.Uint64(), uint64(1000000-21000+12345-54321))
 
-	acc3Value = currState.GetBalance(acc3.Recipient, 0)
+	acc3Value = currState.GetBalance(acc3.Recipient, testGenesisTokenID)
 
 	//# 2 block rewards: 3 tx, 2 block rewards
 	shouldAcc3Value := new(big.Int).Mul(testShardCoinbaseAmount, new(big.Int).SetUint64(2))
@@ -854,7 +854,7 @@ func TestXShardTxSent(t *testing.T) {
 	// Make sure the xshard gas is not used by local block
 	id1Value := shardState.currentEvmState.GetGasUsed()
 	assert.Equal(t, id1Value.Uint64(), uint64(21000+9000))
-	id3Value := shardState.currentEvmState.GetBalance(acc3.Recipient, 0)
+	id3Value := shardState.currentEvmState.GetBalance(acc3.Recipient, testGenesisTokenID)
 	shouldID3Value := new(big.Int).Add(testShardCoinbaseAmount, new(big.Int).SetUint64(21000))
 	shouldID3Value = new(big.Int).Div(shouldID3Value, new(big.Int).SetUint64(2))
 	// GTXXSHARDCOST is consumed by remote shard
@@ -1002,11 +1002,11 @@ func TestXShardTxReceivedExcludeNonNeighbor(t *testing.T) {
 	b2, _, err = shardState0.FinalizeAndAddBlock(b2)
 	checkErr(err)
 
-	acc1Value := shardState0.currentEvmState.GetBalance(acc1.Recipient, 0)
+	acc1Value := shardState0.currentEvmState.GetBalance(acc1.Recipient, testGenesisTokenID)
 	assert.Equal(t, uint64(10000000), acc1Value.Uint64())
 
 	// Half collected by root
-	acc3Value := shardState0.currentEvmState.GetBalance(acc3.Recipient, 0)
+	acc3Value := shardState0.currentEvmState.GetBalance(acc3.Recipient, testGenesisTokenID)
 	acc3Should := new(big.Int).Div(testShardCoinbaseAmount, new(big.Int).SetUint64(2))
 	assert.Equal(t, acc3Should.Uint64(), acc3Value.Uint64())
 	// No xshard tx is processed on the receiving side due to non-neighbor
@@ -2253,7 +2253,7 @@ func getDefaultBalance(acc account.Address, shardState *MinorBlockChain) *big.In
 }
 
 func afterTax(reward uint64, shardState *MinorBlockChain) *big.Int {
-	rate := getLocalFeeRate(shardState.clusterConfig.Quarkchain)
+	rate := shardState.getLocalFeeRate()
 	rewardRated := new(big.Int).Mul(new(big.Int).SetUint64(reward), rate.Num())
 	rewardRated = new(big.Int).Div(rewardRated, rate.Denom())
 	return rewardRated

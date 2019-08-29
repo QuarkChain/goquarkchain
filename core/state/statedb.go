@@ -27,6 +27,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/params"
 
 	qkcaccount "github.com/QuarkChain/goquarkchain/account"
+	qkcCommon "github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -104,6 +105,7 @@ type StateDB struct {
 	timeStamp            uint64
 	blockNumber          uint64
 	xShardTxCursorInfo   *types.XShardTxCursorInfo
+	useMock              bool
 }
 
 // Create a new state from a given trie.
@@ -226,9 +228,6 @@ func (s *StateDB) Empty(addr common.Address) bool {
 
 // Retrieve the balance from the given address or 0 if object not found
 func (s *StateDB) GetBalance(addr common.Address, tokenID uint64) *big.Int {
-	if tokenID == 0 {
-		tokenID = s.quarkChainConfig.GetDefaultChainTokenID()
-	}
 	stateObject := s.getStateObject(addr)
 	if stateObject != nil {
 		return stateObject.Balance(tokenID)
@@ -424,6 +423,14 @@ func (s *StateDB) updateStateObject(stateObject *stateObject) {
 	if err != nil {
 		panic(fmt.Errorf("can't encode object at %x: %v", addr[:], err))
 	}
+	var mockAccount MockAccount
+	if s.useMock {
+		mockAccount = AccountToMock(stateObject.data)
+		data, err = rlp.EncodeToBytes(mockAccount)
+		if err != nil {
+			panic(err)
+		}
+	}
 	s.setError(s.trie.TryUpdate(addr[:], data))
 }
 
@@ -451,10 +458,29 @@ func (s *StateDB) getStateObject(addr common.Address) (stateObject *stateObject)
 		return nil
 	}
 	var data Account
-	if err := rlp.DecodeBytes(enc, &data); err != nil {
-		log.Error("Failed to decode state object", "addr", addr, "err", err)
-		return nil
+	if s.useMock {
+		var mockAccount MockAccount
+		if err := rlp.DecodeBytes(enc, &mockAccount); err != nil {
+			log.Error("Failed to decode state object", "addr", addr, "err", err)
+			return nil
+		}
+		rawTokenBalanes := types.NewEmptyTokenBalances()
+		rawTokenBalanes.SetValue(mockAccount.Balance, qkcCommon.TokenIDEncode("QKC"))
+		fullShardKey := types.Uint32(s.fullShardKey)
+		data = Account{
+			Nonce:         mockAccount.Nonce,
+			TokenBalances: rawTokenBalanes,
+			Root:          mockAccount.Root,
+			CodeHash:      mockAccount.CodeHash,
+			FullShardKey:  &fullShardKey,
+		}
+	} else {
+		if err := rlp.DecodeBytes(enc, &data); err != nil {
+			log.Error("Failed to decode state object", "addr", addr, "err", err)
+			return nil
+		}
 	}
+
 	// Insert into the live set.
 	obj := newObject(s, addr, data)
 	s.setStateObject(obj)
@@ -503,7 +529,7 @@ func (s *StateDB) createObject(addr common.Address) (newobj, prev *stateObject) 
 func (s *StateDB) CreateAccount(addr common.Address) {
 	new, prev := s.createObject(addr)
 	if prev != nil {
-		new.SetBalances(prev.data.TokenBalances.GetBalanceMap())
+		new.setBalances(prev.data.TokenBalances.GetBalanceMap())
 	}
 }
 
@@ -742,6 +768,7 @@ func (s *StateDB) GetFullShardKey(addr common.Address) uint32 {
 func (s *StateDB) AddBlockFee(fee map[uint64]*big.Int) {
 	if s.blockFee == nil {
 		s.blockFee = fee
+		return
 	}
 	for k, v := range fee {
 		preBalance, ok := s.blockFee[k]
@@ -838,4 +865,8 @@ func (s *StateDB) SetTxCursorInfo(info *types.XShardTxCursorInfo) {
 
 func (s *StateDB) GetTxCursorInfo() *types.XShardTxCursorInfo {
 	return s.xShardTxCursorInfo
+}
+
+func (s *StateDB) SetMockFlag(flag bool) {
+	s.useMock = flag
 }

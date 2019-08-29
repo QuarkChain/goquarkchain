@@ -110,12 +110,13 @@ func getTestEnv(genesisAccount *account.Address, genesisMinorQuarkHash *uint64, 
 		addr := genesisAccount.AddressInShard(v)
 		shardConfig := fakeClusterConfig.Quarkchain.GetShardConfigByFullShardID(v)
 		if len(testGenesisMinorTokenBalance) != 0 {
-			shardConfig.Genesis.Alloc[addr] = testGenesisMinorTokenBalance
+			shardConfig.Genesis.Alloc[addr] = config.Allocation{Balances: testGenesisMinorTokenBalance}
 			continue
 		}
 		temp := make(map[string]*big.Int)
 		temp["QKC"] = new(big.Int).SetUint64(*genesisMinorQuarkHash)
-		shardConfig.Genesis.Alloc[addr] = temp
+		alloc := config.Allocation{Balances: temp}
+		shardConfig.Genesis.Alloc[addr] = alloc
 	}
 	return env
 }

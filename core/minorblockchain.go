@@ -158,7 +158,7 @@ func NewMinorBlockChain(
 	shouldPreserve func(block *types.MinorBlock) bool,
 	fullShardID uint32,
 ) (*MinorBlockChain, error) {
-	chainConfig = &qkcParams.DefaultByzantium //TODO default is byzantium
+	chainConfig = &qkcParams.DefaultConstantinople //TODO default is constantinople
 	if clusterConfig == nil || chainConfig == nil {
 		return nil, errors.New("can not new minorBlock: config is nil")
 	}
@@ -811,7 +811,8 @@ func SetReceiptsData(config *config.QuarkChainConfig, mBlock types.IBlock, recei
 		if transactions[j].EvmTx.To() == nil {
 			// Deriving the signer is expensive, only do if it's actually needed
 			from, _ := types.Sender(signer, transactions[j].EvmTx)
-			receipts[j].ContractAddress = account.BytesToIdentityRecipient(vm.CreateAddress(from, transactions[j].EvmTx.ToFullShardKey(), transactions[j].EvmTx.Nonce()).Bytes())
+			toFullShardKey:=transactions[j].EvmTx.ToFullShardKey()
+			receipts[j].ContractAddress = account.BytesToIdentityRecipient(vm.CreateAddress(from, &toFullShardKey, transactions[j].EvmTx.Nonce()).Bytes())
 		}
 		// The used gas can be calculated based on previous receipts
 		if j == 0 {

@@ -9,7 +9,6 @@ import (
 	"sort"
 	"time"
 
-	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
 	"github.com/QuarkChain/goquarkchain/core/rawdb"
 	"github.com/QuarkChain/goquarkchain/core/vm"
@@ -59,9 +58,9 @@ func (m *MinorBlockChain) getLastConfirmedMinorBlockHeaderAtRootBlock(hash commo
 	return m.GetHeader(rMinorHeaderHash).(*types.MinorBlockHeader)
 }
 
-func getLocalFeeRate(qkcConfig *config.QuarkChainConfig) *big.Rat {
+func (m *MinorBlockChain) getLocalFeeRate() *big.Rat {
 	ret := new(big.Rat).SetInt64(1)
-	return ret.Sub(ret, qkcConfig.RewardTaxRate)
+	return ret.Sub(ret, m.clusterConfig.Quarkchain.RewardTaxRate)
 }
 
 func powerBigInt(data *big.Int, p uint64) *big.Int {
@@ -564,17 +563,16 @@ func (m *MinorBlockChain) ExecuteTx(tx *types.Transaction, fromAddress *account.
 	gp := new(GasPool).AddGas(mBlock.Header().GetGasLimit().Uint64())
 
 	to := evmTx.EvmTx.To()
+	toFullShardKey:=tx.EvmTx.ToFullShardKey()
 	msg := types.NewMessage(fromAddress.Recipient, to, evmTx.EvmTx.Nonce(), evmTx.EvmTx.Value(), evmTx.EvmTx.Gas(),
-		evmTx.EvmTx.GasPrice(), evmTx.EvmTx.Data(), false, tx.EvmTx.FromShardID(), tx.EvmTx.ToShardID(),
+		evmTx.EvmTx.GasPrice(), evmTx.EvmTx.Data(), false, tx.EvmTx.FromFullShardKey(), &toFullShardKey,
 		tx.EvmTx.TransferTokenID(), tx.EvmTx.GasTokenID())
 	state.SetFullShardKey(tx.EvmTx.ToFullShardKey())
 	state.SetQuarkChainConfig(m.clusterConfig.Quarkchain)
 
 	context := NewEVMContext(msg, m.CurrentBlock().IHeader().(*types.MinorBlockHeader), m)
 	evmEnv := vm.NewEVM(context, state, m.ethChainConfig, m.vmConfig)
-
-	localFee := getLocalFeeRate(m.clusterConfig.Quarkchain)
-	ret, _, _, err := ApplyMessage(evmEnv, msg, gp, localFee)
+	ret, _, _, err := ApplyMessage(evmEnv, msg, gp)
 	return ret, err
 
 }
@@ -1080,15 +1078,15 @@ func (m *MinorBlockChain) EstimateGas(tx *types.Transaction, fromAddress account
 
 		gp := new(GasPool).AddGas(evmState.GetGasLimit().Uint64())
 		to := evmTx.EvmTx.To()
+		toFullShardKey:=tx.EvmTx.ToFullShardKey()
 		msg := types.NewMessage(fromAddress.Recipient, to, evmTx.EvmTx.Nonce(), evmTx.EvmTx.Value(), evmTx.EvmTx.Gas(),
-			evmTx.EvmTx.GasPrice(), evmTx.EvmTx.Data(), false, tx.EvmTx.FromShardID(), tx.EvmTx.ToShardID(),
+			evmTx.EvmTx.GasPrice(), evmTx.EvmTx.Data(), false, tx.EvmTx.FromFullShardKey(), &toFullShardKey,
 			tx.EvmTx.TransferTokenID(), tx.EvmTx.GasTokenID())
 		evmState.SetFullShardKey(tx.EvmTx.ToFullShardKey())
 		context := NewEVMContext(msg, m.CurrentBlock().IHeader().(*types.MinorBlockHeader), m)
 		evmEnv := vm.NewEVM(context, evmState, m.ethChainConfig, m.vmConfig)
 
-		localFee := getLocalFeeRate(m.clusterConfig.Quarkchain)
-		_, _, _, err = ApplyMessage(evmEnv, msg, gp, localFee)
+		_, _, _, err = ApplyMessage(evmEnv, msg, gp)
 		return err
 	}
 
@@ -1613,7 +1611,6 @@ func (m *MinorBlockChain) RunCrossShardTxWithCursor(evmState *state.StateDB,
 	var receipts types.Receipts
 	txList := make([]*types.CrossShardTransactionDeposit, 0)
 	evmState.SetQuarkChainConfig(m.clusterConfig.Quarkchain)
-	localFeeRate := getLocalFeeRate(m.clusterConfig.Quarkchain)
 	gasUsed := new(uint64)
 	for true {
 		xShardDepositTx, err := cursor.getNextTx()
@@ -1625,7 +1622,7 @@ func (m *MinorBlockChain) RunCrossShardTxWithCursor(evmState *state.StateDB,
 		}
 		checkIsFromRootChain := cursor.rBlock.Header().NumberU64() >= m.clusterConfig.Quarkchain.XShardGasDDOSFixRootHeight
 		receipt, err := ApplyCrossShardDeposit(m.ethChainConfig, m, mBlock.Header(),
-			*m.GetVMConfig(), evmState, xShardDepositTx, gasUsed, localFeeRate, checkIsFromRootChain)
+			*m.GetVMConfig(), evmState, xShardDepositTx, gasUsed, checkIsFromRootChain)
 		if err != nil {
 			return nil, nil, nil, err
 		}

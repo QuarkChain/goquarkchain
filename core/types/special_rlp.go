@@ -14,7 +14,7 @@ var (
 
 type Uint32 uint32
 
-func (u *Uint32) getValue() uint32 {
+func (u *Uint32) GetValue() uint32 {
 	return uint32(*u)
 }
 
