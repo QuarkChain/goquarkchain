@@ -7,9 +7,9 @@ import (
 	qkcCommon "github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/serialize"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto/sha3"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/trie"
-	"golang.org/x/crypto/sha3"
 	"reflect"
 )
 
@@ -66,7 +66,7 @@ func CalculateMerkleRoot(list interface{}) (h common.Hash) {
 }
 
 func sha3_256(bytes []byte) (hash common.Hash) {
-	hw := sha3.NewLegacyKeccak256()
+	hw := sha3.NewKeccak256()
 	hw.Write(bytes)
 	hw.Sum(hash[:0])
 	return hash
