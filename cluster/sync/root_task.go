@@ -29,7 +29,6 @@ type rootChainTask struct {
 	stats            *BlockSychronizerStats
 	statusChan       chan *rpc.ShardStatus
 	getShardConnFunc func(fullShardId uint32) []rpc.ShardConnForP2P
-	maxStaleness     uint32
 }
 
 // NewRootChainTask returns a sync task for root chain.
@@ -46,7 +45,6 @@ func NewRootChainTask(
 		stats:            stats,
 		statusChan:       statusChan,
 		getShardConnFunc: getShardConnFunc,
-		maxStaleness:     22500,
 	}
 	rTask.task = task{
 		name:             "root",
@@ -182,8 +180,9 @@ func (r *rootChainTask) findAncestor(bc blockchain) (*types.RootBlockHeader, err
 	}
 
 	end := r.peer.RootHead().Number
-	start := end - r.maxStaleness
-	if end < r.maxStaleness {
+	maxSyncStaleness :=uint32(r.task.maxSyncStaleness)
+	start := end - maxSyncStaleness
+	if end < maxSyncStaleness {
 		start = 0
 	}
 	if r.header.Number < end {

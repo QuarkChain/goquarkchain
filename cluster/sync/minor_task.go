@@ -21,7 +21,6 @@ type minorSyncerPeer interface {
 
 type minorChainTask struct {
 	task
-	maxStaleness uint64
 	stat         *BlockSychronizerStats
 	peer         minorSyncerPeer
 	header       *types.MinorBlockHeader
@@ -36,7 +35,6 @@ func NewMinorChainTask(
 		header:       header,
 		stat:         &BlockSychronizerStats{},
 		peer:         p,
-		maxStaleness: 22500 * 6,
 	}
 	mTask.task = task{
 		name:             fmt.Sprintf("shard-%d", header.Branch.GetShardID()),
@@ -161,7 +159,7 @@ func (m *minorChainTask) findAncestor(bc blockchain) (*types.MinorBlockHeader, e
 
 	end := m.header.Number
 	start := end - m.task.maxSyncStaleness
-	if end < m.maxStaleness {
+	if end < m.task.maxSyncStaleness {
 		start = 0
 	}
 
