@@ -147,14 +147,10 @@ func (m *Miner) SetMining(mining bool) {
 
 func (m *Miner) GetWork(coinbaseAddr account.Address) (*consensus.MiningWork, error) {
 	work, err := m.engine.GetWork()
-	if err == nil {
-		return work, nil
+	if err != nil {
+		return nil, err
 	}
-	if err == consensus.ErrNoMiningWork {
-		m.startCh <- struct{}{}
-		time.Sleep(2)
-	}
-	return m.engine.GetWork()
+	return work, nil
 }
 
 func (m *Miner) SubmitWork(nonce uint64, hash, digest common.Hash, signature *[65]byte) bool {

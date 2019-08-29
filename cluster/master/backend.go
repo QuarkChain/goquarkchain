@@ -259,6 +259,11 @@ func (s *QKCMasterBackend) Start() error {
 	s.protocolManager.Start(s.maxPeers)
 	// start heart beat pre 3 seconds.
 	s.updateShardStatsLoop()
+
+	if s.clusterConfig.Quarkchain.Root.ConsensusConfig.RemoteMine {
+		s.miner.SetMining(true)
+	}
+
 	log.Info("Start cluster successful", "slaveSize", len(s.clientPool))
 	return nil
 }

@@ -48,7 +48,7 @@ func (c *CommonEngine) remote() {
 		currentBlock types.IBlock = nil
 		currentWork  MiningWork
 	)
-	works, err := lru.New(staleThreshold)
+	workMap, err := lru.New(staleThreshold)
 	if err != nil {
 		log.Error("Failed to create unmined block cache", "err", err)
 		return
@@ -56,7 +56,7 @@ func (c *CommonEngine) remote() {
 
 	makeWork := func(block types.IBlock, adjustedDiff *big.Int) {
 		hash := block.IHeader().SealHash()
-		if works.Contains(hash) {
+		if workMap.Contains(hash) {
 			return
 		}
 		currentWork.HeaderHash = hash
@@ -67,7 +67,7 @@ func (c *CommonEngine) remote() {
 			currentWork.Difficulty = adjustedDiff
 		}
 		currentBlock = block
-		works.Add(hash, block)
+		workMap.Add(hash, block)
 	}
 
 	submitWork := func(nonce uint64, mixDigest common.Hash, sealhash common.Hash, signature *[65]byte) bool {
@@ -76,7 +76,7 @@ func (c *CommonEngine) remote() {
 			return false
 		}
 		var block types.IBlock
-		value, ok := works.Get(sealhash)
+		value, ok := workMap.Get(sealhash)
 		if ok {
 			block = value.(types.IBlock)
 		}

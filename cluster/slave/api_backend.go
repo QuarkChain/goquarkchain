@@ -77,6 +77,9 @@ func (s *SlaveBackend) CreateShards(rootBlock *types.RootBlock, forceInit bool) 
 					shard.Stop()
 					return err
 				}
+				if shardCfg.ConsensusConfig.RemoteMine {
+					shard.SetMining(true)
+				}
 			}
 			return nil
 		})
