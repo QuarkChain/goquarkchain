@@ -301,10 +301,6 @@ func (p *Peer) requestRootBlockHeaderListWithSkip(rpcId uint64, request *p2p.Get
 
 func (p *Peer) GetRootBlockHeaderList(req *p2p.GetRootBlockHeaderListWithSkipRequest) (res *p2p.GetRootBlockHeaderListResponse, err error) {
 
-	if req.Limit == 0 || req.Data == (common.Hash{}) {
-		return nil, errors.New("invalid params")
-	}
-
 	rpcId, rpcchan := p.getRpcIdWithChan()
 	defer p.deleteChan(rpcId)
 

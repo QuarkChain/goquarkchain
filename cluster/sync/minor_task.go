@@ -21,9 +21,9 @@ type minorSyncerPeer interface {
 
 type minorChainTask struct {
 	task
-	stat         *BlockSychronizerStats
-	peer         minorSyncerPeer
-	header       *types.MinorBlockHeader
+	stats  *BlockSychronizerStats
+	peer   minorSyncerPeer
+	header *types.MinorBlockHeader
 }
 
 // NewMinorChainTask returns a sync task for minor chain.
@@ -32,9 +32,9 @@ func NewMinorChainTask(
 	header *types.MinorBlockHeader,
 ) Task {
 	mTask := &minorChainTask{
-		header:       header,
-		stat:         &BlockSychronizerStats{},
-		peer:         p,
+		header: header,
+		stats:  &BlockSychronizerStats{},
+		peer:   p,
 	}
 	mTask.task = task{
 		name:             fmt.Sprintf("shard-%d", header.Branch.GetShardID()),
@@ -48,7 +48,7 @@ func NewMinorChainTask(
 
 			ancestor, err := mTask.findAncestor(bc)
 			if err != nil {
-				mTask.stat.AncestorNotFoundCount += 1
+				mTask.stats.AncestorNotFoundCount += 1
 				return nil, err
 			}
 
@@ -133,7 +133,7 @@ func (m *minorChainTask) downloadBlockHeaderListAndCheck(height, skip, limit uin
 	if err != nil {
 		return nil, err
 	}
-	m.stat.HeadersDownloaded += uint64(len(mHeaders))
+	m.stats.HeadersDownloaded += uint64(len(mHeaders))
 
 	if len(mHeaders) == 0 {
 		return nil, errors.New("Remote chain reorg causing empty minor block headers ")
@@ -165,7 +165,7 @@ func (m *minorChainTask) findAncestor(bc blockchain) (*types.MinorBlockHeader, e
 
 	var bestAncestor *types.MinorBlockHeader
 	for end >= start {
-		m.stat.AncestorLookupRequests += 1
+		m.stats.AncestorLookupRequests += 1
 		span := (end-start)/MinorBlockHeaderListLimit + 1
 		mBHeaders, err := m.downloadBlockHeaderListAndCheck(start, span-1, (end+1-start)/span, m.header.Branch.Value)
 		if err != nil {

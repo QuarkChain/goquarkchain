@@ -3,15 +3,14 @@ package sync
 import (
 	"errors"
 	"fmt"
-	"github.com/QuarkChain/goquarkchain/p2p"
 	"math/big"
-
-	"golang.org/x/sync/errgroup"
 
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
 	qcom "github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/core/types"
+	"github.com/QuarkChain/goquarkchain/p2p"
 	"github.com/ethereum/go-ethereum/common"
+	"golang.org/x/sync/errgroup"
 )
 
 type rootSyncerPeer interface {
@@ -180,7 +179,7 @@ func (r *rootChainTask) findAncestor(bc blockchain) (*types.RootBlockHeader, err
 	}
 
 	end := r.peer.RootHead().Number
-	maxSyncStaleness :=uint32(r.task.maxSyncStaleness)
+	maxSyncStaleness := uint32(r.task.maxSyncStaleness)
 	start := end - maxSyncStaleness
 	if end < maxSyncStaleness {
 		start = 0
