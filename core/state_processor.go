@@ -226,7 +226,7 @@ func ApplyCrossShardDeposit(config *params.ChainConfig, bc ChainContext, header 
 	evmState.AddBalance(tx.From.Recipient, tx.Value.Value, tx.TransferTokenID)
 	msg := types.NewMessage(tx.From.Recipient, &tx.To.Recipient, 0, tx.Value.Value,
 		tx.GasRemained.Value.Uint64(), tx.GasPrice.Value, tx.MessageData, false,
-		tx.From.FullShardKey, tx.To.FullShardKey, tx.TransferTokenID, tx.GasTokenID)
+		tx.From.FullShardKey, &tx.To.FullShardKey, tx.TransferTokenID, tx.GasTokenID)
 	context := NewEVMContext(msg, header, bc)
 	context.IsApplyXShard = true
 	context.XShardGasUsedStart = gasUsedStart
