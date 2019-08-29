@@ -96,7 +96,7 @@ func (s *ShardBackend) AddMinorBlock(block *types.MinorBlock) error {
 		s.setHead(currHead)
 		return err
 	}
-	status, err := s.MinorBlockChain.GetShardStatus()
+	status, err := s.MinorBlockChain.GetShardStats()
 	if err != nil {
 		s.setHead(currHead)
 		return err

@@ -133,7 +133,7 @@ func (s *SlaveBackend) AddBlockListForSync(mHashList []common.Hash, peerId strin
 
 	log.Info("sync request from master successful", "branch", branch, "peer-id", peerId, "block-size", hashLen)
 
-	return shard.MinorBlockChain.GetShardStatus()
+	return shard.MinorBlockChain.GetShardStats()
 }
 
 func (s *SlaveBackend) AddTx(tx *types.Transaction) (err error) {

@@ -663,8 +663,10 @@ func (pm *ProtocolManager) HandleGetMinorBlockHeaderListRequest(rpcId uint64, br
 	}
 
 	mTip := &p2p.GetMinorBlockHeaderListWithSkipRequest{
+		Type:      qkcom.SkipHash,
 		Data:      req.BlockHash,
 		Limit:     req.Limit,
+		Skip:      0,
 		Direction: req.Direction,
 		Branch:    req.Branch,
 	}

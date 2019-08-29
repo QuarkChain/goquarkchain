@@ -182,7 +182,7 @@ func (s *ShardBackend) initGenesisState(rootBlock *types.RootBlock) error {
 	if err = s.conn.BroadcastXshardTxList(minorBlock, xshardList, rootBlock.Header().Number); err != nil {
 		return err
 	}
-	if status, err = s.MinorBlockChain.GetShardStatus(); err != nil {
+	if status, err = s.MinorBlockChain.GetShardStats(); err != nil {
 		return err
 	}
 	request := &rpc.AddMinorBlockHeaderRequest{

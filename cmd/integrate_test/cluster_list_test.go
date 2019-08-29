@@ -275,7 +275,7 @@ func TestAddTransaction(t *testing.T) {
 		t.Error("failed to add transaction", "err", err)
 	}
 	assert.Equal(t, retryTrueWithTimeout(func() bool {
-		state0, err := shard0.MinorBlockChain.GetShardStatus()
+		state0, err := shard0.MinorBlockChain.GetShardStats()
 		if err != nil {
 			return false
 		}
@@ -289,7 +289,7 @@ func TestAddTransaction(t *testing.T) {
 		t.Error("failed to add transaction", "err", err)
 	}
 	assert.Equal(t, retryTrueWithTimeout(func() bool {
-		state0, err := shard0.MinorBlockChain.GetShardStatus()
+		state0, err := shard0.MinorBlockChain.GetShardStats()
 		if err != nil {
 			return false
 		}
@@ -298,7 +298,7 @@ func TestAddTransaction(t *testing.T) {
 
 	// check another cluster' pending pool
 	assert.Equal(t, retryTrueWithTimeout(func() bool {
-		state0, err := clstrList[1].GetShard(fullShardId).MinorBlockChain.GetShardStatus()
+		state0, err := clstrList[1].GetShard(fullShardId).MinorBlockChain.GetShardStats()
 		if err != nil {
 			return false
 		}
