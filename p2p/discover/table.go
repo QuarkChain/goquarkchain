@@ -79,9 +79,9 @@ type Table struct {
 	closed     chan struct{}
 
 	// check black node, default false
-	chkDialBlacklist func(string) bool
-	rLock            sync.RWMutex
-	nodeUrls         []string
+	checkDialBlackList func(string) bool
+	rLock              sync.RWMutex
+	nodeUrls           []string
 
 	nodeAddedHook func(*node) // for testing
 }
@@ -114,7 +114,7 @@ func newTable(t transport, db *enode.DB, bootnodes []*enode.Node) (*Table, error
 		closed:     make(chan struct{}),
 		rand:       mrand.New(mrand.NewSource(0)),
 		ips:        netutil.DistinctNetSet{Subnet: tableSubnet, Limit: tableIPLimit},
-		chkDialBlacklist: func(s string) bool {
+		checkDialBlackList: func(s string) bool {
 			return false
 		},
 	}
@@ -154,7 +154,7 @@ func (tab *Table) GetKadRoutingTable() []string {
 
 func (tab *Table) SetChkBlackFunc(chkDialOutFunc func(string) bool) {
 	if chkDialOutFunc != nil {
-		tab.chkDialBlacklist = chkDialOutFunc
+		tab.checkDialBlackList = chkDialOutFunc
 	}
 }
 
@@ -328,7 +328,7 @@ func (tab *Table) findnode(n *node, targetKey encPubkey, reply chan<- []*node) {
 	realr := make([]*node, 0, len(r))
 	for _, nd := range r {
 		nd := nd
-		if !(tab.chkDialBlacklist(nd.addr().String())) {
+		if !(tab.checkDialBlackList(nd.addr().String())) {
 			realr = append(realr, nd)
 		}
 	}
@@ -478,16 +478,16 @@ func (tab *Table) doRevalidate(done chan<- struct{}) {
 		return
 	}
 
-	blakTag := false
-	if tab.chkDialBlacklist(last.addr().String()) {
+	inBlackList := false
+	if tab.checkDialBlackList(last.addr().String()) {
 		log.Info("black node", "b", bi, "id", last.ID(), "address", last.addr().String())
-		blakTag = true
+		inBlackList = true
 	}
 
 	tab.mutex.Lock()
 	defer tab.mutex.Unlock()
 	b := tab.buckets[bi]
-	if !blakTag {
+	if !inBlackList {
 		// Ping the selected node and wait for a pong.
 		err := tab.net.ping(last.ID(), last.addr())
 		if err == nil {
