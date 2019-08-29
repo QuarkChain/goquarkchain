@@ -76,7 +76,7 @@ func (api *PrivateP2PAPI) GetMinorBlockList(hashList []common.Hash, branch uint3
 	return blocks, err
 }
 
-func (api *PrivateP2PAPI) GetMinorBlockHeaderList(req *p2p.MinorHeaderListWithSkip) (*p2p.GetMinorBlockHeaderListResponse, error) {
+func (api *PrivateP2PAPI) GetMinorBlockHeaderList(req *rpc.GetMinorBlockHeaderListWithSkipRequest) (*p2p.GetMinorBlockHeaderListResponse, error) {
 	peer := api.peers.Peer(req.PeerID)
 	if peer == nil {
 		return nil, errNotRegistered

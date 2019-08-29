@@ -4,11 +4,11 @@ import (
 	"errors"
 	"fmt"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
+	"github.com/QuarkChain/goquarkchain/cluster/rpc"
 	qcom "github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/core"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/core/vm"
-	"github.com/QuarkChain/goquarkchain/p2p"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/params"
@@ -16,7 +16,7 @@ import (
 	"testing"
 )
 
-func (p *mockpeer) GetMinorBlockHeaderList(req *p2p.MinorHeaderListWithSkip) ([]*types.MinorBlockHeader, error) {
+func (p *mockpeer) GetMinorBlockHeaderList(req *rpc.GetMinorBlockHeaderListWithSkipRequest) ([]*types.MinorBlockHeader, error) {
 	if p.downloadHeaderError != nil {
 		return nil, p.downloadHeaderError
 	}

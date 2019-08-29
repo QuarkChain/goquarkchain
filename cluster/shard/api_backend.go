@@ -2,7 +2,6 @@ package shard
 
 import (
 	"errors"
-	"github.com/QuarkChain/goquarkchain/p2p"
 	"math/big"
 	"time"
 
@@ -25,7 +24,7 @@ type peer struct {
 	peerID string
 }
 
-func (p *peer) GetMinorBlockHeaderList(gReq *p2p.MinorHeaderListWithSkip) ([]*types.MinorBlockHeader, error) {
+func (p *peer) GetMinorBlockHeaderList(gReq *rpc.GetMinorBlockHeaderListWithSkipRequest) ([]*types.MinorBlockHeader, error) {
 	return p.cm.GetMinorBlockHeaderList(gReq)
 }
 

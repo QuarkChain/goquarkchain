@@ -662,8 +662,13 @@ func (pm *ProtocolManager) HandleGetMinorBlockHeaderListRequest(rpcId uint64, br
 		return nil, fmt.Errorf("invalid branch %d for rpc req %d", rpcId, branch)
 	}
 
-	mTip := p2p.NewMinorSkip(req.BlockHash, nil, req.Limit, 0, req.Direction, req.Branch.Value, "")
-	result, err := clients[0].GetMinorBlockHeaderList(&mTip.GetMinorBlockHeaderListWithSkipRequest)
+	mTip := &p2p.GetMinorBlockHeaderListWithSkipRequest{
+		Data:      req.BlockHash,
+		Limit:     req.Limit,
+		Direction: req.Direction,
+		Branch:    req.Branch,
+	}
+	result, err := clients[0].GetMinorBlockHeaderList(mTip)
 	if err != nil {
 		return nil, fmt.Errorf("branch %d HandleGetMinorBlockHeaderListRequest failed with error: %v", branch, err.Error())
 	}

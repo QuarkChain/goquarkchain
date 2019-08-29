@@ -107,7 +107,7 @@ func (s *ConnManager) GetMinorBlocks(mHeaderList []common.Hash, peerId string, b
 	return gRep.MinorBlockList, nil
 }
 
-func (s *ConnManager) GetMinorBlockHeaderList(gReq *p2p.MinorHeaderListWithSkip) ([]*types.MinorBlockHeader, error) {
+func (s *ConnManager) GetMinorBlockHeaderList(gReq *rpc.GetMinorBlockHeaderListWithSkipRequest) ([]*types.MinorBlockHeader, error) {
 	var (
 		gRep p2p.GetMinorBlockHeaderListResponse
 		res  *rpc.Response

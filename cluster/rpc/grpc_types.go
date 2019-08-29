@@ -1,6 +1,7 @@
 package rpc
 
 import (
+	"github.com/QuarkChain/goquarkchain/p2p"
 	"github.com/QuarkChain/goquarkchain/serialize"
 	"math/big"
 
@@ -96,6 +97,12 @@ type PoSWInfo struct {
 	PoswMineableBlocks  uint64
 	PoswMinedBlocks     uint64
 }
+
+type GetMinorBlockHeaderListWithSkipRequest struct {
+	p2p.GetMinorBlockHeaderListWithSkipRequest
+	PeerID string `json:"peerid" gencodec:"required"`
+}
+
 type GetMinorBlockResponse struct {
 	MinorBlock *types.MinorBlock `json:"minor_block" gencodec:"required"`
 	Extra      *PoSWInfo

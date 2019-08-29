@@ -3,7 +3,6 @@ package master
 import (
 	"context"
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
-	"github.com/QuarkChain/goquarkchain/p2p"
 	"github.com/QuarkChain/goquarkchain/serialize"
 	"sync"
 )
@@ -122,7 +121,7 @@ func (m *MasterServerSideOp) GetMinorBlockList(ctx context.Context, req *rpc.Req
 func (m *MasterServerSideOp) GetMinorBlockHeaderList(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
 	var (
 		err             error
-		getMBHeadersReq = new(p2p.MinorHeaderListWithSkip)
+		getMBHeadersReq = new(rpc.GetMinorBlockHeaderListWithSkipRequest)
 	)
 
 	if err = serialize.DeserializeFromBytes(req.Data, getMBHeadersReq); err != nil {

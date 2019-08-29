@@ -3,6 +3,8 @@ package sync
 import (
 	"errors"
 	"fmt"
+	"github.com/QuarkChain/goquarkchain/account"
+	"github.com/QuarkChain/goquarkchain/cluster/rpc"
 	qcom "github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/p2p"
@@ -11,7 +13,7 @@ import (
 )
 
 type minorSyncerPeer interface {
-	GetMinorBlockHeaderList(gReq *p2p.MinorHeaderListWithSkip) ([]*types.MinorBlockHeader, error)
+	GetMinorBlockHeaderList(gReq *rpc.GetMinorBlockHeaderListWithSkipRequest) ([]*types.MinorBlockHeader, error)
 	// GetMinorBlockHeaderList(hash common.Hash, limit, branch uint32, reverse bool) ([]*types.MinorBlockHeader, error)
 	GetMinorBlockList(hashes []common.Hash, branch uint32) ([]*types.MinorBlock, error)
 	PeerID() string
@@ -119,7 +121,16 @@ func (m *minorChainTask) PeerID() string {
 }
 
 func (m *minorChainTask) downloadBlockHeaderListAndCheck(height, skip, limit uint64, branch uint32) ([]*types.MinorBlockHeader, error) {
-	req := p2p.NewMinorSkip(common.Hash{}, &height, uint32(limit), uint32(skip), qcom.DirectionToTip, branch, m.PeerID())
+	req := &rpc.GetMinorBlockHeaderListWithSkipRequest{
+		GetMinorBlockHeaderListWithSkipRequest: p2p.GetMinorBlockHeaderListWithSkipRequest{
+			Limit:     uint32(limit),
+			Skip:      uint32(skip),
+			Direction: qcom.DirectionToTip,
+			Branch:    account.Branch{Value: branch},
+		},
+		PeerID: m.PeerID(),
+	}
+	req.SetHeight(height)
 	mHeaders, err := m.peer.GetMinorBlockHeaderList(req)
 	if err != nil {
 		return nil, err
@@ -149,7 +160,7 @@ func (m *minorChainTask) findAncestor(bc blockchain) (*types.MinorBlockHeader, e
 	}
 
 	end := m.header.Number
-	start := end - m.maxStaleness
+	start := end - m.task.maxSyncStaleness
 	if end < m.maxStaleness {
 		start = 0
 	}
