@@ -176,7 +176,7 @@ func (ch balanceChange) revert(s *StateDB) {
 	for k, v := range ch.prev {
 		prev[k] = v
 	}
-	s.getStateObject(*ch.account).SetBalances(prev)
+	s.getStateObject(*ch.account).setBalances(prev)
 }
 
 func (ch balanceChange) dirtied() *common.Address {

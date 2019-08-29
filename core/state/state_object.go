@@ -19,10 +19,11 @@ package state
 import (
 	"bytes"
 	"fmt"
-	"github.com/QuarkChain/goquarkchain/core/types"
 	"io"
 	"math/big"
 
+	qkcCommon "github.com/QuarkChain/goquarkchain/common"
+	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/rlp"
@@ -103,6 +104,25 @@ type Account struct {
 	CodeHash      []byte
 	FullShardKey  *types.Uint32
 	Optial        []byte
+}
+
+type MockAccount struct {
+	Nonce    uint64
+	Balance  *big.Int
+	Root     common.Hash // merkle root of the storage trie
+	CodeHash []byte
+}
+
+func AccountToMock(acc Account) MockAccount {
+	if len(acc.TokenBalances.GetBalanceMap()) > 1 {
+		panic("len should <=1")
+	}
+	return MockAccount{
+		Nonce:    acc.Nonce,
+		Balance:  acc.TokenBalances.GetTokenBalance(qkcCommon.TokenIDEncode("QKC")),
+		Root:     acc.Root,
+		CodeHash: acc.CodeHash,
+	}
 }
 
 // newObject creates a state object.

@@ -80,7 +80,7 @@ type Message interface {
 	Data() []byte
 	IsCrossShard() bool
 	FromFullShardKey() uint32
-	ToFullShardKey() uint32
+	ToFullShardKey() *uint32
 	TxHash() common.Hash
 	GasTokenID() uint64
 	TransferTokenID() uint64
@@ -316,7 +316,7 @@ func (st *StateTransition) AddCrossShardTxDeposit(intrinsicGas uint64) (ret []by
 			},
 			To: account.Address{
 				Recipient:    vm.CreateAddress(msg.From(), msg.ToFullShardKey(), state.GetNonce(msg.From())),
-				FullShardKey: msg.ToFullShardKey(),
+				FullShardKey:*msg.ToFullShardKey() ,
 			},
 			Value:           crossShardValue,
 			GasTokenID:      msg.GasTokenID(),
@@ -346,7 +346,7 @@ func (st *StateTransition) AddCrossShardTxDeposit(intrinsicGas uint64) (ret []by
 			},
 			To: account.Address{
 				Recipient:    account.Recipient(*msg.To()),
-				FullShardKey: msg.ToFullShardKey(),
+				FullShardKey:*msg.ToFullShardKey(),
 			},
 			Value:           crossShardValue,
 			GasTokenID:      msg.GasTokenID(),

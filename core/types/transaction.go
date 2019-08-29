@@ -267,6 +267,7 @@ func (tx *EvmTransaction) AsMessage(s Signer, txHash common.Hash) (Message, erro
 		msgTo = nil
 	}
 
+	toFullShardKey:=tx.data.ToFullShardKey.GetValue()
 	msg := Message{
 		nonce:            tx.data.AccountNonce,
 		gasLimit:         tx.data.GasLimit,
@@ -276,7 +277,7 @@ func (tx *EvmTransaction) AsMessage(s Signer, txHash common.Hash) (Message, erro
 		data:             tx.data.Payload,
 		checkNonce:       true,
 		fromFullShardKey: tx.data.FromFullShardKey.GetValue(),
-		toFullShardKey:   tx.data.ToFullShardKey.GetValue(),
+		toFullShardKey:   &toFullShardKey,
 		txHash:           txHash,
 		isCrossShard:     tx.IsCrossShard(),
 		transferTokenID:  tx.data.TransferTokenID,
@@ -583,7 +584,7 @@ type Message struct {
 	data             []byte
 	checkNonce       bool
 	fromFullShardKey uint32
-	toFullShardKey   uint32
+	toFullShardKey   *uint32
 	txHash           common.Hash
 	isCrossShard     bool
 	transferTokenID  uint64
@@ -591,7 +592,7 @@ type Message struct {
 }
 
 func NewMessage(from common.Address, to *common.Address, nonce uint64, amount *big.Int, gasLimit uint64, gasPrice *big.Int,
-	data []byte, checkNonce bool, fromShardId, toShardId uint32, transferTokenID, gasTokenID uint64) Message {
+	data []byte, checkNonce bool, fromFullShardKey uint32, toFullShardKey *uint32, transferTokenID, gasTokenID uint64) Message {
 
 	return Message{
 		from:             from,
@@ -602,8 +603,8 @@ func NewMessage(from common.Address, to *common.Address, nonce uint64, amount *b
 		gasPrice:         gasPrice,
 		data:             data,
 		checkNonce:       checkNonce,
-		fromFullShardKey: fromShardId,
-		toFullShardKey:   toShardId,
+		fromFullShardKey: fromFullShardKey,
+		toFullShardKey:   toFullShardKey,
 		transferTokenID:  transferTokenID,
 		gasTokenID:       gasTokenID,
 	}
@@ -619,7 +620,7 @@ func (m Message) Data() []byte             { return m.data }
 func (m Message) CheckNonce() bool         { return m.checkNonce }
 func (m Message) IsCrossShard() bool       { return m.isCrossShard }
 func (m Message) FromFullShardKey() uint32 { return m.fromFullShardKey }
-func (m Message) ToFullShardKey() uint32   { return m.toFullShardKey }
+func (m Message) ToFullShardKey() *uint32   { return m.toFullShardKey }
 func (m Message) TxHash() common.Hash      { return m.txHash }
 func (m Message) GasTokenID() uint64       { return m.gasTokenID }
 func (m Message) TransferTokenID() uint64  { return m.transferTokenID }
