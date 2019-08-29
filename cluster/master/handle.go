@@ -578,8 +578,7 @@ func (pm *ProtocolManager) HandleGetRootBlockHeaderListWithSkipRequest(peerId st
 		rBHeader = iHeader.(*types.RootBlockHeader)
 
 		// Check if it is canonical chain
-		height = rBHeader.Number
-		iHeader = pm.rootBlockChain.GetBlockByNumber(uint64(height)).IHeader()
+		iHeader = pm.rootBlockChain.GetHeaderByNumber(rBHeader.NumberU64())
 		if qkcom.IsNil(iHeader) || rBHeader.Hash() != iHeader.Hash() {
 			return &p2p.GetRootBlockHeaderListResponse{RootTip: rTip}, nil
 		}
