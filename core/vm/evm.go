@@ -89,7 +89,7 @@ type Context struct {
 	BlockNumber        *big.Int       // Provides information for NUMBER
 	Time               *big.Int       // Provides information for TIME
 	Difficulty         *big.Int       // Provides information for DIFFICULTY
-	ToFullShardKey     uint32
+	ToFullShardKey     *uint32
 	GasTokenID         uint64
 	TransferTokenID    uint64
 	IsApplyXShard      bool
@@ -365,7 +365,7 @@ func (evm *EVM) StaticCall(caller ContractRef, addr common.Address, input []byte
 	// This doesn't matter on Mainnet, where all empties are gone at the time of Byzantium,
 	// but is the correct thing to do and matters on other networks, in tests, and potential
 	// future scenarios
-	evm.StateDB.AddBalance(addr, bigZero, 0)
+	evm.StateDB.AddBalance(addr, bigZero, evm.StateDB.GetQuarkChainConfig().GetDefaultChainTokenID())
 
 	// When an error was returned by the EVM or when setting the creation code
 	// above we revert to the snapshot and consume any gas remaining. Additionally
@@ -475,8 +475,15 @@ func (evm *EVM) create(caller ContractRef, codeAndHash *codeAndHash, gas uint64,
 }
 
 // CreateAddress creates an ethereum address given the bytes and the nonce
-func CreateAddress(b common.Address, toFullShardID uint32, nonce uint64) common.Address {
-	data, _ := rlp.EncodeToBytes([]interface{}{b, toFullShardID, nonce})
+func CreateAddress(b common.Address, fullShardKey *uint32, nonce uint64) common.Address {
+	var data []byte
+	if fullShardKey != nil {
+		data, _ = rlp.EncodeToBytes([]interface{}{b, *fullShardKey, nonce})
+	} else {
+		// only happens for backward-compatible EVM tests. for eth-state test
+		data, _ = rlp.EncodeToBytes([]interface{}{b, nonce})
+	}
+
 	return common.BytesToAddress(crypto.Keccak256(data)[12:])
 }
 

@@ -68,7 +68,9 @@ type QKCMasterBackend struct {
 
 	miner *miner.Miner
 
-	maxPeers           int
+	maxPeers int
+	srvr     *p2p.Server
+
 	artificialTxConfig *rpc.ArtificialTxConfig
 	rootBlockChain     *core.RootBlockChain
 	protocolManager    *ProtocolManager
@@ -215,6 +217,7 @@ func (s *QKCMasterBackend) Stop() error {
 // Start start node -> start qkcMaster
 func (s *QKCMasterBackend) Init(srvr *p2p.Server) error {
 	if srvr != nil {
+		s.srvr = srvr
 		s.maxPeers = srvr.MaxPeers
 	}
 	if err := s.ConnectToSlaves(); err != nil {
@@ -365,19 +368,24 @@ func (s *QKCMasterBackend) broadcastRootBlockToSlaves(block *types.RootBlock) er
 func (s *QKCMasterBackend) Heartbeat() {
 	go func(normal bool) {
 		for normal {
-			timeGap := time.Now()
-			s.ctx.Timestamp = timeGap
-			for endpoint := range s.clientPool {
-				normal = s.clientPool[endpoint].HeartBeat()
-				if !normal {
-					s.SetMining(false)
-					s.shutdown <- syscall.SIGTERM
-					break
+			select {
+			case <-s.exitCh:
+				normal = false
+				break
+			default:
+				timeGap := time.Now()
+				s.ctx.Timestamp = timeGap
+				for endpoint := range s.clientPool {
+					normal = s.clientPool[endpoint].HeartBeat()
+					if !normal {
+						s.SetMining(false)
+						s.shutdown <- syscall.SIGTERM
+						break
+					}
 				}
+				log.Trace(s.logInfo, "heart beat duration", time.Now().Sub(timeGap).String())
+				time.Sleep(config.HeartbeatInterval)
 			}
-			duration := time.Now().Sub(timeGap)
-			log.Trace(s.logInfo, "heart beat duration", duration.String())
-			time.Sleep(config.HeartbeatInterval)
 		}
 	}(true)
 }

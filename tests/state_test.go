@@ -24,64 +24,32 @@ import (
 	"testing"
 )
 
-func TestEvm(t *testing.T) {
-	testQKCState(t, qkcStateTestDir)
-	//testQKCState(t, ethStateTestDir)
-}
-func testQKCState(t *testing.T, dir string) {
+func TestState(t *testing.T) {
 	t.Parallel()
-	st := new(testMatcher)
-	st.walk(t, dir, func(t *testing.T, name string, test *StateTest) {
-		for _, subtest := range test.Subtests() {
-			subtest := subtest
-			subtest.Path = name
-			key := fmt.Sprintf("%s/%d", subtest.Fork, subtest.Index)
-			name := name + "/" + key
-			t.Run(key, func(t *testing.T) {
-				withTrace(t, test.gasLimit(subtest), func(vmconfig vm.Config) error {
-					_, err := test.Run(subtest, vmconfig)
-					if err == errors.New("not support") {
-						return nil
-					}
-					return st.checkFailure(t, name, err)
-				})
-			})
-		}
-	})
+	testEVMStateWithFeature(t, qkcStateTestDir, false)
+	testEVMStateWithFeature(t, ethStateTestDir, true)
 }
-
-func testETHState(t *testing.T, dir string) {
-	t.Parallel()
-
+func testEVMStateWithFeature(t *testing.T, dir string, useMock bool) {
 	st := new(testMatcher)
-	// Long tests:
-	st.slow(`^stAttackTest/ContractCreationSpam`)
-	st.slow(`^stBadOpcode/badOpcodes`)
-	st.slow(`^stPreCompiledContracts/modexp`)
-	st.slow(`^stQuadraticComplexityTest/`)
-	st.slow(`^stStaticCall/static_Call50000`)
-	st.slow(`^stStaticCall/static_Return50000`)
-	st.slow(`^stStaticCall/static_Call1MB`)
-	st.slow(`^stSystemOperationsTest/CallRecursiveBomb`)
-	st.slow(`^stTransactionTest/Opcodes_TransactionInit`)
 	// Broken tests:
 	st.skipLoad(`^stTransactionTest/OverflowGasRequire\.json`) // gasLimit > 256 bits
 	st.skipLoad(`^stTransactionTest/zeroSigTransa[^/]*\.json`) // EIP-86 is not supported yet
-	// Expected failures:
-	st.fails(`^stRevertTest/RevertPrecompiledTouch\.json/EIP158`, "bug in test")
-	st.fails(`^stRevertTest/RevertPrecompiledTouch\.json/Byzantium`, "bug in test")
-	st.fails(`^stRevertTest/RevertPrecompiledTouch.json/Constantinople`, "bug in test")
 
+	// Expected failures:
+	st.fails(`^stRevertTest/RevertPrecompiledTouch(_storage)?\.json/ConstantinopleFix/0`, "bug in test")
+	st.fails(`^stRevertTest/RevertPrecompiledTouch(_storage)?\.json/ConstantinopleFix/3`, "bug in test")
 	st.walk(t, dir, func(t *testing.T, name string, test *StateTest) {
 		for _, subtest := range test.Subtests() {
 			subtest := subtest
 			subtest.Path = name
 			key := fmt.Sprintf("%s/%d", subtest.Fork, subtest.Index)
 			name := name + "/" + key
-
 			t.Run(key, func(t *testing.T) {
-				withTrace(t, test.gasLimit(subtest), func(vmconfig vm.Config) error {
-					_, err := test.Run(subtest, vmconfig)
+				withTrace(t, test.gasLimit(subtest), useMock, func(vmconfig vm.Config, useMock bool) error {
+					_, err := test.Run(subtest, vmconfig, useMock)
+					if err == errors.New("not support") {
+						return nil
+					}
 					return st.checkFailure(t, name, err)
 				})
 			})
@@ -101,8 +69,8 @@ var testVMConfig = func() vm.Config {
 	return vmconfig
 }()
 
-func withTrace(t *testing.T, gasLimit uint64, test func(vm.Config) error) {
-	err := test(testVMConfig)
+func withTrace(t *testing.T, gasLimit uint64, useMock bool, test func(vm.Config, bool) error) {
+	err := test(testVMConfig, useMock)
 	if err == nil {
 		return
 	}

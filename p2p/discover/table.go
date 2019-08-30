@@ -78,6 +78,11 @@ type Table struct {
 	closeReq   chan struct{}
 	closed     chan struct{}
 
+	// check black node, default false
+	checkDialBlackList func(string) bool
+	rLock              sync.RWMutex
+	nodeUrls           []string
+
 	nodeAddedHook func(*node) // for testing
 }
 
@@ -109,6 +114,9 @@ func newTable(t transport, db *enode.DB, bootnodes []*enode.Node) (*Table, error
 		closed:     make(chan struct{}),
 		rand:       mrand.New(mrand.NewSource(0)),
 		ips:        netutil.DistinctNetSet{Subnet: tableSubnet, Limit: tableIPLimit},
+		checkDialBlackList: func(s string) bool {
+			return false
+		},
 	}
 	if err := tab.setFallbackNodes(bootnodes); err != nil {
 		return nil, err
@@ -136,6 +144,18 @@ func (tab *Table) seedRand() {
 	tab.mutex.Lock()
 	tab.rand.Seed(int64(binary.BigEndian.Uint64(b[:])))
 	tab.mutex.Unlock()
+}
+
+func (tab *Table) GetKadRoutingTable() []string {
+	tab.rLock.RLock()
+	defer tab.rLock.RUnlock()
+	return tab.nodeUrls
+}
+
+func (tab *Table) SetChkBlackFunc(chkDialOutFunc func(string) bool) {
+	if chkDialOutFunc != nil {
+		tab.checkDialBlackList = chkDialOutFunc
+	}
 }
 
 // ReadRandomNodes fills the given slice with random nodes from the table. The results
@@ -305,7 +325,15 @@ func (tab *Table) lookup(targetKey encPubkey, refreshIfEmpty bool) []*node {
 func (tab *Table) findnode(n *node, targetKey encPubkey, reply chan<- []*node) {
 	fails := tab.db.FindFails(n.ID())
 	r, err := tab.net.findnode(n.ID(), n.addr(), targetKey)
-	if err != nil || len(r) == 0 {
+	realr := make([]*node, 0, len(r))
+	for _, nd := range r {
+		nd := nd
+		if !(tab.checkDialBlackList(nd.IP().String())) {
+			realr = append(realr, nd)
+		}
+	}
+
+	if err != nil || len(realr) == 0 {
 		fails++
 		tab.db.UpdateFindFails(n.ID(), fails)
 		log.Trace("Findnode failed", "id", n.ID(), "failcount", fails, "err", err)
@@ -319,10 +347,10 @@ func (tab *Table) findnode(n *node, targetKey encPubkey, reply chan<- []*node) {
 
 	// Grab as many nodes as possible. Some of them might not be alive anymore, but we'll
 	// just remove those again during revalidation.
-	for _, n := range r {
+	for _, n := range realr {
 		tab.add(n)
 	}
-	reply <- r
+	reply <- realr
 }
 
 func (tab *Table) refresh() <-chan struct{} {
@@ -450,17 +478,24 @@ func (tab *Table) doRevalidate(done chan<- struct{}) {
 		return
 	}
 
-	// Ping the selected node and wait for a pong.
-	err := tab.net.ping(last.ID(), last.addr())
+	inBlackList := false
+	if tab.checkDialBlackList(last.IP().String()) {
+		log.Info("black node", "b", bi, "id", last.ID(), "address", last.addr().String())
+		inBlackList = true
+	}
 
 	tab.mutex.Lock()
 	defer tab.mutex.Unlock()
 	b := tab.buckets[bi]
-	if err == nil {
-		// The node responded, move it to the front.
-		log.Debug("Revalidated node", "b", bi, "id", last.ID())
-		b.bump(last)
-		return
+	if !inBlackList {
+		// Ping the selected node and wait for a pong.
+		err := tab.net.ping(last.ID(), last.addr())
+		if err == nil {
+			// The node responded, move it to the front.
+			log.Debug("Revalidated node", "b", bi, "id", last.ID())
+			b.bump(last)
+			return
+		}
 	}
 	// No reply received, pick a replacement or delete the node if there aren't
 	// any replacements.
@@ -498,6 +533,15 @@ func (tab *Table) nextRevalidateTime() time.Duration {
 func (tab *Table) copyLiveNodes() {
 	tab.mutex.Lock()
 	defer tab.mutex.Unlock()
+
+	tab.rLock.Lock()
+	tab.nodeUrls = make([]string, 0, nBuckets*bucketSize)
+	for _, b := range &tab.buckets {
+		for _, n := range b.entries {
+			tab.nodeUrls = append(tab.nodeUrls, n.Node.String())
+		}
+	}
+	tab.rLock.Unlock()
 
 	now := time.Now()
 	for _, b := range &tab.buckets {

@@ -44,6 +44,8 @@ type Backend interface {
 	GetSlavePoolLen() int
 	GetLastMinorBlockByFullShardID(fullShardId uint32) (uint64, error)
 	GetRootHashConfirmingMinorBlock(mBlockID []byte) common.Hash
+	// p2p discovery healty nodes
+	GetKadRoutingTable() ([]string, error)
 }
 
 func GetAPIs(apiBackend Backend) []rpc.API {
