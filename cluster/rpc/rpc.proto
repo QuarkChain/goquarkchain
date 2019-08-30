@@ -73,6 +73,10 @@ service SlaveServerSideOp {
     }
     rpc AddMinorBlockListForSync (Request) returns (Response) {
     }
+    rpc SetMining (Request) returns (Response) {
+    }
+    rpc CheckMinorBlocksInRoot(Request) returns (Response) {
+    }
     // p2p apis
     rpc GetMinorBlockList (Request) returns (Response) {
     }
@@ -83,8 +87,6 @@ service SlaveServerSideOp {
     rpc AddTransactions (Request) returns (Response) {
     }
     rpc HandleNewMinorBlock (Request) returns (Response) {
-    }
-    rpc SetMining (Request) returns (Response) {
     }
 }
 

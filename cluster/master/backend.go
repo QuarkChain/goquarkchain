@@ -184,7 +184,7 @@ func (s *QKCMasterBackend) Protocols() []p2p.Protocol {
 
 func (s *QKCMasterBackend) CheckDB() {
 	startTime := time.Now()
-	defer log.Info("Integrity check completed! Took %d s", time.Now().Sub(startTime).Seconds())
+	defer log.Info("Integrity check completed! Took", time.Now().Sub(startTime).Seconds(), "s")
 	defer s.Stop()
 
 	// Start with root db
@@ -196,28 +196,27 @@ func (s *QKCMasterBackend) CheckDB() {
 	}
 	if fromHeight >= 0 && uint64(fromHeight) < rb.NumberU64() {
 		rb = s.rootBlockChain.GetBlockByNumber(uint64(fromHeight)).(*types.RootBlock)
-		log.Info("Starting from root block height: %d", fromHeight)
+		log.Info("Starting from root block ", "height", fromHeight)
 	}
-	if b := s.rootBlockChain.GetBlock(rb.Hash()); b != nil && b.Hash() == rb.Hash() {
-		log.Error("Root block height %d mismatches local root block by hash",
-			rb.NumberU64())
+	if b := s.rootBlockChain.GetBlock(rb.Hash()); b == nil || b.Hash() != rb.Hash() {
+		log.Error("Root block mismatches local root block by hash", "height", rb.NumberU64())
 	}
 	count := 0
 	for rb.NumberU64() > toHeight {
 		if count%100 == 0 {
-			log.Info("Checking root block height: %d", rb.NumberU64())
+			log.Info("Checking root block", "height", rb.NumberU64())
 		}
 		if s.rootBlockChain.GetBlockByNumber(rb.NumberU64()).Hash() != rb.Hash() {
-			log.Error("Root block height %d mismatches canonical chain", rb.NumberU64())
+			log.Error("Root block mismatches canonical chain", "height", rb.NumberU64())
 			return
 		}
 		prevRb := s.rootBlockChain.GetBlock(rb.ParentHash())
 		if prevRb.Hash() != rb.ParentHash() {
-			log.Error("Root block height %d mismatches previous block hash", rb.NumberU64())
+			log.Error("Root block mismatches previous block hash", "height", rb.NumberU64())
 			return
 		}
 		if prevRb.NumberU64()+1 != rb.NumberU64() {
-			log.Error("Root block height %d no equal to previous block Height + 1", rb.NumberU64())
+			log.Error("Root block no equal to previous block Height + 1", "height", rb.NumberU64())
 			return
 		}
 		var g errgroup.Group
@@ -228,13 +227,13 @@ func (s *QKCMasterBackend) CheckDB() {
 			})
 		}
 		if err := g.Wait(); err != nil {
-			log.Error("Failed to check root block height %d, error: %v", rb.NumberU64(), err.Error())
+			log.Error("Failed to check root block ", "height", rb.NumberU64(), "error", err.Error())
 			return
 		}
 
 		_, err := s.rootBlockChain.InsertChain([]types.IBlock{rb})
 		if err != nil {
-			log.Error("Failed to check root block height %d, error: %v", rb.NumberU64(), err.Error())
+			log.Error("Failed to check root block", "height", rb.NumberU64(), "error", err.Error())
 			return
 		}
 		rb = prevRb.(*types.RootBlock)

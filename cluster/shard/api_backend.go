@@ -9,6 +9,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
 	synchronizer "github.com/QuarkChain/goquarkchain/cluster/sync"
+	qkccommon "github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/common"
@@ -377,13 +378,12 @@ func (s *ShardBackend) IsSyncIng() bool {
 
 func (s *ShardBackend) CheckMinorBlock(header *types.MinorBlockHeader) error {
 	block := s.MinorBlockChain.GetBlock(header.Hash())
-	if block == nil { //todo
+	if qkccommon.IsNil(block) {
 		return fmt.Errorf("block %v cannot be found", header.Hash())
 	}
 	if header.Number == 0 {
 		return nil
 	}
-	s.MinorBlockChain.InsertChainForDeposits([]types.IBlock{block}, nil)
-	//self.state.add_block(block, force=True, write_db=False, skip_if_too_old=False)
-	return nil
+	_, _, err := s.MinorBlockChain.InsertChainForDeposits([]types.IBlock{block}, nil)
+	return err
 }

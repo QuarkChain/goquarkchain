@@ -145,6 +145,7 @@ func startService(ctx *cli.Context, stack *service.Node) {
 		}
 		if master.GetClusterConfig().CheckDB {
 			master.CheckDB()
+			os.Exit(0)
 			return
 		}
 		if err := master.Start(); err != nil {
