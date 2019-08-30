@@ -278,6 +278,7 @@ func ReadMinorBlock(db DatabaseReader, hash common.Hash) *types.MinorBlock {
 
 // WriteMinorBlock storea a block body into the database.
 func WriteMinorBlock(db DatabaseWriter, block *types.MinorBlock) {
+	fmt.Println("WWWWWWWWWWWWWW", block.Number(), block.Header().GetCoinbase().ToHex())
 	WriteMinorBlockHeader(db, block.Header())
 	data, err := serialize.SerializeToBytes(block)
 	if err != nil {

@@ -245,7 +245,7 @@ func (c *clusterNode) CreateAndInsertBlocks(fullShards []uint32) (rBlock *types.
 
 	time.Sleep(time.Duration(seconds) * time.Second)
 	// insert root block
-	iBlock, _, err := c.GetMaster().CreateBlockToMine()
+	iBlock, _, err := c.GetMaster().CreateBlockToMine(nil)
 	if err != nil {
 		utils.Fatalf("failed to create and add root/minor block, err: %v", err)
 	}

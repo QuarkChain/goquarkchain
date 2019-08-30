@@ -558,6 +558,7 @@ func (p *PublicBlockChainAPI) GetWork(fullShardKey *hexutil.Uint, coinbaseAddres
 	if err != nil {
 		return nil, err
 	}
+	fmt.Println("Result", work.Number, work.HeaderHash.String())
 	height := new(big.Int).SetUint64(work.Number)
 	var val = make([]common.Hash, 0, 3)
 	val = append(val, work.HeaderHash)

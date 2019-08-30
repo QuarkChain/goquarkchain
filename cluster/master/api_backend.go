@@ -240,6 +240,7 @@ func (s *QKCMasterBackend) GetWork(branch account.Branch, addr *common.Address) 
 		coinbaseAddr.Recipient = *addr
 		coinbaseAddr.FullShardKey = branch.Value
 	} else {
+		fmt.Println("SetNil")
 		coinbaseAddr = nil
 	}
 	if branch.Value == 0 {
@@ -248,12 +249,13 @@ func (s *QKCMasterBackend) GetWork(branch account.Branch, addr *common.Address) 
 			*coinbaseAddr = s.clusterConfig.Quarkchain.Root.CoinbaseAddress
 		}
 		//TODO to fix root's POWS diff cal
-		return s.miner.GetWork(*coinbaseAddr)
+		return s.miner.GetWork(coinbaseAddr)
 	}
 	slaveConn := s.getOneSlaveConnection(branch)
 	if slaveConn == nil {
 		return nil, ErrNoBranchConn
 	}
+	fmt.Println("SLave.GetWork", coinbaseAddr)
 	return slaveConn.GetWork(branch, coinbaseAddr)
 }
 
@@ -311,8 +313,12 @@ func (s *QKCMasterBackend) GetCurrRootHeader() *types.RootBlockHeader {
 }
 
 // miner api
-func (s *QKCMasterBackend) CreateBlockToMine() (types.IBlock, *big.Int, error) {
-	block, err := s.createRootBlockToMine(s.clusterConfig.Quarkchain.Root.CoinbaseAddress)
+func (s *QKCMasterBackend) CreateBlockToMine(addr *account.Address) (types.IBlock, *big.Int, error) {
+	coinbaseAddr := s.clusterConfig.Quarkchain.Root.CoinbaseAddress
+	if addr != nil {
+		coinbaseAddr = *addr
+	}
+	block, err := s.createRootBlockToMine(coinbaseAddr)
 	if err != nil {
 		return nil, nil, err
 	}

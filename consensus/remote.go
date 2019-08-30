@@ -41,7 +41,7 @@ type mineResult struct {
 type sealWork struct {
 	errc chan error
 	res  chan MiningWork
-	addr account.Address
+	addr *account.Address
 }
 
 func (c *CommonEngine) remote() {
@@ -119,19 +119,10 @@ func (c *CommonEngine) remote() {
 		return false
 	}
 
-	modifyCurrentStatusFromAddr := func(hash common.Hash, addr account.Address) {
-		value, ok := workMap.Get(hash)
-		if !ok {
-			panic("should have here, fix bug")
-		}
-		block := value.(types.IBlock)
-		block.IHeader().SetCoinbase(addr)
-		makeWork(block, block.IHeader().GetDifficulty())
-	}
-
 	for {
 		select {
 		case work := <-c.workCh:
+			fmt.Println("SSetWork", work.block.IHeader().GetCoinbase().ToHex())
 			results = work.results
 			makeWork(work.block, work.diff)
 
@@ -139,10 +130,7 @@ func (c *CommonEngine) remote() {
 			if currentBlock == nil {
 				work.errc <- ErrNoMiningWork
 			} else {
-				if !account.IsSameAddress(work.addr, currentBlock.IHeader().GetCoinbase()) {
-					modifyCurrentStatusFromAddr(currentWork.HeaderHash, work.addr)
-					work.res <- currentWork
-				}
+				fmt.Println("GetWorkRes", currentBlock.NumberU64(), currentBlock.IHeader().GetCoinbase().ToHex())
 				work.res <- currentWork
 			}
 

@@ -1159,11 +1159,7 @@ func (bc *RootBlockChain) SubscribeChainSideEvent(ch chan<- RootChainSideEvent) 
 	return bc.scope.Track(bc.chainSideFeed.Subscribe(ch))
 }
 
-func (bc *RootBlockChain) CreateBlockToMine(mHeaderList []*types.MinorBlockHeader, address *account.Address, createTime *uint64) (*types.RootBlock, error) {
-	if address == nil {
-		a := account.CreatEmptyAddress(0)
-		address = &a
-	}
+func (bc *RootBlockChain) CreateBlockToMine(mHeaderList []*types.MinorBlockHeader, address account.Address, createTime *uint64) (*types.RootBlock, error) {
 	if createTime == nil {
 		ts := uint64(time.Now().Unix())
 		if bc.CurrentBlock().Time()+1 > ts {
@@ -1175,7 +1171,7 @@ func (bc *RootBlockChain) CreateBlockToMine(mHeaderList []*types.MinorBlockHeade
 	if err != nil {
 		return nil, err
 	}
-	block := bc.CurrentBlock().Header().CreateBlockToAppend(createTime, difficulty, address, nil, nil)
+	block := bc.CurrentBlock().Header().CreateBlockToAppend(createTime, difficulty, &address, nil, nil)
 	block.ExtendMinorBlockHeaderList(mHeaderList)
 	coinbaseToken, err := bc.CalculateRootBlockCoinBase(block)
 	if err != nil {
@@ -1191,7 +1187,7 @@ func (bc *RootBlockChain) CreateBlockToMine(mHeaderList []*types.MinorBlockHeade
 			return nil, err
 		}
 	}
-	block.Finalize(coinbaseToken, address, common.Hash{})
+	block.Finalize(coinbaseToken, &address, common.Hash{})
 	return block, nil
 }
 

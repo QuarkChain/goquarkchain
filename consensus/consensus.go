@@ -348,7 +348,7 @@ search:
 	}
 }
 
-func (c *CommonEngine) GetWork(addr account.Address) (*MiningWork, error) {
+func (c *CommonEngine) GetWork(addr *account.Address) (*MiningWork, error) {
 	if !c.isRemote {
 		return nil, ErrNotRemote
 	}

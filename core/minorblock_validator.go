@@ -149,6 +149,7 @@ func (v *MinorBlockValidator) ValidateBlock(mBlock types.IBlock) error {
 	}
 
 	if !v.branch.IsInBranch(block.IHeader().GetCoinbase().FullShardKey) {
+		fmt.Println("VVVVVVVVVVVVVVVVVVVV",v.branch,block.IHeader().GetCoinbase().FullShardKey)
 		log.Error(v.logInfo, "err", ErrMinerFullShardKey, "coinbase's fullshardkey", block.IHeader().GetCoinbase().FullShardKey, "current branch", v.branch.Value)
 		return ErrMinerFullShardKey
 	}

@@ -216,6 +216,8 @@ func (s *QKCMasterBackend) Stop() error {
 
 // Start start node -> start qkcMaster
 func (s *QKCMasterBackend) Init(srvr *p2p.Server) error {
+	fmt.Println("IIIIIIIIIIIIIIIIIIIIIII")
+	defer fmt.Println("IIIIIIIIIIIIIII=end")
 	if srvr != nil {
 		s.srvr = srvr
 		s.maxPeers = srvr.MaxPeers
@@ -264,6 +266,7 @@ func (s *QKCMasterBackend) Start() error {
 	s.updateShardStatsLoop()
 
 	if s.clusterConfig.Quarkchain.Root.ConsensusConfig.RemoteMine {
+		//fmt.Println("SSSSSSSSSSSSSSSs")
 		s.miner.SetMining(true)
 	}
 
@@ -366,6 +369,7 @@ func (s *QKCMasterBackend) broadcastRootBlockToSlaves(block *types.RootBlock) er
 }
 
 func (s *QKCMasterBackend) Heartbeat() {
+	fmt.Println("HHHHHHHHHHHHeartBeat")
 	go func(normal bool) {
 		for normal {
 			select {
@@ -375,6 +379,7 @@ func (s *QKCMasterBackend) Heartbeat() {
 			default:
 				timeGap := time.Now()
 				s.ctx.Timestamp = timeGap
+				fmt.Println("Heartbeat-time", s.ctx.Timestamp.String())
 				for endpoint := range s.clientPool {
 					normal = s.clientPool[endpoint].HeartBeat()
 					if !normal {
@@ -481,7 +486,7 @@ func (s *QKCMasterBackend) createRootBlockToMine(address account.Address) (*type
 		headers := fullShardIDToHeaderList[fullShardID]
 		headerList = append(headerList, headers...)
 	}
-	newblock, err := s.rootBlockChain.CreateBlockToMine(headerList, &address, nil)
+	newblock, err := s.rootBlockChain.CreateBlockToMine(headerList, address, nil)
 	if err != nil {
 		return nil, err
 	}

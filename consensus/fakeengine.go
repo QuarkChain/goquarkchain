@@ -85,7 +85,7 @@ func (e *FakeEngine) CalcDifficulty(chain ChainReader, time uint64, parent types
 	return e.Difficulty, nil
 }
 
-func (e *FakeEngine) GetWork(address account.Address) (*MiningWork, error) {
+func (e *FakeEngine) GetWork(address *account.Address) (*MiningWork, error) {
 	return &MiningWork{}, nil
 }
 
