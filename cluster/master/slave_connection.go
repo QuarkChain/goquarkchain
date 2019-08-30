@@ -186,42 +186,11 @@ func (s *SlaveConnection) ExecuteTransaction(tx *types.Transaction, fromAddress 
 }
 
 func (s *SlaveConnection) GetMinorBlockByHash(blockHash common.Hash, branch account.Branch, needExtraInfo bool) (*types.MinorBlock, *rpc.PoSWInfo, error) {
-	var (
-		req              = rpc.GetMinorBlockRequest{Branch: branch.Value, MinorBlockHash: blockHash, NeedExtraInfo: needExtraInfo}
-		minBlockResponse = rpc.GetMinorBlockResponse{}
-		res              *rpc.Response
-	)
-	bytes, err := serialize.SerializeToBytes(req)
-	if err != nil {
-		return nil, nil, err
-	}
-	res, err = s.client.Call(s.target, &rpc.Request{Op: rpc.OpGetMinorBlock, Data: bytes})
-	if err != nil {
-		return nil, nil, err
-	}
-	if err = serialize.Deserialize(serialize.NewByteBuffer(res.Data), &minBlockResponse); err != nil {
-		return nil, nil, err
-	}
-	return minBlockResponse.MinorBlock, minBlockResponse.Extra, nil
+	return s.getMinorBlock(blockHash, nil, branch, needExtraInfo)
 }
 
-func (s *SlaveConnection) GetMinorBlockByHeight(height uint64, branch account.Branch, needExtraInfo bool) (*types.MinorBlock, *rpc.PoSWInfo, error) {
-	var (
-		req              = rpc.GetMinorBlockRequest{Branch: branch.Value, Height: height, NeedExtraInfo: needExtraInfo}
-		minBlockResponse = rpc.GetMinorBlockResponse{}
-	)
-	bytes, err := serialize.SerializeToBytes(req)
-	if err != nil {
-		return nil, nil, err
-	}
-	res, err := s.client.Call(s.target, &rpc.Request{Op: rpc.OpGetMinorBlock, Data: bytes})
-	if err != nil {
-		return nil, nil, err
-	}
-	if err := serialize.Deserialize(serialize.NewByteBuffer(res.Data), &minBlockResponse); err != nil {
-		return nil, nil, err
-	}
-	return minBlockResponse.MinorBlock, minBlockResponse.Extra, nil
+func (s *SlaveConnection) GetMinorBlockByHeight(height *uint64, branch account.Branch, needExtraInfo bool) (*types.MinorBlock, *rpc.PoSWInfo, error) {
+	return s.getMinorBlock(common.Hash{}, height, branch, needExtraInfo)
 }
 
 func (s *SlaveConnection) GetTransactionByHash(txHash common.Hash, branch account.Branch) (*types.MinorBlock, uint32, error) {
@@ -593,12 +562,12 @@ func (s *SlaveConnection) GetMinorBlocks(request *rpc.GetMinorBlockListRequest) 
 	return rsp, nil
 }
 
-func (s *SlaveConnection) GetMinorBlockHeaders(request *p2p.GetMinorBlockHeaderListRequest) (*p2p.GetMinorBlockHeaderListResponse, error) {
+func (s *SlaveConnection) GetMinorBlockHeaderList(req *p2p.GetMinorBlockHeaderListWithSkipRequest) (*p2p.GetMinorBlockHeaderListResponse, error) {
 	var (
 		rsp = new(p2p.GetMinorBlockHeaderListResponse)
 		res = new(rpc.Response)
 	)
-	bytes, err := serialize.SerializeToBytes(request)
+	bytes, err := serialize.SerializeToBytes(req)
 	if err != nil {
 		return nil, err
 	}
@@ -663,4 +632,26 @@ func (s *SlaveConnection) SetMining(mining bool) error {
 	}
 	_, err = s.client.Call(s.target, &rpc.Request{Op: rpc.OpSetMining, Data: bytes})
 	return err
+}
+
+// get minor block by hash or by height
+func (s *SlaveConnection) getMinorBlock(hash common.Hash, height *uint64,
+	branch account.Branch, needExtraInfo bool) (*types.MinorBlock, *rpc.PoSWInfo, error) {
+	var (
+		req              = rpc.GetMinorBlockRequest{Branch: branch.Value, MinorBlockHash: hash, Height: height, NeedExtraInfo: needExtraInfo}
+		minBlockResponse = rpc.GetMinorBlockResponse{}
+		res              *rpc.Response
+	)
+	bytes, err := serialize.SerializeToBytes(req)
+	if err != nil {
+		return nil, nil, err
+	}
+	res, err = s.client.Call(s.target, &rpc.Request{Op: rpc.OpGetMinorBlock, Data: bytes})
+	if err != nil {
+		return nil, nil, err
+	}
+	if err = serialize.Deserialize(serialize.NewByteBuffer(res.Data), &minBlockResponse); err != nil {
+		return nil, nil, err
+	}
+	return minBlockResponse.MinorBlock, minBlockResponse.Extra, nil
 }

@@ -11,7 +11,6 @@ import (
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/p2p"
 	"github.com/QuarkChain/goquarkchain/serialize"
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
 )
 
@@ -188,14 +187,8 @@ func (s *SlaveServerSideOp) GetMinorBlock(ctx context.Context, req *rpc.Request)
 		return nil, err
 	}
 
-	if gReq.MinorBlockHash != (common.Hash{}) {
-		if gRes.MinorBlock, err = s.slave.GetMinorBlockByHash(gReq.MinorBlockHash, gReq.Branch); err != nil {
-			return nil, err
-		}
-	} else {
-		if gRes.MinorBlock, err = s.slave.GetMinorBlockByHeight(gReq.Height, gReq.Branch); err != nil {
-			return nil, err
-		}
+	if gRes.MinorBlock, err = s.slave.GetMinorBlock(gReq.MinorBlockHash, gReq.Height, gReq.Branch); err != nil {
+		return nil, err
 	}
 
 	if gReq.NeedExtraInfo {
@@ -553,7 +546,7 @@ func (s *SlaveServerSideOp) GetMinorBlockList(ctx context.Context, req *rpc.Requ
 
 func (s *SlaveServerSideOp) GetMinorBlockHeaderList(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
 	var (
-		gReq     p2p.GetMinorBlockHeaderListRequest
+		gReq     p2p.GetMinorBlockHeaderListWithSkipRequest
 		gRes     p2p.GetMinorBlockHeaderListResponse
 		response = &rpc.Response{RpcId: req.RpcId}
 		err      error
@@ -562,7 +555,7 @@ func (s *SlaveServerSideOp) GetMinorBlockHeaderList(ctx context.Context, req *rp
 		return nil, err
 	}
 
-	if gRes.BlockHeaderList, err = s.slave.GetMinorBlockHeaderList(gReq.BlockHash, gReq.Limit, gReq.Direction, gReq.Branch.Value); err != nil {
+	if gRes.BlockHeaderList, err = s.slave.GetMinorBlockHeaderList(&gReq); err != nil {
 		return nil, err
 	}
 

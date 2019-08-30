@@ -112,6 +112,8 @@ func NewRootGenesis() *RootGenesis {
 type RootConfig struct {
 	// To ignore super old blocks from peers
 	// This means the network will fork permanently after a long partition
+	// Use Ethereum's number, which is
+	// - 30000 * 3 blocks = 90000 * 15 / 3600 = 375 hours = 375 * 3600 / 60 = 22500
 	MaxStaleRootBlockHeightDiff    uint64          `json:"MAX_STALE_ROOT_BLOCK_HEIGHT_DIFF"`
 	ConsensusType                  string          `json:"CONSENSUS_TYPE"`
 	ConsensusConfig                *POWConfig      `json:"CONSENSUS_CONFIG"`
