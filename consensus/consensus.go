@@ -348,7 +348,7 @@ search:
 	}
 }
 
-func (c *CommonEngine) GetWork() (*MiningWork, error) {
+func (c *CommonEngine) GetWork(addr account.Address) (*MiningWork, error) {
 	if !c.isRemote {
 		return nil, ErrNotRemote
 	}
@@ -357,7 +357,7 @@ func (c *CommonEngine) GetWork() (*MiningWork, error) {
 		errc   = make(chan error, 1)
 	)
 	select {
-	case c.fetchWorkCh <- &sealWork{errc: errc, res: workCh}:
+	case c.fetchWorkCh <- &sealWork{errc: errc, res: workCh, addr: addr}:
 	case <-c.exitCh:
 		return nil, errors.New(fmt.Sprintf("%s hash stoped", c.Name()))
 	}

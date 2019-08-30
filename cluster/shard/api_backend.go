@@ -218,6 +218,9 @@ func (s *ShardBackend) GetLogs(start uint64, end uint64, address []account.Addre
 }
 
 func (s *ShardBackend) GetWork(coinbaseAddr *account.Address) (*consensus.MiningWork, error) {
+	if coinbaseAddr == nil {
+		coinbaseAddr = &s.Config.CoinbaseAddress
+	}
 	return s.miner.GetWork(*coinbaseAddr)
 }
 

@@ -3,6 +3,7 @@ package consensus
 import (
 	"errors"
 	"fmt"
+	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/hashicorp/golang-lru"
 	"math/big"
@@ -40,6 +41,7 @@ type mineResult struct {
 type sealWork struct {
 	errc chan error
 	res  chan MiningWork
+	addr account.Address
 }
 
 func (c *CommonEngine) remote() {
@@ -56,9 +58,6 @@ func (c *CommonEngine) remote() {
 
 	makeWork := func(block types.IBlock, adjustedDiff *big.Int) {
 		hash := block.IHeader().SealHash()
-		if workMap.Contains(hash) {
-			return
-		}
 		currentWork.HeaderHash = hash
 		currentWork.Number = block.NumberU64()
 		if adjustedDiff == nil {
@@ -120,18 +119,30 @@ func (c *CommonEngine) remote() {
 		return false
 	}
 
+	modifyCurrentStatusFromAddr := func(hash common.Hash, addr account.Address) {
+		value, ok := workMap.Get(hash)
+		if !ok {
+			panic("should have here, fix bug")
+		}
+		block := value.(types.IBlock)
+		block.IHeader().SetCoinbase(addr)
+		makeWork(block, block.IHeader().GetDifficulty())
+	}
+
 	for {
 		select {
 		case work := <-c.workCh:
 			results = work.results
-			fmt.Println("????????????????????????")
 			makeWork(work.block, work.diff)
 
 		case work := <-c.fetchWorkCh:
 			if currentBlock == nil {
 				work.errc <- ErrNoMiningWork
 			} else {
-				fmt.Println("return currentWork")
+				if !account.IsSameAddress(work.addr, currentBlock.IHeader().GetCoinbase()) {
+					modifyCurrentStatusFromAddr(currentWork.HeaderHash, work.addr)
+					work.res <- currentWork
+				}
 				work.res <- currentWork
 			}
 

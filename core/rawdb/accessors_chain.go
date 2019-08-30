@@ -3,6 +3,7 @@ package rawdb
 
 import (
 	"encoding/binary"
+	"fmt"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/serialize"
 	"github.com/ethereum/go-ethereum/common"
@@ -304,6 +305,7 @@ func ReadRootBlock(db DatabaseReader, hash common.Hash) *types.RootBlock {
 
 // WriteRootBlock storea a block rootBlockBody into the database.
 func WriteRootBlock(db DatabaseWriter, block *types.RootBlock) {
+	fmt.Println("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!", block.Number(), block.Header().GetCoinbase().ToHex())
 	WriteRootBlockHeader(db, block.Header())
 	data, err := serialize.SerializeToBytes(block)
 	if err != nil {

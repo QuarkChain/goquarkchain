@@ -51,6 +51,10 @@ func IsSameReceipt(a, b Recipient) bool {
 	return true
 }
 
+func IsSameAddress(a, b Address) bool {
+	return IsSameReceipt(a.Recipient, b.Recipient) && a.FullShardKey == b.FullShardKey
+}
+
 // Key key type
 type Key [KeyLength]byte
 

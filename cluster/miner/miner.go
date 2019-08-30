@@ -146,7 +146,7 @@ func (m *Miner) SetMining(mining bool) {
 }
 
 func (m *Miner) GetWork(coinbaseAddr account.Address) (*consensus.MiningWork, error) {
-	work, err := m.engine.GetWork()
+	work, err := m.engine.GetWork(coinbaseAddr)
 	if err != nil {
 		return nil, err
 	}
