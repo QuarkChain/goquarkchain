@@ -648,5 +648,5 @@ func (s *SlaveServerSideOp) CheckMinorBlocksInRoot(ctx context.Context, req *rpc
 	if err = serialize.DeserializeFromBytes(req.Data, &rootBlock); err != nil {
 		return nil, err
 	}
-	return response, nil
+	return response, s.slave.CheckMinorBlocksInRoot(&rootBlock)
 }
