@@ -60,7 +60,7 @@ const (
 	// period between adding a dialout_blacklisted node and removing it
 	dialoutBlacklistCooldownSec int64 = 24 * 3600
 	dialinBlacklistCooldownSec  int64 = 8 * 3600
-	unblacklistInterval         int64 = 15 * 60
+	unblacklistInterval               = time.Duration(15 * 60)
 )
 
 var errServerStopped = errors.New("server stopped")
@@ -185,9 +185,7 @@ type Server struct {
 	peerOp     chan peerOpFunc
 	peerOpDone chan struct{}
 
-	// IP to unblacklist time, we blacklist by IP
-	blklock          sync.Mutex
-	dialoutBlacklist map[string]int64
+	blackNodeFilter *BlackNodes
 
 	quit          chan struct{}
 	addstatic     chan *enode.Node
@@ -456,7 +454,12 @@ func (srv *Server) Start() (err error) {
 	srv.removetrusted = make(chan *enode.Node)
 	srv.peerOp = make(chan peerOpFunc)
 	srv.peerOpDone = make(chan struct{})
-	srv.dialoutBlacklist = make(map[string]int64)
+	srv.blackNodeFilter = &BlackNodes{
+		currTime:         time.Now(),
+		WhitelistNodes:   srv.WhitelistNodes,
+		dialoutBlacklist: make(map[string]int64),
+		dialinBlacklist:  make(map[string]int64),
+	}
 
 	if err := srv.setupLocalNode(); err != nil {
 		return err
@@ -564,6 +567,7 @@ func (srv *Server) setupDiscovery() error {
 			return err
 		}
 		srv.ntab = ntab
+		srv.ntab.SetChkBlackFunc(srv.blackNodeFilter.chkDialoutBlacklist)
 	}
 	// Discovery V5
 	if srv.DiscoveryV5 {
@@ -615,22 +619,6 @@ type dialer interface {
 	taskDone(task, time.Time)
 	addStatic(*enode.Node)
 	removeStatic(*enode.Node)
-}
-
-func (pm *Server) addDialoutBlacklist(ip string) {
-	if _, ok := pm.WhitelistNodes[ip]; !ok {
-		pm.dialoutBlacklist[ip] = time.Now().Unix() + dialoutBlacklistCooldownSec
-	}
-}
-
-func (pm *Server) chkDialoutBlacklist(ip string) bool {
-	if tm, ok := pm.dialoutBlacklist[ip]; ok {
-		if time.Now().Unix() < tm {
-			return true
-		}
-		delete(pm.dialoutBlacklist, ip)
-	}
-	return false
 }
 
 func (srv *Server) run(dialstate dialer) {
@@ -685,13 +673,11 @@ func (srv *Server) run(dialstate dialer) {
 	periodicallyUnblacklist := func() {
 		for _, peer := range peers {
 			pr := peer
-			if srv.chkDialoutBlacklist(pr.RemoteAddr().String()) {
+			if srv.blackNodeFilter.chkDialoutBlacklist(pr.Node().IP().String()) {
 				srv.delpeer <- peerDrop{pr, nil, false}
 			}
 		}
-		for ip := range srv.dialoutBlacklist {
-			srv.chkDialoutBlacklist(ip)
-		}
+		srv.blackNodeFilter.periodicallyUnblacklist()
 	}
 
 running:
@@ -766,7 +752,7 @@ running:
 			// At this point the connection is past the protocol handshake.
 			// Its capabilities are known and the remote identity is verified.
 			err := srv.protoHandshakeChecks(peers, inboundCount, c)
-			if err == nil && !srv.chkDialoutBlacklist(c.node.IP().String()) {
+			if err == nil && !srv.blackNodeFilter.chkDialoutBlacklist(c.fd.RemoteAddr().String()) {
 				// The handshakes are done and it passed all checks.
 				p := newPeer(c, srv.Protocols)
 				// If message events are enabled, pass the peerFeed
@@ -793,7 +779,7 @@ running:
 		case pd := <-srv.delpeer:
 			// A peer disconnected.
 			if pd.err != nil {
-				srv.addDialoutBlacklist(pd.RemoteAddr().String())
+				srv.blackNodeFilter.addDialoutBlacklist(pd.Node().IP().String())
 			}
 			d := common.PrettyDuration(mclock.Now() - pd.created)
 			pd.log.Debug("Removing p2p peer", "duration", d, "peers", len(peers)-1, "req", pd.requested, "err", pd.err)
@@ -1117,4 +1103,85 @@ func (srv *Server) PeersInfo() []*PeerInfo {
 		}
 	}
 	return infos
+}
+
+func (srv *Server) GetKadRoutingTable() []string {
+	return srv.ntab.GetKadRoutingTable()
+}
+
+type BlackNodes struct {
+	currTime time.Time
+	// BootstrapNodes | preferedNodes
+	WhitelistNodes map[string]*enode.Node
+	// IP to unblacklist time, we blacklist by IP
+	mu               sync.RWMutex
+	dialoutBlacklist map[string]int64
+	dialinBlacklist  map[string]int64
+}
+
+func (pm *BlackNodes) addDialoutBlacklist(ip string) {
+	if _, ok := pm.WhitelistNodes[ip]; !ok {
+		pm.mu.Lock()
+		pm.dialoutBlacklist[ip] = time.Now().Unix() + dialoutBlacklistCooldownSec
+		pm.mu.Unlock()
+	}
+}
+
+func (pm *BlackNodes) chkDialoutBlacklist(ip string) bool {
+	pm.mu.RLock()
+	tm, ok := pm.dialoutBlacklist[ip]
+	pm.mu.RUnlock()
+	if ok {
+		if time.Now().Unix() < tm {
+			return true
+		}
+		pm.mu.Lock()
+		delete(pm.dialoutBlacklist, ip)
+		pm.mu.Unlock()
+	}
+	return false
+}
+
+func (pm *BlackNodes) addDialinBlacklist(ip string) {
+	if _, ok := pm.WhitelistNodes[ip]; !ok {
+		pm.mu.Lock()
+		pm.dialinBlacklist[ip] = time.Now().Unix() + dialinBlacklistCooldownSec
+		pm.mu.Unlock()
+	}
+}
+
+func (pm *BlackNodes) chkDialinBlacklist(ip string) bool {
+	pm.mu.RLock()
+	tm, ok := pm.dialinBlacklist[ip]
+	pm.mu.RUnlock()
+	if ok {
+		if time.Now().Unix() < tm {
+			return true
+		}
+		pm.mu.Lock()
+		delete(pm.dialinBlacklist, ip)
+		pm.mu.Unlock()
+	}
+	return false
+}
+
+func (b *BlackNodes) periodicallyUnblacklist() {
+	now := time.Now()
+	if now.Sub(b.currTime) < unblacklistInterval {
+		return
+	}
+
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.currTime = now
+	for ip, tm := range b.dialoutBlacklist {
+		if now.Unix() >= tm {
+			delete(b.dialoutBlacklist, ip)
+		}
+	}
+	for ip, tm := range b.dialinBlacklist {
+		if now.Unix() >= tm {
+			delete(b.dialinBlacklist, ip)
+		}
+	}
 }

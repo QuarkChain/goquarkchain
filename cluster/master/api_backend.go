@@ -176,7 +176,6 @@ func (s *QKCMasterBackend) GetAllTx(branch account.Branch, start []byte, limit u
 	return slaveConn.GetAllTx(branch, start, limit)
 }
 
-
 func (s *QKCMasterBackend) GetLogs(branch account.Branch, address []account.Address, topics [][]common.Hash, startBlockNumber, endBlockNumber uint64) ([]*types.Log, error) {
 	// not support earlist and pending
 	slaveConn := s.getOneSlaveConnection(branch)
@@ -341,4 +340,11 @@ func (s *QKCMasterBackend) GetTip() uint64 {
 
 func (s *QKCMasterBackend) IsSyncIng() bool {
 	return s.synchronizer.IsSyncing()
+}
+
+func (s *QKCMasterBackend) GetKadRoutingTable() ([]string, error) {
+	if s.srvr == nil {
+		return s.srvr.GetKadRoutingTable(), nil
+	}
+	return nil, errors.New("p2p server is not running")
 }
