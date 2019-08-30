@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/QuarkChain/goquarkchain/account"
-	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
 	qkcCommon "github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/core/rawdb"
@@ -58,9 +57,9 @@ func (m *MinorBlockChain) getLastConfirmedMinorBlockHeaderAtRootBlock(hash commo
 	return m.GetHeader(rMinorHeaderHash).(*types.MinorBlockHeader)
 }
 
-func getLocalFeeRate(qkcConfig *config.QuarkChainConfig) *big.Rat {
+func (m *MinorBlockChain) getLocalFeeRate() *big.Rat {
 	ret := new(big.Rat).SetInt64(1)
-	return ret.Sub(ret, qkcConfig.RewardTaxRate)
+	return ret.Sub(ret, m.clusterConfig.Quarkchain.RewardTaxRate)
 }
 
 func powerBigInt(data *big.Int, p uint64) *big.Int {
@@ -563,17 +562,16 @@ func (m *MinorBlockChain) ExecuteTx(tx *types.Transaction, fromAddress *account.
 	gp := new(GasPool).AddGas(mBlock.Header().GetGasLimit().Uint64())
 
 	to := evmTx.EvmTx.To()
+	toFullShardKey := tx.EvmTx.ToFullShardKey()
 	msg := types.NewMessage(fromAddress.Recipient, to, evmTx.EvmTx.Nonce(), evmTx.EvmTx.Value(), evmTx.EvmTx.Gas(),
-		evmTx.EvmTx.GasPrice(), evmTx.EvmTx.Data(), false, tx.EvmTx.FromShardID(), tx.EvmTx.ToShardID(),
+		evmTx.EvmTx.GasPrice(), evmTx.EvmTx.Data(), false, tx.EvmTx.FromFullShardKey(), &toFullShardKey,
 		tx.EvmTx.TransferTokenID(), tx.EvmTx.GasTokenID())
 	state.SetFullShardKey(tx.EvmTx.ToFullShardKey())
 	state.SetQuarkChainConfig(m.clusterConfig.Quarkchain)
 
 	context := NewEVMContext(msg, m.CurrentBlock().IHeader().(*types.MinorBlockHeader), m)
 	evmEnv := vm.NewEVM(context, state, m.ethChainConfig, m.vmConfig)
-
-	localFee := getLocalFeeRate(m.clusterConfig.Quarkchain)
-	ret, _, _, err := ApplyMessage(evmEnv, msg, gp, localFee)
+	ret, _, _, err := ApplyMessage(evmEnv, msg, gp)
 	return ret, err
 
 }
@@ -1079,15 +1077,15 @@ func (m *MinorBlockChain) EstimateGas(tx *types.Transaction, fromAddress account
 
 		gp := new(GasPool).AddGas(evmState.GetGasLimit().Uint64())
 		to := evmTx.EvmTx.To()
+		toFullShardKey := tx.EvmTx.ToFullShardKey()
 		msg := types.NewMessage(fromAddress.Recipient, to, evmTx.EvmTx.Nonce(), evmTx.EvmTx.Value(), evmTx.EvmTx.Gas(),
-			evmTx.EvmTx.GasPrice(), evmTx.EvmTx.Data(), false, tx.EvmTx.FromShardID(), tx.EvmTx.ToShardID(),
+			evmTx.EvmTx.GasPrice(), evmTx.EvmTx.Data(), false, tx.EvmTx.FromFullShardKey(), &toFullShardKey,
 			tx.EvmTx.TransferTokenID(), tx.EvmTx.GasTokenID())
 		evmState.SetFullShardKey(tx.EvmTx.ToFullShardKey())
 		context := NewEVMContext(msg, m.CurrentBlock().IHeader().(*types.MinorBlockHeader), m)
 		evmEnv := vm.NewEVM(context, evmState, m.ethChainConfig, m.vmConfig)
 
-		localFee := getLocalFeeRate(m.clusterConfig.Quarkchain)
-		_, _, _, err = ApplyMessage(evmEnv, msg, gp, localFee)
+		_, _, _, err = ApplyMessage(evmEnv, msg, gp)
 		return err
 	}
 
@@ -1107,15 +1105,18 @@ func (m *MinorBlockChain) EstimateGas(tx *types.Transaction, fromAddress account
 
 // GasPrice gas price
 func (m *MinorBlockChain) GasPrice(tokenID uint64) (uint64, error) {
-	//TODO later to fix
-	// no need to lock
 	if !m.clusterConfig.Quarkchain.IsAllowedTokenID(tokenID) {
 		return 0, fmt.Errorf("no support tokenID %v", tokenID)
 	}
+
 	currHead := m.CurrentBlock().Hash()
-	if currHead == m.gasPriceSuggestionOracle.LastHead {
-		return m.gasPriceSuggestionOracle.LastPrice, nil
+	if data, ok := m.gasPriceSuggestionOracle.cache.Get(gasPriceKey{
+		currHead: currHead,
+		tokenID:  tokenID,
+	}); ok {
+		return data.(uint64), nil
 	}
+
 	currHeight := m.CurrentBlock().NumberU64()
 	startHeight := int64(currHeight) - int64(m.gasPriceSuggestionOracle.CheckBlocks) + 1
 	if startHeight < 3 {
@@ -1130,7 +1131,9 @@ func (m *MinorBlockChain) GasPrice(tokenID uint64) (uint64, error) {
 		}
 		tempPreBlockPrices := make([]uint64, 0)
 		for _, tx := range block.GetTransactions() {
-			tempPreBlockPrices = append(tempPreBlockPrices, tx.EvmTx.GasPrice().Uint64())
+			if tx.EvmTx.GasTokenID() == tokenID {
+				tempPreBlockPrices = append(tempPreBlockPrices, tx.EvmTx.GasPrice().Uint64())
+			}
 		}
 		prices = append(prices, tempPreBlockPrices...)
 	}
@@ -1140,8 +1143,10 @@ func (m *MinorBlockChain) GasPrice(tokenID uint64) (uint64, error) {
 
 	sort.Slice(prices, func(i, j int) bool { return prices[i] < prices[j] })
 	price := prices[(len(prices)-1)*int(m.gasPriceSuggestionOracle.Percentile)/100]
-	m.gasPriceSuggestionOracle.LastPrice = price
-	m.gasPriceSuggestionOracle.LastHead = currHead
+	m.gasPriceSuggestionOracle.cache.Add(gasPriceKey{
+		currHead: currHead,
+		tokenID:  tokenID,
+	}, price)
 	return price, nil
 }
 
@@ -1255,34 +1260,22 @@ func (m *MinorBlockChain) putTxIndexFromBlock(batch rawdb.DatabaseWriter, block 
 	return m.putTxHistoryIndexFromBlock(minorBlock) // put qkc's xshard tx
 }
 
-func (m *MinorBlockChain) removeTxIndexFromBlock(db rawdb.DatabaseDeleter, txs types.Transactions) error {
-	slovedBlock := make(map[common.Hash]bool)
-	for _, tx := range txs {
-		blockHash, _ := rawdb.ReadBlockContentLookupEntry(m.db, tx.Hash())
-		rawdb.DeleteBlockContentLookupEntry(db, tx.Hash()) //delete eth's tx lookup
-
-		if !m.clusterConfig.EnableTransactionHistory {
-			continue
-		}
-
-		if _, ok := slovedBlock[blockHash]; ok {
-			continue
-		}
-		slovedBlock[blockHash] = true
-		block, ok := m.GetBlock(blockHash).(*types.MinorBlock) // find old block
-		if !ok {
-			return errors.New("get minor block err")
-		}
-		for oldBlockTxIndex, oldBlockTx := range block.Transactions() { // delete qkc's oldBlock's tx
-			if err := m.removeTxHistoryIndex(oldBlockTx, block.Number(), oldBlockTxIndex); err != nil {
-				return err
-			}
-		}
-		if err := m.removeTxHistoryIndexFromBlock(block); err != nil { //delete qkc's crossShard tx
+func (m *MinorBlockChain) removeTxIndexFromBlock(db rawdb.DatabaseDeleter, block *types.MinorBlock) error {
+	blockTxs := block.Transactions()
+	for index, tx := range blockTxs {
+		if err := m.removeTxHistoryIndex(db, tx, block.NumberU64(), index); err != nil {
 			return err
 		}
 	}
-	return nil
+	depositHList := m.getXShardDepositHashList(block.Hash())
+	if depositHList == nil {
+		log.Error(m.logInfo, "impossible err", "please fix it removeTxIndexFromBlock")
+	} else {
+		for _, hash := range depositHList.HList {
+			rawdb.DeleteBlockContentLookupEntry(db, hash)
+		}
+	}
+	return m.removeTxHistoryIndexFromBlock(block)
 }
 
 func bytesSubOne(data []byte) []byte {
@@ -1559,7 +1552,8 @@ func (m *MinorBlockChain) updateTxHistoryIndex(tx *types.Transaction, height uin
 func (m *MinorBlockChain) putTxHistoryIndex(tx *types.Transaction, height uint64, index int) error {
 	return m.updateTxHistoryIndex(tx, height, index, m.putTxIndexDB)
 }
-func (m *MinorBlockChain) removeTxHistoryIndex(tx *types.Transaction, height uint64, index int) error {
+func (m *MinorBlockChain) removeTxHistoryIndex(db rawdb.DatabaseDeleter, tx *types.Transaction, height uint64, index int) error {
+	rawdb.DeleteBlockContentLookupEntry(db, tx.Hash())
 	return m.updateTxHistoryIndex(tx, height, index, m.deleteTxIndexDB)
 }
 
@@ -1616,7 +1610,6 @@ func (m *MinorBlockChain) RunCrossShardTxWithCursor(evmState *state.StateDB,
 	var receipts types.Receipts
 	txList := make([]*types.CrossShardTransactionDeposit, 0)
 	evmState.SetQuarkChainConfig(m.clusterConfig.Quarkchain)
-	localFeeRate := getLocalFeeRate(m.clusterConfig.Quarkchain)
 	gasUsed := new(uint64)
 	for true {
 		xShardDepositTx, err := cursor.getNextTx()
@@ -1628,7 +1621,7 @@ func (m *MinorBlockChain) RunCrossShardTxWithCursor(evmState *state.StateDB,
 		}
 		checkIsFromRootChain := cursor.rBlock.Header().NumberU64() >= m.clusterConfig.Quarkchain.XShardGasDDOSFixRootHeight
 		receipt, err := ApplyCrossShardDeposit(m.ethChainConfig, m, mBlock.Header(),
-			*m.GetVMConfig(), evmState, xShardDepositTx, gasUsed, localFeeRate, checkIsFromRootChain)
+			*m.GetVMConfig(), evmState, xShardDepositTx, gasUsed, checkIsFromRootChain)
 		if err != nil {
 			return nil, nil, nil, err
 		}

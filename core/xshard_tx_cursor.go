@@ -2,11 +2,12 @@ package core
 
 import (
 	"errors"
+	"math/big"
+
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/serialize"
 	"github.com/ethereum/go-ethereum/common"
-	"math/big"
 )
 
 type blockchain interface {
@@ -79,7 +80,7 @@ func (x *XShardTxCursor) getCurrentTx() (*types.CrossShardTransactionDeposit, er
 			// Perform x-shard from root chain coinbase
 			return &types.CrossShardTransactionDeposit{
 				TxHash:          x.rBlock.Header().Hash(),
-				From:            account.CreatEmptyAddress(0),
+				From:            x.rBlock.Header().Coinbase,
 				To:              x.rBlock.Header().Coinbase,
 				Value:           &serialize.Uint256{Value: new(big.Int).Set(coinbaseAmount)},
 				GasPrice:        &serialize.Uint256{Value: new(big.Int)},

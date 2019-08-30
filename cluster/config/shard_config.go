@@ -1,25 +1,29 @@
 package config
 
 import (
+	"bytes"
+	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"github.com/QuarkChain/goquarkchain/account"
 	qcom "github.com/QuarkChain/goquarkchain/common"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"math/big"
 )
 
 type ShardGenesis struct {
-	RootHeight         uint32                                  `json:"ROOT_HEIGHT"`
-	Version            uint32                                  `json:"VERSION"`
-	Height             uint64                                  `json:"HEIGHT"`
-	HashPrevMinorBlock string                                  `json:"HASH_PREV_MINOR_BLOCK"`
-	HashMerkleRoot     string                                  `json:"HASH_MERKLE_ROOT"`
-	ExtraData          []byte                                  `json:"-"`
-	Timestamp          uint64                                  `json:"TIMESTAMP"`
-	Difficulty         uint64                                  `json:"DIFFICULTY"`
-	GasLimit           uint64                                  `json:"GAS_LIMIT"`
-	Nonce              uint32                                  `json:"NONCE"`
-	Alloc              map[account.Address]map[string]*big.Int `json:"-"`
+	RootHeight         uint32                         `json:"ROOT_HEIGHT"`
+	Version            uint32                         `json:"VERSION"`
+	Height             uint64                         `json:"HEIGHT"`
+	HashPrevMinorBlock string                         `json:"HASH_PREV_MINOR_BLOCK"`
+	HashMerkleRoot     string                         `json:"HASH_MERKLE_ROOT"`
+	ExtraData          []byte                         `json:"-"`
+	Timestamp          uint64                         `json:"TIMESTAMP"`
+	Difficulty         uint64                         `json:"DIFFICULTY"`
+	GasLimit           uint64                         `json:"GAS_LIMIT"`
+	Nonce              uint32                         `json:"NONCE"`
+	Alloc              map[account.Address]Allocation `json:"-"`
 }
 
 func NewShardGenesis() *ShardGenesis {
@@ -34,21 +38,91 @@ func NewShardGenesis() *ShardGenesis {
 		Difficulty:         10000,
 		GasLimit:           30000 * 400,
 		Nonce:              0,
-		Alloc:              make(map[account.Address]map[string]*big.Int),
+		Alloc:              make(map[account.Address]Allocation),
 	}
+}
+
+type Allocation struct {
+	Balances map[string]*big.Int
+	Code     []byte
+	Storage  map[common.Hash]common.Hash
+}
+
+type AllocMarshalling = struct {
+	Balances map[string]*big.Int         `json:"balances"`
+	Code     string                      `json:"code"`
+	Storage  map[storageJSON]storageJSON `json:"storage"`
+}
+
+func (a Allocation) MarshalJSON() ([]byte, error) {
+	var jsonConfig AllocMarshalling
+	if a.Balances != nil {
+		jsonConfig.Balances = a.Balances
+	}
+	if a.Code != nil {
+		jsonConfig.Code = common.Bytes2Hex(a.Code)
+	}
+	if a.Storage != nil {
+		jsonConfig.Storage = make(map[storageJSON]storageJSON, len(a.Storage))
+		for k, v := range a.Storage {
+			jsonConfig.Storage[storageJSON(k)] = storageJSON(v)
+		}
+	}
+	return json.Marshal(jsonConfig)
+}
+
+func (a *Allocation) UnmarshalJSON(input []byte) error {
+	var jsonConfig AllocMarshalling
+	if err := json.Unmarshal(input, &jsonConfig); err != nil {
+		return err
+	}
+	if jsonConfig.Balances != nil {
+		a.Balances = jsonConfig.Balances
+	}
+	if jsonConfig.Code != "" {
+		a.Code = common.FromHex(jsonConfig.Code)
+	}
+	if jsonConfig.Storage != nil {
+		a.Storage = make(map[common.Hash]common.Hash, len(jsonConfig.Storage))
+		for k, v := range jsonConfig.Storage {
+			a.Storage[common.Hash(k)] = common.Hash(v)
+		}
+	}
+	return nil
+}
+
+// storageJSON represents a 256 bit byte array, but allows less than 256 bits when
+// unmarshaling from hex.
+type storageJSON common.Hash
+
+func (h *storageJSON) UnmarshalText(text []byte) error {
+	text = bytes.TrimPrefix(text, []byte("0x"))
+	if len(text) > 64 {
+		return fmt.Errorf("too many hex characters in storage key/value %q", text)
+	}
+	offset := len(h) - len(text)/2 // pad on the left
+	if _, err := hex.Decode(h[offset:], text); err != nil {
+		fmt.Println(err)
+		return fmt.Errorf("invalid hex storage key/value %q", text)
+	}
+	return nil
+}
+
+func (h storageJSON) MarshalText() ([]byte, error) {
+	return hexutil.Bytes(h[:]).MarshalText()
 }
 
 type ShardGenesisAlias ShardGenesis
 
 func (s *ShardGenesis) MarshalJSON() ([]byte, error) {
-	var alloc = make(map[string]map[string]*big.Int)
+	alloc := make(map[string]Allocation)
 	for addr, val := range s.Alloc {
 		alloc[string(addr.ToHex())] = val
 	}
 	jsonConfig := struct {
 		ShardGenesisAlias
-		ExtraData string                         `json:"EXTRA_DATA"`
-		Alloc     map[string]map[string]*big.Int `json:"ALLOC"`
+		ExtraData string                `json:"EXTRA_DATA"`
+		Alloc     map[string]Allocation `json:"ALLOC"`
 	}{ShardGenesisAlias(*s), common.Bytes2Hex(s.ExtraData), alloc}
 	return json.Marshal(jsonConfig)
 }
@@ -56,15 +130,15 @@ func (s *ShardGenesis) MarshalJSON() ([]byte, error) {
 func (s *ShardGenesis) UnmarshalJSON(input []byte) error {
 	var jsonConfig struct {
 		ShardGenesisAlias
-		ExtraData string                         `json:"EXTRA_DATA"`
-		Alloc     map[string]map[string]*big.Int `json:"ALLOC"`
+		ExtraData string                `json:"EXTRA_DATA"`
+		Alloc     map[string]Allocation `json:"ALLOC"`
 	}
 	if err := json.Unmarshal(input, &jsonConfig); err != nil {
 		return err
 	}
 	*s = ShardGenesis(jsonConfig.ShardGenesisAlias)
 	s.ExtraData = common.Hex2Bytes(jsonConfig.ExtraData)
-	s.Alloc = make(map[account.Address]map[string]*big.Int)
+	s.Alloc = make(map[account.Address]Allocation)
 	for addr, val := range jsonConfig.Alloc {
 		address, err := account.CreatAddressFromBytes(common.FromHex(addr))
 		if err != nil {

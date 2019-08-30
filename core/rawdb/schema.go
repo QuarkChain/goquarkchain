@@ -53,6 +53,7 @@ var (
 	mHeader            = []byte("mhC")  //mHeader coinbase
 	commitBlockByHash  = []byte("cmB")  //CommittedMinorBlock
 	xsHashList         = []byte("xd")
+	mConfiredByRoot    = []byte("mr") //key:mHash value rHash
 )
 
 type ChainType byte
@@ -174,8 +175,8 @@ func makeMinorBlockCoinbase(mHash common.Hash) []byte {
 	return data
 }
 
-func makeRootBlockConfirmingMinorBlock(mHash common.Hash, fullShardID uint32) []byte {
-	data := append(mHash.Bytes(), encodeUint32(fullShardID)...)
+func makeRootBlockConfirmingMinorBlock(mBlockID []byte) []byte {
+	data := append(mConfiredByRoot, mBlockID...)
 	return data
 }
 

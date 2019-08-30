@@ -17,7 +17,6 @@
 package vm
 
 import (
-	"errors"
 	"math/big"
 	"sync/atomic"
 	"time"
@@ -50,7 +49,7 @@ func run(evm *EVM, contract *Contract, input []byte, readOnly bool) ([]byte, err
 			precompiles = PrecompiledContractsByzantium
 		}
 		if p := precompiles[*contract.CodeAddr]; p != nil {
-			return RunPrecompiledContract(p, input, contract)
+			return RunPrecompiledContract(p, input, contract, evm)
 		}
 	}
 	for _, interpreter := range evm.interpreters {
@@ -90,11 +89,12 @@ type Context struct {
 	BlockNumber        *big.Int       // Provides information for NUMBER
 	Time               *big.Int       // Provides information for TIME
 	Difficulty         *big.Int       // Provides information for DIFFICULTY
-	ToFullShardKey     uint32
+	ToFullShardKey     *uint32
 	GasTokenID         uint64
 	TransferTokenID    uint64
 	IsApplyXShard      bool
 	XShardGasUsedStart uint64
+	ContractAddress    *common.Address
 }
 
 // EVM is the Ethereum Virtual Machine base object and provides
@@ -181,6 +181,13 @@ func (evm *EVM) Interpreter() Interpreter {
 	return evm.interpreter
 }
 
+func checkTokenIDQueried(err error, contract *Contract, txansferTokenID, defaultTokenID uint64) error {
+	if err == nil && len(contract.Code) != 0 && !contract.TokenIDQueried && txansferTokenID != defaultTokenID && contract.value.Uint64() != 0 {
+		err = errExecutionReverted
+	}
+	return err
+}
+
 // Call executes the contract associated with the addr with the given input as
 // parameters. It also handles any necessary value transfer required and takes
 // the necessary steps to create accounts and reverses the state in case of an
@@ -241,7 +248,7 @@ func (evm *EVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 	}
 
 	ret, err = run(evm, contract, input, false)
-
+	err = checkTokenIDQueried(err, contract, evm.TransferTokenID, evm.StateDB.GetQuarkChainConfig().GetDefaultChainTokenID())
 	// When an error was returned by the EVM or when setting the creation code
 	// above we revert to the snapshot and consume any gas remaining. Additionally
 	// when we're in homestead this also counts for code storage gas errors.
@@ -286,6 +293,7 @@ func (evm *EVM) CallCode(caller ContractRef, addr common.Address, input []byte, 
 	contract.SetCallCode(&addr, evm.StateDB.GetCodeHash(addr), evm.StateDB.GetCode(addr))
 
 	ret, err = run(evm, contract, input, false)
+	err = checkTokenIDQueried(err, contract, evm.TransferTokenID, evm.StateDB.GetQuarkChainConfig().GetDefaultChainTokenID())
 	if err != nil {
 		evm.StateDB.RevertToSnapshot(snapshot)
 		if err != errExecutionReverted {
@@ -319,6 +327,8 @@ func (evm *EVM) DelegateCall(caller ContractRef, addr common.Address, input []by
 	contract.SetCallCode(&addr, evm.StateDB.GetCodeHash(addr), evm.StateDB.GetCode(addr))
 
 	ret, err = run(evm, contract, input, false)
+
+	err = checkTokenIDQueried(err, contract, evm.TransferTokenID, evm.StateDB.GetQuarkChainConfig().GetDefaultChainTokenID())
 	if err != nil {
 		evm.StateDB.RevertToSnapshot(snapshot)
 		if err != errExecutionReverted {
@@ -355,12 +365,13 @@ func (evm *EVM) StaticCall(caller ContractRef, addr common.Address, input []byte
 	// This doesn't matter on Mainnet, where all empties are gone at the time of Byzantium,
 	// but is the correct thing to do and matters on other networks, in tests, and potential
 	// future scenarios
-	evm.StateDB.AddBalance(addr, bigZero, 0)
+	evm.StateDB.AddBalance(addr, bigZero, evm.StateDB.GetQuarkChainConfig().GetDefaultChainTokenID())
 
 	// When an error was returned by the EVM or when setting the creation code
 	// above we revert to the snapshot and consume any gas remaining. Additionally
 	// when we're in Homestead this also counts for code storage gas errors.
 	ret, err = run(evm, contract, input, true)
+	err = checkTokenIDQueried(err, contract, evm.TransferTokenID, evm.StateDB.GetQuarkChainConfig().GetDefaultChainTokenID())
 	if err != nil {
 		evm.StateDB.RevertToSnapshot(snapshot)
 		if err != errExecutionReverted {
@@ -386,6 +397,9 @@ func (c *codeAndHash) Hash() common.Hash {
 func (evm *EVM) create(caller ContractRef, codeAndHash *codeAndHash, gas uint64, value *big.Int, address common.Address) ([]byte, common.Address, uint64, error) {
 	// Depth check execution. Fail if we're trying to execute above the
 	// limit.
+	if evm.TransferTokenID != evm.StateDB.GetQuarkChainConfig().GetDefaultChainTokenID() {
+		return nil, common.Address{}, gas, nil
+	}
 	if evm.depth > int(params.CallCreateDepth) {
 		return nil, common.Address{}, gas, ErrDepth
 	}
@@ -424,7 +438,7 @@ func (evm *EVM) create(caller ContractRef, codeAndHash *codeAndHash, gas uint64,
 	start := time.Now()
 
 	ret, err := run(evm, contract, nil, false)
-
+	err = checkTokenIDQueried(err, contract, evm.TransferTokenID, evm.StateDB.GetQuarkChainConfig().GetDefaultChainTokenID())
 	// check whether the max code size has been exceeded
 	maxCodeSizeExceeded := evm.ChainConfig().IsEIP158(evm.BlockNumber) && len(ret) > params.MaxCodeSize
 	// if the contract creation ran successfully and no errors were returned
@@ -461,17 +475,27 @@ func (evm *EVM) create(caller ContractRef, codeAndHash *codeAndHash, gas uint64,
 }
 
 // CreateAddress creates an ethereum address given the bytes and the nonce
-func CreateAddress(b common.Address, toFullShardID uint32, nonce uint64) common.Address {
-	data, _ := rlp.EncodeToBytes([]interface{}{b, toFullShardID, nonce})
+func CreateAddress(b common.Address, fullShardKey *uint32, nonce uint64) common.Address {
+	var data []byte
+	if fullShardKey != nil {
+		data, _ = rlp.EncodeToBytes([]interface{}{b, *fullShardKey, nonce})
+	} else {
+		// only happens for backward-compatible EVM tests. for eth-state test
+		data, _ = rlp.EncodeToBytes([]interface{}{b, nonce})
+	}
+
 	return common.BytesToAddress(crypto.Keccak256(data)[12:])
 }
 
 // Create creates a new contract using code as deployment code.
-func (evm *EVM) Create(caller ContractRef, code []byte, gas uint64, value *big.Int, isCrossShard bool) (ret []byte, contractAddr common.Address, leftOverGas uint64, err error) {
-	if isCrossShard {
-		return nil, contractAddr, gas, errors.New("is cross shard tx ,not support create evm")
+func (evm *EVM) Create(caller ContractRef, code []byte, gas uint64, value *big.Int,
+	contractRecipient *common.Address) (ret []byte, contractAddr common.Address, leftOverGas uint64, err error) {
+
+	if contractRecipient != nil {
+		contractAddr = *contractRecipient
+	} else {
+		contractAddr = CreateAddress(caller.Address(), evm.Context.ToFullShardKey, evm.StateDB.GetNonce(caller.Address()))
 	}
-	contractAddr = CreateAddress(caller.Address(), evm.Context.ToFullShardKey, evm.StateDB.GetNonce(caller.Address()))
 	return evm.create(caller, &codeAndHash{code: code}, gas, value, contractAddr)
 }
 

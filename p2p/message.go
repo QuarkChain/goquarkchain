@@ -20,6 +20,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"io"
 	"io/ioutil"
 	"sync/atomic"
@@ -172,6 +173,9 @@ type MsgPipeRW struct {
 // WriteMsg sends a messsage on the pipe.
 // It blocks until the receiver has consumed the message payload.
 func (p *MsgPipeRW) WriteMsg(msg Msg) error {
+	if msg.Size > config.DefaultP2PCmddSizeLimit {
+		return errors.New(fmt.Sprintf("msg #%v: command package exceed limit", msg.Code))
+	}
 	if atomic.LoadInt32(p.closed) == 0 {
 		consumed := make(chan struct{}, 1)
 		msg.Payload = &eofSignal{msg.Payload, msg.Size, consumed}
@@ -196,6 +200,9 @@ func (p *MsgPipeRW) ReadMsg() (Msg, error) {
 	if atomic.LoadInt32(p.closed) == 0 {
 		select {
 		case msg := <-p.r:
+			if msg.Size > config.DefaultP2PCmddSizeLimit {
+				return Msg{}, errors.New(fmt.Sprintf("msg #%v: command package exceed limit", msg.Code))
+			}
 			return msg, nil
 		case <-p.closing:
 		}

@@ -419,19 +419,24 @@ func (s *QKCMasterBackend) broadcastRootBlockToSlaves(block *types.RootBlock) er
 func (s *QKCMasterBackend) Heartbeat() {
 	go func(normal bool) {
 		for normal {
-			timeGap := time.Now()
-			s.ctx.Timestamp = timeGap
-			for endpoint := range s.clientPool {
-				normal = s.clientPool[endpoint].HeartBeat()
-				if !normal {
-					s.SetMining(false)
-					s.shutdown <- syscall.SIGTERM
-					break
+			select {
+			case <-s.exitCh:
+				normal = false
+				break
+			default:
+				timeGap := time.Now()
+				s.ctx.Timestamp = timeGap
+				for endpoint := range s.clientPool {
+					normal = s.clientPool[endpoint].HeartBeat()
+					if !normal {
+						s.SetMining(false)
+						s.shutdown <- syscall.SIGTERM
+						break
+					}
 				}
+				log.Trace(s.logInfo, "heart beat duration", time.Now().Sub(timeGap).String())
+				time.Sleep(config.HeartbeatInterval)
 			}
-			duration := time.Now().Sub(timeGap)
-			log.Trace(s.logInfo, "heart beat duration", duration.String())
-			time.Sleep(config.HeartbeatInterval)
 		}
 	}(true)
 }
@@ -661,6 +666,10 @@ func (s *QKCMasterBackend) GetLastMinorBlockByFullShardID(fullShardId uint32) (u
 		return 0, errors.New("no such fullShardId") //TODO 0?
 	}
 	return data.Height, nil
+}
+
+func (s *QKCMasterBackend) GetRootHashConfirmingMinorBlock(mBlockID []byte) common.Hash {
+	return s.rootBlockChain.GetRootBlockConfirmingMinorBlock(mBlockID)
 }
 
 // UpdateTxCountHistory update Tx count queue
