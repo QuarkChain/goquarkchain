@@ -5,6 +5,7 @@ package test
 import (
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
+	"github.com/QuarkChain/goquarkchain/cluster/rpc"
 	"github.com/QuarkChain/goquarkchain/cluster/shard"
 	"github.com/QuarkChain/goquarkchain/cmd/utils"
 	"github.com/QuarkChain/goquarkchain/common"
@@ -150,11 +151,16 @@ func TestGetMinorBlockHeadersWithSkip(t *testing.T) {
 	// TODO skip parameter need to be added.
 	peer1 := clstrList.GetPeerByIndex(1)
 	assert.NotNil(t, peer1)
-	mHeaders, err := peer1.GetMinorBlockHeaderList(mBHeaders[2].Hash(), 3, id0, true)
+	mHeaders, err := peer1.GetMinorBlockHeaderList(&rpc.GetMinorBlockHeaderListRequest{
+		Hash:      mBHeaders[2].Hash(),
+		Limit:     3,
+		Branch:    id0,
+		Direction: common.DirectionToGenesis,
+	})
 	if err != nil {
 		t.Errorf("failed to get minor block header list by peer, err: %v", err)
 	}
-	assert.Equal(t, len(mHeaders), 3)
+	assert.Equal(t, len(mHeaders.BlockHeaderList), 3)
 	assert.Equal(t, mHeaders[2].Hash(), mBHeaders[0].Hash())
 	assert.Equal(t, mHeaders[1].Hash(), mBHeaders[1].Hash())
 	assert.Equal(t, mHeaders[0].Hash(), mBHeaders[2].Hash())
@@ -269,7 +275,7 @@ func TestAddTransaction(t *testing.T) {
 		t.Error("failed to add transaction", "err", err)
 	}
 	assert.Equal(t, retryTrueWithTimeout(func() bool {
-		state0, err := shard0.MinorBlockChain.GetShardStatus()
+		state0, err := shard0.MinorBlockChain.GetShardStats()
 		if err != nil {
 			return false
 		}
@@ -283,7 +289,7 @@ func TestAddTransaction(t *testing.T) {
 		t.Error("failed to add transaction", "err", err)
 	}
 	assert.Equal(t, retryTrueWithTimeout(func() bool {
-		state0, err := shard0.MinorBlockChain.GetShardStatus()
+		state0, err := shard0.MinorBlockChain.GetShardStats()
 		if err != nil {
 			return false
 		}
@@ -292,7 +298,7 @@ func TestAddTransaction(t *testing.T) {
 
 	// check another cluster' pending pool
 	assert.Equal(t, retryTrueWithTimeout(func() bool {
-		state0, err := clstrList[1].GetShard(fullShardId).MinorBlockChain.GetShardStatus()
+		state0, err := clstrList[1].GetShard(fullShardId).MinorBlockChain.GetShardStats()
 		if err != nil {
 			return false
 		}
@@ -666,7 +672,7 @@ func TestShardSynchronizerWithFork(t *testing.T) {
 
 	for _, blk := range blockList {
 		assert.Equal(t, retryTrueWithTimeout(func() bool {
-			if shard10.GetMinorBlock(blk.Hash(), nil) != nil {
+			if _, err := shard10.GetMinorBlock(blk.Hash(), nil); err == nil {
 				return true
 			}
 			return false
@@ -888,7 +894,8 @@ func TestGetRootBlockHeadersWithSkip(t *testing.T) {
 	peer := clstrList.GetPeerByIndex(1)
 	assert.NotNil(t, peer)
 	//# Test Case 1 ###################################################
-	blockHeaders, err := peer.GetRootBlockHeaderList(rootBlockHeaderList[2].Hash(), 3, true)
+	res, err := peer.GetRootBlockHeaderList(rootBlockHeaderList[2].Hash(), 3, true)
+	blockHeaders := res.BlockHeaderList
 	assert.NoError(t, err)
 	assert.Equal(t, len(blockHeaders), 3)
 	assert.Equal(t, blockHeaders[0].Hash(), rootBlockHeaderList[2].Hash())

@@ -235,6 +235,12 @@ func TestServerTaskScheduling(t *testing.T) {
 		ntab:      fakeTable{},
 		running:   true,
 		log:       log.New(),
+		blackNodeFilter: &BlackNodes{
+			currTime:         time.Now(),
+			WhitelistNodes:   make(map[string]*enode.Node),
+			dialoutBlacklist: make(map[string]int64),
+			dialinBlacklist:  make(map[string]int64),
+		},
 	}
 	srv.loopWG.Add(1)
 	go func() {
@@ -283,6 +289,12 @@ func TestServerManyTasks(t *testing.T) {
 			ntab:      fakeTable{},
 			running:   true,
 			log:       log.New(),
+			blackNodeFilter: &BlackNodes{
+				currTime:         time.Now(),
+				WhitelistNodes:   make(map[string]*enode.Node),
+				dialoutBlacklist: make(map[string]int64),
+				dialinBlacklist:  make(map[string]int64),
+			},
 		}
 		done       = make(chan *testTask)
 		start, end = 0, 0

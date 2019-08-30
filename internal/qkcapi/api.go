@@ -713,3 +713,15 @@ func (p *PrivateBlockChainAPI) SetMining(flag bool) {
 
 //TODO ?? necessary?
 func (p *PrivateBlockChainAPI) GetJrpcCalls() { panic("not implemented") }
+
+func (p *PrivateBlockChainAPI) GetKadRoutingTableSize() (hexutil.Uint, error) {
+	urls, err := p.b.GetKadRoutingTable()
+	if err != nil {
+		return hexutil.Uint(0), err
+	}
+	return hexutil.Uint(len(urls)), nil
+}
+
+func (p *PrivateBlockChainAPI) GetKadRoutingTable() ([]string, error) {
+	return p.b.GetKadRoutingTable()
+}

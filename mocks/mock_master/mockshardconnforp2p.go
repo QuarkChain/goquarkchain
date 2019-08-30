@@ -53,6 +53,38 @@ func (mr *MockShardConnForP2PMockRecorder) AddTransactions(request interface{}) 
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddTransactions", reflect.TypeOf((*MockShardConnForP2P)(nil).AddTransactions), request)
 }
 
+// GetMinorBlockByHash mocks base method
+func (m *MockShardConnForP2P) GetMinorBlockByHash(blockHash common.Hash, branch account.Branch, needExtraInfo bool) (*types.MinorBlock, *rpc.PoSWInfo, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetMinorBlockByHash", blockHash, branch, needExtraInfo)
+	ret0, _ := ret[0].(*types.MinorBlock)
+	ret1, _ := ret[1].(*rpc.PoSWInfo)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
+}
+
+// GetMinorBlockByHash indicates an expected call of GetMinorBlockByHash
+func (mr *MockShardConnForP2PMockRecorder) GetMinorBlockByHash(blockHash, branch, needExtraInfo interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetMinorBlockByHash", reflect.TypeOf((*MockShardConnForP2P)(nil).GetMinorBlockByHash), blockHash, branch, needExtraInfo)
+}
+
+// GetMinorBlockByHeight mocks base method
+func (m *MockShardConnForP2P) GetMinorBlockByHeight(height *uint64, branch account.Branch, needExtraInfo bool) (*types.MinorBlock, *rpc.PoSWInfo, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetMinorBlockByHeight", height, branch, needExtraInfo)
+	ret0, _ := ret[0].(*types.MinorBlock)
+	ret1, _ := ret[1].(*rpc.PoSWInfo)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
+}
+
+// GetMinorBlockByHeight indicates an expected call of GetMinorBlockByHeight
+func (mr *MockShardConnForP2PMockRecorder) GetMinorBlockByHeight(height, branch, needExtraInfo interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetMinorBlockByHeight", reflect.TypeOf((*MockShardConnForP2P)(nil).GetMinorBlockByHeight), height, branch, needExtraInfo)
+}
+
 // GetMinorBlocks mocks base method
 func (m *MockShardConnForP2P) GetMinorBlocks(request *rpc.GetMinorBlockListRequest) (*p2p.GetMinorBlockListResponse, error) {
 	m.ctrl.T.Helper()
@@ -68,19 +100,19 @@ func (mr *MockShardConnForP2PMockRecorder) GetMinorBlocks(request interface{}) *
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetMinorBlocks", reflect.TypeOf((*MockShardConnForP2P)(nil).GetMinorBlocks), request)
 }
 
-// GetMinorBlockHeaders mocks base method
-func (m *MockShardConnForP2P) GetMinorBlockHeaders(request *p2p.GetMinorBlockHeaderListRequest) (*p2p.GetMinorBlockHeaderListResponse, error) {
+// GetMinorBlockHeaderList mocks base method
+func (m *MockShardConnForP2P) GetMinorBlockHeaderList(req *p2p.GetMinorBlockHeaderListWithSkipRequest) (*p2p.GetMinorBlockHeaderListResponse, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetMinorBlockHeaders", request)
+	ret := m.ctrl.Call(m, "GetMinorBlockHeaderList", req)
 	ret0, _ := ret[0].(*p2p.GetMinorBlockHeaderListResponse)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetMinorBlockHeaders indicates an expected call of GetMinorBlockHeaders
-func (mr *MockShardConnForP2PMockRecorder) GetMinorBlockHeaders(request interface{}) *gomock.Call {
+// GetMinorBlockHeaderList indicates an expected call of GetMinorBlockHeaderList
+func (mr *MockShardConnForP2PMockRecorder) GetMinorBlockHeaderList(req interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetMinorBlockHeaders", reflect.TypeOf((*MockShardConnForP2P)(nil).GetMinorBlockHeaders), request)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetMinorBlockHeaderList", reflect.TypeOf((*MockShardConnForP2P)(nil).GetMinorBlockHeaderList), req)
 }
 
 // HandleNewTip mocks base method
@@ -166,6 +198,38 @@ func (mr *MockISlaveConnMockRecorder) AddTransactions(request interface{}) *gomo
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddTransactions", reflect.TypeOf((*MockISlaveConn)(nil).AddTransactions), request)
 }
 
+// GetMinorBlockByHash mocks base method
+func (m *MockISlaveConn) GetMinorBlockByHash(blockHash common.Hash, branch account.Branch, needExtraInfo bool) (*types.MinorBlock, *rpc.PoSWInfo, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetMinorBlockByHash", blockHash, branch, needExtraInfo)
+	ret0, _ := ret[0].(*types.MinorBlock)
+	ret1, _ := ret[1].(*rpc.PoSWInfo)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
+}
+
+// GetMinorBlockByHash indicates an expected call of GetMinorBlockByHash
+func (mr *MockISlaveConnMockRecorder) GetMinorBlockByHash(blockHash, branch, needExtraInfo interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetMinorBlockByHash", reflect.TypeOf((*MockISlaveConn)(nil).GetMinorBlockByHash), blockHash, branch, needExtraInfo)
+}
+
+// GetMinorBlockByHeight mocks base method
+func (m *MockISlaveConn) GetMinorBlockByHeight(height *uint64, branch account.Branch, needExtraInfo bool) (*types.MinorBlock, *rpc.PoSWInfo, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetMinorBlockByHeight", height, branch, needExtraInfo)
+	ret0, _ := ret[0].(*types.MinorBlock)
+	ret1, _ := ret[1].(*rpc.PoSWInfo)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
+}
+
+// GetMinorBlockByHeight indicates an expected call of GetMinorBlockByHeight
+func (mr *MockISlaveConnMockRecorder) GetMinorBlockByHeight(height, branch, needExtraInfo interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetMinorBlockByHeight", reflect.TypeOf((*MockISlaveConn)(nil).GetMinorBlockByHeight), height, branch, needExtraInfo)
+}
+
 // GetMinorBlocks mocks base method
 func (m *MockISlaveConn) GetMinorBlocks(request *rpc.GetMinorBlockListRequest) (*p2p.GetMinorBlockListResponse, error) {
 	m.ctrl.T.Helper()
@@ -181,19 +245,19 @@ func (mr *MockISlaveConnMockRecorder) GetMinorBlocks(request interface{}) *gomoc
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetMinorBlocks", reflect.TypeOf((*MockISlaveConn)(nil).GetMinorBlocks), request)
 }
 
-// GetMinorBlockHeaders mocks base method
-func (m *MockISlaveConn) GetMinorBlockHeaders(request *p2p.GetMinorBlockHeaderListRequest) (*p2p.GetMinorBlockHeaderListResponse, error) {
+// GetMinorBlockHeaderList mocks base method
+func (m *MockISlaveConn) GetMinorBlockHeaderList(req *p2p.GetMinorBlockHeaderListWithSkipRequest) (*p2p.GetMinorBlockHeaderListResponse, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetMinorBlockHeaders", request)
+	ret := m.ctrl.Call(m, "GetMinorBlockHeaderList", req)
 	ret0, _ := ret[0].(*p2p.GetMinorBlockHeaderListResponse)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetMinorBlockHeaders indicates an expected call of GetMinorBlockHeaders
-func (mr *MockISlaveConnMockRecorder) GetMinorBlockHeaders(request interface{}) *gomock.Call {
+// GetMinorBlockHeaderList indicates an expected call of GetMinorBlockHeaderList
+func (mr *MockISlaveConnMockRecorder) GetMinorBlockHeaderList(req interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetMinorBlockHeaders", reflect.TypeOf((*MockISlaveConn)(nil).GetMinorBlockHeaders), request)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetMinorBlockHeaderList", reflect.TypeOf((*MockISlaveConn)(nil).GetMinorBlockHeaderList), req)
 }
 
 // HandleNewTip mocks base method
@@ -428,36 +492,6 @@ func (mr *MockISlaveConnMockRecorder) ExecuteTransaction(tx, fromAddress, height
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ExecuteTransaction", reflect.TypeOf((*MockISlaveConn)(nil).ExecuteTransaction), tx, fromAddress, height)
 }
 
-// GetMinorBlockByHash mocks base method
-func (m *MockISlaveConn) GetMinorBlockByHash(blockHash common.Hash, branch account.Branch) (*types.MinorBlock, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetMinorBlockByHash", blockHash, branch)
-	ret0, _ := ret[0].(*types.MinorBlock)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// GetMinorBlockByHash indicates an expected call of GetMinorBlockByHash
-func (mr *MockISlaveConnMockRecorder) GetMinorBlockByHash(blockHash, branch interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetMinorBlockByHash", reflect.TypeOf((*MockISlaveConn)(nil).GetMinorBlockByHash), blockHash, branch)
-}
-
-// GetMinorBlockByHeight mocks base method
-func (m *MockISlaveConn) GetMinorBlockByHeight(height uint64, branch account.Branch) (*types.MinorBlock, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetMinorBlockByHeight", height, branch)
-	ret0, _ := ret[0].(*types.MinorBlock)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// GetMinorBlockByHeight indicates an expected call of GetMinorBlockByHeight
-func (mr *MockISlaveConnMockRecorder) GetMinorBlockByHeight(height, branch interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetMinorBlockByHeight", reflect.TypeOf((*MockISlaveConn)(nil).GetMinorBlockByHeight), height, branch)
-}
-
 // GetTransactionByHash mocks base method
 func (m *MockISlaveConn) GetTransactionByHash(txHash common.Hash, branch account.Branch) (*types.MinorBlock, uint32, error) {
 	m.ctrl.T.Helper()
@@ -492,9 +526,9 @@ func (mr *MockISlaveConnMockRecorder) GetTransactionReceipt(txHash, branch inter
 }
 
 // GetTransactionsByAddress mocks base method
-func (m *MockISlaveConn) GetTransactionsByAddress(address *account.Address, start []byte, limit uint32) ([]*rpc.TransactionDetail, []byte, error) {
+func (m *MockISlaveConn) GetTransactionsByAddress(address *account.Address, start []byte, limit uint32, transferTokenID *uint64) ([]*rpc.TransactionDetail, []byte, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetTransactionsByAddress", address, start, limit)
+	ret := m.ctrl.Call(m, "GetTransactionsByAddress", address, start, limit, transferTokenID)
 	ret0, _ := ret[0].([]*rpc.TransactionDetail)
 	ret1, _ := ret[1].([]byte)
 	ret2, _ := ret[2].(error)
@@ -502,9 +536,25 @@ func (m *MockISlaveConn) GetTransactionsByAddress(address *account.Address, star
 }
 
 // GetTransactionsByAddress indicates an expected call of GetTransactionsByAddress
-func (mr *MockISlaveConnMockRecorder) GetTransactionsByAddress(address, start, limit interface{}) *gomock.Call {
+func (mr *MockISlaveConnMockRecorder) GetTransactionsByAddress(address, start, limit, transferTokenID interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTransactionsByAddress", reflect.TypeOf((*MockISlaveConn)(nil).GetTransactionsByAddress), address, start, limit)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTransactionsByAddress", reflect.TypeOf((*MockISlaveConn)(nil).GetTransactionsByAddress), address, start, limit, transferTokenID)
+}
+
+// GetAllTx mocks base method
+func (m *MockISlaveConn) GetAllTx(branch account.Branch, start []byte, limit uint32) ([]*rpc.TransactionDetail, []byte, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetAllTx", branch, start, limit)
+	ret0, _ := ret[0].([]*rpc.TransactionDetail)
+	ret1, _ := ret[1].([]byte)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
+}
+
+// GetAllTx indicates an expected call of GetAllTx
+func (mr *MockISlaveConnMockRecorder) GetAllTx(branch, start, limit interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAllTx", reflect.TypeOf((*MockISlaveConn)(nil).GetAllTx), branch, start, limit)
 }
 
 // GetLogs mocks base method
@@ -568,18 +618,18 @@ func (mr *MockISlaveConnMockRecorder) GetCode(address, height interface{}) *gomo
 }
 
 // GasPrice mocks base method
-func (m *MockISlaveConn) GasPrice(branch account.Branch) (uint64, error) {
+func (m *MockISlaveConn) GasPrice(branch account.Branch, tokenID uint64) (uint64, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GasPrice", branch)
+	ret := m.ctrl.Call(m, "GasPrice", branch, tokenID)
 	ret0, _ := ret[0].(uint64)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // GasPrice indicates an expected call of GasPrice
-func (mr *MockISlaveConnMockRecorder) GasPrice(branch interface{}) *gomock.Call {
+func (mr *MockISlaveConnMockRecorder) GasPrice(branch, tokenID interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GasPrice", reflect.TypeOf((*MockISlaveConn)(nil).GasPrice), branch)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GasPrice", reflect.TypeOf((*MockISlaveConn)(nil).GasPrice), branch, tokenID)
 }
 
 // GetWork mocks base method

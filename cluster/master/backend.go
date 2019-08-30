@@ -68,7 +68,9 @@ type QKCMasterBackend struct {
 
 	miner *miner.Miner
 
-	maxPeers           int
+	maxPeers int
+	srvr     *p2p.Server
+
 	artificialTxConfig *rpc.ArtificialTxConfig
 	rootBlockChain     *core.RootBlockChain
 	protocolManager    *ProtocolManager
@@ -255,12 +257,12 @@ func (s *QKCMasterBackend) APIs() []ethRPC.API {
 
 // Stop stop node -> stop qkcMaster
 func (s *QKCMasterBackend) Stop() error {
+	s.synchronizer.Close()
+	s.protocolManager.Stop()
 	s.miner.Stop()
 	s.engine.Close()
 	s.rootBlockChain.Stop()
-	s.protocolManager.Stop()
 	s.eventMux.Stop()
-	s.synchronizer.Close()
 	s.chainDb.Close()
 	close(s.exitCh)
 	for _, slv := range s.clientPool {
@@ -273,6 +275,7 @@ func (s *QKCMasterBackend) Stop() error {
 // Start start node -> start qkcMaster
 func (s *QKCMasterBackend) Init(srvr *p2p.Server) error {
 	if srvr != nil {
+		s.srvr = srvr
 		s.maxPeers = srvr.MaxPeers
 	}
 	if err := s.ConnectToSlaves(); err != nil {

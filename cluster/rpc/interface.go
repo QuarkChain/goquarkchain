@@ -22,9 +22,13 @@ type ShardConnForP2P interface {
 	// or existed in tx pool will not be included in return hash list
 	AddTransactions(request *p2p.NewTransactionList) (*HashList, error)
 
+	GetMinorBlockByHash(blockHash common.Hash, branch account.Branch, needExtraInfo bool) (*types.MinorBlock, *PoSWInfo, error)
+
+	GetMinorBlockByHeight(height *uint64, branch account.Branch, needExtraInfo bool) (*types.MinorBlock, *PoSWInfo, error)
+
 	GetMinorBlocks(request *GetMinorBlockListRequest) (*p2p.GetMinorBlockListResponse, error)
 
-	GetMinorBlockHeaders(request *p2p.GetMinorBlockHeaderListRequest) (*p2p.GetMinorBlockHeaderListResponse, error)
+	GetMinorBlockHeaderList(req *p2p.GetMinorBlockHeaderListWithSkipRequest) (*p2p.GetMinorBlockHeaderListResponse, error)
 
 	HandleNewTip(request *HandleNewTipRequest) (bool, error)
 
@@ -48,8 +52,6 @@ type ISlaveConn interface {
 	SendMiningConfigToSlaves(artificialTxConfig *ArtificialTxConfig, mining bool) error
 	AddTransaction(tx *types.Transaction) error
 	ExecuteTransaction(tx *types.Transaction, fromAddress *account.Address, height *uint64) ([]byte, error)
-	GetMinorBlockByHash(blockHash common.Hash, branch account.Branch, needExtraInfo bool) (*types.MinorBlock, *PoSWInfo, error)
-	GetMinorBlockByHeight(height uint64, branch account.Branch, needExtraInfo bool) (*types.MinorBlock, *PoSWInfo, error)
 	GetTransactionByHash(txHash common.Hash, branch account.Branch) (*types.MinorBlock, uint32, error)
 	GetTransactionReceipt(txHash common.Hash, branch account.Branch) (*types.MinorBlock, uint32, *types.Receipt, error)
 	GetTransactionsByAddress(address *account.Address, start []byte, limit uint32, transferTokenID *uint64) ([]*TransactionDetail, []byte, error)
