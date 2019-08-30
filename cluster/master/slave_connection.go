@@ -663,3 +663,12 @@ func (s *SlaveConnection) SetMining(mining bool) error {
 	_, err = s.client.Call(s.target, &rpc.Request{Op: rpc.OpSetMining, Data: bytes})
 	return err
 }
+
+func (s *SlaveConnection) CheckMinorBlocksInRoot(rootBlock *types.RootBlock) error {
+	bytes, err := serialize.SerializeToBytes(rootBlock)
+	if err != nil {
+		return err
+	}
+	_, err = s.client.Call(s.target, &rpc.Request{Op: rpc.OpCheckMinorBlocksInRoot, Data: bytes})
+	return err
+}

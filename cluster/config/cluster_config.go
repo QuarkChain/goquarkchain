@@ -31,6 +31,9 @@ type ClusterConfig struct {
 	SimpleNetwork            *SimpleNetwork    `json:"SIMPLE_NETWORK,omitempty"`
 	P2P                      *P2PConfig        `json:"P2P,omitempty"`
 	Monitoring               *MonitoringConfig `json:"MONITORING"`
+	CheckDB                  bool
+	CheckDBRBlockFrom        int
+	CheckDBRBlockTo          int
 	// TODO KafkaSampleLogger
 }
 
@@ -50,6 +53,9 @@ func NewClusterConfig() *ClusterConfig {
 		SimpleNetwork:            NewSimpleNetwork(),
 		P2P:                      NewP2PConfig(),
 		Monitoring:               NewMonitoringConfig(),
+		CheckDB:                  false,
+		CheckDBRBlockFrom:        -1,
+		CheckDBRBlockTo:          0,
 	}
 
 	for i := 0; i < DefaultNumSlaves; i++ {

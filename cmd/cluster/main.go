@@ -45,6 +45,9 @@ var (
 		utils.DbPathRootFlag,
 		utils.P2pFlag,
 		utils.P2pPortFlag,
+		utils.CheckDBFlag,
+		utils.CheckDBRBlockFromFlag,
+		utils.CheckDBRBlockToFlag,
 
 		utils.EnableTransactionHistoryFlag,
 		utils.MaxPeersFlag,
@@ -139,6 +142,10 @@ func startService(ctx *cli.Context, stack *service.Node) {
 		var master *master.QKCMasterBackend
 		if err := stack.Service(&master); err != nil {
 			utils.Fatalf("master service not running %v", err)
+		}
+		if master.GetClusterConfig().CheckDB {
+			master.CheckDB()
+			return
 		}
 		if err := master.Start(); err != nil {
 			utils.Fatalf("Failed to init cluster service", "err", err)

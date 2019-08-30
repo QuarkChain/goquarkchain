@@ -454,7 +454,7 @@ func (s *SlaveBackend) NewMinorBlock(block *types.MinorBlock) error {
 	if shard, ok := s.shards[block.Header().Branch.Value]; ok {
 		return shard.NewMinorBlock(block)
 	}
-	return ErrMsg("MinorBlock")
+	return ErrMsg("NewMinorBlock")
 }
 
 func (s *SlaveBackend) GenTx(genTxs *rpc.GenTxRequest) error {
@@ -472,4 +472,20 @@ func (s *SlaveBackend) SetMining(mining bool) {
 	for _, shrd := range s.shards {
 		shrd.SetMining(mining)
 	}
+}
+
+func (s *SlaveBackend) CheckMinorBlocksInRoot(rootBlock *types.RootBlock) error {
+	if rootBlock == nil {
+		return errors.New("CheckMinorBlocksInRoot failed: invalid root block")
+	}
+	for _, header := range rootBlock.MinorBlockHeaders() {
+		if shard, ok := s.shards[header.Branch.Value]; ok {
+			if err := shard.CheckMinorBlock(header); err != nil {
+				return err
+			}
+		} else {
+			return ErrMsg("CheckMinorBlocksInRoot")
+		}
+	}
+	return nil
 }

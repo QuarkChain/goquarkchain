@@ -3,7 +3,7 @@ package core
 import (
 	"encoding/hex"
 	"errors"
-	"github.com/QuarkChain/goquarkchain/qkcdb"
+	//	"github.com/QuarkChain/goquarkchain/qkcdb"
 	"math/big"
 	"strings"
 	"time"
@@ -40,6 +40,7 @@ func getOneDBPath() (int, string) {
 	}
 	panic("unexcepted err")
 }
+
 func getTestEnv(genesisAccount *account.Address, genesisMinorQuarkHash *uint64, chainSize *uint32, shardSize *uint32, genesisRootHeights *map[uint32]uint32, remoteMining *bool) *fakeEnv {
 	if genesisAccount == nil {
 		temp := account.CreatEmptyAddress(0)
@@ -73,12 +74,13 @@ func getTestEnv(genesisAccount *account.Address, genesisMinorQuarkHash *uint64, 
 	fakeClusterConfig := config.NewClusterConfig()
 
 	var fakeDb ethdb.Database
-	var err error
+	//	var err error
 	if len(testDBPath) != 0 {
-		index, fileName := getOneDBPath()
+		fakeDb = ethdb.NewMemDatabase()
+		/*index, fileName := getOneDBPath()
 		fakeDb, err = qkcdb.NewRDBDatabase(fileName, true)
 		delete(testDBPath, index)
-		checkErr(err)
+		checkErr(err)*/
 	} else {
 		fakeDb = ethdb.NewMemDatabase()
 	}

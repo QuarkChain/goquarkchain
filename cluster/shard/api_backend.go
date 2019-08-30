@@ -2,6 +2,7 @@ package shard
 
 import (
 	"errors"
+	"fmt"
 	"math/big"
 	"time"
 
@@ -372,4 +373,17 @@ func (s *ShardBackend) GetTip() uint64 {
 
 func (s *ShardBackend) IsSyncIng() bool {
 	return s.synchronizer.IsSyncing()
+}
+
+func (s *ShardBackend) CheckMinorBlock(header *types.MinorBlockHeader) error {
+	block := s.MinorBlockChain.GetBlock(header.Hash())
+	if block == nil { //todo
+		return fmt.Errorf("block %v cannot be found", header.Hash())
+	}
+	if header.Number == 0 {
+		return nil
+	}
+	s.MinorBlockChain.InsertChainForDeposits([]types.IBlock{block}, nil)
+	//self.state.add_block(block, force=True, write_db=False, skip_if_too_old=False)
+	return nil
 }
