@@ -328,7 +328,7 @@ func (tab *Table) findnode(n *node, targetKey encPubkey, reply chan<- []*node) {
 	realr := make([]*node, 0, len(r))
 	for _, nd := range r {
 		nd := nd
-		if !(tab.checkDialBlackList(nd.addr().String())) {
+		if !(tab.checkDialBlackList(nd.IP().String())) {
 			realr = append(realr, nd)
 		}
 	}
@@ -479,7 +479,7 @@ func (tab *Table) doRevalidate(done chan<- struct{}) {
 	}
 
 	inBlackList := false
-	if tab.checkDialBlackList(last.addr().String()) {
+	if tab.checkDialBlackList(last.IP().String()) {
 		log.Info("black node", "b", bi, "id", last.ID(), "address", last.addr().String())
 		inBlackList = true
 	}

@@ -779,7 +779,7 @@ running:
 		case pd := <-srv.delpeer:
 			// A peer disconnected.
 			if pd.err != nil {
-				srv.blackNodeFilter.addDialoutBlacklist(pd.RemoteAddr().String())
+				srv.blackNodeFilter.addDialoutBlacklist(pd.Node().IP().String())
 			}
 			d := common.PrettyDuration(mclock.Now() - pd.created)
 			pd.log.Debug("Removing p2p peer", "duration", d, "peers", len(peers)-1, "req", pd.requested, "err", pd.err)
