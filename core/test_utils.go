@@ -3,7 +3,6 @@ package core
 import (
 	"encoding/hex"
 	"errors"
-	//	"github.com/QuarkChain/goquarkchain/qkcdb"
 	"math/big"
 	"strings"
 	"time"
@@ -16,6 +15,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/consensus/posw"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/core/vm"
+	"github.com/QuarkChain/goquarkchain/qkcdb"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/params"
@@ -74,13 +74,12 @@ func getTestEnv(genesisAccount *account.Address, genesisMinorQuarkHash *uint64, 
 	fakeClusterConfig := config.NewClusterConfig()
 
 	var fakeDb ethdb.Database
-	//	var err error
+	var err error
 	if len(testDBPath) != 0 {
-		fakeDb = ethdb.NewMemDatabase()
-		/*index, fileName := getOneDBPath()
-		fakeDb, err = qkcdb.NewRDBDatabase(fileName, true)
+		index, fileName := getOneDBPath()
+		fakeDb, err = qkcdb.NewRDBDatabase(fileName, true, false)
 		delete(testDBPath, index)
-		checkErr(err)*/
+		checkErr(err)
 	} else {
 		fakeDb = ethdb.NewMemDatabase()
 	}
