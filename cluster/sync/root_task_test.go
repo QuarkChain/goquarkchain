@@ -180,7 +180,7 @@ func (v *mockvalidator) ValidateState(block, parent types.IBlock, state *state.S
 	return v.err
 }
 
-func (v *mockvalidator) ValidateBlock(types.IBlock) error {
+func (v *mockvalidator) ValidateBlock(types.IBlock, bool) error {
 	return v.err
 }
 func (v *mockvalidator) ValidateSeal(mHeader types.IHeader) error {

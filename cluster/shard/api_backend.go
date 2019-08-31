@@ -290,7 +290,7 @@ func (s *ShardBackend) NewMinorBlock(block *types.MinorBlock) (err error) {
 		return nil
 	}
 
-	if err := s.MinorBlockChain.Validator().ValidateBlock(block); err != nil {
+	if err := s.MinorBlockChain.Validator().ValidateBlock(block, false); err != nil {
 		return err
 	}
 

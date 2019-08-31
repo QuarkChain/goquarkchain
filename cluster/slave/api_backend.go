@@ -511,8 +511,6 @@ func (s *SlaveBackend) CheckMinorBlocksInRoot(rootBlock *types.RootBlock) error 
 			if err := shard.CheckMinorBlock(header); err != nil {
 				return err
 			}
-		} else {
-			return ErrMsg("CheckMinorBlocksInRoot")
 		}
 	}
 	return nil
