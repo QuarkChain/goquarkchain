@@ -71,7 +71,7 @@ func (s *ShardBackend) AddMinorBlock(block *types.MinorBlock) error {
 	}
 	//TODO support BLOCK_COMMITTING
 	currHead := s.MinorBlockChain.CurrentBlock().Number()
-	_, xshardLst, err := s.MinorBlockChain.InsertChainForDeposits([]types.IBlock{block}, nil)
+	_, xshardLst, err := s.MinorBlockChain.InsertChainForDeposits([]types.IBlock{block}, false)
 	if err != nil || len(xshardLst) != 1 {
 		log.Error("Failed to add minor block", "err", err)
 		return err
@@ -169,7 +169,7 @@ func (s *ShardBackend) AddBlockListForSync(blockLst []*types.MinorBlock) (map[co
 		}
 		//TODO:support BLOCK_COMMITTING
 		coinbaseAmountList[block.Header().Hash()] = block.Header().CoinbaseAmount
-		_, xshardLst, err := s.MinorBlockChain.InsertChainForDeposits([]types.IBlock{block}, nil)
+		_, xshardLst, err := s.MinorBlockChain.InsertChainForDeposits([]types.IBlock{block}, false)
 		if err != nil || len(xshardLst) != 1 {
 			log.Error("Failed to add minor block", "err", err)
 			return nil, err
@@ -375,6 +375,6 @@ func (s *ShardBackend) CheckMinorBlock(header *types.MinorBlockHeader) error {
 	if header.Number == 0 {
 		return nil
 	}
-	_, _, err := s.MinorBlockChain.InsertChainForDeposits([]types.IBlock{block}, nil)
+	_, _, err := s.MinorBlockChain.InsertChainForDeposits([]types.IBlock{block}, true)
 	return err
 }
