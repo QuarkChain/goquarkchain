@@ -1,7 +1,6 @@
 package miner
 
 import (
-	"fmt"
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/service"
 	"github.com/QuarkChain/goquarkchain/consensus"
@@ -71,21 +70,17 @@ func (m *Miner) interrupt() {
 }
 
 func (m *Miner) allowMining() bool {
-	timeFlag := time.Now().Sub(*m.timestamp).Seconds() > deadtime
 	if !m.IsMining() ||
 		m.api.IsSyncIng() ||
-		timeFlag {
+		time.Now().Sub(*m.timestamp).Seconds() > deadtime {
 		return false
 	}
 	return true
 }
 
 func (m *Miner) commit(addr *account.Address) {
-	fmt.Println("commit ")
-	defer fmt.Println("commit end")
 	// don't allow to mine
 	if !m.allowMining() {
-		fmt.Println("sb1")
 		return
 	}
 	m.interrupt()
@@ -95,21 +90,18 @@ func (m *Miner) commit(addr *account.Address) {
 		// retry to create block to mine
 		time.Sleep(2 * time.Second)
 		m.startCh <- struct{}{}
-		fmt.Println("sb2")
 		return
 	}
 	tip := m.getTip()
 	if block.NumberU64() <= tip {
 		log.Error(m.logInfo, "block's height small than tipHeight after commit blockNumber ,no need to seal", block.NumberU64(), "tip", m.getTip())
-		fmt.Println("sb3")
 		return
 	}
 	if addr == nil {
 		m.workCh <- workAdjusted{block, diff}
 	} else {
 		if err := m.engine.Seal(nil, block, diff, m.resultCh, m.stopCh); err != nil {
-			log.Error(m.logInfo, "Seal block to mine err", err)
-			m.commit(nil)
+			log.Error(m.logInfo, "Seal block to mine err", err) //right? need discuss
 		}
 	}
 }
@@ -121,21 +113,21 @@ func (m *Miner) mainLoop() {
 		case <-m.startCh:
 			m.commit(nil)
 
-		case work := <-m.workCh:
-			fmt.Println("Seal start")
+		case work := <-m.workCh: //to discuss:need this?
 			log.Info(m.logInfo, "ready to seal height", work.block.NumberU64(), "coinbase", work.block.IHeader().GetCoinbase().ToHex())
 			if err := m.engine.Seal(nil, work.block, work.adjustedDifficuty, m.resultCh, m.stopCh); err != nil {
 				log.Error(m.logInfo, "Seal block to mine err", err)
-				m.commit(nil)
+				coinbase := work.block.IHeader().GetCoinbase()
+				m.commit(&coinbase)
 			}
-			fmt.Println("Seal end")
 
 		case rBlock := <-m.resultCh:
 			log.Info(m.logInfo, "seal succ number", rBlock.NumberU64(), "hash", rBlock.Hash().String())
 			if err := m.api.InsertMinedBlock(rBlock); err != nil {
 				log.Error(m.logInfo, "add minered block err block hash", rBlock.Hash().Hex(), "err", err)
 				time.Sleep(time.Duration(3) * time.Second)
-				m.commit(nil)
+				coinbase := rBlock.IHeader().GetCoinbase()
+				m.commit(&coinbase)
 			}
 
 		case <-m.exitCh:
@@ -162,16 +154,13 @@ func (m *Miner) SetMining(mining bool) {
 }
 
 func (m *Miner) GetWork(coinbaseAddr *account.Address) (*consensus.MiningWork, error) {
-	fmt.Println("Miner.GetWork", coinbaseAddr)
 	if coinbaseAddr != nil {
-		fmt.Println("commit----")
 		m.commit(coinbaseAddr)
 	}
 	work, err := m.engine.GetWork(coinbaseAddr)
 	if err != nil {
 		return nil, err
 	}
-	fmt.Println("GetWorkEnd", work.Number)
 	return work, nil
 }
 

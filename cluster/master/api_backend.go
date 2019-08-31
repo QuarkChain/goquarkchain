@@ -240,7 +240,6 @@ func (s *QKCMasterBackend) GetWork(branch account.Branch, addr *common.Address) 
 		coinbaseAddr.Recipient = *addr
 		coinbaseAddr.FullShardKey = branch.Value
 	} else {
-		fmt.Println("SetNil")
 		coinbaseAddr = nil
 	}
 	if branch.Value == 0 {
@@ -255,7 +254,6 @@ func (s *QKCMasterBackend) GetWork(branch account.Branch, addr *common.Address) 
 	if slaveConn == nil {
 		return nil, ErrNoBranchConn
 	}
-	fmt.Println("SLave.GetWork", coinbaseAddr)
 	return slaveConn.GetWork(branch, coinbaseAddr)
 }
 

@@ -2,7 +2,6 @@ package shard
 
 import (
 	"errors"
-	"fmt"
 	"math/big"
 	"time"
 
@@ -210,9 +209,7 @@ func (s *ShardBackend) GetLogs(start uint64, end uint64, address []account.Addre
 }
 
 func (s *ShardBackend) GetWork(coinbaseAddr *account.Address) (*consensus.MiningWork, error) {
-	work, err := s.miner.GetWork(coinbaseAddr)
-	fmt.Println("ShardGetWork end", work.Number, work.HeaderHash.String())
-	return work, err
+	return s.miner.GetWork(coinbaseAddr)
 }
 
 func (s *ShardBackend) SubmitWork(headerHash common.Hash, nonce uint64, mixHash common.Hash) error {

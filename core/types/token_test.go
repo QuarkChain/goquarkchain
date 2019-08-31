@@ -1,7 +1,6 @@
 package types
 
 import (
-	"fmt"
 	"github.com/QuarkChain/goquarkchain/serialize"
 	"github.com/stretchr/testify/assert"
 	"math/big"
@@ -22,13 +21,4 @@ func TestNewTokenBalanceMap(t *testing.T) {
 	assert.Equal(t, data0, data1)
 	assert.Equal(t, err0, err1)
 
-}
-
-func TestNewEmptyTokenBalances(t *testing.T) {
-	var block IBlock
-	if block == nil {
-		fmt.Println("block is nil")
-	} else {
-		fmt.Println("block is not ni")
-	}
 }

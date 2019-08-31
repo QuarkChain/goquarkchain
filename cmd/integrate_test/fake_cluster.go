@@ -213,7 +213,7 @@ func (c *clusterNode) createAllShardsBlock(fullShardIds []uint32) {
 		if shrd == nil {
 			utils.Fatalf("has no such shard, fullShardId: %d", fullShardId)
 		}
-		iBlock, _, err := shrd.CreateBlockToMine()
+		iBlock, _, err := shrd.CreateBlockToMine(nil)
 		if err != nil {
 			utils.Fatalf("can't create minor block, fullShardId: %d, err: %v", fullShardId, err)
 		}

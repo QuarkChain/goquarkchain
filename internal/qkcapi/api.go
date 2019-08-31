@@ -3,7 +3,6 @@ package qkcapi
 import (
 	"bytes"
 	"errors"
-	"fmt"
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	qkcRPC "github.com/QuarkChain/goquarkchain/cluster/rpc"
@@ -545,7 +544,6 @@ func (p *PublicBlockChainAPI) SubmitWork(fullShardKey *hexutil.Uint, headHash co
 }
 
 func (p *PublicBlockChainAPI) GetWork(fullShardKey *hexutil.Uint, coinbaseAddress *common.Address) ([]common.Hash, error) {
-	fmt.Println("fullShardKey", fullShardKey, coinbaseAddress)
 	fullShardId := uint32(0)
 	var err error
 	if fullShardKey != nil {
@@ -558,7 +556,6 @@ func (p *PublicBlockChainAPI) GetWork(fullShardKey *hexutil.Uint, coinbaseAddres
 	if err != nil {
 		return nil, err
 	}
-	fmt.Println("Result", work.Number, work.HeaderHash.String())
 	height := new(big.Int).SetUint64(work.Number)
 	var val = make([]common.Hash, 0, 3)
 	val = append(val, work.HeaderHash)
