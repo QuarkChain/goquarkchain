@@ -154,7 +154,7 @@ type testPeer struct {
 }
 
 // newTestPeer creates a new peer registered at the given protocol manager.
-func newTestPeer(name string, version int, pm *ProtocolManager, shake bool) (*testPeer, <-chan error) {
+func newTestPeer(name string, version int, pm *ProtocolManager, shake bool) (*testPeer, error) {
 	// Create a message pipe to communicate through
 	app, net := p2p.MsgPipe()
 
@@ -165,16 +165,17 @@ func newTestPeer(name string, version int, pm *ProtocolManager, shake bool) (*te
 	peer := newPeer(version, p2p.NewPeer(id, name, nil), net)
 
 	// Start the peer on a new thread
-	errc := make(chan error, 1)
+	var err error
 	go func() {
-		errc <- pm.handle(peer)
+		pm.handle(peer)
 	}()
 	tp := &testPeer{app: app, net: net, Peer: peer}
 	// Execute any implicitly requested handshakes and return
 	if shake {
-		tp.handshake(nil, pm.rootBlockChain.CurrentBlock().Header())
+		err = tp.handshake(pm.rootBlockChain.CurrentBlock().Header(), pm.rootBlockChain.GetBlockByNumber(0).Hash())
 	}
-	return tp, errc
+
+	return tp, err
 }
 
 func newTestClientPeer(version int, msgrw p2p.MsgReadWriter) *Peer {
@@ -186,26 +187,28 @@ func newTestClientPeer(version int, msgrw p2p.MsgReadWriter) *Peer {
 
 // handshake simulates a trivial handshake that expects the same state from the
 // remote side as we are simulating locally.
-func (p *testPeer) handshake(t *testing.T, rootBlockHeader *types.RootBlockHeader) error {
+func (p *testPeer) handshake(rootBlockHeader *types.RootBlockHeader, geneHash common.Hash) error {
 	privateKey, _ := p2p.GetPrivateKeyFromConfig(clusterconfig.P2P.PrivKey)
 	id := crypto.FromECDSAPub(&privateKey.PublicKey)
 	helloMsg := p2p.HelloCmd{
-		Version:         qkcconfig.P2PProtocolVersion,
-		NetWorkID:       qkcconfig.NetworkID,
-		PeerID:          common.BytesToHash(id),
-		PeerPort:        uint16(clusterconfig.P2PPort),
-		RootBlockHeader: rootBlockHeader,
+		Version:              qkcconfig.P2PProtocolVersion,
+		NetWorkID:            qkcconfig.NetworkID,
+		PeerID:               common.BytesToHash(id),
+		PeerPort:             uint16(clusterconfig.P2PPort),
+		RootBlockHeader:      rootBlockHeader,
+		GenesisRootBlockHash: geneHash,
 	}
 	msg, err := p2p.MakeMsg(p2p.Hello, p.getRpcId(), p2p.Metadata{}, helloMsg)
 	if err != nil {
-		t.Fatalf("MakeMsg error: %v", err)
+		return err
 	}
 
-	if _, err := ExpectMsg(p.app, p2p.Hello, p2p.Metadata{}, &helloMsg); err != nil {
-		t.Fatalf("status recv: %v", err)
+	if _, err := ExpectMsg(p.app, p2p.Hello, p2p.Metadata{}, helloMsg); err != nil {
+		return err
 	}
+
 	if err := p.app.WriteMsg(msg); err != nil {
-		t.Fatalf("status send: %v", err)
+		return err
 	}
 	return nil
 }

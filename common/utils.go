@@ -11,6 +11,14 @@ import (
 	"reflect"
 )
 
+const (
+	DirectionToGenesis = uint8(0)
+	DirectionToTip     = uint8(1)
+
+	SkipHash   = uint8(0)
+	SkipHeight = uint8(1)
+)
+
 var (
 	EmptyHash = ethCommon.Hash{}
 )

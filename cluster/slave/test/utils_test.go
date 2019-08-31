@@ -485,7 +485,7 @@ func (s *SlaveServerSideOp) GetMinorBlockList(ctx context.Context, req *rpc.Requ
 
 func (s *SlaveServerSideOp) GetMinorBlockHeaderList(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
 	var (
-		gReq     rpc.GetMinorBlockHeaderListRequest
+		gReq     p2p.GetMinorBlockHeaderListWithSkipRequest
 		gRep     rpc.GetMinorBlockHeaderListResponse
 		buf      = serialize.NewByteBuffer(req.Data)
 		response = &rpc.Response{RpcId: req.RpcId}

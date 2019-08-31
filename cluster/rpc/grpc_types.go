@@ -1,6 +1,7 @@
 package rpc
 
 import (
+	"github.com/QuarkChain/goquarkchain/p2p"
 	"github.com/QuarkChain/goquarkchain/serialize"
 	"math/big"
 
@@ -87,7 +88,7 @@ type GenTxRequest struct {
 type GetMinorBlockRequest struct {
 	Branch         uint32      `json:"branch" gencodec:"required"`
 	MinorBlockHash common.Hash `json:"minor_block_hash" gencodec:"required"`
-	Height         uint64      `json:"height" gencodec:"required"`
+	Height         *uint64     `json:"height" gencodec:"required"`
 	NeedExtraInfo  bool        `json:"need_extra_info" gencodec:"required"`
 }
 
@@ -96,6 +97,12 @@ type PoSWInfo struct {
 	PoswMineableBlocks  uint64
 	PoswMinedBlocks     uint64
 }
+
+type GetMinorBlockHeaderListWithSkipRequest struct {
+	p2p.GetMinorBlockHeaderListWithSkipRequest
+	PeerID string `json:"peerid" gencodec:"required"`
+}
+
 type GetMinorBlockResponse struct {
 	MinorBlock *types.MinorBlock `json:"minor_block" gencodec:"required"`
 	Extra      *PoSWInfo
@@ -121,13 +128,9 @@ type BroadcastTransactions struct {
 	Txs    []*types.Transaction `json:"txs" gencodec:"required" bytesizeofslicelen:"4"`
 }
 
-type GetMinorBlockHeaderListRequest struct {
-	Branch    uint32      `json:"branch" gencodec:"required"`
-	BlockHash common.Hash `json:"block_hash" gencodec:"required"`
-	Limit     uint32      `json:"limit" gencodec:"required"`
-	// value 0: heighter, 1 lower
-	Direction uint8  `json:"direction" gencodec:"required"`
-	PeerID    string `json:"peerid" gencodec:"required"`
+type MinorHeadRequest struct {
+	Branch uint32 `json:"branch" gencodec:"required"`
+	PeerID string `json:"peer_id" gencodec:"required"`
 }
 
 type GetMinorBlockHeaderListResponse struct {

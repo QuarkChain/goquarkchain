@@ -1000,8 +1000,8 @@ func (m *MinorBlockChain) GetTransactionReceipt(hash common.Hash) (*types.MinorB
 	return nil, 0, nil
 }
 
-// GetShardStatus show shardStatus
-func (m *MinorBlockChain) GetShardStatus() (*rpc.ShardStatus, error) {
+// GetShardStats show shardStatus
+func (m *MinorBlockChain) GetShardStats() (*rpc.ShardStatus, error) {
 	// getBlockCountByHeight have lock
 	cblock := m.CurrentBlock()
 	cutoff := cblock.IHeader().GetTime() - 60

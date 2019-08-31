@@ -819,7 +819,7 @@ type SlaveServerSideOpServer interface {
 	AddMinorBlockListForSync(context.Context, *Request) (*Response, error)
 	// p2p apis
 	GetMinorBlockList(context.Context, *Request) (*Response, error)
-	GetMinorBlockHeaderList(context.Context, *Request) (*Response, error)
+	 GetMinorBlockHeaderList(context.Context, *Request) (*Response, error)
 	HandleNewTip(context.Context, *Request) (*Response, error)
 	AddTransactions(context.Context, *Request) (*Response, error)
 	HandleNewMinorBlock(context.Context, *Request) (*Response, error)
