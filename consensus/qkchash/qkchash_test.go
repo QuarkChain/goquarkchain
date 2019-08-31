@@ -49,7 +49,6 @@ func TestVerifyHeaderAndHeaders(t *testing.T) {
 			h := *header
 			if i == 5 {
 				h.Nonce = 123123
-				cr.EXPECT().GetHeader(h.Hash()).Return(nil)
 			}
 			headers = append(headers, &h)
 		}

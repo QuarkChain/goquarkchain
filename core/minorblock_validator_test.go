@@ -99,7 +99,7 @@ func TestHeaderVerification(t *testing.T) {
 			case <-time.After(25 * time.Millisecond):
 			}
 		}
-		chain.InsertChain(toMinorBlocks(blocks[i:i+1]), nil)
+		chain.InsertChain(toMinorBlocks(blocks[i:i+1]), false)
 	}
 }
 

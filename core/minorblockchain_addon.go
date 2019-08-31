@@ -472,7 +472,7 @@ func (m *MinorBlockChain) FinalizeAndAddBlock(block *types.MinorBlock) (*types.M
 	coinbaseAmount.Add(evmState.GetBlockFee())
 
 	block.Finalize(receipts, evmState.IntermediateRoot(true), evmState.GetGasUsed(), evmState.GetXShardReceiveGasUsed(), coinbaseAmount, evmState.GetTxCursorInfo())
-	_, err = m.InsertChain([]types.IBlock{block}, nil) // will lock
+	_, err = m.InsertChain([]types.IBlock{block}, false) // will lock
 	if err != nil {
 		return nil, nil, err
 	}
