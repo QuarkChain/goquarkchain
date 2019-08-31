@@ -186,8 +186,7 @@ func (s *QKCMasterBackend) Protocols() []p2p.Protocol {
 
 func (s *QKCMasterBackend) CheckDB() {
 	startTime := time.Now()
-	defer log.Info("Integrity check completed! Took", time.Now().Sub(startTime).Seconds(), "s")
-	defer s.Stop()
+	defer log.Info("Integrity check completed!", "run time", time.Now().Sub(startTime).Seconds())
 
 	// Start with root db
 	rb := s.rootBlockChain.CurrentBlock()
@@ -202,9 +201,10 @@ func (s *QKCMasterBackend) CheckDB() {
 	}
 	if b := s.rootBlockChain.GetBlock(rb.Hash()); b == nil || b.Hash() != rb.Hash() {
 		log.Error("Root block mismatches local root block by hash", "height", rb.NumberU64())
+		return
 	}
-	count := 0
-	for rb.NumberU64() > toHeight {
+
+	for count := 0; rb.NumberU64() > toHeight; count++ {
 		if count%100 == 0 {
 			log.Info("Checking root block", "height", rb.NumberU64())
 		}
@@ -213,7 +213,7 @@ func (s *QKCMasterBackend) CheckDB() {
 			return
 		}
 		prevRb := s.rootBlockChain.GetBlock(rb.ParentHash())
-		if prevRb.Hash() != rb.ParentHash() {
+		if prevRb == nil || prevRb.Hash() != rb.ParentHash() {
 			log.Error("Root block mismatches previous block hash", "height", rb.NumberU64())
 			return
 		}
