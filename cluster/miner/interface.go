@@ -7,6 +7,7 @@ import (
 )
 
 type MinerAPI interface {
+	GetDefaultCoinbaseAddress() account.Address
 	CreateBlockToMine(addr *account.Address) (types.IBlock, *big.Int, error)
 	InsertMinedBlock(types.IBlock) error
 	IsSyncIng() bool

@@ -57,10 +57,6 @@ type worker struct {
 	abortCh      chan struct{}
 }
 
-var (
-	cnt = 0
-)
-
 func (w worker) fetch() {
 	ticker := time.NewTicker(fetchWorkInterval)
 	defer ticker.Stop()
@@ -71,19 +67,7 @@ func (w worker) fetch() {
 	var lastFetchedWork *consensus.MiningWork
 
 	handleWork := func() {
-		var (
-			work consensus.MiningWork
-			err  error
-		)
-		if cnt%2 == 0 {
-			fmt.Println("==0")
-			cnt++
-			work, err = fetchWorkRPC(w.shardID, nil)
-		} else {
-			fmt.Println("==1")
-			cnt++
-			work, err = fetchWorkRPC(w.shardID, w.addr)
-		}
+		work, err := fetchWorkRPC(w.shardID, w.addr)
 
 		if err != nil {
 			log.Print("WARN: Failed to fetch work: ", err)
@@ -91,7 +75,6 @@ func (w worker) fetch() {
 		}
 
 		if lastFetchedWork != nil {
-			fmt.Println("newWork", lastFetchedWork.HeaderHash.String(), work.Number, work.HeaderHash.String())
 			if lastFetchedWork.Number > work.Number {
 				w.log("WARN", "skip work with lower height, height: %d", work.Number)
 				return
@@ -103,7 +86,6 @@ func (w worker) fetch() {
 		}
 
 		lastFetchedWork = &work
-		fmt.Println("lastFetch", lastFetchedWork.Number, lastFetchedWork.HeaderHash.String())
 		w.fetchWorkCh <- work
 	}
 

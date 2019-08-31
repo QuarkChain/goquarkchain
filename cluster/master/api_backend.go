@@ -310,6 +310,10 @@ func (s *QKCMasterBackend) GetCurrRootHeader() *types.RootBlockHeader {
 	return s.rootBlockChain.CurrentHeader().(*types.RootBlockHeader)
 }
 
+func (s *QKCMasterBackend) GetDefaultCoinbaseAddress() account.Address {
+	return s.clusterConfig.Quarkchain.Root.CoinbaseAddress
+}
+
 // miner api
 func (s *QKCMasterBackend) CreateBlockToMine(addr *account.Address) (types.IBlock, *big.Int, error) {
 	coinbaseAddr := s.clusterConfig.Quarkchain.Root.CoinbaseAddress

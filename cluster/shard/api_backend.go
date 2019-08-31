@@ -329,6 +329,10 @@ func (s *ShardBackend) GenTx(genTxs *rpc.GenTxRequest) error {
 	return nil
 }
 
+func (s *ShardBackend) GetDefaultCoinbaseAddress() account.Address {
+	return s.Config.CoinbaseAddress
+}
+
 // miner api
 func (s *ShardBackend) CreateBlockToMine(addr *account.Address) (types.IBlock, *big.Int, error) {
 	coinbaseAddress := s.Config.CoinbaseAddress
