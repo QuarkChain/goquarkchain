@@ -28,7 +28,7 @@
       "CONSENSUS_TYPE": "POW_DOUBLESHA256",
       "CONSENSUS_CONFIG": {
         "TARGET_BLOCK_TIME": 60,
-        "REMOTE_MINE": true
+        "REMOTE_MINE": false
       },
       "GENESIS": {
         "VERSION": 0,
@@ -60,7 +60,7 @@
         "CONSENSUS_TYPE": "POW_DOUBLESHA256",
         "CONSENSUS_CONFIG": {
           "TARGET_BLOCK_TIME": 10,
-          "REMOTE_MINE": true
+          "REMOTE_MINE": false
         },
         "GENESIS": {
           "ROOT_HEIGHT": 0,
@@ -105,7 +105,7 @@
         "CONSENSUS_TYPE": "POW_DOUBLESHA256",
         "CONSENSUS_CONFIG": {
           "TARGET_BLOCK_TIME": 10,
-          "REMOTE_MINE": true
+          "REMOTE_MINE": false
         },
         "GENESIS": {
           "ROOT_HEIGHT": 0,
