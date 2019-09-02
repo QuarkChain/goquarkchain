@@ -118,7 +118,7 @@ func NewRootChainTask(
 			return rTask.syncMinorBlocks(rbc, rb)
 		},
 		needSkip: func(b blockchain) bool {
-			if rTask.header.GetTotalDifficulty().Cmp(b.CurrentHeader().GetTotalDifficulty()) <= 0 {
+			if rTask.header.GetTotalDifficulty().Cmp(b.CurrentIBlock().IHeader().GetTotalDifficulty()) <= 0 {
 				return true
 			}
 			return false
@@ -136,7 +136,7 @@ func (r *rootChainTask) PeerID() string {
 }
 
 func (r *rootChainTask) downloadBlockHeaderListAndCheck(start uint32, skip,
-limit uint32) ([]*types.RootBlockHeader, error) {
+	limit uint32) ([]*types.RootBlockHeader, error) {
 	req := &p2p.GetRootBlockHeaderListWithSkipRequest{
 		Skip:      skip,
 		Limit:     limit,
@@ -173,7 +173,7 @@ limit uint32) ([]*types.RootBlockHeader, error) {
 }
 
 func (r *rootChainTask) findAncestor(bc blockchain) (*types.RootBlockHeader, error) {
-	rtip := bc.CurrentHeader().(*types.RootBlockHeader)
+	rtip := bc.CurrentIBlock().IHeader().(*types.RootBlockHeader)
 	if r.header.ParentHash == rtip.Hash() {
 		return rtip, nil
 	}

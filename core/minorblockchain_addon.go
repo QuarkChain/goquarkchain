@@ -599,10 +599,7 @@ func (m *MinorBlockChain) getAllUnconfirmedHeaderList() []*types.MinorBlockHeade
 
 	confirmedHeaderTip := m.confirmedHeaderTip
 
-	header, ok = m.CurrentHeader().(*types.MinorBlockHeader)
-	if !ok {
-		panic(errors.New("current not exist"))
-	}
+	header = m.CurrentBlock().Header()
 	startHeight := int64(-1)
 	if confirmedHeaderTip != nil {
 		startHeight = int64(confirmedHeaderTip.Number)
@@ -747,7 +744,7 @@ func (m *MinorBlockChain) CreateBlockToMine(createTime *uint64, address *account
 	} else {
 		realCreateTime = *createTime
 	}
-	difficulty, err := m.engine.CalcDifficulty(m, realCreateTime, m.CurrentHeader().(*types.MinorBlockHeader))
+	difficulty, err := m.engine.CalcDifficulty(m, realCreateTime, m.CurrentBlock().Header())
 	if err != nil {
 		return nil, err
 	}
@@ -907,22 +904,17 @@ func (m *MinorBlockChain) AddRootBlock(rBlock *types.RootBlock) (bool, error) {
 	m.rootTip = rBlock.Header()
 	m.confirmedHeaderTip = shardHeader
 	m.mu.Unlock()
-	origHeaderTip := m.CurrentHeader().(*types.MinorBlockHeader)
+	origHeaderTip := m.CurrentBlock()
 	if shardHeader != nil {
 		origBlock := m.GetBlockByNumber(shardHeader.Number)
 		if qkcCommon.IsNil(origBlock) || origBlock.Hash() != shardHeader.Hash() {
 			log.Warn(m.logInfo, "ready to set current header height", shardHeader.Number, "hash", shardHeader.Hash().String(), "status", qkcCommon.IsNil(origBlock))
-			m.hc.SetCurrentHeader(shardHeader)
-
-			newTipBlock := m.GetBlock(shardHeader.Hash())
-			if err := m.reorg(m.CurrentBlock(), newTipBlock); err != nil {
-				return false, err
-			}
+			m.currentBlock.Store(m.GetBlock(shardHeader.Hash()).(*types.MinorBlock))
 		}
 	}
 
-	for !m.isSameRootChain(m.rootTip, m.getRootBlockHeaderByHash(m.CurrentHeader().(*types.MinorBlockHeader).GetPrevRootBlockHash())) {
-		if m.CurrentHeader().NumberU64() == 0 {
+	for !m.isSameRootChain(m.rootTip, m.getRootBlockHeaderByHash(m.CurrentBlock().Header().GetPrevRootBlockHash())) {
+		if m.CurrentBlock().NumberU64() == 0 {
 			genesisRootHeader := m.rootTip
 			genesisHeight := m.clusterConfig.Quarkchain.GetGenesisRootHeight(m.branch.Value)
 			if genesisRootHeader.Number < uint32(genesisHeight) {
@@ -945,14 +937,14 @@ func (m *MinorBlockChain) AddRootBlock(rBlock *types.RootBlock) (bool, error) {
 			}
 			break
 		}
-		preBlock := m.GetBlock(m.CurrentHeader().GetParentHash()).(*types.MinorBlock)
+		preBlock := m.GetMinorBlock(m.CurrentBlock().Header().GetParentHash())
 		log.Warn(m.logInfo, "ready to set currentHeader height", preBlock.Number(), "hash", preBlock.Hash().String())
 		m.hc.SetCurrentHeader(preBlock.Header())
 		m.currentBlock.Store(preBlock)
 	}
 
-	if m.CurrentHeader().Hash() != origHeaderTip.Hash() {
-		headerTipHash := m.CurrentHeader().Hash()
+	if m.CurrentBlock().Hash() != origHeaderTip.Hash() {
+		headerTipHash := m.CurrentBlock().Hash()
 		origBlock := m.GetMinorBlock(origHeaderTip.Hash())
 		newBlock := m.GetMinorBlock(headerTipHash)
 		log.Warn("reWrite", "orig_number", origBlock.Number(), "orig_hash", origBlock.Hash().String(), "new_number", newBlock.Number(), "new_hash", newBlock.Hash().String())
@@ -1165,10 +1157,7 @@ func (m *MinorBlockChain) reWriteBlockIndexTo(oldBlock *types.MinorBlock, newBlo
 	if oldBlock == nil {
 		oldBlock = m.CurrentBlock()
 	}
-	if oldBlock.NumberU64() < newBlock.NumberU64() {
-		return m.reorg(oldBlock, newBlock)
-	}
-	return m.SetHead(newBlock.NumberU64())
+	return m.reorg(oldBlock, newBlock)
 }
 func (m *MinorBlockChain) GetBranch() account.Branch {
 	return m.branch

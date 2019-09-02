@@ -244,6 +244,10 @@ func (bc *RootBlockChain) CurrentBlock() *types.RootBlock {
 	return bc.currentBlock.Load().(*types.RootBlock)
 }
 
+func (bc *RootBlockChain) CurrentIBlock() types.IBlock {
+	return bc.currentBlock.Load().(*types.RootBlock)
+}
+
 // SetValidator sets the validator which is used to validate incoming blocks.
 func (bc *RootBlockChain) SetValidator(validator Validator) {
 	bc.procmu.Lock()

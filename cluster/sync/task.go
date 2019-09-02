@@ -49,8 +49,8 @@ func (t *task) Run(bc blockchain) error {
 
 	logger := log.New("synctask", t.name, "start", ancestor.NumberU64())
 
-	if bc.CurrentHeader().NumberU64()-ancestor.NumberU64() > t.maxSyncStaleness {
-		logger.Warn("Abort synching due to forking at super old block", "currentHeight", bc.CurrentHeader().NumberU64(), "oldHeight", ancestor.NumberU64())
+	if bc.CurrentIBlock().NumberU64()-ancestor.NumberU64() > t.maxSyncStaleness {
+		logger.Warn("Abort synching due to forking at super old block", "currentHeight", bc.CurrentIBlock().NumberU64(), "oldHeight", ancestor.NumberU64())
 		return nil
 	}
 

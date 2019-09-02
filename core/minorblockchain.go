@@ -363,6 +363,9 @@ func (m *MinorBlockChain) GasLimit() uint64 {
 func (m *MinorBlockChain) CurrentBlock() *types.MinorBlock {
 	return m.currentBlock.Load().(*types.MinorBlock)
 }
+func (m *MinorBlockChain) CurrentIBlock() types.IBlock {
+	return m.currentBlock.Load().(*types.MinorBlock)
+}
 
 // SetProcessor sets the processor required for making state modifications.
 func (m *MinorBlockChain) SetProcessor(processor Processor) {
@@ -1460,6 +1463,10 @@ func (m *MinorBlockChain) reorg(oldBlock, newBlock types.IBlock) error {
 		oldChain = append(oldChain, oldBlock)
 		newChain = append(newChain, newBlock)
 		collectLogs(oldBlock.Hash())
+		if oldBlock.NumberU64() == 0 || newBlock.NumberU64() == 0 { //revert genesisBlock: no commonBlock
+			log.Warn("reorg", "ready to revert genesis? oldBlock", oldBlock.Hash().String(), "newBlock", newBlock.Hash().String())
+			break
+		}
 
 		oldBlock, newBlock = m.GetBlock(oldBlock.IHeader().GetParentHash()), m.GetBlock(newBlock.IHeader().GetParentHash())
 		if qkcCommon.IsNil(oldBlock) {
@@ -1475,10 +1482,18 @@ func (m *MinorBlockChain) reorg(oldBlock, newBlock types.IBlock) error {
 		if len(oldChain) > 63 {
 			logFn = log.Warn
 		}
-		logFn("Chain split detected", "number", commonBlock.NumberU64(), "hash", commonBlock.Hash(),
-			"drop", len(oldChain), "dropfrom", oldChain[0].Hash(), "add", len(newChain), "addfrom", newChain[0].Hash())
+		if commonBlock != nil {
+			logFn("Chain split detected", "number", commonBlock.NumberU64(), "hash", commonBlock.Hash(),
+				"drop", len(oldChain), "dropfrom", oldChain[0].Hash(), "add", len(newChain), "addfrom", newChain[0].Hash())
+		} else {
+			log.Warn("ChainRevert genesis", "drop", len(oldChain), "dropfrom", oldChain[0].Hash(), "add", len(newChain), "addfrom", newChain[0].Hash())
+		}
+
 	} else {
-		log.Error("minorBlockChain Impossible reorg, please file an issue", "oldnum", oldBlock.NumberU64(), "oldhash", oldBlock.Hash(), "newnum", newBlock.NumberU64(), "newhash", newBlock.Hash())
+		log.Warn("reorg", "same chain oldBlock", oldBlock.NumberU64(), "oldBlock.Hash", oldBlock.Hash().String(), "newBlock", newBlock.NumberU64(), "newBlock's hash", newBlock.Hash().String())
+		if err := m.SetHead(newBlock.NumberU64()); err != nil {
+			return err
+		}
 	}
 
 	// When transactions get deleted from the database that means the
