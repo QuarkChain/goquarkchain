@@ -146,7 +146,7 @@ func (bc *mockblockchain) AddBlock(block types.IBlock) error {
 		_, err := bc.rbc.InsertChain([]types.IBlock{block})
 		return err
 	}
-	_, err := bc.mbc.InsertChain([]types.IBlock{block}, nil)
+	_, err := bc.mbc.InsertChain([]types.IBlock{block}, false)
 	return err
 }
 
@@ -180,7 +180,7 @@ func (v *mockvalidator) ValidateState(block, parent types.IBlock, state *state.S
 	return v.err
 }
 
-func (v *mockvalidator) ValidateBlock(types.IBlock) error {
+func (v *mockvalidator) ValidateBlock(types.IBlock, bool) error {
 	return v.err
 }
 func (v *mockvalidator) ValidateSeal(mHeader types.IHeader) error {

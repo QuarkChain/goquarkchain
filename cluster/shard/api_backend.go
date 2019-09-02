@@ -2,12 +2,14 @@ package shard
 
 import (
 	"errors"
+	"fmt"
 	"math/big"
 	"time"
 
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
 	synchronizer "github.com/QuarkChain/goquarkchain/cluster/sync"
+	qkccommon "github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/common"
@@ -69,7 +71,7 @@ func (s *ShardBackend) AddMinorBlock(block *types.MinorBlock) error {
 	}
 	//TODO support BLOCK_COMMITTING
 	currHead := s.MinorBlockChain.CurrentBlock().Number()
-	_, xshardLst, err := s.MinorBlockChain.InsertChainForDeposits([]types.IBlock{block}, nil)
+	_, xshardLst, err := s.MinorBlockChain.InsertChainForDeposits([]types.IBlock{block}, false)
 	if err != nil || len(xshardLst) != 1 {
 		log.Error("Failed to add minor block", "err", err)
 		return err
@@ -167,7 +169,7 @@ func (s *ShardBackend) AddBlockListForSync(blockLst []*types.MinorBlock) (map[co
 		}
 		//TODO:support BLOCK_COMMITTING
 		coinbaseAmountList[block.Header().Hash()] = block.Header().CoinbaseAmount
-		_, xshardLst, err := s.MinorBlockChain.InsertChainForDeposits([]types.IBlock{block}, nil)
+		_, xshardLst, err := s.MinorBlockChain.InsertChainForDeposits([]types.IBlock{block}, false)
 		if err != nil || len(xshardLst) != 1 {
 			log.Error("Failed to add minor block", "err", err)
 			return nil, err
@@ -288,7 +290,7 @@ func (s *ShardBackend) NewMinorBlock(block *types.MinorBlock) (err error) {
 		return nil
 	}
 
-	if err := s.MinorBlockChain.Validator().ValidateBlock(block); err != nil {
+	if err := s.MinorBlockChain.Validator().ValidateBlock(block, false); err != nil {
 		return err
 	}
 
@@ -375,4 +377,16 @@ func (s *ShardBackend) GetTip() uint64 {
 
 func (s *ShardBackend) IsSyncIng() bool {
 	return s.synchronizer.IsSyncing()
+}
+
+func (s *ShardBackend) CheckMinorBlock(header *types.MinorBlockHeader) error {
+	block := s.MinorBlockChain.GetBlock(header.Hash())
+	if qkccommon.IsNil(block) {
+		return fmt.Errorf("block %v cannot be found", header.Hash())
+	}
+	if header.Number == 0 {
+		return nil
+	}
+	_, _, err := s.MinorBlockChain.InsertChainForDeposits([]types.IBlock{block}, true)
+	return err
 }

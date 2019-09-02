@@ -81,16 +81,18 @@ type insertIterator struct {
 	results   <-chan error
 	index     int
 	validator Validator
+	force     bool
 }
 
 // newInsertIterator creates a new iterator based on the given blocks, which are
 // assumed to be a contiguous chain.
-func newInsertIterator(chain []types.IBlock, results <-chan error, validator Validator) *insertIterator {
+func newInsertIterator(chain []types.IBlock, results <-chan error, validator Validator, force bool) *insertIterator {
 	return &insertIterator{
 		chain:     chain,
 		results:   results,
 		index:     -1,
 		validator: validator,
+		force:     force,
 	}
 }
 
@@ -105,7 +107,7 @@ func (it *insertIterator) next() (types.IBlock, error) {
 	if err := <-it.results; err != nil {
 		return it.chain[it.index], err
 	}
-	return it.chain[it.index], it.validator.ValidateBlock(it.chain[it.index])
+	return it.chain[it.index], it.validator.ValidateBlock(it.chain[it.index], it.force)
 }
 
 // current returns the current block that's being processed.

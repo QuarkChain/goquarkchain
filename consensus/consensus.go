@@ -134,9 +134,11 @@ func (c *CommonEngine) VerifyHeader(
 		return errors.New("incorrect block's version")
 	}
 
-	if chain.GetHeader(header.Hash()) != nil {
-		return nil
-	}
+	/*	if chain.GetHeader(header.Hash()) != nil {
+			fmt.Println(header.Hash())
+			//return nil
+		}
+	*/
 	parent := chain.GetHeader(header.GetParentHash())
 	if parent == nil {
 		return ErrUnknownAncestor

@@ -45,7 +45,7 @@ type ProtocolManager struct {
 	chainHeadChan     chan core.RootChainHeadEvent
 	chainHeadEventSub event.Subscription
 	statsChan         chan *rpc.ShardStatus
-
+	started           bool
 	// TODO can be removed ?
 	stats       *qkcsync.BlockSychronizerStats
 	maxPeers    int
@@ -72,6 +72,7 @@ func NewProtocolManager(env config.ClusterConfig, rootBlockChain *core.RootBlock
 		synchronizer:     synchronizer,
 		getShardConnFunc: getShardConnFunc,
 		stats:            &qkcsync.BlockSychronizerStats{},
+		started:          false,
 	}
 	protocol := p2p.Protocol{
 		Name:    QKCProtocolName,
@@ -112,6 +113,7 @@ func (pm *ProtocolManager) removePeer(id string) {
 
 // Start manager start
 func (pm *ProtocolManager) Start(maxPeers int) {
+	pm.started = true
 	pm.maxPeers = maxPeers
 
 	pm.chainHeadChan = make(chan core.RootChainHeadEvent, chainHeadChanSize)
@@ -122,6 +124,9 @@ func (pm *ProtocolManager) Start(maxPeers int) {
 
 func (pm *ProtocolManager) Stop() {
 	log.Info("Stopping Master protocol")
+	if !pm.started {
+		return
+	}
 
 	pm.chainHeadEventSub.Unsubscribe()
 

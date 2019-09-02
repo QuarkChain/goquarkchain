@@ -138,7 +138,7 @@ func ExampleGenerateMinorBlockChain() {
 	}
 	defer blockchain.Stop()
 
-	if i, err := blockchain.InsertChain(toMinorBlocks(chain), nil); err != nil {
+	if i, err := blockchain.InsertChain(toMinorBlocks(chain), false); err != nil {
 		fmt.Printf("insert error (block %d): %v\n", chain[i].NumberU64(), err)
 		return
 	}

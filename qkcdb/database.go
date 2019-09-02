@@ -15,17 +15,17 @@ const (
 )
 
 type RDBDatabase struct {
-	fn string        // filename for reporting
-	db *gorocksdb.DB // RocksDB instance
-	ro *gorocksdb.ReadOptions
-	wo *gorocksdb.WriteOptions
-
-	closeOnce sync.Once
-	log       log.Logger // Contextual logger tracking the database path
+	fn         string        // filename for reporting
+	db         *gorocksdb.DB // RocksDB instance
+	ro         *gorocksdb.ReadOptions
+	wo         *gorocksdb.WriteOptions
+	isReadOnly bool
+	closeOnce  sync.Once
+	log        log.Logger // Contextual logger tracking the database path
 }
 
 // NewRDBDatabase returns a rocksdb wrapped object.
-func NewRDBDatabase(file string, clean bool) (*RDBDatabase, error) {
+func NewRDBDatabase(file string, clean, isReadOnly bool) (*RDBDatabase, error) {
 	logger := log.New("database", file)
 
 	if err := os.MkdirAll(file, 0700); err != nil {
@@ -63,11 +63,12 @@ func NewRDBDatabase(file string, clean bool) (*RDBDatabase, error) {
 	logger.Info("Allocated cache and file handles", "cache", cache, "handles", handles)
 
 	return &RDBDatabase{
-		fn:  file,
-		db:  db,
-		ro:  ro,
-		wo:  wo,
-		log: logger,
+		fn:         file,
+		db:         db,
+		ro:         ro,
+		wo:         wo,
+		isReadOnly: isReadOnly,
+		log:        logger,
 	}, nil
 }
 
@@ -78,6 +79,9 @@ func (db *RDBDatabase) Path() string {
 
 // Put puts the given key / value to the queue
 func (db *RDBDatabase) Put(key []byte, value []byte) error {
+	if db.isReadOnly {
+		return nil
+	}
 	if len(key) == 0 || len(value) == 0 {
 		return errors.New("failed to put data, key or value can't be empty")
 	}

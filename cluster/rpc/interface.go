@@ -64,4 +64,5 @@ type ISlaveConn interface {
 	GetWork(branch account.Branch, address *account.Address) (*consensus.MiningWork, error)
 	SubmitWork(work *SubmitWorkRequest) (success bool, err error)
 	SetMining(mining bool) error
+	CheckMinorBlocksInRoot(rootBlock *types.RootBlock) error
 }
