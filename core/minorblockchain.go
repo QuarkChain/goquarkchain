@@ -811,7 +811,7 @@ func SetReceiptsData(config *config.QuarkChainConfig, mBlock types.IBlock, recei
 		if transactions[j].EvmTx.To() == nil {
 			// Deriving the signer is expensive, only do if it's actually needed
 			from, _ := types.Sender(signer, transactions[j].EvmTx)
-			toFullShardKey:=transactions[j].EvmTx.ToFullShardKey()
+			toFullShardKey := transactions[j].EvmTx.ToFullShardKey()
 			receipts[j].ContractAddress = account.BytesToIdentityRecipient(vm.CreateAddress(from, &toFullShardKey, transactions[j].EvmTx.Nonce()).Bytes())
 		}
 		// The used gas can be calculated based on previous receipts

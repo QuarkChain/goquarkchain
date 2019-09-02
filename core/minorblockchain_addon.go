@@ -563,7 +563,7 @@ func (m *MinorBlockChain) ExecuteTx(tx *types.Transaction, fromAddress *account.
 	gp := new(GasPool).AddGas(mBlock.Header().GetGasLimit().Uint64())
 
 	to := evmTx.EvmTx.To()
-	toFullShardKey:=tx.EvmTx.ToFullShardKey()
+	toFullShardKey := tx.EvmTx.ToFullShardKey()
 	msg := types.NewMessage(fromAddress.Recipient, to, evmTx.EvmTx.Nonce(), evmTx.EvmTx.Value(), evmTx.EvmTx.Gas(),
 		evmTx.EvmTx.GasPrice(), evmTx.EvmTx.Data(), false, tx.EvmTx.FromFullShardKey(), &toFullShardKey,
 		tx.EvmTx.TransferTokenID(), tx.EvmTx.GasTokenID())
@@ -1078,7 +1078,7 @@ func (m *MinorBlockChain) EstimateGas(tx *types.Transaction, fromAddress account
 
 		gp := new(GasPool).AddGas(evmState.GetGasLimit().Uint64())
 		to := evmTx.EvmTx.To()
-		toFullShardKey:=tx.EvmTx.ToFullShardKey()
+		toFullShardKey := tx.EvmTx.ToFullShardKey()
 		msg := types.NewMessage(fromAddress.Recipient, to, evmTx.EvmTx.Nonce(), evmTx.EvmTx.Value(), evmTx.EvmTx.Gas(),
 			evmTx.EvmTx.GasPrice(), evmTx.EvmTx.Data(), false, tx.EvmTx.FromFullShardKey(), &toFullShardKey,
 			tx.EvmTx.TransferTokenID(), tx.EvmTx.GasTokenID())
