@@ -330,7 +330,11 @@ func (s *ShardBackend) GenTx(genTxs *rpc.GenTxRequest) error {
 }
 
 func (s *ShardBackend) GetDefaultCoinbaseAddress() account.Address {
-	return s.Config.CoinbaseAddress
+	addr := s.Config.CoinbaseAddress
+	if !s.branch.IsInBranch(addr.FullShardKey) {
+		addr = addr.AddressInBranch(s.branch)
+	}
+	return addr
 }
 
 // miner api

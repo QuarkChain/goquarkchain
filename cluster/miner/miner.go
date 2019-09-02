@@ -154,10 +154,12 @@ func (m *Miner) SetMining(mining bool) {
 }
 
 func (m *Miner) GetWork(coinbaseAddr *account.Address) (*consensus.MiningWork, error) {
+	addrForGetWork := m.api.GetDefaultCoinbaseAddress()
 	if coinbaseAddr != nil && !account.IsSameAddress(*coinbaseAddr, m.api.GetDefaultCoinbaseAddress()) {
 		m.commit(coinbaseAddr)
+		addrForGetWork = *coinbaseAddr
 	}
-	work, err := m.engine.GetWork(coinbaseAddr)
+	work, err := m.engine.GetWork(addrForGetWork)
 	if err != nil {
 		return nil, err
 	}

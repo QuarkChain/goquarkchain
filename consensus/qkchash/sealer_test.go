@@ -43,7 +43,7 @@ func TestRemoteSealer(t *testing.T) {
 	block := types.NewRootBlockWithHeader(header)
 
 	qkc := New(true, &diffCalculator, true, []byte{})
-	if _, err := qkc.GetWork(nil); err.Error() != errNoMiningWork.Error() {
+	if _, err := qkc.GetWork(account.Address{}); err.Error() != errNoMiningWork.Error() {
 		t.Error("expect to return an error indicate there is no mining work")
 	}
 	hash := block.Header().SealHash()
@@ -53,7 +53,7 @@ func TestRemoteSealer(t *testing.T) {
 		err  error
 	)
 	qkc.Seal(nil, block, nil, nil, nil)
-	if work, err = qkc.GetWork(nil); err != nil || work.HeaderHash != hash {
+	if work, err = qkc.GetWork(account.Address{}); err != nil || work.HeaderHash != hash {
 		t.Error("expect to return a mining work has same hash")
 	}
 
@@ -132,7 +132,7 @@ func TestTestGetWorkWithDifferentAddr(t *testing.T) {
 	oldHash := block.Header().SealHash()
 
 	qkc := New(true, &diffCalculator, true, []byte{})
-	if _, err := qkc.GetWork(nil); err.Error() != errNoMiningWork.Error() {
+	if _, err := qkc.GetWork(account.Address{}); err.Error() != errNoMiningWork.Error() {
 		t.Error("expect to return an error indicate there is no mining work")
 	}
 
@@ -150,7 +150,7 @@ func TestTestGetWorkWithDifferentAddr(t *testing.T) {
 	newHash := newBlock.Header().SealHash()
 	qkc.Seal(nil, newBlock, nil, nil, nil)
 
-	if work, err = qkc.GetWork(&newAddress); err != nil || work.HeaderHash != newHash { //getWork with newAddress
+	if work, err = qkc.GetWork(newAddress); err != nil || work.HeaderHash != newHash { //getWork with newAddress
 		t.Error("expect to return a mining work has same hash")
 	}
 
