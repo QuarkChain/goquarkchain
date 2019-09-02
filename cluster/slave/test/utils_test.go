@@ -565,3 +565,15 @@ func (s *SlaveServerSideOp) SetMining(ctx context.Context, req *rpc.Request) (*r
 	}
 	return response, nil
 }
+
+func (s *SlaveServerSideOp) CheckMinorBlocksInRoot(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
+	var (
+		rootBlock types.RootBlock
+		response  = &rpc.Response{RpcId: req.RpcId}
+		err       error
+	)
+	if err = serialize.DeserializeFromBytes(req.Data, &rootBlock); err != nil {
+		return nil, err
+	}
+	return response, nil
+}

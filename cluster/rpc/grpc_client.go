@@ -57,6 +57,7 @@ const (
 	OpHandleNewMinorBlock
 	OpSetMining
 	OpAddMinorBlockHeaderList
+	OpCheckMinorBlocksInRoot
 
 	MasterServer = serverType(1)
 	SlaveServer  = serverType(0)
@@ -106,6 +107,7 @@ var (
 		OpSubmitWork:                  {name: "SubmitWork"},
 		OpAddMinorBlockListForSync:    {name: "AddMinorBlockListForSync"},
 		OpSetMining:                   {name: "SetMining"},
+		OpCheckMinorBlocksInRoot:      {name: "CheckMinorBlocksInRoot"},
 		// p2p api
 		OpGetMinorBlockList:       {name: "GetMinorBlockList"},
 		OpGetMinorBlockHeaderList: {name: "GetMinorBlockHeaderList"},

@@ -634,6 +634,15 @@ func (s *SlaveConnection) SetMining(mining bool) error {
 	return err
 }
 
+func (s *SlaveConnection) CheckMinorBlocksInRoot(rootBlock *types.RootBlock) error {
+	bytes, err := serialize.SerializeToBytes(rootBlock)
+	if err != nil {
+		return err
+	}
+	_, err = s.client.Call(s.target, &rpc.Request{Op: rpc.OpCheckMinorBlocksInRoot, Data: bytes})
+	return err
+}
+
 // get minor block by hash or by height
 func (s *SlaveConnection) getMinorBlock(hash common.Hash, height *uint64,
 	branch account.Branch, needExtraInfo bool) (*types.MinorBlock, *rpc.PoSWInfo, error) {

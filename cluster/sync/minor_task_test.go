@@ -107,7 +107,7 @@ func newMinorBlockChain(sz int) (blockchain, ethdb.Database) {
 	if err != nil {
 		panic(fmt.Sprintf("failed to init minor blockchain: %v", err))
 	}
-	if _, err := blockchain.InsertChain(blocks, nil); err != nil {
+	if _, err := blockchain.InsertChain(blocks, false); err != nil {
 		panic(fmt.Sprintf("failed to insert minor blocks: %v", err))
 	}
 
