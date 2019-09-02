@@ -54,7 +54,7 @@ func (c *CommonEngine) remote() {
 
 	makeWork := func(block types.IBlock, adjustedDiff *big.Int) {
 		hash := block.IHeader().SealHash()
-		if _, ok := works.Get(hash); ok {
+		if works.Contains(hash) {
 			return
 		}
 
