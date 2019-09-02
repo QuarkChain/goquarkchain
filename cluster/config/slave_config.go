@@ -10,6 +10,7 @@ type SlaveConfig struct {
 	IP            string             `json:"HOST"` // DEFAULT_HOST
 	Port          uint16             `json:"PORT"` // 38392
 	ID            string             `json:"ID"`
+	WSPort        uint16             `json:"WEBSOCKET_JSON_RPC_PORT"`
 	ChainMaskList []*types.ChainMask `json:"-"`
 }
 
@@ -45,8 +46,9 @@ func (s *SlaveConfig) UnmarshalJSON(input []byte) error {
 
 func NewDefaultSlaveConfig() *SlaveConfig {
 	slaveConfig := SlaveConfig{
-		IP:   "127.0.0.1",
-		Port: slavePort,
+		IP:     DefaultHost,
+		Port:   slavePort,
+		WSPort: DefaultWSPort,
 	}
 	return &slaveConfig
 }

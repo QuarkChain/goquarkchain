@@ -20,9 +20,8 @@ var (
 
 func testNodeConfig() *Config {
 	return &Config{
-		Name:      "test node",
-		SvrModule: "rpc.",
-		P2P:       p2p.Config{PrivateKey: testNodeKey},
+		Name: "test node",
+		P2P:  p2p.Config{PrivateKey: testNodeKey},
 	}
 }
 

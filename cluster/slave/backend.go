@@ -8,7 +8,6 @@ import (
 	"github.com/QuarkChain/goquarkchain/p2p"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/rpc"
-	"reflect"
 	"sync"
 )
 
@@ -90,9 +89,14 @@ func (s *SlaveBackend) Protocols() (protos []p2p.Protocol) { return nil }
 func (s *SlaveBackend) APIs() []rpc.API {
 	apis := []rpc.API{
 		{
-			Namespace: "rpc." + reflect.TypeOf(SlaveServerSideOp{}).Name(),
+			Namespace: "grpc",
 			Version:   "3.0",
 			Service:   NewServerSideOp(s),
+			Public:    false,
+		}, {
+			Namespace: "ws",
+			Version:   "3.0",
+			Service:   NewWebsocketAPI(s),
 			Public:    false,
 		},
 	}

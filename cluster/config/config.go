@@ -27,8 +27,11 @@ const (
 	// PoWQkchash is the consensus type running qkchash algorithm.
 	PoWQkchash = "POW_QKCHASH"
 
-	GrpcPort uint16 = 38591
-	GrpcHost        = "127.0.0.1"
+	DefaultPubRpcPort  uint16 = 38391
+	DefaultWSPort      uint16 = 38392
+	DefaultPrivRpcPort uint16 = 38491
+	GrpcPort           uint16 = 38591
+	DefaultHost               = "localhost"
 
 	HeartbeatInterval = time.Duration(4 * time.Second)
 )
@@ -123,8 +126,6 @@ type RootConfig struct {
 	EpochInterval                  *big.Int        `json:"EPOCH_INTERVAL"`
 	DifficultyAdjustmentCutoffTime uint32          `json:"DIFFICULTY_ADJUSTMENT_CUTOFF_TIME"`
 	DifficultyAdjustmentFactor     uint32          `json:"DIFFICULTY_ADJUSTMENT_FACTOR"`
-	GRPCHost                       string          `json:"-"`
-	GRPCPort                       uint16          `json:"-"`
 }
 
 func NewRootConfig() *RootConfig {
@@ -138,8 +139,6 @@ func NewRootConfig() *RootConfig {
 		EpochInterval:                  new(big.Int).SetUint64(210000 * 10),
 		DifficultyAdjustmentCutoffTime: 40,
 		DifficultyAdjustmentFactor:     1024,
-		GRPCHost:                       "127.0.0.1",
-		GRPCPort:                       GrpcPort,
 	}
 }
 

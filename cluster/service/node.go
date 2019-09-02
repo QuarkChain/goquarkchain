@@ -14,7 +14,6 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
-	"strings"
 	"sync"
 )
 
@@ -34,23 +33,22 @@ type Node struct {
 	rpcAPIs       []rpc.API   // List of APIs currently provided by the node
 	inprocHandler *rpc.Server // In-process RPC request handler to process the API requests
 
-	ipcEndpoint string       // IPC endpoint to listen at (empty = IPC disabled)
 	ipcListener net.Listener // IPC RPC listener socket to serve API requests
 	ipcHandler  *rpc.Server  // IPC RPC request handler to process the API requests
 
-	httpEndpoint  string       // public HTTP endpoint (interface + port) to listen at (empty = HTTP disabled)
 	httpWhitelist []string     // public HTTP RPC modules to allow through this endpoint
 	httpListener  net.Listener // public HTTP RPC listener socket to server API requests
 	httpHandler   *rpc.Server  // public HTTP RPC request handler to process the API requests
 
-	httpPrivEndpoint string       // private HTTP endpoint (interface + port) to listen at (empty = HTTP disabled)
 	httpPrivListener net.Listener // private HTTP RPC listener socket to server API requests
 	httpPrivHandler  *rpc.Server  // private HTTP RPC request handler to process the API requests
 
-	isMaster    bool         // node module, true master type full functions start, false slave type just start part functions.
-	svrEndpoint string       // GRPC endpoint (interface + port) to listen at (empty = grpc disabled)
-	svrListener net.Listener // GRPC listener socket to server API requests
-	svrHandler  *grpc.Server // GRPC request handler to process the API requests
+	isMaster     bool         // node module, true master type full functions start, false slave type just start part functions.
+	grpcListener net.Listener // GRPC listener socket to server API requests
+	grpcHandler  *grpc.Server // GRPC request handler to process the API requests
+
+	wsListener net.Listener // Websocket RPC listener socket to server API requests
+	wsHandler  *rpc.Server  // Websocket RPC request handler to process the API requests
 
 	stop chan struct{} // Channel to wait for termination notifications
 	lock sync.RWMutex
@@ -78,16 +76,12 @@ func New(conf *Config) (*Node, error) {
 	// Note: any interaction with Config that would create/touch files
 	// in the data directory or instance directory is delayed until Start.
 	node := &Node{
-		config:           conf,
-		serviceFuncs:     []ServiceConstructor{},
-		ipcEndpoint:      conf.IPCEndpoint(),
-		httpEndpoint:     conf.HTTPEndpoint,
-		httpPrivEndpoint: conf.HTTPPrivEndpoint,
-		svrEndpoint:      conf.GRPCEndpoint(),
-		eventmux:         new(event.TypeMux),
-		isMaster:         true,
-		sigc:             make(chan os.Signal, 1),
-		log:              conf.Logger,
+		config:       conf,
+		serviceFuncs: []ServiceConstructor{},
+		eventmux:     new(event.TypeMux),
+		isMaster:     true,
+		sigc:         make(chan os.Signal, 1),
+		log:          conf.Logger,
 	}
 	return node, nil
 }
@@ -232,36 +226,31 @@ func (n *Node) openDataDir() error {
 // assumptions about the state of the node.
 func (n *Node) startRPC(services map[reflect.Type]Service) error {
 	// Gather all the possible APIs to surface
-	apis := n.apis()
-	var (
-		grpcApis []rpc.API
-		err      error
-	)
-	for _, service := range services {
-		for _, api := range service.APIs() {
-			if strings.HasPrefix(api.Namespace, n.config.SvrModule) {
-				// api.Namespace = strings.Replace(api.Namespace, n.config.SvrModule, "", 1)
-				api.Namespace = strings.TrimSpace(api.Namespace)
-				grpcApis = append(grpcApis, api)
-			} else {
-				apis = append(apis, api)
-			}
-		}
+	apis := make([]rpc.API, 0, len(services))
+	for _, srv := range services {
+		apis = append(apis, srv.APIs()...)
 	}
-	if err = n.startGRPC(n.svrEndpoint, grpcApis); err != nil {
+	if err := n.startGRPC(apis, n.config.GRPCModules); err != nil {
 		n.stopRPC()
 		return err
 	}
+
+	// start ws service
+	if err := n.startWS(apis, n.config.WSModules, n.config.WSOrigins); err != nil {
+		n.stopWS()
+		return err
+	}
+
 	if n.IsMaster() {
-		if err = n.startIPC(apis); err != nil {
+		if err := n.startIPC(apis); err != nil {
 			n.stopRPC()
 			return err
 		}
-		if err = n.startHTTP(apis, n.config.HTTPModules, n.config.HTTPTimeouts); err != nil {
+		if err := n.startHTTP(apis, n.config.HTTPModules, n.config.HTTPTimeouts); err != nil {
 			n.stopRPC()
 			return err
 		}
-		if err = n.startPrivHTTP(apis, n.config.HTTPModules, n.config.HTTPTimeouts); err != nil {
+		if err := n.startPrivHTTP(apis, n.config.HTTPModules, n.config.HTTPTimeouts); err != nil {
 			n.stopRPC()
 			return err
 		}
@@ -271,8 +260,18 @@ func (n *Node) startRPC(services map[reflect.Type]Service) error {
 	return nil
 }
 
+func (n *Node) stopRPC() {
+	n.stopGRPC()
+	n.stopWS()
+	if n.IsMaster() {
+		n.stopIPC()
+		n.stopHTTP()
+		n.stopPrivHTTP()
+	}
+}
+
 func (n *Node) apiFilter(nodeApis []rpc.API, isPublic bool, modules []string) []rpc.API {
-	apis := n.apis()
+	apis := make([]rpc.API, 0)
 	for _, module := range modules {
 		for _, api := range nodeApis {
 			if api.Namespace == module && api.Public == isPublic {
@@ -285,16 +284,16 @@ func (n *Node) apiFilter(nodeApis []rpc.API, isPublic bool, modules []string) []
 
 // startIPC initializes and starts the IPC RPC endpoint.
 func (n *Node) startIPC(apis []rpc.API) error {
-	if n.ipcEndpoint == "" {
+	if n.config.IPCPath == "" {
 		return nil // IPC disabled.
 	}
-	listener, handler, err := rpc.StartIPCEndpoint(n.ipcEndpoint, apis)
+	listener, handler, err := rpc.StartIPCEndpoint(n.config.IPCPath, apis)
 	if err != nil {
 		return err
 	}
 	n.ipcListener = listener
 	n.ipcHandler = handler
-	n.log.Info("IPC endpoint opened", "url", n.ipcEndpoint)
+	n.log.Info("IPC endpoint opened", "url", n.config.IPCPath)
 	return nil
 }
 
@@ -304,7 +303,7 @@ func (n *Node) stopIPC() {
 		n.ipcListener.Close()
 		n.ipcListener = nil
 
-		n.log.Info("IPC endpoint closed", "url", n.ipcEndpoint)
+		n.log.Info("IPC endpoint closed", "url", n.config.IPCPath)
 	}
 	if n.ipcHandler != nil {
 		n.ipcHandler.Stop()
@@ -312,80 +311,86 @@ func (n *Node) stopIPC() {
 	}
 }
 
-func (n *Node) startGRPC(endpoint string, apis []rpc.API) error {
-	if endpoint == "" {
+func (n *Node) startGRPC(apis []rpc.API, modules []string) error {
+	if n.config.GRPCEndpoint == "" {
 		return nil // grpc disapbled
 	}
-	listener, handler, err := qkcrpc.StartGRPCServer(endpoint, apis)
+
+	apis = n.apiFilter(apis, false, modules)
+	listener, handler, err := qkcrpc.StartGRPCServer(n.config.GRPCEndpoint, apis)
 	if err != nil {
 		return err
 	}
-	n.svrListener = listener
-	n.svrHandler = handler
-	n.log.Info("grpc endpoint opened", "url", n.svrEndpoint)
+	n.grpcListener = listener
+	n.grpcHandler = handler
+	n.log.Info("grpc endpoint opened", "url", n.config.GRPCEndpoint)
 	return nil
 }
 
-func (n *Node) stopRPC() {
-	n.stopGRPC()
-	if n.IsMaster() {
-		n.stopIPC()
-		n.stopHTTP()
-		n.stopPrivHTTP()
+func (n *Node) stopGRPC() {
+	if n.grpcListener != nil {
+		n.grpcListener.Close()
+		n.grpcListener = nil
+
+		n.log.Info("grpc endpoint closed", "url", n.config.GRPCEndpoint)
+	}
+	if n.grpcHandler != nil {
+		n.grpcHandler.Stop()
+		n.grpcHandler = nil
 	}
 }
 
-func (n *Node) stopGRPC() {
-	if n.svrListener != nil {
-		n.svrListener.Close()
-		n.svrListener = nil
-
-		n.log.Info("grpc endpoint closed", "url", n.svrEndpoint)
+// startWS initializes and starts the websocket RPC endpoint.
+func (n *Node) startWS(apis []rpc.API, modules []string, wsOrigins []string) error {
+	// Short circuit if the WS endpoint isn't being exposed
+	if n.config.WSEndpoint == "" {
+		return nil
 	}
-	if n.svrHandler != nil {
-		n.svrHandler.Stop()
-		n.svrHandler = nil
+	listener, handler, err := rpc.StartWSEndpoint(n.config.WSEndpoint, apis, modules, wsOrigins, false)
+	if err != nil {
+		return err
+	}
+	n.log.Info("WebSocket endpoint opened", "url", fmt.Sprintf("ws://%s", listener.Addr()))
+	// All listeners booted successfully
+	n.wsListener = listener
+	n.wsHandler = handler
+
+	return nil
+}
+
+// stopWS terminates the websocket RPC endpoint.
+func (n *Node) stopWS() {
+	if n.wsListener != nil {
+		n.wsListener.Close()
+		n.wsListener = nil
+
+		n.log.Info("WebSocket endpoint closed", "url", fmt.Sprintf("ws://%s", n.config.WSEndpoint))
+	}
+	if n.wsHandler != nil {
+		n.wsHandler.Stop()
+		n.wsHandler = nil
 	}
 }
 
 // startHTTP initializes and starts the HTTP RPC endpoint.
 func (n *Node) startHTTP(apis []rpc.API, modules []string, timeouts rpc.HTTPTimeouts) error {
 	// Short circuit if the HTTP endpoint isn't being exposed
-	if n.httpEndpoint == "" {
+	if n.config.HTTPEndpoint == "" {
 		return nil
 	}
 	var (
 		publicApis = n.apiFilter(apis, true, modules)
 		eptParams  []string
 	)
-	listener, handler, err := rpc.StartHTTPEndpoint(n.httpEndpoint, publicApis, modules, eptParams, eptParams, timeouts)
+	listener, handler, err := rpc.StartHTTPEndpoint(n.config.HTTPEndpoint, publicApis, modules, eptParams, eptParams, timeouts)
 	if err != nil {
 		return err
 	}
-	n.log.Info("public HTTP endpoint opened", "url", fmt.Sprintf("http://%s", n.httpEndpoint))
+	n.log.Info("public HTTP endpoint opened", "url", fmt.Sprintf("http://%s", n.config.HTTPEndpoint))
 	// All listeners booted successfully
 	n.httpListener = listener
 	n.httpHandler = handler
 
-	return nil
-}
-
-func (n *Node) startPrivHTTP(apis []rpc.API, modules []string, timeouts rpc.HTTPTimeouts) error {
-	if n.httpPrivEndpoint == "" {
-		return nil
-	}
-	var (
-		privateApis = n.apiFilter(apis, false, modules)
-		eptParams   []string
-	)
-
-	listener, handler, err := rpc.StartHTTPEndpoint(n.httpPrivEndpoint, privateApis, modules, eptParams, eptParams, timeouts)
-	if err != nil {
-		return err
-	}
-	n.httpPrivListener = listener
-	n.httpPrivHandler = handler
-	n.log.Info("private HTTP endpoint opened", "url", fmt.Sprintf("http://%s", n.httpPrivEndpoint))
 	return nil
 }
 
@@ -395,7 +400,7 @@ func (n *Node) stopHTTP() {
 		n.httpListener.Close()
 		n.httpListener = nil
 
-		n.log.Info("public HTTP endpoint closed", "url", fmt.Sprintf("http://%s", n.httpEndpoint))
+		n.log.Info("public HTTP endpoint closed", "url", fmt.Sprintf("http://%s", n.config.HTTPEndpoint))
 	}
 	if n.httpHandler != nil {
 		n.httpHandler.Stop()
@@ -403,12 +408,31 @@ func (n *Node) stopHTTP() {
 	}
 }
 
+func (n *Node) startPrivHTTP(apis []rpc.API, modules []string, timeouts rpc.HTTPTimeouts) error {
+	if n.config.HTTPPrivEndpoint == "" {
+		return nil
+	}
+	var (
+		privateApis = n.apiFilter(apis, false, modules)
+		eptParams   []string
+	)
+
+	listener, handler, err := rpc.StartHTTPEndpoint(n.config.HTTPPrivEndpoint, privateApis, modules, eptParams, eptParams, timeouts)
+	if err != nil {
+		return err
+	}
+	n.httpPrivListener = listener
+	n.httpPrivHandler = handler
+	n.log.Info("private HTTP endpoint opened", "url", fmt.Sprintf("http://%s", n.config.HTTPPrivEndpoint))
+	return nil
+}
+
 func (n *Node) stopPrivHTTP() {
 	if n.httpPrivListener != nil {
 		n.httpPrivListener.Close()
 		n.httpPrivListener = nil
 
-		n.log.Info("private HTTP endpoint closed", "url", fmt.Sprintf("http://%s", n.httpPrivEndpoint))
+		n.log.Info("private HTTP endpoint closed", "url", fmt.Sprintf("http://%s", n.config.HTTPPrivEndpoint))
 	}
 }
 
@@ -544,7 +568,7 @@ func (n *Node) InstanceDir() string {
 
 // IPCEndpoint retrieves the current IPC endpoint used by the protocol stack.
 func (n *Node) IPCEndpoint() string {
-	return n.ipcEndpoint
+	return n.config.IPCPath
 }
 
 // HTTPEndpoint retrieves the current HTTP endpoint used by the protocol stack.
@@ -555,7 +579,7 @@ func (n *Node) HTTPEndpoint() string {
 	if n.httpListener != nil {
 		return n.httpListener.Addr().String()
 	}
-	return n.httpEndpoint
+	return n.config.HTTPEndpoint
 }
 
 // EventMux retrieves the event multiplexer used by all the network services in

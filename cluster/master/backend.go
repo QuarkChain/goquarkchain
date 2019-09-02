@@ -30,7 +30,6 @@ import (
 	"math/big"
 	"net"
 	"os"
-	"reflect"
 	"sort"
 	"sync"
 	"syscall"
@@ -189,7 +188,7 @@ func (s *QKCMasterBackend) APIs() []ethRPC.API {
 	apis := qkcapi.GetAPIs(s)
 	return append(apis, []ethRPC.API{
 		{
-			Namespace: "rpc." + reflect.TypeOf(MasterServerSideOp{}).Name(),
+			Namespace: "grpc",
 			Version:   "3.0",
 			Service:   NewServerSideOp(s),
 			Public:    false,
@@ -320,7 +319,7 @@ func (s *QKCMasterBackend) getSlaveInfoListFromClusterConfig() []*rpc.SlaveInfo 
 
 func (s *QKCMasterBackend) initShards() error {
 	var g errgroup.Group
-	ip, port := s.clusterConfig.Quarkchain.Root.GRPCHost, s.clusterConfig.Quarkchain.Root.GRPCPort
+	ip, port := s.clusterConfig.Quarkchain.GRPCHost, s.clusterConfig.Quarkchain.GRPCPort
 	for _, client := range s.clientPool {
 		client := client
 		g.Go(func() error {
