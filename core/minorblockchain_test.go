@@ -178,7 +178,6 @@ func testMinorBlockChainImport(chain []types.IBlock, blockchain *MinorBlockChain
 		if err != nil {
 			return err
 		}
-		statedb.SetNonce(blockchain.Config().Root.CoinbaseAddress.Recipient, 1)
 		statedb.SetTxCursorInfo(block.(*types.MinorBlock).Meta().XShardTxCursorInfo)
 		receipts, _, usedGas, err := blockchain.Processor().Process(block.(*types.MinorBlock), statedb, vm.Config{})
 		if err != nil {

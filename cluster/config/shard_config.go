@@ -73,7 +73,9 @@ func (a Allocation) MarshalJSON() ([]byte, error) {
 }
 
 func (a *Allocation) UnmarshalJSON(input []byte) error {
-	if !strings.Contains(string(input), "balances") {
+	if !strings.Contains(string(input), "balances") &&
+		!strings.Contains(string(input), "code") &&
+		!strings.Contains(string(input), "storage") {
 		var jsonConfig map[string]*big.Int
 		if err := json.Unmarshal(input, &jsonConfig); err != nil {
 			return err
@@ -82,6 +84,7 @@ func (a *Allocation) UnmarshalJSON(input []byte) error {
 		//# v1: {addr: {QKC: 1234}}
 		//# v2: {addr: {balances: {QKC: 1234}, code: 0x, storage: {0x12: 0x34}}}
 		a.Balances = jsonConfig
+		return nil
 	}
 
 	var jsonConfig AllocMarshalling
