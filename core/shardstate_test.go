@@ -2617,7 +2617,7 @@ func TestGetTxForJsonRpc(t *testing.T) {
 	// account is random and key is not match,so not use assert.Equal there
 	// but next returns the same except for address and key
 }
-func TestReorgBigToSmall(t *testing.T) {
+func TestReorg(t *testing.T) {
 	/*
 		r0 -> rs1
 		r0 -> rr1 -> rr2

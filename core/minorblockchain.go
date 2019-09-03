@@ -1464,7 +1464,8 @@ func (m *MinorBlockChain) reorg(oldBlock, newBlock types.IBlock) error {
 		newChain = append(newChain, newBlock)
 		collectLogs(oldBlock.Hash())
 		if oldBlock.NumberU64() == 0 || newBlock.NumberU64() == 0 { //revert genesisBlock: no commonBlock
-			log.Warn("reorg", "ready to revert genesis? oldBlock", oldBlock.Hash().String(), "newBlock", newBlock.Hash().String())
+			log.Warn("reorg", "ready to revert genesis? oldBlock", oldBlock.Hash().String(),
+				"newBlock", newBlock.Hash().String(), "currBlock", m.CurrentBlock().Hash().String())
 			break
 		}
 
@@ -1490,7 +1491,9 @@ func (m *MinorBlockChain) reorg(oldBlock, newBlock types.IBlock) error {
 		}
 
 	} else {
-		log.Warn("reorg", "same chain oldBlock", oldBlock.NumberU64(), "oldBlock.Hash", oldBlock.Hash().String(), "newBlock", newBlock.NumberU64(), "newBlock's hash", newBlock.Hash().String())
+		// we support reorg block from same chain,because we should delete and add tx index
+		log.Warn("reorg", "same chain oldBlock", oldBlock.NumberU64(), "oldBlock.Hash", oldBlock.Hash().String(),
+			"newBlock", newBlock.NumberU64(), "newBlock's hash", newBlock.Hash().String())
 		if err := m.SetHead(newBlock.NumberU64()); err != nil {
 			return err
 		}
