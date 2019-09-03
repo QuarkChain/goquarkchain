@@ -10,6 +10,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"math/big"
+	"strings"
 )
 
 type ShardGenesis struct {
@@ -72,6 +73,17 @@ func (a Allocation) MarshalJSON() ([]byte, error) {
 }
 
 func (a *Allocation) UnmarshalJSON(input []byte) error {
+	if !strings.Contains(string(input), "balances") {
+		var jsonConfig map[string]*big.Int
+		if err := json.Unmarshal(input, &jsonConfig); err != nil {
+			return err
+		}
+		//# backward compatible:
+		//# v1: {addr: {QKC: 1234}}
+		//# v2: {addr: {balances: {QKC: 1234}, code: 0x, storage: {0x12: 0x34}}}
+		a.Balances = jsonConfig
+	}
+
 	var jsonConfig AllocMarshalling
 	if err := json.Unmarshal(input, &jsonConfig); err != nil {
 		return err
