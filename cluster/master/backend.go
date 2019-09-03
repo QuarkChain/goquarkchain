@@ -606,18 +606,9 @@ func (s *QKCMasterBackend) SendMiningConfigToSlaves(mining bool) error {
 
 // AddRootBlock add root block to all slaves
 func (s *QKCMasterBackend) AddRootBlock(rootBlock *types.RootBlock) error {
-	header := rootBlock.Header()
 	s.rootBlockChain.WriteCommittingHash(rootBlock.Hash())
-	diffAdjusted, _ := s.rootBlockChain.GetAdjustedDifficulty(header)
-	if diffAdjusted.Cmp(header.GetDifficulty()) == 0 && s.clusterConfig.Quarkchain.Root.PoSWConfig.Enabled {
-		poswAdjusted, err := s.getPoSWEffectiveDifficulty(header)
-		if err != nil {
-			return err
-		}
-
-		diffAdjusted = poswAdjusted
-	}
-	_, err := s.rootBlockChain.InsertChain([]types.IBlock{rootBlock}, diffAdjusted)
+	s.rootBlockChain.SetRootChainStakesFunc(s.GetRootChainStakes)
+	_, err := s.rootBlockChain.InsertChain([]types.IBlock{rootBlock})
 	if err != nil {
 		return err
 	}
@@ -633,9 +624,9 @@ func (s *QKCMasterBackend) AddRootBlock(rootBlock *types.RootBlock) error {
 	return nil
 }
 
-func (s *QKCMasterBackend) getPoSWEffectiveDifficulty(header types.IHeader) (*big.Int, error) {
+func (s *QKCMasterBackend) GetRootChainStakes(coinbase account.Address, lastMinor common.Hash) (*big.Int,
+	common.Address, error) {
 
-	addr := header.GetCoinbase()
 	fullShardId := uint32(1)
 	var slave rpc.ISlaveConn
 	if cons, ok := s.branchToSlaves[fullShardId]; !ok {
@@ -643,16 +634,11 @@ func (s *QKCMasterBackend) getPoSWEffectiveDifficulty(header types.IHeader) (*bi
 	} else {
 		slave = cons[0]
 	}
-	// get chain 0 shard 0's last confirmed block header
-	lastConfirmedMinorBlockHeader := s.rootBlockChain.GetLastConfirmedMinorBlockHeader(header.GetParentHash(), fullShardId)
-	if lastConfirmedMinorBlockHeader == nil {
-		return nil, errors.New("no shard block has been confirmed")
-	}
-	stakes, signer, err := slave.GetRootChainStakes(addr, lastConfirmedMinorBlockHeader.Hash())
+	stakes, signer, err := slave.GetRootChainStakes(coinbase, lastMinor)
 	if err != nil {
-		return nil, err
+		return nil, common.Address{}, err
 	}
-	return s.rootBlockChain.GetPoSWEffectiveDifficulty(header, stakes, signer)
+	return stakes, signer, nil
 }
 
 // SetTargetBlockTime set target Time from jsonRpc
