@@ -674,7 +674,7 @@ func (srv *Server) run(dialstate dialer) {
 		for _, peer := range peers {
 			pr := peer
 			if srv.blackNodeFilter.chkDialoutBlacklist(pr.Node().IP().String()) {
-				srv.delpeer <- peerDrop{pr, nil, false}
+				delete(peers, pr.ID())
 			}
 		}
 		srv.blackNodeFilter.periodicallyUnblacklist()
@@ -752,7 +752,7 @@ running:
 			// At this point the connection is past the protocol handshake.
 			// Its capabilities are known and the remote identity is verified.
 			err := srv.protoHandshakeChecks(peers, inboundCount, c)
-			if err == nil && !srv.blackNodeFilter.chkDialoutBlacklist(c.fd.RemoteAddr().String()) {
+			if err == nil && !srv.blackNodeFilter.chkDialoutBlacklist(c.node.IP().String()) {
 				// The handshakes are done and it passed all checks.
 				p := newPeer(c, srv.Protocols)
 				// If message events are enabled, pass the peerFeed
