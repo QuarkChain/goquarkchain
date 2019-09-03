@@ -9,16 +9,15 @@ import (
 	"sort"
 	"time"
 
+	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
+	qkcCommon "github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/core/rawdb"
+	"github.com/QuarkChain/goquarkchain/core/state"
+	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/core/vm"
 	"github.com/QuarkChain/goquarkchain/qkcdb"
 	"github.com/QuarkChain/goquarkchain/serialize"
-
-	"github.com/QuarkChain/goquarkchain/account"
-	qkcCommon "github.com/QuarkChain/goquarkchain/common"
-	"github.com/QuarkChain/goquarkchain/core/state"
-	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
 )
@@ -473,7 +472,7 @@ func (m *MinorBlockChain) FinalizeAndAddBlock(block *types.MinorBlock) (*types.M
 	coinbaseAmount.Add(evmState.GetBlockFee())
 
 	block.Finalize(receipts, evmState.IntermediateRoot(true), evmState.GetGasUsed(), evmState.GetXShardReceiveGasUsed(), coinbaseAmount, evmState.GetTxCursorInfo())
-	_, err = m.InsertChain([]types.IBlock{block}, nil) // will lock
+	_, err = m.InsertChain([]types.IBlock{block}, false) // will lock
 	if err != nil {
 		return nil, nil, err
 	}
@@ -563,7 +562,7 @@ func (m *MinorBlockChain) ExecuteTx(tx *types.Transaction, fromAddress *account.
 	gp := new(GasPool).AddGas(mBlock.Header().GetGasLimit().Uint64())
 
 	to := evmTx.EvmTx.To()
-	toFullShardKey:=tx.EvmTx.ToFullShardKey()
+	toFullShardKey := tx.EvmTx.ToFullShardKey()
 	msg := types.NewMessage(fromAddress.Recipient, to, evmTx.EvmTx.Nonce(), evmTx.EvmTx.Value(), evmTx.EvmTx.Gas(),
 		evmTx.EvmTx.GasPrice(), evmTx.EvmTx.Data(), false, tx.EvmTx.FromFullShardKey(), &toFullShardKey,
 		tx.EvmTx.TransferTokenID(), tx.EvmTx.GasTokenID())
@@ -1078,7 +1077,7 @@ func (m *MinorBlockChain) EstimateGas(tx *types.Transaction, fromAddress account
 
 		gp := new(GasPool).AddGas(evmState.GetGasLimit().Uint64())
 		to := evmTx.EvmTx.To()
-		toFullShardKey:=tx.EvmTx.ToFullShardKey()
+		toFullShardKey := tx.EvmTx.ToFullShardKey()
 		msg := types.NewMessage(fromAddress.Recipient, to, evmTx.EvmTx.Nonce(), evmTx.EvmTx.Value(), evmTx.EvmTx.Gas(),
 			evmTx.EvmTx.GasPrice(), evmTx.EvmTx.Data(), false, tx.EvmTx.FromFullShardKey(), &toFullShardKey,
 			tx.EvmTx.TransferTokenID(), tx.EvmTx.GasTokenID())

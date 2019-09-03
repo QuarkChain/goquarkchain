@@ -32,7 +32,7 @@ func NewRootBlockValidator(config *config.QuarkChainConfig, blockchain *RootBloc
 }
 
 // ValidateBlock validates the given block and verifies the block header's roots.
-func (v *RootBlockValidator) ValidateBlock(block types.IBlock) error {
+func (v *RootBlockValidator) ValidateBlock(block types.IBlock, force bool) error {
 	// Check whether the block's known, and if not, that it's linkable
 	if block == nil {
 		panic("input block for ValidateBlock is nil")
@@ -46,7 +46,7 @@ func (v *RootBlockValidator) ValidateBlock(block types.IBlock) error {
 	if rootBlock.NumberU64() < 1 {
 		return errors.New("unexpected height")
 	}
-	if v.blockChain.HasBlock(block.Hash()) {
+	if v.blockChain.HasBlock(block.Hash()) && !force {
 		return ErrKnownBlock
 	}
 	// Header validity is known at this point, check the uncles and transactions
@@ -191,7 +191,7 @@ type fakeRootBlockValidator struct {
 	Err error
 }
 
-func (v *fakeRootBlockValidator) ValidateBlock(block types.IBlock) error {
+func (v *fakeRootBlockValidator) ValidateBlock(block types.IBlock, force bool) error {
 	return v.Err
 }
 

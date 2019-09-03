@@ -66,4 +66,5 @@ type ISlaveConn interface {
 	SubmitWork(work *SubmitWorkRequest) (success bool, err error)
 	SetMining(mining bool) error
 	GetRootChainStakes(address account.Address, lastMinor common.Hash) (*big.Int, account.Recipient, error)
+	CheckMinorBlocksInRoot(rootBlock *types.RootBlock) error
 }

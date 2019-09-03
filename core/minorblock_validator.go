@@ -57,7 +57,7 @@ func NewBlockValidator(quarkChainConfig *config.QuarkChainConfig, blockchain *Mi
 // ValidateBlock validates the given block's uncles and verifies the block
 // header's transaction and uncle roots. The Headers are assumed to be already
 // validated at this point.
-func (v *MinorBlockValidator) ValidateBlock(mBlock types.IBlock) error {
+func (v *MinorBlockValidator) ValidateBlock(mBlock types.IBlock, force bool) error {
 	if common.IsNil(mBlock) {
 		log.Error(v.logInfo, "check block err", ErrMinorBlockIsNil)
 		return ErrMinorBlockIsNil
@@ -79,7 +79,7 @@ func (v *MinorBlockValidator) ValidateBlock(mBlock types.IBlock) error {
 		return errBlockHeight
 	}
 	// Check whether the block's known, and if not, that it's linkable
-	if v.bc.HasBlockAndState(block.Hash()) {
+	if v.bc.HasBlockAndState(block.Hash()) && !force {
 		log.Error(v.logInfo, "already have this block err", ErrKnownBlock, "height", block.NumberU64(), "hash", block.Hash().String())
 		return ErrKnownBlock
 	}

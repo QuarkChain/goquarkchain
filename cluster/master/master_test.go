@@ -275,8 +275,8 @@ func initEnvWithConsensusType(t *testing.T, chanOp chan uint32, consensusType st
 			slaveID:       slaveID,
 		}
 	})
-	monkey.Patch(createDB, func(ctx *service.ServiceContext, name string, clean bool) (ethdb.Database, error) {
-		return ethdb.NewMemDatabase(), nil
+	monkey.Patch(createDB, func(ctx *service.ServiceContext, name string, clean bool, isReadOnly bool) (ethdb.Database, error) {
+		return service.NewQkcMemoryDB(isReadOnly), nil
 	})
 
 	ctx := &service.ServiceContext{}

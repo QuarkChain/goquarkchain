@@ -64,6 +64,9 @@ var AppHelpFlagGroups = []flagGroup{
 			utils.GRPCAddrFlag,
 			utils.GRPCPortFlag,
 			utils.EnableTransactionHistoryFlag,
+			utils.CheckDBFlag,
+			utils.CheckDBRBlockFromFlag,
+			utils.CheckDBRBlockToFlag,
 		},
 	},
 	{
