@@ -6,6 +6,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/p2p"
 	"github.com/ethereum/go-ethereum/common"
+	"math/big"
 )
 
 type NetworkError struct {
@@ -64,4 +65,5 @@ type ISlaveConn interface {
 	GetWork(branch account.Branch) (*consensus.MiningWork, error)
 	SubmitWork(work *SubmitWorkRequest) (success bool, err error)
 	SetMining(mining bool) error
+	GetRootChainStakes(address account.Address, lastMinor common.Hash) (*big.Int, account.Recipient, error)
 }

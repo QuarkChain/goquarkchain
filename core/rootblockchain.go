@@ -3,6 +3,7 @@
 package core
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"github.com/QuarkChain/goquarkchain/internal/qkcapi"
@@ -107,6 +108,7 @@ type RootBlockChain struct {
 	countMinorBlocks  bool
 	addBlockAndBroad  func(block *types.RootBlock) error
 	insertChainParams *InsertChainParams
+	posw              consensus.PoSWCalculator
 }
 
 // NewBlockChain returns a fully initialized block chain using information
@@ -1137,6 +1139,32 @@ func (m *RootBlockChain) GetAdjustedDifficulty(header types.IHeader) (*big.Int, 
 		adjustedDiff = new(big.Int).Div(rHeader.GetDifficulty(), new(big.Int).SetUint64(1000))
 	}
 	return adjustedDiff, nil
+}
+
+func (m *RootBlockChain) GetPoSWEffectiveDifficulty(header types.IHeader, stakes *big.Int, signer common.Address) (*big.Int, error) {
+	rHeader := header.(*types.RootBlockHeader)
+	pubKeyBytes, err := crypto.Ecrecover(rHeader.SealHash().Bytes(), rHeader.Signature[:])
+	if err != nil {
+		return nil, err
+	}
+	pubKey, err := crypto.DecompressPubkey(pubKeyBytes)
+	if err != nil {
+		return nil, err
+	}
+	if !bytes.Equal(crypto.PubkeyToAddress(*pubKey).Bytes(), signer.Bytes()) {
+		return rHeader.Difficulty, nil
+	}
+	return m.posw.PoSWDiffAdjust(header, stakes)
+}
+
+func (bc *RootBlockChain) GetLastConfirmedMinorBlockHeader(prevBlock common.Hash, fullShardId uint32) *types.MinorBlockHeader {
+	headers := bc.GetLatestMinorBlockHeaders(prevBlock)
+	for id, header := range headers {
+		if id == fullShardId {
+			return header
+		}
+	}
+	return nil
 }
 
 // SubscribeRemovedLogsEvent registers a subscription of RemovedLogsEvent.

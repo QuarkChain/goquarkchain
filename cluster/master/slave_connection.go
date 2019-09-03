@@ -3,6 +3,7 @@ package master
 import (
 	"errors"
 	"fmt"
+	"math/big"
 	"sync"
 	"time"
 
@@ -654,4 +655,8 @@ func (s *SlaveConnection) getMinorBlock(hash common.Hash, height *uint64,
 		return nil, nil, err
 	}
 	return minBlockResponse.MinorBlock, minBlockResponse.Extra, nil
+}
+
+func (s *SlaveConnection) GetRootChainStakes(address account.Address, lastMinor common.Hash) (*big.Int, account.Recipient, error) {
+	return nil, account.Recipient{}, nil
 }

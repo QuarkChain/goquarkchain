@@ -548,13 +548,23 @@ func (s *QKCMasterBackend) SendMiningConfigToSlaves(mining bool) error {
 
 // AddRootBlock add root block to all slaves
 func (s *QKCMasterBackend) AddRootBlock(rootBlock *types.RootBlock) error {
-	head := s.rootBlockChain.CurrentBlock().NumberU64()
+	header := rootBlock.Header()
 	s.rootBlockChain.WriteCommittingHash(rootBlock.Hash())
-	_, err := s.rootBlockChain.InsertChain([]types.IBlock{rootBlock})
+	diffAdjusted, _ := s.rootBlockChain.GetAdjustedDifficulty(header)
+	if diffAdjusted.Cmp(header.GetDifficulty()) == 0 && s.clusterConfig.Quarkchain.Root.PoSWConfig.Enabled {
+		poswAdjusted, err := s.getPoSWEffectiveDifficulty(header)
+		if err != nil {
+			return err
+		}
+
+		diffAdjusted = poswAdjusted
+	}
+	_, err := s.rootBlockChain.InsertChain([]types.IBlock{rootBlock}, diffAdjusted)
 	if err != nil {
 		return err
 	}
 	if err := s.broadcastRootBlockToSlaves(rootBlock); err != nil {
+		head := s.rootBlockChain.CurrentBlock().NumberU64()
 		if err := s.rootBlockChain.SetHead(head); err != nil {
 			panic(err)
 		}
@@ -563,6 +573,28 @@ func (s *QKCMasterBackend) AddRootBlock(rootBlock *types.RootBlock) error {
 	s.rootBlockChain.ClearCommittingHash()
 	go s.miner.HandleNewTip()
 	return nil
+}
+
+func (s *QKCMasterBackend) getPoSWEffectiveDifficulty(header types.IHeader) (*big.Int, error) {
+
+	addr := header.GetCoinbase()
+	fullShardId := uint32(1)
+	var slave rpc.ISlaveConn
+	if cons, ok := s.branchToSlaves[fullShardId]; !ok {
+		panic("chain 0 shard 0 missing.")
+	} else {
+		slave = cons[0]
+	}
+	// get chain 0 shard 0's last confirmed block header
+	lastConfirmedMinorBlockHeader := s.rootBlockChain.GetLastConfirmedMinorBlockHeader(header.GetParentHash(), fullShardId)
+	if lastConfirmedMinorBlockHeader == nil {
+		return nil, errors.New("no shard block has been confirmed")
+	}
+	stakes, signer, err := slave.GetRootChainStakes(addr, lastConfirmedMinorBlockHeader.Hash())
+	if err != nil {
+		return nil, err
+	}
+	return s.rootBlockChain.GetPoSWEffectiveDifficulty(header, stakes, signer)
 }
 
 // SetTargetBlockTime set target Time from jsonRpc

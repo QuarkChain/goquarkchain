@@ -125,6 +125,7 @@ type RootConfig struct {
 	DifficultyAdjustmentFactor     uint32          `json:"DIFFICULTY_ADJUSTMENT_FACTOR"`
 	GRPCHost                       string          `json:"-"`
 	GRPCPort                       uint16          `json:"-"`
+	PoSWConfig                     *POSWConfig     `json:"POSW_CONFIG"`
 }
 
 func NewRootConfig() *RootConfig {
