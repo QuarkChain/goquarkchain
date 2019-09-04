@@ -207,7 +207,7 @@ func NewMinorBlock(header *MinorBlockHeader, meta *MinorBlockMeta, txs []*Transa
 	}
 
 	if len(receipts) == 0 {
-		b.meta.ReceiptHash = EmptyTrieHash
+		b.meta.ReceiptHash = EmptyHash
 	} else {
 		b.meta.ReceiptHash = DeriveSha(Receipts(receipts))
 		b.header.Bloom = CreateBloom(receipts)
