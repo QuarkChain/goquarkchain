@@ -176,13 +176,13 @@ func (s *QKCMasterBackend) GetAllTx(branch account.Branch, start []byte, limit u
 	return slaveConn.GetAllTx(branch, start, limit)
 }
 
-func (s *QKCMasterBackend) GetLogs(branch account.Branch, address []account.Address, topics [][]common.Hash, startBlockNumber, endBlockNumber uint64) ([]*types.Log, error) {
+func (s *QKCMasterBackend) GetLogs(args *rpc.FilterQuery) ([]*types.Log, error) {
 	// not support earlist and pending
-	slaveConn := s.getOneSlaveConnection(branch)
+	slaveConn := s.getOneSlaveConnection(account.Branch{Value: args.FullShardId})
 	if slaveConn == nil {
 		return nil, ErrNoBranchConn
 	}
-	return slaveConn.GetLogs(branch, address, topics, uint64(startBlockNumber), uint64(endBlockNumber))
+	return slaveConn.GetLogs(args)
 }
 
 func (s *QKCMasterBackend) EstimateGas(tx *types.Transaction, fromAddress *account.Address) (uint32, error) {

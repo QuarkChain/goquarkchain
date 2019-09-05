@@ -285,9 +285,9 @@ func (s *SlaveBackend) GetAllTx(branch account.Branch, start []byte, limit uint3
 	return nil, nil, ErrMsg("GetAllTx")
 }
 
-func (s *SlaveBackend) GetLogs(topics [][]common.Hash, address []account.Address, start uint64, end uint64, branch uint32) ([]*types.Log, error) {
-	if shard, ok := s.shards[branch]; ok {
-		return shard.GetLogs(start, end, address, topics)
+func (s *SlaveBackend) GetLogs(args *rpc.FilterQuery) ([]*types.Log, error) {
+	if shard, ok := s.shards[args.FullShardId]; ok {
+		return shard.GetLogs(args)
 	}
 	return nil, ErrMsg("GetLogs")
 }

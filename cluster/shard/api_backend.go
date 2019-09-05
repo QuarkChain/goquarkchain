@@ -206,8 +206,8 @@ func (s *ShardBackend) GetAllTx(start []byte, limit uint32) ([]*rpc.TransactionD
 	return s.MinorBlockChain.GetAllTx(start, limit)
 }
 
-func (s *ShardBackend) GetLogs(start uint64, end uint64, address []account.Address, topics [][]common.Hash) ([]*types.Log, error) {
-	return s.MinorBlockChain.GetLogsByAddressAndTopic(start, end, address, topics)
+func (s *ShardBackend) GetLogs(args *rpc.FilterQuery) ([]*types.Log, error) {
+	return s.MinorBlockChain.GetLogsByAddressAndTopic(args)
 }
 
 func (s *ShardBackend) GetWork() (*consensus.MiningWork, error) {

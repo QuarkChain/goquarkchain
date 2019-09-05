@@ -311,7 +311,7 @@ func (s *SlaveServerSideOp) GetAllTx(ctx context.Context, req *rpc.Request) (*rp
 
 func (s *SlaveServerSideOp) GetLogs(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
 	var (
-		gReq     rpc.GetLogRequest
+		gReq     rpc.FilterQuery
 		gRes     rpc.GetLogResponse
 		response = &rpc.Response{RpcId: req.RpcId}
 		err      error
@@ -320,7 +320,7 @@ func (s *SlaveServerSideOp) GetLogs(ctx context.Context, req *rpc.Request) (*rpc
 		return nil, err
 	}
 
-	if gRes.Logs, err = s.slave.GetLogs(gReq.Topics, gReq.Addresses, gReq.StartBlock, gReq.EndBlock, gReq.Branch); err != nil {
+	if gRes.Logs, err = s.slave.GetLogs(&gReq); err != nil {
 		return nil, err
 	}
 

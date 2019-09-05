@@ -1491,30 +1491,11 @@ func (m *MinorBlockChain) GetAllTx(start []byte, limit uint32) ([]*rpc.Transacti
 	return m.getTransactionDetails(start, end, limit, GetAllTransaction, true, nil)
 }
 
-func (m *MinorBlockChain) GetLogsByAddressAndTopic(start uint64, end uint64, addresses []account.Address, topics [][]common.Hash) ([]*types.Log, error) {
-	addressValue := make([]common.Address, 0)
-	mapFullShardKey := make(map[uint32]bool)
-	for _, v := range addresses {
-		mapFullShardKey[v.FullShardKey] = true
-		addressValue = append(addressValue, v.Recipient)
-	}
-	if len(mapFullShardKey) != 1 {
-		return nil, errors.New("should have same full_shard_key for the given addresses")
-	}
-	fullShardID, err := m.clusterConfig.Quarkchain.GetFullShardIdByFullShardKey(addresses[0].FullShardKey)
-	if err != nil {
-		return nil, err
-	}
-	if fullShardID != m.branch.Value {
-		return nil, errors.New("not in this branch")
-	}
-	topicsValue := make([][]common.Hash, 0)
-	for _, v := range topics {
-		topicsValue = append(topicsValue, v)
-	}
-	filter := NewRangeFilter(m, start, end, addressValue, topicsValue)
+func (m *MinorBlockChain) GetLogsByAddressAndTopic(args *rpc.FilterQuery) ([]*types.Log, error) {
+	filter := NewRangeFilter(m, args.FromBlock.Uint64(), args.ToBlock.Uint64(), args.Addresses, args.Topics)
 	return filter.Logs()
 }
+
 func (m *MinorBlockChain) putTxIndexDB(key []byte) error {
 	err := m.db.Put(key, []byte("1")) //TODO????
 	return err
