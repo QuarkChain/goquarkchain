@@ -97,9 +97,10 @@ func (m *Miner) commit(addr *account.Address) {
 		log.Error(m.logInfo, "block's height small than tipHeight after commit blockNumber ,no need to seal", block.NumberU64(), "tip", m.getTip())
 		return
 	}
-	if addr == nil {
+	if addr == nil || account.IsSameAddress(m.api.GetDefaultCoinbaseAddress(), *addr) {
 		m.workCh <- workAdjusted{block, diff}
 	} else {
+		// only happen on remote mining
 		if err := m.engine.Seal(nil, block, diff, m.resultCh, m.stopCh); err != nil {
 			log.Error(m.logInfo, "Seal block to mine err", err) //right? need discuss
 		}
@@ -159,6 +160,7 @@ func (m *Miner) GetWork(coinbaseAddr *account.Address) (*consensus.MiningWork, e
 		m.commit(coinbaseAddr)
 		addrForGetWork = *coinbaseAddr
 	}
+
 	work, err := m.engine.GetWork(addrForGetWork)
 	if err != nil {
 		return nil, err
@@ -175,6 +177,7 @@ func (m *Miner) SubmitWork(nonce uint64, hash, digest common.Hash, signature *[6
 
 func (m *Miner) HandleNewTip() {
 	log.Info(m.logInfo, "handle new tip: height", m.getTip())
+	m.engine.RefreshWork(m.api.GetTip())
 	m.commit(nil)
 }
 

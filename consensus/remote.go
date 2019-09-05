@@ -7,6 +7,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/hashicorp/golang-lru"
 	"math/big"
+	"sync"
 	"time"
 
 	"github.com/QuarkChain/goquarkchain/core/types"
@@ -49,7 +50,6 @@ func (c *CommonEngine) remote() {
 		results       chan<- types.IBlock
 		currentHeight uint64
 	)
-	currentWorks := make(map[account.Address]*MiningWork, 0)
 	works, _ := lru.New(128)
 
 	makeWork := func(block types.IBlock, adjustedDiff *big.Int) {
@@ -62,18 +62,15 @@ func (c *CommonEngine) remote() {
 		if adjustedDiff != nil {
 			diff = adjustedDiff
 		}
-		miningWork := new(MiningWork)
-		miningWork.HeaderHash = hash
-		miningWork.Number = block.NumberU64()
-		miningWork.Difficulty = diff
-		currentWorks[block.IHeader().GetCoinbase()] = miningWork
+
+		c.currentWorks.setCurrentWork(block, diff)
 
 		works.Add(hash, block)
 		currentHeight = block.IHeader().NumberU64()
 	}
 
 	submitWork := func(nonce uint64, mixDigest common.Hash, sealhash common.Hash, signature *[65]byte) bool {
-		if len(currentWorks) == 0 {
+		if c.currentWorks.len() == 0 {
 			log.Error("Pending work without block", "sealhash", sealhash)
 			return false
 		}
@@ -93,7 +90,7 @@ func (c *CommonEngine) remote() {
 		}
 
 		solution := block.WithMingResult(nonce, mixDigest, signature)
-		adjustedDiff := currentWorks[block.IHeader().GetCoinbase()].Difficulty
+		adjustedDiff := c.currentWorks.getDifficultByAddr(block.IHeader().GetCoinbase())
 		// if tx has been sign by miner and difficulty has not been adjusted before
 		// we can adjust difficulty here if the signature pub key is
 		if signature != nil && adjustedDiff.Cmp(solution.IHeader().GetDifficulty()) == 0 {
@@ -129,16 +126,11 @@ func (c *CommonEngine) remote() {
 			makeWork(work.block, work.diff)
 
 		case work := <-c.fetchWorkCh:
-			if len(currentWorks) == 0 {
+			if c.currentWorks.len() == 0 {
 				work.errc <- ErrNoMiningWork
 			} else {
-				currWork, ok := currentWorks[work.addr]
-
-				if !ok || currWork == nil {
-					work.errc <- ErrNoMiningWork
-				} else {
-					work.res <- *currWork
-				}
+				currWork := c.currentWorks.getWorkByAddr(work.addr)
+				work.res <- *currWork
 			}
 
 		case result := <-c.submitWorkCh:
@@ -151,6 +143,64 @@ func (c *CommonEngine) remote() {
 		case errc := <-c.exitCh:
 			errc <- nil
 			log.Trace(fmt.Sprintf("Qkchash remote %s from remote", c.Name()))
+		}
+	}
+}
+
+type currentWorks struct {
+	works map[account.Address]*MiningWork
+	mu    sync.RWMutex
+}
+
+func newCurrentWorks() *currentWorks {
+	return &currentWorks{
+		works: make(map[account.Address]*MiningWork),
+	}
+}
+
+func (c *currentWorks) setCurrentWork(block types.IBlock, diff *big.Int) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	height := block.IHeader().NumberU64()
+
+	miningWork := new(MiningWork)
+	miningWork.HeaderHash = block.IHeader().SealHash()
+	miningWork.Number = height
+	miningWork.Difficulty = diff
+
+	c.works[block.IHeader().GetCoinbase()] = miningWork
+}
+
+func (c *currentWorks) len() int {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return len(c.works)
+}
+
+func (c *currentWorks) getWorkByAddr(addr account.Address) *MiningWork {
+	work := c.works[addr]
+	if work == nil {
+		panic("should fix getWorkByAddr func")
+	}
+	return work
+}
+
+func (c *currentWorks) getDifficultByAddr(addr account.Address) *big.Int {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
+	work := c.works[addr]
+	if work == nil {
+		panic("bug fix getDifficultByAddr func")
+	}
+	return work.Difficulty
+}
+func (c *currentWorks) refresh(tip uint64) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	for coinbase, work := range c.works {
+		if work.Number < tip {
+			delete(c.works, coinbase)
 		}
 	}
 }

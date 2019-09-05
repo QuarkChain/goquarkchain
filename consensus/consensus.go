@@ -101,8 +101,9 @@ type CommonEngine struct {
 	threads int
 	lock    sync.Mutex
 
-	closeOnce sync.Once
-	exitCh    chan chan error
+	closeOnce    sync.Once
+	exitCh       chan chan error
+	currentWorks *currentWorks
 }
 
 // Name returns the consensus engine's name.
@@ -376,6 +377,11 @@ func (c *CommonEngine) GetWork(addr account.Address) (*MiningWork, error) {
 	}
 }
 
+func (c *CommonEngine) RefreshWork(tip uint64) {
+	if c.isRemote {
+		c.currentWorks.refresh(tip)
+	}
+}
 func (c *CommonEngine) SubmitWork(nonce uint64, hash, digest common.Hash, signature *[65]byte) bool {
 	if !c.isRemote {
 		return false
@@ -437,6 +443,7 @@ func NewCommonEngine(spec MiningSpec, diffCalc DifficultyCalculator, remote bool
 		c.fetchWorkCh = make(chan *sealWork)
 		c.submitWorkCh = make(chan *mineResult)
 		c.exitCh = make(chan chan error)
+		c.currentWorks = newCurrentWorks()
 		go c.remote()
 	}
 
