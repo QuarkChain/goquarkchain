@@ -322,7 +322,7 @@ func (s *QKCMasterBackend) Start() error {
 	s.updateShardStatsLoop()
 
 	if s.clusterConfig.Quarkchain.Root.ConsensusConfig.RemoteMine {
-		s.miner.SetMining(true)
+		s.SetMining(true)
 	}
 
 	log.Info("Start cluster successful", "slaveSize", len(s.clientPool))

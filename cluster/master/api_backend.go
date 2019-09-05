@@ -243,10 +243,6 @@ func (s *QKCMasterBackend) GetWork(branch account.Branch, addr *common.Address) 
 		coinbaseAddr = nil
 	}
 	if branch.Value == 0 {
-		if coinbaseAddr == nil {
-			coinbaseAddr = new(account.Address)
-			*coinbaseAddr = s.clusterConfig.Quarkchain.Root.CoinbaseAddress
-		}
 		//TODO to fix root's POWS diff cal
 		return s.miner.GetWork(coinbaseAddr)
 	}

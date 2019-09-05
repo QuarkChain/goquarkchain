@@ -121,12 +121,12 @@ func (m *Miner) mainLoop() {
 				m.commit(&coinbase)
 			}
 
-		case rBlock := <-m.resultCh:
-			log.Info(m.logInfo, "seal succ number", rBlock.NumberU64(), "hash", rBlock.Hash().String())
-			if err := m.api.InsertMinedBlock(rBlock); err != nil {
-				log.Error(m.logInfo, "add minered block err block hash", rBlock.Hash().Hex(), "err", err)
+		case block := <-m.resultCh:
+			log.Info(m.logInfo, "seal succ number", block.NumberU64(), "hash", block.Hash().String())
+			if err := m.api.InsertMinedBlock(block); err != nil {
+				log.Error(m.logInfo, "add minered block err block hash", block.Hash().Hex(), "err", err)
 				time.Sleep(time.Duration(3) * time.Second)
-				coinbase := rBlock.IHeader().GetCoinbase()
+				coinbase := block.IHeader().GetCoinbase()
 				m.commit(&coinbase)
 			}
 
