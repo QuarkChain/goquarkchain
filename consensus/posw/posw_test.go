@@ -1,6 +1,9 @@
 package posw_test
 
 import (
+	"bytes"
+	"github.com/QuarkChain/goquarkchain/consensus"
+	"github.com/QuarkChain/goquarkchain/consensus/doublesha256"
 	"math/big"
 	"reflect"
 	"runtime/debug"
@@ -9,10 +12,13 @@ import (
 
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
+	it "github.com/QuarkChain/goquarkchain/cmd/integrate_test"
 	qkcCommon "github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/core"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/stretchr/testify/assert"
 )
 
 var (
@@ -531,4 +537,88 @@ func TestPoSWWindowEdgeCases(t *testing.T) {
 	if _, _, err = blockchain.FinalizeAndAddBlock(newBlock1); err == nil {
 		t.Error("Should fail due to PoSW")
 	}
+}
+
+func TestPoSWOnRootChain(t *testing.T) {
+	defaultbootNode := "enode://9fb2a4ae5e0271638ac9ab77567ba3ccfcc10403f3263b053c7c714696f712566a624355588b733ac2dc40f103ad23edc25027427e80113c5cdf2bc0f060ce4b@127.0.0.1:38291"
+	stakerId, err := account.CreatRandomIdentity()
+	if err != nil {
+		t.Fatalf("error create id %v", stakerId)
+	}
+	stakerAddr := account.NewAddress(stakerId.GetRecipient(), 0)
+	signerId, err := account.CreatRandomIdentity()
+	if err != nil {
+		t.Fatalf("error create id %v", signerId)
+	}
+	signerAddr := account.NewAddress(signerId.GetRecipient(), 0)
+
+	var chainSize, shardSize, slaveSize uint32 = 2, 1, 2
+	cfglist := it.GetClusterConfig(1, chainSize, shardSize, slaveSize, nil, defaultbootNode,
+		config.PoWSimulate, false)
+	_, cluster := it.CreateClusterList(1, cfglist)
+	cluster.Start(5*time.Second, true)
+	defer cluster.Stop()
+
+	c := cluster[0]
+	mstr := c.GetMaster()
+	mstr.GetClusterConfig().Quarkchain.GuardianPrivateKey = []byte{}
+	cfg := mstr.GetClusterConfig().Quarkchain.Root
+
+	addRootBlock := func(addr account.Address, sign bool) error {
+		cfg.CoinbaseAddress = addr
+		rootBlock, diff, err := mstr.CreateBlockToMine()
+		if err != nil {
+			return err
+		}
+		assert.Equal(t, rootBlock.IHeader().GetDifficulty(), diff)
+		rBlock := rootBlock.(*types.RootBlock)
+		if sign {
+			prvKey, err := crypto.ToECDSA(signerId.GetKey().Bytes())
+			if err != nil {
+				return err
+			}
+			err = rBlock.SignWithPrivateKey(prvKey)
+			if err != nil {
+				return err
+			}
+		}
+		diffCalculator := consensus.EthDifficultyCalculator{
+			MinimumDifficulty: big.NewInt(int64(10)),
+			AdjustmentCutoff:  cfg.DifficultyAdjustmentCutoffTime,
+			AdjustmentFactor:  cfg.DifficultyAdjustmentFactor,
+		}
+		resultsCh := make(chan types.IBlock)
+		pubKey := common.FromHex(mstr.GetClusterConfig().Quarkchain.GuardianPublicKey)
+		engine := doublesha256.New(&diffCalculator, false, pubKey)
+		if err = engine.Seal(nil, rBlock, diff, resultsCh, nil); err != nil {
+			t.Fatalf("problem sealing the block: %v", err)
+		}
+		minedBlock := <-resultsCh
+		rBlock = minedBlock.(*types.RootBlock)
+		return mstr.AddRootBlock(rBlock)
+	}
+	//add a root block first to init shard chains
+	assert.NoError(t, addRootBlock(account.Address{}, false))
+	cfg.PoSWConfig.Enabled = true
+	cfg.PoSWConfig.WindowSize = 2
+	//should always pass pow check if posw is applied
+	cfg.PoSWConfig.DiffDivider = 1000000
+
+	//monkey patch staking results
+	mockGetRootChainStakes := func(coinbase account.Recipient, lastMinor common.Hash) (*big.Int, *account.Recipient, error) {
+		if bytes.Compare(coinbase[:], stakerAddr.Recipient[:]) == 0 {
+			return cfg.PoSWConfig.TotalStakePerBlock, &signerAddr.Recipient, nil
+		}
+		return new(big.Int), nil, nil
+	}
+
+	shard := c.GetSlavelist()[0].GetShard(1)
+	shard.MinorBlockChain.SetRootChainStakesFunc(mockGetRootChainStakes)
+
+	//fail, because signature mismatch
+	assert.EqualError(t, addRootBlock(stakerAddr, false), "invalid proof-of-work")
+	assert.NoError(t, addRootBlock(stakerAddr, true))
+	//fail again, because quota used up
+	assert.EqualError(t, addRootBlock(stakerAddr, false), "invalid proof-of-work")
+
 }

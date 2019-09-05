@@ -10,7 +10,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	lru "github.com/hashicorp/golang-lru"
 	"math/big"
-	"runtime/debug"
 )
 
 type headReader interface {
@@ -103,7 +102,7 @@ func (p *PoSW) countCoinbaseBlockUntil(headerHash common.Hash, coinbase account.
 func (p *PoSW) GetCoinbaseAddressUntilBlock(headerHash common.Hash) ([]account.Recipient, error) {
 	header := p.hReader.GetHeader(headerHash)
 	if qkcCommon.IsNil(header) {
-		return nil, fmt.Errorf("curr block not found: hash %x, %s", headerHash, string(debug.Stack()))
+		return nil, fmt.Errorf("curr block not found: hash %x", headerHash)
 	}
 	length := int(p.config.WindowSize)
 	addrs := make([]account.Recipient, 0, length)

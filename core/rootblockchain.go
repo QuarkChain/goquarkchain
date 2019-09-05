@@ -29,7 +29,7 @@ import (
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
-	"github.com/hashicorp/golang-lru"
+	lru "github.com/hashicorp/golang-lru"
 )
 
 var (
@@ -109,7 +109,7 @@ type RootBlockChain struct {
 	addBlockAndBroad    func(block *types.RootBlock) error
 	isCheckDB           bool
 	posw                consensus.PoSWCalculator
-	rootChainStakesFunc func(address account.Address, lastMinor common.Hash) (*big.Int, account.Recipient, error)
+	rootChainStakesFunc func(address account.Address, lastMinor common.Hash) (*big.Int, *account.Recipient, error)
 }
 
 // NewBlockChain returns a fully initialized block chain using information
@@ -1128,43 +1128,52 @@ func (bc *RootBlockChain) Config() *config.QuarkChainConfig { return bc.chainCon
 // Engine retrieves the blockchain's consensus engine.
 func (bc *RootBlockChain) Engine() consensus.Engine { return bc.engine }
 
-func (m *RootBlockChain) SkipDifficultyCheck() bool {
-	return m.Config().SkipRootDifficultyCheck
+func (bc *RootBlockChain) SkipDifficultyCheck() bool {
+	return bc.Config().SkipRootDifficultyCheck
 }
 
-func (m *RootBlockChain) GetAdjustedDifficulty(header types.IHeader) (*big.Int, error) {
+func (bc *RootBlockChain) GetAdjustedDifficulty(header types.IHeader) (*big.Int, error) {
 	rHeader := header.(*types.RootBlockHeader)
-	if crypto.VerifySignature(common.FromHex(m.Config().GuardianPublicKey), rHeader.SealHash().Bytes(), rHeader.Signature[:64]) {
+	if crypto.VerifySignature(common.FromHex(bc.Config().GuardianPublicKey), rHeader.SealHash().Bytes(), rHeader.Signature[:64]) {
 		guardianAdjustedDiff := new(big.Int).Div(rHeader.GetDifficulty(), new(big.Int).SetUint64(1000))
 		return guardianAdjustedDiff, nil
 	}
-	if m.posw.IsPoSWEnabled() {
-		getStakes := m.GetRootChainStakesFunc()
-
-		// get chain 0 shard 0's last confirmed block header
-		lastConfirmedMinorBlockHeader := m.GetLastConfirmedMinorBlockHeader(header.GetParentHash(), uint32(1))
-		if lastConfirmedMinorBlockHeader == nil {
-			return nil, errors.New("no shard block has been confirmed")
-		}
-		stakes, signer, err := getStakes(header.GetCoinbase(), lastConfirmedMinorBlockHeader.Hash())
+	if bc.posw.IsPoSWEnabled() {
+		poswAdjusted, err := bc.getPoSWAdjustedDiff(header)
 		if err != nil {
-			return nil, err
+			log.Info("apply posw failed: ", err)
 		}
-		pubKeyBytes, err := crypto.Ecrecover(rHeader.SealHash().Bytes(), rHeader.Signature[:])
-		if err != nil {
-			return nil, err
+		if poswAdjusted != nil {
+			return poswAdjusted, nil
 		}
-		pubKey, err := crypto.DecompressPubkey(pubKeyBytes)
-		if err != nil {
-			return nil, err
-		}
-		if !bytes.Equal(crypto.PubkeyToAddress(*pubKey).Bytes(), signer.Bytes()) {
-			log.Info("stakes signer not match")
-			return rHeader.Difficulty, nil
-		}
-		return m.posw.PoSWDiffAdjust(header, stakes)
 	}
 	return rHeader.GetDifficulty(), nil
+}
+
+func (bc *RootBlockChain) getPoSWAdjustedDiff(header types.IHeader) (*big.Int, error) {
+	rHeader := header.(*types.RootBlockHeader)
+	// get chain 0 shard 0's last confirmed block header
+	lastConfirmedMinorBlockHeader := bc.GetLastConfirmedMinorBlockHeader(header.GetParentHash(), uint32(1))
+	if lastConfirmedMinorBlockHeader == nil {
+		return nil, errors.New("no shard block has been confirmed")
+	}
+	getStakes := bc.GetRootChainStakesFunc()
+	stakes, signer, err := getStakes(header.GetCoinbase(), lastConfirmedMinorBlockHeader.Hash())
+	if err != nil {
+		return nil, err
+	}
+	pubKeyBytes, err := crypto.Ecrecover(rHeader.SealHash().Bytes(), rHeader.Signature[:])
+	if err != nil {
+		return nil, err
+	}
+	pubKey, err := crypto.DecompressPubkey(pubKeyBytes)
+	if err != nil {
+		return nil, err
+	}
+	if !bytes.Equal(crypto.PubkeyToAddress(*pubKey).Bytes(), signer.Bytes()) {
+		return nil, errors.New("stakes signer not match")
+	}
+	return bc.posw.PoSWDiffAdjust(header, stakes)
 }
 
 func (bc *RootBlockChain) GetLastConfirmedMinorBlockHeader(prevBlock common.Hash, fullShardId uint32) *types.MinorBlockHeader {
@@ -1406,11 +1415,11 @@ func (bc *RootBlockChain) GetRootBlockConfirmingMinorBlock(blockID []byte) commo
 }
 
 func (bc *RootBlockChain) SetRootChainStakesFunc(getRootChainStakes func(address account.Address,
-	lastMinor common.Hash) (*big.Int, account.Recipient, error)) {
-	getRootChainStakes = bc.rootChainStakesFunc
+	lastMinor common.Hash) (*big.Int, *account.Recipient, error)) {
+	bc.rootChainStakesFunc = getRootChainStakes
 }
 
 func (bc *RootBlockChain) GetRootChainStakesFunc() func(address account.Address,
-	lastMinor common.Hash) (*big.Int, account.Recipient, error) {
+	lastMinor common.Hash) (*big.Int, *account.Recipient, error) {
 	return bc.rootChainStakesFunc
 }

@@ -515,3 +515,14 @@ func (s *SlaveBackend) CheckMinorBlocksInRoot(rootBlock *types.RootBlock) error 
 	}
 	return nil
 }
+
+func (s *SlaveBackend) GetRootChainStakes(address account.Address, lastMinor common.Hash) (*big.Int,
+	*account.Recipient, error) {
+
+	for _, shrd := range s.shards {
+		if shrd.Config.ChainID == address.GetChainID() {
+			return shrd.GetRootChainStakes(address, lastMinor)
+		}
+	}
+	return nil, nil, ErrMsg("GetRootChainStakes")
+}

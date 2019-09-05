@@ -126,6 +126,7 @@ func New(ctx *service.ServiceContext, cfg *config.ClusterConfig) (*QKCMasterBack
 
 	mstr.rootBlockChain.SetEnableCountMinorBlocks(cfg.EnableTransactionHistory)
 	mstr.rootBlockChain.SetBroadcastRootBlockFunc(mstr.AddRootBlock)
+	mstr.rootBlockChain.SetRootChainStakesFunc(mstr.GetRootChainStakes)
 	for _, cfg := range cfg.SlaveList {
 		target := fmt.Sprintf("%s:%d", cfg.IP, cfg.Port)
 		client := NewSlaveConn(target, cfg.ChainMaskList, cfg.ID)
@@ -607,7 +608,6 @@ func (s *QKCMasterBackend) SendMiningConfigToSlaves(mining bool) error {
 // AddRootBlock add root block to all slaves
 func (s *QKCMasterBackend) AddRootBlock(rootBlock *types.RootBlock) error {
 	s.rootBlockChain.WriteCommittingHash(rootBlock.Hash())
-	s.rootBlockChain.SetRootChainStakesFunc(s.GetRootChainStakes)
 	_, err := s.rootBlockChain.InsertChain([]types.IBlock{rootBlock})
 	if err != nil {
 		return err
@@ -625,7 +625,7 @@ func (s *QKCMasterBackend) AddRootBlock(rootBlock *types.RootBlock) error {
 }
 
 func (s *QKCMasterBackend) GetRootChainStakes(coinbase account.Address, lastMinor common.Hash) (*big.Int,
-	common.Address, error) {
+	*account.Recipient, error) {
 
 	fullShardId := uint32(1)
 	var slave rpc.ISlaveConn
@@ -636,7 +636,7 @@ func (s *QKCMasterBackend) GetRootChainStakes(coinbase account.Address, lastMino
 	}
 	stakes, signer, err := slave.GetRootChainStakes(coinbase, lastMinor)
 	if err != nil {
-		return nil, common.Address{}, err
+		return nil, nil, err
 	}
 	return stakes, signer, nil
 }

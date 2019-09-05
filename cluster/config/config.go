@@ -141,6 +141,7 @@ func NewRootConfig() *RootConfig {
 		DifficultyAdjustmentFactor:     1024,
 		GRPCHost:                       "127.0.0.1",
 		GRPCPort:                       GrpcPort,
+		PoSWConfig:                     NewPOSWConfig(),
 	}
 }
 

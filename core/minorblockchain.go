@@ -143,6 +143,7 @@ type MinorBlockChain struct {
 	posw                     consensus.PoSWCalculator
 	gasLimit                 *big.Int
 	xShardGasLimit           *big.Int
+	getRootChainStakes       func(coinbase account.Recipient, lastMinor common.Hash) (*big.Int, *account.Recipient, error)
 }
 
 // NewMinorBlockChain returns a fully initialised block chain using information
@@ -1776,4 +1777,14 @@ func (m *MinorBlockChain) GetGenesisToken() uint64 {
 
 func (m *MinorBlockChain) GetGenesisRootHeight() uint32 {
 	return m.clusterConfig.Quarkchain.GetGenesisRootHeight(m.branch.Value)
+}
+
+func (m *MinorBlockChain) GetRootChainStakes(coinbase account.Recipient, lastMinor common.Hash) (*big.Int,
+	*account.Recipient, error) {
+	return m.getRootChainStakes(coinbase, lastMinor)
+}
+
+func (m *MinorBlockChain) SetRootChainStakesFunc(getRootChainStakes func(coinbase account.Recipient,
+	lastMinor common.Hash) (*big.Int, *account.Recipient, error)) {
+	m.getRootChainStakes = getRootChainStakes
 }

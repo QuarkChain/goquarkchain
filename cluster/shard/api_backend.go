@@ -378,3 +378,10 @@ func (s *ShardBackend) CheckMinorBlock(header *types.MinorBlockHeader) error {
 	_, _, err := s.MinorBlockChain.InsertChainForDeposits([]types.IBlock{block}, true)
 	return err
 }
+
+func (s *ShardBackend) GetRootChainStakes(address account.Address, lastMinor common.Hash) (*big.Int, *account.Recipient, error) {
+	if address.GetChainID() != s.Config.ChainID {
+		return nil, nil, errors.New("wrong chain")
+	}
+	return s.MinorBlockChain.GetRootChainStakes(address.Recipient, lastMinor)
+}
