@@ -200,10 +200,12 @@ func (args *SendTxArgs) toTransaction() (*types.Transaction, error) {
 }
 
 type FilterQuery struct {
+	BlockHash *common.Hash
 	FromBlock *big.Int          // beginning of the queried range, nil means genesis block
 	ToBlock   *big.Int          // end of the range, nil means latest block
 	Addresses []account.Address // restricts matches to events created by specific contracts
 
+	FullShardId uint32
 	// The Topic list restricts matches to particular event topics. Each event has a list
 	// of topics. Topics matches a prefix of that list. An empty element slice matches any
 	// topic. Non-empty elements represent an alternative that matches any of the
@@ -222,6 +224,7 @@ type FilterQuery struct {
 // UnmarshalJSON sets *args fields with given data.
 func (args *FilterQuery) UnmarshalJSON(data []byte) error {
 	type input struct {
+		BlockHash *common.Hash     `json:"blockHash"`
 		FromBlock *rpc.BlockNumber `json:"fromBlock"`
 		ToBlock   *rpc.BlockNumber `json:"toBlock"`
 		Addresses interface{}      `json:"address"`
@@ -233,12 +236,19 @@ func (args *FilterQuery) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
-	if raw.FromBlock != nil {
-		args.FromBlock = big.NewInt(raw.FromBlock.Int64())
-	}
+	if raw.BlockHash != nil {
+		if raw.FromBlock != nil || raw.ToBlock != nil {
+			return fmt.Errorf("cannot specify both BlockHash and FromBlock/ToBlock, choose one or the other")
+		}
+		args.BlockHash = raw.BlockHash
+	} else {
+		if raw.FromBlock != nil {
+			args.FromBlock = big.NewInt(raw.FromBlock.Int64())
+		}
 
-	if raw.ToBlock != nil {
-		args.ToBlock = big.NewInt(raw.ToBlock.Int64())
+		if raw.ToBlock != nil {
+			args.ToBlock = big.NewInt(raw.ToBlock.Int64())
+		}
 	}
 
 	args.Addresses = make([]account.Address, 0)
@@ -312,6 +322,7 @@ func (args *FilterQuery) UnmarshalJSON(data []byte) error {
 
 	return nil
 }
+
 func decodeAddress(s string) (account.Address, error) {
 	b, err := hexutil.Decode(s)
 	if err == nil && len(b) != common.AddressLength+4 {

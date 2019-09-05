@@ -11,6 +11,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/p2p"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
 	"golang.org/x/sync/errgroup"
 	"math/big"
@@ -500,4 +501,8 @@ func (s *SlaveBackend) SetMining(mining bool) {
 	for _, shrd := range s.shards {
 		shrd.SetMining(mining)
 	}
+}
+
+func (s *SlaveBackend) EventMux() *event.TypeMux {
+	return s.eventMux
 }
