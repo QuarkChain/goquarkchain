@@ -50,10 +50,10 @@ func CalculateMerkleRoot(list interface{}) (h common.Hash) {
 	zBytes := common.Hash{}
 	for len(hashList) != 1 {
 		tempList := make([]common.Hash, 0, (len(hashList)+1)/2)
-		length := len(hashList)
-		if length%2 == 1 {
+		if len(hashList)%2 == 1 {
 			hashList = append(hashList, zBytes)
 		}
+		length := len(hashList)
 		for i := 0; i < length-1; i = i + 2 {
 			tempList = append(tempList,
 				sha3_256(append(hashList[i].Bytes(), hashList[i+1].Bytes()...)))

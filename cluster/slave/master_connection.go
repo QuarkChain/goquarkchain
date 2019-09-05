@@ -39,7 +39,7 @@ func (s *ConnManager) SendMinorBlockHeaderListToMaster(request *rpc.AddMinorBloc
 	if err != nil {
 		return err
 	}
-	_, err = s.masterClient.client.Call(s.masterClient.target, &rpc.Request{Op: rpc.OpAddMinorBlockListForSync, Data: data})
+	_, err = s.masterClient.client.Call(s.masterClient.target, &rpc.Request{Op: rpc.OpAddMinorBlockHeaderList, Data: data})
 	if err != nil {
 		return err
 	}
