@@ -290,20 +290,13 @@ func testMinorShorterFork(t *testing.T, full bool) {
 			t.Errorf("total difficulty mismatch: have %v, expected less than %v", td2, td1)
 		}
 	}
-	fmt.Println("000")
 	// Sum of numbers must be less than `length` for this to be a shorter fork
 	testMinorFork(t, processor, 0, 3, full, worse)
-	//fmt.Println("1111")
-	//testMinorFork(t, processor, 0, 7, full, worse)
-	//fmt.Println("222")
-	//testMinorFork(t, processor, 1, 1, full, worse)
-	//fmt.Println("333")
-	//testMinorFork(t, processor, 1, 7, full, worse)
-	//fmt.Println("4444")
-	//testMinorFork(t, processor, 5, 3, full, worse)
-	//fmt.Println("5555")
-	//testMinorFork(t, processor, 5, 4, full, worse)
-	//fmt.Println("6666")
+	testMinorFork(t, processor, 0, 7, full, worse)
+	testMinorFork(t, processor, 1, 1, full, worse)
+	testMinorFork(t, processor, 1, 7, full, worse)
+	testMinorFork(t, processor, 5, 3, full, worse)
+	testMinorFork(t, processor, 5, 4, full, worse)
 }
 
 //TestMinors that given a starting canonical chain of a given size, creating longer

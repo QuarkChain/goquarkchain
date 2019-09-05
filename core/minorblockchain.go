@@ -550,7 +550,6 @@ func (m *MinorBlockChain) insert(block *types.MinorBlock) {
 	updateHeads := rawdb.ReadCanonicalHash(m.db, rawdb.ChainTypeMinor, block.NumberU64()) != block.Hash()
 
 	// Add the block to the canonical chain number scheme and mark as the head
-	//fmt.Println("insert", block.Hash().String(), block.NumberU64())
 	rawdb.WriteCanonicalHash(m.db, rawdb.ChainTypeMinor, block.Hash(), block.NumberU64())
 	rawdb.WriteHeadBlockHash(m.db, block.Hash())
 

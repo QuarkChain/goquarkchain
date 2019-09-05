@@ -939,7 +939,6 @@ func (m *MinorBlockChain) AddRootBlock(rBlock *types.RootBlock) (bool, error) {
 		}
 		preBlock := m.GetMinorBlock(m.CurrentBlock().Header().GetParentHash())
 		log.Warn(m.logInfo, "ready to set currentHeader height", preBlock.Number(), "hash", preBlock.Hash().String())
-		m.hc.SetCurrentHeader(preBlock.Header())
 		m.currentBlock.Store(preBlock)
 	}
 
