@@ -288,7 +288,7 @@ func (s *SlaveServerSideOp) GetAllTx(ctx context.Context, req *rpc.Request) (*rp
 
 func (s *SlaveServerSideOp) GetLogs(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
 	var (
-		gReq     rpc.GetLogRequest
+		gReq     rpc.FilterQuery
 		gRep     rpc.GetLogResponse
 		buf      = serialize.NewByteBuffer(req.Data)
 		response = &rpc.Response{RpcId: req.RpcId}

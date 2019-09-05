@@ -276,19 +276,12 @@ func (s *SlaveConnection) GetAllTx(branch account.Branch, start []byte, limit ui
 	return trans.TxList, trans.Next, nil
 }
 
-func (s *SlaveConnection) GetLogs(branch account.Branch, address []account.Address, topics [][]common.Hash, startBlock, endBlock uint64) ([]*types.Log, error) {
+func (s *SlaveConnection) GetLogs(args *rpc.FilterQuery) ([]*types.Log, error) {
 	var (
-		req = rpc.GetLogRequest{
-			Branch:     branch.Value,
-			Addresses:  address,
-			Topics:     topics,
-			StartBlock: startBlock,
-			EndBlock:   endBlock,
-		}
 		rsp = new(rpc.GetLogResponse)
 		res = new(rpc.Response)
 	)
-	bytes, err := serialize.SerializeToBytes(req)
+	bytes, err := serialize.SerializeToBytes(args)
 	if err != nil {
 		return nil, err
 	}
