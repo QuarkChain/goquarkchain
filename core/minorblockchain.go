@@ -232,7 +232,7 @@ func NewMinorBlockChain(
 	if err := bc.loadLastState(); err != nil {
 		return nil, err
 	}
-
+	DefaultTxPoolConfig.NetWorkID = bc.clusterConfig.Quarkchain.NetworkID
 	bc.txPool = NewTxPool(DefaultTxPoolConfig, bc)
 	bc.posw = consensus.CreatePoSWCalculator(bc, bc.shardConfig.PoswConfig)
 	// Take ownership of this particular state

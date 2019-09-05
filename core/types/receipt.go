@@ -70,8 +70,8 @@ type receiptRLP struct {
 	CumulativeGasUsed    uint64
 	Bloom                Bloom
 	Logs                 []*Log
-	ContractAddress      account.Recipient
-	ContractFullShardKey uint32
+	ContractAddress      []byte
+	ContractFullShardKey *Uint32
 }
 
 type receiptStorageRLP struct {
@@ -132,14 +132,19 @@ func (r *Receipt) GetPrevGasUsed() uint64 {
 // EncodeRLP implements rlp.Encoder, and flattens the consensus fields of a receipt
 // into an RLP stream. If no post state is present, byzantium fork is assumed.
 func (r *Receipt) EncodeRLP(w io.Writer) error {
-	return rlp.Encode(w,
-		&receiptRLP{
-			r.statusEncoding(),
-			r.CumulativeGasUsed,
-			r.Bloom,
-			r.Logs,
-			r.ContractAddress,
-			r.ContractFullShardKey})
+	contractAddress := r.ContractAddress.Bytes()
+	if account.IsSameReceipt(common.Address{}, r.ContractAddress) {
+		contractAddress = make([]byte, 0)
+	}
+	contractFullShardKey := Uint32(r.ContractFullShardKey)
+	data := &receiptRLP{
+		r.statusEncoding(),
+		r.CumulativeGasUsed,
+		r.Bloom,
+		r.Logs,
+		contractAddress,
+		&contractFullShardKey}
+	return rlp.Encode(w, data)
 }
 
 // DecodeRLP implements rlp.Decoder, and loads the consensus fields of a receipt
@@ -153,7 +158,7 @@ func (r *Receipt) DecodeRLP(s *rlp.Stream) error {
 		return err
 	}
 	r.CumulativeGasUsed, r.Bloom, r.Logs, r.ContractAddress, r.ContractFullShardKey = dec.CumulativeGasUsed,
-		dec.Bloom, dec.Logs, dec.ContractAddress, dec.ContractFullShardKey
+		dec.Bloom, dec.Logs, common.BytesToAddress(dec.ContractAddress), dec.ContractFullShardKey.GetValue()
 	return nil
 }
 
