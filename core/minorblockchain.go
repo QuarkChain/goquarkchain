@@ -231,6 +231,7 @@ func NewMinorBlockChain(
 		return nil, err
 	}
 
+	DefaultTxPoolConfig.NetWorkID = clusterConfig.Quarkchain.NetworkID
 	bc.txPool = NewTxPool(DefaultTxPoolConfig, bc)
 	// Take ownership of this particular state
 	go bc.update()
