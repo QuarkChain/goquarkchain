@@ -19,13 +19,14 @@ package filters
 import (
 	"context"
 	"fmt"
+	"github.com/QuarkChain/goquarkchain/cluster/shard"
+	"github.com/QuarkChain/goquarkchain/core/types"
 	"sync"
 	"time"
 
-	"github.com/QuarkChain/goquarkchain/internal/qkcapi"
+	qrpc "github.com/QuarkChain/goquarkchain/cluster/rpc"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
-	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/rpc"
 )
 
@@ -33,13 +34,18 @@ var (
 	deadline = 5 * time.Minute // consider a filter inactive if it has not been polled for within deadline
 )
 
+type SlaveBackend interface {
+	GetShardBackend(fullShardId uint32) (*shard.ShardBackend, error)
+	GetFullShardList() []uint32
+}
+
 // filter is a helper struct that holds meta information over the filter type
 // and associated subscription in the event system.
 type filter struct {
 	typ      Type
 	deadline *time.Timer // filter is inactiv when deadline triggers
 	hashes   []common.Hash
-	crit     qkcapi.FilterQuery
+	crit     qrpc.FilterQuery
 	logs     []*types.Log
 	s        *Subscription // associated subscription in event system
 }
@@ -47,20 +53,19 @@ type filter struct {
 // PublicFilterAPI offers support to create and manage filters. This will allow external clients to retrieve various
 // information related to the Ethereum protocol such als blocks, transactions and logs.
 type PublicFilterAPI struct {
-	backend Backend
+	backend SlaveBackend
 	// mux       *event.TypeMux
-	quit chan struct{}
-	// chainDb   ethdb.Database
+	quit      chan struct{}
 	events    *EventSystem
 	filtersMu sync.Mutex
 	filters   map[rpc.ID]*filter
 }
 
 // NewPublicFilterAPI returns a new PublicFilterAPI instance.
-func NewPublicFilterAPI(backend Backend, lightMode bool) *PublicFilterAPI {
+func NewPublicFilterAPI(backend SlaveBackend, lightMode bool) *PublicFilterAPI {
 	api := &PublicFilterAPI{
 		backend: backend,
-		events:  NewEventSystem(backend.EventMux(), backend, lightMode),
+		events:  NewEventSystem(backend, lightMode),
 		filters: make(map[rpc.ID]*filter),
 	}
 	go api.timeoutLoop()
@@ -90,7 +95,7 @@ func (api *PublicFilterAPI) timeoutLoop() {
 
 // NewPendingTransactions creates a subscription that is triggered each time a transaction
 // enters the transaction pool and was signed from one of the transactions this nodes manages.
-func (api *PublicFilterAPI) NewPendingTransactions(ctx context.Context) (*rpc.Subscription, error) {
+func (api *PublicFilterAPI) NewPendingTransactions(ctx context.Context, fullShardId hexutil.Uint) (*rpc.Subscription, error) {
 	notifier, supported := rpc.NotifierFromContext(ctx)
 	if !supported {
 		return &rpc.Subscription{}, rpc.ErrNotificationsUnsupported
@@ -100,7 +105,7 @@ func (api *PublicFilterAPI) NewPendingTransactions(ctx context.Context) (*rpc.Su
 
 	go func() {
 		txHashes := make(chan []common.Hash, 128)
-		pendingTxSub := api.events.SubscribePendingTxs(txHashes)
+		pendingTxSub := api.events.SubscribePendingTxs(txHashes, uint32(fullShardId))
 
 		for {
 			select {
@@ -133,7 +138,7 @@ func (api *PublicFilterAPI) NewHeads(ctx context.Context, fullShardId hexutil.Ui
 	rpcSub := notifier.CreateSubscription()
 
 	go func() {
-		headers := make(chan *types.Header)
+		headers := make(chan *types.MinorBlockHeader)
 		headersSub := api.events.SubscribeNewHeads(headers, uint32(fullShardId))
 
 		for {
@@ -154,7 +159,7 @@ func (api *PublicFilterAPI) NewHeads(ctx context.Context, fullShardId hexutil.Ui
 }
 
 // Logs creates a subscription that fires for all new log that match the given filter criteria.
-func (api *PublicFilterAPI) Logs(ctx context.Context, crit qkcapi.FilterQuery, fullShardId hexutil.Uint) (*rpc.Subscription, error) {
+func (api *PublicFilterAPI) Logs(ctx context.Context, crit qrpc.FilterQuery, fullShardId hexutil.Uint) (*rpc.Subscription, error) {
 	notifier, supported := rpc.NotifierFromContext(ctx)
 	if !supported {
 		return &rpc.Subscription{}, rpc.ErrNotificationsUnsupported
@@ -204,7 +209,8 @@ func (api *PublicFilterAPI) Logs(ctx context.Context, crit qkcapi.FilterQuery, f
 // In case "fromBlock" > "toBlock" an error is returned.
 //
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_newfilter
-func (api *PublicFilterAPI) NewFilter(crit qkcapi.FilterQuery) (rpc.ID, error) {
+func (api *PublicFilterAPI) NewFilter(crit qrpc.FilterQuery, fullShardId hexutil.Uint) (rpc.ID, error) {
+	crit.FullShardId = uint32(fullShardId)
 	logs := make(chan []*types.Log)
 	logsSub, err := api.events.SubscribeLogs(crit, logs)
 	if err != nil {
@@ -266,10 +272,15 @@ func (api *PublicFilterAPI) GetFilterLogs(ctx context.Context, id rpc.ID) ([]*ty
 		return nil, fmt.Errorf("filter not found")
 	}
 
+	shrd, err := api.backend.GetShardBackend(f.crit.FullShardId)
+	if err != nil {
+		return nil, err
+	}
+
 	var filter *Filter
 	if f.crit.BlockHash != nil {
 		// Block filter requested, construct a single-shot filter
-		filter = NewBlockFilter(api.backend, *f.crit.BlockHash, f.crit.Addresses, f.crit.Topics)
+		filter = NewBlockFilter(shrd, *f.crit.BlockHash, f.crit.Addresses, f.crit.Topics)
 	} else {
 		// Convert the RPC block numbers into internal representations
 		begin := rpc.LatestBlockNumber.Int64()
@@ -281,7 +292,7 @@ func (api *PublicFilterAPI) GetFilterLogs(ctx context.Context, id rpc.ID) ([]*ty
 			end = f.crit.ToBlock.Int64()
 		}
 		// Construct the range filter
-		filter = NewRangeFilter(api.backend, begin, end, f.crit.Addresses, f.crit.Topics)
+		filter = NewRangeFilter(shrd, begin, end, f.crit.Addresses, f.crit.Topics)
 	}
 	// Run the filter and return all the logs
 	logs, err := filter.Logs(ctx)

@@ -53,7 +53,7 @@ func (s *SlaveBackend) AddRootBlock(block *types.RootBlock) (switched bool, err 
 // Create shards based on GENESIS config and root block height if they have
 // not been created yet.
 func (s *SlaveBackend) CreateShards(rootBlock *types.RootBlock, forceInit bool) (err error) {
-	fullShardList := s.getFullShardList()
+	fullShardList := s.GetFullShardList()
 	var g errgroup.Group
 	for _, id := range fullShardList {
 		id := id
@@ -288,7 +288,7 @@ func (s *SlaveBackend) GetAllTx(branch account.Branch, start []byte, limit uint3
 
 func (s *SlaveBackend) GetLogs(args *rpc.FilterQuery) ([]*types.Log, error) {
 	if shard, ok := s.shards[args.FullShardId]; ok {
-		return shard.GetLogs(args)
+		return shard.GetLogsByFilterQuery(args)
 	}
 	return nil, ErrMsg("GetLogs")
 }
@@ -505,4 +505,11 @@ func (s *SlaveBackend) SetMining(mining bool) {
 
 func (s *SlaveBackend) EventMux() *event.TypeMux {
 	return s.eventMux
+}
+
+func (s *SlaveBackend) GetShardBackend(fullShardId uint32) (*shard.ShardBackend, error) {
+	if shrd, ok := s.shards[fullShardId]; ok {
+		return shrd, nil
+	}
+	return nil, fmt.Errorf("bad params of fullShardId: %d\n", fullShardId)
 }

@@ -1492,7 +1492,7 @@ func (m *MinorBlockChain) GetAllTx(start []byte, limit uint32) ([]*rpc.Transacti
 	return m.getTransactionDetails(start, end, limit, GetAllTransaction, true, nil)
 }
 
-func (m *MinorBlockChain) GetLogsByAddressAndTopic(args *rpc.FilterQuery) ([]*types.Log, error) {
+func (m *MinorBlockChain) GetLogsByFilterQuery(args *rpc.FilterQuery) ([]*types.Log, error) {
 	filter := NewRangeFilter(m, args.FromBlock.Uint64(), args.ToBlock.Uint64(), args.Addresses, args.Topics)
 	return filter.Logs()
 }

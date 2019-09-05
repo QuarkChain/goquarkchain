@@ -50,7 +50,7 @@ func New(ctx *service.ServiceContext, clusterCfg *config.ClusterConfig, cfg *con
 	return slave, nil
 }
 
-func (s *SlaveBackend) getFullShardList() []uint32 {
+func (s *SlaveBackend) GetFullShardList() []uint32 {
 	return s.fullShardList
 }
 

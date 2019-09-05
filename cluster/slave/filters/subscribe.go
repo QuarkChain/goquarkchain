@@ -1,7 +1,6 @@
 package filters
 
 import (
-	"github.com/QuarkChain/goquarkchain/cluster/shard"
 	qcom "github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/core"
 	"github.com/QuarkChain/goquarkchain/core/types"
@@ -15,7 +14,7 @@ type delnode struct {
 }
 
 type subscribe struct {
-	shardlist map[uint32]*shard.ShardBackend
+	backend SlaveBackend
 
 	events map[uint32]map[Type]subackend
 
@@ -24,20 +23,15 @@ type subscribe struct {
 	delCh  chan *delnode
 }
 
-func NewSubScribe(shardlist []*shard.ShardBackend) *subscribe {
-
-	shards := make(map[uint32]*shard.ShardBackend)
-	for _, shrd := range shardlist {
-		shards[shrd.Config.GetFullShardId()] = shrd
-	}
+func NewSubScribe(backend SlaveBackend) *subscribe {
 
 	sub := &subscribe{
-		shardlist: shards,
+		backend: backend,
 
 		events: make(map[uint32]map[Type]subackend),
 
 		exitCh: make(chan struct{}),
-		delCh:  make(chan *delnode, len(shardlist)),
+		delCh:  make(chan *delnode, len(backend.GetFullShardList())),
 	}
 
 	go sub.eventsloop()
@@ -45,7 +39,8 @@ func NewSubScribe(shardlist []*shard.ShardBackend) *subscribe {
 }
 
 func (s *subscribe) Subscribe(fullShardId uint32, tp Type, broadcast func(interface{})) {
-	if _, ok := s.shardlist[fullShardId]; !ok {
+	shrd, err := s.backend.GetShardBackend(fullShardId)
+	if err != nil {
 		return
 	}
 	if _, ok := s.events[fullShardId]; !ok {
@@ -59,7 +54,7 @@ func (s *subscribe) Subscribe(fullShardId uint32, tp Type, broadcast func(interf
 	switch tp {
 	case LogsSubscription:
 		logsCh := make(chan []*types.Log, logsChanSize)
-		logsSub := s.shardlist[fullShardId].MinorBlockChain.SubscribeLogsEvent(logsCh)
+		logsSub := shrd.MinorBlockChain.SubscribeLogsEvent(logsCh)
 		tpEvent[tp] = &subLogsEvent{
 			ch:        logsCh,
 			sub:       logsSub,
@@ -67,7 +62,7 @@ func (s *subscribe) Subscribe(fullShardId uint32, tp Type, broadcast func(interf
 		}
 	case PendingTransactionsSubscription:
 		txsCh := make(chan core.NewTxsEvent, txChanSize)
-		txsSub := s.shardlist[fullShardId].MinorBlockChain.SubscribeTxsEvent(txsCh)
+		txsSub := shrd.MinorBlockChain.SubscribeTxsEvent(txsCh)
 		tpEvent[tp] = &subTxsEvent{
 			ch:        txsCh,
 			sub:       txsSub,
@@ -75,13 +70,14 @@ func (s *subscribe) Subscribe(fullShardId uint32, tp Type, broadcast func(interf
 		}
 	case BlocksSubscription:
 		headersCh := make(chan core.MinorChainHeadEvent, chainEvChanSize)
-		headersSub := s.shardlist[fullShardId].MinorBlockChain.SubscribeChainHeadEvent(headersCh)
+		headersSub := shrd.MinorBlockChain.SubscribeChainHeadEvent(headersCh)
 		tpEvent[tp] = &subMinorBlockHeadersEvent{
-			ch:headersCh,
-			sub:headersSub,
+			ch:        headersCh,
+			sub:       headersSub,
 			broadcast: broadcast,
 		}
 	}
+	return
 }
 
 func (s *subscribe) Unsubscribe(fullShardId uint32, tp Type) {
@@ -96,9 +92,11 @@ func (s *subscribe) eventsloop() {
 	var g errgroup.Group
 	defer func() {
 		for id := range s.events {
-			for _, subEv := range s.events[id] {
+			for tp, subEv := range s.events[id] {
 				subEv.freech()
+				delete(s.events[id], tp)
 			}
+			delete(s.events, id)
 		}
 	}()
 	for {
