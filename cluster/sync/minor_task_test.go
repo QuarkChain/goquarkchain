@@ -124,7 +124,7 @@ func TestMinorChainTask(t *testing.T) {
 	retMBlocks, retMHeaders := makeMinorChains(mbc.GetBlockByNumber(0).(*types.MinorBlock), 20, db, false)
 
 	// No error if already have the target block.
-	var mt = NewMinorChainTask(p, bc.CurrentIBlock().IHeader().(*types.MinorBlockHeader))
+	var mt = NewMinorChainTask(p, bc.CurrentHeader().(*types.MinorBlockHeader))
 	mTask := mt.(*minorChainTask)
 	assert.NoError(t, mt.Run(bc))
 
@@ -132,11 +132,11 @@ func TestMinorChainTask(t *testing.T) {
 	p.retMBlocks, p.retMHeaders = retMBlocks, retMHeaders
 	mTask.header = retMHeaders[4]
 	// Confirm 5 more blocks are successfully added to existing 5-block chain.
-	assert.Equal(t, bc.CurrentIBlock().NumberU64(), uint64(10))
+	assert.Equal(t, bc.CurrentHeader().NumberU64(), uint64(10))
 
 	// Rollback and test unhappy path.
 	mbc.SetHead(5)
-	assert.Equal(t, bc.CurrentIBlock().NumberU64(), retMHeaders[5].NumberU64())
+	assert.Equal(t, bc.CurrentHeader().NumberU64(), retMHeaders[5].NumberU64())
 
 	// Get errors when downloading headers.
 	mTask.header = retMHeaders[11]
@@ -172,7 +172,7 @@ func TestMinorChainTask(t *testing.T) {
 	// Add back that missing block. Happy again.
 	p.retMBlocks = append(p.retMBlocks, missing...)
 	assert.NoError(t, mt.Run(bc))
-	assert.Equal(t, bc.CurrentIBlock().NumberU64(), uint64(20))
+	assert.Equal(t, bc.CurrentHeader().NumberU64(), uint64(20))
 
 	// add maxSyncStaleness minor blocks
 	mTask.maxSyncStaleness = 1000
@@ -183,12 +183,12 @@ func TestMinorChainTask(t *testing.T) {
 	// just sync 10 minor blocks.
 	mTask.header = retMHeaders[10]
 	assert.NoError(t, mt.Run(bc))
-	assert.Equal(t, bc.CurrentIBlock().NumberU64(), uint64(20+10))
+	assert.Equal(t, bc.CurrentHeader().NumberU64(), uint64(20+10))
 
 	// sync the last all 990 minor blocks.
 	mTask.header = retMHeaders[len(retMHeaders)-1]
 	assert.NoError(t, mt.Run(bc))
-	assert.Equal(t, bc.CurrentIBlock().NumberU64(), uint64(20+1000))
+	assert.Equal(t, bc.CurrentHeader().NumberU64(), uint64(20+1000))
 
 	// Sync older forks. Starting from block 6, up to maxSyncStaleness.
 	// retMBlocks, retMHeaders = makeRootChains(retMBlocks[len(retMBlocks)-1], 1000, true)
@@ -204,7 +204,7 @@ func TestMinorChainTask(t *testing.T) {
 		assert.True(t, bc.HasBlock(rh.Hash()))
 	}
 
-	assert.Equal(t, bc.CurrentIBlock().NumberU64(), uint64(2000+20))
+	assert.Equal(t, bc.CurrentHeader().NumberU64(), uint64(2000+20))
 }
 
 /*

@@ -101,7 +101,7 @@ func NewMinorChainTask(
 			return ret, nil
 		},
 		needSkip: func(b blockchain) bool {
-			if mTask.header.NumberU64() <= b.CurrentIBlock().NumberU64() {
+			if mTask.header.NumberU64() <= b.CurrentHeader().NumberU64() {
 				return true
 			}
 			return false
@@ -152,7 +152,7 @@ func (m *minorChainTask) downloadBlockHeaderListAndCheck(height, skip, limit uin
 }
 
 func (m *minorChainTask) findAncestor(bc blockchain) (*types.MinorBlockHeader, error) {
-	mtip := bc.CurrentIBlock().IHeader().(*types.MinorBlockHeader)
+	mtip := bc.CurrentHeader().(*types.MinorBlockHeader)
 	if m.header.Hash() == mtip.Hash() {
 		return mtip, nil
 	}

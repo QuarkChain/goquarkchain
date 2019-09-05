@@ -13,7 +13,7 @@ import (
 type blockchain interface {
 	HasBlock(common.Hash) bool
 	AddBlock(types.IBlock) error
-	CurrentIBlock() types.IBlock
+	CurrentHeader() types.IHeader
 	Validator() core.Validator
 }
 

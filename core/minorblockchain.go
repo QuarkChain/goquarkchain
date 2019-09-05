@@ -363,9 +363,6 @@ func (m *MinorBlockChain) GasLimit() uint64 {
 func (m *MinorBlockChain) CurrentBlock() *types.MinorBlock {
 	return m.currentBlock.Load().(*types.MinorBlock)
 }
-func (m *MinorBlockChain) CurrentIBlock() types.IBlock {
-	return m.currentBlock.Load().(*types.MinorBlock)
-}
 
 // SetProcessor sets the processor required for making state modifications.
 func (m *MinorBlockChain) SetProcessor(processor Processor) {
@@ -1654,7 +1651,7 @@ func (m *MinorBlockChain) writeHeader(header *types.MinorBlockHeader) error {
 // CurrentHeader retrieves the current head header of the canonical chain. The
 // header is retrieved from the HeaderChain's internal cache.
 func (m *MinorBlockChain) CurrentHeader() types.IHeader {
-	return m.hc.CurrentHeader()
+	return m.CurrentBlock().Header()
 }
 
 // GetTd retrieves a block's total difficulty in the canonical chain from the
