@@ -133,7 +133,7 @@ func NewRootBlockChain(db ethdb.Database, chainConfig *config.QuarkChainConfig, 
 		isCheckDB:                false,
 	}
 	bc.SetValidator(NewRootBlockValidator(chainConfig, bc, engine))
-	bc.posw = posw.NewPoSW(bc, bc.Config().Root.PoSWConfig)
+	bc.posw = posw.NewPoSW(bc, chainConfig.Root.PoSWConfig)
 	var err error
 	bc.headerChain, err = NewHeaderChain(db, chainConfig, engine, bc.getProcInterrupt)
 	if err != nil {
@@ -1141,9 +1141,10 @@ func (bc *RootBlockChain) GetAdjustedDifficulty(header types.IHeader) (*big.Int,
 	if bc.posw.IsPoSWEnabled() {
 		poswAdjusted, err := bc.getPoSWAdjustedDiff(header)
 		if err != nil {
-			log.Info("apply posw failed: ", err)
+			//fmt.Println("apply posw failed: ", err)
 		}
 		if poswAdjusted != nil {
+			fmt.Printf("posw applied: from %v to %v \n", rHeader.Difficulty, poswAdjusted)
 			return poswAdjusted, nil
 		}
 	}
@@ -1162,11 +1163,7 @@ func (bc *RootBlockChain) getPoSWAdjustedDiff(header types.IHeader) (*big.Int, e
 	if err != nil {
 		return nil, err
 	}
-	pubKeyBytes, err := crypto.Ecrecover(rHeader.SealHash().Bytes(), rHeader.Signature[:])
-	if err != nil {
-		return nil, err
-	}
-	pubKey, err := crypto.DecompressPubkey(pubKeyBytes)
+	pubKey, err := crypto.SigToPub(rHeader.SealHash().Bytes(), rHeader.Signature[:])
 	if err != nil {
 		return nil, err
 	}

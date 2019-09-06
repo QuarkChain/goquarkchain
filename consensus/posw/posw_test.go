@@ -1,7 +1,7 @@
 package posw_test
 
 import (
-	"bytes"
+	"fmt"
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/consensus/doublesha256"
 	"math/big"
@@ -541,35 +541,49 @@ func TestPoSWWindowEdgeCases(t *testing.T) {
 
 func TestPoSWOnRootChain(t *testing.T) {
 	defaultbootNode := "enode://9fb2a4ae5e0271638ac9ab77567ba3ccfcc10403f3263b053c7c714696f712566a624355588b733ac2dc40f103ad23edc25027427e80113c5cdf2bc0f060ce4b@127.0.0.1:38291"
-	stakerId, err := account.CreatRandomIdentity()
+	stakerkeyB := []byte{0x1}
+	stakerkey := account.BytesToIdentityKey(stakerkeyB)
+	stakerId, err := account.CreatIdentityFromKey(stakerkey)
 	if err != nil {
 		t.Fatalf("error create id %v", stakerId)
 	}
 	stakerAddr := account.NewAddress(stakerId.GetRecipient(), 0)
-	signerId, err := account.CreatRandomIdentity()
+	signerkeyB := []byte{0x2}
+	signerkey := account.BytesToIdentityKey(signerkeyB)
+	signerId, err := account.CreatIdentityFromKey(signerkey)
 	if err != nil {
 		t.Fatalf("error create id %v", signerId)
 	}
-	signerAddr := account.NewAddress(signerId.GetRecipient(), 0)
 
 	var chainSize, shardSize, slaveSize uint32 = 2, 1, 2
 	cfglist := it.GetClusterConfig(1, chainSize, shardSize, slaveSize, nil, defaultbootNode,
-		config.PoWSimulate, false)
+		config.PoWDoubleSha256, false)
+	for i := range cfglist {
+		cfglist[i].Quarkchain.GuardianPrivateKey = []byte{}
+		root := cfglist[i].Quarkchain.Root
+		root.DifficultyAdjustmentCutoffTime = 45
+		root.DifficultyAdjustmentFactor = 2048
+		poswConfig := cfglist[i].Quarkchain.Root.PoSWConfig
+		poswConfig.Enabled = true
+		poswConfig.WindowSize = 2
+		//should always pass pow check if posw is applied
+		poswConfig.DiffDivider = 1000000
+	}
 	_, cluster := it.CreateClusterList(1, cfglist)
 	cluster.Start(5*time.Second, true)
 	defer cluster.Stop()
 
 	c := cluster[0]
 	mstr := c.GetMaster()
-	mstr.GetClusterConfig().Quarkchain.GuardianPrivateKey = []byte{}
 	cfg := mstr.GetClusterConfig().Quarkchain.Root
 
-	addRootBlock := func(addr account.Address, sign bool) error {
+	addRootBlock := func(addr account.Address, sign, mine bool) error {
 		cfg.CoinbaseAddress = addr
 		rootBlock, diff, err := mstr.CreateBlockToMine()
 		if err != nil {
 			return err
 		}
+		fmt.Printf("number=%d, coinbase=%x", rootBlock.NumberU64(), rootBlock.IHeader().GetCoinbase())
 		assert.Equal(t, rootBlock.IHeader().GetDifficulty(), diff)
 		rBlock := rootBlock.(*types.RootBlock)
 		if sign {
@@ -582,43 +596,33 @@ func TestPoSWOnRootChain(t *testing.T) {
 				return err
 			}
 		}
-		diffCalculator := consensus.EthDifficultyCalculator{
-			MinimumDifficulty: big.NewInt(int64(10)),
-			AdjustmentCutoff:  cfg.DifficultyAdjustmentCutoffTime,
-			AdjustmentFactor:  cfg.DifficultyAdjustmentFactor,
+		if mine {
+			//to pass pow check
+			diffCalculator := consensus.EthDifficultyCalculator{
+				MinimumDifficulty: big.NewInt(int64(10)),
+				AdjustmentCutoff:  45,
+				AdjustmentFactor:  2048,
+			}
+			resultsCh := make(chan types.IBlock)
+			engine := doublesha256.New(&diffCalculator, false, nil)
+			if err = engine.Seal(nil, rBlock, diff, resultsCh, nil); err != nil {
+				t.Fatalf("problem sealing the block: %v", err)
+			}
+			minedBlock := <-resultsCh
+			rBlock = minedBlock.(*types.RootBlock)
 		}
-		resultsCh := make(chan types.IBlock)
-		pubKey := common.FromHex(mstr.GetClusterConfig().Quarkchain.GuardianPublicKey)
-		engine := doublesha256.New(&diffCalculator, false, pubKey)
-		if err = engine.Seal(nil, rBlock, diff, resultsCh, nil); err != nil {
-			t.Fatalf("problem sealing the block: %v", err)
-		}
-		minedBlock := <-resultsCh
-		rBlock = minedBlock.(*types.RootBlock)
 		return mstr.AddRootBlock(rBlock)
 	}
+
 	//add a root block first to init shard chains
-	assert.NoError(t, addRootBlock(account.Address{}, false))
-	cfg.PoSWConfig.Enabled = true
-	cfg.PoSWConfig.WindowSize = 2
-	//should always pass pow check if posw is applied
-	cfg.PoSWConfig.DiffDivider = 1000000
+	assert.NoError(t, addRootBlock(account.Address{}, false, true))
 
-	//monkey patch staking results
-	mockGetRootChainStakes := func(coinbase account.Recipient, lastMinor common.Hash) (*big.Int, *account.Recipient, error) {
-		if bytes.Compare(coinbase[:], stakerAddr.Recipient[:]) == 0 {
-			return cfg.PoSWConfig.TotalStakePerBlock, &signerAddr.Recipient, nil
-		}
-		return new(big.Int), nil, nil
-	}
+	//signature mismatch (recovery failed)
+	assert.Error(t, addRootBlock(stakerAddr, false, false))
 
-	shard := c.GetSlavelist()[0].GetShard(1)
-	shard.MinorBlockChain.SetRootChainStakesFunc(mockGetRootChainStakes)
-
-	//fail, because signature mismatch
-	assert.EqualError(t, addRootBlock(stakerAddr, false), "invalid proof-of-work")
-	assert.NoError(t, addRootBlock(stakerAddr, true))
-	//fail again, because quota used up
-	assert.EqualError(t, addRootBlock(stakerAddr, false), "invalid proof-of-work")
+	// posw applied: from 952152 to 0
+	assert.NoError(t, addRootBlock(stakerAddr, true, false))
+	// 1000000 quota used up; tried posw but no diff change
+	assert.Error(t, addRootBlock(stakerAddr, true, false))
 
 }

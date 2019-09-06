@@ -81,7 +81,7 @@ type QKCMasterBackend struct {
 }
 
 // New new master with config
-func New(ctx *service.ServiceContext, cfg *config.ClusterConfig) (*QKCMasterBackend, error) {
+func New(ctx *service.ServiceContext, diffCalculator consensus.EthDifficultyCalculator, cfg *config.ClusterConfig) (*QKCMasterBackend, error) {
 	var (
 		mstr = &QKCMasterBackend{
 			ctx:                ctx,
@@ -108,7 +108,7 @@ func New(ctx *service.ServiceContext, cfg *config.ClusterConfig) (*QKCMasterBack
 		return nil, err
 	}
 
-	if mstr.engine, err = createConsensusEngine(cfg.Quarkchain.Root, cfg.Quarkchain.GuardianPublicKey); err != nil {
+	if mstr.engine, err = createConsensusEngine(cfg.Quarkchain.Root, diffCalculator, cfg.Quarkchain.GuardianPublicKey); err != nil {
 		return nil, err
 	}
 
@@ -152,12 +152,7 @@ func createDB(ctx *service.ServiceContext, name string, clean bool, isReadOnly b
 	return db, nil
 }
 
-func createConsensusEngine(cfg *config.RootConfig, pubKeyStr string) (consensus.Engine, error) {
-	diffCalculator := consensus.EthDifficultyCalculator{
-		MinimumDifficulty: big.NewInt(int64(cfg.Genesis.Difficulty)),
-		AdjustmentCutoff:  cfg.DifficultyAdjustmentCutoffTime,
-		AdjustmentFactor:  cfg.DifficultyAdjustmentFactor,
-	}
+func createConsensusEngine(cfg *config.RootConfig, diffCalculator consensus.EthDifficultyCalculator, pubKeyStr string) (consensus.Engine, error) {
 	pubKey := common.FromHex(pubKeyStr)
 	switch cfg.ConsensusType {
 	case config.PoWSimulate: // TODO pow_simulate is fake

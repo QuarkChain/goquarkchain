@@ -18,6 +18,7 @@
 package core
 
 import (
+	"bytes"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -143,7 +144,6 @@ type MinorBlockChain struct {
 	posw                     consensus.PoSWCalculator
 	gasLimit                 *big.Int
 	xShardGasLimit           *big.Int
-	getRootChainStakes       func(coinbase account.Recipient, lastMinor common.Hash) (*big.Int, *account.Recipient, error)
 }
 
 // NewMinorBlockChain returns a fully initialised block chain using information
@@ -1781,10 +1781,28 @@ func (m *MinorBlockChain) GetGenesisRootHeight() uint32 {
 
 func (m *MinorBlockChain) GetRootChainStakes(coinbase account.Recipient, lastMinor common.Hash) (*big.Int,
 	*account.Recipient, error) {
-	return m.getRootChainStakes(coinbase, lastMinor)
-}
 
-func (m *MinorBlockChain) SetRootChainStakesFunc(getRootChainStakes func(coinbase account.Recipient,
-	lastMinor common.Hash) (*big.Int, *account.Recipient, error)) {
-	m.getRootChainStakes = getRootChainStakes
+	if m.branch.GetChainID() != 0 || m.branch.GetShardID() != 0 {
+		return nil, nil, errors.New("not chain 0 shard 0")
+	}
+	//monkey patch staking results
+	stakerkeyB := []byte{0x1}
+	stakerkey := account.BytesToIdentityKey(stakerkeyB)
+	stakerId, err := account.CreatIdentityFromKey(stakerkey)
+	if err != nil {
+		return nil, nil, fmt.Errorf("error create id %v", stakerId)
+	}
+	stakerAddr := account.NewAddress(stakerId.GetRecipient(), 0)
+	signerkeyB := []byte{0x2}
+	signerkey := account.BytesToIdentityKey(signerkeyB)
+	signerId, err := account.CreatIdentityFromKey(signerkey)
+	if err != nil {
+		return nil, nil, fmt.Errorf("error create id %v", signerId)
+	}
+	signerAddr := account.NewAddress(signerId.GetRecipient(), 0)
+
+	if bytes.Compare(coinbase[:], stakerAddr.Recipient[:]) == 0 {
+		return m.clusterConfig.Quarkchain.Root.PoSWConfig.TotalStakePerBlock, &signerAddr.Recipient, nil
+	}
+	return new(big.Int), nil, nil
 }

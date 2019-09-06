@@ -285,7 +285,13 @@ func initEnvWithConsensusType(t *testing.T, chanOp chan uint32, consensusType st
 	clusterConfig.Quarkchain.Root.ConsensusConfig.RemoteMine = true
 	clusterConfig.Quarkchain.Root.Genesis.Difficulty = 2000
 	clusterConfig.Quarkchain.GuardianPublicKey = pubKey
-	master, err := New(ctx, clusterConfig)
+	root := clusterConfig.Quarkchain.Root
+	diffCalculator := consensus.EthDifficultyCalculator{
+		MinimumDifficulty: big.NewInt(int64(root.Genesis.Difficulty)),
+		AdjustmentCutoff:  root.DifficultyAdjustmentCutoffTime,
+		AdjustmentFactor:  root.DifficultyAdjustmentFactor,
+	}
+	master, err := New(ctx, diffCalculator, clusterConfig)
 	if err != nil {
 		panic(err)
 	}

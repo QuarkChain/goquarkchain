@@ -75,6 +75,15 @@ func NewPOSWConfig() *POSWConfig {
 	}
 }
 
+func NewRootPOSWConfig() *POSWConfig {
+	return &POSWConfig{
+		Enabled:            false,
+		DiffDivider:        1000,
+		WindowSize:         4320, //72 hours
+		TotalStakePerBlock: new(big.Int).Mul(big.NewInt(240000), QuarkashToJiaozi),
+	}
+}
+
 type SimpleNetwork struct {
 	BootstrapHost string `json:"BOOT_STRAP_HOST"`
 	BootstrapPort uint64 `json:"BOOT_STRAP_PORT"`
@@ -141,7 +150,7 @@ func NewRootConfig() *RootConfig {
 		DifficultyAdjustmentFactor:     1024,
 		GRPCHost:                       "127.0.0.1",
 		GRPCPort:                       GrpcPort,
-		PoSWConfig:                     NewPOSWConfig(),
+		PoSWConfig:                     NewRootPOSWConfig(),
 	}
 }
 

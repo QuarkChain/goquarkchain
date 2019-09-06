@@ -9,10 +9,12 @@ import (
 	"github.com/QuarkChain/goquarkchain/cluster/shard"
 	"github.com/QuarkChain/goquarkchain/cluster/slave"
 	"github.com/QuarkChain/goquarkchain/cmd/utils"
+	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/core"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/p2p"
 	"github.com/ethereum/go-ethereum/p2p/enode"
+	"math/big"
 	"math/rand"
 	"runtime"
 	"runtime/debug"
@@ -76,7 +78,12 @@ func makeClusterNode(index uint16, clstrCfg *config.ClusterConfig, bootNodes []*
 		utils.Fatalf("Failed to create the master: %v", err)
 	}
 	node.SetIsMaster(true)
-	utils.RegisterMasterService(node, clstrCfg)
+	diffCalculator := consensus.EthDifficultyCalculator{
+		MinimumDifficulty: big.NewInt(int64(10)),
+		AdjustmentCutoff:  45,
+		AdjustmentFactor:  2048,
+	}
+	utils.RegisterMasterService(node, diffCalculator, clstrCfg)
 	nodeList[clientIdentifier] = node
 	return &clusterNode{index: int(index), clstrCfg: clstrCfg, services: nodeList}
 }

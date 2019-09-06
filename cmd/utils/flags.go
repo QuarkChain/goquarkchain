@@ -4,6 +4,7 @@ package utils
 import (
 	"fmt"
 	"github.com/QuarkChain/goquarkchain/cluster/slave"
+	"github.com/QuarkChain/goquarkchain/consensus"
 	"os"
 	"path/filepath"
 	"strings"
@@ -564,10 +565,10 @@ func checkExclusive(ctx *cli.Context, args ...interface{}) {
 }
 
 // RegisterEthService adds an QuarkChain client to the stack.
-func RegisterMasterService(stack *service.Node, cfg *config.ClusterConfig) {
+func RegisterMasterService(stack *service.Node, diffCalculator consensus.EthDifficultyCalculator, cfg *config.ClusterConfig) {
 	err := stack.Register(func(ctx *service.ServiceContext) (service.Service, error) {
 		// TODO add cluster create function
-		return master.New(ctx, cfg)
+		return master.New(ctx, diffCalculator, cfg)
 	})
 	if err != nil {
 		Fatalf("Failed to register the QuarkChain service: %v", err)

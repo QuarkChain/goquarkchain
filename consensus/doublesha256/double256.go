@@ -51,7 +51,7 @@ func verifySeal(chain consensus.ChainReader, header types.IHeader, adjustedDiff 
 	}
 	diff := adjustedDiff
 	if diff == nil || diff.Cmp(big.NewInt(0)) == 0 {
-		diff = header.GetDifficulty()
+		diff = big.NewInt(1)
 	}
 
 	target := new(big.Int).Div(two256, diff)

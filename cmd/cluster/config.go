@@ -8,10 +8,12 @@ import (
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/cluster/service"
 	"github.com/QuarkChain/goquarkchain/cmd/utils"
+	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/params"
 	"github.com/naoina/toml"
 	"gopkg.in/urfave/cli.v1"
 	"io/ioutil"
+	"math/big"
 	"reflect"
 	"unicode"
 )
@@ -123,7 +125,13 @@ func makeFullNode(ctx *cli.Context) *service.Node {
 			}
 		}
 	} else {
-		utils.RegisterMasterService(stack, &cfg.Cluster)
+		root := cfg.Cluster.Quarkchain.Root
+		diffCalculator := consensus.EthDifficultyCalculator{
+			MinimumDifficulty: big.NewInt(int64(root.Genesis.Difficulty)),
+			AdjustmentCutoff:  root.DifficultyAdjustmentCutoffTime,
+			AdjustmentFactor:  root.DifficultyAdjustmentFactor,
+		}
+		utils.RegisterMasterService(stack, diffCalculator, &cfg.Cluster)
 	}
 
 	return stack
