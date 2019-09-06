@@ -83,7 +83,7 @@ func (c *CommonEngine) remote() {
 			log.Warn("Work submitted but none pending", "sealhash", sealhash)
 			return false
 		}
-		if c.currentWorks.hasSealHash(sealhash) {
+		if !c.currentWorks.hasSealHash(sealhash) {
 			log.Info("already be delete", "height", block.IHeader().NumberU64())
 			return false
 		}
