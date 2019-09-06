@@ -61,13 +61,14 @@ func (s *subscribe) Subscribe(fullShardId uint32, tp Type, broadcast func(interf
 			broadcast: broadcast,
 		}
 	case PendingTransactionsSubscription:
-		txsCh := make(chan core.NewTxsEvent, txChanSize)
-		txsSub := shrd.MinorBlockChain.SubscribeTxsEvent(txsCh)
-		tpEvent[tp] = &subTxsEvent{
-			ch:        txsCh,
-			sub:       txsSub,
-			broadcast: broadcast,
-		}
+		panic("not implemented")
+		//txsCh := make(chan core.NewTxsEvent, txChanSize)
+		//txsSub := shrd.MinorBlockChain.SubscribeTxsEvent(txsCh)
+		//tpEvent[tp] = &subTxsEvent{
+		//	ch:        txsCh,
+		//	sub:       txsSub,
+		//	broadcast: broadcast,
+		//}
 	case BlocksSubscription:
 		headersCh := make(chan core.MinorChainHeadEvent, chainEvChanSize)
 		headersSub := shrd.MinorBlockChain.SubscribeChainHeadEvent(headersCh)

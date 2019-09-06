@@ -62,10 +62,10 @@ type PublicFilterAPI struct {
 }
 
 // NewPublicFilterAPI returns a new PublicFilterAPI instance.
-func NewPublicFilterAPI(backend SlaveBackend, lightMode bool) *PublicFilterAPI {
+func NewPublicFilterAPI(backend SlaveBackend) *PublicFilterAPI {
 	api := &PublicFilterAPI{
 		backend: backend,
-		events:  NewEventSystem(backend, lightMode),
+		events:  NewEventSystem(backend),
 		filters: make(map[rpc.ID]*filter),
 	}
 	go api.timeoutLoop()

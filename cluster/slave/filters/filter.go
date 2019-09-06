@@ -23,25 +23,13 @@ import (
 	qrpc "github.com/QuarkChain/goquarkchain/cluster/rpc"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/bloombits"
 )
 
 type ShardBackend interface {
-	// GetShardBackend(branch uint32) (*shard.ShardBackend, error)
-	// ChainDb() ethdb.Database
-	// EventMux() *event.TypeMux
-	//HeaderByNumber(ctx context.Context, blockNr rpc.BlockNumber) (*types.Header, error)
 	GetHeaderByNumber(height qrpc.BlockNumber) (*types.MinorBlockHeader, error)
 	GetHeaderByHash(blockHash common.Hash) (*types.MinorBlockHeader, error)
 	GetReceiptsByHash(hash common.Hash) (types.Receipts, error)
 	GetLogs(hash common.Hash) ([][]*types.Log, error)
-	//SubscribeNewTxsEvent(chan<- core.NewTxsEvent) event.Subscription
-	//SubscribeChainEvent(ch chan<- core.ChainEvent) event.Subscription
-	//SubscribeRemovedLogsEvent(ch chan<- core.RemovedLogsEvent) event.Subscription
-	//SubscribeLogsEvent(ch chan<- []*types.Log) event.Subscription
-	//
-	//BloomStatus() (uint64, uint64)
-	//ServiceFilter(ctx context.Context, session *bloombits.MatcherSession)
 }
 
 // Filter can be used to retrieve and filter logs.
@@ -53,8 +41,6 @@ type Filter struct {
 
 	block      common.Hash // Block hash if filtering a single block
 	begin, end int64       // Range interval if filtering multiple blocks
-
-	matcher *bloombits.Matcher
 }
 
 // NewRangeFilter creates a new filter which uses a bloom filter on blocks to
@@ -79,12 +65,10 @@ func NewRangeFilter(backend ShardBackend, begin, end int64, addresses []common.A
 		}
 		filters = append(filters, filter)
 	}
-	size, _ := backend.BloomStatus()
 
 	// Create a generic filter and convert it into a range filter
 	filter := newFilter(backend, addresses, topics)
 
-	filter.matcher = bloombits.NewMatcher(size, filters)
 	filter.begin = begin
 	filter.end = end
 
@@ -139,67 +123,10 @@ func (f *Filter) Logs(ctx context.Context) ([]*types.Log, error) {
 	var (
 		logs []*types.Log
 	)
-	size, sections := f.backend.BloomStatus()
-	if indexed := sections * size; indexed > uint64(f.begin) {
-		if indexed > end {
-			logs, err = f.indexedLogs(ctx, end)
-		} else {
-			logs, err = f.indexedLogs(ctx, indexed-1)
-		}
-		if err != nil {
-			return logs, err
-		}
-	}
+
 	rest, err := f.unindexedLogs(ctx, end)
 	logs = append(logs, rest...)
 	return logs, err
-}
-
-// indexedLogs returns the logs matching the filter criteria based on the bloom
-// bits indexed available locally or via the network.
-func (f *Filter) indexedLogs(ctx context.Context, end uint64) ([]*types.Log, error) {
-	// Create a matcher session and request servicing from the backend
-	matches := make(chan uint64, 64)
-
-	session, err := f.matcher.Start(ctx, uint64(f.begin), end, matches)
-	if err != nil {
-		return nil, err
-	}
-	defer session.Close()
-
-	f.backend.ServiceFilter(ctx, session)
-
-	// Iterate over the matches until exhausted or context closed
-	var logs []*types.Log
-
-	for {
-		select {
-		case number, ok := <-matches:
-			// Abort if all matches have been fulfilled
-			if !ok {
-				err := session.Error()
-				if err == nil {
-					f.begin = int64(end) + 1
-				}
-				return logs, err
-			}
-			f.begin = int64(number) + 1
-
-			// Retrieve the suggested block and pull any truly matching logs
-			header, err := f.backend.GetHeaderByNumber(qrpc.BlockNumber(number))
-			if header == nil || err != nil {
-				return logs, err
-			}
-			found, err := f.checkMatches(ctx, header)
-			if err != nil {
-				return logs, err
-			}
-			logs = append(logs, found...)
-
-		case <-ctx.Done():
-			return logs, ctx.Err()
-		}
-	}
 }
 
 // indexedLogs returns the logs matching the filter criteria based on raw block

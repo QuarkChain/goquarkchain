@@ -84,9 +84,8 @@ type subscription struct {
 // EventSystem creates subscriptions, processes events and broadcasts them to the
 // subscription which match the subscription criteria.
 type EventSystem struct {
-	backend   SlaveBackend
-	lightMode bool
-	lastHead  *types.MinorBlockHeader
+	backend  SlaveBackend
+	lastHead *types.MinorBlockHeader
 
 	// Channels
 	install    chan *subscription // install filter for event notification
@@ -101,13 +100,11 @@ type EventSystem struct {
 //
 // The returned manager has a loop that needs to be stopped with the Stop function
 // or by stopping the given mux.
-func NewEventSystem(backend SlaveBackend, lightMode bool) *EventSystem {
+func NewEventSystem(backend SlaveBackend) *EventSystem {
 	m := &EventSystem{
-		backend:   backend,
-		lightMode: lightMode,
-		install:   make(chan *subscription),
-		uninstall: make(chan *subscription),
-		// TODO fill shardBackend list
+		backend:    backend,
+		install:    make(chan *subscription),
+		uninstall:  make(chan *subscription),
 		subManager: NewSubScribe(backend),
 	}
 
