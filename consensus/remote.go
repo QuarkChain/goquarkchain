@@ -83,6 +83,10 @@ func (c *CommonEngine) remote() {
 			log.Warn("Work submitted but none pending", "sealhash", sealhash)
 			return false
 		}
+		if c.currentWorks.hasSealHash(sealhash) {
+			log.Info("already be delete", "height", block.IHeader().NumberU64())
+			return false
+		}
 
 		if results == nil {
 			log.Warn("Qkc cash result channel is empty, submitted mining result is rejected")
@@ -203,4 +207,14 @@ func (c *currentWorks) refresh(tip uint64) {
 			delete(c.works, coinbase)
 		}
 	}
+}
+func (c *currentWorks) hasSealHash(hash common.Hash) bool {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	for _, v := range c.works {
+		if v.HeaderHash == hash {
+			return true
+		}
+	}
+	return false
 }
