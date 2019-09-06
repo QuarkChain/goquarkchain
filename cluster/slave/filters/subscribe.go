@@ -6,6 +6,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"golang.org/x/sync/errgroup"
 	"sync"
+	"time"
 )
 
 type delnode struct {
@@ -90,7 +91,10 @@ func (s *subscribe) Stop() {
 }
 
 func (s *subscribe) eventsloop() {
-	var g errgroup.Group
+	var (
+		g      errgroup.Group
+		ticker = time.NewTicker(3 * time.Second)
+	)
 	defer func() {
 		for id := range s.events {
 			for tp, subEv := range s.events[id] {
@@ -99,6 +103,7 @@ func (s *subscribe) eventsloop() {
 			}
 			delete(s.events, id)
 		}
+		ticker.Stop()
 	}()
 	for {
 		select {
@@ -112,7 +117,7 @@ func (s *subscribe) eventsloop() {
 					ev.freech()
 				}
 			}
-		default:
+		case <-ticker.C:
 			for fullShardId := range s.events {
 				id := fullShardId
 				g.Go(func() error {
