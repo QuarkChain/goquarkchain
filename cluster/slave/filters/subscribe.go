@@ -2,92 +2,56 @@ package filters
 
 import (
 	qcom "github.com/QuarkChain/goquarkchain/common"
-	"github.com/QuarkChain/goquarkchain/core"
-	"github.com/QuarkChain/goquarkchain/core/types"
+	"github.com/ethereum/go-ethereum/log"
 	"golang.org/x/sync/errgroup"
-	"sync"
 	"time"
 )
 
-type delnode struct {
-	fullShardId uint32
-	tp          Type
+type delEvent struct {
+	id uint32
+	tp Type
+}
+
+type addEvent struct {
+	delEvent
+	broadcast func(interface{})
 }
 
 type subscribe struct {
 	backend SlaveBackend
+	events  map[uint32]map[Type]subackend
 
-	events map[uint32]map[Type]subackend
-
-	mu     sync.RWMutex
 	exitCh chan struct{}
-	delCh  chan *delnode
+	addCh  chan *addEvent
+	delCh  chan *delEvent
 }
 
 func NewSubScribe(backend SlaveBackend) *subscribe {
 
 	sub := &subscribe{
 		backend: backend,
-
-		events: make(map[uint32]map[Type]subackend),
+		events:  make(map[uint32]map[Type]subackend),
 
 		exitCh: make(chan struct{}),
-		delCh:  make(chan *delnode, len(backend.GetFullShardList())),
+		addCh:  make(chan *addEvent, 8),
+		delCh:  make(chan *delEvent, 8),
 	}
 
 	go sub.eventsloop()
 	return sub
 }
 
-func (s *subscribe) Subscribe(fullShardId uint32, tp Type, broadcast func(interface{})) {
-	shrd, err := s.backend.GetShardBackend(fullShardId)
-	if err != nil {
-		return
-	}
-
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	if _, ok := s.events[fullShardId]; !ok {
-		s.events[fullShardId] = make(map[Type]subackend)
-	}
-	tpEvent := s.events[fullShardId]
-	if _, ok := tpEvent[tp]; ok {
-		return
-	}
-
-	switch tp {
-	case LogsSubscription:
-		logsCh := make(chan []*types.Log, logsChanSize)
-		logsSub := shrd.MinorBlockChain.SubscribeLogsEvent(logsCh)
-		tpEvent[tp] = &subLogsEvent{
-			ch:        logsCh,
-			sub:       logsSub,
+func (s *subscribe) Subscribe(id uint32, tp Type, broadcast func(interface{})) {
+	go func() {
+		s.addCh <- &addEvent{
+			delEvent:  delEvent{id: id, tp: tp},
 			broadcast: broadcast,
 		}
-	case PendingTransactionsSubscription:
-		panic("not implemented")
-		//txsCh := make(chan core.NewTxsEvent, txChanSize)
-		//txsSub := shrd.MinorBlockChain.SubscribeTxsEvent(txsCh)
-		//tpEvent[tp] = &subTxsEvent{
-		//	ch:        txsCh,
-		//	sub:       txsSub,
-		//	broadcast: broadcast,
-		//}
-	case BlocksSubscription:
-		headersCh := make(chan core.MinorChainHeadEvent, chainEvChanSize)
-		headersSub := shrd.MinorBlockChain.SubscribeChainHeadEvent(headersCh)
-		tpEvent[tp] = &subMinorBlockHeadersEvent{
-			ch:        headersCh,
-			sub:       headersSub,
-			broadcast: broadcast,
-		}
-	}
-	return
+	}()
 }
 
-func (s *subscribe) Unsubscribe(fullShardId uint32, tp Type) {
-	go func() { s.delCh <- &delnode{fullShardId: fullShardId, tp: tp} }()
+func (s *subscribe) Unsubscribe(id uint32, tp Type) {
+	go func() { s.delCh <- &delEvent{id: id, tp: tp} }()
 }
 
 func (s *subscribe) Stop() {
@@ -97,7 +61,7 @@ func (s *subscribe) Stop() {
 func (s *subscribe) eventsloop() {
 	var (
 		g      errgroup.Group
-		ticker = time.NewTicker(5 * time.Second)
+		ticker = time.NewTicker(3 * time.Second)
 	)
 	defer func() {
 		for id := range s.events {
@@ -113,24 +77,42 @@ func (s *subscribe) eventsloop() {
 		select {
 		case <-s.exitCh:
 			return
+
 		case del := <-s.delCh:
-			s.mu.Lock()
-			if subEv, ok := s.events[del.fullShardId]; ok {
-				ev := subEv[del.tp]
-				if !qcom.IsNil(ev) {
+			if subEv, ok := s.events[del.id]; ok {
+				if ev, ok := subEv[del.tp]; ok {
 					delete(subEv, del.tp)
 					ev.freech()
 				}
+				if len(subEv) == 0 {
+					delete(s.events, del.id)
+				}
 			}
-			s.mu.Unlock()
+
+		case add := <-s.addCh:
+			shrd, err := s.backend.GetShardBackend(add.id)
+			if err != nil {
+				break
+			}
+			if _, ok := s.events[add.id]; !ok {
+				s.events[add.id] = make(map[Type]subackend)
+			}
+			tpEvent := s.events[add.id]
+			if _, ok := tpEvent[add.tp]; !ok {
+				sub := s.newSubEvent(shrd, add.tp, add.broadcast)
+				if qcom.IsNil(sub) {
+					break
+				}
+				tpEvent[add.tp] = sub
+			}
+
 		case <-ticker.C:
-			s.mu.RLock()
-			for fullShardId := range s.events {
-				id := fullShardId
+			for id := range s.events {
+				id := id
 				g.Go(func() error {
 					for tp, subEv := range s.events[id] {
 						if err := subEv.getch(); err != nil {
-							s.delCh <- &delnode{fullShardId: id, tp: tp}
+							s.delCh <- &delEvent{id: id, tp: tp}
 							return err
 						}
 					}
@@ -138,9 +120,8 @@ func (s *subscribe) eventsloop() {
 				})
 			}
 			if err := g.Wait(); err != nil {
-				// TODO print error
+				log.Error("subscribe event error: ", err)
 			}
-			s.mu.RUnlock()
 		}
 	}
 }

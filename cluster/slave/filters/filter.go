@@ -18,11 +18,13 @@ package filters
 
 import (
 	"context"
+	"github.com/QuarkChain/goquarkchain/core"
 	"math/big"
 
 	qrpc "github.com/QuarkChain/goquarkchain/cluster/rpc"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/event"
 )
 
 type ShardBackend interface {
@@ -30,6 +32,9 @@ type ShardBackend interface {
 	GetHeaderByHash(blockHash common.Hash) (*types.MinorBlockHeader, error)
 	GetReceiptsByHash(hash common.Hash) (types.Receipts, error)
 	GetLogs(hash common.Hash) ([][]*types.Log, error)
+
+	SubscribeChainHeadEvent(ch chan<- core.MinorChainHeadEvent) event.Subscription
+	SubscribeLogsEvent(ch chan<- []*types.Log) event.Subscription
 }
 
 // Filter can be used to retrieve and filter logs.

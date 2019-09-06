@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/consensus"
+	"github.com/QuarkChain/goquarkchain/core"
 	"math/big"
 	"time"
 
@@ -13,6 +14,7 @@ import (
 	qcom "github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
 )
 
@@ -368,6 +370,15 @@ func (s *ShardBackend) GetTip() uint64 {
 
 func (s *ShardBackend) IsSyncIng() bool {
 	return s.synchronizer.IsSyncing()
+}
+
+// ######################## subscribe Methods ##########################
+func (s *ShardBackend) SubscribeChainHeadEvent(ch chan<- core.MinorChainHeadEvent) event.Subscription {
+	return s.MinorBlockChain.SubscribeChainHeadEvent(ch)
+}
+
+func (s *ShardBackend) SubscribeLogsEvent(ch chan<- []*types.Log) event.Subscription {
+	return s.MinorBlockChain.SubscribeLogsEvent(ch)
 }
 
 func (s *ShardBackend) broadcastNewTip() (err error) {

@@ -24,6 +24,8 @@ func (s *subTxsEvent) getch() error {
 		return nil
 	case err := <-s.sub.Err():
 		return err
+	default:
+		return nil
 	}
 }
 
@@ -44,6 +46,8 @@ func (s *subLogsEvent) getch() error {
 		return nil
 	case err := <-s.sub.Err():
 		return err
+	default:
+		return nil
 	}
 }
 
@@ -66,6 +70,8 @@ func (s *subMinorBlockHeadersEvent) getch() error {
 		return nil
 	case err := <-s.sub.Err():
 		return err
+	default:
+		return nil
 	}
 }
 
@@ -73,4 +79,35 @@ func (s *subMinorBlockHeadersEvent) freech() {
 	if err := s.getch(); err == nil {
 		s.sub.Unsubscribe()
 	}
+}
+
+func (s *subscribe) newSubEvent(shrd ShardBackend, tp Type, broadcast func(interface{})) subackend {
+	switch tp {
+	case LogsSubscription:
+		logsCh := make(chan []*types.Log, logsChanSize)
+		logsSub := shrd.SubscribeLogsEvent(logsCh)
+		return &subLogsEvent{
+			ch:        logsCh,
+			sub:       logsSub,
+			broadcast: broadcast,
+		}
+	case PendingTransactionsSubscription:
+		panic("not implemented")
+		//txsCh := make(chan core.NewTxsEvent, txChanSize)
+		//txsSub := shrd.MinorBlockChain.SubscribeTxsEvent(txsCh)
+		//tpEvent[tp] = &subTxsEvent{
+		//	ch:        txsCh,
+		//	sub:       txsSub,
+		//	broadcast: broadcast,
+		//}
+	case BlocksSubscription:
+		headersCh := make(chan core.MinorChainHeadEvent, chainEvChanSize)
+		headersSub := shrd.SubscribeChainHeadEvent(headersCh)
+		return &subMinorBlockHeadersEvent{
+			ch:        headersCh,
+			sub:       headersSub,
+			broadcast: broadcast,
+		}
+	}
+	return nil
 }
