@@ -44,6 +44,10 @@ func (s *subscribe) Subscribe(fullShardId uint32, tp Type, broadcast func(interf
 	if err != nil {
 		return
 	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	if _, ok := s.events[fullShardId]; !ok {
 		s.events[fullShardId] = make(map[Type]subackend)
 	}
@@ -93,7 +97,7 @@ func (s *subscribe) Stop() {
 func (s *subscribe) eventsloop() {
 	var (
 		g      errgroup.Group
-		ticker = time.NewTicker(3 * time.Second)
+		ticker = time.NewTicker(5 * time.Second)
 	)
 	defer func() {
 		for id := range s.events {
@@ -110,6 +114,7 @@ func (s *subscribe) eventsloop() {
 		case <-s.exitCh:
 			return
 		case del := <-s.delCh:
+			s.mu.Lock()
 			if subEv, ok := s.events[del.fullShardId]; ok {
 				ev := subEv[del.tp]
 				if !qcom.IsNil(ev) {
@@ -117,7 +122,9 @@ func (s *subscribe) eventsloop() {
 					ev.freech()
 				}
 			}
+			s.mu.Unlock()
 		case <-ticker.C:
+			s.mu.RLock()
 			for fullShardId := range s.events {
 				id := fullShardId
 				g.Go(func() error {
@@ -133,6 +140,7 @@ func (s *subscribe) eventsloop() {
 			if err := g.Wait(); err != nil {
 				// TODO print error
 			}
+			s.mu.RUnlock()
 		}
 	}
 }

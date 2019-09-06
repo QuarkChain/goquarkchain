@@ -37,6 +37,7 @@ func (s *SlaveConfig) UnmarshalJSON(input []byte) error {
 		return err
 	}
 	*s = SlaveConfig(jsonConfig.SlaveConfigAlias)
+	s.WSPort = DefaultWSPort
 	s.ChainMaskList = make([]*types.ChainMask, len(jsonConfig.ChainMaskList))
 	for i, value := range jsonConfig.ChainMaskList {
 		s.ChainMaskList[i] = types.NewChainMask(value)

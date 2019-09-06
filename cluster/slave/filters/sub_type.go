@@ -62,7 +62,7 @@ type subMinorBlockHeadersEvent struct {
 func (s *subMinorBlockHeadersEvent) getch() error {
 	select {
 	case ev := <-s.ch:
-		s.broadcast(ev.Block)
+		s.broadcast(ev.Block.Header())
 		return nil
 	case err := <-s.sub.Err():
 		return err

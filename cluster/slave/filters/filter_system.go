@@ -91,6 +91,8 @@ type EventSystem struct {
 	install    chan *subscription // install filter for event notification
 	uninstall  chan *subscription // remove filter for event notification
 	subManager *subscribe
+
+	mu sync.RWMutex
 	// chainCh   chan *sub       // Channel to receive new chain event
 }
 
@@ -281,6 +283,8 @@ func (es *EventSystem) broadcast(filters filterIndex, ev interface{}) {
 	if ev == nil {
 		return
 	}
+	es.mu.RLock()
+	defer es.mu.RUnlock()
 
 	switch e := ev.(type) {
 	case []*types.Log:
@@ -301,6 +305,10 @@ func (es *EventSystem) broadcast(filters filterIndex, ev interface{}) {
 			f.hashes <- hashes
 		}
 
+	case *types.MinorBlockHeader:
+		for _, f := range filters[BlocksSubscription] {
+			f.headers <- e
+		}
 	}
 }
 
@@ -327,7 +335,9 @@ func (es *EventSystem) eventLoop() {
 		case f := <-es.install:
 			if idx, ok := index[f.fullShardId]; ok {
 				if _, ok := idx[f.typ]; ok {
+					es.mu.Lock()
 					idx[f.typ][f.id] = f
+					es.mu.Unlock()
 					es.subManager.Subscribe(f.fullShardId, f.typ, func(val interface{}) {
 						es.broadcast(idx, val)
 					})
@@ -337,7 +347,9 @@ func (es *EventSystem) eventLoop() {
 
 		case f := <-es.uninstall:
 			if idx, ok := index[f.fullShardId]; ok {
+				es.mu.Lock()
 				delete(idx[f.typ], f.id)
+				es.mu.Unlock()
 				if len(idx[f.typ]) == 0 {
 					es.subManager.Unsubscribe(f.fullShardId, f.typ)
 				}
