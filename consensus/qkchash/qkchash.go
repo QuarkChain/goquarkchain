@@ -43,6 +43,9 @@ func (q *QKCHash) hashAlgo(cache *consensus.ShareCache) (err error) {
 	}
 	return
 }
+func (q *QKCHash) RefreshWork(tip uint64) {
+	q.CommonEngine.RefreshWork(tip)
+}
 
 // New returns a QKCHash scheme.
 func New(useNative bool, diffCalculator consensus.DifficultyCalculator, remote bool, pubKey []byte) *QKCHash {

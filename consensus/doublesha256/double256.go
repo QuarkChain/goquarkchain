@@ -34,6 +34,10 @@ func (d *DoubleSHA256) Finalize(chain consensus.ChainReader, header types.IHeade
 	panic(errors.New("not finalize"))
 }
 
+func (q *DoubleSHA256) RefreshWork(tip uint64) {
+	q.CommonEngine.RefreshWork(tip)
+}
+
 func hashAlgo(cache *consensus.ShareCache) error {
 	copy(cache.Seed, cache.Hash)
 	// Note it's big endian here

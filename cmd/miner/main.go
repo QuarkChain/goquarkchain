@@ -275,8 +275,8 @@ func main() {
 	if coinbaseAddress == nil || len(*coinbaseAddress) == 0 {
 		addrForMiner = nil
 	} else {
-		if len(*coinbaseAddress) != 42 {
-			log.Fatal("coinbaseAddress should have length equal 42")
+		if !common.IsHexAddress(*coinbaseAddress) {
+			log.Fatal("ERROR: invalid coinbaseAddress", *coinbaseAddress)
 		}
 		addrForMiner = coinbaseAddress
 	}

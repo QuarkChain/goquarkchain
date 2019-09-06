@@ -77,6 +77,10 @@ func (q *QEthash) Finalize(chain consensus.ChainReader, header types.IHeader, st
 	panic("not implemented")
 }
 
+func (q *QEthash) RefreshWork(tip uint64) {
+	q.CommonEngine.RefreshWork(tip)
+}
+
 // New returns a Ethash scheme.
 func New(
 	config Config,
