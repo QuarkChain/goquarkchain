@@ -1,9 +1,8 @@
 package qkcapi
 
 import (
-	"encoding/json"
+	"bytes"
 	"errors"
-	"fmt"
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	qkcRPC "github.com/QuarkChain/goquarkchain/cluster/rpc"
@@ -16,6 +15,10 @@ import (
 	"github.com/ethereum/go-ethereum/rpc"
 	"math/big"
 	"sort"
+)
+
+var (
+	EmptyTxID = IDEncoder(common.Hash{}.Bytes(), 0)
 )
 
 func decodeBlockNumberToUint64(b Backend, blockNumber *rpc.BlockNumber) (*uint64, error) {
@@ -194,13 +197,15 @@ func (p *PublicBlockChainAPI) GetAccountData(address account.Address, blockNr *r
 }
 
 func (p *PublicBlockChainAPI) SendTransaction(args SendTxArgs) (hexutil.Bytes, error) {
-	args.setDefaults()
-	tx, err := args.toTransaction(p.b.GetClusterConfig().Quarkchain, true)
+	if err := args.setDefaults(p.b.GetClusterConfig().Quarkchain); err != nil {
+		return nil, err
+	}
+	tx, err := args.toTransaction()
 	if err != nil {
 		return nil, err
 	}
 	if err := p.b.AddTransaction(tx); err != nil {
-		return nil, err
+		return EmptyTxID, err
 	}
 	return IDEncoder(tx.Hash().Bytes(), tx.EvmTx.FromFullShardKey()), nil
 }
@@ -214,12 +219,9 @@ func (p *PublicBlockChainAPI) SendRawTransaction(encodedTx hexutil.Bytes) (hexut
 		EvmTx:  evmTx,
 		TxType: types.EvmTx,
 	}
-	jsonConfig, err := json.MarshalIndent(tx, "", "\t")
-	if err == nil {
-		fmt.Println("------------", string(jsonConfig))
-	}
+
 	if err := p.b.AddTransaction(tx); err != nil {
-		return IDEncoder(common.Hash{}.Bytes(), 0), err //TODO need return err?
+		return EmptyTxID, err
 	}
 	return IDEncoder(tx.Hash().Bytes(), tx.EvmTx.FromFullShardKey()), nil
 }
@@ -349,7 +351,12 @@ func (p *PublicBlockChainAPI) GetTransactionReceipt(txID hexutil.Bytes) (map[str
 	if err != nil {
 		return nil, err
 	}
-	return receiptEncoder(minorBlock, int(index), receipt)
+	ret, err := receiptEncoder(minorBlock, int(index), receipt)
+	if ret["transactionId"].(string) == "" {
+		ret["transactionId"] = txID.String()
+		ret["transactionHash"] = txHash.String()
+	}
+	return ret, err
 }
 
 func (p *PublicBlockChainAPI) GetLogs(args *FilterQuery, fullShardKey hexutil.Uint) ([]map[string]interface{}, error) {
@@ -390,7 +397,7 @@ func (p *PublicBlockChainAPI) GetCode(address account.Address, blockNr *rpc.Bloc
 	return p.b.GetCode(&address, blockNumber)
 }
 
-func (p *PublicBlockChainAPI) GetTransactionsByAddress(address account.Address, start *hexutil.Bytes, limit *hexutil.Uint) (map[string]interface{}, error) {
+func (p *PublicBlockChainAPI) GetTransactionsByAddress(address account.Address, start *hexutil.Bytes, limit *hexutil.Uint, transferTokenID *hexutil.Uint64) (map[string]interface{}, error) {
 	limitValue := uint32(0)
 	if limit != nil {
 		limitValue = uint32(*limit)
@@ -402,7 +409,16 @@ func (p *PublicBlockChainAPI) GetTransactionsByAddress(address account.Address, 
 	if start != nil {
 		startValue = *start
 	}
-	txs, next, err := p.b.GetTransactionsByAddress(&address, startValue, limitValue)
+
+	transferTokenIDValue := new(uint64)
+	if transferTokenID == nil {
+		transferTokenIDValue = nil
+	} else {
+		t := uint64(*transferTokenID)
+		transferTokenIDValue = &t
+	}
+
+	txs, next, err := p.b.GetTransactionsByAddress(&address, startValue, limitValue, transferTokenIDValue)
 	if err != nil {
 		return nil, err
 	}
@@ -489,12 +505,16 @@ func makeGetTransactionRes(txs []*qkcRPC.TransactionDetail, next []byte) (map[st
 	}, nil
 }
 
-func (p *PublicBlockChainAPI) GasPrice(fullShardKey uint32) (hexutil.Uint64, error) {
+func (p *PublicBlockChainAPI) GasPrice(fullShardKey uint32, tokenID *string) (hexutil.Uint64, error) {
 	fullShardId, err := p.b.GetClusterConfig().Quarkchain.GetFullShardIdByFullShardKey(fullShardKey)
 	if err != nil {
 		return hexutil.Uint64(0), err
 	}
-	data, err := p.b.GasPrice(account.Branch{Value: fullShardId})
+	tokenIDValue := "QKC"
+	if tokenID != nil {
+		tokenIDValue = *tokenID
+	}
+	data, err := p.b.GasPrice(account.Branch{Value: fullShardId}, qkcCommon.TokenIDEncode(tokenIDValue))
 	return hexutil.Uint64(data), err
 }
 
@@ -543,6 +563,58 @@ func (p *PublicBlockChainAPI) GetWork(fullShardKey *hexutil.Uint) ([]common.Hash
 	val = append(val, common.BytesToHash(work.Difficulty.Bytes()))
 	return val, nil
 }
+
+func (p *PublicBlockChainAPI) GetRootHashConfirmingMinorBlockById(mBlockID hexutil.Bytes) hexutil.Bytes {
+	return p.b.GetRootHashConfirmingMinorBlock(mBlockID).Bytes() //key mHash , value rHash
+}
+
+func (p *PublicBlockChainAPI) GetTransactionConfirmedByNumberRootBlocks(txID hexutil.Bytes) (hexutil.Uint, error) {
+	txHash, fullShardKey, err := IDDecoder(txID)
+	if err != nil {
+		return hexutil.Uint(0), err
+	}
+	fullShardID, err := p.b.GetClusterConfig().Quarkchain.GetFullShardIdByFullShardKey(fullShardKey)
+	if err != nil {
+		return hexutil.Uint(0), err
+	}
+
+	mBlock, _, err := p.b.GetTransactionByHash(txHash, account.Branch{Value: fullShardID})
+	if err != nil {
+		return hexutil.Uint(0), err
+	}
+
+	if mBlock == nil {
+		return hexutil.Uint(0), errors.New("GetTxByHash mBlock is nil")
+	}
+
+	confirmingHash := p.b.GetRootHashConfirmingMinorBlock(IDEncoder(mBlock.Hash().Bytes(), mBlock.Header().Branch.Value))
+	if bytes.Equal(confirmingHash.Bytes(), common.Hash{}.Bytes()) {
+		return hexutil.Uint(0), errors.New("confirmingHash is empty hash")
+	}
+
+	confirmingBlock, err := p.b.GetRootBlockByHash(confirmingHash)
+	if err != nil {
+		return hexutil.Uint(0), err
+	}
+	if confirmingBlock == nil {
+		return hexutil.Uint(0), errors.New("confirmingBlock is nil")
+	}
+	confirmingHeight := confirmingBlock.NumberU64()
+	canonicalBlock, err := p.b.GetRootBlockByNumber(&confirmingHeight)
+	if err != nil {
+		return hexutil.Uint(0), err
+	}
+	if canonicalBlock == nil {
+		return hexutil.Uint(0), errors.New("canonicalBlock is nil")
+	}
+	if !bytes.Equal(canonicalBlock.Hash().Bytes(), confirmingHash.Bytes()) {
+		return hexutil.Uint(0), errors.New("canonicalBlock's hash !=confirmingHash's hash")
+	}
+	tip := p.b.CurrentBlock()
+	return hexutil.Uint(tip.NumberU64() - confirmingHeight + 1), nil
+
+}
+
 func (p *PublicBlockChainAPI) NetVersion() hexutil.Uint {
 	return hexutil.Uint(p.b.GetClusterConfig().Quarkchain.NetworkID)
 }
@@ -593,10 +665,6 @@ func NewPrivateBlockChainAPI(b Backend) *PrivateBlockChainAPI {
 	return &PrivateBlockChainAPI{b}
 }
 
-func (p *PrivateBlockChainAPI) GetNextblocktomine() {
-	//No need to implement
-	panic(-1)
-}
 func (p *PrivateBlockChainAPI) GetPeers() map[string]interface{} {
 	fields := make(map[string]interface{})
 
@@ -628,18 +696,13 @@ func (p *PrivateBlockChainAPI) GetBlockCount() (map[string]interface{}, error) {
 }
 
 //TODO txGenerate implement
-func (p *PrivateBlockChainAPI) CreateTransactions(NumTxPreShard hexutil.Uint) error {
-	args := CreateTxArgs{
-		NumTxPreShard: NumTxPreShard,
-		// after that are default values, create tx func will fill.
-		XShardPrecent: 0,
-		To:            common.Address{},
-		Gas:           (*hexutil.Big)(big.NewInt(30000)),
-		GasPrice:      (*hexutil.Big)(big.NewInt(1)),
-		Value:         (*hexutil.Big)(big.NewInt(0)),
+func (p *PrivateBlockChainAPI) CreateTransactions(args CreateTxArgs) error {
+	config := p.b.GetClusterConfig().Quarkchain
+	if err := args.setDefaults(config); err != nil {
+		return err
 	}
-	tx := args.toTx(p.b.GetClusterConfig().Quarkchain)
-	return p.b.CreateTransactions(uint32(args.NumTxPreShard), uint32(args.XShardPrecent), tx)
+	tx := args.toTx(config)
+	return p.b.CreateTransactions(uint32(*args.NumTxPreShard), uint32(*args.XShardPrecent), tx)
 }
 func (p *PrivateBlockChainAPI) SetTargetBlockTime(rootBlockTime *uint32, minorBlockTime *uint32) error {
 	return p.b.SetTargetBlockTime(rootBlockTime, minorBlockTime)
@@ -650,3 +713,15 @@ func (p *PrivateBlockChainAPI) SetMining(flag bool) {
 
 //TODO ?? necessary?
 func (p *PrivateBlockChainAPI) GetJrpcCalls() { panic("not implemented") }
+
+func (p *PrivateBlockChainAPI) GetKadRoutingTableSize() (hexutil.Uint, error) {
+	urls, err := p.b.GetKadRoutingTable()
+	if err != nil {
+		return hexutil.Uint(0), err
+	}
+	return hexutil.Uint(len(urls)), nil
+}
+
+func (p *PrivateBlockChainAPI) GetKadRoutingTable() ([]string, error) {
+	return p.b.GetKadRoutingTable()
+}

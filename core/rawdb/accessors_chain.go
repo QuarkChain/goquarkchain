@@ -640,14 +640,14 @@ func ContainMinorBlockByHash(db DatabaseReader, hash common.Hash) bool {
 	return true
 }
 
-func PutRootBlockConfirmingMinorBlock(db DatabaseWriter, mHash common.Hash, fullShardID uint32, rHash common.Hash) {
-	if err := db.Put(makeRootBlockConfirmingMinorBlock(mHash, fullShardID), rHash.Bytes()); err != nil {
+func PutRootBlockConfirmingMinorBlock(db DatabaseWriter, mBlockID []byte, rHash common.Hash) {
+	if err := db.Put(makeRootBlockConfirmingMinorBlock(mBlockID), rHash.Bytes()); err != nil {
 		log.Crit("failed to put rootBlock confirming minor block", "err", err)
 	}
 }
 
-func GetRootBlockConfirmingMinorBlock(db DatabaseReader, mHash common.Hash, fullShardID uint32) common.Hash {
-	data, _ := db.Get(makeRootBlockConfirmingMinorBlock(mHash, fullShardID))
+func GetRootBlockConfirmingMinorBlock(db DatabaseReader, mBlockID []byte) common.Hash {
+	data, _ := db.Get(makeRootBlockConfirmingMinorBlock(mBlockID))
 	if len(data) == 0 {
 		return common.Hash{}
 	}

@@ -3,7 +3,6 @@ package core
 import (
 	"encoding/hex"
 	"errors"
-	"github.com/QuarkChain/goquarkchain/qkcdb"
 	"math/big"
 	"strings"
 	"time"
@@ -16,6 +15,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/consensus/posw"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/core/vm"
+	"github.com/QuarkChain/goquarkchain/qkcdb"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/params"
@@ -24,9 +24,10 @@ import (
 var (
 	testDBPath = map[int]string{}
 	// jiaozi 10^18
-	jiaozi                  = new(big.Int).Mul(new(big.Int).SetUint64(1000000000), new(big.Int).SetUint64(1000000000))
-	testShardCoinbaseAmount = new(big.Int).Mul(new(big.Int).SetUint64(5), jiaozi)
-	testGenesisTokenID      = common.TokenIDEncode("QKC")
+	jiaozi                       = new(big.Int).Mul(new(big.Int).SetUint64(1000000000), new(big.Int).SetUint64(1000000000))
+	testShardCoinbaseAmount      = new(big.Int).Mul(new(big.Int).SetUint64(5), jiaozi)
+	testGenesisTokenID           = common.TokenIDEncode("QKC")
+	testGenesisMinorTokenBalance = make(map[string]*big.Int)
 )
 
 type fakeEnv struct {
@@ -40,6 +41,7 @@ func getOneDBPath() (int, string) {
 	}
 	panic("unexcepted err")
 }
+
 func getTestEnv(genesisAccount *account.Address, genesisMinorQuarkHash *uint64, chainSize *uint32, shardSize *uint32, genesisRootHeights *map[uint32]uint32, remoteMining *bool) *fakeEnv {
 	if genesisAccount == nil {
 		temp := account.CreatEmptyAddress(0)
@@ -76,7 +78,7 @@ func getTestEnv(genesisAccount *account.Address, genesisMinorQuarkHash *uint64, 
 	var err error
 	if len(testDBPath) != 0 {
 		index, fileName := getOneDBPath()
-		fakeDb, err = qkcdb.NewRDBDatabase(fileName, true)
+		fakeDb, err = qkcdb.NewRDBDatabase(fileName, true, false)
 		delete(testDBPath, index)
 		checkErr(err)
 	} else {
@@ -101,16 +103,21 @@ func getTestEnv(genesisAccount *account.Address, genesisMinorQuarkHash *uint64, 
 	env.clusterConfig.Quarkchain.SkipRootCoinbaseCheck = true
 	env.clusterConfig.Quarkchain.SkipRootDifficultyCheck = true
 	env.clusterConfig.EnableTransactionHistory = true
-	env.clusterConfig.Quarkchain.MinMiningGasPrice = new(big.Int).SetInt64(-1)
+	env.clusterConfig.Quarkchain.MinMiningGasPrice = new(big.Int).SetInt64(0)
 	env.clusterConfig.Quarkchain.XShardAddReceiptTimestamp = 1
-	env.clusterConfig.Quarkchain.MinTXPoolGasPrice = new(big.Int).SetInt64(-1)
+	env.clusterConfig.Quarkchain.MinTXPoolGasPrice = new(big.Int).SetInt64(0)
 	ids := env.clusterConfig.Quarkchain.GetGenesisShardIds()
 	for _, v := range ids {
 		addr := genesisAccount.AddressInShard(v)
 		shardConfig := fakeClusterConfig.Quarkchain.GetShardConfigByFullShardID(v)
+		if len(testGenesisMinorTokenBalance) != 0 {
+			shardConfig.Genesis.Alloc[addr] = config.Allocation{Balances: testGenesisMinorTokenBalance}
+			continue
+		}
 		temp := make(map[string]*big.Int)
 		temp["QKC"] = new(big.Int).SetUint64(*genesisMinorQuarkHash)
-		shardConfig.Genesis.Alloc[addr] = temp
+		alloc := config.Allocation{Balances: temp}
+		shardConfig.Genesis.Alloc[addr] = alloc
 	}
 	return env
 }
@@ -281,6 +288,35 @@ func GetPoSW(chain *MinorBlockChain) *posw.PoSW {
 }
 
 /*
+*solidity src missing
+ */
+const ContractCreationByteCode = "608060405234801561001057600080fd5b5061013f806100206000396000f300608060405260043610610041576000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff168063942ae0a714610046575b600080fd5b34801561005257600080fd5b5061005b6100d6565b6040518080602001828103825283818151815260200191508051906020019080838360005b8381101561009b578082015181840152602081019050610080565b50505050905090810190601f1680156100c85780820380516001836020036101000a031916815260200191505b509250505060405180910390f35b60606040805190810160405280600a81526020017f68656c6c6f576f726c64000000000000000000000000000000000000000000008152509050905600a165627a7a72305820a45303c36f37d87d8dd9005263bdf8484b19e86208e4f8ed476bf393ec06a6510029"
+
+/*
+
+pragma solidity ^0.5.1;
+contract Sample {
+ function () payable external{}
+ function kill() external {selfdestruct(msg.sender);}
+}
+*/
+
+const ContractCreationByteCodePayable = "6080604052348015600f57600080fd5b5060948061001e6000396000f3fe6080604052600436106039576000357c01000000000000000000000000000000000000000000000000000000009004806341c0e1b514603b575b005b348015604657600080fd5b50604d604f565b005b3373ffffffffffffffffffffffffffffffffffffffff16fffea165627a7a7230582034cc4e996685dcadcc12db798751d2913034a3e963356819f2293c3baea4a18c0029"
+
+/*
+contract EventContract {
+	event Hi(address indexed);
+	constructor() public {
+		emit Hi(msg.sender);
+	}
+	function f() public {
+		emit Hi(msg.sender);
+	}
+}
+*/
+const ContractCreationWithEventByteCode = "608060405234801561001057600080fd5b503373ffffffffffffffffffffffffffffffffffffffff167fa9378d5bd800fae4d5b8d4c6712b2b64e8ecc86fdc831cb51944000fc7c8ecfa60405160405180910390a260c9806100626000396000f300608060405260043610603f576000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff16806326121ff0146044575b600080fd5b348015604f57600080fd5b5060566058565b005b3373ffffffffffffffffffffffffffffffffffffffff167fa9378d5bd800fae4d5b8d4c6712b2b64e8ecc86fdc831cb51944000fc7c8ecfa60405160405180910390a25600a165627a7a72305820e7fc37b0c126b90719ace62d08b2d70da3ad34d3e6748d3194eb58189b1917c30029"
+
+/*
 pragma solidity ^0.5.1;
 
 contract Storage {
@@ -291,8 +327,7 @@ contract Storage {
 	}
 }
 */
-
-const CONTRACT = "6080604052348015600f57600080fd5b5060c68061001e6000396000f3fe6080604052600436106039576000357c010000000000000000000000000000000000000000000000000000000090048063c2e171d714603e575b600080fd5b348015604957600080fd5b5060506052565b005b61162e600160003373ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff1681526020019081526020016000208190555056fea165627a7a72305820fe440b2cadff2d38365becb4339baa8c7b29ce933a2ad1b43f49feea0e1f7a7e0029"
+const ContractWithStorage2 = "6080604052348015600f57600080fd5b5060c68061001e6000396000f3fe6080604052600436106039576000357c010000000000000000000000000000000000000000000000000000000090048063c2e171d714603e575b600080fd5b348015604957600080fd5b5060506052565b005b61162e600160003373ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff1681526020019081526020016000208190555056fea165627a7a72305820fe440b2cadff2d38365becb4339baa8c7b29ce933a2ad1b43f49feea0e1f7a7e0029"
 
 func ZFill64(input string) string {
 	return strings.Repeat("0", 64-len(input)) + input

@@ -17,6 +17,7 @@
 package vm
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"github.com/QuarkChain/goquarkchain/account"
@@ -412,7 +413,7 @@ func opAddress(pc *uint64, interpreter *EVMInterpreter, contract *Contract, memo
 
 func opBalance(pc *uint64, interpreter *EVMInterpreter, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
 	slot := stack.peek()
-	slot.Set(interpreter.evm.StateDB.GetBalance(common.BigToAddress(slot), 0))
+	slot.Set(interpreter.evm.StateDB.GetBalance(common.BigToAddress(slot), interpreter.evm.StateDB.GetQuarkChainConfig().GetDefaultChainTokenID()))
 	return nil, nil
 }
 
@@ -702,8 +703,7 @@ func opCreate(pc *uint64, interpreter *EVMInterpreter, contract *Contract, memor
 	}
 
 	contract.UseGas(gas)
-	//TODO:not support crossShard contract so this must be "false" .anything else question?
-	res, addr, returnGas, suberr := interpreter.evm.Create(contract, input, gas, value, false)
+	res, addr, returnGas, suberr := interpreter.evm.Create(contract, input, gas, value, nil)
 	// Push item on the stack based on the returned error. If the ruleset is
 	// homestead we must check for CodeStoreOutOfGasError (homestead only
 	// rule) and treat as an error, if the ruleset is frontier we must
@@ -717,7 +717,7 @@ func opCreate(pc *uint64, interpreter *EVMInterpreter, contract *Contract, memor
 	}
 	contract.Gas += returnGas
 	interpreter.intPool.put(value, offset, size)
-
+	ModifyTokenIDQueried(contract, *contract.CodeAddr)
 	if suberr == errExecutionReverted {
 		return res, nil
 	}
@@ -752,6 +752,11 @@ func opCreate2(pc *uint64, interpreter *EVMInterpreter, contract *Contract, memo
 	return nil, nil
 }
 
+func ModifyTokenIDQueried(contract *Contract, toAddr common.Address) {
+	if bytes.Equal(toAddr.Bytes(), common.FromHex(currentMntIDAddr)) {
+		contract.TokenIDQueried = true
+	}
+}
 func opCall(pc *uint64, interpreter *EVMInterpreter, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
 	// Pop gas. The actual gas in interpreter.evm.callGasTemp.
 	interpreter.intPool.put(stack.pop())
@@ -776,7 +781,7 @@ func opCall(pc *uint64, interpreter *EVMInterpreter, contract *Contract, memory 
 		memory.Set(retOffset.Uint64(), retSize.Uint64(), ret)
 	}
 	contract.Gas += returnGas
-
+	ModifyTokenIDQueried(contract, toAddr)
 	interpreter.intPool.put(addr, value, inOffset, inSize, retOffset, retSize)
 	return ret, nil
 }
@@ -805,7 +810,7 @@ func opCallCode(pc *uint64, interpreter *EVMInterpreter, contract *Contract, mem
 		memory.Set(retOffset.Uint64(), retSize.Uint64(), ret)
 	}
 	contract.Gas += returnGas
-
+	ModifyTokenIDQueried(contract, toAddr)
 	interpreter.intPool.put(addr, value, inOffset, inSize, retOffset, retSize)
 	return ret, nil
 }
@@ -830,6 +835,7 @@ func opDelegateCall(pc *uint64, interpreter *EVMInterpreter, contract *Contract,
 		memory.Set(retOffset.Uint64(), retSize.Uint64(), ret)
 	}
 	contract.Gas += returnGas
+	ModifyTokenIDQueried(contract, toAddr)
 
 	interpreter.intPool.put(addr, inOffset, inSize, retOffset, retSize)
 	return ret, nil
@@ -855,7 +861,7 @@ func opStaticCall(pc *uint64, interpreter *EVMInterpreter, contract *Contract, m
 		memory.Set(retOffset.Uint64(), retSize.Uint64(), ret)
 	}
 	contract.Gas += returnGas
-
+	ModifyTokenIDQueried(contract, toAddr)
 	interpreter.intPool.put(addr, inOffset, inSize, retOffset, retSize)
 	return ret, nil
 }
@@ -881,8 +887,8 @@ func opStop(pc *uint64, interpreter *EVMInterpreter, contract *Contract, memory 
 }
 
 func opSuicide(pc *uint64, interpreter *EVMInterpreter, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
-	balance := interpreter.evm.StateDB.GetBalance(contract.Address(), 0)
-	interpreter.evm.StateDB.AddBalance(common.BigToAddress(stack.pop()), balance, 0)
+	balance := interpreter.evm.StateDB.GetBalance(contract.Address(), interpreter.evm.StateDB.GetQuarkChainConfig().GetDefaultChainTokenID())
+	interpreter.evm.StateDB.AddBalance(common.BigToAddress(stack.pop()), balance, interpreter.evm.StateDB.GetQuarkChainConfig().GetDefaultChainTokenID())
 
 	interpreter.evm.StateDB.Suicide(contract.Address())
 	return nil, nil

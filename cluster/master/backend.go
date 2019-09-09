@@ -68,7 +68,9 @@ type QKCMasterBackend struct {
 
 	miner *miner.Miner
 
-	maxPeers           int
+	maxPeers int
+	srvr     *p2p.Server
+
 	artificialTxConfig *rpc.ArtificialTxConfig
 	rootBlockChain     *core.RootBlockChain
 	protocolManager    *ProtocolManager
@@ -102,7 +104,7 @@ func New(ctx *service.ServiceContext, cfg *config.ClusterConfig) (*QKCMasterBack
 		}
 		err error
 	)
-	if mstr.chainDb, err = createDB(ctx, cfg.DbPathRoot, cfg.Clean); err != nil {
+	if mstr.chainDb, err = createDB(ctx, cfg.DbPathRoot, cfg.Clean, cfg.CheckDB); err != nil {
 		return nil, err
 	}
 
@@ -141,8 +143,8 @@ func New(ctx *service.ServiceContext, cfg *config.ClusterConfig) (*QKCMasterBack
 	return mstr, nil
 }
 
-func createDB(ctx *service.ServiceContext, name string, clean bool) (ethdb.Database, error) {
-	db, err := ctx.OpenDatabase(name, clean)
+func createDB(ctx *service.ServiceContext, name string, clean bool, isReadOnly bool) (ethdb.Database, error) {
+	db, err := ctx.OpenDatabase(name, clean, isReadOnly)
 	if err != nil {
 		return nil, err
 	}
@@ -182,6 +184,64 @@ func (s *QKCMasterBackend) Protocols() []p2p.Protocol {
 	return s.protocolManager.subProtocols
 }
 
+func (s *QKCMasterBackend) CheckDB() {
+	startTime := time.Now()
+	defer log.Info("Integrity check completed!", "run time", time.Now().Sub(startTime).Seconds())
+
+	// Start with root db
+	rb := s.rootBlockChain.CurrentBlock()
+	fromHeight := s.clusterConfig.CheckDBRBlockFrom
+	toHeight := uint64(s.clusterConfig.CheckDBRBlockTo)
+	if toHeight < 1 {
+		toHeight = 1
+	}
+	if fromHeight >= 0 && uint64(fromHeight) < rb.NumberU64() {
+		rb = s.rootBlockChain.GetBlockByNumber(uint64(fromHeight)).(*types.RootBlock)
+		log.Info("Starting from root block ", "height", fromHeight)
+	}
+	if b := s.rootBlockChain.GetBlock(rb.Hash()); b == nil || b.Hash() != rb.Hash() {
+		log.Error("Root block mismatches local root block by hash", "height", rb.NumberU64())
+		return
+	}
+
+	for count := 0; rb.NumberU64() > toHeight; count++ {
+		if count%100 == 0 {
+			log.Info("Checking root block", "height", rb.NumberU64())
+		}
+		if s.rootBlockChain.GetBlockByNumber(rb.NumberU64()).Hash() != rb.Hash() {
+			log.Error("Root block mismatches canonical chain", "height", rb.NumberU64())
+			return
+		}
+		prevRb := s.rootBlockChain.GetBlock(rb.ParentHash())
+		if prevRb == nil || prevRb.Hash() != rb.ParentHash() {
+			log.Error("Root block mismatches previous block hash", "height", rb.NumberU64())
+			return
+		}
+		if prevRb.NumberU64()+1 != rb.NumberU64() {
+			log.Error("Root block no equal to previous block Height + 1", "height", rb.NumberU64())
+			return
+		}
+		var g errgroup.Group
+		for _, slvConn := range s.clientPool {
+			conn := slvConn
+			g.Go(func() error {
+				return conn.CheckMinorBlocksInRoot(rb)
+			})
+		}
+		if err := g.Wait(); err != nil {
+			log.Error("Failed to check root block ", "height", rb.NumberU64(), "error", err.Error())
+			return
+		}
+
+		_, err := s.rootBlockChain.InsertChain([]types.IBlock{rb})
+		if err != nil {
+			log.Error("Failed to check root block", "height", rb.NumberU64(), "error", err.Error())
+			return
+		}
+		rb = prevRb.(*types.RootBlock)
+	}
+}
+
 // APIs return all apis for master Server
 func (s *QKCMasterBackend) APIs() []ethRPC.API {
 	apis := qkcapi.GetAPIs(s)
@@ -197,12 +257,12 @@ func (s *QKCMasterBackend) APIs() []ethRPC.API {
 
 // Stop stop node -> stop qkcMaster
 func (s *QKCMasterBackend) Stop() error {
+	s.synchronizer.Close()
+	s.protocolManager.Stop()
 	s.miner.Stop()
 	s.engine.Close()
 	s.rootBlockChain.Stop()
-	s.protocolManager.Stop()
 	s.eventMux.Stop()
-	s.synchronizer.Close()
 	s.chainDb.Close()
 	close(s.exitCh)
 	for _, slv := range s.clientPool {
@@ -215,6 +275,7 @@ func (s *QKCMasterBackend) Stop() error {
 // Start start node -> start qkcMaster
 func (s *QKCMasterBackend) Init(srvr *p2p.Server) error {
 	if srvr != nil {
+		s.srvr = srvr
 		s.maxPeers = srvr.MaxPeers
 	}
 	if err := s.ConnectToSlaves(); err != nil {
@@ -360,19 +421,24 @@ func (s *QKCMasterBackend) broadcastRootBlockToSlaves(block *types.RootBlock) er
 func (s *QKCMasterBackend) Heartbeat() {
 	go func(normal bool) {
 		for normal {
-			timeGap := time.Now()
-			s.ctx.Timestamp = timeGap
-			for endpoint := range s.clientPool {
-				normal = s.clientPool[endpoint].HeartBeat()
-				if !normal {
-					s.SetMining(false)
-					s.shutdown <- syscall.SIGTERM
-					break
+			select {
+			case <-s.exitCh:
+				normal = false
+				break
+			default:
+				timeGap := time.Now()
+				s.ctx.Timestamp = timeGap
+				for endpoint := range s.clientPool {
+					normal = s.clientPool[endpoint].HeartBeat()
+					if !normal {
+						s.SetMining(false)
+						s.shutdown <- syscall.SIGTERM
+						break
+					}
 				}
+				log.Trace(s.logInfo, "heart beat duration", time.Now().Sub(timeGap).String())
+				time.Sleep(config.HeartbeatInterval)
 			}
-			duration := time.Now().Sub(timeGap)
-			log.Trace(s.logInfo, "heart beat duration", duration.String())
-			time.Sleep(config.HeartbeatInterval)
 		}
 	}(true)
 }
@@ -602,6 +668,10 @@ func (s *QKCMasterBackend) GetLastMinorBlockByFullShardID(fullShardId uint32) (u
 		return 0, errors.New("no such fullShardId") //TODO 0?
 	}
 	return data.Height, nil
+}
+
+func (s *QKCMasterBackend) GetRootHashConfirmingMinorBlock(mBlockID []byte) common.Hash {
+	return s.rootBlockChain.GetRootBlockConfirmingMinorBlock(mBlockID)
 }
 
 // UpdateTxCountHistory update Tx count queue

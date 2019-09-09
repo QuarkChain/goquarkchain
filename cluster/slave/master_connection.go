@@ -4,6 +4,7 @@ import (
 	"errors"
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
 	"github.com/QuarkChain/goquarkchain/core/types"
+	"github.com/QuarkChain/goquarkchain/p2p"
 	"github.com/QuarkChain/goquarkchain/serialize"
 	"github.com/ethereum/go-ethereum/common"
 )
@@ -38,7 +39,7 @@ func (s *ConnManager) SendMinorBlockHeaderListToMaster(request *rpc.AddMinorBloc
 	if err != nil {
 		return err
 	}
-	_, err = s.masterClient.client.Call(s.masterClient.target, &rpc.Request{Op: rpc.OpAddMinorBlockListForSync, Data: data})
+	_, err = s.masterClient.client.Call(s.masterClient.target, &rpc.Request{Op: rpc.OpAddMinorBlockHeaderList, Data: data})
 	if err != nil {
 		return err
 	}
@@ -106,9 +107,9 @@ func (s *ConnManager) GetMinorBlocks(mHeaderList []common.Hash, peerId string, b
 	return gRep.MinorBlockList, nil
 }
 
-func (s *ConnManager) GetMinorBlockHeaders(gReq *rpc.GetMinorBlockHeaderListRequest) ([]*types.MinorBlockHeader, error) {
+func (s *ConnManager) GetMinorBlockHeaderList(gReq *rpc.GetMinorBlockHeaderListWithSkipRequest) ([]*types.MinorBlockHeader, error) {
 	var (
-		gRep rpc.GetMinorBlockHeaderListResponse
+		gRep p2p.GetMinorBlockHeaderListResponse
 		res  *rpc.Response
 	)
 	data, err := serialize.SerializeToBytes(gReq)
@@ -125,7 +126,7 @@ func (s *ConnManager) GetMinorBlockHeaders(gReq *rpc.GetMinorBlockHeaderListRequ
 		return nil, err
 	}
 
-	return gRep.MinorBlockHeaderList, nil
+	return gRep.BlockHeaderList, nil
 }
 
 func (s *ConnManager) ModifyTarget(target string) {

@@ -275,8 +275,8 @@ func initEnvWithConsensusType(t *testing.T, chanOp chan uint32, consensusType st
 			slaveID:       slaveID,
 		}
 	})
-	monkey.Patch(createDB, func(ctx *service.ServiceContext, name string, clean bool) (ethdb.Database, error) {
-		return ethdb.NewMemDatabase(), nil
+	monkey.Patch(createDB, func(ctx *service.ServiceContext, name string, clean bool, isReadOnly bool) (ethdb.Database, error) {
+		return service.NewQkcMemoryDB(isReadOnly), nil
 	})
 
 	ctx := &service.ServiceContext{}
@@ -535,7 +535,7 @@ func TestGetTransactionsByAddress(t *testing.T) {
 	id1, err := account.CreatRandomIdentity()
 	assert.NoError(t, err)
 	add1 := account.NewAddress(id1.GetRecipient(), 3)
-	res, bytes, err := master.GetTransactionsByAddress(&add1, []byte{}, 0)
+	res, bytes, err := master.GetTransactionsByAddress(&add1, []byte{}, 0, nil)
 	assert.NoError(t, err)
 	assert.Equal(t, bytes, []byte("qkc"))
 	assert.Equal(t, res[0].TxHash, common.BigToHash(new(big.Int).SetUint64(11)))
@@ -598,7 +598,7 @@ func TestGetCode(t *testing.T) {
 
 func TestGasPrice(t *testing.T) {
 	master := initEnv(t, nil)
-	data, err := master.GasPrice(account.Branch{Value: 2})
+	data, err := master.GasPrice(account.Branch{Value: 2}, testGenesisTokenID)
 	assert.NoError(t, err)
 	assert.Equal(t, data, uint64(123))
 }

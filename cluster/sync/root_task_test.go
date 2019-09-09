@@ -3,13 +3,16 @@ package sync
 import (
 	"errors"
 	"fmt"
+	"github.com/QuarkChain/goquarkchain/p2p"
 	"math/rand"
 	"reflect"
+	"sort"
 	"testing"
 
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
+	qcom "github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/core"
 	"github.com/QuarkChain/goquarkchain/core/state"
@@ -37,29 +40,88 @@ type mockpeer struct {
 	retMBlocks          []*types.MinorBlock       // Order: descending.
 }
 
-func (p *mockpeer) GetRootBlockHeaderList(hash common.Hash, amount uint32, reverse bool) ([]*types.RootBlockHeader, error) {
+func (p *mockpeer) GetRootBlockHeaderList(request *p2p.GetRootBlockHeaderListWithSkipRequest) (*p2p.GetRootBlockHeaderListResponse, error) {
 	if p.downloadHeaderError != nil {
 		return nil, p.downloadHeaderError
 	}
+
+	if request.Limit <= 0 || request.Limit > 2*RootBlockHeaderListLimit {
+		return nil, errors.New("Bad limit ")
+	}
+	if request.Direction != qcom.DirectionToGenesis && request.Direction != qcom.DirectionToTip {
+		return nil, errors.New("Bad direction ")
+	}
+
 	// May return a subset.
-	for i, h := range p.retRHeaders {
-		if h.Hash() == hash {
-			ret := p.retRHeaders[i:len(p.retRHeaders)]
-			return ret, nil
+	var (
+		sign   = 0
+		hash   = request.GetHash()
+		height = request.GetHeight()
+	)
+	if hash == (common.Hash{}) && height == nil {
+		return nil, errors.New("useless hash and height")
+	}
+
+	rBHeaders := make([]*types.RootBlockHeader, 0, request.Limit)
+	for i, hd := range p.retRHeaders {
+		if hd.Hash() == hash || hd.Number == *height {
+			sign = i
+			break
 		}
 	}
-	panic("lolwut")
+
+	direction := int(request.Skip + 1)
+	if request.Direction == qcom.DirectionToGenesis {
+		direction = 0 - direction
+	}
+
+	for ; sign >= 0 && sign < len(p.retRHeaders) && len(rBHeaders) < cap(rBHeaders); sign += direction {
+		rBHeaders = append(rBHeaders, p.retRHeaders[sign])
+	}
+
+	// make root block headers be ordered
+	sort.Slice(rBHeaders, func(i, j int) bool {
+		return rBHeaders[i].Number < rBHeaders[j].Number
+	})
+
+	return &p2p.GetRootBlockHeaderListResponse{
+		RootTip:         p.retRHeaders[len(p.retRHeaders)-1],
+		BlockHeaderList: rBHeaders,
+	}, nil
 }
 
 func (p *mockpeer) GetRootBlockList(hashes []common.Hash) ([]*types.RootBlock, error) {
 	if p.downloadBlockError != nil {
 		return nil, p.downloadBlockError
 	}
-	return p.retRBlocks, nil
+
+	if len(hashes) > 2*RootBlockBatchSize {
+		return nil, fmt.Errorf("len of RootBlockHashList is larger than expected, limit: %d, want: %d", len(hashes), RootBlockBatchSize)
+	}
+	rBlocks := make([]*types.RootBlock, 0, len(hashes))
+	sign := 0
+	for _, rhash := range hashes {
+		for ; sign < len(p.retRBlocks); sign++ {
+			if rhash == p.retRBlocks[sign].Hash() {
+				rBlocks = append(rBlocks, p.retRBlocks[sign])
+				break
+			}
+		}
+	}
+	return rBlocks, nil
 }
 
 func (p *mockpeer) PeerID() string {
 	return p.name
+}
+
+func (p *mockpeer) GetRootBlockHeaderListWithSkip(tp uint8, data common.Hash, limit, skip uint32,
+	direction uint8) (*p2p.GetRootBlockHeaderListResponse, error) {
+	return &p2p.GetRootBlockHeaderListResponse{}, nil
+}
+
+func (p *mockpeer) RootHead() *types.RootBlockHeader {
+	return p.retRHeaders[len(p.retRHeaders)-1]
 }
 
 // Only one of `rbc` or `mbc` should be initialized.
@@ -84,7 +146,7 @@ func (bc *mockblockchain) AddBlock(block types.IBlock) error {
 		_, err := bc.rbc.InsertChain([]types.IBlock{block})
 		return err
 	}
-	_, err := bc.mbc.InsertChain([]types.IBlock{block}, nil)
+	_, err := bc.mbc.InsertChain([]types.IBlock{block}, false)
 	return err
 }
 
@@ -118,7 +180,7 @@ func (v *mockvalidator) ValidateState(block, parent types.IBlock, state *state.S
 	return v.err
 }
 
-func (v *mockvalidator) ValidateBlock(types.IBlock) error {
+func (v *mockvalidator) ValidateBlock(types.IBlock, bool) error {
 	return v.err
 }
 func (v *mockvalidator) ValidateSeal(mHeader types.IHeader) error {
@@ -146,73 +208,88 @@ func newRootBlockChain(sz int) blockchain {
 	return &mockblockchain{rbc: blockchain}
 }
 
-func TestRootChainTaskRun(t *testing.T) {
+func TestRootChainTask(t *testing.T) {
 	p := &mockpeer{name: "chunfeng"}
-	bc := newRootBlockChain(5)
-	rbc := bc.(*mockblockchain).rbc
-	var rt Task = NewRootChainTask(p, nil, nil, nil)
-
-	// Prepare future blocks for downloading.
-	rbChain, rhChain := makeRootChains(rbc.CurrentBlock(), false)
-
-	// No error if already have the target block.
-	rt.(*rootChainTask).header = bc.CurrentHeader().(*types.RootBlockHeader)
-	assert.NoError(t, rt.Run(bc))
-	// Happy path.
-	rt.(*rootChainTask).header = rbChain[4].Header()
+	bc := newRootBlockChain(10)
 	v := &mockvalidator{}
 	bc.(*mockblockchain).validator = v
-	p.retRHeaders, p.retRBlocks = reverseRHeaders(rhChain), reverseRBlocks(rbChain)
+	rbc := bc.(*mockblockchain).rbc
+
+	retRBlocks, retRHeaders := makeRootChains(rbc.GetBlockByNumber(0).(*types.RootBlock), 20, false)
+
+	// No error if already have the target block.
+	var rt = NewRootChainTask(p, bc.CurrentHeader().(*types.RootBlockHeader), &BlockSychronizerStats{}, nil, nil)
+	rTask := rt.(*rootChainTask)
 	assert.NoError(t, rt.Run(bc))
+
+	// Happy path.
+	p.retRBlocks, p.retRHeaders = retRBlocks, retRHeaders
+	rTask.header = retRHeaders[4]
 	// Confirm 5 more blocks are successfully added to existing 5-block chain.
-	assert.Equal(t, uint64(10), bc.CurrentHeader().NumberU64())
+	assert.Equal(t, bc.CurrentHeader().NumberU64(), uint64(10))
 
 	// Rollback and test unhappy path.
 	rbc.SetHead(5)
-	assert.Equal(t, rhChain[0].ParentHash, bc.CurrentHeader().Hash())
+	assert.Equal(t, bc.CurrentHeader().NumberU64(), retRHeaders[5].NumberU64())
+
 	// Get errors when downloading headers.
-	rt.(*rootChainTask).header = rbChain[4].Header()
+	rTask.header = retRHeaders[11]
 	p.downloadHeaderError = errors.New("download error")
 	assert.Error(t, rt.Run(bc))
+
 	// Downloading headers succeeds, but block validation failed.
 	p.downloadHeaderError = nil
 	v.err = errors.New("validate error")
 	assert.Error(t, rt.Run(bc))
+
 	// Block validation succeeds, but block header list not correct.
 	v.err = nil
-	wrongHeaders := reverseRHeaders(rhChain)
+	wrongHeaders := reverseRHeaders(retRHeaders)
 	rand.Shuffle(len(wrongHeaders), func(i, j int) {
 		wrongHeaders[i], wrongHeaders[j] = wrongHeaders[j], wrongHeaders[i]
 	})
 	p.retRHeaders = wrongHeaders
 	assert.Error(t, rt.Run(bc))
+
 	// Validation succeeds. Should be downloading actual blocks. Mock some errors.
-	p.retRHeaders = reverseRHeaders(rhChain)
+	p.retRHeaders = retRHeaders
 	p.downloadBlockError = errors.New("download error")
 	assert.Error(t, rt.Run(bc))
+
 	// Downloading blocks succeeds. But make the returned blocks miss one. Insertion should fail.
 	p.downloadBlockError = nil
 	missing := p.retRBlocks[len(p.retRBlocks)-1]
-	p.retRBlocks = p.retRBlocks[0 : len(p.retRBlocks)-1]
+	p.retRBlocks = p.retRBlocks[:len(p.retRBlocks)-1]
 	assert.Error(t, rt.Run(bc))
+
 	// Add back that missing block. Happy again.
 	p.retRBlocks = append(p.retRBlocks, missing)
 	assert.NoError(t, rt.Run(bc))
-	assert.Equal(t, uint64(10), bc.CurrentHeader().NumberU64())
+	assert.Equal(t, bc.CurrentHeader().NumberU64(), uint64(20))
 
-	// Sync older forks. Starting from block 6, up to 11.
-	rbChain, rhChain = makeRootChains(rbChain[0], true)
-	for _, rh := range rhChain {
+	// add maxSyncStaleness root blocks
+	rTask.maxSyncStaleness = 1000
+	retRBlocks, retRHeaders = makeRootChains(retRBlocks[len(retRBlocks)-1], 1000, false)
+	p.retRHeaders = append(p.retRHeaders, retRHeaders[1:]...)
+	p.retRBlocks = append(p.retRBlocks, retRBlocks[1:]...)
+	rTask.header = retRHeaders[2]
+	assert.NoError(t, rt.Run(bc))
+	assert.Equal(t, bc.CurrentHeader().NumberU64(), uint64(1000+20))
+
+	// Sync older forks. Starting from block 20, up to 2*maxSyncStaleness.
+	retRBlocks, retRHeaders = makeRootChains(retRBlocks[len(retRBlocks)-1], 1000, true)
+	for _, rh := range retRHeaders[1:] {
 		assert.False(t, bc.HasBlock(rh.Hash()))
 	}
-	rt.(*rootChainTask).header = rbChain[4].Header()
-	p.retRHeaders, p.retRBlocks = reverseRHeaders(rhChain), reverseRBlocks(rbChain)
+
+	rt.(*rootChainTask).header = retRHeaders[4]
+	p.retRHeaders, p.retRBlocks = append(p.retRHeaders[20:], retRHeaders...), append(p.retRBlocks[20:], retRBlocks...)
 	assert.NoError(t, rt.Run(bc))
-	for _, rh := range rhChain {
+	for _, rh := range retRHeaders {
 		assert.True(t, bc.HasBlock(rh.Hash()))
 	}
-	// Tip should be updated.
-	assert.Equal(t, uint64(11), bc.CurrentHeader().NumberU64())
+
+	assert.Equal(t, bc.CurrentHeader().NumberU64(), uint64(2000+20))
 }
 
 func TestSyncMinorBlocks(t *testing.T) {
@@ -263,9 +340,11 @@ func TestSyncMinorBlocks(t *testing.T) {
 			conn.(*mock_master.MockShardConnForP2P).EXPECT().AddBlockListForSync(gomock.Any()).DoAndReturn(AddBlockListForSyncFunc).Times(1)
 		}
 
-		err := syncMinorBlocks("", bc.(rootblockchain), block, statusChan, func(fullShardId uint32) []rpc.ShardConnForP2P {
+		var rt = NewRootChainTask(&mockpeer{name: "chunfeng"}, nil, nil, statusChan, func(fullShardId uint32) []rpc.ShardConnForP2P {
 			return shardConns
 		})
+		rTask := rt.(*rootChainTask)
+		err := rTask.syncMinorBlocks(bc.(rootblockchain), block)
 		assert.NoError(t, err)
 
 		select {
@@ -297,15 +376,21 @@ func getShardConnForP2P(n int, ctrl *gomock.Controller) []rpc.ShardConnForP2P {
  Test helpers.
 */
 
-func makeRootChains(parent *types.RootBlock, random bool) ([]*types.RootBlock, []*types.RootBlockHeader) {
+func makeRootChains(parent *types.RootBlock, height int, random bool) ([]*types.RootBlock, []*types.RootBlockHeader) {
 	var gen func(i int, b *core.RootBlockGen)
 	if random {
 		gen = func(i int, b *core.RootBlockGen) {
 			b.SetExtra([]byte{byte(i)})
 		}
 	}
-	blockchain := core.GenerateRootBlockChain(parent, engine, 5, gen)
-	var headerchain []*types.RootBlockHeader
+
+	var (
+		headerchain []*types.RootBlockHeader
+		blockchain  []*types.RootBlock
+	)
+	blockchain = append(blockchain, parent)
+
+	blockchain = append(blockchain, core.GenerateRootBlockChain(parent, engine, height, gen)...)
 	for _, rb := range blockchain {
 		headerchain = append(headerchain, rb.Header())
 	}

@@ -40,15 +40,3 @@ func isSameChain(db rawdb.DatabaseReader, longerChainHeader, shorterChainHeader 
 
 	return header.GetParentHash() == shorterChainHeader.Hash()
 }
-
-type InsertChainParams struct {
-	ShipIfTooOld, Force, WriteDB bool
-}
-
-func GetDefaultInsertChainParams() *InsertChainParams {
-	return &InsertChainParams{
-		ShipIfTooOld: true,
-		Force:        false,
-		WriteDB:      true,
-	}
-}

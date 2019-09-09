@@ -3,13 +3,11 @@ package sync
 import (
 	"errors"
 	"fmt"
-	"math/big"
-	"strings"
-	"time"
-
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
+	"math/big"
 
+	qkcom "github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/core/types"
 )
 
@@ -28,119 +26,98 @@ type Task interface {
 }
 
 type task struct {
-	header           types.IHeader
 	name             string
-	maxSyncStaleness int // TODO: should use config.
-	getHeaders       func(common.Hash, uint32) ([]types.IHeader, error)
+	maxSyncStaleness uint64
+	batchSize        int
+	findAncestor     func(blockchain) (types.IHeader, error)
+	getHeaders       func(types.IHeader) ([]types.IHeader, error)
 	getBlocks        func([]common.Hash) ([]types.IBlock, error)
-	syncBlock        func(types.IBlock, blockchain) error
-	needSkip         func(types.IHeader, blockchain) bool
-	getSizeLimit     func() (uint64, uint64)
+	syncBlock        func(blockchain, types.IBlock) error
+	needSkip         func(b blockchain) bool
 }
 
 // Run will execute the synchronization task.
 func (t *task) Run(bc blockchain) error {
-	if t.needSkip(t.header, bc) {
-		return nil
-	}
-	if bc.HasBlock(t.header.Hash()) {
+	if t.needSkip(bc) {
 		return nil
 	}
 
-	logger := log.New("synctask", t.name, "start", t.header.NumberU64())
-	headerTip := bc.CurrentHeader()
-	tipHeight := headerTip.NumberU64()
-	if err := bc.Validator().ValidateSeal(t.header); err != nil {
-		return fmt.Errorf("validator tip failed number:%d,hash:%v", t.header.NumberU64(), t.header.Hash().String())
+	ancestor, err := t.findAncestor(bc)
+	if err != nil || qkcom.IsNil(ancestor) {
+		return err
 	}
-	// Prepare for downloading.
-	chain := []common.Hash{t.header.Hash()}
-	lastHeader := t.header
-	downloadSz, blockDownloadSize := t.getSizeLimit() //TODO minor and root have different data
-	for !bc.HasBlock(lastHeader.GetParentHash()) {
-		height, hash := lastHeader.NumberU64(), lastHeader.Hash()
-		if tipHeight > height && tipHeight-height > uint64(t.maxSyncStaleness) {
-			logger.Warn("Abort synching due to forking at super old block", "currentHeight", tipHeight, "oldHeight", height)
+
+	logger := log.New("synctask", t.name, "start", ancestor.NumberU64())
+
+	if bc.CurrentHeader().NumberU64()-ancestor.NumberU64() > t.maxSyncStaleness {
+		logger.Warn("Abort synching due to forking at super old block", "currentHeight", bc.CurrentHeader().NumberU64(), "oldHeight", ancestor.NumberU64())
+		return nil
+	}
+
+	for !qkcom.IsNil(ancestor) {
+		headers, err := t.getHeaders(ancestor)
+		if err != nil {
+			return err
+		}
+		if len(headers) == 0 {
 			return nil
 		}
 
-		logger.Info("Downloading block header list", "height", height, "hash", hash)
-		// Order should be descending. Download size is min(500, h-tip) if h > tip.
-		receivedHeaders, err := t.getHeaders(lastHeader.GetParentHash(), uint32(downloadSz))
-		if err != nil {
+		if err := t.validateHeaderList(bc, headers); err != nil {
 			return err
 		}
-		err = t.validateHeaderList(bc, receivedHeaders)
-		if err != nil {
-			return err
-		}
-		for _, h := range receivedHeaders {
-			if bc.HasBlock(h.Hash()) {
-				break
-			}
-			chain = append(chain, h.Hash())
-			lastHeader = h
-		}
-	}
 
-	logger.Info("Downloading blocks", "length", len(chain), "from", lastHeader.NumberU64(), "to", t.header.NumberU64())
+		logger.Info("Downloading blocks", "length", len(headers), "from", ancestor.NumberU64(), "to", headers[len(headers)-1].NumberU64())
 
-	// Download blocks from lower to higher.
-	i := len(chain)
-	for i > 0 {
-		// Exclusive.
-		start, end := i-int(blockDownloadSize), i
-		if start < 0 {
-			start = 0
-		}
-		headersForDownload := chain[start:end]
-		blocks, err := t.getBlocks(headersForDownload)
-		if err != nil {
-			return err
-		}
-		if len(blocks) != end-start {
-			errMsg := "Bad peer missing blocks for given headers"
-			logger.Error(errMsg)
-			return errors.New(strings.ToLower(errMsg))
+		hashlist := make([]common.Hash, 0, len(headers))
+		for _, hd := range headers {
+			hashlist = append(hashlist, hd.Hash())
 		}
 
-		// Again, `blocks` should also be descending.
-		// TODO: validate block order.
-		for j := len(blocks) - 1; j >= 0; j-- {
-			b := blocks[j]
-			h := b.IHeader()
-			logger.Info("Syncing block starts", "height", h.NumberU64(), "hash", h.Hash())
-			// Simple profiling.
-			ts := time.Now()
-			if t.syncBlock != nil { // Used by root chain blocks.
-				if err := t.syncBlock(b, bc); err != nil {
-					return err
+		for len(hashlist) > 0 {
+			var blocks []types.IBlock
+			if len(hashlist) > t.batchSize {
+				blocks, err = t.getBlocks(hashlist[:t.batchSize])
+				if len(blocks) != t.batchSize {
+					return fmt.Errorf("unmatched block length, expect: %d, actual: %d", t.batchSize, len(blocks))
 				}
+				hashlist = hashlist[t.batchSize:]
+			} else {
+				blocks, err = t.getBlocks(hashlist)
+				if len(blocks) != len(hashlist) {
+					return fmt.Errorf("unmatched block length, expect: %d, actual: %d", len(hashlist), len(blocks))
+				}
+				hashlist = nil
 			}
-			// TODO: may optimize by batch and insert once?
 
-			if err := bc.AddBlock(b); err != nil {
+			if err != nil {
 				return err
 			}
 
-			elapsed := time.Now().Sub(ts).Seconds()
-			logger.Info("Syncing block finishes", "height", h.NumberU64(), "hash", h.Hash(), "elapsed", elapsed)
+			for _, blk := range blocks {
+				if t.syncBlock != nil {
+					if err := t.syncBlock(bc, blk); err != nil {
+						return err
+					}
+				}
+				if err := bc.AddBlock(blk); err != nil {
+					return err
+				}
+				ancestor = blk.IHeader()
+			}
 		}
-
-		i = start
 	}
-
 	return nil
 }
 
 func (t *task) validateHeaderList(bc blockchain, headers []types.IHeader) error {
 	var prev types.IHeader
 	for _, h := range headers {
-		if prev != nil {
-			if h.NumberU64()+1 != prev.NumberU64() {
+		if !qkcom.IsNil(prev) {
+			if h.NumberU64() != prev.NumberU64()+1 {
 				return errors.New("should have descending order with step 1")
 			}
-			if prev.GetParentHash() != h.Hash() {
+			if prev.Hash() != h.GetParentHash() {
 				return errors.New("should have blocks correctly linked")
 			}
 		}

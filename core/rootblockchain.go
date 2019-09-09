@@ -5,6 +5,7 @@ package core
 import (
 	"errors"
 	"fmt"
+	"github.com/QuarkChain/goquarkchain/internal/qkcapi"
 	"github.com/ethereum/go-ethereum/crypto"
 	"io"
 	"math/big"
@@ -102,10 +103,10 @@ type RootBlockChain struct {
 	engine    consensus.Engine
 	validator Validator // block and state validator interface
 
-	shouldPreserve    func(block *types.RootBlock) bool // Function used to determine whether should preserve the given block.
-	countMinorBlocks  bool
-	addBlockAndBroad  func(block *types.RootBlock) error
-	insertChainParams *InsertChainParams
+	shouldPreserve   func(block *types.RootBlock) bool // Function used to determine whether should preserve the given block.
+	countMinorBlocks bool
+	addBlockAndBroad func(block *types.RootBlock) error
+	isCheckDB        bool
 }
 
 // NewBlockChain returns a fully initialized block chain using information
@@ -126,7 +127,7 @@ func NewRootBlockChain(db ethdb.Database, chainConfig *config.QuarkChainConfig, 
 		futureBlocks:             futureBlocks,
 		engine:                   engine,
 		validatedMinorBlockCache: validatedMinorBlockHashCache,
-		insertChainParams:        GetDefaultInsertChainParams(),
+		isCheckDB:                false,
 	}
 	bc.SetValidator(NewRootBlockValidator(chainConfig, bc, engine))
 
@@ -154,8 +155,12 @@ func (bc *RootBlockChain) getProcInterrupt() bool {
 }
 
 // will set it when check db
-func (bc *RootBlockChain) SetInsertChainParams(params *InsertChainParams) {
-	bc.insertChainParams = params
+func (bc *RootBlockChain) SetIsCheckDB(isCheckDB bool) {
+	bc.isCheckDB = isCheckDB
+}
+
+func (bc *RootBlockChain) IsCheckDB() bool {
+	return bc.isCheckDB
 }
 
 // loadLastState loads the last known chain state from the database. This method
@@ -497,9 +502,7 @@ func (bc *RootBlockChain) WriteBlockWithState(block *types.RootBlock) (status Wr
 	if err := bc.headerChain.WriteTd(block.Hash(), externTd); err != nil {
 		return NonStatTy, err
 	}
-	if bc.insertChainParams.WriteDB {
-		rawdb.WriteRootBlock(bc.db, block)
-	}
+	rawdb.WriteRootBlock(bc.db, block)
 
 	// Write other block data using a batch.
 	batch := bc.db.NewBatch()
@@ -634,7 +637,7 @@ func (bc *RootBlockChain) insertChain(chain []types.IBlock, verifySeals bool) (i
 	defer close(abort)
 
 	// Peek the error for the first block to decide the directing import logic
-	it := newInsertIterator(chain, results, bc.Validator())
+	it := newInsertIterator(chain, results, bc.Validator(), bc.isCheckDB)
 
 	block, err := it.next()
 	switch {
@@ -694,7 +697,7 @@ func (bc *RootBlockChain) insertChain(chain []types.IBlock, verifySeals bool) (i
 			bc.reportBlock(block, err)
 			return it.index, events, err
 		}
-		if bc.insertChainParams.ShipIfTooOld && absUint64(bc.CurrentBlock().Header().NumberU64(), block.NumberU64()) > bc.Config().Root.MaxStaleRootBlockHeightDiff {
+		if !bc.isCheckDB && absUint64(bc.CurrentBlock().Header().NumberU64(), block.NumberU64()) > bc.Config().Root.MaxStaleRootBlockHeightDiff {
 			log.Warn("Insert Root Block", "drop block height", block.NumberU64(), "tip height", bc.CurrentBlock().NumberU64())
 			return it.index, events, fmt.Errorf("block is too old %v %v", block.IHeader().NumberU64(), bc.CurrentBlock().NumberU64())
 		}
@@ -1102,9 +1105,6 @@ func (bc *RootBlockChain) GetLatestMinorBlockHeaders(hash common.Hash) map[uint3
 }
 
 func (bc *RootBlockChain) SetLatestMinorBlockHeaders(hash common.Hash, headerMap map[uint32]*types.MinorBlockHeader) {
-	if !bc.insertChainParams.WriteDB {
-		return
-	}
 	headers := make([]*types.MinorBlockHeader, 0, len(headerMap))
 	for _, header := range headerMap {
 		headers = append(headers, header)
@@ -1299,7 +1299,8 @@ func (bc *RootBlockChain) PutRootBlockIndex(block *types.RootBlock) error {
 			shardRecipientCnt[fullShardID] = make(map[account.Recipient]uint32)
 		}
 		shardRecipientCnt[fullShardID][recipient] = newCount
-		bc.PutRootBlockConfirmingMinorBlock(header.Hash(), fullShardID, block.Hash())
+		blockID := qkcapi.IDEncoder(header.Hash().Bytes(), fullShardID)
+		bc.PutRootBlockConfirmingMinorBlock(blockID, block.Hash())
 	}
 	for fullShardID, infoList := range shardRecipientCnt {
 		dataToDb := new(account.CoinbaseStatses)
@@ -1356,11 +1357,11 @@ func (bc *RootBlockChain) GetMinorBlockCoinbaseTokens(mHash common.Hash) *types.
 	return rawdb.GetMinorBlockCoinbaseToken(bc.db, mHash)
 }
 
-func (bc *RootBlockChain) PutRootBlockConfirmingMinorBlock(mHash common.Hash, fullShardID uint32, rHash common.Hash) {
-	rawdb.PutRootBlockConfirmingMinorBlock(bc.db, mHash, fullShardID, rHash)
+func (bc *RootBlockChain) PutRootBlockConfirmingMinorBlock(blockID []byte, rHash common.Hash) {
+	rawdb.PutRootBlockConfirmingMinorBlock(bc.db, blockID, rHash)
 }
 
-func (bc *RootBlockChain) GetRootBlockConfirmingMinorBlock(mHash common.Hash, fullShardID uint32) common.Hash {
+func (bc *RootBlockChain) GetRootBlockConfirmingMinorBlock(blockID []byte) common.Hash {
 	//For json Rpc
-	return rawdb.GetRootBlockConfirmingMinorBlock(bc.db, mHash, fullShardID)
+	return rawdb.GetRootBlockConfirmingMinorBlock(bc.db, blockID)
 }

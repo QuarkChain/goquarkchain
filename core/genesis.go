@@ -66,7 +66,7 @@ func (g *Genesis) CreateMinorBlock(rootBlock *types.RootBlock, fullShardId uint3
 	statedb, _ := state.New(common.Hash{}, state.NewDatabase(db))
 	branch := account.Branch{Value: fullShardId}
 
-	for addr, balance := range genesis.Alloc {
+	for addr, allocation := range genesis.Alloc {
 		fullShardIDByConfig, err := g.qkcConfig.GetFullShardIdByFullShardKey(addr.FullShardKey)
 		if err != nil {
 			return nil, err
@@ -77,8 +77,13 @@ func (g *Genesis) CreateMinorBlock(rootBlock *types.RootBlock, fullShardId uint3
 		recipient := new(common.Address)
 		recipient.SetBytes(addr.Recipient.Bytes())
 		statedb.SetFullShardKey(addr.FullShardKey)
-		for k, v := range balance {
+		for k, v := range allocation.Balances {
 			statedb.AddBalance(*recipient, v, qkcCommon.TokenIDEncode(k))
+		}
+		statedb.SetCode(*recipient, allocation.Code)
+		//TODO need setNonce?
+		for k, v := range allocation.Storage {
+			statedb.SetState(*recipient, k, v)
 		}
 	}
 
@@ -93,6 +98,7 @@ func (g *Genesis) CreateMinorBlock(rootBlock *types.RootBlock, fullShardId uint3
 			MinorBlockIndex:    0,
 			XShardDepositIndex: 0,
 		},
+		XShardGasLimit: &serialize.Uint256{Value: new(big.Int).SetUint64(30000 * 200)},
 	}
 
 	one := big.NewRat(1, 1)

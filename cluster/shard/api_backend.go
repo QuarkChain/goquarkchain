@@ -2,12 +2,14 @@ package shard
 
 import (
 	"errors"
+	"fmt"
 	"math/big"
 	"time"
 
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
 	synchronizer "github.com/QuarkChain/goquarkchain/cluster/sync"
+	qkccommon "github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/common"
@@ -15,9 +17,7 @@ import (
 )
 
 var (
-	directionToGenesis                   = uint8(0)
-	directionToTip                       = uint8(1)
-	ALLOWED_FUTURE_BLOCKS_TIME_BROADCAST = 15
+	AllowedFutureBlocksTimeBroadcast = 15
 )
 
 // Wrapper over master connection, used by synchronizer.
@@ -26,15 +26,8 @@ type peer struct {
 	peerID string
 }
 
-func (p *peer) GetMinorBlockHeaderList(hash common.Hash, limit, branch uint32, reverse bool) ([]*types.MinorBlockHeader, error) {
-	req := &rpc.GetMinorBlockHeaderListRequest{
-		Branch:    branch,
-		BlockHash: hash,
-		Limit:     limit,
-		Direction: directionToGenesis,
-		PeerID:    p.peerID,
-	}
-	return p.cm.GetMinorBlockHeaders(req)
+func (p *peer) GetMinorBlockHeaderList(gReq *rpc.GetMinorBlockHeaderListWithSkipRequest) ([]*types.MinorBlockHeader, error) {
+	return p.cm.GetMinorBlockHeaderList(gReq)
 }
 
 func (p *peer) GetMinorBlockList(hashes []common.Hash, branch uint32) ([]*types.MinorBlock, error) {
@@ -78,7 +71,7 @@ func (s *ShardBackend) AddMinorBlock(block *types.MinorBlock) error {
 	}
 	//TODO support BLOCK_COMMITTING
 	currHead := s.MinorBlockChain.CurrentBlock().Number()
-	_, xshardLst, err := s.MinorBlockChain.InsertChainForDeposits([]types.IBlock{block}, nil)
+	_, xshardLst, err := s.MinorBlockChain.InsertChainForDeposits([]types.IBlock{block}, false)
 	if err != nil || len(xshardLst) != 1 {
 		log.Error("Failed to add minor block", "err", err)
 		return err
@@ -105,7 +98,7 @@ func (s *ShardBackend) AddMinorBlock(block *types.MinorBlock) error {
 		s.setHead(currHead)
 		return err
 	}
-	status, err := s.MinorBlockChain.GetShardStatus()
+	status, err := s.MinorBlockChain.GetShardStats()
 	if err != nil {
 		s.setHead(currHead)
 		return err
@@ -176,7 +169,7 @@ func (s *ShardBackend) AddBlockListForSync(blockLst []*types.MinorBlock) (map[co
 		}
 		//TODO:support BLOCK_COMMITTING
 		coinbaseAmountList[block.Header().Hash()] = block.Header().CoinbaseAmount
-		_, xshardLst, err := s.MinorBlockChain.InsertChainForDeposits([]types.IBlock{block}, nil)
+		_, xshardLst, err := s.MinorBlockChain.InsertChainForDeposits([]types.IBlock{block}, false)
 		if err != nil || len(xshardLst) != 1 {
 			log.Error("Failed to add minor block", "err", err)
 			return nil, err
@@ -251,13 +244,13 @@ func (s *ShardBackend) HandleNewTip(rBHeader *types.RootBlockHeader, mBHeader *t
 	return nil
 }
 
-func (s *ShardBackend) GetMinorBlock(mHash common.Hash, height *uint64) *types.MinorBlock {
+func (s *ShardBackend) GetMinorBlock(mHash common.Hash, height *uint64) (*types.MinorBlock, error) {
 	if mHash != (common.Hash{}) {
-		return s.MinorBlockChain.GetMinorBlock(mHash)
+		return s.MinorBlockChain.GetMinorBlock(mHash), nil
 	} else if height != nil {
-		return s.MinorBlockChain.GetBlockByNumber(*height).(*types.MinorBlock)
+		return s.MinorBlockChain.GetBlockByNumber(*height).(*types.MinorBlock), nil
 	}
-	return nil
+	return nil, errors.New("invalied params in GetMinorBlock")
 }
 
 func (s *ShardBackend) NewMinorBlock(block *types.MinorBlock) (err error) {
@@ -279,9 +272,9 @@ func (s *ShardBackend) NewMinorBlock(block *types.MinorBlock) (err error) {
 	}
 
 	//Sanity check on timestamp and block height
-	if block.Header().Time > uint64(time.Now().Unix())+uint64(ALLOWED_FUTURE_BLOCKS_TIME_BROADCAST) {
+	if block.Header().Time > uint64(time.Now().Unix())+uint64(AllowedFutureBlocksTimeBroadcast) {
 		log.Warn(s.logInfo, "HandleNewMinorBlock err time is not right,height", block.Header().Number, "time", block.Header().Time,
-			"now", time.Now().Unix(), "Max", ALLOWED_FUTURE_BLOCKS_TIME_BROADCAST)
+			"now", time.Now().Unix(), "Max", AllowedFutureBlocksTimeBroadcast)
 		return
 	}
 
@@ -297,7 +290,7 @@ func (s *ShardBackend) NewMinorBlock(block *types.MinorBlock) (err error) {
 		return nil
 	}
 
-	if err := s.MinorBlockChain.Validator().ValidateBlock(block); err != nil {
+	if err := s.MinorBlockChain.Validator().ValidateBlock(block, false); err != nil {
 		return err
 	}
 
@@ -372,4 +365,16 @@ func (s *ShardBackend) GetTip() uint64 {
 
 func (s *ShardBackend) IsSyncIng() bool {
 	return s.synchronizer.IsSyncing()
+}
+
+func (s *ShardBackend) CheckMinorBlock(header *types.MinorBlockHeader) error {
+	block := s.MinorBlockChain.GetBlock(header.Hash())
+	if qkccommon.IsNil(block) {
+		return fmt.Errorf("block %v cannot be found", header.Hash())
+	}
+	if header.Number == 0 {
+		return nil
+	}
+	_, _, err := s.MinorBlockChain.InsertChainForDeposits([]types.IBlock{block}, true)
+	return err
 }

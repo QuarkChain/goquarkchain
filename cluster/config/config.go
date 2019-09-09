@@ -34,9 +34,10 @@ const (
 )
 
 var (
-	QuarkashToJiaozi = big.NewInt(1000000000000000000)
-	DefaultNumSlaves = 4
-	DefaultToken     = "QKC"
+	QuarkashToJiaozi               = big.NewInt(1000000000000000000)
+	DefaultNumSlaves               = 4
+	DefaultToken                   = "QKC"
+	DefaultP2PCmddSizeLimit uint32 = 128 * 1024 * 1024
 )
 
 var (
@@ -111,6 +112,8 @@ func NewRootGenesis() *RootGenesis {
 type RootConfig struct {
 	// To ignore super old blocks from peers
 	// This means the network will fork permanently after a long partition
+	// Use Ethereum's number, which is
+	// - 30000 * 3 blocks = 90000 * 15 / 3600 = 375 hours = 375 * 3600 / 60 = 22500
 	MaxStaleRootBlockHeightDiff    uint64          `json:"MAX_STALE_ROOT_BLOCK_HEIGHT_DIFF"`
 	ConsensusType                  string          `json:"CONSENSUS_TYPE"`
 	ConsensusConfig                *POWConfig      `json:"CONSENSUS_CONFIG"`
@@ -283,7 +286,7 @@ func UpdateGenesisAlloc(cluserConfig *ClusterConfig) error {
 	qtsla := new(big.Int).Mul(new(big.Int).SetUint64(5), params.DenomsValue.Ether)
 	qtsla = new(big.Int).Mul(qetc, eight)
 
-	allocation := map[string]*big.Int{
+	balances := map[string]*big.Int{
 		qkcConfig.GenesisToken: genesis,
 		"QETC":                 qetc,
 		"QFB":                  qfb,
@@ -310,6 +313,9 @@ func UpdateGenesisAlloc(cluserConfig *ClusterConfig) error {
 			if !ok {
 				continue
 			}
+			allocation := Allocation{
+				Balances: balances,
+			}
 			shard.Genesis.Alloc[address] = allocation
 		}
 		log.Info("Load template genesis accounts", "chain id", chainId, "imported", len(addresses), "config file", allocFile)
@@ -323,7 +329,8 @@ func UpdateGenesisAlloc(cluserConfig *ClusterConfig) error {
 		bytes := common.FromHex(item.Address)
 		for fullShardId, shardCfg := range qkcConfig.shards {
 			addr := account.NewAddress(common.BytesToAddress(bytes[:20]), fullShardId)
-			shardCfg.Genesis.Alloc[addr] = allocation
+			alloc := shardCfg.Genesis.Alloc[addr]
+			alloc.Balances = balances
 		}
 	}
 	log.Info("Loadtest accounts", "loadtest file", loadtestFile, "imported", len(items))

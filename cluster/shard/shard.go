@@ -83,7 +83,7 @@ func New(ctx *service.ServiceContext, rBlock *types.RootBlock, conn ConnManager,
 	)
 	shard.maxBlocks = shard.Config.MaxBlocksPerShardInOneRootBlock()
 
-	shard.chainDb, err = createDB(ctx, fmt.Sprintf("shard-%d.db", fullshardId), cfg.Clean)
+	shard.chainDb, err = createDB(ctx, fmt.Sprintf("shard-%d.db", fullshardId), cfg.Clean, cfg.CheckDB)
 	if err != nil {
 		return nil, err
 	}
@@ -125,10 +125,10 @@ func (s *ShardBackend) Stop() {
 		return
 	}
 	s.running = false
+	s.synchronizer.Close()
 	s.miner.Stop()
 	s.eventMux.Stop()
 	s.engine.Close()
-	s.synchronizer.Close()
 	s.MinorBlockChain.Stop()
 	s.chainDb.Close()
 }
@@ -137,9 +137,9 @@ func (s *ShardBackend) SetMining(mining bool) {
 	s.miner.SetMining(mining)
 }
 
-func createDB(ctx *service.ServiceContext, name string, clean bool) (ethdb.Database, error) {
+func createDB(ctx *service.ServiceContext, name string, clean bool, isReadOnly bool) (ethdb.Database, error) {
 	// handlers and caches size should be set in different environment.
-	db, err := ctx.OpenDatabase(name, clean)
+	db, err := ctx.OpenDatabase(name, clean, isReadOnly)
 	if err != nil {
 		return nil, err
 	}
@@ -182,7 +182,7 @@ func (s *ShardBackend) initGenesisState(rootBlock *types.RootBlock) error {
 	if err = s.conn.BroadcastXshardTxList(minorBlock, xshardList, rootBlock.Header().Number); err != nil {
 		return err
 	}
-	if status, err = s.MinorBlockChain.GetShardStatus(); err != nil {
+	if status, err = s.MinorBlockChain.GetShardStats(); err != nil {
 		return err
 	}
 	request := &rpc.AddMinorBlockHeaderRequest{

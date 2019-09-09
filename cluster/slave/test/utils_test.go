@@ -485,7 +485,7 @@ func (s *SlaveServerSideOp) GetMinorBlockList(ctx context.Context, req *rpc.Requ
 
 func (s *SlaveServerSideOp) GetMinorBlockHeaderList(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
 	var (
-		gReq     rpc.GetMinorBlockHeaderListRequest
+		gReq     p2p.GetMinorBlockHeaderListWithSkipRequest
 		gRep     rpc.GetMinorBlockHeaderListResponse
 		buf      = serialize.NewByteBuffer(req.Data)
 		response = &rpc.Response{RpcId: req.RpcId}
@@ -561,6 +561,18 @@ func (s *SlaveServerSideOp) SetMining(ctx context.Context, req *rpc.Request) (*r
 		err      error
 	)
 	if err = serialize.DeserializeFromBytes(req.Data, &mining); err != nil {
+		return nil, err
+	}
+	return response, nil
+}
+
+func (s *SlaveServerSideOp) CheckMinorBlocksInRoot(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
+	var (
+		rootBlock types.RootBlock
+		response  = &rpc.Response{RpcId: req.RpcId}
+		err       error
+	)
+	if err = serialize.DeserializeFromBytes(req.Data, &rootBlock); err != nil {
 		return nil, err
 	}
 	return response, nil

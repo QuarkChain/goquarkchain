@@ -19,10 +19,12 @@ package state
 import (
 	"bytes"
 	"fmt"
-	"github.com/QuarkChain/goquarkchain/core/types"
+
 	"io"
 	"math/big"
 
+	qkcCommon "github.com/QuarkChain/goquarkchain/common"
+	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/rlp"
@@ -101,7 +103,27 @@ type Account struct {
 	TokenBalances *types.TokenBalances
 	Root          common.Hash // merkle root of the storage trie
 	CodeHash      []byte
-	FullShardKey  uint32
+	FullShardKey  *types.Uint32
+	Optial        []byte
+}
+
+type MockAccount struct {
+	Nonce    uint64
+	Balance  *big.Int
+	Root     common.Hash // merkle root of the storage trie
+	CodeHash []byte
+}
+
+func AccountToMock(acc Account) MockAccount {
+	if len(acc.TokenBalances.GetBalanceMap()) > 1 {
+		panic("len should <=1")
+	}
+	return MockAccount{
+		Nonce:    acc.Nonce,
+		Balance:  acc.TokenBalances.GetTokenBalance(qkcCommon.TokenIDEncode("QKC")),
+		Root:     acc.Root,
+		CodeHash: acc.CodeHash,
+	}
 }
 
 // newObject creates a state object.
@@ -288,7 +310,7 @@ func (c *stateObject) SubBalance(amount *big.Int, tokenID uint64) {
 	if amount.Sign() == 0 {
 		return
 	}
-	c.setTokenBalance(new(big.Int).Sub(c.Balance(tokenID), amount), tokenID)
+	c.SetBalance(new(big.Int).Sub(c.Balance(tokenID), amount), tokenID)
 }
 
 func (self *stateObject) SetBalance(amount *big.Int, tokenID uint64) {
@@ -405,8 +427,9 @@ func (self *stateObject) Value() *big.Int {
 }
 
 func (self *stateObject) FullShardKey() uint32 {
-	return self.data.FullShardKey
+	return self.data.FullShardKey.GetValue()
 }
 func (self *stateObject) SetFullShardKey(fullShardKey uint32) {
-	self.data.FullShardKey = fullShardKey
+	t := types.Uint32(fullShardKey)
+	self.data.FullShardKey = &t
 }

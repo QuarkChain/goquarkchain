@@ -163,13 +163,6 @@ func ValidateTransaction(state vm.StateDB, tx *types.Transaction, fromAddress *a
 // ApplyTransaction apply tx
 func ApplyTransaction(config *params.ChainConfig, bc ChainContext, gp *GasPool, statedb *state.StateDB, header types.IHeader, tx *types.Transaction, usedGas *uint64, cfg vm.Config) ([]byte, *types.Receipt, uint64, error) {
 	statedb.SetFullShardKey(tx.EvmTx.ToFullShardKey())
-	localFeeRate := big.NewRat(1, 1)
-	if qkcConfig := statedb.GetQuarkChainConfig(); qkcConfig != nil {
-		num := qkcConfig.RewardTaxRate.Num().Int64()
-		denom := qkcConfig.RewardTaxRate.Denom().Int64()
-		localFeeRate = big.NewRat(denom-num, denom)
-
-	}
 	msg, err := tx.EvmTx.AsMessage(types.MakeSigner(tx.EvmTx.NetworkId()), tx.Hash())
 	if err != nil {
 		return nil, nil, 0, err
@@ -177,7 +170,7 @@ func ApplyTransaction(config *params.ChainConfig, bc ChainContext, gp *GasPool, 
 	context := NewEVMContext(msg, header, bc)
 	vmenv := vm.NewEVM(context, statedb, config, cfg)
 
-	ret, gas, failed, err := ApplyMessage(vmenv, msg, gp, localFeeRate)
+	ret, gas, failed, err := ApplyMessage(vmenv, msg, gp)
 	if err != nil {
 		return nil, nil, 0, err
 	}
@@ -194,18 +187,17 @@ func ApplyTransaction(config *params.ChainConfig, bc ChainContext, gp *GasPool, 
 	// if the transaction created a contract, store the creation address in the receipt.
 	if msg.To() == nil {
 		receipt.ContractAddress = account.Recipient(vm.CreateAddress(vmenv.Context.Origin, msg.ToFullShardKey(), tx.EvmTx.Nonce()))
-		receipt.ContractFullShardId = tx.EvmTx.ToFullShardId()
+		receipt.ContractFullShardKey = tx.EvmTx.ToFullShardKey()
 	}
 	// Set the receipt logs and create a bloom for filtering
 	receipt.Logs = statedb.GetLogs(tx.Hash())
 	receipt.Bloom = types.CreateBloom(types.Receipts{receipt})
-	receipt.ContractFullShardId = tx.EvmTx.ToFullShardKey()
 
 	return ret, receipt, gas, err
 }
 
 func ApplyCrossShardDeposit(config *params.ChainConfig, bc ChainContext, header types.IHeader, cfg vm.Config,
-	evmState *state.StateDB, tx *types.CrossShardTransactionDeposit, usedGas *uint64, localFeeRate *big.Rat,
+	evmState *state.StateDB, tx *types.CrossShardTransactionDeposit, usedGas *uint64,
 	checkIsFromRootChain bool) (*types.Receipt, error) {
 
 	var (
@@ -227,17 +219,21 @@ func ApplyCrossShardDeposit(config *params.ChainConfig, bc ChainContext, header 
 	evmState.AddBalance(tx.From.Recipient, tx.Value.Value, tx.TransferTokenID)
 	msg := types.NewMessage(tx.From.Recipient, &tx.To.Recipient, 0, tx.Value.Value,
 		tx.GasRemained.Value.Uint64(), tx.GasPrice.Value, tx.MessageData, false,
-		tx.From.FullShardKey, tx.To.FullShardKey, tx.TransferTokenID, tx.GasTokenID)
+		tx.From.FullShardKey, &tx.To.FullShardKey, tx.TransferTokenID, tx.GasTokenID)
 	context := NewEVMContext(msg, header, bc)
 	context.IsApplyXShard = true
 	context.XShardGasUsedStart = gasUsedStart
+	if tx.CreateContract {
+		context.ContractAddress = &tx.To.Recipient
+	}
 	vmenv := vm.NewEVM(context, evmState, config, cfg)
 	gp := new(GasPool).AddGas(evmState.GetGasLimit().Uint64())
-	_, gas, fail, err = ApplyMessage(vmenv, msg, gp, localFeeRate)
+	_, gas, fail, err = ApplyMessage(vmenv, msg, gp)
 	if err != nil {
 		return nil, err
 	}
 	*usedGas += gas
+	evmState.Finalise(true)
 	if evmState.GetQuarkChainConfig().XShardAddReceiptTimestamp != 0 {
 		var root []byte
 		receipt := types.NewReceipt(root, fail, *usedGas)
@@ -245,7 +241,10 @@ func ApplyCrossShardDeposit(config *params.ChainConfig, bc ChainContext, header 
 		receipt.GasUsed = gas
 		receipt.Logs = evmState.GetLogs(tx.TxHash)
 		receipt.Bloom = types.CreateBloom(types.Receipts{receipt})
-		receipt.ContractFullShardId = tx.To.FullShardKey
+		if tx.CreateContract {
+			receipt.ContractAddress = tx.To.Recipient
+			receipt.ContractFullShardKey = tx.To.FullShardKey
+		}
 		return receipt, nil
 	}
 	return nil, nil

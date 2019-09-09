@@ -96,7 +96,8 @@ func ExampleGenerateMinorBlockChain() {
 		temp := map[string]*big.Int{
 			"QKC": big.NewInt(1000000),
 		}
-		shardConfig.Genesis.Alloc[addr] = temp
+		alloc := config.Allocation{Balances: temp}
+		shardConfig.Genesis.Alloc[addr] = alloc
 	}
 	fakeClusterConfig.Quarkchain.SkipMinorDifficultyCheck = true
 	// Ensure that key1 has some funds in the genesis block.
@@ -137,16 +138,16 @@ func ExampleGenerateMinorBlockChain() {
 	}
 	defer blockchain.Stop()
 
-	if i, err := blockchain.InsertChain(toMinorBlocks(chain), nil); err != nil {
+	if i, err := blockchain.InsertChain(toMinorBlocks(chain), false); err != nil {
 		fmt.Printf("insert error (block %d): %v\n", chain[i].NumberU64(), err)
 		return
 	}
 
 	state, _ := blockchain.State()
 	fmt.Printf("last block: #%d\n", blockchain.CurrentBlock().Number())
-	fmt.Println("balance of addr1:", state.GetBalance(addr1.Recipient, 0))
-	fmt.Println("balance of addr2:", state.GetBalance(addr2.Recipient, 0))
-	fmt.Println("balance of addr3:", state.GetBalance(addr3.Recipient, 0))
+	fmt.Println("balance of addr1:", state.GetBalance(addr1.Recipient, testGenesisTokenID))
+	fmt.Println("balance of addr2:", state.GetBalance(addr2.Recipient, testGenesisTokenID))
+	fmt.Println("balance of addr3:", state.GetBalance(addr3.Recipient, testGenesisTokenID))
 	// Output:
 	// last block: #5
 	// balance of addr1: 899000

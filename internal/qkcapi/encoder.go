@@ -272,7 +272,7 @@ func receiptEncoder(block *types.MinorBlock, i int, receipt *types.Receipt) (map
 	} else {
 		addr := account.Address{
 			Recipient:    receipt.ContractAddress,
-			FullShardKey: receipt.ContractFullShardId,
+			FullShardKey: receipt.ContractFullShardKey,
 		}
 		field["contractAddress"] = DataEncoder(addr.ToBytes())
 	}
