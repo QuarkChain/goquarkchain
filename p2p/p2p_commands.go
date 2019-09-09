@@ -207,10 +207,10 @@ func (r *GetRootBlockHeaderListWithSkipRequest) GetHash() common.Hash {
 type GetMinorBlockHeaderListWithSkipRequest struct {
 	Type      uint8 // 0 block hash, 1 block height
 	Data      common.Hash
+	Branch    account.Branch
 	Limit     uint32
 	Skip      uint32
 	Direction uint8 // 0 to genesis, 1 to tip
-	Branch    account.Branch
 }
 
 func (r *GetMinorBlockHeaderListWithSkipRequest) SetHeight(height uint64) {

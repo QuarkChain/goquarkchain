@@ -5,11 +5,11 @@ package test
 import (
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
-	"github.com/QuarkChain/goquarkchain/cluster/rpc"
 	"github.com/QuarkChain/goquarkchain/cluster/shard"
 	"github.com/QuarkChain/goquarkchain/cmd/utils"
 	"github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/core/types"
+	"github.com/QuarkChain/goquarkchain/p2p"
 	"github.com/stretchr/testify/assert"
 	"math/big"
 	"runtime"
@@ -151,16 +151,17 @@ func TestGetMinorBlockHeadersWithSkip(t *testing.T) {
 	// TODO skip parameter need to be added.
 	peer1 := clstrList.GetPeerByIndex(1)
 	assert.NotNil(t, peer1)
-	mHeaders, err := peer1.GetMinorBlockHeaderList(&rpc.GetMinorBlockHeaderListRequest{
-		Hash:      mBHeaders[2].Hash(),
+	res, err := peer1.GetMinorBlockHeaderList(&p2p.GetMinorBlockHeaderListWithSkipRequest{
+		Data:      mBHeaders[2].Hash(),
 		Limit:     3,
-		Branch:    id0,
+		Branch:    account.Branch{Value: id0},
 		Direction: common.DirectionToGenesis,
 	})
+	mHeaders := res.BlockHeaderList
 	if err != nil {
 		t.Errorf("failed to get minor block header list by peer, err: %v", err)
 	}
-	assert.Equal(t, len(mHeaders.BlockHeaderList), 3)
+	assert.Equal(t, len(mHeaders), 3)
 	assert.Equal(t, mHeaders[2].Hash(), mBHeaders[0].Hash())
 	assert.Equal(t, mHeaders[1].Hash(), mBHeaders[1].Hash())
 	assert.Equal(t, mHeaders[0].Hash(), mBHeaders[2].Hash())
@@ -894,7 +895,11 @@ func TestGetRootBlockHeadersWithSkip(t *testing.T) {
 	peer := clstrList.GetPeerByIndex(1)
 	assert.NotNil(t, peer)
 	//# Test Case 1 ###################################################
-	res, err := peer.GetRootBlockHeaderList(rootBlockHeaderList[2].Hash(), 3, true)
+	res, err := peer.GetRootBlockHeaderList(&p2p.GetRootBlockHeaderListWithSkipRequest{
+		Data:      rootBlockHeaderList[2].Hash(),
+		Limit:     3,
+		Direction: 0,
+	})
 	blockHeaders := res.BlockHeaderList
 	assert.NoError(t, err)
 	assert.Equal(t, len(blockHeaders), 3)

@@ -81,6 +81,7 @@ func (g *Genesis) CreateMinorBlock(rootBlock *types.RootBlock, fullShardId uint3
 			statedb.AddBalance(*recipient, v, qkcCommon.TokenIDEncode(k))
 		}
 		statedb.SetCode(*recipient, allocation.Code)
+		//TODO need setNonce?
 		for k, v := range allocation.Storage {
 			statedb.SetState(*recipient, k, v)
 		}
@@ -97,6 +98,7 @@ func (g *Genesis) CreateMinorBlock(rootBlock *types.RootBlock, fullShardId uint3
 			MinorBlockIndex:    0,
 			XShardDepositIndex: 0,
 		},
+		XShardGasLimit: &serialize.Uint256{Value: new(big.Int).SetUint64(30000 * 200)},
 	}
 
 	one := big.NewRat(1, 1)
