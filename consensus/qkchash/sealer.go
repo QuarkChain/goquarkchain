@@ -21,8 +21,11 @@ func (q *QKCHash) verifySeal(chain consensus.ChainReader, header types.IHeader, 
 		return consensus.ErrInvalidDifficulty
 	}
 	diff := adjustedDiff
-	if diff == nil || diff.Cmp(big.NewInt(0)) == 0 {
+	if diff == nil {
 		diff = header.GetDifficulty()
+	}
+	if diff.Cmp(big.NewInt(0)) == 0 {
+		diff = big.NewInt(1)
 	}
 	minerRes := consensus.ShareCache{
 		Hash:  header.SealHash().Bytes(),
