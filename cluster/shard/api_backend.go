@@ -46,7 +46,7 @@ func (s *ShardBackend) GetUnconfirmedHeaderList() ([]*types.MinorBlockHeader, er
 func (s *ShardBackend) broadcastNewTip() (err error) {
 	var (
 		rootTip  = s.MinorBlockChain.GetRootTip()
-		minorTip = s.MinorBlockChain.CurrentHeader().(*types.MinorBlockHeader)
+		minorTip = s.MinorBlockChain.CurrentBlock().Header()
 	)
 
 	err = s.conn.BroadcastNewTip([]*types.MinorBlockHeader{minorTip}, rootTip, s.fullShardId)
@@ -63,7 +63,7 @@ func (s *ShardBackend) setHead(head uint64) {
 // called by 1. local miner (will not run if syncing) 2. SyncTask
 func (s *ShardBackend) AddMinorBlock(block *types.MinorBlock) error {
 	var (
-		oldTip = s.MinorBlockChain.CurrentHeader()
+		oldTip = s.MinorBlockChain.CurrentBlock().Header()
 	)
 
 	if commitStatus := s.getBlockCommitStatusByHash(block.Header().Hash()); commitStatus == BLOCK_COMMITTED {
@@ -81,7 +81,7 @@ func (s *ShardBackend) AddMinorBlock(block *types.MinorBlock) error {
 	s.mBPool.delBlockInPool(block.Header())
 
 	// block has been added to local state, broadcast tip so that peers can sync if needed
-	if oldTip.Hash() != s.MinorBlockChain.CurrentHeader().Hash() {
+	if oldTip.Hash() != s.MinorBlockChain.CurrentBlock().Hash() {
 		if err = s.broadcastNewTip(); err != nil {
 			s.setHead(currHead)
 			return err
@@ -222,7 +222,7 @@ func (s *ShardBackend) SubmitWork(headerHash common.Hash, nonce uint64, mixHash 
 }
 
 func (s *ShardBackend) HandleNewTip(rBHeader *types.RootBlockHeader, mBHeader *types.MinorBlockHeader, peerID string) error {
-	if s.MinorBlockChain.CurrentHeader().NumberU64() >= mBHeader.Number {
+	if s.MinorBlockChain.CurrentBlock().NumberU64() >= mBHeader.Number {
 		return nil
 	}
 
