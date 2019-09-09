@@ -103,7 +103,7 @@ type QuarkChainConfig struct {
 	chainIdToShardIds                 map[uint32][]uint32
 	defaultChainTokenID               uint64
 	allowTokenIDs                     map[uint64]bool
-	XShardAddReceiptTimestamp         uint64
+	EnableEvmTimeStamp                uint64   `json:"ENABLE_EVM_TIMESTAMP"`
 	DisablePowCheck                   bool     `json:"DISABLE_POW_CHECK"`
 	XShardGasDDOSFixRootHeight        uint64   `json:"XSHARD_GAS_DDOS_FIX_ROOT_HEIGHT"`
 	MinTXPoolGasPrice                 *big.Int `json:"MIN_TX_POOL_GAS_PRICE"`
@@ -325,6 +325,7 @@ func NewQuarkChainConfig() *QuarkChainConfig {
 		MinTXPoolGasPrice:                 new(big.Int).SetUint64(1000000000),
 		MinMiningGasPrice:                 new(big.Int).SetUint64(1000000000),
 		XShardGasDDOSFixRootHeight:        90000,
+		EnableEvmTimeStamp:                1569567600,
 	}
 
 	ret.Root.ConsensusType = PoWSimulate

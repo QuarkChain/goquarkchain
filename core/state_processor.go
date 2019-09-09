@@ -215,7 +215,27 @@ func ApplyCrossShardDeposit(config *params.ChainConfig, bc ChainContext, header 
 			gasUsedStart = 0
 		}
 	}
-	//TODO @Fix it with enable evm state
+
+	quarkChainConfig := evmState.GetQuarkChainConfig()
+	if quarkChainConfig.EnableEvmTimeStamp != 0 && evmState.GetTimeStamp() < quarkChainConfig.EnableEvmTimeStamp {
+
+		//TODO:FIXME:full_shard_key is not set
+		evmState.AddBalance(tx.To.Recipient, tx.Value.Value, tx.TransferTokenID)
+		evmState.AddGasUsed(new(big.Int).SetUint64(gasUsedStart))
+		*usedGas += gasUsedStart
+
+		localFeeRate := new(big.Rat).Sub(new(big.Rat).SetInt64(1), quarkChainConfig.RewardTaxRate)
+		xShardFee := new(big.Int).Mul(tx.GasPrice.Value, qkcParam.GtxxShardCost)
+		xShardFee = new(big.Int).Mul(xShardFee, localFeeRate.Num())
+		xShardFee = new(big.Int).Div(xShardFee, localFeeRate.Denom())
+
+		evmState.AddBlockFee(map[uint64]*big.Int{
+			tx.GasTokenID: xShardFee,
+		})
+		evmState.AddBalance(evmState.GetBlockCoinbase(), xShardFee, tx.GasTokenID)
+		return nil, nil
+	}
+
 	evmState.SetFullShardKey(tx.To.FullShardKey)
 	evmState.AddBalance(tx.From.Recipient, tx.Value.Value, tx.TransferTokenID)
 	msg := types.NewMessage(tx.From.Recipient, &tx.To.Recipient, 0, tx.Value.Value,
@@ -234,7 +254,8 @@ func ApplyCrossShardDeposit(config *params.ChainConfig, bc ChainContext, header 
 		return nil, err
 	}
 	*usedGas += gas
-	if evmState.GetQuarkChainConfig().XShardAddReceiptTimestamp != 0 {
+	if quarkChainConfig.EnableEvmTimeStamp == 0 || evmState.GetTimeStamp() >= quarkChainConfig.EnableEvmTimeStamp {
+		//fmt.Println("??????", evmState.GetTimeStamp(), quarkChainConfig.EnableEvmTimeStamp)
 		var root []byte
 		receipt := types.NewReceipt(root, fail, *usedGas)
 		receipt.TxHash = tx.TxHash

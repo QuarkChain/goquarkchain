@@ -233,8 +233,8 @@ func NewMinorBlockChain(
 		return nil, err
 	}
 	DefaultTxPoolConfig.NetWorkID = bc.clusterConfig.Quarkchain.NetworkID
-	bc.txPool = NewTxPool(DefaultTxPoolConfig, bc)
 	bc.posw = consensus.CreatePoSWCalculator(bc, bc.shardConfig.PoswConfig)
+	bc.txPool = NewTxPool(DefaultTxPoolConfig, bc)
 	// Take ownership of this particular state
 	go bc.update()
 	return bc, nil
@@ -409,16 +409,17 @@ func (m *MinorBlockChain) StateAt(root common.Hash) (*state.StateDB, error) {
 	return evmState, nil
 }
 
-func (m *MinorBlockChain) stateAtWithSenderDisallowMap(root common.Hash, minorBlockHash common.Hash, coinbase *account.Recipient) (*state.StateDB, error) {
-	evmState, err := m.StateAt(root)
+func (m *MinorBlockChain) stateAtWithSenderDisallowMap(minorBlock *types.MinorBlock, coinbase *account.Recipient) (*state.StateDB, error) {
+	evmState, err := m.StateAt(minorBlock.Meta().Root)
 	if err != nil {
 		return nil, err
 	}
-	senderDisallowMap, err := m.posw.BuildSenderDisallowMap(minorBlockHash, coinbase)
+	senderDisallowMap, err := m.posw.BuildSenderDisallowMap(minorBlock.Hash(), coinbase)
 	if err != nil {
 		return nil, err
 	}
 	evmState.SetSenderDisallowMap(senderDisallowMap)
+	m.setEvmStateWithHeader(evmState, minorBlock.Header())
 	return evmState, nil
 }
 

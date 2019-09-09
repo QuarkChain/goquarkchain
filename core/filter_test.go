@@ -38,6 +38,7 @@ func TestGetLog(t *testing.T) {
 
 	fakeMoney := uint64(100000000000000000)
 	env := setUp(&acc1, &fakeMoney, nil)
+	//env.clusterConfig.Quarkchain.EnableEvmTimeStamp = 1
 	shardState := createDefaultShardState(env, nil, nil, nil, nil)
 	defer shardState.Stop()
 	// Add a root block to have all the shards initialized

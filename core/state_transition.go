@@ -334,13 +334,18 @@ func (st *StateTransition) AddCrossShardTxDeposit(intrinsicGas uint64) (ret []by
 
 	} else {
 		state.SubBalance(msg.From(), st.value, msg.TransferTokenID())
-		remoteGasReserved = msg.Gas() - intrinsicGas
 		crossShardValue := new(serialize.Uint256)
 		crossShardValue.Value = new(big.Int).Set(msg.Value())
 		crossShardGasPrice := new(serialize.Uint256)
 		crossShardGasPrice.Value = new(big.Int).Set(msg.GasPrice())
 		crossShardGas := new(serialize.Uint256)
-		crossShardGas.Value = new(big.Int).SetUint64(remoteGasReserved)
+		crossShardGas.Value = new(big.Int)
+
+		if state.GetQuarkChainConfig().EnableEvmTimeStamp != 0 || state.GetTimeStamp() >= state.GetQuarkChainConfig().EnableEvmTimeStamp {
+			remoteGasReserved = msg.Gas() - intrinsicGas
+			crossShardGas.Value = new(big.Int).SetUint64(remoteGasReserved)
+		}
+
 		crossShardData := &types.CrossShardTransactionDeposit{
 			TxHash: msg.TxHash(),
 			From: account.Address{

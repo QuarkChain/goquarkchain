@@ -104,7 +104,7 @@ func getTestEnv(genesisAccount *account.Address, genesisMinorQuarkHash *uint64, 
 	env.clusterConfig.Quarkchain.SkipRootDifficultyCheck = true
 	env.clusterConfig.EnableTransactionHistory = true
 	env.clusterConfig.Quarkchain.MinMiningGasPrice = new(big.Int).SetInt64(0)
-	env.clusterConfig.Quarkchain.XShardAddReceiptTimestamp = 1
+	env.clusterConfig.Quarkchain.EnableEvmTimeStamp = 1
 	env.clusterConfig.Quarkchain.MinTXPoolGasPrice = new(big.Int).SetInt64(0)
 	ids := env.clusterConfig.Quarkchain.GetGenesisShardIds()
 	for _, v := range ids {
