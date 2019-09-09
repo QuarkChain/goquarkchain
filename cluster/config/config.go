@@ -31,7 +31,7 @@ const (
 	DefaultP2PPort     uint16 = 38291
 	DefaultPubRpcPort  uint16 = 38391
 	DefaultPrivRpcPort uint16 = 38491
-	DefaultWSPort      uint16 = 38591
+	DefaultWSPort      uint16 = 38590
 	DefaultHost               = "localhost"
 
 	HeartbeatInterval = time.Duration(4 * time.Second)

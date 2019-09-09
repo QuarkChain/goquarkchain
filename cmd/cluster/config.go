@@ -13,6 +13,7 @@ import (
 	"gopkg.in/urfave/cli.v1"
 	"io/ioutil"
 	"reflect"
+	"strconv"
 	"unicode"
 )
 
@@ -90,7 +91,8 @@ func makeConfigNode(ctx *cli.Context) (*service.Node, qkcConfig) {
 
 		// set websocket endpoint
 		if ctx.GlobalBool(utils.WSEnableFlag.Name) {
-			ip, port := slv.IP, slv.WSPort/10+slv.Port%10
+			sufPort, _ := strconv.Atoi(slv.ID[1:])
+			ip, port := slv.IP, slv.WSPort+uint16(sufPort)
 			if ctx.GlobalIsSet(utils.WSRPCHostFlag.Name) {
 				ip = ctx.GlobalString(utils.WSRPCHostFlag.Name)
 			}
