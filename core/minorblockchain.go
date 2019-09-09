@@ -32,7 +32,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	qkcParams "github.com/QuarkChain/goquarkchain/params"
 	"github.com/QuarkChain/goquarkchain/serialize"
-	lru "github.com/hashicorp/golang-lru"
+	"github.com/hashicorp/golang-lru"
 
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/core/rawdb"
@@ -811,7 +811,7 @@ func SetReceiptsData(config *config.QuarkChainConfig, mBlock types.IBlock, recei
 		if transactions[j].EvmTx.To() == nil {
 			// Deriving the signer is expensive, only do if it's actually needed
 			from, _ := types.Sender(signer, transactions[j].EvmTx)
-			toFullShardKey:=transactions[j].EvmTx.ToFullShardKey()
+			toFullShardKey := transactions[j].EvmTx.ToFullShardKey()
 			receipts[j].ContractAddress = account.BytesToIdentityRecipient(vm.CreateAddress(from, &toFullShardKey, transactions[j].EvmTx.Nonce()).Bytes())
 		}
 		// The used gas can be calculated based on previous receipts
@@ -1725,6 +1725,10 @@ func (m *MinorBlockChain) SubscribeChainSideEvent(ch chan<- MinorChainSideEvent)
 // SubscribeLogsEvent registers a subscription of []*types.Log.
 func (m *MinorBlockChain) SubscribeLogsEvent(ch chan<- []*types.Log) event.Subscription {
 	return m.scope.Track(m.logsFeed.Subscribe(ch))
+}
+
+func (m *MinorBlockChain) SubscribeNewTxsEvent(ch chan<- NewTxsEvent) event.Subscription {
+	return m.txPool.SubscribeNewTxsEvent(ch)
 }
 
 func (m *MinorBlockChain) getRootBlockHeaderByHash(hash common.Hash) *types.RootBlockHeader {

@@ -381,6 +381,18 @@ func (s *ShardBackend) SubscribeLogsEvent(ch chan<- []*types.Log) event.Subscrip
 	return s.MinorBlockChain.SubscribeLogsEvent(ch)
 }
 
+func (s *ShardBackend) SubscribeRemovedLogsEvent(ch chan<- core.RemovedLogsEvent) event.Subscription {
+	return s.MinorBlockChain.SubscribeRemovedLogsEvent(ch)
+}
+
+func (s *ShardBackend) SubscribeChainEvent(ch chan<- core.MinorChainEvent) event.Subscription {
+	return s.MinorBlockChain.SubscribeChainEvent(ch)
+}
+
+func (s *ShardBackend) SubscribeNewTxsEvent(ch chan<- core.NewTxsEvent) event.Subscription {
+	return s.MinorBlockChain.SubscribeNewTxsEvent(ch)
+}
+
 func (s *ShardBackend) broadcastNewTip() (err error) {
 	var (
 		rootTip  = s.MinorBlockChain.GetRootTip()

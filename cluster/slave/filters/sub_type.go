@@ -92,14 +92,13 @@ func (s *subscribe) newSubEvent(shrd ShardBackend, tp Type, broadcast func(inter
 			broadcast: broadcast,
 		}
 	case PendingTransactionsSubscription:
-		panic("not implemented")
-		//txsCh := make(chan core.NewTxsEvent, txChanSize)
-		//txsSub := shrd.MinorBlockChain.SubscribeTxsEvent(txsCh)
-		//tpEvent[tp] = &subTxsEvent{
-		//	ch:        txsCh,
-		//	sub:       txsSub,
-		//	broadcast: broadcast,
-		//}
+		txsCh := make(chan core.NewTxsEvent, txChanSize)
+		txsSub := shrd.SubscribeNewTxsEvent(txsCh)
+		return &subTxsEvent{
+			ch:        txsCh,
+			sub:       txsSub,
+			broadcast: broadcast,
+		}
 	case BlocksSubscription:
 		headersCh := make(chan core.MinorChainHeadEvent, chainEvChanSize)
 		headersSub := shrd.SubscribeChainHeadEvent(headersCh)

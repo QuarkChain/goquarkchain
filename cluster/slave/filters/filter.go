@@ -35,6 +35,9 @@ type ShardBackend interface {
 
 	SubscribeChainHeadEvent(ch chan<- core.MinorChainHeadEvent) event.Subscription
 	SubscribeLogsEvent(ch chan<- []*types.Log) event.Subscription
+	SubscribeRemovedLogsEvent(ch chan<- core.RemovedLogsEvent) event.Subscription
+	SubscribeChainEvent(ch chan<- core.MinorChainEvent) event.Subscription
+	SubscribeNewTxsEvent(ch chan<- core.NewTxsEvent) event.Subscription
 }
 
 // Filter can be used to retrieve and filter logs.
