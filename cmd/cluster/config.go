@@ -90,7 +90,7 @@ func makeConfigNode(ctx *cli.Context) (*service.Node, qkcConfig) {
 
 		// set websocket endpoint
 		if ctx.GlobalBool(utils.WSEnableFlag.Name) {
-			ip, port := slv.IP, slv.WSPort
+			ip, port := slv.IP, slv.WSPort/10+slv.Port%10
 			if ctx.GlobalIsSet(utils.WSRPCHostFlag.Name) {
 				ip = ctx.GlobalString(utils.WSRPCHostFlag.Name)
 			}

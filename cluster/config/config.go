@@ -27,10 +27,11 @@ const (
 	// PoWQkchash is the consensus type running qkchash algorithm.
 	PoWQkchash = "POW_QKCHASH"
 
+	GrpcPort           uint16 = 38191
+	DefaultP2PPort     uint16 = 38291
 	DefaultPubRpcPort  uint16 = 38391
-	DefaultWSPort      uint16 = 38392
 	DefaultPrivRpcPort uint16 = 38491
-	GrpcPort           uint16 = 38591
+	DefaultWSPort      uint16 = 38591
 	DefaultHost               = "localhost"
 
 	HeartbeatInterval = time.Duration(4 * time.Second)
@@ -80,13 +81,13 @@ func NewPOSWConfig() *POSWConfig {
 
 type SimpleNetwork struct {
 	BootstrapHost string `json:"BOOT_STRAP_HOST"`
-	BootstrapPort uint64 `json:"BOOT_STRAP_PORT"`
+	BootstrapPort uint16 `json:"BOOT_STRAP_PORT"`
 }
 
 func NewSimpleNetwork() *SimpleNetwork {
 	return &SimpleNetwork{
 		BootstrapHost: "127.0.0.1",
-		BootstrapPort: 38291,
+		BootstrapPort: DefaultP2PPort,
 	}
 }
 

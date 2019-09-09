@@ -34,7 +34,7 @@ var (
 	clusterConfig = flag.String("config", "", "cluster config file")
 	shardList     = flag.String("shards", "R", "comma-separated string indicating shards")
 	host          = flag.String("host", "localhost", "remote host of a quarkchain cluster")
-	port          = flag.Int("port", 38391, "remote JSONRPC port of a quarkchain cluster")
+	port          = flag.Int("port", int(config.DefaultPubRpcPort), "remote JSONRPC port of a quarkchain cluster")
 	preThreads    = flag.Int("threads", 0, "Use how many threads to mine in a worker")
 	rpcTimeout    = flag.Int("timeout", 500, "timeout in seconds for RPC calls")
 	gethlogLvl    = flag.String("gethloglvl", "info", "log level of geth")

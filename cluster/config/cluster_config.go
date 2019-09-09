@@ -36,9 +36,9 @@ type ClusterConfig struct {
 
 func NewClusterConfig() *ClusterConfig {
 	var ret = ClusterConfig{
-		P2PPort:                  38291,
-		JSONRPCPort:              38391,
-		PrivateJSONRPCPort:       38491,
+		P2PPort:                  DefaultP2PPort,
+		JSONRPCPort:              DefaultPubRpcPort,
+		PrivateJSONRPCPort:       DefaultPrivRpcPort,
 		EnableTransactionHistory: false,
 		DbPathRoot:               "./db",
 		LogLevel:                 "info",
