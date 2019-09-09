@@ -1804,5 +1804,6 @@ func (m *MinorBlockChain) GetRootChainStakes(coinbase account.Recipient, lastMin
 	if bytes.Compare(coinbase[:], stakerAddr.Recipient[:]) == 0 {
 		return m.clusterConfig.Quarkchain.Root.PoSWConfig.TotalStakePerBlock, &signerAddr.Recipient, nil
 	}
+
 	return new(big.Int), nil, nil
 }

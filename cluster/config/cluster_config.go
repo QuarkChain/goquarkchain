@@ -1,6 +1,7 @@
 package config
 
 import (
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -108,6 +109,7 @@ type QuarkChainConfig struct {
 	XShardGasDDOSFixRootHeight        uint64   `json:"XSHARD_GAS_DDOS_FIX_ROOT_HEIGHT"`
 	MinTXPoolGasPrice                 *big.Int `json:"MIN_TX_POOL_GAS_PRICE"`
 	MinMiningGasPrice                 *big.Int `json:"MIN_MINING_GAS_PRICE"`
+	RootChainPoSWContract             string
 }
 
 type QuarkChainConfigAlias QuarkChainConfig
@@ -319,6 +321,7 @@ func NewQuarkChainConfig() *QuarkChainConfig {
 		MinTXPoolGasPrice:                 new(big.Int).SetUint64(1000000000),
 		MinMiningGasPrice:                 new(big.Int).SetUint64(1000000000),
 		XShardGasDDOSFixRootHeight:        90000,
+		RootChainPoSWContract:             "7aefa013e212154a294b54c4edad4d25262cefab",
 	}
 
 	ret.Root.ConsensusType = PoWSimulate
@@ -394,4 +397,9 @@ func (q *QuarkChainConfig) GasLimit(fullShardID uint32) (*big.Int, error) {
 		return nil, fmt.Errorf("no such fullShardID %v", fullShardID)
 	}
 	return new(big.Int).SetUint64(data.Genesis.GasLimit), nil
+}
+
+func (q *QuarkChainConfig) GetRootChainPoSWContract() account.Recipient {
+	bytes, _ := hex.DecodeString(q.RootChainPoSWContract)
+	return account.BytesToIdentityRecipient(bytes)
 }

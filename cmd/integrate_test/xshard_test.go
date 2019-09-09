@@ -714,7 +714,6 @@ func TestCrossShardContractCreate(t *testing.T) {
 }
 
 func TestPoSWOnRootChain(t *testing.T) {
-	defaultbootNode := "enode://9fb2a4ae5e0271638ac9ab77567ba3ccfcc10403f3263b053c7c714696f712566a624355588b733ac2dc40f103ad23edc25027427e80113c5cdf2bc0f060ce4b@127.0.0.1:38291"
 	stakerkeyB := []byte{0x1}
 	stakerkey := account.BytesToIdentityKey(stakerkeyB)
 	stakerId, err := account.CreatIdentityFromKey(stakerkey)
@@ -792,11 +791,10 @@ func TestPoSWOnRootChain(t *testing.T) {
 	assert.NoError(t, addRootBlock(account.Address{}, false, true))
 
 	//signature mismatch (recovery failed)
-	assert.Error(t, addRootBlock(stakerAddr, false, false))
+	assert.EqualError(t, addRootBlock(stakerAddr, false, false), "invalid proof-of-work")
 
 	// posw applied: from 952152 to 0
 	assert.NoError(t, addRootBlock(stakerAddr, true, false))
 	// 1000000 quota used up; tried posw but no diff change
-	assert.Error(t, addRootBlock(stakerAddr, true, false))
-
+	assert.EqualError(t, addRootBlock(stakerAddr, true, false), "invalid proof-of-work")
 }

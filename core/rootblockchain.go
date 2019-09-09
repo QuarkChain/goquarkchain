@@ -1141,7 +1141,7 @@ func (bc *RootBlockChain) GetAdjustedDifficulty(header types.IHeader) (*big.Int,
 	if bc.posw.IsPoSWEnabled() {
 		poswAdjusted, err := bc.getPoSWAdjustedDiff(header)
 		if err != nil {
-			//fmt.Println("apply posw failed: ", err)
+			log.Info("apply posw failed: ", err)
 		}
 		if poswAdjusted != nil {
 			fmt.Printf("posw applied: from %v to %v \n", rHeader.Difficulty, poswAdjusted)
@@ -1162,6 +1162,9 @@ func (bc *RootBlockChain) getPoSWAdjustedDiff(header types.IHeader) (*big.Int, e
 	stakes, signer, err := getStakes(header.GetCoinbase(), lastConfirmedMinorBlockHeader.Hash())
 	if err != nil {
 		return nil, err
+	}
+	if signer == nil || *signer == (common.Address{}) {
+		return nil, errors.New("stakes signer not found")
 	}
 	pubKey, err := crypto.SigToPub(rHeader.SealHash().Bytes(), rHeader.Signature[:])
 	if err != nil {

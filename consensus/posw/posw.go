@@ -38,8 +38,12 @@ func NewPoSW(headReader headReader, config *config.POSWConfig) *PoSW {
 
 /*PoSWDiffAdjust PoSW diff calc,already locked by insertChain*/
 func (p *PoSW) PoSWDiffAdjust(header types.IHeader, stakes *big.Int) (*big.Int, error) {
+	diff := header.GetDifficulty()
 	// Evaluate stakes before the to-be-added block
 	blockThreshold := new(big.Int).Div(stakes, p.config.TotalStakePerBlock).Uint64()
+	if blockThreshold == uint64(0) {
+		return diff, nil
+	}
 	if blockThreshold > p.config.WindowSize {
 		blockThreshold = p.config.WindowSize
 	}
@@ -50,7 +54,6 @@ func (p *PoSW) PoSWDiffAdjust(header types.IHeader, stakes *big.Int) (*big.Int, 
 	if err != nil {
 		return nil, err
 	}
-	diff := header.GetDifficulty()
 	if blockCnt < blockThreshold {
 		diff = new(big.Int).Div(diff, big.NewInt(int64(p.config.DiffDivider)))
 	}
