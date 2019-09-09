@@ -1,24 +1,8 @@
-// Copyright 2015 The go-ethereum Authors
-// This file is part of the go-ethereum library.
-//
-// The go-ethereum library is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Lesser General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// The go-ethereum library is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Lesser General Public License for more details.
-//
-// You should have received a copy of the GNU Lesser General Public License
-// along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
-
+// Modified from go-ethereum under GNU Lesser General Public License
 package filters
 
 import (
 	"context"
-	"fmt"
 	"github.com/QuarkChain/goquarkchain/cluster/shard"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"sync"
@@ -196,20 +180,7 @@ func (api *PublicFilterAPI) Logs(ctx context.Context, crit qrpc.FilterQuery, ful
 	return rpcSub, nil
 }
 
-// NewFilter creates a new filter and returns the filter id. It can be
-// used to retrieve logs when the state changes. This method cannot be
-// used to fetch logs that are already stored in the state.
-//
-// Default criteria for the from and to block are "latest".
-// Using "latest" as block number will return logs for mined blocks.
-// Using "pending" as block number returns logs for not yet mined (pending) blocks.
-// In case logs are removed (chain reorg) previously returned logs are returned
-// again but with the removed property set to true.
-//
-// In case "fromBlock" > "toBlock" an error is returned.
-//
-// https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_newfilter
-func (api *PublicFilterAPI) NewFilter(crit qrpc.FilterQuery, fullShardId hexutil.Uint) (rpc.ID, error) {
+/*func (api *PublicFilterAPI) NewFilter(crit qrpc.FilterQuery, fullShardId hexutil.Uint) (rpc.ID, error) {
 	crit.FullShardId = uint32(fullShardId)
 	logs := make(chan []*types.Log)
 	logsSub, err := api.events.SubscribeLogs(crit, logs)
@@ -242,9 +213,6 @@ func (api *PublicFilterAPI) NewFilter(crit qrpc.FilterQuery, fullShardId hexutil
 	return logsSub.ID, nil
 }
 
-// UninstallFilter removes the filter with the given filter id.
-//
-// https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_uninstallfilter
 func (api *PublicFilterAPI) UninstallFilter(id rpc.ID) bool {
 	api.filtersMu.Lock()
 	f, found := api.filters[id]
@@ -259,10 +227,6 @@ func (api *PublicFilterAPI) UninstallFilter(id rpc.ID) bool {
 	return found
 }
 
-// GetFilterLogs returns the logs for the filter with the given id.
-// If the filter could not be found an empty array of logs is returned.
-//
-// https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_getfilterlogs
 func (api *PublicFilterAPI) GetFilterLogs(ctx context.Context, id rpc.ID) ([]*types.Log, error) {
 	api.filtersMu.Lock()
 	f, found := api.filters[id]
@@ -302,13 +266,6 @@ func (api *PublicFilterAPI) GetFilterLogs(ctx context.Context, id rpc.ID) ([]*ty
 	return returnLogs(logs), nil
 }
 
-// GetFilterChanges returns the logs for the filter with the given id since
-// last time it was called. This can be used for polling.
-//
-// For pending transaction and block filters the result is []common.Hash.
-// (pending)Log filters return []Log.
-//
-// https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_getfilterchanges
 func (api *PublicFilterAPI) GetFilterChanges(id rpc.ID) (interface{}, error) {
 	api.filtersMu.Lock()
 	defer api.filtersMu.Unlock()
@@ -334,7 +291,7 @@ func (api *PublicFilterAPI) GetFilterChanges(id rpc.ID) (interface{}, error) {
 	}
 
 	return []interface{}{}, fmt.Errorf("filter not found")
-}
+}*/
 
 // returnHashes is a helper that will return an empty hash array case the given hash array is nil,
 // otherwise the given hashes array is returned.

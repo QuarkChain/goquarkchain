@@ -1,3 +1,4 @@
+// Modified from go-ethereum under GNU Lesser General Public License
 package filters
 
 import (
