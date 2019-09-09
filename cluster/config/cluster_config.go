@@ -226,6 +226,12 @@ func (q *QuarkChainConfig) Update(chainSize, shardSizePerChain, rootBlockTime, m
 }
 
 func (q *QuarkChainConfig) initAndValidate() {
+	if q.MinMiningGasPrice == nil {
+		q.MinMiningGasPrice = new(big.Int).SetUint64(1000000000)
+	}
+	if q.MinTXPoolGasPrice == nil {
+		q.MinTXPoolGasPrice = new(big.Int).SetUint64(1000000000)
+	}
 
 	q.chainIdToShardSize = make(map[uint32]uint32)
 	q.chainIdToShardIds = make(map[uint32][]uint32)
