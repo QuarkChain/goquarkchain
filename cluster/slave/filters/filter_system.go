@@ -9,7 +9,6 @@ import (
 
 	qrpc "github.com/QuarkChain/goquarkchain/cluster/rpc"
 	"github.com/QuarkChain/goquarkchain/core/types"
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/rpc"
 )
 
@@ -58,7 +57,7 @@ type subscription struct {
 	fullShardId uint32
 	logsCrit    qrpc.FilterQuery
 	logs        chan []*types.Log
-	hashes      chan []common.Hash
+	txlist      chan *types.Transaction
 	headers     chan *types.MinorBlockHeader
 	installed   chan struct{} // closed when the filter is installed
 	err         chan error    // closed when the filter is uninstalled
@@ -122,9 +121,14 @@ func (sub *Subscription) Unsubscribe() {
 			select {
 			case sub.es.uninstall <- sub.f:
 				break uninstallLoop
-			case <-sub.f.logs:
-			case <-sub.f.hashes:
-			case <-sub.f.headers:
+			default:
+				if sub.f.logs != nil {
+					<-sub.f.logs
+				} else if sub.f.headers != nil {
+					<-sub.f.headers
+				} else if sub.f.txlist != nil {
+					<-sub.f.txlist
+				}
 			}
 		}
 
@@ -182,8 +186,6 @@ func (es *EventSystem) subscribeMinedPendingLogs(crit qrpc.FilterQuery, logs cha
 		logsCrit:  crit,
 		created:   time.Now(),
 		logs:      logs,
-		hashes:    make(chan []common.Hash),
-		headers:   make(chan *types.MinorBlockHeader),
 		installed: make(chan struct{}),
 		err:       make(chan error),
 	}
@@ -200,8 +202,6 @@ func (es *EventSystem) subscribeLogs(crit qrpc.FilterQuery, logs chan []*types.L
 		logsCrit:    crit,
 		created:     time.Now(),
 		logs:        logs,
-		hashes:      make(chan []common.Hash),
-		headers:     make(chan *types.MinorBlockHeader),
 		installed:   make(chan struct{}),
 		err:         make(chan error),
 	}
@@ -217,8 +217,6 @@ func (es *EventSystem) subscribePendingLogs(crit qrpc.FilterQuery, logs chan []*
 		logsCrit:  crit,
 		created:   time.Now(),
 		logs:      logs,
-		hashes:    make(chan []common.Hash),
-		headers:   make(chan *types.MinorBlockHeader),
 		installed: make(chan struct{}),
 		err:       make(chan error),
 	}
@@ -233,8 +231,6 @@ func (es *EventSystem) SubscribeNewHeads(headers chan *types.MinorBlockHeader, f
 		fullShardId: fullShardId,
 		typ:         BlocksSubscription,
 		created:     time.Now(),
-		logs:        make(chan []*types.Log),
-		hashes:      make(chan []common.Hash),
 		headers:     headers,
 		installed:   make(chan struct{}),
 		err:         make(chan error),
@@ -244,15 +240,13 @@ func (es *EventSystem) SubscribeNewHeads(headers chan *types.MinorBlockHeader, f
 
 // SubscribePendingTxs creates a subscription that writes transaction hashes for
 // transactions that enter the transaction pool.
-func (es *EventSystem) SubscribePendingTxs(hashes chan []common.Hash, fullShardId uint32) *Subscription {
+func (es *EventSystem) SubscribePendingTxs(txs chan *types.Transaction, fullShardId uint32) *Subscription {
 	sub := &subscription{
 		id:          rpc.NewID(),
 		fullShardId: fullShardId,
 		typ:         PendingTransactionsSubscription,
 		created:     time.Now(),
-		logs:        make(chan []*types.Log),
-		hashes:      hashes,
-		headers:     make(chan *types.MinorBlockHeader),
+		txlist:      txs,
 		installed:   make(chan struct{}),
 		err:         make(chan error),
 	}
@@ -280,12 +274,10 @@ func (es *EventSystem) broadcast(filters filterIndex, ev interface{}) {
 		}
 
 	case []*types.Transaction:
-		hashes := make([]common.Hash, 0, len(e))
 		for _, tx := range e {
-			hashes = append(hashes, tx.Hash())
-		}
-		for _, f := range filters[PendingTransactionsSubscription] {
-			f.hashes <- hashes
+			for _, f := range filters[PendingTransactionsSubscription] {
+				f.txlist <- tx
+			}
 		}
 
 	case *types.MinorBlockHeader:

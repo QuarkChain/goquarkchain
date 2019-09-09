@@ -88,17 +88,13 @@ func (api *PublicFilterAPI) NewPendingTransactions(ctx context.Context, fullShar
 	rpcSub := notifier.CreateSubscription()
 
 	go func() {
-		txHashes := make(chan []common.Hash, 128)
-		pendingTxSub := api.events.SubscribePendingTxs(txHashes, uint32(fullShardId))
+		txlist := make(chan *types.Transaction, txChanSize)
+		pendingTxSub := api.events.SubscribePendingTxs(txlist, uint32(fullShardId))
 
 		for {
 			select {
-			case hashes := <-txHashes:
-				// To keep the original behaviour, send a single tx hash in one notification.
-				// TODO(rjl493456442) Send a batch of tx hashes in one notification
-				for _, h := range hashes {
-					notifier.Notify(rpcSub.ID, h)
-				}
+			case tx := <-txlist:
+				notifier.Notify(rpcSub.ID, tx)
 			case <-rpcSub.Err():
 				pendingTxSub.Unsubscribe()
 				return
@@ -122,7 +118,7 @@ func (api *PublicFilterAPI) NewHeads(ctx context.Context, fullShardId hexutil.Ui
 	rpcSub := notifier.CreateSubscription()
 
 	go func() {
-		headers := make(chan *types.MinorBlockHeader)
+		headers := make(chan *types.MinorBlockHeader, chainEvChanSize)
 		headersSub := api.events.SubscribeNewHeads(headers, uint32(fullShardId))
 
 		for {
@@ -151,7 +147,7 @@ func (api *PublicFilterAPI) Logs(ctx context.Context, crit qrpc.FilterQuery, ful
 
 	var (
 		rpcSub      = notifier.CreateSubscription()
-		matchedLogs = make(chan []*types.Log)
+		matchedLogs = make(chan []*types.Log, logsChanSize)
 	)
 	crit.FullShardId = uint32(fullShardId)
 
