@@ -97,14 +97,7 @@ func (m *Miner) commit(addr *account.Address) {
 		log.Error(m.logInfo, "block's height small than tipHeight after commit blockNumber ,no need to seal", block.NumberU64(), "tip", m.getTip())
 		return
 	}
-	if addr == nil || account.IsSameAddress(m.api.GetDefaultCoinbaseAddress(), *addr) {
-		m.workCh <- workAdjusted{block, diff}
-	} else {
-		// only happen on remote mining
-		if err := m.engine.Seal(nil, block, diff, m.resultCh, m.stopCh); err != nil {
-			log.Error(m.logInfo, "Seal block to mine err", err) //right? need discuss
-		}
-	}
+	m.workCh <- workAdjusted{block, diff}
 }
 
 func (m *Miner) mainLoop() {
@@ -157,12 +150,17 @@ func (m *Miner) SetMining(mining bool) {
 func (m *Miner) GetWork(coinbaseAddr *account.Address) (*consensus.MiningWork, error) {
 	addrForGetWork := m.api.GetDefaultCoinbaseAddress()
 	if coinbaseAddr != nil && !account.IsSameAddress(*coinbaseAddr, m.api.GetDefaultCoinbaseAddress()) {
-		m.commit(coinbaseAddr)
 		addrForGetWork = *coinbaseAddr
 	}
 
 	work, err := m.engine.GetWork(addrForGetWork)
-	if err != nil {
+	if err != nil && err == consensus.ErrNoMiningWork {
+		block, diff, err := m.api.CreateBlockToMine(&addrForGetWork)
+		if err == nil {
+			m.workCh <- workAdjusted{block, diff}
+			return &consensus.MiningWork{HeaderHash: block.IHeader().SealHash(), Number: block.NumberU64(), Difficulty: diff}, nil
+		}
+
 		return nil, err
 	}
 	return work, nil

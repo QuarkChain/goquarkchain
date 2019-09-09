@@ -70,7 +70,7 @@ func (s *ShardBackend) AddMinorBlock(block *types.MinorBlock) error {
 		return nil
 	}
 	//TODO support BLOCK_COMMITTING
-	currHead := s.MinorBlockChain.CurrentBlock().Number()
+	currHead := s.MinorBlockChain.CurrentBlock().Header()
 	_, xshardLst, err := s.MinorBlockChain.InsertChainForDeposits([]types.IBlock{block}, false)
 	if err != nil || len(xshardLst) != 1 {
 		log.Error("Failed to add minor block", "err", err)
@@ -83,7 +83,7 @@ func (s *ShardBackend) AddMinorBlock(block *types.MinorBlock) error {
 	// block has been added to local state, broadcast tip so that peers can sync if needed
 	if oldTip.Hash() != s.MinorBlockChain.CurrentHeader().Hash() {
 		if err = s.broadcastNewTip(); err != nil {
-			s.setHead(currHead)
+			s.setHead(currHead.Number)
 			return err
 		}
 	}
@@ -95,12 +95,12 @@ func (s *ShardBackend) AddMinorBlock(block *types.MinorBlock) error {
 
 	prevRootHeight := s.MinorBlockChain.GetRootBlockByHash(block.Header().PrevRootBlockHash).Header().Number
 	if err := s.conn.BroadcastXshardTxList(block, xshardLst[0], prevRootHeight); err != nil {
-		s.setHead(currHead)
+		s.setHead(currHead.Number)
 		return err
 	}
 	status, err := s.MinorBlockChain.GetShardStats()
 	if err != nil {
-		s.setHead(currHead)
+		s.setHead(currHead.Number)
 		return err
 	}
 
@@ -113,12 +113,15 @@ func (s *ShardBackend) AddMinorBlock(block *types.MinorBlock) error {
 	}
 	err = s.conn.SendMinorBlockHeaderToMaster(requests)
 	if err != nil {
-		s.setHead(currHead)
+		s.setHead(currHead.Number)
 		return err
 	}
 	s.MinorBlockChain.CommitMinorBlockByHash(block.Header().Hash())
 	s.mBPool.delBlockInPool(block.Header())
-	go s.miner.HandleNewTip()
+	if s.MinorBlockChain.CurrentBlock().Hash() != currHead.Hash() {
+		go s.miner.HandleNewTip()
+	}
+
 	return nil
 }
 

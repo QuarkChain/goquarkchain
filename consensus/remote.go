@@ -83,7 +83,9 @@ func (c *CommonEngine) remote() {
 			log.Warn("Work submitted but none pending", "sealhash", sealhash)
 			return false
 		}
-		if !c.currentWorks.hasSealHash(sealhash) {
+
+		work, err := c.currentWorks.getWorkBySealHash(sealhash)
+		if err != nil {
 			log.Info("already be delete", "height", block.IHeader().NumberU64())
 			return false
 		}
@@ -94,7 +96,7 @@ func (c *CommonEngine) remote() {
 		}
 
 		solution := block.WithMingResult(nonce, mixDigest, signature)
-		adjustedDiff := c.currentWorks.getDifficultByAddr(block.IHeader().GetCoinbase())
+		adjustedDiff := work.Difficulty
 		// if tx has been sign by miner and difficulty has not been adjusted before
 		// we can adjust difficulty here if the signature pub key is
 		if signature != nil && adjustedDiff.Cmp(solution.IHeader().GetDifficulty()) == 0 {
@@ -130,10 +132,10 @@ func (c *CommonEngine) remote() {
 			makeWork(work.block, work.diff)
 
 		case work := <-c.fetchWorkCh:
-			if c.currentWorks.len() == 0 {
-				work.errc <- ErrNoMiningWork
+			currWork, err := c.currentWorks.getWorkByAddr(work.addr)
+			if err != nil {
+				work.errc <- err
 			} else {
-				currWork := c.currentWorks.getWorkByAddr(work.addr)
 				work.res <- *currWork
 			}
 
@@ -181,12 +183,12 @@ func (c *currentWorks) len() int {
 	return len(c.works)
 }
 
-func (c *currentWorks) getWorkByAddr(addr account.Address) *MiningWork {
+func (c *currentWorks) getWorkByAddr(addr account.Address) (*MiningWork, error) {
 	work := c.works[addr]
 	if work == nil {
-		panic("should fix getWorkByAddr func")
+		return nil, ErrNoMiningWork
 	}
-	return work
+	return work, nil
 }
 
 func (c *currentWorks) getDifficultByAddr(addr account.Address) *big.Int {
@@ -202,19 +204,15 @@ func (c *currentWorks) getDifficultByAddr(addr account.Address) *big.Int {
 func (c *currentWorks) refresh(tip uint64) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	for coinbase, work := range c.works {
-		if work.Number < tip {
-			delete(c.works, coinbase)
-		}
-	}
+	c.works = make(map[account.Address]*MiningWork)
 }
-func (c *currentWorks) hasSealHash(hash common.Hash) bool {
+func (c *currentWorks) getWorkBySealHash(hash common.Hash) (*MiningWork, error) {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 	for _, v := range c.works {
 		if v.HeaderHash == hash {
-			return true
+			return v, nil
 		}
 	}
-	return false
+	return nil, ErrNoMiningWork
 }
