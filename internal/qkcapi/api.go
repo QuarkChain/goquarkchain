@@ -696,7 +696,7 @@ func (p *PrivateBlockChainAPI) GetBlockCount() (map[string]interface{}, error) {
 }
 
 //TODO txGenerate implement
-func (p *PrivateBlockChainAPI) CreateTransactions(args *CreateTxArgs) error {
+func (p *PrivateBlockChainAPI) CreateTransactions(args CreateTxArgs) error {
 	config := p.b.GetClusterConfig().Quarkchain
 	if err := args.setDefaults(config); err != nil {
 		return err

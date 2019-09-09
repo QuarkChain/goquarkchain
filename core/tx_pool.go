@@ -376,7 +376,6 @@ func (pool *TxPool) reset(oldBlock, newBlock *types.MinorBlock) {
 	}
 	statedb, err := pool.chain.stateAtWithSenderDisallowMap(newBlock, nil)
 	if err != nil {
-		fmt.Println("SSSSSSSSSS", err, newBlock.Number())
 		log.Error("Failed to reset txpool state", "err", err)
 		return
 	}

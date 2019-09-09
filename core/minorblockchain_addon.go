@@ -214,8 +214,6 @@ func (m *MinorBlockChain) validateTx(tx *types.Transaction, evmState *state.Stat
 
 	if m.clusterConfig.Quarkchain.EnableEvmTimeStamp != 0 && evmState.GetTimeStamp() < m.clusterConfig.Quarkchain.EnableEvmTimeStamp {
 		if evmTx.To() == nil || len(evmTx.Data()) != 0 {
-			fmt.Println("?????", m.clusterConfig.Quarkchain.EnableEvmTimeStamp, evmState.GetTimeStamp())
-			fmt.Println("evmTx.to", evmTx.To(), len(evmTx.Data()))
 			return nil, errors.New("smart contract tx is not allowed before evm is enabled")
 		}
 	}
@@ -454,9 +452,7 @@ func (m *MinorBlockChain) runBlock(block *types.MinorBlock) (*state.StateDB, typ
 	if err != nil {
 		return nil, nil, nil, 0, nil, err
 	}
-	//fmt.Println("45555", len(receipts), len(xShardReceiveTxList))
 	receipts = append(receipts, xShardReceipts...)
-	//types.Receipts, []*types.Log, uint64, error
 	return evmState, receipts, logs, usedGas, xShardReceiveTxList, nil
 }
 
@@ -1061,11 +1057,10 @@ func (m *MinorBlockChain) EstimateGas(tx *types.Transaction, fromAddress account
 	var preCoinbase *account.Recipient
 	if qkcCommon.IsNil(preBlock) {
 		if m.CurrentBlock().Number() != 0 {
-			panic("sn")
+			panic("bug fix")
 		}
 	} else {
 		preCoinbase = new(account.Recipient)
-
 		*preCoinbase = preBlock.IHeader().GetCoinbase().Recipient
 	}
 	currentState, err := m.stateAtWithSenderDisallowMap(m.CurrentBlock(), preCoinbase)
@@ -1138,27 +1133,21 @@ func (m *MinorBlockChain) GasPrice(tokenID uint64) (uint64, error) {
 		startHeight = 3
 	}
 	prices := make([]uint64, 0)
-	//fmt.Println("start", startHeight, currHeight+1)
 	for index := startHeight; index < int64(currHeight+1); index++ {
 		block, ok := m.GetBlockByNumber(uint64(index)).(*types.MinorBlock)
 		if !ok {
 			log.Error(m.logInfo, "failed to get block", index)
 			return 0, errors.New("failed to get block")
 		}
-		//fmt.Println("IIIIIIII", block.Number(), len(block.GetTransactions()))
 		tempPreBlockPrices := make([]uint64, 0)
 		for _, tx := range block.GetTransactions() {
-			//fmt.Println("tokenID", tokenID, tx.EvmTx.GasTokenID())
 			if tx.EvmTx.GasTokenID() == tokenID {
 				tempPreBlockPrices = append(tempPreBlockPrices, tx.EvmTx.GasPrice().Uint64())
 			}
 		}
 		prices = append(prices, tempPreBlockPrices...)
-		//fmt.Println("copyyyyy", index, len(prices), len(tempPreBlockPrices))
 	}
-	//fmt.Println("len(p", len(prices))
 	if len(prices) == 0 {
-		//fmt.Println("11422222")
 		return m.clusterConfig.Quarkchain.MinTXPoolGasPrice.Uint64(), nil
 	}
 

@@ -255,7 +255,6 @@ func ApplyCrossShardDeposit(config *params.ChainConfig, bc ChainContext, header 
 	}
 	*usedGas += gas
 	if quarkChainConfig.EnableEvmTimeStamp == 0 || evmState.GetTimeStamp() >= quarkChainConfig.EnableEvmTimeStamp {
-		//fmt.Println("??????", evmState.GetTimeStamp(), quarkChainConfig.EnableEvmTimeStamp)
 		var root []byte
 		receipt := types.NewReceipt(root, fail, *usedGas)
 		receipt.TxHash = tx.TxHash

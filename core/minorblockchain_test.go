@@ -937,7 +937,6 @@ func TestMinorLogReorgs(t *testing.T) {
 	clusterConfig.Quarkchain.SkipRootDifficultyCheck = true
 	clusterConfig.Quarkchain.SkipMinorDifficultyCheck = true
 	clusterConfig.Quarkchain.SkipRootCoinbaseCheck = true
-	clusterConfig.Quarkchain.EnableEvmTimeStamp = 1569567600
 	ids := clusterConfig.Quarkchain.GetGenesisShardIds()
 	for _, v := range ids {
 		addr := addr1.AddressInShard(v)
@@ -1002,7 +1001,6 @@ func TestMinorReorgSideEvent(t *testing.T) {
 	clusterConfig.Quarkchain.SkipRootDifficultyCheck = true
 	clusterConfig.Quarkchain.SkipMinorDifficultyCheck = true
 	clusterConfig.Quarkchain.SkipRootCoinbaseCheck = true
-	clusterConfig.Quarkchain.EnableEvmTimeStamp = 1569567600
 	ids := clusterConfig.Quarkchain.GetGenesisShardIds()
 	for _, v := range ids {
 		addr := addr1.AddressInShard(v)

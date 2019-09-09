@@ -221,7 +221,6 @@ func TestEstimateGas(t *testing.T) {
 
 	fakeMoney := uint64(10000000)
 	env := setUp(&acc1, &fakeMoney, nil)
-	env.clusterConfig.Quarkchain.EnableEvmTimeStamp = 1
 	shardState := createDefaultShardState(env, nil, nil, nil, nil)
 	defer shardState.Stop()
 	// Add a root block to have all the shards initialized
@@ -240,7 +239,6 @@ func TestEstimateGas(t *testing.T) {
 	newTx := txGen([]byte("12123478123412348125936583475758"))
 	estimate, err = shardState.EstimateGas(newTx, acc1)
 	checkErr(err)
-	//fmt.Println("????", estimate)
 	assert.Equal(t, estimate, uint32(23176))
 }
 
@@ -296,7 +294,6 @@ func TestOneTx(t *testing.T) {
 
 	fakeMoney := uint64(10000000)
 	env := setUp(&acc1, &fakeMoney, nil)
-	env.clusterConfig.Quarkchain.EnableEvmTimeStamp = 1
 	shardState := createDefaultShardState(env, nil, nil, nil, nil)
 	defer shardState.Stop()
 	// Add a root block to have all the shards initialized
