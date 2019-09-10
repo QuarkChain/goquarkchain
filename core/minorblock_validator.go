@@ -197,7 +197,7 @@ func (v *MinorBlockValidator) ValidateBlock(mBlock types.IBlock, force bool) err
 		return errMustBeOneRootChain
 	}
 	if !v.bc.clusterConfig.Quarkchain.DisablePowCheck {
-		if err := v.ValidateSeal(block.Header(), true); err != nil {
+		if err := v.ValidateSeal(block.Header(), v.bc.shardConfig.PoswConfig.Enabled); err != nil {
 			log.Error(v.logInfo, "ValidatorBlockSeal err", err)
 			return err
 		}
