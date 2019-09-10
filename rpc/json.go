@@ -170,7 +170,10 @@ func checkReqId(reqId json.RawMessage) error {
 // the parsed request, an indication if the request was a batch or an error when
 // the request could not be parsed.
 func parseRequest(incomingMsg json.RawMessage) ([]rpcRequest, bool, Error) {
-	var in jsonRequest
+	var (
+		in  jsonRequest
+		res []rpcRequest
+	)
 	if err := json.Unmarshal(incomingMsg, &in); err != nil {
 		return nil, false, &invalidMessageError{err.Error()}
 	}
@@ -180,7 +183,7 @@ func parseRequest(incomingMsg json.RawMessage) ([]rpcRequest, bool, Error) {
 	}
 
 	// subscribe are special, they will always use `subscribeMethod` as first param in the payload
-	if strings.HasSuffix(in.Method, subscribeMethodSuffix) {
+	if in.Method == subscribeMethodSuffix[1:] || strings.HasSuffix(in.Method, subscribeMethodSuffix) {
 		reqs := []rpcRequest{{id: &in.Id, isPubSub: true}}
 		if len(in.Payload) > 0 {
 			// first param must be subscription name
@@ -190,29 +193,37 @@ func parseRequest(incomingMsg json.RawMessage) ([]rpcRequest, bool, Error) {
 				return nil, false, &invalidRequestError{"Unable to parse subscription request"}
 			}
 
-			reqs[0].service, reqs[0].method = strings.TrimSuffix(in.Method, subscribeMethodSuffix), subscribeMethod[0]
+			if in.Method == subscribeMethodSuffix[1:] {
+				reqs[0].service, reqs[0].method = MetadataApi, subscribeMethod[0]
+			} else {
+				reqs[0].service, reqs[0].method = strings.TrimSuffix(in.Method, subscribeMethodSuffix), subscribeMethod[0]
+			}
+
 			reqs[0].params = in.Payload
 			return reqs, false, nil
 		}
 		return nil, false, &invalidRequestError{"Unable to parse subscription request"}
 	}
 
-	if strings.HasSuffix(in.Method, unsubscribeMethodSuffix) {
+	if in.Method == unsubscribeMethodSuffix[1:] || strings.HasSuffix(in.Method, unsubscribeMethodSuffix) {
 		return []rpcRequest{{id: &in.Id, isPubSub: true,
 			method: in.Method, params: in.Payload}}, false, nil
 	}
 
+	// regular RPC call
+	res = []rpcRequest{{service: MetadataApi, method: in.Method, id: &in.Id}}
+	if len(in.Payload) != 0 {
+		res[0].params = in.Payload
+	}
+
 	elems := strings.Split(in.Method, serviceMethodSeparator)
-	if len(elems) != 2 {
+	if len(elems) == 2 {
+		res[0].service, res[0].method = elems[0], elems[1]
+	} else if len(elems) != 1 {
 		return nil, false, &methodNotFoundError{in.Method, ""}
 	}
 
-	// regular RPC call
-	if len(in.Payload) == 0 {
-		return []rpcRequest{{service: elems[0], method: elems[1], id: &in.Id}}, false, nil
-	}
-
-	return []rpcRequest{{service: elems[0], method: elems[1], id: &in.Id, params: in.Payload}}, false, nil
+	return res, false, nil
 }
 
 // parseBatchRequest will parse a batch request into a collection of requests from the given RawMessage, an indication
@@ -232,7 +243,7 @@ func parseBatchRequest(incomingMsg json.RawMessage) ([]rpcRequest, bool, Error) 
 		id := &in[i].Id
 
 		// subscribe are special, they will always use `subscriptionMethod` as first param in the payload
-		if strings.HasSuffix(r.Method, subscribeMethodSuffix) {
+		if r.Method == subscribeMethodSuffix[1:] || strings.HasSuffix(r.Method, subscribeMethodSuffix) {
 			requests[i] = rpcRequest{id: id, isPubSub: true}
 			if len(r.Payload) > 0 {
 				// first param must be subscription name
@@ -242,7 +253,11 @@ func parseBatchRequest(incomingMsg json.RawMessage) ([]rpcRequest, bool, Error) 
 					return nil, false, &invalidRequestError{"Unable to parse subscription request"}
 				}
 
-				requests[i].service, requests[i].method = strings.TrimSuffix(r.Method, subscribeMethodSuffix), subscribeMethod[0]
+				if r.Method == subscribeMethodSuffix[1:] {
+					requests[i].service, requests[i].method = MetadataApi, subscribeMethod[0]
+				} else {
+					requests[i].service, requests[i].method = strings.TrimSuffix(r.Method, subscribeMethodSuffix), subscribeMethod[0]
+				}
 				requests[i].params = r.Payload
 				continue
 			}
@@ -250,19 +265,19 @@ func parseBatchRequest(incomingMsg json.RawMessage) ([]rpcRequest, bool, Error) 
 			return nil, true, &invalidRequestError{"Unable to parse (un)subscribe request arguments"}
 		}
 
-		if strings.HasSuffix(r.Method, unsubscribeMethodSuffix) {
+		if r.Method == unsubscribeMethodSuffix[1:] || strings.HasSuffix(r.Method, unsubscribeMethodSuffix) {
 			requests[i] = rpcRequest{id: id, isPubSub: true, method: r.Method, params: r.Payload}
 			continue
 		}
 
-		if len(r.Payload) == 0 {
-			requests[i] = rpcRequest{id: id, params: nil}
-		} else {
-			requests[i] = rpcRequest{id: id, params: r.Payload}
+		requests[i] = rpcRequest{service: MetadataApi, method: r.Method, id: id, params: nil}
+		if len(r.Payload) != 0 {
+			requests[i].params = r.Payload
 		}
+
 		if elem := strings.Split(r.Method, serviceMethodSeparator); len(elem) == 2 {
 			requests[i].service, requests[i].method = elem[0], elem[1]
-		} else {
+		} else if len(elem) != 1 {
 			requests[i].err = &methodNotFoundError{r.Method, ""}
 		}
 	}

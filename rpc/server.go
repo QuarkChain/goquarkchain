@@ -21,15 +21,14 @@ import (
 	"fmt"
 	"reflect"
 	"runtime"
-	"strings"
 	"sync"
 	"sync/atomic"
 
-	mapset "github.com/deckarep/golang-set"
+	"github.com/deckarep/golang-set"
 	"github.com/ethereum/go-ethereum/log"
 )
 
-const MetadataApi = "rpc"
+const MetadataApi = "qkc"
 
 // CodecOption specifies which type of messages this codec supports
 type CodecOption int
@@ -389,7 +388,7 @@ func (s *Server) readRequest(codec ServerCodec) ([]*serverRequest, bool, Error) 
 			continue
 		}
 
-		if r.isPubSub && strings.HasSuffix(r.method, unsubscribeMethodSuffix) {
+		if r.isPubSub && r.method == unsubscribeMethodSuffix[1:] {
 			requests[i] = &serverRequest{id: r.id, isUnsubscribe: true}
 			argTypes := []reflect.Type{reflect.TypeOf("")} // expect subscription id as first arg
 			if args, err := codec.ParseRequestArguments(argTypes, r.params); err == nil {
