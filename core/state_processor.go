@@ -235,7 +235,7 @@ func ApplyCrossShardDeposit(config *params.ChainConfig, bc ChainContext, header 
 		evmState.AddBalance(evmState.GetBlockCoinbase(), xShardFee, tx.GasTokenID)
 		return nil, nil
 	}
-	fmt.Println("time>enable")
+	fmt.Println("time>enable setFullShardkey", tx.To.FullShardKey)
 	evmState.SetFullShardKey(tx.To.FullShardKey)
 	evmState.AddBalance(tx.From.Recipient, tx.Value.Value, tx.TransferTokenID)
 	msg := types.NewMessage(tx.From.Recipient, &tx.To.Recipient, 0, tx.Value.Value,
