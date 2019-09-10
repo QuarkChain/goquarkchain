@@ -4,9 +4,9 @@ package service
 import (
 	"github.com/QuarkChain/goquarkchain/p2p"
 	"github.com/QuarkChain/goquarkchain/qkcdb"
+	"github.com/QuarkChain/goquarkchain/rpc"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
-	"github.com/ethereum/go-ethereum/rpc"
 	"os"
 	"reflect"
 	"time"

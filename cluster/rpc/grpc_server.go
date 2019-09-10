@@ -3,7 +3,7 @@ package rpc
 import (
 	"net"
 
-	"github.com/ethereum/go-ethereum/rpc"
+	"github.com/QuarkChain/goquarkchain/rpc"
 	"google.golang.org/grpc"
 )
 

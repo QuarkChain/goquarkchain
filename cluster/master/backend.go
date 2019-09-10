@@ -7,6 +7,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/cluster/miner"
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
+	qrpc "github.com/QuarkChain/goquarkchain/rpc"
 	"github.com/QuarkChain/goquarkchain/cluster/service"
 	Synchronizer "github.com/QuarkChain/goquarkchain/cluster/sync"
 	"github.com/QuarkChain/goquarkchain/consensus"
@@ -23,7 +24,6 @@ import (
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
-	ethRPC "github.com/ethereum/go-ethereum/rpc"
 	"github.com/shirou/gopsutil/cpu"
 	"golang.org/x/sync/errgroup"
 	"gopkg.in/karalabe/cookiejar.v1/collections/deque"
@@ -243,9 +243,9 @@ func (s *QKCMasterBackend) CheckDB() {
 }
 
 // APIs return all apis for master Server
-func (s *QKCMasterBackend) APIs() []ethRPC.API {
+func (s *QKCMasterBackend) APIs() []qrpc.API {
 	apis := qkcapi.GetAPIs(s)
-	return append(apis, []ethRPC.API{
+	return append(apis, []qrpc.API{
 		{
 			Namespace: "rpc." + reflect.TypeOf(MasterServerSideOp{}).Name(),
 			Version:   "3.0",
