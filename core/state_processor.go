@@ -263,9 +263,9 @@ func ApplyCrossShardDeposit(config *params.ChainConfig, bc ChainContext, header 
 		receipt.Bloom = types.CreateBloom(types.Receipts{receipt})
 		if tx.CreateContract {
 			receipt.ContractAddress = tx.To.Recipient
-			fmt.Println("2666666", tx.To.FullShardKey, evmState.GetFullShardKey(tx.To.Recipient))
-			receipt.ContractFullShardKey = tx.To.FullShardKey
 		}
+		fmt.Println("2666666", tx.To.FullShardKey, evmState.GetFullShardKey(tx.To.Recipient))
+		receipt.ContractFullShardKey = tx.To.FullShardKey
 		return receipt, nil
 	}
 	return nil, nil
