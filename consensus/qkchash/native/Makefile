@@ -1,16 +1,12 @@
-CC=g++
-CFLAGS=-Wall -O3 -std=c++17
+TARGETS = native.go native_wrap.cxx
 
-all: qkchash libqkchash.so qkchash_llrb
+.PHONY: all
 
-qkchash: qkchash.cpp util.h
-	$(CC) $(CFLAGS) -o qkchash qkchash.cpp
+all: $(TARGETS)
 
-libqkchash.so: qkchash.cpp util.h
-	$(CC) $(CFLAGS) -o libqkchash.so -shared -fPIC qkchash.cpp
+$(TARGETS): qkchash.h native.i
+	swig -go -cgo -c++ -intgosize 64 native.i
 
-qkchash_llrb: qkchash_llrb.cpp qkchash_llrb.h util.h
-	$(CC) $(CFLAGS) -o qkchash_llrb qkchash_llrb.cpp
 
 clean:
-	rm -f qkchash libqkchash.so qkchash_llrb
+	rm -f $(TARGETS)
