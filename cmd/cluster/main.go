@@ -110,7 +110,6 @@ func init() {
 }
 
 func main() {
-	fmt.Println("hahahahhaha1-111111111111111111111")
 	if err := app.Run(os.Args); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
