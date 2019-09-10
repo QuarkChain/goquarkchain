@@ -311,8 +311,10 @@ func (v *MinorBlockValidator) ValidateState(mBlock, parent types.IBlock, statedb
 	}
 	// Validate the state root against the received state root and throw
 	// an error if they don't match.
+	fmt.Println("Finalize", block.Number())
 	if root := statedb.IntermediateRoot(true); block.GetMetaData().Root != root {
 		return fmt.Errorf("invalid merkle root (remote: %x local: %x)", block.GetMetaData().Root, root)
 	}
+	fmt.Println("Finalize end", block.Number())
 	return nil
 }
