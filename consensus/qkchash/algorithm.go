@@ -88,6 +88,7 @@ func qkcHashGo(seed []byte, cache qkcCache) (digest []byte, result []byte, err e
 	// Copy the cache since modification is needed
 	cacheLs := make([]uint64, len(cache.ls))
 	copy(cacheLs, cache.ls)
+	fmt.Println("LLLLLLLLLLL", cache.ls)
 	cacheSet := make(map[uint64]struct{})
 	for k, v := range cache.set {
 		cacheSet[k] = v
