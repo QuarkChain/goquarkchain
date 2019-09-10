@@ -281,6 +281,19 @@ func (v *MinorBlockValidator) ValidateState(mBlock, parent types.IBlock, statedb
 	}
 
 	receiptSha := types.DeriveSha(receipts)
+	fmt.Println("=======height", block.Header().Number)
+	for _, tx := range block.Transactions() {
+		fmt.Println("txHash", tx.Hash().String())
+	}
+	fmt.Println("receipte len", len(receipts))
+	for _, re := range receipts {
+		fmt.Println("root", re.Status)
+		fmt.Println("bloom", re.Bloom.Big().String())
+		fmt.Println("logs", len(re.Logs))
+		fmt.Println("contract_addrsss", re.ContractAddress.String())
+		fmt.Println("full_shard_key", re.ContractFullShardKey)
+	}
+	fmt.Println("========end", block.Header().Number)
 	if receiptSha != block.GetMetaData().ReceiptHash {
 		return fmt.Errorf("invalid receipt root hash (remote: %x local: %x)", block.GetMetaData().ReceiptHash, receiptSha)
 	}
