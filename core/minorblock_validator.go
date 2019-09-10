@@ -197,7 +197,7 @@ func (v *MinorBlockValidator) ValidateBlock(mBlock types.IBlock, force bool) err
 		return errMustBeOneRootChain
 	}
 	if !v.bc.clusterConfig.Quarkchain.DisablePowCheck {
-		if err := v.ValidateSeal(block.Header()); err != nil {
+		if err := v.ValidateSeal(block.Header(), true); err != nil {
 			log.Error(v.logInfo, "ValidatorBlockSeal err", err)
 			return err
 		}
@@ -206,7 +206,7 @@ func (v *MinorBlockValidator) ValidateBlock(mBlock types.IBlock, force bool) err
 }
 
 // ValidatorBlockSeal validate minor block seal when validate block
-func (v *MinorBlockValidator) ValidateSeal(mHeader types.IHeader) error {
+func (v *MinorBlockValidator) ValidateSeal(mHeader types.IHeader, usePowsDiff bool) error {
 	header, ok := mHeader.(*types.MinorBlockHeader)
 	if !ok {
 		return errors.New("validator minor  seal failed , mBlock is nil")
@@ -214,10 +214,18 @@ func (v *MinorBlockValidator) ValidateSeal(mHeader types.IHeader) error {
 	if header.NumberU64() == 0 {
 		return nil
 	}
-
-	adjustedDiff, err := v.bc.GetAdjustedDifficulty(header)
-	if err != nil {
-		return err
+	adjustedDiff := new(big.Int).Set(header.Difficulty)
+	var err error
+	if usePowsDiff {
+		adjustedDiff, err = v.bc.GetAdjustedDifficulty(header)
+		if err != nil {
+			return err
+		}
+	} else {
+		shardConfig := v.bc.shardConfig.PoswConfig
+		if shardConfig.Enabled {
+			adjustedDiff = header.Difficulty.Div(header.Difficulty, new(big.Int).SetUint64(shardConfig.DiffDivider))
+		}
 	}
 	return v.engine.VerifySeal(v.bc, header, adjustedDiff)
 }
@@ -311,10 +319,8 @@ func (v *MinorBlockValidator) ValidateState(mBlock, parent types.IBlock, statedb
 	}
 	// Validate the state root against the received state root and throw
 	// an error if they don't match.
-	fmt.Println("Finalize", block.Number())
 	if root := statedb.IntermediateRoot(true); block.GetMetaData().Root != root {
 		return fmt.Errorf("invalid merkle root (remote: %x local: %x)", block.GetMetaData().Root, root)
 	}
-	fmt.Println("Finalize end", block.Number())
 	return nil
 }

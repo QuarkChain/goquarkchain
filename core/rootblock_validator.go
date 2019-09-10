@@ -174,7 +174,7 @@ func (v *RootBlockValidator) ValidateState(block, parent types.IBlock, statedb *
 	panic(errors.New("not implement"))
 }
 
-func (v *RootBlockValidator) ValidateSeal(rHeader types.IHeader) error {
+func (v *RootBlockValidator) ValidateSeal(rHeader types.IHeader, usePosw bool) error {
 	header, ok := rHeader.(*types.RootBlockHeader)
 	if !ok {
 		return errors.New("validate root block Seal failed, root block is nil")
@@ -202,6 +202,6 @@ func (v *fakeRootBlockValidator) ValidateHeader(header types.IHeader) error {
 func (v *fakeRootBlockValidator) ValidateState(block, parent types.IBlock, statedb *state.StateDB, receipts types.Receipts, usedGas uint64) error {
 	panic(errors.New("not implement"))
 }
-func (v *fakeRootBlockValidator) ValidateSeal(rHeader types.IHeader) error {
+func (v *fakeRootBlockValidator) ValidateSeal(rHeader types.IHeader, usePoswFlag bool) error {
 	return nil
 }

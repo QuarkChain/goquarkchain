@@ -470,7 +470,7 @@ func TestPoSWValidateMinorBlockSeal(t *testing.T) {
 		for n := 0; n < 4; n++ {
 			nonce := uint64(n)
 			newBlock = tip.CreateBlockToAppend(nil, diff, &acc, &nonce, nil, nil, nil, nil, nil)
-			if err := blockchain.Validator().ValidateSeal(newBlock.IHeader()); err != nil {
+			if err := blockchain.Validator().ValidateSeal(newBlock.IHeader(), true); err != nil {
 				t.Errorf("validate block error %v", err)
 			}
 		}

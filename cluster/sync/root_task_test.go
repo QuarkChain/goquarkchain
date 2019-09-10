@@ -183,7 +183,7 @@ func (v *mockvalidator) ValidateState(block, parent types.IBlock, state *state.S
 func (v *mockvalidator) ValidateBlock(types.IBlock, bool) error {
 	return v.err
 }
-func (v *mockvalidator) ValidateSeal(mHeader types.IHeader) error {
+func (v *mockvalidator) ValidateSeal(mHeader types.IHeader, usePosw bool) error {
 	return v.err
 }
 
