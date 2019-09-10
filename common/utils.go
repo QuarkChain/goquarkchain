@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"encoding/gob"
 	ethCommon "github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto/sha3"
 	"math/big"
 	"math/bits"
 	"net"
@@ -151,4 +152,11 @@ func RemoveDuplicate(data []uint64) []uint64 {
 		}
 	}
 	return newData
+}
+
+func Sha3_256(bytes []byte) (hash ethCommon.Hash) {
+	hw := sha3.NewKeccak256()
+	hw.Write(bytes)
+	hw.Sum(hash[:0])
+	return hash
 }

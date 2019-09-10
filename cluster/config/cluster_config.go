@@ -109,7 +109,8 @@ type QuarkChainConfig struct {
 	XShardGasDDOSFixRootHeight        uint64   `json:"XSHARD_GAS_DDOS_FIX_ROOT_HEIGHT"`
 	MinTXPoolGasPrice                 *big.Int `json:"MIN_TX_POOL_GAS_PRICE"`
 	MinMiningGasPrice                 *big.Int `json:"MIN_MINING_GAS_PRICE"`
-	RootChainPoSWContract             string
+	RootChainPoSWContract             string   `json:"ROOT_CHAIN_POSW_CONTRACT"`
+	RootChainPoSWContractBytecodeHash string   `json:"ROOT_CHAIN_POSW_CONTRACT_BYTECODE_HASH"`
 }
 
 type QuarkChainConfigAlias QuarkChainConfig
@@ -327,7 +328,8 @@ func NewQuarkChainConfig() *QuarkChainConfig {
 		MinTXPoolGasPrice:                 new(big.Int).SetUint64(1000000000),
 		MinMiningGasPrice:                 new(big.Int).SetUint64(1000000000),
 		XShardGasDDOSFixRootHeight:        90000,
-		RootChainPoSWContract:             "7aefa013e212154a294b54c4edad4d25262cefab",
+		RootChainPoSWContract:             "53345c04cfb710a9c4eeae36e4a554547ec1b235",
+		RootChainPoSWContractBytecodeHash: "5a7707e2684bd79484f3d952ac6a43f2631e3ef8e2085659c18af5714cee4f4c",
 	}
 
 	ret.Root.ConsensusType = PoWSimulate

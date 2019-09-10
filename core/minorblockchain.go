@@ -1799,25 +1799,49 @@ func (m *MinorBlockChain) GetRootChainStakes(coinbase account.Recipient, lastMin
 	if m.branch.GetChainID() != 0 || m.branch.GetShardID() != 0 {
 		return nil, nil, errors.New("not chain 0 shard 0")
 	}
-	//monkey patch staking results
-	stakerkeyB := []byte{0x1}
-	stakerkey := account.BytesToIdentityKey(stakerkeyB)
-	stakerId, err := account.CreatIdentityFromKey(stakerkey)
-	if err != nil {
-		return nil, nil, fmt.Errorf("error create id %v", stakerId)
-	}
-	stakerAddr := account.NewAddress(stakerId.GetRecipient(), 0)
-	signerkeyB := []byte{0x2}
-	signerkey := account.BytesToIdentityKey(signerkeyB)
-	signerId, err := account.CreatIdentityFromKey(signerkey)
-	if err != nil {
-		return nil, nil, fmt.Errorf("error create id %v", signerId)
-	}
-	signerAddr := account.NewAddress(signerId.GetRecipient(), 0)
 
-	if bytes.Compare(coinbase[:], stakerAddr.Recipient[:]) == 0 {
-		return m.clusterConfig.Quarkchain.Root.PoSWConfig.TotalStakePerBlock, &signerAddr.Recipient, nil
+	last := m.GetMinorBlock(lastMinor)
+	if last == nil {
+		panic(fmt.Sprintf("block not found: %x", lastMinor))
 	}
-
-	return new(big.Int), nil, nil
+	lastHeader := last.Header()
+	evmState, err := m.getEvmStateFromHeight(&lastHeader.Number)
+	if err != nil {
+		return nil, nil, err
+	}
+	evmState = evmState.Copy()
+	evmState.SetGasUsed(big.NewInt(0))
+	contractAddress := m.clusterConfig.Quarkchain.GetRootChainPoSWContract()
+	code := evmState.GetCode(contractAddress)
+	if code == nil {
+		return nil, nil, errors.New("PoSW-on-root-chain contract is not found")
+	}
+	codeHash := qkcCommon.Sha3_256(code)
+	//have to make sure the code is expected
+	expectedCodeHash, err := hex.DecodeString(m.clusterConfig.Quarkchain.RootChainPoSWContractBytecodeHash)
+	if err != nil {
+		return nil, nil, err
+	}
+	if bytes.Compare(codeHash[:], expectedCodeHash[:]) != 0 {
+		return nil, nil, errors.New("PoSW-on-root-chain contract is invalid")
+	}
+	//call the contract's 'getLockedStakes' function
+	mockSender := account.Recipient{}
+	data := common.Hex2Bytes("fd8c4646000000000000000000000000")
+	data = append(data[:], coinbase[:]...)
+	nonce := evmState.GetNonce(mockSender)
+	toFullShardKey := uint32(0)
+	msg := types.NewMessage(mockSender, &contractAddress, nonce, new(big.Int), 1000000, new(big.Int), data,
+		false, 0, &toFullShardKey, m.GetGenesisToken(), m.GetGenesisToken())
+	context := NewEVMContext(msg, lastHeader, m)
+	evmState.SetQuarkChainConfig(m.clusterConfig.Quarkchain)
+	vmenv := vm.NewEVM(context, evmState, m.ethChainConfig, *m.GetVMConfig())
+	gp := new(GasPool).AddGas(evmState.GetGasLimit().Uint64())
+	output, _, _, err := ApplyMessage(vmenv, msg, gp)
+	if err != nil || output == nil {
+		return nil, nil, err
+	}
+	stake := new(big.Int).SetBytes(output[:32])
+	signer := account.BytesToIdentityRecipient(output[32+12:])
+	return stake, &signer, nil
 }
