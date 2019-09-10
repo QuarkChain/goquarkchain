@@ -26,6 +26,7 @@ func (q *QKCHash) verifySeal(chain consensus.ChainReader, header types.IHeader, 
 	if diff == nil || diff.Cmp(big.NewInt(0)) == 0 {
 		diff = header.GetDifficulty()
 	}
+
 	minerRes := consensus.ShareCache{
 		Hash:  header.SealHash().Bytes(),
 		Seed:  make([]byte, 40),

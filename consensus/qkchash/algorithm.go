@@ -2,6 +2,7 @@ package qkchash
 
 import (
 	"encoding/binary"
+	"fmt"
 	"sort"
 
 	"github.com/QuarkChain/goquarkchain/consensus/qkchash/native"
@@ -137,7 +138,7 @@ func qkcHashGo(seed []byte, cache qkcCache) (digest []byte, result []byte, err e
 			mix[j] = fnv64(mix[j], newData[j])
 		}
 	}
-
+	fmt.Println("mixxxxxx", mix)
 	// Compress mix
 	for i := 0; i < len(mix); i += 4 {
 		mix[i/4] = fnv64(fnv64(fnv64(mix[i], mix[i+1]), mix[i+2]), mix[i+3])
