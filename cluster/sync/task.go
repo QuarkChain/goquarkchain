@@ -111,6 +111,7 @@ func (t *task) Run(bc blockchain) error {
 }
 
 func (t *task) validateHeaderList(bc blockchain, headers []types.IHeader) error {
+	fmt.Println("task", len(headers))
 	var prev types.IHeader
 	for _, h := range headers {
 		if !qkcom.IsNil(prev) {

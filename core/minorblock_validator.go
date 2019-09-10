@@ -207,6 +207,7 @@ func (v *MinorBlockValidator) ValidateBlock(mBlock types.IBlock, force bool) err
 
 // ValidatorBlockSeal validate minor block seal when validate block
 func (v *MinorBlockValidator) ValidateSeal(mHeader types.IHeader, usePowsDiff bool) error {
+	fmt.Println("ValidateSeal", mHeader.NumberU64(), mHeader.GetDifficulty(), usePowsDiff)
 	header, ok := mHeader.(*types.MinorBlockHeader)
 	if !ok {
 		return errors.New("validator minor  seal failed , mBlock is nil")
