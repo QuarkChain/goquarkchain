@@ -175,6 +175,7 @@ func (v *RootBlockValidator) ValidateState(block, parent types.IBlock, statedb *
 }
 
 func (v *RootBlockValidator) ValidateSeal(rHeader types.IHeader, usePosw bool) error {
+	fmt.Println("ValidateSeal", rHeader.NumberU64(), rHeader.Hash().String(), rHeader.GetDifficulty())
 	header, ok := rHeader.(*types.RootBlockHeader)
 	if !ok {
 		return errors.New("validate root block Seal failed, root block is nil")
@@ -184,7 +185,10 @@ func (v *RootBlockValidator) ValidateSeal(rHeader types.IHeader, usePosw bool) e
 	}
 
 	adjustedDiff, _ := v.blockChain.GetAdjustedDifficulty(rHeader)
-	return v.engine.VerifySeal(v.blockChain, header, adjustedDiff)
+	fmt.Println("addjust", adjustedDiff)
+	err := v.engine.VerifySeal(v.blockChain, header, adjustedDiff)
+	fmt.Println("err", err)
+	return err
 }
 
 type fakeRootBlockValidator struct {
