@@ -49,8 +49,11 @@ func (q *QEthash) verifySeal(chain consensus.ChainReader, header types.IHeader, 
 	if q.config.PowMode == ModeTest {
 		size = 32 * 1024
 	}
+	fmt.Println("headerSeal", header.SealHash().String())
+	fmt.Println("header.Nonce", header.GetNonce())
 	digest, result = hashimotoLight(size, cache.cache, header.SealHash().Bytes(), header.GetNonce())
-
+	fmt.Println("digest", hex.EncodeToString(digest))
+	fmt.Println("digest", hex.EncodeToString(result))
 	// Caches are unmapped in a finalizer. Ensure that the cache stays alive
 	// until after the call to hashimotoLight so it's not unmapped while being used.
 	runtime.KeepAlive(cache)
