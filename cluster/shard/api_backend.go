@@ -151,6 +151,7 @@ func (s *ShardBackend) AddRootBlock(rBlock *types.RootBlock) (switched bool, err
 // It does NOT notify master because the master should already have the minor header list,
 // and will add them once this function returns successfully.
 func (s *ShardBackend) AddBlockListForSync(blockLst []*types.MinorBlock) (map[common.Hash]*types.TokenBalances, error) {
+	fmt.Println("AddBlockListForSync----")
 	blockHashToXShardList := make(map[common.Hash]*XshardListTuple)
 
 	coinbaseAmountList := make(map[common.Hash]*types.TokenBalances, 0)
@@ -160,6 +161,7 @@ func (s *ShardBackend) AddBlockListForSync(blockLst []*types.MinorBlock) (map[co
 
 	uncommittedBlockHeaderList := make([]*types.MinorBlockHeader, 0)
 	for _, block := range blockLst {
+		fmt.Println("block", block.NumberU64(), block.Header().Branch.Value)
 		blockHash := block.Header().Hash()
 		if block.Header().Branch.GetFullShardID() != s.fullShardId {
 			continue
