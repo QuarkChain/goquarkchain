@@ -2,17 +2,17 @@ package qkchash
 
 import (
 	"fmt"
-	"testing"
-
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/assert"
+	"testing"
 )
 
 func TestGenerateCache(t *testing.T) {
-	cache := generateCache(cacheEntryCnt, nil, false /* not native */)
+	cache := generateCache(cacheEntryCnt, common.Hash{}.Bytes(), false /* not native */)
+	fmt.Println("????", len(cache.ls), cache.ls[0], cache.ls[1])
+	cache = generateCache(cacheEntryCnt, common.Hash{}.Bytes(), true /* not native */)
 	fmt.Println("????", len(cache.ls))
-	cache = generateCache(cacheEntryCnt, nil, true /* not native */)
-	fmt.Println("????", len(cache.ls))
-	assert.Equal(t, cacheEntryCnt, len(cache.ls))
+	assert.Equal(t, cacheEntryCnt, len(cache.ls), cache.ls[0], cache.ls[1])
 	for i := 1; i < len(cache.ls); i++ {
 		assert.True(t, cache.ls[i-1] < cache.ls[i])
 	}

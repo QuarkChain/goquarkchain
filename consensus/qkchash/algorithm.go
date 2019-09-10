@@ -2,6 +2,7 @@ package qkchash
 
 import (
 	"encoding/binary"
+	"encoding/hex"
 	"fmt"
 	"sort"
 
@@ -16,7 +17,7 @@ const (
 )
 
 var (
-	cacheSeed = []byte{}
+	cacheSeed = common.Hash{}
 )
 
 // qkcCache is the union type of cache for qkchash algo.
@@ -36,6 +37,7 @@ func fnv64(a, b uint64) uint64 {
 // generateCache generates cache for qkchash. Will also generate underlying cache
 // in native c++ impl if needed.
 func generateCache(cnt int, seed []byte, genNativeCache bool) qkcCache {
+	fmt.Println("Seed", hex.EncodeToString(seed), len(seed))
 	ls := []uint64{}
 	set := make(map[uint64]struct{})
 	for i := uint32(0); i < uint32(cnt/8); i++ {
@@ -88,7 +90,7 @@ func qkcHashGo(seed []byte, cache qkcCache) (digest []byte, result []byte, err e
 	// Copy the cache since modification is needed
 	cacheLs := make([]uint64, len(cache.ls))
 	copy(cacheLs, cache.ls)
-	fmt.Println("LLLLLLLLLLL", cache.ls)
+	fmt.Println("LLLLLLLLLLL", len(cache.ls), cache.ls)
 	cacheSet := make(map[uint64]struct{})
 	for k, v := range cache.set {
 		cacheSet[k] = v
