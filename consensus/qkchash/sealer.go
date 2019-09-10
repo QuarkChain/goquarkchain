@@ -3,6 +3,7 @@ package qkchash
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"math/big"
 
 	"github.com/QuarkChain/goquarkchain/consensus"
@@ -17,6 +18,7 @@ var (
 )
 
 func (q *QKCHash) verifySeal(chain consensus.ChainReader, header types.IHeader, adjustedDiff *big.Int) error {
+	fmt.Println("QKCHASH verifySeal", header.NumberU64(), header.GetDifficulty())
 	if header.GetDifficulty().Sign() <= 0 {
 		return consensus.ErrInvalidDifficulty
 	}
@@ -33,6 +35,8 @@ func (q *QKCHash) verifySeal(chain consensus.ChainReader, header types.IHeader, 
 	if err != nil {
 		return err
 	}
+	fmt.Println("hash", header.SealHash().String(), header.GetNonce())
+	fmt.Println("head.", header.GetMixDigest().String(), minerRes.Digest)
 	if !bytes.Equal(header.GetMixDigest().Bytes(), minerRes.Digest) {
 		return consensus.ErrInvalidMixDigest
 	}
