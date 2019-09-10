@@ -468,29 +468,3 @@ void test_qkc_hash_slist_perf() {
               << std::chrono::duration<double, std::milli>(used_time).count()
               << std::endl;
 }
-
-int main(int argc, char** argv) {
-    if (argc <= 1) {
-        std::cout << "Must specify command in "
-                     "qkc_perf, llrb_perf, slist_test, slist_perf"
-                  << std::endl;
-        return -1;
-    }
-
-    if (strcmp(argv[1], "qkc_perf") == 0) {
-        test_qkc_hash_perf();
-    } else if (strcmp(argv[1], "slist_perf") == 0) {
-        test_qkc_hash_slist_perf();
-    } else if (strcmp(argv[1], "slist_test") == 0) {
-        test_sorted_list();
-    } else if (strcmp(argv[1], "llrb_perf") == 0) {
-        test_qkc_hash_llrb_perf();
-    } else if (strcmp(argv[1], "llrb_test") == 0) {
-        test_qkc_hash_llrb();
-    } else {
-        std::cout << "Unrecognized command: " << argv[1] << std::endl;
-        return -1;
-    }
-
-    return 0;
-}
