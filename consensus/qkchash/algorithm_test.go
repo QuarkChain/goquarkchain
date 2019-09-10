@@ -9,6 +9,9 @@ import (
 
 func TestGenerateCache(t *testing.T) {
 	cache := generateCache(cacheEntryCnt, nil, false /* not native */)
+	fmt.Println("????", len(cache.ls))
+	cache = generateCache(cacheEntryCnt, nil, true /* not native */)
+	fmt.Println("????", len(cache.ls))
 	assert.Equal(t, cacheEntryCnt, len(cache.ls))
 	for i := 1; i < len(cache.ls); i++ {
 		assert.True(t, cache.ls[i-1] < cache.ls[i])
