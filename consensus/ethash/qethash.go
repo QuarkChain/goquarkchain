@@ -66,6 +66,7 @@ func (q *QEthash) verifySeal(chain consensus.ChainReader, header types.IHeader, 
 		diff = header.GetDifficulty()
 	}
 	target := new(big.Int).Div(two256, diff)
+	print("diff", diff, adjustedDiff)
 	if new(big.Int).SetBytes(result).Cmp(target) > 0 {
 		fmt.Println("?????=err", new(big.Int).SetBytes(result).String(), target, diff, hex.EncodeToString(result))
 		return errInvalidPoW
