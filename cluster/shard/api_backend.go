@@ -49,7 +49,7 @@ func (s *ShardBackend) broadcastNewTip() (err error) {
 		minorTip = s.MinorBlockChain.CurrentBlock().Header()
 	)
 
-	err = s.conn.BroadcastNewTip([]*types.MinorBlockHeader{minorTip}, rootTip, s.fullShardId)
+	err = s.conn.BroadcastNewTip([]*types.MinorBlockHeader{minorTip}, rootTip, s.branch.Value)
 	return
 }
 
@@ -70,7 +70,7 @@ func (s *ShardBackend) AddMinorBlock(block *types.MinorBlock) error {
 		return nil
 	}
 	//TODO support BLOCK_COMMITTING
-	currHead := s.MinorBlockChain.CurrentBlock().Number()
+	currHead := s.MinorBlockChain.CurrentBlock().Header()
 	_, xshardLst, err := s.MinorBlockChain.InsertChainForDeposits([]types.IBlock{block}, false)
 	if err != nil || len(xshardLst) != 1 {
 		log.Error("Failed to add minor block", "err", err)
@@ -83,24 +83,24 @@ func (s *ShardBackend) AddMinorBlock(block *types.MinorBlock) error {
 	// block has been added to local state, broadcast tip so that peers can sync if needed
 	if oldTip.Hash() != s.MinorBlockChain.CurrentBlock().Hash() {
 		if err = s.broadcastNewTip(); err != nil {
-			s.setHead(currHead)
+			s.setHead(currHead.Number)
 			return err
 		}
 	}
 
 	if xshardLst[0] == nil {
-		log.Info("add minor block has been added...", "branch", s.fullShardId, "height", block.Number())
+		log.Info("add minor block has been added...", "branch", s.branch.Value, "height", block.Number())
 		return nil
 	}
 
 	prevRootHeight := s.MinorBlockChain.GetRootBlockByHash(block.Header().PrevRootBlockHash).Header().Number
 	if err := s.conn.BroadcastXshardTxList(block, xshardLst[0], prevRootHeight); err != nil {
-		s.setHead(currHead)
+		s.setHead(currHead.Number)
 		return err
 	}
 	status, err := s.MinorBlockChain.GetShardStats()
 	if err != nil {
-		s.setHead(currHead)
+		s.setHead(currHead.Number)
 		return err
 	}
 
@@ -113,12 +113,15 @@ func (s *ShardBackend) AddMinorBlock(block *types.MinorBlock) error {
 	}
 	err = s.conn.SendMinorBlockHeaderToMaster(requests)
 	if err != nil {
-		s.setHead(currHead)
+		s.setHead(currHead.Number)
 		return err
 	}
 	s.MinorBlockChain.CommitMinorBlockByHash(block.Header().Hash())
 	s.mBPool.delBlockInPool(block.Header())
-	go s.miner.HandleNewTip()
+	if s.MinorBlockChain.CurrentBlock().Hash() != currHead.Hash() {
+		go s.miner.HandleNewTip()
+	}
+
 	return nil
 }
 
@@ -161,7 +164,7 @@ func (s *ShardBackend) AddBlockListForSync(blockLst []*types.MinorBlock) (map[co
 	uncommittedBlockHeaderList := make([]*types.MinorBlockHeader, 0)
 	for _, block := range blockLst {
 		blockHash := block.Header().Hash()
-		if block.Header().Branch.GetFullShardID() != s.fullShardId {
+		if block.Header().Branch.GetFullShardID() != s.branch.Value {
 			continue
 		}
 		if s.getBlockCommitStatusByHash(blockHash) == BLOCK_COMMITTED {
@@ -210,8 +213,8 @@ func (s *ShardBackend) GetLogs(start uint64, end uint64, address []account.Addre
 	return s.MinorBlockChain.GetLogsByAddressAndTopic(start, end, address, topics)
 }
 
-func (s *ShardBackend) GetWork() (*consensus.MiningWork, error) {
-	return s.miner.GetWork()
+func (s *ShardBackend) GetWork(coinbaseAddr *account.Address) (*consensus.MiningWork, error) {
+	return s.miner.GetWork(coinbaseAddr)
 }
 
 func (s *ShardBackend) SubmitWork(headerHash common.Hash, nonce uint64, mixHash common.Hash) error {
@@ -295,7 +298,7 @@ func (s *ShardBackend) NewMinorBlock(block *types.MinorBlock) (err error) {
 	}
 
 	s.mBPool.setBlockInPool(block.Header())
-	if err = s.conn.BroadcastMinorBlock(block, s.fullShardId); err != nil {
+	if err = s.conn.BroadcastMinorBlock(block, s.branch.Value); err != nil {
 		return err
 	}
 	return s.AddMinorBlock(block)
@@ -313,7 +316,7 @@ func (s *ShardBackend) addTxList(txs []*types.Transaction) error {
 		}
 	}
 	go func() {
-		if err := s.conn.BroadcastTransactions(txs, s.fullShardId); err != nil {
+		if err := s.conn.BroadcastTransactions(txs, s.branch.Value); err != nil {
 			log.Error(s.logInfo, "broadcastTransaction err", err)
 		}
 	}()
@@ -331,9 +334,21 @@ func (s *ShardBackend) GenTx(genTxs *rpc.GenTxRequest) error {
 	return nil
 }
 
+func (s *ShardBackend) GetDefaultCoinbaseAddress() account.Address {
+	addr := s.Config.CoinbaseAddress
+	if !s.branch.IsInBranch(addr.FullShardKey) {
+		addr = addr.AddressInBranch(s.branch)
+	}
+	return addr
+}
+
 // miner api
-func (s *ShardBackend) CreateBlockToMine() (types.IBlock, *big.Int, error) {
-	minorBlock, err := s.MinorBlockChain.CreateBlockToMine(nil, &s.Config.CoinbaseAddress, nil, nil, nil)
+func (s *ShardBackend) CreateBlockToMine(addr *account.Address) (types.IBlock, *big.Int, error) {
+	coinbaseAddress := s.Config.CoinbaseAddress
+	if addr != nil {
+		coinbaseAddress = *addr
+	}
+	minorBlock, err := s.MinorBlockChain.CreateBlockToMine(nil, &coinbaseAddress, nil, nil, nil)
 	if err != nil {
 		return nil, nil, err
 	}

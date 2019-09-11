@@ -70,7 +70,7 @@ func (bc *testBlockChain) GetMinorBlock(hash common.Hash) *types.MinorBlock {
 	return bc.CurrentBlock()
 }
 
-func (bc *testBlockChain) StateAt(common.Hash) (*state.StateDB, error) {
+func (bc *testBlockChain) stateAtWithSenderDisallowMap(minorBlock *types.MinorBlock, coinbase *account.Recipient) (*state.StateDB, error) {
 	return bc.statedb, nil
 }
 

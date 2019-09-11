@@ -387,10 +387,11 @@ func (s *SlaveConnection) GasPrice(branch account.Branch, tokenID uint64) (uint6
 	return rsp.Result, err
 }
 
-func (s *SlaveConnection) GetWork(branch account.Branch) (*consensus.MiningWork, error) {
+func (s *SlaveConnection) GetWork(branch account.Branch, coinbaseAddr *account.Address) (*consensus.MiningWork, error) {
 	var (
 		req = rpc.GetWorkRequest{
-			Branch: branch.Value,
+			Branch:       branch.Value,
+			CoinbaseAddr: coinbaseAddr,
 		}
 		rsp consensus.MiningWork
 	)

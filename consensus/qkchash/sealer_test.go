@@ -1,6 +1,7 @@
 package qkchash
 
 import (
+	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/ethereum/go-ethereum/common"
 	"math/big"
@@ -42,7 +43,7 @@ func TestRemoteSealer(t *testing.T) {
 	block := types.NewRootBlockWithHeader(header)
 
 	qkc := New(true, &diffCalculator, true, []byte{})
-	if _, err := qkc.GetWork(); err.Error() != errNoMiningWork.Error() {
+	if _, err := qkc.GetWork(account.Address{}); err.Error() != errNoMiningWork.Error() {
 		t.Error("expect to return an error indicate there is no mining work")
 	}
 	hash := block.Header().SealHash()
@@ -52,7 +53,7 @@ func TestRemoteSealer(t *testing.T) {
 		err  error
 	)
 	qkc.Seal(nil, block, nil, nil, nil)
-	if work, err = qkc.GetWork(); err != nil || work.HeaderHash != hash {
+	if work, err = qkc.GetWork(account.Address{}); err != nil || work.HeaderHash != hash {
 		t.Error("expect to return a mining work has same hash")
 	}
 
@@ -122,5 +123,41 @@ func TestStaleSubmission(t *testing.T) {
 				t.Errorf("case %d block parent hash mismatch, want %s, get %s", id+1, c.headers[c.submitIndex].ParentHash.Hex(), res.IHeader().GetParentHash().Hex())
 			}
 		}
+	}
+}
+func TestTestGetWorkWithDifferentAddr(t *testing.T) {
+	diffCalculator := consensus.EthDifficultyCalculator{AdjustmentCutoff: 7, AdjustmentFactor: 512, MinimumDifficulty: big.NewInt(100000)}
+	header := &types.RootBlockHeader{Number: 1, Difficulty: big.NewInt(100)}
+	block := types.NewRootBlockWithHeader(header)
+	oldHash := block.Header().SealHash()
+
+	qkc := New(true, &diffCalculator, true, []byte{})
+	if _, err := qkc.GetWork(account.Address{}); err.Error() != errNoMiningWork.Error() {
+		t.Error("expect to return an error indicate there is no mining work")
+	}
+
+	var (
+		work *consensus.MiningWork
+		err  error
+	)
+	qkc.Seal(nil, block, nil, nil, nil)
+
+	newID, _ := account.CreatRandomIdentity()
+	newAddress := account.NewAddress(newID.GetRecipient(), 0)
+	newHeader := block.Header()
+	newHeader.SetCoinbase(newAddress)
+	newBlock := types.NewRootBlockWithHeader(newHeader)
+	newHash := newBlock.Header().SealHash()
+	qkc.Seal(nil, newBlock, nil, nil, nil)
+
+	if work, err = qkc.GetWork(newAddress); err != nil || work.HeaderHash != newHash { //getWork with newAddress
+		t.Error("expect to return a mining work has same hash")
+	}
+
+	if res := qkc.SubmitWork(0, newHash, common.Hash{}, nil); res {
+		t.Error("expect to return false when submit a fake solution")
+	}
+	if res := qkc.SubmitWork(0, oldHash, common.Hash{}, nil); res {
+		t.Error("expect to return false when submit a fake solution")
 	}
 }

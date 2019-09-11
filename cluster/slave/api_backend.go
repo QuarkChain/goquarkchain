@@ -340,9 +340,9 @@ func (s *SlaveBackend) GasPrice(branch uint32, tokenID uint64) (uint64, error) {
 	return 0, ErrMsg("GasPrice")
 }
 
-func (s *SlaveBackend) GetWork(branch uint32) (*consensus.MiningWork, error) {
+func (s *SlaveBackend) GetWork(branch uint32, coinbaseAddr *account.Address) (*consensus.MiningWork, error) {
 	if shard, ok := s.shards[branch]; ok {
-		return shard.GetWork()
+		return shard.GetWork(coinbaseAddr)
 	}
 	return nil, ErrMsg("GetWork")
 }
