@@ -599,6 +599,8 @@ func (s *StateDB) Copy() *StateDB {
 	for k, v := range s.senderDisallowMap {
 		state.senderDisallowMap[k] = v
 	}
+	state.SetTimeStamp(s.timeStamp)
+	state.SetBlockNumber(s.blockNumber)
 	state.SetGasLimit(s.gasLimit)
 	state.SetQuarkChainConfig(s.GetQuarkChainConfig())
 	state.SetBlockCoinbase(s.blockCoinbase)
