@@ -39,3 +39,32 @@ func TestHash(t *testing.T) {
 	assert.NoError(err)
 	assert.ElementsMatch(expected, ret)
 }
+
+func TestHashWithRotationStats(t *testing.T) {
+	assert := assert.New(t)
+
+	var c Cache
+	// Failure case
+	c = &cache{nil}
+	_, err := Hash(c, [8]uint64{}) // Invalid cache
+	assert.Error(err)
+
+	// Success
+	rawCache := make([]uint64, 1024*64)
+	// Fake cache
+	for i := 0; i < len(rawCache); i++ {
+		rawCache[i] = uint64(i * 2)
+	}
+	c = NewCache(rawCache)
+
+	seed := [8]uint64{}
+	for i := 0; i < len(seed); i++ {
+		seed[i] = uint64(i + 1)
+	}
+
+	ret, err := HashWithRotationStats(c, seed)
+	// Verified with cpp-py version
+	expected := [4]uint64{14348660804448840641, 11581950883383832930, 8979665141729890106, 1502951661196207235}
+	assert.NoError(err)
+	assert.ElementsMatch(expected, ret)
+}
