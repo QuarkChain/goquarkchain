@@ -2,7 +2,6 @@ package qkchash
 
 import (
 	"encoding/binary"
-	"fmt"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 
 	"github.com/QuarkChain/goquarkchain/consensus"
@@ -57,7 +56,7 @@ func New(useNative bool, diffCalculator consensus.DifficultyCalculator, remote b
 		HashAlgo:   q.hashAlgo,
 		VerifySeal: q.verifySeal,
 	}
-	fmt.Println("NNNNNNNNNNNNN", q.cache.ls)
+	//fmt.Println("NNNNNNNNNNNNN", q.cache.ls)
 	q.CommonEngine = consensus.NewCommonEngine(spec, diffCalculator, remote, pubKey)
 	return q
 }

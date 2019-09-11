@@ -158,8 +158,7 @@ func (tx *EvmTransaction) getUnsignedHash() common.Hash {
 		ToFullShardKey:   tx.data.ToFullShardKey,
 		GasTokenID:       tx.data.GasTokenID,
 		TransferTokenID:  tx.data.TransferTokenID,
-
-		NetworkId: tx.data.NetworkId,
+		NetworkId:        tx.data.NetworkId,
 	}
 
 	return rlpHash(unsigntx)
@@ -267,7 +266,7 @@ func (tx *EvmTransaction) AsMessage(s Signer, txHash common.Hash) (Message, erro
 		msgTo = nil
 	}
 
-	toFullShardKey:=tx.data.ToFullShardKey.GetValue()
+	toFullShardKey := tx.data.ToFullShardKey.GetValue()
 	msg := Message{
 		nonce:            tx.data.AccountNonce,
 		gasLimit:         tx.data.GasLimit,
@@ -620,7 +619,7 @@ func (m Message) Data() []byte             { return m.data }
 func (m Message) CheckNonce() bool         { return m.checkNonce }
 func (m Message) IsCrossShard() bool       { return m.isCrossShard }
 func (m Message) FromFullShardKey() uint32 { return m.fromFullShardKey }
-func (m Message) ToFullShardKey() *uint32   { return m.toFullShardKey }
+func (m Message) ToFullShardKey() *uint32  { return m.toFullShardKey }
 func (m Message) TxHash() common.Hash      { return m.txHash }
 func (m Message) GasTokenID() uint64       { return m.gasTokenID }
 func (m Message) TransferTokenID() uint64  { return m.transferTokenID }

@@ -2,8 +2,6 @@ package ethash
 
 import (
 	"bytes"
-	"encoding/hex"
-	"fmt"
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"math/big"
 	"runtime"
@@ -31,7 +29,7 @@ func (q *QEthash) hashAlgo(shareCache *consensus.ShareCache) (err error) {
 // verifySeal implements consensus.Engine, checking whether the given block satisfies
 // the PoW difficulty requirements.
 func (q *QEthash) verifySeal(chain consensus.ChainReader, header types.IHeader, adjustedDiff *big.Int) error {
-	fmt.Println("Qethhash seal", header.GetDifficulty(), adjustedDiff)
+	//fmt.Println("Qethhash seal", header.GetDifficulty(), adjustedDiff)
 	// Ensure that we have a valid difficulty for the block
 	if header.GetDifficulty().Sign() <= 0 {
 		return errInvalidDifficulty
@@ -49,11 +47,11 @@ func (q *QEthash) verifySeal(chain consensus.ChainReader, header types.IHeader, 
 	if q.config.PowMode == ModeTest {
 		size = 32 * 1024
 	}
-	fmt.Println("headerSeal", header.SealHash().String())
-	fmt.Println("header.Nonce", header.GetNonce())
+	//fmt.Println("headerSeal", header.SealHash().String())
+	//fmt.Println("header.Nonce", header.GetNonce())
 	digest, result = hashimotoLight(size, cache.cache, header.SealHash().Bytes(), header.GetNonce())
-	fmt.Println("digest", hex.EncodeToString(digest))
-	fmt.Println("digest", hex.EncodeToString(result))
+	//fmt.Println("digest", hex.EncodeToString(digest))
+	//fmt.Println("digest", hex.EncodeToString(result))
 	// Caches are unmapped in a finalizer. Ensure that the cache stays alive
 	// until after the call to hashimotoLight so it's not unmapped while being used.
 	runtime.KeepAlive(cache)
@@ -66,9 +64,9 @@ func (q *QEthash) verifySeal(chain consensus.ChainReader, header types.IHeader, 
 		diff = header.GetDifficulty()
 	}
 	target := new(big.Int).Div(two256, diff)
-	print("diff", diff, adjustedDiff)
+	//print("diff", diff, adjustedDiff)
 	if new(big.Int).SetBytes(result).Cmp(target) > 0 {
-		fmt.Println("?????=err", new(big.Int).SetBytes(result).String(), target, diff, hex.EncodeToString(result))
+		//fmt.Println("?????=err", new(big.Int).SetBytes(result).String(), target, diff, hex.EncodeToString(result))
 		return errInvalidPoW
 	}
 	return nil
