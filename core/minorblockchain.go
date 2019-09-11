@@ -45,6 +45,7 @@ import (
 
 	qkcCommon "github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/core/vm"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
@@ -1811,18 +1812,14 @@ func (m *MinorBlockChain) GetRootChainStakes(coinbase account.Recipient, lastMin
 	}
 	evmState = evmState.Copy()
 	evmState.SetGasUsed(big.NewInt(0))
-	contractAddress := m.clusterConfig.Quarkchain.GetRootChainPoSWContract()
+	contractAddress := vm.SystemContracts[vm.ROOT_CHAIN_POSW].Address()
 	code := evmState.GetCode(contractAddress)
 	if code == nil {
 		return nil, nil, errors.New("PoSW-on-root-chain contract is not found")
 	}
-	codeHash := qkcCommon.Sha3_256(code)
+	codeHash := crypto.Keccak256Hash(code)
 	//have to make sure the code is expected
-	expectedCodeHash, err := hex.DecodeString(m.clusterConfig.Quarkchain.RootChainPoSWContractBytecodeHash)
-	if err != nil {
-		return nil, nil, err
-	}
-	if bytes.Compare(codeHash[:], expectedCodeHash[:]) != 0 {
+	if bytes.Compare(codeHash[:], m.clusterConfig.Quarkchain.RootChainPoSWContractBytecodeHash[:]) != 0 {
 		return nil, nil, errors.New("PoSW-on-root-chain contract is invalid")
 	}
 	//call the contract's 'getLockedStakes' function

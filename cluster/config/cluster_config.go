@@ -1,13 +1,13 @@
 package config
 
 import (
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/core/types"
+	ethcom "github.com/ethereum/go-ethereum/common"
 	"math/big"
 	"sort"
 )
@@ -105,26 +105,27 @@ type QuarkChainConfig struct {
 	defaultChainTokenID               uint64
 	allowTokenIDs                     map[uint64]bool
 	XShardAddReceiptTimestamp         uint64
-	DisablePowCheck                   bool     `json:"DISABLE_POW_CHECK"`
-	XShardGasDDOSFixRootHeight        uint64   `json:"XSHARD_GAS_DDOS_FIX_ROOT_HEIGHT"`
-	MinTXPoolGasPrice                 *big.Int `json:"MIN_TX_POOL_GAS_PRICE"`
-	MinMiningGasPrice                 *big.Int `json:"MIN_MINING_GAS_PRICE"`
-	RootChainPoSWContract             string   `json:"ROOT_CHAIN_POSW_CONTRACT"`
-	RootChainPoSWContractBytecodeHash string   `json:"ROOT_CHAIN_POSW_CONTRACT_BYTECODE_HASH"`
+	DisablePowCheck                   bool        `json:"DISABLE_POW_CHECK"`
+	XShardGasDDOSFixRootHeight        uint64      `json:"XSHARD_GAS_DDOS_FIX_ROOT_HEIGHT"`
+	MinTXPoolGasPrice                 *big.Int    `json:"MIN_TX_POOL_GAS_PRICE"`
+	MinMiningGasPrice                 *big.Int    `json:"MIN_MINING_GAS_PRICE"`
+	RootChainPoSWContractBytecodeHash ethcom.Hash `json:"-"`
 }
 
 type QuarkChainConfigAlias QuarkChainConfig
 type jsonConfig struct {
 	QuarkChainConfigAlias
-	Chains                 []*ChainConfig `json:"CHAINS"`
-	RewardTaxRate          float64        `json:"REWARD_TAX_RATE"`
-	BlockRewardDecayFactor float64        `json:"BLOCK_REWARD_DECAY_FACTOR"`
+	Chains                            []*ChainConfig `json:"CHAINS"`
+	RewardTaxRate                     float64        `json:"REWARD_TAX_RATE"`
+	BlockRewardDecayFactor            float64        `json:"BLOCK_REWARD_DECAY_FACTOR"`
+	RootChainPoSWContractBytecodeHash string         `json:"ROOT_CHAIN_POSW_CONTRACT_BYTECODE_HASH"`
 }
 
 func (q *QuarkChainConfig) MarshalJSON() ([]byte, error) {
 	rewardTaxRate, _ := q.RewardTaxRate.Float64()
 	BlockRewardDecayFactor, _ := q.BlockRewardDecayFactor.Float64()
 	chains := make([]*ChainConfig, 0, len(q.Chains))
+	rootChainPoSWContractBytecodeHash := ethcom.Bytes2Hex(q.RootChainPoSWContractBytecodeHash[:])
 	for _, chain := range q.Chains {
 		chains = append(chains, chain)
 	}
@@ -133,6 +134,7 @@ func (q *QuarkChainConfig) MarshalJSON() ([]byte, error) {
 		chains,
 		rewardTaxRate,
 		BlockRewardDecayFactor,
+		rootChainPoSWContractBytecodeHash,
 	}
 	return json.Marshal(jConfig)
 }
@@ -164,6 +166,7 @@ func (q *QuarkChainConfig) UnmarshalJSON(input []byte) error {
 	q.Root.GRPCHost, _ = common.GetIPV4Addr()
 	q.RewardTaxRate = big.NewRat(int64(jConfig.RewardTaxRate*float64(denom)), denom)
 	q.BlockRewardDecayFactor = big.NewRat(int64(jConfig.BlockRewardDecayFactor*float64(denom)), denom)
+	q.RootChainPoSWContractBytecodeHash = ethcom.HexToHash(jConfig.RootChainPoSWContractBytecodeHash)
 	q.initAndValidate()
 	return nil
 }
@@ -328,8 +331,7 @@ func NewQuarkChainConfig() *QuarkChainConfig {
 		MinTXPoolGasPrice:                 new(big.Int).SetUint64(1000000000),
 		MinMiningGasPrice:                 new(big.Int).SetUint64(1000000000),
 		XShardGasDDOSFixRootHeight:        90000,
-		RootChainPoSWContract:             "53345c04cfb710a9c4eeae36e4a554547ec1b235",
-		RootChainPoSWContractBytecodeHash: "5a7707e2684bd79484f3d952ac6a43f2631e3ef8e2085659c18af5714cee4f4c",
+		RootChainPoSWContractBytecodeHash: ethcom.HexToHash("5a7707e2684bd79484f3d952ac6a43f2631e3ef8e2085659c18af5714cee4f4c"),
 	}
 
 	ret.Root.ConsensusType = PoWSimulate
@@ -405,9 +407,4 @@ func (q *QuarkChainConfig) GasLimit(fullShardID uint32) (*big.Int, error) {
 		return nil, fmt.Errorf("no such fullShardID %v", fullShardID)
 	}
 	return new(big.Int).SetUint64(data.Genesis.GasLimit), nil
-}
-
-func (q *QuarkChainConfig) GetRootChainPoSWContract() account.Recipient {
-	bytes, _ := hex.DecodeString(q.RootChainPoSWContract)
-	return account.BytesToIdentityRecipient(bytes)
 }
