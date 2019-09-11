@@ -62,6 +62,7 @@ type txdata struct {
 }
 
 func NewEvmTransaction(nonce uint64, to account.Recipient, amount *big.Int, gasLimit uint64, gasPrice *big.Int, fromFullShardKey uint32, toFullShardKey uint32, networkId uint32, version uint32, data []byte, gasTokenID, transferTokenID uint64) *EvmTransaction {
+	fmt.Println("nonce", nonce)
 	return newEvmTransaction(nonce, &to, amount, gasLimit, gasPrice, fromFullShardKey, toFullShardKey, networkId, version, data, gasTokenID, transferTokenID)
 }
 func (e *EvmTransaction) SetGas(data uint64) {
@@ -267,7 +268,7 @@ func (tx *EvmTransaction) AsMessage(s Signer, txHash common.Hash) (Message, erro
 		msgTo = nil
 	}
 
-	toFullShardKey:=tx.data.ToFullShardKey.GetValue()
+	toFullShardKey := tx.data.ToFullShardKey.GetValue()
 	msg := Message{
 		nonce:            tx.data.AccountNonce,
 		gasLimit:         tx.data.GasLimit,
@@ -620,7 +621,7 @@ func (m Message) Data() []byte             { return m.data }
 func (m Message) CheckNonce() bool         { return m.checkNonce }
 func (m Message) IsCrossShard() bool       { return m.isCrossShard }
 func (m Message) FromFullShardKey() uint32 { return m.fromFullShardKey }
-func (m Message) ToFullShardKey() *uint32   { return m.toFullShardKey }
+func (m Message) ToFullShardKey() *uint32  { return m.toFullShardKey }
 func (m Message) TxHash() common.Hash      { return m.txHash }
 func (m Message) GasTokenID() uint64       { return m.gasTokenID }
 func (m Message) TransferTokenID() uint64  { return m.transferTokenID }
