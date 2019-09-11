@@ -1636,6 +1636,9 @@ func CountAddressFromSlice(lists []account.Recipient, recipient account.Recipien
 	return cnt
 }
 func (m *MinorBlockChain) PoswInfo(mBlock *types.MinorBlock) (*rpc.PoSWInfo, error) {
+	if !m.shardConfig.PoswConfig.Enabled {
+		return nil, nil
+	}
 	if mBlock == nil {
 		return nil, errors.New("get powInfo err:mBlock is full")
 	}
