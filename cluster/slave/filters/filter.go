@@ -7,6 +7,7 @@ import (
 	"math/big"
 
 	qrpc "github.com/QuarkChain/goquarkchain/cluster/rpc"
+	qsync "github.com/QuarkChain/goquarkchain/cluster/sync"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/event"
@@ -23,6 +24,7 @@ type ShardBackend interface {
 	SubscribeRemovedLogsEvent(ch chan<- core.RemovedLogsEvent) event.Subscription
 	SubscribeChainEvent(ch chan<- core.MinorChainEvent) event.Subscription
 	SubscribeNewTxsEvent(ch chan<- core.NewTxsEvent) event.Subscription
+	SubscribeSyncEvent(ch chan<- *qsync.SyncingResult) event.Subscription
 }
 
 // Filter can be used to retrieve and filter logs.

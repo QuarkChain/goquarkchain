@@ -3,12 +3,12 @@ package sync
 import (
 	"errors"
 	"fmt"
+	qkcom "github.com/QuarkChain/goquarkchain/common"
+	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
 	"math/big"
-
-	qkcom "github.com/QuarkChain/goquarkchain/common"
-	"github.com/QuarkChain/goquarkchain/core/types"
+	"strings"
 )
 
 const (
@@ -20,6 +20,7 @@ const (
 
 // Task represents a synchronization task for the synchronizer.
 type Task interface {
+	SetSendFunc(Send func(value interface{}) (nsent int))
 	Run(blockchain) error
 	Priority() *big.Int
 	PeerID() string
@@ -29,11 +30,15 @@ type task struct {
 	name             string
 	maxSyncStaleness uint64
 	batchSize        int
-	findAncestor     func(blockchain) (types.IHeader, error)
-	getHeaders       func(types.IHeader) ([]types.IHeader, error)
-	getBlocks        func([]common.Hash) ([]types.IBlock, error)
-	syncBlock        func(blockchain, types.IBlock) error
-	needSkip         func(b blockchain) bool
+
+	header types.IHeader
+	send   func(value interface{}) (nsent int)
+
+	findAncestor func(blockchain) (types.IHeader, error)
+	getHeaders   func(types.IHeader) ([]types.IHeader, error)
+	getBlocks    func([]common.Hash) ([]types.IBlock, error)
+	syncBlock    func(blockchain, types.IBlock) error
+	needSkip     func(b blockchain) bool
 }
 
 // Run will execute the synchronization task.
@@ -41,6 +46,9 @@ func (t *task) Run(bc blockchain) error {
 	if t.needSkip(bc) {
 		return nil
 	}
+
+	// start to sync task
+	t.sendSync(false, bc.CurrentHeader().NumberU64(), t.header.NumberU64())
 
 	ancestor, err := t.findAncestor(bc)
 	if err != nil || qkcom.IsNil(ancestor) {
@@ -94,6 +102,7 @@ func (t *task) Run(bc blockchain) error {
 				return err
 			}
 
+			counter := 0
 			for _, blk := range blocks {
 				if t.syncBlock != nil {
 					if err := t.syncBlock(bc, blk); err != nil {
@@ -103,11 +112,39 @@ func (t *task) Run(bc blockchain) error {
 				if err := bc.AddBlock(blk); err != nil {
 					return err
 				}
+
+				counter++
+				if counter%100 == 0 {
+					t.sendSync(true, blk.NumberU64(), blocks[len(blocks)-1].NumberU64())
+				}
+
 				ancestor = blk.IHeader()
 			}
 		}
 	}
+
+	// end to sync task
+	t.sendSync(false, bc.CurrentHeader().NumberU64(), t.header.NumberU64())
+
 	return nil
+}
+
+func (t *task) SetSendFunc(send func(value interface{}) (nsent int)) {
+	if strings.HasPrefix(t.name, "shard-") && t.send == nil {
+		t.send = send
+	}
+}
+
+func (t *task) sendSync(typ bool, curr, best uint64) {
+	if t.send != nil {
+		t.send(&SyncingResult{
+			Syncing: typ,
+			Status: SyncProgress{
+				CurrentBlock: curr,
+				HighestBlock: best,
+			},
+		})
+	}
 }
 
 func (t *task) validateHeaderList(bc blockchain, headers []types.IHeader) error {

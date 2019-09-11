@@ -9,6 +9,7 @@ import (
 	"time"
 
 	qrpc "github.com/QuarkChain/goquarkchain/cluster/rpc"
+	qsync "github.com/QuarkChain/goquarkchain/cluster/sync"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/rpc"
@@ -42,7 +43,6 @@ type PublicFilterAPI struct {
 	quit      chan struct{}
 	events    *EventSystem
 	filtersMu sync.Mutex
-	filters   map[rpc.ID]*filter
 }
 
 // NewPublicFilterAPI returns a new PublicFilterAPI instance.
@@ -50,31 +50,9 @@ func NewPublicFilterAPI(backend SlaveBackend) *PublicFilterAPI {
 	api := &PublicFilterAPI{
 		backend: backend,
 		events:  NewEventSystem(backend),
-		filters: make(map[rpc.ID]*filter),
 	}
-	go api.timeoutLoop()
 
 	return api
-}
-
-// timeoutLoop runs every 5 minutes and deletes filters that have not been recently used.
-// Tt is started when the api is created.
-func (api *PublicFilterAPI) timeoutLoop() {
-	ticker := time.NewTicker(5 * time.Minute)
-	for {
-		<-ticker.C
-		api.filtersMu.Lock()
-		for id, f := range api.filters {
-			select {
-			case <-f.deadline.C:
-				f.s.Unsubscribe()
-				delete(api.filters, id)
-			default:
-				continue
-			}
-		}
-		api.filtersMu.Unlock()
-	}
 }
 
 // NewPendingTransactions creates a subscription that is triggered each time a transaction
@@ -176,133 +154,32 @@ func (api *PublicFilterAPI) Logs(ctx context.Context, crit qrpc.FilterQuery, ful
 	return rpcSub, nil
 }
 
-/*func (api *PublicFilterAPI) NewFilter(crit qrpc.FilterQuery, fullShardId hexutil.Uint) (rpc.ID, error) {
-	crit.FullShardId = uint32(fullShardId)
-	logs := make(chan []*types.Log)
-	logsSub, err := api.events.SubscribeLogs(crit, logs)
-	if err != nil {
-		return rpc.ID(""), err
+func (api *PublicFilterAPI) Syncing(ctx context.Context, fullShardId hexutil.Uint) (*rpc.Subscription, error) {
+	notifier, supported := rpc.NotifierFromContext(ctx)
+	if !supported {
+		return &rpc.Subscription{}, rpc.ErrNotificationsUnsupported
 	}
 
-	api.filtersMu.Lock()
-	api.filters[logsSub.ID] = &filter{typ: LogsSubscription, crit: crit, deadline: time.NewTimer(deadline), logs: make([]*types.Log, 0), s: logsSub}
-	api.filtersMu.Unlock()
+	var (
+		rpcSub = notifier.CreateSubscription()
+	)
 
 	go func() {
+		statuses := make(chan *qsync.SyncingResult, syncSize)
+		sub := api.events.SubscribeSyncing(statuses, uint32(fullShardId))
 		for {
 			select {
-			case l := <-logs:
-				api.filtersMu.Lock()
-				if f, found := api.filters[logsSub.ID]; found {
-					f.logs = append(f.logs, l...)
-				}
-				api.filtersMu.Unlock()
-			case <-logsSub.Err():
-				api.filtersMu.Lock()
-				delete(api.filters, logsSub.ID)
-				api.filtersMu.Unlock()
+			case status := <-statuses:
+				notifier.Notify(rpcSub.ID, status)
+			case <-rpcSub.Err():
+				sub.Unsubscribe()
+				return
+			case <-notifier.Closed():
+				sub.Unsubscribe()
 				return
 			}
 		}
 	}()
 
-	return logsSub.ID, nil
-}
-
-func (api *PublicFilterAPI) UninstallFilter(id rpc.ID) bool {
-	api.filtersMu.Lock()
-	f, found := api.filters[id]
-	if found {
-		delete(api.filters, id)
-	}
-	api.filtersMu.Unlock()
-	if found {
-		f.s.Unsubscribe()
-	}
-
-	return found
-}
-
-func (api *PublicFilterAPI) GetFilterLogs(ctx context.Context, id rpc.ID) ([]*types.Log, error) {
-	api.filtersMu.Lock()
-	f, found := api.filters[id]
-	api.filtersMu.Unlock()
-
-	if !found || f.typ != LogsSubscription {
-		return nil, fmt.Errorf("filter not found")
-	}
-
-	shrd, err := api.backend.GetShardBackend(f.crit.FullShardId)
-	if err != nil {
-		return nil, err
-	}
-
-	var filter *Filter
-	if f.crit.BlockHash != nil {
-		// Block filter requested, construct a single-shot filter
-		filter = NewBlockFilter(shrd, *f.crit.BlockHash, f.crit.Addresses, f.crit.Topics)
-	} else {
-		// Convert the RPC block numbers into internal representations
-		begin := rpc.LatestBlockNumber.Int64()
-		if f.crit.FromBlock != nil {
-			begin = f.crit.FromBlock.Int64()
-		}
-		end := rpc.LatestBlockNumber.Int64()
-		if f.crit.ToBlock != nil {
-			end = f.crit.ToBlock.Int64()
-		}
-		// Construct the range filter
-		filter = NewRangeFilter(shrd, begin, end, f.crit.Addresses, f.crit.Topics)
-	}
-	// Run the filter and return all the logs
-	logs, err := filter.Logs(ctx)
-	if err != nil {
-		return nil, err
-	}
-	return returnLogs(logs), nil
-}
-
-func (api *PublicFilterAPI) GetFilterChanges(id rpc.ID) (interface{}, error) {
-	api.filtersMu.Lock()
-	defer api.filtersMu.Unlock()
-
-	if f, found := api.filters[id]; found {
-		if !f.deadline.Stop() {
-			// timer expired but filter is not yet removed in timeout loop
-			// receive timer value and reset timer
-			<-f.deadline.C
-		}
-		f.deadline.Reset(deadline)
-
-		switch f.typ {
-		case PendingTransactionsSubscription, BlocksSubscription:
-			hashes := f.hashes
-			f.hashes = nil
-			return returnHashes(hashes), nil
-		case LogsSubscription:
-			logs := f.logs
-			f.logs = nil
-			return returnLogs(logs), nil
-		}
-	}
-
-	return []interface{}{}, fmt.Errorf("filter not found")
-}*/
-
-// returnHashes is a helper that will return an empty hash array case the given hash array is nil,
-// otherwise the given hashes array is returned.
-func returnHashes(hashes []common.Hash) []common.Hash {
-	if hashes == nil {
-		return []common.Hash{}
-	}
-	return hashes
-}
-
-// returnLogs is a helper that will return an empty log array in case the given logs array is nil,
-// otherwise the given logs array is returned.
-func returnLogs(logs []*types.Log) []*types.Log {
-	if logs == nil {
-		return []*types.Log{}
-	}
-	return logs
+	return rpcSub, nil
 }

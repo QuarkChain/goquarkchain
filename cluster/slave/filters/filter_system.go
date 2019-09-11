@@ -8,6 +8,7 @@ import (
 	"time"
 
 	qrpc "github.com/QuarkChain/goquarkchain/cluster/rpc"
+	qsync "github.com/QuarkChain/goquarkchain/cluster/sync"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/rpc"
 )
@@ -30,6 +31,8 @@ const (
 	PendingTransactionsSubscription
 	// BlocksSubscription queries hashes for blocks that are imported
 	BlocksSubscription
+	// SyncingSubscription queries syncResult when syncing
+	SyncingSubscription
 	// LastSubscription keeps track of the last index
 	LastIndexSubscription
 )
@@ -44,6 +47,8 @@ const (
 	logsChanSize = 10
 	// chainEvChanSize is the size of channel listening to ChainEvent.
 	chainEvChanSize = 10
+	// syncSize is the size of channel listening to SubscribeSyncEvent.
+	syncSize = 5
 )
 
 var (
@@ -59,6 +64,7 @@ type subscription struct {
 	logs        chan []*types.Log
 	txlist      chan *types.Transaction
 	headers     chan *types.MinorBlockHeader
+	syncCh      chan *qsync.SyncingResult
 	installed   chan struct{} // closed when the filter is installed
 	err         chan error    // closed when the filter is uninstalled
 }
@@ -128,6 +134,8 @@ func (sub *Subscription) Unsubscribe() {
 					<-sub.f.headers
 				} else if sub.f.txlist != nil {
 					<-sub.f.txlist
+				} else if sub.f.syncCh != nil {
+					<-sub.f.syncCh
 				}
 			}
 		}
@@ -253,6 +261,19 @@ func (es *EventSystem) SubscribePendingTxs(txs chan *types.Transaction, fullShar
 	return es.subscribe(sub)
 }
 
+func (es *EventSystem) SubscribeSyncing(status chan *qsync.SyncingResult, fullShardId uint32) *Subscription {
+	sub := &subscription{
+		id:          rpc.NewID(),
+		fullShardId: fullShardId,
+		typ:         SyncingSubscription,
+		created:     time.Now(),
+		syncCh:      status,
+		installed:   make(chan struct{}),
+		err:         make(chan error),
+	}
+	return es.subscribe(sub)
+}
+
 type filterIndex map[Type]map[rpc.ID]*subscription
 
 // broadcast event to filters that match criteria.
@@ -283,6 +304,11 @@ func (es *EventSystem) broadcast(filters filterIndex, ev interface{}) {
 	case *types.MinorBlockHeader:
 		for _, f := range filters[BlocksSubscription] {
 			f.headers <- e
+		}
+
+	case *qsync.SyncingResult:
+		for _, f := range filters[SyncingSubscription] {
+			f.syncCh <- e
 		}
 	}
 }

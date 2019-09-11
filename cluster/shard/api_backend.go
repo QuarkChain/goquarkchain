@@ -393,6 +393,10 @@ func (s *ShardBackend) SubscribeNewTxsEvent(ch chan<- core.NewTxsEvent) event.Su
 	return s.MinorBlockChain.SubscribeNewTxsEvent(ch)
 }
 
+func (s *ShardBackend) SubscribeSyncEvent(ch chan<- *qsync.SyncingResult) event.Subscription {
+	return s.synchronizer.SubscribeSyncEvent(ch)
+}
+
 func (s *ShardBackend) broadcastNewTip() (err error) {
 	var (
 		rootTip  = s.MinorBlockChain.GetRootTip()
