@@ -206,6 +206,7 @@ func (c *currentWorks) refresh(tip uint64) {
 	defer c.mu.Unlock()
 	c.works = make(map[account.Address]*MiningWork)
 }
+
 func (c *currentWorks) getWorkBySealHash(hash common.Hash) (*MiningWork, error) {
 	c.mu.RLock()
 	defer c.mu.RUnlock()

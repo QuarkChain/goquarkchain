@@ -154,13 +154,15 @@ func (m *Miner) GetWork(coinbaseAddr *account.Address) (*consensus.MiningWork, e
 	}
 
 	work, err := m.engine.GetWork(addrForGetWork)
-	if err != nil && err == consensus.ErrNoMiningWork {
-		block, diff, err := m.api.CreateBlockToMine(&addrForGetWork)
-		if err == nil {
-			m.workCh <- workAdjusted{block, diff}
-			return &consensus.MiningWork{HeaderHash: block.IHeader().SealHash(), Number: block.NumberU64(), Difficulty: diff}, nil
+	if err != nil {
+		if err == consensus.ErrNoMiningWork {
+			block, diff, err := m.api.CreateBlockToMine(&addrForGetWork)
+			if err == nil {
+				m.workCh <- workAdjusted{block, diff}
+				return &consensus.MiningWork{HeaderHash: block.IHeader().SealHash(), Number: block.NumberU64(), Difficulty: diff}, nil
+			}
+			return nil, err
 		}
-
 		return nil, err
 	}
 	return work, nil
