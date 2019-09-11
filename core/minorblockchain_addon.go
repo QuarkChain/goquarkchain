@@ -212,7 +212,7 @@ func (m *MinorBlockChain) validateTx(tx *types.Transaction, evmState *state.Stat
 		return nil, fmt.Errorf("xshard evm tx exceeds xshard gasLimit %v %v", evmTx.Gas(), xShardGasLimit)
 	}
 
-	if m.clusterConfig.Quarkchain.EnableEvmTimeStamp != 0 && evmState.GetTimeStamp() < m.clusterConfig.Quarkchain.EnableEvmTimeStamp {
+	if evmState.GetTimeStamp() < m.clusterConfig.Quarkchain.EnableEvmTimeStamp {
 		if evmTx.To() == nil || len(evmTx.Data()) != 0 {
 			return nil, errors.New("smart contract tx is not allowed before evm is enabled")
 		}
@@ -720,7 +720,7 @@ func (m *MinorBlockChain) checkTxBeforeApply(stateT *state.StateDB, tx *types.Tr
 	if tx.EvmTx.GasPrice().Cmp(m.clusterConfig.Quarkchain.MinMiningGasPrice) < 0 {
 		return ErrorTxContinue
 	}
-	if m.clusterConfig.Quarkchain.EnableEvmTimeStamp != 0 && header.Time < m.clusterConfig.Quarkchain.EnableEvmTimeStamp {
+	if header.Time < m.clusterConfig.Quarkchain.EnableEvmTimeStamp {
 		if tx.EvmTx.To() == nil || len(tx.EvmTx.Data()) != 0 {
 			return ErrorTxContinue
 		}
