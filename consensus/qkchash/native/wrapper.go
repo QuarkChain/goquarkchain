@@ -34,3 +34,13 @@ func Hash(cache Cache, seed [8]uint64) (ret [4]uint64, err error) {
 	Qkc_hash(*cache.ptr, seed[:], ret[:])
 	return ret, nil
 }
+
+// Hashx wraps the native qkchashx algorithm.
+func HashWithRotationStats(cache Cache, seed [8]uint64) (ret [4]uint64, err error) {
+	if cache == nil || cache.ptr == nil {
+		return ret, errors.New("invoking native qkchash on empty cache")
+	}
+
+	Qkc_hash_with_rotation_stats(*cache.ptr, seed[:], ret[:])
+	return ret, nil
+}

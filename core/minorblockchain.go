@@ -232,7 +232,7 @@ func NewMinorBlockChain(
 	if err := bc.loadLastState(); err != nil {
 		return nil, err
 	}
-
+	DefaultTxPoolConfig.NetWorkID = bc.clusterConfig.Quarkchain.NetworkID
 	bc.txPool = NewTxPool(DefaultTxPoolConfig, bc)
 	bc.posw = consensus.CreatePoSWCalculator(bc, bc.shardConfig.PoswConfig)
 	// Take ownership of this particular state
@@ -550,7 +550,6 @@ func (m *MinorBlockChain) insert(block *types.MinorBlock) {
 	updateHeads := rawdb.ReadCanonicalHash(m.db, rawdb.ChainTypeMinor, block.NumberU64()) != block.Hash()
 
 	// Add the block to the canonical chain number scheme and mark as the head
-	//fmt.Println("insert", block.Hash().String(), block.NumberU64())
 	rawdb.WriteCanonicalHash(m.db, rawdb.ChainTypeMinor, block.Hash(), block.NumberU64())
 	rawdb.WriteHeadBlockHash(m.db, block.Hash())
 
@@ -1460,6 +1459,11 @@ func (m *MinorBlockChain) reorg(oldBlock, newBlock types.IBlock) error {
 		oldChain = append(oldChain, oldBlock)
 		newChain = append(newChain, newBlock)
 		collectLogs(oldBlock.Hash())
+		if oldBlock.NumberU64() == 0 || newBlock.NumberU64() == 0 { //revert genesisBlock: no commonBlock
+			log.Warn("reorg", "ready to revert genesis? oldBlock", oldBlock.Hash().String(),
+				"newBlock", newBlock.Hash().String(), "currBlock", m.CurrentBlock().Hash().String())
+			break
+		}
 
 		oldBlock, newBlock = m.GetBlock(oldBlock.IHeader().GetParentHash()), m.GetBlock(newBlock.IHeader().GetParentHash())
 		if qkcCommon.IsNil(oldBlock) {
@@ -1475,10 +1479,20 @@ func (m *MinorBlockChain) reorg(oldBlock, newBlock types.IBlock) error {
 		if len(oldChain) > 63 {
 			logFn = log.Warn
 		}
-		logFn("Chain split detected", "number", commonBlock.NumberU64(), "hash", commonBlock.Hash(),
-			"drop", len(oldChain), "dropfrom", oldChain[0].Hash(), "add", len(newChain), "addfrom", newChain[0].Hash())
+		if commonBlock != nil {
+			logFn("Chain split detected", "number", commonBlock.NumberU64(), "hash", commonBlock.Hash(),
+				"drop", len(oldChain), "dropfrom", oldChain[0].Hash(), "add", len(newChain), "addfrom", newChain[0].Hash())
+		} else {
+			log.Warn("ChainRevert genesis", "drop", len(oldChain), "dropfrom", oldChain[0].Hash(), "add", len(newChain), "addfrom", newChain[0].Hash())
+		}
+
 	} else {
-		log.Error("minorBlockChain Impossible reorg, please file an issue", "oldnum", oldBlock.NumberU64(), "oldhash", oldBlock.Hash(), "newnum", newBlock.NumberU64(), "newhash", newBlock.Hash())
+		// we support reorg block from same chain,because we should delete and add tx index
+		log.Warn("reorg", "same chain oldBlock", oldBlock.NumberU64(), "oldBlock.Hash", oldBlock.Hash().String(),
+			"newBlock", newBlock.NumberU64(), "newBlock's hash", newBlock.Hash().String())
+		if err := m.SetHead(newBlock.NumberU64()); err != nil {
+			return err
+		}
 	}
 
 	// When transactions get deleted from the database that means the
@@ -1636,7 +1650,7 @@ func (m *MinorBlockChain) writeHeader(header *types.MinorBlockHeader) error {
 // CurrentHeader retrieves the current head header of the canonical chain. The
 // header is retrieved from the HeaderChain's internal cache.
 func (m *MinorBlockChain) CurrentHeader() types.IHeader {
-	return m.hc.CurrentHeader()
+	return m.CurrentBlock().Header()
 }
 
 // GetTd retrieves a block's total difficulty in the canonical chain from the

@@ -421,7 +421,7 @@ func (s *SlaveBackend) getMinorBlockHeadersWithSkip(gReq *p2p.GetMinorBlockHeade
 	var (
 		height     uint64
 		headerlist = make([]*types.MinorBlockHeader, 0, gReq.Limit)
-		mTip       = shrd.MinorBlockChain.CurrentHeader()
+		mTip       = shrd.MinorBlockChain.CurrentBlock()
 	)
 	if gReq.Type == qcom.SkipHash {
 		iHeader := shrd.MinorBlockChain.GetHeaderByHash(gReq.GetHash())
