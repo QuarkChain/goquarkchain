@@ -4,6 +4,7 @@ package types
 
 import (
 	"container/heap"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"github.com/QuarkChain/goquarkchain/account"
@@ -62,17 +63,19 @@ type txdata struct {
 }
 
 func NewEvmTransaction(nonce uint64, to account.Recipient, amount *big.Int, gasLimit uint64, gasPrice *big.Int, fromFullShardKey uint32, toFullShardKey uint32, networkId uint32, version uint32, data []byte, gasTokenID, transferTokenID uint64) *EvmTransaction {
-	fmt.Println("nonce", nonce)
 	return newEvmTransaction(nonce, &to, amount, gasLimit, gasPrice, fromFullShardKey, toFullShardKey, networkId, version, data, gasTokenID, transferTokenID)
 }
+
 func (e *EvmTransaction) SetGas(data uint64) {
 	e.data.GasLimit = data
 	e.updated = true
 }
+
 func (e *EvmTransaction) SetNonce(data uint64) {
 	e.data.AccountNonce = data
 	e.updated = true
 }
+
 func (e *EvmTransaction) SetVRS(v, r, s *big.Int) {
 	e.data.V = v
 	e.data.R = r
@@ -162,8 +165,19 @@ func (tx *EvmTransaction) getUnsignedHash() common.Hash {
 
 		NetworkId: tx.data.NetworkId,
 	}
-
 	return rlpHash(unsigntx)
+}
+
+func (tx *EvmTransaction) hashTyped() (common.Hash, error) {
+	sigHash, err := typedSignatureHash(evmTxToTypedData(tx))
+	if err != nil {
+		return common.Hash{}, err
+	}
+	bytes, err := hex.DecodeString(sigHash[2:])
+	if err != nil {
+		return common.Hash{}, err
+	}
+	return common.BytesToHash(bytes), nil
 }
 
 func (tx *EvmTransaction) Data() []byte       { return common.CopyBytes(tx.data.Payload) }
