@@ -1131,15 +1131,12 @@ func (m *RootBlockChain) SkipDifficultyCheck() bool {
 func (m *RootBlockChain) GetAdjustedDifficulty(header types.IHeader) (*big.Int, error) {
 	rHeader := header.(*types.RootBlockHeader)
 	adjustedDiff := rHeader.GetDifficulty()
-	//fmt.Println("############")
-	//fmt.Println("guardian_public_key", m.Config().GuardianPublicKey)
-	//fmt.Println("sealHasa", rHeader.SealHash().String())
-	//fmt.Println("Signate", hex.EncodeToString(rHeader.Signature[:64]))
-	//fmt.Println("status", crypto.VerifySignature(common.FromHex(m.Config().GuardianPublicKey), rHeader.SealHash().Bytes(), rHeader.Signature[:64]), header.GetDifficulty())
+
+	//TODO later to Fix
 	//if crypto.VerifySignature(common.FromHex(m.Config().GuardianPublicKey), rHeader.SealHash().Bytes(), rHeader.Signature[:64]) {
 	adjustedDiff = new(big.Int).Div(rHeader.GetDifficulty(), new(big.Int).SetUint64(1000))
 	//}
-	//fmt.Println("adjustDiff", adjustedDiff)
+
 	return adjustedDiff, nil
 }
 

@@ -1147,7 +1147,6 @@ func (m *MinorBlockChain) insertChain(chain []types.IBlock, verifySeals bool, is
 		headers[i] = block.IHeader()
 		seals[i] = verifySeals
 	}
-	fmt.Println("VerifyHeaders", len(headers))
 	abort, results := m.engine.VerifyHeaders(m, headers, seals)
 	defer close(abort)
 

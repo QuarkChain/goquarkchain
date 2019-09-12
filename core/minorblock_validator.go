@@ -58,8 +58,6 @@ func NewBlockValidator(quarkChainConfig *config.QuarkChainConfig, blockchain *Mi
 // header's transaction and uncle roots. The Headers are assumed to be already
 // validated at this point.
 func (v *MinorBlockValidator) ValidateBlock(mBlock types.IBlock, force bool) error {
-	fmt.Println("validateMinorBlock", mBlock.NumberU64(), mBlock.IHeader().(*types.MinorBlockHeader).Branch.Value)
-	defer fmt.Println("validateMinorBlock end", mBlock.NumberU64())
 	if common.IsNil(mBlock) {
 		log.Error(v.logInfo, "check block err", ErrMinorBlockIsNil)
 		return ErrMinorBlockIsNil
@@ -209,7 +207,6 @@ func (v *MinorBlockValidator) ValidateBlock(mBlock types.IBlock, force bool) err
 
 // ValidatorBlockSeal validate minor block seal when validate block
 func (v *MinorBlockValidator) ValidateSeal(mHeader types.IHeader, usePowsDiff bool) error {
-	fmt.Println("ValidateSeal", mHeader.NumberU64(), mHeader.GetDifficulty(), usePowsDiff)
 	header, ok := mHeader.(*types.MinorBlockHeader)
 	if !ok {
 		return errors.New("validator minor  seal failed , mBlock is nil")
@@ -292,19 +289,6 @@ func (v *MinorBlockValidator) ValidateState(mBlock, parent types.IBlock, statedb
 	}
 
 	receiptSha := types.DeriveSha(receipts)
-	fmt.Println("=======height", block.Header().Number)
-	for _, tx := range block.Transactions() {
-		fmt.Println("txHash", tx.Hash().String())
-	}
-	fmt.Println("receipte len", len(receipts))
-	for _, re := range receipts {
-		fmt.Println("root", re.Status)
-		fmt.Println("bloom", re.Bloom.Big().String())
-		fmt.Println("logs", len(re.Logs))
-		fmt.Println("contract_addrsss", re.ContractAddress.String())
-		fmt.Println("full_shard_key", re.ContractFullShardKey)
-	}
-	fmt.Println("========end", block.Header().Number)
 	if receiptSha != block.GetMetaData().ReceiptHash {
 		return fmt.Errorf("invalid receipt root hash (remote: %x local: %x)", block.GetMetaData().ReceiptHash, receiptSha)
 	}

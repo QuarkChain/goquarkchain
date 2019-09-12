@@ -52,6 +52,7 @@ func New(useNative bool, diffCalculator consensus.DifficultyCalculator, remote b
 	q := &QKCHash{
 		useNative: false,
 		// TODO: cache may depend on block, so a LRU-stype cache could be helpful
+		//TODO !!!!!!!!!! later to fix
 		cache: generateCache(cacheEntryCnt, cacheSeed.Bytes(), false),
 	}
 	spec := consensus.MiningSpec{
@@ -59,7 +60,6 @@ func New(useNative bool, diffCalculator consensus.DifficultyCalculator, remote b
 		HashAlgo:   q.hashAlgo,
 		VerifySeal: q.verifySeal,
 	}
-	//fmt.Println("NNNNNNNNNNNNN", q.cache.ls)
 	q.CommonEngine = consensus.NewCommonEngine(spec, diffCalculator, remote, pubKey)
 	return q
 }

@@ -48,7 +48,6 @@ func (t *task) Run(bc blockchain) error {
 	}
 
 	logger := log.New("synctask", t.name, "start", ancestor.NumberU64())
-	fmt.Println("ancestor", ancestor.NumberU64(), ancestor.Hash().String())
 
 	if bc.CurrentHeader().NumberU64()-ancestor.NumberU64() > t.maxSyncStaleness {
 		logger.Warn("Abort synching due to forking at super old block", "currentHeight", bc.CurrentHeader().NumberU64(), "oldHeight", ancestor.NumberU64())
@@ -112,7 +111,6 @@ func (t *task) Run(bc blockchain) error {
 }
 
 func (t *task) validateHeaderList(bc blockchain, headers []types.IHeader) error {
-	fmt.Println("task", len(headers))
 	var prev types.IHeader
 	for _, h := range headers {
 		if !qkcom.IsNil(prev) {
