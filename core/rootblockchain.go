@@ -1143,7 +1143,7 @@ func (bc *RootBlockChain) GetAdjustedDifficulty(header types.IHeader) (*big.Int,
 			log.Info("apply posw failed: ", err)
 		}
 		if poswAdjusted != nil {
-			fmt.Printf("posw applied: from %v to %v \n", rHeader.Difficulty, poswAdjusted)
+			log.Info("posw applied: from", rHeader.Difficulty, "to", poswAdjusted)
 			return poswAdjusted, nil
 		}
 	}
