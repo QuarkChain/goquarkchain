@@ -3,6 +3,7 @@ package shard
 import (
 	"errors"
 	"fmt"
+	"github.com/QuarkChain/goquarkchain/account"
 	"math/big"
 	"sync"
 
@@ -36,7 +37,7 @@ const (
 
 type ShardBackend struct {
 	Config            *config.ShardConfig
-	fullShardId       uint32
+	branch       account.Branch
 	genesisRootHeight uint32
 	maxBlocks         uint32
 
@@ -69,7 +70,7 @@ func New(ctx *service.ServiceContext, rBlock *types.RootBlock, conn ConnManager,
 	}
 	var (
 		shard = &ShardBackend{
-			fullShardId:       fullshardId,
+			branch:       account.Branch{Value:fullshardId},
 			genesisRootHeight: cfg.Quarkchain.GetShardConfigByFullShardID(fullshardId).Genesis.RootHeight,
 			Config:            cfg.Quarkchain.GetShardConfigByFullShardID(fullshardId),
 			conn:              conn,
@@ -88,7 +89,7 @@ func New(ctx *service.ServiceContext, rBlock *types.RootBlock, conn ConnManager,
 		return nil, err
 	}
 
-	shard.txGenerator = NewTxGenerator(cfg.GenesisDir, shard.fullShardId, cfg.Quarkchain)
+	shard.txGenerator = NewTxGenerator(cfg.GenesisDir, shard.branch.Value, cfg.Quarkchain)
 
 	shard.engine, err = createConsensusEngine(ctx, shard.Config)
 	if err != nil {

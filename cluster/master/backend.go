@@ -320,6 +320,11 @@ func (s *QKCMasterBackend) Start() error {
 	s.protocolManager.Start(s.maxPeers)
 	// start heart beat pre 3 seconds.
 	s.updateShardStatsLoop()
+
+	if s.clusterConfig.Quarkchain.Root.ConsensusConfig.RemoteMine {
+		s.SetMining(true)
+	}
+
 	log.Info("Start cluster successful", "slaveSize", len(s.clientPool))
 	return nil
 }
@@ -606,20 +611,22 @@ func (s *QKCMasterBackend) SendMiningConfigToSlaves(mining bool) error {
 
 // AddRootBlock add root block to all slaves
 func (s *QKCMasterBackend) AddRootBlock(rootBlock *types.RootBlock) error {
-	head := s.rootBlockChain.CurrentBlock().NumberU64()
+	header := s.rootBlockChain.CurrentBlock().Header()
 	s.rootBlockChain.WriteCommittingHash(rootBlock.Hash())
 	_, err := s.rootBlockChain.InsertChain([]types.IBlock{rootBlock})
 	if err != nil {
 		return err
 	}
 	if err := s.broadcastRootBlockToSlaves(rootBlock); err != nil {
-		if err := s.rootBlockChain.SetHead(head); err != nil {
+		if err := s.rootBlockChain.SetHead(header.NumberU64()); err != nil {
 			panic(err)
 		}
 		return err
 	}
 	s.rootBlockChain.ClearCommittingHash()
-	go s.miner.HandleNewTip()
+	if header.Hash() != s.rootBlockChain.CurrentBlock().Hash() {
+		go s.miner.HandleNewTip()
+	}
 	return nil
 }
 
