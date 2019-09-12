@@ -8,7 +8,7 @@ type BlockSychronizerStats struct {
 	AncestorLookupRequests uint64 `json:"ancestor_lookup_requests" gencodec:"required"`
 }
 
-type SyncProgress struct {
+type syncProgress struct {
 	// StartingBlock uint64 // Block number where sync began
 	CurrentBlock uint64 // Current block number where sync is at
 	HighestBlock uint64 // Highest alleged block number in the chain
@@ -19,5 +19,5 @@ type SyncProgress struct {
 // SyncingResult provides information about the current synchronisation status for this node.
 type SyncingResult struct {
 	Syncing bool         `json:"syncing"`
-	Status  SyncProgress `json:"status"`
+	Status  syncProgress `json:"status"`
 }

@@ -139,7 +139,7 @@ func (t *task) sendSync(typ bool, curr, best uint64) {
 	if t.send != nil {
 		t.send(&SyncingResult{
 			Syncing: typ,
-			Status: SyncProgress{
+			Status: syncProgress{
 				CurrentBlock: curr,
 				HighestBlock: best,
 			},
