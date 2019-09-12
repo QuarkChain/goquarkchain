@@ -101,18 +101,8 @@ func (db *RDBDatabase) Get(key []byte) ([]byte, error) {
 	if len(key) == 0 {
 		return nil, errors.New("failed to get data from database, key can't be empty")
 	}
-	dat, err := db.db.Get(db.ro, key)
-	if err != nil {
-		return nil, err
-	}
-	defer dat.Free()
-	rawData := dat.Data()
-	result := make([]byte, len(rawData))
-	copy(result, rawData)
-	if dat.Size() == 0 {
-		return nil, errors.New("failed to get data from rocksdb, return empty data")
-	}
-	return result, nil
+	dat, err := db.db.GetBytes(db.ro, key)
+	return dat, err
 }
 
 // Delete deletes the key from the queue and database
@@ -132,6 +122,8 @@ func (db *RDBDatabase) NewIteratorWithPrefix(prefix []byte) *gorocksdb.Iterator 
 }
 
 func (db *RDBDatabase) Close() {
+	db.wo.Destroy()
+	db.ro.Destroy()
 	db.closeOnce.Do(func() {
 		db.db.Close()
 	})
