@@ -112,7 +112,7 @@ func (db *RDBDatabase) Get(key []byte) ([]byte, error) {
 	if dat.Size() == 0 {
 		return nil, errors.New("failed to get data from rocksdb, return empty data")
 	}
-	return dat.Data(), nil
+	return result, nil
 }
 
 // Delete deletes the key from the queue and database
