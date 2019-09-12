@@ -1795,15 +1795,11 @@ func (m *MinorBlockChain) GetGenesisRootHeight() uint32 {
 	return m.clusterConfig.Quarkchain.GetGenesisRootHeight(m.branch.Value)
 }
 
-func (m *MinorBlockChain) getEvmStateFromHeight(height *uint64) (*state.StateDB, error) {
-	if height == nil || *height == m.CurrentBlock().NumberU64() {
-		return m.State()
+func (m *MinorBlockChain) getEvmStateByBlock(block *types.MinorBlock) (*state.StateDB, error) {
+	if block.NumberU64() == m.CurrentBlock().NumberU64() {
+		return m.currentEvmState, nil
 	}
-	header := m.GetHeaderByNumber(*height + 1)
-	if header != nil {
-		return nil, ErrMinorBlockIsNil
-	}
-	return m.getEvmStateForNewBlock(header, true)
+	return m.StateAt(block.GetMetaData().Root)
 }
 
 func (m *MinorBlockChain) GetRootChainStakes(coinbase account.Recipient, lastMinor common.Hash) (*big.Int,
@@ -1817,8 +1813,7 @@ func (m *MinorBlockChain) GetRootChainStakes(coinbase account.Recipient, lastMin
 	if last == nil {
 		panic(fmt.Sprintf("block not found: %x", lastMinor))
 	}
-	lastHeader := last.Header()
-	evmState, err := m.getEvmStateFromHeight(&lastHeader.Number)
+	evmState, err := m.getEvmStateByBlock(last)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -1842,7 +1837,7 @@ func (m *MinorBlockChain) GetRootChainStakes(coinbase account.Recipient, lastMin
 	toFullShardKey := uint32(0)
 	msg := types.NewMessage(mockSender, &contractAddress, nonce, new(big.Int), 1000000, new(big.Int), data,
 		false, 0, &toFullShardKey, m.GetGenesisToken(), m.GetGenesisToken())
-	context := NewEVMContext(msg, lastHeader, m)
+	context := NewEVMContext(msg, last.Header(), m)
 	evmState.SetQuarkChainConfig(m.clusterConfig.Quarkchain)
 	vmenv := vm.NewEVM(context, evmState, m.ethChainConfig, *m.GetVMConfig())
 	gp := new(GasPool).AddGas(evmState.GetGasLimit().Uint64())

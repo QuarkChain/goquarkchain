@@ -7,7 +7,9 @@ import (
 	"fmt"
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/consensus/doublesha256"
+	"github.com/QuarkChain/goquarkchain/core/vm"
 	"math/big"
+	"runtime"
 	"testing"
 	"time"
 
@@ -17,6 +19,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/core"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/params"
+	ethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/assert"
 )
@@ -81,6 +84,7 @@ func TestBroadcastCrossShardTransactionsWithExtraGas(t *testing.T) {
 	c := cluster[0]
 	c.clstrCfg.Quarkchain.MinMiningGasPrice = new(big.Int)
 	c.clstrCfg.Quarkchain.MinTXPoolGasPrice = new(big.Int)
+	c.clstrCfg.Quarkchain.EnableEvmTimeStamp = 0
 	balance := map[string]*big.Int{c.clstrCfg.Quarkchain.GenesisToken: big.NewInt(1000000)}
 	alloc := config.Allocation{Balances: balance}
 	for _, fsId := range c.clstrCfg.Quarkchain.GetGenesisShardIds() {
@@ -97,7 +101,7 @@ func TestBroadcastCrossShardTransactionsWithExtraGas(t *testing.T) {
 	minorBlockChainB := c.GetShardState(2 | 1)
 	//genesisToken := minorBlockChainA.Config().GenesisToken
 
-	rb, _, err := master.CreateBlockToMine()
+	rb, _, err := master.CreateBlockToMine(nil)
 	assert.NoError(t, err)
 	err = master.AddRootBlock(rb.(*types.RootBlock))
 	assert.NoError(t, err)
@@ -116,7 +120,7 @@ func TestBroadcastCrossShardTransactionsWithExtraGas(t *testing.T) {
 	assert.Equal(t, int(1000000-val.Uint64()-gas), int(ad.Balance.GetTokenBalance(testGenesisTokenID).Int64()))
 	time.Sleep(100 * time.Millisecond)
 	//rb = minorBlockChainA.GetRootTip().CreateBlockToAppend(nil, nil, &acc1, nil, nil)
-	rb, _, err = master.CreateBlockToMine()
+	rb, _, err = master.CreateBlockToMine(nil)
 	assert.NoError(t, err)
 	err = master.AddRootBlock(rb.(*types.RootBlock))
 	assert.NoError(t, err)
@@ -160,7 +164,7 @@ func TestCrossShardContractCall(t *testing.T) {
 	c.clstrCfg.Quarkchain.MinMiningGasPrice = new(big.Int)
 	c.clstrCfg.Quarkchain.MinTXPoolGasPrice = new(big.Int)
 	//Enable xshard receipt
-	c.clstrCfg.Quarkchain.XShardAddReceiptTimestamp = 1
+	c.clstrCfg.Quarkchain.EnableEvmTimeStamp = 1
 	for i := 0; i < int(chainSize); i++ {
 		fsId := i<<16 | int(shardSize) | 0
 		shardCfg := c.clstrCfg.Quarkchain.GetShardConfigByFullShardID(uint32(fsId))
@@ -177,7 +181,7 @@ func TestCrossShardContractCall(t *testing.T) {
 	// can be broadcasted to other shards
 	master := c.master
 	slaves := c.GetSlavelist()
-	rb, _, err := master.CreateBlockToMine()
+	rb, _, err := master.CreateBlockToMine(nil)
 	assert.NoError(t, err)
 	err = master.AddRootBlock(rb.(*types.RootBlock))
 	assert.NoError(t, err)
@@ -217,7 +221,7 @@ func TestCrossShardContractCall(t *testing.T) {
 	assert.Equal(t, v0, hex.EncodeToString(result.Bytes()))
 	//should include b1
 	time.Sleep(100 * time.Millisecond)
-	rb, _, err = master.CreateBlockToMine()
+	rb, _, err = master.CreateBlockToMine(nil)
 	assert.NoError(t, err)
 	err = master.AddRootBlock(rb.(*types.RootBlock))
 	assert.NoError(t, err)
@@ -235,7 +239,7 @@ func TestCrossShardContractCall(t *testing.T) {
 	assert.NoError(t, err)
 	//should include b2
 	time.Sleep(100 * time.Millisecond)
-	rb, _, err = master.CreateBlockToMine()
+	rb, _, err = master.CreateBlockToMine(nil)
 	assert.NoError(t, err)
 	err = master.AddRootBlock(rb.(*types.RootBlock))
 	assert.NoError(t, err)
@@ -268,7 +272,7 @@ func TestCrossShardContractCall(t *testing.T) {
 	assert.NoError(t, err)
 	//should include b4
 	time.Sleep(100 * time.Millisecond)
-	rb, _, err = master.CreateBlockToMine()
+	rb, _, err = master.CreateBlockToMine(nil)
 	assert.NoError(t, err)
 	err = master.AddRootBlock(rb.(*types.RootBlock))
 	assert.NoError(t, err)
@@ -322,7 +326,7 @@ func TestCrossShardTransfer(t *testing.T) {
 
 	master := c.master
 	slaves := c.GetSlavelist()
-	rb, _, err := master.CreateBlockToMine()
+	rb, _, err := master.CreateBlockToMine(nil)
 	assert.NoError(t, err)
 	err = master.AddRootBlock(rb.(*types.RootBlock))
 	assert.NoError(t, err)
@@ -336,7 +340,7 @@ func TestCrossShardTransfer(t *testing.T) {
 	err = c.GetShard(1).AddMinorBlock(b0)
 	assert.NoError(t, err)
 
-	rb, _, err = master.CreateBlockToMine()
+	rb, _, err = master.CreateBlockToMine(nil)
 	assert.NoError(t, err)
 	err = master.AddRootBlock(rb.(*types.RootBlock))
 	assert.NoError(t, err)
@@ -385,7 +389,7 @@ func TestBroadcastCrossShardTransaction1x2(t *testing.T) {
 	minorBlockChainB := c.GetShardState(2<<16 + 1)
 	minorBlockChainC := c.GetShardState(3<<16 + 1)
 
-	rb, _, err := master.CreateBlockToMine()
+	rb, _, err := master.CreateBlockToMine(nil)
 	assert.NoError(t, err)
 	assert.NoError(t, master.AddRootBlock(rb.(*types.RootBlock)))
 
@@ -444,7 +448,7 @@ func TestBroadcastCrossShardTransaction1x2(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NoError(t, master.AddMinorBlock(b3.Header().Branch.Value, b3))
 
-	rb, _, err = master.CreateBlockToMine()
+	rb, _, err = master.CreateBlockToMine(nil)
 	assert.NoError(t, err)
 	assert.NoError(t, master.AddRootBlock(rb.(*types.RootBlock)))
 	//b4 should include the withdraw of tx1
@@ -485,6 +489,7 @@ func TestBroadcastCrossShardTransaction2x1(t *testing.T) {
 	c := cluster[0]
 	c.clstrCfg.Quarkchain.MinMiningGasPrice = new(big.Int)
 	c.clstrCfg.Quarkchain.MinTXPoolGasPrice = new(big.Int)
+	c.clstrCfg.Quarkchain.EnableEvmTimeStamp = 0
 	minorCoinbase := big.NewInt(1000000)
 	balance := map[string]*big.Int{c.clstrCfg.Quarkchain.GenesisToken: big.NewInt(1000000)}
 	alloc := config.Allocation{Balances: balance}
@@ -505,7 +510,7 @@ func TestBroadcastCrossShardTransaction2x1(t *testing.T) {
 	shardA := c.GetShard(1)
 	shardB := c.GetShard(1<<16 + 1)
 
-	rb, _, err := mstr.CreateBlockToMine()
+	rb, _, err := mstr.CreateBlockToMine(nil)
 	assert.NoError(t, err)
 	assert.NoError(t, mstr.AddRootBlock(rb.(*types.RootBlock)))
 
@@ -561,7 +566,7 @@ func TestBroadcastCrossShardTransaction2x1(t *testing.T) {
 	assert.Equal(t, tx3.Hash(), xShardTxList.TXList[0].TxHash)
 
 	c.clstrCfg.Quarkchain.Root.CoinbaseAddress = acc1
-	rb, _, err = mstr.CreateBlockToMine()
+	rb, _, err = mstr.CreateBlockToMine(nil)
 	assert.NoError(t, mstr.AddRootBlock(rb.(*types.RootBlock)))
 
 	//b3 should include the deposits of tx1, t2, t3
@@ -584,7 +589,7 @@ func TestBroadcastCrossShardTransaction2x1(t *testing.T) {
 	cntr.assertAll()
 
 	c.clstrCfg.Quarkchain.Root.CoinbaseAddress = acc3
-	rb, _, err = mstr.CreateBlockToMine()
+	rb, _, err = mstr.CreateBlockToMine(nil)
 	assert.NoError(t, mstr.AddRootBlock(rb.(*types.RootBlock)))
 
 	//no change
@@ -601,7 +606,7 @@ func TestBroadcastCrossShardTransaction2x1(t *testing.T) {
 	cntr.assertAll()
 
 	c.clstrCfg.Quarkchain.Root.CoinbaseAddress = acc4
-	rb, _, err = mstr.CreateBlockToMine()
+	rb, _, err = mstr.CreateBlockToMine(nil)
 	assert.NoError(t, mstr.AddRootBlock(rb.(*types.RootBlock)))
 
 	//no change
@@ -640,7 +645,7 @@ func TestCrossShardContractCreate(t *testing.T) {
 	c.clstrCfg.Quarkchain.MinMiningGasPrice = new(big.Int)
 	c.clstrCfg.Quarkchain.MinTXPoolGasPrice = new(big.Int)
 	c.clstrCfg.Quarkchain.XShardGasDDOSFixRootHeight = 0
-	c.clstrCfg.Quarkchain.XShardAddReceiptTimestamp = 1
+	c.clstrCfg.Quarkchain.EnableEvmTimeStamp = 1
 	balance := map[string]*big.Int{c.clstrCfg.Quarkchain.GenesisToken: big.NewInt(1000000)}
 	alloc := config.Allocation{Balances: balance}
 	c.clstrCfg.Quarkchain.Root.CoinbaseAmount = big.NewInt(10)
@@ -660,7 +665,7 @@ func TestCrossShardContractCreate(t *testing.T) {
 	shardB := c.GetShard(1<<16 + 1)
 
 	time.Sleep(500 * time.Millisecond)
-	rb, _, err := mstr.CreateBlockToMine()
+	rb, _, err := mstr.CreateBlockToMine(nil)
 	assert.NoError(t, err)
 	assert.NoError(t, mstr.AddRootBlock(rb.(*types.RootBlock)))
 
@@ -675,7 +680,7 @@ func TestCrossShardContractCreate(t *testing.T) {
 	assert.Equal(t, 1, int(receipt.Status))
 
 	//should include b1
-	rb, _, err = mstr.CreateBlockToMine()
+	rb, _, err = mstr.CreateBlockToMine(nil)
 	assert.NoError(t, err)
 	assert.NoError(t, mstr.AddRootBlock(rb.(*types.RootBlock)))
 
@@ -731,6 +736,8 @@ func TestPoSWOnRootChain(t *testing.T) {
 	var chainSize, shardSize, slaveSize uint32 = 2, 1, 2
 	cfglist := GetClusterConfig(1, chainSize, shardSize, slaveSize, nil, defaultbootNode,
 		config.PoWDoubleSha256, false)
+	contractAddr := vm.SystemContracts[vm.ROOT_CHAIN_POSW].Address()
+	contractCode := ethcommon.Hex2Bytes(`60806040526004361061007b5760003560e01c8063853828b61161004e578063853828b6146101b5578063a69df4b5146101ca578063f83d08ba146101df578063fd8c4646146101e75761007b565b806316934fc4146100d85780632e1a7d4d1461013c578063485d3834146101685780636c19e7831461018f575b336000908152602081905260409020805460ff16156100cb5760405162461bcd60e51b815260040180806020018281038252602681526020018061062e6026913960400191505060405180910390fd5b6100d5813461023b565b50005b3480156100e457600080fd5b5061010b600480360360208110156100fb57600080fd5b50356001600160a01b031661029b565b6040805194151585526020850193909352838301919091526001600160a01b03166060830152519081900360800190f35b34801561014857600080fd5b506101666004803603602081101561015f57600080fd5b50356102cf565b005b34801561017457600080fd5b5061017d61034a565b60408051918252519081900360200190f35b610166600480360360208110156101a557600080fd5b50356001600160a01b0316610351565b3480156101c157600080fd5b506101666103c8565b3480156101d657600080fd5b50610166610436565b6101666104f7565b3480156101f357600080fd5b5061021a6004803603602081101561020a57600080fd5b50356001600160a01b0316610558565b604080519283526001600160a01b0390911660208301528051918290030190f35b8015610297576002820154808201908111610291576040805162461bcd60e51b81526020600482015260116024820152706164646974696f6e206f766572666c6f7760781b604482015290519081900360640190fd5b60028301555b5050565b600060208190529081526040902080546001820154600283015460039093015460ff9092169290916001600160a01b031684565b336000908152602081905260409020805460ff1680156102f3575080600101544210155b6102fc57600080fd5b806002015482111561030d57600080fd5b6002810180548390039055604051339083156108fc029084906000818181858888f19350505050158015610345573d6000803e3d6000fd5b505050565b6203f48081565b336000908152602081905260409020805460ff16156103a15760405162461bcd60e51b81526004018080602001828103825260268152602001806106546026913960400191505060405180910390fd5b6003810180546001600160a01b0319166001600160a01b038416179055610297813461023b565b6103d06105fa565b5033600090815260208181526040918290208251608081018452815460ff16151581526001820154928101929092526002810154928201839052600301546001600160a01b031660608201529061042657600080fd5b61043381604001516102cf565b50565b336000908152602081905260409020805460ff16156104865760405162461bcd60e51b815260040180806020018281038252602b8152602001806106a1602b913960400191505060405180910390fd5b60008160020154116104df576040805162461bcd60e51b815260206004820152601b60248201527f73686f756c642068617665206578697374696e67207374616b65730000000000604482015290519081900360640190fd5b805460ff191660019081178255426203f48001910155565b336000908152602081905260409020805460ff166105465760405162461bcd60e51b815260040180806020018281038252602781526020018061067a6027913960400191505060405180910390fd5b805460ff19168155610433813461023b565b6000806105636105fa565b506001600160a01b03808416600090815260208181526040918290208251608081018452815460ff161580158252600183015493820193909352600282015493810193909352600301549092166060820152906105c75750600091508190506105f5565b60608101516000906001600160a01b03166105e35750836105ea565b5060608101515b604090910151925090505b915091565b6040518060800160405280600015158152602001600081526020016000815260200160006001600160a01b03168152509056fe73686f756c64206f6e6c7920616464207374616b657320696e206c6f636b656420737461746573686f756c64206f6e6c7920736574207369676e657220696e206c6f636b656420737461746573686f756c64206e6f74206c6f636b20616c72656164792d6c6f636b6564206163636f756e747373686f756c64206e6f7420756e6c6f636b20616c72656164792d756e6c6f636b6564206163636f756e7473a265627a7a723158209e63eb3a780a7d11481d2a83c4e24d05d871e092ff25110f135022766bf6761564736f6c634300050b0032`)
 	for i := range cfglist {
 		cfglist[i].Quarkchain.GuardianPrivateKey = []byte{}
 		root := cfglist[i].Quarkchain.Root
@@ -741,6 +748,11 @@ func TestPoSWOnRootChain(t *testing.T) {
 		poswConfig.WindowSize = 2
 		//should always pass pow check if posw is applied
 		poswConfig.DiffDivider = 1000000
+		cfglist[i].Quarkchain.Chains[0].Genesis.Alloc = map[account.Address]config.Allocation{
+			account.Address{Recipient: contractAddr, FullShardKey: 0}: {
+				Code: contractCode,
+			},
+		}
 	}
 	_, cluster := CreateClusterList(1, cfglist)
 	cluster.Start(5*time.Second, true)
@@ -752,11 +764,11 @@ func TestPoSWOnRootChain(t *testing.T) {
 
 	addRootBlock := func(addr account.Address, sign, mine bool) error {
 		cfg.CoinbaseAddress = addr
-		rootBlock, diff, err := mstr.CreateBlockToMine()
+		rootBlock, diff, err := mstr.CreateBlockToMine(nil)
 		if err != nil {
 			return err
 		}
-		fmt.Printf("number=%d, coinbase=%x\n", rootBlock.NumberU64(), rootBlock.IHeader().GetCoinbase())
+		fmt.Printf("number=%d, diff=%v\n", rootBlock.NumberU64(), diff)
 		assert.Equal(t, rootBlock.IHeader().GetDifficulty(), diff)
 		rBlock := rootBlock.(*types.RootBlock)
 		if sign {
@@ -797,4 +809,36 @@ func TestPoSWOnRootChain(t *testing.T) {
 	assert.NoError(t, addRootBlock(stakerAddr, true, false))
 	// 1000000 quota used up; tried posw but no diff change
 	assert.EqualError(t, addRootBlock(stakerAddr, true, false), "invalid proof-of-work")
+}
+
+func TestGetWorkFromMaster(t *testing.T) {
+	var (
+		chainSize uint32 = 1
+		shardSize uint32 = 1
+	)
+	cfglist := GetClusterConfig(1, chainSize, shardSize, chainSize, nil, defaultbootNode,
+		config.PoWDoubleSha256, true)
+	cfglist[0].Quarkchain.Root.PoSWConfig.Enabled = true
+	cfglist[0].Quarkchain.Root.ConsensusConfig.RemoteMine = true
+	_, clstrList := CreateClusterList(1, cfglist)
+	clstrList.Start(5*time.Second, true)
+
+	// clstrList.PrintPeerList()
+	var (
+		mstr = clstrList[0].GetMaster()
+	)
+	mstr.SetMining(true)
+	coinbaseAddr := &account.Recipient{}
+	assert.Equal(t, retryTrueWithTimeout(func() bool {
+		work, err := mstr.GetWork(account.NewBranch(0), coinbaseAddr)
+		if err != nil {
+			return false
+		}
+		return work.Difficulty.Uint64() == uint64(1000000)
+	}, 2), true)
+	// TODO need to change remote type test.
+
+	clstrList.Stop()
+	time.Sleep(1 * time.Second)
+	runtime.GC()
 }

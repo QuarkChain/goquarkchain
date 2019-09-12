@@ -20,6 +20,7 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -456,7 +457,8 @@ func (r *deployRootChainPoSWStakingContract) Run(input []byte, evm *EVM, contrac
 		bytecode   = SystemContracts[ROOT_CHAIN_POSW].bytecode
 		value      = big.NewInt(0)
 	)
+	caller := AccountRef(*contract.CodeAddr)
 	// Use predetermined contract address
-	res, _, _, err := evm.Create(contract.caller, bytecode, contract.Gas, value, &targetAddr)
+	res, _, _, err := evm.Create(caller, bytecode, contract.Gas, value, &targetAddr)
 	return res, err
 }
