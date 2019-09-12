@@ -10,7 +10,6 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"io"
 	"math/big"
-	mrand "math/rand"
 	"sort"
 	"sync"
 	"sync/atomic"
@@ -523,7 +522,7 @@ func (bc *RootBlockChain) WriteBlockWithState(block *types.RootBlock) (status Wr
 			if bc.shouldPreserve != nil {
 				currentPreserve, blockPreserve = bc.shouldPreserve(currentBlock), bc.shouldPreserve(block)
 			}
-			reorg = !currentPreserve && (blockPreserve || mrand.Float64() < 0.5)
+			reorg = !currentPreserve && blockPreserve
 		}
 	}
 	if reorg {

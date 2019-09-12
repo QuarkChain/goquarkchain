@@ -296,7 +296,7 @@ func (st *StateTransition) AddCrossShardTxDeposit(intrinsicGas uint64) (ret []by
 	if !evm.CanTransfer(state, msg.From(), st.value, st.msg.TransferTokenID()) {
 		return nil, st.gas, false, vm.ErrInsufficientBalance
 	}
-	var remoteGasReserved uint64
+	remoteGasReserved := uint64(0)
 	if st.transferFailureByPoSWBalanceCheck() {
 		//Currently, burn all gas
 		st.gas = 0
