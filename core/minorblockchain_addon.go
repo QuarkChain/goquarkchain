@@ -845,7 +845,7 @@ func (m *MinorBlockChain) AddRootBlock(rBlock *types.RootBlock) (bool, error) {
 				log.Error(m.logInfo, "add rootBlock err", "block not exist", "height", mHeader.Number, "hash", mHeader.Hash().String(), "blockNumber", rBlock.NumberU64())
 				return false, ErrMinorBlockIsNil
 			}
-			shardHeaders = append(shardHeaders, mHeader)Downloading blocks
+			shardHeaders = append(shardHeaders, mHeader)
 			continue
 		}
 		prevRootHeader := m.GetRootBlockByHash(mHeader.PrevRootBlockHash)
