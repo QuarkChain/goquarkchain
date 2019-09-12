@@ -105,6 +105,10 @@ func (db *RDBDatabase) Get(key []byte) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer dat.Free()
+	rawData := dat.Data()
+	result := make([]byte, len(rawData))
+	copy(result, rawData)
 	if dat.Size() == 0 {
 		return nil, errors.New("failed to get data from rocksdb, return empty data")
 	}
@@ -154,6 +158,7 @@ func (b *rdbBatch) Delete(key []byte) error {
 }
 
 func (b *rdbBatch) Write() error {
+	defer b.w.Destroy()
 	return b.db.Write(b.wo, b.w)
 }
 
