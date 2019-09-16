@@ -50,10 +50,9 @@ func (q *QKCHash) RefreshWork(tip uint64) {
 // New returns a QKCHash scheme.
 func New(useNative bool, diffCalculator consensus.DifficultyCalculator, remote bool, pubKey []byte) *QKCHash {
 	q := &QKCHash{
-		useNative: false,
+		useNative: useNative,
 		// TODO: cache may depend on block, so a LRU-stype cache could be helpful
-		//TODO !!!!!!!!!! later to fix
-		cache: generateCache(cacheEntryCnt, cacheSeed.Bytes(), false),
+		cache: generateCache(cacheEntryCnt, cacheSeed, useNative),
 	}
 	spec := consensus.MiningSpec{
 		Name:       config.PoWQkchash,

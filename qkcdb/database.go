@@ -106,12 +106,12 @@ func (db *RDBDatabase) Get(key []byte) ([]byte, error) {
 		return nil, err
 	}
 	defer dat.Free()
-	rawData := dat.Data()
-	result := make([]byte, len(rawData))
-	copy(result, rawData)
 	if dat.Size() == 0 {
 		return nil, errors.New("failed to get data from rocksdb, return empty data")
 	}
+	rawData := dat.Data()
+	result := make([]byte, len(rawData))
+	copy(result, rawData)
 	return result, nil
 }
 
