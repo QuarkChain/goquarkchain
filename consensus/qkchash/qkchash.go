@@ -52,7 +52,7 @@ func New(useNative bool, diffCalculator consensus.DifficultyCalculator, remote b
 	q := &QKCHash{
 		useNative: useNative,
 		// TODO: cache may depend on block, so a LRU-stype cache could be helpful
-		cache: generateCache(cacheEntryCnt, cacheSeed, useNative),
+		cache: generateCache(cacheEntryCnt, cacheSeed.Bytes(), useNative),
 	}
 	spec := consensus.MiningSpec{
 		Name:       config.PoWQkchash,

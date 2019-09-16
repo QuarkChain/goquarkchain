@@ -15,7 +15,7 @@ const (
 )
 
 var (
-	cacheSeed = []byte{}
+	cacheSeed = common.Hash{}
 )
 
 // qkcCache is the union type of cache for qkchash algo.
