@@ -3,7 +3,6 @@ package qkchash
 import (
 	"encoding/binary"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
-
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/core/state"
 	"github.com/QuarkChain/goquarkchain/core/types"
@@ -18,7 +17,8 @@ type QKCHash struct {
 	// TODO: in the future cache may depend on block height
 	cache qkcCache
 	// A flag indicating which impl (c++ native or go) to use
-	useNative bool
+	useNative      bool
+	qkcHashXHeight uint64
 }
 
 // Prepare initializes the consensus fields of a block header according to the
@@ -37,8 +37,11 @@ func (q *QKCHash) hashAlgo(cache *consensus.ShareCache) (err error) {
 	binary.LittleEndian.PutUint64(cache.Seed[32:], cache.Nonce)
 
 	if q.useNative {
-		cache.Digest, cache.Result, err = qkcHashNative(cache.Seed, q.cache)
+		cache.Digest, cache.Result, err = qkcHashNative(cache.Seed, q.cache, cache.Height >= q.qkcHashXHeight)
 	} else {
+		if cache.Height >= q.qkcHashXHeight {
+			panic("qkcHashX go not implement")
+		}
 		cache.Digest, cache.Result, err = qkcHashGo(cache.Seed, q.cache)
 	}
 	return
@@ -48,11 +51,12 @@ func (q *QKCHash) RefreshWork(tip uint64) {
 }
 
 // New returns a QKCHash scheme.
-func New(useNative bool, diffCalculator consensus.DifficultyCalculator, remote bool, pubKey []byte) *QKCHash {
+func New(useNative bool, diffCalculator consensus.DifficultyCalculator, remote bool, pubKey []byte, qkcHashXHeight uint64) *QKCHash {
 	q := &QKCHash{
 		useNative: useNative,
 		// TODO: cache may depend on block, so a LRU-stype cache could be helpful
-		cache: generateCache(cacheEntryCnt, cacheSeed, useNative),
+		cache:          generateCache(cacheEntryCnt, cacheSeed.Bytes(), useNative),
+		qkcHashXHeight: qkcHashXHeight,
 	}
 	spec := consensus.MiningSpec{
 		Name:       config.PoWQkchash,

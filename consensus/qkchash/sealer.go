@@ -28,9 +28,10 @@ func (q *QKCHash) verifySeal(chain consensus.ChainReader, header types.IHeader, 
 		diff = big.NewInt(1)
 	}
 	minerRes := consensus.ShareCache{
-		Hash:  header.SealHash().Bytes(),
-		Seed:  make([]byte, 40),
-		Nonce: header.GetNonce(),
+		Height: header.NumberU64(),
+		Hash:   header.SealHash().Bytes(),
+		Seed:   make([]byte, 40),
+		Nonce:  header.GetNonce(),
 	}
 	err := q.hashAlgo(&minerRes)
 	if err != nil {

@@ -105,6 +105,7 @@ type QuarkChainConfig struct {
 	defaultChainTokenID               uint64
 	allowTokenIDs                     map[uint64]bool
 	EnableEvmTimeStamp                uint64      `json:"ENABLE_EVM_TIMESTAMP"`
+	EnableQkcHashXHeight              uint64      `json:"ENABLE_QKCHASHX_HEIGHT"`
 	DisablePowCheck                   bool        `json:"DISABLE_POW_CHECK"`
 	XShardGasDDOSFixRootHeight        uint64      `json:"XSHARD_GAS_DDOS_FIX_ROOT_HEIGHT"`
 	MinTXPoolGasPrice                 *big.Int    `json:"MIN_TX_POOL_GAS_PRICE"`

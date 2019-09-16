@@ -102,8 +102,11 @@ func (s EIP155Signer) Sender(tx *EvmTransaction) (account.Recipient, error) {
 	if tx.data.Version == 0 {
 		return recoverPlain(tx.getUnsignedHash(), tx.data.R, tx.data.S, tx.data.V, true)
 	} else if tx.data.Version == 1 {
-		//todo
-		return account.Recipient{}, fmt.Errorf("Version %d is not implemented yet", tx.data.Version)
+		hashTyped, err := tx.typedHash()
+		if err != nil {
+			return account.Recipient{}, nil
+		}
+		return recoverPlain(hashTyped, tx.data.R, tx.data.S, tx.data.V, true)
 	} else {
 		return account.Recipient{}, fmt.Errorf("Version %d is not suppot", tx.data.Version)
 	}
