@@ -8,6 +8,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto/sha3"
 	"hash"
 	"sort"
+	"sync"
 )
 
 const (
@@ -16,22 +17,53 @@ const (
 )
 
 var (
-	cacheSeed   = make([][]byte, 0, 32)
+	cache       = NewcacheSeed()
 	EpochLength = uint64(30000) //blocks pre epoch
 )
 
-func init() {
-	cacheSeed = append(cacheSeed, common.Hash{}.Bytes())
+type cacheSeed struct {
+	mu   sync.RWMutex
+	seed [][]byte
+}
+
+func NewcacheSeed() *cacheSeed {
+	seed := make([][]byte, 0, 32)
+	seed = append(seed, common.Hash{}.Bytes())
+	return &cacheSeed{
+		seed: seed,
+	}
+}
+func (c *cacheSeed) getLastOne() []byte {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return c.seed[len(c.seed)-1]
+}
+
+func (c *cacheSeed) Len() int {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return len(c.seed)
+}
+func (c *cacheSeed) appendOne(data []byte) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.seed = append(c.seed, data)
+}
+
+func (c *cacheSeed) getDataWithIndex(index int) []byte {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return c.seed[index]
 }
 
 func getSeedFromBlockNumber(block uint64) []byte {
 	keccak256 := makeHasher(sha3.NewKeccak256())
-	for i := 0; len(cacheSeed) <= int(block/EpochLength); i++ {
-		seed := cacheSeed[len(cacheSeed)-1]
+	for i := 0; cache.Len() <= int(block/EpochLength); i++ {
+		seed := cache.getLastOne()
 		keccak256(seed, seed)
-		cacheSeed = append(cacheSeed, seed)
+		cache.appendOne(seed)
 	}
-	return cacheSeed[block/EpochLength]
+	return cache.getDataWithIndex(int(block / EpochLength))
 }
 
 // qkcCache is the union type of cache for qkchash algo.

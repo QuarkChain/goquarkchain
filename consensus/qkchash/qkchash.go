@@ -34,10 +34,11 @@ func (q *QKCHash) Finalize(chain consensus.ChainReader, header types.IHeader, st
 
 func (q *QKCHash) hashAlgo(cache *consensus.ShareCache) (err error) {
 	seed := getSeedFromBlockNumber(cache.Height)
+	copy(cache.Seed, seed)
 	binary.LittleEndian.PutUint64(cache.Seed[32:], cache.Nonce)
 
 	if q.useNative {
-		cache.Digest, cache.Result, err = qkcHashNative(seed, q.cache, cache.Height >= q.qkcHashXHeight)
+		cache.Digest, cache.Result, err = qkcHashNative(cache.Seed, q.cache, cache.Height >= q.qkcHashXHeight)
 	} else {
 		if cache.Height >= q.qkcHashXHeight {
 			panic("qkcHashX go not implement")
@@ -55,7 +56,7 @@ func New(useNative bool, diffCalculator consensus.DifficultyCalculator, remote b
 	q := &QKCHash{
 		useNative: useNative,
 		// TODO: cache may depend on block, so a LRU-stype cache could be helpful
-		cache:          generateCache(cacheEntryCnt, cacheSeed[0], useNative),
+		cache:          generateCache(cacheEntryCnt, cache.getDataWithIndex(0), useNative),
 		qkcHashXHeight: qkcHashXHeight,
 	}
 	spec := consensus.MiningSpec{
