@@ -81,6 +81,27 @@ func qkcHashNative(seed []byte, cache qkcCache) (digest []byte, result []byte, e
 	return digest, result, nil
 }
 
+// qkcHashNative calls the native c++ implementation through SWIG.
+func qkcHashXNative(seed []byte, cache qkcCache) (digest []byte, result []byte, err error) {
+	// Combine header+nonce into a seed
+	seed = crypto.Keccak512(seed)
+	var seedArray [8]uint64
+	for i := 0; i < 8; i++ {
+		seedArray[i] = binary.LittleEndian.Uint64(seed[i*8:])
+	}
+	hashRes, err := native.HashWithRotationStats(cache.nativeCache, seedArray)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	digest = make([]byte, common.HashLength)
+	for i, val := range hashRes {
+		binary.LittleEndian.PutUint64(digest[i*8:], val)
+	}
+	result = crypto.Keccak256(append(seed, digest...))
+	return digest, result, nil
+}
+
 // qkcHashGo is the Go implementation.
 func qkcHashGo(seed []byte, cache qkcCache) (digest []byte, result []byte, err error) {
 	const mixBytes = 128
