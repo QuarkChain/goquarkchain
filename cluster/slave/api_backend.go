@@ -6,6 +6,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
 	"github.com/QuarkChain/goquarkchain/cluster/shard"
+	"github.com/QuarkChain/goquarkchain/cluster/slave/filters"
 	qcom "github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/core/types"
@@ -507,7 +508,7 @@ func (s *SlaveBackend) EventMux() *event.TypeMux {
 	return s.eventMux
 }
 
-func (s *SlaveBackend) GetShardBackend(fullShardId uint32) (*shard.ShardBackend, error) {
+func (s *SlaveBackend) GetShardBackend(fullShardId uint32) (filters.ShardBackend, error) {
 	if shrd, ok := s.shards[fullShardId]; ok {
 		return shrd, nil
 	}

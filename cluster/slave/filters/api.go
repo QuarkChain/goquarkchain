@@ -3,7 +3,6 @@ package filters
 
 import (
 	"context"
-	"github.com/QuarkChain/goquarkchain/cluster/shard"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"sync"
 	"time"
@@ -20,7 +19,7 @@ var (
 )
 
 type SlaveBackend interface {
-	GetShardBackend(fullShardId uint32) (*shard.ShardBackend, error)
+	GetShardBackend(fullShardId uint32) (ShardBackend, error)
 	GetFullShardList() []uint32
 }
 
