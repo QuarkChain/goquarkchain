@@ -1796,7 +1796,7 @@ func (m *MinorBlockChain) GetGenesisRootHeight() uint32 {
 }
 
 func (m *MinorBlockChain) getEvmStateByBlock(block *types.MinorBlock) (*state.StateDB, error) {
-	if block.NumberU64() == m.CurrentBlock().NumberU64() {
+	if bytes.Equal(block.Hash().Bytes(), m.CurrentBlock().Hash().Bytes()) {
 		return m.currentEvmState, nil
 	}
 	return m.StateAt(block.GetMetaData().Root)

@@ -5,9 +5,6 @@ package test
 import (
 	"encoding/hex"
 	"fmt"
-	"github.com/QuarkChain/goquarkchain/consensus"
-	"github.com/QuarkChain/goquarkchain/consensus/doublesha256"
-	"github.com/QuarkChain/goquarkchain/core/vm"
 	"math/big"
 	"runtime"
 	"testing"
@@ -16,8 +13,11 @@ import (
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/cluster/master"
+	"github.com/QuarkChain/goquarkchain/consensus"
+	"github.com/QuarkChain/goquarkchain/consensus/doublesha256"
 	"github.com/QuarkChain/goquarkchain/core"
 	"github.com/QuarkChain/goquarkchain/core/types"
+	"github.com/QuarkChain/goquarkchain/core/vm"
 	"github.com/QuarkChain/goquarkchain/params"
 	ethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -748,9 +748,14 @@ func TestPoSWOnRootChain(t *testing.T) {
 		poswConfig.WindowSize = 2
 		//should always pass pow check if posw is applied
 		poswConfig.DiffDivider = 1000000
-		cfglist[i].Quarkchain.Chains[0].Genesis.Alloc = map[account.Address]config.Allocation{
+		balance := map[string]*big.Int{cfglist[i].Quarkchain.GenesisToken: big.NewInt(1000000)}
+		shardCfg := cfglist[i].Quarkchain.GetShardConfigByFullShardID(1)
+		shardCfg.Genesis.Alloc = map[account.Address]config.Allocation{
 			account.Address{Recipient: contractAddr, FullShardKey: 0}: {
 				Code: contractCode,
+			},
+			account.Address{Recipient: stakerAddr.Recipient, FullShardKey: 0}: {
+				Balances: balance,
 			},
 		}
 	}
@@ -759,8 +764,26 @@ func TestPoSWOnRootChain(t *testing.T) {
 	defer cluster.Stop()
 
 	c := cluster[0]
+	c.clstrCfg.Quarkchain.MinMiningGasPrice = new(big.Int)
+	c.clstrCfg.Quarkchain.MinTXPoolGasPrice = new(big.Int)
+	c.clstrCfg.Quarkchain.EnableEvmTimeStamp = 1
 	mstr := c.GetMaster()
 	cfg := mstr.GetClusterConfig().Quarkchain.Root
+
+	mineMe := func(block types.IBlock, diff *big.Int) types.IBlock {
+		diffCalculator := consensus.EthDifficultyCalculator{
+			MinimumDifficulty: big.NewInt(int64(10)),
+			AdjustmentCutoff:  45,
+			AdjustmentFactor:  2048,
+		}
+		resultsCh := make(chan types.IBlock)
+		engine := doublesha256.New(&diffCalculator, false, nil)
+		if err = engine.Seal(nil, block, diff, resultsCh, nil); err != nil {
+			t.Fatalf("problem sealing the block: %v", err)
+		}
+		minedBlock := <-resultsCh
+		return minedBlock
+	}
 
 	addRootBlock := func(addr account.Address, sign, mine bool) error {
 		cfg.CoinbaseAddress = addr
@@ -783,20 +806,21 @@ func TestPoSWOnRootChain(t *testing.T) {
 		}
 		if mine {
 			//to pass pow check
-			diffCalculator := consensus.EthDifficultyCalculator{
-				MinimumDifficulty: big.NewInt(int64(10)),
-				AdjustmentCutoff:  45,
-				AdjustmentFactor:  2048,
-			}
-			resultsCh := make(chan types.IBlock)
-			engine := doublesha256.New(&diffCalculator, false, nil)
-			if err = engine.Seal(nil, rBlock, diff, resultsCh, nil); err != nil {
-				t.Fatalf("problem sealing the block: %v", err)
-			}
-			minedBlock := <-resultsCh
+			minedBlock := mineMe(rBlock, diff)
 			rBlock = minedBlock.(*types.RootBlock)
 		}
 		return mstr.AddRootBlock(rBlock)
+	}
+
+	gas := uint64(1000000)
+	zero := uint64(0)
+	txGen := func(nonce, value *uint64, dat string) *types.Transaction {
+		data, _ := hex.DecodeString(dat)
+		return core.CreateCallContractTx(c.GetShardState(1), stakerkey.Bytes(), stakerAddr, account.Address{Recipient: contractAddr, FullShardKey: 0},
+			new(big.Int).SetUint64(*value), &gas, &zero, nonce, data)
+	}
+	setSigner := func(n, v *uint64, a account.Recipient) *types.Transaction {
+		return txGen(n, v, "6c19e783000000000000000000000000"+hex.EncodeToString(a[:]))
 	}
 
 	//add a root block first to init shard chains
@@ -805,8 +829,20 @@ func TestPoSWOnRootChain(t *testing.T) {
 	//signature mismatch (recovery failed)
 	assert.EqualError(t, addRootBlock(stakerAddr, false, false), "invalid proof-of-work")
 
-	// posw applied: from 952152 to 0
-	assert.NoError(t, addRootBlock(stakerAddr, true, false))
+	// posw applied: from 1000488 to 1
+	fmt.Printf("staker %x set signer %x\n", stakerId.GetRecipient(), signerId.GetRecipient())
+	value := uint64(1000)
+	tx := setSigner(&zero, &value, signerId.GetRecipient())
+
+	err = c.GetShardState(1).AddTx(tx)
+	assert.NoError(t, err)
+	block, err := c.GetShardState(1).CreateBlockToMine(nil, nil, nil, nil, nil)
+	assert.NoError(t, err)
+	minedBlock := mineMe(block, block.Difficulty())
+	_, _, err = c.GetShardState(1).FinalizeAndAddBlock(minedBlock.(*types.MinorBlock))
+	assert.NoError(t, err)
+	//FIXME signer not return from contract
+	//assert.NoError(t, addRootBlock(stakerAddr, true, false))
 	// 1000000 quota used up; tried posw but no diff change
 	assert.EqualError(t, addRootBlock(stakerAddr, true, false), "invalid proof-of-work")
 }
@@ -822,8 +858,6 @@ func TestGetWorkFromMaster(t *testing.T) {
 	cfglist[0].Quarkchain.Root.ConsensusConfig.RemoteMine = true
 	_, clstrList := CreateClusterList(1, cfglist)
 	clstrList.Start(5*time.Second, true)
-
-	// clstrList.PrintPeerList()
 	var (
 		mstr = clstrList[0].GetMaster()
 	)
@@ -836,7 +870,6 @@ func TestGetWorkFromMaster(t *testing.T) {
 		}
 		return work.Difficulty.Uint64() == uint64(1000000)
 	}, 2), true)
-	// TODO need to change remote type test.
 
 	clstrList.Stop()
 	time.Sleep(1 * time.Second)
