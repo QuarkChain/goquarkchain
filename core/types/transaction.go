@@ -4,7 +4,6 @@ package types
 
 import (
 	"container/heap"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"github.com/QuarkChain/goquarkchain/account"
@@ -168,15 +167,12 @@ func (tx *EvmTransaction) getUnsignedHash() common.Hash {
 	return rlpHash(unsigntx)
 }
 
-func (tx *EvmTransaction) hashTyped() (common.Hash, error) {
+func (tx *EvmTransaction) typedHash() (common.Hash, error) {
 	sigHash, err := typedSignatureHash(evmTxToTypedData(tx))
 	if err != nil {
 		return common.Hash{}, err
 	}
-	bytes, err := hex.DecodeString(sigHash[2:])
-	if err != nil {
-		return common.Hash{}, err
-	}
+	bytes := common.FromHex(sigHash)
 	return common.BytesToHash(bytes), nil
 }
 

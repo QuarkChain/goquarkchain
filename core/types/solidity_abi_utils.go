@@ -6,40 +6,28 @@ import (
 	"fmt"
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"math/big"
 	"regexp"
 	"strconv"
 	"strings"
 )
 
-func makeHexWith0x(data string) string {
-	ans := "0x"
-	if len(data)%2 == 1 {
-		ans += "0"
-	}
-	ans += data
-	return ans
-}
-
 func bigIntToHexWith0x(data *big.Int) string {
-	t := fmt.Sprintf("%x", data)
-	return makeHexWith0x(t)
+	return hexutil.Encode(data.Bytes())
 }
 
 func uint64ToHexWith0x(data uint64) string {
-	t := fmt.Sprintf("%x", data)
-	return makeHexWith0x(t)
+	return hexutil.Encode(new(big.Int).SetUint64(data).Bytes())
 }
 
 func uint32ToHexWith0x(data uint32) string {
-	t := fmt.Sprintf("%x", data)
-	return makeHexWith0x(t)
+	return hexutil.Encode(new(big.Int).SetUint64(uint64(data)).Bytes())
 }
 
 func receiptToHexWith0x(data *account.Recipient) string {
-	t := make([]byte, 0)
 	if data == nil {
-		return makeHexWith0x(hex.EncodeToString(t))
+		return "0x"
 	}
 	return strings.ToLower(data.String())
 }
