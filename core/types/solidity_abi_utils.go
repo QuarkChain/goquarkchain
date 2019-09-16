@@ -13,19 +13,19 @@ import (
 	"strings"
 )
 
-func bigIntToHexWith0x(data *big.Int) string {
+func bigIntToHex(data *big.Int) string {
 	return hexutil.Encode(data.Bytes())
 }
 
-func uint64ToHexWith0x(data uint64) string {
+func uint64ToHex(data uint64) string {
 	return hexutil.Encode(new(big.Int).SetUint64(data).Bytes())
 }
 
-func uint32ToHexWith0x(data uint32) string {
+func uint32ToHex(data uint32) string {
 	return hexutil.Encode(new(big.Int).SetUint64(uint64(data)).Bytes())
 }
 
-func receiptToHexWith0x(data *account.Recipient) string {
+func receiptToHex(data *account.Recipient) string {
 	if data == nil {
 		return "0x"
 	}
@@ -49,27 +49,27 @@ func evmTxToTypedData(evmTx *EvmTransaction) []map[string]string {
 	typedTxData = append(typedTxData, map[string]string{
 		"type":  "uint256",
 		"name":  "nonce",
-		"value": uint64ToHexWith0x(evmTx.data.AccountNonce),
+		"value": uint64ToHex(evmTx.data.AccountNonce),
 	})
 	typedTxData = append(typedTxData, map[string]string{
 		"type":  "uint256",
 		"name":  "gasPrice",
-		"value": bigIntToHexWith0x(evmTx.data.Price),
+		"value": bigIntToHex(evmTx.data.Price),
 	})
 	typedTxData = append(typedTxData, map[string]string{
 		"type":  "uint256",
 		"name":  "gasLimit",
-		"value": uint64ToHexWith0x(evmTx.data.GasLimit),
+		"value": uint64ToHex(evmTx.data.GasLimit),
 	})
 	typedTxData = append(typedTxData, map[string]string{
 		"type":  "uint160",
 		"name":  "to",
-		"value": receiptToHexWith0x(evmTx.To()),
+		"value": receiptToHex(evmTx.To()),
 	})
 	typedTxData = append(typedTxData, map[string]string{
 		"type":  "uint256",
 		"name":  "value",
-		"value": bigIntToHexWith0x(evmTx.data.Amount),
+		"value": bigIntToHex(evmTx.data.Amount),
 	})
 	typedTxData = append(typedTxData, map[string]string{
 		"type":  "bytes",
@@ -79,27 +79,27 @@ func evmTxToTypedData(evmTx *EvmTransaction) []map[string]string {
 	typedTxData = append(typedTxData, map[string]string{
 		"type":  "uint256",
 		"name":  "networkId",
-		"value": uint32ToHexWith0x(evmTx.data.NetworkId),
+		"value": uint32ToHex(evmTx.data.NetworkId),
 	})
 	typedTxData = append(typedTxData, map[string]string{
 		"type":  "uint32",
 		"name":  "fromFullShardKey",
-		"value": uint32ToHexWith0x(evmTx.data.FromFullShardKey.GetValue()),
+		"value": uint32ToHex(evmTx.data.FromFullShardKey.GetValue()),
 	})
 	typedTxData = append(typedTxData, map[string]string{
 		"type":  "uint32",
 		"name":  "toFullShardKey",
-		"value": uint32ToHexWith0x(evmTx.data.ToFullShardKey.GetValue()),
+		"value": uint32ToHex(evmTx.data.ToFullShardKey.GetValue()),
 	})
 	typedTxData = append(typedTxData, map[string]string{
 		"type":  "uint64",
 		"name":  "gasTokenId",
-		"value": uint64ToHexWith0x(evmTx.data.GasTokenID),
+		"value": uint64ToHex(evmTx.data.GasTokenID),
 	})
 	typedTxData = append(typedTxData, map[string]string{
 		"type":  "uint64",
 		"name":  "transferTokenId",
-		"value": uint64ToHexWith0x(evmTx.data.TransferTokenID),
+		"value": uint64ToHex(evmTx.data.TransferTokenID),
 	})
 	typedTxData = append(typedTxData, map[string]string{
 		"type":  "string",
