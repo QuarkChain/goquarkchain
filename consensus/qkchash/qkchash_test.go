@@ -38,8 +38,7 @@ func TestSealWithQKCX(t *testing.T) {
 	}
 	q.hashAlgo(&minerRes)
 	//use hashX directly
-	seedT := make([]byte, 40)
-	copy(seedT, header.SealHash().Bytes())
+	seedT := getSeedFromBlockNumber(header.NumberU64())
 	seed := crypto.Keccak512(seedT)
 	var seedArray [8]uint64
 	for i := 0; i < 8; i++ {

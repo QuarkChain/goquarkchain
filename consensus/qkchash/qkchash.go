@@ -33,11 +33,11 @@ func (q *QKCHash) Finalize(chain consensus.ChainReader, header types.IHeader, st
 }
 
 func (q *QKCHash) hashAlgo(cache *consensus.ShareCache) (err error) {
-	copy(cache.Seed, getSeedFromBlockNumber(cache.Height))
+	seed := getSeedFromBlockNumber(cache.Height)
 	binary.LittleEndian.PutUint64(cache.Seed[32:], cache.Nonce)
 
 	if q.useNative {
-		cache.Digest, cache.Result, err = qkcHashNative(cache.Seed, q.cache, cache.Height >= q.qkcHashXHeight)
+		cache.Digest, cache.Result, err = qkcHashNative(seed, q.cache, cache.Height >= q.qkcHashXHeight)
 	} else {
 		if cache.Height >= q.qkcHashXHeight {
 			panic("qkcHashX go not implement")
