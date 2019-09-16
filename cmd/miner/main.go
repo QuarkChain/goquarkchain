@@ -233,13 +233,13 @@ func loadConfig(file string, cfg *config.ClusterConfig) error {
 	return json.Unmarshal(content, cfg)
 }
 
-func createMiner(consensusType string, diffCalculator *consensus.EthDifficultyCalculator) consensus.PoW {
+func createMiner(consensusType string, diffCalculator *consensus.EthDifficultyCalculator, qkcHashXHeight uint64) consensus.PoW {
 	pubKey := []byte{}
 	switch consensusType {
 	case config.PoWEthash:
 		return ethash.New(ethash.Config{CachesInMem: 3, CachesOnDisk: 10, CacheDir: "", PowMode: ethash.ModeNormal}, diffCalculator, false, pubKey)
 	case config.PoWQkchash:
-		return qkchash.New(true, diffCalculator, false, pubKey)
+		return qkchash.New(true, diffCalculator, false, pubKey, qkcHashXHeight)
 	case config.PoWDoubleSha256:
 		return doublesha256.New(diffCalculator, false, pubKey)
 	default:
@@ -288,7 +288,7 @@ func main() {
 			AdjustmentCutoff:  cfg.Quarkchain.Root.DifficultyAdjustmentCutoffTime,
 			AdjustmentFactor:  cfg.Quarkchain.Root.DifficultyAdjustmentFactor,
 		}
-		pow := createMiner(cfg.Quarkchain.Root.ConsensusType, diffCalculator)
+		pow := createMiner(cfg.Quarkchain.Root.ConsensusType, diffCalculator, cfg.Quarkchain.EnableQkcHashXHeight)
 		if pow == nil {
 			log.Fatal("ERROR: unsupported root / mining algorithm")
 		}
@@ -324,7 +324,7 @@ func main() {
 			AdjustmentCutoff:  shardCfg.DifficultyAdjustmentCutoffTime,
 			AdjustmentFactor:  shardCfg.DifficultyAdjustmentFactor,
 		}
-		pow := createMiner(shardCfg.ConsensusType, diffCalculator)
+		pow := createMiner(shardCfg.ConsensusType, diffCalculator, cfg.Quarkchain.EnableQkcHashXHeight)
 		if pow == nil {
 			log.Fatal("ERROR: unsupported shard / mining algorithm")
 		}

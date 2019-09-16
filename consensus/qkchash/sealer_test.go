@@ -17,7 +17,7 @@ func TestSealAndVerifySeal(t *testing.T) {
 
 	header := &types.RootBlockHeader{Number: 1, Difficulty: big.NewInt(10)}
 	for _, qkcHashNativeFlag := range []bool{true, false} {
-		q := New(qkcHashNativeFlag, &diffCalculator, false, []byte{})
+		q := New(qkcHashNativeFlag, &diffCalculator, false, []byte{}, 100)
 		rootBlock := types.NewRootBlockWithHeader(header)
 		resultsCh := make(chan types.IBlock)
 		err := q.Seal(nil, rootBlock, nil, resultsCh, nil)
@@ -42,7 +42,7 @@ func TestRemoteSealer(t *testing.T) {
 	header := &types.RootBlockHeader{Number: 1, Difficulty: big.NewInt(100)}
 	block := types.NewRootBlockWithHeader(header)
 
-	qkc := New(true, &diffCalculator, true, []byte{})
+	qkc := New(true, &diffCalculator, true, []byte{}, 100)
 	if _, err := qkc.GetWork(account.Address{}); err.Error() != errNoMiningWork.Error() {
 		t.Error("expect to return an error indicate there is no mining work")
 	}
@@ -66,7 +66,7 @@ func TestStaleSubmission(t *testing.T) {
 
 	diffCalculator := consensus.EthDifficultyCalculator{AdjustmentCutoff: 7, AdjustmentFactor: 512, MinimumDifficulty: big.NewInt(100000)}
 
-	qkchash := New(true, &diffCalculator, false, []byte{})
+	qkchash := New(true, &diffCalculator, false, []byte{}, 100)
 	testcases := []struct {
 		headers     []*types.RootBlockHeader
 		submitIndex int
@@ -131,7 +131,7 @@ func TestTestGetWorkWithDifferentAddr(t *testing.T) {
 	block := types.NewRootBlockWithHeader(header)
 	oldHash := block.Header().SealHash()
 
-	qkc := New(true, &diffCalculator, true, []byte{})
+	qkc := New(true, &diffCalculator, true, []byte{}, 100)
 	if _, err := qkc.GetWork(account.Address{}); err.Error() != errNoMiningWork.Error() {
 		t.Error("expect to return an error indicate there is no mining work")
 	}

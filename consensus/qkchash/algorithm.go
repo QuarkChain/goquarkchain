@@ -61,14 +61,22 @@ func generateCache(cnt int, seed []byte, genNativeCache bool) qkcCache {
 }
 
 // qkcHashNative calls the native c++ implementation through SWIG.
-func qkcHashNative(seed []byte, cache qkcCache) (digest []byte, result []byte, err error) {
+func qkcHashNative(seed []byte, cache qkcCache, useX bool) (digest []byte, result []byte, err error) {
 	// Combine header+nonce into a seed
 	seed = crypto.Keccak512(seed)
 	var seedArray [8]uint64
 	for i := 0; i < 8; i++ {
 		seedArray[i] = binary.LittleEndian.Uint64(seed[i*8:])
 	}
-	hashRes, err := native.Hash(cache.nativeCache, seedArray)
+	var (
+		hashRes [4]uint64
+	)
+	if useX {
+		hashRes, err = native.HashWithRotationStats(cache.nativeCache, seedArray)
+	} else {
+		hashRes, err = native.Hash(cache.nativeCache, seedArray)
+	}
+
 	if err != nil {
 		return nil, nil, err
 	}
