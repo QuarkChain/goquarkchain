@@ -2,11 +2,12 @@ package qkchash
 
 import (
 	"encoding/binary"
-	"sort"
-
 	"github.com/QuarkChain/goquarkchain/consensus/qkchash/native"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/crypto/sha3"
+	"hash"
+	"sort"
 )
 
 const (
@@ -15,8 +16,23 @@ const (
 )
 
 var (
-	cacheSeed = common.Hash{}
+	cacheSeed   = make([][]byte, 0, 32)
+	EpochLength = uint64(30000) //blocks pre epoch
 )
+
+func init() {
+	cacheSeed = append(cacheSeed, common.Hash{}.Bytes())
+}
+
+func getSeedFromBlockNumber(block uint64) []byte {
+	keccak256 := makeHasher(sha3.NewKeccak256())
+	for i := 0; len(cacheSeed) <= int(block/EpochLength); i++ {
+		seed := cacheSeed[len(cacheSeed)-1]
+		keccak256(seed, seed)
+		cacheSeed = append(cacheSeed, seed)
+	}
+	return cacheSeed[block/EpochLength]
+}
 
 // qkcCache is the union type of cache for qkchash algo.
 // Note in Go impl, `nativeCache` will be empty.
@@ -158,4 +174,28 @@ func qkcHashGo(seed []byte, cache qkcCache) (digest []byte, result []byte, err e
 	}
 	result = crypto.Keccak256(append(seed, digest...))
 	return digest, result, nil
+}
+
+type hasher func(dest []byte, data []byte)
+
+// makeHasher creates a repetitive hasher, allowing the same hash data structures to
+// be reused between hash runs instead of requiring new ones to be created. The returned
+// function is not thread safe!
+func makeHasher(h hash.Hash) hasher {
+	// sha3.state supports Read to get the sum, use it to avoid the overhead of Sum.
+	// Read alters the state but we reset the hash before every operation.
+	type readerHash interface {
+		hash.Hash
+		Read([]byte) (int, error)
+	}
+	rh, ok := h.(readerHash)
+	if !ok {
+		panic("can't find Read method on hash")
+	}
+	outputLen := rh.Size()
+	return func(dest []byte, data []byte) {
+		rh.Reset()
+		rh.Write(data)
+		rh.Read(dest[:outputLen])
+	}
 }
