@@ -52,24 +52,6 @@ func (s *SlaveServerSideOp) Ping(ctx context.Context, req *rpc.Request) (*rpc.Re
 	return response, nil
 }
 
-func (s *SlaveServerSideOp) GetMine(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
-	var (
-		gReq     rpc.GetMinorBlockRequest
-		gRep     rpc.GetMinorBlockResponse
-		buf      = serialize.NewByteBuffer(req.Data)
-		response = &rpc.Response{RpcId: req.RpcId}
-		err      error
-	)
-	if err = serialize.Deserialize(buf, &gReq); err != nil {
-		return nil, err
-	}
-
-	if response.Data, err = serialize.SerializeToBytes(gRep); err != nil {
-		return nil, err
-	}
-	return response, nil
-}
-
 func (s *SlaveServerSideOp) GenTx(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
 	var (
 		gReq     rpc.GenTxRequest
@@ -97,33 +79,6 @@ func (s *SlaveServerSideOp) AddRootBlock(ctx context.Context, req *rpc.Request) 
 	}
 
 	if response.Data, err = serialize.SerializeToBytes(gRep); err != nil {
-		return nil, err
-	}
-
-	return response, nil
-}
-
-func (s *SlaveServerSideOp) GetEcoInfoList(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
-	var (
-		gRep     rpc.GetEcoInfoListResponse
-		response = &rpc.Response{RpcId: req.RpcId}
-		err      error
-	)
-
-	if response.Data, err = serialize.SerializeToBytes(gRep); err != nil {
-		return nil, err
-	}
-	return response, nil
-}
-
-func (s *SlaveServerSideOp) AddMinorBlock(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
-	var (
-		gReq     rpc.AddMinorBlockRequest
-		buf      = serialize.NewByteBuffer(req.Data)
-		response = &rpc.Response{}
-		err      error
-	)
-	if err = serialize.Deserialize(buf, &gReq); err != nil {
 		return nil, err
 	}
 
@@ -464,6 +419,30 @@ func (s *SlaveServerSideOp) AddMinorBlockListForSync(ctx context.Context, req *r
 	return response, nil
 }
 
+func (s *SlaveServerSideOp) SetMining(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
+	var (
+		mining   bool
+		response = &rpc.Response{RpcId: req.RpcId}
+		err      error
+	)
+	if err = serialize.DeserializeFromBytes(req.Data, &mining); err != nil {
+		return nil, err
+	}
+	return response, nil
+}
+
+func (s *SlaveServerSideOp) CheckMinorBlocksInRoot(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
+	var (
+		rootBlock types.RootBlock
+		response  = &rpc.Response{RpcId: req.RpcId}
+		err       error
+	)
+	if err = serialize.DeserializeFromBytes(req.Data, &rootBlock); err != nil {
+		return nil, err
+	}
+	return response, nil
+}
+
 // p2p apis.
 func (s *SlaveServerSideOp) GetMinorBlockList(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
 	var (
@@ -551,17 +530,5 @@ func (s *SlaveServerSideOp) HandleNewMinorBlock(ctx context.Context, req *rpc.Re
 		return nil, err
 	}
 
-	return response, nil
-}
-
-func (s *SlaveServerSideOp) SetMining(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
-	var (
-		mining   bool
-		response = &rpc.Response{RpcId: req.RpcId}
-		err      error
-	)
-	if err = serialize.DeserializeFromBytes(req.Data, &mining); err != nil {
-		return nil, err
-	}
 	return response, nil
 }

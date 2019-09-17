@@ -32,7 +32,7 @@ func NewRootBlockValidator(config *config.QuarkChainConfig, blockchain *RootBloc
 }
 
 // ValidateBlock validates the given block and verifies the block header's roots.
-func (v *RootBlockValidator) ValidateBlock(block types.IBlock) error {
+func (v *RootBlockValidator) ValidateBlock(block types.IBlock, force bool) error {
 	// Check whether the block's known, and if not, that it's linkable
 	if block == nil {
 		panic("input block for ValidateBlock is nil")
@@ -46,7 +46,7 @@ func (v *RootBlockValidator) ValidateBlock(block types.IBlock) error {
 	if rootBlock.NumberU64() < 1 {
 		return errors.New("unexpected height")
 	}
-	if v.blockChain.HasBlock(block.Hash()) {
+	if v.blockChain.HasBlock(block.Hash()) && !force {
 		return ErrKnownBlock
 	}
 	// Header validity is known at this point, check the uncles and transactions
@@ -174,7 +174,7 @@ func (v *RootBlockValidator) ValidateState(block, parent types.IBlock, statedb *
 	panic(errors.New("not implement"))
 }
 
-func (v *RootBlockValidator) ValidateSeal(rHeader types.IHeader) error {
+func (v *RootBlockValidator) ValidateSeal(rHeader types.IHeader, usePosw bool) error {
 	header, ok := rHeader.(*types.RootBlockHeader)
 	if !ok {
 		return errors.New("validate root block Seal failed, root block is nil")
@@ -191,7 +191,7 @@ type fakeRootBlockValidator struct {
 	Err error
 }
 
-func (v *fakeRootBlockValidator) ValidateBlock(block types.IBlock) error {
+func (v *fakeRootBlockValidator) ValidateBlock(block types.IBlock, force bool) error {
 	return v.Err
 }
 
@@ -202,6 +202,6 @@ func (v *fakeRootBlockValidator) ValidateHeader(header types.IHeader) error {
 func (v *fakeRootBlockValidator) ValidateState(block, parent types.IBlock, statedb *state.StateDB, receipts types.Receipts, usedGas uint64) error {
 	panic(errors.New("not implement"))
 }
-func (v *fakeRootBlockValidator) ValidateSeal(rHeader types.IHeader) error {
+func (v *fakeRootBlockValidator) ValidateSeal(rHeader types.IHeader, usePoswFlag bool) error {
 	return nil
 }

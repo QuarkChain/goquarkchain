@@ -15,7 +15,7 @@ func defaultNodeConfig() *service.Config {
 	serviceConfig.Version = ""
 	serviceConfig.IPCPath = "qkc.ipc"
 	serviceConfig.GRPCModules = []string{"rpc"}
-	serviceConfig.GRPCEndpoint = fmt.Sprintf("%s:%d", "127.0.0.1", config.GrpcPort)
+	serviceConfig.GRPCEndpoint = fmt.Sprintf("%s:%d", "127.0.0.1", config.DefaultGrpcPort)
 	return serviceConfig
 }
 

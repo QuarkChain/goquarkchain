@@ -3,7 +3,6 @@ package core
 import (
 	"encoding/hex"
 	"errors"
-	"github.com/QuarkChain/goquarkchain/qkcdb"
 	"math/big"
 	"strings"
 	"time"
@@ -16,6 +15,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/consensus/posw"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/core/vm"
+	"github.com/QuarkChain/goquarkchain/qkcdb"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/params"
@@ -41,6 +41,7 @@ func getOneDBPath() (int, string) {
 	}
 	panic("unexcepted err")
 }
+
 func getTestEnv(genesisAccount *account.Address, genesisMinorQuarkHash *uint64, chainSize *uint32, shardSize *uint32, genesisRootHeights *map[uint32]uint32, remoteMining *bool) *fakeEnv {
 	if genesisAccount == nil {
 		temp := account.CreatEmptyAddress(0)
@@ -77,7 +78,7 @@ func getTestEnv(genesisAccount *account.Address, genesisMinorQuarkHash *uint64, 
 	var err error
 	if len(testDBPath) != 0 {
 		index, fileName := getOneDBPath()
-		fakeDb, err = qkcdb.NewRDBDatabase(fileName, true)
+		fakeDb, err = qkcdb.NewRDBDatabase(fileName, true, false)
 		delete(testDBPath, index)
 		checkErr(err)
 	} else {
@@ -103,7 +104,7 @@ func getTestEnv(genesisAccount *account.Address, genesisMinorQuarkHash *uint64, 
 	env.clusterConfig.Quarkchain.SkipRootDifficultyCheck = true
 	env.clusterConfig.EnableTransactionHistory = true
 	env.clusterConfig.Quarkchain.MinMiningGasPrice = new(big.Int).SetInt64(0)
-	env.clusterConfig.Quarkchain.XShardAddReceiptTimestamp = 1
+	env.clusterConfig.Quarkchain.EnableEvmTimeStamp = 1
 	env.clusterConfig.Quarkchain.MinTXPoolGasPrice = new(big.Int).SetInt64(0)
 	ids := env.clusterConfig.Quarkchain.GetGenesisShardIds()
 	for _, v := range ids {

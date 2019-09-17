@@ -24,7 +24,7 @@ func TestContextDatabases(t *testing.T) {
 	}
 	// Request the opening/creation of a database and ensure it persists to disk
 	ctx := &ServiceContext{config: &Config{Name: "unit-test", DataDir: dir}}
-	db, err := ctx.OpenDatabase("persistent", false)
+	db, err := ctx.OpenDatabase("persistent", false, false)
 	if err != nil {
 		t.Fatalf("failed to open persistent database: %v", err)
 	}
@@ -35,7 +35,7 @@ func TestContextDatabases(t *testing.T) {
 	}
 	// Request th opening/creation of an ephemeral database and ensure it's not persisted
 	ctx = &ServiceContext{config: &Config{DataDir: ""}}
-	db, err = ctx.OpenDatabase("ephemeral", false)
+	db, err = ctx.OpenDatabase("ephemeral", false, false)
 	if err != nil {
 		t.Fatalf("failed to open ephemeral database: %v", err)
 	}

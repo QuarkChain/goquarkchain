@@ -31,6 +31,9 @@ type ClusterConfig struct {
 	SimpleNetwork            *SimpleNetwork    `json:"SIMPLE_NETWORK,omitempty"`
 	P2P                      *P2PConfig        `json:"P2P,omitempty"`
 	Monitoring               *MonitoringConfig `json:"MONITORING"`
+	CheckDB                  bool
+	CheckDBRBlockFrom        int
+	CheckDBRBlockTo          int
 	// TODO KafkaSampleLogger
 }
 
@@ -50,6 +53,9 @@ func NewClusterConfig() *ClusterConfig {
 		SimpleNetwork:            NewSimpleNetwork(),
 		P2P:                      NewP2PConfig(),
 		Monitoring:               NewMonitoringConfig(),
+		CheckDB:                  false,
+		CheckDBRBlockFrom:        -1,
+		CheckDBRBlockTo:          0,
 	}
 
 	for i := 0; i < DefaultNumSlaves; i++ {
@@ -97,7 +103,8 @@ type QuarkChainConfig struct {
 	chainIdToShardIds                 map[uint32][]uint32
 	defaultChainTokenID               uint64
 	allowTokenIDs                     map[uint64]bool
-	XShardAddReceiptTimestamp         uint64
+	EnableEvmTimeStamp                uint64   `json:"ENABLE_EVM_TIMESTAMP"`
+	EnableQkcHashXHeight              uint64   `json:"ENABLE_QKCHASHX_HEIGHT"`
 	DisablePowCheck                   bool     `json:"DISABLE_POW_CHECK"`
 	XShardGasDDOSFixRootHeight        uint64   `json:"XSHARD_GAS_DDOS_FIX_ROOT_HEIGHT"`
 	MinTXPoolGasPrice                 *big.Int `json:"MIN_TX_POOL_GAS_PRICE"`
@@ -154,7 +161,7 @@ func (q *QuarkChainConfig) UnmarshalJSON(input []byte) error {
 	}
 	var denom int64 = 1000
 	q.GRPCHost, _ = common.GetIPV4Addr()
-	q.GRPCPort = GrpcPort
+	q.GRPCPort = DefaultGrpcPort
 	q.RewardTaxRate = big.NewRat(int64(jConfig.RewardTaxRate*float64(denom)), denom)
 	q.BlockRewardDecayFactor = big.NewRat(int64(jConfig.BlockRewardDecayFactor*float64(denom)), denom)
 	q.initAndValidate()
@@ -222,6 +229,12 @@ func (q *QuarkChainConfig) Update(chainSize, shardSizePerChain, rootBlockTime, m
 }
 
 func (q *QuarkChainConfig) initAndValidate() {
+	if q.MinMiningGasPrice == nil {
+		q.MinMiningGasPrice = new(big.Int).SetUint64(1000000000)
+	}
+	if q.MinTXPoolGasPrice == nil {
+		q.MinTXPoolGasPrice = new(big.Int).SetUint64(1000000000)
+	}
 
 	q.chainIdToShardSize = make(map[uint32]uint32)
 	q.chainIdToShardIds = make(map[uint32][]uint32)
@@ -308,16 +321,17 @@ func NewQuarkChainConfig() *QuarkChainConfig {
 		P2PCommandSizeLimit:               DefaultP2PCmddSizeLimit,
 		SkipRootDifficultyCheck:           false,
 		SkipRootCoinbaseCheck:             false,
-		SkipMinorDifficultyCheck:          false,
-		GenesisToken:                      DefaultToken,
-		RewardTaxRate:                     new(big.Rat).SetFloat64(0.5),
-		BlockRewardDecayFactor:            new(big.Rat).SetFloat64(0.5),
-		Root:                              NewRootConfig(),
-		MinTXPoolGasPrice:                 new(big.Int).SetUint64(1000000000),
-		MinMiningGasPrice:                 new(big.Int).SetUint64(1000000000),
-		XShardGasDDOSFixRootHeight:        90000,
-		GRPCHost:                          grpchost,
-		GRPCPort:                          GrpcPort,
+		SkipMinorDifficultyCheck:   false,
+		GenesisToken:               DefaultToken,
+		RewardTaxRate:              new(big.Rat).SetFloat64(0.5),
+		BlockRewardDecayFactor:     new(big.Rat).SetFloat64(0.5),
+		Root:                       NewRootConfig(),
+		MinTXPoolGasPrice:          new(big.Int).SetUint64(1000000000),
+		MinMiningGasPrice:          new(big.Int).SetUint64(1000000000),
+		XShardGasDDOSFixRootHeight: 90000,
+		GRPCHost:                   grpchost,
+		GRPCPort:                   DefaultGrpcPort,
+		EnableEvmTimeStamp:         1569567600,
 	}
 
 	ret.Root.ConsensusType = PoWSimulate

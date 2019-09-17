@@ -232,7 +232,10 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 		ret, _, st.gas, vmerr = evm.Create(sender, st.data, st.gas, st.value, evm.ContractAddress)
 	} else {
 		// Increment the nonce for the next transaction
-		st.state.SetNonce(msg.From(), st.state.GetNonce(sender.Address())+1)
+		if !st.evm.IsApplyXShard {
+			st.state.SetNonce(msg.From(), st.state.GetNonce(sender.Address())+1)
+		}
+
 		if st.transferFailureByPoSWBalanceCheck() {
 			ret, st.gas, vmerr = nil, 0, vm.ErrPoSWSenderNotAllowed
 		} else {
@@ -293,7 +296,7 @@ func (st *StateTransition) AddCrossShardTxDeposit(intrinsicGas uint64) (ret []by
 	if !evm.CanTransfer(state, msg.From(), st.value, st.msg.TransferTokenID()) {
 		return nil, st.gas, false, vm.ErrInsufficientBalance
 	}
-	var remoteGasReserved uint64
+	remoteGasReserved := uint64(0)
 	if st.transferFailureByPoSWBalanceCheck() {
 		//Currently, burn all gas
 		st.gas = 0
@@ -331,13 +334,18 @@ func (st *StateTransition) AddCrossShardTxDeposit(intrinsicGas uint64) (ret []by
 
 	} else {
 		state.SubBalance(msg.From(), st.value, msg.TransferTokenID())
-		remoteGasReserved = msg.Gas() - intrinsicGas
 		crossShardValue := new(serialize.Uint256)
 		crossShardValue.Value = new(big.Int).Set(msg.Value())
 		crossShardGasPrice := new(serialize.Uint256)
 		crossShardGasPrice.Value = new(big.Int).Set(msg.GasPrice())
 		crossShardGas := new(serialize.Uint256)
-		crossShardGas.Value = new(big.Int).SetUint64(remoteGasReserved)
+		crossShardGas.Value = new(big.Int)
+
+		if state.GetQuarkChainConfig().EnableEvmTimeStamp != 0 || state.GetTimeStamp() >= state.GetQuarkChainConfig().EnableEvmTimeStamp {
+			remoteGasReserved = msg.Gas() - intrinsicGas
+			crossShardGas.Value = new(big.Int).SetUint64(remoteGasReserved)
+		}
+
 		crossShardData := &types.CrossShardTransactionDeposit{
 			TxHash: msg.TxHash(),
 			From: account.Address{
