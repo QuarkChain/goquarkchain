@@ -38,7 +38,7 @@ func (q *QKCHash) hashAlgo(cache *consensus.ShareCache) (err error) {
 	binary.LittleEndian.PutUint64(cache.Seed[32:], cache.Nonce)
 
 	if q.useNative {
-		q.cache = generateCache(cacheEntryCnt, seed, true)
+		q.cache = allCache.getCacheFromSeed(seed)
 		cache.Digest, cache.Result, err = qkcHashNative(cache.Seed, q.cache, cache.Height >= q.qkcHashXHeight)
 	} else {
 		if cache.Height >= q.qkcHashXHeight {
@@ -57,7 +57,7 @@ func New(useNative bool, diffCalculator consensus.DifficultyCalculator, remote b
 	q := &QKCHash{
 		useNative: useNative,
 		// TODO: cache may depend on block, so a LRU-stype cache could be helpful
-		cache:          generateCache(cacheEntryCnt, cache.getDataWithIndex(0), useNative),
+		cache:          allCache.getCacheFromSeed(allCache.getDataWithIndex(0)),
 		qkcHashXHeight: qkcHashXHeight,
 	}
 	spec := consensus.MiningSpec{

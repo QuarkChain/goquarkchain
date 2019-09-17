@@ -17,20 +17,22 @@ const (
 )
 
 var (
-	cache       = NewcacheSeed()
+	allCache    = NewcacheSeed()
 	EpochLength = uint64(30000) //blocks pre epoch
 )
 
 type cacheSeed struct {
-	mu   sync.RWMutex
-	seed [][]byte
+	mu    sync.RWMutex
+	seed  [][]byte
+	cache map[common.Hash]qkcCache
 }
 
 func NewcacheSeed() *cacheSeed {
 	seed := make([][]byte, 0, 32)
 	seed = append(seed, common.Hash{}.Bytes())
 	return &cacheSeed{
-		seed: seed,
+		seed:  seed,
+		cache: make(map[common.Hash]qkcCache, 0),
 	}
 }
 func (c *cacheSeed) getLastOne() []byte {
@@ -56,14 +58,25 @@ func (c *cacheSeed) getDataWithIndex(index int) []byte {
 	return c.seed[index]
 }
 
+func (c *cacheSeed) getCacheFromSeed(seed []byte) qkcCache {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	t := common.BytesToHash(seed)
+	_, ok := c.cache[t]
+	if !ok {
+		c.cache[t] = generateCache(cacheEntryCnt, seed, true)
+	}
+	return c.cache[t]
+}
+
 func getSeedFromBlockNumber(block uint64) []byte {
 	keccak256 := makeHasher(sha3.NewKeccak256())
-	for i := 0; cache.Len() <= int(block/EpochLength); i++ {
-		seed := cache.getLastOne()
+	for i := 0; allCache.Len() <= int(block/EpochLength); i++ {
+		seed := allCache.getLastOne()
 		keccak256(seed, seed)
-		cache.appendOne(seed)
+		allCache.appendOne(seed)
 	}
-	return cache.getDataWithIndex(int(block / EpochLength))
+	return allCache.getDataWithIndex(int(block / EpochLength))
 }
 
 // qkcCache is the union type of cache for qkchash algo.
