@@ -15,7 +15,7 @@ import (
 type QKCHash struct {
 	*consensus.CommonEngine
 	// TODO: in the future cache may depend on block height
-	cache qkcCache
+	cache *cacheSeed
 	// A flag indicating which impl (c++ native or go) to use
 	useNative      bool
 	qkcHashXHeight uint64
@@ -33,18 +33,19 @@ func (q *QKCHash) Finalize(chain consensus.ChainReader, header types.IHeader, st
 }
 
 func (q *QKCHash) hashAlgo(cache *consensus.ShareCache) (err error) {
-	seed := getSeedFromBlockNumber(cache.Height)
+	seed := q.getSeedFromBlockNumber(cache.Height)
 	copy(cache.Seed, cache.Hash)
 	binary.LittleEndian.PutUint64(cache.Seed[32:], cache.Nonce)
 
 	if q.useNative {
-		q.cache = allCache.getCacheFromSeed(seed)
-		cache.Digest, cache.Result, err = qkcHashNative(cache.Seed, q.cache, cache.Height >= q.qkcHashXHeight)
+		q.cache.currentCache = q.cache.getCacheFromSeed(seed, true)
+		cache.Digest, cache.Result, err = qkcHashNative(cache.Seed, q.cache.currentCache, cache.Height >= q.qkcHashXHeight)
 	} else {
 		if cache.Height >= q.qkcHashXHeight {
 			panic("qkcHashX go not implement")
 		}
-		cache.Digest, cache.Result, err = qkcHashGo(cache.Seed, q.cache)
+		// TODO:not use this func
+		cache.Digest, cache.Result, err = qkcHashGo(cache.Seed, q.cache.currentCache)
 	}
 	return
 }
@@ -57,7 +58,7 @@ func New(useNative bool, diffCalculator consensus.DifficultyCalculator, remote b
 	q := &QKCHash{
 		useNative: useNative,
 		// TODO: cache may depend on block, so a LRU-stype cache could be helpful
-		cache:          allCache.getCacheFromSeed(allCache.getDataWithIndex(0)),
+		cache:          NewcacheSeed(useNative),
 		qkcHashXHeight: qkcHashXHeight,
 	}
 	spec := consensus.MiningSpec{
