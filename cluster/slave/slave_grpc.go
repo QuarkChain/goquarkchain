@@ -430,7 +430,7 @@ func (s *SlaveServerSideOp) GetWork(ctx context.Context, req *rpc.Request) (*rpc
 		return nil, err
 	}
 
-	if work, err = s.slave.GetWork(gReq.Branch); err != nil {
+	if work, err = s.slave.GetWork(gReq.Branch, gReq.CoinbaseAddr); err != nil {
 		return nil, err
 	}
 
@@ -637,4 +637,16 @@ func (s *SlaveServerSideOp) SetMining(ctx context.Context, req *rpc.Request) (*r
 	}
 	s.slave.SetMining(mining)
 	return response, nil
+}
+
+func (s *SlaveServerSideOp) CheckMinorBlocksInRoot(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
+	var (
+		rootBlock types.RootBlock
+		response  = &rpc.Response{RpcId: req.RpcId}
+		err       error
+	)
+	if err = serialize.DeserializeFromBytes(req.Data, &rootBlock); err != nil {
+		return nil, err
+	}
+	return response, s.slave.CheckMinorBlocksInRoot(&rootBlock)
 }

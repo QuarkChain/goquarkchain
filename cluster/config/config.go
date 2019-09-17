@@ -27,7 +27,7 @@ const (
 	// PoWQkchash is the consensus type running qkchash algorithm.
 	PoWQkchash = "POW_QKCHASH"
 
-	GrpcPort           uint16 = 38191
+	DefaultGrpcPort    uint16 = 38191
 	DefaultP2PPort     uint16 = 38291
 	DefaultPubRpcPort  uint16 = 38391
 	DefaultPrivRpcPort uint16 = 38491

@@ -379,10 +379,11 @@ func (s *SlaveConnection) GasPrice(branch account.Branch, tokenID uint64) (uint6
 	return rsp.Result, err
 }
 
-func (s *SlaveConnection) GetWork(branch account.Branch) (*consensus.MiningWork, error) {
+func (s *SlaveConnection) GetWork(branch account.Branch, coinbaseAddr *account.Address) (*consensus.MiningWork, error) {
 	var (
 		req = rpc.GetWorkRequest{
-			Branch: branch.Value,
+			Branch:       branch.Value,
+			CoinbaseAddr: coinbaseAddr,
 		}
 		rsp consensus.MiningWork
 	)
@@ -624,6 +625,15 @@ func (s *SlaveConnection) SetMining(mining bool) error {
 		return err
 	}
 	_, err = s.client.Call(s.target, &rpc.Request{Op: rpc.OpSetMining, Data: bytes})
+	return err
+}
+
+func (s *SlaveConnection) CheckMinorBlocksInRoot(rootBlock *types.RootBlock) error {
+	bytes, err := serialize.SerializeToBytes(rootBlock)
+	if err != nil {
+		return err
+	}
+	_, err = s.client.Call(s.target, &rpc.Request{Op: rpc.OpCheckMinorBlocksInRoot, Data: bytes})
 	return err
 }
 

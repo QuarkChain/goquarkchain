@@ -211,7 +211,7 @@ func (c *clusterNode) createAllShardsBlock(fullShardIds []uint32) {
 		if shrd == nil {
 			utils.Fatalf("has no such shard, fullShardId: %d", fullShardId)
 		}
-		iBlock, _, err := shrd.CreateBlockToMine()
+		iBlock, _, err := shrd.CreateBlockToMine(nil)
 		if err != nil {
 			utils.Fatalf("can't create minor block, fullShardId: %d, err: %v", fullShardId, err)
 		}
@@ -243,7 +243,7 @@ func (c *clusterNode) CreateAndInsertBlocks(fullShards []uint32) (rBlock *types.
 
 	time.Sleep(time.Duration(seconds) * time.Second)
 	// insert root block
-	iBlock, _, err := c.GetMaster().CreateBlockToMine()
+	iBlock, _, err := c.GetMaster().CreateBlockToMine(nil)
 	if err != nil {
 		utils.Fatalf("failed to create and add root/minor block, err: %v", err)
 	}

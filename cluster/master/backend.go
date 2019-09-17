@@ -103,11 +103,11 @@ func New(ctx *service.ServiceContext, cfg *config.ClusterConfig) (*QKCMasterBack
 		}
 		err error
 	)
-	if mstr.chainDb, err = createDB(ctx, cfg.DbPathRoot, cfg.Clean); err != nil {
+	if mstr.chainDb, err = createDB(ctx, cfg.DbPathRoot, cfg.Clean, cfg.CheckDB); err != nil {
 		return nil, err
 	}
 
-	if mstr.engine, err = createConsensusEngine(cfg.Quarkchain.Root, cfg.Quarkchain.GuardianPublicKey); err != nil {
+	if mstr.engine, err = createConsensusEngine(cfg.Quarkchain.Root, cfg.Quarkchain.GuardianPublicKey, cfg.Quarkchain.EnableQkcHashXHeight); err != nil {
 		return nil, err
 	}
 
@@ -142,15 +142,15 @@ func New(ctx *service.ServiceContext, cfg *config.ClusterConfig) (*QKCMasterBack
 	return mstr, nil
 }
 
-func createDB(ctx *service.ServiceContext, name string, clean bool) (ethdb.Database, error) {
-	db, err := ctx.OpenDatabase(name, clean)
+func createDB(ctx *service.ServiceContext, name string, clean bool, isReadOnly bool) (ethdb.Database, error) {
+	db, err := ctx.OpenDatabase(name, clean, isReadOnly)
 	if err != nil {
 		return nil, err
 	}
 	return db, nil
 }
 
-func createConsensusEngine(cfg *config.RootConfig, pubKeyStr string) (consensus.Engine, error) {
+func createConsensusEngine(cfg *config.RootConfig, pubKeyStr string, qkcHashXHeight uint64) (consensus.Engine, error) {
 	diffCalculator := consensus.EthDifficultyCalculator{
 		MinimumDifficulty: big.NewInt(int64(cfg.Genesis.Difficulty)),
 		AdjustmentCutoff:  cfg.DifficultyAdjustmentCutoffTime,
@@ -163,7 +163,7 @@ func createConsensusEngine(cfg *config.RootConfig, pubKeyStr string) (consensus.
 	case config.PoWEthash:
 		return ethash.New(ethash.Config{CachesInMem: 3, CachesOnDisk: 10, CacheDir: "", PowMode: ethash.ModeNormal}, &diffCalculator, cfg.ConsensusConfig.RemoteMine, pubKey), nil
 	case config.PoWQkchash:
-		return qkchash.New(true, &diffCalculator, cfg.ConsensusConfig.RemoteMine, pubKey), nil
+		return qkchash.New(true, &diffCalculator, cfg.ConsensusConfig.RemoteMine, pubKey, qkcHashXHeight), nil
 	case config.PoWDoubleSha256:
 		return doublesha256.New(&diffCalculator, cfg.ConsensusConfig.RemoteMine, pubKey), nil
 	}
@@ -181,6 +181,64 @@ func (s *QKCMasterBackend) GetClusterConfig() *config.ClusterConfig {
 // Protocols p2p protocols, p2p Server will start in node.Start
 func (s *QKCMasterBackend) Protocols() []p2p.Protocol {
 	return s.protocolManager.subProtocols
+}
+
+func (s *QKCMasterBackend) CheckDB() {
+	startTime := time.Now()
+	defer log.Info("Integrity check completed!", "run time", time.Now().Sub(startTime).Seconds())
+
+	// Start with root db
+	rb := s.rootBlockChain.CurrentBlock()
+	fromHeight := s.clusterConfig.CheckDBRBlockFrom
+	toHeight := uint64(s.clusterConfig.CheckDBRBlockTo)
+	if toHeight < 1 {
+		toHeight = 1
+	}
+	if fromHeight >= 0 && uint64(fromHeight) < rb.NumberU64() {
+		rb = s.rootBlockChain.GetBlockByNumber(uint64(fromHeight)).(*types.RootBlock)
+		log.Info("Starting from root block ", "height", fromHeight)
+	}
+	if b := s.rootBlockChain.GetBlock(rb.Hash()); b == nil || b.Hash() != rb.Hash() {
+		log.Error("Root block mismatches local root block by hash", "height", rb.NumberU64())
+		return
+	}
+
+	for count := 0; rb.NumberU64() > toHeight; count++ {
+		if count%100 == 0 {
+			log.Info("Checking root block", "height", rb.NumberU64())
+		}
+		if s.rootBlockChain.GetBlockByNumber(rb.NumberU64()).Hash() != rb.Hash() {
+			log.Error("Root block mismatches canonical chain", "height", rb.NumberU64())
+			return
+		}
+		prevRb := s.rootBlockChain.GetBlock(rb.ParentHash())
+		if prevRb == nil || prevRb.Hash() != rb.ParentHash() {
+			log.Error("Root block mismatches previous block hash", "height", rb.NumberU64())
+			return
+		}
+		if prevRb.NumberU64()+1 != rb.NumberU64() {
+			log.Error("Root block no equal to previous block Height + 1", "height", rb.NumberU64())
+			return
+		}
+		var g errgroup.Group
+		for _, slvConn := range s.clientPool {
+			conn := slvConn
+			g.Go(func() error {
+				return conn.CheckMinorBlocksInRoot(rb)
+			})
+		}
+		if err := g.Wait(); err != nil {
+			log.Error("Failed to check root block ", "height", rb.NumberU64(), "error", err.Error())
+			return
+		}
+
+		_, err := s.rootBlockChain.InsertChain([]types.IBlock{rb})
+		if err != nil {
+			log.Error("Failed to check root block", "height", rb.NumberU64(), "error", err.Error())
+			return
+		}
+		rb = prevRb.(*types.RootBlock)
+	}
 }
 
 // APIs return all apis for master Server
@@ -261,6 +319,11 @@ func (s *QKCMasterBackend) Start() error {
 	s.protocolManager.Start(s.maxPeers)
 	// start heart beat pre 3 seconds.
 	s.updateShardStatsLoop()
+
+	if s.clusterConfig.Quarkchain.Root.ConsensusConfig.RemoteMine {
+		s.SetMining(true)
+	}
+
 	log.Info("Start cluster successful", "slaveSize", len(s.clientPool))
 	return nil
 }
@@ -547,20 +610,22 @@ func (s *QKCMasterBackend) SendMiningConfigToSlaves(mining bool) error {
 
 // AddRootBlock add root block to all slaves
 func (s *QKCMasterBackend) AddRootBlock(rootBlock *types.RootBlock) error {
-	head := s.rootBlockChain.CurrentBlock().NumberU64()
+	header := s.rootBlockChain.CurrentBlock().Header()
 	s.rootBlockChain.WriteCommittingHash(rootBlock.Hash())
 	_, err := s.rootBlockChain.InsertChain([]types.IBlock{rootBlock})
 	if err != nil {
 		return err
 	}
 	if err := s.broadcastRootBlockToSlaves(rootBlock); err != nil {
-		if err := s.rootBlockChain.SetHead(head); err != nil {
+		if err := s.rootBlockChain.SetHead(header.NumberU64()); err != nil {
 			panic(err)
 		}
 		return err
 	}
 	s.rootBlockChain.ClearCommittingHash()
-	go s.miner.HandleNewTip()
+	if header.Hash() != s.rootBlockChain.CurrentBlock().Hash() {
+		go s.miner.HandleNewTip()
+	}
 	return nil
 }
 

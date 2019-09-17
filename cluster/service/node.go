@@ -15,6 +15,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"sync"
+	"time"
 )
 
 // Node is a container on which services can be registered.
@@ -146,10 +147,11 @@ func (n *Node) Start() error {
 	for _, constructor := range n.serviceFuncs {
 		// Create a new context for the particular service
 		ctx := &ServiceContext{
-			config:   n.config,
-			services: make(map[reflect.Type]Service),
-			Shutdown: n.sigc,
-			EventMux: n.eventmux,
+			config:    n.config,
+			services:  make(map[reflect.Type]Service),
+			Shutdown:  n.sigc,
+			Timestamp: time.Now(),
+			EventMux:  n.eventmux,
 		}
 		for kind, s := range services { // copy needed for threaded access
 			ctx.services[kind] = s
@@ -235,12 +237,6 @@ func (n *Node) startRPC(services map[reflect.Type]Service) error {
 		return err
 	}
 
-	// start ws service
-	if err := n.startWS(apis, n.config.WSModules, n.config.WSOrigins); err != nil {
-		n.stopWS()
-		return err
-	}
-
 	if n.IsMaster() {
 		if err := n.startIPC(apis); err != nil {
 			n.stopRPC()
@@ -252,6 +248,12 @@ func (n *Node) startRPC(services map[reflect.Type]Service) error {
 		}
 		if err := n.startPrivHTTP(apis, n.config.HTTPModules, n.config.HTTPTimeouts); err != nil {
 			n.stopRPC()
+			return err
+		}
+	} else {
+		// start ws service
+		if err := n.startWS(apis, n.config.WSModules, n.config.WSOrigins); err != nil {
+			n.stopWS()
 			return err
 		}
 	}

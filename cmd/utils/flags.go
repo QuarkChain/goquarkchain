@@ -157,6 +157,20 @@ var (
 		Usage: "svrvice type,if has eight slaves,fill like(S0,S2,...S7)",
 		Value: "master",
 	}
+	CheckDBFlag = cli.BoolFlag{
+		Name:  "check_db",
+		Usage: "if true, will perform integrity check on db only",
+	}
+	CheckDBRBlockFromFlag = cli.IntFlag{
+		Name:  "check_db_rblock_from",
+		Usage: "", //todo add usage
+		Value: -1,
+	}
+	CheckDBRBlockToFlag = cli.IntFlag{
+		Name:  "check_db_rblock_to",
+		Usage: "", //todo add usage
+		Value: 0,
+	}
 
 	// Performance tuning settings
 	CacheFlag = cli.IntFlag{
@@ -196,7 +210,7 @@ var (
 	GRPCPortFlag = cli.IntFlag{
 		Name:  "grpc_port",
 		Usage: "public json rpc port",
-		Value: int(config.GrpcPort),
+		Value: int(config.DefaultGrpcPort),
 	}
 	P2pPortFlag = cli.IntFlag{
 		Name:  "p2p_port",
@@ -493,6 +507,17 @@ func SetNodeConfig(ctx *cli.Context, cfg *service.Config, clstrCfg *config.Clust
 	setHTTP(ctx, cfg, clstrCfg)
 	setGRPC(ctx, cfg, clstrCfg)
 	setDataDir(ctx, cfg, clstrCfg)
+	setCheckDBConfig(ctx, clstrCfg)
+}
+
+func setCheckDBConfig(ctx *cli.Context, clstrCfg *config.ClusterConfig) {
+	clstrCfg.CheckDB = ctx.GlobalBool(CheckDBFlag.Name)
+	if ctx.GlobalIsSet(CheckDBRBlockFromFlag.Name) {
+		clstrCfg.CheckDBRBlockFrom = ctx.GlobalInt(CheckDBRBlockFromFlag.Name)
+	}
+	if ctx.GlobalIsSet(CheckDBRBlockToFlag.Name) {
+		clstrCfg.CheckDBRBlockTo = ctx.GlobalInt(CheckDBRBlockToFlag.Name)
+	}
 }
 
 func setDataDir(ctx *cli.Context, cfg *service.Config, clstrCfg *config.ClusterConfig) {

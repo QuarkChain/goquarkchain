@@ -31,13 +31,14 @@ var (
 	jrpcCli *rpc.Client
 
 	// Flags
-	clusterConfig = flag.String("config", "", "cluster config file")
-	shardList     = flag.String("shards", "R", "comma-separated string indicating shards")
-	host          = flag.String("host", "localhost", "remote host of a quarkchain cluster")
-	port          = flag.Int("port", int(config.DefaultPubRpcPort), "remote JSONRPC port of a quarkchain cluster")
-	preThreads    = flag.Int("threads", 0, "Use how many threads to mine in a worker")
-	rpcTimeout    = flag.Int("timeout", 500, "timeout in seconds for RPC calls")
-	gethlogLvl    = flag.String("gethloglvl", "info", "log level of geth")
+	clusterConfig   = flag.String("config", "", "cluster config file")
+	shardList       = flag.String("shards", "R", "comma-separated string indicating shards")
+	host            = flag.String("host", "localhost", "remote host of a quarkchain cluster")
+	port            = flag.Int("port", 38391, "remote JSONRPC port of a quarkchain cluster")
+	preThreads      = flag.Int("threads", 0, "Use how many threads to mine in a worker")
+	rpcTimeout      = flag.Int("timeout", 500, "timeout in seconds for RPC calls")
+	gethlogLvl      = flag.String("gethloglvl", "info", "log level of geth")
+	coinbaseAddress = flag.String("coinbase", "", "coinbase for miner")
 )
 
 // Wrap mining result, because the global receiver need to differentiate between workers
@@ -49,6 +50,7 @@ type result struct {
 
 type worker struct {
 	shardID      *uint32 // nil means root chain
+	addr         *string
 	pow          consensus.PoW
 	fetchWorkCh  chan consensus.MiningWork
 	submitWorkCh chan<- result
@@ -65,7 +67,8 @@ func (w worker) fetch() {
 	var lastFetchedWork *consensus.MiningWork
 
 	handleWork := func() {
-		work, err := fetchWorkRPC(w.shardID)
+		work, err := fetchWorkRPC(w.shardID, w.addr)
+
 		if err != nil {
 			log.Print("WARN: Failed to fetch work: ", err)
 			return
@@ -156,7 +159,7 @@ func shardRepr(optShardID *uint32) string {
 	return strconv.FormatUint(uint64(*optShardID), 10)
 }
 
-func fetchWorkRPC(shardID *uint32) (work consensus.MiningWork, err error) {
+func fetchWorkRPC(shardID *uint32, addr *string) (work consensus.MiningWork, err error) {
 	cli := getJRPCCli()
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(*rpcTimeout)*time.Second)
 	defer cancel()
@@ -165,12 +168,14 @@ func fetchWorkRPC(shardID *uint32) (work consensus.MiningWork, err error) {
 	if shardID != nil {
 		shardIDArg = "0x" + strconv.FormatUint(uint64(*shardID), 16)
 	}
+
 	ret := make([]string, 3)
 	err = cli.CallContext(
 		ctx,
 		&ret,
 		"qkc_getWork",
 		shardIDArg,
+		addr,
 	)
 	if err != nil {
 		return work, err
@@ -228,13 +233,13 @@ func loadConfig(file string, cfg *config.ClusterConfig) error {
 	return json.Unmarshal(content, cfg)
 }
 
-func createMiner(consensusType string, diffCalculator *consensus.EthDifficultyCalculator) consensus.PoW {
+func createMiner(consensusType string, diffCalculator *consensus.EthDifficultyCalculator, qkcHashXHeight uint64) consensus.PoW {
 	pubKey := []byte{}
 	switch consensusType {
 	case config.PoWEthash:
 		return ethash.New(ethash.Config{CachesInMem: 3, CachesOnDisk: 10, CacheDir: "", PowMode: ethash.ModeNormal}, diffCalculator, false, pubKey)
 	case config.PoWQkchash:
-		return qkchash.New(true, diffCalculator, false, pubKey)
+		return qkchash.New(true, diffCalculator, false, pubKey, qkcHashXHeight)
 	case config.PoWDoubleSha256:
 		return doublesha256.New(diffCalculator, false, pubKey)
 	default:
@@ -266,6 +271,15 @@ func main() {
 	if err != nil {
 		log.Fatal("ERROR: invalid config path: ", err)
 	}
+	addrForMiner := new(string)
+	if coinbaseAddress == nil || len(*coinbaseAddress) == 0 {
+		addrForMiner = nil
+	} else {
+		if !common.IsHexAddress(*coinbaseAddress) {
+			log.Fatal("ERROR: invalid coinbaseAddress", *coinbaseAddress)
+		}
+		addrForMiner = coinbaseAddress
+	}
 
 	// Root chain miner, default
 	if *shardList == "R" {
@@ -274,13 +288,14 @@ func main() {
 			AdjustmentCutoff:  cfg.Quarkchain.Root.DifficultyAdjustmentCutoffTime,
 			AdjustmentFactor:  cfg.Quarkchain.Root.DifficultyAdjustmentFactor,
 		}
-		pow := createMiner(cfg.Quarkchain.Root.ConsensusType, diffCalculator)
+		pow := createMiner(cfg.Quarkchain.Root.ConsensusType, diffCalculator, cfg.Quarkchain.EnableQkcHashXHeight)
 		if pow == nil {
 			log.Fatal("ERROR: unsupported root / mining algorithm")
 		}
 		pow.SetThreads(*preThreads)
 		w := worker{
 			pow:          pow,
+			addr:         addrForMiner,
 			fetchWorkCh:  make(chan consensus.MiningWork),
 			submitWorkCh: submitWorkCh,
 			abortCh:      abortCh,
@@ -309,7 +324,7 @@ func main() {
 			AdjustmentCutoff:  shardCfg.DifficultyAdjustmentCutoffTime,
 			AdjustmentFactor:  shardCfg.DifficultyAdjustmentFactor,
 		}
-		pow := createMiner(shardCfg.ConsensusType, diffCalculator)
+		pow := createMiner(shardCfg.ConsensusType, diffCalculator, cfg.Quarkchain.EnableQkcHashXHeight)
 		if pow == nil {
 			log.Fatal("ERROR: unsupported shard / mining algorithm")
 		}
@@ -318,6 +333,7 @@ func main() {
 		w := worker{
 			shardID:      &tShardID,
 			pow:          pow,
+			addr:         addrForMiner,
 			fetchWorkCh:  make(chan consensus.MiningWork),
 			submitWorkCh: submitWorkCh,
 			abortCh:      abortCh,

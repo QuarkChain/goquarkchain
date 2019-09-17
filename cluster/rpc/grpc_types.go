@@ -379,7 +379,8 @@ type GasPriceResponse struct {
 }
 
 type GetWorkRequest struct {
-	Branch uint32 `json:"branch" gencodec:"required"`
+	Branch       uint32           `json:"branch" gencodec:"required"`
+	CoinbaseAddr *account.Address `json:"block_height" ser:"nil"`
 }
 
 type GetWorkResponse struct {
@@ -425,7 +426,7 @@ func (bn *BlockNumber) UnmarshalJSON(data []byte) error {
 		input = input[1 : len(input)-1]
 	}
 
-	switch input {
+	switch strings.ToLower(input) {
 	/*case "earliest":
 		*bn = EarliestBlockNumber
 		return nil*/

@@ -57,7 +57,7 @@ func NewBlockValidator(quarkChainConfig *config.QuarkChainConfig, blockchain *Mi
 // ValidateBlock validates the given block's uncles and verifies the block
 // header's transaction and uncle roots. The Headers are assumed to be already
 // validated at this point.
-func (v *MinorBlockValidator) ValidateBlock(mBlock types.IBlock) error {
+func (v *MinorBlockValidator) ValidateBlock(mBlock types.IBlock, force bool) error {
 	if common.IsNil(mBlock) {
 		log.Error(v.logInfo, "check block err", ErrMinorBlockIsNil)
 		return ErrMinorBlockIsNil
@@ -79,7 +79,7 @@ func (v *MinorBlockValidator) ValidateBlock(mBlock types.IBlock) error {
 		return errBlockHeight
 	}
 	// Check whether the block's known, and if not, that it's linkable
-	if v.bc.HasBlockAndState(block.Hash()) {
+	if v.bc.HasBlockAndState(block.Hash()) && !force {
 		log.Error(v.logInfo, "already have this block err", ErrKnownBlock, "height", block.NumberU64(), "hash", block.Hash().String())
 		return ErrKnownBlock
 	}
@@ -197,7 +197,7 @@ func (v *MinorBlockValidator) ValidateBlock(mBlock types.IBlock) error {
 		return errMustBeOneRootChain
 	}
 	if !v.bc.clusterConfig.Quarkchain.DisablePowCheck {
-		if err := v.ValidateSeal(block.Header()); err != nil {
+		if err := v.ValidateSeal(block.Header(), v.bc.shardConfig.PoswConfig.Enabled); err != nil {
 			log.Error(v.logInfo, "ValidatorBlockSeal err", err)
 			return err
 		}
@@ -206,7 +206,7 @@ func (v *MinorBlockValidator) ValidateBlock(mBlock types.IBlock) error {
 }
 
 // ValidatorBlockSeal validate minor block seal when validate block
-func (v *MinorBlockValidator) ValidateSeal(mHeader types.IHeader) error {
+func (v *MinorBlockValidator) ValidateSeal(mHeader types.IHeader, usePowsDiff bool) error {
 	header, ok := mHeader.(*types.MinorBlockHeader)
 	if !ok {
 		return errors.New("validator minor  seal failed , mBlock is nil")
@@ -214,10 +214,18 @@ func (v *MinorBlockValidator) ValidateSeal(mHeader types.IHeader) error {
 	if header.NumberU64() == 0 {
 		return nil
 	}
-
-	adjustedDiff, err := v.bc.GetAdjustedDifficulty(header)
-	if err != nil {
-		return err
+	adjustedDiff := new(big.Int).Set(header.Difficulty)
+	var err error
+	if usePowsDiff {
+		adjustedDiff, err = v.bc.GetAdjustedDifficulty(header)
+		if err != nil {
+			return err
+		}
+	} else {
+		shardConfig := v.bc.shardConfig.PoswConfig
+		if shardConfig.Enabled {
+			adjustedDiff = header.Difficulty.Div(header.Difficulty, new(big.Int).SetUint64(shardConfig.DiffDivider))
+		}
 	}
 	return v.engine.VerifySeal(v.bc, header, adjustedDiff)
 }

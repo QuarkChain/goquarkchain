@@ -38,6 +38,7 @@ func NewMinorChainTask(
 	}
 	mTask.task = task{
 		name:             fmt.Sprintf("shard-%d", header.Branch.GetShardID()),
+		header:           header,
 		maxSyncStaleness: 22500 * 6, // TODO: derive from root chain?
 		batchSize:        MinorBlockHeaderListLimit,
 		findAncestor: func(bc blockchain) (types.IHeader, error) {

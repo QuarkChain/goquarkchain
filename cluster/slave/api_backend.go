@@ -342,9 +342,9 @@ func (s *SlaveBackend) GasPrice(branch uint32, tokenID uint64) (uint64, error) {
 	return 0, ErrMsg("GasPrice")
 }
 
-func (s *SlaveBackend) GetWork(branch uint32) (*consensus.MiningWork, error) {
+func (s *SlaveBackend) GetWork(branch uint32, coinbaseAddr *account.Address) (*consensus.MiningWork, error) {
 	if shard, ok := s.shards[branch]; ok {
-		return shard.GetWork()
+		return shard.GetWork(coinbaseAddr)
 	}
 	return nil, ErrMsg("GetWork")
 }
@@ -423,7 +423,7 @@ func (s *SlaveBackend) getMinorBlockHeadersWithSkip(gReq *p2p.GetMinorBlockHeade
 	var (
 		height     uint64
 		headerlist = make([]*types.MinorBlockHeader, 0, gReq.Limit)
-		mTip       = shrd.MinorBlockChain.CurrentHeader()
+		mTip       = shrd.MinorBlockChain.CurrentBlock()
 	)
 	if gReq.Type == qcom.SkipHash {
 		iHeader := shrd.MinorBlockChain.GetHeaderByHash(gReq.GetHash())
@@ -484,7 +484,7 @@ func (s *SlaveBackend) NewMinorBlock(block *types.MinorBlock) error {
 	if shard, ok := s.shards[block.Header().Branch.Value]; ok {
 		return shard.NewMinorBlock(block)
 	}
-	return ErrMsg("MinorBlock")
+	return ErrMsg("NewMinorBlock")
 }
 
 func (s *SlaveBackend) GenTx(genTxs *rpc.GenTxRequest) error {
@@ -513,4 +513,18 @@ func (s *SlaveBackend) GetShardBackend(fullShardId uint32) (filters.ShardBackend
 		return shrd, nil
 	}
 	return nil, fmt.Errorf("bad params of fullShardId: %d\n", fullShardId)
+}
+
+func (s *SlaveBackend) CheckMinorBlocksInRoot(rootBlock *types.RootBlock) error {
+	if rootBlock == nil {
+		return errors.New("CheckMinorBlocksInRoot failed: invalid root block")
+	}
+	for _, header := range rootBlock.MinorBlockHeaders() {
+		if shard, ok := s.shards[header.Branch.Value]; ok {
+			if err := shard.CheckMinorBlock(header); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }

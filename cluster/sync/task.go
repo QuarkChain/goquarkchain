@@ -20,7 +20,7 @@ const (
 
 // Task represents a synchronization task for the synchronizer.
 type Task interface {
-	SetSendFunc(Send func(value interface{}) (nsent int))
+	SetSendFunc(func(value interface{}) int)
 	Run(blockchain) error
 	Priority() *big.Int
 	PeerID() string
@@ -104,11 +104,15 @@ func (t *task) Run(bc blockchain) error {
 
 			counter := 0
 			for _, blk := range blocks {
+				log.Error("scf", "scf", blk.NumberU64(), "hash", blk.Hash().String())
 				if t.syncBlock != nil {
+					log.Error("scf-", "sync", "start")
 					if err := t.syncBlock(bc, blk); err != nil {
 						return err
 					}
+					log.Error("scf-", "sync", "end")
 				}
+				log.Error("add_block", "add", "start")
 				if err := bc.AddBlock(blk); err != nil {
 					return err
 				}
@@ -135,10 +139,10 @@ func (t *task) SetSendFunc(send func(value interface{}) (nsent int)) {
 	}
 }
 
-func (t *task) sendSync(typ bool, curr, best uint64) {
+func (t *task) sendSync(syncing bool, curr, best uint64) {
 	if t.send != nil {
 		t.send(&SyncingResult{
-			Syncing: typ,
+			Syncing: syncing,
 			Status: syncProgress{
 				CurrentBlock: curr,
 				HighestBlock: best,
@@ -158,7 +162,7 @@ func (t *task) validateHeaderList(bc blockchain, headers []types.IHeader) error 
 				return errors.New("should have blocks correctly linked")
 			}
 		}
-		if err := bc.Validator().ValidateSeal(h); err != nil {
+		if err := bc.Validator().ValidateSeal(h, false); err != nil { //use diff/20
 			return err
 		}
 		prev = h

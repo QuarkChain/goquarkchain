@@ -18,7 +18,7 @@ func newTestRDB() (*qkcdb.RDBDatabase, func()) {
 	if err != nil {
 		panic("failed to create test file: " + err.Error())
 	}
-	db, err := qkcdb.NewRDBDatabase(dirname, false)
+	db, err := qkcdb.NewRDBDatabase(dirname, false, false)
 	if err != nil {
 		panic("failed to create test database: " + err.Error())
 	}
@@ -208,7 +208,7 @@ func TestNewDBWithClean(t *testing.T) {
 	if err != nil {
 		panic("failed to create test file: " + err.Error())
 	}
-	db, err := qkcdb.NewRDBDatabase(dirname, false)
+	db, err := qkcdb.NewRDBDatabase(dirname, false, false)
 	if err != nil {
 		panic("failed to create test database: " + err.Error())
 	}
@@ -225,7 +225,7 @@ func TestNewDBWithClean(t *testing.T) {
 	db.Close()
 
 	//not clean
-	dbNotClean, err := qkcdb.NewRDBDatabase(dirname, false)
+	dbNotClean, err := qkcdb.NewRDBDatabase(dirname, false, false)
 	if err != nil {
 		panic("failed to create test database: " + err.Error())
 	}
@@ -236,7 +236,7 @@ func TestNewDBWithClean(t *testing.T) {
 	dbNotClean.Close()
 
 	//clean
-	dbClean, err := qkcdb.NewRDBDatabase(dirname, true)
+	dbClean, err := qkcdb.NewRDBDatabase(dirname, true, false)
 	if err != nil {
 		panic("failed to create test database: " + err.Error())
 	}
