@@ -333,6 +333,7 @@ func NewQuarkChainConfig() *QuarkChainConfig {
 		MinMiningGasPrice:                 new(big.Int).SetUint64(1000000000),
 		XShardGasDDOSFixRootHeight:        90000,
 		EnableEvmTimeStamp:                1569567600,
+		EnableQkcHashXHeight:              100000000, // need to read from config
 	}
 
 	ret.Root.ConsensusType = PoWSimulate
