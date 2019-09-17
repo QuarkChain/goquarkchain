@@ -40,15 +40,16 @@ func TestSealWithQKCX(t *testing.T) {
 
 	//use hashX directly
 	seedBlockNumber := getSeedFromBlockNumber(header.NumberU64())
+	qCache := generateCache(cacheEntryCnt, seedBlockNumber, true)
 	cacheS := make([]byte, 40)
-	copy(cacheS, seedBlockNumber)
+	copy(cacheS, minerRes.Hash)
 	binary.LittleEndian.PutUint64(cacheS[32:], header.Nonce)
 	seed := crypto.Keccak512(cacheS)
 	var seedArray [8]uint64
 	for i := 0; i < 8; i++ {
 		seedArray[i] = binary.LittleEndian.Uint64(seed[i*8:])
 	}
-	hashRes, err := native.HashWithRotationStats(q.cache.nativeCache, seedArray)
+	hashRes, err := native.HashWithRotationStats(qCache.nativeCache, seedArray)
 	assert.NoError(t, err)
 
 	digest := make([]byte, common.HashLength)
