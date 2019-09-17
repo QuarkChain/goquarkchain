@@ -38,8 +38,8 @@ func (q *QKCHash) hashAlgo(cache *consensus.ShareCache) (err error) {
 	binary.LittleEndian.PutUint64(cache.Seed[32:], cache.Nonce)
 
 	if q.useNative {
-		c := generateCache(cacheEntryCnt, seed, true)
-		cache.Digest, cache.Result, err = qkcHashNative(cache.Seed, c, cache.Height >= q.qkcHashXHeight)
+		q.cache = generateCache(cacheEntryCnt, seed, true)
+		cache.Digest, cache.Result, err = qkcHashNative(cache.Seed, q.cache, cache.Height >= q.qkcHashXHeight)
 	} else {
 		if cache.Height >= q.qkcHashXHeight {
 			panic("qkcHashX go not implement")

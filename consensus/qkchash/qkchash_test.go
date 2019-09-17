@@ -66,7 +66,7 @@ func TestVerifyHeaderAndHeaders(t *testing.T) {
 	assert := assert.New(t)
 	diffCalculator := consensus.EthDifficultyCalculator{AdjustmentCutoff: 1, AdjustmentFactor: 1, MinimumDifficulty: big.NewInt(3)}
 
-	for _, qkcHashNativeFlag := range []bool{true, false} {
+	for _, qkcHashNativeFlag := range []bool{false, true} {
 		q := New(qkcHashNativeFlag, &diffCalculator, false, []byte{}, 100)
 		parent := &types.RootBlockHeader{Number: 1, Difficulty: big.NewInt(3), Time: 42, ToTalDifficulty: big.NewInt(3)}
 		header := &types.RootBlockHeader{
