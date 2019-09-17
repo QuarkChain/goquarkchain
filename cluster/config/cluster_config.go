@@ -234,7 +234,7 @@ func (q *QuarkChainConfig) initAndValidate() {
 		q.MinTXPoolGasPrice = new(big.Int).SetUint64(1000000000)
 	}
 
-	if len(q.GuardianPublicKey) == 64 {
+	if len(q.GuardianPublicKey) == 64*2 {
 		q.GuardianPublicKey = "04" + q.GuardianPublicKey
 	}
 	if len(q.GuardianPublicKey) != 65*2 && len(q.GuardianPublicKey) != 0 {
