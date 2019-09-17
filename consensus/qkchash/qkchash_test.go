@@ -58,7 +58,6 @@ func TestSealWithQKCX(t *testing.T) {
 	}
 	assert.Equal(t, digest, minerRes.Digest)
 }
-
 func TestVerifyHeaderAndHeaders(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
@@ -66,8 +65,9 @@ func TestVerifyHeaderAndHeaders(t *testing.T) {
 	assert := assert.New(t)
 	diffCalculator := consensus.EthDifficultyCalculator{AdjustmentCutoff: 1, AdjustmentFactor: 1, MinimumDifficulty: big.NewInt(3)}
 
-	for _, qkcHashNativeFlag := range []bool{false, true} {
+	for _, qkcHashNativeFlag := range []bool{true, false} {
 		q := New(qkcHashNativeFlag, &diffCalculator, false, []byte{}, 100)
+
 		parent := &types.RootBlockHeader{Number: 1, Difficulty: big.NewInt(3), Time: 42, ToTalDifficulty: big.NewInt(3)}
 		header := &types.RootBlockHeader{
 			Number:          2,
