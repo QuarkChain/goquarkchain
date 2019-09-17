@@ -2,6 +2,8 @@ package qkchash
 
 import (
 	"encoding/binary"
+	"encoding/hex"
+	"fmt"
 	"github.com/QuarkChain/goquarkchain/consensus/qkchash/native"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -122,6 +124,8 @@ func qkcHashNative(seed []byte, cache qkcCache, useX bool) (digest []byte, resul
 	if useX {
 		hashRes, err = native.HashWithRotationStats(cache.nativeCache, seedArray)
 	} else {
+		fmt.Println("seed", hex.EncodeToString(seed))
+		fmt.Println("seedArry", seedArray)
 		hashRes, err = native.Hash(cache.nativeCache, seedArray)
 	}
 
