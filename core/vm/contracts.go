@@ -458,6 +458,6 @@ func (r *deployRootChainPoSWStakingContract) Run(input []byte, evm *EVM, contrac
 	)
 	caller := AccountRef(*contract.CodeAddr)
 	// Use predetermined contract address
-	res, _, _, err := evm.Create(caller, bytecode, contract.Gas, value, &targetAddr)
+	res, _, _, err := evm.Create(caller, bytecode, contract.Gas-deployRootChainPoSWStakingContractGas, value, &targetAddr)
 	return res, err
 }
