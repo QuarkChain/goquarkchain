@@ -333,7 +333,7 @@ func NewQuarkChainConfig() *QuarkChainConfig {
 		MinMiningGasPrice:                 new(big.Int).SetUint64(1000000000),
 		XShardGasDDOSFixRootHeight:        90000,
 		EnableEvmTimeStamp:                1569567600,
-		RootChainPoSWContractBytecodeHash: ethcom.HexToHash("5a7707e2684bd79484f3d952ac6a43f2631e3ef8e2085659c18af5714cee4f4c"),
+		RootChainPoSWContractBytecodeHash: ethcom.HexToHash("0000000000000000000000000000000000000000000000000000000000000000"),
 	}
 
 	ret.Root.ConsensusType = PoWSimulate

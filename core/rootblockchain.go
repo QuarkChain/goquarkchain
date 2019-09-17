@@ -1166,7 +1166,7 @@ func (bc *RootBlockChain) getPoSWAdjustedDiff(header types.IHeader) (*big.Int, e
 		return nil, errors.New("stakes signer not found")
 	}
 	pubKey, err := crypto.SigToPub(rHeader.SealHash().Bytes(), rHeader.Signature[:])
-	if err != nil {
+	if err != nil { //recovery failed
 		return nil, err
 	}
 	if !bytes.Equal(crypto.PubkeyToAddress(*pubKey).Bytes(), signer.Bytes()) {
