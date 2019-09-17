@@ -121,6 +121,7 @@ func qkcHashNative(seed []byte, cache qkcCache, useX bool) (digest []byte, resul
 	var (
 		hashRes [4]uint64
 	)
+	fmt.Println("usrX", useX)
 	if useX {
 		hashRes, err = native.HashWithRotationStats(cache.nativeCache, seedArray)
 	} else {
