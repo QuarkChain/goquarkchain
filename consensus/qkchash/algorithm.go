@@ -2,8 +2,6 @@ package qkchash
 
 import (
 	"encoding/binary"
-	"encoding/hex"
-	"fmt"
 	"github.com/QuarkChain/goquarkchain/consensus/qkchash/native"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -112,7 +110,6 @@ func generateCache(cnt int, seed []byte, genNativeCache bool) qkcCache {
 
 // qkcHashNative calls the native c++ implementation through SWIG.
 func qkcHashNative(seed []byte, cache qkcCache, useX bool) (digest []byte, result []byte, err error) {
-	fmt.Println("seed-before", hex.EncodeToString(seed))
 	// Combine header+nonce into a seed
 	seed = crypto.Keccak512(seed)
 	var seedArray [8]uint64
@@ -122,12 +119,9 @@ func qkcHashNative(seed []byte, cache qkcCache, useX bool) (digest []byte, resul
 	var (
 		hashRes [4]uint64
 	)
-	fmt.Println("usrX", useX)
 	if useX {
 		hashRes, err = native.HashWithRotationStats(cache.nativeCache, seedArray)
 	} else {
-		fmt.Println("seed", hex.EncodeToString(seed))
-		fmt.Println("seedArry", seedArray)
 		hashRes, err = native.Hash(cache.nativeCache, seedArray)
 	}
 

@@ -95,7 +95,6 @@ func (t *task) Run(bc blockchain) error {
 			}
 
 			for _, blk := range blocks {
-				log.Error("scf", "scf", blk.NumberU64(), "hash", blk.Hash().String())
 				if t.syncBlock != nil {
 					if err := t.syncBlock(bc, blk); err != nil {
 						return err

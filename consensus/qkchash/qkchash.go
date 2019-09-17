@@ -2,8 +2,6 @@ package qkchash
 
 import (
 	"encoding/binary"
-	"encoding/hex"
-	"fmt"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/core/state"
@@ -38,12 +36,9 @@ func (q *QKCHash) hashAlgo(cache *consensus.ShareCache) (err error) {
 	seed := getSeedFromBlockNumber(cache.Height)
 	copy(cache.Seed, cache.Hash)
 	binary.LittleEndian.PutUint64(cache.Seed[32:], cache.Nonce)
-	fmt.Println("hashAlgo", cache.Height)
-	defer fmt.Println("hashAlgo end", cache.Height)
+
 	if q.useNative {
-		fmt.Println("hashFroCache", hex.EncodeToString(seed))
 		q.cache = generateCache(cacheEntryCnt, seed, true)
-		fmt.Println("hashFroNative", hex.EncodeToString(cache.Seed))
 		cache.Digest, cache.Result, err = qkcHashNative(cache.Seed, q.cache, cache.Height >= q.qkcHashXHeight)
 	} else {
 		if cache.Height >= q.qkcHashXHeight {
