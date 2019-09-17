@@ -234,6 +234,12 @@ func (q *QuarkChainConfig) initAndValidate() {
 		q.MinTXPoolGasPrice = new(big.Int).SetUint64(1000000000)
 	}
 
+	if len(q.GuardianPublicKey) == 64 {
+		q.GuardianPublicKey = "04" + q.GuardianPublicKey
+	}
+	if len(q.GuardianPublicKey) != 65 && len(q.GuardianPublicKey) != 0 {
+		panic("GuardianPublicKey should 0 or 65")
+	}
 	q.chainIdToShardSize = make(map[uint32]uint32)
 	q.chainIdToShardIds = make(map[uint32][]uint32)
 
