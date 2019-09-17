@@ -112,6 +112,7 @@ func generateCache(cnt int, seed []byte, genNativeCache bool) qkcCache {
 
 // qkcHashNative calls the native c++ implementation through SWIG.
 func qkcHashNative(seed []byte, cache qkcCache, useX bool) (digest []byte, result []byte, err error) {
+	fmt.Println("seed-before", hex.EncodeToString(seed))
 	// Combine header+nonce into a seed
 	seed = crypto.Keccak512(seed)
 	var seedArray [8]uint64
