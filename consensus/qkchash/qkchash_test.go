@@ -39,7 +39,7 @@ func TestSealWithQKCX(t *testing.T) {
 	q.hashAlgo(&minerRes)
 
 	//use hashX directly
-	seedBlockNumber := getSeedFromBlockNumber(header.NumberU64())
+	seedBlockNumber := q.getSeedFromBlockNumber(header.NumberU64())
 	qCache := generateCache(cacheEntryCnt, seedBlockNumber, true)
 	cacheS := make([]byte, 40)
 	copy(cacheS, minerRes.Hash)
