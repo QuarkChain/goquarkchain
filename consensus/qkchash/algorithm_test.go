@@ -78,8 +78,6 @@ func TestQKCHash(t *testing.T) {
 func TestGetSeedFromBlockNumber(t *testing.T) {
 	checkRes := func(height uint64, res string) {
 		if res != hex.EncodeToString(getSeedFromBlockNumber(height)) {
-			fmt.Println("++", res)
-			fmt.Println("--", hex.EncodeToString(getSeedFromBlockNumber(height)))
 			panic("res is not match")
 		}
 	}
