@@ -37,10 +37,13 @@ func TestSealWithQKCX(t *testing.T) {
 		Nonce:  header.GetNonce(),
 	}
 	q.hashAlgo(&minerRes)
+
 	//use hashX directly
-	seedT := make([]byte, 40)
-	copy(seedT, header.SealHash().Bytes())
-	seed := crypto.Keccak512(seedT)
+	seedBlockNumber := getSeedFromBlockNumber(header.NumberU64())
+	cacheS := make([]byte, 40)
+	copy(cacheS, seedBlockNumber)
+	binary.LittleEndian.PutUint64(cacheS[32:], header.Nonce)
+	seed := crypto.Keccak512(cacheS)
 	var seedArray [8]uint64
 	for i := 0; i < 8; i++ {
 		seedArray[i] = binary.LittleEndian.Uint64(seed[i*8:])
@@ -63,7 +66,6 @@ func TestVerifyHeaderAndHeaders(t *testing.T) {
 
 	for _, qkcHashNativeFlag := range []bool{true, false} {
 		q := New(qkcHashNativeFlag, &diffCalculator, false, []byte{}, 100)
-
 		parent := &types.RootBlockHeader{Number: 1, Difficulty: big.NewInt(3), Time: 42, ToTalDifficulty: big.NewInt(3)}
 		header := &types.RootBlockHeader{
 			Number:          2,
