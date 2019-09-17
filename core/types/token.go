@@ -1,6 +1,7 @@
 package types
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/QuarkChain/goquarkchain/serialize"
 	"github.com/ethereum/go-ethereum/common"
@@ -8,6 +9,7 @@ import (
 	"io"
 	"math/big"
 	"sort"
+	"strings"
 )
 
 type TokenBalancePair struct {
@@ -20,6 +22,50 @@ type TokenBalances struct {
 	balances map[uint64]*big.Int
 	Enum     byte
 	//TODO need to lock balances?
+}
+
+type TokenBalancesAlias TokenBalances
+
+func (t *TokenBalances) MarshalJSON() ([]byte, error) {
+	balances := ""
+	for key, val := range t.balances {
+		bal := fmt.Sprintf("%d:%d", key, val.Uint64())
+		if balances == "" {
+			balances = bal
+		} else {
+			balances += "," + bal
+		}
+	}
+	jsoncfg := struct {
+		TokenBalancesAlias
+		Balances string `json:"balances"`
+	}{TokenBalancesAlias: TokenBalancesAlias(*t), Balances: balances}
+	return json.Marshal(jsoncfg)
+}
+
+func (t *TokenBalances) UnmarshalJSON(input []byte) error {
+	var jsoncfg struct {
+		TokenBalancesAlias
+		Balances string `json:"balances"`
+	}
+	if err := json.Unmarshal(input, &jsoncfg); err != nil {
+		return err
+	}
+	*t = TokenBalances(jsoncfg.TokenBalancesAlias)
+	t.balances = make(map[uint64]*big.Int)
+	balList := strings.Split(jsoncfg.Balances, ",")
+	for _, val := range balList {
+		var (
+			key     int
+			balance int
+		)
+		_, err := fmt.Fscanf(strings.NewReader(val), "%d:%d", &key, &balance)
+		if err != nil {
+			return err
+		}
+		t.balances[uint64(key)] = big.NewInt(int64(balance))
+	}
+	return nil
 }
 
 func NewEmptyTokenBalances() *TokenBalances {

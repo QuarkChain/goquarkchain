@@ -78,83 +78,46 @@ func (t *testBackend) stop() {
 func (b *testBackend) cresteMinorBlocks(size int) ([]*types.MinorBlock, error) {
 	mBlocks, _ := core.GenerateMinorBlockChain(params.TestChainConfig, b.config.Quarkchain, b.mGenesis, new(consensus.FakeEngine), b.db, size, nil)
 	for _, blk := range mBlocks {
+		blk := blk
 		b.chainHeadFeed.Send(core.MinorChainHeadEvent{Block: blk})
 	}
 	return mBlocks, nil
 }
 
-func (b *testBackend) subscribeTxs(method string, subch chan *types.Transaction) error {
-
-	client, err := ethrpc.Dial(b.endpoint)
-	if err != nil {
-		return err
+func (b *testBackend) creatSyncing(results []*sync.SyncingResult) {
+	for _, re := range results {
+		b.syncFeed.Send(re)
 	}
-
-	var sub *ethrpc.ClientSubscription
-	subscribeTxs := func(client *ethrpc.Client, method string, subch chan *types.Transaction) error {
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancel()
-		sub, err = client.Subscribe(ctx, "ws", subch, method, "0x10001")
-		if err != nil {
-			return err
-		}
-		return nil
-	}
-
-	ticker := time.NewTicker(2 * time.Second)
-	go func() {
-		select {
-		case <-b.exitCh:
-			sub.Unsubscribe()
-			return
-		case <-sub.Err():
-			sub.Unsubscribe()
-			return
-		case <-ticker.C:
-			if err = subscribeTxs(client, method, subch); err != nil {
-				sub.Unsubscribe()
-				return
-			}
-		}
-	}()
-	return nil
 }
 
-func (b *testBackend) subscribeMinorHeaders(method string, subch chan *types.MinorBlockHeader) error {
-
+func (b *testBackend) subscribeEvent(method string, channel interface{}) (err error) {
 	client, err := ethrpc.Dial(b.endpoint)
 	if err != nil {
 		return err
 	}
 
-	var sub *ethrpc.ClientSubscription
-	subscribeTxs := func(client *ethrpc.Client, method string, subch chan *types.MinorBlockHeader) error {
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancel()
-		sub, err = client.Subscribe(ctx, "qkc", subch, method, hexutil.EncodeUint64(uint64(b.curShardId)))
-		return err
-	}
+	stopTicker := time.NewTicker(5 * time.Second)
 
-	if err = subscribeTxs(client, method, subch); err != nil {
-		return err
-	}
-	ticker := time.NewTicker(2 * time.Second)
 	go func() {
 		select {
-		case <-b.exitCh:
-			sub.Unsubscribe()
+		case <-stopTicker.C:
 			return
-		case err = <-sub.Err():
-			sub.Unsubscribe()
-			return
-		case <-ticker.C:
-			if err = subscribeTxs(client, method, subch); err != nil {
+
+		default:
+			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+			defer cancel()
+			sub, err := client.Subscribe(ctx, "qkc", channel, method, hexutil.EncodeUint64(uint64(b.curShardId)))
+			if err != nil {
+				return
+			}
+			err = <-sub.Err()
+			if err != nil {
 				sub.Unsubscribe()
 				return
 			}
 		}
 	}()
-	return err
+	return
 }
 
 func (b *testBackend) GetShardBackend(fullShardId uint32) (ShardBackend, error) {

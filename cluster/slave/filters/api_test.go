@@ -4,14 +4,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
+	"github.com/QuarkChain/goquarkchain/cluster/sync"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/assert"
 	"testing"
+	"time"
 )
-
-func TestNewPendingTransactions(t *testing.T) {
-}
 
 func TestNewHeads(t *testing.T) {
 	bak, err := newTestBackend()
@@ -19,13 +18,86 @@ func TestNewHeads(t *testing.T) {
 	defer bak.stop()
 
 	chanHeaders := make(chan *types.MinorBlockHeader, 100)
-	bak.subscribeMinorHeaders("newHeads", chanHeaders)
+	err = bak.subscribeEvent("newHeads", chanHeaders)
+	assert.NoError(t, err)
 
+	time.Sleep(500 * time.Millisecond)
 	headers, err := bak.cresteMinorBlocks(10)
 	assert.NoError(t, err)
-	for idx, head := range headers {
-		if headers[idx].Hash() != head.Hash() {
-			t.Error("header by subscribe is not match", "target header: ", head.Hash().Hex(), "expect header: ", headers[idx].Hash().Hex())
+
+	var (
+		idx    = 0
+		ticker = time.NewTicker(10 * time.Second)
+	)
+	for {
+		select {
+		case hd := <-chanHeaders:
+			if hd.Hash() != headers[idx].Hash() {
+				t.Error("header by subscribe is not match", "actual header: ", hd.Hash().Hex(), "expect header: ", headers[idx].Hash().Hex())
+			}
+			idx++
+			if idx == len(headers) {
+				return
+			}
+		case <-ticker.C:
+			assert.Equal(t, idx, len(headers))
+			return
+		}
+	}
+}
+
+func TestSyncing(t *testing.T) {
+	bak, err := newTestBackend()
+	assert.NoError(t, err)
+	defer bak.stop()
+
+	tests := []*sync.SyncingResult{
+		{
+			Syncing: false,
+			Status: struct {
+				CurrentBlock uint64
+				HighestBlock uint64
+			}{CurrentBlock: 0, HighestBlock: 100},
+		},
+		{
+			Syncing: true,
+			Status: struct {
+				CurrentBlock uint64
+				HighestBlock uint64
+			}{CurrentBlock: 0, HighestBlock: 100},
+		},
+		{
+			Syncing: false,
+			Status: struct {
+				CurrentBlock uint64
+				HighestBlock uint64
+			}{CurrentBlock: 100, HighestBlock: 100},
+		},
+	}
+
+	statuses := make(chan *sync.SyncingResult, len(tests)*2)
+	err = bak.subscribeEvent("syncing", statuses)
+	assert.NoError(t, err)
+
+	time.Sleep(500 * time.Millisecond)
+	bak.creatSyncing(tests)
+
+	var (
+		idx    = 0
+		ticker = time.NewTicker(10 * time.Second)
+	)
+	for {
+		select {
+		case dt := <-statuses:
+			if dt.Syncing != tests[idx].Syncing || dt.Status.HighestBlock != tests[idx].Status.HighestBlock {
+				t.Error("syncing by subscribe not match", "actual: ", dt.Status, "expect: ", tests[idx].Status)
+			}
+			idx++
+			if idx == len(tests) {
+				return
+			}
+		case <-ticker.C:
+			assert.Equal(t, idx, len(tests))
 		}
 	}
 }
