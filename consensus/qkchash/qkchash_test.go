@@ -58,6 +58,7 @@ func TestSealWithQKCX(t *testing.T) {
 	}
 	assert.Equal(t, digest, minerRes.Digest)
 }
+
 func TestVerifyHeaderAndHeaders(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
