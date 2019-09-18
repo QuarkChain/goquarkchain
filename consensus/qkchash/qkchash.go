@@ -33,7 +33,7 @@ func (q *QKCHash) Finalize(chain consensus.ChainReader, header types.IHeader, st
 }
 
 func (q *QKCHash) hashAlgo(cache *consensus.ShareCache) (err error) {
-	seed := q.getSeedFromBlockNumber(cache.Height)
+	seed := q.cache.getSeedFromBlockNumber(cache.Height)
 	copy(cache.Seed, cache.Hash)
 	binary.LittleEndian.PutUint64(cache.Seed[32:], cache.Nonce)
 
