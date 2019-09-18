@@ -6,11 +6,12 @@ import (
 	"math/big"
 	"reflect"
 
-	"github.com/QuarkChain/goquarkchain/core/state"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
 
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/consensus"
+	"github.com/QuarkChain/goquarkchain/core/state"
 	"github.com/QuarkChain/goquarkchain/core/types"
 )
 
@@ -186,9 +187,10 @@ func (v *RootBlockValidator) ValidateSeal(rHeader types.IHeader, usePosw bool) e
 	if usePosw {
 		adjustedDiff, _ = v.blockChain.GetAdjustedDifficulty(rHeader)
 	} else {
-		posw := v.config.Root.PoSWConfig
-		if posw.Enabled {
-			adjustedDiff = header.Difficulty.Div(header.Difficulty, new(big.Int).SetUint64(posw.DiffDivider))
+		if crypto.VerifySignature(common.FromHex(v.config.GuardianPublicKey), rHeader.SealHash().Bytes(), header.Signature[:64]) {
+			adjustedDiff = new(big.Int).Div(adjustedDiff, new(big.Int).SetUint64(1000))
+		} else if v.config.Root.PoSWConfig.Enabled {
+			adjustedDiff = new(big.Int).Div(adjustedDiff, new(big.Int).SetUint64(v.config.Root.PoSWConfig.DiffDivider))
 		}
 	}
 	return v.engine.VerifySeal(v.blockChain, header, adjustedDiff)
