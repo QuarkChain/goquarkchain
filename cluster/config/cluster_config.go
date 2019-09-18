@@ -105,27 +105,30 @@ type QuarkChainConfig struct {
 	chainIdToShardIds                 map[uint32][]uint32
 	defaultChainTokenID               uint64
 	allowTokenIDs                     map[uint64]bool
-	EnableEvmTimeStamp                uint64   `json:"ENABLE_EVM_TIMESTAMP"`
-	EnableQkcHashXHeight              uint64   `json:"ENABLE_QKCHASHX_HEIGHT"`
-	DisablePowCheck                   bool     `json:"DISABLE_POW_CHECK"`
-	XShardGasDDOSFixRootHeight        uint64   `json:"XSHARD_GAS_DDOS_FIX_ROOT_HEIGHT"`
-	MinTXPoolGasPrice                 *big.Int `json:"MIN_TX_POOL_GAS_PRICE"`
-	MinMiningGasPrice                 *big.Int `json:"MIN_MINING_GAS_PRICE"`
+	EnableEvmTimeStamp                uint64         `json:"ENABLE_EVM_TIMESTAMP"`
+	EnableQkcHashXHeight              uint64         `json:"ENABLE_QKCHASHX_HEIGHT"`
+	DisablePowCheck                   bool           `json:"DISABLE_POW_CHECK"`
+	XShardGasDDOSFixRootHeight        uint64         `json:"XSHARD_GAS_DDOS_FIX_ROOT_HEIGHT"`
+	MinTXPoolGasPrice                 *big.Int       `json:"MIN_TX_POOL_GAS_PRICE"`
+	MinMiningGasPrice                 *big.Int       `json:"MIN_MINING_GAS_PRICE"`
+	RootChainPoSWContractBytecodeHash ethCommon.Hash `json:"-"`
 }
 
 type QuarkChainConfigAlias QuarkChainConfig
 type jsonConfig struct {
 	QuarkChainConfigAlias
-	GuardianPublicKey                 string     `json:"GUARDIAN_PUBLIC_KEY"`
-	Chains                 []*ChainConfig `json:"CHAINS"`
-	RewardTaxRate          float64        `json:"REWARD_TAX_RATE"`
-	BlockRewardDecayFactor float64        `json:"BLOCK_REWARD_DECAY_FACTOR"`
+	GuardianPublicKey                 string         `json:"GUARDIAN_PUBLIC_KEY"`
+	Chains                            []*ChainConfig `json:"CHAINS"`
+	RewardTaxRate                     float64        `json:"REWARD_TAX_RATE"`
+	BlockRewardDecayFactor            float64        `json:"BLOCK_REWARD_DECAY_FACTOR"`
+	RootChainPoSWContractBytecodeHash string         `json:"ROOT_CHAIN_POSW_CONTRACT_BYTECODE_HASH"`
 }
 
 func (q *QuarkChainConfig) MarshalJSON() ([]byte, error) {
 	rewardTaxRate, _ := q.RewardTaxRate.Float64()
 	BlockRewardDecayFactor, _ := q.BlockRewardDecayFactor.Float64()
 	chains := make([]*ChainConfig, 0, len(q.Chains))
+	rootChainPoSWContractBytecodeHash := ethCommon.Bytes2Hex(q.RootChainPoSWContractBytecodeHash[:])
 	for _, chain := range q.Chains {
 		chains = append(chains, chain)
 	}
@@ -135,6 +138,7 @@ func (q *QuarkChainConfig) MarshalJSON() ([]byte, error) {
 		chains,
 		rewardTaxRate,
 		BlockRewardDecayFactor,
+		rootChainPoSWContractBytecodeHash,
 	}
 	return json.Marshal(jConfig)
 }
@@ -166,11 +170,11 @@ func (q *QuarkChainConfig) UnmarshalJSON(input []byte) error {
 	q.Root.GRPCHost, _ = common.GetIPV4Addr()
 	q.RewardTaxRate = big.NewRat(int64(jConfig.RewardTaxRate*float64(denom)), denom)
 	q.BlockRewardDecayFactor = big.NewRat(int64(jConfig.BlockRewardDecayFactor*float64(denom)), denom)
-
+	q.RootChainPoSWContractBytecodeHash = ethCommon.HexToHash(jConfig.RootChainPoSWContractBytecodeHash)
 	if len(jConfig.GuardianPublicKey) == 64*2 {
 		jConfig.GuardianPublicKey = "04" + jConfig.GuardianPublicKey
 	}
-	q.GuardianPublicKey=ethCommon.FromHex(jConfig.GuardianPublicKey)
+	q.GuardianPublicKey = ethCommon.FromHex(jConfig.GuardianPublicKey)
 	q.initAndValidate()
 	return nil
 }
@@ -244,7 +248,7 @@ func (q *QuarkChainConfig) initAndValidate() {
 	}
 
 	if len(q.GuardianPublicKey) != 65 && len(q.GuardianPublicKey) != 0 {
-		fmt.Println("len",len(q.GuardianPublicKey))
+		fmt.Println("len", len(q.GuardianPublicKey))
 		panic("GuardianPublicKey should 0 or 65")
 	}
 	q.chainIdToShardSize = make(map[uint32]uint32)
@@ -340,6 +344,7 @@ func NewQuarkChainConfig() *QuarkChainConfig {
 		MinMiningGasPrice:                 new(big.Int).SetUint64(1000000000),
 		XShardGasDDOSFixRootHeight:        90000,
 		EnableEvmTimeStamp:                1569567600,
+		RootChainPoSWContractBytecodeHash: ethCommon.HexToHash("0000000000000000000000000000000000000000000000000000000000000000"),
 	}
 
 	ret.Root.ConsensusType = PoWSimulate

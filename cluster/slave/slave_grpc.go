@@ -498,6 +498,24 @@ func (s *SlaveServerSideOp) BatchAddXshardTxList(ctx context.Context, req *rpc.R
 
 	return response, nil
 }
+func (s *SlaveServerSideOp) GetRootChainStakes(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
+	var (
+		gReq     rpc.GetRootChainStakesRequest
+		gRes     rpc.GetRootChainStakesResponse
+		response = &rpc.Response{RpcId: req.RpcId}
+		err      error
+	)
+	if err = serialize.DeserializeFromBytes(req.Data, &gReq); err != nil {
+		return nil, err
+	}
+	if gRes.Stakes, gRes.Signer, err = s.slave.GetRootChainStakes(gReq.Address, gReq.MinorBlockHash); err != nil {
+		return nil, err
+	}
+	if response.Data, err = serialize.SerializeToBytes(gRes); err != nil {
+		return nil, err
+	}
+	return response, nil
+}
 
 // check if the blocks are vailed.
 func (s *SlaveServerSideOp) AddMinorBlockListForSync(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {

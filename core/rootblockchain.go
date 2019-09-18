@@ -3,10 +3,9 @@
 package core
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
-	"github.com/QuarkChain/goquarkchain/internal/qkcapi"
-	"github.com/ethereum/go-ethereum/crypto"
 	"io"
 	"math/big"
 	"sort"
@@ -15,19 +14,21 @@ import (
 	"time"
 
 	"github.com/QuarkChain/goquarkchain/account"
-
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/consensus"
+	"github.com/QuarkChain/goquarkchain/consensus/posw"
 	"github.com/QuarkChain/goquarkchain/core/rawdb"
 	"github.com/QuarkChain/goquarkchain/core/types"
+	"github.com/QuarkChain/goquarkchain/internal/qkcapi"
 	"github.com/QuarkChain/goquarkchain/serialize"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/mclock"
 	"github.com/ethereum/go-ethereum/common/prque"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
-	"github.com/hashicorp/golang-lru"
+	lru "github.com/hashicorp/golang-lru"
 )
 
 var (
@@ -102,10 +103,12 @@ type RootBlockChain struct {
 	engine    consensus.Engine
 	validator Validator // block and state validator interface
 
-	shouldPreserve   func(block *types.RootBlock) bool // Function used to determine whether should preserve the given block.
-	countMinorBlocks bool
-	addBlockAndBroad func(block *types.RootBlock) error
-	isCheckDB        bool
+	shouldPreserve      func(block *types.RootBlock) bool // Function used to determine whether should preserve the given block.
+	countMinorBlocks    bool
+	addBlockAndBroad    func(block *types.RootBlock) error
+	isCheckDB           bool
+	posw                consensus.PoSWCalculator
+	rootChainStakesFunc func(address account.Address, lastMinor common.Hash) (*big.Int, *account.Recipient, error)
 }
 
 // NewBlockChain returns a fully initialized block chain using information
@@ -129,7 +132,7 @@ func NewRootBlockChain(db ethdb.Database, chainConfig *config.QuarkChainConfig, 
 		isCheckDB:                false,
 	}
 	bc.SetValidator(NewRootBlockValidator(chainConfig, bc, engine))
-
+	bc.posw = posw.NewPoSW(bc, chainConfig.Root.PoSWConfig)
 	var err error
 	bc.headerChain, err = NewHeaderChain(db, chainConfig, engine, bc.getProcInterrupt)
 	if err != nil {
@@ -1124,17 +1127,62 @@ func (bc *RootBlockChain) Config() *config.QuarkChainConfig { return bc.chainCon
 // Engine retrieves the blockchain's consensus engine.
 func (bc *RootBlockChain) Engine() consensus.Engine { return bc.engine }
 
-func (m *RootBlockChain) SkipDifficultyCheck() bool {
-	return m.Config().SkipRootDifficultyCheck
+func (bc *RootBlockChain) SkipDifficultyCheck() bool {
+	return bc.Config().SkipRootDifficultyCheck
 }
 
-func (m *RootBlockChain) GetAdjustedDifficulty(header types.IHeader) (*big.Int, error) {
+func (bc *RootBlockChain) GetAdjustedDifficulty(header types.IHeader) (*big.Int, error) {
 	rHeader := header.(*types.RootBlockHeader)
-	adjustedDiff := rHeader.GetDifficulty()
-	if crypto.VerifySignature(m.Config().GuardianPublicKey, rHeader.SealHash().Bytes(), rHeader.Signature[:64]) {
-		adjustedDiff = new(big.Int).Div(rHeader.GetDifficulty(), new(big.Int).SetUint64(1000))
+	if crypto.VerifySignature(bc.Config().GuardianPublicKey, rHeader.SealHash().Bytes(), rHeader.Signature[:64]) {
+		guardianAdjustedDiff := new(big.Int).Div(rHeader.GetDifficulty(), new(big.Int).SetUint64(1000))
+		return guardianAdjustedDiff, nil
 	}
-	return adjustedDiff, nil
+	if bc.posw.IsPoSWEnabled() && header.GetTime() >= bc.Config().Root.PoSWConfig.EnableTimestamp && header.NumberU64() > 0 {
+		poswAdjusted, err := bc.getPoSWAdjustedDiff(header)
+		if err != nil {
+			log.Info("apply posw failed: ", err)
+		}
+		if poswAdjusted != nil {
+			log.Info("posw applied: from", rHeader.Difficulty, "to", poswAdjusted)
+			return poswAdjusted, nil
+		}
+	}
+	return rHeader.GetDifficulty(), nil
+}
+
+func (bc *RootBlockChain) getPoSWAdjustedDiff(header types.IHeader) (*big.Int, error) {
+	rHeader := header.(*types.RootBlockHeader)
+	// get chain 0 shard 0's last confirmed block header
+	lastConfirmedMinorBlockHeader := bc.GetLastConfirmedMinorBlockHeader(header.GetParentHash(), uint32(1))
+	if lastConfirmedMinorBlockHeader == nil {
+		return nil, errors.New("no shard block has been confirmed")
+	}
+	getStakes := bc.GetRootChainStakesFunc()
+	stakes, signer, err := getStakes(header.GetCoinbase(), lastConfirmedMinorBlockHeader.Hash())
+	if err != nil {
+		return nil, err
+	}
+	if signer == nil || *signer == (common.Address{}) {
+		return nil, errors.New("stakes signer not found")
+	}
+	pubKey, err := crypto.SigToPub(rHeader.SealHash().Bytes(), rHeader.Signature[:])
+	if err != nil { //recovery failed
+		return nil, err
+	}
+	if !bytes.Equal(crypto.PubkeyToAddress(*pubKey).Bytes(), signer.Bytes()) {
+		return nil, errors.New("stakes signer not match")
+	}
+	return bc.posw.PoSWDiffAdjust(header, stakes)
+}
+
+func (bc *RootBlockChain) GetLastConfirmedMinorBlockHeader(prevBlock common.Hash, fullShardId uint32) *types.MinorBlockHeader {
+	headers := bc.GetLatestMinorBlockHeaders(prevBlock)
+	for id, header := range headers {
+		if id == fullShardId {
+			return header
+		}
+	}
+	return nil
 }
 
 // SubscribeRemovedLogsEvent registers a subscription of RemovedLogsEvent.
@@ -1363,4 +1411,14 @@ func (bc *RootBlockChain) PutRootBlockConfirmingMinorBlock(blockID []byte, rHash
 func (bc *RootBlockChain) GetRootBlockConfirmingMinorBlock(blockID []byte) common.Hash {
 	//For json Rpc
 	return rawdb.GetRootBlockConfirmingMinorBlock(bc.db, blockID)
+}
+
+func (bc *RootBlockChain) SetRootChainStakesFunc(getRootChainStakes func(address account.Address,
+	lastMinor common.Hash) (*big.Int, *account.Recipient, error)) {
+	bc.rootChainStakesFunc = getRootChainStakes
+}
+
+func (bc *RootBlockChain) GetRootChainStakesFunc() func(address account.Address,
+	lastMinor common.Hash) (*big.Int, *account.Recipient, error) {
+	return bc.rootChainStakesFunc
 }

@@ -18,6 +18,7 @@
 package core
 
 import (
+	"bytes"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -44,6 +45,7 @@ import (
 
 	qkcCommon "github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/core/vm"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
@@ -1791,4 +1793,59 @@ func (m *MinorBlockChain) GetGenesisToken() uint64 {
 
 func (m *MinorBlockChain) GetGenesisRootHeight() uint32 {
 	return m.clusterConfig.Quarkchain.GetGenesisRootHeight(m.branch.Value)
+}
+
+func (m *MinorBlockChain) getEvmStateByBlock(block *types.MinorBlock) (*state.StateDB, error) {
+	if bytes.Equal(block.Hash().Bytes(), m.CurrentBlock().Hash().Bytes()) {
+		return m.currentEvmState, nil
+	}
+	return m.StateAt(block.GetMetaData().Root)
+}
+
+func (m *MinorBlockChain) GetRootChainStakes(coinbase account.Recipient, lastMinor common.Hash) (*big.Int,
+	*account.Recipient, error) {
+
+	if m.branch.GetChainID() != 0 || m.branch.GetShardID() != 0 {
+		return nil, nil, errors.New("not chain 0 shard 0")
+	}
+
+	last := m.GetMinorBlock(lastMinor)
+	if last == nil {
+		panic(fmt.Sprintf("block not found: %x", lastMinor))
+	}
+	evmState, err := m.getEvmStateByBlock(last)
+	if err != nil {
+		return nil, nil, err
+	}
+	evmState = evmState.Copy()
+	evmState.SetGasUsed(big.NewInt(0))
+	contractAddress := vm.SystemContracts[vm.ROOT_CHAIN_POSW].Address()
+	code := evmState.GetCode(contractAddress)
+	if code == nil {
+		return nil, nil, errors.New("PoSW-on-root-chain contract is not found")
+	}
+	codeHash := crypto.Keccak256Hash(code)
+	//have to make sure the code is expected
+	if bytes.Compare(codeHash[:], m.clusterConfig.Quarkchain.RootChainPoSWContractBytecodeHash[:]) != 0 {
+		return nil, nil, errors.New("PoSW-on-root-chain contract is invalid")
+	}
+	//call the contract's 'getLockedStakes' function
+	mockSender := account.Recipient{}
+	data := common.Hex2Bytes("fd8c4646000000000000000000000000")
+	data = append(data[:], coinbase[:]...)
+	nonce := evmState.GetNonce(mockSender)
+	toFullShardKey := uint32(0)
+	msg := types.NewMessage(mockSender, &contractAddress, nonce, new(big.Int), 1000000, new(big.Int), data,
+		false, 0, &toFullShardKey, m.GetGenesisToken(), m.GetGenesisToken())
+	context := NewEVMContext(msg, last.Header(), m)
+	evmState.SetQuarkChainConfig(m.clusterConfig.Quarkchain)
+	vmenv := vm.NewEVM(context, evmState, m.ethChainConfig, *m.GetVMConfig())
+	gp := new(GasPool).AddGas(evmState.GetGasLimit().Uint64())
+	output, _, _, err := ApplyMessage(vmenv, msg, gp)
+	if err != nil || output == nil {
+		return nil, nil, err
+	}
+	stake := new(big.Int).SetBytes(output[:32])
+	signer := account.BytesToIdentityRecipient(output[32+12:])
+	return stake, &signer, nil
 }

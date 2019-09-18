@@ -126,6 +126,7 @@ func New(ctx *service.ServiceContext, cfg *config.ClusterConfig) (*QKCMasterBack
 
 	mstr.rootBlockChain.SetEnableCountMinorBlocks(cfg.EnableTransactionHistory)
 	mstr.rootBlockChain.SetBroadcastRootBlockFunc(mstr.AddRootBlock)
+	mstr.rootBlockChain.SetRootChainStakesFunc(mstr.GetRootChainStakes)
 	for _, cfg := range cfg.SlaveList {
 		target := fmt.Sprintf("%s:%d", cfg.IP, cfg.Port)
 		client := NewSlaveConn(target, cfg.ChainMaskList, cfg.ID)
@@ -627,6 +628,23 @@ func (s *QKCMasterBackend) AddRootBlock(rootBlock *types.RootBlock) error {
 		go s.miner.HandleNewTip()
 	}
 	return nil
+}
+
+func (s *QKCMasterBackend) GetRootChainStakes(coinbase account.Address, lastMinor common.Hash) (*big.Int,
+	*account.Recipient, error) {
+
+	fullShardId := uint32(1)
+	var slave rpc.ISlaveConn
+	if cons, ok := s.branchToSlaves[fullShardId]; !ok {
+		panic("chain 0 shard 0 missing.")
+	} else {
+		slave = cons[0]
+	}
+	stakes, signer, err := slave.GetRootChainStakes(coinbase, lastMinor)
+	if err != nil {
+		return nil, nil, err
+	}
+	return stakes, signer, nil
 }
 
 // SetTargetBlockTime set target Time from jsonRpc
