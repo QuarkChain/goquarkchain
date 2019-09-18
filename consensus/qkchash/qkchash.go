@@ -37,15 +37,16 @@ func (q *QKCHash) hashAlgo(cache *consensus.ShareCache) (err error) {
 	copy(cache.Seed, cache.Hash)
 	binary.LittleEndian.PutUint64(cache.Seed[32:], cache.Nonce)
 
+	c := q.cache.getCacheFromSeed(seed, q.useNative)
 	if q.useNative {
-		q.cache.currentCache = q.cache.getCacheFromSeed(seed, true)
-		cache.Digest, cache.Result, err = qkcHashNative(cache.Seed, q.cache.currentCache, cache.Height >= q.qkcHashXHeight)
+		cache.Digest, cache.Result, err = qkcHashNative(cache.Seed, c, cache.Height >= q.qkcHashXHeight)
 	} else {
 		if cache.Height >= q.qkcHashXHeight {
 			panic("qkcHashX go not implement")
 		}
+
 		// TODO:not use this func
-		cache.Digest, cache.Result, err = qkcHashGo(cache.Seed, q.cache.currentCache)
+		cache.Digest, cache.Result, err = qkcHashGo(cache.Seed, c)
 	}
 	return
 }
