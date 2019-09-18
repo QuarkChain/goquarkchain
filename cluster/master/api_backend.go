@@ -243,7 +243,6 @@ func (s *QKCMasterBackend) GetWork(branch account.Branch, addr *common.Address) 
 		coinbaseAddr = nil
 	}
 	if branch.Value == 0 {
-		//TODO to fix root's POWS diff cal
 		return s.miner.GetWork(coinbaseAddr)
 	}
 	slaveConn := s.getOneSlaveConnection(branch)
