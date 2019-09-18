@@ -40,9 +40,9 @@ type ClusterConfig struct {
 
 func NewClusterConfig() *ClusterConfig {
 	var ret = ClusterConfig{
-		P2PPort:                  38291,
-		JSONRPCPort:              38391,
-		PrivateJSONRPCPort:       38491,
+		P2PPort:                  DefaultP2PPort,
+		JSONRPCPort:              DefaultPubRpcPort,
+		PrivateJSONRPCPort:       DefaultPrivRpcPort,
 		EnableTransactionHistory: false,
 		DbPathRoot:               "./db",
 		LogLevel:                 "info",
@@ -110,6 +110,8 @@ type QuarkChainConfig struct {
 	XShardGasDDOSFixRootHeight        uint64      `json:"XSHARD_GAS_DDOS_FIX_ROOT_HEIGHT"`
 	MinTXPoolGasPrice                 *big.Int    `json:"MIN_TX_POOL_GAS_PRICE"`
 	MinMiningGasPrice                 *big.Int    `json:"MIN_MINING_GAS_PRICE"`
+	GRPCHost                          string      `json:"-"`
+	GRPCPort                          uint16      `json:"-"`
 	RootChainPoSWContractBytecodeHash ethcom.Hash `json:"-"`
 }
 
@@ -163,8 +165,8 @@ func (q *QuarkChainConfig) UnmarshalJSON(input []byte) error {
 		}
 	}
 	var denom int64 = 1000
-	q.Root.GRPCPort = GrpcPort
-	q.Root.GRPCHost, _ = common.GetIPV4Addr()
+	q.GRPCHost, _ = common.GetIPV4Addr()
+	q.GRPCPort = DefaultGrpcPort
 	q.RewardTaxRate = big.NewRat(int64(jConfig.RewardTaxRate*float64(denom)), denom)
 	q.BlockRewardDecayFactor = big.NewRat(int64(jConfig.BlockRewardDecayFactor*float64(denom)), denom)
 	q.RootChainPoSWContractBytecodeHash = ethcom.HexToHash(jConfig.RootChainPoSWContractBytecodeHash)
@@ -312,6 +314,7 @@ func (q *QuarkChainConfig) GetShardSizeByChainId(ID uint32) (uint32, error) {
 }
 
 func NewQuarkChainConfig() *QuarkChainConfig {
+	grpchost, _ := common.GetIPV4Addr()
 	var ret = QuarkChainConfig{
 		ChainSize:                         3,
 		MaxNeighbors:                      32,
@@ -332,6 +335,8 @@ func NewQuarkChainConfig() *QuarkChainConfig {
 		MinTXPoolGasPrice:                 new(big.Int).SetUint64(1000000000),
 		MinMiningGasPrice:                 new(big.Int).SetUint64(1000000000),
 		XShardGasDDOSFixRootHeight:        90000,
+		GRPCHost:                          grpchost,
+		GRPCPort:                          DefaultGrpcPort,
 		EnableEvmTimeStamp:                1569567600,
 		RootChainPoSWContractBytecodeHash: ethcom.HexToHash("0000000000000000000000000000000000000000000000000000000000000000"),
 	}

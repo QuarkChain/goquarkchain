@@ -67,15 +67,6 @@ type Config struct {
 	// interface.
 	HTTPTimeouts rpc.HTTPTimeouts
 
-	// WSHost is the host interface on which to start the websocket RPC server. If
-	// this field is empty, no websocket API endpoint will be started.
-	WSHost string `toml:",omitempty"`
-
-	// WSPort is the TCP port number on which to start the websocket RPC server. The
-	// default zero value is/ valid and will pick a port number randomly (useful for
-	// ephemeral nodes).
-	WSPort int `toml:",omitempty"`
-
 	// WSOrigins is the list of domain to accept websocket requests from. Please be
 	// aware that the server can only act upon the HTTP request the client sends and
 	// cannot verify the validity of the request header.
@@ -86,20 +77,14 @@ type Config struct {
 	// exposed.
 	WSModules []string `toml:",omitempty"`
 
-	// WSExposeAll exposes all API modules via the WebSocket RPC interface rather
-	// than just the public ones.
-	//
-	// *WARNING* Only set this if the node is running in a trusted network, exposing
-	// private APIs to untrusted users is a major security risk.
-	WSExposeAll bool `toml:",omitempty"`
-
-	// grpc service endpoint
-	SvrHost   string `toml:",omitempty"`
-	SvrPort   uint16 `toml:",omitempty"`
-	SvrModule string `toml:",omitempty"`
+	WSEndpoint string
 
 	// Logger is a custom logger to use with the p2p.Server.
 	Logger log.Logger `toml:",omitempty"`
+
+	GRPCModules []string `toml:",omitempty"`
+	// grpc service endpoint
+	GRPCEndpoint string
 
 	staticNodesWarning     bool
 	trustedNodesWarning    bool
@@ -137,22 +122,6 @@ func (c *Config) NodeDB() string {
 		return "" // ephemeral
 	}
 	return c.ResolvePath(datadirNodeDatabase)
-}
-
-// WSEndpoint resolves a websocket endpoint based on the configured host interface
-// and port parameters.
-func (c *Config) WSEndpoint() string {
-	if c.WSHost == "" {
-		return ""
-	}
-	return fmt.Sprintf("%s:%d", c.WSHost, c.WSPort)
-}
-
-func (c *Config) GRPCEndpoint() string {
-	if c.SvrHost == "" {
-		return ""
-	}
-	return fmt.Sprintf("%s:%d", c.SvrHost, c.SvrPort)
 }
 
 // NodeName returns the devp2p node identifier.
