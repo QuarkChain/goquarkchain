@@ -8,6 +8,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/assert"
+	"math/big"
 	"testing"
 	"time"
 )
@@ -98,6 +99,65 @@ func TestSyncing(t *testing.T) {
 			}
 		case <-ticker.C:
 			assert.Equal(t, idx, len(tests))
+		}
+	}
+}
+
+func TestNewPendingTransactions(t *testing.T) {
+	bak, err := newTestBackend()
+	assert.NoError(t, err)
+	defer bak.stop()
+
+	txdata := []*types.Transaction{
+		{
+			TxType: 0,
+			EvmTx:  types.NewEvmTransaction(0, common.Address{}, new(big.Int), 0, new(big.Int).SetUint64(10000000), 2, 2, 1, 0, []byte{}, 0, 0),
+		},
+		{
+			TxType: 0,
+			EvmTx:  types.NewEvmTransaction(1, common.Address{}, new(big.Int), 0, new(big.Int).SetUint64(10000000), 2, 2, 1, 0, []byte{}, 0, 0),
+		},
+		{
+			TxType: 0,
+			EvmTx:  types.NewEvmTransaction(2, common.Address{}, new(big.Int), 0, new(big.Int).SetUint64(10000000), 2, 2, 1, 0, []byte{}, 0, 0),
+		},
+		{
+			TxType: 0,
+			EvmTx:  types.NewEvmTransaction(3, common.Address{}, new(big.Int), 0, new(big.Int).SetUint64(10000000), 2, 2, 1, 0, []byte{}, 0, 0),
+		},
+		{
+			TxType: 0,
+			EvmTx:  types.NewEvmTransaction(4, common.Address{}, new(big.Int), 0, new(big.Int).SetUint64(10000000), 2, 2, 1, 0, []byte{}, 0, 0),
+		},
+		{
+			TxType: 0,
+			EvmTx:  types.NewEvmTransaction(5, common.Address{}, new(big.Int), 0, new(big.Int).SetUint64(10000000), 2, 2, 1, 0, []byte{}, 0, 0),
+		},
+	}
+
+	txhashs := make(chan common.Hash, len(txdata)*2)
+	err = bak.subscribeEvent("newPendingTransactions", txhashs)
+	assert.NoError(t, err)
+
+	time.Sleep(500 * time.Millisecond)
+	bak.createTxs(txdata)
+
+	var (
+		idx    = 0
+		ticker = time.NewTicker(10 * time.Second)
+	)
+	for {
+		select {
+		case dt := <-txhashs:
+			if dt != txdata[idx].Hash() {
+				t.Error("syncing by subscribe not match", "actual: ", dt.Hex(), "expect: ", txdata[idx].Hash().Hex())
+			}
+			idx++
+			if idx == len(txdata) {
+				return
+			}
+		case <-ticker.C:
+			assert.Equal(t, idx, len(txdata))
 		}
 	}
 }

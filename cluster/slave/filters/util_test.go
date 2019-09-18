@@ -90,6 +90,10 @@ func (b *testBackend) creatSyncing(results []*sync.SyncingResult) {
 	}
 }
 
+func (b *testBackend) createTxs(txs []*types.Transaction) {
+	b.txFeed.Send(core.NewTxsEvent{Txs: txs})
+}
+
 func (b *testBackend) subscribeEvent(method string, channel interface{}) (err error) {
 	client, err := ethrpc.Dial(b.endpoint)
 	if err != nil {
