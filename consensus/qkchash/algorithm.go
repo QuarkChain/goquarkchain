@@ -49,16 +49,19 @@ func (c *cacheSeed) getCacheFromSeed(seed []byte, useNative bool) qkcCache {
 }
 
 func (q *cacheSeed) getSeedFromBlockNumber(block uint64) []byte {
+	epoch := int(block / EpochLength)
+	if epoch < len(q.seed) {
+		return q.seed[epoch]
+	}
 	q.mu.Lock()
 	defer q.mu.Unlock()
 	keccak256 := makeHasher(sha3.NewKeccak256())
-	lenSeed := len(q.seed)
-	for i := 0; lenSeed <= int(block/EpochLength); i++ {
-		seed := q.seed[lenSeed-1]
+	for i := 0; len(q.seed) <= int(block/EpochLength); i++ {
+		seed := q.seed[len(q.seed)-1]
 		keccak256(seed, seed)
 		q.seed = append(q.seed, seed)
 	}
-	return q.seed[int(block/EpochLength)]
+	return q.seed[epoch]
 }
 
 // qkcCache is the union type of cache for qkchash algo.
