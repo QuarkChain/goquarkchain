@@ -21,19 +21,17 @@ var (
 )
 
 type cacheSeed struct {
-	mu           sync.RWMutex
-	seed         [][]byte
-	cache        map[common.Hash]qkcCache
-	currentCache qkcCache
+	mu    sync.RWMutex
+	seed  [][]byte
+	cache map[common.Hash]qkcCache
 }
 
 func NewcacheSeed(useNative bool) *cacheSeed {
 	seed := make([][]byte, 0, 32)
 	seed = append(seed, common.Hash{}.Bytes())
 	return &cacheSeed{
-		seed:         seed,
-		cache:        make(map[common.Hash]qkcCache, 0),
-		currentCache: generateCache(cacheEntryCnt, common.Hash{}.Bytes(), useNative),
+		seed:  seed,
+		cache: make(map[common.Hash]qkcCache, 0),
 	}
 }
 
@@ -53,9 +51,9 @@ func (q *cacheSeed) getSeedFromBlockNumber(block uint64) []byte {
 	if epoch < len(q.seed) {
 		return q.seed[epoch]
 	}
+	keccak256 := makeHasher(sha3.NewKeccak256())
 	q.mu.Lock()
 	defer q.mu.Unlock()
-	keccak256 := makeHasher(sha3.NewKeccak256())
 	for i := 0; len(q.seed) <= int(block/EpochLength); i++ {
 		seed := q.seed[len(q.seed)-1]
 		keccak256(seed, seed)
