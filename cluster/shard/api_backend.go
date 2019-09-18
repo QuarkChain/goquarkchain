@@ -460,3 +460,12 @@ func (s *ShardBackend) CheckMinorBlock(header *types.MinorBlockHeader) error {
 	_, _, err := s.MinorBlockChain.InsertChainForDeposits([]types.IBlock{block}, true)
 	return err
 }
+
+func (s *ShardBackend) GetRootChainStakes(address account.Address, lastMinor common.Hash) (*big.Int,
+	*account.Recipient, error) {
+
+	if s.Config.ChainID != 0 || s.Config.ShardID != 0 {
+		return nil, nil, errors.New("not chain 0 shard 0")
+	}
+	return s.MinorBlockChain.GetRootChainStakes(address.Recipient, lastMinor)
+}

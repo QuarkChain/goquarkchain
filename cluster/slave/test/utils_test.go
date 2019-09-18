@@ -532,3 +532,22 @@ func (s *SlaveServerSideOp) HandleNewMinorBlock(ctx context.Context, req *rpc.Re
 
 	return response, nil
 }
+
+func (s *SlaveServerSideOp) GetRootChainStakes(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
+	var (
+		gReq     rpc.GetRootChainStakesRequest
+		gRep     rpc.GetRootChainStakesResponse
+		buf      = serialize.NewByteBuffer(req.Data)
+		response = &rpc.Response{RpcId: req.RpcId}
+		err      error
+	)
+
+	if err = serialize.Deserialize(buf, &gReq); err != nil {
+		return nil, err
+	}
+
+	if response.Data, err = serialize.SerializeToBytes(gRep); err != nil {
+		return nil, err
+	}
+	return response, nil
+}

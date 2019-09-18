@@ -406,6 +406,16 @@ type PeerInfoForDisPlay struct {
 	Port uint32
 }
 
+type GetRootChainStakesRequest struct {
+	Address        account.Address `json:"address" gencodec:"required"`
+	MinorBlockHash common.Hash     `json:"minor_block_hash" gencodec:"required"`
+}
+
+type GetRootChainStakesResponse struct {
+	Stakes *big.Int           `json:"stakes" gencodec:"required"`
+	Signer *account.Recipient `json:"signer" gencodec:"required"`
+}
+
 type BlockNumber int64
 
 const (

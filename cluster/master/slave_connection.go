@@ -3,6 +3,7 @@ package master
 import (
 	"errors"
 	"fmt"
+	"math/big"
 	"sync"
 	"time"
 
@@ -657,4 +658,25 @@ func (s *SlaveConnection) getMinorBlock(hash common.Hash, height *uint64,
 		return nil, nil, err
 	}
 	return minBlockResponse.MinorBlock, minBlockResponse.Extra, nil
+}
+
+func (s *SlaveConnection) GetRootChainStakes(address account.Address, lastMinor common.Hash) (*big.Int,
+	*account.Recipient, error) {
+	var (
+		getRootChainStakesRequest  = rpc.GetRootChainStakesRequest{Address: address, MinorBlockHash: lastMinor}
+		getRootChainStakesResponse = rpc.GetRootChainStakesResponse{}
+		res                        *rpc.Response
+	)
+	bytes, err := serialize.SerializeToBytes(getRootChainStakesRequest)
+	if err != nil {
+		return nil, nil, err
+	}
+	res, err = s.client.Call(s.target, &rpc.Request{Op: rpc.OpGetRootChainStakes, Data: bytes})
+	if err != nil {
+		return nil, nil, err
+	}
+	if err = serialize.Deserialize(serialize.NewByteBuffer(res.Data), &getRootChainStakesResponse); err != nil {
+		return nil, nil, err
+	}
+	return getRootChainStakesResponse.Stakes, getRootChainStakesResponse.Signer, nil
 }
