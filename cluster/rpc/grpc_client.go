@@ -46,6 +46,7 @@ const (
 	OpGetWork
 	OpSubmitWork
 	OpAddMinorBlockListForSync
+	OpGetRootChainStakes
 	// p2p api
 	OpBroadcastNewTip
 	OpBroadcastTransactions
@@ -108,6 +109,7 @@ var (
 		OpAddMinorBlockListForSync:    {name: "AddMinorBlockListForSync"},
 		OpSetMining:                   {name: "SetMining"},
 		OpCheckMinorBlocksInRoot:      {name: "CheckMinorBlocksInRoot"},
+		OpGetRootChainStakes:          {name: "GetRootChainStakes"},
 		// p2p api
 		OpGetMinorBlockList:       {name: "GetMinorBlockList"},
 		OpGetMinorBlockHeaderList: {name: "GetMinorBlockHeaderList"},

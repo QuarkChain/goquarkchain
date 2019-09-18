@@ -32,5 +32,5 @@ func TestVerifySeal(t *testing.T) {
 	// Wrong
 	header.Nonce = 0
 	err = d.VerifySeal(nil, header, big.NewInt(0))
-	assert.Error(err, "should have error because of the wrong nonce")
+	assert.NoError(err, "should pass with 0 diff")
 }

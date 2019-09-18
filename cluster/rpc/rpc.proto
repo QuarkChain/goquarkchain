@@ -66,6 +66,8 @@ service SlaveServerSideOp {
     }
     rpc SubmitWork (Request) returns (Response) {
     }
+    rpc GetRootChainStakes (Request) returns (Response) {
+    }
     // APIs for neighbor slaves
     rpc AddXshardTxList (Request) returns (Response) {
     }
