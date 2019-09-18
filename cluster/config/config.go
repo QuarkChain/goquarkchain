@@ -65,6 +65,7 @@ func NewPOWConfig() *POWConfig {
 
 type POSWConfig struct {
 	Enabled            bool     `json:"ENABLED"`
+	EnableTimestamp    uint64   `json:"ENABLE_TIMESTAMP"`
 	DiffDivider        uint64   `json:"DIFF_DIVIDER"`
 	WindowSize         uint64   `json:"WINDOW_SIZE"`
 	TotalStakePerBlock *big.Int `json:"TOTAL_STAKE_PER_BLOCK"`
@@ -73,9 +74,20 @@ type POSWConfig struct {
 func NewPOSWConfig() *POSWConfig {
 	return &POSWConfig{
 		Enabled:            false,
+		EnableTimestamp:    0,
 		DiffDivider:        20,
 		WindowSize:         256,
 		TotalStakePerBlock: new(big.Int).Mul(big.NewInt(1000000000), QuarkashToJiaozi),
+	}
+}
+
+func NewRootPOSWConfig() *POSWConfig {
+	return &POSWConfig{
+		Enabled:            false,
+		EnableTimestamp:    0,
+		DiffDivider:        1000,
+		WindowSize:         4320, //72 hours
+		TotalStakePerBlock: new(big.Int).Mul(big.NewInt(240000), QuarkashToJiaozi),
 	}
 }
 
@@ -127,6 +139,9 @@ type RootConfig struct {
 	EpochInterval                  *big.Int        `json:"EPOCH_INTERVAL"`
 	DifficultyAdjustmentCutoffTime uint32          `json:"DIFFICULTY_ADJUSTMENT_CUTOFF_TIME"`
 	DifficultyAdjustmentFactor     uint32          `json:"DIFFICULTY_ADJUSTMENT_FACTOR"`
+	GRPCHost                       string          `json:"-"`
+	GRPCPort                       uint16          `json:"-"`
+	PoSWConfig                     *POSWConfig     `json:"POSW_CONFIG"`
 }
 
 func NewRootConfig() *RootConfig {
@@ -140,6 +155,9 @@ func NewRootConfig() *RootConfig {
 		EpochInterval:                  new(big.Int).SetUint64(210000 * 10),
 		DifficultyAdjustmentCutoffTime: 40,
 		DifficultyAdjustmentFactor:     1024,
+		GRPCHost:                       "127.0.0.1",
+		GRPCPort:                       DefaultGrpcPort,
+		PoSWConfig:                     NewRootPOSWConfig(),
 	}
 }
 

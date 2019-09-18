@@ -7,6 +7,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/core/types"
+	ethcom "github.com/ethereum/go-ethereum/common"
 	"math/big"
 	"sort"
 )
@@ -103,28 +104,31 @@ type QuarkChainConfig struct {
 	chainIdToShardIds                 map[uint32][]uint32
 	defaultChainTokenID               uint64
 	allowTokenIDs                     map[uint64]bool
-	EnableEvmTimeStamp                uint64   `json:"ENABLE_EVM_TIMESTAMP"`
-	EnableQkcHashXHeight              uint64   `json:"ENABLE_QKCHASHX_HEIGHT"`
-	DisablePowCheck                   bool     `json:"DISABLE_POW_CHECK"`
-	XShardGasDDOSFixRootHeight        uint64   `json:"XSHARD_GAS_DDOS_FIX_ROOT_HEIGHT"`
-	MinTXPoolGasPrice                 *big.Int `json:"MIN_TX_POOL_GAS_PRICE"`
-	MinMiningGasPrice                 *big.Int `json:"MIN_MINING_GAS_PRICE"`
-	GRPCHost                          string   `json:"-"`
-	GRPCPort                          uint16   `json:"-"`
+	EnableEvmTimeStamp                uint64      `json:"ENABLE_EVM_TIMESTAMP"`
+	EnableQkcHashXHeight              uint64      `json:"ENABLE_QKCHASHX_HEIGHT"`
+	DisablePowCheck                   bool        `json:"DISABLE_POW_CHECK"`
+	XShardGasDDOSFixRootHeight        uint64      `json:"XSHARD_GAS_DDOS_FIX_ROOT_HEIGHT"`
+	MinTXPoolGasPrice                 *big.Int    `json:"MIN_TX_POOL_GAS_PRICE"`
+	MinMiningGasPrice                 *big.Int    `json:"MIN_MINING_GAS_PRICE"`
+	GRPCHost                          string      `json:"-"`
+	GRPCPort                          uint16      `json:"-"`
+	RootChainPoSWContractBytecodeHash ethcom.Hash `json:"-"`
 }
 
 type QuarkChainConfigAlias QuarkChainConfig
 type jsonConfig struct {
 	QuarkChainConfigAlias
-	Chains                 []*ChainConfig `json:"CHAINS"`
-	RewardTaxRate          float64        `json:"REWARD_TAX_RATE"`
-	BlockRewardDecayFactor float64        `json:"BLOCK_REWARD_DECAY_FACTOR"`
+	Chains                            []*ChainConfig `json:"CHAINS"`
+	RewardTaxRate                     float64        `json:"REWARD_TAX_RATE"`
+	BlockRewardDecayFactor            float64        `json:"BLOCK_REWARD_DECAY_FACTOR"`
+	RootChainPoSWContractBytecodeHash string         `json:"ROOT_CHAIN_POSW_CONTRACT_BYTECODE_HASH"`
 }
 
 func (q *QuarkChainConfig) MarshalJSON() ([]byte, error) {
 	rewardTaxRate, _ := q.RewardTaxRate.Float64()
 	BlockRewardDecayFactor, _ := q.BlockRewardDecayFactor.Float64()
 	chains := make([]*ChainConfig, 0, len(q.Chains))
+	rootChainPoSWContractBytecodeHash := ethcom.Bytes2Hex(q.RootChainPoSWContractBytecodeHash[:])
 	for _, chain := range q.Chains {
 		chains = append(chains, chain)
 	}
@@ -133,6 +137,7 @@ func (q *QuarkChainConfig) MarshalJSON() ([]byte, error) {
 		chains,
 		rewardTaxRate,
 		BlockRewardDecayFactor,
+		rootChainPoSWContractBytecodeHash,
 	}
 	return json.Marshal(jConfig)
 }
@@ -164,6 +169,7 @@ func (q *QuarkChainConfig) UnmarshalJSON(input []byte) error {
 	q.GRPCPort = DefaultGrpcPort
 	q.RewardTaxRate = big.NewRat(int64(jConfig.RewardTaxRate*float64(denom)), denom)
 	q.BlockRewardDecayFactor = big.NewRat(int64(jConfig.BlockRewardDecayFactor*float64(denom)), denom)
+	q.RootChainPoSWContractBytecodeHash = ethcom.HexToHash(jConfig.RootChainPoSWContractBytecodeHash)
 	q.initAndValidate()
 	return nil
 }
@@ -321,17 +327,18 @@ func NewQuarkChainConfig() *QuarkChainConfig {
 		P2PCommandSizeLimit:               DefaultP2PCmddSizeLimit,
 		SkipRootDifficultyCheck:           false,
 		SkipRootCoinbaseCheck:             false,
-		SkipMinorDifficultyCheck:   false,
-		GenesisToken:               DefaultToken,
-		RewardTaxRate:              new(big.Rat).SetFloat64(0.5),
-		BlockRewardDecayFactor:     new(big.Rat).SetFloat64(0.5),
-		Root:                       NewRootConfig(),
-		MinTXPoolGasPrice:          new(big.Int).SetUint64(1000000000),
-		MinMiningGasPrice:          new(big.Int).SetUint64(1000000000),
-		XShardGasDDOSFixRootHeight: 90000,
-		GRPCHost:                   grpchost,
-		GRPCPort:                   DefaultGrpcPort,
-		EnableEvmTimeStamp:         1569567600,
+		SkipMinorDifficultyCheck:          false,
+		GenesisToken:                      DefaultToken,
+		RewardTaxRate:                     new(big.Rat).SetFloat64(0.5),
+		BlockRewardDecayFactor:            new(big.Rat).SetFloat64(0.5),
+		Root:                              NewRootConfig(),
+		MinTXPoolGasPrice:                 new(big.Int).SetUint64(1000000000),
+		MinMiningGasPrice:                 new(big.Int).SetUint64(1000000000),
+		XShardGasDDOSFixRootHeight:        90000,
+		GRPCHost:                          grpchost,
+		GRPCPort:                          DefaultGrpcPort,
+		EnableEvmTimeStamp:                1569567600,
+		RootChainPoSWContractBytecodeHash: ethcom.HexToHash("0000000000000000000000000000000000000000000000000000000000000000"),
 	}
 
 	ret.Root.ConsensusType = PoWSimulate
