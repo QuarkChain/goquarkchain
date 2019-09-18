@@ -284,7 +284,7 @@ func initEnvWithConsensusType(t *testing.T, chanOp chan uint32, consensusType st
 	clusterConfig.Quarkchain.Root.ConsensusType = consensusType
 	clusterConfig.Quarkchain.Root.ConsensusConfig.RemoteMine = true
 	clusterConfig.Quarkchain.Root.Genesis.Difficulty = 2000
-	clusterConfig.Quarkchain.GuardianPublicKey = pubKey
+	clusterConfig.Quarkchain.GuardianPublicKey = common.FromHex(pubKey)
 	master, err := New(ctx, clusterConfig)
 	if err != nil {
 		panic(err)
@@ -363,7 +363,7 @@ func TestCreateRootBlockToMineWithSign(t *testing.T) {
 	key, err := crypto.ToECDSA(id1.GetKey().Bytes())
 	assert.NoError(t, err)
 	master.clusterConfig.Quarkchain.GuardianPrivateKey = id1.GetKey().Bytes()
-	master.clusterConfig.Quarkchain.GuardianPublicKey = common.ToHex(crypto.FromECDSAPub(&key.PublicKey))
+	master.clusterConfig.Quarkchain.GuardianPublicKey = crypto.FromECDSAPub(&key.PublicKey)
 	rawdb.WriteMinorBlock(master.chainDb, minorBlock)
 	rootBlock, err := master.createRootBlockToMine(add1)
 	assert.NoError(t, err)

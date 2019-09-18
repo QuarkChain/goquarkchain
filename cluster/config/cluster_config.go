@@ -1,12 +1,14 @@
 package config
 
 import (
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/core/types"
+	ethCommon "github.com/ethereum/go-ethereum/common"
 	"math/big"
 	"sort"
 )
@@ -86,7 +88,7 @@ type QuarkChainConfig struct {
 	NetworkID                         uint32      `json:"NETWORK_ID"`
 	TransactionQueueSizeLimitPerShard uint64      `json:"TRANSACTION_QUEUE_SIZE_LIMIT_PER_SHARD"`
 	BlockExtraDataSizeLimit           uint32      `json:"BLOCK_EXTRA_DATA_SIZE_LIMIT"`
-	GuardianPublicKey                 string      `json:"GUARDIAN_PUBLIC_KEY"`
+	GuardianPublicKey                 []byte      `json:"-"`
 	GuardianPrivateKey                []byte      `json:"GUARDIAN_PRIVATE_KEY"`
 	P2PProtocolVersion                uint32      `json:"P2P_PROTOCOL_VERSION"`
 	P2PCommandSizeLimit               uint32      `json:"P2P_COMMAND_SIZE_LIMIT"`
@@ -114,6 +116,7 @@ type QuarkChainConfig struct {
 type QuarkChainConfigAlias QuarkChainConfig
 type jsonConfig struct {
 	QuarkChainConfigAlias
+	GuardianPublicKey                 string     `json:"GUARDIAN_PUBLIC_KEY"`
 	Chains                 []*ChainConfig `json:"CHAINS"`
 	RewardTaxRate          float64        `json:"REWARD_TAX_RATE"`
 	BlockRewardDecayFactor float64        `json:"BLOCK_REWARD_DECAY_FACTOR"`
@@ -128,6 +131,7 @@ func (q *QuarkChainConfig) MarshalJSON() ([]byte, error) {
 	}
 	jConfig := jsonConfig{
 		QuarkChainConfigAlias(*q),
+		hex.EncodeToString(q.GuardianPublicKey),
 		chains,
 		rewardTaxRate,
 		BlockRewardDecayFactor,
@@ -162,6 +166,11 @@ func (q *QuarkChainConfig) UnmarshalJSON(input []byte) error {
 	q.Root.GRPCHost, _ = common.GetIPV4Addr()
 	q.RewardTaxRate = big.NewRat(int64(jConfig.RewardTaxRate*float64(denom)), denom)
 	q.BlockRewardDecayFactor = big.NewRat(int64(jConfig.BlockRewardDecayFactor*float64(denom)), denom)
+
+	if len(jConfig.GuardianPublicKey) == 64*2 {
+		jConfig.GuardianPublicKey = "04" + jConfig.GuardianPublicKey
+	}
+	q.GuardianPublicKey=ethCommon.FromHex(jConfig.GuardianPublicKey)
 	q.initAndValidate()
 	return nil
 }
@@ -234,10 +243,8 @@ func (q *QuarkChainConfig) initAndValidate() {
 		q.MinTXPoolGasPrice = new(big.Int).SetUint64(1000000000)
 	}
 
-	if len(q.GuardianPublicKey) == 64*2 {
-		q.GuardianPublicKey = "04" + q.GuardianPublicKey
-	}
-	if len(q.GuardianPublicKey) != 65*2 && len(q.GuardianPublicKey) != 0 {
+	if len(q.GuardianPublicKey) != 65 && len(q.GuardianPublicKey) != 0 {
+		fmt.Println("len",len(q.GuardianPublicKey))
 		panic("GuardianPublicKey should 0 or 65")
 	}
 	q.chainIdToShardSize = make(map[uint32]uint32)
@@ -318,7 +325,7 @@ func NewQuarkChainConfig() *QuarkChainConfig {
 		NetworkID:                         3,
 		TransactionQueueSizeLimitPerShard: 10000,
 		BlockExtraDataSizeLimit:           1024,
-		GuardianPublicKey:                 "ab856abd0983a82972021e454fcf66ed5940ed595b0898bcd75cbe2d0a51a00f5358b566df22395a2a8bf6c022c1d51a2c3defe654e91a8d244947783029694d",
+		GuardianPublicKey:                 ethCommon.FromHex("04ab856abd0983a82972021e454fcf66ed5940ed595b0898bcd75cbe2d0a51a00f5358b566df22395a2a8bf6c022c1d51a2c3defe654e91a8d244947783029694d"),
 		GuardianPrivateKey:                nil,
 		P2PProtocolVersion:                0,
 		P2PCommandSizeLimit:               DefaultP2PCmddSizeLimit,
