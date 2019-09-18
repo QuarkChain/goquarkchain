@@ -182,8 +182,15 @@ func (v *RootBlockValidator) ValidateSeal(rHeader types.IHeader, usePosw bool) e
 	if header.NumberU64() == 0 {
 		return nil
 	}
-
-	adjustedDiff, _ := v.blockChain.GetAdjustedDifficulty(rHeader)
+	adjustedDiff := header.GetDifficulty()
+	if usePosw {
+		adjustedDiff, _ = v.blockChain.GetAdjustedDifficulty(rHeader)
+	} else {
+		posw := v.config.Root.PoSWConfig
+		if posw.Enabled {
+			adjustedDiff = header.Difficulty.Div(header.Difficulty, new(big.Int).SetUint64(posw.DiffDivider))
+		}
+	}
 	return v.engine.VerifySeal(v.blockChain, header, adjustedDiff)
 }
 
