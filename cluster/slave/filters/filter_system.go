@@ -4,6 +4,7 @@ package filters
 import (
 	"errors"
 	"fmt"
+	"github.com/ethereum/go-ethereum/common"
 	"sync"
 	"time"
 
@@ -62,7 +63,7 @@ type subscription struct {
 	fullShardId uint32
 	logsCrit    qrpc.FilterQuery
 	logs        chan []*types.Log
-	txlist      chan *types.Transaction
+	txlist      chan common.Hash
 	headers     chan *types.MinorBlockHeader
 	syncCh      chan *qsync.SyncingResult
 	installed   chan struct{} // closed when the filter is installed
@@ -98,7 +99,7 @@ func NewEventSystem(backend SlaveBackend) *EventSystem {
 		subManager: NewSubScribe(backend),
 	}
 
-	go m.eventLoop()
+	go m.loop()
 	return m
 }
 
@@ -248,7 +249,7 @@ func (es *EventSystem) SubscribeNewHeads(headers chan *types.MinorBlockHeader, f
 
 // SubscribePendingTxs creates a subscription that writes transaction hashes for
 // transactions that enter the transaction pool.
-func (es *EventSystem) SubscribePendingTxs(txs chan *types.Transaction, fullShardId uint32) *Subscription {
+func (es *EventSystem) SubscribePendingTxs(txs chan common.Hash, fullShardId uint32) *Subscription {
 	sub := &subscription{
 		id:          rpc.NewID(),
 		fullShardId: fullShardId,
@@ -297,7 +298,7 @@ func (es *EventSystem) broadcast(filters filterIndex, ev interface{}) {
 	case []*types.Transaction:
 		for _, tx := range e {
 			for _, f := range filters[PendingTransactionsSubscription] {
-				f.txlist <- tx
+				f.txlist <- tx.Hash()
 			}
 		}
 
@@ -316,7 +317,7 @@ func (es *EventSystem) broadcast(filters filterIndex, ev interface{}) {
 type slavefilterIndex map[uint32]filterIndex
 
 // eventLoop (un)installs filters and processes mux events.
-func (es *EventSystem) eventLoop() {
+func (es *EventSystem) loop() {
 	// Ensure all subscriptions get cleaned up
 	defer func() {
 		es.subManager.Stop()
