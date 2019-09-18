@@ -33,7 +33,7 @@ func StartHTTPEndpoint(endpoint string, apis []API, modules []string, cors []str
 	handler := NewServer()
 	for _, api := range apis {
 		if whitelist[api.Namespace] || (len(whitelist) == 0 && api.Public) {
-			if err := handler.RegisterName(MetadataApi, api.Service); err != nil {
+			if err := handler.RegisterName(api.Namespace, api.Service); err != nil {
 				return nil, nil, err
 			}
 			log.Debug("HTTP registered", "namespace", api.Namespace)

@@ -211,16 +211,17 @@ func parseRequest(incomingMsg json.RawMessage) ([]rpcRequest, bool, Error) {
 	}
 
 	// regular RPC call
-	res = []rpcRequest{{service: MetadataApi, method: in.Method, id: &in.Id}}
-	if len(in.Payload) != 0 {
-		res[0].params = in.Payload
-	}
+	res = []rpcRequest{{service: MetadataApi, method: in.Method, id: &in.Id, params: in.Payload}}
 
 	elems := strings.Split(in.Method, serviceMethodSeparator)
 	if len(elems) == 2 {
 		res[0].service, res[0].method = elems[0], elems[1]
 	} else if len(elems) != 1 {
 		return nil, false, &methodNotFoundError{in.Method, ""}
+	}
+
+	if len(in.Payload) == 0 {
+		return res, false, nil
 	}
 
 	return res, false, nil
