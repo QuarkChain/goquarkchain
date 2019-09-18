@@ -62,9 +62,9 @@ type subscription struct {
 	created     time.Time
 	fullShardId uint32
 	logsCrit    qrpc.FilterQuery
-	logs        chan []*types.Log
-	txlist      chan common.Hash
-	headers     chan *types.MinorBlockHeader
+	logsCh      chan []*types.Log
+	txhashCh    chan common.Hash
+	headersCh   chan *types.MinorBlockHeader
 	syncCh      chan *qsync.SyncingResult
 	installed   chan struct{} // closed when the filter is installed
 	err         chan error    // closed when the filter is uninstalled
@@ -129,12 +129,12 @@ func (sub *Subscription) Unsubscribe() {
 			case sub.es.uninstall <- sub.f:
 				break uninstallLoop
 			default:
-				if sub.f.logs != nil {
-					<-sub.f.logs
-				} else if sub.f.headers != nil {
-					<-sub.f.headers
-				} else if sub.f.txlist != nil {
-					<-sub.f.txlist
+				if sub.f.logsCh != nil {
+					<-sub.f.logsCh
+				} else if sub.f.headersCh != nil {
+					<-sub.f.headersCh
+				} else if sub.f.txhashCh != nil {
+					<-sub.f.txhashCh
 				} else if sub.f.syncCh != nil {
 					<-sub.f.syncCh
 				}
@@ -194,7 +194,7 @@ func (es *EventSystem) subscribeMinedPendingLogs(crit qrpc.FilterQuery, logs cha
 		typ:       MinedAndPendingLogsSubscription,
 		logsCrit:  crit,
 		created:   time.Now(),
-		logs:      logs,
+		logsCh:    logs,
 		installed: make(chan struct{}),
 		err:       make(chan error),
 	}
@@ -210,7 +210,7 @@ func (es *EventSystem) subscribeLogs(crit qrpc.FilterQuery, logs chan []*types.L
 		typ:         LogsSubscription,
 		logsCrit:    crit,
 		created:     time.Now(),
-		logs:        logs,
+		logsCh:      logs,
 		installed:   make(chan struct{}),
 		err:         make(chan error),
 	}
@@ -225,7 +225,7 @@ func (es *EventSystem) subscribePendingLogs(crit qrpc.FilterQuery, logs chan []*
 		typ:       PendingLogsSubscription,
 		logsCrit:  crit,
 		created:   time.Now(),
-		logs:      logs,
+		logsCh:    logs,
 		installed: make(chan struct{}),
 		err:       make(chan error),
 	}
@@ -240,7 +240,7 @@ func (es *EventSystem) SubscribeNewHeads(headers chan *types.MinorBlockHeader, f
 		fullShardId: fullShardId,
 		typ:         BlocksSubscription,
 		created:     time.Now(),
-		headers:     headers,
+		headersCh:   headers,
 		installed:   make(chan struct{}),
 		err:         make(chan error),
 	}
@@ -255,7 +255,7 @@ func (es *EventSystem) SubscribePendingTxs(txs chan common.Hash, fullShardId uin
 		fullShardId: fullShardId,
 		typ:         PendingTransactionsSubscription,
 		created:     time.Now(),
-		txlist:      txs,
+		txhashCh:    txs,
 		installed:   make(chan struct{}),
 		err:         make(chan error),
 	}
@@ -290,7 +290,7 @@ func (es *EventSystem) broadcast(filters filterIndex, ev interface{}) {
 		if len(e) > 0 {
 			for _, f := range filters[LogsSubscription] {
 				if matchedLogs := filterLogs(e, f.logsCrit.FromBlock, f.logsCrit.ToBlock, f.logsCrit.Addresses, f.logsCrit.Topics); len(matchedLogs) > 0 {
-					f.logs <- matchedLogs
+					f.logsCh <- matchedLogs
 				}
 			}
 		}
@@ -298,13 +298,13 @@ func (es *EventSystem) broadcast(filters filterIndex, ev interface{}) {
 	case []*types.Transaction:
 		for _, tx := range e {
 			for _, f := range filters[PendingTransactionsSubscription] {
-				f.txlist <- tx.Hash()
+				f.txhashCh <- tx.Hash()
 			}
 		}
 
 	case *types.MinorBlockHeader:
 		for _, f := range filters[BlocksSubscription] {
-			f.headers <- e
+			f.headersCh <- e
 		}
 
 	case *qsync.SyncingResult:
