@@ -3,13 +3,13 @@ package filters
 
 import (
 	"context"
-	"github.com/QuarkChain/goquarkchain/cluster/shard"
-	"github.com/QuarkChain/goquarkchain/core/types"
 	"sync"
 	"time"
 
 	qrpc "github.com/QuarkChain/goquarkchain/cluster/rpc"
+	"github.com/QuarkChain/goquarkchain/cluster/shard"
 	qsync "github.com/QuarkChain/goquarkchain/cluster/sync"
+	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/rpc"
@@ -38,8 +38,7 @@ type filter struct {
 // PublicFilterAPI offers support to create and manage filters. This will allow external clients to retrieve various
 // information related to the Ethereum protocol such als blocks, transactions and logs.
 type PublicFilterAPI struct {
-	backend SlaveBackend
-	// mux       *event.TypeMux
+	backend   SlaveBackend
 	quit      chan struct{}
 	events    *EventSystem
 	filtersMu sync.Mutex
@@ -66,13 +65,13 @@ func (api *PublicFilterAPI) NewPendingTransactions(ctx context.Context, fullShar
 	rpcSub := notifier.CreateSubscription()
 
 	go func() {
-		txlist := make(chan *types.Transaction, txChanSize)
+		txlist := make(chan common.Hash, txChanSize)
 		pendingTxSub := api.events.SubscribePendingTxs(txlist, uint32(fullShardId))
 
 		for {
 			select {
-			case tx := <-txlist:
-				notifier.Notify(rpcSub.ID, tx)
+			case txs := <-txlist:
+				notifier.Notify(rpcSub.ID, txs)
 			case <-rpcSub.Err():
 				pendingTxSub.Unsubscribe()
 				return
