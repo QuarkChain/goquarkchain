@@ -6,10 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-
-
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/common"
 	"math/big"
 	"testing"
 )
@@ -64,12 +61,21 @@ func checkPublicToRecipient(key Key, recipient Recipient) error {
 //2.go.exe to check
 //   2.1 checkRecipent
 func TestIdentity(t *testing.T) {
-	ans:="0x123456"
-	dd:=common.FromHex(ans)
-	fmt.Println("dd",len(dd),hex.EncodeToString(dd))
-	dd=append([]byte{byte(0x4)},dd...)
-	fmt.Println("ee",len(dd),hex.EncodeToString(dd))
-
+	JSONParse := NewJSONStruct()
+	v := []IdentityTestStruct{}
+	err := JSONParse.Load("./testdata/testIdentity.json", &v) //analysis test data
+	if err != nil {
+		panic(err)
+	}
+	count := 0
+	for _, v := range v {
+		err := CheckIdentityUnitTest(v) //unit test
+		if err == false {
+			panic(err)
+		}
+		count++
+	}
+	fmt.Println("TestIdentity:success test num:", count)
 }
 
 type TestBytesTo struct {

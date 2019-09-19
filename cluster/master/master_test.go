@@ -285,7 +285,7 @@ func initEnvWithConsensusType(t *testing.T, chanOp chan uint32, consensusType st
 	clusterConfig.Quarkchain.Root.ConsensusType = consensusType
 	clusterConfig.Quarkchain.Root.ConsensusConfig.RemoteMine = true
 	clusterConfig.Quarkchain.Root.Genesis.Difficulty = 2000
-	clusterConfig.Quarkchain.GuardianPublicKey = pubKey
+	clusterConfig.Quarkchain.GuardianPublicKey = common.FromHex(pubKey)
 	master, err := New(ctx, clusterConfig)
 	if err != nil {
 		panic(err)
