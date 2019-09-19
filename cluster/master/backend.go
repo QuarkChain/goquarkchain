@@ -151,13 +151,12 @@ func createDB(ctx *service.ServiceContext, name string, clean bool, isReadOnly b
 	return db, nil
 }
 
-func createConsensusEngine(cfg *config.RootConfig, pubKeyStr string, qkcHashXHeight uint64) (consensus.Engine, error) {
+func createConsensusEngine(cfg *config.RootConfig, pubKey []byte, qkcHashXHeight uint64) (consensus.Engine, error) {
 	diffCalculator := consensus.EthDifficultyCalculator{
 		MinimumDifficulty: big.NewInt(int64(cfg.Genesis.Difficulty)),
 		AdjustmentCutoff:  cfg.DifficultyAdjustmentCutoffTime,
 		AdjustmentFactor:  cfg.DifficultyAdjustmentFactor,
 	}
-	pubKey := common.FromHex(pubKeyStr)
 	switch cfg.ConsensusType {
 	case config.PoWSimulate: // TODO pow_simulate is fake
 		return consensus.NewFakeEngine(&diffCalculator), nil
