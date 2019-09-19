@@ -62,7 +62,7 @@ func (s *subscribe) Stop() {
 func (s *subscribe) eventsloop() {
 	var (
 		g      errgroup.Group
-		ticker = time.NewTicker(1 * time.Millisecond)
+		ticker = time.NewTicker(1 * time.Second)
 	)
 	defer func() {
 		for id := range s.events {
