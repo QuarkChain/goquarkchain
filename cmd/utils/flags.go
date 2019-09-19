@@ -136,16 +136,6 @@ var (
 		Name:  "enable_transaction_history",
 		Usage: "enable transaction history function",
 	}
-	SimpleNetworkBootstrapHostFlag = cli.StringFlag{
-		Name:  "simple_network_bootstrap_host",
-		Usage: "simple network bootstrap host",
-		Value: "127.0.0.1",
-	}
-	SimpleNetworkBootstrapPortFlag = cli.Uint64Flag{
-		Name:  "simple_network_bootstrap_port",
-		Usage: "simple network bootstrap port",
-		Value: 38291,
-	}
 	MaxPeersFlag = cli.Uint64Flag{
 		Name:  "max_peers",
 		Usage: "max peer for new p2p module",
@@ -194,7 +184,7 @@ var (
 		Usage: "disable the public HTTP-RPC server",
 	}
 	RPCListenAddrFlag = cli.StringFlag{
-		Name:  "json_rpc_addr",
+		Name:  "json_rpc_host",
 		Usage: "HTTP-RPC server listening interface",
 		Value: "0.0.0.0",
 	}
@@ -203,9 +193,9 @@ var (
 		Usage: "public HTTP-RPC server listening port",
 	}
 	PrivateRPCListenAddrFlag = cli.StringFlag{
-		Name:  "json_rpc_private_addr",
+		Name:  "json_rpc_private_host",
 		Usage: "HTTP-RPC server listening interface",
-		Value: service.DefaultHTTPHost,
+		Value: config.DefaultHost,
 	}
 	PrivateRPCPortFlag = cli.IntFlag{
 		Name:  "json_rpc_private_port",
@@ -213,20 +203,19 @@ var (
 	}
 
 	GRPCAddrFlag = cli.StringFlag{
-		Name:  "grpc_addr",
+		Name:  "grpc_host",
 		Usage: "master or slave grpc address",
-		Value: config.GrpcHost,
+		Value: config.DefaultHost,
 	}
 	GRPCPortFlag = cli.IntFlag{
 		Name:  "grpc_port",
 		Usage: "public json rpc port",
-		Value: int(config.GrpcPort),
+		Value: int(config.DefaultGrpcPort),
 	}
 	P2pPortFlag = cli.IntFlag{
 		Name:  "p2p_port",
 		Usage: "Network listening port",
 	}
-
 	IPCEnableFlag = cli.BoolFlag{
 		Name:  "ipc",
 		Usage: "enable the IPC-RPC server",
@@ -252,6 +241,20 @@ var (
 	DiscoveryV5Flag = cli.BoolFlag{
 		Name:  "v5disc",
 		Usage: "Enables the experimental RLPx V5 (Topic Discovery) mechanism",
+	}
+	WSEnableFlag = cli.BoolFlag{
+		Name:  "ws",
+		Usage: "disable the websocket rpc server",
+	}
+	WSRPCHostFlag = cli.StringFlag{
+		Name:  "ws_host",
+		Usage: "websocket rpc host work for slave service",
+		Value: config.DefaultHost,
+	}
+	WSRPCPortFlag = cli.IntFlag{
+		Name:  "ws_port",
+		Usage: "websocket rpc port",
+		Value: int(config.DefaultWSPort),
 	}
 )
 
@@ -311,20 +314,21 @@ func setHTTP(ctx *cli.Context, cfg *service.Config, clstrCfg *config.ClusterConf
 		}
 		cfg.HTTPEndpoint = fmt.Sprintf("%s:%d", ctx.GlobalString(RPCListenAddrFlag.Name), port)
 	}
-	port := clstrCfg.PrivateJSONRPCPort
+	privPort := clstrCfg.PrivateJSONRPCPort
 	if ctx.GlobalIsSet(PrivateRPCPortFlag.Name) {
-		port = uint16(ctx.GlobalInt(PrivateRPCPortFlag.Name))
+		privPort = uint16(ctx.GlobalInt(PrivateRPCPortFlag.Name))
 	}
-	cfg.HTTPPrivEndpoint = fmt.Sprintf("%s:%d", ctx.GlobalString(PrivateRPCListenAddrFlag.Name), port)
+	cfg.HTTPPrivEndpoint = fmt.Sprintf("%s:%d", ctx.GlobalString(PrivateRPCListenAddrFlag.Name), privPort)
 }
 
-func setGRPC(ctx *cli.Context, cfg *service.Config) {
+func setGRPC(ctx *cli.Context, cfg *service.Config, clstrCfg *config.ClusterConfig) {
 	if ctx.GlobalIsSet(GRPCPortFlag.Name) {
-		cfg.SvrPort = uint16(ctx.GlobalInt(GRPCPortFlag.Name))
+		clstrCfg.Quarkchain.GRPCPort = uint16(ctx.GlobalInt(GRPCPortFlag.Name))
 	}
 	if ctx.GlobalIsSet(GRPCAddrFlag.Name) {
-		cfg.SvrHost = ctx.GlobalString(GRPCAddrFlag.Name)
+		clstrCfg.Quarkchain.GRPCHost = ctx.GlobalString(GRPCAddrFlag.Name)
 	}
+	cfg.GRPCEndpoint = fmt.Sprintf("%s:%d", clstrCfg.Quarkchain.GRPCHost, clstrCfg.Quarkchain.GRPCPort)
 }
 
 // setIPC creates an IPC path configuration from the set command line flags,
@@ -501,7 +505,7 @@ func SetNodeConfig(ctx *cli.Context, cfg *service.Config, clstrCfg *config.Clust
 	SetP2PConfig(ctx, &cfg.P2P, clstrCfg)
 	setIPC(ctx, cfg)
 	setHTTP(ctx, cfg, clstrCfg)
-	setGRPC(ctx, cfg)
+	setGRPC(ctx, cfg, clstrCfg)
 	setDataDir(ctx, cfg, clstrCfg)
 	setCheckDBConfig(ctx, clstrCfg)
 }

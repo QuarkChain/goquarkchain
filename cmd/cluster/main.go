@@ -66,6 +66,9 @@ var (
 		utils.IPCPathFlag,
 		utils.GRPCAddrFlag,
 		utils.GRPCPortFlag,
+		utils.WSEnableFlag,
+		utils.WSRPCHostFlag,
+		utils.WSRPCPortFlag,
 	}
 )
 

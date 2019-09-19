@@ -4,6 +4,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/core"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
 	"math/big"
 	"sync"
@@ -26,16 +27,21 @@ type rootblockchain interface {
 
 // Synchronizer will sync blocks for the master server when receiving new root blocks from peers.
 type Synchronizer interface {
+	SubscribeSyncEvent(ch chan<- *SyncingResult) event.Subscription
 	AddTask(Task) error
 	Close() error
 	IsSyncing() bool
 }
 
 type synchronizer struct {
+	counter int
+
 	blockchain   blockchain
 	taskRecvCh   chan Task
 	taskAssignCh chan Task
 	abortCh      chan struct{}
+
+	syncFeed event.Feed
 
 	mu      sync.RWMutex
 	running bool
@@ -53,8 +59,13 @@ func (s *synchronizer) setSyncing(isSync bool) {
 	s.mu.Unlock()
 }
 
+func (s *synchronizer) SubscribeSyncEvent(ch chan<- *SyncingResult) event.Subscription {
+	return s.syncFeed.Subscribe(ch)
+}
+
 // AddTask sends a root block from peers to the main loop for processing.
 func (s *synchronizer) AddTask(task Task) error {
+	task.SetSendFunc(s.syncFeed.Send)
 	s.taskRecvCh <- task
 	return nil
 }

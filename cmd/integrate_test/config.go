@@ -14,9 +14,8 @@ func defaultNodeConfig() *service.Config {
 	serviceConfig.Name = ""
 	serviceConfig.Version = ""
 	serviceConfig.IPCPath = "qkc.ipc"
-	serviceConfig.SvrModule = "rpc."
-	serviceConfig.SvrPort = config.GrpcPort
-	serviceConfig.SvrHost = "127.0.0.1"
+	serviceConfig.GRPCModules = []string{"rpc"}
+	serviceConfig.GRPCEndpoint = fmt.Sprintf("%s:%d", "127.0.0.1", config.DefaultGrpcPort)
 	return serviceConfig
 }
 
@@ -41,7 +40,7 @@ func getClusterConfig(index uint16, cfg *config.ClusterConfig) *config.ClusterCo
 	cfg.P2PPort += index
 	cfg.JSONRPCPort += index
 	cfg.PrivateJSONRPCPort += index
-	cfg.Quarkchain.Root.GRPCPort += index
+	cfg.Quarkchain.GRPCPort += index
 	if int(index) < len(privStrs) {
 		cfg.P2P.PrivKey = privStrs[index]
 	}

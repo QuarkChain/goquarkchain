@@ -33,7 +33,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	qkcParams "github.com/QuarkChain/goquarkchain/params"
 	"github.com/QuarkChain/goquarkchain/serialize"
-	lru "github.com/hashicorp/golang-lru"
+	"github.com/hashicorp/golang-lru"
 
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/core/rawdb"
@@ -1739,6 +1739,10 @@ func (m *MinorBlockChain) SubscribeChainSideEvent(ch chan<- MinorChainSideEvent)
 // SubscribeLogsEvent registers a subscription of []*types.Log.
 func (m *MinorBlockChain) SubscribeLogsEvent(ch chan<- []*types.Log) event.Subscription {
 	return m.scope.Track(m.logsFeed.Subscribe(ch))
+}
+
+func (m *MinorBlockChain) SubscribeNewTxsEvent(ch chan<- NewTxsEvent) event.Subscription {
+	return m.txPool.SubscribeNewTxsEvent(ch)
 }
 
 func (m *MinorBlockChain) getRootBlockHeaderByHash(hash common.Hash) *types.RootBlockHeader {
