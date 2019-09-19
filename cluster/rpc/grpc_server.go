@@ -3,7 +3,7 @@ package rpc
 import (
 	"fmt"
 	qcom "github.com/QuarkChain/goquarkchain/common"
-	"github.com/ethereum/go-ethereum/rpc"
+	"github.com/QuarkChain/goquarkchain/rpc"
 	"google.golang.org/grpc"
 	"net"
 	"reflect"

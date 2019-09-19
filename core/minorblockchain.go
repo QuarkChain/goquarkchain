@@ -115,6 +115,7 @@ type MinorBlockChain struct {
 	crossShardTxListCache *lru.Cache
 	rootBlockCache        *lru.Cache
 	lastConfirmCache      *lru.Cache
+	coinbaseAmountCache   map[uint64]*types.TokenBalances
 
 	quit    chan struct{} // blockchain quit channel
 	running int32         // running must be called atomically
@@ -194,6 +195,7 @@ func NewMinorBlockChain(
 		crossShardTxListCache:    crossShardCache,
 		rootBlockCache:           rootBlockCache,
 		lastConfirmCache:         lastConfimCache,
+		coinbaseAmountCache:      make(map[uint64]*types.TokenBalances),
 		engine:                   engine,
 		vmConfig:                 vmConfig,
 		heightToMinorBlockHashes: make(map[uint64]map[common.Hash]struct{}),

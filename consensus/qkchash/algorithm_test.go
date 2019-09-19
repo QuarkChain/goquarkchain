@@ -1,6 +1,7 @@
 package qkchash
 
 import (
+	"encoding/hex"
 	"fmt"
 	"testing"
 
@@ -72,6 +73,26 @@ func TestQKCHash(t *testing.T) {
 			fmt.Sprintf("%x", result),
 		)
 	}
+}
+
+func TestGetSeedFromBlockNumber(t *testing.T) {
+	q := New(true, nil, false, nil, 100)
+	checkRes := func(height uint64, res string) {
+		if res != hex.EncodeToString(q.cache.getCacheFromHeight(height, true).seed) {
+			panic("res is not match")
+		}
+	}
+	checkRes(0, "0000000000000000000000000000000000000000000000000000000000000000")
+	checkRes(1, "0000000000000000000000000000000000000000000000000000000000000000")
+	checkRes(2999, "0000000000000000000000000000000000000000000000000000000000000000")
+	checkRes(3000, "0000000000000000000000000000000000000000000000000000000000000000")
+	checkRes(3001, "0000000000000000000000000000000000000000000000000000000000000000")
+	checkRes(959999, "7e7d8bef9d86983accafa937aed08042391d6f435bc640e50a9c38927de9b299")
+	checkRes(960000, "5a46dd85298b0beff65ccf3006c4b5d2f7fa6ca8a5885a7f2132714fe7a48602")
+	checkRes(960001, "5a46dd85298b0beff65ccf3006c4b5d2f7fa6ca8a5885a7f2132714fe7a48602")
+	checkRes(1919999, "1e484311694bb35f3eb466a15767b60533ec91a7971f53a09837bc946bd861db")
+	checkRes(1920000, "4220f7b47dc9e1f91e2d7c117a12e9158ce7a78185c805d21338759838f6f55d")
+	checkRes(1920001, "4220f7b47dc9e1f91e2d7c117a12e9158ce7a78185c805d21338759838f6f55d")
 }
 
 // Use following to avoid compiler optimization

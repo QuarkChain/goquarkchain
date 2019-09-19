@@ -7,6 +7,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/cluster/miner"
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
+	qrpc "github.com/QuarkChain/goquarkchain/rpc"
 	"github.com/QuarkChain/goquarkchain/cluster/service"
 	Synchronizer "github.com/QuarkChain/goquarkchain/cluster/sync"
 	"github.com/QuarkChain/goquarkchain/consensus"
@@ -23,7 +24,6 @@ import (
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
-	ethRPC "github.com/ethereum/go-ethereum/rpc"
 	"github.com/shirou/gopsutil/cpu"
 	"golang.org/x/sync/errgroup"
 	"gopkg.in/karalabe/cookiejar.v1/collections/deque"
@@ -151,16 +151,15 @@ func createDB(ctx *service.ServiceContext, name string, clean bool, isReadOnly b
 	return db, nil
 }
 
-func createConsensusEngine(cfg *config.RootConfig, pubKeyStr string, qkcHashXHeight uint64) (consensus.Engine, error) {
+func createConsensusEngine(cfg *config.RootConfig, pubKey []byte, qkcHashXHeight uint64) (consensus.Engine, error) {
 	diffCalculator := consensus.EthDifficultyCalculator{
 		MinimumDifficulty: big.NewInt(int64(cfg.Genesis.Difficulty)),
 		AdjustmentCutoff:  cfg.DifficultyAdjustmentCutoffTime,
 		AdjustmentFactor:  cfg.DifficultyAdjustmentFactor,
 	}
-	pubKey := common.FromHex(pubKeyStr)
 	switch cfg.ConsensusType {
 	case config.PoWSimulate: // TODO pow_simulate is fake
-		return &consensus.FakeEngine{}, nil
+		return consensus.NewFakeEngine(&diffCalculator), nil
 	case config.PoWEthash:
 		return ethash.New(ethash.Config{CachesInMem: 3, CachesOnDisk: 10, CacheDir: "", PowMode: ethash.ModeNormal}, &diffCalculator, cfg.ConsensusConfig.RemoteMine, pubKey), nil
 	case config.PoWQkchash:
@@ -243,9 +242,9 @@ func (s *QKCMasterBackend) CheckDB() {
 }
 
 // APIs return all apis for master Server
-func (s *QKCMasterBackend) APIs() []ethRPC.API {
+func (s *QKCMasterBackend) APIs() []qrpc.API {
 	apis := qkcapi.GetAPIs(s)
-	return append(apis, []ethRPC.API{
+	return append(apis, []qrpc.API{
 		{
 			Namespace: "grpc",
 			Version:   "3.0",
