@@ -364,7 +364,7 @@ func TestCreateRootBlockToMineWithSign(t *testing.T) {
 	key, err := crypto.ToECDSA(id1.GetKey().Bytes())
 	assert.NoError(t, err)
 	master.clusterConfig.Quarkchain.GuardianPrivateKey = id1.GetKey().Bytes()
-	master.clusterConfig.Quarkchain.GuardianPublicKey = common.ToHex(crypto.FromECDSAPub(&key.PublicKey))
+	master.clusterConfig.Quarkchain.GuardianPublicKey = crypto.FromECDSAPub(&key.PublicKey)
 	rawdb.WriteMinorBlock(master.chainDb, minorBlock)
 	rootBlock, err := master.createRootBlockToMine(add1)
 	assert.NoError(t, err)
