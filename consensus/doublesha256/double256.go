@@ -2,6 +2,7 @@ package doublesha256
 
 import (
 	"crypto/sha256"
+	"encoding/binary"
 	"errors"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"math/big"
@@ -38,6 +39,9 @@ func (q *DoubleSHA256) RefreshWork(tip uint64) {
 }
 
 func hashAlgo(cache *consensus.ShareCache) error {
+	copy(cache.Seed, cache.Hash)
+	// Note it's big endian here
+	binary.BigEndian.PutUint64(cache.Seed[32:], cache.Nonce)
 	hashOnce := sha256.Sum256(cache.Seed)
 	result := sha256.Sum256(hashOnce[:])
 	cache.Result = result[:]

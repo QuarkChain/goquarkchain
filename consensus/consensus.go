@@ -13,7 +13,6 @@ import (
 
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
-	qkcCommon "github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/consensus/posw"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/common"
@@ -316,7 +315,7 @@ func (c *CommonEngine) mine(
 		minerRes = ShareCache{
 			Height: work.Number,
 			Hash:   work.HeaderHash.Bytes(),
-			Seed:   append(work.HeaderHash.Bytes(), qkcCommon.Uint64ToBytes(startNonce)...),
+			Seed:   make([]byte,40),
 			Nonce:  startNonce}
 	)
 
