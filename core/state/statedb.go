@@ -18,6 +18,7 @@
 package state
 
 import (
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"math/big"
@@ -431,6 +432,12 @@ func (s *StateDB) updateStateObject(stateObject *stateObject) {
 			panic(err)
 		}
 	}
+	fmt.Println("update+++", addr.String(), hex.EncodeToString(data))
+	fmt.Println("nonce", stateObject.data.Nonce)
+	fmt.Println("token_balance", stateObject.data.TokenBalances.GetBalanceMap())
+	fmt.Println("storge", hex.EncodeToString(stateObject.data.Root.Bytes()))
+	fmt.Println("codeash", hex.EncodeToString(stateObject.data.CodeHash))
+	fmt.Println("fullShard", stateObject.data.FullShardKey)
 	s.setError(s.trie.TryUpdate(addr[:], data))
 }
 
