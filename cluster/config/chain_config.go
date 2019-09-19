@@ -19,8 +19,7 @@ type ChainConfig struct {
 
 	CoinbaseAddress account.Address `json:"-"`
 	CoinbaseAmount  *big.Int        `json:"COINBASE_AMOUNT"`
-
-	EpochInterval *big.Int `json:"EPOCH_INTERVAL"`
+	EpochInterval   uint64          `json:"EPOCH_INTERVAL"`
 
 	DifficultyAdjustmentCutoffTime uint32      `json:"DIFFICULTY_ADJUSTMENT_CUTOFF_TIME"`
 	DifficultyAdjustmentFactor     uint32      `json:"DIFFICULTY_ADJUSTMENT_FACTOR"`
@@ -41,7 +40,7 @@ func NewChainConfig() *ChainConfig {
 		DifficultyAdjustmentFactor:     512,
 		ExtraShardBlocksInRootBlock:    3,
 		PoswConfig:                     NewPOSWConfig(),
-		EpochInterval:                  new(big.Int).SetUint64(210000 * 60),
+		EpochInterval:                  uint64(210000 * 60),
 	}
 }
 

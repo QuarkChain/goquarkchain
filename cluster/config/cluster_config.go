@@ -376,7 +376,6 @@ func (q *QuarkChainConfig) SetShardsAndValidate(shards map[uint32]*ShardConfig) 
 func (q *QuarkChainConfig) GetDefaultChainTokenID() uint64 {
 	if q.defaultChainTokenID == 0 {
 		q.defaultChainTokenID = common.TokenIDEncode(q.GenesisToken)
-
 	}
 	return q.defaultChainTokenID
 }
