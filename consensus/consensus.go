@@ -13,6 +13,7 @@ import (
 
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
+	qkcCommon "github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/consensus/posw"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/common"
@@ -315,9 +316,10 @@ func (c *CommonEngine) mine(
 		minerRes = ShareCache{
 			Height: work.Number,
 			Hash:   work.HeaderHash.Bytes(),
-			Seed:   make([]byte, 40),
+			Seed:   append(work.HeaderHash.Bytes(), qkcCommon.Uint64ToBytes(startNonce)...),
 			Nonce:  startNonce}
 	)
+
 	logger := log.New("miner", "spec", strings.ToLower(c.spec.Name), "id", id)
 	logger.Trace("Started search for new nonces", "minerName", c.spec.Name, "startNonce", startNonce)
 search:
