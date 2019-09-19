@@ -160,7 +160,7 @@ func createConsensusEngine(cfg *config.RootConfig, pubKeyStr string, qkcHashXHei
 	pubKey := common.FromHex(pubKeyStr)
 	switch cfg.ConsensusType {
 	case config.PoWSimulate: // TODO pow_simulate is fake
-		return &consensus.FakeEngine{}, nil
+		return consensus.NewFakeEngine(&diffCalculator), nil
 	case config.PoWEthash:
 		return ethash.New(ethash.Config{CachesInMem: 3, CachesOnDisk: 10, CacheDir: "", PowMode: ethash.ModeNormal}, &diffCalculator, cfg.ConsensusConfig.RemoteMine, pubKey), nil
 	case config.PoWQkchash:

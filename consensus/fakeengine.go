@@ -14,8 +14,12 @@ type FakeEngine struct {
 	Difficulty   *big.Int
 	FakeDelay    time.Duration
 	Err          error
+	diffCal DifficultyCalculator
 }
 
+func NewFakeEngine(diffCal DifficultyCalculator) *FakeEngine {
+	return &FakeEngine{diffCal:diffCal}
+}
 // Author retrieves the Ethereum address of the account that minted the given
 // block, which may be different from the header's coinbase if a consensus
 // engine is based on signatures.
