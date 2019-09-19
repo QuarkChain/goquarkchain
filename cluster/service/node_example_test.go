@@ -6,7 +6,7 @@ import (
 	"log"
 
 	"github.com/QuarkChain/goquarkchain/p2p"
-	"github.com/ethereum/go-ethereum/rpc"
+	"github.com/QuarkChain/goquarkchain/rpc"
 )
 
 // SampleService is a trivial network service that can be attached to a node for
@@ -21,7 +21,7 @@ type SampleService struct{}
 
 func (s *SampleService) Protocols() []p2p.Protocol { return nil }
 func (s *SampleService) APIs() []rpc.API           { return nil }
-func (s *SampleService) Init(*p2p.Server) error   { fmt.Println("Service starting..."); return nil }
+func (s *SampleService) Init(*p2p.Server) error    { fmt.Println("Service starting..."); return nil }
 func (s *SampleService) Stop() error               { fmt.Println("Service stopping..."); return nil }
 
 func ExampleService() {

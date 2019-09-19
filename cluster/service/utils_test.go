@@ -5,7 +5,7 @@ import (
 	"reflect"
 
 	"github.com/QuarkChain/goquarkchain/p2p"
-	"github.com/ethereum/go-ethereum/rpc"
+	"github.com/QuarkChain/goquarkchain/rpc"
 )
 
 // NoopService is a trivial implementation of the Service interface.
@@ -13,7 +13,7 @@ type NoopService struct{}
 
 func (s *NoopService) Protocols() []p2p.Protocol { return nil }
 func (s *NoopService) APIs() []rpc.API           { return nil }
-func (s *NoopService) Init(*p2p.Server) error   { return nil }
+func (s *NoopService) Init(*p2p.Server) error    { return nil }
 func (s *NoopService) Stop() error               { return nil }
 
 func NewNoopService(*ServiceContext) (Service, error) { return new(NoopService), nil }

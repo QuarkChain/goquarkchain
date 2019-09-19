@@ -11,12 +11,12 @@ import (
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/core/rawdb"
 	"github.com/QuarkChain/goquarkchain/core/types"
+	qrpc "github.com/QuarkChain/goquarkchain/rpc"
 	"github.com/QuarkChain/goquarkchain/serialize"
 	eth "github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethdb"
-	ethRPC "github.com/ethereum/go-ethereum/rpc"
 	"github.com/stretchr/testify/assert"
 	"math/big"
 	"testing"
@@ -545,8 +545,8 @@ func TestGetTransactionsByAddress(t *testing.T) {
 func TestGetLogs(t *testing.T) {
 	master := initEnv(t, nil)
 
-	startBlock := ethRPC.BlockNumber(0)
-	endBlock := ethRPC.BlockNumber(0)
+	startBlock := qrpc.BlockNumber(0)
+	endBlock := qrpc.BlockNumber(0)
 	// logs, err := master.GetLogs(account.Branch{Value: 2}, nil, nil, uint64(startBlock), uint64(endBlock))
 	logs, err := master.GetLogs(&rpc.FilterQuery{
 		FullShardId: 2,
