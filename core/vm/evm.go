@@ -17,6 +17,7 @@
 package vm
 
 import (
+	"fmt"
 	"math/big"
 	"sync/atomic"
 	"time"
@@ -48,6 +49,7 @@ func run(evm *EVM, contract *Contract, input []byte, readOnly bool) ([]byte, err
 		if evm.ChainConfig().IsByzantium(evm.BlockNumber) {
 			precompiles = PrecompiledContractsByzantium
 		}
+		fmt.Println("run____", (*contract.CodeAddr).String())
 		if p := precompiles[*contract.CodeAddr]; p != nil {
 			return RunPrecompiledContract(p, input, contract, evm)
 		}
@@ -397,6 +399,8 @@ func (c *codeAndHash) Hash() common.Hash {
 func (evm *EVM) create(caller ContractRef, codeAndHash *codeAndHash, gas uint64, value *big.Int, address common.Address) ([]byte, common.Address, uint64, error) {
 	// Depth check execution. Fail if we're trying to execute above the
 	// limit.
+	fmt.Println("create start")
+	defer fmt.Println("create end")
 	if evm.TransferTokenID != evm.StateDB.GetQuarkChainConfig().GetDefaultChainTokenID() {
 		return nil, common.Address{}, gas, nil
 	}

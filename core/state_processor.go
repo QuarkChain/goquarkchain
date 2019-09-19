@@ -78,10 +78,12 @@ func (p *StateProcessor) Process(block *types.MinorBlock, statedb *state.StateDB
 			return nil, nil, 0, err
 		}
 		statedb.Prepare(tx.Hash(), block.Hash(), i)
+		fmt.Println("ready to app ti", statedb.GetGasUsed())
 		_, receipt, _, err := ApplyTransaction(p.config, p.bc, gp, statedb, header, evmTx, usedGas, cfg)
 		if err != nil {
 			return nil, nil, 0, err
 		}
+		fmt.Println("ready to app end", statedb.GetGasUsed())
 		receipts = append(receipts, receipt)
 		allLogs = append(allLogs, receipt.Logs...)
 	}

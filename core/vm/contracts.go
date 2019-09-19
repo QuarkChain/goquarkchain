@@ -20,6 +20,7 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -451,6 +452,7 @@ func (r *deployRootChainPoSWStakingContract) RequiredGas(input []byte) uint64 {
 }
 
 func (r *deployRootChainPoSWStakingContract) Run(input []byte, evm *EVM, contract *Contract) ([]byte, error) {
+	fmt.Println("deploy start", contract.Gas)
 	var (
 		targetAddr = SystemContracts[ROOT_CHAIN_POSW].Address()
 		bytecode   = SystemContracts[ROOT_CHAIN_POSW].bytecode
@@ -458,5 +460,6 @@ func (r *deployRootChainPoSWStakingContract) Run(input []byte, evm *EVM, contrac
 	)
 	// Use predetermined contract address
 	res, _, _, err := evm.Create(contract.self, bytecode, contract.Gas, value, &targetAddr)
+	fmt.Println("deploy end", contract.Gas)
 	return res, err
 }
