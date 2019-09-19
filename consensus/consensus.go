@@ -315,10 +315,9 @@ func (c *CommonEngine) mine(
 		minerRes = ShareCache{
 			Height: work.Number,
 			Hash:   work.HeaderHash.Bytes(),
-			Seed:   make([]byte,40),
+			Seed:   make([]byte, 40),
 			Nonce:  startNonce}
 	)
-
 	logger := log.New("miner", "spec", strings.ToLower(c.spec.Name), "id", id)
 	logger.Trace("Started search for new nonces", "minerName", c.spec.Name, "startNonce", startNonce)
 search:
