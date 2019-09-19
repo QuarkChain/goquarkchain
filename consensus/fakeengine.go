@@ -83,10 +83,7 @@ func (e *FakeEngine) Seal(chain ChainReader, block types.IBlock, diff *big.Int, 
 // CalcDifficulty is the difficulty adjustment algorithm. It returns the difficulty
 // that a new block should have.
 func (e *FakeEngine) CalcDifficulty(chain ChainReader, time uint64, parent types.IHeader) (*big.Int, error) {
-	if e.Difficulty == nil || e.Difficulty.Cmp(big.NewInt(0)) < 0 {
-		return parent.GetDifficulty(), nil
-	}
-	return e.Difficulty, nil
+	return e.diffCal.CalculateDifficulty(parent,time)
 }
 
 func (e *FakeEngine) GetWork(address account.Address) (*MiningWork, error) {
