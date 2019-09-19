@@ -88,7 +88,7 @@ func (m *MinorBlockChain) getCoinbaseAmount(height uint64) *types.TokenBalances 
 		balances = types.NewTokenBalancesWithMap(data)
 		m.coinbaseAmountCache[epoch] = balances
 	}
-	return balances
+	return balances.Copy()
 }
 
 func (m *MinorBlockChain) putMinorBlock(mBlock *types.MinorBlock, xShardReceiveTxList []*types.CrossShardTransactionDeposit) error {
