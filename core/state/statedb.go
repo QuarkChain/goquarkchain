@@ -437,7 +437,7 @@ func (s *StateDB) updateStateObject(stateObject *stateObject) {
 	fmt.Println("token_balance", stateObject.data.TokenBalances.GetBalanceMap())
 	fmt.Println("storge", hex.EncodeToString(stateObject.data.Root.Bytes()))
 	fmt.Println("codeash", hex.EncodeToString(stateObject.data.CodeHash))
-	fmt.Println("fullShard", stateObject.data.FullShardKey)
+	fmt.Println("fullShard", stateObject.data.FullShardKey.GetValue())
 	s.setError(s.trie.TryUpdate(addr[:], data))
 }
 
