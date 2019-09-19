@@ -547,7 +547,6 @@ func TestGetLogs(t *testing.T) {
 
 	startBlock := qrpc.BlockNumber(0)
 	endBlock := qrpc.BlockNumber(0)
-	// logs, err := master.GetLogs(account.Branch{Value: 2}, nil, nil, uint64(startBlock), uint64(endBlock))
 	logs, err := master.GetLogs(&rpc.FilterQuery{
 		FullShardId: 2,
 		FilterQuery: eth.FilterQuery{
