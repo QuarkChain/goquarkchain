@@ -18,6 +18,7 @@
 package core
 
 import (
+	"bytes"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -32,7 +33,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	qkcParams "github.com/QuarkChain/goquarkchain/params"
 	"github.com/QuarkChain/goquarkchain/serialize"
-	lru "github.com/hashicorp/golang-lru"
+	"github.com/hashicorp/golang-lru"
 
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/core/rawdb"
@@ -44,6 +45,7 @@ import (
 
 	qkcCommon "github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/core/vm"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
@@ -232,9 +234,9 @@ func NewMinorBlockChain(
 	if err := bc.loadLastState(); err != nil {
 		return nil, err
 	}
-
-	bc.txPool = NewTxPool(DefaultTxPoolConfig, bc)
+	DefaultTxPoolConfig.NetWorkID = bc.clusterConfig.Quarkchain.NetworkID
 	bc.posw = consensus.CreatePoSWCalculator(bc, bc.shardConfig.PoswConfig)
+	bc.txPool = NewTxPool(DefaultTxPoolConfig, bc)
 	// Take ownership of this particular state
 	go bc.update()
 	return bc, nil
@@ -409,16 +411,17 @@ func (m *MinorBlockChain) StateAt(root common.Hash) (*state.StateDB, error) {
 	return evmState, nil
 }
 
-func (m *MinorBlockChain) stateAtWithSenderDisallowMap(root common.Hash, minorBlockHash common.Hash, coinbase *account.Recipient) (*state.StateDB, error) {
-	evmState, err := m.StateAt(root)
+func (m *MinorBlockChain) stateAtWithSenderDisallowMap(minorBlock *types.MinorBlock, coinbase *account.Recipient) (*state.StateDB, error) {
+	evmState, err := m.StateAt(minorBlock.Meta().Root)
 	if err != nil {
 		return nil, err
 	}
-	senderDisallowMap, err := m.posw.BuildSenderDisallowMap(minorBlockHash, coinbase)
+	senderDisallowMap, err := m.posw.BuildSenderDisallowMap(minorBlock.Hash(), coinbase)
 	if err != nil {
 		return nil, err
 	}
 	evmState.SetSenderDisallowMap(senderDisallowMap)
+	m.setEvmStateWithHeader(evmState, minorBlock.Header())
 	return evmState, nil
 }
 
@@ -550,7 +553,6 @@ func (m *MinorBlockChain) insert(block *types.MinorBlock) {
 	updateHeads := rawdb.ReadCanonicalHash(m.db, rawdb.ChainTypeMinor, block.NumberU64()) != block.Hash()
 
 	// Add the block to the canonical chain number scheme and mark as the head
-	//fmt.Println("insert", block.Hash().String(), block.NumberU64())
 	rawdb.WriteCanonicalHash(m.db, rawdb.ChainTypeMinor, block.Hash(), block.NumberU64())
 	rawdb.WriteHeadBlockHash(m.db, block.Hash())
 
@@ -1460,6 +1462,11 @@ func (m *MinorBlockChain) reorg(oldBlock, newBlock types.IBlock) error {
 		oldChain = append(oldChain, oldBlock)
 		newChain = append(newChain, newBlock)
 		collectLogs(oldBlock.Hash())
+		if oldBlock.NumberU64() == 0 || newBlock.NumberU64() == 0 { //revert genesisBlock: no commonBlock
+			log.Warn("reorg", "ready to revert genesis? oldBlock", oldBlock.Hash().String(),
+				"newBlock", newBlock.Hash().String(), "currBlock", m.CurrentBlock().Hash().String())
+			break
+		}
 
 		oldBlock, newBlock = m.GetBlock(oldBlock.IHeader().GetParentHash()), m.GetBlock(newBlock.IHeader().GetParentHash())
 		if qkcCommon.IsNil(oldBlock) {
@@ -1475,10 +1482,20 @@ func (m *MinorBlockChain) reorg(oldBlock, newBlock types.IBlock) error {
 		if len(oldChain) > 63 {
 			logFn = log.Warn
 		}
-		logFn("Chain split detected", "number", commonBlock.NumberU64(), "hash", commonBlock.Hash(),
-			"drop", len(oldChain), "dropfrom", oldChain[0].Hash(), "add", len(newChain), "addfrom", newChain[0].Hash())
+		if commonBlock != nil {
+			logFn("Chain split detected", "number", commonBlock.NumberU64(), "hash", commonBlock.Hash(),
+				"drop", len(oldChain), "dropfrom", oldChain[0].Hash(), "add", len(newChain), "addfrom", newChain[0].Hash())
+		} else {
+			log.Warn("ChainRevert genesis", "drop", len(oldChain), "dropfrom", oldChain[0].Hash(), "add", len(newChain), "addfrom", newChain[0].Hash())
+		}
+
 	} else {
-		log.Error("minorBlockChain Impossible reorg, please file an issue", "oldnum", oldBlock.NumberU64(), "oldhash", oldBlock.Hash(), "newnum", newBlock.NumberU64(), "newhash", newBlock.Hash())
+		// we support reorg block from same chain,because we should delete and add tx index
+		log.Warn("reorg", "same chain oldBlock", oldBlock.NumberU64(), "oldBlock.Hash", oldBlock.Hash().String(),
+			"newBlock", newBlock.NumberU64(), "newBlock's hash", newBlock.Hash().String())
+		if err := m.SetHead(newBlock.NumberU64()); err != nil {
+			return err
+		}
 	}
 
 	// When transactions get deleted from the database that means the
@@ -1636,7 +1653,7 @@ func (m *MinorBlockChain) writeHeader(header *types.MinorBlockHeader) error {
 // CurrentHeader retrieves the current head header of the canonical chain. The
 // header is retrieved from the HeaderChain's internal cache.
 func (m *MinorBlockChain) CurrentHeader() types.IHeader {
-	return m.hc.CurrentHeader()
+	return m.CurrentBlock().Header()
 }
 
 // GetTd retrieves a block's total difficulty in the canonical chain from the
@@ -1724,6 +1741,10 @@ func (m *MinorBlockChain) SubscribeLogsEvent(ch chan<- []*types.Log) event.Subsc
 	return m.scope.Track(m.logsFeed.Subscribe(ch))
 }
 
+func (m *MinorBlockChain) SubscribeNewTxsEvent(ch chan<- NewTxsEvent) event.Subscription {
+	return m.txPool.SubscribeNewTxsEvent(ch)
+}
+
 func (m *MinorBlockChain) getRootBlockHeaderByHash(hash common.Hash) *types.RootBlockHeader {
 	if data, ok := m.rootBlockCache.Get(hash); ok {
 		return data.(*types.RootBlock).Header()
@@ -1776,4 +1797,59 @@ func (m *MinorBlockChain) GetGenesisToken() uint64 {
 
 func (m *MinorBlockChain) GetGenesisRootHeight() uint32 {
 	return m.clusterConfig.Quarkchain.GetGenesisRootHeight(m.branch.Value)
+}
+
+func (m *MinorBlockChain) getEvmStateByBlock(block *types.MinorBlock) (*state.StateDB, error) {
+	if bytes.Equal(block.Hash().Bytes(), m.CurrentBlock().Hash().Bytes()) {
+		return m.currentEvmState, nil
+	}
+	return m.StateAt(block.GetMetaData().Root)
+}
+
+func (m *MinorBlockChain) GetRootChainStakes(coinbase account.Recipient, lastMinor common.Hash) (*big.Int,
+	*account.Recipient, error) {
+
+	if m.branch.GetChainID() != 0 || m.branch.GetShardID() != 0 {
+		return nil, nil, errors.New("not chain 0 shard 0")
+	}
+
+	last := m.GetMinorBlock(lastMinor)
+	if last == nil {
+		panic(fmt.Sprintf("block not found: %x", lastMinor))
+	}
+	evmState, err := m.getEvmStateByBlock(last)
+	if err != nil {
+		return nil, nil, err
+	}
+	evmState = evmState.Copy()
+	evmState.SetGasUsed(big.NewInt(0))
+	contractAddress := vm.SystemContracts[vm.ROOT_CHAIN_POSW].Address()
+	code := evmState.GetCode(contractAddress)
+	if code == nil {
+		return nil, nil, errors.New("PoSW-on-root-chain contract is not found")
+	}
+	codeHash := crypto.Keccak256Hash(code)
+	//have to make sure the code is expected
+	if bytes.Compare(codeHash[:], m.clusterConfig.Quarkchain.RootChainPoSWContractBytecodeHash[:]) != 0 {
+		return nil, nil, errors.New("PoSW-on-root-chain contract is invalid")
+	}
+	//call the contract's 'getLockedStakes' function
+	mockSender := account.Recipient{}
+	data := common.Hex2Bytes("fd8c4646000000000000000000000000")
+	data = append(data[:], coinbase[:]...)
+	nonce := evmState.GetNonce(mockSender)
+	toFullShardKey := uint32(0)
+	msg := types.NewMessage(mockSender, &contractAddress, nonce, new(big.Int), 1000000, new(big.Int), data,
+		false, 0, &toFullShardKey, m.GetGenesisToken(), m.GetGenesisToken())
+	context := NewEVMContext(msg, last.Header(), m)
+	evmState.SetQuarkChainConfig(m.clusterConfig.Quarkchain)
+	vmenv := vm.NewEVM(context, evmState, m.ethChainConfig, *m.GetVMConfig())
+	gp := new(GasPool).AddGas(evmState.GetGasLimit().Uint64())
+	output, _, _, err := ApplyMessage(vmenv, msg, gp)
+	if err != nil || output == nil {
+		return nil, nil, err
+	}
+	stake := new(big.Int).SetBytes(output[:32])
+	signer := account.BytesToIdentityRecipient(output[32+12:])
+	return stake, &signer, nil
 }

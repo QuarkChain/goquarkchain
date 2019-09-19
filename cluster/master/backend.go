@@ -30,7 +30,6 @@ import (
 	"math/big"
 	"net"
 	"os"
-	"reflect"
 	"sort"
 	"sync"
 	"syscall"
@@ -108,7 +107,7 @@ func New(ctx *service.ServiceContext, cfg *config.ClusterConfig) (*QKCMasterBack
 		return nil, err
 	}
 
-	if mstr.engine, err = createConsensusEngine(cfg.Quarkchain.Root, cfg.Quarkchain.GuardianPublicKey); err != nil {
+	if mstr.engine, err = createConsensusEngine(cfg.Quarkchain.Root, cfg.Quarkchain.GuardianPublicKey, cfg.Quarkchain.EnableQkcHashXHeight); err != nil {
 		return nil, err
 	}
 
@@ -126,6 +125,7 @@ func New(ctx *service.ServiceContext, cfg *config.ClusterConfig) (*QKCMasterBack
 
 	mstr.rootBlockChain.SetEnableCountMinorBlocks(cfg.EnableTransactionHistory)
 	mstr.rootBlockChain.SetBroadcastRootBlockFunc(mstr.AddRootBlock)
+	mstr.rootBlockChain.SetRootChainStakesFunc(mstr.GetRootChainStakes)
 	for _, cfg := range cfg.SlaveList {
 		target := fmt.Sprintf("%s:%d", cfg.IP, cfg.Port)
 		client := NewSlaveConn(target, cfg.ChainMaskList, cfg.ID)
@@ -151,7 +151,7 @@ func createDB(ctx *service.ServiceContext, name string, clean bool, isReadOnly b
 	return db, nil
 }
 
-func createConsensusEngine(cfg *config.RootConfig, pubKeyStr string) (consensus.Engine, error) {
+func createConsensusEngine(cfg *config.RootConfig, pubKeyStr string, qkcHashXHeight uint64) (consensus.Engine, error) {
 	diffCalculator := consensus.EthDifficultyCalculator{
 		MinimumDifficulty: big.NewInt(int64(cfg.Genesis.Difficulty)),
 		AdjustmentCutoff:  cfg.DifficultyAdjustmentCutoffTime,
@@ -164,7 +164,7 @@ func createConsensusEngine(cfg *config.RootConfig, pubKeyStr string) (consensus.
 	case config.PoWEthash:
 		return ethash.New(ethash.Config{CachesInMem: 3, CachesOnDisk: 10, CacheDir: "", PowMode: ethash.ModeNormal}, &diffCalculator, cfg.ConsensusConfig.RemoteMine, pubKey), nil
 	case config.PoWQkchash:
-		return qkchash.New(true, &diffCalculator, cfg.ConsensusConfig.RemoteMine, pubKey), nil
+		return qkchash.New(true, &diffCalculator, cfg.ConsensusConfig.RemoteMine, pubKey, qkcHashXHeight), nil
 	case config.PoWDoubleSha256:
 		return doublesha256.New(&diffCalculator, cfg.ConsensusConfig.RemoteMine, pubKey), nil
 	}
@@ -247,7 +247,7 @@ func (s *QKCMasterBackend) APIs() []ethRPC.API {
 	apis := qkcapi.GetAPIs(s)
 	return append(apis, []ethRPC.API{
 		{
-			Namespace: "rpc." + reflect.TypeOf(MasterServerSideOp{}).Name(),
+			Namespace: "grpc",
 			Version:   "3.0",
 			Service:   NewServerSideOp(s),
 			Public:    false,
@@ -320,6 +320,11 @@ func (s *QKCMasterBackend) Start() error {
 	s.protocolManager.Start(s.maxPeers)
 	// start heart beat pre 3 seconds.
 	s.updateShardStatsLoop()
+
+	if s.clusterConfig.Quarkchain.Root.ConsensusConfig.RemoteMine {
+		s.SetMining(true)
+	}
+
 	log.Info("Start cluster successful", "slaveSize", len(s.clientPool))
 	return nil
 }
@@ -378,7 +383,7 @@ func (s *QKCMasterBackend) getSlaveInfoListFromClusterConfig() []*rpc.SlaveInfo 
 
 func (s *QKCMasterBackend) initShards() error {
 	var g errgroup.Group
-	ip, port := s.clusterConfig.Quarkchain.Root.GRPCHost, s.clusterConfig.Quarkchain.Root.GRPCPort
+	ip, port := s.clusterConfig.Quarkchain.GRPCHost, s.clusterConfig.Quarkchain.GRPCPort
 	for _, client := range s.clientPool {
 		client := client
 		g.Go(func() error {
@@ -606,21 +611,40 @@ func (s *QKCMasterBackend) SendMiningConfigToSlaves(mining bool) error {
 
 // AddRootBlock add root block to all slaves
 func (s *QKCMasterBackend) AddRootBlock(rootBlock *types.RootBlock) error {
-	head := s.rootBlockChain.CurrentBlock().NumberU64()
+	header := s.rootBlockChain.CurrentBlock().Header()
 	s.rootBlockChain.WriteCommittingHash(rootBlock.Hash())
 	_, err := s.rootBlockChain.InsertChain([]types.IBlock{rootBlock})
 	if err != nil {
 		return err
 	}
 	if err := s.broadcastRootBlockToSlaves(rootBlock); err != nil {
-		if err := s.rootBlockChain.SetHead(head); err != nil {
+		if err := s.rootBlockChain.SetHead(header.NumberU64()); err != nil {
 			panic(err)
 		}
 		return err
 	}
 	s.rootBlockChain.ClearCommittingHash()
-	go s.miner.HandleNewTip()
+	if header.Hash() != s.rootBlockChain.CurrentBlock().Hash() {
+		go s.miner.HandleNewTip()
+	}
 	return nil
+}
+
+func (s *QKCMasterBackend) GetRootChainStakes(coinbase account.Address, lastMinor common.Hash) (*big.Int,
+	*account.Recipient, error) {
+
+	fullShardId := uint32(1)
+	var slave rpc.ISlaveConn
+	if cons, ok := s.branchToSlaves[fullShardId]; !ok {
+		panic("chain 0 shard 0 missing.")
+	} else {
+		slave = cons[0]
+	}
+	stakes, signer, err := slave.GetRootChainStakes(coinbase, lastMinor)
+	if err != nil {
+		return nil, nil, err
+	}
+	return stakes, signer, nil
 }
 
 // SetTargetBlockTime set target Time from jsonRpc

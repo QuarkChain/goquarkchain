@@ -2,21 +2,53 @@ package qkchash
 
 import (
 	"encoding/binary"
-	"sort"
-
 	"github.com/QuarkChain/goquarkchain/consensus/qkchash/native"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
+	"sort"
+	"sync"
 )
 
 const (
-	accessRound   = 64
-	cacheEntryCnt = 1024 * 64
+	accessRound     = 64
+	cacheEntryCnt   = 1024 * 64
+	cacheAheadRound = 64 // 64*30000
 )
 
 var (
-	cacheSeed = []byte{}
+	EpochLength = uint64(30000) //blocks pre epoch
 )
+
+type cacheSeed struct {
+	mu     sync.RWMutex
+	caches []qkcCache
+}
+
+func NewcacheSeed(useNative bool) *cacheSeed {
+	firstCache := generateCache(cacheEntryCnt, common.Hash{}.Bytes(), useNative)
+	caches := make([]qkcCache, 0)
+	caches = append(caches, firstCache)
+	return &cacheSeed{
+		caches: caches,
+	}
+}
+
+func (c *cacheSeed) getCacheFromHeight(block uint64, useNative bool) qkcCache {
+	epoch := int(block / EpochLength)
+	lenCaches := len(c.caches)
+	if epoch < lenCaches {
+		return c.caches[epoch]
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	needAddCnt := epoch - lenCaches + cacheAheadRound
+	seed := c.caches[len(c.caches)-1].seed
+	for i := 0; i < needAddCnt; i++ {
+		seed = crypto.Keccak256(seed)
+		c.caches = append(c.caches, generateCache(cacheEntryCnt, seed, useNative))
+	}
+	return c.caches[epoch]
+}
 
 // qkcCache is the union type of cache for qkchash algo.
 // Note in Go impl, `nativeCache` will be empty.
@@ -24,6 +56,7 @@ type qkcCache struct {
 	ls          []uint64
 	set         map[uint64]struct{}
 	nativeCache native.Cache
+	seed        []byte
 }
 
 // fnv64 is an algorithm inspired by the FNV hash, which in some cases is used as
@@ -52,23 +85,31 @@ func generateCache(cnt int, seed []byte, genNativeCache bool) qkcCache {
 	}
 
 	if genNativeCache {
-		return qkcCache{nil, nil, native.NewCache(ls)}
+		return qkcCache{nil, nil, native.NewCache(ls), seed}
 	}
 
 	// Sort is needed for Go impl
 	sort.Slice(ls, func(i, j int) bool { return ls[i] < ls[j] })
-	return qkcCache{ls, set, nil}
+	return qkcCache{ls, set, nil, seed}
 }
 
 // qkcHashNative calls the native c++ implementation through SWIG.
-func qkcHashNative(seed []byte, cache qkcCache) (digest []byte, result []byte, err error) {
+func qkcHashNative(seed []byte, cache qkcCache, useX bool) (digest []byte, result []byte, err error) {
 	// Combine header+nonce into a seed
 	seed = crypto.Keccak512(seed)
 	var seedArray [8]uint64
 	for i := 0; i < 8; i++ {
 		seedArray[i] = binary.LittleEndian.Uint64(seed[i*8:])
 	}
-	hashRes, err := native.Hash(cache.nativeCache, seedArray)
+	var (
+		hashRes [4]uint64
+	)
+	if useX {
+		hashRes, err = native.HashWithRotationStats(cache.nativeCache, seedArray)
+	} else {
+		hashRes, err = native.Hash(cache.nativeCache, seedArray)
+	}
+
 	if err != nil {
 		return nil, nil, err
 	}

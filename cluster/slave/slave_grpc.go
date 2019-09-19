@@ -311,7 +311,7 @@ func (s *SlaveServerSideOp) GetAllTx(ctx context.Context, req *rpc.Request) (*rp
 
 func (s *SlaveServerSideOp) GetLogs(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
 	var (
-		gReq     rpc.GetLogRequest
+		gReq     rpc.FilterQuery
 		gRes     rpc.GetLogResponse
 		response = &rpc.Response{RpcId: req.RpcId}
 		err      error
@@ -320,7 +320,7 @@ func (s *SlaveServerSideOp) GetLogs(ctx context.Context, req *rpc.Request) (*rpc
 		return nil, err
 	}
 
-	if gRes.Logs, err = s.slave.GetLogs(gReq.Topics, gReq.Addresses, gReq.StartBlock, gReq.EndBlock, gReq.Branch); err != nil {
+	if gRes.Logs, err = s.slave.GetLogs(&gReq); err != nil {
 		return nil, err
 	}
 
@@ -430,7 +430,7 @@ func (s *SlaveServerSideOp) GetWork(ctx context.Context, req *rpc.Request) (*rpc
 		return nil, err
 	}
 
-	if work, err = s.slave.GetWork(gReq.Branch); err != nil {
+	if work, err = s.slave.GetWork(gReq.Branch, gReq.CoinbaseAddr); err != nil {
 		return nil, err
 	}
 
@@ -496,6 +496,24 @@ func (s *SlaveServerSideOp) BatchAddXshardTxList(ctx context.Context, req *rpc.R
 		}
 	}
 
+	return response, nil
+}
+func (s *SlaveServerSideOp) GetRootChainStakes(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
+	var (
+		gReq     rpc.GetRootChainStakesRequest
+		gRes     rpc.GetRootChainStakesResponse
+		response = &rpc.Response{RpcId: req.RpcId}
+		err      error
+	)
+	if err = serialize.DeserializeFromBytes(req.Data, &gReq); err != nil {
+		return nil, err
+	}
+	if gRes.Stakes, gRes.Signer, err = s.slave.GetRootChainStakes(gReq.Address, gReq.MinorBlockHash); err != nil {
+		return nil, err
+	}
+	if response.Data, err = serialize.SerializeToBytes(gRes); err != nil {
+		return nil, err
+	}
 	return response, nil
 }
 

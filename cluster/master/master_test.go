@@ -12,6 +12,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/core/rawdb"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/serialize"
+	eth "github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethdb"
@@ -546,7 +547,13 @@ func TestGetLogs(t *testing.T) {
 
 	startBlock := ethRPC.BlockNumber(0)
 	endBlock := ethRPC.BlockNumber(0)
-	logs, err := master.GetLogs(account.Branch{Value: 2}, nil, nil, uint64(startBlock), uint64(endBlock))
+	// logs, err := master.GetLogs(account.Branch{Value: 2}, nil, nil, uint64(startBlock), uint64(endBlock))
+	logs, err := master.GetLogs(&rpc.FilterQuery{
+		FullShardId: 2,
+		FilterQuery: eth.FilterQuery{
+			FromBlock: big.NewInt(int64(startBlock)),
+			ToBlock:   big.NewInt(int64(endBlock)),
+		}})
 	assert.NoError(t, err)
 	assert.Equal(t, len(logs), 1)
 	assert.Equal(t, logs[0].Data, []byte("qkc"))
@@ -606,7 +613,7 @@ func TestGasPrice(t *testing.T) {
 func TestGetWork(t *testing.T) {
 	master := initEnv(t, nil)
 	branch := account.NewBranch(2)
-	data, err := master.GetWork(branch)
+	data, err := master.GetWork(branch, nil)
 	assert.NoError(t, err)
 	assert.Equal(t, data.Number, uint64(1))
 }

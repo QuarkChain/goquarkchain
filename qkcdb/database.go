@@ -105,10 +105,14 @@ func (db *RDBDatabase) Get(key []byte) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer dat.Free()
 	if dat.Size() == 0 {
 		return nil, errors.New("failed to get data from rocksdb, return empty data")
 	}
-	return dat.Data(), nil
+	rawData := dat.Data()
+	result := make([]byte, len(rawData))
+	copy(result, rawData)
+	return result, nil
 }
 
 // Delete deletes the key from the queue and database
@@ -154,6 +158,7 @@ func (b *rdbBatch) Delete(key []byte) error {
 }
 
 func (b *rdbBatch) Write() error {
+	defer b.w.Destroy()
 	return b.db.Write(b.wo, b.w)
 }
 

@@ -5,10 +5,10 @@ import (
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/cluster/service"
 	"github.com/QuarkChain/goquarkchain/cluster/shard"
+	"github.com/QuarkChain/goquarkchain/cluster/slave/filters"
 	"github.com/QuarkChain/goquarkchain/p2p"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/rpc"
-	"reflect"
 	"sync"
 )
 
@@ -50,7 +50,7 @@ func New(ctx *service.ServiceContext, clusterCfg *config.ClusterConfig, cfg *con
 	return slave, nil
 }
 
-func (s *SlaveBackend) getFullShardList() []uint32 {
+func (s *SlaveBackend) GetFullShardList() []uint32 {
 	return s.fullShardList
 }
 
@@ -90,9 +90,14 @@ func (s *SlaveBackend) Protocols() (protos []p2p.Protocol) { return nil }
 func (s *SlaveBackend) APIs() []rpc.API {
 	apis := []rpc.API{
 		{
-			Namespace: "rpc." + reflect.TypeOf(SlaveServerSideOp{}).Name(),
+			Namespace: "grpc",
 			Version:   "3.0",
 			Service:   NewServerSideOp(s),
+			Public:    false,
+		}, {
+			Namespace: "ws",
+			Version:   "3.0",
+			Service:   filters.NewPublicFilterAPI(s), // Private slave api
 			Public:    false,
 		},
 	}

@@ -13,6 +13,7 @@ import (
 	"gopkg.in/urfave/cli.v1"
 	"io/ioutil"
 	"reflect"
+	"strconv"
 	"unicode"
 )
 
@@ -58,10 +59,6 @@ func defaultNodeConfig() service.Config {
 	cfg := service.DefaultConfig
 	cfg.Name = clientIdentifier
 	cfg.Version = params.VersionWithCommit(gitCommit)
-	cfg.IPCPath = "qkc.ipc"
-	cfg.SvrModule = "rpc."
-	cfg.SvrPort = config.GrpcPort
-	cfg.SvrHost = "127.0.0.1"
 	return cfg
 }
 
@@ -80,29 +77,38 @@ func makeConfigNode(ctx *cli.Context) (*service.Node, qkcConfig) {
 	} else {
 		utils.SetClusterConfig(ctx, &cfg.Cluster)
 	}
-	// Load default cluster config.
-	utils.SetNodeConfig(ctx, &cfg.Service, &cfg.Cluster)
 
 	ServiceName := ctx.GlobalString(utils.ServiceFlag.Name)
 	if ServiceName != clientIdentifier {
 		slv, err := cfg.Cluster.GetSlaveConfig(ServiceName)
 		if err != nil {
-			utils.Fatalf("service type is error: %v", err)
+			utils.Fatalf("service type error: %v", err)
 		}
+		// set slave name and grpc endpoint
 		cfg.Service.Name = ServiceName
-		if cfg.Service.SvrHost == config.GrpcHost {
-			cfg.Service.SvrHost = slv.IP
+		cfg.Cluster.Quarkchain.GRPCHost = slv.IP
+		cfg.Cluster.Quarkchain.GRPCPort = slv.Port
+
+		// set websocket endpoint
+		if ctx.GlobalBool(utils.WSEnableFlag.Name) {
+			sufPort, _ := strconv.Atoi(slv.ID[1:])
+			ip, port := slv.IP, slv.WSPort+uint16(sufPort)
+			if ctx.GlobalIsSet(utils.WSRPCHostFlag.Name) {
+				ip = ctx.GlobalString(utils.WSRPCHostFlag.Name)
+			}
+			if ctx.GlobalIsSet(utils.WSRPCPortFlag.Name) {
+				port = uint16(ctx.GlobalInt(utils.WSRPCPortFlag.Name))
+			}
+			cfg.Service.WSEndpoint = fmt.Sprintf("%s:%d", ip, port)
 		}
-		if cfg.Service.SvrPort == config.GrpcPort {
-			cfg.Service.SvrPort = slv.Port
-		}
+
+		// load genesis accounts
 		if err := config.UpdateGenesisAlloc(&cfg.Cluster); err != nil {
 			utils.Fatalf("Update genesis alloc err: %v", err)
 		}
-	} else {
-		cfg.Cluster.Quarkchain.Root.GRPCHost = cfg.Service.SvrHost
-		cfg.Cluster.Quarkchain.Root.GRPCPort = cfg.Service.SvrPort
 	}
+	// Load default cluster config.
+	utils.SetNodeConfig(ctx, &cfg.Service, &cfg.Cluster)
 
 	stack, err := service.New(&cfg.Service)
 	stack.SetIsMaster(ServiceName == clientIdentifier)

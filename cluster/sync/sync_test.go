@@ -27,6 +27,8 @@ func (t *trivialTask) Priority() *big.Int {
 	return new(big.Int).SetUint64(uint64(t.prio))
 }
 
+func (t *trivialTask) SetSendFunc(func(value interface{}) int) {}
+
 func TestRunOneTask(t *testing.T) {
 	s := NewSynchronizer(nil)
 	tt := &trivialTask{executeSwitch: make(chan struct{})}

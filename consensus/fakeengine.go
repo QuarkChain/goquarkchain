@@ -85,7 +85,7 @@ func (e *FakeEngine) CalcDifficulty(chain ChainReader, time uint64, parent types
 	return e.Difficulty, nil
 }
 
-func (e *FakeEngine) GetWork() (*MiningWork, error) {
+func (e *FakeEngine) GetWork(address account.Address) (*MiningWork, error) {
 	return &MiningWork{}, nil
 }
 
@@ -94,6 +94,9 @@ func (e *FakeEngine) SubmitWork(nonce uint64, hash, digest common.Hash, signatur
 }
 
 func (e *FakeEngine) SetThreads(threads int) {}
+func (e *FakeEngine) RefreshWork(tip uint64) {
+
+}
 
 // Close terminates any background threads maintained by the consensus engine.
 func (e *FakeEngine) Close() error {
