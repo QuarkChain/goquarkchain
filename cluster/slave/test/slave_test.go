@@ -12,7 +12,6 @@ import (
 	"github.com/QuarkChain/goquarkchain/rpc"
 	"github.com/QuarkChain/goquarkchain/serialize"
 	"math/big"
-	"reflect"
 	"testing"
 )
 
@@ -385,7 +384,7 @@ func TestSLaveGRPC(t *testing.T) {
 
 	apis := []rpc.API{
 		{
-			Namespace: "rpc." + reflect.TypeOf(SlaveServerSideOp{}).Name(),
+			Namespace: "grpc",
 			Version:   "3.0",
 			Service:   NewFakeServerSideOp(),
 			Public:    false,

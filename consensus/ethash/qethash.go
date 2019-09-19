@@ -56,8 +56,11 @@ func (q *QEthash) verifySeal(chain consensus.ChainReader, header types.IHeader, 
 		return errInvalidMixDigest
 	}
 	diff := adjustedDiff
-	if diff == nil || diff.Cmp(big.NewInt(0)) == 0 {
+	if diff == nil {
 		diff = header.GetDifficulty()
+	}
+	if diff.Cmp(big.NewInt(0)) == 0 {
+		diff = big.NewInt(1)
 	}
 	target := new(big.Int).Div(two256, diff)
 	if new(big.Int).SetBytes(result).Cmp(target) > 0 {
@@ -75,6 +78,10 @@ func (q *QEthash) Prepare(chain consensus.ChainReader, header types.IHeader) err
 func (q *QEthash) Finalize(chain consensus.ChainReader, header types.IHeader, state *state.StateDB, txs []*types.Transaction,
 	receipts []*types.Receipt) (types.IBlock, error) {
 	panic("not implemented")
+}
+
+func (q *QEthash) RefreshWork(tip uint64) {
+	q.CommonEngine.RefreshWork(tip)
 }
 
 // New returns a Ethash scheme.

@@ -6,11 +6,12 @@ import (
 	"math/big"
 	"reflect"
 
-	"github.com/QuarkChain/goquarkchain/core/state"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
 
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/consensus"
+	"github.com/QuarkChain/goquarkchain/core/state"
 	"github.com/QuarkChain/goquarkchain/core/types"
 )
 
@@ -174,7 +175,7 @@ func (v *RootBlockValidator) ValidateState(block, parent types.IBlock, statedb *
 	panic(errors.New("not implement"))
 }
 
-func (v *RootBlockValidator) ValidateSeal(rHeader types.IHeader) error {
+func (v *RootBlockValidator) ValidateSeal(rHeader types.IHeader, usePosw bool) error {
 	header, ok := rHeader.(*types.RootBlockHeader)
 	if !ok {
 		return errors.New("validate root block Seal failed, root block is nil")
@@ -182,8 +183,16 @@ func (v *RootBlockValidator) ValidateSeal(rHeader types.IHeader) error {
 	if header.NumberU64() == 0 {
 		return nil
 	}
-
-	adjustedDiff, _ := v.blockChain.GetAdjustedDifficulty(rHeader)
+	adjustedDiff := header.GetDifficulty()
+	if usePosw {
+		adjustedDiff, _ = v.blockChain.GetAdjustedDifficulty(rHeader)
+	} else {
+		if crypto.VerifySignature(v.config.GuardianPublicKey, rHeader.SealHash().Bytes(), header.Signature[:64]) {
+			adjustedDiff = new(big.Int).Div(adjustedDiff, new(big.Int).SetUint64(1000))
+		} else if v.config.Root.PoSWConfig.Enabled {
+			adjustedDiff = new(big.Int).Div(adjustedDiff, new(big.Int).SetUint64(v.config.Root.PoSWConfig.DiffDivider))
+		}
+	}
 	return v.engine.VerifySeal(v.blockChain, header, adjustedDiff)
 }
 
@@ -202,6 +211,6 @@ func (v *fakeRootBlockValidator) ValidateHeader(header types.IHeader) error {
 func (v *fakeRootBlockValidator) ValidateState(block, parent types.IBlock, statedb *state.StateDB, receipts types.Receipts, usedGas uint64) error {
 	panic(errors.New("not implement"))
 }
-func (v *fakeRootBlockValidator) ValidateSeal(rHeader types.IHeader) error {
+func (v *fakeRootBlockValidator) ValidateSeal(rHeader types.IHeader, usePoswFlag bool) error {
 	return nil
 }

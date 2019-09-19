@@ -78,8 +78,6 @@ var AppHelpFlagGroups = []flagGroup{
 			utils.BootnodesFlag,
 			utils.UpnpFlag,
 			utils.PrivkeyFlag,
-			utils.SimpleNetworkBootstrapHostFlag,
-			utils.SimpleNetworkBootstrapPortFlag,
 		},
 	},
 	{
@@ -95,6 +93,14 @@ var AppHelpFlagGroups = []flagGroup{
 		Flags: []cli.Flag{
 			utils.PrivateRPCListenAddrFlag,
 			utils.PrivateRPCPortFlag,
+		},
+	},
+	{
+		Name: "WEBSOCKET API",
+		Flags: []cli.Flag{
+			utils.WSEnableFlag,
+			utils.WSRPCHostFlag,
+			utils.WSRPCPortFlag,
 		},
 	},
 	{

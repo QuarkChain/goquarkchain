@@ -21,6 +21,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/serialize"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/ethdb"
 	ethParams "github.com/ethereum/go-ethereum/params"
 	"github.com/stretchr/testify/assert"
 )
@@ -615,7 +616,7 @@ func TestTwoTxInOneBlock(t *testing.T) {
 	// # Should succeed
 	_, reps, err := shardState.FinalizeAndAddBlock(b1)
 	checkErr(err)
-	assert.Equal(t, shardState.CurrentHeader().Hash(), b1.Header().Hash())
+	assert.Equal(t, shardState.CurrentBlock().Hash(), b1.Header().Hash())
 	currState, err = shardState.State()
 	checkErr(err)
 	acc1Value = currState.GetBalance(id1.GetRecipient(), testGenesisTokenID)
@@ -820,8 +821,8 @@ func TestXShardTxSent(t *testing.T) {
 
 	// Add a root block to update block gas limit so that xshard tx can be included
 	rootBlock := shardState.rootTip.CreateBlockToAppend(nil, nil, nil, nil, nil)
-	rootBlock.AddMinorBlockHeader(shardState.CurrentHeader().(*types.MinorBlockHeader))
-	rootBlock.AddMinorBlockHeader(shardState1.CurrentHeader().(*types.MinorBlockHeader))
+	rootBlock.AddMinorBlockHeader(shardState.CurrentBlock().Header())
+	rootBlock.AddMinorBlockHeader(shardState1.CurrentBlock().Header())
 	rootBlock = rootBlock.Finalize(nil, nil, common.Hash{})
 	_, err = shardState.AddRootBlock(rootBlock)
 	checkErr(err)
@@ -901,8 +902,8 @@ func TestXShardTxReceived(t *testing.T) {
 	// Add a root block to allow later minor blocks referencing this root block to
 	// be broadcasted
 	rootBlock := shardState0.rootTip.CreateBlockToAppend(nil, nil, nil, nil, nil)
-	rootBlock.AddMinorBlockHeader(shardState0.CurrentHeader().(*types.MinorBlockHeader))
-	rootBlock.AddMinorBlockHeader(shardState1.CurrentHeader().(*types.MinorBlockHeader))
+	rootBlock.AddMinorBlockHeader(shardState0.CurrentBlock().Header())
+	rootBlock.AddMinorBlockHeader(shardState1.CurrentBlock().Header())
 	rootBlock.Finalize(nil, nil, common.Hash{})
 	_, err0 := shardState0.AddRootBlock(rootBlock)
 	checkErr(err0)
@@ -1038,8 +1039,8 @@ func TestXShardForTwoRootBlocks(t *testing.T) {
 	// Add a root block to allow later minor blocks referencing this root block to
 	// be broadcasted
 	rootBlock := shardState0.rootTip.CreateBlockToAppend(nil, nil, nil, nil, nil)
-	rootBlock.AddMinorBlockHeader(shardState0.CurrentHeader().(*types.MinorBlockHeader))
-	rootBlock.AddMinorBlockHeader(shardState1.CurrentHeader().(*types.MinorBlockHeader))
+	rootBlock.AddMinorBlockHeader(shardState0.CurrentBlock().Header())
+	rootBlock.AddMinorBlockHeader(shardState1.CurrentBlock().Header())
 	rootBlock.Finalize(nil, nil, common.Hash{})
 
 	_, err = shardState0.AddRootBlock(rootBlock)
@@ -1323,9 +1324,9 @@ func TestShardStateAddRootBlock(t *testing.T) {
 	_, err = shardState0.AddRootBlock(rootBlock2)
 	checkErr(err)
 
-	currHeader := shardState0.CurrentHeader().(*types.MinorBlockHeader)
+	currBlock = shardState0.CurrentBlock()
 
-	assert.Equal(t, currHeader.Hash().String(), b4.Header().Hash().String())
+	assert.Equal(t, currBlock.Hash().String(), b4.Header().Hash().String())
 	assert.Equal(t, shardState0.rootTip.Hash().String(), rootBlock2.Hash().String())
 	assert.Equal(t, shardState0.GetBlockByNumber(2).Hash().String(), b3.Hash().String())
 	assert.Equal(t, shardState0.GetBlockByNumber(3).Hash().String(), b4.Hash().String())
@@ -1345,7 +1346,7 @@ func TestShardStateAddRootBlockTooManyMinorBlocks(t *testing.T) {
 	fakeID := uint32(0)
 	shardState := createDefaultShardState(env, &fakeID, nil, nil, nil)
 	headers := make([]*types.MinorBlockHeader, 0)
-	headers = append(headers, shardState.CurrentHeader().(*types.MinorBlockHeader))
+	headers = append(headers, shardState.CurrentBlock().Header())
 
 	for index := 0; index < 13; index++ {
 		b := shardState.CurrentBlock().CreateBlockToAppend(nil, nil, nil, nil, nil, nil, nil, nil, nil)
@@ -1390,7 +1391,7 @@ func TestShardStateForkResolveWithHigherRootChain(t *testing.T) {
 	rootBlock.AddMinorBlockHeader(b0.Header())
 	rootBlock.Finalize(nil, nil, common.Hash{})
 
-	assert.Equal(t, shardState.CurrentHeader().Hash().String(), b0.Header().Hash().String())
+	assert.Equal(t, shardState.CurrentBlock().Hash().String(), b0.Header().Hash().String())
 	_, err = shardState.AddRootBlock(rootBlock)
 	checkErr(err)
 
@@ -1407,18 +1408,18 @@ func TestShardStateForkResolveWithHigherRootChain(t *testing.T) {
 
 	b1, _, err = shardState.FinalizeAndAddBlock(b1)
 	checkErr(err)
-	assert.Equal(t, shardState.CurrentHeader().Hash().String(), b1.Header().Hash().String())
+	assert.Equal(t, shardState.CurrentBlock().Hash().String(), b1.Header().Hash().String())
 
 	// Fork happens, although they have the same height, b2 survives since it confirms root block
 	b2, _, err = shardState.FinalizeAndAddBlock(b2)
 	checkErr(err)
-	assert.Equal(t, shardState.CurrentHeader().Hash().String(), b2.Header().Hash().String())
+	assert.Equal(t, shardState.CurrentBlock().Hash().String(), b2.Header().Hash().String())
 
 	// b3 confirms the same root block as b2, so it will not override b2
 	b3, _, err = shardState.FinalizeAndAddBlock(b3)
 	checkErr(err)
 
-	assert.Equal(t, shardState.CurrentHeader().Hash().String(), b2.Header().Hash().String())
+	assert.Equal(t, shardState.CurrentBlock().Hash().String(), b2.Header().Hash().String())
 }
 
 func TestShardStateDifficulty(t *testing.T) {
@@ -1440,31 +1441,31 @@ func TestShardStateDifficulty(t *testing.T) {
 	flagEngine := true
 	shardState := createDefaultShardState(env, &fakeShardID, diffCalc, nil, &flagEngine)
 
-	createTime := shardState.CurrentHeader().GetTime() + 8
+	createTime := shardState.CurrentBlock().Header().GetTime() + 8
 	// Check new difficulty
 	b0, err := shardState.CreateBlockToMine(&createTime, nil, nil, nil, nil)
 	checkErr(err)
-	assert.Equal(t, b0.Header().Difficulty.Uint64(), uint64(shardState.CurrentHeader().GetDifficulty().Uint64()/uint64(2048)+shardState.CurrentHeader().GetDifficulty().Uint64()))
+	assert.Equal(t, b0.Header().Difficulty.Uint64(), uint64(shardState.CurrentBlock().Header().GetDifficulty().Uint64()/uint64(2048)+shardState.CurrentHeader().GetDifficulty().Uint64()))
 
-	createTime = shardState.CurrentHeader().GetTime() + 9
+	createTime = shardState.CurrentBlock().Header().GetTime() + 9
+	b0, err = shardState.CreateBlockToMine(&createTime, nil, nil, nil, nil)
+	checkErr(err)
+	assert.Equal(t, b0.Header().Difficulty.Uint64(), shardState.CurrentBlock().Header().GetDifficulty().Uint64())
+
+	createTime = shardState.CurrentBlock().Header().GetTime() + 17
 	b0, err = shardState.CreateBlockToMine(&createTime, nil, nil, nil, nil)
 	checkErr(err)
 	assert.Equal(t, b0.Header().Difficulty.Uint64(), shardState.CurrentHeader().GetDifficulty().Uint64())
 
-	createTime = shardState.CurrentHeader().GetTime() + 17
+	createTime = shardState.CurrentBlock().Header().GetTime() + 24
 	b0, err = shardState.CreateBlockToMine(&createTime, nil, nil, nil, nil)
 	checkErr(err)
-	assert.Equal(t, b0.Header().Difficulty.Uint64(), shardState.CurrentHeader().GetDifficulty().Uint64())
+	assert.Equal(t, b0.Header().Difficulty.Uint64(), shardState.CurrentBlock().Header().GetDifficulty().Uint64()-shardState.CurrentBlock().Header().GetDifficulty().Uint64()/uint64(2048))
 
-	createTime = shardState.CurrentHeader().GetTime() + 24
+	createTime = shardState.CurrentBlock().Header().GetTime() + 35
 	b0, err = shardState.CreateBlockToMine(&createTime, nil, nil, nil, nil)
 	checkErr(err)
-	assert.Equal(t, b0.Header().Difficulty.Uint64(), shardState.CurrentHeader().GetDifficulty().Uint64()-shardState.CurrentHeader().GetDifficulty().Uint64()/uint64(2048))
-
-	createTime = shardState.CurrentHeader().GetTime() + 35
-	b0, err = shardState.CreateBlockToMine(&createTime, nil, nil, nil, nil)
-	checkErr(err)
-	assert.Equal(t, b0.Header().Difficulty.Uint64(), shardState.CurrentHeader().GetDifficulty().Uint64()-shardState.CurrentHeader().GetDifficulty().Uint64()/uint64(2048)*2)
+	assert.Equal(t, b0.Header().Difficulty.Uint64(), shardState.CurrentBlock().Header().GetDifficulty().Uint64()-shardState.CurrentBlock().Header().GetDifficulty().Uint64()/uint64(2048)*2)
 }
 
 func TestShardStateRecoveryFromRootBlock(t *testing.T) {
@@ -1480,7 +1481,7 @@ func TestShardStateRecoveryFromRootBlock(t *testing.T) {
 
 	blockHeaders := make([]*types.MinorBlockHeader, 0)
 	blockMetas := make([]*types.MinorBlockMeta, 0)
-	blockHeaders = append(blockHeaders, shardState.CurrentHeader().(*types.MinorBlockHeader))
+	blockHeaders = append(blockHeaders, shardState.CurrentBlock().Header())
 	blockMetas = append(blockMetas, shardState.CurrentBlock().GetMetaData())
 	for index := 0; index < 12; index++ {
 		b := shardState.CurrentBlock().CreateBlockToAppend(nil, nil, &acc1, nil, nil, nil, nil, nil, nil)
@@ -1521,7 +1522,7 @@ func TestShardStateRecoveryFromRootBlock(t *testing.T) {
 
 	assert.Equal(t, tempBlock.Hash().String(), b1.Hash().String())
 	assert.Equal(t, recoveredState.rootTip.Hash().String(), rootBlock.Hash().String())
-	assert.Equal(t, recoveredState.CurrentHeader().Hash().String(), blockHeaders[4].Hash().String())
+	assert.Equal(t, recoveredState.CurrentBlock().Hash().String(), blockHeaders[4].Hash().String())
 	assert.Equal(t, recoveredState.confirmedHeaderTip.Hash().String(), blockHeaders[4].Hash().String())
 }
 
@@ -1538,7 +1539,7 @@ func TestShardStateTecoveryFromGenesis(t *testing.T) {
 
 	blockHeaders := make([]*types.MinorBlockHeader, 0)
 	blockMetas := make([]*types.MinorBlockMeta, 0)
-	blockHeaders = append(blockHeaders, shardState.CurrentHeader().(*types.MinorBlockHeader))
+	blockHeaders = append(blockHeaders, shardState.CurrentBlock().Header())
 	blockMetas = append(blockMetas, shardState.CurrentBlock().GetMetaData())
 	for index := 0; index < 12; index++ {
 		b := shardState.CurrentBlock().CreateBlockToAppend(nil, nil, &acc1, nil, nil, nil, nil, nil, nil)
@@ -1567,8 +1568,8 @@ func TestShardStateTecoveryFromGenesis(t *testing.T) {
 
 	genesis := shardState.GetBlockByNumber(0)
 	assert.Equal(t, recoveredState.rootTip.Hash().String(), rootBlock.Hash().String())
-	assert.Equal(t, recoveredState.CurrentBlock().Hash().String(), recoveredState.CurrentHeader().Hash().String())
-	assert.Equal(t, recoveredState.CurrentHeader().Hash().String(), genesis.Hash().String())
+	assert.Equal(t, recoveredState.CurrentBlock().Hash().String(), recoveredState.CurrentBlock().Hash().String())
+	assert.Equal(t, recoveredState.CurrentBlock().Hash().String(), genesis.Hash().String())
 
 	assert.Equal(t, true, recoveredState.confirmedHeaderTip == nil)
 	assert.Equal(t, recoveredState.CurrentBlock().GetMetaData().Hash().String(), genesis.(*types.MinorBlock).GetMetaData().Hash().String())
@@ -1677,7 +1678,7 @@ func TestNotUpdateTipOnRootFork(t *testing.T) {
 
 	// but m1 should still be the tip
 	assert.Equal(t, shardState.GetMinorBlock(m2.Hash()).Hash().String(), m2.Header().Hash().String())
-	assert.Equal(t, shardState.CurrentHeader().Hash().String(), m1.IHeader().Hash().String())
+	assert.Equal(t, shardState.CurrentBlock().Hash().String(), m1.IHeader().Hash().String())
 }
 
 func TestAddRootBlockRevertHeaderTip(t *testing.T) {
@@ -1743,7 +1744,7 @@ func TestAddRootBlockRevertHeaderTip(t *testing.T) {
 	checkErr(err)
 
 	assert.Equal(t, shardState.rootTip.Hash().String(), r3.Header().Hash().String())
-	assert.Equal(t, shardState.CurrentHeader().Hash().String(), m2.Header().Hash().String())
+	assert.Equal(t, shardState.CurrentBlock().Hash().String(), m2.Header().Hash().String())
 	assert.Equal(t, shardState.CurrentBlock().Hash().String(), m2.Header().Hash().String())
 }
 
@@ -1995,8 +1996,8 @@ func TestXShardRootBlockCoinbase(t *testing.T) {
 	}()
 
 	rootBlock := shardState1.rootTip.CreateBlockToAppend(nil, nil, nil, nil, nil)
-	rootBlock.AddMinorBlockHeader(shardState1.CurrentHeader().(*types.MinorBlockHeader))
-	rootBlock.AddMinorBlockHeader(shardState2.CurrentHeader().(*types.MinorBlockHeader))
+	rootBlock.AddMinorBlockHeader(shardState1.CurrentBlock().Header())
+	rootBlock.AddMinorBlockHeader(shardState2.CurrentBlock().Header())
 	rootBlock.Finalize(nil, nil, common.Hash{})
 	_, err = shardState1.AddRootBlock(rootBlock)
 	checkErr(err)
@@ -2048,7 +2049,7 @@ func TestXShardSenderGasLimit(t *testing.T) {
 	defer shardState1.Stop()
 
 	rootBlock := shardState1.rootTip.CreateBlockToAppend(nil, nil, nil, nil, nil)
-	rootBlock.AddMinorBlockHeader(shardState1.CurrentHeader().(*types.MinorBlockHeader))
+	rootBlock.AddMinorBlockHeader(shardState1.CurrentBlock().Header())
 	rootBlock.Finalize(nil, nil, common.Hash{})
 	_, err = shardState1.AddRootBlock(rootBlock)
 
@@ -2108,8 +2109,8 @@ func TestXShardGasLimit(t *testing.T) {
 	}()
 
 	rootBlock := shardState1.rootTip.CreateBlockToAppend(nil, nil, nil, nil, nil)
-	rootBlock.AddMinorBlockHeader(shardState1.CurrentHeader().(*types.MinorBlockHeader))
-	rootBlock.AddMinorBlockHeader(shardState2.CurrentHeader().(*types.MinorBlockHeader))
+	rootBlock.AddMinorBlockHeader(shardState1.CurrentBlock().Header())
+	rootBlock.AddMinorBlockHeader(shardState2.CurrentBlock().Header())
 	rootBlock.Finalize(nil, nil, common.Hash{})
 	_, err = shardState1.AddRootBlock(rootBlock)
 	checkErr(err)
@@ -2281,8 +2282,8 @@ func TestXShardTxReceivedDDOSFix(t *testing.T) {
 	}()
 
 	rootBlock := state0.GetRootTip().CreateBlockToAppend(nil, nil, nil, nil, nil)
-	rootBlock.AddMinorBlockHeader(state0.CurrentHeader().(*types.MinorBlockHeader))
-	rootBlock.AddMinorBlockHeader(state1.CurrentHeader().(*types.MinorBlockHeader))
+	rootBlock.AddMinorBlockHeader(state0.CurrentBlock().Header())
+	rootBlock.AddMinorBlockHeader(state1.CurrentBlock().Header())
 	rootBlock.Finalize(nil, nil, common.Hash{})
 	_, err = state0.AddRootBlock(rootBlock)
 	checkErr(err)
@@ -2498,8 +2499,8 @@ func TestGetTxForJsonRpc(t *testing.T) {
 	// Add a root block to allow later minor blocks referencing this root block to
 	// be broadcasted
 	rootBlock := shardState0.rootTip.CreateBlockToAppend(nil, nil, nil, nil, nil)
-	rootBlock.AddMinorBlockHeader(shardState0.CurrentHeader().(*types.MinorBlockHeader))
-	rootBlock.AddMinorBlockHeader(shardState1.CurrentHeader().(*types.MinorBlockHeader))
+	rootBlock.AddMinorBlockHeader(shardState0.CurrentBlock().Header())
+	rootBlock.AddMinorBlockHeader(shardState1.CurrentBlock().Header())
 	rootBlock.Finalize(nil, nil, common.Hash{})
 	_, err0 := shardState0.AddRootBlock(rootBlock)
 	checkErr(err0)
@@ -2616,4 +2617,227 @@ func TestGetTxForJsonRpc(t *testing.T) {
 	// already compare next with py
 	// account is random and key is not match,so not use assert.Equal there
 	// but next returns the same except for address and key
+}
+func TestReorg(t *testing.T) {
+	/*
+		r0 -> rs1
+		r0 -> rr1 -> rr2
+	*/
+
+	id1, err := account.CreatRandomIdentity()
+	checkErr(err)
+	acc1 := account.CreatAddressFromIdentity(id1, 0)
+	acc3, err := account.CreatRandomAccountWithFullShardKey(0)
+
+	fakeMoney := uint64(10000000)
+	env := setUp(&acc1, &fakeMoney, nil)
+	shardState := createDefaultShardState(env, nil, nil, nil, nil)
+	defer shardState.Stop()
+
+	// Add a root block to have all the shards initialized
+	rootBlock := shardState.rootTip.CreateBlockToAppend(nil, nil, nil, nil, nil).Finalize(nil, nil, common.Hash{})
+	_, err = shardState.AddRootBlock(rootBlock)
+	checkErr(err)
+
+	r0 := shardState.CurrentBlock()
+
+	rs1 := r0.CreateBlockToAppend(nil, nil, nil, nil, nil, nil, nil, nil, nil)
+	rs1, _, err = shardState.FinalizeAndAddBlock(rs1)
+	assert.NoError(t, err)
+	assert.Equal(t, shardState.CurrentBlock(), rs1) //only rs1
+
+	rr1 := r0.CreateBlockToAppend(nil, nil, nil, nil, nil, nil, nil, nil, nil)
+	tHeader := rr1.Header()
+	tHeader.SetCoinbase(acc3)
+	rr1 = types.NewMinorBlock(tHeader, rr1.Meta(), rr1.Transactions(), nil, nil)
+	rr1, _, err = shardState.FinalizeAndAddBlock(rr1)
+	assert.NoError(t, err)
+
+	assert.Equal(t, shardState.CurrentBlock(), rs1) //rs1's height==rr1's height so rs1
+
+	rr2 := rr1.CreateBlockToAppend(nil, nil, nil, nil, nil, nil, nil, nil, nil)
+	rr2, _, err = shardState.FinalizeAndAddBlock(rr2)
+	assert.NoError(t, err)
+	assert.Equal(t, shardState.CurrentBlock(), rr2) //rr2's height>rs1.height so rr2
+
+	assert.Equal(t, shardState.GetBlockByNumber(1).Hash(), rr1.Hash())
+	assert.Equal(t, shardState.GetBlockByNumber(2).Hash(), rr2.Hash())
+
+	err = shardState.reorg(shardState.CurrentBlock(), rs1) //rr2->rs1 so rs1
+	assert.NoError(t, err)
+	assert.Equal(t, shardState.CurrentBlock().Hash(), rs1.Hash())
+	assert.Equal(t, shardState.GetBlockByNumber(1).Hash(), rs1.Hash())
+	assert.Equal(t, shardState.GetBlockByNumber(2).Hash(), rr2.Hash())
+
+	err = shardState.reorg(shardState.CurrentBlock(), rr1) //rr2->rr1 so rr1
+	assert.NoError(t, err)
+	assert.Equal(t, shardState.CurrentBlock().Hash(), rr1.Hash())
+	assert.Equal(t, shardState.GetBlockByNumber(1).Hash(), rr1.Hash())
+	assert.Equal(t, shardState.GetBlockByNumber(2).Hash(), rr2.Hash())
+
+	err = shardState.reorg(shardState.CurrentBlock(), rr2) //rr2->rr2 so rr2
+	assert.NoError(t, err)
+	assert.Equal(t, shardState.CurrentBlock().Hash(), rr2.Hash())
+	assert.Equal(t, shardState.GetBlockByNumber(1).Hash(), rr1.Hash())
+	assert.Equal(t, shardState.GetBlockByNumber(2).Hash(), rr2.Hash())
+
+}
+
+func TestGetRootChainStakes(t *testing.T) {
+	id1, err := account.CreatRandomIdentity()
+	assert.NoError(t, err)
+	acc1 := account.CreatAddressFromIdentity(id1, 0)
+	contractCode := common.Hex2Bytes(`60806040526004361061007b5760003560e01c8063853828b61161004e578063853828b6146101b5578063a69df4b5146101ca578063f83d08ba146101df578063fd8c4646146101e75761007b565b806316934fc4146100d85780632e1a7d4d1461013c578063485d3834146101685780636c19e7831461018f575b336000908152602081905260409020805460ff16156100cb5760405162461bcd60e51b815260040180806020018281038252602681526020018061062e6026913960400191505060405180910390fd5b6100d5813461023b565b50005b3480156100e457600080fd5b5061010b600480360360208110156100fb57600080fd5b50356001600160a01b031661029b565b6040805194151585526020850193909352838301919091526001600160a01b03166060830152519081900360800190f35b34801561014857600080fd5b506101666004803603602081101561015f57600080fd5b50356102cf565b005b34801561017457600080fd5b5061017d61034a565b60408051918252519081900360200190f35b610166600480360360208110156101a557600080fd5b50356001600160a01b0316610351565b3480156101c157600080fd5b506101666103c8565b3480156101d657600080fd5b50610166610436565b6101666104f7565b3480156101f357600080fd5b5061021a6004803603602081101561020a57600080fd5b50356001600160a01b0316610558565b604080519283526001600160a01b0390911660208301528051918290030190f35b8015610297576002820154808201908111610291576040805162461bcd60e51b81526020600482015260116024820152706164646974696f6e206f766572666c6f7760781b604482015290519081900360640190fd5b60028301555b5050565b600060208190529081526040902080546001820154600283015460039093015460ff9092169290916001600160a01b031684565b336000908152602081905260409020805460ff1680156102f3575080600101544210155b6102fc57600080fd5b806002015482111561030d57600080fd5b6002810180548390039055604051339083156108fc029084906000818181858888f19350505050158015610345573d6000803e3d6000fd5b505050565b6203f48081565b336000908152602081905260409020805460ff16156103a15760405162461bcd60e51b81526004018080602001828103825260268152602001806106546026913960400191505060405180910390fd5b6003810180546001600160a01b0319166001600160a01b038416179055610297813461023b565b6103d06105fa565b5033600090815260208181526040918290208251608081018452815460ff16151581526001820154928101929092526002810154928201839052600301546001600160a01b031660608201529061042657600080fd5b61043381604001516102cf565b50565b336000908152602081905260409020805460ff16156104865760405162461bcd60e51b815260040180806020018281038252602b8152602001806106a1602b913960400191505060405180910390fd5b60008160020154116104df576040805162461bcd60e51b815260206004820152601b60248201527f73686f756c642068617665206578697374696e67207374616b65730000000000604482015290519081900360640190fd5b805460ff191660019081178255426203f48001910155565b336000908152602081905260409020805460ff166105465760405162461bcd60e51b815260040180806020018281038252602781526020018061067a6027913960400191505060405180910390fd5b805460ff19168155610433813461023b565b6000806105636105fa565b506001600160a01b03808416600090815260208181526040918290208251608081018452815460ff161580158252600183015493820193909352600282015493810193909352600301549092166060820152906105c75750600091508190506105f5565b60608101516000906001600160a01b03166105e35750836105ea565b5060608101515b604090910151925090505b915091565b6040518060800160405280600015158152602001600081526020016000815260200160006001600160a01b03168152509056fe73686f756c64206f6e6c7920616464207374616b657320696e206c6f636b656420737461746573686f756c64206f6e6c7920736574207369676e657220696e206c6f636b656420737461746573686f756c64206e6f74206c6f636b20616c72656164792d6c6f636b6564206163636f756e747373686f756c64206e6f7420756e6c6f636b20616c72656164792d756e6c6f636b6564206163636f756e7473a265627a7a72315820f2c044ad50ee08e7e49c575b49e8de27cac8322afdb97780b779aa1af44e40d364736f6c634300050b0032`)
+	contractAddr := vm.SystemContracts[vm.ROOT_CHAIN_POSW].Address()
+
+	env := &fakeEnv{
+		db:            ethdb.NewMemDatabase(),
+		clusterConfig: config.NewClusterConfig(),
+	}
+
+	env.clusterConfig.Quarkchain.NetworkID = 3
+	var chainSize, shardSize uint32 = 2, 1
+	env.clusterConfig.Quarkchain.RootChainPoSWContractBytecodeHash = crypto.Keccak256Hash(contractCode)
+	env.clusterConfig.Quarkchain.Update(chainSize, shardSize, 10, 1)
+	env.clusterConfig.Quarkchain.MinMiningGasPrice = new(big.Int).SetInt64(0)
+	env.clusterConfig.Quarkchain.EnableEvmTimeStamp = 1
+	env.clusterConfig.Quarkchain.MinTXPoolGasPrice = new(big.Int).SetInt64(0)
+	shardConfig := env.clusterConfig.Quarkchain.GetShardConfigByFullShardID(1)
+	balance := map[string]*big.Int{env.clusterConfig.Quarkchain.GenesisToken: big.NewInt(10000000)}
+	shardConfig.Genesis.Alloc = map[account.Address]config.Allocation{
+		account.Address{Recipient: contractAddr, FullShardKey: 0}: {
+			Code: contractCode,
+		},
+		account.Address{Recipient: acc1.Recipient, FullShardKey: 0}: {
+			Balances: balance,
+		},
+	}
+	shardState := createDefaultShardState(env, nil, nil, nil, nil)
+	defer shardState.Stop()
+
+	//contract deployed, but no stakes. signer defaults to the recipient
+	stakes, signer, err := shardState.GetRootChainStakes(acc1.Recipient, shardState.CurrentHeader().Hash())
+	assert.NoError(t, err)
+	assert.Equal(t, uint64(0), stakes.Uint64())
+	assert.Equal(t, acc1.Recipient, *signer)
+	gas := uint64(1000000)
+	zero := uint64(0)
+	txGen := func(nonce, value *uint64, dat string) *types.Transaction {
+		data, _ := hex.DecodeString(dat)
+		token := shardState.GetGenesisToken()
+		return createTransferTransaction(shardState, id1.GetKey().Bytes(), acc1, account.Address{Recipient: contractAddr, FullShardKey: 0},
+			new(big.Int).SetUint64(*value), &gas, &zero, nonce, data, &token, &token)
+	}
+
+	addStake := func(n, v *uint64) *types.Transaction {
+		return txGen(n, v, "")
+	}
+	setSigner := func(n, v *uint64, a account.Recipient) *types.Transaction {
+		return txGen(n, v, "6c19e783000000000000000000000000"+hex.EncodeToString(a[:]))
+	}
+	withdraw := func(n, v *uint64) *types.Transaction {
+		return txGen(n, v, "853828b6")
+	}
+	unlock := func(n *uint64) *types.Transaction {
+		return txGen(n, &zero, "a69df4b5")
+	}
+	lock := func(n, v *uint64) *types.Transaction {
+		return txGen(n, v, "f83d08ba")
+	}
+	applyTx := func(tx *types.Transaction, timestamp *uint64) bool {
+		err := shardState.AddTx(tx)
+		assert.NoError(t, err)
+		block, err := shardState.CreateBlockToMine(timestamp, nil, nil, nil, nil)
+		assert.NoError(t, err)
+		_, receipts, err := shardState.FinalizeAndAddBlock(block)
+		assert.NoError(t, err)
+		for _, r := range receipts {
+			if r.Status != uint64(1) {
+				return false
+			}
+		}
+		return true
+	}
+	nonce := uint64(0)
+	value := uint64(1234)
+	//add stakes and set signer
+	tme := shardState.CurrentHeader().GetTime() + 1
+	tx0 := addStake(&nonce, &value)
+	assert.True(t, applyTx(tx0, &tme))
+	randSigner, err := account.CreatRandomIdentity()
+	assert.NoError(t, err)
+	nonce += 1
+	value = uint64(4321)
+	tx1 := setSigner(&nonce, &value, randSigner.GetRecipient())
+	tme += 1
+	assert.True(t, applyTx(tx1, &tme))
+
+	stakes, signer, err = shardState.GetRootChainStakes(acc1.Recipient, shardState.CurrentHeader().Hash())
+	assert.NoError(t, err)
+	assert.Equal(t, uint64(1234+4321), stakes.Uint64())
+	assert.Equal(t, randSigner.GetRecipient(), *signer)
+
+	// can't withdraw during locking
+	nonce += 1
+	tx2 := withdraw(&nonce, &zero)
+	tme += 1
+	assert.False(t, applyTx(tx2, &tme))
+
+	//unlock should succeed
+	nonce += 1
+	tx3 := unlock(&nonce)
+	tme += 1
+	assert.True(t, applyTx(tx3, &tme))
+	//but still can't withdraw
+	nonce += 1
+	tx4 := withdraw(&nonce, &zero)
+	tme += 1
+	assert.False(t, applyTx(tx4, &tme))
+	//and can't add stakes or set signer either
+	nonce += 1
+	value = uint64(100)
+	tx5 := addStake(&nonce, &value)
+	tme += 1
+	assert.False(t, applyTx(tx5, &tme))
+	nonce += 1
+	tx6 := setSigner(&nonce, &zero, acc1.Recipient)
+	tme += 1
+	assert.False(t, applyTx(tx6, &tme))
+
+	//now stakes should be 0 when unlocked
+	//if (stake.unlocked) {
+	//   return (0, address(0));
+	// }
+	stakes, signer, err = shardState.GetRootChainStakes(acc1.Recipient, shardState.CurrentHeader().Hash())
+	assert.NoError(t, err)
+	assert.Equal(t, uint64(0), stakes.Uint64())
+	assert.Equal(t, common.Address{}, *signer)
+	//4 days passed, should be able to withdraw
+	balanceBefore := shardState.currentEvmState.GetBalance(acc1.Recipient, shardState.GetGenesisToken())
+	assert.Equal(t, 10000000-1234-4321, int(balanceBefore.Uint64()))
+	nonce += 1
+	value = uint64(0)
+	tx7 := withdraw(&nonce, &value)
+	tme += 3600 * 24 * 4
+	assert.True(t, applyTx(tx7, &tme))
+	balanceAfter := shardState.currentEvmState.GetBalance(acc1.Recipient, shardState.GetGenesisToken())
+	assert.Equal(t, 10000000, int(balanceAfter.Uint64()))
+	// "should not unlock already-unlocked accounts"
+	nonce += 1
+	tx8 := unlock(&nonce)
+	tme += 1
+	assert.False(t, applyTx(tx8, &tme))
+	//lock again
+	nonce += 1
+	value = uint64(42)
+	tx9 := lock(&nonce, &value)
+	tme += 1
+	assert.True(t, applyTx(tx9, &tme))
+	balanceAfter = shardState.currentEvmState.GetBalance(acc1.Recipient, shardState.GetGenesisToken())
+	assert.Equal(t, 10000000-42, int(balanceAfter.Uint64()))
+	//should be able to get stakes
+	stakes, signer, err = shardState.GetRootChainStakes(acc1.Recipient, shardState.CurrentHeader().Hash())
+	assert.NoError(t, err)
+	assert.Equal(t, 42, int(stakes.Uint64()))
+	assert.Equal(t, randSigner.GetRecipient(), *signer)
 }

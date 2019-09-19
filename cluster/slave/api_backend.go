@@ -11,6 +11,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/p2p"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
 	"golang.org/x/sync/errgroup"
 	"math/big"
@@ -52,7 +53,7 @@ func (s *SlaveBackend) AddRootBlock(block *types.RootBlock) (switched bool, err 
 // Create shards based on GENESIS config and root block height if they have
 // not been created yet.
 func (s *SlaveBackend) CreateShards(rootBlock *types.RootBlock, forceInit bool) (err error) {
-	fullShardList := s.getFullShardList()
+	fullShardList := s.GetFullShardList()
 	var g errgroup.Group
 	for _, id := range fullShardList {
 		id := id
@@ -285,9 +286,9 @@ func (s *SlaveBackend) GetAllTx(branch account.Branch, start []byte, limit uint3
 	return nil, nil, ErrMsg("GetAllTx")
 }
 
-func (s *SlaveBackend) GetLogs(topics [][]common.Hash, address []account.Address, start uint64, end uint64, branch uint32) ([]*types.Log, error) {
-	if shard, ok := s.shards[branch]; ok {
-		return shard.GetLogs(start, end, address, topics)
+func (s *SlaveBackend) GetLogs(args *rpc.FilterQuery) ([]*types.Log, error) {
+	if shard, ok := s.shards[args.FullShardId]; ok {
+		return shard.GetLogsByFilterQuery(args)
 	}
 	return nil, ErrMsg("GetLogs")
 }
@@ -340,9 +341,9 @@ func (s *SlaveBackend) GasPrice(branch uint32, tokenID uint64) (uint64, error) {
 	return 0, ErrMsg("GasPrice")
 }
 
-func (s *SlaveBackend) GetWork(branch uint32) (*consensus.MiningWork, error) {
+func (s *SlaveBackend) GetWork(branch uint32, coinbaseAddr *account.Address) (*consensus.MiningWork, error) {
 	if shard, ok := s.shards[branch]; ok {
-		return shard.GetWork()
+		return shard.GetWork(coinbaseAddr)
 	}
 	return nil, ErrMsg("GetWork")
 }
@@ -421,7 +422,7 @@ func (s *SlaveBackend) getMinorBlockHeadersWithSkip(gReq *p2p.GetMinorBlockHeade
 	var (
 		height     uint64
 		headerlist = make([]*types.MinorBlockHeader, 0, gReq.Limit)
-		mTip       = shrd.MinorBlockChain.CurrentHeader()
+		mTip       = shrd.MinorBlockChain.CurrentBlock()
 	)
 	if gReq.Type == qcom.SkipHash {
 		iHeader := shrd.MinorBlockChain.GetHeaderByHash(gReq.GetHash())
@@ -502,6 +503,17 @@ func (s *SlaveBackend) SetMining(mining bool) {
 	}
 }
 
+func (s *SlaveBackend) EventMux() *event.TypeMux {
+	return s.eventMux
+}
+
+func (s *SlaveBackend) GetShardBackend(fullShardId uint32) (*shard.ShardBackend, error) {
+	if shrd, ok := s.shards[fullShardId]; ok {
+		return shrd, nil
+	}
+	return nil, fmt.Errorf("bad params of fullShardId: %d\n", fullShardId)
+}
+
 func (s *SlaveBackend) CheckMinorBlocksInRoot(rootBlock *types.RootBlock) error {
 	if rootBlock == nil {
 		return errors.New("CheckMinorBlocksInRoot failed: invalid root block")
@@ -514,4 +526,14 @@ func (s *SlaveBackend) CheckMinorBlocksInRoot(rootBlock *types.RootBlock) error 
 		}
 	}
 	return nil
+}
+
+func (s *SlaveBackend) GetRootChainStakes(address account.Address, lastMinor common.Hash) (*big.Int,
+	*account.Recipient, error) {
+	for _, shrd := range s.shards {
+		if shrd.Config.ChainID == 0 && shrd.Config.ShardID == 0 {
+			return shrd.GetRootChainStakes(address, lastMinor)
+		}
+	}
+	return nil, nil, errors.New("not chain 0 shard 0")
 }

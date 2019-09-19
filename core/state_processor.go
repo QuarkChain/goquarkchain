@@ -187,8 +187,8 @@ func ApplyTransaction(config *params.ChainConfig, bc ChainContext, gp *GasPool, 
 	// if the transaction created a contract, store the creation address in the receipt.
 	if msg.To() == nil {
 		receipt.ContractAddress = account.Recipient(vm.CreateAddress(vmenv.Context.Origin, msg.ToFullShardKey(), tx.EvmTx.Nonce()))
-		receipt.ContractFullShardKey = tx.EvmTx.ToFullShardKey()
 	}
+	receipt.ContractFullShardKey = tx.EvmTx.ToFullShardKey()
 	// Set the receipt logs and create a bloom for filtering
 	receipt.Logs = statedb.GetLogs(tx.Hash())
 	receipt.Bloom = types.CreateBloom(types.Receipts{receipt})
@@ -215,6 +215,26 @@ func ApplyCrossShardDeposit(config *params.ChainConfig, bc ChainContext, header 
 			gasUsedStart = 0
 		}
 	}
+
+	quarkChainConfig := evmState.GetQuarkChainConfig()
+	if evmState.GetTimeStamp() < quarkChainConfig.EnableEvmTimeStamp {
+		//TODO:FIXME:full_shard_key is not set
+		evmState.AddBalance(tx.To.Recipient, tx.Value.Value, tx.TransferTokenID)
+		evmState.AddGasUsed(new(big.Int).SetUint64(gasUsedStart))
+		*usedGas += gasUsedStart
+
+		localFeeRate := new(big.Rat).Sub(new(big.Rat).SetInt64(1), quarkChainConfig.RewardTaxRate)
+		xShardFee := new(big.Int).Mul(tx.GasPrice.Value, qkcParam.GtxxShardCost)
+		xShardFee = new(big.Int).Mul(xShardFee, localFeeRate.Num())
+		xShardFee = new(big.Int).Div(xShardFee, localFeeRate.Denom())
+
+		evmState.AddBlockFee(map[uint64]*big.Int{
+			tx.GasTokenID: xShardFee,
+		})
+		evmState.AddBalance(evmState.GetBlockCoinbase(), xShardFee, tx.GasTokenID)
+		return nil, nil
+	}
+
 	evmState.SetFullShardKey(tx.To.FullShardKey)
 	evmState.AddBalance(tx.From.Recipient, tx.Value.Value, tx.TransferTokenID)
 	msg := types.NewMessage(tx.From.Recipient, &tx.To.Recipient, 0, tx.Value.Value,
@@ -233,8 +253,7 @@ func ApplyCrossShardDeposit(config *params.ChainConfig, bc ChainContext, header 
 		return nil, err
 	}
 	*usedGas += gas
-	evmState.Finalise(true)
-	if evmState.GetQuarkChainConfig().XShardAddReceiptTimestamp != 0 {
+	if evmState.GetTimeStamp() >= quarkChainConfig.EnableEvmTimeStamp {
 		var root []byte
 		receipt := types.NewReceipt(root, fail, *usedGas)
 		receipt.TxHash = tx.TxHash
@@ -243,8 +262,8 @@ func ApplyCrossShardDeposit(config *params.ChainConfig, bc ChainContext, header 
 		receipt.Bloom = types.CreateBloom(types.Receipts{receipt})
 		if tx.CreateContract {
 			receipt.ContractAddress = tx.To.Recipient
-			receipt.ContractFullShardKey = tx.To.FullShardKey
 		}
+		receipt.ContractFullShardKey = tx.To.FullShardKey
 		return receipt, nil
 	}
 	return nil, nil

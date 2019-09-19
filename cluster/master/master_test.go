@@ -13,6 +13,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/core/types"
 	qrpc "github.com/QuarkChain/goquarkchain/rpc"
 	"github.com/QuarkChain/goquarkchain/serialize"
+	eth "github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethdb"
@@ -284,7 +285,7 @@ func initEnvWithConsensusType(t *testing.T, chanOp chan uint32, consensusType st
 	clusterConfig.Quarkchain.Root.ConsensusType = consensusType
 	clusterConfig.Quarkchain.Root.ConsensusConfig.RemoteMine = true
 	clusterConfig.Quarkchain.Root.Genesis.Difficulty = 2000
-	clusterConfig.Quarkchain.GuardianPublicKey = pubKey
+	clusterConfig.Quarkchain.GuardianPublicKey = common.FromHex(pubKey)
 	master, err := New(ctx, clusterConfig)
 	if err != nil {
 		panic(err)
@@ -363,7 +364,7 @@ func TestCreateRootBlockToMineWithSign(t *testing.T) {
 	key, err := crypto.ToECDSA(id1.GetKey().Bytes())
 	assert.NoError(t, err)
 	master.clusterConfig.Quarkchain.GuardianPrivateKey = id1.GetKey().Bytes()
-	master.clusterConfig.Quarkchain.GuardianPublicKey = common.ToHex(crypto.FromECDSAPub(&key.PublicKey))
+	master.clusterConfig.Quarkchain.GuardianPublicKey = crypto.FromECDSAPub(&key.PublicKey)
 	rawdb.WriteMinorBlock(master.chainDb, minorBlock)
 	rootBlock, err := master.createRootBlockToMine(add1)
 	assert.NoError(t, err)
@@ -546,7 +547,13 @@ func TestGetLogs(t *testing.T) {
 
 	startBlock := qrpc.BlockNumber(0)
 	endBlock := qrpc.BlockNumber(0)
-	logs, err := master.GetLogs(account.Branch{Value: 2}, nil, nil, uint64(startBlock), uint64(endBlock))
+	// logs, err := master.GetLogs(account.Branch{Value: 2}, nil, nil, uint64(startBlock), uint64(endBlock))
+	logs, err := master.GetLogs(&rpc.FilterQuery{
+		FullShardId: 2,
+		FilterQuery: eth.FilterQuery{
+			FromBlock: big.NewInt(int64(startBlock)),
+			ToBlock:   big.NewInt(int64(endBlock)),
+		}})
 	assert.NoError(t, err)
 	assert.Equal(t, len(logs), 1)
 	assert.Equal(t, logs[0].Data, []byte("qkc"))
@@ -606,7 +613,7 @@ func TestGasPrice(t *testing.T) {
 func TestGetWork(t *testing.T) {
 	master := initEnv(t, nil)
 	branch := account.NewBranch(2)
-	data, err := master.GetWork(branch)
+	data, err := master.GetWork(branch, nil)
 	assert.NoError(t, err)
 	assert.Equal(t, data.Number, uint64(1))
 }

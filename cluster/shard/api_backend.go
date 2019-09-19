@@ -8,15 +8,18 @@ import (
 
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
-	synchronizer "github.com/QuarkChain/goquarkchain/cluster/sync"
-	qkccommon "github.com/QuarkChain/goquarkchain/common"
+	qsync "github.com/QuarkChain/goquarkchain/cluster/sync"
+	qcom "github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/consensus"
+	"github.com/QuarkChain/goquarkchain/core"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
 )
 
 var (
+	EmptyErrTemplate                 = "empty result when call %s, params: %v\n"
 	AllowedFutureBlocksTimeBroadcast = 15
 )
 
@@ -26,6 +29,7 @@ type peer struct {
 	peerID string
 }
 
+// ######################## peer Methods ###############################
 func (p *peer) GetMinorBlockHeaderList(gReq *rpc.GetMinorBlockHeaderListWithSkipRequest) ([]*types.MinorBlockHeader, error) {
 	return p.cm.GetMinorBlockHeaderList(gReq)
 }
@@ -38,90 +42,43 @@ func (p *peer) PeerID() string {
 	return p.peerID
 }
 
-func (s *ShardBackend) GetUnconfirmedHeaderList() ([]*types.MinorBlockHeader, error) {
-	headers := s.MinorBlockChain.GetUnconfirmedHeaderList()
-	return headers, nil
+// ######################## txs and logs Methods #######################
+func (s *ShardBackend) GetTransactionListByAddress(address *account.Address, transferTokenID *uint64,
+	start []byte, limit uint32) ([]*rpc.TransactionDetail, []byte, error) {
+	return s.MinorBlockChain.GetTransactionByAddress(*address, transferTokenID, start, limit)
 }
 
-func (s *ShardBackend) broadcastNewTip() (err error) {
-	var (
-		rootTip  = s.MinorBlockChain.GetRootTip()
-		minorTip = s.MinorBlockChain.CurrentHeader().(*types.MinorBlockHeader)
-	)
-
-	err = s.conn.BroadcastNewTip([]*types.MinorBlockHeader{minorTip}, rootTip, s.fullShardId)
-	return
+func (s *ShardBackend) GetAllTx(start []byte, limit uint32) ([]*rpc.TransactionDetail, []byte, error) {
+	return s.MinorBlockChain.GetAllTx(start, limit)
 }
 
-func (s *ShardBackend) setHead(head uint64) {
-	if err := s.MinorBlockChain.SetHead(head); err != nil {
-		panic(err)
-	}
-}
-
-// Returns true if block is successfully added. False on any error.
-// called by 1. local miner (will not run if syncing) 2. SyncTask
-func (s *ShardBackend) AddMinorBlock(block *types.MinorBlock) error {
-	var (
-		oldTip = s.MinorBlockChain.CurrentHeader()
-	)
-
-	if commitStatus := s.getBlockCommitStatusByHash(block.Header().Hash()); commitStatus == BLOCK_COMMITTED {
-		return nil
-	}
-	//TODO support BLOCK_COMMITTING
-	currHead := s.MinorBlockChain.CurrentBlock().Number()
-	_, xshardLst, err := s.MinorBlockChain.InsertChainForDeposits([]types.IBlock{block}, false)
-	if err != nil || len(xshardLst) != 1 {
-		log.Error("Failed to add minor block", "err", err)
-		return err
-	}
-	// only remove from pool if the block successfully added to state,
-	// this may cache failed blocks but prevents them being broadcasted more than needed
-	s.mBPool.delBlockInPool(block.Header())
-
-	// block has been added to local state, broadcast tip so that peers can sync if needed
-	if oldTip.Hash() != s.MinorBlockChain.CurrentHeader().Hash() {
-		if err = s.broadcastNewTip(); err != nil {
-			s.setHead(currHead)
-			return err
+func (s *ShardBackend) GenTx(genTxs *rpc.GenTxRequest) error {
+	go func() {
+		err := s.txGenerator.Generate(genTxs, s.addTxList)
+		if err != nil {
+			log.Error(s.logInfo, "GenTx err", err)
 		}
-	}
-
-	if xshardLst[0] == nil {
-		log.Info("add minor block has been added...", "branch", s.fullShardId, "height", block.Number())
-		return nil
-	}
-
-	prevRootHeight := s.MinorBlockChain.GetRootBlockByHash(block.Header().PrevRootBlockHash).Header().Number
-	if err := s.conn.BroadcastXshardTxList(block, xshardLst[0], prevRootHeight); err != nil {
-		s.setHead(currHead)
-		return err
-	}
-	status, err := s.MinorBlockChain.GetShardStats()
-	if err != nil {
-		s.setHead(currHead)
-		return err
-	}
-
-	requests := &rpc.AddMinorBlockHeaderRequest{
-		MinorBlockHeader:  block.Header(),
-		TxCount:           uint32(block.Transactions().Len()),
-		XShardTxCount:     uint32(len(xshardLst[0])),
-		ShardStats:        status,
-		CoinbaseAmountMap: block.Header().CoinbaseAmount,
-	}
-	err = s.conn.SendMinorBlockHeaderToMaster(requests)
-	if err != nil {
-		s.setHead(currHead)
-		return err
-	}
-	s.MinorBlockChain.CommitMinorBlockByHash(block.Header().Hash())
-	s.mBPool.delBlockInPool(block.Header())
-	go s.miner.HandleNewTip()
+	}()
 	return nil
 }
 
+func (s *ShardBackend) GetLogs(hash common.Hash) ([][]*types.Log, error) {
+	return s.MinorBlockChain.GetLogs(hash), nil
+}
+
+func (s *ShardBackend) GetLogsByFilterQuery(args *rpc.FilterQuery) ([]*types.Log, error) {
+	return s.MinorBlockChain.GetLogsByFilterQuery(args)
+}
+
+func (s *ShardBackend) GetReceiptsByHash(hash common.Hash) (types.Receipts, error) {
+	receipts := s.MinorBlockChain.GetReceiptsByHash(hash)
+	if qcom.IsNil(receipts) {
+		return nil, fmt.Errorf(EmptyErrTemplate, "GetReceiptsByHash", hash.Hex())
+	}
+	return receipts, nil
+}
+
+// ######################## root block Methods #########################
 // Either recover state from local db or create genesis state based on config
 func (s *ShardBackend) InitFromRootBlock(rBlock *types.RootBlock) error {
 	if rBlock.Header().Number > s.genesisRootHeight {
@@ -144,81 +101,26 @@ func (s *ShardBackend) AddRootBlock(rBlock *types.RootBlock) (switched bool, err
 	return
 }
 
-// Add blocks in batch to reduce RPCs. Will NOT broadcast to peers.
-//
-// Returns true if blocks are successfully added. False on any error.
-// This function only adds blocks to local and propagate xshard list to other shards.
-// It does NOT notify master because the master should already have the minor header list,
-// and will add them once this function returns successfully.
-func (s *ShardBackend) AddBlockListForSync(blockLst []*types.MinorBlock) (map[common.Hash]*types.TokenBalances, error) {
-	blockHashToXShardList := make(map[common.Hash]*XshardListTuple)
-
-	coinbaseAmountList := make(map[common.Hash]*types.TokenBalances, 0)
-	if len(blockLst) == 0 {
-		return coinbaseAmountList, nil
+// ######################## minor block Methods ########################
+func (s *ShardBackend) GetHeaderByNumber(height rpc.BlockNumber) (*types.MinorBlockHeader, error) {
+	var iHeader types.IHeader
+	if height == rpc.LatestBlockNumber {
+		iHeader = s.MinorBlockChain.CurrentHeader()
+	} else {
+		iHeader = s.MinorBlockChain.GetHeaderByNumber(height.Uint64())
 	}
-
-	uncommittedBlockHeaderList := make([]*types.MinorBlockHeader, 0)
-	for _, block := range blockLst {
-		blockHash := block.Header().Hash()
-		if block.Header().Branch.GetFullShardID() != s.fullShardId {
-			continue
-		}
-		if s.getBlockCommitStatusByHash(blockHash) == BLOCK_COMMITTED {
-			continue
-		}
-		//TODO:support BLOCK_COMMITTING
-		coinbaseAmountList[block.Header().Hash()] = block.Header().CoinbaseAmount
-		_, xshardLst, err := s.MinorBlockChain.InsertChainForDeposits([]types.IBlock{block}, false)
-		if err != nil || len(xshardLst) != 1 {
-			log.Error("Failed to add minor block", "err", err)
-			return nil, err
-		}
-		s.mBPool.delBlockInPool(block.Header())
-		prevRootHeight := s.MinorBlockChain.GetRootBlockByHash(block.Header().PrevRootBlockHash)
-		blockHashToXShardList[blockHash] = &XshardListTuple{XshardTxList: xshardLst[0], PrevRootHeight: prevRootHeight.Number()}
-		uncommittedBlockHeaderList = append(uncommittedBlockHeaderList, block.Header())
+	if qcom.IsNil(iHeader) {
+		return nil, fmt.Errorf(EmptyErrTemplate, "GetHeaderByNumber", height)
 	}
-	// interrupt the current miner and restart
-	if err := s.conn.BatchBroadcastXshardTxList(blockHashToXShardList, blockLst[0].Header().Branch); err != nil {
-		return nil, err
-	}
-
-	req := &rpc.AddMinorBlockHeaderListRequest{
-		MinorBlockHeaderList: uncommittedBlockHeaderList,
-	}
-	if err := s.conn.SendMinorBlockHeaderListToMaster(req); err != nil {
-		return nil, err
-	}
-	for _, header := range uncommittedBlockHeaderList {
-		s.MinorBlockChain.CommitMinorBlockByHash(header.Hash())
-		s.mBPool.delBlockInPool(header)
-	}
-	return coinbaseAmountList, nil
+	return iHeader.(*types.MinorBlockHeader), nil
 }
 
-func (s *ShardBackend) GetTransactionListByAddress(address *account.Address, transferTokenID *uint64,
-	start []byte, limit uint32) ([]*rpc.TransactionDetail, []byte, error) {
-	return s.MinorBlockChain.GetTransactionByAddress(*address, transferTokenID, start, limit)
-}
-
-func (s *ShardBackend) GetAllTx(start []byte, limit uint32) ([]*rpc.TransactionDetail, []byte, error) {
-	return s.MinorBlockChain.GetAllTx(start, limit)
-}
-
-func (s *ShardBackend) GetLogs(start uint64, end uint64, address []account.Address, topics [][]common.Hash) ([]*types.Log, error) {
-	return s.MinorBlockChain.GetLogsByAddressAndTopic(start, end, address, topics)
-}
-
-func (s *ShardBackend) GetWork() (*consensus.MiningWork, error) {
-	return s.miner.GetWork()
-}
-
-func (s *ShardBackend) SubmitWork(headerHash common.Hash, nonce uint64, mixHash common.Hash) error {
-	if ok := s.miner.SubmitWork(nonce, headerHash, mixHash, nil); ok {
-		return nil
+func (s *ShardBackend) GetHeaderByHash(blockHash common.Hash) (*types.MinorBlockHeader, error) {
+	iHeader := s.MinorBlockChain.GetHeaderByHash(blockHash)
+	if qcom.IsNil(iHeader) {
+		return nil, fmt.Errorf(EmptyErrTemplate, "GetHeaderByNumber", blockHash.Hex())
 	}
-	return errors.New("submit mined work failed")
+	return iHeader.(*types.MinorBlockHeader), nil
 }
 
 func (s *ShardBackend) HandleNewTip(rBHeader *types.RootBlockHeader, mBHeader *types.MinorBlockHeader, peerID string) error {
@@ -235,13 +137,18 @@ func (s *ShardBackend) HandleNewTip(rBHeader *types.RootBlockHeader, mBHeader *t
 		return nil
 	}
 	peer := &peer{cm: s.conn, peerID: peerID}
-	err := s.synchronizer.AddTask(synchronizer.NewMinorChainTask(peer, mBHeader))
+	err := s.synchronizer.AddTask(qsync.NewMinorChainTask(peer, mBHeader))
 	if err != nil {
 		log.Error("Failed to add minor chain task,", "hash", mBHeader.Hash(), "height", mBHeader.Number)
 	}
 
 	log.Info("Handle new tip received new tip with height", "shard height", mBHeader.Number)
 	return nil
+}
+
+func (s *ShardBackend) GetUnconfirmedHeaderList() ([]*types.MinorBlockHeader, error) {
+	headers := s.MinorBlockChain.GetUnconfirmedHeaderList()
+	return headers, nil
 }
 
 func (s *ShardBackend) GetMinorBlock(mHash common.Hash, height *uint64) (*types.MinorBlock, error) {
@@ -295,10 +202,194 @@ func (s *ShardBackend) NewMinorBlock(block *types.MinorBlock) (err error) {
 	}
 
 	s.mBPool.setBlockInPool(block.Header())
-	if err = s.conn.BroadcastMinorBlock(block, s.fullShardId); err != nil {
+	if err = s.conn.BroadcastMinorBlock(block, s.branch.Value); err != nil {
 		return err
 	}
 	return s.AddMinorBlock(block)
+}
+
+// Returns true if block is successfully added. False on any error.
+// called by 1. local miner (will not run if syncing) 2. SyncTask
+func (s *ShardBackend) AddMinorBlock(block *types.MinorBlock) error {
+	var (
+		oldTip = s.MinorBlockChain.CurrentBlock().Header()
+	)
+
+	if commitStatus := s.getBlockCommitStatusByHash(block.Header().Hash()); commitStatus == BLOCK_COMMITTED {
+		return nil
+	}
+	//TODO support BLOCK_COMMITTING
+	currHead := s.MinorBlockChain.CurrentBlock().Header()
+	_, xshardLst, err := s.MinorBlockChain.InsertChainForDeposits([]types.IBlock{block}, false)
+	if err != nil || len(xshardLst) != 1 {
+		log.Error("Failed to add minor block", "err", err)
+		return err
+	}
+	// only remove from pool if the block successfully added to state,
+	// this may cache failed blocks but prevents them being broadcasted more than needed
+	s.mBPool.delBlockInPool(block.Header())
+
+	// block has been added to local state, broadcast tip so that peers can sync if needed
+	if oldTip.Hash() != s.MinorBlockChain.CurrentBlock().Hash() {
+		if err = s.broadcastNewTip(); err != nil {
+			s.setHead(currHead.Number)
+			return err
+		}
+	}
+
+	if xshardLst[0] == nil {
+		log.Info("add minor block has been added...", "branch", s.branch.Value, "height", block.Number())
+		return nil
+	}
+
+	prevRootHeight := s.MinorBlockChain.GetRootBlockByHash(block.Header().PrevRootBlockHash).Header().Number
+	if err := s.conn.BroadcastXshardTxList(block, xshardLst[0], prevRootHeight); err != nil {
+		s.setHead(currHead.Number)
+		return err
+	}
+	status, err := s.MinorBlockChain.GetShardStats()
+	if err != nil {
+		s.setHead(currHead.Number)
+		return err
+	}
+
+	requests := &rpc.AddMinorBlockHeaderRequest{
+		MinorBlockHeader:  block.Header(),
+		TxCount:           uint32(block.Transactions().Len()),
+		XShardTxCount:     uint32(len(xshardLst[0])),
+		ShardStats:        status,
+		CoinbaseAmountMap: block.Header().CoinbaseAmount,
+	}
+	err = s.conn.SendMinorBlockHeaderToMaster(requests)
+	if err != nil {
+		s.setHead(currHead.Number)
+		return err
+	}
+	s.MinorBlockChain.CommitMinorBlockByHash(block.Header().Hash())
+	s.mBPool.delBlockInPool(block.Header())
+	if s.MinorBlockChain.CurrentBlock().Hash() != currHead.Hash() {
+		go s.miner.HandleNewTip()
+	}
+
+	return nil
+}
+
+// Add blocks in batch to reduce RPCs. Will NOT broadcast to peers.
+//
+// Returns true if blocks are successfully added. False on any error.
+// This function only adds blocks to local and propagate xshard list to other shards.
+// It does NOT notify master because the master should already have the minor header list,
+// and will add them once this function returns successfully.
+func (s *ShardBackend) AddBlockListForSync(blockLst []*types.MinorBlock) (map[common.Hash]*types.TokenBalances, error) {
+	blockHashToXShardList := make(map[common.Hash]*XshardListTuple)
+
+	coinbaseAmountList := make(map[common.Hash]*types.TokenBalances, 0)
+	if len(blockLst) == 0 {
+		return coinbaseAmountList, nil
+	}
+
+	uncommittedBlockHeaderList := make([]*types.MinorBlockHeader, 0)
+	for _, block := range blockLst {
+		blockHash := block.Header().Hash()
+		if block.Header().Branch.GetFullShardID() != s.branch.Value {
+			continue
+		}
+		if s.getBlockCommitStatusByHash(blockHash) == BLOCK_COMMITTED {
+			continue
+		}
+		//TODO:support BLOCK_COMMITTING
+		coinbaseAmountList[block.Header().Hash()] = block.Header().CoinbaseAmount
+		_, xshardLst, err := s.MinorBlockChain.InsertChainForDeposits([]types.IBlock{block}, false)
+		if err != nil || len(xshardLst) != 1 {
+			log.Error("Failed to add minor block", "err", err)
+			return nil, err
+		}
+		s.mBPool.delBlockInPool(block.Header())
+		prevRootHeight := s.MinorBlockChain.GetRootBlockByHash(block.Header().PrevRootBlockHash)
+		blockHashToXShardList[blockHash] = &XshardListTuple{XshardTxList: xshardLst[0], PrevRootHeight: prevRootHeight.Number()}
+		uncommittedBlockHeaderList = append(uncommittedBlockHeaderList, block.Header())
+	}
+	// interrupt the current miner and restart
+	if err := s.conn.BatchBroadcastXshardTxList(blockHashToXShardList, blockLst[0].Header().Branch); err != nil {
+		return nil, err
+	}
+
+	req := &rpc.AddMinorBlockHeaderListRequest{
+		MinorBlockHeaderList: uncommittedBlockHeaderList,
+	}
+	if err := s.conn.SendMinorBlockHeaderListToMaster(req); err != nil {
+		return nil, err
+	}
+	for _, header := range uncommittedBlockHeaderList {
+		s.MinorBlockChain.CommitMinorBlockByHash(header.Hash())
+		s.mBPool.delBlockInPool(header)
+	}
+	return coinbaseAmountList, nil
+}
+
+// ######################## miner Methods ##############################
+func (s *ShardBackend) GetWork(coinbaseAddr *account.Address) (*consensus.MiningWork, error) {
+	return s.miner.GetWork(coinbaseAddr)
+}
+
+func (s *ShardBackend) SubmitWork(headerHash common.Hash, nonce uint64, mixHash common.Hash) error {
+	if ok := s.miner.SubmitWork(nonce, headerHash, mixHash, nil); ok {
+		return nil
+	}
+	return errors.New("submit mined work failed")
+}
+
+func (s *ShardBackend) InsertMinedBlock(block types.IBlock) error {
+	return s.NewMinorBlock(block.(*types.MinorBlock))
+}
+
+func (s *ShardBackend) GetTip() uint64 {
+	return s.MinorBlockChain.CurrentBlock().NumberU64()
+}
+
+func (s *ShardBackend) IsSyncIng() bool {
+	return s.synchronizer.IsSyncing()
+}
+
+// ######################## subscribe Methods ##########################
+func (s *ShardBackend) SubscribeChainHeadEvent(ch chan<- core.MinorChainHeadEvent) event.Subscription {
+	return s.MinorBlockChain.SubscribeChainHeadEvent(ch)
+}
+
+func (s *ShardBackend) SubscribeLogsEvent(ch chan<- []*types.Log) event.Subscription {
+	return s.MinorBlockChain.SubscribeLogsEvent(ch)
+}
+
+func (s *ShardBackend) SubscribeRemovedLogsEvent(ch chan<- core.RemovedLogsEvent) event.Subscription {
+	return s.MinorBlockChain.SubscribeRemovedLogsEvent(ch)
+}
+
+func (s *ShardBackend) SubscribeChainEvent(ch chan<- core.MinorChainEvent) event.Subscription {
+	return s.MinorBlockChain.SubscribeChainEvent(ch)
+}
+
+func (s *ShardBackend) SubscribeNewTxsEvent(ch chan<- core.NewTxsEvent) event.Subscription {
+	return s.MinorBlockChain.SubscribeNewTxsEvent(ch)
+}
+
+func (s *ShardBackend) SubscribeSyncEvent(ch chan<- *qsync.SyncingResult) event.Subscription {
+	return s.synchronizer.SubscribeSyncEvent(ch)
+}
+
+func (s *ShardBackend) broadcastNewTip() (err error) {
+	var (
+		rootTip  = s.MinorBlockChain.GetRootTip()
+		minorTip = s.MinorBlockChain.CurrentBlock().Header()
+	)
+
+	err = s.conn.BroadcastNewTip([]*types.MinorBlockHeader{minorTip}, rootTip, s.branch.Value)
+	return
+}
+
+func (s *ShardBackend) setHead(head uint64) {
+	if err := s.MinorBlockChain.SetHead(head); err != nil {
+		panic(err)
+	}
 }
 
 func (s *ShardBackend) addTxList(txs []*types.Transaction) error {
@@ -313,7 +404,7 @@ func (s *ShardBackend) addTxList(txs []*types.Transaction) error {
 		}
 	}
 	go func() {
-		if err := s.conn.BroadcastTransactions(txs, s.fullShardId); err != nil {
+		if err := s.conn.BroadcastTransactions(txs, s.branch.Value); err != nil {
 			log.Error(s.logInfo, "broadcastTransaction err", err)
 		}
 	}()
@@ -321,19 +412,21 @@ func (s *ShardBackend) addTxList(txs []*types.Transaction) error {
 	return nil
 }
 
-func (s *ShardBackend) GenTx(genTxs *rpc.GenTxRequest) error {
-	go func() {
-		err := s.txGenerator.Generate(genTxs, s.addTxList)
-		if err != nil {
-			log.Error(s.logInfo, "GenTx err", err)
-		}
-	}()
-	return nil
+func (s *ShardBackend) GetDefaultCoinbaseAddress() account.Address {
+	addr := s.Config.CoinbaseAddress
+	if !s.branch.IsInBranch(addr.FullShardKey) {
+		addr = addr.AddressInBranch(s.branch)
+	}
+	return addr
 }
 
 // miner api
-func (s *ShardBackend) CreateBlockToMine() (types.IBlock, *big.Int, error) {
-	minorBlock, err := s.MinorBlockChain.CreateBlockToMine(nil, &s.Config.CoinbaseAddress, nil, nil, nil)
+func (s *ShardBackend) CreateBlockToMine(addr *account.Address) (types.IBlock, *big.Int, error) {
+	coinbaseAddress := s.Config.CoinbaseAddress
+	if addr != nil {
+		coinbaseAddress = *addr
+	}
+	minorBlock, err := s.MinorBlockChain.CreateBlockToMine(nil, &coinbaseAddress, nil, nil, nil)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -356,20 +449,9 @@ func (s *ShardBackend) CreateBlockToMine() (types.IBlock, *big.Int, error) {
 	return minorBlock, diff, nil
 }
 
-func (s *ShardBackend) InsertMinedBlock(block types.IBlock) error {
-	return s.NewMinorBlock(block.(*types.MinorBlock))
-}
-func (s *ShardBackend) GetTip() uint64 {
-	return s.MinorBlockChain.CurrentBlock().NumberU64()
-}
-
-func (s *ShardBackend) IsSyncIng() bool {
-	return s.synchronizer.IsSyncing()
-}
-
 func (s *ShardBackend) CheckMinorBlock(header *types.MinorBlockHeader) error {
 	block := s.MinorBlockChain.GetBlock(header.Hash())
-	if qkccommon.IsNil(block) {
+	if qcom.IsNil(block) {
 		return fmt.Errorf("block %v cannot be found", header.Hash())
 	}
 	if header.Number == 0 {
@@ -377,4 +459,13 @@ func (s *ShardBackend) CheckMinorBlock(header *types.MinorBlockHeader) error {
 	}
 	_, _, err := s.MinorBlockChain.InsertChainForDeposits([]types.IBlock{block}, true)
 	return err
+}
+
+func (s *ShardBackend) GetRootChainStakes(address account.Address, lastMinor common.Hash) (*big.Int,
+	*account.Recipient, error) {
+
+	if s.Config.ChainID != 0 || s.Config.ShardID != 0 {
+		return nil, nil, errors.New("not chain 0 shard 0")
+	}
+	return s.MinorBlockChain.GetRootChainStakes(address.Recipient, lastMinor)
 }

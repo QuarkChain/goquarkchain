@@ -3,6 +3,7 @@ package master
 import (
 	"errors"
 	"fmt"
+	"math/big"
 	"sync"
 	"time"
 
@@ -276,19 +277,12 @@ func (s *SlaveConnection) GetAllTx(branch account.Branch, start []byte, limit ui
 	return trans.TxList, trans.Next, nil
 }
 
-func (s *SlaveConnection) GetLogs(branch account.Branch, address []account.Address, topics [][]common.Hash, startBlock, endBlock uint64) ([]*types.Log, error) {
+func (s *SlaveConnection) GetLogs(args *rpc.FilterQuery) ([]*types.Log, error) {
 	var (
-		req = rpc.GetLogRequest{
-			Branch:     branch.Value,
-			Addresses:  address,
-			Topics:     topics,
-			StartBlock: startBlock,
-			EndBlock:   endBlock,
-		}
 		rsp = new(rpc.GetLogResponse)
 		res = new(rpc.Response)
 	)
-	bytes, err := serialize.SerializeToBytes(req)
+	bytes, err := serialize.SerializeToBytes(args)
 	if err != nil {
 		return nil, err
 	}
@@ -386,10 +380,11 @@ func (s *SlaveConnection) GasPrice(branch account.Branch, tokenID uint64) (uint6
 	return rsp.Result, err
 }
 
-func (s *SlaveConnection) GetWork(branch account.Branch) (*consensus.MiningWork, error) {
+func (s *SlaveConnection) GetWork(branch account.Branch, coinbaseAddr *account.Address) (*consensus.MiningWork, error) {
 	var (
 		req = rpc.GetWorkRequest{
-			Branch: branch.Value,
+			Branch:       branch.Value,
+			CoinbaseAddr: coinbaseAddr,
 		}
 		rsp consensus.MiningWork
 	)
@@ -663,4 +658,25 @@ func (s *SlaveConnection) getMinorBlock(hash common.Hash, height *uint64,
 		return nil, nil, err
 	}
 	return minBlockResponse.MinorBlock, minBlockResponse.Extra, nil
+}
+
+func (s *SlaveConnection) GetRootChainStakes(address account.Address, lastMinor common.Hash) (*big.Int,
+	*account.Recipient, error) {
+	var (
+		getRootChainStakesRequest  = rpc.GetRootChainStakesRequest{Address: address, MinorBlockHash: lastMinor}
+		getRootChainStakesResponse = rpc.GetRootChainStakesResponse{}
+		res                        *rpc.Response
+	)
+	bytes, err := serialize.SerializeToBytes(getRootChainStakesRequest)
+	if err != nil {
+		return nil, nil, err
+	}
+	res, err = s.client.Call(s.target, &rpc.Request{Op: rpc.OpGetRootChainStakes, Data: bytes})
+	if err != nil {
+		return nil, nil, err
+	}
+	if err = serialize.Deserialize(serialize.NewByteBuffer(res.Data), &getRootChainStakesResponse); err != nil {
+		return nil, nil, err
+	}
+	return getRootChainStakesResponse.Stakes, getRootChainStakesResponse.Signer, nil
 }

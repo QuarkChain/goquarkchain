@@ -271,6 +271,10 @@ func NewFakeSynchronizer(n int) *fakeSynchronizer {
 	return &fakeSynchronizer{make(chan synchronizer.Task, n)}
 }
 
+func (s *fakeSynchronizer) SubscribeSyncEvent(ch chan<- *synchronizer.SyncingResult) event.Subscription {
+	panic("not implemented")
+}
+
 func (s *fakeSynchronizer) IsSyncing() bool {
 	return false
 }

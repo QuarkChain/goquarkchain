@@ -14,8 +14,12 @@ type FakeEngine struct {
 	Difficulty   *big.Int
 	FakeDelay    time.Duration
 	Err          error
+	diffCal DifficultyCalculator
 }
 
+func NewFakeEngine(diffCal DifficultyCalculator) *FakeEngine {
+	return &FakeEngine{diffCal:diffCal}
+}
 // Author retrieves the Ethereum address of the account that minted the given
 // block, which may be different from the header's coinbase if a consensus
 // engine is based on signatures.
@@ -79,13 +83,16 @@ func (e *FakeEngine) Seal(chain ChainReader, block types.IBlock, diff *big.Int, 
 // CalcDifficulty is the difficulty adjustment algorithm. It returns the difficulty
 // that a new block should have.
 func (e *FakeEngine) CalcDifficulty(chain ChainReader, time uint64, parent types.IHeader) (*big.Int, error) {
-	if e.Difficulty == nil || e.Difficulty.Cmp(big.NewInt(0)) < 0 {
-		return parent.GetDifficulty(), nil
+	if e.diffCal==nil{
+		if e.Difficulty == nil || e.Difficulty.Cmp(big.NewInt(0)) < 0 {
+			return parent.GetDifficulty(), nil
+		}
+		return e.Difficulty, nil
 	}
-	return e.Difficulty, nil
+	return e.diffCal.CalculateDifficulty(parent,time)
 }
 
-func (e *FakeEngine) GetWork() (*MiningWork, error) {
+func (e *FakeEngine) GetWork(address account.Address) (*MiningWork, error) {
 	return &MiningWork{}, nil
 }
 
@@ -94,6 +101,9 @@ func (e *FakeEngine) SubmitWork(nonce uint64, hash, digest common.Hash, signatur
 }
 
 func (e *FakeEngine) SetThreads(threads int) {}
+func (e *FakeEngine) RefreshWork(tip uint64) {
+
+}
 
 // Close terminates any background threads maintained by the consensus engine.
 func (e *FakeEngine) Close() error {

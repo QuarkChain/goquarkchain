@@ -176,13 +176,13 @@ func (s *QKCMasterBackend) GetAllTx(branch account.Branch, start []byte, limit u
 	return slaveConn.GetAllTx(branch, start, limit)
 }
 
-func (s *QKCMasterBackend) GetLogs(branch account.Branch, address []account.Address, topics [][]common.Hash, startBlockNumber, endBlockNumber uint64) ([]*types.Log, error) {
+func (s *QKCMasterBackend) GetLogs(args *rpc.FilterQuery) ([]*types.Log, error) {
 	// not support earlist and pending
-	slaveConn := s.getOneSlaveConnection(branch)
+	slaveConn := s.getOneSlaveConnection(account.Branch{Value: args.FullShardId})
 	if slaveConn == nil {
 		return nil, ErrNoBranchConn
 	}
-	return slaveConn.GetLogs(branch, address, topics, uint64(startBlockNumber), uint64(endBlockNumber))
+	return slaveConn.GetLogs(args)
 }
 
 func (s *QKCMasterBackend) EstimateGas(tx *types.Transaction, fromAddress *account.Address) (uint32, error) {
@@ -234,15 +234,22 @@ func (s *QKCMasterBackend) GasPrice(branch account.Branch, tokenID uint64) (uint
 }
 
 // return root chain work if branch is nil
-func (s *QKCMasterBackend) GetWork(branch account.Branch) (*consensus.MiningWork, error) {
+func (s *QKCMasterBackend) GetWork(branch account.Branch, addr *common.Address) (*consensus.MiningWork, error) {
+	coinbaseAddr := &account.Address{}
+	if addr != nil {
+		coinbaseAddr.Recipient = *addr
+		coinbaseAddr.FullShardKey = branch.Value
+	} else {
+		coinbaseAddr = nil
+	}
 	if branch.Value == 0 {
-		return s.miner.GetWork()
+		return s.miner.GetWork(coinbaseAddr)
 	}
 	slaveConn := s.getOneSlaveConnection(branch)
 	if slaveConn == nil {
 		return nil, ErrNoBranchConn
 	}
-	return slaveConn.GetWork(branch)
+	return slaveConn.GetWork(branch, coinbaseAddr)
 }
 
 // submit root chain work if branch is nil
@@ -298,9 +305,17 @@ func (s *QKCMasterBackend) GetCurrRootHeader() *types.RootBlockHeader {
 	return s.rootBlockChain.CurrentHeader().(*types.RootBlockHeader)
 }
 
+func (s *QKCMasterBackend) GetDefaultCoinbaseAddress() account.Address {
+	return s.clusterConfig.Quarkchain.Root.CoinbaseAddress
+}
+
 // miner api
-func (s *QKCMasterBackend) CreateBlockToMine() (types.IBlock, *big.Int, error) {
-	block, err := s.createRootBlockToMine(s.clusterConfig.Quarkchain.Root.CoinbaseAddress)
+func (s *QKCMasterBackend) CreateBlockToMine(addr *account.Address) (types.IBlock, *big.Int, error) {
+	coinbaseAddr := s.clusterConfig.Quarkchain.Root.CoinbaseAddress
+	if addr != nil {
+		coinbaseAddr = *addr
+	}
+	block, err := s.createRootBlockToMine(coinbaseAddr)
 	if err != nil {
 		return nil, nil, err
 	}

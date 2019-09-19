@@ -3,9 +3,11 @@ package consensus
 import (
 	"errors"
 	"fmt"
+	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/hashicorp/golang-lru"
 	"math/big"
+	"sync"
 	"time"
 
 	"github.com/QuarkChain/goquarkchain/core/types"
@@ -40,38 +42,35 @@ type mineResult struct {
 type sealWork struct {
 	errc chan error
 	res  chan MiningWork
+	addr account.Address
 }
 
 func (c *CommonEngine) remote() {
 	var (
-		results      chan<- types.IBlock
-		currentBlock types.IBlock = nil
-		currentWork  MiningWork
+		results       chan<- types.IBlock
+		currentHeight uint64
 	)
-	works, err := lru.New(staleThreshold)
-	if err != nil {
-		log.Error("Failed to create unmined block cache", "err", err)
-		return
-	}
+	works, _ := lru.New(128)
 
 	makeWork := func(block types.IBlock, adjustedDiff *big.Int) {
 		hash := block.IHeader().SealHash()
 		if works.Contains(hash) {
 			return
 		}
-		currentWork.HeaderHash = hash
-		currentWork.Number = block.NumberU64()
-		if adjustedDiff == nil {
-			currentWork.Difficulty = block.IHeader().GetDifficulty()
-		} else {
-			currentWork.Difficulty = adjustedDiff
+
+		diff := block.IHeader().GetDifficulty()
+		if adjustedDiff != nil {
+			diff = adjustedDiff
 		}
-		currentBlock = block
+
+		c.currentWorks.setCurrentWork(block, diff)
+
 		works.Add(hash, block)
+		currentHeight = block.IHeader().NumberU64()
 	}
 
 	submitWork := func(nonce uint64, mixDigest common.Hash, sealhash common.Hash, signature *[65]byte) bool {
-		if currentBlock == nil {
+		if c.currentWorks.len() == 0 {
 			log.Error("Pending work without block", "sealhash", sealhash)
 			return false
 		}
@@ -81,7 +80,13 @@ func (c *CommonEngine) remote() {
 			block = value.(types.IBlock)
 		}
 		if block == nil {
-			log.Warn("Work submitted but none pending", "sealhash", sealhash, "curnumber", currentBlock.NumberU64())
+			log.Warn("Work submitted but none pending", "sealhash", sealhash)
+			return false
+		}
+
+		work, err := c.currentWorks.getWorkBySealHash(sealhash)
+		if err != nil {
+			log.Info("already be delete", "height", block.IHeader().NumberU64())
 			return false
 		}
 
@@ -91,7 +96,7 @@ func (c *CommonEngine) remote() {
 		}
 
 		solution := block.WithMingResult(nonce, mixDigest, signature)
-		adjustedDiff := currentWork.Difficulty
+		adjustedDiff := work.Difficulty
 		// if tx has been sign by miner and difficulty has not been adjusted before
 		// we can adjust difficulty here if the signature pub key is
 		if signature != nil && adjustedDiff.Cmp(solution.IHeader().GetDifficulty()) == 0 {
@@ -105,7 +110,7 @@ func (c *CommonEngine) remote() {
 			log.Warn("Invalid proof-of-work submitted", "sealhash", sealhash.Hex(), "elapsed", time.Since(start), "err", err)
 			return false
 		}
-		if solution.NumberU64()+staleThreshold > currentBlock.NumberU64() {
+		if solution.NumberU64()+staleThreshold > currentHeight {
 			select {
 			case results <- solution:
 				log.Debug("Work submitted is acceptable", "number", solution.NumberU64(), "sealhash", sealhash, "hash", solution.Hash())
@@ -127,10 +132,11 @@ func (c *CommonEngine) remote() {
 			makeWork(work.block, work.diff)
 
 		case work := <-c.fetchWorkCh:
-			if currentBlock == nil {
-				work.errc <- ErrNoMiningWork
+			currWork, err := c.currentWorks.getWorkByAddr(work.addr)
+			if err != nil {
+				work.errc <- err
 			} else {
-				work.res <- currentWork
+				work.res <- *currWork
 			}
 
 		case result := <-c.submitWorkCh:
@@ -145,4 +151,69 @@ func (c *CommonEngine) remote() {
 			log.Trace(fmt.Sprintf("Qkchash remote %s from remote", c.Name()))
 		}
 	}
+}
+
+type currentWorks struct {
+	works map[account.Address]*MiningWork
+	mu    sync.RWMutex
+}
+
+func newCurrentWorks() *currentWorks {
+	return &currentWorks{
+		works: make(map[account.Address]*MiningWork),
+	}
+}
+
+func (c *currentWorks) setCurrentWork(block types.IBlock, diff *big.Int) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	height := block.IHeader().NumberU64()
+
+	miningWork := new(MiningWork)
+	miningWork.HeaderHash = block.IHeader().SealHash()
+	miningWork.Number = height
+	miningWork.Difficulty = diff
+
+	c.works[block.IHeader().GetCoinbase()] = miningWork
+}
+
+func (c *currentWorks) len() int {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return len(c.works)
+}
+
+func (c *currentWorks) getWorkByAddr(addr account.Address) (*MiningWork, error) {
+	work := c.works[addr]
+	if work == nil {
+		return nil, ErrNoMiningWork
+	}
+	return work, nil
+}
+
+func (c *currentWorks) getDifficultByAddr(addr account.Address) *big.Int {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
+	work := c.works[addr]
+	if work == nil {
+		panic("bug fix getDifficultByAddr func")
+	}
+	return work.Difficulty
+}
+func (c *currentWorks) refresh(tip uint64) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.works = make(map[account.Address]*MiningWork)
+}
+
+func (c *currentWorks) getWorkBySealHash(hash common.Hash) (*MiningWork, error) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	for _, v := range c.works {
+		if v.HeaderHash == hash {
+			return v, nil
+		}
+	}
+	return nil, ErrNoMiningWork
 }

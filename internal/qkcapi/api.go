@@ -5,8 +5,8 @@ import (
 	"errors"
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
-	qkcRPC "github.com/QuarkChain/goquarkchain/cluster/rpc"
-	qkcCommon "github.com/QuarkChain/goquarkchain/common"
+	qrpc "github.com/QuarkChain/goquarkchain/cluster/rpc"
+	qcom "github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/rpc"
 	"github.com/ethereum/go-ethereum/common"
@@ -100,7 +100,7 @@ func (p *PublicBlockChainAPI) NetworkInfo() map[string]interface{} {
 
 }
 
-func (p *PublicBlockChainAPI) getPrimaryAccountData(address account.Address, blockNr *rpc.BlockNumber) (data *qkcRPC.AccountBranchData, err error) {
+func (p *PublicBlockChainAPI) getPrimaryAccountData(address account.Address, blockNr *rpc.BlockNumber) (data *qrpc.AccountBranchData, err error) {
 	if blockNr == nil {
 		data, err = p.b.GetPrimaryAccountData(&address, nil)
 		return
@@ -359,7 +359,7 @@ func (p *PublicBlockChainAPI) GetTransactionReceipt(txID hexutil.Bytes) (map[str
 	return ret, err
 }
 
-func (p *PublicBlockChainAPI) GetLogs(args *FilterQuery, fullShardKey hexutil.Uint) ([]map[string]interface{}, error) {
+func (p *PublicBlockChainAPI) GetLogs(args *qrpc.FilterQuery, fullShardKey hexutil.Uint) ([]map[string]interface{}, error) {
 	fullShardID, err := p.b.GetClusterConfig().Quarkchain.GetFullShardIdByFullShardKey(uint32(fullShardKey))
 	if err != nil {
 		return nil, err
@@ -377,8 +377,9 @@ func (p *PublicBlockChainAPI) GetLogs(args *FilterQuery, fullShardKey hexutil.Ui
 	if args.FromBlock.Int64() == rpc.PendingBlockNumber.Int64() || args.ToBlock.Int64() == rpc.PendingBlockNumber.Int64() {
 		return nil, errors.New("not support pending")
 	}
+	args.FullShardId = fullShardID
 
-	log, err := p.b.GetLogs(account.Branch{Value: fullShardID}, args.Addresses, args.Topics, args.FromBlock.Uint64(), args.ToBlock.Uint64())
+	log, err := p.b.GetLogs(args)
 	return logListEncoder(log), nil
 }
 func (p *PublicBlockChainAPI) GetStorageAt(address account.Address, key common.Hash, blockNr *rpc.BlockNumber) (hexutil.Bytes, error) {
@@ -426,16 +427,16 @@ func (p *PublicBlockChainAPI) GetTransactionsByAddress(address account.Address, 
 	return makeGetTransactionRes(txs, next)
 }
 
-func txDetailEncode(tx *qkcRPC.TransactionDetail) (map[string]interface{}, error) {
+func txDetailEncode(tx *qrpc.TransactionDetail) (map[string]interface{}, error) {
 	toData := "0x"
 	if tx.ToAddress != nil {
 		toData = tx.ToAddress.ToHex()
 	}
-	transferTokenStr, err := qkcCommon.TokenIdDecode(tx.TransferTokenID)
+	transferTokenStr, err := qcom.TokenIdDecode(tx.TransferTokenID)
 	if err != nil {
 		return nil, err
 	}
-	gasTokenStr, err := qkcCommon.TokenIdDecode(tx.GasTokenID)
+	gasTokenStr, err := qcom.TokenIdDecode(tx.GasTokenID)
 	if err != nil {
 		return nil, err
 	}
@@ -490,7 +491,7 @@ func (p *PublicBlockChainAPI) GetAllTransaction(fullShardKey hexutil.Uint, start
 
 }
 
-func makeGetTransactionRes(txs []*qkcRPC.TransactionDetail, next []byte) (map[string]interface{}, error) {
+func makeGetTransactionRes(txs []*qrpc.TransactionDetail, next []byte) (map[string]interface{}, error) {
 	txsFields := make([]map[string]interface{}, 0)
 	for _, tx := range txs {
 		txField, err := txDetailEncode(tx)
@@ -514,7 +515,7 @@ func (p *PublicBlockChainAPI) GasPrice(fullShardKey uint32, tokenID *string) (he
 	if tokenID != nil {
 		tokenIDValue = *tokenID
 	}
-	data, err := p.b.GasPrice(account.Branch{Value: fullShardId}, qkcCommon.TokenIDEncode(tokenIDValue))
+	data, err := p.b.GasPrice(account.Branch{Value: fullShardId}, qcom.TokenIDEncode(tokenIDValue))
 	return hexutil.Uint64(data), err
 }
 
@@ -543,7 +544,7 @@ func (p *PublicBlockChainAPI) SubmitWork(fullShardKey *hexutil.Uint, headHash co
 	return submit, nil
 }
 
-func (p *PublicBlockChainAPI) GetWork(fullShardKey *hexutil.Uint) ([]common.Hash, error) {
+func (p *PublicBlockChainAPI) GetWork(fullShardKey *hexutil.Uint, coinbaseAddress *common.Address) ([]common.Hash, error) {
 	fullShardId := uint32(0)
 	var err error
 	if fullShardKey != nil {
@@ -552,7 +553,7 @@ func (p *PublicBlockChainAPI) GetWork(fullShardKey *hexutil.Uint) ([]common.Hash
 			return nil, err
 		}
 	}
-	work, err := p.b.GetWork(account.NewBranch(fullShardId))
+	work, err := p.b.GetWork(account.NewBranch(fullShardId), coinbaseAddress)
 	if err != nil {
 		return nil, err
 	}
@@ -654,7 +655,7 @@ func (p *PublicBlockChainAPI) CallOrEstimateGas(args *CallArgs, height *uint64, 
 	if err != nil {
 		return nil, err
 	}
-	return qkcCommon.Uint32ToBytes(data), nil
+	return qcom.Uint32ToBytes(data), nil
 }
 
 type PrivateBlockChainAPI struct {

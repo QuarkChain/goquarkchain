@@ -48,8 +48,7 @@ func makeClusterNode(index uint16, clstrCfg *config.ClusterConfig, bootNodes []*
 		svrCfg.P2P.MaxPeers = int(clstrCfg.P2P.MaxPeers)
 		svrCfg.IPCPath = ""
 		svrCfg.Name = slaveCfg.ID
-		svrCfg.SvrHost = slaveCfg.IP
-		svrCfg.SvrPort = slaveCfg.Port
+		svrCfg.GRPCEndpoint = fmt.Sprintf("%s:%d", slaveCfg.IP, slaveCfg.Port)
 		svrCfg.DataDir = fmt.Sprintf("/tmp/integrate_test/%d/%s_%d_%d", random, slaveCfg.ID, index, idx)
 		node, err := service.New(svrCfg)
 		if err != nil {
@@ -68,8 +67,7 @@ func makeClusterNode(index uint16, clstrCfg *config.ClusterConfig, bootNodes []*
 	svrCfg.P2P.MaxPeers = int(clstrCfg.P2P.MaxPeers)
 	svrCfg.IPCPath = ""
 	svrCfg.Name = clientIdentifier
-	svrCfg.SvrHost = clstrCfg.Quarkchain.Root.GRPCHost
-	svrCfg.SvrPort = clstrCfg.Quarkchain.Root.GRPCPort
+	svrCfg.GRPCEndpoint = fmt.Sprintf("%s:%d", clstrCfg.Quarkchain.GRPCHost, clstrCfg.Quarkchain.GRPCPort)
 	svrCfg.DataDir = fmt.Sprintf("/tmp/integrate_test/%d/%s_%d", random, clientIdentifier, index)
 	node, err := service.New(svrCfg)
 	if err != nil {
@@ -213,7 +211,7 @@ func (c *clusterNode) createAllShardsBlock(fullShardIds []uint32) {
 		if shrd == nil {
 			utils.Fatalf("has no such shard, fullShardId: %d", fullShardId)
 		}
-		iBlock, _, err := shrd.CreateBlockToMine()
+		iBlock, _, err := shrd.CreateBlockToMine(nil)
 		if err != nil {
 			utils.Fatalf("can't create minor block, fullShardId: %d, err: %v", fullShardId, err)
 		}
@@ -245,7 +243,7 @@ func (c *clusterNode) CreateAndInsertBlocks(fullShards []uint32) (rBlock *types.
 
 	time.Sleep(time.Duration(seconds) * time.Second)
 	// insert root block
-	iBlock, _, err := c.GetMaster().CreateBlockToMine()
+	iBlock, _, err := c.GetMaster().CreateBlockToMine(nil)
 	if err != nil {
 		utils.Fatalf("failed to create and add root/minor block, err: %v", err)
 	}
