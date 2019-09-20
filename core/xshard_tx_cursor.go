@@ -2,6 +2,7 @@ package core
 
 import (
 	"errors"
+	"fmt"
 	"math/big"
 
 	"github.com/QuarkChain/goquarkchain/account"
@@ -77,6 +78,7 @@ func (x *XShardTxCursor) getCurrentTx() (*types.CrossShardTransactionDeposit, er
 				coinbaseAmount = x.rBlock.Header().CoinbaseAmount.GetTokenBalance(x.bc.GetGenesisToken())
 			}
 			genesisToken := x.bc.GetGenesisToken()
+			fmt.Println("===1",coinbaseAmount.String(),x.rBlock.Header().Number,x.rBlock.Coinbase().FullShardKey, x.bc.GetBranch().Value)
 			// Perform x-shard from root chain coinbase
 			return &types.CrossShardTransactionDeposit{
 				TxHash:          x.rBlock.Header().Hash(),

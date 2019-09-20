@@ -1605,6 +1605,7 @@ func (m *MinorBlockChain) RunCrossShardTxWithCursor(evmState *state.StateDB,
 			break
 		}
 		checkIsFromRootChain := cursor.rBlock.Header().NumberU64() >= m.clusterConfig.Quarkchain.XShardGasDDOSFixRootHeight
+		fmt.Println("run_xshard",xShardDepositTx.From.ToHex(),xShardDepositTx.To.ToHex(),xShardDepositTx.TxHash.String())
 		receipt, err := ApplyCrossShardDeposit(m.ethChainConfig, m, mBlock.Header(),
 			*m.GetVMConfig(), evmState, xShardDepositTx, gasUsed, checkIsFromRootChain)
 		if err != nil {
