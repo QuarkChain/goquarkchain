@@ -18,7 +18,6 @@ package core
 
 import (
 	"errors"
-	"fmt"
 	"math"
 	"math/big"
 
@@ -216,7 +215,6 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 			return
 		}
 		gas, err = IntrinsicGas(st.data, contractCreation, msg.IsCrossShard())
-		fmt.Println("chushi gas", gas)
 		if err != nil {
 			return nil, 0, false, err
 		}
@@ -241,9 +239,7 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 		if st.transferFailureByPoSWBalanceCheck() {
 			ret, st.gas, vmerr = nil, 0, vm.ErrPoSWSenderNotAllowed
 		} else {
-			fmt.Println("mess.gas", msg.Gas(), st.gas)
 			ret, st.gas, vmerr = evm.Call(sender, st.to(), st.data, st.gas, st.value)
-			fmt.Println("mess.gas-end", st.gas)
 		}
 	}
 

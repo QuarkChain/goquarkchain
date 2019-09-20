@@ -452,7 +452,6 @@ func (r *deployRootChainPoSWStakingContract) RequiredGas(input []byte) uint64 {
 }
 
 func (r *deployRootChainPoSWStakingContract) Run(input []byte, evm *EVM, contract *Contract) ([]byte, error) {
-	fmt.Println("deploy start", contract.Gas)
 	var (
 		targetAddr = SystemContracts[ROOT_CHAIN_POSW].Address()
 		bytecode   = SystemContracts[ROOT_CHAIN_POSW].bytecode
@@ -463,6 +462,5 @@ func (r *deployRootChainPoSWStakingContract) Run(input []byte, evm *EVM, contrac
 	// Use predetermined contract address
 	res, _, leftGas, err := evm.Create(contract.self, bytecode, gas, value, &targetAddr)
 	contract.Gas += leftGas
-	fmt.Println("deploy end", leftGas, contract.Gas)
 	return res, err
 }

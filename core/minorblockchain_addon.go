@@ -426,7 +426,6 @@ func (m *MinorBlockChain) setEvmStateWithHeader(evmState *state.StateDB, header 
 }
 func (m *MinorBlockChain) runBlock(block *types.MinorBlock) (*state.StateDB, types.Receipts, []*types.Log, uint64,
 	[]*types.CrossShardTransactionDeposit, error) {
-	fmt.Println("runBlock", block.Branch().Value, block.NumberU64())
 
 	parent := m.GetMinorBlock(block.ParentHash())
 	if qkcCommon.IsNil(parent) {
@@ -440,12 +439,10 @@ func (m *MinorBlockChain) runBlock(block *types.MinorBlock) (*state.StateDB, typ
 		return nil, nil, nil, 0, nil, err
 	}
 	evmState := preEvmState.Copy()
-	fmt.Println("ready to run_cross_ ")
 	xTxList, txCursorInfo, xShardReceipts, err := m.RunCrossShardTxWithCursor(evmState, block)
 	if err != nil {
 		return nil, nil, nil, 0, nil, err
 	}
-	fmt.Println("end to run_cross_")
 	evmState.SetTxCursorInfo(txCursorInfo)
 	xShardReceiveTxList = append(xShardReceiveTxList, xTxList...)
 	xShardGasLimit := block.Meta().XShardGasLimit.Value
@@ -453,9 +450,7 @@ func (m *MinorBlockChain) runBlock(block *types.MinorBlock) (*state.StateDB, typ
 		left := new(big.Int).Sub(xShardGasLimit, evmState.GetGasUsed())
 		evmState.SetGasLimit(new(big.Int).Sub(evmState.GetGasLimit(), left))
 	}
-	fmt.Println("process")
 	receipts, logs, usedGas, err := m.processor.Process(block, evmState, m.vmConfig)
-	fmt.Println("porsscc", "end")
 	if err != nil {
 		return nil, nil, nil, 0, nil, err
 	}
