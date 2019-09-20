@@ -1592,6 +1592,7 @@ func (m *MinorBlockChain) RunCrossShardTxWithCursor(evmState *state.StateDB,
 	}
 	cursor := NewXShardTxCursor(m, mBlock.Header(), preMinorBlock.Meta().XShardTxCursorInfo)
 	var receipts types.Receipts
+	fmt.Println("run_cross_detail",preMinorBlock.Meta().XShardTxCursorInfo.RootBlockHeight,preMinorBlock.Meta().XShardTxCursorInfo.MinorBlockIndex,preMinorBlock.Meta().XShardTxCursorInfo.XShardDepositIndex)
 	txList := make([]*types.CrossShardTransactionDeposit, 0)
 	evmState.SetQuarkChainConfig(m.clusterConfig.Quarkchain)
 	gasUsed := new(uint64)
