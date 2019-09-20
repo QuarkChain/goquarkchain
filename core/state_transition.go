@@ -18,6 +18,7 @@ package core
 
 import (
 	"errors"
+	"fmt"
 	"math"
 	"math/big"
 
@@ -270,6 +271,7 @@ func (st *StateTransition) refundGas() {
 
 	// Return ETH for remaining gas, exchanged at the original rate.
 	remaining := new(big.Int).Mul(new(big.Int).SetUint64(st.gas), st.gasPrice)
+	fmt.Println("RFFFFFFFFFF",st.msg.From().String(),remaining.String())
 	st.state.AddBalance(st.msg.From(), remaining, st.msg.GasTokenID())
 
 	// Also return remaining gas to the block gas counter so it is

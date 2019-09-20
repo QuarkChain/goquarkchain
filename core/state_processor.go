@@ -220,6 +220,7 @@ func ApplyCrossShardDeposit(config *params.ChainConfig, bc ChainContext, header 
 
 	quarkChainConfig := evmState.GetQuarkChainConfig()
 	if evmState.GetTimeStamp() < quarkChainConfig.EnableEvmTimeStamp {
+		fmt.Println("!!!!!!!!!!!!!!!!!!!!!!!")
 		//TODO:FIXME:full_shard_key is not set
 		evmState.AddBalance(tx.To.Recipient, tx.Value.Value, tx.TransferTokenID)
 		evmState.AddGasUsed(new(big.Int).SetUint64(gasUsedStart))

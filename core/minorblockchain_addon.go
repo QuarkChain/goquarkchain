@@ -436,10 +436,12 @@ func (m *MinorBlockChain) runBlock(block *types.MinorBlock) (*state.StateDB, typ
 	xShardReceiveTxList := make([]*types.CrossShardTransactionDeposit, 0)
 	coinbase := block.Coinbase().Recipient
 	preEvmState, err := m.stateAtWithSenderDisallowMap(parent, &coinbase)
+	fmt.Println("evmState.Coinbase",preEvmState.GetBlockCoinbase().String(),block.Header().GetCoinbase().FullShardKey)
 	if err != nil {
 		return nil, nil, nil, 0, nil, err
 	}
 	evmState := preEvmState.Copy()
+	fmt.Println("evmState.Coinbase",evmState.GetBlockCoinbase().String(),block.Header().GetCoinbase().FullShardKey)
 	xTxList, txCursorInfo, xShardReceipts, err := m.RunCrossShardTxWithCursor(evmState, block)
 	if err != nil {
 		return nil, nil, nil, 0, nil, err
