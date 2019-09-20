@@ -58,6 +58,8 @@ func NewBlockValidator(quarkChainConfig *config.QuarkChainConfig, blockchain *Mi
 // header's transaction and uncle roots. The Headers are assumed to be already
 // validated at this point.
 func (v *MinorBlockValidator) ValidateBlock(mBlock types.IBlock, force bool) error {
+	fmt.Println("validateBlock start", mBlock.(*types.MinorBlock).Header().Branch, mBlock.(*types.MinorBlock).Header().NumberU64())
+	defer fmt.Println("validateBlock end", mBlock.(*types.MinorBlock).Header().Branch, mBlock.(*types.MinorBlock).Header().NumberU64())
 	if common.IsNil(mBlock) {
 		log.Error(v.logInfo, "check block err", ErrMinorBlockIsNil)
 		return ErrMinorBlockIsNil

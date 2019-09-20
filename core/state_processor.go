@@ -92,7 +92,9 @@ func (p *StateProcessor) Process(block *types.MinorBlock, statedb *state.StateDB
 	for k, v := range bMap {
 		statedb.AddBalance(block.IHeader().GetCoinbase().Recipient, v, k)
 	}
+	fmt.Println("fffffffff-start", block.NumberU64())
 	statedb.Finalise(true)
+	fmt.Println("fffffffff-end", block.NumberU64())
 	return receipts, allLogs, *usedGas, nil
 }
 
