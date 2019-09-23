@@ -247,6 +247,7 @@ func (s *StateDB) GetBalances(addr common.Address) *types.TokenBalances {
 func (s *StateDB) GetNonce(addr common.Address) uint64 {
 	stateObject := s.getStateObject(addr)
 	if stateObject != nil {
+		fmt.Println("????---250",stateObject.address.String(),stateObject.Nonce())
 		return stateObject.Nonce()
 	}
 
@@ -453,6 +454,7 @@ func (s *StateDB) getStateObject(addr common.Address) (stateObject *stateObject)
 	// Prefer 'live' objects.
 	if obj := s.stateObjects[addr]; obj != nil {
 		if obj.deleted {
+			fmt.Println("456------")
 			return nil
 		}
 		fmt.Println("have",addr.String(),obj.data.FullShardKey)
@@ -463,6 +465,7 @@ func (s *StateDB) getStateObject(addr common.Address) (stateObject *stateObject)
 	enc, err := s.trie.TryGet(addr[:])
 	if len(enc) == 0 {
 		s.setError(err)
+		fmt.Println("467----")
 		return nil
 	}
 	var data Account
