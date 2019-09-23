@@ -466,9 +466,7 @@ func (s *StateDB) getStateObject(addr common.Address) (stateObject *stateObject)
 	// Load the object from the database.
 	enc, _ := s.trie.TryGet(addr[:])
 	if len(enc) == 0 {
-		//s.setError(err)
-		fmt.Println("467----")
-		//return nil
+		s.createObject(addr)
 	}
 	var data Account
 	if s.useMock {
