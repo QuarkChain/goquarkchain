@@ -246,7 +246,8 @@ func (s *StateDB) GetBalances(addr common.Address) *types.TokenBalances {
 
 func (s *StateDB) GetNonce(addr common.Address) uint64 {
 	fmt.Println("start-getnonce",addr.String())
-	stateObject := s.getStateObject(addr)
+	stateObject := s.GetOrNewStateObject(addr)
+	s.getStateObject()
 	if stateObject != nil {
 		fmt.Println("????---250",stateObject.address.String(),stateObject.Nonce())
 		return stateObject.Nonce()
@@ -464,9 +465,10 @@ func (s *StateDB) getStateObject(addr common.Address) (stateObject *stateObject)
 	}
 
 	// Load the object from the database.
-	enc, _ := s.trie.TryGet(addr[:])
+	enc, err := s.trie.TryGet(addr[:])
 	if len(enc) == 0 {
-		s.createObject(addr)
+		s.setError(err)
+		return nil
 	}
 	var data Account
 	if s.useMock {
