@@ -455,7 +455,7 @@ func (s *StateDB) getStateObject(addr common.Address) (stateObject *stateObject)
 		if obj.deleted {
 			return nil
 		}
-		fmt.Println("have")
+		fmt.Println("have",addr.String())
 		return obj
 	}
 
@@ -491,7 +491,7 @@ func (s *StateDB) getStateObject(addr common.Address) (stateObject *stateObject)
 
 	// Insert into the live set.
 	obj := newObject(s, addr, data)
-	fmt.Println("NNNNNNNNNNNNNNNN-ojbeci",obj.address.String(),obj.data.FullShardKey)
+	fmt.Println("NNNNNNNNNNNNNNNN-ojbeci",obj.address.String(),obj.data.FullShardKey.GetValue())
 	s.setStateObject(obj)
 	return obj
 }

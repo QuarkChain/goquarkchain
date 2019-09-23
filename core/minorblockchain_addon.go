@@ -154,7 +154,9 @@ func (m *MinorBlockChain) validateTx(tx *types.Transaction, evmState *state.Stat
 	}
 	evmTx := tx.EvmTx
 	if fromAddress != nil {
+		fmt.Println("??????",fromAddress.Recipient.String())
 		nonce := evmState.GetNonce(fromAddress.Recipient)
+		fmt.Println("?????--1",fromAddress.Recipient.String())
 		evmTx.SetNonce(nonce)
 		if evmTx.FromFullShardKey() != fromAddress.FullShardKey {
 			return nil, errors.New("from full shard id not match")
@@ -229,9 +231,9 @@ func (m *MinorBlockChain) validateTx(tx *types.Transaction, evmState *state.Stat
 		TxType: types.EvmTx,
 		EvmTx:  evmTx,
 	}
-	fmt.Println("GetNonce")
+	fmt.Println("GetNonce",sender.String())
 	reqNonce := evmState.GetNonce(sender)
-	fmt.Println("GetNonce end")
+	fmt.Println("GetNonce end",sender.String())
 	if reqNonce < evmTx.Nonce() && evmTx.Nonce() < reqNonce+MAX_FUTURE_TX_NONCE { //TODO fix
 		return tx, nil
 	}
