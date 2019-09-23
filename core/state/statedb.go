@@ -455,7 +455,7 @@ func (s *StateDB) getStateObject(addr common.Address) (stateObject *stateObject)
 		if obj.deleted {
 			return nil
 		}
-		fmt.Println("have",addr.String())
+		fmt.Println("have",addr.String(),obj.data.FullShardKey)
 		return obj
 	}
 
