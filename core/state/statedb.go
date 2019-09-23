@@ -468,7 +468,7 @@ func (s *StateDB) getStateObject(addr common.Address) (stateObject *stateObject)
 	if len(enc) == 0 {
 		s.setError(err)
 		fmt.Println("467----")
-		return nil
+		//return nil
 	}
 	var data Account
 	if s.useMock {
