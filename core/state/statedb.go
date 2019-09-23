@@ -18,7 +18,6 @@
 package state
 
 import (
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"math/big"
@@ -237,7 +236,7 @@ func (s *StateDB) GetBalance(addr common.Address, tokenID uint64) *big.Int {
 }
 
 func (s *StateDB) GetBalances(addr common.Address) *types.TokenBalances {
-	stateObject := s.getStateObject(addr)
+	stateObject := s.GetOrNewStateObject(addr)
 	if stateObject != nil {
 		return stateObject.data.TokenBalances.Copy()
 	}
@@ -245,13 +244,10 @@ func (s *StateDB) GetBalances(addr common.Address) *types.TokenBalances {
 }
 
 func (s *StateDB) GetNonce(addr common.Address) uint64 {
-	fmt.Println("start-getnonce",addr.String())
 	stateObject := s.GetOrNewStateObject(addr)
 	if stateObject != nil {
-		fmt.Println("????---250",stateObject.address.String(),stateObject.Nonce())
 		return stateObject.Nonce()
 	}
-	fmt.Println("end-getnonce",0)
 
 	return 0
 }
@@ -435,12 +431,6 @@ func (s *StateDB) updateStateObject(stateObject *stateObject) {
 			panic(err)
 		}
 	}
-	fmt.Println("update+++", addr.String(), hex.EncodeToString(data))
-	fmt.Println("nonce", stateObject.data.Nonce)
-	fmt.Println("token_balance", stateObject.data.TokenBalances.GetBalanceMap())
-	fmt.Println("storge", hex.EncodeToString(stateObject.data.Root.Bytes()))
-	fmt.Println("codeash", hex.EncodeToString(stateObject.data.CodeHash))
-	fmt.Println("fullShard", stateObject.data.FullShardKey.GetValue())
 	s.setError(s.trie.TryUpdate(addr[:], data))
 }
 
@@ -456,10 +446,8 @@ func (s *StateDB) getStateObject(addr common.Address) (stateObject *stateObject)
 	// Prefer 'live' objects.
 	if obj := s.stateObjects[addr]; obj != nil {
 		if obj.deleted {
-			fmt.Println("456------")
 			return nil
 		}
-		fmt.Println("have",addr.String(),obj.data.FullShardKey)
 		return obj
 	}
 
@@ -495,7 +483,6 @@ func (s *StateDB) getStateObject(addr common.Address) (stateObject *stateObject)
 
 	// Insert into the live set.
 	obj := newObject(s, addr, data)
-	fmt.Println("NNNNNNNNNNNNNNNN-ojbeci",obj.address.String(),obj.data.FullShardKey.GetValue())
 	s.setStateObject(obj)
 	return obj
 }
@@ -771,7 +758,6 @@ func (s *StateDB) GetXShardList() []*types.CrossShardTransactionDeposit {
 	return s.xShardList
 }
 func (s *StateDB) SetFullShardKey(fullShardKey uint32) {
-	fmt.Println("SSSSeeeee",fullShardKey)
 	s.fullShardKey = fullShardKey
 }
 

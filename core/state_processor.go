@@ -73,9 +73,7 @@ func (p *StateProcessor) Process(block *types.MinorBlock, statedb *state.StateDB
 
 	// Iterate over and process the individual transactions
 	for i, tx := range block.GetTransactions() {
-		fmt.Println("block's tx apply")
 		evmTx, err := p.bc.validateTx(tx, statedb, nil, nil, &xGas)
-		fmt.Println("block's tx apply end")
 		if err != nil {
 			return nil, nil, 0, err
 		}
@@ -94,9 +92,7 @@ func (p *StateProcessor) Process(block *types.MinorBlock, statedb *state.StateDB
 	for k, v := range bMap {
 		statedb.AddBalance(block.IHeader().GetCoinbase().Recipient, v, k)
 	}
-	fmt.Println("fffffffff-start", block.NumberU64())
 	statedb.Finalise(true)
-	fmt.Println("fffffffff-end", block.NumberU64())
 	return receipts, allLogs, *usedGas, nil
 }
 
@@ -210,30 +206,22 @@ func ApplyCrossShardDeposit(config *params.ChainConfig, bc ChainContext, header 
 		err  error
 	)
 	gasUsedStart := qkcParam.GtxxShardCost.Uint64()
-	fmt.Println("checkIsFromRootChain",checkIsFromRootChain)
 	if checkIsFromRootChain {
-		fmt.Println("111",tx.IsFromRootChain)
 		if tx.IsFromRootChain {
-			fmt.Println("222")
 			gasUsedStart = 0
 		}
 	} else {
-		fmt.Println("333",tx.GasPrice.Value.String())
 		if tx.GasPrice.Value.Cmp(big.NewInt(0)) == 0 {
-			fmt.Println("4444")
 			gasUsedStart = 0
 		}
 	}
 
 	quarkChainConfig := evmState.GetQuarkChainConfig()
 	if evmState.GetTimeStamp() < quarkChainConfig.EnableEvmTimeStamp {
-		fmt.Println("!!!!!!!!!!!!!!!!!!!!!!!")
 		//TODO:FIXME:full_shard_key is not set
 		evmState.AddBalance(tx.To.Recipient, tx.Value.Value, tx.TransferTokenID)
 		evmState.AddGasUsed(new(big.Int).SetUint64(gasUsedStart))
-		fmt.Println("bingo-begin",gasUsedStart,*usedGas)
 		*usedGas += gasUsedStart
-		fmt.Println("bingo",gasUsedStart,*usedGas)
 
 		localFeeRate := new(big.Rat).Sub(new(big.Rat).SetInt64(1), quarkChainConfig.RewardTaxRate)
 		xShardFee := new(big.Int).Mul(tx.GasPrice.Value, qkcParam.GtxxShardCost)

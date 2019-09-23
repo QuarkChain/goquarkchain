@@ -292,7 +292,6 @@ func (self *stateObject) CommitTrie(db Database) error {
 // AddBalance removes amount from c's balance.
 // It is used to add funds to the destination account of a transfer.
 func (c *stateObject) AddBalance(amount *big.Int, tokenID uint64) {
-	fmt.Println("AddBalance",c.address.String(),amount.String(),tokenID)
 	// EIP158: We must check emptiness for the objects such that the account
 	// clearing (0,0,0 objects) can take effect.
 	if amount.Sign() == 0 {

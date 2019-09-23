@@ -154,9 +154,7 @@ func (m *MinorBlockChain) validateTx(tx *types.Transaction, evmState *state.Stat
 	}
 	evmTx := tx.EvmTx
 	if fromAddress != nil {
-		fmt.Println("??????",fromAddress.Recipient.String())
 		nonce := evmState.GetNonce(fromAddress.Recipient)
-		fmt.Println("?????--1",fromAddress.Recipient.String())
 		evmTx.SetNonce(nonce)
 		if evmTx.FromFullShardKey() != fromAddress.FullShardKey {
 			return nil, errors.New("from full shard id not match")
@@ -231,9 +229,7 @@ func (m *MinorBlockChain) validateTx(tx *types.Transaction, evmState *state.Stat
 		TxType: types.EvmTx,
 		EvmTx:  evmTx,
 	}
-	fmt.Println("GetNonce",sender.String())
 	reqNonce := evmState.GetNonce(sender)
-	fmt.Println("GetNonce end",sender.String())
 	if reqNonce < evmTx.Nonce() && evmTx.Nonce() < reqNonce+MAX_FUTURE_TX_NONCE { //TODO fix
 		return tx, nil
 	}
@@ -430,8 +426,7 @@ func (m *MinorBlockChain) setEvmStateWithHeader(evmState *state.StateDB, header 
 }
 func (m *MinorBlockChain) runBlock(block *types.MinorBlock) (*state.StateDB, types.Receipts, []*types.Log, uint64,
 	[]*types.CrossShardTransactionDeposit, error) {
-	fmt.Println("runBlock", block.Header().Branch.Value, block.Header().NumberU64())
-	defer fmt.Println("runBlock-end", block.Header().Branch.Value, block.Header().NumberU64())
+
 	parent := m.GetMinorBlock(block.ParentHash())
 	if qkcCommon.IsNil(parent) {
 		log.Error(m.logInfo, "err-runBlock", ErrRootBlockIsNil, "parentHash", block.ParentHash().String())
@@ -439,18 +434,14 @@ func (m *MinorBlockChain) runBlock(block *types.MinorBlock) (*state.StateDB, typ
 	}
 	xShardReceiveTxList := make([]*types.CrossShardTransactionDeposit, 0)
 	preEvmState, err := m.getEvmStateForNewBlock(block.Header(), false)
-	//fmt.Println("evmState.Coinbase",preEvmState.GetBlockCoinbase().String(),block.Header().GetCoinbase().FullShardKey)
 	if err != nil {
 		return nil, nil, nil, 0, nil, err
 	}
 	evmState := preEvmState.Copy()
-	fmt.Println("start run_cursor")
-	//fmt.Println("evmState.Coinbase",evmState.GetBlockCoinbase().String(),block.Header().GetCoinbase().FullShardKey)
 	xTxList, txCursorInfo, xShardReceipts, err := m.RunCrossShardTxWithCursor(evmState, block)
 	if err != nil {
 		return nil, nil, nil, 0, nil, err
 	}
-	fmt.Println("runCross end")
 	evmState.SetTxCursorInfo(txCursorInfo)
 	xShardReceiveTxList = append(xShardReceiveTxList, xTxList...)
 	xShardGasLimit := block.Meta().XShardGasLimit.Value
@@ -458,9 +449,7 @@ func (m *MinorBlockChain) runBlock(block *types.MinorBlock) (*state.StateDB, typ
 		left := new(big.Int).Sub(xShardGasLimit, evmState.GetGasUsed())
 		evmState.SetGasLimit(new(big.Int).Sub(evmState.GetGasLimit(), left))
 	}
-	fmt.Println("start process")
 	receipts, logs, usedGas, err := m.processor.Process(block, evmState, m.vmConfig)
-	fmt.Println("process end")
 	if err != nil {
 		return nil, nil, nil, 0, nil, err
 	}
@@ -1599,7 +1588,6 @@ func (m *MinorBlockChain) RunCrossShardTxWithCursor(evmState *state.StateDB,
 	}
 	cursor := NewXShardTxCursor(m, mBlock.Header(), preMinorBlock.Meta().XShardTxCursorInfo)
 	var receipts types.Receipts
-	fmt.Println("run_cross_detail",preMinorBlock.Meta().XShardTxCursorInfo.RootBlockHeight,preMinorBlock.Meta().XShardTxCursorInfo.MinorBlockIndex,preMinorBlock.Meta().XShardTxCursorInfo.XShardDepositIndex)
 	txList := make([]*types.CrossShardTransactionDeposit, 0)
 	evmState.SetQuarkChainConfig(m.clusterConfig.Quarkchain)
 	gasUsed := new(uint64)
@@ -1612,7 +1600,6 @@ func (m *MinorBlockChain) RunCrossShardTxWithCursor(evmState *state.StateDB,
 			break
 		}
 		checkIsFromRootChain := cursor.rBlock.Header().NumberU64() >= m.clusterConfig.Quarkchain.XShardGasDDOSFixRootHeight
-		fmt.Println("run_xshard",xShardDepositTx.From.ToHex(),xShardDepositTx.To.ToHex(),xShardDepositTx.TxHash.String())
 		receipt, err := ApplyCrossShardDeposit(m.ethChainConfig, m, mBlock.Header(),
 			*m.GetVMConfig(), evmState, xShardDepositTx, gasUsed, checkIsFromRootChain)
 		if err != nil {
