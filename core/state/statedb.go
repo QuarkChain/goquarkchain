@@ -245,11 +245,13 @@ func (s *StateDB) GetBalances(addr common.Address) *types.TokenBalances {
 }
 
 func (s *StateDB) GetNonce(addr common.Address) uint64 {
+	fmt.Println("start-getnonce",addr.String())
 	stateObject := s.getStateObject(addr)
 	if stateObject != nil {
 		fmt.Println("????---250",stateObject.address.String(),stateObject.Nonce())
 		return stateObject.Nonce()
 	}
+	fmt.Println("end-getnonce",0)
 
 	return 0
 }
