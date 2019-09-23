@@ -765,6 +765,7 @@ func (s *StateDB) GetXShardList() []*types.CrossShardTransactionDeposit {
 	return s.xShardList
 }
 func (s *StateDB) SetFullShardKey(fullShardKey uint32) {
+	fmt.Println("SSSSeeeee",fullShardKey)
 	s.fullShardKey = fullShardKey
 }
 

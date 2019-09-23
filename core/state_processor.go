@@ -73,6 +73,7 @@ func (p *StateProcessor) Process(block *types.MinorBlock, statedb *state.StateDB
 
 	// Iterate over and process the individual transactions
 	for i, tx := range block.GetTransactions() {
+		fmt.Println("block's tx apply")
 		evmTx, err := p.bc.validateTx(tx, statedb, nil, nil, &xGas)
 		if err != nil {
 			return nil, nil, 0, err
