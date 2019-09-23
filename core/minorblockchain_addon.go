@@ -229,7 +229,9 @@ func (m *MinorBlockChain) validateTx(tx *types.Transaction, evmState *state.Stat
 		TxType: types.EvmTx,
 		EvmTx:  evmTx,
 	}
+	fmt.Println("GetNonce")
 	reqNonce := evmState.GetNonce(sender)
+	fmt.Println("GetNonce end")
 	if reqNonce < evmTx.Nonce() && evmTx.Nonce() < reqNonce+MAX_FUTURE_TX_NONCE { //TODO fix
 		return tx, nil
 	}
