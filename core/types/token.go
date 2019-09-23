@@ -179,9 +179,6 @@ func (b *TokenBalances) Copy() *TokenBalances {
 
 func (b *TokenBalances) SerializeToBytes() ([]byte, error) {
 	w := make([]byte, 0)
-	if b.Len() == 0 {
-		return nil, nil
-	}
 	w = append(w, b.Enum)
 	switch b.Enum {
 	case byte(0):
