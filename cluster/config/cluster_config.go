@@ -249,6 +249,9 @@ func (q *QuarkChainConfig) initAndValidate() {
 	if q.MinTXPoolGasPrice == nil {
 		q.MinTXPoolGasPrice = new(big.Int).SetUint64(1000000000)
 	}
+	if q.XShardGasDDOSFixRootHeight==0{
+		q.XShardGasDDOSFixRootHeight=90000
+	}
 	if len(q.GuardianPublicKey) != 65 && len(q.GuardianPublicKey) != 0 {
 		fmt.Println("len", len(q.GuardianPublicKey))
 		panic("GuardianPublicKey should 0 or 65")

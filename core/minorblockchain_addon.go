@@ -433,8 +433,7 @@ func (m *MinorBlockChain) runBlock(block *types.MinorBlock) (*state.StateDB, typ
 		return nil, nil, nil, 0, nil, ErrRootBlockIsNil
 	}
 	xShardReceiveTxList := make([]*types.CrossShardTransactionDeposit, 0)
-	coinbase := block.Coinbase().Recipient
-	preEvmState, err := m.stateAtWithSenderDisallowMap(parent, &coinbase)
+	preEvmState, err := m.getEvmStateForNewBlock(block.Header(), false)
 	if err != nil {
 		return nil, nil, nil, 0, nil, err
 	}
