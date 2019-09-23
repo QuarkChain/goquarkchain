@@ -100,7 +100,7 @@ const (
 type minorBlockChain interface {
 	CurrentBlock() *types.MinorBlock
 	GetMinorBlock(hash common.Hash) *types.MinorBlock
-	stateAtWithSenderDisallowMap(minorBlock *types.MinorBlock, coinbase *account.Recipient) (*state.StateDB, error)
+	getEvmStateForNewBlock(mHeader types.IHeader, ephemeral bool) (*state.StateDB, error)
 	Config() *config.QuarkChainConfig
 	SubscribeChainHeadEvent(ch chan<- MinorChainHeadEvent) event.Subscription
 	validateTx(tx *types.Transaction, evmState *state.StateDB, fromAddress *account.Address, gas, xShardGasLimit *uint64) (*types.Transaction, error)
@@ -374,7 +374,7 @@ func (pool *TxPool) reset(oldBlock, newBlock *types.MinorBlock) {
 	if newBlock == nil {
 		newBlock = pool.chain.CurrentBlock() // Special case during testing
 	}
-	statedb, err := pool.chain.stateAtWithSenderDisallowMap(newBlock, nil)
+	statedb, err := pool.chain.getEvmStateForNewBlock(newBlock.Header(), true)
 	if err != nil {
 		log.Error("Failed to reset txpool state", "err", err)
 		return

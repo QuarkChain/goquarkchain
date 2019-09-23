@@ -202,7 +202,7 @@ func (s *ShardBackend) getBlockCommitStatusByHash(blockHash common.Hash) BlockCo
 	// - The block header is sent to master
 	// then return immediately
 	if s.MinorBlockChain.IsMinorBlockCommittedByHash(blockHash) {
-		return BLOCK_UNCOMMITTED
+		return BLOCK_COMMITTED
 	}
 
 	//TODO support BLOCK_COMMITTING???

@@ -539,7 +539,7 @@ func (m *MinorBlockChain) ExecuteTx(tx *types.Transaction, fromAddress *account.
 	if !ok {
 		return nil, ErrMinorBlockIsNil
 	}
-	evmState, err := m.stateAtWithSenderDisallowMap(mBlock, nil)
+	evmState, err := m.getEvmStateForNewBlock(mBlock.Header(), true)
 	if err != nil {
 		return nil, err
 	}
@@ -1055,7 +1055,7 @@ func (m *MinorBlockChain) EstimateGas(tx *types.Transaction, fromAddress account
 		preCoinbase = new(account.Recipient)
 		*preCoinbase = preBlock.IHeader().GetCoinbase().Recipient
 	}
-	currentState, err := m.stateAtWithSenderDisallowMap(m.CurrentBlock(), preCoinbase)
+	currentState, err := m.getEvmStateForNewBlock(m.CurrentBlock().Header(), true)
 	if err != nil {
 		return 0, err
 	}
