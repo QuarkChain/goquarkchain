@@ -277,7 +277,7 @@ func (v *MinorBlockValidator) ValidateState(mBlock, parent types.IBlock, statedb
 	}
 	mHeader := block.Header()
 	if block.GetMetaData().GasUsed.Value.Cmp(statedb.GetGasUsed()) != 0 {
-		return fmt.Errorf("invalid gas used (statedb.GetGasUsed: %d usedGas: %d)", block.GetMetaData().GasUsed.Value.Uint64(), statedb.GetGasUsed())
+		return fmt.Errorf("invalid gas used (remote: %d local: %d)", block.GetMetaData().GasUsed.Value.Uint64(), statedb.GetGasUsed())
 	}
 	// Validate the received block's bloom with the one derived from the generated receipts.
 	// For valid blocks this should always validate to true.

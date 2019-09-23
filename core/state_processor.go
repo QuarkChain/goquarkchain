@@ -210,12 +210,17 @@ func ApplyCrossShardDeposit(config *params.ChainConfig, bc ChainContext, header 
 		err  error
 	)
 	gasUsedStart := qkcParam.GtxxShardCost.Uint64()
+	fmt.Println("checkIsFromRootChain",checkIsFromRootChain)
 	if checkIsFromRootChain {
+		fmt.Println("111",tx.IsFromRootChain)
 		if tx.IsFromRootChain {
+			fmt.Println("222")
 			gasUsedStart = 0
 		}
 	} else {
+		fmt.Println("333",tx.GasPrice.Value.String())
 		if tx.GasPrice.Value.Cmp(big.NewInt(0)) == 0 {
+			fmt.Println("4444")
 			gasUsedStart = 0
 		}
 	}
@@ -226,7 +231,9 @@ func ApplyCrossShardDeposit(config *params.ChainConfig, bc ChainContext, header 
 		//TODO:FIXME:full_shard_key is not set
 		evmState.AddBalance(tx.To.Recipient, tx.Value.Value, tx.TransferTokenID)
 		evmState.AddGasUsed(new(big.Int).SetUint64(gasUsedStart))
+		fmt.Println("bingo-begin",gasUsedStart,*usedGas)
 		*usedGas += gasUsedStart
+		fmt.Println("bingo",gasUsedStart,*usedGas)
 
 		localFeeRate := new(big.Rat).Sub(new(big.Rat).SetInt64(1), quarkChainConfig.RewardTaxRate)
 		xShardFee := new(big.Int).Mul(tx.GasPrice.Value, qkcParam.GtxxShardCost)
