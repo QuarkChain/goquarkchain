@@ -83,7 +83,7 @@ func generateCache(cnt int, seed []byte, genNativeCache bool) qkcCache {
 			}
 		}
 	}
-
+	sort.Slice(ls, func(i, j int) bool { return ls[i] < ls[j] })
 	if genNativeCache {
 		return qkcCache{nil, nil, native.NewCache(ls), seed}
 	}
