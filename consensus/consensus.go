@@ -65,9 +65,10 @@ type ShareCache struct {
 
 // MiningWork represents the params of mining work.
 type MiningWork struct {
-	HeaderHash common.Hash
-	Number     uint64
-	Difficulty *big.Int
+	HeaderHash      common.Hash
+	Number          uint64
+	Difficulty      *big.Int
+	OptionalDivider uint64
 }
 
 // MiningResult represents the found digest and result bytes.
@@ -168,7 +169,7 @@ func (c *CommonEngine) VerifyHeader(
 		}
 	}
 
-	adjustedDiff, err := chain.GetAdjustedDifficulty(header)
+	adjustedDiff, _, err := chain.GetAdjustedDifficulty(header)
 	if err != nil {
 		return err
 	}
@@ -371,6 +372,7 @@ func (c *CommonEngine) GetWork(addr account.Address) (*MiningWork, error) {
 			work.HeaderHash,
 			work.Number,
 			work.Difficulty,
+			work.OptionalDivider,
 		}, nil
 	case err := <-errc:
 		return nil, err

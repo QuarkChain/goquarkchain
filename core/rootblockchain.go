@@ -1131,11 +1131,11 @@ func (bc *RootBlockChain) SkipDifficultyCheck() bool {
 	return bc.Config().SkipRootDifficultyCheck
 }
 
-func (bc *RootBlockChain) GetAdjustedDifficulty(header types.IHeader) (*big.Int, error) {
+func (bc *RootBlockChain) GetAdjustedDifficulty(header types.IHeader) (*big.Int, uint64, error) {
 	rHeader := header.(*types.RootBlockHeader)
 	if crypto.VerifySignature(bc.Config().GuardianPublicKey, rHeader.SealHash().Bytes(), rHeader.Signature[:64]) {
 		guardianAdjustedDiff := new(big.Int).Div(rHeader.GetDifficulty(), new(big.Int).SetUint64(1000))
-		return guardianAdjustedDiff, nil
+		return guardianAdjustedDiff, 1, nil
 	}
 	if bc.posw.IsPoSWEnabled() && header.GetTime() >= bc.Config().Root.PoSWConfig.EnableTimestamp && header.NumberU64() > 0 {
 		poswAdjusted, err := bc.getPoSWAdjustedDiff(header)
@@ -1144,10 +1144,10 @@ func (bc *RootBlockChain) GetAdjustedDifficulty(header types.IHeader) (*big.Int,
 		}
 		if poswAdjusted != nil {
 			log.Info("posw applied: from", rHeader.Difficulty, "to", poswAdjusted)
-			return poswAdjusted, nil
+			return poswAdjusted, bc.Config().Root.PoSWConfig.DiffDivider, nil
 		}
 	}
-	return rHeader.GetDifficulty(), nil
+	return rHeader.GetDifficulty(), 1, nil
 }
 
 func (bc *RootBlockChain) getPoSWAdjustedDiff(header types.IHeader) (*big.Int, error) {

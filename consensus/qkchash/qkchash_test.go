@@ -83,7 +83,7 @@ func TestVerifyHeaderAndHeaders(t *testing.T) {
 		cr.EXPECT().GetHeader(header.Hash()).Return(nil).AnyTimes()
 		cr.EXPECT().GetHeader(parent.Hash()).Return(parent).AnyTimes()
 		cr.EXPECT().SkipDifficultyCheck().Return(true).AnyTimes()
-		cr.EXPECT().GetAdjustedDifficulty(gomock.Any()).Return(header.Difficulty, nil).AnyTimes()
+		cr.EXPECT().GetAdjustedDifficulty(gomock.Any()).Return(header.Difficulty, uint64(1), nil).AnyTimes()
 		err := q.VerifyHeader(cr, header, true)
 		assert.NoError(err)
 

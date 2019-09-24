@@ -29,7 +29,7 @@ type ChainReader interface {
 	// GetBlock retrieves a block from the database by hash and number.
 	GetBlock(hash common.Hash) types.IBlock
 
-	GetAdjustedDifficulty(header types.IHeader) (*big.Int, error)
+	GetAdjustedDifficulty(header types.IHeader) (*big.Int, uint64, error)
 
 	SkipDifficultyCheck() bool
 }
