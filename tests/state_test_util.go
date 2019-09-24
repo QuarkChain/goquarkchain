@@ -217,7 +217,9 @@ func MakePreState(db ethdb.Database, accounts GenesisAlloc, useMock bool) *state
 		statedb.SetCode(addr, a.Code)
 		statedb.SetNonce(addr, a.Nonce)
 		if a.Balance != nil {
-			statedb.SetBalance(addr, a.Balance, testTokenID)
+			if a.Balance.Cmp(common.Big0) != 0 {
+				statedb.SetBalance(addr, a.Balance, testTokenID)
+			}
 		} else {
 			for tokenID, value := range a.Balances {
 				statedb.SetBalance(addr, value, tokenID)
