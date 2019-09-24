@@ -104,15 +104,11 @@ func (t *task) Run(bc blockchain) error {
 
 			counter := 0
 			for _, blk := range blocks {
-				log.Error("scf", "scf", blk.NumberU64(), "hash", blk.Hash().String())
 				if t.syncBlock != nil {
-					log.Error("scf-", "sync", "start")
 					if err := t.syncBlock(bc, blk); err != nil {
 						return err
 					}
-					log.Error("scf-", "sync", "end")
 				}
-				log.Error("add_block", "add", "start")
 				if err := bc.AddBlock(blk); err != nil {
 					return err
 				}

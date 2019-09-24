@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/QuarkChain/goquarkchain/cluster/config"
-	"github.com/ethereum/go-ethereum/rpc"
+	"github.com/QuarkChain/goquarkchain/rpc"
 )
 
 func testSlaveConfig(idx uint16) *config.SlaveConfig {
