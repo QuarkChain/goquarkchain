@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"github.com/QuarkChain/goquarkchain/cluster/rpc"
 	"io"
 	"math/big"
 	"sort"
@@ -1421,4 +1422,8 @@ func (bc *RootBlockChain) SetRootChainStakesFunc(getRootChainStakes func(address
 func (bc *RootBlockChain) GetRootChainStakesFunc() func(address account.Address,
 	lastMinor common.Hash) (*big.Int, *account.Recipient, error) {
 	return bc.rootChainStakesFunc
+}
+
+func (bc *RootBlockChain) PoSWInfo(block *types.RootBlock) (*rpc.PoSWInfo, error) {
+	panic("to be implemented")
 }

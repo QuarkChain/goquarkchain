@@ -44,7 +44,7 @@ func balancesEncoder(balances *types.TokenBalances) []map[string]interface{} {
 	return balanceList
 }
 
-func rootBlockEncoder(rootBlock *types.RootBlock) (map[string]interface{}, error) {
+func rootBlockEncoder(rootBlock *types.RootBlock, extraInfo *rpc.PoSWInfo) (map[string]interface{}, error) {
 	serData, err := serialize.SerializeToBytes(rootBlock)
 	if err != nil {
 		return nil, err
@@ -69,6 +69,12 @@ func rootBlockEncoder(rootBlock *types.RootBlock) (map[string]interface{}, error
 		"difficulty":     (*hexutil.Big)(header.Difficulty),
 		"timestamp":      hexutil.Uint64(header.Time),
 		"size":           hexutil.Uint64(len(serData)),
+	}
+	if extraInfo != nil {
+		fields["effectiveDifficulty"] = (*hexutil.Big)(extraInfo.EffectiveDifficulty)
+		fields["poswMineableBlocks"] = (hexutil.Uint64)(extraInfo.PoswMineableBlocks)
+		fields["poswMinedBlocks"] = (hexutil.Uint64)(extraInfo.PoswMinedBlocks)
+		fields["stakingApplied"] = extraInfo.EffectiveDifficulty.Cmp(header.Difficulty) < 0
 	}
 
 	minorHeaders := make([]map[string]interface{}, 0)
