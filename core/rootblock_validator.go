@@ -185,7 +185,8 @@ func (v *RootBlockValidator) ValidateSeal(rHeader types.IHeader, usePosw bool) e
 	}
 	adjustedDiff := header.GetDifficulty()
 	if usePosw {
-		adjustedDiff, _, _ = v.blockChain.GetAdjustedDifficulty(rHeader)
+		diff, optionalDivider, _ := v.blockChain.GetAdjustedDifficulty(rHeader)
+		adjustedDiff = new(big.Int).Div(diff, new(big.Int).SetUint64(optionalDivider))
 	} else {
 		if crypto.VerifySignature(v.config.GuardianPublicKey, rHeader.SealHash().Bytes(), header.Signature[:64]) {
 			adjustedDiff = new(big.Int).Div(adjustedDiff, new(big.Int).SetUint64(1000))
