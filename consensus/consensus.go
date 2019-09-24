@@ -262,10 +262,12 @@ func (c *CommonEngine) Seal(
 	chain ChainReader,
 	block types.IBlock,
 	diff *big.Int,
+	optionalDivider uint64,
 	results chan<- types.IBlock,
 	stop <-chan struct{}) error {
+
 	if c.isRemote {
-		c.SetWork(block, diff, results)
+		c.SetWork(block, diff, optionalDivider, results)
 		return nil
 	}
 	return c.localSeal(block, diff, results, stop)
@@ -411,8 +413,8 @@ func (c *CommonEngine) SetThreads(threads int) {
 	c.threads = threads
 }
 
-func (c *CommonEngine) SetWork(block types.IBlock, diff *big.Int, results chan<- types.IBlock) {
-	c.workCh <- &sealTask{block, diff, results}
+func (c *CommonEngine) SetWork(block types.IBlock, diff *big.Int, optionalDivider uint64, results chan<- types.IBlock) {
+	c.workCh <- &sealTask{block, diff, optionalDivider, results}
 }
 
 func (c *CommonEngine) Close() error {

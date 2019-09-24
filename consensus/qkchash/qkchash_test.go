@@ -119,7 +119,7 @@ func sealBlock(t *testing.T, q *QKCHash, h *types.RootBlockHeader) {
 	resultsCh := make(chan types.IBlock)
 	rootBlock := types.NewRootBlockWithHeader(h)
 	stop := make(chan struct{})
-	err := q.Seal(nil, rootBlock, nil, resultsCh, stop)
+	err := q.Seal(nil, rootBlock, nil, 1, resultsCh, stop)
 	assert.NoError(t, err, "should have no problem sealing the block")
 	block := <-resultsCh
 	close(stop)

@@ -111,7 +111,7 @@ func (m *Miner) mainLoop() {
 		case work := <-m.workCh: //to discuss:need this?
 			log.Info(m.logInfo, "ready to seal height", work.block.NumberU64(), "coinbase", work.block.IHeader().GetCoinbase().ToHex())
 			adjustedDiff := new(big.Int).Div(work.adjustedDifficulty, new(big.Int).SetUint64(work.optionalDivider))
-			if err := m.engine.Seal(nil, work.block, adjustedDiff, m.resultCh, m.stopCh); err != nil {
+			if err := m.engine.Seal(nil, work.block, adjustedDiff, work.optionalDivider, m.resultCh, m.stopCh); err != nil {
 				log.Error(m.logInfo, "Seal block to mine err", err)
 				coinbase := work.block.IHeader().GetCoinbase()
 				m.commit(&coinbase)
@@ -161,7 +161,8 @@ func (m *Miner) GetWork(coinbaseAddr *account.Address) (*consensus.MiningWork, e
 			block, diff, optionalDivider, err := m.api.CreateBlockToMine(&addrForGetWork)
 			if err == nil {
 				m.workCh <- workAdjusted{block, diff, optionalDivider}
-				return &consensus.MiningWork{HeaderHash: block.IHeader().SealHash(), Number: block.NumberU64(), Difficulty: diff}, nil
+				return &consensus.MiningWork{HeaderHash: block.IHeader().SealHash(), Number: block.NumberU64(),
+					OptionalDivider: optionalDivider, Difficulty: diff}, nil
 			}
 			return nil, err
 		}
