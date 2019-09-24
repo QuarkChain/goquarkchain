@@ -240,9 +240,6 @@ func (b *TokenBalances) Serialize(w *[]byte) error {
 	}
 	for _, key := range keys {
 		v := b.balances[key]
-		//if v.Cmp(common.Big0) == 0 {
-		//	continue
-		//}
 		if err := serialize.Serialize(w, new(big.Int).SetUint64(key)); err != nil {
 			return err
 		}
