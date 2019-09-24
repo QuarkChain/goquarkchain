@@ -89,7 +89,7 @@ type QuarkChainConfig struct {
 	TransactionQueueSizeLimitPerShard uint64      `json:"TRANSACTION_QUEUE_SIZE_LIMIT_PER_SHARD"`
 	BlockExtraDataSizeLimit           uint32      `json:"BLOCK_EXTRA_DATA_SIZE_LIMIT"`
 	GuardianPublicKey                 []byte      `json:"-"`
-	GuardianPrivateKey                []byte      `json:"GUARDIAN_PRIVATE_KEY"`
+	RootSignerPrivateKey              []byte      `json:"ROOT_SIGNER_PRIVATE_KEY"`
 	P2PProtocolVersion                uint32      `json:"P2P_PROTOCOL_VERSION"`
 	P2PCommandSizeLimit               uint32      `json:"P2P_COMMAND_SIZE_LIMIT"`
 	SkipRootDifficultyCheck           bool        `json:"SKIP_ROOT_DIFFICULTY_CHECK"`
@@ -249,8 +249,8 @@ func (q *QuarkChainConfig) initAndValidate() {
 	if q.MinTXPoolGasPrice == nil {
 		q.MinTXPoolGasPrice = new(big.Int).SetUint64(1000000000)
 	}
-	if q.XShardGasDDOSFixRootHeight==0{
-		q.XShardGasDDOSFixRootHeight=90000
+	if q.XShardGasDDOSFixRootHeight == 0 {
+		q.XShardGasDDOSFixRootHeight = 90000
 	}
 	if len(q.GuardianPublicKey) != 65 && len(q.GuardianPublicKey) != 0 {
 		fmt.Println("len", len(q.GuardianPublicKey))
@@ -336,7 +336,7 @@ func NewQuarkChainConfig() *QuarkChainConfig {
 		TransactionQueueSizeLimitPerShard: 10000,
 		BlockExtraDataSizeLimit:           1024,
 		GuardianPublicKey:                 ethcom.FromHex("04ab856abd0983a82972021e454fcf66ed5940ed595b0898bcd75cbe2d0a51a00f5358b566df22395a2a8bf6c022c1d51a2c3defe654e91a8d244947783029694d"),
-		GuardianPrivateKey:                nil,
+		RootSignerPrivateKey:              nil,
 		P2PProtocolVersion:                0,
 		P2PCommandSizeLimit:               DefaultP2PCmddSizeLimit,
 		SkipRootDifficultyCheck:           false,
