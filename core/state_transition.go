@@ -341,7 +341,7 @@ func (st *StateTransition) AddCrossShardTxDeposit(intrinsicGas uint64) (ret []by
 		crossShardGas := new(serialize.Uint256)
 		crossShardGas.Value = new(big.Int)
 
-		if state.GetQuarkChainConfig().EnableEvmTimeStamp != 0 || state.GetTimeStamp() >= state.GetQuarkChainConfig().EnableEvmTimeStamp {
+		if state.GetTimeStamp() >= state.GetQuarkChainConfig().EnableEvmTimeStamp {
 			remoteGasReserved = msg.Gas() - intrinsicGas
 			crossShardGas.Value = new(big.Int).SetUint64(remoteGasReserved)
 		}
