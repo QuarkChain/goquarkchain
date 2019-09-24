@@ -49,6 +49,9 @@ type Backend interface {
 }
 
 func GetAPIs(apiBackend Backend) []rpc.API {
+	once.Do(func() {
+		clusterCfg = apiBackend.GetClusterConfig()
+	})
 	return []rpc.API{
 		{
 			Namespace: "qkc",
@@ -61,6 +64,12 @@ func GetAPIs(apiBackend Backend) []rpc.API {
 			Version:   "1.0",
 			Service:   NewPrivateBlockChainAPI(apiBackend),
 			Public:    false,
+		},
+		{
+			Namespace: "eth",
+			Version:   "1.0",
+			Service:   NewEthAPI(apiBackend),
+			Public:    true,
 		},
 	}
 }
