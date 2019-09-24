@@ -71,7 +71,7 @@ func rootBlockEncoder(rootBlock *types.RootBlock) (map[string]interface{}, error
 		"timestamp":         hexutil.Uint64(header.Time),
 		"size":              hexutil.Uint64(len(serData)),
 		"minorBlockHeaders": make([]types.MinorBlockHeader, 0),
-		"signature":         hexutil.Encode(header.Signature[:]),
+		"signature":         DataEncoder(header.Signature[:]),
 	}
 
 	minorHeaders := make([]map[string]interface{}, 0)
