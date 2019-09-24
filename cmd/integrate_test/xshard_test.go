@@ -25,6 +25,14 @@ import (
 
 const GTXCOST = 21000
 
+func retryTrueWithTimeout(f func() bool, duration int64) bool {
+	deadLine := time.Now().Unix() + duration
+	for !f() && time.Now().Unix() < deadLine {
+		time.Sleep(500 * time.Millisecond) // 0.5 second
+	}
+	return f()
+}
+
 func assertBalance(t *testing.T, master *master.QKCMasterBackend, acc account.Address, exp *big.Int) {
 	ad, err := master.GetPrimaryAccountData(&acc, nil)
 	assert.NoError(t, err)
@@ -867,10 +875,30 @@ func TestGetWorkFromMaster(t *testing.T) {
 	runtime.GC()
 }
 
-func retryTrueWithTimeout(f func() bool, duration int64) bool {
-	deadLine := time.Now().Unix() + duration
-	for !f() && time.Now().Unix() < deadLine {
-		time.Sleep(500 * time.Millisecond) // 0.5 second
-	}
-	return f()
+func TestGetWorkWithOptionalDiffDivider(t *testing.T) {
+	//TODO
+	//id1, err := account.CreatRandomIdentity()
+	//assert.NoError(t, err)
+	//acc1 := account.CreatAddressFromIdentity(id1, 0)
+	//var chainSize, shardSize, slaveSize uint32 = 2, 1, 2
+	//cfglist := GetClusterConfig(1, chainSize, shardSize, slaveSize, nil, defaultbootNode,
+	//	config.PoWSimulate, true)
+	//for _, cfg := range cfglist {
+	//	cfg.Quarkchain.Root.PoSWConfig.Enabled = true
+	//	cfg.Quarkchain.Root.PoSWConfig.EnableTimestamp = 0
+	//	cfg.Quarkchain.Root.PoSWConfig.WindowSize = 2
+	//}
+	//_, cluster := CreateClusterList(1, cfglist)
+	//cluster.Start(5*time.Second, true)
+	//defer cluster.Stop()
+	//
+	//c := cluster[0]
+	//mstr := c.GetMaster()
+	//slaves := c.GetSlavelist()
+	//shard := slaves[0].GetShard(1)
+	////	add a root block first to init shard chains
+	//block, _, _, err := mstr.CreateBlockToMine(&acc1)
+	//assert.NoError(t, err)
+	//assert.NoError(t, mstr.AddRootBlock(block.(*types.RootBlock)))
+
 }
