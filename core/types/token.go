@@ -173,7 +173,7 @@ func (b *TokenBalances) SerializeToBytes() ([]byte, error) {
 	case byte(0):
 		list := make([]*TokenBalancePair, 0)
 		for k, v := range b.balances {
-			if v.Cmp(new(big.Int).SetUint64(0)) == 0 {
+			if v.Cmp(common.Big0) == 0 {
 				continue
 			}
 			list = append(list, &TokenBalancePair{
