@@ -534,23 +534,27 @@ func (tab *Table) copyLiveNodes() {
 	tab.mutex.Lock()
 	defer tab.mutex.Unlock()
 
-	tab.rLock.Lock()
-	tab.nodeUrls = make([]string, 0, nBuckets*bucketSize)
-	for _, b := range &tab.buckets {
-		for _, n := range b.entries {
-			tab.nodeUrls = append(tab.nodeUrls, n.Node.String())
-		}
+	nodes := make(map[enode.ID]*node)
+	for _, n := range tab.db.QuerySeeds(seedCount, seedMaxAge) {
+		nodes[n.ID()] = wrapNode(n)
 	}
-	tab.rLock.Unlock()
 
 	now := time.Now()
 	for _, b := range &tab.buckets {
 		for _, n := range b.entries {
+			nodes[n.ID()] = n
 			if now.Sub(n.addedAt) >= seedMinTableTime {
 				tab.db.UpdateNode(unwrapNode(n))
 			}
 		}
 	}
+
+	tab.rLock.Lock()
+	tab.nodeUrls = make([]string, 0, nBuckets*bucketSize)
+	for _, n := range nodes {
+		tab.nodeUrls = append(tab.nodeUrls, n.Node.String())
+	}
+	tab.rLock.Unlock()
 }
 
 // closest returns the n nodes in the table that are closest to the
