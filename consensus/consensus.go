@@ -169,11 +169,11 @@ func (c *CommonEngine) VerifyHeader(
 		}
 	}
 
-	adjustedDiff, _, err := chain.GetAdjustedDifficulty(header)
+	diff, divider, err := chain.GetAdjustedDifficulty(header)
 	if err != nil {
 		return err
 	}
-
+	adjustedDiff := new(big.Int).Div(diff, new(big.Int).SetUint64(divider))
 	return c.VerifySeal(chain, header, adjustedDiff)
 }
 

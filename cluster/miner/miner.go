@@ -110,7 +110,8 @@ func (m *Miner) mainLoop() {
 
 		case work := <-m.workCh: //to discuss:need this?
 			log.Info(m.logInfo, "ready to seal height", work.block.NumberU64(), "coinbase", work.block.IHeader().GetCoinbase().ToHex())
-			if err := m.engine.Seal(nil, work.block, work.adjustedDifficulty, m.resultCh, m.stopCh); err != nil {
+			adjustedDiff := new(big.Int).Div(work.adjustedDifficulty, new(big.Int).SetUint64(work.optionalDivider))
+			if err := m.engine.Seal(nil, work.block, adjustedDiff, m.resultCh, m.stopCh); err != nil {
 				log.Error(m.logInfo, "Seal block to mine err", err)
 				coinbase := work.block.IHeader().GetCoinbase()
 				m.commit(&coinbase)
