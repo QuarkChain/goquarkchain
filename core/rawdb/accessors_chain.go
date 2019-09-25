@@ -413,6 +413,7 @@ func DeleteMinorBlock(db DatabaseDeleter, hash common.Hash) {
 	DeleteMinorBlockHeader(db, hash)
 	DeleteBlock(db, hash)
 	DeleteTd(db, hash)
+	DeleteMinorBlockCommitStatus(db, hash)
 }
 
 // DeleteRootBlock removes all block data associated with a hash.
@@ -684,4 +685,10 @@ func HasCommitMinorBlock(db DatabaseReader, h common.Hash) bool {
 		return false
 	}
 	return true
+}
+
+func DeleteMinorBlockCommitStatus(db DatabaseDeleter, h common.Hash) {
+	if err := db.Delete(makeCommitMinorBlock(h)); err != nil {
+		log.Crit("Failed to delete commit minor block", "err", err)
+	}
 }

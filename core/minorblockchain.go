@@ -322,7 +322,7 @@ func (m *MinorBlockChain) SetHead(head uint64) error {
 
 	// Rewind the header chain, deleting all block bodies until then
 	delFn := func(db rawdb.DatabaseDeleter, hash common.Hash) {
-		rawdb.DeleteBlock(db, hash)
+		rawdb.DeleteMinorBlock(db, hash)
 	}
 	m.hc.SetHead(head, delFn)
 	currentHeader := m.hc.CurrentHeader()
