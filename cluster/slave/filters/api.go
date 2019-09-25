@@ -7,7 +7,6 @@ import (
 	"time"
 
 	qrpc "github.com/QuarkChain/goquarkchain/cluster/rpc"
-	"github.com/QuarkChain/goquarkchain/cluster/shard"
 	qsync "github.com/QuarkChain/goquarkchain/cluster/sync"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/common"
@@ -20,7 +19,7 @@ var (
 )
 
 type SlaveBackend interface {
-	GetShardBackend(fullShardId uint32) (*shard.ShardBackend, error)
+	GetShardBackend(fullShardId uint32) (ShardBackend, error)
 	GetFullShardList() []uint32
 }
 

@@ -107,7 +107,7 @@ func (p *PoSW) GetCoinbaseAddressUntilBlock(headerHash common.Hash) ([]account.R
 	if qkcCommon.IsNil(header) {
 		return nil, fmt.Errorf("curr block not found: hash %x", headerHash)
 	}
-	length := int(p.config.WindowSize)
+	length := int(p.config.WindowSize) - 1
 	addrs := make([]account.Recipient, 0, length)
 	height := header.NumberU64()
 	prevHash := header.GetParentHash()

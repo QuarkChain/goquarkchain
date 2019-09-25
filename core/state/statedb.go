@@ -236,7 +236,7 @@ func (s *StateDB) GetBalance(addr common.Address, tokenID uint64) *big.Int {
 }
 
 func (s *StateDB) GetBalances(addr common.Address) *types.TokenBalances {
-	stateObject := s.getStateObject(addr)
+	stateObject := s.GetOrNewStateObject(addr)
 	if stateObject != nil {
 		return stateObject.data.TokenBalances.Copy()
 	}
@@ -244,7 +244,7 @@ func (s *StateDB) GetBalances(addr common.Address) *types.TokenBalances {
 }
 
 func (s *StateDB) GetNonce(addr common.Address) uint64 {
-	stateObject := s.getStateObject(addr)
+	stateObject := s.GetOrNewStateObject(addr)
 	if stateObject != nil {
 		return stateObject.Nonce()
 	}

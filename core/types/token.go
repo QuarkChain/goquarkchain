@@ -1,6 +1,7 @@
 package types
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/QuarkChain/goquarkchain/serialize"
 	"github.com/ethereum/go-ethereum/common"
@@ -8,6 +9,7 @@ import (
 	"io"
 	"math/big"
 	"sort"
+	"strings"
 )
 
 type TokenBalancePair struct {
@@ -22,6 +24,50 @@ type TokenBalances struct {
 	//TODO need to lock balances?
 }
 
+type TokenBalancesAlias TokenBalances
+
+func (t *TokenBalances) MarshalJSON() ([]byte, error) {
+	balances := ""
+	for key, val := range t.balances {
+		bal := fmt.Sprintf("%d:%d", key, val.Uint64())
+		if balances == "" {
+			balances = bal
+		} else {
+			balances += "," + bal
+		}
+	}
+	jsoncfg := struct {
+		TokenBalancesAlias
+		Balances string `json:"balances"`
+	}{TokenBalancesAlias: TokenBalancesAlias(*t), Balances: balances}
+	return json.Marshal(jsoncfg)
+}
+
+func (t *TokenBalances) UnmarshalJSON(input []byte) error {
+	var jsoncfg struct {
+		TokenBalancesAlias
+		Balances string `json:"balances"`
+	}
+	if err := json.Unmarshal(input, &jsoncfg); err != nil {
+		return err
+	}
+	*t = TokenBalances(jsoncfg.TokenBalancesAlias)
+	t.balances = make(map[uint64]*big.Int)
+	balList := strings.Split(jsoncfg.Balances, ",")
+	for _, val := range balList {
+		var (
+			key     int
+			balance int
+		)
+		_, err := fmt.Fscanf(strings.NewReader(val), "%d:%d", &key, &balance)
+		if err != nil {
+			return err
+		}
+		t.balances[uint64(key)] = big.NewInt(int64(balance))
+	}
+	return nil
+}
+
 func NewEmptyTokenBalances() *TokenBalances {
 	return &TokenBalances{
 		balances: make(map[uint64]*big.Int),
@@ -34,7 +80,6 @@ func NewTokenBalancesWithMap(data map[uint64]*big.Int) *TokenBalances {
 		balances: data,
 		Enum:     byte(0),
 	}
-	t.checkZero()
 	return t
 }
 
@@ -63,14 +108,6 @@ func NewTokenBalances(data []byte) (*TokenBalances, error) {
 	return tokenBalances, nil
 }
 
-func (b *TokenBalances) checkZero() {
-	for k, v := range b.balances {
-		if v.Cmp(new(big.Int)) == 0 {
-			delete(b.balances, k)
-		}
-	}
-}
-
 func (b *TokenBalances) Add(other map[uint64]*big.Int) {
 	for k, v := range other {
 		if data, ok := b.balances[k]; ok {
@@ -79,16 +116,11 @@ func (b *TokenBalances) Add(other map[uint64]*big.Int) {
 			b.balances[k] = new(big.Int).Set(v)
 		}
 	}
-	b.checkZero()
 }
 
 func (b *TokenBalances) SetValue(amount *big.Int, tokenID uint64) {
 	if amount.Cmp(new(big.Int)) < 0 {
 		panic("serious bug !!!!!!!!!!!!!")
-	}
-	if amount.Cmp(new(big.Int)) == 0 {
-		delete(b.balances, tokenID)
-		return
 	}
 	b.balances[tokenID] = amount
 }
@@ -141,6 +173,9 @@ func (b *TokenBalances) SerializeToBytes() ([]byte, error) {
 	case byte(0):
 		list := make([]*TokenBalancePair, 0)
 		for k, v := range b.balances {
+			if v.Cmp(common.Big0) == 0 {
+				continue
+			}
 			list = append(list, &TokenBalancePair{
 				TokenID: k,
 				Balance: v,

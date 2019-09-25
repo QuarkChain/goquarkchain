@@ -735,7 +735,7 @@ func TestPoSWOnRootChain(t *testing.T) {
 		config.PoWDoubleSha256, false)
 	quarkChain := cfglist[0].Quarkchain
 	quarkChain.RootChainPoSWContractBytecodeHash = crypto.Keccak256Hash(contractCode)
-	quarkChain.GuardianPrivateKey = []byte{}
+	quarkChain.RootSignerPrivateKey = []byte{}
 	quarkChain.MinMiningGasPrice = new(big.Int)
 	quarkChain.MinTXPoolGasPrice = new(big.Int)
 	quarkChain.EnableEvmTimeStamp = 1

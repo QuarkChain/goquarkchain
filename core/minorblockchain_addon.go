@@ -74,19 +74,21 @@ func powerBigInt(data *big.Int, p uint64) *big.Int {
 }
 
 func (m *MinorBlockChain) getCoinbaseAmount(height uint64) *types.TokenBalances {
-	config := m.clusterConfig.Quarkchain.GetShardConfigByFullShardID(uint32(m.branch.Value))
-	epoch := new(big.Int).Div(new(big.Int).SetUint64(height), config.EpochInterval)
-
-	decayNumerator := powerBigInt(m.clusterConfig.Quarkchain.BlockRewardDecayFactor.Num(), epoch.Uint64())
-	decayDenominator := powerBigInt(m.clusterConfig.Quarkchain.BlockRewardDecayFactor.Denom(), epoch.Uint64())
-	coinbaseAmount := new(big.Int).Mul(config.CoinbaseAmount, m.clusterConfig.Quarkchain.RewardTaxRate.Num())
-	coinbaseAmount = new(big.Int).Mul(coinbaseAmount, decayNumerator)
-	coinbaseAmount = new(big.Int).Div(coinbaseAmount, m.clusterConfig.Quarkchain.RewardTaxRate.Denom())
-	coinbaseAmount = new(big.Int).Div(coinbaseAmount, decayDenominator)
-
-	data := make(map[uint64]*big.Int)
-	data[m.clusterConfig.Quarkchain.GetDefaultChainTokenID()] = coinbaseAmount
-	return types.NewTokenBalancesWithMap(data)
+	epoch := height / m.shardConfig.EpochInterval
+	balances, ok := m.coinbaseAmountCache[epoch]
+	if !ok {
+		decayNumerator := powerBigInt(m.clusterConfig.Quarkchain.BlockRewardDecayFactor.Num(), epoch)
+		decayDenominator := powerBigInt(m.clusterConfig.Quarkchain.BlockRewardDecayFactor.Denom(), epoch)
+		coinbaseAmount := new(big.Int).Mul(m.shardConfig.CoinbaseAmount, m.clusterConfig.Quarkchain.RewardTaxRate.Num())
+		coinbaseAmount = new(big.Int).Mul(coinbaseAmount, decayNumerator)
+		coinbaseAmount = new(big.Int).Div(coinbaseAmount, m.clusterConfig.Quarkchain.RewardTaxRate.Denom())
+		coinbaseAmount = new(big.Int).Div(coinbaseAmount, decayDenominator)
+		data := make(map[uint64]*big.Int)
+		data[m.clusterConfig.Quarkchain.GetDefaultChainTokenID()] = coinbaseAmount
+		balances = types.NewTokenBalancesWithMap(data)
+		m.coinbaseAmountCache[epoch] = balances
+	}
+	return balances.Copy()
 }
 
 func (m *MinorBlockChain) putMinorBlock(mBlock *types.MinorBlock, xShardReceiveTxList []*types.CrossShardTransactionDeposit) error {
@@ -431,8 +433,7 @@ func (m *MinorBlockChain) runBlock(block *types.MinorBlock) (*state.StateDB, typ
 		return nil, nil, nil, 0, nil, ErrRootBlockIsNil
 	}
 	xShardReceiveTxList := make([]*types.CrossShardTransactionDeposit, 0)
-	coinbase := block.Coinbase().Recipient
-	preEvmState, err := m.stateAtWithSenderDisallowMap(parent, &coinbase)
+	preEvmState, err := m.getEvmStateForNewBlock(block.Header(), false)
 	if err != nil {
 		return nil, nil, nil, 0, nil, err
 	}
