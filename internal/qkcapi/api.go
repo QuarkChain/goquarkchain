@@ -16,8 +16,6 @@ import (
 	"sort"
 )
 
-
-
 type CommonAPI struct {
 	b Backend
 }
@@ -705,8 +703,8 @@ func NewEthAPI(b Backend) *EthBlockChainAPI {
 	return &EthBlockChainAPI{b: b, CommonAPI: CommonAPI{b}}
 }
 
-func (e *EthBlockChainAPI) GasPrice(fullShardKey hexutil.Uint) (hexutil.Uint64, error) {
-	fullShardId, err := getFullShardId(&fullShardKey)
+func (e *EthBlockChainAPI) GasPrice(fullShardKey *hexutil.Uint) (hexutil.Uint64, error) {
+	fullShardId, err := getFullShardId(fullShardKey)
 	if err != nil {
 		return hexutil.Uint64(0), err
 	}
@@ -715,12 +713,11 @@ func (e *EthBlockChainAPI) GasPrice(fullShardKey hexutil.Uint) (hexutil.Uint64, 
 }
 
 func (e *EthBlockChainAPI) GetBlockByNumber(heightInput *hexutil.Uint64) (map[string]interface{}, error) {
-	fullShardId := uint32(0)
 	height, err := transHexutilUint64ToUint64(heightInput)
 	if err != nil {
 		return nil, err
 	}
-	minorBlock, extraData, err := e.b.GetMinorBlockByHeight(height, account.Branch{Value: fullShardId}, false)
+	minorBlock, extraData, err := e.b.GetMinorBlockByHeight(height, account.Branch{Value: 0}, false)
 	if err != nil {
 		return nil, err
 	}
@@ -783,4 +780,12 @@ func (e *EthBlockChainAPI) EstimateGas(data EthCallArgs, fullShardKey *hexutil.U
 	return e.CommonAPI.CallOrEstimateGas(args, nil, true)
 }
 
-func (e *EthBlockChainAPI) GetStorageAt() {}
+func (e *EthBlockChainAPI) GetStorageAt(address common.Address, key common.Hash, fullShardKey *hexutil.Uint) (hexutil.Bytes, error) {
+	fullShardId, err := getFullShardId(fullShardKey)
+	if err != nil {
+		return nil, err
+	}
+	addr := account.NewAddress(address, fullShardId)
+	hash, err := e.b.GetStorageAt(&addr, key, nil)
+	return hash.Bytes(), err
+}
