@@ -80,7 +80,6 @@ type Table struct {
 
 	// check black node, default false
 	checkDialBlackList func(string) bool
-	rLock              sync.RWMutex
 	nodeUrls           []string
 
 	nodeAddedHook func(*node) // for testing
@@ -147,8 +146,6 @@ func (tab *Table) seedRand() {
 }
 
 func (tab *Table) GetKadRoutingTable() []string {
-	tab.rLock.RLock()
-	defer tab.rLock.RUnlock()
 	return tab.nodeUrls
 }
 
@@ -549,12 +546,11 @@ func (tab *Table) copyLiveNodes() {
 		}
 	}
 
-	tab.rLock.Lock()
-	tab.nodeUrls = make([]string, 0, nBuckets*bucketSize)
+	urls := make([]string, 0, nBuckets*bucketSize)
 	for _, n := range nodes {
-		tab.nodeUrls = append(tab.nodeUrls, n.Node.String())
+		urls = append(urls, n.Node.String())
 	}
-	tab.rLock.Unlock()
+	tab.nodeUrls = urls
 }
 
 // closest returns the n nodes in the table that are closest to the
