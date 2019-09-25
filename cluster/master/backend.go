@@ -7,7 +7,6 @@ import (
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/cluster/miner"
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
-	qrpc "github.com/QuarkChain/goquarkchain/rpc"
 	"github.com/QuarkChain/goquarkchain/cluster/service"
 	Synchronizer "github.com/QuarkChain/goquarkchain/cluster/sync"
 	"github.com/QuarkChain/goquarkchain/consensus"
@@ -19,6 +18,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/internal/qkcapi"
 	"github.com/QuarkChain/goquarkchain/p2p"
+	qrpc "github.com/QuarkChain/goquarkchain/rpc"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/ethdb"
@@ -103,7 +103,7 @@ func New(ctx *service.ServiceContext, cfg *config.ClusterConfig) (*QKCMasterBack
 		}
 		err error
 	)
-	if mstr.chainDb, err = createDB(ctx, cfg.DbPathRoot, cfg.Clean, cfg.CheckDB); err != nil {
+	if mstr.chainDb, err = createDB(ctx, "db", cfg.Clean, cfg.CheckDB); err != nil {
 		return nil, err
 	}
 

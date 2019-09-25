@@ -31,7 +31,7 @@ type BlockCommitCode int
 
 const (
 	BLOCK_UNCOMMITTED BlockCommitCode = iota
-	BLOCK_COMMITTING                  // TODO not support yet,need discuss
+	BLOCK_COMMITTING   // TODO not support yet,need discuss
 	BLOCK_COMMITTED
 )
 
@@ -84,7 +84,7 @@ func New(ctx *service.ServiceContext, rBlock *types.RootBlock, conn ConnManager,
 	)
 	shard.maxBlocks = shard.Config.MaxBlocksPerShardInOneRootBlock()
 
-	shard.chainDb, err = createDB(ctx, fmt.Sprintf("shard-%d.db", fullshardId), cfg.Clean, cfg.CheckDB)
+	shard.chainDb, err = createDB(ctx, fmt.Sprintf("shard-%d/db", fullshardId), cfg.Clean, cfg.CheckDB)
 	if err != nil {
 		return nil, err
 	}
