@@ -6,15 +6,15 @@ import (
 	"github.com/QuarkChain/goquarkchain/core"
 	"math/big"
 
-	qrpc "github.com/QuarkChain/goquarkchain/cluster/rpc"
 	qsync "github.com/QuarkChain/goquarkchain/cluster/sync"
 	"github.com/QuarkChain/goquarkchain/core/types"
+	"github.com/QuarkChain/goquarkchain/rpc"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/event"
 )
 
 type ShardBackend interface {
-	GetHeaderByNumber(height qrpc.BlockNumber) (*types.MinorBlockHeader, error)
+	GetHeaderByNumber(height rpc.BlockNumber) (*types.MinorBlockHeader, error)
 	GetHeaderByHash(blockHash common.Hash) (*types.MinorBlockHeader, error)
 	GetReceiptsByHash(hash common.Hash) (types.Receipts, error)
 	GetLogs(hash common.Hash) ([][]*types.Log, error)
@@ -101,7 +101,7 @@ func (f *Filter) Logs(ctx context.Context) ([]*types.Log, error) {
 		return f.blockLogs(ctx, header)
 	}
 	// Figure out the limits of the filter range
-	header, err := f.backend.GetHeaderByNumber(qrpc.LatestBlockNumber)
+	header, err := f.backend.GetHeaderByNumber(rpc.LatestBlockNumber)
 	if err != nil {
 		return nil, err
 	}
@@ -130,7 +130,7 @@ func (f *Filter) unindexedLogs(ctx context.Context, end uint64) ([]*types.Log, e
 	var logs []*types.Log
 
 	for ; f.begin <= int64(end); f.begin++ {
-		header, err := f.backend.GetHeaderByNumber(qrpc.BlockNumber(f.begin))
+		header, err := f.backend.GetHeaderByNumber(rpc.BlockNumber(f.begin))
 		if header == nil || err != nil {
 			return logs, err
 		}

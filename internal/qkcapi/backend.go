@@ -19,7 +19,7 @@ type Backend interface {
 	GetTransactionReceipt(txHash common.Hash, branch account.Branch) (*types.MinorBlock, uint32, *types.Receipt, error)
 	GetTransactionsByAddress(address *account.Address, start []byte, limit uint32, transferTokenID *uint64) ([]*qrpc.TransactionDetail, []byte, error)
 	GetAllTx(branch account.Branch, start []byte, limit uint32) ([]*qrpc.TransactionDetail, []byte, error)
-	GetLogs(args *qrpc.FilterQuery) ([]*types.Log, error)
+	GetLogs(args *rpc.FilterQuery) ([]*types.Log, error)
 	EstimateGas(tx *types.Transaction, address *account.Address) (uint32, error)
 	GetStorageAt(address *account.Address, key common.Hash, height *uint64) (common.Hash, error)
 	GetCode(address *account.Address, height *uint64) ([]byte, error)

@@ -13,6 +13,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/core"
 	"github.com/QuarkChain/goquarkchain/core/types"
+	qrpc "github.com/QuarkChain/goquarkchain/rpc"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
@@ -66,7 +67,7 @@ func (s *ShardBackend) GetLogs(hash common.Hash) ([][]*types.Log, error) {
 	return s.MinorBlockChain.GetLogs(hash), nil
 }
 
-func (s *ShardBackend) GetLogsByFilterQuery(args *rpc.FilterQuery) ([]*types.Log, error) {
+func (s *ShardBackend) GetLogsByFilterQuery(args *qrpc.FilterQuery) ([]*types.Log, error) {
 	return s.MinorBlockChain.GetLogsByFilterQuery(args)
 }
 
@@ -102,9 +103,9 @@ func (s *ShardBackend) AddRootBlock(rBlock *types.RootBlock) (switched bool, err
 }
 
 // ######################## minor block Methods ########################
-func (s *ShardBackend) GetHeaderByNumber(height rpc.BlockNumber) (*types.MinorBlockHeader, error) {
+func (s *ShardBackend) GetHeaderByNumber(height qrpc.BlockNumber) (*types.MinorBlockHeader, error) {
 	var iHeader types.IHeader
-	if height == rpc.LatestBlockNumber {
+	if height == qrpc.LatestBlockNumber {
 		iHeader = s.MinorBlockChain.CurrentHeader()
 	} else {
 		iHeader = s.MinorBlockChain.GetHeaderByNumber(height.Uint64())

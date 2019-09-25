@@ -10,6 +10,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/p2p"
+	qrpc "github.com/QuarkChain/goquarkchain/rpc"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"golang.org/x/sync/errgroup"
@@ -176,7 +177,7 @@ func (s *QKCMasterBackend) GetAllTx(branch account.Branch, start []byte, limit u
 	return slaveConn.GetAllTx(branch, start, limit)
 }
 
-func (s *QKCMasterBackend) GetLogs(args *rpc.FilterQuery) ([]*types.Log, error) {
+func (s *QKCMasterBackend) GetLogs(args *qrpc.FilterQuery) ([]*types.Log, error) {
 	// not support earlist and pending
 	slaveConn := s.getOneSlaveConnection(account.Branch{Value: args.FullShardId})
 	if slaveConn == nil {

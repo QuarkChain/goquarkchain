@@ -6,52 +6,117 @@ import (
 	"github.com/QuarkChain/goquarkchain/account"
 	qrpc "github.com/QuarkChain/goquarkchain/cluster/rpc"
 	qcom "github.com/QuarkChain/goquarkchain/common"
+	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/rpc"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/rlp"
 	"math/big"
 	"sort"
 )
 
-func decodeBlockNumberToUint64(b Backend, blockNumber *rpc.BlockNumber) (*uint64, error) {
-	if blockNumber == nil {
-		return nil, nil
-	}
-	if *blockNumber == rpc.PendingBlockNumber {
-		return nil, errors.New("is pending block number")
-	}
-	if *blockNumber == rpc.LatestBlockNumber {
-		return nil, nil
-	}
-	if *blockNumber == rpc.EarliestBlockNumber {
-		tBlock := uint64(0)
-		return &tBlock, nil
-	}
 
-	if *blockNumber < 0 {
-		return nil, errors.New("invalid block Num")
-	}
-	tBlock := uint64(blockNumber.Int64())
-	return &tBlock, nil
+
+type CommonAPI struct {
+	b Backend
 }
 
-func transHexutilUint64ToUint64(data *hexutil.Uint64) (*uint64, error) {
-	if data == nil {
-		return nil, nil
+func (c *CommonAPI) CallOrEstimateGas(args *CallArgs, height *uint64, isCall bool) (hexutil.Bytes, error) {
+	if args.To == nil {
+		return nil, errors.New("missing to")
 	}
-	res := uint64(*data)
-	return &res, nil
+	args.setDefaults()
+	tx, err := args.toTx(c.b.GetClusterConfig().Quarkchain)
+	if err != nil {
+		return nil, err
+	}
+	if isCall {
+		res, err := c.b.ExecuteTransaction(tx, args.From, height)
+		if err != nil {
+			return nil, err
+		}
+		return (hexutil.Bytes)(res), nil
+	}
+	data, err := c.b.EstimateGas(tx, args.From)
+	if err != nil {
+		return nil, err
+	}
+	return qcom.Uint32ToBytes(data), nil
+}
+
+func (c *CommonAPI) SendRawTransaction(encodedTx hexutil.Bytes) (hexutil.Bytes, error) {
+	evmTx := new(types.EvmTransaction)
+	if err := rlp.DecodeBytes(encodedTx, evmTx); err != nil {
+		return nil, err
+	}
+	tx := &types.Transaction{
+		EvmTx:  evmTx,
+		TxType: types.EvmTx,
+	}
+
+	if err := c.b.AddTransaction(tx); err != nil {
+		return EmptyTxID, err
+	}
+	return IDEncoder(tx.Hash().Bytes(), tx.EvmTx.FromFullShardKey()), nil
+}
+
+func (c *CommonAPI) GetTransactionReceipt(txID hexutil.Bytes) (map[string]interface{}, error) {
+	txHash, fullShardKey, err := IDDecoder(txID)
+	if err != nil {
+		return nil, err
+	}
+
+	fullShardId, err := clusterCfg.Quarkchain.GetFullShardIdByFullShardKey(fullShardKey)
+	if err != nil {
+		return nil, err
+	}
+	branch := account.Branch{Value: fullShardId}
+	minorBlock, index, receipt, err := c.b.GetTransactionReceipt(txHash, branch)
+	if err != nil {
+		return nil, err
+	}
+	ret, err := receiptEncoder(minorBlock, int(index), receipt)
+	if ret["transactionId"].(string) == "" {
+		ret["transactionId"] = txID.String()
+		ret["transactionHash"] = txHash.String()
+	}
+	return ret, err
+}
+
+func (c *CommonAPI) GetLogs(args *rpc.FilterQuery, fullShardKey *hexutil.Uint) ([]map[string]interface{}, error) {
+	fullShardID, err := getFullShardId(fullShardKey)
+	if err != nil {
+		return nil, err
+	}
+	lastBlockHeight, err := c.b.GetLastMinorBlockByFullShardID(fullShardID)
+	if err != nil {
+		return nil, err
+	}
+	if args.FromBlock == nil || args.FromBlock.Int64() == rpc.LatestBlockNumber.Int64() {
+		args.FromBlock = new(big.Int).SetUint64(lastBlockHeight)
+	}
+	if args.ToBlock == nil || args.ToBlock.Int64() == rpc.LatestBlockNumber.Int64() {
+		args.ToBlock = new(big.Int).SetUint64(lastBlockHeight)
+	}
+	if args.FromBlock.Int64() == rpc.PendingBlockNumber.Int64() || args.ToBlock.Int64() == rpc.PendingBlockNumber.Int64() {
+		return nil, errors.New("not support pending")
+	}
+	args.FullShardId = fullShardID
+
+	log, err := c.b.GetLogs(args)
+	return logListEncoder(log), nil
 }
 
 // It offers only methods that operate on public data that is freely available to anyone.
 type PublicBlockChainAPI struct {
+	CommonAPI
 	b Backend
 }
 
 // NewPublicBlockChainAPI creates a new QuarkChain blockchain API.
 func NewPublicBlockChainAPI(b Backend) *PublicBlockChainAPI {
-	return &PublicBlockChainAPI{b}
+	return &PublicBlockChainAPI{CommonAPI: CommonAPI{b: b}, b: b}
 }
 
 // Echoquantity :should use data without leading zero
@@ -174,7 +239,7 @@ func (p *PublicBlockChainAPI) GetAccountData(address account.Address, blockNr *r
 			"isContract":       accountBranchData.IsContract,
 		}
 		shards = append(shards, shardData)
-		fullShardIDByConfig, err := p.b.GetClusterConfig().Quarkchain.GetFullShardIdByFullShardKey(address.FullShardKey)
+		fullShardIDByConfig, err := clusterCfg.Quarkchain.GetFullShardIdByFullShardKey(address.FullShardKey)
 		if err != nil {
 			return nil, err
 		}
@@ -190,7 +255,7 @@ func (p *PublicBlockChainAPI) GetAccountData(address account.Address, blockNr *r
 }
 
 func (p *PublicBlockChainAPI) SendTransaction(args SendTxArgs) (hexutil.Bytes, error) {
-	if err := args.setDefaults(p.b.GetClusterConfig().Quarkchain); err != nil {
+	if err := args.setDefaults(clusterCfg.Quarkchain); err != nil {
 		return nil, err
 	}
 	tx, err := args.toTransaction()
@@ -201,10 +266,6 @@ func (p *PublicBlockChainAPI) SendTransaction(args SendTxArgs) (hexutil.Bytes, e
 		return EmptyTxID, err
 	}
 	return IDEncoder(tx.Hash().Bytes(), tx.EvmTx.FromFullShardKey()), nil
-}
-
-func (p *PublicBlockChainAPI) SendRawTransaction(encodedTx hexutil.Bytes) (hexutil.Bytes, error) {
-	return sendRawTransaction(p.b, encodedTx)
 }
 
 func (p *PublicBlockChainAPI) GetRootBlockByHash(hash common.Hash) (map[string]interface{}, error) {
@@ -245,11 +306,11 @@ func (p *PublicBlockChainAPI) GetMinorBlockById(blockID hexutil.Bytes, includeTx
 	if err != nil {
 		return nil, err
 	}
-	fullShardIDByConfig, err := p.b.GetClusterConfig().Quarkchain.GetFullShardIdByFullShardKey(uint32(fullShardKey))
+	fullShardId, err := clusterCfg.Quarkchain.GetFullShardIdByFullShardKey(uint32(fullShardKey))
 	if err != nil {
 		return nil, err
 	}
-	branch := account.Branch{Value: fullShardIDByConfig}
+	branch := account.Branch{Value: fullShardId}
 	minorBlock, extra, err := p.b.GetMinorBlockByHash(blockHash, branch, *needExtraInfo)
 	if err != nil {
 		return nil, err
@@ -294,7 +355,7 @@ func (p *PublicBlockChainAPI) GetTransactionById(txID hexutil.Bytes) (map[string
 	if err != nil {
 		return nil, err
 	}
-	fullShardIDByConfig, err := p.b.GetClusterConfig().Quarkchain.GetFullShardIdByFullShardKey(uint32(fullShardKey))
+	fullShardIDByConfig, err := clusterCfg.Quarkchain.GetFullShardIdByFullShardKey(uint32(fullShardKey))
 	if err != nil {
 		return nil, err
 	}
@@ -311,46 +372,22 @@ func (p *PublicBlockChainAPI) GetTransactionById(txID hexutil.Bytes) (map[string
 
 func (p *PublicBlockChainAPI) Call(data CallArgs, blockNr *rpc.BlockNumber) (hexutil.Bytes, error) {
 	if blockNr == nil {
-		return callOrEstimateGas(p.b, &data, nil, true)
+		return p.CommonAPI.CallOrEstimateGas(&data, nil, true)
 	}
 	blockNumber, err := decodeBlockNumberToUint64(p.b, blockNr)
 	if err != nil {
 		return nil, err
 	}
-	return callOrEstimateGas(p.b, &data, blockNumber, true)
+	return p.CommonAPI.CallOrEstimateGas(&data, blockNumber, true)
 
 }
 
 func (p *PublicBlockChainAPI) EstimateGas(data CallArgs) ([]byte, error) {
-	return callOrEstimateGas(p.b, &data, nil, false)
+	return p.CommonAPI.CallOrEstimateGas(&data, nil, false)
 }
 
-func (p *PublicBlockChainAPI) GetTransactionReceipt(txID hexutil.Bytes) (map[string]interface{}, error) {
-	return getTransactionReceipt(p.b, txID)
-}
-
-func (p *PublicBlockChainAPI) GetLogs(args *qrpc.FilterQuery, fullShardKey hexutil.Uint) ([]map[string]interface{}, error) {
-	fullShardID, err := getFullShardId(&fullShardKey)
-	if err != nil {
-		return nil, err
-	}
-	lastBlockHeight, err := p.b.GetLastMinorBlockByFullShardID(fullShardID)
-	if err != nil {
-		return nil, err
-	}
-	if args.FromBlock == nil || args.FromBlock.Int64() == rpc.LatestBlockNumber.Int64() {
-		args.FromBlock = new(big.Int).SetUint64(lastBlockHeight)
-	}
-	if args.ToBlock == nil || args.ToBlock.Int64() == rpc.LatestBlockNumber.Int64() {
-		args.ToBlock = new(big.Int).SetUint64(lastBlockHeight)
-	}
-	if args.FromBlock.Int64() == rpc.PendingBlockNumber.Int64() || args.ToBlock.Int64() == rpc.PendingBlockNumber.Int64() {
-		return nil, errors.New("not support pending")
-	}
-	args.FullShardId = fullShardID
-
-	log, err := p.b.GetLogs(args)
-	return logListEncoder(log), nil
+func (p *PublicBlockChainAPI) GetLogs(args *rpc.FilterQuery, fullShardKey hexutil.Uint) ([]map[string]interface{}, error) {
+	return p.CommonAPI.GetLogs(args, &fullShardKey)
 }
 
 func (p *PublicBlockChainAPI) GetStorageAt(address account.Address, key common.Hash, blockNr *rpc.BlockNumber) (hexutil.Bytes, error) {
@@ -539,7 +576,7 @@ func (p *PublicBlockChainAPI) GetTransactionConfirmedByNumberRootBlocks(txID hex
 	if err != nil {
 		return hexutil.Uint(0), err
 	}
-	fullShardID, err := p.b.GetClusterConfig().Quarkchain.GetFullShardIdByFullShardKey(fullShardKey)
+	fullShardID, err := clusterCfg.Quarkchain.GetFullShardIdByFullShardKey(fullShardKey)
 	if err != nil {
 		return hexutil.Uint(0), err
 	}
@@ -582,11 +619,7 @@ func (p *PublicBlockChainAPI) GetTransactionConfirmedByNumberRootBlocks(txID hex
 }
 
 func (p *PublicBlockChainAPI) NetVersion() hexutil.Uint {
-	return hexutil.Uint(p.b.GetClusterConfig().Quarkchain.NetworkID)
-}
-
-func (p *PublicBlockChainAPI) CallOrEstimateGas(args *CallArgs, height *uint64, isCall bool) (hexutil.Bytes, error) {
-	return callOrEstimateGas(p.b, args, height, isCall)
+	return hexutil.Uint(clusterCfg.Quarkchain.NetworkID)
 }
 
 type PrivateBlockChainAPI struct {
@@ -632,7 +665,7 @@ func (p *PrivateBlockChainAPI) GetBlockCount() (map[string]interface{}, error) {
 
 //TODO txGenerate implement
 func (p *PrivateBlockChainAPI) CreateTransactions(args CreateTxArgs) error {
-	config := p.b.GetClusterConfig().Quarkchain
+	config := clusterCfg.Quarkchain
 	if err := args.setDefaults(config); err != nil {
 		return err
 	}
@@ -664,11 +697,12 @@ func (p *PrivateBlockChainAPI) GetKadRoutingTable() ([]string, error) {
 }
 
 type EthBlockChainAPI struct {
+	CommonAPI
 	b Backend
 }
 
 func NewEthAPI(b Backend) *EthBlockChainAPI {
-	return &EthBlockChainAPI{b: b}
+	return &EthBlockChainAPI{b: b, CommonAPI: CommonAPI{b}}
 }
 
 func (e *EthBlockChainAPI) GasPrice(fullShardKey hexutil.Uint) (hexutil.Uint64, error) {
@@ -733,16 +767,12 @@ func (e *EthBlockChainAPI) GetCode(address common.Address, fullShardKey *hexutil
 	return e.b.GetCode(&addr, nil)
 }
 
-func (e *EthBlockChainAPI) Call(data CallArgs, fullShardKey *hexutil.Uint) (hexutil.Bytes, error) {
-	return callOrEstimateGas(e.b, &data, nil, true)
-}
-
-func (e *EthBlockChainAPI) SendRawTransaction(encodedTx hexutil.Bytes) (hexutil.Bytes, error) {
-	return sendRawTransaction(e.b, encodedTx)
-}
-
-func (e *EthBlockChainAPI) GetTransactionReceipt(txID hexutil.Bytes) (map[string]interface{}, error) {
-	return getTransactionReceipt(e.b, txID)
+func (e *EthBlockChainAPI) Call(data EthCallArgs, fullShardKey *hexutil.Uint) (hexutil.Bytes, error) {
+	args, err := convertEthCallData(&data, fullShardKey)
+	if err != nil {
+		return nil, err
+	}
+	return e.CommonAPI.CallOrEstimateGas(args, nil, true)
 }
 
 func (e *EthBlockChainAPI) EstimateGas(data EthCallArgs, fullShardKey *hexutil.Uint) ([]byte, error) {
@@ -750,9 +780,7 @@ func (e *EthBlockChainAPI) EstimateGas(data EthCallArgs, fullShardKey *hexutil.U
 	if err != nil {
 		return nil, err
 	}
-	return callOrEstimateGas(e.b, args, nil, true)
+	return e.CommonAPI.CallOrEstimateGas(args, nil, true)
 }
 
-func (e *EthBlockChainAPI) GetLogs {}
-
-func (e *EthBlockChainAPI) GetStorageAt {}
+func (e *EthBlockChainAPI) GetStorageAt() {}

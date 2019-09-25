@@ -4,11 +4,10 @@ import (
 	"errors"
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
-	qcom "github.com/QuarkChain/goquarkchain/common"
-	"github.com/QuarkChain/goquarkchain/core/types"
+	"github.com/QuarkChain/goquarkchain/rpc"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
-	"github.com/ethereum/go-ethereum/rlp"
+	"math/big"
 	"sync"
 )
 
@@ -27,69 +26,7 @@ func getFullShardId(fullShardKey *hexutil.Uint) (fullShardId uint32, err error) 
 			return
 		}
 	}
-	return 0, nil
-}
-
-func callOrEstimateGas(b Backend, args *CallArgs, height *uint64, isCall bool) (hexutil.Bytes, error) {
-	if args.To == nil {
-		return nil, errors.New("missing to")
-	}
-	args.setDefaults()
-	tx, err := args.toTx(b.GetClusterConfig().Quarkchain)
-	if err != nil {
-		return nil, err
-	}
-	if isCall {
-		res, err := b.ExecuteTransaction(tx, args.From, height)
-		if err != nil {
-			return nil, err
-		}
-		return (hexutil.Bytes)(res), nil
-	}
-	data, err := b.EstimateGas(tx, args.From)
-	if err != nil {
-		return nil, err
-	}
-	return qcom.Uint32ToBytes(data), nil
-}
-
-func sendRawTransaction(b Backend, encodedTx hexutil.Bytes) (hexutil.Bytes, error) {
-	evmTx := new(types.EvmTransaction)
-	if err := rlp.DecodeBytes(encodedTx, evmTx); err != nil {
-		return nil, err
-	}
-	tx := &types.Transaction{
-		EvmTx:  evmTx,
-		TxType: types.EvmTx,
-	}
-
-	if err := b.AddTransaction(tx); err != nil {
-		return EmptyTxID, err
-	}
-	return IDEncoder(tx.Hash().Bytes(), tx.EvmTx.FromFullShardKey()), nil
-}
-
-func getTransactionReceipt(b Backend, txID hexutil.Bytes) (map[string]interface{}, error) {
-	txHash, fullShardKey, err := IDDecoder(txID)
-	if err != nil {
-		return nil, err
-	}
-
-	fullShardId, err := clusterCfg.Quarkchain.GetFullShardIdByFullShardKey(fullShardKey)
-	if err != nil {
-		return nil, err
-	}
-	branch := account.Branch{Value: fullShardId}
-	minorBlock, index, receipt, err := b.GetTransactionReceipt(txHash, branch)
-	if err != nil {
-		return nil, err
-	}
-	ret, err := receiptEncoder(minorBlock, int(index), receipt)
-	if ret["transactionId"].(string) == "" {
-		ret["transactionId"] = txID.String()
-		ret["transactionHash"] = txHash.String()
-	}
-	return ret, err
+	return
 }
 
 func convertEthCallData(data *EthCallArgs, fullShardKey *hexutil.Uint) (*CallArgs, error) {
@@ -98,7 +35,10 @@ func convertEthCallData(data *EthCallArgs, fullShardKey *hexutil.Uint) (*CallArg
 		return nil, err
 	}
 	args := &CallArgs{
-		Gas:hexutil.Big(),
+		Gas:      (hexutil.Big)(*big.NewInt(int64(data.Gas))),
+		GasPrice: data.GasPrice,
+		Value:    data.Value,
+		Data:     data.Data,
 	}
 	if data.To != nil {
 		addr := account.NewAddress(*data.To, fullShardId)
@@ -106,4 +46,36 @@ func convertEthCallData(data *EthCallArgs, fullShardKey *hexutil.Uint) (*CallArg
 	}
 	from := account.NewAddress(data.From, fullShardId)
 	args.From = &from
+
+	return args, nil
+}
+
+func decodeBlockNumberToUint64(b Backend, blockNumber *rpc.BlockNumber) (*uint64, error) {
+	if blockNumber == nil {
+		return nil, nil
+	}
+	if *blockNumber == rpc.PendingBlockNumber {
+		return nil, errors.New("is pending block number")
+	}
+	if *blockNumber == rpc.LatestBlockNumber {
+		return nil, nil
+	}
+	if *blockNumber == rpc.EarliestBlockNumber {
+		tBlock := uint64(0)
+		return &tBlock, nil
+	}
+
+	if *blockNumber < 0 {
+		return nil, errors.New("invalid block Num")
+	}
+	tBlock := uint64(blockNumber.Int64())
+	return &tBlock, nil
+}
+
+func transHexutilUint64ToUint64(data *hexutil.Uint64) (*uint64, error) {
+	if data == nil {
+		return nil, nil
+	}
+	res := uint64(*data)
+	return &res, nil
 }
