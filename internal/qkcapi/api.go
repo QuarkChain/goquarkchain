@@ -20,7 +20,7 @@ type CommonAPI struct {
 	b Backend
 }
 
-func (c *CommonAPI) CallOrEstimateGas(args *CallArgs, height *uint64, isCall bool) (hexutil.Bytes, error) {
+func (c *CommonAPI) callOrEstimateGas(args *CallArgs, height *uint64, isCall bool) (hexutil.Bytes, error) {
 	if args.To == nil {
 		return nil, errors.New("missing to")
 	}
@@ -370,18 +370,18 @@ func (p *PublicBlockChainAPI) GetTransactionById(txID hexutil.Bytes) (map[string
 
 func (p *PublicBlockChainAPI) Call(data CallArgs, blockNr *rpc.BlockNumber) (hexutil.Bytes, error) {
 	if blockNr == nil {
-		return p.CommonAPI.CallOrEstimateGas(&data, nil, true)
+		return p.CommonAPI.callOrEstimateGas(&data, nil, true)
 	}
 	blockNumber, err := decodeBlockNumberToUint64(p.b, blockNr)
 	if err != nil {
 		return nil, err
 	}
-	return p.CommonAPI.CallOrEstimateGas(&data, blockNumber, true)
+	return p.CommonAPI.callOrEstimateGas(&data, blockNumber, true)
 
 }
 
 func (p *PublicBlockChainAPI) EstimateGas(data CallArgs) ([]byte, error) {
-	return p.CommonAPI.CallOrEstimateGas(&data, nil, false)
+	return p.CommonAPI.callOrEstimateGas(&data, nil, false)
 }
 
 func (p *PublicBlockChainAPI) GetLogs(args *rpc.FilterQuery, fullShardKey hexutil.Uint) ([]map[string]interface{}, error) {
@@ -769,7 +769,7 @@ func (e *EthBlockChainAPI) Call(data EthCallArgs, fullShardKey *hexutil.Uint) (h
 	if err != nil {
 		return nil, err
 	}
-	return e.CommonAPI.CallOrEstimateGas(args, nil, true)
+	return e.CommonAPI.callOrEstimateGas(args, nil, true)
 }
 
 func (e *EthBlockChainAPI) EstimateGas(data EthCallArgs, fullShardKey *hexutil.Uint) ([]byte, error) {
@@ -777,7 +777,7 @@ func (e *EthBlockChainAPI) EstimateGas(data EthCallArgs, fullShardKey *hexutil.U
 	if err != nil {
 		return nil, err
 	}
-	return e.CommonAPI.CallOrEstimateGas(args, nil, true)
+	return e.CommonAPI.callOrEstimateGas(args, nil, true)
 }
 
 func (e *EthBlockChainAPI) GetStorageAt(address common.Address, key common.Hash, fullShardKey *hexutil.Uint) (hexutil.Bytes, error) {
