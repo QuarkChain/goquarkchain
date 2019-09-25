@@ -246,7 +246,7 @@ func (n *Node) startRPC(services map[reflect.Type]Service) error {
 			n.stopRPC()
 			return err
 		}
-		if err := n.startPrivHTTP(apis, n.config.HTTPModules, n.config.HTTPTimeouts); err != nil {
+		if err := n.startPrivHTTP(apis, n.config.HTTPPrivModules, n.config.HTTPTimeouts); err != nil {
 			n.stopRPC()
 			return err
 		}
@@ -274,13 +274,9 @@ func (n *Node) stopRPC() {
 
 func (n *Node) apiFilter(nodeApis []rpc.API, isPublic bool, modules []string) []rpc.API {
 	apis := make([]rpc.API, 0)
-	allflag := false
-	if len(modules) == 1 && modules[0] == "*" {
-		allflag = true
-	}
 	for _, module := range modules {
 		for _, api := range nodeApis {
-			if (allflag || api.Namespace == module) && api.Public == isPublic {
+			if api.Namespace == module && api.Public == isPublic {
 				apis = append(apis, api)
 			}
 		}
