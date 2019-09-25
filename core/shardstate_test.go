@@ -2841,3 +2841,30 @@ func TestGetRootChainStakes(t *testing.T) {
 	assert.Equal(t, 42, int(stakes.Uint64()))
 	assert.Equal(t, randSigner.GetRecipient(), *signer)
 }
+
+func TestSigToAddr(t *testing.T) {
+	id1, err := account.CreatRandomIdentity()
+	assert.NoError(t, err)
+	acc1 := account.CreatAddressFromIdentity(id1, 0)
+	signerkeyB := []byte{0x2}
+	signerkey := account.BytesToIdentityKey(signerkeyB)
+	signerId, err := account.CreatIdentityFromKey(signerkey)
+	assert.NoError(t, err)
+
+	prvKey, err := crypto.ToECDSA(signerId.GetKey().Bytes())
+	assert.NoError(t, err)
+
+	genesis := uint64(10000000)
+	shardSize := uint32(2)
+	shardId0 := uint32(0)
+	env1 := setUp(&acc1, &genesis, &shardSize)
+	state0 := createDefaultShardState(env1, &shardId0, nil, nil, nil)
+	defer state0.Stop()
+
+	rootBlock := state0.GetRootTip().CreateBlockToAppend(nil, nil, nil, nil, nil)
+	err = rootBlock.SignWithPrivateKey(prvKey)
+	assert.NoError(t, err)
+
+	recovered, err := sigToAddr(rootBlock.IHeader().SealHash().Bytes(), rootBlock.Signature())
+	assert.Equal(t, recovered, signerId.GetRecipient())
+}

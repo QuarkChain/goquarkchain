@@ -1165,14 +1165,24 @@ func (bc *RootBlockChain) getPoSWAdjustedDiff(header types.IHeader) (*big.Int, e
 	if signer == nil || *signer == (common.Address{}) {
 		return nil, errors.New("stakes signer not found")
 	}
-	pubKey, err := crypto.SigToPub(rHeader.SealHash().Bytes(), rHeader.Signature[:])
-	if err != nil { //recovery failed
-		return nil, err
-	}
-	if !bytes.Equal(crypto.PubkeyToAddress(*pubKey).Bytes(), signer.Bytes()) {
+	recovered, err := sigToAddr(header.SealHash().Bytes(), rHeader.Signature)
+	if !bytes.Equal(recovered.Bytes(), signer.Bytes()) {
 		return nil, errors.New("stakes signer not match")
 	}
 	return bc.posw.PoSWDiffAdjust(header, stakes)
+}
+
+func sigToAddr(sighash []byte, sig [65]byte) (account.Recipient, error) {
+	pub, err := crypto.Ecrecover(sighash, sig[:])
+	if err != nil {
+		return account.Recipient{}, err
+	}
+	if len(pub) == 0 || pub[0] != 4 {
+		return account.Recipient{}, errors.New("invalid public key")
+	}
+	var addr account.Recipient
+	copy(addr[:], crypto.Keccak256(pub[1:])[12:])
+	return addr, nil
 }
 
 func (bc *RootBlockChain) GetLastConfirmedMinorBlockHeader(prevBlock common.Hash, fullShardId uint32) *types.MinorBlockHeader {
