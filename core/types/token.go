@@ -80,7 +80,6 @@ func NewTokenBalancesWithMap(data map[uint64]*big.Int) *TokenBalances {
 		balances: data,
 		Enum:     byte(0),
 	}
-	t.checkZero()
 	return t
 }
 
@@ -109,14 +108,6 @@ func NewTokenBalances(data []byte) (*TokenBalances, error) {
 	return tokenBalances, nil
 }
 
-func (b *TokenBalances) checkZero() {
-	for k, v := range b.balances {
-		if v.Cmp(new(big.Int)) == 0 {
-			delete(b.balances, k)
-		}
-	}
-}
-
 func (b *TokenBalances) Add(other map[uint64]*big.Int) {
 	for k, v := range other {
 		if data, ok := b.balances[k]; ok {
@@ -125,16 +116,11 @@ func (b *TokenBalances) Add(other map[uint64]*big.Int) {
 			b.balances[k] = new(big.Int).Set(v)
 		}
 	}
-	b.checkZero()
 }
 
 func (b *TokenBalances) SetValue(amount *big.Int, tokenID uint64) {
 	if amount.Cmp(new(big.Int)) < 0 {
 		panic("serious bug !!!!!!!!!!!!!")
-	}
-	if amount.Cmp(new(big.Int)) == 0 {
-		delete(b.balances, tokenID)
-		return
 	}
 	b.balances[tokenID] = amount
 }
@@ -187,6 +173,9 @@ func (b *TokenBalances) SerializeToBytes() ([]byte, error) {
 	case byte(0):
 		list := make([]*TokenBalancePair, 0)
 		for k, v := range b.balances {
+			if v.Cmp(common.Big0) == 0 {
+				continue
+			}
 			list = append(list, &TokenBalancePair{
 				TokenID: k,
 				Balance: v,

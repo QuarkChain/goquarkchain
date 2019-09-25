@@ -1227,8 +1227,8 @@ func (bc *RootBlockChain) CreateBlockToMine(mHeaderList []*types.MinorBlockHeade
 	if err != nil {
 		return nil, err
 	}
-	if len(bc.chainConfig.GuardianPrivateKey) > 0 {
-		prvKey, err := crypto.ToECDSA(bc.chainConfig.GuardianPrivateKey)
+	if len(bc.chainConfig.RootSignerPrivateKey) > 0 {
+		prvKey, err := crypto.ToECDSA(bc.chainConfig.RootSignerPrivateKey)
 		if err != nil {
 			return nil, err
 		}
