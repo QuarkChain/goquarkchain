@@ -2846,9 +2846,8 @@ func TestSigToAddr(t *testing.T) {
 	id1, err := account.CreatRandomIdentity()
 	assert.NoError(t, err)
 	acc1 := account.CreatAddressFromIdentity(id1, 0)
-	signerkeyB := []byte{0x2}
-	signerkey := account.BytesToIdentityKey(signerkeyB)
-	signerId, err := account.CreatIdentityFromKey(signerkey)
+
+	signerId, err := account.CreatRandomIdentity()
 	assert.NoError(t, err)
 
 	prvKey, err := crypto.ToECDSA(signerId.GetKey().Bytes())
