@@ -4,6 +4,7 @@ package test
 
 import (
 	"encoding/hex"
+	"fmt"
 	"math/big"
 	"runtime"
 	"testing"
@@ -782,7 +783,7 @@ func TestPoSWOnRootChain(t *testing.T) {
 		}
 		resultsCh := make(chan types.IBlock)
 		engine := doublesha256.New(&diffCalculator, false, nil)
-		if err = engine.Seal(nil, block, diff, resultsCh, nil); err != nil {
+		if err = engine.Seal(nil, block, diff, 1, resultsCh, nil); err != nil {
 			t.Fatalf("problem sealing the block: %v", err)
 		}
 		minedBlock := <-resultsCh
@@ -876,29 +877,6 @@ func TestGetWorkFromMaster(t *testing.T) {
 }
 
 func TestGetWorkWithOptionalDiffDivider(t *testing.T) {
-	//TODO
-	//id1, err := account.CreatRandomIdentity()
-	//assert.NoError(t, err)
-	//acc1 := account.CreatAddressFromIdentity(id1, 0)
-	//var chainSize, shardSize, slaveSize uint32 = 2, 1, 2
-	//cfglist := GetClusterConfig(1, chainSize, shardSize, slaveSize, nil, defaultbootNode,
-	//	config.PoWSimulate, true)
-	//for _, cfg := range cfglist {
-	//	cfg.Quarkchain.Root.PoSWConfig.Enabled = true
-	//	cfg.Quarkchain.Root.PoSWConfig.EnableTimestamp = 0
-	//	cfg.Quarkchain.Root.PoSWConfig.WindowSize = 2
-	//}
-	//_, cluster := CreateClusterList(1, cfglist)
-	//cluster.Start(5*time.Second, true)
-	//defer cluster.Stop()
-	//
-	//c := cluster[0]
-	//mstr := c.GetMaster()
-	//slaves := c.GetSlavelist()
-	//shard := slaves[0].GetShard(1)
-	////	add a root block first to init shard chains
-	//block, _, _, err := mstr.CreateBlockToMine(&acc1)
-	//assert.NoError(t, err)
-	//assert.NoError(t, mstr.AddRootBlock(block.(*types.RootBlock)))
+	//need to rewrite rootblockchain.GetRootChainStakes()
 
 }

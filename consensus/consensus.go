@@ -266,11 +266,15 @@ func (c *CommonEngine) Seal(
 	results chan<- types.IBlock,
 	stop <-chan struct{}) error {
 
+	if diff == nil {
+		diff = block.IHeader().GetDifficulty()
+	}
 	if c.isRemote {
 		c.SetWork(block, diff, optionalDivider, results)
 		return nil
 	}
-	return c.localSeal(block, diff, results, stop)
+	adjustedDiff := new(big.Int).Div(diff, new(big.Int).SetUint64(optionalDivider))
+	return c.localSeal(block, adjustedDiff, results, stop)
 }
 
 // localSeal generates a new block for the given input block with the local miner's
@@ -312,7 +316,9 @@ func (c *CommonEngine) mine(
 	abort <-chan struct{},
 	found chan MiningResult,
 ) {
-
+	if new(big.Int).Cmp(work.Difficulty) == 0 {
+		work.Difficulty = new(big.Int).SetUint64(1)
+	}
 	var (
 		target   = new(big.Int).Div(two256, work.Difficulty)
 		minerRes = ShareCache{

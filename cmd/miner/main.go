@@ -169,7 +169,7 @@ func fetchWorkRPC(shardID *uint32, addr *string) (work consensus.MiningWork, err
 		shardIDArg = "0x" + strconv.FormatUint(uint64(*shardID), 16)
 	}
 
-	ret := make([]string, 3)
+	ret := make([]string, 4)
 	err = cli.CallContext(
 		ctx,
 		&ret,
@@ -187,6 +187,10 @@ func fetchWorkRPC(shardID *uint32, addr *string) (work consensus.MiningWork, err
 	}
 	height := new(big.Int).SetBytes(common.FromHex(ret[1])).Uint64()
 	diff := new(big.Int).SetBytes(common.FromHex(ret[2]))
+	if ret[3] != "" {
+		optionalDivider := new(big.Int).SetBytes(common.FromHex(ret[3])).Uint64()
+		diff = new(big.Int).Div(diff, new(big.Int).SetUint64(optionalDivider))
+	}
 	return consensus.MiningWork{
 		HeaderHash: headerHash,
 		Number:     height,
