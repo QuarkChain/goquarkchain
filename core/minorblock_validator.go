@@ -217,7 +217,7 @@ func (v *MinorBlockValidator) ValidateSeal(mHeader types.IHeader, usePowsDiff bo
 	adjustedDiff := new(big.Int).Set(header.Difficulty)
 	var err error
 	if usePowsDiff {
-		adjustedDiff, err = v.bc.GetAdjustedDifficulty(header)
+		adjustedDiff, _, err = v.bc.GetAdjustedDifficulty(header)
 		if err != nil {
 			return err
 		}

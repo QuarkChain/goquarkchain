@@ -33,7 +33,7 @@ func appendNewBlock(blockchain *core.MinorBlockChain, acc1 account.Address, t *t
 		if err != nil {
 			t.Fatalf("failed to adjust posw diff: %v", err)
 		}
-		if err = blockchain.Engine().Seal(nil, newBlock, adjustedDiff, resultsCh, nil); err != nil {
+		if err = blockchain.Engine().Seal(nil, newBlock, adjustedDiff, 1, resultsCh, nil); err != nil {
 			t.Fatalf("problem sealing the block: %v", err)
 		}
 	}

@@ -83,7 +83,7 @@ func TestVerifyHeaderAndHeaders(t *testing.T) {
 		cr.EXPECT().GetHeader(header.Hash()).Return(nil).AnyTimes()
 		cr.EXPECT().GetHeader(parent.Hash()).Return(parent).AnyTimes()
 		cr.EXPECT().SkipDifficultyCheck().Return(true).AnyTimes()
-		cr.EXPECT().GetAdjustedDifficulty(gomock.Any()).Return(header.Difficulty, nil).AnyTimes()
+		cr.EXPECT().GetAdjustedDifficulty(gomock.Any()).Return(header.Difficulty, uint64(1), nil).AnyTimes()
 		err := q.VerifyHeader(cr, header, true)
 		assert.NoError(err)
 
@@ -119,7 +119,7 @@ func sealBlock(t *testing.T, q *QKCHash, h *types.RootBlockHeader) {
 	resultsCh := make(chan types.IBlock)
 	rootBlock := types.NewRootBlockWithHeader(h)
 	stop := make(chan struct{})
-	err := q.Seal(nil, rootBlock, nil, resultsCh, stop)
+	err := q.Seal(nil, rootBlock, nil, 1, resultsCh, stop)
 	assert.NoError(t, err, "should have no problem sealing the block")
 	block := <-resultsCh
 	close(stop)

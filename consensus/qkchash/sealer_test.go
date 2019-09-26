@@ -20,7 +20,7 @@ func TestSealAndVerifySeal(t *testing.T) {
 		q := New(qkcHashNativeFlag, &diffCalculator, false, []byte{}, 100)
 		rootBlock := types.NewRootBlockWithHeader(header)
 		resultsCh := make(chan types.IBlock)
-		err := q.Seal(nil, rootBlock, nil, resultsCh, nil)
+		err := q.Seal(nil, rootBlock, nil, 1, resultsCh, nil)
 		assert.NoError(err, "should have no problem sealing the block")
 		block := <-resultsCh
 
@@ -52,7 +52,7 @@ func TestRemoteSealer(t *testing.T) {
 		work *consensus.MiningWork
 		err  error
 	)
-	qkc.Seal(nil, block, nil, nil, nil)
+	qkc.Seal(nil, block, nil, 1, nil, nil)
 	if work, err = qkc.GetWork(account.Address{}); err != nil || work.HeaderHash != hash {
 		t.Error("expect to return a mining work has same hash")
 	}
@@ -105,7 +105,7 @@ func TestStaleSubmission(t *testing.T) {
 
 	for id, c := range testcases {
 		for _, h := range c.headers {
-			_ = qkchash.Seal(nil, types.NewRootBlockWithHeader(h), nil, resultsCh, stop)
+			_ = qkchash.Seal(nil, types.NewRootBlockWithHeader(h), nil, 1, resultsCh, stop)
 		}
 
 		if !c.submitRes {
@@ -140,7 +140,7 @@ func TestTestGetWorkWithDifferentAddr(t *testing.T) {
 		work *consensus.MiningWork
 		err  error
 	)
-	qkc.Seal(nil, block, nil, nil, nil)
+	qkc.Seal(nil, block, nil, 1, nil, nil)
 
 	newID, _ := account.CreatRandomIdentity()
 	newAddress := account.NewAddress(newID.GetRecipient(), 0)
@@ -148,7 +148,7 @@ func TestTestGetWorkWithDifferentAddr(t *testing.T) {
 	newHeader.SetCoinbase(newAddress)
 	newBlock := types.NewRootBlockWithHeader(newHeader)
 	newHash := newBlock.Header().SealHash()
-	qkc.Seal(nil, newBlock, nil, nil, nil)
+	qkc.Seal(nil, newBlock, nil, 1, nil, nil)
 
 	if work, err = qkc.GetWork(newAddress); err != nil || work.HeaderHash != newHash { //getWork with newAddress
 		t.Error("expect to return a mining work has same hash")
