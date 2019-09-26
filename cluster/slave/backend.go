@@ -98,7 +98,7 @@ func (s *SlaveBackend) APIs() []rpc.API {
 			Namespace: "ws",
 			Version:   "3.0",
 			Service:   filters.NewPublicFilterAPI(s), // Private slave api
-			Public:    false,
+			Public:    true,
 		},
 	}
 	return apis
