@@ -574,8 +574,9 @@ type CrossShardTransactionDeposit struct {
 	TransferTokenID uint64
 	IsFromRootChain bool
 	GasRemained     *serialize.Uint256
-	MessageData     []byte
-	CreateContract  bool
+	MessageData     []byte `bytesizeofslicelen:"4"`
+	//MessageData    []byte
+	CreateContract bool
 }
 
 type CrossShardTransactionDepositList struct {

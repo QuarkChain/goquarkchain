@@ -74,7 +74,7 @@ func evmTxToTypedData(evmTx *EvmTransaction) []map[string]string {
 	typedTxData = append(typedTxData, map[string]string{
 		"type":  "bytes",
 		"name":  "data",
-		"value": "0x" + hex.EncodeToString(evmTx.data.Payload),
+		"value": hex.EncodeToString(evmTx.data.Payload),
 	})
 	typedTxData = append(typedTxData, map[string]string{
 		"type":  "uint256",

@@ -185,7 +185,7 @@ func ApplyTransaction(config *params.ChainConfig, bc ChainContext, gp *GasPool, 
 	receipt.TxHash = tx.Hash()
 	receipt.GasUsed = gas
 	// if the transaction created a contract, store the creation address in the receipt.
-	if msg.To() == nil {
+	if msg.To() == nil && !msg.IsCrossShard() && !failed {
 		receipt.ContractAddress = account.Recipient(vm.CreateAddress(vmenv.Context.Origin, msg.ToFullShardKey(), tx.EvmTx.Nonce()))
 	}
 	receipt.ContractFullShardKey = tx.EvmTx.ToFullShardKey()
@@ -198,7 +198,7 @@ func ApplyTransaction(config *params.ChainConfig, bc ChainContext, gp *GasPool, 
 
 func ApplyCrossShardDeposit(config *params.ChainConfig, bc ChainContext, header types.IHeader, cfg vm.Config,
 	evmState *state.StateDB, tx *types.CrossShardTransactionDeposit, usedGas *uint64,
-	checkIsFromRootChain bool) (*types.Receipt, error) {
+	checkIsFromRootChain bool, txIndex int) (*types.Receipt, error) {
 
 	var (
 		gas  uint64
@@ -248,6 +248,7 @@ func ApplyCrossShardDeposit(config *params.ChainConfig, bc ChainContext, header 
 	}
 	vmenv := vm.NewEVM(context, evmState, config, cfg)
 	gp := new(GasPool).AddGas(evmState.GetGasLimit().Uint64())
+	evmState.Prepare(tx.TxHash, header.Hash(), txIndex) //TODO py-quarkchain not care ti->Log.TxIndex
 	_, gas, fail, err = ApplyMessage(vmenv, msg, gp)
 	if err != nil {
 		return nil, err
@@ -260,7 +261,7 @@ func ApplyCrossShardDeposit(config *params.ChainConfig, bc ChainContext, header 
 		receipt.GasUsed = gas
 		receipt.Logs = evmState.GetLogs(tx.TxHash)
 		receipt.Bloom = types.CreateBloom(types.Receipts{receipt})
-		if tx.CreateContract {
+		if tx.CreateContract && !fail {
 			receipt.ContractAddress = tx.To.Recipient
 		}
 		receipt.ContractFullShardKey = tx.To.FullShardKey
