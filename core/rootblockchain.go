@@ -1140,10 +1140,10 @@ func (bc *RootBlockChain) GetAdjustedDifficulty(header types.IHeader) (*big.Int,
 	if bc.posw.IsPoSWEnabled() && header.GetTime() >= bc.Config().Root.PoSWConfig.EnableTimestamp && header.NumberU64() > 0 {
 		poswAdjusted, err := bc.getPoSWAdjustedDiff(header)
 		if err != nil {
-			log.Debug("PoSW not applied", "reason", err)
+			log.Info("PoSW not applied", "reason", err)
 		}
+		log.Info("PoSW applied", "from", rHeader.Difficulty, "to", poswAdjusted)
 		if poswAdjusted != nil && poswAdjusted.Cmp(rHeader.Difficulty) == -1 {
-			log.Debug("PoSW applied", "from", rHeader.Difficulty, "to", poswAdjusted)
 			return header.GetDifficulty(), bc.Config().Root.PoSWConfig.DiffDivider, nil
 		}
 	}
@@ -1166,23 +1166,26 @@ func (bc *RootBlockChain) getPoSWAdjustedDiff(header types.IHeader) (*big.Int, e
 		return nil, errors.New("stakes signer not found")
 	}
 	recovered, err := sigToAddr(header.SealHash().Bytes(), rHeader.Signature)
+	if err != nil {
+		return nil, err
+	}
 	if !bytes.Equal(recovered.Bytes(), signer.Bytes()) {
 		return nil, errors.New("stakes signer not match")
 	}
 	return bc.posw.PoSWDiffAdjust(header, stakes)
 }
 
-func sigToAddr(sighash []byte, sig [65]byte) (account.Recipient, error) {
+func sigToAddr(sighash []byte, sig [65]byte) (*account.Recipient, error) {
 	pub, err := crypto.Ecrecover(sighash, sig[:])
 	if err != nil {
-		return account.Recipient{}, err
+		return nil, err
 	}
 	if len(pub) == 0 || pub[0] != 4 {
-		return account.Recipient{}, errors.New("invalid public key")
+		return nil, errors.New("invalid public key")
 	}
 	var addr account.Recipient
 	copy(addr[:], crypto.Keccak256(pub[1:])[12:])
-	return addr, nil
+	return &addr, nil
 }
 
 func (bc *RootBlockChain) GetLastConfirmedMinorBlockHeader(prevBlock common.Hash, fullShardId uint32) *types.MinorBlockHeader {
@@ -1248,6 +1251,16 @@ func (bc *RootBlockChain) CreateBlockToMine(mHeaderList []*types.MinorBlockHeade
 		}
 	}
 	block.Finalize(coinbaseToken, address, common.Hash{})
+	if len(bc.chainConfig.RootSignerPrivateKey) > 0 {
+		prvKey, err := crypto.ToECDSA(bc.chainConfig.RootSignerPrivateKey)
+		if err != nil {
+			return nil, err
+		}
+		err = block.SignWithPrivateKey(prvKey)
+		if err != nil {
+			return nil, err
+		}
+	}
 	return block, nil
 }
 
