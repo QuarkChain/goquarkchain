@@ -7,7 +7,6 @@ import (
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/cluster/miner"
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
-	qrpc "github.com/QuarkChain/goquarkchain/rpc"
 	"github.com/QuarkChain/goquarkchain/cluster/service"
 	Synchronizer "github.com/QuarkChain/goquarkchain/cluster/sync"
 	"github.com/QuarkChain/goquarkchain/consensus"
@@ -19,6 +18,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/internal/qkcapi"
 	"github.com/QuarkChain/goquarkchain/p2p"
+	qrpc "github.com/QuarkChain/goquarkchain/rpc"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/ethdb"
@@ -203,41 +203,51 @@ func (s *QKCMasterBackend) CheckDB() {
 		return
 	}
 
-	for count := 0; rb.NumberU64() > toHeight; count++ {
-		if count%100 == 0 {
-			log.Info("Checking root block", "height", rb.NumberU64())
+	size := s.clusterConfig.CheckDBRBlockBatch
+	count := 0
+	for rb.NumberU64() >= toHeight {
+		batch, index := make([]types.IBlock, size), 0
+		for ; index < size && rb.NumberU64() >= toHeight; index++ {
+			if count%100 == 0 {
+				log.Info("Checking root block", "height", rb.NumberU64())
+			}
+			count++
+			if s.rootBlockChain.GetBlockByNumber(rb.NumberU64()).Hash() != rb.Hash() {
+				log.Error("Root block mismatches canonical chain", "height", rb.NumberU64())
+				return
+			}
+			prevRb := s.rootBlockChain.GetBlock(rb.ParentHash())
+			if prevRb == nil || prevRb.Hash() != rb.ParentHash() {
+				log.Error("Root block mismatches previous block hash", "height", rb.NumberU64())
+				return
+			}
+			if prevRb.NumberU64()+1 != rb.NumberU64() {
+				log.Error("Root block no equal to previous block Height + 1", "height", rb.NumberU64())
+				return
+			}
+			batch[size-index-1] = rb
+			rb = prevRb.(*types.RootBlock)
 		}
-		if s.rootBlockChain.GetBlockByNumber(rb.NumberU64()).Hash() != rb.Hash() {
-			log.Error("Root block mismatches canonical chain", "height", rb.NumberU64())
-			return
-		}
-		prevRb := s.rootBlockChain.GetBlock(rb.ParentHash())
-		if prevRb == nil || prevRb.Hash() != rb.ParentHash() {
-			log.Error("Root block mismatches previous block hash", "height", rb.NumberU64())
-			return
-		}
-		if prevRb.NumberU64()+1 != rb.NumberU64() {
-			log.Error("Root block no equal to previous block Height + 1", "height", rb.NumberU64())
-			return
-		}
+		batch = batch[size-index:]
 		var g errgroup.Group
-		for _, slvConn := range s.clientPool {
-			conn := slvConn
-			g.Go(func() error {
-				return conn.CheckMinorBlocksInRoot(rb)
-			})
+		for _, b := range batch {
+			for _, slvConn := range s.clientPool {
+				conn, block := slvConn, b.(*types.RootBlock)
+				g.Go(func() error {
+					return conn.CheckMinorBlocksInRoot(block)
+				})
+			}
+		}
+
+		_, err := s.rootBlockChain.InsertChain(batch)
+		if err != nil {
+			log.Error("Failed to check root block", "height", rb.NumberU64(), "error", err.Error())
+			return
 		}
 		if err := g.Wait(); err != nil {
 			log.Error("Failed to check root block ", "height", rb.NumberU64(), "error", err.Error())
 			return
 		}
-
-		_, err := s.rootBlockChain.InsertChain([]types.IBlock{rb})
-		if err != nil {
-			log.Error("Failed to check root block", "height", rb.NumberU64(), "error", err.Error())
-			return
-		}
-		rb = prevRb.(*types.RootBlock)
 	}
 }
 
