@@ -134,6 +134,7 @@ func solidityPack(types, values []string) ([]byte, error) {
 			if value == "0x" {
 				continue
 			}
+			//TODO:add test for payload
 			d := common.FromHex(value)
 			retv = append(retv, d...)
 
