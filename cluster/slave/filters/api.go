@@ -9,9 +9,9 @@ import (
 	qrpc "github.com/QuarkChain/goquarkchain/cluster/rpc"
 	qsync "github.com/QuarkChain/goquarkchain/cluster/sync"
 	"github.com/QuarkChain/goquarkchain/core/types"
+	"github.com/QuarkChain/goquarkchain/rpc"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
-	"github.com/ethereum/go-ethereum/rpc"
 )
 
 var (
