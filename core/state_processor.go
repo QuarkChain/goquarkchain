@@ -248,7 +248,7 @@ func ApplyCrossShardDeposit(config *params.ChainConfig, bc ChainContext, header 
 	}
 	vmenv := vm.NewEVM(context, evmState, config, cfg)
 	gp := new(GasPool).AddGas(evmState.GetGasLimit().Uint64())
-	evmState.Prepare(tx.TxHash, header.Hash(), txIndex) //TODO py-quarkchain not care ti->Log.TxIndex
+	evmState.Prepare(tx.TxHash, header.Hash(), txIndex)
 	_, gas, fail, err = ApplyMessage(vmenv, msg, gp)
 	if err != nil {
 		return nil, err
