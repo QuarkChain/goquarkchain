@@ -1,6 +1,7 @@
 package params
 
 import (
+	"github.com/ethereum/go-ethereum/common"
 	ethParams "github.com/ethereum/go-ethereum/params"
 	"math/big"
 )
@@ -36,5 +37,13 @@ var (
 		DAOForkBlock:        big.NewInt(0),
 		ByzantiumBlock:      big.NewInt(0),
 		ConstantinopleBlock: big.NewInt(0),
+	}
+)
+
+var (
+	PrecompliedContractsAfterEvmEnabled = [][]byte{
+		common.FromHex("000000000000000000000000000000514b430001"),
+		common.FromHex("000000000000000000000000000000514b430002"),
+		common.FromHex("000000000000000000000000000000514b430003"),
 	}
 )

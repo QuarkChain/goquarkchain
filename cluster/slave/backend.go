@@ -6,8 +6,11 @@ import (
 	"github.com/QuarkChain/goquarkchain/cluster/service"
 	"github.com/QuarkChain/goquarkchain/cluster/shard"
 	"github.com/QuarkChain/goquarkchain/cluster/slave/filters"
+	"github.com/QuarkChain/goquarkchain/core/vm"
 	"github.com/QuarkChain/goquarkchain/p2p"
+	"github.com/QuarkChain/goquarkchain/params"
 	"github.com/QuarkChain/goquarkchain/rpc"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/event"
 	"sync"
 )
@@ -47,7 +50,16 @@ func New(ctx *service.ServiceContext, clusterCfg *config.ClusterConfig, cfg *con
 	}
 
 	slave.connManager = NewToSlaveConnManager(slave.clstrCfg, slave)
+	slave.setPrecompiledContractsEnableTime(clusterCfg.Quarkchain.EnableEvmTimeStamp)
 	return slave, nil
+}
+
+func (s *SlaveBackend) setPrecompiledContractsEnableTime(enableEvmTime uint64) {
+	for _, v := range params.PrecompliedContractsAfterEvmEnabled {
+		if vm.PrecompiledContractsByzantium[common.BytesToAddress(v)] != nil {
+			vm.PrecompiledContractsByzantium[common.BytesToAddress(v)].SetEnableTime(enableEvmTime)
+		}
+	}
 }
 
 func (s *SlaveBackend) GetFullShardList() []uint32 {
