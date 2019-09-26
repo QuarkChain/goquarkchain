@@ -104,7 +104,7 @@ func (s EIP155Signer) Sender(tx *EvmTransaction) (account.Recipient, error) {
 	} else if tx.data.Version == 1 {
 		hashTyped, err := tx.typedHash()
 		if err != nil {
-			return account.Recipient{}, nil
+			return account.Recipient{}, err
 		}
 		return recoverPlain(hashTyped, tx.data.R, tx.data.S, tx.data.V, true)
 	} else {

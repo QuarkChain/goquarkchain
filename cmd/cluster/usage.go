@@ -67,6 +67,7 @@ var AppHelpFlagGroups = []flagGroup{
 			utils.CheckDBFlag,
 			utils.CheckDBRBlockFromFlag,
 			utils.CheckDBRBlockToFlag,
+			utils.CheckDBRBlockBatchFlag,
 		},
 	},
 	{

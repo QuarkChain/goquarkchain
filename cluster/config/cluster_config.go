@@ -36,6 +36,7 @@ type ClusterConfig struct {
 	CheckDB                  bool
 	CheckDBRBlockFrom        int
 	CheckDBRBlockTo          int
+	CheckDBRBlockBatch       int
 	// TODO KafkaSampleLogger
 }
 
@@ -58,6 +59,7 @@ func NewClusterConfig() *ClusterConfig {
 		CheckDB:                  false,
 		CheckDBRBlockFrom:        -1,
 		CheckDBRBlockTo:          0,
+		CheckDBRBlockBatch:       10,
 	}
 
 	for i := 0; i < DefaultNumSlaves; i++ {
