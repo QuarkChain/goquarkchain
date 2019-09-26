@@ -107,12 +107,13 @@ func (mr *MockChainReaderMockRecorder) GetBlock(hash interface{}) *gomock.Call {
 }
 
 // GetAdjustedDifficulty mocks base method
-func (m *MockChainReader) GetAdjustedDifficulty(header types.IHeader) (*big.Int, error) {
+func (m *MockChainReader) GetAdjustedDifficulty(header types.IHeader) (*big.Int, uint64, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetAdjustedDifficulty", header)
 	ret0, _ := ret[0].(*big.Int)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
+	ret1, _ := ret[1].(uint64)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
 }
 
 // GetAdjustedDifficulty indicates an expected call of GetAdjustedDifficulty

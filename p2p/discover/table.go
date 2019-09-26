@@ -80,7 +80,6 @@ type Table struct {
 
 	// check black node, default false
 	checkDialBlackList func(string) bool
-	rLock              sync.RWMutex
 	nodeUrls           []string
 
 	nodeAddedHook func(*node) // for testing
@@ -147,8 +146,6 @@ func (tab *Table) seedRand() {
 }
 
 func (tab *Table) GetKadRoutingTable() []string {
-	tab.rLock.RLock()
-	defer tab.rLock.RUnlock()
 	return tab.nodeUrls
 }
 
@@ -534,23 +531,26 @@ func (tab *Table) copyLiveNodes() {
 	tab.mutex.Lock()
 	defer tab.mutex.Unlock()
 
-	tab.rLock.Lock()
-	tab.nodeUrls = make([]string, 0, nBuckets*bucketSize)
-	for _, b := range &tab.buckets {
-		for _, n := range b.entries {
-			tab.nodeUrls = append(tab.nodeUrls, n.Node.String())
-		}
+	nodes := make(map[enode.ID]*node)
+	for _, n := range tab.db.QuerySeeds(seedCount, seedMaxAge) {
+		nodes[n.ID()] = wrapNode(n)
 	}
-	tab.rLock.Unlock()
 
 	now := time.Now()
 	for _, b := range &tab.buckets {
 		for _, n := range b.entries {
+			nodes[n.ID()] = n
 			if now.Sub(n.addedAt) >= seedMinTableTime {
 				tab.db.UpdateNode(unwrapNode(n))
 			}
 		}
 	}
+
+	urls := make([]string, 0, nBuckets*bucketSize)
+	for _, n := range nodes {
+		urls = append(urls, n.Node.String())
+	}
+	tab.nodeUrls = urls
 }
 
 // closest returns the n nodes in the table that are closest to the

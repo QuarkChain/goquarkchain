@@ -369,9 +369,9 @@ func (m *RootHeaderChain) SkipDifficultyCheck() bool {
 	return m.Config().SkipRootDifficultyCheck
 }
 
-func (m *RootHeaderChain) GetAdjustedDifficulty(header types.IHeader) (*big.Int, error) {
+func (m *RootHeaderChain) GetAdjustedDifficulty(header types.IHeader) (*big.Int, uint64, error) {
 	// todo add logic or move the header chain later
-	return header.GetDifficulty(), nil
+	return header.GetDifficulty(), 1, nil
 }
 
 // WriteTd stores a block's total difficulty into the database, also caching it

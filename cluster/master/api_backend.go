@@ -310,20 +310,20 @@ func (s *QKCMasterBackend) GetDefaultCoinbaseAddress() account.Address {
 }
 
 // miner api
-func (s *QKCMasterBackend) CreateBlockToMine(addr *account.Address) (types.IBlock, *big.Int, error) {
+func (s *QKCMasterBackend) CreateBlockToMine(addr *account.Address) (types.IBlock, *big.Int, uint64, error) {
 	coinbaseAddr := s.clusterConfig.Quarkchain.Root.CoinbaseAddress
 	if addr != nil {
 		coinbaseAddr = *addr
 	}
 	block, err := s.createRootBlockToMine(coinbaseAddr)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, 0, err
 	}
-	diff, err := s.rootBlockChain.GetAdjustedDifficulty(block.Header())
+	diff, optionalDivider, err := s.rootBlockChain.GetAdjustedDifficulty(block.Header())
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, 0, err
 	}
-	return block, diff, nil
+	return block, diff, optionalDivider, nil
 }
 
 func (s *QKCMasterBackend) InsertMinedBlock(block types.IBlock) error {
@@ -358,7 +358,7 @@ func (s *QKCMasterBackend) IsSyncIng() bool {
 }
 
 func (s *QKCMasterBackend) GetKadRoutingTable() ([]string, error) {
-	if s.srvr == nil {
+	if s.srvr != nil {
 		return s.srvr.GetKadRoutingTable(), nil
 	}
 	return nil, errors.New("p2p server is not running")

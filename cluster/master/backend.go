@@ -103,7 +103,7 @@ func New(ctx *service.ServiceContext, cfg *config.ClusterConfig) (*QKCMasterBack
 		}
 		err error
 	)
-	if mstr.chainDb, err = createDB(ctx, cfg.DbPathRoot, cfg.Clean, cfg.CheckDB); err != nil {
+	if mstr.chainDb, err = createDB(ctx, "db", cfg.Clean, cfg.CheckDB); err != nil {
 		return nil, err
 	}
 

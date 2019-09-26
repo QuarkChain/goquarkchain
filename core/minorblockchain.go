@@ -322,7 +322,7 @@ func (m *MinorBlockChain) SetHead(head uint64) error {
 
 	// Rewind the header chain, deleting all block bodies until then
 	delFn := func(db rawdb.DatabaseDeleter, hash common.Hash) {
-		rawdb.DeleteBlock(db, hash)
+		rawdb.DeleteMinorBlock(db, hash)
 	}
 	m.hc.SetHead(head, delFn)
 	currentHeader := m.hc.CurrentHeader()
@@ -431,23 +431,23 @@ func (m *MinorBlockChain) SkipDifficultyCheck() bool {
 	return m.Config().SkipMinorDifficultyCheck
 }
 
-func (m *MinorBlockChain) GetAdjustedDifficulty(header types.IHeader) (*big.Int, error) {
+func (m *MinorBlockChain) GetAdjustedDifficulty(header types.IHeader) (*big.Int, uint64, error) {
 	diff := header.GetDifficulty()
 	if m.posw.IsPoSWEnabled() {
 		balance, err := m.GetBalance(header.GetCoinbase().Recipient, nil)
 		if err != nil {
-			log.Error("failed to get coinbase balance", err)
-			return nil, err
+			log.Error("PoSW", "failed to get coinbase balance", err)
+			return nil, 0, err
 		}
 
 		diff, err = m.posw.PoSWDiffAdjust(header, balance.GetTokenBalance(m.clusterConfig.Quarkchain.GetDefaultChainTokenID()))
 		if err != nil {
-			log.Error(m.logInfo, "PoSWDiffAdjust err", err)
-			return nil, err
+			log.Error("PoSW", "PoSWDiffAdjust err", err)
+			return nil, 0, err
 		}
-		log.Info("[PoSW]ValidatorSeal", "number", header.NumberU64(), "diff", header.GetDifficulty(), "adjusted to", diff)
+		log.Info("PoSW", "number", header.NumberU64(), "diff", header.GetDifficulty(), "adjusted to", diff)
 	}
-	return diff, nil
+	return diff, 1, nil
 }
 
 // StateCache returns the caching database underpinning the blockchain instance.

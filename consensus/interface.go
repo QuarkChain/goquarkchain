@@ -29,7 +29,7 @@ type ChainReader interface {
 	// GetBlock retrieves a block from the database by hash and number.
 	GetBlock(hash common.Hash) types.IBlock
 
-	GetAdjustedDifficulty(header types.IHeader) (*big.Int, error)
+	GetAdjustedDifficulty(header types.IHeader) (*big.Int, uint64, error)
 
 	SkipDifficultyCheck() bool
 }
@@ -72,7 +72,7 @@ type Engine interface {
 	//
 	// Note, the method returns immediately and will send the result async. More
 	// than one result may also be returned depending on the consensus algorithm.
-	Seal(chain ChainReader, block types.IBlock, diff *big.Int, results chan<- types.IBlock, stop <-chan struct{}) error
+	Seal(chain ChainReader, block types.IBlock, diff *big.Int, optionalDivider uint64, results chan<- types.IBlock, stop <-chan struct{}) error
 
 	// CalcDifficulty is the difficulty adjustment algorithm. It returns the difficulty
 	// that a new block should have.
