@@ -74,7 +74,7 @@ func evmTxToTypedData(evmTx *EvmTransaction) []map[string]string {
 	typedTxData = append(typedTxData, map[string]string{
 		"type":  "bytes",
 		"name":  "data",
-		"value": hex.EncodeToString(evmTx.data.Payload),
+		"value": "0x" + hex.EncodeToString(evmTx.data.Payload),
 	})
 	typedTxData = append(typedTxData, map[string]string{
 		"type":  "uint256",
@@ -134,10 +134,7 @@ func solidityPack(types, values []string) ([]byte, error) {
 			if value == "0x" {
 				continue
 			}
-			d, err := hex.DecodeString(value)
-			if err != nil {
-				return nil, err
-			}
+			d := common.FromHex(value)
 			retv = append(retv, d...)
 
 		} else if t == "string" {
