@@ -159,7 +159,7 @@ func minorBlockEncoder(block *types.MinorBlock, includeTransaction bool, extraIn
 		}
 		field["transactions"] = txHashForDisplay
 	}
-	if extraInfo != nil {
+	if extraInfo != nil && !extraInfo.IsNil() {
 		field["effectiveDifficulty"] = (*hexutil.Big)(extraInfo.EffectiveDifficulty)
 		field["poswMineableBlocks"] = (hexutil.Uint64)(extraInfo.PoswMineableBlocks)
 		field["poswMinedBlocks"] = (hexutil.Uint64)(extraInfo.PoswMinedBlocks)

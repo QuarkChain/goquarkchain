@@ -1628,42 +1628,26 @@ func CountAddressFromSlice(lists []account.Recipient, recipient account.Recipien
 	return cnt
 }
 func (m *MinorBlockChain) PoswInfo(mBlock *types.MinorBlock) (*rpc.PoSWInfo, error) {
-	if !m.shardConfig.PoswConfig.Enabled {
-		return nil, nil
-	}
 	if mBlock == nil {
 		return nil, errors.New("get powInfo err:mBlock is full")
 	}
 	header := mBlock.Header()
-	if header.Number == 0 {
-		return &rpc.PoSWInfo{
-			EffectiveDifficulty: header.Difficulty,
-			PoswMineableBlocks:  0,
-			PoswMinedBlocks:     0,
-		}, nil
+	if !m.posw.IsPoSWEnabled(header) {
+		return nil, nil
 	}
-	diff := header.Difficulty
-
 	evmState, err := m.getEvmStateForNewBlock(header, true)
 	if err != nil {
 		return nil, err
 	}
-	poswConfig := m.shardConfig.PoswConfig
 	stakes := evmState.GetBalance(header.Coinbase.Recipient, m.clusterConfig.Quarkchain.GetDefaultChainTokenID())
-	blockThreshld := stakes.Div(stakes, poswConfig.TotalStakePerBlock)
-	if poswConfig.WindowSize < blockThreshld.Uint64() {
-		blockThreshld = new(big.Int).SetUint64(poswConfig.WindowSize)
-	}
-	blockCnt, err := m.posw.GetCoinbaseAddressUntilBlock(header.ParentHash)
-	cnt := CountAddressFromSlice(blockCnt, header.Coinbase.Recipient)
-	if cnt < blockThreshld.Uint64() {
-		diff = diff.Div(diff, new(big.Int).SetUint64(poswConfig.DiffDivider))
+	diff, minable, mined, err := m.posw.GetPoSWInfo(header, stakes)
+	if err != nil {
+		return nil, err
 	}
 	return &rpc.PoSWInfo{
 		EffectiveDifficulty: diff,
-		PoswMineableBlocks:  blockThreshld.Uint64(),
-		PoswMinedBlocks:     cnt + 1}, nil
-
+		PoswMineableBlocks:  minable,
+		PoswMinedBlocks:     mined}, nil
 }
 
 func (m *MinorBlockChain) putXShardDepositHashList(h common.Hash, hList *rawdb.HashList) {

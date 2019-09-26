@@ -65,7 +65,7 @@ func (p *PoSW) BuildSenderDisallowMap(headerHash common.Hash, coinbase *account.
 	if !p.config.Enabled {
 		return nil, nil
 	}
-	coinbaseAddrs, err := p.GetCoinbaseAddressUntilBlock(headerHash)
+	coinbaseAddrs, err := p.getCoinbaseAddressUntilBlock(headerHash)
 	if err != nil {
 		return nil, err
 	}
@@ -83,12 +83,12 @@ func (p *PoSW) BuildSenderDisallowMap(headerHash common.Hash, coinbase *account.
 	return disallowMap, nil
 }
 
-func (p *PoSW) IsPoSWEnabled() bool {
-	return p.config.Enabled
+func (p *PoSW) IsPoSWEnabled(header types.IHeader) bool {
+	return p.config.Enabled && header.GetTime() >= p.config.EnableTimestamp && header.NumberU64() > 0
 }
 
 func (p *PoSW) countCoinbaseBlockUntil(headerHash common.Hash, coinbase account.Recipient) (uint64, error) {
-	coinbases, err := p.GetCoinbaseAddressUntilBlock(headerHash)
+	coinbases, err := p.getCoinbaseAddressUntilBlock(headerHash)
 	if err != nil {
 		return 0, err
 	}
@@ -102,7 +102,7 @@ func (p *PoSW) countCoinbaseBlockUntil(headerHash common.Hash, coinbase account.
 	return count, nil
 }
 
-func (p *PoSW) GetCoinbaseAddressUntilBlock(headerHash common.Hash) ([]account.Recipient, error) {
+func (p *PoSW) getCoinbaseAddressUntilBlock(headerHash common.Hash) ([]account.Recipient, error) {
 	header := p.hReader.GetHeader(headerHash)
 	if qkcCommon.IsNil(header) {
 		return nil, fmt.Errorf("curr block not found: hash %x", headerHash)
@@ -136,4 +136,27 @@ func (p *PoSW) GetCoinbaseAddressUntilBlock(headerHash common.Hash) ([]account.R
 		panic("Unexpected result: len(addrs) > length\n")
 	}
 	return addrs, nil
+}
+
+func (p *PoSW) GetPoSWInfo(header types.IHeader, stakes *big.Int) (effectiveDiff *big.Int, mineable, mined uint64, err error) {
+	if !p.IsPoSWEnabled(header) {
+		return nil, 0, 0, fmt.Errorf("PoSW not enabled")
+	}
+	blockThreshold := new(big.Int).Div(stakes, p.config.TotalStakePerBlock).Uint64()
+	if blockThreshold > p.config.WindowSize {
+		blockThreshold = p.config.WindowSize
+	}
+	blockCnt, err := p.countCoinbaseBlockUntil(header.GetParentHash(), header.GetCoinbase().Recipient)
+	if err != nil {
+		return nil, 0, 0, err
+	}
+	diff := header.GetDifficulty()
+	if blockCnt < blockThreshold {
+		diff = new(big.Int).Div(diff, big.NewInt(int64(p.config.DiffDivider)))
+	}
+	effectiveDiff = diff
+	mineable = blockThreshold
+	//mined blocks should include current one, assuming success
+	mined = blockCnt + 1
+	return
 }

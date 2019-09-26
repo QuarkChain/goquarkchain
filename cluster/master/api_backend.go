@@ -274,7 +274,7 @@ func (s *QKCMasterBackend) GetRootBlockByNumber(blockNumber *uint64, needExtraIn
 		return nil, nil, errors.New("rootBlock is nil")
 	}
 	if needExtraInfo {
-		poswInfo, err := s.rootBlockChain.PoSWInfo(block)
+		poswInfo, err := s.rootBlockChain.PoSWInfo(block.Header())
 		if err != nil {
 			return nil, nil, err
 		}
@@ -289,7 +289,7 @@ func (s *QKCMasterBackend) GetRootBlockByHash(hash common.Hash, needExtraInfo bo
 		return nil, nil, errors.New("rootBlock is nil")
 	}
 	if needExtraInfo {
-		poswInfo, err := s.rootBlockChain.PoSWInfo(block)
+		poswInfo, err := s.rootBlockChain.PoSWInfo(block.Header())
 		if err != nil {
 			return nil, nil, err
 		}
