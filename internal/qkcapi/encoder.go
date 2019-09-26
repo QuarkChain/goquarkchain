@@ -73,7 +73,7 @@ func rootBlockEncoder(rootBlock *types.RootBlock, extraInfo *rpc.PoSWInfo) (map[
 		"minorBlockHeaders": make([]types.MinorBlockHeader, 0),
 		"signature":         DataEncoder(header.Signature[:]),
 	}
-	if extraInfo != nil {
+	if extraInfo != nil && !extraInfo.IsNil() {
 		fields["effectiveDifficulty"] = (*hexutil.Big)(extraInfo.EffectiveDifficulty)
 		fields["poswMineableBlocks"] = (hexutil.Uint64)(extraInfo.PoswMineableBlocks)
 		fields["poswMinedBlocks"] = (hexutil.Uint64)(extraInfo.PoswMinedBlocks)
