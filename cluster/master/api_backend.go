@@ -372,7 +372,7 @@ func (s *QKCMasterBackend) IsSyncIng() bool {
 }
 
 func (s *QKCMasterBackend) GetKadRoutingTable() ([]string, error) {
-	if s.srvr == nil {
+	if s.srvr != nil {
 		return s.srvr.GetKadRoutingTable(), nil
 	}
 	return nil, errors.New("p2p server is not running")

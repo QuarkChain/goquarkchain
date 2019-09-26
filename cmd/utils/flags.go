@@ -456,10 +456,6 @@ func SetClusterConfig(ctx *cli.Context, cfg *config.ClusterConfig) {
 	}
 
 	// cluster.db_path_root
-	if ctx.GlobalIsSet(DbPathRootFlag.Name) {
-		cfg.DbPathRoot = ctx.GlobalString(DbPathRootFlag.Name)
-	}
-
 	if ctx.GlobalIsSet(P2pPortFlag.Name) {
 		cfg.P2PPort = uint16(ctx.GlobalInt(P2pPortFlag.Name))
 	}
@@ -521,6 +517,7 @@ func setCheckDBConfig(ctx *cli.Context, clstrCfg *config.ClusterConfig) {
 }
 
 func setDataDir(ctx *cli.Context, cfg *service.Config, clstrCfg *config.ClusterConfig) {
+	cfg.DataDir = clstrCfg.DbPathRoot
 	if ctx.GlobalIsSet(DataDirFlag.Name) {
 		cfg.DataDir = ctx.GlobalString(DataDirFlag.Name)
 	}

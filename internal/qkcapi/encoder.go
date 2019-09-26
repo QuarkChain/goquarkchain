@@ -57,18 +57,21 @@ func rootBlockEncoder(rootBlock *types.RootBlock, extraInfo *rpc.PoSWInfo) (map[
 	}
 
 	fields := map[string]interface{}{
-		"id":             header.Hash(),
-		"height":         hexutil.Uint64(header.Number),
-		"hash":           header.Hash(),
-		"hashPrevBlock":  header.ParentHash,
-		"idPrevBlock":    header.ParentHash,
-		"nonce":          hexutil.Uint64(header.Nonce),
-		"hashMerkleRoot": header.MinorHeaderHash,
-		"miner":          DataEncoder(minerData),
-		"coinbase":       balancesEncoder(header.CoinbaseAmount),
-		"difficulty":     (*hexutil.Big)(header.Difficulty),
-		"timestamp":      hexutil.Uint64(header.Time),
-		"size":           hexutil.Uint64(len(serData)),
+		"id":                header.Hash(),
+		"height":            hexutil.Uint64(header.Number),
+		"hash":              header.Hash(),
+		"sealHash":          header.SealHash(),
+		"hashPrevBlock":     header.ParentHash,
+		"idPrevBlock":       header.ParentHash,
+		"nonce":             hexutil.Uint64(header.Nonce),
+		"hashMerkleRoot":    header.MinorHeaderHash,
+		"miner":             DataEncoder(minerData),
+		"coinbase":          balancesEncoder(header.CoinbaseAmount),
+		"difficulty":        (*hexutil.Big)(header.Difficulty),
+		"timestamp":         hexutil.Uint64(header.Time),
+		"size":              hexutil.Uint64(len(serData)),
+		"minorBlockHeaders": make([]types.MinorBlockHeader, 0),
+		"signature":         DataEncoder(header.Signature[:]),
 	}
 	if extraInfo != nil {
 		fields["effectiveDifficulty"] = (*hexutil.Big)(extraInfo.EffectiveDifficulty)
