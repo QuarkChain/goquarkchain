@@ -181,6 +181,7 @@ func (r *RootConfig) UnmarshalJSON(input []byte) error {
 		return err
 	}
 	*r = RootConfig(jsonConfig.RootConfigAlias)
+	r.PoSWConfig = NewPOSWConfig()
 	address, err := account.CreatAddressFromBytes(common.FromHex(jsonConfig.CoinbaseAddress))
 	if err != nil {
 		return err
