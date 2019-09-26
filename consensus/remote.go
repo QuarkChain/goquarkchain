@@ -26,9 +26,10 @@ var (
 )
 
 type sealTask struct {
-	block   types.IBlock
-	diff    *big.Int
-	results chan<- types.IBlock
+	block           types.IBlock
+	diff            *big.Int
+	optionalDivider uint64
+	results         chan<- types.IBlock
 }
 
 type mineResult struct {
@@ -52,7 +53,7 @@ func (c *CommonEngine) remote() {
 	)
 	works, _ := lru.New(128)
 
-	makeWork := func(block types.IBlock, adjustedDiff *big.Int) {
+	makeWork := func(block types.IBlock, adjustedDiff *big.Int, optionalDivider uint64) {
 		hash := block.IHeader().SealHash()
 		if works.Contains(hash) {
 			return
@@ -63,7 +64,7 @@ func (c *CommonEngine) remote() {
 			diff = adjustedDiff
 		}
 
-		c.currentWorks.setCurrentWork(block, diff)
+		c.currentWorks.setCurrentWork(block, diff, optionalDivider)
 
 		works.Add(hash, block)
 		currentHeight = block.IHeader().NumberU64()
@@ -127,9 +128,9 @@ func (c *CommonEngine) remote() {
 
 	for {
 		select {
-		case work := <-c.workCh:
-			results = work.results
-			makeWork(work.block, work.diff)
+		case task := <-c.workCh:
+			results = task.results
+			makeWork(task.block, task.diff, task.optionalDivider)
 
 		case work := <-c.fetchWorkCh:
 			currWork, err := c.currentWorks.getWorkByAddr(work.addr)
@@ -164,7 +165,7 @@ func newCurrentWorks() *currentWorks {
 	}
 }
 
-func (c *currentWorks) setCurrentWork(block types.IBlock, diff *big.Int) {
+func (c *currentWorks) setCurrentWork(block types.IBlock, diff *big.Int, optionalDivider uint64) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	height := block.IHeader().NumberU64()
@@ -173,6 +174,7 @@ func (c *currentWorks) setCurrentWork(block types.IBlock, diff *big.Int) {
 	miningWork.HeaderHash = block.IHeader().SealHash()
 	miningWork.Number = height
 	miningWork.Difficulty = diff
+	miningWork.OptionalDivider = optionalDivider
 
 	c.works[block.IHeader().GetCoinbase()] = miningWork
 }

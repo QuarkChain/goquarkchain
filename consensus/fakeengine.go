@@ -14,12 +14,13 @@ type FakeEngine struct {
 	Difficulty   *big.Int
 	FakeDelay    time.Duration
 	Err          error
-	diffCal DifficultyCalculator
+	diffCal      DifficultyCalculator
 }
 
 func NewFakeEngine(diffCal DifficultyCalculator) *FakeEngine {
-	return &FakeEngine{diffCal:diffCal}
+	return &FakeEngine{diffCal: diffCal}
 }
+
 // Author retrieves the Ethereum address of the account that minted the given
 // block, which may be different from the header's coinbase if a consensus
 // engine is based on signatures.
@@ -73,7 +74,9 @@ func (e *FakeEngine) Prepare(chain ChainReader, header types.IHeader) error {
 //
 // Note, the method returns immediately and will send the result async. More
 // than one result may also be returned depending on the consensus algorithm.
-func (e *FakeEngine) Seal(chain ChainReader, block types.IBlock, diff *big.Int, results chan<- types.IBlock, stop <-chan struct{}) error {
+func (e *FakeEngine) Seal(chain ChainReader, block types.IBlock, diff *big.Int, optionalDivider uint64,
+	results chan<- types.IBlock, stop <-chan struct{}) error {
+
 	if block.NumberU64() == e.NumberToFail {
 		return e.Err
 	}
@@ -83,13 +86,13 @@ func (e *FakeEngine) Seal(chain ChainReader, block types.IBlock, diff *big.Int, 
 // CalcDifficulty is the difficulty adjustment algorithm. It returns the difficulty
 // that a new block should have.
 func (e *FakeEngine) CalcDifficulty(chain ChainReader, time uint64, parent types.IHeader) (*big.Int, error) {
-	if e.diffCal==nil{
+	if e.diffCal == nil {
 		if e.Difficulty == nil || e.Difficulty.Cmp(big.NewInt(0)) < 0 {
 			return parent.GetDifficulty(), nil
 		}
 		return e.Difficulty, nil
 	}
-	return e.diffCal.CalculateDifficulty(parent,time)
+	return e.diffCal.CalculateDifficulty(parent, time)
 }
 
 func (e *FakeEngine) GetWork(address account.Address) (*MiningWork, error) {

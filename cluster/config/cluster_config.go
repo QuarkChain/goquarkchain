@@ -89,7 +89,7 @@ type QuarkChainConfig struct {
 	TransactionQueueSizeLimitPerShard uint64      `json:"TRANSACTION_QUEUE_SIZE_LIMIT_PER_SHARD"`
 	BlockExtraDataSizeLimit           uint32      `json:"BLOCK_EXTRA_DATA_SIZE_LIMIT"`
 	GuardianPublicKey                 []byte      `json:"-"`
-	RootSignerPrivateKey              []byte      `json:"ROOT_SIGNER_PRIVATE_KEY"`
+	RootSignerPrivateKey              []byte      `json:"_"`
 	P2PProtocolVersion                uint32      `json:"P2P_PROTOCOL_VERSION"`
 	P2PCommandSizeLimit               uint32      `json:"P2P_COMMAND_SIZE_LIMIT"`
 	SkipRootDifficultyCheck           bool        `json:"SKIP_ROOT_DIFFICULTY_CHECK"`
@@ -120,6 +120,7 @@ type QuarkChainConfigAlias QuarkChainConfig
 type jsonConfig struct {
 	QuarkChainConfigAlias
 	GuardianPublicKey                 string         `json:"GUARDIAN_PUBLIC_KEY"`
+	RootSignerPrivateKey              string         `json:"ROOT_SIGNER_PRIVATE_KEY"`
 	Chains                            []*ChainConfig `json:"CHAINS"`
 	RewardTaxRate                     float64        `json:"REWARD_TAX_RATE"`
 	BlockRewardDecayFactor            float64        `json:"BLOCK_REWARD_DECAY_FACTOR"`
@@ -137,6 +138,7 @@ func (q *QuarkChainConfig) MarshalJSON() ([]byte, error) {
 	jConfig := jsonConfig{
 		QuarkChainConfigAlias(*q),
 		hex.EncodeToString(q.GuardianPublicKey),
+		hex.EncodeToString(q.RootSignerPrivateKey),
 		chains,
 		rewardTaxRate,
 		BlockRewardDecayFactor,
@@ -175,6 +177,7 @@ func (q *QuarkChainConfig) UnmarshalJSON(input []byte) error {
 	q.RootChainPoSWContractBytecodeHash = ethcom.HexToHash(jConfig.RootChainPoSWContractBytecodeHash)
 
 	q.GuardianPublicKey = ethcom.FromHex(jConfig.GuardianPublicKey)
+	q.RootSignerPrivateKey = ethcom.FromHex(jConfig.RootSignerPrivateKey)
 	if len(q.GuardianPublicKey) == 64 {
 		q.GuardianPublicKey = append([]byte{byte(0x4)}, q.GuardianPublicKey...)
 	}

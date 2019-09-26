@@ -22,8 +22,9 @@ var (
 )
 
 type workAdjusted struct {
-	block             types.IBlock
-	adjustedDifficuty *big.Int
+	block              types.IBlock
+	adjustedDifficulty *big.Int
+	optionalDivider    uint64
 }
 
 type Miner struct {
@@ -84,7 +85,7 @@ func (m *Miner) commit(addr *account.Address) {
 		return
 	}
 	m.interrupt()
-	block, diff, err := m.api.CreateBlockToMine(addr)
+	block, diff, optionalDivider, err := m.api.CreateBlockToMine(addr)
 	if err != nil {
 		log.Error(m.logInfo, "create block to mine err", err)
 		// retry to create block to mine
@@ -97,7 +98,7 @@ func (m *Miner) commit(addr *account.Address) {
 		log.Error(m.logInfo, "block's height small than tipHeight after commit blockNumber ,no need to seal", block.NumberU64(), "tip", m.getTip())
 		return
 	}
-	m.workCh <- workAdjusted{block, diff}
+	m.workCh <- workAdjusted{block, diff, optionalDivider}
 }
 
 func (m *Miner) mainLoop() {
@@ -109,7 +110,8 @@ func (m *Miner) mainLoop() {
 
 		case work := <-m.workCh: //to discuss:need this?
 			log.Info(m.logInfo, "ready to seal height", work.block.NumberU64(), "coinbase", work.block.IHeader().GetCoinbase().ToHex())
-			if err := m.engine.Seal(nil, work.block, work.adjustedDifficuty, m.resultCh, m.stopCh); err != nil {
+			adjustedDiff := new(big.Int).Div(work.adjustedDifficulty, new(big.Int).SetUint64(work.optionalDivider))
+			if err := m.engine.Seal(nil, work.block, adjustedDiff, work.optionalDivider, m.resultCh, m.stopCh); err != nil {
 				log.Error(m.logInfo, "Seal block to mine err", err)
 				coinbase := work.block.IHeader().GetCoinbase()
 				m.commit(&coinbase)
@@ -156,10 +158,11 @@ func (m *Miner) GetWork(coinbaseAddr *account.Address) (*consensus.MiningWork, e
 	work, err := m.engine.GetWork(addrForGetWork)
 	if err != nil {
 		if err == consensus.ErrNoMiningWork {
-			block, diff, err := m.api.CreateBlockToMine(&addrForGetWork)
+			block, diff, optionalDivider, err := m.api.CreateBlockToMine(&addrForGetWork)
 			if err == nil {
-				m.workCh <- workAdjusted{block, diff}
-				return &consensus.MiningWork{HeaderHash: block.IHeader().SealHash(), Number: block.NumberU64(), Difficulty: diff}, nil
+				m.workCh <- workAdjusted{block, diff, optionalDivider}
+				return &consensus.MiningWork{HeaderHash: block.IHeader().SealHash(), Number: block.NumberU64(),
+					OptionalDivider: optionalDivider, Difficulty: diff}, nil
 			}
 			return nil, err
 		}

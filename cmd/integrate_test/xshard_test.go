@@ -1,9 +1,10 @@
-//+build integrate_test
+// +build integrationTest
 
 package test
 
 import (
 	"encoding/hex"
+	"fmt"
 	"math/big"
 	"runtime"
 	"testing"
@@ -24,6 +25,14 @@ import (
 )
 
 const GTXCOST = 21000
+
+func retryTrueWithTimeout(f func() bool, duration int64) bool {
+	deadLine := time.Now().Unix() + duration
+	for !f() && time.Now().Unix() < deadLine {
+		time.Sleep(500 * time.Millisecond) // 0.5 second
+	}
+	return f()
+}
 
 func assertBalance(t *testing.T, master *master.QKCMasterBackend, acc account.Address, exp *big.Int) {
 	ad, err := master.GetPrimaryAccountData(&acc, nil)
@@ -100,7 +109,7 @@ func TestBroadcastCrossShardTransactionsWithExtraGas(t *testing.T) {
 	minorBlockChainB := c.GetShardState(2 | 1)
 	//genesisToken := minorBlockChainA.Config().GenesisToken
 
-	rb, _, err := master.CreateBlockToMine(nil)
+	rb, _, _, err := master.CreateBlockToMine(nil)
 	assert.NoError(t, err)
 	err = master.AddRootBlock(rb.(*types.RootBlock))
 	assert.NoError(t, err)
@@ -119,7 +128,7 @@ func TestBroadcastCrossShardTransactionsWithExtraGas(t *testing.T) {
 	assert.Equal(t, int(1000000-val.Uint64()-gas), int(ad.Balance.GetTokenBalance(testGenesisTokenID).Int64()))
 	time.Sleep(100 * time.Millisecond)
 	//rb = minorBlockChainA.GetRootTip().CreateBlockToAppend(nil, nil, &acc1, nil, nil)
-	rb, _, err = master.CreateBlockToMine(nil)
+	rb, _, _, err = master.CreateBlockToMine(nil)
 	assert.NoError(t, err)
 	err = master.AddRootBlock(rb.(*types.RootBlock))
 	assert.NoError(t, err)
@@ -180,7 +189,7 @@ func TestCrossShardContractCall(t *testing.T) {
 	// can be broadcasted to other shards
 	master := c.master
 	slaves := c.GetSlavelist()
-	rb, _, err := master.CreateBlockToMine(nil)
+	rb, _, _, err := master.CreateBlockToMine(nil)
 	assert.NoError(t, err)
 	err = master.AddRootBlock(rb.(*types.RootBlock))
 	assert.NoError(t, err)
@@ -220,7 +229,7 @@ func TestCrossShardContractCall(t *testing.T) {
 	assert.Equal(t, v0, hex.EncodeToString(result.Bytes()))
 	//should include b1
 	time.Sleep(100 * time.Millisecond)
-	rb, _, err = master.CreateBlockToMine(nil)
+	rb, _, _, err = master.CreateBlockToMine(nil)
 	assert.NoError(t, err)
 	err = master.AddRootBlock(rb.(*types.RootBlock))
 	assert.NoError(t, err)
@@ -238,7 +247,7 @@ func TestCrossShardContractCall(t *testing.T) {
 	assert.NoError(t, err)
 	//should include b2
 	time.Sleep(100 * time.Millisecond)
-	rb, _, err = master.CreateBlockToMine(nil)
+	rb, _, _, err = master.CreateBlockToMine(nil)
 	assert.NoError(t, err)
 	err = master.AddRootBlock(rb.(*types.RootBlock))
 	assert.NoError(t, err)
@@ -271,7 +280,7 @@ func TestCrossShardContractCall(t *testing.T) {
 	assert.NoError(t, err)
 	//should include b4
 	time.Sleep(100 * time.Millisecond)
-	rb, _, err = master.CreateBlockToMine(nil)
+	rb, _, _, err = master.CreateBlockToMine(nil)
 	assert.NoError(t, err)
 	err = master.AddRootBlock(rb.(*types.RootBlock))
 	assert.NoError(t, err)
@@ -325,7 +334,7 @@ func TestCrossShardTransfer(t *testing.T) {
 
 	master := c.master
 	slaves := c.GetSlavelist()
-	rb, _, err := master.CreateBlockToMine(nil)
+	rb, _, _, err := master.CreateBlockToMine(nil)
 	assert.NoError(t, err)
 	err = master.AddRootBlock(rb.(*types.RootBlock))
 	assert.NoError(t, err)
@@ -339,7 +348,7 @@ func TestCrossShardTransfer(t *testing.T) {
 	err = c.GetShard(1).AddMinorBlock(b0)
 	assert.NoError(t, err)
 
-	rb, _, err = master.CreateBlockToMine(nil)
+	rb, _, _, err = master.CreateBlockToMine(nil)
 	assert.NoError(t, err)
 	err = master.AddRootBlock(rb.(*types.RootBlock))
 	assert.NoError(t, err)
@@ -388,7 +397,7 @@ func TestBroadcastCrossShardTransaction1x2(t *testing.T) {
 	minorBlockChainB := c.GetShardState(2<<16 + 1)
 	minorBlockChainC := c.GetShardState(3<<16 + 1)
 
-	rb, _, err := master.CreateBlockToMine(nil)
+	rb, _, _, err := master.CreateBlockToMine(nil)
 	assert.NoError(t, err)
 	assert.NoError(t, master.AddRootBlock(rb.(*types.RootBlock)))
 
@@ -447,7 +456,7 @@ func TestBroadcastCrossShardTransaction1x2(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NoError(t, master.AddMinorBlock(b3.Header().Branch.Value, b3))
 
-	rb, _, err = master.CreateBlockToMine(nil)
+	rb, _, _, err = master.CreateBlockToMine(nil)
 	assert.NoError(t, err)
 	assert.NoError(t, master.AddRootBlock(rb.(*types.RootBlock)))
 	//b4 should include the withdraw of tx1
@@ -509,7 +518,7 @@ func TestBroadcastCrossShardTransaction2x1(t *testing.T) {
 	shardA := c.GetShard(1)
 	shardB := c.GetShard(1<<16 + 1)
 
-	rb, _, err := mstr.CreateBlockToMine(nil)
+	rb, _, _, err := mstr.CreateBlockToMine(nil)
 	assert.NoError(t, err)
 	assert.NoError(t, mstr.AddRootBlock(rb.(*types.RootBlock)))
 
@@ -565,7 +574,7 @@ func TestBroadcastCrossShardTransaction2x1(t *testing.T) {
 	assert.Equal(t, tx3.Hash(), xShardTxList.TXList[0].TxHash)
 
 	c.clstrCfg.Quarkchain.Root.CoinbaseAddress = acc1
-	rb, _, err = mstr.CreateBlockToMine(nil)
+	rb, _, _, err = mstr.CreateBlockToMine(nil)
 	assert.NoError(t, mstr.AddRootBlock(rb.(*types.RootBlock)))
 
 	//b3 should include the deposits of tx1, t2, t3
@@ -588,7 +597,7 @@ func TestBroadcastCrossShardTransaction2x1(t *testing.T) {
 	cntr.assertAll()
 
 	c.clstrCfg.Quarkchain.Root.CoinbaseAddress = acc3
-	rb, _, err = mstr.CreateBlockToMine(nil)
+	rb, _, _, err = mstr.CreateBlockToMine(nil)
 	assert.NoError(t, mstr.AddRootBlock(rb.(*types.RootBlock)))
 
 	//no change
@@ -605,7 +614,7 @@ func TestBroadcastCrossShardTransaction2x1(t *testing.T) {
 	cntr.assertAll()
 
 	c.clstrCfg.Quarkchain.Root.CoinbaseAddress = acc4
-	rb, _, err = mstr.CreateBlockToMine(nil)
+	rb, _, _, err = mstr.CreateBlockToMine(nil)
 	assert.NoError(t, mstr.AddRootBlock(rb.(*types.RootBlock)))
 
 	//no change
@@ -664,7 +673,7 @@ func TestCrossShardContractCreate(t *testing.T) {
 	shardB := c.GetShard(1<<16 + 1)
 
 	time.Sleep(500 * time.Millisecond)
-	rb, _, err := mstr.CreateBlockToMine(nil)
+	rb, _, _, err := mstr.CreateBlockToMine(nil)
 	assert.NoError(t, err)
 	assert.NoError(t, mstr.AddRootBlock(rb.(*types.RootBlock)))
 
@@ -679,7 +688,7 @@ func TestCrossShardContractCreate(t *testing.T) {
 	assert.Equal(t, 1, int(receipt.Status))
 
 	//should include b1
-	rb, _, err = mstr.CreateBlockToMine(nil)
+	rb, _, _, err = mstr.CreateBlockToMine(nil)
 	assert.NoError(t, err)
 	assert.NoError(t, mstr.AddRootBlock(rb.(*types.RootBlock)))
 
@@ -774,7 +783,7 @@ func TestPoSWOnRootChain(t *testing.T) {
 		}
 		resultsCh := make(chan types.IBlock)
 		engine := doublesha256.New(&diffCalculator, false, nil)
-		if err = engine.Seal(nil, block, diff, resultsCh, nil); err != nil {
+		if err = engine.Seal(nil, block, diff, 1, resultsCh, nil); err != nil {
 			t.Fatalf("problem sealing the block: %v", err)
 		}
 		minedBlock := <-resultsCh
@@ -783,7 +792,7 @@ func TestPoSWOnRootChain(t *testing.T) {
 
 	addRootBlock := func(addr account.Address, sign, mine bool) error {
 		cfg.CoinbaseAddress = addr
-		rootBlock, diff, err := mstr.CreateBlockToMine(nil)
+		rootBlock, diff, _, err := mstr.CreateBlockToMine(nil)
 		if err != nil {
 			return err
 		}
@@ -826,7 +835,7 @@ func TestPoSWOnRootChain(t *testing.T) {
 	value := poswConfig.TotalStakePerBlock.Uint64()
 	tx := setSigner(&zero, &value, signerId.GetRecipient())
 	assert.NoError(t, c.GetShardState(1).AddTx(tx))
-	iBlock, _, err := c.GetShard(1).CreateBlockToMine(nil)
+	iBlock, _, _, err := c.GetShard(1).CreateBlockToMine(nil)
 	assert.NoError(t, err)
 	minedBlock := mineMe(iBlock, iBlock.IHeader().GetDifficulty())
 	//confirmed by a minor block and root block
@@ -867,10 +876,7 @@ func TestGetWorkFromMaster(t *testing.T) {
 	runtime.GC()
 }
 
-func retryTrueWithTimeout(f func() bool, duration int64) bool {
-	deadLine := time.Now().Unix() + duration
-	for !f() && time.Now().Unix() < deadLine {
-		time.Sleep(500 * time.Millisecond) // 0.5 second
-	}
-	return f()
+func TestGetWorkWithOptionalDiffDivider(t *testing.T) {
+	//need to rewrite rootblockchain.GetRootChainStakes()
+
 }

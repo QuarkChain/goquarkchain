@@ -1132,23 +1132,23 @@ func (bc *RootBlockChain) SkipDifficultyCheck() bool {
 	return bc.Config().SkipRootDifficultyCheck
 }
 
-func (bc *RootBlockChain) GetAdjustedDifficulty(header types.IHeader) (*big.Int, error) {
+func (bc *RootBlockChain) GetAdjustedDifficulty(header types.IHeader) (*big.Int, uint64, error) {
 	rHeader := header.(*types.RootBlockHeader)
 	if crypto.VerifySignature(bc.Config().GuardianPublicKey, rHeader.SealHash().Bytes(), rHeader.Signature[:64]) {
 		guardianAdjustedDiff := new(big.Int).Div(rHeader.GetDifficulty(), new(big.Int).SetUint64(1000))
-		return guardianAdjustedDiff, nil
+		return guardianAdjustedDiff, 1, nil
 	}
 	if bc.posw.IsPoSWEnabled() && header.GetTime() >= bc.Config().Root.PoSWConfig.EnableTimestamp && header.NumberU64() > 0 {
 		poswAdjusted, err := bc.getPoSWAdjustedDiff(header)
 		if err != nil {
-			log.Info("apply posw failed: ", err)
+			log.Info("PoSW not applied", "reason", err)
 		}
-		if poswAdjusted != nil {
-			log.Info("posw applied: from", rHeader.Difficulty, "to", poswAdjusted)
-			return poswAdjusted, nil
+		log.Info("PoSW applied", "from", rHeader.Difficulty, "to", poswAdjusted)
+		if poswAdjusted != nil && poswAdjusted.Cmp(rHeader.Difficulty) == -1 {
+			return header.GetDifficulty(), bc.Config().Root.PoSWConfig.DiffDivider, nil
 		}
 	}
-	return rHeader.GetDifficulty(), nil
+	return rHeader.GetDifficulty(), 1, nil
 }
 
 func (bc *RootBlockChain) getPoSWAdjustedDiff(header types.IHeader) (*big.Int, error) {
@@ -1166,14 +1166,27 @@ func (bc *RootBlockChain) getPoSWAdjustedDiff(header types.IHeader) (*big.Int, e
 	if signer == nil || *signer == (common.Address{}) {
 		return nil, errors.New("stakes signer not found")
 	}
-	pubKey, err := crypto.SigToPub(rHeader.SealHash().Bytes(), rHeader.Signature[:])
-	if err != nil { //recovery failed
+	recovered, err := sigToAddr(header.SealHash().Bytes(), rHeader.Signature)
+	if err != nil {
 		return nil, err
 	}
-	if !bytes.Equal(crypto.PubkeyToAddress(*pubKey).Bytes(), signer.Bytes()) {
+	if !bytes.Equal(recovered.Bytes(), signer.Bytes()) {
 		return nil, errors.New("stakes signer not match")
 	}
 	return bc.posw.PoSWDiffAdjust(header, stakes)
+}
+
+func sigToAddr(sighash []byte, sig [65]byte) (*account.Recipient, error) {
+	pub, err := crypto.Ecrecover(sighash, sig[:])
+	if err != nil {
+		return nil, err
+	}
+	if len(pub) == 0 || pub[0] != 4 {
+		return nil, errors.New("invalid public key")
+	}
+	var addr account.Recipient
+	copy(addr[:], crypto.Keccak256(pub[1:])[12:])
+	return &addr, nil
 }
 
 func (bc *RootBlockChain) GetLastConfirmedMinorBlockHeader(prevBlock common.Hash, fullShardId uint32) *types.MinorBlockHeader {
@@ -1239,6 +1252,16 @@ func (bc *RootBlockChain) CreateBlockToMine(mHeaderList []*types.MinorBlockHeade
 		}
 	}
 	block.Finalize(coinbaseToken, address, common.Hash{})
+	if len(bc.chainConfig.RootSignerPrivateKey) > 0 {
+		prvKey, err := crypto.ToECDSA(bc.chainConfig.RootSignerPrivateKey)
+		if err != nil {
+			return nil, err
+		}
+		err = block.SignWithPrivateKey(prvKey)
+		if err != nil {
+			return nil, err
+		}
+	}
 	return block, nil
 }
 
