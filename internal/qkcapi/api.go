@@ -790,7 +790,7 @@ func (e *EthBlockChainAPI) EstimateGas(data EthCallArgs, fullShardKey *hexutil.U
 	if err != nil {
 		return nil, err
 	}
-	return e.CommonAPI.callOrEstimateGas(args, nil, true)
+	return e.CommonAPI.callOrEstimateGas(args, nil, false)
 }
 
 func (e *EthBlockChainAPI) GetStorageAt(address common.Address, key common.Hash, fullShardKey *hexutil.Uint) (hexutil.Bytes, error) {
