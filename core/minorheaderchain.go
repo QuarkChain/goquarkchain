@@ -374,9 +374,9 @@ func (m *HeaderChain) SkipDifficultyCheck() bool {
 	return m.Config().SkipMinorDifficultyCheck
 }
 
-func (m *HeaderChain) GetAdjustedDifficulty(header types.IHeader) (*big.Int, error) {
+func (m *HeaderChain) GetAdjustedDifficulty(header types.IHeader) (*big.Int, uint64, error) {
 	// todo add logic or move the header chain later
-	return header.GetDifficulty(), nil
+	return header.GetDifficulty(), 1, nil
 }
 
 // GetTdByHash retrieves a block's total difficulty in the canonical chain from the
