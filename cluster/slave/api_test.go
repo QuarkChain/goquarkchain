@@ -1,4 +1,4 @@
-package filters
+package slave
 
 import (
 	"encoding/json"
