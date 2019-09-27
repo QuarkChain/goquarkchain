@@ -155,6 +155,10 @@ func (s *ShardBackend) GetMinorBlock(mHash common.Hash, height *uint64) (*types.
 	if mHash != (common.Hash{}) {
 		return s.MinorBlockChain.GetMinorBlock(mHash), nil
 	} else if height != nil {
+		block := s.MinorBlockChain.GetBlockByNumber(*height)
+		if block == nil {
+			return nil, errors.New("minor block not found")
+		}
 		return s.MinorBlockChain.GetBlockByNumber(*height).(*types.MinorBlock), nil
 	}
 	return nil, errors.New("invalied params in GetMinorBlock")
@@ -431,8 +435,8 @@ func (s *ShardBackend) CreateBlockToMine(addr *account.Address) (types.IBlock, *
 		return nil, nil, 0, err
 	}
 	diff := minorBlock.Difficulty()
-	if s.posw.IsPoSWEnabled() {
-		header := minorBlock.Header()
+	header := minorBlock.Header()
+	if s.posw.IsPoSWEnabled(header) {
 		balances, err := s.MinorBlockChain.GetBalance(header.GetCoinbase().Recipient, nil)
 		if err != nil {
 			return nil, nil, 0, err
