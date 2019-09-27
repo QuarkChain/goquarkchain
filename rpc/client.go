@@ -602,7 +602,7 @@ func (c *Client) closeRequestOps(err error) {
 }
 
 func (c *Client) handleNotification(msg *jsonrpcMessage) {
-	if !strings.HasSuffix(msg.Method, notificationMethodSuffix) {
+	if !strings.HasSuffix(msg.Method, notificationMethodSuffix) && msg.Method != notificationMethodSuffix[1:] {
 		log.Debug("dropping non-subscription message", "msg", msg)
 		return
 	}
