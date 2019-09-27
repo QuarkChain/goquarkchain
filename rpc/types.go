@@ -18,12 +18,13 @@ package rpc
 
 import (
 	"fmt"
+	"github.com/QuarkChain/goquarkchain/core/types"
 	"math"
 	"reflect"
 	"strings"
 	"sync"
 
-	mapset "github.com/deckarep/golang-set"
+	"github.com/deckarep/golang-set"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 )
 
@@ -162,4 +163,50 @@ func (bn *BlockNumber) UnmarshalJSON(data []byte) error {
 
 func (bn BlockNumber) Int64() int64 {
 	return (int64)(bn)
+}
+
+type CoinBase struct {
+	TokenId  string `json:"tokenId" gencodec:"required"`
+	TokenStr string `json:"tokenStr" gencodec:"required"`
+	Balance  string `json:"balance" gencodec:"required"`
+}
+
+type MinorBlockHeader struct {
+	ID                 string      `json:"id" gencodec:"required"`
+	Height             string      `json:"height" gencodec:"required"`
+	Hash               string      `json:"hash" gencodec:"required"`
+	FullShardId        string      `json:"fullShardId" gencodec:"required"`
+	ChainId            string      `json:"chainId" gencodec:"required"`
+	ShardId            string      `json:"shardId" gencodec:"required"`
+	HashPrevMinorBlock string      `json:"hashPrevMinorBlock" gencodec:"required"`
+	IdPrevMinorBlock   string      `json:"idPrevMinorBlock" gencodec:"required"`
+	HashPrevRootBlock  string      `json:"hashPrevRootBlock" gencodec:"required"`
+	Nonce              string      `json:"nonce" gencodec:"required"`
+	Miner              string      `json:"miner" gencodec:"required"`
+	Coinbase           []*CoinBase `json:"coinbase" gencodec:"required"`
+	Difficulty         string      `json:"difficulty" gencodec:"required"`
+	ExtraData          string      `json:"extraData" gencodec:"required"`
+	GasLimit           string      `json:"gasLimit" gencodec:"required"`
+	Timestamp          string      `json:"timestamp" gencodec:"required"`
+}
+
+type MinorBlock struct {
+	ID                 string               `json:"id" gencodec:"required"`
+	Height             string               `json:"height" gencodec:"required"`
+	Hash               string               `json:"hash" gencodec:"required"`
+	FullShardId        string               `json:"fullShardId" gencodec:"required"`
+	ChainId            string               `json:"chainId" gencodec:"required"`
+	ShardId            string               `json:"shardId" gencodec:"required"`
+	HashPrevMinorBlock string               `json:"hashPrevMinorBlock" gencodec:"required"`
+	IdPrevMinorBlock   string               `json:"idPrevMinorBlock" gencodec:"required"`
+	HashPrevRootBlock  string               `json:"hashPrevRootBlock" gencodec:"required"`
+	Nonce              string               `json:"nonce" gencodec:"required"`
+	Miner              string               `json:"miner" gencodec:"required"`
+	Coinbase           []*CoinBase          `json:"coinbase" gencodec:"required"`
+	Difficulty         string               `json:"difficulty" gencodec:"required"`
+	ExtraData          string               `json:"extraData" gencodec:"required"`
+	GasLimit           string               `json:"gasLimit" gencodec:"required"`
+	Timestamp          string               `json:"timestamp" gencodec:"required"`
+	Size               string               `json:"size" gencodec:"required"`
+	Transactions       []*types.Transaction `json:"transactions" gencodec:"required"`
 }
