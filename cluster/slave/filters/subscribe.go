@@ -19,7 +19,7 @@ type addEvent struct {
 }
 
 type subscribe struct {
-	backend SlaveBackend
+	backend SlaveFilter
 	events  map[uint32]map[Type]subackend
 
 	exitCh chan struct{}
@@ -27,7 +27,7 @@ type subscribe struct {
 	delCh  chan *delEvent
 }
 
-func NewSubScribe(backend SlaveBackend) *subscribe {
+func NewSubScribe(backend SlaveFilter) *subscribe {
 
 	sub := &subscribe{
 		backend: backend,

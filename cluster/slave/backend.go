@@ -5,7 +5,6 @@ import (
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/cluster/service"
 	"github.com/QuarkChain/goquarkchain/cluster/shard"
-	"github.com/QuarkChain/goquarkchain/cluster/slave/filters"
 	"github.com/QuarkChain/goquarkchain/p2p"
 	"github.com/QuarkChain/goquarkchain/rpc"
 	"github.com/ethereum/go-ethereum/event"
@@ -97,7 +96,7 @@ func (s *SlaveBackend) APIs() []rpc.API {
 		}, {
 			Namespace: "ws",
 			Version:   "3.0",
-			Service:   filters.NewPublicFilterAPI(s), // Private slave api
+			Service:   NewPublicFilterAPI(s), // Private slave api
 			Public:    true,
 		},
 	}

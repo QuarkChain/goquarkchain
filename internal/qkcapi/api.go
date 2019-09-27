@@ -8,6 +8,7 @@ import (
 	qrpc "github.com/QuarkChain/goquarkchain/cluster/rpc"
 	qcom "github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/core/types"
+	"github.com/QuarkChain/goquarkchain/internal/encoder"
 	"github.com/QuarkChain/goquarkchain/rpc"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
@@ -18,7 +19,7 @@ import (
 )
 
 var (
-	EmptyTxID = IDEncoder(common.Hash{}.Bytes(), 0)
+	EmptyTxID = encoder.IDEncoder(common.Hash{}.Bytes(), 0)
 )
 
 func decodeBlockNumberToUint64(b Backend, blockNumber *rpc.BlockNumber) (*uint64, error) {
@@ -133,7 +134,7 @@ func (p *PublicBlockChainAPI) GetBalances(address account.Address, blockNr *rpc.
 		"fullShardId": hexutil.Uint64(branch.GetFullShardID()),
 		"shardId":     hexutil.Uint64(branch.GetShardID()),
 		"chainId":     hexutil.Uint64(branch.GetChainID()),
-		"balances":    balancesEncoder(balances),
+		"balances":    encoder.BalancesEncoder(balances),
 	}
 	return fields, nil
 }
@@ -155,7 +156,7 @@ func (p *PublicBlockChainAPI) GetAccountData(address account.Address, blockNr *r
 			"fullShardId":      hexutil.Uint(branch.GetFullShardID()),
 			"shardId":          hexutil.Uint(branch.GetShardID()),
 			"chainId":          hexutil.Uint(branch.GetChainID()),
-			"balances":         balancesEncoder(accountBranchData.Balance),
+			"balances":         encoder.BalancesEncoder(accountBranchData.Balance),
 			"transactionCount": hexutil.Uint64(accountBranchData.TransactionCount),
 			"isContract":       accountBranchData.IsContract,
 		}
@@ -176,7 +177,7 @@ func (p *PublicBlockChainAPI) GetAccountData(address account.Address, blockNr *r
 			"fullShardId":      hexutil.Uint(branch.GetFullShardID()),
 			"shardId":          hexutil.Uint(branch.GetShardID()),
 			"chainId":          hexutil.Uint(branch.GetChainID()),
-			"balances":         balancesEncoder(accountBranchData.Balance),
+			"balances":         encoder.BalancesEncoder(accountBranchData.Balance),
 			"transactionCount": hexutil.Uint(accountBranchData.TransactionCount),
 			"isContract":       accountBranchData.IsContract,
 		}
@@ -207,7 +208,7 @@ func (p *PublicBlockChainAPI) SendTransaction(args SendTxArgs) (hexutil.Bytes, e
 	if err := p.b.AddTransaction(tx); err != nil {
 		return EmptyTxID, err
 	}
-	return IDEncoder(tx.Hash().Bytes(), tx.EvmTx.FromFullShardKey()), nil
+	return encoder.IDEncoder(tx.Hash().Bytes(), tx.EvmTx.FromFullShardKey()), nil
 }
 
 func (p *PublicBlockChainAPI) SendRawTransaction(encodedTx hexutil.Bytes) (hexutil.Bytes, error) {
@@ -223,14 +224,14 @@ func (p *PublicBlockChainAPI) SendRawTransaction(encodedTx hexutil.Bytes) (hexut
 	if err := p.b.AddTransaction(tx); err != nil {
 		return EmptyTxID, err
 	}
-	return IDEncoder(tx.Hash().Bytes(), tx.EvmTx.FromFullShardKey()), nil
+	return encoder.IDEncoder(tx.Hash().Bytes(), tx.EvmTx.FromFullShardKey()), nil
 }
 func (p *PublicBlockChainAPI) GetRootBlockByHash(hash common.Hash) (map[string]interface{}, error) {
 	rootBlock, err := p.b.GetRootBlockByHash(hash)
 	if err != nil {
 		return nil, err
 	}
-	return rootBlockEncoder(rootBlock)
+	return encoder.RootBlockEncoder(rootBlock)
 }
 func (p *PublicBlockChainAPI) GetRootBlockByHeight(heightInput *hexutil.Uint64) (map[string]interface{}, error) {
 	blockHeight, err := transHexutilUint64ToUint64(heightInput)
@@ -241,7 +242,7 @@ func (p *PublicBlockChainAPI) GetRootBlockByHeight(heightInput *hexutil.Uint64) 
 	if err != nil {
 		return nil, err
 	}
-	response, err := rootBlockEncoder(rootBlock)
+	response, err := encoder.RootBlockEncoder(rootBlock)
 	if err != nil {
 		return nil, err
 	}
@@ -257,7 +258,7 @@ func (p *PublicBlockChainAPI) GetMinorBlockById(blockID hexutil.Bytes, includeTx
 		temp := true
 		needExtraInfo = &temp
 	}
-	blockHash, fullShardKey, err := IDDecoder(blockID)
+	blockHash, fullShardKey, err := encoder.IDDecoder(blockID)
 	if err != nil {
 		return nil, err
 	}
@@ -273,7 +274,7 @@ func (p *PublicBlockChainAPI) GetMinorBlockById(blockID hexutil.Bytes, includeTx
 	if minorBlock == nil {
 		return nil, errors.New("minor block is nil")
 	}
-	return minorBlockEncoder(minorBlock, *includeTxs, extra)
+	return encoder.MinorBlockEncoder(minorBlock, *includeTxs, extra)
 
 }
 func (p *PublicBlockChainAPI) GetMinorBlockByHeight(fullShardKeyInput hexutil.Uint, heightInput *hexutil.Uint64, includeTxs *bool, needExtraInfo *bool) (map[string]interface{}, error) {
@@ -300,10 +301,10 @@ func (p *PublicBlockChainAPI) GetMinorBlockByHeight(fullShardKeyInput hexutil.Ui
 	if minorBlock == nil {
 		return nil, errors.New("minor block is nil")
 	}
-	return minorBlockEncoder(minorBlock, *includeTxs, extraData)
+	return encoder.MinorBlockEncoder(minorBlock, *includeTxs, extraData)
 }
 func (p *PublicBlockChainAPI) GetTransactionById(txID hexutil.Bytes) (map[string]interface{}, error) {
-	txHash, fullShardKey, err := IDDecoder(txID)
+	txHash, fullShardKey, err := encoder.IDDecoder(txID)
 	if err != nil {
 		return nil, err
 	}
@@ -319,7 +320,7 @@ func (p *PublicBlockChainAPI) GetTransactionById(txID hexutil.Bytes) (map[string
 	if len(minorBlock.Transactions()) <= int(index) {
 		return nil, errors.New("index bigger than block's tx")
 	}
-	return txEncoder(minorBlock, int(index))
+	return encoder.TxEncoder(minorBlock, int(index))
 }
 func (p *PublicBlockChainAPI) Call(data CallArgs, blockNr *rpc.BlockNumber) (hexutil.Bytes, error) {
 	if blockNr == nil {
@@ -337,7 +338,7 @@ func (p *PublicBlockChainAPI) EstimateGas(data CallArgs) ([]byte, error) {
 }
 
 func (p *PublicBlockChainAPI) GetTransactionReceipt(txID hexutil.Bytes) (map[string]interface{}, error) {
-	txHash, fullShardKey, err := IDDecoder(txID)
+	txHash, fullShardKey, err := encoder.IDDecoder(txID)
 	if err != nil {
 		return nil, err
 	}
@@ -351,7 +352,7 @@ func (p *PublicBlockChainAPI) GetTransactionReceipt(txID hexutil.Bytes) (map[str
 	if err != nil {
 		return nil, err
 	}
-	ret, err := receiptEncoder(minorBlock, int(index), receipt)
+	ret, err := encoder.ReceiptEncoder(minorBlock, int(index), receipt)
 	if ret["transactionId"].(string) == "" {
 		ret["transactionId"] = txID.String()
 		ret["transactionHash"] = txHash.String()
@@ -380,7 +381,7 @@ func (p *PublicBlockChainAPI) GetLogs(args *qrpc.FilterQuery, fullShardKey hexut
 	args.FullShardId = fullShardID
 
 	log, err := p.b.GetLogs(args)
-	return logListEncoder(log), nil
+	return encoder.LogListEncoder(log), nil
 }
 func (p *PublicBlockChainAPI) GetStorageAt(address account.Address, key common.Hash, blockNr *rpc.BlockNumber) (hexutil.Bytes, error) {
 	blockNumber, err := decodeBlockNumberToUint64(p.b, blockNr)
@@ -442,7 +443,7 @@ func txDetailEncode(tx *qrpc.TransactionDetail) (map[string]interface{}, error) 
 	}
 
 	return map[string]interface{}{
-		"txId":             IDEncoder(tx.TxHash.Bytes(), tx.FromAddress.FullShardKey),
+		"txId":             encoder.IDEncoder(tx.TxHash.Bytes(), tx.FromAddress.FullShardKey),
 		"fromAddress":      tx.FromAddress,
 		"toAddress":        toData,
 		"value":            (*hexutil.Big)(tx.Value.Value),
@@ -573,7 +574,7 @@ func (p *PublicBlockChainAPI) GetRootHashConfirmingMinorBlockById(mBlockID hexut
 }
 
 func (p *PublicBlockChainAPI) GetTransactionConfirmedByNumberRootBlocks(txID hexutil.Bytes) (hexutil.Uint, error) {
-	txHash, fullShardKey, err := IDDecoder(txID)
+	txHash, fullShardKey, err := encoder.IDDecoder(txID)
 	if err != nil {
 		return hexutil.Uint(0), err
 	}
@@ -591,7 +592,7 @@ func (p *PublicBlockChainAPI) GetTransactionConfirmedByNumberRootBlocks(txID hex
 		return hexutil.Uint(0), errors.New("GetTxByHash mBlock is nil")
 	}
 
-	confirmingHash := p.b.GetRootHashConfirmingMinorBlock(IDEncoder(mBlock.Hash().Bytes(), mBlock.Header().Branch.Value))
+	confirmingHash := p.b.GetRootHashConfirmingMinorBlock(encoder.IDEncoder(mBlock.Hash().Bytes(), mBlock.Header().Branch.Value))
 	if bytes.Equal(confirmingHash.Bytes(), common.Hash{}.Bytes()) {
 		return hexutil.Uint(0), errors.New("confirmingHash is empty hash")
 	}
