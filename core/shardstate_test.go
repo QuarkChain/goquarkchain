@@ -813,7 +813,7 @@ func TestXShardTxSent(t *testing.T) {
 	acc3, err := account.CreatRandomAccountWithFullShardKey(0)
 	newGenesisMinorQuarkash := uint64(10000000)
 	env := setUp(&acc1, &newGenesisMinorQuarkash, nil)
-	env.clusterConfig.Quarkchain.EnableEvmTimeStamp = 1569567600
+	env.clusterConfig.Quarkchain.EnableEvmTimeStamp = 15695676000
 	id := uint32(0)
 	shardState := createDefaultShardState(env, &id, nil, nil, nil)
 	env1 := setUp(&acc1, &newGenesisMinorQuarkash, nil)

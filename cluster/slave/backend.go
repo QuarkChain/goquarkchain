@@ -10,7 +10,6 @@ import (
 	"github.com/QuarkChain/goquarkchain/p2p"
 	"github.com/QuarkChain/goquarkchain/params"
 	"github.com/QuarkChain/goquarkchain/rpc"
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/event"
 	"sync"
 )
@@ -56,8 +55,8 @@ func New(ctx *service.ServiceContext, clusterCfg *config.ClusterConfig, cfg *con
 
 func (s *SlaveBackend) setPrecompiledContractsEnableTime(enableEvmTime uint64) {
 	for _, v := range params.PrecompliedContractsAfterEvmEnabled {
-		if vm.PrecompiledContractsByzantium[common.BytesToAddress(v)] != nil {
-			vm.PrecompiledContractsByzantium[common.BytesToAddress(v)].SetEnableTime(enableEvmTime)
+		if vm.PrecompiledContractsByzantium[v] != nil {
+			vm.PrecompiledContractsByzantium[v].SetEnableTime(enableEvmTime)
 		}
 	}
 }

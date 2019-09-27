@@ -41,9 +41,9 @@ var (
 )
 
 var (
-	PrecompliedContractsAfterEvmEnabled = [][]byte{
-		common.FromHex("000000000000000000000000000000514b430001"),
-		common.FromHex("000000000000000000000000000000514b430002"),
-		common.FromHex("000000000000000000000000000000514b430003"),
+	PrecompliedContractsAfterEvmEnabled = []common.Address{
+		common.HexToAddress("000000000000000000000000000000514b430001"),
+		common.HexToAddress("000000000000000000000000000000514b430002"),
+		common.HexToAddress("000000000000000000000000000000514b430003"),
 	}
 )
