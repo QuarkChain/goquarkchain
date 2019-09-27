@@ -21,12 +21,9 @@ var (
 
 func getFullShardId(fullShardKey *hexutil.Uint) (fullShardId uint32, err error) {
 	if fullShardKey != nil {
-		fullShardId, err = clusterCfg.Quarkchain.GetFullShardIdByFullShardKey(uint32(*fullShardKey))
-		if err != nil {
-			return
-		}
+		return clusterCfg.Quarkchain.GetFullShardIdByFullShardKey(uint32(*fullShardKey))
 	}
-	return
+	return 1, nil
 }
 
 func convertEthCallData(data *EthCallArgs, fullShardKey *hexutil.Uint) (*CallArgs, error) {

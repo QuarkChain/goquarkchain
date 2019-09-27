@@ -611,16 +611,16 @@ func TestGasPrice(t *testing.T) {
 
 func TestGetWork(t *testing.T) {
 	master := initEnv(t, nil)
-	branch := account.NewBranch(2)
-	data, err := master.GetWork(branch, nil)
+	var id uint32 = 2
+	data, err := master.GetWork(&id, nil)
 	assert.NoError(t, err)
 	assert.Equal(t, data.Number, uint64(1))
 }
 
 func TestSubmitWork(t *testing.T) {
 	master := initEnv(t, nil)
-	branch := account.NewBranch(2)
-	data, err := master.SubmitWork(branch, common.Hash{}, 0, common.Hash{}, nil)
+	var id uint32 = 2
+	data, err := master.SubmitWork(&id, common.Hash{}, 0, common.Hash{}, nil)
 	assert.NoError(t, err)
 	assert.Equal(t, data, true)
 }
@@ -629,7 +629,6 @@ func TestSubmitWorkForRootChain(t *testing.T) {
 	minorBlock := types.NewMinorBlock(&types.MinorBlockHeader{}, &types.MinorBlockMeta{}, nil, nil, nil)
 	id1, err := account.CreatRandomIdentity()
 	assert.NoError(t, err)
-	branch := account.NewBranch(0)
 	add1 := account.NewAddress(id1.GetRecipient(), 3)
 	key, err := crypto.ToECDSA(id1.GetKey().Bytes())
 	assert.NoError(t, err)
@@ -648,7 +647,7 @@ func TestSubmitWorkForRootChain(t *testing.T) {
 	copy(signature[:], sig[:])
 	nonce := findNonce(master.engine, rootBlock.Header(),
 		new(big.Int).Div(rootBlock.Difficulty(), new(big.Int).SetUint64(1000)))
-	data, err := master.SubmitWork(branch, rootBlock.Header().SealHash(), nonce, common.Hash{}, &signature)
+	data, err := master.SubmitWork(nil, rootBlock.Header().SealHash(), nonce, common.Hash{}, &signature)
 	assert.NoError(t, err)
 	assert.Equal(t, true, data)
 }

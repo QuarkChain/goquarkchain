@@ -527,10 +527,15 @@ func (p *PublicBlockChainAPI) GasPrice(fullShardKey hexutil.Uint, tokenID *strin
 }
 
 func (p *PublicBlockChainAPI) SubmitWork(fullShardKey *hexutil.Uint, headHash common.Hash, nonce hexutil.Uint64, mixHash common.Hash, signature *hexutil.Bytes) (bool, error) {
-	fullShardId, err := getFullShardId(fullShardKey)
-	if err != nil {
-		return false, err
+	var fullShardId *uint32
+	if fullShardKey != nil {
+		id, err := getFullShardId(fullShardKey)
+		if err != nil {
+			return false, err
+		}
+		fullShardId = &id
 	}
+
 	if signature != nil && len(*signature) != 65 {
 		return false, errors.New("invalid signature, len should be 65")
 	}
@@ -540,7 +545,7 @@ func (p *PublicBlockChainAPI) SubmitWork(fullShardKey *hexutil.Uint, headHash co
 		copy(sig[:], *signature)
 	}
 
-	submit, err := p.b.SubmitWork(account.NewBranch(fullShardId), headHash, uint64(nonce), mixHash, sig)
+	submit, err := p.b.SubmitWork(fullShardId, headHash, uint64(nonce), mixHash, sig)
 	if err != nil {
 		log.Error("Submit remote minered block", "err", err)
 		return false, nil
@@ -549,11 +554,16 @@ func (p *PublicBlockChainAPI) SubmitWork(fullShardKey *hexutil.Uint, headHash co
 }
 
 func (p *PublicBlockChainAPI) GetWork(fullShardKey *hexutil.Uint, coinbaseAddress *common.Address) ([]common.Hash, error) {
-	fullShardId, err := getFullShardId(fullShardKey)
-	if err != nil {
-		return nil, err
+	var fullShardId *uint32
+	if fullShardKey != nil {
+		id, err := getFullShardId(fullShardKey)
+		if err != nil {
+			return nil, err
+		}
+		fullShardId = &id
 	}
-	work, err := p.b.GetWork(account.NewBranch(fullShardId), coinbaseAddress)
+
+	work, err := p.b.GetWork(fullShardId, coinbaseAddress)
 	if err != nil {
 		return nil, err
 	}
