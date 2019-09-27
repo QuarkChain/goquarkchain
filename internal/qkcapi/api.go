@@ -266,24 +266,32 @@ func (p *PublicBlockChainAPI) SendTransaction(args SendTxArgs) (hexutil.Bytes, e
 	return IDEncoder(tx.Hash().Bytes(), tx.EvmTx.FromFullShardKey()), nil
 }
 
-func (p *PublicBlockChainAPI) GetRootBlockByHash(hash common.Hash) (map[string]interface{}, error) {
-	rootBlock, err := p.b.GetRootBlockByHash(hash)
+func (p *PublicBlockChainAPI) GetRootBlockByHash(hash common.Hash, needExtraInfo *bool) (map[string]interface{}, error) {
+	if needExtraInfo == nil {
+		temp := true
+		needExtraInfo = &temp
+	}
+	rootBlock, poswInfo, err := p.b.GetRootBlockByHash(hash, *needExtraInfo)
 	if err != nil {
 		return nil, err
 	}
-	return rootBlockEncoder(rootBlock)
+	return rootBlockEncoder(rootBlock, poswInfo)
 }
 
-func (p *PublicBlockChainAPI) GetRootBlockByHeight(heightInput *hexutil.Uint64) (map[string]interface{}, error) {
+func (p *PublicBlockChainAPI) GetRootBlockByHeight(heightInput *hexutil.Uint64, needExtraInfo *bool) (map[string]interface{}, error) {
 	blockHeight, err := transHexutilUint64ToUint64(heightInput)
 	if err != nil {
 		return nil, err
 	}
-	rootBlock, err := p.b.GetRootBlockByNumber(blockHeight)
+	if needExtraInfo == nil {
+		temp := true
+		needExtraInfo = &temp
+	}
+	rootBlock, poswInfo, err := p.b.GetRootBlockByNumber(blockHeight, *needExtraInfo)
 	if err != nil {
 		return nil, err
 	}
-	response, err := rootBlockEncoder(rootBlock)
+	response, err := rootBlockEncoder(rootBlock, poswInfo)
 	if err != nil {
 		return nil, err
 	}
@@ -606,7 +614,7 @@ func (p *PublicBlockChainAPI) GetTransactionConfirmedByNumberRootBlocks(txID hex
 		return hexutil.Uint(0), errors.New("confirmingHash is empty hash")
 	}
 
-	confirmingBlock, err := p.b.GetRootBlockByHash(confirmingHash)
+	confirmingBlock, _, err := p.b.GetRootBlockByHash(confirmingHash, false)
 	if err != nil {
 		return hexutil.Uint(0), err
 	}
@@ -614,7 +622,7 @@ func (p *PublicBlockChainAPI) GetTransactionConfirmedByNumberRootBlocks(txID hex
 		return hexutil.Uint(0), errors.New("confirmingBlock is nil")
 	}
 	confirmingHeight := confirmingBlock.NumberU64()
-	canonicalBlock, err := p.b.GetRootBlockByNumber(&confirmingHeight)
+	canonicalBlock, _, err := p.b.GetRootBlockByNumber(&confirmingHeight, false)
 	if err != nil {
 		return hexutil.Uint(0), err
 	}

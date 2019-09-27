@@ -165,6 +165,7 @@ func (t *StateTest) Run(subtest StateSubtest, vmconfig vm.Config, useMock bool) 
 	block := t.genesis(config).ToBlock(nil)
 	header := TransFromBlock(block)
 	statedb := MakePreState(ethdb.NewMemDatabase(), t.json.Pre, useMock)
+	statedb.SetTimeStamp(header.Time)
 
 	post := t.json.Post[subtest.Fork][subtest.Index]
 	msg, err := t.json.Tx.toMessage(post, useMock)

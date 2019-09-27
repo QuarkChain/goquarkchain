@@ -433,19 +433,21 @@ func (m *MinorBlockChain) SkipDifficultyCheck() bool {
 
 func (m *MinorBlockChain) GetAdjustedDifficulty(header types.IHeader) (*big.Int, uint64, error) {
 	diff := header.GetDifficulty()
-	if m.posw.IsPoSWEnabled() {
+	if m.posw.IsPoSWEnabled(header) {
 		balance, err := m.GetBalance(header.GetCoinbase().Recipient, nil)
 		if err != nil {
 			log.Error("PoSW", "failed to get coinbase balance", err)
 			return nil, 0, err
 		}
-
-		diff, err = m.posw.PoSWDiffAdjust(header, balance.GetTokenBalance(m.clusterConfig.Quarkchain.GetDefaultChainTokenID()))
+		poswAdjusted, err := m.posw.PoSWDiffAdjust(header, balance.GetTokenBalance(m.clusterConfig.Quarkchain.GetDefaultChainTokenID()))
 		if err != nil {
 			log.Error("PoSW", "PoSWDiffAdjust err", err)
 			return nil, 0, err
 		}
-		log.Info("PoSW", "number", header.NumberU64(), "diff", header.GetDifficulty(), "adjusted to", diff)
+		if poswAdjusted != nil && poswAdjusted.Cmp(diff) == -1 {
+			log.Info("PoSW applied", "from", diff, "to", poswAdjusted)
+			diff = poswAdjusted
+		}
 	}
 	return diff, 1, nil
 }

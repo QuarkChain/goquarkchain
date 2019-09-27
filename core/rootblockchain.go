@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"github.com/QuarkChain/goquarkchain/cluster/rpc"
 	"io"
 	"math/big"
 	"sort"
@@ -1137,13 +1138,13 @@ func (bc *RootBlockChain) GetAdjustedDifficulty(header types.IHeader) (*big.Int,
 		guardianAdjustedDiff := new(big.Int).Div(rHeader.GetDifficulty(), new(big.Int).SetUint64(1000))
 		return guardianAdjustedDiff, 1, nil
 	}
-	if bc.posw.IsPoSWEnabled() && header.GetTime() >= bc.Config().Root.PoSWConfig.EnableTimestamp && header.NumberU64() > 0 {
+	if bc.posw.IsPoSWEnabled(header) {
 		poswAdjusted, err := bc.getPoSWAdjustedDiff(header)
 		if err != nil {
 			log.Info("PoSW not applied", "reason", err)
 		}
-		log.Info("PoSW applied", "from", rHeader.Difficulty, "to", poswAdjusted)
 		if poswAdjusted != nil && poswAdjusted.Cmp(rHeader.Difficulty) == -1 {
+			log.Info("PoSW applied", "from", rHeader.Difficulty, "to", poswAdjusted)
 			return header.GetDifficulty(), bc.Config().Root.PoSWConfig.DiffDivider, nil
 		}
 	}
@@ -1151,7 +1152,15 @@ func (bc *RootBlockChain) GetAdjustedDifficulty(header types.IHeader) (*big.Int,
 }
 
 func (bc *RootBlockChain) getPoSWAdjustedDiff(header types.IHeader) (*big.Int, error) {
-	rHeader := header.(*types.RootBlockHeader)
+	stakes, err := bc.getPoSWStakes(header)
+	if err != nil {
+		return nil, err
+	}
+	return bc.posw.PoSWDiffAdjust(header, stakes)
+}
+
+func (bc *RootBlockChain) getPoSWStakes(header types.IHeader) (*big.Int, error) {
+
 	// get chain 0 shard 0's last confirmed block header
 	lastConfirmedMinorBlockHeader := bc.GetLastConfirmedMinorBlockHeader(header.GetParentHash(), uint32(1))
 	if lastConfirmedMinorBlockHeader == nil {
@@ -1165,6 +1174,7 @@ func (bc *RootBlockChain) getPoSWAdjustedDiff(header types.IHeader) (*big.Int, e
 	if signer == nil || *signer == (common.Address{}) {
 		return nil, errors.New("stakes signer not found")
 	}
+	rHeader := header.(*types.RootBlockHeader)
 	recovered, err := sigToAddr(header.SealHash().Bytes(), rHeader.Signature)
 	if err != nil {
 		return nil, err
@@ -1172,7 +1182,7 @@ func (bc *RootBlockChain) getPoSWAdjustedDiff(header types.IHeader) (*big.Int, e
 	if !bytes.Equal(recovered.Bytes(), signer.Bytes()) {
 		return nil, errors.New("stakes signer not match")
 	}
-	return bc.posw.PoSWDiffAdjust(header, stakes)
+	return stakes, nil
 }
 
 func sigToAddr(sighash []byte, sig [65]byte) (*account.Recipient, error) {
@@ -1444,4 +1454,23 @@ func (bc *RootBlockChain) SetRootChainStakesFunc(getRootChainStakes func(address
 func (bc *RootBlockChain) GetRootChainStakesFunc() func(address account.Address,
 	lastMinor common.Hash) (*big.Int, *account.Recipient, error) {
 	return bc.rootChainStakesFunc
+}
+
+func (bc *RootBlockChain) PoSWInfo(header *types.RootBlockHeader) (*rpc.PoSWInfo, error) {
+	if !bc.posw.IsPoSWEnabled(header) {
+		return nil, nil
+	}
+	stakes, err := bc.getPoSWStakes(header)
+	if err != nil {
+		return nil, err
+	}
+	diff, mineable, mined, err := bc.posw.GetPoSWInfo(header, stakes)
+	if err != nil {
+		return nil, err
+	}
+	return &rpc.PoSWInfo{
+		EffectiveDifficulty: diff,
+		PoswMinedBlocks:     mined,
+		PoswMineableBlocks:  mineable,
+	}, nil
 }

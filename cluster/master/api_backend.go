@@ -271,24 +271,38 @@ func (s *QKCMasterBackend) SubmitWork(fullShardId *uint32, headerHash common.Has
 	return slaveConn.SubmitWork(&rpc.SubmitWorkRequest{Branch: branch.Value, HeaderHash: headerHash, Nonce: nonce, MixHash: mixHash})
 }
 
-func (s *QKCMasterBackend) GetRootBlockByNumber(blockNumber *uint64) (*types.RootBlock, error) {
+func (s *QKCMasterBackend) GetRootBlockByNumber(blockNumber *uint64, needExtraInfo bool) (*types.RootBlock, *rpc.PoSWInfo, error) {
 	if blockNumber == nil {
 		temp := s.rootBlockChain.CurrentBlock().NumberU64()
 		blockNumber = &temp
 	}
 	block, ok := s.rootBlockChain.GetBlockByNumber(*blockNumber).(*types.RootBlock)
 	if !ok {
-		return nil, errors.New("rootBlock is nil")
+		return nil, nil, errors.New("rootBlock is nil")
 	}
-	return block, nil
+	if needExtraInfo {
+		poswInfo, err := s.rootBlockChain.PoSWInfo(block.Header())
+		if err != nil {
+			return nil, nil, err
+		}
+		return block, poswInfo, nil
+	}
+	return block, nil, nil
 }
 
-func (s *QKCMasterBackend) GetRootBlockByHash(hash common.Hash) (*types.RootBlock, error) {
+func (s *QKCMasterBackend) GetRootBlockByHash(hash common.Hash, needExtraInfo bool) (*types.RootBlock, *rpc.PoSWInfo, error) {
 	block, ok := s.rootBlockChain.GetBlock(hash).(*types.RootBlock)
 	if !ok {
-		return nil, errors.New("rootBlock is nil")
+		return nil, nil, errors.New("rootBlock is nil")
 	}
-	return block, nil
+	if needExtraInfo {
+		poswInfo, err := s.rootBlockChain.PoSWInfo(block.Header())
+		if err != nil {
+			return nil, nil, err
+		}
+		return block, poswInfo, nil
+	}
+	return block, nil, nil
 }
 
 func (s *QKCMasterBackend) NetWorkInfo() map[string]interface{} {

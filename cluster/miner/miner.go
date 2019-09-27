@@ -146,6 +146,8 @@ func (m *Miner) SetMining(mining bool) {
 	m.mu.Unlock()
 	if mining {
 		m.startCh <- struct{}{}
+	} else {
+		m.interrupt()
 	}
 }
 
