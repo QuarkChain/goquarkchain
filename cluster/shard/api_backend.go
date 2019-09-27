@@ -422,32 +422,31 @@ func (s *ShardBackend) GetDefaultCoinbaseAddress() account.Address {
 }
 
 // miner api
-func (s *ShardBackend) CreateBlockToMine(addr *account.Address) (types.IBlock, *big.Int, error) {
+func (s *ShardBackend) CreateBlockToMine(addr *account.Address) (types.IBlock, *big.Int, uint64, error) {
 	coinbaseAddress := s.Config.CoinbaseAddress
 	if addr != nil {
 		coinbaseAddress = *addr
 	}
 	minorBlock, err := s.MinorBlockChain.CreateBlockToMine(nil, &coinbaseAddress, nil, nil, nil)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, 0, err
 	}
 	diff := minorBlock.Difficulty()
 	if s.posw.IsPoSWEnabled() {
 		header := minorBlock.Header()
 		balances, err := s.MinorBlockChain.GetBalance(header.GetCoinbase().Recipient, nil)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, 0, err
 		}
 		balance := balances.GetTokenBalance(s.MinorBlockChain.GetGenesisToken())
 		adjustedDifficulty, err := s.posw.PoSWDiffAdjust(header, balance)
 		if err != nil {
-			log.Error("[PoSW]Failed to compute PoSW difficulty.", err)
-			return nil, nil, err
+			log.Error("PoSW", "failed to compute PoSW difficulty", err)
+			return nil, nil, 0, err
 		}
-		log.Info("[PoSW]CreateBlockToMine", "number", header.Number, "diff", header.Difficulty, "adjusted to", adjustedDifficulty)
-		return minorBlock, adjustedDifficulty, nil
+		return minorBlock, adjustedDifficulty, 1, nil
 	}
-	return minorBlock, diff, nil
+	return minorBlock, diff, 1, nil
 }
 
 func (s *ShardBackend) CheckMinorBlock(header *types.MinorBlockHeader) error {

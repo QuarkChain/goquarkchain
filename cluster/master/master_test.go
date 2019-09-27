@@ -638,7 +638,7 @@ func TestSubmitWorkForRootChain(t *testing.T) {
 	rootBlock, err := master.createRootBlockToMine(add1)
 	assert.NoError(t, err)
 	results := make(chan<- types.IBlock, 10)
-	master.engine.Seal(master.rootBlockChain, rootBlock, rootBlock.Difficulty(), results, nil)
+	err = master.engine.Seal(master.rootBlockChain, rootBlock, rootBlock.Difficulty(), 1, results, nil)
 	assert.NoError(t, err)
 	sig, err := crypto.Sign(rootBlock.Header().SealHash().Bytes(), key)
 	assert.NoError(t, err)

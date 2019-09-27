@@ -65,9 +65,10 @@ type ShareCache struct {
 
 // MiningWork represents the params of mining work.
 type MiningWork struct {
-	HeaderHash common.Hash
-	Number     uint64
-	Difficulty *big.Int
+	HeaderHash      common.Hash
+	Number          uint64
+	Difficulty      *big.Int
+	OptionalDivider uint64
 }
 
 // MiningResult represents the found digest and result bytes.
@@ -168,11 +169,11 @@ func (c *CommonEngine) VerifyHeader(
 		}
 	}
 
-	adjustedDiff, err := chain.GetAdjustedDifficulty(header)
+	diff, divider, err := chain.GetAdjustedDifficulty(header)
 	if err != nil {
 		return err
 	}
-
+	adjustedDiff := new(big.Int).Div(diff, new(big.Int).SetUint64(divider))
 	return c.VerifySeal(chain, header, adjustedDiff)
 }
 
@@ -261,13 +262,19 @@ func (c *CommonEngine) Seal(
 	chain ChainReader,
 	block types.IBlock,
 	diff *big.Int,
+	optionalDivider uint64,
 	results chan<- types.IBlock,
 	stop <-chan struct{}) error {
+
+	if diff == nil {
+		diff = block.IHeader().GetDifficulty()
+	}
 	if c.isRemote {
-		c.SetWork(block, diff, results)
+		c.SetWork(block, diff, optionalDivider, results)
 		return nil
 	}
-	return c.localSeal(block, diff, results, stop)
+	adjustedDiff := new(big.Int).Div(diff, new(big.Int).SetUint64(optionalDivider))
+	return c.localSeal(block, adjustedDiff, results, stop)
 }
 
 // localSeal generates a new block for the given input block with the local miner's
@@ -309,7 +316,9 @@ func (c *CommonEngine) mine(
 	abort <-chan struct{},
 	found chan MiningResult,
 ) {
-
+	if new(big.Int).Cmp(work.Difficulty) == 0 {
+		work.Difficulty = new(big.Int).SetUint64(1)
+	}
 	var (
 		target   = new(big.Int).Div(two256, work.Difficulty)
 		minerRes = ShareCache{
@@ -371,6 +380,7 @@ func (c *CommonEngine) GetWork(addr account.Address) (*MiningWork, error) {
 			work.HeaderHash,
 			work.Number,
 			work.Difficulty,
+			work.OptionalDivider,
 		}, nil
 	case err := <-errc:
 		return nil, err
@@ -409,8 +419,8 @@ func (c *CommonEngine) SetThreads(threads int) {
 	c.threads = threads
 }
 
-func (c *CommonEngine) SetWork(block types.IBlock, diff *big.Int, results chan<- types.IBlock) {
-	c.workCh <- &sealTask{block, diff, results}
+func (c *CommonEngine) SetWork(block types.IBlock, diff *big.Int, optionalDivider uint64, results chan<- types.IBlock) {
+	c.workCh <- &sealTask{block, diff, optionalDivider, results}
 }
 
 func (c *CommonEngine) Close() error {
