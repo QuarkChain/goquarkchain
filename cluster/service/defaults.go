@@ -14,13 +14,14 @@ import (
 
 // DefaultConfig contains reasonable default settings.
 var DefaultConfig = Config{
-	DataDir:      DefaultDataDir(),
-	GRPCModules:  []string{"grpc"},
-	HTTPModules:  []string{"qkc"},
-	WSModules:    []string{"ws"},
-	WSOrigins:    []string{"*"},
-	IPCPath:      "",
-	HTTPTimeouts: rpc.DefaultHTTPTimeouts,
+	DataDir:         DefaultDataDir(),
+	GRPCModules:     []string{"grpc"},
+	HTTPModules:     []string{"qkc", "eth"},
+	HTTPPrivModules: []string{"qkc"},
+	WSModules:       []string{"ws"},
+	WSOrigins:       []string{"*"},
+	IPCPath:         "",
+	HTTPTimeouts:    rpc.DefaultHTTPTimeouts,
 	// SvrModule:        "MasterOp",
 	P2P: p2p.Config{
 		ListenAddr: ":38291",

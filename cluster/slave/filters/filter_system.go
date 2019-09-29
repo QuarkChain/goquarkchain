@@ -4,13 +4,15 @@ package filters
 import (
 	"errors"
 	"fmt"
-	"github.com/ethereum/go-ethereum/common"
 	"sync"
 	"time"
 
-	qrpc "github.com/QuarkChain/goquarkchain/cluster/rpc"
 	qsync "github.com/QuarkChain/goquarkchain/cluster/sync"
+	"github.com/QuarkChain/goquarkchain/core"
 	"github.com/QuarkChain/goquarkchain/core/types"
+	qrpc "github.com/QuarkChain/goquarkchain/rpc"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/rpc"
 )
 
@@ -41,20 +43,39 @@ const (
 const (
 	// txChanSize is the size of channel listening to NewTxsEvent.
 	// The number is referenced from the size of tx pool.
-	txChanSize = 4096
+	TxChanSize = 4096
 	// rmLogsChanSize is the size of channel listening to RemovedLogsEvent.
-	rmLogsChanSize = 10
+	RmLogsChanSize = 10
 	// logsChanSize is the size of channel listening to LogsEvent.
-	logsChanSize = 10
+	LogsChanSize = 10
 	// chainEvChanSize is the size of channel listening to ChainEvent.
-	chainEvChanSize = 10
+	ChainEvChanSize = 10
 	// syncSize is the size of channel listening to SubscribeSyncEvent.
-	syncSize = 5
+	SyncSize = 5
 )
 
 var (
 	ErrInvalidSubscriptionID = errors.New("invalid id")
 )
+
+type SlaveFilter interface {
+	GetShardBackend(fullShardId uint32) (ShardFilter, error)
+	GetFullShardList() []uint32
+}
+
+type ShardFilter interface {
+	GetHeaderByNumber(height qrpc.BlockNumber) (*types.MinorBlockHeader, error)
+	GetHeaderByHash(blockHash common.Hash) (*types.MinorBlockHeader, error)
+	GetReceiptsByHash(hash common.Hash) (types.Receipts, error)
+	GetLogs(hash common.Hash) ([][]*types.Log, error)
+
+	SubscribeChainHeadEvent(ch chan<- core.MinorChainHeadEvent) event.Subscription
+	SubscribeLogsEvent(ch chan<- []*types.Log) event.Subscription
+	SubscribeRemovedLogsEvent(ch chan<- core.RemovedLogsEvent) event.Subscription
+	SubscribeChainEvent(ch chan<- core.MinorChainEvent) event.Subscription
+	SubscribeNewTxsEvent(ch chan<- core.NewTxsEvent) event.Subscription
+	SubscribeSyncEvent(ch chan<- *qsync.SyncingResult) event.Subscription
+}
 
 type subscription struct {
 	id          rpc.ID
@@ -73,7 +94,7 @@ type subscription struct {
 // EventSystem creates subscriptions, processes events and broadcasts them to the
 // subscription which match the subscription criteria.
 type EventSystem struct {
-	backend  SlaveBackend
+	backend  SlaveFilter
 	lastHead *types.MinorBlockHeader
 
 	// Channels
@@ -91,7 +112,7 @@ type EventSystem struct {
 //
 // The returned manager has a loop that needs to be stopped with the Stop function
 // or by stopping the given mux.
-func NewEventSystem(backend SlaveBackend) *EventSystem {
+func NewEventSystem(backend SlaveFilter) *EventSystem {
 	m := &EventSystem{
 		backend:    backend,
 		install:    make(chan *subscription),

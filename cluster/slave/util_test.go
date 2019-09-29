@@ -1,13 +1,14 @@
-package filters
+package slave
 
 import (
 	"context"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
-	"github.com/QuarkChain/goquarkchain/cluster/rpc"
+	"github.com/QuarkChain/goquarkchain/cluster/slave/filters"
 	"github.com/QuarkChain/goquarkchain/cluster/sync"
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/core"
 	"github.com/QuarkChain/goquarkchain/core/types"
+	qrpc "github.com/QuarkChain/goquarkchain/rpc"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/ethdb"
@@ -124,7 +125,7 @@ func (b *testBackend) subscribeEvent(method string, channel interface{}) (err er
 	return
 }
 
-func (b *testBackend) GetShardBackend(fullShardId uint32) (ShardBackend, error) {
+func (b *testBackend) GetShardBackend(fullShardId uint32) (filters.ShardFilter, error) {
 	return b, nil
 }
 
@@ -132,7 +133,7 @@ func (b *testBackend) GetFullShardList() []uint32 {
 	return []uint32{b.curShardId}
 }
 
-func (b *testBackend) GetHeaderByNumber(height rpc.BlockNumber) (*types.MinorBlockHeader, error) {
+func (b *testBackend) GetHeaderByNumber(height qrpc.BlockNumber) (*types.MinorBlockHeader, error) {
 	panic("not implemented")
 }
 

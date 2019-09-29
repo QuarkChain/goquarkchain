@@ -17,6 +17,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/core/vm"
 	"github.com/QuarkChain/goquarkchain/qkcdb"
+	qrpc "github.com/QuarkChain/goquarkchain/rpc"
 	"github.com/QuarkChain/goquarkchain/serialize"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
@@ -57,11 +58,6 @@ func (m *MinorBlockChain) getLastConfirmedMinorBlockHeaderAtRootBlock(hash commo
 	return m.GetHeader(rMinorHeaderHash).(*types.MinorBlockHeader)
 }
 
-func (m *MinorBlockChain) getLocalFeeRate() *big.Rat {
-	ret := new(big.Rat).SetInt64(1)
-	return ret.Sub(ret, m.clusterConfig.Quarkchain.RewardTaxRate)
-}
-
 func powerBigInt(data *big.Int, p uint64) *big.Int {
 	t := new(big.Int).Set(data)
 	if p == 0 {
@@ -79,9 +75,9 @@ func (m *MinorBlockChain) getCoinbaseAmount(height uint64) *types.TokenBalances 
 	if !ok {
 		decayNumerator := powerBigInt(m.clusterConfig.Quarkchain.BlockRewardDecayFactor.Num(), epoch)
 		decayDenominator := powerBigInt(m.clusterConfig.Quarkchain.BlockRewardDecayFactor.Denom(), epoch)
-		coinbaseAmount := new(big.Int).Mul(m.shardConfig.CoinbaseAmount, m.clusterConfig.Quarkchain.RewardTaxRate.Num())
+		coinbaseAmount := new(big.Int).Mul(m.shardConfig.CoinbaseAmount, m.clusterConfig.Quarkchain.LocalFeeRate.Num())
 		coinbaseAmount = new(big.Int).Mul(coinbaseAmount, decayNumerator)
-		coinbaseAmount = new(big.Int).Div(coinbaseAmount, m.clusterConfig.Quarkchain.RewardTaxRate.Denom())
+		coinbaseAmount = new(big.Int).Div(coinbaseAmount, m.clusterConfig.Quarkchain.LocalFeeRate.Denom())
 		coinbaseAmount = new(big.Int).Div(coinbaseAmount, decayDenominator)
 		data := make(map[uint64]*big.Int)
 		data[m.clusterConfig.Quarkchain.GetDefaultChainTokenID()] = coinbaseAmount
@@ -1490,7 +1486,7 @@ func (m *MinorBlockChain) GetAllTx(start []byte, limit uint32) ([]*rpc.Transacti
 	return m.getTransactionDetails(start, end, limit, GetAllTransaction, true, nil)
 }
 
-func (m *MinorBlockChain) GetLogsByFilterQuery(args *rpc.FilterQuery) ([]*types.Log, error) {
+func (m *MinorBlockChain) GetLogsByFilterQuery(args *qrpc.FilterQuery) ([]*types.Log, error) {
 	filter := NewRangeFilter(m, args.FromBlock.Uint64(), args.ToBlock.Uint64(), args.Addresses, args.Topics)
 	return filter.Logs()
 }

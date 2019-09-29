@@ -291,7 +291,7 @@ func GenerateMinorBlockChain(config *params.ChainConfig, quarkChainConfig *confi
 		}
 		txCursor := &types.XShardTxCursorInfo{RootBlockHeight: 1}
 		statedb.SetTxCursorInfo(txCursor)
-		coinbaseAmount := qkcCommon.BigIntMulBigRat(quarkChainConfig.GetShardConfigByFullShardID(quarkChainConfig.Chains[0].ShardSize|0).CoinbaseAmount, quarkChainConfig.RewardTaxRate)
+		coinbaseAmount := qkcCommon.BigIntMulBigRat(quarkChainConfig.GetShardConfigByFullShardID(quarkChainConfig.Chains[0].ShardSize|0).CoinbaseAmount, quarkChainConfig.LocalFeeRate)
 		statedb.AddBalance(block.Header().Coinbase.Recipient, coinbaseAmount, testGenesisTokenID)
 
 		rootHash, err := b.statedb.Commit(true)

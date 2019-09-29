@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
+	qrpc "github.com/QuarkChain/goquarkchain/rpc"
 	"github.com/QuarkChain/goquarkchain/cluster/shard"
 	"github.com/QuarkChain/goquarkchain/cluster/slave/filters"
 	qcom "github.com/QuarkChain/goquarkchain/common"
@@ -287,7 +288,7 @@ func (s *SlaveBackend) GetAllTx(branch account.Branch, start []byte, limit uint3
 	return nil, nil, ErrMsg("GetAllTx")
 }
 
-func (s *SlaveBackend) GetLogs(args *rpc.FilterQuery) ([]*types.Log, error) {
+func (s *SlaveBackend) GetLogs(args *qrpc.FilterQuery) ([]*types.Log, error) {
 	if shard, ok := s.shards[args.FullShardId]; ok {
 		return shard.GetLogsByFilterQuery(args)
 	}
@@ -508,7 +509,7 @@ func (s *SlaveBackend) EventMux() *event.TypeMux {
 	return s.eventMux
 }
 
-func (s *SlaveBackend) GetShardBackend(fullShardId uint32) (filters.ShardBackend, error) {
+func (s *SlaveBackend) GetShardBackend(fullShardId uint32) (filters.ShardFilter, error) {
 	if shrd, ok := s.shards[fullShardId]; ok {
 		return shrd, nil
 	}
