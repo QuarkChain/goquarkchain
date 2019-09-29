@@ -103,7 +103,7 @@ func (s *subscribe) newSubEvent(shrd ShardFilter, tp Type, broadcast func(interf
 			},
 		}
 	case PendingTransactionsSubscription:
-		txsCh := make(chan core.NewTxsEvent, TxChanSize)
+		txsCh := make(chan core.NewTxsEvent, TxsChanSize)
 		sub := shrd.SubscribeNewTxsEvent(txsCh)
 		return &subTxsEvent{
 			ch: txsCh,

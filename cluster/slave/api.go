@@ -3,6 +3,8 @@ package slave
 
 import (
 	"context"
+	"github.com/QuarkChain/goquarkchain/internal/encoder"
+	"github.com/tomochain/tomochain/log"
 	"sync"
 	"time"
 
@@ -57,16 +59,29 @@ func (api *PublicFilterAPI) NewPendingTransactions(ctx context.Context, fullShar
 		return &rpc.Subscription{}, rpc.ErrNotificationsUnsupported
 	}
 
+	id := uint32(fullShardId)
 	rpcSub := notifier.CreateSubscription()
 
 	go func() {
-		txlist := make(chan common.Hash, filters.TxChanSize)
-		pendingTxSub := api.events.SubscribePendingTxs(txlist, uint32(fullShardId))
+		txlist := make(chan []*types.Transaction, filters.TxsChanSize)
+		pendingTxSub := api.events.SubscribePendingTxs(txlist, id)
 
 		for {
 			select {
 			case txs := <-txlist:
-				notifier.Notify(rpcSub.ID, txs)
+				for _, tx := range txs {
+					mBlock, idx, err := api.backend.GetTransactionByHash(tx.Hash(), id)
+					if err != nil {
+						log.Error("failed to call getTransactionByHash when subscription pending transactions", "err", err)
+						continue
+					}
+					data, err := encoder.TxEncoder(mBlock, int(idx))
+					if err != nil {
+						log.Error("failed to encode tx when subscription pending transactions", "err", err)
+						continue
+					}
+					notifier.Notify(rpcSub.ID, data)
+				}
 			case <-rpcSub.Err():
 				pendingTxSub.Unsubscribe()
 				return
@@ -96,7 +111,13 @@ func (api *PublicFilterAPI) NewHeads(ctx context.Context, fullShardId hexutil.Ui
 		for {
 			select {
 			case h := <-headers:
-				notifier.Notify(rpcSub.ID, h)
+				hd, err := encoder.MinorBlockHeaderEncoder(h)
+				if err != nil {
+					log.Error("encode MinorBlockHeader error", "err", err)
+				} else {
+					notifier.Notify(rpcSub.ID, hd)
+				}
+
 			case <-rpcSub.Err():
 				headersSub.Unsubscribe()
 				return
@@ -133,7 +154,7 @@ func (api *PublicFilterAPI) Logs(ctx context.Context, crit qrpc.FilterQuery, ful
 			select {
 			case logs := <-matchedLogs:
 				for _, log := range logs {
-					notifier.Notify(rpcSub.ID, &log)
+					notifier.Notify(rpcSub.ID, encoder.LogEncoder(log))
 				}
 			case <-rpcSub.Err(): // client send an unsubscribe request
 				logsSub.Unsubscribe()

@@ -18,7 +18,7 @@ func TestNewHeads(t *testing.T) {
 	assert.NoError(t, err)
 	defer bak.stop()
 
-	chanHeaders := make(chan *types.MinorBlockHeader, 100)
+	chanHeaders := make(chan map[string]interface{}, 100)
 	err = bak.subscribeEvent("newHeads", chanHeaders)
 	assert.NoError(t, err)
 
@@ -33,8 +33,8 @@ func TestNewHeads(t *testing.T) {
 	for {
 		select {
 		case hd := <-chanHeaders:
-			if hd.Hash() != headers[idx].Hash() {
-				t.Error("header by subscribe is not match", "actual header: ", hd.Hash().Hex(), "expect header: ", headers[idx].Hash().Hex())
+			if hd["hash"].(string) != headers[idx].Hash().Hex() {
+				t.Error("header by subscribe is not match", "actual header: ", hd["hash"], "expect header: ", headers[idx].Hash().Hex())
 			}
 			idx++
 			if idx == len(headers) {
@@ -55,28 +55,28 @@ func TestSyncing(t *testing.T) {
 	tests := []*sync.SyncingResult{
 		{
 			Syncing: false,
-			Status: struct {
-				CurrentBlock uint64
-				HighestBlock uint64
-			}{CurrentBlock: 0, HighestBlock: 100},
+			Status: sync.Progress{
+				CurrentBlock: uint64(0),
+				HighestBlock: uint64(100),
+			},
 		},
 		{
 			Syncing: true,
-			Status: struct {
-				CurrentBlock uint64
-				HighestBlock uint64
-			}{CurrentBlock: 0, HighestBlock: 100},
+			Status: sync.Progress{
+				CurrentBlock: uint64(0),
+				HighestBlock: uint64(100),
+			},
 		},
 		{
 			Syncing: false,
-			Status: struct {
-				CurrentBlock uint64
-				HighestBlock uint64
-			}{CurrentBlock: 100, HighestBlock: 100},
+			Status: sync.Progress{
+				CurrentBlock: uint64(100),
+				HighestBlock: uint64(100),
+			},
 		},
 	}
 
-	statuses := make(chan *sync.SyncingResult, len(tests)*2)
+	statuses := make(chan map[string]interface{}, len(tests)*2)
 	err = bak.subscribeEvent("syncing", statuses)
 	assert.NoError(t, err)
 
@@ -90,8 +90,9 @@ func TestSyncing(t *testing.T) {
 	for {
 		select {
 		case dt := <-statuses:
-			if dt.Syncing != tests[idx].Syncing || dt.Status.HighestBlock != tests[idx].Status.HighestBlock {
-				t.Error("syncing by subscribe not match", "actual: ", dt.Status, "expect: ", tests[idx].Status)
+			st := dt["status"].(map[string]interface{})
+			if dt["syncing"].(bool) != tests[idx].Syncing || uint64(st["currentBlock"].(float64)) != tests[idx].Status.CurrentBlock {
+				t.Error("syncing by subscribe not match", "actual: ", st, "expect: ", tests[idx].Status)
 			}
 			idx++
 			if idx == len(tests) {
@@ -135,8 +136,8 @@ func TestNewPendingTransactions(t *testing.T) {
 		},
 	}
 
-	txhashs := make(chan common.Hash, len(txdata)*2)
-	err = bak.subscribeEvent("newPendingTransactions", txhashs)
+	txCh := make(chan map[string]interface{}, len(txdata)*2)
+	err = bak.subscribeEvent("newPendingTransactions", txCh)
 	assert.NoError(t, err)
 
 	time.Sleep(500 * time.Millisecond)
@@ -148,9 +149,9 @@ func TestNewPendingTransactions(t *testing.T) {
 	)
 	for {
 		select {
-		case dt := <-txhashs:
-			if dt != txdata[idx].Hash() {
-				t.Error("syncing by subscribe not match", "actual: ", dt.Hex(), "expect: ", txdata[idx].Hash().Hex())
+		case dt := <-txCh:
+			if dt["hash"].(string) != txdata[idx].Hash().Hex() {
+				t.Error("syncing by subscribe not match", "actual: ", dt["hash"].(string), "expect: ", txdata[idx].Hash().Hex())
 			}
 			idx++
 			if idx == len(txdata) {

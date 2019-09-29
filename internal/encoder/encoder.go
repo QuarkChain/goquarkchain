@@ -109,6 +109,31 @@ func RootBlockEncoder(rootBlock *types.RootBlock, extraInfo *rpc.PoSWInfo) (map[
 	return fields, nil
 }
 
+func MinorBlockHeaderEncoder(header *types.MinorBlockHeader) (map[string]interface{}, error) {
+	minerData, err := serialize.SerializeToBytes(header.Coinbase)
+	if err != nil {
+		return nil, err
+	}
+	return map[string]interface{}{
+		"id":                 IDEncoder(header.Hash().Bytes(), header.Branch.GetFullShardID()),
+		"height":             hexutil.Uint64(header.Number),
+		"hash":               header.Hash(),
+		"fullShardId":        hexutil.Uint64(header.Branch.GetFullShardID()),
+		"chainId":            hexutil.Uint64(header.Branch.GetChainID()),
+		"shardId":            hexutil.Uint64(header.Branch.GetShardID()),
+		"hashPrevMinorBlock": header.ParentHash,
+		"idPrevMinorBlock":   IDEncoder(header.ParentHash.Bytes(), header.Branch.GetFullShardID()),
+		"hashPrevRootBlock":  header.PrevRootBlockHash,
+		"nonce":              hexutil.Uint64(header.Nonce),
+		"miner":              DataEncoder(minerData),
+		"coinbase":           (BalancesEncoder)(header.CoinbaseAmount),
+		"difficulty":         (*hexutil.Big)(header.Difficulty),
+		"extraData":          hexutil.Bytes(header.Extra),
+		"gasLimit":           (*hexutil.Big)(header.GasLimit.Value),
+		"timestamp":          hexutil.Uint64(header.Time),
+	}, nil
+}
+
 func MinorBlockEncoder(block *types.MinorBlock, includeTransaction bool, extraInfo *rpc.PoSWInfo) (map[string]interface{}, error) {
 	serData, err := serialize.SerializeToBytes(block)
 	if err != nil {
@@ -220,6 +245,26 @@ func TxEncoder(block *types.MinorBlock, i int) (map[string]interface{}, error) {
 		"v":                (*hexutil.Big)(v),
 	}
 	return field, nil
+}
+
+func LogEncoder(log *types.Log) map[string]interface{} {
+	field := map[string]interface{}{
+		"logIndex":         hexutil.Uint64(log.Index),
+		"transactionIndex": hexutil.Uint64(log.TxIndex),
+		"transactionHash":  log.TxHash,
+		"blockHash":        log.BlockHash,
+		"blockNumber":      hexutil.Uint64(log.BlockNumber),
+		"blockHeight":      hexutil.Uint64(log.BlockNumber),
+		"address":          log.Recipient,
+		"recipient":        log.Recipient,
+		"data":             hexutil.Bytes(log.Data),
+	}
+	topics := make([]ethCommon.Hash, len(log.Topics))
+	for i, v := range log.Topics {
+		topics[i] = v
+	}
+	field["topics"] = topics
+	return field
 }
 
 func LogListEncoder(logList []*types.Log) []map[string]interface{} {

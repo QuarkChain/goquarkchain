@@ -36,6 +36,8 @@ type testBackend struct {
 	chainHeadFeed event.Feed
 	syncFeed      event.Feed
 
+	mBlock *types.MinorBlock
+
 	exitCh chan struct{}
 }
 
@@ -92,6 +94,11 @@ func (b *testBackend) creatSyncing(results []*sync.SyncingResult) {
 }
 
 func (b *testBackend) createTxs(txs []*types.Transaction) {
+	mBlocks, _ := core.GenerateMinorBlockChain(params.TestChainConfig, b.config.Quarkchain, b.mGenesis, new(consensus.FakeEngine), b.db, 1, nil)
+	b.mBlock = mBlocks[0]
+	for _, tx := range txs {
+		b.mBlock.AddTx(tx)
+	}
 	b.txFeed.Send(core.NewTxsEvent{Txs: txs})
 }
 
@@ -111,7 +118,7 @@ func (b *testBackend) subscribeEvent(method string, channel interface{}) (err er
 		default:
 			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 			defer cancel()
-			sub, err := client.Subscribe(ctx, "qkc", channel, method, hexutil.EncodeUint64(uint64(b.curShardId)))
+			sub, err := client.QkcSubscribe(ctx, channel, method, hexutil.EncodeUint64(uint64(b.curShardId)))
 			if err != nil {
 				return
 			}
@@ -125,12 +132,22 @@ func (b *testBackend) subscribeEvent(method string, channel interface{}) (err er
 	return
 }
 
-func (b *testBackend) GetShardBackend(fullShardId uint32) (filters.ShardFilter, error) {
+func (b *testBackend) GetShardFilter(fullShardId uint32) (filters.ShardFilter, error) {
 	return b, nil
 }
 
 func (b *testBackend) GetFullShardList() []uint32 {
 	return []uint32{b.curShardId}
+}
+
+func (b *testBackend) GetTransactionByHash(txHash common.Hash, branch uint32) (*types.MinorBlock, uint32, error) {
+	txs := b.mBlock.GetTransactions()
+	for idx, tx := range txs {
+		if tx.Hash() == txHash {
+			return b.mBlock, uint32(idx), nil
+		}
+	}
+	panic("not implemented")
 }
 
 func (b *testBackend) GetHeaderByNumber(height rpc.BlockNumber) (*types.MinorBlockHeader, error) {
