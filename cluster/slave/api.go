@@ -154,7 +154,7 @@ func (api *PublicFilterAPI) Logs(ctx context.Context, crit qrpc.FilterQuery, ful
 			select {
 			case logs := <-matchedLogs:
 				for _, log := range logs {
-					notifier.Notify(rpcSub.ID, encoder.LogEncoder(log))
+					notifier.Notify(rpcSub.ID, encoder.LogEncoder(log, false))
 				}
 			case <-rpcSub.Err(): // client send an unsubscribe request
 				logsSub.Unsubscribe()

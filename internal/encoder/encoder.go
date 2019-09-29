@@ -247,7 +247,7 @@ func TxEncoder(block *types.MinorBlock, i int) (map[string]interface{}, error) {
 	return field, nil
 }
 
-func LogEncoder(log *types.Log) map[string]interface{} {
+func LogEncoder(log *types.Log, isRemoved bool) map[string]interface{} {
 	field := map[string]interface{}{
 		"logIndex":         hexutil.Uint64(log.Index),
 		"transactionIndex": hexutil.Uint64(log.TxIndex),
@@ -258,6 +258,7 @@ func LogEncoder(log *types.Log) map[string]interface{} {
 		"address":          log.Recipient,
 		"recipient":        log.Recipient,
 		"data":             hexutil.Bytes(log.Data),
+		"removed":          isRemoved,
 	}
 	topics := make([]ethCommon.Hash, len(log.Topics))
 	for i, v := range log.Topics {
@@ -267,25 +268,10 @@ func LogEncoder(log *types.Log) map[string]interface{} {
 	return field
 }
 
-func LogListEncoder(logList []*types.Log) []map[string]interface{} {
+func LogListEncoder(logList []*types.Log, isRemoved bool) []map[string]interface{} {
 	fields := make([]map[string]interface{}, 0)
 	for _, log := range logList {
-		field := map[string]interface{}{
-			"logIndex":         hexutil.Uint64(log.Index),
-			"transactionIndex": hexutil.Uint64(log.TxIndex),
-			"transactionHash":  log.TxHash,
-			"blockHash":        log.BlockHash,
-			"blockNumber":      hexutil.Uint64(log.BlockNumber),
-			"blockHeight":      hexutil.Uint64(log.BlockNumber),
-			"address":          log.Recipient,
-			"recipient":        log.Recipient,
-			"data":             hexutil.Bytes(log.Data),
-		}
-		topics := make([]ethCommon.Hash, 0)
-		for _, v := range log.Topics {
-			topics = append(topics, v)
-		}
-		field["topics"] = topics
+		field := LogEncoder(log, isRemoved)
 		fields = append(fields, field)
 	}
 	return fields
@@ -319,7 +305,7 @@ func ReceiptEncoder(block *types.MinorBlock, i int, receipt *types.Receipt) (map
 		"cumulativeGasUsed": hexutil.Uint64(receipt.CumulativeGasUsed),
 		"gasUsed":           hexutil.Uint64(receipt.GasUsed),
 		"status":            hexutil.Uint64(receipt.Status),
-		"logs":              LogListEncoder(receipt.Logs),
+		"logs":              LogListEncoder(receipt.Logs, false),
 		"timestamp":         hexutil.Uint64(block.Header().Time),
 	}
 	if receipt.ContractAddress.Big().Uint64() == 0 {

@@ -389,7 +389,7 @@ func (p *PublicBlockChainAPI) GetLogs(args *qrpc.FilterQuery, fullShardKey hexut
 	args.FullShardId = fullShardID
 
 	log, err := p.b.GetLogs(args)
-	return encoder.LogListEncoder(log), nil
+	return encoder.LogListEncoder(log, false), nil
 }
 func (p *PublicBlockChainAPI) GetStorageAt(address account.Address, key common.Hash, blockNr *rpc.BlockNumber) (hexutil.Bytes, error) {
 	blockNumber, err := decodeBlockNumberToUint64(p.b, blockNr)
