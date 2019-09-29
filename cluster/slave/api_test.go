@@ -1,19 +1,21 @@
 package slave
 
 import (
+	"crypto/ecdsa"
 	"encoding/json"
 	"fmt"
+	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
-	"github.com/QuarkChain/goquarkchain/cluster/sync"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/assert"
 	"math/big"
 	"testing"
 	"time"
 )
 
-func TestNewHeads(t *testing.T) {
+/*func TestNewHeads(t *testing.T) {
 	bak, err := newTestBackend()
 	assert.NoError(t, err)
 	defer bak.stop()
@@ -102,6 +104,33 @@ func TestSyncing(t *testing.T) {
 			assert.Equal(t, idx, len(tests))
 		}
 	}
+}*/
+
+func newAddress(fullShardKey uint32) (*ecdsa.PrivateKey, *account.Address, error) {
+	privateKey, err := crypto.GenerateKey()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	publicKey := privateKey.Public()
+	publicKeyECDSA, ok := publicKey.(*ecdsa.PublicKey)
+	if !ok {
+		fmt.Println("no ok")
+		return nil, nil, fmt.Errorf("")
+	}
+
+	address := account.Address{Recipient: crypto.PubkeyToAddress(*publicKeyECDSA), FullShardKey: fullShardKey}
+	return privateKey, &address, nil
+}
+
+func signTx(tx *types.EvmTransaction, prv *ecdsa.PrivateKey) (*types.EvmTransaction, error) {
+	signer := types.MakeSigner(1)
+	h := signer.Hash(tx)
+	sig, err := crypto.Sign(h[:], prv)
+	if err != nil {
+		return nil, err
+	}
+	return tx.WithSignature(signer, sig)
 }
 
 func TestNewPendingTransactions(t *testing.T) {
@@ -109,38 +138,26 @@ func TestNewPendingTransactions(t *testing.T) {
 	assert.NoError(t, err)
 	defer bak.stop()
 
-	txdata := []*types.Transaction{
-		{
-			TxType: 0,
-			EvmTx:  types.NewEvmTransaction(0, common.Address{}, new(big.Int), 0, new(big.Int).SetUint64(10000000), 2, 2, 1, 0, []byte{}, 0, 0),
-		},
-		{
-			TxType: 0,
-			EvmTx:  types.NewEvmTransaction(1, common.Address{}, new(big.Int), 0, new(big.Int).SetUint64(10000000), 2, 2, 1, 0, []byte{}, 0, 0),
-		},
-		{
-			TxType: 0,
-			EvmTx:  types.NewEvmTransaction(2, common.Address{}, new(big.Int), 0, new(big.Int).SetUint64(10000000), 2, 2, 1, 0, []byte{}, 0, 0),
-		},
-		{
-			TxType: 0,
-			EvmTx:  types.NewEvmTransaction(3, common.Address{}, new(big.Int), 0, new(big.Int).SetUint64(10000000), 2, 2, 1, 0, []byte{}, 0, 0),
-		},
-		{
-			TxType: 0,
-			EvmTx:  types.NewEvmTransaction(4, common.Address{}, new(big.Int), 0, new(big.Int).SetUint64(10000000), 2, 2, 1, 0, []byte{}, 0, 0),
-		},
-		{
-			TxType: 0,
-			EvmTx:  types.NewEvmTransaction(5, common.Address{}, new(big.Int), 0, new(big.Int).SetUint64(10000000), 2, 2, 1, 0, []byte{}, 0, 0),
-		},
+	privkey, address, err := newAddress(0)
+	assert.NoError(t, err)
+
+	var (
+		nonce  uint64 = 0
+		txdata        = make([]*types.Transaction, 0, 10)
+	)
+
+	for len(txdata) < cap(txdata) {
+		tx := types.NewEvmTransaction(nonce, address.Recipient, big.NewInt(0), 30000, big.NewInt(10000000), address.FullShardKey, address.FullShardKey, 1, 0, nil, 0, 0)
+		tx, err = signTx(tx, privkey)
+		assert.NoError(t, err)
+		txdata = append(txdata, &types.Transaction{TxType: 0, EvmTx: tx})
 	}
 
 	txCh := make(chan map[string]interface{}, len(txdata)*2)
 	err = bak.subscribeEvent("newPendingTransactions", txCh)
 	assert.NoError(t, err)
 
-	time.Sleep(500 * time.Millisecond)
+	time.Sleep(1200 * time.Millisecond)
 	bak.createTxs(txdata)
 
 	var (
