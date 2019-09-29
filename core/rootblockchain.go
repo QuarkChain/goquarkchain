@@ -6,7 +6,6 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"github.com/QuarkChain/goquarkchain/cluster/rpc"
 	"io"
 	"math/big"
 	"sort"
@@ -16,11 +15,12 @@ import (
 
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
+	"github.com/QuarkChain/goquarkchain/cluster/rpc"
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/consensus/posw"
 	"github.com/QuarkChain/goquarkchain/core/rawdb"
 	"github.com/QuarkChain/goquarkchain/core/types"
-	"github.com/QuarkChain/goquarkchain/internal/qkcapi"
+	"github.com/QuarkChain/goquarkchain/internal/encoder"
 	"github.com/QuarkChain/goquarkchain/serialize"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/mclock"
@@ -29,7 +29,7 @@ import (
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
-	lru "github.com/hashicorp/golang-lru"
+	"github.com/hashicorp/golang-lru"
 )
 
 var (
@@ -1379,7 +1379,7 @@ func (bc *RootBlockChain) PutRootBlockIndex(block *types.RootBlock) error {
 			shardRecipientCnt[fullShardID] = make(map[account.Recipient]uint32)
 		}
 		shardRecipientCnt[fullShardID][recipient] = newCount
-		blockID := qkcapi.IDEncoder(header.Hash().Bytes(), fullShardID)
+		blockID := encoder.IDEncoder(header.Hash().Bytes(), fullShardID)
 		bc.PutRootBlockConfirmingMinorBlock(blockID, block.Hash())
 	}
 	for fullShardID, infoList := range shardRecipientCnt {
