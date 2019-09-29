@@ -20,18 +20,16 @@ import (
 	"bytes"
 	"container/list"
 	"crypto/ecdsa"
-	"encoding/hex"
 	"errors"
 	"fmt"
-	"net"
-	"sync"
-	"time"
-
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/p2p/netutil"
 	"github.com/ethereum/go-ethereum/rlp"
+	"net"
+	"sync"
+	"time"
 )
 
 // Errors
@@ -64,7 +62,7 @@ const (
 	findnodePacket
 	neighborsPacket
 
-	qkcIdStringTemplate = "qkc %d discovery"
+	qkcIdStringTemplate = "qkc%d discovery"
 )
 
 var (
@@ -255,7 +253,7 @@ func ListenUDP(c conn, ln *enode.LocalNode, cfg Config) (*Table, error) {
 }
 
 func newUDP(c conn, ln *enode.LocalNode, cfg Config) (*Table, *udp, error) {
-	qkcIdBytes, _ = hex.DecodeString(fmt.Sprintf(qkcIdStringTemplate, cfg.NetworkId))
+	qkcIdBytes = []byte(fmt.Sprintf(qkcIdStringTemplate, cfg.NetworkId))
 	qkcIdLen = len(qkcIdBytes)
 	udp := &udp{
 		conn:        c,
