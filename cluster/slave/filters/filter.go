@@ -3,33 +3,16 @@ package filters
 
 import (
 	"context"
-	"github.com/QuarkChain/goquarkchain/core"
 	"math/big"
 
-	qsync "github.com/QuarkChain/goquarkchain/cluster/sync"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/rpc"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/event"
 )
-
-type ShardBackend interface {
-	GetHeaderByNumber(height rpc.BlockNumber) (*types.MinorBlockHeader, error)
-	GetHeaderByHash(blockHash common.Hash) (*types.MinorBlockHeader, error)
-	GetReceiptsByHash(hash common.Hash) (types.Receipts, error)
-	GetLogs(hash common.Hash) ([][]*types.Log, error)
-
-	SubscribeChainHeadEvent(ch chan<- core.MinorChainHeadEvent) event.Subscription
-	SubscribeLogsEvent(ch chan<- []*types.Log) event.Subscription
-	SubscribeRemovedLogsEvent(ch chan<- core.RemovedLogsEvent) event.Subscription
-	SubscribeChainEvent(ch chan<- core.MinorChainEvent) event.Subscription
-	SubscribeNewTxsEvent(ch chan<- core.NewTxsEvent) event.Subscription
-	SubscribeSyncEvent(ch chan<- *qsync.SyncingResult) event.Subscription
-}
 
 // Filter can be used to retrieve and filter logs.
 type Filter struct {
-	backend ShardBackend
+	backend ShardFilter
 
 	addresses []common.Address
 	topics    [][]common.Hash
@@ -41,7 +24,7 @@ type Filter struct {
 // NewRangeFilter creates a new filter which uses a bloom filter on blocks to
 // figure out whether a particular block is interesting or not.
 
-func NewRangeFilter(backend ShardBackend, begin, end int64, addresses []common.Address, topics [][]common.Hash) *Filter {
+func NewRangeFilter(backend ShardFilter, begin, end int64, addresses []common.Address, topics [][]common.Hash) *Filter {
 	// Flatten the address and topic filter clauses into a single bloombits filter
 	// system. Since the bloombits are not positional, nil topics are permitted,
 	// which get flattened into a nil byte slice.
@@ -72,7 +55,7 @@ func NewRangeFilter(backend ShardBackend, begin, end int64, addresses []common.A
 
 // NewBlockFilter creates a new filter which directly inspects the contents of
 // a block to figure out whether it is interesting or not.
-func NewBlockFilter(backend ShardBackend, block common.Hash, addresses []common.Address, topics [][]common.Hash) *Filter {
+func NewBlockFilter(backend ShardFilter, block common.Hash, addresses []common.Address, topics [][]common.Hash) *Filter {
 	// Create a generic filter and convert it into a block filter
 	filter := newFilter(backend, addresses, topics)
 	filter.block = block
@@ -81,7 +64,7 @@ func NewBlockFilter(backend ShardBackend, block common.Hash, addresses []common.
 
 // newFilter creates a generic filter that can either filter based on a block hash,
 // or based on range queries. The search criteria needs to be explicitly set.
-func newFilter(backend ShardBackend, addresses []common.Address, topics [][]common.Hash) *Filter {
+func newFilter(backend ShardFilter, addresses []common.Address, topics [][]common.Hash) *Filter {
 	return &Filter{
 		backend:   backend,
 		addresses: addresses,

@@ -90,10 +90,10 @@ func (s *subSyncingEvent) getch() error {
 	}
 }
 
-func (s *subscribe) newSubEvent(shrd ShardBackend, tp Type, broadcast func(interface{})) subackend {
+func (s *subscribe) newSubEvent(shrd ShardFilter, tp Type, broadcast func(interface{})) subackend {
 	switch tp {
 	case LogsSubscription:
-		logsCh := make(chan []*types.Log, logsChanSize)
+		logsCh := make(chan []*types.Log, LogsChanSize)
 		sub := shrd.SubscribeLogsEvent(logsCh)
 		return &subLogsEvent{
 			ch: logsCh,
@@ -103,7 +103,7 @@ func (s *subscribe) newSubEvent(shrd ShardBackend, tp Type, broadcast func(inter
 			},
 		}
 	case PendingTransactionsSubscription:
-		txsCh := make(chan core.NewTxsEvent, txChanSize)
+		txsCh := make(chan core.NewTxsEvent, TxChanSize)
 		sub := shrd.SubscribeNewTxsEvent(txsCh)
 		return &subTxsEvent{
 			ch: txsCh,
@@ -113,7 +113,7 @@ func (s *subscribe) newSubEvent(shrd ShardBackend, tp Type, broadcast func(inter
 			},
 		}
 	case BlocksSubscription:
-		headersCh := make(chan core.MinorChainHeadEvent, chainEvChanSize)
+		headersCh := make(chan core.MinorChainHeadEvent, ChainEvChanSize)
 		sub := shrd.SubscribeChainHeadEvent(headersCh)
 		return &subMinorBlockHeadersEvent{
 			ch: headersCh,
@@ -123,7 +123,7 @@ func (s *subscribe) newSubEvent(shrd ShardBackend, tp Type, broadcast func(inter
 			},
 		}
 	case SyncingSubscription:
-		syncCh := make(chan *qsync.SyncingResult, syncSize)
+		syncCh := make(chan *qsync.SyncingResult, SyncSize)
 		sub := shrd.SubscribeSyncEvent(syncCh)
 		return &subSyncingEvent{
 			ch: syncCh,

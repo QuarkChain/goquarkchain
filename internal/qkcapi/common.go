@@ -4,6 +4,7 @@ import (
 	"errors"
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
+	"github.com/QuarkChain/goquarkchain/internal/encoder"
 	"github.com/QuarkChain/goquarkchain/rpc"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
@@ -12,7 +13,7 @@ import (
 )
 
 var (
-	EmptyTxID = IDEncoder(common.Hash{}.Bytes(), 0)
+	EmptyTxID = encoder.IDEncoder(common.Hash{}.Bytes(), 0)
 
 	once           sync.Once
 	clusterCfg     *config.ClusterConfig
