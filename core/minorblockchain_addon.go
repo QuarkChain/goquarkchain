@@ -57,11 +57,6 @@ func (m *MinorBlockChain) getLastConfirmedMinorBlockHeaderAtRootBlock(hash commo
 	return m.GetHeader(rMinorHeaderHash).(*types.MinorBlockHeader)
 }
 
-func (m *MinorBlockChain) getLocalFeeRate() *big.Rat {
-	ret := new(big.Rat).SetInt64(1)
-	return ret.Sub(ret, m.clusterConfig.Quarkchain.RewardTaxRate)
-}
-
 func powerBigInt(data *big.Int, p uint64) *big.Int {
 	t := new(big.Int).Set(data)
 	if p == 0 {
@@ -79,9 +74,9 @@ func (m *MinorBlockChain) getCoinbaseAmount(height uint64) *types.TokenBalances 
 	if !ok {
 		decayNumerator := powerBigInt(m.clusterConfig.Quarkchain.BlockRewardDecayFactor.Num(), epoch)
 		decayDenominator := powerBigInt(m.clusterConfig.Quarkchain.BlockRewardDecayFactor.Denom(), epoch)
-		coinbaseAmount := new(big.Int).Mul(m.shardConfig.CoinbaseAmount, m.clusterConfig.Quarkchain.RewardTaxRate.Num())
+		coinbaseAmount := new(big.Int).Mul(m.shardConfig.CoinbaseAmount, m.clusterConfig.Quarkchain.LocalFeeRate.Num())
 		coinbaseAmount = new(big.Int).Mul(coinbaseAmount, decayNumerator)
-		coinbaseAmount = new(big.Int).Div(coinbaseAmount, m.clusterConfig.Quarkchain.RewardTaxRate.Denom())
+		coinbaseAmount = new(big.Int).Div(coinbaseAmount, m.clusterConfig.Quarkchain.LocalFeeRate.Denom())
 		coinbaseAmount = new(big.Int).Div(coinbaseAmount, decayDenominator)
 		data := make(map[uint64]*big.Int)
 		data[m.clusterConfig.Quarkchain.GetDefaultChainTokenID()] = coinbaseAmount

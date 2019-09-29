@@ -92,8 +92,9 @@ type RootBlockChain struct {
 	checkpoint   int          // checkpoint counts towards the new checkpoint
 	currentBlock atomic.Value // Current head of the block chain
 
-	blockCache   *lru.Cache // Cache for the most recent entire blocks
-	futureBlocks *lru.Cache // future blocks are blocks added for later processing
+	blockCache          *lru.Cache // Cache for the most recent entire blocks
+	futureBlocks        *lru.Cache // future blocks are blocks added for later processing
+	coinbaseAmountCache map[uint64]*big.Int
 
 	quit    chan struct{} // blockchain quit channel
 	running int32         // running must be called atomically
@@ -1280,17 +1281,6 @@ func (bc *RootBlockChain) CalculateRootBlockCoinBase(rootBlock *types.RootBlock)
 			return nil, fmt.Errorf("rootBlockChain not contain minorBlock hash:%v", header.Hash().String())
 		}
 	}
-	height := new(big.Int).SetUint64(rootBlock.Header().NumberU64())
-	epoch := height.Div(height, bc.Config().Root.EpochInterval)
-	numerator := powerBigInt(bc.Config().BlockRewardDecayFactor.Num(), epoch.Uint64())
-	denominator := powerBigInt(bc.Config().BlockRewardDecayFactor.Denom(), epoch.Uint64())
-	coinbaseAmount := new(big.Int).Mul(bc.Config().Root.CoinbaseAmount, numerator)
-	coinbaseAmount = coinbaseAmount.Div(coinbaseAmount, denominator)
-
-	rewardTaxRate := bc.Config().RewardTaxRate
-	one := big.NewRat(1, 1)
-	ratioT := one.Sub(one, rewardTaxRate)
-	ratio := ratioT.Quo(ratioT, rewardTaxRate)
 
 	rewardTokenMap := types.NewEmptyTokenBalances()
 	for _, mheader := range rootBlock.MinorBlockHeaders() {
@@ -1298,6 +1288,7 @@ func (bc *RootBlockChain) CalculateRootBlockCoinBase(rootBlock *types.RootBlock)
 		rewardTokenMap.Add(mToken.GetBalanceMap())
 	}
 
+	ratio := bc.Config().RewardCalculateRate
 	tempToken := rewardTokenMap.GetBalanceMap()
 	for token, value := range tempToken {
 		value = value.Mul(value, ratio.Denom())
@@ -1306,11 +1297,25 @@ func (bc *RootBlockChain) CalculateRootBlockCoinBase(rootBlock *types.RootBlock)
 	}
 	genesisToken := bc.Config().GetDefaultChainTokenID()
 	genesisTokenBalance := rewardTokenMap.GetTokenBalance(genesisToken)
-	genesisTokenBalance.Add(genesisTokenBalance, coinbaseAmount)
+	genesisTokenBalance.Add(genesisTokenBalance, bc.getCoinbaseAmount(rootBlock.NumberU64()))
 	rewardTokenMap.SetValue(genesisTokenBalance, genesisToken)
 	return rewardTokenMap, nil
 
 }
+
+func (bc *RootBlockChain) getCoinbaseAmount(height uint64) *big.Int {
+	epoch := height / bc.Config().Root.EpochInterval
+	coinbaseAmount, ok := bc.coinbaseAmountCache[epoch]
+	if !ok {
+		numerator := powerBigInt(bc.Config().BlockRewardDecayFactor.Num(), epoch)
+		denominator := powerBigInt(bc.Config().BlockRewardDecayFactor.Denom(), epoch)
+		coinbaseAmount = new(big.Int).Mul(bc.Config().Root.CoinbaseAmount, numerator)
+		coinbaseAmount = coinbaseAmount.Div(coinbaseAmount, denominator)
+		bc.coinbaseAmountCache[epoch] = coinbaseAmount
+	}
+	return coinbaseAmount
+}
+
 func (bc *RootBlockChain) IsMinorBlockValidated(mHash common.Hash) bool {
 	return bc.ContainMinorBlockByHash(mHash)
 }

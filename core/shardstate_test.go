@@ -2255,7 +2255,7 @@ func getDefaultBalance(acc account.Address, shardState *MinorBlockChain) *big.In
 }
 
 func afterTax(reward uint64, shardState *MinorBlockChain) *big.Int {
-	rate := shardState.getLocalFeeRate()
+	rate := shardState.Config().LocalFeeRate
 	rewardRated := new(big.Int).Mul(new(big.Int).SetUint64(reward), rate.Num())
 	rewardRated = new(big.Int).Div(rewardRated, rate.Denom())
 	return rewardRated
