@@ -104,7 +104,7 @@ func (c *CommonAPI) GetLogs(args *rpc.FilterQuery, fullShardKey *hexutil.Uint) (
 	args.FullShardId = fullShardID
 
 	log, err := c.b.GetLogs(args)
-	return encoder.LogListEncoder(log), nil
+	return encoder.LogListEncoder(log, false), nil
 }
 
 // It offers only methods that operate on public data that is freely available to anyone.

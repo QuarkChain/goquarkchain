@@ -222,7 +222,7 @@ func TxEncoder(block *types.MinorBlock, i int) (map[string]interface{}, error) {
 	return field, nil
 }
 
-func LogListEncoder(logList []*types.Log) []map[string]interface{} {
+func LogListEncoder(logList []*types.Log, isRemoved bool) []map[string]interface{} {
 	fields := make([]map[string]interface{}, 0)
 	for _, log := range logList {
 		field := map[string]interface{}{
@@ -235,6 +235,7 @@ func LogListEncoder(logList []*types.Log) []map[string]interface{} {
 			"address":          log.Recipient,
 			"recipient":        log.Recipient,
 			"data":             hexutil.Bytes(log.Data),
+			"removed":          isRemoved,
 		}
 		topics := make([]ethCommon.Hash, 0)
 		for _, v := range log.Topics {
@@ -274,7 +275,7 @@ func ReceiptEncoder(block *types.MinorBlock, i int, receipt *types.Receipt) (map
 		"cumulativeGasUsed": hexutil.Uint64(receipt.CumulativeGasUsed),
 		"gasUsed":           hexutil.Uint64(receipt.GasUsed),
 		"status":            hexutil.Uint64(receipt.Status),
-		"logs":              LogListEncoder(receipt.Logs),
+		"logs":              LogListEncoder(receipt.Logs, false),
 		"timestamp":         hexutil.Uint64(block.Header().Time),
 	}
 	if receipt.ContractAddress.Big().Uint64() == 0 {
