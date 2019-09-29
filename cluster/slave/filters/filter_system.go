@@ -3,7 +3,7 @@ package filters
 
 import (
 	"errors"
-	"fmt"
+	"math/big"
 	"sync"
 	"time"
 
@@ -180,31 +180,22 @@ func (es *EventSystem) subscribe(sub *subscription) *Subscription {
 // given criteria to the given logs channel. Default value for the from and to
 // block is "latest". If the fromBlock > toBlock an error is returned.
 func (es *EventSystem) SubscribeLogs(crit qrpc.FilterQuery, logs chan []*types.Log) (*Subscription, error) {
-	var from, to qrpc.BlockNumber
-	if crit.FromBlock == nil {
-		from = qrpc.LatestBlockNumber
-	} else {
-		from = qrpc.BlockNumber(crit.FromBlock.Int64())
+	shrd, err := es.backend.GetShardBackend(crit.FullShardId)
+	if err != nil {
+		return nil, err
 	}
-	if crit.ToBlock == nil {
-		to = qrpc.LatestBlockNumber
-	} else {
-		to = qrpc.BlockNumber(crit.ToBlock.Int64())
+	header, err := shrd.GetHeaderByNumber(qrpc.LatestBlockNumber)
+	if err != nil {
+		return nil, err
 	}
 
-	// only interested in new mined logs
-	if from == qrpc.LatestBlockNumber && to == qrpc.LatestBlockNumber {
-		return es.subscribeLogs(crit, logs), nil
+	if crit.FromBlock == nil || crit.FromBlock.Int64() == qrpc.LatestBlockNumber.Int64() {
+		crit.FromBlock = big.NewInt(int64(header.Number))
 	}
-	// only interested in mined logs within a specific block range
-	if from >= 0 && to >= 0 && to >= from {
-		return es.subscribeLogs(crit, logs), nil
+	if crit.ToBlock == nil || crit.ToBlock.Int64() == qrpc.LatestBlockNumber.Int64() {
+		crit.FromBlock = big.NewInt(int64(header.Number))
 	}
-	// interested in logs from a specific block number to new mined blocks
-	if from >= 0 && to == qrpc.LatestBlockNumber {
-		return es.subscribeLogs(crit, logs), nil
-	}
-	return nil, fmt.Errorf("invalid from and to block combination: from > to")
+	return es.subscribeLogs(crit, logs), nil
 }
 
 // subscribeMinedPendingLogs creates a subscription that returned mined and
