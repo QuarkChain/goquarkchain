@@ -4,7 +4,6 @@ package test
 
 import (
 	"encoding/hex"
-	"fmt"
 	"math/big"
 	"runtime"
 	"testing"
@@ -874,9 +873,4 @@ func TestGetWorkFromMaster(t *testing.T) {
 	clstrList.Stop()
 	time.Sleep(1 * time.Second)
 	runtime.GC()
-}
-
-func TestGetWorkWithOptionalDiffDivider(t *testing.T) {
-	//need to rewrite rootblockchain.GetRootChainStakes()
-
 }

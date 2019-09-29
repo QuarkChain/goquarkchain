@@ -105,6 +105,11 @@ type PoSWInfo struct {
 	PoswMinedBlocks     uint64
 }
 
+func (info *PoSWInfo) IsNil() bool {
+	return (info.EffectiveDifficulty == nil || new(big.Int).Cmp(info.EffectiveDifficulty) == 0) &&
+		info.PoswMineableBlocks == 0 && info.PoswMinedBlocks == 0
+}
+
 type GetMinorBlockHeaderListWithSkipRequest struct {
 	p2p.GetMinorBlockHeaderListWithSkipRequest
 	PeerID string `json:"peerid" gencodec:"required"`
@@ -438,14 +443,14 @@ func (bn *BlockNumber) UnmarshalJSON(data []byte) error {
 
 	switch strings.ToLower(input) {
 	/*case "earliest":
-		*bn = EarliestBlockNumber
-		return nil*/
+	*bn = EarliestBlockNumber
+	return nil*/
 	case "latest":
 		*bn = LatestBlockNumber
 		return nil
 		/*case "pending":
-			*bn = PendingBlockNumber
-			return nil*/
+		*bn = PendingBlockNumber
+		return nil*/
 	}
 
 	blckNum, err := hexutil.DecodeUint64(input)

@@ -389,6 +389,10 @@ func (st *StateTransition) chargeFee(gasUsed uint64) {
 	blockFee := make(map[uint64]*big.Int)
 	blockFee[st.msg.GasTokenID()] = rateFee
 	st.state.AddBlockFee(blockFee)
+	if st.state.GetTimeStamp() >= st.state.GetQuarkChainConfig().EnableEvmTimeStamp {
+		st.state.AddGasUsed(new(big.Int).SetUint64(gasUsed))
+		return
+	}
 	st.state.AddGasUsed(new(big.Int).SetUint64(st.gasUsed()))
 }
 
