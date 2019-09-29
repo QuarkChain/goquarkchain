@@ -311,6 +311,8 @@ func (st *StateTransition) AddCrossShardTxDeposit(intrinsicGas uint64) (ret []by
 		crossShardGasPrice.Value = new(big.Int).Set(msg.GasPrice())
 		crossShardGas := new(serialize.Uint256)
 		crossShardGas.Value = new(big.Int).SetUint64(remoteGasReserved)
+
+		fromFullShardKey := msg.FromFullShardKey()
 		crossShardData := &types.CrossShardTransactionDeposit{
 			TxHash: msg.TxHash(),
 			From: account.Address{
@@ -318,7 +320,7 @@ func (st *StateTransition) AddCrossShardTxDeposit(intrinsicGas uint64) (ret []by
 				FullShardKey: msg.FromFullShardKey(),
 			},
 			To: account.Address{
-				Recipient:    vm.CreateAddress(msg.From(), msg.ToFullShardKey(), state.GetNonce(msg.From())),
+				Recipient:    vm.CreateAddress(msg.From(), &fromFullShardKey, state.GetNonce(msg.From())),
 				FullShardKey: *msg.ToFullShardKey(),
 			},
 			Value:           crossShardValue,
