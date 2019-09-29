@@ -434,7 +434,8 @@ func (m *MinorBlockChain) SkipDifficultyCheck() bool {
 func (m *MinorBlockChain) GetAdjustedDifficulty(header types.IHeader) (*big.Int, uint64, error) {
 	diff := header.GetDifficulty()
 	if m.posw.IsPoSWEnabled(header) {
-		balance, err := m.GetBalance(header.GetCoinbase().Recipient, nil)
+		preHeight := header.NumberU64() - 1
+		balance, err := m.GetBalance(header.GetCoinbase().Recipient, &preHeight)
 		if err != nil {
 			log.Error("PoSW", "failed to get coinbase balance", err)
 			return nil, 0, err
