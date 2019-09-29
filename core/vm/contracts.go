@@ -68,6 +68,8 @@ func (s *SystemContract) Address() common.Address {
 type PrecompiledContract interface {
 	RequiredGas(input []byte) uint64                                // RequiredPrice calculates the contract gas use
 	Run(input []byte, evm *EVM, contract *Contract) ([]byte, error) // Run runs the precompiled contract
+	GetEnableTime() uint64
+	SetEnableTime(data uint64)
 }
 
 // PrecompiledContractsHomestead contains the default set of pre-compiled Ethereum
@@ -105,7 +107,17 @@ func RunPrecompiledContract(p PrecompiledContract, input []byte, contract *Contr
 }
 
 // ECRECOVER implemented as a native contract.
-type ecrecover struct{}
+type ecrecover struct {
+	enableTime uint64
+}
+
+func (c *ecrecover) GetEnableTime() uint64 {
+	return c.enableTime
+}
+
+func (c *ecrecover) SetEnableTime(data uint64) {
+	c.enableTime = data
+}
 
 func (c *ecrecover) RequiredGas(input []byte) uint64 {
 	return params.EcrecoverGas
@@ -138,7 +150,17 @@ func (c *ecrecover) Run(input []byte, evm *EVM, contract *Contract) ([]byte, err
 }
 
 // SHA256 implemented as a native contract.
-type sha256hash struct{}
+type sha256hash struct {
+	enableTime uint64
+}
+
+func (c *sha256hash) GetEnableTime() uint64 {
+	return c.enableTime
+}
+
+func (c *sha256hash) SetEnableTime(data uint64) {
+	c.enableTime = data
+}
 
 // RequiredGas returns the gas required to execute the pre-compiled contract.
 //
@@ -153,7 +175,17 @@ func (c *sha256hash) Run(input []byte, evm *EVM, contract *Contract) ([]byte, er
 }
 
 // RIPEMD160 implemented as a native contract.
-type ripemd160hash struct{}
+type ripemd160hash struct {
+	enableTime uint64
+}
+
+func (c *ripemd160hash) GetEnableTime() uint64 {
+	return c.enableTime
+}
+
+func (c *ripemd160hash) SetEnableTime(data uint64) {
+	c.enableTime = data
+}
 
 // RequiredGas returns the gas required to execute the pre-compiled contract.
 //
@@ -169,7 +201,15 @@ func (c *ripemd160hash) Run(input []byte, evm *EVM, contract *Contract) ([]byte,
 }
 
 // data copy implemented as a native contract.
-type dataCopy struct{}
+type dataCopy struct{ enableTime uint64 }
+
+func (c *dataCopy) GetEnableTime() uint64 {
+	return c.enableTime
+}
+
+func (c *dataCopy) SetEnableTime(data uint64) {
+	c.enableTime = data
+}
 
 // RequiredGas returns the gas required to execute the pre-compiled contract.
 //
@@ -183,7 +223,7 @@ func (c *dataCopy) Run(in []byte, evm *EVM, contract *Contract) ([]byte, error) 
 }
 
 // bigModExp implements a native big integer exponential modular operation.
-type bigModExp struct{}
+type bigModExp struct{ enableTime uint64 }
 
 var (
 	big1      = big.NewInt(1)
@@ -198,6 +238,14 @@ var (
 	big3072   = big.NewInt(3072)
 	big199680 = big.NewInt(199680)
 )
+
+func (c *bigModExp) GetEnableTime() uint64 {
+	return c.enableTime
+}
+
+func (c *bigModExp) SetEnableTime(data uint64) {
+	c.enableTime = data
+}
 
 // RequiredGas returns the gas required to execute the pre-compiled contract.
 func (c *bigModExp) RequiredGas(input []byte) uint64 {
@@ -308,7 +356,15 @@ func newTwistPoint(blob []byte) (*bn256.G2, error) {
 }
 
 // bn256Add implements a native elliptic curve point addition.
-type bn256Add struct{}
+type bn256Add struct{ enableTime uint64 }
+
+func (c *bn256Add) GetEnableTime() uint64 {
+	return c.enableTime
+}
+
+func (c *bn256Add) SetEnableTime(data uint64) {
+	c.enableTime = data
+}
 
 // RequiredGas returns the gas required to execute the pre-compiled contract.
 func (c *bn256Add) RequiredGas(input []byte) uint64 {
@@ -330,7 +386,15 @@ func (c *bn256Add) Run(input []byte, evm *EVM, contract *Contract) ([]byte, erro
 }
 
 // bn256ScalarMul implements a native elliptic curve scalar multiplication.
-type bn256ScalarMul struct{}
+type bn256ScalarMul struct{ enableTime uint64 }
+
+func (c *bn256ScalarMul) GetEnableTime() uint64 {
+	return c.enableTime
+}
+
+func (c *bn256ScalarMul) SetEnableTime(data uint64) {
+	c.enableTime = data
+}
 
 // RequiredGas returns the gas required to execute the pre-compiled contract.
 func (c *bn256ScalarMul) RequiredGas(input []byte) uint64 {
@@ -359,7 +423,15 @@ var (
 )
 
 // bn256Pairing implements a pairing pre-compile for the bn256 curve
-type bn256Pairing struct{}
+type bn256Pairing struct{ enableTime uint64 }
+
+func (c *bn256Pairing) GetEnableTime() uint64 {
+	return c.enableTime
+}
+
+func (c *bn256Pairing) SetEnableTime(data uint64) {
+	c.enableTime = data
+}
 
 // RequiredGas returns the gas required to execute the pre-compiled contract.
 func (c *bn256Pairing) RequiredGas(input []byte) uint64 {
@@ -396,8 +468,16 @@ func (c *bn256Pairing) Run(input []byte, evm *EVM, contract *Contract) ([]byte, 
 }
 
 type currentMntID struct {
+	enableTime uint64
 }
 
+func (c *currentMntID) GetEnableTime() uint64 {
+	return c.enableTime
+}
+
+func (c *currentMntID) SetEnableTime(data uint64) {
+	c.enableTime = data
+}
 func (c *currentMntID) RequiredGas(input []byte) uint64 {
 	return currentMntIDGas
 }
@@ -411,6 +491,15 @@ func (c *currentMntID) Run(input []byte, evm *EVM, contract *Contract) ([]byte, 
 }
 
 type transferMnt struct {
+	enableTime uint64
+}
+
+func (c *transferMnt) GetEnableTime() uint64 {
+	return c.enableTime
+}
+
+func (c *transferMnt) SetEnableTime(data uint64) {
+	c.enableTime = data
 }
 
 func (c *transferMnt) RequiredGas(input []byte) uint64 {
@@ -444,6 +533,14 @@ func (c *transferMnt) Run(input []byte, evm *EVM, contract *Contract) ([]byte, e
 }
 
 type deployRootChainPoSWStakingContract struct {
+	enableTime uint64
+}
+
+func (c *deployRootChainPoSWStakingContract) GetEnableTime() uint64 {
+	return c.enableTime
+}
+func (c *deployRootChainPoSWStakingContract) SetEnableTime(data uint64) {
+	c.enableTime = data
 }
 
 func (r *deployRootChainPoSWStakingContract) RequiredGas(input []byte) uint64 {

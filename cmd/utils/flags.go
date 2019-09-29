@@ -163,12 +163,17 @@ var (
 	}
 	CheckDBRBlockFromFlag = cli.IntFlag{
 		Name:  "check_db_rblock_from",
-		Usage: "", //todo add usage
+		Usage: "height of the root block start the db check",
 		Value: -1,
 	}
 	CheckDBRBlockToFlag = cli.IntFlag{
 		Name:  "check_db_rblock_to",
-		Usage: "", //todo add usage
+		Usage: "height of the root block finish the check",
+		Value: 0,
+	}
+	CheckDBRBlockBatchFlag = cli.IntFlag{
+		Name:  "check_db_rblock_batch",
+		Usage: "the batch size of root block check at the same time",
 		Value: 0,
 	}
 
@@ -513,6 +518,9 @@ func setCheckDBConfig(ctx *cli.Context, clstrCfg *config.ClusterConfig) {
 	}
 	if ctx.GlobalIsSet(CheckDBRBlockToFlag.Name) {
 		clstrCfg.CheckDBRBlockTo = ctx.GlobalInt(CheckDBRBlockToFlag.Name)
+	}
+	if ctx.GlobalIsSet(CheckDBRBlockBatchFlag.Name) {
+		clstrCfg.CheckDBRBlockBatch = ctx.GlobalInt(CheckDBRBlockBatchFlag.Name)
 	}
 }
 

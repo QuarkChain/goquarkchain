@@ -26,8 +26,8 @@ type Backend interface {
 	GasPrice(branch account.Branch, tokenID uint64) (uint64, error)
 	GetWork(branch account.Branch, address *common.Address) (*consensus.MiningWork, error)
 	SubmitWork(branch account.Branch, headerHash common.Hash, nonce uint64, mixHash common.Hash, signature *[65]byte) (bool, error)
-	GetRootBlockByNumber(blockNr *uint64) (*types.RootBlock, error)
-	GetRootBlockByHash(hash common.Hash) (*types.RootBlock, error)
+	GetRootBlockByNumber(blockNr *uint64, needExtraInfo bool) (*types.RootBlock, *qrpc.PoSWInfo, error)
+	GetRootBlockByHash(hash common.Hash, needExtraInfo bool) (*types.RootBlock, *qrpc.PoSWInfo, error)
 	NetWorkInfo() map[string]interface{}
 	GetPrimaryAccountData(address *account.Address, blockHeight *uint64) (*qrpc.AccountBranchData, error)
 	CurrentBlock() *types.RootBlock

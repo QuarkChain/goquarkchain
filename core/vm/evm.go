@@ -44,11 +44,9 @@ type (
 // run runs the given contract and takes care of running precompiles with a fallback to the byte code interpreter.
 func run(evm *EVM, contract *Contract, input []byte, readOnly bool) ([]byte, error) {
 	if contract.CodeAddr != nil {
-		precompiles := PrecompiledContractsHomestead
-		if evm.ChainConfig().IsByzantium(evm.BlockNumber) {
-			precompiles = PrecompiledContractsByzantium
-		}
-		if p := precompiles[*contract.CodeAddr]; p != nil {
+		precompiles := PrecompiledContractsByzantium
+
+		if p := precompiles[*contract.CodeAddr]; p != nil && evm.StateDB.GetTimeStamp() > p.GetEnableTime() {
 			return RunPrecompiledContract(p, input, contract, evm)
 		}
 	}
@@ -406,8 +404,11 @@ func (evm *EVM) create(caller ContractRef, codeAndHash *codeAndHash, gas uint64,
 	if !evm.CanTransfer(evm.StateDB, caller.Address(), value, evm.TransferTokenID) {
 		return nil, common.Address{}, gas, ErrInsufficientBalance
 	}
-	nonce := evm.StateDB.GetNonce(caller.Address())
-	evm.StateDB.SetNonce(caller.Address(), nonce+1)
+
+	if !evm.IsApplyXShard {
+		nonce := evm.StateDB.GetNonce(caller.Address())
+		evm.StateDB.SetNonce(caller.Address(), nonce+1)
+	}
 
 	// Ensure there's no existing contract already at the designated address
 	contractHash := evm.StateDB.GetCodeHash(address)

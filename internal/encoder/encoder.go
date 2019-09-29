@@ -45,7 +45,7 @@ func BalancesEncoder(balances *types.TokenBalances) []map[string]interface{} {
 	return balanceList
 }
 
-func RootBlockEncoder(rootBlock *types.RootBlock) (map[string]interface{}, error) {
+func RootBlockEncoder(rootBlock *types.RootBlock, extraInfo *rpc.PoSWInfo) (map[string]interface{}, error) {
 	serData, err := serialize.SerializeToBytes(rootBlock)
 	if err != nil {
 		return nil, err
@@ -73,6 +73,12 @@ func RootBlockEncoder(rootBlock *types.RootBlock) (map[string]interface{}, error
 		"size":              hexutil.Uint64(len(serData)),
 		"minorBlockHeaders": make([]types.MinorBlockHeader, 0),
 		"signature":         DataEncoder(header.Signature[:]),
+	}
+	if extraInfo != nil && !extraInfo.IsNil() {
+		fields["effectiveDifficulty"] = (*hexutil.Big)(extraInfo.EffectiveDifficulty)
+		fields["poswMineableBlocks"] = (hexutil.Uint64)(extraInfo.PoswMineableBlocks)
+		fields["poswMinedBlocks"] = (hexutil.Uint64)(extraInfo.PoswMinedBlocks)
+		fields["stakingApplied"] = extraInfo.EffectiveDifficulty.Cmp(header.Difficulty) < 0
 	}
 
 	minorHeaders := make([]map[string]interface{}, 0)
@@ -154,7 +160,7 @@ func MinorBlockEncoder(block *types.MinorBlock, includeTransaction bool, extraIn
 		}
 		field["transactions"] = txHashForDisplay
 	}
-	if extraInfo != nil {
+	if extraInfo != nil && !extraInfo.IsNil() {
 		field["effectiveDifficulty"] = (*hexutil.Big)(extraInfo.EffectiveDifficulty)
 		field["poswMineableBlocks"] = (hexutil.Uint64)(extraInfo.PoswMineableBlocks)
 		field["poswMinedBlocks"] = (hexutil.Uint64)(extraInfo.PoswMinedBlocks)
