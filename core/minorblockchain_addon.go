@@ -17,6 +17,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/core/vm"
 	"github.com/QuarkChain/goquarkchain/qkcdb"
+	qrpc "github.com/QuarkChain/goquarkchain/rpc"
 	"github.com/QuarkChain/goquarkchain/serialize"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
@@ -1490,7 +1491,7 @@ func (m *MinorBlockChain) GetAllTx(start []byte, limit uint32) ([]*rpc.Transacti
 	return m.getTransactionDetails(start, end, limit, GetAllTransaction, true, nil)
 }
 
-func (m *MinorBlockChain) GetLogsByFilterQuery(args *rpc.FilterQuery) ([]*types.Log, error) {
+func (m *MinorBlockChain) GetLogsByFilterQuery(args *qrpc.FilterQuery) ([]*types.Log, error) {
 	filter := NewRangeFilter(m, args.FromBlock.Uint64(), args.ToBlock.Uint64(), args.Addresses, args.Topics)
 	return filter.Logs()
 }

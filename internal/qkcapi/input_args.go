@@ -12,6 +12,16 @@ import (
 )
 
 // CallArgs represents the arguments for a call.
+type EthCallArgs struct {
+	From     common.Address  `json:"from"`
+	To       *common.Address `json:"to"`
+	Gas      hexutil.Uint64  `json:"gas"`
+	GasPrice hexutil.Big     `json:"gasPrice"`
+	Value    hexutil.Big     `json:"value"`
+	Data     hexutil.Bytes   `json:"data"`
+}
+
+// CallArgs represents the arguments for a call.
 type CallArgs struct {
 	From            *account.Address `json:"from"`
 	To              *account.Address `json:"to"`
