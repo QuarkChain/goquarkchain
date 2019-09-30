@@ -72,7 +72,6 @@ type ShardFilter interface {
 
 	SubscribeChainHeadEvent(ch chan<- core.MinorChainHeadEvent) event.Subscription
 	SubscribeLogsEvent(chan<- core.LoglistEvent) event.Subscription
-	SubscribeRemovedLogsEvent(ch chan<- core.RemovedLogsEvent) event.Subscription
 	SubscribeChainEvent(ch chan<- core.MinorChainEvent) event.Subscription
 	SubscribeNewTxsEvent(ch chan<- core.NewTxsEvent) event.Subscription
 	SubscribeSyncEvent(ch chan<- *qsync.SyncingResult) event.Subscription
@@ -302,8 +301,14 @@ func (es *EventSystem) broadcast(filters filterIndex, ev interface{}) {
 	case core.LoglistEvent:
 		if len(e.Logs) > 0 {
 			for _, f := range filters[LogsSubscription] {
-				if matchedLogs := core.FilterLogs(e.Logs, f.logsCrit.FromBlock, f.logsCrit.ToBlock, f.logsCrit.Addresses, f.logsCrit.Topics); len(matchedLogs) > 0 {
-					f.logsCh <- core.LoglistEvent{Logs: matchedLogs, IsRemoved: e.IsRemoved}
+				var loglist = make([][]*types.Log, 0, len(e.Logs))
+				for _, logs := range e.Logs {
+					if matchedLogs := core.FilterLogs(logs, f.logsCrit.FromBlock, f.logsCrit.ToBlock, f.logsCrit.Addresses, f.logsCrit.Topics); len(matchedLogs) > 0 {
+						loglist = append(loglist, matchedLogs)
+					}
+				}
+				if len(loglist) > 0 {
+					f.logsCh <- core.LoglistEvent{Logs: loglist, IsRemoved: e.IsRemoved}
 				}
 			}
 		}
