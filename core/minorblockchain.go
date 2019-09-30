@@ -98,6 +98,7 @@ type MinorBlockChain struct {
 	chainSideFeed event.Feed
 	chainHeadFeed event.Feed
 	logsFeed      event.Feed
+	subLogsFeed   event.Feed
 	scope         event.SubscriptionScope
 	genesisBlock  *types.MinorBlock
 
@@ -1528,6 +1529,7 @@ func (m *MinorBlockChain) reorg(oldBlock, newBlock types.IBlock) error {
 		go m.rmLogsFeed.Send(RemovedLogsEvent{deletedLogs})
 	}
 	if len(oldChain) > 0 {
+		m.subLogsFeed.Send(oldChain)
 		go func() {
 			for _, block := range oldChain {
 				m.chainSideFeed.Send(MinorChainSideEvent{Block: block.(*types.MinorBlock)})
@@ -1742,7 +1744,7 @@ func (m *MinorBlockChain) SubscribeChainSideEvent(ch chan<- MinorChainSideEvent)
 }
 
 // SubscribeLogsEvent registers a subscription of []*types.Log.
-func (m *MinorBlockChain) SubscribeLogsEvent(ch chan<- []*types.Log) event.Subscription {
+func (m *MinorBlockChain) SubscribeLogsEvent(ch chan<- LoglistEvent) event.Subscription {
 	return m.scope.Track(m.logsFeed.Subscribe(ch))
 }
 

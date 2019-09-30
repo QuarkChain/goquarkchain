@@ -3,6 +3,7 @@ package slave
 
 import (
 	"context"
+	"github.com/QuarkChain/goquarkchain/core"
 	"sync"
 	"time"
 
@@ -119,7 +120,7 @@ func (api *PublicFilterAPI) Logs(ctx context.Context, crit qrpc.FilterQuery, ful
 
 	var (
 		rpcSub      = notifier.CreateSubscription()
-		matchedLogs = make(chan []*types.Log, filters.LogsChanSize)
+		matchedLogs = make(chan core.LoglistEvent, filters.LogsChanSize)
 	)
 	crit.FullShardId = uint32(fullShardId)
 
@@ -132,7 +133,7 @@ func (api *PublicFilterAPI) Logs(ctx context.Context, crit qrpc.FilterQuery, ful
 		for {
 			select {
 			case logs := <-matchedLogs:
-				for _, log := range logs {
+				for _, log := range logs.Logs {
 					notifier.Notify(rpcSub.ID, &log)
 				}
 			case <-rpcSub.Err(): // client send an unsubscribe request

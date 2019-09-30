@@ -43,3 +43,8 @@ type RootChainSideEvent struct {
 }
 
 type RootChainHeadEvent struct{ Block *types.RootBlock }
+
+type LoglistEvent struct {
+	Logs      []*types.Log
+	IsRemoved bool
+}
