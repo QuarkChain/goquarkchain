@@ -43,7 +43,7 @@ const (
 const (
 	// txChanSize is the size of channel listening to NewTxsEvent.
 	// The number is referenced from the size of tx pool.
-	TxChanSize = 4096
+	TxsChanSize = 5
 	// rmLogsChanSize is the size of channel listening to RemovedLogsEvent.
 	RmLogsChanSize = 10
 	// logsChanSize is the size of channel listening to LogsEvent.
@@ -59,7 +59,8 @@ var (
 )
 
 type SlaveFilter interface {
-	GetShardBackend(fullShardId uint32) (ShardFilter, error)
+	GetTransactionByHash(txHash common.Hash, branch uint32) (*types.MinorBlock, uint32, error)
+	GetShardFilter(fullShardId uint32) (ShardFilter, error)
 	GetFullShardList() []uint32
 }
 
@@ -70,7 +71,7 @@ type ShardFilter interface {
 	GetLogs(hash common.Hash) ([][]*types.Log, error)
 
 	SubscribeChainHeadEvent(ch chan<- core.MinorChainHeadEvent) event.Subscription
-	SubscribeLogsEvent(chan core.LoglistEvent) event.Subscription
+	SubscribeLogsEvent(chan<- core.LoglistEvent) event.Subscription
 	SubscribeRemovedLogsEvent(ch chan<- core.RemovedLogsEvent) event.Subscription
 	SubscribeChainEvent(ch chan<- core.MinorChainEvent) event.Subscription
 	SubscribeNewTxsEvent(ch chan<- core.NewTxsEvent) event.Subscription
@@ -84,7 +85,7 @@ type subscription struct {
 	fullShardId uint32
 	logsCrit    qrpc.FilterQuery
 	logsCh      chan core.LoglistEvent
-	txhashCh    chan common.Hash
+	txlistCh    chan []*types.Transaction
 	headersCh   chan *types.MinorBlockHeader
 	syncCh      chan *qsync.SyncingResult
 	installed   chan struct{} // closed when the filter is installed
@@ -154,8 +155,8 @@ func (sub *Subscription) Unsubscribe() {
 					<-sub.f.logsCh
 				} else if sub.f.headersCh != nil {
 					<-sub.f.headersCh
-				} else if sub.f.txhashCh != nil {
-					<-sub.f.txhashCh
+				} else if sub.f.txlistCh != nil {
+					<-sub.f.txlistCh
 				} else if sub.f.syncCh != nil {
 					<-sub.f.syncCh
 				}
@@ -180,7 +181,7 @@ func (es *EventSystem) subscribe(sub *subscription) *Subscription {
 // given criteria to the given logs channel. Default value for the from and to
 // block is "latest". If the fromBlock > toBlock an error is returned.
 func (es *EventSystem) SubscribeLogs(crit qrpc.FilterQuery, logs chan core.LoglistEvent) (*Subscription, error) {
-	shrd, err := es.backend.GetShardBackend(crit.FullShardId)
+	shrd, err := es.backend.GetShardFilter(crit.FullShardId)
 	if err != nil {
 		return nil, err
 	}
@@ -261,13 +262,13 @@ func (es *EventSystem) SubscribeNewHeads(headers chan *types.MinorBlockHeader, f
 
 // SubscribePendingTxs creates a subscription that writes transaction hashes for
 // transactions that enter the transaction pool.
-func (es *EventSystem) SubscribePendingTxs(txs chan common.Hash, fullShardId uint32) *Subscription {
+func (es *EventSystem) SubscribePendingTxs(txs chan []*types.Transaction, fullShardId uint32) *Subscription {
 	sub := &subscription{
 		id:          rpc.NewID(),
 		fullShardId: fullShardId,
 		typ:         PendingTransactionsSubscription,
 		created:     time.Now(),
-		txhashCh:    txs,
+		txlistCh:    txs,
 		installed:   make(chan struct{}),
 		err:         make(chan error),
 	}
@@ -308,10 +309,8 @@ func (es *EventSystem) broadcast(filters filterIndex, ev interface{}) {
 		}
 
 	case []*types.Transaction:
-		for _, tx := range e {
-			for _, f := range filters[PendingTransactionsSubscription] {
-				f.txhashCh <- tx.Hash()
-			}
+		for _, f := range filters[PendingTransactionsSubscription] {
+			f.txlistCh <- e
 		}
 
 	case *types.MinorBlockHeader:

@@ -52,9 +52,6 @@ func decodeBlockNumberToUint64(b Backend, blockNumber *rpc.BlockNumber) (*uint64
 	if blockNumber == nil {
 		return nil, nil
 	}
-	if *blockNumber == rpc.PendingBlockNumber {
-		return nil, errors.New("is pending block number")
-	}
 	if *blockNumber == rpc.LatestBlockNumber {
 		return nil, nil
 	}

@@ -361,7 +361,7 @@ func (s *ShardBackend) SubscribeChainHeadEvent(ch chan<- core.MinorChainHeadEven
 	return s.MinorBlockChain.SubscribeChainHeadEvent(ch)
 }
 
-func (s *ShardBackend) SubscribeLogsEvent(ch chan core.LoglistEvent) event.Subscription {
+func (s *ShardBackend) SubscribeLogsEvent(ch chan<- core.LoglistEvent) event.Subscription {
 	return s.MinorBlockChain.SubscribeLogsEvent(ch)
 }
 
