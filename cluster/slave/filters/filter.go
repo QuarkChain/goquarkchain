@@ -5,8 +5,8 @@ import (
 	"context"
 	"math/big"
 
-	qrpc "github.com/QuarkChain/goquarkchain/cluster/rpc"
 	"github.com/QuarkChain/goquarkchain/core/types"
+	"github.com/QuarkChain/goquarkchain/rpc"
 	"github.com/ethereum/go-ethereum/common"
 )
 
@@ -84,7 +84,7 @@ func (f *Filter) Logs(ctx context.Context) ([]*types.Log, error) {
 		return f.blockLogs(ctx, header)
 	}
 	// Figure out the limits of the filter range
-	header, err := f.backend.GetHeaderByNumber(qrpc.LatestBlockNumber)
+	header, err := f.backend.GetHeaderByNumber(rpc.LatestBlockNumber)
 	if err != nil {
 		return nil, err
 	}
@@ -113,7 +113,7 @@ func (f *Filter) unindexedLogs(ctx context.Context, end uint64) ([]*types.Log, e
 	var logs []*types.Log
 
 	for ; f.begin <= int64(end); f.begin++ {
-		header, err := f.backend.GetHeaderByNumber(qrpc.BlockNumber(f.begin))
+		header, err := f.backend.GetHeaderByNumber(rpc.BlockNumber(f.begin))
 		if header == nil || err != nil {
 			return logs, err
 		}

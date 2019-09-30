@@ -10,6 +10,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/p2p"
+	qrpc "github.com/QuarkChain/goquarkchain/rpc"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"golang.org/x/sync/errgroup"
@@ -176,7 +177,7 @@ func (s *QKCMasterBackend) GetAllTx(branch account.Branch, start []byte, limit u
 	return slaveConn.GetAllTx(branch, start, limit)
 }
 
-func (s *QKCMasterBackend) GetLogs(args *rpc.FilterQuery) ([]*types.Log, error) {
+func (s *QKCMasterBackend) GetLogs(args *qrpc.FilterQuery) ([]*types.Log, error) {
 	// not support earlist and pending
 	slaveConn := s.getOneSlaveConnection(account.Branch{Value: args.FullShardId})
 	if slaveConn == nil {
@@ -234,17 +235,21 @@ func (s *QKCMasterBackend) GasPrice(branch account.Branch, tokenID uint64) (uint
 }
 
 // return root chain work if branch is nil
-func (s *QKCMasterBackend) GetWork(branch account.Branch, addr *common.Address) (*consensus.MiningWork, error) {
+func (s *QKCMasterBackend) GetWork(fullShardId *uint32, addr *common.Address) (*consensus.MiningWork, error) {
 	coinbaseAddr := &account.Address{}
 	if addr != nil {
 		coinbaseAddr.Recipient = *addr
-		coinbaseAddr.FullShardKey = branch.Value
+		if fullShardId != nil {
+			coinbaseAddr.FullShardKey = *fullShardId
+		}
 	} else {
 		coinbaseAddr = nil
 	}
-	if branch.Value == 0 {
+	if fullShardId == nil {
 		return s.miner.GetWork(coinbaseAddr)
 	}
+
+	branch := account.Branch{Value: *fullShardId}
 	slaveConn := s.getOneSlaveConnection(branch)
 	if slaveConn == nil {
 		return nil, ErrNoBranchConn
@@ -253,10 +258,12 @@ func (s *QKCMasterBackend) GetWork(branch account.Branch, addr *common.Address) 
 }
 
 // submit root chain work if branch is nil
-func (s *QKCMasterBackend) SubmitWork(branch account.Branch, headerHash common.Hash, nonce uint64, mixHash common.Hash, signature *[65]byte) (bool, error) {
-	if branch.Value == 0 {
+func (s *QKCMasterBackend) SubmitWork(fullShardId *uint32, headerHash common.Hash, nonce uint64, mixHash common.Hash, signature *[65]byte) (bool, error) {
+	if fullShardId == nil {
 		return s.miner.SubmitWork(nonce, headerHash, mixHash, signature), nil
 	}
+
+	branch := account.NewBranch(*fullShardId)
 	slaveConn := s.getOneSlaveConnection(branch)
 	if slaveConn == nil {
 		return false, ErrNoBranchConn

@@ -246,7 +246,7 @@ func (n *Node) startRPC(services map[reflect.Type]Service) error {
 			n.stopRPC()
 			return err
 		}
-		if err := n.startPrivHTTP(apis, n.config.HTTPModules, n.config.HTTPTimeouts); err != nil {
+		if err := n.startPrivHTTP(apis, n.config.HTTPPrivModules, n.config.HTTPTimeouts); err != nil {
 			n.stopRPC()
 			return err
 		}

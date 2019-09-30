@@ -3,18 +3,17 @@ package slave
 
 import (
 	"context"
-	"github.com/QuarkChain/goquarkchain/internal/encoder"
-	"github.com/tomochain/tomochain/log"
 	"sync"
 	"time"
 
-	qrpc "github.com/QuarkChain/goquarkchain/cluster/rpc"
 	"github.com/QuarkChain/goquarkchain/cluster/slave/filters"
 	qsync "github.com/QuarkChain/goquarkchain/cluster/sync"
 	"github.com/QuarkChain/goquarkchain/core/types"
+	"github.com/QuarkChain/goquarkchain/internal/encoder"
 	"github.com/QuarkChain/goquarkchain/rpc"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/tomochain/tomochain/log"
 )
 
 var (
@@ -27,7 +26,7 @@ type filter struct {
 	typ      filters.Type
 	deadline *time.Timer // filter is inactiv when deadline triggers
 	hashes   []common.Hash
-	crit     qrpc.FilterQuery
+	crit     rpc.FilterQuery
 	logs     []*types.Log
 	s        *filters.Subscription // associated subscription in event system
 }
@@ -132,7 +131,7 @@ func (api *PublicFilterAPI) NewHeads(ctx context.Context, fullShardId hexutil.Ui
 }
 
 // Logs creates a subscription that fires for all new log that match the given filter criteria.
-func (api *PublicFilterAPI) Logs(ctx context.Context, crit qrpc.FilterQuery, fullShardId hexutil.Uint) (*rpc.Subscription, error) {
+func (api *PublicFilterAPI) Logs(ctx context.Context, crit rpc.FilterQuery, fullShardId hexutil.Uint) (*rpc.Subscription, error) {
 	notifier, supported := rpc.NotifierFromContext(ctx)
 	if !supported {
 		return &rpc.Subscription{}, rpc.ErrNotificationsUnsupported

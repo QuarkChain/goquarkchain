@@ -102,6 +102,8 @@ type QuarkChainConfig struct {
 	shards                            map[uint32]*ShardConfig
 	Chains                            map[uint32]*ChainConfig `json:"-"`
 	RewardTaxRate                     *big.Rat                `json:"-"`
+	LocalFeeRate                      *big.Rat                `json:"-"`
+	RewardCalculateRate               *big.Rat                `json:"-"`
 	BlockRewardDecayFactor            *big.Rat                `json:"-"`
 	chainIdToShardSize                map[uint32]uint32
 	chainIdToShardIds                 map[uint32][]uint32
@@ -175,6 +177,9 @@ func (q *QuarkChainConfig) UnmarshalJSON(input []byte) error {
 	q.GRPCHost, _ = common.GetIPV4Addr()
 	q.GRPCPort = DefaultGrpcPort
 	q.RewardTaxRate = big.NewRat(int64(jConfig.RewardTaxRate*float64(denom)), denom)
+	one := big.NewRat(1, 1)
+	q.LocalFeeRate = one.Sub(one, q.RewardTaxRate)
+	q.RewardCalculateRate = new(big.Rat).Quo(q.RewardTaxRate, q.LocalFeeRate)
 	q.BlockRewardDecayFactor = big.NewRat(int64(jConfig.BlockRewardDecayFactor*float64(denom)), denom)
 	q.RootChainPoSWContractBytecodeHash = ethcom.HexToHash(jConfig.RootChainPoSWContractBytecodeHash)
 
@@ -363,6 +368,10 @@ func NewQuarkChainConfig() *QuarkChainConfig {
 	ret.Root.ConsensusType = PoWSimulate
 	ret.Root.ConsensusConfig = NewPOWConfig()
 	ret.Root.ConsensusConfig.TargetBlockTime = 10
+
+	one := big.NewRat(1, 1)
+	ret.LocalFeeRate = one.Sub(one, ret.RewardTaxRate)
+	ret.RewardCalculateRate = new(big.Rat).Quo(ret.RewardTaxRate, ret.LocalFeeRate)
 
 	ret.Chains = make(map[uint32]*ChainConfig)
 	ret.shards = make(map[uint32]*ShardConfig)

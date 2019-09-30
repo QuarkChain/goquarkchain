@@ -5,8 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/QuarkChain/goquarkchain/account"
-	"github.com/QuarkChain/goquarkchain/cluster/rpc"
+	"github.com/QuarkChain/goquarkchain/cluster/sync"
 	"github.com/QuarkChain/goquarkchain/core/types"
+	"github.com/QuarkChain/goquarkchain/rpc"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/assert"
@@ -15,7 +16,7 @@ import (
 	"time"
 )
 
-/*func TestNewHeads(t *testing.T) {
+func TestNewHeads(t *testing.T) {
 	bak, err := newTestBackend()
 	assert.NoError(t, err)
 	defer bak.stop()
@@ -104,7 +105,7 @@ func TestSyncing(t *testing.T) {
 			assert.Equal(t, idx, len(tests))
 		}
 	}
-}*/
+}
 
 func newAddress(fullShardKey uint32) (*ecdsa.PrivateKey, *account.Address, error) {
 	privateKey, err := crypto.GenerateKey()

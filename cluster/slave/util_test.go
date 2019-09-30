@@ -3,13 +3,12 @@ package slave
 import (
 	"context"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
-	"github.com/QuarkChain/goquarkchain/cluster/rpc"
 	"github.com/QuarkChain/goquarkchain/cluster/slave/filters"
 	"github.com/QuarkChain/goquarkchain/cluster/sync"
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/core"
 	"github.com/QuarkChain/goquarkchain/core/types"
-	qrpc "github.com/QuarkChain/goquarkchain/rpc"
+	"github.com/QuarkChain/goquarkchain/rpc"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/ethdb"
@@ -26,7 +25,7 @@ type testBackend struct {
 	config     *config.ClusterConfig
 	mGenesis   *types.MinorBlock
 
-	handler  *qrpc.Server
+	handler  *rpc.Server
 	listener net.Listener
 
 	txFeed        event.Feed
@@ -46,7 +45,7 @@ func newTestBackend() (*testBackend, error) {
 		db:       ethdb.NewMemDatabase(),
 		endpoint: "ws://127.0.0.1:38191",
 		config:   config.NewClusterConfig(),
-		handler:  qrpc.NewServer(),
+		handler:  rpc.NewServer(),
 		exitCh:   make(chan struct{}),
 	}
 	bak.curShardId = bak.config.Quarkchain.GetGenesisShardIds()[0]
@@ -67,7 +66,7 @@ func newTestBackend() (*testBackend, error) {
 		return nil, err
 	}
 
-	go qrpc.NewWSServer([]string{"*"}, bak.handler).Serve(bak.listener)
+	go rpc.NewWSServer([]string{"*"}, bak.handler).Serve(bak.listener)
 
 	return bak, nil
 }
@@ -103,7 +102,7 @@ func (b *testBackend) createTxs(txs []*types.Transaction) {
 }
 
 func (b *testBackend) subscribeEvent(method string, channel interface{}) (err error) {
-	client, err := qrpc.Dial(b.endpoint)
+	client, err := rpc.Dial(b.endpoint)
 	if err != nil {
 		return err
 	}

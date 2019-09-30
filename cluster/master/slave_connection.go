@@ -12,6 +12,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/p2p"
+	qrpc "github.com/QuarkChain/goquarkchain/rpc"
 	"github.com/QuarkChain/goquarkchain/serialize"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
@@ -277,7 +278,7 @@ func (s *SlaveConnection) GetAllTx(branch account.Branch, start []byte, limit ui
 	return trans.TxList, trans.Next, nil
 }
 
-func (s *SlaveConnection) GetLogs(args *rpc.FilterQuery) ([]*types.Log, error) {
+func (s *SlaveConnection) GetLogs(args *qrpc.FilterQuery) ([]*types.Log, error) {
 	var (
 		rsp = new(rpc.GetLogResponse)
 		res = new(rpc.Response)

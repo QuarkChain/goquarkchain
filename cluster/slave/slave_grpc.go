@@ -10,6 +10,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/p2p"
+	qrpc "github.com/QuarkChain/goquarkchain/rpc"
 	"github.com/QuarkChain/goquarkchain/serialize"
 	"github.com/ethereum/go-ethereum/log"
 )
@@ -311,7 +312,7 @@ func (s *SlaveServerSideOp) GetAllTx(ctx context.Context, req *rpc.Request) (*rp
 
 func (s *SlaveServerSideOp) GetLogs(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
 	var (
-		gReq     rpc.FilterQuery
+		gReq     qrpc.FilterQuery
 		gRes     rpc.GetLogResponse
 		response = &rpc.Response{RpcId: req.RpcId}
 		err      error

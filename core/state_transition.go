@@ -311,6 +311,8 @@ func (st *StateTransition) AddCrossShardTxDeposit(intrinsicGas uint64) (ret []by
 		crossShardGasPrice.Value = new(big.Int).Set(msg.GasPrice())
 		crossShardGas := new(serialize.Uint256)
 		crossShardGas.Value = new(big.Int).SetUint64(remoteGasReserved)
+
+		fromFullShardKey := msg.FromFullShardKey()
 		crossShardData := &types.CrossShardTransactionDeposit{
 			TxHash: msg.TxHash(),
 			From: account.Address{
@@ -318,7 +320,7 @@ func (st *StateTransition) AddCrossShardTxDeposit(intrinsicGas uint64) (ret []by
 				FullShardKey: msg.FromFullShardKey(),
 			},
 			To: account.Address{
-				Recipient:    vm.CreateAddress(msg.From(), msg.ToFullShardKey(), state.GetNonce(msg.From())),
+				Recipient:    vm.CreateAddress(msg.From(), &fromFullShardKey, state.GetNonce(msg.From())),
 				FullShardKey: *msg.ToFullShardKey(),
 			},
 			Value:           crossShardValue,
@@ -382,9 +384,8 @@ func (st *StateTransition) AddCrossShardTxDeposit(intrinsicGas uint64) (ret []by
 
 func (st *StateTransition) chargeFee(gasUsed uint64) {
 	fee := new(big.Int).Mul(new(big.Int).SetUint64(gasUsed), st.gasPrice)
-	feeRate := new(big.Rat).Sub(new(big.Rat).SetInt64(1), st.state.GetQuarkChainConfig().RewardTaxRate)
-	rateFee := new(big.Int).Mul(fee, feeRate.Num())
-	rateFee = new(big.Int).Div(rateFee, feeRate.Denom())
+	rateFee := new(big.Int).Mul(fee, st.state.GetQuarkChainConfig().LocalFeeRate.Num())
+	rateFee = new(big.Int).Div(rateFee, st.state.GetQuarkChainConfig().LocalFeeRate.Denom())
 	st.state.AddBalance(st.evm.Coinbase, rateFee, st.msg.GasTokenID())
 	blockFee := make(map[uint64]*big.Int)
 	blockFee[st.msg.GasTokenID()] = rateFee
