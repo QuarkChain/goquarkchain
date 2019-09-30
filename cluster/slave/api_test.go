@@ -1,12 +1,15 @@
 package slave
 
 import (
+	"crypto/ecdsa"
 	"encoding/json"
 	"fmt"
+	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/sync"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/rpc"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/assert"
 	"math/big"
 	"testing"
@@ -18,7 +21,7 @@ func TestNewHeads(t *testing.T) {
 	assert.NoError(t, err)
 	defer bak.stop()
 
-	chanHeaders := make(chan *types.MinorBlockHeader, 100)
+	chanHeaders := make(chan map[string]interface{}, 100)
 	err = bak.subscribeEvent("newHeads", chanHeaders)
 	assert.NoError(t, err)
 
@@ -33,8 +36,8 @@ func TestNewHeads(t *testing.T) {
 	for {
 		select {
 		case hd := <-chanHeaders:
-			if hd.Hash() != headers[idx].Hash() {
-				t.Error("header by subscribe is not match", "actual header: ", hd.Hash().Hex(), "expect header: ", headers[idx].Hash().Hex())
+			if hd["hash"].(string) != headers[idx].Hash().Hex() {
+				t.Error("header by subscribe is not match", "actual header: ", hd["hash"], "expect header: ", headers[idx].Hash().Hex())
 			}
 			idx++
 			if idx == len(headers) {
@@ -55,28 +58,28 @@ func TestSyncing(t *testing.T) {
 	tests := []*sync.SyncingResult{
 		{
 			Syncing: false,
-			Status: struct {
-				CurrentBlock uint64
-				HighestBlock uint64
-			}{CurrentBlock: 0, HighestBlock: 100},
+			Status: sync.Progress{
+				CurrentBlock: uint64(0),
+				HighestBlock: uint64(100),
+			},
 		},
 		{
 			Syncing: true,
-			Status: struct {
-				CurrentBlock uint64
-				HighestBlock uint64
-			}{CurrentBlock: 0, HighestBlock: 100},
+			Status: sync.Progress{
+				CurrentBlock: uint64(0),
+				HighestBlock: uint64(100),
+			},
 		},
 		{
 			Syncing: false,
-			Status: struct {
-				CurrentBlock uint64
-				HighestBlock uint64
-			}{CurrentBlock: 100, HighestBlock: 100},
+			Status: sync.Progress{
+				CurrentBlock: uint64(100),
+				HighestBlock: uint64(100),
+			},
 		},
 	}
 
-	statuses := make(chan *sync.SyncingResult, len(tests)*2)
+	statuses := make(chan map[string]interface{}, len(tests)*2)
 	err = bak.subscribeEvent("syncing", statuses)
 	assert.NoError(t, err)
 
@@ -90,8 +93,9 @@ func TestSyncing(t *testing.T) {
 	for {
 		select {
 		case dt := <-statuses:
-			if dt.Syncing != tests[idx].Syncing || dt.Status.HighestBlock != tests[idx].Status.HighestBlock {
-				t.Error("syncing by subscribe not match", "actual: ", dt.Status, "expect: ", tests[idx].Status)
+			st := dt["status"].(map[string]interface{})
+			if dt["syncing"].(bool) != tests[idx].Syncing || uint64(st["currentBlock"].(float64)) != tests[idx].Status.CurrentBlock {
+				t.Error("syncing by subscribe not match", "actual: ", st, "expect: ", tests[idx].Status)
 			}
 			idx++
 			if idx == len(tests) {
@@ -103,43 +107,58 @@ func TestSyncing(t *testing.T) {
 	}
 }
 
+func newAddress(fullShardKey uint32) (*ecdsa.PrivateKey, *account.Address, error) {
+	privateKey, err := crypto.GenerateKey()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	publicKey := privateKey.Public()
+	publicKeyECDSA, ok := publicKey.(*ecdsa.PublicKey)
+	if !ok {
+		fmt.Println("no ok")
+		return nil, nil, fmt.Errorf("")
+	}
+
+	address := account.Address{Recipient: crypto.PubkeyToAddress(*publicKeyECDSA), FullShardKey: fullShardKey}
+	return privateKey, &address, nil
+}
+
+func signTx(tx *types.EvmTransaction, prv *ecdsa.PrivateKey) (*types.EvmTransaction, error) {
+	signer := types.MakeSigner(1)
+	h := signer.Hash(tx)
+	sig, err := crypto.Sign(h[:], prv)
+	if err != nil {
+		return nil, err
+	}
+	return tx.WithSignature(signer, sig)
+}
+
 func TestNewPendingTransactions(t *testing.T) {
 	bak, err := newTestBackend()
 	assert.NoError(t, err)
 	defer bak.stop()
 
-	txdata := []*types.Transaction{
-		{
-			TxType: 0,
-			EvmTx:  types.NewEvmTransaction(0, common.Address{}, new(big.Int), 0, new(big.Int).SetUint64(10000000), 2, 2, 1, 0, []byte{}, 0, 0),
-		},
-		{
-			TxType: 0,
-			EvmTx:  types.NewEvmTransaction(1, common.Address{}, new(big.Int), 0, new(big.Int).SetUint64(10000000), 2, 2, 1, 0, []byte{}, 0, 0),
-		},
-		{
-			TxType: 0,
-			EvmTx:  types.NewEvmTransaction(2, common.Address{}, new(big.Int), 0, new(big.Int).SetUint64(10000000), 2, 2, 1, 0, []byte{}, 0, 0),
-		},
-		{
-			TxType: 0,
-			EvmTx:  types.NewEvmTransaction(3, common.Address{}, new(big.Int), 0, new(big.Int).SetUint64(10000000), 2, 2, 1, 0, []byte{}, 0, 0),
-		},
-		{
-			TxType: 0,
-			EvmTx:  types.NewEvmTransaction(4, common.Address{}, new(big.Int), 0, new(big.Int).SetUint64(10000000), 2, 2, 1, 0, []byte{}, 0, 0),
-		},
-		{
-			TxType: 0,
-			EvmTx:  types.NewEvmTransaction(5, common.Address{}, new(big.Int), 0, new(big.Int).SetUint64(10000000), 2, 2, 1, 0, []byte{}, 0, 0),
-		},
-	}
-
-	txhashs := make(chan common.Hash, len(txdata)*2)
-	err = bak.subscribeEvent("newPendingTransactions", txhashs)
+	privkey, address, err := newAddress(0)
 	assert.NoError(t, err)
 
-	time.Sleep(500 * time.Millisecond)
+	var (
+		nonce  uint64 = 0
+		txdata        = make([]*types.Transaction, 0, 10)
+	)
+
+	for len(txdata) < cap(txdata) {
+		tx := types.NewEvmTransaction(nonce, address.Recipient, big.NewInt(0), 30000, big.NewInt(10000000), address.FullShardKey, address.FullShardKey, 1, 0, nil, 0, 0)
+		tx, err = signTx(tx, privkey)
+		assert.NoError(t, err)
+		txdata = append(txdata, &types.Transaction{TxType: 0, EvmTx: tx})
+	}
+
+	txCh := make(chan map[string]interface{}, len(txdata)*2)
+	err = bak.subscribeEvent("newPendingTransactions", txCh)
+	assert.NoError(t, err)
+
+	time.Sleep(1200 * time.Millisecond)
 	bak.createTxs(txdata)
 
 	var (
@@ -148,9 +167,9 @@ func TestNewPendingTransactions(t *testing.T) {
 	)
 	for {
 		select {
-		case dt := <-txhashs:
-			if dt != txdata[idx].Hash() {
-				t.Error("syncing by subscribe not match", "actual: ", dt.Hex(), "expect: ", txdata[idx].Hash().Hex())
+		case dt := <-txCh:
+			if dt["hash"].(string) != txdata[idx].Hash().Hex() {
+				t.Error("syncing by subscribe not match", "actual: ", dt["hash"].(string), "expect: ", txdata[idx].Hash().Hex())
 			}
 			idx++
 			if idx == len(txdata) {
