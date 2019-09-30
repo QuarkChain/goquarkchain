@@ -169,7 +169,7 @@ func (b *testBackend) SubscribeChainHeadEvent(ch chan<- core.MinorChainHeadEvent
 	return b.chainHeadFeed.Subscribe(ch)
 }
 
-func (b *testBackend) SubscribeLogsEvent(ch chan<- []*types.Log) event.Subscription {
+func (b *testBackend) SubscribeLogsEvent(ch chan<- core.LoglistEvent) event.Subscription {
 	return b.logsFeed.Subscribe(ch)
 }
 

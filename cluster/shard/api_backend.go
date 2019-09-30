@@ -361,12 +361,8 @@ func (s *ShardBackend) SubscribeChainHeadEvent(ch chan<- core.MinorChainHeadEven
 	return s.MinorBlockChain.SubscribeChainHeadEvent(ch)
 }
 
-func (s *ShardBackend) SubscribeLogsEvent(ch chan<- []*types.Log) event.Subscription {
-	return s.MinorBlockChain.SubscribeLogsEvent(ch)
-}
-
-func (s *ShardBackend) SubscribeRemovedLogsEvent(ch chan<- core.RemovedLogsEvent) event.Subscription {
-	return s.MinorBlockChain.SubscribeRemovedLogsEvent(ch)
+func (s *ShardBackend) SubscribeLogsEvent(ch chan<- core.LoglistEvent) event.Subscription {
+	return s.MinorBlockChain.SubReorgLogsEvent(ch)
 }
 
 func (s *ShardBackend) SubscribeChainEvent(ch chan<- core.MinorChainEvent) event.Subscription {

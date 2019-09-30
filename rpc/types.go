@@ -124,7 +124,7 @@ type ServerCodec interface {
 type BlockNumber int64
 
 const (
-	PendingBlockNumber  = BlockNumber(-2)
+	// PendingBlockNumber  = BlockNumber(-2)
 	LatestBlockNumber   = BlockNumber(-1)
 	EarliestBlockNumber = BlockNumber(0)
 )
@@ -148,9 +148,8 @@ func (bn *BlockNumber) UnmarshalJSON(data []byte) error {
 	case "latest":
 		*bn = LatestBlockNumber
 		return nil
-		/*case "pending":
-			*bn = PendingBlockNumber
-			return nil*/
+	case "pending":
+		return errors.New("not support pending")
 	}
 
 	blckNum, err := hexutil.DecodeUint64(input)
