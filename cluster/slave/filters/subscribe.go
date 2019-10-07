@@ -91,7 +91,7 @@ func (s *subscribe) eventsloop() {
 			}
 
 		case add := <-s.addCh:
-			shrd, err := s.backend.GetShardBackend(add.id)
+			shrd, err := s.backend.GetShardFilter(add.id)
 			if err != nil {
 				break
 			}

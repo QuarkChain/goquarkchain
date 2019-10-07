@@ -8,13 +8,12 @@ import (
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/core"
 	"github.com/QuarkChain/goquarkchain/core/types"
-	qrpc "github.com/QuarkChain/goquarkchain/rpc"
+	"github.com/QuarkChain/goquarkchain/rpc"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/params"
-	ethrpc "github.com/ethereum/go-ethereum/rpc"
 	"net"
 	"time"
 )
@@ -26,7 +25,7 @@ type testBackend struct {
 	config     *config.ClusterConfig
 	mGenesis   *types.MinorBlock
 
-	handler  *ethrpc.Server
+	handler  *rpc.Server
 	listener net.Listener
 
 	txFeed        event.Feed
@@ -36,6 +35,8 @@ type testBackend struct {
 	chainHeadFeed event.Feed
 	syncFeed      event.Feed
 
+	mBlock *types.MinorBlock
+
 	exitCh chan struct{}
 }
 
@@ -44,7 +45,7 @@ func newTestBackend() (*testBackend, error) {
 		db:       ethdb.NewMemDatabase(),
 		endpoint: "ws://127.0.0.1:38191",
 		config:   config.NewClusterConfig(),
-		handler:  ethrpc.NewServer(),
+		handler:  rpc.NewServer(),
 		exitCh:   make(chan struct{}),
 	}
 	bak.curShardId = bak.config.Quarkchain.GetGenesisShardIds()[0]
@@ -65,7 +66,7 @@ func newTestBackend() (*testBackend, error) {
 		return nil, err
 	}
 
-	go ethrpc.NewWSServer([]string{"*"}, bak.handler).Serve(bak.listener)
+	go rpc.NewWSServer([]string{"*"}, bak.handler).Serve(bak.listener)
 
 	return bak, nil
 }
@@ -92,11 +93,16 @@ func (b *testBackend) creatSyncing(results []*sync.SyncingResult) {
 }
 
 func (b *testBackend) createTxs(txs []*types.Transaction) {
+	mBlocks, _ := core.GenerateMinorBlockChain(params.TestChainConfig, b.config.Quarkchain, b.mGenesis, new(consensus.FakeEngine), b.db, 1, nil)
+	b.mBlock = mBlocks[0]
+	for _, tx := range txs {
+		b.mBlock.AddTx(tx)
+	}
 	b.txFeed.Send(core.NewTxsEvent{Txs: txs})
 }
 
 func (b *testBackend) subscribeEvent(method string, channel interface{}) (err error) {
-	client, err := ethrpc.Dial(b.endpoint)
+	client, err := rpc.Dial(b.endpoint)
 	if err != nil {
 		return err
 	}
@@ -111,7 +117,7 @@ func (b *testBackend) subscribeEvent(method string, channel interface{}) (err er
 		default:
 			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 			defer cancel()
-			sub, err := client.Subscribe(ctx, "qkc", channel, method, hexutil.EncodeUint64(uint64(b.curShardId)))
+			sub, err := client.QkcSubscribe(ctx, channel, method, hexutil.EncodeUint64(uint64(b.curShardId)))
 			if err != nil {
 				return
 			}
@@ -125,7 +131,7 @@ func (b *testBackend) subscribeEvent(method string, channel interface{}) (err er
 	return
 }
 
-func (b *testBackend) GetShardBackend(fullShardId uint32) (filters.ShardFilter, error) {
+func (b *testBackend) GetShardFilter(fullShardId uint32) (filters.ShardFilter, error) {
 	return b, nil
 }
 
@@ -133,7 +139,17 @@ func (b *testBackend) GetFullShardList() []uint32 {
 	return []uint32{b.curShardId}
 }
 
-func (b *testBackend) GetHeaderByNumber(height qrpc.BlockNumber) (*types.MinorBlockHeader, error) {
+func (b *testBackend) GetTransactionByHash(txHash common.Hash, branch uint32) (*types.MinorBlock, uint32, error) {
+	txs := b.mBlock.GetTransactions()
+	for idx, tx := range txs {
+		if tx.Hash() == txHash {
+			return b.mBlock, uint32(idx), nil
+		}
+	}
+	panic("not implemented")
+}
+
+func (b *testBackend) GetHeaderByNumber(height rpc.BlockNumber) (*types.MinorBlockHeader, error) {
 	panic("not implemented")
 }
 
@@ -153,7 +169,7 @@ func (b *testBackend) SubscribeChainHeadEvent(ch chan<- core.MinorChainHeadEvent
 	return b.chainHeadFeed.Subscribe(ch)
 }
 
-func (b *testBackend) SubscribeLogsEvent(ch chan<- []*types.Log) event.Subscription {
+func (b *testBackend) SubscribeLogsEvent(ch chan<- core.LoglistEvent) event.Subscription {
 	return b.logsFeed.Subscribe(ch)
 }
 

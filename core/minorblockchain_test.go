@@ -956,8 +956,6 @@ func TestMinorLogReorgs(t *testing.T) {
 	}
 	defer blockchain.Stop()
 
-	rmLogsCh := make(chan RemovedLogsEvent)
-	blockchain.SubscribeRemovedLogsEvent(rmLogsCh)
 	chain, _ := GenerateMinorBlockChain(params.TestChainConfig, clusterConfig.Quarkchain, genesis, engine, db, 2, func(config *config.QuarkChainConfig, i int, gen *MinorBlockGen) {
 		if i == 1 {
 			tx, err := types.SignTx(types.NewEvmTransaction(gen.TxNonce(addr1.Recipient), addr1.Recipient, new(big.Int), 1000000, new(big.Int), 0, 0, 3, 0, nil, genesisTokenID, genesisTokenID), signer, prvKey1)
