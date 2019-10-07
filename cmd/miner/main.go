@@ -20,6 +20,8 @@ import (
 	"github.com/QuarkChain/goquarkchain/consensus/qkchash"
 	"github.com/QuarkChain/goquarkchain/rpc"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/ethereum/go-ethereum/crypto"
 	ethlog "github.com/ethereum/go-ethereum/log"
 )
 
@@ -55,6 +57,7 @@ type worker struct {
 	fetchWorkCh  chan consensus.MiningWork
 	submitWorkCh chan<- result
 	abortCh      chan struct{}
+	sign         func(common.Hash) *[]byte
 }
 
 func (w worker) fetch() {
@@ -119,14 +122,23 @@ func (w worker) work() {
 				abortWorkCh <- struct{}{}
 			}
 
+			adjustedDiff := new(big.Int).Div(work.Difficulty, new(big.Int).SetUint64(work.OptionalDivider))
+			adjustedWork := consensus.MiningWork{
+				HeaderHash: work.HeaderHash,
+				Number:     work.Number,
+				Difficulty: adjustedDiff,
+			}
 			// Start finding the nonce
-			if err := w.pow.FindNonce(work, resultsCh, abortWorkCh); err != nil {
+			if err := w.pow.FindNonce(adjustedWork, resultsCh, abortWorkCh); err != nil {
 				panic(err) // TODO: Send back err in an error channel
 			}
 			currWork = &work
 			w.log("INFO", "started new work, height:\t %d", work.Number)
 
 		case res := <-resultsCh:
+			if w.shardID == nil && currWork.OptionalDivider > 1 {
+				res.Signature = w.sign(currWork.HeaderHash)
+			}
 			w.submitWorkCh <- result{&w, res, *currWork}
 			currWork = nil
 		}
@@ -187,14 +199,19 @@ func fetchWorkRPC(shardID *uint32, addr *string) (work consensus.MiningWork, err
 	}
 	height := new(big.Int).SetBytes(common.FromHex(ret[1])).Uint64()
 	diff := new(big.Int).SetBytes(common.FromHex(ret[2]))
-	if ret[3] != "" {
-		optionalDivider := new(big.Int).SetBytes(common.FromHex(ret[3])).Uint64()
-		diff = new(big.Int).Div(diff, new(big.Int).SetUint64(optionalDivider))
+	divider := uint64(1)
+	if len(ret) > 3 && ret[3] != "" {
+		dv, err := strconv.ParseInt(ret[3][2:], 16, 64)
+		if err != nil {
+			return work, err
+		}
+		divider = uint64(dv)
 	}
 	return consensus.MiningWork{
-		HeaderHash: headerHash,
-		Number:     height,
-		Difficulty: diff,
+		HeaderHash:      headerHash,
+		Number:          height,
+		Difficulty:      diff,
+		OptionalDivider: divider,
 	}, nil
 }
 
@@ -208,15 +225,29 @@ func submitWorkRPC(shardID *uint32, work consensus.MiningWork, res consensus.Min
 		shardIDArg = "0x" + strconv.FormatUint(uint64(*shardID), 16)
 	}
 	var success bool
-	err := cli.CallContext(
-		ctx,
-		&success,
-		"qkc_submitWork",
-		shardIDArg,
-		work.HeaderHash.Hex(),
-		"0x"+strconv.FormatUint(res.Nonce, 16),
-		res.Digest.Hex(),
-	)
+	var err error
+	if res.Signature != nil {
+		err = cli.CallContext(
+			ctx,
+			&success,
+			"qkc_submitWork",
+			shardIDArg,
+			work.HeaderHash.Hex(),
+			"0x"+strconv.FormatUint(res.Nonce, 16),
+			res.Digest.Hex(),
+			hexutil.Encode(*res.Signature),
+		)
+	} else {
+		err = cli.CallContext(
+			ctx,
+			&success,
+			"qkc_submitWork",
+			shardIDArg,
+			work.HeaderHash.Hex(),
+			"0x"+strconv.FormatUint(res.Nonce, 16),
+			res.Digest.Hex(),
+		)
+	}
 	if err != nil {
 		return err
 	}
@@ -297,12 +328,27 @@ func main() {
 			log.Fatal("ERROR: unsupported root / mining algorithm")
 		}
 		pow.SetThreads(*preThreads)
+		sign := func(sealHash common.Hash) *[]byte {
+			if len(cfg.Quarkchain.RootSignerPrivateKey) == 0 {
+				return nil
+			}
+			prvKey, err := crypto.ToECDSA(cfg.Quarkchain.RootSignerPrivateKey)
+			if err != nil {
+				log.Fatal("ERROR: fail to sign", err)
+			}
+			sig, err := crypto.Sign(sealHash[:], prvKey)
+			if err != nil {
+				log.Fatal("ERROR: fail to sign", err)
+			}
+			return &sig
+		}
 		w := worker{
 			pow:          pow,
 			addr:         addrForMiner,
 			fetchWorkCh:  make(chan consensus.MiningWork),
 			submitWorkCh: submitWorkCh,
 			abortCh:      abortCh,
+			sign:         sign,
 		}
 		workers = append(workers, w)
 		infoSummary = append(infoSummary, fmt.Sprintf("[%s] %s", shardRepr(w.shardID), pow.Name()))

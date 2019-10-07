@@ -551,6 +551,7 @@ func (p *PublicBlockChainAPI) SubmitWork(fullShardKey *hexutil.Uint, headHash co
 
 	var sig *[65]byte = nil
 	if signature != nil {
+		sig = new([65]byte)
 		copy(sig[:], *signature)
 	}
 

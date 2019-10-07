@@ -319,21 +319,14 @@ func (m *MinorBlockChain) loadLastState() error {
 // already have locked
 func (m *MinorBlockChain) SetHead(head uint64) error {
 	log.Warn("Rewinding blockchain", "target", head)
-
+	m.chainmu.Lock()
+	defer m.chainmu.Unlock()
 	// Rewind the header chain, deleting all block bodies until then
 	delFn := func(db rawdb.DatabaseDeleter, hash common.Hash) {
 		rawdb.DeleteMinorBlock(db, hash)
 	}
 	m.hc.SetHead(head, delFn)
 	currentHeader := m.hc.CurrentHeader()
-
-	// Clear out any stale content from the caches
-	m.receiptsCache.Purge()
-	m.blockCache.Purge()
-	m.futureBlocks.Purge()
-	m.crossShardTxListCache.Purge()
-	m.rootBlockCache.Purge()
-	m.lastConfirmCache.Purge()
 
 	// Rewind the block chain, ensuring we don't end up with a stateless head block
 	if currentBlock := m.CurrentBlock(); currentBlock != nil && currentHeader.NumberU64() < currentBlock.IHeader().NumberU64() {
@@ -354,6 +347,14 @@ func (m *MinorBlockChain) SetHead(head uint64) error {
 	currentBlock := m.CurrentBlock()
 	rawdb.WriteHeadBlockHash(m.db, currentBlock.Hash())
 
+	// Clear out any stale content from the caches
+	m.receiptsCache.Purge()
+	m.blockCache.Purge()
+	m.futureBlocks.Purge()
+	m.crossShardTxListCache.Purge()
+	m.rootBlockCache.Purge()
+	m.lastConfirmCache.Purge()
+
 	return m.loadLastState()
 }
 
@@ -365,7 +366,11 @@ func (m *MinorBlockChain) GasLimit() uint64 {
 // CurrentBlock retrieves the current head block of the canonical chain. The
 // block is retrieved from the blockchain's internal cache.
 func (m *MinorBlockChain) CurrentBlock() *types.MinorBlock {
-	return m.currentBlock.Load().(*types.MinorBlock)
+	loaded := m.currentBlock.Load()
+	if loaded == nil {
+		return nil
+	}
+	return loaded.(*types.MinorBlock)
 }
 
 // SetProcessor sets the processor required for making state modifications.
