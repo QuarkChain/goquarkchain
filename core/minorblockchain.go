@@ -98,6 +98,7 @@ type MinorBlockChain struct {
 	chainSideFeed event.Feed
 	chainHeadFeed event.Feed
 	logsFeed      event.Feed
+	subLogsFeed   event.Feed
 	scope         event.SubscriptionScope
 	genesisBlock  *types.MinorBlock
 
@@ -1530,14 +1531,23 @@ func (m *MinorBlockChain) reorg(oldBlock, newBlock types.IBlock) error {
 	}
 
 	if len(deletedLogs) > 0 {
-		go m.rmLogsFeed.Send(RemovedLogsEvent{deletedLogs})
+		var logs [][]*types.Log
+		logs = append(logs, deletedLogs)
+		m.subLogsFeed.Send(LoglistEvent{Logs: logs, IsRemoved: true})
 	}
+
 	if len(oldChain) > 0 {
+		for _, iB := range oldChain {
+			m.subLogsFeed.Send(LoglistEvent{Logs: m.GetLogs(iB.Hash()), IsRemoved: true})
+		}
 		go func() {
 			for _, block := range oldChain {
 				m.chainSideFeed.Send(MinorChainSideEvent{Block: block.(*types.MinorBlock)})
 			}
 		}()
+	}
+	for _, iB := range newChain {
+		m.subLogsFeed.Send(LoglistEvent{Logs: m.GetLogs(iB.Hash()), IsRemoved: false})
 	}
 
 	return nil
@@ -1726,11 +1736,6 @@ func (m *MinorBlockChain) Config() *config.QuarkChainConfig { return m.clusterCo
 // Engine retrieves the blockchain's consensus engine.
 func (m *MinorBlockChain) Engine() consensus.Engine { return m.engine }
 
-// SubscribeRemovedLogsEvent registers a subscription of RemovedLogsEvent.
-func (m *MinorBlockChain) SubscribeRemovedLogsEvent(ch chan<- RemovedLogsEvent) event.Subscription {
-	return m.scope.Track(m.rmLogsFeed.Subscribe(ch))
-}
-
 // SubscribeChainEvent registers a subscription of ChainEvent.
 func (m *MinorBlockChain) SubscribeChainEvent(ch chan<- MinorChainEvent) event.Subscription {
 	return m.scope.Track(m.chainFeed.Subscribe(ch))
@@ -1749,6 +1754,11 @@ func (m *MinorBlockChain) SubscribeChainSideEvent(ch chan<- MinorChainSideEvent)
 // SubscribeLogsEvent registers a subscription of []*types.Log.
 func (m *MinorBlockChain) SubscribeLogsEvent(ch chan<- []*types.Log) event.Subscription {
 	return m.scope.Track(m.logsFeed.Subscribe(ch))
+}
+
+// SubscribeLogsEvent registers a subscription of LoglistEvent
+func (m *MinorBlockChain) SubReorgLogsEvent(ch chan<- LoglistEvent) event.Subscription {
+	return m.scope.Track(m.subLogsFeed.Subscribe(ch))
 }
 
 func (m *MinorBlockChain) SubscribeNewTxsEvent(ch chan<- NewTxsEvent) event.Subscription {

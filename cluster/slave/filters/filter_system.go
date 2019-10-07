@@ -3,7 +3,7 @@ package filters
 
 import (
 	"errors"
-	"fmt"
+	"math/big"
 	"sync"
 	"time"
 
@@ -43,7 +43,7 @@ const (
 const (
 	// txChanSize is the size of channel listening to NewTxsEvent.
 	// The number is referenced from the size of tx pool.
-	TxChanSize = 4096
+	TxsChanSize = 5
 	// rmLogsChanSize is the size of channel listening to RemovedLogsEvent.
 	RmLogsChanSize = 10
 	// logsChanSize is the size of channel listening to LogsEvent.
@@ -59,7 +59,8 @@ var (
 )
 
 type SlaveFilter interface {
-	GetShardBackend(fullShardId uint32) (ShardFilter, error)
+	GetTransactionByHash(txHash common.Hash, branch uint32) (*types.MinorBlock, uint32, error)
+	GetShardFilter(fullShardId uint32) (ShardFilter, error)
 	GetFullShardList() []uint32
 }
 
@@ -70,8 +71,7 @@ type ShardFilter interface {
 	GetLogs(hash common.Hash) ([][]*types.Log, error)
 
 	SubscribeChainHeadEvent(ch chan<- core.MinorChainHeadEvent) event.Subscription
-	SubscribeLogsEvent(ch chan<- []*types.Log) event.Subscription
-	SubscribeRemovedLogsEvent(ch chan<- core.RemovedLogsEvent) event.Subscription
+	SubscribeLogsEvent(chan<- core.LoglistEvent) event.Subscription
 	SubscribeChainEvent(ch chan<- core.MinorChainEvent) event.Subscription
 	SubscribeNewTxsEvent(ch chan<- core.NewTxsEvent) event.Subscription
 	SubscribeSyncEvent(ch chan<- *qsync.SyncingResult) event.Subscription
@@ -83,8 +83,8 @@ type subscription struct {
 	created     time.Time
 	fullShardId uint32
 	logsCrit    qrpc.FilterQuery
-	logsCh      chan []*types.Log
-	txhashCh    chan common.Hash
+	logsCh      chan core.LoglistEvent
+	txlistCh    chan []*types.Transaction
 	headersCh   chan *types.MinorBlockHeader
 	syncCh      chan *qsync.SyncingResult
 	installed   chan struct{} // closed when the filter is installed
@@ -154,8 +154,8 @@ func (sub *Subscription) Unsubscribe() {
 					<-sub.f.logsCh
 				} else if sub.f.headersCh != nil {
 					<-sub.f.headersCh
-				} else if sub.f.txhashCh != nil {
-					<-sub.f.txhashCh
+				} else if sub.f.txlistCh != nil {
+					<-sub.f.txlistCh
 				} else if sub.f.syncCh != nil {
 					<-sub.f.syncCh
 				}
@@ -179,37 +179,28 @@ func (es *EventSystem) subscribe(sub *subscription) *Subscription {
 // SubscribeLogs creates a subscription that will write all logs matching the
 // given criteria to the given logs channel. Default value for the from and to
 // block is "latest". If the fromBlock > toBlock an error is returned.
-func (es *EventSystem) SubscribeLogs(crit qrpc.FilterQuery, logs chan []*types.Log) (*Subscription, error) {
-	var from, to qrpc.BlockNumber
-	if crit.FromBlock == nil {
-		from = qrpc.LatestBlockNumber
-	} else {
-		from = qrpc.BlockNumber(crit.FromBlock.Int64())
+func (es *EventSystem) SubscribeLogs(crit qrpc.FilterQuery, logs chan core.LoglistEvent) (*Subscription, error) {
+	shrd, err := es.backend.GetShardFilter(crit.FullShardId)
+	if err != nil {
+		return nil, err
 	}
-	if crit.ToBlock == nil {
-		to = qrpc.LatestBlockNumber
-	} else {
-		to = qrpc.BlockNumber(crit.ToBlock.Int64())
+	header, err := shrd.GetHeaderByNumber(qrpc.LatestBlockNumber)
+	if err != nil {
+		return nil, err
 	}
 
-	// only interested in new mined logs
-	if from == qrpc.LatestBlockNumber && to == qrpc.LatestBlockNumber {
-		return es.subscribeLogs(crit, logs), nil
+	if crit.FromBlock == nil || crit.FromBlock.Int64() == qrpc.LatestBlockNumber.Int64() {
+		crit.FromBlock = big.NewInt(int64(header.Number))
 	}
-	// only interested in mined logs within a specific block range
-	if from >= 0 && to >= 0 && to >= from {
-		return es.subscribeLogs(crit, logs), nil
+	if crit.ToBlock == nil || crit.ToBlock.Int64() == qrpc.LatestBlockNumber.Int64() {
+		crit.FromBlock = big.NewInt(int64(header.Number))
 	}
-	// interested in logs from a specific block number to new mined blocks
-	if from >= 0 && to == qrpc.LatestBlockNumber {
-		return es.subscribeLogs(crit, logs), nil
-	}
-	return nil, fmt.Errorf("invalid from and to block combination: from > to")
+	return es.subscribeLogs(crit, logs), nil
 }
 
 // subscribeMinedPendingLogs creates a subscription that returned mined and
 // pending logs that match the given criteria.
-func (es *EventSystem) subscribeMinedPendingLogs(crit qrpc.FilterQuery, logs chan []*types.Log) *Subscription {
+func (es *EventSystem) subscribeMinedPendingLogs(crit qrpc.FilterQuery, logs chan core.LoglistEvent) *Subscription {
 	sub := &subscription{
 		id:        rpc.NewID(),
 		typ:       MinedAndPendingLogsSubscription,
@@ -224,7 +215,7 @@ func (es *EventSystem) subscribeMinedPendingLogs(crit qrpc.FilterQuery, logs cha
 
 // subscribeLogs creates a subscription that will write all logs matching the
 // given criteria to the given logs channel.
-func (es *EventSystem) subscribeLogs(crit qrpc.FilterQuery, logs chan []*types.Log) *Subscription {
+func (es *EventSystem) subscribeLogs(crit qrpc.FilterQuery, logs chan core.LoglistEvent) *Subscription {
 	sub := &subscription{
 		id:          rpc.NewID(),
 		fullShardId: crit.FullShardId,
@@ -240,7 +231,7 @@ func (es *EventSystem) subscribeLogs(crit qrpc.FilterQuery, logs chan []*types.L
 
 // subscribePendingLogs creates a subscription that writes transaction hashes for
 // transactions that enter the transaction pool.
-func (es *EventSystem) subscribePendingLogs(crit qrpc.FilterQuery, logs chan []*types.Log) *Subscription {
+func (es *EventSystem) subscribePendingLogs(crit qrpc.FilterQuery, logs chan core.LoglistEvent) *Subscription {
 	sub := &subscription{
 		id:        rpc.NewID(),
 		typ:       PendingLogsSubscription,
@@ -270,13 +261,13 @@ func (es *EventSystem) SubscribeNewHeads(headers chan *types.MinorBlockHeader, f
 
 // SubscribePendingTxs creates a subscription that writes transaction hashes for
 // transactions that enter the transaction pool.
-func (es *EventSystem) SubscribePendingTxs(txs chan common.Hash, fullShardId uint32) *Subscription {
+func (es *EventSystem) SubscribePendingTxs(txs chan []*types.Transaction, fullShardId uint32) *Subscription {
 	sub := &subscription{
 		id:          rpc.NewID(),
 		fullShardId: fullShardId,
 		typ:         PendingTransactionsSubscription,
 		created:     time.Now(),
-		txhashCh:    txs,
+		txlistCh:    txs,
 		installed:   make(chan struct{}),
 		err:         make(chan error),
 	}
@@ -307,20 +298,24 @@ func (es *EventSystem) broadcast(filters filterIndex, ev interface{}) {
 	defer es.mu.RUnlock()
 
 	switch e := ev.(type) {
-	case []*types.Log:
-		if len(e) > 0 {
+	case core.LoglistEvent:
+		if len(e.Logs) > 0 {
 			for _, f := range filters[LogsSubscription] {
-				if matchedLogs := filterLogs(e, f.logsCrit.FromBlock, f.logsCrit.ToBlock, f.logsCrit.Addresses, f.logsCrit.Topics); len(matchedLogs) > 0 {
-					f.logsCh <- matchedLogs
+				var loglist = make([][]*types.Log, 0, len(e.Logs))
+				for _, logs := range e.Logs {
+					if matchedLogs := core.FilterLogs(logs, f.logsCrit.FromBlock, f.logsCrit.ToBlock, f.logsCrit.Addresses, f.logsCrit.Topics); len(matchedLogs) > 0 {
+						loglist = append(loglist, matchedLogs)
+					}
+				}
+				if len(loglist) > 0 {
+					f.logsCh <- core.LoglistEvent{Logs: loglist, IsRemoved: e.IsRemoved}
 				}
 			}
 		}
 
 	case []*types.Transaction:
-		for _, tx := range e {
-			for _, f := range filters[PendingTransactionsSubscription] {
-				f.txhashCh <- tx.Hash()
-			}
+		for _, f := range filters[PendingTransactionsSubscription] {
+			f.txlistCh <- e
 		}
 
 	case *types.MinorBlockHeader:

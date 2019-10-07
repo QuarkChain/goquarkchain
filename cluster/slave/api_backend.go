@@ -509,7 +509,7 @@ func (s *SlaveBackend) EventMux() *event.TypeMux {
 	return s.eventMux
 }
 
-func (s *SlaveBackend) GetShardBackend(fullShardId uint32) (filters.ShardFilter, error) {
+func (s *SlaveBackend) GetShardFilter(fullShardId uint32) (filters.ShardFilter, error) {
 	if shrd, ok := s.shards[fullShardId]; ok {
 		return shrd, nil
 	}

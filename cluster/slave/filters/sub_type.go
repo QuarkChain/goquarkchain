@@ -4,7 +4,6 @@ package filters
 import (
 	qsync "github.com/QuarkChain/goquarkchain/cluster/sync"
 	"github.com/QuarkChain/goquarkchain/core"
-	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/event"
 )
 
@@ -40,7 +39,7 @@ func (s *subTxsEvent) getch() error {
 }
 
 type subLogsEvent struct {
-	ch chan []*types.Log
+	ch chan core.LoglistEvent
 	subBaseEvent
 }
 
@@ -93,7 +92,7 @@ func (s *subSyncingEvent) getch() error {
 func (s *subscribe) newSubEvent(shrd ShardFilter, tp Type, broadcast func(interface{})) subackend {
 	switch tp {
 	case LogsSubscription:
-		logsCh := make(chan []*types.Log, LogsChanSize)
+		logsCh := make(chan core.LoglistEvent, LogsChanSize)
 		sub := shrd.SubscribeLogsEvent(logsCh)
 		return &subLogsEvent{
 			ch: logsCh,
@@ -103,7 +102,7 @@ func (s *subscribe) newSubEvent(shrd ShardFilter, tp Type, broadcast func(interf
 			},
 		}
 	case PendingTransactionsSubscription:
-		txsCh := make(chan core.NewTxsEvent, TxChanSize)
+		txsCh := make(chan core.NewTxsEvent, TxsChanSize)
 		sub := shrd.SubscribeNewTxsEvent(txsCh)
 		return &subTxsEvent{
 			ch: txsCh,

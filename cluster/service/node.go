@@ -348,7 +348,8 @@ func (n *Node) startWS(apis []rpc.API, modules []string, wsOrigins []string) err
 	if n.config.WSEndpoint == "" {
 		return nil
 	}
-	listener, handler, err := rpc.StartWSEndpoint(n.config.WSEndpoint, apis, modules, wsOrigins, false)
+	publicApis := n.apiFilter(apis, true, modules)
+	listener, handler, err := rpc.StartWSEndpoint(n.config.WSEndpoint, publicApis, modules, wsOrigins, false)
 	if err != nil {
 		return err
 	}

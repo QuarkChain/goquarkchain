@@ -139,7 +139,7 @@ func (f *Filter) checkMatches(header *types.MinorBlockHeader) (logs []*types.Log
 	for _, logs := range logsList {
 		unfiltered = append(unfiltered, logs...)
 	}
-	logs = filterLogs(unfiltered, nil, nil, f.addresses, f.topics)
+	logs = FilterLogs(unfiltered, nil, nil, f.addresses, f.topics)
 	if len(logs) > 0 {
 		// We have matching logs, check if we need to resolve full logs via the light client
 		if logs[0].TxHash == (common.Hash{}) {
@@ -148,7 +148,7 @@ func (f *Filter) checkMatches(header *types.MinorBlockHeader) (logs []*types.Log
 			for _, receipt := range receipts {
 				unfiltered = append(unfiltered, receipt.Logs...)
 			}
-			logs = filterLogs(unfiltered, nil, nil, f.addresses, f.topics)
+			logs = FilterLogs(unfiltered, nil, nil, f.addresses, f.topics)
 		}
 		return logs, nil
 	}
@@ -166,7 +166,7 @@ func includes(addresses []common.Address, a common.Address) bool {
 }
 
 // filterLogs creates a slice of logs matching the given criteria.
-func filterLogs(logs []*types.Log, fromBlock, toBlock *big.Int, addresses []common.Address, topics [][]common.Hash) []*types.Log {
+func FilterLogs(logs []*types.Log, fromBlock, toBlock *big.Int, addresses []common.Address, topics [][]common.Hash) []*types.Log {
 	var ret []*types.Log
 Logs:
 	for _, log := range logs {
