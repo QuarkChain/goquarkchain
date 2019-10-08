@@ -242,7 +242,7 @@ func NewMinorBlockChain(
 	bc.txPool = NewTxPool(DefaultTxPoolConfig, bc)
 	// Take ownership of this particular state
 	go bc.update()
-	//rawdb.DeleteMinorBlock(bc.db,common.HexToHash("0x94bfdc87288b5c06847bad2d3eb0d94386aab5f659ed0e8c40b6260ad4e896da"))
+	rawdb.DeleteMinorBlock(bc.db, common.HexToHash("0x94bfdc87288b5c06847bad2d3eb0d94386aab5f659ed0e8c40b6260ad4e896da"))
 	return bc, nil
 }
 
@@ -581,11 +581,14 @@ func (m *MinorBlockChain) Genesis() *types.MinorBlock {
 
 // HasBlock checks if a block is fully present in the database or not.
 func (m *MinorBlockChain) HasBlock(hash common.Hash) bool {
+	if !m.IsMinorBlockCommittedByHash(hash) {
+		rawdb.DeleteMinorBlock(m.db, hash)
+		m.blockCache.Remove(hash)
+		return false
+	}
 	if m.blockCache.Contains(hash) {
-		fmt.Println("CCCCCCCCC")
 		return true
 	}
-	fmt.Println("HHHHH")
 	return rawdb.HasBlock(m.db, hash)
 }
 
