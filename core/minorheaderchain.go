@@ -459,12 +459,14 @@ func (hc *HeaderChain) SetCurrentHeader(head *types.MinorBlockHeader) {
 // will be deleted and the new one set.
 func (hc *HeaderChain) SetHead(head uint64, delFn DeleteCallback) {
 	height := uint64(0)
-
+	fmt.Println("hc SetHead")
 	if hdr := hc.CurrentHeader(); hdr != nil {
 		height = hdr.NumberU64()
 	}
+	fmt.Println("height",height,head)
 	batch := hc.chainDb.NewBatch()
 	for hdr := hc.CurrentHeader(); hdr != nil && hdr.NumberU64() > head; hdr = hc.CurrentHeader() {
+		fmt.Println("46999---")
 		hash := hdr.Hash()
 		//num := hdr.NumberU64()
 		if delFn != nil {

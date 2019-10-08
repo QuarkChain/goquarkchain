@@ -325,7 +325,9 @@ func (m *MinorBlockChain) SetHead(head uint64) error {
 	delFn := func(db rawdb.DatabaseDeleter, hash common.Hash) {
 		rawdb.DeleteMinorBlock(db, hash)
 	}
+	fmt.Println("blockChain SetHead")
 	m.hc.SetHead(head, delFn)
+	fmt.Println("blockChain SetHead end")
 	currentHeader := m.hc.CurrentHeader()
 
 	// Clear out any stale content from the caches
@@ -579,8 +581,10 @@ func (m *MinorBlockChain) Genesis() *types.MinorBlock {
 // HasBlock checks if a block is fully present in the database or not.
 func (m *MinorBlockChain) HasBlock(hash common.Hash) bool {
 	if m.blockCache.Contains(hash) {
+		fmt.Println("CCCCCCCCC")
 		return true
 	}
+	fmt.Println("HHHHH")
 	return rawdb.HasBlock(m.db, hash)
 }
 
