@@ -631,8 +631,10 @@ func (m *MinorBlockChain) GetMinorBlock(hash common.Hash) *types.MinorBlock {
 func (m *MinorBlockChain) GetBlockByNumber(number uint64) types.IBlock {
 	hash := rawdb.ReadCanonicalHash(m.db, rawdb.ChainTypeMinor, number)
 	if hash == (common.Hash{}) {
+		fmt.Println("666666666666666")
 		return nil
 	}
+	fmt.Println("777777777777766")
 	return m.GetBlock(hash)
 }
 
