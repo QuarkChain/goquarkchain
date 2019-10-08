@@ -136,6 +136,7 @@ func (w worker) work() {
 			w.log("INFO", "started new work, height:\t %d", work.Number)
 
 		case res := <-resultsCh:
+			//suppose miner decided to sign when OptionalDivider > 1
 			if w.shardID == nil && currWork.OptionalDivider > 1 {
 				res.Signature = w.sign(currWork.HeaderHash)
 			}

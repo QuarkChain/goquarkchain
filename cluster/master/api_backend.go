@@ -340,7 +340,7 @@ func (s *QKCMasterBackend) CreateBlockToMine(addr *account.Address) (types.IBloc
 	if err != nil {
 		return nil, nil, 0, err
 	}
-	diff, optionalDivider, err := s.rootBlockChain.GetAdjustedDifficulty(block.Header())
+	diff, optionalDivider, err := s.rootBlockChain.GetAdjustedDifficultyToMine(block.Header())
 	if err != nil {
 		return nil, nil, 0, err
 	}

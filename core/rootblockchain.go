@@ -1134,6 +1134,44 @@ func (bc *RootBlockChain) SkipDifficultyCheck() bool {
 	return bc.Config().SkipRootDifficultyCheck
 }
 
+//For remote miner to getWork, no signature verified
+func (bc *RootBlockChain) GetAdjustedDifficultyToMine(header types.IHeader) (*big.Int, uint64, error) {
+	rHeader := header.(*types.RootBlockHeader)
+	if crypto.VerifySignature(bc.Config().GuardianPublicKey, rHeader.SealHash().Bytes(), rHeader.Signature[:64]) {
+		guardianAdjustedDiff := new(big.Int).Div(rHeader.GetDifficulty(), new(big.Int).SetUint64(1000))
+		return guardianAdjustedDiff, 1, nil
+	}
+	if bc.posw.IsPoSWEnabled(header) {
+		stakes, err := bc.getPoSWStakes(header)
+		if err != nil {
+			log.Info("get PoSW stakes", "err", err)
+		}
+		poswAdjusted, err := bc.posw.PoSWDiffAdjust(header, stakes)
+		if err != nil {
+			log.Info("PoSW diff adjust", "err", err)
+		}
+		if poswAdjusted != nil && poswAdjusted.Cmp(rHeader.Difficulty) == -1 {
+			log.Info("PoSW applied", "from", rHeader.Difficulty, "to", poswAdjusted)
+			return header.GetDifficulty(), bc.Config().Root.PoSWConfig.DiffDivider, nil
+		}
+	}
+	return rHeader.GetDifficulty(), 1, nil
+}
+
+func (bc *RootBlockChain) getPoSWStakes(header types.IHeader) (*big.Int, error) {
+	// get chain 0 shard 0's last confirmed block header
+	lastConfirmedMinorBlockHeader := bc.GetLastConfirmedMinorBlockHeader(header.GetParentHash(), uint32(1))
+	if lastConfirmedMinorBlockHeader == nil {
+		return nil, errors.New("no shard block has been confirmed")
+	}
+	getStakes := bc.GetRootChainStakesFunc()
+	stakes, _, err := getStakes(header.GetCoinbase(), lastConfirmedMinorBlockHeader.Hash())
+	if err != nil {
+		return nil, err
+	}
+	return stakes, nil
+}
+
 func (bc *RootBlockChain) GetAdjustedDifficulty(header types.IHeader) (*big.Int, uint64, error) {
 	rHeader := header.(*types.RootBlockHeader)
 	if crypto.VerifySignature(bc.Config().GuardianPublicKey, rHeader.SealHash().Bytes(), rHeader.Signature[:64]) {
@@ -1154,14 +1192,14 @@ func (bc *RootBlockChain) GetAdjustedDifficulty(header types.IHeader) (*big.Int,
 }
 
 func (bc *RootBlockChain) getPoSWAdjustedDiff(header types.IHeader) (*big.Int, error) {
-	stakes, err := bc.getPoSWStakes(header)
+	stakes, err := bc.getSignedPoSWStakes(header)
 	if err != nil {
 		return nil, err
 	}
 	return bc.posw.PoSWDiffAdjust(header, stakes)
 }
 
-func (bc *RootBlockChain) getPoSWStakes(header types.IHeader) (*big.Int, error) {
+func (bc *RootBlockChain) getSignedPoSWStakes(header types.IHeader) (*big.Int, error) {
 
 	// get chain 0 shard 0's last confirmed block header
 	lastConfirmedMinorBlockHeader := bc.GetLastConfirmedMinorBlockHeader(header.GetParentHash(), uint32(1))
@@ -1466,7 +1504,7 @@ func (bc *RootBlockChain) PoSWInfo(header *types.RootBlockHeader) (*rpc.PoSWInfo
 	if !bc.posw.IsPoSWEnabled(header) {
 		return nil, nil
 	}
-	stakes, err := bc.getPoSWStakes(header)
+	stakes, err := bc.getSignedPoSWStakes(header)
 	if err != nil {
 		return nil, err
 	}
