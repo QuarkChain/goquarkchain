@@ -242,6 +242,7 @@ func NewMinorBlockChain(
 	bc.txPool = NewTxPool(DefaultTxPoolConfig, bc)
 	// Take ownership of this particular state
 	go bc.update()
+	rawdb.DeleteMinorBlock(bc.db,common.HexToHash("0x94bfdc87288b5c06847bad2d3eb0d94386aab5f659ed0e8c40b6260ad4e896da"))
 	return bc, nil
 }
 

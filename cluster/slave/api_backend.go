@@ -110,13 +110,13 @@ func (s *SlaveBackend) AddBlockListForSync(mHashList []common.Hash, peerId strin
 	fmt.Println("===========end")
 	hashList := make([]common.Hash, 0)
 	for _, hash := range mHashList {
-		//if !shard.MinorBlockChain.HasBlock(hash) {
+		if !shard.MinorBlockChain.HasBlock(hash) {
 			hashList = append(hashList, hash)
-		//}else {
-		//	hhh:=s.shards[branch].MinorBlockChain.GetBlock(hash).NumberU64()
-		//	fmt.Println("hhh",hhh)
-		//	fmt.Println(s.shards[branch].MinorBlockChain.GetBlockByNumber(hhh))
-		//}
+		}else {
+			hhh:=s.shards[branch].MinorBlockChain.GetBlock(hash).NumberU64()
+			fmt.Println("hhh",hhh)
+			fmt.Println(s.shards[branch].MinorBlockChain.GetBlockByNumber(hhh))
+		}
 	}
 
 	fmt.Println("+===========hashList")
