@@ -95,35 +95,18 @@ func (s *SlaveBackend) CreateShards(rootBlock *types.RootBlock, forceInit bool) 
 }
 
 func (s *SlaveBackend) AddBlockListForSync(mHashList []common.Hash, peerId string, branch uint32) (*rpc.ShardStatus, error) {
-	log.Info("addBlockListForSync","len",len(mHashList),branch,branch)
-	log.Info("addBlockListForSync-end","len",len(mHashList),branch,branch)
-
 	shard, ok := s.shards[branch]
 	if !ok {
 		return nil, ErrMsg("AddBlockListForSync")
 	}
 
-	fmt.Println("+===========")
-	for _,v:=range mHashList{
-		fmt.Println(v.String())
-	}
-	fmt.Println("===========end")
 	hashList := make([]common.Hash, 0)
 	for _, hash := range mHashList {
 		if !shard.MinorBlockChain.HasBlock(hash) {
 			hashList = append(hashList, hash)
-		}else {
-			hhh:=s.shards[branch].MinorBlockChain.GetBlock(hash).NumberU64()
-			fmt.Println("hhh",hhh)
-			fmt.Println(s.shards[branch].MinorBlockChain.GetBlockByNumber(hhh))
 		}
 	}
 
-	fmt.Println("+===========hashList")
-	for _,v:=range hashList{
-		fmt.Println(v.String())
-	}
-	fmt.Println("===========hashListend")
 	var (
 		BlockBatchSize = 100
 		hashLen        = len(hashList)
@@ -145,12 +128,9 @@ func (s *SlaveBackend) AddBlockListForSync(mHashList []common.Hash, peerId strin
 		if len(bList) != hLen {
 			return nil, errors.New("Failed to add minor blocks for syncing root block: length of downloaded block list is incorrect")
 		}
-		log.Info("134----,addd","start","start")
 		if _, err := shard.AddBlockListForSync(bList); err != nil { //TODO?need fix?
-		log.Info("err","136--err",err)
 			return nil, err
 		}
-		log.Info("134----,end","start","start")
 		hashList = hashList[hLen:]
 	}
 

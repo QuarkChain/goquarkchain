@@ -242,7 +242,6 @@ func NewMinorBlockChain(
 	bc.txPool = NewTxPool(DefaultTxPoolConfig, bc)
 	// Take ownership of this particular state
 	go bc.update()
-	rawdb.DeleteMinorBlock(bc.db, common.HexToHash("0x94bfdc87288b5c06847bad2d3eb0d94386aab5f659ed0e8c40b6260ad4e896da"))
 	return bc, nil
 }
 
@@ -326,9 +325,7 @@ func (m *MinorBlockChain) SetHead(head uint64) error {
 	delFn := func(db rawdb.DatabaseDeleter, hash common.Hash) {
 		rawdb.DeleteMinorBlock(db, hash)
 	}
-	fmt.Println("blockChain SetHead")
 	m.hc.SetHead(head, delFn)
-	fmt.Println("blockChain SetHead end")
 	currentHeader := m.hc.CurrentHeader()
 
 	// Clear out any stale content from the caches
@@ -635,10 +632,8 @@ func (m *MinorBlockChain) GetMinorBlock(hash common.Hash) *types.MinorBlock {
 func (m *MinorBlockChain) GetBlockByNumber(number uint64) types.IBlock {
 	hash := rawdb.ReadCanonicalHash(m.db, rawdb.ChainTypeMinor, number)
 	if hash == (common.Hash{}) {
-		fmt.Println("666666666666666")
 		return nil
 	}
-	fmt.Println("777777777777766")
 	return m.GetBlock(hash)
 }
 
