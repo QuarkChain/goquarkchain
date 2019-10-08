@@ -103,6 +103,11 @@ func (s *SlaveBackend) AddBlockListForSync(mHashList []common.Hash, peerId strin
 		return nil, ErrMsg("AddBlockListForSync")
 	}
 
+	fmt.Println("+===========")
+	for _,v:=range mHashList{
+		fmt.Println(v.String())
+	}
+	fmt.Println("===========end")
 	hashList := make([]common.Hash, 0)
 	for _, hash := range mHashList {
 		if !shard.MinorBlockChain.HasBlock(hash) {
@@ -110,6 +115,11 @@ func (s *SlaveBackend) AddBlockListForSync(mHashList []common.Hash, peerId strin
 		}
 	}
 
+	fmt.Println("+===========hashList")
+	for _,v:=range hashList{
+		fmt.Println(v.String())
+	}
+	fmt.Println("===========hashListend")
 	var (
 		BlockBatchSize = 100
 		hashLen        = len(hashList)
