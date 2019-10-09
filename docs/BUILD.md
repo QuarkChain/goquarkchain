@@ -1,4 +1,4 @@
-#goquarkchain for ubuntu
+# goquarkchain for ubuntu
 Environment configuration for go,require golang sdk >= 1.12
 ```bash
 wget https://studygolang.com/dl/golang/go1.13.1.linux-amd64.tar.gz
