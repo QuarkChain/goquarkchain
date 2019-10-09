@@ -19,8 +19,13 @@ export PATH=$PATH:$GOPATH/bin
 
 #GOPATH root bin
 export PATH=$PATH:$GOROOT/bin
+
+```
+Refesh bash
+```bash
 source ~/.bashrc
 ```
+
 Check 
 ```bash
 go version
@@ -48,7 +53,7 @@ export CPLUS_INCLUDE_PATH=${CPLUS_INCLUDE_PATH}:/usr/lib/rocksdb/include
 export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:/usr/lib/rocksdb
 export LIBRARY_PATH=${LIBRARY_PATH}:/usr/lib/rocksdb
 ```
-refesh bash 
+Refesh bash 
 ```bash
 source ~/.bashrc
 ```
