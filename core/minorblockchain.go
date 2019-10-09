@@ -1058,6 +1058,7 @@ func (m *MinorBlockChain) WriteBlockWithState(block *types.MinorBlock, receipts 
 	if status == CanonStatTy {
 		m.insert(block)
 	}
+	m.CommitMinorBlockByHash(block.Hash())
 	m.futureBlocks.Remove(block.Hash())
 	return status, nil
 }
@@ -1345,6 +1346,7 @@ func (m *MinorBlockChain) insertSidechain(it *insertIterator, isCheckDB bool) (i
 			if err := m.WriteBlockWithoutState(block, externTd); err != nil {
 				return it.index, nil, nil, nil, err
 			}
+			m.CommitMinorBlockByHash(block.Hash())
 			log.Debug("Inserted sidechain block", "number", block.NumberU64(), "hash", block.Hash(),
 				"diff", block.IHeader().GetDifficulty(), "elapsed", common.PrettyDuration(time.Since(start)),
 				"txs", len(block.(*types.MinorBlock).GetTransactions()), "gas", block.(*types.MinorBlock).GetMetaData().GasUsed,
