@@ -4,7 +4,7 @@ Environment configuration for go,require golang sdk >= 1.12
 wget https://studygolang.com/dl/golang/go1.13.1.linux-amd64.tar.gz
 tar xzvf go1.13.1.linux-amd64.tar.gz -C /usr/lib/
 ```
-in bashrc,add environment variables for golang
+In bashrc,add environment variables for golang
 ```bash
 vim ~/.bashrc
 
@@ -21,7 +21,7 @@ export PATH=$PATH:$GOPATH/bin
 export PATH=$PATH:$GOROOT/bin
 source ~/.bashrc
 ```
-check 
+Check 
 ```bash
 go version
 #show
@@ -38,11 +38,11 @@ cd rocksdb
 PORTABLE=1 make shared_lib
 INSTALL_PATH=/usr/local make install-shared
 ```
-add environment variables for rocksdb
+Add environment variables for rocksdb
 ```bash
 vim ~/.bashrc
 ```
-add
+Add
 ```bash
 export CPLUS_INCLUDE_PATH=${CPLUS_INCLUDE_PATH}:/usr/lib/rocksdb/include
 export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:/usr/lib/rocksdb
@@ -61,7 +61,7 @@ make
 cd /goquarkchain/cmd/cluser
 go build .
 ```
-run goquarchain for S1 
+Run goquarchain for S1 
 ```bash
 cd /goquarkchain/cmd/cluser
  ./cluster --cluster_config ../../mainnet/singularity/cluster_config_template.json --service S1 
