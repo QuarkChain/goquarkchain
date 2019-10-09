@@ -1144,16 +1144,17 @@ func (bc *RootBlockChain) GetAdjustedDifficultyToMine(header types.IHeader) (*bi
 	if bc.posw.IsPoSWEnabled(header) {
 		stakes, err := bc.getPoSWStakes(header)
 		if err != nil {
-			log.Info("get PoSW stakes", "err", err)
+			log.Debug("get PoSW stakes", "err", err, "coinbase", header.GetCoinbase().ToHex())
 		}
 		poswAdjusted, err := bc.posw.PoSWDiffAdjust(header, stakes)
 		if err != nil {
-			log.Info("PoSW diff adjust", "err", err)
+			log.Debug("PoSW diff adjust", "err", err, "coinbase", header.GetCoinbase().ToHex())
 		}
 		if poswAdjusted != nil && poswAdjusted.Cmp(rHeader.Difficulty) == -1 {
-			log.Info("PoSW applied", "from", rHeader.Difficulty, "to", poswAdjusted)
+			log.Debug("PoSW applied", "from", rHeader.Difficulty, "to", poswAdjusted, "coinbase", header.GetCoinbase().ToHex())
 			return header.GetDifficulty(), bc.Config().Root.PoSWConfig.DiffDivider, nil
 		}
+		log.Debug("PoSW not satisfied", "stakes", stakes, "coinbase", header.GetCoinbase().ToHex())
 	}
 	return rHeader.GetDifficulty(), 1, nil
 }
@@ -1181,12 +1182,13 @@ func (bc *RootBlockChain) GetAdjustedDifficulty(header types.IHeader) (*big.Int,
 	if bc.posw.IsPoSWEnabled(header) {
 		poswAdjusted, err := bc.getPoSWAdjustedDiff(header)
 		if err != nil {
-			log.Info("PoSW not applied", "reason", err)
+			log.Debug("PoSW not applied", "reason", err, "coinbase", header.GetCoinbase().ToHex())
 		}
 		if poswAdjusted != nil && poswAdjusted.Cmp(rHeader.Difficulty) == -1 {
-			log.Info("PoSW applied", "from", rHeader.Difficulty, "to", poswAdjusted)
+			log.Debug("PoSW applied", "from", rHeader.Difficulty, "to", poswAdjusted, "coinbase", header.GetCoinbase().ToHex())
 			return header.GetDifficulty(), bc.Config().Root.PoSWConfig.DiffDivider, nil
 		}
+		log.Debug("PoSW not satisfied", "coinbase", header.GetCoinbase().ToHex())
 	}
 	return rHeader.GetDifficulty(), 1, nil
 }
@@ -1211,7 +1213,7 @@ func (bc *RootBlockChain) getSignedPoSWStakes(header types.IHeader) (*big.Int, e
 	if err != nil {
 		return nil, err
 	}
-	if signer == nil || *signer == (common.Address{}) {
+	if signer == nil || *signer == (common.Address{}) { //could be unlocked if stakes is 0 too
 		return nil, errors.New("stakes signer not found")
 	}
 	rHeader := header.(*types.RootBlockHeader)
