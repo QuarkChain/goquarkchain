@@ -374,7 +374,7 @@ func (pm *ProtocolManager) handleMsg(peer *Peer) error {
 			return err
 		}
 		if c := peer.getChan(qkcMsg.RpcID); c != nil {
-			c <- minorHeaderResp
+			c <- &minorHeaderResp
 		} else {
 			log.Warn(fmt.Sprintf("chan for rpc %d is missing", qkcMsg.RpcID))
 		}
