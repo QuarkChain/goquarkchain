@@ -52,12 +52,18 @@ refesh bash
 ```bash
 source ~/.bashrc
 ```
-Download and run goquarkchain
+Download and build goquarkchain
 ```bash
 git clone https://github.com/QuarkChain/goquarkchain.git
 cd /goquarkchain/consensus/qkchash/native
 g++ -shared -o libqkchash.so -fPIC qkchash.cpp -O3 -std=gnu++17
+make
 cd /goquarkchain/cmd/cluser
 go build .
-./cluster 
 ```
+run goquarchain for S1 
+```bash
+cd /goquarkchain/cmd/cluser
+ ./cluster --cluster_config ../../mainnet/singularity/cluster_config_template.json --service S1 
+```
+
