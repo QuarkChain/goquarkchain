@@ -40,7 +40,7 @@ func getClusterConfig(index uint16, cfg *config.ClusterConfig) *config.ClusterCo
 	cfg.P2PPort += index
 	cfg.JSONRPCPort += index
 	cfg.PrivateJSONRPCPort += index
-	cfg.Quarkchain.GRPCPort += index
+	cfg.Quarkchain.GRPCPort += index + 1000
 	if int(index) < len(privStrs) {
 		cfg.P2P.PrivKey = privStrs[index]
 	}
