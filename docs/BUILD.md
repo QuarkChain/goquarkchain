@@ -1,5 +1,6 @@
 # goquarkchain for ubuntu
-Environment configuration for go,require golang sdk >= 1.12
+### Environment configuration for go,require golang sdk >= 1.12
+Download golang
 ```bash
 wget https://studygolang.com/dl/golang/go1.13.1.linux-amd64.tar.gz
 tar xzvf go1.13.1.linux-amd64.tar.gz -C /usr/lib/
@@ -7,19 +8,14 @@ tar xzvf go1.13.1.linux-amd64.tar.gz -C /usr/lib/
 In bashrc,add environment variables for golang
 ```bash
 vim ~/.bashrc
-
 #GOROOT
 export GOROOT=/usr/lib/go
-
-#GOPATH go项目路径
-export GOPATH=/root/gocode
-
+#GOPATH  go project path
+export GOPATH=/home/gocode
 #GOPATH bin
 export PATH=$PATH:$GOPATH/bin
-
-#GOPATH root bin
+#GOROOT bin
 export PATH=$PATH:$GOROOT/bin
-
 ```
 Refesh bash
 ```bash
@@ -32,7 +28,7 @@ go version
 #show
 go version go1.13.1 linux/amd64 ##this is ok
 ```
-Next, to install rocksdb for goquarkchain run
+### Next, to install rocksdb for goquarkchain run
 ```bash
 wget https://github.com/facebook/rocksdb/archive/v6.1.2.tar.gz
 tar xzvf v6.1.2.tar.gz -C /usr/lib/
@@ -57,6 +53,7 @@ Refesh bash
 ```bash
 source ~/.bashrc
 ```
+### Run goquarkchain
 Download and build goquarkchain
 ```bash
 git clone https://github.com/QuarkChain/goquarkchain.git
