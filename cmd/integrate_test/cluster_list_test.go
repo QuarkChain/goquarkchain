@@ -255,7 +255,8 @@ func TestAddTransaction(t *testing.T) {
 	var shardSize uint32 = 2
 	cfglist := GetClusterConfig(2, 1, shardSize, 1, nil, defaultbootNode, config.PoWSimulate, true)
 	geneAcc, clstrList := CreateClusterList(2, cfglist)
-	clstrList.Start(5*time.Second, false)
+	clstrList.Start(5*time.Second, true)
+	defer clstrList.Stop()
 
 	var (
 		id0            = uint32(0<<16 | shardSize | 0)
@@ -263,7 +264,7 @@ func TestAddTransaction(t *testing.T) {
 		mstr0          = clstrList[0].GetMaster()
 		mstr1          = clstrList[1].GetMaster()
 		shard0         = clstrList[0].GetShard(id0)
-		fullShardId, _ = geneAcc.QKCAddress.GetFullShardID(2)
+		fullShardId, _ = geneAcc.QKCAddress.GetFullShardID(shardSize)
 	)
 
 	// send tx in shard 0
@@ -330,9 +331,6 @@ func TestAddTransaction(t *testing.T) {
 	accdata1, err := mstr1.GetAccountData(&geneAcc.QKCAddress, nil)
 	assert.Equal(t, accdata1[fullShardId].TransactionCount, uint64(1))
 	assert.True(t, accdata1[fullShardId].Balance.GetTokenBalance(testGenesisTokenID).Cmp(accdata[fullShardId].Balance.GetTokenBalance(testGenesisTokenID)) == 0)
-
-	clstrList.Stop()
-
 }
 
 func TestAddMinorBlockRequestList(t *testing.T) {
