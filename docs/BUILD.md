@@ -49,7 +49,7 @@ go version
 #show
 go version go1.13.1 linux/amd64 ##this is ok
 ```
-### Next, to install rocksdb for goquarkchain run
+### To install rocksdb for goquarkchain run
 ```bash
 wget https://github.com/facebook/rocksdb/archive/v6.1.2.tar.gz
 tar xzvf v6.1.2.tar.gz -C /usr/lib/
