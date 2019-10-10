@@ -166,8 +166,8 @@ func (s *ShardBackend) GetMinorBlock(mHash common.Hash, height *uint64) (*types.
 }
 
 func (s *ShardBackend) NewMinorBlock(block *types.MinorBlock) (err error) {
-	log.Info(s.logInfo, "NewMinorBlock height", block.Header().Number, "hash", block.Header().Hash().String())
-	defer log.Info(s.logInfo, "NewMinorBlock", "end")
+	//log.Info(s.logInfo, "NewMinorBlock height", block.Header().Number, "hash", block.Header().Hash().String())
+	//defer log.Info(s.logInfo, "NewMinorBlock", "end")
 	// TODO synchronizer.running
 	mHash := block.Header().Hash()
 	if s.mBPool.getBlockInPool(mHash) != nil {

@@ -1143,10 +1143,10 @@ func (bc *RootBlockChain) GetAdjustedDifficulty(header types.IHeader) (*big.Int,
 	if bc.posw.IsPoSWEnabled(header) {
 		poswAdjusted, err := bc.getPoSWAdjustedDiff(header)
 		if err != nil {
-			log.Info("PoSW not applied", "reason", err)
+			//log.Info("PoSW not applied", "reason", err)
 		}
 		if poswAdjusted != nil && poswAdjusted.Cmp(rHeader.Difficulty) == -1 {
-			log.Info("PoSW applied", "from", rHeader.Difficulty, "to", poswAdjusted)
+			//log.Info("PoSW applied", "from", rHeader.Difficulty, "to", poswAdjusted)
 			return header.GetDifficulty(), bc.Config().Root.PoSWConfig.DiffDivider, nil
 		}
 	}

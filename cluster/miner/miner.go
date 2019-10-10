@@ -109,7 +109,7 @@ func (m *Miner) mainLoop() {
 			m.commit(nil)
 
 		case work := <-m.workCh: //to discuss:need this?
-			log.Info(m.logInfo, "ready to seal height", work.block.NumberU64(), "coinbase", work.block.IHeader().GetCoinbase().ToHex())
+			//log.Info(m.logInfo, "ready to seal height", work.block.NumberU64(), "coinbase", work.block.IHeader().GetCoinbase().ToHex())
 			if err := m.engine.Seal(nil, work.block, work.adjustedDifficulty, work.optionalDivider, m.resultCh, m.stopCh); err != nil {
 				log.Error(m.logInfo, "Seal block to mine err", err)
 				coinbase := work.block.IHeader().GetCoinbase()
@@ -180,7 +180,7 @@ func (m *Miner) SubmitWork(nonce uint64, hash, digest common.Hash, signature *[6
 }
 
 func (m *Miner) HandleNewTip() {
-	log.Info(m.logInfo, "handle new tip: height", m.getTip())
+	//log.Info(m.logInfo, "handle new tip: height", m.getTip())
 	m.engine.RefreshWork(m.api.GetTip())
 	m.commit(nil)
 }
