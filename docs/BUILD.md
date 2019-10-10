@@ -1,4 +1,25 @@
-# goquarkchain for ubuntu
+# QuarkChain for golang
+
+[![CircleCI](https://circleci.com/gh/QuarkChain/pyquarkchain/tree/master.svg?style=shield&circle-token=c17a071129e4ab6c0911154c955efc236b1a5015)](https://circleci.com/gh/QuarkChain/pyquarkchain/tree/master)
+
+QuarkChain is a sharded blockchain protocol that employs a two-layer architecture - one extensible sharding layer consisting of multiple shard chains processing transactions and one root chain layer securing the network and coordinating cross-shard transactions among shard chains. The capacity of the network scales linearly as the number of shard chains increase while the root chain is always providing strong security guarantee regardless of the number of shards. QuarkChain testnet consistently hit [10,000+ TPS](https://youtu.be/dUldrq3zKwE?t=8m28s) with 256 shards run by 50 clusters consisting of 6450 servers with each loadtest submitting 3,000,000 transactions to the network.
+
+## Features
+
+- Cluster implementation allowing multiple processes / physical machines to work together as a single full node
+- State sharding dividing global state onto independent processing and storage units allowing the network capacity to scale linearly by adding more shards
+- Cross-shard transaction allowing native token transfers among shard chains
+- Adding shards dynamically to the network
+- Support of different mining algorithms on different shards
+- P2P network allowing clusters to join and leave anytime with encrypted transport
+- Fully compatible with Ethereum smart contract
+
+## Design
+
+![QuarkChain Cluster](https://docs.google.com/drawings/d/e/2PACX-1vRkF6Wd-I-1j-601IFWPwd9u8A5oqa_c2JVBad1SDY48ATY1aRaJvhObiX8p9Jh1ra5G-HIqhhYl0NM/pub?w=960&h=576)
+
+Check out the [Wiki](https://github.com/QuarkChain/pyquarkchain/wiki) to understand the design of QuarkChain.
+
 ### Environment configuration for go,require golang sdk >= 1.12
 Download golang
 ```bash
@@ -66,6 +87,6 @@ go build .
 Run goquarchain for S1 
 ```bash
 cd /goquarkchain/cmd/cluser
- ./cluster --cluster_config ../../mainnet/singularity/cluster_config_template.json --service S1 
+./cluster --cluster_config ../../mainnet/singularity/cluster_config_template.json --service S1 
 ```
 
