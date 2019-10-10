@@ -3,6 +3,7 @@ package slave
 
 import (
 	"context"
+	"github.com/QuarkChain/goquarkchain/core"
 	"sync"
 	"time"
 
@@ -13,7 +14,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/rpc"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
-	"github.com/tomochain/tomochain/log"
+	"github.com/ethereum/go-ethereum/log"
 )
 
 var (
@@ -139,7 +140,7 @@ func (api *PublicFilterAPI) Logs(ctx context.Context, crit rpc.FilterQuery, full
 
 	var (
 		rpcSub      = notifier.CreateSubscription()
-		matchedLogs = make(chan []*types.Log, filters.LogsChanSize)
+		matchedLogs = make(chan core.LoglistEvent, filters.LogsChanSize)
 	)
 	crit.FullShardId = uint32(fullShardId)
 
@@ -152,8 +153,10 @@ func (api *PublicFilterAPI) Logs(ctx context.Context, crit rpc.FilterQuery, full
 		for {
 			select {
 			case logs := <-matchedLogs:
-				for _, log := range logs {
-					notifier.Notify(rpcSub.ID, encoder.LogEncoder(log, false))
+				for _, loglist := range logs.Logs {
+					for _, log := range loglist {
+						notifier.Notify(rpcSub.ID, encoder.LogEncoder(log, logs.IsRemoved))
+					}
 				}
 			case <-rpcSub.Err(): // client send an unsubscribe request
 				logsSub.Unsubscribe()

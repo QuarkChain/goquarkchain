@@ -95,12 +95,11 @@ func (c *CommonAPI) GetLogs(args *rpc.FilterQuery, fullShardKey *hexutil.Uint) (
 	if args.FromBlock == nil || args.FromBlock.Int64() == rpc.LatestBlockNumber.Int64() {
 		args.FromBlock = new(big.Int).SetUint64(lastBlockHeight)
 	}
+
 	if args.ToBlock == nil || args.ToBlock.Int64() == rpc.LatestBlockNumber.Int64() {
 		args.ToBlock = new(big.Int).SetUint64(lastBlockHeight)
 	}
-	if args.FromBlock.Int64() == rpc.PendingBlockNumber.Int64() || args.ToBlock.Int64() == rpc.PendingBlockNumber.Int64() {
-		return nil, errors.New("not support pending")
-	}
+
 	args.FullShardId = fullShardID
 
 	log, err := c.b.GetLogs(args)
@@ -551,6 +550,7 @@ func (p *PublicBlockChainAPI) SubmitWork(fullShardKey *hexutil.Uint, headHash co
 
 	var sig *[65]byte = nil
 	if signature != nil {
+		sig = new([65]byte)
 		copy(sig[:], *signature)
 	}
 
