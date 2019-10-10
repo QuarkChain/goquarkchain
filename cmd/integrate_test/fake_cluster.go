@@ -133,7 +133,7 @@ func (c *clusterNode) Start() (err error) {
 		}
 	}
 
-	time.Sleep(1 * time.Second)
+	time.Sleep(100 * time.Millisecond)
 	if err = c.services[clientIdentifier].Start(); err != nil {
 		c.Stop()
 		return
@@ -152,8 +152,11 @@ func (c *clusterNode) GetMaster() *master.QKCMasterBackend {
 	if c.master != nil {
 		return c.master
 	}
-	if err := c.services[clientIdentifier].Service(&c.master); err != nil {
-		utils.Fatalf("master service not running, cluster index: %d, err: %v", c.index, err)
+	err := c.services[clientIdentifier].Service(&c.master)
+	sig := 3
+	for err != nil && sig > 0 {
+		sig--
+		err = c.services[clientIdentifier].Service(&c.master)
 	}
 	return c.master
 }

@@ -10,7 +10,6 @@ import (
 	"github.com/QuarkChain/goquarkchain/p2p"
 	"github.com/stretchr/testify/assert"
 	"math/big"
-	"runtime"
 	"testing"
 	"time"
 )
@@ -28,9 +27,12 @@ func tipGen(geneAcc *account.Account, shrd *shard.ShardBackend) *types.MinorBloc
 }
 
 func retryTrueWithTimeout(f func() bool, duration int64) bool {
+	if f() == true {
+		return true
+	}
 	deadLine := time.Now().Unix() + duration
 	for !f() && time.Now().Unix() < deadLine {
-		time.Sleep(500 * time.Millisecond) // 0.5 second
+		time.Sleep(200 * time.Millisecond) // 0.5 second
 	}
 	return f()
 }
@@ -61,7 +63,7 @@ func TestShardGenesisForkFork(t *testing.T) {
 
 	cfglist := GetClusterConfig(2, 1, shardSize, 1, geneRHeights, defaultbootNode, config.PoWSimulate, true)
 	_, clstrList := CreateClusterList(2, cfglist)
-	clstrList.Start(5*time.Second, true)
+	clstrList.Start(5*time.Second, false)
 	defer clstrList.Stop()
 
 	// clstrList.PrintPeerList()
@@ -123,6 +125,7 @@ func TestGetMinorBlockHeadersWithSkip(t *testing.T) {
 	cfglist := GetClusterConfig(numCluster, chainSize, shardSize, chainSize, nil, defaultbootNode, config.PoWSimulate, true)
 	_, clstrList := CreateClusterList(numCluster, cfglist)
 	clstrList.Start(10*time.Second, true)
+	defer clstrList.Stop()
 
 	// clstrList.PrintPeerList()
 
@@ -164,10 +167,6 @@ func TestGetMinorBlockHeadersWithSkip(t *testing.T) {
 	assert.Equal(t, mHeaders[2].Hash(), mBHeaders[0].Hash())
 	assert.Equal(t, mHeaders[1].Hash(), mBHeaders[1].Hash())
 	assert.Equal(t, mHeaders[0].Hash(), mBHeaders[2].Hash())
-
-	clstrList.Stop()
-	time.Sleep(1 * time.Second)
-	runtime.GC()
 }
 
 func TestCreateShardAtDifferentHeight(t *testing.T) {
@@ -185,7 +184,7 @@ func TestCreateShardAtDifferentHeight(t *testing.T) {
 	cfglist := GetClusterConfig(1, 2, shardSize, 1, geneRHeights, defaultbootNode, config.PoWSimulate, true)
 
 	_, clstrList := CreateClusterList(1, cfglist)
-	clstrList.Start(5*time.Second, true)
+	clstrList.Start(5*time.Second, false)
 
 	rBlock := clstrList[0].CreateAndInsertBlocks([]uint32{id2, id3})
 
@@ -212,15 +211,14 @@ func TestCreateShardAtDifferentHeight(t *testing.T) {
 	}, 20), true)
 
 	clstrList.Stop()
-	time.Sleep(1 * time.Second)
-	runtime.GC()
+
 }
 
 func TestGetPrimaryAccountData(t *testing.T) {
 	cfglist := GetClusterConfig(1, 1, 2, 1, nil, defaultbootNode, config.PoWSimulate, true)
 	geneAcc, clstrList := CreateClusterList(1, cfglist)
 	fullShardId, _ := geneAcc.QKCAddress.GetFullShardID(2)
-	clstrList.Start(5*time.Second, true)
+	clstrList.Start(5*time.Second, false)
 
 	mstr := clstrList[0].GetMaster()
 	mstr.SetMining(true)
@@ -250,15 +248,14 @@ func TestGetPrimaryAccountData(t *testing.T) {
 	}, 20), true)
 
 	clstrList.Stop()
-	time.Sleep(1 * time.Second)
-	runtime.GC()
+
 }
 
 func TestAddTransaction(t *testing.T) {
 	var shardSize uint32 = 2
 	cfglist := GetClusterConfig(2, 1, shardSize, 1, nil, defaultbootNode, config.PoWSimulate, true)
 	geneAcc, clstrList := CreateClusterList(2, cfglist)
-	clstrList.Start(5*time.Second, true)
+	clstrList.Start(5*time.Second, false)
 
 	var (
 		id0            = uint32(0<<16 | shardSize | 0)
@@ -335,15 +332,14 @@ func TestAddTransaction(t *testing.T) {
 	assert.True(t, accdata1[fullShardId].Balance.GetTokenBalance(testGenesisTokenID).Cmp(accdata[fullShardId].Balance.GetTokenBalance(testGenesisTokenID)) == 0)
 
 	clstrList.Stop()
-	time.Sleep(1 * time.Second)
-	runtime.GC()
+
 }
 
 func TestAddMinorBlockRequestList(t *testing.T) {
 	var shardSize uint32 = 2
 	cfglist := GetClusterConfig(2, 1, shardSize, 1, nil, defaultbootNode, config.PoWSimulate, true)
 	_, clstrList := CreateClusterList(2, cfglist)
-	clstrList.Start(5*time.Second, true)
+	clstrList.Start(5*time.Second, false)
 
 	var (
 		id0    = uint32(0<<16 | shardSize | 0)
@@ -380,8 +376,7 @@ func TestAddMinorBlockRequestList(t *testing.T) {
 	}, 20), true)
 
 	clstrList.Stop()
-	time.Sleep(1 * time.Second)
-	runtime.GC()
+
 }
 
 func TestAddRootBlockRequestList(t *testing.T) {
@@ -389,7 +384,7 @@ func TestAddRootBlockRequestList(t *testing.T) {
 	var shardSize uint32 = 2
 	cfglist := GetClusterConfig(2, 1, shardSize, 1, nil, defaultbootNode, config.PoWSimulate, true)
 	geneAcc, clstrList := CreateClusterList(2, cfglist)
-	clstrList.Start(5*time.Second, true)
+	clstrList.Start(5*time.Second, false)
 	defer clstrList.Stop()
 
 	var (
@@ -454,7 +449,7 @@ func TestAddRootBlockRequestList(t *testing.T) {
 func TestGetRootBlockHeaderSyncWithFork(t *testing.T) {
 	cfglist := GetClusterConfig(2, 1, 1, 1, nil, defaultbootNode, config.PoWSimulate, true)
 	_, clstrList := CreateClusterList(2, cfglist)
-	clstrList.Start(5*time.Second, true)
+	clstrList.Start(5*time.Second, false)
 
 	var (
 		mstr0         = clstrList[0].GetMaster()
@@ -494,8 +489,7 @@ func TestGetRootBlockHeaderSyncWithFork(t *testing.T) {
 	}, 20), true)
 
 	clstrList.Stop()
-	time.Sleep(1 * time.Second)
-	runtime.GC()
+
 }
 
 func TestBroadcastCrossShardTransactions(t *testing.T) {
@@ -506,7 +500,7 @@ func TestBroadcastCrossShardTransactions(t *testing.T) {
 	)
 	cfglist := GetClusterConfig(1, 1, shardSize, 2, nil, defaultbootNode, config.PoWSimulate, true)
 	geneAcc, clstrList := CreateClusterList(1, cfglist)
-	clstrList.Start(5*time.Second, true)
+	clstrList.Start(5*time.Second, false)
 
 	// clstrList.PrintPeerList()
 	var (
@@ -587,11 +581,10 @@ func TestBroadcastCrossShardTransactions(t *testing.T) {
 		return true
 		//TODO @DL to fix
 		//return accData[id1].Balance.GetTokenBalance(testGenesisTokenID).Uint64() == uint64(genesisBalance+100)
-	}, 20), true)
+	}, 5), true)
 
 	clstrList.Stop()
-	time.Sleep(1 * time.Second)
-	runtime.GC()
+
 }
 
 func TestGetWorkFromSlave(t *testing.T) {
@@ -603,7 +596,7 @@ func TestGetWorkFromSlave(t *testing.T) {
 	)
 	cfglist := GetClusterConfig(1, chainSize, shardSize, chainSize, nil, defaultbootNode, config.PoWDoubleSha256, true)
 	_, clstrList := CreateClusterList(1, cfglist)
-	clstrList.Start(5*time.Second, true)
+	clstrList.Start(5*time.Second, false)
 
 	// clstrList.PrintPeerList()
 	var (
@@ -621,8 +614,7 @@ func TestGetWorkFromSlave(t *testing.T) {
 	// TODO need to change remote type test.
 
 	clstrList.Stop()
-	time.Sleep(1 * time.Second)
-	runtime.GC()
+
 }
 
 func TestShardSynchronizerWithFork(t *testing.T) {
@@ -731,14 +723,13 @@ func TestBroadcastCrossShardTransactionListToNeighborOnly(t *testing.T) {
 	}, 20), true)
 
 	clstrList.Stop()
-	time.Sleep(1 * time.Second)
-	runtime.GC()
+
 }
 
 func TestHandleGetMinorBlockListRequestWithTotalDiff(t *testing.T) {
 	cfglist := GetClusterConfig(2, 2, 2, 2, nil, defaultbootNode, config.PoWSimulate, true)
 	_, clstrList := CreateClusterList(2, cfglist)
-	clstrList.Start(5*time.Second, true)
+	clstrList.Start(5*time.Second, false)
 
 	calCoinBase := func(rootBlock *types.RootBlock) *types.TokenBalances {
 		res := make(map[string]*big.Int)
@@ -819,8 +810,7 @@ func TestHandleGetMinorBlockListRequestWithTotalDiff(t *testing.T) {
 	}, 20), true)
 
 	clstrList.Stop()
-	time.Sleep(1 * time.Second)
-	runtime.GC()
+
 }
 
 /*func TestNewBlockHeaderPool(t *testing.T) {
@@ -856,8 +846,8 @@ func TestHandleGetMinorBlockListRequestWithTotalDiff(t *testing.T) {
 	}, 10), true)
 
 	clstrList.Stop()
-	time.Sleep(1 * time.Second)
-	runtime.GC()
+
+	
 }*/
 
 //Test the broadcast is only done to the neighbors
@@ -868,7 +858,7 @@ func TestGetRootBlockHeadersWithSkip(t *testing.T) {
 
 	//Add a root block first so that later minor blocks referring to this root
 	//can be broadcasted to other shards
-	master := clstrList[0].master
+	master := clstrList[0].GetMaster()
 	rootBlockHeaderList := []types.IHeader{master.GetCurrRootHeader()}
 	for i := 0; i < 10; i++ {
 		rootBlock, _, _, err := master.CreateBlockToMine(nil)
@@ -879,7 +869,7 @@ func TestGetRootBlockHeadersWithSkip(t *testing.T) {
 	}
 	assert.Equal(t, rootBlockHeaderList[len(rootBlockHeaderList)-1].NumberU64(), uint64(10))
 	assert.Equal(t, retryTrueWithTimeout(func() bool {
-		return clstrList[1].master.GetTip() == 10
+		return clstrList[1].GetMaster().GetTip() == 10
 	}, 20), true)
 
 	peer := clstrList.GetPeerByIndex(1)
@@ -901,8 +891,7 @@ func TestGetRootBlockHeadersWithSkip(t *testing.T) {
 	// TODO skip parameter need to be added.
 
 	clstrList.Stop()
-	time.Sleep(1 * time.Second)
-	runtime.GC()
+
 }
 
 func TestGetRootBlockHeaderSyncFromGenesis(t *testing.T) {
@@ -969,8 +958,7 @@ func TestGetRootBlockHeaderSyncFromHeight3(t *testing.T) {
 	}, 20), true)
 
 	clstrList.Stop()
-	time.Sleep(1 * time.Second)
-	runtime.GC()
+
 }
 
 func TestGetRootBlockHeaderSyncWithStaleness(t *testing.T) {
@@ -1010,8 +998,7 @@ func TestGetRootBlockHeaderSyncWithStaleness(t *testing.T) {
 	}, 20), true)
 
 	clstrList.Stop()
-	time.Sleep(1 * time.Second)
-	runtime.GC()
+
 }
 
 func TestGetRootBlockHeaderSyncWithMultipleLookup(t *testing.T) {
@@ -1062,8 +1049,7 @@ func TestGetRootBlockHeaderSyncWithMultipleLookup(t *testing.T) {
 	}, 20), true)
 
 	clstrList.Stop()
-	time.Sleep(1 * time.Second)
-	runtime.GC()
+
 }
 
 func TestGetRootBlockHeaderSyncWithStartEqualEnd(t *testing.T) {
@@ -1113,8 +1099,6 @@ func TestGetRootBlockHeaderSyncWithStartEqualEnd(t *testing.T) {
 	}, 20), true)
 
 	clstrList.Stop()
-	time.Sleep(1 * time.Second)
-	runtime.GC()
 }
 
 func TestGetRootBlockHeaderSyncWithBestAncestor(t *testing.T) {
