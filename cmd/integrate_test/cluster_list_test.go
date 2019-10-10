@@ -1,6 +1,7 @@
 package test
 
 import (
+	"fmt"
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/cluster/shard"
@@ -667,23 +668,30 @@ func TestShardSynchronizerWithFork(t *testing.T) {
 	err = mstr.AddMinorBlock(mBlock.Branch().Value, mBlock)
 	assert.NoError(t, err)
 
-	// shard20 := clstrList[2].GetShard(id0)
-
-	assert.Equal(t, uint32(0), uint32(1))
+	clstrList[0].CreateAndInsertBlocks(nil)
 	for _, blk := range blockList {
-		assert.Equal(t, true, true)
+		mHeaders := mstr1.CurrentBlock().MinorBlockHeaders()
+		if len(mHeaders) > 0 {
+			for _, hd := range mHeaders {
+				fmt.Println("=========", hd.Number, hd.Hash().Hex())
+			}
+		}
+		fmt.Println("---------", shard00.MinorBlockChain.CurrentBlock().Number(), shard00.MinorBlockChain.CurrentBlock().Hash().Hex(), shard10.MinorBlockChain.CurrentBlock().Number(), shard10.MinorBlockChain.CurrentBlock().Hash().Hex())
 		assert.Equal(t, retryTrueWithTimeout(func() bool {
 			mBlock, _, err := mstr1.GetMinorBlockByHash(blk.Hash(), blk.Branch(), false)
 			if err != nil || mBlock == nil {
-				return false
+				return bool(false)
 			}
-			return true
-		}, 1), true)
+			return bool(true)
+		}, 1), bool(true))
 	}
 
 	assert.Equal(t, retryTrueWithTimeout(func() bool {
-		return shard00.GetTip() == shard10.GetTip()
-	}, 20), true)
+		if shard00.GetTip() != shard10.GetTip() {
+			return bool(false)
+		}
+		return bool(true)
+	}, 20), bool(true))
 }
 
 func TestBroadcastCrossShardTransactionListToNeighborOnly(t *testing.T) {
