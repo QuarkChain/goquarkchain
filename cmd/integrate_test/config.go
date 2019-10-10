@@ -105,7 +105,7 @@ func defaultClusterConfig(chainSize, shardSize, slaveSize uint32, geneRHeights m
 		shardCfg.Genesis.Difficulty = 10
 		shardCfg.PoswConfig.WindowSize = 2
 		// extra minor block headers in root block.
-		shardCfg.ExtraShardBlocksInRootBlock = 10
+		shardCfg.ExtraShardBlocksInRootBlock = 14
 		if _, ok := geneRHeights[fullShardId]; ok {
 			shardCfg.Genesis.RootHeight = geneRHeights[fullShardId]
 		}
