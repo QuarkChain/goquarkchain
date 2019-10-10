@@ -65,6 +65,19 @@ const (
 
 var errServerStopped = errors.New("server stopped")
 
+func NewHandleErr(text string) error {
+	return &handleErr{text}
+}
+
+// errorString is a trivial implementation of error.
+type handleErr struct {
+	s string
+}
+
+func (e *handleErr) Error() string {
+	return e.s
+}
+
 // Config holds Server options.
 type Config struct {
 	// This field must be set to a valid secp256k1 private key.
@@ -778,7 +791,8 @@ running:
 			}
 		case pd := <-srv.delpeer:
 			// A peer disconnected.
-			if pd.err != nil {
+			switch (pd.err).(type) {
+			case *handleErr:
 				srv.blackNodeFilter.addDialoutBlacklist(pd.Node().IP().String())
 			}
 			d := common.PrettyDuration(mclock.Now() - pd.created)
