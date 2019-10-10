@@ -18,7 +18,7 @@ QuarkChain is a sharded blockchain protocol that employs a two-layer architectur
 
 ![QuarkChain Cluster](https://docs.google.com/drawings/d/e/2PACX-1vRkF6Wd-I-1j-601IFWPwd9u8A5oqa_c2JVBad1SDY48ATY1aRaJvhObiX8p9Jh1ra5G-HIqhhYl0NM/pub?w=960&h=576)
 
-Check out the [Wiki](https://github.com/QuarkChain/pyquarkchain/wiki) to understand the design of QuarkChain.
+Check out the [Wiki](https://github.com/QuarkChain/goquarkchain/wiki) to understand the design of QuarkChain.
 ## Development Setup
 ### Environment configuration for go,require golang sdk >= 1.12
 Download golang
@@ -63,9 +63,6 @@ INSTALL_PATH=/usr/local make install-shared
 Add environment variables for rocksdb
 ```bash
 vim ~/.bashrc
-```
-Add
-```bash
 export CPLUS_INCLUDE_PATH=${CPLUS_INCLUDE_PATH}:/usr/lib/rocksdb/include
 export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:/usr/lib/rocksdb
 export LIBRARY_PATH=${LIBRARY_PATH}:/usr/lib/rocksdb
