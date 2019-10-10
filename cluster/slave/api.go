@@ -14,7 +14,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/rpc"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
-	"github.com/tomochain/tomochain/log"
+	"github.com/ethereum/go-ethereum/log"
 )
 
 var (

@@ -103,6 +103,8 @@ func (c *CommonEngine) remote() {
 		if signature != nil && adjustedDiff.Cmp(solution.IHeader().GetDifficulty()) == 0 {
 			if crypto.VerifySignature(c.pubKey, solution.IHeader().SealHash().Bytes(), signature[:64]) {
 				adjustedDiff = new(big.Int).Div(solution.IHeader().GetDifficulty(), new(big.Int).SetUint64(1000))
+			} else {
+				adjustedDiff = new(big.Int).Div(solution.IHeader().GetDifficulty(), new(big.Int).SetUint64(work.OptionalDivider))
 			}
 		}
 
