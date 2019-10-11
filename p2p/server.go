@@ -646,7 +646,10 @@ func (srv *Server) run(dialstate dialer) {
 		taskdone     = make(chan task, maxActiveDialTasks)
 		runningTasks []task
 		queuedTasks  []task // tasks that can't run yet
+		ticker       = time.NewTicker(200 * time.Millisecond)
 	)
+	defer ticker.Stop()
+
 	// Put trusted nodes into a map to speed up checks.
 	// Trusted peers are loaded on startup or added via AddTrustedPeer RPC.
 	for _, n := range srv.TrustedNodes {
@@ -695,13 +698,14 @@ func (srv *Server) run(dialstate dialer) {
 
 running:
 	for {
-		scheduleTasks()
-		periodicallyUnblacklist()
-
 		select {
 		case <-srv.quit:
 			// The server was stopped. Run the cleanup logic.
 			break running
+		case <-ticker.C:
+			scheduleTasks()
+			periodicallyUnblacklist()
+
 		case n := <-srv.addstatic:
 			// This channel is used by AddPeer to add to the
 			// ephemeral static peer list. Add it to the dialer,
