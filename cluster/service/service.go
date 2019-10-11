@@ -27,7 +27,7 @@ type ServiceContext struct {
 // if no previous can be found) from within the node's data directory. If the
 // node is an ephemeral one, a memory database is returned.
 func (ctx *ServiceContext) OpenDatabase(name string, clean bool, isReadOnly bool) (ethdb.Database, error) {
-	if ctx.config.DataDir == "" {
+	if ctx.config == nil || ctx.config.DataDir == "" {
 		return NewQkcMemoryDB(isReadOnly), nil
 	}
 	db, err := qkcdb.NewRDBDatabase(ctx.config.ResolvePath(name), clean, isReadOnly)
