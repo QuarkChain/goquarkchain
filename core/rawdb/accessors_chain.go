@@ -162,7 +162,7 @@ func WriteMinorBlockHeader(db DatabaseWriter, header *types.MinorBlockHeader) {
 		log.Crit("Failed to Serialize header", "err", err)
 	}
 	key = headerKey(hash)
-	fmt.Println("writeMinorBlockheader", hash.String(), hex.EncodeToString(key), hex.EncodeToString(data))
+	//fmt.Println("writeMinorBlockheader", hash.String(), hex.EncodeToString(key), hex.EncodeToString(data))
 	if err := db.Put(key, data); err != nil {
 		log.Crit("Failed to store header", "err", err)
 	}

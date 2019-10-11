@@ -147,6 +147,7 @@ type MinorBlockChain struct {
 	posw                     consensus.PoSWCalculator
 	gasLimit                 *big.Int
 	xShardGasLimit           *big.Int
+	senderCacheService       *senderCacheService
 }
 
 // NewMinorBlockChain returns a fully initialised block chain using information
@@ -171,7 +172,7 @@ func NewMinorBlockChain(
 			TrieCleanLimit: 256,
 			TrieDirtyLimit: 256,
 			TrieTimeLimit:  5 * time.Minute,
-			Disabled:       true, //update trieDB every block
+			Disabled:       false, //update trieDB every block
 		}
 	}
 	receiptsCache, _ := lru.New(receiptsCacheLimit)
@@ -240,6 +241,7 @@ func NewMinorBlockChain(
 	DefaultTxPoolConfig.NetWorkID = bc.clusterConfig.Quarkchain.NetworkID
 	bc.posw = consensus.CreatePoSWCalculator(bc, bc.shardConfig.PoswConfig)
 	bc.txPool = NewTxPool(DefaultTxPoolConfig, bc)
+	bc.senderCacheService = NewService(int(bc.clusterConfig.Quarkchain.TransactionQueueSizeLimitPerShard), bc.clusterConfig.Quarkchain.NetworkID, bc.txPool.AddLocal)
 	// Take ownership of this particular state
 	go bc.update()
 	return bc, nil
@@ -1835,7 +1837,9 @@ func (m *MinorBlockChain) GetRootChainStakes(coinbase account.Recipient, lastMin
 	if err != nil {
 		return nil, nil, err
 	}
+	m.mu.Lock()
 	evmState = evmState.Copy()
+	m.mu.Unlock()
 	evmState.SetGasUsed(big.NewInt(0))
 	contractAddress := vm.SystemContracts[vm.ROOT_CHAIN_POSW].Address()
 	code := evmState.GetCode(contractAddress)

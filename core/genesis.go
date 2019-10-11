@@ -72,7 +72,7 @@ func (g *Genesis) CreateMinorBlock(rootBlock *types.RootBlock, fullShardId uint3
 			return nil, err
 		}
 		if fullShardIDByConfig != fullShardId {
-			continue
+			//continue
 		}
 		recipient := new(common.Address)
 		recipient.SetBytes(addr.Recipient.Bytes())

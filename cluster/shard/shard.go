@@ -31,7 +31,7 @@ type BlockCommitCode int
 
 const (
 	BLOCK_UNCOMMITTED BlockCommitCode = iota
-	BLOCK_COMMITTING   // TODO not support yet,need discuss
+	BLOCK_COMMITTING                  // TODO not support yet,need discuss
 	BLOCK_COMMITTED
 )
 
@@ -51,7 +51,7 @@ type ShardBackend struct {
 	MinorBlockChain *core.MinorBlockChain
 
 	mBPool      newBlockPool
-	txGenerator *TxGenerator
+	txGenerator []*TxGenerator
 
 	running      bool
 	mu           sync.Mutex

@@ -65,6 +65,10 @@ func NewEvmTransaction(nonce uint64, to account.Recipient, amount *big.Int, gasL
 	return newEvmTransaction(nonce, &to, amount, gasLimit, gasPrice, fromFullShardKey, toFullShardKey, networkId, version, data, gasTokenID, transferTokenID)
 }
 
+func (e *EvmTransaction) IsFromNil() bool {
+	return e.from.Load() == nil
+}
+
 func (e *EvmTransaction) SetGas(data uint64) {
 	e.data.GasLimit = data
 	e.updated = true

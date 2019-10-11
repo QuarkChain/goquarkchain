@@ -478,7 +478,7 @@ func (tab *Table) doRevalidate(done chan<- struct{}) {
 	inBlackList := false
 	if tab.checkDialBlackList(last.IP().String()) {
 		log.Info("black node", "b", bi, "id", last.ID(), "address", last.addr().String())
-		inBlackList = false
+		inBlackList = true
 	}
 
 	tab.mutex.Lock()

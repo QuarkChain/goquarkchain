@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"github.com/QuarkChain/goquarkchain/params"
+	"golang.org/x/sync/errgroup"
 	"math"
 	"math/big"
 	"sort"
@@ -306,7 +308,7 @@ func (m *MinorBlockChain) isNeighbor(remoteBranch account.Branch, rootHeight *ui
 }
 
 func (m *MinorBlockChain) putRootBlock(rBlock *types.RootBlock, minorHeader *types.MinorBlockHeader) {
-	log.Info(m.logInfo, "putRootBlock number", rBlock.Number(), "hash", rBlock.Hash().String(), "lenMinor", len(rBlock.MinorBlockHeaders()))
+	//log.Info(m.logInfo, "putRootBlock number", rBlock.Number(), "hash", rBlock.Hash().String(), "lenMinor", len(rBlock.MinorBlockHeaders()))
 	rBlockHash := rBlock.Hash()
 	rawdb.WriteRootBlock(m.db, rBlock)
 	var mHash common.Hash
@@ -316,7 +318,7 @@ func (m *MinorBlockChain) putRootBlock(rBlock *types.RootBlock, minorHeader *typ
 	if _, ok := m.rootHeightToHashes[rBlock.NumberU64()]; !ok {
 		m.rootHeightToHashes[rBlock.NumberU64()] = make(map[common.Hash]common.Hash)
 	}
-	log.Info("putRootBlock", "rBlock", rBlock.NumberU64(), "rHash", rBlock.Hash().String(), "mHash", mHash.String())
+	//log.Info("putRootBlock", "rBlock", rBlock.NumberU64(), "rHash", rBlock.Hash().String(), "mHash", mHash.String())
 	m.rootHeightToHashes[rBlock.NumberU64()][rBlock.Hash()] = mHash
 	rawdb.WriteLastConfirmedMinorBlockHeaderAtRootBlock(m.db, rBlockHash, mHash)
 }
@@ -395,19 +397,23 @@ func (m *MinorBlockChain) InitFromRootBlock(rBlock *types.RootBlock) error {
 
 // getEvmStateForNewBlock get evmState for new block.should have locked
 func (m *MinorBlockChain) getEvmStateForNewBlock(mHeader types.IHeader, ephemeral bool) (*state.StateDB, error) {
+	//ts := time.Now()
 	prevHash := mHeader.GetParentHash()
 	preMinorBlock := m.GetMinorBlock(prevHash)
 	if preMinorBlock == nil {
 		return nil, ErrMinorBlockIsNil
 	}
+	//fmt.Println("scf---1", time.Now().Sub(ts).Nanoseconds())
 	recipient := mHeader.GetCoinbase().Recipient
 	evmState, err := m.stateAtWithSenderDisallowMap(preMinorBlock, &recipient)
 	if err != nil {
 		return nil, err
 	}
+	//fmt.Println("scf---2", time.Now().Sub(ts).Nanoseconds())
 	if ephemeral {
 		evmState = evmState.Copy()
 	}
+	//fmt.Println("scf---3", time.Now().Sub(ts).Nanoseconds())
 	m.setEvmStateWithHeader(evmState, mHeader.(*types.MinorBlockHeader))
 	return evmState, nil
 }
@@ -472,7 +478,51 @@ func (m *MinorBlockChain) FinalizeAndAddBlock(block *types.MinorBlock) (*types.M
 
 // AddTx add tx to txPool
 func (m *MinorBlockChain) AddTx(tx *types.Transaction) error {
-	return m.txPool.AddLocal(tx)
+	//if m.txPool.Get(tx.Hash()) != nil {
+	//	//TODO py how to slove it
+	//	return nil
+	//}
+	if err := m.senderCacheService.AddTx(tx); err != nil {
+		return err
+	} //todo add chan for err
+
+	return nil
+}
+
+func recoverSender(txs []*types.Transaction, networkID uint32) error {
+	for _, tx := range txs {
+		_, err := types.Sender(types.NewEIP155Signer(networkID), tx.EvmTx)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+func (m *MinorBlockChain) AddTxList(txs []*types.Transaction) error {
+	ts := time.Now()
+	interval := len(txs) / params.TPS_Num
+	var g errgroup.Group
+	for index := 0; index < params.TPS_Num; index++ {
+		i := index
+		g.Go(func() error {
+			if err := recoverSender(txs[i*interval:(i+1)*interval], m.clusterConfig.Quarkchain.NetworkID); err != nil {
+				return err
+			}
+			return nil
+		})
+	}
+	if err := g.Wait(); err != nil {
+		return err
+	}
+	fmt.Println("recover", "len", len(txs), time.Now().Sub(ts).Seconds())
+	ts = time.Now()
+	for _, tx := range txs {
+		if err := m.txPool.AddLocal(tx); err != nil {
+			return err
+		}
+	}
+	fmt.Println("AddLocl", "len", len(txs), time.Now().Sub(ts).Seconds())
+	return nil
 }
 
 func (m *MinorBlockChain) getEvmStateByHeight(height *uint64) (*state.StateDB, error) {
@@ -647,13 +697,15 @@ func (m *MinorBlockChain) GetUnconfirmedHeadersCoinbaseAmount() uint64 {
 }
 
 func (m *MinorBlockChain) addTransactionToBlock(block *types.MinorBlock, evmState *state.StateDB) (*types.MinorBlock, types.Receipts, error) {
+	ts := time.Now()
 	// have locked by upper call
 	pending, err := m.txPool.Pending() // txpool already locked
 	if err != nil {
 		return nil, nil, err
 	}
+	//fmt.Println("txpool--1", time.Now().Sub(ts).Nanoseconds(), time.Now().Sub(ts).Seconds())
 	txs, err := types.NewTransactionsByPriceAndNonce(types.NewEIP155Signer(uint32(m.Config().NetworkID)), pending)
-
+	//fmt.Println("txpool--2", time.Now().Sub(ts).Nanoseconds())
 	gp := new(GasPool).AddGas(block.Header().GetGasLimit().Uint64())
 	usedGas := new(uint64)
 
@@ -661,6 +713,7 @@ func (m *MinorBlockChain) addTransactionToBlock(block *types.MinorBlock, evmStat
 	txsInBlock := make([]*types.Transaction, 0)
 
 	stateT := evmState
+	//fmt.Println("txpool--3", time.Now().Sub(ts).Nanoseconds())
 	for stateT.GetGasUsed().Cmp(stateT.GetGasLimit()) < 0 {
 		tx := txs.Peek()
 		// Pop skip all txs about this account
@@ -701,6 +754,7 @@ func (m *MinorBlockChain) addTransactionToBlock(block *types.MinorBlock, evmStat
 		}
 
 	}
+	fmt.Println("txpool--4", time.Now().Sub(ts).Nanoseconds())
 	bHeader := block.Header()
 	return types.NewMinorBlock(bHeader, block.Meta(), txsInBlock, receipts, nil), receipts, nil
 }
@@ -727,7 +781,9 @@ func (m *MinorBlockChain) checkTxBeforeApply(stateT *state.StateDB, tx *types.Tr
 // CreateBlockToMine create block to mine
 func (m *MinorBlockChain) CreateBlockToMine(createTime *uint64, address *account.Address, gasLimit, xShardGasLimit *big.Int,
 	includeTx *bool) (*types.MinorBlock, error) {
-
+	ts := time.Now()
+	log.Info("begin create block to mine")
+	defer log.Info("end create block to mine", "time", time.Now().Sub(ts).Seconds())
 	if includeTx == nil {
 		t := true
 		includeTx = &t
@@ -764,6 +820,7 @@ func (m *MinorBlockChain) CreateBlockToMine(createTime *uint64, address *account
 		t := address.AddressInBranch(m.branch)
 		address = &t
 	}
+	//fmt.Println("tttttt-1", time.Now().Sub(ts).Nanoseconds())
 	currRootTipHash := m.rootTip.Hash()
 	block := prevBlock.CreateBlockToAppend(&realCreateTime, difficulty, address, nil, gasLimit, xShardGasLimit,
 		nil, nil, &currRootTipHash)
@@ -771,14 +828,17 @@ func (m *MinorBlockChain) CreateBlockToMine(createTime *uint64, address *account
 	if err != nil {
 		return nil, err
 	}
+	//fmt.Println("tttttt-2", time.Now().Sub(ts).Nanoseconds())
 	ancestorRootHeader := m.GetRootBlockByHash(m.CurrentBlock().Header().PrevRootBlockHash).Header()
 	if !m.isSameRootChain(m.rootTip, ancestorRootHeader) {
 		return nil, ErrNotSameRootChain
 	}
+	//fmt.Println("tttttt-3", time.Now().Sub(ts).Nanoseconds())
 	_, txCursor, xShardReceipts, err := m.RunCrossShardTxWithCursor(evmState, block)
 	if err != nil {
 		return nil, err
 	}
+	//fmt.Println("tttttt-4", time.Now().Sub(ts).Nanoseconds())
 	evmState.SetTxCursorInfo(txCursor)
 	//Adjust inshard tx limit if xshard gas limit is not exhausted
 	if evmState.GetGasUsed().Cmp(xShardGasLimit) == -1 {
@@ -794,7 +854,7 @@ func (m *MinorBlockChain) CreateBlockToMine(createTime *uint64, address *account
 		}
 	}
 	receipts = append(receipts, xShardReceipts...)
-
+	//fmt.Println("tttttt-5", time.Now().Sub(ts).Nanoseconds())
 	pureCoinbaseAmount := m.getCoinbaseAmount(block.Header().Number)
 	bMap := pureCoinbaseAmount.GetBalanceMap()
 	for k, v := range bMap {
@@ -803,6 +863,7 @@ func (m *MinorBlockChain) CreateBlockToMine(createTime *uint64, address *account
 	pureCoinbaseAmount.Add(evmState.GetBlockFee())
 	block.Finalize(receipts, evmState.IntermediateRoot(true), evmState.GetGasUsed(),
 		evmState.GetXShardReceiveGasUsed(), pureCoinbaseAmount, evmState.GetTxCursorInfo())
+	fmt.Println("tttttt-6", time.Now().Sub(ts).Nanoseconds(), time.Now().Sub(ts).Seconds())
 	return block, nil
 }
 

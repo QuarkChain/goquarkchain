@@ -129,10 +129,10 @@ var DefaultTxPoolConfig = TxPoolConfig{
 	PriceLimit: 1,
 	PriceBump:  10,
 
-	AccountSlots: 16,
-	GlobalSlots:  8092,
-	AccountQueue: 64,
-	GlobalQueue:  1024,
+	AccountSlots: 160,
+	GlobalSlots:  180920,
+	AccountQueue: 640,
+	GlobalQueue:  10240,
 
 	Lifetime: 3 * time.Hour,
 
@@ -226,7 +226,30 @@ func NewTxPool(config TxPoolConfig, chain minorBlockChain) *TxPool {
 	pool.wg.Add(1)
 	go pool.loop()
 
+	pool.display()
+
 	return pool
+}
+
+func (pool *TxPool) display() {
+	go func() {
+		for true {
+			time.Sleep(1 * time.Second)
+			if time.Now().Second()%10 == 0 {
+				fmt.Println("!!!!!!!!!!!!!!!---bbbbbbbbbbbb")
+				break
+			}
+		}
+		for true {
+			time.Sleep(10 * time.Second)
+			pool.mu.RLock()
+			pending := len(pool.pending)
+			queue := len(pool.queue)
+			all := pool.all.Count()
+			pool.mu.RUnlock()
+			fmt.Println("txpool detail-------------", "time", time.Now().String(), "pending ", pending, "queue", queue, "all", all)
+		}
+	}()
 }
 
 // loop is the transaction pool's main event loop, waiting for and reacting to
@@ -559,10 +582,10 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 		return errors.New("txpool queue full")
 	}
 
-	tx, err := pool.chain.validateTx(tx, pool.currentState, nil, nil, nil)
-	if err != nil {
-		return err
-	}
+	//tx, err := pool.chain.validateTx(tx, pool.currentState, nil, nil, nil)
+	//if err != nil {
+	//	return err
+	//}
 
 	// Heuristic limit, reject transactions over 32KB to prevent DOS attacks
 	if tx.EvmTx.Size() > 32*1024 {
@@ -600,12 +623,14 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 // the pool due to pricing constraints.
 func (pool *TxPool) add(tx *types.Transaction, local bool) (bool, error) {
 	// If the transaction is already known, discard it
+	//ts := time.Now()
 	hash := tx.Hash()
 	if pool.all.Get(hash) != nil {
 		log.Trace("Discarding already known transaction", "hash", hash)
 		return false, fmt.Errorf("known transaction: %x", hash)
 	}
-	// If the transaction fails basic validation, discard it
+	//fmt.Println("t1", time.Now().Sub(ts).Nanoseconds())
+	//If the transaction fails basic validation, discard it
 	if err := pool.validateTx(tx, local); err != nil {
 		log.Trace("Discarding invalid transaction", "hash", hash, "err", err)
 		return false, err
@@ -624,22 +649,28 @@ func (pool *TxPool) add(tx *types.Transaction, local bool) (bool, error) {
 			pool.removeTx(tx.Hash(), false)
 		}
 	}
+	//fmt.Println("t2", time.Now().Sub(ts).Nanoseconds())
 	// If the transaction is replacing an already pending one, do directly
 	from, _ := types.Sender(pool.signer, tx.EvmTx) // already validated
+
+	//fmt.Println("t00000", time.Now().Sub(ts).Nanoseconds())
 	if list := pool.pending[from]; list != nil && list.Overlaps(tx) {
+		//fmt.Println("c1", time.Now().Sub(ts).Nanoseconds())
 		// Nonce already pending, check if required price bump is met
 		inserted, old := list.Add(tx, pool.config.PriceBump)
 		if !inserted {
 			return false, ErrReplaceUnderpriced
 		}
+		//fmt.Println("c2", time.Now().Sub(ts).Nanoseconds())
 		// New transaction is better, replace old one
 		if old != nil {
 			pool.all.Remove(old.Hash())
 			pool.priced.Removed()
 		}
+		//fmt.Println("c3", time.Now().Sub(ts).Nanoseconds())
 		pool.all.Add(tx)
 		pool.priced.Put(tx)
-
+		//fmt.Println("c4", time.Now().Sub(ts).Nanoseconds())
 		log.Trace("Pooled new executable transaction", "hash", hash, "from", from, "to", tx.EvmTx.To())
 
 		// We've directly injected a replacement transaction, notify subsystems
@@ -647,18 +678,22 @@ func (pool *TxPool) add(tx *types.Transaction, local bool) (bool, error) {
 
 		return old != nil, nil
 	}
+	//fmt.Println("t3", time.Now().Sub(ts).Nanoseconds())
 	// New transaction isn't replacing a pending one, push into queue
 	replace, err := pool.enqueueTx(hash, tx)
 	if err != nil {
 		return false, err
 	}
+	//fmt.Println("t4", time.Now().Sub(ts).Nanoseconds())
+	//fmt.Println("replace", replace)
+	//replace := false
 	// Mark local addresses and journal local transactions
 	if local {
 		if !pool.locals.contains(from) {
 			pool.locals.add(from)
 		}
 	}
-
+	//fmt.Println("t5", time.Now().Sub(ts).Nanoseconds())
 	log.Trace("Pooled new future transaction", "hash", hash, "from", from, "to", tx.EvmTx.To())
 	return replace, nil
 }
@@ -729,6 +764,8 @@ func (pool *TxPool) promoteTx(addr common.Address, hash common.Hash, tx *types.T
 // the sender as a local one in the mean time, ensuring it goes around the local
 // pricing constraints.
 func (pool *TxPool) AddLocal(tx *types.Transaction) error {
+	//fmt.Println("???????????-addlocal", tx.EvmTx.IsFromNil())
+	//defer fmt.Println("???????????-addlocal", tx.EvmTx.IsFromNil())
 	return pool.addTx(tx, !pool.config.NoLocals)
 }
 

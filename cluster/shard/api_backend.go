@@ -3,6 +3,8 @@ package shard
 import (
 	"errors"
 	"fmt"
+	"github.com/QuarkChain/goquarkchain/params"
+	"golang.org/x/sync/errgroup"
 	"math/big"
 	"time"
 
@@ -54,12 +56,20 @@ func (s *ShardBackend) GetAllTx(start []byte, limit uint32) ([]*rpc.TransactionD
 }
 
 func (s *ShardBackend) GenTx(genTxs *rpc.GenTxRequest) error {
-	go func() {
-		err := s.txGenerator.Generate(genTxs, s.addTxList)
-		if err != nil {
-			log.Error(s.logInfo, "GenTx err", err)
-		}
-	}()
+	var g errgroup.Group
+	for index := 0; index < len(s.txGenerator); index++ {
+		i := index
+		g.Go(func() error {
+			err := s.txGenerator[i].Generate(genTxs, s.AddTxList)
+			if err != nil {
+				log.Error(s.logInfo, "GenTx err", err)
+			}
+			return err
+		})
+	}
+	if err := g.Wait(); err != nil {
+		panic(err)
+	}
 	return nil
 }
 
@@ -187,7 +197,7 @@ func (s *ShardBackend) NewMinorBlock(block *types.MinorBlock) (err error) {
 	if block.Header().Time > uint64(time.Now().Unix())+uint64(AllowedFutureBlocksTimeBroadcast) {
 		log.Warn(s.logInfo, "HandleNewMinorBlock err time is not right,height", block.Header().Number, "time", block.Header().Time,
 			"now", time.Now().Unix(), "Max", AllowedFutureBlocksTimeBroadcast)
-		return
+		return errors.New("time is not right")
 	}
 
 	if s.MinorBlockChain.CurrentBlock() != nil && s.MinorBlockChain.CurrentBlock().NumberU64() > block.NumberU64() &&
@@ -273,7 +283,11 @@ func (s *ShardBackend) AddMinorBlock(block *types.MinorBlock) error {
 	s.MinorBlockChain.CommitMinorBlockByHash(block.Header().Hash())
 	s.mBPool.delBlockInPool(block.Header())
 	if s.MinorBlockChain.CurrentBlock().Hash() != currHead.Hash() {
+		fmt.Println("commit-5")
 		go s.miner.HandleNewTip()
+	} else {
+		fmt.Println("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!", s.MinorBlockChain.CurrentBlock().NumberU64(), s.MinorBlockChain.CurrentBlock().Hash().String())
+		fmt.Println("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!", currHead.Number, currHead.Hash().String())
 	}
 
 	return nil
@@ -345,6 +359,8 @@ func (s *ShardBackend) SubmitWork(headerHash common.Hash, nonce uint64, mixHash 
 }
 
 func (s *ShardBackend) InsertMinedBlock(block types.IBlock) error {
+	//ts := time.Now()
+	//defer fmt.Println("InsertMinedBlock--time", block.NumberU64(), time.Now().Sub(ts).Seconds(), time.Now().Sub(ts).Nanoseconds())
 	return s.NewMinorBlock(block.(*types.MinorBlock))
 }
 
@@ -393,21 +409,55 @@ func (s *ShardBackend) setHead(head uint64) {
 	}
 }
 
-func (s *ShardBackend) addTxList(txs []*types.Transaction) error {
+func (s *ShardBackend) AddTxList(txs []*types.Transaction, peerID string) error {
 	ts := time.Now()
-	for index := range txs {
-		if err := s.MinorBlockChain.AddTx(txs[index]); err != nil {
-			return err //TODO ? need return err?
-		}
-		if index%1000 == 0 {
-			log.Info("time-tx-insert-loop", "time", time.Now().Sub(ts).Seconds(), "index", index)
-			ts = time.Now()
-		}
+	//TODO sync
+	//var g errgroup.Group
+	//ll := len(txs)
+	//tx1 := make([]*types.Transaction, ll/2)
+	//tx2 := make([]*types.Transaction, ll/2)
+	//for index := 0; index < ll; index++ {
+	//	if index%2 == 0 {
+	//		tx2[index/2] = txs[index]
+	//	} else {
+	//		tx1[index/2] = txs[index]
+	//	}
+	//}
+	//g.Go(func() error {
+	//	for index := range tx1 {
+	//		if err := s.MinorBlockChain.AddTx(tx1[index]); err != nil {
+	//			return err //TODO ? need return err?
+	//		}
+	//	}
+	//	return nil
+	//})
+	//g.Go(func() error {
+	//	for index := range tx2 {
+	//		if err := s.MinorBlockChain.AddTx(tx2[index]); err != nil {
+	//			return err //TODO ? need return err?
+	//		}
+	//	}
+	//	return nil
+	//})
+	//if err := g.Wait(); err != nil {
+	//	return err
+	//}
+	if err := s.MinorBlockChain.AddTxList(txs); err != nil {
+		return err
 	}
 	go func() {
-		if err := s.conn.BroadcastTransactions(txs, s.branch.Value); err != nil {
-			log.Error(s.logInfo, "broadcastTransaction err", err)
+		span := len(txs) / params.NEW_TRANSACTION_LIST_LIMIT
+		for index := 0; index < span; index++ {
+			if err := s.conn.BroadcastTransactions(txs[index*params.NEW_TRANSACTION_LIST_LIMIT:(index+1)*params.NEW_TRANSACTION_LIST_LIMIT], s.branch.Value, peerID); err != nil {
+				log.Error(s.logInfo, "broadcastTransaction err", err)
+			}
 		}
+		if len(txs)%params.NEW_TRANSACTION_LIST_LIMIT != 0 {
+			if err := s.conn.BroadcastTransactions(txs[span*params.NEW_TRANSACTION_LIST_LIMIT:], s.branch.Value, peerID); err != nil {
+				log.Error(s.logInfo, "broadcastTransaction err", err)
+			}
+		}
+
 	}()
 	log.Info("time-tx-insert-end", "time", time.Now().Sub(ts).Seconds(), "len(tx)", len(txs))
 	return nil

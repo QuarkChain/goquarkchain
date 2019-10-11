@@ -289,20 +289,20 @@ func UpdateGenesisAlloc(cluserConfig *ClusterConfig) error {
 	loadtestFile := filepath.Join(cluserConfig.GenesisDir, testFile)
 	qkcConfig := cluserConfig.Quarkchain
 
-	eight := new(big.Int).SetUint64(10000000)
+	eight := new(big.Int).SetUint64(100000000)
 	genesis := new(big.Int).Mul(new(big.Int).SetUint64(1000000), params.DenomsValue.Ether)
 
 	qetc := new(big.Int).Mul(new(big.Int).SetUint64(2), params.DenomsValue.Ether)
 	qetc = new(big.Int).Mul(qetc, eight)
 
 	qfb := new(big.Int).Mul(new(big.Int).SetUint64(3), params.DenomsValue.Ether)
-	qfb = new(big.Int).Mul(qetc, eight)
+	qfb = new(big.Int).Mul(qfb, eight)
 
 	qaapl := new(big.Int).Mul(new(big.Int).SetUint64(4), params.DenomsValue.Ether)
-	qaapl = new(big.Int).Mul(qetc, eight)
+	qaapl = new(big.Int).Mul(qaapl, eight)
 
 	qtsla := new(big.Int).Mul(new(big.Int).SetUint64(5), params.DenomsValue.Ether)
-	qtsla = new(big.Int).Mul(qetc, eight)
+	qtsla = new(big.Int).Mul(qtsla, eight)
 
 	balances := map[string]*big.Int{
 		qkcConfig.GenesisToken: genesis,
@@ -347,8 +347,12 @@ func UpdateGenesisAlloc(cluserConfig *ClusterConfig) error {
 		bytes := common.FromHex(item.Address)
 		for fullShardId, shardCfg := range qkcConfig.shards {
 			addr := account.NewAddress(common.BytesToAddress(bytes[:20]), fullShardId)
-			alloc := shardCfg.Genesis.Alloc[addr]
-			alloc.Balances = balances
+			//alloc := shardCfg.Genesis.Alloc[addr]
+			//alloc.Balances = balances
+			allocation := Allocation{
+				Balances: balances,
+			}
+			shardCfg.Genesis.Alloc[addr] = allocation
 		}
 	}
 	log.Info("Loadtest accounts", "loadtest file", loadtestFile, "imported", len(items))

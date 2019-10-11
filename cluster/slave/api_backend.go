@@ -5,13 +5,13 @@ import (
 	"fmt"
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
-	qrpc "github.com/QuarkChain/goquarkchain/rpc"
 	"github.com/QuarkChain/goquarkchain/cluster/shard"
 	"github.com/QuarkChain/goquarkchain/cluster/slave/filters"
 	qcom "github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/p2p"
+	qrpc "github.com/QuarkChain/goquarkchain/rpc"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
@@ -22,7 +22,6 @@ import (
 var (
 	MINOR_BLOCK_HEADER_LIST_LIMIT = uint32(100)
 	MINOR_BLOCK_BATCH_SIZE        = 50
-	NEW_TRANSACTION_LIST_LIMIT    = 1000
 )
 
 func (s *SlaveBackend) GetUnconfirmedHeaderList() ([]*rpc.HeadersInfo, error) {
@@ -109,8 +108,8 @@ func (s *SlaveBackend) AddBlockListForSync(mHashList []common.Hash, peerId strin
 
 	var (
 		BlockBatchSize = 100
-		hashLen        = len(hashList)
-		tHashList      []common.Hash
+		//hashLen        = len(hashList)
+		tHashList []common.Hash
 	)
 	for len(hashList) > 0 {
 		hLen := BlockBatchSize
@@ -134,7 +133,7 @@ func (s *SlaveBackend) AddBlockListForSync(mHashList []common.Hash, peerId strin
 		hashList = hashList[hLen:]
 	}
 
-	log.Info("sync request from master successful", "branch", branch, "peer-id", peerId, "block-size", hashLen)
+	//log.Info("sync request from master successful", "branch", branch, "peer-id", peerId, "block-size", hashLen)
 
 	return shard.MinorBlockChain.GetShardStats()
 }
@@ -158,6 +157,36 @@ func (s *SlaveBackend) AddTx(tx *types.Transaction) (err error) {
 		return shard.MinorBlockChain.AddTx(tx)
 	}
 	return ErrMsg("AddTx")
+}
+
+func (s *SlaveBackend) AddTxList(txs []*types.Transaction, peerID string) (err error) {
+	mapp := make(map[uint32][]*types.Transaction)
+	for _, tx := range txs {
+		toShardSize, err := s.clstrCfg.Quarkchain.GetShardSizeByChainId(tx.EvmTx.ToChainID())
+		if err != nil {
+			return err
+		}
+		if err := tx.EvmTx.SetToShardSize(toShardSize); err != nil {
+			return err
+		}
+		fromShardSize, err := s.clstrCfg.Quarkchain.GetShardSizeByChainId(tx.EvmTx.FromChainID())
+		if err != nil {
+			return err
+		}
+		if err := tx.EvmTx.SetFromShardSize(fromShardSize); err != nil {
+			return err
+		}
+		if _, ok := mapp[tx.EvmTx.FromFullShardId()]; !ok {
+			mapp[tx.EvmTx.FromFullShardId()] = make([]*types.Transaction, 0)
+		}
+		mapp[tx.EvmTx.FromFullShardId()] = append(mapp[tx.EvmTx.FromFullShardId()], tx)
+	}
+	//TODO double should goroutunt
+	//fmt.Println("!!!!!!!!!!!!!!!!!!!!!1", len(mapp))
+	for k, v := range mapp {
+		return s.shards[k].AddTxList(v, peerID)
+	}
+	return nil
 }
 
 func (s *SlaveBackend) ExecuteTx(tx *types.Transaction, address *account.Address, height *uint64) ([]byte, error) {

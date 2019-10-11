@@ -230,6 +230,7 @@ func (pm *ProtocolManager) handleMsg(peer *Peer) error {
 		if err := serialize.DeserializeFromBytes(qkcMsg.Data, &trans); err != nil {
 			return err
 		}
+		//fmt.Println("收到交易", qkcMsg.MetaData.Branch, len(trans.TransactionList))
 		if qkcMsg.MetaData.Branch != 0 {
 			return pm.HandleNewTransactionListRequest(peer.id, qkcMsg.RpcID, qkcMsg.MetaData.Branch, &trans)
 		}
@@ -606,6 +607,10 @@ func (pm *ProtocolManager) HandleGetRootBlockHeaderListWithSkipRequest(peerId st
 }
 
 func (pm *ProtocolManager) HandleNewTransactionListRequest(peerId string, rpcId uint64, branch uint32, request *p2p.NewTransactionList) error {
+	req := &rpc.NewTransactionList{
+		TransactionList: request.TransactionList,
+		PeerID:          peerId,
+	}
 	clients := pm.getShardConnFunc(branch)
 	if len(clients) == 0 {
 		return fmt.Errorf("invalid branch %d for rpc request %d", rpcId, branch)
@@ -615,7 +620,7 @@ func (pm *ProtocolManager) HandleNewTransactionListRequest(peerId string, rpcId 
 		sameResponse := true
 		// todo make the client call in Parallelized
 		for _, client := range clients {
-			result, err := client.AddTransactions(request)
+			result, err := client.AddTransactions(req)
 			if err != nil {
 				log.Error("addTransaction err", "branch", branch, "HandleNewTransactionListRequest failed with error: ", err.Error())
 				//TODO need err
