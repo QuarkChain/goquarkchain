@@ -1,7 +1,6 @@
 package test
 
 import (
-	"fmt"
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/cluster/shard"
@@ -153,10 +152,6 @@ func TestGetMinorBlockHeadersWithSkip(t *testing.T) {
 	// TODO reverse == false can't use.
 	// TODO skip parameter need to be added.
 	peer1 := clstrList.GetPeerByIndex(1)
-	if common.IsNil(peer1) {
-		fmt.Println("---------------", peer1)
-		clstrList.PrintPeerList()
-	}
 	assert.False(t, common.IsNil(peer1))
 	res, err := peer1.GetMinorBlockHeaderList(&p2p.GetMinorBlockHeaderListWithSkipRequest{
 		Data:      mBHeaders[2].Hash(),

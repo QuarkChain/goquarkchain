@@ -5,7 +5,6 @@ import (
 	"github.com/QuarkChain/goquarkchain/cluster/master"
 	"github.com/QuarkChain/goquarkchain/cmd/utils"
 	"golang.org/x/sync/errgroup"
-	"net"
 	"time"
 )
 
@@ -43,14 +42,17 @@ func (cl Clusterlist) Start(duration time.Duration, prCtrol bool) {
 	// wait p2p connection for at last $duration seconds.
 	if prCtrol {
 		mntorClstr := cl[len(cl)-1]
-		mstr := mntorClstr.GetMaster()
-		peers := mstr.GetPeerList()
+		p2pSvr := mntorClstr.getP2PServer()
 		now := time.Now()
-		for len(peers) < mntorClstr.index && time.Now().Sub(now) < duration {
+		for p2pSvr.PeerCount() < mntorClstr.index && time.Now().Sub(now) < duration {
 			time.Sleep(200 * time.Millisecond)
-			peers = mstr.GetPeerList()
+			p2pSvr = mntorClstr.getP2PServer()
 		}
-		fmt.Printf("start %d clusters successful\n\n", len(peers))
+		if p2pSvr.PeerCount() < mntorClstr.index {
+			utils.Fatalf("monitor's peers connection start failed, expect sum: %d", p2pSvr.PeerCount())
+		} else {
+			fmt.Printf("start %d clusters successful\n\n", p2pSvr.PeerCount())
+		}
 	}
 }
 
@@ -78,12 +80,13 @@ func (cl Clusterlist) PrintPeerList() {
 
 func (cl Clusterlist) GetPeerByIndex(idx int) (peer *master.Peer) {
 	mstr := cl[len(cl)-1].GetMaster()
-	peers := mstr.GetPeerList()
-	for _, pr := range peers {
-		tcp := pr.RemoteAddr().(*net.TCPAddr)
-		if defaultP2PPort+idx == tcp.Port {
-			return pr
+	for _, pr0 := range mstr.GetPeerList() {
+		for _, pr1 := range cl[idx].GetMaster().GetPeerList() {
+			if pr0.ID() == pr1.ID() {
+				return pr0
+			}
 		}
 	}
+
 	return
 }
