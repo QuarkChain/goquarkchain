@@ -43,14 +43,14 @@ func (cl Clusterlist) Start(duration time.Duration, prCtrol bool) {
 	// wait p2p connection for at last $duration seconds.
 	if prCtrol {
 		mntorClstr := cl[len(cl)-1]
-		if mntorClstr != nil {
-			p2pSvr := mntorClstr.getP2PServer()
-			now := time.Now()
-			for p2pSvr.PeerCount() < mntorClstr.index && time.Now().Sub(now) < duration {
-				time.Sleep(200 * time.Millisecond)
-			}
-			fmt.Printf("start %d clusters successful\n\n", p2pSvr.PeerCount())
+		mstr := mntorClstr.GetMaster()
+		peers := mstr.GetPeerList()
+		now := time.Now()
+		for len(peers) < mntorClstr.index && time.Now().Sub(now) < duration {
+			time.Sleep(200 * time.Millisecond)
+			peers = mstr.GetPeerList()
 		}
+		fmt.Printf("start %d clusters successful\n\n", len(peers))
 	}
 }
 

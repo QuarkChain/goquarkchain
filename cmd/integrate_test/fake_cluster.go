@@ -153,10 +153,8 @@ func (c *clusterNode) GetMaster() *master.QKCMasterBackend {
 		return c.master
 	}
 	err := c.services[clientIdentifier].Service(&c.master)
-	sig := 3
-	for err != nil && sig > 0 {
-		sig--
-		err = c.services[clientIdentifier].Service(&c.master)
+	if err != nil {
+		utils.Fatalf("failed to get %d master backend err: %v", c.index, err)
 	}
 	return c.master
 }
