@@ -396,6 +396,10 @@ func TestAddRootBlockRequestList(t *testing.T) {
 		b0        *types.MinorBlock
 	)
 
+	if maxBlocks > 4 {
+		maxBlocks = 4
+	}
+
 	for i := 0; i < int(maxBlocks); i++ {
 		b0 = tipGen(geneAcc, shard0)
 		err := mstr0.AddMinorBlock(b0.Branch().Value, b0)
@@ -631,9 +635,9 @@ func TestShardSynchronizerWithFork(t *testing.T) {
 		mstr1     = clstrList[1].GetMaster()
 		shard00   = clstrList[0].GetShard(id0)
 		shard10   = clstrList[1].GetShard(id0)
-		blockList = make([]*types.MinorBlock, 0, 13)
+		blockList = make([]*types.MinorBlock, 0, 6)
 	)
-	for i := 0; i < 13; i++ {
+	for i := 0; i < 6; i++ {
 		iBlock, _, _, err := shard00.CreateBlockToMine(nil)
 		assert.NoError(t, err)
 		mBlock := iBlock.(*types.MinorBlock)
@@ -641,16 +645,16 @@ func TestShardSynchronizerWithFork(t *testing.T) {
 		err = mstr.AddMinorBlock(mBlock.Branch().Value, mBlock)
 		assert.NoError(t, err)
 	}
-	assert.Equal(t, shard00.GetTip(), uint64(13))
+	assert.Equal(t, shard00.GetTip(), uint64(6))
 
-	for i := 0; i < 12; i++ {
+	for i := 0; i < 4; i++ {
 		iBlock, _, _, err := shard10.CreateBlockToMine(nil)
 		assert.NoError(t, err)
 		mBlock := iBlock.(*types.MinorBlock)
 		err = mstr1.AddMinorBlock(mBlock.Branch().Value, mBlock)
 		assert.NoError(t, err)
 	}
-	assert.Equal(t, shard10.GetTip(), uint64(12))
+	assert.Equal(t, shard10.GetTip(), uint64(4))
 
 	iBlock, _, _, err := shard00.CreateBlockToMine(nil)
 	assert.NoError(t, err)

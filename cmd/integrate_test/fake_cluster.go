@@ -228,8 +228,9 @@ func (c *clusterNode) CreateAndInsertBlocks(fullShards []uint32) (rBlock *types.
 
 	if fullShards != nil && len(fullShards) > 0 {
 		c.createAllShardsBlock(fullShards)
+
 	}
-	start := time.Now().Unix() - 2
+	start := time.Now().Unix()
 	var seconds int64 = 0
 	fullShardIdList := c.clstrCfg.Quarkchain.GetGenesisShardIds()
 	for _, id := range fullShardIdList {
@@ -244,7 +245,7 @@ func (c *clusterNode) CreateAndInsertBlocks(fullShards []uint32) (rBlock *types.
 		}
 	}
 
-	time.Sleep(time.Duration(seconds) * time.Second)
+	time.Sleep(time.Duration(seconds)*time.Second + 200*time.Millisecond)
 	// insert root block
 	iBlock, _, _, err := c.GetMaster().CreateBlockToMine(nil)
 	if err != nil {
