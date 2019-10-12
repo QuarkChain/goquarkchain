@@ -57,6 +57,7 @@ func (s *ShardBackend) GetAllTx(start []byte, limit uint32) ([]*rpc.TransactionD
 
 func (s *ShardBackend) GenTx(genTxs *rpc.GenTxRequest) error {
 	var g errgroup.Group
+	fmt.Println("GGGGGGGGGGGGGGGGGGGG", len(s.txGenerator))
 	for index := 0; index < len(s.txGenerator); index++ {
 		i := index
 		g.Go(func() error {

@@ -22,14 +22,14 @@ type senderCacheService struct {
 
 func NewService(capacity int, networkID uint32, addTxFunc func(tx *types.Transaction) error) *senderCacheService {
 	service := &senderCacheService{}
-	service.numThread = 4
+	service.numThread = 2
 	service.tasks = make(chan *taskData, capacity)
 	service.stopFlag = 0
 	service.closeChans = make(chan struct{}, service.numThread)
 	service.loopStopChan = make(chan struct{})
 	service.addTxFunc = addTxFunc
 	service.networkID = networkID
-	//service.Run()
+	service.Run()
 	return service
 }
 
@@ -59,15 +59,10 @@ loop:
 					panic(err)
 					//break loop
 				}
-				//fmt.Println("ready tp add tx", data.tx.EvmTx.IsFromNil(), data.tx.EvmTx.Hash().String())
-				//if err := this.addTxFunc(data.tx); err != nil {
-				//	panic(err)
-				//}
-				//fmt.Println("ready tp add tx-end", data.tx.EvmTx.IsFromNil(), data.tx.EvmTx.Hash().String())
-
-				if data.tx.EvmTx.IsFromNil() {
-					panic("scf sb")
+				if err := this.addTxFunc(data.tx); err != nil {
+					panic(err)
 				}
+
 				data.errc <- err
 			} else {
 				break loop

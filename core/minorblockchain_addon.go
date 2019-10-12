@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"github.com/QuarkChain/goquarkchain/params"
 	"golang.org/x/sync/errgroup"
 	"math"
 	"math/big"
@@ -478,15 +477,8 @@ func (m *MinorBlockChain) FinalizeAndAddBlock(block *types.MinorBlock) (*types.M
 
 // AddTx add tx to txPool
 func (m *MinorBlockChain) AddTx(tx *types.Transaction) error {
-	//if m.txPool.Get(tx.Hash()) != nil {
-	//	//TODO py how to slove it
-	//	return nil
-	//}
-	if err := m.senderCacheService.AddTx(tx); err != nil {
-		return err
-	} //todo add chan for err
-
-	return nil
+	return m.txPool.AddLocal(tx)
+	return m.senderCacheService.AddTx(tx)
 }
 
 func recoverSender(txs []*types.Transaction, networkID uint32) error {
@@ -500,9 +492,10 @@ func recoverSender(txs []*types.Transaction, networkID uint32) error {
 }
 func (m *MinorBlockChain) AddTxList(txs []*types.Transaction) error {
 	ts := time.Now()
-	interval := len(txs) / params.TPS_Num
+	tt := 5
+	interval := len(txs) / tt
 	var g errgroup.Group
-	for index := 0; index < params.TPS_Num; index++ {
+	for index := 0; index < tt; index++ {
 		i := index
 		g.Go(func() error {
 			if err := recoverSender(txs[i*interval:(i+1)*interval], m.clusterConfig.Quarkchain.NetworkID); err != nil {
