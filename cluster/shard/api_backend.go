@@ -23,7 +23,7 @@ import (
 
 var (
 	EmptyErrTemplate                 = "empty result when call %s, params: %v\n"
-	AllowedFutureBlocksTimeBroadcast = 5
+	AllowedFutureBlocksTimeBroadcast = 15
 )
 
 // Wrapper over master connection, used by synchronizer.
@@ -176,6 +176,8 @@ func (s *ShardBackend) GetMinorBlock(mHash common.Hash, height *uint64) (*types.
 }
 
 func (s *ShardBackend) NewMinorBlock(block *types.MinorBlock) (err error) {
+	log.Info(s.logInfo, "NewMinorBlock height", block.Header().Number, "hash", block.Header().Hash().String())
+	defer log.Info(s.logInfo, "NewMinorBlock", "end")
 	// TODO synchronizer.running
 	mHash := block.Header().Hash()
 	if s.mBPool.getBlockInPool(mHash) != nil {

@@ -129,10 +129,10 @@ var DefaultTxPoolConfig = TxPoolConfig{
 	PriceLimit: 1,
 	PriceBump:  10,
 
-	AccountSlots: 160,
-	GlobalSlots:  180920,
-	AccountQueue: 640,
-	GlobalQueue:  10240,
+	AccountSlots: 16,
+	GlobalSlots:  8092,
+	AccountQueue: 64,
+	GlobalQueue:  1024,
 
 	Lifetime: 3 * time.Hour,
 
@@ -226,29 +226,7 @@ func NewTxPool(config TxPoolConfig, chain minorBlockChain) *TxPool {
 	pool.wg.Add(1)
 	go pool.loop()
 
-	pool.display()
-
 	return pool
-}
-
-func (pool *TxPool) display() {
-	go func() {
-		for true {
-			time.Sleep(1 * time.Second)
-			if time.Now().Second()%10 == 0 {
-				break
-			}
-		}
-		for true {
-			time.Sleep(10 * time.Second)
-			pool.mu.RLock()
-			pending := len(pool.pending)
-			queue := len(pool.queue)
-			all := pool.all.Count()
-			pool.mu.RUnlock()
-			fmt.Println("txpool detail-------------", "time", time.Now().String(), "pending ", pending, "queue", queue, "all", all)
-		}
-	}()
 }
 
 // loop is the transaction pool's main event loop, waiting for and reacting to
