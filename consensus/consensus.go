@@ -299,8 +299,6 @@ func (c *CommonEngine) localSeal(
 	// Convert found header to block
 	go func() {
 		select {
-		case <-stop:
-			return
 		case result := <-found:
 			select {
 			case results <- block.WithMingResult(result.Nonce, result.Digest, nil):
