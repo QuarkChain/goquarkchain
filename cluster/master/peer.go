@@ -5,7 +5,7 @@ package master
 import (
 	"errors"
 	"fmt"
-	"github.com/ontio/ontology/common/log"
+	"github.com/ethereum/go-ethereum/log"
 	"io/ioutil"
 	"math/big"
 	"sync"

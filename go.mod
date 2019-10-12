@@ -10,7 +10,7 @@ require (
 	github.com/deckarep/golang-set v1.7.1
 	github.com/edsrzf/mmap-go v1.0.0
 	github.com/elastic/gosigar v0.10.0
-	github.com/ethereum/go-ethereum v1.8.23
+	github.com/ethereum/go-ethereum v1.8.20
 	github.com/facebookgo/ensure v0.0.0-20160127193407-b4ab57deab51 // indirect
 	github.com/facebookgo/stack v0.0.0-20160209184415-751773369052 // indirect
 	github.com/facebookgo/subset v0.0.0-20150612182917-8dac2c3c4870 // indirect
@@ -20,16 +20,15 @@ require (
 	github.com/golang/mock v1.2.0
 	github.com/golang/protobuf v1.3.0
 	github.com/golang/snappy v0.0.1
-	github.com/hashicorp/golang-lru v0.5.3
+	github.com/hashicorp/golang-lru v0.5.1
 	github.com/huin/goupnp v1.0.0 // indirect
 	github.com/jackpal/go-nat-pmp v1.0.1 // indirect
 	github.com/kr/pretty v0.1.0 // indirect
 	github.com/kylelemons/godebug v0.0.0-20170820004349-d65d576e9348 // indirect
 	github.com/mattn/go-colorable v0.1.1
-	github.com/mattn/go-isatty v0.0.8
+	github.com/mattn/go-isatty v0.0.7
 	github.com/naoina/go-stringutil v0.1.0 // indirect
 	github.com/naoina/toml v0.1.1
-	github.com/ontio/ontology v1.7.2 // indirect
 	github.com/pborman/uuid v1.2.0
 	github.com/pkg/errors v0.8.1
 	github.com/prometheus/prometheus v1.8.1
@@ -38,8 +37,8 @@ require (
 	github.com/stretchr/testify v1.3.0
 	github.com/syndtr/goleveldb v1.0.0
 	github.com/tecbot/gorocksdb v0.0.0-20181010114359-8752a9433481
-	golang.org/x/crypto v0.0.0-20190701094942-4def268fd1a4
-	golang.org/x/net v0.0.0-20190724013045-ca1201d0de80
+	golang.org/x/crypto v0.0.0-20190227175134-215aa809caaf
+	golang.org/x/net v0.0.0-20190227160552-c95aed5357e7
 	golang.org/x/sync v0.0.0-20190227155943-e225da77a7e6
 	google.golang.org/grpc v1.19.1
 	gopkg.in/check.v1 v1.0.0-20180628173108-788fd7840127
