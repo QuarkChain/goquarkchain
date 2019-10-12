@@ -147,7 +147,6 @@ type MinorBlockChain struct {
 	posw                     consensus.PoSWCalculator
 	gasLimit                 *big.Int
 	xShardGasLimit           *big.Int
-	senderCacheService       *senderCacheService
 }
 
 // NewMinorBlockChain returns a fully initialised block chain using information
@@ -241,7 +240,6 @@ func NewMinorBlockChain(
 	DefaultTxPoolConfig.NetWorkID = bc.clusterConfig.Quarkchain.NetworkID
 	bc.posw = consensus.CreatePoSWCalculator(bc, bc.shardConfig.PoswConfig)
 	bc.txPool = NewTxPool(DefaultTxPoolConfig, bc)
-	bc.senderCacheService = NewService(int(bc.clusterConfig.Quarkchain.TransactionQueueSizeLimitPerShard), bc.clusterConfig.Quarkchain.NetworkID, bc.txPool.AddLocal)
 	// Take ownership of this particular state
 	go bc.update()
 	return bc, nil

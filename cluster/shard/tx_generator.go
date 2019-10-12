@@ -42,7 +42,7 @@ func NewTxGenerator(genesisDir string, fullShardId uint32, cfg *config.QuarkChai
 			accountIndex: 0,
 			turn:         0,
 		})
-		fmt.Println("len--index", index, len(tgs[index].accounts))
+		log.Info("tx-generator", "index", index, "account len", len(tgs[index].accounts))
 	}
 	return tgs
 }
@@ -84,7 +84,6 @@ func (t *TxGenerator) Generate(genTxs *rpc.GenTxRequest, addTxList func(txs []*t
 				return err
 			}
 			txList = make([]*types.Transaction, 0, batchScale)
-			//time.Sleep(1 * time.Second)
 			ts = time.Now()
 		}
 
@@ -92,7 +91,6 @@ func (t *TxGenerator) Generate(genTxs *rpc.GenTxRequest, addTxList func(txs []*t
 		if t.accountIndex == t.lenAccounts {
 			t.turn++
 			t.accountIndex = 0
-			//log.Info("txGen-create_tx", "turn", t.turn, "len", len(txList), "need", numTx)
 		}
 	}
 
@@ -140,12 +138,7 @@ func (t *TxGenerator) createTransaction(acc *account.Account, nonce uint64,
 	evmTx := types.NewEvmTransaction(nonce, recipient, value, sampleTx.EvmTx.Gas(),
 		sampleTx.EvmTx.GasPrice(), fromFullShardKey, toFullShardKey, t.cfg.NetworkID, 0, sampleTx.EvmTx.Data(), qkcCommon.TokenIDEncode("QKC"), qkcCommon.TokenIDEncode("QKC"))
 
-	tx, err := t.sign(evmTx, acc.PrivateKey())
-	//fmt.Println("err", err)
-	//_, err1 := types.Sender(types.NewEIP155Signer(t.cfg.NetworkID), tx)
-	//log.Debug("d", "err", err1)
-	return tx, err
-
+	return t.sign(evmTx, acc.PrivateKey())
 }
 
 func (t *TxGenerator) random(digit int) int {

@@ -57,7 +57,6 @@ func (s *ShardBackend) GetAllTx(start []byte, limit uint32) ([]*rpc.TransactionD
 
 func (s *ShardBackend) GenTx(genTxs *rpc.GenTxRequest) error {
 	var g errgroup.Group
-	fmt.Println("GGGGGGGGGGGGGGGGGGGG", len(s.txGenerator))
 	for index := 0; index < len(s.txGenerator); index++ {
 		i := index
 		g.Go(func() error {
@@ -177,8 +176,6 @@ func (s *ShardBackend) GetMinorBlock(mHash common.Hash, height *uint64) (*types.
 }
 
 func (s *ShardBackend) NewMinorBlock(block *types.MinorBlock) (err error) {
-	//log.Info(s.logInfo, "NewMinorBlock height", block.Header().Number, "hash", block.Header().Hash().String())
-	//defer log.Info(s.logInfo, "NewMinorBlock", "end")
 	// TODO synchronizer.running
 	mHash := block.Header().Hash()
 	if s.mBPool.getBlockInPool(mHash) != nil {
@@ -406,37 +403,6 @@ func (s *ShardBackend) setHead(head uint64) {
 
 func (s *ShardBackend) AddTxList(txs []*types.Transaction, peerID string) error {
 	ts := time.Now()
-	//TODO sync
-	//var g errgroup.Group
-	//ll := len(txs)
-	//tx1 := make([]*types.Transaction, ll/2)
-	//tx2 := make([]*types.Transaction, ll/2)
-	//for index := 0; index < ll; index++ {
-	//	if index%2 == 0 {
-	//		tx2[index/2] = txs[index]
-	//	} else {
-	//		tx1[index/2] = txs[index]
-	//	}
-	//}
-	//g.Go(func() error {
-	//	for index := range tx1 {
-	//		if err := s.MinorBlockChain.AddTx(tx1[index]); err != nil {
-	//			return err //TODO ? need return err?
-	//		}
-	//	}
-	//	return nil
-	//})
-	//g.Go(func() error {
-	//	for index := range tx2 {
-	//		if err := s.MinorBlockChain.AddTx(tx2[index]); err != nil {
-	//			return err //TODO ? need return err?
-	//		}
-	//	}
-	//	return nil
-	//})
-	//if err := g.Wait(); err != nil {
-	//	return err
-	//}
 	if err := s.MinorBlockChain.AddTxList(txs); err != nil {
 		return err
 	}

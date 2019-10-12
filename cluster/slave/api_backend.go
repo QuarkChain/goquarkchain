@@ -108,8 +108,7 @@ func (s *SlaveBackend) AddBlockListForSync(mHashList []common.Hash, peerId strin
 
 	var (
 		BlockBatchSize = 100
-		//hashLen        = len(hashList)
-		tHashList []common.Hash
+		tHashList      []common.Hash
 	)
 	for len(hashList) > 0 {
 		hLen := BlockBatchSize
@@ -132,9 +131,6 @@ func (s *SlaveBackend) AddBlockListForSync(mHashList []common.Hash, peerId strin
 		}
 		hashList = hashList[hLen:]
 	}
-
-	//log.Info("sync request from master successful", "branch", branch, "peer-id", peerId, "block-size", hashLen)
-
 	return shard.MinorBlockChain.GetShardStats()
 }
 
@@ -181,8 +177,7 @@ func (s *SlaveBackend) AddTxList(txs []*types.Transaction, peerID string) (err e
 		}
 		mapp[tx.EvmTx.FromFullShardId()] = append(mapp[tx.EvmTx.FromFullShardId()], tx)
 	}
-	//TODO double should goroutunt
-	//fmt.Println("!!!!!!!!!!!!!!!!!!!!!1", len(mapp))
+	//TODO double should goroutine
 	for k, v := range mapp {
 		return s.shards[k].AddTxList(v, peerID)
 	}

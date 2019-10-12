@@ -624,17 +624,13 @@ func (s *SlaveServerSideOp) AddTransactions(ctx context.Context, req *rpc.Reques
 	}
 
 	for _, tx := range gReq.TransactionList {
-		//if err = s.slave.AddTx(tx); err != nil {
-		//	log.Error("Add transaction failed", "tx", tx, "err", err)
-		//	continue
-		//}
 		gRes.Hashes = append(gRes.Hashes, tx.Hash())
 	}
 
 	if response.Data, err = serialize.SerializeToBytes(gRes); err != nil {
 		return nil, err
 	}
-	defer log.Info("AddTxs", "t", time.Now().Sub(ts).Seconds(), "time", time.Now().Sub(ts).Nanoseconds(), "len", len(gReq.TransactionList))
+	log.Info("AddTxs duration", "t", time.Now().Sub(ts).Seconds(), "time", time.Now().Sub(ts).Nanoseconds(), "len", len(gReq.TransactionList))
 	return response, nil
 }
 

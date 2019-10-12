@@ -347,8 +347,6 @@ func UpdateGenesisAlloc(cluserConfig *ClusterConfig) error {
 		bytes := common.FromHex(item.Address)
 		for fullShardId, shardCfg := range qkcConfig.shards {
 			addr := account.NewAddress(common.BytesToAddress(bytes[:20]), fullShardId)
-			//alloc := shardCfg.Genesis.Alloc[addr]
-			//alloc.Balances = balances
 			allocation := Allocation{
 				Balances: balances,
 			}
