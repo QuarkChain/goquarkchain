@@ -194,11 +194,11 @@ func TestServerDial(t *testing.T) {
 			_ = peer.Inbound()
 			_ = peer.Info()
 			<-done
-		case <-time.After(1 * time.Second):
+		case <-time.After(3 * time.Second):
 			t.Error("server did not launch peer within one second")
 		}
 
-	case <-time.After(1 * time.Second):
+	case <-time.After(3 * time.Second):
 		t.Error("server did not connect within one second")
 	}
 }
