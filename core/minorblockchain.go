@@ -22,6 +22,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"io"
 	"math/big"
 	"sort"
@@ -1846,12 +1847,15 @@ func (m *MinorBlockChain) GetRootChainStakes(coinbase account.Recipient, lastMin
 	contractAddress := vm.SystemContracts[vm.ROOT_CHAIN_POSW].Address()
 	code := evmState.GetCode(contractAddress)
 	if code == nil {
-		return nil, nil, errors.New("PoSW-on-root-chain contract is not found")
+		log.Debug("PoSW-on-root-chain contract is not found", "contract address", contractAddress.String())
+		return nil, nil, nil
 	}
 	codeHash := crypto.Keccak256Hash(code)
 	//have to make sure the code is expected
-	if bytes.Compare(codeHash[:], m.clusterConfig.Quarkchain.RootChainPoSWContractBytecodeHash[:]) != 0 {
-		return nil, nil, errors.New("PoSW-on-root-chain contract is invalid")
+	expectHash := m.clusterConfig.Quarkchain.RootChainPoSWContractBytecodeHash[:]
+	if bytes.Compare(codeHash[:], expectHash) != 0 {
+		log.Warn("PoSW-on-root-chain contract is invalid", "expect hash", hexutil.Encode(expectHash), "actual hash", hexutil.Encode(codeHash[:]))
+		return nil, nil, nil
 	}
 	//call the contract's 'getLockedStakes' function
 	mockSender := account.Recipient{}
