@@ -231,7 +231,7 @@ func (pm *ProtocolManager) handleMsg(peer *Peer) error {
 			return err
 		}
 		if qkcMsg.MetaData.Branch != 0 {
-			log.Info("RRRRRRRRRRRRRRRRRRRRRRRRRRR", len(trans.TransactionList))
+			log.Info("RRRRRRRRRRRRRRRRRRRRRRRRRRR", "len", len(trans.TransactionList))
 			return pm.HandleNewTransactionListRequest(peer.id, qkcMsg.RpcID, qkcMsg.MetaData.Branch, &trans)
 		}
 		branchTxMap := make(map[uint32][]*types.Transaction)

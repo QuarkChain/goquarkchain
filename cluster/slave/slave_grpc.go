@@ -615,7 +615,6 @@ func (s *SlaveServerSideOp) AddTransactions(ctx context.Context, req *rpc.Reques
 	if err = serialize.DeserializeFromBytes(req.Data, &gReq); err != nil {
 		return nil, err
 	}
-	defer fmt.Println("AddTxs", time.Now().Sub(ts).Seconds(), time.Now().Sub(ts).Nanoseconds(), len(gReq.TransactionList))
 	if len(gReq.TransactionList) > params.NEW_TRANSACTION_LIST_LIMIT {
 		return nil, errors.New("too many txs in one command")
 	}
@@ -635,6 +634,7 @@ func (s *SlaveServerSideOp) AddTransactions(ctx context.Context, req *rpc.Reques
 	if response.Data, err = serialize.SerializeToBytes(gRes); err != nil {
 		return nil, err
 	}
+	defer log.Info("AddTxs", "t", time.Now().Sub(ts).Seconds(), "time", time.Now().Sub(ts).Nanoseconds(), "len", len(gReq.TransactionList))
 	return response, nil
 }
 
