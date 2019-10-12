@@ -27,14 +27,15 @@ type subTxsEvent struct {
 }
 
 func (s *subTxsEvent) getch() error {
-	select {
-	case ev := <-s.ch:
-		s.broadcast(ev.Txs)
-		return nil
-	case err := <-s.sub.Err():
-		return err
-	default:
-		return nil
+	for {
+		select {
+		case ev := <-s.ch:
+			s.broadcast(ev.Txs)
+		case err := <-s.sub.Err():
+			return err
+		default:
+			return nil
+		}
 	}
 }
 
@@ -44,14 +45,15 @@ type subLogsEvent struct {
 }
 
 func (s *subLogsEvent) getch() error {
-	select {
-	case ev := <-s.ch:
-		s.broadcast(ev)
-		return nil
-	case err := <-s.sub.Err():
-		return err
-	default:
-		return nil
+	for {
+		select {
+		case ev := <-s.ch:
+			s.broadcast(ev)
+		case err := <-s.sub.Err():
+			return err
+		default:
+			return nil
+		}
 	}
 }
 
@@ -61,14 +63,15 @@ type subMinorBlockHeadersEvent struct {
 }
 
 func (s *subMinorBlockHeadersEvent) getch() error {
-	select {
-	case ev := <-s.ch:
-		s.broadcast(ev.Block.Header())
-		return nil
-	case err := <-s.sub.Err():
-		return err
-	default:
-		return nil
+	for {
+		select {
+		case ev := <-s.ch:
+			s.broadcast(ev.Block.Header())
+		case err := <-s.sub.Err():
+			return err
+		default:
+			return nil
+		}
 	}
 }
 
@@ -78,14 +81,15 @@ type subSyncingEvent struct {
 }
 
 func (s *subSyncingEvent) getch() error {
-	select {
-	case ev := <-s.ch:
-		s.broadcast(ev)
-		return nil
-	case err := <-s.sub.Err():
-		return err
-	default:
-		return nil
+	for {
+		select {
+		case ev := <-s.ch:
+			s.broadcast(ev)
+		case err := <-s.sub.Err():
+			return err
+		default:
+			return nil
+		}
 	}
 }
 

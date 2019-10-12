@@ -23,6 +23,10 @@ type ServiceContext struct {
 	EventMux  *event.TypeMux // Event multiplexer used for decoupled notifications
 }
 
+func (ctx *ServiceContext) WSIsAlive() bool {
+	return ctx.config.WSEndpoint != ""
+}
+
 // OpenDatabase opens an existing database with the given name (or creates one
 // if no previous can be found) from within the node's data directory. If the
 // node is an ephemeral one, a memory database is returned.
