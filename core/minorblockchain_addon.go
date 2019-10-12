@@ -397,23 +397,19 @@ func (m *MinorBlockChain) InitFromRootBlock(rBlock *types.RootBlock) error {
 
 // getEvmStateForNewBlock get evmState for new block.should have locked
 func (m *MinorBlockChain) getEvmStateForNewBlock(mHeader types.IHeader, ephemeral bool) (*state.StateDB, error) {
-	//ts := time.Now()
 	prevHash := mHeader.GetParentHash()
 	preMinorBlock := m.GetMinorBlock(prevHash)
 	if preMinorBlock == nil {
 		return nil, ErrMinorBlockIsNil
 	}
-	//fmt.Println("scf---1", time.Now().Sub(ts).Nanoseconds())
 	recipient := mHeader.GetCoinbase().Recipient
 	evmState, err := m.stateAtWithSenderDisallowMap(preMinorBlock, &recipient)
 	if err != nil {
 		return nil, err
 	}
-	//fmt.Println("scf---2", time.Now().Sub(ts).Nanoseconds())
 	if ephemeral {
 		evmState = evmState.Copy()
 	}
-	//fmt.Println("scf---3", time.Now().Sub(ts).Nanoseconds())
 	m.setEvmStateWithHeader(evmState, mHeader.(*types.MinorBlockHeader))
 	return evmState, nil
 }
@@ -492,9 +488,9 @@ func recoverSender(txs []*types.Transaction, networkID uint32) error {
 }
 func (m *MinorBlockChain) AddTxList(txs []*types.Transaction) error {
 	ts := time.Now()
-	interval := len(txs) /  params.TPS_Num
+	interval := len(txs) / params.TPS_Num
 	var g errgroup.Group
-	for index := 0; index <  params.TPS_Num; index++ {
+	for index := 0; index < params.TPS_Num; index++ {
 		i := index
 		g.Go(func() error {
 			if err := recoverSender(txs[i*interval:(i+1)*interval], m.clusterConfig.Quarkchain.NetworkID); err != nil {
@@ -506,14 +502,14 @@ func (m *MinorBlockChain) AddTxList(txs []*types.Transaction) error {
 	if err := g.Wait(); err != nil {
 		return err
 	}
-	fmt.Println("recover", "len", len(txs), time.Now().Sub(ts).Seconds())
+	log.Info("recover", "len", len(txs), "dur", time.Now().Sub(ts).Seconds())
 	ts = time.Now()
 	for _, tx := range txs {
 		if err := m.txPool.AddLocal(tx); err != nil {
 			return err
 		}
 	}
-	fmt.Println("AddLocl", "len", len(txs), time.Now().Sub(ts).Seconds())
+	log.Info("AddLocal", "len", len(txs), "dur", time.Now().Sub(ts).Seconds())
 	return nil
 }
 
