@@ -646,7 +646,7 @@ func (srv *Server) run(dialstate dialer) {
 		taskdone     = make(chan task, maxActiveDialTasks)
 		runningTasks []task
 		queuedTasks  []task // tasks that can't run yet
-		ticker       = time.NewTicker(2 * time.Second)
+		ticker       = time.NewTicker(500 * time.Millisecond)
 	)
 	defer ticker.Stop()
 
