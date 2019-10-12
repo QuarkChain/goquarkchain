@@ -80,10 +80,8 @@ func (m *Miner) allowMining() bool {
 }
 
 func (m *Miner) commit(addr *account.Address) {
-	//fmt.Println("begin commit")
 	// don't allow to mine
 	if !m.allowMining() {
-		//fmt.Println("1111111111")
 		return
 	}
 	m.interrupt()
@@ -93,17 +91,14 @@ func (m *Miner) commit(addr *account.Address) {
 		// retry to create block to mine
 		time.Sleep(2 * time.Second)
 		m.startCh <- struct{}{}
-		//fmt.Println("2222222")
 		return
 	}
 	tip := m.getTip()
 	if block.NumberU64() <= tip {
 		log.Error(m.logInfo, "block's height small than tipHeight after commit blockNumber ,no need to seal", block.NumberU64(), "tip", m.getTip())
-		//fmt.Println("333333333")
 		return
 	}
 	m.workCh <- workAdjusted{block, diff, optionalDivider}
-	//fmt.Println("end commit---------------------")
 }
 
 func (m *Miner) mainLoop() {
@@ -111,25 +106,22 @@ func (m *Miner) mainLoop() {
 	for {
 		select {
 		case <-m.startCh:
-			//fmt.Println("commit-1")
 			m.commit(nil)
 
 		case work := <-m.workCh: //to discuss:need this?
-			//log.Info(m.logInfo, "ready to seal height", work.block.NumberU64(), "coinbase", work.block.IHeader().GetCoinbase().ToHex())
+			log.Info(m.logInfo, "ready to seal height", work.block.NumberU64(), "coinbase", work.block.IHeader().GetCoinbase().ToHex())
 			if err := m.engine.Seal(nil, work.block, work.adjustedDifficulty, work.optionalDivider, m.resultCh, m.stopCh); err != nil {
 				log.Error(m.logInfo, "Seal block to mine err", err)
 				coinbase := work.block.IHeader().GetCoinbase()
-				//fmt.Println("commit-2")
 				m.commit(&coinbase)
 			}
 
 		case block := <-m.resultCh:
-			//log.Info(m.logInfo, "seal succ number", block.NumberU64(), "hash", block.Hash().String())
+			log.Info(m.logInfo, "seal succ number", block.NumberU64(), "hash", block.Hash().String())
 			if err := m.api.InsertMinedBlock(block); err != nil {
 				log.Error(m.logInfo, "add minered block err block hash", block.Hash().Hex(), "err", err)
 				time.Sleep(time.Duration(3) * time.Second)
 				coinbase := block.IHeader().GetCoinbase()
-				//fmt.Println("commit-3")
 				m.commit(&coinbase)
 			}
 
@@ -188,9 +180,8 @@ func (m *Miner) SubmitWork(nonce uint64, hash, digest common.Hash, signature *[6
 }
 
 func (m *Miner) HandleNewTip() {
-	//log.Info(m.logInfo, "handle new tip: height", m.getTip())
+	log.Info(m.logInfo, "handle new tip: height", m.getTip())
 	m.engine.RefreshWork(m.api.GetTip())
-	//fmt.Println("commit-4")
 	m.commit(nil)
 }
 

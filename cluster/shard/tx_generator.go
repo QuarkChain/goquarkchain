@@ -28,12 +28,6 @@ type TxGenerator struct {
 	turn         uint64
 }
 
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
-}
 func NewTxGenerator(genesisDir string, fullShardId uint32, cfg *config.QuarkChainConfig) []*TxGenerator {
 	tgs := make([]*TxGenerator, 0)
 	accounts := config.LoadtestAccounts(genesisDir)

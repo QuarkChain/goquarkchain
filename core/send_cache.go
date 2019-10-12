@@ -29,7 +29,7 @@ func NewService(capacity int, networkID uint32, addTxFunc func(tx *types.Transac
 	service.loopStopChan = make(chan struct{})
 	service.addTxFunc = addTxFunc
 	service.networkID = networkID
-	service.Run()
+	//service.Run()
 	return service
 }
 

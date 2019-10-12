@@ -3,8 +3,6 @@ package rawdb
 
 import (
 	"encoding/binary"
-	"encoding/hex"
-	"fmt"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/serialize"
 	"github.com/ethereum/go-ethereum/common"
@@ -134,7 +132,6 @@ func HasHeader(db DatabaseReader, hash common.Hash) bool {
 func ReadMinorBlockHeader(db DatabaseReader, hash common.Hash) *types.MinorBlockHeader {
 	data, _ := db.Get(headerKey(hash))
 	if len(data) == 0 {
-		fmt.Println("LLLLLLLLLLl==0", hash.String(), hex.EncodeToString(headerKey(hash)))
 		return nil
 	}
 
@@ -162,7 +159,6 @@ func WriteMinorBlockHeader(db DatabaseWriter, header *types.MinorBlockHeader) {
 		log.Crit("Failed to Serialize header", "err", err)
 	}
 	key = headerKey(hash)
-	//fmt.Println("writeMinorBlockheader", hash.String(), hex.EncodeToString(key), hex.EncodeToString(data))
 	if err := db.Put(key, data); err != nil {
 		log.Crit("Failed to store header", "err", err)
 	}

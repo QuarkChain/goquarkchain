@@ -47,21 +47,19 @@ func SignTx(tx *EvmTransaction, s Signer, prv *ecdsa.PrivateKey) (*EvmTransactio
 // not match the signer used in the current call.
 func Sender(signer Signer, tx *EvmTransaction) (account.Recipient, error) {
 	if sc := tx.from.Load(); sc != nil {
-		//fmt.Println("have cache")
 		sigCache := sc.(sigCache)
 		// If the signer used to derive from in a previous
 		// call is not the same as used current, invalidate
 		// the cache.
 		if sigCache.signer.Equal(signer) {
-			//fmt.Println("have cache-1")
 			return sigCache.from, nil
 		}
 	}
+
 	addr, err := signer.Sender(tx)
 	if err != nil {
 		return account.Recipient{}, err
 	}
-	//fmt.Println("no cache")
 	tx.from.Store(sigCache{signer: signer, from: addr})
 	return addr, nil
 }

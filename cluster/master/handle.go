@@ -230,7 +230,6 @@ func (pm *ProtocolManager) handleMsg(peer *Peer) error {
 		if err := serialize.DeserializeFromBytes(qkcMsg.Data, &trans); err != nil {
 			return err
 		}
-		//fmt.Println("收到交易", qkcMsg.MetaData.Branch, len(trans.TransactionList))
 		if qkcMsg.MetaData.Branch != 0 {
 			return pm.HandleNewTransactionListRequest(peer.id, qkcMsg.RpcID, qkcMsg.MetaData.Branch, &trans)
 		}

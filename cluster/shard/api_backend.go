@@ -283,11 +283,7 @@ func (s *ShardBackend) AddMinorBlock(block *types.MinorBlock) error {
 	s.MinorBlockChain.CommitMinorBlockByHash(block.Header().Hash())
 	s.mBPool.delBlockInPool(block.Header())
 	if s.MinorBlockChain.CurrentBlock().Hash() != currHead.Hash() {
-		fmt.Println("commit-5")
 		go s.miner.HandleNewTip()
-	} else {
-		fmt.Println("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!", s.MinorBlockChain.CurrentBlock().NumberU64(), s.MinorBlockChain.CurrentBlock().Hash().String())
-		fmt.Println("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!", currHead.Number, currHead.Hash().String())
 	}
 
 	return nil
@@ -359,8 +355,6 @@ func (s *ShardBackend) SubmitWork(headerHash common.Hash, nonce uint64, mixHash 
 }
 
 func (s *ShardBackend) InsertMinedBlock(block types.IBlock) error {
-	//ts := time.Now()
-	//defer fmt.Println("InsertMinedBlock--time", block.NumberU64(), time.Now().Sub(ts).Seconds(), time.Now().Sub(ts).Nanoseconds())
 	return s.NewMinorBlock(block.(*types.MinorBlock))
 }
 

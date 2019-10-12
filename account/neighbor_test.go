@@ -1,32 +1,24 @@
 package account
 
 import (
-	"fmt"
+	"github.com/stretchr/testify/assert"
 	"testing"
 )
 
-func min(a, b int) int {
-	if a > b {
-		return b
-	}
-	return a
-}
 func TestIsNeighbor(t *testing.T) {
-	for index := 0; index <= 30; index++ {
-		asd := make([]int, 0)
-		for sb := -1; sb < index; sb++ {
-			asd = append(asd, sb+1)
-		}
+	b1 := NewBranch(2<<16 | 2 | 1)
+	b2 := NewBranch(2<<16 | 2 | 0)
+	assert.True(t, IsNeighbor(b1, b2, 33))
 
-		fmt.Println("+++++++++++++++++")
-		spn := len(asd) / 3
-		for index := 0; index < spn; index++ {
-			fmt.Println(asd[index*3 : (index+1)*3])
-		}
-		if len(asd)%3 != 0 {
-			fmt.Println(asd[spn*3:])
-		}
-		fmt.Println("+++++++++++++++=end")
-	}
+	b1 = NewBranch(1<<16 | 2 | 1)
+	b2 = NewBranch(3<<16 | 2 | 1)
+	assert.True(t, IsNeighbor(b1, b2, 33))
 
+	b1 = NewBranch(1<<16 | 2 | 0)
+	b2 = NewBranch(3<<16 | 2 | 1)
+	assert.True(t, IsNeighbor(b1, b2, 32))
+
+	b1 = NewBranch(1<<16 | 2 | 0)
+	b2 = NewBranch(3<<16 | 2 | 1)
+	assert.False(t, IsNeighbor(b1, b2, 33))
 }

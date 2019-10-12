@@ -1,7 +1,6 @@
 package master
 
 import (
-	"fmt"
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/p2p"
@@ -37,7 +36,6 @@ func (api *PrivateP2PAPI) BroadcastMinorBlock(branch uint32, block *types.MinorB
 func (api *PrivateP2PAPI) BroadcastTransactions(branch uint32, txs []*types.Transaction, peerID string) {
 	for _, peer := range api.peers.Peers() {
 		if peer.id == peerID {
-			fmt.Println("connttttttttttttttttttt skip")
 			continue
 		}
 		peer.AsyncSendTransactions(branch, txs)
