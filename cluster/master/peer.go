@@ -5,6 +5,7 @@ package master
 import (
 	"errors"
 	"fmt"
+	"github.com/ontio/ontology/common/log"
 	"io/ioutil"
 	"math/big"
 	"sync"
@@ -199,7 +200,7 @@ func (p *Peer) PeerID() string {
 func (p *Peer) SendTransactions(branch uint32, txs []*types.Transaction) error {
 	data := p2p.NewTransactionList{}
 	data.TransactionList = txs
-
+	log.Info("SSSSSSSSeeeettttttttttttt", "len", len(txs))
 	msg, err := p2p.MakeMsg(p2p.NewTransactionListMsg, 0, p2p.Metadata{Branch: branch}, data)
 	if err != nil {
 		return err

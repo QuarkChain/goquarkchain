@@ -529,10 +529,12 @@ func (s *SlaveConnection) AddTransactions(request *rpc.NewTransactionList) (*rpc
 	if err != nil {
 		return nil, err
 	}
+	ts := time.Now()
 	res, err = s.client.Call(s.target, &rpc.Request{Op: rpc.OpAddTransactions, Data: bytes})
 	if err != nil {
 		return nil, err
 	}
+	log.Info("TTTTSSSSSSSSSSSS", "dut", time.Now().Sub(ts).Seconds())
 	if err = serialize.DeserializeFromBytes(res.Data, rsp); err != nil {
 		return nil, err
 	}
