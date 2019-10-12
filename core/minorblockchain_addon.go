@@ -492,7 +492,7 @@ func recoverSender(txs []*types.Transaction, networkID uint32) error {
 }
 func (m *MinorBlockChain) AddTxList(txs []*types.Transaction) error {
 	ts := time.Now()
-	tt := 5
+	tt := 2
 	interval := len(txs) / tt
 	var g errgroup.Group
 	for index := 0; index < tt; index++ {
@@ -775,8 +775,6 @@ func (m *MinorBlockChain) checkTxBeforeApply(stateT *state.StateDB, tx *types.Tr
 func (m *MinorBlockChain) CreateBlockToMine(createTime *uint64, address *account.Address, gasLimit, xShardGasLimit *big.Int,
 	includeTx *bool) (*types.MinorBlock, error) {
 	ts := time.Now()
-	log.Info("begin create block to mine")
-	defer log.Info("end create block to mine", "time", time.Now().Sub(ts).Seconds())
 	if includeTx == nil {
 		t := true
 		includeTx = &t

@@ -23,7 +23,7 @@ import (
 
 var (
 	EmptyErrTemplate                 = "empty result when call %s, params: %v\n"
-	AllowedFutureBlocksTimeBroadcast = 15
+	AllowedFutureBlocksTimeBroadcast = 5
 )
 
 // Wrapper over master connection, used by synchronizer.
