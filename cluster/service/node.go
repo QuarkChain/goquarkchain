@@ -147,7 +147,7 @@ func (n *Node) Start() error {
 	for _, constructor := range n.serviceFuncs {
 		// Create a new context for the particular service
 		ctx := &ServiceContext{
-			config:    n.config,
+			config:    *n.config,
 			services:  make(map[reflect.Type]Service),
 			Shutdown:  n.sigc,
 			Timestamp: time.Now(),
