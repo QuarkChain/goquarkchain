@@ -95,7 +95,6 @@ func (m *MinorBlockChain) putMinorBlock(mBlock *types.MinorBlock, xShardReceiveT
 	if !m.HasBlock(mBlock.Hash()) {
 		rawdb.WriteMinorBlock(m.db, mBlock)
 	}
-
 	if err := m.putTotalTxCount(mBlock); err != nil {
 		return err
 	}
