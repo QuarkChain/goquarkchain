@@ -97,7 +97,7 @@ Then fill in your own coinbase address and [bootstrap a cluster](https://github.
 
 We provide the [demo implementation of CPU mining software](https://github.com/QuarkChain/goquarkchain/tree/master/cmd/miner). Please refer to [QuarkChain mining](https://github.com/QuarkChain/pyquarkchain/wiki/Introduction-of-Mining-Algorithms) for more details.
 
-###<a name="single_cluster"></a> Running a single cluster for local testing
+### <a name="single_cluster"></a>Running a single cluster for local testing
 Start running a local cluster which does not connect to anyone else. The default cluster has 8 shards and 4 slaves.
 
 ```bash
@@ -159,17 +159,14 @@ JSON RPCs are defined in [`rpc.proto`](https://github.com/QuarkChain/goquarkchai
 
 Public RPCs are documented in the [Developer Guide](https://developers.quarkchain.io/#json-rpc). You can use the client library [quarkchain-web3.js](https://github.com/QuarkChain/quarkchain-web3.js) to query account state, send transactions, deploy and call smart contracts. Here is [a simple example](https://gist.github.com/qcgg/1ab0352c5b2299270b5795648cca83d8) to deploy smart contract on QuarkChain using the client library.
 ## Loadtest
-To loadtest your cluster and see how fast it processes large volume of transactions.
+Run loadtest to your cluster and see how fast it processes large volume of transactions. [12,000 loadtest accounts](https://github.com/QuarkChain/goquarkchain/blob/master/tests/testdata/genesis_data/loadtest.json) are [loaded into genesis alloc config](https://github.com/QuarkChain/goquarkchain/blob/98343d5c4500883f6d31e757502e23f1aed5acd5/cluster/config/config.go#L285) for each shard.
 1. Follow the [instruction](#single_cluster) to start a local cluster
 
 2. Trigger loadtest through `createTransactions ` JSON RPC which requests the cluster to generate transactions on each shard. `numTxPerShard` <= 12000, `xShardPercent` <= 100
 
-   **curl**
-
    ```bash
    curl -X POST --data '{"jsonrpc":"2.0","method":"createTransactions","params":{"numTxPerShard":10000, "xShardPercent":10},"id":0}' http://localhost:38491
    ```
-
 3. At your virtual environment, [monitor](#monitor) the TPS using the stats tool.
 ## Issue
 Please open issues on github to report bugs or make feature requests.
