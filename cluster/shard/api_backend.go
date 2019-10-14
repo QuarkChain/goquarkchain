@@ -157,15 +157,16 @@ func (s *ShardBackend) GetMinorBlock(mHash common.Hash, height *uint64) (mBlock 
 		mBlock = s.MinorBlockChain.GetMinorBlock(mHash)
 	} else if height != nil {
 		block := s.MinorBlockChain.GetBlockByNumber(*height)
-		if qcom.IsNil(block) {
-			return nil, errors.New("minor block not found")
+		if !qcom.IsNil(block) {
+			mBlock = block.(*types.MinorBlock)
 		}
-		mBlock = block.(*types.MinorBlock)
+	} else {
+		return nil, errors.New("invalied params in GetMinorBlock")
 	}
 	if mBlock != nil {
 		return
 	}
-	return nil, errors.New("invalied params in GetMinorBlock")
+	return nil, errors.New("minor block not found")
 }
 
 func (s *ShardBackend) NewMinorBlock(block *types.MinorBlock) (err error) {
