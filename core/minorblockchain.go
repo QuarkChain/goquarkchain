@@ -22,7 +22,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"github.com/ethereum/go-ethereum/common/hexutil"
 	"io"
 	"math/big"
 	"sort"
@@ -34,6 +33,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	qkcParams "github.com/QuarkChain/goquarkchain/params"
 	"github.com/QuarkChain/goquarkchain/serialize"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/hashicorp/golang-lru"
 
 	"github.com/QuarkChain/goquarkchain/consensus"
