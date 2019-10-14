@@ -171,7 +171,7 @@ func (m *minorChainTask) findAncestor(bc blockchain) (*types.MinorBlockHeader, e
 	for end >= start {
 		m.stats.AncestorLookupRequests += 1
 		span := (end-start)/MinorBlockHeaderListLimit + 1
-		mBHeaders, err := m.downloadBlockHeaderListAndCheck(start, span-1, (end+1-start)/span, m.header.Branch.Value)
+		mBHeaders, err := m.downloadBlockHeaderListAndCheck(start, span-1, (end+1-start+span-1)/span, m.header.Branch.Value)
 		if err != nil {
 			return nil, err
 		}
