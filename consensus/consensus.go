@@ -73,9 +73,10 @@ type MiningWork struct {
 
 // MiningResult represents the found digest and result bytes.
 type MiningResult struct {
-	Digest common.Hash
-	Result []byte
-	Nonce  uint64
+	Digest    common.Hash
+	Result    []byte
+	Nonce     uint64
+	Signature *[]byte
 }
 
 // MiningSpec contains a PoW algo's basic info and hash algo
@@ -377,10 +378,10 @@ func (c *CommonEngine) GetWork(addr account.Address) (*MiningWork, error) {
 	select {
 	case work := <-workCh:
 		return &MiningWork{
-			work.HeaderHash,
-			work.Number,
-			work.Difficulty,
-			work.OptionalDivider,
+			HeaderHash:      work.HeaderHash,
+			Number:          work.Number,
+			Difficulty:      work.Difficulty,
+			OptionalDivider: work.OptionalDivider,
 		}, nil
 	case err := <-errc:
 		return nil, err

@@ -863,7 +863,7 @@ func TestGetWorkFromMaster(t *testing.T) {
 	mstr.SetMining(true)
 	coinbaseAddr := &account.Recipient{}
 	assert.Equal(t, retryTrueWithTimeout(func() bool {
-		work, err := mstr.GetWork(account.NewBranch(0), coinbaseAddr)
+		work, err := mstr.GetWork(new(uint32), coinbaseAddr)
 		if err != nil {
 			return false
 		}

@@ -550,13 +550,14 @@ func (p *PublicBlockChainAPI) SubmitWork(fullShardKey *hexutil.Uint, headHash co
 
 	var sig *[65]byte = nil
 	if signature != nil {
+		sig = new([65]byte)
 		copy(sig[:], *signature)
 	}
 
 	submit, err := p.b.SubmitWork(fullShardId, headHash, uint64(nonce), mixHash, sig)
 	if err != nil {
 		log.Error("Submit remote minered block", "err", err)
-		return false, nil
+		return false, err
 	}
 	return submit, nil
 }
