@@ -2,9 +2,9 @@
 
 [![CircleCI](https://circleci.com/gh/QuarkChain/goquarkchain/tree/master.svg?style=shield&circle-token=afd6d8dfa04abf5da21613deb2572c330e4a6d49)](https://circleci.com/gh/QuarkChain/goquarkchain/tree/master)
 
-Go implementation of [pyquarkchain](https://github.com/QuarkChain/pyquarkchain).
+Go implementation of [quarkchain](https://quarkchain.io).
 
-QuarkChain is a sharded blockchain protocol that employs a two-layer architecture - one extensible sharding layer consisting of multiple shard chains processing transactions and one root chain layer securing the network and coordinating cross-shard transactions among shard chains. The capacity of the network scales linearly as the number of shard chains increase while the root chain is always providing strong security guarantee regardless of the number of shards. QuarkChain testnet consistently hit [10,000+ TPS](https://youtu.be/dUldrq3zKwE?t=8m28s) with 256 shards run by 50 clusters consisting of 6450 servers with each loadtest submitting 3,000,000 transactions to the network.
+QuarkChain is a sharded blockchain protocol that employs a two-layer architecture - one extensible sharding layer consisting of multiple shard chains processing transactions and one root chain layer securing the network and coordinating cross-shard transactions among shard chains.
 
 ## Features
 
@@ -17,8 +17,6 @@ QuarkChain is a sharded blockchain protocol that employs a two-layer architectur
 - Fully compatible with Ethereum smart contract
 
 ## Design
-
-![QuarkChain Cluster](https://docs.google.com/drawings/d/e/2PACX-1vRkF6Wd-I-1j-601IFWPwd9u8A5oqa_c2JVBad1SDY48ATY1aRaJvhObiX8p9Jh1ra5G-HIqhhYl0NM/pub?w=960&h=576)
 
 Check out the [Wiki](https://github.com/QuarkChain/pyquarkchain/wiki) to understand the design of QuarkChain.
 
@@ -49,7 +47,7 @@ source ~/.bashrc
 Check 
 ```bash
 go version
-go version go1.13.1 linux/amd64
+go version go1.12.8 linux/amd64
 ```
 ### Install rocksdb
 ```bash
@@ -104,15 +102,14 @@ Start running a local cluster which does not connect to anyone else. The default
 #build goquarkchain executable
 cd cmd/cluser
 go build .
-#start each shard in different terminal with its ID specified in SLAVE_LIST of the json config, e.g. S0
+#start each shard in different terminals with its ID specified in SLAVE_LIST of the json config:
 ./cluster --cluster_config ../../mainnet/singularity/cluster_config_template.json --service S0
+./cluster --cluster_config ../../mainnet/singularity/cluster_config_template.json --service S1
+./cluster --cluster_config ../../mainnet/singularity/cluster_config_template.json --service S2
+./cluster --cluster_config ../../mainnet/singularity/cluster_config_template.json --service S3
 #start master in another terminal
 ./cluster --cluster_config ../../mainnet/singularity/cluster_config_template.json
 ```
-
-### Running multiple clusters for local testing
-Run multiple clusters with P2P network on a single machine is similar to run a single cluster, except you need to change all the ports for different instances, including P2P_PORT, JSON_RPC_PORT, PRIVATE_JSON_RPC_PORT, and all slave ports in SLAVE_LIST
-
 ### Running multiple clusters with P2P network on different machines
 NOTE this is effectively a private network. If you would like to join our testnet or mainnet, look back a few sections for instructions.
 
@@ -129,9 +126,9 @@ You can read the full bootnode URL from the console output. Then start other clu
 ```
 
 ## <a name="monitor"></a>Monitoring Clusters
-Use the [`stats`](https://github.com/QuarkChain/pyquarkchain/blob/master/quarkchain/tools/#stats) tool in the repo to monitor the status of a cluster. It queries the given cluster through JSON RPC every 10 seconds and produces an entry.
+Use the [`stats`](https://github.com/QuarkChain/pyquarkchain/blob/master/quarkchain/tools/#stats) tool in the repo to monitor the status of a cluster. It queries the given cluster through JSON RPC every 10 seconds and produces an entry. You may need to [setup python environment](https://github.com/QuarkChain/pyquarkchain#development-setup) to run the tool.
 ```bash
-$ quarkchain/tools/stats --ip=localhost
+$ pyquarkchain/quarkchain/tools/stats --ip=localhost
 ----------------------------------------------------------------------------------------------------
                                       QuarkChain Cluster Stats
 ----------------------------------------------------------------------------------------------------
@@ -180,4 +177,4 @@ free to open pull requests directly.
 Join our developer community on [Discord](https://discord.gg/Jbp35ZC).
 
 ## License
-Unless explicitly mentioned in a folder or a file, all files are licensed under MIT License defined in LICENSE file.
+Unless explicitly mentioned in a folder or a file, all files are licensed under GNU Lesser General Public License defined in LICENSE file.
