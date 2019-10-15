@@ -284,6 +284,7 @@ func (m *MinorBlockChain) GetTransactionCount(recipient account.Recipient, heigh
 }
 
 func (m *MinorBlockChain) isSameRootChain(long types.IHeader, short types.IHeader) bool {
+	fmt.Println("222")
 	return isSameChain(m.db, long, short)
 }
 
@@ -295,6 +296,7 @@ func (m *MinorBlockChain) isMinorBlockLinkedToRootTip(mBlock *types.MinorBlock) 
 	if mBlock.Header().Number <= confirmed.Number {
 		return false
 	}
+	fmt.Println("333")
 	return isSameChain(m.db, mBlock.Header(), confirmed)
 }
 func (m *MinorBlockChain) isNeighbor(remoteBranch account.Branch, rootHeight *uint32) bool {
