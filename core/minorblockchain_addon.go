@@ -259,6 +259,7 @@ func (m *MinorBlockChain) InitGenesisState(rBlock *types.RootBlock) (*types.Mino
 	}
 	m.putRootBlock(rBlock, nil)
 	rawdb.WriteGenesisBlock(m.db, rBlock.Hash(), gBlock) // key:rootBlockHash value:minorBlock
+	m.CommitMinorBlockByHash(gBlock.Hash())
 	if m.initialized {
 		return gBlock, nil
 	}
