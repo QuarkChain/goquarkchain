@@ -3,6 +3,7 @@ package qkcapi
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"github.com/QuarkChain/goquarkchain/account"
 	qrpc "github.com/QuarkChain/goquarkchain/cluster/rpc"
 	qcom "github.com/QuarkChain/goquarkchain/common"
@@ -31,8 +32,10 @@ func (c *CommonAPI) callOrEstimateGas(args *CallArgs, height *uint64, isCall boo
 		return nil, err
 	}
 	if isCall {
+		fmt.Println("isCall")
 		res, err := c.b.ExecuteTransaction(tx, args.From, height)
 		if err != nil {
+			fmt.Println("38---err", err)
 			return nil, err
 		}
 		return (hexutil.Bytes)(res), nil
@@ -194,6 +197,8 @@ func (p *PublicBlockChainAPI) GetBalances(address account.Address, blockNr *rpc.
 }
 
 func (p *PublicBlockChainAPI) GetAccountData(address account.Address, blockNr *rpc.BlockNumber, includeShards *bool) (map[string]interface{}, error) {
+	fmt.Println("GGGetAccountData", address.ToHex(), blockNr, includeShards)
+	defer fmt.Println("end GGGetAccountData")
 	if includeShards != nil && blockNr == nil {
 		return nil, errors.New("do not allow specify height if client wants info on all shards")
 	}
@@ -208,12 +213,14 @@ func (p *PublicBlockChainAPI) GetAccountData(address account.Address, blockNr *r
 		}
 		branch := account.Branch{Value: accountBranchData.Branch}
 		primary := map[string]interface{}{
-			"fullShardId":      hexutil.Uint(branch.GetFullShardID()),
-			"shardId":          hexutil.Uint(branch.GetShardID()),
-			"chainId":          hexutil.Uint(branch.GetChainID()),
-			"balances":         encoder.BalancesEncoder(accountBranchData.Balance),
-			"transactionCount": hexutil.Uint64(accountBranchData.TransactionCount),
-			"isContract":       accountBranchData.IsContract,
+			"fullShardId":        hexutil.Uint(branch.GetFullShardID()),
+			"shardId":            hexutil.Uint(branch.GetShardID()),
+			"chainId":            hexutil.Uint(branch.GetChainID()),
+			"balances":           encoder.BalancesEncoder(accountBranchData.Balance),
+			"transactionCount":   hexutil.Uint64(accountBranchData.TransactionCount),
+			"isContract":         accountBranchData.IsContract,
+			"minedBlocks":        hexutil.Uint64(accountBranchData.MinedBlocks),
+			"poswMineableBlocks": hexutil.Uint64(accountBranchData.PoswMineableBlocks),
 		}
 		return map[string]interface{}{
 			"primary": primary,
@@ -245,6 +252,7 @@ func (p *PublicBlockChainAPI) GetAccountData(address account.Address, blockNr *r
 			primary = shardData
 		}
 	}
+	fmt.Println("succ")
 	return map[string]interface{}{
 		"primary": primary,
 		"shards":  shards,
@@ -377,13 +385,17 @@ func (p *PublicBlockChainAPI) GetTransactionById(txID hexutil.Bytes) (map[string
 }
 
 func (p *PublicBlockChainAPI) Call(data CallArgs, blockNr *rpc.BlockNumber) (hexutil.Bytes, error) {
+	fmt.Println("Call", "start", blockNr)
+	defer fmt.Println("Call ", "end")
 	if blockNr == nil {
+		fmt.Println("389----")
 		return p.CommonAPI.callOrEstimateGas(&data, nil, true)
 	}
 	blockNumber, err := decodeBlockNumberToUint64(p.b, blockNr)
 	if err != nil {
 		return nil, err
 	}
+	fmt.Println(">>>>>>>>>", blockNumber, err)
 	return p.CommonAPI.callOrEstimateGas(&data, blockNumber, true)
 
 }
@@ -612,7 +624,7 @@ func (p *PublicBlockChainAPI) GetTransactionConfirmedByNumberRootBlocks(txID hex
 
 	confirmingHash := p.b.GetRootHashConfirmingMinorBlock(encoder.IDEncoder(mBlock.Hash().Bytes(), mBlock.Header().Branch.Value))
 	if bytes.Equal(confirmingHash.Bytes(), common.Hash{}.Bytes()) {
-		return hexutil.Uint(0), errors.New("confirmingHash is empty hash")
+		return hexutil.Uint(0), nil
 	}
 
 	confirmingBlock, _, err := p.b.GetRootBlockByHash(confirmingHash, false)
@@ -650,10 +662,10 @@ func NewPrivateBlockChainAPI(b Backend) *PrivateBlockChainAPI {
 	return &PrivateBlockChainAPI{b}
 }
 
-func (p *PrivateBlockChainAPI) GetPeers() map[string]interface{} {
+func (p *PrivateBlockChainAPI) GetPeers() (map[string]interface{}, error) {
 	fields := make(map[string]interface{})
 
-	list := make([]map[string]interface{}, 0)
+	list := make([]interface{}, 0)
 	peerList := p.b.GetPeerInfolist()
 	for _, v := range peerList {
 		list = append(list, map[string]interface{}{
@@ -662,8 +674,10 @@ func (p *PrivateBlockChainAPI) GetPeers() map[string]interface{} {
 			"port": hexutil.Uint(v.Port),
 		})
 	}
+	fmt.Println("!!!!!!!!!!!!!")
 	fields["peers"] = list
-	return fields
+	//fields["peers"] = nil
+	return fields, nil
 }
 
 func (p *PrivateBlockChainAPI) GetSyncStats() {

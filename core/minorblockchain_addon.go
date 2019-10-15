@@ -214,10 +214,15 @@ func (m *MinorBlockChain) validateTx(tx *types.Transaction, evmState *state.Stat
 			return nil, errors.New("smart contract tx is not allowed before evm is enabled")
 		}
 	}
-
-	sender, err := tx.Sender(types.NewEIP155Signer(m.clusterConfig.Quarkchain.NetworkID))
-	if err != nil {
-		return nil, err
+	var sender account.Recipient
+	if fromAddress == nil {
+		sender, err = tx.Sender(types.NewEIP155Signer(m.clusterConfig.Quarkchain.NetworkID))
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		fmt.Println("!!!!!!!!!!!224")
+		sender = fromAddress.Recipient
 	}
 
 	tx = &types.Transaction{
@@ -523,6 +528,7 @@ func (m *MinorBlockChain) GetStorageAt(recipient account.Recipient, key common.H
 
 // ExecuteTx execute tx
 func (m *MinorBlockChain) ExecuteTx(tx *types.Transaction, fromAddress *account.Address, height *uint64) ([]byte, error) {
+	fmt.Println("tx", tx.Hash().String(), fromAddress.ToHex())
 	if height == nil {
 		temp := m.CurrentBlock().NumberU64()
 		height = &temp
@@ -1660,4 +1666,20 @@ func (m *MinorBlockChain) IsMinorBlockCommittedByHash(h common.Hash) bool {
 }
 func (m *MinorBlockChain) CommitMinorBlockByHash(h common.Hash) {
 	rawdb.WriteCommitMinorBlock(m.db, h)
+}
+
+func (m *MinorBlockChain) GetMiningInfo(address account.Recipient, stake *types.TokenBalances) (uint64, uint64, error) {
+	currHeader := m.CurrentBlock().Header()
+	if !m.posw.IsPoSWEnabled(currHeader) {
+		return 0, 0, errors.New("not support posw") //TODO need error?
+	}
+	cnt, err := m.posw.CountCoinbaseBlockUntil(currHeader.Hash(), address)
+	powsConfig := m.shardConfig.PoswConfig
+	balance := stake.GetTokenBalance(m.clusterConfig.Quarkchain.GetDefaultChainTokenID())
+	blockThreshold := powsConfig.WindowSize
+	shouldMinable := balance.Div(balance, powsConfig.TotalStakePerBlock).Uint64()
+	if shouldMinable < blockThreshold {
+		blockThreshold = shouldMinable
+	}
+	return blockThreshold, cnt, err
 }
