@@ -104,5 +104,4 @@ type PoSWCalculator interface {
 	PoSWDiffAdjust(header types.IHeader, balance *big.Int) (*big.Int, error)
 	IsPoSWEnabled(header types.IHeader) bool
 	GetPoSWInfo(header types.IHeader, stakes *big.Int) (*big.Int, uint64, uint64, error)
-	CountCoinbaseBlockUntil(headerHash common.Hash, coinbase account.Recipient) (uint64, error)
 }

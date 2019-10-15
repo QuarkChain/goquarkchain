@@ -54,7 +54,7 @@ func (p *PoSW) PoSWDiffAdjust(header types.IHeader, stakes *big.Int) (*big.Int, 
 	// The func is inclusive, so need to fetch block counts until prev block
 	// Also only fetch prev window_size - 1 block counts because the
 	// new window should count the current block
-	blockCnt, err := p.CountCoinbaseBlockUntil(header.GetParentHash(), header.GetCoinbase().Recipient)
+	blockCnt, err := p.countCoinbaseBlockUntil(header.GetParentHash(), header.GetCoinbase().Recipient)
 	if err != nil {
 		return nil, err
 	}
@@ -89,10 +89,10 @@ func (p *PoSW) BuildSenderDisallowMap(headerHash common.Hash, coinbase *account.
 }
 
 func (p *PoSW) IsPoSWEnabled(header types.IHeader) bool {
-	return p.config.Enabled && header.GetTime() >= p.config.EnableTimestamp && header.NumberU64() >= 0
+	return p.config.Enabled && header.GetTime() >= p.config.EnableTimestamp && header.NumberU64() > 0
 }
 
-func (p *PoSW) CountCoinbaseBlockUntil(headerHash common.Hash, coinbase account.Recipient) (uint64, error) {
+func (p *PoSW) countCoinbaseBlockUntil(headerHash common.Hash, coinbase account.Recipient) (uint64, error) {
 	coinbases, err := p.getCoinbaseAddressUntilBlock(headerHash)
 	if err != nil {
 		return 0, err
@@ -151,7 +151,7 @@ func (p *PoSW) GetPoSWInfo(header types.IHeader, stakes *big.Int) (effectiveDiff
 	if blockThreshold > p.config.WindowSize {
 		blockThreshold = p.config.WindowSize
 	}
-	blockCnt, err := p.CountCoinbaseBlockUntil(header.Hash(), header.GetCoinbase().Recipient)
+	blockCnt, err := p.countCoinbaseBlockUntil(header.GetParentHash(), header.GetCoinbase().Recipient)
 	if err != nil {
 		return nil, 0, 0, err
 	}
