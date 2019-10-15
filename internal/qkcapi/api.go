@@ -3,7 +3,6 @@ package qkcapi
 import (
 	"bytes"
 	"errors"
-	"fmt"
 	"github.com/QuarkChain/goquarkchain/account"
 	qrpc "github.com/QuarkChain/goquarkchain/cluster/rpc"
 	qcom "github.com/QuarkChain/goquarkchain/common"
@@ -32,10 +31,8 @@ func (c *CommonAPI) callOrEstimateGas(args *CallArgs, height *uint64, isCall boo
 		return nil, err
 	}
 	if isCall {
-		fmt.Println("isCall")
 		res, err := c.b.ExecuteTransaction(tx, args.From, height)
 		if err != nil {
-			fmt.Println("38---err", err)
 			return nil, err
 		}
 		return (hexutil.Bytes)(res), nil
@@ -197,8 +194,6 @@ func (p *PublicBlockChainAPI) GetBalances(address account.Address, blockNr *rpc.
 }
 
 func (p *PublicBlockChainAPI) GetAccountData(address account.Address, blockNr *rpc.BlockNumber, includeShards *bool) (map[string]interface{}, error) {
-	fmt.Println("GGGetAccountData", address.ToHex(), blockNr, includeShards)
-	defer fmt.Println("end GGGetAccountData")
 	if includeShards != nil && blockNr == nil {
 		return nil, errors.New("do not allow specify height if client wants info on all shards")
 	}
@@ -252,7 +247,6 @@ func (p *PublicBlockChainAPI) GetAccountData(address account.Address, blockNr *r
 			primary = shardData
 		}
 	}
-	fmt.Println("succ")
 	return map[string]interface{}{
 		"primary": primary,
 		"shards":  shards,
@@ -385,17 +379,13 @@ func (p *PublicBlockChainAPI) GetTransactionById(txID hexutil.Bytes) (map[string
 }
 
 func (p *PublicBlockChainAPI) Call(data CallArgs, blockNr *rpc.BlockNumber) (hexutil.Bytes, error) {
-	fmt.Println("Call", "start", blockNr)
-	defer fmt.Println("Call ", "end")
 	if blockNr == nil {
-		fmt.Println("389----")
 		return p.CommonAPI.callOrEstimateGas(&data, nil, true)
 	}
 	blockNumber, err := decodeBlockNumberToUint64(p.b, blockNr)
 	if err != nil {
 		return nil, err
 	}
-	fmt.Println(">>>>>>>>>", blockNumber, err)
 	return p.CommonAPI.callOrEstimateGas(&data, blockNumber, true)
 
 }
@@ -662,10 +652,10 @@ func NewPrivateBlockChainAPI(b Backend) *PrivateBlockChainAPI {
 	return &PrivateBlockChainAPI{b}
 }
 
-func (p *PrivateBlockChainAPI) GetPeers() (map[string]interface{}, error) {
+func (p *PrivateBlockChainAPI) GetPeers() map[string]interface{} {
 	fields := make(map[string]interface{})
 
-	list := make([]interface{}, 0)
+	list := make([]map[string]interface{}, 0)
 	peerList := p.b.GetPeerInfolist()
 	for _, v := range peerList {
 		list = append(list, map[string]interface{}{
@@ -674,10 +664,8 @@ func (p *PrivateBlockChainAPI) GetPeers() (map[string]interface{}, error) {
 			"port": hexutil.Uint(v.Port),
 		})
 	}
-	fmt.Println("!!!!!!!!!!!!!")
 	fields["peers"] = list
-	//fields["peers"] = nil
-	return fields, nil
+	return fields
 }
 
 func (p *PrivateBlockChainAPI) GetSyncStats() {

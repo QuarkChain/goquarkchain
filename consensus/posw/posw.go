@@ -89,7 +89,6 @@ func (p *PoSW) BuildSenderDisallowMap(headerHash common.Hash, coinbase *account.
 }
 
 func (p *PoSW) IsPoSWEnabled(header types.IHeader) bool {
-	fmt.Println("????", p.config.Enabled, header.GetTime(), p.config.EnableTimestamp, header.NumberU64())
 	return p.config.Enabled && header.GetTime() >= p.config.EnableTimestamp && header.NumberU64() >= 0
 }
 
@@ -152,7 +151,6 @@ func (p *PoSW) GetPoSWInfo(header types.IHeader, stakes *big.Int) (effectiveDiff
 	if blockThreshold > p.config.WindowSize {
 		blockThreshold = p.config.WindowSize
 	}
-	fmt.Println("blockThreshold11111111111", blockThreshold, p.config.WindowSize, stakes, p.config.TotalStakePerBlock)
 	blockCnt, err := p.CountCoinbaseBlockUntil(header.Hash(), header.GetCoinbase().Recipient)
 	if err != nil {
 		return nil, 0, 0, err

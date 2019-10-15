@@ -221,7 +221,6 @@ func (m *MinorBlockChain) validateTx(tx *types.Transaction, evmState *state.Stat
 			return nil, err
 		}
 	} else {
-		fmt.Println("!!!!!!!!!!!224")
 		sender = fromAddress.Recipient
 	}
 
