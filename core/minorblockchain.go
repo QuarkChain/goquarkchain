@@ -602,7 +602,7 @@ func (m *MinorBlockChain) HasBlockAndState(hash common.Hash) bool {
 	}
 	block := m.GetMinorBlock(hash)
 	if block == nil {
-		panic("can not happen")
+		panic("bug fix block can not be nil")
 	}
 	return m.HasState(block.GetMetaData().Root)
 }
