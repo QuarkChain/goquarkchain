@@ -596,9 +596,13 @@ func (m *MinorBlockChain) HasState(hash common.Hash) bool {
 // in the database or not, caching it if present.
 func (m *MinorBlockChain) HasBlockAndState(hash common.Hash) bool {
 	// Check first that the block itself is known
+	flag := m.HasBlock(hash)
+	if !flag {
+		return false
+	}
 	block := m.GetMinorBlock(hash)
 	if block == nil {
-		return false
+		panic("can not happen")
 	}
 	return m.HasState(block.GetMetaData().Root)
 }
