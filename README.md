@@ -24,31 +24,36 @@ Check out the [Wiki](https://github.com/QuarkChain/pyquarkchain/wiki) to underst
 ### Environment configuration for Go
 Install golang
 ```bash
-#requires golang sdk >= 1.12
-wget https://studygolang.com/dl/golang/go1.13.1.linux-amd64.tar.gz
-tar xzvf go1.13.1.linux-amd64.tar.gz -C /usr/lib/
+#requires golang sdk >= 1.12, e.g. go1.12.10
+wget https://studygolang.com/dl/golang/go1.12.10.linux-amd64.tar.gz
+tar xzvf go1.12.10.linux-amd64.tar.gz -C /usr/lib/
 ```
-In bashrc, add environment variables for golang
+Append the following environment variables to .bashrc
 ```bash
-#GOROOT
 export GOROOT=/usr/lib/go
-#GOPATH  go project path
-export GOPATH=/home/gocode
-#GOPATH bin
-export PATH=$PATH:$GOPATH/bin
-#GOROOT bin
-export PATH=$PATH:$GOROOT/bin
+export GOPATH=$HOME/go
+export PATH=$GOPATH/bin:$GOROOT/bin:$PATH
+export GOPROXY=https://goproxy.io
+export GO111MODULE=on
 ```
 Refesh bash
 ```bash
 source ~/.bashrc
 ```
 
-Check 
+Check go installation
 ```bash
-go version
-go version go1.12.8 linux/amd64
+go version #go version go1.12.10 linux/amd64
 ```
+### Install some dependencies
+```bash
+sudo apt-get install swig
+sudo apt-get install make
+sudo apt-get install g++
+sudo apt-get install -y git build-essential wget pkg-config libgmp-dev libssl-dev ca-certificates libxml2-dev libxslt1-dev swig
+sudo apt-get install -y libsnappy-dev zlib1g-dev libbz2-dev libgflags-dev liblz4-dev libzstd-dev
+```
+
 ### Install rocksdb
 ```bash
 wget https://github.com/facebook/rocksdb/archive/v6.1.2.tar.gz
@@ -60,11 +65,13 @@ cd rocksdb
 PORTABLE=1 make shared_lib
 INSTALL_PATH=/usr/local make install-shared
 ```
-In bashrc, add environment variables for rocksdb
+Append the following environment variables to .bashrc
 ```bash
 export CPLUS_INCLUDE_PATH=${CPLUS_INCLUDE_PATH}:/usr/lib/rocksdb/include
 export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:/usr/lib/rocksdb
 export LIBRARY_PATH=${LIBRARY_PATH}:/usr/lib/rocksdb
+export CGO_CFLAGS="-I/usr/local/include"
+export CGO_LDFLAGS="-L/usr/local/lib -lrocksdb -lstdc++ -lm -lz -lbz2 -lsnappy"
 ```
 Refesh bash 
 ```bash
@@ -73,15 +80,19 @@ source ~/.bashrc
 ### Install goquarkchain
 Setup goquarkchain 
 ```bash
+cd $GOPATH
+mkdir -p src/github.com/QuarkChain
+cd src/github.com/QuarkChain
 git clone https://github.com/QuarkChain/goquarkchain.git
 #build qkchash
-cd /goquarkchain/consensus/qkchash/native
+cd goquarkchain/consensus/qkchash/native
 g++ -shared -o libqkchash.so -fPIC qkchash.cpp -O3 -std=gnu++17
 make
 ```
 Run all the unit tests under `goquarkchain`
 
 ```
+cd $GOPATH/src/github.com/QuarkChain/goquarkchain
 go test ./...
 ```
 ## Joining Testnet
