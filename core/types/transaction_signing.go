@@ -96,6 +96,7 @@ func (s EIP155Signer) Equal(s2 Signer) bool {
 
 func (s EIP155Signer) Sender(tx *EvmTransaction) (account.Recipient, error) {
 	if tx.NetworkId() != s.networkId {
+		fmt.Println("????????????", tx.NetworkId(), s.networkId)
 		return account.Recipient{}, ErrInvalidNetworkId
 	}
 

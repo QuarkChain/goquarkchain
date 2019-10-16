@@ -134,7 +134,8 @@ var DefaultTxPoolConfig = TxPoolConfig{
 	AccountQueue: 64,
 	GlobalQueue:  1024,
 
-	Lifetime: 3 * time.Hour,
+	Lifetime:  3 * time.Hour,
+	NetWorkID: 3,
 }
 
 // TxPool contains all currently known transactions. Transactions
@@ -441,6 +442,7 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 	// Make sure the transaction is signed properly
 	from, err := types.Sender(pool.signer, tx.EvmTx)
 	if err != nil {
+		fmt.Println("err", err)
 		return ErrInvalidSender
 	}
 	// Drop non-local transactions under our own minimal accepted gas price

@@ -76,6 +76,7 @@ func (bc *testBlockChain) SubscribeChainHeadEvent(ch chan<- MinorChainHeadEvent)
 func (bc *testBlockChain) Config() *config.QuarkChainConfig {
 	if bc.quarkChainConfig == nil {
 		bc.quarkChainConfig = config.NewQuarkChainConfig()
+		bc.quarkChainConfig.MinTXPoolGasPrice = new(big.Int).SetUint64(1)
 	}
 	return bc.quarkChainConfig
 }
@@ -896,10 +897,10 @@ func testTransactionQueueTimeLimiting(t *testing.T, nolocals bool) {
 	pool.currentState.AddBalance(crypto.PubkeyToAddress(remote.PublicKey), big.NewInt(100000000000), genesisTokenID)
 
 	// Add the two transactions and ensure they both are queued up
-	if err := pool.AddLocal(pricedTransaction(1, 100000, big.NewInt(1000000000), local)); err != nil {
+	if err := pool.AddLocal(pricedTransaction(1, 100000, big.NewInt(1), local)); err != nil {
 		t.Fatalf("failed to add local transaction: %v", err)
 	}
-	if err := pool.AddRemote(pricedTransaction(1, 100000, big.NewInt(1000000000), remote)); err != nil {
+	if err := pool.AddRemote(pricedTransaction(1, 100000, big.NewInt(1), remote)); err != nil {
 		t.Fatalf("failed to add remote transaction: %v", err)
 	}
 	pending, queued := pool.Stats()
