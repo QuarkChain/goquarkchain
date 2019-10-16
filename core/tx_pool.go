@@ -497,7 +497,7 @@ func (pool *TxPool) add(tx *types.Transaction, local bool) (replaced bool, err e
 		// New transaction is better, replace old one
 		if old != nil {
 			pool.all.Remove(old.Hash())
-			pool.priced.Removed()
+			pool.priced.Removed(1)
 		}
 		pool.all.Add(tx)
 		pool.priced.Put(tx)
@@ -538,7 +538,7 @@ func (pool *TxPool) enqueueTx(hash common.Hash, tx *types.Transaction) (bool, er
 	// Discard any previous transaction and mark this
 	if old != nil {
 		pool.all.Remove(old.Hash())
-		pool.priced.Removed()
+		pool.priced.Removed(1)
 	}
 	if pool.all.Get(hash) == nil {
 		pool.all.Add(tx)
@@ -562,14 +562,14 @@ func (pool *TxPool) promoteTx(addr common.Address, hash common.Hash, tx *types.T
 	if !inserted {
 		// An older transaction was better, discard this
 		pool.all.Remove(hash)
-		pool.priced.Removed()
+		pool.priced.Removed(1)
 
 		return false
 	}
 	// Otherwise discard any previous transaction and mark this
 	if old != nil {
 		pool.all.Remove(old.Hash())
-		pool.priced.Removed()
+		pool.priced.Removed(1)
 	}
 	// Failsafe to work around direct pending inserts (tests)
 	if pool.all.Get(hash) == nil {
@@ -723,7 +723,7 @@ func (pool *TxPool) removeTx(hash common.Hash, outofbound bool) {
 	// Remove it from the list of known transactions
 	pool.all.Remove(hash)
 	if outofbound {
-		pool.priced.Removed()
+		pool.priced.Removed(1)
 	}
 
 	// Remove the transaction from the pending lists and reset the account nonce
@@ -1066,7 +1066,7 @@ func (pool *TxPool) promoteExecutables(accounts []common.Address) []*types.Trans
 			}
 		}
 		// Mark all the items dropped as removed
-		pool.priced.Removed()
+		pool.priced.Removed(len(forwards) + len(drops) + len(caps))
 
 		// Delete the entire queue entry if it became empty.
 		if list.Empty() {
@@ -1123,7 +1123,7 @@ func (pool *TxPool) truncatePending() {
 						pool.pendingNonces.setIfLower(offenders[i], tx.EvmTx.Nonce())
 						log.Trace("Removed fairness-exceeding pending transaction", "hash", hash)
 					}
-					pool.priced.Removed()
+					pool.priced.Removed(len(caps))
 					pending--
 				}
 			}
@@ -1146,7 +1146,7 @@ func (pool *TxPool) truncatePending() {
 					pool.pendingNonces.setIfLower(addr, tx.EvmTx.Nonce())
 					log.Trace("Removed fairness-exceeding pending transaction", "hash", hash)
 				}
-				pool.priced.Removed()
+				pool.priced.Removed(len(caps))
 				pending--
 			}
 		}
@@ -1221,7 +1221,7 @@ func (pool *TxPool) demoteUnexecutables() {
 			log.Trace("Removed unpayable pending transaction", "hash", hash)
 			pool.all.Remove(hash)
 		}
-		pool.priced.Removed()
+		pool.priced.Removed(len(olds) + len(drops))
 
 		for _, tx := range invalids {
 			hash := tx.Hash()
