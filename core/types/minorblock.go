@@ -2,6 +2,7 @@
 package types
 
 import (
+	"fmt"
 	"math/big"
 	"sync/atomic"
 	"time"
@@ -437,11 +438,14 @@ func (m *MinorBlock) Finalize(receipts Receipts, rootHash common.Hash, gasUsed *
 	m.meta.GasUsed = &serialize.Uint256{Value: gasUsed}
 	m.meta.CrossShardGasUsed = &serialize.Uint256{Value: xShardReceiveGasUsed}
 	m.header.CoinbaseAmount = coinbaseAmount
+	ts := time.Now()
 	m.meta.TxHash = CalculateMerkleRoot(m.Transactions())
 	m.meta.ReceiptHash = DeriveSha(receipts)
 	m.header.MetaHash = m.meta.Hash()
 	m.header.Bloom = CreateBloom(receipts)
+	fmt.Println("FFFFFFFFF", time.Now().Sub(ts).Seconds())
 	m.hash.Store(m.header.Hash())
+	fmt.Println("FFFFFFFFF-ssss", time.Now().Sub(ts).Seconds())
 }
 func (h *MinorBlock) CreateBlockToAppend(createTime *uint64, difficulty *big.Int, address *account.Address, nonce *uint64, gasLimit *big.Int, xShardGasLimit *big.Int, extraData []byte, coinbaseAmount *TokenBalances, prevRootHash *common.Hash) *MinorBlock {
 	if createTime == nil {

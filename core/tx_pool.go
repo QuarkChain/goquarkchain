@@ -130,7 +130,7 @@ var DefaultTxPoolConfig = TxPoolConfig{
 	PriceBump:  10,
 
 	AccountSlots: 16,
-	GlobalSlots:  8092,
+	GlobalSlots:  108092,
 	AccountQueue: 64,
 	GlobalQueue:  1024,
 
@@ -225,8 +225,28 @@ func NewTxPool(config TxPoolConfig, chain minorBlockChain) *TxPool {
 	// Start the event loop and return
 	pool.wg.Add(1)
 	go pool.loop()
+	pool.display()
 
 	return pool
+}
+func (pool *TxPool) display() {
+	go func() {
+		for true {
+			time.Sleep(1 * time.Second)
+			if time.Now().Second()%10 == 0 {
+				break
+			}
+		}
+		for true {
+			time.Sleep(10 * time.Second)
+			pool.mu.RLock()
+			pending := len(pool.pending)
+			queue := len(pool.queue)
+			all := pool.all.Count()
+			pool.mu.RUnlock()
+			fmt.Println("txpool detail-------------", "time", time.Now().String(), "pending ", pending, "queue", queue, "all", all)
+		}
+	}()
 }
 
 // loop is the transaction pool's main event loop, waiting for and reacting to
@@ -256,9 +276,9 @@ func (pool *TxPool) loop() {
 				pool.mu.Lock()
 				pool.reset(head, ev.Block)
 				head = ev.Block
-
 				pool.mu.Unlock()
 			}
+
 		// Be unsubscribed due to system stopped
 		case <-pool.chainHeadSub.Err():
 			return
@@ -298,9 +318,6 @@ func (pool *TxPool) loop() {
 // lockedReset is a wrapper around reset to allow calling it in a thread safe
 // manner. This method is only ever used in the tester!
 func (pool *TxPool) lockedReset(oldHead, newHead *types.MinorBlock) {
-	pool.mu.Lock()
-	defer pool.mu.Unlock()
-
 	pool.reset(oldHead, newHead)
 }
 

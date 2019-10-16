@@ -405,18 +405,24 @@ func (s *ShardBackend) setHead(head uint64) {
 
 func (s *ShardBackend) AddTxList(txs []*types.Transaction, peerID string) error {
 	ts := time.Now()
-	if err := s.MinorBlockChain.AddTxList(txs); err != nil {
-		return err
-	}
+	go func() {
+		if err := s.MinorBlockChain.AddTxList(txs); err != nil {
+			panic(err)
+			log.Error(s.logInfo, "AddTxList err", err)
+		}
+	}()
+
 	go func() {
 		span := len(txs) / params.NEW_TRANSACTION_LIST_LIMIT
 		for index := 0; index < span; index++ {
 			if err := s.conn.BroadcastTransactions(txs[index*params.NEW_TRANSACTION_LIST_LIMIT:(index+1)*params.NEW_TRANSACTION_LIST_LIMIT], s.branch.Value, peerID); err != nil {
+				panic(-1)
 				log.Error(s.logInfo, "broadcastTransaction err", err)
 			}
 		}
 		if len(txs)%params.NEW_TRANSACTION_LIST_LIMIT != 0 {
 			if err := s.conn.BroadcastTransactions(txs[span*params.NEW_TRANSACTION_LIST_LIMIT:], s.branch.Value, peerID); err != nil {
+				panic(-1)
 				log.Error(s.logInfo, "broadcastTransaction err", err)
 			}
 		}
@@ -436,6 +442,8 @@ func (s *ShardBackend) GetDefaultCoinbaseAddress() account.Address {
 
 // miner api
 func (s *ShardBackend) CreateBlockToMine(addr *account.Address) (types.IBlock, *big.Int, uint64, error) {
+	ts := time.Now()
+	fmt.Println("CreateBlockToMine", s.MinorBlockChain.CurrentBlock().Number())
 	coinbaseAddress := s.Config.CoinbaseAddress
 	if addr != nil {
 		coinbaseAddress = *addr
@@ -444,6 +452,7 @@ func (s *ShardBackend) CreateBlockToMine(addr *account.Address) (types.IBlock, *
 	if err != nil {
 		return nil, nil, 0, err
 	}
+	fmt.Println("CreateBlockToMine--", s.MinorBlockChain.CurrentBlock().Number(), time.Now().Sub(ts).Seconds())
 	diff := minorBlock.Difficulty()
 	header := minorBlock.Header()
 	if s.posw.IsPoSWEnabled(header) {
@@ -457,8 +466,10 @@ func (s *ShardBackend) CreateBlockToMine(addr *account.Address) (types.IBlock, *
 			log.Error("PoSW", "failed to compute PoSW difficulty", err)
 			return nil, nil, 0, err
 		}
+		fmt.Println("CreateBlockToMine--end", s.MinorBlockChain.CurrentBlock().Number(), time.Now().Sub(ts).Seconds())
 		return minorBlock, adjustedDifficulty, 1, nil
 	}
+	fmt.Println("CreateBlockToMine--end-2", s.MinorBlockChain.CurrentBlock().Number(), time.Now().Sub(ts).Seconds())
 	return minorBlock, diff, 1, nil
 }
 

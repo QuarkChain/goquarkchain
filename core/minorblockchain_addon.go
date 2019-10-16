@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"github.com/QuarkChain/goquarkchain/params"
 	"golang.org/x/sync/errgroup"
 	"math"
 	"math/big"
@@ -308,7 +307,7 @@ func (m *MinorBlockChain) isNeighbor(remoteBranch account.Branch, rootHeight *ui
 }
 
 func (m *MinorBlockChain) putRootBlock(rBlock *types.RootBlock, minorHeader *types.MinorBlockHeader) {
-	log.Info(m.logInfo, "putRootBlock number", rBlock.Number(), "hash", rBlock.Hash().String(), "lenMinor", len(rBlock.MinorBlockHeaders()))
+	//log.Info(m.logInfo, "putRootBlock number", rBlock.Number(), "hash", rBlock.Hash().String(), "lenMinor", len(rBlock.MinorBlockHeaders()))
 	rBlockHash := rBlock.Hash()
 	rawdb.WriteRootBlock(m.db, rBlock)
 	var mHash common.Hash
@@ -318,7 +317,7 @@ func (m *MinorBlockChain) putRootBlock(rBlock *types.RootBlock, minorHeader *typ
 	if _, ok := m.rootHeightToHashes[rBlock.NumberU64()]; !ok {
 		m.rootHeightToHashes[rBlock.NumberU64()] = make(map[common.Hash]common.Hash)
 	}
-	log.Info("putRootBlock", "rBlock", rBlock.NumberU64(), "rHash", rBlock.Hash().String(), "mHash", mHash.String())
+	//log.Info("putRootBlock", "rBlock", rBlock.NumberU64(), "rHash", rBlock.Hash().String(), "mHash", mHash.String())
 	m.rootHeightToHashes[rBlock.NumberU64()][rBlock.Hash()] = mHash
 	rawdb.WriteLastConfirmedMinorBlockHeaderAtRootBlock(m.db, rBlockHash, mHash)
 }
@@ -488,9 +487,9 @@ func recoverSender(txs []*types.Transaction, networkID uint32) error {
 }
 func (m *MinorBlockChain) AddTxList(txs []*types.Transaction) error {
 	ts := time.Now()
-	interval := len(txs) / params.TPS_Num
+	interval := len(txs) / 4
 	var g errgroup.Group
-	for index := 0; index < params.TPS_Num; index++ {
+	for index := 0; index < 4; index++ {
 		i := index
 		g.Go(func() error {
 			if err := recoverSender(txs[i*interval:(i+1)*interval], m.clusterConfig.Quarkchain.NetworkID); err != nil {
@@ -686,10 +685,12 @@ func (m *MinorBlockChain) GetUnconfirmedHeadersCoinbaseAmount() uint64 {
 
 func (m *MinorBlockChain) addTransactionToBlock(block *types.MinorBlock, evmState *state.StateDB) (*types.MinorBlock, types.Receipts, error) {
 	// have locked by upper call
+	tt := time.Now()
 	pending, err := m.txPool.Pending() // txpool already locked
 	if err != nil {
 		return nil, nil, err
 	}
+	fmt.Println("pppp", time.Now().Sub(tt).Seconds())
 	txs, err := types.NewTransactionsByPriceAndNonce(types.NewEIP155Signer(uint32(m.Config().NetworkID)), pending)
 
 	gp := new(GasPool).AddGas(block.Header().GetGasLimit().Uint64())
@@ -740,7 +741,10 @@ func (m *MinorBlockChain) addTransactionToBlock(block *types.MinorBlock, evmStat
 
 	}
 	bHeader := block.Header()
-	return types.NewMinorBlock(bHeader, block.Meta(), txsInBlock, receipts, nil), receipts, nil
+	fmt.Println("pppp-2", time.Now().Sub(tt).Seconds())
+	bb := types.NewMinorBlock(bHeader, block.Meta(), txsInBlock, receipts, nil)
+	fmt.Println("pppp-3", time.Now().Sub(tt).Seconds())
+	return bb, receipts, nil
 }
 
 func (m *MinorBlockChain) checkTxBeforeApply(stateT *state.StateDB, tx *types.Transaction, header *types.MinorBlockHeader) error {
@@ -766,6 +770,7 @@ func (m *MinorBlockChain) checkTxBeforeApply(stateT *state.StateDB, tx *types.Tr
 func (m *MinorBlockChain) CreateBlockToMine(createTime *uint64, address *account.Address, gasLimit, xShardGasLimit *big.Int,
 	includeTx *bool) (*types.MinorBlock, error) {
 
+	ts := time.Now()
 	if includeTx == nil {
 		t := true
 		includeTx = &t
@@ -817,6 +822,7 @@ func (m *MinorBlockChain) CreateBlockToMine(createTime *uint64, address *account
 	if err != nil {
 		return nil, err
 	}
+	fmt.Println("tttt-22", time.Now().Sub(ts).Seconds())
 	evmState.SetTxCursorInfo(txCursor)
 	//Adjust inshard tx limit if xshard gas limit is not exhausted
 	if evmState.GetGasUsed().Cmp(xShardGasLimit) == -1 {
@@ -831,6 +837,7 @@ func (m *MinorBlockChain) CreateBlockToMine(createTime *uint64, address *account
 			return nil, err
 		}
 	}
+	fmt.Println("tttt-33", time.Now().Sub(ts).Seconds())
 	receipts = append(receipts, xShardReceipts...)
 
 	pureCoinbaseAmount := m.getCoinbaseAmount(block.Header().Number)
@@ -839,8 +846,12 @@ func (m *MinorBlockChain) CreateBlockToMine(createTime *uint64, address *account
 		evmState.AddBalance(evmState.GetBlockCoinbase(), v, k)
 	}
 	pureCoinbaseAmount.Add(evmState.GetBlockFee())
-	block.Finalize(receipts, evmState.IntermediateRoot(true), evmState.GetGasUsed(),
+	fmt.Println("tttt-33-1", time.Now().Sub(ts).Seconds())
+	hash := evmState.IntermediateRoot(true)
+	fmt.Println("tttt-33-2", time.Now().Sub(ts).Seconds())
+	block.Finalize(receipts, hash, evmState.GetGasUsed(),
 		evmState.GetXShardReceiveGasUsed(), pureCoinbaseAmount, evmState.GetTxCursorInfo())
+	fmt.Println("tttt-44", time.Now().Sub(ts).Seconds())
 	return block, nil
 }
 
