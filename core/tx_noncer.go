@@ -17,6 +17,7 @@
 package core
 
 import (
+	"fmt"
 	"sync"
 
 	"github.com/QuarkChain/goquarkchain/core/state"
@@ -57,6 +58,7 @@ func (txn *txNoncer) get(addr common.Address) uint64 {
 // set inserts a new virtual nonce into the virtual state database to be returned
 // whenever the pool requests it instead of reaching into the real state database.
 func (txn *txNoncer) set(addr common.Address, nonce uint64) {
+	fmt.Println("Ssss", addr.String(), nonce)
 	txn.lock.Lock()
 	defer txn.lock.Unlock()
 

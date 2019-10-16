@@ -99,7 +99,7 @@ func pricedTransaction(nonce uint64, gaslimit uint64, gasprice *big.Int, key *ec
 func setupTxPool() (*TxPool, *ecdsa.PrivateKey) {
 	statedb, _ := state.New(common.Hash{}, state.NewDatabase(ethdb.NewMemDatabase()))
 	blockchain := &testBlockChain{statedb, 1000000, new(event.Feed), nil}
-
+	blockchain.Config().MinTXPoolGasPrice = new(big.Int).SetUint64(1)
 	key, _ := crypto.GenerateKey()
 	pool := NewTxPool(testTxPoolConfig, blockchain)
 
@@ -117,6 +117,7 @@ func validateTxPoolInternals(pool *TxPool) error {
 		return fmt.Errorf("total transaction count %d != %d pending + %d queued", total, pending, queued)
 	}
 	if priced := pool.priced.items.Len() - pool.priced.stales; priced != pending+queued {
+		fmt.Println("GGGGG", pool.priced.items.Len(), pool.priced.stales)
 		return fmt.Errorf("total priced transaction count %d != %d pending + %d queued", priced, pending, queued)
 	}
 	// Ensure the next nonce to assign is the correct one
@@ -251,9 +252,8 @@ func TestInvalidTransactions(t *testing.T) {
 	from, _ := deriveSender(tx)
 
 	pool.currentState.AddBalance(from, big.NewInt(1), genesisTokenID)
-	if err := pool.AddRemote(tx); err != ErrInsufficientFunds {
-		fmt.Println("err", err)
-		t.Error("expected", ErrInsufficientFunds)
+	if err := pool.AddRemote(tx); err != ErrIntrinsicGas {
+		t.Error("expected", ErrIntrinsicGas)
 	}
 
 	balance := new(big.Int).Add(tx.EvmTx.Value(), new(big.Int).Mul(new(big.Int).SetUint64(tx.EvmTx.Gas()), tx.EvmTx.GasPrice()))
@@ -412,8 +412,8 @@ func TestTransactionDoubleNonce(t *testing.T) {
 	if pool.pending[addr].Len() != 1 {
 		t.Error("expected 1 pending transactions, got", pool.pending[addr].Len())
 	}
-	if tx := pool.pending[addr].txs.items[0]; tx.Hash() != tx2.Hash() {
-		t.Errorf("transaction mismatch: have %x, want %x", tx.Hash(), tx2.Hash())
+	if tx := pool.pending[addr].txs.items[0]; tx.Hash() != txTx2.Hash() {
+		t.Errorf("transaction mismatch: have %x, want %x", tx.Hash(), txTx2.Hash())
 	}
 
 	// Add the third transaction and ensure it's not saved (smaller price)
@@ -422,8 +422,8 @@ func TestTransactionDoubleNonce(t *testing.T) {
 	if pool.pending[addr].Len() != 1 {
 		t.Error("expected 1 pending transactions, got", pool.pending[addr].Len())
 	}
-	if tx := pool.pending[addr].txs.items[0]; tx.Hash() != tx2.Hash() {
-		t.Errorf("transaction mismatch: have %x, want %x", tx.Hash(), tx2.Hash())
+	if tx := pool.pending[addr].txs.items[0]; tx.Hash() != txTx2.Hash() {
+		t.Errorf("transaction mismatch: have %x, want %x", tx.Hash(), txTx2.Hash())
 	}
 	// Ensure the total transaction count is correct
 	if pool.all.Count() != 1 {
