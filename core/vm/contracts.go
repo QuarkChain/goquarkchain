@@ -26,7 +26,6 @@ import (
 	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/crypto/bn256"
-	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
 	"golang.org/x/crypto/ripemd160"
 )
@@ -488,7 +487,6 @@ func (c *currentMntID) Run(input []byte, evm *EVM, contract *Contract) ([]byte, 
 	b := make([]byte, 8)
 	binary.BigEndian.PutUint64(b, evm.TransferTokenID)
 	zeors := make([]byte, 24, 24)
-	log.Warn(" (c *currentMntID) Run", "currentMnt", common.Bytes2Hex(b))
 	return append(zeors, b...), nil
 }
 
