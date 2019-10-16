@@ -41,10 +41,10 @@ func (c *CallArgs) setDefaults() {
 }
 func (c *CallArgs) toTx(config *config.QuarkChainConfig) (*types.Transaction, error) {
 	gasTokenID, transferTokenID := config.GetDefaultChainTokenID(), config.GetDefaultChainTokenID()
-	if c.GasTokenID == nil {
+	if c.GasTokenID != nil {
 		gasTokenID = uint64(*c.GasTokenID)
 	}
-	if c.TransferTokenID == nil {
+	if c.TransferTokenID != nil {
 		transferTokenID = uint64(*c.TransferTokenID)
 	}
 	evmTx := types.NewEvmTransaction(0, c.To.Recipient, c.Value.ToInt(), c.Gas.ToInt().Uint64(),

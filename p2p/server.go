@@ -65,6 +65,19 @@ const (
 
 var errServerStopped = errors.New("server stopped")
 
+func NewHandleErr(text string) error {
+	return &handleErr{text}
+}
+
+// errorString is a trivial implementation of error.
+type handleErr struct {
+	s string
+}
+
+func (e *handleErr) Error() string {
+	return e.s
+}
+
 // Config holds Server options.
 type Config struct {
 	// This field must be set to a valid secp256k1 private key.
@@ -633,7 +646,10 @@ func (srv *Server) run(dialstate dialer) {
 		taskdone     = make(chan task, maxActiveDialTasks)
 		runningTasks []task
 		queuedTasks  []task // tasks that can't run yet
+		ticker       = time.NewTicker(500 * time.Millisecond)
 	)
+	defer ticker.Stop()
+
 	// Put trusted nodes into a map to speed up checks.
 	// Trusted peers are loaded on startup or added via AddTrustedPeer RPC.
 	for _, n := range srv.TrustedNodes {
@@ -682,13 +698,14 @@ func (srv *Server) run(dialstate dialer) {
 
 running:
 	for {
-		scheduleTasks()
-		periodicallyUnblacklist()
-
 		select {
 		case <-srv.quit:
 			// The server was stopped. Run the cleanup logic.
 			break running
+		case <-ticker.C:
+			scheduleTasks()
+			periodicallyUnblacklist()
+
 		case n := <-srv.addstatic:
 			// This channel is used by AddPeer to add to the
 			// ephemeral static peer list. Add it to the dialer,
@@ -778,7 +795,8 @@ running:
 			}
 		case pd := <-srv.delpeer:
 			// A peer disconnected.
-			if pd.err != nil {
+			switch (pd.err).(type) {
+			case *handleErr:
 				srv.blackNodeFilter.addDialoutBlacklist(pd.Node().IP().String())
 			}
 			d := common.PrettyDuration(mclock.Now() - pd.created)
