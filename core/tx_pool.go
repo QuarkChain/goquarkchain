@@ -746,6 +746,7 @@ func (pool *TxPool) removeTx(hash common.Hash, outofbound bool) {
 	}
 	// Transaction is in the future queue
 	if future := pool.queue[addr]; future != nil {
+		future.Remove(tx)
 		if future.Empty() {
 			delete(pool.queue, addr)
 		}

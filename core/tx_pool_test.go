@@ -252,6 +252,7 @@ func TestInvalidTransactions(t *testing.T) {
 
 	pool.currentState.AddBalance(from, big.NewInt(1), genesisTokenID)
 	if err := pool.AddRemote(tx); err != ErrInsufficientFunds {
+		fmt.Println("err", err)
 		t.Error("expected", ErrInsufficientFunds)
 	}
 
