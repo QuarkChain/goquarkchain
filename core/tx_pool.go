@@ -166,14 +166,15 @@ type TxPool struct {
 	all     *txLookup                    // All transactions to allow lookups
 	priced  *txPricedList                // All transactions sorted by price
 
-	chainHeadCh     chan MinorChainHeadEvent
-	chainHeadSub    event.Subscription
-	reqResetCh      chan *txpoolResetRequest
-	reqPromoteCh    chan *accountSet
-	queueTxEventCh  chan *types.Transaction
-	reorgDoneCh     chan chan struct{}
-	reorgShutdownCh chan struct{}  // requests shutdown of scheduleReorgLoop
-	wg              sync.WaitGroup // tracks loop, scheduleReorgLoop
+	chainHeadCh      chan MinorChainHeadEvent
+	chainHeadSub     event.Subscription
+	reqResetCh       chan *txpoolResetRequest
+	reqPromoteCh     chan *accountSet
+	queueTxEventCh   chan *types.Transaction
+	reorgDoneCh      chan chan struct{}
+	reorgShutdownCh  chan struct{}  // requests shutdown of scheduleReorgLoop
+	wg               sync.WaitGroup // tracks loop, scheduleReorgLoop
+	fakeChanForReset chan uint64
 }
 
 type txpoolResetRequest struct {
@@ -217,27 +218,8 @@ func NewTxPool(config TxPoolConfig, chain minorBlockChain) *TxPool {
 	pool.chainHeadSub = pool.chain.SubscribeChainHeadEvent(pool.chainHeadCh)
 	pool.wg.Add(1)
 	go pool.loop()
-	pool.display()
+
 	return pool
-}
-func (pool *TxPool) display() {
-	go func() {
-		for true {
-			time.Sleep(1 * time.Second)
-			if time.Now().Second()%10 == 0 {
-				break
-			}
-		}
-		for true {
-			time.Sleep(10 * time.Second)
-			pool.mu.RLock()
-			pending := len(pool.pending)
-			queue := len(pool.queue)
-			all := pool.all.Count()
-			pool.mu.RUnlock()
-			fmt.Println("txpool detail-------------", "time", time.Now().String(), "pending ", pending, "queue", queue, "all", all)
-		}
-	}()
 }
 
 // loop is the transaction pool's main event loop, waiting for and reacting to
@@ -646,7 +628,6 @@ func (pool *TxPool) AddRemote(tx *types.Transaction) error {
 
 // addTxs attempts to queue a batch of transactions if they are valid.
 func (pool *TxPool) addTxs(txs []*types.Transaction, local, sync bool) []error {
-	ts := time.Now()
 	// Filter out known ones without obtaining the pool lock or recovering signatures
 	var (
 		errs = make([]error, len(txs))
@@ -664,12 +645,10 @@ func (pool *TxPool) addTxs(txs []*types.Transaction, local, sync bool) []error {
 	if len(news) == 0 {
 		return errs
 	}
-	fmt.Println("tt-2", len(txs), time.Now().Sub(ts).Seconds())
 	// Process all the new transaction and merge any errors into the original slice
 	pool.mu.Lock()
 	newErrs, dirtyAddrs := pool.addTxsLocked(news, local)
 	pool.mu.Unlock()
-	fmt.Println("tt-3", len(txs), time.Now().Sub(ts).Seconds())
 
 	var nilSlot = 0
 	for _, err := range newErrs {
@@ -683,7 +662,6 @@ func (pool *TxPool) addTxs(txs []*types.Transaction, local, sync bool) []error {
 	if sync {
 		<-done
 	}
-	fmt.Println("tt-4", len(txs), time.Now().Sub(ts).Seconds())
 	return errs
 }
 
@@ -1031,6 +1009,9 @@ func (pool *TxPool) reset(oldBlock, newBlock *types.MinorBlock) {
 	log.Debug("Reinjecting stale transactions", "count", len(reinject))
 	senderCacher.recover(pool.signer, reinject)
 	pool.addTxsLocked(reinject, false)
+	if pool.fakeChanForReset != nil {
+		pool.fakeChanForReset <- newBlock.NumberU64()
+	}
 }
 
 // promoteExecutables moves transactions that have become processable from the
@@ -1260,6 +1241,18 @@ func (pool *TxPool) demoteUnexecutables() {
 			delete(pool.beats, addr)
 		}
 	}
+}
+
+func (pool *TxPool) GetAllTxInPool() types.Transactions {
+	pool.mu.RLock()
+	defer pool.mu.RUnlock()
+	txs := make(types.Transactions, len(pool.all.all))
+	index := 0
+	for _, tx := range pool.all.all {
+		txs[index] = tx
+		index++
+	}
+	return txs
 }
 
 // addressByHeartbeat is an account address tagged with its last activity timestamp.

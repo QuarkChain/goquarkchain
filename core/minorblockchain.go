@@ -452,7 +452,7 @@ func (m *MinorBlockChain) GetAdjustedDifficulty(header types.IHeader) (*big.Int,
 			return nil, 0, err
 		}
 		if poswAdjusted != nil && poswAdjusted.Cmp(diff) == -1 {
-			//log.Info("PoSW applied", "from", diff, "to", poswAdjusted)
+			log.Info("PoSW applied", "from", diff, "to", poswAdjusted)
 			diff = poswAdjusted
 		}
 	}

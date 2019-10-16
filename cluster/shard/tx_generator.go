@@ -80,7 +80,7 @@ func (t *TxGenerator) Generate(genTxs *rpc.GenTxRequest, addTxList func(txs []*t
 	ts := time.Now()
 	tsa := time.Now()
 	var (
-		batchScale    = uint32(12000)
+		batchScale    = uint32(4000)
 		txList        = make([]*types.Transaction, 0, batchScale)
 		numTx         = genTxs.NumTxPerShard
 		xShardPercent = int(genTxs.XShardPercent)
@@ -129,7 +129,6 @@ func (t *TxGenerator) Generate(genTxs *rpc.GenTxRequest, addTxList func(txs []*t
 		}
 	}
 
-	fmt.Println("ddddddddddddddddddd", time.Now().Sub(ts).Seconds())
 	if len(txList) != 0 {
 		if err := t.SignTx(txList, 2); err != nil {
 			return err
@@ -177,7 +176,6 @@ func (t *TxGenerator) createTransaction(acc *account.Account, nonce uint64,
 	evmTx := types.NewEvmTransaction(nonce, recipient, value, sampleTx.EvmTx.Gas(),
 		sampleTx.EvmTx.GasPrice(), fromFullShardKey, toFullShardKey, t.cfg.NetworkID, 0, sampleTx.EvmTx.Data(), qkcCommon.TokenIDEncode("QKC"), qkcCommon.TokenIDEncode("QKC"))
 	return evmTx, nil
-	return t.sign(evmTx, acc.PrivateKey())
 }
 
 func (t *TxGenerator) random(digit int) int {

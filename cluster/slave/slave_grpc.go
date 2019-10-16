@@ -85,7 +85,6 @@ func (s *SlaveServerSideOp) Ping(ctx context.Context, req *rpc.Request) (*rpc.Re
 }
 
 func (s *SlaveServerSideOp) GenTx(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
-	fmt.Println("GFFFFFFFGGGGGGGGGGGtx")
 	var (
 		gReq     rpc.GenTxRequest
 		response = &rpc.Response{RpcId: req.RpcId}
