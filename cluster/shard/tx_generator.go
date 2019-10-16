@@ -80,7 +80,7 @@ func (t *TxGenerator) Generate(genTxs *rpc.GenTxRequest, addTxList func(txs []*t
 	ts := time.Now()
 	tsa := time.Now()
 	var (
-		batchScale    = uint32(24000)
+		batchScale    = uint32(12000)
 		txList        = make([]*types.Transaction, 0, batchScale)
 		numTx         = genTxs.NumTxPerShard
 		xShardPercent = int(genTxs.XShardPercent)
@@ -109,10 +109,8 @@ func (t *TxGenerator) Generate(genTxs *rpc.GenTxRequest, addTxList func(txs []*t
 
 		if total%batchScale == 0 {
 			log.Info("detail", "total", total, "numTx", numTx, "durtion", time.Now().Sub(ts).Seconds(), "index", t.accountIndex)
-			if err := t.SignTx(txList[0:len(txList)/2], 2); err != nil {
-				return err
-			}
-			if err := t.SignTx(txList[len(txList)/2:], 2); err != nil {
+
+			if err := t.SignTx(txList, 2); err != nil {
 				return err
 			}
 
@@ -128,11 +126,14 @@ func (t *TxGenerator) Generate(genTxs *rpc.GenTxRequest, addTxList func(txs []*t
 		if t.accountIndex == t.lenAccounts {
 			t.turn++
 			t.accountIndex = 0
-			//time.Sleep(2 * time.Second)
 		}
 	}
 
+	fmt.Println("ddddddddddddddddddd", time.Now().Sub(ts).Seconds())
 	if len(txList) != 0 {
+		if err := t.SignTx(txList, 2); err != nil {
+			return err
+		}
 		if err := addTxList(txList, ""); err != nil {
 			return err
 		}

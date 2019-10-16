@@ -503,11 +503,7 @@ func (m *MinorBlockChain) AddTxList(txs []*types.Transaction) error {
 	}
 	log.Info("recover", "len", len(txs), "dur", time.Now().Sub(ts).Seconds())
 	ts = time.Now()
-	for _, tx := range txs {
-		if err := m.txPool.AddLocal(tx); err != nil {
-			return err
-		}
-	}
+	m.txPool.AddLocals(txs)
 	log.Info("AddLocal", "len", len(txs), "dur", time.Now().Sub(ts).Seconds())
 	return nil
 }
@@ -1331,48 +1327,49 @@ func bytesAddOne(data []byte) []byte {
 }
 
 func (m *MinorBlockChain) getPendingTxByAddress(address account.Address, transferTokenID *uint64) ([]*rpc.TransactionDetail, []byte, error) {
-	txList := make([]*rpc.TransactionDetail, 0)
-	txs := m.txPool.GetAllTxInPool()
-
-	needStore := func(sender account.Recipient, tx *types.Transaction) bool {
-		if account.IsSameReceipt(sender, address.Recipient) || (tx.EvmTx.To() != nil && tx.EvmTx.To().String() == address.Recipient.String()) {
-			if transferTokenID == nil || *transferTokenID == tx.EvmTx.TransferTokenID() {
-				return true
-			}
-		}
-		return false
-	}
-
-	//TODO: could also show incoming pending tx????? need check later
-	for _, tx := range txs {
-		sender, err := types.Sender(types.MakeSigner(m.clusterConfig.Quarkchain.NetworkID), tx.EvmTx)
-		if err != nil {
-			return nil, nil, err
-		}
-		if needStore(sender, tx) {
-			to := new(account.Address)
-			if tx.EvmTx.To() == nil {
-				to = nil
-			} else {
-				to.Recipient = *tx.EvmTx.To()
-				to.FullShardKey = tx.EvmTx.ToFullShardKey()
-			}
-			txList = append(txList, &rpc.TransactionDetail{
-				TxHash:          tx.Hash(),
-				FromAddress:     address,
-				ToAddress:       to,
-				Value:           serialize.Uint256{Value: tx.EvmTx.Value()},
-				BlockHeight:     0,
-				Timestamp:       0,
-				Success:         false,
-				GasTokenID:      tx.EvmTx.GasTokenID(),
-				TransferTokenID: tx.EvmTx.TransferTokenID(),
-				IsFromRootChain: false,
-			})
-		}
-
-	}
-	return txList, []byte{}, nil
+	panic(-1)
+	//txList := make([]*rpc.TransactionDetail, 0)
+	//txs := m.txPool.GetAllTxInPool()
+	//
+	//needStore := func(sender account.Recipient, tx *types.Transaction) bool {
+	//	if account.IsSameReceipt(sender, address.Recipient) || (tx.EvmTx.To() != nil && tx.EvmTx.To().String() == address.Recipient.String()) {
+	//		if transferTokenID == nil || *transferTokenID == tx.EvmTx.TransferTokenID() {
+	//			return true
+	//		}
+	//	}
+	//	return false
+	//}
+	//
+	////TODO: could also show incoming pending tx????? need check later
+	//for _, tx := range txs {
+	//	sender, err := types.Sender(types.MakeSigner(m.clusterConfig.Quarkchain.NetworkID), tx.EvmTx)
+	//	if err != nil {
+	//		return nil, nil, err
+	//	}
+	//	if needStore(sender, tx) {
+	//		to := new(account.Address)
+	//		if tx.EvmTx.To() == nil {
+	//			to = nil
+	//		} else {
+	//			to.Recipient = *tx.EvmTx.To()
+	//			to.FullShardKey = tx.EvmTx.ToFullShardKey()
+	//		}
+	//		txList = append(txList, &rpc.TransactionDetail{
+	//			TxHash:          tx.Hash(),
+	//			FromAddress:     address,
+	//			ToAddress:       to,
+	//			Value:           serialize.Uint256{Value: tx.EvmTx.Value()},
+	//			BlockHeight:     0,
+	//			Timestamp:       0,
+	//			Success:         false,
+	//			GasTokenID:      tx.EvmTx.GasTokenID(),
+	//			TransferTokenID: tx.EvmTx.TransferTokenID(),
+	//			IsFromRootChain: false,
+	//		})
+	//	}
+	//
+	//}
+	//return txList, []byte{}, nil
 }
 
 func (m *MinorBlockChain) getTransactionDetails(start, end []byte, limit uint32, getTxType GetTxDetailType, skipCoinbaseRewards bool, transferTokenID *uint64) ([]*rpc.TransactionDetail, []byte, error) {

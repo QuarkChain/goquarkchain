@@ -3,6 +3,7 @@ package qkcapi
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"github.com/QuarkChain/goquarkchain/account"
 	qrpc "github.com/QuarkChain/goquarkchain/cluster/rpc"
 	qcom "github.com/QuarkChain/goquarkchain/common"
@@ -685,6 +686,7 @@ func (p *PrivateBlockChainAPI) GetBlockCount() (map[string]interface{}, error) {
 
 //TODO txGenerate implement
 func (p *PrivateBlockChainAPI) CreateTransactions(args CreateTxArgs) error {
+	fmt.Println("CCCCCCCCCCCCCCCCC")
 	config := clusterCfg.Quarkchain
 	if err := args.setDefaults(config); err != nil {
 		return err
