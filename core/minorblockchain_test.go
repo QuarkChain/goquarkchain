@@ -192,6 +192,7 @@ func testMinorBlockChainImport(chain []types.IBlock, blockchain *MinorBlockChain
 		blockchain.mu.Lock()
 		rawdb.WriteTd(blockchain.db, block.Hash(), new(big.Int).Add(block.IHeader().GetDifficulty(), blockchain.GetTdByHash(block.IHeader().GetParentHash())))
 		rawdb.WriteMinorBlock(blockchain.db, block.(*types.MinorBlock))
+		rawdb.WriteCommitMinorBlock(blockchain.db, block.Hash())
 		statedb.Commit(true)
 		blockchain.mu.Unlock()
 	}

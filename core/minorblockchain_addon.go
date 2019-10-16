@@ -95,7 +95,6 @@ func (m *MinorBlockChain) putMinorBlock(mBlock *types.MinorBlock, xShardReceiveT
 	if !m.HasBlock(mBlock.Hash()) {
 		rawdb.WriteMinorBlock(m.db, mBlock)
 	}
-
 	if err := m.putTotalTxCount(mBlock); err != nil {
 		return err
 	}
@@ -260,6 +259,7 @@ func (m *MinorBlockChain) InitGenesisState(rBlock *types.RootBlock) (*types.Mino
 	}
 	m.putRootBlock(rBlock, nil)
 	rawdb.WriteGenesisBlock(m.db, rBlock.Hash(), gBlock) // key:rootBlockHash value:minorBlock
+	m.CommitMinorBlockByHash(gBlock.Hash())
 	if m.initialized {
 		return gBlock, nil
 	}

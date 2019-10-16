@@ -104,12 +104,16 @@ func (s *SlaveBackend) APIs() []rpc.API {
 			Version:   "3.0",
 			Service:   NewServerSideOp(s),
 			Public:    false,
-		}, {
-			Namespace: "ws",
-			Version:   "3.0",
-			Service:   NewPublicFilterAPI(s), // Private slave api
-			Public:    true,
 		},
+	}
+	if s.ctx.WSIsAlive() {
+		apis = append(apis,
+			rpc.API{
+				Namespace: "ws",
+				Version:   "3.0",
+				Service:   NewPublicFilterAPI(s), // Private slave api
+				Public:    true,
+			})
 	}
 	return apis
 }
