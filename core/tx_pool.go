@@ -210,7 +210,6 @@ func NewTxPool(config TxPoolConfig, chain minorBlockChain) *TxPool {
 	}
 	pool.priced = newTxPricedList(pool.all)
 	pool.reset(nil, chain.CurrentBlock())
-	fmt.Println("Reset", len(pool.pending), len(pool.queue))
 
 	// Start the reorg loop early so it can handle requests generated during journal loading.
 	pool.wg.Add(1)

@@ -447,8 +447,6 @@ func (s *ShardBackend) GetDefaultCoinbaseAddress() account.Address {
 
 // miner api
 func (s *ShardBackend) CreateBlockToMine(addr *account.Address) (types.IBlock, *big.Int, uint64, error) {
-	ts := time.Now()
-	fmt.Println("CreateBlockToMine", s.MinorBlockChain.CurrentBlock().Number())
 	coinbaseAddress := s.Config.CoinbaseAddress
 	if addr != nil {
 		coinbaseAddress = *addr
@@ -457,7 +455,6 @@ func (s *ShardBackend) CreateBlockToMine(addr *account.Address) (types.IBlock, *
 	if err != nil {
 		return nil, nil, 0, err
 	}
-	fmt.Println("CreateBlockToMine--", s.MinorBlockChain.CurrentBlock().Number(), time.Now().Sub(ts).Seconds())
 	diff := minorBlock.Difficulty()
 	header := minorBlock.Header()
 	if s.posw.IsPoSWEnabled(header) {
@@ -471,10 +468,8 @@ func (s *ShardBackend) CreateBlockToMine(addr *account.Address) (types.IBlock, *
 			log.Error("PoSW", "failed to compute PoSW difficulty", err)
 			return nil, nil, 0, err
 		}
-		fmt.Println("CreateBlockToMine--end", s.MinorBlockChain.CurrentBlock().Number(), time.Now().Sub(ts).Seconds())
 		return minorBlock, adjustedDifficulty, 1, nil
 	}
-	fmt.Println("CreateBlockToMine--end-2", s.MinorBlockChain.CurrentBlock().Number(), time.Now().Sub(ts).Seconds())
 	return minorBlock, diff, 1, nil
 }
 
