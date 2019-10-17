@@ -5,13 +5,13 @@ import (
 	"fmt"
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
-	qrpc "github.com/QuarkChain/goquarkchain/rpc"
 	"github.com/QuarkChain/goquarkchain/cluster/shard"
 	"github.com/QuarkChain/goquarkchain/cluster/slave/filters"
 	qcom "github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/p2p"
+	qrpc "github.com/QuarkChain/goquarkchain/rpc"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
@@ -231,6 +231,12 @@ func (s *SlaveBackend) GetAccountData(address *account.Address, height *uint64) 
 			return nil, err
 		}
 		data.IsContract = len(bt) > 0
+		minedEnable, mined, err := shard.MinorBlockChain.GetMiningInfo(address.Recipient, tokenBalances)
+		if err != nil {
+			return nil, err
+		}
+		data.MinedBlocks = mined
+		data.PoswMineableBlocks = minedEnable
 		results = append(results, &data)
 	}
 	return results, err
