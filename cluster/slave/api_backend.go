@@ -158,6 +158,13 @@ func (s *SlaveBackend) AddTx(tx *types.Transaction) (err error) {
 func (s *SlaveBackend) AddTxList(txs []*types.Transaction, peerID string) (err error) {
 	mapp := make(map[uint32][]*types.Transaction)
 	for _, tx := range txs {
+		toShardSize, err := s.clstrCfg.Quarkchain.GetShardSizeByChainId(tx.EvmTx.ToChainID())
+		if err != nil {
+			return err
+		}
+		if err := tx.EvmTx.SetToShardSize(toShardSize); err != nil {
+			return err
+		}
 		fromShardSize, err := s.clstrCfg.Quarkchain.GetShardSizeByChainId(tx.EvmTx.FromChainID())
 		if err != nil {
 			return err

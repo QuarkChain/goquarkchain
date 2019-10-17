@@ -171,7 +171,7 @@ func NewMinorBlockChain(
 			TrieCleanLimit: 256,
 			TrieDirtyLimit: 256,
 			TrieTimeLimit:  5 * time.Minute,
-			Disabled:       false, //not update trieDB every block
+			Disabled:       false, //update trieDB every block
 		}
 	}
 	receiptsCache, _ := lru.New(receiptsCacheLimit)

@@ -12,6 +12,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/log"
+	"golang.org/x/sync/errgroup"
 	"math/big"
 	"math/rand"
 	"sync"
@@ -47,11 +48,39 @@ func NewTxGenerator(genesisDir string, fullShardId uint32, cfg *config.QuarkChai
 	return tgs
 }
 
+func (t *TxGenerator) SignTx(txs []*types.Transaction, span int) error {
+	ts := time.Now()
+	interval := len(txs) / span
+	var g errgroup.Group
+	for i := 0; i < span; i++ {
+		i := i
+		start := i * interval
+		g.Go(func() error {
+			for _, v := range txs[i*interval : (i+1)*interval] {
+				acc := t.accounts[t.accountIndex-start]
+				evmTx, err := t.sign(v.EvmTx, acc.PrivateKey())
+				if err != nil {
+					panic(err)
+				}
+				v.EvmTx = evmTx
+				start++
+			}
+			return nil
+		})
+
+	}
+	if err := g.Wait(); err != nil {
+		return err
+	}
+	log.Info("SignTx end", "interval", span, "len", len(txs), "time", time.Now().Sub(ts).Seconds())
+	return nil
+}
+
 func (t *TxGenerator) Generate(genTxs *rpc.GenTxRequest, addTxList func(txs []*types.Transaction, peerID string) error) error {
 	ts := time.Now()
 	tsa := time.Now()
 	var (
-		batchScale    = uint32(2000)
+		batchScale    = uint32(4000)
 		txList        = make([]*types.Transaction, 0, batchScale)
 		numTx         = genTxs.NumTxPerShard
 		xShardPercent = int(genTxs.XShardPercent)
@@ -79,10 +108,16 @@ func (t *TxGenerator) Generate(genTxs *rpc.GenTxRequest, addTxList func(txs []*t
 		txList = append(txList, &types.Transaction{TxType: types.EvmTx, EvmTx: tx})
 
 		if total%batchScale == 0 {
-			log.Info("detail", "total", total, "numTx", numTx, "durtion", time.Now().Sub(ts).Seconds())
+			log.Info("detail", "total", total, "numTx", numTx, "durtion", time.Now().Sub(ts).Seconds(), "index", t.accountIndex)
+
+			if err := t.SignTx(txList, 2); err != nil {
+				return err
+			}
+
 			if err := addTxList(txList, ""); err != nil {
 				return err
 			}
+			log.Info("addTxList end", "total", total, "numTx", numTx, "durtion", time.Now().Sub(ts).Seconds())
 			txList = make([]*types.Transaction, 0, batchScale)
 			ts = time.Now()
 		}
@@ -95,6 +130,9 @@ func (t *TxGenerator) Generate(genTxs *rpc.GenTxRequest, addTxList func(txs []*t
 	}
 
 	if len(txList) != 0 {
+		if err := t.SignTx(txList, 2); err != nil {
+			return err
+		}
 		if err := addTxList(txList, ""); err != nil {
 			return err
 		}
@@ -137,8 +175,7 @@ func (t *TxGenerator) createTransaction(acc *account.Account, nonce uint64,
 
 	evmTx := types.NewEvmTransaction(nonce, recipient, value, sampleTx.EvmTx.Gas(),
 		sampleTx.EvmTx.GasPrice(), fromFullShardKey, toFullShardKey, t.cfg.NetworkID, 0, sampleTx.EvmTx.Data(), qkcCommon.TokenIDEncode("QKC"), qkcCommon.TokenIDEncode("QKC"))
-
-	return t.sign(evmTx, acc.PrivateKey())
+	return evmTx, nil
 }
 
 func (t *TxGenerator) random(digit int) int {

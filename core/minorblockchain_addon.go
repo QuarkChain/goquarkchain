@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"github.com/QuarkChain/goquarkchain/params"
 	"golang.org/x/sync/errgroup"
 	"math"
 	"math/big"
@@ -313,7 +312,6 @@ func (m *MinorBlockChain) isNeighbor(remoteBranch account.Branch, rootHeight *ui
 }
 
 func (m *MinorBlockChain) putRootBlock(rBlock *types.RootBlock, minorHeader *types.MinorBlockHeader) {
-	log.Info(m.logInfo, "putRootBlock number", rBlock.Number(), "hash", rBlock.Hash().String(), "lenMinor", len(rBlock.MinorBlockHeaders()))
 	rBlockHash := rBlock.Hash()
 	rawdb.WriteRootBlock(m.db, rBlock)
 	var mHash common.Hash
@@ -323,7 +321,6 @@ func (m *MinorBlockChain) putRootBlock(rBlock *types.RootBlock, minorHeader *typ
 	if _, ok := m.rootHeightToHashes[rBlock.NumberU64()]; !ok {
 		m.rootHeightToHashes[rBlock.NumberU64()] = make(map[common.Hash]common.Hash)
 	}
-	log.Info("putRootBlock", "rBlock", rBlock.NumberU64(), "rHash", rBlock.Hash().String(), "mHash", mHash.String())
 	m.rootHeightToHashes[rBlock.NumberU64()][rBlock.Hash()] = mHash
 	rawdb.WriteLastConfirmedMinorBlockHeaderAtRootBlock(m.db, rBlockHash, mHash)
 }
@@ -493,9 +490,9 @@ func recoverSender(txs []*types.Transaction, networkID uint32) error {
 }
 func (m *MinorBlockChain) AddTxList(txs []*types.Transaction) error {
 	ts := time.Now()
-	interval := len(txs) / params.TPS_Num
+	interval := len(txs) / 2
 	var g errgroup.Group
-	for index := 0; index < params.TPS_Num; index++ {
+	for index := 0; index < 2; index++ {
 		i := index
 		g.Go(func() error {
 			if err := recoverSender(txs[i*interval:(i+1)*interval], m.clusterConfig.Quarkchain.NetworkID); err != nil {
@@ -509,11 +506,7 @@ func (m *MinorBlockChain) AddTxList(txs []*types.Transaction) error {
 	}
 	log.Info("recover", "len", len(txs), "dur", time.Now().Sub(ts).Seconds())
 	ts = time.Now()
-	for _, tx := range txs {
-		if err := m.txPool.AddLocal(tx); err != nil {
-			return err
-		}
-	}
+	m.txPool.AddLocals(txs)
 	log.Info("AddLocal", "len", len(txs), "dur", time.Now().Sub(ts).Seconds())
 	return nil
 }
