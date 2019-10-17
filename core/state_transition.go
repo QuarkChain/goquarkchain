@@ -241,7 +241,7 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 			ret, st.gas, vmerr = nil, 0, vm.ErrPoSWSenderNotAllowed
 		} else {
 			ret, st.gas, vmerr = evm.Call(sender, st.to(), st.data, st.gas, st.value)
-			fmt.Println("call-end",st.gas)
+			fmt.Println("call-end", st.gas)
 		}
 	}
 
@@ -259,7 +259,7 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 	if vmerr == vm.ErrPoSWSenderNotAllowed {
 		return nil, st.gasUsed(), true, nil
 	}
-	fmt.Println("EEEEEEEEE",st.initialGas,st.gas,st.gasUsed())
+	fmt.Println("EEEEEEEEE", st.initialGas, st.gas, st.gasUsed())
 	return ret, st.gasUsed(), vmerr != nil, err
 }
 
@@ -269,7 +269,10 @@ func (st *StateTransition) refundGas() {
 	if refund > st.state.GetRefund() {
 		refund = st.state.GetRefund()
 	}
+	fmt.Println("refund", refund, st.state.GetRefund())
+	fmt.Println("??????", st.gas, refund)
 	st.gas += refund
+	fmt.Println("????", st.gas)
 
 	// Return ETH for remaining gas, exchanged at the original rate.
 	remaining := new(big.Int).Mul(new(big.Int).SetUint64(st.gas), st.gasPrice)
