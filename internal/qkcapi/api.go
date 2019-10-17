@@ -208,12 +208,14 @@ func (p *PublicBlockChainAPI) GetAccountData(address account.Address, blockNr *r
 		}
 		branch := account.Branch{Value: accountBranchData.Branch}
 		primary := map[string]interface{}{
-			"fullShardId":      hexutil.Uint(branch.GetFullShardID()),
-			"shardId":          hexutil.Uint(branch.GetShardID()),
-			"chainId":          hexutil.Uint(branch.GetChainID()),
-			"balances":         encoder.BalancesEncoder(accountBranchData.Balance),
-			"transactionCount": hexutil.Uint64(accountBranchData.TransactionCount),
-			"isContract":       accountBranchData.IsContract,
+			"fullShardId":        hexutil.Uint(branch.GetFullShardID()),
+			"shardId":            hexutil.Uint(branch.GetShardID()),
+			"chainId":            hexutil.Uint(branch.GetChainID()),
+			"balances":           encoder.BalancesEncoder(accountBranchData.Balance),
+			"transactionCount":   hexutil.Uint64(accountBranchData.TransactionCount),
+			"isContract":         accountBranchData.IsContract,
+			"minedBlocks":        hexutil.Uint64(accountBranchData.MinedBlocks),
+			"poswMineableBlocks": hexutil.Uint64(accountBranchData.PoswMineableBlocks),
 		}
 		return map[string]interface{}{
 			"primary": primary,
@@ -612,7 +614,7 @@ func (p *PublicBlockChainAPI) GetTransactionConfirmedByNumberRootBlocks(txID hex
 
 	confirmingHash := p.b.GetRootHashConfirmingMinorBlock(encoder.IDEncoder(mBlock.Hash().Bytes(), mBlock.Header().Branch.Value))
 	if bytes.Equal(confirmingHash.Bytes(), common.Hash{}.Bytes()) {
-		return hexutil.Uint(0), errors.New("confirmingHash is empty hash")
+		return hexutil.Uint(0), nil
 	}
 
 	confirmingBlock, _, err := p.b.GetRootBlockByHash(confirmingHash, false)
