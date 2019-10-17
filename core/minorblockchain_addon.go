@@ -668,6 +668,7 @@ func (m *MinorBlockChain) addTransactionToBlock(block *types.MinorBlock, evmStat
 	txsInBlock := make([]*types.Transaction, 0)
 
 	stateT := evmState
+	txIndex := 0
 	for stateT.GetGasUsed().Cmp(stateT.GetGasLimit()) < 0 {
 		tx := txs.Peek()
 		// Pop skip all txs about this account
@@ -681,6 +682,7 @@ func (m *MinorBlockChain) addTransactionToBlock(block *types.MinorBlock, evmStat
 			}
 
 		}
+		stateT.Prepare(tx.Hash(), block.Hash(), txIndex)
 		_, receipt, _, err := ApplyTransaction(m.ethChainConfig, m, gp, stateT, block.IHeader().(*types.MinorBlockHeader), tx, usedGas, *m.GetVMConfig())
 		switch err {
 		case ErrGasLimitReached:
@@ -699,6 +701,7 @@ func (m *MinorBlockChain) addTransactionToBlock(block *types.MinorBlock, evmStat
 			}
 			receipts = append(receipts, receipt)
 			txsInBlock = append(txsInBlock, tx)
+			txIndex++
 		default:
 			// Strange error, discard the transaction and get the next in line (note, the
 			// nonce-too-high clause will prevent us from executing in vain).
