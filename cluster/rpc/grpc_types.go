@@ -265,10 +265,12 @@ type GetAccountDataRequest struct {
 }
 
 type AccountBranchData struct {
-	Branch           uint32               `json:"branch" gencodec:"required"`
-	TransactionCount uint64               `json:"transaction_count" gencodec:"required"`
-	Balance          *types.TokenBalances `json:"token_balances" gencodec:"required" bytesizeofslicelen:"4"`
-	IsContract       bool                 `json:"is_contract" gencodec:"required"`
+	Branch             uint32               `json:"branch" gencodec:"required"`
+	TransactionCount   uint64               `json:"transaction_count" gencodec:"required"`
+	Balance            *types.TokenBalances `json:"token_balances" gencodec:"required" bytesizeofslicelen:"4"`
+	IsContract         bool                 `json:"is_contract" gencodec:"required"`
+	PoswMineableBlocks uint64               `json:"posw_mineable_blocks" gencodec:"required"`
+	MinedBlocks        uint64               `json:"mined_blocks" gencodec:"required"`
 }
 
 type GetAccountDataResponse struct {
