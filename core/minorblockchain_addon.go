@@ -2,7 +2,6 @@ package core
 
 import (
 	"bytes"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"math"
@@ -428,7 +427,6 @@ func (m *MinorBlockChain) setEvmStateWithHeader(evmState *state.StateDB, header 
 func (m *MinorBlockChain) runBlock(block *types.MinorBlock) (*state.StateDB, types.Receipts, []*types.Log, uint64,
 	[]*types.CrossShardTransactionDeposit, error) {
 
-		fmt.Println("start-handle_add_minor_block",block.Header().Branch.Value,block.Header().Number,block.Header().Hash().String())
 	parent := m.GetMinorBlock(block.ParentHash())
 	if qkcCommon.IsNil(parent) {
 		log.Error(m.logInfo, "err-runBlock", ErrRootBlockIsNil, "parentHash", block.ParentHash().String())
@@ -440,12 +438,10 @@ func (m *MinorBlockChain) runBlock(block *types.MinorBlock) (*state.StateDB, typ
 		return nil, nil, nil, 0, nil, err
 	}
 	evmState := preEvmState.Copy()
-	fmt.Println("run_cross",evmState.GetGasUsed())
 	xTxList, txCursorInfo, xShardReceipts, err := m.RunCrossShardTxWithCursor(evmState, block)
 	if err != nil {
 		return nil, nil, nil, 0, nil, err
 	}
-	fmt.Println("run_oooo_end",evmState.GetGasUsed())
 	evmState.SetTxCursorInfo(txCursorInfo)
 	xShardReceiveTxList = append(xShardReceiveTxList, xTxList...)
 	xShardGasLimit := block.Meta().XShardGasLimit.Value
@@ -1605,8 +1601,6 @@ func (m *MinorBlockChain) RunCrossShardTxWithCursor(evmState *state.StateDB,
 		}
 		checkIsFromRootChain := cursor.rBlock.Header().NumberU64() >= m.clusterConfig.Quarkchain.XShardGasDDOSFixRootHeight
 		txIndex := 0
-		fmt.Println("run_oooooo-start",xShardDepositTx.TxHash.String(),evmState.GetGasUsed(),hex.EncodeToString(xShardDepositTx.MessageData))
-		fmt.Println("from",xShardDepositTx.From.Recipient.String(),xShardDepositTx.To.Recipient.String())
 		receipt, err := ApplyCrossShardDeposit(m.ethChainConfig, m, mBlock.Header(),
 			*m.GetVMConfig(), evmState, xShardDepositTx, gasUsed, checkIsFromRootChain, txIndex)
 		if err != nil {
@@ -1617,7 +1611,7 @@ func (m *MinorBlockChain) RunCrossShardTxWithCursor(evmState *state.StateDB,
 			receipts = append(receipts, receipt)
 		}
 		txList = append(txList, xShardDepositTx)
-		fmt.Println("run_oooo_end",evmState.GetGasUsed())
+
 		if evmState.GetGasUsed().Cmp(mBlock.Meta().XShardGasLimit.Value) >= 0 {
 			break
 		}

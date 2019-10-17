@@ -234,7 +234,6 @@ func ApplyCrossShardDeposit(config *params.ChainConfig, bc ChainContext, header 
 		return nil, nil
 	}
 
-	fmt.Println("2377777777777777")
 	evmState.SetFullShardKey(tx.To.FullShardKey)
 	evmState.AddBalance(tx.From.Recipient, tx.Value.Value, tx.TransferTokenID)
 	msg := types.NewMessage(tx.From.Recipient, &tx.To.Recipient, 0, tx.Value.Value,
