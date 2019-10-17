@@ -523,13 +523,7 @@ func (c *transferMnt) Run(input []byte, evm *EVM, contract *Contract) ([]byte, e
 	t := evm.TransferTokenID
 	evm.TransferTokenID = mnt.Uint64()
 	ret, remainedGas, err := evm.Call(contract.caller, toAddr, data, contract.Gas, value)
-	if err != nil {
-		return nil, err
-	}
 	err = checkTokenIDQueried(err, contract, evm.TransferTokenID, evm.StateDB.GetQuarkChainConfig().GetDefaultChainTokenID())
-	if err != nil {
-		return nil, err
-	}
 	evm.TransferTokenID = t
 	gasUsed := contract.Gas - remainedGas
 	if ok := contract.UseGas(gasUsed); !ok {
