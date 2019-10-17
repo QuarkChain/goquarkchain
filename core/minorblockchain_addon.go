@@ -216,10 +216,14 @@ func (m *MinorBlockChain) validateTx(tx *types.Transaction, evmState *state.Stat
 			return nil, errors.New("smart contract tx is not allowed before evm is enabled")
 		}
 	}
-
-	sender, err := tx.Sender(types.NewEIP155Signer(m.clusterConfig.Quarkchain.NetworkID))
-	if err != nil {
-		return nil, err
+	var sender account.Recipient
+	if fromAddress == nil {
+		sender, err = tx.Sender(types.NewEIP155Signer(m.clusterConfig.Quarkchain.NetworkID))
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		sender = fromAddress.Recipient
 	}
 
 	tx = &types.Transaction{
@@ -261,6 +265,7 @@ func (m *MinorBlockChain) InitGenesisState(rBlock *types.RootBlock) (*types.Mino
 	}
 	m.putRootBlock(rBlock, nil)
 	rawdb.WriteGenesisBlock(m.db, rBlock.Hash(), gBlock) // key:rootBlockHash value:minorBlock
+	m.CommitMinorBlockByHash(gBlock.Hash())
 	if m.initialized {
 		return gBlock, nil
 	}
@@ -1698,4 +1703,9 @@ func (m *MinorBlockChain) IsMinorBlockCommittedByHash(h common.Hash) bool {
 }
 func (m *MinorBlockChain) CommitMinorBlockByHash(h common.Hash) {
 	rawdb.WriteCommitMinorBlock(m.db, h)
+}
+
+func (m *MinorBlockChain) GetMiningInfo(address account.Recipient, stake *types.TokenBalances) (uint64, uint64, error) {
+	//TODO @DL to fix
+	return 0, 0, nil
 }

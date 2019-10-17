@@ -62,7 +62,7 @@ func (s *subscribe) Stop() {
 func (s *subscribe) eventsloop() {
 	var (
 		g      errgroup.Group
-		ticker = time.NewTicker(1 * time.Second)
+		ticker = time.NewTicker(2 * time.Second)
 	)
 	defer func() {
 		for id := range s.events {
@@ -114,7 +114,7 @@ func (s *subscribe) eventsloop() {
 					for tp, subEv := range s.events[id] {
 						if err := subEv.getch(); err != nil {
 							s.delCh <- &delEvent{id: id, tp: tp}
-							return err
+							log.Warn("subscribe return error, will be move out", "id", id, "tp", tp, "err", err)
 						}
 					}
 					return nil

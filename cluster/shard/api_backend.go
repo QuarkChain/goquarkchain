@@ -162,17 +162,21 @@ func (s *ShardBackend) GetUnconfirmedHeaderList() ([]*types.MinorBlockHeader, er
 	return headers, nil
 }
 
-func (s *ShardBackend) GetMinorBlock(mHash common.Hash, height *uint64) (*types.MinorBlock, error) {
+func (s *ShardBackend) GetMinorBlock(mHash common.Hash, height *uint64) (mBlock *types.MinorBlock, err error) {
 	if mHash != (common.Hash{}) {
-		return s.MinorBlockChain.GetMinorBlock(mHash), nil
+		mBlock = s.MinorBlockChain.GetMinorBlock(mHash)
 	} else if height != nil {
 		block := s.MinorBlockChain.GetBlockByNumber(*height)
-		if block == nil {
-			return nil, errors.New("minor block not found")
+		if !qcom.IsNil(block) {
+			mBlock = block.(*types.MinorBlock)
 		}
-		return s.MinorBlockChain.GetBlockByNumber(*height).(*types.MinorBlock), nil
+	} else {
+		return nil, errors.New("invalied params in GetMinorBlock")
 	}
-	return nil, errors.New("invalied params in GetMinorBlock")
+	if mBlock != nil {
+		return
+	}
+	return nil, errors.New("minor block not found")
 }
 
 func (s *ShardBackend) NewMinorBlock(block *types.MinorBlock) (err error) {
