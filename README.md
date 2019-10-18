@@ -21,14 +21,17 @@ QuarkChain is a sharded blockchain protocol that employs a two-layer architectur
 Check out the [Wiki](https://github.com/QuarkChain/pyquarkchain/wiki) to understand the design of QuarkChain.
 
 ## Development Setup
-### Environment configuration for Go
-Install golang
+###  Setup Go Environment
+Goquarkchain requires golang sdk >= 1.12. You can skip this step if your environment meets the condition.
 ```bash
-#requires golang sdk >= 1.12, e.g. go1.12.10
 wget https://studygolang.com/dl/golang/go1.12.10.linux-amd64.tar.gz
-tar xzvf go1.12.10.linux-amd64.tar.gz -C /usr/lib/
+sudo tar xzf go1.12.10.linux-amd64.tar.gz -C /usr/lib/
 ```
-Append the following environment variables to .bashrc
+Create a folder for $GOPATH, e.g. ~/go. This is where your go code goes. Skip this step if you've already done so.
+```bash
+mkdir ~/go
+```
+Append the following environment variables to ~/.bashrc. Please note go.mod is used.
 ```bash
 export GOROOT=/usr/lib/go
 export GOPATH=$HOME/go
@@ -40,32 +43,28 @@ Refesh bash
 ```bash
 source ~/.bashrc
 ```
-
 Check go installation
 ```bash
 go version #go version go1.12.10 linux/amd64
 ```
 ### Install some dependencies
+Install the following packages. Restart the system if prompted.
 ```bash
-sudo apt-get install swig
-sudo apt-get install make
-sudo apt-get install g++
-sudo apt-get install -y git build-essential wget pkg-config libgmp-dev libssl-dev ca-certificates libxml2-dev libxslt1-dev swig
-sudo apt-get install -y libsnappy-dev zlib1g-dev libbz2-dev libgflags-dev liblz4-dev libzstd-dev
+sudo apt-get install -y build-essential make g++ swig pkg-config libgmp-dev libssl-dev ca-certificates 
+sudo apt-get install -y libxml2-dev libxslt1-dev libsnappy-dev zlib1g-dev libbz2-dev liblz4-dev libgflags-dev  libzstd-dev
 ```
-
 ### Install rocksdb
 ```bash
 wget https://github.com/facebook/rocksdb/archive/v6.1.2.tar.gz
-tar xzvf v6.1.2.tar.gz -C /usr/lib/
-cd  /usr/lib
-mkdir rocksdb
-mv rocksdb-6.1.2/* rocksdb
+sudo tar xzf v6.1.2.tar.gz -C /usr/lib/
+cd /usr/lib
+sudo mkdir rocksdb
+sudo mv rocksdb-6.1.2/* rocksdb
 cd rocksdb
-PORTABLE=1 make shared_lib
-INSTALL_PATH=/usr/local make install-shared
+PORTABLE=1 sudo make shared_lib
+INSTALL_PATH=/usr/local sudo make install-shared
 ```
-Append the following environment variables to .bashrc
+Append the following environment variables to ~/.bashrc
 ```bash
 export CPLUS_INCLUDE_PATH=${CPLUS_INCLUDE_PATH}:/usr/lib/rocksdb/include
 export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:/usr/lib/rocksdb
@@ -81,13 +80,13 @@ source ~/.bashrc
 Setup goquarkchain 
 ```bash
 cd $GOPATH
-mkdir -p src/github.com/QuarkChain
+sudo mkdir -p src/github.com/QuarkChain
 cd src/github.com/QuarkChain
-git clone https://github.com/QuarkChain/goquarkchain.git
+sudo git clone https://github.com/QuarkChain/goquarkchain.git
 #build qkchash
 cd goquarkchain/consensus/qkchash/native
-g++ -shared -o libqkchash.so -fPIC qkchash.cpp -O3 -std=gnu++17
-make
+sudo g++ -shared -o libqkchash.so -fPIC qkchash.cpp -O3 -std=gnu++17
+sudo make
 ```
 Run all the unit tests under `goquarkchain`
 
