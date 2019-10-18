@@ -24,60 +24,57 @@ Check out the [Wiki](https://github.com/QuarkChain/pyquarkchain/wiki) to underst
 ###  Setup Go Environment
 Goquarkchain requires golang sdk >= 1.12. You can skip this step if your environment meets the condition.
 ```bash
+# take go1.12.10 for example:
 wget https://studygolang.com/dl/golang/go1.12.10.linux-amd64.tar.gz
-sudo tar xzf go1.12.10.linux-amd64.tar.gz -C /usr/lib/
+sudo tar xzf go1.12.10.linux-amd64.tar.gz -C /usr/local
 ```
-Create a folder for $GOPATH, e.g. ~/go. This is where your go code goes. Skip this step if you've already done so.
+Create a folder as $GOPATH, for example ~/go. This is where your Go code goes. Skip this step if you've already done so.
 ```bash
 mkdir ~/go
 ```
-Append the following environment variables to ~/.bashrc. Please note go.mod is used.
+Append the following environment variables to ~/.profile. NOTE goproxy and go.mod are used.
 ```bash
-export GOROOT=/usr/lib/go
+export GOROOT=/usr/local/go
 export GOPATH=$HOME/go
 export PATH=$GOPATH/bin:$GOROOT/bin:$PATH
 export GOPROXY=https://goproxy.io
 export GO111MODULE=on
 ```
-Refesh bash
+Apply the changes immediately
 ```bash
-source ~/.bashrc
+source ~/.profile
 ```
-Check go installation
+Check Go installation
 ```bash
 go version #go version go1.12.10 linux/amd64
 ```
-### Install some dependencies
-Install the following packages. Restart the system if prompted.
+### Setup RocksDB Environment
+Before install RocksDB, you'll need to install the following dependency packages.
 ```bash
-sudo apt-get install -y build-essential make g++ swig pkg-config libgmp-dev libssl-dev ca-certificates 
-sudo apt-get install -y libxml2-dev libxslt1-dev libsnappy-dev zlib1g-dev libbz2-dev liblz4-dev libgflags-dev  libzstd-dev
+sudo apt-get install -y build-essential make g++ swig 
+sudo apt-get install -y libgflags-dev libsnappy-dev zlib1g-dev libbz2-dev liblz4-dev libzstd-dev
 ```
-### Install rocksdb
+Install RocksDB 
 ```bash
-wget https://github.com/facebook/rocksdb/archive/v6.1.2.tar.gz
-sudo tar xzf v6.1.2.tar.gz -C /usr/lib/
-cd /usr/lib
-sudo mkdir rocksdb
-sudo mv rocksdb-6.1.2/* rocksdb
+git clone https://github.com/facebook/rocksdb.git
 cd rocksdb
-PORTABLE=1 sudo make shared_lib
-INSTALL_PATH=/usr/local sudo make install-shared
+git checkout v6.1.2
+sudo make shared_lib
+sudo make install-shared
+export LD_LIBRARY_PATH=/usr/local/lib
 ```
-Append the following environment variables to ~/.bashrc
+Append the following environment variables to ~/.profile
 ```bash
-export CPLUS_INCLUDE_PATH=${CPLUS_INCLUDE_PATH}:/usr/lib/rocksdb/include
-export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:/usr/lib/rocksdb
-export LIBRARY_PATH=${LIBRARY_PATH}:/usr/lib/rocksdb
-export CGO_CFLAGS="-I/usr/local/include"
+export CGO_CFLAGS=-I/usr/local/include
 export CGO_LDFLAGS="-L/usr/local/lib -lrocksdb -lstdc++ -lm -lz -lbz2 -lsnappy"
+export LD_LIBRARY_PATH=/usr/local/lib
 ```
-Refesh bash 
+Apply the changes immediately
 ```bash
-source ~/.bashrc
+source ~/.profile
 ```
-### Install goquarkchain
-Setup goquarkchain 
+### Setup goquarkchain
+Install goquarkchain 
 ```bash
 cd $GOPATH
 sudo mkdir -p src/github.com/QuarkChain
@@ -97,21 +94,33 @@ go test ./...
 ## Running Clusters
 If you are on a private network (e.g. running from a laptop which connects to the Internet through a router), you need to first setup [port forwarding](https://github.com/QuarkChain/pyquarkchain/wiki/Private-Network-Setting%2C-Port-Forwarding) for UDP/TCP 38291.
 
-### Running a single cluster for local testing
-Start running a local cluster which does not connect to anyone else. The default cluster has 8 shards and 4 slaves.
-
+Before start a local cluster, you need to set the ulimit values in /etc/security/limits.conf. Append the following lines to the file:
 ```bash
-#build goquarkchain executable
+${USER} soft nofile ${NUMBER}
+${USER} hard nofile ${NUMBER}
+```
+${USER} should be replaced with your user name, or * for all users; and ${NUMBER} should be replaced with the total shard number plus one. 
+
+### Running a single cluster for local testing
+
+Start running a local cluster which does not connect to anyone else. Build goquarkchain executable:
+```bash
+#
 cd cmd/cluser
 go build .
-#start each shard in different terminals with its ID specified in SLAVE_LIST of the json config:
+```
+Start each slave in different terminals with its ID specified in SLAVE_LIST of the json config. Take the default configuration cluster as example, which has 4 slaves with 2 shards for each:
+```bash
 ./cluster --cluster_config ../../mainnet/singularity/cluster_config_template.json --service S0
 ./cluster --cluster_config ../../mainnet/singularity/cluster_config_template.json --service S1
 ./cluster --cluster_config ../../mainnet/singularity/cluster_config_template.json --service S2
 ./cluster --cluster_config ../../mainnet/singularity/cluster_config_template.json --service S3
-#start master in another terminal
+```
+Start master in another terminal
+```bash
 ./cluster --cluster_config ../../mainnet/singularity/cluster_config_template.json
 ```
+
 ### Running multiple clusters with P2P network on different machines
 NOTE this is effectively a private network. If you would like to join our testnet or mainnet, look back a few sections for instructions.
 
