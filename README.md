@@ -95,18 +95,10 @@ Run all the unit tests under `goquarkchain`
 cd $GOPATH/src/github.com/QuarkChain/goquarkchain
 go test ./...
 ```
-## Joining Testnet
-
-Please check [Testnet2-Schedule](https://github.com/QuarkChain/pyquarkchain/wiki/Testnet2-Schedule) for updates and schedule.
-
-### Running a cluster to join QuarkChain testnet
+## Running Clusters
 If you are on a private network (e.g. running from a laptop which connects to the Internet through a router), you need to first setup [port forwarding](https://github.com/QuarkChain/pyquarkchain/wiki/Private-Network-Setting%2C-Port-Forwarding) for UDP/TCP 38291.
 
-Then fill in your own coinbase address and [bootstrap a cluster](https://github.com/QuarkChain/pyquarkchain/wiki/Run-a-Private-Cluster-on-the-QuarkChain-Testnet-2.0) on QuarkChain Testnet 2.0.
-
-We provide the [demo implementation of CPU mining software](https://github.com/QuarkChain/goquarkchain/tree/master/cmd/miner). Please refer to [QuarkChain mining](https://github.com/QuarkChain/pyquarkchain/wiki/Introduction-of-Mining-Algorithms) for more details.
-
-### <a name="single_cluster"></a>Running a single cluster for local testing
+### Running a single cluster for local testing
 Start running a local cluster which does not connect to anyone else. The default cluster has 8 shards and 4 slaves.
 
 ```bash
@@ -136,7 +128,7 @@ You can read the full bootnode URL from the console output. Then start other clu
 ./cluster --cluster_config $CLUSTER_CONFIG_FILE --p2p --bootnodes=$BOOTSTRAP_ENODE
 ```
 
-## <a name="monitor"></a>Monitoring Clusters
+## Monitoring Clusters
 Use the [`stats`](https://github.com/QuarkChain/pyquarkchain/blob/master/quarkchain/tools/#stats) tool in the repo to monitor the status of a cluster. It queries the given cluster through JSON RPC every 10 seconds and produces an entry. You may need to [setup python environment](https://github.com/QuarkChain/pyquarkchain#development-setup) to run the tool.
 ```bash
 $ pyquarkchain/quarkchain/tools/stats --ip=localhost
@@ -167,15 +159,8 @@ JSON RPCs are defined in [`rpc.proto`](https://github.com/QuarkChain/goquarkchai
 
 Public RPCs are documented in the [Developer Guide](https://developers.quarkchain.io/#json-rpc). You can use the client library [quarkchain-web3.js](https://github.com/QuarkChain/quarkchain-web3.js) to query account state, send transactions, deploy and call smart contracts. Here is [a simple example](https://gist.github.com/qcgg/1ab0352c5b2299270b5795648cca83d8) to deploy smart contract on QuarkChain using the client library.
 ## Loadtest
-Run loadtest to your cluster and see how fast it processes large volume of transactions. [12,000 loadtest accounts](https://github.com/QuarkChain/goquarkchain/blob/master/tests/testdata/genesis_data/loadtest.json) are [loaded into genesis alloc config](https://github.com/QuarkChain/goquarkchain/blob/98343d5c4500883f6d31e757502e23f1aed5acd5/cluster/config/config.go#L285) for each shard.
-1. Follow the [instruction](#single_cluster) to start a local cluster
+Run loadtest to your cluster and see how fast it processes large volume of transactions. Please refer to [Loadtest Guide](tests/loadtest/README.md) for instructions.
 
-2. Trigger loadtest through `createTransactions ` JSON RPC which requests the cluster to generate transactions on each shard. `numTxPerShard` <= 12000, `xShardPercent` <= 100
-
-   ```bash
-   curl -X POST --data '{"jsonrpc":"2.0","method":"createTransactions","params":{"numTxPerShard":10000, "xShardPercent":10},"id":0}' http://localhost:38491
-   ```
-3. At your virtual environment, [monitor](#monitor) the TPS using the stats tool.
 ## Issue
 Please open issues on github to report bugs or make feature requests.
 
