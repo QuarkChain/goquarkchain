@@ -363,7 +363,7 @@ func (p *PublicBlockChainAPI) GetTransactionById(txID hexutil.Bytes) (map[string
 	if err != nil {
 		return nil, err
 	}
-	fullShardIDByConfig, err := clusterCfg.Quarkchain.GetFullShardIdByFullShardKey(uint32(fullShardKey))
+	fullShardIDByConfig, err := clusterCfg.Quarkchain.GetFullShardIdByFullShardKey(fullShardKey)
 	if err != nil {
 		return nil, err
 	}

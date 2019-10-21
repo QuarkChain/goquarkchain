@@ -2,6 +2,7 @@ package encoder
 
 import (
 	"errors"
+	"fmt"
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
 	"github.com/QuarkChain/goquarkchain/common"
@@ -298,6 +299,7 @@ func ReceiptEncoder(block *types.MinorBlock, i int, receipt *types.Receipt) (map
 	}
 	header := block.Header()
 
+	fmt.Println("!!!!!!!!!!!!",receipt.GasUsed,receipt.GetPrevGasUsed())
 	field := map[string]interface{}{
 		"transactionId":     txID,
 		"transactionHash":   txHash,
@@ -307,13 +309,13 @@ func ReceiptEncoder(block *types.MinorBlock, i int, receipt *types.Receipt) (map
 		"blockHeight":       hexutil.Uint64(header.Number),
 		"blockNumber":       hexutil.Uint64(header.Number),
 		"cumulativeGasUsed": hexutil.Uint64(receipt.CumulativeGasUsed),
-		"gasUsed":           hexutil.Uint64(receipt.GasUsed),
+		"gasUsed":           hexutil.Uint64(receipt.GasUsed-receipt.GetPrevGasUsed()),
 		"status":            hexutil.Uint64(receipt.Status),
 		"logs":              LogListEncoder(receipt.Logs, false),
 		"timestamp":         hexutil.Uint64(block.Header().Time),
 	}
 	if receipt.ContractAddress.Big().Uint64() == 0 {
-		field["contractAddress"] = make([]struct{}, 0)
+		field["contractAddress"] = nil
 	} else {
 		addr := account.Address{
 			Recipient:    receipt.ContractAddress,
