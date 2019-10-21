@@ -1,19 +1,29 @@
 # Loadtest Instruction
 
 ## Development Setup
+
 First of all, follow the [instruction](../../README.md#development-setup) to set up development environment for goquarkchain.
  
 ## Running a Cluster
+
 Before loadtest, try to start a local cluster successfully follow the [instruction](../../README.md#running-a-single-cluster-for-local-testing).
+```bash
+cd cmd/cluser
+./cluster --num_shards 1024 --num_slaves=128
 
-## Loadtest
+```
 
-1. Trigger loadtest through `createTransactions ` JSON RPC which requests the cluster to generate transactions on each shard. `numTxPerShard` <= 12000, `xShardPercent` <= 100
+## Generate Transactions
+
+Request the cluster through `createTransactions ` JSON RPC to generate transactions on each shard. NOTE the parameters are encoded in Hex.
 
    ```bash
-   curl -X POST --data '{"jsonrpc":"2.0","method":"createTransactions","params":{"numTxPerShard":10000, "xShardPercent":10},"id":0}' http://localhost:38491
+   curl -X POST -H 'content-type: application/json' --data '{"jsonrpc": "2.0","method": "createTransactions","params": [{ "numTxPerShard": "0x186e0","xShardPercent": "0x0"}],"id": 1}' http://127.0.0.1:38491
    ```
-2. At your virtual environment, [monitor](../../README.md#monitoring-clusters) the TPS using the stats tool.
+   
+## Monitoring
+
+At your virtual environment, [monitor](../../README.md#monitoring-clusters) the TPS using the stats tool.
 
 ## Code Pointers
 **Loadtest Accounts**
