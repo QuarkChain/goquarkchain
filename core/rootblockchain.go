@@ -1352,7 +1352,9 @@ func (bc *RootBlockChain) getCoinbaseAmount(height uint64) *big.Int {
 		denominator := powerBigInt(bc.Config().BlockRewardDecayFactor.Denom(), epoch)
 		coinbaseAmount = new(big.Int).Mul(bc.Config().Root.CoinbaseAmount, numerator)
 		coinbaseAmount = coinbaseAmount.Div(coinbaseAmount, denominator)
+		bc.mu.Lock()
 		bc.coinbaseAmountCache[epoch] = coinbaseAmount
+		bc.mu.Unlock()
 	}
 	return coinbaseAmount
 }
