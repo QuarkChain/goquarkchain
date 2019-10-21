@@ -55,6 +55,7 @@ func RootBlockEncoder(rootBlock *types.RootBlock, extraInfo *rpc.PoSWInfo) (map[
 	if err != nil {
 		return nil, err
 	}
+	fmt.Println("???", rootBlock)
 	header := rootBlock.Header()
 
 	minerData, err := serialize.SerializeToBytes(header.Coinbase)
@@ -107,6 +108,8 @@ func RootBlockEncoder(rootBlock *types.RootBlock, extraInfo *rpc.PoSWInfo) (map[
 			"miner":              DataEncoder(minerData),
 			"coinbase":           BalancesEncoder(header.CoinbaseAmount),
 			"timestamp":          hexutil.Uint64(header.Time),
+			"extraData":          hexutil.Bytes(header.Extra),
+			"gasLimit":           hexutil.Big(*header.GasLimit.Value),
 		}
 		minorHeaders = append(minorHeaders, h)
 	}
@@ -299,7 +302,7 @@ func ReceiptEncoder(block *types.MinorBlock, i int, receipt *types.Receipt) (map
 	}
 	header := block.Header()
 
-	fmt.Println("!!!!!!!!!!!!",receipt.GasUsed,receipt.GetPrevGasUsed())
+	fmt.Println("!!!!!!!!!!!!", receipt.GasUsed, receipt.GetPrevGasUsed())
 	field := map[string]interface{}{
 		"transactionId":     txID,
 		"transactionHash":   txHash,
@@ -309,7 +312,7 @@ func ReceiptEncoder(block *types.MinorBlock, i int, receipt *types.Receipt) (map
 		"blockHeight":       hexutil.Uint64(header.Number),
 		"blockNumber":       hexutil.Uint64(header.Number),
 		"cumulativeGasUsed": hexutil.Uint64(receipt.CumulativeGasUsed),
-		"gasUsed":           hexutil.Uint64(receipt.GasUsed-receipt.GetPrevGasUsed()),
+		"gasUsed":           hexutil.Uint64(receipt.GasUsed - receipt.GetPrevGasUsed()),
 		"status":            hexutil.Uint64(receipt.Status),
 		"logs":              LogListEncoder(receipt.Logs, false),
 		"timestamp":         hexutil.Uint64(block.Header().Time),

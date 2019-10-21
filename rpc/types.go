@@ -179,6 +179,7 @@ type FilterQuery struct {
 
 // UnmarshalJSON sets *args fields with given data.
 func (args *FilterQuery) UnmarshalJSON(data []byte) error {
+	fmt.Println("?>???????????", string(data))
 	type input struct {
 		BlockHash *common.Hash  `json:"blockHash"`
 		FromBlock *BlockNumber  `json:"fromBlock"`
@@ -189,9 +190,10 @@ func (args *FilterQuery) UnmarshalJSON(data []byte) error {
 
 	var raw input
 	if err := json.Unmarshal(data, &raw); err != nil {
+		fmt.Println("err", err)
 		return err
 	}
-
+	fmt.Println("!!!!!!!!!!!")
 	if raw.BlockHash != nil {
 		if raw.FromBlock != nil || raw.ToBlock != nil {
 			// BlockHash is mutually exclusive with FromBlock/ToBlock criteria
