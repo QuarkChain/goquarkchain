@@ -680,7 +680,7 @@ func (p *PrivateBlockChainAPI) GetStats() (map[string]interface{}, error) {
 func (p *PrivateBlockChainAPI) GetBlockCount() (map[string]interface{}, error) {
 	data, err := p.b.GetBlockCount()
 	return map[string]interface{}{
-		"rootHeight": hexutil.Uint64(p.b.CurrentBlock().Number()),
+		"rootHeight": p.b.CurrentBlock().Number(),
 		"shardRC":    data,
 	}, err
 }

@@ -28,6 +28,10 @@ func DataEncoder(bytes []byte) hexutil.Bytes {
 	return hexutil.Bytes(bytes)
 }
 
+func FullShardKeyEncode(fullShardKey uint32) hexutil.Bytes {
+	return hexutil.Bytes(common.Uint32ToBytes(fullShardKey))
+}
+
 func BalancesEncoder(balances *types.TokenBalances) []map[string]interface{} {
 	balanceList := make([]map[string]interface{}, 0)
 	bMap := balances.GetBalanceMap()
@@ -229,8 +233,8 @@ func TxEncoder(block *types.MinorBlock, i int) (map[string]interface{}, error) {
 		"transactionIndex": hexutil.Uint64(i),
 		"from":             DataEncoder(sender.Bytes()),
 		"to":               DataEncoder(toBytes),
-		"fromFullShardKey": hexutil.Uint64(evmtx.FromFullShardKey()),
-		"toFullShardKey":   hexutil.Uint64(evmtx.ToFullShardKey()),
+		"fromFullShardKey": FullShardKeyEncode(evmtx.FromFullShardKey()),
+		"toFullShardKey":   FullShardKeyEncode(evmtx.ToFullShardKey()),
 		"value":            (*hexutil.Big)(evmtx.Value()),
 		"gasPrice":         (*hexutil.Big)(evmtx.GasPrice()),
 		"gas":              hexutil.Uint64(evmtx.Gas()),

@@ -828,10 +828,10 @@ func TestGetBlockCnt(t *testing.T) {
 	}
 	data, err := blockchain.GetBlockCount(blockchain.CurrentBlock().Number())
 	assert.NoError(t, err)
-	assert.Equal(t, data[2][addr1.Recipient], uint32(0))
-	assert.Equal(t, data[2][addr2.Recipient], uint32(2))
-	assert.Equal(t, data[3][addr1.Recipient], uint32(2))
-	assert.Equal(t, data[3][addr2.Recipient], uint32(0))
+	assert.Equal(t, data[2][addr1.Recipient.String()[2:]], uint32(0))
+	assert.Equal(t, data[2][addr2.Recipient.String()[2:]], uint32(2))
+	assert.Equal(t, data[3][addr1.Recipient.String()[2:]], uint32(2))
+	assert.Equal(t, data[3][addr2.Recipient.String()[2:]], uint32(0))
 
 }
 

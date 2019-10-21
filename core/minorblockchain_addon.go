@@ -970,7 +970,8 @@ func (m *MinorBlockChain) GetTransactionByHash(hash common.Hash) (*types.MinorBl
 			return nil, 0
 		}
 		txs = append(txs, tx)
-		temp := types.NewMinorBlock(&types.MinorBlockHeader{}, &types.MinorBlockMeta{}, txs, nil, nil)
+		temp := types.GetEmptyMinorBlock()
+		temp.AddTx(tx)
 		return temp, 0
 	}
 	return m.GetMinorBlock(mHash), txIndex

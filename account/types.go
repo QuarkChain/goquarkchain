@@ -83,6 +83,6 @@ type CoinbaseStatses struct {
 }
 
 type CoinbaseStats struct {
-	Addr Recipient
+	Addr string
 	Cnt  uint32
 }
