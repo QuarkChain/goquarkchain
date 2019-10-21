@@ -54,14 +54,12 @@ Before install RocksDB, you'll need to install the following dependency packages
 sudo apt-get install -y build-essential make g++ swig 
 sudo apt-get install -y libgflags-dev libsnappy-dev zlib1g-dev libbz2-dev liblz4-dev libzstd-dev
 ```
-Install RocksDB 
+Install RocksDB. Version v6.1.2 is recommended.
 ```bash
-git clone https://github.com/facebook/rocksdb.git
+git clone -b v6.1.2 https://github.com/facebook/rocksdb.git
 cd rocksdb
-git checkout v6.1.2
 sudo make shared_lib
 sudo make install-shared
-export LD_LIBRARY_PATH=/usr/local/lib
 ```
 Append the following environment variables to ~/.profile
 ```bash
@@ -73,8 +71,8 @@ Apply the changes immediately
 ```bash
 source ~/.profile
 ```
-### Setup goquarkchain
-Install goquarkchain 
+### Setup GoQuarkChain
+Install GoQuarkChain 
 ```bash
 cd $GOPATH
 sudo mkdir -p src/github.com/QuarkChain
