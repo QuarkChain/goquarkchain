@@ -19,11 +19,18 @@ type NodeIndo struct {
 	Service  string `json:"Service"`
 }
 
+type ExtraClusterConfig struct {
+	TargetRootBlockTime  uint32 `json:"TargetRootBlockTime"`
+	TargetMinorBlockTime uint32 `json:"TargetMinorBlockTime"`
+	GasLimit             uint64 `json:"GasLimit"`
+}
+
 type LocalConfig struct {
-	IPList      []NodeIndo `json:"IPList"`
-	BootNode    string     `json:"BootNode"`
-	ChainNumber uint32     `json:"ChainNumber"`
-	ShardNumber uint32     `json:"ShardNumber"`
+	IPList             []NodeIndo          `json:"IPList"`
+	BootNode           string              `json:"BootNode"`
+	ChainNumber        uint32              `json:"ChainNumber"`
+	ShardNumber        uint32              `json:"ShardNumber"`
+	ExtraClusterConfig *ExtraClusterConfig `json:"ExtraClusterConfig"`
 }
 
 func (l *LocalConfig) GetNodeInfoByIP(ip string) NodeIndo {
@@ -117,13 +124,22 @@ func updateSlaves(cfg *config.ClusterConfig, ipList []string) {
 		cfg.SlaveList = append(cfg.SlaveList, slaveCfg)
 	}
 }
-func GenConfigDependInitConfig(chainSize uint32, shardSizePerChain uint32, ipList []string) *config.ClusterConfig {
+func GenConfigDependInitConfig(chainSize uint32, shardSizePerChain uint32, ipList []string, extraClusterConfig *ExtraClusterConfig) *config.ClusterConfig {
 	cfg := config.NewClusterConfig()
-	defaultChainConfig := *cfg.Quarkchain.Chains[0] //TODO read from config
-	defaultChainConfig.ConsensusType = config.PoWDoubleSha256
-	defaultChainConfig.Genesis.Difficulty = 10000
+	defaultChainConfig := *cfg.Quarkchain.Chains[0]
+
+	//TODO @scf to fix
+	//update root
 	cfg.Quarkchain.Root.ConsensusType = config.PoWDoubleSha256
 	cfg.Quarkchain.Root.Genesis.Difficulty = 10000
+	cfg.Quarkchain.Root.ConsensusConfig.TargetBlockTime = extraClusterConfig.TargetRootBlockTime
+
+	//update minor
+	defaultChainConfig.ConsensusType = config.PoWDoubleSha256
+	defaultChainConfig.Genesis.Difficulty = 10000
+	defaultChainConfig.ConsensusConfig.TargetBlockTime = extraClusterConfig.TargetMinorBlockTime
+	defaultChainConfig.Genesis.GasLimit = extraClusterConfig.GasLimit
+
 	updateChains(cfg, chainSize, shardSizePerChain, ipList, defaultChainConfig)
 	return cfg
 }

@@ -50,6 +50,16 @@ func (t *ToolManager) check() {
 		log.Error(t.logInfo, "chainNumber", t.localConfig.ChainNumber, "shardNumber", t.localConfig.ShardNumber)
 		panic("shardNumber%chainNumber should=0")
 	}
+
+	if t.localConfig.ExtraClusterConfig.GasLimit == 0 {
+		t.localConfig.ExtraClusterConfig.GasLimit = 120000
+	}
+	if t.localConfig.ExtraClusterConfig.TargetMinorBlockTime == 0 {
+		t.localConfig.ExtraClusterConfig.TargetMinorBlockTime = 10
+	}
+	if t.localConfig.ExtraClusterConfig.TargetRootBlockTime == 0 {
+		t.localConfig.ExtraClusterConfig.TargetRootBlockTime = 60
+	}
 }
 
 func (t *ToolManager) init() {
@@ -70,7 +80,7 @@ func (t *ToolManager) GetIpListDependTag(tag string) []string {
 }
 
 func (t *ToolManager) GenClusterConfig() {
-	clusterConfig := GenConfigDependInitConfig(t.localConfig.ChainNumber, t.localConfig.ShardNumber/t.localConfig.ChainNumber, t.GetIpListDependTag("slave"))
+	clusterConfig := GenConfigDependInitConfig(t.localConfig.ChainNumber, t.localConfig.ShardNumber/t.localConfig.ChainNumber, t.GetIpListDependTag("slave"), t.localConfig.ExtraClusterConfig)
 
 	if t.localConfig.BootNode == "" {
 		sk, err := ecdsa.GenerateKey(crypto.S256(), rand.Reader)
