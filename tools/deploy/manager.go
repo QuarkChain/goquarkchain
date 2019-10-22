@@ -4,7 +4,6 @@ import (
 	"crypto/ecdsa"
 	"crypto/rand"
 	"encoding/hex"
-	"fmt"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/log"
@@ -107,7 +106,7 @@ func (t *ToolManager) MakeClusterExe() {
 
 		v.RunCmd("mkdir /tmp/QKC")
 
-		v.RunCmd("docker exec -itd bjqkc /bin/bash -c  'cd /root/go/src/github.com/Quarkchain/goquarkchain/cmd/cluster/ && git pull  && go build -o /tmp/QKC/cluster && chmod +x /tmp/QKC/cluster '")
+		v.RunCmd("docker exec -itd bjqkc /bin/bash -c  'cd /root/go/src/github.com/Quarkchain/goquarkchain/cmd/cluster/  && go build -o /tmp/QKC/cluster && chmod +x /tmp/QKC/cluster '")
 		time.Sleep(30 * time.Second)
 		v.RunCmd("docker cp bjqkc:/tmp/QKC/cluster /tmp/QKC") //checkout
 		time.Sleep(5 * time.Second)
@@ -158,11 +157,6 @@ func (t *ToolManager) StartCluster() {
 		})
 	}
 
-	fmt.Println("masterIp", masterIp)
-	fmt.Println("slaveList", slaveIpLists)
-	for _, v := range slaveIpLists {
-		fmt.Println(v.IP, v.ServiceName)
-	}
 	t.startSlave(slaveIpLists)
 	time.Sleep(5 * time.Second)
 	t.startMaster(masterIp)

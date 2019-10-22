@@ -139,21 +139,12 @@
 	},
 	"SLAVE_LIST": [
 		{
-			"HOST": "172.16.2.193",
+			"HOST": "172.16.1.33",
 			"PORT": 38000,
 			"ID": "S0",
 			"WEBSOCKET_JSON_RPC_PORT": 39000,
 			"CHAIN_MASK_LIST": [
-				2
-			]
-		},
-		{
-			"HOST": "172.16.1.33",
-			"PORT": 38001,
-			"ID": "S1",
-			"WEBSOCKET_JSON_RPC_PORT": 39001,
-			"CHAIN_MASK_LIST": [
-				3
+				1
 			]
 		}
 	],
@@ -162,8 +153,8 @@
 		"BOOT_STRAP_PORT": 38291
 	},
 	"P2P": {
-		"BOOT_NODES": "",
-		"PRIV_KEY": "55a8dd6d280fd76cf2f64289d278cf7099415df83262662c1cfa7197fb330941",
+		"BOOT_NODES": "enode://3b8566605035068f774ae5b65c511a779cc67071bc8be431294b1e76d79b3f07b79fdc2efb9fe3fb1ff8678e53f86de7529c6ef551cbc907647c1e8133426999@172.16.2.193:38291",
+		"PRIV_KEY": "",
 		"MAX_PEERS": 25,
 		"UPNP": false,
 		"ALLOW_DIAL_IN_RATIO": 1,
