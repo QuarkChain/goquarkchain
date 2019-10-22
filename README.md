@@ -103,9 +103,8 @@ ${USER} should be replaced with your user name, or * for all users; and ${NUMBER
 
 Start running a local cluster which does not connect to anyone else. Build goquarkchain executable:
 ```bash
-#
 cd cmd/cluser
-go build .
+go build
 ```
 Start each slave in different terminals with its ID specified in SLAVE_LIST of the json config. Take the default configuration cluster as example, which has 4 slaves with 2 shards for each:
 ```bash
@@ -118,7 +117,6 @@ Start master in another terminal
 ```bash
 ./cluster --cluster_config ../../mainnet/singularity/cluster_config_template.json
 ```
-
 ### Running multiple clusters with P2P network on different machines
 NOTE this is effectively a private network. If you would like to join our testnet or mainnet, look back a few sections for instructions.
 
