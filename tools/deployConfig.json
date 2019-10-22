@@ -1,0 +1,21 @@
+{
+  "IPList": [
+    {
+      "IP":"172.16.2.193",
+      "Port":22,
+      "User": "root",
+      "Password": "123456",
+      "Service": "master,slave"
+    },
+    {
+      "IP":"172.16.1.33",
+      "Port":22,
+      "User": "root",
+      "Password": "123456",
+      "Service": "slave"
+    }
+  ],
+  "BootNode": "",
+  "ChainNumber": 2,
+  "ShardNumber": 4
+}

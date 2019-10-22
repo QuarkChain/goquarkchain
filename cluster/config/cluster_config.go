@@ -174,8 +174,10 @@ func (q *QuarkChainConfig) UnmarshalJSON(input []byte) error {
 		}
 	}
 	var denom int64 = 1000
-	q.GRPCHost, _ = common.GetIPV4Addr()
+	var err error
+	q.GRPCHost, err = common.GetIPV4Addr()
 	q.GRPCPort = DefaultGrpcPort
+	fmt.Println("???????????", err, q.GRPCHost, q.GRPCPort)
 	q.RewardTaxRate = big.NewRat(int64(jConfig.RewardTaxRate*float64(denom)), denom)
 	one := big.NewRat(1, 1)
 	q.LocalFeeRate = one.Sub(one, q.RewardTaxRate)
