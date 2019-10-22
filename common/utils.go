@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"encoding/gob"
 	ethCommon "github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/log"
 	"math/big"
 	"math/bits"
 	"net"
@@ -71,7 +72,8 @@ func GetIPV4Addr() (string, error) {
 			}
 		}
 	}
-	panic("ipv4 addr not found")
+	log.Error("ipv4 addr not found", "addr", addrs)
+	return "127.0.0.1", nil
 }
 
 func IsLocalIP(ip string) bool {
