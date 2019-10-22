@@ -265,17 +265,19 @@ type GenesisAddress struct {
 
 func loadGenesisAddrs(file string) ([]GenesisAddress, error) {
 	var addresses []GenesisAddress
-	fp, err := os.Open(file)
-	if err != nil {
-		log.Warn("loadGenesisAddr", "no such file", file)
-		return addresses, nil
-	}
-	defer fp.Close()
-	decoder := json.NewDecoder(fp)
-	for decoder.More() {
-		err := decoder.Decode(&addresses)
+	if _, err := os.Stat(file); err == nil {
+		fp, err := os.Open(file)
 		if err != nil {
+			log.Warn("loadGenesisAddr", "file", file, "err", err)
 			return nil, err
+		}
+		defer fp.Close()
+		decoder := json.NewDecoder(fp)
+		for decoder.More() {
+			err := decoder.Decode(&addresses)
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
 	return addresses, nil
