@@ -71,7 +71,7 @@ func GetIPV4Addr() (string, error) {
             }
         }
 	}
-	return "127.0.0.1", nil
+	panic("ipv4 addr not found")
 }
 
 func IsLocalIP(ip string) bool {
