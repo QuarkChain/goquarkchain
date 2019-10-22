@@ -97,8 +97,7 @@ func (t *ToolManager) MakeClusterExe() {
 
 		v.RunCmd("mkdir /tmp/QKC")
 
-		v.RunCmd("docker exec -itd bjqkc /bin/bash -c  'cd /root/go/src/github.com/Quarkchain/goquarkchain/cmd/cluster/ && git pull && git checkout  -b ipv4 remotes/origin/users/chunfengSun/fix-ipv4   && go build -o /tmp/QKC/cluster && chmod +x /tmp/QKC/cluster '") //go build 		//go build
-		//v.RunCmd("docker exec -itd bjqkc /bin/bash -c  'cd /root/go/src/github.com/Quarkchain/goquarkchain/cmd/cluster/ && rm -rf /tmp/QKC/cluster && go build -o /tmp/QKC/cluster && chmod +x /tmp/QKC/cluster '")                                                       //go build 		//go build
+		v.RunCmd("docker exec -itd bjqkc /bin/bash -c  'cd /root/go/src/github.com/Quarkchain/goquarkchain/cmd/cluster/ && git pull  && go build -o /tmp/QKC/cluster && chmod +x /tmp/QKC/cluster '")
 		time.Sleep(30 * time.Second)
 		v.RunCmd("docker cp bjqkc:/tmp/QKC/cluster /tmp/QKC") //checkout
 		time.Sleep(5 * time.Second)
