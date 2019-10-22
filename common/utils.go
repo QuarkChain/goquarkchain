@@ -8,7 +8,6 @@ import (
 	"math/big"
 	"math/bits"
 	"net"
-	"fmt"
 	"reflect"
 )
 
@@ -64,15 +63,13 @@ func GetIPV4Addr() (string, error) {
 	}
 
 	for _, addr := range addrs {
-        ipNet, isIpNet := addr.(*net.IPNet)
-		fmt.Println("",addr)
-        if isIpNet && !ipNet.IP.IsLoopback() {
-            ipv4 := ipNet.IP.To4()
-            if ipv4 != nil {
-				fmt.Println("dasd",ipv4.String())
-                return ipv4.String(), nil
-            }
-        }
+		ipNet, isIpNet := addr.(*net.IPNet)
+		if isIpNet && !ipNet.IP.IsLoopback() {
+			ipv4 := ipNet.IP.To4()
+			if ipv4 != nil {
+				return ipv4.String(), nil
+			}
+		}
 	}
 	panic("ipv4 addr not found")
 }
