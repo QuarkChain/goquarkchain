@@ -38,7 +38,7 @@ func main() {
 	toolManager := getToolManager()
 	toolManager.GenClusterConfig() //gen ./cluster_config_template.json
 	toolManager.MakeClusterExe()
-	//toolManager.SendFileToCluster()
-	//toolManager.StartCluster()
+	toolManager.SendFileToCluster()
+	toolManager.StartCluster()
 	log.Info("startCluster succ")
 }
