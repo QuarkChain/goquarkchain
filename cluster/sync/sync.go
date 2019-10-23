@@ -1,15 +1,12 @@
 package sync
 
 import (
-	"fmt"
 	"github.com/QuarkChain/goquarkchain/core"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
 	"math/big"
-	"reflect"
-	"runtime/debug"
 	"sync"
 )
 
@@ -68,8 +65,6 @@ func (s *synchronizer) SubscribeSyncEvent(ch chan<- *SyncingResult) event.Subscr
 
 // AddTask sends a root block from peers to the main loop for processing.
 func (s *synchronizer) AddTask(task Task) error {
-	fmt.Println("ADDTASK",task.PeerID())
-	debug.PrintStack()
 	task.SetSendFunc(s.syncFeed.Send)
 	s.taskRecvCh <- task
 	return nil
@@ -86,7 +81,6 @@ func (s *synchronizer) loop() {
 		logger := log.New("synchronizer", "runner")
 		for t := range s.taskAssignCh {
 			if !s.IsSyncing() {
-				fmt.Println("stnnnnnnnnnnnnnnn true",reflect.TypeOf(t))
 				s.setSyncing(true)
 			}
 			if err := t.Run(s.blockchain); err != nil {

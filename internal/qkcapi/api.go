@@ -3,7 +3,6 @@ package qkcapi
 import (
 	"bytes"
 	"errors"
-	"fmt"
 	"github.com/QuarkChain/goquarkchain/account"
 	qrpc "github.com/QuarkChain/goquarkchain/cluster/rpc"
 	qcom "github.com/QuarkChain/goquarkchain/common"
@@ -269,7 +268,7 @@ func (p *PublicBlockChainAPI) SendTransaction(args SendTxArgs) (hexutil.Bytes, e
 	return encoder.IDEncoder(tx.Hash().Bytes(), tx.EvmTx.FromFullShardKey()), nil
 }
 
-func (p *PublicBlockChainAPI) GetRootBlockById(hash common.Hash, needExtraInfo *bool) (map[string]interface{}, error) {
+func (p *PublicBlockChainAPI) GetRootBlockByHash(hash common.Hash, needExtraInfo *bool) (map[string]interface{}, error) {
 	if needExtraInfo == nil {
 		temp := true
 		needExtraInfo = &temp
@@ -277,11 +276,7 @@ func (p *PublicBlockChainAPI) GetRootBlockById(hash common.Hash, needExtraInfo *
 	rootBlock, poswInfo, err := p.b.GetRootBlockByHash(hash, *needExtraInfo)
 	if err != nil {
 		return nil, err
-
 	}
-
-	fmt.Println("RRRRRRRR", rootBlock)
-	fmt.Println("powsInfo")
 	return encoder.RootBlockEncoder(rootBlock, poswInfo)
 }
 
@@ -368,7 +363,7 @@ func (p *PublicBlockChainAPI) GetTransactionById(txID hexutil.Bytes) (map[string
 	if err != nil {
 		return nil, err
 	}
-	fullShardIDByConfig, err := clusterCfg.Quarkchain.GetFullShardIdByFullShardKey(fullShardKey)
+	fullShardIDByConfig, err := clusterCfg.Quarkchain.GetFullShardIdByFullShardKey(uint32(fullShardKey))
 	if err != nil {
 		return nil, err
 	}
@@ -528,16 +523,16 @@ func makeGetTransactionRes(txs []*qrpc.TransactionDetail, next []byte) (map[stri
 	}, nil
 }
 
-func (p *PublicBlockChainAPI) GasPrice(fullShardKey hexutil.Uint, tokenID *hexutil.Uint64) (hexutil.Uint64, error) {
+func (p *PublicBlockChainAPI) GasPrice(fullShardKey hexutil.Uint, tokenID *string) (hexutil.Uint64, error) {
 	fullShardId, err := getFullShardId(&fullShardKey)
 	if err != nil {
 		return hexutil.Uint64(0), err
 	}
-	tokenIDValue := qcom.TokenIDEncode(DefaultTokenID)
+	tokenIDValue := DefaultTokenID
 	if tokenID != nil {
-		tokenIDValue = uint64(*tokenID)
+		tokenIDValue = *tokenID
 	}
-	data, err := p.b.GasPrice(account.Branch{Value: fullShardId}, tokenIDValue)
+	data, err := p.b.GasPrice(account.Branch{Value: fullShardId}, qcom.TokenIDEncode(tokenIDValue))
 	return hexutil.Uint64(data), err
 }
 
@@ -594,13 +589,8 @@ func (p *PublicBlockChainAPI) GetWork(fullShardKey *hexutil.Uint, coinbaseAddres
 	return val, nil
 }
 
-func (p *PublicBlockChainAPI) GetRootHashConfirmingMinorBlockById(mBlockID hexutil.Bytes) *hexutil.Bytes {
-	bs := p.b.GetRootHashConfirmingMinorBlock(mBlockID).Bytes() //key mHash , value rHash
-	if bytes.Equal(bs, common.Hash{}.Bytes()) {
-		return nil
-	}
-	hash := hexutil.Bytes(bs)
-	return &hash
+func (p *PublicBlockChainAPI) GetRootHashConfirmingMinorBlockById(mBlockID hexutil.Bytes) hexutil.Bytes {
+	return p.b.GetRootHashConfirmingMinorBlock(mBlockID).Bytes() //key mHash , value rHash
 }
 
 func (p *PublicBlockChainAPI) GetTransactionConfirmedByNumberRootBlocks(txID hexutil.Bytes) (hexutil.Uint, error) {
@@ -690,7 +680,7 @@ func (p *PrivateBlockChainAPI) GetStats() (map[string]interface{}, error) {
 func (p *PrivateBlockChainAPI) GetBlockCount() (map[string]interface{}, error) {
 	data, err := p.b.GetBlockCount()
 	return map[string]interface{}{
-		"rootHeight": p.b.CurrentBlock().Number(),
+		"rootHeight": hexutil.Uint64(p.b.CurrentBlock().Number()),
 		"shardRC":    data,
 	}, err
 }

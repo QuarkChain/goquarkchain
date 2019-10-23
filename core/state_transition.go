@@ -18,7 +18,6 @@ package core
 
 import (
 	"errors"
-	"fmt"
 	"math"
 	"math/big"
 
@@ -258,7 +257,6 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 	if vmerr == vm.ErrPoSWSenderNotAllowed {
 		return nil, st.gasUsed(), true, nil
 	}
-	fmt.Println("RRR-261",st.gasUsed())
 	return ret, st.gasUsed(), vmerr != nil, err
 }
 
@@ -383,7 +381,7 @@ func (st *StateTransition) AddCrossShardTxDeposit(intrinsicGas uint64) (ret []by
 		localGasUsed -= qkcParam.GtxxShardCost.Uint64()
 	}
 	st.chargeFee(localGasUsed)
-	return nil, state.GetGasUsed().Uint64(), failed, nil
+	return nil, st.gasUsed(), failed, nil
 }
 
 func (st *StateTransition) chargeFee(gasUsed uint64) {
@@ -398,9 +396,7 @@ func (st *StateTransition) chargeFee(gasUsed uint64) {
 		st.state.AddGasUsed(new(big.Int).SetUint64(gasUsed))
 		return
 	}
-	fmt.Println("AAAAAAAAAAA",st.state.GetGasUsed(),st.gasUsed())
 	st.state.AddGasUsed(new(big.Int).SetUint64(st.gasUsed()))
-	fmt.Println("AAAAAAAAAAA-1",st.state.GetGasUsed(),st.gasUsed())
 }
 
 func (st *StateTransition) transferFailureByPoSWBalanceCheck() bool {

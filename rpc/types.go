@@ -189,9 +189,9 @@ func (args *FilterQuery) UnmarshalJSON(data []byte) error {
 
 	var raw input
 	if err := json.Unmarshal(data, &raw); err != nil {
-		fmt.Println("err", err)
 		return err
 	}
+
 	if raw.BlockHash != nil {
 		if raw.FromBlock != nil || raw.ToBlock != nil {
 			// BlockHash is mutually exclusive with FromBlock/ToBlock criteria

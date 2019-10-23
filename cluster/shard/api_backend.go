@@ -133,7 +133,6 @@ func (s *ShardBackend) HandleNewTip(rBHeader *types.RootBlockHeader, mBHeader *t
 		log.Warn(s.logInfo, "preRootBlockHash do not have height ,no need to add task", mBHeader.Number, "preRootHash", mBHeader.PrevRootBlockHash.String())
 		return nil
 	}
-	fmt.Println("!!!!!!!!!!!1",s.MinorBlockChain.CurrentBlock().Number(),mBHeader.Number)
 	if s.MinorBlockChain.CurrentBlock().Number() >= mBHeader.Number {
 		log.Info(s.logInfo, "no need t sync curr height", s.MinorBlockChain.CurrentBlock().Number(), "tipHeight", mBHeader.Number)
 		return nil

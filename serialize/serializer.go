@@ -137,7 +137,9 @@ func serializeBigInt(i *big.Int, w *[]byte) error {
 	var bytes []byte
 	if cmp := i.Cmp(big.NewInt(0)); cmp == -1 {
 		return fmt.Errorf("ser: cannot serialize negative *big.Int")
-	} else if cmp > 0 {
+	} else if cmp == 0 {
+		bytes = append(bytes, 0)
+	} else {
 		bytes = i.Bytes()
 	}
 

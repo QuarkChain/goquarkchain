@@ -1849,8 +1849,7 @@ func (m *MinorBlockChain) GetRootChainStakes(coinbase account.Recipient, lastMin
 	contractAddress := vm.SystemContracts[vm.ROOT_CHAIN_POSW].Address()
 	code := evmState.GetCode(contractAddress)
 	if code == nil {
-		fmt.Println("!!!!!!!!!!!!!!!!!!!!!!!!!--1852", ErrPoswOnRootChainIsNotFound)
-		return nil, nil, ErrPoswOnRootChainIsNotFound
+		return nil, nil, errors.New("PoSW-on-root-chain contract is not found")
 	}
 	codeHash := crypto.Keccak256Hash(code)
 	//have to make sure the code is expected

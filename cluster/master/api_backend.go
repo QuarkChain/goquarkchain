@@ -8,7 +8,6 @@ import (
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
 	"github.com/QuarkChain/goquarkchain/consensus"
-	"github.com/QuarkChain/goquarkchain/core"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/p2p"
 	qrpc "github.com/QuarkChain/goquarkchain/rpc"
@@ -18,7 +17,6 @@ import (
 	"math/big"
 	"net"
 	"reflect"
-	"strings"
 )
 
 func ip2uint32(ip string) uint32 {
@@ -283,8 +281,11 @@ func (s *QKCMasterBackend) GetRootBlockByNumber(blockNumber *uint64, needExtraIn
 		return nil, nil, errors.New("rootBlock is nil")
 	}
 	if needExtraInfo {
-		p, err := s.getPoswInfo(block.Header())
-		return block, p, err
+		poswInfo, err := s.rootBlockChain.PoSWInfo(block.Header())
+		if err != nil {
+			return nil, nil, err
+		}
+		return block, poswInfo, nil
 	}
 	return block, nil, nil
 }
@@ -295,19 +296,15 @@ func (s *QKCMasterBackend) GetRootBlockByHash(hash common.Hash, needExtraInfo bo
 		return nil, nil, errors.New("rootBlock is nil")
 	}
 	if needExtraInfo {
-		p, err := s.getPoswInfo(block.Header())
-		return block, p, err
+		poswInfo, err := s.rootBlockChain.PoSWInfo(block.Header())
+		if err != nil {
+			return nil, nil, err
+		}
+		return block, poswInfo, nil
 	}
 	return block, nil, nil
 }
 
-func (s *QKCMasterBackend) getPoswInfo(header *types.RootBlockHeader) (*rpc.PoSWInfo, error) {
-	poswInfo, err := s.rootBlockChain.PoSWInfo(header) //TODO @DL to fix https://github.com/QuarkChain/goquarkchain/issues/408
-	if err != nil && !strings.Contains(err.Error(), core.ErrPoswOnRootChainIsNotFound.Error()) {
-		return nil, err
-	}
-	return poswInfo, nil
-}
 func (s *QKCMasterBackend) NetWorkInfo() map[string]interface{} {
 	shardSizeList := make([]hexutil.Uint, 0)
 	for _, v := range s.clusterConfig.Quarkchain.Chains {

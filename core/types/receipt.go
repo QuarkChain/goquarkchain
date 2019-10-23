@@ -126,7 +126,6 @@ func (r *Receipt) Serialize(w *[]byte) error {
 }
 
 func (r *Receipt) GetPrevGasUsed() uint64 {
-	fmt.Println("????",r.CumulativeGasUsed,r.GasUsed)
 	return r.CumulativeGasUsed - r.GasUsed
 }
 

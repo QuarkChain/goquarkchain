@@ -35,7 +35,7 @@ type Backend interface {
 	GetClusterConfig() *config.ClusterConfig
 	GetPeerInfolist() []qrpc.PeerInfoForDisPlay
 	GetStats() (map[string]interface{}, error)
-	GetBlockCount() (map[uint32]map[string]uint32, error)
+	GetBlockCount() (map[uint32]map[account.Recipient]uint32, error)
 	SetTargetBlockTime(rootBlockTime *uint32, minorBlockTime *uint32) error
 	SetMining(mining bool)
 	CreateTransactions(numTxPerShard, xShardPercent uint32, tx *types.Transaction) error
