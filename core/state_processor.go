@@ -171,7 +171,6 @@ func ApplyTransaction(config *params.ChainConfig, bc ChainContext, gp *GasPool, 
 	vmenv := vm.NewEVM(context, statedb, config, cfg)
 
 	ret, gas, failed, err := ApplyMessage(vmenv, msg, gp)
-	fmt.Println("gas",gas)
 	if err != nil {
 		return nil, nil, 0, err
 	}
@@ -185,7 +184,6 @@ func ApplyTransaction(config *params.ChainConfig, bc ChainContext, gp *GasPool, 
 	receipt := types.NewReceipt(root, failed, statedb.GetGasUsed().Uint64())
 	receipt.TxHash = tx.Hash()
 	receipt.GasUsed = gas
-	fmt.Println("???????????????--",statedb.GetGasUsed(),gas)
 	// if the transaction created a contract, store the creation address in the receipt.
 	if msg.To() == nil && !msg.IsCrossShard() && !failed {
 		receipt.ContractAddress = account.Recipient(vm.CreateAddress(vmenv.Context.Origin, msg.ToFullShardKey(), tx.EvmTx.Nonce()))

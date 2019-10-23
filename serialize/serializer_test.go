@@ -85,7 +85,7 @@ var serdata = []testDataForSerialize{
 	{val: uint64(128), output: "0000000000000080"},
 	{val: uint64(0xFFFFFFFF), output: "00000000FFFFFFFF"},
 	{val: uint64(0xFFFFFFFFFFFFFFFF), output: "FFFFFFFFFFFFFFFF"},
-	{val: uint(0), output: "0100"},
+	{val: uint(0), output: "00"},
 	{val: uint(128), output: "0180"},
 	{val: uint(1024), output: "020400"},
 	{val: uint(0xFFFFFFFF), output: "04FFFFFFFF"},
@@ -98,7 +98,7 @@ var serdata = []testDataForSerialize{
 	{val: newUint256(0xFFFFFFFFFFFFFFFF), output: "000000000000000000000000000000000000000000000000FFFFFFFFFFFFFFFF"},
 
 	// big integers (should match uint for small values)
-	{val: big.NewInt(0), output: "0100"},
+	{val: big.NewInt(0), output: "00"},
 	{val: big.NewInt(1), output: "0101"},
 	{val: big.NewInt(128), output: "0180"},
 	{val: big.NewInt(256), output: "020100"},
@@ -115,7 +115,7 @@ var serdata = []testDataForSerialize{
 	},
 
 	// non-pointer big.Int
-	{val: *big.NewInt(0), output: "0100"},
+	{val: *big.NewInt(0), output: "00"},
 	{val: *big.NewInt(0xFFFFFF), output: "03FFFFFF"},
 
 	// negative ints are not supported
@@ -155,11 +155,11 @@ var serdata = []testDataForSerialize{
 	// nil
 	// as nilOk default value is false, serialize will use default
 	// value to serialize instead of nil
-	{val: (*uint)(nil), output: "0100"},
+	{val: (*uint)(nil), output: "00"},
 	{val: (*string)(nil), output: "00000000"},
 	{val: (*[]byte)(nil), output: "00"},
 	{val: (*[10]byte)(nil), output: "00000000000000000000"},
-	{val: (*big.Int)(nil), output: "0100"},
+	{val: (*big.Int)(nil), output: "00"},
 	{val: (*[]string)(nil), output: "00"},
 	{val: (*[10]string)(nil), output: "00000000000000000000000000000000000000000000000000000000000000000000000000000000"},
 	{val: (*[]struct{ uint })(nil), output: "00"},

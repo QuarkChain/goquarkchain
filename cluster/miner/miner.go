@@ -1,7 +1,6 @@
 package miner
 
 import (
-	"fmt"
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/service"
 	"github.com/QuarkChain/goquarkchain/consensus"
@@ -74,7 +73,6 @@ func (m *Miner) interrupt() {
 func (m *Miner) allowMining() bool {
 	if !m.IsMining() ||
 		time.Now().Sub(*m.timestamp).Seconds() > deadtime {
-		fmt.Println("SSSSSSSSSSSSSSSSS",m.isMining,m.api.IsSyncIng(),time.Now().Sub(*m.timestamp).Seconds(),deadtime,time.Now().Sub(*m.timestamp).Seconds() > deadtime)
 		return false
 	}
 	return true
@@ -83,34 +81,30 @@ func (m *Miner) allowMining() bool {
 func (m *Miner) commit(addr *account.Address) {
 	// don't allow to mine
 	if !m.allowMining() {
-		fmt.Println("?????????-1")
 		return
 	}
-	sleepTime:=0
-	for m.api.IsSyncIng(){
-		time.Sleep(1*time.Second)
+	sleepTime := 0
+	for m.api.IsSyncIng() {
+		time.Sleep(1 * time.Second)
 		sleepTime++
-		if sleepTime>=100{
-			panic("sleepTime>=100 ")//TODO this line need ti delete
+		if sleepTime >= 500 {
+			log.Error("sleep for syncing too lang", "sleepTime", sleepTime)
 		}
 	}
-		m.interrupt()
+	m.interrupt()
 	block, diff, optionalDivider, err := m.api.CreateBlockToMine(addr)
 	if err != nil {
 		log.Error(m.logInfo, "create block to mine err", err)
 		// retry to create block to mine
 		time.Sleep(2 * time.Second)
 		m.startCh <- struct{}{}
-		fmt.Println("?????????-2")
 		return
 	}
 	tip := m.getTip()
 	if block.NumberU64() <= tip {
 		log.Error(m.logInfo, "block's height small than tipHeight after commit blockNumber ,no need to seal", block.NumberU64(), "tip", m.getTip())
-		fmt.Println("?????????-4")
 		return
 	}
-	fmt.Println("??????????-succ")
 	m.workCh <- workAdjusted{block, diff, optionalDivider}
 }
 

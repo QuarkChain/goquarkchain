@@ -221,9 +221,6 @@ func NewMinorBlock(header *MinorBlockHeader, meta *MinorBlockMeta, txs []*Transa
 	return b
 }
 
-func GetEmptyMinorBlock()*MinorBlock  {
-	return NewMinorBlock(getDefaultMinorBlockHeader(), getDefauleMinorBlockMeta(), nil, nil, nil)
-}
 // NewBlockWithHeader creates a block with the given header data. The
 // header data is copied, changes to header and to the field values
 // will not affect the block.
@@ -514,6 +511,10 @@ func (h *MinorBlock) CreateBlockToAppend(createTime *uint64, difficulty *big.Int
 }
 func (h *MinorBlock) AddTx(tx *Transaction) {
 	h.transactions = append(h.transactions, tx)
+}
+
+func GetEmptyMinorBlock() *MinorBlock {
+	return NewMinorBlock(getDefaultMinorBlockHeader(), getDefauleMinorBlockMeta(), nil, nil, nil)
 }
 
 func getDefaultMinorBlockHeader() *MinorBlockHeader {

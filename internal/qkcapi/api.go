@@ -3,7 +3,6 @@ package qkcapi
 import (
 	"bytes"
 	"errors"
-	"fmt"
 	"github.com/QuarkChain/goquarkchain/account"
 	qrpc "github.com/QuarkChain/goquarkchain/cluster/rpc"
 	qcom "github.com/QuarkChain/goquarkchain/common"
@@ -277,11 +276,7 @@ func (p *PublicBlockChainAPI) GetRootBlockById(hash common.Hash, needExtraInfo *
 	rootBlock, poswInfo, err := p.b.GetRootBlockByHash(hash, *needExtraInfo)
 	if err != nil {
 		return nil, err
-
 	}
-
-	fmt.Println("RRRRRRRR", rootBlock)
-	fmt.Println("powsInfo")
 	return encoder.RootBlockEncoder(rootBlock, poswInfo)
 }
 

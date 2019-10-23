@@ -2,7 +2,6 @@ package encoder
 
 import (
 	"errors"
-	"fmt"
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
 	"github.com/QuarkChain/goquarkchain/common"
@@ -55,7 +54,6 @@ func RootBlockEncoder(rootBlock *types.RootBlock, extraInfo *rpc.PoSWInfo) (map[
 	if err != nil {
 		return nil, err
 	}
-	fmt.Println("???", rootBlock)
 	header := rootBlock.Header()
 
 	minerData, err := serialize.SerializeToBytes(header.Coinbase)
@@ -302,7 +300,6 @@ func ReceiptEncoder(block *types.MinorBlock, i int, receipt *types.Receipt) (map
 	}
 	header := block.Header()
 
-	fmt.Println("!!!!!!!!!!!!", receipt.GasUsed, receipt.GetPrevGasUsed())
 	field := map[string]interface{}{
 		"transactionId":     txID,
 		"transactionHash":   txHash,
