@@ -360,6 +360,7 @@ func (bc *RootBlockChain) insert(block *types.RootBlock) {
 		panic(err)
 	}
 	rawdb.WriteHeadBlockHash(bc.db, block.Hash())
+
 	bc.currentBlock.Store(block)
 
 	// If the block is better than our head or is on a different chain, force update heads
