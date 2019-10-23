@@ -321,7 +321,7 @@ func (m *MinorBlockChain) putRootBlock(rBlock *types.RootBlock, minorHeader *typ
 	if _, ok := m.rootHeightToHashes[rBlock.NumberU64()]; !ok {
 		m.rootHeightToHashes[rBlock.NumberU64()] = make(map[common.Hash]common.Hash)
 	}
-	log.Info("putRootBlock", "rBlock", rBlock.NumberU64(), "rHash", rBlock.Hash().String(), "mHash", mHash.String())
+	log.Debug(m.logInfo, "putRootBlock", rBlock.NumberU64(), "rHash", rBlock.Hash().String(), "mHash", mHash.String())
 	m.rootHeightToHashes[rBlock.NumberU64()][rBlock.Hash()] = mHash
 	rawdb.WriteLastConfirmedMinorBlockHeaderAtRootBlock(m.db, rBlockHash, mHash)
 }
@@ -1672,7 +1672,6 @@ func (m *MinorBlockChain) CommitMinorBlockByHash(h common.Hash) {
 	rawdb.WriteCommitMinorBlock(m.db, h)
 }
 
-func (m *MinorBlockChain) GetMiningInfo(address account.Recipient, stake *types.TokenBalances) (uint64, uint64, error) {
-	//TODO @DL to fix
-	return 0, 0, nil
+func (m *MinorBlockChain) GetMiningInfo(address account.Recipient, stake *types.TokenBalances) (mineable, mined uint64, err error) {
+	return m.posw.GetMiningInfo(m.CurrentHeader(), stake.GetTokenBalance(m.Config().GetDefaultChainTokenID()))
 }

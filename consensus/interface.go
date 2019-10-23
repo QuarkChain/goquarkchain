@@ -104,4 +104,5 @@ type PoSWCalculator interface {
 	PoSWDiffAdjust(header types.IHeader, balance *big.Int) (*big.Int, error)
 	IsPoSWEnabled(header types.IHeader) bool
 	GetPoSWInfo(header types.IHeader, stakes *big.Int) (*big.Int, uint64, uint64, error)
+	GetMiningInfo(header types.IHeader, balance *big.Int) (uint64, uint64, error)
 }

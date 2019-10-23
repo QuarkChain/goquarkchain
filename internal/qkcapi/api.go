@@ -245,6 +245,8 @@ func (p *PublicBlockChainAPI) GetAccountData(address account.Address, blockNr *r
 		}
 		if branch.GetFullShardID() == fullShardIDByConfig {
 			primary = shardData
+			primary["minedBlocks"] = hexutil.Uint64(accountBranchData.MinedBlocks)
+			primary["poswMineableBlocks"] = hexutil.Uint64(accountBranchData.PoswMineableBlocks)
 		}
 	}
 	return map[string]interface{}{

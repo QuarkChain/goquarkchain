@@ -165,3 +165,21 @@ func (p *PoSW) GetPoSWInfo(header types.IHeader, stakes *big.Int) (effectiveDiff
 	mined = blockCnt + 1
 	return
 }
+
+func (p *PoSW) GetMiningInfo(header types.IHeader, stakes *big.Int) (mineable, mined uint64, err error) {
+
+	blockCnt, err := p.countCoinbaseBlockUntil(header.Hash(), header.GetCoinbase().Recipient)
+	if err != nil {
+		return 0, 0, err
+	}
+	if !p.IsPoSWEnabled(header) {
+		return 0, blockCnt, nil
+	}
+	blockThreshold := new(big.Int).Div(stakes, p.config.TotalStakePerBlock).Uint64()
+	if blockThreshold > p.config.WindowSize {
+		blockThreshold = p.config.WindowSize
+	}
+	mineable = blockThreshold
+	mined = blockCnt
+	return
+}
