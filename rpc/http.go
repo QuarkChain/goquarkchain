@@ -296,6 +296,7 @@ type virtualHostHandler struct {
 
 // ServeHTTP serves JSON-RPC requests over HTTP, implements http.Handler
 func (h *virtualHostHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	log.Debug("JSON-RPC", "request", r)
 	// if r.Host is not set, we can continue serving since a browser would set the Host header
 	if r.Host == "" {
 		h.next.ServeHTTP(w, r)
@@ -306,13 +307,16 @@ func (h *virtualHostHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		// Either invalid (too many colons) or no port specified
 		host = r.Host
 	}
+	if host == "localhost" {
+		h.next.ServeHTTP(w, r)
+		return
+	}
 	if ipAddr := net.ParseIP(host); ipAddr != nil {
 		// It's an IP address, we can serve that
 		h.next.ServeHTTP(w, r)
 		return
-
 	}
-	// Not an ip address, but a hostname. Need to validate
+	// Not an ip address, but a hostname. Need to validate\
 	if _, exist := h.vhosts["*"]; exist {
 		h.next.ServeHTTP(w, r)
 		return
