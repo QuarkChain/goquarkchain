@@ -168,8 +168,8 @@ func NewMinorBlockChain(
 	}
 	if cacheConfig == nil {
 		cacheConfig = &CacheConfig{
-			TrieCleanLimit: 256,
-			TrieDirtyLimit: 256,
+			TrieCleanLimit: 128,
+			TrieDirtyLimit: 128,
 			TrieTimeLimit:  5 * time.Minute,
 			Disabled:       true, //update trieDB every block
 		}

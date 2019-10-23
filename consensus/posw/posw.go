@@ -9,7 +9,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
-	lru "github.com/hashicorp/golang-lru"
+	"github.com/hashicorp/golang-lru"
 	"math/big"
 )
 
@@ -113,21 +113,22 @@ func (p *PoSW) getCoinbaseAddressUntilBlock(headerHash common.Hash) ([]account.R
 		return nil, fmt.Errorf("curr block not found: hash %x", headerHash)
 	}
 	length := int(p.config.WindowSize) - 1
-	addrs := make([]account.Recipient, 0, length)
-	height := header.NumberU64()
+	var (
+		newAddrs = heightAndAddrs{height: header.NumberU64()}
+	)
 	prevHash := header.GetParentHash()
 	if p.coinbaseAddrCache.Contains(prevHash) {
 		ha, _ := p.coinbaseAddrCache.Get(prevHash)
 		haddrs := ha.(heightAndAddrs)
-		addrs = append(addrs, haddrs.addrs...)
-		if len(addrs) == length {
-			addrs = addrs[1:]
+		newAddrs.addrs = append(newAddrs.addrs, haddrs.addrs...)
+		if len(newAddrs.addrs) == length {
+			newAddrs.addrs = newAddrs.addrs[1:]
 		}
-		addrs = append(addrs, header.GetCoinbase().Recipient)
+		newAddrs.addrs = append(newAddrs.addrs, header.GetCoinbase().Recipient)
 	} else { //miss, iterating DB
 		for i := 0; i < length; i++ {
 			addrsNew := []account.Recipient{header.GetCoinbase().Recipient}
-			addrs = append(addrsNew, addrs...)
+			newAddrs.addrs = append(addrsNew, newAddrs.addrs...)
 			if header.NumberU64() == 0 {
 				break
 			}
@@ -136,11 +137,11 @@ func (p *PoSW) getCoinbaseAddressUntilBlock(headerHash common.Hash) ([]account.R
 			}
 		}
 	}
-	p.coinbaseAddrCache.Add(headerHash, heightAndAddrs{height, addrs})
-	if len(addrs) > length {
+	p.coinbaseAddrCache.Add(headerHash, newAddrs)
+	if len(newAddrs.addrs) > length {
 		panic("Unexpected result: len(addrs) > length\n")
 	}
-	return addrs, nil
+	return newAddrs.addrs, nil
 }
 
 func (p *PoSW) GetPoSWInfo(header types.IHeader, stakes *big.Int) (effectiveDiff *big.Int, mineable, mined uint64, err error) {
