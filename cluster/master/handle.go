@@ -188,7 +188,6 @@ func (pm *ProtocolManager) handle(peer *Peer) error {
 	for {
 		if err := pm.handleMsg(peer); err != nil {
 			peer.Log().Error("message handling failed", "err", err)
-			_ = pm.peers.Unregister(peer.id)
 			return err
 		}
 	}
