@@ -1,6 +1,7 @@
 package master
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"github.com/QuarkChain/goquarkchain/account"
@@ -299,7 +300,31 @@ func (s *QKCMasterBackend) Init(srvr *p2p.Server) error {
 	if err := s.initShards(); err != nil {
 		return err
 	}
+
+	if err := s.reBroadcastCommittingRootBlock(); err != nil {
+		return err
+	}
+
 	s.Heartbeat()
+	return nil
+}
+
+func (s *QKCMasterBackend) reBroadcastCommittingRootBlock() error {
+	committingBlockhash := s.rootBlockChain.GetCommittingBlockHash()
+	if bytes.Equal(committingBlockhash.Bytes(), common.Hash{}.Bytes()) {
+		r := s.rootBlockChain.GetBlock(committingBlockhash)
+		rBlock, ok := r.(*types.RootBlock)
+		// missing actual block, may have crashed before writing the block
+		if !ok {
+			s.rootBlockChain.ClearCommittingHash()
+			log.Error("rBlock is not found", "commitingHash", committingBlockhash)
+			return nil
+		}
+		if err := s.broadcastRootBlockToSlaves(rBlock); err != nil {
+			return err
+		}
+		s.rootBlockChain.ClearCommittingHash()
+	}
 	return nil
 }
 
@@ -627,9 +652,6 @@ func (s *QKCMasterBackend) AddRootBlock(rootBlock *types.RootBlock) error {
 		return err
 	}
 	if err := s.broadcastRootBlockToSlaves(rootBlock); err != nil {
-		if err := s.rootBlockChain.SetHead(header.NumberU64()); err != nil {
-			panic(err)
-		}
 		return err
 	}
 	s.rootBlockChain.ClearCommittingHash()
