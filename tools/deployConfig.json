@@ -7,7 +7,7 @@
     "Service": "master,slave"
   }
   ],
-  "BootNode": "enode://3b8566605035068f774ae5b65c511a779cc67071bc8be431294b1e76d79b3f07b79fdc2efb9fe3fb1ff8678e53f86de7529c6ef551cbc907647c1e8133426999@172.16.2.193:38291",
+  "BootNode": "enode://695fa56e04646fdc31b63d58ba45d65d9419d8c488c30938ebffd34a1f58ea4e61099994ff56e597a0ece1359b53e501f3de20320ba19da42f37fcb130c7cbdf@172.16.2.193:38291",
   "ChainNumber": 2,
   "ShardNumber": 4,
   "ExtraClusterConfig": {

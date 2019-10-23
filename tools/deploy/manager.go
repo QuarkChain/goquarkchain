@@ -100,7 +100,7 @@ func (t *ToolManager) MakeClusterExe() {
 		v.RunCmd("docker stop $(docker ps -a|grep bjqkc |awk '{print $1}')")
 		v.RunCmd("docker  rm $(docker ps -a|grep bjqkc |awk '{print $1}')")
 		v.RunCmd("docker pull " + dockerName)
-		v.RunCmd("docker run -itd --name bjqkc --network=host -p 38291:38291 -p 38391:38391 -p 38491:38491 -p 38291:38291/udp " + dockerName)
+		v.RunCmd("docker run -itd --name bjqkc --network=host  " + dockerName)
 
 		v.RunCmd("mkdir /tmp/QKC")
 
@@ -122,7 +122,7 @@ func (t *ToolManager) SendFileToCluster() {
 		v.RunCmd("docker stop $(docker ps -a -q)")
 		v.RunCmd("docker  rm $(docker ps -a -q)")
 		v.RunCmd("docker pull " + dockerName)
-		v.RunCmd("docker run -itd --name bjqkc --network=host -p 38291:38291 -p 38391:38391 -p 38491:38491 -p 38291:38291/udp " + dockerName)
+		v.RunCmd("docker run -itd --name bjqkc --network=host " + dockerName)
 
 		v.SendFile(clusterPath, remoteDir)
 		v.SendFile(clusterConfigPath, remoteDir)

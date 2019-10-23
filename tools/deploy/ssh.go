@@ -19,7 +19,7 @@ func NewSSHConnect(user, password, host string, port int) *SSHSession {
 }
 
 func (s *SSHSession) RunCmd(cmd string) {
-	log.Info("cmd", "host", s.host, "port", s.port, "user", s.user, "port", s.password, "cmd", cmd)
+	log.Debug("cmd", "host", s.host, "cmd", cmd)
 	var stdOut, stdErr bytes.Buffer
 	session, err := SSHConnect(s.user, s.password, s.host, s.port)
 	Checkerr(err)
@@ -32,27 +32,6 @@ func (s *SSHSession) RunCmd(cmd string) {
 	}
 	if stdErr.String() != "" {
 		//fmt.Println("err", stdErr.String())
-	}
-}
-
-func (s *SSHSession) RunMiner(branch int64, minerNumber int) {
-	for index := 0; index < minerNumber; index++ {
-		cmd := "docker exec -itd bjqkc /bin/bash -c  'chmod +x /tmp/QKC/miner && /tmp/QKC/miner -config /tmp/QKC/cluster_config_template.json  -host 127.0.0.1 -port 38391 "
-		minerAddress := "0x"
-		for addrIndex := 0; addrIndex < 40; addrIndex++ {
-			minerAddress += string(byte(index + '0'))
-		}
-
-		if branch < 0 {
-			// master
-		} else {
-			shardFlag := fmt.Sprintf(" -shards %v ", branch)
-			cmd += shardFlag
-		}
-		cmd += " -coinbase "
-		cmd += minerAddress
-		cmd += "'"
-		s.RunCmd(cmd)
 	}
 }
 

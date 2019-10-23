@@ -25,7 +25,7 @@ func init() {
 	}
 	ostream = log.StreamHandler(output, log.TerminalFormat(usecolor))
 	glogger = log.NewGlogHandler(ostream)
-	glogger.Verbosity(log.Lvl(3))
+	glogger.Verbosity(log.Lvl(4))
 	log.Root().SetHandler(glogger)
 }
 func getToolManager() *deploy.ToolManager {
