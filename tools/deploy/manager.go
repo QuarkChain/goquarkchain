@@ -23,8 +23,6 @@ var (
 type ToolManager struct {
 	localConfig *LocalConfig
 	SSHSession  map[string]*SSHSession
-
-	logInfo string
 }
 
 func NewToolManager(config *LocalConfig) *ToolManager {
@@ -42,11 +40,11 @@ func (t *ToolManager) check() {
 		panic("t.localConfig.IPList should >=1")
 	}
 	if t.localConfig.ShardNumber < t.localConfig.ChainNumber {
-		log.Error(t.logInfo, "chainNumber", t.localConfig.ChainNumber, "shardNumber", t.localConfig.ShardNumber)
+		log.Error("check err", "chainNumber", t.localConfig.ChainNumber, "shardNumber", t.localConfig.ShardNumber)
 		panic("shardNumber should > chainNumber")
 	}
 	if t.localConfig.ShardNumber%t.localConfig.ChainNumber != 0 {
-		log.Error(t.logInfo, "chainNumber", t.localConfig.ChainNumber, "shardNumber", t.localConfig.ShardNumber)
+		log.Error("check err", "chainNumber", t.localConfig.ChainNumber, "shardNumber", t.localConfig.ShardNumber)
 		panic("shardNumber%chainNumber should=0")
 	}
 
@@ -65,7 +63,7 @@ func (t *ToolManager) init() {
 	for _, ip := range t.localConfig.IPList {
 		t.SSHSession[ip.IP] = NewSSHConnect(ip.User, ip.Password, ip.IP, int(ip.Port))
 	}
-	log.Info(t.logInfo, "IP列表", t.localConfig.IPList)
+	log.Info("init", "IP list", t.localConfig.IPList)
 }
 
 func (t *ToolManager) GetIpListDependTag(tag string) []string {
@@ -118,7 +116,6 @@ func (t *ToolManager) MakeClusterExe() {
 
 func (t *ToolManager) SendFileToCluster() {
 	for _, v := range t.SSHSession {
-		//清空宿主机临时目录
 		v.RunCmd("rm -rf " + remoteDir)
 		v.RunCmd("mkdir " + remoteDir)
 
@@ -127,7 +124,6 @@ func (t *ToolManager) SendFileToCluster() {
 		v.RunCmd("docker pull " + dockerName)
 		v.RunCmd("docker run -itd --name bjqkc --network=host -p 38291:38291 -p 38391:38391 -p 38491:38491 -p 38291:38291/udp " + dockerName)
 
-		// copy 文件到docker
 		v.SendFile(clusterPath, remoteDir)
 		v.SendFile(clusterConfigPath, remoteDir)
 

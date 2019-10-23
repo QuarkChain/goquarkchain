@@ -50,7 +50,6 @@ func UploadFile(sftpClient *sftp.Client, localFilePath string, remotePath string
 
 	var remoteFileName = path.Base(localFilePath)
 
-	//fmt.Println("remotePat", remotePath, remoteFileName)
 	dstFile, err := sftpClient.Create(path.Join(remotePath, remoteFileName))
 	Checkerr(err)
 	defer dstFile.Close()
@@ -58,25 +57,6 @@ func UploadFile(sftpClient *sftp.Client, localFilePath string, remotePath string
 	ff, err := ioutil.ReadAll(srcFile)
 	Checkerr(err)
 	dstFile.Write(ff)
-	//fmt.Println(localFilePath + "  copy file to remote server finished!")
-}
-
-func UploadDirectory(sftpClient *sftp.Client, localPath string, remotePath string) {
-	localFiles, err := ioutil.ReadDir(localPath)
-	Checkerr(err)
-
-	for _, backupDir := range localFiles {
-		localFilePath := path.Join(localPath, backupDir.Name())
-		remoteFilePath := path.Join(remotePath, backupDir.Name())
-		if backupDir.IsDir() {
-			sftpClient.Mkdir(remoteFilePath)
-			UploadDirectory(sftpClient, localFilePath, remoteFilePath)
-		} else {
-			UploadFile(sftpClient, path.Join(localPath, backupDir.Name()), remotePath)
-		}
-	}
-
-	//fmt.Println(localPath + "  copy directory to remote server finished!")
 }
 
 func GetfileFromRemote(sftpClient *sftp.Client, localDir string, remotePath string) {
@@ -90,9 +70,6 @@ func GetfileFromRemote(sftpClient *sftp.Client, localDir string, remotePath stri
 	defer dstFile.Close()
 
 	if _, err = srcFile.WriteTo(dstFile); err != nil {
-		fmt.Println("err", err, remotePath)
-		panic("sb")
+		panic(err)
 	}
-
-	//fmt.Println("copy file from remote server finished!!!!!!!!!!!!!")
 }

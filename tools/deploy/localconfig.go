@@ -33,15 +33,6 @@ type LocalConfig struct {
 	ExtraClusterConfig *ExtraClusterConfig `json:"ExtraClusterConfig"`
 }
 
-func (l *LocalConfig) GetNodeInfoByIP(ip string) NodeIndo {
-	for _, v := range l.IPList {
-		if v.IP == ip {
-			return v
-		}
-	}
-	panic("not fould")
-}
-
 func LoadConfig(filePth string) *LocalConfig {
 	var config LocalConfig
 	f, err := os.Open(filePth)
@@ -49,7 +40,7 @@ func LoadConfig(filePth string) *LocalConfig {
 
 	buffer, err := ioutil.ReadAll(f)
 	Checkerr(err)
-	err = json.Unmarshal(buffer, &config) //解析json格式数据
+	err = json.Unmarshal(buffer, &config)
 	Checkerr(err)
 	return &config
 }
@@ -107,7 +98,6 @@ func Update(q *config.QuarkChainConfig, chainSize, shardSizePerChain uint32, def
 
 func updateChains(cfg *config.ClusterConfig, ChainSize uint32, shardSizePerChain uint32, ipList []string, defaultChainConfig config.ChainConfig) {
 	Update(cfg.Quarkchain, ChainSize, shardSizePerChain, defaultChainConfig)
-	//	updateShardConfig(cfg, initParams)
 	updateSlaves(cfg, ipList)
 }
 
