@@ -2,6 +2,7 @@ package master
 
 import (
 	"fmt"
+	"github.com/QuarkChain/goquarkchain/p2p/nodefilter"
 	"io/ioutil"
 	"reflect"
 	"sync"
@@ -164,7 +165,7 @@ func (pm *ProtocolManager) handle(peer *Peer) error {
 		pm.rootBlockChain.CurrentBlock().Header(),
 		pm.rootBlockChain.Genesis().Hash(),
 	); err != nil {
-		return p2p.NewHandleErr(err.Error())
+		return nodefilter.NewHandleBlackErr(err.Error())
 	}
 
 	// Register the peer locally

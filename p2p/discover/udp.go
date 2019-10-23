@@ -22,6 +22,7 @@ import (
 	"crypto/ecdsa"
 	"errors"
 	"fmt"
+	"github.com/QuarkChain/goquarkchain/p2p/nodefilter"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/p2p/enode"
@@ -42,6 +43,7 @@ var (
 	errTimeout          = errors.New("RPC timeout")
 	errClockWarp        = errors.New("reply deadline too far in the future")
 	errClosed           = errors.New("socket closed")
+	errDontMatchPreFix  = errors.New("don't match qkc header message")
 )
 
 // Timeouts
@@ -241,6 +243,7 @@ type Config struct {
 	Bootnodes   []*enode.Node     // list of bootstrap nodes
 	Unhandled   chan<- ReadPacket // unhandled packets are sent on this channel
 	NetworkId   uint32
+	BlackFilter nodefilter.BlackFilter
 }
 
 // ListenUDP returns a new table that listens for UDP packets on laddr.
@@ -249,6 +252,7 @@ func ListenUDP(c conn, ln *enode.LocalNode, cfg Config) (*Table, error) {
 	if err != nil {
 		return nil, err
 	}
+	tab.SetChkBlackFunc(cfg.BlackFilter.ChkDialoutBlacklist)
 	return tab, nil
 }
 
@@ -273,7 +277,7 @@ func newUDP(c conn, ln *enode.LocalNode, cfg Config) (*Table, *udp, error) {
 
 	udp.wg.Add(2)
 	go udp.loop()
-	go udp.readLoop(cfg.Unhandled)
+	go udp.readLoop(cfg.BlackFilter)
 	return udp.tab, udp, nil
 }
 
@@ -553,11 +557,8 @@ func encodePacket(priv *ecdsa.PrivateKey, ptype byte, req interface{}) (packet, 
 }
 
 // readLoop runs in its own goroutine. it handles incoming UDP packets.
-func (t *udp) readLoop(unhandled chan<- ReadPacket) {
+func (t *udp) readLoop(filter nodefilter.BlackFilter) {
 	defer t.wg.Done()
-	if unhandled != nil {
-		defer close(unhandled)
-	}
 
 	// Discovery packets are defined to be no larger than 1280 bytes.
 	// Packets larger than this size will be cut at the end and treated
@@ -574,18 +575,20 @@ func (t *udp) readLoop(unhandled chan<- ReadPacket) {
 			log.Debug("UDP read error", "err", err)
 			return
 		}
-		if t.handlePacket(from, buf[:nbytes]) != nil && unhandled != nil {
-			select {
-			case unhandled <- ReadPacket{buf[:nbytes], from}:
-			default:
-			}
+		if filter.ChkDialoutBlacklist(from.IP.String()) {
+			log.Warn("black node in discovery connection", "remote ip", from.IP.String())
+			continue
+		}
+		err = t.handlePacket(from, buf[:nbytes])
+		if err == errDontMatchPreFix {
+			filter.AddDialoutBlacklist(from.IP.String())
 		}
 	}
 }
 
 func (t *udp) handlePacket(from *net.UDPAddr, buf []byte) error {
 	if len(buf) <= qkcIdLen || bytes.Compare(qkcIdBytes, buf[:qkcIdLen]) != 0 {
-		return errors.New("don't match qkc header message")
+		return errDontMatchPreFix
 	}
 	buf = buf[qkcIdLen:]
 	packet, fromID, hash, err := decodePacket(buf)
