@@ -231,7 +231,7 @@ func (s *ShardBackend) AddMinorBlock(block *types.MinorBlock) error {
 	currHead := s.MinorBlockChain.CurrentBlock().Header()
 	_, xshardLst, err := s.MinorBlockChain.InsertChainForDeposits([]types.IBlock{block}, false)
 	if err != nil || len(xshardLst) != 1 {
-		log.Error("Failed to add minor block", "err", err)
+		log.Error("Failed to add minor block", "err", err, "len", len(xshardLst))
 		return err
 	}
 	// only remove from pool if the block successfully added to state,
@@ -323,17 +323,18 @@ func (s *ShardBackend) AddBlockListForSync(blockLst []*types.MinorBlock) (map[co
 		return nil, err
 	}
 
-	req := &rpc.AddMinorBlockHeaderListRequest{
-		MinorBlockHeaderList: uncommittedBlockHeaderList,
-	}
-	if err := s.conn.SendMinorBlockHeaderListToMaster(req); err != nil {
-		return nil, err
-	}
 	for _, header := range uncommittedBlockHeaderList {
 		s.MinorBlockChain.CommitMinorBlockByHash(header.Hash())
 		s.mBPool.delBlockInPool(header)
 	}
 	return coinbaseAmountList, nil
+}
+
+func (s *ShardBackend) SendCommittedHeaderTomaster(committedHashListToMaster []*types.MinorBlockHeader) error {
+	req := &rpc.AddMinorBlockHeaderListRequest{
+		MinorBlockHeaderList: committedHashListToMaster,
+	}
+	return s.conn.SendMinorBlockHeaderListToMaster(req)
 }
 
 // ######################## miner Methods ##############################
