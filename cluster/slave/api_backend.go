@@ -99,13 +99,24 @@ func (s *SlaveBackend) AddBlockListForSync(mHashList []common.Hash, peerId strin
 	if !ok {
 		return nil, ErrMsg("AddBlockListForSync")
 	}
+	fmt.Println("ForSync", shard.MinorBlockChain.GetBranch().Value, len(mHashList))
+	for _, v := range mHashList {
+		fmt.Println(v.String())
+	}
+	fmt.Println("===end")
 
 	hashList := make([]common.Hash, 0)
 	for _, hash := range mHashList {
 		if !shard.MinorBlockChain.HasBlock(hash) {
+			fmt.Println("hashBlock", shard.MinorBlockChain.GetBranch().Value, hash.String())
 			hashList = append(hashList, hash)
 		}
 	}
+	fmt.Println("real HahsList", shard.MinorBlockChain.GetBranch().Value, len(hashList))
+	for _, v := range hashList {
+		fmt.Println("", v.String())
+	}
+	fmt.Println("===read -end")
 
 	var (
 		BlockBatchSize = 100
