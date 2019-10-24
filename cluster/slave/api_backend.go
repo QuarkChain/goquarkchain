@@ -185,41 +185,6 @@ func (s *SlaveBackend) ExecuteTx(tx *types.Transaction, address *account.Address
 	return nil, ErrMsg("ExecuteTx")
 }
 
-func (s *SlaveBackend) GetTransactionCount(address *account.Address) (uint64, error) {
-	branch, err := s.getBranch(address)
-	if err != nil {
-		return 0, err
-	}
-	if shard, ok := s.shards[branch.Value]; ok {
-		return shard.MinorBlockChain.GetTransactionCount(address.Recipient, nil)
-	}
-	return 0, ErrMsg("GetTransactionCount")
-}
-
-func (s *SlaveBackend) GetBalances(address *account.Address) (map[uint64]*big.Int, error) {
-	branch, err := s.getBranch(address)
-	if err != nil {
-		return nil, err
-	}
-	if shard, ok := s.shards[branch.Value]; ok {
-		data, err := shard.MinorBlockChain.GetBalance(address.Recipient, nil)
-		return data.GetBalanceMap(), err
-	}
-	return nil, ErrMsg("GetBalances")
-}
-
-func (s *SlaveBackend) GetTokenBalanceMap(address *account.Address) (map[uint64]*big.Int, error) {
-	branch, err := s.getBranch(address)
-	if err != nil {
-		return nil, err
-	}
-	if shard, ok := s.shards[branch.Value]; ok {
-		data, err := shard.MinorBlockChain.GetBalance(address.Recipient, nil)
-		return data.GetBalanceMap(), err
-	}
-	return nil, ErrMsg("GetTokenBalance")
-}
-
 func (s *SlaveBackend) GetAccountData(address *account.Address, height *uint64) ([]*rpc.AccountBranchData, error) {
 	var (
 		results = make([]*rpc.AccountBranchData, 0)
@@ -230,15 +195,19 @@ func (s *SlaveBackend) GetAccountData(address *account.Address, height *uint64) 
 		data := rpc.AccountBranchData{
 			Branch: branch,
 		}
-		if data.TransactionCount, err = shard.MinorBlockChain.GetTransactionCount(address.Recipient, height); err != nil {
+		hash, err := s.getHashByHeight(shard, height)
+		if err != nil {
 			return nil, err
 		}
-		tokenBalances, err := shard.MinorBlockChain.GetBalance(address.Recipient, height)
+		if data.TransactionCount, err = shard.MinorBlockChain.GetTransactionCount(address.Recipient, &hash); err != nil {
+			return nil, err
+		}
+		tokenBalances, err := shard.MinorBlockChain.GetBalance(address.Recipient, &hash)
 		if err != nil {
 			return nil, err
 		}
 		data.Balance = tokenBalances.Copy()
-		if bt, err = shard.MinorBlockChain.GetCode(address.Recipient, height); err != nil {
+		if bt, err = shard.MinorBlockChain.GetCode(address.Recipient, &hash); err != nil {
 			return nil, err
 		}
 		data.IsContract = len(bt) > 0
@@ -333,9 +302,26 @@ func (s *SlaveBackend) GetStorageAt(address *account.Address, key common.Hash, h
 		return common.Hash{}, err
 	}
 	if shard, ok := s.shards[branch.Value]; ok {
-		return shard.MinorBlockChain.GetStorageAt(address.Recipient, key, height)
+		hash, err := s.getHashByHeight(shard, height)
+		if err != nil {
+			return common.Hash{}, err
+		}
+		return shard.MinorBlockChain.GetStorageAt(address.Recipient, key, &hash)
 	}
 	return common.Hash{}, ErrMsg("GetStorageAt")
+}
+
+func (s *SlaveBackend) getHashByHeight(shard *shard.ShardBackend, height *uint64) (common.Hash, error) {
+	hash := shard.MinorBlockChain.CurrentBlock().Hash()
+	if height != nil {
+		b, ok := shard.MinorBlockChain.GetBlockByNumber(*height).(*types.MinorBlock)
+		if !ok {
+			log.Error(s.logInfo, "no such height", *height)
+			return common.Hash{}, errors.New("no such height %v")
+		}
+		hash = b.Hash()
+	}
+	return hash, nil
 }
 
 func (s *SlaveBackend) GetCode(address *account.Address, height *uint64) ([]byte, error) {
@@ -344,7 +330,11 @@ func (s *SlaveBackend) GetCode(address *account.Address, height *uint64) ([]byte
 		return nil, err
 	}
 	if shard, ok := s.shards[branch.Value]; ok {
-		return shard.MinorBlockChain.GetCode(address.Recipient, height)
+		hash, err := s.getHashByHeight(shard, height)
+		if err != nil {
+			return nil, err
+		}
+		return shard.MinorBlockChain.GetCode(address.Recipient, &hash)
 	}
 	return nil, ErrMsg("GetCode")
 }
