@@ -166,15 +166,14 @@ func checkReqId(reqId json.RawMessage) error {
 	return fmt.Errorf("invalid request id")
 }
 
-func changeParams(data []byte) (res json.RawMessage) {
+func changeParams(data []byte) json.RawMessage {
 	if data[0] == byte('{') {
 		data = append([]byte{'['}, data...)
 		data = append(data, []byte{']'}...)
 	} else {
 		return nil
 	}
-	res = data
-	return
+	return data
 }
 
 // parseRequest will parse a single request from the given RawMessage. It will return
