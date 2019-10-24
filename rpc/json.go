@@ -166,6 +166,16 @@ func checkReqId(reqId json.RawMessage) error {
 	return fmt.Errorf("invalid request id")
 }
 
+func changeParams(data []byte) json.RawMessage {
+	if data[0] == byte('{') {
+		data = append([]byte{'['}, data...)
+		data = append(data, []byte{']'}...)
+	} else {
+		return nil
+	}
+	return data
+}
+
 // parseRequest will parse a single request from the given RawMessage. It will return
 // the parsed request, an indication if the request was a batch or an error when
 // the request could not be parsed.
@@ -176,6 +186,9 @@ func parseRequest(incomingMsg json.RawMessage) ([]rpcRequest, bool, Error) {
 	)
 	if err := json.Unmarshal(incomingMsg, &in); err != nil {
 		return nil, false, &invalidMessageError{err.Error()}
+	}
+	if data := changeParams(in.Payload); data != nil {
+		in.Payload = data
 	}
 
 	if err := checkReqId(in.Id); err != nil {
@@ -239,6 +252,9 @@ func parseBatchRequest(incomingMsg json.RawMessage) ([]rpcRequest, bool, Error) 
 	for i, r := range in {
 		if err := checkReqId(r.Id); err != nil {
 			return nil, false, &invalidMessageError{err.Error()}
+		}
+		if data := changeParams(r.Payload); data != nil {
+			r.Payload = data
 		}
 
 		id := &in[i].Id
