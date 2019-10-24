@@ -378,6 +378,7 @@ func (m *MinorBlockChain) InitFromRootBlock(rBlock *types.RootBlock) error {
 
 	headerTip := confirmedHeaderTip
 	if headerTip == nil {
+		log.Error(m.logInfo,"confirmedHeaderTip",confirmedHeaderTip,"rBlock.Hash",rBlock.Hash().String())
 		headerTip = m.GetBlockByNumber(0).IHeader().(*types.MinorBlockHeader)
 	}
 
