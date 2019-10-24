@@ -252,7 +252,7 @@ func ListenUDP(c conn, ln *enode.LocalNode, cfg Config) (*Table, error) {
 	if err != nil {
 		return nil, err
 	}
-	tab.SetChkBlackFunc(cfg.BlackListFilter.ChkDialoutBlacklist)
+	tab.SetChkBlackListFunc(cfg.BlackListFilter.ChkDialoutBlacklist)
 	return tab, nil
 }
 

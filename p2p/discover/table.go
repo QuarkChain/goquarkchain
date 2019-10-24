@@ -149,7 +149,7 @@ func (tab *Table) GetKadRoutingTable() []string {
 	return tab.nodeUrls
 }
 
-func (tab *Table) SetChkBlackFunc(chkDialOutFunc func(string) bool) {
+func (tab *Table) SetChkBlackListFunc(chkDialOutFunc func(string) bool) {
 	if chkDialOutFunc != nil {
 		tab.checkDialBlackList = chkDialOutFunc
 	}
