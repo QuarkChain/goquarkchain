@@ -183,7 +183,7 @@ func (s *ShardBackend) NewMinorBlock(block *types.MinorBlock) (err error) {
 	}
 
 	if !s.MinorBlockChain.HasBlock(block.Header().ParentHash) && s.mBPool.getBlockInPool(block.ParentHash()) == nil {
-		log.Info("prarent block hash not be included", "parent hash: ", block.Header().ParentHash.Hex())
+		log.Debug("prarent block hash not be included", "parent hash: ", block.Header().ParentHash.Hex())
 		return
 	}
 

@@ -243,16 +243,16 @@ func (r *rootChainTask) syncMinorBlocks(
 	var g errgroup.Group
 	for branch, hashes := range downloadMap {
 		b, hashList := branch, hashes
-		fmt.Println("branch", branch)
+		//fmt.Println("branch", branch)
 		conns := r.getShardConnFunc(b)
 		if len(conns) == 0 {
 			return fmt.Errorf("shard connection for branch %d is missing", b)
 		}
-		fmt.Println("AddBlockListForSync", branch, len(hashList))
-		for _, v := range hashList {
-			fmt.Println(branch, v.String())
-		}
-		fmt.Println("display end", branch, len(hashList))
+		//fmt.Println("AddBlockListForSync", branch, len(hashList))
+		//for _, v := range hashList {
+		//fmt.Println(branch, v.String())
+		//}
+		//fmt.Println("display end", branch, len(hashList))
 		// TODO Support to multiple connections
 		g.Go(func() error {
 			status, err := conns[0].AddBlockListForSync(&rpc.AddBlockListForSyncRequest{Branch: b, PeerId: r.PeerID(), MinorBlockHashList: hashList})

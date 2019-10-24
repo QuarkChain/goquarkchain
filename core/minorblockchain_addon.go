@@ -872,7 +872,7 @@ func (m *MinorBlockChain) AddRootBlock(rBlock *types.RootBlock) (bool, error) {
 
 		if data := m.ReadCrossShardTxList(h); data == nil {
 			errXshardListNotHave := errors.New("not have")
-			log.Error(m.logInfo, "addrootBlock err-2", errXshardListNotHave)
+			log.Error(m.logInfo, "addrootBlock err-2", errXshardListNotHave, "h", h.String())
 			return false, errXshardListNotHave
 		}
 
