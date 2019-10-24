@@ -30,7 +30,7 @@ sudo tar xzf go1.12.10.linux-amd64.tar.gz -C /usr/local
 ```
 Create a folder as $GOPATH, for example ~/go. This is where your Go code goes. Skip this step if you've already done so.
 ```bash
-mkdir ~/go
+sudo mkdir ~/go && chmod -R 777 ~/go
 ```
 Append the following environment variables to ~/.profile. NOTE goproxy and go.mod are used.
 ```bash
@@ -98,6 +98,13 @@ ${USER} soft nofile ${NUMBER}
 ${USER} hard nofile ${NUMBER}
 ```
 ${USER} should be replaced with your user name, or * for all users; and ${NUMBER} should be replaced with the total shard number plus one. 
+
+### Configure the Network
+
+Before running, you'll need to set up the configuration of your network, which all nodes need to be aware of and agree upon. 
+We provide an example config JSON in the repo (mainnet/singularity/cluster_config_template.json). 
+
+Note that many parameters in the config are part the consensus, please be very cautious when changing them. For example, COINBASE_AMOUNT is one such parameter, changing it to another value effectively creates a fork in the network.
 
 ### Running a single cluster for local testing
 

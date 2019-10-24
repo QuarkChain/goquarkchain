@@ -1,26 +1,17 @@
 # Loadtest Instruction
 
-## Development Setup
+## Environment Setup
 
-First of all, follow the [instruction](../../README.md#development-setup) to set up development environment for goquarkchain.
- 
-## Running a Cluster
+To run loadtest, you need to get your own GoQuarkChain clusters up and running. 
 
-Start a local cluster follow the [instruction](../../README.md#running-a-single-cluster-for-local-testing).
-```bash
-cd cmd/cluser
-./cluster --num_shards 1024 --num_slaves=128
-```
-Some interesting command line flags regarding loadtest:
+If you are interested in building everything from scratch, please refer to the [instruction](../../README.md#development-setup) to set up development environment for each for your hosts, then [run clusters](../../README.md#running-clusters) on them.
 
-- `--num_shards` (default 8) defines the number of shards in the cluster (must be power of 2)
-- `--num_slaves` (default 4) defines the number of slave servers in the cluster. Each slave server can serve one or more shards. Since each slave server is an independent process, you may want to make this equal to `--num_shards` to utilize as many CPU cores as possible.
-- `--root_block_interval_sec` (default 10) defines the target block interval of root chain
-- `--minor_block_interval_sec` (default 3) defines the target block interval on each shard
-- `--mine` enables mining as soon as the cluster starts. Mining can also be toggled at runtime through `setMining` JSON RPC.
-- `--clean` clears any existing data to start a fresh cluster from genesis
+### Manage Clusters using Docker
+
+As another option, [a handy tool](../../tools/README.md) has been provided for you to deploy clusters to remote hosts based on Docker image, which is more automatic and convenience.
 
 ## Start Mining
+
 Before loadtest, try to mine a few blocks to make sure the clusters work correctly.
 
 ```bash
@@ -50,4 +41,4 @@ curl -X POST -H 'content-type: application/json' --data '{"jsonrpc": "2.0","meth
    
 ## Monitoring
 
-At your virtual environment, [monitor](../../README.md#monitoring-clusters) the TPS using the stats tool.
+You can [monitor](../../README.md#monitoring-clusters) the TPS using the [stats tool](../../cmd/stats).
