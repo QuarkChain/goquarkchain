@@ -38,7 +38,7 @@ const (
 	// dropping broadcasts.
 	maxQueuedTips = 16
 
-	handshakeTimeout = 5 * time.Second
+	handshakeTimeout = 15 * time.Second
 
 	requestTimeout = 10 * time.Second
 )

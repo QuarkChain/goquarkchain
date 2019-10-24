@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"encoding/gob"
 	ethCommon "github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/log"
 	"math/big"
 	"math/bits"
 	"net"
@@ -63,13 +64,15 @@ func GetIPV4Addr() (string, error) {
 	}
 
 	for _, addr := range addrs {
-		if ipnet, ok := addr.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
-			ones, bits := ipnet.Mask.Size()
-			if bits == 32 && ones == 24 {
-				return ipnet.IP.To4().String(), nil
+		ipNet, isIpNet := addr.(*net.IPNet)
+		if isIpNet && !ipNet.IP.IsLoopback() {
+			ipv4 := ipNet.IP.To4()
+			if ipv4 != nil {
+				return ipv4.String(), nil
 			}
 		}
 	}
+	log.Error("ipv4 addr not found", "addr", addrs)
 	return "127.0.0.1", nil
 }
 
