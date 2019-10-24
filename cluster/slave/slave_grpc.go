@@ -520,7 +520,6 @@ func (s *SlaveServerSideOp) GetRootChainStakes(ctx context.Context, req *rpc.Req
 
 // check if the blocks are vailed.
 func (s *SlaveServerSideOp) AddMinorBlockListForSync(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
-	fmt.Println("AddMinorBlockForSync")
 	var (
 		gReq     rpc.AddBlockListForSyncRequest
 		gRes     rpc.AddBlockListForSyncResponse
