@@ -2,7 +2,6 @@ package master
 
 import (
 	"fmt"
-	"github.com/QuarkChain/goquarkchain/p2p/nodefilter"
 	"io/ioutil"
 	"reflect"
 	"sync"
@@ -15,6 +14,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/core"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/p2p"
+	"github.com/QuarkChain/goquarkchain/p2p/nodefilter"
 	"github.com/QuarkChain/goquarkchain/serialize"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
