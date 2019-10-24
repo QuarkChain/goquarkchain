@@ -19,7 +19,7 @@ type BlackFilter interface {
 	PeriodicallyUnblacklist()
 }
 
-func NewHandleBlackErr(text string) error {
+func NewHandleBlackListErr(text string) error {
 	return &BlackErr{text}
 }
 

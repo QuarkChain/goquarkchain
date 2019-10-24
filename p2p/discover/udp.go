@@ -239,11 +239,11 @@ type Config struct {
 	PrivateKey *ecdsa.PrivateKey
 
 	// These settings are optional:
-	NetRestrict *netutil.Netlist  // network whitelist
-	Bootnodes   []*enode.Node     // list of bootstrap nodes
-	Unhandled   chan<- ReadPacket // unhandled packets are sent on this channel
-	NetworkId   uint32
-	BlackFilter nodefilter.BlackFilter
+	NetRestrict     *netutil.Netlist  // network whitelist
+	Bootnodes       []*enode.Node     // list of bootstrap nodes
+	Unhandled       chan<- ReadPacket // unhandled packets are sent on this channel
+	NetworkId       uint32
+	BlackListFilter nodefilter.BlackFilter
 }
 
 // ListenUDP returns a new table that listens for UDP packets on laddr.
@@ -252,7 +252,7 @@ func ListenUDP(c conn, ln *enode.LocalNode, cfg Config) (*Table, error) {
 	if err != nil {
 		return nil, err
 	}
-	tab.SetChkBlackFunc(cfg.BlackFilter.ChkDialoutBlacklist)
+	tab.SetChkBlackFunc(cfg.BlackListFilter.ChkDialoutBlacklist)
 	return tab, nil
 }
 
@@ -277,7 +277,7 @@ func newUDP(c conn, ln *enode.LocalNode, cfg Config) (*Table, *udp, error) {
 
 	udp.wg.Add(2)
 	go udp.loop()
-	go udp.readLoop(cfg.BlackFilter)
+	go udp.readLoop(cfg.BlackListFilter)
 	return udp.tab, udp, nil
 }
 

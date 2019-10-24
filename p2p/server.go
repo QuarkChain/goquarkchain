@@ -542,11 +542,11 @@ func (srv *Server) setupDiscovery() error {
 	var sconn *sharedUDPConn
 	if !srv.NoDiscovery {
 		cfg := discover.Config{
-			PrivateKey:  srv.PrivateKey,
-			NetRestrict: srv.NetRestrict,
-			Bootnodes:   srv.BootstrapNodes,
-			NetworkId:   srv.NetWorkId,
-			BlackFilter: srv.blackNodeFilter,
+			PrivateKey:      srv.PrivateKey,
+			NetRestrict:     srv.NetRestrict,
+			Bootnodes:       srv.BootstrapNodes,
+			NetworkId:       srv.NetWorkId,
+			BlackListFilter: srv.blackNodeFilter,
 		}
 		ntab, err := discover.ListenUDP(conn, srv.localnode, cfg)
 		if err != nil {

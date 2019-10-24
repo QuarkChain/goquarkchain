@@ -165,7 +165,7 @@ func (pm *ProtocolManager) handle(peer *Peer) error {
 		pm.rootBlockChain.CurrentBlock().Header(),
 		pm.rootBlockChain.Genesis().Hash(),
 	); err != nil {
-		return nodefilter.NewHandleBlackErr(err.Error())
+		return nodefilter.NewHandleBlackListErr(err.Error())
 	}
 
 	// Register the peer locally
