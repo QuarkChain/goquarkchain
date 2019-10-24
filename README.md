@@ -110,7 +110,7 @@ Note that many parameters in the config are part the consensus, please be very c
 
 Start running a local cluster which does not connect to anyone else. Build goquarkchain executable:
 ```bash
-cd cmd/cluser
+cd cmd/cluster
 go build
 ```
 Start each slave in different terminals with its ID specified in SLAVE_LIST of the json config. Take the default configuration cluster as example, which has 4 slaves with 2 shards for each:
