@@ -1317,9 +1317,6 @@ func (bc *RootBlockChain) CreateBlockToMine(mHeaderList []*types.MinorBlockHeade
 }
 
 func (bc *RootBlockChain) CalculateRootBlockCoinBase(rootBlock *types.RootBlock) (*types.TokenBalances, error) {
-	for _, v := range rootBlock.MinorBlockHeaders() {
-		fmt.Println("vv", v.Number, v.Hash().String(), bc.ContainMinorBlockByHash(v.Hash()))
-	}
 	for _, header := range rootBlock.MinorBlockHeaders() {
 		if !bc.ContainMinorBlockByHash(header.Hash()) {
 			return nil, fmt.Errorf("rootBlockChain not contain minorBlock hash:%v", header.Hash().String())
