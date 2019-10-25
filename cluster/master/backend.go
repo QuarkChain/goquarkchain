@@ -108,7 +108,7 @@ func New(ctx *service.ServiceContext, cfg *config.ClusterConfig) (*QKCMasterBack
 		return nil, err
 	}
 
-	if mstr.engine, err = createConsensusEngine(cfg.Quarkchain.Root, cfg.Quarkchain.GuardianPublicKey, cfg.Quarkchain.EnableQkcHashXHeight, mstr.artificialTxConfig.TargetRootBlockTime); err != nil {
+	if mstr.engine, err = createConsensusEngine(cfg.Quarkchain.Root, cfg.Quarkchain.GuardianPublicKey, cfg.Quarkchain.EnableQkcHashXHeight); err != nil {
 		return nil, err
 	}
 
@@ -152,7 +152,7 @@ func createDB(ctx *service.ServiceContext, name string, clean bool, isReadOnly b
 	return db, nil
 }
 
-func createConsensusEngine(cfg *config.RootConfig, pubKey []byte, qkcHashXHeight uint64, blockTime uint32) (consensus.Engine, error) {
+func createConsensusEngine(cfg *config.RootConfig, pubKey []byte, qkcHashXHeight uint64) (consensus.Engine, error) {
 	diffCalculator := consensus.EthDifficultyCalculator{
 		MinimumDifficulty: big.NewInt(int64(cfg.Genesis.Difficulty)),
 		AdjustmentCutoff:  cfg.DifficultyAdjustmentCutoffTime,
@@ -160,7 +160,7 @@ func createConsensusEngine(cfg *config.RootConfig, pubKey []byte, qkcHashXHeight
 	}
 	switch cfg.ConsensusType {
 	case config.PoWSimulate:
-		return simulate.New(&diffCalculator, cfg.ConsensusConfig.RemoteMine, pubKey, uint64(blockTime)), nil
+		return simulate.New(&diffCalculator, cfg.ConsensusConfig.RemoteMine, pubKey, uint64(cfg.ConsensusConfig.TargetBlockTime)), nil
 	case config.PoWEthash:
 		return ethash.New(ethash.Config{CachesInMem: 3, CachesOnDisk: 10, CacheDir: "", PowMode: ethash.ModeNormal}, &diffCalculator, cfg.ConsensusConfig.RemoteMine, pubKey), nil
 	case config.PoWQkchash:

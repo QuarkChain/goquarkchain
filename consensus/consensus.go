@@ -116,13 +116,13 @@ func (c *CommonEngine) Name() string {
 	return c.spec.Name
 }
 
-func (c *CommonEngine) GetBlockNumber() uint64 {
-	return c.spec.BlockTime
-}
-
 // Author returns coinbase address.
 func (c *CommonEngine) Author(header types.IHeader) (account.Address, error) {
 	return header.GetCoinbase(), nil
+}
+
+func (c *CommonEngine) GetIntervalBlockTime() uint64 {
+	return c.spec.BlockTime
 }
 
 // CalcDifficulty is the difficulty adjustment algorithm. It returns the difficulty
@@ -299,7 +299,7 @@ func (c *CommonEngine) localSeal(
 	if diff == nil {
 		diff = header.GetDifficulty()
 	}
-	work := MiningWork{HeaderHash: header.SealHash(), Number: header.NumberU64(), Difficulty: diff, BlockTime: block.IHeader().GetTime() + c.GetBlockNumber()}
+	work := MiningWork{HeaderHash: header.SealHash(), Number: header.NumberU64(), Difficulty: diff, BlockTime: block.IHeader().GetTime()}
 	if err := c.FindNonce(work, found, stop); err != nil {
 		return err
 	}
