@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/QuarkChain/goquarkchain/params"
 	"time"
 
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
@@ -603,8 +604,9 @@ func (s *SlaveServerSideOp) HandleNewTip(ctx context.Context, req *rpc.Request) 
 }
 
 func (s *SlaveServerSideOp) AddTransactions(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
+	ts := time.Now()
 	var (
-		gReq     p2p.NewTransactionList
+		gReq     rpc.NewTransactionList
 		gRes     rpc.HashList
 		response = &rpc.Response{RpcId: req.RpcId}
 		err      error
@@ -613,20 +615,22 @@ func (s *SlaveServerSideOp) AddTransactions(ctx context.Context, req *rpc.Reques
 	if err = serialize.DeserializeFromBytes(req.Data, &gReq); err != nil {
 		return nil, err
 	}
-	if len(gReq.TransactionList) > NEW_TRANSACTION_LIST_LIMIT {
+	if len(gReq.TransactionList) > params.NEW_TRANSACTION_LIST_LIMIT {
 		return nil, errors.New("too many txs in one command")
 	}
+
+	if err := s.slave.AddTxList(gReq.TransactionList, gReq.PeerID); err != nil {
+		return nil, err
+	}
+
 	for _, tx := range gReq.TransactionList {
-		if err = s.slave.AddTx(tx); err != nil {
-			log.Error("Add transaction failed", "tx", tx, "err", err)
-			continue
-		}
 		gRes.Hashes = append(gRes.Hashes, tx.Hash())
 	}
 
 	if response.Data, err = serialize.SerializeToBytes(gRes); err != nil {
 		return nil, err
 	}
+	log.Info("AddTxs duration", "t", time.Now().Sub(ts).Seconds(), "time", time.Now().Sub(ts).Nanoseconds(), "len", len(gReq.TransactionList))
 	return response, nil
 }
 
