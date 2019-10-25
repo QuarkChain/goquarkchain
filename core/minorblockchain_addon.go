@@ -313,17 +313,17 @@ func (m *MinorBlockChain) isNeighbor(remoteBranch account.Branch, rootHeight *ui
 func (m *MinorBlockChain) putRootBlock(rBlock *types.RootBlock, minorHeader *types.MinorBlockHeader) {
 	log.Info(m.logInfo, "putRootBlock number", rBlock.Number(), "hash", rBlock.Hash().String(), "lenMinor", len(rBlock.MinorBlockHeaders()))
 	rBlockHash := rBlock.Hash()
-	rawdb.WriteRootBlock(m.db, rBlock)
 	var mHash common.Hash
 	if minorHeader != nil {
 		mHash = minorHeader.Hash()
 	}
+	rawdb.WriteLastConfirmedMinorBlockHeaderAtRootBlock(m.db, rBlockHash, mHash)
+	rawdb.WriteRootBlock(m.db, rBlock)
 	if _, ok := m.rootHeightToHashes[rBlock.NumberU64()]; !ok {
 		m.rootHeightToHashes[rBlock.NumberU64()] = make(map[common.Hash]common.Hash)
 	}
-	log.Info("putRootBlock", "rBlock", rBlock.NumberU64(), "rHash", rBlock.Hash().String(), "mHash", mHash.String())
 	m.rootHeightToHashes[rBlock.NumberU64()][rBlock.Hash()] = mHash
-	rawdb.WriteLastConfirmedMinorBlockHeaderAtRootBlock(m.db, rBlockHash, mHash)
+	log.Info("putRootBlock", "rBlock", rBlock.NumberU64(), "rHash", rBlock.Hash().String(), "mHash", mHash.String())
 }
 
 func (m *MinorBlockChain) putTotalTxCount(mBlock *types.MinorBlock) error {
@@ -365,7 +365,8 @@ func (m *MinorBlockChain) InitFromRootBlock(rBlock *types.RootBlock) error {
 	}
 	m.initialized = true
 	confirmedHeaderTip := m.getLastConfirmedMinorBlockHeaderAtRootBlock(rBlock.Hash())
-	if confirmedHeaderTip == nil {
+	if confirmedHeaderTip == nil || m.GetRootBlockByHash(rBlock.Hash()) == nil {
+		log.Warn("err-InitFromRootBlock", "confirmedHeaderTip == nil", "m.GetRootBlockByHash(rBlock.Hash())==nil")
 		m.rootTip = m.getRootBlockHeaderByHash(rBlock.ParentHash())
 		_, err := m.AddRootBlock(rBlock)
 		if err != nil {
@@ -378,6 +379,7 @@ func (m *MinorBlockChain) InitFromRootBlock(rBlock *types.RootBlock) error {
 
 	headerTip := confirmedHeaderTip
 	if headerTip == nil {
+		log.Error(m.logInfo, "confirmedHeaderTip", confirmedHeaderTip, "rBlock.Hash", rBlock.Hash().String())
 		headerTip = m.GetBlockByNumber(0).IHeader().(*types.MinorBlockHeader)
 	}
 
@@ -971,13 +973,12 @@ func (m *MinorBlockChain) AddRootBlock(rBlock *types.RootBlock) (bool, error) {
 func (m *MinorBlockChain) GetTransactionByHash(hash common.Hash) (*types.MinorBlock, uint32) {
 	_, mHash, txIndex := rawdb.ReadTransaction(m.db, hash)
 	if mHash == qkcCommon.EmptyHash { //TODO need? for test???
-		txs := make([]*types.Transaction, 0)
 		tx := m.txPool.all.Get(hash)
 		if tx == nil {
 			return nil, 0
 		}
-		txs = append(txs, tx)
-		temp := types.NewMinorBlock(&types.MinorBlockHeader{}, &types.MinorBlockMeta{}, txs, nil, nil)
+		temp := types.GetEmptyMinorBlock()
+		temp.AddTx(tx)
 		return temp, 0
 	}
 	return m.GetMinorBlock(mHash), txIndex

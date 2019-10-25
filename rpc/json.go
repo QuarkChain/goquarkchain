@@ -167,7 +167,7 @@ func checkReqId(reqId json.RawMessage) error {
 }
 
 func changeParams(data []byte) json.RawMessage {
-	if data[0] == byte('{') {
+	if data != nil && data[0] == byte('{') {
 		data = append([]byte{'['}, data...)
 		data = append(data, []byte{']'}...)
 	} else {

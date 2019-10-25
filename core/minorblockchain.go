@@ -168,10 +168,9 @@ func NewMinorBlockChain(
 	}
 	if cacheConfig == nil {
 		cacheConfig = &CacheConfig{
-			TrieCleanLimit: 256,
-			TrieDirtyLimit: 256,
+			TrieCleanLimit: 128,
+			TrieDirtyLimit: 128,
 			TrieTimeLimit:  5 * time.Minute,
-			Disabled:       true, //update trieDB every block
 		}
 	}
 	receiptsCache, _ := lru.New(receiptsCacheLimit)
@@ -1854,7 +1853,7 @@ func (m *MinorBlockChain) GetRootChainStakes(coinbase account.Recipient, lastMin
 	contractAddress := vm.SystemContracts[vm.ROOT_CHAIN_POSW].Address()
 	code := evmState.GetCode(contractAddress)
 	if code == nil {
-		return nil, nil, errors.New("PoSW-on-root-chain contract is not found")
+		return nil, nil, ErrPoswOnRootChainIsNotFound
 	}
 	codeHash := crypto.Keccak256Hash(code)
 	//have to make sure the code is expected
