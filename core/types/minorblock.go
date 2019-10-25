@@ -50,13 +50,13 @@ type XShardTxCursorInfo struct {
 }
 
 func (m *MinorBlockMeta) Hash() common.Hash {
-	return serHash(*m, map[string]bool{})
+	return serHash(*m, nil)
 }
 
 // Hash returns the block hash of the header, which is simply the keccak256 hash of its
 // Serialize encoding.
 func (h *MinorBlockHeader) Hash() common.Hash {
-	return serHash(*h, map[string]bool{})
+	return serHash(*h, nil)
 }
 
 // SealHash returns the block hash of the header, which is keccak256 hash of its

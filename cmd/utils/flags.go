@@ -181,7 +181,7 @@ var (
 	CacheFlag = cli.IntFlag{
 		Name:  "cache",
 		Usage: "Megabytes of memory allocated to internal caching",
-		Value: 1024,
+		Value: 2048,
 	}
 	// RPC settings
 	RPCDisabledFlag = cli.BoolFlag{
