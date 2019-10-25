@@ -338,7 +338,7 @@ func UpdateGenesisAlloc(cluserConfig *ClusterConfig) error {
 			}
 			shard.Genesis.Alloc[address] = allocation
 		}
-		log.Info("Load template genesis accounts", "chain id", chainId, "imported", len(addresses), "config file", allocFile)
+		log.Debug("Load template genesis accounts", "chain id", chainId, "imported", len(addresses), "config file", allocFile)
 	}
 
 	items, err := loadGenesisAddrs(loadtestFile)

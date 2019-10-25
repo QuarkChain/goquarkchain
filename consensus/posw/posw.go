@@ -144,16 +144,16 @@ func (p *PoSW) getCoinbaseAddressUntilBlock(headerHash common.Hash) ([]account.R
 }
 
 func (p *PoSW) GetPoSWInfo(header types.IHeader, stakes *big.Int) (effectiveDiff *big.Int, mineable, mined uint64, err error) {
-	if !p.IsPoSWEnabled(header) {
-		return nil, 0, 0, fmt.Errorf("PoSW not enabled")
+	blockCnt, err := p.countCoinbaseBlockUntil(header.Hash(), header.GetCoinbase().Recipient)
+	if err != nil {
+		return header.GetDifficulty(), 0, 0, err
+	}
+	if !p.IsPoSWEnabled(header) || stakes == nil {
+		return header.GetDifficulty(), 0, blockCnt, nil
 	}
 	blockThreshold := new(big.Int).Div(stakes, p.config.TotalStakePerBlock).Uint64()
 	if blockThreshold > p.config.WindowSize {
 		blockThreshold = p.config.WindowSize
-	}
-	blockCnt, err := p.countCoinbaseBlockUntil(header.GetParentHash(), header.GetCoinbase().Recipient)
-	if err != nil {
-		return nil, 0, 0, err
 	}
 	diff := header.GetDifficulty()
 	if blockCnt < blockThreshold {
@@ -161,7 +161,6 @@ func (p *PoSW) GetPoSWInfo(header types.IHeader, stakes *big.Int) (effectiveDiff
 	}
 	effectiveDiff = diff
 	mineable = blockThreshold
-	//mined blocks should include current one, assuming success
-	mined = blockCnt + 1
+	mined = blockCnt
 	return
 }
