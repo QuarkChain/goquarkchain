@@ -2,6 +2,7 @@
 package types
 
 import (
+	"github.com/QuarkChain/goquarkchain/params"
 	"math/big"
 	"sync/atomic"
 	"time"
@@ -521,13 +522,13 @@ func getDefaultMinorBlockHeader() *MinorBlockHeader {
 	return &MinorBlockHeader{
 		CoinbaseAmount: NewEmptyTokenBalances(),
 		Branch:         account.Branch{Value: 1},
-		GasLimit:       &serialize.Uint256{Value: new(big.Int).SetUint64(30000 * 400)},
+		GasLimit:       &serialize.Uint256{Value: params.DefaultBlockGasLimit},
 		Difficulty:     new(big.Int).SetUint64(0),
 	}
 }
 
 func getDefauleMinorBlockMeta() *MinorBlockMeta {
 	return &MinorBlockMeta{
-		XShardGasLimit: &serialize.Uint256{Value: new(big.Int).SetUint64(30000 * 2000)},
+		XShardGasLimit: &serialize.Uint256{Value: params.DefaultBlockGasLimit},
 	}
 }

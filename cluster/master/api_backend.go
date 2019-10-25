@@ -308,6 +308,7 @@ func (s *QKCMasterBackend) getPoswInfo(header *types.RootBlockHeader) (*rpc.PoSW
 	}
 	return poswInfo, nil
 }
+
 func (s *QKCMasterBackend) NetWorkInfo() map[string]interface{} {
 	shardSizeList := make([]hexutil.Uint, 0)
 	for _, v := range s.clusterConfig.Quarkchain.Chains {
