@@ -365,7 +365,8 @@ func (m *MinorBlockChain) InitFromRootBlock(rBlock *types.RootBlock) error {
 	}
 	m.initialized = true
 	confirmedHeaderTip := m.getLastConfirmedMinorBlockHeaderAtRootBlock(rBlock.Hash())
-	if confirmedHeaderTip == nil {
+	if confirmedHeaderTip == nil || m.GetRootBlockByHash(rBlock.Hash()) == nil {
+		log.Warn("err-InitFromRootBlock", "confirmedHeaderTip == nil", "m.GetRootBlockByHash(rBlock.Hash())==nil")
 		m.rootTip = m.getRootBlockHeaderByHash(rBlock.ParentHash())
 		_, err := m.AddRootBlock(rBlock)
 		if err != nil {
