@@ -381,7 +381,7 @@ func (st *StateTransition) AddCrossShardTxDeposit(intrinsicGas uint64) (ret []by
 		localGasUsed -= qkcParam.GtxxShardCost.Uint64()
 	}
 	st.chargeFee(localGasUsed)
-	return nil, st.gasUsed(), failed, nil
+	return nil, state.GetGasUsed().Uint64(), failed, nil
 }
 
 func (st *StateTransition) chargeFee(gasUsed uint64) {

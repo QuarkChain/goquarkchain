@@ -299,6 +299,7 @@ func (s *QKCMasterBackend) Init(srvr *p2p.Server) error {
 	if err := s.initShards(); err != nil {
 		return err
 	}
+
 	s.Heartbeat()
 	return nil
 }
@@ -627,9 +628,6 @@ func (s *QKCMasterBackend) AddRootBlock(rootBlock *types.RootBlock) error {
 		return err
 	}
 	if err := s.broadcastRootBlockToSlaves(rootBlock); err != nil {
-		if err := s.rootBlockChain.SetHead(header.NumberU64()); err != nil {
-			panic(err)
-		}
 		return err
 	}
 	s.rootBlockChain.ClearCommittingHash()

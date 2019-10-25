@@ -270,7 +270,7 @@ func (p *PublicBlockChainAPI) SendTransaction(args SendTxArgs) (hexutil.Bytes, e
 	return encoder.IDEncoder(tx.Hash().Bytes(), tx.EvmTx.FromFullShardKey()), nil
 }
 
-func (p *PublicBlockChainAPI) GetRootBlockByHash(hash common.Hash, needExtraInfo *bool) (map[string]interface{}, error) {
+func (p *PublicBlockChainAPI) GetRootBlockById(hash common.Hash, needExtraInfo *bool) (map[string]interface{}, error) {
 	if needExtraInfo == nil {
 		temp := true
 		needExtraInfo = &temp
@@ -365,7 +365,7 @@ func (p *PublicBlockChainAPI) GetTransactionById(txID hexutil.Bytes) (map[string
 	if err != nil {
 		return nil, err
 	}
-	fullShardIDByConfig, err := clusterCfg.Quarkchain.GetFullShardIdByFullShardKey(uint32(fullShardKey))
+	fullShardIDByConfig, err := clusterCfg.Quarkchain.GetFullShardIdByFullShardKey(fullShardKey)
 	if err != nil {
 		return nil, err
 	}
@@ -525,16 +525,16 @@ func makeGetTransactionRes(txs []*qrpc.TransactionDetail, next []byte) (map[stri
 	}, nil
 }
 
-func (p *PublicBlockChainAPI) GasPrice(fullShardKey hexutil.Uint, tokenID *string) (hexutil.Uint64, error) {
+func (p *PublicBlockChainAPI) GasPrice(fullShardKey hexutil.Uint, tokenID *hexutil.Uint64) (hexutil.Uint64, error) {
 	fullShardId, err := getFullShardId(&fullShardKey)
 	if err != nil {
 		return hexutil.Uint64(0), err
 	}
-	tokenIDValue := DefaultTokenID
+	tokenIDValue := qcom.TokenIDEncode(DefaultTokenID)
 	if tokenID != nil {
-		tokenIDValue = *tokenID
+		tokenIDValue = uint64(*tokenID)
 	}
-	data, err := p.b.GasPrice(account.Branch{Value: fullShardId}, qcom.TokenIDEncode(tokenIDValue))
+	data, err := p.b.GasPrice(account.Branch{Value: fullShardId}, tokenIDValue)
 	return hexutil.Uint64(data), err
 }
 
@@ -591,8 +591,13 @@ func (p *PublicBlockChainAPI) GetWork(fullShardKey *hexutil.Uint, coinbaseAddres
 	return val, nil
 }
 
-func (p *PublicBlockChainAPI) GetRootHashConfirmingMinorBlockById(mBlockID hexutil.Bytes) hexutil.Bytes {
-	return p.b.GetRootHashConfirmingMinorBlock(mBlockID).Bytes() //key mHash , value rHash
+func (p *PublicBlockChainAPI) GetRootHashConfirmingMinorBlockById(mBlockID hexutil.Bytes) *hexutil.Bytes {
+	bs := p.b.GetRootHashConfirmingMinorBlock(mBlockID).Bytes() //key mHash , value rHash
+	if bytes.Equal(bs, common.Hash{}.Bytes()) {
+		return nil
+	}
+	hash := hexutil.Bytes(bs)
+	return &hash
 }
 
 func (p *PublicBlockChainAPI) GetTransactionConfirmedByNumberRootBlocks(txID hexutil.Bytes) (hexutil.Uint, error) {
@@ -681,10 +686,20 @@ func (p *PrivateBlockChainAPI) GetStats() (map[string]interface{}, error) {
 
 func (p *PrivateBlockChainAPI) GetBlockCount() (map[string]interface{}, error) {
 	data, err := p.b.GetBlockCount()
+	if err != nil {
+		return nil, err
+	}
+	dataWithout0x := make(map[uint32]map[string]uint32)
+	for fullShardId, v := range data {
+		dataWithout0x[fullShardId] = make(map[string]uint32)
+		for addr, cnt := range v {
+			dataWithout0x[fullShardId][addr.String()[2:]] = cnt
+		}
+	}
 	return map[string]interface{}{
-		"rootHeight": hexutil.Uint64(p.b.CurrentBlock().Number()),
-		"shardRC":    data,
-	}, err
+		"rootHeight": p.b.CurrentBlock().Number(),
+		"shardRC":    dataWithout0x,
+	}, nil
 }
 
 //TODO txGenerate implement
