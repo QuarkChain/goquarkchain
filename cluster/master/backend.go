@@ -13,6 +13,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/consensus/doublesha256"
 	"github.com/QuarkChain/goquarkchain/consensus/ethash"
 	"github.com/QuarkChain/goquarkchain/consensus/qkchash"
+	"github.com/QuarkChain/goquarkchain/consensus/simulate"
 	"github.com/QuarkChain/goquarkchain/core"
 	"github.com/QuarkChain/goquarkchain/core/rawdb"
 	"github.com/QuarkChain/goquarkchain/core/types"
@@ -107,7 +108,7 @@ func New(ctx *service.ServiceContext, cfg *config.ClusterConfig) (*QKCMasterBack
 		return nil, err
 	}
 
-	if mstr.engine, err = createConsensusEngine(cfg.Quarkchain.Root, cfg.Quarkchain.GuardianPublicKey, cfg.Quarkchain.EnableQkcHashXHeight); err != nil {
+	if mstr.engine, err = createConsensusEngine(cfg.Quarkchain.Root, cfg.Quarkchain.GuardianPublicKey, cfg.Quarkchain.EnableQkcHashXHeight, mstr.artificialTxConfig.TargetRootBlockTime); err != nil {
 		return nil, err
 	}
 
@@ -151,15 +152,15 @@ func createDB(ctx *service.ServiceContext, name string, clean bool, isReadOnly b
 	return db, nil
 }
 
-func createConsensusEngine(cfg *config.RootConfig, pubKey []byte, qkcHashXHeight uint64) (consensus.Engine, error) {
+func createConsensusEngine(cfg *config.RootConfig, pubKey []byte, qkcHashXHeight uint64, blockTime uint32) (consensus.Engine, error) {
 	diffCalculator := consensus.EthDifficultyCalculator{
 		MinimumDifficulty: big.NewInt(int64(cfg.Genesis.Difficulty)),
 		AdjustmentCutoff:  cfg.DifficultyAdjustmentCutoffTime,
 		AdjustmentFactor:  cfg.DifficultyAdjustmentFactor,
 	}
 	switch cfg.ConsensusType {
-	case config.PoWSimulate: // TODO pow_simulate is fake
-		return consensus.NewFakeEngine(&diffCalculator), nil
+	case config.PoWSimulate:
+		return simulate.New(&diffCalculator, cfg.ConsensusConfig.RemoteMine, pubKey, uint64(blockTime)), nil
 	case config.PoWEthash:
 		return ethash.New(ethash.Config{CachesInMem: 3, CachesOnDisk: 10, CacheDir: "", PowMode: ethash.ModeNormal}, &diffCalculator, cfg.ConsensusConfig.RemoteMine, pubKey), nil
 	case config.PoWQkchash:

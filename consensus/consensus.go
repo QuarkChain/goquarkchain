@@ -55,12 +55,13 @@ var (
 )
 
 type ShareCache struct {
-	Digest []byte
-	Result []byte
-	Height uint64
-	Hash   []byte
-	Nonce  uint64
-	Seed   []byte
+	Digest    []byte
+	Result    []byte
+	Height    uint64
+	Hash      []byte
+	Nonce     uint64
+	Seed      []byte
+	BlockTime uint64
 }
 
 // MiningWork represents the params of mining work.
@@ -69,6 +70,7 @@ type MiningWork struct {
 	Number          uint64
 	Difficulty      *big.Int
 	OptionalDivider uint64
+	BlockTime       uint64
 }
 
 // MiningResult represents the found digest and result bytes.
@@ -81,6 +83,7 @@ type MiningResult struct {
 
 // MiningSpec contains a PoW algo's basic info and hash algo
 type MiningSpec struct {
+	BlockTime  uint64
 	Name       string
 	HashAlgo   func(result *ShareCache) error
 	VerifySeal func(chain ChainReader, header types.IHeader, adjustedDiff *big.Int) error
@@ -111,6 +114,10 @@ type CommonEngine struct {
 // Name returns the consensus engine's name.
 func (c *CommonEngine) Name() string {
 	return c.spec.Name
+}
+
+func (c *CommonEngine) GetBlockNumber() uint64 {
+	return c.spec.BlockTime
 }
 
 // Author returns coinbase address.
@@ -292,7 +299,7 @@ func (c *CommonEngine) localSeal(
 	if diff == nil {
 		diff = header.GetDifficulty()
 	}
-	work := MiningWork{HeaderHash: header.SealHash(), Number: header.NumberU64(), Difficulty: diff}
+	work := MiningWork{HeaderHash: header.SealHash(), Number: header.NumberU64(), Difficulty: diff, BlockTime: block.IHeader().GetTime() + c.GetBlockNumber()}
 	if err := c.FindNonce(work, found, stop); err != nil {
 		return err
 	}
@@ -323,10 +330,12 @@ func (c *CommonEngine) mine(
 	var (
 		target   = new(big.Int).Div(two256, work.Difficulty)
 		minerRes = ShareCache{
-			Height: work.Number,
-			Hash:   work.HeaderHash.Bytes(),
-			Seed:   make([]byte, 40),
-			Nonce:  startNonce}
+			Height:    work.Number,
+			Hash:      work.HeaderHash.Bytes(),
+			Seed:      make([]byte, 40),
+			Nonce:     startNonce,
+			BlockTime: work.BlockTime,
+		}
 	)
 	logger := log.New("miner", "spec", strings.ToLower(c.spec.Name), "id", id)
 	logger.Trace("Started search for new nonces", "minerName", c.spec.Name, "startNonce", startNonce)

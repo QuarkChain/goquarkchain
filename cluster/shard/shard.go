@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/QuarkChain/goquarkchain/account"
+	"github.com/QuarkChain/goquarkchain/consensus/simulate"
 	"math/big"
 	"sync"
 
@@ -31,7 +32,7 @@ type BlockCommitCode int
 
 const (
 	BLOCK_UNCOMMITTED BlockCommitCode = iota
-	BLOCK_COMMITTING   // TODO not support yet,need discuss
+	BLOCK_COMMITTING                  // TODO not support yet,need discuss
 	BLOCK_COMMITTED
 )
 
@@ -91,7 +92,7 @@ func New(ctx *service.ServiceContext, rBlock *types.RootBlock, conn ConnManager,
 
 	shard.txGenerator = NewTxGenerator(cfg.GenesisDir, shard.branch.Value, cfg.Quarkchain)
 
-	shard.engine, err = createConsensusEngine(cfg.Quarkchain.EnableQkcHashXHeight, shard.Config)
+	shard.engine, err = createConsensusEngine(cfg.Quarkchain.EnableQkcHashXHeight, shard.Config, cfg.Quarkchain.GetShardConfigByFullShardID(fullshardId).ConsensusConfig.TargetBlockTime)
 	if err != nil {
 		shard.chainDb.Close()
 		return nil, err
@@ -147,7 +148,7 @@ func createDB(ctx *service.ServiceContext, name string, clean bool, isReadOnly b
 	return db, nil
 }
 
-func createConsensusEngine(qkcHashXHeight uint64, cfg *config.ShardConfig) (consensus.Engine, error) {
+func createConsensusEngine(qkcHashXHeight uint64, cfg *config.ShardConfig, blockTime uint32) (consensus.Engine, error) {
 	difficulty := new(big.Int)
 	diffCalculator := consensus.EthDifficultyCalculator{
 		MinimumDifficulty: difficulty.SetUint64(cfg.Genesis.Difficulty),
@@ -156,8 +157,8 @@ func createConsensusEngine(qkcHashXHeight uint64, cfg *config.ShardConfig) (cons
 	}
 	pubKey := []byte{}
 	switch cfg.ConsensusType {
-	case config.PoWSimulate: //TODO pow_simulate is fake
-		return consensus.NewFakeEngine(&diffCalculator), nil
+	case config.PoWSimulate:
+		return simulate.New(&diffCalculator, cfg.ConsensusConfig.RemoteMine, pubKey, uint64(blockTime)), nil
 	case config.PoWEthash:
 		return ethash.New(ethash.Config{CachesInMem: 3, CachesOnDisk: 10, CacheDir: "", PowMode: ethash.ModeNormal}, &diffCalculator, cfg.ConsensusConfig.RemoteMine, pubKey), nil
 	case config.PoWQkchash:
