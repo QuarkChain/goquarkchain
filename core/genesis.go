@@ -101,10 +101,8 @@ func (g *Genesis) CreateMinorBlock(rootBlock *types.RootBlock, fullShardId uint3
 		XShardGasLimit: &serialize.Uint256{Value: new(big.Int).SetUint64(30000 * 200)},
 	}
 
-	one := big.NewRat(1, 1)
-	localFeeRate := one.Sub(one, g.qkcConfig.RewardTaxRate)
 	coinbaseAmountTokens := types.NewEmptyTokenBalances()
-	coinbaseAmountTokens.SetValue(qkcCommon.BigIntMulBigRat(shardConfig.CoinbaseAmount, localFeeRate), g.qkcConfig.GetDefaultChainTokenID())
+	coinbaseAmountTokens.SetValue(qkcCommon.BigIntMulBigRat(shardConfig.CoinbaseAmount, g.qkcConfig.LocalFeeRate), g.qkcConfig.GetDefaultChainTokenID())
 
 	gasLimit := new(serialize.Uint256)
 	gasLimit.Value = new(big.Int).SetUint64(genesis.GasLimit)
@@ -282,6 +280,7 @@ func (g *Genesis) CommitMinorBlock(db ethdb.Database, rootBlock *types.RootBlock
 	if qkcConfig == nil {
 		qkcConfig = config.NewQuarkChainConfig()
 	}
+	rawdb.WriteCommitMinorBlock(db, block.Hash())
 	rawdb.WriteChainConfig(db, block.Hash(), qkcConfig)
 	return block, nil
 }

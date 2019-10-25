@@ -13,6 +13,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/core"
 	"github.com/QuarkChain/goquarkchain/core/types"
+	qrpc "github.com/QuarkChain/goquarkchain/rpc"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
@@ -66,7 +67,7 @@ func (s *ShardBackend) GetLogs(hash common.Hash) ([][]*types.Log, error) {
 	return s.MinorBlockChain.GetLogs(hash), nil
 }
 
-func (s *ShardBackend) GetLogsByFilterQuery(args *rpc.FilterQuery) ([]*types.Log, error) {
+func (s *ShardBackend) GetLogsByFilterQuery(args *qrpc.FilterQuery) ([]*types.Log, error) {
 	return s.MinorBlockChain.GetLogsByFilterQuery(args)
 }
 
@@ -102,9 +103,9 @@ func (s *ShardBackend) AddRootBlock(rBlock *types.RootBlock) (switched bool, err
 }
 
 // ######################## minor block Methods ########################
-func (s *ShardBackend) GetHeaderByNumber(height rpc.BlockNumber) (*types.MinorBlockHeader, error) {
+func (s *ShardBackend) GetHeaderByNumber(height qrpc.BlockNumber) (*types.MinorBlockHeader, error) {
 	var iHeader types.IHeader
-	if height == rpc.LatestBlockNumber {
+	if height == qrpc.LatestBlockNumber {
 		iHeader = s.MinorBlockChain.CurrentHeader()
 	} else {
 		iHeader = s.MinorBlockChain.GetHeaderByNumber(height.Uint64())
@@ -151,22 +152,26 @@ func (s *ShardBackend) GetUnconfirmedHeaderList() ([]*types.MinorBlockHeader, er
 	return headers, nil
 }
 
-func (s *ShardBackend) GetMinorBlock(mHash common.Hash, height *uint64) (*types.MinorBlock, error) {
+func (s *ShardBackend) GetMinorBlock(mHash common.Hash, height *uint64) (mBlock *types.MinorBlock, err error) {
 	if mHash != (common.Hash{}) {
-		return s.MinorBlockChain.GetMinorBlock(mHash), nil
+		mBlock = s.MinorBlockChain.GetMinorBlock(mHash)
 	} else if height != nil {
 		block := s.MinorBlockChain.GetBlockByNumber(*height)
-		if block == nil {
-			return nil, errors.New("minor block not found")
+		if !qcom.IsNil(block) {
+			mBlock = block.(*types.MinorBlock)
 		}
-		return s.MinorBlockChain.GetBlockByNumber(*height).(*types.MinorBlock), nil
+	} else {
+		return nil, errors.New("invalied params in GetMinorBlock")
 	}
-	return nil, errors.New("invalied params in GetMinorBlock")
+	if mBlock != nil {
+		return
+	}
+	return nil, errors.New("minor block not found")
 }
 
 func (s *ShardBackend) NewMinorBlock(block *types.MinorBlock) (err error) {
-	log.Info(s.logInfo, "NewMinorBlock height", block.Header().Number, "hash", block.Header().Hash().String())
-	defer log.Info(s.logInfo, "NewMinorBlock", "end")
+	log.Debug(s.logInfo, "NewMinorBlock height", block.Header().Number, "hash", block.Header().Hash().String())
+	defer log.Debug(s.logInfo, "NewMinorBlock", "end")
 	// TODO synchronizer.running
 	mHash := block.Header().Hash()
 	if s.mBPool.getBlockInPool(mHash) != nil {
@@ -360,12 +365,8 @@ func (s *ShardBackend) SubscribeChainHeadEvent(ch chan<- core.MinorChainHeadEven
 	return s.MinorBlockChain.SubscribeChainHeadEvent(ch)
 }
 
-func (s *ShardBackend) SubscribeLogsEvent(ch chan<- []*types.Log) event.Subscription {
-	return s.MinorBlockChain.SubscribeLogsEvent(ch)
-}
-
-func (s *ShardBackend) SubscribeRemovedLogsEvent(ch chan<- core.RemovedLogsEvent) event.Subscription {
-	return s.MinorBlockChain.SubscribeRemovedLogsEvent(ch)
+func (s *ShardBackend) SubscribeLogsEvent(ch chan<- core.LoglistEvent) event.Subscription {
+	return s.MinorBlockChain.SubReorgLogsEvent(ch)
 }
 
 func (s *ShardBackend) SubscribeChainEvent(ch chan<- core.MinorChainEvent) event.Subscription {

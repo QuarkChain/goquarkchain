@@ -2255,7 +2255,7 @@ func getDefaultBalance(acc account.Address, shardState *MinorBlockChain) *big.In
 }
 
 func afterTax(reward uint64, shardState *MinorBlockChain) *big.Int {
-	rate := shardState.getLocalFeeRate()
+	rate := shardState.Config().LocalFeeRate
 	rewardRated := new(big.Int).Mul(new(big.Int).SetUint64(reward), rate.Num())
 	rewardRated = new(big.Int).Div(rewardRated, rate.Denom())
 	return rewardRated
@@ -2586,7 +2586,7 @@ func TestGetTxForJsonRpc(t *testing.T) {
 	assert.Equal(t, tBlock.Number(), uint64(1))
 	assert.Equal(t, len(tBlock.Transactions()), 1)
 	assert.Equal(t, index, uint32(0))
-	assert.Equal(t, receipt.GasUsed, uint64(30000))
+	assert.Equal(t, receipt.GasUsed, uint64(21000))
 
 	tGenesisTokenID := testGenesisTokenID
 	//getTxByAddress

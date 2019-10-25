@@ -4,7 +4,6 @@ package filters
 import (
 	qsync "github.com/QuarkChain/goquarkchain/cluster/sync"
 	"github.com/QuarkChain/goquarkchain/core"
-	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/event"
 )
 
@@ -28,31 +27,33 @@ type subTxsEvent struct {
 }
 
 func (s *subTxsEvent) getch() error {
-	select {
-	case ev := <-s.ch:
-		s.broadcast(ev.Txs)
-		return nil
-	case err := <-s.sub.Err():
-		return err
-	default:
-		return nil
+	for {
+		select {
+		case ev := <-s.ch:
+			s.broadcast(ev.Txs)
+		case err := <-s.sub.Err():
+			return err
+		default:
+			return nil
+		}
 	}
 }
 
 type subLogsEvent struct {
-	ch chan []*types.Log
+	ch chan core.LoglistEvent
 	subBaseEvent
 }
 
 func (s *subLogsEvent) getch() error {
-	select {
-	case ev := <-s.ch:
-		s.broadcast(ev)
-		return nil
-	case err := <-s.sub.Err():
-		return err
-	default:
-		return nil
+	for {
+		select {
+		case ev := <-s.ch:
+			s.broadcast(ev)
+		case err := <-s.sub.Err():
+			return err
+		default:
+			return nil
+		}
 	}
 }
 
@@ -62,14 +63,15 @@ type subMinorBlockHeadersEvent struct {
 }
 
 func (s *subMinorBlockHeadersEvent) getch() error {
-	select {
-	case ev := <-s.ch:
-		s.broadcast(ev.Block.Header())
-		return nil
-	case err := <-s.sub.Err():
-		return err
-	default:
-		return nil
+	for {
+		select {
+		case ev := <-s.ch:
+			s.broadcast(ev.Block.Header())
+		case err := <-s.sub.Err():
+			return err
+		default:
+			return nil
+		}
 	}
 }
 
@@ -79,21 +81,22 @@ type subSyncingEvent struct {
 }
 
 func (s *subSyncingEvent) getch() error {
-	select {
-	case ev := <-s.ch:
-		s.broadcast(ev)
-		return nil
-	case err := <-s.sub.Err():
-		return err
-	default:
-		return nil
+	for {
+		select {
+		case ev := <-s.ch:
+			s.broadcast(ev)
+		case err := <-s.sub.Err():
+			return err
+		default:
+			return nil
+		}
 	}
 }
 
-func (s *subscribe) newSubEvent(shrd ShardBackend, tp Type, broadcast func(interface{})) subackend {
+func (s *subscribe) newSubEvent(shrd ShardFilter, tp Type, broadcast func(interface{})) subackend {
 	switch tp {
 	case LogsSubscription:
-		logsCh := make(chan []*types.Log, logsChanSize)
+		logsCh := make(chan core.LoglistEvent, LogsChanSize)
 		sub := shrd.SubscribeLogsEvent(logsCh)
 		return &subLogsEvent{
 			ch: logsCh,
@@ -103,7 +106,7 @@ func (s *subscribe) newSubEvent(shrd ShardBackend, tp Type, broadcast func(inter
 			},
 		}
 	case PendingTransactionsSubscription:
-		txsCh := make(chan core.NewTxsEvent, txChanSize)
+		txsCh := make(chan core.NewTxsEvent, TxsChanSize)
 		sub := shrd.SubscribeNewTxsEvent(txsCh)
 		return &subTxsEvent{
 			ch: txsCh,
@@ -113,7 +116,7 @@ func (s *subscribe) newSubEvent(shrd ShardBackend, tp Type, broadcast func(inter
 			},
 		}
 	case BlocksSubscription:
-		headersCh := make(chan core.MinorChainHeadEvent, chainEvChanSize)
+		headersCh := make(chan core.MinorChainHeadEvent, ChainEvChanSize)
 		sub := shrd.SubscribeChainHeadEvent(headersCh)
 		return &subMinorBlockHeadersEvent{
 			ch: headersCh,
@@ -123,7 +126,7 @@ func (s *subscribe) newSubEvent(shrd ShardBackend, tp Type, broadcast func(inter
 			},
 		}
 	case SyncingSubscription:
-		syncCh := make(chan *qsync.SyncingResult, syncSize)
+		syncCh := make(chan *qsync.SyncingResult, SyncSize)
 		sub := shrd.SubscribeSyncEvent(syncCh)
 		return &subSyncingEvent{
 			ch: syncCh,

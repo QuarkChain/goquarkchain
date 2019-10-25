@@ -98,6 +98,7 @@ type MinorBlockChain struct {
 	chainSideFeed event.Feed
 	chainHeadFeed event.Feed
 	logsFeed      event.Feed
+	subLogsFeed   event.Feed
 	scope         event.SubscriptionScope
 	genesisBlock  *types.MinorBlock
 
@@ -167,10 +168,9 @@ func NewMinorBlockChain(
 	}
 	if cacheConfig == nil {
 		cacheConfig = &CacheConfig{
-			TrieCleanLimit: 256,
-			TrieDirtyLimit: 256,
+			TrieCleanLimit: 128,
+			TrieDirtyLimit: 128,
 			TrieTimeLimit:  5 * time.Minute,
-			Disabled:       true, //update trieDB every block
 		}
 	}
 	receiptsCache, _ := lru.New(receiptsCacheLimit)
@@ -209,6 +209,7 @@ func NewMinorBlockChain(
 			CheckBlocks: 5,
 			Percentile:  50,
 		},
+		logInfo: fmt.Sprintf("shard:%d", fullShardID),
 	}
 	var err error
 	bc.gasLimit, err = bc.clusterConfig.Quarkchain.GasLimit(bc.branch.Value)
@@ -319,21 +320,14 @@ func (m *MinorBlockChain) loadLastState() error {
 // already have locked
 func (m *MinorBlockChain) SetHead(head uint64) error {
 	log.Warn("Rewinding blockchain", "target", head)
-
+	m.chainmu.Lock()
+	defer m.chainmu.Unlock()
 	// Rewind the header chain, deleting all block bodies until then
 	delFn := func(db rawdb.DatabaseDeleter, hash common.Hash) {
 		rawdb.DeleteMinorBlock(db, hash)
 	}
 	m.hc.SetHead(head, delFn)
 	currentHeader := m.hc.CurrentHeader()
-
-	// Clear out any stale content from the caches
-	m.receiptsCache.Purge()
-	m.blockCache.Purge()
-	m.futureBlocks.Purge()
-	m.crossShardTxListCache.Purge()
-	m.rootBlockCache.Purge()
-	m.lastConfirmCache.Purge()
 
 	// Rewind the block chain, ensuring we don't end up with a stateless head block
 	if currentBlock := m.CurrentBlock(); currentBlock != nil && currentHeader.NumberU64() < currentBlock.IHeader().NumberU64() {
@@ -354,6 +348,14 @@ func (m *MinorBlockChain) SetHead(head uint64) error {
 	currentBlock := m.CurrentBlock()
 	rawdb.WriteHeadBlockHash(m.db, currentBlock.Hash())
 
+	// Clear out any stale content from the caches
+	m.receiptsCache.Purge()
+	m.blockCache.Purge()
+	m.futureBlocks.Purge()
+	m.crossShardTxListCache.Purge()
+	m.rootBlockCache.Purge()
+	m.lastConfirmCache.Purge()
+
 	return m.loadLastState()
 }
 
@@ -365,7 +367,11 @@ func (m *MinorBlockChain) GasLimit() uint64 {
 // CurrentBlock retrieves the current head block of the canonical chain. The
 // block is retrieved from the blockchain's internal cache.
 func (m *MinorBlockChain) CurrentBlock() *types.MinorBlock {
-	return m.currentBlock.Load().(*types.MinorBlock)
+	loaded := m.currentBlock.Load()
+	if loaded == nil {
+		return nil
+	}
+	return loaded.(*types.MinorBlock)
 }
 
 // SetProcessor sets the processor required for making state modifications.
@@ -434,18 +440,19 @@ func (m *MinorBlockChain) SkipDifficultyCheck() bool {
 func (m *MinorBlockChain) GetAdjustedDifficulty(header types.IHeader) (*big.Int, uint64, error) {
 	diff := header.GetDifficulty()
 	if m.posw.IsPoSWEnabled(header) {
-		balance, err := m.GetBalance(header.GetCoinbase().Recipient, nil)
+		preHeight := header.NumberU64() - 1
+		balance, err := m.GetBalance(header.GetCoinbase().Recipient, &preHeight)
 		if err != nil {
-			log.Error("PoSW", "failed to get coinbase balance", err)
+			log.Error(m.logInfo, "PoSW: failed to get coinbase balance", err)
 			return nil, 0, err
 		}
 		poswAdjusted, err := m.posw.PoSWDiffAdjust(header, balance.GetTokenBalance(m.clusterConfig.Quarkchain.GetDefaultChainTokenID()))
 		if err != nil {
-			log.Error("PoSW", "PoSWDiffAdjust err", err)
+			log.Error(m.logInfo, "PoSW: err", err)
 			return nil, 0, err
 		}
 		if poswAdjusted != nil && poswAdjusted.Cmp(diff) == -1 {
-			log.Info("PoSW applied", "from", diff, "to", poswAdjusted)
+			log.Debug(m.logInfo, "PoSW: from", diff, "to", poswAdjusted)
 			diff = poswAdjusted
 		}
 	}
@@ -576,10 +583,7 @@ func (m *MinorBlockChain) Genesis() *types.MinorBlock {
 
 // HasBlock checks if a block is fully present in the database or not.
 func (m *MinorBlockChain) HasBlock(hash common.Hash) bool {
-	if m.blockCache.Contains(hash) {
-		return true
-	}
-	return rawdb.HasBlock(m.db, hash)
+	return m.IsMinorBlockCommittedByHash(hash)
 }
 
 // HasState checks if state trie is fully present in the database or not.
@@ -592,9 +596,13 @@ func (m *MinorBlockChain) HasState(hash common.Hash) bool {
 // in the database or not, caching it if present.
 func (m *MinorBlockChain) HasBlockAndState(hash common.Hash) bool {
 	// Check first that the block itself is known
+	flag := m.HasBlock(hash)
+	if !flag {
+		return false
+	}
 	block := m.GetMinorBlock(hash)
 	if block == nil {
-		return false
+		panic("bug fix block can not be nil")
 	}
 	return m.HasState(block.GetMetaData().Root)
 }
@@ -1051,6 +1059,7 @@ func (m *MinorBlockChain) WriteBlockWithState(block *types.MinorBlock, receipts 
 	if status == CanonStatTy {
 		m.insert(block)
 	}
+	m.CommitMinorBlockByHash(block.Hash())
 	m.futureBlocks.Remove(block.Hash())
 	return status, nil
 }
@@ -1108,7 +1117,7 @@ func (m *MinorBlockChain) InsertChainForDeposits(chain []types.IBlock, isCheckDB
 	if confirmed == nil {
 		log.Warn("confirmed is nil")
 	} else {
-		log.Info("add Minor block End", "tip", m.CurrentBlock().NumberU64(), "tipHash", m.CurrentBlock().Hash().String(), "to add", chain[0].NumberU64(), "hash", chain[0].NumberU64(), "confirmed", confirmed.Number)
+		log.Debug(m.logInfo, "tip", m.CurrentBlock().NumberU64(), "tipHash", m.CurrentBlock().Hash().String(), "to add", chain[0].NumberU64(), "hash", chain[0].NumberU64(), "confirmed", confirmed.Number)
 	}
 
 	return n, xShardList, err
@@ -1338,6 +1347,7 @@ func (m *MinorBlockChain) insertSidechain(it *insertIterator, isCheckDB bool) (i
 			if err := m.WriteBlockWithoutState(block, externTd); err != nil {
 				return it.index, nil, nil, nil, err
 			}
+			m.CommitMinorBlockByHash(block.Hash())
 			log.Debug("Inserted sidechain block", "number", block.NumberU64(), "hash", block.Hash(),
 				"diff", block.IHeader().GetDifficulty(), "elapsed", common.PrettyDuration(time.Since(start)),
 				"txs", len(block.(*types.MinorBlock).GetTransactions()), "gas", block.(*types.MinorBlock).GetMetaData().GasUsed,
@@ -1524,14 +1534,23 @@ func (m *MinorBlockChain) reorg(oldBlock, newBlock types.IBlock) error {
 	}
 
 	if len(deletedLogs) > 0 {
-		go m.rmLogsFeed.Send(RemovedLogsEvent{deletedLogs})
+		var logs [][]*types.Log
+		logs = append(logs, deletedLogs)
+		m.subLogsFeed.Send(LoglistEvent{Logs: logs, IsRemoved: true})
 	}
+
 	if len(oldChain) > 0 {
+		for _, iB := range oldChain {
+			m.subLogsFeed.Send(LoglistEvent{Logs: m.GetLogs(iB.Hash()), IsRemoved: true})
+		}
 		go func() {
 			for _, block := range oldChain {
 				m.chainSideFeed.Send(MinorChainSideEvent{Block: block.(*types.MinorBlock)})
 			}
 		}()
+	}
+	for _, iB := range newChain {
+		m.subLogsFeed.Send(LoglistEvent{Logs: m.GetLogs(iB.Hash()), IsRemoved: false})
 	}
 
 	return nil
@@ -1720,11 +1739,6 @@ func (m *MinorBlockChain) Config() *config.QuarkChainConfig { return m.clusterCo
 // Engine retrieves the blockchain's consensus engine.
 func (m *MinorBlockChain) Engine() consensus.Engine { return m.engine }
 
-// SubscribeRemovedLogsEvent registers a subscription of RemovedLogsEvent.
-func (m *MinorBlockChain) SubscribeRemovedLogsEvent(ch chan<- RemovedLogsEvent) event.Subscription {
-	return m.scope.Track(m.rmLogsFeed.Subscribe(ch))
-}
-
 // SubscribeChainEvent registers a subscription of ChainEvent.
 func (m *MinorBlockChain) SubscribeChainEvent(ch chan<- MinorChainEvent) event.Subscription {
 	return m.scope.Track(m.chainFeed.Subscribe(ch))
@@ -1743,6 +1757,11 @@ func (m *MinorBlockChain) SubscribeChainSideEvent(ch chan<- MinorChainSideEvent)
 // SubscribeLogsEvent registers a subscription of []*types.Log.
 func (m *MinorBlockChain) SubscribeLogsEvent(ch chan<- []*types.Log) event.Subscription {
 	return m.scope.Track(m.logsFeed.Subscribe(ch))
+}
+
+// SubscribeLogsEvent registers a subscription of LoglistEvent
+func (m *MinorBlockChain) SubReorgLogsEvent(ch chan<- LoglistEvent) event.Subscription {
+	return m.scope.Track(m.subLogsFeed.Subscribe(ch))
 }
 
 func (m *MinorBlockChain) SubscribeNewTxsEvent(ch chan<- NewTxsEvent) event.Subscription {
@@ -1830,7 +1849,7 @@ func (m *MinorBlockChain) GetRootChainStakes(coinbase account.Recipient, lastMin
 	contractAddress := vm.SystemContracts[vm.ROOT_CHAIN_POSW].Address()
 	code := evmState.GetCode(contractAddress)
 	if code == nil {
-		return nil, nil, errors.New("PoSW-on-root-chain contract is not found")
+		return nil, nil, ErrPoswOnRootChainIsNotFound
 	}
 	codeHash := crypto.Keccak256Hash(code)
 	//have to make sure the code is expected

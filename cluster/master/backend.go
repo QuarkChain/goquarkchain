@@ -299,6 +299,7 @@ func (s *QKCMasterBackend) Init(srvr *p2p.Server) error {
 	if err := s.initShards(); err != nil {
 		return err
 	}
+
 	s.Heartbeat()
 	return nil
 }
@@ -627,9 +628,6 @@ func (s *QKCMasterBackend) AddRootBlock(rootBlock *types.RootBlock) error {
 		return err
 	}
 	if err := s.broadcastRootBlockToSlaves(rootBlock); err != nil {
-		if err := s.rootBlockChain.SetHead(header.NumberU64()); err != nil {
-			panic(err)
-		}
 		return err
 	}
 	s.rootBlockChain.ClearCommittingHash()
@@ -743,7 +741,9 @@ func (s *QKCMasterBackend) GetStats() (map[string]interface{}, error) {
 	defer s.lock.RUnlock()
 	branchToShardStats := s.branchToShardStats
 	shards := make([]map[string]interface{}, 0)
+
 	for _, shardState := range branchToShardStats {
+		powConfig := s.clusterConfig.Quarkchain.GetShardConfigByFullShardID(shardState.Branch.GetFullShardID()).PoswConfig
 		shard := make(map[string]interface{})
 		shard["fullShardId"] = shardState.Branch.GetFullShardID()
 		shard["chainId"] = shardState.Branch.GetChainID()
@@ -758,6 +758,10 @@ func (s *QKCMasterBackend) GetStats() (map[string]interface{}, error) {
 		shard["blockCount60s"] = shardState.BlockCount60s
 		shard["staleBlockCount60s"] = shardState.StaleBlockCount60s
 		shard["lastBlockTime"] = shardState.LastBlockTime
+		shard["poswEnabled"] = powConfig.Enabled
+		shard["poswMinStake"] = powConfig.TotalStakePerBlock
+		shard["poswWindowSize"] = powConfig.WindowSize
+		shard["difficultyDivider"] = powConfig.DiffDivider
 		shards = append(shards, shard)
 	}
 	sort.Slice(shards, func(i, j int) bool { return shards[i]["fullShardId"].(uint32) < shards[j]["fullShardId"].(uint32) }) //Right???

@@ -19,7 +19,7 @@ type addEvent struct {
 }
 
 type subscribe struct {
-	backend SlaveBackend
+	backend SlaveFilter
 	events  map[uint32]map[Type]subackend
 
 	exitCh chan struct{}
@@ -27,7 +27,7 @@ type subscribe struct {
 	delCh  chan *delEvent
 }
 
-func NewSubScribe(backend SlaveBackend) *subscribe {
+func NewSubScribe(backend SlaveFilter) *subscribe {
 
 	sub := &subscribe{
 		backend: backend,
@@ -62,7 +62,7 @@ func (s *subscribe) Stop() {
 func (s *subscribe) eventsloop() {
 	var (
 		g      errgroup.Group
-		ticker = time.NewTicker(1 * time.Second)
+		ticker = time.NewTicker(2 * time.Second)
 	)
 	defer func() {
 		for id := range s.events {
@@ -91,7 +91,7 @@ func (s *subscribe) eventsloop() {
 			}
 
 		case add := <-s.addCh:
-			shrd, err := s.backend.GetShardBackend(add.id)
+			shrd, err := s.backend.GetShardFilter(add.id)
 			if err != nil {
 				break
 			}
@@ -114,7 +114,7 @@ func (s *subscribe) eventsloop() {
 					for tp, subEv := range s.events[id] {
 						if err := subEv.getch(); err != nil {
 							s.delCh <- &delEvent{id: id, tp: tp}
-							return err
+							log.Warn("subscribe return error, will be move out", "id", id, "tp", tp, "err", err)
 						}
 					}
 					return nil

@@ -22,6 +22,7 @@ import (
 	"crypto/ecdsa"
 	"encoding/hex"
 	"errors"
+	"github.com/QuarkChain/goquarkchain/p2p/nodefilter"
 	"net"
 	"sort"
 	"sync"
@@ -29,12 +30,12 @@ import (
 	"time"
 
 	"github.com/QuarkChain/goquarkchain/p2p/discover"
-	"github.com/QuarkChain/goquarkchain/p2p/discv5"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/mclock"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/p2p/discv5"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/p2p/enr"
 	"github.com/ethereum/go-ethereum/p2p/nat"
@@ -56,11 +57,6 @@ const (
 
 	// Maximum amount of time allowed for writing a complete message.
 	frameWriteTimeout = 20 * time.Second
-
-	// period between adding a dialout_blacklisted node and removing it
-	dialoutBlacklistCooldownSec int64 = 24 * 3600
-	dialinBlacklistCooldownSec  int64 = 8 * 3600
-	unblacklistInterval               = time.Duration(15 * 60)
 )
 
 var errServerStopped = errors.New("server stopped")
@@ -185,7 +181,7 @@ type Server struct {
 	peerOp     chan peerOpFunc
 	peerOpDone chan struct{}
 
-	blackNodeFilter *BlackNodes
+	blackNodeFilter nodefilter.BlackFilter
 
 	quit          chan struct{}
 	addstatic     chan *enode.Node
@@ -454,12 +450,7 @@ func (srv *Server) Start() (err error) {
 	srv.removetrusted = make(chan *enode.Node)
 	srv.peerOp = make(chan peerOpFunc)
 	srv.peerOpDone = make(chan struct{})
-	srv.blackNodeFilter = &BlackNodes{
-		currTime:         time.Now(),
-		WhitelistNodes:   srv.WhitelistNodes,
-		dialoutBlacklist: make(map[string]int64),
-		dialinBlacklist:  make(map[string]int64),
-	}
+	srv.blackNodeFilter = nodefilter.NewBlackList(srv.WhitelistNodes)
 
 	if err := srv.setupLocalNode(); err != nil {
 		return err
@@ -548,26 +539,20 @@ func (srv *Server) setupDiscovery() error {
 	srv.localnode.SetFallbackUDP(realaddr.Port)
 
 	// Discovery V4
-	var unhandled chan discover.ReadPacket
 	var sconn *sharedUDPConn
 	if !srv.NoDiscovery {
-		if srv.DiscoveryV5 {
-			unhandled = make(chan discover.ReadPacket, 100)
-			sconn = &sharedUDPConn{conn, unhandled}
-		}
 		cfg := discover.Config{
-			PrivateKey:  srv.PrivateKey,
-			NetRestrict: srv.NetRestrict,
-			Bootnodes:   srv.BootstrapNodes,
-			Unhandled:   unhandled,
-			NetworkId:   srv.NetWorkId,
+			PrivateKey:      srv.PrivateKey,
+			NetRestrict:     srv.NetRestrict,
+			Bootnodes:       srv.BootstrapNodes,
+			NetworkId:       srv.NetWorkId,
+			BlackListFilter: srv.blackNodeFilter,
 		}
 		ntab, err := discover.ListenUDP(conn, srv.localnode, cfg)
 		if err != nil {
 			return err
 		}
 		srv.ntab = ntab
-		srv.ntab.SetChkBlackFunc(srv.blackNodeFilter.chkDialoutBlacklist)
 	}
 	// Discovery V5
 	if srv.DiscoveryV5 {
@@ -633,7 +618,10 @@ func (srv *Server) run(dialstate dialer) {
 		taskdone     = make(chan task, maxActiveDialTasks)
 		runningTasks []task
 		queuedTasks  []task // tasks that can't run yet
+		ticker       = time.NewTicker(500 * time.Millisecond)
 	)
+	defer ticker.Stop()
+
 	// Put trusted nodes into a map to speed up checks.
 	// Trusted peers are loaded on startup or added via AddTrustedPeer RPC.
 	for _, n := range srv.TrustedNodes {
@@ -673,22 +661,23 @@ func (srv *Server) run(dialstate dialer) {
 	periodicallyUnblacklist := func() {
 		for _, peer := range peers {
 			pr := peer
-			if srv.blackNodeFilter.chkDialoutBlacklist(pr.Node().IP().String()) {
+			if srv.blackNodeFilter.ChkDialoutBlacklist(pr.Node().IP().String()) {
 				delete(peers, pr.ID())
 			}
 		}
-		srv.blackNodeFilter.periodicallyUnblacklist()
+		srv.blackNodeFilter.PeriodicallyUnblacklist()
 	}
 
 running:
 	for {
-		scheduleTasks()
-		periodicallyUnblacklist()
-
 		select {
 		case <-srv.quit:
 			// The server was stopped. Run the cleanup logic.
 			break running
+		case <-ticker.C:
+			scheduleTasks()
+			periodicallyUnblacklist()
+
 		case n := <-srv.addstatic:
 			// This channel is used by AddPeer to add to the
 			// ephemeral static peer list. Add it to the dialer,
@@ -752,7 +741,7 @@ running:
 			// At this point the connection is past the protocol handshake.
 			// Its capabilities are known and the remote identity is verified.
 			err := srv.protoHandshakeChecks(peers, inboundCount, c)
-			if err == nil && !srv.blackNodeFilter.chkDialoutBlacklist(c.node.IP().String()) {
+			if err == nil && !srv.blackNodeFilter.ChkDialoutBlacklist(c.node.IP().String()) {
 				// The handshakes are done and it passed all checks.
 				p := newPeer(c, srv.Protocols)
 				// If message events are enabled, pass the peerFeed
@@ -778,8 +767,10 @@ running:
 			}
 		case pd := <-srv.delpeer:
 			// A peer disconnected.
-			if pd.err != nil {
-				srv.blackNodeFilter.addDialoutBlacklist(pd.Node().IP().String())
+			switch (pd.err).(type) {
+			case *nodefilter.BlackErr:
+				srv.blackNodeFilter.AddDialoutBlacklist(pd.Node().IP().String())
+				pd.log.Warn("Add this peer to black list", "peer id", pd.Peer.ID().String(), "remote ip", pd.Node().IP().String(), "err", pd.err)
 			}
 			d := common.PrettyDuration(mclock.Now() - pd.created)
 			pd.log.Debug("Removing p2p peer", "duration", d, "peers", len(peers)-1, "req", pd.requested, "err", pd.err)
@@ -825,7 +816,7 @@ func (srv *Server) protoHandshakeChecks(peers map[enode.ID]*Peer, inboundCount i
 
 func (srv *Server) encHandshakeChecks(peers map[enode.ID]*Peer, inboundCount int, c *conn) error {
 	switch {
-	case !c.is(trustedConn | staticDialedConn) && len(peers) >= srv.MaxPeers:
+	case !c.is(trustedConn|staticDialedConn) && len(peers) >= srv.MaxPeers:
 		return DiscTooManyPeers
 	case !c.is(trustedConn) && c.is(inboundConn) && inboundCount >= srv.maxInboundConns():
 		return DiscTooManyPeers
@@ -1107,81 +1098,4 @@ func (srv *Server) PeersInfo() []*PeerInfo {
 
 func (srv *Server) GetKadRoutingTable() []string {
 	return srv.ntab.GetKadRoutingTable()
-}
-
-type BlackNodes struct {
-	currTime time.Time
-	// BootstrapNodes | preferedNodes
-	WhitelistNodes map[string]*enode.Node
-	// IP to unblacklist time, we blacklist by IP
-	mu               sync.RWMutex
-	dialoutBlacklist map[string]int64
-	dialinBlacklist  map[string]int64
-}
-
-func (pm *BlackNodes) addDialoutBlacklist(ip string) {
-	if _, ok := pm.WhitelistNodes[ip]; !ok {
-		pm.mu.Lock()
-		pm.dialoutBlacklist[ip] = time.Now().Unix() + dialoutBlacklistCooldownSec
-		pm.mu.Unlock()
-	}
-}
-
-func (pm *BlackNodes) chkDialoutBlacklist(ip string) bool {
-	pm.mu.RLock()
-	tm, ok := pm.dialoutBlacklist[ip]
-	pm.mu.RUnlock()
-	if ok {
-		if time.Now().Unix() < tm {
-			return true
-		}
-		pm.mu.Lock()
-		delete(pm.dialoutBlacklist, ip)
-		pm.mu.Unlock()
-	}
-	return false
-}
-
-func (pm *BlackNodes) addDialinBlacklist(ip string) {
-	if _, ok := pm.WhitelistNodes[ip]; !ok {
-		pm.mu.Lock()
-		pm.dialinBlacklist[ip] = time.Now().Unix() + dialinBlacklistCooldownSec
-		pm.mu.Unlock()
-	}
-}
-
-func (pm *BlackNodes) chkDialinBlacklist(ip string) bool {
-	pm.mu.RLock()
-	tm, ok := pm.dialinBlacklist[ip]
-	pm.mu.RUnlock()
-	if ok {
-		if time.Now().Unix() < tm {
-			return true
-		}
-		pm.mu.Lock()
-		delete(pm.dialinBlacklist, ip)
-		pm.mu.Unlock()
-	}
-	return false
-}
-
-func (b *BlackNodes) periodicallyUnblacklist() {
-	now := time.Now()
-	if now.Sub(b.currTime) < unblacklistInterval {
-		return
-	}
-
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	b.currTime = now
-	for ip, tm := range b.dialoutBlacklist {
-		if now.Unix() >= tm {
-			delete(b.dialoutBlacklist, ip)
-		}
-	}
-	for ip, tm := range b.dialinBlacklist {
-		if now.Unix() >= tm {
-			delete(b.dialinBlacklist, ip)
-		}
-	}
 }

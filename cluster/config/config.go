@@ -136,7 +136,7 @@ type RootConfig struct {
 	Genesis                        *RootGenesis    `json:"GENESIS"`
 	CoinbaseAddress                account.Address `json:"-"`
 	CoinbaseAmount                 *big.Int        `json:"COINBASE_AMOUNT"`
-	EpochInterval                  *big.Int        `json:"EPOCH_INTERVAL"`
+	EpochInterval                  uint64          `json:"EPOCH_INTERVAL"`
 	DifficultyAdjustmentCutoffTime uint32          `json:"DIFFICULTY_ADJUSTMENT_CUTOFF_TIME"`
 	DifficultyAdjustmentFactor     uint32          `json:"DIFFICULTY_ADJUSTMENT_FACTOR"`
 	GRPCHost                       string          `json:"-"`
@@ -152,7 +152,7 @@ func NewRootConfig() *RootConfig {
 		Genesis:                        NewRootGenesis(),
 		CoinbaseAddress:                account.CreatEmptyAddress(0),
 		CoinbaseAmount:                 new(big.Int).Mul(big.NewInt(120), QuarkashToJiaozi),
-		EpochInterval:                  new(big.Int).SetUint64(210000 * 10),
+		EpochInterval:                  uint64(210000 * 10),
 		DifficultyAdjustmentCutoffTime: 40,
 		DifficultyAdjustmentFactor:     1024,
 		GRPCHost:                       "127.0.0.1",
@@ -267,7 +267,7 @@ func loadGenesisAddrs(file string) ([]GenesisAddress, error) {
 	var addresses []GenesisAddress
 	fp, err := os.Open(file)
 	if err != nil {
-		log.Warn("loadGenesisAddr", "no such file", file)
+		log.Debug("loadGenesisAddr", "no such file", file)
 		return addresses, nil
 	}
 	defer fp.Close()
@@ -336,7 +336,7 @@ func UpdateGenesisAlloc(cluserConfig *ClusterConfig) error {
 			}
 			shard.Genesis.Alloc[address] = allocation
 		}
-		log.Info("Load template genesis accounts", "chain id", chainId, "imported", len(addresses), "config file", allocFile)
+		log.Debug("Load template genesis accounts", "chain id", chainId, "imported", len(addresses), "config file", allocFile)
 	}
 
 	items, err := loadGenesisAddrs(loadtestFile)

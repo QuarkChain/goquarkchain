@@ -19,9 +19,11 @@ package p2p
 import (
 	"crypto/ecdsa"
 	"errors"
+	"github.com/QuarkChain/goquarkchain/p2p/nodefilter"
 	"math/rand"
 	"net"
 	"reflect"
+	"sync"
 	"testing"
 	"time"
 
@@ -117,7 +119,7 @@ func TestServerListen(t *testing.T) {
 		if !reflect.DeepEqual(peers, []*Peer{peer}) {
 			t.Errorf("Peers mismatch: got %v, want %v", peers, []*Peer{peer})
 		}
-	case <-time.After(1 * time.Second):
+	case <-time.After(2 * time.Second):
 		t.Error("server did not accept within one second")
 	}
 }
@@ -194,11 +196,11 @@ func TestServerDial(t *testing.T) {
 			_ = peer.Inbound()
 			_ = peer.Info()
 			<-done
-		case <-time.After(1 * time.Second):
+		case <-time.After(2 * time.Second):
 			t.Error("server did not launch peer within one second")
 		}
 
-	case <-time.After(1 * time.Second):
+	case <-time.After(2 * time.Second):
 		t.Error("server did not connect within one second")
 	}
 }
@@ -207,13 +209,20 @@ func TestServerDial(t *testing.T) {
 // actually executed and taskdone is called for them.
 func TestServerTaskScheduling(t *testing.T) {
 	var (
-		done           = make(chan *testTask)
+		done           = make(chan *testTask, 100)
 		quit, returned = make(chan struct{}), make(chan struct{})
 		tc             = 0
+		once           sync.Once
 		tg             = taskgen{
 			newFunc: func(running int, peers map[enode.ID]*Peer) []task {
-				tc++
-				return []task{&testTask{index: tc - 1}}
+				tasks := make([]task, 0, 100)
+				once.Do(func() {
+					for tc < 100 {
+						tc++
+						tasks = append(tasks, &testTask{index: tc - 1})
+					}
+				})
+				return tasks
 			},
 			doneFunc: func(t task) {
 				select {
@@ -228,19 +237,14 @@ func TestServerTaskScheduling(t *testing.T) {
 	// because we're only interested in what run does.
 	db, _ := enode.OpenDB("")
 	srv := &Server{
-		Config:    Config{MaxPeers: 10},
-		localnode: enode.NewLocalNode(db, newkey()),
-		nodedb:    db,
-		quit:      make(chan struct{}),
-		ntab:      fakeTable{},
-		running:   true,
-		log:       log.New(),
-		blackNodeFilter: &BlackNodes{
-			currTime:         time.Now(),
-			WhitelistNodes:   make(map[string]*enode.Node),
-			dialoutBlacklist: make(map[string]int64),
-			dialinBlacklist:  make(map[string]int64),
-		},
+		Config:          Config{MaxPeers: 10},
+		localnode:       enode.NewLocalNode(db, newkey()),
+		nodedb:          db,
+		quit:            make(chan struct{}),
+		ntab:            fakeTable{},
+		running:         true,
+		log:             log.New(),
+		blackNodeFilter: nodefilter.NewBlackList(make(map[string]*enode.Node)),
 	}
 	srv.loopWG.Add(1)
 	go func() {
@@ -248,15 +252,20 @@ func TestServerTaskScheduling(t *testing.T) {
 		close(returned)
 	}()
 
-	var gotdone []*testTask
+	var gotdone = make(map[int]*testTask)
 	for i := 0; i < 100; i++ {
-		gotdone = append(gotdone, <-done)
+		tsk := <-done
+		if _, ok := gotdone[tsk.index]; ok {
+			t.Errorf("task %d already exist", tsk.index)
+		} else {
+			gotdone[tsk.index] = tsk
+		}
 	}
 	for i, task := range gotdone {
-		if task.index != i {
+		/*if task.index != i {
 			t.Errorf("task %d has wrong index, got %d", i, task.index)
 			break
-		}
+		}*/
 		if !task.called {
 			t.Errorf("task %d was not called", i)
 			break
@@ -283,18 +292,13 @@ func TestServerManyTasks(t *testing.T) {
 	var (
 		db, _ = enode.OpenDB("")
 		srv   = &Server{
-			quit:      make(chan struct{}),
-			localnode: enode.NewLocalNode(db, newkey()),
-			nodedb:    db,
-			ntab:      fakeTable{},
-			running:   true,
-			log:       log.New(),
-			blackNodeFilter: &BlackNodes{
-				currTime:         time.Now(),
-				WhitelistNodes:   make(map[string]*enode.Node),
-				dialoutBlacklist: make(map[string]int64),
-				dialinBlacklist:  make(map[string]int64),
-			},
+			quit:            make(chan struct{}),
+			localnode:       enode.NewLocalNode(db, newkey()),
+			nodedb:          db,
+			ntab:            fakeTable{},
+			running:         true,
+			log:             log.New(),
+			blackNodeFilter: nodefilter.NewBlackList(make(map[string]*enode.Node)),
 		}
 		done       = make(chan *testTask)
 		start, end = 0, 0
@@ -315,7 +319,7 @@ func TestServerManyTasks(t *testing.T) {
 	})
 
 	doneset := make(map[int]bool)
-	timeout := time.After(2 * time.Second)
+	timeout := time.After(10 * time.Second)
 	for len(doneset) < len(alltasks) {
 		select {
 		case tt := <-done:

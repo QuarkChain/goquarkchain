@@ -14,6 +14,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/core"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/p2p"
+	"github.com/QuarkChain/goquarkchain/p2p/nodefilter"
 	"github.com/QuarkChain/goquarkchain/serialize"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -164,7 +165,7 @@ func (pm *ProtocolManager) handle(peer *Peer) error {
 		pm.rootBlockChain.CurrentBlock().Header(),
 		pm.rootBlockChain.Genesis().Hash(),
 	); err != nil {
-		return err
+		return nodefilter.NewHandleBlackListErr(err.Error())
 	}
 
 	// Register the peer locally
@@ -188,7 +189,6 @@ func (pm *ProtocolManager) handle(peer *Peer) error {
 	for {
 		if err := pm.handleMsg(peer); err != nil {
 			peer.Log().Error("message handling failed", "err", err)
-			_ = pm.peers.Unregister(peer.id)
 			return err
 		}
 	}
@@ -374,7 +374,7 @@ func (pm *ProtocolManager) handleMsg(peer *Peer) error {
 			return err
 		}
 		if c := peer.getChan(qkcMsg.RpcID); c != nil {
-			c <- minorHeaderResp
+			c <- &minorHeaderResp
 		} else {
 			log.Warn(fmt.Sprintf("chan for rpc %d is missing", qkcMsg.RpcID))
 		}

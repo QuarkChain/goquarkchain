@@ -19,13 +19,13 @@ type Backend interface {
 	GetTransactionReceipt(txHash common.Hash, branch account.Branch) (*types.MinorBlock, uint32, *types.Receipt, error)
 	GetTransactionsByAddress(address *account.Address, start []byte, limit uint32, transferTokenID *uint64) ([]*qrpc.TransactionDetail, []byte, error)
 	GetAllTx(branch account.Branch, start []byte, limit uint32) ([]*qrpc.TransactionDetail, []byte, error)
-	GetLogs(args *qrpc.FilterQuery) ([]*types.Log, error)
+	GetLogs(args *rpc.FilterQuery) ([]*types.Log, error)
 	EstimateGas(tx *types.Transaction, address *account.Address) (uint32, error)
 	GetStorageAt(address *account.Address, key common.Hash, height *uint64) (common.Hash, error)
 	GetCode(address *account.Address, height *uint64) ([]byte, error)
 	GasPrice(branch account.Branch, tokenID uint64) (uint64, error)
-	GetWork(branch account.Branch, address *common.Address) (*consensus.MiningWork, error)
-	SubmitWork(branch account.Branch, headerHash common.Hash, nonce uint64, mixHash common.Hash, signature *[65]byte) (bool, error)
+	GetWork(fullShardId *uint32, address *common.Address) (*consensus.MiningWork, error)
+	SubmitWork(fullShardId *uint32, headerHash common.Hash, nonce uint64, mixHash common.Hash, signature *[65]byte) (bool, error)
 	GetRootBlockByNumber(blockNr *uint64, needExtraInfo bool) (*types.RootBlock, *qrpc.PoSWInfo, error)
 	GetRootBlockByHash(hash common.Hash, needExtraInfo bool) (*types.RootBlock, *qrpc.PoSWInfo, error)
 	NetWorkInfo() map[string]interface{}
@@ -49,6 +49,9 @@ type Backend interface {
 }
 
 func GetAPIs(apiBackend Backend) []rpc.API {
+	once.Do(func() {
+		clusterCfg = apiBackend.GetClusterConfig()
+	})
 	return []rpc.API{
 		{
 			Namespace: "qkc",
@@ -61,6 +64,12 @@ func GetAPIs(apiBackend Backend) []rpc.API {
 			Version:   "1.0",
 			Service:   NewPrivateBlockChainAPI(apiBackend),
 			Public:    false,
+		},
+		{
+			Namespace: "eth",
+			Version:   "1.0",
+			Service:   NewEthAPI(apiBackend),
+			Public:    true,
 		},
 	}
 }

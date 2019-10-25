@@ -5,6 +5,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/p2p"
+	"github.com/QuarkChain/goquarkchain/rpc"
 	"github.com/ethereum/go-ethereum/common"
 	"math/big"
 )
@@ -57,7 +58,7 @@ type ISlaveConn interface {
 	GetTransactionReceipt(txHash common.Hash, branch account.Branch) (*types.MinorBlock, uint32, *types.Receipt, error)
 	GetTransactionsByAddress(address *account.Address, start []byte, limit uint32, transferTokenID *uint64) ([]*TransactionDetail, []byte, error)
 	GetAllTx(branch account.Branch, start []byte, limit uint32) ([]*TransactionDetail, []byte, error)
-	GetLogs(args *FilterQuery) ([]*types.Log, error)
+	GetLogs(args *rpc.FilterQuery) ([]*types.Log, error)
 	EstimateGas(tx *types.Transaction, fromAddress *account.Address) (uint32, error)
 	GetStorageAt(address *account.Address, key common.Hash, height *uint64) (common.Hash, error)
 	GetCode(address *account.Address, height *uint64) ([]byte, error)

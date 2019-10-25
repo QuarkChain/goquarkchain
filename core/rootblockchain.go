@@ -6,7 +6,6 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"github.com/QuarkChain/goquarkchain/cluster/rpc"
 	"io"
 	"math/big"
 	"sort"
@@ -16,11 +15,12 @@ import (
 
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
+	"github.com/QuarkChain/goquarkchain/cluster/rpc"
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/consensus/posw"
 	"github.com/QuarkChain/goquarkchain/core/rawdb"
 	"github.com/QuarkChain/goquarkchain/core/types"
-	"github.com/QuarkChain/goquarkchain/internal/qkcapi"
+	"github.com/QuarkChain/goquarkchain/internal/encoder"
 	"github.com/QuarkChain/goquarkchain/serialize"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/mclock"
@@ -29,7 +29,7 @@ import (
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
-	lru "github.com/hashicorp/golang-lru"
+	"github.com/hashicorp/golang-lru"
 )
 
 var (
@@ -92,8 +92,9 @@ type RootBlockChain struct {
 	checkpoint   int          // checkpoint counts towards the new checkpoint
 	currentBlock atomic.Value // Current head of the block chain
 
-	blockCache   *lru.Cache // Cache for the most recent entire blocks
-	futureBlocks *lru.Cache // future blocks are blocks added for later processing
+	blockCache          *lru.Cache // Cache for the most recent entire blocks
+	futureBlocks        *lru.Cache // future blocks are blocks added for later processing
+	coinbaseAmountCache map[uint64]*big.Int
 
 	quit    chan struct{} // blockchain quit channel
 	running int32         // running must be called atomically
@@ -127,6 +128,7 @@ func NewRootBlockChain(db ethdb.Database, chainConfig *config.QuarkChainConfig, 
 		quit:                     make(chan struct{}),
 		shouldPreserve:           shouldPreserve,
 		blockCache:               blockCache,
+		coinbaseAmountCache:      make(map[uint64]*big.Int),
 		futureBlocks:             futureBlocks,
 		engine:                   engine,
 		validatedMinorBlockCache: validatedMinorBlockHashCache,
@@ -1132,6 +1134,45 @@ func (bc *RootBlockChain) SkipDifficultyCheck() bool {
 	return bc.Config().SkipRootDifficultyCheck
 }
 
+//For remote miner to getWork, no signature verified
+func (bc *RootBlockChain) GetAdjustedDifficultyToMine(header types.IHeader) (*big.Int, uint64, error) {
+	rHeader := header.(*types.RootBlockHeader)
+	if crypto.VerifySignature(bc.Config().GuardianPublicKey, rHeader.SealHash().Bytes(), rHeader.Signature[:64]) {
+		guardianAdjustedDiff := new(big.Int).Div(rHeader.GetDifficulty(), new(big.Int).SetUint64(1000))
+		return guardianAdjustedDiff, 1, nil
+	}
+	if bc.posw.IsPoSWEnabled(header) {
+		stakes, err := bc.getPoSWStakes(header)
+		if err != nil {
+			log.Debug("get PoSW stakes", "err", err, "coinbase", header.GetCoinbase().ToHex())
+		}
+		poswAdjusted, err := bc.posw.PoSWDiffAdjust(header, stakes)
+		if err != nil {
+			log.Debug("PoSW diff adjust", "err", err, "coinbase", header.GetCoinbase().ToHex())
+		}
+		if poswAdjusted != nil && poswAdjusted.Cmp(rHeader.Difficulty) == -1 {
+			log.Debug("PoSW applied", "from", rHeader.Difficulty, "to", poswAdjusted, "coinbase", header.GetCoinbase().ToHex())
+			return header.GetDifficulty(), bc.Config().Root.PoSWConfig.DiffDivider, nil
+		}
+		log.Debug("PoSW not satisfied", "stakes", stakes, "coinbase", header.GetCoinbase().ToHex())
+	}
+	return rHeader.GetDifficulty(), 1, nil
+}
+
+func (bc *RootBlockChain) getPoSWStakes(header types.IHeader) (*big.Int, error) {
+	// get chain 0 shard 0's last confirmed block header
+	lastConfirmedMinorBlockHeader := bc.GetLastConfirmedMinorBlockHeader(header.GetParentHash(), uint32(1))
+	if lastConfirmedMinorBlockHeader == nil {
+		return nil, errors.New("no shard block has been confirmed")
+	}
+	getStakes := bc.GetRootChainStakesFunc()
+	stakes, _, err := getStakes(header.GetCoinbase(), lastConfirmedMinorBlockHeader.Hash())
+	if err != nil {
+		return nil, err
+	}
+	return stakes, nil
+}
+
 func (bc *RootBlockChain) GetAdjustedDifficulty(header types.IHeader) (*big.Int, uint64, error) {
 	rHeader := header.(*types.RootBlockHeader)
 	if crypto.VerifySignature(bc.Config().GuardianPublicKey, rHeader.SealHash().Bytes(), rHeader.Signature[:64]) {
@@ -1141,25 +1182,26 @@ func (bc *RootBlockChain) GetAdjustedDifficulty(header types.IHeader) (*big.Int,
 	if bc.posw.IsPoSWEnabled(header) {
 		poswAdjusted, err := bc.getPoSWAdjustedDiff(header)
 		if err != nil {
-			log.Info("PoSW not applied", "reason", err)
+			log.Debug("PoSW not applied", "reason", err, "coinbase", header.GetCoinbase().ToHex())
 		}
 		if poswAdjusted != nil && poswAdjusted.Cmp(rHeader.Difficulty) == -1 {
-			log.Info("PoSW applied", "from", rHeader.Difficulty, "to", poswAdjusted)
+			log.Debug("PoSW applied", "from", rHeader.Difficulty, "to", poswAdjusted, "coinbase", header.GetCoinbase().ToHex())
 			return header.GetDifficulty(), bc.Config().Root.PoSWConfig.DiffDivider, nil
 		}
+		log.Debug("PoSW not satisfied", "coinbase", header.GetCoinbase().ToHex())
 	}
 	return rHeader.GetDifficulty(), 1, nil
 }
 
 func (bc *RootBlockChain) getPoSWAdjustedDiff(header types.IHeader) (*big.Int, error) {
-	stakes, err := bc.getPoSWStakes(header)
+	stakes, err := bc.getSignedPoSWStakes(header)
 	if err != nil {
 		return nil, err
 	}
 	return bc.posw.PoSWDiffAdjust(header, stakes)
 }
 
-func (bc *RootBlockChain) getPoSWStakes(header types.IHeader) (*big.Int, error) {
+func (bc *RootBlockChain) getSignedPoSWStakes(header types.IHeader) (*big.Int, error) {
 
 	// get chain 0 shard 0's last confirmed block header
 	lastConfirmedMinorBlockHeader := bc.GetLastConfirmedMinorBlockHeader(header.GetParentHash(), uint32(1))
@@ -1171,7 +1213,7 @@ func (bc *RootBlockChain) getPoSWStakes(header types.IHeader) (*big.Int, error) 
 	if err != nil {
 		return nil, err
 	}
-	if signer == nil || *signer == (common.Address{}) {
+	if signer == nil || *signer == (common.Address{}) { //could be unlocked if stakes is 0 too
 		return nil, errors.New("stakes signer not found")
 	}
 	rHeader := header.(*types.RootBlockHeader)
@@ -1280,17 +1322,6 @@ func (bc *RootBlockChain) CalculateRootBlockCoinBase(rootBlock *types.RootBlock)
 			return nil, fmt.Errorf("rootBlockChain not contain minorBlock hash:%v", header.Hash().String())
 		}
 	}
-	height := new(big.Int).SetUint64(rootBlock.Header().NumberU64())
-	epoch := height.Div(height, bc.Config().Root.EpochInterval)
-	numerator := powerBigInt(bc.Config().BlockRewardDecayFactor.Num(), epoch.Uint64())
-	denominator := powerBigInt(bc.Config().BlockRewardDecayFactor.Denom(), epoch.Uint64())
-	coinbaseAmount := new(big.Int).Mul(bc.Config().Root.CoinbaseAmount, numerator)
-	coinbaseAmount = coinbaseAmount.Div(coinbaseAmount, denominator)
-
-	rewardTaxRate := bc.Config().RewardTaxRate
-	one := big.NewRat(1, 1)
-	ratioT := one.Sub(one, rewardTaxRate)
-	ratio := ratioT.Quo(ratioT, rewardTaxRate)
 
 	rewardTokenMap := types.NewEmptyTokenBalances()
 	for _, mheader := range rootBlock.MinorBlockHeaders() {
@@ -1298,6 +1329,7 @@ func (bc *RootBlockChain) CalculateRootBlockCoinBase(rootBlock *types.RootBlock)
 		rewardTokenMap.Add(mToken.GetBalanceMap())
 	}
 
+	ratio := bc.Config().RewardCalculateRate
 	tempToken := rewardTokenMap.GetBalanceMap()
 	for token, value := range tempToken {
 		value = value.Mul(value, ratio.Denom())
@@ -1306,11 +1338,27 @@ func (bc *RootBlockChain) CalculateRootBlockCoinBase(rootBlock *types.RootBlock)
 	}
 	genesisToken := bc.Config().GetDefaultChainTokenID()
 	genesisTokenBalance := rewardTokenMap.GetTokenBalance(genesisToken)
-	genesisTokenBalance.Add(genesisTokenBalance, coinbaseAmount)
+	genesisTokenBalance.Add(genesisTokenBalance, bc.getCoinbaseAmount(rootBlock.NumberU64()))
 	rewardTokenMap.SetValue(genesisTokenBalance, genesisToken)
 	return rewardTokenMap, nil
 
 }
+
+func (bc *RootBlockChain) getCoinbaseAmount(height uint64) *big.Int {
+	epoch := height / bc.Config().Root.EpochInterval
+	coinbaseAmount, ok := bc.coinbaseAmountCache[epoch]
+	if !ok {
+		numerator := powerBigInt(bc.Config().BlockRewardDecayFactor.Num(), epoch)
+		denominator := powerBigInt(bc.Config().BlockRewardDecayFactor.Denom(), epoch)
+		coinbaseAmount = new(big.Int).Mul(bc.Config().Root.CoinbaseAmount, numerator)
+		coinbaseAmount = coinbaseAmount.Div(coinbaseAmount, denominator)
+		bc.mu.Lock()
+		bc.coinbaseAmountCache[epoch] = coinbaseAmount
+		bc.mu.Unlock()
+	}
+	return coinbaseAmount
+}
+
 func (bc *RootBlockChain) IsMinorBlockValidated(mHash common.Hash) bool {
 	return bc.ContainMinorBlockByHash(mHash)
 }
@@ -1379,7 +1427,7 @@ func (bc *RootBlockChain) PutRootBlockIndex(block *types.RootBlock) error {
 			shardRecipientCnt[fullShardID] = make(map[account.Recipient]uint32)
 		}
 		shardRecipientCnt[fullShardID][recipient] = newCount
-		blockID := qkcapi.IDEncoder(header.Hash().Bytes(), fullShardID)
+		blockID := encoder.IDEncoder(header.Hash().Bytes(), fullShardID)
 		bc.PutRootBlockConfirmingMinorBlock(blockID, block.Hash())
 	}
 	for fullShardID, infoList := range shardRecipientCnt {
@@ -1457,20 +1505,17 @@ func (bc *RootBlockChain) GetRootChainStakesFunc() func(address account.Address,
 }
 
 func (bc *RootBlockChain) PoSWInfo(header *types.RootBlockHeader) (*rpc.PoSWInfo, error) {
-	if !bc.posw.IsPoSWEnabled(header) {
+	if header.Number == 0 {
 		return nil, nil
 	}
-	stakes, err := bc.getPoSWStakes(header)
-	if err != nil {
-		return nil, err
+	var stakes *big.Int
+	if bc.posw.IsPoSWEnabled(header) {
+		stakes, _ = bc.getSignedPoSWStakes(header)
 	}
-	diff, mineable, mined, err := bc.posw.GetPoSWInfo(header, stakes)
-	if err != nil {
-		return nil, err
-	}
+	diff, mineable, mined, _ := bc.posw.GetPoSWInfo(header, stakes)
 	return &rpc.PoSWInfo{
 		EffectiveDifficulty: diff,
-		PoswMinedBlocks:     mined,
+		PoswMinedBlocks:     mined + 1,
 		PoswMineableBlocks:  mineable,
 	}, nil
 }

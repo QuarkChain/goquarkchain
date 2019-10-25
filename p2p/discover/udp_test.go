@@ -96,6 +96,9 @@ func (test *udpTest) packetIn(wantError error, ptype byte, data packet) error {
 // validate should have type func(*udpTest, X) error, where X is a packet type.
 func (test *udpTest) waitPacketOut(validate interface{}) ([]byte, error) {
 	dgram := test.pipe.waitPacketOut()
+	if bytes.HasPrefix(dgram, qkcIdBytes) {
+		dgram = dgram[len(qkcIdBytes):]
+	}
 	p, _, hash, err := decodePacket(dgram)
 	if err != nil {
 		return hash, test.errorf("sent packet decode error: %v", err)
@@ -341,6 +344,10 @@ func TestUDP_successfulPing(t *testing.T) {
 	// the ping is replied to.
 	test.waitPacketOut(func(p *pong) {
 		pinghash := test.sent[0][:macSize]
+		if bytes.HasPrefix(test.sent[0], qkcIdBytes) {
+			pinghash = test.sent[0][len(qkcIdBytes) : macSize+len(qkcIdBytes)]
+		}
+
 		if !bytes.Equal(p.ReplyTok, pinghash) {
 			t.Errorf("got pong.ReplyTok %x, want %x", p.ReplyTok, pinghash)
 		}
@@ -489,6 +496,9 @@ func TestForwardCompatibility(t *testing.T) {
 		input, err := hex.DecodeString(test.input)
 		if err != nil {
 			t.Fatalf("invalid hex: %s", test.input)
+		}
+		if bytes.HasPrefix(input, qkcIdBytes) {
+			input = input[len(qkcIdBytes):]
 		}
 		packet, nodekey, _, err := decodePacket(input)
 		if err != nil {

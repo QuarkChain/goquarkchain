@@ -6,41 +6,32 @@ import (
 )
 
 type ByteBuffer struct {
-	data     []byte
+	data     *[]byte
 	position int
+	size     int
 }
 
 func NewByteBuffer(bytes []byte) *ByteBuffer {
-	bb := ByteBuffer{bytes, 0}
+	bb := ByteBuffer{&bytes, 0, len(bytes)}
 	return &bb
 }
 
-func (bb ByteBuffer) GetOffset() int {
+func (bb *ByteBuffer) GetOffset() int {
 	return bb.position
 }
 
-func (bb *ByteBuffer) checkSpace(space int) error {
-	if space > len(bb.data)-bb.position {
-		return fmt.Errorf("deser: buffer is shorter than expected")
+func (bb *ByteBuffer) getBytes(size int) ([]byte, error) {
+	if size > bb.size-bb.position {
+		return nil, fmt.Errorf("deser: buffer is shorter than expected")
 	}
 
-	return nil
-}
-
-func (bb *ByteBuffer) GetBytes(size int) ([]byte, error) {
-	err := bb.checkSpace(size)
-	if err != nil {
-		return nil, err
-	}
-
-	bytes := make([]byte, size, size)
-	copy(bytes, bb.data[bb.position:bb.position+size])
+	bytes := (*bb.data)[bb.position : bb.position+size]
 	bb.position += size
 	return bytes, nil
 }
 
 func (bb *ByteBuffer) GetUInt8() (uint8, error) {
-	bytes, err := bb.GetBytes(1)
+	bytes, err := bb.getBytes(1)
 	if err != nil {
 		return 0, err
 	}
@@ -49,7 +40,7 @@ func (bb *ByteBuffer) GetUInt8() (uint8, error) {
 }
 
 func (bb *ByteBuffer) GetUInt16() (uint16, error) {
-	bytes, err := bb.GetBytes(2)
+	bytes, err := bb.getBytes(2)
 	if err != nil {
 		return 0, err
 	}
@@ -58,7 +49,7 @@ func (bb *ByteBuffer) GetUInt16() (uint16, error) {
 }
 
 func (bb *ByteBuffer) GetUInt32() (uint32, error) {
-	bytes, err := bb.GetBytes(4)
+	bytes, err := bb.getBytes(4)
 	if err != nil {
 		return 0, err
 	}
@@ -67,7 +58,7 @@ func (bb *ByteBuffer) GetUInt32() (uint32, error) {
 }
 
 func (bb *ByteBuffer) GetUInt64() (uint64, error) {
-	bytes, err := bb.GetBytes(8)
+	bytes, err := bb.getBytes(8)
 	if err != nil {
 		return 0, err
 	}
@@ -80,7 +71,7 @@ func (bb *ByteBuffer) getLen(byteSize int) (int, error) {
 		return 0, fmt.Errorf("deser: bytesize in GetVarBytes should larger than 0")
 	}
 
-	b, err := bb.GetBytes(byteSize)
+	b, err := bb.getBytes(byteSize)
 	if err != nil {
 		return 0, err
 	}
@@ -99,9 +90,16 @@ func (bb *ByteBuffer) GetVarBytes(byteSizeOfSliceLen int) ([]byte, error) {
 		return nil, err
 	}
 
-	return bb.GetBytes(size)
+	bs, err := bb.getBytes(size)
+	if err != nil {
+		return nil, err
+	}
+
+	bytes := make([]byte, size, size)
+	copy(bytes, bs)
+	return bytes, nil
 }
 
 func (bb *ByteBuffer) Remaining() int {
-	return len(bb.data) - bb.position
+	return bb.size - bb.position
 }

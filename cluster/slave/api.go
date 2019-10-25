@@ -1,53 +1,51 @@
 // Modified from go-ethereum under GNU Lesser General Public License
-package filters
+package slave
 
 import (
 	"context"
+	"github.com/QuarkChain/goquarkchain/core"
 	"sync"
 	"time"
 
-	qrpc "github.com/QuarkChain/goquarkchain/cluster/rpc"
+	"github.com/QuarkChain/goquarkchain/cluster/slave/filters"
 	qsync "github.com/QuarkChain/goquarkchain/cluster/sync"
 	"github.com/QuarkChain/goquarkchain/core/types"
+	"github.com/QuarkChain/goquarkchain/internal/encoder"
+	"github.com/QuarkChain/goquarkchain/rpc"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
-	"github.com/ethereum/go-ethereum/rpc"
+	"github.com/ethereum/go-ethereum/log"
 )
 
 var (
 	deadline = 5 * time.Minute // consider a filter inactive if it has not been polled for within deadline
 )
 
-type SlaveBackend interface {
-	GetShardBackend(fullShardId uint32) (ShardBackend, error)
-	GetFullShardList() []uint32
-}
-
 // filter is a helper struct that holds meta information over the filter type
 // and associated subscription in the event system.
 type filter struct {
-	typ      Type
+	typ      filters.Type
 	deadline *time.Timer // filter is inactiv when deadline triggers
 	hashes   []common.Hash
-	crit     qrpc.FilterQuery
+	crit     rpc.FilterQuery
 	logs     []*types.Log
-	s        *Subscription // associated subscription in event system
+	s        *filters.Subscription // associated subscription in event system
 }
 
 // PublicFilterAPI offers support to create and manage filters. This will allow external clients to retrieve various
 // information related to the Ethereum protocol such als blocks, transactions and logs.
 type PublicFilterAPI struct {
-	backend   SlaveBackend
+	backend   filters.SlaveFilter
 	quit      chan struct{}
-	events    *EventSystem
+	events    *filters.EventSystem
 	filtersMu sync.Mutex
 }
 
 // NewPublicFilterAPI returns a new PublicFilterAPI instance.
-func NewPublicFilterAPI(backend SlaveBackend) *PublicFilterAPI {
+func NewPublicFilterAPI(backend filters.SlaveFilter) *PublicFilterAPI {
 	api := &PublicFilterAPI{
 		backend: backend,
-		events:  NewEventSystem(backend),
+		events:  filters.NewEventSystem(backend),
 	}
 
 	return api
@@ -61,16 +59,29 @@ func (api *PublicFilterAPI) NewPendingTransactions(ctx context.Context, fullShar
 		return &rpc.Subscription{}, rpc.ErrNotificationsUnsupported
 	}
 
+	id := uint32(fullShardId)
 	rpcSub := notifier.CreateSubscription()
 
 	go func() {
-		txlist := make(chan common.Hash, txChanSize)
-		pendingTxSub := api.events.SubscribePendingTxs(txlist, uint32(fullShardId))
+		txlist := make(chan []*types.Transaction, filters.TxsChanSize)
+		pendingTxSub := api.events.SubscribePendingTxs(txlist, id)
 
 		for {
 			select {
 			case txs := <-txlist:
-				notifier.Notify(rpcSub.ID, txs)
+				for _, tx := range txs {
+					mBlock, idx, err := api.backend.GetTransactionByHash(tx.Hash(), id)
+					if err != nil {
+						log.Error("failed to call getTransactionByHash when subscription pending transactions", "err", err)
+						continue
+					}
+					data, err := encoder.TxEncoder(mBlock, int(idx))
+					if err != nil {
+						log.Error("failed to encode tx when subscription pending transactions", "err", err)
+						continue
+					}
+					notifier.Notify(rpcSub.ID, data)
+				}
 			case <-rpcSub.Err():
 				pendingTxSub.Unsubscribe()
 				return
@@ -94,13 +105,19 @@ func (api *PublicFilterAPI) NewHeads(ctx context.Context, fullShardId hexutil.Ui
 	rpcSub := notifier.CreateSubscription()
 
 	go func() {
-		headers := make(chan *types.MinorBlockHeader, chainEvChanSize)
+		headers := make(chan *types.MinorBlockHeader, filters.ChainEvChanSize)
 		headersSub := api.events.SubscribeNewHeads(headers, uint32(fullShardId))
 
 		for {
 			select {
 			case h := <-headers:
-				notifier.Notify(rpcSub.ID, h)
+				hd, err := encoder.MinorBlockHeaderEncoder(h)
+				if err != nil {
+					log.Error("encode MinorBlockHeader error", "err", err)
+				} else {
+					notifier.Notify(rpcSub.ID, hd)
+				}
+
 			case <-rpcSub.Err():
 				headersSub.Unsubscribe()
 				return
@@ -115,7 +132,7 @@ func (api *PublicFilterAPI) NewHeads(ctx context.Context, fullShardId hexutil.Ui
 }
 
 // Logs creates a subscription that fires for all new log that match the given filter criteria.
-func (api *PublicFilterAPI) Logs(ctx context.Context, crit qrpc.FilterQuery, fullShardId hexutil.Uint) (*rpc.Subscription, error) {
+func (api *PublicFilterAPI) Logs(ctx context.Context, crit rpc.FilterQuery, fullShardId hexutil.Uint) (*rpc.Subscription, error) {
 	notifier, supported := rpc.NotifierFromContext(ctx)
 	if !supported {
 		return &rpc.Subscription{}, rpc.ErrNotificationsUnsupported
@@ -123,7 +140,7 @@ func (api *PublicFilterAPI) Logs(ctx context.Context, crit qrpc.FilterQuery, ful
 
 	var (
 		rpcSub      = notifier.CreateSubscription()
-		matchedLogs = make(chan []*types.Log, logsChanSize)
+		matchedLogs = make(chan core.LoglistEvent, filters.LogsChanSize)
 	)
 	crit.FullShardId = uint32(fullShardId)
 
@@ -136,8 +153,10 @@ func (api *PublicFilterAPI) Logs(ctx context.Context, crit qrpc.FilterQuery, ful
 		for {
 			select {
 			case logs := <-matchedLogs:
-				for _, log := range logs {
-					notifier.Notify(rpcSub.ID, &log)
+				for _, loglist := range logs.Logs {
+					for _, log := range loglist {
+						notifier.Notify(rpcSub.ID, encoder.LogEncoder(log, logs.IsRemoved))
+					}
 				}
 			case <-rpcSub.Err(): // client send an unsubscribe request
 				logsSub.Unsubscribe()
@@ -163,7 +182,7 @@ func (api *PublicFilterAPI) Syncing(ctx context.Context, fullShardId hexutil.Uin
 	)
 
 	go func() {
-		statuses := make(chan *qsync.SyncingResult, syncSize)
+		statuses := make(chan *qsync.SyncingResult, filters.SyncSize)
 		sub := api.events.SubscribeSyncing(statuses, uint32(fullShardId))
 		for {
 			select {

@@ -192,6 +192,7 @@ func testMinorBlockChainImport(chain []types.IBlock, blockchain *MinorBlockChain
 		blockchain.mu.Lock()
 		rawdb.WriteTd(blockchain.db, block.Hash(), new(big.Int).Add(block.IHeader().GetDifficulty(), blockchain.GetTdByHash(block.IHeader().GetParentHash())))
 		rawdb.WriteMinorBlock(blockchain.db, block.(*types.MinorBlock))
+		rawdb.WriteCommitMinorBlock(blockchain.db, block.Hash())
 		statedb.Commit(true)
 		blockchain.mu.Unlock()
 	}
@@ -956,8 +957,6 @@ func TestMinorLogReorgs(t *testing.T) {
 	}
 	defer blockchain.Stop()
 
-	rmLogsCh := make(chan RemovedLogsEvent)
-	blockchain.SubscribeRemovedLogsEvent(rmLogsCh)
 	chain, _ := GenerateMinorBlockChain(params.TestChainConfig, clusterConfig.Quarkchain, genesis, engine, db, 2, func(config *config.QuarkChainConfig, i int, gen *MinorBlockGen) {
 		if i == 1 {
 			tx, err := types.SignTx(types.NewEvmTransaction(gen.TxNonce(addr1.Recipient), addr1.Recipient, new(big.Int), 1000000, new(big.Int), 0, 0, 3, 0, nil, genesisTokenID, genesisTokenID), signer, prvKey1)

@@ -357,6 +357,11 @@ func (c *Client) EthSubscribe(ctx context.Context, channel interface{}, args ...
 	return c.Subscribe(ctx, "eth", channel, args...)
 }
 
+// QkcSubscribe registers a subscripion under the "ws" namespace.
+func (c *Client) QkcSubscribe(ctx context.Context, channel interface{}, args ...interface{}) (*ClientSubscription, error) {
+	return c.Subscribe(ctx, "", channel, args...)
+}
+
 // ShhSubscribe registers a subscripion under the "shh" namespace.
 func (c *Client) ShhSubscribe(ctx context.Context, channel interface{}, args ...interface{}) (*ClientSubscription, error) {
 	return c.Subscribe(ctx, "shh", channel, args...)
@@ -386,8 +391,12 @@ func (c *Client) Subscribe(ctx context.Context, namespace string, channel interf
 	if c.isHTTP {
 		return nil, ErrNotificationsUnsupported
 	}
+	method := subscribeMethodSuffix[1:]
+	if namespace != "" {
+		method = namespace + subscribeMethodSuffix
+	}
 
-	msg, err := c.newMessage(namespace+subscribeMethodSuffix, args...)
+	msg, err := c.newMessage(method, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -593,7 +602,7 @@ func (c *Client) closeRequestOps(err error) {
 }
 
 func (c *Client) handleNotification(msg *jsonrpcMessage) {
-	if !strings.HasSuffix(msg.Method, notificationMethodSuffix) {
+	if !strings.HasSuffix(msg.Method, notificationMethodSuffix) && msg.Method != notificationMethodSuffix[1:] {
 		log.Debug("dropping non-subscription message", "msg", msg)
 		return
 	}
@@ -794,5 +803,11 @@ func (sub *ClientSubscription) unmarshal(result json.RawMessage) (interface{}, e
 
 func (sub *ClientSubscription) requestUnsubscribe() error {
 	var result interface{}
-	return sub.client.Call(&result, sub.namespace+unsubscribeMethodSuffix, sub.subid)
+
+	method := unsubscribeMethodSuffix[1:]
+	if sub.namespace != "" {
+		method = sub.namespace + unsubscribeMethodSuffix
+	}
+
+	return sub.client.Call(&result, method, sub.subid)
 }

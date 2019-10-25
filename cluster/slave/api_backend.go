@@ -11,6 +11,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/p2p"
+	qrpc "github.com/QuarkChain/goquarkchain/rpc"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
@@ -230,6 +231,11 @@ func (s *SlaveBackend) GetAccountData(address *account.Address, height *uint64) 
 			return nil, err
 		}
 		data.IsContract = len(bt) > 0
+		mineableBlocks, mined, err := shard.MinorBlockChain.GetMiningInfo(address.Recipient, tokenBalances)
+		if err == nil {
+			data.MinedBlocks = mined
+			data.PoswMineableBlocks = mineableBlocks
+		}
 		results = append(results, &data)
 	}
 	return results, err
@@ -287,7 +293,7 @@ func (s *SlaveBackend) GetAllTx(branch account.Branch, start []byte, limit uint3
 	return nil, nil, ErrMsg("GetAllTx")
 }
 
-func (s *SlaveBackend) GetLogs(args *rpc.FilterQuery) ([]*types.Log, error) {
+func (s *SlaveBackend) GetLogs(args *qrpc.FilterQuery) ([]*types.Log, error) {
 	if shard, ok := s.shards[args.FullShardId]; ok {
 		return shard.GetLogsByFilterQuery(args)
 	}
@@ -508,7 +514,7 @@ func (s *SlaveBackend) EventMux() *event.TypeMux {
 	return s.eventMux
 }
 
-func (s *SlaveBackend) GetShardBackend(fullShardId uint32) (filters.ShardBackend, error) {
+func (s *SlaveBackend) GetShardFilter(fullShardId uint32) (filters.ShardFilter, error) {
 	if shrd, ok := s.shards[fullShardId]; ok {
 		return shrd, nil
 	}

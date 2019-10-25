@@ -252,7 +252,7 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 			return nil, 0, false, vmerr
 		}
 	}
-	st.refundGas()
+	st.refundGas(vmerr)
 	st.chargeFee(st.gasUsed())
 	if vmerr == vm.ErrPoSWSenderNotAllowed {
 		return nil, st.gasUsed(), true, nil
@@ -260,13 +260,15 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 	return ret, st.gasUsed(), vmerr != nil, err
 }
 
-func (st *StateTransition) refundGas() {
+func (st *StateTransition) refundGas(vmerr error) {
 	// Apply refund counter, capped to half of the used gas.
-	refund := st.gasUsed() / 2
-	if refund > st.state.GetRefund() {
-		refund = st.state.GetRefund()
+	if vmerr == nil {
+		refund := st.gasUsed() / 2
+		if refund > st.state.GetRefund() {
+			refund = st.state.GetRefund()
+		}
+		st.gas += refund
 	}
-	st.gas += refund
 
 	// Return ETH for remaining gas, exchanged at the original rate.
 	remaining := new(big.Int).Mul(new(big.Int).SetUint64(st.gas), st.gasPrice)
@@ -311,6 +313,8 @@ func (st *StateTransition) AddCrossShardTxDeposit(intrinsicGas uint64) (ret []by
 		crossShardGasPrice.Value = new(big.Int).Set(msg.GasPrice())
 		crossShardGas := new(serialize.Uint256)
 		crossShardGas.Value = new(big.Int).SetUint64(remoteGasReserved)
+
+		fromFullShardKey := msg.FromFullShardKey()
 		crossShardData := &types.CrossShardTransactionDeposit{
 			TxHash: msg.TxHash(),
 			From: account.Address{
@@ -318,7 +322,7 @@ func (st *StateTransition) AddCrossShardTxDeposit(intrinsicGas uint64) (ret []by
 				FullShardKey: msg.FromFullShardKey(),
 			},
 			To: account.Address{
-				Recipient:    vm.CreateAddress(msg.From(), msg.ToFullShardKey(), state.GetNonce(msg.From())),
+				Recipient:    vm.CreateAddress(msg.From(), &fromFullShardKey, state.GetNonce(msg.From())),
 				FullShardKey: *msg.ToFullShardKey(),
 			},
 			Value:           crossShardValue,
@@ -377,14 +381,13 @@ func (st *StateTransition) AddCrossShardTxDeposit(intrinsicGas uint64) (ret []by
 		localGasUsed -= qkcParam.GtxxShardCost.Uint64()
 	}
 	st.chargeFee(localGasUsed)
-	return nil, st.gasUsed(), failed, nil
+	return nil, state.GetGasUsed().Uint64(), failed, nil
 }
 
 func (st *StateTransition) chargeFee(gasUsed uint64) {
 	fee := new(big.Int).Mul(new(big.Int).SetUint64(gasUsed), st.gasPrice)
-	feeRate := new(big.Rat).Sub(new(big.Rat).SetInt64(1), st.state.GetQuarkChainConfig().RewardTaxRate)
-	rateFee := new(big.Int).Mul(fee, feeRate.Num())
-	rateFee = new(big.Int).Div(rateFee, feeRate.Denom())
+	rateFee := new(big.Int).Mul(fee, st.state.GetQuarkChainConfig().LocalFeeRate.Num())
+	rateFee = new(big.Int).Div(rateFee, st.state.GetQuarkChainConfig().LocalFeeRate.Denom())
 	st.state.AddBalance(st.evm.Coinbase, rateFee, st.msg.GasTokenID())
 	blockFee := make(map[uint64]*big.Int)
 	blockFee[st.msg.GasTokenID()] = rateFee

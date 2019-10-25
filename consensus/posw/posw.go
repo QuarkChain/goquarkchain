@@ -8,6 +8,7 @@ import (
 	qkcCommon "github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/log"
 	lru "github.com/hashicorp/golang-lru"
 	"math/big"
 )
@@ -39,6 +40,9 @@ func NewPoSW(headReader headReader, config *config.POSWConfig) *PoSW {
 /*PoSWDiffAdjust PoSW diff calc,already locked by insertChain*/
 func (p *PoSW) PoSWDiffAdjust(header types.IHeader, stakes *big.Int) (*big.Int, error) {
 	diff := header.GetDifficulty()
+	if stakes == nil {
+		return diff, nil
+	}
 	// Evaluate stakes before the to-be-added block
 	blockThreshold := new(big.Int).Div(stakes, p.config.TotalStakePerBlock).Uint64()
 	if blockThreshold == uint64(0) {
@@ -54,6 +58,7 @@ func (p *PoSW) PoSWDiffAdjust(header types.IHeader, stakes *big.Int) (*big.Int, 
 	if err != nil {
 		return nil, err
 	}
+	log.Debug("PoSWDiffAdjust", "blockCnt", blockCnt, "blockThreshold", blockThreshold, "coinbase", header.GetCoinbase().ToHex())
 	if blockCnt < blockThreshold {
 		diff = new(big.Int).Div(diff, big.NewInt(int64(p.config.DiffDivider)))
 	}
@@ -139,16 +144,16 @@ func (p *PoSW) getCoinbaseAddressUntilBlock(headerHash common.Hash) ([]account.R
 }
 
 func (p *PoSW) GetPoSWInfo(header types.IHeader, stakes *big.Int) (effectiveDiff *big.Int, mineable, mined uint64, err error) {
-	if !p.IsPoSWEnabled(header) {
-		return nil, 0, 0, fmt.Errorf("PoSW not enabled")
+	blockCnt, err := p.countCoinbaseBlockUntil(header.Hash(), header.GetCoinbase().Recipient)
+	if err != nil {
+		return header.GetDifficulty(), 0, 0, err
+	}
+	if !p.IsPoSWEnabled(header) || stakes == nil {
+		return header.GetDifficulty(), 0, blockCnt, nil
 	}
 	blockThreshold := new(big.Int).Div(stakes, p.config.TotalStakePerBlock).Uint64()
 	if blockThreshold > p.config.WindowSize {
 		blockThreshold = p.config.WindowSize
-	}
-	blockCnt, err := p.countCoinbaseBlockUntil(header.GetParentHash(), header.GetCoinbase().Recipient)
-	if err != nil {
-		return nil, 0, 0, err
 	}
 	diff := header.GetDifficulty()
 	if blockCnt < blockThreshold {
@@ -156,7 +161,6 @@ func (p *PoSW) GetPoSWInfo(header types.IHeader, stakes *big.Int) (effectiveDiff
 	}
 	effectiveDiff = diff
 	mineable = blockThreshold
-	//mined blocks should include current one, assuming success
-	mined = blockCnt + 1
+	mined = blockCnt
 	return
 }

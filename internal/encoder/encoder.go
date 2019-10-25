@@ -1,4 +1,4 @@
-package qkcapi
+package encoder
 
 import (
 	"errors"
@@ -23,11 +23,16 @@ func IDDecoder(bytes []byte) (ethCommon.Hash, uint32, error) {
 	return ethCommon.BytesToHash(bytes[:32]), common.BytesToUint32(bytes[32:]), nil
 
 }
+
 func DataEncoder(bytes []byte) hexutil.Bytes {
 	return hexutil.Bytes(bytes)
 }
 
-func balancesEncoder(balances *types.TokenBalances) []map[string]interface{} {
+func FullShardKeyEncode(fullShardKey uint32) hexutil.Bytes {
+	return hexutil.Bytes(common.Uint32ToBytes(fullShardKey))
+}
+
+func BalancesEncoder(balances *types.TokenBalances) []map[string]interface{} {
 	balanceList := make([]map[string]interface{}, 0)
 	bMap := balances.GetBalanceMap()
 	for k, v := range bMap {
@@ -44,7 +49,7 @@ func balancesEncoder(balances *types.TokenBalances) []map[string]interface{} {
 	return balanceList
 }
 
-func rootBlockEncoder(rootBlock *types.RootBlock, extraInfo *rpc.PoSWInfo) (map[string]interface{}, error) {
+func RootBlockEncoder(rootBlock *types.RootBlock, extraInfo *rpc.PoSWInfo) (map[string]interface{}, error) {
 	serData, err := serialize.SerializeToBytes(rootBlock)
 	if err != nil {
 		return nil, err
@@ -66,7 +71,7 @@ func rootBlockEncoder(rootBlock *types.RootBlock, extraInfo *rpc.PoSWInfo) (map[
 		"nonce":             hexutil.Uint64(header.Nonce),
 		"hashMerkleRoot":    header.MinorHeaderHash,
 		"miner":             DataEncoder(minerData),
-		"coinbase":          balancesEncoder(header.CoinbaseAmount),
+		"coinbase":          BalancesEncoder(header.CoinbaseAmount),
 		"difficulty":        (*hexutil.Big)(header.Difficulty),
 		"timestamp":         hexutil.Uint64(header.Time),
 		"size":              hexutil.Uint64(len(serData)),
@@ -99,8 +104,10 @@ func rootBlockEncoder(rootBlock *types.RootBlock, extraInfo *rpc.PoSWInfo) (map[
 			"nonce":              hexutil.Uint64(header.Nonce),
 			"difficulty":         (*hexutil.Big)(header.Difficulty),
 			"miner":              DataEncoder(minerData),
-			"coinbase":           balancesEncoder(header.CoinbaseAmount),
+			"coinbase":           BalancesEncoder(header.CoinbaseAmount),
 			"timestamp":          hexutil.Uint64(header.Time),
+			"extraData":          hexutil.Bytes(header.Extra),
+			"gasLimit":           hexutil.Big(*header.GasLimit.Value),
 		}
 		minorHeaders = append(minorHeaders, h)
 	}
@@ -108,7 +115,32 @@ func rootBlockEncoder(rootBlock *types.RootBlock, extraInfo *rpc.PoSWInfo) (map[
 	return fields, nil
 }
 
-func minorBlockEncoder(block *types.MinorBlock, includeTransaction bool, extraInfo *rpc.PoSWInfo) (map[string]interface{}, error) {
+func MinorBlockHeaderEncoder(header *types.MinorBlockHeader) (map[string]interface{}, error) {
+	minerData, err := serialize.SerializeToBytes(header.Coinbase)
+	if err != nil {
+		return nil, err
+	}
+	return map[string]interface{}{
+		"id":                 IDEncoder(header.Hash().Bytes(), header.Branch.GetFullShardID()),
+		"height":             hexutil.Uint64(header.Number),
+		"hash":               header.Hash(),
+		"fullShardId":        hexutil.Uint64(header.Branch.GetFullShardID()),
+		"chainId":            hexutil.Uint64(header.Branch.GetChainID()),
+		"shardId":            hexutil.Uint64(header.Branch.GetShardID()),
+		"hashPrevMinorBlock": header.ParentHash,
+		"idPrevMinorBlock":   IDEncoder(header.ParentHash.Bytes(), header.Branch.GetFullShardID()),
+		"hashPrevRootBlock":  header.PrevRootBlockHash,
+		"nonce":              hexutil.Uint64(header.Nonce),
+		"miner":              DataEncoder(minerData),
+		"coinbase":           (BalancesEncoder)(header.CoinbaseAmount),
+		"difficulty":         (*hexutil.Big)(header.Difficulty),
+		"extraData":          hexutil.Bytes(header.Extra),
+		"gasLimit":           (*hexutil.Big)(header.GasLimit.Value),
+		"timestamp":          hexutil.Uint64(header.Time),
+	}, nil
+}
+
+func MinorBlockEncoder(block *types.MinorBlock, includeTransaction bool, extraInfo *rpc.PoSWInfo) (map[string]interface{}, error) {
 	serData, err := serialize.SerializeToBytes(block)
 	if err != nil {
 		return nil, err
@@ -133,7 +165,7 @@ func minorBlockEncoder(block *types.MinorBlock, includeTransaction bool, extraIn
 		"hashMerkleRoot":     meta.TxHash,
 		"hashEvmStateRoot":   meta.Root,
 		"miner":              DataEncoder(minerData),
-		"coinbase":           (balancesEncoder)(header.CoinbaseAmount),
+		"coinbase":           (BalancesEncoder)(header.CoinbaseAmount),
 		"difficulty":         (*hexutil.Big)(header.Difficulty),
 		"extraData":          hexutil.Bytes(header.Extra),
 		"gasLimit":           (*hexutil.Big)(header.GasLimit.Value),
@@ -145,7 +177,7 @@ func minorBlockEncoder(block *types.MinorBlock, includeTransaction bool, extraIn
 	if includeTransaction {
 		txForDisplay := make([]map[string]interface{}, 0)
 		for txIndex, _ := range block.Transactions() {
-			temp, err := txEncoder(block, txIndex)
+			temp, err := TxEncoder(block, txIndex)
 			if err != nil {
 				return nil, err
 			}
@@ -168,7 +200,7 @@ func minorBlockEncoder(block *types.MinorBlock, includeTransaction bool, extraIn
 	return field, nil
 }
 
-func txEncoder(block *types.MinorBlock, i int) (map[string]interface{}, error) {
+func TxEncoder(block *types.MinorBlock, i int) (map[string]interface{}, error) {
 	header := block.Header()
 	tx := block.Transactions()[i]
 	evmtx := tx.EvmTx
@@ -203,8 +235,8 @@ func txEncoder(block *types.MinorBlock, i int) (map[string]interface{}, error) {
 		"transactionIndex": hexutil.Uint64(i),
 		"from":             DataEncoder(sender.Bytes()),
 		"to":               DataEncoder(toBytes),
-		"fromFullShardKey": hexutil.Uint64(evmtx.FromFullShardKey()),
-		"toFullShardKey":   hexutil.Uint64(evmtx.ToFullShardKey()),
+		"fromFullShardKey": FullShardKeyEncode(evmtx.FromFullShardKey()),
+		"toFullShardKey":   FullShardKeyEncode(evmtx.ToFullShardKey()),
 		"value":            (*hexutil.Big)(evmtx.Value()),
 		"gasPrice":         (*hexutil.Big)(evmtx.GasPrice()),
 		"gas":              hexutil.Uint64(evmtx.Gas()),
@@ -221,31 +253,37 @@ func txEncoder(block *types.MinorBlock, i int) (map[string]interface{}, error) {
 	return field, nil
 }
 
-func logListEncoder(logList []*types.Log) []map[string]interface{} {
+func LogEncoder(log *types.Log, isRemoved bool) map[string]interface{} {
+	field := map[string]interface{}{
+		"logIndex":         hexutil.Uint64(log.Index),
+		"transactionIndex": hexutil.Uint64(log.TxIndex),
+		"transactionHash":  log.TxHash,
+		"blockHash":        log.BlockHash,
+		"blockNumber":      hexutil.Uint64(log.BlockNumber),
+		"blockHeight":      hexutil.Uint64(log.BlockNumber),
+		"address":          log.Recipient,
+		"recipient":        log.Recipient,
+		"data":             hexutil.Bytes(log.Data),
+		"removed":          isRemoved,
+	}
+	topics := make([]ethCommon.Hash, len(log.Topics))
+	for i, v := range log.Topics {
+		topics[i] = v
+	}
+	field["topics"] = topics
+	return field
+}
+
+func LogListEncoder(logList []*types.Log, isRemoved bool) []map[string]interface{} {
 	fields := make([]map[string]interface{}, 0)
 	for _, log := range logList {
-		field := map[string]interface{}{
-			"logIndex":         hexutil.Uint64(log.Index),
-			"transactionIndex": hexutil.Uint64(log.TxIndex),
-			"transactionHash":  log.TxHash,
-			"blockHash":        log.BlockHash,
-			"blockNumber":      hexutil.Uint64(log.BlockNumber),
-			"blockHeight":      hexutil.Uint64(log.BlockNumber),
-			"address":          log.Recipient,
-			"recipient":        log.Recipient,
-			"data":             hexutil.Bytes(log.Data),
-		}
-		topics := make([]ethCommon.Hash, 0)
-		for _, v := range log.Topics {
-			topics = append(topics, v)
-		}
-		field["topics"] = topics
+		field := LogEncoder(log, isRemoved)
 		fields = append(fields, field)
 	}
 	return fields
 }
 
-func receiptEncoder(block *types.MinorBlock, i int, receipt *types.Receipt) (map[string]interface{}, error) {
+func ReceiptEncoder(block *types.MinorBlock, i int, receipt *types.Receipt) (map[string]interface{}, error) {
 	if block == nil {
 		return nil, errors.New("block is nil")
 	}
@@ -271,13 +309,13 @@ func receiptEncoder(block *types.MinorBlock, i int, receipt *types.Receipt) (map
 		"blockHeight":       hexutil.Uint64(header.Number),
 		"blockNumber":       hexutil.Uint64(header.Number),
 		"cumulativeGasUsed": hexutil.Uint64(receipt.CumulativeGasUsed),
-		"gasUsed":           hexutil.Uint64(receipt.GasUsed),
+		"gasUsed":           hexutil.Uint64(receipt.GasUsed - receipt.GetPrevGasUsed()),
 		"status":            hexutil.Uint64(receipt.Status),
-		"logs":              logListEncoder(receipt.Logs),
+		"logs":              LogListEncoder(receipt.Logs, false),
 		"timestamp":         hexutil.Uint64(block.Header().Time),
 	}
 	if receipt.ContractAddress.Big().Uint64() == 0 {
-		field["contractAddress"] = make([]struct{}, 0)
+		field["contractAddress"] = nil
 	} else {
 		addr := account.Address{
 			Recipient:    receipt.ContractAddress,

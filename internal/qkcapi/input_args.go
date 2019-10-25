@@ -12,6 +12,16 @@ import (
 )
 
 // CallArgs represents the arguments for a call.
+type EthCallArgs struct {
+	From     common.Address  `json:"from"`
+	To       *common.Address `json:"to"`
+	Gas      hexutil.Uint64  `json:"gas"`
+	GasPrice hexutil.Big     `json:"gasPrice"`
+	Value    hexutil.Big     `json:"value"`
+	Data     hexutil.Bytes   `json:"data"`
+}
+
+// CallArgs represents the arguments for a call.
 type CallArgs struct {
 	From            *account.Address `json:"from"`
 	To              *account.Address `json:"to"`
@@ -19,8 +29,8 @@ type CallArgs struct {
 	GasPrice        hexutil.Big      `json:"gasPrice"`
 	Value           hexutil.Big      `json:"value"`
 	Data            hexutil.Bytes    `json:"data"`
-	GasTokenID      *hexutil.Uint64  `json:"gas_token_id"`
-	TransferTokenID *hexutil.Uint64  `json:"transfer_token_id"`
+	GasTokenID      *hexutil.Uint64  `json:"gasTokenId"`
+	TransferTokenID *hexutil.Uint64  `json:"transferTokenId"`
 }
 
 func (c *CallArgs) setDefaults() {
@@ -31,10 +41,10 @@ func (c *CallArgs) setDefaults() {
 }
 func (c *CallArgs) toTx(config *config.QuarkChainConfig) (*types.Transaction, error) {
 	gasTokenID, transferTokenID := config.GetDefaultChainTokenID(), config.GetDefaultChainTokenID()
-	if c.GasTokenID == nil {
+	if c.GasTokenID != nil {
 		gasTokenID = uint64(*c.GasTokenID)
 	}
-	if c.TransferTokenID == nil {
+	if c.TransferTokenID != nil {
 		transferTokenID = uint64(*c.TransferTokenID)
 	}
 	evmTx := types.NewEvmTransaction(0, c.To.Recipient, c.Value.ToInt(), c.Gas.ToInt().Uint64(),

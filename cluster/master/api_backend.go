@@ -8,14 +8,17 @@ import (
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
 	"github.com/QuarkChain/goquarkchain/consensus"
+	"github.com/QuarkChain/goquarkchain/core"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/p2p"
+	qrpc "github.com/QuarkChain/goquarkchain/rpc"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"golang.org/x/sync/errgroup"
 	"math/big"
 	"net"
 	"reflect"
+	"strings"
 )
 
 func ip2uint32(ip string) uint32 {
@@ -176,7 +179,7 @@ func (s *QKCMasterBackend) GetAllTx(branch account.Branch, start []byte, limit u
 	return slaveConn.GetAllTx(branch, start, limit)
 }
 
-func (s *QKCMasterBackend) GetLogs(args *rpc.FilterQuery) ([]*types.Log, error) {
+func (s *QKCMasterBackend) GetLogs(args *qrpc.FilterQuery) ([]*types.Log, error) {
 	// not support earlist and pending
 	slaveConn := s.getOneSlaveConnection(account.Branch{Value: args.FullShardId})
 	if slaveConn == nil {
@@ -234,17 +237,21 @@ func (s *QKCMasterBackend) GasPrice(branch account.Branch, tokenID uint64) (uint
 }
 
 // return root chain work if branch is nil
-func (s *QKCMasterBackend) GetWork(branch account.Branch, addr *common.Address) (*consensus.MiningWork, error) {
+func (s *QKCMasterBackend) GetWork(fullShardId *uint32, addr *common.Address) (*consensus.MiningWork, error) {
 	coinbaseAddr := &account.Address{}
 	if addr != nil {
 		coinbaseAddr.Recipient = *addr
-		coinbaseAddr.FullShardKey = branch.Value
+		if fullShardId != nil {
+			coinbaseAddr.FullShardKey = *fullShardId
+		}
 	} else {
 		coinbaseAddr = nil
 	}
-	if branch.Value == 0 {
+	if fullShardId == nil {
 		return s.miner.GetWork(coinbaseAddr)
 	}
+
+	branch := account.Branch{Value: *fullShardId}
 	slaveConn := s.getOneSlaveConnection(branch)
 	if slaveConn == nil {
 		return nil, ErrNoBranchConn
@@ -253,10 +260,12 @@ func (s *QKCMasterBackend) GetWork(branch account.Branch, addr *common.Address) 
 }
 
 // submit root chain work if branch is nil
-func (s *QKCMasterBackend) SubmitWork(branch account.Branch, headerHash common.Hash, nonce uint64, mixHash common.Hash, signature *[65]byte) (bool, error) {
-	if branch.Value == 0 {
+func (s *QKCMasterBackend) SubmitWork(fullShardId *uint32, headerHash common.Hash, nonce uint64, mixHash common.Hash, signature *[65]byte) (bool, error) {
+	if fullShardId == nil {
 		return s.miner.SubmitWork(nonce, headerHash, mixHash, signature), nil
 	}
+
+	branch := account.NewBranch(*fullShardId)
 	slaveConn := s.getOneSlaveConnection(branch)
 	if slaveConn == nil {
 		return false, ErrNoBranchConn
@@ -274,11 +283,8 @@ func (s *QKCMasterBackend) GetRootBlockByNumber(blockNumber *uint64, needExtraIn
 		return nil, nil, errors.New("rootBlock is nil")
 	}
 	if needExtraInfo {
-		poswInfo, err := s.rootBlockChain.PoSWInfo(block.Header())
-		if err != nil {
-			return nil, nil, err
-		}
-		return block, poswInfo, nil
+		p, err := s.getPoswInfo(block.Header())
+		return block, p, err
 	}
 	return block, nil, nil
 }
@@ -289,13 +295,18 @@ func (s *QKCMasterBackend) GetRootBlockByHash(hash common.Hash, needExtraInfo bo
 		return nil, nil, errors.New("rootBlock is nil")
 	}
 	if needExtraInfo {
-		poswInfo, err := s.rootBlockChain.PoSWInfo(block.Header())
-		if err != nil {
-			return nil, nil, err
-		}
-		return block, poswInfo, nil
+		p, err := s.getPoswInfo(block.Header())
+		return block, p, err
 	}
 	return block, nil, nil
+}
+
+func (s *QKCMasterBackend) getPoswInfo(header *types.RootBlockHeader) (*rpc.PoSWInfo, error) {
+	poswInfo, err := s.rootBlockChain.PoSWInfo(header) //TODO @DL to fix https://github.com/QuarkChain/goquarkchain/issues/408
+	if err != nil && !strings.Contains(err.Error(), core.ErrPoswOnRootChainIsNotFound.Error()) {
+		return nil, err
+	}
+	return poswInfo, nil
 }
 
 func (s *QKCMasterBackend) NetWorkInfo() map[string]interface{} {
@@ -333,7 +344,7 @@ func (s *QKCMasterBackend) CreateBlockToMine(addr *account.Address) (types.IBloc
 	if err != nil {
 		return nil, nil, 0, err
 	}
-	diff, optionalDivider, err := s.rootBlockChain.GetAdjustedDifficulty(block.Header())
+	diff, optionalDivider, err := s.rootBlockChain.GetAdjustedDifficultyToMine(block.Header())
 	if err != nil {
 		return nil, nil, 0, err
 	}

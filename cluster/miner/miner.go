@@ -72,7 +72,6 @@ func (m *Miner) interrupt() {
 
 func (m *Miner) allowMining() bool {
 	if !m.IsMining() ||
-		m.api.IsSyncIng() ||
 		time.Now().Sub(*m.timestamp).Seconds() > deadtime {
 		return false
 	}
@@ -83,6 +82,14 @@ func (m *Miner) commit(addr *account.Address) {
 	// don't allow to mine
 	if !m.allowMining() {
 		return
+	}
+	sleepTime := 0
+	for m.api.IsSyncIng() {
+		time.Sleep(1 * time.Second)
+		sleepTime++
+		if sleepTime >= 500 {
+			log.Error("sleep for syncing too lang", "sleepTime", sleepTime)
+		}
 	}
 	m.interrupt()
 	block, diff, optionalDivider, err := m.api.CreateBlockToMine(addr)
@@ -109,16 +116,15 @@ func (m *Miner) mainLoop() {
 			m.commit(nil)
 
 		case work := <-m.workCh: //to discuss:need this?
-			log.Info(m.logInfo, "ready to seal height", work.block.NumberU64(), "coinbase", work.block.IHeader().GetCoinbase().ToHex())
-			adjustedDiff := new(big.Int).Div(work.adjustedDifficulty, new(big.Int).SetUint64(work.optionalDivider))
-			if err := m.engine.Seal(nil, work.block, adjustedDiff, work.optionalDivider, m.resultCh, m.stopCh); err != nil {
+			log.Debug(m.logInfo, "ready to seal height", work.block.NumberU64(), "coinbase", work.block.IHeader().GetCoinbase().ToHex())
+			if err := m.engine.Seal(nil, work.block, work.adjustedDifficulty, work.optionalDivider, m.resultCh, m.stopCh); err != nil {
 				log.Error(m.logInfo, "Seal block to mine err", err)
 				coinbase := work.block.IHeader().GetCoinbase()
 				m.commit(&coinbase)
 			}
 
 		case block := <-m.resultCh:
-			log.Info(m.logInfo, "seal succ number", block.NumberU64(), "hash", block.Hash().String())
+			log.Debug(m.logInfo, "seal succ number", block.NumberU64(), "hash", block.Hash().String())
 			if err := m.api.InsertMinedBlock(block); err != nil {
 				log.Error(m.logInfo, "add minered block err block hash", block.Hash().Hex(), "err", err)
 				time.Sleep(time.Duration(3) * time.Second)
@@ -181,7 +187,7 @@ func (m *Miner) SubmitWork(nonce uint64, hash, digest common.Hash, signature *[6
 }
 
 func (m *Miner) HandleNewTip() {
-	log.Info(m.logInfo, "handle new tip: height", m.getTip())
+	log.Debug(m.logInfo, "handle new tip: height", m.getTip())
 	m.engine.RefreshWork(m.api.GetTip())
 	m.commit(nil)
 }
