@@ -2,7 +2,9 @@ package simulate
 
 import (
 	"crypto/rand"
+	"encoding/hex"
 	"errors"
+	"fmt"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/core/state"
@@ -42,6 +44,7 @@ func hashAlgo(cache *consensus.ShareCache) error {
 		return err
 	}
 	cache.Digest = common.BigToHash(digest).Bytes()
+	fmt.Println("?????", hex.EncodeToString(cache.Digest))
 	return nil
 }
 
