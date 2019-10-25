@@ -684,10 +684,20 @@ func (p *PrivateBlockChainAPI) GetStats() (map[string]interface{}, error) {
 
 func (p *PrivateBlockChainAPI) GetBlockCount() (map[string]interface{}, error) {
 	data, err := p.b.GetBlockCount()
+	if err != nil {
+		return nil, err
+	}
+	dataWithout0x := make(map[uint32]map[string]uint32)
+	for fullShardId, v := range data {
+		dataWithout0x[fullShardId] = make(map[string]uint32)
+		for addr, cnt := range v {
+			dataWithout0x[fullShardId][addr.String()[2:]] = cnt
+		}
+	}
 	return map[string]interface{}{
 		"rootHeight": p.b.CurrentBlock().Number(),
-		"shardRC":    data,
-	}, err
+		"shardRC":    dataWithout0x,
+	}, nil
 }
 
 //TODO txGenerate implement

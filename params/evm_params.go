@@ -16,7 +16,7 @@ var (
 	GtxxShardCost      = GCallValueTransfer // x-shard tx deposit gas
 
 	DefaultStateDBGasLimit = new(big.Int).SetUint64(3141592)
-	DefaultBlockGasLimit   = new(big.Int).SetUint64(3)
+	DefaultBlockGasLimit   = new(big.Int).SetUint64(30000 * 400)
 
 	DefaultStartGas = new(big.Int).SetUint64(100 * 1000)
 	DefaultGasPrice = new(big.Int).Mul(new(big.Int).SetUint64(10), DenomsValue.GWei)

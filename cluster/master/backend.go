@@ -733,7 +733,7 @@ func (s *QKCMasterBackend) UpdateTxCountHistory(txCount, xShardTxCount uint32, c
 
 }
 
-func (s *QKCMasterBackend) GetBlockCount() (map[uint32]map[string]uint32, error) {
+func (s *QKCMasterBackend) GetBlockCount() (map[uint32]map[account.Recipient]uint32, error) {
 	headerTip := s.rootBlockChain.CurrentBlock()
 	return s.rootBlockChain.GetBlockCount(headerTip.Number())
 }

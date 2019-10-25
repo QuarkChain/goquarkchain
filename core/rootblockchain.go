@@ -1409,7 +1409,7 @@ func (bc *RootBlockChain) PutRootBlockIndex(block *types.RootBlock) error {
 		return nil
 	}
 	var (
-		shardRecipientCnt = make(map[uint32]map[string]uint32)
+		shardRecipientCnt = make(map[uint32]map[account.Recipient]uint32)
 		err               error
 	)
 	if block.Header().Number > 0 {
@@ -1421,12 +1421,12 @@ func (bc *RootBlockChain) PutRootBlockIndex(block *types.RootBlock) error {
 	for _, header := range block.MinorBlockHeaders() {
 		fullShardID := header.Branch.GetFullShardID()
 		recipient := header.Coinbase.Recipient
-		oldCount := shardRecipientCnt[fullShardID][recipient.String()[2:]]
+		oldCount := shardRecipientCnt[fullShardID][recipient]
 		newCount := oldCount + 1
 		if _, ok := shardRecipientCnt[fullShardID]; ok == false {
-			shardRecipientCnt[fullShardID] = make(map[string]uint32)
+			shardRecipientCnt[fullShardID] = make(map[account.Recipient]uint32)
 		}
-		shardRecipientCnt[fullShardID][recipient.String()[2:]] = newCount
+		shardRecipientCnt[fullShardID][recipient] = newCount
 		blockID := encoder.IDEncoder(header.Hash().Bytes(), fullShardID)
 		bc.PutRootBlockConfirmingMinorBlock(blockID, block.Hash())
 	}
@@ -1447,9 +1447,9 @@ func (bc *RootBlockChain) PutRootBlockIndex(block *types.RootBlock) error {
 	return nil
 }
 
-func (bc *RootBlockChain) GetBlockCount(rootHeight uint32) (map[uint32]map[string]uint32, error) {
+func (bc *RootBlockChain) GetBlockCount(rootHeight uint32) (map[uint32]map[account.Recipient]uint32, error) {
 	// Returns a dict(full_shard_id, dict(miner_recipient, block_count))
-	shardRecipientCnt := make(map[uint32]map[string]uint32)
+	shardRecipientCnt := make(map[uint32]map[account.Recipient]uint32)
 	if !bc.countMinorBlocks {
 		return shardRecipientCnt, nil
 	}
@@ -1464,7 +1464,7 @@ func (bc *RootBlockChain) GetBlockCount(rootHeight uint32) (map[uint32]map[strin
 			panic(err) //TODO delete later unexpected err
 		}
 		if _, ok := shardRecipientCnt[fullShardId]; !ok {
-			shardRecipientCnt[fullShardId] = make(map[string]uint32)
+			shardRecipientCnt[fullShardId] = make(map[account.Recipient]uint32)
 		}
 		for _, info := range infoList.CoinbaseStatsList {
 			shardRecipientCnt[fullShardId][info.Addr] = info.Cnt
