@@ -1,9 +1,10 @@
 #Use Deploy Tool to Start Clusters
 
 Here we provide a deploy tool based on pre-built Docker image. With this tool you can deploy GoQuarkChain master/shard 
-services to build and start a cluster in one line command. If you prefer different service distribution among hosts, 
-you can build your own Docker image, starting from [this Dockerfile](./Dockerfile), or you can build everything without
-Docker, starting from [here](../../README.md#development-setup).
+services to build and start a cluster in one line command. 
+It is encouraged that you build your own deploy scripts or tools, especially if you prefer different service distribution among hosts,   
+You can also build your own Docker image, starting from [this Dockerfile](./Dockerfile), or if you are interested in build everything without
+Docker, starting from [here](../../README.md#development-setup). 
 
 ## Run Docker Image
 
@@ -29,7 +30,7 @@ Parameters explained:
 - `User` login name
 - `Password` password
 - `Service` which service(s) you want to run in the host, can be "master", "slave", or "master,slave"
-- `BootNode` bootnode URL to discover and connect to other clusters, refer to [Multiple Clusters and Boot Node](#Multiple-Clusters-and-Bootnode) for detail
+- `BootNode` bootnode URL to discover and connect to other clusters, refer to [Running Multiple Clusters and Boot Node](#running-multiple-clusters-and-bootnode) for detail
 - `ChainNumber` defines the number of chains in the cluster, each chain has a number of shards 
 - `ShardNumber` defines the number of shards in the cluster (must be power of 2, and an integral number of ChainNumber)
 - `TargetRootBlockTime` defines the target block interval in seconds of root chain
@@ -51,10 +52,8 @@ The deploying process will be printed on the console log. If cluster start succe
 ```bash
 curl -X POST -H 'content-type: application/json' --data '{"jsonrpc":"2.0","method":"setMining","params":[true],"id":0}' http://127.0.0.1:38491
 ```
-If any unexpected error happens, it could be an temporary environment condition such as network connection problem, and it would probably pass as you try again.
-Report issue if you think its a bug.
 
-## Multiple Clusters and Boot Node
+## Running Multiple Clusters and Boot Node
 With different deployConfig.json you can deploy multiple clusters of one network with this tool. 
 
 Leave `BootNode` field empty when you deploy the first cluster/node in the network, and you'll find 
