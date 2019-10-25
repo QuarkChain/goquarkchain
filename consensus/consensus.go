@@ -83,7 +83,6 @@ type MiningResult struct {
 
 // MiningSpec contains a PoW algo's basic info and hash algo
 type MiningSpec struct {
-	BlockTime  uint64
 	Name       string
 	HashAlgo   func(result *ShareCache) error
 	VerifySeal func(chain ChainReader, header types.IHeader, adjustedDiff *big.Int) error
@@ -119,10 +118,6 @@ func (c *CommonEngine) Name() string {
 // Author returns coinbase address.
 func (c *CommonEngine) Author(header types.IHeader) (account.Address, error) {
 	return header.GetCoinbase(), nil
-}
-
-func (c *CommonEngine) GetIntervalBlockTime() uint64 {
-	return c.spec.BlockTime
 }
 
 // CalcDifficulty is the difficulty adjustment algorithm. It returns the difficulty

@@ -15,6 +15,7 @@ import (
 
 type PowSimulate struct {
 	*consensus.CommonEngine
+	blockInterval uint64
 }
 
 func (p *PowSimulate) Prepare(chain consensus.ChainReader, header types.IHeader) error {
@@ -31,12 +32,10 @@ func (p *PowSimulate) RefreshWork(tip uint64) {
 
 func (p *PowSimulate) hashAlgo(cache *consensus.ShareCache) error {
 	timeAfterCreateTime := uint64(time.Now().Unix()) - cache.BlockTime
-	needSleepTime := uint64(0)
-	intervalBlockTime := p.CommonEngine.GetIntervalBlockTime()
-	if intervalBlockTime > 2*timeAfterCreateTime {
-		needSleepTime = intervalBlockTime - 2*timeAfterCreateTime
+	if p.blockInterval > 2*timeAfterCreateTime {
+		time.Sleep(time.Duration(p.blockInterval-2*timeAfterCreateTime) * time.Second)
 	}
-	time.Sleep(time.Duration(needSleepTime) * time.Second)
+
 	cache.Result = make([]byte, 0)
 	digest, err := rand.Int(rand.Reader, big.NewInt(math.MaxInt64))
 	if err != nil {
@@ -50,14 +49,14 @@ func verifySeal(chain consensus.ChainReader, header types.IHeader, adjustedDiff 
 	return nil
 }
 
-func New(diffCalculator consensus.DifficultyCalculator, remote bool, pubKey []byte, intervalBlockTime uint64) *PowSimulate {
-	simualte := &PowSimulate{}
+func New(diffCalculator consensus.DifficultyCalculator, remote bool, pubKey []byte, blockInterval uint64) *PowSimulate {
+	simualte := &PowSimulate{blockInterval: blockInterval}
 	spec := consensus.MiningSpec{
 		Name:       config.PoWSimulate,
 		HashAlgo:   simualte.hashAlgo,
 		VerifySeal: verifySeal,
-		BlockTime:  intervalBlockTime,
 	}
+
 	simualte.CommonEngine = consensus.NewCommonEngine(spec, diffCalculator, remote, pubKey)
 	return simualte
 }
