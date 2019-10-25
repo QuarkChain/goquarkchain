@@ -281,7 +281,7 @@ func (m *MinorBlockChain) InitGenesisState(rBlock *types.RootBlock) (*types.Mino
 // GetTransactionCount get txCount for addr
 func (m *MinorBlockChain) GetTransactionCount(recipient account.Recipient, hash *common.Hash) (uint64, error) {
 	// no need to lock
-	evmState, err := m.getEvmStateByHeight(hash)
+	evmState, err := m.getEvmStateByHash(hash)
 	if err != nil {
 		return 0, err
 	}
@@ -480,7 +480,7 @@ func (m *MinorBlockChain) AddTx(tx *types.Transaction) error {
 	return m.txPool.AddLocal(tx)
 }
 
-func (m *MinorBlockChain) getEvmStateByHeight(hash *common.Hash) (*state.StateDB, error) {
+func (m *MinorBlockChain) getEvmStateByHash(hash *common.Hash) (*state.StateDB, error) {
 	if hash == nil {
 		t := m.CurrentBlock().Hash()
 		hash = &t
@@ -501,7 +501,7 @@ func (m *MinorBlockChain) getEvmStateByHeight(hash *common.Hash) (*state.StateDB
 // GetBalance get balance for address
 func (m *MinorBlockChain) GetBalance(recipient account.Recipient, hash *common.Hash) (*types.TokenBalances, error) {
 	// no need to lock
-	evmState, err := m.getEvmStateByHeight(hash)
+	evmState, err := m.getEvmStateByHash(hash)
 	if err != nil {
 		return nil, err
 	}
@@ -511,7 +511,7 @@ func (m *MinorBlockChain) GetBalance(recipient account.Recipient, hash *common.H
 // GetCode get code for addr
 func (m *MinorBlockChain) GetCode(recipient account.Recipient, hash *common.Hash) ([]byte, error) {
 	// no need to lock
-	evmState, err := m.getEvmStateByHeight(hash)
+	evmState, err := m.getEvmStateByHash(hash)
 	if err != nil {
 		return nil, err
 	}
@@ -521,7 +521,7 @@ func (m *MinorBlockChain) GetCode(recipient account.Recipient, hash *common.Hash
 // GetStorageAt get storage for addr
 func (m *MinorBlockChain) GetStorageAt(recipient account.Recipient, key common.Hash, hash *common.Hash) (common.Hash, error) {
 	// no need to lock
-	evmState, err := m.getEvmStateByHeight(hash)
+	evmState, err := m.getEvmStateByHash(hash)
 	if err != nil {
 		return common.Hash{}, err
 	}

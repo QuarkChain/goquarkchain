@@ -316,12 +316,7 @@ func (s *SlaveBackend) GetStorageAt(address *account.Address, key common.Hash, h
 func (s *SlaveBackend) getHashByHeight(shard *shard.ShardBackend, height *uint64) (common.Hash, error) {
 	hash := shard.MinorBlockChain.CurrentBlock().Hash()
 	if height != nil {
-		b, ok := shard.MinorBlockChain.GetBlockByNumber(*height).(*types.MinorBlock)
-		if !ok {
-			log.Error(s.logInfo, "no such height", *height)
-			return common.Hash{}, errors.New("no such height %v")
-		}
-		hash = b.Hash()
+		hash = shard.MinorBlockChain.GetMinorHashByNumber(*height)
 	}
 	return hash, nil
 }

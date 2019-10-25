@@ -639,6 +639,10 @@ func (m *MinorBlockChain) GetBlockByNumber(number uint64) types.IBlock {
 	return m.GetBlock(hash)
 }
 
+func (m *MinorBlockChain) GetMinorHashByNumber(number uint64) common.Hash {
+	return rawdb.ReadCanonicalHash(m.db, rawdb.ChainTypeMinor, number)
+}
+
 // GetReceiptsByHash retrieves the receipts for all transactions in a given block.
 func (m *MinorBlockChain) GetReceiptsByHash(hash common.Hash) types.Receipts {
 	if receipts, ok := m.receiptsCache.Get(hash); ok {
