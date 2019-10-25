@@ -34,7 +34,7 @@ func (q *QKCHash) Finalize(chain consensus.ChainReader, header types.IHeader, st
 
 func (q *QKCHash) hashAlgo(cache *consensus.ShareCache) (err error) {
 	c := q.cache.getCacheFromHeight(cache.Height, q.useNative)
-	copy(cache.Seed, cache.Hash)
+	copy(cache.Seed,cache.Hash)
 	binary.LittleEndian.PutUint64(cache.Seed[32:], cache.Nonce)
 	if q.useNative {
 		cache.Digest, cache.Result, err = qkcHashNative(cache.Seed, c, cache.Height >= q.qkcHashXHeight)
@@ -48,7 +48,6 @@ func (q *QKCHash) hashAlgo(cache *consensus.ShareCache) (err error) {
 	}
 	return
 }
-
 func (q *QKCHash) RefreshWork(tip uint64) {
 	q.CommonEngine.RefreshWork(tip)
 }
