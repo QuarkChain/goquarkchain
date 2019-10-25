@@ -638,11 +638,14 @@ func (m *MinorBlockChain) GetBlockByNumber(number uint64) types.IBlock {
 	return m.GetBlock(hash)
 }
 
-func (m *MinorBlockChain) GetHashByHeight(height *uint64) common.Hash {
+func (m *MinorBlockChain) GetHashByHeight(height *uint64) (common.Hash, error) {
 	if height != nil {
-		return rawdb.ReadCanonicalHash(m.db, rawdb.ChainTypeMinor, *height)
+		hash := rawdb.ReadCanonicalHash(m.db, rawdb.ChainTypeMinor, *height)
+		if bytes.Equal(common.Hash{}.Bytes(), hash.Bytes()) {
+			return hash, fmt.Errorf("shard %v do no have this  height  %v", m.branch.Value, *height)
+		}
 	}
-	return m.CurrentBlock().Hash()
+	return m.CurrentBlock().Hash(), nil
 }
 
 // GetReceiptsByHash retrieves the receipts for all transactions in a given block.
