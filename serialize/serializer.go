@@ -25,7 +25,7 @@ func SerializeWithTags(w *[]byte, val interface{}, ts Tags) error {
 
 // SerializeToBytes returns the serialize result of val.
 func SerializeToBytes(val interface{}) ([]byte, error) {
-	w := make([]byte, 0, 1)
+	w := make([]byte, 0, 512)
 	if err := Serialize(&w, val); err != nil {
 		return nil, err
 	}
