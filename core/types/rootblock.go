@@ -38,7 +38,7 @@ type RootBlockHeader struct {
 // Serialize encoding.
 func (h *RootBlockHeader) Hash() common.Hash {
 	//return serHash(*h, map[string]bool{"Signature": true})
-	return serHash(*h, map[string]bool{})
+	return serHash(*h, nil)
 }
 
 // SealHash returns the block hash of the header, which is keccak256 hash of its

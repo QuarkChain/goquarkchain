@@ -33,6 +33,7 @@ var (
 		utils.DataDirFlag,
 		utils.LogLevelFlag,
 		utils.CleanFlag,
+		utils.CacheFlag,
 		utils.StartSimulatedMiningFlag,
 		utils.GenesisDirFlag,
 		utils.NumChainsFlag,
@@ -90,9 +91,12 @@ func init() {
 			return err
 		}
 		// Cap the cache allowance and tune the garbage collector
-		var mem gosigar.Mem
+		var (
+			mem       gosigar.Mem
+			allowance = 1024
+		)
 		if err := mem.Get(); err == nil {
-			allowance := int(mem.Total / 1024 / 1024 / 3)
+			allowance = int(mem.Total / 1024 / 1024)
 			if cache := ctx.GlobalInt(utils.CacheFlag.Name); cache > allowance {
 				log.Warn("Sanitizing cache to Go's GC limits", "provided", cache, "updated", allowance)
 				ctx.GlobalSet(utils.CacheFlag.Name, strconv.Itoa(allowance))
@@ -100,7 +104,7 @@ func init() {
 		}
 		// Ensure Go's GC ignores the database cache for trigger percentage
 		cache := ctx.GlobalInt(utils.CacheFlag.Name)
-		gogc := math.Max(20, math.Min(80, 100/(float64(cache)/1024)))
+		gogc := math.Max(10, math.Min(90, 100*(float64(cache)/float64(allowance))))
 		log.Debug("Sanitizing Go's GC trigger", "percent", int(gogc))
 		godebug.SetGCPercent(int(gogc))
 

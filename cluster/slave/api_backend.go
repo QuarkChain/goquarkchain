@@ -248,12 +248,11 @@ func (s *SlaveBackend) GetAccountData(address *account.Address, height *uint64) 
 			return nil, err
 		}
 		data.IsContract = len(bt) > 0
-		minedEnable, mined, err := shard.MinorBlockChain.GetMiningInfo(address.Recipient, tokenBalances)
-		if err != nil {
-			return nil, err
+		mineableBlocks, mined, err := shard.MinorBlockChain.GetMiningInfo(address.Recipient, tokenBalances)
+		if err == nil {
+			data.MinedBlocks = mined
+			data.PoswMineableBlocks = mineableBlocks
 		}
-		data.MinedBlocks = mined
-		data.PoswMineableBlocks = minedEnable
 		results = append(results, &data)
 	}
 	return results, err
