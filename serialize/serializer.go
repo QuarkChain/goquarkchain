@@ -24,7 +24,7 @@ func SerializeWithTags(w *[]byte, val interface{}, ts Tags) error {
 
 // SerializeToBytes returns the serialize result of val.
 func SerializeToBytes(val interface{}) ([]byte, error) {
-	w := make([]byte, 0, 1)
+	w := make([]byte, 0, 512)
 	if err := Serialize(&w, val); err != nil {
 		return nil, err
 	}
@@ -85,35 +85,6 @@ func prefillByteArray(size int, barray []byte) ([]byte, error) {
 	return bytes, nil
 }
 
-func uint2ByteArray(ui uint64) []byte {
-	var bi big.Int
-	return bi.SetUint64(ui).Bytes()
-}
-
-func serializeUint(val reflect.Value, w *[]byte, ts Tags) error {
-	kind := val.Type().Kind()
-	var bytes []byte
-	var err error
-	switch {
-	case kind > reflect.Uint && kind <= reflect.Uintptr:
-		bytes, err = prefillByteArray(val.Type().Bits()/8, uint2ByteArray(val.Uint()))
-		break
-	case kind == reflect.Uint:
-		//As Uint would be 32/64 bit, so
-		var bi big.Int
-		serializeBigInt(bi.SetUint64(val.Uint()), w)
-		break
-	default:
-		err = fmt.Errorf("ser: invalid Uint type: %s", val.Type().Name())
-		break
-	}
-	if err == nil {
-		*w = append(*w, bytes...)
-	}
-
-	return err
-}
-
 func serializeFixSizeBigUint(val *big.Int, size int, w *[]byte) error {
 	if val == nil {
 		bytes := make([]byte, size, size)
@@ -137,9 +108,7 @@ func serializeBigInt(i *big.Int, w *[]byte) error {
 	var bytes []byte
 	if cmp := i.Cmp(big.NewInt(0)); cmp == -1 {
 		return fmt.Errorf("ser: cannot serialize negative *big.Int")
-	} else if cmp == 0 {
-		bytes = append(bytes, 0)
-	} else {
+	} else if cmp > 0 {
 		bytes = i.Bytes()
 	}
 
@@ -159,13 +128,6 @@ func serializeBool(val reflect.Value, w *[]byte, ts Tags) error {
 }
 
 func serializeByteArray(val reflect.Value, w *[]byte, ts Tags) error {
-	if val.Kind() != reflect.Array {
-		return fmt.Errorf("ser: invalid byte array type: %s", val.Kind())
-	}
-	if val.Type().Elem().Kind() != reflect.Uint8 {
-		return fmt.Errorf("ser: invalid byte array type: [%d]%s", val.Len(), val.Kind())
-	}
-
 	if !val.CanAddr() {
 		// Slice requires the value to be addressable.
 		// Make it addressable by copying.
@@ -181,12 +143,14 @@ func serializeByteArray(val reflect.Value, w *[]byte, ts Tags) error {
 	return nil
 }
 
-func writeListLen(val reflect.Value, w *[]byte, byteSizeOfSliceLen int) error {
-	var err error = nil
-	sizeBytes := uint2ByteArray(uint64(val.Len()))
-	sizeBytes, err = prefillByteArray(byteSizeOfSliceLen, sizeBytes)
-	if err != nil {
-		return nil
+func writeListLen(w *[]byte, len int, byteSizeOfSliceLen int) error {
+	sizeBytes := make([]byte, byteSizeOfSliceLen)
+	for i := byteSizeOfSliceLen - 1; i >= 0 && len != 0; i-- {
+		sizeBytes[i] = byte(len)
+		len = len >> 8
+	}
+	if len > 0 {
+		return errors.New("barray len is larger then expected size")
 	}
 
 	*w = append(*w, sizeBytes...)
@@ -195,7 +159,7 @@ func writeListLen(val reflect.Value, w *[]byte, byteSizeOfSliceLen int) error {
 
 //serializePrependedSizeBytes
 func serializeByteSlice(val reflect.Value, w *[]byte, ts Tags) error {
-	err := writeListLen(val, w, ts.ByteSizeOfSliceLen)
+	err := writeListLen(w, val.Len(), ts.ByteSizeOfSliceLen)
 	if err != nil {
 		return nil
 	}
@@ -213,7 +177,7 @@ func serializeList(val reflect.Value, w *[]byte, ts Tags) error {
 	}
 
 	if val.Kind() == reflect.Slice {
-		err = writeListLen(val, w, ts.ByteSizeOfSliceLen)
+		err = writeListLen(w, val.Len(), ts.ByteSizeOfSliceLen)
 		if err != nil {
 			return err
 		}
@@ -251,9 +215,12 @@ func SerializeStructWithout(val reflect.Value, w *[]byte, excludeList map[string
 	}
 
 	for _, f := range fields {
-		if _, ok := excludeList[f.name]; ok {
-			continue
+		if excludeList != nil {
+			if _, ok := excludeList[f.name]; ok {
+				continue
+			}
 		}
+
 		if err := f.info.serializer(val.Field(f.index), w, f.tags); err != nil {
 			return err
 		}
@@ -295,4 +262,31 @@ func serializePtr(val reflect.Value, w *[]byte, ts Tags) error {
 		}
 		return typeinfo.serializer(val.Elem(), w, ts)
 	}
+}
+
+func serializeUint(val reflect.Value, w *[]byte, ts Tags) error {
+	kind := val.Type().Kind()
+	value := val.Uint()
+	switch kind {
+	case reflect.Uint8:
+		*w = append(*w, byte(value))
+		return nil
+	case reflect.Uint16:
+		*w = append(*w, byte(value>>8), byte(value))
+		break
+	case reflect.Uint32:
+		*w = append(*w, byte(value>>24), byte(value>>16), byte(value>>8), byte(value))
+		return nil
+	case reflect.Uint64:
+		*w = append(*w, byte(value>>56), byte(value>>48), byte(value>>40), byte(value>>32),
+			byte(value>>24), byte(value>>16), byte(value>>8), byte(value))
+		return nil
+	case reflect.Uint:
+		//As Uint would be 32/64 bit, so
+		var bi big.Int
+		return serializeBigInt(bi.SetUint64(val.Uint()), w)
+	default:
+		return fmt.Errorf("ser: invalid Uint type: %s", val.Type().Name())
+	}
+	return nil
 }

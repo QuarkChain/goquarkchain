@@ -89,7 +89,7 @@ type discoverTable interface {
 	Resolve(*enode.Node) *enode.Node
 	LookupRandom() []*enode.Node
 	ReadRandomNodes([]*enode.Node) int
-	SetChkBlackFunc(chkDialOutFunc func(string) bool)
+	SetChkBlackListFunc(chkDialOutFunc func(string) bool)
 	GetKadRoutingTable() []string
 }
 

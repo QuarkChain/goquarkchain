@@ -6,10 +6,12 @@ import (
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/log"
 	"reflect"
+	"runtime/debug"
 )
 
 func isSameChain(db rawdb.DatabaseReader, longerChainHeader, shorterChainHeader types.IHeader) bool {
 	if longerChainHeader.NumberU64() < shorterChainHeader.NumberU64() {
+		debug.PrintStack()
 		log.Crit("wrong parameter order", "long.Number", longerChainHeader.NumberU64(), "long.Hash", longerChainHeader.Hash().String(), "short.Number", shorterChainHeader.NumberU64(), "short.hash", shorterChainHeader.Hash().String())
 	}
 	if shorterChainHeader.NumberU64() == longerChainHeader.NumberU64() {

@@ -313,16 +313,17 @@ func (m *MinorBlockChain) isNeighbor(remoteBranch account.Branch, rootHeight *ui
 
 func (m *MinorBlockChain) putRootBlock(rBlock *types.RootBlock, minorHeader *types.MinorBlockHeader) {
 	rBlockHash := rBlock.Hash()
-	rawdb.WriteRootBlock(m.db, rBlock)
 	var mHash common.Hash
 	if minorHeader != nil {
 		mHash = minorHeader.Hash()
 	}
+	rawdb.WriteLastConfirmedMinorBlockHeaderAtRootBlock(m.db, rBlockHash, mHash)
+	rawdb.WriteRootBlock(m.db, rBlock)
 	if _, ok := m.rootHeightToHashes[rBlock.NumberU64()]; !ok {
 		m.rootHeightToHashes[rBlock.NumberU64()] = make(map[common.Hash]common.Hash)
 	}
 	m.rootHeightToHashes[rBlock.NumberU64()][rBlock.Hash()] = mHash
-	rawdb.WriteLastConfirmedMinorBlockHeaderAtRootBlock(m.db, rBlockHash, mHash)
+	log.Debug("putRootBlock", "rBlock", rBlock.NumberU64(), "rHash", rBlock.Hash().String(), "mHash", mHash.String())
 }
 
 func (m *MinorBlockChain) putTotalTxCount(mBlock *types.MinorBlock) error {
@@ -364,7 +365,8 @@ func (m *MinorBlockChain) InitFromRootBlock(rBlock *types.RootBlock) error {
 	}
 	m.initialized = true
 	confirmedHeaderTip := m.getLastConfirmedMinorBlockHeaderAtRootBlock(rBlock.Hash())
-	if confirmedHeaderTip == nil {
+	if confirmedHeaderTip == nil || m.GetRootBlockByHash(rBlock.Hash()) == nil {
+		log.Warn("err-InitFromRootBlock", "confirmedHeaderTip == nil", "m.GetRootBlockByHash(rBlock.Hash())==nil")
 		m.rootTip = m.getRootBlockHeaderByHash(rBlock.ParentHash())
 		_, err := m.AddRootBlock(rBlock)
 		if err != nil {
@@ -377,6 +379,7 @@ func (m *MinorBlockChain) InitFromRootBlock(rBlock *types.RootBlock) error {
 
 	headerTip := confirmedHeaderTip
 	if headerTip == nil {
+		log.Error(m.logInfo, "confirmedHeaderTip", confirmedHeaderTip, "rBlock.Hash", rBlock.Hash().String())
 		headerTip = m.GetBlockByNumber(0).IHeader().(*types.MinorBlockHeader)
 	}
 
@@ -689,7 +692,9 @@ func (m *MinorBlockChain) addTransactionToBlock(block *types.MinorBlock, evmStat
 		return nil, nil, err
 	}
 	txs, err := types.NewTransactionsByPriceAndNonce(types.NewEIP155Signer(uint32(m.Config().NetworkID)), pending)
-
+	if err != nil {
+		return nil, nil, err
+	}
 	gp := new(GasPool).AddGas(block.Header().GetGasLimit().Uint64())
 	usedGas := new(uint64)
 
@@ -697,6 +702,7 @@ func (m *MinorBlockChain) addTransactionToBlock(block *types.MinorBlock, evmStat
 	txsInBlock := make([]*types.Transaction, 0)
 
 	stateT := evmState
+	txIndex := 0
 	for stateT.GetGasUsed().Cmp(stateT.GetGasLimit()) < 0 {
 		tx := txs.Peek()
 		// Pop skip all txs about this account
@@ -710,6 +716,7 @@ func (m *MinorBlockChain) addTransactionToBlock(block *types.MinorBlock, evmStat
 			}
 
 		}
+		stateT.Prepare(tx.Hash(), block.Hash(), txIndex)
 		_, receipt, _, err := ApplyTransaction(m.ethChainConfig, m, gp, stateT, block.IHeader().(*types.MinorBlockHeader), tx, usedGas, *m.GetVMConfig())
 		switch err {
 		case ErrGasLimitReached:
@@ -728,6 +735,7 @@ func (m *MinorBlockChain) addTransactionToBlock(block *types.MinorBlock, evmStat
 			}
 			receipts = append(receipts, receipt)
 			txsInBlock = append(txsInBlock, tx)
+			txIndex++
 		default:
 			// Strange error, discard the transaction and get the next in line (note, the
 			// nonce-too-high clause will prevent us from executing in vain).
@@ -995,13 +1003,12 @@ func (m *MinorBlockChain) AddRootBlock(rBlock *types.RootBlock) (bool, error) {
 func (m *MinorBlockChain) GetTransactionByHash(hash common.Hash) (*types.MinorBlock, uint32) {
 	_, mHash, txIndex := rawdb.ReadTransaction(m.db, hash)
 	if mHash == qkcCommon.EmptyHash { //TODO need? for test???
-		txs := make([]*types.Transaction, 0)
 		tx := m.txPool.all.Get(hash)
 		if tx == nil {
 			return nil, 0
 		}
-		txs = append(txs, tx)
-		temp := types.NewMinorBlock(&types.MinorBlockHeader{}, &types.MinorBlockMeta{}, txs, nil, nil)
+		temp := types.GetEmptyMinorBlock()
+		temp.AddTx(tx)
 		return temp, 0
 	}
 	return m.GetMinorBlock(mHash), txIndex
@@ -1673,14 +1680,11 @@ func (m *MinorBlockChain) PoswInfo(mBlock *types.MinorBlock) (*rpc.PoSWInfo, err
 		return nil, err
 	}
 	stakes := evmState.GetBalance(header.Coinbase.Recipient, m.clusterConfig.Quarkchain.GetDefaultChainTokenID())
-	diff, minable, mined, err := m.posw.GetPoSWInfo(header, stakes)
-	if err != nil {
-		return nil, err
-	}
+	diff, minable, mined, _ := m.posw.GetPoSWInfo(header, stakes)
 	return &rpc.PoSWInfo{
 		EffectiveDifficulty: diff,
 		PoswMineableBlocks:  minable,
-		PoswMinedBlocks:     mined}, nil
+		PoswMinedBlocks:     mined + 1}, nil
 }
 
 func (m *MinorBlockChain) putXShardDepositHashList(h common.Hash, hList *rawdb.HashList) {
@@ -1698,7 +1702,7 @@ func (m *MinorBlockChain) CommitMinorBlockByHash(h common.Hash) {
 	rawdb.WriteCommitMinorBlock(m.db, h)
 }
 
-func (m *MinorBlockChain) GetMiningInfo(address account.Recipient, stake *types.TokenBalances) (uint64, uint64, error) {
-	//TODO @DL to fix
-	return 0, 0, nil
+func (m *MinorBlockChain) GetMiningInfo(address account.Recipient, stake *types.TokenBalances) (mineable, mined uint64, err error) {
+	_, mineable, mined, err = m.posw.GetPoSWInfo(m.CurrentHeader(), stake.GetTokenBalance(m.Config().GetDefaultChainTokenID()))
+	return
 }

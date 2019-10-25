@@ -2,6 +2,7 @@
 package types
 
 import (
+	"github.com/QuarkChain/goquarkchain/params"
 	"math/big"
 	"sync/atomic"
 	"time"
@@ -50,13 +51,13 @@ type XShardTxCursorInfo struct {
 }
 
 func (m *MinorBlockMeta) Hash() common.Hash {
-	return serHash(*m, map[string]bool{})
+	return serHash(*m, nil)
 }
 
 // Hash returns the block hash of the header, which is simply the keccak256 hash of its
 // Serialize encoding.
 func (h *MinorBlockHeader) Hash() common.Hash {
-	return serHash(*h, map[string]bool{})
+	return serHash(*h, nil)
 }
 
 // SealHash returns the block hash of the header, which is keccak256 hash of its
@@ -511,4 +512,23 @@ func (h *MinorBlock) CreateBlockToAppend(createTime *uint64, difficulty *big.Int
 }
 func (h *MinorBlock) AddTx(tx *Transaction) {
 	h.transactions = append(h.transactions, tx)
+}
+
+func GetEmptyMinorBlock() *MinorBlock {
+	return NewMinorBlock(getDefaultMinorBlockHeader(), getDefauleMinorBlockMeta(), nil, nil, nil)
+}
+
+func getDefaultMinorBlockHeader() *MinorBlockHeader {
+	return &MinorBlockHeader{
+		CoinbaseAmount: NewEmptyTokenBalances(),
+		Branch:         account.Branch{Value: 1},
+		GasLimit:       &serialize.Uint256{Value: params.DefaultBlockGasLimit},
+		Difficulty:     new(big.Int).SetUint64(0),
+	}
+}
+
+func getDefauleMinorBlockMeta() *MinorBlockMeta {
+	return &MinorBlockMeta{
+		XShardGasLimit: &serialize.Uint256{Value: params.DefaultBlockGasLimit},
+	}
 }
