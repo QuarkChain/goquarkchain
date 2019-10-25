@@ -323,18 +323,17 @@ func (s *ShardBackend) AddBlockListForSync(blockLst []*types.MinorBlock) (map[co
 		return nil, err
 	}
 
+	req := &rpc.AddMinorBlockHeaderListRequest{
+		MinorBlockHeaderList: uncommittedBlockHeaderList,
+	}
+	if err := s.conn.SendMinorBlockHeaderListToMaster(req); err != nil {
+		return nil, err
+	}
 	for _, header := range uncommittedBlockHeaderList {
 		s.MinorBlockChain.CommitMinorBlockByHash(header.Hash())
 		s.mBPool.delBlockInPool(header)
 	}
 	return coinbaseAmountList, nil
-}
-
-func (s *ShardBackend) SendCommittedHeaderTomaster(committedHashListToMaster []*types.MinorBlockHeader) error {
-	req := &rpc.AddMinorBlockHeaderListRequest{
-		MinorBlockHeaderList: committedHashListToMaster,
-	}
-	return s.conn.SendMinorBlockHeaderListToMaster(req)
 }
 
 // ######################## miner Methods ##############################

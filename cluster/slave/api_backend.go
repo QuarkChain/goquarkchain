@@ -131,23 +131,10 @@ func (s *SlaveBackend) AddBlockListForSync(mHashList []common.Hash, peerId strin
 		if _, err := shard.AddBlockListForSync(bList); err != nil { //TODO?need fix?
 			return nil, err
 		}
-
 		hashList = hashList[hLen:]
 	}
 
 	log.Info("sync request from master successful", "branch", branch, "peer-id", peerId, "block-size", hashLen)
-
-	committedHashListToMaster := make([]*types.MinorBlockHeader, 0)
-	for _, v := range mHashList {
-		if shard.MinorBlockChain.IsMinorBlockCommittedByHash(v) {
-			b := shard.MinorBlockChain.GetMinorBlock(v).Header()
-			committedHashListToMaster = append(committedHashListToMaster, b)
-
-		}
-	}
-	if err := shard.SendCommittedHeaderTomaster(committedHashListToMaster); err != nil {
-		return nil, err
-	}
 
 	return shard.MinorBlockChain.GetShardStats()
 }
