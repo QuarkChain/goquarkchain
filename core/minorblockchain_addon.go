@@ -971,13 +971,12 @@ func (m *MinorBlockChain) AddRootBlock(rBlock *types.RootBlock) (bool, error) {
 func (m *MinorBlockChain) GetTransactionByHash(hash common.Hash) (*types.MinorBlock, uint32) {
 	_, mHash, txIndex := rawdb.ReadTransaction(m.db, hash)
 	if mHash == qkcCommon.EmptyHash { //TODO need? for test???
-		txs := make([]*types.Transaction, 0)
 		tx := m.txPool.all.Get(hash)
 		if tx == nil {
 			return nil, 0
 		}
-		txs = append(txs, tx)
-		temp := types.NewMinorBlock(&types.MinorBlockHeader{}, &types.MinorBlockMeta{}, txs, nil, nil)
+		temp := types.GetEmptyMinorBlock()
+		temp.AddTx(tx)
 		return temp, 0
 	}
 	return m.GetMinorBlock(mHash), txIndex
