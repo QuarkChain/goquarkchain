@@ -323,7 +323,7 @@ func (m *MinorBlockChain) putRootBlock(rBlock *types.RootBlock, minorHeader *typ
 		m.rootHeightToHashes[rBlock.NumberU64()] = make(map[common.Hash]common.Hash)
 	}
 	m.rootHeightToHashes[rBlock.NumberU64()][rBlock.Hash()] = mHash
-	log.Info("putRootBlock", "rBlock", rBlock.NumberU64(), "rHash", rBlock.Hash().String(), "mHash", mHash.String())
+	log.Debug("putRootBlock", "rBlock", rBlock.NumberU64(), "rHash", rBlock.Hash().String(), "mHash", mHash.String())
 }
 
 func (m *MinorBlockChain) putTotalTxCount(mBlock *types.MinorBlock) error {
@@ -1648,14 +1648,11 @@ func (m *MinorBlockChain) PoswInfo(mBlock *types.MinorBlock) (*rpc.PoSWInfo, err
 		return nil, err
 	}
 	stakes := evmState.GetBalance(header.Coinbase.Recipient, m.clusterConfig.Quarkchain.GetDefaultChainTokenID())
-	diff, minable, mined, err := m.posw.GetPoSWInfo(header, stakes)
-	if err != nil {
-		return nil, err
-	}
+	diff, minable, mined, _ := m.posw.GetPoSWInfo(header, stakes)
 	return &rpc.PoSWInfo{
 		EffectiveDifficulty: diff,
 		PoswMineableBlocks:  minable,
-		PoswMinedBlocks:     mined}, nil
+		PoswMinedBlocks:     mined + 1}, nil
 }
 
 func (m *MinorBlockChain) putXShardDepositHashList(h common.Hash, hList *rawdb.HashList) {
@@ -1673,7 +1670,7 @@ func (m *MinorBlockChain) CommitMinorBlockByHash(h common.Hash) {
 	rawdb.WriteCommitMinorBlock(m.db, h)
 }
 
-func (m *MinorBlockChain) GetMiningInfo(address account.Recipient, stake *types.TokenBalances) (uint64, uint64, error) {
-	//TODO @DL to fix
-	return 0, 0, nil
+func (m *MinorBlockChain) GetMiningInfo(address account.Recipient, stake *types.TokenBalances) (mineable, mined uint64, err error) {
+	_, mineable, mined, err = m.posw.GetPoSWInfo(m.CurrentHeader(), stake.GetTokenBalance(m.Config().GetDefaultChainTokenID()))
+	return
 }
