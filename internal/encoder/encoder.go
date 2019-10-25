@@ -28,6 +28,10 @@ func DataEncoder(bytes []byte) hexutil.Bytes {
 	return hexutil.Bytes(bytes)
 }
 
+func FullShardKeyEncode(fullShardKey uint32) hexutil.Bytes {
+	return hexutil.Bytes(common.Uint32ToBytes(fullShardKey))
+}
+
 func BalancesEncoder(balances *types.TokenBalances) []map[string]interface{} {
 	balanceList := make([]map[string]interface{}, 0)
 	bMap := balances.GetBalanceMap()
@@ -102,6 +106,8 @@ func RootBlockEncoder(rootBlock *types.RootBlock, extraInfo *rpc.PoSWInfo) (map[
 			"miner":              DataEncoder(minerData),
 			"coinbase":           BalancesEncoder(header.CoinbaseAmount),
 			"timestamp":          hexutil.Uint64(header.Time),
+			"extraData":          hexutil.Bytes(header.Extra),
+			"gasLimit":           hexutil.Big(*header.GasLimit.Value),
 		}
 		minorHeaders = append(minorHeaders, h)
 	}
@@ -229,8 +235,8 @@ func TxEncoder(block *types.MinorBlock, i int) (map[string]interface{}, error) {
 		"transactionIndex": hexutil.Uint64(i),
 		"from":             DataEncoder(sender.Bytes()),
 		"to":               DataEncoder(toBytes),
-		"fromFullShardKey": hexutil.Uint64(evmtx.FromFullShardKey()),
-		"toFullShardKey":   hexutil.Uint64(evmtx.ToFullShardKey()),
+		"fromFullShardKey": FullShardKeyEncode(evmtx.FromFullShardKey()),
+		"toFullShardKey":   FullShardKeyEncode(evmtx.ToFullShardKey()),
 		"value":            (*hexutil.Big)(evmtx.Value()),
 		"gasPrice":         (*hexutil.Big)(evmtx.GasPrice()),
 		"gas":              hexutil.Uint64(evmtx.Gas()),
@@ -303,13 +309,13 @@ func ReceiptEncoder(block *types.MinorBlock, i int, receipt *types.Receipt) (map
 		"blockHeight":       hexutil.Uint64(header.Number),
 		"blockNumber":       hexutil.Uint64(header.Number),
 		"cumulativeGasUsed": hexutil.Uint64(receipt.CumulativeGasUsed),
-		"gasUsed":           hexutil.Uint64(receipt.GasUsed),
+		"gasUsed":           hexutil.Uint64(receipt.GasUsed - receipt.GetPrevGasUsed()),
 		"status":            hexutil.Uint64(receipt.Status),
 		"logs":              LogListEncoder(receipt.Logs, false),
 		"timestamp":         hexutil.Uint64(block.Header().Time),
 	}
 	if receipt.ContractAddress.Big().Uint64() == 0 {
-		field["contractAddress"] = make([]struct{}, 0)
+		field["contractAddress"] = nil
 	} else {
 		addr := account.Address{
 			Recipient:    receipt.ContractAddress,

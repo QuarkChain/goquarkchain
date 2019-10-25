@@ -1505,20 +1505,17 @@ func (bc *RootBlockChain) GetRootChainStakesFunc() func(address account.Address,
 }
 
 func (bc *RootBlockChain) PoSWInfo(header *types.RootBlockHeader) (*rpc.PoSWInfo, error) {
-	if !bc.posw.IsPoSWEnabled(header) {
+	if header.Number == 0 {
 		return nil, nil
 	}
-	stakes, err := bc.getSignedPoSWStakes(header)
-	if err != nil {
-		return nil, err
+	var stakes *big.Int
+	if bc.posw.IsPoSWEnabled(header) {
+		stakes, _ = bc.getSignedPoSWStakes(header)
 	}
-	diff, mineable, mined, err := bc.posw.GetPoSWInfo(header, stakes)
-	if err != nil {
-		return nil, err
-	}
+	diff, mineable, mined, _ := bc.posw.GetPoSWInfo(header, stakes)
 	return &rpc.PoSWInfo{
 		EffectiveDifficulty: diff,
-		PoswMinedBlocks:     mined,
+		PoswMinedBlocks:     mined + 1,
 		PoswMineableBlocks:  mineable,
 	}, nil
 }
