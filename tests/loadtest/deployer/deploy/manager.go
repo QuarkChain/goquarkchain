@@ -8,17 +8,21 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/p2p/enode"
+	"golang.org/x/sync/errgroup"
 	"strings"
-
 	"time"
 )
 
 var (
-	dockerName        = "sunchunfeng/goqkc:deploy-v2"
-	remoteDir         = "/tmp/QKC"
 	clusterPath       = "./cluster"
 	clusterConfigPath = "./cluster_config_template.json"
 )
+
+func CheckErr(err error) {
+	if err != nil {
+		panic(err)
+	}
+}
 
 type ToolManager struct {
 	localConfig *LocalConfig
@@ -36,7 +40,7 @@ func NewToolManager(config *LocalConfig) *ToolManager {
 }
 
 func (t *ToolManager) check() {
-	if len(t.localConfig.IPList) < 1 {
+	if len(t.localConfig.Hosts) < 1 {
 		panic("t.localConfig.IPList should >=1")
 	}
 	if t.localConfig.ShardNumber < t.localConfig.ChainNumber {
@@ -60,15 +64,15 @@ func (t *ToolManager) check() {
 }
 
 func (t *ToolManager) init() {
-	for _, ip := range t.localConfig.IPList {
+	for _, ip := range t.localConfig.Hosts {
 		t.SSHSession[ip.IP] = NewSSHConnect(ip.User, ip.Password, ip.IP, int(ip.Port))
 	}
-	log.Info("init", "IP list", t.localConfig.IPList)
+	log.Info("init", "IP list", t.localConfig.Hosts)
 }
 
 func (t *ToolManager) GetIpListDependTag(tag string) []string {
 	ipList := make([]string, 0)
-	for _, v := range t.localConfig.IPList {
+	for _, v := range t.localConfig.Hosts {
 		if strings.Contains(v.Service, tag) {
 			ipList = append(ipList, v.IP)
 		}
@@ -81,10 +85,10 @@ func (t *ToolManager) GenClusterConfig() {
 
 	if t.localConfig.BootNode == "" {
 		sk, err := ecdsa.GenerateKey(crypto.S256(), rand.Reader)
-		Checkerr(err)
+		CheckErr(err)
 		clusterConfig.P2P.PrivKey = hex.EncodeToString(sk.D.Bytes())
 		db, err := enode.OpenDB("")
-		Checkerr(err)
+		CheckErr(err)
 		node := enode.NewLocalNode(db, sk)
 		log.Info("bootnode info", "info", node.Node().String())
 	} else {
@@ -95,18 +99,18 @@ func (t *ToolManager) GenClusterConfig() {
 
 func (t *ToolManager) MakeClusterExe() {
 	for _, v := range t.SSHSession {
-		v.RunCmd("rm -rf /tmp/QKC/*")
+		v.RunCmd("rm -rf /tmp/QKC/")
 
 		v.RunCmd("docker stop $(docker ps -a|grep bjqkc |awk '{print $1}')")
 		v.RunCmd("docker  rm $(docker ps -a|grep bjqkc |awk '{print $1}')")
-		v.RunCmd("docker pull " + dockerName)
-		v.RunCmd("docker run -itd --name bjqkc --network=host  " + dockerName)
+		v.RunCmd("docker pull " + t.localConfig.DockerName)
+		v.RunCmd("docker run -itd --name bjqkc --network=host  " + t.localConfig.DockerName)
 
-		v.RunCmd("mkdir /tmp/QKC")
+		v.RunCmd("mkdir /tmp/QKC/")
 
-		v.RunCmd("docker exec -itd bjqkc /bin/bash -c  'cd /root/go/src/github.com/Quarkchain/goquarkchain/cmd/cluster/  && go build -o /tmp/QKC/cluster && chmod +x /tmp/QKC/cluster '")
+		v.RunCmd("docker exec -itd bjqkc /bin/bash -c  'cd /root/go/src/github.com/Quarkchain/goquarkchain/cmd/cluster/  && go build -o /tmp/QKC/cluster '") //TODO modify it depend docker
 		time.Sleep(30 * time.Second)
-		v.RunCmd("docker cp bjqkc:/tmp/QKC/cluster /tmp/QKC") //checkout
+		v.RunCmd("docker cp bjqkc:/tmp/QKC/cluster /tmp/QKC")
 		time.Sleep(5 * time.Second)
 		v.GetFile("./", "/tmp/QKC/cluster")
 		v.RunCmd("rm -rf /tmp/QKC/*")
@@ -115,23 +119,29 @@ func (t *ToolManager) MakeClusterExe() {
 }
 
 func (t *ToolManager) SendFileToCluster() {
-	for _, v := range t.SSHSession {
-		v.RunCmd("rm -rf " + remoteDir)
-		v.RunCmd("mkdir " + remoteDir)
+	var g errgroup.Group
+	for _, session := range t.SSHSession {
+		v := session
+		g.Go(func() error {
+			v.RunCmd("rm -rf  /tmp/QKC")
+			v.RunCmd("mkdir /tmp/QKC")
 
-		v.RunCmd("docker stop $(docker ps -a -q)")
-		v.RunCmd("docker  rm $(docker ps -a -q)")
-		v.RunCmd("docker pull " + dockerName)
-		v.RunCmd("docker run -itd --name bjqkc --network=host " + dockerName)
+			v.RunCmd("docker stop $(docker ps -a|grep bjqkc |awk '{print $1}')")
+			v.RunCmd("docker  rm $(docker ps -a|grep bjqkc |awk '{print $1}')")
+			v.RunCmd("docker pull " + t.localConfig.DockerName)
+			v.RunCmd("docker run -itd --name bjqkc --network=host " + t.localConfig.DockerName)
 
-		v.SendFile(clusterPath, remoteDir)
-		v.SendFile(clusterConfigPath, remoteDir)
+			v.SendFile(clusterPath, "/tmp/QKC")
+			v.SendFile(clusterConfigPath, "/tmp/QKC")
 
-		v.RunCmd("docker cp " + remoteDir + "/cluster bjqkc:" + remoteDir)
-		v.RunCmd("docker cp " + remoteDir + "/cluster_config_template.json bjqkc:" + remoteDir)
-
-		v.RunCmd("docker exec -itd bjqkc  /bin/bash -c  'cd /root/go/src/github.com/Quarkchain/goquarkchain/consensus/qkchash/native/ && make clean && make '") //checkout
+			v.RunCmd("docker cp /tmp/QKC/cluster bjqkc:/tmp/QKC")
+			v.RunCmd("docker cp /tmp/QKC/cluster_config_template.json bjqkc:/tmp/QKC")
+			v.RunCmd("docker exec -itd bjqkc  /bin/bash -c  'cd /root/go/src/github.com/Quarkchain/goquarkchain/consensus/qkchash/native/ && make clean && make '") //checkout
+			return nil
+		})
 	}
+	err := g.Wait()
+	CheckErr(err)
 }
 
 type SlaveInfo struct {
@@ -144,7 +154,7 @@ func (t *ToolManager) StartCluster() {
 	slaveIpLists := make([]*SlaveInfo, 0)
 	cfg := config.NewClusterConfig()
 	err := LoadClusterConfig("./cluster_config_template.json", cfg)
-	Checkerr(err)
+	CheckErr(err)
 
 	for _, v := range cfg.SlaveList {
 		slaveIpLists = append(slaveIpLists, &SlaveInfo{

@@ -26,7 +26,8 @@ type ExtraClusterConfig struct {
 }
 
 type LocalConfig struct {
-	IPList             []NodeIndo          `json:"IPList"`
+	DockerName         string              `json:"DockerName"`
+	Hosts              []NodeIndo          `json:"Hosts"`
 	BootNode           string              `json:"BootNode"`
 	ChainNumber        uint32              `json:"ChainNumber"`
 	ShardNumber        uint32              `json:"ShardNumber"`
@@ -36,12 +37,12 @@ type LocalConfig struct {
 func LoadConfig(filePth string) *LocalConfig {
 	var config LocalConfig
 	f, err := os.Open(filePth)
-	Checkerr(err)
+	CheckErr(err)
 
 	buffer, err := ioutil.ReadAll(f)
-	Checkerr(err)
+	CheckErr(err)
 	err = json.Unmarshal(buffer, &config)
-	Checkerr(err)
+	CheckErr(err)
 	return &config
 }
 

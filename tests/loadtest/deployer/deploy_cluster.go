@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/QuarkChain/goquarkchain/tools/deploy"
+	"github.com/QuarkChain/goquarkchain/tests/loadtest/deployer/deploy"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/mattn/go-colorable"
 	"github.com/mattn/go-isatty"

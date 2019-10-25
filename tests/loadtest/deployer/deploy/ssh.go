@@ -6,6 +6,7 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"golang.org/x/crypto/ssh"
 	"net"
+	"time"
 )
 
 type SSHSession struct {
@@ -14,7 +15,6 @@ type SSHSession struct {
 }
 
 func NewSSHConnect(user, password, host string, port int) *SSHSession {
-
 	return &SSHSession{user, password, host, port}
 }
 
@@ -22,16 +22,20 @@ func (s *SSHSession) RunCmd(cmd string) {
 	log.Debug("cmd", "host", s.host, "cmd", cmd)
 	var stdOut, stdErr bytes.Buffer
 	session, err := SSHConnect(s.user, s.password, s.host, s.port)
-	Checkerr(err)
-	defer session.Close()
+	CheckErr(err)
+	defer func() {
+		err := session.Close()
+		CheckErr(err)
+	}()
 	session.Stdout = &stdOut
 	session.Stderr = &stdErr
-	session.Run(cmd)
+	err = session.Run(cmd)
+	CheckErr(err)
 	if stdOut.String() != "" {
-		//fmt.Println("out", stdOut.String())
+		//TODO need print?
 	}
 	if stdErr.String() != "" {
-		//fmt.Println("err", stdErr.String())
+		//TODO need print?
 	}
 }
 
@@ -53,15 +57,14 @@ func SSHConnect(user, password, host string, port int) (*ssh.Session, error) {
 	}
 
 	clientConfig = &ssh.ClientConfig{
-		User: user,
-		Auth: auth,
-		// Timeout:             30 * time.Second,
+		User:            user,
+		Auth:            auth,
+		Timeout:         30 * time.Second,
 		HostKeyCallback: hostKeyCallbk,
 	}
 
 	// connet to ssh
 	addr = fmt.Sprintf("%s:%d", host, port)
-
 	if client, err = ssh.Dial("tcp", addr, clientConfig); err != nil {
 		return nil, err
 	}
@@ -70,18 +73,17 @@ func SSHConnect(user, password, host string, port int) (*ssh.Session, error) {
 	if session, err = client.NewSession(); err != nil {
 		return nil, err
 	}
-
 	return session, nil
 }
 
 func (s *SSHSession) SendFile(localFile, remoteFile string) {
 	sftp, err := sftpConnect(s.user, s.password, s.host, s.port)
-	Checkerr(err)
+	CheckErr(err)
 	UploadFile(sftp, localFile, remoteFile)
 }
 
 func (s *SSHSession) GetFile(localDir string, remoteFile string) {
 	sftp, err := sftpConnect(s.user, s.password, s.host, s.port)
-	Checkerr(err)
+	CheckErr(err)
 	GetfileFromRemote(sftp, localDir, remoteFile)
 }

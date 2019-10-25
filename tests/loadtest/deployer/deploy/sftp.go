@@ -45,28 +45,28 @@ func sftpConnect(user, password, host string, port int) (*sftp.Client, error) {
 
 func UploadFile(sftpClient *sftp.Client, localFilePath string, remotePath string) {
 	srcFile, err := os.Open(localFilePath)
-	Checkerr(err)
+	CheckErr(err)
 	defer srcFile.Close()
 
 	var remoteFileName = path.Base(localFilePath)
 
 	dstFile, err := sftpClient.Create(path.Join(remotePath, remoteFileName))
-	Checkerr(err)
+	CheckErr(err)
 	defer dstFile.Close()
 
 	ff, err := ioutil.ReadAll(srcFile)
-	Checkerr(err)
+	CheckErr(err)
 	dstFile.Write(ff)
 }
 
 func GetfileFromRemote(sftpClient *sftp.Client, localDir string, remotePath string) {
 	srcFile, err := sftpClient.Open(remotePath)
-	Checkerr(err)
+	CheckErr(err)
 	defer srcFile.Close()
 
 	var localFileName = path.Base(remotePath)
 	dstFile, err := os.Create(path.Join(localDir, localFileName))
-	Checkerr(err)
+	CheckErr(err)
 	defer dstFile.Close()
 
 	if _, err = srcFile.WriteTo(dstFile); err != nil {

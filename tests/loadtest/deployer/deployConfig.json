@@ -1,5 +1,6 @@
 {
-  "IPList": [{
+  "DockerName": "sunchunfeng/goqkc:deploy-v2",
+  "Hosts": [{
     "IP": "172.16.1.33",
     "Port": 22,
     "User": "root",
@@ -7,9 +8,9 @@
     "Service": "master,slave"
   }
   ],
-  "BootNode": "enode://695fa56e04646fdc31b63d58ba45d65d9419d8c488c30938ebffd34a1f58ea4e61099994ff56e597a0ece1359b53e501f3de20320ba19da42f37fcb130c7cbdf@172.16.2.193:38291",
-  "ChainNumber": 2,
-  "ShardNumber": 4,
+  "BootNode": "",
+  "ChainNumber": 4,
+  "ShardNumber": 8,
   "ExtraClusterConfig": {
     "TargetRootBlockTime": 100,
     "TargetMinorBlockTime": 200,
