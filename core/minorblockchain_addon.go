@@ -318,11 +318,11 @@ func (m *MinorBlockChain) putRootBlock(rBlock *types.RootBlock, minorHeader *typ
 		mHash = minorHeader.Hash()
 	}
 	rawdb.WriteLastConfirmedMinorBlockHeaderAtRootBlock(m.db, rBlockHash, mHash)
+	rawdb.WriteRootBlock(m.db, rBlock)
 	if _, ok := m.rootHeightToHashes[rBlock.NumberU64()]; !ok {
 		m.rootHeightToHashes[rBlock.NumberU64()] = make(map[common.Hash]common.Hash)
 	}
 	m.rootHeightToHashes[rBlock.NumberU64()][rBlock.Hash()] = mHash
-	rawdb.WriteRootBlock(m.db, rBlock)
 	log.Info("putRootBlock", "rBlock", rBlock.NumberU64(), "rHash", rBlock.Hash().String(), "mHash", mHash.String())
 }
 
