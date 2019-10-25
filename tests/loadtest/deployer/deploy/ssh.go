@@ -24,8 +24,7 @@ func (s *SSHSession) RunCmd(cmd string) {
 	session, err := SSHConnect(s.user, s.password, s.host, s.port)
 	CheckErr(err)
 	defer func() {
-		err := session.Close()
-		CheckErr(err)
+		session.Close()
 	}()
 	session.Stdout = &stdOut
 	session.Stderr = &stdErr
