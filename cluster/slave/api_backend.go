@@ -184,7 +184,7 @@ func (s *SlaveBackend) GetAccountData(address *account.Address, height *uint64) 
 		data := rpc.AccountBranchData{
 			Branch: branch,
 		}
-		hash, err := s.getHashByHeight(shard, height)
+		hash := shard.MinorBlockChain.GetHashByHeight(height)
 		if err != nil {
 			return nil, err
 		}
@@ -291,7 +291,7 @@ func (s *SlaveBackend) GetStorageAt(address *account.Address, key common.Hash, h
 		return common.Hash{}, err
 	}
 	if shard, ok := s.shards[branch.Value]; ok {
-		hash, err := s.getHashByHeight(shard, height)
+		hash := shard.MinorBlockChain.GetHashByHeight(height)
 		if err != nil {
 			return common.Hash{}, err
 		}
@@ -300,21 +300,13 @@ func (s *SlaveBackend) GetStorageAt(address *account.Address, key common.Hash, h
 	return common.Hash{}, ErrMsg("GetStorageAt")
 }
 
-func (s *SlaveBackend) getHashByHeight(shard *shard.ShardBackend, height *uint64) (common.Hash, error) {
-	hash := shard.MinorBlockChain.CurrentBlock().Hash()
-	if height != nil {
-		hash = shard.MinorBlockChain.GetMinorHashByNumber(*height)
-	}
-	return hash, nil
-}
-
 func (s *SlaveBackend) GetCode(address *account.Address, height *uint64) ([]byte, error) {
 	branch, err := s.getBranch(address)
 	if err != nil {
 		return nil, err
 	}
 	if shard, ok := s.shards[branch.Value]; ok {
-		hash, err := s.getHashByHeight(shard, height)
+		hash := shard.MinorBlockChain.GetHashByHeight(height)
 		if err != nil {
 			return nil, err
 		}
