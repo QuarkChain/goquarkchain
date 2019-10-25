@@ -19,6 +19,7 @@ package p2p
 import (
 	"crypto/ecdsa"
 	"errors"
+	"github.com/QuarkChain/goquarkchain/p2p/nodefilter"
 	"math/rand"
 	"net"
 	"reflect"
@@ -236,19 +237,14 @@ func TestServerTaskScheduling(t *testing.T) {
 	// because we're only interested in what run does.
 	db, _ := enode.OpenDB("")
 	srv := &Server{
-		Config:    Config{MaxPeers: 10},
-		localnode: enode.NewLocalNode(db, newkey()),
-		nodedb:    db,
-		quit:      make(chan struct{}),
-		ntab:      fakeTable{},
-		running:   true,
-		log:       log.New(),
-		blackNodeFilter: &BlackNodes{
-			currTime:         time.Now(),
-			WhitelistNodes:   make(map[string]*enode.Node),
-			dialoutBlacklist: make(map[string]int64),
-			dialinBlacklist:  make(map[string]int64),
-		},
+		Config:          Config{MaxPeers: 10},
+		localnode:       enode.NewLocalNode(db, newkey()),
+		nodedb:          db,
+		quit:            make(chan struct{}),
+		ntab:            fakeTable{},
+		running:         true,
+		log:             log.New(),
+		blackNodeFilter: nodefilter.NewBlackList(make(map[string]*enode.Node)),
 	}
 	srv.loopWG.Add(1)
 	go func() {
@@ -296,18 +292,13 @@ func TestServerManyTasks(t *testing.T) {
 	var (
 		db, _ = enode.OpenDB("")
 		srv   = &Server{
-			quit:      make(chan struct{}),
-			localnode: enode.NewLocalNode(db, newkey()),
-			nodedb:    db,
-			ntab:      fakeTable{},
-			running:   true,
-			log:       log.New(),
-			blackNodeFilter: &BlackNodes{
-				currTime:         time.Now(),
-				WhitelistNodes:   make(map[string]*enode.Node),
-				dialoutBlacklist: make(map[string]int64),
-				dialinBlacklist:  make(map[string]int64),
-			},
+			quit:            make(chan struct{}),
+			localnode:       enode.NewLocalNode(db, newkey()),
+			nodedb:          db,
+			ntab:            fakeTable{},
+			running:         true,
+			log:             log.New(),
+			blackNodeFilter: nodefilter.NewBlackList(make(map[string]*enode.Node)),
 		}
 		done       = make(chan *testTask)
 		start, end = 0, 0
