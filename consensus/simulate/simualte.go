@@ -36,8 +36,7 @@ func (p *PowSimulate) hashAlgo(cache *consensus.ShareCache) error {
 	if intervalBlockTime > 2*timeAfterCreateTime {
 		needSleepTime = intervalBlockTime - 2*timeAfterCreateTime
 	}
-	time.Sleep(time.Duration(needSleepTime))
-
+	time.Sleep(time.Duration(needSleepTime) * time.Second)
 	cache.Result = make([]byte, 0)
 	digest, err := rand.Int(rand.Reader, big.NewInt(math.MaxInt64))
 	if err != nil {
