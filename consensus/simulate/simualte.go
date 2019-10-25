@@ -49,7 +49,6 @@ func verifySeal(chain consensus.ChainReader, header types.IHeader, adjustedDiff 
 	return nil
 }
 
-// New returns a DoubleSHA256 scheme.
 func New(diffCalculator consensus.DifficultyCalculator, remote bool, pubKey []byte, blockTime uint64) *PowSimulate {
 	spec := consensus.MiningSpec{
 		Name:       config.PoWSimulate,
