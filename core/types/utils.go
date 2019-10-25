@@ -11,6 +11,11 @@ import (
 
 type writeCounter common.StorageSize
 
+func (c *writeCounter) Write(b []byte) (int, error) {
+	*c += writeCounter(len(b))
+	return len(b), nil
+}
+
 type hashBuf struct {
 	bytes *[]byte
 	hw    hash.Hash
@@ -36,11 +41,6 @@ var (
 		New: func() interface{} { return &hashBuf{bytes: new([]byte), hw: sha3.NewKeccak256()} },
 	}
 )
-
-func (c *writeCounter) Write(b []byte) (int, error) {
-	*c += writeCounter(len(b))
-	return len(b), nil
-}
 
 func serHash(val interface{}, excludeList map[string]bool) (h common.Hash) {
 	buf := bufPool.Get().(*hashBuf)

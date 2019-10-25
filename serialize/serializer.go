@@ -4,7 +4,6 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"github.com/ethereum/go-ethereum/common"
 	"math/big"
 	"reflect"
 )
@@ -131,30 +130,18 @@ func serializeBool(val reflect.Value, w *[]byte, ts Tags) error {
 }
 
 func serializeByteArray(val reflect.Value, w *[]byte, ts Tags) error {
-	switch val.Len() {
-	case 20:
-		slice := val.Interface().(common.Address)
-		*w = append(*w, slice[:]...)
-	case 32:
-		slice := val.Interface().(common.Hash)
-		*w = append(*w, slice[:]...)
-	case 65:
-		slice := val.Interface().([65]byte)
-		*w = append(*w, slice[:]...)
-	default:
-		if !val.CanAddr() {
-			// Slice requires the value to be addressable.
-			// Make it addressable by copying.
-			copy := reflect.New(val.Type()).Elem()
-			copy.Set(val)
-			val = copy
-		}
-		size := val.Len()
-		slice := val.Slice(0, size).Bytes()
-
-		*w = append(*w, slice[:]...)
+	if !val.CanAddr() {
+		// Slice requires the value to be addressable.
+		// Make it addressable by copying.
+		copy := reflect.New(val.Type()).Elem()
+		copy.Set(val)
+		val = copy
 	}
 
+	size := val.Len()
+	slice := val.Slice(0, size).Bytes()
+
+	*w = append(*w, slice...)
 	return nil
 }
 
@@ -180,7 +167,7 @@ func serializeByteSlice(val reflect.Value, w *[]byte, ts Tags) error {
 	}
 
 	bytes := val.Bytes()
-	*w = append(*w, bytes..., )
+	*w = append(*w, bytes...)
 	return nil
 }
 
