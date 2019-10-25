@@ -210,6 +210,7 @@ func NewMinorBlockChain(
 			CheckBlocks: 5,
 			Percentile:  50,
 		},
+		logInfo: fmt.Sprintf("shard:%d", fullShardID),
 	}
 	var err error
 	bc.gasLimit, err = bc.clusterConfig.Quarkchain.GasLimit(bc.branch.Value)
@@ -443,16 +444,16 @@ func (m *MinorBlockChain) GetAdjustedDifficulty(header types.IHeader) (*big.Int,
 		preHeight := header.NumberU64() - 1
 		balance, err := m.GetBalance(header.GetCoinbase().Recipient, &preHeight)
 		if err != nil {
-			log.Error("PoSW", "failed to get coinbase balance", err)
+			log.Error(m.logInfo, "PoSW: failed to get coinbase balance", err)
 			return nil, 0, err
 		}
 		poswAdjusted, err := m.posw.PoSWDiffAdjust(header, balance.GetTokenBalance(m.clusterConfig.Quarkchain.GetDefaultChainTokenID()))
 		if err != nil {
-			log.Error("PoSW", "PoSWDiffAdjust err", err)
+			log.Error(m.logInfo, "PoSW: err", err)
 			return nil, 0, err
 		}
 		if poswAdjusted != nil && poswAdjusted.Cmp(diff) == -1 {
-			log.Info("PoSW applied", "from", diff, "to", poswAdjusted)
+			log.Debug(m.logInfo, "PoSW: from", diff, "to", poswAdjusted)
 			diff = poswAdjusted
 		}
 	}
@@ -1117,7 +1118,7 @@ func (m *MinorBlockChain) InsertChainForDeposits(chain []types.IBlock, isCheckDB
 	if confirmed == nil {
 		log.Warn("confirmed is nil")
 	} else {
-		log.Info("add Minor block End", "tip", m.CurrentBlock().NumberU64(), "tipHash", m.CurrentBlock().Hash().String(), "to add", chain[0].NumberU64(), "hash", chain[0].NumberU64(), "confirmed", confirmed.Number)
+		log.Debug(m.logInfo, "tip", m.CurrentBlock().NumberU64(), "tipHash", m.CurrentBlock().Hash().String(), "to add", chain[0].NumberU64(), "hash", chain[0].NumberU64(), "confirmed", confirmed.Number)
 	}
 
 	return n, xShardList, err
