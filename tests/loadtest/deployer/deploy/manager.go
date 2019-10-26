@@ -112,7 +112,7 @@ func (t *ToolManager) SendFileToCluster() {
 
 			v.SendFile(clusterPath, "/tmp/QKC")
 			v.SendFile(clusterConfigPath, "/tmp/QKC")
-
+			v.RunCmd("docker exec -itd bjqkc  /bin/bash -c  'mkdir /tmp/QKC/'")
 			v.RunCmd("docker cp /tmp/QKC/cluster bjqkc:/tmp/QKC")
 			v.RunCmd("docker cp /tmp/QKC/cluster_config_template.json bjqkc:/tmp/QKC")
 			v.RunCmd("docker exec -itd bjqkc  /bin/bash -c  'cd /root/go/src/github.com/Quarkchain/goquarkchain/consensus/qkchash/native/ && make clean && make '") //checkout

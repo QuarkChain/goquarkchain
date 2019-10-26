@@ -3,6 +3,7 @@ LABEL maintainer="goquarkchain"
 
 #prerequisite
 RUN apt-get update && apt-get install -y \
+    vim-tiny \
     curl \
     git \
     build-essential \

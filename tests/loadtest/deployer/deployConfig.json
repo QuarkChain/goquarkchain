@@ -1,13 +1,12 @@
 {
-  "DockerName": "sunchunfeng/goqkc:deploy-v3",
+  "DockerName": "syntrust/goqkc:first",
   "Hosts": [{
-    "IP": "172.16.1.33",
+    "IP": "138.68.28.95",
     "Port": 22,
     "User": "root",
-    "Password": "123456",
+    "Password": "goquarkchain",
     "Service": "master,slave"
-  }
-  ],
+  }],
   "BootNode": "",
   "ChainNumber": 4,
   "ShardNumber": 8,

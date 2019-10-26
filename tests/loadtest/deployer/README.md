@@ -13,7 +13,8 @@ way would be pull a pre-built Docker image of GoQuarkChain and run the tool insi
 in the same LAN with the hosts you plan to deploy a cluster, because some file copy work will be done across network 
 during the deploy process. 
 ```bash
-$ docker run -p 22:22 -it quarkchaindocker/goquarkchain:<version tag> /bin/bash 
+# replace docker image name if a custom image is used
+$ docker run  -itd quarkchaindocker/goquarkchain:<version tag> /bin/bash 
 ```
 Once you get inside the Docker container, you can change the cluster configuration in it.
 
@@ -32,7 +33,7 @@ Parameters explained:
 - `Service` which service(s) you want to run in the host, can be "master", "slave", or "master,slave"
 - `BootNode` bootnode URL to discover and connect to other clusters, refer to [here](#running-multiple-clusters-and-boot-node) for detail
 - `ChainNumber` defines the number of chains in the cluster, each chain has a number of shards 
-- `ShardNumber` defines the number of shards in the cluster (must be power of 2, and an integral number of ChainNumber)
+- `ShardNumber` defines the number of shards in the cluster (must be power of 2, and an integral multiple of ChainNumber)
 - `TargetRootBlockTime` defines the target block interval in seconds of root chain
 - `TargetMinorBlockTime` defines the target block interval on each shard
 - `GasLimit` defines the gas limit for a block; note that in-shard transactions uses 50% of the total gas limit in a block
