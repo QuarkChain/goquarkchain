@@ -37,7 +37,7 @@ type AccountWithPrivateKey struct {
 }
 
 func getPrivateKeyFromAccount(data []*account.Account) []AccountWithPrivateKey {
-	accounts := make([]AccountWithPrivateKey, 0, len(data))
+	accounts := make([]AccountWithPrivateKey, len(data))
 
 	for index, v := range data {
 		prvKey, err := crypto.HexToECDSA(v.PrivateKey())
@@ -53,7 +53,7 @@ func getPrivateKeyFromAccount(data []*account.Account) []AccountWithPrivateKey {
 }
 
 func NewTxGenerator(genesisDir string, fullShardId uint32, cfg *config.QuarkChainConfig) []*TxGenerator {
-	tgs := make([]*TxGenerator, 0, params.TPS_Num)
+	tgs := make([]*TxGenerator, params.TPS_Num)
 	accounts := config.LoadtestAccounts(genesisDir)
 	interval := len(accounts) / params.TPS_Num
 	for index := 0; index < params.TPS_Num; index++ {
