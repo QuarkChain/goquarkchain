@@ -13,6 +13,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/consensus/doublesha256"
 	"github.com/QuarkChain/goquarkchain/consensus/ethash"
 	"github.com/QuarkChain/goquarkchain/consensus/qkchash"
+	"github.com/QuarkChain/goquarkchain/consensus/simulate"
 	"github.com/QuarkChain/goquarkchain/core"
 	"github.com/QuarkChain/goquarkchain/core/rawdb"
 	"github.com/QuarkChain/goquarkchain/core/types"
@@ -158,8 +159,8 @@ func createConsensusEngine(cfg *config.RootConfig, pubKey []byte, qkcHashXHeight
 		AdjustmentFactor:  cfg.DifficultyAdjustmentFactor,
 	}
 	switch cfg.ConsensusType {
-	case config.PoWSimulate: // TODO pow_simulate is fake
-		return consensus.NewFakeEngine(&diffCalculator), nil
+	case config.PoWSimulate:
+		return simulate.New(&diffCalculator, cfg.ConsensusConfig.RemoteMine, pubKey, uint64(cfg.ConsensusConfig.TargetBlockTime)), nil
 	case config.PoWEthash:
 		return ethash.New(ethash.Config{CachesInMem: 3, CachesOnDisk: 10, CacheDir: "", PowMode: ethash.ModeNormal}, &diffCalculator, cfg.ConsensusConfig.RemoteMine, pubKey), nil
 	case config.PoWQkchash:
