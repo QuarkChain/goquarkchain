@@ -4,13 +4,14 @@ import (
 	"crypto/ecdsa"
 	"crypto/rand"
 	"encoding/hex"
+	"strings"
+	"time"
+
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"golang.org/x/sync/errgroup"
-	"strings"
-	"time"
 )
 
 var (
@@ -113,6 +114,7 @@ func (t *ToolManager) SendFileToCluster() {
 			v.SendFile(clusterPath, "/tmp/QKC")
 			v.SendFile(clusterConfigPath, "/tmp/QKC")
 
+			v.RunCmd("docker exec -itd bjqkc  /bin/bash -c  'mkdir /tmp/QKC/'")
 			v.RunCmd("docker cp /tmp/QKC/cluster bjqkc:/tmp/QKC")
 			v.RunCmd("docker cp /tmp/QKC/cluster_config_template.json bjqkc:/tmp/QKC")
 			v.RunCmd("docker exec -itd bjqkc  /bin/bash -c  'cd /root/go/src/github.com/Quarkchain/goquarkchain/consensus/qkchash/native/ && make clean && make '") //checkout
