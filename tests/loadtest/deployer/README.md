@@ -1,19 +1,19 @@
-#Use Deploy Tool to Start Clusters
+# Use Deploy Tool to Start Clusters
 
 Here we provide a deploy tool based on pre-built Docker image. With this tool you can deploy GoQuarkChain master/shard 
 services to build and start a cluster in one line command. 
 It is encouraged that you build your own deploy scripts or tools, especially if you prefer different service distribution among hosts,   
-You can also build your own Docker image, starting from [this Dockerfile](./Dockerfile), or if you are interested in build everything without
-Docker, starting from [here](../../README.md#development-setup). 
+You can also build your own Docker image, starting from [this Dockerfile](../Dockerfile), or if you are interested in build everything without
+Docker, starting from [here](../../../README.md#development-setup). 
 
 ## Run Docker Image
 
-You'll need to [setup development environment](../../README.md#development-setup) to run the deploy tool. So a convenient 
+You'll need to [setup development environment](../../../README.md#development-setup) to run the deploy tool. So a convenient 
 way would be pull a pre-built Docker image of GoQuarkChain and run the tool inside a container. And it is better to run it
 in the same LAN with the hosts you plan to deploy a cluster, because some file copy work will be done across network 
 during the deploy process. 
 ```bash
-$ docker run -it quarkchaindocker/goquarkchain:<version tag> /bin/bash 
+$ docker run -p 22:22 -it quarkchaindocker/goquarkchain:<version tag> /bin/bash 
 ```
 Once you get inside the Docker container, you can change the cluster configuration in it.
 
@@ -30,7 +30,7 @@ Parameters explained:
 - `User` login name
 - `Password` password
 - `Service` which service(s) you want to run in the host, can be "master", "slave", or "master,slave"
-- `BootNode` bootnode URL to discover and connect to other clusters, refer to [Running Multiple Clusters and Boot Node](#running-multiple-clusters-and-bootnode) for detail
+- `BootNode` bootnode URL to discover and connect to other clusters, refer to [here](#running-multiple-clusters-and-boot-node) for detail
 - `ChainNumber` defines the number of chains in the cluster, each chain has a number of shards 
 - `ShardNumber` defines the number of shards in the cluster (must be power of 2, and an integral number of ChainNumber)
 - `TargetRootBlockTime` defines the target block interval in seconds of root chain

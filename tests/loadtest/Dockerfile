@@ -19,7 +19,7 @@ RUN apt-get update && apt-get install -y \
 
 # install rocksdb
 WORKDIR /code
-RUN git clone -b v6.1.2 https://github.com/facebook/rocksdb.git
+RUN git clone -b v6.1.2 --single-branch https://github.com/facebook/rocksdb.git
 WORKDIR /code/rocksdb
 RUN make shared_lib
 RUN make install-shared
