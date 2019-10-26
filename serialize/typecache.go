@@ -11,8 +11,10 @@ import (
 )
 
 var (
-	typeCacheMutex sync.RWMutex
-	typeCache      = make(map[reflect.Type]*typeinfo)
+	typeCacheMutex   sync.RWMutex
+	typeCache        = make(map[reflect.Type]*typeinfo)
+	fieldsCacheMutex sync.RWMutex
+	fieldsCache      = make(map[reflect.Type][]field)
 )
 
 type typeinfo struct {
@@ -62,6 +64,12 @@ type field struct {
 }
 
 func structFields(typ reflect.Type) (fields []field, err error) {
+	fieldsCacheMutex.RLock()
+	flds := fieldsCache[typ]
+	fieldsCacheMutex.RUnlock()
+	if flds != nil {
+		return flds, nil
+	}
 	for i := 0; i < typ.NumField(); i++ {
 		if f := typ.Field(i); f.PkgPath == "" { // exported
 			tags, err := parseStructTag(typ, i)
@@ -78,6 +86,9 @@ func structFields(typ reflect.Type) (fields []field, err error) {
 			fields = append(fields, field{i, info, tags, f.Name})
 		}
 	}
+	fieldsCacheMutex.Lock()
+	defer fieldsCacheMutex.Unlock()
+	fieldsCache[typ] = fields
 
 	return fields, nil
 }
