@@ -485,14 +485,16 @@ func (m *MinorBlockChain) AddTx(tx *types.Transaction) error {
 }
 
 func recoverSender(txs []*types.Transaction, networkID uint32) error {
+	sender := types.NewEIP155Signer(networkID)
 	for _, tx := range txs {
-		_, err := types.Sender(types.NewEIP155Signer(networkID), tx.EvmTx)
+		_, err := types.Sender(sender, tx.EvmTx)
 		if err != nil {
 			return err
 		}
 	}
 	return nil
 }
+
 func (m *MinorBlockChain) AddTxList(txs []*types.Transaction) error {
 	ts := time.Now()
 	interval := len(txs) / params.TPS_Num
