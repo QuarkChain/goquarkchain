@@ -29,7 +29,6 @@ func (s *SSHSession) RunCmd(cmd string) {
 	session.Stdout = &stdOut
 	session.Stderr = &stdErr
 	err = session.Run(cmd)
-	CheckErr(err)
 	if stdOut.String() != "" {
 		//TODO need print?
 	}
