@@ -727,7 +727,7 @@ func (m *MinorBlockChain) checkTxBeforeApply(stateT *state.StateDB, tx *types.Tr
 	}
 	diff := new(big.Int).Sub(stateT.GetGasLimit(), stateT.GetGasUsed())
 	if tx.EvmTx.Gas() > diff.Uint64() {
-		return ErrorTxContinue
+		return ErrorTxBreak
 	}
 	if tx.EvmTx.GasPrice().Cmp(m.clusterConfig.Quarkchain.MinMiningGasPrice) < 0 {
 		return ErrorTxContinue

@@ -173,7 +173,7 @@ func (t *TxGenerator) createTransaction(acc *account.Account, nonce uint64,
 		value = value.Mul(big.NewInt(int64(rv)), config.QuarkashToJiaozi)
 	}
 
-	evmTx := types.NewEvmTransaction(nonce, recipient, value, sampleTx.EvmTx.Gas(),
+	evmTx := types.NewEvmTransaction(nonce, recipient, value, params.DefaultTxGasLimit.Uint64(),
 		sampleTx.EvmTx.GasPrice(), fromFullShardKey, toFullShardKey, t.cfg.NetworkID, 0, sampleTx.EvmTx.Data(), qkcCommon.TokenIDEncode("QKC"), qkcCommon.TokenIDEncode("QKC"))
 	return evmTx, nil
 }
