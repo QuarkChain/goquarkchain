@@ -4,11 +4,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/ioutil"
+	"os"
+
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/cmd/utils"
 	"github.com/QuarkChain/goquarkchain/core/types"
-	"io/ioutil"
-	"os"
 )
 
 type NodeIndo struct {
@@ -118,6 +119,9 @@ func updateSlaves(cfg *config.ClusterConfig, ipList []string) {
 func GenConfigDependInitConfig(chainSize uint32, shardSizePerChain uint32, ipList []string, extraClusterConfig *ExtraClusterConfig) *config.ClusterConfig {
 	cfg := config.NewClusterConfig()
 	defaultChainConfig := *cfg.Quarkchain.Chains[0]
+
+	//update account
+	cfg.GenesisDir = "../accounts"
 
 	//update root
 	cfg.Quarkchain.Root.ConsensusConfig.TargetBlockTime = extraClusterConfig.TargetRootBlockTime
