@@ -1682,8 +1682,9 @@ func (m *MinorBlockChain) GetMiningInfo(address account.Recipient, stake *types.
 }
 
 func recoverSender(txs []*types.Transaction, networkID uint32) error {
+	sender := types.NewEIP155Signer(networkID)
 	for _, tx := range txs {
-		_, err := types.Sender(types.NewEIP155Signer(networkID), tx.EvmTx)
+		_, err := types.Sender(sender, tx.EvmTx)
 		if err != nil {
 			return err
 		}
