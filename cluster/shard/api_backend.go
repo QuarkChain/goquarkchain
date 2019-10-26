@@ -3,8 +3,6 @@ package shard
 import (
 	"errors"
 	"fmt"
-	"github.com/QuarkChain/goquarkchain/params"
-	"golang.org/x/sync/errgroup"
 	"math/big"
 	"time"
 
@@ -15,6 +13,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/core"
 	"github.com/QuarkChain/goquarkchain/core/types"
+	"github.com/QuarkChain/goquarkchain/params"
 	qrpc "github.com/QuarkChain/goquarkchain/rpc"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/event"
@@ -56,19 +55,14 @@ func (s *ShardBackend) GetAllTx(start []byte, limit uint32) ([]*rpc.TransactionD
 }
 
 func (s *ShardBackend) GenTx(genTxs *rpc.GenTxRequest) error {
-	var g errgroup.Group
 	for index := 0; index < len(s.txGenerator); index++ {
 		i := index
-		g.Go(func() error {
+		go func() {
 			err := s.txGenerator[i].Generate(genTxs, s.AddTxList)
 			if err != nil {
 				log.Error(s.logInfo, "GenTx err", err)
 			}
-			return err
-		})
-	}
-	if err := g.Wait(); err != nil {
-		panic(err)
+		}()
 	}
 	return nil
 }

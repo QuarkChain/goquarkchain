@@ -4,8 +4,6 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"github.com/QuarkChain/goquarkchain/params"
-	"golang.org/x/sync/errgroup"
 	"math"
 	"math/big"
 	"sort"
@@ -18,11 +16,13 @@ import (
 	"github.com/QuarkChain/goquarkchain/core/state"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/core/vm"
+	"github.com/QuarkChain/goquarkchain/params"
 	"github.com/QuarkChain/goquarkchain/qkcdb"
 	qrpc "github.com/QuarkChain/goquarkchain/rpc"
 	"github.com/QuarkChain/goquarkchain/serialize"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
+	"golang.org/x/sync/errgroup"
 )
 
 var (
@@ -1639,6 +1639,7 @@ func CountAddressFromSlice(lists []account.Recipient, recipient account.Recipien
 	}
 	return cnt
 }
+
 func (m *MinorBlockChain) PoswInfo(mBlock *types.MinorBlock) (*rpc.PoSWInfo, error) {
 	if mBlock == nil {
 		return nil, errors.New("get powInfo err:mBlock is full")
@@ -1670,6 +1671,7 @@ func (m *MinorBlockChain) getXShardDepositHashList(h common.Hash) *rawdb.HashLis
 func (m *MinorBlockChain) IsMinorBlockCommittedByHash(h common.Hash) bool {
 	return rawdb.HasCommitMinorBlock(m.db, h)
 }
+
 func (m *MinorBlockChain) CommitMinorBlockByHash(h common.Hash) {
 	rawdb.WriteCommitMinorBlock(m.db, h)
 }
@@ -1680,14 +1682,16 @@ func (m *MinorBlockChain) GetMiningInfo(address account.Recipient, stake *types.
 }
 
 func recoverSender(txs []*types.Transaction, networkID uint32) error {
+	sender := types.NewEIP155Signer(networkID)
 	for _, tx := range txs {
-		_, err := types.Sender(types.NewEIP155Signer(networkID), tx.EvmTx)
+		_, err := types.Sender(sender, tx.EvmTx)
 		if err != nil {
 			return err
 		}
 	}
 	return nil
 }
+
 func (m *MinorBlockChain) AddTxList(txs []*types.Transaction) error {
 	ts := time.Now()
 	interval := len(txs) / params.TPS_Num
