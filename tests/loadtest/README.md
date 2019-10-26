@@ -23,15 +23,6 @@ To stop mining,
 curl -X POST -H 'content-type: application/json' --data '{"jsonrpc":"2.0","method":"setMining","params":[false],"id":0}' http://127.0.0.1:38491
 ```
 
-## Prepare Account Data
-Put account data into default location to load.
-```bash
-cd cmd
-mkdir genesis_data
-cp ../../tests/testdata/genesis_data/loadtest.json genesis_data
-```
-12,000 accounts will be loaded into genesis alloc config for each shard.
-
 ## Generate Transactions
 
 Request the cluster through `createTransactions ` JSON RPC to generate transactions on each shard. NOTE the parameters are encoded in Hex.
@@ -42,4 +33,4 @@ curl -X POST -H 'content-type: application/json' --data '{"jsonrpc": "2.0","meth
    
 ## Monitoring
 
-You can [monitor](../../README.md#monitoring-clusters) the TPS using the [stats tool](../../cmd/stats).
+Now you can [monitor](../../README.md#monitoring-clusters) the TPS using the [stats tool](../../cmd/stats).

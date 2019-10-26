@@ -44,7 +44,9 @@ cd /qkc/go/src/github.com/QuarkChain/goquarkchain/tests/loadtest/deployer
 go run deploy_cluster.go
 ```
 
-The deploying process will be printed on the console log. If cluster start successfully, you can start mining using the following command:
+The deploying process will be printed on the console log. You will see 12,000 accounts will be loaded automatically for each shard.
+
+If cluster start successfully, you can start mining using the following command:
 ```bash
 curl -X POST -H 'content-type: application/json' --data '{"jsonrpc":"2.0","method":"setMining","params":[true],"id":0}' http://127.0.0.1:38491
 ```
