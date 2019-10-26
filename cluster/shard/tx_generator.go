@@ -3,6 +3,11 @@ package shard
 import (
 	"encoding/hex"
 	"fmt"
+	"math/big"
+	"math/rand"
+	"sync"
+	"time"
+
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
@@ -12,10 +17,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/log"
-	"math/big"
-	"math/rand"
-	"sync"
-	"time"
 )
 
 type TxGenerator struct {
@@ -29,11 +30,11 @@ type TxGenerator struct {
 }
 
 func NewTxGenerator(genesisDir string, fullShardId uint32, cfg *config.QuarkChainConfig) []*TxGenerator {
-	tgs := make([]*TxGenerator, 0)
+	tgs := make([]*TxGenerator, 0, params.TPS_Num)
 	accounts := config.LoadtestAccounts(genesisDir)
 	interval := len(accounts) / params.TPS_Num
 	for index := 0; index < params.TPS_Num; index++ {
-		tgs = append(tgs, &TxGenerator{
+		tgs[index] = &TxGenerator{
 			cfg:          cfg,
 			fullShardId:  fullShardId,
 			accounts:     accounts[index*interval : (index+1)*interval],
@@ -41,7 +42,7 @@ func NewTxGenerator(genesisDir string, fullShardId uint32, cfg *config.QuarkChai
 			lenAccounts:  interval,
 			accountIndex: 0,
 			turn:         0,
-		})
+		}
 		log.Info("tx-generator", "index", index, "account len", len(tgs[index].accounts))
 	}
 	return tgs

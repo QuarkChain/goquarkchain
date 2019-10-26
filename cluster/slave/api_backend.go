@@ -3,6 +3,8 @@ package slave
 import (
 	"errors"
 	"fmt"
+	"math/big"
+
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
 	"github.com/QuarkChain/goquarkchain/cluster/shard"
@@ -16,7 +18,6 @@ import (
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
 	"golang.org/x/sync/errgroup"
-	"math/big"
 )
 
 var (
@@ -156,25 +157,25 @@ func (s *SlaveBackend) AddTx(tx *types.Transaction) (err error) {
 }
 
 func (s *SlaveBackend) AddTxList(txs []*types.Transaction, peerID string) (err error) {
-	mapp := make(map[uint32][]*types.Transaction)
-	for _, tx := range txs {
-		fromShardSize, err := s.clstrCfg.Quarkchain.GetShardSizeByChainId(tx.EvmTx.FromChainID())
-		if err != nil {
-			return err
-		}
-		if err := tx.EvmTx.SetFromShardSize(fromShardSize); err != nil {
-			return err
-		}
-		if _, ok := mapp[tx.EvmTx.FromFullShardId()]; !ok {
-			mapp[tx.EvmTx.FromFullShardId()] = make([]*types.Transaction, 0)
-		}
-		mapp[tx.EvmTx.FromFullShardId()] = append(mapp[tx.EvmTx.FromFullShardId()], tx)
+	if len(txs) == 0 {
+		return nil
 	}
-	//TODO double should goroutine
-	for k, v := range mapp {
-		return s.shards[k].AddTxList(v, peerID)
+
+	tx := txs[0]
+	fromShardSize, err := s.clstrCfg.Quarkchain.GetShardSizeByChainId(tx.EvmTx.FromChainID())
+	if err != nil {
+		return err
 	}
-	return nil
+	if err := tx.EvmTx.SetFromShardSize(fromShardSize); err != nil {
+		return err
+	}
+	fromFullShardId := tx.EvmTx.FromFullShardId()
+
+	shard, ok := s.shards[fromFullShardId]
+	if !ok {
+		return fmt.Errorf("fullShardID:%v not found", fromFullShardId)
+	}
+	return shard.AddTxList(txs, peerID)
 }
 
 func (s *SlaveBackend) ExecuteTx(tx *types.Transaction, address *account.Address, height *uint64) ([]byte, error) {
