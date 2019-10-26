@@ -1,0 +1,19 @@
+{
+  "DockerName": "sunchunfeng/goqkc:deploy-v2",
+  "Hosts": [{
+    "IP": "172.16.1.33",
+    "Port": 22,
+    "User": "root",
+    "Password": "123456",
+    "Service": "master,slave"
+  }
+  ],
+  "BootNode": "",
+  "ChainNumber": 4,
+  "ShardNumber": 8,
+  "ExtraClusterConfig": {
+    "TargetRootBlockTime": 100,
+    "TargetMinorBlockTime": 200,
+    "GasLimit": 24000000
+  }
+}
