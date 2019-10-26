@@ -45,13 +45,19 @@ cd /qkc/go/src/github.com/QuarkChain/goquarkchain/tests/loadtest/deployer
 go run deploy_cluster.go
 ```
 
-The deploying process will be printed on the console log. You will see 12,000 accounts will be loaded automatically for each shard.
+The deploying process will be printed on the console log. 
+## Check Cluster Status
+```bash
+# enter the container
+docker exec  -it bjqkc /bin/bash
+$ cat /tmp/QKC/S0.log
+```
+You will see from the log that cluster start successfully, and 12,000 accounts loaded automatically for each shard.
 
-If cluster start successfully, you can start mining using the following command:
+Try the following command to see if mining works:
 ```bash
 curl -X POST -H 'content-type: application/json' --data '{"jsonrpc":"2.0","method":"setMining","params":[true],"id":0}' http://127.0.0.1:38491
 ```
-
 ## Running Multiple Clusters and Boot Node
 With different deployConfig.json you can deploy multiple clusters of one network with this tool. 
 
