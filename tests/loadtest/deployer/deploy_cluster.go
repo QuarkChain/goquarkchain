@@ -36,13 +36,11 @@ func getToolManager() *deploy.ToolManager {
 
 func main() {
 	toolManager := getToolManager()
-	log.Info("begin gen config")
+	log.Info("========== begin gen config ==========")
 	toolManager.GenClusterConfig() //gen ./cluster_config_template.json
-	log.Info("begin gen cluster exe")
-	toolManager.MakeClusterExe()
-	log.Info("begin send file to others cluster")
+	log.Info("========== begin send file to others cluster ==========")
 	toolManager.SendFileToCluster()
-	log.Info("begin start cluster")
+	log.Info("========== begin start cluster ==========")
 	toolManager.StartCluster()
-	log.Info("start cluster successfully")
+	log.Info("========== start cluster successfully ==========")
 }

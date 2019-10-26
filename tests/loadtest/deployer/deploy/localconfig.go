@@ -4,11 +4,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/ioutil"
+	"os"
+
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/cmd/utils"
 	"github.com/QuarkChain/goquarkchain/core/types"
-	"io/ioutil"
-	"os"
 )
 
 type NodeIndo struct {
@@ -119,15 +120,13 @@ func GenConfigDependInitConfig(chainSize uint32, shardSizePerChain uint32, ipLis
 	cfg := config.NewClusterConfig()
 	defaultChainConfig := *cfg.Quarkchain.Chains[0]
 
-	//TODO @scf to fix
+	//update account
+	cfg.GenesisDir = "../accounts"
+
 	//update root
-	cfg.Quarkchain.Root.ConsensusType = config.PoWDoubleSha256
-	cfg.Quarkchain.Root.Genesis.Difficulty = 10000
 	cfg.Quarkchain.Root.ConsensusConfig.TargetBlockTime = extraClusterConfig.TargetRootBlockTime
 
 	//update minor
-	defaultChainConfig.ConsensusType = config.PoWDoubleSha256
-	defaultChainConfig.Genesis.Difficulty = 10000
 	defaultChainConfig.ConsensusConfig.TargetBlockTime = extraClusterConfig.TargetMinorBlockTime
 	defaultChainConfig.Genesis.GasLimit = extraClusterConfig.GasLimit
 

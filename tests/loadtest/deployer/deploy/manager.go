@@ -14,7 +14,7 @@ import (
 )
 
 var (
-	clusterPath       = "./cluster"
+	clusterPath       = "../../../cmd/cluster/cluster"
 	clusterConfigPath = "./cluster_config_template.json"
 )
 
@@ -95,27 +95,6 @@ func (t *ToolManager) GenClusterConfig() {
 		clusterConfig.P2P.BootNodes = t.localConfig.BootNode
 	}
 	WriteConfigToFile(clusterConfig, "./cluster_config_template.json")
-}
-
-func (t *ToolManager) MakeClusterExe() {
-	for _, v := range t.SSHSession {
-		v.RunCmd("rm -rf /tmp/QKC/")
-
-		v.RunCmd("docker stop $(docker ps -a|grep bjqkc |awk '{print $1}')")
-		v.RunCmd("docker  rm $(docker ps -a|grep bjqkc |awk '{print $1}')")
-		v.RunCmd("docker pull " + t.localConfig.DockerName)
-		v.RunCmd("docker run -itd --name bjqkc --network=host  " + t.localConfig.DockerName)
-
-		v.RunCmd("mkdir /tmp/QKC/")
-
-		v.RunCmd("docker exec -itd bjqkc /bin/bash -c  'cd /root/go/src/github.com/Quarkchain/goquarkchain/cmd/cluster/  && go build -o /tmp/QKC/cluster '") //TODO modify it depend docker
-		time.Sleep(30 * time.Second)
-		v.RunCmd("docker cp bjqkc:/tmp/QKC/cluster /tmp/QKC")
-		time.Sleep(5 * time.Second)
-		v.GetFile("./", "/tmp/QKC/cluster")
-		v.RunCmd("rm -rf /tmp/QKC/*")
-		break
-	}
 }
 
 func (t *ToolManager) SendFileToCluster() {
