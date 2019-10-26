@@ -1,6 +1,7 @@
 package shard
 
 import (
+	"crypto/ecdsa"
 	"encoding/hex"
 	"fmt"
 	"math/big"
@@ -28,6 +29,16 @@ type TxGenerator struct {
 	lenAccounts  int
 	accountIndex int
 	turn         uint64
+	privateMap   map[string]*ecdsa.PrivateKey
+	sender       types.Signer
+}
+
+func getPrivateKeyFromString(key string) *ecdsa.PrivateKey {
+	prvKey, err := crypto.HexToECDSA(hex.EncodeToString(common.FromHex(key)))
+	if err != nil {
+		panic(err)
+	}
+	return prvKey
 }
 
 func NewTxGenerator(genesisDir string, fullShardId uint32, cfg *config.QuarkChainConfig) []*TxGenerator {
@@ -43,6 +54,11 @@ func NewTxGenerator(genesisDir string, fullShardId uint32, cfg *config.QuarkChai
 			lenAccounts:  interval,
 			accountIndex: 0,
 			turn:         0,
+			privateMap:   make(map[string]*ecdsa.PrivateKey),
+			sender:       types.NewEIP155Signer(cfg.NetworkID),
+		}
+		for _, v := range tgs[index].accounts {
+			tgs[index].privateMap[v.PrivateKey()] = getPrivateKeyFromString(v.PrivateKey())
 		}
 		log.Info("tx-generator", "index", index, "account len", len(tgs[index].accounts))
 	}
@@ -187,9 +203,5 @@ func (t *TxGenerator) random(digit int) int {
 }
 
 func (t *TxGenerator) sign(evmTx *types.EvmTransaction, key string) (*types.EvmTransaction, error) {
-	prvKey, err := crypto.HexToECDSA(hex.EncodeToString(common.FromHex(key)))
-	if err != nil {
-		panic(err)
-	}
-	return types.SignTx(evmTx, types.MakeSigner(evmTx.NetworkId()), prvKey)
+	return types.SignTx(evmTx, t.sender, t.privateMap[key])
 }
