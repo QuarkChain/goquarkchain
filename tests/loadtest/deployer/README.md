@@ -13,7 +13,6 @@ way would be pull a pre-built Docker image of GoQuarkChain and run the tool insi
 in the same LAN with the hosts you plan to deploy a cluster, because some file copy work will be done across network 
 during the deploy process. 
 ```bash
-$ docker pull quarkchaindocker/goquarkchain:<version tag> 
 $ docker run -it quarkchaindocker/goquarkchain:<version tag> /bin/bash 
 ```
 Once you get inside the Docker container, you can change the cluster configuration in it.
@@ -21,7 +20,8 @@ Once you get inside the Docker container, you can change the cluster configurati
 ## Configure Clusters
 
 You can build and deploy one cluster each time using this deploy tool. You need to modify 
-`/qkc/go/src/github.com/QuarkChain/goquarkchain/tools/deployConfig.json` for the cluster to run in your environment. 
+`/qkc/go/src/github.com/QuarkChain/goquarkchain/tests/loadtest/deployer/deployConfig.json` 
+to configure the cluster to run in your environment. 
 
 Parameters explained:
 - `Hosts` a list of hosts run same cluster/node
@@ -35,19 +35,15 @@ Parameters explained:
 - `ShardNumber` defines the number of shards in the cluster (must be power of 2, and an integral number of ChainNumber)
 - `TargetRootBlockTime` defines the target block interval in seconds of root chain
 - `TargetMinorBlockTime` defines the target block interval on each shard
-- `GasLimit` defines the gas limit for a block
+- `GasLimit` defines the gas limit for a block; note that in-shard transactions uses 50% of the total gas limit in a block
 
 ## Deploy and Run a Cluster
 Inside the container
 ```bash
-cd /qkc/go/src/github.com/QuarkChain/goquarkchain/tools
-./tools
+cd /qkc/go/src/github.com/QuarkChain/goquarkchain/tests/loadtest/deployer
+go run deploy_cluster.go
 ```
-Or, on the host
-```bash
-$ docker ps  # find container ID
-docker exec -it <container ID> quarkchaindocker/goquarkchain:<version tag> cd /qkc/go/src/github.com/QuarkChain/goquarkchain/tools && ./tools
-```
+
 The deploying process will be printed on the console log. If cluster start successfully, you can start mining using the following command:
 ```bash
 curl -X POST -H 'content-type: application/json' --data '{"jsonrpc":"2.0","method":"setMining","params":[true],"id":0}' http://127.0.0.1:38491

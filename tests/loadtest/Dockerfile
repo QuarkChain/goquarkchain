@@ -31,7 +31,6 @@ ENV LD_LIBRARY_PATH=/usr/local/lib
 WORKDIR /code
 RUN curl -sSL https://storage.googleapis.com/golang/go1.12.10.linux-amd64.tar.gz \
 		| tar -v -C /usr/local -xz
-RUN mkdir -p ~/go/src ~/go/bin && chmod -R 777 ~/go
 ENV GOROOT /usr/local/go
 ENV GOPATH $HOME/go
 ENV PATH $GOPATH/bin:$GOROOT/bin:$PATH
@@ -40,7 +39,7 @@ ENV GO111MODULE on
 
 # install goquarkchain
 WORKDIR $GOPATH/src/github.com/QuarkChain
-RUN git clone https://github.com/QuarkChain/goquarkchain.git
+RUN git clone -b users/denglun/tps --single-branch https://github.com/QuarkChain/goquarkchain.git
 WORKDIR $GOPATH/src/github.com/QuarkChain/goquarkchain/consensus/qkchash/native
 RUN g++ -shared -o libqkchash.so -fPIC qkchash.cpp -O3 -std=gnu++17 && make
 WORKDIR $GOPATH/src/github.com/QuarkChain/goquarkchain/cmd/cluster
