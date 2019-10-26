@@ -279,9 +279,9 @@ func (m *MinorBlockChain) InitGenesisState(rBlock *types.RootBlock) (*types.Mino
 }
 
 // GetTransactionCount get txCount for addr
-func (m *MinorBlockChain) GetTransactionCount(recipient account.Recipient, height *uint64) (uint64, error) {
+func (m *MinorBlockChain) GetTransactionCount(recipient account.Recipient, hash *common.Hash) (uint64, error) {
 	// no need to lock
-	evmState, err := m.getEvmStateByHeight(height)
+	evmState, err := m.getEvmStateByHash(hash)
 	if err != nil {
 		return 0, err
 	}
@@ -482,15 +482,17 @@ func (m *MinorBlockChain) AddTx(tx *types.Transaction) error {
 	return m.txPool.AddLocal(tx)
 }
 
-func (m *MinorBlockChain) getEvmStateByHeight(height *uint64) (*state.StateDB, error) {
-	mBlock := m.CurrentBlock()
-	if height != nil {
-		var ok bool
-		mBlock, ok = m.GetBlockByNumber(*height).(*types.MinorBlock)
-		if !ok {
-			return nil, fmt.Errorf("no such block:height %v", *height)
-		}
+func (m *MinorBlockChain) getEvmStateByHash(hash *common.Hash) (*state.StateDB, error) {
+	if hash == nil {
+		t := m.CurrentBlock().Hash()
+		hash = &t
 	}
+
+	mBlock := m.GetMinorBlock(*hash)
+	if mBlock == nil {
+		return nil, fmt.Errorf("no such block:hash %v", (*hash).String())
+	}
+
 	evmState, err := m.StateAt(mBlock.GetMetaData().Root)
 	if err != nil {
 		return nil, err
@@ -499,9 +501,9 @@ func (m *MinorBlockChain) getEvmStateByHeight(height *uint64) (*state.StateDB, e
 }
 
 // GetBalance get balance for address
-func (m *MinorBlockChain) GetBalance(recipient account.Recipient, height *uint64) (*types.TokenBalances, error) {
+func (m *MinorBlockChain) GetBalance(recipient account.Recipient, hash *common.Hash) (*types.TokenBalances, error) {
 	// no need to lock
-	evmState, err := m.getEvmStateByHeight(height)
+	evmState, err := m.getEvmStateByHash(hash)
 	if err != nil {
 		return nil, err
 	}
@@ -509,9 +511,9 @@ func (m *MinorBlockChain) GetBalance(recipient account.Recipient, height *uint64
 }
 
 // GetCode get code for addr
-func (m *MinorBlockChain) GetCode(recipient account.Recipient, height *uint64) ([]byte, error) {
+func (m *MinorBlockChain) GetCode(recipient account.Recipient, hash *common.Hash) ([]byte, error) {
 	// no need to lock
-	evmState, err := m.getEvmStateByHeight(height)
+	evmState, err := m.getEvmStateByHash(hash)
 	if err != nil {
 		return nil, err
 	}
@@ -519,9 +521,9 @@ func (m *MinorBlockChain) GetCode(recipient account.Recipient, height *uint64) (
 }
 
 // GetStorageAt get storage for addr
-func (m *MinorBlockChain) GetStorageAt(recipient account.Recipient, key common.Hash, height *uint64) (common.Hash, error) {
+func (m *MinorBlockChain) GetStorageAt(recipient account.Recipient, key common.Hash, hash *common.Hash) (common.Hash, error) {
 	// no need to lock
-	evmState, err := m.getEvmStateByHeight(height)
+	evmState, err := m.getEvmStateByHash(hash)
 	if err != nil {
 		return common.Hash{}, err
 	}
@@ -870,7 +872,7 @@ func (m *MinorBlockChain) AddRootBlock(rBlock *types.RootBlock) (bool, error) {
 
 		if data := m.ReadCrossShardTxList(h); data == nil {
 			errXshardListNotHave := errors.New("not have")
-			log.Error(m.logInfo, "addrootBlock err-2", errXshardListNotHave)
+			log.Error(m.logInfo, "addrootBlock err-2", errXshardListNotHave, "h", h.String())
 			return false, errXshardListNotHave
 		}
 
