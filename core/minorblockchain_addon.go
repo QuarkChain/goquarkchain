@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"github.com/QuarkChain/goquarkchain/params"
 	"golang.org/x/sync/errgroup"
 	"math"
 	"math/big"
@@ -280,9 +281,9 @@ func (m *MinorBlockChain) InitGenesisState(rBlock *types.RootBlock) (*types.Mino
 }
 
 // GetTransactionCount get txCount for addr
-func (m *MinorBlockChain) GetTransactionCount(recipient account.Recipient, height *uint64) (uint64, error) {
+func (m *MinorBlockChain) GetTransactionCount(recipient account.Recipient, hash *common.Hash) (uint64, error) {
 	// no need to lock
-	evmState, err := m.getEvmStateByHeight(height)
+	evmState, err := m.getEvmStateByHash(hash)
 	if err != nil {
 		return 0, err
 	}
@@ -312,6 +313,7 @@ func (m *MinorBlockChain) isNeighbor(remoteBranch account.Branch, rootHeight *ui
 }
 
 func (m *MinorBlockChain) putRootBlock(rBlock *types.RootBlock, minorHeader *types.MinorBlockHeader) {
+	log.Info(m.logInfo, "putRootBlock number", rBlock.Number(), "hash", rBlock.Hash().String(), "lenMinor", len(rBlock.MinorBlockHeaders()))
 	rBlockHash := rBlock.Hash()
 	var mHash common.Hash
 	if minorHeader != nil {
@@ -482,47 +484,17 @@ func (m *MinorBlockChain) AddTx(tx *types.Transaction) error {
 	return m.txPool.AddLocal(tx)
 }
 
-func recoverSender(txs []*types.Transaction, networkID uint32) error {
-	for _, tx := range txs {
-		_, err := types.Sender(types.NewEIP155Signer(networkID), tx.EvmTx)
-		if err != nil {
-			return err
-		}
+func (m *MinorBlockChain) getEvmStateByHash(hash *common.Hash) (*state.StateDB, error) {
+	if hash == nil {
+		t := m.CurrentBlock().Hash()
+		hash = &t
 	}
-	return nil
-}
-func (m *MinorBlockChain) AddTxList(txs []*types.Transaction) error {
-	ts := time.Now()
-	interval := len(txs) / 2
-	var g errgroup.Group
-	for index := 0; index < 2; index++ {
-		i := index
-		g.Go(func() error {
-			if err := recoverSender(txs[i*interval:(i+1)*interval], m.clusterConfig.Quarkchain.NetworkID); err != nil {
-				return err
-			}
-			return nil
-		})
-	}
-	if err := g.Wait(); err != nil {
-		return err
-	}
-	log.Info("recover", "len", len(txs), "dur", time.Now().Sub(ts).Seconds())
-	ts = time.Now()
-	m.txPool.AddLocals(txs)
-	log.Info("AddLocal", "len", len(txs), "dur", time.Now().Sub(ts).Seconds())
-	return nil
-}
 
-func (m *MinorBlockChain) getEvmStateByHeight(height *uint64) (*state.StateDB, error) {
-	mBlock := m.CurrentBlock()
-	if height != nil {
-		var ok bool
-		mBlock, ok = m.GetBlockByNumber(*height).(*types.MinorBlock)
-		if !ok {
-			return nil, fmt.Errorf("no such block:height %v", *height)
-		}
+	mBlock := m.GetMinorBlock(*hash)
+	if mBlock == nil {
+		return nil, fmt.Errorf("no such block:hash %v", (*hash).String())
 	}
+
 	evmState, err := m.StateAt(mBlock.GetMetaData().Root)
 	if err != nil {
 		return nil, err
@@ -531,9 +503,9 @@ func (m *MinorBlockChain) getEvmStateByHeight(height *uint64) (*state.StateDB, e
 }
 
 // GetBalance get balance for address
-func (m *MinorBlockChain) GetBalance(recipient account.Recipient, height *uint64) (*types.TokenBalances, error) {
+func (m *MinorBlockChain) GetBalance(recipient account.Recipient, hash *common.Hash) (*types.TokenBalances, error) {
 	// no need to lock
-	evmState, err := m.getEvmStateByHeight(height)
+	evmState, err := m.getEvmStateByHash(hash)
 	if err != nil {
 		return nil, err
 	}
@@ -541,9 +513,9 @@ func (m *MinorBlockChain) GetBalance(recipient account.Recipient, height *uint64
 }
 
 // GetCode get code for addr
-func (m *MinorBlockChain) GetCode(recipient account.Recipient, height *uint64) ([]byte, error) {
+func (m *MinorBlockChain) GetCode(recipient account.Recipient, hash *common.Hash) ([]byte, error) {
 	// no need to lock
-	evmState, err := m.getEvmStateByHeight(height)
+	evmState, err := m.getEvmStateByHash(hash)
 	if err != nil {
 		return nil, err
 	}
@@ -551,9 +523,9 @@ func (m *MinorBlockChain) GetCode(recipient account.Recipient, height *uint64) (
 }
 
 // GetStorageAt get storage for addr
-func (m *MinorBlockChain) GetStorageAt(recipient account.Recipient, key common.Hash, height *uint64) (common.Hash, error) {
+func (m *MinorBlockChain) GetStorageAt(recipient account.Recipient, key common.Hash, hash *common.Hash) (common.Hash, error) {
 	// no need to lock
-	evmState, err := m.getEvmStateByHeight(height)
+	evmState, err := m.getEvmStateByHash(hash)
 	if err != nil {
 		return common.Hash{}, err
 	}
@@ -902,7 +874,7 @@ func (m *MinorBlockChain) AddRootBlock(rBlock *types.RootBlock) (bool, error) {
 
 		if data := m.ReadCrossShardTxList(h); data == nil {
 			errXshardListNotHave := errors.New("not have")
-			log.Error(m.logInfo, "addrootBlock err-2", errXshardListNotHave)
+			log.Error(m.logInfo, "addrootBlock err-2", errXshardListNotHave, "h", h.String())
 			return false, errXshardListNotHave
 		}
 
@@ -1705,4 +1677,40 @@ func (m *MinorBlockChain) CommitMinorBlockByHash(h common.Hash) {
 func (m *MinorBlockChain) GetMiningInfo(address account.Recipient, stake *types.TokenBalances) (mineable, mined uint64, err error) {
 	_, mineable, mined, err = m.posw.GetPoSWInfo(m.CurrentHeader(), stake.GetTokenBalance(m.Config().GetDefaultChainTokenID()))
 	return
+}
+
+func recoverSender(txs []*types.Transaction, networkID uint32) error {
+	for _, tx := range txs {
+		_, err := types.Sender(types.NewEIP155Signer(networkID), tx.EvmTx)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+func (m *MinorBlockChain) AddTxList(txs []*types.Transaction) error {
+	ts := time.Now()
+	interval := len(txs) / params.TPS_Num
+	var g errgroup.Group
+	for index := 0; index < params.TPS_Num; index++ {
+		i := index
+		g.Go(func() error {
+			if err := recoverSender(txs[i*interval:(i+1)*interval], m.clusterConfig.Quarkchain.NetworkID); err != nil {
+				return err
+			}
+			return nil
+		})
+	}
+	if err := g.Wait(); err != nil {
+		return err
+	}
+	log.Info("recover", "len", len(txs), "dur", time.Now().Sub(ts).Seconds())
+	ts = time.Now()
+	for _, tx := range txs {
+		if err := m.txPool.AddLocal(tx); err != nil {
+			return err
+		}
+	}
+	log.Info("AddLocal", "len", len(txs), "dur", time.Now().Sub(ts).Seconds())
+	return nil
 }

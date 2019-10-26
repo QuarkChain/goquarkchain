@@ -171,6 +171,7 @@ func NewMinorBlockChain(
 			TrieCleanLimit: 128,
 			TrieDirtyLimit: 128,
 			TrieTimeLimit:  5 * time.Minute,
+			Disabled:       true,
 		}
 	}
 	receiptsCache, _ := lru.New(receiptsCacheLimit)
@@ -440,8 +441,8 @@ func (m *MinorBlockChain) SkipDifficultyCheck() bool {
 func (m *MinorBlockChain) GetAdjustedDifficulty(header types.IHeader) (*big.Int, uint64, error) {
 	diff := header.GetDifficulty()
 	if m.posw.IsPoSWEnabled(header) {
-		preHeight := header.NumberU64() - 1
-		balance, err := m.GetBalance(header.GetCoinbase().Recipient, &preHeight)
+		preHash := header.GetParentHash()
+		balance, err := m.GetBalance(header.GetCoinbase().Recipient, &preHash)
 		if err != nil {
 			log.Error(m.logInfo, "PoSW: failed to get coinbase balance", err)
 			return nil, 0, err
@@ -636,6 +637,16 @@ func (m *MinorBlockChain) GetBlockByNumber(number uint64) types.IBlock {
 		return nil
 	}
 	return m.GetBlock(hash)
+}
+
+func (m *MinorBlockChain) GetHashByHeight(height *uint64) (common.Hash, error) {
+	if height != nil {
+		hash := rawdb.ReadCanonicalHash(m.db, rawdb.ChainTypeMinor, *height)
+		if bytes.Equal(common.Hash{}.Bytes(), hash.Bytes()) {
+			return hash, fmt.Errorf("shard %v do no have this  height  %v", m.branch.Value, *height)
+		}
+	}
+	return m.CurrentBlock().Hash(), nil
 }
 
 // GetReceiptsByHash retrieves the receipts for all transactions in a given block.
