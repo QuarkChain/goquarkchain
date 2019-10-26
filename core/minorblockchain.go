@@ -1835,7 +1835,10 @@ func (m *MinorBlockChain) GetGenesisRootHeight() uint32 {
 
 func (m *MinorBlockChain) getEvmStateByBlock(block *types.MinorBlock) (*state.StateDB, error) {
 	if bytes.Equal(block.Hash().Bytes(), m.CurrentBlock().Hash().Bytes()) {
-		return m.currentEvmState, nil
+		m.mu.Lock()
+		stateDB := m.currentEvmState.Copy()
+		m.mu.Unlock()
+		return stateDB, nil
 	}
 	return m.StateAt(block.GetMetaData().Root)
 }
@@ -1855,9 +1858,6 @@ func (m *MinorBlockChain) GetRootChainStakes(coinbase account.Recipient, lastMin
 	if err != nil {
 		return nil, nil, err
 	}
-	m.mu.Lock()
-	evmState = evmState.Copy()
-	m.mu.Unlock()
 	evmState.SetGasUsed(big.NewInt(0))
 	contractAddress := vm.SystemContracts[vm.ROOT_CHAIN_POSW].Address()
 	code := evmState.GetCode(contractAddress)

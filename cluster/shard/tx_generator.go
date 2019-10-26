@@ -2,7 +2,6 @@ package shard
 
 import (
 	"crypto/ecdsa"
-	"encoding/hex"
 	"fmt"
 	"math/big"
 	"math/rand"
@@ -24,21 +23,33 @@ import (
 type TxGenerator struct {
 	cfg          *config.QuarkChainConfig
 	fullShardId  uint32
-	accounts     []*account.Account
+	accounts     []AccountWithPrivateKey
 	once         sync.Once
 	lenAccounts  int
 	accountIndex int
 	turn         uint64
-	privateMap   map[string]*ecdsa.PrivateKey
 	sender       types.Signer
 }
 
-func getPrivateKeyFromString(key string) *ecdsa.PrivateKey {
-	prvKey, err := crypto.HexToECDSA(hex.EncodeToString(common.FromHex(key)))
-	if err != nil {
-		panic(err)
+type AccountWithPrivateKey struct {
+	acc        *account.Account
+	privateKey *ecdsa.PrivateKey
+}
+
+func getPrivateKeyFromAccount(data []*account.Account) []AccountWithPrivateKey {
+	accounts := make([]AccountWithPrivateKey, 0, len(data))
+
+	for index, v := range data {
+		prvKey, err := crypto.HexToECDSA(v.PrivateKey())
+		if err != nil {
+			panic(err)
+		}
+		accounts[index] = AccountWithPrivateKey{
+			acc:        v,
+			privateKey: prvKey,
+		}
 	}
-	return prvKey
+	return accounts
 }
 
 func NewTxGenerator(genesisDir string, fullShardId uint32, cfg *config.QuarkChainConfig) []*TxGenerator {
@@ -49,23 +60,19 @@ func NewTxGenerator(genesisDir string, fullShardId uint32, cfg *config.QuarkChai
 		tgs[index] = &TxGenerator{
 			cfg:          cfg,
 			fullShardId:  fullShardId,
-			accounts:     accounts[index*interval : (index+1)*interval],
+			accounts:     getPrivateKeyFromAccount(accounts[index*interval : (index+1)*interval]),
 			once:         sync.Once{},
 			lenAccounts:  interval,
 			accountIndex: 0,
 			turn:         0,
-			privateMap:   make(map[string]*ecdsa.PrivateKey),
 			sender:       types.NewEIP155Signer(cfg.NetworkID),
-		}
-		for _, v := range tgs[index].accounts {
-			tgs[index].privateMap[v.PrivateKey()] = getPrivateKeyFromString(v.PrivateKey())
 		}
 		log.Info("tx-generator", "index", index, "account len", len(tgs[index].accounts))
 	}
 	return tgs
 }
 
-func (t *TxGenerator) SignTx(txs []*types.Transaction, span int) error {
+func (t *TxGenerator) SignTxs(txs []*types.Transaction, span int) error {
 	ts := time.Now()
 	interval := len(txs) / span
 	var g errgroup.Group
@@ -75,7 +82,7 @@ func (t *TxGenerator) SignTx(txs []*types.Transaction, span int) error {
 		g.Go(func() error {
 			for _, v := range txs[i*interval : (i+1)*interval] {
 				acc := t.accounts[t.accountIndex-start]
-				evmTx, err := t.sign(v.EvmTx, acc.PrivateKey())
+				evmTx, err := t.sign(v.EvmTx, acc.privateKey)
 				if err != nil {
 					panic(err)
 				}
@@ -89,7 +96,7 @@ func (t *TxGenerator) SignTx(txs []*types.Transaction, span int) error {
 	if err := g.Wait(); err != nil {
 		return err
 	}
-	log.Info("SignTx end", "interval", span, "len", len(txs), "time", time.Now().Sub(ts).Seconds())
+	log.Info("SignTxs end", "interval", span, "len", len(txs), "time", time.Now().Sub(ts).Seconds())
 	return nil
 }
 
@@ -115,10 +122,9 @@ func (t *TxGenerator) Generate(genTxs *rpc.GenTxRequest, addTxList func(txs []*t
 		if total >= numTx {
 			break
 		}
-		acc := t.accounts[t.accountIndex]
 		total++
 
-		tx, err := t.createTransaction(acc, t.turn, xShardPercent, genTxs.Tx)
+		tx, err := t.createTransaction(t.turn, xShardPercent, genTxs.Tx)
 		if err != nil {
 			continue
 		}
@@ -127,7 +133,7 @@ func (t *TxGenerator) Generate(genTxs *rpc.GenTxRequest, addTxList func(txs []*t
 		if total%batchScale == 0 {
 			log.Info("detail", "total", total, "numTx", numTx, "durtion", time.Now().Sub(ts).Seconds(), "index", t.accountIndex)
 
-			if err := t.SignTx(txList, 2); err != nil {
+			if err := t.SignTxs(txList, 2); err != nil {
 				return err
 			}
 
@@ -147,7 +153,7 @@ func (t *TxGenerator) Generate(genTxs *rpc.GenTxRequest, addTxList func(txs []*t
 	}
 
 	if len(txList) != 0 {
-		if err := t.SignTx(txList, 2); err != nil {
+		if err := t.SignTxs(txList, 2); err != nil {
 			return err
 		}
 		if err := addTxList(txList, ""); err != nil {
@@ -159,7 +165,7 @@ func (t *TxGenerator) Generate(genTxs *rpc.GenTxRequest, addTxList func(txs []*t
 	return nil
 }
 
-func (t *TxGenerator) createTransaction(acc *account.Account, nonce uint64,
+func (t *TxGenerator) createTransaction(nonce uint64,
 	xShardPercent int, sampleTx *types.Transaction) (*types.EvmTransaction, error) {
 	var (
 		fromFullShardKey = sampleTx.EvmTx.FromFullShardKey()
@@ -174,7 +180,7 @@ func (t *TxGenerator) createTransaction(acc *account.Account, nonce uint64,
 	}
 	if account.IsSameReceipt(recipient, account.Recipient{}) {
 		idx := t.random(t.lenAccounts)
-		toAddr := t.accounts[idx]
+		toAddr := t.accounts[idx].acc
 		recipient = toAddr.Identity.GetRecipient()
 		toFullShardKey = t.fullShardId
 	}
@@ -202,6 +208,6 @@ func (t *TxGenerator) random(digit int) int {
 	return rand.Int() % digit
 }
 
-func (t *TxGenerator) sign(evmTx *types.EvmTransaction, key string) (*types.EvmTransaction, error) {
-	return types.SignTx(evmTx, t.sender, t.privateMap[key])
+func (t *TxGenerator) sign(evmTx *types.EvmTransaction, key *ecdsa.PrivateKey) (*types.EvmTransaction, error) {
+	return types.SignTx(evmTx, t.sender, key)
 }

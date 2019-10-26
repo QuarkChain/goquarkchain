@@ -19,6 +19,13 @@ package core
 import (
 	"crypto/ecdsa"
 	"fmt"
+	"io/ioutil"
+	"math/big"
+	"math/rand"
+	"os"
+	"testing"
+	"time"
+
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	qkcCommon "github.com/QuarkChain/goquarkchain/common"
@@ -30,12 +37,6 @@ import (
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/params"
-	"io/ioutil"
-	"math/big"
-	"math/rand"
-	"os"
-	"testing"
-	"time"
 )
 
 // testTxPoolConfig is a transaction pool configuration without stateful disk
@@ -342,7 +343,7 @@ func TestTransactionQueue2(t *testing.T) {
 //	pool, key := setupTxPool()
 //	defer pool.Stop()
 //
-//	tx, _ := types.SignTx(types.NewEvmTransaction(0, common.Address{}, big.NewInt(-1), 100, big.NewInt(1), nil), types.HomesteadSigner{}, key)
+//	tx, _ := types.SignTxs(types.NewEvmTransaction(0, common.Address{}, big.NewInt(-1), 100, big.NewInt(1), nil), types.HomesteadSigner{}, key)
 //	from, _ := deriveSender(tx)
 //	pool.currentState.AddBalance(from, big.NewInt(1))
 //	if err := pool.AddRemote(tx); err != ErrNegativeValue {
