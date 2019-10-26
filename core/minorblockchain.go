@@ -1855,7 +1855,9 @@ func (m *MinorBlockChain) GetRootChainStakes(coinbase account.Recipient, lastMin
 	if err != nil {
 		return nil, nil, err
 	}
+	m.mu.Lock()
 	evmState = evmState.Copy()
+	m.mu.Unlock()
 	evmState.SetGasUsed(big.NewInt(0))
 	contractAddress := vm.SystemContracts[vm.ROOT_CHAIN_POSW].Address()
 	code := evmState.GetCode(contractAddress)

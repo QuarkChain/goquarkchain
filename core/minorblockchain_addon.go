@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"github.com/QuarkChain/goquarkchain/params"
+	"golang.org/x/sync/errgroup"
 	"math"
 	"math/big"
 	"sort"
@@ -1675,4 +1677,40 @@ func (m *MinorBlockChain) CommitMinorBlockByHash(h common.Hash) {
 func (m *MinorBlockChain) GetMiningInfo(address account.Recipient, stake *types.TokenBalances) (mineable, mined uint64, err error) {
 	_, mineable, mined, err = m.posw.GetPoSWInfo(m.CurrentHeader(), stake.GetTokenBalance(m.Config().GetDefaultChainTokenID()))
 	return
+}
+
+func recoverSender(txs []*types.Transaction, networkID uint32) error {
+	for _, tx := range txs {
+		_, err := types.Sender(types.NewEIP155Signer(networkID), tx.EvmTx)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+func (m *MinorBlockChain) AddTxList(txs []*types.Transaction) error {
+	ts := time.Now()
+	interval := len(txs) / params.TPS_Num
+	var g errgroup.Group
+	for index := 0; index < params.TPS_Num; index++ {
+		i := index
+		g.Go(func() error {
+			if err := recoverSender(txs[i*interval:(i+1)*interval], m.clusterConfig.Quarkchain.NetworkID); err != nil {
+				return err
+			}
+			return nil
+		})
+	}
+	if err := g.Wait(); err != nil {
+		return err
+	}
+	log.Info("recover", "len", len(txs), "dur", time.Now().Sub(ts).Seconds())
+	ts = time.Now()
+	for _, tx := range txs {
+		if err := m.txPool.AddLocal(tx); err != nil {
+			return err
+		}
+	}
+	log.Info("AddLocal", "len", len(txs), "dur", time.Now().Sub(ts).Seconds())
+	return nil
 }

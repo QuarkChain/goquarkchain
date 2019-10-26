@@ -67,13 +67,6 @@ func (g *Genesis) CreateMinorBlock(rootBlock *types.RootBlock, fullShardId uint3
 	branch := account.Branch{Value: fullShardId}
 
 	for addr, allocation := range genesis.Alloc {
-		fullShardIDByConfig, err := g.qkcConfig.GetFullShardIdByFullShardKey(addr.FullShardKey)
-		if err != nil {
-			return nil, err
-		}
-		if fullShardIDByConfig != fullShardId {
-			continue
-		}
 		recipient := new(common.Address)
 		recipient.SetBytes(addr.Recipient.Bytes())
 		statedb.SetFullShardKey(addr.FullShardKey)

@@ -22,7 +22,6 @@ import (
 var (
 	MINOR_BLOCK_HEADER_LIST_LIMIT = uint32(100)
 	MINOR_BLOCK_BATCH_SIZE        = 50
-	NEW_TRANSACTION_LIST_LIMIT    = 1000
 )
 
 func (s *SlaveBackend) GetUnconfirmedHeaderList() ([]*rpc.HeadersInfo, error) {
@@ -109,7 +108,6 @@ func (s *SlaveBackend) AddBlockListForSync(mHashList []common.Hash, peerId strin
 
 	var (
 		BlockBatchSize = 100
-		hashLen        = len(hashList)
 		tHashList      []common.Hash
 	)
 	for len(hashList) > 0 {
@@ -133,9 +131,6 @@ func (s *SlaveBackend) AddBlockListForSync(mHashList []common.Hash, peerId strin
 		}
 		hashList = hashList[hLen:]
 	}
-
-	log.Info("sync request from master successful", "branch", branch, "peer-id", peerId, "block-size", hashLen)
-
 	return shard.MinorBlockChain.GetShardStats()
 }
 
@@ -158,6 +153,35 @@ func (s *SlaveBackend) AddTx(tx *types.Transaction) (err error) {
 		return shard.MinorBlockChain.AddTx(tx)
 	}
 	return ErrMsg("AddTx")
+}
+
+func (s *SlaveBackend) AddTxList(txs []*types.Transaction, peerID string) (err error) {
+	mapp := make(map[uint32][]*types.Transaction)
+	for _, tx := range txs {
+		toShardSize, err := s.clstrCfg.Quarkchain.GetShardSizeByChainId(tx.EvmTx.ToChainID())
+		if err != nil {
+			return err
+		}
+		if err := tx.EvmTx.SetToShardSize(toShardSize); err != nil {
+			return err
+		}
+		fromShardSize, err := s.clstrCfg.Quarkchain.GetShardSizeByChainId(tx.EvmTx.FromChainID())
+		if err != nil {
+			return err
+		}
+		if err := tx.EvmTx.SetFromShardSize(fromShardSize); err != nil {
+			return err
+		}
+		if _, ok := mapp[tx.EvmTx.FromFullShardId()]; !ok {
+			mapp[tx.EvmTx.FromFullShardId()] = make([]*types.Transaction, 0)
+		}
+		mapp[tx.EvmTx.FromFullShardId()] = append(mapp[tx.EvmTx.FromFullShardId()], tx)
+	}
+	//TODO double should goroutine
+	for k, v := range mapp {
+		return s.shards[k].AddTxList(v, peerID)
+	}
+	return nil
 }
 
 func (s *SlaveBackend) ExecuteTx(tx *types.Transaction, address *account.Address, height *uint64) ([]byte, error) {
