@@ -168,10 +168,10 @@ func NewMinorBlockChain(
 	}
 	if cacheConfig == nil {
 		cacheConfig = &CacheConfig{
-			TrieCleanLimit: 256,
-			TrieDirtyLimit: 256,
+			TrieCleanLimit: 128,
+			TrieDirtyLimit: 128,
 			TrieTimeLimit:  5 * time.Minute,
-			Disabled:       true, //update trieDB every block
+			Disabled:       true,
 		}
 	}
 	receiptsCache, _ := lru.New(receiptsCacheLimit)
@@ -210,6 +210,7 @@ func NewMinorBlockChain(
 			CheckBlocks: 5,
 			Percentile:  50,
 		},
+		logInfo: fmt.Sprintf("shard:%d", fullShardID),
 	}
 	var err error
 	bc.gasLimit, err = bc.clusterConfig.Quarkchain.GasLimit(bc.branch.Value)
@@ -440,19 +441,19 @@ func (m *MinorBlockChain) SkipDifficultyCheck() bool {
 func (m *MinorBlockChain) GetAdjustedDifficulty(header types.IHeader) (*big.Int, uint64, error) {
 	diff := header.GetDifficulty()
 	if m.posw.IsPoSWEnabled(header) {
-		preHeight := header.NumberU64() - 1
-		balance, err := m.GetBalance(header.GetCoinbase().Recipient, &preHeight)
+		preHash := header.GetParentHash()
+		balance, err := m.GetBalance(header.GetCoinbase().Recipient, &preHash)
 		if err != nil {
-			log.Error("PoSW", "failed to get coinbase balance", err)
+			log.Error(m.logInfo, "PoSW: failed to get coinbase balance", err)
 			return nil, 0, err
 		}
 		poswAdjusted, err := m.posw.PoSWDiffAdjust(header, balance.GetTokenBalance(m.clusterConfig.Quarkchain.GetDefaultChainTokenID()))
 		if err != nil {
-			log.Error("PoSW", "PoSWDiffAdjust err", err)
+			log.Error(m.logInfo, "PoSW: err", err)
 			return nil, 0, err
 		}
 		if poswAdjusted != nil && poswAdjusted.Cmp(diff) == -1 {
-			log.Info("PoSW applied", "from", diff, "to", poswAdjusted)
+			log.Debug(m.logInfo, "PoSW: from", diff, "to", poswAdjusted)
 			diff = poswAdjusted
 		}
 	}
@@ -636,6 +637,16 @@ func (m *MinorBlockChain) GetBlockByNumber(number uint64) types.IBlock {
 		return nil
 	}
 	return m.GetBlock(hash)
+}
+
+func (m *MinorBlockChain) GetHashByHeight(height *uint64) (common.Hash, error) {
+	if height != nil {
+		hash := rawdb.ReadCanonicalHash(m.db, rawdb.ChainTypeMinor, *height)
+		if bytes.Equal(common.Hash{}.Bytes(), hash.Bytes()) {
+			return hash, fmt.Errorf("shard %v do no have this  height  %v", m.branch.Value, *height)
+		}
+	}
+	return m.CurrentBlock().Hash(), nil
 }
 
 // GetReceiptsByHash retrieves the receipts for all transactions in a given block.
@@ -1117,7 +1128,7 @@ func (m *MinorBlockChain) InsertChainForDeposits(chain []types.IBlock, isCheckDB
 	if confirmed == nil {
 		log.Warn("confirmed is nil")
 	} else {
-		log.Info("add Minor block End", "tip", m.CurrentBlock().NumberU64(), "tipHash", m.CurrentBlock().Hash().String(), "to add", chain[0].NumberU64(), "hash", chain[0].NumberU64(), "confirmed", confirmed.Number)
+		log.Debug(m.logInfo, "tip", m.CurrentBlock().NumberU64(), "tipHash", m.CurrentBlock().Hash().String(), "to add", chain[0].NumberU64(), "hash", chain[0].NumberU64(), "confirmed", confirmed.Number)
 	}
 
 	return n, xShardList, err
@@ -1849,7 +1860,7 @@ func (m *MinorBlockChain) GetRootChainStakes(coinbase account.Recipient, lastMin
 	contractAddress := vm.SystemContracts[vm.ROOT_CHAIN_POSW].Address()
 	code := evmState.GetCode(contractAddress)
 	if code == nil {
-		return nil, nil, errors.New("PoSW-on-root-chain contract is not found")
+		return nil, nil, ErrPoswOnRootChainIsNotFound
 	}
 	codeHash := crypto.Keccak256Hash(code)
 	//have to make sure the code is expected

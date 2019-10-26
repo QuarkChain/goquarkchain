@@ -267,7 +267,7 @@ func loadGenesisAddrs(file string) ([]GenesisAddress, error) {
 	var addresses []GenesisAddress
 	fp, err := os.Open(file)
 	if err != nil {
-		log.Warn("loadGenesisAddr", "no such file", file)
+		log.Debug("loadGenesisAddr", "no such file", file)
 		return addresses, nil
 	}
 	defer fp.Close()
@@ -336,7 +336,7 @@ func UpdateGenesisAlloc(cluserConfig *ClusterConfig) error {
 			}
 			shard.Genesis.Alloc[address] = allocation
 		}
-		log.Info("Load template genesis accounts", "chain id", chainId, "imported", len(addresses), "config file", allocFile)
+		log.Debug("Load template genesis accounts", "chain id", chainId, "imported", len(addresses), "config file", allocFile)
 	}
 
 	items, err := loadGenesisAddrs(loadtestFile)

@@ -177,7 +177,7 @@ func runTests(t *testing.T, deserialize func([]byte, interface{}) error) {
 
 func TestDeserialize(t *testing.T) {
 	runTests(t, func(input []byte, into interface{}) error {
-		return Deserialize(&ByteBuffer{input, 0}, into)
+		return Deserialize(NewByteBuffer(input), into)
 	})
 }
 
@@ -192,7 +192,7 @@ func ExampleDeserialize() {
 	}
 
 	var s example
-	err := Deserialize(&ByteBuffer{input, 0}, &s)
+	err := Deserialize(NewByteBuffer(input), &s)
 	if err != nil {
 		fmt.Printf("Error: %v\n", err)
 	} else {
@@ -209,7 +209,7 @@ func ExampleDeserialize_structTagNilAndIgnore() {
 	input := []byte{0x00, 0x01, 0x03, 0x04, 0x05, 0x06}
 
 	s := new(structForTest)
-	Deserialize(&ByteBuffer{input, 0}, &s)
+	Deserialize(NewByteBuffer(input), &s)
 	fmt.Printf("From = %v\n", *s.From)
 	fmt.Printf("To = %v\n", *s.To)
 
@@ -229,7 +229,7 @@ func ExampleDeserialize_structTagNil() {
 	var normalRules struct {
 		String *[]byte
 	}
-	Deserialize(&ByteBuffer{input, 0}, &normalRules)
+	Deserialize(NewByteBuffer(input), &normalRules)
 	fmt.Printf("normal: String = %v\n", *normalRules.String)
 
 	// This type uses the struct tag.
@@ -237,7 +237,7 @@ func ExampleDeserialize_structTagNil() {
 	var withEmptyOK struct {
 		String *[]byte `ser:"nil"`
 	}
-	Deserialize(&ByteBuffer{input, 0}, &withEmptyOK)
+	Deserialize(NewByteBuffer(input), &withEmptyOK)
 	fmt.Printf("with nil tag: String = %v\n", withEmptyOK.String)
 
 	// Output:
@@ -253,7 +253,7 @@ func BenchmarkDeserialize(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 		var s []uint
-		bb := &ByteBuffer{enc, 0}
+		bb := NewByteBuffer(enc)
 		if err := Deserialize(bb, &s); err != nil {
 			b.Fatalf("Deserialize error: %v", err)
 		}
@@ -268,7 +268,7 @@ func BenchmarkDeserializeIntSliceReuse(b *testing.B) {
 
 	var s []uint
 	for i := 0; i < b.N; i++ {
-		bb := &ByteBuffer{enc, 0}
+		bb := NewByteBuffer(enc)
 		if err := Deserialize(bb, &s); err != nil {
 			b.Fatalf("Deserialize error: %v", err)
 		}

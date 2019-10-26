@@ -51,6 +51,7 @@ var AppHelpFlagGroups = []flagGroup{
 			ClusterConfigFlag,
 			utils.LogLevelFlag,
 			utils.CleanFlag,
+			utils.CacheFlag,
 			utils.StartSimulatedMiningFlag,
 			utils.GenesisDirFlag,
 			utils.NumShardsFlag,
