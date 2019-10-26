@@ -161,8 +161,7 @@ func (tx *EvmTransaction) getUnsignedHash() common.Hash {
 		ToFullShardKey:   tx.data.ToFullShardKey,
 		GasTokenID:       tx.data.GasTokenID,
 		TransferTokenID:  tx.data.TransferTokenID,
-
-		NetworkId: tx.data.NetworkId,
+		NetworkId:        tx.data.NetworkId,
 	}
 	return rlpHash(unsigntx)
 }
