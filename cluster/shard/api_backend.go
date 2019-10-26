@@ -193,7 +193,7 @@ func (s *ShardBackend) NewMinorBlock(block *types.MinorBlock) (err error) {
 	}
 
 	if !s.MinorBlockChain.HasBlock(block.Header().ParentHash) && s.mBPool.getBlockInPool(block.ParentHash()) == nil {
-		log.Info("prarent block hash not be included", "parent hash: ", block.Header().ParentHash.Hex())
+		log.Debug("prarent block hash not be included", "parent hash: ", block.Header().ParentHash.Hex())
 		return
 	}
 
@@ -241,7 +241,7 @@ func (s *ShardBackend) AddMinorBlock(block *types.MinorBlock) error {
 	currHead := s.MinorBlockChain.CurrentBlock().Header()
 	_, xshardLst, err := s.MinorBlockChain.InsertChainForDeposits([]types.IBlock{block}, false)
 	if err != nil || len(xshardLst) != 1 {
-		log.Error("Failed to add minor block", "err", err)
+		log.Error("Failed to add minor block", "err", err, "len", len(xshardLst))
 		return err
 	}
 	// only remove from pool if the block successfully added to state,
