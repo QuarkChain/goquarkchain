@@ -2,14 +2,11 @@
 
 ## Environment Setup
 
-To run loadtest, you need to get your own GoQuarkChain clusters up and running.
-
-### Automatic Tool
- 
-[A handy tool](../../tools/README.md) has been provided for you to deploy clusters to remote hosts based on Docker image for your convenience.
+In order to run loadtest, you need to get your own GoQuarkChain clusters up and running.
 
 If you are interested in building everything from scratch, please refer to the [instruction](../../README.md#development-setup) to set up development environment for each for your hosts, then [run clusters](../../README.md#running-clusters) on them.
 
+To save your time and effort, [an automatic tool](./deployer) has been provided for you to deploy clusters to remote hosts based on Docker image for your convenience. Please refer to [deployer guide](./deployer/README.md) for detail.
 
 ## Start Mining
 
