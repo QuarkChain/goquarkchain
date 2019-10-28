@@ -1047,6 +1047,10 @@ func (m *MinorBlockChain) GetShardStats() (*rpc.ShardStatus, error) {
 	}, nil
 }
 
+func (m *MinorBlockChain) GetPendingCount() int {
+	return m.txPool.PendingCount()
+}
+
 // EstimateGas estimate gas for this tx
 func (m *MinorBlockChain) EstimateGas(tx *types.Transaction, fromAddress account.Address) (uint32, error) {
 	// no need to locks

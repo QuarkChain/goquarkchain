@@ -2,13 +2,14 @@ package qkcapi
 
 import (
 	"errors"
+	"math/big"
+
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/params"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
-	"math/big"
 )
 
 // CallArgs represents the arguments for a call.
@@ -57,8 +58,8 @@ func (c *CallArgs) toTx(config *config.QuarkChainConfig) (*types.Transaction, er
 }
 
 type CreateTxArgs struct {
-	NumTxPreShard    *hexutil.Uint   `json:"numTxPerShard"`
-	XShardPrecent    *hexutil.Uint   `json:"xShardPercent"`
+	NumTxPreShard    *uint32         `json:"numTxPerShard"`
+	XShardPrecent    *uint32         `json:"xShardPercent"`
 	To               *common.Address `json:"to"`
 	Gas              *hexutil.Big    `json:"gas"`
 	GasPrice         *hexutil.Big    `json:"gasPrice"`

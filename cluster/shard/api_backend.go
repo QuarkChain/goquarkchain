@@ -18,6 +18,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
+	"golang.org/x/sync/errgroup"
 )
 
 var (
@@ -55,16 +56,40 @@ func (s *ShardBackend) GetAllTx(start []byte, limit uint32) ([]*rpc.TransactionD
 }
 
 func (s *ShardBackend) GenTx(genTxs *rpc.GenTxRequest) error {
+	allTxNumber := int(genTxs.NumTxPerShard)
+	for allTxNumber >= 0 {
+		pendingCnt := s.MinorBlockChain.GetPendingCount()
+		needAddCnt := allTxNumber
+		if pendingCnt <= 60000 {
+			if needAddCnt > 12000 {
+				needAddCnt = 12000
+			}
+		}
+		genTxs.NumTxPerShard = uint32(needAddCnt)
+
+		if err := s.genTxWithNumber(genTxs); err != nil {
+			return err
+		}
+		time.Sleep(5 * time.Second)
+		allTxNumber -= needAddCnt
+	}
+	return nil
+}
+
+func (s *ShardBackend) genTxWithNumber(genTxs *rpc.GenTxRequest) error {
+	var g errgroup.Group
 	for index := 0; index < len(s.txGenerator); index++ {
 		i := index
-		go func() {
+		g.Go(func() error {
 			err := s.txGenerator[i].Generate(genTxs, s.AddTxList)
 			if err != nil {
 				log.Error(s.logInfo, "GenTx err", err)
 			}
-		}()
+			return err
+		})
+
 	}
-	return nil
+	return g.Wait()
 }
 
 func (s *ShardBackend) GetLogs(hash common.Hash) ([][]*types.Log, error) {
