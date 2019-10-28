@@ -45,4 +45,3 @@ WORKDIR $GOPATH/src/github.com/QuarkChain/goquarkchain/consensus/qkchash/native
 RUN g++ -shared -o libqkchash.so -fPIC qkchash.cpp -O3 -std=gnu++17 && make
 WORKDIR $GOPATH/src/github.com/QuarkChain/goquarkchain/cmd/cluster
 RUN go build
-EXPOSE 22 38291 38391 38491
