@@ -3,10 +3,11 @@ package deploy
 import (
 	"bytes"
 	"fmt"
-	"github.com/ethereum/go-ethereum/log"
-	"golang.org/x/crypto/ssh"
 	"net"
 	"time"
+
+	"github.com/ethereum/go-ethereum/log"
+	"golang.org/x/crypto/ssh"
 )
 
 type SSHSession struct {
@@ -19,7 +20,7 @@ func NewSSHConnect(user, password, host string, port int) *SSHSession {
 }
 
 func (s *SSHSession) RunCmd(cmd string) {
-	log.Debug("cmd", "host", s.host, "cmd", cmd)
+	log.Debug("run cmd", "host", s.host, "cmd", cmd)
 	var stdOut, stdErr bytes.Buffer
 	session, err := SSHConnect(s.user, s.password, s.host, s.port)
 	CheckErr(err)
