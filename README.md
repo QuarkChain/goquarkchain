@@ -140,7 +140,7 @@ You can read the full bootnode URL from the console output. Then start other clu
 ```
 
 ## Monitoring Clusters
-Use the [`stats`](https://github.com/QuarkChain/goquarkchain/cmd/stats) tool in the repo to monitor the status of a cluster. It queries the given cluster through JSON RPC every 10 seconds and produces an entry. 
+Use the [`stats`](cmd/stats) tool in the repo to monitor the status of a cluster. It queries the given cluster through JSON RPC every 10 seconds and produces an entry. 
 ```bash
 cd cmd/stats
 go build
@@ -165,7 +165,7 @@ Timestamp               Syncing TPS     Pend.TX Conf.TX BPS     SBPS    CPU     
 
 ```
 ## JSON RPC
-JSON RPCs are defined in [`rpc.proto`](https://github.com/QuarkChain/goquarkchain/blob/master/cluster/rpc/rpc.proto). Note that there are two JSON RPC ports. By default they are 38491 for private RPCs and 38391 for public RPCs. Since you are running your own clusters you get access to both.
+JSON RPCs are defined in [`rpc.proto`](cluster/rpc/rpc.proto). Note that there are two JSON RPC ports. By default they are 38491 for private RPCs and 38391 for public RPCs. Since you are running your own clusters you get access to both.
 
 Public RPCs are documented in the [Developer Guide](https://developers.quarkchain.io/#json-rpc). You can use the client library [quarkchain-web3.js](https://github.com/QuarkChain/quarkchain-web3.js) to query account state, send transactions, deploy and call smart contracts. Here is [a simple example](https://gist.github.com/qcgg/1ab0352c5b2299270b5795648cca83d8) to deploy smart contract on QuarkChain using the client library.
 ## Loadtest
