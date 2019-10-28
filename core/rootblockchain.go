@@ -1091,8 +1091,16 @@ func (bc *RootBlockChain) GetAncestor(hash common.Hash, number, ancestor uint64,
 	return bc.headerChain.GetAncestor(hash, number, ancestor, maxNonCanonical)
 }
 
+func (bc *RootBlockChain) GetParentHashByHash(hash common.Hash) common.Hash {
+	if b := bc.GetBlock(hash); b == nil {
+		return common.Hash{}
+	} else {
+		return b.(*types.RootBlock).ParentHash()
+	}
+}
+
 func (bc *RootBlockChain) isSameChain(longerChainHeader, shorterChainHeader *types.RootBlockHeader) bool {
-	return bc.headerChain.isSameChain(longerChainHeader, shorterChainHeader)
+	return isSameChain2(bc.GetParentHashByHash, longerChainHeader, shorterChainHeader)
 }
 
 func (bc *RootBlockChain) AddValidatedMinorBlockHeader(hash common.Hash, coinbaseToken *types.TokenBalances) {

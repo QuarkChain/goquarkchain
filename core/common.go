@@ -1,15 +1,17 @@
 package core
 
 import (
-	"github.com/QuarkChain/goquarkchain/common"
-	"github.com/QuarkChain/goquarkchain/core/rawdb"
 	"github.com/QuarkChain/goquarkchain/core/types"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
-	"reflect"
 	"runtime/debug"
 )
 
-func isSameChain(db rawdb.DatabaseReader, longerChainHeader, shorterChainHeader types.IHeader) bool {
+var (
+	emptyHash = common.Hash{}
+)
+
+func isSameChain2(getParentHash func(common.Hash) common.Hash, longerChainHeader, shorterChainHeader types.IHeader) bool {
 	if longerChainHeader.NumberU64() < shorterChainHeader.NumberU64() {
 		debug.PrintStack()
 		log.Crit("wrong parameter order", "long.Number", longerChainHeader.NumberU64(), "long.Hash", longerChainHeader.Hash().String(), "short.Number", shorterChainHeader.NumberU64(), "short.hash", shorterChainHeader.Hash().String())
@@ -17,28 +19,18 @@ func isSameChain(db rawdb.DatabaseReader, longerChainHeader, shorterChainHeader 
 	if shorterChainHeader.NumberU64() == longerChainHeader.NumberU64() {
 		return shorterChainHeader.Hash() == longerChainHeader.Hash()
 	}
-
-	header := longerChainHeader
-	var chainType rawdb.ChainType
-	switch {
-	case reflect.TypeOf(header) == reflect.TypeOf(new(types.RootBlockHeader)):
-		chainType = rawdb.ChainTypeRoot
-	case reflect.TypeOf(header) == reflect.TypeOf(new(types.MinorBlockHeader)):
-		chainType = rawdb.ChainTypeMinor
-	default:
-		log.Crit("bad header type", "type", reflect.TypeOf(header))
+	if shorterChainHeader.NumberU64()+1 == longerChainHeader.NumberU64() {
+		return shorterChainHeader.Hash() == longerChainHeader.GetParentHash()
 	}
+
 	diff := longerChainHeader.NumberU64() - shorterChainHeader.NumberU64()
+	hash := longerChainHeader.GetParentHash()
 	for i := uint64(0); i < diff-1; i++ {
-		if chainType == rawdb.ChainTypeRoot {
-			header = rawdb.ReadRootBlockHeader(db, header.GetParentHash())
-		} else {
-			header = rawdb.ReadMinorBlockHeader(db, header.GetParentHash())
-		}
-		if common.IsNil(header) {
+		hash = getParentHash(hash)
+		if hash == emptyHash {
 			log.Crit("mysteriously missing blocks", "long.Number", longerChainHeader.NumberU64(), "long.Hash", longerChainHeader.Hash().String(), "short.Number", shorterChainHeader.NumberU64(), "short.hash", shorterChainHeader.Hash().String())
 		}
 	}
 
-	return header.GetParentHash() == shorterChainHeader.Hash()
+	return hash == shorterChainHeader.Hash()
 }
