@@ -92,9 +92,6 @@ func (s *ShardBackend) genTx(genTxs *rpc.GenTxRequest) error {
 	for index := 0; index < len(s.txGenerator); index++ {
 		i := index
 		g.Go(func() error {
-			if len(s.txGenerator[i].accounts) == 0 {
-				return errors.New("not load account")
-			}
 			err := s.txGenerator[i].Generate(genTxs, s.AddTxList)
 			if err != nil {
 				log.Error(s.logInfo, "GenTx err", err)
