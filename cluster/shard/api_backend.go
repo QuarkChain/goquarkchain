@@ -18,7 +18,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
-	"golang.org/x/sync/errgroup"
 )
 
 var (
@@ -404,34 +403,25 @@ func (s *ShardBackend) setHead(head uint64) {
 
 func (s *ShardBackend) AddTxList(txs []*types.Transaction, peerID string) error {
 	ts := time.Now()
-	var g errgroup.Group
-	g.Go(func() error {
-		if err := s.MinorBlockChain.AddTxList(txs); err != nil {
-			log.Error(s.logInfo, "AddTxList err", err)
-			return err
-		}
-		return nil
-	})
 
-	g.Go(func() error {
+	if err := s.MinorBlockChain.AddTxList(txs); err != nil {
+		log.Error(s.logInfo, "AddTxList err", err)
+		return err
+	}
+
+	go func() {
 		span := len(txs) / params.NEW_TRANSACTION_LIST_LIMIT
 		for index := 0; index < span; index++ {
 			if err := s.conn.BroadcastTransactions(txs[index*params.NEW_TRANSACTION_LIST_LIMIT:(index+1)*params.NEW_TRANSACTION_LIST_LIMIT], s.branch.Value, peerID); err != nil {
 				log.Error(s.logInfo, "broadcastTransaction err", err)
-				return err
 			}
 		}
 		if len(txs)%params.NEW_TRANSACTION_LIST_LIMIT != 0 {
 			if err := s.conn.BroadcastTransactions(txs[span*params.NEW_TRANSACTION_LIST_LIMIT:], s.branch.Value, peerID); err != nil {
 				log.Error(s.logInfo, "broadcastTransaction err", err)
-				return err
 			}
 		}
-		return nil
-	})
-	if err := g.Wait(); err != nil {
-		return err
-	}
+	}()
 	log.Info("time-tx-insert-end", "time", time.Now().Sub(ts).Seconds(), "len(tx)", len(txs))
 	return nil
 }

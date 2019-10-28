@@ -1710,11 +1710,13 @@ func (m *MinorBlockChain) AddTxList(txs []*types.Transaction) error {
 	}
 	log.Info("recover", "len", len(txs), "dur", time.Now().Sub(ts).Seconds())
 	ts = time.Now()
-	for _, tx := range txs {
-		if err := m.txPool.AddLocal(tx); err != nil {
+	errList := m.txPool.AddLocals(txs)
+	for _, err := range errList {
+		if err != nil {
 			return err
 		}
 	}
-	log.Info("AddLocal", "len", len(txs), "dur", time.Now().Sub(ts).Seconds())
+
+	log.Info("AddLocals", "len", len(txs), "dur", time.Now().Sub(ts).Seconds())
 	return nil
 }
