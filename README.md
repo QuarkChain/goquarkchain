@@ -163,7 +163,7 @@ JSON RPCs are defined in [`rpc.proto`](cluster/rpc/rpc.proto). Note that there a
 
 Public RPCs are documented in the [Developer Guide](https://developers.quarkchain.io/#json-rpc). You can use the client library [quarkchain-web3.js](https://github.com/QuarkChain/quarkchain-web3.js) to query account state, send transactions, deploy and call smart contracts. Here is [a simple example](https://gist.github.com/qcgg/1ab0352c5b2299270b5795648cca83d8) to deploy smart contract on QuarkChain using the client library.
 ## Loadtest
-Run loadtest to your cluster and see how fast it processes large volume of transactions. Please refer to [Loadtest Guide](tests/loadtest/README.md) for instructions.
+Run loadtest to your cluster and see how fast it processes large volume of transactions. Please refer to [Loadtest Instruction](tests/loadtest/README.md#loadtest-instruction) for detail.
 
 ## Issue
 Please open issues on github to report bugs or make feature requests.
