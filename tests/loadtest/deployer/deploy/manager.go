@@ -17,6 +17,7 @@ import (
 var (
 	clusterPath       = "../../../cmd/cluster/cluster"
 	clusterConfigPath = "./cluster_config_template.json"
+	gensisAccountPath = "../../tests/loadtest/accounts"
 )
 
 func CheckErr(err error) {

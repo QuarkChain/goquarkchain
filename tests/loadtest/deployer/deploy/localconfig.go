@@ -121,7 +121,7 @@ func GenConfigDependInitConfig(chainSize uint32, shardSizePerChain uint32, ipLis
 	defaultChainConfig := *cfg.Quarkchain.Chains[0]
 
 	//update account
-	cfg.GenesisDir = "../accounts"
+	cfg.GenesisDir = gensisAccountPath
 
 	cfg.Quarkchain.TransactionQueueSizeLimitPerShard = 100000
 
