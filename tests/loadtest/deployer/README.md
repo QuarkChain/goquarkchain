@@ -5,7 +5,7 @@ services to build and start a cluster in one line command.
 
 It is encouraged that you build your own deploy scripts or tools, especially if you prefer different service distribution 
 among hosts.  You can also build your own Docker image, starting from [this Dockerfile](../Dockerfile), or if you are 
-interested in build everything without Docker, starting from [here](../../../README.md#development-setup). 
+interested in build everything without Docker, start from [here](../../../README.md#development-setup). 
 
 ## Run Docker Image
 
@@ -54,14 +54,12 @@ go run deploy_cluster.go
 The deploying process will be printed on the console log. 
 ## Check Cluster Status
 
-To check the status of the cluster, you need to enter the Docker container on the target hosts and check the service log:
+To check the status of the cluster, you need to enter the Docker container on the target hosts: 
 ```bash
-# enter the container
 docker exec  -it bjqkc /bin/bash
-$ tail -f $GOPATH/src/github.com/QuarkChain/goquarkchain/cmd/master.log
 ```
-If everything goes correctly, you will see from the log that cluster start successfully, and 12,000 accounts loaded 
-automatically for each shard.
+If everything goes correctly, you will see from `$GOPATH/src/github.com/QuarkChain/goquarkchain/cmd/master.log` that 
+cluster start successfully, and 12,000 accounts loaded automatically for each shard.
 
 Try the following command to see if mining works:
 ```bash
