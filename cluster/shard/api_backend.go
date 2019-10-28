@@ -56,7 +56,7 @@ func (s *ShardBackend) GetAllTx(start []byte, limit uint32) ([]*rpc.TransactionD
 }
 
 func (s *ShardBackend) GenTx(genTxs *rpc.GenTxRequest) error {
-	allTxNumber := int(genTxs.NumTxPerShard)
+	allTxNumber := int(genTxs.NumTxPerShard) / len(s.txGenerator)
 	for allTxNumber > 0 {
 		pendingCnt := s.MinorBlockChain.GetPendingCount()
 		needAddCnt := allTxNumber
