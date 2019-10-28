@@ -70,9 +70,8 @@ source ~/.profile
 ### Setup GoQuarkChain
 Install GoQuarkChain 
 ```bash
-sudo mkdir -p $GOPATH/src/github.com/QuarkChain
-cd $GOPATH/src/github.com/QuarkChain
-sudo git clone https://github.com/QuarkChain/goquarkchain.git
+mkdir -p $GOPATH/src/github.com/QuarkChain && cd $_
+git clone https://github.com/QuarkChain/goquarkchain.git
 #build qkchash
 cd goquarkchain/consensus/qkchash/native
 sudo g++ -shared -o libqkchash.so -fPIC qkchash.cpp -O3 -std=gnu++17

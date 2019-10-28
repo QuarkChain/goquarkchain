@@ -37,7 +37,7 @@ curl -X POST -H 'content-type: application/json' --data '{"jsonrpc":"2.0","metho
 
 ## Generate Transactions
 
-Request the cluster through `createTransactions` JSON RPC to generate transactions on each shard. NOTE the parameters are encoded in Hex.
+Request the cluster through `createTransactions` JSON RPC to generate transactions on each shard.
 
 ```bash
 curl -X POST -H 'content-type: application/json' --data '{"jsonrpc": "2.0","method": "createTransactions","params": [{ "numTxPerShard": "10000","xShardPercent": "0x0"}],"id": 1}' http://127.0.0.1:38491
