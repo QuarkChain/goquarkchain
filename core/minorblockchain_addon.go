@@ -16,11 +16,13 @@ import (
 	"github.com/QuarkChain/goquarkchain/core/state"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/core/vm"
+	"github.com/QuarkChain/goquarkchain/params"
 	"github.com/QuarkChain/goquarkchain/qkcdb"
 	qrpc "github.com/QuarkChain/goquarkchain/rpc"
 	"github.com/QuarkChain/goquarkchain/serialize"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
+	"golang.org/x/sync/errgroup"
 )
 
 var (
@@ -1652,6 +1654,7 @@ func CountAddressFromSlice(lists []account.Recipient, recipient account.Recipien
 	}
 	return cnt
 }
+
 func (m *MinorBlockChain) PoswInfo(mBlock *types.MinorBlock) (*rpc.PoSWInfo, error) {
 	if mBlock == nil {
 		return nil, errors.New("get powInfo err:mBlock is full")
@@ -1683,6 +1686,7 @@ func (m *MinorBlockChain) getXShardDepositHashList(h common.Hash) *rawdb.HashLis
 func (m *MinorBlockChain) IsMinorBlockCommittedByHash(h common.Hash) bool {
 	return rawdb.HasCommitMinorBlock(m.db, h)
 }
+
 func (m *MinorBlockChain) CommitMinorBlockByHash(h common.Hash) {
 	rawdb.WriteCommitMinorBlock(m.db, h)
 }
@@ -1690,4 +1694,44 @@ func (m *MinorBlockChain) CommitMinorBlockByHash(h common.Hash) {
 func (m *MinorBlockChain) GetMiningInfo(address account.Recipient, stake *types.TokenBalances) (mineable, mined uint64, err error) {
 	_, mineable, mined, err = m.posw.GetPoSWInfo(m.CurrentHeader(), stake.GetTokenBalance(m.Config().GetDefaultChainTokenID()))
 	return
+}
+
+func recoverSender(txs []*types.Transaction, networkID uint32) error {
+	sender := types.NewEIP155Signer(networkID)
+	for _, tx := range txs {
+		_, err := types.Sender(sender, tx.EvmTx)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (m *MinorBlockChain) AddTxList(txs []*types.Transaction) error {
+	ts := time.Now()
+	interval := len(txs) / params.TPS_Num
+	var g errgroup.Group
+	for index := 0; index < params.TPS_Num; index++ {
+		i := index
+		g.Go(func() error {
+			if err := recoverSender(txs[i*interval:(i+1)*interval], m.clusterConfig.Quarkchain.NetworkID); err != nil {
+				return err
+			}
+			return nil
+		})
+	}
+	if err := g.Wait(); err != nil {
+		return err
+	}
+	log.Info("recover", "len", len(txs), "dur", time.Now().Sub(ts).Seconds())
+	ts = time.Now()
+	errList := m.txPool.AddLocals(txs)
+	for _, err := range errList {
+		if err != nil {
+			return err
+		}
+	}
+
+	log.Info("AddLocals", "len", len(txs), "dur", time.Now().Sub(ts).Seconds())
+	return nil
 }

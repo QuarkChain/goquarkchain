@@ -433,7 +433,7 @@ func TestBroadcastTransactions(t *testing.T) {
 
 	for _, conn := range shardConns {
 		conn.(*mock_master.MockShardConnForP2P).EXPECT().
-			AddTransactions(gomock.Any()).DoAndReturn(func(request *p2p.NewTransactionList) (*rpc.HashList, error) {
+			AddTransactions(gomock.Any()).DoAndReturn(func(request *rpc.NewTransactionList) (*rpc.HashList, error) {
 			errc <- nil
 			return &rpc.HashList{Hashes: hashList}, nil
 		}).AnyTimes()

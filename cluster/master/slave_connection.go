@@ -520,7 +520,7 @@ func (s *SlaveConnection) GenTx(numTxPerShard, xShardPercent uint32, tx *types.T
 	return nil
 }
 
-func (s *SlaveConnection) AddTransactions(request *p2p.NewTransactionList) (*rpc.HashList, error) {
+func (s *SlaveConnection) AddTransactions(request *rpc.NewTransactionList) (*rpc.HashList, error) {
 	var (
 		rsp = new(rpc.HashList)
 		res = new(rpc.Response)

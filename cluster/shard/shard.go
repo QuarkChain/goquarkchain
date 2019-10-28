@@ -52,7 +52,7 @@ type ShardBackend struct {
 	MinorBlockChain *core.MinorBlockChain
 
 	mBPool      newBlockPool
-	txGenerator *TxGenerator
+	txGenerator []*TxGenerator
 
 	running      bool
 	mu           sync.Mutex

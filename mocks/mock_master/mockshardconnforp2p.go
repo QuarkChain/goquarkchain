@@ -39,7 +39,7 @@ func (m *MockShardConnForP2P) EXPECT() *MockShardConnForP2PMockRecorder {
 }
 
 // AddTransactions mocks base method
-func (m *MockShardConnForP2P) AddTransactions(request *p2p.NewTransactionList) (*rpc.HashList, error) {
+func (m *MockShardConnForP2P) AddTransactions(request *rpc.NewTransactionList) (*rpc.HashList, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AddTransactions", request)
 	ret0, _ := ret[0].(*rpc.HashList)
@@ -184,7 +184,7 @@ func (m *MockISlaveConn) EXPECT() *MockISlaveConnMockRecorder {
 }
 
 // AddTransactions mocks base method
-func (m *MockISlaveConn) AddTransactions(request *p2p.NewTransactionList) (*rpc.HashList, error) {
+func (m *MockISlaveConn) AddTransactions(request *rpc.NewTransactionList) (*rpc.HashList, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AddTransactions", request)
 	ret0, _ := ret[0].(*rpc.HashList)
