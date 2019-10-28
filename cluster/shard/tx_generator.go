@@ -20,14 +20,15 @@ import (
 )
 
 type TxGenerator struct {
-	cfg          *config.QuarkChainConfig
-	fullShardId  uint32
-	accounts     []AccountWithPrivateKey
-	once         sync.Once
-	lenAccounts  int
-	accountIndex int
-	turn         uint64
-	sender       types.Signer
+	cfg             *config.QuarkChainConfig
+	fullShardId     uint32
+	accounts        []AccountWithPrivateKey
+	once            sync.Once
+	lenAccounts     int
+	accountIndex    int
+	turn            uint64
+	sender          types.Signer
+	fullShardIDList []uint32
 }
 
 type AccountWithPrivateKey struct {
@@ -57,15 +58,22 @@ func NewTxGenerator(genesisDir string, fullShardId uint32, cfg *config.QuarkChai
 	interval := len(accounts) / params.TPS_Num
 	for index := 0; index < params.TPS_Num; index++ {
 		tgs[index] = &TxGenerator{
-			cfg:          cfg,
-			fullShardId:  fullShardId,
-			accounts:     accounts[index*interval : (index+1)*interval],
-			once:         sync.Once{},
-			lenAccounts:  interval,
-			accountIndex: 0,
-			turn:         0,
-			sender:       types.NewEIP155Signer(cfg.NetworkID),
+			cfg:             cfg,
+			fullShardId:     fullShardId,
+			accounts:        accounts[index*interval : (index+1)*interval],
+			once:            sync.Once{},
+			lenAccounts:     interval,
+			accountIndex:    0,
+			turn:            0,
+			sender:          types.NewEIP155Signer(cfg.NetworkID),
+			fullShardIDList: make([]uint32, 0),
 		}
+		for _, v := range cfg.GetGenesisShardIds() {
+			if v != fullShardId {
+				tgs[index].fullShardIDList = append(tgs[index].fullShardIDList, v)
+			}
+		}
+
 		log.Info("tx-generator", "index", index, "account len", len(tgs[index].accounts))
 	}
 	return tgs
@@ -158,9 +166,9 @@ func (t *TxGenerator) createTransaction(prvKey *ecdsa.PrivateKey, nonce uint64,
 	}
 
 	if xShardPercent >= 0 && t.random(100) < xShardPercent {
-		fullShardIds := t.cfg.GetGenesisShardIds()
-		idx := uint32(t.random(len(fullShardIds)))
-		toFullShardKey = fullShardIds[idx]
+		idx := uint32(t.random(len(t.fullShardIDList)))
+		toFullShardKey = t.fullShardIDList[idx]
+
 	}
 	value := sampleTx.EvmTx.Value()
 	if value.Uint64() == 0 {
@@ -168,7 +176,11 @@ func (t *TxGenerator) createTransaction(prvKey *ecdsa.PrivateKey, nonce uint64,
 		value = value.Mul(big.NewInt(int64(rv)), config.QuarkashToJiaozi)
 	}
 
-	evmTx := types.NewEvmTransaction(nonce, recipient, value, params.DefaultTxGasLimit.Uint64(),
+	gasLimit := params.DefaultInShardTxGasLimit.Uint64()
+	if fromFullShardKey != toFullShardKey {
+		gasLimit = params.DefaultCrossShardTxGasLimit.Uint64()
+	}
+	evmTx := types.NewEvmTransaction(nonce, recipient, value, gasLimit,
 		sampleTx.EvmTx.GasPrice(), fromFullShardKey, toFullShardKey, t.cfg.NetworkID, 0, sampleTx.EvmTx.Data(), qkcCommon.TokenIDEncode("QKC"), qkcCommon.TokenIDEncode("QKC"))
 
 	return types.SignTx(evmTx, t.sender, prvKey)

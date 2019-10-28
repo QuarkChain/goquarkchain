@@ -5,12 +5,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math/big"
+	"sort"
+
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	ethcom "github.com/ethereum/go-ethereum/common"
-	"math/big"
-	"sort"
 )
 
 var (
@@ -210,7 +211,7 @@ func (q *QuarkChainConfig) GetGenesisShardIds() []uint32 {
 func (q *QuarkChainConfig) GetInitializedShardIdsBeforeRootHeight(rootHeight uint32) []uint32 {
 	var result []uint32
 	for fullShardId, config := range q.shards {
-		if config.Genesis != nil && config.Genesis.RootHeight < rootHeight {
+		if config.Genesis != nil && config.Genesis.RootHeight <= rootHeight {
 			result = append(result, uint32(fullShardId))
 		}
 	}
