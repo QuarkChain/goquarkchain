@@ -493,10 +493,10 @@ func (s *SlaveBackend) GenTx(genTxs *rpc.GenTxRequest) error {
 	for _, shrd := range s.shards {
 		sd := shrd
 		g.Go(func() error {
-			go sd.GenTx(genTxs)
-			if !shrd.AccountForTPSReady() {
+			if !sd.AccountForTPSReady() {
 				return errors.New("account for tps ready")
 			}
+			go sd.GenTx(genTxs)
 			return nil
 		})
 	}
