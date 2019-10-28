@@ -130,6 +130,7 @@ type BroadcastMinorBlock struct {
 type BroadcastTransactions struct {
 	Branch uint32               `json:"branch" gencodec:"required"`
 	Txs    []*types.Transaction `json:"txs" gencodec:"required" bytesizeofslicelen:"4"`
+	PeerID string               `json:"peer_id" gencodec:"required"`
 }
 
 type MinorHeadRequest struct {
@@ -413,4 +414,10 @@ type GetRootChainStakesRequest struct {
 type GetRootChainStakesResponse struct {
 	Stakes *big.Int           `json:"stakes" gencodec:"required"`
 	Signer *account.Recipient `json:"signer" gencodec:"required"`
+}
+
+//NewTransactionList new transaction list
+type NewTransactionList struct {
+	TransactionList []*types.Transaction `bytesizeofslicelen:"4"`
+	PeerID          string               `json:"peerid" gencodec:"required"`
 }

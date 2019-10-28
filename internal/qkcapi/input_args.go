@@ -80,7 +80,7 @@ func (c *CreateTxArgs) setDefaults(config *config.QuarkChainConfig) error {
 		c.Gas = (*hexutil.Big)(params.DefaultStartGas)
 	}
 	if c.GasPrice == nil {
-		c.GasPrice = (*hexutil.Big)(new(big.Int).Div(params.DenomsValue.GWei, new(big.Int).SetUint64(10)))
+		c.GasPrice = (*hexutil.Big)(params.DefaultGasPrice.Div(params.DefaultGasPrice, new(big.Int).SetUint64(10)))
 	}
 	if c.Value == nil {
 		t := hexutil.Big{}

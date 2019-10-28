@@ -146,7 +146,7 @@ func (m *minorChainTask) downloadBlockHeaderListAndCheck(height, skip, limit uin
 	}
 
 	if len(mHeaders) != int(newLimit) {
-		return nil, errors.New("Bad peer sending incorrect number of root block headers ")
+		return nil, errors.New("Bad peer sending incorrect number of minor block headers ")
 	}
 
 	return mHeaders, nil

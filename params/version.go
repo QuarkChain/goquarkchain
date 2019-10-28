@@ -47,3 +47,9 @@ func VersionWithCommit(gitCommit string) string {
 	}
 	return vsn
 }
+
+var (
+	NEW_TRANSACTION_LIST_LIMIT = 1000
+
+	TPS_Num = 1
+)
