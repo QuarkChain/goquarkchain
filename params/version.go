@@ -51,5 +51,5 @@ func VersionWithCommit(gitCommit string) string {
 var (
 	NEW_TRANSACTION_LIST_LIMIT = 1000
 
-	TPS_Num = 1
+	TPS_Num = 2
 )

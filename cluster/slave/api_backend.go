@@ -493,7 +493,8 @@ func (s *SlaveBackend) GenTx(genTxs *rpc.GenTxRequest) error {
 	for _, shrd := range s.shards {
 		sd := shrd
 		g.Go(func() error {
-			return sd.GenTx(genTxs)
+			go sd.GenTx(genTxs)
+			return nil
 		})
 	}
 	return g.Wait()

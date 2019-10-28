@@ -121,7 +121,6 @@ func (t *TxGenerator) Generate(genTxs *rpc.GenTxRequest, addTxList func(txs []*t
 				return err
 			}
 			log.Info("addTxList end", "total", total, "numTx", numTx, "durtion", time.Now().Sub(ts).Seconds())
-			txList = txList[:0]
 			index = 0
 			ts = time.Now()
 		}
@@ -134,7 +133,7 @@ func (t *TxGenerator) Generate(genTxs *rpc.GenTxRequest, addTxList func(txs []*t
 	}
 
 	if len(txList) != 0 {
-		if err := addTxList(txList, ""); err != nil {
+		if err := addTxList(txList[:index], ""); err != nil {
 			return err
 		}
 	}

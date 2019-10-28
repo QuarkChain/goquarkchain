@@ -57,30 +57,35 @@ func (s *ShardBackend) GetAllTx(start []byte, limit uint32) ([]*rpc.TransactionD
 
 func (s *ShardBackend) GenTx(genTxs *rpc.GenTxRequest) error {
 	allTxNumber := int(genTxs.NumTxPerShard)
-	for allTxNumber >= 0 {
+	for allTxNumber > 0 {
 		pendingCnt := s.MinorBlockChain.GetPendingCount()
 		needAddCnt := allTxNumber
 		if pendingCnt <= 60000 {
 			if needAddCnt > 12000 {
 				needAddCnt = 12000
 			}
+		} else {
+			needAddCnt = 0
 		}
 		genTxs.NumTxPerShard = uint32(needAddCnt)
 
-		if err := s.genTxWithNumber(genTxs); err != nil {
+		fmt.Println("GGGGGGGGGGG", pendingCnt, genTxs.NumTxPerShard, allTxNumber)
+		if err := s.genTx(genTxs); err != nil {
 			return err
 		}
-		time.Sleep(5 * time.Second)
 		allTxNumber -= needAddCnt
 	}
 	return nil
 }
 
-func (s *ShardBackend) genTxWithNumber(genTxs *rpc.GenTxRequest) error {
+func (s *ShardBackend) genTx(genTxs *rpc.GenTxRequest) error {
 	var g errgroup.Group
 	for index := 0; index < len(s.txGenerator); index++ {
 		i := index
 		g.Go(func() error {
+			if len(s.txGenerator[i].accounts) == 0 {
+				return errors.New("not load account")
+			}
 			err := s.txGenerator[i].Generate(genTxs, s.AddTxList)
 			if err != nil {
 				log.Error(s.logInfo, "GenTx err", err)
