@@ -343,14 +343,14 @@ func TestCreateRootBlockToMine(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, rootBlock.Header().Signature, [65]byte{})
 	assert.Equal(t, rootBlock.Header().Coinbase, add1)
-	assert.Equal(t, rootBlock.Header().CoinbaseAmount.GetTokenBalance(testGenesisTokenID).String(), "120000000000000000000")
+	assert.Equal(t, rootBlock.CoinbaseAmount().GetTokenBalance(testGenesisTokenID).String(), "120000000000000000000")
 	assert.Equal(t, rootBlock.Header().Difficulty, new(big.Int).SetUint64(2000))
 
 	rawdb.DeleteBlock(master.chainDb, minorBlock.Hash())
 	rootBlock, err = master.createRootBlockToMine(add1)
 	assert.NoError(t, err)
 	assert.Equal(t, rootBlock.Header().Coinbase, add1)
-	assert.Equal(t, rootBlock.Header().CoinbaseAmount.GetTokenBalance(testGenesisTokenID).String(), "120000000000000000000")
+	assert.Equal(t, rootBlock.CoinbaseAmount().GetTokenBalance(testGenesisTokenID).String(), "120000000000000000000")
 	assert.Equal(t, rootBlock.Header().Difficulty, new(big.Int).SetUint64(2000))
 	assert.Equal(t, len(rootBlock.MinorBlockHeaders()), 0)
 }
@@ -370,7 +370,7 @@ func TestCreateRootBlockToMineWithSign(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotEqual(t, rootBlock.Header().Signature, [65]byte{})
 	assert.Equal(t, rootBlock.Header().Coinbase, add1)
-	assert.Equal(t, rootBlock.Header().CoinbaseAmount.GetTokenBalance(master.clusterConfig.Quarkchain.GetDefaultChainTokenID()).String(), "120000000000000000000")
+	assert.Equal(t, rootBlock.CoinbaseAmount().GetTokenBalance(master.clusterConfig.Quarkchain.GetDefaultChainTokenID()).String(), "120000000000000000000")
 	assert.Equal(t, rootBlock.Header().Difficulty, new(big.Int).SetUint64(2000))
 }
 

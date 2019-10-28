@@ -181,7 +181,7 @@ func (s *ShardBackend) initGenesisState(rootBlock *types.RootBlock) error {
 		return err
 	}
 
-	if err = s.conn.BroadcastXshardTxList(minorBlock, xshardList, rootBlock.Header().Number); err != nil {
+	if err = s.conn.BroadcastXshardTxList(minorBlock, xshardList, rootBlock.Number()); err != nil {
 		return err
 	}
 	if status, err = s.MinorBlockChain.GetShardStats(); err != nil {
@@ -192,7 +192,7 @@ func (s *ShardBackend) initGenesisState(rootBlock *types.RootBlock) error {
 		TxCount:           uint32(len(minorBlock.GetTransactions())),
 		XShardTxCount:     uint32(len(xshardList)),
 		ShardStats:        status,
-		CoinbaseAmountMap: minorBlock.Header().CoinbaseAmount,
+		CoinbaseAmountMap: minorBlock.CoinbaseAmount(),
 	}
 	return s.conn.SendMinorBlockHeaderToMaster(request)
 }
@@ -231,8 +231,8 @@ func (n *newBlockPool) setBlockInPool(header *types.MinorBlockHeader) {
 	n.BlockPool[header.Hash()] = header
 }
 
-func (n *newBlockPool) delBlockInPool(header *types.MinorBlockHeader) {
+func (n *newBlockPool) delBlockInPool(hash common.Hash) {
 	n.Mu.Lock()
 	defer n.Mu.Unlock()
-	delete(n.BlockPool, header.Hash())
+	delete(n.BlockPool, hash)
 }

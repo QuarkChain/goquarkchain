@@ -343,26 +343,26 @@ func (pool *TxPool) reset(oldBlock, newBlock *types.MinorBlock) {
 			}
 			for rem.NumberU64() > add.NumberU64() {
 				discarded = append(discarded, rem.Transactions()...)
-				if rem = pool.chain.GetMinorBlock(rem.IHeader().GetParentHash()); qkcCommon.IsNil(rem) {
+				if rem = pool.chain.GetMinorBlock(rem.ParentHash()); qkcCommon.IsNil(rem) {
 					log.Error("Unrooted old chain seen by tx pool", "block", oldHead.Number, "hash", oldHead.Hash())
 					return
 				}
 			}
 			for add.NumberU64() > rem.NumberU64() {
 				included = append(included, add.Transactions()...)
-				if add = pool.chain.GetMinorBlock(add.IHeader().GetParentHash()); qkcCommon.IsNil(add) {
+				if add = pool.chain.GetMinorBlock(add.ParentHash()); qkcCommon.IsNil(add) {
 					log.Error("Unrooted new chain seen by tx pool", "block", newHead.Number, "hash", newHead.Hash())
 					return
 				}
 			}
 			for rem.Hash() != add.Hash() {
 				discarded = append(discarded, rem.Transactions()...)
-				if rem = pool.chain.GetMinorBlock(rem.IHeader().GetParentHash()); qkcCommon.IsNil(rem) {
+				if rem = pool.chain.GetMinorBlock(rem.ParentHash()); qkcCommon.IsNil(rem) {
 					log.Error("Unrooted old chain seen by tx pool", "block", oldHead.Number, "hash", oldHead.Hash())
 					return
 				}
 				included = append(included, add.Transactions()...)
-				if add = pool.chain.GetMinorBlock(add.IHeader().GetParentHash()); qkcCommon.IsNil(add) {
+				if add = pool.chain.GetMinorBlock(add.ParentHash()); qkcCommon.IsNil(add) {
 					log.Error("Unrooted new chain seen by tx pool", "block", newHead.Number, "hash", newHead.Hash())
 					return
 				}

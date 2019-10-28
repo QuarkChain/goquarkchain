@@ -406,15 +406,15 @@ func TestAddRootBlockRequestList(t *testing.T) {
 	for i := 0; i < int(maxBlocks); i++ {
 		b0 = tipGen(geneAcc, shard0)
 		if err := shard0.AddMinorBlock(b0); err != nil {
-			t.Error("failed to add minor block", "fullShardId", b0.Header().Branch.Value, "err", err)
+			t.Error("failed to add minor block", "fullShardId", b0.Branch().Value, "err", err)
 		}
 	}
 	// minor block is downloaded
-	assert.Equal(t, b0.Header().Number, uint64(maxBlocks))
+	assert.Equal(t, b0.NumberU64(), uint64(maxBlocks))
 
 	b1 := tipGen(geneAcc, shard1)
 	if err := shard1.AddMinorBlock(b1); err != nil {
-		t.Error("failed to add minor block", "fullShardId", b1.Header().Branch.Value, "err", err)
+		t.Error("failed to add minor block", "fullShardId", b1.Branch().Value, "err", err)
 	}
 
 	// create and add root/minor block
@@ -425,11 +425,11 @@ func TestAddRootBlockRequestList(t *testing.T) {
 		t.Error("failed to get root block by number", "err", err)
 	}
 	assert.Equal(t, retryTrueWithTimeout(func() bool {
-		return rBlockTip0.Header().Hash() == rBlock0.Header().Hash()
+		return rBlockTip0.Hash() == rBlock0.Hash()
 	}, 20), true)
 	// make sure the root tip of cluster 1 is changed
 	assert.Equal(t, retryTrueWithTimeout(func() bool {
-		return mstr0.GetCurrRootHeader().Hash() == rBlock0.Header().Hash()
+		return mstr0.GetCurrRootHeader().Hash() == rBlock0.Hash()
 	}, 20), true)
 
 	assert.Equal(t, retryTrueWithTimeout(func() bool {
@@ -531,7 +531,7 @@ func TestBroadcastCrossShardTransactions(t *testing.T) {
 
 	b0 := iB0.(*types.MinorBlock)
 	b1 := iB1.(*types.MinorBlock)
-	b1.Header().Time += 1
+	b1.Time() += 1
 	assert.Equal(t, b0.Hash(), b1.Hash())
 	if err := shrd0.InsertMinedBlock(iB0); err != nil {
 		t.Error("failed to insert mined block", "fullShardId", id0, "err", err)
@@ -775,7 +775,7 @@ func TestHandleGetMinorBlockListRequestWithTotalDiff(t *testing.T) {
 	//Cluster 0 broadcasts the root block to clstrList 1
 	err = clstrList[0].master.AddRootBlock(rb1)
 	assert.NoError(t, err)
-	assert.Equal(t, clstrList[0].master.CurrentBlock().Hash(), rb1.Header().Hash())
+	assert.Equal(t, clstrList[0].master.CurrentBlock().Hash(), rb1.Hash())
 	//Make sure the root block tip of clstrList 1 is changed
 	assert.Equal(t, retryTrueWithTimeout(func() bool {
 		return clstrList[1].master.CurrentBlock().Hash() == rb1.Hash()
@@ -783,7 +783,7 @@ func TestHandleGetMinorBlockListRequestWithTotalDiff(t *testing.T) {
 
 	//Cluster 1 generates a minor block and broadcasts to clstrList 0
 	b1 := tipGen(nil, clstrList[1].GetShard(2))
-	err = clstrList[1].master.AddMinorBlock(b1.Header().Branch.Value, b1)
+	err = clstrList[1].master.AddMinorBlock(b1.Branch().Value, b1)
 	assert.NoError(t, err)
 	//Make sure another clstrList received the new minor block
 	assert.Equal(t, retryTrueWithTimeout(func() bool {
@@ -792,7 +792,7 @@ func TestHandleGetMinorBlockListRequestWithTotalDiff(t *testing.T) {
 	}, 20), true)
 
 	assert.Equal(t, retryTrueWithTimeout(func() bool {
-		b, _, err := clstrList[0].master.GetMinorBlockByHash(b1.Hash(), b1.Header().Branch, false)
+		b, _, err := clstrList[0].master.GetMinorBlockByHash(b1.Hash(), b1.Branch(), false)
 		if err != nil || b == nil {
 			return false
 		}
@@ -804,10 +804,10 @@ func TestHandleGetMinorBlockListRequestWithTotalDiff(t *testing.T) {
 		nil).Finalize(coinbaseAmount, nil, common.EmptyHash)
 	err = clstrList[1].master.AddRootBlock(rb2)
 	assert.NoError(t, err)
-	assert.Equal(t, clstrList[1].master.CurrentBlock().Hash(), rb2.Header().Hash())
+	assert.Equal(t, clstrList[1].master.CurrentBlock().Hash(), rb2.Hash())
 	//Generate a minor block b2
 	b2 := tipGen(nil, clstrList[1].GetShard(2))
-	err = clstrList[1].master.AddMinorBlock(b2.Header().Branch.Value, b2)
+	err = clstrList[1].master.AddMinorBlock(b2.Branch().Value, b2)
 	assert.NoError(t, err)
 	//Make sure another clstrList received the new minor block
 
@@ -817,7 +817,7 @@ func TestHandleGetMinorBlockListRequestWithTotalDiff(t *testing.T) {
 	}, 20), true)
 
 	assert.Equal(t, retryTrueWithTimeout(func() bool {
-		b, _, err := clstrList[0].master.GetMinorBlockByHash(b1.Hash(), b2.Header().Branch, false)
+		b, _, err := clstrList[0].master.GetMinorBlockByHash(b1.Hash(), b2.Branch(), false)
 		if err != nil || b == nil {
 			return false
 		}
@@ -835,13 +835,13 @@ func TestHandleGetMinorBlockListRequestWithTotalDiff(t *testing.T) {
 	clstrList.Start(5*time.Second, true)
 
 	b1 := tipGen(nil, clstrList[0].GetShard(2))
-	err := clstrList[0].master.AddMinorBlock(b1.Header().Branch.Value, b1)
+	err := clstrList[0].master.AddMinorBlock(b1.Branch().Value, b1)
 	assert.NoError(t, err)
 	// Update config to force checking diff
 	clstrList[0].clstrCfg.Quarkchain.SkipMinorDifficultyCheck = false
 	b2 := b1.CreateBlockToAppend(nil, big.NewInt(12345), nil, nil, nil,
 		nil, nil)
-	shard := clstrList[0].slavelist[0].GetShard(b2.Header().Branch.Value)
+	shard := clstrList[0].slavelist[0].GetShard(b2.Branch().Value)
 	_ = shard.HandleNewTip(nil, b2.Header(), "")
 	// Also the block should not exist in new block pool
 	inPool := func(bHash ethCommon.Hash) bool {
@@ -858,7 +858,7 @@ func TestHandleGetMinorBlockListRequestWithTotalDiff(t *testing.T) {
 		return false
 	}
 	assert.Equal(t, retryTrueWithTimeout(func() bool {
-		return !inPool(b2.Header().Hash())
+		return !inPool(b2.Hash())
 	}, 10), true)
 
 	clstrList.Stop()

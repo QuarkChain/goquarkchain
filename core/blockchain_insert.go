@@ -58,7 +58,7 @@ func (st *insertStats) report(chain []types.IBlock, index int) {
 			"blocks", st.processed, "hcount", hcount, "elapsed", common.PrettyDuration(elapsed),
 			"number", end.NumberU64(), "hash", end.Hash(),
 		}
-		if timestamp := time.Unix(int64(end.IHeader().GetTime()), 0); time.Since(timestamp) > time.Minute {
+		if timestamp := time.Unix(int64(end.Time()), 0); time.Since(timestamp) > time.Minute {
 			context = append(context, []interface{}{"age", common.PrettyAge(timestamp)}...)
 		}
 

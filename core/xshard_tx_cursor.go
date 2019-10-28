@@ -73,13 +73,13 @@ func (x *XShardTxCursor) getCurrentTx() (*types.CrossShardTransactionDeposit, er
 		if x.xShardDepositIndex == 1 {
 			branch := x.bc.GetBranch()
 			coinbaseAmount := new(big.Int)
-			if branch.IsInBranch(x.rBlock.Header().Coinbase.FullShardKey) {
-				coinbaseAmount = x.rBlock.Header().CoinbaseAmount.GetTokenBalance(x.bc.GetGenesisToken())
+			if branch.IsInBranch(x.rBlock.Coinbase().FullShardKey) {
+				coinbaseAmount = x.rBlock.CoinbaseAmount().GetTokenBalance(x.bc.GetGenesisToken())
 			}
 			genesisToken := x.bc.GetGenesisToken()
 			// Perform x-shard from root chain coinbase
 			return &types.CrossShardTransactionDeposit{
-				TxHash:          x.rBlock.Header().Hash(),
+				TxHash:          x.rBlock.Hash(),
 				From:            x.rBlock.Header().Coinbase,
 				To:              x.rBlock.Header().Coinbase,
 				Value:           &serialize.Uint256{Value: new(big.Int).Set(coinbaseAmount)},
@@ -120,7 +120,7 @@ func (x *XShardTxCursor) getNextTx() (*types.CrossShardTransactionDeposit, error
 	for x.mBlockIndex <= uint64(len(x.rBlock.MinorBlockHeaders())) {
 		// If it is not neighbor, move to next minor block
 		mBlockHeader := x.rBlock.MinorBlockHeaders()[x.mBlockIndex-1]
-		if !x.bc.isNeighbor(mBlockHeader.Branch, &x.rBlock.Header().Number) || mBlockHeader.Branch == x.bc.GetBranch() {
+		if mBlockHeader.Branch == x.bc.GetBranch() || !x.bc.isNeighbor(mBlockHeader.Branch, &x.rBlock.Header().Number) {
 			if x.xShardDepositIndex != 0 {
 				return nil, errors.New("xShardDepositIndex should 0")
 			}
@@ -173,7 +173,7 @@ func (x *XShardTxCursor) getNextTx() (*types.CrossShardTransactionDeposit, error
 func (x *XShardTxCursor) getCursorInfo() *types.XShardTxCursorInfo {
 	rootBlockHeight := x.maxRootBlockHeader.NumberU64() + 1
 	if x.rBlock != nil {
-		rootBlockHeight = x.rBlock.Header().NumberU64()
+		rootBlockHeight = x.rBlock.NumberU64()
 	}
 	return &types.XShardTxCursorInfo{
 		RootBlockHeight:    rootBlockHeight,

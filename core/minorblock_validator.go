@@ -68,7 +68,7 @@ func (v *MinorBlockValidator) ValidateBlock(mBlock types.IBlock, force bool) err
 		return ErrInvalidMinorBlock
 	}
 
-	if block.Header().Version != 0 {
+	if block.Version() != 0 {
 		return errors.New("incorrect minor block version")
 	}
 
@@ -84,18 +84,18 @@ func (v *MinorBlockValidator) ValidateBlock(mBlock types.IBlock, force bool) err
 		return ErrKnownBlock
 	}
 
-	if !v.bc.HasBlockAndState(block.IHeader().GetParentHash()) {
+	if !v.bc.HasBlockAndState(block.ParentHash()) {
 		if !v.bc.HasBlock(block.ParentHash()) {
-			log.Error(v.logInfo, "parent block do not have", consensus.ErrUnknownAncestor, "parent height", block.Header().Number-1, "hash", block.Header().ParentHash.String())
+			log.Error(v.logInfo, "parent block do not have", consensus.ErrUnknownAncestor, "parent height", block.NumberU64()-1, "hash", block.ParentHash().String())
 			return consensus.ErrUnknownAncestor
 		}
-		log.Warn(v.logInfo, "will insert side chain", ErrPrunedAncestor, "parent height", block.Header().Number-1, "hash", block.Header().ParentHash.String(), "currHash", block.Hash().String())
+		log.Warn(v.logInfo, "will insert side chain", ErrPrunedAncestor, "parent height", block.NumberU64()-1, "hash", block.ParentHash().String(), "currHash", block.Hash().String())
 		return ErrPrunedAncestor
 	}
 
-	prevHeader := v.bc.GetHeader(block.IHeader().GetParentHash())
+	prevHeader := v.bc.GetHeader(block.ParentHash())
 	if common.IsNil(prevHeader) {
-		log.Error(v.logInfo, "parent header is not exist", ErrInvalidMinorBlock, "parent height", block.Header().Number-1, "parent hash", block.Header().ParentHash.String())
+		log.Error(v.logInfo, "parent header is not exist", ErrInvalidMinorBlock, "parent height", block.NumberU64()-1, "parent hash", block.ParentHash().String())
 		return ErrInvalidMinorBlock
 	}
 	if blockHeight != prevHeader.NumberU64()+1 {
@@ -108,38 +108,38 @@ func (v *MinorBlockValidator) ValidateBlock(mBlock types.IBlock, force bool) err
 		return ErrBranch
 	}
 
-	if block.Header().Time > uint64(time.Now().Unix())+ALLOWED_FUTURE_BLOCKS_TIME_VALIDATION {
+	if block.Time() > uint64(time.Now().Unix())+ALLOWED_FUTURE_BLOCKS_TIME_VALIDATION {
 		return fmt.Errorf("block too far into future")
 	}
 
-	if block.IHeader().GetTime() <= prevHeader.GetTime() {
-		log.Error(v.logInfo, "err", ErrTime, "block.Time", block.IHeader().GetTime(), "prevHeader.Time", prevHeader.GetTime())
+	if block.Time() <= prevHeader.GetTime() {
+		log.Error(v.logInfo, "err", ErrTime, "block.Time", block.Time(), "prevHeader.Time", prevHeader.GetTime())
 		return ErrTime
 	}
 
-	if block.Header().MetaHash != block.GetMetaData().Hash() {
-		log.Error(v.logInfo, "err", ErrMetaHash, "block.Metahash", block.Header().MetaHash.String(), "block.meta.hash", block.GetMetaData().Hash().String())
+	if block.MetaHash() != block.GetMetaData().Hash() {
+		log.Error(v.logInfo, "err", ErrMetaHash, "block.Metahash", block.MetaHash().String(), "block.meta.hash", block.GetMetaData().Hash().String())
 		return ErrMetaHash
 	}
 
-	if len(block.IHeader().GetExtra()) > int(v.quarkChainConfig.BlockExtraDataSizeLimit) {
-		log.Error(v.logInfo, "err", ErrExtraLimit, "len block's extra", len(block.IHeader().GetExtra()), "config's limit", v.quarkChainConfig.BlockExtraDataSizeLimit)
+	if len(block.Extra()) > int(v.quarkChainConfig.BlockExtraDataSizeLimit) {
+		log.Error(v.logInfo, "err", ErrExtraLimit, "len block's extra", len(block.Extra()), "config's limit", v.quarkChainConfig.BlockExtraDataSizeLimit)
 		return ErrExtraLimit
 	}
 
-	if block.Header().GasLimit.Value.Cmp(v.bc.gasLimit) != 0 {
+	if block.GasLimit().Cmp(v.bc.gasLimit) != 0 {
 		return fmt.Errorf("incorrect gas limit, expected %d, actual %d", v.bc.gasLimit.Uint64(),
-			block.Header().GasLimit.Value.Uint64())
+			block.GasLimit().Uint64())
 	}
 
-	if block.Meta().XShardGasLimit.Value.Cmp(block.Header().GasLimit.Value) >= 0 {
+	if block.GetXShardGasLimit().Cmp(block.GasLimit()) >= 0 {
 		return fmt.Errorf("xshard_gas_limit %d should not exceed total gas_limit %d",
-			block.Meta().XShardGasLimit.Value, block.Header().GasLimit.Value)
+			block.GetXShardGasLimit(), block.GasLimit())
 	}
 
-	if block.Meta().XShardGasLimit.Value.Cmp(v.bc.xShardGasLimit) != 0 {
+	if block.GetXShardGasLimit().Cmp(v.bc.xShardGasLimit) != 0 {
 		return fmt.Errorf("incorrect xshard gas limit, expected %d, actual %d", v.bc.xShardGasLimit,
-			block.Meta().XShardGasLimit.Value)
+			block.GetXShardGasLimit())
 	}
 
 	txHash := types.CalculateMerkleRoot(block.GetTransactions())
@@ -148,26 +148,26 @@ func (v *MinorBlockValidator) ValidateBlock(mBlock types.IBlock, force bool) err
 		return ErrTxHash
 	}
 
-	if !v.branch.IsInBranch(block.IHeader().GetCoinbase().FullShardKey) {
-		log.Error(v.logInfo, "err", ErrMinerFullShardKey, "coinbase's fullshardkey", block.IHeader().GetCoinbase().FullShardKey, "current branch", v.branch.Value)
+	if !v.branch.IsInBranch(block.Coinbase().FullShardKey) {
+		log.Error(v.logInfo, "err", ErrMinerFullShardKey, "coinbase's fullshardkey", block.Coinbase().FullShardKey, "current branch", v.branch.Value)
 		return ErrMinerFullShardKey
 	}
 
 	if !v.quarkChainConfig.SkipMinorDifficultyCheck {
-		diff, err := v.engine.CalcDifficulty(v.bc, block.IHeader().GetTime(), prevHeader)
+		diff, err := v.engine.CalcDifficulty(v.bc, block.Time(), prevHeader)
 		if err != nil {
 			log.Error(v.logInfo, "check diff err", err)
 			return err
 		}
-		if diff.Cmp(block.IHeader().GetDifficulty()) != 0 {
-			log.Error(v.logInfo, "check diff err", err, "diff", diff, "block's", block.IHeader().GetDifficulty())
+		if diff.Cmp(block.Difficulty()) != 0 {
+			log.Error(v.logInfo, "check diff err", err, "diff", diff, "block's", block.Difficulty())
 			return ErrDifficulty
 		}
 	}
 
-	rootBlockHeader := v.bc.getRootBlockHeaderByHash(block.Header().GetPrevRootBlockHash())
+	rootBlockHeader := v.bc.getRootBlockHeaderByHash(block.PrevRootBlockHash())
 	if rootBlockHeader == nil {
-		log.Error(v.logInfo, "err", ErrRootBlockIsNil, "height", block.Header().Number, "parentRootBlockHash", block.Header().GetPrevRootBlockHash().String())
+		log.Error(v.logInfo, "err", ErrRootBlockIsNil, "height", block.NumberU64(), "parentRootBlockHash", block.PrevRootBlockHash().String())
 		return ErrRootBlockIsNil
 	}
 
@@ -182,7 +182,7 @@ func (v *MinorBlockValidator) ValidateBlock(mBlock types.IBlock, force bool) err
 		return errRootBlockOrder
 	}
 
-	prevConfirmedMinorHeader := v.bc.getLastConfirmedMinorBlockHeaderAtRootBlock(block.Header().PrevRootBlockHash)
+	prevConfirmedMinorHeader := v.bc.getLastConfirmedMinorBlockHeaderAtRootBlock(block.PrevRootBlockHash())
 	if prevConfirmedMinorHeader != nil && !isSameChain(v.bc.GetParentHashByHash, prevHeader, prevConfirmedMinorHeader) {
 		errMustBeOneMinorChain := errors.New("prev root block's minor block is not in the same chain as the minor block")
 		log.Error(v.logInfo, "err", errMustBeOneMinorChain, "prevConfirmedMinor's height", prevConfirmedMinorHeader.Number, "prevConfirmedMinor's hash", prevConfirmedMinorHeader.Hash().String(),
@@ -190,10 +190,10 @@ func (v *MinorBlockValidator) ValidateBlock(mBlock types.IBlock, force bool) err
 		return errMustBeOneMinorChain
 	}
 
-	if !v.bc.isSameRootChain(v.bc.getRootBlockHeaderByHash(block.Header().GetPrevRootBlockHash()),
+	if !v.bc.isSameRootChain(v.bc.getRootBlockHeaderByHash(block.PrevRootBlockHash()),
 		v.bc.getRootBlockHeaderByHash(prevHeader.(*types.MinorBlockHeader).GetPrevRootBlockHash())) {
 		errMustBeOneRootChain := errors.New("prev root blocks are not on the same chain")
-		log.Error(v.logInfo, "err", errMustBeOneRootChain, "long", block.Header().GetPrevRootBlockHash().String(), "short", prevHeader.(*types.MinorBlockHeader).GetPrevRootBlockHash().String())
+		log.Error(v.logInfo, "err", errMustBeOneRootChain, "long", block.PrevRootBlockHash().String(), "short", prevHeader.(*types.MinorBlockHeader).GetPrevRootBlockHash().String())
 		return errMustBeOneRootChain
 	}
 	if !v.bc.clusterConfig.Quarkchain.DisablePowCheck {
@@ -273,15 +273,14 @@ func (v *MinorBlockValidator) ValidateState(mBlock, parent types.IBlock, statedb
 	if !ok {
 		return ErrInvalidMinorBlock
 	}
-	mHeader := block.Header()
-	if block.GetMetaData().GasUsed.Value.Cmp(statedb.GetGasUsed()) != 0 {
-		return fmt.Errorf("invalid gas used (remote: %d local: %d)", block.GetMetaData().GasUsed.Value.Uint64(), statedb.GetGasUsed())
+	if block.GasUsed().Cmp(statedb.GetGasUsed()) != 0 {
+		return fmt.Errorf("invalid gas used (remote: %d local: %d)", block.GasUsed().Uint64(), statedb.GetGasUsed())
 	}
 	// Validate the received block's bloom with the one derived from the generated receipts.
 	// For valid blocks this should always validate to true.
 	bloom := types.CreateBloom(receipts)
-	if bloom != mHeader.GetBloom() {
-		return fmt.Errorf("invalid bloom (remote: %x  local: %x)", mHeader.GetBloom(), bloom)
+	if bloom != block.Bloom() {
+		return fmt.Errorf("invalid bloom (remote: %x  local: %x)", block.Bloom(), bloom)
 	}
 
 	if !compareXshardTxCursor(statedb.GetTxCursorInfo(), block.Meta().XShardTxCursorInfo) {
@@ -289,25 +288,25 @@ func (v *MinorBlockValidator) ValidateState(mBlock, parent types.IBlock, statedb
 	}
 
 	receiptSha := types.DeriveSha(receipts)
-	if receiptSha != block.GetMetaData().ReceiptHash {
-		return fmt.Errorf("invalid receipt root hash (remote: %x local: %x)", block.GetMetaData().ReceiptHash, receiptSha)
+	if receiptSha != block.ReceiptHash() {
+		return fmt.Errorf("invalid receipt root hash (remote: %x local: %x)", block.ReceiptHash(), receiptSha)
 	}
-	if statedb.GetGasUsed().Cmp(block.GetMetaData().GasUsed.Value) != 0 {
+	if statedb.GetGasUsed().Cmp(block.GasUsed()) != 0 {
 		return ErrGasUsed
 	}
-	coinbaseAmount := v.bc.getCoinbaseAmount(block.Header().Number)
+	coinbaseAmount := v.bc.getCoinbaseAmount(block.NumberU64())
 	coinbaseAmount.Add(statedb.GetBlockFee())
-	if !compareCoinbaseAmountMap(coinbaseAmount.GetBalanceMap(), block.Header().CoinbaseAmount.GetBalanceMap()) {
+	if !compareCoinbaseAmountMap(coinbaseAmount.GetBalanceMap(), block.CoinbaseAmount().GetBalanceMap()) {
 		return ErrCoinbaseAmount
 	}
 
-	if statedb.GetXShardReceiveGasUsed().Cmp(block.GetMetaData().CrossShardGasUsed.Value) != 0 {
+	if statedb.GetXShardReceiveGasUsed().Cmp(block.CrossShardGasUsed()) != 0 {
 		return ErrXShardList
 	}
 	// Validate the state root against the received state root and throw
 	// an error if they don't match.
-	if root := statedb.IntermediateRoot(true); block.GetMetaData().Root != root {
-		return fmt.Errorf("invalid merkle root (remote: %x local: %x)", block.GetMetaData().Root, root)
+	if root := statedb.IntermediateRoot(true); block.Root() != root {
+		return fmt.Errorf("invalid merkle root (remote: %x local: %x)", block.Root(), root)
 	}
 	return nil
 }

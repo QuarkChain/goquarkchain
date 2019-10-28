@@ -217,11 +217,11 @@ func TestCrossShardContractCall(t *testing.T) {
 	ad, err := master.GetPrimaryAccountData(&acc3, nil)
 	assert.NoError(t, err)
 	assert.Equal(t, uint64(1500000), ad.Balance.GetTokenBalance(testGenesisTokenID).Uint64())
-	_, _, receipt, err := master.GetTransactionReceipt(tx0.Hash(), b1.Header().Branch)
+	_, _, receipt, err := master.GetTransactionReceipt(tx0.Hash(), b1.Branch())
 	assert.NoError(t, err)
 	assert.Equal(t, uint64(0x1), receipt.Status)
 	contractAddress := account.NewAddress(receipt.ContractAddress, receipt.ContractFullShardKey)
-	b1n := b1.Header().Number
+	b1n := b1.NumberU64()
 	result, err := master.GetStorageAt(&contractAddress, storageKeyHash, &b1n)
 	assert.NoError(t, err)
 	v0 := "0000000000000000000000000000000000000000000000000000000000000000"
@@ -255,14 +255,14 @@ func TestCrossShardContractCall(t *testing.T) {
 	assert.NoError(t, err)
 	err = minorBlockChainB.AddBlock(b3)
 	assert.NoError(t, err)
-	b3n := b3.Header().Number
+	b3n := b3.NumberU64()
 	result, err = master.GetStorageAt(&contractAddress, storageKeyHash, &b3n)
 	assert.NoError(t, err)
 	assert.Equal(t, v0, hex.EncodeToString(result.Bytes()))
 	ad, err = master.GetPrimaryAccountData(&acc4, nil)
 	assert.NoError(t, err)
 	assert.Equal(t, 0, int(ad.Balance.GetTokenBalance(testGenesisTokenID).Int64()))
-	_, _, receipt, err = master.GetTransactionReceipt(tx2.Hash(), b3.Header().Branch)
+	_, _, receipt, err = master.GetTransactionReceipt(tx2.Hash(), b3.Branch())
 	assert.NoError(t, err)
 	//make sure receipt actually found
 	assert.Equal(t, tx2.Hash(), receipt.TxHash)
@@ -288,7 +288,7 @@ func TestCrossShardContractCall(t *testing.T) {
 	assert.NoError(t, err)
 	err = minorBlockChainB.AddBlock(b5)
 	assert.NoError(t, err)
-	b5n := b5.Header().Number
+	b5n := b5.NumberU64()
 	result, err = master.GetStorageAt(&contractAddress, storageKeyHash, &b5n)
 	assert.NoError(t, err)
 	v1 := "000000000000000000000000000000000000000000000000000000000000162e"
@@ -296,7 +296,7 @@ func TestCrossShardContractCall(t *testing.T) {
 	ad, err = master.GetPrimaryAccountData(&acc4, nil)
 	assert.NoError(t, err)
 	assert.Equal(t, 679498, int(ad.Balance.GetTokenBalance(testGenesisTokenID).Int64()))
-	_, _, receipt, err = master.GetTransactionReceipt(tx3.Hash(), b5.Header().Branch)
+	_, _, receipt, err = master.GetTransactionReceipt(tx3.Hash(), b5.Branch())
 	assert.NoError(t, err)
 	assert.Equal(t, tx3.Hash(), receipt.TxHash)
 	assert.Equal(t, uint64(0x1), receipt.Status)
@@ -360,7 +360,7 @@ func TestCrossShardTransfer(t *testing.T) {
 	ad, err := master.GetPrimaryAccountData(&acc4, nil)
 	assert.NoError(t, err)
 	assert.Equal(t, int64(1500000), ad.Balance.GetTokenBalance(testGenesisTokenID).Int64())
-	_, _, receipt, err := master.GetTransactionReceipt(tx1.Hash(), b0.Header().Branch)
+	_, _, receipt, err := master.GetTransactionReceipt(tx1.Hash(), b0.Branch())
 	assert.NoError(t, err)
 	assert.Equal(t, uint64(0x1), receipt.Status)
 }
@@ -435,7 +435,7 @@ func TestBroadcastCrossShardTransaction1x2(t *testing.T) {
 
 	assert.NoError(t, c.GetShard(1).AddMinorBlock(b2))
 	//b2 doesn't update tip
-	assert.Equal(t, b1.Header().Hash(), minorBlockChainA.CurrentBlock().Hash())
+	assert.Equal(t, b1.Hash(), minorBlockChainA.CurrentBlock().Hash())
 	//expect chain 2 got the CrossShardTransactionList of b1
 	xShardTxList = minorBlockChainB.ReadCrossShardTxList(b2.Hash())
 	assert.Equal(t, 1, len(xShardTxList.TXList))
@@ -453,7 +453,7 @@ func TestBroadcastCrossShardTransaction1x2(t *testing.T) {
 	acc1InB := acc1.AddressInShard(2 << 16)
 	b3, err := minorBlockChainB.CreateBlockToMine(nil, &acc1InB, nil, nil, nil)
 	assert.NoError(t, err)
-	assert.NoError(t, master.AddMinorBlock(b3.Header().Branch.Value, b3))
+	assert.NoError(t, master.AddMinorBlock(b3.Branch().Value, b3))
 
 	rb, _, _, err = master.CreateBlockToMine(nil)
 	assert.NoError(t, err)
@@ -461,7 +461,7 @@ func TestBroadcastCrossShardTransaction1x2(t *testing.T) {
 	//b4 should include the withdraw of tx1
 	b4, err := minorBlockChainB.CreateBlockToMine(nil, &acc1InB, nil, nil, nil)
 	assert.NoError(t, err)
-	assert.NoError(t, master.AddMinorBlock(b4.Header().Branch.Value, b4))
+	assert.NoError(t, master.AddMinorBlock(b4.Branch().Value, b4))
 	ad3, err := master.GetPrimaryAccountData(&acc3, nil)
 	assert.NoError(t, err)
 	assert.Equal(t, value1, ad3.Balance.GetTokenBalance(testGenesisTokenID))
@@ -469,7 +469,7 @@ func TestBroadcastCrossShardTransaction1x2(t *testing.T) {
 	acc1InC := acc1.AddressInShard(3 << 16)
 	b5, err := minorBlockChainC.CreateBlockToMine(nil, &acc1InC, nil, nil, nil)
 	assert.NoError(t, err)
-	assert.NoError(t, master.AddMinorBlock(b5.Header().Branch.Value, b5))
+	assert.NoError(t, master.AddMinorBlock(b5.Branch().Value, b5))
 	ad4, err := master.GetPrimaryAccountData(&acc4, nil)
 	assert.NoError(t, err)
 	assert.Equal(t, value2, ad4.Balance.GetTokenBalance(testGenesisTokenID))
@@ -682,7 +682,7 @@ func TestCrossShardContractCreate(t *testing.T) {
 	b1, err := minorBlockChainB.CreateBlockToMine(nil, &acc2, nil, nil, nil)
 	assert.NoError(t, err)
 	assert.NoError(t, shardB.AddMinorBlock(b1))
-	_, _, receipt, err := mstr.GetTransactionReceipt(tx1.Hash(), b1.Header().Branch)
+	_, _, receipt, err := mstr.GetTransactionReceipt(tx1.Hash(), b1.Branch())
 	assert.NoError(t, err)
 	assert.Equal(t, 1, int(receipt.Status))
 
@@ -695,12 +695,12 @@ func TestCrossShardContractCreate(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NoError(t, shardA.AddMinorBlock(b2))
 	//contract should be created
-	_, _, receipt, err = mstr.GetTransactionReceipt(tx1.Hash(), b2.Header().Branch)
+	_, _, receipt, err = mstr.GetTransactionReceipt(tx1.Hash(), b2.Branch())
 	assert.NoError(t, err)
 	assert.Equal(t, tx1.Hash(), receipt.TxHash)
 	assert.Equal(t, 1, int(receipt.Status))
 	contractAddress := account.NewAddress(receipt.ContractAddress, receipt.ContractFullShardKey)
-	b2n := b2.Header().Number
+	b2n := b2.NumberU64()
 	result, err := mstr.GetStorageAt(&contractAddress, storageKeyHash, &b2n)
 	assert.NoError(t, err)
 	assert.Equal(t, "0000000000000000000000000000000000000000000000000000000000000000", hex.EncodeToString(result.Bytes()))
@@ -715,11 +715,11 @@ func TestCrossShardContractCreate(t *testing.T) {
 	b3, err := minorBlockChainA.CreateBlockToMine(nil, &acc1, nil, nil, nil)
 	assert.NoError(t, err)
 	assert.NoError(t, shardA.AddMinorBlock(b3))
-	_, _, receipt, err = mstr.GetTransactionReceipt(tx2.Hash(), b3.Header().Branch)
+	_, _, receipt, err = mstr.GetTransactionReceipt(tx2.Hash(), b3.Branch())
 	assert.NoError(t, err)
 	assert.Equal(t, 1, int(receipt.Status))
 
-	b3n := b3.Header().Number
+	b3n := b3.NumberU64()
 	result, err = mstr.GetStorageAt(&contractAddress, storageKeyHash, &b3n)
 	assert.NoError(t, err)
 	assert.Equal(t, "000000000000000000000000000000000000000000000000000000000000162e", hex.EncodeToString(result.Bytes()))
@@ -795,7 +795,7 @@ func TestPoSWOnRootChain(t *testing.T) {
 		if err != nil {
 			return err
 		}
-		assert.Equal(t, rootBlock.IHeader().GetDifficulty(), diff)
+		assert.Equal(t, rootBlock.NumberU64()GetDifficulty(), diff)
 		rBlock := rootBlock.(*types.RootBlock)
 		if sign {
 			prvKey, err := crypto.ToECDSA(signerId.GetKey().Bytes())
