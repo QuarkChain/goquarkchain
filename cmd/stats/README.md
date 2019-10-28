@@ -1,5 +1,6 @@
 # Statistical Tool for Loadtest
 
+Suppose your current working directory is `goquarkchain/cmd/stats`.
 
 ## Monitor TPS
 

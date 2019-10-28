@@ -27,6 +27,8 @@ You can build and deploy one cluster each time using this deploy tool. You need 
 `$GOPATH/src/github.com/QuarkChain/goquarkchain/tests/loadtest/deployer/deployConfig.json` 
 to configure the cluster to run in your environment. 
 
+NOTE For each of the hosts, besides 38291, 38391, 38491, the port range [48000, 48000 + host number] should be opened too.
+
 Parameters explained:
 - `Hosts` a list of hosts run same cluster/node
 - `IP` host IP
@@ -56,9 +58,9 @@ To check the status of the cluster, you need to enter the Docker container on th
 ```bash
 # enter the container
 docker exec  -it bjqkc /bin/bash
-$ cat /tmp/QKC/S0.log
+$ tail -f $GOPATH/src/github.com/QuarkChain/goquarkchain/cmd/master.log
 ```
-If everything goes correclty, you will see from the log that cluster start successfully, and 12,000 accounts loaded 
+If everything goes correctly, you will see from the log that cluster start successfully, and 12,000 accounts loaded 
 automatically for each shard.
 
 Try the following command to see if mining works:
@@ -71,3 +73,4 @@ With different deployConfig.json you can deploy multiple clusters in same networ
 Leave `BootNode` field empty when you deploy the first cluster/node in the network, and you'll find 
 "enode://...:38291" in console log. Use this URL for `BootNode` value in the configuration file to build other clusters 
 in the same network.
+
