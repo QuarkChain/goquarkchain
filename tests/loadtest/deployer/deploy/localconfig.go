@@ -123,6 +123,8 @@ func GenConfigDependInitConfig(chainSize uint32, shardSizePerChain uint32, ipLis
 	//update account
 	cfg.GenesisDir = "../accounts"
 
+	cfg.Quarkchain.TransactionQueueSizeLimitPerShard = 100000
+
 	//update root
 	cfg.Quarkchain.Root.ConsensusConfig.TargetBlockTime = extraClusterConfig.TargetRootBlockTime
 
