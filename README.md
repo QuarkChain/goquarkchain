@@ -28,10 +28,6 @@ Goquarkchain requires golang sdk >= 1.12. You can skip this step if your environ
 wget https://studygolang.com/dl/golang/go1.12.10.linux-amd64.tar.gz
 sudo tar xzf go1.12.10.linux-amd64.tar.gz -C /usr/local
 ```
-Create a folder as $GOPATH, for example ~/go. This is where your Go code goes. Skip this step if you've already done so.
-```bash
-sudo mkdir ~/go && chmod -R 777 ~/go
-```
 Append the following environment variables to ~/.profile. NOTE goproxy and go.mod are used.
 ```bash
 export GOROOT=/usr/local/go
@@ -74,9 +70,8 @@ source ~/.profile
 ### Setup GoQuarkChain
 Install GoQuarkChain 
 ```bash
-cd $GOPATH
-sudo mkdir -p src/github.com/QuarkChain
-cd src/github.com/QuarkChain
+sudo mkdir -p $GOPATH/src/github.com/QuarkChain
+cd $GOPATH/src/github.com/QuarkChain
 sudo git clone https://github.com/QuarkChain/goquarkchain.git
 #build qkchash
 cd goquarkchain/consensus/qkchash/native
@@ -130,7 +125,7 @@ Just follow the same command to run single cluster and provide `--bootnodes` fla
 
 (Optional) Not needed if you are joining a testnet or mainnet. If you are starting your own network, first start the bootstrap cluster:
 ```bash
-cd cmd/cluser
+cd $GOPATH/src/github.com/QuarkChain/goquarkchain/cmd/cluser
 ./cluster --cluster_config $CLUSTER_CONFIG_FILE --p2p --privkey=$BOOTSTRAP_PRIV_KEY
 ```
 You can read the full bootnode URL from the console output. Then start other clusters and provide the bootnode URL.
@@ -141,7 +136,7 @@ You can read the full bootnode URL from the console output. Then start other clu
 ## Monitoring Clusters
 Use the [`stats`](cmd/stats) tool in the repo to monitor the status of a cluster. It queries the given cluster through JSON RPC every 10 seconds and produces an entry. 
 ```bash
-cd cmd/stats
+cd $GOPATH/src/github.com/QuarkChain/goquarkchain/cmd/stats
 go build
  ./stats --ip localhost
 ============================
