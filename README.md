@@ -108,21 +108,20 @@ Note that many parameters in the config are part the consensus, please be very c
 
 ### Running a single cluster for local testing
 
-Start running a local cluster which does not connect to anyone else. Build goquarkchain executable:
+Start running a local cluster which does not connect to anyone else. Build GoQuarkChain cluster executable:
 ```bash
-cd cmd/cluster
+cd $GOPATH/src/github.com/QuarkChain/goquarkchain/cmd/cluster
 go build
 ```
-Start each slave in different terminals with its ID specified in SLAVE_LIST of the json config. Take the default configuration cluster as example, which has 4 slaves with 2 shards for each:
+Start each slave in different terminals with its ID specified in SLAVE_LIST of the json config. 
+The following example has 2 slaves with 1 shard for each:
 ```bash
-./cluster --cluster_config ../../mainnet/singularity/cluster_config_template.json --service S0
-./cluster --cluster_config ../../mainnet/singularity/cluster_config_template.json --service S1
-./cluster --cluster_config ../../mainnet/singularity/cluster_config_template.json --service S2
-./cluster --cluster_config ../../mainnet/singularity/cluster_config_template.json --service S3
+./cluster --cluster_config ../../tests/testnet/egconfig/cluster_config_template.json --service S0
+./cluster --cluster_config ../../tests/testnet/egconfig/cluster_config_template.json --service S1
 ```
 Start master in another terminal
 ```bash
-./cluster --cluster_config ../../mainnet/singularity/cluster_config_template.json
+./cluster --cluster_config ../../tests/testnet/egconfig/cluster_config_template.json
 ```
 ### Running multiple clusters with P2P network on different machines
 NOTE this is effectively a private network. If you would like to join our testnet or mainnet, look back a few sections for instructions.
