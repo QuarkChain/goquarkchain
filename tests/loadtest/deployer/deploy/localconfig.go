@@ -109,9 +109,9 @@ func updateSlaves(cfg *config.ClusterConfig, ipList []string) {
 	for i := 0; i < numSlaves; i++ {
 		slaveCfg := config.NewDefaultSlaveConfig()
 		slaveCfg.IP = ipList[i%len(ipList)]
-		slaveCfg.Port = uint16(38000 + i)
+		slaveCfg.Port = uint16(48000 + i)
 		slaveCfg.ID = fmt.Sprintf("S%d", i)
-		slaveCfg.WSPort = uint16(39000 + i)
+		slaveCfg.WSPort = uint16(49000 + i)
 		slaveCfg.ChainMaskList = append(slaveCfg.ChainMaskList, types.NewChainMask(uint32(i|numSlaves)))
 		cfg.SlaveList = append(cfg.SlaveList, slaveCfg)
 	}
