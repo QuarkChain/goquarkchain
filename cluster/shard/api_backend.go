@@ -403,9 +403,12 @@ func (s *ShardBackend) setHead(head uint64) {
 
 func (s *ShardBackend) AddTxList(txs []*types.Transaction, peerID string) error {
 	ts := time.Now()
+
 	if err := s.MinorBlockChain.AddTxList(txs); err != nil {
+		log.Error(s.logInfo, "AddTxList err", err)
 		return err
 	}
+
 	go func() {
 		span := len(txs) / params.NEW_TRANSACTION_LIST_LIMIT
 		for index := 0; index < span; index++ {
@@ -418,7 +421,6 @@ func (s *ShardBackend) AddTxList(txs []*types.Transaction, peerID string) error 
 				log.Error(s.logInfo, "broadcastTransaction err", err)
 			}
 		}
-
 	}()
 	log.Info("time-tx-insert-end", "time", time.Now().Sub(ts).Seconds(), "len(tx)", len(txs))
 	return nil
