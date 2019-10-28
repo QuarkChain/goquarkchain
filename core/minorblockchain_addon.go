@@ -291,7 +291,22 @@ func (m *MinorBlockChain) GetTransactionCount(recipient account.Recipient, hash 
 }
 
 func (m *MinorBlockChain) isSameRootChain(long types.IHeader, short types.IHeader) bool {
-	return isSameChain(m.db, long, short)
+	f := func(hash common.Hash) common.Hash {
+		if b := m.GetRootBlockByHash(hash); b == nil {
+			return common.Hash{}
+		} else {
+			return b.ParentHash()
+		}
+	}
+	return isSameChain(f, long, short)
+}
+
+func (m *MinorBlockChain) GetParentHashByHash(hash common.Hash) common.Hash {
+	if b := m.GetMinorBlock(hash); b == nil {
+		return common.Hash{}
+	} else {
+		return b.ParentHash()
+	}
 }
 
 func (m *MinorBlockChain) isMinorBlockLinkedToRootTip(mBlock *types.MinorBlock) bool {
@@ -302,7 +317,7 @@ func (m *MinorBlockChain) isMinorBlockLinkedToRootTip(mBlock *types.MinorBlock) 
 	if mBlock.Header().Number <= confirmed.Number {
 		return false
 	}
-	return isSameChain(m.db, mBlock.Header(), confirmed)
+	return isSameChain(m.GetParentHashByHash, mBlock.Header(), confirmed)
 }
 func (m *MinorBlockChain) isNeighbor(remoteBranch account.Branch, rootHeight *uint32) bool {
 	if rootHeight == nil {
