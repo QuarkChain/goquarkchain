@@ -30,11 +30,12 @@ func (s *SSHSession) RunCmd(cmd string) {
 	session.Stdout = &stdOut
 	session.Stderr = &stdErr
 	err = session.Run(cmd)
+	CheckErr(err)
 	if stdOut.String() != "" {
 		//TODO need print?
 	}
 	if stdErr.String() != "" {
-		//TODO need print?
+		log.Error("run cmd err", "cmd", cmd, "err", stdErr.String())
 	}
 }
 
