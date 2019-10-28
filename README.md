@@ -30,7 +30,7 @@ sudo tar xzf go1.12.10.linux-amd64.tar.gz -C /usr/local
 ```
 Create a folder as $GOPATH, for example ~/go. This is where your Go code goes. Skip this step if you've already done so.
 ```bash
-mkdir ~/go
+sudo mkdir ~/go && chmod -R 777 ~/go
 ```
 Append the following environment variables to ~/.profile. NOTE goproxy and go.mod are used.
 ```bash
@@ -99,13 +99,19 @@ ${USER} hard nofile ${NUMBER}
 ```
 ${USER} should be replaced with your user name, or * for all users; and ${NUMBER} should be replaced with the total shard number plus one. 
 
+### Configure the Network
+
+Before running, you'll need to set up the configuration of your network, which all nodes need to be aware of and agree upon. 
+We provide an example config JSON in the repo (mainnet/singularity/cluster_config_template.json). 
+
+Note that many parameters in the config are part the consensus, please be very cautious when changing them. For example, COINBASE_AMOUNT is one such parameter, changing it to another value effectively creates a fork in the network.
+
 ### Running a single cluster for local testing
 
 Start running a local cluster which does not connect to anyone else. Build goquarkchain executable:
 ```bash
-#
-cd cmd/cluser
-go build .
+cd cmd/cluster
+go build
 ```
 Start each slave in different terminals with its ID specified in SLAVE_LIST of the json config. Take the default configuration cluster as example, which has 4 slaves with 2 shards for each:
 ```bash
@@ -118,7 +124,6 @@ Start master in another terminal
 ```bash
 ./cluster --cluster_config ../../mainnet/singularity/cluster_config_template.json
 ```
-
 ### Running multiple clusters with P2P network on different machines
 NOTE this is effectively a private network. If you would like to join our testnet or mainnet, look back a few sections for instructions.
 
@@ -135,30 +140,29 @@ You can read the full bootnode URL from the console output. Then start other clu
 ```
 
 ## Monitoring Clusters
-Use the [`stats`](https://github.com/QuarkChain/pyquarkchain/blob/master/quarkchain/tools/#stats) tool in the repo to monitor the status of a cluster. It queries the given cluster through JSON RPC every 10 seconds and produces an entry. You may need to [setup python environment](https://github.com/QuarkChain/pyquarkchain#development-setup) to run the tool.
+Use the [`stats`](https://github.com/QuarkChain/goquarkchain/cmd/stats) tool in the repo to monitor the status of a cluster. It queries the given cluster through JSON RPC every 10 seconds and produces an entry. 
 ```bash
-$ pyquarkchain/quarkchain/tools/stats --ip=localhost
-----------------------------------------------------------------------------------------------------
-                                      QuarkChain Cluster Stats
-----------------------------------------------------------------------------------------------------
+cd cmd/stats
+go build
+ ./stats --ip localhost
+============================
+QuarkChain Cluster Stats
+============================
 CPU:                8
 Memory:             16 GB
 IP:                 localhost
-Shards:             8
-Servers:            4
-Shard Interval:     60
-Root Interval:      10
-Syncing:            False
-Mining:             False
-Peers:              127.0.0.1:38293, 127.0.0.1:38292
-----------------------------------------------------------------------------------------------------
-Timestamp                     TPS   Pending tx  Confirmed tx       BPS      SBPS      ROOT       CPU
-----------------------------------------------------------------------------------------------------
-2018-09-21 16:35:07          0.00            0             0      0.00      0.00        84     12.50
-2018-09-21 16:35:17          0.00            0          9000      0.02      0.00        84      7.80
-2018-09-21 16:35:27          0.00            0         18000      0.07      0.00        84      6.90
-2018-09-21 16:35:37          0.00            0         18000      0.07      0.00        84      4.49
-2018-09-21 16:35:47          0.00            0         18000      0.10      0.00        84      6.10
+Chains:             8
+Network Id:         252
+Peers:              
+============================
+Timestamp               Syncing TPS     Pend.TX Conf.TX BPS     SBPS    CPU     ROOT    CHAIN/SHARD-HEIGHT
+2019-10-22 16:25:40     false   0.00    0       0       0.47    0.00    18.75   48      0/0-34 1/0-7 2/0-37 3/0-41 4/0-37 5/0-34 6/0-34 7/0-43
+2019-10-22 16:25:50     false   0.00    0       0       0.47    0.00    0.95    48      0/0-34 1/0-7 2/0-37 3/0-41 4/0-37 5/0-34 6/0-34 7/0-43
+2019-10-22 16:26:00     false   0.00    0       0       0.47    0.00    0.83    48      0/0-34 1/0-7 2/0-37 3/0-41 4/0-37 5/0-34 6/0-34 7/0-43
+2019-10-22 16:26:10     false   0.00    0       0       0.47    0.00    1.20    48      0/0-34 1/0-7 2/0-37 3/0-41 4/0-37 5/0-34 6/0-34 7/0-43
+2019-10-22 16:26:20     false   0.00    0       0       0.47    0.00    0.66    48      0/0-34 1/0-7 2/0-37 3/0-41 4/0-37 5/0-34 6/0-34 7/0-43
+2019-10-22 16:26:30     false   0.00    0       0       0.47    0.00    0.78    48      0/0-34 1/0-7 2/0-37 3/0-41 4/0-37 5/0-34 6/0-34 7/0-43
+
 ```
 ## JSON RPC
 JSON RPCs are defined in [`rpc.proto`](https://github.com/QuarkChain/goquarkchain/blob/master/cluster/rpc/rpc.proto). Note that there are two JSON RPC ports. By default they are 38491 for private RPCs and 38391 for public RPCs. Since you are running your own clusters you get access to both.
