@@ -1100,7 +1100,7 @@ func (bc *RootBlockChain) GetParentHashByHash(hash common.Hash) common.Hash {
 }
 
 func (bc *RootBlockChain) isSameChain(longerChainHeader, shorterChainHeader *types.RootBlockHeader) bool {
-	return isSameChain2(bc.GetParentHashByHash, longerChainHeader, shorterChainHeader)
+	return isSameChain(bc.GetParentHashByHash, longerChainHeader, shorterChainHeader)
 }
 
 func (bc *RootBlockChain) AddValidatedMinorBlockHeader(hash common.Hash, coinbaseToken *types.TokenBalances) {

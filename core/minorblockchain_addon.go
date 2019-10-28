@@ -296,7 +296,7 @@ func (m *MinorBlockChain) isSameRootChain(long types.IHeader, short types.IHeade
 			return b.ParentHash()
 		}
 	}
-	return isSameChain2(f, long, short)
+	return isSameChain(f, long, short)
 }
 
 func (m *MinorBlockChain) GetParentHashByHash(hash common.Hash) common.Hash {
@@ -315,7 +315,7 @@ func (m *MinorBlockChain) isMinorBlockLinkedToRootTip(mBlock *types.MinorBlock) 
 	if mBlock.Header().Number <= confirmed.Number {
 		return false
 	}
-	return isSameChain2(m.GetParentHashByHash, mBlock.Header(), confirmed)
+	return isSameChain(m.GetParentHashByHash, mBlock.Header(), confirmed)
 }
 func (m *MinorBlockChain) isNeighbor(remoteBranch account.Branch, rootHeight *uint32) bool {
 	if rootHeight == nil {
