@@ -65,17 +65,26 @@ func (s *ShardBackend) GenTx(genTxs *rpc.GenTxRequest) error {
 				needAddCnt = 12000
 			}
 		} else {
-			needAddCnt = 0
+			time.Sleep(2 * time.Second)
+			continue
 		}
 		genTxs.NumTxPerShard = uint32(needAddCnt)
 
-		fmt.Println("GGGGGGGGGGG", pendingCnt, genTxs.NumTxPerShard, allTxNumber)
 		if err := s.genTx(genTxs); err != nil {
 			return err
 		}
 		allTxNumber -= needAddCnt
 	}
 	return nil
+}
+
+func (s *ShardBackend) AccountForTPSReady() bool {
+	for _, v := range s.txGenerator {
+		if len(v.accounts) != 0 {
+			return true
+		}
+	}
+	return false
 }
 
 func (s *ShardBackend) genTx(genTxs *rpc.GenTxRequest) error {

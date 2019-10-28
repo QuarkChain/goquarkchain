@@ -494,6 +494,9 @@ func (s *SlaveBackend) GenTx(genTxs *rpc.GenTxRequest) error {
 		sd := shrd
 		g.Go(func() error {
 			go sd.GenTx(genTxs)
+			if !shrd.AccountForTPSReady() {
+				return errors.New("account for tps ready")
+			}
 			return nil
 		})
 	}
