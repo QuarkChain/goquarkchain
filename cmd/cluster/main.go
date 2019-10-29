@@ -159,6 +159,9 @@ func startService(ctx *cli.Context, stack *service.Node) {
 		if err := master.Start(); err != nil {
 			utils.Fatalf("Failed to init cluster service", "err", err)
 		}
+		if err := stack.StartP2P(); err != nil {
+			utils.Fatalf("failed to start p2p", "err", err)
+		}
 	} else {
 		var slave *slave.SlaveBackend
 		if err := stack.Service(&slave); err != nil {
