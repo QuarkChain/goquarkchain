@@ -75,7 +75,8 @@ func (c *CreateTxArgs) setDefaults(config *config.QuarkChainConfig) error {
 		return errors.New("must set numTxPerShard")
 	}
 	if c.XShardPrecent == nil {
-		return errors.New("must set xShardPercent")
+		t := uint32(0)
+		c.XShardPrecent = &t
 	}
 	if c.Gas == nil {
 		c.Gas = (*hexutil.Big)(params.DefaultStartGas)

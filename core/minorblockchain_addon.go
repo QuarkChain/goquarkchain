@@ -731,16 +731,6 @@ func (m *MinorBlockChain) addTransactionToBlock(block *types.MinorBlock, evmStat
 
 	}
 	bHeader := block.Header()
-	tIShard:=0
-	tXShard:=0
-	for _,v:=range txsInBlock{
-		if v.EvmTx.IsCrossShard(){
-			tXShard++
-		}else{
-				tIShard++
-		}
-	}
-	fmt.Println("DDDDDDDDDDDDDDDD",len(txsInBlock),tXShard,tIShard,stateT.GetGasUsed(),stateT.GetGasLimit())
 	return types.NewMinorBlock(bHeader, block.Meta(), txsInBlock, receipts, nil), receipts, nil
 }
 
