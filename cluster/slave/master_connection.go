@@ -58,9 +58,9 @@ func (s *ConnManager) BroadcastNewTip(mHeaderLst []*types.MinorBlockHeader,
 	return err
 }
 
-func (s *ConnManager) BroadcastTransactions(txs []*types.Transaction, branch uint32) error {
+func (s *ConnManager) BroadcastTransactions(txs []*types.Transaction, branch uint32, peerID string) error {
 	var (
-		gReq = rpc.BroadcastTransactions{Txs: txs, Branch: branch}
+		gReq = rpc.BroadcastTransactions{Txs: txs, Branch: branch, PeerID: peerID}
 	)
 	data, err := serialize.SerializeToBytes(gReq)
 	if err != nil {

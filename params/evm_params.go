@@ -20,6 +20,8 @@ var (
 
 	DefaultStartGas = new(big.Int).SetUint64(100 * 1000)
 	DefaultGasPrice = new(big.Int).Mul(new(big.Int).SetUint64(10), DenomsValue.GWei)
+
+	DefaultTxGasLimit = new(big.Int).SetUint64(21000)
 )
 
 type Denoms struct {
