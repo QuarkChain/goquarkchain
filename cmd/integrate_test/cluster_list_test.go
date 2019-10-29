@@ -531,7 +531,7 @@ func TestBroadcastCrossShardTransactions(t *testing.T) {
 
 	b0 := iB0.(*types.MinorBlock)
 	b1 := iB1.(*types.MinorBlock)
-	b1.Time() += 1
+	b1.Header().Time += 1
 	assert.Equal(t, b0.Hash(), b1.Hash())
 	if err := shrd0.InsertMinedBlock(iB0); err != nil {
 		t.Error("failed to insert mined block", "fullShardId", id0, "err", err)

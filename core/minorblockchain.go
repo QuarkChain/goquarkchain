@@ -54,7 +54,7 @@ import (
 
 const (
 	maxCrossShardLimit    = 256
-	maxRootBlockLimit     = 256
+	maxRootBlockLimit     = 128
 	maxLastConfirmLimit   = 256
 	maxGasPriceCacheLimit = 128
 )
