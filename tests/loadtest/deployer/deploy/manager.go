@@ -96,7 +96,7 @@ func (t *ToolManager) GenClusterConfig() {
 	} else {
 		clusterConfig.P2P.BootNodes = t.localConfig.BootNode
 	}
-	WriteConfigToFile(clusterConfig, "./cluster_config_template.json")
+	WriteConfigToFile(clusterConfig, clusterConfigPath)
 }
 
 func (t *ToolManager) SendFileToCluster() {
@@ -135,7 +135,7 @@ func (t *ToolManager) StartCluster() {
 	masterIp := t.GetIpListDependTag("master")[0]
 	slaveIpLists := make([]*SlaveInfo, 0)
 	cfg := config.NewClusterConfig()
-	err := LoadClusterConfig("./cluster_config_template.json", cfg)
+	err := LoadClusterConfig(clusterConfigPath, cfg)
 	CheckErr(err)
 
 	for _, v := range cfg.SlaveList {
@@ -153,13 +153,13 @@ func (t *ToolManager) StartCluster() {
 
 func (t *ToolManager) startMaster(ip string) {
 	session := t.SSHSession[ip]
-	session.RunCmd("docker exec -itd bjqkc /bin/bash -c 'chmod +x /tmp/QKC/cluster && /tmp/QKC/cluster --cluster_config /tmp/QKC/cluster_config_template.json --json_rpc_host 0.0.0.0 --json_rpc_private_host 0.0.0.0 >>master.log 2>&1 '")
+	session.RunCmd("docker exec -it bjqkc /bin/bash -c 'chmod +x /tmp/QKC/cluster && /tmp/QKC/cluster --cluster_config /tmp/QKC/cluster_config_template.json --json_rpc_host 0.0.0.0 --json_rpc_private_host 0.0.0.0 >>master.log 2>&1 '")
 }
 
 func (t *ToolManager) startSlave(ipList []*SlaveInfo) {
 	for _, v := range ipList {
 		session := t.SSHSession[v.IP]
-		cmd := "docker exec -itd bjqkc /bin/bash -c 'chmod +x /tmp/QKC/cluster && /tmp/QKC/cluster --cluster_config /tmp/QKC/cluster_config_template.json --service " + v.ServiceName + ">> " + v.ServiceName + ".log 2>&1  '"
+		cmd := "docker exec -it bjqkc /bin/bash -c 'chmod +x /tmp/QKC/cluster && /tmp/QKC/cluster --cluster_config /tmp/QKC/cluster_config_template.json --service " + v.ServiceName + ">> " + v.ServiceName + ".log 2>&1  '"
 		session.RunCmd(cmd)
 	}
 }

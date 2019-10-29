@@ -12,8 +12,8 @@
   "ChainNumber": 4,
   "ShardNumber": 8,
   "ExtraClusterConfig": {
-    "TargetRootBlockTime": 100,
-    "TargetMinorBlockTime": 200,
-    "GasLimit": 24000000
+    "TargetRootBlockTime": 20,
+    "TargetMinorBlockTime": 4,
+    "GasLimit": 96000000
   }
 }
