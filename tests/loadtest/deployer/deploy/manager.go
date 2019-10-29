@@ -17,6 +17,7 @@ import (
 var (
 	clusterPath       = "../../../cmd/cluster/cluster"
 	clusterConfigPath = "./cluster_config_template.json"
+	gensisAccountPath = "../../tests/loadtest/accounts"
 )
 
 func CheckErr(err error) {
@@ -95,7 +96,7 @@ func (t *ToolManager) GenClusterConfig() {
 	} else {
 		clusterConfig.P2P.BootNodes = t.localConfig.BootNode
 	}
-	WriteConfigToFile(clusterConfig, "./cluster_config_template.json")
+	WriteConfigToFile(clusterConfig, clusterConfigPath)
 }
 
 func (t *ToolManager) SendFileToCluster() {
@@ -134,7 +135,7 @@ func (t *ToolManager) StartCluster() {
 	masterIp := t.GetIpListDependTag("master")[0]
 	slaveIpLists := make([]*SlaveInfo, 0)
 	cfg := config.NewClusterConfig()
-	err := LoadClusterConfig("./cluster_config_template.json", cfg)
+	err := LoadClusterConfig(clusterConfigPath, cfg)
 	CheckErr(err)
 
 	for _, v := range cfg.SlaveList {

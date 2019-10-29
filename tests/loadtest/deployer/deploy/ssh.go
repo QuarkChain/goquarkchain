@@ -20,7 +20,6 @@ func NewSSHConnect(user, password, host string, port int) *SSHSession {
 }
 
 func (s *SSHSession) RunCmd(cmd string) {
-	log.Debug("run cmd", "host", s.host, "cmd", cmd)
 	var stdOut, stdErr bytes.Buffer
 	session, err := SSHConnect(s.user, s.password, s.host, s.port)
 	CheckErr(err)
@@ -30,7 +29,12 @@ func (s *SSHSession) RunCmd(cmd string) {
 	session.Stdout = &stdOut
 	session.Stderr = &stdErr
 	err = session.Run(cmd)
-	CheckErr(err)
+	if err != nil {
+		log.Error("run cmd err", "host", s.host, "cmd", cmd, "err", err)
+		return
+	} else {
+		log.Debug("run cmd", "host", s.host, "cmd", cmd, "err", err)
+	}
 	if stdOut.String() != "" {
 		//TODO need print?
 	}
