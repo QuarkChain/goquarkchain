@@ -29,13 +29,17 @@ func (s *SSHSession) RunCmd(cmd string) {
 	session.Stdout = &stdOut
 	session.Stderr = &stdErr
 	err = session.Run(cmd)
+	if err != nil {
+		log.Error("run cmd err", "host", s.host, "cmd", cmd, "err", err)
+		return
+	} else {
+		log.Debug("run cmd", "host", s.host, "cmd", cmd, "err", err)
+	}
 	if stdOut.String() != "" {
 		//TODO need print?
 	}
 	if stdErr.String() != "" {
 		log.Error("run cmd err", "cmd", cmd, "err", stdErr.String())
-	} else {
-		log.Debug("run cmd", "host", s.host, "cmd", cmd, "err", err)
 	}
 }
 
