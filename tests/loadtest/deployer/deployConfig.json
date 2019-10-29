@@ -1,5 +1,5 @@
 {
-  "DockerName": "quarkchaindocker/goquarkchain:<version tag>",
+  "DockerName": "quarkchaindocker/goquarkchain",
   "Hosts": [{
     "IP": "172.16.1.33",
     "Port": 22,

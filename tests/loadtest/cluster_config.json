@@ -8,7 +8,7 @@
   "DB_PATH_ROOT": "./qkc-data/loadtest",
   "LOG_LEVEL": "info",
   "START_SIMULATED_MINING": false,
-  "CLEAN": false,
+  "CLEAN": true,
   "GENESIS_DIR": "../../tests/loadtest/accounts",
   "QUARKCHAIN": {
     "CHAIN_SIZE": 8,
@@ -30,7 +30,7 @@
       "MAX_STALE_ROOT_BLOCK_HEIGHT_DIFF": 22500,
       "CONSENSUS_TYPE": "POW_SIMULATE",
       "CONSENSUS_CONFIG": {
-        "TARGET_BLOCK_TIME": 60,
+        "TARGET_BLOCK_TIME": 20,
         "REMOTE_MINE": false
       },
       "GENESIS": {
@@ -62,7 +62,7 @@
         "DEFAULT_CHAIN_TOKEN": "QKC",
         "CONSENSUS_TYPE": "POW_SIMULATE",
         "CONSENSUS_CONFIG": {
-          "TARGET_BLOCK_TIME": 5,
+          "TARGET_BLOCK_TIME": 3,
           "REMOTE_MINE": false
         },
         "GENESIS": {
@@ -106,7 +106,7 @@
         "DEFAULT_CHAIN_TOKEN": "QKC",
         "CONSENSUS_TYPE": "POW_SIMULATE",
         "CONSENSUS_CONFIG": {
-          "TARGET_BLOCK_TIME": 5,
+          "TARGET_BLOCK_TIME": 3,
           "REMOTE_MINE": false
         },
         "GENESIS": {
@@ -140,7 +140,7 @@
         "DEFAULT_CHAIN_TOKEN": "QKC",
         "CONSENSUS_TYPE": "POW_SIMULATE",
         "CONSENSUS_CONFIG": {
-          "TARGET_BLOCK_TIME": 5,
+          "TARGET_BLOCK_TIME": 3,
           "REMOTE_MINE": false
         },
         "GENESIS": {
@@ -174,7 +174,7 @@
         "DEFAULT_CHAIN_TOKEN": "QKC",
         "CONSENSUS_TYPE": "POW_SIMULATE",
         "CONSENSUS_CONFIG": {
-          "TARGET_BLOCK_TIME": 5,
+          "TARGET_BLOCK_TIME": 3,
           "REMOTE_MINE": false
         },
         "GENESIS": {
@@ -219,7 +219,7 @@
         "DEFAULT_CHAIN_TOKEN": "QKC",
         "CONSENSUS_TYPE": "POW_SIMULATE",
         "CONSENSUS_CONFIG": {
-          "TARGET_BLOCK_TIME": 5,
+          "TARGET_BLOCK_TIME": 3,
           "REMOTE_MINE": false
         },
         "GENESIS": {
@@ -264,7 +264,7 @@
         "DEFAULT_CHAIN_TOKEN": "QKC",
         "CONSENSUS_TYPE": "POW_SIMULATE",
         "CONSENSUS_CONFIG": {
-          "TARGET_BLOCK_TIME": 5,
+          "TARGET_BLOCK_TIME": 3,
           "REMOTE_MINE": false
         },
         "GENESIS": {
@@ -309,7 +309,7 @@
         "DEFAULT_CHAIN_TOKEN": "QKC",
         "CONSENSUS_TYPE": "POW_SIMULATE",
         "CONSENSUS_CONFIG": {
-          "TARGET_BLOCK_TIME": 5,
+          "TARGET_BLOCK_TIME": 3,
           "REMOTE_MINE": false
         },
         "GENESIS": {
@@ -354,7 +354,7 @@
         "DEFAULT_CHAIN_TOKEN": "QKC",
         "CONSENSUS_TYPE": "POW_SIMULATE",
         "CONSENSUS_CONFIG": {
-          "TARGET_BLOCK_TIME": 5,
+          "TARGET_BLOCK_TIME": 3,
           "REMOTE_MINE": false
         },
         "GENESIS": {
