@@ -57,12 +57,12 @@ func (v *RootBlockValidator) ValidateBlock(block types.IBlock, force bool) error
 		return err
 	}
 
-	parent, ok := v.blockChain.GetBlock(block.IHeader().GetParentHash()).(*types.RootBlock)
+	parent, ok := v.blockChain.GetBlock(block.ParentHash()).(*types.RootBlock)
 	if !ok {
-		return fmt.Errorf("no such root block:%v %v", block.IHeader().NumberU64()-1, block.IHeader().GetParentHash().String())
+		return fmt.Errorf("no such root block:%v %v", block.NumberU64()-1, block.ParentHash().String())
 	}
-	if new(big.Int).Add(header.GetDifficulty(), parent.IHeader().GetTotalDifficulty()).Cmp(header.GetTotalDifficulty()) != 0 {
-		return fmt.Errorf("error total diff header.diff:%v parent.total:%v,header.total:%v", header.GetDifficulty(), parent.IHeader().GetTotalDifficulty(), header.GetTotalDifficulty())
+	if new(big.Int).Add(header.GetDifficulty(), parent.TotalDifficulty()).Cmp(header.GetTotalDifficulty()) != 0 {
+		return fmt.Errorf("error total diff header.diff:%v parent.total:%v,header.total:%v", header.GetDifficulty(), parent.TotalDifficulty(), header.GetTotalDifficulty())
 	}
 	if uint32(len(rootBlock.TrackingData())) > v.config.BlockExtraDataSizeLimit {
 		return errors.New("tracking data in block is too large")
@@ -102,7 +102,7 @@ func (v *RootBlockValidator) ValidateBlock(block types.IBlock, force bool) error
 			return fmt.Errorf("minor block is not validated. %v-%d",
 				mheader.Coinbase.FullShardKey, mheader.Number)
 		}
-		if mheader.Time > rootBlock.Header().Time {
+		if mheader.Time > rootBlock.Time() {
 			return fmt.Errorf("minor block create time is larger than root block %d-%d",
 				mheader.Time, mheader.Time)
 		}
@@ -133,7 +133,7 @@ func (v *RootBlockValidator) ValidateBlock(block types.IBlock, force bool) error
 		}
 	}
 
-	if rootBlock.Header().Number < 1 {
+	if rootBlock.NumberU64() < 1 {
 		return nil
 	}
 

@@ -71,8 +71,8 @@ func TestValidateBlock(t *testing.T) {
 		}
 		chain.InsertChain(blocks[i : i+1])
 	}
-	if chain.CurrentBlock().Header().Number != 0 {
-		t.Fatalf("verify chain CurrentBlock hight, have %d, want 0", chain.CurrentBlock().Header().Number)
+	if chain.CurrentBlock().NumberU64() != 0 {
+		t.Fatalf("verify chain CurrentBlock hight, have %d, want 0", chain.CurrentBlock().NumberU64())
 	}
 
 	engine.Err = nil

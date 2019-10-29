@@ -100,7 +100,7 @@ func TestRootBlockStorage(t *testing.T) {
 	}
 	if entry := ReadRootBlockHeader(db, block.Hash()); entry == nil {
 		t.Fatalf("Stored header not found")
-	} else if entry.Hash() != block.Header().Hash() {
+	} else if entry.Hash() != block.Hash() {
 		t.Fatalf("Retrieved header mismatch: have %v, want %v", entry, block.Header())
 	}
 	// Delete the block and verify the execution
@@ -138,7 +138,7 @@ func TestMinorBlockStorage(t *testing.T) {
 	}
 	if entry := ReadMinorBlockHeader(db, block.Hash()); entry == nil {
 		t.Fatalf("Stored header not found")
-	} else if entry.Hash() != block.Header().Hash() {
+	} else if entry.Hash() != block.Hash() {
 		t.Fatalf("Retrieved header mismatch: have %v, want %v", entry, block.Header())
 	}
 	// Delete the block and verify the execution

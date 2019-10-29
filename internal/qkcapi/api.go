@@ -619,7 +619,7 @@ func (p *PublicBlockChainAPI) GetTransactionConfirmedByNumberRootBlocks(txID hex
 		return hexutil.Uint(0), errors.New("GetTxByHash mBlock is nil")
 	}
 
-	confirmingHash := p.b.GetRootHashConfirmingMinorBlock(encoder.IDEncoder(mBlock.Hash().Bytes(), mBlock.Header().Branch.Value))
+	confirmingHash := p.b.GetRootHashConfirmingMinorBlock(encoder.IDEncoder(mBlock.Hash().Bytes(), mBlock.Branch().Value))
 	if bytes.Equal(confirmingHash.Bytes(), common.Hash{}.Bytes()) {
 		return hexutil.Uint(0), nil
 	}

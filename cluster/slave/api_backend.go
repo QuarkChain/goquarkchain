@@ -69,7 +69,7 @@ func (s *SlaveBackend) CreateShards(rootBlock *types.RootBlock, forceInit bool) 
 		}
 		g.Go(func() error {
 			shardCfg := s.clstrCfg.Quarkchain.GetShardConfigByFullShardID(id)
-			if rootBlock.Header().Number >= shardCfg.Genesis.RootHeight {
+			if rootBlock.Number() >= shardCfg.Genesis.RootHeight {
 				shard, err := shard.New(s.ctx, rootBlock, s.connManager, s.clstrCfg, id)
 				if err != nil {
 					log.Error("Failed to create shard", "slave id", s.config.ID, "shard id", shardCfg.ShardID, "err", err)
@@ -482,7 +482,7 @@ func (s *SlaveBackend) HandleNewTip(req *rpc.HandleNewTipRequest) error {
 }
 
 func (s *SlaveBackend) NewMinorBlock(block *types.MinorBlock) error {
-	if shard, ok := s.shards[block.Header().Branch.Value]; ok {
+	if shard, ok := s.shards[block.Branch().Value]; ok {
 		return shard.NewMinorBlock(block)
 	}
 	return ErrMsg("NewMinorBlock")

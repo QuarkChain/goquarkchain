@@ -70,13 +70,13 @@ func TestGetLog(t *testing.T) {
 	b2, err := shardState.CreateBlockToMine(nil, &acc3, nil, nil, nil)
 	checkErr(err)
 	assert.Equal(t, len(b2.Transactions()), 1)
-	assert.Equal(t, b2.Header().Number, uint64(1))
+	assert.Equal(t, b2.NumberU64(), uint64(1))
 
 	// Should succeed
 	b2, re, err := shardState.FinalizeAndAddBlock(b2)
 	checkErr(err)
-	assert.Equal(t, shardState.CurrentBlock().IHeader().NumberU64(), uint64(1))
-	assert.Equal(t, shardState.CurrentBlock().IHeader().(*types.MinorBlockHeader).Hash(), b2.Header().Hash())
+	assert.Equal(t, shardState.CurrentBlock().NumberU64(), uint64(1))
+	assert.Equal(t, shardState.CurrentBlock().Hash(), b2.Hash())
 	assert.Equal(t, shardState.CurrentBlock().GetTransactions()[0].Hash(), tx.Hash())
 	contractAddr := re[0].ContractAddress
 
@@ -102,13 +102,13 @@ func TestGetLog(t *testing.T) {
 	b3, err := shardState.CreateBlockToMine(nil, &acc3, nil, nil, nil)
 	checkErr(err)
 	assert.Equal(t, len(b3.Transactions()), 1)
-	assert.Equal(t, b3.Header().Number, uint64(2))
+	assert.Equal(t, b3.NumberU64(), uint64(2))
 
 	// Should succeed
 	b3, re, err = shardState.FinalizeAndAddBlock(b3)
 	checkErr(err)
-	assert.Equal(t, shardState.CurrentBlock().IHeader().NumberU64(), uint64(2))
-	assert.Equal(t, shardState.CurrentBlock().IHeader().(*types.MinorBlockHeader).Hash(), b3.Header().Hash())
+	assert.Equal(t, shardState.CurrentBlock().NumberU64(), uint64(2))
+	assert.Equal(t, shardState.CurrentBlock().Hash(), b3.Hash())
 	assert.Equal(t, shardState.CurrentBlock().GetTransactions()[0].Hash(), tx.Hash())
 
 	address := make([]common.Address, 0)

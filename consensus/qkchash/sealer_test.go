@@ -116,11 +116,11 @@ func TestStaleSubmission(t *testing.T) {
 			if res.IHeader().GetDifficulty().Uint64() != c.headers[c.submitIndex].Difficulty.Uint64() {
 				t.Errorf("case %d block difficulty mismatch, want %d, get %d", id+1, c.headers[c.submitIndex].Difficulty, res.IHeader().GetDifficulty())
 			}
-			if res.IHeader().NumberU64() != c.headers[c.submitIndex].NumberU64() {
-				t.Errorf("case %d block number mismatch, want %d, get %d", id+1, c.headers[c.submitIndex].NumberU64(), res.IHeader().NumberU64())
+			if res.NumberU64() != c.headers[c.submitIndex].NumberU64() {
+				t.Errorf("case %d block number mismatch, want %d, get %d", id+1, c.headers[c.submitIndex].NumberU64(), res.NumberU64())
 			}
-			if res.IHeader().GetParentHash() != c.headers[c.submitIndex].ParentHash {
-				t.Errorf("case %d block parent hash mismatch, want %s, get %s", id+1, c.headers[c.submitIndex].ParentHash.Hex(), res.IHeader().GetParentHash().Hex())
+			if res.ParentHash() != c.headers[c.submitIndex].ParentHash {
+				t.Errorf("case %d block parent hash mismatch, want %s, get %s", id+1, c.headers[c.submitIndex].ParentHash.Hex(), res.ParentHash().Hex())
 			}
 		}
 	}
