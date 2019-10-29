@@ -489,14 +489,16 @@ func (s *SlaveBackend) NewMinorBlock(block *types.MinorBlock) error {
 }
 
 func (s *SlaveBackend) GenTx(genTxs *rpc.GenTxRequest) error {
-	var g errgroup.Group
+	for _, shard := range s.shards {
+		if !shard.AccountForTPSReady() {
+			return errors.New("account for tps not ready")
+		}
+	}
 	for _, shrd := range s.shards {
 		sd := shrd
-		g.Go(func() error {
-			return sd.GenTx(genTxs)
-		})
+		go sd.GenTx(genTxs)
 	}
-	return g.Wait()
+	return nil
 }
 
 func (s *SlaveBackend) SetMining(mining bool) {

@@ -18,6 +18,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
+	"golang.org/x/sync/errgroup"
 )
 
 var (
@@ -55,16 +56,56 @@ func (s *ShardBackend) GetAllTx(start []byte, limit uint32) ([]*rpc.TransactionD
 }
 
 func (s *ShardBackend) GenTx(genTxs *rpc.GenTxRequest) error {
+	log.Info(s.logInfo, "ready to genTx txNumber", genTxs.NumTxPerShard, "XShardPercent", genTxs.XShardPercent)
+	allTxNumber := genTxs.NumTxPerShard
+	for allTxNumber > 0 {
+		pendingCnt := s.MinorBlockChain.GetPendingCount()
+		log.Info(s.logInfo, "last tx to add", allTxNumber, "pendingCnt", pendingCnt)
+		if pendingCnt >= 36000 {
+			time.Sleep(2 * time.Second)
+			continue
+		}
+		genTxs.NumTxPerShard = allTxNumber
+		if allTxNumber > 12000 {
+			genTxs.NumTxPerShard = 12000
+		}
+
+		if err := s.genTx(genTxs); err != nil {
+			log.Error(s.logInfo, "genTx err", err)
+			return err
+		}
+		allTxNumber -= genTxs.NumTxPerShard
+	}
+	return nil
+}
+
+func (s *ShardBackend) AccountForTPSReady() bool {
+	for _, v := range s.txGenerator {
+		if len(v.accounts) == 0 {
+			return false
+		}
+	}
+	if len(s.txGenerator) == 0 {
+		return false
+	}
+	return true
+}
+
+func (s *ShardBackend) genTx(genTxs *rpc.GenTxRequest) error {
+	genTxs.NumTxPerShard = genTxs.NumTxPerShard / uint32(len(s.txGenerator))
+	var g errgroup.Group
 	for index := 0; index < len(s.txGenerator); index++ {
 		i := index
-		go func() {
+		g.Go(func() error {
 			err := s.txGenerator[i].Generate(genTxs, s.AddTxList)
 			if err != nil {
 				log.Error(s.logInfo, "GenTx err", err)
 			}
-		}()
+			return err
+		})
+
 	}
-	return nil
+	return g.Wait()
 }
 
 func (s *ShardBackend) GetLogs(hash common.Hash) ([][]*types.Log, error) {
@@ -398,8 +439,6 @@ func (s *ShardBackend) setHead(head uint64) {
 }
 
 func (s *ShardBackend) AddTxList(txs []*types.Transaction, peerID string) error {
-	ts := time.Now()
-
 	if err := s.MinorBlockChain.AddTxList(txs); err != nil {
 		log.Error(s.logInfo, "AddTxList err", err)
 		return err
@@ -418,7 +457,6 @@ func (s *ShardBackend) AddTxList(txs []*types.Transaction, peerID string) error 
 			}
 		}
 	}()
-	log.Info("time-tx-insert-end", "time", time.Now().Sub(ts).Seconds(), "len(tx)", len(txs))
 	return nil
 }
 

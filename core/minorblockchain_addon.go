@@ -16,13 +16,11 @@ import (
 	"github.com/QuarkChain/goquarkchain/core/state"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/core/vm"
-	"github.com/QuarkChain/goquarkchain/params"
 	"github.com/QuarkChain/goquarkchain/qkcdb"
 	qrpc "github.com/QuarkChain/goquarkchain/rpc"
 	"github.com/QuarkChain/goquarkchain/serialize"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
-	"golang.org/x/sync/errgroup"
 )
 
 var (
@@ -1063,6 +1061,10 @@ func (m *MinorBlockChain) GetShardStats() (*rpc.ShardStatus, error) {
 	}, nil
 }
 
+func (m *MinorBlockChain) GetPendingCount() int {
+	return m.txPool.PendingCount()
+}
+
 // EstimateGas estimate gas for this tx
 func (m *MinorBlockChain) EstimateGas(tx *types.Transaction, fromAddress account.Address) (uint32, error) {
 	// no need to locks
@@ -1709,30 +1711,14 @@ func recoverSender(txs []*types.Transaction, networkID uint32) error {
 }
 
 func (m *MinorBlockChain) AddTxList(txs []*types.Transaction) error {
-	ts := time.Now()
-	interval := len(txs) / params.TPS_Num
-	var g errgroup.Group
-	for index := 0; index < params.TPS_Num; index++ {
-		i := index
-		g.Go(func() error {
-			if err := recoverSender(txs[i*interval:(i+1)*interval], m.clusterConfig.Quarkchain.NetworkID); err != nil {
-				return err
-			}
-			return nil
-		})
-	}
-	if err := g.Wait(); err != nil {
+	if err := recoverSender(txs, m.clusterConfig.Quarkchain.NetworkID); err != nil {
 		return err
 	}
-	log.Info("recover", "len", len(txs), "dur", time.Now().Sub(ts).Seconds())
-	ts = time.Now()
 	errList := m.txPool.AddLocals(txs)
 	for _, err := range errList {
 		if err != nil {
 			return err
 		}
 	}
-
-	log.Info("AddLocals", "len", len(txs), "dur", time.Now().Sub(ts).Seconds())
 	return nil
 }

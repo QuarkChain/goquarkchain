@@ -3,6 +3,9 @@ package qkcapi
 import (
 	"bytes"
 	"errors"
+	"math/big"
+	"sort"
+
 	"github.com/QuarkChain/goquarkchain/account"
 	qrpc "github.com/QuarkChain/goquarkchain/cluster/rpc"
 	qcom "github.com/QuarkChain/goquarkchain/common"
@@ -13,8 +16,6 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rlp"
-	"math/big"
-	"sort"
 )
 
 type CommonAPI struct {
@@ -709,7 +710,7 @@ func (p *PrivateBlockChainAPI) CreateTransactions(args CreateTxArgs) error {
 		return err
 	}
 	tx := args.toTx(config)
-	return p.b.CreateTransactions(uint32(*args.NumTxPreShard), uint32(*args.XShardPrecent), tx)
+	return p.b.CreateTransactions(*args.NumTxPreShard, *args.XShardPrecent, tx)
 }
 
 func (p *PrivateBlockChainAPI) SetTargetBlockTime(rootBlockTime *uint32, minorBlockTime *uint32) error {

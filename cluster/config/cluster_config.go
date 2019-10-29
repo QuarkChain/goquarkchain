@@ -5,12 +5,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math/big"
+	"sort"
+
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	ethcom "github.com/ethereum/go-ethereum/common"
-	"math/big"
-	"sort"
 )
 
 var (
