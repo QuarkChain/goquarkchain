@@ -1,16 +1,16 @@
 {
   "DockerName": "quarkchaindocker/goquarkchain",
   "Hosts": [{
-    "IP": "172.16.1.33",
+    "IP": "138.68.22.95",
     "Port": 22,
     "User": "root",
-    "Password": "123456",
+    "Password": "goquarkchain",
     "Service": "master,slave"
   },{
-    "IP": "172.16.1.34",
+    "IP": "138.68.22.96",
     "Port": 22,
     "User": "root",
-    "Password": "123456",
+    "Password": "goquarkchain",
     "Service": "slave"
   }
   ],

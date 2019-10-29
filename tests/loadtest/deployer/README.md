@@ -73,10 +73,12 @@ curl -X POST -H 'content-type: application/json' --data '{"jsonrpc":"2.0","metho
 ## Running Multiple Clusters and Boot Node
 With different deployConfig.json you can deploy multiple clusters in same network with this tool. 
 
-Leave `BootNode` field empty when you deploy the first cluster/node in the network, and you'll find 
-"enode://...:38291" in console log. Use this URL for `BootNode` value in the configuration file to build other clusters 
-in the same network.
-
+Leave `BootNode` field empty when you deploy the first cluster/node in the network, and you'll find bootnode info like
+"enode://..." printed in console log. Use this value to append IP address and p2p port for `BootNode` value in 
+the configuration file to build other clusters in the same network. For example:
+```bash
+"BootNode": "enode://87ecd6de30917a618e0a74cd62606edf863836e8d2ea66f79920c57edc582a016d0679201424757a9090cd53338fc7e585bcbfc07c488f5d4225e63387ee0042@138.68.22.96:38291"
+```
 ## Back to Loadtest
 
 Now that you have running clusters, you can continue with loadtest from [here](../README.md#generate-transactions).
