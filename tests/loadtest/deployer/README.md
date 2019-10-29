@@ -59,8 +59,9 @@ To check the status of the cluster, you need to enter the Docker container on th
 ```bash
 docker exec  -it bjqkc /bin/bash
 ```
-If everything goes correctly, you will see from `$GOPATH/src/github.com/QuarkChain/goquarkchain/cmd/master.log` that 
-cluster start successfully, and 12,000 accounts loaded automatically for each shard.
+If everything goes correctly, you will see from `$GOPATH/src/github.com/QuarkChain/goquarkchain/cmd/cluster/master.log` that 
+cluster start successfully, and from shard logs such as `S0.log` in the same folder that 12,000 accounts 
+loaded automatically for each shard.
 
 Try the following command to see if mining works:
 ```bash
@@ -73,3 +74,6 @@ Leave `BootNode` field empty when you deploy the first cluster/node in the netwo
 "enode://...:38291" in console log. Use this URL for `BootNode` value in the configuration file to build other clusters 
 in the same network.
 
+## Back to Loadtest
+
+Now that you have running clusters, you can continue with loadtest from [here](../README.md#generate-transactions).
