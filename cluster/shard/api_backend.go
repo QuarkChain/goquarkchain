@@ -56,21 +56,21 @@ func (s *ShardBackend) GetAllTx(start []byte, limit uint32) ([]*rpc.TransactionD
 }
 
 func (s *ShardBackend) GenTx(genTxs *rpc.GenTxRequest) error {
-	log.Info(s.logInfo,"ready to genTx txNumber",genTxs.NumTxPerShard,"XShardPercent",genTxs.XShardPercent)
-	allTxNumber := int(genTxs.NumTxPerShard) / len(s.txGenerator)
+	log.Info(s.logInfo, "ready to genTx txNumber", genTxs.NumTxPerShard, "XShardPercent", genTxs.XShardPercent)
+	allTxNumber := genTxs.NumTxPerShard
 	for allTxNumber > 0 {
 		pendingCnt := s.MinorBlockChain.GetPendingCount()
-		log.Info(s.logInfo,"last tx to add",allTxNumber,"pendingCnt",pendingCnt)
+		log.Info(s.logInfo, "last tx to add", allTxNumber, "pendingCnt", pendingCnt)
 		needAddCnt := allTxNumber
 		if pendingCnt <= 60000 {
 			if needAddCnt > 12000 {
 				needAddCnt = 12000
 			}
 		} else {
-			time.Sleep(20 * time.Second)// 12000/500
+			time.Sleep(24 * time.Second) // 12000(tx) / 500(tps/s)
 			continue
 		}
-		genTxs.NumTxPerShard = uint32(needAddCnt)
+		genTxs.NumTxPerShard = needAddCnt
 
 		if err := s.genTx(genTxs); err != nil {
 			return err
@@ -90,6 +90,7 @@ func (s *ShardBackend) AccountForTPSReady() bool {
 }
 
 func (s *ShardBackend) genTx(genTxs *rpc.GenTxRequest) error {
+	genTxs.NumTxPerShard = genTxs.NumTxPerShard / uint32(len(s.txGenerator))
 	var g errgroup.Group
 	for index := 0; index < len(s.txGenerator); index++ {
 		i := index
