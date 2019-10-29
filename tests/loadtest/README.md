@@ -8,7 +8,7 @@ If you are interested in building everything from scratch, please refer to the [
 to set up development environment for each of your hosts, then [run clusters](../../README.md#running-clusters) on them.
 
 To save your time and effort, an automatic deploy tool has been provided for you to deploy clusters to remote hosts 
-based on Docker image for your convenience. Please refer to [Deployer](./deployer/README.md#use-deploy-tool-to-start-clusters) for detail.
+based on Docker image for your convenience. Please refer to [Use Deploy Tool to Start Clusters](./deployer/README.md#use-deploy-tool-to-start-clusters) for detail.
 
 ## Loadtest Configuration
 

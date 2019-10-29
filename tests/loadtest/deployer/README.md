@@ -10,25 +10,23 @@ interested in build everything without Docker, start from [here](../../../README
 ## Run Docker Image
 
 Usually you'll need a GoQuarkChain development environment to run the deploy tool, but the pre-built Docker image 
-saved the effort for you. All you need to do is to run the following command:
+saved the effort for you. All you need to do is to run the following command to pull and run into a container with the deployer:
 
 ```bash
 # replace docker image name if a custom image is used
-$ docker run  -itd quarkchaindocker/goquarkchain:<version tag> /bin/bash 
+docker run  -it quarkchaindocker/goquarkchain:<version tag> /bin/bash 
 ```
 NOTE it is better to run it in the same LAN with the hosts you plan to deploy a cluster, because some file copy work 
 will be done across network during the deploy process. 
 
-Once you get inside the Docker container, you can change the cluster configuration in it.
-
 ## Configure Clusters
 
-You can build and deploy one cluster each time using this deploy tool. You need to modify 
-`$GOPATH/src/github.com/QuarkChain/goquarkchain/tests/loadtest/deployer/deployConfig.json` 
-to configure the cluster to run in your environment. 
-
-NOTE For each of the hosts, besides 38291, 38391, 38491, the port range [48000, 48000 + host number] should be opened too.
-
+You can build and deploy one cluster each time using this deploy tool with a configuration file `deployConfig.json`. 
+To change configuration for the cluster:
+```bash
+# inside Docker container
+vi $GOPATH/src/github.com/QuarkChain/goquarkchain/tests/loadtest/deployer/deployConfig.json
+```
 Parameters explained:
 - `Hosts` a list of hosts run same cluster/node
 - `IP` host IP
@@ -44,9 +42,12 @@ for detail
 - `TargetMinorBlockTime` defines the target block interval on each shard
 - `GasLimit` defines the gas limit for a block; note that in-shard transactions uses 50% of the total gas limit in a block
 
+NOTE For each of the hosts, besides 38291, 38391, 38491, the port range [48000, 48000 + host number] should be opened too.
+
 ## Deploy and Run a Cluster
 Inside the container, execute:
 ```bash
+# inside Docker container
 cd $GOPATH/src/github.com/QuarkChain/goquarkchain/tests/loadtest/deployer
 go run deploy_cluster.go
 ```
