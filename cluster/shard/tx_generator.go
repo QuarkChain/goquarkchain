@@ -123,8 +123,6 @@ func (t *TxGenerator) Generate(genTxs *rpc.GenTxRequest, addTxList func(txs []*t
 		index++
 
 		if index >= batchScale {
-			log.Info("detail", "total", total, "numTx", numTx, "durtion", time.Now().Sub(ts).Seconds(), "index", t.accountIndex)
-
 			if err := addTxList(txList, ""); err != nil {
 				return err
 			}

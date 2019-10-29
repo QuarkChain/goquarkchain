@@ -731,6 +731,16 @@ func (m *MinorBlockChain) addTransactionToBlock(block *types.MinorBlock, evmStat
 
 	}
 	bHeader := block.Header()
+	tIShard:=0
+	tXShard:=0
+	for _,v:=range txsInBlock{
+		if v.EvmTx.IsCrossShard(){
+			tXShard++
+		}else{
+				tIShard++
+		}
+	}
+	fmt.Println("DDDDDDDDDDDDDDDD",len(txsInBlock),tXShard,tIShard,stateT.GetGasUsed(),stateT.GetGasLimit())
 	return types.NewMinorBlock(bHeader, block.Meta(), txsInBlock, receipts, nil), receipts, nil
 }
 
@@ -1710,21 +1720,14 @@ func recoverSender(txs []*types.Transaction, networkID uint32) error {
 }
 
 func (m *MinorBlockChain) AddTxList(txs []*types.Transaction) error {
-	ts := time.Now()
-
 	if err := recoverSender(txs, m.clusterConfig.Quarkchain.NetworkID); err != nil {
 		return err
 	}
-
-	log.Info("recover", "len", len(txs), "dur", time.Now().Sub(ts).Seconds())
-	ts = time.Now()
 	errList := m.txPool.AddLocals(txs)
 	for _, err := range errList {
 		if err != nil {
 			return err
 		}
 	}
-
-	log.Info("AddLocals", "len", len(txs), "dur", time.Now().Sub(ts).Seconds())
 	return nil
 }

@@ -56,16 +56,18 @@ func (s *ShardBackend) GetAllTx(start []byte, limit uint32) ([]*rpc.TransactionD
 }
 
 func (s *ShardBackend) GenTx(genTxs *rpc.GenTxRequest) error {
+	log.Info(s.logInfo,"ready to genTx txNumber",genTxs.NumTxPerShard,"XShardPercent",genTxs.XShardPercent)
 	allTxNumber := int(genTxs.NumTxPerShard) / len(s.txGenerator)
 	for allTxNumber > 0 {
 		pendingCnt := s.MinorBlockChain.GetPendingCount()
+		log.Info(s.logInfo,"last tx to add",allTxNumber,"pendingCnt",pendingCnt)
 		needAddCnt := allTxNumber
 		if pendingCnt <= 60000 {
 			if needAddCnt > 12000 {
 				needAddCnt = 12000
 			}
 		} else {
-			time.Sleep(2 * time.Second)
+			time.Sleep(20 * time.Second)// 12000/500
 			continue
 		}
 		genTxs.NumTxPerShard = uint32(needAddCnt)
@@ -438,8 +440,6 @@ func (s *ShardBackend) setHead(head uint64) {
 }
 
 func (s *ShardBackend) AddTxList(txs []*types.Transaction, peerID string) error {
-	ts := time.Now()
-
 	if err := s.MinorBlockChain.AddTxList(txs); err != nil {
 		log.Error(s.logInfo, "AddTxList err", err)
 		return err
@@ -458,7 +458,6 @@ func (s *ShardBackend) AddTxList(txs []*types.Transaction, peerID string) error 
 			}
 		}
 	}()
-	log.Info("time-tx-insert-end", "time", time.Now().Sub(ts).Seconds(), "len(tx)", len(txs))
 	return nil
 }
 

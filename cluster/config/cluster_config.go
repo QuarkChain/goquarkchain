@@ -211,7 +211,7 @@ func (q *QuarkChainConfig) GetGenesisShardIds() []uint32 {
 func (q *QuarkChainConfig) GetInitializedShardIdsBeforeRootHeight(rootHeight uint32) []uint32 {
 	var result []uint32
 	for fullShardId, config := range q.shards {
-		if config.Genesis != nil && config.Genesis.RootHeight <= rootHeight {
+		if config.Genesis != nil && config.Genesis.RootHeight < rootHeight {
 			result = append(result, uint32(fullShardId))
 		}
 	}
