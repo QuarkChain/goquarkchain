@@ -3,6 +3,8 @@
 Here we provide a deploy tool based on pre-built Docker image. With this tool you can deploy GoQuarkChain master/shard 
 services to build and start a cluster in one line command. 
 
+NOTE with this tool at most one Slave service can be deployed to a host, but there is no limitation for Shards number.
+
 It is encouraged that you build your own deploy scripts or tools, especially if you prefer different service distribution 
 among hosts.  You can also build your own Docker image, starting from [this Dockerfile](../Dockerfile), or if you are 
 interested in build everything without Docker, start from [here](../../../README.md#development-setup). 
@@ -10,11 +12,12 @@ interested in build everything without Docker, start from [here](../../../README
 ## Run Docker Image
 
 Usually you'll need a GoQuarkChain development environment to run the deploy tool, but the pre-built Docker image 
-saved the effort for you. All you need to do is to run the following command to pull and run into a container with the deployer:
+saved the effort for you. Run the following commands to pull and start a container with deployer in it:
 
 ```bash
 # replace docker image name if a custom image is used
-docker run  -it quarkchaindocker/goquarkchain /bin/bash 
+docker pull quarkchaindocker/goquarkchain
+docker run -it quarkchaindocker/goquarkchain /bin/bash 
 ```
 NOTE it is better to run it in the same LAN with the hosts you plan to deploy a cluster, because some file copy work 
 will be done across network during the deploy process. 
