@@ -14,7 +14,6 @@ import (
 	"github.com/QuarkChain/goquarkchain/core"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/p2p"
-	"github.com/QuarkChain/goquarkchain/p2p/nodefilter"
 	"github.com/QuarkChain/goquarkchain/serialize"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -165,7 +164,7 @@ func (pm *ProtocolManager) handle(peer *Peer) error {
 		pm.rootBlockChain.CurrentBlock().Header(),
 		pm.rootBlockChain.Genesis().Hash(),
 	); err != nil {
-		return nodefilter.NewHandleBlackListErr(err.Error())
+		return err
 	}
 
 	// Register the peer locally
