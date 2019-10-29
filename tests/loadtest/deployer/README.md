@@ -14,7 +14,7 @@ saved the effort for you. All you need to do is to run the following command to 
 
 ```bash
 # replace docker image name if a custom image is used
-docker run  -it quarkchaindocker/goquarkchain:<version tag> /bin/bash 
+docker run  -it quarkchaindocker/goquarkchain /bin/bash 
 ```
 NOTE it is better to run it in the same LAN with the hosts you plan to deploy a cluster, because some file copy work 
 will be done across network during the deploy process. 
