@@ -61,32 +61,34 @@ func (s *ShardBackend) GenTx(genTxs *rpc.GenTxRequest) error {
 	for allTxNumber > 0 {
 		pendingCnt := s.MinorBlockChain.GetPendingCount()
 		log.Info(s.logInfo, "last tx to add", allTxNumber, "pendingCnt", pendingCnt)
-		needAddCnt := allTxNumber
-		if pendingCnt <= 60000 {
-			if needAddCnt > 12000 {
-				needAddCnt = 12000
-			}
-		} else {
-			time.Sleep(24 * time.Second) // 12000(tx) / 500(tps/s)
+		if pendingCnt > 60000 {
+			time.Sleep(2 * time.Second)
 			continue
 		}
-		genTxs.NumTxPerShard = needAddCnt
+		genTxs.NumTxPerShard = allTxNumber
+		if allTxNumber > 12000 {
+			genTxs.NumTxPerShard = 12000
+		}
 
 		if err := s.genTx(genTxs); err != nil {
+			log.Error(s.logInfo, "genTx err", err)
 			return err
 		}
-		allTxNumber -= needAddCnt
+		allTxNumber -= genTxs.NumTxPerShard
 	}
 	return nil
 }
 
 func (s *ShardBackend) AccountForTPSReady() bool {
 	for _, v := range s.txGenerator {
-		if len(v.accounts) != 0 {
-			return true
+		if len(v.accounts) == 0 {
+			return false
 		}
 	}
-	return false
+	if len(s.txGenerator) == 0 {
+		return false
+	}
+	return true
 }
 
 func (s *ShardBackend) genTx(genTxs *rpc.GenTxRequest) error {
