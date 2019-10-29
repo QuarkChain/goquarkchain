@@ -109,10 +109,10 @@ func (m *Miner) mainLoop() {
 			m.commit(nil)
 
 		case work := <-m.workCh: //to discuss:need this?
-			log.Debug(m.logInfo, "ready to seal height", work.block.NumberU64(), "coinbase", work.block.IHeader().GetCoinbase().ToHex())
+			log.Debug(m.logInfo, "ready to seal height", work.block.NumberU64(), "coinbase", work.block.Coinbase().ToHex())
 			if err := m.engine.Seal(nil, work.block, work.adjustedDifficulty, work.optionalDivider, m.resultCh, m.stopCh); err != nil {
 				log.Error(m.logInfo, "Seal block to mine err", err)
-				coinbase := work.block.IHeader().GetCoinbase()
+				coinbase := work.block.Coinbase()
 				m.commit(&coinbase)
 			}
 
@@ -121,7 +121,7 @@ func (m *Miner) mainLoop() {
 			if err := m.api.InsertMinedBlock(block); err != nil {
 				log.Error(m.logInfo, "add minered block err block hash", block.Hash().Hex(), "err", err)
 				time.Sleep(time.Duration(3) * time.Second)
-				coinbase := block.IHeader().GetCoinbase()
+				coinbase := block.Coinbase()
 				m.commit(&coinbase)
 			}
 

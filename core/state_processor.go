@@ -60,15 +60,15 @@ func NewStateProcessor(config *params.ChainConfig, bc *MinorBlockChain, engine c
 // transactions failed to execute due to insufficient gas it will return an error.
 func (p *StateProcessor) Process(block *types.MinorBlock, statedb *state.StateDB, cfg vm.Config) (types.Receipts, []*types.Log, uint64, error) {
 	statedb.SetQuarkChainConfig(p.bc.clusterConfig.Quarkchain)
-	statedb.SetBlockCoinbase(block.IHeader().GetCoinbase().Recipient)
+	statedb.SetBlockCoinbase(block.Coinbase().Recipient)
 	statedb.SetGasLimit(block.GasLimit())
 	var (
 		receipts types.Receipts
 		usedGas  = new(uint64)
 		header   = block.IHeader()
 		allLogs  []*types.Log
-		gp       = new(GasPool).AddGas(block.Header().GetGasLimit().Uint64())
-		xGas     = block.Meta().XShardGasLimit.Value.Uint64()
+		gp       = new(GasPool).AddGas(block.GasLimit().Uint64())
+		xGas     = block.GetXShardGasLimit().Uint64()
 	)
 
 	// Iterate over and process the individual transactions
@@ -90,7 +90,7 @@ func (p *StateProcessor) Process(block *types.MinorBlock, statedb *state.StateDB
 	coinbaseAmount := p.bc.getCoinbaseAmount(block.Number())
 	bMap := coinbaseAmount.GetBalanceMap()
 	for k, v := range bMap {
-		statedb.AddBalance(block.IHeader().GetCoinbase().Recipient, v, k)
+		statedb.AddBalance(block.Coinbase().Recipient, v, k)
 	}
 	statedb.Finalise(true)
 	return receipts, allLogs, *usedGas, nil

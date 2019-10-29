@@ -18,6 +18,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
+	"golang.org/x/sync/errgroup"
 )
 
 var (
@@ -55,16 +56,56 @@ func (s *ShardBackend) GetAllTx(start []byte, limit uint32) ([]*rpc.TransactionD
 }
 
 func (s *ShardBackend) GenTx(genTxs *rpc.GenTxRequest) error {
+	log.Info(s.logInfo, "ready to genTx txNumber", genTxs.NumTxPerShard, "XShardPercent", genTxs.XShardPercent)
+	allTxNumber := genTxs.NumTxPerShard
+	for allTxNumber > 0 {
+		pendingCnt := s.MinorBlockChain.GetPendingCount()
+		log.Info(s.logInfo, "last tx to add", allTxNumber, "pendingCnt", pendingCnt)
+		if pendingCnt >= 36000 {
+			time.Sleep(2 * time.Second)
+			continue
+		}
+		genTxs.NumTxPerShard = allTxNumber
+		if allTxNumber > 12000 {
+			genTxs.NumTxPerShard = 12000
+		}
+
+		if err := s.genTx(genTxs); err != nil {
+			log.Error(s.logInfo, "genTx err", err)
+			return err
+		}
+		allTxNumber -= genTxs.NumTxPerShard
+	}
+	return nil
+}
+
+func (s *ShardBackend) AccountForTPSReady() bool {
+	for _, v := range s.txGenerator {
+		if len(v.accounts) == 0 {
+			return false
+		}
+	}
+	if len(s.txGenerator) == 0 {
+		return false
+	}
+	return true
+}
+
+func (s *ShardBackend) genTx(genTxs *rpc.GenTxRequest) error {
+	genTxs.NumTxPerShard = genTxs.NumTxPerShard / uint32(len(s.txGenerator))
+	var g errgroup.Group
 	for index := 0; index < len(s.txGenerator); index++ {
 		i := index
-		go func() {
+		g.Go(func() error {
 			err := s.txGenerator[i].Generate(genTxs, s.AddTxList)
 			if err != nil {
 				log.Error(s.logInfo, "GenTx err", err)
 			}
-		}()
+			return err
+		})
+
 	}
-	return nil
+	return g.Wait()
 }
 
 func (s *ShardBackend) GetLogs(hash common.Hash) ([][]*types.Log, error) {
@@ -86,10 +127,10 @@ func (s *ShardBackend) GetReceiptsByHash(hash common.Hash) (types.Receipts, erro
 // ######################## root block Methods #########################
 // Either recover state from local db or create genesis state based on config
 func (s *ShardBackend) InitFromRootBlock(rBlock *types.RootBlock) error {
-	if rBlock.Header().Number > s.genesisRootHeight {
+	if rBlock.Number() > s.genesisRootHeight {
 		return s.MinorBlockChain.InitFromRootBlock(rBlock)
 	}
-	if rBlock.Header().Number == s.genesisRootHeight {
+	if rBlock.Number() == s.genesisRootHeight {
 		return s.initGenesisState(rBlock)
 	}
 	return nil
@@ -97,10 +138,10 @@ func (s *ShardBackend) InitFromRootBlock(rBlock *types.RootBlock) error {
 
 func (s *ShardBackend) AddRootBlock(rBlock *types.RootBlock) (switched bool, err error) {
 	switched = false
-	if rBlock.Header().Number > s.genesisRootHeight {
+	if rBlock.Number() > s.genesisRootHeight {
 		switched, err = s.MinorBlockChain.AddRootBlock(rBlock)
 	}
-	if rBlock.Header().Number == s.genesisRootHeight {
+	if rBlock.Number() == s.genesisRootHeight {
 		err = s.initGenesisState(rBlock)
 	}
 	return
@@ -174,26 +215,26 @@ func (s *ShardBackend) GetMinorBlock(mHash common.Hash, height *uint64) (mBlock 
 }
 
 func (s *ShardBackend) NewMinorBlock(block *types.MinorBlock) (err error) {
-	log.Debug(s.logInfo, "NewMinorBlock height", block.Header().Number, "hash", block.Header().Hash().String())
+	log.Debug(s.logInfo, "NewMinorBlock height", block.NumberU64(), "hash", block.Hash().String())
 	defer log.Debug(s.logInfo, "NewMinorBlock", "end")
 	// TODO synchronizer.running
-	mHash := block.Header().Hash()
+	mHash := block.Hash()
 	if s.mBPool.getBlockInPool(mHash) != nil {
 		return
 	}
 	if s.MinorBlockChain.HasBlock(block.Hash()) {
-		log.Info("add minor block, Known minor block", "branch", block.Header().Branch, "height", block.Number())
+		log.Info("add minor block, Known minor block", "branch", block.Branch(), "height", block.Number())
 		return
 	}
 
-	if !s.MinorBlockChain.HasBlock(block.Header().ParentHash) && s.mBPool.getBlockInPool(block.ParentHash()) == nil {
-		log.Debug("prarent block hash not be included", "parent hash: ", block.Header().ParentHash.Hex())
+	if !s.MinorBlockChain.HasBlock(block.ParentHash()) && s.mBPool.getBlockInPool(block.ParentHash()) == nil {
+		log.Debug("prarent block hash not be included", "parent hash: ", block.ParentHash().Hex())
 		return
 	}
 
 	//Sanity check on timestamp and block height
-	if block.Header().Time > uint64(time.Now().Unix())+uint64(AllowedFutureBlocksTimeBroadcast) {
-		log.Warn(s.logInfo, "HandleNewMinorBlock err time is not right,height", block.Header().Number, "time", block.Header().Time,
+	if block.Time() > uint64(time.Now().Unix())+uint64(AllowedFutureBlocksTimeBroadcast) {
+		log.Warn(s.logInfo, "HandleNewMinorBlock err time is not right,height", block.NumberU64(), "time", block.Time(),
 			"now", time.Now().Unix(), "Max", AllowedFutureBlocksTimeBroadcast)
 		return errors.New("time is not right")
 	}
@@ -205,8 +246,8 @@ func (s *ShardBackend) NewMinorBlock(block *types.MinorBlock) (err error) {
 			"currTip", s.MinorBlockChain.CurrentBlock().NumberU64())
 	}
 
-	if s.MinorBlockChain.GetRootBlockByHash(block.Header().PrevRootBlockHash) == nil {
-		log.Warn(s.logInfo, "add minor block:preRootBlock have not exist", block.Header().PrevRootBlockHash.String())
+	if s.MinorBlockChain.GetRootBlockByHash(block.PrevRootBlockHash()) == nil {
+		log.Warn(s.logInfo, "add minor block:preRootBlock have not exist", block.PrevRootBlockHash().String())
 		return nil
 	}
 
@@ -224,11 +265,7 @@ func (s *ShardBackend) NewMinorBlock(block *types.MinorBlock) (err error) {
 // Returns true if block is successfully added. False on any error.
 // called by 1. local miner (will not run if syncing) 2. SyncTask
 func (s *ShardBackend) AddMinorBlock(block *types.MinorBlock) error {
-	var (
-		oldTip = s.MinorBlockChain.CurrentBlock().Header()
-	)
-
-	if commitStatus := s.getBlockCommitStatusByHash(block.Header().Hash()); commitStatus == BLOCK_COMMITTED {
+	if commitStatus := s.getBlockCommitStatusByHash(block.Hash()); commitStatus == BLOCK_COMMITTED {
 		return nil
 	}
 	//TODO support BLOCK_COMMITTING
@@ -240,10 +277,10 @@ func (s *ShardBackend) AddMinorBlock(block *types.MinorBlock) error {
 	}
 	// only remove from pool if the block successfully added to state,
 	// this may cache failed blocks but prevents them being broadcasted more than needed
-	s.mBPool.delBlockInPool(block.Header())
+	s.mBPool.delBlockInPool(block.Hash())
 
 	// block has been added to local state, broadcast tip so that peers can sync if needed
-	if oldTip.Hash() != s.MinorBlockChain.CurrentBlock().Hash() {
+	if currHead.Hash() != s.MinorBlockChain.CurrentBlock().Hash() {
 		if err = s.broadcastNewTip(); err != nil {
 			s.setHead(currHead.Number)
 			return err
@@ -255,7 +292,7 @@ func (s *ShardBackend) AddMinorBlock(block *types.MinorBlock) error {
 		return nil
 	}
 
-	prevRootHeight := s.MinorBlockChain.GetRootBlockByHash(block.Header().PrevRootBlockHash).Header().Number
+	prevRootHeight := s.MinorBlockChain.GetRootBlockByHash(block.PrevRootBlockHash()).Number()
 	if err := s.conn.BroadcastXshardTxList(block, xshardLst[0], prevRootHeight); err != nil {
 		s.setHead(currHead.Number)
 		return err
@@ -271,15 +308,15 @@ func (s *ShardBackend) AddMinorBlock(block *types.MinorBlock) error {
 		TxCount:           uint32(block.Transactions().Len()),
 		XShardTxCount:     uint32(len(xshardLst[0])),
 		ShardStats:        status,
-		CoinbaseAmountMap: block.Header().CoinbaseAmount,
+		CoinbaseAmountMap: block.CoinbaseAmount(),
 	}
 	err = s.conn.SendMinorBlockHeaderToMaster(requests)
 	if err != nil {
 		s.setHead(currHead.Number)
 		return err
 	}
-	s.MinorBlockChain.CommitMinorBlockByHash(block.Header().Hash())
-	s.mBPool.delBlockInPool(block.Header())
+	s.MinorBlockChain.CommitMinorBlockByHash(block.Hash())
+	s.mBPool.delBlockInPool(block.Hash())
 	if s.MinorBlockChain.CurrentBlock().Hash() != currHead.Hash() {
 		go s.miner.HandleNewTip()
 	}
@@ -303,27 +340,27 @@ func (s *ShardBackend) AddBlockListForSync(blockLst []*types.MinorBlock) (map[co
 
 	uncommittedBlockHeaderList := make([]*types.MinorBlockHeader, 0)
 	for _, block := range blockLst {
-		blockHash := block.Header().Hash()
-		if block.Header().Branch.GetFullShardID() != s.branch.Value {
+		blockHash := block.Hash()
+		if block.Branch().Value != s.branch.Value {
 			continue
 		}
 		if s.getBlockCommitStatusByHash(blockHash) == BLOCK_COMMITTED {
 			continue
 		}
 		//TODO:support BLOCK_COMMITTING
-		coinbaseAmountList[block.Header().Hash()] = block.Header().CoinbaseAmount
+		coinbaseAmountList[block.Hash()] = block.CoinbaseAmount()
 		_, xshardLst, err := s.MinorBlockChain.InsertChainForDeposits([]types.IBlock{block}, false)
 		if err != nil || len(xshardLst) != 1 {
 			log.Error("Failed to add minor block", "err", err)
 			return nil, err
 		}
-		s.mBPool.delBlockInPool(block.Header())
-		prevRootHeight := s.MinorBlockChain.GetRootBlockByHash(block.Header().PrevRootBlockHash)
+		s.mBPool.delBlockInPool(block.Hash())
+		prevRootHeight := s.MinorBlockChain.GetRootBlockByHash(block.PrevRootBlockHash())
 		blockHashToXShardList[blockHash] = &XshardListTuple{XshardTxList: xshardLst[0], PrevRootHeight: prevRootHeight.Number()}
 		uncommittedBlockHeaderList = append(uncommittedBlockHeaderList, block.Header())
 	}
 	// interrupt the current miner and restart
-	if err := s.conn.BatchBroadcastXshardTxList(blockHashToXShardList, blockLst[0].Header().Branch); err != nil {
+	if err := s.conn.BatchBroadcastXshardTxList(blockHashToXShardList, blockLst[0].Branch()); err != nil {
 		return nil, err
 	}
 
@@ -335,7 +372,7 @@ func (s *ShardBackend) AddBlockListForSync(blockLst []*types.MinorBlock) (map[co
 	}
 	for _, header := range uncommittedBlockHeaderList {
 		s.MinorBlockChain.CommitMinorBlockByHash(header.Hash())
-		s.mBPool.delBlockInPool(header)
+		s.mBPool.delBlockInPool(header.Hash())
 	}
 	return coinbaseAmountList, nil
 }
@@ -402,8 +439,6 @@ func (s *ShardBackend) setHead(head uint64) {
 }
 
 func (s *ShardBackend) AddTxList(txs []*types.Transaction, peerID string) error {
-	ts := time.Now()
-
 	if err := s.MinorBlockChain.AddTxList(txs); err != nil {
 		log.Error(s.logInfo, "AddTxList err", err)
 		return err
@@ -422,7 +457,6 @@ func (s *ShardBackend) AddTxList(txs []*types.Transaction, peerID string) error 
 			}
 		}
 	}()
-	log.Info("time-tx-insert-end", "time", time.Now().Sub(ts).Seconds(), "len(tx)", len(txs))
 	return nil
 }
 

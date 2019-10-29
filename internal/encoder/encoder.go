@@ -187,7 +187,7 @@ func MinorBlockEncoder(block *types.MinorBlock, includeTransaction bool, extraIn
 	} else {
 		txHashForDisplay := make([]hexutil.Bytes, 0)
 		for _, tx := range block.Transactions() {
-			txHashForDisplay = append(txHashForDisplay, IDEncoder(tx.Hash().Bytes(), block.Header().Branch.Value))
+			txHashForDisplay = append(txHashForDisplay, IDEncoder(tx.Hash().Bytes(), block.Branch().Value))
 		}
 		field["transactions"] = txHashForDisplay
 	}
@@ -213,7 +213,7 @@ func TxEncoder(block *types.MinorBlock, i int) (map[string]interface{}, error) {
 	if evmtx.To() != nil {
 		toBytes = evmtx.To().Bytes()
 	}
-	branch := block.Header().Branch
+	branch := block.Branch()
 	transferTokenStr, err := common.TokenIdDecode(evmtx.TransferTokenID())
 	if err != nil {
 		return nil, err
@@ -312,7 +312,7 @@ func ReceiptEncoder(block *types.MinorBlock, i int, receipt *types.Receipt) (map
 		"gasUsed":           hexutil.Uint64(receipt.GasUsed - receipt.GetPrevGasUsed()),
 		"status":            hexutil.Uint64(receipt.Status),
 		"logs":              LogListEncoder(receipt.Logs, false),
-		"timestamp":         hexutil.Uint64(block.Header().Time),
+		"timestamp":         hexutil.Uint64(block.Time()),
 	}
 	if receipt.ContractAddress.Big().Uint64() == 0 {
 		field["contractAddress"] = nil

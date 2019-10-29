@@ -294,7 +294,7 @@ func (c *CommonEngine) localSeal(
 	if diff == nil {
 		diff = header.GetDifficulty()
 	}
-	work := MiningWork{HeaderHash: header.SealHash(), Number: header.NumberU64(), Difficulty: diff, BlockTime: block.IHeader().GetTime()}
+	work := MiningWork{HeaderHash: header.SealHash(), Number: header.NumberU64(), Difficulty: diff, BlockTime: block.Time()}
 	if err := c.FindNonce(work, found, stop); err != nil {
 		return err
 	}
