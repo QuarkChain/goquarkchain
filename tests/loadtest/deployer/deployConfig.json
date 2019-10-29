@@ -1,5 +1,5 @@
 {
-  "DockerName": "sunchunfeng/goqkc:deploy-v3",
+  "DockerName": "syntrust/goqkc",
   "Hosts": [{
     "IP": "172.16.1.33",
     "Port": 22,
