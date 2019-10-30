@@ -17,6 +17,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
+	lru "github.com/hashicorp/golang-lru"
 )
 
 var (
@@ -185,12 +186,9 @@ func (c *CommonEngine) VerifyHeader(
 // the consensus rules of the given engine.
 func (c *CommonEngine) VerifySeal(chain ChainReader, header types.IHeader, adjustedDiff *big.Int) error {
 	if v, ok := c.sealVerifiedCache.Get(header.Hash()); ok {
-		if v.(*big.Int) == adjustedDiff {
-			panic("________________________")
+		if v.(*big.Int).Cmp(adjustedDiff) == 0 {
 			return nil
 		}
-		panic(header.Hash())
-		fmt.Printf("===============================%d ================== %d", v.(*big.Int), adjustedDiff)
 	}
 	err := c.spec.VerifySeal(chain, header, adjustedDiff)
 	if err == nil {
