@@ -28,8 +28,9 @@ func CheckErr(err error) {
 }
 
 type ToolManager struct {
-	LocalConfig  *LocalConfig
-	BootNode     string
+	LocalConfig *LocalConfig
+	BootNode    string
+
 	SSHSession   []map[string]*SSHSession
 	ClusterIndex int
 }
@@ -45,6 +46,16 @@ func NewToolManager(config *LocalConfig) *ToolManager {
 }
 
 func (t *ToolManager) check() {
+	maxClusterID := 0
+	for clusterID, _ := range t.LocalConfig.Hosts {
+		if clusterID > maxClusterID {
+			maxClusterID = clusterID
+		}
+	}
+	if maxClusterID != len(t.LocalConfig.Hosts)-1 {
+		panic(fmt.Errorf("maxClusterID %d host's len:%d", maxClusterID, len(t.LocalConfig.Hosts)))
+	}
+
 	if len(t.LocalConfig.Hosts) < 1 {
 		panic("t.localConfig.IPList should >=1")
 	}

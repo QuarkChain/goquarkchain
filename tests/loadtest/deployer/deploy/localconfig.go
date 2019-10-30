@@ -13,11 +13,12 @@ import (
 )
 
 type NodeIndo struct {
-	IP       string `json:"IP"`
-	Port     uint64 `json:"Port"`
-	User     string `json:"User"`
-	Password string `json:"Password"`
-	Service  string `json:"Service"`
+	IP        string `json:"IP"`
+	Port      uint64 `json:"Port"`
+	User      string `json:"User"`
+	Password  string `json:"Password"`
+	Service   string `json:"Service"`
+	ClusterID int    `json:"ClusterID"`
 }
 
 type ExtraClusterConfig struct {
@@ -28,10 +29,39 @@ type ExtraClusterConfig struct {
 
 type LocalConfig struct {
 	DockerName         string              `json:"DockerName"`
-	Hosts              [][]NodeIndo        `json:"Hosts"`
+	Hosts              map[int][]NodeIndo  `json:"Hosts"`
 	ChainNumber        uint32              `json:"ChainNumber"`
 	ShardNumber        uint32              `json:"ShardNumber"`
 	ExtraClusterConfig *ExtraClusterConfig `json:"ExtraClusterConfig"`
+}
+
+func (l *LocalConfig) UnmarshalJSON(input []byte) error {
+	type LocalConfig struct {
+		DockerName         string              `json:"DockerName"`
+		Hosts              []NodeIndo          `json:"Hosts"`
+		ChainNumber        uint32              `json:"ChainNumber"`
+		ShardNumber        uint32              `json:"ShardNumber"`
+		ExtraClusterConfig *ExtraClusterConfig `json:"ExtraClusterConfig"`
+	}
+	var dec LocalConfig
+
+	if err := json.Unmarshal(input, &dec); err != nil {
+		return err
+	}
+	l.DockerName = dec.DockerName
+
+	l.Hosts = make(map[int][]NodeIndo, 0)
+	for _, v := range dec.Hosts {
+		if _, ok := l.Hosts[v.ClusterID]; !ok {
+			l.Hosts[v.ClusterID] = make([]NodeIndo, 0)
+		}
+		l.Hosts[v.ClusterID] = append(l.Hosts[v.ClusterID], v)
+	}
+
+	l.ChainNumber = dec.ChainNumber
+	l.ShardNumber = dec.ChainNumber
+	l.ExtraClusterConfig = dec.ExtraClusterConfig
+	return nil
 }
 
 func LoadConfig(filePth string) *LocalConfig {
