@@ -59,7 +59,7 @@ func (l *LocalConfig) UnmarshalJSON(input []byte) error {
 	}
 
 	l.ChainNumber = dec.ChainNumber
-	l.ShardNumber = dec.ChainNumber
+	l.ShardNumber = dec.ShardNumber
 	l.ExtraClusterConfig = dec.ExtraClusterConfig
 	return nil
 }
