@@ -4,6 +4,7 @@ import (
 	"crypto/ecdsa"
 	"crypto/rand"
 	"encoding/hex"
+	"fmt"
 	"strings"
 	"time"
 
@@ -27,13 +28,14 @@ func CheckErr(err error) {
 }
 
 type ToolManager struct {
-	localConfig *LocalConfig
+	LocalConfig *LocalConfig
+	BootNode    string
 	SSHSession  map[string]*SSHSession
 }
 
 func NewToolManager(config *LocalConfig) *ToolManager {
 	tool := &ToolManager{
-		localConfig: config,
+		LocalConfig: config,
 		SSHSession:  make(map[string]*SSHSession),
 	}
 	tool.check()
@@ -42,39 +44,44 @@ func NewToolManager(config *LocalConfig) *ToolManager {
 }
 
 func (t *ToolManager) check() {
-	if len(t.localConfig.Hosts) < 1 {
+	if len(t.LocalConfig.Hosts) < 1 {
 		panic("t.localConfig.IPList should >=1")
 	}
-	if t.localConfig.ShardNumber < t.localConfig.ChainNumber {
-		log.Error("check err", "chainNumber", t.localConfig.ChainNumber, "shardNumber", t.localConfig.ShardNumber)
+	if t.LocalConfig.ShardNumber < t.LocalConfig.ChainNumber {
+		log.Error("check err", "chainNumber", t.LocalConfig.ChainNumber, "shardNumber", t.LocalConfig.ShardNumber)
 		panic("shardNumber should > chainNumber")
 	}
-	if t.localConfig.ShardNumber%t.localConfig.ChainNumber != 0 {
-		log.Error("check err", "chainNumber", t.localConfig.ChainNumber, "shardNumber", t.localConfig.ShardNumber)
+	if t.LocalConfig.ShardNumber%t.LocalConfig.ChainNumber != 0 {
+		log.Error("check err", "chainNumber", t.LocalConfig.ChainNumber, "shardNumber", t.LocalConfig.ShardNumber)
 		panic("shardNumber%chainNumber should=0")
 	}
 
-	if t.localConfig.ExtraClusterConfig.GasLimit == 0 {
-		t.localConfig.ExtraClusterConfig.GasLimit = 120000
+	if t.LocalConfig.ExtraClusterConfig.GasLimit == 0 {
+		t.LocalConfig.ExtraClusterConfig.GasLimit = 120000
 	}
-	if t.localConfig.ExtraClusterConfig.TargetMinorBlockTime == 0 {
-		t.localConfig.ExtraClusterConfig.TargetMinorBlockTime = 10
+	if t.LocalConfig.ExtraClusterConfig.TargetMinorBlockTime == 0 {
+		t.LocalConfig.ExtraClusterConfig.TargetMinorBlockTime = 10
 	}
-	if t.localConfig.ExtraClusterConfig.TargetRootBlockTime == 0 {
-		t.localConfig.ExtraClusterConfig.TargetRootBlockTime = 60
+	if t.LocalConfig.ExtraClusterConfig.TargetRootBlockTime == 0 {
+		t.LocalConfig.ExtraClusterConfig.TargetRootBlockTime = 60
 	}
 }
 
 func (t *ToolManager) init() {
-	for _, ip := range t.localConfig.Hosts {
-		t.SSHSession[ip.IP] = NewSSHConnect(ip.User, ip.Password, ip.IP, int(ip.Port))
+	for _, cluster := range t.LocalConfig.Hosts {
+		for _, ip := range cluster {
+			t.SSHSession[ip.IP] = NewSSHConnect(ip.User, ip.Password, ip.IP, int(ip.Port))
+		}
 	}
-	log.Info("init", "IP list", t.localConfig.Hosts)
+	log.Info("init", "IP list", t.LocalConfig.Hosts)
 }
 
-func (t *ToolManager) GetIpListDependTag(tag string) []string {
+func (t *ToolManager) GetIpListDependTag(index int, tag string) []string {
+	if index >= len(t.LocalConfig.Hosts) {
+		panic(fmt.Errorf("index:%d host's len:%d", index, len(t.LocalConfig.Hosts)))
+	}
 	ipList := make([]string, 0)
-	for _, v := range t.localConfig.Hosts {
+	for _, v := range t.LocalConfig.Hosts[index] {
 		if strings.Contains(v.Service, tag) {
 			ipList = append(ipList, v.IP)
 		}
@@ -82,10 +89,10 @@ func (t *ToolManager) GetIpListDependTag(tag string) []string {
 	return ipList
 }
 
-func (t *ToolManager) GenClusterConfig() {
-	clusterConfig := GenConfigDependInitConfig(t.localConfig.ChainNumber, t.localConfig.ShardNumber/t.localConfig.ChainNumber, t.GetIpListDependTag("slave"), t.localConfig.ExtraClusterConfig)
+func (t *ToolManager) GenClusterConfig(clusterIndex int) {
+	clusterConfig := GenConfigDependInitConfig(t.LocalConfig.ChainNumber, t.LocalConfig.ShardNumber/t.LocalConfig.ChainNumber, t.GetIpListDependTag(clusterIndex, "slave"), t.LocalConfig.ExtraClusterConfig)
 
-	if t.localConfig.BootNode == "" {
+	if t.BootNode == "" {
 		sk, err := ecdsa.GenerateKey(crypto.S256(), rand.Reader)
 		CheckErr(err)
 		clusterConfig.P2P.PrivKey = hex.EncodeToString(sk.D.Bytes())
@@ -93,8 +100,9 @@ func (t *ToolManager) GenClusterConfig() {
 		CheckErr(err)
 		node := enode.NewLocalNode(db, sk)
 		log.Info("bootnode info", "info", node.Node().String())
+		t.BootNode = node.Node().String()
 	} else {
-		clusterConfig.P2P.BootNodes = t.localConfig.BootNode
+		clusterConfig.P2P.BootNodes = t.BootNode + "@" + t.GetIpListDependTag(clusterIndex, "master")[0] + ":38291"
 	}
 	WriteConfigToFile(clusterConfig, clusterConfigPath)
 }
@@ -110,8 +118,8 @@ func (t *ToolManager) SendFileToCluster() {
 
 			v.RunCmd("docker stop $(docker ps -a|grep bjqkc |awk '{print $1}')")
 			v.RunCmd("docker  rm $(docker ps -a|grep bjqkc |awk '{print $1}')")
-			v.RunCmd("docker pull " + t.localConfig.DockerName)
-			v.RunCmd("docker run -itd --name bjqkc --network=host " + t.localConfig.DockerName)
+			v.RunCmd("docker pull " + t.LocalConfig.DockerName)
+			v.RunCmd("docker run -itd --name bjqkc --network=host " + t.LocalConfig.DockerName)
 
 			v.SendFile(clusterPath, "/tmp/QKC")
 			v.SendFile(clusterConfigPath, "/tmp/QKC")
@@ -131,8 +139,8 @@ type SlaveInfo struct {
 	ServiceName string
 }
 
-func (t *ToolManager) StartCluster() {
-	masterIp := t.GetIpListDependTag("master")[0]
+func (t *ToolManager) StartCluster(clusterIndex int) {
+	masterIp := t.GetIpListDependTag(clusterIndex, "master")[0]
 	slaveIpLists := make([]*SlaveInfo, 0)
 	cfg := config.NewClusterConfig()
 	err := LoadClusterConfig(clusterConfigPath, cfg)

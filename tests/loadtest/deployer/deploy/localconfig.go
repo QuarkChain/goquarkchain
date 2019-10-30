@@ -28,8 +28,7 @@ type ExtraClusterConfig struct {
 
 type LocalConfig struct {
 	DockerName         string              `json:"DockerName"`
-	Hosts              []NodeIndo          `json:"Hosts"`
-	BootNode           string              `json:"BootNode"`
+	Hosts              [][]NodeIndo        `json:"Hosts"`
 	ChainNumber        uint32              `json:"ChainNumber"`
 	ShardNumber        uint32              `json:"ShardNumber"`
 	ExtraClusterConfig *ExtraClusterConfig `json:"ExtraClusterConfig"`

@@ -1,14 +1,21 @@
 {
   "DockerName": "syntrust/goqkc",
-  "Hosts": [{
-    "IP": "172.16.1.33",
-    "Port": 22,
-    "User": "root",
-    "Password": "123456",
-    "Service": "master,slave"
-  }
+  "Hosts": [
+    [{
+      "IP": "138.68.28.95",
+      "Port": 22,
+      "User": "root",
+      "Password": "123456",
+      "Service": "master,slave"
+    }],
+    [{
+      "IP": "138.68.224.79",
+      "Port": 22,
+      "User": "root",
+      "Password": "123456",
+      "Service": "master,slave"
+    }]
   ],
-  "BootNode": "",
   "ChainNumber": 4,
   "ShardNumber": 8,
   "ExtraClusterConfig": {
