@@ -38,14 +38,14 @@ func getToolManager() *deploy.ToolManager {
 func main() {
 	toolManager := getToolManager()
 	for index := 0; index < len(toolManager.LocalConfig.Hosts); index++ {
-		log.Info("begin start cluster", "index", index, "info", toolManager.LocalConfig.Hosts[index])
-		log.Info("========== begin gen config ==========")
-		toolManager.GenClusterConfig() //gen ./cluster_config_template.json
-		log.Info("========== begin send file to others cluster ==========")
+		log.Info("============begin start cluster============", "index", index, "info", toolManager.LocalConfig.Hosts[index])
+		log.Info("==== begin gen config")
+		toolManager.GenClusterConfig()
+		log.Info("==== begin send file to others cluster")
 		toolManager.SendFileToCluster()
-		log.Info("========== begin start cluster ==========")
+		log.Info("==== begin start cluster")
 		toolManager.StartCluster(index)
-		log.Info("end start cluster", "index", index, "info", toolManager.LocalConfig.Hosts[index])
+		log.Info("============end start cluster============", "index", index, "info", toolManager.LocalConfig.Hosts[index])
 		toolManager.ClusterIndex++
 	}
 

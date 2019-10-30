@@ -101,10 +101,12 @@ func (t *ToolManager) GenClusterConfig() {
 		db, err := enode.OpenDB("")
 		CheckErr(err)
 		node := enode.NewLocalNode(db, sk)
-		log.Info("bootnode info", "info", node.Node().String())
 		t.BootNode = node.Node().String()
 	} else {
+		tIndex := t.ClusterIndex
+		t.ClusterIndex = 0
 		clusterConfig.P2P.BootNodes = t.BootNode + "@" + t.GetIpListDependTag("master")[0] + ":38291"
+		t.ClusterIndex = tIndex
 	}
 	WriteConfigToFile(clusterConfig, clusterConfigPath)
 }
