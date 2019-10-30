@@ -394,6 +394,7 @@ func NewQuarkChainConfig() *QuarkChainConfig {
 		}
 	}
 	ret.initAndValidate()
+	ret.SetAllowedToken()
 	return &ret
 }
 
