@@ -87,6 +87,11 @@ go test ./...
 ```
 ## Running Clusters
 
+The following instructions will lead you to run clusters step by step. 
+
+Another option would be [Use Deploy Tool to Start Clusters](./deployer/README.md#use-deploy-tool-to-start-clusters), which 
+is based on pre-built Docker image.
+
 ### Build Cluster
 
 Build GoQuarkChain cluster executable:
@@ -94,22 +99,22 @@ Build GoQuarkChain cluster executable:
 #build qkchash if not done yet:
 cd $GOPATH/src/github.com/QuarkChain/goquarkchain/consensus/qkchash/native
 sudo g++ -shared -o libqkchash.so -fPIC qkchash.cpp -O3 -std=gnu++17 && make
+#build cluster
 cd $GOPATH/src/github.com/QuarkChain/goquarkchain/cmd/cluster
 go build
 ```
-### System Configuration
-
-Make sure ports are open and accessible from outside world: this means if you are running on AWS, open the ports 
-(default both UDP and TCP 38291) in security group; if you are running from a LAN (connecting to the internet through a router), 
-you need to setup [port forwarding](https://github.com/QuarkChain/pyquarkchain/wiki/Private-Network-Setting%2C-Port-Forwarding)
- for UDP/TCP 38291. We have a convenience UPNP module as well, but you will need to check if it has successfully set port forwarding.
-
 ### Join QuarkChain Network
+
+If you are joining a testnet or mainnet, make sure ports are open and accessible from outside world: this means if you are running on AWS, 
+open the ports (default both UDP and TCP 38291) in security group; if you are running from a LAN (connecting to the internet through a router), 
+you need to setup [port forwarding](https://github.com/QuarkChain/pyquarkchain/wiki/Private-Network-Setting%2C-Port-Forwarding)
+ for UDP/TCP 38291. 
 
 Before running, you'll need to set up the configuration of your network, which all nodes need to be aware of and agree upon. 
 We provide an example config JSON in the repo (mainnet/singularity/cluster_config_template.json) which you can use to connect to mainnet. 
 
-Note that many parameters in the config are part of the consensus, please be very cautious when changing them. For example, COINBASE_AMOUNT is one such parameter, changing it to another value effectively creates a fork in the network.
+Note that many parameters in the config are part of the consensus, please be very cautious when changing them. For example, 
+COINBASE_AMOUNT is one such parameter, changing it to another value effectively creates a fork in the network.
 
 ### Running a single cluster for local testing
 
@@ -132,25 +137,27 @@ cd $GOPATH/src/github.com/QuarkChain/goquarkchain/cmd/cluster
 ./cluster --cluster_config ../../tests/testnet/egconfig/cluster_config_template.json
 ```
 ### Running multiple clusters with P2P network on different machines
-NOTE this is effectively set up a private network. 
 
-Basically, just follow the same command to run single a bootstrap cluster, then provide `--bootnodes` flag for other clusters to 
-discover and connect to the bootnode. 
+To run a private network, first start a bootstrap cluster as in last section, then start other clusters with bootnode URL to connect to it.
 
-First start the bootstrap cluster providing a private key:
+If you want a cluster to be a bootstrap cluster, optionally provide a private key when you start the master service of it:
 ```bash
 cd $GOPATH/src/github.com/QuarkChain/goquarkchain/cmd/cluser
-./cluster --cluster_config $CLUSTER_CONFIG_FILE --p2p --privkey=$BOOTSTRAP_PRIV_KEY
+./cluster --cluster_config $CLUSTER_CONFIG_FILE --privkey=$BOOTSTRAP_PRIV_KEY
 ```
-You can read the full bootnode URL from the console output in the format: enode://PUBKEY@IP:PORT.
- 
-Start other clusters and provide the bootnode URL as $BOOTSTRAP_ENODE:
+You can read the full boot node URL from the console output in the format: enode://$BOOTSTRAP_PUB_KEY@$BOOTSTRAP_IP:$BOOTSTRAP_DISCOVERY_PORT.
+
+NOTE if private key is not provided, the boot node URL will change at each restart of the service.
+
+Start other clusters and provide the boot node URL as $BOOTSTRAP_ENODE for master service:
 ```bash
-./cluster --cluster_config $CLUSTER_CONFIG_FILE --p2p --bootnodes=$BOOTSTRAP_ENODE
+./cluster --cluster_config $CLUSTER_CONFIG_FILE --bootnodes=$BOOTSTRAP_ENODE
 ```
+Using `PRIV_KEY` or `BOOT_NODES` field in cluster config file will have the same effect as cmd flags.
 
 ## Monitoring Clusters
-Use the [`stats`](cmd/stats) tool in the repo to monitor the status of a cluster. It queries the given cluster through JSON RPC every 10 seconds and produces an entry. 
+Use the [`stats`](cmd/stats) tool in the repo to monitor the status of a cluster. It queries the given cluster through 
+JSON RPC every 10 seconds and produces an entry. 
 ```bash
 cd $GOPATH/src/github.com/QuarkChain/goquarkchain/cmd/stats
 go build
@@ -175,11 +182,17 @@ Timestamp               Syncing TPS     Pend.TX Conf.TX BPS     SBPS    CPU     
 
 ```
 ## JSON RPC
-JSON RPCs are defined in [`rpc.proto`](cluster/rpc/rpc.proto). Note that there are two JSON RPC ports. By default they are 38491 for private RPCs and 38391 for public RPCs. Since you are running your own clusters you get access to both.
+JSON RPCs are defined in [`rpc.proto`](cluster/rpc/rpc.proto). Note that there are two JSON RPC ports. By default they 
+are 38491 for private RPCs and 38391 for public RPCs. Since you are running your own clusters you get access to both.
 
-Public RPCs are documented in the [Developer Guide](https://developers.quarkchain.io/#json-rpc). You can use the client library [quarkchain-web3.js](https://github.com/QuarkChain/quarkchain-web3.js) to query account state, send transactions, deploy and call smart contracts. Here is [a simple example](https://gist.github.com/qcgg/1ab0352c5b2299270b5795648cca83d8) to deploy smart contract on QuarkChain using the client library.
+Public RPCs are documented in the [Developer Guide](https://developers.quarkchain.io/#json-rpc). You can use the client 
+library [quarkchain-web3.js](https://github.com/QuarkChain/quarkchain-web3.js) to query account state, send transactions, 
+deploy and call smart contracts. Here is [a simple example](https://gist.github.com/qcgg/1ab0352c5b2299270b5795648cca83d8) 
+to deploy smart contract on QuarkChain using the client library.
+
 ## Loadtest
-Run loadtest to your cluster and see how fast it processes large volume of transactions. Please refer to [Loadtest Instruction](tests/loadtest/README.md#loadtest-instruction) for detail.
+Run loadtest to your cluster and see how fast it processes large volume of transactions. Please refer to 
+[Loadtest Instruction](tests/loadtest/README.md#loadtest-instruction) for detail.
 
 ## Issue
 Please open issues on github to report bugs or make feature requests.
