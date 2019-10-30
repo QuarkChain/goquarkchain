@@ -52,7 +52,10 @@ for detail
 NOTE For each of the hosts, besides 38291, 38391, 38491, the port range [48000, 48000 + host number] should be opened too.
 
 ## Deploy and Run a Cluster
-Inside the container, execute:
+
+The following command will generate network configuration file used by the cluster, deploy the cluster to remote Docker 
+containers, and start the services:
+
 ```bash
 # inside container if use Docker to deploy
 cd $GOPATH/src/github.com/QuarkChain/goquarkchain/tests/loadtest/deployer
