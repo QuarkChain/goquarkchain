@@ -1,0 +1,28 @@
+{
+  "DockerName": "syntrust/goqkc",
+  "Hosts": [
+    {
+      "IP": "138.68.28.95",
+      "Port": 22,
+      "User": "root",
+      "Password": "goquarkchain",
+      "Service": "master,slave",
+      "ClusterID": 0
+    },
+    {
+      "IP": "138.68.224.79",
+      "Port": 22,
+      "User": "root",
+      "Password": "goquarkchain",
+      "Service": "master,slave",
+      "ClusterID": 1
+    }
+  ],
+  "ChainNumber": 4,
+  "ShardNumber": 8,
+  "ExtraClusterConfig": {
+    "TargetRootBlockTime": 20,
+    "TargetMinorBlockTime": 4,
+    "GasLimit": 96000000
+  }
+}
