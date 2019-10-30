@@ -23,18 +23,6 @@ Some parameters you may consider make changes:
 - `GAS_LIMIT` defines the gas limit for a block; note that in-shard transactions uses 50% of the total gas limit in a block
 - `SLAVE_LIST` defines the slaves so that the services can be located
 
-## Start Mining
-
-Before loadtest, try to mine a few blocks to make sure the clusters work correctly.
-
-```bash
-curl -X POST -H 'content-type: application/json' --data '{"jsonrpc":"2.0","method":"setMining","params":[true],"id":0}' http://127.0.0.1:38491
-```
-To stop mining,
-```bash
-curl -X POST -H 'content-type: application/json' --data '{"jsonrpc":"2.0","method":"setMining","params":[false],"id":0}' http://127.0.0.1:38491
-```
-
 ## Generate Transactions
 
 Request the cluster through `createTransactions` JSON RPC to generate transactions on each shard.
@@ -42,8 +30,23 @@ Request the cluster through `createTransactions` JSON RPC to generate transactio
 ```bash
 curl -X POST -H 'content-type: application/json' --data '{"jsonrpc": "2.0","method": "createTransactions","params": [{ "numTxPerShard": 10000,"xShardPercent": 0}],"id": 1}' http://127.0.0.1:38491
 ```
-NOTE if xShardPercent > 0, make sure to mine at least one root block before send transactions, because the network should have at least one root block been mined before cross shard transaction can be handled, according to the default config.
-   
+NOTE if xShardPercent > 0, make sure to mine at least one root block before send transactions, because the network should 
+have at least one root block been mined before cross shard transaction can be handled, according to the default config.
+
+
+You can start mining once `createTransactions` returns. It may take a few minutes if you create a considerable amount of transactions like 100,000. 
+
+## Start Mining
+
+To start mining, run the following command:
+```bash
+curl -X POST -H 'content-type: application/json' --data '{"jsonrpc":"2.0","method":"setMining","params":[true],"id":0}' http://127.0.0.1:38491
+```
+To stop mining,
+```bash
+curl -X POST -H 'content-type: application/json' --data '{"jsonrpc":"2.0","method":"setMining","params":[false],"id":0}' http://127.0.0.1:38491
+```
+  
 ## Monitoring
 
 Now you can [monitor](../../README.md#monitoring-clusters) the TPS using the [stats tool](../../cmd/stats).

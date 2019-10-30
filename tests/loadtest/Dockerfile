@@ -44,4 +44,4 @@ RUN git clone -b users/denglun/loadtest --single-branch https://github.com/Quark
 WORKDIR $GOPATH/src/github.com/QuarkChain/goquarkchain/consensus/qkchash/native
 RUN g++ -shared -o libqkchash.so -fPIC qkchash.cpp -O3 -std=gnu++17 && make
 WORKDIR $GOPATH/src/github.com/QuarkChain/goquarkchain/cmd/cluster
-RUN go build
+RUN go build -tags nocgo

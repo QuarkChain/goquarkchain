@@ -47,8 +47,7 @@ go version #go version go1.12.10 linux/amd64
 ### Setup RocksDB Environment
 Before install RocksDB, you'll need to install the following dependency packages.
 ```bash
-sudo apt-get install -y build-essential make g++ swig 
-sudo apt-get install -y libgflags-dev libsnappy-dev zlib1g-dev libbz2-dev liblz4-dev libzstd-dev
+sudo apt-get install -y build-essential make g++ swig libgflags-dev libsnappy-dev zlib1g-dev libbz2-dev liblz4-dev libzstd-dev
 ```
 Install RocksDB. Version v6.1.2 is recommended.
 ```bash
@@ -74,35 +73,35 @@ mkdir -p $GOPATH/src/github.com/QuarkChain && cd $_
 git clone https://github.com/QuarkChain/goquarkchain.git
 #build qkchash
 cd goquarkchain/consensus/qkchash/native
-sudo g++ -shared -o libqkchash.so -fPIC qkchash.cpp -O3 -std=gnu++17
-sudo make
+sudo g++ -shared -o libqkchash.so -fPIC qkchash.cpp -O3 -std=gnu++17 && make
 ```
-Run all the unit tests under `goquarkchain`
+Run all the unit tests under `goquarkchain` to verify the environment is correctly set up:
 
 ```
 cd $GOPATH/src/github.com/QuarkChain/goquarkchain
 go test ./...
 ```
 ## Running Clusters
-If you are on a private network (e.g. running from a laptop which connects to the Internet through a router), you need to first setup [port forwarding](https://github.com/QuarkChain/pyquarkchain/wiki/Private-Network-Setting%2C-Port-Forwarding) for UDP/TCP 38291.
 
-Before start a local cluster, you need to set the ulimit values in /etc/security/limits.conf. Append the following lines to the file:
-```bash
-${USER} soft nofile ${NUMBER}
-${USER} hard nofile ${NUMBER}
-```
-${USER} should be replaced with your user name, or * for all users; and ${NUMBER} should be replaced with the total shard number plus one. 
+### System Configuration
 
-### Configure the Network
+Make sure ports are open and accessible from outside world: this means if you are running on AWS, open the ports 
+(default both UDP and TCP 38291) in security group; if you are running from a LAN (connecting to the internet through a router), 
+you need to setup [port forwarding](https://github.com/QuarkChain/pyquarkchain/wiki/Private-Network-Setting%2C-Port-Forwarding)
+ for UDP/TCP 38291. We have a convenience UPNP module as well, but you will need to check if it has successfully set port forwarding.
+
+### Join QuarkChain Network
 
 Before running, you'll need to set up the configuration of your network, which all nodes need to be aware of and agree upon. 
-We provide an example config JSON in the repo (mainnet/singularity/cluster_config_template.json). 
+We provide an example config JSON in the repo (mainnet/singularity/cluster_config_template.json) which you can use to connect to mainnet. 
 
-Note that many parameters in the config are part the consensus, please be very cautious when changing them. For example, COINBASE_AMOUNT is one such parameter, changing it to another value effectively creates a fork in the network.
+Note that many parameters in the config are part of the consensus, please be very cautious when changing them. For example, COINBASE_AMOUNT is one such parameter, changing it to another value effectively creates a fork in the network.
 
 ### Running a single cluster for local testing
 
-Start running a local cluster which does not connect to anyone else. Build GoQuarkChain cluster executable:
+Start running a local cluster which does not connect to anyone else. 
+
+Build GoQuarkChain cluster executable:
 ```bash
 cd $GOPATH/src/github.com/QuarkChain/goquarkchain/cmd/cluster
 go build
@@ -110,24 +109,33 @@ go build
 Start each slave in different terminals with its ID specified in SLAVE_LIST of the json config. 
 The following example has 2 slaves with 1 shard for each:
 ```bash
+# in $GOPATH/src/github.com/QuarkChain/goquarkchain/cmd/cluster
 ./cluster --cluster_config ../../tests/testnet/egconfig/cluster_config_template.json --service S0
+```
+In anther terminal,
+```bash
+cd $GOPATH/src/github.com/QuarkChain/goquarkchain/cmd/cluster
 ./cluster --cluster_config ../../tests/testnet/egconfig/cluster_config_template.json --service S1
 ```
 Start master in another terminal
 ```bash
+cd $GOPATH/src/github.com/QuarkChain/goquarkchain/cmd/cluster
 ./cluster --cluster_config ../../tests/testnet/egconfig/cluster_config_template.json
 ```
 ### Running multiple clusters with P2P network on different machines
-NOTE this is effectively a private network. If you would like to join our testnet or mainnet, look back a few sections for instructions.
+NOTE this is effectively set up a private network. 
 
-Just follow the same command to run single cluster and provide `--bootnodes` flag to discover and connect to other clusters. Make sure ports are open and accessible from outside world: this means if you are running on AWS, open the ports (default both UDP and TCP 38291) in security group; if you are running from a LAN (connecting to the internet through a router), you need to setup port forwarding for UDP/TCP 38291. We have a convenience UPNP module as well, but you will need to check if it has successfully set port forwarding.
+Basically, just follow the same command to run single a bootstrap cluster, then provide `--bootnodes` flag for other clusters to 
+discover and connect to the bootnode. 
 
-(Optional) Not needed if you are joining a testnet or mainnet. If you are starting your own network, first start the bootstrap cluster:
+First start the bootstrap cluster providing a private key:
 ```bash
 cd $GOPATH/src/github.com/QuarkChain/goquarkchain/cmd/cluser
 ./cluster --cluster_config $CLUSTER_CONFIG_FILE --p2p --privkey=$BOOTSTRAP_PRIV_KEY
 ```
-You can read the full bootnode URL from the console output. Then start other clusters and provide the bootnode URL.
+You can read the full bootnode URL from the console output in the format: enode://PUBKEY@IP:PORT.
+ 
+Start other clusters and provide the bootnode URL as $BOOTSTRAP_ENODE:
 ```bash
 ./cluster --cluster_config $CLUSTER_CONFIG_FILE --p2p --bootnodes=$BOOTSTRAP_ENODE
 ```

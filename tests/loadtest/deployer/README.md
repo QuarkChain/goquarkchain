@@ -31,7 +31,7 @@ To change configuration for the cluster:
 vi $GOPATH/src/github.com/QuarkChain/goquarkchain/tests/loadtest/deployer/deployConfig.json
 ```
 Parameters explained:
-- `Hosts` a list of hosts run same cluster/node
+- `Hosts` a list of hosts run same cluster
 - `IP` host IP
 - `Port` SSH port
 - `User` login name
@@ -70,10 +70,10 @@ Try the following command to see if mining works:
 ```bash
 curl -X POST -H 'content-type: application/json' --data '{"jsonrpc":"2.0","method":"setMining","params":[true],"id":0}' http://127.0.0.1:38491
 ```
-## Running Multiple Clusters and Boot Node
+## Multiple Clusters and Boot Node
 With different deployConfig.json you can deploy multiple clusters in same network with this tool. 
 
-Leave `BootNode` field empty when you deploy the first cluster/node in the network, and you'll find bootnode info like
+Leave `BootNode` field empty when you deploy the first cluster in the network, and you'll find bootnode info like
 "enode://..." printed in console log. Use this value to append IP address and p2p port for `BootNode` value in 
 the configuration file to build other clusters in the same network. For example:
 ```bash
