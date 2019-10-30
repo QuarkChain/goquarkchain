@@ -410,28 +410,23 @@ func (q *QuarkChainConfig) GetDefaultChainTokenID() uint64 {
 }
 
 func (q *QuarkChainConfig) allowedTokenIds() map[uint64]bool {
-	if q.allowTokenIDs == nil {
-		q.allowTokenIDs = make(map[uint64]bool, 0)
-		q.allowTokenIDs[common.TokenIDEncode(q.GenesisToken)] = true
-		for _, shard := range q.shards {
-			for _, alloc := range shard.Genesis.Alloc {
-				for tokenID, _ := range alloc.Balances {
-					q.allowTokenIDs[common.TokenIDEncode(tokenID)] = true
-				}
-			}
-		}
+	if len(q.allowTokenIDs) == 0 {
+		panic("allow tokenId should >0")
 	}
 	return q.allowTokenIDs
 }
 
-func (q *QuarkChainConfig) AllowedTransferTokenIDs() map[uint64]bool {
-	return q.allowedTokenIds()
+func (q *QuarkChainConfig) SetAllowedToken() {
+	q.allowTokenIDs = make(map[uint64]bool, 0)
+	q.allowTokenIDs[common.TokenIDEncode(q.GenesisToken)] = true
+	for _, shard := range q.shards {
+		for _, alloc := range shard.Genesis.Alloc {
+			for tokenID, _ := range alloc.Balances {
+				q.allowTokenIDs[common.TokenIDEncode(tokenID)] = true
+			}
+		}
+	}
 }
-
-func (q *QuarkChainConfig) AllowedGasTokenIDs() map[uint64]bool {
-	return q.allowedTokenIds()
-}
-
 func (q *QuarkChainConfig) IsAllowedTokenID(tokenID uint64) bool {
 	_, ok := q.allowedTokenIds()[tokenID]
 	return ok

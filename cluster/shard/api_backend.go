@@ -55,7 +55,7 @@ func (s *ShardBackend) GetAllTx(start []byte, limit uint32) ([]*rpc.TransactionD
 	return s.MinorBlockChain.GetAllTx(start, limit)
 }
 
-func (s *ShardBackend) GenTx(genTxs *rpc.GenTxRequest) error {
+func (s *ShardBackend) GenTx(genTxs rpc.GenTxRequest) error {
 	log.Info(s.logInfo, "ready to genTx txNumber", genTxs.NumTxPerShard, "XShardPercent", genTxs.XShardPercent)
 	allTxNumber := genTxs.NumTxPerShard
 	for allTxNumber > 0 {
@@ -91,7 +91,7 @@ func (s *ShardBackend) AccountForTPSReady() bool {
 	return true
 }
 
-func (s *ShardBackend) genTx(genTxs *rpc.GenTxRequest) error {
+func (s *ShardBackend) genTx(genTxs rpc.GenTxRequest) error {
 	genTxs.NumTxPerShard = genTxs.NumTxPerShard / uint32(len(s.txGenerator))
 	var g errgroup.Group
 	for index := 0; index < len(s.txGenerator); index++ {

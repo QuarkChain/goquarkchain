@@ -488,7 +488,7 @@ func (s *SlaveBackend) NewMinorBlock(block *types.MinorBlock) error {
 	return ErrMsg("NewMinorBlock")
 }
 
-func (s *SlaveBackend) GenTx(genTxs *rpc.GenTxRequest) error {
+func (s *SlaveBackend) GenTx(genTxs rpc.GenTxRequest) error {
 	for _, shard := range s.shards {
 		if !shard.AccountForTPSReady() {
 			return errors.New("account for tps not ready")
