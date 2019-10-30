@@ -89,7 +89,7 @@ go test ./...
 
 The following instructions will lead you to run clusters step by step. 
 
-Another option would be [Use Deploy Tool to Start Clusters](./deployer/README.md#use-deploy-tool-to-start-clusters), which 
+Another option would be [Use Deploy Tool to Start Clusters](/tests/loadtest/deployer/README.md#use-deploy-tool-to-start-clusters), which 
 is based on pre-built Docker image.
 
 ### Build Cluster
