@@ -28,15 +28,16 @@ func CheckErr(err error) {
 }
 
 type ToolManager struct {
-	LocalConfig *LocalConfig
-	BootNode    string
-	SSHSession  map[string]*SSHSession
+	LocalConfig  *LocalConfig
+	BootNode     string
+	SSHSession   []map[string]*SSHSession
+	ClusterIndex int
 }
 
 func NewToolManager(config *LocalConfig) *ToolManager {
 	tool := &ToolManager{
 		LocalConfig: config,
-		SSHSession:  make(map[string]*SSHSession),
+		SSHSession:  make([]map[string]*SSHSession, len(config.Hosts)),
 	}
 	tool.check()
 	tool.init()
@@ -68,20 +69,21 @@ func (t *ToolManager) check() {
 }
 
 func (t *ToolManager) init() {
-	for _, cluster := range t.LocalConfig.Hosts {
+	for index, cluster := range t.LocalConfig.Hosts {
+		t.SSHSession[index] = make(map[string]*SSHSession)
 		for _, ip := range cluster {
-			t.SSHSession[ip.IP] = NewSSHConnect(ip.User, ip.Password, ip.IP, int(ip.Port))
+			t.SSHSession[index][ip.IP] = NewSSHConnect(ip.User, ip.Password, ip.IP, int(ip.Port))
 		}
 	}
 	log.Info("init", "IP list", t.LocalConfig.Hosts)
 }
 
-func (t *ToolManager) GetIpListDependTag(index int, tag string) []string {
-	if index >= len(t.LocalConfig.Hosts) {
-		panic(fmt.Errorf("index:%d host's len:%d", index, len(t.LocalConfig.Hosts)))
+func (t *ToolManager) GetIpListDependTag(tag string) []string {
+	if t.ClusterIndex >= len(t.LocalConfig.Hosts) {
+		panic(fmt.Errorf("index:%d host's len:%d", t.ClusterIndex, len(t.LocalConfig.Hosts)))
 	}
 	ipList := make([]string, 0)
-	for _, v := range t.LocalConfig.Hosts[index] {
+	for _, v := range t.LocalConfig.Hosts[t.ClusterIndex] {
 		if strings.Contains(v.Service, tag) {
 			ipList = append(ipList, v.IP)
 		}
@@ -89,8 +91,8 @@ func (t *ToolManager) GetIpListDependTag(index int, tag string) []string {
 	return ipList
 }
 
-func (t *ToolManager) GenClusterConfig(clusterIndex int) {
-	clusterConfig := GenConfigDependInitConfig(t.LocalConfig.ChainNumber, t.LocalConfig.ShardNumber/t.LocalConfig.ChainNumber, t.GetIpListDependTag(clusterIndex, "slave"), t.LocalConfig.ExtraClusterConfig)
+func (t *ToolManager) GenClusterConfig() {
+	clusterConfig := GenConfigDependInitConfig(t.LocalConfig.ChainNumber, t.LocalConfig.ShardNumber/t.LocalConfig.ChainNumber, t.GetIpListDependTag("slave"), t.LocalConfig.ExtraClusterConfig)
 
 	if t.BootNode == "" {
 		sk, err := ecdsa.GenerateKey(crypto.S256(), rand.Reader)
@@ -102,14 +104,14 @@ func (t *ToolManager) GenClusterConfig(clusterIndex int) {
 		log.Info("bootnode info", "info", node.Node().String())
 		t.BootNode = node.Node().String()
 	} else {
-		clusterConfig.P2P.BootNodes = t.BootNode + "@" + t.GetIpListDependTag(clusterIndex, "master")[0] + ":38291"
+		clusterConfig.P2P.BootNodes = t.BootNode + "@" + t.GetIpListDependTag("master")[0] + ":38291"
 	}
 	WriteConfigToFile(clusterConfig, clusterConfigPath)
 }
 
 func (t *ToolManager) SendFileToCluster() {
 	var g errgroup.Group
-	for _, session := range t.SSHSession {
+	for _, session := range t.SSHSession[t.ClusterIndex] {
 		v := session
 		g.Go(func() error {
 			v.RunCmd("apt-get install docker.io -y")
@@ -140,7 +142,7 @@ type SlaveInfo struct {
 }
 
 func (t *ToolManager) StartCluster(clusterIndex int) {
-	masterIp := t.GetIpListDependTag(clusterIndex, "master")[0]
+	masterIp := t.GetIpListDependTag("master")[0]
 	slaveIpLists := make([]*SlaveInfo, 0)
 	cfg := config.NewClusterConfig()
 	err := LoadClusterConfig(clusterConfigPath, cfg)
@@ -160,13 +162,13 @@ func (t *ToolManager) StartCluster(clusterIndex int) {
 }
 
 func (t *ToolManager) startMaster(ip string) {
-	session := t.SSHSession[ip]
+	session := t.SSHSession[t.ClusterIndex][ip]
 	session.RunCmd("docker exec -itd bjqkc /bin/bash -c 'chmod +x /tmp/QKC/cluster && /tmp/QKC/cluster --cluster_config /tmp/QKC/cluster_config_template.json --json_rpc_host 0.0.0.0 --json_rpc_private_host 0.0.0.0 >>master.log 2>&1 '")
 }
 
 func (t *ToolManager) startSlave(ipList []*SlaveInfo) {
 	for _, v := range ipList {
-		session := t.SSHSession[v.IP]
+		session := t.SSHSession[t.ClusterIndex][v.IP]
 		cmd := "docker exec -itd bjqkc /bin/bash -c 'chmod +x /tmp/QKC/cluster && /tmp/QKC/cluster --cluster_config /tmp/QKC/cluster_config_template.json --service " + v.ServiceName + ">> " + v.ServiceName + ".log 2>&1  '"
 		session.RunCmd(cmd)
 	}

@@ -40,12 +40,13 @@ func main() {
 	for index := 0; index < len(toolManager.LocalConfig.Hosts); index++ {
 		log.Info("begin start cluster", "index", index, "info", toolManager.LocalConfig.Hosts[index])
 		log.Info("========== begin gen config ==========")
-		toolManager.GenClusterConfig(index) //gen ./cluster_config_template.json
+		toolManager.GenClusterConfig() //gen ./cluster_config_template.json
 		log.Info("========== begin send file to others cluster ==========")
 		toolManager.SendFileToCluster()
 		log.Info("========== begin start cluster ==========")
 		toolManager.StartCluster(index)
 		log.Info("end start cluster", "index", index, "info", toolManager.LocalConfig.Hosts[index])
+		toolManager.ClusterIndex++
 	}
 
 }

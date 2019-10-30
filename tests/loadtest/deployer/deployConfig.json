@@ -5,14 +5,14 @@
       "IP": "138.68.28.95",
       "Port": 22,
       "User": "root",
-      "Password": "123456",
+      "Password": "goquarkchain",
       "Service": "master,slave"
     }],
     [{
       "IP": "138.68.224.79",
       "Port": 22,
       "User": "root",
-      "Password": "123456",
+      "Password": "goquarkchain",
       "Service": "master,slave"
     }]
   ],
