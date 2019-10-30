@@ -67,7 +67,7 @@ func (c *CommonEngine) remote() {
 		c.currentWorks.setCurrentWork(block, diff, optionalDivider)
 
 		works.Add(hash, block)
-		currentHeight = block.IHeader().NumberU64()
+		currentHeight = block.NumberU64()
 	}
 
 	submitWork := func(nonce uint64, mixDigest common.Hash, sealhash common.Hash, signature *[65]byte) bool {
@@ -87,7 +87,7 @@ func (c *CommonEngine) remote() {
 
 		work, err := c.currentWorks.getWorkBySealHash(sealhash)
 		if err != nil {
-			log.Info("already be delete", "height", block.IHeader().NumberU64())
+			log.Info("already be delete", "height", block.NumberU64())
 			return false
 		}
 
@@ -170,7 +170,7 @@ func newCurrentWorks() *currentWorks {
 func (c *currentWorks) setCurrentWork(block types.IBlock, diff *big.Int, optionalDivider uint64) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	height := block.IHeader().NumberU64()
+	height := block.NumberU64()
 
 	miningWork := new(MiningWork)
 	miningWork.HeaderHash = block.IHeader().SealHash()
@@ -178,7 +178,7 @@ func (c *currentWorks) setCurrentWork(block types.IBlock, diff *big.Int, optiona
 	miningWork.Difficulty = diff
 	miningWork.OptionalDivider = optionalDivider
 
-	c.works[block.IHeader().GetCoinbase()] = miningWork
+	c.works[block.Coinbase()] = miningWork
 }
 
 func (c *currentWorks) len() int {

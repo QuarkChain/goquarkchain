@@ -35,6 +35,9 @@ type IBlock interface {
 	Content() []IHashable
 	GetTrackingData() []byte
 	GetSize() common.StorageSize
+	ParentHash() common.Hash
+	Coinbase() account.Address
+	Time() uint64
 }
 
 type IHashable interface {

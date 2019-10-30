@@ -92,7 +92,7 @@ func (s *ConnManager) BatchAddXshardTxList(fullShardId uint32, xshardReqs []*rpc
 func (s *ConnManager) BroadcastXshardTxList(block *types.MinorBlock,
 	xshardTxList []*types.CrossShardTransactionDeposit, height uint32) error {
 	var (
-		hash      = block.Header().Hash()
+		hash      = block.Hash()
 		shardSize = len(s.qkcCfg.GetInitializedShardIdsBeforeRootHeight(height))
 	)
 	xshardTxListRequest, err := s.getBranchToAddXshardTxListRequest(hash, xshardTxList, height)
@@ -100,9 +100,9 @@ func (s *ConnManager) BroadcastXshardTxList(block *types.MinorBlock,
 		return err
 	}
 	for branch, request := range xshardTxListRequest {
-		if branch == block.Header().Branch || !account.IsNeighbor(block.Header().Branch, branch, uint32(shardSize)) {
+		if branch == block.Branch() || !account.IsNeighbor(block.Branch(), branch, uint32(shardSize)) {
 			if len(request.TxList) != 0 {
-				return fmt.Errorf("there shouldn't be xshard list for non-neighbor shard, actual branch: %d, target branch: %d", block.Header().Branch.Value, branch.Value)
+				return fmt.Errorf("there shouldn't be xshard list for non-neighbor shard, actual branch: %d, target branch: %d", block.Branch().Value, branch.Value)
 			}
 			continue
 		}
@@ -111,7 +111,7 @@ func (s *ConnManager) BroadcastXshardTxList(block *types.MinorBlock,
 		}
 		err := s.AddXshardTxList(branch.GetFullShardID(), request)
 		if err != nil {
-			log.Error("Failed to broadcast xshard transactions", "actual branch", block.Header().Branch.Value, "target branch", branch.Value, "err", err)
+			log.Error("Failed to broadcast xshard transactions", "actual branch", block.Branch().Value, "target branch", branch.Value, "err", err)
 			return err
 		}
 	}

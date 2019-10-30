@@ -77,6 +77,24 @@ func (h *MinorBlockHeader) Size() common.StorageSize {
 func (h *MinorBlockHeader) GetParentHash() common.Hash        { return h.ParentHash }
 func (h *MinorBlockHeader) GetPrevRootBlockHash() common.Hash { return h.PrevRootBlockHash }
 func (h *MinorBlockHeader) GetCoinbase() account.Address      { return h.Coinbase }
+func (h *MinorBlockHeader) GetTime() uint64                   { return h.Time }
+func (h *MinorBlockHeader) GetDifficulty() *big.Int           { return new(big.Int).Set(h.Difficulty) }
+func (h *MinorBlockHeader) GetTotalDifficulty() *big.Int      { panic(-1) }
+func (h *MinorBlockHeader) GetNonce() uint64                  { return h.Nonce }
+func (h *MinorBlockHeader) GetGasLimit() *big.Int             { return h.GasLimit.Value }
+func (h *MinorBlockHeader) GetBranch() account.Branch         { return h.Branch }
+func (h *MinorBlockHeader) GetMetaHash() common.Hash          { return h.MetaHash }
+func (h *MinorBlockHeader) GetBloom() Bloom                   { return h.Bloom }
+func (h *MinorBlockHeader) GetMixDigest() common.Hash         { return h.MixDigest }
+func (h *MinorBlockHeader) NumberU64() uint64                 { return h.Number }
+func (h *MinorBlockHeader) GetVersion() uint32                { return h.Version }
+
+func (h *MinorBlockHeader) GetExtra() []byte {
+	if h.Extra != nil {
+		return common.CopyBytes(h.Extra)
+	}
+	return nil
+}
 
 func (h *MinorBlockHeader) GetCoinbaseAmount() *TokenBalances {
 	if h.CoinbaseAmount != nil {
@@ -84,48 +102,11 @@ func (h *MinorBlockHeader) GetCoinbaseAmount() *TokenBalances {
 	}
 	return NewEmptyTokenBalances()
 }
-func (h *MinorBlockHeader) GetTime() uint64              { return h.Time }
-func (h *MinorBlockHeader) GetDifficulty() *big.Int      { return new(big.Int).Set(h.Difficulty) }
-func (h *MinorBlockHeader) GetTotalDifficulty() *big.Int { panic(-1) }
-func (h *MinorBlockHeader) GetNonce() uint64             { return h.Nonce }
-func (h *MinorBlockHeader) GetExtra() []byte {
-	if h.Extra != nil {
-		return common.CopyBytes(h.Extra)
-	}
-	return nil
-}
-func (h *MinorBlockHeader) GetGasLimit() *big.Int {
-	return h.GasLimit.Value
-}
-func (h *MinorBlockHeader) GetBranch() account.Branch {
-	return h.Branch
-}
-func (h *MinorBlockHeader) GetMetaHash() common.Hash {
-	return h.MetaHash
-}
-func (h *MinorBlockHeader) GetBloom() Bloom {
-	return h.Bloom
-}
-func (h *MinorBlockHeader) GetMixDigest() common.Hash { return h.MixDigest }
 
-func (h *MinorBlockHeader) NumberU64() uint64  { return h.Number }
-func (h *MinorBlockHeader) GetVersion() uint32 { return h.Version }
-
-func (h *MinorBlockHeader) SetExtra(data []byte) {
-	h.Extra = common.CopyBytes(data)
-}
-
-func (h *MinorBlockHeader) SetDifficulty(difficulty *big.Int) {
-	h.Difficulty = difficulty
-}
-
-func (h *MinorBlockHeader) SetNonce(nonce uint64) {
-	h.Nonce = nonce
-}
-
-func (h *MinorBlockHeader) SetCoinbase(addr account.Address) {
-	h.Coinbase = addr
-}
+func (h *MinorBlockHeader) SetExtra(data []byte)              { h.Extra = common.CopyBytes(data) }
+func (h *MinorBlockHeader) SetDifficulty(difficulty *big.Int) { h.Difficulty = difficulty }
+func (h *MinorBlockHeader) SetNonce(nonce uint64)             { h.Nonce = nonce }
+func (h *MinorBlockHeader) SetCoinbase(addr account.Address)  { h.Coinbase = addr }
 
 // MinorBlockHeaders is a MinorBlockHeaderList slice type for basic sorting.
 type MinorBlockHeaders []*MinorBlockHeader
@@ -307,7 +288,7 @@ func (b *MinorBlock) TrackingData() []byte { return b.trackingdata }
 
 //header properties
 func (b *MinorBlock) GetXShardGasLimit() *big.Int {
-	return new(big.Int).Set(b.Meta().XShardGasLimit.Value)
+	return new(big.Int).Set(b.meta.XShardGasLimit.Value)
 }
 func (b *MinorBlock) Version() uint32                { return b.header.Version }
 func (b *MinorBlock) Branch() account.Branch         { return b.header.Branch }
@@ -323,6 +304,7 @@ func (b *MinorBlock) Nonce() uint64                  { return b.header.Nonce }
 func (b *MinorBlock) Extra() []byte                  { return common.CopyBytes(b.header.Extra) }
 func (b *MinorBlock) Bloom() Bloom                   { return b.header.Bloom }
 func (b *MinorBlock) MixDigest() common.Hash         { return b.header.MixDigest }
+func (b *MinorBlock) CoinbaseAmount() *TokenBalances { return b.header.GetCoinbaseAmount() }
 
 //meta properties
 func (b *MinorBlock) Root() common.Hash        { return b.meta.Root }

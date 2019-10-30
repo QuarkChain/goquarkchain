@@ -3,6 +3,8 @@ package slave
 import (
 	"errors"
 	"fmt"
+	"math/big"
+
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
 	"github.com/QuarkChain/goquarkchain/cluster/shard"
@@ -16,13 +18,11 @@ import (
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
 	"golang.org/x/sync/errgroup"
-	"math/big"
 )
 
 var (
 	MINOR_BLOCK_HEADER_LIST_LIMIT = uint32(100)
 	MINOR_BLOCK_BATCH_SIZE        = 50
-	NEW_TRANSACTION_LIST_LIMIT    = 1000
 )
 
 func (s *SlaveBackend) GetUnconfirmedHeaderList() ([]*rpc.HeadersInfo, error) {
@@ -69,7 +69,7 @@ func (s *SlaveBackend) CreateShards(rootBlock *types.RootBlock, forceInit bool) 
 		}
 		g.Go(func() error {
 			shardCfg := s.clstrCfg.Quarkchain.GetShardConfigByFullShardID(id)
-			if rootBlock.Header().Number >= shardCfg.Genesis.RootHeight {
+			if rootBlock.Number() >= shardCfg.Genesis.RootHeight {
 				shard, err := shard.New(s.ctx, rootBlock, s.connManager, s.clstrCfg, id)
 				if err != nil {
 					log.Error("Failed to create shard", "slave id", s.config.ID, "shard id", shardCfg.ShardID, "err", err)
@@ -109,7 +109,6 @@ func (s *SlaveBackend) AddBlockListForSync(mHashList []common.Hash, peerId strin
 
 	var (
 		BlockBatchSize = 100
-		hashLen        = len(hashList)
 		tHashList      []common.Hash
 	)
 	for len(hashList) > 0 {
@@ -133,9 +132,6 @@ func (s *SlaveBackend) AddBlockListForSync(mHashList []common.Hash, peerId strin
 		}
 		hashList = hashList[hLen:]
 	}
-
-	log.Info("sync request from master successful", "branch", branch, "peer-id", peerId, "block-size", hashLen)
-
 	return shard.MinorBlockChain.GetShardStats()
 }
 
@@ -158,6 +154,28 @@ func (s *SlaveBackend) AddTx(tx *types.Transaction) (err error) {
 		return shard.MinorBlockChain.AddTx(tx)
 	}
 	return ErrMsg("AddTx")
+}
+
+func (s *SlaveBackend) AddTxList(txs []*types.Transaction, peerID string) (err error) {
+	if len(txs) == 0 {
+		return nil
+	}
+
+	tx := txs[0]
+	fromShardSize, err := s.clstrCfg.Quarkchain.GetShardSizeByChainId(tx.EvmTx.FromChainID())
+	if err != nil {
+		return err
+	}
+	if err := tx.EvmTx.SetFromShardSize(fromShardSize); err != nil {
+		return err
+	}
+	fromFullShardId := tx.EvmTx.FromFullShardId()
+
+	shard, ok := s.shards[fromFullShardId]
+	if !ok {
+		return fmt.Errorf("fullShardID:%v not found", fromFullShardId)
+	}
+	return shard.AddTxList(txs, peerID)
 }
 
 func (s *SlaveBackend) ExecuteTx(tx *types.Transaction, address *account.Address, height *uint64) ([]byte, error) {
@@ -464,21 +482,23 @@ func (s *SlaveBackend) HandleNewTip(req *rpc.HandleNewTipRequest) error {
 }
 
 func (s *SlaveBackend) NewMinorBlock(block *types.MinorBlock) error {
-	if shard, ok := s.shards[block.Header().Branch.Value]; ok {
+	if shard, ok := s.shards[block.Branch().Value]; ok {
 		return shard.NewMinorBlock(block)
 	}
 	return ErrMsg("NewMinorBlock")
 }
 
 func (s *SlaveBackend) GenTx(genTxs *rpc.GenTxRequest) error {
-	var g errgroup.Group
+	for _, shard := range s.shards {
+		if !shard.AccountForTPSReady() {
+			return errors.New("account for tps not ready")
+		}
+	}
 	for _, shrd := range s.shards {
 		sd := shrd
-		g.Go(func() error {
-			return sd.GenTx(genTxs)
-		})
+		go sd.GenTx(genTxs)
 	}
-	return g.Wait()
+	return nil
 }
 
 func (s *SlaveBackend) SetMining(mining bool) {

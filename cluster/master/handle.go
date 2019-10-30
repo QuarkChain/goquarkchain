@@ -14,7 +14,6 @@ import (
 	"github.com/QuarkChain/goquarkchain/core"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/p2p"
-	"github.com/QuarkChain/goquarkchain/p2p/nodefilter"
 	"github.com/QuarkChain/goquarkchain/serialize"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -165,7 +164,7 @@ func (pm *ProtocolManager) handle(peer *Peer) error {
 		pm.rootBlockChain.CurrentBlock().Header(),
 		pm.rootBlockChain.Genesis().Hash(),
 	); err != nil {
-		return nodefilter.NewHandleBlackListErr(err.Error())
+		return err
 	}
 
 	// Register the peer locally
@@ -606,6 +605,10 @@ func (pm *ProtocolManager) HandleGetRootBlockHeaderListWithSkipRequest(peerId st
 }
 
 func (pm *ProtocolManager) HandleNewTransactionListRequest(peerId string, rpcId uint64, branch uint32, request *p2p.NewTransactionList) error {
+	req := &rpc.NewTransactionList{
+		TransactionList: request.TransactionList,
+		PeerID:          peerId,
+	}
 	clients := pm.getShardConnFunc(branch)
 	if len(clients) == 0 {
 		return fmt.Errorf("invalid branch %d for rpc request %d", rpcId, branch)
@@ -615,7 +618,7 @@ func (pm *ProtocolManager) HandleNewTransactionListRequest(peerId string, rpcId 
 		sameResponse := true
 		// todo make the client call in Parallelized
 		for _, client := range clients {
-			result, err := client.AddTransactions(request)
+			result, err := client.AddTransactions(req)
 			if err != nil {
 				log.Error("addTransaction err", "branch", branch, "HandleNewTransactionListRequest failed with error: ", err.Error())
 				//TODO need err

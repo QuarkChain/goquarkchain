@@ -5,6 +5,7 @@ package master
 import (
 	"errors"
 	"fmt"
+	"github.com/QuarkChain/goquarkchain/p2p/nodefilter"
 	"io/ioutil"
 	"math/big"
 	"sync"
@@ -38,7 +39,7 @@ const (
 	// dropping broadcasts.
 	maxQueuedTips = 16
 
-	handshakeTimeout = 15 * time.Second
+	handshakeTimeout = 5 * time.Second
 
 	requestTimeout = 10 * time.Second
 )
@@ -481,7 +482,7 @@ func (p *Peer) Handshake(protoVersion, networkId uint32, peerId common.Hash, pee
 		select {
 		case err := <-errc:
 			if err != nil {
-				return err
+				return nodefilter.NewHandleBlackListErr(err.Error())
 			}
 		case <-timeout.C:
 			fmt.Println("return Handshake disc Read Time out")

@@ -174,7 +174,7 @@ func testMinorBlockChainImport(chain []types.IBlock, blockchain *MinorBlockChain
 			}
 			return err
 		}
-		statedb, err := state.New(blockchain.GetMinorBlock(block.IHeader().GetParentHash()).GetMetaData().Root, blockchain.stateCache)
+		statedb, err := state.New(blockchain.GetMinorBlock(block.ParentHash()).GetMetaData().Root, blockchain.stateCache)
 		if err != nil {
 			return err
 		}
@@ -184,13 +184,13 @@ func testMinorBlockChainImport(chain []types.IBlock, blockchain *MinorBlockChain
 			blockchain.reportBlock(block, receipts, err)
 			return err
 		}
-		err = blockchain.validator.ValidateState(block, blockchain.GetMinorBlock(block.IHeader().GetParentHash()), statedb, receipts, usedGas)
+		err = blockchain.validator.ValidateState(block, blockchain.GetMinorBlock(block.ParentHash()), statedb, receipts, usedGas)
 		if err != nil {
 			blockchain.reportBlock(block, receipts, err)
 			return err
 		}
 		blockchain.mu.Lock()
-		rawdb.WriteTd(blockchain.db, block.Hash(), new(big.Int).Add(block.IHeader().GetDifficulty(), blockchain.GetTdByHash(block.IHeader().GetParentHash())))
+		rawdb.WriteTd(blockchain.db, block.Hash(), new(big.Int).Add(block.IHeader().GetDifficulty(), blockchain.GetTdByHash(block.ParentHash())))
 		rawdb.WriteMinorBlock(blockchain.db, block.(*types.MinorBlock))
 		rawdb.WriteCommitMinorBlock(blockchain.db, block.Hash())
 		statedb.Commit(true)
