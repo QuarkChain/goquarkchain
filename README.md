@@ -83,6 +83,16 @@ go test ./...
 ```
 ## Running Clusters
 
+### Build Cluster
+
+Build GoQuarkChain cluster executable:
+```bash
+#build qkchash if not done yet:
+cd $GOPATH/src/github.com/QuarkChain/goquarkchain/consensus/qkchash/native
+sudo g++ -shared -o libqkchash.so -fPIC qkchash.cpp -O3 -std=gnu++17 && make
+cd $GOPATH/src/github.com/QuarkChain/goquarkchain/cmd/cluster
+go build
+```
 ### System Configuration
 
 Make sure ports are open and accessible from outside world: this means if you are running on AWS, open the ports 
@@ -99,14 +109,9 @@ Note that many parameters in the config are part of the consensus, please be ver
 
 ### Running a single cluster for local testing
 
-Start running a local cluster which does not connect to anyone else. 
+To run a local cluster which does not connect to anyone else, start each slave in different terminals with its ID specified 
+in SLAVE_LIST of the json config. 
 
-Build GoQuarkChain cluster executable:
-```bash
-cd $GOPATH/src/github.com/QuarkChain/goquarkchain/cmd/cluster
-go build
-```
-Start each slave in different terminals with its ID specified in SLAVE_LIST of the json config. 
 The following example has 2 slaves with 1 shard for each:
 ```bash
 # in $GOPATH/src/github.com/QuarkChain/goquarkchain/cmd/cluster
