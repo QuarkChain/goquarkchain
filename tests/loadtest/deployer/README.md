@@ -3,31 +3,35 @@
 Here we provide a deploy tool based on pre-built Docker image. With this tool you can deploy GoQuarkChain master/shard 
 services to build and start a cluster in one line command. 
 
-NOTE with this tool at most one Slave service can be deployed to a host, but there is no limitation for Shards number.
+NOTE with this tool at most one Slave service can be deployed to a host, but there is no limitation for Shard number.
 
 It is encouraged that you build your own deploy scripts or tools, especially if you prefer different service distribution 
 among hosts.  You can also build your own Docker image, starting from [this Dockerfile](../Dockerfile), or if you are 
 interested in build everything without Docker, start from [here](../../../README.md#development-setup). 
 
+NOTE it is better to run deployer in the same LAN with the hosts you plan to deploy a cluster, because some file copy work 
+will be done across network during the deploy process. 
+
 ## Run Docker Image
 
 Usually you'll need a GoQuarkChain development environment to run the deploy tool, but the pre-built Docker image 
-saved the effort for you. Run the following commands to pull and start a container with deployer in it:
+saved the effort for you. If you choose not to use Docker to run deployer, skip this step.
+
+Run the following commands to pull and start a container with `deployer` in it:
 
 ```bash
 # replace docker image name if a custom image is used
 docker pull quarkchaindocker/goquarkchain
 docker run -it quarkchaindocker/goquarkchain /bin/bash 
 ```
-NOTE it is better to run it in the same LAN with the hosts you plan to deploy a cluster, because some file copy work 
-will be done across network during the deploy process. 
+Then you can change configuration inside Docker container.
 
 ## Configure Clusters
 
 You can build and deploy one cluster each time using this deploy tool with a configuration file `deployConfig.json`. 
 To change configuration for the cluster:
 ```bash
-# inside Docker container
+# inside container if use Docker to deploy
 vi $GOPATH/src/github.com/QuarkChain/goquarkchain/tests/loadtest/deployer/deployConfig.json
 ```
 Parameters explained:
@@ -50,17 +54,17 @@ NOTE For each of the hosts, besides 38291, 38391, 38491, the port range [48000, 
 ## Deploy and Run a Cluster
 Inside the container, execute:
 ```bash
-# inside Docker container
+# inside container if use Docker to deploy
 cd $GOPATH/src/github.com/QuarkChain/goquarkchain/tests/loadtest/deployer
 go run deploy_cluster.go
 ```
-
 The deploying process will be printed on the console log. 
+
 ## Check Cluster Status
 
 To check the status of the cluster, you need to enter the Docker container on the target hosts: 
 ```bash
-docker exec  -it bjqkc /bin/bash
+docker exec -it bjqkc /bin/bash
 ```
 If everything goes correctly, you will see from `$GOPATH/src/github.com/QuarkChain/goquarkchain/cmd/cluster/master.log` that 
 cluster start successfully, and from shard logs such as `S0.log` in the same folder that 12,000 accounts 

@@ -21,12 +21,15 @@ QuarkChain is a sharded blockchain protocol that employs a two-layer architectur
 Check out the [Wiki](https://github.com/QuarkChain/pyquarkchain/wiki) to understand the design of QuarkChain.
 
 ## Development Setup
+
+The following instructions are based on Ubuntu 18.04.
+
 ###  Setup Go Environment
 Goquarkchain requires golang sdk >= 1.12. You can skip this step if your environment meets the condition.
 ```bash
 # take go1.12.10 for example:
 wget https://studygolang.com/dl/golang/go1.12.10.linux-amd64.tar.gz
-sudo tar xzf go1.12.10.linux-amd64.tar.gz -C /usr/local
+sudo tar xvzf go1.12.10.linux-amd64.tar.gz -C /usr/local
 ```
 Append the following environment variables to ~/.profile. NOTE goproxy and go.mod are used.
 ```bash
@@ -47,7 +50,8 @@ go version #go version go1.12.10 linux/amd64
 ### Setup RocksDB Environment
 Before install RocksDB, you'll need to install the following dependency packages.
 ```bash
-sudo apt-get install -y build-essential make g++ swig libgflags-dev libsnappy-dev zlib1g-dev libbz2-dev liblz4-dev libzstd-dev
+sudo apt-get update
+sudo apt-get install -y git build-essential make g++ swig libgflags-dev libsnappy-dev zlib1g-dev libbz2-dev liblz4-dev libzstd-dev
 ```
 Install RocksDB. Version v6.1.2 is recommended.
 ```bash
