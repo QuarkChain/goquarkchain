@@ -55,11 +55,9 @@ func (l *LocalConfig) UnmarshalJSON(input []byte) error {
 		if _, ok := l.Hosts[v.ClusterID]; !ok {
 			l.Hosts[v.ClusterID] = make([]NodeIndo, 0)
 		}
-		fmt.Println("===", v.ClusterID, v)
 		l.Hosts[v.ClusterID] = append(l.Hosts[v.ClusterID], v)
 	}
 
-	fmt.Println("ddasda", len(l.Hosts), l.Hosts)
 	l.ChainNumber = dec.ChainNumber
 	l.ShardNumber = dec.ChainNumber
 	l.ExtraClusterConfig = dec.ExtraClusterConfig
