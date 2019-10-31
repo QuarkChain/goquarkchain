@@ -19,9 +19,10 @@ A cluster [config template file](cluster_config.json) has been provided for load
 Some parameters you may consider make changes:
 - `CHAIN_SIZE` defines the number of chains in the cluster, each chain has a number of shards 
 - `SHARD_SIZE` defines the number of shards per chain
-- `TARGET_BLOCK_TIME` defines the target block interval in seconds for root chain and each shard
+- `TARGET_BLOCK_TIME` defines the target block interval in seconds for root chain or each shard, if `POW_SIMULATE` is used for consensus     
 - `GAS_LIMIT` defines the gas limit for a block; note that in-shard transactions uses 50% of the total gas limit in a block
 - `SLAVE_LIST` defines the slaves so that the services can be located
+- `GENESIS_DIR` defines the location of loadtest.json that contains 12000 loadtest accounts
 
 ## Generate Transactions
 

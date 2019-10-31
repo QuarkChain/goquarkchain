@@ -153,7 +153,7 @@ func (pm *ProtocolManager) handle(peer *Peer) error {
 		return p2p.DiscTooManyPeers
 	}
 
-	peer.Log().Debug("peer connected", "name", peer.Name())
+	peer.Log().Info("peer connected", "name", peer.Name())
 
 	privateKey, _ := p2p.GetPrivateKeyFromConfig(pm.clusterConfig.P2P.PrivKey)
 	id := crypto.FromECDSAPub(&privateKey.PublicKey)

@@ -1,16 +1,24 @@
 # Use Deploy Tool to Start Clusters
 
-Here we provide a deploy tool based on pre-built Docker image. With this tool you can build and start a private QuarkChain 
-network in one line command. 
-
-NOTE with this tool at most one Slave service can be deployed per host, but there is no limitation for Shard number.
+Here we provide a deploy tool based on pre-built Docker image. With this tool you can deploy multiple clusters to build 
+and start a private QuarkChain network in one line command. 
 
 It is encouraged that you build your own deploy scripts or tools, especially if you prefer different service distribution 
 among hosts.  You can also build your own Docker image, starting from [this Dockerfile](../Dockerfile), or if you are 
 interested in build everything without Docker, start from [here](../../../README.md#development-setup). 
 
-NOTE it is better to run deployer in the same LAN with the hosts you plan to deploy a cluster, because some file copy work 
+NOTE with this tool at most one Slave service can be deployed per host, but there is no limitation for Shard number.
+
+NOTE it is recommended to run deployer in the same LAN with the hosts you plan to deploy a cluster, because some file copy work 
 will be done across network during the deploy process. 
+
+## System Requirements
+
+To use deployer to run Docker image, it is required for the hosts that:
+
+    a) Ubuntu 18.04, 
+    b) root account is enabled, and 
+    c) Docker version >= 18.09.7.
 
 ## Run Docker Image
 
@@ -29,41 +37,40 @@ Then you can change configuration inside Docker container.
 ## Configure Clusters
 With the configuration file `deployConfig.json`, you can configure multiple clusters that connected to each other. 
 
-To change configuration for the cluster:
+If you use Docker to deploy, you can use vi in the container:
 ```bash
-# inside container if use Docker to deploy
-vi $GOPATH/src/github.com/QuarkChain/goquarkchain/tests/loadtest/deployer/deployConfig.json
+cd $GOPATH/src/github.com/QuarkChain/goquarkchain/tests/loadtest/deployer
+vi deployConfig.json
 ```
 Parameters explained:
-- `Hosts` a list of hosts run same cluster
+- `Hosts` defines a list of hosts where GoQuarkChain services run inside Docker containers
 - `IP` host IP
 - `Port` SSH port
-- `User` login name
+- `User` login name; currently only `root` is supported
 - `Password` password
-- `Service` which service(s) you want to run in the host, can be "master", "slave", or "master,slave"
-- `BootNode` bootnode URL to discover and connect to other clusters, refer to [here](#running-multiple-clusters-and-boot-node) 
-for detail
-- `ChainNumber` defines the number of chains in the cluster, each chain has a number of shards 
-- `ShardNumber` defines the number of shards in the cluster (must be power of 2, and an integral multiple of ChainNumber)
-- `TargetRootBlockTime` defines the target block interval in seconds of root chain
-- `TargetMinorBlockTime` defines the target block interval on each shard
+- `Service` defines type of service(s) you want to run in the host, can be "master", "slave", or "master,slave"
+- `ClusterID` used to specify which cluster the service(s) on the host belongs to; so hosts with same ClusterID belongs to same cluster; 
+if ClusterID is set to 0, the cluster will be started as a bootstrap node
+- `ChainNumber` defines the number of chains in each cluster, each chain has a number of shards 
+- `ShardNumber` defines the number of shards in each cluster (must be power of 2, and an integral multiple of ChainNumber)
+- `TargetRootBlockTime` defines the target block interval of root chain in seconds, since "POW_SIMULATE" is used for consensus
+- `TargetMinorBlockTime` defines the target block interval of each shard
 - `GasLimit` defines the gas limit for a block; note that in-shard transactions uses 50% of the total gas limit in a block
 
 NOTE For each of the hosts, besides 38291, 38391, 38491, the port range [48000, 48000 + host number] should be opened too.
 
-## Deploy and Run a Cluster
+## Deploy and Run Clusters
 
-The following command will generate network configuration file used by the cluster, deploy the clusters to remote Docker 
+The following command will parse `deployConfig.json`, generate cluster configuration file accordingly, deploy the clusters to remote Docker 
 containers, and start the services of each cluster:
 
 ```bash
-# inside container if use Docker to deploy
-cd $GOPATH/src/github.com/QuarkChain/goquarkchain/tests/loadtest/deployer
+# suppose your working directory is "$GOPATH/src/github.com/QuarkChain/goquarkchain/tests/loadtest/deployer"
 go run deploy_cluster.go
 ```
 The deploying process will be printed on the console log. 
 
-## Check Cluster Status
+## Check Clusters Status
 
 To check the status of the cluster, you need to enter the Docker container on the target hosts: 
 ```bash
@@ -71,6 +78,8 @@ docker exec -it bjqkc /bin/bash
 ```
 If everything goes correctly, you will see from `$GOPATH/src/github.com/QuarkChain/goquarkchain/cmd/cluster/master.log` that 
 cluster start successfully, and from shard logs such as `S0.log` in the same folder that 12,000 accounts loaded automatically for each shard.
+
+You can also see "Adding p2p peer" and "peer connected" from the master.log of bootstrap cluster if p2p works correctly.
 
 Try the following command to see if mining works:
 ```bash
