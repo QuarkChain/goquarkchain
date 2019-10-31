@@ -221,7 +221,8 @@ func (t *ToolManager) CheckPeerStatus() {
 			if resp.Error != nil {
 				panic(fmt.Errorf("getPeer from ip %v err %v", masterIP, resp.Error))
 			}
-			log.Info("check peer status", "masterIP", masterIP, "resp", len(resp.Result.(map[string]interface{})), "data", resp.Result.(map[string]interface{}))
+			peerInfo := resp.Result.(map[string]interface{})["peers"].([]map[string]interface{})
+			log.Info("check peer status", "masterIP", masterIP, "resp len", len(peerInfo), "data", peerInfo)
 			t.ClusterIndex++
 		}
 	}
