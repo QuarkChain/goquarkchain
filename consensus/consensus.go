@@ -17,6 +17,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
+	lru "github.com/hashicorp/golang-lru"
 )
 
 var (
@@ -105,9 +106,10 @@ type CommonEngine struct {
 	threads int
 	lock    sync.Mutex
 
-	closeOnce    sync.Once
-	exitCh       chan chan error
-	currentWorks *currentWorks
+	closeOnce         sync.Once
+	exitCh            chan chan error
+	currentWorks      *currentWorks
+	sealVerifiedCache *lru.Cache
 }
 
 // Name returns the consensus engine's name.
@@ -183,7 +185,16 @@ func (c *CommonEngine) VerifyHeader(
 // VerifySeal checks whether the crypto seal on a header is valid according to
 // the consensus rules of the given engine.
 func (c *CommonEngine) VerifySeal(chain ChainReader, header types.IHeader, adjustedDiff *big.Int) error {
-	return c.spec.VerifySeal(chain, header, adjustedDiff)
+	if v, ok := c.sealVerifiedCache.Get(header.Hash()); ok {
+		if v.(*big.Int).Cmp(adjustedDiff) == 0 {
+			return nil
+		}
+	}
+	err := c.spec.VerifySeal(chain, header, adjustedDiff)
+	if err == nil {
+		c.sealVerifiedCache.Add(header.Hash(), adjustedDiff)
+	}
+	return err
 }
 
 // VerifyHeaders is similar to VerifyHeader, but verifies a batch of headers
@@ -447,10 +458,12 @@ func (c *CommonEngine) Close() error {
 
 // NewCommonEngine returns the common engine mixin.
 func NewCommonEngine(spec MiningSpec, diffCalc DifficultyCalculator, remote bool, pubKey []byte) *CommonEngine {
+	cache, _ := lru.New(512)
 	c := &CommonEngine{
-		spec:     spec,
-		diffCalc: diffCalc,
-		pubKey:   pubKey,
+		spec:              spec,
+		diffCalc:          diffCalc,
+		pubKey:            pubKey,
+		sealVerifiedCache: cache,
 	}
 	if remote {
 		c.isRemote = true
