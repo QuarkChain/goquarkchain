@@ -49,4 +49,4 @@ curl -X POST -H 'content-type: application/json' --data '{"jsonrpc":"2.0","metho
   
 ## Monitoring
 
-Now you can [monitor](../../README.md#monitoring-clusters) the TPS using the [stats tool](../../cmd/stats).
+Now you can monitor the TPS using the [stats tool](../../cmd/stats).

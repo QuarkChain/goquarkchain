@@ -145,42 +145,20 @@ If you want a cluster to be a bootstrap cluster, optionally provide a private ke
 cd $GOPATH/src/github.com/QuarkChain/goquarkchain/cmd/cluser
 ./cluster --cluster_config $CLUSTER_CONFIG_FILE --privkey=$BOOTSTRAP_PRIV_KEY
 ```
-You can read the full boot node URL from the console output in the format: enode://$BOOTSTRAP_PUB_KEY@$BOOTSTRAP_IP:$BOOTSTRAP_DISCOVERY_PORT.
+You can read the full boot node URL from the console output in the format: `enode://$BOOTSTRAP_PUB_KEY@$BOOTSTRAP_IP:$BOOTSTRAP_DISCOVERY_PORT`.
 
 NOTE if private key is not provided, the boot node URL will change at each restart of the service.
 
-Start other clusters and provide the boot node URL as $BOOTSTRAP_ENODE for master service:
+Start other clusters and provide the boot node URL as `$BOOTSTRAP_ENODE` for master service:
 ```bash
 ./cluster --cluster_config $CLUSTER_CONFIG_FILE --bootnodes=$BOOTSTRAP_ENODE
 ```
-Using `PRIV_KEY` or `BOOT_NODES` field in cluster config file will have the same effect as cmd flags.
+Using `PRIV_KEY` or `BOOT_NODES` field of `P2P` section in cluster config file will have the same effect as cmd flags.
 
 ## Monitoring Clusters
-Use the [`stats`](cmd/stats) tool in the repo to monitor the status of a cluster. It queries the given cluster through 
+Use the [stats tool](cmd/stats) in the repo to monitor the status of a cluster. It queries the given cluster through 
 JSON RPC every 10 seconds and produces an entry. 
-```bash
-cd $GOPATH/src/github.com/QuarkChain/goquarkchain/cmd/stats
-go build
- ./stats --ip localhost
-============================
-QuarkChain Cluster Stats
-============================
-CPU:                8
-Memory:             16 GB
-IP:                 localhost
-Chains:             8
-Network Id:         252
-Peers:              
-============================
-Timestamp               Syncing TPS     Pend.TX Conf.TX BPS     SBPS    CPU     ROOT    CHAIN/SHARD-HEIGHT
-2019-10-22 16:25:40     false   0.00    0       0       0.47    0.00    18.75   48      0/0-34 1/0-7 2/0-37 3/0-41 4/0-37 5/0-34 6/0-34 7/0-43
-2019-10-22 16:25:50     false   0.00    0       0       0.47    0.00    0.95    48      0/0-34 1/0-7 2/0-37 3/0-41 4/0-37 5/0-34 6/0-34 7/0-43
-2019-10-22 16:26:00     false   0.00    0       0       0.47    0.00    0.83    48      0/0-34 1/0-7 2/0-37 3/0-41 4/0-37 5/0-34 6/0-34 7/0-43
-2019-10-22 16:26:10     false   0.00    0       0       0.47    0.00    1.20    48      0/0-34 1/0-7 2/0-37 3/0-41 4/0-37 5/0-34 6/0-34 7/0-43
-2019-10-22 16:26:20     false   0.00    0       0       0.47    0.00    0.66    48      0/0-34 1/0-7 2/0-37 3/0-41 4/0-37 5/0-34 6/0-34 7/0-43
-2019-10-22 16:26:30     false   0.00    0       0       0.47    0.00    0.78    48      0/0-34 1/0-7 2/0-37 3/0-41 4/0-37 5/0-34 6/0-34 7/0-43
 
-```
 ## JSON RPC
 JSON RPCs are defined in [`rpc.proto`](cluster/rpc/rpc.proto). Note that there are two JSON RPC ports. By default they 
 are 38491 for private RPCs and 38391 for public RPCs. Since you are running your own clusters you get access to both.

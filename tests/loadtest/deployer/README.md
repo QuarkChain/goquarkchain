@@ -1,4 +1,4 @@
-# Use Deploy Tool to Start Clusters
+# Use Deploy Tool to Start GoQuarkChain Clusters
 
 Here we provide a deploy tool based on pre-built Docker image. With this tool you can deploy multiple clusters to build 
 and start a private QuarkChain network in one line command. 
@@ -70,9 +70,10 @@ go run deploy_cluster.go
 ```
 The deploying process will be printed on the console log. 
 
-## Check Clusters Status
+## Check Status of Clusters 
+You can monitor the status of a cluster with the [stats tool](../../../cmd/stats).
 
-To check the status of the cluster, you need to enter the Docker container on the target hosts: 
+For detailed information, you need to enter the Docker container on the target hosts and check logs: 
 ```bash
 docker exec -it bjqkc /bin/bash
 ```
