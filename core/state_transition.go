@@ -18,6 +18,7 @@ package core
 
 import (
 	"errors"
+	"fmt"
 	"math"
 	"math/big"
 
@@ -392,6 +393,7 @@ func (st *StateTransition) chargeFee(gasUsed uint64) {
 	blockFee := make(map[uint64]*big.Int)
 	blockFee[st.msg.GasTokenID()] = rateFee
 	st.state.AddBlockFee(blockFee)
+	fmt.Println("changeFee", st.state.GetTimeStamp(), st.state.GetQuarkChainConfig().EnableEvmTimeStamp, gasUsed, st.gasUsed())
 	if st.state.GetTimeStamp() >= st.state.GetQuarkChainConfig().EnableEvmTimeStamp {
 		st.state.AddGasUsed(new(big.Int).SetUint64(gasUsed))
 		return
