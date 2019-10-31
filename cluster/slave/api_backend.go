@@ -175,7 +175,7 @@ func (s *SlaveBackend) AddTxList(txs []*types.Transaction, peerID string) (err e
 	if !ok {
 		return fmt.Errorf("fullShardID:%v not found", fromFullShardId)
 	}
-	return shard.AddTxList(txs, peerID)
+	return shard.MinorBlockChain.AddTxList(txs)
 }
 
 func (s *SlaveBackend) ExecuteTx(tx *types.Transaction, address *account.Address, height *uint64) ([]byte, error) {

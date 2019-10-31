@@ -90,7 +90,7 @@ func (t *TxGenerator) sign(evmTx *types.EvmTransaction, key *ecdsa.PrivateKey) (
 	return types.SignTx(evmTx, t.sender, key)
 }
 
-func (t *TxGenerator) Generate(genTxs rpc.GenTxRequest, addTxList func(txs []*types.Transaction, peerID string) error) error {
+func (t *TxGenerator) Generate(genTxs rpc.GenTxRequest, addTxList func(txs []*types.Transaction) error) error {
 	ts := time.Now()
 	tsa := time.Now()
 	var (
@@ -123,7 +123,7 @@ func (t *TxGenerator) Generate(genTxs rpc.GenTxRequest, addTxList func(txs []*ty
 		index++
 
 		if index >= batchScale {
-			if err := addTxList(txList, ""); err != nil {
+			if err := addTxList(txList); err != nil {
 				return err
 			}
 			log.Info("addTxList end", "total", total, "numTx", numTx, "durtion", time.Now().Sub(ts).Seconds())
@@ -140,7 +140,7 @@ func (t *TxGenerator) Generate(genTxs rpc.GenTxRequest, addTxList func(txs []*ty
 	}
 
 	if len(txList) != 0 {
-		if err := addTxList(txList[:index], ""); err != nil {
+		if err := addTxList(txList[:index]); err != nil {
 			return err
 		}
 	}
