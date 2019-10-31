@@ -123,7 +123,7 @@ in SLAVE_LIST of the json config.
 
 The following example has 2 slaves with 1 shard for each:
 ```bash
-# in $GOPATH/src/github.com/QuarkChain/goquarkchain/cmd/cluster
+cd $GOPATH/src/github.com/QuarkChain/goquarkchain/cmd/cluster
 ./cluster --cluster_config ../../tests/testnet/egconfig/cluster_config_template.json --service S0
 ```
 In anther terminal,
