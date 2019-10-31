@@ -317,13 +317,21 @@ func setHTTP(ctx *cli.Context, cfg *service.Config, clstrCfg *config.ClusterConf
 		if ctx.GlobalIsSet(RPCPortFlag.Name) {
 			port = uint16(ctx.GlobalInt(RPCPortFlag.Name))
 		}
-		cfg.HTTPEndpoint = fmt.Sprintf("%s:%d", ctx.GlobalString(RPCListenAddrFlag.Name), port)
+		host := clstrCfg.JSONRPCHOST
+		if ctx.GlobalIsSet(RPCListenAddrFlag.Name) {
+			host = ctx.GlobalString(RPCListenAddrFlag.Name)
+		}
+		cfg.HTTPEndpoint = fmt.Sprintf("%s:%d", host, port)
 	}
 	privPort := clstrCfg.PrivateJSONRPCPort
 	if ctx.GlobalIsSet(PrivateRPCPortFlag.Name) {
 		privPort = uint16(ctx.GlobalInt(PrivateRPCPortFlag.Name))
 	}
-	cfg.HTTPPrivEndpoint = fmt.Sprintf("%s:%d", ctx.GlobalString(PrivateRPCListenAddrFlag.Name), privPort)
+	privateHost := clstrCfg.PrivateJSONRPCHOST
+	if ctx.GlobalIsSet(PrivateRPCListenAddrFlag.Name) {
+		privateHost = ctx.GlobalString(PrivateRPCListenAddrFlag.Name)
+	}
+	cfg.HTTPPrivEndpoint = fmt.Sprintf("%s:%d", privateHost, privPort)
 }
 
 func setGRPC(ctx *cli.Context, cfg *service.Config, clstrCfg *config.ClusterConfig) {
