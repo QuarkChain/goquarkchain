@@ -456,9 +456,7 @@ func (m *MinorBlockChain) runBlock(block *types.MinorBlock) (*state.StateDB, typ
 		return nil, nil, nil, 0, nil, err
 	}
 	evmState := preEvmState.Copy()
-	fmt.Println("run_cross", evmState.GetGasUsed())
 	xTxList, txCursorInfo, xShardReceipts, err := m.RunCrossShardTxWithCursor(evmState, block)
-	fmt.Println("run_cross_end", evmState.GetGasUsed())
 	if err != nil {
 		return nil, nil, nil, 0, nil, err
 	}
@@ -469,9 +467,7 @@ func (m *MinorBlockChain) runBlock(block *types.MinorBlock) (*state.StateDB, typ
 		left := new(big.Int).Sub(xShardGasLimit, evmState.GetGasUsed())
 		evmState.SetGasLimit(new(big.Int).Sub(evmState.GetGasLimit(), left))
 	}
-	fmt.Println("run-process", evmState.GetGasUsed())
 	receipts, logs, usedGas, err := m.processor.Process(block, evmState, m.vmConfig)
-	fmt.Println("run_pross end", evmState.GetGasUsed())
 	if err != nil {
 		return nil, nil, nil, 0, nil, err
 	}
@@ -1631,11 +1627,8 @@ func (m *MinorBlockChain) RunCrossShardTxWithCursor(evmState *state.StateDB,
 		if xShardDepositTx == nil {
 			break
 		}
-		fmt.Println("run_oooooo", xShardDepositTx.TxHash.String(), evmState.GetGasUsed(), len(xShardDepositTx.MessageData))
-		fmt.Println("from", xShardDepositTx.From.ToHex(), xShardDepositTx.To.ToHex(), xShardDepositTx.Value.Value.String())
 		checkIsFromRootChain := cursor.rBlock.Header().NumberU64() >= m.clusterConfig.Quarkchain.XShardGasDDOSFixRootHeight
 		txIndex := 0
-		fmt.Println("")
 		receipt, err := ApplyCrossShardDeposit(m.ethChainConfig, m, mBlock.Header(),
 			*m.GetVMConfig(), evmState, xShardDepositTx, gasUsed, checkIsFromRootChain, txIndex)
 		if err != nil {
@@ -1646,7 +1639,7 @@ func (m *MinorBlockChain) RunCrossShardTxWithCursor(evmState *state.StateDB,
 			receipts = append(receipts, receipt)
 		}
 		txList = append(txList, xShardDepositTx)
-		fmt.Println("run_oooo_end", evmState.GetGasUsed())
+
 		if evmState.GetGasUsed().Cmp(mBlock.GetXShardGasLimit()) >= 0 {
 			break
 		}

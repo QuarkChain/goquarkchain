@@ -18,7 +18,6 @@ package core
 
 import (
 	"errors"
-	"fmt"
 	"math"
 	"math/big"
 
@@ -176,7 +175,6 @@ func (st *StateTransition) buyGas() error {
 	st.gas += st.msg.Gas()
 
 	st.initialGas = st.msg.Gas()
-	fmt.Println("???", st.gas, st.initialGas)
 	st.state.SubBalance(st.msg.From(), mgval, st.evm.GasTokenID)
 	return nil
 }
@@ -208,20 +206,15 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 		evm              = st.evm
 		contractCreation = msg.To() == nil
 	)
-	fmt.Println("???????????", st.gas, st.initialGas)
 	if evm.IsApplyXShard {
-		fmt.Println("IIIIIIIIIII")
 		st.preFill()
 		gas = evm.XShardGasUsedStart
 	} else {
-		fmt.Println("NBBBBBBBBBBBBBb")
 		// Pay intrinsic gas
 		if err = st.preCheck(); err != nil {
 			return
 		}
-		fmt.Println("???????????", st.gas, st.initialGas)
 		gas, err = IntrinsicGas(st.data, contractCreation, msg.IsCrossShard())
-		fmt.Println("IIIIII", gas)
 		if err != nil {
 			return nil, 0, false, err
 		}
@@ -230,7 +223,6 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 		return nil, 0, false, err
 	}
 
-	fmt.Println("gassss", st.gas)
 	sender := vm.AccountRef(msg.From())
 	if msg.IsCrossShard() {
 		st.state.SetNonce(msg.From(), st.state.GetNonce(sender.Address())+1)
@@ -248,7 +240,6 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 			ret, st.gas, vmerr = nil, 0, vm.ErrPoSWSenderNotAllowed
 		} else {
 			ret, st.gas, vmerr = evm.Call(sender, st.to(), st.data, st.gas, st.value)
-			fmt.Println("????-call", st.gas)
 		}
 	}
 
@@ -262,9 +253,7 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 		}
 	}
 	st.refundGas(vmerr)
-	fmt.Println("111")
 	st.chargeFee(st.gasUsed())
-	fmt.Println("2222")
 	if vmerr == vm.ErrPoSWSenderNotAllowed {
 		return nil, st.gasUsed(), true, nil
 	}
@@ -275,14 +264,10 @@ func (st *StateTransition) refundGas(vmerr error) {
 	// Apply refund counter, capped to half of the used gas.
 	if vmerr == nil {
 		refund := st.gasUsed() / 2
-		fmt.Println("????", refund, st.state.GetRefund())
 		if refund > st.state.GetRefund() {
 			refund = st.state.GetRefund()
 		}
-		fmt.Println("refund", st.gas)
 		st.gas += refund
-		fmt.Println("gass", st.gas, refund)
-		st.state.SubRefund(st.state.GetRefund())
 	}
 
 	// Return ETH for remaining gas, exchanged at the original rate.
@@ -296,7 +281,6 @@ func (st *StateTransition) refundGas(vmerr error) {
 
 // gasUsed returns the amount of gas used up by the state transition.
 func (st *StateTransition) gasUsed() uint64 {
-	fmt.Println(",,", st.initialGas, st.gas)
 	return st.initialGas - st.gas
 }
 
@@ -408,7 +392,6 @@ func (st *StateTransition) chargeFee(gasUsed uint64) {
 	blockFee := make(map[uint64]*big.Int)
 	blockFee[st.msg.GasTokenID()] = rateFee
 	st.state.AddBlockFee(blockFee)
-	fmt.Println("changeFee", st.state.GetTimeStamp(), st.state.GetQuarkChainConfig().EnableEvmTimeStamp, gasUsed, st.gasUsed())
 	if st.state.GetTimeStamp() >= st.state.GetQuarkChainConfig().EnableEvmTimeStamp {
 		st.state.AddGasUsed(new(big.Int).SetUint64(gasUsed))
 		return
