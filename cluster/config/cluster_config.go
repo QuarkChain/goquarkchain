@@ -21,7 +21,9 @@ var (
 type ClusterConfig struct {
 	P2PPort                  uint16            `json:"P2P_PORT"`
 	JSONRPCPort              uint16            `json:"JSON_RPC_PORT"`
+	JSONRPCHOST              string            `json:"JSON_RPC_HOST"`
 	PrivateJSONRPCPort       uint16            `json:"PRIVATE_JSON_RPC_PORT"`
+	PrivateJSONRPCHOST       string            `json:"PRIVATE_JSON_RPC_HOST"`
 	EnableTransactionHistory bool              `json:"ENABLE_TRANSACTION_HISTORY"`
 	DbPathRoot               string            `json:"DB_PATH_ROOT"`
 	LogLevel                 string            `json:"LOG_LEVEL"`
@@ -45,7 +47,9 @@ func NewClusterConfig() *ClusterConfig {
 	var ret = ClusterConfig{
 		P2PPort:                  DefaultP2PPort,
 		JSONRPCPort:              DefaultPubRpcPort,
+		JSONRPCHOST:              "0.0.0.0",
 		PrivateJSONRPCPort:       DefaultPrivRpcPort,
+		PrivateJSONRPCHOST:       DefaultHost,
 		EnableTransactionHistory: false,
 		DbPathRoot:               "./db",
 		LogLevel:                 "info",
