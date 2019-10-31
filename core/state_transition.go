@@ -262,7 +262,9 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 		}
 	}
 	st.refundGas(vmerr)
+	fmt.Println("111")
 	st.chargeFee(st.gasUsed())
+	fmt.Println("2222")
 	if vmerr == vm.ErrPoSWSenderNotAllowed {
 		return nil, st.gasUsed(), true, nil
 	}
@@ -273,10 +275,13 @@ func (st *StateTransition) refundGas(vmerr error) {
 	// Apply refund counter, capped to half of the used gas.
 	if vmerr == nil {
 		refund := st.gasUsed() / 2
+		fmt.Println("????", refund, st.state.GetRefund())
 		if refund > st.state.GetRefund() {
 			refund = st.state.GetRefund()
 		}
+		fmt.Println("refund", st.gas)
 		st.gas += refund
+		fmt.Println("gass", st.gas, refund)
 	}
 
 	// Return ETH for remaining gas, exchanged at the original rate.
