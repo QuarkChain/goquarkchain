@@ -176,6 +176,7 @@ func (st *StateTransition) buyGas() error {
 	st.gas += st.msg.Gas()
 
 	st.initialGas = st.msg.Gas()
+	fmt.Println("???", st.gas, st.initialGas)
 	st.state.SubBalance(st.msg.From(), mgval, st.evm.GasTokenID)
 	return nil
 }
@@ -209,13 +210,16 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 	)
 	fmt.Println("???????????", st.gas, st.initialGas)
 	if evm.IsApplyXShard {
+		fmt.Println("IIIIIIIIIII")
 		st.preFill()
 		gas = evm.XShardGasUsedStart
 	} else {
+		fmt.Println("NBBBBBBBBBBBBBb")
 		// Pay intrinsic gas
 		if err = st.preCheck(); err != nil {
 			return
 		}
+		fmt.Println("???????????", st.gas, st.initialGas)
 		gas, err = IntrinsicGas(st.data, contractCreation, msg.IsCrossShard())
 		fmt.Println("IIIIII", gas)
 		if err != nil {
@@ -286,6 +290,7 @@ func (st *StateTransition) refundGas(vmerr error) {
 
 // gasUsed returns the amount of gas used up by the state transition.
 func (st *StateTransition) gasUsed() uint64 {
+	fmt.Println(",,", st.initialGas, st.gas)
 	return st.initialGas - st.gas
 }
 
