@@ -432,13 +432,13 @@ func (s *StateDB) updateStateObject(stateObject *stateObject) {
 			panic(err)
 		}
 	}
-	fmt.Println("uuuuu-addr",addr.String(),hex.EncodeToString(data))
-	fmt.Println("Nonce",stateObject.data.Nonce)
-	fmt.Println("TokenBalances",stateObject.data.TokenBalances.GetBalanceMap())
-	fmt.Println("Root",stateObject.data.Root.String())
-	fmt.Println("CodeHash",hex.EncodeToString(stateObject.data.CodeHash))
-	fmt.Println("FullShardKey",stateObject.data.FullShardKey.GetValue())
-	fmt.Println("Optial",hex.EncodeToString(stateObject.data.Optial))
+	log.Error("uuuuu-addr","",addr.String(),hex.EncodeToString(data))
+	log.Error("Nonce","",stateObject.data.Nonce)
+	log.Error("TokenBalances","",stateObject.data.TokenBalances.GetBalanceMap())
+	log.Error("Root","",stateObject.data.Root.String())
+	log.Error("CodeHash","",hex.EncodeToString(stateObject.data.CodeHash))
+	log.Error("FullShardKey","",stateObject.data.FullShardKey.GetValue())
+	log.Error("Optial","",hex.EncodeToString(stateObject.data.Optial))
 	s.setError(s.trie.TryUpdate(addr[:], data))
 }
 

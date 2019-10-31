@@ -266,6 +266,7 @@ func compareCoinbaseAmountMap(a, b map[uint64]*big.Int) bool {
 // itself. ValidateState returns a database batch if the validation was a success
 // otherwise nil and an error is returned.
 func (v *MinorBlockValidator) ValidateState(mBlock, parent types.IBlock, statedb *state.StateDB, receipts types.Receipts, usedGas uint64) error {
+	log.Error("validateState",mBlock.NumberU64(),mBlock.Hash().String())
 	if common.IsNil(mBlock) {
 		return ErrMinorBlockIsNil
 	}
@@ -305,7 +306,7 @@ func (v *MinorBlockValidator) ValidateState(mBlock, parent types.IBlock, statedb
 	}
 	// Validate the state root against the received state root and throw
 	// an error if they don't match.
-	fmt.Println("???????",block.Root().String(),block.Header().NumberU64())
+	log.Error("???????",block.Root().String(),block.Header().NumberU64())
 	if root := statedb.IntermediateRoot(true); block.Root() != root {
 		return fmt.Errorf("invalid merkle root (remote: %x local: %x)", block.Root(), root)
 	}
