@@ -229,6 +229,10 @@ func (t *ToolManager) CheckPeerStatus() {
 			peerInfo := resp.Result.(map[string]interface{})["peers"].([]interface{})
 			log.Info("check peer status", "masterIP", masterIP, "resp len", len(peerInfo), "data", peerInfo)
 			t.ClusterIndex++
+			if len(peerInfo) == len(t.LocalConfig.Hosts)-1 {
+				log.Info("========start cluster successfully", "cluster cnt", len(t.LocalConfig.Hosts), "peer number", len(peerInfo))
+				break
+			}
 		}
 	}
 }
