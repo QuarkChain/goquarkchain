@@ -456,7 +456,9 @@ func (m *MinorBlockChain) runBlock(block *types.MinorBlock) (*state.StateDB, typ
 		return nil, nil, nil, 0, nil, err
 	}
 	evmState := preEvmState.Copy()
+	fmt.Println("ready to run cross", evmState.GetGasUsed())
 	xTxList, txCursorInfo, xShardReceipts, err := m.RunCrossShardTxWithCursor(evmState, block)
+	fmt.Println("end to run cross", evmState.GetGasUsed())
 	if err != nil {
 		return nil, nil, nil, 0, nil, err
 	}
@@ -467,7 +469,9 @@ func (m *MinorBlockChain) runBlock(block *types.MinorBlock) (*state.StateDB, typ
 		left := new(big.Int).Sub(xShardGasLimit, evmState.GetGasUsed())
 		evmState.SetGasLimit(new(big.Int).Sub(evmState.GetGasLimit(), left))
 	}
+	fmt.Println("ready to process", evmState.GetGasUsed())
 	receipts, logs, usedGas, err := m.processor.Process(block, evmState, m.vmConfig)
+	fmt.Println("end to process", evmState.GetGasUsed())
 	if err != nil {
 		return nil, nil, nil, 0, nil, err
 	}
