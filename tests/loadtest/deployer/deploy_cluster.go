@@ -54,23 +54,26 @@ func main() {
 	}
 
 	log.Info("ready to check status")
-	time.Sleep(10 * time.Second)
-	toolManager.ClusterIndex = 0
-	for index := 0; index < len(toolManager.LocalConfig.Hosts); index++ {
-		masterIP := toolManager.GetIpListDependTag("master")[0]
-		pubUrl := fmt.Sprintf("http://%s:38491", masterIP)
-		client := jsonrpc.NewClient(pubUrl)
-		resp, err := client.Call("getPeers")
-		if err != nil {
-			panic(fmt.Errorf("getPeer from ip %v err %v", masterIP, err))
-		}
-		if resp == nil {
-			panic(fmt.Errorf("getPeer from ip %v resp==nil", masterIP))
-		}
-		if resp.Error != nil {
-			panic(fmt.Errorf("getPeer from ip %v err %v", masterIP, resp.Error))
-		}
-		fmt.Println("masterIP", masterIP, "resp", resp.Result.(map[string]interface{}))
-	}
 
+	for true {
+		time.Sleep(10 * time.Second)
+		toolManager.ClusterIndex = 0
+		for index := 0; index < len(toolManager.LocalConfig.Hosts); index++ {
+			masterIP := toolManager.GetIpListDependTag("master")[0]
+			pubUrl := fmt.Sprintf("http://%s:38491", masterIP)
+			client := jsonrpc.NewClient(pubUrl)
+			resp, err := client.Call("getPeers")
+			if err != nil {
+				panic(fmt.Errorf("getPeer from ip %v err %v", masterIP, err))
+			}
+			if resp == nil {
+				panic(fmt.Errorf("getPeer from ip %v resp==nil", masterIP))
+			}
+			if resp.Error != nil {
+				panic(fmt.Errorf("getPeer from ip %v err %v", masterIP, resp.Error))
+			}
+			log.Info("check peer status", "masterIP", masterIP, "resp", len(resp.Result.(map[string]interface{})))
+			toolManager.ClusterIndex++
+		}
+	}
 }

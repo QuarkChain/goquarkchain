@@ -1,20 +1,20 @@
 {
-  "DockerName": "syntrust/goqkc",
+  "DockerName": "quarkchaindocker/goquarkchain",
   "Hosts": [
     {
-      "IP": "172.16.1.33",
+      "IP": "167.71.117.195",
       "Port": 22,
       "User": "root",
       "Password": "goquarkchain",
       "Service": "master,slave",
       "ClusterID": 0
     }, {
-      "IP": "172.16.1.33",
+      "IP": "138.68.224.79",
       "Port": 22,
       "User": "root",
       "Password": "goquarkchain",
       "Service": "master,slave",
-      "ClusterID": 0
+      "ClusterID": 1
     }
   ],
   "ChainNumber": 4,
