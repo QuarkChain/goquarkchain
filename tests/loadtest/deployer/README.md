@@ -48,9 +48,11 @@ Parameters explained:
 - `Port` SSH port
 - `User` login name; currently only `root` is supported
 - `Password` password
-- `Service` defines type of service(s) you want to run in the host, can be "master", "slave", or "master,slave"
-- `ClusterID` used to specify which cluster the service(s) on the host belongs to; so hosts with same ClusterID belongs to same cluster; 
-if ClusterID is set to 0, the cluster will be started as a bootstrap node
+- `Service` defines type of service(s) you want to run in the host, can be "master", "slave", or "master,slave"; make sure 
+each cluster contains exact one master and at least one slave service.
+- `ClusterID` used to specify which cluster the service(s) on the host belongs to; so hosts with same ClusterID belongs 
+to same cluster; ClusterID must be consecutive integers start from 0; if ClusterID is set to 0, the cluster will be 
+started as a bootstrap node
 - `ChainNumber` defines the number of chains in each cluster, each chain has a number of shards 
 - `ShardNumber` defines the number of shards in each cluster (must be power of 2, and an integral multiple of ChainNumber)
 - `TargetRootBlockTime` defines the target block interval of root chain in seconds, since "POW_SIMULATE" is used for consensus
@@ -70,18 +72,18 @@ go run deploy_cluster.go
 ```
 The deploying process will be printed on the console log. 
 
-## Check Status of Clusters 
-You can monitor the status of a cluster with the [stats tool](../../../cmd/stats).
+## Check Status of Clusters
+
+If everything goes correctly, you can see the success message from deployer console log.
+
+You can also monitor the status of a cluster with the [stats tool](../../../cmd/stats).
 
 For detailed information, you need to enter the Docker container on the target hosts and check logs: 
 ```bash
 docker exec -it bjqkc /bin/bash
 ```
-If everything goes correctly, you will see from `$GOPATH/src/github.com/QuarkChain/goquarkchain/cmd/cluster/master.log` that 
-cluster start successfully, and from shard logs such as `S0.log` in the same folder that 12,000 accounts loaded automatically for each shard.
-
-You can also see "Adding p2p peer" and "peer connected" from the master.log of bootstrap cluster if p2p works correctly.
-
+You can find master.log and shard logs such as `S0.log` from `$GOPATH/src/github.com/QuarkChain/goquarkchain/cmd/cluster`.
+ 
 Try the following command to see if mining works:
 ```bash
 curl -X POST -H 'content-type: application/json' --data '{"jsonrpc":"2.0","method":"setMining","params":[true],"id":0}' http://127.0.0.1:38491
