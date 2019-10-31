@@ -177,6 +177,7 @@ func ApplyTransaction(config *params.ChainConfig, bc ChainContext, gp *GasPool, 
 	}
 
 	var root []byte
+	statedb.Finalise(true)
 	*usedGas += gas
 
 	// Create a new receipt for the transaction, storing the intermediate root and gas used by the tx
