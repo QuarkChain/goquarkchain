@@ -305,6 +305,7 @@ func (v *MinorBlockValidator) ValidateState(mBlock, parent types.IBlock, statedb
 	}
 	// Validate the state root against the received state root and throw
 	// an error if they don't match.
+	fmt.Println("???????",block.Root().String(),block.Header().NumberU64())
 	if root := statedb.IntermediateRoot(true); block.Root() != root {
 		return fmt.Errorf("invalid merkle root (remote: %x local: %x)", block.Root(), root)
 	}
