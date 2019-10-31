@@ -458,7 +458,7 @@ func (c *CommonEngine) Close() error {
 
 // NewCommonEngine returns the common engine mixin.
 func NewCommonEngine(spec MiningSpec, diffCalc DifficultyCalculator, remote bool, pubKey []byte) *CommonEngine {
-	cache, _ := lru.New(256)
+	cache, _ := lru.New(512)
 	c := &CommonEngine{
 		spec:              spec,
 		diffCalc:          diffCalc,
