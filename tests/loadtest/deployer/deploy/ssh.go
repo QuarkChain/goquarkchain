@@ -33,7 +33,7 @@ func (s *SSHSession) RunCmd(cmd string) {
 		log.Error("run cmd err", "host", s.host, "cmd", cmd, "err", err)
 		return
 	} else {
-		log.Debug("run cmd", "host", s.host, "cmd", cmd, "err", err)
+		log.Debug("run cmd", "host", s.host, "cmd", cmd)
 	}
 	if stdOut.String() != "" {
 		//TODO need print?
