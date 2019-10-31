@@ -1634,6 +1634,7 @@ func (m *MinorBlockChain) RunCrossShardTxWithCursor(evmState *state.StateDB,
 		if err != nil {
 			return nil, nil, nil, err
 		}
+		evmState.Finalise(true)
 		txIndex++
 		if receipt != nil {
 			receipts = append(receipts, receipt)
