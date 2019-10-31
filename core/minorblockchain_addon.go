@@ -1711,14 +1711,18 @@ func recoverSender(txs []*types.Transaction, networkID uint32) error {
 }
 
 func (m *MinorBlockChain) AddTxList(txs []*types.Transaction) error {
+	ts := time.Now()
 	if err := recoverSender(txs, m.clusterConfig.Quarkchain.NetworkID); err != nil {
 		return err
 	}
+	log.Info(m.logInfo, "recoverSender len", len(txs), "ts", time.Now().Sub(ts).Seconds())
+	ts = time.Now()
 	errList := m.txPool.AddLocals(txs)
 	for _, err := range errList {
 		if err != nil {
 			return err
 		}
 	}
+	log.Info(m.logInfo, "AddLocals len", len(txs), "ts", time.Now().Sub(ts).Seconds())
 	return nil
 }

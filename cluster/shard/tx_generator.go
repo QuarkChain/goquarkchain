@@ -90,7 +90,7 @@ func (t *TxGenerator) sign(evmTx *types.EvmTransaction, key *ecdsa.PrivateKey) (
 	return types.SignTx(evmTx, t.sender, key)
 }
 
-func (t *TxGenerator) Generate(genTxs *rpc.GenTxRequest, addTxList func(txs []*types.Transaction, peerID string) error) error {
+func (t *TxGenerator) Generate(genTxs rpc.GenTxRequest, addTxList func(txs []*types.Transaction, peerID string) error) error {
 	ts := time.Now()
 	tsa := time.Now()
 	var (
@@ -129,6 +129,7 @@ func (t *TxGenerator) Generate(genTxs *rpc.GenTxRequest, addTxList func(txs []*t
 			log.Info("addTxList end", "total", total, "numTx", numTx, "durtion", time.Now().Sub(ts).Seconds())
 			index = 0
 			ts = time.Now()
+			txList = make([]*types.Transaction, batchScale)
 		}
 
 		t.accountIndex++
@@ -178,8 +179,9 @@ func (t *TxGenerator) createTransaction(prvKey *ecdsa.PrivateKey, nonce uint64,
 	if fromFullShardKey != toFullShardKey {
 		gasLimit = params.DefaultCrossShardTxGasLimit.Uint64()
 	}
+	gasPrice := new(big.Int).SetUint64(1000000000)
 	evmTx := types.NewEvmTransaction(nonce, recipient, value, gasLimit,
-		sampleTx.EvmTx.GasPrice(), fromFullShardKey, toFullShardKey, t.cfg.NetworkID, 0, sampleTx.EvmTx.Data(), qkcCommon.TokenIDEncode("QKC"), qkcCommon.TokenIDEncode("QKC"))
+		gasPrice, fromFullShardKey, toFullShardKey, t.cfg.NetworkID, 0, sampleTx.EvmTx.Data(), qkcCommon.TokenIDEncode("QKC"), qkcCommon.TokenIDEncode("QKC"))
 
 	return types.SignTx(evmTx, t.sender, prvKey)
 }

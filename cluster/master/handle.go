@@ -621,7 +621,7 @@ func (pm *ProtocolManager) HandleNewTransactionListRequest(peerId string, rpcId 
 			result, err := client.AddTransactions(req)
 			if err != nil {
 				log.Error("addTransaction err", "branch", branch, "HandleNewTransactionListRequest failed with error: ", err.Error())
-				//TODO need err
+				return
 			}
 			if hashList == nil {
 				hashList = result.Hashes
