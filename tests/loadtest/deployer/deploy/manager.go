@@ -48,15 +48,20 @@ func NewToolManager(config *LocalConfig) *ToolManager {
 }
 
 func (t *ToolManager) check() {
-	maxClusterID := 0
-	for clusterID, _ := range t.LocalConfig.Hosts {
-		if clusterID > maxClusterID {
-			maxClusterID = clusterID
+	clusterLen := len(t.LocalConfig.Hosts)
+	for index := 0; index < clusterLen; index++ {
+		if _, ok := t.LocalConfig.Hosts[index]; !ok {
+			panic(fmt.Errorf("need clusterID %v", index))
+		}
+		t.ClusterIndex = index
+		if len(t.GetIpListDependTag("master")) == 0 {
+			panic(fmt.Errorf("clusterID %v need master", index))
+		}
+		if len(t.GetIpListDependTag("slave")) == 0 {
+			panic(fmt.Errorf("clusterID %v need slave", index))
 		}
 	}
-	if maxClusterID != len(t.LocalConfig.Hosts)-1 {
-		panic(fmt.Errorf("maxClusterID %d host's len:%d", maxClusterID, len(t.LocalConfig.Hosts)))
-	}
+	t.ClusterIndex = 0
 
 	if len(t.LocalConfig.Hosts) < 1 {
 		panic("t.localConfig.IPList should >=1")
@@ -221,7 +226,7 @@ func (t *ToolManager) CheckPeerStatus() {
 			if resp.Error != nil {
 				panic(fmt.Errorf("getPeer from ip %v err %v", masterIP, resp.Error))
 			}
-			peerInfo := resp.Result.(map[string]interface{})["peers"].([]map[string]interface{})
+			peerInfo := resp.Result.(map[string]interface{})["peers"].([]interface{})
 			log.Info("check peer status", "masterIP", masterIP, "resp len", len(peerInfo), "data", peerInfo)
 			t.ClusterIndex++
 		}
