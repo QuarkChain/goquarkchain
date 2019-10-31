@@ -207,6 +207,7 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 		evm              = st.evm
 		contractCreation = msg.To() == nil
 	)
+	fmt.Println("???????????", st.gas, st.initialGas)
 	if evm.IsApplyXShard {
 		st.preFill()
 		gas = evm.XShardGasUsedStart
@@ -216,6 +217,7 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 			return
 		}
 		gas, err = IntrinsicGas(st.data, contractCreation, msg.IsCrossShard())
+		fmt.Println("IIIIII", gas)
 		if err != nil {
 			return nil, 0, false, err
 		}
@@ -224,6 +226,7 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 		return nil, 0, false, err
 	}
 
+	fmt.Println("gassss", st.gas)
 	sender := vm.AccountRef(msg.From())
 	if msg.IsCrossShard() {
 		st.state.SetNonce(msg.From(), st.state.GetNonce(sender.Address())+1)
