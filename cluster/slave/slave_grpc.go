@@ -619,6 +619,7 @@ func (s *SlaveServerSideOp) AddTransactions(ctx context.Context, req *rpc.Reques
 		return nil, errors.New("too many txs in one command")
 	}
 
+	//must use single thread here
 	errList, err := s.slave.AddTxList(gReq.TransactionList, gReq.PeerID)
 	if err != nil {
 		return nil, err

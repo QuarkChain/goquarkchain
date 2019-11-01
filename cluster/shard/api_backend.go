@@ -442,7 +442,7 @@ func (s *ShardBackend) AddTxList(txs []*types.Transaction) error {
 	errList := s.MinorBlockChain.AddTxList(txs)
 	for _, err := range errList {
 		if err != nil {
-			return nil
+			return err
 		}
 	}
 
