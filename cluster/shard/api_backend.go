@@ -438,21 +438,23 @@ func (s *ShardBackend) setHead(head uint64) {
 	}
 }
 
-func (s *ShardBackend) AddTxList(txs []*types.Transaction, peerID string) error {
-	if err := s.MinorBlockChain.AddTxList(txs); err != nil {
-		log.Error(s.logInfo, "AddTxList err", err)
-		return err
+func (s *ShardBackend) AddTxList(txs []*types.Transaction) error {
+	errList := s.MinorBlockChain.AddTxList(txs)
+	for _, err := range errList {
+		if err != nil {
+			return err
+		}
 	}
 
 	go func() {
 		span := len(txs) / params.NEW_TRANSACTION_LIST_LIMIT
 		for index := 0; index < span; index++ {
-			if err := s.conn.BroadcastTransactions(txs[index*params.NEW_TRANSACTION_LIST_LIMIT:(index+1)*params.NEW_TRANSACTION_LIST_LIMIT], s.branch.Value, peerID); err != nil {
+			if err := s.conn.BroadcastTransactions(txs[index*params.NEW_TRANSACTION_LIST_LIMIT:(index+1)*params.NEW_TRANSACTION_LIST_LIMIT], s.branch.Value); err != nil {
 				log.Error(s.logInfo, "broadcastTransaction err", err)
 			}
 		}
 		if len(txs)%params.NEW_TRANSACTION_LIST_LIMIT != 0 {
-			if err := s.conn.BroadcastTransactions(txs[span*params.NEW_TRANSACTION_LIST_LIMIT:], s.branch.Value, peerID); err != nil {
+			if err := s.conn.BroadcastTransactions(txs[span*params.NEW_TRANSACTION_LIST_LIMIT:], s.branch.Value); err != nil {
 				log.Error(s.logInfo, "broadcastTransaction err", err)
 			}
 		}

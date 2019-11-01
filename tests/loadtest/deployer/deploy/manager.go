@@ -195,14 +195,14 @@ func (t *ToolManager) startSlave(ipList []*SlaveInfo) {
 
 func (t *ToolManager) StartClusters() {
 	for index := 0; index < len(t.LocalConfig.Hosts); index++ {
-		log.Info("============begin start cluster============", "index", index, "info", t.LocalConfig.Hosts[index])
+		log.Info("============begin start cluster============", "index", index)
 		log.Info("==== begin gen config")
 		t.GenClusterConfig()
 		log.Info("==== begin send file to others cluster")
 		t.SendFileToCluster()
 		log.Info("==== begin start cluster")
 		t.StartCluster(index)
-		log.Info("============end start cluster============", "index", index, "info", t.LocalConfig.Hosts[index])
+		log.Info("============end start cluster============", "index", index)
 		t.ClusterIndex++
 	}
 }
