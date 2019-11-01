@@ -22,7 +22,6 @@ func basic(clt jsonrpc.RPCClient, ip string) string {
 		return response.Error.Error()
 	}
 	res := response.Result.(map[string]interface{})
-	//fmt.Println("response", res)
 
 	msg := "============================\n"
 	msg += "QuarkChain Cluster Stats\n"
@@ -48,7 +47,7 @@ func basic(clt jsonrpc.RPCClient, ip string) string {
 }
 
 func queryStats(client jsonrpc.RPCClient, interval *uint) {
-	titles := []string{"Timestamp\t", "Syncing", "TPS", "Pend.TX", "Conf.TX", "BPS", "SBPS", "CPU", "ROOT", "CHAIN/SHARD-HEIGHT"}
+	titles := []string{"Timestamp\t", "Syncing", "TPS", "Pend.TX", "Conf.TX", "CPU", "ROOT", "CHAIN/SHARD-HEIGHT"}
 	fmt.Println(strings.Join(titles, "\t"))
 	intv := time.Duration(*interval)
 	ticker := time.NewTicker(intv * time.Second)
@@ -84,12 +83,6 @@ func stats(client jsonrpc.RPCClient) string {
 	msg += "\t"
 	totalTxCount, _ := res["totalTxCount"].(json.Number).Int64()
 	msg += fmt.Sprintf("%d", totalTxCount)
-	msg += "\t"
-	blockCount60s, _ := res["blockCount60s"].(json.Number).Float64()
-	msg += fmt.Sprintf("%2.2f", blockCount60s/60)
-	msg += "\t"
-	staleBlockCount60s, _ := res["staleBlockCount60s"].(json.Number).Float64()
-	msg += fmt.Sprintf("%2.2f", staleBlockCount60s/60)
 	msg += "\t"
 	cpuf := res["cpus"].([]interface{})
 	var total float64
