@@ -1879,8 +1879,8 @@ func (m *MinorBlockChain) GetRootChainStakes(coinbase account.Recipient, lastMin
 	evmState.SetQuarkChainConfig(m.clusterConfig.Quarkchain)
 	vmenv := vm.NewEVM(context, evmState, m.ethChainConfig, *m.GetVMConfig())
 	gp := new(GasPool).AddGas(evmState.GetGasLimit().Uint64())
-	output, _, _, err := ApplyMessage(vmenv, msg, gp)
-	if err != nil || output == nil {
+	output, _, failed, err := ApplyMessage(vmenv, msg, gp)
+	if err != nil || output == nil || failed{
 		return nil, nil, err
 	}
 	stake := new(big.Int).SetBytes(output[:32])
