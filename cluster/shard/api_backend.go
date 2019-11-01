@@ -439,9 +439,11 @@ func (s *ShardBackend) setHead(head uint64) {
 }
 
 func (s *ShardBackend) AddTxList(txs []*types.Transaction) error {
-	if err := s.MinorBlockChain.AddTxList(txs); err != nil {
-		log.Error(s.logInfo, "AddTxList err", err)
-		return err
+	errList := s.MinorBlockChain.AddTxList(txs)
+	for _, err := range errList {
+		if err != nil {
+			return nil
+		}
 	}
 
 	go func() {

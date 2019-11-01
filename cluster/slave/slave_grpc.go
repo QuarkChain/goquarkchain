@@ -619,12 +619,18 @@ func (s *SlaveServerSideOp) AddTransactions(ctx context.Context, req *rpc.Reques
 		return nil, errors.New("too many txs in one command")
 	}
 
-	if err := s.slave.AddTxList(gReq.TransactionList, gReq.PeerID); err != nil {
+	errList, err := s.slave.AddTxList(gReq.TransactionList, gReq.PeerID)
+	if err != nil {
 		return nil, err
 	}
 
-	for _, tx := range gReq.TransactionList {
-		gRes.Hashes = append(gRes.Hashes, tx.Hash())
+	if len(errList) != len(gReq.TransactionList) {
+		return nil, errors.New("errList != txList")
+	}
+	for index, tx := range gReq.TransactionList {
+		if errList[index] == nil {
+			gRes.Hashes = append(gRes.Hashes, tx.Hash())
+		}
 	}
 
 	if response.Data, err = serialize.SerializeToBytes(gRes); err != nil {

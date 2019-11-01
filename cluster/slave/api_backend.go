@@ -156,26 +156,26 @@ func (s *SlaveBackend) AddTx(tx *types.Transaction) (err error) {
 	return ErrMsg("AddTx")
 }
 
-func (s *SlaveBackend) AddTxList(txs []*types.Transaction, peerID string) (err error) {
+func (s *SlaveBackend) AddTxList(txs []*types.Transaction, peerID string) ([]error, error) {
 	if len(txs) == 0 {
-		return nil
+		return nil, nil
 	}
 
 	tx := txs[0]
 	fromShardSize, err := s.clstrCfg.Quarkchain.GetShardSizeByChainId(tx.EvmTx.FromChainID())
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if err := tx.EvmTx.SetFromShardSize(fromShardSize); err != nil {
-		return err
+		return nil, err
 	}
 	fromFullShardId := tx.EvmTx.FromFullShardId()
 
 	shard, ok := s.shards[fromFullShardId]
 	if !ok {
-		return fmt.Errorf("fullShardID:%v not found", fromFullShardId)
+		return nil, fmt.Errorf("fullShardID:%v not found", fromFullShardId)
 	}
-	return shard.MinorBlockChain.AddTxList(txs)
+	return shard.MinorBlockChain.AddTxList(txs), nil
 }
 
 func (s *SlaveBackend) ExecuteTx(tx *types.Transaction, address *account.Address, height *uint64) ([]byte, error) {
