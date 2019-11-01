@@ -47,7 +47,7 @@ import (
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
-	"github.com/hashicorp/golang-lru"
+	lru "github.com/hashicorp/golang-lru"
 )
 
 const (
@@ -319,8 +319,6 @@ func (m *MinorBlockChain) loadLastState() error {
 // already have locked
 func (m *MinorBlockChain) SetHead(head uint64) error {
 	log.Warn("Rewinding blockchain", "target", head)
-	m.chainmu.Lock()
-	defer m.chainmu.Unlock()
 	// Rewind the header chain, deleting all block bodies until then
 	delFn := func(db rawdb.DatabaseDeleter, hash common.Hash) {
 		rawdb.DeleteMinorBlock(db, hash)
