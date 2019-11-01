@@ -8,6 +8,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ybbus/jsonrpc"
+
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/log"
@@ -46,15 +48,20 @@ func NewToolManager(config *LocalConfig) *ToolManager {
 }
 
 func (t *ToolManager) check() {
-	maxClusterID := 0
-	for clusterID, _ := range t.LocalConfig.Hosts {
-		if clusterID > maxClusterID {
-			maxClusterID = clusterID
+	clusterLen := len(t.LocalConfig.Hosts)
+	for index := 0; index < clusterLen; index++ {
+		if _, ok := t.LocalConfig.Hosts[index]; !ok {
+			panic(fmt.Errorf("need clusterID %v", index))
+		}
+		t.ClusterIndex = index
+		if len(t.GetIpListDependTag("master")) == 0 {
+			panic(fmt.Errorf("clusterID %v need master", index))
+		}
+		if len(t.GetIpListDependTag("slave")) == 0 {
+			panic(fmt.Errorf("clusterID %v need slave", index))
 		}
 	}
-	if maxClusterID != len(t.LocalConfig.Hosts)-1 {
-		panic(fmt.Errorf("maxClusterID %d host's len:%d", maxClusterID, len(t.LocalConfig.Hosts)))
-	}
+	t.ClusterIndex = 0
 
 	if len(t.LocalConfig.Hosts) < 1 {
 		panic("t.localConfig.IPList should >=1")
@@ -183,5 +190,48 @@ func (t *ToolManager) startSlave(ipList []*SlaveInfo) {
 		session := t.SSHSession[t.ClusterIndex][v.IP]
 		cmd := "docker exec -itd bjqkc /bin/bash -c 'chmod +x /tmp/QKC/cluster && /tmp/QKC/cluster --cluster_config /tmp/QKC/cluster_config_template.json --service " + v.ServiceName + ">> " + v.ServiceName + ".log 2>&1  '"
 		session.RunCmd(cmd)
+	}
+}
+
+func (t *ToolManager) StartClusters() {
+	for index := 0; index < len(t.LocalConfig.Hosts); index++ {
+		log.Info("============begin start cluster============", "index", index, "info", t.LocalConfig.Hosts[index])
+		log.Info("==== begin gen config")
+		t.GenClusterConfig()
+		log.Info("==== begin send file to others cluster")
+		t.SendFileToCluster()
+		log.Info("==== begin start cluster")
+		t.StartCluster(index)
+		log.Info("============end start cluster============", "index", index, "info", t.LocalConfig.Hosts[index])
+		t.ClusterIndex++
+	}
+}
+
+func (t *ToolManager) CheckPeerStatus() {
+	for true {
+		time.Sleep(10 * time.Second)
+		t.ClusterIndex = 0
+		for index := 0; index < len(t.LocalConfig.Hosts); index++ {
+			masterIP := t.GetIpListDependTag("master")[0]
+			pubUrl := fmt.Sprintf("http://%s:38491", masterIP)
+			client := jsonrpc.NewClient(pubUrl)
+			resp, err := client.Call("getPeers")
+			if err != nil {
+				panic(fmt.Errorf("getPeer from ip %v err %v", masterIP, err))
+			}
+			if resp == nil {
+				panic(fmt.Errorf("getPeer from ip %v resp==nil", masterIP))
+			}
+			if resp.Error != nil {
+				panic(fmt.Errorf("getPeer from ip %v err %v", masterIP, resp.Error))
+			}
+			peerInfo := resp.Result.(map[string]interface{})["peers"].([]interface{})
+			log.Info("check peer status", "masterIP", masterIP, "peers len", len(peerInfo), "data", peerInfo)
+			t.ClusterIndex++
+			if len(peerInfo) == len(t.LocalConfig.Hosts)-1 {
+				log.Info("========start cluster successfully", "cluster cnt", len(t.LocalConfig.Hosts), "peer number", len(peerInfo))
+				return
+			}
+		}
 	}
 }

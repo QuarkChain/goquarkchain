@@ -14,11 +14,12 @@ will be done across network during the deploy process.
 
 ## System Requirements
 
-To use deployer to run Docker image, it is required for the hosts that:
+To use `deployer` to run Docker image, it is required for the hosts that:
 
     a) Ubuntu 18.04, 
-    b) root account is enabled, and 
-    c) Docker version >= 18.09.7.
+    b) root account is enabled, 
+    c) Docker version >= 18.09.7, and
+    d) 38291, 38391, 38491, [48000, 48000 + host number] ports opened.
 
 ## Run Docker Image
 
@@ -58,8 +59,6 @@ started as a bootstrap node
 - `TargetRootBlockTime` defines the target block interval of root chain in seconds, since "POW_SIMULATE" is used for consensus
 - `TargetMinorBlockTime` defines the target block interval of each shard
 - `GasLimit` defines the gas limit for a block; note that in-shard transactions uses 50% of the total gas limit in a block
-
-NOTE For each of the hosts, besides 38291, 38391, 38491, the port range [48000, 48000 + host number] should be opened too.
 
 ## Deploy and Run Clusters
 

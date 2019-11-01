@@ -181,7 +181,7 @@ to describe the task you are planning to do. For small fixes (a few lines of cha
 free to open pull requests directly.
 
 ## Developer Community
-Join our developer community on [Discord](https://discord.gg/Jbp35ZC).
+Join our developer community on [Discord](http://discord.me/quarkchain).
 
 ## License
 Unless explicitly mentioned in a folder or a file, all files are licensed under GNU Lesser General Public License defined in LICENSE file.

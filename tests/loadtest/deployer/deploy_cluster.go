@@ -37,16 +37,8 @@ func getToolManager() *deploy.ToolManager {
 
 func main() {
 	toolManager := getToolManager()
-	for index := 0; index < len(toolManager.LocalConfig.Hosts); index++ {
-		log.Info("============begin start cluster============", "index", index, "info", toolManager.LocalConfig.Hosts[index])
-		log.Info("==== begin gen config")
-		toolManager.GenClusterConfig()
-		log.Info("==== begin send file to others cluster")
-		toolManager.SendFileToCluster()
-		log.Info("==== begin start cluster")
-		toolManager.StartCluster(index)
-		log.Info("============end start cluster============", "index", index, "info", toolManager.LocalConfig.Hosts[index])
-		toolManager.ClusterIndex++
-	}
+	toolManager.StartClusters()
+	log.Info("ready to check status")
+	toolManager.CheckPeerStatus()
 
 }
