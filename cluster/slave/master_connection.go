@@ -2,6 +2,7 @@ package slave
 
 import (
 	"errors"
+
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/p2p"
@@ -58,9 +59,9 @@ func (s *ConnManager) BroadcastNewTip(mHeaderLst []*types.MinorBlockHeader,
 	return err
 }
 
-func (s *ConnManager) BroadcastTransactions(txs []*types.Transaction, branch uint32, peerID string) error {
+func (s *ConnManager) BroadcastTransactions(txs []*types.Transaction, branch uint32) error {
 	var (
-		gReq = rpc.BroadcastTransactions{Txs: txs, Branch: branch, PeerID: peerID}
+		gReq = rpc.BroadcastTransactions{Txs: txs, Branch: branch}
 	)
 	data, err := serialize.SerializeToBytes(gReq)
 	if err != nil {

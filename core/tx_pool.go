@@ -642,6 +642,12 @@ func (pool *TxPool) addTxs(txs []*types.Transaction, local, sync bool) []error {
 	if len(news) == 0 {
 		return errs
 	}
+	ts := time.Now()
+	// Cache senders in transactions before obtaining lock (pool.signer is immutable)
+	for _, tx := range news {
+		types.Sender(pool.signer, tx.EvmTx)
+	}
+	log.Info("addTxList", "revocer len", len(news), "ts", time.Now().Sub(ts).Seconds())
 	// Process all the new transaction and merge any errors into the original slice
 	pool.mu.Lock()
 	newErrs, dirtyAddrs := pool.addTxsLocked(news, local)
