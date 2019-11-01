@@ -73,7 +73,7 @@ The deploying process will be printed on the console log.
 
 ## Check Status of Clusters
 
-If everything goes correctly, you can see the success message from deployer console log.
+If everything goes correctly, you will see from `deployer` console log that each cluster started successfully and peers connected to each other.
 
 You can also monitor the status of a cluster with the [stats tool](../../../cmd/stats).
 

@@ -34,8 +34,6 @@ curl -X POST -H 'content-type: application/json' --data '{"jsonrpc": "2.0","meth
 NOTE if xShardPercent > 0, make sure to mine at least one root block before send transactions, because the network should 
 have at least one root block been mined before cross shard transaction can be handled, according to the default config.
 
-You can start mining once `createTransactions` returns. It may take a few minutes if you create a considerable amount of transactions like 100,000. 
-
 ## Start Mining
 
 To start mining, run the following command:
