@@ -624,7 +624,9 @@ func (pm *ProtocolManager) HandleNewTransactionListRequest(peerId string, rpcId 
 				//TODO need err
 			}
 			if hashList == nil {
-				hashList = result.Hashes
+				if result != nil {
+					hashList = result.Hashes
+				}
 			} else if len(hashList) != len(result.Hashes) {
 				sameResponse = false
 			} else {
