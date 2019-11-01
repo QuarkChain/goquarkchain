@@ -33,8 +33,11 @@ func (api *PrivateP2PAPI) BroadcastMinorBlock(branch uint32, block *types.MinorB
 
 // BroadcastTransactions only be called when run performance test which the txs
 // are created by shard itself, so broadcast to all the peer
-func (api *PrivateP2PAPI) BroadcastTransactions(branch uint32, txs []*types.Transaction) {
+func (api *PrivateP2PAPI) BroadcastTransactions(branch uint32, txs []*types.Transaction, peerID string) {
 	for _, peer := range api.peers.Peers() {
+		if peer.id == peerID {
+			continue
+		}
 		peer.AsyncSendTransactions(branch, txs)
 	}
 }

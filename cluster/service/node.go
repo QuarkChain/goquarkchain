@@ -171,15 +171,8 @@ func (n *Node) Start() error {
 	for _, service := range services {
 		running.Protocols = append(running.Protocols, service.Protocols()...)
 	}
-	if n.IsMaster() {
-		if err := running.Start(); err != nil {
-			return convertFileLockError(err)
-		}
-		n.log.Info("Starting peer-to-peer node", "instance", n.serverConfig.Name)
-	}
 	// Lastly start the configured RPC interfaces
 	if err := n.startRPC(services); err != nil {
-		running.Stop()
 		return err
 	}
 	// Start each of the services
@@ -190,7 +183,6 @@ func (n *Node) Start() error {
 			for _, kind := range started {
 				services[kind].Stop()
 			}
-			running.Stop()
 			n.stopRPC()
 			return err
 		}
@@ -437,6 +429,16 @@ func (n *Node) stopPrivHTTP() {
 
 		n.log.Info("private HTTP endpoint closed", "url", fmt.Sprintf("http://%s", n.config.HTTPPrivEndpoint))
 	}
+}
+
+func (n *Node) StartP2P() error {
+	if n.IsMaster() {
+		if err := n.server.Start(); err != nil {
+			return convertFileLockError(err)
+		}
+		n.log.Info("Starting peer-to-peer node", "instance", n.serverConfig.Name)
+	}
+	return nil
 }
 
 // Stop terminates a running node along with all it's services. In the node was

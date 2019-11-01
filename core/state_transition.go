@@ -269,6 +269,7 @@ func (st *StateTransition) refundGas(vmerr error) {
 		}
 		st.gas += refund
 	}
+	st.state.SubRefund(st.state.GetRefund())
 
 	// Return ETH for remaining gas, exchanged at the original rate.
 	remaining := new(big.Int).Mul(new(big.Int).SetUint64(st.gas), st.gasPrice)

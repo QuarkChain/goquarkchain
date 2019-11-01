@@ -13,6 +13,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/consensus/doublesha256"
 	"github.com/QuarkChain/goquarkchain/consensus/ethash"
 	"github.com/QuarkChain/goquarkchain/consensus/qkchash"
+	"github.com/QuarkChain/goquarkchain/consensus/simulate"
 	"github.com/QuarkChain/goquarkchain/core"
 	"github.com/QuarkChain/goquarkchain/core/rawdb"
 	"github.com/QuarkChain/goquarkchain/core/types"
@@ -158,8 +159,8 @@ func createConsensusEngine(cfg *config.RootConfig, pubKey []byte, qkcHashXHeight
 		AdjustmentFactor:  cfg.DifficultyAdjustmentFactor,
 	}
 	switch cfg.ConsensusType {
-	case config.PoWSimulate: // TODO pow_simulate is fake
-		return consensus.NewFakeEngine(&diffCalculator), nil
+	case config.PoWSimulate:
+		return simulate.New(&diffCalculator, cfg.ConsensusConfig.RemoteMine, pubKey, uint64(cfg.ConsensusConfig.TargetBlockTime)), nil
 	case config.PoWEthash:
 		return ethash.New(ethash.Config{CachesInMem: 3, CachesOnDisk: 10, CacheDir: "", PowMode: ethash.ModeNormal}, &diffCalculator, cfg.ConsensusConfig.RemoteMine, pubKey), nil
 	case config.PoWQkchash:
@@ -425,7 +426,7 @@ func (s *QKCMasterBackend) broadcastRootBlockToSlaves(block *types.RootBlock) er
 			err := client.AddRootBlock(block, false)
 			if err != nil {
 				log.Error("broadcastRootBlockToSlaves failed", "slave", client.GetSlaveID(),
-					"block", block.Hash(), "root parent hash", block.Header().ParentHash.Hex(), "height", block.NumberU64(), "err", err)
+					"block", block.Hash(), "root parent hash", block.ParentHash().Hex(), "height", block.NumberU64(), "err", err)
 			}
 			return err
 		})
@@ -781,9 +782,9 @@ func (s *QKCMasterBackend) GetStats() (map[string]interface{}, error) {
 	}
 	tip := s.rootBlockChain.CurrentBlock()
 	rootLastBlockTime := uint64(0)
-	if tip.Header().Number >= 3 {
+	if tip.NumberU64() >= 3 {
 		prev := s.rootBlockChain.GetBlock(tip.ParentHash())
-		rootLastBlockTime = tip.Time() - prev.IHeader().GetTime()
+		rootLastBlockTime = tip.Time() - prev.Time()
 	}
 	//anything else easy handle?
 	txCountHistory := make([]map[string]interface{}, 0)

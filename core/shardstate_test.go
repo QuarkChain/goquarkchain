@@ -33,13 +33,13 @@ func TestShardStateSimple(t *testing.T) {
 	if shardState.rootTip.Number != 0 {
 		t.Errorf("rootTip number mismatch have:%v want:%v", shardState.rootTip.Number, 0)
 	}
-	if shardState.CurrentBlock().IHeader().NumberU64() != 0 {
-		t.Errorf("minorHeader number mismatch have:%v want:%v", shardState.CurrentBlock().IHeader().NumberU64(), 0)
+	if shardState.CurrentBlock().NumberU64() != 0 {
+		t.Errorf("minorHeader number mismatch have:%v want:%v", shardState.CurrentBlock().NumberU64(), 0)
 	}
 	rootBlock := shardState.GetRootBlockByHash(shardState.rootTip.Hash())
 	assert.NotNil(t, rootBlock)
 	// make sure genesis minor block has the right coinbase after-tax
-	assert.NotNil(t, shardState.CurrentBlock().Header().CoinbaseAmount.GetTokenBalance(genesisTokenID), testShardCoinbaseAmount)
+	assert.NotNil(t, shardState.CurrentBlock().CoinbaseAmount().GetTokenBalance(genesisTokenID), testShardCoinbaseAmount)
 }
 
 func TestInitGenesisState(t *testing.T) {
@@ -57,7 +57,7 @@ func TestInitGenesisState(t *testing.T) {
 	checkErr(err)
 	assert.NotEqual(t, newGenesisBlock.Hash(), genesisHeader.Hash())
 	// header tip is still the old genesis header
-	assert.Equal(t, shardState.CurrentBlock().IHeader().Hash(), genesisHeader.Hash())
+	assert.Equal(t, shardState.CurrentBlock().Hash(), genesisHeader.Hash())
 
 	block := newGenesisBlock.CreateBlockToAppend(nil, nil, nil, nil, nil, nil, nil, nil, nil)
 
@@ -65,7 +65,7 @@ func TestInitGenesisState(t *testing.T) {
 	checkErr(err)
 
 	// extending new_genesis_block doesn't change header_tip due to root chain first consensus
-	assert.Equal(t, shardState.CurrentBlock().IHeader().Hash(), genesisHeader.Hash())
+	assert.Equal(t, shardState.CurrentBlock().Hash(), genesisHeader.Hash())
 
 	zeroTempHeader := shardState.GetBlockByNumber(0).(*types.MinorBlock).Header()
 	assert.Equal(t, zeroTempHeader.Hash(), genesisHeader.Hash())
@@ -80,8 +80,8 @@ func TestInitGenesisState(t *testing.T) {
 	// and thus it reverted all the way back to genesis
 	currentMinorHeader := shardState.CurrentBlock().IHeader()
 	currentZero := shardState.GetBlockByNumber(0).IHeader().(*types.MinorBlockHeader)
-	assert.Equal(t, currentMinorHeader.Hash(), newGenesisBlock.Header().Hash())
-	assert.Equal(t, currentZero.Hash(), newGenesisBlock.Header().Hash())
+	assert.Equal(t, currentMinorHeader.Hash(), newGenesisBlock.Hash())
+	assert.Equal(t, currentZero.Hash(), newGenesisBlock.Hash())
 
 }
 
@@ -315,25 +315,25 @@ func TestOneTx(t *testing.T) {
 	block, i := shardState.GetTransactionByHash(tx.Hash())
 	assert.NotNil(t, block)
 	assert.Equal(t, block.GetTransactions()[0].Hash(), tx.Hash())
-	assert.Equal(t, block.Header().Time, uint64(0))
+	assert.Equal(t, block.Time(), uint64(0))
 	assert.Equal(t, i, uint32(0))
 
 	// tx claims to use more gas than the limit and thus not included
 	b1, err := shardState.CreateBlockToMine(nil, &acc3, new(big.Int).SetUint64(49999), nil, nil)
 	checkErr(err)
-	assert.Equal(t, b1.Header().Number, uint64(1))
+	assert.Equal(t, b1.NumberU64(), uint64(1))
 	assert.Equal(t, len(b1.Transactions()), 0)
 
 	b2, err := shardState.CreateBlockToMine(nil, &acc3, nil, nil, nil)
 	checkErr(err)
 	assert.Equal(t, len(b2.Transactions()), 1)
-	assert.Equal(t, b2.Header().Number, uint64(1))
+	assert.Equal(t, b2.NumberU64(), uint64(1))
 
 	// Should succeed
 	b2, re, err := shardState.FinalizeAndAddBlock(b2)
 	checkErr(err)
-	assert.Equal(t, shardState.CurrentBlock().IHeader().NumberU64(), uint64(1))
-	assert.Equal(t, shardState.CurrentBlock().IHeader().(*types.MinorBlockHeader).Hash(), b2.Header().Hash())
+	assert.Equal(t, shardState.CurrentBlock().NumberU64(), uint64(1))
+	assert.Equal(t, shardState.CurrentBlock().Hash(), b2.Hash())
 	assert.Equal(t, shardState.CurrentBlock().GetTransactions()[0].Hash(), tx.Hash())
 
 	currentState1, err := shardState.State()
@@ -355,7 +355,7 @@ func TestOneTx(t *testing.T) {
 	curBlock := shardState.CurrentBlock()
 
 	assert.Equal(t, curBlock.Hash(), b2.Hash())
-	assert.Equal(t, curBlock.IHeader().Hash(), block.Header().Hash())
+	assert.Equal(t, curBlock.Hash(), block.Hash())
 
 	assert.Equal(t, curBlock.GetMetaData().Hash(), block.Meta().Hash())
 
@@ -406,14 +406,14 @@ func TestDuplicatedTx(t *testing.T) {
 	assert.NotNil(t, block)
 	assert.Equal(t, len(block.Transactions()), 1)
 	assert.Equal(t, block.Transactions()[0].Hash(), tx.Hash())
-	assert.Equal(t, block.Header().Time, uint64(0))
+	assert.Equal(t, block.Time(), uint64(0))
 	assert.Equal(t, i, uint32(0))
 	b1, err := shardState.CreateBlockToMine(nil, &acc3, nil, nil, nil)
 	assert.Equal(t, len(b1.Transactions()), 1)
 	// Should succeed
 	b1, reps, err := shardState.FinalizeAndAddBlock(b1)
 
-	assert.Equal(t, shardState.CurrentBlock().IHeader().(*types.MinorBlockHeader).Hash(), b1.Header().Hash())
+	assert.Equal(t, shardState.CurrentBlock().Hash(), b1.Hash())
 
 	currentState, err := shardState.State()
 	checkErr(err)
@@ -616,7 +616,7 @@ func TestTwoTxInOneBlock(t *testing.T) {
 	// # Should succeed
 	_, reps, err := shardState.FinalizeAndAddBlock(b1)
 	checkErr(err)
-	assert.Equal(t, shardState.CurrentBlock().Hash(), b1.Header().Hash())
+	assert.Equal(t, shardState.CurrentBlock().Hash(), b1.Hash())
 	currState, err = shardState.State()
 	checkErr(err)
 	acc1Value = currState.GetBalance(id1.GetRecipient(), testGenesisTokenID)
@@ -918,7 +918,7 @@ func TestXShardTxReceived(t *testing.T) {
 	b0, _, err = shardState0.FinalizeAndAddBlock(b0)
 	b1 := shardState1.CurrentBlock().CreateBlockToAppend(nil, nil, nil, nil, nil, nil, nil, nil, nil)
 	b1Headaer := b1.Header()
-	b1Headaer.PrevRootBlockHash = rootBlock.Header().Hash()
+	b1Headaer.PrevRootBlockHash = rootBlock.Hash()
 	b1 = types.NewMinorBlock(b1Headaer, b1.Meta(), b1.Transactions(), nil, nil)
 	fakeGas := uint64(30000)
 	fakeGasPrice := uint64(2)
@@ -940,7 +940,7 @@ func TestXShardTxReceived(t *testing.T) {
 		GasTokenID:      tx.EvmTx.GasTokenID(),
 	})
 	// Add a x-shard tx from remote peer
-	shardState0.AddCrossShardTxListByMinorBlockHash(b1.Header().Hash(), txList) // write db
+	shardState0.AddCrossShardTxListByMinorBlockHash(b1.Hash(), txList) // write db
 	// Create a root block containing the block with the x-shard tx
 	rootBlock = shardState0.rootTip.CreateBlockToAppend(nil, nil, nil, nil, nil)
 	rootBlock.AddMinorBlockHeader(b0.Header())
@@ -1057,7 +1057,7 @@ func TestXShardForTwoRootBlocks(t *testing.T) {
 
 	b1 := shardState1.CurrentBlock().CreateBlockToAppend(nil, nil, nil, nil, nil, nil, nil, nil, nil)
 	b1Header := b1.Header()
-	b1Header.PrevRootBlockHash = rootBlock.Header().Hash()
+	b1Header.PrevRootBlockHash = rootBlock.Hash()
 	b1 = types.NewMinorBlock(b1Header, b1.Meta(), b1.Transactions(), nil, nil)
 	gas := uint64(21000) + params.GtxxShardCost.Uint64()
 	tx := createTransferTransaction(shardState1, id1.GetKey().Bytes(), acc2, acc1, new(big.Int).SetUint64(888888),
@@ -1078,7 +1078,7 @@ func TestXShardForTwoRootBlocks(t *testing.T) {
 		GasTokenID:      tx.EvmTx.GasTokenID(),
 	})
 	// Add a x-shard tx from state1
-	shardState0.AddCrossShardTxListByMinorBlockHash(b1.Header().Hash(), txList)
+	shardState0.AddCrossShardTxListByMinorBlockHash(b1.Hash(), txList)
 
 	// Create a root block containing the block with the x-shard tx
 	rootBlock0 := shardState0.rootTip.CreateBlockToAppend(nil, nil, nil, nil, nil)
@@ -1093,7 +1093,7 @@ func TestXShardForTwoRootBlocks(t *testing.T) {
 
 	b3 := b1.CreateBlockToAppend(nil, nil, nil, nil, nil, nil, nil, nil, nil)
 	b3Header := b3.Header()
-	b3Header.PrevRootBlockHash = rootBlock.Header().Hash()
+	b3Header.PrevRootBlockHash = rootBlock.Hash()
 	b3 = types.NewMinorBlock(b3Header, b3.Meta(), b3.Transactions(), nil, nil)
 
 	txList = types.CrossShardTransactionDepositList{}
@@ -1108,7 +1108,7 @@ func TestXShardForTwoRootBlocks(t *testing.T) {
 		GasTokenID:      tx.EvmTx.GasTokenID(),
 	})
 	// Add a x-shard tx from state1
-	shardState0.AddCrossShardTxListByMinorBlockHash(b3.Header().Hash(), txList)
+	shardState0.AddCrossShardTxListByMinorBlockHash(b3.Hash(), txList)
 
 	rootBlock1 := shardState0.rootTip.CreateBlockToAppend(nil, nil, nil, nil, nil)
 	rootBlock1.AddMinorBlockHeader(b2.Header())
@@ -1126,14 +1126,14 @@ func TestXShardForTwoRootBlocks(t *testing.T) {
 	b7, err := shardState0.CreateBlockToMine(nil, &acc3, new(big.Int).Mul(new(big.Int).SetUint64(9000), new(big.Int).SetUint64(2)), nil, nil)
 	checkErr(err)
 
-	assert.Equal(t, rootBlock1.Header().Hash().String(), b7.PrevRootBlockHash().String())
+	assert.Equal(t, rootBlock1.Hash().String(), b7.PrevRootBlockHash().String())
 	b8, err := shardState0.CreateBlockToMine(nil, &acc3, new(big.Int).Mul(new(big.Int).SetUint64(9000), new(big.Int).SetUint64(3)), nil, nil)
 	checkErr(err)
-	assert.Equal(t, rootBlock1.Header().Hash().String(), b8.PrevRootBlockHash().String())
+	assert.Equal(t, rootBlock1.Hash().String(), b8.PrevRootBlockHash().String())
 
 	// Add b0 and make sure all x-shard tx's are added
 	b4, err := shardState0.CreateBlockToMine(nil, &acc3, nil, nil, nil)
-	assert.Equal(t, b4.Header().PrevRootBlockHash.String(), rootBlock1.Hash().String())
+	assert.Equal(t, b4.PrevRootBlockHash().String(), rootBlock1.Hash().String())
 	b4, _, err = shardState0.FinalizeAndAddBlock(b4)
 	checkErr(err)
 
@@ -1168,17 +1168,17 @@ func TestForkResolve(t *testing.T) {
 
 	b0, _, err = shardState.FinalizeAndAddBlock(b0)
 	checkErr(err)
-	assert.Equal(t, shardState.CurrentBlock().IHeader().(*types.MinorBlockHeader).Hash(), b0.Hash())
+	assert.Equal(t, shardState.CurrentBlock().Hash(), b0.Hash())
 
 	// Fork happens, first come first serve
 	b1, _, err = shardState.FinalizeAndAddBlock(b1)
 	checkErr(err)
-	assert.Equal(t, shardState.CurrentBlock().IHeader().(*types.MinorBlockHeader).Hash(), b0.Hash())
+	assert.Equal(t, shardState.CurrentBlock().Hash(), b0.Hash())
 
 	// Longer fork happens, override existing one
 	b2 := b1.CreateBlockToAppend(nil, nil, nil, nil, nil, nil, nil, nil, nil)
 	b2, _, err = shardState.FinalizeAndAddBlock(b2)
-	assert.Equal(t, shardState.CurrentBlock().IHeader().(*types.MinorBlockHeader).Hash(), b2.Hash())
+	assert.Equal(t, shardState.CurrentBlock().Hash(), b2.Hash())
 }
 
 func TestRootChainFirstConsensus(t *testing.T) {
@@ -1220,18 +1220,18 @@ func TestRootChainFirstConsensus(t *testing.T) {
 
 	b00 := b0.CreateBlockToAppend(nil, nil, nil, nil, nil, nil, nil, nil, nil)
 	b00, _, err = shardState0.FinalizeAndAddBlock(b00)
-	assert.Equal(t, shardState0.CurrentBlock().IHeader().Hash().String(), b00.Hash().String())
+	assert.Equal(t, shardState0.CurrentBlock().Hash().String(), b00.Hash().String())
 	checkErr(err)
 
 	// Create another fork that is much longer (however not confirmed by root_block)
 	b3 := b2.CreateBlockToAppend(nil, nil, nil, nil, nil, nil, nil, nil, nil)
 	b3, _, err = shardState0.FinalizeAndAddBlock(b3)
 	checkErr(err)
-	assert.Equal(t, shardState0.CurrentBlock().IHeader().Hash().String(), b00.Hash().String())
+	assert.Equal(t, shardState0.CurrentBlock().Hash().String(), b00.Hash().String())
 	b4 := b3.CreateBlockToAppend(nil, nil, nil, nil, nil, nil, nil, nil, nil)
 	b4, _, err = shardState0.FinalizeAndAddBlock(b4)
 	checkErr(err)
-	assert.Equal(t, true, b4.Header().Number > b00.Header().Number)
+	assert.Equal(t, true, b4.NumberU64() > b00.NumberU64())
 	assert.Equal(t, shardState0.CurrentBlock().Hash().String(), b00.Hash().String())
 }
 
@@ -1303,8 +1303,8 @@ func TestShardStateAddRootBlock(t *testing.T) {
 	currBlock := shardState0.CurrentBlock()
 	currBlock2 := shardState0.GetBlockByNumber(2)
 	currBlock3 := shardState0.GetBlockByNumber(3)
-	assert.Equal(t, currBlock.Hash().String(), b00.Header().Hash().String())
-	assert.Equal(t, currBlock2.Hash().String(), b00.Header().Hash().String())
+	assert.Equal(t, currBlock.Hash().String(), b00.Hash().String())
+	assert.Equal(t, currBlock2.Hash().String(), b00.Hash().String())
 	assert.Equal(t, currBlock3, nil)
 
 	b5 := b1.CreateBlockToAppend(nil, nil, nil, nil, nil, nil, nil, nil, nil)
@@ -1321,13 +1321,13 @@ func TestShardStateAddRootBlock(t *testing.T) {
 	rootBlock2.AddMinorBlockHeader(b5.Header())
 	rootBlock2.Finalize(nil, nil, common.Hash{})
 
-	assert.Equal(t, shardState0.CurrentBlock().Hash().String(), b2.Header().Hash().String())
+	assert.Equal(t, shardState0.CurrentBlock().Hash().String(), b2.Hash().String())
 	_, err = shardState0.AddRootBlock(rootBlock2)
 	checkErr(err)
 
 	currBlock = shardState0.CurrentBlock()
 
-	assert.Equal(t, currBlock.Hash().String(), b4.Header().Hash().String())
+	assert.Equal(t, currBlock.Hash().String(), b4.Hash().String())
 	assert.Equal(t, shardState0.rootTip.Hash().String(), rootBlock2.Hash().String())
 	assert.Equal(t, shardState0.GetBlockByNumber(2).Hash().String(), b3.Hash().String())
 	assert.Equal(t, shardState0.GetBlockByNumber(3).Hash().String(), b4.Hash().String())
@@ -1392,7 +1392,7 @@ func TestShardStateForkResolveWithHigherRootChain(t *testing.T) {
 	rootBlock.AddMinorBlockHeader(b0.Header())
 	rootBlock.Finalize(nil, nil, common.Hash{})
 
-	assert.Equal(t, shardState.CurrentBlock().Hash().String(), b0.Header().Hash().String())
+	assert.Equal(t, shardState.CurrentBlock().Hash().String(), b0.Hash().String())
 	_, err = shardState.AddRootBlock(rootBlock)
 	checkErr(err)
 
@@ -1400,7 +1400,7 @@ func TestShardStateForkResolveWithHigherRootChain(t *testing.T) {
 	fakeNonce := uint64(1)
 	b2 := shardState.CurrentBlock().CreateBlockToAppend(nil, nil, nil, &fakeNonce, nil, nil, nil, nil, nil)
 	b2Header := b2.Header()
-	b2Header.PrevRootBlockHash = rootBlock.Header().Hash()
+	b2Header.PrevRootBlockHash = rootBlock.Hash()
 	b2 = types.NewMinorBlock(b2Header, b2.Meta(), b2.Transactions(), nil, nil)
 	fakeNonce = uint64(2)
 	b3 := shardState.CurrentBlock().CreateBlockToAppend(nil, nil, nil, &fakeNonce, nil, nil, nil, nil, nil)
@@ -1409,18 +1409,18 @@ func TestShardStateForkResolveWithHigherRootChain(t *testing.T) {
 
 	b1, _, err = shardState.FinalizeAndAddBlock(b1)
 	checkErr(err)
-	assert.Equal(t, shardState.CurrentBlock().Hash().String(), b1.Header().Hash().String())
+	assert.Equal(t, shardState.CurrentBlock().Hash().String(), b1.Hash().String())
 
 	// Fork happens, although they have the same height, b2 survives since it confirms root block
 	b2, _, err = shardState.FinalizeAndAddBlock(b2)
 	checkErr(err)
-	assert.Equal(t, shardState.CurrentBlock().Hash().String(), b2.Header().Hash().String())
+	assert.Equal(t, shardState.CurrentBlock().Hash().String(), b2.Hash().String())
 
 	// b3 confirms the same root block as b2, so it will not override b2
 	b3, _, err = shardState.FinalizeAndAddBlock(b3)
 	checkErr(err)
 
-	assert.Equal(t, shardState.CurrentBlock().Hash().String(), b2.Header().Hash().String())
+	assert.Equal(t, shardState.CurrentBlock().Hash().String(), b2.Hash().String())
 }
 
 func TestShardStateDifficulty(t *testing.T) {
@@ -1502,7 +1502,7 @@ func TestShardStateRecoveryFromRootBlock(t *testing.T) {
 	checkErr(err)
 
 	DBb1 := shardState.GetMinorBlock(b1.Hash())
-	assert.Equal(t, DBb1.IHeader().GetTime(), b11Header.Time)
+	assert.Equal(t, DBb1.Time(), b11Header.Time)
 
 	rootBlock := shardState.rootTip.CreateBlockToAppend(nil, nil, nil, nil, nil)
 	rootBlock.ExtendMinorBlockHeaderList(blockHeaders[:5])
@@ -1519,7 +1519,7 @@ func TestShardStateRecoveryFromRootBlock(t *testing.T) {
 	// forks are pruned
 	err = recoveredState.InitFromRootBlock(rootBlock)
 	checkErr(err)
-	tempBlock := recoveredState.GetMinorBlock(b1.Header().Hash())
+	tempBlock := recoveredState.GetMinorBlock(b1.Hash())
 
 	assert.Equal(t, tempBlock.Hash().String(), b1.Hash().String())
 	assert.Equal(t, recoveredState.rootTip.Hash().String(), rootBlock.Hash().String())
@@ -1606,7 +1606,7 @@ func TestAddBlockReceiptRootNotMatch(t *testing.T) {
 	evmState, reps, _, _, _, err := shardState.runBlock(b1)
 	checkErr(err)
 	temp := types.NewEmptyTokenBalances()
-	temp.SetValue(b1.Header().CoinbaseAmount.GetTokenBalance(genesisTokenID), qkcCommon.TokenIDEncode("QKC"))
+	temp.SetValue(b1.CoinbaseAmount().GetTokenBalance(genesisTokenID), qkcCommon.TokenIDEncode("QKC"))
 	b1.Finalize(reps, evmState.IntermediateRoot(true), evmState.GetGasUsed(), evmState.GetXShardReceiveGasUsed(), temp, &types.XShardTxCursorInfo{})
 
 	b1Meta := b1.Meta()
@@ -1658,19 +1658,19 @@ func TestNotUpdateTipOnRootFork(t *testing.T) {
 
 	r2.AddMinorBlockHeader(m1.IHeader().(*types.MinorBlockHeader))
 	r2Header := r2.Header()
-	r2Header.Time = r1.Header().Time + 1
+	r2Header.Time = r1.Time() + 1
 	r2 = types.NewRootBlock(r2Header, r2.MinorBlockHeaders(), nil)
 	r2.Finalize(nil, nil, common.Hash{})
-	assert.Equal(t, false, reflect.DeepEqual(r1.Header().Hash().String(), r2.Header().Hash().String()))
+	assert.Equal(t, false, reflect.DeepEqual(r1.Hash().String(), r2.Hash().String()))
 
 	_, err = shardState.AddRootBlock(r2)
 
 	checkErr(err)
-	assert.Equal(t, shardState.rootTip.Hash().String(), r1.Header().Hash().String())
+	assert.Equal(t, shardState.rootTip.Hash().String(), r1.Hash().String())
 
 	m2 := m1.(*types.MinorBlock).CreateBlockToAppend(nil, nil, &acc1, nil, nil, nil, nil, nil, nil)
 	m2Header := m2.Header()
-	m2Header.PrevRootBlockHash = r2.Header().Hash()
+	m2Header.PrevRootBlockHash = r2.Hash()
 	m2 = types.NewMinorBlock(m2Header, m2.Meta(), m2.Transactions(), nil, nil)
 
 	// m2 is added
@@ -1678,8 +1678,8 @@ func TestNotUpdateTipOnRootFork(t *testing.T) {
 	checkErr(err)
 
 	// but m1 should still be the tip
-	assert.Equal(t, shardState.GetMinorBlock(m2.Hash()).Hash().String(), m2.Header().Hash().String())
-	assert.Equal(t, shardState.CurrentBlock().Hash().String(), m1.IHeader().Hash().String())
+	assert.Equal(t, shardState.GetMinorBlock(m2.Hash()).Hash().String(), m2.Hash().String())
+	assert.Equal(t, shardState.CurrentBlock().Hash().String(), m1.Hash().String())
 }
 
 func TestAddRootBlockRevertHeaderTip(t *testing.T) {
@@ -1724,17 +1724,17 @@ func TestAddRootBlockRevertHeaderTip(t *testing.T) {
 
 	r2.AddMinorBlockHeader(m1.IHeader().(*types.MinorBlockHeader))
 	r2Header := r2.Header()
-	r2Header.Time = r1.Header().Time + 1
+	r2Header.Time = r1.Time() + 1
 	r2 = types.NewRootBlock(r2Header, r2.MinorBlockHeaders(), nil)
 	r2.Finalize(nil, nil, common.Hash{})
-	assert.Equal(t, false, reflect.DeepEqual(r1.Header().Hash().String(), r2.Header().Hash().String()))
+	assert.Equal(t, false, reflect.DeepEqual(r1.Hash().String(), r2.Hash().String()))
 	_, err = shardState.AddRootBlock(r2)
 	checkErr(err)
-	assert.Equal(t, shardState.rootTip.Hash().String(), r1.Header().Hash().String())
+	assert.Equal(t, shardState.rootTip.Hash().String(), r1.Hash().String())
 
 	m3, err := shardState.CreateBlockToMine(nil, &acc1, nil, nil, nil)
 	checkErr(err)
-	assert.Equal(t, m3.Header().PrevRootBlockHash.String(), r1.Header().Hash().String())
+	assert.Equal(t, m3.PrevRootBlockHash().String(), r1.Hash().String())
 	m3, _, err = shardState.FinalizeAndAddBlock(m3)
 	checkErr(err)
 
@@ -1744,9 +1744,9 @@ func TestAddRootBlockRevertHeaderTip(t *testing.T) {
 	_, err = shardState.AddRootBlock(r3)
 	checkErr(err)
 
-	assert.Equal(t, shardState.rootTip.Hash().String(), r3.Header().Hash().String())
-	assert.Equal(t, shardState.CurrentBlock().Hash().String(), m2.Header().Hash().String())
-	assert.Equal(t, shardState.CurrentBlock().Hash().String(), m2.Header().Hash().String())
+	assert.Equal(t, shardState.rootTip.Hash().String(), r3.Hash().String())
+	assert.Equal(t, shardState.CurrentBlock().Hash().String(), m2.Hash().String())
+	assert.Equal(t, shardState.CurrentBlock().Hash().String(), m2.Hash().String())
 }
 
 func TestTotalTxCount(t *testing.T) {
@@ -1778,19 +1778,19 @@ func TestTotalTxCount(t *testing.T) {
 	block, i := shardState.GetTransactionByHash(tx.Hash())
 	assert.NotNil(t, block)
 	assert.Equal(t, block.GetTransactions()[0].Hash(), tx.Hash())
-	assert.Equal(t, block.Header().Time, uint64(0))
+	assert.Equal(t, block.Time(), uint64(0))
 	assert.Equal(t, i, uint32(0))
 
 	b2, err := shardState.CreateBlockToMine(nil, &acc3, nil, nil, nil)
 	checkErr(err)
 	assert.Equal(t, len(b2.Transactions()), 1)
-	assert.Equal(t, b2.Header().Number, uint64(1))
+	assert.Equal(t, b2.NumberU64(), uint64(1))
 
 	// Should succeed
 	b2, _, err = shardState.FinalizeAndAddBlock(b2)
 	checkErr(err)
-	assert.Equal(t, shardState.CurrentBlock().IHeader().NumberU64(), uint64(1))
-	assert.Equal(t, shardState.CurrentBlock().IHeader().(*types.MinorBlockHeader).Hash(), b2.Header().Hash())
+	assert.Equal(t, shardState.CurrentBlock().NumberU64(), uint64(1))
+	assert.Equal(t, shardState.CurrentBlock().Hash(), b2.Hash())
 	assert.Equal(t, shardState.CurrentBlock().GetTransactions()[0].Hash(), tx.Hash())
 
 	assert.Equal(t, uint32(1), *shardState.getTotalTxCount(shardState.CurrentBlock().Hash()))
@@ -2515,7 +2515,7 @@ func TestGetTxForJsonRpc(t *testing.T) {
 	b0, _, err = shardState0.FinalizeAndAddBlock(b0)
 	b1 := shardState1.CurrentBlock().CreateBlockToAppend(nil, nil, nil, nil, nil, nil, nil, nil, nil)
 	b1Headaer := b1.Header()
-	b1Headaer.PrevRootBlockHash = rootBlock.Header().Hash()
+	b1Headaer.PrevRootBlockHash = rootBlock.Hash()
 	b1 = types.NewMinorBlock(b1Headaer, b1.Meta(), b1.Transactions(), nil, nil)
 	fakeGas := uint64(30000)
 	fakeGasPrice := uint64(2)
@@ -2537,7 +2537,7 @@ func TestGetTxForJsonRpc(t *testing.T) {
 		GasTokenID:      tx.EvmTx.GasTokenID(),
 	})
 	// Add a x-shard tx from remote peer
-	shardState0.AddCrossShardTxListByMinorBlockHash(b1.Header().Hash(), txList) // write db
+	shardState0.AddCrossShardTxListByMinorBlockHash(b1.Hash(), txList) // write db
 	// Create a root block containing the block with the x-shard tx
 	rootBlock = shardState0.rootTip.CreateBlockToAppend(nil, nil, nil, nil, nil)
 	rootBlock.AddMinorBlockHeader(b0.Header())
@@ -2868,7 +2868,7 @@ func TestSigToAddr(t *testing.T) {
 	rootBlock = rootBlock.Finalize(nil, nil, common.Hash{})
 	err = rootBlock.SignWithPrivateKey(prvKey)
 	assert.NoError(t, err)
-	recovered, err = sigToAddr(rootBlock.IHeader().SealHash().Bytes(), rootBlock.Signature())
+	recovered, err = sigToAddr(rootBlock.Header().SealHash().Bytes(), rootBlock.Signature())
 	assert.NoError(t, err)
 	assert.Equal(t, signerId.GetRecipient(), *recovered)
 	_, err = state0.AddRootBlock(rootBlock)

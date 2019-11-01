@@ -1,16 +1,17 @@
 package miner
 
 import (
+	"math/big"
+	"runtime"
+	"sync"
+	"time"
+
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/service"
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
-	"math/big"
-	"runtime"
-	"sync"
-	"time"
 )
 
 const (
@@ -71,7 +72,7 @@ func (m *Miner) interrupt() {
 }
 
 func (m *Miner) allowMining() bool {
-	if !m.IsMining() ||
+	if !m.IsMining() || m.api.IsSyncIng() ||
 		time.Now().Sub(*m.timestamp).Seconds() > deadtime {
 		return false
 	}
@@ -82,14 +83,6 @@ func (m *Miner) commit(addr *account.Address) {
 	// don't allow to mine
 	if !m.allowMining() {
 		return
-	}
-	sleepTime := 0
-	for m.api.IsSyncIng() {
-		time.Sleep(1 * time.Second)
-		sleepTime++
-		if sleepTime >= 500 {
-			log.Error("sleep for syncing too lang", "sleepTime", sleepTime)
-		}
 	}
 	m.interrupt()
 	block, diff, optionalDivider, err := m.api.CreateBlockToMine(addr)
@@ -116,10 +109,10 @@ func (m *Miner) mainLoop() {
 			m.commit(nil)
 
 		case work := <-m.workCh: //to discuss:need this?
-			log.Debug(m.logInfo, "ready to seal height", work.block.NumberU64(), "coinbase", work.block.IHeader().GetCoinbase().ToHex())
+			log.Debug(m.logInfo, "ready to seal height", work.block.NumberU64(), "coinbase", work.block.Coinbase().ToHex())
 			if err := m.engine.Seal(nil, work.block, work.adjustedDifficulty, work.optionalDivider, m.resultCh, m.stopCh); err != nil {
 				log.Error(m.logInfo, "Seal block to mine err", err)
-				coinbase := work.block.IHeader().GetCoinbase()
+				coinbase := work.block.Coinbase()
 				m.commit(&coinbase)
 			}
 
@@ -128,7 +121,7 @@ func (m *Miner) mainLoop() {
 			if err := m.api.InsertMinedBlock(block); err != nil {
 				log.Error(m.logInfo, "add minered block err block hash", block.Hash().Hex(), "err", err)
 				time.Sleep(time.Duration(3) * time.Second)
-				coinbase := block.IHeader().GetCoinbase()
+				coinbase := block.Coinbase()
 				m.commit(&coinbase)
 			}
 

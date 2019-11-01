@@ -17,6 +17,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
+	lru "github.com/hashicorp/golang-lru"
 )
 
 var (
@@ -55,12 +56,13 @@ var (
 )
 
 type ShareCache struct {
-	Digest []byte
-	Result []byte
-	Height uint64
-	Hash   []byte
-	Nonce  uint64
-	Seed   []byte
+	Digest    []byte
+	Result    []byte
+	Height    uint64
+	Hash      []byte
+	Nonce     uint64
+	Seed      []byte
+	BlockTime uint64
 }
 
 // MiningWork represents the params of mining work.
@@ -69,6 +71,7 @@ type MiningWork struct {
 	Number          uint64
 	Difficulty      *big.Int
 	OptionalDivider uint64
+	BlockTime       uint64
 }
 
 // MiningResult represents the found digest and result bytes.
@@ -103,9 +106,10 @@ type CommonEngine struct {
 	threads int
 	lock    sync.Mutex
 
-	closeOnce    sync.Once
-	exitCh       chan chan error
-	currentWorks *currentWorks
+	closeOnce         sync.Once
+	exitCh            chan chan error
+	currentWorks      *currentWorks
+	sealVerifiedCache *lru.Cache
 }
 
 // Name returns the consensus engine's name.
@@ -181,7 +185,16 @@ func (c *CommonEngine) VerifyHeader(
 // VerifySeal checks whether the crypto seal on a header is valid according to
 // the consensus rules of the given engine.
 func (c *CommonEngine) VerifySeal(chain ChainReader, header types.IHeader, adjustedDiff *big.Int) error {
-	return c.spec.VerifySeal(chain, header, adjustedDiff)
+	if v, ok := c.sealVerifiedCache.Get(header.Hash()); ok {
+		if v.(*big.Int).Cmp(adjustedDiff) == 0 {
+			return nil
+		}
+	}
+	err := c.spec.VerifySeal(chain, header, adjustedDiff)
+	if err == nil {
+		c.sealVerifiedCache.Add(header.Hash(), adjustedDiff)
+	}
+	return err
 }
 
 // VerifyHeaders is similar to VerifyHeader, but verifies a batch of headers
@@ -292,7 +305,7 @@ func (c *CommonEngine) localSeal(
 	if diff == nil {
 		diff = header.GetDifficulty()
 	}
-	work := MiningWork{HeaderHash: header.SealHash(), Number: header.NumberU64(), Difficulty: diff}
+	work := MiningWork{HeaderHash: header.SealHash(), Number: header.NumberU64(), Difficulty: diff, BlockTime: block.Time()}
 	if err := c.FindNonce(work, found, stop); err != nil {
 		return err
 	}
@@ -323,10 +336,12 @@ func (c *CommonEngine) mine(
 	var (
 		target   = new(big.Int).Div(two256, work.Difficulty)
 		minerRes = ShareCache{
-			Height: work.Number,
-			Hash:   work.HeaderHash.Bytes(),
-			Seed:   make([]byte, 40),
-			Nonce:  startNonce}
+			Height:    work.Number,
+			Hash:      work.HeaderHash.Bytes(),
+			Seed:      make([]byte, 40),
+			Nonce:     startNonce,
+			BlockTime: work.BlockTime,
+		}
 	)
 	logger := log.New("miner", "spec", strings.ToLower(c.spec.Name), "id", id)
 	logger.Trace("Started search for new nonces", "minerName", c.spec.Name, "startNonce", startNonce)
@@ -443,10 +458,12 @@ func (c *CommonEngine) Close() error {
 
 // NewCommonEngine returns the common engine mixin.
 func NewCommonEngine(spec MiningSpec, diffCalc DifficultyCalculator, remote bool, pubKey []byte) *CommonEngine {
+	cache, _ := lru.New(512)
 	c := &CommonEngine{
-		spec:     spec,
-		diffCalc: diffCalc,
-		pubKey:   pubKey,
+		spec:              spec,
+		diffCalc:          diffCalc,
+		pubKey:            pubKey,
+		sealVerifiedCache: cache,
 	}
 	if remote {
 		c.isRemote = true

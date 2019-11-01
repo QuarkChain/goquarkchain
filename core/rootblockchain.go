@@ -201,7 +201,7 @@ func (bc *RootBlockChain) loadLastState() error {
 	blockTd := bc.GetTd(currentBlock.Hash())
 
 	log.Info("Loaded most recent local header", "number", currentHeader.NumberU64(), "hash", currentHeader.Hash(), "td", headerTd, "age", common.PrettyAge(time.Unix(int64(currentHeader.GetTime()), 0)))
-	log.Info("Loaded most recent local full block", "number", currentBlock.NumberU64(), "hash", currentBlock.Hash(), "td", blockTd, "age", common.PrettyAge(time.Unix(int64(currentBlock.IHeader().GetTime()), 0)))
+	log.Info("Loaded most recent local full block", "number", currentBlock.NumberU64(), "hash", currentBlock.Hash(), "td", blockTd, "age", common.PrettyAge(time.Unix(int64(currentBlock.Time()), 0)))
 
 	return nil
 }
@@ -561,8 +561,8 @@ func (bc *RootBlockChain) WriteBlockWithState(block *types.RootBlock) (status Wr
 // ahead and was not added.
 func (bc *RootBlockChain) addFutureBlock(block types.IBlock) error {
 	max := big.NewInt(time.Now().Unix() + maxTimeFutureBlocks).Uint64()
-	if block.IHeader().GetTime() > max {
-		return fmt.Errorf("future block timestamp %v > allowed %v", block.IHeader().GetTime(), max)
+	if block.Time() > max {
+		return fmt.Errorf("future block timestamp %v > allowed %v", block.Time(), max)
 	}
 	bc.futureBlocks.Add(block.Hash(), block)
 	return nil
@@ -581,13 +581,13 @@ func (bc *RootBlockChain) InsertChain(chain []types.IBlock) (int, error) {
 	}
 	// Do a sanity check that the provided chain is actually ordered and linked
 	for i := 1; i < len(chain); i++ {
-		if chain[i].NumberU64() != chain[i-1].NumberU64()+1 || chain[i].IHeader().GetParentHash() != chain[i-1].Hash() {
+		if chain[i].NumberU64() != chain[i-1].NumberU64()+1 || chain[i].ParentHash() != chain[i-1].Hash() {
 			// Chain broke ancestry, log a message (programming error) and skip insertion
 			log.Error("Non contiguous block insert", "number", chain[i].NumberU64(), "hash", chain[i].Hash(),
-				"parent", chain[i].IHeader().GetParentHash(), "prevnumber", chain[i-1].NumberU64(), "prevhash", chain[i-1].Hash())
+				"parent", chain[i].ParentHash(), "prevnumber", chain[i-1].NumberU64(), "prevhash", chain[i-1].Hash())
 
 			return 0, fmt.Errorf("non contiguous insert: item %d is #%d [%x…], item %d is #%d [%x…] (parent [%x…])", i-1, chain[i-1].NumberU64(),
-				chain[i-1].Hash().Bytes()[:4], i, chain[i].NumberU64(), chain[i].Hash().Bytes()[:4], chain[i].IHeader().GetParentHash().Bytes()[:4])
+				chain[i-1].Hash().Bytes()[:4], i, chain[i].NumberU64(), chain[i].Hash().Bytes()[:4], chain[i].ParentHash().Bytes()[:4])
 		}
 	}
 	// Pre-checks passed, start the full block imports
@@ -651,7 +651,7 @@ func (bc *RootBlockChain) insertChain(chain []types.IBlock, verifySeals bool) (i
 		return bc.insertSidechain(it)
 
 	// First block is future, shove it (and all children) to the future queue (unknown ancestor)
-	case err == ErrFutureBlock || (err == ErrUnknownAncestor && bc.futureBlocks.Contains(it.first().IHeader().GetParentHash())):
+	case err == ErrFutureBlock || (err == ErrUnknownAncestor && bc.futureBlocks.Contains(it.first().ParentHash())):
 		for block != nil && (it.index == 0 || err == ErrUnknownAncestor) {
 			if err := bc.addFutureBlock(block); err != nil {
 				return it.index, events, err
@@ -696,7 +696,7 @@ func (bc *RootBlockChain) insertChain(chain []types.IBlock, verifySeals bool) (i
 
 		parent := it.previous()
 		if parent == nil {
-			parent = bc.GetBlock(block.IHeader().GetParentHash())
+			parent = bc.GetBlock(block.ParentHash())
 		}
 		if err != nil {
 			bc.reportBlock(block, err)
@@ -704,7 +704,7 @@ func (bc *RootBlockChain) insertChain(chain []types.IBlock, verifySeals bool) (i
 		}
 		if !bc.isCheckDB && absUint64(bc.CurrentBlock().Header().NumberU64(), block.NumberU64()) > bc.Config().Root.MaxStaleRootBlockHeightDiff {
 			log.Warn("Insert Root Block", "drop block height", block.NumberU64(), "tip height", bc.CurrentBlock().NumberU64())
-			return it.index, events, fmt.Errorf("block is too old %v %v", block.IHeader().NumberU64(), bc.CurrentBlock().NumberU64())
+			return it.index, events, fmt.Errorf("block is too old %v %v", block.NumberU64(), bc.CurrentBlock().NumberU64())
 		}
 		proctime := time.Since(start)
 
@@ -791,7 +791,7 @@ func (bc *RootBlockChain) insertSidechain(it *insertIterator) (int, []interface{
 			}
 		}
 		if externTd == nil {
-			externTd = bc.GetTd(block.IHeader().GetParentHash())
+			externTd = bc.GetTd(block.ParentHash())
 		}
 		externTd = new(big.Int).Add(externTd, block.IHeader().GetDifficulty())
 
@@ -876,13 +876,13 @@ func (bc *RootBlockChain) reorg(oldBlock, newBlock types.IBlock) error {
 	// first reduce whoever is higher bound
 	if oldBlock.NumberU64() > newBlock.NumberU64() {
 		// reduce old chain
-		for ; oldBlock != nil && oldBlock.NumberU64() != newBlock.NumberU64(); oldBlock = bc.GetBlock(oldBlock.IHeader().GetParentHash()) {
+		for ; oldBlock != nil && oldBlock.NumberU64() != newBlock.NumberU64(); oldBlock = bc.GetBlock(oldBlock.ParentHash()) {
 			oldChain = append(oldChain, oldBlock)
 			deletedHeaders = append(deletedHeaders, oldBlock.(*types.RootBlock).MinorBlockHeaders()...)
 		}
 	} else {
 		// reduce new chain and append new chain blocks for inserting later on
-		for ; newBlock != nil && newBlock.NumberU64() != oldBlock.NumberU64(); newBlock = bc.GetBlock(newBlock.IHeader().GetParentHash()) {
+		for ; newBlock != nil && newBlock.NumberU64() != oldBlock.NumberU64(); newBlock = bc.GetBlock(newBlock.ParentHash()) {
 			newChain = append(newChain, newBlock)
 		}
 	}
@@ -902,7 +902,7 @@ func (bc *RootBlockChain) reorg(oldBlock, newBlock types.IBlock) error {
 		oldChain = append(oldChain, oldBlock)
 		newChain = append(newChain, newBlock)
 
-		oldBlock, newBlock = bc.GetBlock(oldBlock.IHeader().GetParentHash()), bc.GetBlock(newBlock.IHeader().GetParentHash())
+		oldBlock, newBlock = bc.GetBlock(oldBlock.ParentHash()), bc.GetBlock(newBlock.ParentHash())
 		if oldBlock == nil {
 			return fmt.Errorf("Invalid old chain")
 		}
@@ -1091,8 +1091,16 @@ func (bc *RootBlockChain) GetAncestor(hash common.Hash, number, ancestor uint64,
 	return bc.headerChain.GetAncestor(hash, number, ancestor, maxNonCanonical)
 }
 
+func (bc *RootBlockChain) GetParentHashByHash(hash common.Hash) common.Hash {
+	if b := bc.GetBlock(hash); b == nil {
+		return common.Hash{}
+	} else {
+		return b.(*types.RootBlock).ParentHash()
+	}
+}
+
 func (bc *RootBlockChain) isSameChain(longerChainHeader, shorterChainHeader *types.RootBlockHeader) bool {
-	return bc.headerChain.isSameChain(longerChainHeader, shorterChainHeader)
+	return isSameChain(bc.GetParentHashByHash, longerChainHeader, shorterChainHeader)
 }
 
 func (bc *RootBlockChain) AddValidatedMinorBlockHeader(hash common.Hash, coinbaseToken *types.TokenBalances) {
@@ -1412,7 +1420,7 @@ func (bc *RootBlockChain) PutRootBlockIndex(block *types.RootBlock) error {
 		shardRecipientCnt = make(map[uint32]map[account.Recipient]uint32)
 		err               error
 	)
-	if block.Header().Number > 0 {
+	if block.NumberU64() > 0 {
 		if shardRecipientCnt, err = bc.GetBlockCount(block.Number() - 1); err != nil {
 			return err
 		}
@@ -1442,7 +1450,7 @@ func (bc *RootBlockChain) PutRootBlockIndex(block *types.RootBlock) error {
 		if err != nil {
 			return err
 		}
-		rawdb.WriteMinorBlockCnt(bc.db, fullShardID, block.Header().Number, data)
+		rawdb.WriteMinorBlockCnt(bc.db, fullShardID, block.Number(), data)
 	}
 	return nil
 }

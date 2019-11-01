@@ -1,9 +1,10 @@
 package params
 
 import (
+	"math/big"
+
 	"github.com/ethereum/go-ethereum/common"
 	ethParams "github.com/ethereum/go-ethereum/params"
-	"math/big"
 )
 
 var (
@@ -20,6 +21,9 @@ var (
 
 	DefaultStartGas = new(big.Int).SetUint64(100 * 1000)
 	DefaultGasPrice = new(big.Int).Mul(new(big.Int).SetUint64(10), DenomsValue.GWei)
+
+	DefaultInShardTxGasLimit    = new(big.Int).SetUint64(21000)
+	DefaultCrossShardTxGasLimit = new(big.Int).SetUint64(30000)
 )
 
 type Denoms struct {
