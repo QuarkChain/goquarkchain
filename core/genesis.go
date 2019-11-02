@@ -235,7 +235,6 @@ func (g *Genesis) CommitRootBlock(db ethdb.Database) (*types.RootBlock, error) {
 	if block.Number() != 0 {
 		return nil, fmt.Errorf("can't commit genesis block with number > 0")
 	}
-	rawdb.WriteTd(db, block.Hash(), block.Difficulty())
 	rawdb.WriteRootBlock(db, block)
 	rawdb.WriteCanonicalHash(db, rawdb.ChainTypeRoot, block.Hash(), block.NumberU64())
 	rawdb.WriteHeadBlockHash(db, block.Hash())

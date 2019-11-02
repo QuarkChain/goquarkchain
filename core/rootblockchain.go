@@ -197,12 +197,6 @@ func (bc *RootBlockChain) loadLastState() error {
 	}
 	bc.headerChain.SetCurrentHeader(currentHeader.(*types.RootBlockHeader))
 
-	headerTd := bc.GetTd(currentHeader.Hash())
-	blockTd := bc.GetTd(currentBlock.Hash())
-
-	log.Info("Loaded most recent local header", "number", currentHeader.NumberU64(), "hash", currentHeader.Hash(), "td", headerTd, "age", common.PrettyAge(time.Unix(int64(currentHeader.GetTime()), 0)))
-	log.Info("Loaded most recent local full block", "number", currentBlock.NumberU64(), "hash", currentBlock.Hash(), "td", blockTd, "age", common.PrettyAge(time.Unix(int64(currentBlock.Time()), 0)))
-
 	return nil
 }
 
@@ -278,12 +272,7 @@ func (bc *RootBlockChain) ResetWithGenesisBlock(genesis *types.RootBlock) error 
 	bc.mu.Lock()
 	defer bc.mu.Unlock()
 
-	// Prepare the genesis block and reinitialise the chain
-	if err := bc.headerChain.WriteTd(genesis.Hash(), genesis.Difficulty()); err != nil {
-		log.Crit("Failed to write genesis block TD", "err", err)
-	}
 	rawdb.WriteRootBlock(bc.db, genesis)
-
 	bc.genesisBlock = genesis
 	bc.insert(bc.genesisBlock)
 	bc.currentBlock.Store(bc.genesisBlock)
@@ -478,10 +467,6 @@ var lastWrite uint64
 func (bc *RootBlockChain) WriteBlockWithoutState(block types.IBlock, td *big.Int) (err error) {
 	bc.wg.Add(1)
 	defer bc.wg.Done()
-
-	if err := bc.headerChain.WriteTd(block.Hash(), td); err != nil {
-		return err
-	}
 	rawdb.WriteRootBlock(bc.db, block.(*types.RootBlock))
 
 	return nil
@@ -493,20 +478,14 @@ func (bc *RootBlockChain) WriteBlockWithState(block *types.RootBlock) (status Wr
 	bc.wg.Add(1)
 	defer bc.wg.Done()
 
-	// Calculate the total difficulty of the block
-	ptd := bc.GetBlock(block.ParentHash()).IHeader().GetTotalDifficulty()
 	// Make sure no inconsistent state is leaked during insertion
 	bc.mu.Lock()
 	defer bc.mu.Unlock()
 
 	currentBlock := bc.CurrentBlock()
 	localTd := currentBlock.TotalDifficulty()
-	externTd := new(big.Int).Add(block.Difficulty(), ptd)
+	externTd := block.TotalDifficulty()
 
-	// Irrelevant of the canonical status, write the block itself to the database
-	if err := bc.headerChain.WriteTd(block.Hash(), externTd); err != nil {
-		return NonStatTy, err
-	}
 	rawdb.WriteRootBlock(bc.db, block)
 
 	// Write other block data using a batch.
@@ -790,10 +769,7 @@ func (bc *RootBlockChain) insertSidechain(it *insertIterator) (int, []interface{
 				return it.index, nil, errors.New("sidechain ghost-state attack")
 			}
 		}
-		if externTd == nil {
-			externTd = bc.GetTd(block.ParentHash())
-		}
-		externTd = new(big.Int).Add(externTd, block.IHeader().GetDifficulty())
+		externTd = block.IHeader().GetTotalDifficulty()
 
 		if !bc.HasBlock(block.Hash()) {
 			start := time.Now()
@@ -811,7 +787,7 @@ func (bc *RootBlockChain) insertSidechain(it *insertIterator) (int, []interface{
 	//
 	// If the externTd was larger than our local TD, we now need to reimport the previous
 	// blocks to regenerate the required state
-	localTd := bc.GetTd(bc.CurrentBlock().Hash())
+	localTd := bc.CurrentBlock().TotalDifficulty()
 	if localTd.Cmp(externTd) > 0 {
 		log.Info("Sidechain written to disk", "start", it.first().NumberU64(), "end", it.previous().NumberU64(), "sidetd", externTd, "localtd", localTd)
 		return it.index, nil, err
@@ -1053,12 +1029,6 @@ func (bc *RootBlockChain) writeHeader(header *types.RootBlockHeader) error {
 // header is retrieved from the RootHeaderChain's internal cache.
 func (bc *RootBlockChain) CurrentHeader() types.IHeader {
 	return bc.headerChain.CurrentHeader()
-}
-
-// GetTd retrieves a block's total difficulty in the canonical chain from the
-// database by hash and number, caching it if found.
-func (bc *RootBlockChain) GetTd(hash common.Hash) *big.Int {
-	return bc.headerChain.GetTd(hash)
 }
 
 // GetHeader retrieves a block header from the database by hash and number,
