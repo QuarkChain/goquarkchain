@@ -159,12 +159,12 @@ limit uint32) ([]*types.RootBlockHeader, error) {
 		return nil, errors.New("Remote chain reorg causing empty root block headers ")
 	}
 
-	newLimit := (resp.RootTip.Number + 1 - start) / (skip + 1)
+	newLimit := (resp.RootTip.Number + 1 - start + skip) / (skip + 1)
 	if newLimit > limit {
 		newLimit = limit
 	}
 	if len(resp.BlockHeaderList) != int(newLimit) {
-		return nil, errors.New("Bad peer sending incorrect number of root block headers ")
+		return nil, fmt.Errorf("Bad peer sending incorrect number of root block headers expect: %d, actual: %d\n", newLimit, len(resp.BlockHeaderList))
 	}
 
 	if resp.RootTip.Hash() != r.header.Hash() {
