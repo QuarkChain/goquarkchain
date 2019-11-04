@@ -27,7 +27,7 @@
       "Port": 22,
       "User": "root",
       "Password": "goquarkchain",
-      "Service": "master,slave",
+      "Service": "slave",
       "ClusterID": 0
     }
   ],
