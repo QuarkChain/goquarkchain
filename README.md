@@ -71,7 +71,7 @@ Apply the changes immediately
 source ~/.profile
 ```
 ### Setup GoQuarkChain
-Install GoQuarkChain 
+
 ```bash
 mkdir -p $GOPATH/src/github.com/QuarkChain && cd $_
 git clone https://github.com/QuarkChain/goquarkchain.git
@@ -96,9 +96,6 @@ is based on pre-built Docker image.
 
 Build GoQuarkChain cluster executable:
 ```bash
-#build qkchash if not done yet:
-cd $GOPATH/src/github.com/QuarkChain/goquarkchain/consensus/qkchash/native
-sudo g++ -shared -o libqkchash.so -fPIC qkchash.cpp -O3 -std=gnu++17 && make
 #build cluster
 cd $GOPATH/src/github.com/QuarkChain/goquarkchain/cmd/cluster
 go build
@@ -145,8 +142,11 @@ If you want a cluster to be a bootstrap cluster, optionally provide a private ke
 cd $GOPATH/src/github.com/QuarkChain/goquarkchain/cmd/cluser
 ./cluster --cluster_config $CLUSTER_CONFIG_FILE --privkey=$BOOTSTRAP_PRIV_KEY
 ```
-You can read the full boot node URL from the console output in the format: `enode://$BOOTSTRAP_PUB_KEY@$BOOTSTRAP_IP:$BOOTSTRAP_DISCOVERY_PORT`.
-
+You can read the full boot node URL from the console output in the format: `enode://$BOOTSTRAP_PUB_KEY@$BOOTSTRAP_IP:$BOOTSTRAP_DISCOVERY_PORT`. 
+For example:
+```bash
+INFO [11-04|18:05:54.832] Started P2P networking  self=enode://011bd77918a523c2d983de2508270420faf6263403a7a7f6daf1212a810537e4d27787e8885d8c696c3445158a75cfe521cfccab9bc25ba5ac6f8aebf60106f1@127.0.0.1:38291
+```
 NOTE if private key is not provided, the boot node URL will change at each restart of the service.
 
 Start other clusters and provide the boot node URL as `$BOOTSTRAP_ENODE` for master service:

@@ -30,8 +30,8 @@ Run the following commands to pull and start a container with `deployer` in it:
 
 ```bash
 # replace docker image name if a custom image is used
-docker pull quarkchaindocker/goquarkchain
-docker run -it quarkchaindocker/goquarkchain /bin/bash 
+sudo docker pull quarkchaindocker/goquarkchain
+sudo docker run -it quarkchaindocker/goquarkchain /bin/bash 
 ```
 Then you can change configuration inside Docker container.
 
