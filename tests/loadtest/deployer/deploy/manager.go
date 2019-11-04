@@ -63,8 +63,8 @@ func (t *ToolManager) check() {
 		if lenSlave == 0 {
 			panic(fmt.Errorf("clusterID %v need slave", index))
 		}
-		if lenSlave < int(t.LocalConfig.ChainSize) {
-			panic(fmt.Errorf("slave's count %d should >= chainSize %d", lenSlave, t.LocalConfig.ChainSize))
+		if lenSlave > int(t.LocalConfig.ChainSize) {
+			panic(fmt.Errorf("slave's count %d should <= chainSize %d", lenSlave, t.LocalConfig.ChainSize))
 		}
 		if !common.IsP2(uint32(lenSlave)) {
 			panic(fmt.Errorf("slave's count %d must be power of 2", lenSlave))

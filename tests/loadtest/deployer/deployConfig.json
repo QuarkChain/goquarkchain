@@ -1,20 +1,34 @@
 {
-  "DockerName": "quarkchaindocker/goquarkchain",
-  "Hosts": [
+  "DockerName": "sunchunfeng/goqkc:v_tps",
+  "Hosts": [{
+    "IP": "157.245.172.220",
+    "Port": 22,
+    "User": "root",
+    "Password": "goquarkchain",
+    "Service": "master,slave",
+    "ClusterID": 0
+  }, {
+    "IP": "157.245.172.230",
+    "Port": 22,
+    "User": "root",
+    "Password": "goquarkchain",
+    "Service": "slave",
+    "ClusterID": 0
+  }, {
+    "IP": "138.68.224.79",
+    "Port": 22,
+    "User": "root",
+    "Password": "goquarkchain",
+    "Service": "slave",
+    "ClusterID": 0
+  },
     {
-      "IP": "x.x.x.x",
+      "IP": "167.71.117.195",
       "Port": 22,
       "User": "root",
-      "Password": "xxx",
+      "Password": "goquarkchain",
       "Service": "master,slave",
       "ClusterID": 0
-    }, {
-      "IP": "x.x.x.x",
-      "Port": 22,
-      "User": "root",
-      "Password": "xxx",
-      "Service": "master,slave",
-      "ClusterID": 1
     }
   ],
   "CHAIN_SIZE": 4,
