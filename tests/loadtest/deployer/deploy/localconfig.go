@@ -30,8 +30,8 @@ type ExtraClusterConfig struct {
 type LocalConfig struct {
 	DockerName         string              `json:"DockerName"`
 	Hosts              map[int][]NodeIndo  `json:"Hosts"`
-	ChainNumber        uint32              `json:"ChainNumber"`
-	ShardNumber        uint32              `json:"ShardNumber"`
+	ChainSize          uint32              `json:"CHAIN_SIZE"`
+	ShardSize          uint32              `json:"SHARD_SIZE"`
 	ExtraClusterConfig *ExtraClusterConfig `json:"ExtraClusterConfig"`
 }
 
@@ -39,8 +39,8 @@ func (l *LocalConfig) UnmarshalJSON(input []byte) error {
 	type LocalConfig struct {
 		DockerName         string              `json:"DockerName"`
 		Hosts              []NodeIndo          `json:"Hosts"`
-		ChainNumber        uint32              `json:"ChainNumber"`
-		ShardNumber        uint32              `json:"ShardNumber"`
+		ChainNumber        uint32              `json:"CHAIN_SIZE"`
+		ShardNumber        uint32              `json:"SHARD_SIZE"`
 		ExtraClusterConfig *ExtraClusterConfig `json:"ExtraClusterConfig"`
 	}
 	var dec LocalConfig
@@ -58,8 +58,8 @@ func (l *LocalConfig) UnmarshalJSON(input []byte) error {
 		l.Hosts[v.ClusterID] = append(l.Hosts[v.ClusterID], v)
 	}
 
-	l.ChainNumber = dec.ChainNumber
-	l.ShardNumber = dec.ShardNumber
+	l.ChainSize = dec.ChainNumber
+	l.ShardSize = dec.ShardNumber
 	l.ExtraClusterConfig = dec.ExtraClusterConfig
 	return nil
 }

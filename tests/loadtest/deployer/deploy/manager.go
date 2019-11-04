@@ -8,6 +8,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/QuarkChain/goquarkchain/common"
+
 	"github.com/ybbus/jsonrpc"
 
 	"github.com/QuarkChain/goquarkchain/cluster/config"
@@ -57,8 +59,15 @@ func (t *ToolManager) check() {
 		if len(t.GetIpListDependTag("master")) == 0 {
 			panic(fmt.Errorf("clusterID %v need master", index))
 		}
-		if len(t.GetIpListDependTag("slave")) == 0 {
+		lenSlave := len(t.GetIpListDependTag("slave"))
+		if lenSlave == 0 {
 			panic(fmt.Errorf("clusterID %v need slave", index))
+		}
+		if lenSlave > int(t.LocalConfig.ChainSize) {
+			panic(fmt.Errorf("slave's count %d should <= chainSize %d", lenSlave, t.LocalConfig.ChainSize))
+		}
+		if !common.IsP2(uint32(lenSlave)) {
+			panic(fmt.Errorf("slave's count %d must be power of 2", lenSlave))
 		}
 	}
 	t.ClusterIndex = 0
@@ -66,13 +75,9 @@ func (t *ToolManager) check() {
 	if len(t.LocalConfig.Hosts) < 1 {
 		panic("t.localConfig.IPList should >=1")
 	}
-	if t.LocalConfig.ShardNumber < t.LocalConfig.ChainNumber {
-		log.Error("check err", "chainNumber", t.LocalConfig.ChainNumber, "shardNumber", t.LocalConfig.ShardNumber)
-		panic("shardNumber should > chainNumber")
-	}
-	if t.LocalConfig.ShardNumber%t.LocalConfig.ChainNumber != 0 {
-		log.Error("check err", "chainNumber", t.LocalConfig.ChainNumber, "shardNumber", t.LocalConfig.ShardNumber)
-		panic("shardNumber%chainNumber should=0")
+
+	if !common.IsP2(t.LocalConfig.ShardSize) {
+		panic(fmt.Errorf("ShardSize %d must be power of 2", t.LocalConfig.ShardSize))
 	}
 
 	if t.LocalConfig.ExtraClusterConfig.GasLimit == 0 {
@@ -93,7 +98,6 @@ func (t *ToolManager) init() {
 			t.SSHSession[index][ip.IP] = NewSSHConnect(ip.User, ip.Password, ip.IP, int(ip.Port))
 		}
 	}
-	log.Info("init", "IP list", t.LocalConfig.Hosts)
 }
 
 func (t *ToolManager) GetIpListDependTag(tag string) []string {
@@ -110,7 +114,7 @@ func (t *ToolManager) GetIpListDependTag(tag string) []string {
 }
 
 func (t *ToolManager) GenClusterConfig() {
-	clusterConfig := GenConfigDependInitConfig(t.LocalConfig.ChainNumber, t.LocalConfig.ShardNumber/t.LocalConfig.ChainNumber, t.GetIpListDependTag("slave"), t.LocalConfig.ExtraClusterConfig)
+	clusterConfig := GenConfigDependInitConfig(t.LocalConfig.ChainSize, t.LocalConfig.ShardSize, t.GetIpListDependTag("slave"), t.LocalConfig.ExtraClusterConfig)
 
 	if t.BootNode == "" {
 		sk, err := ecdsa.GenerateKey(crypto.S256(), rand.Reader)
@@ -196,14 +200,14 @@ func (t *ToolManager) startSlave(ipList []*SlaveInfo) {
 
 func (t *ToolManager) StartClusters() {
 	for index := 0; index < len(t.LocalConfig.Hosts); index++ {
-		log.Info("============begin start cluster============", "index", index, "info", t.LocalConfig.Hosts[index])
+		log.Info("============begin start cluster============", "ClusterID", index)
 		log.Info("==== begin gen config")
 		t.GenClusterConfig()
 		log.Info("==== begin send file to others cluster")
 		t.SendFileToCluster()
 		log.Info("==== begin start cluster")
 		t.StartCluster(index)
-		log.Info("============end start cluster============", "index", index, "info", t.LocalConfig.Hosts[index])
+		log.Info("============end start cluster============", "ClusterID", index)
 		t.ClusterIndex++
 	}
 }
