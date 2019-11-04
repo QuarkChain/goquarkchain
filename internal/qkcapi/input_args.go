@@ -3,7 +3,6 @@ package qkcapi
 import (
 	"errors"
 	"math/big"
-
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/core/types"
@@ -32,6 +31,13 @@ type CallArgs struct {
 	Data            hexutil.Bytes    `json:"data"`
 	GasTokenID      *hexutil.Uint64  `json:"gasTokenId"`
 	TransferTokenID *hexutil.Uint64  `json:"transferTokenId"`
+}
+
+
+type GetAccountDataArgs struct {
+	Address        account.Address   `json:"address"`
+	IncludeShards  *bool             `json:"include_shards"`
+	BlockNr        *int64            `json:"block_nr"`
 }
 
 func (c *CallArgs) setDefaults() {
