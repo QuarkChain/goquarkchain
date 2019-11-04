@@ -1,6 +1,8 @@
 package slave
 
 import (
+	"sync"
+
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/cluster/service"
@@ -10,7 +12,6 @@ import (
 	"github.com/QuarkChain/goquarkchain/params"
 	"github.com/QuarkChain/goquarkchain/rpc"
 	"github.com/ethereum/go-ethereum/event"
-	"sync"
 )
 
 type SlaveBackend struct {
@@ -39,6 +40,7 @@ func New(ctx *service.ServiceContext, clusterCfg *config.ClusterConfig, cfg *con
 		logInfo:       "SlaveBackend",
 	}
 
+	slave.clstrCfg.Quarkchain.SetAllowedToken()
 	fullShardIds := slave.clstrCfg.Quarkchain.GetGenesisShardIds()
 	for _, id := range fullShardIds {
 		if !slave.coverShardId(id) {

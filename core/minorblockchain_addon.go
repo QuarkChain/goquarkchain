@@ -1699,26 +1699,9 @@ func (m *MinorBlockChain) GetMiningInfo(address account.Recipient, stake *types.
 	return
 }
 
-func recoverSender(txs []*types.Transaction, networkID uint32) error {
-	sender := types.NewEIP155Signer(networkID)
-	for _, tx := range txs {
-		_, err := types.Sender(sender, tx.EvmTx)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (m *MinorBlockChain) AddTxList(txs []*types.Transaction) error {
-	if err := recoverSender(txs, m.clusterConfig.Quarkchain.NetworkID); err != nil {
-		return err
-	}
+func (m *MinorBlockChain) AddTxList(txs []*types.Transaction) []error {
+	ts := time.Now()
 	errList := m.txPool.AddLocals(txs)
-	for _, err := range errList {
-		if err != nil {
-			return err
-		}
-	}
-	return nil
+	log.Info(m.logInfo, "AddLocals len", len(txs), "ts", time.Now().Sub(ts).Seconds())
+	return errList
 }

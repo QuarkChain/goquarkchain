@@ -125,14 +125,12 @@ func ValidateTransaction(state vm.StateDB, tx *types.Transaction, fromAddress *a
 		return ErrIntrinsicGas
 	}
 
-	allowTransferTokens := state.GetQuarkChainConfig().AllowedTransferTokenIDs()
-	allowGasTokens := state.GetQuarkChainConfig().AllowedGasTokenIDs()
-	if _, ok := allowTransferTokens[tx.EvmTx.TransferTokenID()]; !ok {
-		return fmt.Errorf("token %v is not allowed transferToken list %v", tx.EvmTx.TransferTokenID(), allowTransferTokens)
+	if ok := state.GetQuarkChainConfig().IsAllowedTokenID(tx.EvmTx.TransferTokenID()); !ok {
+		return fmt.Errorf("token %v is not allowed ", tx.EvmTx.TransferTokenID())
 	}
 
-	if _, ok := allowGasTokens[tx.EvmTx.GasTokenID()]; !ok {
-		return fmt.Errorf("token %v is not allowed gasToken list %v", tx.EvmTx.GasTokenID(), allowGasTokens)
+	if ok := state.GetQuarkChainConfig().IsAllowedTokenID(tx.EvmTx.GasTokenID()); !ok {
+		return fmt.Errorf("token %v is not allowed ", tx.EvmTx.GasTokenID())
 	}
 
 	if tx.EvmTx.TransferTokenID() == tx.EvmTx.GasTokenID() {
