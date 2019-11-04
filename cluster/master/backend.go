@@ -120,7 +120,7 @@ func New(ctx *service.ServiceContext, cfg *config.ClusterConfig) (*QKCMasterBack
 	}
 	log.Debug("Initialised chain configuration", "config", chainConfig)
 
-	if mstr.rootBlockChain, err = core.NewRootBlockChain(mstr.chainDb, cfg.Quarkchain, mstr.engine, nil); err != nil {
+	if mstr.rootBlockChain, err = core.NewRootBlockChain(mstr.chainDb, cfg.Quarkchain, mstr.engine); err != nil {
 		return nil, err
 	}
 

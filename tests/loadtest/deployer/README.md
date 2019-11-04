@@ -50,12 +50,12 @@ Parameters explained:
 - `User` login name; currently only `root` is supported
 - `Password` password
 - `Service` defines type of service(s) you want to run in the host, can be "master", "slave", or "master,slave"; make sure 
-each cluster contains exact one master and at least one slave service.
+each cluster contains exact one master and at least one slave service; make sure the number of slaves in each cluster is a power of 2.
 - `ClusterID` used to specify which cluster the service(s) on the host belongs to; so hosts with same ClusterID belongs 
 to same cluster; ClusterID must be consecutive integers start from 0; if ClusterID is set to 0, the cluster will be 
 started as a bootstrap node
-- `ChainNumber` defines the number of chains in each cluster, each chain has a number of shards 
-- `ShardNumber` defines the number of shards in each cluster (must be power of 2, and an integral multiple of ChainNumber)
+- `CHAIN_SIZE` defines the number of chains in each cluster, where each chain has a number of shards; CHAIN_SIZE must be bigger or equal to the number of slaves.
+- `SHARD_SIZE` defines the number of shards of each chain (must be a power of 2)
 - `TargetRootBlockTime` defines the target block interval of root chain in seconds, since "POW_SIMULATE" is used for consensus
 - `TargetMinorBlockTime` defines the target block interval of each shard
 - `GasLimit` defines the gas limit for a block; note that in-shard transactions uses 50% of the total gas limit in a block

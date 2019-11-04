@@ -26,8 +26,8 @@
       "ClusterID": 2
     }
   ],
-  "ChainNumber": 4,
-  "ShardNumber": 8,
+  "CHAIN_SIZE": 4,
+  "SHARD_SIZE": 8,
   "ExtraClusterConfig": {
     "TargetRootBlockTime": 20,
     "TargetMinorBlockTime": 4,
