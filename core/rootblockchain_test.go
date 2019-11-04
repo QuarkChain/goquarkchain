@@ -39,7 +39,7 @@ func newCanonical(engine consensus.Engine, n int, full bool) (ethdb.Database, *R
 
 	qkcconfig.SkipRootCoinbaseCheck = true
 	// Initialize a fresh chain with only a genesis block
-	blockchain, _ := NewRootBlockChain(db, qkcconfig, engine, nil)
+	blockchain, _ := NewRootBlockChain(db, qkcconfig, engine)
 	// Create and inject the requested chain
 	if n == 0 {
 		return db, blockchain, nil
@@ -98,17 +98,17 @@ func testFork(t *testing.T, blockchain *RootBlockChain, i, n int, full bool, com
 	var tdPre, tdPost *big.Int
 
 	if full {
-		tdPre = blockchain.GetTd(blockchain.CurrentBlock().Hash())
+		tdPre = blockchain.CurrentBlock().TotalDifficulty()
 		if err := testBlockChainImport(blockChainB, blockchain); err != nil {
 			t.Fatalf("failed to import forked block chain: %v", err)
 		}
-		tdPost = blockchain.GetTd(blockChainB[len(blockChainB)-1].Hash())
+		tdPost = blockChainB[len(blockChainB)-1].TotalDifficulty()
 	} else {
-		tdPre = blockchain.GetTd(blockchain.CurrentHeader().Hash())
+		tdPre = blockchain.CurrentHeader().GetTotalDifficulty()
 		if err := testHeaderChainImport(headerChainB, blockchain); err != nil {
 			t.Fatalf("failed to import forked header chain: %v", err)
 		}
-		tdPost = blockchain.GetTd(headerChainB[len(headerChainB)-1].Hash())
+		tdPost = headerChainB[len(headerChainB)-1].ToTalDifficulty
 	}
 	// Compare the total difficulties of the chains
 	comparator(tdPre, tdPost)
@@ -137,7 +137,6 @@ func testBlockChainImport(chain []*types.RootBlock, blockchain *RootBlockChain) 
 			return err
 		}
 		blockchain.mu.Lock()
-		rawdb.WriteTd(blockchain.db, block.Hash(), new(big.Int).Add(block.Difficulty(), blockchain.GetTd(block.ParentHash())))
 		rawdb.WriteRootBlock(blockchain.db, block)
 		blockchain.mu.Unlock()
 	}
@@ -154,7 +153,6 @@ func testHeaderChainImport(chain []*types.RootBlockHeader, blockchain *RootBlock
 		}
 		// Manually insert the header into the database, but don't reorganise (allows subsequent testing)
 		blockchain.mu.Lock()
-		rawdb.WriteTd(blockchain.db, header.Hash(), new(big.Int).Add(header.Difficulty, blockchain.GetTd(header.ParentHash)))
 		rawdb.WriteRootBlockHeader(blockchain.db, header)
 		blockchain.mu.Unlock()
 	}
@@ -421,11 +419,11 @@ func testReorg(t *testing.T, first, second []uint64, td int64, full bool) {
 	// Make sure the chain total difficulty is the correct one
 	want := new(big.Int).Add(blockchain.genesisBlock.Difficulty(), big.NewInt(td))
 	if full {
-		if have := blockchain.GetTd(blockchain.CurrentBlock().Hash()); have.Cmp(want) != 0 {
+		if have := blockchain.CurrentBlock().TotalDifficulty(); have.Cmp(want) != 0 {
 			t.Errorf("total difficulty mismatch for block %d: have %v, want %v", blockchain.CurrentBlock().NumberU64(), have, want)
 		}
 	} else {
-		if have := blockchain.GetTd(blockchain.CurrentHeader().Hash()); have.Cmp(want) != 0 {
+		if have := blockchain.CurrentHeader().GetTotalDifficulty(); have.Cmp(want) != 0 {
 			t.Errorf("total difficulty mismatch for block %d: have %v, want %v", blockchain.CurrentBlock().NumberU64(), have, want)
 		}
 	}
@@ -531,7 +529,7 @@ func TestReorgSideEvent(t *testing.T) {
 		engine  = new(consensus.FakeEngine)
 	)
 
-	blockchain, _ := NewRootBlockChain(db, gspec.qkcConfig, engine, nil)
+	blockchain, _ := NewRootBlockChain(db, gspec.qkcConfig, engine)
 	blockchain.validator = new(fakeRootBlockValidator)
 	defer blockchain.Stop()
 
@@ -674,7 +672,7 @@ func TestBlockchainHeaderchainReorgConsistency(t *testing.T) {
 	diskdb := ethdb.NewMemDatabase()
 	genesis.MustCommitRootBlock(diskdb)
 
-	chain, err := NewRootBlockChain(diskdb, qkcconfig, engine, nil)
+	chain, err := NewRootBlockChain(diskdb, qkcconfig, engine)
 	if err != nil {
 		t.Fatalf("failed to create tester chain: %v", err)
 	}
@@ -723,7 +721,7 @@ func TestTrieForkGC(t *testing.T) {
 	diskdb := ethdb.NewMemDatabase()
 	genesis.MustCommitRootBlock(diskdb)
 
-	chain, err := NewRootBlockChain(diskdb, qkcconfig, engine, nil)
+	chain, err := NewRootBlockChain(diskdb, qkcconfig, engine)
 	if err != nil {
 		t.Fatalf("failed to create tester chain: %v", err)
 	}
@@ -761,7 +759,7 @@ func TestLargeReorgTrieGC(t *testing.T) {
 	diskdb := ethdb.NewMemDatabase()
 	genesis.MustCommitRootBlock(diskdb)
 
-	chain, err := NewRootBlockChain(diskdb, qkcconfig, engine, nil)
+	chain, err := NewRootBlockChain(diskdb, qkcconfig, engine)
 	if err != nil {
 		t.Fatalf("failed to create tester chain: %v", err)
 	}
@@ -813,7 +811,7 @@ func TestGetBlockCnt(t *testing.T) {
 	})
 
 	// Import the chain. This runs all block validation rules.
-	blockchain, err := NewRootBlockChain(db, qkcconfig, engine, nil)
+	blockchain, err := NewRootBlockChain(db, qkcconfig, engine)
 	if err != nil {
 		fmt.Printf("new root block chain error %v\n", err)
 		return
@@ -862,7 +860,7 @@ func benchmarkLargeNumberOfValueToNonexisting(b *testing.B, numItems, numBlocks 
 		diskdb := ethdb.NewMemDatabase()
 		gspec.MustCommitRootBlock(diskdb)
 
-		chain, err := NewRootBlockChain(diskdb, qkcconfig, engine, nil)
+		chain, err := NewRootBlockChain(diskdb, qkcconfig, engine)
 		chain.validator = new(fakeRootBlockValidator)
 		if err != nil {
 			b.Fatalf("failed to create tester chain: %v", err)
