@@ -206,7 +206,7 @@ func (p *PublicBlockChainAPI) GetAccountData(getAccount GetAccount) (map[string]
 		includeShards = &t
 	}
 	if !(*includeShards) {
-		accountBranchData, err := p.getPrimaryAccountData(address, nil)
+		accountBranchData, err := p.getPrimaryAccountData(address, blockNr)
 		if err != nil {
 			return nil, err
 		}
