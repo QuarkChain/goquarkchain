@@ -191,7 +191,7 @@ func newRootBlockChain(sz int) blockchain {
 	qkcconfig.SkipRootCoinbaseCheck = true
 	db := ethdb.NewMemDatabase()
 	genesisBlock := genesis.MustCommitRootBlock(db)
-	blockchain, err := core.NewRootBlockChain(db, qkcconfig, engine, nil)
+	blockchain, err := core.NewRootBlockChain(db, qkcconfig, engine)
 	if err != nil {
 		panic(fmt.Sprintf("failed to generate root blockchain: %v", err))
 	}
