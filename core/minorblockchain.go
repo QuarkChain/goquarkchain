@@ -311,17 +311,18 @@ func (m *MinorBlockChain) loadLastState() error {
 
 	return nil
 }
-func (m *MinorBlockChain) SetHead(head uint64) error {
-	m.chainmu.Lock()
-	defer m.chainmu.Unlock()
-	return m.setHead(head)
-}
 
 // SetHead rewinds the local chain to a new head. In the case of Headers, everything
 // above the new head will be deleted and the new one set. In the case of blocks
 // though, the head may be further rewound if block bodies are missing (non-archive
 // nodes after a fast sync).
 // already have locked
+func (m *MinorBlockChain) SetHead(head uint64) error {
+	m.chainmu.Lock()
+	defer m.chainmu.Unlock()
+	return m.setHead(head)
+}
+
 func (m *MinorBlockChain) setHead(head uint64) error {
 	log.Warn("Rewinding blockchain", "target", head)
 	// Rewind the header chain, deleting all block bodies until then
