@@ -431,7 +431,6 @@ func (m *MinorBlockChain) getEvmStateForNewBlock(mHeader types.IHeader, ephemera
 	if ephemeral {
 		evmState = evmState.Copy()
 	}
-	m.setEvmStateWithHeader(evmState, mHeader.(*types.MinorBlockHeader))
 	return evmState, nil
 }
 
@@ -1343,7 +1342,7 @@ func (m *MinorBlockChain) getPendingTxByAddress(address account.Address, transfe
 			}
 			txList = append(txList, &rpc.TransactionDetail{
 				TxHash:          tx.Hash(),
-				FromAddress:     address,
+				FromAddress:     account.NewAddress(account.BytesToIdentityRecipient(sender.Bytes()), tx.EvmTx.FromFullShardKey()),
 				ToAddress:       to,
 				Value:           serialize.Uint256{Value: tx.EvmTx.Value()},
 				BlockHeight:     0,
