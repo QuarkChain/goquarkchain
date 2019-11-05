@@ -607,20 +607,27 @@ func (s *SlaveServerSideOp) AddTransactions(ctx context.Context, req *rpc.Reques
 	ts := time.Now()
 	var (
 		gReq     rpc.NewTransactionList
-		gRes     rpc.HashList
+		gRes     = rpc.HashList{}
 		response = &rpc.Response{RpcId: req.RpcId}
+		txsMsg   p2p.NewTransactionList
 		err      error
 	)
 
 	if err = serialize.DeserializeFromBytes(req.Data, &gReq); err != nil {
 		return nil, err
 	}
+
 	if len(gReq.TransactionList) > params.NEW_TRANSACTION_LIST_LIMIT {
 		return nil, errors.New("too many txs in one command")
 	}
 
+	err = serialize.DeserializeFromBytes(gReq.TransactionList, &txsMsg)
+	if err != nil {
+		return nil, err
+	}
+
 	//must use single thread here
-	errList, err := s.slave.AddTxList(gReq.TransactionList, gReq.PeerID)
+	errList, err := s.slave.AddTxList(gReq.Branch, txsMsg.TransactionList, gReq.PeerID)
 	if err != nil {
 		return nil, err
 	}
@@ -628,9 +635,11 @@ func (s *SlaveServerSideOp) AddTransactions(ctx context.Context, req *rpc.Reques
 	if len(errList) != len(gReq.TransactionList) {
 		return nil, errors.New("errList != txList")
 	}
-	for index, tx := range gReq.TransactionList {
+
+	gRes.TransactionList = make([]*types.Transaction, 0, len(txsMsg.TransactionList))
+	for index, tx := range txsMsg.TransactionList {
 		if errList[index] == nil {
-			gRes.Hashes = append(gRes.Hashes, tx.Hash())
+			gRes.TransactionList = append(gRes.TransactionList, tx)
 		}
 	}
 

@@ -225,12 +225,12 @@ func (pm *ProtocolManager) handleMsg(peer *Peer) error {
 		return pm.HandleNewMinorTip(qkcMsg.MetaData.Branch, &tip, peer)
 
 	case qkcMsg.Op == p2p.NewTransactionListMsg:
+		if qkcMsg.MetaData.Branch != 0 {
+			return pm.HandleNewTransactionListRequest(peer.id, qkcMsg.RpcID, qkcMsg.MetaData.Branch, qkcMsg.Data)
+		}
 		var trans p2p.NewTransactionList
 		if err := serialize.DeserializeFromBytes(qkcMsg.Data, &trans); err != nil {
 			return err
-		}
-		if qkcMsg.MetaData.Branch != 0 {
-			return pm.HandleNewTransactionListRequest(peer.id, qkcMsg.RpcID, qkcMsg.MetaData.Branch, &trans)
 		}
 		branchTxMap := make(map[uint32][]*types.Transaction)
 		for _, tx := range trans.TransactionList {
@@ -245,7 +245,11 @@ func (pm *ProtocolManager) handleMsg(peer *Peer) error {
 		}
 		// todo make them run in Parallelized
 		for branch, list := range branchTxMap {
-			if err := pm.HandleNewTransactionListRequest(peer.id, qkcMsg.RpcID, branch, &p2p.NewTransactionList{TransactionList: list}); err != nil {
+			data, err := serialize.SerializeToBytes(&p2p.NewTransactionList{TransactionList: list})
+			if err != nil {
+				return err
+			}
+			if err := pm.HandleNewTransactionListRequest(peer.id, qkcMsg.RpcID, branch, data); err != nil {
 				return err
 			}
 		}
@@ -604,9 +608,10 @@ func (pm *ProtocolManager) HandleGetRootBlockHeaderListWithSkipRequest(peerId st
 	return &p2p.GetRootBlockHeaderListResponse{RootTip: rTip, BlockHeaderList: headerlist}, nil
 }
 
-func (pm *ProtocolManager) HandleNewTransactionListRequest(peerId string, rpcId uint64, branch uint32, request *p2p.NewTransactionList) error {
+func (pm *ProtocolManager) HandleNewTransactionListRequest(peerId string, rpcId uint64, branch uint32, data []byte) error {
 	req := &rpc.NewTransactionList{
-		TransactionList: request.TransactionList,
+		Branch:          branch,
+		TransactionList: data,
 		PeerID:          peerId,
 	}
 	clients := pm.slaveConns.GetSlaveConnsById(branch)
@@ -614,8 +619,6 @@ func (pm *ProtocolManager) HandleNewTransactionListRequest(peerId string, rpcId 
 		return fmt.Errorf("invalid branch %d for rpc request %d", rpcId, branch)
 	}
 	go func() {
-		var hashList []common.Hash
-		sameResponse := true
 		// todo make the client call in Parallelized
 		for _, client := range clients {
 			result, err := client.AddTransactions(req)
@@ -623,36 +626,7 @@ func (pm *ProtocolManager) HandleNewTransactionListRequest(peerId string, rpcId 
 				log.Error("addTransaction err", "branch", branch, "HandleNewTransactionListRequest failed with error: ", err.Error())
 				return
 			}
-			if hashList == nil {
-				if result != nil {
-					hashList = result.Hashes
-				}
-			} else if len(hashList) != len(result.Hashes) {
-				sameResponse = false
-			} else {
-				for i := 0; i < len(hashList); i++ {
-					if hashList[i] != result.Hashes[i] {
-						sameResponse = false
-						break
-					}
-				}
-			}
-		}
-
-		if !sameResponse {
-			panic("same shard in different slave is inconsistent")
-		}
-		if len(hashList) > 0 {
-			tx2broadcast := make([]*types.Transaction, 0, len(request.TransactionList))
-			for _, tx := range request.TransactionList {
-				for _, hash := range hashList {
-					if tx.Hash() == hash {
-						tx2broadcast = append(tx2broadcast, tx)
-						break
-					}
-				}
-			}
-			pm.BroadcastTransactions(branch, tx2broadcast, peerId)
+			pm.BroadcastTransactions(branch, result.TransactionList, peerId)
 		}
 	}()
 

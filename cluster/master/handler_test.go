@@ -422,10 +422,6 @@ func TestBroadcastTransactions(t *testing.T) {
 	fakeConnMngr := newFakeConnManager(1, ctrl)
 	pm, _ := newTestProtocolManagerMust(t, 15, nil, NewFakeSynchronizer(1), fakeConnMngr)
 	txs := newTestTransactionList(10)
-	hashList := make([]common.Hash, 0, len(txs))
-	for _, tx := range txs {
-		hashList = append(hashList, tx.Hash())
-	}
 	peer, err := newTestPeer("peer", int(qkcconfig.P2PProtocolVersion), pm, true)
 	assert.NoError(t, err)
 
@@ -436,7 +432,7 @@ func TestBroadcastTransactions(t *testing.T) {
 		conn.(*mock_master.MockISlaveConn).EXPECT().
 			AddTransactions(gomock.Any()).DoAndReturn(func(request *rpc.NewTransactionList) (*rpc.HashList, error) {
 			errc <- nil
-			return &rpc.HashList{Hashes: hashList}, nil
+			return &rpc.HashList{TransactionList: txs}, nil
 		}).AnyTimes()
 	}
 	err = clientPeer.SendTransactions(2, txs)
