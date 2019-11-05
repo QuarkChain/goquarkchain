@@ -3,6 +3,9 @@ package sync
 import (
 	"errors"
 	"fmt"
+	"math/rand"
+	"testing"
+
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
 	qcom "github.com/QuarkChain/goquarkchain/common"
@@ -13,8 +16,6 @@ import (
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/stretchr/testify/assert"
-	"math/rand"
-	"testing"
 )
 
 func (p *mockpeer) GetMinorBlockHeaderList(req *rpc.GetMinorBlockHeaderListWithSkipRequest) ([]*types.MinorBlockHeader, error) {
@@ -103,6 +104,7 @@ func newMinorBlockChain(sz int) (blockchain, ethdb.Database) {
 	if err != nil {
 		panic(fmt.Sprintf("failed to create minor blockchain: %v", err))
 	}
+	defer blockchain.Stop()
 	_, err = blockchain.InitGenesisState(rootBlock)
 	if err != nil {
 		panic(fmt.Sprintf("failed to init minor blockchain: %v", err))
