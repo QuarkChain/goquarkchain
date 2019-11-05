@@ -3,6 +3,7 @@ package qkcapi
 import (
 	"errors"
 	"math/big"
+	"github.com/QuarkChain/goquarkchain/rpc"
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/core/types"
@@ -37,7 +38,7 @@ type CallArgs struct {
 type GetAccountDataArgs struct {
 	Address        account.Address   `json:"address"`
 	IncludeShards  *bool             `json:"include_shards"`
-	BlockNr        *int64            `json:"block_nr"`
+	BlockNr         *rpc.BlockNumber            `json:"block_nr"`
 }
 
 func (c *CallArgs) setDefaults() {
