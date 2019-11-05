@@ -6,9 +6,10 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"github.com/ethereum/go-ethereum/crypto"
 	"math/big"
 	"testing"
+
+	"github.com/ethereum/go-ethereum/crypto"
 )
 
 type IdentityTestStruct struct {
@@ -24,7 +25,7 @@ func CheckIdentityUnitTest(data IdentityTestStruct) bool {
 		return false
 	}
 	keyType := BytesToIdentityKey(key)
-	identity, err := CreatIdentityFromKey(keyType)
+	identity, err := CreatIdentityFromKey(data.Key)
 	if err := checkPublicToRecipient(keyType, identity.recipient); err != nil {
 		fmt.Println("checkPublicToRecipient err", err)
 		return false

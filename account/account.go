@@ -7,11 +7,12 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"io"
+	"io/ioutil"
+
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/pborman/uuid"
 	"golang.org/x/crypto/pbkdf2"
-	"io"
-	"io/ioutil"
 )
 
 // Account include Identity  address and ID
@@ -53,7 +54,7 @@ func newAccount(identity Identity, address Address) Account {
 }
 
 // NewAccountWithKey create new account with key
-func NewAccountWithKey(key Key) (Account, error) {
+func NewAccountWithKey(key string) (Account, error) {
 	identity, err := CreatIdentityFromKey(key)
 	if err != nil {
 		return Account{}, err
@@ -98,11 +99,7 @@ func Load(path string, password string) (Account, error) {
 		return Account{}, err
 	}
 
-	keyTypeData := BytesToIdentityKey(key)
-	if err != nil {
-		return Account{}, err
-	}
-	account, err := NewAccountWithKey(keyTypeData)
+	account, err := NewAccountWithKey(hex.EncodeToString(key))
 	if err != nil {
 		return Account{}, err
 	}

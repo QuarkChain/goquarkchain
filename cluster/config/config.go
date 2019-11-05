@@ -3,12 +3,13 @@ package config
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/QuarkChain/goquarkchain/params"
 	"math/big"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/QuarkChain/goquarkchain/params"
 
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/ethereum/go-ethereum/common"
@@ -376,8 +377,7 @@ func LoadtestAccounts(genesisDir string) []*account.Account {
 		return nil
 	}
 	for _, item := range items {
-		key := account.BytesToIdentityKey(common.FromHex(item.PrivKey))
-		acc, err := account.NewAccountWithKey(key)
+		acc, err := account.NewAccountWithKey(item.PrivKey)
 		if err != nil {
 			log.Error("create account by key", "err", err)
 			return nil

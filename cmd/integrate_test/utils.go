@@ -2,17 +2,17 @@ package test
 
 import (
 	"crypto/ecdsa"
+	"math/big"
+	"net"
+	"strings"
+
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cmd/utils"
 	qkcCommon "github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/p2p"
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/p2p/enode"
-	"math/big"
-	"net"
-	"strings"
 )
 
 var (
@@ -78,8 +78,7 @@ func getAccByIndex(idx int) *account.Account {
 		return nil
 	}
 	if geneAccList[idx] == nil {
-		key := account.BytesToIdentityKey(common.FromHex(privStrs[idx]))
-		acc, err := account.NewAccountWithKey(key)
+		acc, err := account.NewAccountWithKey(privStrs[idx])
 		if err != nil {
 			utils.Fatalf("failed to create account by private key", "privkey: ", privStrs[idx], "err", err)
 		}

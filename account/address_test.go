@@ -4,8 +4,9 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"github.com/stretchr/testify/assert"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 type AddressTestStruct struct {
@@ -39,13 +40,10 @@ func CheckAddressUnitTest(data AddressTestStruct) bool {
 			return false
 		}
 	case "identity":
-		tkey, err := hex.DecodeString(data.TKey) //create address from special key
+		tIdentity, err := CreatIdentityFromKey(data.TKey)
 		if err != nil {
-			fmt.Println("decodeString tKey failed err", err)
 			return false
 		}
-		keyType := BytesToIdentityKey(tkey)
-		tIdentity, err := CreatIdentityFromKey(keyType)
 		tAddress = CreatAddressFromIdentity(tIdentity, data.FullShardKey)
 	}
 
