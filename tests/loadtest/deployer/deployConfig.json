@@ -2,23 +2,32 @@
   "DockerName": "quarkchaindocker/goquarkchain",
   "Hosts": [
     {
-      "IP": "x.x.x.x",
+      "IP": "xxx.xxx.xxx.xxx",
       "Port": 22,
       "User": "root",
-      "Password": "xxx",
+      "Password": "xxxxxxx",
       "Service": "master,slave",
       "ClusterID": 0
-    }, {
-      "IP": "x.x.x.x",
+    },
+    {
+      "IP": "xxx.xxx.xxx.xxx",
       "Port": 22,
       "User": "root",
-      "Password": "xxx",
+      "Password": "xxxxxxx",
       "Service": "master,slave",
       "ClusterID": 1
+    },
+    {
+      "IP": "xxx.xxx.xxx.xxx",
+      "Port": 22,
+      "User": "root",
+      "Password": "xxxxxxx",
+      "Service": "master,slave",
+      "ClusterID": 2
     }
   ],
-  "ChainNumber": 4,
-  "ShardNumber": 8,
+  "CHAIN_SIZE": 4,
+  "SHARD_SIZE": 8,
   "ExtraClusterConfig": {
     "TargetRootBlockTime": 20,
     "TargetMinorBlockTime": 4,
