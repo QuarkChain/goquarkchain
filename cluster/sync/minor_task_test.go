@@ -104,7 +104,6 @@ func newMinorBlockChain(sz int) (blockchain, ethdb.Database) {
 	if err != nil {
 		panic(fmt.Sprintf("failed to create minor blockchain: %v", err))
 	}
-	defer blockchain.Stop()
 	_, err = blockchain.InitGenesisState(rootBlock)
 	if err != nil {
 		panic(fmt.Sprintf("failed to init minor blockchain: %v", err))
@@ -122,6 +121,7 @@ func TestMinorChainTask(t *testing.T) {
 	v := &mockvalidator{}
 	bc.(*mockblockchain).validator = v
 	mbc := bc.(*mockblockchain).mbc
+	defer mbc.Stop()
 
 	retMBlocks, retMHeaders := makeMinorChains(mbc.GetBlockByNumber(0).(*types.MinorBlock), 20, db, false)
 

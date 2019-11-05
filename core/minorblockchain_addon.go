@@ -431,6 +431,7 @@ func (m *MinorBlockChain) getEvmStateForNewBlock(mHeader types.IHeader, ephemera
 	if ephemeral {
 		evmState = evmState.Copy()
 	}
+	m.setEvmStateWithHeader(evmState, mHeader.(*types.MinorBlockHeader))
 	return evmState, nil
 }
 
