@@ -1,6 +1,7 @@
 package qkcapi
 
 import (
+	"encoding/json"
 	"errors"
 	"math/big"
 
@@ -14,12 +15,25 @@ import (
 
 // CallArgs represents the arguments for a call.
 type EthCallArgs struct {
-	From     common.Address  `json:"from"`
-	To       *common.Address `json:"to"`
-	Gas      hexutil.Uint64  `json:"gas"`
-	GasPrice hexutil.Big     `json:"gasPrice"`
-	Value    hexutil.Big     `json:"value"`
-	Data     hexutil.Bytes   `json:"data"`
+	From     account.Address  `json:"from"`
+	To       *account.Address `json:"to"`
+	Gas      hexutil.Uint64   `json:"gas"`
+	GasPrice hexutil.Big      `json:"gasPrice"`
+	Value    hexutil.Big      `json:"value"`
+	Data     hexutil.Bytes    `json:"data"`
+}
+
+func (e *EthCallArgs) UnmarshalJSON(data []byte) error {
+	var args EthCallArgs
+	if err := json.Unmarshal(data, &args); err != nil {
+		return err
+	}
+	if args.To == nil {
+		to := account.CreatEmptyAddress(args.From.FullShardKey)
+		args.To = &to
+	}
+	e = &args
+	return nil
 }
 
 // CallArgs represents the arguments for a call.
@@ -40,6 +54,7 @@ func (c *CallArgs) setDefaults() {
 		c.From = &temp
 	}
 }
+
 func (c *CallArgs) toTx(config *config.QuarkChainConfig) (*types.Transaction, error) {
 	gasTokenID, transferTokenID := config.GetDefaultChainTokenID(), config.GetDefaultChainTokenID()
 	if c.GasTokenID != nil {

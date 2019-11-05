@@ -198,10 +198,11 @@ func (tx *EvmTransaction) GasTokenID() uint64 {
 func (tx *EvmTransaction) TransferTokenID() uint64 {
 	return tx.data.TransferTokenID
 }
-func (tx *EvmTransaction) FromFullShardKey() uint32 { return tx.data.FromFullShardKey.GetValue() }
-func (tx *EvmTransaction) ToFullShardKey() uint32   { return tx.data.ToFullShardKey.GetValue() }
-func (tx *EvmTransaction) FromChainID() uint32      { return tx.data.FromFullShardKey.GetValue() >> 16 }
-func (tx *EvmTransaction) ToChainID() uint32        { return tx.data.ToFullShardKey.GetValue() >> 16 }
+func (tx *EvmTransaction) SetFromFullShardKey(key uint32) { k := Uint32(key); tx.data.FromFullShardKey = &k }
+func (tx *EvmTransaction) FromFullShardKey() uint32       { return tx.data.FromFullShardKey.GetValue() }
+func (tx *EvmTransaction) ToFullShardKey() uint32         { return tx.data.ToFullShardKey.GetValue() }
+func (tx *EvmTransaction) FromChainID() uint32            { return tx.data.FromFullShardKey.GetValue() >> 16 }
+func (tx *EvmTransaction) ToChainID() uint32              { return tx.data.ToFullShardKey.GetValue() >> 16 }
 func (tx *EvmTransaction) FromShardSize() uint32 {
 	return tx.FromShardsize
 }
@@ -334,6 +335,19 @@ type Transaction struct {
 	EvmTx  *EvmTransaction
 
 	hash atomic.Value
+}
+
+func (tx *Transaction) CopyEvmTx() (*Transaction, error) {
+	data, err := serialize.SerializeToBytes(tx)
+	if err != nil {
+		return nil, err
+	}
+	var evmTx Transaction
+	err = serialize.DeserializeFromBytes(data, &evmTx)
+	if err != nil {
+		return nil, err
+	}
+	return &evmTx, nil
 }
 
 func (tx *Transaction) Serialize(w *[]byte) error {

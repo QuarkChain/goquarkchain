@@ -570,7 +570,11 @@ func TestEstimateGas(t *testing.T) {
 	}
 	data, err := master.EstimateGas(tx, &add1)
 	assert.NoError(t, err)
-	assert.Equal(t, data, uint32(123))
+	if !tx.EvmTx.IsCrossShard() {
+		assert.Equal(t, data, uint32(123))
+	} else {
+		assert.Equal(t, data, uint32(123+9000))
+	}
 
 	evmTx = types.NewEvmTransaction(0, id1.GetRecipient(), new(big.Int), 0, new(big.Int), 2222222, 2, 1, 0, []byte{}, 0, 0)
 	tx = &types.Transaction{
