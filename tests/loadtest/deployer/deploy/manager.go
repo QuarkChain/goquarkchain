@@ -138,7 +138,6 @@ func (t *ToolManager) SendFileToCluster() {
 	for _, session := range t.SSHSession[t.ClusterIndex] {
 		v := session
 		g.Go(func() error {
-			v.RunCmd("apt-get install docker.io -y")
 			v.RunCmd("rm -rf  /tmp/QKC")
 			v.RunCmd("mkdir /tmp/QKC")
 
