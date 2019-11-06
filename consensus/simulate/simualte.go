@@ -32,7 +32,7 @@ func (p *PowSimulate) RefreshWork(tip uint64) {
 }
 
 func (p *PowSimulate) hashAlgo(cache *consensus.ShareCache) error {
-	timeAfterCreateTime := uint64(time.Now().Add(500*time.Millisecond).Second()) - cache.BlockTime
+	timeAfterCreateTime := uint64(time.Now().Add(500*time.Millisecond).Unix()) - cache.BlockTime
 	if p.blockInterval > 2*timeAfterCreateTime {
 		time.Sleep(time.Duration(p.blockInterval-2*timeAfterCreateTime) * time.Second)
 	}
