@@ -784,14 +784,14 @@ func (e *EthBlockChainAPI) GetBalance(address common.Address, fullShardKey *hexu
 	balance := data.Balance.GetTokenBalance(qcom.TokenIDEncode(DefaultTokenID))
 	return (*hexutil.Big)(balance), nil
 }
+
 func (e *EthBlockChainAPI) GetTransactionCount(address common.Address, fullShardKey string) (hexutil.Uint64, error) {
 
 	fullShard, err := strconv.ParseUint(fullShardKey, 0, 16)
 	if err != nil {
 		return 0, err
 	}
-	fullShardUnit := uint(fullShard)
-	fullShardId, err := getFullShardId((*hexutil.Uint)(&fullShardUnit))
+	fullShardId, err := clusterCfg.Quarkchain.GetFullShardIdByFullShardKey(uint32(fullShard))
 	if err != nil {
 		return hexutil.Uint64(0), err
 	}
