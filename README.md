@@ -145,10 +145,9 @@ cd $GOPATH/src/github.com/QuarkChain/goquarkchain/cmd/cluster
 ```
 Next, start the `master` service of bootstrap cluster, optionally providing a private key:
 ```bash
-cd $GOPATH/src/github.com/QuarkChain/goquarkchain/cmd/cluser
 ./cluster --cluster_config $CLUSTER_CONFIG_FILE --privkey=$BOOTSTRAP_PRIV_KEY
 ```
-You can read the full boot node URL from the console output in format: `enode://$BOOTSTRAP_PUB_KEY@$BOOTSTRAP_IP:$BOOTSTRAP_DISCOVERY_PORT`. 
+You can copy the full boot node URL from the console output in format: `enode://$BOOTSTRAP_PUB_KEY@$BOOTSTRAP_IP:$BOOTSTRAP_DISCOVERY_PORT`. 
 
 Here is an example:
 
