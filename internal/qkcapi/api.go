@@ -194,8 +194,9 @@ func (p *PublicBlockChainAPI) GetBalances(address account.Address, blockNr *rpc.
 	return fields, nil
 }
 
-func (p *PublicBlockChainAPI) GetAccountData(address account.Address, blockNr *rpc.BlockNumber, includeShards *bool) (map[string]interface{}, error) {
-	if includeShards != nil && blockNr == nil {
+func (p *PublicBlockChainAPI) GetAccountData( args GetAccountDataArgs) (map[string]interface{}, error) {
+	address, blockNr, includeShards :=  args.Address,  args.BlockNr,  args.IncludeShards
+	if includeShards != nil && blockNr != nil {
 		return nil, errors.New("do not allow specify height if client wants info on all shards")
 	}
 	if includeShards == nil {
