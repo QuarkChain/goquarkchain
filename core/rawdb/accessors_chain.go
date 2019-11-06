@@ -304,7 +304,6 @@ func ReadRootBlock(db DatabaseReader, hash common.Hash) *types.RootBlock {
 
 // WriteRootBlock storea a block rootBlockBody into the database.
 func WriteRootBlock(db DatabaseWriter, block *types.RootBlock) {
-	WriteRootBlockHeader(db, block.Header())
 	data, err := serialize.SerializeToBytes(block)
 	if err != nil {
 		log.Crit("Failed to serialize RootBlock", "err", err)
@@ -418,10 +417,8 @@ func DeleteMinorBlock(db DatabaseDeleter, hash common.Hash) {
 
 // DeleteRootBlock removes all block data associated with a hash.
 func DeleteRootBlock(db DatabaseDeleter, hash common.Hash) {
-	DeleteRootBlockHeader(db, hash)
 	DeleteLatestMinorBlockHeaders(db, hash)
 	DeleteBlock(db, hash)
-	DeleteTd(db, hash)
 }
 
 func WriteRootBlockCommittingHash(db DatabaseWriter, hash common.Hash) {

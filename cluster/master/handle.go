@@ -503,7 +503,7 @@ func (pm *ProtocolManager) HandleNewMinorTip(branch uint32, tip *p2p.Tip, peer *
 }
 
 func (pm *ProtocolManager) HandleGetRootBlockHeaderListRequest(req *p2p.GetRootBlockHeaderListRequest) (*p2p.GetRootBlockHeaderListResponse, error) {
-	if !pm.rootBlockChain.HasHeader(req.BlockHash) {
+	if !pm.rootBlockChain.HasBlock(req.BlockHash) {
 		return nil, fmt.Errorf("hash %v do not exist", req.BlockHash.Hex())
 	}
 	if req.Limit == 0 || req.Limit > 2*qkcsync.RootBlockHeaderListLimit {

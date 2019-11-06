@@ -28,9 +28,8 @@ var (
 )
 
 // newCanonical creates a chain database, and injects a deterministic canonical
-// chain. Depending on the full flag, if creates either a full block chain or a
-// header only chain.
-func newCanonical(engine consensus.Engine, n int, full bool) (ethdb.Database, *RootBlockChain, error) {
+// chain.
+func newCanonical(engine consensus.Engine, n int) (ethdb.Database, *RootBlockChain, error) {
 	var (
 		db           = ethdb.NewMemDatabase()
 		genesis      = NewGenesis(qkcconfig)
@@ -44,72 +43,43 @@ func newCanonical(engine consensus.Engine, n int, full bool) (ethdb.Database, *R
 	if n == 0 {
 		return db, blockchain, nil
 	}
-	if full {
-		// Full block-chain requested
-		blocks := makeRootBlockChain(genesisBlock, n, engine, canonicalSeed)
-		_, err := blockchain.InsertChain(ToBlocks(blocks))
-		return db, blockchain, err
-	}
-	// Header-only chain requested
-	headers := makeRootBlockHeaderChain(genesisBlock.Header(), n, engine, canonicalSeed)
-	_, err := blockchain.InsertHeaderChain(headers, 1)
+	blocks := makeRootBlockChain(genesisBlock, n, engine, canonicalSeed)
+	_, err := blockchain.InsertChain(ToBlocks(blocks))
 	return db, blockchain, err
 }
 
 // Test fork of length N starting from block i
-func testFork(t *testing.T, blockchain *RootBlockChain, i, n int, full bool, comparator func(td1, td2 *big.Int)) {
+func testFork(t *testing.T, blockchain *RootBlockChain, i, n int, comparator func(td1, td2 *big.Int)) {
 	// Copy old chain up to #i into a new db
 	engine := new(consensus.FakeEngine)
-	_, blockchain2, err := newCanonical(engine, i, full)
+	_, blockchain2, err := newCanonical(engine, i)
 	if err != nil {
 		t.Fatal("could not make new canonical in testFork", err)
 	}
 	defer blockchain2.Stop()
 
 	// Assert the chains have the same header/block at #i
-	var hash1, hash2 common.Hash
-	if full {
-		hash1 = blockchain.GetBlockByNumber(uint64(i)).Hash()
-		hash2 = blockchain2.GetBlockByNumber(uint64(i)).Hash()
-	} else {
-		hash1 = blockchain.GetHeaderByNumber(uint64(i)).Hash()
-		hash2 = blockchain2.GetHeaderByNumber(uint64(i)).Hash()
-	}
+	hash1 := blockchain.GetBlockByNumber(uint64(i)).Hash()
+	hash2 := blockchain2.GetBlockByNumber(uint64(i)).Hash()
 	if hash1 != hash2 {
 		t.Errorf("chain content mismatch at %d: have hash %v, want hash %v", i, hash2, hash1)
 	}
 	// Extend the newly created chain
 	var (
-		blockChainB  []*types.RootBlock
-		headerChainB []*types.RootBlockHeader
+		blockChainB []*types.RootBlock
 	)
-	if full {
-		blockChainB = makeRootBlockChain(blockchain2.CurrentBlock(), n, engine, forkSeed)
-		if _, err := blockchain2.InsertChain(ToBlocks(blockChainB)); err != nil {
-			t.Fatalf("failed to insert forking chain: %v", err)
-		}
-	} else {
-		headerChainB = makeRootBlockHeaderChain(blockchain2.CurrentHeader().(*types.RootBlockHeader), n, engine, forkSeed)
-		if _, err := blockchain2.InsertHeaderChain(headerChainB, 1); err != nil {
-			t.Fatalf("failed to insert forking chain: %v", err)
-		}
+	blockChainB = makeRootBlockChain(blockchain2.CurrentBlock(), n, engine, forkSeed)
+	if _, err := blockchain2.InsertChain(ToBlocks(blockChainB)); err != nil {
+		t.Fatalf("failed to insert forking chain: %v", err)
 	}
 	// Sanity check that the forked chain can be imported into the original
 	var tdPre, tdPost *big.Int
 
-	if full {
-		tdPre = blockchain.CurrentBlock().TotalDifficulty()
-		if err := testBlockChainImport(blockChainB, blockchain); err != nil {
-			t.Fatalf("failed to import forked block chain: %v", err)
-		}
-		tdPost = blockChainB[len(blockChainB)-1].TotalDifficulty()
-	} else {
-		tdPre = blockchain.CurrentHeader().GetTotalDifficulty()
-		if err := testHeaderChainImport(headerChainB, blockchain); err != nil {
-			t.Fatalf("failed to import forked header chain: %v", err)
-		}
-		tdPost = headerChainB[len(headerChainB)-1].ToTalDifficulty
+	tdPre = blockchain.CurrentBlock().TotalDifficulty()
+	if err := testBlockChainImport(blockChainB, blockchain); err != nil {
+		t.Fatalf("failed to import forked block chain: %v", err)
 	}
+	tdPost = blockChainB[len(blockChainB)-1].TotalDifficulty()
 	// Compare the total difficulties of the chains
 	comparator(tdPre, tdPost)
 }
@@ -170,7 +140,7 @@ func insertCdhain(done chan bool, blockchain *RootBlockChain, chain []types.IBlo
 
 func TestLastBlock(t *testing.T) {
 	engine := new(consensus.FakeEngine)
-	_, blockchain, err := newCanonical(engine, 0, true)
+	_, blockchain, err := newCanonical(engine, 0)
 	if err != nil {
 		t.Fatalf("failed to create pristine chain: %v", err)
 	}
@@ -187,14 +157,12 @@ func TestLastBlock(t *testing.T) {
 
 // Tests that given a starting canonical chain of a given size, it can be extended
 // with various length chains.
-func TestExtendCanonicalHeaders(t *testing.T) { testExtendCanonical(t, false) }
-func TestExtendCanonicalBlocks(t *testing.T)  { testExtendCanonical(t, true) }
 
-func testExtendCanonical(t *testing.T, full bool) {
+func TestExtendCanonicalBlocks(t *testing.T) {
 	length := 5
 	engine := new(consensus.FakeEngine)
 	// Make first chain starting from genesis
-	_, processor, err := newCanonical(engine, length, full)
+	_, processor, err := newCanonical(engine, length)
 	if err != nil {
 		t.Fatalf("failed to make new canonical chain: %v", err)
 	}
@@ -207,22 +175,19 @@ func testExtendCanonical(t *testing.T, full bool) {
 		}
 	}
 	// Start fork from current height
-	testFork(t, processor, length, 1, full, better)
-	testFork(t, processor, length, 2, full, better)
-	testFork(t, processor, length, 5, full, better)
-	testFork(t, processor, length, 10, full, better)
+	testFork(t, processor, length, 1, better)
+	testFork(t, processor, length, 2, better)
+	testFork(t, processor, length, 5, better)
+	testFork(t, processor, length, 10, better)
 }
 
 // Tests that given a starting canonical chain of a given size, creating shorter
 // forks do not take canonical ownership.
-func TestShorterForkHeaders(t *testing.T) { testShorterFork(t, false) }
-func TestShorterForkBlocks(t *testing.T)  { testShorterFork(t, true) }
-
-func testShorterFork(t *testing.T, full bool) {
+func TestShorterForkBlocks(t *testing.T) {
 	length := 10
 	engine := new(consensus.FakeEngine)
 	// Make first chain starting from genesis
-	_, processor, err := newCanonical(engine, length, full)
+	_, processor, err := newCanonical(engine, length)
 	if err != nil {
 		t.Fatalf("failed to make new canonical chain: %v", err)
 	}
@@ -235,24 +200,21 @@ func testShorterFork(t *testing.T, full bool) {
 		}
 	}
 	// Sum of numbers must be less than `length` for this to be a shorter fork
-	testFork(t, processor, 0, 3, full, worse)
-	testFork(t, processor, 0, 7, full, worse)
-	testFork(t, processor, 1, 1, full, worse)
-	testFork(t, processor, 1, 7, full, worse)
-	testFork(t, processor, 5, 3, full, worse)
-	testFork(t, processor, 5, 4, full, worse)
+	testFork(t, processor, 0, 3, worse)
+	testFork(t, processor, 0, 7, worse)
+	testFork(t, processor, 1, 1, worse)
+	testFork(t, processor, 1, 7, worse)
+	testFork(t, processor, 5, 3, worse)
+	testFork(t, processor, 5, 4, worse)
 }
 
 // Tests that given a starting canonical chain of a given size, creating longer
 // forks do take canonical ownership.
-func TestLongerForkHeaders(t *testing.T) { testLongerFork(t, false) }
-func TestLongerForkBlocks(t *testing.T)  { testLongerFork(t, true) }
-
-func testLongerFork(t *testing.T, full bool) {
+func TestLongerForkBlocks(t *testing.T) {
 	length := 10
 	engine := new(consensus.FakeEngine)
 	// Make first chain starting from genesis
-	_, processor, err := newCanonical(engine, length, full)
+	_, processor, err := newCanonical(engine, length)
 	if err != nil {
 		t.Fatalf("failed to make new canonical chain: %v", err)
 	}
@@ -265,24 +227,21 @@ func testLongerFork(t *testing.T, full bool) {
 		}
 	}
 	// Sum of numbers must be greater than `length` for this to be a longer fork
-	testFork(t, processor, 0, 11, full, better)
-	testFork(t, processor, 0, 15, full, better)
-	testFork(t, processor, 1, 10, full, better)
-	testFork(t, processor, 1, 12, full, better)
-	testFork(t, processor, 5, 6, full, better)
-	testFork(t, processor, 5, 8, full, better)
+	testFork(t, processor, 0, 11, better)
+	testFork(t, processor, 0, 15, better)
+	testFork(t, processor, 1, 10, better)
+	testFork(t, processor, 1, 12, better)
+	testFork(t, processor, 5, 6, better)
+	testFork(t, processor, 5, 8, better)
 }
 
 // Tests that given a starting canonical chain of a given size, creating equal
 // forks do take canonical ownership.
-func TestEqualForkHeaders(t *testing.T) { testEqualFork(t, false) }
-func TestEqualForkBlocks(t *testing.T)  { testEqualFork(t, true) }
-
-func testEqualFork(t *testing.T, full bool) {
+func TestEqualForkBlocks(t *testing.T) {
 	length := 10
 	engine := new(consensus.FakeEngine)
 	// Make first chain starting from genesis
-	_, processor, err := newCanonical(engine, length, full)
+	_, processor, err := newCanonical(engine, length)
 	if err != nil {
 		t.Fatalf("failed to make new canonical chain: %v", err)
 	}
@@ -295,22 +254,19 @@ func testEqualFork(t *testing.T, full bool) {
 		}
 	}
 	// Sum of numbers must be equal to `length` for this to be an equal fork
-	testFork(t, processor, 0, 10, full, equal)
-	testFork(t, processor, 1, 9, full, equal)
-	testFork(t, processor, 2, 8, full, equal)
-	testFork(t, processor, 5, 5, full, equal)
-	testFork(t, processor, 6, 4, full, equal)
-	testFork(t, processor, 9, 1, full, equal)
+	testFork(t, processor, 0, 10, equal)
+	testFork(t, processor, 1, 9, equal)
+	testFork(t, processor, 2, 8, equal)
+	testFork(t, processor, 5, 5, equal)
+	testFork(t, processor, 6, 4, equal)
+	testFork(t, processor, 9, 1, equal)
 }
 
 // Tests that chains missing links do not get accepted by the processor.
-func TestBrokenHeaderChain(t *testing.T) { testBrokenChain(t, false) }
-func TestBrokenBlockChain(t *testing.T)  { testBrokenChain(t, true) }
-
-func testBrokenChain(t *testing.T, full bool) {
+func TestBrokenBlockChain(t *testing.T) {
 	engine := new(consensus.FakeEngine)
 	// Make chain starting from genesis
-	_, blockchain, err := newCanonical(engine, 10, full)
+	_, blockchain, err := newCanonical(engine, 10)
 	if err != nil {
 		t.Fatalf("failed to make new canonical chain: %v", err)
 	}
@@ -319,34 +275,21 @@ func testBrokenChain(t *testing.T, full bool) {
 	engine.Err = consensus.ErrUnknownAncestor
 	engine.NumberToFail = 12
 	// Create a forked chain, and try to insert with a missing link
-	if full {
-		chain := makeRootBlockChain(blockchain.CurrentBlock(), 5, engine, forkSeed)[1:]
-		if err := testBlockChainImport(chain, blockchain); err == nil {
-			t.Errorf("broken block chain not reported")
-		}
-	} else {
-		chain := makeRootBlockHeaderChain(blockchain.CurrentHeader().(*types.RootBlockHeader), 5, engine, forkSeed)[1:]
-		if err := testHeaderChainImport(chain, blockchain); err == nil {
-			t.Errorf("broken header chain not reported")
-		}
+	chain := makeRootBlockChain(blockchain.CurrentBlock(), 5, engine, forkSeed)[1:]
+	if err := testBlockChainImport(chain, blockchain); err == nil {
+		t.Errorf("broken block chain not reported")
 	}
 }
 
 // Tests that reorganising a long difficult chain after a short easy one
 // overwrites the canonical numbers and links in the database.
-func TestReorgLongHeaders(t *testing.T) { testReorgLong(t, false) }
-func TestReorgLongBlocks(t *testing.T)  { testReorgLong(t, true) }
-
-func testReorgLong(t *testing.T, full bool) {
-	testReorg(t, []uint64{10000, 10000, 10000}, []uint64{10000, 10000, 10000, 10000}, 40000, full)
+func TestReorgLongBlocks(t *testing.T) {
+	testReorg(t, []uint64{10000, 10000, 10000}, []uint64{10000, 10000, 10000, 10000}, 40000)
 }
 
 // Tests that reorganising a short difficult chain after a long easy one
 // overwrites the canonical numbers and links in the database.
-func TestReorgShortHeaders(t *testing.T) { testReorgShort(t, false) }
-func TestReorgShortBlocks(t *testing.T)  { testReorgShort(t, true) }
-
-func testReorgShort(t *testing.T, full bool) {
+func TestReorgShortBlocks(t *testing.T) {
 	// Create a long easy chain vs. a short heavy one. Due to difficulty adjustment
 	// we need a fairly long chain of blocks with different difficulties for a short
 	// one to become heavyer than a long one. The 96 is an empirical value.
@@ -358,13 +301,13 @@ func testReorgShort(t *testing.T, full bool) {
 	for i := 0; i < len(diff); i++ {
 		diff[i] = 100000
 	}
-	testReorg(t, easy, diff, 9500000, full)
+	testReorg(t, easy, diff, 9500000)
 }
 
-func testReorg(t *testing.T, first, second []uint64, td int64, full bool) {
+func testReorg(t *testing.T, first, second []uint64, td int64) {
 	engine := new(consensus.FakeEngine)
 	// Create a pristine chain and database
-	_, blockchain, err := newCanonical(engine, 0, full)
+	_, blockchain, err := newCanonical(engine, 0)
 	if err != nil {
 		t.Fatalf("failed to create pristine chain: %v", err)
 	}
@@ -377,62 +320,30 @@ func testReorg(t *testing.T, first, second []uint64, td int64, full bool) {
 	diffBlocks := GenerateRootBlockChain(blockchain.CurrentBlock(), engine, len(second), func(i int, b *RootBlockGen) {
 		b.SetDifficulty(second[i])
 	})
-	if full {
-		if _, err := blockchain.InsertChain(ToBlocks(easyBlocks)); err != nil {
-			t.Fatalf("failed to insert easy chain: %v", err)
-		}
-		if _, err := blockchain.InsertChain(ToBlocks(diffBlocks)); err != nil {
-			t.Fatalf("failed to insert difficult chain: %v", err)
-		}
-	} else {
-		easyHeaders := make([]*types.RootBlockHeader, len(easyBlocks))
-		for i, block := range easyBlocks {
-			easyHeaders[i] = block.Header()
-		}
-		diffHeaders := make([]*types.RootBlockHeader, len(diffBlocks))
-		for i, block := range diffBlocks {
-			diffHeaders[i] = block.Header()
-		}
-		if _, err := blockchain.InsertHeaderChain(easyHeaders, 1); err != nil {
-			t.Fatalf("failed to insert easy chain: %v", err)
-		}
-		if _, err := blockchain.InsertHeaderChain(diffHeaders, 1); err != nil {
-			t.Fatalf("failed to insert difficult chain: %v", err)
-		}
+	if _, err := blockchain.InsertChain(ToBlocks(easyBlocks)); err != nil {
+		t.Fatalf("failed to insert easy chain: %v", err)
+	}
+	if _, err := blockchain.InsertChain(ToBlocks(diffBlocks)); err != nil {
+		t.Fatalf("failed to insert difficult chain: %v", err)
 	}
 	// Check that the chain is valid number and link wise
-	if full {
-		prev := blockchain.CurrentBlock()
-		for block := blockchain.GetBlockByNumber(blockchain.CurrentBlock().NumberU64() - 1); block.NumberU64() != 0; prev, block = block.(*types.RootBlock), blockchain.GetBlockByNumber(block.NumberU64()-1) {
-			if prev.ParentHash() != block.Hash() {
-				t.Errorf("parent block hash mismatch: have %x, want %x", prev.ParentHash(), block.Hash())
-			}
-		}
-	} else {
-		prev := blockchain.CurrentHeader()
-		for header := blockchain.GetHeaderByNumber(blockchain.CurrentHeader().NumberU64() - 1); header.NumberU64() != 0; prev, header = header, blockchain.GetHeaderByNumber(header.NumberU64()-1) {
-			if prev.GetParentHash() != header.Hash() {
-				t.Errorf("parent header hash mismatch: have %x, want %x", prev.GetParentHash(), header.Hash())
-			}
+	prev := blockchain.CurrentBlock()
+	for block := blockchain.GetBlockByNumber(blockchain.CurrentBlock().NumberU64() - 1); block.NumberU64() != 0; prev, block = block.(*types.RootBlock), blockchain.GetBlockByNumber(block.NumberU64()-1) {
+		if prev.ParentHash() != block.Hash() {
+			t.Errorf("parent block hash mismatch: have %x, want %x", prev.ParentHash(), block.Hash())
 		}
 	}
 	// Make sure the chain total difficulty is the correct one
 	want := new(big.Int).Add(blockchain.genesisBlock.Difficulty(), big.NewInt(td))
-	if full {
-		if have := blockchain.CurrentBlock().TotalDifficulty(); have.Cmp(want) != 0 {
-			t.Errorf("total difficulty mismatch for block %d: have %v, want %v", blockchain.CurrentBlock().NumberU64(), have, want)
-		}
-	} else {
-		if have := blockchain.CurrentHeader().GetTotalDifficulty(); have.Cmp(want) != 0 {
-			t.Errorf("total difficulty mismatch for block %d: have %v, want %v", blockchain.CurrentBlock().NumberU64(), have, want)
-		}
+	if have := blockchain.CurrentBlock().TotalDifficulty(); have.Cmp(want) != 0 {
+		t.Errorf("total difficulty mismatch for block %d: have %v, want %v", blockchain.CurrentBlock().NumberU64(), have, want)
 	}
 }
 
 func TestIsSameChain(t *testing.T) {
 	engine := new(consensus.FakeEngine)
 	// Create a pristine chain and database
-	_, blockchain, err := newCanonical(engine, 0, true)
+	_, blockchain, err := newCanonical(engine, 0)
 	if err != nil {
 		t.Fatalf("failed to create pristine chain: %v", err)
 	}
@@ -460,14 +371,11 @@ func TestIsSameChain(t *testing.T) {
 }
 
 // Tests chain insertions in the face of one entity containing an invalid nonce.
-func TestHeadersInsertNonceError(t *testing.T) { testInsertNonceError(t, false) }
-func TestBlocksInsertNonceError(t *testing.T)  { testInsertNonceError(t, true) }
-
-func testInsertNonceError(t *testing.T, full bool) {
+func TestBlocksInsertNonceError(t *testing.T) {
 	engine := new(consensus.FakeEngine)
 	for i := 1; i < 25 && !t.Failed(); i++ {
 		// Create a pristine chain and database
-		_, blockchain, err := newCanonical(engine, 0, full)
+		_, blockchain, err := newCanonical(engine, 0)
 		if err != nil {
 			t.Fatalf("failed to create pristine chain: %v", err)
 		}
@@ -479,40 +387,22 @@ func testInsertNonceError(t *testing.T, full bool) {
 			failRes int
 			failNum uint64
 		)
-		if full {
-			blocks := makeRootBlockChain(blockchain.CurrentBlock(), i, engine, 0)
+		blocks := makeRootBlockChain(blockchain.CurrentBlock(), i, engine, 0)
 
-			failAt = rand.Int() % len(blocks)
-			failNum = blocks[failAt].NumberU64()
+		failAt = rand.Int() % len(blocks)
+		failNum = blocks[failAt].NumberU64()
 
-			engine.NumberToFail = failNum
-			engine.Err = errors.New("fack engine expected fail")
-			failRes, err = blockchain.InsertChain(ToBlocks(blocks))
-		} else {
-			headers := makeRootBlockHeaderChain(blockchain.CurrentHeader().(*types.RootBlockHeader), i, engine, 0)
-
-			failAt = rand.Int() % len(headers)
-			failNum = headers[failAt].NumberU64()
-
-			engine.NumberToFail = failNum
-			engine.Err = errors.New("fack engine expected fail")
-			blockchain.headerChain.engine = blockchain.engine
-			failRes, err = blockchain.InsertHeaderChain(headers, 1)
-		}
+		engine.NumberToFail = failNum
+		engine.Err = errors.New("fack engine expected fail")
+		failRes, err = blockchain.InsertChain(ToBlocks(blocks))
 		// Check that the returned error indicates the failure
 		if failRes != failAt {
 			t.Errorf("test %d: failure (%v) index mismatch: have %d, want %d", i, err, failRes, failAt)
 		}
 		// Check that all blocks after the failing block have been inserted
 		for j := 0; j < i-failAt; j++ {
-			if full {
-				if block := blockchain.GetBlockByNumber(failNum + uint64(j)); block != nil {
-					t.Errorf("test %d: invalid block in chain: %v", i, block)
-				}
-			} else {
-				if header := blockchain.GetHeaderByNumber(failNum + uint64(j)); header != nil {
-					t.Errorf("test %d: invalid header in chain: %v", i, header)
-				}
+			if block := blockchain.GetBlockByNumber(failNum + uint64(j)); block != nil {
+				t.Errorf("test %d: invalid block in chain: %v", i, block)
 			}
 		}
 	}
@@ -598,7 +488,7 @@ done:
 // Tests if the canonical block can be fetched from the database during chain insertion.
 func TestCanonicalBlockRetrieval(t *testing.T) {
 	engine := new(consensus.FakeEngine)
-	_, blockchain, err := newCanonical(engine, 0, true)
+	_, blockchain, err := newCanonical(engine, 0)
 	if err != nil {
 		t.Fatalf("failed to create pristine chain: %v", err)
 	}
