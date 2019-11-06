@@ -71,6 +71,8 @@ go run deploy_cluster.go
 ```
 The deploying process will be printed on the console log. 
 
+NOTE pulling docker image may take a while on the first run.
+
 ## Check Status of Clusters
 
 If everything goes correctly, you will see from `deployer` console log that each cluster started successfully and peers connected to each other.

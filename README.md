@@ -135,9 +135,15 @@ cd $GOPATH/src/github.com/QuarkChain/goquarkchain/cmd/cluster
 ```
 ### Running multiple clusters with P2P network on different machines
 
-To run a private network, first start a bootstrap cluster as in last section, then start other clusters with bootnode URL to connect to it.
+To run a private network, first start a bootstrap cluster, then start other clusters with bootnode URL to connect to it.
 
-If you want a cluster to be a bootstrap cluster, optionally provide a private key when you start the master service of it:
+#### Start Bootstrap Cluster
+First start each of the `slave` services as in [last section](#running-a-single-cluster-for-local-testing):
+```bash
+cd $GOPATH/src/github.com/QuarkChain/goquarkchain/cmd/cluster
+./cluster --cluster_config ../../tests/testnet/egconfig/cluster_config_template.json --service ${SLAVE_ID}
+```
+Next, start the `master` service of bootstrap cluster, optionally providing a private key:
 ```bash
 cd $GOPATH/src/github.com/QuarkChain/goquarkchain/cmd/cluser
 ./cluster --cluster_config $CLUSTER_CONFIG_FILE --privkey=$BOOTSTRAP_PRIV_KEY
@@ -149,11 +155,19 @@ INFO [11-04|18:05:54.832] Started P2P networking  self=enode://011bd77918a523c2d
 ```
 NOTE if private key is not provided, the boot node URL will change at each restart of the service.
 
-Start other clusters and provide the boot node URL as `$BOOTSTRAP_ENODE` for master service:
+NOTE using `PRIV_KEY` field of `P2P` section in cluster config file will have the same effect as `--privkey` flag.
+
+#### Start Other Clusters
+First start each of the `slave` services as in [last section](#running-a-single-cluster-for-local-testing):
+```bash
+cd $GOPATH/src/github.com/QuarkChain/goquarkchain/cmd/cluster
+./cluster --cluster_config ../../tests/testnet/egconfig/cluster_config_template.json --service ${SLAVE_ID}
+```
+Next, start the `master` service, providing the boot node URL as `$BOOTSTRAP_ENODE`:
 ```bash
 ./cluster --cluster_config $CLUSTER_CONFIG_FILE --bootnodes=$BOOTSTRAP_ENODE
 ```
-Using `PRIV_KEY` or `BOOT_NODES` field of `P2P` section in cluster config file will have the same effect as cmd flags.
+NOTE using `BOOT_NODES` field of `P2P` section in cluster config file will have the same effect as `--bootnodes` flag.
 
 ## Monitoring Clusters
 Use the [stats tool](cmd/stats) in the repo to monitor the status of a cluster. It queries the given cluster through 
