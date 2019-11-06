@@ -38,7 +38,7 @@ func (Self *Branch) GetFullShardID() uint32 {
 
 // GetFullShardID get branch's fullShardId
 func (Self Branch) String() string {
-	return fmt.Sprintf("chainID:%v ShardID:%v FullShardID:%v", Self.GetChainID(), Self.GetShardID(), Self.GetFullShardID())
+	return fmt.Sprintf("ChainID:%v ShardID:%v FullShardID:%v", Self.GetChainID(), Self.GetShardID(), Self.GetFullShardID())
 }
 
 // GetShardID get branch branch's shardID
