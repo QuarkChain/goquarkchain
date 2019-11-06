@@ -23,11 +23,11 @@ type rootSyncerPeer interface {
 // All of the sync tasks to are to catch up with the root chain from peers.
 type rootChainTask struct {
 	task
-	header           *types.RootBlockHeader
-	peer             rootSyncerPeer
-	stats            *BlockSychronizerStats
-	statusChan       chan *rpc.ShardStatus
-	getShardConnFunc func(fullShardId uint32) []rpc.ShardConnForP2P
+	header     *types.RootBlockHeader
+	peer       rootSyncerPeer
+	stats      *BlockSychronizerStats
+	statusChan chan *rpc.ShardStatus
+	slaveConns rpc.ConnManager
 }
 
 // NewRootChainTask returns a sync task for root chain.
@@ -36,14 +36,14 @@ func NewRootChainTask(
 	header *types.RootBlockHeader,
 	stats *BlockSychronizerStats,
 	statusChan chan *rpc.ShardStatus,
-	getShardConnFunc func(fullShardId uint32) []rpc.ShardConnForP2P,
+	slaveConns rpc.ConnManager,
 ) Task {
 	rTask := &rootChainTask{
-		peer:             p,
-		header:           header,
-		stats:            stats,
-		statusChan:       statusChan,
-		getShardConnFunc: getShardConnFunc,
+		peer:       p,
+		header:     header,
+		stats:      stats,
+		statusChan: statusChan,
+		slaveConns: slaveConns,
 	}
 	rTask.task = task{
 		name:             "root",
@@ -243,7 +243,7 @@ func (r *rootChainTask) syncMinorBlocks(
 	var g errgroup.Group
 	for branch, hashes := range downloadMap {
 		b, hashList := branch, hashes
-		conns := r.getShardConnFunc(b)
+		conns := r.slaveConns.GetSlaveConnsById(b)
 		if len(conns) == 0 {
 			return fmt.Errorf("shard connection for branch %d is missing", b)
 		}

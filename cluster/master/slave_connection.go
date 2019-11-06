@@ -3,6 +3,7 @@ package master
 import (
 	"errors"
 	"fmt"
+	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"math/big"
 	"sync"
 	"time"
@@ -17,6 +18,66 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
 )
+
+type SlaveConnManager struct {
+	count              int
+	clientPool         []rpc.ISlaveConn
+	branchToSlaveConns map[uint32][]rpc.ISlaveConn
+
+	logInfo string
+}
+
+func (s *SlaveConnManager) InitConnManager(cfg *config.ClusterConfig) error {
+	s.clientPool = make([]rpc.ISlaveConn, 0, len(cfg.SlaveList))
+	s.branchToSlaveConns = make(map[uint32][]rpc.ISlaveConn)
+	s.logInfo = "slave connection manager"
+
+	fullShardIds := cfg.Quarkchain.GetGenesisShardIds()
+	for _, cfg := range cfg.SlaveList {
+		target := fmt.Sprintf("%s:%d", cfg.IP, cfg.Port)
+		client := NewSlaveConn(target, cfg.ChainMaskList, cfg.ID)
+		s.clientPool = append(s.clientPool, client)
+
+		id, chainMaskList, err := client.SendPing()
+		if err != nil {
+			return err
+		}
+		if err := checkPing(client, id, chainMaskList); err != nil {
+			return err
+		}
+		for _, fullShardID := range fullShardIds {
+			if client.HasShard(fullShardID) {
+				s.branchToSlaveConns[fullShardID] = append(s.branchToSlaveConns[fullShardID], client)
+				log.Info(s.logInfo, "branch:", fullShardID, "is run by slave", client.GetSlaveID())
+			}
+		}
+	}
+	s.count = len(s.clientPool)
+
+	return nil
+}
+
+func (c *SlaveConnManager) GetOneConnById(fullShardId uint32) rpc.ISlaveConn {
+	if conns, ok := c.branchToSlaveConns[fullShardId]; ok {
+		return conns[0]
+	}
+	return nil
+}
+
+func (c *SlaveConnManager) GetSlaveConnsById(fullShardId uint32) []rpc.ISlaveConn {
+	if conns, ok := c.branchToSlaveConns[fullShardId]; ok {
+		return conns
+	}
+	return nil
+}
+
+func (c *SlaveConnManager) GetSlaveConns() []rpc.ISlaveConn {
+	return c.clientPool
+}
+
+func (c *SlaveConnManager) ConnCount() int {
+	return c.count
+}
 
 type SlaveConnection struct {
 	target        string

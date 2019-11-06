@@ -38,9 +38,9 @@ type ProtocolManager struct {
 	rootBlockChain *core.RootBlockChain
 	clusterConfig  *config.ClusterConfig
 
-	subProtocols     []p2p.Protocol
-	getShardConnFunc func(fullShardId uint32) []rpc.ShardConnForP2P
-	synchronizer     qkcsync.Synchronizer
+	subProtocols []p2p.Protocol
+	slaveConns   rpc.ConnManager
+	synchronizer qkcsync.Synchronizer
 
 	chainHeadChan     chan core.RootChainHeadEvent
 	chainHeadEventSub event.Subscription
@@ -59,20 +59,20 @@ type ProtocolManager struct {
 }
 
 // NewQKCManager  new qkc manager
-func NewProtocolManager(env config.ClusterConfig, rootBlockChain *core.RootBlockChain, statsChan chan *rpc.ShardStatus, synchronizer qkcsync.Synchronizer, getShardConnFunc func(fullShardId uint32) []rpc.ShardConnForP2P) (*ProtocolManager, error) {
+func NewProtocolManager(env config.ClusterConfig, rootBlockChain *core.RootBlockChain, statsChan chan *rpc.ShardStatus, synchronizer qkcsync.Synchronizer, slaveConns rpc.ConnManager) (*ProtocolManager, error) {
 	manager := &ProtocolManager{
-		networkID:        env.Quarkchain.NetworkID,
-		rootBlockChain:   rootBlockChain,
-		clusterConfig:    &env,
-		peers:            newPeerSet(),
-		newPeerCh:        make(chan *Peer),
-		quitSync:         make(chan struct{}),
-		noMorePeers:      make(chan struct{}),
-		statsChan:        statsChan,
-		synchronizer:     synchronizer,
-		getShardConnFunc: getShardConnFunc,
-		stats:            &qkcsync.BlockSychronizerStats{},
-		started:          false,
+		networkID:      env.Quarkchain.NetworkID,
+		rootBlockChain: rootBlockChain,
+		clusterConfig:  &env,
+		peers:          newPeerSet(),
+		newPeerCh:      make(chan *Peer),
+		quitSync:       make(chan struct{}),
+		noMorePeers:    make(chan struct{}),
+		statsChan:      statsChan,
+		synchronizer:   synchronizer,
+		slaveConns:     slaveConns,
+		stats:          &qkcsync.BlockSychronizerStats{},
+		started:        false,
 	}
 	protocol := p2p.Protocol{
 		Name:    QKCProtocolName,
@@ -175,7 +175,7 @@ func (pm *ProtocolManager) handle(peer *Peer) error {
 	defer pm.removePeer(peer.id)
 	log.Info(pm.log, "peer add succ id ", peer.PeerID())
 
-	err := pm.synchronizer.AddTask(qkcsync.NewRootChainTask(peer, peer.RootHead(), pm.stats, pm.statsChan, pm.getShardConnFunc))
+	err := pm.synchronizer.AddTask(qkcsync.NewRootChainTask(peer, peer.RootHead(), pm.stats, pm.statsChan, pm.slaveConns))
 	if err != nil {
 		return err
 	}
@@ -267,7 +267,7 @@ func (pm *ProtocolManager) handleMsg(peer *Peer) error {
 		}
 		tip.MinorBlockHeaderList[0] = newBlockMinor.Block.Header()
 		peer.SetMinorHead(branch, tip)
-		clients := pm.getShardConnFunc(branch)
+		clients := pm.slaveConns.GetSlaveConnsById(branch)
 		if len(clients) == 0 {
 			return fmt.Errorf("invalid branch %d for rpc request %d", qkcMsg.RpcID, branch)
 		}
@@ -445,7 +445,7 @@ func (pm *ProtocolManager) HandleNewRootTip(tip *p2p.Tip, peer *Peer) error {
 	}
 	peer.SetRootHead(tip.RootBlockHeader)
 	if tip.RootBlockHeader.NumberU64() > pm.rootBlockChain.CurrentBlock().NumberU64() {
-		err := pm.synchronizer.AddTask(qkcsync.NewRootChainTask(peer, tip.RootBlockHeader, pm.stats, pm.statsChan, pm.getShardConnFunc))
+		err := pm.synchronizer.AddTask(qkcsync.NewRootChainTask(peer, tip.RootBlockHeader, pm.stats, pm.statsChan, pm.slaveConns))
 		if err != nil {
 			log.Error("Failed to add root chain task,", "hash", tip.RootBlockHeader.Hash(), "height", tip.RootBlockHeader.NumberU64())
 		}
@@ -479,7 +479,7 @@ func (pm *ProtocolManager) HandleNewMinorTip(branch uint32, tip *p2p.Tip, peer *
 		}
 	}
 	peer.SetMinorHead(branch, tip)
-	clients := pm.getShardConnFunc(branch)
+	clients := pm.slaveConns.GetSlaveConnsById(branch)
 	if len(clients) == 0 {
 		return fmt.Errorf("invalid branch %d for rpc request from peer %v", branch, peer.id)
 	}
@@ -609,7 +609,7 @@ func (pm *ProtocolManager) HandleNewTransactionListRequest(peerId string, rpcId 
 		TransactionList: request.TransactionList,
 		PeerID:          peerId,
 	}
-	clients := pm.getShardConnFunc(branch)
+	clients := pm.slaveConns.GetSlaveConnsById(branch)
 	if len(clients) == 0 {
 		return fmt.Errorf("invalid branch %d for rpc request %d", rpcId, branch)
 	}
@@ -667,7 +667,7 @@ func (pm *ProtocolManager) HandleGetMinorBlockHeaderListRequest(rpcId uint64, br
 	if req.Direction != qkcom.DirectionToGenesis {
 		return nil, fmt.Errorf("Bad direction. rpcId: %d; branch: %d; ", rpcId, branch)
 	}
-	clients := pm.getShardConnFunc(branch)
+	clients := pm.slaveConns.GetSlaveConnsById(branch)
 	if len(clients) == 0 {
 		return nil, fmt.Errorf("invalid branch %d for rpc req %d", rpcId, branch)
 	}
@@ -693,11 +693,11 @@ func (pm *ProtocolManager) HandleGetMinorBlockListRequest(peerId string, rpcId u
 		return nil, fmt.Errorf("bad number of minor blocks requested. rpcId: %d; branch: %d; limit: %d; expected limit: %d",
 			rpcId, branch, len(request.MinorBlockHashList), qkcsync.MinorBlockBatchSize)
 	}
-	clients := pm.getShardConnFunc(branch)
-	if len(clients) == 0 {
+	conn := pm.slaveConns.GetOneConnById(branch)
+	if conn == nil {
 		return nil, fmt.Errorf("invalid branch %d for rpc request %d", rpcId, branch)
 	}
-	result, err := clients[0].GetMinorBlocks(&rpc.GetMinorBlockListRequest{Branch: branch, PeerId: peerId, MinorBlockHashList: request.MinorBlockHashList})
+	result, err := conn.GetMinorBlocks(&rpc.GetMinorBlockListRequest{Branch: branch, PeerId: peerId, MinorBlockHashList: request.MinorBlockHashList})
 	if err != nil {
 		return nil, fmt.Errorf("branch %d HandleGetMinorBlockListRequest failed with error: %v", branch, err.Error())
 	}
@@ -726,12 +726,12 @@ func (pm *ProtocolManager) HandleGetMinorBlockHeaderListWithSkipRequest(peerId s
 	if request.Type != qkcom.SkipHash && request.Type != qkcom.SkipHeight {
 		return nil, errors.New("Bad type value")
 	}
-	clients := pm.getShardConnFunc(request.Branch.Value)
-	if len(clients) == 0 {
+	conn := pm.slaveConns.GetOneConnById(request.Branch.Value)
+	if conn == nil {
 		return nil, fmt.Errorf("invalid branch %d for rpc request %d", rpcId, request.Branch.Value)
 	}
 
-	return clients[0].GetMinorBlockHeaderList(request)
+	return conn.GetMinorBlockHeaderList(request)
 }
 
 func (pm *ProtocolManager) tipBroadcastLoop() {
@@ -786,7 +786,7 @@ func (pm *ProtocolManager) synchronise(peer *Peer) {
 		return
 	}
 	if peer.RootHead() != nil {
-		err := pm.synchronizer.AddTask(qkcsync.NewRootChainTask(peer, peer.RootHead(), pm.stats, pm.statsChan, pm.getShardConnFunc))
+		err := pm.synchronizer.AddTask(qkcsync.NewRootChainTask(peer, peer.RootHead(), pm.stats, pm.statsChan, pm.slaveConns))
 		if err != nil {
 			log.Error("AddTask to synchronizer.", "error", err.Error())
 		}
