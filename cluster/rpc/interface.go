@@ -1,13 +1,14 @@
 package rpc
 
 import (
+	"math/big"
+
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/p2p"
 	"github.com/QuarkChain/goquarkchain/rpc"
 	"github.com/ethereum/go-ethereum/common"
-	"math/big"
 )
 
 type NetworkError struct {
@@ -42,6 +43,7 @@ type ShardConnForP2P interface {
 type ISlaveConn interface {
 	ShardConnForP2P
 	GetSlaveID() string
+	GetSlaveIP() string
 	GetShardMaskList() []*types.ChainMask
 	MasterInfo(ip string, port uint16, rootTip *types.RootBlock) error
 	HasShard(fullShardID uint32) bool

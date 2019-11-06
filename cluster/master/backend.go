@@ -3,6 +3,14 @@ package master
 import (
 	"errors"
 	"fmt"
+	"math/big"
+	"net"
+	"os"
+	"sort"
+	"sync"
+	"syscall"
+	"time"
+
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/cluster/miner"
@@ -28,13 +36,6 @@ import (
 	"github.com/shirou/gopsutil/cpu"
 	"golang.org/x/sync/errgroup"
 	"gopkg.in/karalabe/cookiejar.v1/collections/deque"
-	"math/big"
-	"net"
-	"os"
-	"sort"
-	"sync"
-	"syscall"
-	"time"
 )
 
 const (
@@ -362,7 +363,7 @@ func (s *QKCMasterBackend) ConnectToSlaves() error {
 func (s *QKCMasterBackend) logSummary() {
 	for branch, slaves := range s.branchToSlaves {
 		for _, slave := range slaves {
-			log.Info(s.logInfo, "branch:", branch, "is run by slave", slave.GetSlaveID())
+			log.Info(s.logInfo, "shard info", account.Branch{Value: branch}.String(), "is run by slave", slave.GetSlaveID(), "slave ip", slave.GetSlaveIP())
 		}
 	}
 }
