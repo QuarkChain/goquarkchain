@@ -148,11 +148,12 @@ Next, start the `master` service of bootstrap cluster, optionally providing a pr
 cd $GOPATH/src/github.com/QuarkChain/goquarkchain/cmd/cluser
 ./cluster --cluster_config $CLUSTER_CONFIG_FILE --privkey=$BOOTSTRAP_PRIV_KEY
 ```
-You can read the full boot node URL from the console output in the format: `enode://$BOOTSTRAP_PUB_KEY@$BOOTSTRAP_IP:$BOOTSTRAP_DISCOVERY_PORT`. 
-For example:
-```bash
-INFO [11-04|18:05:54.832] Started P2P networking  self=enode://011bd77918a523c2d983de2508270420faf6263403a7a7f6daf1212a810537e4d27787e8885d8c696c3445158a75cfe521cfccab9bc25ba5ac6f8aebf60106f1@127.0.0.1:38291
-```
+You can read the full boot node URL from the console output in format: `enode://$BOOTSTRAP_PUB_KEY@$BOOTSTRAP_IP:$BOOTSTRAP_DISCOVERY_PORT`. 
+
+Here is an example:
+
+`INFO [11-04|18:05:54.832] Started P2P networking  self=enode://011bd77918a523c2d983de2508270420faf6263403a7a7f6daf1212a810537e4d27787e8885d8c696c3445158a75cfe521cfccab9bc25ba5ac6f8aebf60106f1@127.0.0.1:38291`
+
 NOTE if private key is not provided, the boot node URL will change at each restart of the service.
 
 NOTE using `PRIV_KEY` field of `P2P` section in cluster config file will have the same effect as `--privkey` flag.
