@@ -3,9 +3,6 @@ package qkcapi
 import (
 	"bytes"
 	"errors"
-	"math/big"
-	"sort"
-
 	"github.com/QuarkChain/goquarkchain/account"
 	qrpc "github.com/QuarkChain/goquarkchain/cluster/rpc"
 	qcom "github.com/QuarkChain/goquarkchain/common"
@@ -16,6 +13,9 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rlp"
+	"math/big"
+	"sort"
+	"strconv"
 )
 
 type CommonAPI struct {
@@ -194,8 +194,8 @@ func (p *PublicBlockChainAPI) GetBalances(address account.Address, blockNr *rpc.
 	return fields, nil
 }
 
-func (p *PublicBlockChainAPI) GetAccountData( args GetAccountDataArgs) (map[string]interface{}, error) {
-	address, blockNr, includeShards :=  args.Address,  args.BlockNr,  args.IncludeShards
+func (p *PublicBlockChainAPI) GetAccountData(args GetAccountDataArgs) (map[string]interface{}, error) {
+	address, blockNr, includeShards := args.Address, args.BlockNr, args.IncludeShards
 	if includeShards != nil && blockNr != nil {
 		return nil, errors.New("do not allow specify height if client wants info on all shards")
 	}
@@ -784,9 +784,14 @@ func (e *EthBlockChainAPI) GetBalance(address common.Address, fullShardKey *hexu
 	balance := data.Balance.GetTokenBalance(qcom.TokenIDEncode(DefaultTokenID))
 	return (*hexutil.Big)(balance), nil
 }
+func (e *EthBlockChainAPI) GetTransactionCount(address common.Address, fullShardKey string) (hexutil.Uint64, error) {
 
-func (e *EthBlockChainAPI) GetTransactionCount(address common.Address, fullShardKey *hexutil.Uint) (hexutil.Uint64, error) {
-	fullShardId, err := getFullShardId(fullShardKey)
+	fullShard, err := strconv.ParseUint(fullShardKey, 0, 16)
+	if err != nil {
+		return 0, err
+	}
+	fullShardUnit := uint(fullShard)
+	fullShardId, err := getFullShardId((*hexutil.Uint)(&fullShardUnit))
 	if err != nil {
 		return hexutil.Uint64(0), err
 	}
@@ -796,6 +801,7 @@ func (e *EthBlockChainAPI) GetTransactionCount(address common.Address, fullShard
 		return 0, err
 	}
 	return hexutil.Uint64(data.TransactionCount), nil
+
 }
 
 func (e *EthBlockChainAPI) GetCode(address common.Address, fullShardKey *hexutil.Uint) (hexutil.Bytes, error) {
