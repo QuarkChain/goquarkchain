@@ -384,27 +384,28 @@ func (s *QKCMasterBackend) broadcastRootBlockToSlaves(block *types.RootBlock) er
 }
 
 func (s *QKCMasterBackend) Heartbeat() {
-	normal := true
-	for normal {
-		select {
-		case <-s.exitCh:
-			normal = false
-			break
-		default:
-			timeGap := time.Now()
-			s.ctx.Timestamp = timeGap
-			for _, conn := range s.GetSlaveConns() {
-				normal = conn.HeartBeat()
-				if !normal {
-					s.SetMining(false)
-					s.shutdown <- syscall.SIGTERM
-					break
+	go func(normal bool) {
+		for normal {
+			select {
+			case <-s.exitCh:
+				normal = false
+				break
+			default:
+				timeGap := time.Now()
+				s.ctx.Timestamp = timeGap
+				for _, conn := range s.GetSlaveConns() {
+					normal = conn.HeartBeat()
+					if !normal {
+						s.SetMining(false)
+						s.shutdown <- syscall.SIGTERM
+						break
+					}
 				}
+				log.Trace(s.logInfo, "heart beat duration", time.Now().Sub(timeGap).String())
+				time.Sleep(config.HeartbeatInterval)
 			}
-			log.Trace(s.logInfo, "heart beat duration", time.Now().Sub(timeGap).String())
-			time.Sleep(config.HeartbeatInterval)
 		}
-	}
+	}(true)
 }
 
 func checkPing(slaveConn rpc.ISlaveConn, id []byte, chainMaskList []*types.ChainMask) error {
