@@ -22,7 +22,8 @@ Check out the [Wiki](https://github.com/QuarkChain/pyquarkchain/wiki) to underst
 
 ## Development Setup
 
-The following instructions are based on Ubuntu 18.04.
+The following instructions are based on clean Ubuntu 18.04. 
+If you prefer to use Docker, you can [run docker image](#setup-environment-using-docker) to get environment ready inside a container.
 
 ###  Setup Go Environment
 Goquarkchain requires golang sdk >= 1.12. You can skip this step if your environment meets the condition.
@@ -85,33 +86,38 @@ Run all the unit tests under `goquarkchain` to verify the environment is correct
 cd $GOPATH/src/github.com/QuarkChain/goquarkchain
 go test ./...
 ```
+
+## Setup Environment Using Docker 
+
+Using [pre-built Docker image](docker/Dockerfile), you do not need to setup development environment to run a cluster.
+
+Run the following commands to pull and start a container:
+
+```bash
+# specify a version tag if needed
+sudo docker pull quarkchaindocker/goquarkchain:<version tag>
+sudo docker run -it quarkchaindocker/goquarkchain /bin/bash 
+```
+Now you are inside Docker container and are ready to follow [next](#build-cluster) steps.
+
 ## Running Clusters
 
-The following instructions will lead you to run clusters step by step. 
+The following instructions will lead you to run clusters step by step.
 
-Another option would be [Use Deploy Tool to Start Clusters](/tests/loadtest/deployer/README.md#use-deploy-tool-to-start-clusters), which 
+If you need to join mainnet and mine quickly, we recommend following 
+[this instruction](docker/README.md#quick-start---use-docker-image-to-start-a-cluster-and-mining) 
+to start a cluster using docker.
+
+If you need to deploy clusters onto many hosts, a better option would be [Use Deploy Tool to Start Clusters](/tests/loadtest/deployer/README.md#use-deploy-tool-to-start-goquarkchain-clusters), which 
 is based on pre-built Docker image.
 
 ### Build Cluster
 
 Build GoQuarkChain cluster executable:
 ```bash
-#build cluster
 cd $GOPATH/src/github.com/QuarkChain/goquarkchain/cmd/cluster
 go build
 ```
-### Join QuarkChain Network
-
-If you are joining a testnet or mainnet, make sure ports are open and accessible from outside world: this means if you are running on AWS, 
-open the ports (default both UDP and TCP 38291) in security group; if you are running from a LAN (connecting to the internet through a router), 
-you need to setup [port forwarding](https://github.com/QuarkChain/pyquarkchain/wiki/Private-Network-Setting%2C-Port-Forwarding)
- for UDP/TCP 38291. 
-
-Before running, you'll need to set up the configuration of your network, which all nodes need to be aware of and agree upon. 
-We provide an example config JSON in the repo (mainnet/singularity/cluster_config_template.json) which you can use to connect to mainnet. 
-
-Note that many parameters in the config are part of the consensus, please be very cautious when changing them. For example, 
-COINBASE_AMOUNT is one such parameter, changing it to another value effectively creates a fork in the network.
 
 ### Running a single cluster for local testing
 
@@ -133,6 +139,26 @@ Start master in another terminal
 cd $GOPATH/src/github.com/QuarkChain/goquarkchain/cmd/cluster
 ./cluster --cluster_config ../../tests/testnet/egconfig/cluster_config_template.json
 ```
+
+### Join QuarkChain Network
+
+If you are joining a testnet or mainnet, make sure ports are open and accessible from outside world: this means if you are running on AWS, 
+open the ports (default both UDP and TCP 38291) in security group; if you are running from a LAN (connecting to the internet through a router), 
+you need to setup [port forwarding](https://github.com/QuarkChain/pyquarkchain/wiki/Private-Network-Setting%2C-Port-Forwarding)
+ for UDP/TCP 38291. 
+
+Before running, you'll need to set up the configuration of your network, which all nodes need to be aware of and agree upon. 
+We provide [an example config JSON](mainnet/singularity/cluster_config_template.json) which you can use as value 
+of `--cluster_config` flag to start cluster service and connect to mainnet:
+
+```bash
+cd $GOPATH/src/github.com/QuarkChain/goquarkchain/cmd/cluster
+./cluster --cluster_config ../../mainnet/singularity/cluster_config_template.json (--service $SLAVE_ID)
+```
+
+NOTE that many parameters in the config are part of the consensus, please be very cautious when changing them. For example, 
+COINBASE_AMOUNT is one such parameter, changing it to another value effectively creates a fork in the network.
+
 ### Running multiple clusters with P2P network on different machines
 
 To run a private network, first start a bootstrap cluster, then start other clusters with bootnode URL to connect to it.
@@ -141,17 +167,19 @@ To run a private network, first start a bootstrap cluster, then start other clus
 First start each of the `slave` services as in [last section](#running-a-single-cluster-for-local-testing):
 ```bash
 cd $GOPATH/src/github.com/QuarkChain/goquarkchain/cmd/cluster
-./cluster --cluster_config ../../tests/testnet/egconfig/cluster_config_template.json --service ${SLAVE_ID}
+./cluster --cluster_config ../../tests/testnet/egconfig/cluster_config_template.json --service $SLAVE_ID
 ```
 Next, start the `master` service of bootstrap cluster, optionally providing a private key:
 ```bash
-./cluster --cluster_config $CLUSTER_CONFIG_FILE --privkey=$BOOTSTRAP_PRIV_KEY
+./cluster --cluster_config $CLUSTER_CONFIG_FILE --privkey $BOOTSTRAP_PRIV_KEY
 ```
 You can copy the full boot node URL from the console output in format: `enode://$BOOTSTRAP_PUB_KEY@$BOOTSTRAP_IP:$BOOTSTRAP_DISCOVERY_PORT`. 
 
 Here is an example:
 
 `INFO [11-04|18:05:54.832] Started P2P networking  self=enode://011bd77918a523c2d983de2508270420faf6263403a7a7f6daf1212a810537e4d27787e8885d8c696c3445158a75cfe521cfccab9bc25ba5ac6f8aebf60106f1@127.0.0.1:38291`
+
+NOTE if your clusters are cross-internet, you need to replace `$BOOTSTRAP_IP` part with PUBLIC ip address when used as `--bootnodes` flag for other clusters.
 
 NOTE if private key is not provided, the boot node URL will change at each restart of the service.
 
@@ -165,7 +193,7 @@ cd $GOPATH/src/github.com/QuarkChain/goquarkchain/cmd/cluster
 ```
 Next, start the `master` service, providing the boot node URL as `$BOOTSTRAP_ENODE`:
 ```bash
-./cluster --cluster_config $CLUSTER_CONFIG_FILE --bootnodes=$BOOTSTRAP_ENODE
+./cluster --cluster_config $CLUSTER_CONFIG_FILE --bootnodes $BOOTSTRAP_ENODE
 ```
 NOTE using `BOOT_NODES` field of `P2P` section in cluster config file will have the same effect as `--bootnodes` flag.
 

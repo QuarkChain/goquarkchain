@@ -3,7 +3,7 @@
 Here we provide a deploy tool based on pre-built Docker image(`quarkchaindocker/goquarkchain`). With this tool you can deploy multiple clusters to build 
 and start a private QuarkChain network in one line command. 
 
-You can also build your own Docker image, starting from [this Dockerfile](../Dockerfile), or if you are 
+You can also build your own Docker image, starting from [this Dockerfile](../../../docker/Dockerfile), or if you are 
 interested in build everything without Docker, start from [here](../../../README.md#development-setup). 
 
 NOTE it is recommended to run deployer in the same LAN with the hosts you plan to deploy a cluster, because some file copy work 
