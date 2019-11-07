@@ -1,13 +1,10 @@
 # Use Deploy Tool to Start GoQuarkChain Clusters
 
-Here we provide a deploy tool based on pre-built Docker image. With this tool you can deploy multiple clusters to build 
+Here we provide a deploy tool based on pre-built Docker image(`quarkchaindocker/goquarkchain`). With this tool you can deploy multiple clusters to build 
 and start a private QuarkChain network in one line command. 
 
-It is encouraged that you build your own deploy scripts or tools, especially if you prefer different service distribution 
-among hosts.  You can also build your own Docker image, starting from [this Dockerfile](../Dockerfile), or if you are 
+You can also build your own Docker image, starting from [this Dockerfile](../Dockerfile), or if you are 
 interested in build everything without Docker, start from [here](../../../README.md#development-setup). 
-
-NOTE with this tool at most one Slave service can be deployed per host, but there is no limitation for Shard number.
 
 NOTE it is recommended to run deployer in the same LAN with the hosts you plan to deploy a cluster, because some file copy work 
 will be done across network during the deploy process. 
@@ -16,10 +13,10 @@ will be done across network during the deploy process.
 
 To use `deployer` to run Docker image, it is required for the hosts that:
 
-    a) Ubuntu 18.04, 
-    b) root account is enabled, 
-    c) Docker version >= 18.09.7, and
-    d) 38291, 38391, 38491, [48000, 48000 + host number] ports opened.
+   - Ubuntu 18.04, 
+   - root account is enabled, 
+   - Docker version >= 18.09.7, and
+   - 38291, 38391, 38491, [48000, 48000 + host number] ports opened.
 
 ## Run Docker Image
 
