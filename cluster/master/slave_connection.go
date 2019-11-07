@@ -580,9 +580,9 @@ func (s *SlaveConnection) GenTx(numTxPerShard, xShardPercent uint32, tx *types.T
 	return nil
 }
 
-func (s *SlaveConnection) AddTransactions(request *rpc.NewTransactionList) (*rpc.HashList, error) {
+func (s *SlaveConnection) AddTransactions(request *rpc.NewTransactionList) (*rpc.ResTransBatch, error) {
 	var (
-		rsp = new(rpc.HashList)
+		rsp = new(rpc.ResTransBatch)
 		res = new(rpc.Response)
 	)
 	bytes, err := serialize.SerializeToBytes(request)

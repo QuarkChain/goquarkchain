@@ -69,11 +69,11 @@ func (m *MasterServerSideOp) BroadcastNewTip(ctx context.Context, req *rpc.Reque
 }
 
 func (m *MasterServerSideOp) BroadcastTransactions(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
-	broadcastTxsReq := new(rpc.BroadcastTransactions)
+	broadcastTxsReq := new(rpc.TransBatch)
 	if err := serialize.DeserializeFromBytes(req.Data, broadcastTxsReq); err != nil {
 		return nil, err
 	}
-	m.p2pApi.BroadcastTransactions(broadcastTxsReq.Branch, broadcastTxsReq.Txs, broadcastTxsReq.PeerID)
+	m.p2pApi.BroadcastTransactions(broadcastTxsReq, "")
 	return &rpc.Response{
 		RpcId: req.RpcId,
 	}, nil

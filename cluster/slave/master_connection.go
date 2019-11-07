@@ -46,11 +46,9 @@ func (s *ConnManager) SendMinorBlockHeaderListToMaster(request *rpc.AddMinorBloc
 	}
 	return err
 }
-func (s *ConnManager) BroadcastNewTip(mHeaderLst []*types.MinorBlockHeader,
-	rHeader *types.RootBlockHeader, branch uint32) error {
-	var (
-		gReq = rpc.BroadcastNewTip{MinorBlockHeaderList: mHeaderLst, RootBlockHeader: rHeader, Branch: branch}
-	)
+
+func (s *ConnManager) BroadcastNewTip(mHeaderLst []*types.MinorBlockHeader, rHeader *types.RootBlockHeader, branch uint32) error {
+	gReq := rpc.BroadcastNewTip{MinorBlockHeaderList: mHeaderLst, RootBlockHeader: rHeader, Branch: branch}
 	data, err := serialize.SerializeToBytes(gReq)
 	if err != nil {
 		return err
@@ -60,14 +58,15 @@ func (s *ConnManager) BroadcastNewTip(mHeaderLst []*types.MinorBlockHeader,
 }
 
 func (s *ConnManager) BroadcastTransactions(txs []*types.Transaction, branch uint32) error {
-	var (
-		gReq = rpc.BroadcastTransactions{Txs: txs, Branch: branch}
-	)
+	raw, err := serialize.SerializeToBytes(&p2p.NewTransactionList{TransactionList: txs})
+	if err != nil {
+		return err
+	}
+	gReq := rpc.TransBatch{Count: uint32(len(txs)), Branch: branch, Data: raw}
 	data, err := serialize.SerializeToBytes(gReq)
 	if err != nil {
 		return err
 	}
-
 	_, err = s.masterClient.client.Call(s.masterClient.target, &rpc.Request{Op: rpc.OpBroadcastTransactions, Data: data})
 	return err
 }

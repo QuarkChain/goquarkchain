@@ -419,6 +419,27 @@ type NewTransactionList struct {
 	PeerID          string `json:"peerid" gencodec:"required"`
 }
 
-type HashList struct {
-	TransactionList []*types.Transaction `json:"transaction_list" gencodec:"required" bytesizeofslicelen:"4"`
+type TransBatch struct {
+	Branch uint32
+	Count  uint32
+	Data   []byte // *p2p.NewTransactionList
+}
+
+type ResTransBatch struct {
+	PeerID string        `json:"peerid" gencodec:"required"`
+	Trans  []*TransBatch `json:"trans" gencodec:"required" bytesizeofslicelen:"4"`
+}
+
+func NewResTransBatch(peerId string) *ResTransBatch {
+	return &ResTransBatch{PeerID: peerId, Trans: make([]*TransBatch, 0, 1)}
+}
+
+func (r *ResTransBatch) AddTrans(txsBatch *TransBatch) bool {
+	for _, res := range r.Trans {
+		if res.Branch == txsBatch.Branch {
+			return false
+		}
+	}
+	r.Trans = append(r.Trans, txsBatch)
+	return true
 }

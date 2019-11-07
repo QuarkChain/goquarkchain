@@ -504,7 +504,7 @@ func (s *SlaveServerSideOp) HandleNewTip(ctx context.Context, req *rpc.Request) 
 func (s *SlaveServerSideOp) AddTransactions(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
 	var (
 		gReq     p2p.NewTransactionList
-		gRep     rpc.HashList
+		gRep     rpc.ResTransBatch
 		buf      = serialize.NewByteBuffer(req.Data)
 		response = &rpc.Response{RpcId: req.RpcId}
 		err      error

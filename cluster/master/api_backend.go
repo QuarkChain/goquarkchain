@@ -12,6 +12,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/p2p"
 	qrpc "github.com/QuarkChain/goquarkchain/rpc"
+	"github.com/QuarkChain/goquarkchain/serialize"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"golang.org/x/sync/errgroup"
@@ -76,7 +77,11 @@ func (s *QKCMasterBackend) AddTransaction(tx *types.Transaction) error {
 	if err != nil {
 		return err
 	}
-	go s.protocolManager.BroadcastTransactions(fullShardId, []*types.Transaction{tx}, "")
+	data, err := serialize.SerializeToBytes(&p2p.NewTransactionList{TransactionList: []*types.Transaction{tx}})
+	if err != nil {
+		return err
+	}
+	go s.protocolManager.BroadcastTransactions(&rpc.TransBatch{Branch: fullShardId, Count: 1, Data: data}, "")
 	return nil
 }
 

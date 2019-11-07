@@ -5,6 +5,7 @@ package master
 import (
 	"errors"
 	"fmt"
+	"github.com/QuarkChain/goquarkchain/cluster/rpc"
 	"github.com/QuarkChain/goquarkchain/p2p/nodefilter"
 	"io/ioutil"
 	"math/big"
@@ -49,11 +50,6 @@ type newMinorBlock struct {
 	block  *types.MinorBlock
 }
 
-type newTxs struct {
-	branch uint32
-	txs    []*types.Transaction
-}
-
 type newTip struct {
 	branch uint32
 	tip    *p2p.Tip
@@ -78,10 +74,10 @@ type Peer struct {
 
 	lock             sync.RWMutex
 	chanLock         sync.RWMutex
-	queuedTxs        chan newTxs        // Queue of transactions to broadcast to the peer
-	queuedMinorBlock chan newMinorBlock // Queue of blocks to broadcast to the peer
-	queuedTip        chan newTip        // Queue of Tips to announce to the peer
-	term             chan struct{}      // Termination channel to stop the broadcaster
+	queuedTxs        chan *rpc.TransBatch // Queue of transactions to broadcast to the peer
+	queuedMinorBlock chan newMinorBlock   // Queue of blocks to broadcast to the peer
+	queuedTip        chan newTip          // Queue of Tips to announce to the peer
+	term             chan struct{}        // Termination channel to stop the broadcaster
 	chans            map[uint64]chan interface{}
 }
 
@@ -92,7 +88,7 @@ func newPeer(version int, p *p2p.Peer, rw p2p.MsgReadWriter) *Peer {
 		version:          version,
 		id:               fmt.Sprintf("%x", p.ID().Bytes()[:8]),
 		head:             &peerHead{nil, make(map[uint32]*p2p.Tip)},
-		queuedTxs:        make(chan newTxs, maxQueuedTxs),
+		queuedTxs:        make(chan *rpc.TransBatch, maxQueuedTxs),
 		queuedMinorBlock: make(chan newMinorBlock, maxQueuedMinorBlocks),
 		queuedTip:        make(chan newTip, maxQueuedTips),
 		term:             make(chan struct{}),
@@ -107,12 +103,12 @@ func (p *Peer) broadcast() {
 	for {
 		select {
 		case nTxs := <-p.queuedTxs:
-			if err := p.SendTransactions(nTxs.branch, nTxs.txs); err != nil {
+			if err := p.SendTransactions(nTxs); err != nil {
 				p.Log().Error("Broadcast transactions failed",
-					"count", len(nTxs.txs), "branch", nTxs.branch, "error", err.Error())
+					"count", nTxs.Count, "branch", nTxs.Branch, "error", err.Error())
 				return
 			}
-			p.Log().Trace("Broadcast transactions", "count", len(nTxs.txs), "branch", nTxs.branch)
+			p.Log().Trace("Broadcast transactions", "count", nTxs.Count, "branch", nTxs.Branch)
 
 		case nBlock := <-p.queuedMinorBlock:
 			if err := p.SendNewMinorBlock(nBlock.branch, nBlock.block); err != nil {
@@ -197,11 +193,8 @@ func (p *Peer) PeerID() string {
 
 // SendTransactions sends transactions to the peer and includes the hashes
 // in its transaction hash set for future reference.
-func (p *Peer) SendTransactions(branch uint32, txs []*types.Transaction) error {
-	data := p2p.NewTransactionList{}
-	data.TransactionList = txs
-
-	msg, err := p2p.MakeMsg(p2p.NewTransactionListMsg, 0, p2p.Metadata{Branch: branch}, data)
+func (p *Peer) SendTransactions(p2pTxs *rpc.TransBatch) error {
+	msg, err := p2p.MakeMsg(p2p.NewTransactionListMsg, 0, p2p.Metadata{Branch: p2pTxs.Branch}, p2pTxs.Data)
 	if err != nil {
 		return err
 	}
@@ -210,12 +203,12 @@ func (p *Peer) SendTransactions(branch uint32, txs []*types.Transaction) error {
 
 // AsyncSendTransactions queues list of transactions propagation to a remote
 // peer. If the peer's broadcast queue is full, the event is silently dropped.
-func (p *Peer) AsyncSendTransactions(branch uint32, txs []*types.Transaction) {
+func (p *Peer) AsyncSendTransactions(txs *rpc.TransBatch) {
 	select {
-	case p.queuedTxs <- newTxs{branch: branch, txs: txs}:
-		p.Log().Debug("add transaction to broadcast queue", "count", len(txs))
+	case p.queuedTxs <- txs:
+		p.Log().Debug("add transaction to broadcast queue", "count", txs.Count)
 	default:
-		p.Log().Debug("Dropping transaction propagation", "count", len(txs))
+		p.Log().Debug("Dropping transaction propagation", "count", txs.Count)
 	}
 }
 

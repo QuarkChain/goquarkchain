@@ -605,7 +605,9 @@ func (pm *ProtocolManager) HandleNewTransactionListRequest(peerId string, rpcId 
 				log.Error("addTransaction err", "branch", branch, "HandleNewTransactionListRequest failed with error: ", err.Error())
 				return
 			}
-			pm.BroadcastTransactions(branch, result.TransactionList, peerId)
+			for _, res := range result.Trans {
+				pm.BroadcastTransactions(res, peerId)
+			}
 		}
 	}()
 
@@ -700,13 +702,13 @@ func (pm *ProtocolManager) tipBroadcastLoop() {
 	}
 }
 
-func (pm *ProtocolManager) BroadcastTransactions(branch uint32, txs []*types.Transaction, sourcePeerId string) {
+func (pm *ProtocolManager) BroadcastTransactions(txs *rpc.TransBatch, sourcePeerId string) {
 	for _, peer := range pm.peers.Peers() {
 		if peer.id != sourcePeerId {
-			peer.AsyncSendTransactions(branch, txs)
+			peer.AsyncSendTransactions(txs)
 		}
 	}
-	log.Trace("Announced transaction", "count", len(txs), "recipients", pm.peers.Len()-1)
+	log.Trace("Announced transaction", "count", txs.Count, "recipients", pm.peers.Len()-1)
 }
 
 // syncer is responsible for periodically synchronising with the network, both
