@@ -4,13 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/QuarkChain/goquarkchain/params"
+	"golang.org/x/sync/errgroup"
 	"time"
 
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/p2p"
-	"github.com/QuarkChain/goquarkchain/params"
 	qrpc "github.com/QuarkChain/goquarkchain/rpc"
 	"github.com/QuarkChain/goquarkchain/serialize"
 	"github.com/ethereum/go-ethereum/log"
@@ -604,7 +605,6 @@ func (s *SlaveServerSideOp) HandleNewTip(ctx context.Context, req *rpc.Request) 
 }
 
 func (s *SlaveServerSideOp) AddTransactions(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
-	ts := time.Now()
 	var (
 		gReq     rpc.NewTransactionList
 		gRes     = rpc.HashList{}
@@ -617,24 +617,52 @@ func (s *SlaveServerSideOp) AddTransactions(ctx context.Context, req *rpc.Reques
 		return nil, err
 	}
 
-	if len(gReq.TransactionList) > params.NEW_TRANSACTION_LIST_LIMIT {
-		return nil, errors.New("too many txs in one command")
-	}
-
 	err = serialize.DeserializeFromBytes(gReq.TransactionList, &txsMsg)
 	if err != nil {
 		return nil, err
 	}
 
-	//must use single thread here
-	errList, err := s.slave.AddTxList(gReq.Branch, txsMsg.TransactionList, gReq.PeerID)
-	if err != nil {
-		return nil, err
+	var (
+		txList       = make(map[uint32][]*types.Transaction)
+		fullShardIds = s.slave.fullShardList
+	)
+
+	for _, tx := range txsMsg.TransactionList {
+		fId := tx.EvmTx.FromFullShardId()
+		for _, id := range fullShardIds {
+			if fId != id {
+				continue
+			}
+			if _, ok := txList[id]; !ok {
+				txList[id] = make([]*types.Transaction, 0, params.NEW_TRANSACTION_LIST_LIMIT)
+			}
+			txList[id] = append(txList[id], tx)
+		}
 	}
 
-	if len(errList) != len(gReq.TransactionList) {
-		return nil, errors.New("errList != txList")
+	var (
+		g errgroup.Group
+	)
+	for branch, txs := range txList {
+		branch, txs := branch, txs
+		g.Go(func() error {
+			ts := time.Now()
+			if len(txs) > params.NEW_TRANSACTION_LIST_LIMIT {
+				return fmt.Errorf("too many txs in one command, tx count: %d\n", len(txs))
+			}
+			errList, err := s.slave.AddTxList(branch, txs, gReq.PeerID)
+			if err != nil {
+				return err
+			}
+			if len(errList) != len(txs) {
+				return errors.New("errList != txList")
+			}
+			log.Info("AddTxs duration", "t", time.Now().Sub(ts).Seconds(), "time", time.Now().Sub(ts).Nanoseconds(), "len", len(txs))
+			return nil
+		})
 	}
+
+	//must use single thread here
 
 	gRes.TransactionList = make([]*types.Transaction, 0, len(txsMsg.TransactionList))
 	for index, tx := range txsMsg.TransactionList {
@@ -646,7 +674,6 @@ func (s *SlaveServerSideOp) AddTransactions(ctx context.Context, req *rpc.Reques
 	if response.Data, err = serialize.SerializeToBytes(gRes); err != nil {
 		return nil, err
 	}
-	log.Info("AddTxs duration", "t", time.Now().Sub(ts).Seconds(), "time", time.Now().Sub(ts).Nanoseconds(), "len", len(gReq.TransactionList))
 	return response, nil
 }
 

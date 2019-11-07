@@ -225,34 +225,7 @@ func (pm *ProtocolManager) handleMsg(peer *Peer) error {
 		return pm.HandleNewMinorTip(qkcMsg.MetaData.Branch, &tip, peer)
 
 	case qkcMsg.Op == p2p.NewTransactionListMsg:
-		if qkcMsg.MetaData.Branch != 0 {
-			return pm.HandleNewTransactionListRequest(peer.id, qkcMsg.RpcID, qkcMsg.MetaData.Branch, qkcMsg.Data)
-		}
-		var trans p2p.NewTransactionList
-		if err := serialize.DeserializeFromBytes(qkcMsg.Data, &trans); err != nil {
-			return err
-		}
-		branchTxMap := make(map[uint32][]*types.Transaction)
-		for _, tx := range trans.TransactionList {
-			fromShardSize, err := pm.clusterConfig.Quarkchain.GetShardSizeByChainId(tx.EvmTx.FromChainID())
-			if err != nil {
-				return err
-			}
-			if err := tx.EvmTx.SetFromShardSize(fromShardSize); err != nil {
-				return err
-			}
-			branchTxMap[tx.EvmTx.FromFullShardId()] = append(branchTxMap[tx.EvmTx.FromFullShardId()], tx)
-		}
-		// todo make them run in Parallelized
-		for branch, list := range branchTxMap {
-			data, err := serialize.SerializeToBytes(&p2p.NewTransactionList{TransactionList: list})
-			if err != nil {
-				return err
-			}
-			if err := pm.HandleNewTransactionListRequest(peer.id, qkcMsg.RpcID, branch, data); err != nil {
-				return err
-			}
-		}
+		return pm.HandleNewTransactionListRequest(peer.id, qkcMsg.RpcID, qkcMsg.MetaData.Branch, qkcMsg.Data)
 
 	case qkcMsg.Op == p2p.NewBlockMinorMsg:
 		var newBlockMinor p2p.NewBlockMinor
@@ -614,7 +587,13 @@ func (pm *ProtocolManager) HandleNewTransactionListRequest(peerId string, rpcId 
 		TransactionList: data,
 		PeerID:          peerId,
 	}
-	clients := pm.slaveConns.GetSlaveConnsById(branch)
+	var clients []rpc.ISlaveConn
+	if branch == 0 {
+		clients = pm.slaveConns.GetSlaveConns()
+	} else {
+		clients = pm.slaveConns.GetSlaveConnsById(branch)
+	}
+
 	if len(clients) == 0 {
 		return fmt.Errorf("invalid branch %d for rpc request %d", rpcId, branch)
 	}
