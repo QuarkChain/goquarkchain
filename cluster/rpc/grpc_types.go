@@ -422,7 +422,7 @@ type NewTransactionList struct {
 type TransBatch struct {
 	Branch uint32
 	Count  uint32
-	Data   []byte // *p2p.NewTransactionList
+	Data   []byte `json:"data" gencodec:"required" bytesizeofslicelen:"4"` // *p2p.NewTransactionList
 }
 
 type ResTransBatch struct {
