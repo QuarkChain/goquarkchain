@@ -3,12 +3,12 @@ package master
 import (
 	"errors"
 	"fmt"
-	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"math/big"
 	"sync"
 	"time"
 
 	"github.com/QuarkChain/goquarkchain/account"
+	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/core/types"
@@ -23,8 +23,7 @@ type SlaveConnManager struct {
 	count              int
 	clientPool         []rpc.ISlaveConn
 	branchToSlaveConns map[uint32][]rpc.ISlaveConn
-
-	logInfo string
+	logInfo            string
 }
 
 func (s *SlaveConnManager) InitConnManager(cfg *config.ClusterConfig) error {
