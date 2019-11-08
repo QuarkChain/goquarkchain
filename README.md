@@ -89,7 +89,9 @@ go test ./...
 
 ## Setup Environment Using Docker 
 
-Using [pre-built Docker image](docker/Dockerfile), you do not need to setup development environment to run a cluster.
+Using [pre-built Docker image](docker/Dockerfile), you will have environment setup to run a cluster inside Docker container.
+
+Refer to [Docker docs](https://docs.docker.com/v17.09/engine/installation/) if Docker is not yet installed on your machine.
 
 Run the following commands to pull and start a container:
 

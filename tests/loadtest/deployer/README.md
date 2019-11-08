@@ -82,10 +82,6 @@ docker exec -it bjqkc /bin/bash
 ```
 You can find master.log and shard logs such as `S0.log` from `$GOPATH/src/github.com/QuarkChain/goquarkchain/cmd/cluster`.
  
-Try the following command to see if mining works:
-```bash
-curl -X POST -H 'content-type: application/json' --data '{"jsonrpc":"2.0","method":"setMining","params":[true],"id":0}' http://127.0.0.1:38491
-```
 ## Back to Loadtest
 
-Now that you have running clusters, you can continue with loadtest from [here](../README.md#generate-transactions).
+Now that you have running clusters, you can continue with loadtest from [here](../README.md#start-mining).
