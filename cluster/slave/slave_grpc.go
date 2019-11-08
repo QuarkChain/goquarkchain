@@ -587,20 +587,24 @@ func (s *SlaveServerSideOp) GetMinorBlockHeaderList(ctx context.Context, req *rp
 
 func (s *SlaveServerSideOp) HandleNewTip(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
 	var (
-		gReq     rpc.HandleNewTipRequest
-		response = &rpc.Response{RpcId: req.RpcId}
-		err      error
+		gReq rpc.HandleRawMinorTip
+		mTip p2p.Tip
+		err  error
 	)
 
 	if err = serialize.DeserializeFromBytes(req.Data, &gReq); err != nil {
 		return nil, err
 	}
 
-	if err = s.slave.HandleNewTip(&gReq); err != nil {
+	if err = serialize.DeserializeFromBytes(gReq.RawTip, &mTip); err != nil {
 		return nil, err
 	}
 
-	return response, nil
+	if err = s.slave.HandleNewTip(gReq.PeerID, gReq.Branch, &mTip); err != nil {
+		return nil, err
+	}
+
+	return nil, nil
 }
 
 func (s *SlaveServerSideOp) AddTransactions(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {

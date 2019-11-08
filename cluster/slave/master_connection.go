@@ -48,14 +48,39 @@ func (s *ConnManager) SendMinorBlockHeaderListToMaster(request *rpc.AddMinorBloc
 }
 func (s *ConnManager) BroadcastNewTip(mHeaderLst []*types.MinorBlockHeader,
 	rHeader *types.RootBlockHeader, branch uint32) error {
-	var (
-		gReq = rpc.BroadcastNewTip{MinorBlockHeaderList: mHeaderLst, RootBlockHeader: rHeader, Branch: branch}
-	)
-	data, err := serialize.SerializeToBytes(gReq)
+	if rHeader == nil {
+		return errors.New("faled to broadcast new tip, root block header is nil")
+	}
+	if len(mHeaderLst) != 1 {
+		return errors.New("minor block count in minorBlockHeaderList should be 1")
+	}
+	if mHeaderLst[0].Branch.Value != branch {
+		return errors.New("branch mismatch")
+	}
+
+	curTip := s.slave.GetTip(branch)
+	if curTip != nil && rHeader != nil {
+		if curTip.RootBlockHeader.Number > rHeader.Number {
+			return nil
+		}
+		if curTip.RootBlockHeader.Number == rHeader.Number &&
+			curTip.MinorBlockHeaderList[0].Number > mHeaderLst[0].Number {
+			return nil
+		}
+		if curTip.MinorBlockHeaderList[0].Hash() == mHeaderLst[0].Hash() {
+			return nil
+		}
+	}
+
+	data, err := serialize.SerializeToBytes(p2p.Tip{MinorBlockHeaderList: mHeaderLst, RootBlockHeader: rHeader})
 	if err != nil {
 		return err
 	}
-	_, err = s.masterClient.client.Call(s.masterClient.target, &rpc.Request{Op: rpc.OpBroadcastNewTip, Data: data})
+	raw, err := serialize.SerializeToBytes(rpc.BroadcastNewTip{Branch: branch, RNumber: rHeader.Number, RawTip: data})
+	if err != nil {
+		return err
+	}
+	_, err = s.masterClient.client.Call(s.masterClient.target, &rpc.Request{Op: rpc.OpBroadcastNewTip, Data: raw})
 	return err
 }
 

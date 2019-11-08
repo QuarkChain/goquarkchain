@@ -2,6 +2,7 @@ package master
 
 import (
 	"fmt"
+	"golang.org/x/sync/errgroup"
 	"io/ioutil"
 	"reflect"
 	"sync"
@@ -210,6 +211,9 @@ func (pm *ProtocolManager) handleMsg(peer *Peer) error {
 		return errors.New("Unexpected Hello msg")
 
 	case qkcMsg.Op == p2p.NewTipMsg:
+		if qkcMsg.MetaData.Branch != 0 {
+			return pm.HandleNewMinorTip(qkcMsg.MetaData.Branch, qkcMsg.Data, peer)
+		}
 		var tip p2p.Tip
 		if err := serialize.DeserializeFromBytes(qkcMsg.Data, &tip); err != nil {
 			return err
@@ -222,7 +226,6 @@ func (pm *ProtocolManager) handleMsg(peer *Peer) error {
 		if qkcMsg.MetaData.Branch == 0 {
 			return pm.HandleNewRootTip(&tip, peer)
 		}
-		return pm.HandleNewMinorTip(qkcMsg.MetaData.Branch, &tip, peer)
 
 	case qkcMsg.Op == p2p.NewTransactionListMsg:
 		var trans p2p.NewTransactionList
@@ -453,53 +456,23 @@ func (pm *ProtocolManager) HandleNewRootTip(tip *p2p.Tip, peer *Peer) error {
 	return nil
 }
 
-func (pm *ProtocolManager) HandleNewMinorTip(branch uint32, tip *p2p.Tip, peer *Peer) error {
-	// handle minor tip when branch != 0 and the minor block only contain 1 heard which is the tip block
-	if len(tip.MinorBlockHeaderList) != 1 {
-		return fmt.Errorf("invalid NewTip Request: len of MinorBlockHeaderList is %d for branch %d from peer %v",
-			len(tip.MinorBlockHeaderList), branch, peer.id)
-	}
-	if branch != tip.MinorBlockHeaderList[0].Branch.Value {
-		return fmt.Errorf("invalid NewTip Request: mismatch branch value from peer %v. in request meta: %d, in minor header: %d",
-			peer.id, branch, tip.MinorBlockHeaderList[0].Branch.Value)
-	}
-	if minorTip := peer.MinorHead(branch); minorTip != nil && minorTip.RootBlockHeader != nil {
-		if minorTip.RootBlockHeader.ToTalDifficulty.Cmp(tip.RootBlockHeader.ToTalDifficulty) > 0 {
-			return fmt.Errorf("best observed root header height is decreasing %d < %d",
-				tip.RootBlockHeader.Number, minorTip.RootBlockHeader.Number)
-		}
-		if minorTip.RootBlockHeader.ToTalDifficulty.Cmp(tip.RootBlockHeader.ToTalDifficulty) == 0 &&
-			minorTip.RootBlockHeader.Hash() != tip.RootBlockHeader.Hash() {
-			return fmt.Errorf("best observed root header changed with same height %d", minorTip.RootBlockHeader.Number)
-		}
-		if minorTip.RootBlockHeader.ToTalDifficulty.Cmp(tip.RootBlockHeader.ToTalDifficulty) == 0 &&
-			minorTip.MinorBlockHeaderList[0].Number > tip.MinorBlockHeaderList[0].Number {
-			return fmt.Errorf("best observed minor header is decreasing %d < %d",
-				tip.MinorBlockHeaderList[0].Number, minorTip.MinorBlockHeaderList[0].Number)
-		}
-	}
-	peer.SetMinorHead(branch, tip)
+func (pm *ProtocolManager) HandleNewMinorTip(branch uint32, tipData []byte, peer *Peer) error {
 	clients := pm.slaveConns.GetSlaveConnsById(branch)
 	if len(clients) == 0 {
 		return fmt.Errorf("invalid branch %d for rpc request from peer %v", branch, peer.id)
 	}
-	// todo make the client call in Parallelized
+	g := errgroup.Group{}
 	for _, client := range clients {
-		req := &rpc.HandleNewTipRequest{
-			RootBlockHeader:      tip.RootBlockHeader,
-			MinorBlockHeaderList: tip.MinorBlockHeaderList,
-			PeerID:               peer.id,
-		}
-		result, err := client.HandleNewTip(req)
-		if err != nil {
-			return fmt.Errorf("branch %d handle NewTipMsg message failed with error: %v", branch, err.Error())
-		}
-		if !result {
-			return fmt.Errorf("HandleNewRootTip for branch %d with height %d return false",
-				branch, tip.MinorBlockHeaderList[0].NumberU64())
-		}
+		conn := client
+		g.Go(func() error {
+			err := conn.HandleNewTip(&rpc.HandleRawMinorTip{Branch: branch, RawTip: tipData, PeerID: peer.id,})
+			if err != nil {
+				return fmt.Errorf("branch %d handle NewTipMsg message failed with error: %v", branch, err.Error())
+			}
+			return nil
+		})
 	}
-	return nil
+	return g.Wait()
 }
 
 func (pm *ProtocolManager) HandleGetRootBlockHeaderListRequest(req *p2p.GetRootBlockHeaderListRequest) (*p2p.GetRootBlockHeaderListResponse, error) {
@@ -710,7 +683,11 @@ func (pm *ProtocolManager) BroadcastTip(header *types.RootBlockHeader) {
 		if peer.RootHead() != nil && header.Number <= peer.RootHead().Number {
 			continue
 		}
-		peer.AsyncSendNewTip(0, &p2p.Tip{RootBlockHeader: header, MinorBlockHeaderList: nil})
+		data, err := serialize.SerializeToBytes(p2p.Tip{MinorBlockHeaderList: nil, RootBlockHeader: header})
+		if err != nil {
+			return
+		}
+		peer.AsyncSendNewTip(&rpc.BroadcastNewTip{Branch: 0, RNumber: header.Number, RawTip: data})
 	}
 	log.Trace("Announced block", "hash", header.Hash(), "recipients", pm.peers.Len())
 }

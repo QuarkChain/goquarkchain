@@ -42,30 +42,9 @@ func (api *PrivateP2PAPI) BroadcastTransactions(branch uint32, txs []*types.Tran
 	}
 }
 
-func (api *PrivateP2PAPI) BroadcastNewTip(branch uint32, rootBlockHeader *types.RootBlockHeader, minorBlockHeaderList []*types.MinorBlockHeader) error {
-	if rootBlockHeader == nil {
-		return errors.New("input block is nil")
-	}
-	if len(minorBlockHeaderList) != 1 {
-		return errors.New("minor block count in minorBlockHeaderList should be 1")
-	}
-	if minorBlockHeaderList[0].Branch.Value != branch {
-		return errors.New("branch mismatch")
-	}
+func (api *PrivateP2PAPI) BroadcastNewTip(newTip *rpc.BroadcastNewTip) error {
 	for _, peer := range api.peers.Peers() {
-		if minorTip := peer.MinorHead(branch); minorTip != nil && minorTip.RootBlockHeader != nil {
-			if minorTip.RootBlockHeader.Number > rootBlockHeader.Number {
-				continue
-			}
-			if minorTip.RootBlockHeader.Number == rootBlockHeader.Number &&
-				minorTip.MinorBlockHeaderList[0].Number > minorBlockHeaderList[0].Number {
-				continue
-			}
-			if minorTip.MinorBlockHeaderList[0].Hash() == minorBlockHeaderList[0].Hash() {
-				continue
-			}
-		}
-		peer.AsyncSendNewTip(branch, &p2p.Tip{RootBlockHeader: rootBlockHeader, MinorBlockHeaderList: minorBlockHeaderList})
+		peer.AsyncSendNewTip(newTip)
 	}
 	return nil
 }

@@ -9,7 +9,6 @@ import (
 
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
 	"github.com/QuarkChain/goquarkchain/cluster/sync"
-	"github.com/QuarkChain/goquarkchain/core"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/mocks/mock_master"
 	"github.com/QuarkChain/goquarkchain/p2p"
@@ -465,8 +464,16 @@ func TestBroadcastNewMinorBlockTip(t *testing.T) {
 		conn.(*mock_master.MockISlaveConn).EXPECT().
 			HandleNewTip(gomock.Any()).Return(true, nil).Times(1)
 	}
-	err = clientPeer.SendNewTip(2, &p2p.Tip{RootBlockHeader: pm.rootBlockChain.CurrentBlock().Header(),
-		MinorBlockHeaderList: []*types.MinorBlockHeader{minorBlocks[len(minorBlocks)-2].Header()}})
+
+	rHeader := pm.rootBlockChain.CurrentBlock().Header()
+	data, err := serialize.SerializeToBytes(p2p.Tip{
+		MinorBlockHeaderList: []*types.MinorBlockHeader{minorBlocks[len(minorBlocks)-2].Header()}, RootBlockHeader: rHeader})
+	assert.NoError(t, err)
+
+	raw, err := serialize.SerializeToBytes(rpc.BroadcastNewTip{Branch: 2, RNumber: rHeader.Number, RawTip: data})
+	assert.NoError(t, err)
+
+	err = clientPeer.SendNewTip(2, raw)
 	if err != nil {
 		t.Errorf("make message failed: %v", err.Error())
 	}
@@ -482,8 +489,15 @@ func TestBroadcastNewMinorBlockTip(t *testing.T) {
 				return false, errors.New("expected error")
 			}).Times(1)
 	}
-	err = clientPeer.SendNewTip(2, &p2p.Tip{RootBlockHeader: pm.rootBlockChain.CurrentBlock().Header(),
-		MinorBlockHeaderList: []*types.MinorBlockHeader{minorBlocks[len(minorBlocks)-1].Header()}})
+	rHeader = pm.rootBlockChain.CurrentBlock().Header()
+	data, err = serialize.SerializeToBytes(p2p.Tip{
+		MinorBlockHeaderList: []*types.MinorBlockHeader{minorBlocks[len(minorBlocks)-1].Header()}, RootBlockHeader: rHeader})
+	assert.NoError(t, err)
+
+	raw, err = serialize.SerializeToBytes(rpc.BroadcastNewTip{Branch: 2, RNumber: rHeader.Number, RawTip: data})
+	assert.NoError(t, err)
+
+	err = clientPeer.SendNewTip(2, raw)
 	if err != nil {
 		t.Errorf("make message failed: %v", err.Error())
 	}
@@ -507,8 +521,15 @@ func TestBroadcastNewRootBlockTip(t *testing.T) {
 
 	clientPeer := newTestClientPeer(int(qkcconfig.P2PProtocolVersion), peer.app)
 	defer peer.close()
-	blocks := core.GenerateRootBlockChain(pm.rootBlockChain.CurrentBlock(), pm.rootBlockChain.Engine(), 1, nil)
-	err = clientPeer.SendNewTip(0, &p2p.Tip{RootBlockHeader: blocks[0].Header(), MinorBlockHeaderList: nil})
+
+	rHeader := pm.rootBlockChain.CurrentBlock().Header()
+	data, err := serialize.SerializeToBytes(p2p.Tip{
+		MinorBlockHeaderList: nil, RootBlockHeader: rHeader})
+	assert.NoError(t, err)
+
+	raw, err := serialize.SerializeToBytes(rpc.BroadcastNewTip{Branch: 2, RNumber: rHeader.Number, RawTip: data})
+	assert.NoError(t, err)
+	err = clientPeer.SendNewTip(0, raw)
 	if err != nil {
 		t.Errorf("make message failed: %v", err.Error())
 	}

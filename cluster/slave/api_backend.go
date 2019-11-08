@@ -469,14 +469,45 @@ func (s *SlaveBackend) GetMinorBlockHeaderList(gReq *p2p.GetMinorBlockHeaderList
 	return s.getMinorBlockHeadersWithSkip(gReq)
 }
 
-func (s *SlaveBackend) HandleNewTip(req *rpc.HandleNewTipRequest) error {
-	if len(req.MinorBlockHeaderList) != 1 {
-		return errors.New("minor block header list must have only one header")
+func (s *SlaveBackend) HandleNewTip(peerId string, branch uint32, tip *p2p.Tip) error {
+	if len(tip.MinorBlockHeaderList) != 1 {
+		return fmt.Errorf("invalid NewTip Request: len of MinorBlockHeaderList is %d for branch %d from peer %v",
+			len(tip.MinorBlockHeaderList), branch, peerId)
+	}
+	if tip.RootBlockHeader == nil {
+		return fmt.Errorf("invalid NewTip Request: RootBlockHeader is nil. %v for rpc request %d", peerId, branch)
 	}
 
-	mBHeader := req.MinorBlockHeaderList[0]
-	if shard, ok := s.shards[mBHeader.Branch.Value]; ok {
-		return shard.HandleNewTip(req.RootBlockHeader, mBHeader, req.PeerID)
+	var (
+		header   = tip.MinorBlockHeaderList[0]
+		trHeader = tip.RootBlockHeader
+	)
+	if branch != header.Branch.Value {
+		return fmt.Errorf("invalid NewTip Request: mismatch branch value from peer %v. in request meta: %d, in minor header: %d",
+			peerId, branch, header.Branch.Value)
+	}
+	if minorTip := s.GetTip(branch); minorTip != nil && minorTip.RootBlockHeader != nil {
+		var (
+			rHeader = minorTip.RootBlockHeader
+			mHeader = minorTip.MinorBlockHeaderList[0]
+			cmp     = rHeader.ToTalDifficulty.Cmp(trHeader.ToTalDifficulty)
+		)
+		if cmp > 0 {
+			return fmt.Errorf("best observed root header height is decreasing %d < %d", trHeader.Number, rHeader.Number)
+		}
+		if cmp == 0 {
+			if rHeader.Hash() != trHeader.Hash() {
+				return fmt.Errorf("best observed root header changed with same height %d", rHeader.Number)
+			}
+			if mHeader.Number > header.Number {
+				return fmt.Errorf("best observed minor header is decreasing %d < %d", header.Number, mHeader.Number)
+			}
+		}
+	}
+	s.SetTip(branch, tip)
+
+	if shard, ok := s.shards[header.Branch.Value]; ok {
+		return shard.HandleNewTip(tip.RootBlockHeader, header, peerId)
 	}
 	return ErrMsg("HandleNewTip")
 }

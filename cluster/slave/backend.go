@@ -24,6 +24,9 @@ type SlaveBackend struct {
 	lock   sync.RWMutex
 	shards map[uint32]*shard.ShardBackend
 
+	mTips map[uint32]*p2p.Tip
+	tMu   sync.RWMutex
+
 	ctx      *service.ServiceContext
 	eventMux *event.TypeMux
 	logInfo  string
@@ -35,6 +38,7 @@ func New(ctx *service.ServiceContext, clusterCfg *config.ClusterConfig, cfg *con
 		clstrCfg:      clusterCfg,
 		fullShardList: make([]uint32, 0),
 		shards:        make(map[uint32]*shard.ShardBackend),
+		mTips:         make(map[uint32]*p2p.Tip),
 		ctx:           ctx,
 		eventMux:      ctx.EventMux,
 		logInfo:       "SlaveBackend",
@@ -46,6 +50,7 @@ func New(ctx *service.ServiceContext, clusterCfg *config.ClusterConfig, cfg *con
 		if !slave.coverShardId(id) {
 			continue
 		}
+		slave.mTips[id] = nil
 		slave.fullShardList = append(slave.fullShardList, id)
 	}
 
@@ -60,6 +65,19 @@ func (s *SlaveBackend) setPrecompiledContractsEnableTime(enableEvmTime uint64) {
 			vm.PrecompiledContractsByzantium[v].SetEnableTime(enableEvmTime)
 		}
 	}
+}
+
+func (s *SlaveBackend) GetTip(fullShardId uint32) *p2p.Tip {
+	s.tMu.RLock()
+	tip := s.mTips[fullShardId]
+	s.tMu.RUnlock()
+	return tip
+}
+
+func (s *SlaveBackend) SetTip(fullShardId uint32, tip *p2p.Tip) {
+	s.tMu.Lock()
+	s.mTips[fullShardId] = tip
+	s.tMu.Unlock()
 }
 
 func (s *SlaveBackend) GetFullShardList() []uint32 {

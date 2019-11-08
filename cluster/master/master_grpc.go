@@ -59,7 +59,7 @@ func (m *MasterServerSideOp) BroadcastNewTip(ctx context.Context, req *rpc.Reque
 	if err := serialize.DeserializeFromBytes(req.Data, broadcastTipReq); err != nil {
 		return nil, err
 	}
-	err := m.p2pApi.BroadcastNewTip(broadcastTipReq.Branch, broadcastTipReq.RootBlockHeader, broadcastTipReq.MinorBlockHeaderList)
+	err := m.p2pApi.BroadcastNewTip(broadcastTipReq)
 	if err != nil {
 		return nil, err
 	}

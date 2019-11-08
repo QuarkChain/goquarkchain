@@ -142,12 +142,6 @@ type GetMinorBlockHeaderListResponse struct {
 	MinorBlockHeaderList []*types.MinorBlockHeader `json:"minor_block_header" gencodec:"required" bytesizeofslicelen:"4"`
 }
 
-type BroadcastNewTip struct {
-	Branch               uint32                    `json:"branch" gencodec:"required"`
-	RootBlockHeader      *types.RootBlockHeader    `json:"root_block_header" gencodec:"required"`
-	MinorBlockHeaderList []*types.MinorBlockHeader `json:"minor_block_header_list" gencodec:"required" bytesizeofslicelen:"4"`
-}
-
 type GetTransactionRequest struct {
 	TxHash common.Hash `json:"tx_hash" gencodec:"required"`
 	Branch uint32      `json:"branch" gencodec:"required"`
@@ -329,6 +323,18 @@ type AddBlockListForSyncRequest struct {
 
 type AddBlockListForSyncResponse struct {
 	ShardStatus *ShardStatus `json:"shard_status" gencodec:"required"`
+}
+
+type BroadcastNewTip struct {
+	Branch  uint32 `json:"branch" gencodec:"required"`
+	RNumber uint32
+	RawTip  []byte `json:"raw_tip" gencodec:"required" bytesizeofslicelen:"4"` // *p2p.Tip
+}
+
+type HandleRawMinorTip struct {
+	Branch uint32
+	PeerID string `json:"peer_id" gencodec:"required"`
+	RawTip []byte `json:"raw_tip" gencodec:"required" bytesizeofslicelen:"4"`
 }
 
 type HandleNewTipRequest struct {

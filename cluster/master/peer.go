@@ -5,6 +5,7 @@ package master
 import (
 	"errors"
 	"fmt"
+	"github.com/QuarkChain/goquarkchain/cluster/rpc"
 	"github.com/QuarkChain/goquarkchain/p2p/nodefilter"
 	"io/ioutil"
 	"math/big"
@@ -56,7 +57,7 @@ type newTxs struct {
 
 type newTip struct {
 	branch uint32
-	tip    *p2p.Tip
+	rawTip []byte
 }
 
 type peerHead struct {
@@ -78,10 +79,10 @@ type Peer struct {
 
 	lock             sync.RWMutex
 	chanLock         sync.RWMutex
-	queuedTxs        chan newTxs        // Queue of transactions to broadcast to the peer
-	queuedMinorBlock chan newMinorBlock // Queue of blocks to broadcast to the peer
-	queuedTip        chan newTip        // Queue of Tips to announce to the peer
-	term             chan struct{}      // Termination channel to stop the broadcaster
+	queuedTxs        chan newTxs               // Queue of transactions to broadcast to the peer
+	queuedMinorBlock chan newMinorBlock        // Queue of blocks to broadcast to the peer
+	queuedTip        chan *rpc.BroadcastNewTip // Queue of Tips to announce to the peer
+	term             chan struct{}             // Termination channel to stop the broadcaster
 	chans            map[uint64]chan interface{}
 }
 
@@ -94,7 +95,7 @@ func newPeer(version int, p *p2p.Peer, rw p2p.MsgReadWriter) *Peer {
 		head:             &peerHead{nil, make(map[uint32]*p2p.Tip)},
 		queuedTxs:        make(chan newTxs, maxQueuedTxs),
 		queuedMinorBlock: make(chan newMinorBlock, maxQueuedMinorBlocks),
-		queuedTip:        make(chan newTip, maxQueuedTips),
+		queuedTip:        make(chan *rpc.BroadcastNewTip, maxQueuedTips),
 		term:             make(chan struct{}),
 		chans:            make(map[uint64]chan interface{}),
 	}
@@ -123,11 +124,11 @@ func (p *Peer) broadcast() {
 			p.Log().Trace("Broadcast minor block", "number", nBlock.block.NumberU64(), "hash", nBlock.block.Hash(), "branch", nBlock.branch)
 
 		case nTip := <-p.queuedTip:
-			if err := p.SendNewTip(nTip.branch, nTip.tip); err != nil {
+			if err := p.SendNewTip(nTip.Branch, nTip.RawTip); err != nil {
 				return
 			}
-			if nTip.branch != 0 {
-				p.Log().Trace("Broadcast new tip", "number", nTip.tip.RootBlockHeader.NumberU64(), "branch", nTip.branch)
+			if nTip.Branch != 0 {
+				p.Log().Trace("Broadcast new tip", "number", nTip.RNumber, "branch", nTip.Branch)
 			}
 
 		case <-p.term:
@@ -220,8 +221,8 @@ func (p *Peer) AsyncSendTransactions(branch uint32, txs []*types.Transaction) {
 }
 
 // SendNewTip announces the head of each shard or root.
-func (p *Peer) SendNewTip(branch uint32, tip *p2p.Tip) error {
-	msg, err := p2p.MakeMsg(p2p.NewTipMsg, 0, p2p.Metadata{Branch: branch}, tip) //NewTipMsg should rpc=0
+func (p *Peer) SendNewTip(branch uint32, rawTip []byte) error {
+	msg, err := p2p.MakeMsg(p2p.NewTipMsg, 0, p2p.Metadata{Branch: branch}, rawTip) //NewTipMsg should rpc=0
 	if err != nil {
 		return err
 	}
@@ -230,12 +231,12 @@ func (p *Peer) SendNewTip(branch uint32, tip *p2p.Tip) error {
 
 // AsyncSendNewTip queues the head block for propagation to a remote peer.
 // If the peer's broadcast queue is full, the event is silently dropped.
-func (p *Peer) AsyncSendNewTip(branch uint32, tip *p2p.Tip) {
+func (p *Peer) AsyncSendNewTip(newTip *rpc.BroadcastNewTip) {
 	select {
-	case p.queuedTip <- newTip{branch: branch, tip: tip}:
-		p.Log().Debug("Add new tip to broadcast queue", "", tip.RootBlockHeader.NumberU64(), "branch", branch)
+	case p.queuedTip <- newTip:
+		p.Log().Debug("Add new tip to broadcast queue", "", newTip.RNumber, "branch", newTip.Branch)
 	default:
-		p.Log().Debug("Dropping new tip", "", tip.RootBlockHeader.NumberU64(), "branch", branch)
+		p.Log().Debug("Dropping new tip", "", newTip.RNumber, "branch", newTip.Branch)
 	}
 }
 

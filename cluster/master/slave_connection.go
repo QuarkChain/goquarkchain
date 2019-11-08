@@ -637,17 +637,17 @@ func (s *SlaveConnection) GetMinorBlockHeaderList(req *p2p.GetMinorBlockHeaderLi
 	return rsp, nil
 }
 
-func (s *SlaveConnection) HandleNewTip(request *rpc.HandleNewTipRequest) (bool, error) {
-	bytes, err := serialize.SerializeToBytes(request)
+func (s *SlaveConnection) HandleNewTip(mTip *rpc.HandleRawMinorTip) error {
+	bytes, err := serialize.SerializeToBytes(mTip)
 	if err != nil {
-		return false, err
+		return err
 	}
 	_, err = s.client.Call(s.target, &rpc.Request{Op: rpc.OpHandleNewTip, Data: bytes})
 	if err != nil {
-		return false, err
+		return err
 	}
 
-	return true, nil
+	return nil
 }
 
 func (s *SlaveConnection) HandleNewMinorBlock(request *p2p.NewBlockMinor) (bool, error) {
