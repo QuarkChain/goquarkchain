@@ -89,7 +89,7 @@ go test ./...
 
 ## Setup Environment Using Docker 
 
-Using [pre-built Docker image](docker/Dockerfile), you will have environment setup to run a cluster inside Docker container.
+Using [pre-built Docker image](docker/Dockerfile), you can run a cluster inside Docker container without setting up environment step by step.
 
 Refer to [Docker docs](https://docs.docker.com/v17.09/engine/installation/) if Docker is not yet installed on your machine.
 
@@ -185,7 +185,7 @@ NOTE if your clusters are cross-internet, you need to replace `$BOOTSTRAP_IP` pa
 
 NOTE if private key is not provided, the boot node URL will change at each restart of the service.
 
-NOTE using `PRIV_KEY` field of `P2P` section in cluster config file will have the same effect as `--privkey` flag.
+NOTE the `PRIV_KEY` field of `P2P` section in cluster config file has same effect and can be overridden by `--privkey` flag.
 
 #### Start Other Clusters
 First start each of the `slave` services as in [last section](#running-a-single-cluster-for-local-testing):
@@ -197,7 +197,7 @@ Next, start the `master` service, providing the boot node URL as `$BOOTSTRAP_ENO
 ```bash
 ./cluster --cluster_config $CLUSTER_CONFIG_FILE --bootnodes $BOOTSTRAP_ENODE
 ```
-NOTE using `BOOT_NODES` field of `P2P` section in cluster config file will have the same effect as `--bootnodes` flag.
+NOTE the `BOOT_NODES` field of `P2P` section in cluster config file has same effect and can be overridden by `--bootnodes` flag.
 
 ## Monitoring Clusters
 Use the [stats tool](cmd/stats) in the repo to monitor the status of a cluster. It queries the given cluster through 
