@@ -1343,7 +1343,7 @@ func (m *MinorBlockChain) getPendingTxByAddress(address account.Address, transfe
 			}
 			txList = append(txList, &rpc.TransactionDetail{
 				TxHash:          tx.Hash(),
-				FromAddress:     address,
+				FromAddress:     account.NewAddress(account.BytesToIdentityRecipient(sender.Bytes()), tx.EvmTx.FromFullShardKey()),
 				ToAddress:       to,
 				Value:           serialize.Uint256{Value: tx.EvmTx.Value()},
 				BlockHeight:     0,

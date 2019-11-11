@@ -5,11 +5,12 @@ package types
 import (
 	"bytes"
 	"crypto/ecdsa"
-	"github.com/ethereum/go-ethereum/crypto"
 	"math/big"
 	"sync/atomic"
 	"time"
 	"unsafe"
+
+	"github.com/ethereum/go-ethereum/crypto"
 
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/serialize"
@@ -385,9 +386,15 @@ func (b *RootBlock) Finalize(coinbaseAmount *TokenBalances, coinbaseAddress *acc
 	b.hash.Store(b.header.Hash())
 	return b
 }
+
 func (b *RootBlock) AddMinorBlockHeader(header *MinorBlockHeader) {
 	b.minorBlockHeaders = append(b.minorBlockHeaders, header)
 }
-func (b *RootBlock) ExtendMinorBlockHeaderList(headers []*MinorBlockHeader) {
-	b.minorBlockHeaders = append(b.minorBlockHeaders, headers...)
+
+func (b *RootBlock) ExtendMinorBlockHeaderList(headers []*MinorBlockHeader, createTime uint64) {
+	for _, header := range headers {
+		if header.Time <= createTime {
+			b.minorBlockHeaders = append(b.minorBlockHeaders, header)
+		}
+	}
 }

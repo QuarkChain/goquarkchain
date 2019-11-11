@@ -3,6 +3,9 @@ package sync
 import (
 	"errors"
 	"fmt"
+	"math/rand"
+	"testing"
+
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
 	qcom "github.com/QuarkChain/goquarkchain/common"
@@ -13,8 +16,6 @@ import (
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/stretchr/testify/assert"
-	"math/rand"
-	"testing"
 )
 
 func (p *mockpeer) GetMinorBlockHeaderList(req *rpc.GetMinorBlockHeaderListWithSkipRequest) ([]*types.MinorBlockHeader, error) {
@@ -120,6 +121,7 @@ func TestMinorChainTask(t *testing.T) {
 	v := &mockvalidator{}
 	bc.(*mockblockchain).validator = v
 	mbc := bc.(*mockblockchain).mbc
+	defer mbc.Stop()
 
 	retMBlocks, retMHeaders := makeMinorChains(mbc.GetBlockByNumber(0).(*types.MinorBlock), 20, db, false)
 

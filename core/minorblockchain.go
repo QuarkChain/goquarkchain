@@ -419,6 +419,7 @@ func (m *MinorBlockChain) StateAt(root common.Hash) (*state.StateDB, error) {
 		return nil, err
 	}
 	evmState.SetShardConfig(m.shardConfig)
+	evmState.SetTimeStamp(uint64(time.Now().Unix()))
 	return evmState, nil
 }
 
@@ -725,6 +726,7 @@ func (m *MinorBlockChain) getNeedStoreHeight(rootHash common.Hash, heightDiff []
 // Stop stops the blockchain service. If any imports are currently in progress
 // it will abort them using the procInterrupt.
 func (m *MinorBlockChain) Stop() {
+	m.txPool.Stop()
 	if !atomic.CompareAndSwapInt32(&m.running, 0, 1) {
 		return
 	}
@@ -1884,7 +1886,7 @@ func (m *MinorBlockChain) GetRootChainStakes(coinbase account.Recipient, lastMin
 	vmenv := vm.NewEVM(context, evmState, m.ethChainConfig, *m.GetVMConfig())
 	gp := new(GasPool).AddGas(evmState.GetGasLimit().Uint64())
 	output, _, failed, err := ApplyMessage(vmenv, msg, gp)
-	if err != nil || output == nil || failed{
+	if err != nil || output == nil || failed {
 		return nil, nil, err
 	}
 	stake := new(big.Int).SetBytes(output[:32])
