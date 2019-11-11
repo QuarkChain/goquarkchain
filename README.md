@@ -89,7 +89,7 @@ go test ./...
 
 ## Setup Environment Using Docker 
 
-Using [pre-built Docker image](docker/Dockerfile), you can run a cluster inside Docker container without setting up environment step by step.
+Using pre-built Docker image(quarkchaindocker/goquarkchain), you can run a cluster inside Docker container without setting up environment step by step.
 
 Refer to [Docker docs](https://docs.docker.com/v17.09/engine/installation/) if Docker is not yet installed on your machine.
 
@@ -136,7 +136,7 @@ In anther terminal,
 cd $GOPATH/src/github.com/QuarkChain/goquarkchain/cmd/cluster
 ./cluster --cluster_config ../../tests/testnet/egconfig/cluster_config_template.json --service S1
 ```
-Start master in another terminal
+Start master in a third terminal
 ```bash
 cd $GOPATH/src/github.com/QuarkChain/goquarkchain/cmd/cluster
 ./cluster --cluster_config ../../tests/testnet/egconfig/cluster_config_template.json
@@ -161,12 +161,19 @@ cd $GOPATH/src/github.com/QuarkChain/goquarkchain/cmd/cluster
 NOTE that many parameters in the config are part of the consensus, please be very cautious when changing them. For example, 
 COINBASE_AMOUNT is one such parameter, changing it to another value effectively creates a fork in the network.
 
+NOTE if you run into the issue "Too many open files", which may occur while your cluster sync to mainnet, 
+try to increase the limitation for current terminal by executing the following command before start cluster:
+
+```bash
+ulimit -HSn 102400
+```
+
 ### Running multiple clusters with P2P network on different machines
 
 To run a private network, first start a bootstrap cluster, then start other clusters with bootnode URL to connect to it.
 
 #### Start Bootstrap Cluster
-First start each of the `slave` services as in [last section](#running-a-single-cluster-for-local-testing):
+First start each of the `slave` services as in [Running a single cluster for local testing](#running-a-single-cluster-for-local-testing):
 ```bash
 cd $GOPATH/src/github.com/QuarkChain/goquarkchain/cmd/cluster
 ./cluster --cluster_config ../../tests/testnet/egconfig/cluster_config_template.json --service $SLAVE_ID
@@ -188,7 +195,7 @@ NOTE if private key is not provided, the boot node URL will change at each resta
 NOTE the `PRIV_KEY` field of `P2P` section in cluster config file has same effect and can be overridden by `--privkey` flag.
 
 #### Start Other Clusters
-First start each of the `slave` services as in [last section](#running-a-single-cluster-for-local-testing):
+First start each of the `slave` services as in [Running a single cluster for local testing](#running-a-single-cluster-for-local-testing):
 ```bash
 cd $GOPATH/src/github.com/QuarkChain/goquarkchain/cmd/cluster
 ./cluster --cluster_config ../../tests/testnet/egconfig/cluster_config_template.json --service ${SLAVE_ID}

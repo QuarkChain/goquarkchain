@@ -6,6 +6,13 @@ In order to run loadtest, you need to [run your own GoQuarkChain clusters](../..
 
 A convenient option is to [Use Deploy Tool to Start Clusters](./deployer/README.md#use-deploy-tool-to-start-goquarkchain-clusters).
 
+## Cluster Configuration
+
+- ROOT/CONSENSUS_CONFIG/TARGET_BLOCK_TIME:   foot block interval
+- CHAINS/CONSENSUS_CONFIG/TARGET_BLOCK_TIME: minor block interval
+- CHAINS/GENESIS/GAS_LIMIT: minor block gas limit
+- CHAINS/SHARD_SIZE: number of shards per chain
+
 ## Start Mining
 
 Your clusters need to keep mining while loadtest is ongoing. 

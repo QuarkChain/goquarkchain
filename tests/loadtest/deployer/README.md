@@ -53,9 +53,9 @@ to same cluster; ClusterID must be consecutive integers start from 0; if Cluster
 started as a bootstrap node
 - `CHAIN_SIZE` defines the number of chains in each cluster, where each chain has a number of shards; CHAIN_SIZE must be bigger or equal to the number of slaves.
 - `SHARD_SIZE` defines the number of shards of each chain (must be a power of 2)
-- `TargetRootBlockTime` defines the target block interval of root chain in seconds, since "POW_SIMULATE" is used for consensus
-- `TargetMinorBlockTime` defines the target block interval of each shard
-- `GasLimit` defines the gas limit for a block; note that in-shard transactions uses 50% of the total gas limit in a block
+- `TargetRootBlockTime` refers to ROOT/CONSENSUS_CONFIG/TARGET_BLOCK_TIME in cluster config that defines the target block interval of root chain in seconds, since "POW_SIMULATE" is used for consensus
+- `TargetMinorBlockTime` refers to CHAINS/CONSENSUS_CONFIG/TARGET_BLOCK_TIME in cluster config that defines the target block interval of each shard
+- `GasLimit` refers to CHAINS/GENESIS/GAS_LIMIT in cluster config that defines the gas limit for a block; note that in-shard transactions uses 50% of the total gas limit in a block
 
 ## Deploy and Run Clusters
 
