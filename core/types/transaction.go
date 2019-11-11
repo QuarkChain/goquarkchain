@@ -198,11 +198,10 @@ func (tx *EvmTransaction) GasTokenID() uint64 {
 func (tx *EvmTransaction) TransferTokenID() uint64 {
 	return tx.data.TransferTokenID
 }
-func (tx *EvmTransaction) SetFromFullShardKey(key uint32) { k := Uint32(key); tx.data.FromFullShardKey = &k }
-func (tx *EvmTransaction) FromFullShardKey() uint32       { return tx.data.FromFullShardKey.GetValue() }
-func (tx *EvmTransaction) ToFullShardKey() uint32         { return tx.data.ToFullShardKey.GetValue() }
-func (tx *EvmTransaction) FromChainID() uint32            { return tx.data.FromFullShardKey.GetValue() >> 16 }
-func (tx *EvmTransaction) ToChainID() uint32              { return tx.data.ToFullShardKey.GetValue() >> 16 }
+func (tx *EvmTransaction) FromFullShardKey() uint32 { return tx.data.FromFullShardKey.GetValue() }
+func (tx *EvmTransaction) ToFullShardKey() uint32   { return tx.data.ToFullShardKey.GetValue() }
+func (tx *EvmTransaction) FromChainID() uint32      { return tx.data.FromFullShardKey.GetValue() >> 16 }
+func (tx *EvmTransaction) ToChainID() uint32        { return tx.data.ToFullShardKey.GetValue() >> 16 }
 func (tx *EvmTransaction) FromShardSize() uint32 {
 	return tx.FromShardsize
 }
