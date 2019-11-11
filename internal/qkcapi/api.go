@@ -3,19 +3,18 @@ package qkcapi
 import (
 	"bytes"
 	"errors"
-	"math/big"
-	"sort"
-
 	"github.com/QuarkChain/goquarkchain/account"
 	qrpc "github.com/QuarkChain/goquarkchain/cluster/rpc"
 	qcom "github.com/QuarkChain/goquarkchain/common"
+	"github.com/QuarkChain/goquarkchain/common/hexutil"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/internal/encoder"
 	"github.com/QuarkChain/goquarkchain/rpc"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rlp"
+	"math/big"
+	"sort"
 )
 
 type CommonAPI struct {
@@ -194,8 +193,8 @@ func (p *PublicBlockChainAPI) GetBalances(address account.Address, blockNr *rpc.
 	return fields, nil
 }
 
-func (p *PublicBlockChainAPI) GetAccountData( args GetAccountDataArgs) (map[string]interface{}, error) {
-	address, blockNr, includeShards :=  args.Address,  args.BlockNr,  args.IncludeShards
+func (p *PublicBlockChainAPI) GetAccountData(args GetAccountDataArgs) (map[string]interface{}, error) {
+	address, blockNr, includeShards := args.Address, args.BlockNr, args.IncludeShards
 	if includeShards != nil && blockNr != nil {
 		return nil, errors.New("do not allow specify height if client wants info on all shards")
 	}
