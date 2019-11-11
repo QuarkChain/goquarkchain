@@ -5,16 +5,16 @@ package master
 import (
 	"errors"
 	"fmt"
-	"github.com/QuarkChain/goquarkchain/cluster/rpc"
-	"github.com/QuarkChain/goquarkchain/p2p/nodefilter"
 	"io/ioutil"
 	"math/big"
 	"sync"
 	"time"
 
+	"github.com/QuarkChain/goquarkchain/cluster/rpc"
 	qkcom "github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/p2p"
+	"github.com/QuarkChain/goquarkchain/p2p/nodefilter"
 	"github.com/QuarkChain/goquarkchain/serialize"
 	"github.com/ethereum/go-ethereum/common"
 )
@@ -194,7 +194,7 @@ func (p *Peer) PeerID() string {
 // SendTransactions sends transactions to the peer and includes the hashes
 // in its transaction hash set for future reference.
 func (p *Peer) SendTransactions(p2pTxs *rpc.P2PRedirectRequest) error {
-	msg, err := p2p.MakeMsgBytes(p2p.NewTransactionListMsg, 0, p2p.Metadata{Branch: p2pTxs.Branch}, p2pTxs.Data)
+	msg, err := p2p.MakeMsgWithSerializedData(p2p.NewTransactionListMsg, 0, p2p.Metadata{Branch: p2pTxs.Branch}, p2pTxs.Data)
 	if err != nil {
 		return err
 	}

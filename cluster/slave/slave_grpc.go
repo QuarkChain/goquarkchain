@@ -4,17 +4,17 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/QuarkChain/goquarkchain/params"
-	"golang.org/x/sync/errgroup"
 	"time"
 
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/p2p"
+	"github.com/QuarkChain/goquarkchain/params"
 	qrpc "github.com/QuarkChain/goquarkchain/rpc"
 	"github.com/QuarkChain/goquarkchain/serialize"
 	"github.com/ethereum/go-ethereum/log"
+	"golang.org/x/sync/errgroup"
 )
 
 type SlaveServerSideOp struct {
@@ -606,16 +606,16 @@ func (s *SlaveServerSideOp) HandleNewTip(ctx context.Context, req *rpc.Request) 
 
 func (s *SlaveServerSideOp) AddTransactions(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
 	var (
-		gReq   rpc.P2PRedirectRequest
-		txsMsg p2p.NewTransactionList
-		err    error
+		gReq rpc.P2PRedirectRequest
+		txs  p2p.NewTransactionList
+		err  error
 	)
 
 	if err = serialize.DeserializeFromBytes(req.Data, &gReq); err != nil {
 		return nil, err
 	}
 
-	err = serialize.DeserializeFromBytes(gReq.Data, &txsMsg)
+	err = serialize.DeserializeFromBytes(gReq.Data, &txs)
 	if err != nil {
 		return nil, err
 	}
@@ -634,7 +634,7 @@ func (s *SlaveServerSideOp) AddTransactions(ctx context.Context, req *rpc.Reques
 	}
 
 	if gReq.Branch != 0 {
-		err := addTxList(gReq.Branch, txsMsg.TransactionList)
+		err := addTxList(gReq.Branch, txs.TransactionList)
 		return nil, err
 	}
 
@@ -642,7 +642,7 @@ func (s *SlaveServerSideOp) AddTransactions(ctx context.Context, req *rpc.Reques
 		txList       = make(map[uint32][]*types.Transaction)
 		fullShardIds = s.slave.fullShardList
 	)
-	for _, tx := range txsMsg.TransactionList {
+	for _, tx := range txs.TransactionList {
 		fId := tx.EvmTx.FromFullShardId()
 		for _, id := range fullShardIds {
 			if fId != id {
