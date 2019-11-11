@@ -2,6 +2,7 @@ package master
 
 import (
 	"fmt"
+	"golang.org/x/sync/errgroup"
 	"io/ioutil"
 	"reflect"
 	"sync"
@@ -582,10 +583,10 @@ func (pm *ProtocolManager) HandleGetRootBlockHeaderListWithSkipRequest(peerId st
 }
 
 func (pm *ProtocolManager) HandleNewTransactionListRequest(peerId string, rpcId uint64, branch uint32, data []byte) error {
-	req := &rpc.NewTransactionList{
-		Branch:          branch,
-		TransactionList: data,
-		PeerID:          peerId,
+	req := &rpc.P2PRedirectRequest{
+		Branch: branch,
+		Data:   data,
+		PeerID: peerId,
 	}
 	var clients []rpc.ISlaveConn
 	if branch == 0 {
@@ -597,21 +598,22 @@ func (pm *ProtocolManager) HandleNewTransactionListRequest(peerId string, rpcId 
 	if len(clients) == 0 {
 		return fmt.Errorf("invalid branch %d for rpc request %d", rpcId, branch)
 	}
+	var g errgroup.Group
 	go func() {
-		// todo make the client call in Parallelized
 		for _, client := range clients {
-			result, err := client.AddTransactions(req)
-			if err != nil {
-				log.Error("addTransaction err", "branch", branch, "HandleNewTransactionListRequest failed with error: ", err.Error())
-				return
-			}
-			for _, res := range result.Trans {
-				pm.BroadcastTransactions(res, peerId)
-			}
+			conn := client
+			g.Go(func() error {
+				err := conn.AddTransactions(req)
+				if err != nil {
+					log.Error("addTransaction err", "branch", branch, "HandleNewTransactionListRequest failed with error: ", err.Error())
+					return err
+				}
+				return nil
+			})
 		}
 	}()
 
-	return nil
+	return g.Wait()
 }
 
 func (pm *ProtocolManager) HandleGetMinorBlockHeaderListRequest(rpcId uint64, branch uint32, req *p2p.GetMinorBlockHeaderListRequest) (*p2p.GetMinorBlockHeaderListResponse, error) {
@@ -702,13 +704,13 @@ func (pm *ProtocolManager) tipBroadcastLoop() {
 	}
 }
 
-func (pm *ProtocolManager) BroadcastTransactions(txs *rpc.TransBatch, sourcePeerId string) {
+func (pm *ProtocolManager) BroadcastTransactions(txs *rpc.P2PRedirectRequest, sourcePeerId string) {
 	for _, peer := range pm.peers.Peers() {
 		if peer.id != sourcePeerId {
 			peer.AsyncSendTransactions(txs)
 		}
 	}
-	log.Trace("Announced transaction", "count", txs.Count, "recipients", pm.peers.Len()-1)
+	log.Trace("Announced transaction", "recipients", pm.peers.Len()-1)
 }
 
 // syncer is responsible for periodically synchronising with the network, both

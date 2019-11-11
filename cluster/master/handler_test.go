@@ -431,9 +431,9 @@ func TestBroadcastTransactions(t *testing.T) {
 
 	for _, conn := range fakeConnMngr.GetSlaveConns() {
 		conn.(*mock_master.MockISlaveConn).EXPECT().
-			AddTransactions(gomock.Any()).DoAndReturn(func(request *rpc.NewTransactionList) (*rpc.ResTransBatch, error) {
+			AddTransactions(gomock.Any()).DoAndReturn(func(request *rpc.P2PRedirectRequest) error {
 			errc <- nil
-			return &rpc.ResTransBatch{Trans: []*rpc.TransBatch{txsBranch}}, nil
+			return nil
 		}).AnyTimes()
 	}
 	err = clientPeer.SendTransactions(txsBranch)
@@ -578,7 +578,11 @@ func ExpectMsg(r p2p.MsgReader, op p2p.P2PCommandOp, metadata p2p.Metadata, cont
 		return &qkcMsg, fmt.Errorf("MetaData miss match: got %d, want %d", qkcMsg.MetaData.Branch, metadata.Branch)
 	}
 
-	contentEnc, err := p2p.Encrypt(metadata, op, qkcMsg.RpcID, content)
+	cmdBytes, err := serialize.SerializeToBytes(content)
+	if err != nil {
+		return &qkcMsg, err
+	}
+	contentEnc, err := p2p.Encrypt(metadata, op, qkcMsg.RpcID, cmdBytes)
 	if err != nil {
 		panic("content encode error: " + err.Error())
 	}

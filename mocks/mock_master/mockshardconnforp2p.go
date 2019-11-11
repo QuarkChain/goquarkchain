@@ -120,12 +120,11 @@ func (m *MockISlaveConn) EXPECT() *MockISlaveConnMockRecorder {
 }
 
 // AddTransactions mocks base method
-func (m *MockISlaveConn) AddTransactions(request *rpc.NewTransactionList) (*rpc.ResTransBatch, error) {
+func (m *MockISlaveConn) AddTransactions(request *rpc.P2PRedirectRequest) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AddTransactions", request)
-	ret0, _ := ret[0].(*rpc.ResTransBatch)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
+	ret0, _ := ret[0].(error)
+	return ret0
 }
 
 // AddTransactions indicates an expected call of AddTransactions

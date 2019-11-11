@@ -69,7 +69,7 @@ func (m *MasterServerSideOp) BroadcastNewTip(ctx context.Context, req *rpc.Reque
 }
 
 func (m *MasterServerSideOp) BroadcastTransactions(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
-	broadcastTxsReq := new(rpc.TransBatch)
+	broadcastTxsReq := new(rpc.P2PRedirectRequest)
 	if err := serialize.DeserializeFromBytes(req.Data, broadcastTxsReq); err != nil {
 		return nil, err
 	}

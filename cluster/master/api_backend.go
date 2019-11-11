@@ -81,7 +81,7 @@ func (s *QKCMasterBackend) AddTransaction(tx *types.Transaction) error {
 	if err != nil {
 		return err
 	}
-	go s.protocolManager.BroadcastTransactions(&rpc.TransBatch{Branch: fullShardId, Count: 1, Data: data}, "")
+	go s.protocolManager.BroadcastTransactions(&rpc.P2PRedirectRequest{Branch: fullShardId, Data: data}, "")
 	return nil
 }
 

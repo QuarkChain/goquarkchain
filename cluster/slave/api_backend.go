@@ -156,16 +156,28 @@ func (s *SlaveBackend) AddTx(tx *types.Transaction) (err error) {
 	return ErrMsg("AddTx")
 }
 
-func (s *SlaveBackend) AddTxList(branch uint32, txs []*types.Transaction, peerID string) ([]error, error) {
+func (s *SlaveBackend) AddTxList(peerID string, branch uint32, txs []*types.Transaction) error {
 	if len(txs) == 0 {
-		return nil, nil
+		return nil
 	}
 
 	shard, ok := s.shards[branch]
 	if !ok {
-		return nil, fmt.Errorf("fullShardID:%v not found", branch)
+		return fmt.Errorf("fullShardID:%v not found", branch)
 	}
-	return shard.MinorBlockChain.AddTxList(txs), nil
+	errList := shard.MinorBlockChain.AddTxList(txs)
+	if len(errList) != len(txs) {
+		return errors.New("errList != txList")
+	}
+
+	trans := make([]*types.Transaction, 0, len(errList))
+	for idx, err := range errList {
+		if err == nil {
+			trans = append(trans, txs[idx])
+		}
+	}
+
+	return s.connManager.BroadcastTransactions(peerID, branch, trans)
 }
 
 func (s *SlaveBackend) ExecuteTx(tx *types.Transaction, address *account.Address, height *uint64) ([]byte, error) {

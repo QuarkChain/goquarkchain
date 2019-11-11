@@ -133,7 +133,7 @@ func (p *testTxPool) SubscribeNewTxsEvent(ch chan<- core.NewTxsEvent) event.Subs
 	return p.txFeed.Subscribe(ch)
 }
 
-func newTestTransactionList(count int) (*rpc.TransBatch, error) {
+func newTestTransactionList(count int) (*rpc.P2PRedirectRequest, error) {
 	key, _ := crypto.HexToECDSA("45a915e4d060149eb4365960e6a7a45f334393093061116b197e3240065ff2d8")
 	txs := make([]*types.Transaction, 0, count)
 	for i := 0; i < count; i++ {
@@ -144,7 +144,7 @@ func newTestTransactionList(count int) (*rpc.TransBatch, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &rpc.TransBatch{Branch: 0, Count: uint32(count), Data: data}, nil
+	return &rpc.P2PRedirectRequest{Branch: 0, Data: data}, nil
 }
 
 // newTestTransaction create a new dummy transaction.

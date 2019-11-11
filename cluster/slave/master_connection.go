@@ -57,12 +57,12 @@ func (s *ConnManager) BroadcastNewTip(mHeaderLst []*types.MinorBlockHeader, rHea
 	return err
 }
 
-func (s *ConnManager) BroadcastTransactions(txs []*types.Transaction, branch uint32) error {
+func (s *ConnManager) BroadcastTransactions(peerId string, branch uint32, txs []*types.Transaction) error {
 	raw, err := serialize.SerializeToBytes(&p2p.NewTransactionList{TransactionList: txs})
 	if err != nil {
 		return err
 	}
-	gReq := rpc.TransBatch{Count: uint32(len(txs)), Branch: branch, Data: raw}
+	gReq := rpc.P2PRedirectRequest{PeerID: peerId, Branch: branch, Data: raw}
 	data, err := serialize.SerializeToBytes(gReq)
 	if err != nil {
 		return err

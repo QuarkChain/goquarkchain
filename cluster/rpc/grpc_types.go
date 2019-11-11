@@ -412,34 +412,8 @@ type GetRootChainStakesResponse struct {
 	Signer *account.Recipient `json:"signer" gencodec:"required"`
 }
 
-//NewTransactionList new transaction list
-type NewTransactionList struct {
-	Branch          uint32
-	TransactionList []byte
-	PeerID          string `json:"peerid" gencodec:"required"`
-}
-
-type TransBatch struct {
+type P2PRedirectRequest struct {
+	PeerID string `json:"peerid" gencodec:"required"`
 	Branch uint32
-	Count  uint32
 	Data   []byte `json:"data" gencodec:"required" bytesizeofslicelen:"4"` // *p2p.NewTransactionList
-}
-
-type ResTransBatch struct {
-	PeerID string        `json:"peerid" gencodec:"required"`
-	Trans  []*TransBatch `json:"trans" gencodec:"required" bytesizeofslicelen:"4"`
-}
-
-func NewResTransBatch(peerId string) *ResTransBatch {
-	return &ResTransBatch{PeerID: peerId, Trans: make([]*TransBatch, 0, 1)}
-}
-
-func (r *ResTransBatch) AddTrans(txsBatch *TransBatch) bool {
-	for _, res := range r.Trans {
-		if res.Branch == txsBatch.Branch {
-			return false
-		}
-	}
-	r.Trans = append(r.Trans, txsBatch)
-	return true
 }
