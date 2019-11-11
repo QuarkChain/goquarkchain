@@ -131,7 +131,6 @@ var unmarshalBigTests = []unmarshalTest{
 	{input: "10", wantErr: errNonString(bigT)},
 	{input: `"0"`, wantErr: wrapTypeError(ErrMissingPrefix, bigT)},
 	{input: `"0x"`, wantErr: wrapTypeError(ErrEmptyNumber, bigT)},
-	//{input: `"0x01"`, wantErr: wrapTypeError(ErrLeadingZero, bigT)},
 	{input: `"0xx"`, wantErr: wrapTypeError(ErrSyntax, bigT)},
 	{input: `"0x1zz01"`, wantErr: wrapTypeError(ErrSyntax, bigT)},
 	{
@@ -142,6 +141,7 @@ var unmarshalBigTests = []unmarshalTest{
 	// valid encoding
 	{input: `""`, want: big.NewInt(0)},
 	{input: `"0x0"`, want: big.NewInt(0)},
+	{input: `"0x01"`, want: big.NewInt(0x01)},
 	{input: `"0x2"`, want: big.NewInt(0x2)},
 	{input: `"0x2F2"`, want: big.NewInt(0x2f2)},
 	{input: `"0X2F2"`, want: big.NewInt(0x2f2)},
@@ -212,7 +212,6 @@ var unmarshalUint64Tests = []unmarshalTest{
 	{input: "10", wantErr: errNonString(uint64T)},
 	{input: `"0"`, wantErr: wrapTypeError(ErrMissingPrefix, uint64T)},
 	{input: `"0x"`, wantErr: wrapTypeError(ErrEmptyNumber, uint64T)},
-	//{input: `"0x01"`, wantErr: wrapTypeError(ErrLeadingZero, uint64T)},
 	{input: `"0xfffffffffffffffff"`, wantErr: wrapTypeError(ErrUint64Range, uint64T)},
 	{input: `"0xx"`, wantErr: wrapTypeError(ErrSyntax, uint64T)},
 	{input: `"0x1zz01"`, wantErr: wrapTypeError(ErrSyntax, uint64T)},
@@ -220,6 +219,7 @@ var unmarshalUint64Tests = []unmarshalTest{
 	// valid encoding
 	{input: `""`, want: uint64(0)},
 	{input: `"0x0"`, want: uint64(0)},
+	{input: `"0x01"`, want: uint64(0x01)},
 	{input: `"0x2"`, want: uint64(0x2)},
 	{input: `"0x2F2"`, want: uint64(0x2f2)},
 	{input: `"0X2F2"`, want: uint64(0x2f2)},
@@ -302,7 +302,6 @@ var unmarshalUintTests = []unmarshalTest{
 	{input: "10", wantErr: errNonString(uintT)},
 	{input: `"0"`, wantErr: wrapTypeError(ErrMissingPrefix, uintT)},
 	{input: `"0x"`, wantErr: wrapTypeError(ErrEmptyNumber, uintT)},
-	//{input: `"0x01"`, wantErr: wrapTypeError(ErrLeadingZero, uintT)},
 	{input: `"0x100000000"`, want: uint(maxUint33bits), wantErr32bit: wrapTypeError(ErrUintRange, uintT)},
 	{input: `"0xfffffffffffffffff"`, wantErr: wrapTypeError(ErrUintRange, uintT)},
 	{input: `"0xx"`, wantErr: wrapTypeError(ErrSyntax, uintT)},
@@ -311,6 +310,7 @@ var unmarshalUintTests = []unmarshalTest{
 	// valid encoding
 	{input: `""`, want: uint(0)},
 	{input: `"0x0"`, want: uint(0)},
+	{input: `"0x01"`, want: uint(0x01)},
 	{input: `"0x2"`, want: uint(0x2)},
 	{input: `"0x2F2"`, want: uint(0x2f2)},
 	{input: `"0X2F2"`, want: uint(0x2f2)},

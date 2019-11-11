@@ -88,7 +88,6 @@ var (
 		// invalid
 		{input: `0`, wantErr: ErrMissingPrefix},
 		{input: `0x`, wantErr: ErrEmptyNumber},
-		//{input: `0x01`, wantErr: ErrLeadingZero},
 		{input: `0xx`, wantErr: ErrSyntax},
 		{input: `0x1zz01`, wantErr: ErrSyntax},
 		{
@@ -97,6 +96,7 @@ var (
 		},
 		// valid
 		{input: `0x0`, want: big.NewInt(0)},
+		{input: `0x01`, want: big.NewInt(0x01)},
 		{input: `0x2`, want: big.NewInt(0x2)},
 		{input: `0x2F2`, want: big.NewInt(0x2f2)},
 		{input: `0X2F2`, want: big.NewInt(0x2f2)},
@@ -121,12 +121,12 @@ var (
 		// invalid
 		{input: `0`, wantErr: ErrMissingPrefix},
 		{input: `0x`, wantErr: ErrEmptyNumber},
-		//{input: `0x01`, wantErr: ErrLeadingZero},
 		{input: `0xfffffffffffffffff`, wantErr: ErrUint64Range},
 		{input: `0xx`, wantErr: ErrSyntax},
 		{input: `0x1zz01`, wantErr: ErrSyntax},
 		// valid
 		{input: `0x0`, want: uint64(0)},
+		{input: `0x01`, want: uint64(0x01)},
 		{input: `0x2`, want: uint64(0x2)},
 		{input: `0x2F2`, want: uint64(0x2f2)},
 		{input: `0X2F2`, want: uint64(0x2f2)},
