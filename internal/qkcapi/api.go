@@ -6,16 +6,15 @@ import (
 	"github.com/QuarkChain/goquarkchain/account"
 	qrpc "github.com/QuarkChain/goquarkchain/cluster/rpc"
 	qcom "github.com/QuarkChain/goquarkchain/common"
+	"github.com/QuarkChain/goquarkchain/common/hexutil"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/internal/encoder"
 	"github.com/QuarkChain/goquarkchain/rpc"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rlp"
 	"math/big"
 	"sort"
-	"strconv"
 )
 
 type CommonAPI struct {
@@ -785,13 +784,8 @@ func (e *EthBlockChainAPI) GetBalance(address common.Address, fullShardKey *hexu
 	return (*hexutil.Big)(balance), nil
 }
 
-func (e *EthBlockChainAPI) GetTransactionCount(address common.Address, fullShardKey string) (hexutil.Uint64, error) {
-
-	fullShard, err := strconv.ParseUint(fullShardKey, 0, 16)
-	if err != nil {
-		return 0, err
-	}
-	fullShardId, err := clusterCfg.Quarkchain.GetFullShardIdByFullShardKey(uint32(fullShard))
+func (e *EthBlockChainAPI) GetTransactionCount(address common.Address, fullShardKey *hexutil.Uint) (hexutil.Uint64, error) {
+	fullShardId, err := getFullShardId(fullShardKey)
 	if err != nil {
 		return hexutil.Uint64(0), err
 	}
@@ -801,7 +795,6 @@ func (e *EthBlockChainAPI) GetTransactionCount(address common.Address, fullShard
 		return 0, err
 	}
 	return hexutil.Uint64(data.TransactionCount), nil
-
 }
 
 func (e *EthBlockChainAPI) GetCode(address common.Address, fullShardKey *hexutil.Uint) (hexutil.Bytes, error) {
