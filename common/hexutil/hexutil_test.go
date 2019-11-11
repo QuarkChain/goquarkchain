@@ -97,6 +97,8 @@ var (
 		// valid
 		{input: `0x0`, want: big.NewInt(0)},
 		{input: `0x01`, want: big.NewInt(0x01)},
+		{input: `0x001`, want: big.NewInt(0x001)},
+		{input: `0x0001`, want: big.NewInt(0x0001)},
 		{input: `0x2`, want: big.NewInt(0x2)},
 		{input: `0x2F2`, want: big.NewInt(0x2f2)},
 		{input: `0X2F2`, want: big.NewInt(0x2f2)},
@@ -127,6 +129,8 @@ var (
 		// valid
 		{input: `0x0`, want: uint64(0)},
 		{input: `0x01`, want: uint64(0x01)},
+		{input: `0x001`, want: uint64(0x001)},
+		{input: `0x0001`, want: uint64(0x0001)},
 		{input: `0x2`, want: uint64(0x2)},
 		{input: `0x2F2`, want: uint64(0x2f2)},
 		{input: `0X2F2`, want: uint64(0x2f2)},
