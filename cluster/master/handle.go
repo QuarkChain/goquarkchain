@@ -2,7 +2,6 @@ package master
 
 import (
 	"fmt"
-	"golang.org/x/sync/errgroup"
 	"io/ioutil"
 	"reflect"
 	"sync"
@@ -598,22 +597,18 @@ func (pm *ProtocolManager) HandleNewTransactionListRequest(peerId string, rpcId 
 	if len(clients) == 0 {
 		return fmt.Errorf("invalid branch %d for rpc request %d", rpcId, branch)
 	}
-	var g errgroup.Group
-	go func() {
-		for _, client := range clients {
-			conn := client
-			g.Go(func() error {
-				err := conn.AddTransactions(req)
-				if err != nil {
-					log.Error("addTransaction err", "branch", branch, "HandleNewTransactionListRequest failed with error: ", err.Error())
-					return err
-				}
-				return nil
-			})
-		}
-	}()
 
-	return g.Wait()
+	for _, client := range clients {
+		conn := client
+		go func() {
+			err := conn.AddTransactions(req)
+			if err != nil {
+				log.Error("addTransaction err", "peerID", peerId, "branch", branch, "HandleNewTransactionListRequest failed with error: ", err.Error())
+			}
+		}()
+	}
+
+	return nil
 }
 
 func (pm *ProtocolManager) HandleGetMinorBlockHeaderListRequest(rpcId uint64, branch uint32, req *p2p.GetMinorBlockHeaderListRequest) (*p2p.GetMinorBlockHeaderListResponse, error) {
