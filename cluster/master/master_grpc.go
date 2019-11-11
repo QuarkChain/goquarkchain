@@ -73,7 +73,7 @@ func (m *MasterServerSideOp) BroadcastTransactions(ctx context.Context, req *rpc
 	if err := serialize.DeserializeFromBytes(req.Data, broadcastTxsReq); err != nil {
 		return nil, err
 	}
-	m.p2pApi.BroadcastTransactions(broadcastTxsReq, "")
+	m.p2pApi.BroadcastTransactions(broadcastTxsReq, broadcastTxsReq.PeerID)
 	return &rpc.Response{
 		RpcId: req.RpcId,
 	}, nil
