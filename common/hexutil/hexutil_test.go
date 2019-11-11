@@ -88,7 +88,7 @@ var (
 		// invalid
 		{input: `0`, wantErr: ErrMissingPrefix},
 		{input: `0x`, wantErr: ErrEmptyNumber},
-		{input: `0x01`, wantErr: ErrLeadingZero},
+		//{input: `0x01`, wantErr: ErrLeadingZero},
 		{input: `0xx`, wantErr: ErrSyntax},
 		{input: `0x1zz01`, wantErr: ErrSyntax},
 		{
@@ -121,7 +121,7 @@ var (
 		// invalid
 		{input: `0`, wantErr: ErrMissingPrefix},
 		{input: `0x`, wantErr: ErrEmptyNumber},
-		{input: `0x01`, wantErr: ErrLeadingZero},
+		//{input: `0x01`, wantErr: ErrLeadingZero},
 		{input: `0xfffffffffffffffff`, wantErr: ErrUint64Range},
 		{input: `0xx`, wantErr: ErrSyntax},
 		{input: `0x1zz01`, wantErr: ErrSyntax},
