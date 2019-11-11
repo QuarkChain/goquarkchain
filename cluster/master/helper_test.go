@@ -307,7 +307,7 @@ func newFakeConnManager(n int, ctrl *gomock.Controller) *fakeConnManager {
 	return &fakeConnManager{conns: conns}
 }
 
-func (f *fakeConnManager) GetOneConnById(fullShardId uint32) rpc.ISlaveConn {
+func (f *fakeConnManager) GetOneSlaveConnById(fullShardId uint32) rpc.ISlaveConn {
 	return f.conns[0]
 }
 

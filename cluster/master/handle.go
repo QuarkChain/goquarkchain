@@ -693,7 +693,7 @@ func (pm *ProtocolManager) HandleGetMinorBlockListRequest(peerId string, rpcId u
 		return nil, fmt.Errorf("bad number of minor blocks requested. rpcId: %d; branch: %d; limit: %d; expected limit: %d",
 			rpcId, branch, len(request.MinorBlockHashList), qkcsync.MinorBlockBatchSize)
 	}
-	conn := pm.slaveConns.GetOneConnById(branch)
+	conn := pm.slaveConns.GetOneSlaveConnById(branch)
 	if conn == nil {
 		return nil, fmt.Errorf("invalid branch %d for rpc request %d", rpcId, branch)
 	}
@@ -726,7 +726,7 @@ func (pm *ProtocolManager) HandleGetMinorBlockHeaderListWithSkipRequest(peerId s
 	if request.Type != qkcom.SkipHash && request.Type != qkcom.SkipHeight {
 		return nil, errors.New("Bad type value")
 	}
-	conn := pm.slaveConns.GetOneConnById(request.Branch.Value)
+	conn := pm.slaveConns.GetOneSlaveConnById(request.Branch.Value)
 	if conn == nil {
 		return nil, fmt.Errorf("invalid branch %d for rpc request %d", rpcId, request.Branch.Value)
 	}

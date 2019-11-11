@@ -323,11 +323,11 @@ func TestMasterBackend_HeartBeat(t *testing.T) {
 func TestGetSlaveConnByBranch(t *testing.T) {
 	master := initEnv(t, nil)
 	for _, v := range master.clusterConfig.Quarkchain.GetGenesisShardIds() {
-		conn := master.GetOneConnById(v)
+		conn := master.GetOneSlaveConnById(v)
 		assert.NotNil(t, conn)
 	}
 	fakeFullShardID := uint32(99999)
-	conn := master.GetOneConnById(fakeFullShardID)
+	conn := master.GetOneSlaveConnById(fakeFullShardID)
 	assert.Nil(t, conn)
 }
 
