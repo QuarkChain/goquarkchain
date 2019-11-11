@@ -102,6 +102,15 @@ sudo docker run -it quarkchaindocker/goquarkchain /bin/bash
 ```
 Now you are inside Docker container and are ready to follow [next](#build-cluster) steps.
 
+NOTE if you need the services available outside of the container, you can publish the related ports using `-p` flag when start Docker:
+
+```bash
+sudo docker run -it -p 38291:38291 -p 38391:38391 -p 38491:38491 -p 38291:38291/udp quarkchaindocker/goquarkchain /bin/bash
+```
+And config rpc listening to `0.0.0.0` when start `master` service:
+```bash
+./cluster --cluster_config $CLUSTER_CONFIG_FILE --json_rpc_host 0.0.0.0 --json_rpc_private_host 0.0.0.0
+```
 ## Running Clusters
 
 The following instructions will lead you to run clusters step by step.
