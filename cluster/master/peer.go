@@ -312,7 +312,7 @@ func (p *Peer) GetRootBlockHeaderList(req *p2p.GetRootBlockHeaderListWithSkipReq
 			return ret, nil
 		}
 	case <-timeout.C:
-		return nil, fmt.Errorf("peer %v return GetMinorBlockList disc Read Time out for rpcid %d", p.id, rpcId)
+		return nil, fmt.Errorf("peer %v return GetRootBlockHeaderList disc Read Time out for rpcid %d", p.id, rpcId)
 	}
 }
 
@@ -334,7 +334,7 @@ func (p *Peer) requestMinorBlockHeaderListWithSkip(rpcId uint64,
 	return p.rw.WriteMsg(msg)
 }
 
-func (p *Peer) GetMinorBlockHeaderList(req *p2p.GetMinorBlockHeaderListWithSkipRequest) (res *p2p.GetMinorBlockHeaderListResponse, err error) {
+func (p *Peer) GetMinorBlockHeaderList(req *p2p.GetMinorBlockHeaderListWithSkipRequest) (res []byte, err error) {
 
 	rpcId, rpcchan := p.getRpcIdWithChan()
 	defer p.deleteChan(rpcId)
@@ -356,13 +356,13 @@ func (p *Peer) GetMinorBlockHeaderList(req *p2p.GetMinorBlockHeaderListWithSkipR
 	timeout := time.NewTimer(requestTimeout)
 	select {
 	case obj := <-rpcchan:
-		if ret, ok := obj.(*p2p.GetMinorBlockHeaderListResponse); !ok {
+		if ret, ok := obj.([]byte); !ok {
 			panic("invalid return result in GetMinorBlockHeaderList")
 		} else {
 			return ret, nil
 		}
 	case <-timeout.C:
-		return nil, fmt.Errorf("peer %v return GetMinorBlockList disc Read Time out for rpcid %d", p.id, rpcId)
+		return nil, fmt.Errorf("peer %v return GetMinorBlockHeaderList disc Read Time out for rpcid %d", p.id, rpcId)
 	}
 }
 
@@ -413,7 +413,7 @@ func (p *Peer) requestMinorBlockList(rpcId uint64, hashList []common.Hash, branc
 	return p.rw.WriteMsg(msg)
 }
 
-func (p *Peer) GetMinorBlockList(hashes []common.Hash, branch uint32) ([]*types.MinorBlock, error) {
+func (p *Peer) GetMinorBlockList(hashes []common.Hash, branch uint32) ([]byte, error) {
 	rpcId, rpcchan := p.getRpcIdWithChan()
 	defer p.deleteChan(rpcId)
 
@@ -425,7 +425,7 @@ func (p *Peer) GetMinorBlockList(hashes []common.Hash, branch uint32) ([]*types.
 	timeout := time.NewTimer(requestTimeout)
 	select {
 	case obj := <-rpcchan:
-		if ret, ok := obj.([]*types.MinorBlock); !ok {
+		if ret, ok := obj.([]byte); !ok {
 			panic("invalid return result in GetMinorBlockList")
 		} else {
 			return ret, nil
@@ -433,6 +433,14 @@ func (p *Peer) GetMinorBlockList(hashes []common.Hash, branch uint32) ([]*types.
 	case <-timeout.C:
 		return nil, fmt.Errorf("peer %v return GetMinorBlockList disc Read Time out for rpcid %d", p.id, rpcId)
 	}
+}
+
+func (p *Peer) SendResponseWithData(op p2p.P2PCommandOp, metadata p2p.Metadata, rpcId uint64, data []byte) error {
+	msg, err := p2p.MakeMsgWithSerializedData(op, rpcId, metadata, data)
+	if err != nil {
+		return err
+	}
+	return p.rw.WriteMsg(msg)
 }
 
 func (p *Peer) SendResponse(op p2p.P2PCommandOp, metadata p2p.Metadata, rpcId uint64, response interface{}) error {

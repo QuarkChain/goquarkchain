@@ -341,16 +341,11 @@ func (pm *ProtocolManager) handleMsg(peer *Peer) error {
 			return err
 		}
 
-		return peer.SendResponse(p2p.GetMinorBlockHeaderListResponseMsg, p2p.Metadata{Branch: qkcMsg.MetaData.Branch}, qkcMsg.RpcID, resp)
+		return peer.SendResponseWithData(p2p.GetMinorBlockHeaderListResponseMsg, p2p.Metadata{Branch: qkcMsg.MetaData.Branch}, qkcMsg.RpcID, resp)
 
 	case qkcMsg.Op == p2p.GetMinorBlockHeaderListResponseMsg:
-		var minorHeaderResp p2p.GetMinorBlockHeaderListResponse
-
-		if err := serialize.DeserializeFromBytes(qkcMsg.Data, &minorHeaderResp); err != nil {
-			return err
-		}
 		if c := peer.getChan(qkcMsg.RpcID); c != nil {
-			c <- &minorHeaderResp
+			c <- qkcMsg.Data
 		} else {
 			log.Warn(fmt.Sprintf("chan for rpc %d is missing", qkcMsg.RpcID))
 		}
@@ -365,15 +360,11 @@ func (pm *ProtocolManager) handleMsg(peer *Peer) error {
 		if err != nil {
 			return err
 		}
-		return peer.SendResponse(p2p.GetMinorBlockListResponseMsg, p2p.Metadata{Branch: qkcMsg.MetaData.Branch}, qkcMsg.RpcID, resp)
+		return peer.SendResponseWithData(p2p.GetMinorBlockListResponseMsg, p2p.Metadata{Branch: qkcMsg.MetaData.Branch}, qkcMsg.RpcID, resp)
 
 	case qkcMsg.Op == p2p.GetMinorBlockListResponseMsg:
-		var minorBlockResp p2p.GetMinorBlockListResponse
-		if err := serialize.DeserializeFromBytes(qkcMsg.Data, &minorBlockResp); err != nil {
-			return err
-		}
 		if c := peer.getChan(qkcMsg.RpcID); c != nil {
-			c <- minorBlockResp.MinorBlockList
+			c <- qkcMsg.Data
 		} else {
 			log.Warn(fmt.Sprintf("chan for rpc %d is missing", qkcMsg.RpcID))
 		}
@@ -390,15 +381,11 @@ func (pm *ProtocolManager) handleMsg(peer *Peer) error {
 		if err != nil {
 			return err
 		}
-		return peer.SendResponse(p2p.GetMinorBlockHeaderListWithSkipResponseMsg, p2p.Metadata{Branch: qkcMsg.MetaData.Branch}, qkcMsg.RpcID, resp)
+		return peer.SendResponseWithData(p2p.GetMinorBlockHeaderListWithSkipResponseMsg, p2p.Metadata{Branch: qkcMsg.MetaData.Branch}, qkcMsg.RpcID, resp)
 
 	case qkcMsg.Op == p2p.GetMinorBlockHeaderListWithSkipResponseMsg:
-		var minorBlockResp p2p.GetMinorBlockHeaderListResponse
-		if err := serialize.DeserializeFromBytes(qkcMsg.Data, &minorBlockResp); err != nil {
-			return err
-		}
 		if c := peer.getChan(qkcMsg.RpcID); c != nil {
-			c <- &minorBlockResp
+			c <- qkcMsg.Data
 		} else {
 			log.Warn(fmt.Sprintf("chan for rpc %d is missing", qkcMsg.RpcID))
 		}
@@ -610,7 +597,7 @@ func (pm *ProtocolManager) HandleNewTransactionListRequest(peerId string, rpcId 
 	return nil
 }
 
-func (pm *ProtocolManager) HandleGetMinorBlockHeaderListRequest(rpcId uint64, branch uint32, req *p2p.GetMinorBlockHeaderListRequest) (*p2p.GetMinorBlockHeaderListResponse, error) {
+func (pm *ProtocolManager) HandleGetMinorBlockHeaderListRequest(rpcId uint64, branch uint32, req *p2p.GetMinorBlockHeaderListRequest) ([]byte, error) {
 	if req.Limit <= 0 || uint64(req.Limit) > 2*qkcsync.MinorBlockHeaderListLimit {
 		return nil, fmt.Errorf("bad limit. rpcId: %d; branch: %d; limit: %d; expected limit: %d",
 			rpcId, branch, req.Limit, qkcsync.MinorBlockHeaderListLimit)
@@ -639,7 +626,7 @@ func (pm *ProtocolManager) HandleGetMinorBlockHeaderListRequest(rpcId uint64, br
 	return result, nil
 }
 
-func (pm *ProtocolManager) HandleGetMinorBlockListRequest(peerId string, rpcId uint64, branch uint32, request *p2p.GetMinorBlockListRequest) (*p2p.GetMinorBlockListResponse, error) {
+func (pm *ProtocolManager) HandleGetMinorBlockListRequest(peerId string, rpcId uint64, branch uint32, request *p2p.GetMinorBlockListRequest) ([]byte, error) {
 	if len(request.MinorBlockHashList) > 2*qkcsync.MinorBlockBatchSize {
 		return nil, fmt.Errorf("bad number of minor blocks requested. rpcId: %d; branch: %d; limit: %d; expected limit: %d",
 			rpcId, branch, len(request.MinorBlockHashList), qkcsync.MinorBlockBatchSize)
@@ -667,7 +654,7 @@ func (pm *ProtocolManager) BroadcastTip(header *types.RootBlockHeader) {
 }
 
 func (pm *ProtocolManager) HandleGetMinorBlockHeaderListWithSkipRequest(peerId string, rpcId uint64,
-	request *p2p.GetMinorBlockHeaderListWithSkipRequest) (resp *p2p.GetMinorBlockHeaderListResponse, err error) {
+	request *p2p.GetMinorBlockHeaderListWithSkipRequest) (resp []byte, err error) {
 	if request.Limit <= 0 || uint64(request.Limit) > 2*qkcsync.MinorBlockHeaderListLimit {
 		return nil, errors.New("Bad limit")
 	}
