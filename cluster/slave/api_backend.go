@@ -156,26 +156,29 @@ func (s *SlaveBackend) AddTx(tx *types.Transaction) (err error) {
 	return ErrMsg("AddTx")
 }
 
-func (s *SlaveBackend) AddTxList(txs []*types.Transaction, peerID string) ([]error, error) {
+func (s *SlaveBackend) AddTxList(peerID string, branch uint32, txs []*types.Transaction) error {
 	if len(txs) == 0 {
-		return nil, nil
+		return nil
 	}
 
-	tx := txs[0]
-	fromShardSize, err := s.clstrCfg.Quarkchain.GetShardSizeByChainId(tx.EvmTx.FromChainID())
-	if err != nil {
-		return nil, err
-	}
-	if err := tx.EvmTx.SetFromShardSize(fromShardSize); err != nil {
-		return nil, err
-	}
-	fromFullShardId := tx.EvmTx.FromFullShardId()
-
-	shard, ok := s.shards[fromFullShardId]
+	shard, ok := s.shards[branch]
 	if !ok {
-		return nil, fmt.Errorf("fullShardID:%v not found", fromFullShardId)
+		return fmt.Errorf("fullShardID:%v not found", branch)
 	}
-	return shard.MinorBlockChain.AddTxList(txs), nil
+	errList := shard.MinorBlockChain.AddTxList(txs)
+	if len(errList) != len(txs) {
+		return errors.New("errList != txList")
+	}
+
+	trans := make([]*types.Transaction, 0, len(errList))
+	for idx, err := range errList {
+		if err == nil {
+			trans = append(trans, txs[idx])
+		}
+	}
+	go s.connManager.BroadcastTransactions(peerID, branch, trans)
+
+	return nil
 }
 
 func (s *SlaveBackend) ExecuteTx(tx *types.Transaction, address *account.Address, height *uint64) ([]byte, error) {

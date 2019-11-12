@@ -14,6 +14,7 @@ import (
 	qrpc "github.com/QuarkChain/goquarkchain/rpc"
 	"github.com/QuarkChain/goquarkchain/serialize"
 	"github.com/ethereum/go-ethereum/log"
+	"golang.org/x/sync/errgroup"
 )
 
 type SlaveServerSideOp struct {
@@ -604,41 +605,72 @@ func (s *SlaveServerSideOp) HandleNewTip(ctx context.Context, req *rpc.Request) 
 }
 
 func (s *SlaveServerSideOp) AddTransactions(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
-	ts := time.Now()
 	var (
-		gReq     rpc.NewTransactionList
-		gRes     rpc.HashList
-		response = &rpc.Response{RpcId: req.RpcId}
-		err      error
+		gReq rpc.P2PRedirectRequest
+		txs  p2p.NewTransactionList
+		err  error
 	)
 
 	if err = serialize.DeserializeFromBytes(req.Data, &gReq); err != nil {
 		return nil, err
 	}
-	if len(gReq.TransactionList) > params.NEW_TRANSACTION_LIST_LIMIT {
-		return nil, errors.New("too many txs in one command")
-	}
 
-	//must use single thread here
-	errList, err := s.slave.AddTxList(gReq.TransactionList, gReq.PeerID)
+	err = serialize.DeserializeFromBytes(gReq.Data, &txs)
 	if err != nil {
 		return nil, err
 	}
-
-	if len(errList) != len(gReq.TransactionList) {
-		return nil, errors.New("errList != txList")
+	if len(txs.TransactionList) > params.NEW_TRANSACTION_LIST_LIMIT {
+		return nil, fmt.Errorf("too many txs in one command, tx count: %d\n", len(txs.TransactionList))
 	}
-	for index, tx := range gReq.TransactionList {
-		if errList[index] == nil {
-			gRes.Hashes = append(gRes.Hashes, tx.Hash())
+	addTxList := func(branch uint32, txs []*types.Transaction) error {
+		ts := time.Now()
+		err := s.slave.AddTxList(gReq.PeerID, branch, txs)
+		if err != nil {
+			return err
+		}
+		log.Info("AddTxs duration", "t", time.Now().Sub(ts).Seconds(), "time", time.Now().Sub(ts).Nanoseconds(), "len", len(txs))
+		return nil
+	}
+
+	if gReq.Branch != 0 {
+		err := addTxList(gReq.Branch, txs.TransactionList)
+		return nil, err
+	}
+
+	var (
+		txList       = make(map[uint32][]*types.Transaction)
+		fullShardIds = s.slave.fullShardList
+	)
+
+	for _, tx := range txs.TransactionList {
+		fromShardSize, err := s.slave.clstrCfg.Quarkchain.GetShardSizeByChainId(tx.EvmTx.FromChainID())
+		if err != nil {
+			return nil, err
+		}
+		tx.EvmTx.SetFromShardSize(fromShardSize)
+		fId := tx.EvmTx.FromFullShardId()
+		for _, id := range fullShardIds {
+			if fId != id {
+				continue
+			}
+			if _, ok := txList[id]; !ok {
+				txList[id] = make([]*types.Transaction, 0, len(txs.TransactionList))
+			}
+			txList[id] = append(txList[id], tx)
 		}
 	}
 
-	if response.Data, err = serialize.SerializeToBytes(gRes); err != nil {
-		return nil, err
+	var (
+		g errgroup.Group
+	)
+	for branch, txs := range txList {
+		branch, txs := branch, txs
+		g.Go(func() error {
+			return addTxList(branch, txs)
+		})
 	}
-	log.Info("AddTxs duration", "t", time.Now().Sub(ts).Seconds(), "time", time.Now().Sub(ts).Nanoseconds(), "len", len(gReq.TransactionList))
-	return response, nil
+
+	return nil, g.Wait()
 }
 
 func (s *SlaveServerSideOp) HandleNewMinorBlock(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {

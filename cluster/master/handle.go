@@ -225,30 +225,7 @@ func (pm *ProtocolManager) handleMsg(peer *Peer) error {
 		return pm.HandleNewMinorTip(qkcMsg.MetaData.Branch, &tip, peer)
 
 	case qkcMsg.Op == p2p.NewTransactionListMsg:
-		var trans p2p.NewTransactionList
-		if err := serialize.DeserializeFromBytes(qkcMsg.Data, &trans); err != nil {
-			return err
-		}
-		if qkcMsg.MetaData.Branch != 0 {
-			return pm.HandleNewTransactionListRequest(peer.id, qkcMsg.RpcID, qkcMsg.MetaData.Branch, &trans)
-		}
-		branchTxMap := make(map[uint32][]*types.Transaction)
-		for _, tx := range trans.TransactionList {
-			fromShardSize, err := pm.clusterConfig.Quarkchain.GetShardSizeByChainId(tx.EvmTx.FromChainID())
-			if err != nil {
-				return err
-			}
-			if err := tx.EvmTx.SetFromShardSize(fromShardSize); err != nil {
-				return err
-			}
-			branchTxMap[tx.EvmTx.FromFullShardId()] = append(branchTxMap[tx.EvmTx.FromFullShardId()], tx)
-		}
-		// todo make them run in Parallelized
-		for branch, list := range branchTxMap {
-			if err := pm.HandleNewTransactionListRequest(peer.id, qkcMsg.RpcID, branch, &p2p.NewTransactionList{TransactionList: list}); err != nil {
-				return err
-			}
-		}
+		return pm.HandleNewTransactionListRequest(peer.id, qkcMsg.RpcID, qkcMsg.MetaData.Branch, qkcMsg.Data)
 
 	case qkcMsg.Op == p2p.NewBlockMinorMsg:
 		var newBlockMinor p2p.NewBlockMinor
@@ -604,57 +581,31 @@ func (pm *ProtocolManager) HandleGetRootBlockHeaderListWithSkipRequest(peerId st
 	return &p2p.GetRootBlockHeaderListResponse{RootTip: rTip, BlockHeaderList: headerlist}, nil
 }
 
-func (pm *ProtocolManager) HandleNewTransactionListRequest(peerId string, rpcId uint64, branch uint32, request *p2p.NewTransactionList) error {
-	req := &rpc.NewTransactionList{
-		TransactionList: request.TransactionList,
-		PeerID:          peerId,
+func (pm *ProtocolManager) HandleNewTransactionListRequest(peerId string, rpcId uint64, branch uint32, data []byte) error {
+	req := &rpc.P2PRedirectRequest{
+		Branch: branch,
+		Data:   data,
+		PeerID: peerId,
 	}
-	clients := pm.slaveConns.GetSlaveConnsById(branch)
+	var clients []rpc.ISlaveConn
+	if branch == 0 {
+		clients = pm.slaveConns.GetSlaveConns()
+	} else {
+		clients = pm.slaveConns.GetSlaveConnsById(branch)
+	}
 	if len(clients) == 0 {
 		return fmt.Errorf("invalid branch %d for rpc request %d", rpcId, branch)
 	}
-	go func() {
-		var hashList []common.Hash
-		sameResponse := true
-		// todo make the client call in Parallelized
-		for _, client := range clients {
-			result, err := client.AddTransactions(req)
-			if err != nil {
-				log.Error("addTransaction err", "branch", branch, "HandleNewTransactionListRequest failed with error: ", err.Error())
-				return
-			}
-			if hashList == nil {
-				if result != nil {
-					hashList = result.Hashes
-				}
-			} else if len(hashList) != len(result.Hashes) {
-				sameResponse = false
-			} else {
-				for i := 0; i < len(hashList); i++ {
-					if hashList[i] != result.Hashes[i] {
-						sameResponse = false
-						break
-					}
-				}
-			}
-		}
 
-		if !sameResponse {
-			panic("same shard in different slave is inconsistent")
-		}
-		if len(hashList) > 0 {
-			tx2broadcast := make([]*types.Transaction, 0, len(request.TransactionList))
-			for _, tx := range request.TransactionList {
-				for _, hash := range hashList {
-					if tx.Hash() == hash {
-						tx2broadcast = append(tx2broadcast, tx)
-						break
-					}
-				}
+	for _, client := range clients {
+		conn := client
+		go func() {
+			err := conn.AddTransactions(req)
+			if err != nil {
+				log.Error("addTransaction err", "peerID", peerId, "branch", branch, "HandleNewTransactionListRequest failed with error: ", err.Error())
 			}
-			pm.BroadcastTransactions(branch, tx2broadcast, peerId)
-		}
-	}()
+		}()
+	}
 
 	return nil
 }
@@ -747,13 +698,13 @@ func (pm *ProtocolManager) tipBroadcastLoop() {
 	}
 }
 
-func (pm *ProtocolManager) BroadcastTransactions(branch uint32, txs []*types.Transaction, sourcePeerId string) {
+func (pm *ProtocolManager) BroadcastTransactions(txs *rpc.P2PRedirectRequest, sourcePeerId string) {
 	for _, peer := range pm.peers.Peers() {
 		if peer.id != sourcePeerId {
-			peer.AsyncSendTransactions(branch, txs)
+			peer.AsyncSendTransactions(txs)
 		}
 	}
-	log.Trace("Announced transaction", "count", len(txs), "recipients", pm.peers.Len()-1)
+	log.Trace("Announced transaction", "recipients", pm.peers.Len()-1)
 }
 
 // syncer is responsible for periodically synchronising with the network, both

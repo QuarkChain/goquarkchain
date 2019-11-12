@@ -580,23 +580,16 @@ func (s *SlaveConnection) GenTx(numTxPerShard, xShardPercent uint32, tx *types.T
 	return nil
 }
 
-func (s *SlaveConnection) AddTransactions(request *rpc.NewTransactionList) (*rpc.HashList, error) {
-	var (
-		rsp = new(rpc.HashList)
-		res = new(rpc.Response)
-	)
+func (s *SlaveConnection) AddTransactions(request *rpc.P2PRedirectRequest) error {
 	bytes, err := serialize.SerializeToBytes(request)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	res, err = s.client.Call(s.target, &rpc.Request{Op: rpc.OpAddTransactions, Data: bytes})
+	_, err = s.client.Call(s.target, &rpc.Request{Op: rpc.OpAddTransactions, Data: bytes})
 	if err != nil {
-		return nil, err
+		return err
 	}
-	if err = serialize.DeserializeFromBytes(res.Data, rsp); err != nil {
-		return nil, err
-	}
-	return rsp, nil
+	return nil
 }
 
 func (s *SlaveConnection) GetMinorBlocks(request *rpc.GetMinorBlockListRequest) (*p2p.GetMinorBlockListResponse, error) {

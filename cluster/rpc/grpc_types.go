@@ -282,10 +282,6 @@ type AddTransactionRequest struct {
 	Tx *types.Transaction `json:"tx" gencodec:"required"`
 }
 
-type HashList struct {
-	Hashes []common.Hash `json:"hash_list" gencodec:"required" bytesizeofslicelen:"4"`
-}
-
 // slave -> master
 /*
 	Notify master about a successfully added minro block.
@@ -416,8 +412,8 @@ type GetRootChainStakesResponse struct {
 	Signer *account.Recipient `json:"signer" gencodec:"required"`
 }
 
-//NewTransactionList new transaction list
-type NewTransactionList struct {
-	TransactionList []*types.Transaction `bytesizeofslicelen:"4"`
-	PeerID          string               `json:"peerid" gencodec:"required"`
+type P2PRedirectRequest struct {
+	PeerID string `json:"peerid" gencodec:"required"`
+	Branch uint32
+	Data   []byte `json:"data" gencodec:"required" bytesizeofslicelen:"4"` // *p2p.NewTransactionList
 }

@@ -421,11 +421,8 @@ func TestBroadcastTransactions(t *testing.T) {
 	defer ctrl.Finish()
 	fakeConnMngr := newFakeConnManager(1, ctrl)
 	pm, _ := newTestProtocolManagerMust(t, 15, nil, NewFakeSynchronizer(1), fakeConnMngr)
-	txs := newTestTransactionList(10)
-	hashList := make([]common.Hash, 0, len(txs))
-	for _, tx := range txs {
-		hashList = append(hashList, tx.Hash())
-	}
+	txsBranch, err := newTestTransactionList(10)
+	assert.NoError(t, err)
 	peer, err := newTestPeer("peer", int(qkcconfig.P2PProtocolVersion), pm, true)
 	assert.NoError(t, err)
 
@@ -434,12 +431,12 @@ func TestBroadcastTransactions(t *testing.T) {
 
 	for _, conn := range fakeConnMngr.GetSlaveConns() {
 		conn.(*mock_master.MockISlaveConn).EXPECT().
-			AddTransactions(gomock.Any()).DoAndReturn(func(request *rpc.NewTransactionList) (*rpc.HashList, error) {
+			AddTransactions(gomock.Any()).DoAndReturn(func(request *rpc.P2PRedirectRequest) error {
 			errc <- nil
-			return &rpc.HashList{Hashes: hashList}, nil
+			return nil
 		}).AnyTimes()
 	}
-	err = clientPeer.SendTransactions(2, txs)
+	err = clientPeer.SendTransactions(txsBranch)
 	if err != nil {
 		t.Errorf("make message failed: %v", err.Error())
 	}
@@ -581,7 +578,11 @@ func ExpectMsg(r p2p.MsgReader, op p2p.P2PCommandOp, metadata p2p.Metadata, cont
 		return &qkcMsg, fmt.Errorf("MetaData miss match: got %d, want %d", qkcMsg.MetaData.Branch, metadata.Branch)
 	}
 
-	contentEnc, err := p2p.Encrypt(metadata, op, qkcMsg.RpcID, content)
+	cmdBytes, err := serialize.SerializeToBytes(content)
+	if err != nil {
+		return &qkcMsg, err
+	}
+	contentEnc, err := p2p.Encrypt(metadata, op, qkcMsg.RpcID, cmdBytes)
 	if err != nil {
 		panic("content encode error: " + err.Error())
 	}

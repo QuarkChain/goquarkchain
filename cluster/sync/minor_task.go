@@ -146,7 +146,7 @@ func (m *minorChainTask) downloadBlockHeaderListAndCheck(height, skip, limit uin
 	}
 
 	if len(mHeaders) != int(newLimit) {
-		return nil, fmt.Errorf("Bad peer sending incorrect number of minor block headers expect: %d, actual: %d\n", newLimit, len(mHeaders))
+		return nil, fmt.Errorf("Bad peer sending incorrect number of minor block headers expect: %d, actual: %d", newLimit, len(mHeaders))
 	}
 
 	return mHeaders, nil
