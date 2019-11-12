@@ -2,10 +2,12 @@
 # script to sync data into s3:
 
 set -ex
-
+if [ -z "$BACKUP_DIR" ]; then
+	echo "'BACKUP_DIR'  var must be set"
+	exit 1
+fi
 DATA_DIR=$GOPATH/src/github.com/QuarkChain/goquarkchain/cmd/cluster/qkc-data/
 DATE=`date +%Y-%m-%d.%H:%M:%S`
-BACKUP_DIR=/home/ubuntu/backup
 OUTPUT_FILE=$BACKUP_DIR/$DATE.tar.gz
 LATEST_FILE=$BACKUP_DIR/LATEST
 # 3 day's backup

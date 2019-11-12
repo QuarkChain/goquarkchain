@@ -1,4 +1,4 @@
 #goquarkchain data back up 
 ```
-./backup.sh
+BACKUP_DIR=/path/backup ./backup.sh
 ```
