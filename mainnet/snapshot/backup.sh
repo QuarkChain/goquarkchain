@@ -9,7 +9,7 @@ BACKUP_DIR=/home/ubuntu/backup
 OUTPUT_FILE=$BACKUP_DIR/$DATE.tar.gz
 LATEST_FILE=$BACKUP_DIR/LATEST
 # 3 day's backup
-RETENTION=6
+RETENTION=3
 cd $DATA_DIR
 cd ..
 ./stop.sh
