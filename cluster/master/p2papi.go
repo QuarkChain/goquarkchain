@@ -70,16 +70,16 @@ func (api *PrivateP2PAPI) BroadcastNewTip(branch uint32, rootBlockHeader *types.
 	return nil
 }
 
-func (api *PrivateP2PAPI) GetMinorBlockList(hashList []common.Hash, branch uint32, peerId string) ([]*types.MinorBlock, error) {
+func (api *PrivateP2PAPI) GetMinorBlockList(hashList []common.Hash, branch uint32, peerId string) ([]byte, error) {
 	peer := api.peers.Peer(peerId)
 	if peer == nil {
 		return nil, errNotRegistered
 	}
-	blocks, err := peer.GetMinorBlockList(hashList, branch)
-	return blocks, err
+	data, err := peer.GetMinorBlockList(hashList, branch)
+	return data, err
 }
 
-func (api *PrivateP2PAPI) GetMinorBlockHeaderList(req *rpc.GetMinorBlockHeaderListWithSkipRequest) (*p2p.GetMinorBlockHeaderListResponse, error) {
+func (api *PrivateP2PAPI) GetMinorBlockHeaderList(req *rpc.GetMinorBlockHeaderListWithSkipRequest) ([]byte, error) {
 	peer := api.peers.Peer(req.PeerID)
 	if peer == nil {
 		return nil, errNotRegistered

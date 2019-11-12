@@ -272,13 +272,15 @@ func TestGetMinorBlockHeaders(t *testing.T) {
 	}
 	// Run each of the tests and verify the results against the chain
 	for i, tt := range tests {
+		data, err := serialize.SerializeToBytes(&p2p.GetMinorBlockHeaderListResponse{
+			RootTip:         pm.rootBlockChain.CurrentHeader().(*types.RootBlockHeader),
+			ShardTip:        minorHeaders[blockcount-1],
+			BlockHeaderList: tt.expect,
+		})
+		assert.NoError(t, err)
 		for _, conn := range fakeConnMngr.GetSlaveConns() {
 			conn.(*mock_master.MockISlaveConn).EXPECT().GetMinorBlockHeaderList(tt.query).Return(
-				&p2p.GetMinorBlockHeaderListResponse{
-					RootTip:         pm.rootBlockChain.CurrentHeader().(*types.RootBlockHeader),
-					ShardTip:        minorHeaders[blockcount-1],
-					BlockHeaderList: tt.expect,
-				}, nil).Times(1)
+				data, nil).Times(1)
 		}
 
 		go handleMsg(clientPeer)
@@ -287,7 +289,11 @@ func TestGetMinorBlockHeaders(t *testing.T) {
 		if err != nil {
 			t.Errorf("test %d: make message failed: %v", i, err)
 		}
-		rheaders := res.BlockHeaderList
+
+		var gRep p2p.GetMinorBlockHeaderListResponse
+		assert.NoError(t, serialize.DeserializeFromBytes(res, &gRep))
+
+		rheaders := gRep.BlockHeaderList
 
 		if len(rheaders) != len(tt.expect) {
 			t.Errorf("test %d: peer result count is mismatch: got %d, want %d", i, len(rheaders), len(tt.expect))
@@ -352,11 +358,18 @@ func TestGetMinorBlocks(t *testing.T) {
 	// Run each of the tests and verify the results against the chain
 	for i, tt := range tests {
 		go handleMsg(clientPeer)
+		data, err := serialize.SerializeToBytes(&p2p.GetMinorBlockListResponse{MinorBlockList: tt.expect})
+		assert.NoError(t, err)
 		for _, conn := range fakeConnMngr.GetSlaveConns() {
 			conn.(*mock_master.MockISlaveConn).EXPECT().GetMinorBlocks(gomock.Any()).Return(
-				&p2p.GetMinorBlockListResponse{MinorBlockList: tt.expect}, nil).Times(1)
+				data, nil).Times(1)
 		}
-		rheaders, err := clientPeer.GetMinorBlockList(tt.hashList, 2)
+		data, err = clientPeer.GetMinorBlockList(tt.hashList, 2)
+		assert.NoError(t, err)
+
+		var gReq p2p.GetMinorBlockListResponse
+		assert.NoError(t, serialize.DeserializeFromBytes(data, &gReq))
+		rheaders := gReq.MinorBlockList
 
 		if err != nil {
 			t.Errorf("test %d: make message failed: %v", i, err)
@@ -581,7 +594,11 @@ func ExpectMsg(r p2p.MsgReader, op p2p.P2PCommandOp, metadata p2p.Metadata, cont
 		return &qkcMsg, fmt.Errorf("MetaData miss match: got %d, want %d", qkcMsg.MetaData.Branch, metadata.Branch)
 	}
 
-	contentEnc, err := p2p.Encrypt(metadata, op, qkcMsg.RpcID, content)
+	cmdBytes, err := serialize.SerializeToBytes(content)
+	if err != nil {
+		return &p2p.QKCMsg{}, err
+	}
+	contentEnc, err := p2p.Encrypt(metadata, op, qkcMsg.RpcID, cmdBytes)
 	if err != nil {
 		panic("content encode error: " + err.Error())
 	}
@@ -635,31 +652,18 @@ func handleMsg(peer *Peer) error {
 		}
 
 	case qkcMsg.Op == p2p.GetMinorBlockHeaderListResponseMsg:
-		var minorHeaderResp p2p.GetMinorBlockHeaderListResponse
-
-		if err := serialize.DeserializeFromBytes(qkcMsg.Data, &minorHeaderResp); err != nil {
-			return err
-		}
 		if c := peer.getChan(qkcMsg.RpcID); c != nil {
-			c <- &minorHeaderResp
+			c <- qkcMsg.Data
 		}
 
 	case qkcMsg.Op == p2p.GetMinorBlockHeaderListWithSkipResponseMsg:
-		var minorHeaderResp p2p.GetMinorBlockHeaderListResponse
-		if err := serialize.DeserializeFromBytes(qkcMsg.Data, &minorHeaderResp); err != nil {
-			return err
-		}
 		if c := peer.getChan(qkcMsg.RpcID); c != nil {
-			c <- &minorHeaderResp
+			c <- qkcMsg.Data
 		}
 
 	case qkcMsg.Op == p2p.GetMinorBlockListResponseMsg:
-		var minorBlockResp p2p.GetMinorBlockListResponse
-		if err := serialize.DeserializeFromBytes(qkcMsg.Data, &minorBlockResp); err != nil {
-			return err
-		}
 		if c := peer.getChan(qkcMsg.RpcID); c != nil {
-			c <- minorBlockResp.MinorBlockList
+			c <- qkcMsg.Data
 		}
 	default:
 		return fmt.Errorf("unknown msg code %d", qkcMsg.Op)
