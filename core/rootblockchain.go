@@ -30,7 +30,7 @@ import (
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
-	"github.com/hashicorp/golang-lru"
+	lru "github.com/hashicorp/golang-lru"
 )
 
 var (
@@ -204,7 +204,7 @@ func (bc *RootBlockChain) SetHead(head uint64) error {
 		rawdb.DeleteCanonicalHash(batch, rawdb.ChainTypeRoot, block.NumberU64())
 		bc.currentBlock.Store(bc.GetBlock(block.ParentHash()))
 	}
-
+	batch.Write()
 	// Clear out any stale content from the caches
 	bc.blockCache.Purge()
 	bc.futureBlocks.Purge()
