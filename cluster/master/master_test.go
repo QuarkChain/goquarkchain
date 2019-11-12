@@ -297,7 +297,6 @@ func initEnvWithConsensusType(t *testing.T, chanOp chan uint32, consensusType st
 }
 func TestMasterBackend_InitCluster(t *testing.T) {
 	initEnv(t, nil)
-
 }
 
 func TestMasterBackend_HeartBeat(t *testing.T) {
@@ -324,11 +323,11 @@ func TestMasterBackend_HeartBeat(t *testing.T) {
 func TestGetSlaveConnByBranch(t *testing.T) {
 	master := initEnv(t, nil)
 	for _, v := range master.clusterConfig.Quarkchain.GetGenesisShardIds() {
-		conn := master.getOneSlaveConnection(account.Branch{Value: v})
+		conn := master.GetOneSlaveConnById(v)
 		assert.NotNil(t, conn)
 	}
 	fakeFullShardID := uint32(99999)
-	conn := master.getOneSlaveConnection(account.Branch{Value: fakeFullShardID})
+	conn := master.GetOneSlaveConnById(fakeFullShardID)
 	assert.Nil(t, conn)
 }
 

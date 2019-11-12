@@ -29,6 +29,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/core"
 	"github.com/QuarkChain/goquarkchain/core/types"
+	"github.com/QuarkChain/goquarkchain/mocks/mock_master"
 	"github.com/QuarkChain/goquarkchain/p2p"
 	"github.com/QuarkChain/goquarkchain/serialize"
 	"github.com/ethereum/go-ethereum/common"
@@ -36,6 +37,7 @@ import (
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/p2p/enode"
+	"github.com/golang/mock/gomock"
 	"math/big"
 	"sort"
 	"sync"
@@ -51,7 +53,8 @@ var (
 // newTestProtocolManager creates a new protocol manager for testing purposes,
 // with the given number of blocks already known, and potential notification
 // channels for different events.
-func newTestProtocolManager(blocks int, generator func(int, *core.RootBlockGen), synchronizer synchronizer.Synchronizer, getShardConnFunc func(fullShardId uint32) []rpc.ShardConnForP2P) (*ProtocolManager, *ethdb.MemDatabase, error) {
+func newTestProtocolManager(blocks int, generator func(int, *core.RootBlockGen),
+	synchronizer synchronizer.Synchronizer, slaveConns rpc.ConnManager) (*ProtocolManager, *ethdb.MemDatabase, error) {
 	var (
 		engine        = new(consensus.FakeEngine)
 		db            = ethdb.NewMemDatabase()
@@ -66,7 +69,7 @@ func newTestProtocolManager(blocks int, generator func(int, *core.RootBlockGen),
 		panic(err)
 	}
 
-	pm, err := NewProtocolManager(*clusterconfig, blockChain, nil, synchronizer, getShardConnFunc)
+	pm, err := NewProtocolManager(*clusterconfig, blockChain, nil, synchronizer, slaveConns)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -78,8 +81,9 @@ func newTestProtocolManager(blocks int, generator func(int, *core.RootBlockGen),
 // with the given number of blocks already known, and potential notification
 // channels for different events. In case of an error, the constructor force-
 // fails the test.
-func newTestProtocolManagerMust(t *testing.T, blocks int, generator func(int, *core.RootBlockGen), synchronizer synchronizer.Synchronizer, getShardConnFunc func(fullShardId uint32) []rpc.ShardConnForP2P) (*ProtocolManager, *ethdb.MemDatabase) {
-	pm, db, err := newTestProtocolManager(blocks, generator, synchronizer, getShardConnFunc)
+func newTestProtocolManagerMust(t *testing.T, blocks int, generator func(int, *core.RootBlockGen),
+	synchronizer synchronizer.Synchronizer, slaveConns rpc.ConnManager) (*ProtocolManager, *ethdb.MemDatabase) {
+	pm, db, err := newTestProtocolManager(blocks, generator, synchronizer, slaveConns)
 	if err != nil {
 		t.Fatalf("Failed to create protocol manager: %v", err)
 	}
@@ -141,7 +145,8 @@ func newTestTransactionList(count int) []*types.Transaction {
 
 // newTestTransaction create a new dummy transaction.
 func newTestTransaction(from *ecdsa.PrivateKey, nonce uint64, datasize int) *types.Transaction {
-	tx := types.NewEvmTransaction(nonce, account.Recipient{}, big.NewInt(0), 100000, big.NewInt(0), 0, 1, 0, 1, make([]byte, datasize), 0, 0)
+	tx := types.NewEvmTransaction(nonce, account.Recipient{}, big.NewInt(0), 100000,
+		big.NewInt(0), 0, 1, 0, 1, make([]byte, datasize), 0, 0)
 	tx, _ = types.SignTx(tx, types.MakeSigner(tx.NetworkId()), from)
 	return &types.Transaction{EvmTx: tx, TxType: types.EvmTx}
 }
@@ -287,3 +292,31 @@ func (s *fakeSynchronizer) AddTask(task synchronizer.Task) error {
 func (s *fakeSynchronizer) Close() error {
 	return nil
 }
+
+type fakeConnManager struct {
+	conns []rpc.ISlaveConn
+}
+
+func newFakeConnManager(n int, ctrl *gomock.Controller) *fakeConnManager {
+	conns := make([]rpc.ISlaveConn, 0, n)
+	for i := 0; i < n; i++ {
+		sc := mock_master.NewMockISlaveConn(ctrl)
+		conns = append(conns, sc)
+	}
+
+	return &fakeConnManager{conns: conns}
+}
+
+func (f *fakeConnManager) GetOneSlaveConnById(fullShardId uint32) rpc.ISlaveConn {
+	return f.conns[0]
+}
+
+func (f *fakeConnManager) GetSlaveConnsById(fullShardId uint32) []rpc.ISlaveConn {
+	return f.conns
+}
+
+func (f *fakeConnManager) GetSlaveConns() []rpc.ISlaveConn {
+	return f.conns
+}
+
+func (f *fakeConnManager) ConnCount() int { return len(f.conns) }
