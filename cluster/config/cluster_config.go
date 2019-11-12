@@ -324,6 +324,18 @@ func (q *QuarkChainConfig) GetShardConfigByFullShardID(fullShardID uint32) *Shar
 	return q.shards[fullShardID]
 }
 
+func (q *QuarkChainConfig) IsSameFullShard(key1, key2 uint32) bool {
+	id1, err := q.GetFullShardIdByFullShardKey(key1)
+	if err != nil {
+		return false
+	}
+	id2, err := q.GetFullShardIdByFullShardKey(key2)
+	if err != nil {
+		return false
+	}
+	return id1 == id2
+}
+
 func (q *QuarkChainConfig) GetFullShardIdByFullShardKey(fullShardKey uint32) (uint32, error) {
 	chainID := fullShardKey >> 16
 	shardSize, err := q.GetShardSizeByChainId(chainID)

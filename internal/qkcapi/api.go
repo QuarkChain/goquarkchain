@@ -3,6 +3,10 @@ package qkcapi
 import (
 	"bytes"
 	"errors"
+	"fmt"
+	"math/big"
+	"sort"
+
 	"github.com/QuarkChain/goquarkchain/account"
 	qrpc "github.com/QuarkChain/goquarkchain/cluster/rpc"
 	qcom "github.com/QuarkChain/goquarkchain/common"
@@ -13,8 +17,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rlp"
-	"math/big"
-	"sort"
 )
 
 type CommonAPI struct {
@@ -31,6 +33,10 @@ func (c *CommonAPI) callOrEstimateGas(args *CallArgs, height *uint64, isCall boo
 		return nil, err
 	}
 	if isCall {
+		isSameChain := clusterCfg.Quarkchain.IsSameFullShard(args.From.FullShardKey, args.To.FullShardKey)
+		if !isSameChain {
+			return nil, fmt.Errorf("Call cross-shard tx not supported yet\n")
+		}
 		res, err := c.b.ExecuteTransaction(tx, args.From, height)
 		if err != nil {
 			return nil, err
@@ -807,7 +813,7 @@ func (e *EthBlockChainAPI) GetCode(address common.Address, fullShardKey *hexutil
 }
 
 func (e *EthBlockChainAPI) Call(data EthCallArgs, fullShardKey *hexutil.Uint) (hexutil.Bytes, error) {
-	args, err := convertEthCallData(&data, fullShardKey)
+	args, err := convertEthCallData(&data)
 	if err != nil {
 		return nil, err
 	}
@@ -815,7 +821,7 @@ func (e *EthBlockChainAPI) Call(data EthCallArgs, fullShardKey *hexutil.Uint) (h
 }
 
 func (e *EthBlockChainAPI) EstimateGas(data EthCallArgs, fullShardKey *hexutil.Uint) ([]byte, error) {
-	args, err := convertEthCallData(&data, fullShardKey)
+	args, err := convertEthCallData(&data)
 	if err != nil {
 		return nil, err
 	}

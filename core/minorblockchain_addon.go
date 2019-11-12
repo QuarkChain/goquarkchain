@@ -151,9 +151,6 @@ func (m *MinorBlockChain) validateTx(tx *types.Transaction, evmState *state.Stat
 	if fromAddress != nil {
 		nonce := evmState.GetNonce(fromAddress.Recipient)
 		evmTx.SetNonce(nonce)
-		if evmTx.FromFullShardKey() != fromAddress.FullShardKey {
-			return nil, errors.New("from full shard id not match")
-		}
 		evmTxGas := evmTx.Gas()
 		if gas != nil {
 			evmTxGas = *gas
@@ -1098,6 +1095,14 @@ func (m *MinorBlockChain) EstimateGas(tx *types.Transaction, fromAddress account
 
 	runTx := func(gas uint32) error {
 		evmState := currentState.Copy()
+		if tx.EvmTx.IsCrossShard() && tx.EvmTx.ToFullShardId() == m.branch.Value {
+			evmState.SetBalance(fromAddress.Recipient, tx.EvmTx.Value(), tx.EvmTx.TransferTokenID())
+
+			gasFee := big.NewInt(int64(tx.EvmTx.Gas()))
+			gasFee.Mul(gasFee, tx.EvmTx.GasPrice())
+			evmState.SetBalance(fromAddress.Recipient, gasFee, tx.EvmTx.GasTokenID())
+		}
+
 		evmState.SetGasUsed(new(big.Int).SetUint64(0))
 		uint64Gas := uint64(gas)
 		evmTx, err := m.validateTx(tx, evmState, &fromAddress, &uint64Gas, nil)
