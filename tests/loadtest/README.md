@@ -2,23 +2,36 @@
 
 ## Environment Setup
 
-In order to run loadtest, you need to run your own GoQuarkChain clusters.
+In order to run loadtest, you need to [run your own GoQuarkChain clusters](../../README.md#running-multiple-clusters-with-p2p-network-on-different-machines).
 
 A convenient option is to [Use Deploy Tool to Start Clusters](./deployer/README.md#use-deploy-tool-to-start-goquarkchain-clusters).
 
+## Cluster Configuration
+
+Key parameters in cluster config json file for loadtest:
+
+- ROOT/CONSENSUS_CONFIG/TARGET_BLOCK_TIME: root block interval
+- CHAINS/CONSENSUS_CONFIG/TARGET_BLOCK_TIME: minor block interval
+- CHAINS/GENESIS/GAS_LIMIT: minor block gas limit
+- CHAINS/SHARD_SIZE: number of shards per chain
+
 ## Start Mining
 
-To start mining, run the following command:
+Your clusters need to keep mining while loadtest is ongoing. 
+
+Run the following command to start mining, replacing 127.0.0.1 with the host IP where the master service is deployed if not execute locally:
+
 ```bash
 curl -X POST -H 'content-type: application/json' --data '{"jsonrpc":"2.0","method":"setMining","params":[true],"id":0}' http://127.0.0.1:38491
 ```
-To stop mining,
+If need to stop mining,
 ```bash
 curl -X POST -H 'content-type: application/json' --data '{"jsonrpc":"2.0","method":"setMining","params":[false],"id":0}' http://127.0.0.1:38491
 ```
 ## Generate Transactions
 
-Trigger loadtest through `createTransactions` which requests the cluster to generate transactions on each shard.
+Trigger loadtest through `createTransactions` which requests the cluster to generate transactions on each shard. 
+Remember to replace 127.0.0.1 with the host IP where the master service is deployed if not execute locally:
 
 ```bash
 curl -X POST -H 'content-type: application/json' --data '{"jsonrpc": "2.0","method": "createTransactions","params": [{ "numTxPerShard": 10000,"xShardPercent": 0}],"id": 1}' http://127.0.0.1:38491
