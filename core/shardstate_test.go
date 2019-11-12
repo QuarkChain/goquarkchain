@@ -1356,7 +1356,7 @@ func TestShardStateAddRootBlockTooManyMinorBlocks(t *testing.T) {
 	}
 
 	rootBlock := shardState.rootTip.CreateBlockToAppend(nil, nil, nil, nil, nil)
-	rootBlock.ExtendMinorBlockHeaderList(headers)
+	rootBlock.ExtendMinorBlockHeaderList(headers, uint64(time.Now().Unix()+9999))
 	rootBlock.Finalize(nil, nil, common.Hash{})
 
 	// Too many blocks
@@ -1505,7 +1505,7 @@ func TestShardStateRecoveryFromRootBlock(t *testing.T) {
 	assert.Equal(t, DBb1.Time(), b11Header.Time)
 
 	rootBlock := shardState.rootTip.CreateBlockToAppend(nil, nil, nil, nil, nil)
-	rootBlock.ExtendMinorBlockHeaderList(blockHeaders[:5])
+	rootBlock.ExtendMinorBlockHeaderList(blockHeaders[:5], uint64(time.Now().Unix()+9999))
 	rootBlock.Finalize(nil, nil, common.Hash{})
 	_, err = shardState.AddRootBlock(rootBlock)
 	checkErr(err)

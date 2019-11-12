@@ -4,10 +4,10 @@ import (
 	"errors"
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
+	"github.com/QuarkChain/goquarkchain/common/hexutil"
 	"github.com/QuarkChain/goquarkchain/internal/encoder"
 	"github.com/QuarkChain/goquarkchain/rpc"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/common/hexutil"
 	"math/big"
 	"sync"
 )
@@ -27,23 +27,20 @@ func getFullShardId(fullShardKey *hexutil.Uint) (fullShardId uint32, err error) 
 	return 1, nil
 }
 
-func convertEthCallData(data *EthCallArgs, fullShardKey *hexutil.Uint) (*CallArgs, error) {
-	fullShardId, err := getFullShardId(fullShardKey)
-	if err != nil {
-		return nil, err
-	}
+func convertEthCallData(data *EthCallArgs) (*CallArgs, error) {
 	args := &CallArgs{
+		From:     &data.From,
 		Gas:      (hexutil.Big)(*big.NewInt(int64(data.Gas))),
 		GasPrice: data.GasPrice,
 		Value:    data.Value,
 		Data:     data.Data,
 	}
 	if data.To != nil {
-		addr := account.NewAddress(*data.To, fullShardId)
-		args.To = &addr
+		args.To = data.To
+	} else {
+		to := account.CreatEmptyAddress(data.From.FullShardKey)
+		args.To = &to
 	}
-	from := account.NewAddress(data.From, fullShardId)
-	args.From = &from
 
 	return args, nil
 }
