@@ -449,12 +449,12 @@ func (s *ShardBackend) AddTxList(txs []*types.Transaction) error {
 	go func() {
 		span := len(txs) / params.NEW_TRANSACTION_LIST_LIMIT
 		for index := 0; index < span; index++ {
-			if err := s.conn.BroadcastTransactions(txs[index*params.NEW_TRANSACTION_LIST_LIMIT:(index+1)*params.NEW_TRANSACTION_LIST_LIMIT], s.branch.Value); err != nil {
+			if err := s.conn.BroadcastTransactions("", s.branch.Value, txs[index*params.NEW_TRANSACTION_LIST_LIMIT:(index+1)*params.NEW_TRANSACTION_LIST_LIMIT]); err != nil {
 				log.Error(s.logInfo, "broadcastTransaction err", err)
 			}
 		}
 		if len(txs)%params.NEW_TRANSACTION_LIST_LIMIT != 0 {
-			if err := s.conn.BroadcastTransactions(txs[span*params.NEW_TRANSACTION_LIST_LIMIT:], s.branch.Value); err != nil {
+			if err := s.conn.BroadcastTransactions("", s.branch.Value, txs[span*params.NEW_TRANSACTION_LIST_LIMIT:]); err != nil {
 				log.Error(s.logInfo, "broadcastTransaction err", err)
 			}
 		}

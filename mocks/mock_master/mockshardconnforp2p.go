@@ -5,16 +5,16 @@
 package mock_master
 
 import (
-	account "github.com/QuarkChain/goquarkchain/account"
-	rpc "github.com/QuarkChain/goquarkchain/cluster/rpc"
-	consensus "github.com/QuarkChain/goquarkchain/consensus"
-	types "github.com/QuarkChain/goquarkchain/core/types"
-	p2p "github.com/QuarkChain/goquarkchain/p2p"
+	"github.com/QuarkChain/goquarkchain/account"
+	"github.com/QuarkChain/goquarkchain/cluster/rpc"
+	"github.com/QuarkChain/goquarkchain/consensus"
+	"github.com/QuarkChain/goquarkchain/core/types"
+	"github.com/QuarkChain/goquarkchain/p2p"
 	rpc0 "github.com/QuarkChain/goquarkchain/rpc"
-	common "github.com/ethereum/go-ethereum/common"
-	gomock "github.com/golang/mock/gomock"
-	big "math/big"
-	reflect "reflect"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/golang/mock/gomock"
+	"math/big"
+	"reflect"
 )
 
 // MockConnManager is a mock of ConnManager interface
@@ -120,12 +120,11 @@ func (m *MockISlaveConn) EXPECT() *MockISlaveConnMockRecorder {
 }
 
 // AddTransactions mocks base method
-func (m *MockISlaveConn) AddTransactions(request *rpc.NewTransactionList) (*rpc.HashList, error) {
+func (m *MockISlaveConn) AddTransactions(request *rpc.P2PRedirectRequest) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AddTransactions", request)
-	ret0, _ := ret[0].(*rpc.HashList)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
+	ret0, _ := ret[0].(error)
+	return ret0
 }
 
 // AddTransactions indicates an expected call of AddTransactions
