@@ -1219,7 +1219,7 @@ func (bc *RootBlockChain) CreateBlockToMine(mHeaderList []*types.MinorBlockHeade
 		return nil, err
 	}
 	block := bc.CurrentBlock().Header().CreateBlockToAppend(createTime, difficulty, address, nil, nil)
-	block.ExtendMinorBlockHeaderList(mHeaderList)
+	block.ExtendMinorBlockHeaderList(mHeaderList, *createTime)
 	coinbaseToken, err := bc.CalculateRootBlockCoinBase(block)
 	if err != nil {
 		return nil, err

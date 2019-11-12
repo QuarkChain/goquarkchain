@@ -18,29 +18,25 @@ func (e *NetworkError) Error() string {
 	return e.Msg
 }
 
-type ShardConnForP2P interface {
-	// AddTransactions will add the tx to shard tx pool, and return the tx hash
-	// which have been added to tx pool. so tx which cannot pass verification
-	// or existed in tx pool will not be included in return hash list
-	AddTransactions(request *NewTransactionList) (*HashList, error)
-
-	GetMinorBlockByHash(blockHash common.Hash, branch account.Branch, needExtraInfo bool) (*types.MinorBlock, *PoSWInfo, error)
-
-	GetMinorBlockByHeight(height *uint64, branch account.Branch, needExtraInfo bool) (*types.MinorBlock, *PoSWInfo, error)
-
-	GetMinorBlocks(request *GetMinorBlockListRequest) (*p2p.GetMinorBlockListResponse, error)
-
-	GetMinorBlockHeaderList(req *p2p.GetMinorBlockHeaderListWithSkipRequest) (*p2p.GetMinorBlockHeaderListResponse, error)
-
-	HandleNewTip(request *HandleNewTipRequest) (bool, error)
-
-	HandleNewMinorBlock(request *p2p.NewBlockMinor) (bool, error)
-
-	AddBlockListForSync(request *AddBlockListForSyncRequest) (*ShardStatus, error)
+type ConnManager interface {
+	GetOneSlaveConnById(fullShardId uint32) ISlaveConn
+	GetSlaveConnsById(fullShardId uint32) []ISlaveConn
+	GetSlaveConns() []ISlaveConn
+	ConnCount() int
 }
 
 type ISlaveConn interface {
-	ShardConnForP2P
+	// AddTransactions will add the tx to shard tx pool, and return the tx hash
+	// which have been added to tx pool. so tx which cannot pass verification
+	// or existed in tx pool will not be included in return hash list
+	AddTransactions(request *P2PRedirectRequest) error
+	GetMinorBlockByHash(blockHash common.Hash, branch account.Branch, needExtraInfo bool) (*types.MinorBlock, *PoSWInfo, error)
+	GetMinorBlockByHeight(height *uint64, branch account.Branch, needExtraInfo bool) (*types.MinorBlock, *PoSWInfo, error)
+	GetMinorBlocks(request *GetMinorBlockListRequest) (*p2p.GetMinorBlockListResponse, error)
+	GetMinorBlockHeaderList(req *p2p.GetMinorBlockHeaderListWithSkipRequest) (*p2p.GetMinorBlockHeaderListResponse, error)
+	HandleNewTip(request *HandleNewTipRequest) (bool, error)
+	HandleNewMinorBlock(request *p2p.NewBlockMinor) (bool, error)
+	AddBlockListForSync(request *AddBlockListForSyncRequest) (*ShardStatus, error)
 	GetSlaveID() string
 	GetShardMaskList() []*types.ChainMask
 	MasterInfo(ip string, port uint16, rootTip *types.RootBlock) error

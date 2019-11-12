@@ -1,13 +1,10 @@
 # Use Deploy Tool to Start GoQuarkChain Clusters
 
-Here we provide a deploy tool based on pre-built Docker image. With this tool you can deploy multiple clusters to build 
+Here we provide a deploy tool based on pre-built Docker image(`quarkchaindocker/goquarkchain`). With this tool you can deploy multiple clusters to build 
 and start a private QuarkChain network in one line command. 
 
-It is encouraged that you build your own deploy scripts or tools, especially if you prefer different service distribution 
-among hosts.  You can also build your own Docker image, starting from [this Dockerfile](../Dockerfile), or if you are 
+You can also build your own Docker image, starting from [this Dockerfile](../../../docker/Dockerfile), or if you are 
 interested in build everything without Docker, start from [here](../../../README.md#development-setup). 
-
-NOTE with this tool at most one Slave service can be deployed per host, but there is no limitation for Shard number.
 
 NOTE it is recommended to run deployer in the same LAN with the hosts you plan to deploy a cluster, because some file copy work 
 will be done across network during the deploy process. 
@@ -16,10 +13,10 @@ will be done across network during the deploy process.
 
 To use `deployer` to run Docker image, it is required for the hosts that:
 
-    a) Ubuntu 18.04, 
-    b) root account is enabled, 
-    c) Docker version >= 18.09.7, and
-    d) 38291, 38391, 38491, [48000, 48000 + host number] ports opened.
+   - Ubuntu 18.04, 
+   - root account is enabled, 
+   - Docker version >= 18.09.7, and
+   - 38291, 38391, 38491, [48000, 48000 + host number] ports opened.
 
 ## Run Docker Image
 
@@ -56,9 +53,9 @@ to same cluster; ClusterID must be consecutive integers start from 0; if Cluster
 started as a bootstrap node
 - `CHAIN_SIZE` defines the number of chains in each cluster, where each chain has a number of shards; CHAIN_SIZE must be bigger or equal to the number of slaves.
 - `SHARD_SIZE` defines the number of shards of each chain (must be a power of 2)
-- `TargetRootBlockTime` defines the target block interval of root chain in seconds, since "POW_SIMULATE" is used for consensus
-- `TargetMinorBlockTime` defines the target block interval of each shard
-- `GasLimit` defines the gas limit for a block; note that in-shard transactions uses 50% of the total gas limit in a block
+- `TargetRootBlockTime` refers to ROOT/CONSENSUS_CONFIG/TARGET_BLOCK_TIME in cluster config that defines the target block interval of root chain in seconds, since "POW_SIMULATE" is used for consensus
+- `TargetMinorBlockTime` refers to CHAINS/CONSENSUS_CONFIG/TARGET_BLOCK_TIME in cluster config that defines the target block interval of each shard
+- `GasLimit` refers to CHAINS/GENESIS/GAS_LIMIT in cluster config that defines the gas limit for a block; note that in-shard transactions uses 50% of the total gas limit in a block
 
 ## Deploy and Run Clusters
 
@@ -70,6 +67,8 @@ containers, and start the services of each cluster:
 go run deploy_cluster.go
 ```
 The deploying process will be printed on the console log. 
+
+NOTE pulling docker image may take a while on the first run.
 
 ## Check Status of Clusters
 
@@ -83,10 +82,6 @@ docker exec -it bjqkc /bin/bash
 ```
 You can find master.log and shard logs such as `S0.log` from `$GOPATH/src/github.com/QuarkChain/goquarkchain/cmd/cluster`.
  
-Try the following command to see if mining works:
-```bash
-curl -X POST -H 'content-type: application/json' --data '{"jsonrpc":"2.0","method":"setMining","params":[true],"id":0}' http://127.0.0.1:38491
-```
 ## Back to Loadtest
 
-Now that you have running clusters, you can continue with loadtest from [here](../README.md#generate-transactions).
+Now that you have running clusters, you can continue with loadtest from [here](../README.md#start-mining).
