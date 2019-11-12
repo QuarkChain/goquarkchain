@@ -11,8 +11,6 @@ import (
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/cluster/master"
 	"github.com/QuarkChain/goquarkchain/cluster/service"
-	"github.com/QuarkChain/goquarkchain/common"
-	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/p2p"
 	"github.com/QuarkChain/goquarkchain/params"
 	"github.com/ethereum/go-ethereum/log"
@@ -96,33 +94,9 @@ var (
 		Name:  "genesis_dir",
 		Usage: "gensis data dir",
 	}
-	NumChainsFlag = cli.IntFlag{
-		Name:  "num_chains",
-		Usage: "chain number",
-	}
-	NumShardsFlag = cli.IntFlag{
-		Name:  "num_shards",
-		Usage: "shard number",
-	}
-	RootBlockIntervalSecFlag = cli.IntFlag{
-		Name:  "root_block_interval_sec",
-		Usage: "interval time of root block",
-	}
-	MinorBlockIntervalSecFlag = cli.IntFlag{
-		Name:  "minor_block_interval_sec",
-		Usage: "",
-	}
 	NetworkIdFlag = cli.IntFlag{
 		Name:  "network_id",
 		Usage: "net work id",
-	}
-	NumSlavesFlag = cli.IntFlag{
-		Name:  "num_slaves",
-		Usage: "slaves number",
-	}
-	PortStartFlag = cli.IntFlag{
-		Name:  "port_start",
-		Usage: "slave start port",
 	}
 	DbPathRootFlag = cli.StringFlag{
 		Name:  "db_path_root",
@@ -396,31 +370,6 @@ func SetP2PConfig(ctx *cli.Context, cfg *p2p.Config, clstrCfg *config.ClusterCon
 }
 
 func SetClusterConfig(ctx *cli.Context, cfg *config.ClusterConfig) {
-
-	var (
-		shardSize      = cfg.Quarkchain.Chains[0].ShardSize
-		chainSize      = cfg.Quarkchain.ChainSize
-		rootBlockTime  = cfg.Quarkchain.Root.ConsensusConfig.TargetBlockTime
-		minorBlockTime = cfg.Quarkchain.Chains[0].ConsensusConfig.TargetBlockTime
-	)
-	// quarkchain.update
-	if ctx.GlobalIsSet(NumShardsFlag.Name) {
-		shardSize = uint32(ctx.GlobalInt(NumShardsFlag.Name))
-		if !common.IsP2(uint32(shardSize)) {
-			Fatalf("shard size must be pow of 2")
-		}
-	}
-	if ctx.GlobalIsSet(NumChainsFlag.Name) {
-		chainSize = uint32(ctx.GlobalInt(NumChainsFlag.Name))
-	}
-	if ctx.GlobalIsSet(RootBlockIntervalSecFlag.Name) {
-		rootBlockTime = uint32(ctx.GlobalInt(RootBlockIntervalSecFlag.Name))
-	}
-	if ctx.GlobalIsSet(MinorBlockIntervalSecFlag.Name) {
-		minorBlockTime = uint32(ctx.GlobalInt(MinorBlockIntervalSecFlag.Name))
-	}
-	cfg.Quarkchain.Update(chainSize, shardSize, rootBlockTime, minorBlockTime)
-
 	// quarkchain.network_id
 	if ctx.GlobalIsSet(NetworkIdFlag.Name) {
 		cfg.Quarkchain.NetworkID = uint32(ctx.GlobalInt(NetworkIdFlag.Name))
@@ -439,25 +388,6 @@ func SetClusterConfig(ctx *cli.Context, cfg *config.ClusterConfig) {
 	// cluster.genesisDir
 	if ctx.GlobalIsSet(GenesisDirFlag.Name) {
 		cfg.GenesisDir = ctx.GlobalString(GenesisDirFlag.Name)
-	}
-
-	portStart := cfg.SlaveList[0].Port
-	if ctx.GlobalIsSet(PortStartFlag.Name) {
-		portStart = uint16(ctx.GlobalInt(PortStartFlag.Name))
-	}
-
-	numSlaves := config.DefaultNumSlaves
-	if ctx.GlobalIsSet(NumSlavesFlag.Name) {
-		numSlaves = ctx.GlobalInt(NumSlavesFlag.Name)
-	}
-
-	cfg.SlaveList = make([]*config.SlaveConfig, 0)
-	for i := 0; i < numSlaves; i++ {
-		slaveConfig := config.NewDefaultSlaveConfig()
-		slaveConfig.Port = portStart + uint16(i)
-		slaveConfig.ID = fmt.Sprintf("S%d", i)
-		slaveConfig.ChainMaskList = append(slaveConfig.ChainMaskList, types.NewChainMask(uint32(i)|uint32(numSlaves)))
-		cfg.SlaveList = append(cfg.SlaveList, slaveConfig)
 	}
 
 	// cluster.loglevel

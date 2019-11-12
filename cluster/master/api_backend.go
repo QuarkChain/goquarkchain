@@ -197,11 +197,19 @@ func (s *QKCMasterBackend) EstimateGas(tx *types.Transaction, fromAddress *accou
 	if err := tx.EvmTx.SetFromShardSize(fromShardSize); err != nil {
 		return 0, errors.New(fmt.Sprintf("Failed to set fromShardSize, fromShardSize: %d, err: %v", fromShardSize, err))
 	}
-	slaveConn := s.getOneSlaveConnection(account.Branch{Value: evmTx.FromFullShardId()})
+	slaveConn := s.getOneSlaveConnection(account.Branch{Value: evmTx.ToFullShardId()})
 	if slaveConn == nil {
 		return 0, ErrNoBranchConn
 	}
-	return slaveConn.EstimateGas(tx, fromAddress)
+	if !evmTx.IsCrossShard() {
+		return slaveConn.EstimateGas(tx, fromAddress)
+	}
+	fAddr := account.Address{Recipient: fromAddress.Recipient, FullShardKey: evmTx.ToFullShardKey()}
+	res, err := slaveConn.EstimateGas(tx, &fAddr)
+	if err != nil {
+		return 0, err
+	}
+	return res + 9000, nil
 }
 
 func (s *QKCMasterBackend) GetStorageAt(address *account.Address, key common.Hash, height *uint64) (common.Hash, error) {
