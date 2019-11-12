@@ -620,7 +620,7 @@ func (s *SlaveServerSideOp) AddTransactions(ctx context.Context, req *rpc.Reques
 		return nil, err
 	}
 	if len(txs.TransactionList) > params.NEW_TRANSACTION_LIST_LIMIT {
-		return nil, fmt.Errorf("too many txs in one command, tx count: %d\n", len(txs))
+		return nil, fmt.Errorf("too many txs in one command, tx count: %d\n", len(txs.TransactionList))
 	}
 	addTxList := func(branch uint32, txs []*types.Transaction) error {
 		ts := time.Now()
