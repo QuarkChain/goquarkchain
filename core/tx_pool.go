@@ -950,6 +950,11 @@ func (pool *TxPool) reset(oldBlock, newBlock *types.MinorBlock) {
 				rem = pool.chain.GetMinorBlock(oldHead.Hash())
 				add = pool.chain.GetMinorBlock(newHead.Hash())
 			)
+			if rem == nil && add == nil {
+				log.Error("txpool issue:rem and add is nil", "old_Number", oldHead.Number, "old_hash", oldHead.Hash().String(),
+					"new_Number", newHead.Number, "new_Hash", newHead.Hash().String())
+				return
+			}
 			if rem == nil {
 				// This can happen if a setHead is performed, where we simply discard the old
 				// head from the chain.

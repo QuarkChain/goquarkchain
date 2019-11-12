@@ -437,7 +437,7 @@ func (s *SlaveBackend) getMinorBlockHeadersWithSkip(gReq *p2p.GetMinorBlockHeade
 		height = *gReq.GetHeight()
 	}
 
-	for len(headerlist) < cap(headerlist) && height >= 0 && height < mTip.NumberU64() {
+	for len(headerlist) < cap(headerlist) && height >= 0 && height <= mTip.NumberU64() {
 		iHeader := shrd.MinorBlockChain.GetHeaderByNumber(height)
 		if qcom.IsNil(iHeader) {
 			break
