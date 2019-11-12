@@ -19,6 +19,21 @@ func NewSSHConnect(user, password, host string, port int) *SSHSession {
 	return &SSHSession{user, password, host, port}
 }
 
+func (s *SSHSession) RunCmdIgnoreErr(cmd string) {
+	var stdOut, stdErr bytes.Buffer
+	session, err := SSHConnect(s.user, s.password, s.host, s.port)
+	CheckErr(err)
+	defer func() {
+		session.Close()
+	}()
+	session.Stdout = &stdOut
+	session.Stderr = &stdErr
+	err = session.Run(cmd)
+	if err != nil {
+		//log.Error("run cmd err", "host", s.host, "cmd", cmd, "err", err)
+	}
+	log.Debug("run cmd", "host", s.host, "cmd", cmd)
+}
 func (s *SSHSession) RunCmd(cmd string) {
 	var stdOut, stdErr bytes.Buffer
 	session, err := SSHConnect(s.user, s.password, s.host, s.port)

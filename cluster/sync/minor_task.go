@@ -140,13 +140,13 @@ func (m *minorChainTask) downloadBlockHeaderListAndCheck(height, skip, limit uin
 		return nil, errors.New("Remote chain reorg causing empty minor block headers ")
 	}
 
-	newLimit := (m.header.Number + 1 - height) / (skip + 1)
+	newLimit := (m.header.Number + 1 - height + skip) / (skip + 1)
 	if newLimit > limit {
 		newLimit = limit
 	}
 
 	if len(mHeaders) != int(newLimit) {
-		return nil, errors.New("Bad peer sending incorrect number of minor block headers ")
+		return nil, fmt.Errorf("Bad peer sending incorrect number of minor block headers expect: %d, actual: %d", newLimit, len(mHeaders))
 	}
 
 	return mHeaders, nil

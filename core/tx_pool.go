@@ -642,6 +642,12 @@ func (pool *TxPool) addTxs(txs []*types.Transaction, local, sync bool) []error {
 	if len(news) == 0 {
 		return errs
 	}
+	ts := time.Now()
+	// Cache senders in transactions before obtaining lock (pool.signer is immutable)
+	for _, tx := range news {
+		types.Sender(pool.signer, tx.EvmTx)
+	}
+	log.Info("addTxList", "revocer len", len(news), "ts", time.Now().Sub(ts).Seconds())
 	// Process all the new transaction and merge any errors into the original slice
 	pool.mu.Lock()
 	newErrs, dirtyAddrs := pool.addTxsLocked(news, local)
@@ -944,6 +950,11 @@ func (pool *TxPool) reset(oldBlock, newBlock *types.MinorBlock) {
 				rem = pool.chain.GetMinorBlock(oldHead.Hash())
 				add = pool.chain.GetMinorBlock(newHead.Hash())
 			)
+			if rem == nil && add == nil {
+				log.Error("txpool issue:rem and add is nil", "old_Number", oldHead.Number, "old_hash", oldHead.Hash().String(),
+					"new_Number", newHead.Number, "new_Hash", newHead.Hash().String())
+				return
+			}
 			if rem == nil {
 				// This can happen if a setHead is performed, where we simply discard the old
 				// head from the chain.

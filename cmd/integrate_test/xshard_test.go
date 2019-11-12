@@ -795,7 +795,7 @@ func TestPoSWOnRootChain(t *testing.T) {
 		if err != nil {
 			return err
 		}
-		assert.Equal(t, rootBlock.NumberU64()GetDifficulty(), diff)
+		assert.Equal(t, rootBlock.IHeader().GetDifficulty(), diff)
 		rBlock := rootBlock.(*types.RootBlock)
 		if sign {
 			prvKey, err := crypto.ToECDSA(signerId.GetKey().Bytes())

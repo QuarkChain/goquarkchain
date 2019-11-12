@@ -156,26 +156,29 @@ func (s *SlaveBackend) AddTx(tx *types.Transaction) (err error) {
 	return ErrMsg("AddTx")
 }
 
-func (s *SlaveBackend) AddTxList(txs []*types.Transaction, peerID string) (err error) {
+func (s *SlaveBackend) AddTxList(peerID string, branch uint32, txs []*types.Transaction) error {
 	if len(txs) == 0 {
 		return nil
 	}
 
-	tx := txs[0]
-	fromShardSize, err := s.clstrCfg.Quarkchain.GetShardSizeByChainId(tx.EvmTx.FromChainID())
-	if err != nil {
-		return err
-	}
-	if err := tx.EvmTx.SetFromShardSize(fromShardSize); err != nil {
-		return err
-	}
-	fromFullShardId := tx.EvmTx.FromFullShardId()
-
-	shard, ok := s.shards[fromFullShardId]
+	shard, ok := s.shards[branch]
 	if !ok {
-		return fmt.Errorf("fullShardID:%v not found", fromFullShardId)
+		return fmt.Errorf("fullShardID:%v not found", branch)
 	}
-	return shard.AddTxList(txs, peerID)
+	errList := shard.MinorBlockChain.AddTxList(txs)
+	if len(errList) != len(txs) {
+		return errors.New("errList != txList")
+	}
+
+	trans := make([]*types.Transaction, 0, len(errList))
+	for idx, err := range errList {
+		if err == nil {
+			trans = append(trans, txs[idx])
+		}
+	}
+	go s.connManager.BroadcastTransactions(peerID, branch, trans)
+
+	return nil
 }
 
 func (s *SlaveBackend) ExecuteTx(tx *types.Transaction, address *account.Address, height *uint64) ([]byte, error) {
@@ -288,16 +291,12 @@ func (s *SlaveBackend) GetLogs(args *qrpc.FilterQuery) ([]*types.Log, error) {
 }
 
 func (s *SlaveBackend) EstimateGas(tx *types.Transaction, address *account.Address) (uint32, error) {
-	fromShardSize, err := s.clstrCfg.Quarkchain.GetShardSizeByChainId(tx.EvmTx.FromChainID())
+	fullShardId, err := s.clstrCfg.Quarkchain.GetFullShardIdByFullShardKey(address.FullShardKey)
 	if err != nil {
 		return 0, err
 	}
-	if err := tx.EvmTx.SetFromShardSize(fromShardSize); err != nil {
-		return 0, err
-	}
-	branch := account.NewBranch(tx.EvmTx.FromFullShardId()).Value
-	if shard, ok := s.shards[branch]; ok {
-		return shard.MinorBlockChain.EstimateGas(tx, *address)
+	if shrd, ok := s.shards[fullShardId]; ok {
+		return shrd.MinorBlockChain.EstimateGas(tx, *address)
 	}
 	return 0, ErrMsg("EstimateGas")
 }
@@ -441,7 +440,7 @@ func (s *SlaveBackend) getMinorBlockHeadersWithSkip(gReq *p2p.GetMinorBlockHeade
 		height = *gReq.GetHeight()
 	}
 
-	for len(headerlist) < cap(headerlist) && height >= 0 && height < mTip.NumberU64() {
+	for len(headerlist) < cap(headerlist) && height >= 0 && height <= mTip.NumberU64() {
 		iHeader := shrd.MinorBlockChain.GetHeaderByNumber(height)
 		if qcom.IsNil(iHeader) {
 			break
@@ -488,7 +487,7 @@ func (s *SlaveBackend) NewMinorBlock(block *types.MinorBlock) error {
 	return ErrMsg("NewMinorBlock")
 }
 
-func (s *SlaveBackend) GenTx(genTxs *rpc.GenTxRequest) error {
+func (s *SlaveBackend) GenTx(genTxs rpc.GenTxRequest) error {
 	for _, shard := range s.shards {
 		if !shard.AccountForTPSReady() {
 			return errors.New("account for tps not ready")

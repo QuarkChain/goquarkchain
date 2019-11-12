@@ -5,159 +5,95 @@
 package mock_master
 
 import (
-	account "github.com/QuarkChain/goquarkchain/account"
-	rpc "github.com/QuarkChain/goquarkchain/cluster/rpc"
-	consensus "github.com/QuarkChain/goquarkchain/consensus"
-	types "github.com/QuarkChain/goquarkchain/core/types"
-	p2p "github.com/QuarkChain/goquarkchain/p2p"
-	common "github.com/ethereum/go-ethereum/common"
-	gomock "github.com/golang/mock/gomock"
-	reflect "reflect"
+	"github.com/QuarkChain/goquarkchain/account"
+	"github.com/QuarkChain/goquarkchain/cluster/rpc"
+	"github.com/QuarkChain/goquarkchain/consensus"
+	"github.com/QuarkChain/goquarkchain/core/types"
+	"github.com/QuarkChain/goquarkchain/p2p"
+	rpc0 "github.com/QuarkChain/goquarkchain/rpc"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/golang/mock/gomock"
+	"math/big"
+	"reflect"
 )
 
-// MockShardConnForP2P is a mock of ShardConnForP2P interface
-type MockShardConnForP2P struct {
+// MockConnManager is a mock of ConnManager interface
+type MockConnManager struct {
 	ctrl     *gomock.Controller
-	recorder *MockShardConnForP2PMockRecorder
+	recorder *MockConnManagerMockRecorder
 }
 
-// MockShardConnForP2PMockRecorder is the mock recorder for MockShardConnForP2P
-type MockShardConnForP2PMockRecorder struct {
-	mock *MockShardConnForP2P
+// MockConnManagerMockRecorder is the mock recorder for MockConnManager
+type MockConnManagerMockRecorder struct {
+	mock *MockConnManager
 }
 
-// NewMockShardConnForP2P creates a new mock instance
-func NewMockShardConnForP2P(ctrl *gomock.Controller) *MockShardConnForP2P {
-	mock := &MockShardConnForP2P{ctrl: ctrl}
-	mock.recorder = &MockShardConnForP2PMockRecorder{mock}
+// NewMockConnManager creates a new mock instance
+func NewMockConnManager(ctrl *gomock.Controller) *MockConnManager {
+	mock := &MockConnManager{ctrl: ctrl}
+	mock.recorder = &MockConnManagerMockRecorder{mock}
 	return mock
 }
 
 // EXPECT returns an object that allows the caller to indicate expected use
-func (m *MockShardConnForP2P) EXPECT() *MockShardConnForP2PMockRecorder {
+func (m *MockConnManager) EXPECT() *MockConnManagerMockRecorder {
 	return m.recorder
 }
 
-// AddTransactions mocks base method
-func (m *MockShardConnForP2P) AddTransactions(request *rpc.NewTransactionList) (*rpc.HashList, error) {
+// GetOneSlaveConnById mocks base method
+func (m *MockConnManager) GetOneSlaveConnById(fullShardId uint32) rpc.ISlaveConn {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "AddTransactions", request)
-	ret0, _ := ret[0].(*rpc.HashList)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
+	ret := m.ctrl.Call(m, "GetOneSlaveConnById", fullShardId)
+	ret0, _ := ret[0].(rpc.ISlaveConn)
+	return ret0
 }
 
-// AddTransactions indicates an expected call of AddTransactions
-func (mr *MockShardConnForP2PMockRecorder) AddTransactions(request interface{}) *gomock.Call {
+// GetOneSlaveConnById indicates an expected call of GetOneSlaveConnById
+func (mr *MockConnManagerMockRecorder) GetOneSlaveConnById(fullShardId interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddTransactions", reflect.TypeOf((*MockShardConnForP2P)(nil).AddTransactions), request)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetOneSlaveConnById", reflect.TypeOf((*MockConnManager)(nil).GetOneSlaveConnById), fullShardId)
 }
 
-// GetMinorBlockByHash mocks base method
-func (m *MockShardConnForP2P) GetMinorBlockByHash(blockHash common.Hash, branch account.Branch, needExtraInfo bool) (*types.MinorBlock, *rpc.PoSWInfo, error) {
+// GetSlaveConnsById mocks base method
+func (m *MockConnManager) GetSlaveConnsById(fullShardId uint32) []rpc.ISlaveConn {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetMinorBlockByHash", blockHash, branch, needExtraInfo)
-	ret0, _ := ret[0].(*types.MinorBlock)
-	ret1, _ := ret[1].(*rpc.PoSWInfo)
-	ret2, _ := ret[2].(error)
-	return ret0, ret1, ret2
+	ret := m.ctrl.Call(m, "GetSlaveConnsById", fullShardId)
+	ret0, _ := ret[0].([]rpc.ISlaveConn)
+	return ret0
 }
 
-// GetMinorBlockByHash indicates an expected call of GetMinorBlockByHash
-func (mr *MockShardConnForP2PMockRecorder) GetMinorBlockByHash(blockHash, branch, needExtraInfo interface{}) *gomock.Call {
+// GetSlaveConnsById indicates an expected call of GetSlaveConnsById
+func (mr *MockConnManagerMockRecorder) GetSlaveConnsById(fullShardId interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetMinorBlockByHash", reflect.TypeOf((*MockShardConnForP2P)(nil).GetMinorBlockByHash), blockHash, branch, needExtraInfo)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSlaveConnsById", reflect.TypeOf((*MockConnManager)(nil).GetSlaveConnsById), fullShardId)
 }
 
-// GetMinorBlockByHeight mocks base method
-func (m *MockShardConnForP2P) GetMinorBlockByHeight(height *uint64, branch account.Branch, needExtraInfo bool) (*types.MinorBlock, *rpc.PoSWInfo, error) {
+// GetSlaveConns mocks base method
+func (m *MockConnManager) GetSlaveConns() []rpc.ISlaveConn {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetMinorBlockByHeight", height, branch, needExtraInfo)
-	ret0, _ := ret[0].(*types.MinorBlock)
-	ret1, _ := ret[1].(*rpc.PoSWInfo)
-	ret2, _ := ret[2].(error)
-	return ret0, ret1, ret2
+	ret := m.ctrl.Call(m, "GetSlaveConns")
+	ret0, _ := ret[0].([]rpc.ISlaveConn)
+	return ret0
 }
 
-// GetMinorBlockByHeight indicates an expected call of GetMinorBlockByHeight
-func (mr *MockShardConnForP2PMockRecorder) GetMinorBlockByHeight(height, branch, needExtraInfo interface{}) *gomock.Call {
+// GetSlaveConns indicates an expected call of GetSlaveConns
+func (mr *MockConnManagerMockRecorder) GetSlaveConns() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetMinorBlockByHeight", reflect.TypeOf((*MockShardConnForP2P)(nil).GetMinorBlockByHeight), height, branch, needExtraInfo)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSlaveConns", reflect.TypeOf((*MockConnManager)(nil).GetSlaveConns))
 }
 
-// GetMinorBlocks mocks base method
-func (m *MockShardConnForP2P) GetMinorBlocks(request *rpc.GetMinorBlockListRequest) (*p2p.GetMinorBlockListResponse, error) {
+// ConnCount mocks base method
+func (m *MockConnManager) ConnCount() int {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetMinorBlocks", request)
-	ret0, _ := ret[0].(*p2p.GetMinorBlockListResponse)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
+	ret := m.ctrl.Call(m, "ConnCount")
+	ret0, _ := ret[0].(int)
+	return ret0
 }
 
-// GetMinorBlocks indicates an expected call of GetMinorBlocks
-func (mr *MockShardConnForP2PMockRecorder) GetMinorBlocks(request interface{}) *gomock.Call {
+// ConnCount indicates an expected call of ConnCount
+func (mr *MockConnManagerMockRecorder) ConnCount() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetMinorBlocks", reflect.TypeOf((*MockShardConnForP2P)(nil).GetMinorBlocks), request)
-}
-
-// GetMinorBlockHeaderList mocks base method
-func (m *MockShardConnForP2P) GetMinorBlockHeaderList(req *p2p.GetMinorBlockHeaderListWithSkipRequest) (*p2p.GetMinorBlockHeaderListResponse, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetMinorBlockHeaderList", req)
-	ret0, _ := ret[0].(*p2p.GetMinorBlockHeaderListResponse)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// GetMinorBlockHeaderList indicates an expected call of GetMinorBlockHeaderList
-func (mr *MockShardConnForP2PMockRecorder) GetMinorBlockHeaderList(req interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetMinorBlockHeaderList", reflect.TypeOf((*MockShardConnForP2P)(nil).GetMinorBlockHeaderList), req)
-}
-
-// HandleNewTip mocks base method
-func (m *MockShardConnForP2P) HandleNewTip(request *rpc.HandleNewTipRequest) (bool, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "HandleNewTip", request)
-	ret0, _ := ret[0].(bool)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// HandleNewTip indicates an expected call of HandleNewTip
-func (mr *MockShardConnForP2PMockRecorder) HandleNewTip(request interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HandleNewTip", reflect.TypeOf((*MockShardConnForP2P)(nil).HandleNewTip), request)
-}
-
-// HandleNewMinorBlock mocks base method
-func (m *MockShardConnForP2P) HandleNewMinorBlock(request *p2p.NewBlockMinor) (bool, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "HandleNewMinorBlock", request)
-	ret0, _ := ret[0].(bool)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// HandleNewMinorBlock indicates an expected call of HandleNewMinorBlock
-func (mr *MockShardConnForP2PMockRecorder) HandleNewMinorBlock(request interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HandleNewMinorBlock", reflect.TypeOf((*MockShardConnForP2P)(nil).HandleNewMinorBlock), request)
-}
-
-// AddBlockListForSync mocks base method
-func (m *MockShardConnForP2P) AddBlockListForSync(request *rpc.AddBlockListForSyncRequest) (*rpc.ShardStatus, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "AddBlockListForSync", request)
-	ret0, _ := ret[0].(*rpc.ShardStatus)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// AddBlockListForSync indicates an expected call of AddBlockListForSync
-func (mr *MockShardConnForP2PMockRecorder) AddBlockListForSync(request interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddBlockListForSync", reflect.TypeOf((*MockShardConnForP2P)(nil).AddBlockListForSync), request)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ConnCount", reflect.TypeOf((*MockConnManager)(nil).ConnCount))
 }
 
 // MockISlaveConn is a mock of ISlaveConn interface
@@ -184,12 +120,11 @@ func (m *MockISlaveConn) EXPECT() *MockISlaveConnMockRecorder {
 }
 
 // AddTransactions mocks base method
-func (m *MockISlaveConn) AddTransactions(request *rpc.NewTransactionList) (*rpc.HashList, error) {
+func (m *MockISlaveConn) AddTransactions(request *rpc.P2PRedirectRequest) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AddTransactions", request)
-	ret0, _ := ret[0].(*rpc.HashList)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
+	ret0, _ := ret[0].(error)
+	return ret0
 }
 
 // AddTransactions indicates an expected call of AddTransactions
@@ -231,10 +166,10 @@ func (mr *MockISlaveConnMockRecorder) GetMinorBlockByHeight(height, branch, need
 }
 
 // GetMinorBlocks mocks base method
-func (m *MockISlaveConn) GetMinorBlocks(request *rpc.GetMinorBlockListRequest) (*p2p.GetMinorBlockListResponse, error) {
+func (m *MockISlaveConn) GetMinorBlocks(request *rpc.GetMinorBlockListRequest) ([]byte, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetMinorBlocks", request)
-	ret0, _ := ret[0].(*p2p.GetMinorBlockListResponse)
+	ret0, _ := ret[0].([]byte)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -246,10 +181,10 @@ func (mr *MockISlaveConnMockRecorder) GetMinorBlocks(request interface{}) *gomoc
 }
 
 // GetMinorBlockHeaderList mocks base method
-func (m *MockISlaveConn) GetMinorBlockHeaderList(req *p2p.GetMinorBlockHeaderListWithSkipRequest) (*p2p.GetMinorBlockHeaderListResponse, error) {
+func (m *MockISlaveConn) GetMinorBlockHeaderList(req *p2p.GetMinorBlockHeaderListWithSkipRequest) ([]byte, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetMinorBlockHeaderList", req)
-	ret0, _ := ret[0].(*p2p.GetMinorBlockHeaderListResponse)
+	ret0, _ := ret[0].([]byte)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -558,18 +493,18 @@ func (mr *MockISlaveConnMockRecorder) GetAllTx(branch, start, limit interface{})
 }
 
 // GetLogs mocks base method
-func (m *MockISlaveConn) GetLogs(branch account.Branch, address []account.Address, topics [][]common.Hash, startBlock, endBlock uint64) ([]*types.Log, error) {
+func (m *MockISlaveConn) GetLogs(args *rpc0.FilterQuery) ([]*types.Log, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetLogs", branch, address, topics, startBlock, endBlock)
+	ret := m.ctrl.Call(m, "GetLogs", args)
 	ret0, _ := ret[0].([]*types.Log)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // GetLogs indicates an expected call of GetLogs
-func (mr *MockISlaveConnMockRecorder) GetLogs(branch, address, topics, startBlock, endBlock interface{}) *gomock.Call {
+func (mr *MockISlaveConnMockRecorder) GetLogs(args interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetLogs", reflect.TypeOf((*MockISlaveConn)(nil).GetLogs), branch, address, topics, startBlock, endBlock)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetLogs", reflect.TypeOf((*MockISlaveConn)(nil).GetLogs), args)
 }
 
 // EstimateGas mocks base method
@@ -633,18 +568,18 @@ func (mr *MockISlaveConnMockRecorder) GasPrice(branch, tokenID interface{}) *gom
 }
 
 // GetWork mocks base method
-func (m *MockISlaveConn) GetWork(branch account.Branch) (*consensus.MiningWork, error) {
+func (m *MockISlaveConn) GetWork(branch account.Branch, address *account.Address) (*consensus.MiningWork, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetWork", branch)
+	ret := m.ctrl.Call(m, "GetWork", branch, address)
 	ret0, _ := ret[0].(*consensus.MiningWork)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // GetWork indicates an expected call of GetWork
-func (mr *MockISlaveConnMockRecorder) GetWork(branch interface{}) *gomock.Call {
+func (mr *MockISlaveConnMockRecorder) GetWork(branch, address interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetWork", reflect.TypeOf((*MockISlaveConn)(nil).GetWork), branch)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetWork", reflect.TypeOf((*MockISlaveConn)(nil).GetWork), branch, address)
 }
 
 // SubmitWork mocks base method
@@ -674,4 +609,34 @@ func (m *MockISlaveConn) SetMining(mining bool) error {
 func (mr *MockISlaveConnMockRecorder) SetMining(mining interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetMining", reflect.TypeOf((*MockISlaveConn)(nil).SetMining), mining)
+}
+
+// GetRootChainStakes mocks base method
+func (m *MockISlaveConn) GetRootChainStakes(address account.Address, lastMinor common.Hash) (*big.Int, *account.Recipient, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetRootChainStakes", address, lastMinor)
+	ret0, _ := ret[0].(*big.Int)
+	ret1, _ := ret[1].(*account.Recipient)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
+}
+
+// GetRootChainStakes indicates an expected call of GetRootChainStakes
+func (mr *MockISlaveConnMockRecorder) GetRootChainStakes(address, lastMinor interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetRootChainStakes", reflect.TypeOf((*MockISlaveConn)(nil).GetRootChainStakes), address, lastMinor)
+}
+
+// CheckMinorBlocksInRoot mocks base method
+func (m *MockISlaveConn) CheckMinorBlocksInRoot(rootBlock *types.RootBlock) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CheckMinorBlocksInRoot", rootBlock)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// CheckMinorBlocksInRoot indicates an expected call of CheckMinorBlocksInRoot
+func (mr *MockISlaveConnMockRecorder) CheckMinorBlocksInRoot(rootBlock interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CheckMinorBlocksInRoot", reflect.TypeOf((*MockISlaveConn)(nil).CheckMinorBlocksInRoot), rootBlock)
 }

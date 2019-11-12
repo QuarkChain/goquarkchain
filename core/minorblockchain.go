@@ -47,7 +47,7 @@ import (
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
-	"github.com/hashicorp/golang-lru"
+	lru "github.com/hashicorp/golang-lru"
 )
 
 const (
@@ -318,9 +318,13 @@ func (m *MinorBlockChain) loadLastState() error {
 // nodes after a fast sync).
 // already have locked
 func (m *MinorBlockChain) SetHead(head uint64) error {
-	log.Warn("Rewinding blockchain", "target", head)
 	m.chainmu.Lock()
 	defer m.chainmu.Unlock()
+	return m.setHead(head)
+}
+
+func (m *MinorBlockChain) setHead(head uint64) error {
+	log.Warn("Rewinding blockchain", "target", head)
 	// Rewind the header chain, deleting all block bodies until then
 	delFn := func(db rawdb.DatabaseDeleter, hash common.Hash) {
 		rawdb.DeleteMinorBlock(db, hash)
@@ -415,6 +419,7 @@ func (m *MinorBlockChain) StateAt(root common.Hash) (*state.StateDB, error) {
 		return nil, err
 	}
 	evmState.SetShardConfig(m.shardConfig)
+	evmState.SetTimeStamp(uint64(time.Now().Unix()))
 	return evmState, nil
 }
 
@@ -721,6 +726,7 @@ func (m *MinorBlockChain) getNeedStoreHeight(rootHash common.Hash, heightDiff []
 // Stop stops the blockchain service. If any imports are currently in progress
 // it will abort them using the procInterrupt.
 func (m *MinorBlockChain) Stop() {
+	m.txPool.Stop()
 	if !atomic.CompareAndSwapInt32(&m.running, 0, 1) {
 		return
 	}
@@ -1516,7 +1522,7 @@ func (m *MinorBlockChain) reorg(oldBlock, newBlock types.IBlock) error {
 		// we support reorg block from same chain,because we should delete and add tx index
 		log.Warn("reorg", "same chain oldBlock", oldBlock.NumberU64(), "oldBlock.Hash", oldBlock.Hash().String(),
 			"newBlock", newBlock.NumberU64(), "newBlock's hash", newBlock.Hash().String())
-		if err := m.SetHead(newBlock.NumberU64()); err != nil {
+		if err := m.setHead(newBlock.NumberU64()); err != nil {
 			return err
 		}
 	}
@@ -1879,8 +1885,8 @@ func (m *MinorBlockChain) GetRootChainStakes(coinbase account.Recipient, lastMin
 	evmState.SetQuarkChainConfig(m.clusterConfig.Quarkchain)
 	vmenv := vm.NewEVM(context, evmState, m.ethChainConfig, *m.GetVMConfig())
 	gp := new(GasPool).AddGas(evmState.GetGasLimit().Uint64())
-	output, _, _, err := ApplyMessage(vmenv, msg, gp)
-	if err != nil || output == nil {
+	output, _, failed, err := ApplyMessage(vmenv, msg, gp)
+	if err != nil || output == nil || failed {
 		return nil, nil, err
 	}
 	stake := new(big.Int).SetBytes(output[:32])

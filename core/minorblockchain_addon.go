@@ -151,9 +151,6 @@ func (m *MinorBlockChain) validateTx(tx *types.Transaction, evmState *state.Stat
 	if fromAddress != nil {
 		nonce := evmState.GetNonce(fromAddress.Recipient)
 		evmTx.SetNonce(nonce)
-		if evmTx.FromFullShardKey() != fromAddress.FullShardKey {
-			return nil, errors.New("from full shard id not match")
-		}
 		evmTxGas := evmTx.Gas()
 		if gas != nil {
 			evmTxGas = *gas
@@ -1098,6 +1095,14 @@ func (m *MinorBlockChain) EstimateGas(tx *types.Transaction, fromAddress account
 
 	runTx := func(gas uint32) error {
 		evmState := currentState.Copy()
+		if tx.EvmTx.IsCrossShard() && tx.EvmTx.ToFullShardId() == m.branch.Value {
+			evmState.SetBalance(fromAddress.Recipient, tx.EvmTx.Value(), tx.EvmTx.TransferTokenID())
+
+			gasFee := big.NewInt(int64(tx.EvmTx.Gas()))
+			gasFee.Mul(gasFee, tx.EvmTx.GasPrice())
+			evmState.SetBalance(fromAddress.Recipient, gasFee, tx.EvmTx.GasTokenID())
+		}
+
 		evmState.SetGasUsed(new(big.Int).SetUint64(0))
 		uint64Gas := uint64(gas)
 		evmTx, err := m.validateTx(tx, evmState, &fromAddress, &uint64Gas, nil)
@@ -1343,7 +1348,7 @@ func (m *MinorBlockChain) getPendingTxByAddress(address account.Address, transfe
 			}
 			txList = append(txList, &rpc.TransactionDetail{
 				TxHash:          tx.Hash(),
-				FromAddress:     address,
+				FromAddress:     account.NewAddress(account.BytesToIdentityRecipient(sender.Bytes()), tx.EvmTx.FromFullShardKey()),
 				ToAddress:       to,
 				Value:           serialize.Uint256{Value: tx.EvmTx.Value()},
 				BlockHeight:     0,
@@ -1699,26 +1704,9 @@ func (m *MinorBlockChain) GetMiningInfo(address account.Recipient, stake *types.
 	return
 }
 
-func recoverSender(txs []*types.Transaction, networkID uint32) error {
-	sender := types.NewEIP155Signer(networkID)
-	for _, tx := range txs {
-		_, err := types.Sender(sender, tx.EvmTx)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (m *MinorBlockChain) AddTxList(txs []*types.Transaction) error {
-	if err := recoverSender(txs, m.clusterConfig.Quarkchain.NetworkID); err != nil {
-		return err
-	}
+func (m *MinorBlockChain) AddTxList(txs []*types.Transaction) []error {
+	ts := time.Now()
 	errList := m.txPool.AddLocals(txs)
-	for _, err := range errList {
-		if err != nil {
-			return err
-		}
-	}
-	return nil
+	log.Info(m.logInfo, "AddLocals len", len(txs), "ts", time.Now().Sub(ts).Seconds())
+	return errList
 }

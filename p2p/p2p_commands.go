@@ -72,12 +72,21 @@ func (p P2PCommandOp) String() string {
 	return reflect.TypeOf(OPSerializerMap[p]).Name()
 }
 
-func MakeMsg(op P2PCommandOp, rpcID uint64, metadata Metadata, msg interface{}) (Msg, error) {
+func MakeMsgWithSerializedData(op P2PCommandOp, rpcID uint64, metadata Metadata, msg []byte) (Msg, error) {
 	qkcBody, err := Encrypt(metadata, op, rpcID, msg)
 	if err != nil {
 		return Msg{}, err
 	}
 	return Msg{Code: 0, Size: uint32(len(qkcBody)), Payload: bytes.NewReader(qkcBody)}, nil
+}
+
+func MakeMsg(op P2PCommandOp, rpcID uint64, metadata Metadata, msg interface{}) (Msg, error) {
+	cmdBytes, err := serialize.SerializeToBytes(msg)
+	if err != nil {
+		return Msg{}, err
+	}
+
+	return MakeMsgWithSerializedData(op, rpcID, metadata, cmdBytes)
 }
 
 //HelloCmd hello cmd struct

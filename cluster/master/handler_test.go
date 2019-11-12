@@ -40,7 +40,10 @@ func TestProtocolCompatibility(t *testing.T) {
 }
 
 func TestGetRootBlockHeaders(t *testing.T) {
-	pm, _ := newTestProtocolManagerMust(t, int(rootBlockHeaderListLimit)+15, nil, NewFakeSynchronizer(1), nil)
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	fakeConnMngr := newFakeConnManager(1, ctrl)
+	pm, _ := newTestProtocolManagerMust(t, int(rootBlockHeaderListLimit)+15, nil, NewFakeSynchronizer(1), fakeConnMngr)
 	peer, err := newTestPeer("peer", int(qkcconfig.P2PProtocolVersion), pm, true)
 	assert.NoError(t, err)
 
@@ -116,8 +119,11 @@ func TestGetRootBlockHeaders(t *testing.T) {
 }
 
 func TestCloseConnWithErr(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	fakeConnMngr := newFakeConnManager(1, ctrl)
 	chainLength := uint64(1024)
-	pm, _ := newTestProtocolManagerMust(t, int(chainLength), nil, NewFakeSynchronizer(10), nil)
+	pm, _ := newTestProtocolManagerMust(t, int(chainLength), nil, NewFakeSynchronizer(10), fakeConnMngr)
 
 	// Create a "random" unknown hash for testing
 	var unknown common.Hash
@@ -156,7 +162,10 @@ func TestCloseConnWithErr(t *testing.T) {
 }
 
 func TestGetRootBlocks(t *testing.T) {
-	pm, _ := newTestProtocolManagerMust(t, rootBlockBatchSize+15, nil, NewFakeSynchronizer(1), nil)
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	fakeConnMngr := newFakeConnManager(1, ctrl)
+	pm, _ := newTestProtocolManagerMust(t, rootBlockBatchSize+15, nil, NewFakeSynchronizer(1), fakeConnMngr)
 	peer, err := newTestPeer("peer", int(qkcconfig.P2PProtocolVersion), pm, true)
 	assert.NoError(t, err)
 
@@ -214,10 +223,8 @@ func TestGetRootBlocks(t *testing.T) {
 func TestGetMinorBlockHeaders(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	blockcount := minorBlockHeaderListLimit + 15
-	shardConns := getShardConnForP2P(2, ctrl)
-	pm, _ := newTestProtocolManagerMust(t, 15, nil, NewFakeSynchronizer(1), func(fullShardId uint32) []rpc.ShardConnForP2P {
-		return shardConns
-	})
+	fakeConnMngr := newFakeConnManager(2, ctrl)
+	pm, _ := newTestProtocolManagerMust(t, 15, nil, NewFakeSynchronizer(1), fakeConnMngr)
 	minorBlocks := generateMinorBlocks(blockcount)
 	minorHeaders := make([]*types.MinorBlockHeader, blockcount)
 	for i, block := range minorBlocks {
@@ -265,13 +272,15 @@ func TestGetMinorBlockHeaders(t *testing.T) {
 	}
 	// Run each of the tests and verify the results against the chain
 	for i, tt := range tests {
-		for _, conn := range shardConns {
-			conn.(*mock_master.MockShardConnForP2P).EXPECT().GetMinorBlockHeaderList(tt.query).Return(
-				&p2p.GetMinorBlockHeaderListResponse{
-					RootTip:         pm.rootBlockChain.CurrentHeader().(*types.RootBlockHeader),
-					ShardTip:        minorHeaders[blockcount-1],
-					BlockHeaderList: tt.expect,
-				}, nil).Times(1)
+		data, err := serialize.SerializeToBytes(&p2p.GetMinorBlockHeaderListResponse{
+			RootTip:         pm.rootBlockChain.CurrentHeader().(*types.RootBlockHeader),
+			ShardTip:        minorHeaders[blockcount-1],
+			BlockHeaderList: tt.expect,
+		})
+		assert.NoError(t, err)
+		for _, conn := range fakeConnMngr.GetSlaveConns() {
+			conn.(*mock_master.MockISlaveConn).EXPECT().GetMinorBlockHeaderList(tt.query).Return(
+				data, nil).Times(1)
 		}
 
 		go handleMsg(clientPeer)
@@ -280,7 +289,11 @@ func TestGetMinorBlockHeaders(t *testing.T) {
 		if err != nil {
 			t.Errorf("test %d: make message failed: %v", i, err)
 		}
-		rheaders := res.BlockHeaderList
+
+		var gRep p2p.GetMinorBlockHeaderListResponse
+		assert.NoError(t, serialize.DeserializeFromBytes(res, &gRep))
+
+		rheaders := gRep.BlockHeaderList
 
 		if len(rheaders) != len(tt.expect) {
 			t.Errorf("test %d: peer result count is mismatch: got %d, want %d", i, len(rheaders), len(tt.expect))
@@ -296,10 +309,8 @@ func TestGetMinorBlockHeaders(t *testing.T) {
 func TestGetMinorBlocks(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	blockcount := minorBlockBatchSize + 15
-	shardConns := getShardConnForP2P(2, ctrl)
-	pm, _ := newTestProtocolManagerMust(t, 15, nil, NewFakeSynchronizer(1), func(fullShardId uint32) []rpc.ShardConnForP2P {
-		return shardConns
-	})
+	fakeConnMngr := newFakeConnManager(2, ctrl)
+	pm, _ := newTestProtocolManagerMust(t, 15, nil, NewFakeSynchronizer(1), fakeConnMngr)
 	minorBlocks := generateMinorBlocks(blockcount)
 	hashList := make([]common.Hash, blockcount)
 	for i, block := range minorBlocks {
@@ -347,11 +358,18 @@ func TestGetMinorBlocks(t *testing.T) {
 	// Run each of the tests and verify the results against the chain
 	for i, tt := range tests {
 		go handleMsg(clientPeer)
-		for _, conn := range shardConns {
-			conn.(*mock_master.MockShardConnForP2P).EXPECT().GetMinorBlocks(gomock.Any()).Return(
-				&p2p.GetMinorBlockListResponse{MinorBlockList: tt.expect}, nil).Times(1)
+		data, err := serialize.SerializeToBytes(&p2p.GetMinorBlockListResponse{MinorBlockList: tt.expect})
+		assert.NoError(t, err)
+		for _, conn := range fakeConnMngr.GetSlaveConns() {
+			conn.(*mock_master.MockISlaveConn).EXPECT().GetMinorBlocks(gomock.Any()).Return(
+				data, nil).Times(1)
 		}
-		rheaders, err := clientPeer.GetMinorBlockList(tt.hashList, 2)
+		data, err = clientPeer.GetMinorBlockList(tt.hashList, 2)
+		assert.NoError(t, err)
+
+		var gReq p2p.GetMinorBlockListResponse
+		assert.NoError(t, serialize.DeserializeFromBytes(data, &gReq))
+		rheaders := gReq.MinorBlockList
 
 		if err != nil {
 			t.Errorf("test %d: make message failed: %v", i, err)
@@ -373,10 +391,8 @@ func TestBroadcastMinorBlock(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	errc := make(chan error)
 	defer ctrl.Finish()
-	shardConns := getShardConnForP2P(1, ctrl)
-	pm, _ := newTestProtocolManagerMust(t, 15, nil, sync, func(fullShardId uint32) []rpc.ShardConnForP2P {
-		return shardConns
-	})
+	fakeConnMngr := newFakeConnManager(1, ctrl)
+	pm, _ := newTestProtocolManagerMust(t, 15, nil, sync, fakeConnMngr)
 	minorBlock := generateMinorBlocks(1)[0]
 	peer, err := newTestPeer("peer", int(qkcconfig.P2PProtocolVersion), pm, true)
 	assert.NoError(t, err)
@@ -384,16 +400,16 @@ func TestBroadcastMinorBlock(t *testing.T) {
 	clientPeer := newTestClientPeer(int(qkcconfig.P2PProtocolVersion), peer.app)
 	defer peer.close()
 
-	for _, conn := range shardConns {
-		conn.(*mock_master.MockShardConnForP2P).EXPECT().
+	for _, conn := range fakeConnMngr.GetSlaveConns() {
+		conn.(*mock_master.MockISlaveConn).EXPECT().
 			HandleNewMinorBlock(gomock.Any()).Return(true, nil).Times(1)
 	}
 	err = clientPeer.SendNewMinorBlock(2, minorBlock)
 	if err != nil {
 		t.Errorf("make message failed: %v", err.Error())
 	}
-	for _, conn := range shardConns {
-		conn.(*mock_master.MockShardConnForP2P).EXPECT().
+	for _, conn := range fakeConnMngr.GetSlaveConns() {
+		conn.(*mock_master.MockISlaveConn).EXPECT().
 			HandleNewMinorBlock(gomock.Any()).DoAndReturn(func(request *p2p.NewBlockMinor) (bool, error) {
 			errc <- nil
 			return false, errors.New("expected error")
@@ -416,29 +432,24 @@ func TestBroadcastTransactions(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	errc := make(chan error)
 	defer ctrl.Finish()
-	shardConns := getShardConnForP2P(1, ctrl)
-	pm, _ := newTestProtocolManagerMust(t, 15, nil, NewFakeSynchronizer(1), func(fullShardId uint32) []rpc.ShardConnForP2P {
-		return shardConns
-	})
-	txs := newTestTransactionList(10)
-	hashList := make([]common.Hash, 0, len(txs))
-	for _, tx := range txs {
-		hashList = append(hashList, tx.Hash())
-	}
+	fakeConnMngr := newFakeConnManager(1, ctrl)
+	pm, _ := newTestProtocolManagerMust(t, 15, nil, NewFakeSynchronizer(1), fakeConnMngr)
+	txsBranch, err := newTestTransactionList(10)
+	assert.NoError(t, err)
 	peer, err := newTestPeer("peer", int(qkcconfig.P2PProtocolVersion), pm, true)
 	assert.NoError(t, err)
 
 	clientPeer := newTestClientPeer(int(qkcconfig.P2PProtocolVersion), peer.app)
 	defer peer.close()
 
-	for _, conn := range shardConns {
-		conn.(*mock_master.MockShardConnForP2P).EXPECT().
-			AddTransactions(gomock.Any()).DoAndReturn(func(request *rpc.NewTransactionList) (*rpc.HashList, error) {
+	for _, conn := range fakeConnMngr.GetSlaveConns() {
+		conn.(*mock_master.MockISlaveConn).EXPECT().
+			AddTransactions(gomock.Any()).DoAndReturn(func(request *rpc.P2PRedirectRequest) error {
 			errc <- nil
-			return &rpc.HashList{Hashes: hashList}, nil
+			return nil
 		}).AnyTimes()
 	}
-	err = clientPeer.SendTransactions(2, txs)
+	err = clientPeer.SendTransactions(txsBranch)
 	if err != nil {
 		t.Errorf("make message failed: %v", err.Error())
 	}
@@ -451,10 +462,8 @@ func TestBroadcastNewMinorBlockTip(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	errc := make(chan error, 1)
 	defer ctrl.Finish()
-	shardConns := getShardConnForP2P(1, ctrl)
-	pm, _ := newTestProtocolManagerMust(t, 15, nil, NewFakeSynchronizer(1), func(fullShardId uint32) []rpc.ShardConnForP2P {
-		return shardConns
-	})
+	fakeConnMngr := newFakeConnManager(1, ctrl)
+	pm, _ := newTestProtocolManagerMust(t, 15, nil, NewFakeSynchronizer(1), fakeConnMngr)
 	minorBlocks := generateMinorBlocks(30)
 	peer, err := newTestPeer("peer", int(qkcconfig.P2PProtocolVersion), pm, true)
 	assert.NoError(t, err)
@@ -462,8 +471,8 @@ func TestBroadcastNewMinorBlockTip(t *testing.T) {
 	clientPeer := newTestClientPeer(int(qkcconfig.P2PProtocolVersion), peer.app)
 	defer peer.close()
 
-	for _, conn := range shardConns {
-		conn.(*mock_master.MockShardConnForP2P).EXPECT().
+	for _, conn := range fakeConnMngr.GetSlaveConns() {
+		conn.(*mock_master.MockISlaveConn).EXPECT().
 			HandleNewTip(gomock.Any()).Return(true, nil).Times(1)
 	}
 	err = clientPeer.SendNewTip(2, &p2p.Tip{RootBlockHeader: pm.rootBlockChain.CurrentBlock().Header(),
@@ -475,8 +484,8 @@ func TestBroadcastNewMinorBlockTip(t *testing.T) {
 	if pm.peers.Peer(peer.id) == nil {
 		t.Errorf("peer should not be unregister")
 	}
-	for _, conn := range shardConns {
-		conn.(*mock_master.MockShardConnForP2P).EXPECT().
+	for _, conn := range fakeConnMngr.GetSlaveConns() {
+		conn.(*mock_master.MockISlaveConn).EXPECT().
 			HandleNewTip(gomock.Any()).DoAndReturn(
 			func(*rpc.HandleNewTipRequest) (bool, error) {
 				errc <- nil
@@ -501,7 +510,8 @@ func TestBroadcastNewRootBlockTip(t *testing.T) {
 	sync := NewFakeSynchronizer(1)
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
-	pm, _ := newTestProtocolManagerMust(t, 15, nil, sync, nil)
+	fakeConnMngr := newFakeConnManager(1, ctrl)
+	pm, _ := newTestProtocolManagerMust(t, 15, nil, sync, fakeConnMngr)
 	peer, err := newTestPeer("peer", int(qkcconfig.P2PProtocolVersion), pm, true)
 	assert.NoError(t, err)
 
@@ -519,16 +529,6 @@ func TestBroadcastNewRootBlockTip(t *testing.T) {
 	case <-timeout.C:
 		t.Errorf("synchronize task missed")
 	}
-}
-
-func getShardConnForP2P(n int, ctrl *gomock.Controller) []rpc.ShardConnForP2P {
-	shardConns := make([]rpc.ShardConnForP2P, 0, n)
-	for i := 0; i < n; i++ {
-		sc := mock_master.NewMockShardConnForP2P(ctrl)
-		shardConns = append(shardConns, sc)
-	}
-
-	return shardConns
 }
 
 func waitChanTilErrorOrTimeout(errc chan error, wait time.Duration) error {
@@ -591,7 +591,11 @@ func ExpectMsg(r p2p.MsgReader, op p2p.P2PCommandOp, metadata p2p.Metadata, cont
 		return &qkcMsg, fmt.Errorf("MetaData miss match: got %d, want %d", qkcMsg.MetaData.Branch, metadata.Branch)
 	}
 
-	contentEnc, err := p2p.Encrypt(metadata, op, qkcMsg.RpcID, content)
+	cmdBytes, err := serialize.SerializeToBytes(content)
+	if err != nil {
+		return &p2p.QKCMsg{}, err
+	}
+	contentEnc, err := p2p.Encrypt(metadata, op, qkcMsg.RpcID, cmdBytes)
 	if err != nil {
 		panic("content encode error: " + err.Error())
 	}
@@ -645,31 +649,18 @@ func handleMsg(peer *Peer) error {
 		}
 
 	case qkcMsg.Op == p2p.GetMinorBlockHeaderListResponseMsg:
-		var minorHeaderResp p2p.GetMinorBlockHeaderListResponse
-
-		if err := serialize.DeserializeFromBytes(qkcMsg.Data, &minorHeaderResp); err != nil {
-			return err
-		}
 		if c := peer.getChan(qkcMsg.RpcID); c != nil {
-			c <- &minorHeaderResp
+			c <- qkcMsg.Data
 		}
 
 	case qkcMsg.Op == p2p.GetMinorBlockHeaderListWithSkipResponseMsg:
-		var minorHeaderResp p2p.GetMinorBlockHeaderListResponse
-		if err := serialize.DeserializeFromBytes(qkcMsg.Data, &minorHeaderResp); err != nil {
-			return err
-		}
 		if c := peer.getChan(qkcMsg.RpcID); c != nil {
-			c <- &minorHeaderResp
+			c <- qkcMsg.Data
 		}
 
 	case qkcMsg.Op == p2p.GetMinorBlockListResponseMsg:
-		var minorBlockResp p2p.GetMinorBlockListResponse
-		if err := serialize.DeserializeFromBytes(qkcMsg.Data, &minorBlockResp); err != nil {
-			return err
-		}
 		if c := peer.getChan(qkcMsg.RpcID); c != nil {
-			c <- minorBlockResp.MinorBlockList
+			c <- qkcMsg.Data
 		}
 	default:
 		return fmt.Errorf("unknown msg code %d", qkcMsg.Op)

@@ -23,11 +23,11 @@ type rootSyncerPeer interface {
 // All of the sync tasks to are to catch up with the root chain from peers.
 type rootChainTask struct {
 	task
-	header           *types.RootBlockHeader
-	peer             rootSyncerPeer
-	stats            *BlockSychronizerStats
-	statusChan       chan *rpc.ShardStatus
-	getShardConnFunc func(fullShardId uint32) []rpc.ShardConnForP2P
+	header     *types.RootBlockHeader
+	peer       rootSyncerPeer
+	stats      *BlockSychronizerStats
+	statusChan chan *rpc.ShardStatus
+	slaveConns rpc.ConnManager
 }
 
 // NewRootChainTask returns a sync task for root chain.
@@ -36,14 +36,14 @@ func NewRootChainTask(
 	header *types.RootBlockHeader,
 	stats *BlockSychronizerStats,
 	statusChan chan *rpc.ShardStatus,
-	getShardConnFunc func(fullShardId uint32) []rpc.ShardConnForP2P,
+	slaveConns rpc.ConnManager,
 ) Task {
 	rTask := &rootChainTask{
-		peer:             p,
-		header:           header,
-		stats:            stats,
-		statusChan:       statusChan,
-		getShardConnFunc: getShardConnFunc,
+		peer:       p,
+		header:     header,
+		stats:      stats,
+		statusChan: statusChan,
+		slaveConns: slaveConns,
 	}
 	rTask.task = task{
 		name:             "root",
@@ -159,12 +159,12 @@ limit uint32) ([]*types.RootBlockHeader, error) {
 		return nil, errors.New("Remote chain reorg causing empty root block headers ")
 	}
 
-	newLimit := (resp.RootTip.Number + 1 - start) / (skip + 1)
+	newLimit := (resp.RootTip.Number + 1 - start + skip) / (skip + 1)
 	if newLimit > limit {
 		newLimit = limit
 	}
 	if len(resp.BlockHeaderList) != int(newLimit) {
-		return nil, errors.New("Bad peer sending incorrect number of root block headers ")
+		return nil, fmt.Errorf("Bad peer sending incorrect number of root block headers expect: %d, actual: %d\n", newLimit, len(resp.BlockHeaderList))
 	}
 
 	if resp.RootTip.Hash() != r.header.Hash() {
@@ -243,7 +243,7 @@ func (r *rootChainTask) syncMinorBlocks(
 	var g errgroup.Group
 	for branch, hashes := range downloadMap {
 		b, hashList := branch, hashes
-		conns := r.getShardConnFunc(b)
+		conns := r.slaveConns.GetSlaveConnsById(b)
 		if len(conns) == 0 {
 			return fmt.Errorf("shard connection for branch %d is missing", b)
 		}

@@ -55,7 +55,7 @@ func (s *ShardBackend) GetAllTx(start []byte, limit uint32) ([]*rpc.TransactionD
 	return s.MinorBlockChain.GetAllTx(start, limit)
 }
 
-func (s *ShardBackend) GenTx(genTxs *rpc.GenTxRequest) error {
+func (s *ShardBackend) GenTx(genTxs rpc.GenTxRequest) error {
 	log.Info(s.logInfo, "ready to genTx txNumber", genTxs.NumTxPerShard, "XShardPercent", genTxs.XShardPercent)
 	allTxNumber := genTxs.NumTxPerShard
 	for allTxNumber > 0 {
@@ -91,7 +91,7 @@ func (s *ShardBackend) AccountForTPSReady() bool {
 	return true
 }
 
-func (s *ShardBackend) genTx(genTxs *rpc.GenTxRequest) error {
+func (s *ShardBackend) genTx(genTxs rpc.GenTxRequest) error {
 	genTxs.NumTxPerShard = genTxs.NumTxPerShard / uint32(len(s.txGenerator))
 	var g errgroup.Group
 	for index := 0; index < len(s.txGenerator); index++ {
@@ -438,21 +438,23 @@ func (s *ShardBackend) setHead(head uint64) {
 	}
 }
 
-func (s *ShardBackend) AddTxList(txs []*types.Transaction, peerID string) error {
-	if err := s.MinorBlockChain.AddTxList(txs); err != nil {
-		log.Error(s.logInfo, "AddTxList err", err)
-		return err
+func (s *ShardBackend) AddTxList(txs []*types.Transaction) error {
+	errList := s.MinorBlockChain.AddTxList(txs)
+	for _, err := range errList {
+		if err != nil {
+			return err
+		}
 	}
 
 	go func() {
 		span := len(txs) / params.NEW_TRANSACTION_LIST_LIMIT
 		for index := 0; index < span; index++ {
-			if err := s.conn.BroadcastTransactions(txs[index*params.NEW_TRANSACTION_LIST_LIMIT:(index+1)*params.NEW_TRANSACTION_LIST_LIMIT], s.branch.Value, peerID); err != nil {
+			if err := s.conn.BroadcastTransactions("", s.branch.Value, txs[index*params.NEW_TRANSACTION_LIST_LIMIT:(index+1)*params.NEW_TRANSACTION_LIST_LIMIT]); err != nil {
 				log.Error(s.logInfo, "broadcastTransaction err", err)
 			}
 		}
 		if len(txs)%params.NEW_TRANSACTION_LIST_LIMIT != 0 {
-			if err := s.conn.BroadcastTransactions(txs[span*params.NEW_TRANSACTION_LIST_LIMIT:], s.branch.Value, peerID); err != nil {
+			if err := s.conn.BroadcastTransactions("", s.branch.Value, txs[span*params.NEW_TRANSACTION_LIST_LIMIT:]); err != nil {
 				log.Error(s.logInfo, "broadcastTransaction err", err)
 			}
 		}
