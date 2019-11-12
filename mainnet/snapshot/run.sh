@@ -1,4 +1,4 @@
-kill -9 `ps -ef | grep cluster_config | awk '{print $2}'`
+kill  `ps -ef | grep cluster_config | awk '{print $2}'`
 #git pull
 #go build -o /tmp/QKC/cluster && chmod +x /tmp/QKC/cluster
 rm *.log
