@@ -519,7 +519,7 @@ func (s *QKCMasterBackend) GetPrimaryAccountData(address *account.Address, block
 	if err != nil {
 		return nil, err
 	}
-	slaveConn := s.GetOneConnById(fullShardID)
+	slaveConn := s.GetOneSlaveConnById(fullShardID)
 	if slaveConn == nil {
 		return nil, ErrNoBranchConn
 	}
@@ -569,7 +569,7 @@ func (s *QKCMasterBackend) GetRootChainStakes(coinbase account.Address, lastMino
 	*account.Recipient, error) {
 
 	fullShardId := uint32(1)
-	conn := s.GetOneConnById(fullShardId)
+	conn := s.GetOneSlaveConnById(fullShardId)
 	if conn == nil {
 		panic("chain 0 shard 0 missing.")
 	}

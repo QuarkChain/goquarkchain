@@ -11,7 +11,7 @@ import (
 
 const (
 	cache   uint64 = 128
-	handles        = 1024
+	handles        = 256
 )
 
 type RDBDatabase struct {

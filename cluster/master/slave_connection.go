@@ -56,7 +56,7 @@ func (s *SlaveConnManager) InitConnManager(cfg *config.ClusterConfig) error {
 	return nil
 }
 
-func (c *SlaveConnManager) GetOneConnById(fullShardId uint32) rpc.ISlaveConn {
+func (c *SlaveConnManager) GetOneSlaveConnById(fullShardId uint32) rpc.ISlaveConn {
 	if conns, ok := c.branchToSlaveConns[fullShardId]; ok {
 		return conns[0]
 	}

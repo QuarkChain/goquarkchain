@@ -32,6 +32,7 @@ func (s *SSHSession) RunCmdIgnoreErr(cmd string) {
 	if err != nil {
 		//log.Error("run cmd err", "host", s.host, "cmd", cmd, "err", err)
 	}
+	log.Debug("run cmd", "host", s.host, "cmd", cmd)
 }
 func (s *SSHSession) RunCmd(cmd string) {
 	var stdOut, stdErr bytes.Buffer

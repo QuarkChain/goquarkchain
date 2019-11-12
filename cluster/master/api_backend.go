@@ -123,7 +123,7 @@ func (s *QKCMasterBackend) ExecuteTransaction(tx *types.Transaction, address *ac
 }
 
 func (s *QKCMasterBackend) GetMinorBlockByHash(blockHash common.Hash, branch account.Branch, needExtraInfo bool) (*types.MinorBlock, *rpc.PoSWInfo, error) {
-	slaveConn := s.GetOneConnById(branch.Value)
+	slaveConn := s.GetOneSlaveConnById(branch.Value)
 	if slaveConn == nil {
 		return nil, nil, ErrNoBranchConn
 	}
@@ -131,7 +131,7 @@ func (s *QKCMasterBackend) GetMinorBlockByHash(blockHash common.Hash, branch acc
 }
 
 func (s *QKCMasterBackend) GetMinorBlockByHeight(height *uint64, branch account.Branch, needExtraInfo bool) (*types.MinorBlock, *rpc.PoSWInfo, error) {
-	slaveConn := s.GetOneConnById(branch.Value)
+	slaveConn := s.GetOneSlaveConnById(branch.Value)
 	if slaveConn == nil {
 		return nil, nil, ErrNoBranchConn
 	}
@@ -148,7 +148,7 @@ func (s *QKCMasterBackend) GetMinorBlockByHeight(height *uint64, branch account.
 }
 
 func (s *QKCMasterBackend) GetTransactionByHash(txHash common.Hash, branch account.Branch) (*types.MinorBlock, uint32, error) {
-	slaveConn := s.GetOneConnById(branch.Value)
+	slaveConn := s.GetOneSlaveConnById(branch.Value)
 	if slaveConn == nil {
 		return nil, 0, ErrNoBranchConn
 	}
@@ -156,7 +156,7 @@ func (s *QKCMasterBackend) GetTransactionByHash(txHash common.Hash, branch accou
 }
 
 func (s *QKCMasterBackend) GetTransactionReceipt(txHash common.Hash, branch account.Branch) (*types.MinorBlock, uint32, *types.Receipt, error) {
-	slaveConn := s.GetOneConnById(branch.Value)
+	slaveConn := s.GetOneSlaveConnById(branch.Value)
 	if slaveConn == nil {
 		return nil, 0, nil, ErrNoBranchConn
 	}
@@ -168,7 +168,7 @@ func (s *QKCMasterBackend) GetTransactionsByAddress(address *account.Address, st
 	if err != nil {
 		return nil, nil, err
 	}
-	slaveConn := s.GetOneConnById(fullShardID)
+	slaveConn := s.GetOneSlaveConnById(fullShardID)
 	if slaveConn == nil {
 		return nil, nil, ErrNoBranchConn
 	}
@@ -176,7 +176,7 @@ func (s *QKCMasterBackend) GetTransactionsByAddress(address *account.Address, st
 }
 
 func (s *QKCMasterBackend) GetAllTx(branch account.Branch, start []byte, limit uint32) ([]*rpc.TransactionDetail, []byte, error) {
-	slaveConn := s.GetOneConnById(branch.Value)
+	slaveConn := s.GetOneSlaveConnById(branch.Value)
 	if slaveConn == nil {
 		return nil, nil, ErrNoBranchConn
 	}
@@ -185,7 +185,7 @@ func (s *QKCMasterBackend) GetAllTx(branch account.Branch, start []byte, limit u
 
 func (s *QKCMasterBackend) GetLogs(args *qrpc.FilterQuery) ([]*types.Log, error) {
 	// not support earlist and pending
-	slaveConn := s.GetOneConnById(args.FullShardId)
+	slaveConn := s.GetOneSlaveConnById(args.FullShardId)
 	if slaveConn == nil {
 		return nil, ErrNoBranchConn
 	}
@@ -201,11 +201,19 @@ func (s *QKCMasterBackend) EstimateGas(tx *types.Transaction, fromAddress *accou
 	if err := tx.EvmTx.SetFromShardSize(fromShardSize); err != nil {
 		return 0, errors.New(fmt.Sprintf("Failed to set fromShardSize, fromShardSize: %d, err: %v", fromShardSize, err))
 	}
-	slaveConn := s.GetOneConnById(evmTx.FromFullShardId())
+	slaveConn := s.GetOneSlaveConnById(evmTx.FromFullShardId())
 	if slaveConn == nil {
 		return 0, ErrNoBranchConn
 	}
-	return slaveConn.EstimateGas(tx, fromAddress)
+	if !evmTx.IsCrossShard() {
+		return slaveConn.EstimateGas(tx, fromAddress)
+	}
+	fAddr := account.Address{Recipient: fromAddress.Recipient, FullShardKey: evmTx.ToFullShardKey()}
+	res, err := slaveConn.EstimateGas(tx, &fAddr)
+	if err != nil {
+		return 0, err
+	}
+	return res + 9000, nil
 }
 
 func (s *QKCMasterBackend) GetStorageAt(address *account.Address, key common.Hash, height *uint64) (common.Hash, error) {
@@ -213,7 +221,7 @@ func (s *QKCMasterBackend) GetStorageAt(address *account.Address, key common.Has
 	if err != nil {
 		return common.Hash{}, err
 	}
-	slaveConn := s.GetOneConnById(fullShardID)
+	slaveConn := s.GetOneSlaveConnById(fullShardID)
 	if slaveConn == nil {
 		return common.Hash{}, ErrNoBranchConn
 	}
@@ -225,7 +233,7 @@ func (s *QKCMasterBackend) GetCode(address *account.Address, height *uint64) ([]
 	if err != nil {
 		return nil, err
 	}
-	slaveConn := s.GetOneConnById(fullShardID)
+	slaveConn := s.GetOneSlaveConnById(fullShardID)
 	if slaveConn == nil {
 		return nil, ErrNoBranchConn
 	}
@@ -233,7 +241,7 @@ func (s *QKCMasterBackend) GetCode(address *account.Address, height *uint64) ([]
 }
 
 func (s *QKCMasterBackend) GasPrice(branch account.Branch, tokenID uint64) (uint64, error) {
-	slaveConn := s.GetOneConnById(branch.Value)
+	slaveConn := s.GetOneSlaveConnById(branch.Value)
 	if slaveConn == nil {
 		return 0, ErrNoBranchConn
 	}
@@ -256,7 +264,7 @@ func (s *QKCMasterBackend) GetWork(fullShardId *uint32, addr *common.Address) (*
 	}
 
 	branch := account.Branch{Value: *fullShardId}
-	slaveConn := s.GetOneConnById(branch.Value)
+	slaveConn := s.GetOneSlaveConnById(branch.Value)
 	if slaveConn == nil {
 		return nil, ErrNoBranchConn
 	}
@@ -270,7 +278,7 @@ func (s *QKCMasterBackend) SubmitWork(fullShardId *uint32, headerHash common.Has
 	}
 
 	branch := account.NewBranch(*fullShardId)
-	slaveConn := s.GetOneConnById(branch.Value)
+	slaveConn := s.GetOneSlaveConnById(branch.Value)
 	if slaveConn == nil {
 		return false, ErrNoBranchConn
 	}

@@ -336,6 +336,19 @@ type Transaction struct {
 	hash atomic.Value
 }
 
+func (tx *Transaction) CopyEvmTx() (*Transaction, error) {
+	data, err := serialize.SerializeToBytes(tx)
+	if err != nil {
+		return nil, err
+	}
+	var evmTx Transaction
+	err = serialize.DeserializeFromBytes(data, &evmTx)
+	if err != nil {
+		return nil, err
+	}
+	return &evmTx, nil
+}
+
 func (tx *Transaction) Serialize(w *[]byte) error {
 	*w = append(*w, tx.TxType)
 

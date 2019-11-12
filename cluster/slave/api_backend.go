@@ -290,16 +290,12 @@ func (s *SlaveBackend) GetLogs(args *qrpc.FilterQuery) ([]*types.Log, error) {
 }
 
 func (s *SlaveBackend) EstimateGas(tx *types.Transaction, address *account.Address) (uint32, error) {
-	fromShardSize, err := s.clstrCfg.Quarkchain.GetShardSizeByChainId(tx.EvmTx.FromChainID())
+	fullShardId, err := s.clstrCfg.Quarkchain.GetFullShardIdByFullShardKey(address.FullShardKey)
 	if err != nil {
 		return 0, err
 	}
-	if err := tx.EvmTx.SetFromShardSize(fromShardSize); err != nil {
-		return 0, err
-	}
-	branch := account.NewBranch(tx.EvmTx.FromFullShardId()).Value
-	if shard, ok := s.shards[branch]; ok {
-		return shard.MinorBlockChain.EstimateGas(tx, *address)
+	if shrd, ok := s.shards[fullShardId]; ok {
+		return shrd.MinorBlockChain.EstimateGas(tx, *address)
 	}
 	return 0, ErrMsg("EstimateGas")
 }
@@ -443,7 +439,7 @@ func (s *SlaveBackend) getMinorBlockHeadersWithSkip(gReq *p2p.GetMinorBlockHeade
 		height = *gReq.GetHeight()
 	}
 
-	for len(headerlist) < cap(headerlist) && height >= 0 && height < mTip.NumberU64() {
+	for len(headerlist) < cap(headerlist) && height >= 0 && height <= mTip.NumberU64() {
 		iHeader := shrd.MinorBlockChain.GetHeaderByNumber(height)
 		if qcom.IsNil(iHeader) {
 			break

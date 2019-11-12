@@ -19,7 +19,7 @@ func (e *NetworkError) Error() string {
 }
 
 type ConnManager interface {
-	GetOneConnById(fullShardId uint32) ISlaveConn
+	GetOneSlaveConnById(fullShardId uint32) ISlaveConn
 	GetSlaveConnsById(fullShardId uint32) []ISlaveConn
 	GetSlaveConns() []ISlaveConn
 	ConnCount() int
