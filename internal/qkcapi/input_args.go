@@ -51,7 +51,7 @@ type CallArgs struct {
 type GetAccountDataArgs struct {
 	Address       account.Address  `json:"address"`
 	IncludeShards *bool            `json:"include_shards"`
-	BlockNr       *rpc.BlockNumber `json:"block_nr"`
+	BlockHeight   *rpc.BlockNumber `json:"block_height"`
 }
 
 func (c *CallArgs) setDefaults() {
