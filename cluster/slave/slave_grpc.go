@@ -619,12 +619,11 @@ func (s *SlaveServerSideOp) AddTransactions(ctx context.Context, req *rpc.Reques
 	if err != nil {
 		return nil, err
 	}
-
+	if len(txs.TransactionList) > params.NEW_TRANSACTION_LIST_LIMIT {
+		return nil, fmt.Errorf("too many txs in one command, tx count: %d\n", len(txs))
+	}
 	addTxList := func(branch uint32, txs []*types.Transaction) error {
 		ts := time.Now()
-		if len(txs) > params.NEW_TRANSACTION_LIST_LIMIT {
-			return fmt.Errorf("too many txs in one command, tx count: %d\n", len(txs))
-		}
 		err := s.slave.AddTxList(gReq.PeerID, branch, txs)
 		if err != nil {
 			return err
@@ -649,7 +648,7 @@ func (s *SlaveServerSideOp) AddTransactions(ctx context.Context, req *rpc.Reques
 				continue
 			}
 			if _, ok := txList[id]; !ok {
-				txList[id] = make([]*types.Transaction, 0, params.NEW_TRANSACTION_LIST_LIMIT)
+				txList[id] = make([]*types.Transaction, 0, len(txs.TransactionList))
 			}
 			txList[id] = append(txList[id], tx)
 		}
