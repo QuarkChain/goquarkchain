@@ -11,7 +11,7 @@ import (
 )
 
 func StartGRPCServer(hostport string, apis []rpc.API) (net.Listener, *grpc.Server, error) {
-	handler := grpc.NewServer()
+	handler := grpc.NewServer(grpc.WriteBufferSize(64*1024), grpc.ReadBufferSize(64*1024))
 	for _, api := range apis {
 		if qcom.IsNil(api.Service) {
 			panic(fmt.Sprintf("%s service is nil", api.Namespace))

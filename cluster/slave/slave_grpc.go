@@ -608,6 +608,7 @@ func (s *SlaveServerSideOp) AddTransactions(ctx context.Context, req *rpc.Reques
 	var (
 		gReq rpc.P2PRedirectRequest
 		txs  p2p.NewTransactionList
+		res  = &rpc.Response{}
 		err  error
 	)
 
@@ -634,7 +635,7 @@ func (s *SlaveServerSideOp) AddTransactions(ctx context.Context, req *rpc.Reques
 
 	if gReq.Branch != 0 {
 		err := addTxList(gReq.Branch, txs.TransactionList)
-		return nil, err
+		return res, err
 	}
 
 	var (
@@ -670,7 +671,7 @@ func (s *SlaveServerSideOp) AddTransactions(ctx context.Context, req *rpc.Reques
 		})
 	}
 
-	return nil, g.Wait()
+	return res, g.Wait()
 }
 
 func (s *SlaveServerSideOp) HandleNewMinorBlock(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
