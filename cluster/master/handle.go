@@ -331,12 +331,7 @@ func (pm *ProtocolManager) handleMsg(peer *Peer) error {
 		}
 
 	case qkcMsg.Op == p2p.GetMinorBlockHeaderListRequestMsg:
-		var minorHeaderReq p2p.GetMinorBlockHeaderListRequest
-		if err := serialize.DeserializeFromBytes(qkcMsg.Data, &minorHeaderReq); err != nil {
-			return err
-		}
-
-		resp, err := pm.HandleGetMinorBlockHeaderListRequest(qkcMsg.RpcID, qkcMsg.MetaData.Branch, &minorHeaderReq)
+		resp, err := pm.HandleGetMinorBlockHeaderListRequest(qkcMsg.MetaData.Branch, qkcMsg.Data)
 		if err != nil {
 			return err
 		}
@@ -351,12 +346,7 @@ func (pm *ProtocolManager) handleMsg(peer *Peer) error {
 		}
 
 	case qkcMsg.Op == p2p.GetMinorBlockListRequestMsg:
-		var minorBlockReq p2p.GetMinorBlockListRequest
-		if err := serialize.DeserializeFromBytes(qkcMsg.Data, &minorBlockReq); err != nil {
-			return err
-		}
-
-		resp, err := pm.HandleGetMinorBlockListRequest(peer.id, qkcMsg.RpcID, qkcMsg.MetaData.Branch, &minorBlockReq)
+		resp, err := pm.HandleGetMinorBlockListRequest(peer.id, qkcMsg.MetaData.Branch, qkcMsg.Data)
 		if err != nil {
 			return err
 		}
@@ -373,11 +363,7 @@ func (pm *ProtocolManager) handleMsg(peer *Peer) error {
 		panic("not implemented")
 
 	case qkcMsg.Op == p2p.GetMinorBlockHeaderListWithSkipRequestMsg:
-		var mBHeadersSkip p2p.GetMinorBlockHeaderListWithSkipRequest
-		if err := serialize.DeserializeFromBytes(qkcMsg.Data, &mBHeadersSkip); err != nil {
-			return err
-		}
-		resp, err := pm.HandleGetMinorBlockHeaderListWithSkipRequest(peer.id, qkcMsg.RpcID, &mBHeadersSkip)
+		resp, err := pm.HandleGetMinorBlockHeaderListWithSkipRequest(peer.id, qkcMsg.MetaData.Branch, qkcMsg.Data)
 		if err != nil {
 			return err
 		}
@@ -467,7 +453,7 @@ func (pm *ProtocolManager) HandleNewMinorTip(branch uint32, tip *p2p.Tip, peer *
 }
 
 func (pm *ProtocolManager) HandleGetRootBlockHeaderListRequest(req *p2p.GetRootBlockHeaderListRequest) (*p2p.GetRootBlockHeaderListResponse, error) {
-	if !pm.rootBlockChain.HasHeader(req.BlockHash) {
+	if !pm.rootBlockChain.HasBlock(req.BlockHash) {
 		return nil, fmt.Errorf("hash %v do not exist", req.BlockHash.Hex())
 	}
 	if req.Limit == 0 || req.Limit > 2*qkcsync.RootBlockHeaderListLimit {
@@ -597,28 +583,12 @@ func (pm *ProtocolManager) HandleNewTransactionListRequest(peerId string, rpcId 
 	return nil
 }
 
-func (pm *ProtocolManager) HandleGetMinorBlockHeaderListRequest(rpcId uint64, branch uint32, req *p2p.GetMinorBlockHeaderListRequest) ([]byte, error) {
-	if req.Limit <= 0 || uint64(req.Limit) > 2*qkcsync.MinorBlockHeaderListLimit {
-		return nil, fmt.Errorf("bad limit. rpcId: %d; branch: %d; limit: %d; expected limit: %d",
-			rpcId, branch, req.Limit, qkcsync.MinorBlockHeaderListLimit)
+func (pm *ProtocolManager) HandleGetMinorBlockHeaderListRequest(branch uint32, data []byte) ([]byte, error) {
+	conn := pm.slaveConns.GetOneSlaveConnById(branch)
+	if conn == nil {
+		return nil, fmt.Errorf("invalid branch %d", branch)
 	}
-	if req.Direction != qkcom.DirectionToGenesis {
-		return nil, fmt.Errorf("Bad direction. rpcId: %d; branch: %d; ", rpcId, branch)
-	}
-	clients := pm.slaveConns.GetSlaveConnsById(branch)
-	if len(clients) == 0 {
-		return nil, fmt.Errorf("invalid branch %d for rpc req %d", rpcId, branch)
-	}
-
-	mTip := &p2p.GetMinorBlockHeaderListWithSkipRequest{
-		Type:      qkcom.SkipHash,
-		Data:      req.BlockHash,
-		Limit:     req.Limit,
-		Skip:      0,
-		Direction: req.Direction,
-		Branch:    req.Branch,
-	}
-	result, err := clients[0].GetMinorBlockHeaderList(mTip)
+	result, err := conn.GetMinorBlockHeaderList(&rpc.P2PRedirectRequest{Branch: branch, Data: data})
 	if err != nil {
 		return nil, fmt.Errorf("branch %d HandleGetMinorBlockHeaderListRequest failed with error: %v", branch, err.Error())
 	}
@@ -626,16 +596,12 @@ func (pm *ProtocolManager) HandleGetMinorBlockHeaderListRequest(rpcId uint64, br
 	return result, nil
 }
 
-func (pm *ProtocolManager) HandleGetMinorBlockListRequest(peerId string, rpcId uint64, branch uint32, request *p2p.GetMinorBlockListRequest) ([]byte, error) {
-	if len(request.MinorBlockHashList) > 2*qkcsync.MinorBlockBatchSize {
-		return nil, fmt.Errorf("bad number of minor blocks requested. rpcId: %d; branch: %d; limit: %d; expected limit: %d",
-			rpcId, branch, len(request.MinorBlockHashList), qkcsync.MinorBlockBatchSize)
-	}
+func (pm *ProtocolManager) HandleGetMinorBlockListRequest(peerId string, branch uint32, data []byte) ([]byte, error) {
 	conn := pm.slaveConns.GetOneSlaveConnById(branch)
 	if conn == nil {
-		return nil, fmt.Errorf("invalid branch %d for rpc request %d", rpcId, branch)
+		return nil, fmt.Errorf("invalid peerID %s for branch %d", peerId, branch)
 	}
-	result, err := conn.GetMinorBlocks(&rpc.GetMinorBlockListRequest{Branch: branch, PeerId: peerId, MinorBlockHashList: request.MinorBlockHashList})
+	result, err := conn.GetMinorBlocks(&rpc.P2PRedirectRequest{Branch: branch, PeerID: peerId, Data: data})
 	if err != nil {
 		return nil, fmt.Errorf("branch %d HandleGetMinorBlockListRequest failed with error: %v", branch, err.Error())
 	}
@@ -653,23 +619,14 @@ func (pm *ProtocolManager) BroadcastTip(header *types.RootBlockHeader) {
 	log.Trace("Announced block", "hash", header.Hash(), "recipients", pm.peers.Len())
 }
 
-func (pm *ProtocolManager) HandleGetMinorBlockHeaderListWithSkipRequest(peerId string, rpcId uint64,
-	request *p2p.GetMinorBlockHeaderListWithSkipRequest) (resp []byte, err error) {
-	if request.Limit <= 0 || uint64(request.Limit) > 2*qkcsync.MinorBlockHeaderListLimit {
-		return nil, errors.New("Bad limit")
-	}
-	if request.Direction != qkcom.DirectionToGenesis && request.Direction != qkcom.DirectionToTip {
-		return nil, errors.New("Bad direction")
-	}
-	if request.Type != qkcom.SkipHash && request.Type != qkcom.SkipHeight {
-		return nil, errors.New("Bad type value")
-	}
-	conn := pm.slaveConns.GetOneSlaveConnById(request.Branch.Value)
+func (pm *ProtocolManager) HandleGetMinorBlockHeaderListWithSkipRequest(peerId string, branch uint32,
+	data []byte) (resp []byte, err error) {
+	conn := pm.slaveConns.GetOneSlaveConnById(branch)
 	if conn == nil {
-		return nil, fmt.Errorf("invalid branch %d for rpc request %d", rpcId, request.Branch.Value)
+		return nil, fmt.Errorf("invalid peerID %s for branch request %d", peerId, branch)
 	}
 
-	return conn.GetMinorBlockHeaderList(request)
+	return conn.GetMinorBlockHeaderListWithSkip(&rpc.P2PRedirectRequest{PeerID: peerId, Branch: branch, Data: data})
 }
 
 func (pm *ProtocolManager) tipBroadcastLoop() {

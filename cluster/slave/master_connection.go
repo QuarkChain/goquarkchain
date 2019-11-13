@@ -4,6 +4,7 @@ import (
 	"errors"
 
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
+	qcom "github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/p2p"
 	"github.com/QuarkChain/goquarkchain/serialize"
@@ -111,13 +112,36 @@ func (s *ConnManager) GetMinorBlockHeaderList(gReq *rpc.GetMinorBlockHeaderListW
 	var (
 		gRep p2p.GetMinorBlockHeaderListResponse
 		res  *rpc.Response
+		data []byte
+		op   uint32
+		err  error
 	)
-	data, err := serialize.SerializeToBytes(gReq)
-	if err != nil {
-		return nil, err
-	}
 
-	res, err = s.masterClient.client.Call(s.masterClient.target, &rpc.Request{Op: rpc.OpGetMinorBlockHeaderList, Data: data})
+	if gReq.Type == qcom.SkipHash && gReq.Direction == qcom.DirectionToGenesis {
+		data, err = serialize.SerializeToBytes(&p2p.GetMinorBlockHeaderListRequest{
+			BlockHash: gReq.GetHash(),
+			Branch:    gReq.Branch,
+			Limit:     gReq.Limit,
+			Direction: gReq.Direction,
+		})
+		if err != nil {
+			return nil, err
+		}
+		op = rpc.OpGetMinorBlockHeaderList
+	} else {
+		data, err = serialize.SerializeToBytes(&gReq.GetMinorBlockHeaderListWithSkipRequest)
+		if err != nil {
+			return nil, err
+		}
+		op = rpc.OpGetMinorBlockHeaderListWithSkip
+	}
+	rawReq, err := serialize.SerializeToBytes(&rpc.P2PRedirectRequest{
+		PeerID: gReq.PeerID,
+		Branch: gReq.Branch.Value,
+		Data:   data,
+	})
+
+	res, err = s.masterClient.client.Call(s.masterClient.target, &rpc.Request{Op: op, Data: rawReq})
 	if err != nil {
 		return nil, err
 	}
