@@ -113,10 +113,31 @@ func (m *MasterServerSideOp) GetMinorBlockList(ctx context.Context, req *rpc.Req
 	}, nil
 }
 
+func (m *MasterServerSideOp) GetMinorBlockHeaderListWithSkip(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
+	var (
+		err             error
+		getMBHeadersReq = new(rpc.P2PRedirectRequest)
+	)
+
+	if err = serialize.DeserializeFromBytes(req.Data, getMBHeadersReq); err != nil {
+		return nil, err
+	}
+	//hash common.Hash, amount uint32, branch uint32, reverse bool, peerId string
+	data, err := m.p2pApi.GetMinorBlockHeaderListWithSkip(getMBHeadersReq)
+	if err != nil {
+		return nil, err
+	}
+
+	return &rpc.Response{
+		Data:  data,
+		RpcId: req.RpcId,
+	}, nil
+}
+
 func (m *MasterServerSideOp) GetMinorBlockHeaderList(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
 	var (
 		err             error
-		getMBHeadersReq = new(rpc.GetMinorBlockHeaderListWithSkipRequest)
+		getMBHeadersReq = new(rpc.P2PRedirectRequest)
 	)
 
 	if err = serialize.DeserializeFromBytes(req.Data, getMBHeadersReq); err != nil {

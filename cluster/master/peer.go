@@ -316,43 +316,52 @@ func (p *Peer) GetRootBlockHeaderList(req *p2p.GetRootBlockHeaderListWithSkipReq
 	}
 }
 
-func (p *Peer) requestMinorBlockHeaderList(rpcId uint64, req *p2p.GetMinorBlockHeaderListRequest) error {
-	msg, err := p2p.MakeMsg(p2p.GetMinorBlockHeaderListRequestMsg, rpcId, p2p.Metadata{Branch: req.Branch.Value}, req)
+func (p *Peer) requestMinorBlockHeaderList(rpcId uint64, branch uint32, data []byte) error {
+	msg, err := p2p.MakeMsgWithSerializedData(p2p.GetMinorBlockHeaderListRequestMsg, rpcId, p2p.Metadata{Branch: branch}, data)
 	if err != nil {
 		return err
 	}
 	return p.rw.WriteMsg(msg)
 }
 
-func (p *Peer) requestMinorBlockHeaderListWithSkip(rpcId uint64,
-	request *p2p.GetMinorBlockHeaderListWithSkipRequest) error {
-	msg, err := p2p.MakeMsg(p2p.GetMinorBlockHeaderListWithSkipRequestMsg,
-		rpcId, p2p.Metadata{Branch: request.Branch.Value}, request)
+func (p *Peer) requestMinorBlockHeaderListWithSkip(rpcId uint64, branch uint32, data []byte) error {
+	msg, err := p2p.MakeMsgWithSerializedData(p2p.GetMinorBlockHeaderListWithSkipRequestMsg, rpcId, p2p.Metadata{Branch: branch}, data)
 	if err != nil {
 		return err
 	}
 	return p.rw.WriteMsg(msg)
 }
 
-func (p *Peer) GetMinorBlockHeaderList(req *p2p.GetMinorBlockHeaderListWithSkipRequest) (res []byte, err error) {
+func (p *Peer) GetMinorBlockHeaderListWithSkip(req *rpc.P2PRedirectRequest) (res []byte, err error) {
 
 	rpcId, rpcchan := p.getRpcIdWithChan()
 	defer p.deleteChan(rpcId)
 
-	if req.Type == qkcom.SkipHash && req.Direction == qkcom.DirectionToGenesis {
-		err = p.requestMinorBlockHeaderList(rpcId, &p2p.GetMinorBlockHeaderListRequest{
-			BlockHash: req.GetHash(),
-			Branch:    req.Branch,
-			Limit:     req.Limit,
-			Direction: req.Direction,
-		})
-	} else {
-		err = p.requestMinorBlockHeaderListWithSkip(rpcId, req)
-	}
-
-	if err != nil {
+	if err = p.requestMinorBlockHeaderListWithSkip(rpcId, req.Branch, req.Data); err != nil {
 		return nil, err
 	}
+	timeout := time.NewTimer(requestTimeout)
+	select {
+	case obj := <-rpcchan:
+		if ret, ok := obj.([]byte); !ok {
+			panic("invalid return result in GetMinorBlockHeaderList")
+		} else {
+			return ret, nil
+		}
+	case <-timeout.C:
+		return nil, fmt.Errorf("peer %v return GetMinorBlockHeaderList disc Read Time out for rpcid %d", p.id, rpcId)
+	}
+}
+
+func (p *Peer) GetMinorBlockHeaderList(req *rpc.P2PRedirectRequest) (res []byte, err error) {
+
+	rpcId, rpcchan := p.getRpcIdWithChan()
+	defer p.deleteChan(rpcId)
+
+	if err = p.requestMinorBlockHeaderList(rpcId, req.Branch, req.Data); err != nil {
+		return nil, err
+	}
+
 	timeout := time.NewTimer(requestTimeout)
 	select {
 	case obj := <-rpcchan:
