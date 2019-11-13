@@ -129,11 +129,7 @@ func TestMinorBlockStorage(t *testing.T) {
 	} else if entry.Hash() != block.Hash() {
 		t.Fatalf("Retrieved block mismatch: have %v, want %v", entry, block)
 	}
-	if entry := ReadMinorBlockHeader(db, block.Hash()); entry == nil {
-		t.Fatalf("Stored header not found")
-	} else if entry.Hash() != block.Hash() {
-		t.Fatalf("Retrieved header mismatch: have %v, want %v", entry, block.Header())
-	}
+
 	// Delete the block and verify the execution
 	DeleteMinorBlock(db, block.Hash())
 	if entry := ReadMinorBlock(db, block.Hash()); entry != nil {
