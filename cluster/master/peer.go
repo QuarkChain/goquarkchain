@@ -234,9 +234,14 @@ func (p *Peer) AsyncSendNewTip(branch uint32, tip *p2p.Tip) {
 
 // SendNewMinorBlock propagates an entire minor block to a remote peer.
 func (p *Peer) SendNewMinorBlock(branch uint32, block *types.MinorBlock) error {
-	data := p2p.NewBlockMinor{Block: block}
+	data, err := serialize.SerializeToBytes(p2p.NewBlockMinor{Block: block})
+	if err != nil {
+		return err
+	}
 
-	msg, err := p2p.MakeMsg(p2p.NewBlockMinorMsg, 0, p2p.Metadata{Branch: branch}, data)
+	msg, err := p2p.MakeMsg(p2p.NewBlockMinorMsg, 0, p2p.Metadata{Branch: branch}, &rpc.P2PRedirectRequest{
+		Branch: branch, Data: data,
+	})
 	if err != nil {
 		return err
 	}

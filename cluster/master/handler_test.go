@@ -415,7 +415,7 @@ func TestBroadcastMinorBlock(t *testing.T) {
 
 	for _, conn := range fakeConnMngr.GetSlaveConns() {
 		conn.(*mock_master.MockISlaveConn).EXPECT().
-			HandleNewMinorBlock(gomock.Any()).Return(true, nil).Times(1)
+			HandleNewMinorBlock(gomock.Any()).Return(nil).Times(1)
 	}
 	err = clientPeer.SendNewMinorBlock(2, minorBlock)
 	if err != nil {
@@ -423,9 +423,9 @@ func TestBroadcastMinorBlock(t *testing.T) {
 	}
 	for _, conn := range fakeConnMngr.GetSlaveConns() {
 		conn.(*mock_master.MockISlaveConn).EXPECT().
-			HandleNewMinorBlock(gomock.Any()).DoAndReturn(func(request *p2p.NewBlockMinor) (bool, error) {
+			HandleNewMinorBlock(gomock.Any()).DoAndReturn(func(request *rpc.P2PRedirectRequest) error {
 			errc <- nil
-			return false, errors.New("expected error")
+			return errors.New("expected error")
 		}).Times(1)
 	}
 	err = clientPeer.SendNewMinorBlock(2, minorBlock)
