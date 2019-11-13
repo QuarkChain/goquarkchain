@@ -592,7 +592,7 @@ func (s *SlaveConnection) AddTransactions(request *rpc.P2PRedirectRequest) error
 	return nil
 }
 
-func (s *SlaveConnection) GetMinorBlocks(request *rpc.GetMinorBlockListRequest) ([]byte, error) {
+func (s *SlaveConnection) GetMinorBlocks(request *rpc.P2PRedirectRequest) ([]byte, error) {
 	bytes, err := serialize.SerializeToBytes(request)
 	if err != nil {
 		return nil, err
@@ -604,7 +604,19 @@ func (s *SlaveConnection) GetMinorBlocks(request *rpc.GetMinorBlockListRequest) 
 	return res.Data, nil
 }
 
-func (s *SlaveConnection) GetMinorBlockHeaderList(req *p2p.GetMinorBlockHeaderListWithSkipRequest) ([]byte, error) {
+func (s *SlaveConnection) GetMinorBlockHeaderListWithSkip(req *rpc.P2PRedirectRequest) ([]byte, error) {
+	bytes, err := serialize.SerializeToBytes(req)
+	if err != nil {
+		return nil, err
+	}
+	res, err := s.client.Call(s.target, &rpc.Request{Op: rpc.OpGetMinorBlockHeaderListWithSkip, Data: bytes})
+	if err != nil {
+		return nil, err
+	}
+	return res.Data, nil
+}
+
+func (s *SlaveConnection) GetMinorBlockHeaderList(req *rpc.P2PRedirectRequest) ([]byte, error) {
 	bytes, err := serialize.SerializeToBytes(req)
 	if err != nil {
 		return nil, err

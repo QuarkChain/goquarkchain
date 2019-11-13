@@ -411,7 +411,6 @@ func (hc *RootHeaderChain) SetHead(head uint64, delFn DeleteCallback) {
 			delFn(batch, hash)
 		}
 		rawdb.DeleteRootBlockHeader(batch, hash)
-		rawdb.DeleteTd(batch, hash)
 
 		hc.currentHeader.Store(hc.GetHeader(hdr.GetParentHash()))
 	}

@@ -322,38 +322,6 @@ func DeleteBlock(db DatabaseDeleter, hash common.Hash) {
 	}
 }
 
-// ReadTd retrieves a block's total difficulty corresponding to the hash.
-func ReadTd(db DatabaseReader, hash common.Hash) *big.Int {
-	data, _ := db.Get(headerTDKey(hash))
-	if len(data) == 0 {
-		return nil
-	}
-	td := new(big.Int)
-	if err := serialize.Deserialize(serialize.NewByteBuffer(data), td); err != nil {
-		log.Error("Invalid block total difficulty", "hash", hash, "err", err)
-		return nil
-	}
-	return td
-}
-
-// WriteTd stores the total difficulty of a block into the database.
-func WriteTd(db DatabaseWriter, hash common.Hash, td *big.Int) {
-	data, err := serialize.SerializeToBytes(td)
-	if err != nil {
-		log.Crit("Failed to Serialize block total difficulty", "err", err)
-	}
-	if err := db.Put(headerTDKey(hash), data); err != nil {
-		log.Crit("Failed to store block total difficulty", "err", err)
-	}
-}
-
-// DeleteTd removes all block total difficulty data associated with a hash.
-func DeleteTd(db DatabaseDeleter, hash common.Hash) {
-	if err := db.Delete(headerTDKey(hash)); err != nil {
-		log.Crit("Failed to delete block total difficulty", "err", err)
-	}
-}
-
 // HasReceipts verifies the existence of all the transaction receipts belonging
 // to a block.
 func HasReceipts(db DatabaseReader, hash common.Hash) bool {

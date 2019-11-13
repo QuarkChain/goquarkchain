@@ -4,13 +4,14 @@ package rawdb
 
 import (
 	"bytes"
+	"math/big"
+	"testing"
+
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/rlp"
-	"math/big"
-	"testing"
 )
 
 var (
@@ -140,29 +141,6 @@ func TestMinorBlockStorage(t *testing.T) {
 	}
 	if entry := ReadMinorBlockHeader(db, block.Hash()); entry != nil {
 		t.Fatalf("Deleted header returned: %v", entry)
-	}
-}
-
-// Tests block total difficulty storage and retrieval operations.
-func TestTdStorage(t *testing.T) {
-	db := ethdb.NewMemDatabase()
-
-	// Create a test TD to move around the database and make sure it's really new
-	hash, td := common.Hash{}, big.NewInt(314)
-	if entry := ReadTd(db, hash); entry != nil {
-		t.Fatalf("Non existent TD returned: %v", entry)
-	}
-	// Write and verify the TD in the database
-	WriteTd(db, hash, td)
-	if entry := ReadTd(db, hash); entry == nil {
-		t.Fatalf("Stored TD not found")
-	} else if entry.Cmp(td) != 0 {
-		t.Fatalf("Retrieved TD mismatch: have %v, want %v", entry, td)
-	}
-	// Delete the TD and verify the execution
-	DeleteTd(db, hash)
-	if entry := ReadTd(db, hash); entry != nil {
-		t.Fatalf("Deleted TD returned: %v", entry)
 	}
 }
 
