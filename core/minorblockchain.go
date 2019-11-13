@@ -1652,18 +1652,6 @@ func (m *MinorBlockChain) CurrentHeader() types.IHeader {
 	return m.CurrentBlock().Header()
 }
 
-// GetTd retrieves a block's total difficulty in the canonical chain from the
-// database by hash and number, caching it if found.
-func (m *MinorBlockChain) GetTd(hash common.Hash, number uint64) *big.Int {
-	return m.hc.GetTd(hash, number)
-}
-
-// GetTdByHash retrieves a block's total difficulty in the canonical chain from the
-// database by hash, caching it if found.
-func (m *MinorBlockChain) GetTdByHash(hash common.Hash) *big.Int {
-	return m.hc.GetTdByHash(hash)
-}
-
 // GetHeader retrieves a block header from the database by hash and number,
 // caching it if found.
 func (m *MinorBlockChain) GetHeader(hash common.Hash) types.IHeader {
