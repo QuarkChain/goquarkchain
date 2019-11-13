@@ -19,6 +19,9 @@ package core
 import (
 	"errors"
 	"fmt"
+	"math/big"
+	"time"
+
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/common"
@@ -26,8 +29,6 @@ import (
 	"github.com/QuarkChain/goquarkchain/core/state"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/log"
-	"math/big"
-	"time"
 )
 
 // MinorBlockValidator is responsible for validating block Headers, uncles and
@@ -98,6 +99,7 @@ func (v *MinorBlockValidator) ValidateBlock(mBlock types.IBlock, force bool) err
 		log.Error(v.logInfo, "parent header is not exist", ErrInvalidMinorBlock, "parent height", block.NumberU64()-1, "parent hash", block.ParentHash().String())
 		return ErrInvalidMinorBlock
 	}
+
 	if blockHeight != prevHeader.NumberU64()+1 {
 		log.Error(v.logInfo, "err", ErrHeightMismatch, "blockHeight", blockHeight, "prevHeader", prevHeader.NumberU64())
 		return ErrHeightMismatch
