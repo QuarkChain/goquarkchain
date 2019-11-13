@@ -19,6 +19,8 @@ $ docker run -v /path/to/data:/go/src/github.com/QuarkChain/goquarkchain/cmd/clu
 # once you start your cluster using the downloaded database your cluster only need to sync
 # the blocks mined in the past 12 hours or less.
 curl https://qkcmainnet-go.s3.amazonaws.com/data/`curl https://qkcmainnet-go.s3.amazonaws.com/data/LATEST`.tar.gz --output data.tar.gz
+# if you are in China, use the following instead
+# curl https://s3.cn-north-1.amazonaws.com.cn/qkcmainnet-go-cn/data/`curl https://s3.cn-north-1.amazonaws.com.cn/qkcmainnet-go-cn/data/LATEST`.tar.gz --output data.tar.gz
 # then should unzip to the right path
 
 # INSIDE the container
