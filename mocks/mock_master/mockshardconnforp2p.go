@@ -5,16 +5,16 @@
 package mock_master
 
 import (
-	"github.com/QuarkChain/goquarkchain/account"
-	"github.com/QuarkChain/goquarkchain/cluster/rpc"
-	"github.com/QuarkChain/goquarkchain/consensus"
-	"github.com/QuarkChain/goquarkchain/core/types"
-	"github.com/QuarkChain/goquarkchain/p2p"
+	account "github.com/QuarkChain/goquarkchain/account"
+	rpc "github.com/QuarkChain/goquarkchain/cluster/rpc"
+	consensus "github.com/QuarkChain/goquarkchain/consensus"
+	types "github.com/QuarkChain/goquarkchain/core/types"
+	p2p "github.com/QuarkChain/goquarkchain/p2p"
 	rpc0 "github.com/QuarkChain/goquarkchain/rpc"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/golang/mock/gomock"
-	"math/big"
-	"reflect"
+	common "github.com/ethereum/go-ethereum/common"
+	gomock "github.com/golang/mock/gomock"
+	big "math/big"
+	reflect "reflect"
 )
 
 // MockConnManager is a mock of ConnManager interface
@@ -166,7 +166,7 @@ func (mr *MockISlaveConnMockRecorder) GetMinorBlockByHeight(height, branch, need
 }
 
 // GetMinorBlocks mocks base method
-func (m *MockISlaveConn) GetMinorBlocks(request *rpc.GetMinorBlockListRequest) ([]byte, error) {
+func (m *MockISlaveConn) GetMinorBlocks(request *rpc.P2PRedirectRequest) ([]byte, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetMinorBlocks", request)
 	ret0, _ := ret[0].([]byte)
@@ -181,7 +181,7 @@ func (mr *MockISlaveConnMockRecorder) GetMinorBlocks(request interface{}) *gomoc
 }
 
 // GetMinorBlockHeaderList mocks base method
-func (m *MockISlaveConn) GetMinorBlockHeaderList(req *p2p.GetMinorBlockHeaderListWithSkipRequest) ([]byte, error) {
+func (m *MockISlaveConn) GetMinorBlockHeaderList(req *rpc.P2PRedirectRequest) ([]byte, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetMinorBlockHeaderList", req)
 	ret0, _ := ret[0].([]byte)
@@ -193,6 +193,21 @@ func (m *MockISlaveConn) GetMinorBlockHeaderList(req *p2p.GetMinorBlockHeaderLis
 func (mr *MockISlaveConnMockRecorder) GetMinorBlockHeaderList(req interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetMinorBlockHeaderList", reflect.TypeOf((*MockISlaveConn)(nil).GetMinorBlockHeaderList), req)
+}
+
+// GetMinorBlockHeaderListWithSkip mocks base method
+func (m *MockISlaveConn) GetMinorBlockHeaderListWithSkip(req *rpc.P2PRedirectRequest) ([]byte, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetMinorBlockHeaderListWithSkip", req)
+	ret0, _ := ret[0].([]byte)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetMinorBlockHeaderListWithSkip indicates an expected call of GetMinorBlockHeaderListWithSkip
+func (mr *MockISlaveConnMockRecorder) GetMinorBlockHeaderListWithSkip(req interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetMinorBlockHeaderListWithSkip", reflect.TypeOf((*MockISlaveConn)(nil).GetMinorBlockHeaderListWithSkip), req)
 }
 
 // HandleNewTip mocks base method

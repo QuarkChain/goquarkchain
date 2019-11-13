@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
+	qsync "github.com/QuarkChain/goquarkchain/cluster/sync"
+	qcom "github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/p2p"
@@ -546,16 +548,59 @@ func (s *SlaveServerSideOp) AddMinorBlockListForSync(ctx context.Context, req *r
 // p2p apis.
 func (s *SlaveServerSideOp) GetMinorBlockList(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
 	var (
-		gReq     rpc.GetMinorBlockListRequest
+		gReq     rpc.P2PRedirectRequest
 		gRes     rpc.GetMinorBlockListResponse
+		hashList p2p.GetMinorBlockListRequest
 		response = &rpc.Response{RpcId: req.RpcId}
 		err      error
 	)
 	if err = serialize.DeserializeFromBytes(req.Data, &gReq); err != nil {
 		return nil, err
 	}
+	if err = serialize.DeserializeFromBytes(gReq.Data, &hashList); err != nil {
+		return nil, err
+	}
+	if len(hashList.MinorBlockHashList) > 2*qsync.MinorBlockBatchSize {
+		return nil, fmt.Errorf("bad number of minor blocks requested. branch: %d; limit: %d; expected limit: %d",
+			gReq.Branch, len(hashList.MinorBlockHashList), qsync.MinorBlockBatchSize)
+	}
 
-	if gRes.MinorBlockList, err = s.slave.GetMinorBlockListByHashList(gReq.MinorBlockHashList, gReq.Branch); err != nil {
+	if gRes.MinorBlockList, err = s.slave.GetMinorBlockListByHashList(hashList.MinorBlockHashList, gReq.Branch); err != nil {
+		return nil, err
+	}
+
+	if response.Data, err = serialize.SerializeToBytes(gRes); err != nil {
+		return nil, err
+	}
+	return response, nil
+}
+
+func (s *SlaveServerSideOp) GetMinorBlockHeaderListWithSkip(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
+	var (
+		gReq     rpc.P2PRedirectRequest
+		gRes     p2p.GetMinorBlockHeaderListResponse
+		reqSkip  p2p.GetMinorBlockHeaderListWithSkipRequest
+		response = &rpc.Response{RpcId: req.RpcId}
+		err      error
+	)
+	if err = serialize.DeserializeFromBytes(req.Data, &gReq); err != nil {
+		return nil, err
+	}
+	if err = serialize.DeserializeFromBytes(gReq.Data, &reqSkip); err != nil {
+		return nil, err
+	}
+	if reqSkip.Limit <= 0 || uint64(reqSkip.Limit) > 2*qsync.MinorBlockHeaderListLimit {
+		return nil, fmt.Errorf("bad limit. branch: %d; limit: %d; expected limit: %d",
+			gReq.Branch, reqSkip.Limit, qsync.MinorBlockHeaderListLimit)
+	}
+	if reqSkip.Direction != qcom.DirectionToGenesis && reqSkip.Direction != qcom.DirectionToTip {
+		return nil, errors.New("Bad direction")
+	}
+	if reqSkip.Type != qcom.SkipHash && reqSkip.Type != qcom.SkipHeight {
+		return nil, errors.New("Bad type value")
+	}
+
+	if gRes.BlockHeaderList, err = s.slave.GetMinorBlockHeaderList(&reqSkip); err != nil {
 		return nil, err
 	}
 
@@ -567,16 +612,33 @@ func (s *SlaveServerSideOp) GetMinorBlockList(ctx context.Context, req *rpc.Requ
 
 func (s *SlaveServerSideOp) GetMinorBlockHeaderList(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
 	var (
-		gReq     p2p.GetMinorBlockHeaderListWithSkipRequest
+		gReq     rpc.P2PRedirectRequest
 		gRes     p2p.GetMinorBlockHeaderListResponse
+		mHeader  p2p.GetMinorBlockHeaderListRequest
 		response = &rpc.Response{RpcId: req.RpcId}
 		err      error
 	)
 	if err = serialize.DeserializeFromBytes(req.Data, &gReq); err != nil {
 		return nil, err
 	}
+	if err = serialize.DeserializeFromBytes(gReq.Data, &mHeader); err != nil {
+		return nil, err
+	}
+	if mHeader.Limit <= 0 || uint64(mHeader.Limit) > 2*qsync.MinorBlockHeaderListLimit {
+		return nil, fmt.Errorf("bad limit. branch: %d; limit: %d; expected limit: %d", gReq.Branch, mHeader.Limit, qsync.MinorBlockHeaderListLimit)
+	}
+	if mHeader.Direction != qcom.DirectionToGenesis {
+		return nil, fmt.Errorf("Bad direction. branch: %d; ", gReq.Branch)
+	}
 
-	if gRes.BlockHeaderList, err = s.slave.GetMinorBlockHeaderList(&gReq); err != nil {
+	if gRes.BlockHeaderList, err = s.slave.GetMinorBlockHeaderList(&p2p.GetMinorBlockHeaderListWithSkipRequest{
+		Type:      qcom.SkipHash,
+		Data:      mHeader.BlockHash,
+		Limit:     mHeader.Limit,
+		Skip:      0,
+		Direction: mHeader.Direction,
+		Branch:    mHeader.Branch,
+	}); err != nil {
 		return nil, err
 	}
 
