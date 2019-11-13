@@ -1299,7 +1299,8 @@ func (m *MinorBlockChain) insertChain(chain []types.IBlock, verifySeals bool, is
 // switch over to the new chain if the TD exceeded the current chain.
 func (m *MinorBlockChain) insertSidechain(it *insertIterator, isCheckDB bool) (int, []interface{}, []*types.Log, [][]*types.CrossShardTransactionDeposit, error) {
 	var (
-		current = m.CurrentBlock().NumberU64()
+		current      = m.CurrentBlock().NumberU64()
+		externHeight = uint64(0)
 	)
 	// The first sidechain block error is already verified to be ErrPrunedAncestor.
 	// Since we don't import them here, we expect ErrUnknownAncestor for the remaining
@@ -1325,7 +1326,7 @@ func (m *MinorBlockChain) insertSidechain(it *insertIterator, isCheckDB bool) (i
 				return it.index, nil, nil, nil, errors.New("sidechain ghost-state attack")
 			}
 		}
-
+		externHeight = block.NumberU64()
 		if !m.HasBlock(block.Hash()) {
 			start := time.Now()
 			if err := m.WriteBlockWithoutState(block); err != nil {
@@ -1337,6 +1338,16 @@ func (m *MinorBlockChain) insertSidechain(it *insertIterator, isCheckDB bool) (i
 				"txs", len(block.(*types.MinorBlock).GetTransactions()), "gas", block.(*types.MinorBlock).GetMetaData().GasUsed,
 				"root", block.(*types.MinorBlock).GetMetaData().Root)
 		}
+	}
+	// At this point, we've written all sidechain blocks to database. Loop ended
+	// either on some other error or all were processed. If there was some other
+	// error, we can ignore the rest of those blocks.
+	//
+	// If the externTd was larger than our local TD, we now need to reimport the previous
+	// blocks to regenerate the required state
+	if current > externHeight {
+		log.Info("Sidechain written to disk", "start", it.first().NumberU64(), "end", it.previous().NumberU64(), "sidetd", externHeight, "localtd", current)
+		return it.index, nil, nil, nil, err
 	}
 	// Gather all the sidechain hashes (full blocks may be memory heavy)
 	var (

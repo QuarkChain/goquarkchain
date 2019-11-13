@@ -224,8 +224,8 @@ func TestMinorLastBlock(t *testing.T) {
 
 //TestMinors that given a starting canonical chain of a given size, it can be extended
 //with various length chains.
-//func TestMinorExtendCanonicalHeaders(t *testing.T) { testMinorExtendCanonical(t, false) }
-func TestMinorExtendCanonicalBlocks(t *testing.T) { testMinorExtendCanonical(t, true) }
+func TestMinorExtendCanonicalHeaders(t *testing.T) { testMinorExtendCanonical(t, false) }
+func TestMinorExtendCanonicalBlocks(t *testing.T)  { testMinorExtendCanonical(t, true) }
 
 func testMinorExtendCanonical(t *testing.T, full bool) {
 	length := 5
@@ -252,8 +252,8 @@ func testMinorExtendCanonical(t *testing.T, full bool) {
 
 //TestMinors that given a starting canonical chain of a given size, creating shorter
 //forks do not take canonical ownership.
-//func TestMinorShorterForkHeaders(t *testing.T) { testMinorShorterFork(t, false) }
-func TestMinorShorterForkBlocks(t *testing.T) { testMinorShorterFork(t, true) }
+func TestMinorShorterForkHeaders(t *testing.T) { testMinorShorterFork(t, false) }
+func TestMinorShorterForkBlocks(t *testing.T)  { testMinorShorterFork(t, true) }
 
 func testMinorShorterFork(t *testing.T, full bool) {
 	length := 10
@@ -282,8 +282,8 @@ func testMinorShorterFork(t *testing.T, full bool) {
 
 //TestMinors that given a starting canonical chain of a given size, creating longer
 //forks do take canonical ownership.
-//func TestMinorLongerForkHeaders(t *testing.T) { testMinorLongerFork(t, false) }
-func TestMinorLongerForkBlocks(t *testing.T) { testMinorLongerFork(t, true) }
+func TestMinorLongerForkHeaders(t *testing.T) { testMinorLongerFork(t, false) }
+func TestMinorLongerForkBlocks(t *testing.T)  { testMinorLongerFork(t, true) }
 
 func testMinorLongerFork(t *testing.T, full bool) {
 	length := 10
@@ -313,8 +313,8 @@ func testMinorLongerFork(t *testing.T, full bool) {
 //
 //TestMinors that given a starting canonical chain of a given size, creating equal
 //forks do take canonical ownership.
-//func TestMinorEqualForkHeaders(t *testing.T) { testMinorEqualFork(t, false) }
-func TestMinorEqualForkBlocks(t *testing.T) { testMinorEqualFork(t, true) }
+func TestMinorEqualForkHeaders(t *testing.T) { testMinorEqualFork(t, false) }
+func TestMinorEqualForkBlocks(t *testing.T)  { testMinorEqualFork(t, true) }
 
 func testMinorEqualFork(t *testing.T, full bool) {
 	length := 10

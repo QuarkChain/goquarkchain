@@ -27,14 +27,13 @@ import (
 	"time"
 
 	"github.com/QuarkChain/goquarkchain/cluster/config"
-	lru "github.com/hashicorp/golang-lru"
-
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/core/rawdb"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/log"
+	lru "github.com/hashicorp/golang-lru"
 )
 
 // HeaderChain implements the basic block header chain logic that is shared by
@@ -136,11 +135,10 @@ func (hc *HeaderChain) WriteHeader(header *types.MinorBlockHeader) (status Write
 
 	rawdb.WriteMinorBlockHeader(hc.chainDb, header)
 
-	//fmt.Println("block", header.Number, localTd, externTd)
 	// If the total difficulty is higher than our known, add it to the canonical chain
 	// Second clause in the if statement reduces the vulnerability to selfish mining.
 	// Please refer to http://www.cs.cornell.edu/~ie53/publications/btcProcFC.pdf
-	if (mrand.Float64() < 0.5) && header.Number > hc.CurrentHeader().NumberU64() {
+	if header.Number > hc.CurrentHeader().NumberU64() {
 		// Delete any canonical number assignments above the new head
 		batch := hc.chainDb.NewBatch()
 		for i := number + 1; ; i++ {
@@ -427,7 +425,6 @@ func (hc *HeaderChain) SetHead(head uint64, delFn DeleteCallback) {
 			delFn(batch, hash)
 		}
 		rawdb.DeleteMinorBlockHeader(batch, hash)
-		rawdb.DeleteTd(batch, hash)
 
 		hc.currentHeader.Store(hc.GetHeader(hdr.GetParentHash()))
 	}
