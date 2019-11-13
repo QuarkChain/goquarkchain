@@ -140,11 +140,7 @@ Run the following commands to pull and start a container:
 sudo docker pull quarkchaindocker/goquarkchain:<version tag>
 sudo docker run -it quarkchaindocker/goquarkchain:<version tag>
 ```
-Now you are inside Docker container and are ready to build GoQuarkChain cluster executable:
-```bash
-root@<container ID>:/go/src/github.com/QuarkChain/goquarkchain/cmd/cluster# go build
-```
-Start cluster services with a sample cluster config:
+Now you are inside Docker container and are ready to start cluster services with a sample cluster config:
 ```bash
 root@<container ID>:/go/src/github.com/QuarkChain/goquarkchain/cmd/cluster#./cluster --cluster_config ../../tests/testnet/egconfig/cluster_config_template.json  --service S0 >> s0.log 2>&1 &
 root@<container ID>:/go/src/github.com/QuarkChain/goquarkchain/cmd/cluster#./cluster --cluster_config ../../tests/testnet/egconfig/cluster_config_template.json  --service S1 >> s1.log 2>&1 &
