@@ -23,7 +23,7 @@ Check out the [Wiki](https://github.com/QuarkChain/pyquarkchain/wiki) to underst
 ## Development Setup
 
 The following instructions are based on clean Ubuntu 18.04. 
-If you prefer to use Docker, you can [run docker image](#setup-environment-using-docker) to get environment ready inside a container.
+If you prefer to use Docker, you can [run a cluster inside Docker container](#run-a-cluster-inside-docker).
 
 ###  Setup Go Environment
 Goquarkchain requires golang sdk >= 1.12. You can skip this step if your environment meets the condition.
@@ -87,30 +87,6 @@ cd $GOPATH/src/github.com/QuarkChain/goquarkchain
 go test ./...
 ```
 
-## Setup Environment Using Docker 
-
-Using pre-built Docker image(quarkchaindocker/goquarkchain), you can run a cluster inside Docker container without setting up environment step by step.
-
-Refer to [Docker docs](https://docs.docker.com/v17.09/engine/installation/) if Docker is not yet installed on your machine.
-
-Run the following commands to pull and start a container:
-
-```bash
-# specify a version tag if needed
-sudo docker pull quarkchaindocker/goquarkchain:<version tag>
-sudo docker run -it quarkchaindocker/goquarkchain /bin/bash 
-```
-Now you are inside Docker container and are ready to follow [next](#build-cluster) steps.
-
-NOTE if you need the services available outside of the container, you can publish the related ports using `-p` flag when start Docker:
-
-```bash
-sudo docker run -it -p 38291:38291 -p 38391:38391 -p 38491:38491 -p 38291:38291/udp quarkchaindocker/goquarkchain /bin/bash
-```
-And config rpc listening to `0.0.0.0` when start `master` service:
-```bash
-./cluster --cluster_config $CLUSTER_CONFIG_FILE --json_rpc_host 0.0.0.0 --json_rpc_private_host 0.0.0.0
-```
 ## Running Clusters
 
 The following instructions will lead you to run clusters step by step.
@@ -149,6 +125,43 @@ Start master in a third terminal
 ```bash
 cd $GOPATH/src/github.com/QuarkChain/goquarkchain/cmd/cluster
 ./cluster --cluster_config ../../tests/testnet/egconfig/cluster_config_template.json
+```
+
+## Run a Cluster Inside Docker 
+
+Using pre-built Docker image(quarkchaindocker/goquarkchain), you can run a cluster inside Docker container without setting up environment step by step.
+
+Refer to [Docker docs](https://docs.docker.com/v17.09/engine/installation/) if Docker is not yet installed on your machine.
+
+Run the following commands to pull and start a container:
+
+```bash
+# specify a version tag if needed
+sudo docker pull quarkchaindocker/goquarkchain:<version tag>
+sudo docker run -it quarkchaindocker/goquarkchain:<version tag>
+```
+Now you are inside Docker container and are ready to build GoQuarkChain cluster executable:
+```bash
+root@<container ID>:/go/src/github.com/QuarkChain/goquarkchain/cmd/cluster# go build
+```
+Start cluster services with a sample cluster config:
+```bash
+root@<container ID>:/go/src/github.com/QuarkChain/goquarkchain/cmd/cluster#./cluster --cluster_config ../../tests/testnet/egconfig/cluster_config_template.json  --service S0 >> s0.log 2>&1 &
+root@<container ID>:/go/src/github.com/QuarkChain/goquarkchain/cmd/cluster#./cluster --cluster_config ../../tests/testnet/egconfig/cluster_config_template.json  --service S1 >> s1.log 2>&1 &
+root@<container ID>:/go/src/github.com/QuarkChain/goquarkchain/cmd/cluster#./cluster --cluster_config ../../tests/testnet/egconfig/cluster_config_template.json  master.log 2>&1 &
+```
+Check logs to see if the cluster is running successfully.
+
+Next you can try to start a simulate [mining](#mining).
+
+NOTE if you need the services available outside of the Docker host, you can publish the related ports using `-p` flag when start Docker:
+
+```bash
+sudo docker run -it -p 38291:38291 -p 38391:38391 -p 38491:38491 -p 38291:38291/udp quarkchaindocker/goquarkchain
+```
+And config rpc listening to `0.0.0.0` when start `master` service:
+```bash
+./cluster --cluster_config $CLUSTER_CONFIG_FILE --json_rpc_host 0.0.0.0 --json_rpc_private_host 0.0.0.0
 ```
 
 ### Join QuarkChain Network
@@ -214,6 +227,18 @@ Next, start the `master` service, providing the boot node URL as `$BOOTSTRAP_ENO
 ./cluster --cluster_config $CLUSTER_CONFIG_FILE --bootnodes $BOOTSTRAP_ENODE
 ```
 NOTE the `BOOT_NODES` field of `P2P` section in cluster config file has same effect and can be overridden by `--bootnodes` flag.
+
+## Mining
+
+Run the following command to start mining, replacing 127.0.0.1 with the host IP where the master service is deployed if not execute locally:
+
+```bash
+curl -X POST -H 'content-type: application/json' --data '{"jsonrpc":"2.0","method":"setMining","params":[true],"id":0}' http://127.0.0.1:38491
+```
+If need to stop mining,
+```bash
+curl -X POST -H 'content-type: application/json' --data '{"jsonrpc":"2.0","method":"setMining","params":[false],"id":0}' http://127.0.0.1:38491
+```
 
 ## Monitoring Clusters
 Use the [stats tool](cmd/stats) in the repo to monitor the status of a cluster. It queries the given cluster through 

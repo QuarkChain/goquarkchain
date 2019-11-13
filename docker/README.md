@@ -13,6 +13,14 @@ $ docker run -it -p 38291:38291 -p 38391:38391 -p 38491:38491 -p 38291:38291/udp
 # if you already have synced data available, can mount it during running docker (note the -v flag)
 $ docker run -v /path/to/data:/go/src/github.com/QuarkChain/goquarkchain/cmd/cluster/qkc-data/mainnet -it -p 38291:38291 -p 38391:38391 -p 38491:38491 -p 38291:38291/udp quarkchaindocker/goquarkchain:<version tag> 
 
+# (optional) if you want to get the data quickly without validating the blocks,
+# you can download a snapshot of the database by running the following command.
+# every 12 hours a snapshot of the database will be taken and uploaded by the QuarkChain team.
+# once you start your cluster using the downloaded database your cluster only need to sync
+# the blocks mined in the past 12 hours or less.
+curl https://qkcmainnet-go.s3.amazonaws.com/data/`curl https://qkcmainnet-go.s3.amazonaws.com/data/LATEST`.tar.gz --output data.tar.gz
+# then should unzip to the right path
+
 # INSIDE the container
 # IMPORTANT: always update coinbase address for mining
 # modify the config file /go/src/github.com/QuarkChain/goquarkchain/mainnet/singularity/cluster_config_template.json
