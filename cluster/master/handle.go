@@ -407,9 +407,9 @@ func (pm *ProtocolManager) HandleNewMinorTip(branch uint32, tip *p2p.Tip, peer *
 		return fmt.Errorf("invalid NewTip Request: mismatch branch value from peer %v. in request meta: %d, in minor header: %d",
 			peer.id, branch, tip.MinorBlockHeaderList[0].Branch.Value)
 	}
-	if pm.rootBlockChain.CurrentBlock().NumberU64() != tip.RootBlockHeader.NumberU64() {
-		return fmt.Errorf("invaild NewTip, root block number don't match")
-	}
+	/*if pm.rootBlockChain.CurrentBlock().NumberU64() != tip.RootBlockHeader.NumberU64() {
+		return nil
+	}*/
 
 	if minorTip := peer.MinorHead(branch); minorTip != nil && minorTip.RootBlockHeader != nil {
 		if minorTip.RootBlockHeader.ToTalDifficulty.Cmp(tip.RootBlockHeader.ToTalDifficulty) > 0 {
