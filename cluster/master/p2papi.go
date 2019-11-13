@@ -83,7 +83,7 @@ func (api *PrivateP2PAPI) GetMinorBlockHeaderListWithSkip(req *rpc.P2PRedirectRe
 	if peer == nil {
 		return nil, errNotRegistered
 	}
-	return peer.GetMinorBlockHeaderList(req)
+	return peer.GetMinorBlockHeaderListWithSkip(req)
 }
 
 func (api *PrivateP2PAPI) GetMinorBlockHeaderList(req *rpc.P2PRedirectRequest) ([]byte, error) {
