@@ -503,21 +503,16 @@ func (s *SlaveServerSideOp) HandleNewTip(ctx context.Context, req *rpc.Request) 
 
 func (s *SlaveServerSideOp) AddTransactions(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
 	var (
-		gReq     p2p.NewTransactionList
-		gRep     rpc.HashList
-		buf      = serialize.NewByteBuffer(req.Data)
-		response = &rpc.Response{RpcId: req.RpcId}
-		err      error
+		gReq rpc.P2PRedirectRequest
+		buf  = serialize.NewByteBuffer(req.Data)
+		err  error
 	)
 
 	if err = serialize.Deserialize(buf, &gReq); err != nil {
 		return nil, err
 	}
 
-	if response.Data, err = serialize.SerializeToBytes(gRep); err != nil {
-		return nil, err
-	}
-	return response, nil
+	return nil, nil
 }
 
 func (s *SlaveServerSideOp) HandleNewMinorBlock(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {

@@ -16,6 +16,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
+	qkccom "github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/consensus/posw"
 	"github.com/QuarkChain/goquarkchain/core/rawdb"
@@ -75,7 +76,7 @@ type RootBlockChain struct {
 	triegc *prque.Prque   // Priority queue mapping block numbers to tries to gc
 	gcproc time.Duration  // Accumulates canonical block processing for trie dumping
 
-	headerChain              *RootHeaderChain
+	//	headerChain              *RootHeaderChain
 	validatedMinorBlockCache *lru.Cache // Cache for the most recent validated Minor Block hash
 	rmLogsFeed               event.Feed
 	chainFeed                event.Feed
@@ -135,7 +136,6 @@ func NewRootBlockChain(db ethdb.Database, chainConfig *config.QuarkChainConfig, 
 	bc.SetValidator(NewRootBlockValidator(chainConfig, bc, engine))
 	bc.posw = posw.NewPoSW(bc, chainConfig.Root.PoSWConfig)
 	var err error
-	bc.headerChain, err = NewHeaderChain(db, chainConfig, engine, bc.getProcInterrupt)
 	if err != nil {
 		return nil, err
 	}
@@ -185,16 +185,6 @@ func (bc *RootBlockChain) loadLastState() error {
 	}
 	// Everything seems to be fine, set as the head block
 	bc.currentBlock.Store(currentBlock)
-
-	// Restore the last known head header
-	currentHeader := currentBlock.IHeader()
-	if head := rawdb.ReadHeadHeaderHash(bc.db); head != (common.Hash{}) {
-		if header := bc.GetHeader(head); header != nil {
-			currentHeader = header
-		}
-	}
-	bc.headerChain.SetCurrentHeader(currentHeader.(*types.RootBlockHeader))
-
 	return nil
 }
 
@@ -208,29 +198,23 @@ func (bc *RootBlockChain) SetHead(head uint64) error {
 	bc.mu.Lock()
 	defer bc.mu.Unlock()
 
-	// Rewind the header chain, deleting all block bodies until then
-	delFn := func(db rawdb.DatabaseDeleter, hash common.Hash) {
-		rawdb.DeleteBlock(db, hash)
+	batch := bc.db.NewBatch()
+	for block := bc.CurrentBlock(); !qkccom.IsNil(block) && block.NumberU64() > head; block = bc.CurrentBlock() {
+		rawdb.DeleteRootBlock(batch, block.Hash())
+		rawdb.DeleteCanonicalHash(batch, rawdb.ChainTypeRoot, block.NumberU64())
+		bc.currentBlock.Store(bc.GetBlock(block.ParentHash()))
 	}
-	bc.headerChain.SetHead(head, delFn)
-	currentHeader := bc.headerChain.CurrentHeader()
-
+	batch.Write()
 	// Clear out any stale content from the caches
 	bc.blockCache.Purge()
 	bc.futureBlocks.Purge()
 
-	// Rewind the block chain, ensuring we don't end up with a stateless head block
-	if currentBlock := bc.CurrentBlock(); currentBlock != nil && currentHeader.NumberU64() < currentBlock.NumberU64() {
-		bc.currentBlock.Store(bc.GetBlock(currentHeader.Hash()))
-	}
-
 	// If either blocks reached nil, reset to the genesis state
-	if currentBlock := bc.CurrentBlock(); currentBlock == nil {
+	if currentBlock := bc.CurrentBlock(); qkccom.IsNil(currentBlock) {
 		bc.currentBlock.Store(bc.genesisBlock)
 	}
-	currentBlock := bc.CurrentBlock()
 
-	rawdb.WriteHeadBlockHash(bc.db, currentBlock.Hash())
+	rawdb.WriteHeadBlockHash(bc.db, bc.CurrentBlock().Hash())
 
 	return bc.loadLastState()
 }
@@ -274,8 +258,6 @@ func (bc *RootBlockChain) ResetWithGenesisBlock(genesis *types.RootBlock) error 
 	bc.genesisBlock = genesis
 	bc.insert(bc.genesisBlock)
 	bc.currentBlock.Store(bc.genesisBlock)
-	bc.headerChain.SetGenesis(bc.genesisBlock.Header())
-	bc.headerChain.SetCurrentHeader(bc.genesisBlock.Header())
 
 	return nil
 }
@@ -338,22 +320,14 @@ func (bc *RootBlockChain) ExportN(w io.Writer, first uint64, last uint64) error 
 //
 // Note, this function assumes that the `mu` mutex is held!
 func (bc *RootBlockChain) insert(block *types.RootBlock) {
-	// If the block is on a side chain or an unknown one, force other heads onto it too
-	updateHeads := rawdb.ReadCanonicalHash(bc.db, rawdb.ChainTypeRoot, block.NumberU64()) != block.Hash()
-
 	// Add the block to the canonical chain number scheme and mark as the head
 	if err := bc.PutRootBlockIndex(block); err != nil {
 		//TODO need delete later?
 		panic(err)
 	}
+
 	rawdb.WriteHeadBlockHash(bc.db, block.Hash())
-
 	bc.currentBlock.Store(block)
-
-	// If the block is better than our head or is on a different chain, force update heads
-	if updateHeads {
-		bc.headerChain.SetCurrentHeader(block.Header())
-	}
 }
 
 // Genesis retrieves the chain's genesis block.
@@ -445,10 +419,6 @@ func (bc *RootBlockChain) Rollback(chain []common.Hash) {
 	for i := len(chain) - 1; i >= 0; i-- {
 		hash := chain[i]
 
-		currentHeader := bc.headerChain.CurrentHeader()
-		if currentHeader.Hash() == hash {
-			bc.headerChain.SetCurrentHeader(bc.GetHeader(currentHeader.GetParentHash()).(*types.RootBlockHeader))
-		}
 		if currentBlock := bc.CurrentBlock(); currentBlock.Hash() == hash {
 			newBlock := bc.GetBlock(currentBlock.ParentHash())
 			bc.currentBlock.Store(newBlock)
@@ -965,80 +935,43 @@ Error: %v
 `, bc.chainConfig, block.NumberU64(), block.Hash(), err))
 }
 
-// InsertHeaderChain attempts to insert the given header chain in to the local
-// chain, possibly creating a reorg. If an error is returned, it will return the
-// index number of the failing header as well an error describing what went wrong.
-//
-// The verify parameter can be used to fine tune whether nonce verification
-// should be done or not. The reason behind the optional check is because some
-// of the header retrieval mechanisms already need to verify nonces, as well as
-// because nonces can be verified sparsely, not needing to check each.
-func (bc *RootBlockChain) InsertHeaderChain(chain []*types.RootBlockHeader, checkFreq int) (int, error) {
-	start := time.Now()
-	if i, err := bc.headerChain.ValidateHeaderChain(chain, checkFreq); err != nil {
-		return i, err
-	}
-
-	// Make sure only one thread manipulates the chain at once
-	bc.chainmu.Lock()
-	defer bc.chainmu.Unlock()
-
-	bc.wg.Add(1)
-	defer bc.wg.Done()
-
-	whFunc := func(header *types.RootBlockHeader) error {
-		bc.mu.Lock()
-		defer bc.mu.Unlock()
-
-		_, err := bc.headerChain.WriteHeader(header)
-		return err
-	}
-
-	return bc.headerChain.InsertHeaderChain(chain, whFunc, start)
-}
-
-// writeHeader writes a header into the local chain, given that its parent is
-// already known. If the total difficulty of the newly inserted header becomes
-// greater than the current known TD, the canonical chain is re-routed.
-//
-// Note: This method is not concurrent-safe with inserting blocks simultaneously
-// into the chain, as side effects caused by reorganisations cannot be emulated
-// without the real blocks. Hence, writing Headers directly should only be done
-// in two scenarios: pure-header mode of operation (light clients), or properly
-// separated header/block phases (non-archive clients).
-func (bc *RootBlockChain) writeHeader(header *types.RootBlockHeader) error {
-	bc.wg.Add(1)
-	defer bc.wg.Done()
-
-	bc.mu.Lock()
-	defer bc.mu.Unlock()
-
-	_, err := bc.headerChain.WriteHeader(header)
-	return err
-}
-
 // CurrentHeader retrieves the current head header of the canonical chain. The
 // header is retrieved from the RootHeaderChain's internal cache.
 func (bc *RootBlockChain) CurrentHeader() types.IHeader {
-	return bc.headerChain.CurrentHeader()
+	return bc.CurrentBlock().IHeader()
 }
 
 // GetHeader retrieves a block header from the database by hash and number,
 // caching it if found.
 func (bc *RootBlockChain) GetHeader(hash common.Hash) types.IHeader {
-	return bc.headerChain.GetHeader(hash)
-}
-
-// HasHeader checks if a block header is present in the database or not, caching
-// it if present.
-func (bc *RootBlockChain) HasHeader(hash common.Hash) bool {
-	return bc.headerChain.HasHeader(hash)
+	block := bc.GetBlock(hash)
+	if qkccom.IsNil(block) {
+		return nil
+	}
+	return block.IHeader()
 }
 
 // GetBlockHashesFromHash retrieves a number of block hashes starting at a given
 // hash, fetching towards the genesis block.
 func (bc *RootBlockChain) GetBlockHashesFromHash(hash common.Hash, max uint64) []common.Hash {
-	return bc.headerChain.GetBlockHashesFromHash(hash, max)
+	// Get the origin header from which to fetch
+	block := bc.GetBlock(hash)
+	if qkccom.IsNil(block) {
+		return nil
+	}
+	// Iterate the Headers until enough is collected or the genesis reached
+	chain := make([]common.Hash, 0, max)
+	for i := uint64(0); i < max; i++ {
+		next := block.ParentHash()
+		if block = bc.GetBlock(next); block == nil {
+			break
+		}
+		chain = append(chain, next)
+		if block.NumberU64() == 0 {
+			break
+		}
+	}
+	return chain
 }
 
 // GetAncestor retrieves the Nth ancestor of a given block. It assumes that either the given block or
@@ -1047,10 +980,35 @@ func (bc *RootBlockChain) GetBlockHashesFromHash(hash common.Hash, max uint64) [
 //
 // Note: ancestor == 0 returns the same block, 1 returns its parent and so on.
 func (bc *RootBlockChain) GetAncestor(hash common.Hash, number, ancestor uint64, maxNonCanonical *uint64) (common.Hash, uint64) {
-	bc.chainmu.Lock()
-	defer bc.chainmu.Unlock()
-
-	return bc.headerChain.GetAncestor(hash, number, ancestor, maxNonCanonical)
+	if ancestor > number {
+		return common.Hash{}, 0
+	}
+	if ancestor == 1 {
+		// in this case it is cheaper to just read the header
+		if block := bc.GetBlock(hash); block != nil {
+			return block.ParentHash(), number - 1
+		} else {
+			return common.Hash{}, 0
+		}
+	}
+	for ancestor != 0 {
+		if rawdb.ReadCanonicalHash(bc.db, rawdb.ChainTypeRoot, number) == hash {
+			number -= ancestor
+			return rawdb.ReadCanonicalHash(bc.db, rawdb.ChainTypeRoot, number), number
+		}
+		if *maxNonCanonical == 0 {
+			return common.Hash{}, 0
+		}
+		*maxNonCanonical--
+		ancestor--
+		block := bc.GetBlock(hash)
+		if block == nil {
+			return common.Hash{}, 0
+		}
+		hash = block.ParentHash()
+		number--
+	}
+	return hash, number
 }
 
 func (bc *RootBlockChain) GetParentHashByHash(hash common.Hash) common.Hash {
@@ -1091,7 +1049,11 @@ func (bc *RootBlockChain) SetLatestMinorBlockHeaders(hash common.Hash, headerMap
 // GetHeaderByNumber retrieves a block header from the database by number,
 // caching it (associated with its hash) if found.
 func (bc *RootBlockChain) GetHeaderByNumber(number uint64) types.IHeader {
-	return bc.headerChain.GetHeaderByNumber(number)
+	block := bc.GetBlockByNumber(number)
+	if qkccom.IsNil(block) {
+		return nil
+	}
+	return block.IHeader()
 }
 
 // Config retrieves the blockchain's chain configuration.

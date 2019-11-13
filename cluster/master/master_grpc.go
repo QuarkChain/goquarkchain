@@ -69,11 +69,11 @@ func (m *MasterServerSideOp) BroadcastNewTip(ctx context.Context, req *rpc.Reque
 }
 
 func (m *MasterServerSideOp) BroadcastTransactions(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
-	broadcastTxsReq := new(rpc.BroadcastTransactions)
+	broadcastTxsReq := new(rpc.P2PRedirectRequest)
 	if err := serialize.DeserializeFromBytes(req.Data, broadcastTxsReq); err != nil {
 		return nil, err
 	}
-	m.p2pApi.BroadcastTransactions(broadcastTxsReq.Branch, broadcastTxsReq.Txs, broadcastTxsReq.PeerID)
+	m.p2pApi.BroadcastTransactions(broadcastTxsReq, broadcastTxsReq.PeerID)
 	return &rpc.Response{
 		RpcId: req.RpcId,
 	}, nil
@@ -97,23 +97,18 @@ func (m *MasterServerSideOp) GetMinorBlockList(ctx context.Context, req *rpc.Req
 	var (
 		err                  error
 		getMinorBlockListReq = new(rpc.GetMinorBlockListRequest)
-		getMinorBlockListRes = new(rpc.GetMinorBlockListResponse)
 	)
 
 	if err = serialize.DeserializeFromBytes(req.Data, getMinorBlockListReq); err != nil {
 		return nil, err
 	}
-	getMinorBlockListRes.MinorBlockList, err = m.p2pApi.GetMinorBlockList(getMinorBlockListReq.MinorBlockHashList, getMinorBlockListReq.Branch, getMinorBlockListReq.PeerId)
-	if err != nil {
-		return nil, err
-	}
-	bytes, err := serialize.SerializeToBytes(getMinorBlockListRes)
+	data, err := m.p2pApi.GetMinorBlockList(getMinorBlockListReq.MinorBlockHashList, getMinorBlockListReq.Branch, getMinorBlockListReq.PeerId)
 	if err != nil {
 		return nil, err
 	}
 
 	return &rpc.Response{
-		Data:  bytes,
+		Data:  data,
 		RpcId: req.RpcId,
 	}, nil
 }
@@ -128,17 +123,13 @@ func (m *MasterServerSideOp) GetMinorBlockHeaderList(ctx context.Context, req *r
 		return nil, err
 	}
 	//hash common.Hash, amount uint32, branch uint32, reverse bool, peerId string
-	gRes, err := m.p2pApi.GetMinorBlockHeaderList(getMBHeadersReq)
-	if err != nil {
-		return nil, err
-	}
-	bytes, err := serialize.SerializeToBytes(gRes)
+	data, err := m.p2pApi.GetMinorBlockHeaderList(getMBHeadersReq)
 	if err != nil {
 		return nil, err
 	}
 
 	return &rpc.Response{
-		Data:  bytes,
+		Data:  data,
 		RpcId: req.RpcId,
 	}, nil
 }

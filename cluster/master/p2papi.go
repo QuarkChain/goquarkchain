@@ -33,12 +33,11 @@ func (api *PrivateP2PAPI) BroadcastMinorBlock(branch uint32, block *types.MinorB
 
 // BroadcastTransactions only be called when run performance test which the txs
 // are created by shard itself, so broadcast to all the peer
-func (api *PrivateP2PAPI) BroadcastTransactions(branch uint32, txs []*types.Transaction, peerID string) {
+func (api *PrivateP2PAPI) BroadcastTransactions(txsBatch *rpc.P2PRedirectRequest, peerID string) {
 	for _, peer := range api.peers.Peers() {
-		if peer.id == peerID {
-			continue
+		if peer.id != peerID {
+			peer.AsyncSendTransactions(txsBatch)
 		}
-		peer.AsyncSendTransactions(branch, txs)
 	}
 }
 
@@ -70,16 +69,16 @@ func (api *PrivateP2PAPI) BroadcastNewTip(branch uint32, rootBlockHeader *types.
 	return nil
 }
 
-func (api *PrivateP2PAPI) GetMinorBlockList(hashList []common.Hash, branch uint32, peerId string) ([]*types.MinorBlock, error) {
+func (api *PrivateP2PAPI) GetMinorBlockList(hashList []common.Hash, branch uint32, peerId string) ([]byte, error) {
 	peer := api.peers.Peer(peerId)
 	if peer == nil {
 		return nil, errNotRegistered
 	}
-	blocks, err := peer.GetMinorBlockList(hashList, branch)
-	return blocks, err
+	data, err := peer.GetMinorBlockList(hashList, branch)
+	return data, err
 }
 
-func (api *PrivateP2PAPI) GetMinorBlockHeaderList(req *rpc.GetMinorBlockHeaderListWithSkipRequest) (*p2p.GetMinorBlockHeaderListResponse, error) {
+func (api *PrivateP2PAPI) GetMinorBlockHeaderList(req *rpc.GetMinorBlockHeaderListWithSkipRequest) ([]byte, error) {
 	peer := api.peers.Peer(req.PeerID)
 	if peer == nil {
 		return nil, errNotRegistered
