@@ -3,12 +3,13 @@ package rawdb
 
 import (
 	"encoding/binary"
+	"math/big"
+
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/serialize"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rlp"
-	"math/big"
 )
 
 const DBLOG = "db-operation"
@@ -411,7 +412,6 @@ func DeleteMinorBlock(db DatabaseDeleter, hash common.Hash) {
 	DeleteReceipts(db, hash)
 	DeleteMinorBlockHeader(db, hash)
 	DeleteBlock(db, hash)
-	DeleteTd(db, hash)
 	DeleteMinorBlockCommitStatus(db, hash)
 }
 

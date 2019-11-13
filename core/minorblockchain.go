@@ -302,13 +302,6 @@ func (m *MinorBlockChain) loadLastState() error {
 		}
 	}
 	m.hc.SetCurrentHeader(currentHeader)
-
-	headerTd := m.GetTd(currentHeader.Hash(), currentHeader.NumberU64())
-	blockTd := m.GetTd(currentBlock.Hash(), currentBlock.NumberU64())
-
-	log.Info("Loaded most recent local header", "number", currentHeader.Number, "hash", currentHeader.Hash(), "td", headerTd, "age", common.PrettyAge(time.Unix(int64(currentHeader.Time), 0)))
-	log.Info("Loaded most recent local full block", "number", currentBlock.NumberU64(), "hash", currentBlock.Hash(), "td", blockTd, "age", common.PrettyAge(time.Unix(int64(currentHeader.Time), 0)))
-
 	return nil
 }
 
@@ -481,10 +474,6 @@ func (m *MinorBlockChain) ResetWithGenesisBlock(genesis *types.MinorBlock) error
 		return err
 	}
 
-	// Prepare the genesis block and reinitialise the chain
-	if err := m.hc.WriteTd(genesis.Hash(), genesis.NumberU64(), genesis.Difficulty()); err != nil {
-		log.Crit("Failed to write genesis block TD", "err", err)
-	}
 	rawdb.WriteMinorBlock(m.db, genesis)
 
 	m.genesisBlock = genesis
@@ -947,13 +936,10 @@ func (m *MinorBlockChain) InsertReceiptChain(blockChain []types.IBlock, receiptC
 // WriteBlockWithoutState writes only the block and its metadata to the database,
 // but does not write any state. This is used to construct competing side forks
 // up to the point where they exceed the canonical total difficulty.
-func (m *MinorBlockChain) WriteBlockWithoutState(block types.IBlock, td *big.Int) (err error) {
+func (m *MinorBlockChain) WriteBlockWithoutState(block types.IBlock) (err error) {
 	m.wg.Add(1)
 	defer m.wg.Done()
 
-	if err := m.hc.WriteTd(block.Hash(), block.NumberU64(), td); err != nil {
-		return err
-	}
 	rawdb.WriteMinorBlock(m.db, block.(*types.MinorBlock))
 
 	return nil
@@ -964,23 +950,11 @@ func (m *MinorBlockChain) WriteBlockWithState(block *types.MinorBlock, receipts 
 	m.wg.Add(1)
 	defer m.wg.Done()
 
-	// Calculate the total difficulty of the block
-	ptd := m.GetTd(block.ParentHash(), block.NumberU64()-1)
-	if ptd == nil {
-		return NonStatTy, ErrUnknownAncestor
-	}
 	// Make sure no inconsistent state is leaked during insertion
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	currentBlock := m.CurrentBlock()
-
-	externTd := new(big.Int).Add(block.Difficulty(), ptd)
-
-	// Irrelevant of the canonical status, write the block itself to the database
-	if err := m.hc.WriteTd(block.Hash(), block.NumberU64(), externTd); err != nil {
-		return NonStatTy, err
-	}
 
 	if err := m.putMinorBlock(block, xShardList); err != nil {
 		return NonStatTy, err
@@ -1325,8 +1299,7 @@ func (m *MinorBlockChain) insertChain(chain []types.IBlock, verifySeals bool, is
 // switch over to the new chain if the TD exceeded the current chain.
 func (m *MinorBlockChain) insertSidechain(it *insertIterator, isCheckDB bool) (int, []interface{}, []*types.Log, [][]*types.CrossShardTransactionDeposit, error) {
 	var (
-		externTd *big.Int
-		current  = m.CurrentBlock().NumberU64()
+		current = m.CurrentBlock().NumberU64()
 	)
 	// The first sidechain block error is already verified to be ErrPrunedAncestor.
 	// Since we don't import them here, we expect ErrUnknownAncestor for the remaining
@@ -1352,14 +1325,10 @@ func (m *MinorBlockChain) insertSidechain(it *insertIterator, isCheckDB bool) (i
 				return it.index, nil, nil, nil, errors.New("sidechain ghost-state attack")
 			}
 		}
-		if externTd == nil {
-			externTd = m.GetTd(block.ParentHash(), block.NumberU64()-1)
-		}
-		externTd = new(big.Int).Add(externTd, block.IHeader().GetDifficulty())
 
 		if !m.HasBlock(block.Hash()) {
 			start := time.Now()
-			if err := m.WriteBlockWithoutState(block, externTd); err != nil {
+			if err := m.WriteBlockWithoutState(block); err != nil {
 				return it.index, nil, nil, nil, err
 			}
 			m.CommitMinorBlockByHash(block.Hash())
@@ -1368,17 +1337,6 @@ func (m *MinorBlockChain) insertSidechain(it *insertIterator, isCheckDB bool) (i
 				"txs", len(block.(*types.MinorBlock).GetTransactions()), "gas", block.(*types.MinorBlock).GetMetaData().GasUsed,
 				"root", block.(*types.MinorBlock).GetMetaData().Root)
 		}
-	}
-	// At this point, we've written all sidechain blocks to database. Loop ended
-	// either on some other error or all were processed. If there was some other
-	// error, we can ignore the rest of those blocks.
-	//
-	// If the externTd was larger than our local TD, we now need to reimport the previous
-	// blocks to regenerate the required state
-	localTd := m.GetTd(m.CurrentBlock().Hash(), current)
-	if localTd.Cmp(externTd) > 0 {
-		log.Info("Sidechain written to disk", "start", it.first().NumberU64(), "end", it.previous().NumberU64(), "sidetd", externTd, "localtd", localTd)
-		return it.index, nil, nil, nil, err
 	}
 	// Gather all the sidechain hashes (full blocks may be memory heavy)
 	var (
