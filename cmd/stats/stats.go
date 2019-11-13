@@ -4,6 +4,9 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"github.com/QuarkChain/goquarkchain/account"
+	"github.com/QuarkChain/goquarkchain/common/hexutil"
+	"github.com/QuarkChain/goquarkchain/internal/qkcapi"
 	"github.com/shirou/gopsutil/mem"
 	"github.com/ybbus/jsonrpc"
 	"math/big"
@@ -140,14 +143,26 @@ func queryAddress(client jsonrpc.RPCClient, interval *uint, address, token *stri
 }
 
 func queryBalance(client jsonrpc.RPCClient, addr, token string) {
-
-	response, err := client.Call("getAccountData", "0x"+addr, "latest", true)
+	accBytes,err :=hexutil.Decode("0x"+addr)
+	if err != nil {
+		fmt.Println(err.Error())
+		return
+	}
+	acc, err:=account.CreatAddressFromBytes(accBytes)
+	if err != nil {
+		fmt.Println(err.Error())
+		return
+	}
+	acc.FullShardKey=0
+	includeShards := true
+	response, err := client.Call("getAccountData", qkcapi.GetAccountDataArgs{ Address: acc, IncludeShards: &includeShards})
 	if err != nil {
 		fmt.Println(err.Error())
 		return
 	}
 	if response.Error != nil {
 		fmt.Println(response.Error.Error())
+		return
 	}
 	res := response.Result.(map[string]interface{})
 	shardsi := res["shards"].([]interface{})

@@ -19,6 +19,8 @@ service MasterServerSideOp {
     }
     rpc GetMinorBlockHeaderList (Request) returns (Response) {
     }
+    rpc GetMinorBlockHeaderListWithSkip (Request) returns (Response) {
+    }
 }
 
 // slave operation
@@ -77,12 +79,14 @@ service SlaveServerSideOp {
     }
     rpc SetMining (Request) returns (Response) {
     }
-    rpc CheckMinorBlocksInRoot(Request) returns (Response) {
+    rpc CheckMinorBlocksInRoot (Request) returns (Response) {
     }
     // p2p apis
     rpc GetMinorBlockList (Request) returns (Response) {
     }
     rpc GetMinorBlockHeaderList (Request) returns (Response) {
+    }
+    rpc GetMinorBlockHeaderListWithSkip (Request) returns (Response) {
     }
     rpc HandleNewTip (Request) returns (Response) {
     }

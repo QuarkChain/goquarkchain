@@ -53,6 +53,7 @@ const (
 	OpBroadcastNewMinorBlock
 	OpGetMinorBlockList
 	OpGetMinorBlockHeaderList
+	OpGetMinorBlockHeaderListWithSkip
 	OpHandleNewTip
 	OpAddTransactions
 	OpHandleNewMinorBlock
@@ -72,11 +73,12 @@ var (
 		OpAddMinorBlockHeader:     {name: "AddMinorBlockHeader"},
 		OpAddMinorBlockHeaderList: {name: "AddMinorBlockHeaderList"},
 		// p2p api
-		OpBroadcastNewTip:         {name: "BroadcastNewTip"},
-		OpBroadcastTransactions:   {name: "BroadcastTransactions"},
-		OpBroadcastNewMinorBlock:  {name: "BroadcastNewMinorBlock"},
-		OpGetMinorBlockList:       {name: "GetMinorBlockList"},
-		OpGetMinorBlockHeaderList: {name: "GetMinorBlockHeaderList"},
+		OpBroadcastNewTip:                 {name: "BroadcastNewTip"},
+		OpBroadcastTransactions:           {name: "BroadcastTransactions"},
+		OpBroadcastNewMinorBlock:          {name: "BroadcastNewMinorBlock"},
+		OpGetMinorBlockList:               {name: "GetMinorBlockList"},
+		OpGetMinorBlockHeaderList:         {name: "GetMinorBlockHeaderList"},
+		OpGetMinorBlockHeaderListWithSkip: {name: "GetMinorBlockHeaderListWithSkip"},
 	}
 	// slave apis
 	slaveApis = map[uint32]opType{
@@ -111,11 +113,12 @@ var (
 		OpCheckMinorBlocksInRoot:      {name: "CheckMinorBlocksInRoot"},
 		OpGetRootChainStakes:          {name: "GetRootChainStakes"},
 		// p2p api
-		OpGetMinorBlockList:       {name: "GetMinorBlockList"},
-		OpGetMinorBlockHeaderList: {name: "GetMinorBlockHeaderList"},
-		OpHandleNewTip:            {name: "HandleNewTip"},
-		OpAddTransactions:         {name: "AddTransactions"},
-		OpHandleNewMinorBlock:     {name: "HandleNewMinorBlock"},
+		OpGetMinorBlockList:               {name: "GetMinorBlockList"},
+		OpGetMinorBlockHeaderList:         {name: "GetMinorBlockHeaderList"},
+		OpGetMinorBlockHeaderListWithSkip: {name: "GetMinorBlockHeaderListWithSkip"},
+		OpHandleNewTip:                    {name: "HandleNewTip"},
+		OpAddTransactions:                 {name: "AddTransactions"},
+		OpHandleNewMinorBlock:             {name: "HandleNewMinorBlock"},
 	}
 )
 

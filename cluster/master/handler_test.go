@@ -237,36 +237,49 @@ func TestGetMinorBlockHeaders(t *testing.T) {
 	clientPeer := newTestClientPeer(int(qkcconfig.P2PProtocolVersion), peer.app)
 	defer peer.close()
 
+	reqRaw := func(hashs common.Hash, limit uint32, direct uint8) []byte {
+		res := &p2p.GetMinorBlockHeaderListRequest{
+			Limit:     limit,
+			Direction: direct,
+			BlockHash: hashs,
+		}
+		data, err := serialize.SerializeToBytes(res)
+		if err != nil {
+			return nil
+		}
+		return data
+	}
+
 	// Create a batch of tests for various scenarios
 	limit := uint64(minorBlockHeaderListLimit)
 	tests := []struct {
-		query  *p2p.GetMinorBlockHeaderListWithSkipRequest // The hashList to execute for header retrieval
-		expect []*types.MinorBlockHeader                   // The hashes of the block whose headers are expected
+		query  *rpc.P2PRedirectRequest   // The hashList to execute for header retrieval
+		expect []*types.MinorBlockHeader // The hashes of the block whose headers are expected
 	}{
 		// A single random block should be retrievable by hash
 		{
-			&p2p.GetMinorBlockHeaderListWithSkipRequest{Data: minorHeaders[limit/2].Hash(), Limit: 1, Direction: 0},
+			&rpc.P2PRedirectRequest{Data: reqRaw(minorHeaders[limit/2].Hash(), 1, 0)},
 			[]*types.MinorBlockHeader{minorHeaders[limit/2]},
 		}, {
-			&p2p.GetMinorBlockHeaderListWithSkipRequest{Data: minorHeaders[limit/2].Hash(), Limit: 3, Direction: 0},
+			&rpc.P2PRedirectRequest{Data: reqRaw(minorHeaders[limit/2].Hash(), 3, 0)},
 			minorHeaders[limit/2-2 : limit/2+1],
 		},
 		// The chain endpoints should be retrievable
 		{
-			&p2p.GetMinorBlockHeaderListWithSkipRequest{Data: minorHeaders[0].Hash(), Limit: 1, Direction: 0},
+			&rpc.P2PRedirectRequest{Data: reqRaw(minorHeaders[0].Hash(), 1, 0)},
 			minorHeaders[:1],
 		}, {
-			&p2p.GetMinorBlockHeaderListWithSkipRequest{Data: minorHeaders[blockcount-1].Hash(), Limit: 1, Direction: 0},
+			&rpc.P2PRedirectRequest{Data: reqRaw(minorHeaders[blockcount-1].Hash(), 1, 0)},
 			minorHeaders[blockcount-1:],
 		},
 		// Ensure protocol limits are honored
 		{
-			&p2p.GetMinorBlockHeaderListWithSkipRequest{Data: minorHeaders[blockcount-1].GetParentHash(), Limit: uint32(limit), Direction: 0},
+			&rpc.P2PRedirectRequest{Data: reqRaw(minorHeaders[blockcount-1].GetParentHash(), uint32(limit), 0)},
 			//GetBlockHashesFromHash return hash up to limit which do not include the hash in parameter
 			minorHeaders[blockcount-int(limit) : blockcount-1],
 		}, {
 			// Check that requesting more than available is handled gracefully
-			&p2p.GetMinorBlockHeaderListWithSkipRequest{Data: pm.rootBlockChain.GetHeaderByNumber(2).Hash(), Limit: 4, Direction: 0},
+			&rpc.P2PRedirectRequest{Data: reqRaw(pm.rootBlockChain.GetHeaderByNumber(2).Hash(), 4, 0)},
 			minorHeaders[:3],
 		},
 	}
