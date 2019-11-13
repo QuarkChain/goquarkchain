@@ -463,6 +463,25 @@ func (s *SlaveServerSideOp) GetMinorBlockList(ctx context.Context, req *rpc.Requ
 	return response, nil
 }
 
+func (s *SlaveServerSideOp) GetMinorBlockHeaderListWithSkip(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
+	var (
+		gReq     rpc.P2PRedirectRequest
+		gRep     rpc.GetMinorBlockHeaderListResponse
+		buf      = serialize.NewByteBuffer(req.Data)
+		response = &rpc.Response{RpcId: req.RpcId}
+		err      error
+	)
+	gRep.MinorBlockHeaderList = make([]*types.MinorBlockHeader, 0)
+	if err = serialize.Deserialize(buf, &gReq); err != nil {
+		return nil, err
+	}
+
+	if response.Data, err = serialize.SerializeToBytes(gRep); err != nil {
+		return nil, err
+	}
+	return response, nil
+}
+
 func (s *SlaveServerSideOp) GetMinorBlockHeaderList(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
 	var (
 		gReq     p2p.GetMinorBlockHeaderListWithSkipRequest
