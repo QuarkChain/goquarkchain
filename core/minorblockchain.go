@@ -1343,8 +1343,7 @@ func (m *MinorBlockChain) insertSidechain(it *insertIterator, isCheckDB bool) (i
 	// either on some other error or all were processed. If there was some other
 	// error, we can ignore the rest of those blocks.
 	//
-	// If the externTd was larger than our local TD, we now need to reimport the previous
-	// blocks to regenerate the required state
+
 	if current > externHeight {
 		log.Info("Sidechain written to disk", "start", it.first().NumberU64(), "end", it.previous().NumberU64(), "sidetd", externHeight, "localtd", current)
 		return it.index, nil, nil, nil, err
