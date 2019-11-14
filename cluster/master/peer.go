@@ -75,7 +75,7 @@ type Peer struct {
 	lock             sync.RWMutex
 	chanLock         sync.RWMutex
 	queuedTxs        chan *rpc.P2PRedirectRequest // Queue of transactions to broadcast to the peer
-	queuedMinorBlock chan newMinorBlock           // Queue of blocks to broadcast to the peer
+	queuedMinorBlock chan *rpc.P2PRedirectRequest // Queue of blocks to broadcast to the peer
 	queuedTip        chan newTip                  // Queue of Tips to announce to the peer
 	term             chan struct{}                // Termination channel to stop the broadcaster
 	chans            map[uint64]chan interface{}
@@ -89,7 +89,7 @@ func newPeer(version int, p *p2p.Peer, rw p2p.MsgReadWriter) *Peer {
 		id:               fmt.Sprintf("%x", p.ID().Bytes()[:8]),
 		head:             &peerHead{nil, make(map[uint32]*p2p.Tip)},
 		queuedTxs:        make(chan *rpc.P2PRedirectRequest, maxQueuedTxs),
-		queuedMinorBlock: make(chan newMinorBlock, maxQueuedMinorBlocks),
+		queuedMinorBlock: make(chan *rpc.P2PRedirectRequest, maxQueuedMinorBlocks),
 		queuedTip:        make(chan newTip, maxQueuedTips),
 		term:             make(chan struct{}),
 		chans:            make(map[uint64]chan interface{}),
@@ -111,12 +111,11 @@ func (p *Peer) broadcast() {
 			p.Log().Trace("Broadcast transactions", "peerID", nTxs.PeerID, "branch", nTxs.Branch)
 
 		case nBlock := <-p.queuedMinorBlock:
-			if err := p.SendNewMinorBlock(nBlock.branch, nBlock.block); err != nil {
-				p.Log().Error("Broadcast minor block failed",
-					"number", nBlock.block.NumberU64(), "hash", nBlock.block.Hash(), "branch", nBlock.branch, "error", err.Error())
+			if err := p.SendNewMinorBlock(nBlock.Branch, nBlock.Data); err != nil {
+				p.Log().Error("Broadcast minor block failed", "branch", nBlock.Branch, "error", err)
 				return
 			}
-			p.Log().Trace("Broadcast minor block", "number", nBlock.block.NumberU64(), "hash", nBlock.block.Hash(), "branch", nBlock.branch)
+			p.Log().Trace("Broadcast minor block", "branch", nBlock.Branch)
 
 		case nTip := <-p.queuedTip:
 			if err := p.SendNewTip(nTip.branch, nTip.tip); err != nil {
@@ -233,15 +232,8 @@ func (p *Peer) AsyncSendNewTip(branch uint32, tip *p2p.Tip) {
 }
 
 // SendNewMinorBlock propagates an entire minor block to a remote peer.
-func (p *Peer) SendNewMinorBlock(branch uint32, block *types.MinorBlock) error {
-	data, err := serialize.SerializeToBytes(p2p.NewBlockMinor{Block: block})
-	if err != nil {
-		return err
-	}
-
-	msg, err := p2p.MakeMsg(p2p.NewBlockMinorMsg, 0, p2p.Metadata{Branch: branch}, &rpc.P2PRedirectRequest{
-		Branch: branch, Data: data,
-	})
+func (p *Peer) SendNewMinorBlock(branch uint32, data []byte) error {
+	msg, err := p2p.MakeMsgWithSerializedData(p2p.NewBlockMinorMsg, 0, p2p.Metadata{Branch: branch}, data)
 	if err != nil {
 		return err
 	}
@@ -250,12 +242,12 @@ func (p *Peer) SendNewMinorBlock(branch uint32, block *types.MinorBlock) error {
 
 // AsyncSendNewMinorBlock queues an entire minor block for propagation to a remote peer. If
 // the peer's broadcast queue is full, the event is silently dropped.
-func (p *Peer) AsyncSendNewMinorBlock(branch uint32, block *types.MinorBlock) {
+func (p *Peer) AsyncSendNewMinorBlock(res *rpc.P2PRedirectRequest) {
 	select {
-	case p.queuedMinorBlock <- newMinorBlock{branch: branch, block: block}:
-		p.Log().Debug("add minor block to broadcast queue", "number", block.NumberU64(), "hash", block.Hash())
+	case p.queuedMinorBlock <- res:
+		p.Log().Debug("add minor block to broadcast queue", "branch", res.Branch)
 	default:
-		p.Log().Debug("Dropping block propagation", "number", block.NumberU64(), "hash", block.Hash())
+		p.Log().Debug("Dropping block propagation", "branch", res.Branch)
 	}
 }
 
@@ -418,20 +410,19 @@ func (p *Peer) GetNewBlockMinor() (*types.MinorBlock, error) {
 	panic("does nothing at the moment")
 }
 
-func (p *Peer) requestMinorBlockList(rpcId uint64, hashList []common.Hash, branch uint32) error {
-	data := p2p.GetMinorBlockListRequest{MinorBlockHashList: hashList}
-	msg, err := p2p.MakeMsg(p2p.GetMinorBlockListRequestMsg, rpcId, p2p.Metadata{Branch: branch}, data)
+func (p *Peer) requestMinorBlockList(rpcId uint64, req *rpc.P2PRedirectRequest) error {
+	msg, err := p2p.MakeMsgWithSerializedData(p2p.GetMinorBlockListRequestMsg, rpcId, p2p.Metadata{Branch: req.Branch}, req.Data)
 	if err != nil {
 		return err
 	}
 	return p.rw.WriteMsg(msg)
 }
 
-func (p *Peer) GetMinorBlockList(hashes []common.Hash, branch uint32) ([]byte, error) {
+func (p *Peer) GetMinorBlockList(req *rpc.P2PRedirectRequest) ([]byte, error) {
 	rpcId, rpcchan := p.getRpcIdWithChan()
 	defer p.deleteChan(rpcId)
 
-	err := p.requestMinorBlockList(rpcId, hashes, branch)
+	err := p.requestMinorBlockList(rpcId, req)
 	if err != nil {
 		return nil, err
 	}

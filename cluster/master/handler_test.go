@@ -377,7 +377,13 @@ func TestGetMinorBlocks(t *testing.T) {
 			conn.(*mock_master.MockISlaveConn).EXPECT().GetMinorBlocks(gomock.Any()).Return(
 				data, nil).Times(1)
 		}
-		data, err = clientPeer.GetMinorBlockList(tt.hashList, 2)
+		var (
+			req = rpc.P2PRedirectRequest{PeerID: "", Branch: 2}
+		)
+		req.Data, err = serialize.SerializeToBytes(p2p.GetMinorBlockListRequest{MinorBlockHashList: tt.hashList})
+		assert.NoError(t, err)
+
+		data, err = clientPeer.GetMinorBlockList(&req)
 		assert.NoError(t, err)
 
 		var gReq p2p.GetMinorBlockListResponse
@@ -417,7 +423,9 @@ func TestBroadcastMinorBlock(t *testing.T) {
 		conn.(*mock_master.MockISlaveConn).EXPECT().
 			HandleNewMinorBlock(gomock.Any()).Return(nil).Times(1)
 	}
-	err = clientPeer.SendNewMinorBlock(2, minorBlock)
+	data, err := serialize.SerializeToBytes(p2p.NewBlockMinor{Block: minorBlock})
+	assert.NoError(t, err)
+	err = clientPeer.SendNewMinorBlock(2, data)
 	if err != nil {
 		t.Errorf("make message failed: %v", err.Error())
 	}
@@ -428,7 +436,9 @@ func TestBroadcastMinorBlock(t *testing.T) {
 			return errors.New("expected error")
 		}).Times(1)
 	}
-	err = clientPeer.SendNewMinorBlock(2, minorBlock)
+	data, err = serialize.SerializeToBytes(p2p.NewBlockMinor{Block: minorBlock})
+	assert.NoError(t, err)
+	err = clientPeer.SendNewMinorBlock(2, data)
 	if err != nil {
 		t.Errorf("make message failed: %v", err.Error())
 	}

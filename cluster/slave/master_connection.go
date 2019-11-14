@@ -72,10 +72,18 @@ func (s *ConnManager) BroadcastTransactions(peerId string, branch uint32, txs []
 	return err
 }
 
-func (s *ConnManager) BroadcastMinorBlock(minorBlock *types.MinorBlock, branch uint32) error {
+func (s *ConnManager) BroadcastMinorBlock(minorBlock *types.MinorBlock) error {
+	if minorBlock == nil {
+		return errors.New("block is nil or branch mismatch")
+	}
 	var (
-		gReq = rpc.BroadcastMinorBlock{MinorBlock: minorBlock, Branch: branch}
+		gReq = rpc.P2PRedirectRequest{Branch: minorBlock.Branch().Value}
+		err  error
 	)
+	gReq.Data, err = serialize.SerializeToBytes(p2p.NewBlockMinor{Block: minorBlock})
+	if err != nil {
+		return err
+	}
 	data, err := serialize.SerializeToBytes(gReq)
 	if err != nil {
 		return err
@@ -87,16 +95,20 @@ func (s *ConnManager) BroadcastMinorBlock(minorBlock *types.MinorBlock, branch u
 
 func (s *ConnManager) GetMinorBlocks(mHeaderList []common.Hash, peerId string, branch uint32) ([]*types.MinorBlock, error) {
 	var (
-		gReq = rpc.GetMinorBlockListRequest{MinorBlockHashList: mHeaderList, PeerId: peerId, Branch: branch}
+		gReq = rpc.P2PRedirectRequest{PeerID: peerId, Branch: branch}
 		gRep rpc.GetMinorBlockListResponse
-		res  *rpc.Response
+		err  error
 	)
+	gReq.Data, err = serialize.SerializeToBytes(p2p.GetMinorBlockListRequest{MinorBlockHashList: mHeaderList})
+	if err != nil {
+		return nil, err
+	}
 	data, err := serialize.SerializeToBytes(gReq)
 	if err != nil {
 		return nil, err
 	}
 
-	res, err = s.masterClient.client.Call(s.masterClient.target, &rpc.Request{Op: rpc.OpGetMinorBlockList, Data: data})
+	res, err := s.masterClient.client.Call(s.masterClient.target, &rpc.Request{Op: rpc.OpGetMinorBlockList, Data: data})
 	if err != nil {
 		return nil, err
 	}
@@ -111,7 +123,6 @@ func (s *ConnManager) GetMinorBlocks(mHeaderList []common.Hash, peerId string, b
 func (s *ConnManager) GetMinorBlockHeaderList(gReq *rpc.GetMinorBlockHeaderListWithSkipRequest) ([]*types.MinorBlockHeader, error) {
 	var (
 		gRep p2p.GetMinorBlockHeaderListResponse
-		res  *rpc.Response
 		data []byte
 		op   uint32
 		err  error
@@ -141,7 +152,7 @@ func (s *ConnManager) GetMinorBlockHeaderList(gReq *rpc.GetMinorBlockHeaderListW
 		Data:   data,
 	})
 
-	res, err = s.masterClient.client.Call(s.masterClient.target, &rpc.Request{Op: op, Data: rawReq})
+	res, err := s.masterClient.client.Call(s.masterClient.target, &rpc.Request{Op: op, Data: rawReq})
 	if err != nil {
 		return nil, err
 	}

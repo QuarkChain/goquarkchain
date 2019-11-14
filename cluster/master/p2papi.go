@@ -4,7 +4,6 @@ import (
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/p2p"
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/pkg/errors"
 )
 
@@ -18,15 +17,9 @@ func NewPrivateP2PAPI(peers *peerSet) *PrivateP2PAPI {
 }
 
 //BroadcastMinorBlock will be called when a minor block first time added to a chain
-func (api *PrivateP2PAPI) BroadcastMinorBlock(branch uint32, block *types.MinorBlock) error {
-	if block == nil {
-		return errors.New("input block is nil")
-	}
-	if block.Branch().Value != branch {
-		return errors.New("branch mismatch")
-	}
+func (api *PrivateP2PAPI) BroadcastMinorBlock(res *rpc.P2PRedirectRequest) error {
 	for _, peer := range api.peers.Peers() {
-		peer.AsyncSendNewMinorBlock(branch, block)
+		peer.AsyncSendNewMinorBlock(res)
 	}
 	return nil
 }
@@ -69,12 +62,12 @@ func (api *PrivateP2PAPI) BroadcastNewTip(branch uint32, rootBlockHeader *types.
 	return nil
 }
 
-func (api *PrivateP2PAPI) GetMinorBlockList(hashList []common.Hash, branch uint32, peerId string) ([]byte, error) {
-	peer := api.peers.Peer(peerId)
+func (api *PrivateP2PAPI) GetMinorBlockList(req *rpc.P2PRedirectRequest) ([]byte, error) {
+	peer := api.peers.Peer(req.PeerID)
 	if peer == nil {
 		return nil, errNotRegistered
 	}
-	data, err := peer.GetMinorBlockList(hashList, branch)
+	data, err := peer.GetMinorBlockList(req)
 	return data, err
 }
 
