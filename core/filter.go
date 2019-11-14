@@ -18,6 +18,7 @@ package core
 
 import (
 	"errors"
+	"fmt"
 	"math/big"
 
 	"github.com/QuarkChain/goquarkchain/core/types"
@@ -108,7 +109,7 @@ func (f *Filter) unindexedLogs(end uint64) ([]*types.Log, error) {
 			return nil, errors.New("no such block")
 		}
 		header := block.Header()
-
+		fmt.Println("block", block.NumberU64(), len(block.Transactions()))
 		found, err := f.blockLogs(header)
 		if err != nil {
 			return logs, err
@@ -120,11 +121,15 @@ func (f *Filter) unindexedLogs(end uint64) ([]*types.Log, error) {
 
 // blockLogs returns the logs matching the filter criteria within a single block.
 func (f *Filter) blockLogs(header *types.MinorBlockHeader) (logs []*types.Log, err error) {
+	fmt.Println("blockLosgs", header.Number)
 	if bloomFilter(header.Bloom, f.addresses, f.topics) {
+		fmt.Println("fillllll", header.Number)
 		found, err := f.checkMatches(header)
 		if err != nil {
+			fmt.Println("sb", err)
 			return logs, err
 		}
+		fmt.Println("addddd", len(found))
 		logs = append(logs, found...)
 	}
 	return logs, nil

@@ -2,14 +2,16 @@ package core
 
 import (
 	"encoding/hex"
+	"fmt"
+	"math/big"
+	"testing"
+
 	"github.com/QuarkChain/goquarkchain/account"
 	qkcCommon "github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/assert"
-	"math/big"
-	"testing"
 )
 
 // contract code
@@ -110,6 +112,8 @@ func TestGetLog(t *testing.T) {
 	assert.Equal(t, shardState.CurrentBlock().NumberU64(), uint64(2))
 	assert.Equal(t, shardState.CurrentBlock().Hash(), b3.Hash())
 	assert.Equal(t, shardState.CurrentBlock().GetTransactions()[0].Hash(), tx.Hash())
+
+	fmt.Println("shardState", shardState.CurrentBlock().Hash().String(), b3.Hash().String())
 
 	address := make([]common.Address, 0)
 	address = append(address, contractAddr)
