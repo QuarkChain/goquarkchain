@@ -397,10 +397,6 @@ func (s *ShardBackend) GetTip() uint64 {
 	return s.MinorBlockChain.CurrentBlock().NumberU64()
 }
 
-func (s *ShardBackend) IsSyncIng() bool {
-	return s.synchronizer.IsSyncing()
-}
-
 // ######################## subscribe Methods ##########################
 func (s *ShardBackend) SubscribeChainHeadEvent(ch chan<- core.MinorChainHeadEvent) event.Subscription {
 	return s.MinorBlockChain.SubscribeChainHeadEvent(ch)
