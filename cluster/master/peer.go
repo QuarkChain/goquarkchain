@@ -34,15 +34,15 @@ const (
 
 	// maxQueuedMinorBlocks is the maximum number of block propagations to queue up before
 	// dropping broadcasts.
-	maxQueuedMinorBlocks = 16
+	maxQueuedMinorBlocks = 512
 
 	// maxQueuedTips is the maximum number of block announcements to queue up before
 	// dropping broadcasts.
-	maxQueuedTips = 16
+	maxQueuedTips = 512
 
 	handshakeTimeout = 5 * time.Second
 
-	requestTimeout = 10 * time.Second
+	requestTimeout = 30 * time.Second
 )
 
 type newMinorBlock struct {
@@ -368,7 +368,7 @@ func (p *Peer) GetMinorBlockHeaderList(req *rpc.P2PRedirectRequest) (res []byte,
 			return ret, nil
 		}
 	case <-timeout.C:
-		return nil, fmt.Errorf("peer %v return GetMinorBlockHeaderList disc Read Time out for rpcid %d", p.id, rpcId)
+		return nil, fmt.Errorf("peer %v return GetMinorBlockList disc Read Time out for rpcid %d", p.id, rpcId)
 	}
 }
 
@@ -436,7 +436,7 @@ func (p *Peer) GetMinorBlockList(req *rpc.P2PRedirectRequest) ([]byte, error) {
 			return ret, nil
 		}
 	case <-timeout.C:
-		return nil, fmt.Errorf("peer %v return GetMinorBlockList disc Read Time out for rpcid %d", p.id, rpcId)
+		return nil, fmt.Errorf("peer %v return GetMinorBlockList-1 disc Read Time out for rpcid %d", p.id, rpcId)
 	}
 }
 
