@@ -764,22 +764,6 @@ func (s *QKCMasterBackend) GetStats() (map[string]interface{}, error) {
 	}, nil
 }
 
-func (s *QKCMasterBackend) IsSyncing() bool {
-	return s.synchronizer.IsSyncing()
-}
-
-func (s *QKCMasterBackend) IsMining() bool {
-	return s.miner.IsMining()
-}
-
-func (s *QKCMasterBackend) CurrentBlock() *types.RootBlock {
-	return s.rootBlockChain.CurrentBlock()
-}
-
-func (s *QKCMasterBackend) GetSlavePoolLen() int {
-	return s.ConnCount()
-}
-
 //TODO need delete later
 func (s *QKCMasterBackend) disPlayPeers() {
 	go func() {

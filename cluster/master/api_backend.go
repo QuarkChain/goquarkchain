@@ -400,3 +400,19 @@ func (s *QKCMasterBackend) GetKadRoutingTable() ([]string, error) {
 	}
 	return nil, errors.New("p2p server is not running")
 }
+
+func (s *QKCMasterBackend) IsSyncing() bool {
+	return s.synchronizer.IsSyncing()
+}
+
+func (s *QKCMasterBackend) IsMining() bool {
+	return s.miner.IsMining()
+}
+
+func (s *QKCMasterBackend) CurrentBlock() *types.RootBlock {
+	return s.rootBlockChain.CurrentBlock()
+}
+
+func (s *QKCMasterBackend) GetSlavePoolLen() int {
+	return s.ConnCount()
+}
