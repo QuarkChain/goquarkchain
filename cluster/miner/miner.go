@@ -72,7 +72,7 @@ func (m *Miner) interrupt() {
 }
 
 func (m *Miner) allowMining() bool {
-	if !m.IsMining() || m.api.IsSyncIng() ||
+	if !m.IsMining() ||
 		time.Now().Sub(*m.timestamp).Seconds() > deadtime {
 		return false
 	}
@@ -81,6 +81,11 @@ func (m *Miner) allowMining() bool {
 
 func (m *Miner) commit(addr *account.Address) {
 	// don't allow to mine
+	if m.api.IsSyncIng() {
+		time.Sleep(500 * time.Millisecond)
+		m.startCh <- struct{}{}
+		return
+	}
 	if !m.allowMining() {
 		return
 	}
@@ -96,6 +101,8 @@ func (m *Miner) commit(addr *account.Address) {
 	tip := m.getTip()
 	if block.NumberU64() <= tip {
 		log.Error(m.logInfo, "block's height small than tipHeight after commit blockNumber ,no need to seal", block.NumberU64(), "tip", m.getTip())
+		time.Sleep(2 * time.Second)
+		m.startCh <- struct{}{}
 		return
 	}
 	m.workCh <- workAdjusted{block, diff, optionalDivider}
