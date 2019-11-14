@@ -750,9 +750,8 @@ func (s *SlaveServerSideOp) HandleNewMinorBlock(ctx context.Context, req *rpc.Re
 	if gReq.Branch != mblock.Block.Branch().Value {
 		return nil, fmt.Errorf("invalid NewBlockMinor Request: mismatch branch value from peer %v. in request meta: %d, in minor header: %d",
 			gReq.PeerID, gReq.Branch, mblock.Block.Branch().Value)
-
 	}
-	if err = s.slave.NewMinorBlock(mblock.Block); err != nil {
+	if err = s.slave.NewMinorBlock(gReq.PeerID, mblock.Block); err != nil {
 		return nil, err
 	}
 	return &rpc.Response{}, nil

@@ -480,9 +480,9 @@ func (s *SlaveBackend) HandleNewTip(req *rpc.HandleNewTipRequest) error {
 	return ErrMsg("HandleNewTip")
 }
 
-func (s *SlaveBackend) NewMinorBlock(block *types.MinorBlock) error {
+func (s *SlaveBackend) NewMinorBlock(peerId string, block *types.MinorBlock) error {
 	if shard, ok := s.shards[block.Branch().Value]; ok {
-		return shard.NewMinorBlock(block)
+		return shard.NewMinorBlock(peerId, block)
 	}
 	return ErrMsg("NewMinorBlock")
 }

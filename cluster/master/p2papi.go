@@ -19,7 +19,9 @@ func NewPrivateP2PAPI(peers *peerSet) *PrivateP2PAPI {
 //BroadcastMinorBlock will be called when a minor block first time added to a chain
 func (api *PrivateP2PAPI) BroadcastMinorBlock(res *rpc.P2PRedirectRequest) error {
 	for _, peer := range api.peers.Peers() {
-		peer.AsyncSendNewMinorBlock(res)
+		if peer.id != res.PeerID {
+			peer.AsyncSendNewMinorBlock(res)
+		}
 	}
 	return nil
 }

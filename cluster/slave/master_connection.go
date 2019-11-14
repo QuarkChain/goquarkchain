@@ -72,12 +72,12 @@ func (s *ConnManager) BroadcastTransactions(peerId string, branch uint32, txs []
 	return err
 }
 
-func (s *ConnManager) BroadcastMinorBlock(minorBlock *types.MinorBlock) error {
+func (s *ConnManager) BroadcastMinorBlock(peerId string, minorBlock *types.MinorBlock) error {
 	if minorBlock == nil {
 		return errors.New("block is nil or branch mismatch")
 	}
 	var (
-		gReq = rpc.P2PRedirectRequest{Branch: minorBlock.Branch().Value}
+		gReq = rpc.P2PRedirectRequest{PeerID: peerId, Branch: minorBlock.Branch().Value}
 		err  error
 	)
 	gReq.Data, err = serialize.SerializeToBytes(p2p.NewBlockMinor{Block: minorBlock})
