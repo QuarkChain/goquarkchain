@@ -620,8 +620,8 @@ func (m *MinorBlockChain) GetReceiptsByHash(hash common.Hash) types.Receipts {
 	if receipts, ok := m.receiptsCache.Get(hash); ok {
 		return receipts.(types.Receipts)
 	}
-	number := rawdb.ReadHeaderNumber(m.db, hash)
-	if number == nil {
+	block := m.GetMinorBlock(hash)
+	if block == nil {
 		return nil
 	}
 	receipts := rawdb.ReadReceipts(m.db, hash)

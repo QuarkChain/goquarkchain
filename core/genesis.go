@@ -182,8 +182,8 @@ func SetupGenesisRootBlock(db ethdb.Database, genesis *Genesis) (*config.QuarkCh
 
 	// Check config compatibility and write the config. Compatibility errors
 	// are returned to the caller unless we're already at block zero.
-	height := rawdb.ReadHeaderNumber(db, rawdb.ReadHeadHeaderHash(db))
-	if height == nil {
+	block := rawdb.ReadRootBlock(db, rawdb.ReadHeadHeaderHash(db))
+	if block == nil {
 		return storedcfg, stored, fmt.Errorf("missing block number for head header hash")
 	}
 	return storedcfg, stored, nil
@@ -221,8 +221,8 @@ func SetupGenesisMinorBlock(db ethdb.Database, genesis *Genesis, rootBlock *type
 
 	// Check config compatibility and write the config. Compatibility errors
 	// are returned to the caller unless we're already at block zero.
-	height := rawdb.ReadHeaderNumber(db, rawdb.ReadHeadHeaderHash(db))
-	if height == nil {
+	block = rawdb.ReadMinorBlock(db, rawdb.ReadHeadHeaderHash(db))
+	if block == nil {
 		return storedcfg, stored, fmt.Errorf("missing block number for head header hash")
 	}
 	return storedcfg, stored, nil

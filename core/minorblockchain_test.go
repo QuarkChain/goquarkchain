@@ -216,8 +216,7 @@ func TestMinorLastBlock(t *testing.T) {
 
 //TestMinors that given a starting canonical chain of a given size, it can be extended
 //with various length chains.
-func TestMinorExtendCanonicalHeaders(t *testing.T) { testMinorExtendCanonical(t, false) }
-func TestMinorExtendCanonicalBlocks(t *testing.T)  { testMinorExtendCanonical(t, true) }
+func TestMinorExtendCanonicalBlocks(t *testing.T) { testMinorExtendCanonical(t, true) }
 
 func testMinorExtendCanonical(t *testing.T, full bool) {
 	length := 5
@@ -244,8 +243,7 @@ func testMinorExtendCanonical(t *testing.T, full bool) {
 
 //TestMinors that given a starting canonical chain of a given size, creating shorter
 //forks do not take canonical ownership.
-func TestMinorShorterForkHeaders(t *testing.T) { testMinorShorterFork(t, false) }
-func TestMinorShorterForkBlocks(t *testing.T)  { testMinorShorterFork(t, true) }
+func TestMinorShorterForkBlocks(t *testing.T) { testMinorShorterFork(t, true) }
 
 func testMinorShorterFork(t *testing.T, full bool) {
 	length := 10
@@ -274,8 +272,7 @@ func testMinorShorterFork(t *testing.T, full bool) {
 
 //TestMinors that given a starting canonical chain of a given size, creating longer
 //forks do take canonical ownership.
-func TestMinorLongerForkHeaders(t *testing.T) { testMinorLongerFork(t, false) }
-func TestMinorLongerForkBlocks(t *testing.T)  { testMinorLongerFork(t, true) }
+func TestMinorLongerForkBlocks(t *testing.T) { testMinorLongerFork(t, true) }
 
 func testMinorLongerFork(t *testing.T, full bool) {
 	length := 10
@@ -305,8 +302,7 @@ func testMinorLongerFork(t *testing.T, full bool) {
 //
 //TestMinors that given a starting canonical chain of a given size, creating equal
 //forks do take canonical ownership.
-func TestMinorEqualForkHeaders(t *testing.T) { testMinorEqualFork(t, false) }
-func TestMinorEqualForkBlocks(t *testing.T)  { testMinorEqualFork(t, true) }
+func TestMinorEqualForkBlocks(t *testing.T) { testMinorEqualFork(t, true) }
 
 func testMinorEqualFork(t *testing.T, full bool) {
 	length := 10
@@ -335,7 +331,6 @@ func testMinorEqualFork(t *testing.T, full bool) {
 }
 
 // TestMinors that chains missing links do not get accepted by the processor.
-//func TestMinorBrokenHeaderChain(t *testing.T) { testMinorBrokenChain(t, false) }
 func TestMinorBrokenBlockChain(t *testing.T) { testMinorBrokenChain(t, true) }
 
 func testMinorBrokenChain(t *testing.T, full bool) {
@@ -614,7 +609,7 @@ func TestMinorLightVsFastVsFullChainHeads(t *testing.T) {
 	clusterConfig.Quarkchain.SkipRootDifficultyCheck = true
 	height := uint64(1024)
 	engine := &consensus.FakeEngine{}
-	blocks, receipts := GenerateMinorBlockChain(params.TestChainConfig, clusterConfig.Quarkchain, genesis, engine, gendb, int(height), nil)
+	blocks, _ := GenerateMinorBlockChain(params.TestChainConfig, clusterConfig.Quarkchain, genesis, engine, gendb, int(height), nil)
 
 	// Configure a subchain to roll back
 	remove := []common.Hash{}
@@ -666,29 +661,6 @@ func TestMinorLightVsFastVsFullChainHeads(t *testing.T) {
 		headers[i] = block.Header()
 	}
 
-	fast.InsertChainForDeposits(toMinorBlocks(blocks), false)
-	if n, err := fast.InsertReceiptChain(toMinorBlocks(blocks), receipts); err != nil {
-		t.Fatalf("failed to insert receipt %d: %v", n, err)
-	}
-	assert(t, "fast", fast, height, height, 0)
-	fast.Rollback(remove)
-	assert(t, "fast", fast, height/2, height/2, 0)
-
-	// Import the chain as a light node and ensure all pointers are updated
-	lightDb := ethdb.NewMemDatabase()
-	gspec.MustCommitMinorBlock(lightDb, rootBlock, clusterConfig.Quarkchain.Chains[0].ShardSize|0)
-
-	light, _ := NewMinorBlockChain(lightDb, nil, params.TestChainConfig, clusterConfig, engine, vm.Config{}, nil, config.NewClusterConfig().Quarkchain.Chains[0].ShardSize|0)
-	_, err = light.InitGenesisState(rootBlock)
-	if err != nil {
-		panic(err)
-	}
-
-	defer light.Stop()
-
-	assert(t, "light", light, height, 0, 0)
-	light.Rollback(remove)
-	assert(t, "light", light, height/2, 0, 0)
 }
 
 // TestMinors that chain reorganisations handle transaction removals and reinsertions.
@@ -1196,6 +1168,7 @@ func TestMinorBlockchainHeaderchainReorgConsistency(t *testing.T) {
 	gspec.MustCommitMinorBlock(diskdb, rootBlock, clusterConfig.Quarkchain.Chains[0].ShardSize|0)
 
 	chain, err := NewMinorBlockChain(diskdb, nil, params.TestChainConfig, clusterConfig, engine, vm.Config{}, nil, config.NewClusterConfig().Quarkchain.Chains[0].ShardSize|0)
+	defer chain.Stop()
 	genesis, err = chain.InitGenesisState(rootBlock)
 	if err != nil {
 		panic(err)
@@ -1261,6 +1234,7 @@ func TestMinorTrieForkGC(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create testMinorer chain: %v", err)
 	}
+	defer chain.Stop()
 	genesis, err = chain.InitGenesisState(rootBlock)
 	if err != nil {
 		panic(err)
@@ -1325,6 +1299,7 @@ func TestMinorLargeReorgTrieGC(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create testMinorer chain: %v", err)
 	}
+	defer chain.Stop()
 	genesis, err = chain.InitGenesisState(rootBlock)
 	if err != nil {
 		panic(err)
