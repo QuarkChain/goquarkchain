@@ -3,6 +3,7 @@ package rawdb
 
 import (
 	"encoding/binary"
+
 	"github.com/ethereum/go-ethereum/common"
 )
 
@@ -27,7 +28,6 @@ var (
 	// Data item prefixes (use single byte to avoid mixing data types, avoid `i`, used for indexes).
 	headerPrefix        = []byte("h")   // headerPrefix + hash -> header
 	latestMHeaderPrefix = []byte("lmh") //latestMHeaderPrefix + hash -> latest minor header list
-	headerTDSuffix      = []byte("t")   // headerPrefix + hash + headerTDSuffix -> td
 	rootHashPrefix      = []byte("rn")  // rootHashPrefix + num (uint64 big endian) -> root hash
 	minorHashPrefix     = []byte("mn")  // minorHashPrefix + num (uint64 big endian) -> minorhash
 	headerNumberPrefix  = []byte("H")   // headerNumberPrefix + hash -> num (uint64 big endian)
@@ -91,11 +91,6 @@ func headerKey(hash common.Hash) []byte {
 // latestMHeaderKey = latestMHeaderPrefix + hash
 func latestMHeaderKey(hash common.Hash) []byte {
 	return append(latestMHeaderPrefix, hash.Bytes()...)
-}
-
-// headerTDKey = headerPrefix + hash + headerTDSuffix
-func headerTDKey(hash common.Hash) []byte {
-	return append(headerKey(hash), headerTDSuffix...)
 }
 
 // headerHashKey = headerPrefix + num (uint64 big endian) + headerHashSuffix

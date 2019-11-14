@@ -249,7 +249,6 @@ func (m *MinorBlockChain) InitGenesisState(rBlock *types.RootBlock) (*types.Mino
 		}
 	}
 
-	rawdb.WriteTd(m.db, gBlock.Hash(), gBlock.Difficulty())
 	height := m.clusterConfig.Quarkchain.GetGenesisRootHeight(m.branch.Value)
 	if rBlock.Number() != height {
 		return nil, errors.New("header number not match")

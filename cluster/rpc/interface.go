@@ -4,7 +4,6 @@ import (
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/core/types"
-	"github.com/QuarkChain/goquarkchain/p2p"
 	"github.com/QuarkChain/goquarkchain/rpc"
 	"github.com/ethereum/go-ethereum/common"
 	"math/big"
@@ -36,7 +35,7 @@ type ISlaveConn interface {
 	GetMinorBlockHeaderList(req *P2PRedirectRequest) ([]byte, error)
 	GetMinorBlockHeaderListWithSkip(req *P2PRedirectRequest) ([]byte, error)
 	HandleNewTip(request *HandleNewTipRequest) (bool, error)
-	HandleNewMinorBlock(request *p2p.NewBlockMinor) (bool, error)
+	HandleNewMinorBlock(request *P2PRedirectRequest) error
 	AddBlockListForSync(request *AddBlockListForSyncRequest) (*ShardStatus, error)
 	GetSlaveID() string
 	GetShardMaskList() []*types.ChainMask
