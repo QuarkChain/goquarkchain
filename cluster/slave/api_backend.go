@@ -176,7 +176,11 @@ func (s *SlaveBackend) AddTxList(peerID string, branch uint32, txs []*types.Tran
 			trans = append(trans, txs[idx])
 		}
 	}
-	go s.connManager.BroadcastTransactions(peerID, branch, trans)
+	go func() {
+		if err := s.connManager.BroadcastTransactions(peerID, branch, trans); err != nil {
+			log.Error(s.logInfo, "failed to boadcasttransactions in AddTxList func", "err", err)
+		}
+	}()
 
 	return nil
 }
