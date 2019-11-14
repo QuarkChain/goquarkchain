@@ -23,20 +23,19 @@ To use `deployer` to run Docker image, it is required for the hosts that:
 Usually you'll need a GoQuarkChain development environment to run the deploy tool, but the pre-built Docker image 
 saved the effort for you. If you choose not to use Docker to run deployer, skip this step.
 
-Run the following commands to pull and start a container with `deployer` in it:
+Run the following commands to pull the Docker image and start a container:
 
 ```bash
 # replace docker image name if a custom image is used
-sudo docker pull quarkchaindocker/goquarkchain
-sudo docker run -it quarkchaindocker/goquarkchain /bin/bash 
+sudo docker pull quarkchaindocker/goquarkchain:<version tag>
+sudo docker run -it quarkchaindocker/goquarkchain:<version tag> /bin/bash 
 ```
-Then you can make some changes inside Docker container.
+Then you will be inside a Docker container with `deployer` in it.
 
 ## Update Code (Optional)
 The code and cluster executable inside the container are ready to run. 
-If you would like to make any changes to the code that will apply to all nodes to be deployed later, just remember to 
-run following command after your code updates:
-
+If you would like to make any code changes to all the clusters that will run later, you can do it here. 
+Just remember to build cluster after your code updates:
 ```bash
 #inside Docker container
 cd $GOPATH/src/github.com/QuarkChain/goquarkchain/cmd/cluster
