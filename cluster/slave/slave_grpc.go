@@ -737,10 +737,9 @@ func (s *SlaveServerSideOp) AddTransactions(ctx context.Context, req *rpc.Reques
 
 func (s *SlaveServerSideOp) HandleNewMinorBlock(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
 	var (
-		gReq     rpc.P2PRedirectRequest
-		mblock   p2p.NewBlockMinor
-		response = &rpc.Response{RpcId: req.RpcId}
-		err      error
+		gReq   rpc.P2PRedirectRequest
+		mblock p2p.NewBlockMinor
+		err    error
 	)
 	if err = serialize.DeserializeFromBytes(req.Data, &gReq); err != nil {
 		return nil, err
@@ -756,7 +755,7 @@ func (s *SlaveServerSideOp) HandleNewMinorBlock(ctx context.Context, req *rpc.Re
 	if err = s.slave.NewMinorBlock(mblock.Block); err != nil {
 		return nil, err
 	}
-	return response, nil
+	return &rpc.Response{}, nil
 }
 
 func (s *SlaveServerSideOp) SetMining(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
