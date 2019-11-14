@@ -3,6 +3,10 @@ package main
 
 import (
 	"fmt"
+	"os"
+	"sort"
+	"strconv"
+
 	"github.com/QuarkChain/goquarkchain/cluster/master"
 	"github.com/QuarkChain/goquarkchain/cluster/service"
 	"github.com/QuarkChain/goquarkchain/cluster/slave"
@@ -11,11 +15,6 @@ import (
 	"github.com/elastic/gosigar"
 	"github.com/ethereum/go-ethereum/log"
 	"gopkg.in/urfave/cli.v1"
-	"math"
-	"os"
-	godebug "runtime/debug"
-	"sort"
-	"strconv"
 )
 
 const (
@@ -97,10 +96,10 @@ func init() {
 			}
 		}
 		// Ensure Go's GC ignores the database cache for trigger percentage
-		cache := ctx.GlobalInt(utils.CacheFlag.Name)
-		gogc := math.Max(10, math.Min(90, 100*(float64(cache)/float64(allowance))))
-		log.Debug("Sanitizing Go's GC trigger", "percent", int(gogc))
-		godebug.SetGCPercent(int(gogc))
+		//cache := ctx.GlobalInt(utils.CacheFlag.Name)
+		//gogc := math.Max(10, math.Min(90, 100*(float64(cache)/float64(allowance))))
+		//log.Debug("Sanitizing Go's GC trigger", "percent", int(gogc))
+		//godebug.SetGCPercent(int(gogc))
 
 		return nil
 	}

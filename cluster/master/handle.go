@@ -2,7 +2,6 @@ package master
 
 import (
 	"fmt"
-	"golang.org/x/sync/errgroup"
 	"io/ioutil"
 	"reflect"
 	"sync"
@@ -21,6 +20,7 @@ import (
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/pkg/errors"
+	"golang.org/x/sync/errgroup"
 )
 
 // QKCProtocol details
@@ -226,10 +226,10 @@ func (pm *ProtocolManager) handleMsg(peer *Peer) error {
 		return pm.HandleNewMinorTip(qkcMsg.MetaData.Branch, &tip, peer)
 
 	case qkcMsg.Op == p2p.NewTransactionListMsg:
-		return pm.HandleNewTransactionListRequest(peer.id, qkcMsg.RpcID, qkcMsg.MetaData.Branch, qkcMsg.Data)
+		go pm.HandleNewTransactionListRequest(peer.id, qkcMsg.RpcID, qkcMsg.MetaData.Branch, qkcMsg.Data)
 
 	case qkcMsg.Op == p2p.NewBlockMinorMsg:
-		return pm.HandleNewMinorBlock(peer.id, qkcMsg.MetaData.Branch, qkcMsg.Data)
+		go pm.HandleNewMinorBlock(peer.id, qkcMsg.MetaData.Branch, qkcMsg.Data)
 
 	case qkcMsg.Op == p2p.GetRootBlockHeaderListRequestMsg:
 		var blockHeaderReq p2p.GetRootBlockHeaderListRequest
