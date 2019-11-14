@@ -47,7 +47,7 @@ Parameters explained:
 - `User` login name; currently only `root` is supported
 - `Password` password
 - `IsMaster` bool value specify if the host runs a master service; make sure each cluster contains exact one master 
-- `SlaveNumber` defines the number of slave services on the host(>=1); make sure the number of slaves in each cluster is a power of 2 (at least 1).
+- `SlaveNumber` defines the number of slave services on the host; make sure the number of slaves in each cluster is a power of 2 (at least 1).
 - `ClusterID` used to specify which cluster the service(s) on the host belongs to; so hosts with same ClusterID belongs 
 to same cluster; ClusterID must be consecutive integers start from 0; if ClusterID is set to 0, the cluster will be 
 started as a bootstrap node
