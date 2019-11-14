@@ -30,12 +30,23 @@ Run the following commands to pull and start a container with `deployer` in it:
 sudo docker pull quarkchaindocker/goquarkchain
 sudo docker run -it quarkchaindocker/goquarkchain /bin/bash 
 ```
-Then you can change configuration inside Docker container.
+Then you can make some changes inside Docker container.
+
+## Update Code (Optional)
+The code and cluster executable inside the container are ready to run. 
+If you would like to make any changes to the code that will apply to all nodes to be deployed later, just remember to 
+run following command after your code updates:
+
+```bash
+#inside Docker container
+cd $GOPATH/src/github.com/QuarkChain/goquarkchain/cmd/cluster
+go build
+```
 
 ## Configure Clusters
 With the configuration file `deployConfig.json`, you can configure multiple clusters that connected to each other. 
 
-If you use Docker to deploy, you can use vi in the container:
+If you use Docker to deploy, you can use vi in the container(for other editors you need to install before use) :
 ```bash
 cd $GOPATH/src/github.com/QuarkChain/goquarkchain/tests/loadtest/deployer
 vi deployConfig.json
