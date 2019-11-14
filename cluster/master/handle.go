@@ -7,8 +7,6 @@ import (
 	"sync"
 	"time"
 
-	"golang.org/x/sync/errgroup"
-
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
 	qkcsync "github.com/QuarkChain/goquarkchain/cluster/sync"
@@ -22,6 +20,7 @@ import (
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/pkg/errors"
+	"golang.org/x/sync/errgroup"
 )
 
 // QKCProtocol details

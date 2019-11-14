@@ -6,7 +6,8 @@
       "Port": 22,
       "User": "root",
       "Password": "xxxxxxx",
-      "Service": "master,slave",
+      "IsMaster":true,
+      "SlaveNumber": 1,
       "ClusterID": 0
     },
     {
@@ -14,7 +15,8 @@
       "Port": 22,
       "User": "root",
       "Password": "xxxxxxx",
-      "Service": "master,slave",
+      "IsMaster":true,
+      "SlaveNumber": 1,
       "ClusterID": 1
     },
     {
@@ -22,7 +24,8 @@
       "Port": 22,
       "User": "root",
       "Password": "xxxxxxx",
-      "Service": "master,slave",
+      "IsMaster":true,
+      "SlaveNumber": 1,
       "ClusterID": 2
     }
   ],
