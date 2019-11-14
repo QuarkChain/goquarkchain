@@ -120,6 +120,10 @@ func New(ctx *service.ServiceContext, rBlock *types.RootBlock, conn ConnManager,
 	return shard, nil
 }
 
+func (s *ShardBackend) IsSyncing () bool {
+	return s.synchronizer.IsSyncing()
+}
+
 func (s *ShardBackend) Stop() {
 	s.mu.Lock()
 	defer s.mu.Unlock()

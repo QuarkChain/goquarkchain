@@ -314,7 +314,7 @@ func (s *QKCMasterBackend) GetRootBlockByHash(hash common.Hash, needExtraInfo bo
 }
 
 func (s *QKCMasterBackend) getPoswInfo(header *types.RootBlockHeader) (*rpc.PoSWInfo, error) {
-	poswInfo, err := s.rootBlockChain.PoSWInfo(header) //TODO @DL to fix https://github.com/QuarkChain/goquarkchain/issues/408
+	poswInfo, err := s.rootBlockChain.PoSWInfo(header)
 	if err != nil && !strings.Contains(err.Error(), core.ErrPoswOnRootChainIsNotFound.Error()) {
 		return nil, err
 	}
@@ -388,10 +388,6 @@ func (s *QKCMasterBackend) AddMinorBlock(branch uint32, mBlock *types.MinorBlock
 
 func (s *QKCMasterBackend) GetTip() uint64 {
 	return s.rootBlockChain.CurrentBlock().NumberU64()
-}
-
-func (s *QKCMasterBackend) IsSyncIng() bool {
-	return s.synchronizer.IsSyncing()
 }
 
 func (s *QKCMasterBackend) GetKadRoutingTable() ([]string, error) {

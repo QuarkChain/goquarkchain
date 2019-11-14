@@ -753,8 +753,8 @@ func (s *QKCMasterBackend) GetStats() (map[string]interface{}, error) {
 		"staleBlockCount60s":   sumStaleBlockCount60s,
 		"pendingTxCount":       sumPendingTxCount,
 		"totalTxCount":         sumTotalTxCount,
-		"syncing":              false, //TODO fake
-		"mining":               false, //TODO fake
+		"syncing":              s.IsSyncing(),
+		"mining":               s.IsMining(),
 		"shards":               shards,
 		"peers":                peerForDisplay,
 		"minor_block_interval": s.artificialTxConfig.TargetMinorBlockTime,
