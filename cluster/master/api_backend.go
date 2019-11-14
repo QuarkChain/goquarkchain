@@ -376,10 +376,14 @@ func (s *QKCMasterBackend) AddMinorBlock(branch uint32, mBlock *types.MinorBlock
 	var (
 		g errgroup.Group
 	)
+	data, err := serialize.SerializeToBytes(&p2p.NewBlockMinor{Block: mBlock})
+	if err != nil {
+		return err
+	}
 	for _, cli := range clients {
 		cli := cli
 		g.Go(func() error {
-			_, err := cli.HandleNewMinorBlock(&p2p.NewBlockMinor{Block: mBlock})
+			err := cli.HandleNewMinorBlock(&rpc.P2PRedirectRequest{Branch: branch, Data: data})
 			return err
 		})
 	}

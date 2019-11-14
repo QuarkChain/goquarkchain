@@ -9,7 +9,6 @@ import (
 	rpc "github.com/QuarkChain/goquarkchain/cluster/rpc"
 	consensus "github.com/QuarkChain/goquarkchain/consensus"
 	types "github.com/QuarkChain/goquarkchain/core/types"
-	p2p "github.com/QuarkChain/goquarkchain/p2p"
 	rpc0 "github.com/QuarkChain/goquarkchain/rpc"
 	common "github.com/ethereum/go-ethereum/common"
 	gomock "github.com/golang/mock/gomock"
@@ -226,12 +225,11 @@ func (mr *MockISlaveConnMockRecorder) HandleNewTip(request interface{}) *gomock.
 }
 
 // HandleNewMinorBlock mocks base method
-func (m *MockISlaveConn) HandleNewMinorBlock(request *p2p.NewBlockMinor) (bool, error) {
+func (m *MockISlaveConn) HandleNewMinorBlock(request *rpc.P2PRedirectRequest) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "HandleNewMinorBlock", request)
-	ret0, _ := ret[0].(bool)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
+	ret0, _ := ret[0].(error)
+	return ret0
 }
 
 // HandleNewMinorBlock indicates an expected call of HandleNewMinorBlock

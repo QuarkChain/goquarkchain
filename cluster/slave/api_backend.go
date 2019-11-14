@@ -176,7 +176,11 @@ func (s *SlaveBackend) AddTxList(peerID string, branch uint32, txs []*types.Tran
 			trans = append(trans, txs[idx])
 		}
 	}
-	go s.connManager.BroadcastTransactions(peerID, branch, trans)
+	go func() {
+		if err := s.connManager.BroadcastTransactions(peerID, branch, trans); err != nil {
+			log.Error(s.logInfo, "failed to boadcasttransactions in AddTxList func", "err", err)
+		}
+	}()
 
 	return nil
 }
@@ -480,9 +484,9 @@ func (s *SlaveBackend) HandleNewTip(req *rpc.HandleNewTipRequest) error {
 	return ErrMsg("HandleNewTip")
 }
 
-func (s *SlaveBackend) NewMinorBlock(block *types.MinorBlock) error {
+func (s *SlaveBackend) NewMinorBlock(peerId string, block *types.MinorBlock) error {
 	if shard, ok := s.shards[block.Branch().Value]; ok {
-		return shard.NewMinorBlock(block)
+		return shard.NewMinorBlock(peerId, block)
 	}
 	return ErrMsg("NewMinorBlock")
 }
