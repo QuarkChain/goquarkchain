@@ -589,7 +589,7 @@ func (m *MinorBlockChain) ExecuteTx(tx *types.Transaction, fromAddress *account.
 
 }
 
-func checkEqual(a, b types.IHeader) bool {
+func checkEqual(a, b types.IBlock) bool {
 	if qkcCommon.IsNil(a) && qkcCommon.IsNil(b) {
 		return true
 	}
@@ -606,26 +606,25 @@ func checkEqual(a, b types.IHeader) bool {
 }
 func (m *MinorBlockChain) getAllUnconfirmedHeaderList() []*types.MinorBlockHeader {
 	var (
-		header *types.MinorBlockHeader
-		ok     bool
+		ok           bool
+		confirmedTip *types.MinorBlock
 	)
 
-	confirmedHeaderTip := m.confirmedHeaderTip
-
-	header = m.CurrentBlock().Header()
+	block := m.CurrentBlock()
 	startHeight := int64(-1)
-	if confirmedHeaderTip != nil {
-		startHeight = int64(confirmedHeaderTip.Number)
+	if confirmedTip != nil {
+		confirmedTip = m.GetMinorBlock(m.confirmedHeaderTip.Hash())
+		startHeight = int64(confirmedTip.NumberU64())
 	}
 
-	allHeight := int(header.NumberU64()) - int(startHeight)
+	allHeight := int(block.NumberU64()) - int(startHeight)
 	if allHeight < 0 {
 		allHeight = 0
 	}
 	headerList := make([]*types.MinorBlockHeader, allHeight)
 	for index := allHeight - 1; index >= 0; index-- {
-		headerList[index] = header
-		header, ok = m.GetHeaderByHash(header.GetParentHash()).(*types.MinorBlockHeader)
+		headerList[index] = block.Header()
+		block, ok = m.GetBlock(block.Header().GetParentHash()).(*types.MinorBlock)
 		if !ok {
 			if index == 0 {
 				continue // 0's pre
@@ -635,7 +634,7 @@ func (m *MinorBlockChain) getAllUnconfirmedHeaderList() []*types.MinorBlockHeade
 		}
 	}
 
-	if !checkEqual(header, confirmedHeaderTip) {
+	if !checkEqual(block, confirmedTip) {
 		return nil
 	}
 	return headerList

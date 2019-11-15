@@ -593,75 +593,74 @@ func TestMinorFastVsFullChains(t *testing.T) {
 
 // TestMinors that various import methods move the chain head pointers to the correct
 // positions.
-//func TestMinorLightVsFastVsFullChainHeads(t *testing.T) {
-//	// Configure and generate a sample block chain
-//	var (
-//		gendb         = ethdb.NewMemDatabase()
-//		clusterConfig = config.NewClusterConfig()
-//		gspec         = &Genesis{
-//			qkcConfig: clusterConfig.Quarkchain,
-//		}
-//		rootBlock = gspec.CreateRootBlock()
-//		genesis   = gspec.MustCommitMinorBlock(gendb, rootBlock, clusterConfig.Quarkchain.Chains[0].ShardSize|0)
-//	)
-//	clusterConfig.Quarkchain.SkipRootCoinbaseCheck = true
-//	clusterConfig.Quarkchain.SkipMinorDifficultyCheck = true
-//	clusterConfig.Quarkchain.SkipRootDifficultyCheck = true
-//	height := uint64(1024)
-//	engine := &consensus.FakeEngine{}
-//	blocks, _ := GenerateMinorBlockChain(params.TestChainConfig, clusterConfig.Quarkchain, genesis, engine, gendb, int(height), nil)
-//
-//	// Configure a subchain to roll back
-//	remove := []common.Hash{}
-//	for _, block := range blocks[height/2:] {
-//		remove = append(remove, block.Hash())
-//	}
-//	// Create a small assertion method to check the three heads
-//	assert := func(t *testing.T, kind string, chain *MinorBlockChain, header uint64, fast uint64, block uint64) {
-//		if num := chain.CurrentBlock().NumberU64(); num != block {
-//			t.Errorf("%s head block mismatch: have #%v, want #%v", kind, num, block)
-//		}
-//		//if num := chain.CurrentFastBlock().(); num != fast {
-//		//	t.Errorf("%s head fast-block mismatch: have #%v, want #%v", kind, num, fast)
-//		//}
-//		if num := chain.CurrentHeader().NumberU64(); num != header {
-//			t.Errorf("%s head header mismatch: have #%v, want #%v", kind, num, header)
-//		}
-//	}
-//	// Import the chain as an archive node and ensure all pointers are updated
-//	archiveDb := ethdb.NewMemDatabase()
-//	gspec.MustCommitMinorBlock(archiveDb, rootBlock, clusterConfig.Quarkchain.Chains[0].ShardSize|0)
-//
-//	archive, _ := NewMinorBlockChain(archiveDb, nil, params.TestChainConfig, clusterConfig, engine, vm.Config{}, nil, config.NewClusterConfig().Quarkchain.Chains[0].ShardSize|0)
-//	genesis, err := archive.InitGenesisState(rootBlock)
-//	if err != nil {
-//		panic(err)
-//	}
-//	if n, err := archive.InsertChain(toMinorBlocks(blocks), false); err != nil {
-//		t.Fatalf("failed to process block %d: %v", n, err)
-//	}
-//	defer archive.Stop()
-//
-//	assert(t, "archive", archive, height, height, height)
-//	archive.Rollback(remove)
-//	assert(t, "archive", archive, height/2, height/2, height/2)
-//
-//	// Import the chain as a non-archive node and ensure all pointers are updated
-//	fastDb := ethdb.NewMemDatabase()
-//	gspec.MustCommitMinorBlock(fastDb, rootBlock, clusterConfig.Quarkchain.Chains[0].ShardSize|0)
-//	fast, _ := NewMinorBlockChain(fastDb, nil, params.TestChainConfig, clusterConfig, engine, vm.Config{}, nil, config.NewClusterConfig().Quarkchain.Chains[0].ShardSize|0)
-//	_, err = fast.InitGenesisState(rootBlock)
-//	if err != nil {
-//		panic(err)
-//	}
-//	defer fast.Stop()
-//
-//	headers := make([]*types.MinorBlockHeader, len(blocks))
-//	for i, block := range blocks {
-//		headers[i] = block.Header()
-//	}
-//
-//}
+func TestMinorLightVsFastVsFullChainHeads(t *testing.T) {
+	// Configure and generate a sample block chain
+	var (
+		gendb         = ethdb.NewMemDatabase()
+		clusterConfig = config.NewClusterConfig()
+		gspec         = &Genesis{
+			qkcConfig: clusterConfig.Quarkchain,
+		}
+		rootBlock = gspec.CreateRootBlock()
+		genesis   = gspec.MustCommitMinorBlock(gendb, rootBlock, clusterConfig.Quarkchain.Chains[0].ShardSize|0)
+	)
+	clusterConfig.Quarkchain.SkipRootCoinbaseCheck = true
+	clusterConfig.Quarkchain.SkipMinorDifficultyCheck = true
+	clusterConfig.Quarkchain.SkipRootDifficultyCheck = true
+	height := uint64(1024)
+	engine := &consensus.FakeEngine{}
+	blocks, _ := GenerateMinorBlockChain(params.TestChainConfig, clusterConfig.Quarkchain, genesis, engine, gendb, int(height), nil)
+
+	// Configure a subchain to roll back
+	remove := []common.Hash{}
+	for _, block := range blocks[height/2:] {
+		remove = append(remove, block.Hash())
+	}
+	// Create a small assertion method to check the three heads
+	assert := func(t *testing.T, kind string, chain *MinorBlockChain, header uint64, fast uint64, block uint64) {
+		if num := chain.CurrentBlock().NumberU64(); num != block {
+			t.Errorf("%s head block mismatch: have #%v, want #%v", kind, num, block)
+		}
+		//if num := chain.CurrentFastBlock().(); num != fast {
+		//	t.Errorf("%s head fast-block mismatch: have #%v, want #%v", kind, num, fast)
+		//}
+		if num := chain.CurrentBlock().NumberU64(); num != header {
+			t.Errorf("%s head header mismatch: have #%v, want #%v", kind, num, header)
+		}
+	}
+	// Import the chain as an archive node and ensure all pointers are updated
+	archiveDb := ethdb.NewMemDatabase()
+	gspec.MustCommitMinorBlock(archiveDb, rootBlock, clusterConfig.Quarkchain.Chains[0].ShardSize|0)
+
+	archive, _ := NewMinorBlockChain(archiveDb, nil, params.TestChainConfig, clusterConfig, engine, vm.Config{}, nil, config.NewClusterConfig().Quarkchain.Chains[0].ShardSize|0)
+	genesis, err := archive.InitGenesisState(rootBlock)
+	if err != nil {
+		panic(err)
+	}
+	if n, err := archive.InsertChain(toMinorBlocks(blocks), false); err != nil {
+		t.Fatalf("failed to process block %d: %v", n, err)
+	}
+	defer archive.Stop()
+
+	assert(t, "archive", archive, height, height, height)
+	archive.Rollback(remove)
+	assert(t, "archive", archive, height/2, height/2, height/2)
+
+	// Import the chain as a non-archive node and ensure all pointers are updated
+	fastDb := ethdb.NewMemDatabase()
+	gspec.MustCommitMinorBlock(fastDb, rootBlock, clusterConfig.Quarkchain.Chains[0].ShardSize|0)
+	fast, _ := NewMinorBlockChain(fastDb, nil, params.TestChainConfig, clusterConfig, engine, vm.Config{}, nil, config.NewClusterConfig().Quarkchain.Chains[0].ShardSize|0)
+	_, err = fast.InitGenesisState(rootBlock)
+	if err != nil {
+		panic(err)
+	}
+	defer fast.Stop()
+
+	headers := make([]*types.MinorBlockHeader, len(blocks))
+	for i, block := range blocks {
+		headers[i] = block.Header()
+	}
+}
 
 // TestMinors that chain reorganisations handle transaction removals and reinsertions.
 func TestMinorChainTxReorgs(t *testing.T) {

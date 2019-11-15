@@ -306,27 +306,23 @@ func (m *MinorBlockChain) SetHead(head uint64) error {
 func (m *MinorBlockChain) setHead(head uint64) error {
 	log.Warn("Rewinding blockchain", "target", head)
 	// Rewind the header chain, deleting all block bodies until then
-
 	batch := m.db.NewBatch()
 	for block := m.CurrentBlock(); block != nil && block.NumberU64() > head; block = m.CurrentBlock() {
 		rawdb.DeleteMinorBlock(batch, block.Hash())
 		rawdb.DeleteCanonicalHash(batch, rawdb.ChainTypeMinor, block.NumberU64())
-		m.currentBlock.Store(block)
+		m.currentBlock.Store(m.GetBlock(block.ParentHash()))
 	}
 	batch.Write()
-
 	if currentBlock := m.CurrentBlock(); currentBlock != nil {
 		if _, err := m.StateAt(currentBlock.GetMetaData().Root); err != nil {
 			// Rewound state missing, rolled back to before pivot, reset to genesis
 			m.currentBlock.Store(m.genesisBlock)
 		}
 	}
-
 	// If either blocks reached nil, reset to the genesis state
 	if currentBlock := m.CurrentBlock(); currentBlock == nil {
 		m.currentBlock.Store(m.genesisBlock)
 	}
-
 	rawdb.WriteHeadBlockHash(m.db, m.CurrentBlock().Hash())
 
 	// Clear out any stale content from the caches
@@ -1315,8 +1311,7 @@ func (m *MinorBlockChain) insertSidechain(it *insertIterator, isCheckDB bool) (i
 	// either on some other error or all were processed. If there was some other
 	// error, we can ignore the rest of those blocks.
 	//
-	// If the externTd was larger than our local TD, we now need to reimport the previous
-	// blocks to regenerate the required state
+
 	if current > externHeight {
 		log.Info("Sidechain written to disk", "start", it.first().NumberU64(), "end", it.previous().NumberU64(), "sidetd", externHeight, "localtd", current)
 		return it.index, nil, nil, nil, err
@@ -1379,10 +1374,11 @@ func (m *MinorBlockChain) reorg(oldBlock, newBlock types.IBlock) error {
 		return errors.New("reorg err:block is nil")
 	}
 	var (
-		newChain    []types.IBlock
-		oldChain    []types.IBlock
-		commonBlock types.IBlock
-		deletedLogs []*types.Log
+		newBlockNumber = newBlock.NumberU64()
+		newChain       []types.IBlock
+		oldChain       []types.IBlock
+		commonBlock    types.IBlock
+		deletedLogs    []*types.Log
 		// collectLogs collects the logs that were generated during the
 		// processing of the block that corresponds with the given hash.
 		// These logs are later announced as deleted.
@@ -1402,7 +1398,6 @@ func (m *MinorBlockChain) reorg(oldBlock, newBlock types.IBlock) error {
 			}
 		}
 	)
-
 	// first reduce whoever is higher bound
 	if oldBlock.NumberU64() > newBlock.NumberU64() {
 		// reduce old chain
@@ -1422,7 +1417,6 @@ func (m *MinorBlockChain) reorg(oldBlock, newBlock types.IBlock) error {
 	if qkcCommon.IsNil(newBlock) {
 		return fmt.Errorf("Invalid new chain")
 	}
-
 	for {
 		if oldBlock.Hash() == newBlock.Hash() {
 			commonBlock = oldBlock
@@ -1463,7 +1457,7 @@ func (m *MinorBlockChain) reorg(oldBlock, newBlock types.IBlock) error {
 		// we support reorg block from same chain,because we should delete and add tx index
 		log.Warn("reorg", "same chain oldBlock", oldBlock.NumberU64(), "oldBlock.Hash", oldBlock.Hash().String(),
 			"newBlock", newBlock.NumberU64(), "newBlock's hash", newBlock.Hash().String())
-		if err := m.setHead(newBlock.NumberU64()); err != nil {
+		if err := m.setHead(newBlockNumber); err != nil {
 			return err
 		}
 	}
@@ -1578,13 +1572,21 @@ func (m *MinorBlockChain) CurrentHeader() types.IHeader {
 // GetHeader retrieves a block header from the database by hash and number,
 // caching it if found.
 func (m *MinorBlockChain) GetHeader(hash common.Hash) types.IHeader {
-	return m.GetMinorBlock(hash).Header()
+	block := m.GetMinorBlock(hash)
+	if block == nil {
+		return nil
+	}
+	return block.Header()
 }
 
 // GetHeaderByHash retrieves a block header from the database by hash, caching it if
 // found.
 func (m *MinorBlockChain) GetHeaderByHash(hash common.Hash) types.IHeader {
-	return m.GetMinorBlock(hash).Header()
+	block := m.GetMinorBlock(hash)
+	if block == nil {
+		return nil
+	}
+	return block.Header()
 }
 
 // HasHeader checks if a block header is present in the database or not, caching

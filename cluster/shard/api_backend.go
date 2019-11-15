@@ -161,14 +161,6 @@ func (s *ShardBackend) GetHeaderByNumber(height qrpc.BlockNumber) (*types.MinorB
 	return iHeader.(*types.MinorBlockHeader), nil
 }
 
-func (s *ShardBackend) GetHeaderByHash(blockHash common.Hash) (*types.MinorBlockHeader, error) {
-	iHeader := s.MinorBlockChain.GetHeaderByHash(blockHash)
-	if qcom.IsNil(iHeader) {
-		return nil, fmt.Errorf(EmptyErrTemplate, "GetHeaderByNumber", blockHash.Hex())
-	}
-	return iHeader.(*types.MinorBlockHeader), nil
-}
-
 func (s *ShardBackend) HandleNewTip(rBHeader *types.RootBlockHeader, mBHeader *types.MinorBlockHeader, peerID string) error {
 	if s.MinorBlockChain.GetRootBlockByHash(mBHeader.PrevRootBlockHash) == nil {
 		log.Debug(s.logInfo, "preRootBlockHash do not have height ,no need to add task", mBHeader.Number, "preRootHash", mBHeader.PrevRootBlockHash.String())

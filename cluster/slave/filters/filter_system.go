@@ -66,7 +66,6 @@ type SlaveFilter interface {
 
 type ShardFilter interface {
 	GetHeaderByNumber(height qrpc.BlockNumber) (*types.MinorBlockHeader, error)
-	GetHeaderByHash(blockHash common.Hash) (*types.MinorBlockHeader, error)
 	GetReceiptsByHash(hash common.Hash) (types.Receipts, error)
 	GetLogs(hash common.Hash) ([][]*types.Log, error)
 
