@@ -80,29 +80,27 @@ func (m *MasterServerSideOp) BroadcastTransactions(ctx context.Context, req *rpc
 }
 
 func (m *MasterServerSideOp) BroadcastNewMinorBlock(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
-	broadcastMinorBlockReq := new(rpc.BroadcastMinorBlock)
-	if err := serialize.DeserializeFromBytes(req.Data, broadcastMinorBlockReq); err != nil {
+	res := new(rpc.P2PRedirectRequest)
+	if err := serialize.DeserializeFromBytes(req.Data, res); err != nil {
 		return nil, err
 	}
-	err := m.p2pApi.BroadcastMinorBlock(broadcastMinorBlockReq.Branch, broadcastMinorBlockReq.MinorBlock)
+	err := m.p2pApi.BroadcastMinorBlock(res)
 	if err != nil {
 		return nil, err
 	}
-	return &rpc.Response{
-		RpcId: req.RpcId,
-	}, nil
+	return &rpc.Response{}, nil
 }
 
 func (m *MasterServerSideOp) GetMinorBlockList(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
 	var (
-		err                  error
-		getMinorBlockListReq = new(rpc.GetMinorBlockListRequest)
+		rep = new(rpc.P2PRedirectRequest)
+		err error
 	)
 
-	if err = serialize.DeserializeFromBytes(req.Data, getMinorBlockListReq); err != nil {
+	if err = serialize.DeserializeFromBytes(req.Data, rep); err != nil {
 		return nil, err
 	}
-	data, err := m.p2pApi.GetMinorBlockList(getMinorBlockListReq.MinorBlockHashList, getMinorBlockListReq.Branch, getMinorBlockListReq.PeerId)
+	data, err := m.p2pApi.GetMinorBlockList(rep)
 	if err != nil {
 		return nil, err
 	}

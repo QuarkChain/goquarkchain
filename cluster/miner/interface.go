@@ -10,6 +10,6 @@ type MinerAPI interface {
 	GetDefaultCoinbaseAddress() account.Address
 	CreateBlockToMine(addr *account.Address) (types.IBlock, *big.Int, uint64, error)
 	InsertMinedBlock(types.IBlock) error
-	IsSyncIng() bool
+	IsSyncing() bool
 	GetTip() uint64
 }

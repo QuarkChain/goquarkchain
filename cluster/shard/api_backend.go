@@ -170,16 +170,15 @@ func (s *ShardBackend) GetHeaderByHash(blockHash common.Hash) (*types.MinorBlock
 }
 
 func (s *ShardBackend) HandleNewTip(rBHeader *types.RootBlockHeader, mBHeader *types.MinorBlockHeader, peerID string) error {
-	if s.MinorBlockChain.CurrentHeader().NumberU64() >= mBHeader.Number {
-		return nil
-	}
-
 	if s.MinorBlockChain.GetRootBlockByHash(mBHeader.PrevRootBlockHash) == nil {
-		log.Warn(s.logInfo, "preRootBlockHash do not have height ,no need to add task", mBHeader.Number, "preRootHash", mBHeader.PrevRootBlockHash.String())
+		log.Debug(s.logInfo, "preRootBlockHash do not have height ,no need to add task", mBHeader.Number, "preRootHash", mBHeader.PrevRootBlockHash.String())
 		return nil
 	}
 	if s.MinorBlockChain.CurrentBlock().Number() >= mBHeader.Number {
 		log.Info(s.logInfo, "no need t sync curr height", s.MinorBlockChain.CurrentBlock().Number(), "tipHeight", mBHeader.Number)
+		return nil
+	}
+	if s.mBPool.getBlockInPool(mBHeader.Hash()) != nil {
 		return nil
 	}
 	peer := &peer{cm: s.conn, peerID: peerID}
@@ -188,7 +187,7 @@ func (s *ShardBackend) HandleNewTip(rBHeader *types.RootBlockHeader, mBHeader *t
 		log.Error("Failed to add minor chain task,", "hash", mBHeader.Hash(), "height", mBHeader.Number)
 	}
 
-	log.Info("Handle new tip received new tip with height", "shard height", mBHeader.Number)
+	log.Info("Handle new tip received new tip with height", "branch", mBHeader.Branch, "shard height", mBHeader.Number, "hash", mBHeader.Hash().String())
 	return nil
 }
 
@@ -214,7 +213,7 @@ func (s *ShardBackend) GetMinorBlock(mHash common.Hash, height *uint64) (mBlock 
 	return nil, errors.New("minor block not found")
 }
 
-func (s *ShardBackend) NewMinorBlock(block *types.MinorBlock) (err error) {
+func (s *ShardBackend) NewMinorBlock(peerId string, block *types.MinorBlock) (err error) {
 	log.Debug(s.logInfo, "NewMinorBlock height", block.NumberU64(), "hash", block.Hash().String())
 	defer log.Debug(s.logInfo, "NewMinorBlock", "end")
 	// TODO synchronizer.running
@@ -256,9 +255,12 @@ func (s *ShardBackend) NewMinorBlock(block *types.MinorBlock) (err error) {
 	}
 
 	s.mBPool.setBlockInPool(block.Header())
-	if err = s.conn.BroadcastMinorBlock(block, s.branch.Value); err != nil {
-		return err
-	}
+	go func() {
+		if err = s.conn.BroadcastMinorBlock(peerId, block); err != nil {
+			log.Error("failed to broadcast new minor block", "err", err)
+		}
+	}()
+
 	return s.AddMinorBlock(block)
 }
 
@@ -358,6 +360,7 @@ func (s *ShardBackend) AddBlockListForSync(blockLst []*types.MinorBlock) (map[co
 		prevRootHeight := s.MinorBlockChain.GetRootBlockByHash(block.PrevRootBlockHash())
 		blockHashToXShardList[blockHash] = &XshardListTuple{XshardTxList: xshardLst[0], PrevRootHeight: prevRootHeight.Number()}
 		uncommittedBlockHeaderList = append(uncommittedBlockHeaderList, block.Header())
+		s.MinorBlockChain.CommitMinorBlockByHash(block.Header().Hash())
 	}
 	// interrupt the current miner and restart
 	if err := s.conn.BatchBroadcastXshardTxList(blockHashToXShardList, blockLst[0].Branch()); err != nil {
@@ -371,7 +374,6 @@ func (s *ShardBackend) AddBlockListForSync(blockLst []*types.MinorBlock) (map[co
 		return nil, err
 	}
 	for _, header := range uncommittedBlockHeaderList {
-		s.MinorBlockChain.CommitMinorBlockByHash(header.Hash())
 		s.mBPool.delBlockInPool(header.Hash())
 	}
 	return coinbaseAmountList, nil
@@ -390,15 +392,11 @@ func (s *ShardBackend) SubmitWork(headerHash common.Hash, nonce uint64, mixHash 
 }
 
 func (s *ShardBackend) InsertMinedBlock(block types.IBlock) error {
-	return s.NewMinorBlock(block.(*types.MinorBlock))
+	return s.NewMinorBlock("", block.(*types.MinorBlock))
 }
 
 func (s *ShardBackend) GetTip() uint64 {
 	return s.MinorBlockChain.CurrentBlock().NumberU64()
-}
-
-func (s *ShardBackend) IsSyncIng() bool {
-	return s.synchronizer.IsSyncing()
 }
 
 // ######################## subscribe Methods ##########################

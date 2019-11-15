@@ -72,7 +72,7 @@ func (m *Miner) interrupt() {
 }
 
 func (m *Miner) allowMining() bool {
-	if !m.IsMining() || m.api.IsSyncIng() ||
+	if !m.IsMining() || m.api.IsSyncing() ||
 		time.Now().Sub(*m.timestamp).Seconds() > deadtime {
 		return false
 	}
@@ -173,7 +173,7 @@ func (m *Miner) GetWork(coinbaseAddr *account.Address) (*consensus.MiningWork, e
 }
 
 func (m *Miner) SubmitWork(nonce uint64, hash, digest common.Hash, signature *[65]byte) bool {
-	if !m.IsMining() || m.api.IsSyncIng() {
+	if !m.IsMining() || m.api.IsSyncing() {
 		return false
 	}
 	return m.engine.SubmitWork(nonce, hash, digest, signature)

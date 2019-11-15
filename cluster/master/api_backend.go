@@ -314,7 +314,7 @@ func (s *QKCMasterBackend) GetRootBlockByHash(hash common.Hash, needExtraInfo bo
 }
 
 func (s *QKCMasterBackend) getPoswInfo(header *types.RootBlockHeader) (*rpc.PoSWInfo, error) {
-	poswInfo, err := s.rootBlockChain.PoSWInfo(header) //TODO @DL to fix https://github.com/QuarkChain/goquarkchain/issues/408
+	poswInfo, err := s.rootBlockChain.PoSWInfo(header)
 	if err != nil && !strings.Contains(err.Error(), core.ErrPoswOnRootChainIsNotFound.Error()) {
 		return nil, err
 	}
@@ -376,10 +376,14 @@ func (s *QKCMasterBackend) AddMinorBlock(branch uint32, mBlock *types.MinorBlock
 	var (
 		g errgroup.Group
 	)
+	data, err := serialize.SerializeToBytes(&p2p.NewBlockMinor{Block: mBlock})
+	if err != nil {
+		return err
+	}
 	for _, cli := range clients {
 		cli := cli
 		g.Go(func() error {
-			_, err := cli.HandleNewMinorBlock(&p2p.NewBlockMinor{Block: mBlock})
+			err := cli.HandleNewMinorBlock(&rpc.P2PRedirectRequest{Branch: branch, Data: data})
 			return err
 		})
 	}
@@ -390,13 +394,25 @@ func (s *QKCMasterBackend) GetTip() uint64 {
 	return s.rootBlockChain.CurrentBlock().NumberU64()
 }
 
-func (s *QKCMasterBackend) IsSyncIng() bool {
-	return s.synchronizer.IsSyncing()
-}
-
 func (s *QKCMasterBackend) GetKadRoutingTable() ([]string, error) {
 	if s.srvr != nil {
 		return s.srvr.GetKadRoutingTable(), nil
 	}
 	return nil, errors.New("p2p server is not running")
+}
+
+func (s *QKCMasterBackend) IsSyncing() bool {
+	return s.synchronizer.IsSyncing()
+}
+
+func (s *QKCMasterBackend) IsMining() bool {
+	return s.miner.IsMining()
+}
+
+func (s *QKCMasterBackend) CurrentBlock() *types.RootBlock {
+	return s.rootBlockChain.CurrentBlock()
+}
+
+func (s *QKCMasterBackend) GetSlavePoolLen() int {
+	return s.ConnCount()
 }

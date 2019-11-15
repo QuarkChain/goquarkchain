@@ -753,8 +753,8 @@ func (s *QKCMasterBackend) GetStats() (map[string]interface{}, error) {
 		"staleBlockCount60s":   sumStaleBlockCount60s,
 		"pendingTxCount":       sumPendingTxCount,
 		"totalTxCount":         sumTotalTxCount,
-		"syncing":              false, //TODO fake
-		"mining":               false, //TODO fake
+		"syncing":              s.IsSyncing(),
+		"mining":               s.IsMining(),
 		"shards":               shards,
 		"peers":                peerForDisplay,
 		"minor_block_interval": s.artificialTxConfig.TargetMinorBlockTime,
@@ -762,22 +762,6 @@ func (s *QKCMasterBackend) GetStats() (map[string]interface{}, error) {
 		"cpus":                 cc,
 		"txCountHistory":       txCountHistory,
 	}, nil
-}
-
-func (s *QKCMasterBackend) IsSyncing() bool {
-	return s.synchronizer.IsSyncing()
-}
-
-func (s *QKCMasterBackend) IsMining() bool {
-	return s.miner.IsMining()
-}
-
-func (s *QKCMasterBackend) CurrentBlock() *types.RootBlock {
-	return s.rootBlockChain.CurrentBlock()
-}
-
-func (s *QKCMasterBackend) GetSlavePoolLen() int {
-	return s.ConnCount()
 }
 
 //TODO need delete later
