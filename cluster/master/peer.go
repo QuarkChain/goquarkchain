@@ -79,6 +79,7 @@ type Peer struct {
 	queuedTip        chan newTip                  // Queue of Tips to announce to the peer
 	term             chan struct{}                // Termination channel to stop the broadcaster
 	chans            map[uint64]chan interface{}
+	errorChain       chan error
 }
 
 func newPeer(version int, p *p2p.Peer, rw p2p.MsgReadWriter) *Peer {
@@ -92,6 +93,7 @@ func newPeer(version int, p *p2p.Peer, rw p2p.MsgReadWriter) *Peer {
 		queuedMinorBlock: make(chan *rpc.P2PRedirectRequest, maxQueuedMinorBlocks),
 		queuedTip:        make(chan newTip, maxQueuedTips),
 		term:             make(chan struct{}),
+		errorChain:       make(chan error, 1),
 		chans:            make(map[uint64]chan interface{}),
 	}
 }
@@ -134,8 +136,17 @@ func (p *Peer) broadcast() {
 // close signals the broadcast goroutine to terminate.
 func (p *Peer) close() {
 	close(p.term)
+	close(p.errorChain)
 }
 
+func (p *Peer) setErr(err error) {
+	select {
+	case <-p.errorChain:
+		return
+	default:
+		p.errorChain <- err
+	}
+}
 func (p *Peer) getRpcId() uint64 {
 	p.lock.Lock()
 	defer p.lock.Unlock()

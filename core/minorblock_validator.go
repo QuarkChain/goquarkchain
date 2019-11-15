@@ -19,6 +19,9 @@ package core
 import (
 	"errors"
 	"fmt"
+	"math/big"
+	"time"
+
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/common"
@@ -26,8 +29,6 @@ import (
 	"github.com/QuarkChain/goquarkchain/core/state"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/log"
-	"math/big"
-	"time"
 )
 
 // MinorBlockValidator is responsible for validating block Headers, uncles and
@@ -80,7 +81,7 @@ func (v *MinorBlockValidator) ValidateBlock(mBlock types.IBlock, force bool) err
 	}
 	// Check whether the block's known, and if not, that it's linkable
 	if v.bc.HasBlockAndState(block.Hash()) && !force {
-		log.Error(v.logInfo, "already have this block err", ErrKnownBlock, "height", block.NumberU64(), "hash", block.Hash().String())
+		log.Warn(v.logInfo, "already have this block err", ErrKnownBlock, "height", block.NumberU64(), "hash", block.Hash().String())
 		return ErrKnownBlock
 	}
 

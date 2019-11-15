@@ -931,7 +931,7 @@ func (m *MinorBlockChain) AddRootBlock(rBlock *types.RootBlock) (bool, error) {
 	if shardHeader != nil {
 		origBlock := m.GetBlockByNumber(shardHeader.Number)
 		if qkcCommon.IsNil(origBlock) || origBlock.Hash() != shardHeader.Hash() {
-			log.Warn(m.logInfo, "ready to set current header height", shardHeader.Number, "hash", shardHeader.Hash().String(), "status", qkcCommon.IsNil(origBlock))
+			log.Warn(m.logInfo, "ready to set current header height", shardHeader.Number, "hash", shardHeader.Hash().String(), "status", qkcCommon.IsNil(origBlock), "curr", qkcCommon.IsNil(m.GetBlock(shardHeader.Hash()).(*types.MinorBlock)))
 			m.currentBlock.Store(m.GetBlock(shardHeader.Hash()).(*types.MinorBlock))
 		}
 	}
@@ -970,10 +970,13 @@ func (m *MinorBlockChain) AddRootBlock(rBlock *types.RootBlock) (bool, error) {
 		origBlock := m.GetMinorBlock(origHeaderTip.Hash())
 		newBlock := m.GetMinorBlock(headerTipHash)
 		log.Warn("reWrite", "orig_number", origBlock.Number(), "orig_hash", origBlock.Hash().String(), "new_number", newBlock.Number(), "new_hash", newBlock.Hash().String())
+		m.chainmu.Lock()
 		var err error
 		if err = m.reWriteBlockIndexTo(origBlock, newBlock); err != nil {
+			m.chainmu.Unlock()
 			return false, err
 		}
+		m.chainmu.Unlock()
 		m.currentEvmState, err = m.StateAt(newBlock.Root())
 		if err != nil {
 			return false, err
