@@ -934,7 +934,7 @@ func (pool *TxPool) reset(oldBlock, newBlock *types.MinorBlock) {
 	} else {
 		newHead = newBlock.Header()
 	}
-	if oldHead != nil && oldHead.Hash() != newHead.ParentHash {
+	if newHead != nil && oldHead != nil && oldHead.Hash() != newHead.ParentHash {
 		// If the reorg is too deep, avoid doing it (will happen during fast sync)
 		oldNum := oldHead.Number
 		newNum := newHead.Number
