@@ -3,12 +3,13 @@ package sync
 import (
 	"errors"
 	"fmt"
+	"math/big"
+	"strings"
+
 	qkcom "github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
-	"math/big"
-	"strings"
 )
 
 const (
@@ -55,7 +56,7 @@ func (t *task) Run(bc blockchain) error {
 		return err
 	}
 
-	logger := log.New("synctask", t.name, "start", ancestor.NumberU64())
+	logger := log.New("synctask", t.name, "start-ancestor", ancestor.NumberU64(),"t.header",t.header.NumberU64())
 
 	if bc.CurrentHeader().NumberU64()-ancestor.NumberU64() > t.maxSyncStaleness {
 		logger.Warn("Abort synching due to forking at super old block", "currentHeight", bc.CurrentHeader().NumberU64(), "oldHeight", ancestor.NumberU64())
@@ -75,7 +76,7 @@ func (t *task) Run(bc blockchain) error {
 			return err
 		}
 
-		logger.Info("Downloading blocks", "length", len(headers), "from", ancestor.NumberU64(), "to", headers[len(headers)-1].NumberU64())
+		logger.Info("Downloading blocks", "length", len(headers), "from", ancestor.NumberU64(), "to", headers[len(headers)-1].NumberU64(),"t.header",t.header.NumberU64())
 
 		hashlist := make([]common.Hash, 0, len(headers))
 		for _, hd := range headers {
@@ -86,14 +87,22 @@ func (t *task) Run(bc blockchain) error {
 			var blocks []types.IBlock
 			if len(hashlist) > t.batchSize {
 				blocks, err = t.getBlocks(hashlist[:t.batchSize])
+				if err != nil {
+					log.Error("getBlocks-1", "err",err)
+					return err
+				}
 				if len(blocks) != t.batchSize {
-					return fmt.Errorf("unmatched block length, expect: %d, actual: %d", t.batchSize, len(blocks))
+					return fmt.Errorf("unmatched block length-1, expect: %d, actual: %d", t.batchSize, len(blocks))
 				}
 				hashlist = hashlist[t.batchSize:]
 			} else {
 				blocks, err = t.getBlocks(hashlist)
+				if err != nil {
+					log.Error("getBlocks-2", "err", err)
+					return err
+				}
 				if len(blocks) != len(hashlist) {
-					return fmt.Errorf("unmatched block length, expect: %d, actual: %d", len(hashlist), len(blocks))
+					return fmt.Errorf("unmatched block length-2, expect: %d, actual: %d hash:%v", len(hashlist), len(blocks), hashlist[0].String())
 				}
 				hashlist = nil
 			}

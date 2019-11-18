@@ -81,7 +81,7 @@ func (m *Miner) allowMining() bool {
 
 func (m *Miner) commit(addr *account.Address) {
 	// don't allow to mine
-	if m.api.IsSyncIng() {
+	if m.api.IsSyncing() {
 		time.Sleep(500 * time.Millisecond)
 		m.startCh <- struct{}{}
 		return
@@ -180,7 +180,7 @@ func (m *Miner) GetWork(coinbaseAddr *account.Address) (*consensus.MiningWork, e
 }
 
 func (m *Miner) SubmitWork(nonce uint64, hash, digest common.Hash, signature *[65]byte) bool {
-	if !m.IsMining() || m.api.IsSyncIng() {
+	if !m.IsMining() || m.api.IsSyncing() {
 		return false
 	}
 	return m.engine.SubmitWork(nonce, hash, digest, signature)

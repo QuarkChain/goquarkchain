@@ -12,13 +12,14 @@ import (
 	"github.com/QuarkChain/goquarkchain/core/types"
 )
 
-type NodeIndo struct {
-	IP        string `json:"IP"`
-	Port      uint64 `json:"Port"`
-	User      string `json:"User"`
-	Password  string `json:"Password"`
-	Service   string `json:"Service"`
-	ClusterID int    `json:"ClusterID"`
+type NodeInfo struct {
+	IP          string `json:"IP"`
+	Port        uint64 `json:"Port"`
+	User        string `json:"User"`
+	Password    string `json:"Password"`
+	IsMaster    bool   `json:"IsMaster"`
+	SlaveNumber uint64 `json:"SlaveNumber"`
+	ClusterID   int    `json:"ClusterID"`
 }
 
 type ExtraClusterConfig struct {
@@ -29,7 +30,7 @@ type ExtraClusterConfig struct {
 
 type LocalConfig struct {
 	DockerName         string              `json:"DockerName"`
-	Hosts              map[int][]NodeIndo  `json:"Hosts"`
+	Hosts              map[int][]NodeInfo  `json:"Hosts"`
 	ChainSize          uint32              `json:"CHAIN_SIZE"`
 	ShardSize          uint32              `json:"SHARD_SIZE"`
 	ExtraClusterConfig *ExtraClusterConfig `json:"ExtraClusterConfig"`
@@ -38,7 +39,7 @@ type LocalConfig struct {
 func (l *LocalConfig) UnmarshalJSON(input []byte) error {
 	type LocalConfig struct {
 		DockerName         string              `json:"DockerName"`
-		Hosts              []NodeIndo          `json:"Hosts"`
+		Hosts              []NodeInfo          `json:"Hosts"`
 		ChainNumber        uint32              `json:"CHAIN_SIZE"`
 		ShardNumber        uint32              `json:"SHARD_SIZE"`
 		ExtraClusterConfig *ExtraClusterConfig `json:"ExtraClusterConfig"`
@@ -50,10 +51,10 @@ func (l *LocalConfig) UnmarshalJSON(input []byte) error {
 	}
 	l.DockerName = dec.DockerName
 
-	l.Hosts = make(map[int][]NodeIndo, 0)
+	l.Hosts = make(map[int][]NodeInfo, 0)
 	for _, v := range dec.Hosts {
 		if _, ok := l.Hosts[v.ClusterID]; !ok {
-			l.Hosts[v.ClusterID] = make([]NodeIndo, 0)
+			l.Hosts[v.ClusterID] = make([]NodeInfo, 0)
 		}
 		l.Hosts[v.ClusterID] = append(l.Hosts[v.ClusterID], v)
 	}
@@ -145,6 +146,7 @@ func updateSlaves(cfg *config.ClusterConfig, ipList []string) {
 		cfg.SlaveList = append(cfg.SlaveList, slaveCfg)
 	}
 }
+
 func GenConfigDependInitConfig(chainSize uint32, shardSizePerChain uint32, ipList []string, extraClusterConfig *ExtraClusterConfig) *config.ClusterConfig {
 	cfg := config.NewClusterConfig()
 	defaultChainConfig := *cfg.Quarkchain.Chains[0]

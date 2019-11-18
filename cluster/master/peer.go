@@ -34,15 +34,15 @@ const (
 
 	// maxQueuedMinorBlocks is the maximum number of block propagations to queue up before
 	// dropping broadcasts.
-	maxQueuedMinorBlocks = 16
+	maxQueuedMinorBlocks = 512
 
 	// maxQueuedTips is the maximum number of block announcements to queue up before
 	// dropping broadcasts.
-	maxQueuedTips = 16
+	maxQueuedTips = 512
 
 	handshakeTimeout = 5 * time.Second
 
-	requestTimeout = 10 * time.Second
+	requestTimeout = 30 * time.Second
 )
 
 type newMinorBlock struct {
