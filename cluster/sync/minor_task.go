@@ -76,7 +76,7 @@ func NewMinorChainTask(
 				return nil, err
 			}
 
-			if len(mBHeaders) == 0 {
+			if len(mBHeaders) != int(limit) {
 				return nil, errors.New("Remote chain reorg causing empty minor block headers ")
 			}
 
