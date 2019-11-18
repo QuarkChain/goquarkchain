@@ -72,29 +72,29 @@ type Peer struct {
 
 	head *peerHead
 
-	lock             sync.RWMutex
-	chanLock         sync.RWMutex
-	queuedTxs        chan *rpc.P2PRedirectRequest // Queue of transactions to broadcast to the peer
-	queuedMinorBlock chan *rpc.P2PRedirectRequest // Queue of blocks to broadcast to the peer
-	queuedTip        chan newTip                  // Queue of Tips to announce to the peer
-	term             chan struct{}                // Termination channel to stop the broadcaster
-	chans            map[uint64]chan interface{}
-	errorChain       chan error
+	lock                sync.RWMutex
+	chanLock            sync.RWMutex
+	queuedTxs           chan *rpc.P2PRedirectRequest // Queue of transactions to broadcast to the peer
+	queuedMinorBlock    chan *rpc.P2PRedirectRequest // Queue of blocks to broadcast to the peer
+	queuedTip           chan newTip                  // Queue of Tips to announce to the peer
+	term                chan struct{}                // Termination channel to stop the broadcaster
+	chans               map[uint64]chan interface{}
+	errInfoForHandleMsg error
 }
 
 func newPeer(version int, p *p2p.Peer, rw p2p.MsgReadWriter) *Peer {
 	return &Peer{
-		Peer:             p,
-		rw:               rw,
-		version:          version,
-		id:               fmt.Sprintf("%x", p.ID().Bytes()[:8]),
-		head:             &peerHead{nil, make(map[uint32]*p2p.Tip)},
-		queuedTxs:        make(chan *rpc.P2PRedirectRequest, maxQueuedTxs),
-		queuedMinorBlock: make(chan *rpc.P2PRedirectRequest, maxQueuedMinorBlocks),
-		queuedTip:        make(chan newTip, maxQueuedTips),
-		term:             make(chan struct{}),
-		errorChain:       make(chan error, 1),
-		chans:            make(map[uint64]chan interface{}),
+		Peer:                p,
+		rw:                  rw,
+		version:             version,
+		id:                  fmt.Sprintf("%x", p.ID().Bytes()[:8]),
+		head:                &peerHead{nil, make(map[uint32]*p2p.Tip)},
+		queuedTxs:           make(chan *rpc.P2PRedirectRequest, maxQueuedTxs),
+		queuedMinorBlock:    make(chan *rpc.P2PRedirectRequest, maxQueuedMinorBlocks),
+		queuedTip:           make(chan newTip, maxQueuedTips),
+		term:                make(chan struct{}),
+		chans:               make(map[uint64]chan interface{}),
+		errInfoForHandleMsg: nil,
 	}
 }
 
@@ -136,17 +136,8 @@ func (p *Peer) broadcast() {
 // close signals the broadcast goroutine to terminate.
 func (p *Peer) close() {
 	close(p.term)
-	close(p.errorChain)
 }
 
-func (p *Peer) setErr(err error) {
-	select {
-	case <-p.errorChain:
-		return
-	default:
-		p.errorChain <- err
-	}
-}
 func (p *Peer) getRpcId() uint64 {
 	p.lock.Lock()
 	defer p.lock.Unlock()

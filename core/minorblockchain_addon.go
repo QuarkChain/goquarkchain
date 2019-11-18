@@ -970,13 +970,10 @@ func (m *MinorBlockChain) AddRootBlock(rBlock *types.RootBlock) (bool, error) {
 		origBlock := m.GetMinorBlock(origHeaderTip.Hash())
 		newBlock := m.GetMinorBlock(headerTipHash)
 		log.Warn("reWrite", "orig_number", origBlock.Number(), "orig_hash", origBlock.Hash().String(), "new_number", newBlock.Number(), "new_hash", newBlock.Hash().String())
-		m.chainmu.Lock()
 		var err error
 		if err = m.reWriteBlockIndexTo(origBlock, newBlock); err != nil {
-			m.chainmu.Unlock()
 			return false, err
 		}
-		m.chainmu.Unlock()
 		m.currentEvmState, err = m.StateAt(newBlock.Root())
 		if err != nil {
 			return false, err
@@ -1200,6 +1197,8 @@ func (m *MinorBlockChain) getBlockCountByHeight(height uint64) uint64 {
 
 // reWriteBlockIndexTo : already locked
 func (m *MinorBlockChain) reWriteBlockIndexTo(oldBlock *types.MinorBlock, newBlock *types.MinorBlock) error {
+	m.chainmu.Lock()
+	defer m.chainmu.Unlock()
 	if oldBlock == nil {
 		oldBlock = m.CurrentBlock()
 	}

@@ -187,14 +187,12 @@ func (pm *ProtocolManager) handle(peer *Peer) error {
 	// we can add pm.syncTransactions(p) later
 
 	for {
-		select {
-		case err := <-peer.errorChain:
+		if peer.errInfoForHandleMsg != nil {
+			return peer.errInfoForHandleMsg
+		}
+		if err := pm.handleMsg(peer); err != nil {
+			peer.Log().Error("message handling failed", "err", err)
 			return err
-		default:
-			if err := pm.handleMsg(peer); err != nil {
-				peer.Log().Error("message handling failed", "err", err)
-				return err
-			}
 		}
 
 	}
@@ -235,7 +233,7 @@ func (pm *ProtocolManager) handleMsg(peer *Peer) error {
 		go func() {
 			err = pm.HandleNewTransactionListRequest(peer.id, qkcMsg.RpcID, qkcMsg.MetaData.Branch, qkcMsg.Data)
 			if err != nil {
-				peer.setErr(err)
+				peer.errInfoForHandleMsg = err
 			}
 		}()
 
@@ -243,7 +241,7 @@ func (pm *ProtocolManager) handleMsg(peer *Peer) error {
 		go func() {
 			err = pm.HandleNewMinorBlock(peer.id, qkcMsg.MetaData.Branch, qkcMsg.Data)
 			if err != nil {
-				peer.setErr(err)
+				peer.errInfoForHandleMsg = err
 			}
 		}()
 
@@ -321,12 +319,12 @@ func (pm *ProtocolManager) handleMsg(peer *Peer) error {
 		go func() {
 			resp, err := pm.HandleGetMinorBlockHeaderListRequest(qkcMsg.MetaData.Branch, qkcMsg.Data)
 			if err != nil {
-				peer.setErr(err)
+				peer.errInfoForHandleMsg = err
 			}
 
 			err = peer.SendResponseWithData(p2p.GetMinorBlockHeaderListResponseMsg, p2p.Metadata{Branch: qkcMsg.MetaData.Branch}, qkcMsg.RpcID, resp)
 			if err != nil {
-				peer.setErr(err)
+				peer.errInfoForHandleMsg = err
 			}
 		}()
 
@@ -341,11 +339,11 @@ func (pm *ProtocolManager) handleMsg(peer *Peer) error {
 		go func() {
 			resp, err := pm.HandleGetMinorBlockListRequest(peer.id, qkcMsg.MetaData.Branch, qkcMsg.Data)
 			if err != nil {
-				peer.setErr(err)
+				peer.errInfoForHandleMsg = err
 			}
 			err = peer.SendResponseWithData(p2p.GetMinorBlockListResponseMsg, p2p.Metadata{Branch: qkcMsg.MetaData.Branch}, qkcMsg.RpcID, resp)
 			if err != nil {
-				peer.setErr(err)
+				peer.errInfoForHandleMsg = err
 			}
 		}()
 
@@ -363,11 +361,11 @@ func (pm *ProtocolManager) handleMsg(peer *Peer) error {
 		go func() {
 			resp, err := pm.HandleGetMinorBlockHeaderListWithSkipRequest(peer.id, qkcMsg.MetaData.Branch, qkcMsg.Data)
 			if err != nil {
-				peer.setErr(err)
+				peer.errInfoForHandleMsg = err
 			}
 			err = peer.SendResponseWithData(p2p.GetMinorBlockHeaderListWithSkipResponseMsg, p2p.Metadata{Branch: qkcMsg.MetaData.Branch}, qkcMsg.RpcID, resp)
 			if err != nil {
-				peer.setErr(err)
+				peer.errInfoForHandleMsg = err
 			}
 		}()
 
