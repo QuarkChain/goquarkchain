@@ -1579,16 +1579,6 @@ func (m *MinorBlockChain) GetHeader(hash common.Hash) types.IHeader {
 	return block.Header()
 }
 
-// GetHeaderByHash retrieves a block header from the database by hash, caching it if
-// found.
-func (m *MinorBlockChain) GetHeaderByHash(hash common.Hash) types.IHeader {
-	block := m.GetMinorBlock(hash)
-	if block == nil {
-		return nil
-	}
-	return block.Header()
-}
-
 // HasHeader checks if a block header is present in the database or not, caching
 // it if present.
 func (m *MinorBlockChain) HasHeader(hash common.Hash, number uint64) bool {
