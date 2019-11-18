@@ -56,7 +56,7 @@ func (t *task) Run(bc blockchain) error {
 		return err
 	}
 
-	logger := log.New("synctask", t.name, "start-ancestor", ancestor.NumberU64(),"t.header",t.header.NumberU64())
+	logger := log.New("synctask", t.name, "start-ancestor", ancestor.NumberU64(), "t.header", t.header.NumberU64())
 
 	if bc.CurrentHeader().NumberU64()-ancestor.NumberU64() > t.maxSyncStaleness {
 		logger.Warn("Abort synching due to forking at super old block", "currentHeight", bc.CurrentHeader().NumberU64(), "oldHeight", ancestor.NumberU64())
@@ -76,7 +76,7 @@ func (t *task) Run(bc blockchain) error {
 			return err
 		}
 
-		logger.Info("Downloading blocks", "length", len(headers), "from", ancestor.NumberU64(), "to", headers[len(headers)-1].NumberU64(),"t.header",t.header.NumberU64())
+		logger.Info("Downloading blocks", "length", len(headers), "from", ancestor.NumberU64(), "to", headers[len(headers)-1].NumberU64(), "t.header", t.header.NumberU64())
 
 		hashlist := make([]common.Hash, 0, len(headers))
 		for _, hd := range headers {
@@ -88,7 +88,7 @@ func (t *task) Run(bc blockchain) error {
 			if len(hashlist) > t.batchSize {
 				blocks, err = t.getBlocks(hashlist[:t.batchSize])
 				if err != nil {
-					log.Error("getBlocks-1", "err",err)
+					log.Error("getBlocks-1", "err", err)
 					return err
 				}
 				if len(blocks) != t.batchSize {
@@ -157,13 +157,15 @@ func (t *task) sendSync(syncing bool, curr, best uint64) {
 }
 
 func (t *task) validateHeaderList(bc blockchain, headers []types.IHeader) error {
-	for i := 1; i < len(headers); i++ {
-		prev, h := headers[i-1], headers[i]
-		if h.NumberU64() != prev.NumberU64()-1 {
-			return errors.New("should have descending order with step 1")
-		}
-		if prev.Hash() != h.GetParentHash() {
-			return errors.New("should have blocks correctly linked")
+	for i := 0; i < len(headers); i++ {
+		if i > 0 {
+			prev, h := headers[i-1], headers[i]
+			if h.NumberU64() != prev.NumberU64()-1 {
+				return errors.New("should have descending order with step 1")
+			}
+			if prev.Hash() != h.GetParentHash() {
+				return errors.New("should have blocks correctly linked")
+			}
 		}
 		if err := bc.Validator().ValidateSeal(headers[i], false); err != nil { //use diff/20
 			return err

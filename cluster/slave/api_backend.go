@@ -434,11 +434,11 @@ func (s *SlaveBackend) getMinorBlockHeadersWithSkip(gReq *p2p.GetMinorBlockHeade
 			return nil, fmt.Errorf("failed to get minor block header by hash, minor hash: %s", gReq.GetHash().String())
 		}
 		mHeader := iHeader.(*types.MinorBlockHeader)
+		height = mHeader.Number
 		iHeader = shrd.MinorBlockChain.GetHeaderByNumber(height)
 		if qcom.IsNil(iHeader) || mHeader.Hash() != iHeader.Hash() {
 			return nil, fmt.Errorf("failed to get minor block header by number or hash dont match, minor number: %d", height)
 		}
-		height = mHeader.Number
 	} else {
 		height = *gReq.GetHeight()
 	}
@@ -449,12 +449,18 @@ func (s *SlaveBackend) getMinorBlockHeadersWithSkip(gReq *p2p.GetMinorBlockHeade
 		if qcom.IsNil(iHeader) {
 			break
 		}
+		headerlist = append(headerlist, iHeader.(*types.MinorBlockHeader))
 		if gReq.Direction == qcom.DirectionToGenesis {
 			height -= uint64(gReq.Skip) + 1
-			headerlist = append([]*types.MinorBlockHeader{iHeader.(*types.MinorBlockHeader)}, headerlist...)
 		} else {
 			height += uint64(gReq.Skip) + 1
-			headerlist = append(headerlist, iHeader.(*types.MinorBlockHeader))
+		}
+	}
+
+	if gReq.Direction == qcom.DirectionToGenesis {
+		hLen := len(headerlist)
+		for i := 0; i < hLen/2; i++ {
+			headerlist[i], headerlist[hLen-i-1] = headerlist[hLen-i-1], headerlist[i]
 		}
 	}
 	return headerlist, nil
