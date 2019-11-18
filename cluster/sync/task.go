@@ -157,19 +157,20 @@ func (t *task) sendSync(syncing bool, curr, best uint64) {
 }
 
 func (t *task) validateHeaderList(bc blockchain, headers []types.IHeader) error {
-	for i := 0; i < len(headers); i++ {
-		if i > 0 {
-			prev, h := headers[i-1], headers[i]
-			if h.NumberU64() != prev.NumberU64()-1 {
+	var prev types.IHeader
+	for _, h := range headers {
+		if !qkcom.IsNil(prev) {
+			if h.NumberU64() != prev.NumberU64()+1 {
 				return errors.New("should have descending order with step 1")
 			}
 			if prev.Hash() != h.GetParentHash() {
 				return errors.New("should have blocks correctly linked")
 			}
 		}
-		if err := bc.Validator().ValidateSeal(headers[i], false); err != nil { //use diff/20
+		if err := bc.Validator().ValidateSeal(h, false); err != nil { //use diff/20
 			return err
 		}
+		prev = h
 	}
 	return nil
 }

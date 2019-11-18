@@ -32,6 +32,7 @@ type MinorBlockHeader struct {
 	Bloom             Bloom              `json:"logsBloom"                  gencodec:"required"`
 	Extra             []byte             `json:"extraData"                  gencodec:"required"   bytesizeofslicelen:"2"`
 	MixDigest         common.Hash        `json:"mixHash"`
+	hash              common.Hash
 }
 
 type MinorBlockMeta struct {
@@ -57,7 +58,10 @@ func (m *MinorBlockMeta) Hash() common.Hash {
 // Hash returns the block hash of the header, which is simply the keccak256 hash of its
 // Serialize encoding.
 func (h *MinorBlockHeader) Hash() common.Hash {
-	return serHash(*h, nil)
+	if h.hash == (common.Hash{}) {
+		h.hash = serHash(*h, nil)
+	}
+	return h.hash
 }
 
 // SealHash returns the block hash of the header, which is keccak256 hash of its
