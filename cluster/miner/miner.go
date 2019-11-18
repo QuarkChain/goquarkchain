@@ -65,6 +65,8 @@ func (m *Miner) getTip() uint64 {
 
 // interrupt aborts the minering work
 func (m *Miner) interrupt() {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	if m.stopCh != nil {
 		close(m.stopCh)
 		m.stopCh = make(chan struct{})
@@ -140,9 +142,7 @@ func (m *Miner) Stop() {
 
 // TODO when p2p is syncing block how to stop miner.
 func (m *Miner) SetMining(mining bool) {
-	m.mu.Lock()
 	m.isMining = mining
-	m.mu.Unlock()
 	if mining {
 		m.startCh <- struct{}{}
 	} else {
