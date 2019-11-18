@@ -79,6 +79,7 @@ type Peer struct {
 	queuedTip        chan newTip                  // Queue of Tips to announce to the peer
 	term             chan struct{}                // Termination channel to stop the broadcaster
 	chans            map[uint64]chan interface{}
+	handleMsgErr     error
 }
 
 func newPeer(version int, p *p2p.Peer, rw p2p.MsgReadWriter) *Peer {
@@ -93,6 +94,7 @@ func newPeer(version int, p *p2p.Peer, rw p2p.MsgReadWriter) *Peer {
 		queuedTip:        make(chan newTip, maxQueuedTips),
 		term:             make(chan struct{}),
 		chans:            make(map[uint64]chan interface{}),
+		handleMsgErr:     nil,
 	}
 }
 

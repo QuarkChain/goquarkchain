@@ -305,6 +305,7 @@ func (m *MinorBlockChain) SetHead(head uint64) error {
 
 func (m *MinorBlockChain) setHead(head uint64) error {
 	log.Warn("Rewinding blockchain", "target", head)
+	defer log.Warn("Rewinding blockchain-end", "curr", m.CurrentBlock().NumberU64())
 	// Rewind the header chain, deleting all block bodies until then
 	batch := m.db.NewBatch()
 	for block := m.CurrentBlock(); block != nil && block.NumberU64() > head; block = m.CurrentBlock() {
@@ -319,6 +320,7 @@ func (m *MinorBlockChain) setHead(head uint64) error {
 			m.currentBlock.Store(m.genesisBlock)
 		}
 	}
+
 	// If either blocks reached nil, reset to the genesis state
 	if currentBlock := m.CurrentBlock(); currentBlock == nil {
 		m.currentBlock.Store(m.genesisBlock)
@@ -1375,6 +1377,7 @@ func (m *MinorBlockChain) reorg(oldBlock, newBlock types.IBlock) error {
 	}
 	var (
 		newBlockNumber = newBlock.NumberU64()
+		newBlockHash   = newBlock.Hash()
 		newChain       []types.IBlock
 		oldChain       []types.IBlock
 		commonBlock    types.IBlock
@@ -1398,6 +1401,7 @@ func (m *MinorBlockChain) reorg(oldBlock, newBlock types.IBlock) error {
 			}
 		}
 	)
+
 	// first reduce whoever is higher bound
 	if oldBlock.NumberU64() > newBlock.NumberU64() {
 		// reduce old chain
@@ -1417,6 +1421,7 @@ func (m *MinorBlockChain) reorg(oldBlock, newBlock types.IBlock) error {
 	if qkcCommon.IsNil(newBlock) {
 		return fmt.Errorf("Invalid new chain")
 	}
+
 	for {
 		if oldBlock.Hash() == newBlock.Hash() {
 			commonBlock = oldBlock
@@ -1455,8 +1460,8 @@ func (m *MinorBlockChain) reorg(oldBlock, newBlock types.IBlock) error {
 
 	} else {
 		// we support reorg block from same chain,because we should delete and add tx index
-		log.Warn("reorg", "same chain oldBlock", oldBlock.NumberU64(), "oldBlock.Hash", oldBlock.Hash().String(),
-			"newBlock", newBlock.NumberU64(), "newBlock's hash", newBlock.Hash().String())
+		log.Warn("reorg", "same chain curr", m.CurrentBlock().NumberU64(), "curr.Hash", m.CurrentBlock().Hash().String(),
+			"newBlock", newBlockNumber, "newBlock's hash", newBlockHash, "newBlock", m.GetMinorBlock(newBlockHash) == nil)
 		if err := m.setHead(newBlockNumber); err != nil {
 			return err
 		}
