@@ -225,7 +225,7 @@ func (v *MinorBlockValidator) ValidateSeal(mHeader types.IHeader, usePowsDiff bo
 	} else {
 		shardConfig := v.bc.shardConfig.PoswConfig
 		if shardConfig.Enabled {
-			adjustedDiff = header.Difficulty.Div(header.Difficulty, new(big.Int).SetUint64(shardConfig.DiffDivider))
+			adjustedDiff.Div(adjustedDiff, new(big.Int).SetUint64(shardConfig.DiffDivider))
 		}
 	}
 	return v.engine.VerifySeal(v.bc, header, adjustedDiff)
