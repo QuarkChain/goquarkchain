@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/serialize"
+	"math"
 	"math/big"
 	"reflect"
 	"testing"
@@ -235,6 +236,34 @@ func TestTxSize(t *testing.T) {
 	if err != nil {
 		t.Fatal("Serialize error: ", err)
 	}
-	check("EvmTransaction", len(txBytes), 120)
+	evmTx2 := NewEvmTransaction(
+		math.MaxUint64-1,
+		acc1.Recipient,
+		big.NewInt(math.MaxInt64-1),
+		math.MaxUint64-1,
+		big.NewInt(math.MaxInt64-1),
+		uint32(math.Pow(256, 4)-1),
+		uint32(math.Pow(256, 4)-1),
+		1,
+		0,
+		[]byte{},
+		4873763662273663091,
+		4873763662273663091,
+	)
 
+	evmTx2, err = SignTx(evmTx2, signer, prvKey)
+	if err != nil {
+		t.Fatal("SignTx error: ", err)
+	}
+	tx2 := &Transaction{
+		EvmTx:  evmTx2,
+		TxType: EvmTx,
+	}
+	txBytes2, err := serialize.SerializeToBytes(&tx2)
+	if err != nil {
+		t.Fatal("Serialize error: ", err)
+	}
+
+	check("EvmTransaction min len", len(txBytes), 120)
+	check("EvmTransaction max len", len(txBytes2), 162)
 }

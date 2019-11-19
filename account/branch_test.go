@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"reflect"
 	"testing"
 )
 
@@ -94,4 +95,20 @@ func TestBranch(t *testing.T) {
 		count++
 	}
 	fmt.Println("TestBranch:success test num:", count)
+}
+func TestCreatBranch(t *testing.T) {
+	b, err := CreatBranch(3, 8, 6)
+	if err != nil {
+		t.Fatal("CreatBranch error: ", err)
+	}
+
+	check := func(f string, got, want interface{}) {
+		if !reflect.DeepEqual(got, want) {
+			t.Errorf("%s mismatch: got %v, want %v", f, got, want)
+		}
+	}
+	check("GetChainID", int(b.GetChainID()), 3)
+	check("GetShardSize", int(b.GetShardSize()), 8)
+	check("GetShardID", int(b.GetShardID()), 6)
+
 }
