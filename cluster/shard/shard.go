@@ -32,7 +32,7 @@ type BlockCommitCode int
 
 const (
 	BLOCK_UNCOMMITTED BlockCommitCode = iota
-	BLOCK_COMMITTING                  // TODO not support yet,need discuss
+	BLOCK_COMMITTING   // TODO not support yet,need discuss
 	BLOCK_COMMITTED
 )
 
@@ -53,6 +53,8 @@ type ShardBackend struct {
 
 	mBPool      newBlockPool
 	txGenerator []*TxGenerator
+
+	wg sync.WaitGroup
 
 	running      bool
 	mu           sync.Mutex
@@ -120,7 +122,7 @@ func New(ctx *service.ServiceContext, rBlock *types.RootBlock, conn ConnManager,
 	return shard, nil
 }
 
-func (s *ShardBackend) IsSyncing () bool {
+func (s *ShardBackend) IsSyncing() bool {
 	return s.synchronizer.IsSyncing()
 }
 
@@ -135,8 +137,11 @@ func (s *ShardBackend) Stop() {
 	s.miner.Stop()
 	s.eventMux.Stop()
 	s.engine.Close()
+
+	s.wg.Wait()
+
 	s.MinorBlockChain.Stop()
-	s.chainDb.Close()
+	defer s.chainDb.Close()
 }
 
 func (s *ShardBackend) SetMining(mining bool) {

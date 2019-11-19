@@ -127,6 +127,8 @@ func (s *ShardBackend) GetReceiptsByHash(hash common.Hash) (types.Receipts, erro
 // ######################## root block Methods #########################
 // Either recover state from local db or create genesis state based on config
 func (s *ShardBackend) InitFromRootBlock(rBlock *types.RootBlock) error {
+	s.wg.Add(1)
+	defer s.wg.Done()
 	if rBlock.Number() > s.genesisRootHeight {
 		return s.MinorBlockChain.InitFromRootBlock(rBlock)
 	}
@@ -137,6 +139,8 @@ func (s *ShardBackend) InitFromRootBlock(rBlock *types.RootBlock) error {
 }
 
 func (s *ShardBackend) AddRootBlock(rBlock *types.RootBlock) (switched bool, err error) {
+	s.wg.Add(1)
+	defer s.wg.Done()
 	switched = false
 	if rBlock.Number() > s.genesisRootHeight {
 		switched, err = s.MinorBlockChain.AddRootBlock(rBlock)
@@ -170,6 +174,8 @@ func (s *ShardBackend) GetHeaderByHash(blockHash common.Hash) (*types.MinorBlock
 }
 
 func (s *ShardBackend) HandleNewTip(rBHeader *types.RootBlockHeader, mBHeader *types.MinorBlockHeader, peerID string) error {
+	s.wg.Add(1)
+	defer s.wg.Done()
 	if s.MinorBlockChain.GetRootBlockByHash(mBHeader.PrevRootBlockHash) == nil {
 		log.Debug(s.logInfo, "preRootBlockHash do not have height ,no need to add task", mBHeader.Number, "preRootHash", mBHeader.PrevRootBlockHash.String())
 		return nil
@@ -214,6 +220,8 @@ func (s *ShardBackend) GetMinorBlock(mHash common.Hash, height *uint64) (mBlock 
 }
 
 func (s *ShardBackend) NewMinorBlock(peerId string, block *types.MinorBlock) (err error) {
+	s.wg.Add(1)
+	defer s.wg.Done()
 	log.Debug(s.logInfo, "NewMinorBlock height", block.NumberU64(), "hash", block.Hash().String())
 	defer log.Debug(s.logInfo, "NewMinorBlock", "end")
 	// TODO synchronizer.running
@@ -267,6 +275,8 @@ func (s *ShardBackend) NewMinorBlock(peerId string, block *types.MinorBlock) (er
 // Returns true if block is successfully added. False on any error.
 // called by 1. local miner (will not run if syncing) 2. SyncTask
 func (s *ShardBackend) AddMinorBlock(block *types.MinorBlock) error {
+	s.wg.Add(1)
+	defer s.wg.Done()
 	if commitStatus := s.getBlockCommitStatusByHash(block.Hash()); commitStatus == BLOCK_COMMITTED {
 		return nil
 	}
@@ -332,6 +342,8 @@ func (s *ShardBackend) AddMinorBlock(block *types.MinorBlock) error {
 // It does NOT notify master because the master should already have the minor header list,
 // and will add them once this function returns successfully.
 func (s *ShardBackend) AddBlockListForSync(blockLst []*types.MinorBlock) (map[common.Hash]*types.TokenBalances, error) {
+	s.wg.Add(1)
+	defer s.wg.Done()
 	blockHashToXShardList := make(map[common.Hash]*XshardListTuple)
 
 	coinbaseAmountList := make(map[common.Hash]*types.TokenBalances, 0)
@@ -391,6 +403,8 @@ func (s *ShardBackend) SubmitWork(headerHash common.Hash, nonce uint64, mixHash 
 }
 
 func (s *ShardBackend) InsertMinedBlock(block types.IBlock) error {
+	s.wg.Add(1)
+	defer s.wg.Done()
 	return s.NewMinorBlock("", block.(*types.MinorBlock))
 }
 
