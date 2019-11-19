@@ -18,6 +18,7 @@ func TestRootBlockEncoding(t *testing.T) {
 	}
 
 	bytes, err := serialize.SerializeToBytes(&blockHeader)
+
 	if err != nil {
 		t.Fatal("Serialize error: ", err)
 	}
@@ -87,6 +88,33 @@ func TestRootBlockEncoding(t *testing.T) {
 	check("blockhash", common.Bytes2Hex(block.Hash().Bytes()), "725576c58f70f22166767d41d50fd1e22d2913524f967bf1a7fc020cb0e19b10")
 	check("serialize", common.Bytes2Hex(bytes), common.Bytes2Hex(blockEnc))
 
+}
+func TestDataSize(t *testing.T) {
+	check := func(f string, got, want interface{}) {
+		if !reflect.DeepEqual(got, want) {
+			t.Errorf("%s mismatch: got %v, want %v", f, got, want)
+		}
+	}
+	var rootBlockHeader RootBlockHeader
+	rootBlockHeaderBytes, err := serialize.SerializeToBytes(&rootBlockHeader)
+
+	if err != nil {
+		t.Fatal("Serialize error: ", err)
+	}
+	var minorBlockHeader MinorBlockHeader
+	minorBlockHeaderBytes, err := serialize.SerializeToBytes(&minorBlockHeader)
+	if err != nil {
+		t.Fatal("Serialize error: ", err)
+	}
+	var minorBlockMeta MinorBlockMeta
+	minorBlockMetaBytes, err := serialize.SerializeToBytes(&minorBlockMeta)
+	if err != nil {
+		t.Fatal("Serialize error: ", err)
+	}
+
+	check("RootBlockHeader", len(rootBlockHeaderBytes), 249)
+	check("MinorBlockHeader", len(minorBlockHeaderBytes), 479)
+	check("MinorBlockMeta", len(minorBlockMetaBytes), 216)
 }
 
 /*

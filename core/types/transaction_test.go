@@ -3,8 +3,11 @@ package types
 import (
 	"bytes"
 	"crypto/ecdsa"
+	"encoding/hex"
 	"github.com/QuarkChain/goquarkchain/account"
+	"github.com/QuarkChain/goquarkchain/serialize"
 	"math/big"
+	"reflect"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -184,4 +187,66 @@ func TestTransactionPriceNonceSort(t *testing.T) {
 			}
 		}
 	}
+}
+func TestTxSize(t *testing.T) {
+
+	id1, err := account.CreatRandomIdentity()
+	if err != nil {
+		t.Fatal("CreatIdentityFromKey error: ", err)
+	}
+	defaultFullShardKey, err := id1.GetDefaultFullShardKey()
+	if err != nil {
+		t.Fatal("GetDefaultFullShardKey error: ", err)
+	}
+	acc1 := account.CreatAddressFromIdentity(id1, defaultFullShardKey)
+	//nonce uint64,
+	//to *account.Recipient,
+	//amount *big.Int,
+	//gasLimit uint64,
+	//gasPrice *big.Int,
+	//fromFullShardKey uint32,
+	//toFullShardKey uint32,
+	//networkId uint32,
+	//version uint32,
+	//data []byte,
+	//gasTokenID,
+	//transferTokenID uint64
+	check := func(f string, got, want interface{}) {
+		if !reflect.DeepEqual(got, want) {
+			t.Errorf("%s mismatch: got %v, want %v", f, got, want)
+		}
+	}
+	evmTx := NewEvmTransaction(
+		0,
+		acc1.Recipient,
+		big.NewInt(0),
+		30000,
+		big.NewInt(0),
+		0xFFFF,
+		0xFFFF,
+		1,
+		0,
+		nil,
+		12345,
+		1234,
+	)
+	signer := NewEIP155Signer(1)
+	prvKey, err := crypto.HexToECDSA(hex.EncodeToString(id1.GetKey().Bytes()))
+	if err != nil {
+		t.Fatal("prvKey error: ", err)
+	}
+	evmTx, err = SignTx(evmTx, signer, prvKey)
+	if err != nil {
+		t.Fatal("SignTx error: ", err)
+	}
+	tx := &Transaction{
+		EvmTx:  evmTx,
+		TxType: EvmTx,
+	}
+	txBytes, err := serialize.SerializeToBytes(&tx)
+	if err != nil {
+		t.Fatal("Serialize error: ", err)
+	}
+	check("EvmTransaction", len(txBytes), 120)
+
 }
