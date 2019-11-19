@@ -94,6 +94,7 @@ func (m *MinorBlockChain) putMinorBlock(mBlock *types.MinorBlock, xShardReceiveT
 	m.heightToMinorBlockHashes[mBlock.NumberU64()][mBlock.Hash()] = struct{}{}
 	if !m.HasBlock(mBlock.Hash()) {
 		rawdb.WriteMinorBlock(m.db, mBlock)
+		m.blockCache.Add(mBlock.Hash(), mBlock)
 	}
 	if err := m.putTotalTxCount(mBlock); err != nil {
 		return err
@@ -249,7 +250,6 @@ func (m *MinorBlockChain) InitGenesisState(rBlock *types.RootBlock) (*types.Mino
 		}
 	}
 
-	rawdb.WriteTd(m.db, gBlock.Hash(), gBlock.Difficulty())
 	height := m.clusterConfig.Quarkchain.GetGenesisRootHeight(m.branch.Value)
 	if rBlock.Number() != height {
 		return nil, errors.New("header number not match")
@@ -323,7 +323,7 @@ func (m *MinorBlockChain) isNeighbor(remoteBranch account.Branch, rootHeight *ui
 }
 
 func (m *MinorBlockChain) putRootBlock(rBlock *types.RootBlock, minorHeader *types.MinorBlockHeader) {
-	log.Info(m.logInfo, "putRootBlock number", rBlock.Number(), "hash", rBlock.Hash().String(), "lenMinor", len(rBlock.MinorBlockHeaders()))
+	log.Debug(m.logInfo, "putRootBlock number", rBlock.Number(), "hash", rBlock.Hash().String(), "lenMinor", len(rBlock.MinorBlockHeaders()))
 	rBlockHash := rBlock.Hash()
 	var mHash common.Hash
 	if minorHeader != nil {
@@ -931,7 +931,7 @@ func (m *MinorBlockChain) AddRootBlock(rBlock *types.RootBlock) (bool, error) {
 	if shardHeader != nil {
 		origBlock := m.GetBlockByNumber(shardHeader.Number)
 		if qkcCommon.IsNil(origBlock) || origBlock.Hash() != shardHeader.Hash() {
-			log.Warn(m.logInfo, "ready to set current header height", shardHeader.Number, "hash", shardHeader.Hash().String(), "status", qkcCommon.IsNil(origBlock))
+			log.Warn(m.logInfo, "ready to set current header height", shardHeader.Number, "hash", shardHeader.Hash().String(), "status", qkcCommon.IsNil(origBlock), "curr", qkcCommon.IsNil(m.GetBlock(shardHeader.Hash()).(*types.MinorBlock)))
 			m.currentBlock.Store(m.GetBlock(shardHeader.Hash()).(*types.MinorBlock))
 		}
 	}
@@ -1197,6 +1197,8 @@ func (m *MinorBlockChain) getBlockCountByHeight(height uint64) uint64 {
 
 // reWriteBlockIndexTo : already locked
 func (m *MinorBlockChain) reWriteBlockIndexTo(oldBlock *types.MinorBlock, newBlock *types.MinorBlock) error {
+	m.chainmu.Lock()
+	defer m.chainmu.Unlock()
 	if oldBlock == nil {
 		oldBlock = m.CurrentBlock()
 	}
@@ -1705,8 +1707,6 @@ func (m *MinorBlockChain) GetMiningInfo(address account.Recipient, stake *types.
 }
 
 func (m *MinorBlockChain) AddTxList(txs []*types.Transaction) []error {
-	ts := time.Now()
 	errList := m.txPool.AddLocals(txs)
-	log.Info(m.logInfo, "AddLocals len", len(txs), "ts", time.Now().Sub(ts).Seconds())
 	return errList
 }

@@ -73,7 +73,6 @@ func stats(client jsonrpc.RPCClient) string {
 		return response.Error.Error()
 	}
 	res := response.Result.(map[string]interface{})
-	//fmt.Println("response", res)
 	t := time.Now()
 	msg := t.Format("2006-01-02 15:04:05")
 	msg += "\t"

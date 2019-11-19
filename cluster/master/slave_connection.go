@@ -12,7 +12,6 @@ import (
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/core/types"
-	"github.com/QuarkChain/goquarkchain/p2p"
 	qrpc "github.com/QuarkChain/goquarkchain/rpc"
 	"github.com/QuarkChain/goquarkchain/serialize"
 	"github.com/ethereum/go-ethereum/common"
@@ -641,16 +640,16 @@ func (s *SlaveConnection) HandleNewTip(request *rpc.HandleNewTipRequest) (bool, 
 	return true, nil
 }
 
-func (s *SlaveConnection) HandleNewMinorBlock(request *p2p.NewBlockMinor) (bool, error) {
-	blockData, err := serialize.SerializeToBytes(request.Block)
+func (s *SlaveConnection) HandleNewMinorBlock(req *rpc.P2PRedirectRequest) error {
+	data, err := serialize.SerializeToBytes(req)
 	if err != nil {
-		return false, err
+		return err
 	}
-	_, err = s.client.Call(s.target, &rpc.Request{Op: rpc.OpHandleNewMinorBlock, Data: blockData})
+	_, err = s.client.Call(s.target, &rpc.Request{Op: rpc.OpHandleNewMinorBlock, Data: data})
 	if err != nil {
-		return false, err
+		return err
 	}
-	return true, nil
+	return nil
 }
 
 func (s *SlaveConnection) AddBlockListForSync(request *rpc.AddBlockListForSyncRequest) (*rpc.ShardStatus, error) {

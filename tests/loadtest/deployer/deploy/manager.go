@@ -5,7 +5,6 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/QuarkChain/goquarkchain/common"
@@ -56,10 +55,10 @@ func (t *ToolManager) check() {
 			panic(fmt.Errorf("need clusterID %v", index))
 		}
 		t.ClusterIndex = index
-		if len(t.GetIpListDependTag("master")) == 0 {
+		if len(t.GetMasterIP()) == 0 {
 			panic(fmt.Errorf("clusterID %v need master", index))
 		}
-		lenSlave := len(t.GetIpListDependTag("slave"))
+		lenSlave := len(t.GetSlaveIPList())
 		if lenSlave == 0 {
 			panic(fmt.Errorf("clusterID %v need slave", index))
 		}
@@ -100,13 +99,25 @@ func (t *ToolManager) init() {
 	}
 }
 
-func (t *ToolManager) GetIpListDependTag(tag string) []string {
+func (t *ToolManager) GetMasterIP() string {
+	if t.ClusterIndex >= len(t.LocalConfig.Hosts) {
+		panic(fmt.Errorf("index:%d host's len:%d", t.ClusterIndex, len(t.LocalConfig.Hosts)))
+	}
+	for _, v := range t.LocalConfig.Hosts[t.ClusterIndex] {
+		if v.IsMaster {
+			return v.IP
+		}
+	}
+	panic(fmt.Errorf("cluster id :%v not have master", t.ClusterIndex))
+}
+
+func (t *ToolManager) GetSlaveIPList() []string {
 	if t.ClusterIndex >= len(t.LocalConfig.Hosts) {
 		panic(fmt.Errorf("index:%d host's len:%d", t.ClusterIndex, len(t.LocalConfig.Hosts)))
 	}
 	ipList := make([]string, 0)
 	for _, v := range t.LocalConfig.Hosts[t.ClusterIndex] {
-		if strings.Contains(v.Service, tag) {
+		for index := 0; index < int(v.SlaveNumber); index++ {
 			ipList = append(ipList, v.IP)
 		}
 	}
@@ -114,7 +125,7 @@ func (t *ToolManager) GetIpListDependTag(tag string) []string {
 }
 
 func (t *ToolManager) GenClusterConfig() {
-	clusterConfig := GenConfigDependInitConfig(t.LocalConfig.ChainSize, t.LocalConfig.ShardSize, t.GetIpListDependTag("slave"), t.LocalConfig.ExtraClusterConfig)
+	clusterConfig := GenConfigDependInitConfig(t.LocalConfig.ChainSize, t.LocalConfig.ShardSize, t.GetSlaveIPList(), t.LocalConfig.ExtraClusterConfig)
 
 	if t.BootNode == "" {
 		sk, err := ecdsa.GenerateKey(crypto.S256(), rand.Reader)
@@ -127,7 +138,7 @@ func (t *ToolManager) GenClusterConfig() {
 	} else {
 		tIndex := t.ClusterIndex
 		t.ClusterIndex = 0
-		clusterConfig.P2P.BootNodes = t.BootNode + "@" + t.GetIpListDependTag("master")[0] + ":38291"
+		clusterConfig.P2P.BootNodes = t.BootNode + "@" + t.GetMasterIP() + ":38291"
 		t.ClusterIndex = tIndex
 	}
 	WriteConfigToFile(clusterConfig, clusterConfigPath)
@@ -138,12 +149,13 @@ func (t *ToolManager) SendFileToCluster() {
 	for _, session := range t.SSHSession[t.ClusterIndex] {
 		v := session
 		g.Go(func() error {
+			v.RunCmd("apt-get update")
+			v.RunCmd("apt-get install docker.io -y")
 			v.RunCmd("rm -rf  /tmp/QKC")
 			v.RunCmd("mkdir /tmp/QKC")
 
 			v.RunCmdIgnoreErr("docker stop $(docker ps -a|grep bjqkc |awk '{print $1}')")
 			v.RunCmdIgnoreErr("docker  rm $(docker ps -a|grep bjqkc |awk '{print $1}')")
-			log.Debug("==== begin pulling docker image...")
 			v.RunCmd("docker pull " + t.LocalConfig.DockerName)
 			v.RunCmd("docker run -itd --name bjqkc --network=host " + t.LocalConfig.DockerName)
 
@@ -166,7 +178,7 @@ type SlaveInfo struct {
 }
 
 func (t *ToolManager) StartCluster(clusterIndex int) {
-	masterIp := t.GetIpListDependTag("master")[0]
+	masterIp := t.GetMasterIP()
 	slaveIpLists := make([]*SlaveInfo, 0)
 	cfg := config.NewClusterConfig()
 	err := LoadClusterConfig(clusterConfigPath, cfg)
@@ -217,7 +229,7 @@ func (t *ToolManager) CheckPeerStatus() {
 		time.Sleep(10 * time.Second)
 		t.ClusterIndex = 0
 		for index := 0; index < len(t.LocalConfig.Hosts); index++ {
-			masterIP := t.GetIpListDependTag("master")[0]
+			masterIP := t.GetMasterIP()
 			pubUrl := fmt.Sprintf("http://%s:38491", masterIP)
 			client := jsonrpc.NewClient(pubUrl)
 			resp, err := client.Call("getPeers")

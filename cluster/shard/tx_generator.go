@@ -91,7 +91,6 @@ func (t *TxGenerator) sign(evmTx *types.EvmTransaction, key *ecdsa.PrivateKey) (
 }
 
 func (t *TxGenerator) Generate(genTxs rpc.GenTxRequest, addTxList func(txs []*types.Transaction) error) error {
-	ts := time.Now()
 	tsa := time.Now()
 	var (
 		batchScale    = 4000
@@ -126,9 +125,7 @@ func (t *TxGenerator) Generate(genTxs rpc.GenTxRequest, addTxList func(txs []*ty
 			if err := addTxList(txList); err != nil {
 				return err
 			}
-			log.Info("addTxList end", "total", total, "numTx", numTx, "durtion", time.Now().Sub(ts).Seconds())
 			index = 0
-			ts = time.Now()
 			txList = make([]*types.Transaction, batchScale)
 		}
 

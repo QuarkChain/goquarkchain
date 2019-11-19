@@ -5,30 +5,41 @@ If you are interested in building everything from scratch, please refer to this 
 
 ```bash
 # NOTE the version should be in sync with the release version, e.g. quarkchaindocker/goquarkchain:latest
-$ docker pull quarkchaindocker/goquarkchain:<version tag> 
+$ sudo docker pull quarkchaindocker/goquarkchain:<version tag> 
 
 # recommend using some window management tool to start
 # different programs, for example `screen` or `tmux`.
-$ docker run -it -p 38291:38291 -p 38391:38391 -p 38491:38491 -p 38291:38291/udp quarkchaindocker/goquarkchain:<version tag>
+$ sudo docker run -it -p 38291:38291 -p 38391:38391 -p 38491:38491 -p 38291:38291/udp quarkchaindocker/goquarkchain:<version tag>
 # if you already have synced data available, can mount it during running docker (note the -v flag)
-$ docker run -v /path/to/data:/go/src/github.com/QuarkChain/goquarkchain/cmd/cluster/qkc-data/mainnet -it -p 38291:38291 -p 38391:38391 -p 38491:38491 -p 38291:38291/udp quarkchaindocker/goquarkchain:<version tag> 
+$ sudo docker run -v /path/to/data:/go/src/github.com/QuarkChain/goquarkchain/cmd/cluster/qkc-data/mainnet -it -p 38291:38291 -p 38391:38391 -p 38491:38491 -p 38291:38291/udp quarkchaindocker/goquarkchain:<version tag> 
+
+# (optional) if you want to get the data quickly without validating the blocks,
+# you can download a snapshot of the database by running the following command.
+# every 24 hours a snapshot of the database will be taken and uploaded by the QuarkChain team.
+# once you start your cluster using the downloaded database your cluster only need to sync
+# the blocks mined in the past 24 hours or less.
+curl https://qkcmainnet-go.s3.amazonaws.com/data/`curl https://qkcmainnet-go.s3.amazonaws.com/data/LATEST`.tar.gz --output data.tar.gz
+# if you are in China, use the following instead
+# curl https://s3.cn-north-1.amazonaws.com.cn/qkcmainnet-go-cn/data/`curl https://s3.cn-north-1.amazonaws.com.cn/qkcmainnet-go-cn/data/LATEST`.tar.gz --output data.tar.gz
+# then should unzip to the right path
 
 # INSIDE the container
 # IMPORTANT: always update coinbase address for mining
 # modify the config file /go/src/github.com/QuarkChain/goquarkchain/mainnet/singularity/cluster_config_template.json
 # make sure the config file has been updated your specified coinbase address
-export QKC_CONFIG=/go/src/github.com/QuarkChain/goquarkchain/mainnet/singularity/cluster_config_template.json
+# start cluster:
 cd /go/src/github.com/QuarkChain/goquarkchain/cmd/cluster
-# start each of the slave services in the cluster, replacing $SLAVE_ID with the values of SLAVE_LIST/ID in your config file:
-/go/src/github.com/QuarkChain/goquarkchain/cmd/cluster# ./cluster --cluster_config $QKC_CONFIG --service $SLAVE_ID
-# start master service:
-/go/src/github.com/QuarkChain/goquarkchain/cmd/cluster# ./cluster --cluster_config $QKC_CONFIG  --json_rpc_host 0.0.0.0 --json_rpc_private_host 0.0.0.0
+./cluster --cluster_config ../../mainnet/singularity/cluster_config_template.json --service S0 >> s0.log 2>&1 &
+./cluster --cluster_config ../../mainnet/singularity/cluster_config_template.json --service S1 >> s1.log 2>&1 &
+./cluster --cluster_config ../../mainnet/singularity/cluster_config_template.json --service S2 >> s2.log 2>&1 &
+./cluster --cluster_config ../../mainnet/singularity/cluster_config_template.json --service S3 >> s3.log 2>&1 &
+./cluster --cluster_config ../../mainnet/singularity/cluster_config_template.json --json_rpc_host 0.0.0.0 --json_rpc_private_host 0.0.0.0 >>master.log 2>&1 &
 
 # to start mining in another screen (outside of container)
 # note this is only a sample mining program. feel free to change `goqkcminer`
-$ docker ps  # find container ID
+$ sudo docker ps  # find container ID
 # you can specify the full shard keys which you want to mine, the command should be:
-$ docker exec -it <container ID> go run /go/src/github.com/QuarkChain/goquarkchain/cmd/miner.go -config $QKC_CONFIG -shards <full shard key>
+$ sudo docker exec -it <container ID> go run /go/src/github.com/QuarkChain/goquarkchain/cmd/miner.go -config ../../mainnet/singularity/cluster_config_template.json -shards <full shard key>
 ```
 
 * To monitor the current state of the network (e.g. chain height, account balance) refer to [stats tool](../cmd/stats).

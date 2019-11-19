@@ -642,12 +642,10 @@ func (pool *TxPool) addTxs(txs []*types.Transaction, local, sync bool) []error {
 	if len(news) == 0 {
 		return errs
 	}
-	ts := time.Now()
 	// Cache senders in transactions before obtaining lock (pool.signer is immutable)
 	for _, tx := range news {
 		types.Sender(pool.signer, tx.EvmTx)
 	}
-	log.Info("addTxList", "revocer len", len(news), "ts", time.Now().Sub(ts).Seconds())
 	// Process all the new transaction and merge any errors into the original slice
 	pool.mu.Lock()
 	newErrs, dirtyAddrs := pool.addTxsLocked(news, local)
@@ -936,7 +934,7 @@ func (pool *TxPool) reset(oldBlock, newBlock *types.MinorBlock) {
 	} else {
 		newHead = newBlock.Header()
 	}
-	if oldHead != nil && oldHead.Hash() != newHead.ParentHash {
+	if newHead != nil && oldHead != nil && oldHead.Hash() != newHead.ParentHash {
 		// If the reorg is too deep, avoid doing it (will happen during fast sync)
 		oldNum := oldHead.Number
 		newNum := newHead.Number

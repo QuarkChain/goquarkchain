@@ -65,6 +65,8 @@ func (m *Miner) getTip() uint64 {
 
 // interrupt aborts the minering work
 func (m *Miner) interrupt() {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	if m.stopCh != nil {
 		close(m.stopCh)
 		m.stopCh = make(chan struct{})
@@ -72,7 +74,7 @@ func (m *Miner) interrupt() {
 }
 
 func (m *Miner) allowMining() bool {
-	if !m.IsMining() || m.api.IsSyncIng() ||
+	if !m.IsMining() || m.api.IsSyncing() ||
 		time.Now().Sub(*m.timestamp).Seconds() > deadtime {
 		return false
 	}
@@ -140,9 +142,7 @@ func (m *Miner) Stop() {
 
 // TODO when p2p is syncing block how to stop miner.
 func (m *Miner) SetMining(mining bool) {
-	m.mu.Lock()
 	m.isMining = mining
-	m.mu.Unlock()
 	if mining {
 		m.startCh <- struct{}{}
 	} else {
@@ -173,7 +173,7 @@ func (m *Miner) GetWork(coinbaseAddr *account.Address) (*consensus.MiningWork, e
 }
 
 func (m *Miner) SubmitWork(nonce uint64, hash, digest common.Hash, signature *[65]byte) bool {
-	if !m.IsMining() || m.api.IsSyncIng() {
+	if !m.IsMining() || m.api.IsSyncing() {
 		return false
 	}
 	return m.engine.SubmitWork(nonce, hash, digest, signature)
