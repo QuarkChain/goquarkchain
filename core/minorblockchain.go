@@ -47,7 +47,7 @@ import (
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
-	lru "github.com/hashicorp/golang-lru"
+	"github.com/hashicorp/golang-lru"
 )
 
 const (
@@ -318,6 +318,7 @@ func (m *MinorBlockChain) SetHead(head uint64) error {
 
 func (m *MinorBlockChain) setHead(head uint64) error {
 	log.Warn("Rewinding blockchain", "target", head)
+	defer log.Warn("Rewinding blockchain-end", "curr", m.CurrentBlock().NumberU64())
 	// Rewind the header chain, deleting all block bodies until then
 	delFn := func(db rawdb.DatabaseDeleter, hash common.Hash) {
 		rawdb.DeleteMinorBlock(db, hash)
@@ -1407,10 +1408,12 @@ func (m *MinorBlockChain) reorg(oldBlock, newBlock types.IBlock) error {
 		return errors.New("reorg err:block is nil")
 	}
 	var (
-		newChain    []types.IBlock
-		oldChain    []types.IBlock
-		commonBlock types.IBlock
-		deletedLogs []*types.Log
+		newBlockNumber = newBlock.NumberU64()
+		newBlockHash   = newBlock.Hash()
+		newChain       []types.IBlock
+		oldChain       []types.IBlock
+		commonBlock    types.IBlock
+		deletedLogs    []*types.Log
 		// collectLogs collects the logs that were generated during the
 		// processing of the block that corresponds with the given hash.
 		// These logs are later announced as deleted.
@@ -1489,9 +1492,9 @@ func (m *MinorBlockChain) reorg(oldBlock, newBlock types.IBlock) error {
 
 	} else {
 		// we support reorg block from same chain,because we should delete and add tx index
-		log.Warn("reorg", "same chain oldBlock", oldBlock.NumberU64(), "oldBlock.Hash", oldBlock.Hash().String(),
-			"newBlock", newBlock.NumberU64(), "newBlock's hash", newBlock.Hash().String())
-		if err := m.setHead(newBlock.NumberU64()); err != nil {
+		log.Warn("reorg", "same chain curr", m.CurrentBlock().NumberU64(), "curr.Hash", m.CurrentBlock().Hash().String(),
+			"newBlock", newBlockNumber, "newBlock's hash", newBlockHash, "newBlock", m.GetMinorBlock(newBlockHash) == nil)
+		if err := m.setHead(newBlockNumber); err != nil {
 			return err
 		}
 	}
