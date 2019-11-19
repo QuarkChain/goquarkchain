@@ -612,7 +612,7 @@ func (m *MinorBlockChain) getAllUnconfirmedHeaderList() []*types.MinorBlockHeade
 
 	block := m.CurrentBlock()
 	startHeight := int64(-1)
-	if confirmedTip != nil {
+	if m.confirmedHeaderTip != nil {
 		confirmedTip = m.GetMinorBlock(m.confirmedHeaderTip.Hash())
 		startHeight = int64(confirmedTip.NumberU64())
 	}
