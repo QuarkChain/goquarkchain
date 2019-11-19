@@ -12,6 +12,8 @@ do
 	 eval $cmd
 done
 
+sleep 5s
+
 # start master
 cmd="./cluster --cluster_config "${configPath}" >>master.log 2>&1 &"
 echo $cmd
