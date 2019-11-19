@@ -199,18 +199,6 @@ func TestTxSize(t *testing.T) {
 		t.Fatal("GetDefaultFullShardKey error: ", err)
 	}
 	acc1 := account.CreatAddressFromIdentity(id1, defaultFullShardKey)
-	//nonce uint64,
-	//to *account.Recipient,
-	//amount *big.Int,
-	//gasLimit uint64,
-	//gasPrice *big.Int,
-	//fromFullShardKey uint32,
-	//toFullShardKey uint32,
-	//networkId uint32,
-	//version uint32,
-	//data []byte,
-	//gasTokenID,
-	//transferTokenID uint64
 	check := func(f string, got, want interface{}) {
 		if !reflect.DeepEqual(got, want) {
 			t.Errorf("%s mismatch: got %v, want %v", f, got, want)
