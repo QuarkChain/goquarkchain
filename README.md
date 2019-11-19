@@ -136,7 +136,7 @@ Refer to [Docker docs](https://docs.docker.com/v17.09/engine/installation/) if D
 Run the following commands to pull and start a container:
 
 ```bash
-# specify a version tag if needed
+# specify a version tag if needed; use 'latest' for latest build 
 sudo docker pull quarkchaindocker/goquarkchain:<version tag>
 sudo docker run -it quarkchaindocker/goquarkchain:<version tag>
 ```

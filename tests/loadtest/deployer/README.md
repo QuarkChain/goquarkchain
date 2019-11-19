@@ -3,6 +3,8 @@
 Here we provide a deploy tool based on pre-built Docker image(`quarkchaindocker/goquarkchain`). With this tool you can deploy multiple clusters to build 
 and start a private QuarkChain network in one line command. 
 
+Here is a quick [demo video](https://www.youtube.com/watch?v=0_aME3vUILQ).
+
 You can also build your own Docker image, starting from [this Dockerfile](../../../docker/Dockerfile), or if you are 
 interested in build everything without Docker, start from [here](../../../README.md#development-setup). 
 
@@ -14,6 +16,7 @@ will be done across network during the deploy process.
 To use `deployer` to run Docker image, it is required for the hosts that:
 
    - Ubuntu 18.04, 
+   - ssh server installed and running,
    - root account is enabled, 
    - Docker version >= 18.09.7, and
    - 38291, 38391, 38491, [48000, 48000 + host number] ports opened.
@@ -27,6 +30,7 @@ Run the following commands to pull the Docker image and start a container:
 
 ```bash
 # replace docker image name if a custom image is used
+# specify a version tag if needed; use 'latest' for latest build 
 sudo docker pull quarkchaindocker/goquarkchain:<version tag>
 sudo docker run -it quarkchaindocker/goquarkchain:<version tag> /bin/bash 
 ```
@@ -66,6 +70,11 @@ started as a bootstrap node
 - `TargetRootBlockTime` refers to ROOT/CONSENSUS_CONFIG/TARGET_BLOCK_TIME in cluster config that defines the target block interval of root chain in seconds, since "POW_SIMULATE" is used for consensus
 - `TargetMinorBlockTime` refers to CHAINS/CONSENSUS_CONFIG/TARGET_BLOCK_TIME in cluster config that defines the target block interval of each shard
 - `GasLimit` refers to CHAINS/GENESIS/GAS_LIMIT in cluster config that defines the gas limit for a block; note that in-shard transactions uses 50% of the total gas limit in a block
+
+[This sample config in the repo](./deployConfig-sample.json) illustrates how 3 clusters can be deployed to 17 hosts. 
+In this example, cluster 0, 1, 2 are deployed on 9, 4, 4 hosts respectively. Except for the first host which belongs to cluster 0
+and runs only a master service, each host has 8 slave services deployed, and 2 of them also runs master services.
+So, we have cluster 0 runs 64 slaves, and cluster 1 and 2 runs 32 slaves each. 
 
 ## Deploy and Run Clusters
 
