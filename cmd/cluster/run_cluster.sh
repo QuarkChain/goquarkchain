@@ -13,7 +13,6 @@ do
 done
 
 # start master
-
 cmd="./cluster --cluster_config "${configPath}" --json_rpc_host 0.0.0.0 --json_rpc_private_host 0.0.0.0   >>master.log 2>&1 &"
 echo $cmd
 eval $cmd
