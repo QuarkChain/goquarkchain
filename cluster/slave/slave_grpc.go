@@ -696,7 +696,7 @@ func (s *SlaveServerSideOp) AddTransactions(ctx context.Context, req *rpc.Reques
 
 	if gReq.Branch != 0 {
 		err := addTxList(gReq.Branch, txs.TransactionList)
-		return &rpc.Response{}, err
+		return new(rpc.Response), err
 	}
 
 	var (
@@ -732,7 +732,7 @@ func (s *SlaveServerSideOp) AddTransactions(ctx context.Context, req *rpc.Reques
 		})
 	}
 
-	return &rpc.Response{}, g.Wait()
+	return new(rpc.Response), g.Wait()
 }
 
 func (s *SlaveServerSideOp) HandleNewMinorBlock(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
