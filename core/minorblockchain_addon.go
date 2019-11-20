@@ -604,6 +604,7 @@ func checkEqual(a, b types.IBlock) bool {
 	}
 	return true
 }
+
 func (m *MinorBlockChain) getAllUnconfirmedHeaderList() []*types.MinorBlockHeader {
 	var (
 		ok           bool
@@ -624,7 +625,7 @@ func (m *MinorBlockChain) getAllUnconfirmedHeaderList() []*types.MinorBlockHeade
 	headerList := make([]*types.MinorBlockHeader, allHeight)
 	for index := allHeight - 1; index >= 0; index-- {
 		headerList[index] = block.Header()
-		block, ok = m.GetBlock(block.Header().GetParentHash()).(*types.MinorBlock)
+		block, ok = m.GetBlock(block.ParentHash()).(*types.MinorBlock)
 		if !ok {
 			if index == 0 {
 				continue // 0's pre

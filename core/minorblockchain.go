@@ -48,7 +48,7 @@ import (
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
-	"github.com/hashicorp/golang-lru"
+	lru "github.com/hashicorp/golang-lru"
 )
 
 const (
@@ -634,27 +634,6 @@ func (m *MinorBlockChain) GetLogs(hash common.Hash) [][]*types.Log {
 		logs[index] = receipt.Logs
 	}
 	return logs
-}
-
-// GetBlocksFromHash returns the block corresponding to hash and up to n-1 ancestors.
-// [deprecated by eth/62]
-func (m *MinorBlockChain) GetBlocksFromHash(hash common.Hash, n int) (blocks []types.IBlock) {
-	block := m.GetMinorBlock(hash)
-	if block == nil {
-		return nil
-	}
-	for i := 0; i < n; i++ {
-		block := m.GetBlock(hash)
-		if block == nil {
-			break
-		}
-		blocks = append(blocks, block)
-		hash = block.ParentHash()
-		if block.NumberU64() == 0 {
-			break
-		}
-	}
-	return
 }
 
 // TrieNode retrieves a blob of data associated with a trie node (or code hash)
@@ -1611,45 +1590,6 @@ func (m *MinorBlockChain) GetBlockHashesFromHash(hash common.Hash, max uint64) [
 		}
 	}
 	return chain
-}
-
-// GetAncestor retrieves the Nth ancestor of a given block. It assumes that either the given block or
-// a close ancestor of it is canonical. maxNonCanonical points to a downwards counter limiting the
-// number of blocks to be individually checked before we reach the canonical chain.
-//
-// Note: ancestor == 0 returns the same block, 1 returns its parent and so on.
-func (m *MinorBlockChain) GetAncestor(hash common.Hash, number, ancestor uint64, maxNonCanonical *uint64) (common.Hash, uint64) {
-	m.chainmu.Lock()
-	defer m.chainmu.Unlock()
-	if ancestor > number {
-		return common.Hash{}, 0
-	}
-	if ancestor == 1 {
-		// in this case it is cheaper to just read the header
-		if block := m.GetMinorBlock(hash); block != nil {
-			return block.ParentHash(), number - 1
-		} else {
-			return common.Hash{}, 0
-		}
-	}
-	for ancestor != 0 {
-		if rawdb.ReadCanonicalHash(m.db, rawdb.ChainTypeRoot, number) == hash {
-			number -= ancestor
-			return rawdb.ReadCanonicalHash(m.db, rawdb.ChainTypeRoot, number), number
-		}
-		if *maxNonCanonical == 0 {
-			return common.Hash{}, 0
-		}
-		*maxNonCanonical--
-		ancestor--
-		block := m.GetMinorBlock(hash)
-		if block == nil {
-			return common.Hash{}, 0
-		}
-		hash = block.ParentHash()
-		number--
-	}
-	return hash, number
 }
 
 // GetHeaderByNumber retrieves a block header from the database by number,
