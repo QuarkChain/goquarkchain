@@ -136,7 +136,7 @@ Refer to [Docker docs](https://docs.docker.com/v17.09/engine/installation/) if D
 Run the following commands to pull and start a container:
 
 ```bash
-# specify a version tag if needed
+# specify a version tag if needed; use 'latest' for latest code 
 sudo docker pull quarkchaindocker/goquarkchain:<version tag>
 sudo docker run -it quarkchaindocker/goquarkchain:<version tag>
 ```
@@ -262,7 +262,7 @@ to describe the task you are planning to do. For small fixes (a few lines of cha
 free to open pull requests directly.
 
 ## Developer Community
-Join our developer community on [Discord](http://discord.me/quarkchain).
+Join our developer community on [Discourse](https://community.quarkchain.io/) and [Discord](http://discord.me/quarkchain).
 
 ## License
 Unless explicitly mentioned in a folder or a file, all files are licensed under GNU Lesser General Public License defined in LICENSE file.
