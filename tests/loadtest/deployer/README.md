@@ -30,7 +30,7 @@ Run the following commands to pull the Docker image and start a container:
 
 ```bash
 # replace docker image name if a custom image is used
-# specify a version tag if needed; use 'latest' for latest build 
+# specify a version tag if needed; use 'latest' for latest code 
 sudo docker pull quarkchaindocker/goquarkchain:<version tag>
 sudo docker run -it quarkchaindocker/goquarkchain:<version tag> /bin/bash 
 ```
@@ -71,10 +71,15 @@ started as a bootstrap node
 - `TargetMinorBlockTime` refers to CHAINS/CONSENSUS_CONFIG/TARGET_BLOCK_TIME in cluster config that defines the target block interval of each shard
 - `GasLimit` refers to CHAINS/GENESIS/GAS_LIMIT in cluster config that defines the gas limit for a block; note that in-shard transactions uses 50% of the total gas limit in a block
 
-[This sample config in the repo](./deployConfig-sample.json) illustrates how 3 clusters can be deployed to 17 hosts. 
-In this example, cluster 0, 1, 2 are deployed on 9, 4, 4 hosts respectively. Except for the first host which belongs to cluster 0
-and runs only a master service, each host has 8 slave services deployed, and 2 of them also runs master services.
-So, we have cluster 0 runs 64 slaves, and cluster 1 and 2 runs 32 slaves each. 
+[This sample config in the repo](./deployConfig-sample.json) illustrates how 3 clusters running 256 shards
+(64 chains * 4 shards per chain) can be deployed to 17 hosts.
+
+In this example, cluster 0, 1, 2 are deployed on 9, 4, 4 hosts respectively. 
+Cluster 0 runs its master service alone in one of its 9 hosts, and 64 slave services on another 8 hosts with 8 slaves each.
+Cluster 1 runs its master service with 8 slaves in one of its 4 hosts, and other 24 slave services on anther 3 hosts with 8 slaves each.
+Cluster 2 has the same structure as cluster 1.
+
+So, totally we have 64+32+32=128 slaves deployed. Notice the slave number of each cluster is a power of 2. 
 
 ## Deploy and Run Clusters
 
