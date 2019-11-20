@@ -50,7 +50,7 @@ func New(ctx *service.ServiceContext, api MinerAPI, engine consensus.Engine) *Mi
 		timestamp: &ctx.Timestamp,
 		resultCh:  make(chan types.IBlock, 1),
 		workCh:    make(chan workAdjusted, 1),
-		startCh:   make(chan struct{}, 1),
+		startCh:   make(chan struct{}, 8),
 		exitCh:    make(chan struct{}),
 		stopCh:    make(chan struct{}),
 		logInfo:   "miner",
@@ -83,12 +83,12 @@ func (m *Miner) allowMining() bool {
 
 func (m *Miner) commit(addr *account.Address) {
 	// don't allow to mine
-	if m.api.IsSyncing() {
-		time.Sleep(500 * time.Millisecond)
-		m.startCh <- struct{}{}
+	if !m.allowMining() {
 		return
 	}
-	if !m.allowMining() {
+	if m.api.IsSyncing() {
+		m.interrupt()
+		m.startCh <- struct{}{}
 		return
 	}
 	m.interrupt()
@@ -110,11 +110,22 @@ func (m *Miner) commit(addr *account.Address) {
 	m.workCh <- workAdjusted{block, diff, optionalDivider}
 }
 
+func (m *Miner) releaseStartCh() {
+	for {
+		select {
+		case <-m.startCh:
+		default:
+			return
+		}
+	}
+}
+
 func (m *Miner) mainLoop() {
 
 	for {
 		select {
 		case <-m.startCh:
+			m.releaseStartCh()
 			m.commit(nil)
 
 		case work := <-m.workCh: //to discuss:need this?
@@ -141,9 +152,8 @@ func (m *Miner) mainLoop() {
 }
 
 func (m *Miner) Stop() {
-	m.mu.Lock()
-	defer m.mu.Unlock()
 	m.isMining = false
+	m.interrupt()
 	close(m.exitCh)
 }
 
@@ -153,6 +163,7 @@ func (m *Miner) SetMining(mining bool) {
 	if mining {
 		m.startCh <- struct{}{}
 	} else {
+		m.releaseStartCh()
 		m.interrupt()
 	}
 }
