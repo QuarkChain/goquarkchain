@@ -124,9 +124,23 @@ func TestRootBlockHeaderSignature(t *testing.T) {
 			t.Errorf("%s mismatch: got %v, want %v", f, got, want)
 		}
 	}
-	var rootBlockHeader RootBlockHeader
+	checkErr := func(f string, got, want interface{}) {
+		if reflect.DeepEqual(got, want) {
+			t.Errorf("%s mismatch: got %v, want %v", f, got, want)
+		}
+	}
+	privateKey, err := crypto.GenerateKey()
+	if err != nil {
+		t.Errorf("GenerateKey err:%v", err)
+	}
 
+	var rootBlockHeader RootBlockHeader
+	rootBlock := NewRootBlockWithHeader(&rootBlockHeader)
 	check("rootBlockHeader Signature ", rootBlockHeader.Signature, [65]byte{})
+	checkErr("", rootBlockHeader.VerifySignature(privateKey.PublicKey), true)
+	rootBlock.SignWithPrivateKey(privateKey)
+	checkErr("rootBlockHeader Signature ", rootBlock.header.Signature, [65]byte{})
+	check("", rootBlock.header.VerifySignature(privateKey.PublicKey), true)
 
 }
 

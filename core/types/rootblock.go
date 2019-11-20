@@ -76,6 +76,18 @@ func (b *RootBlockHeader) GetCoinbaseAmount() *TokenBalances {
 	return NewEmptyTokenBalances()
 }
 
+func (b *RootBlockHeader) VerifySignature(key ecdsa.PublicKey) bool {
+
+	pubkey := crypto.CompressPubkey(&key)
+	isSigned := crypto.VerifySignature(pubkey, b.SealHash().Bytes(), b.Signature[:64])
+	if isSigned {
+		return true
+	} else {
+		return false
+	}
+
+}
+
 func (h *RootBlockHeader) GetMixDigest() common.Hash { return h.MixDigest }
 
 func (h *RootBlockHeader) NumberU64() uint64 { return uint64(h.Number) }
