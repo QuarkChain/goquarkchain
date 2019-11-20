@@ -6,14 +6,12 @@ import (
 	"encoding/hex"
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/serialize"
-	"math"
-	"math/big"
-	"reflect"
-	"testing"
-
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/rlp"
+	"math/big"
+	"reflect"
+	"testing"
 )
 
 // The values in those tests are from the EvmTransaction Tests
@@ -236,19 +234,23 @@ func TestTxSize(t *testing.T) {
 	if err != nil {
 		t.Fatal("Serialize error: ", err)
 	}
+
+	TT256 := new(big.Int).Sub(new(big.Int).Exp(big.NewInt(2), big.NewInt(256), big.NewInt(0)), big.NewInt(1))
+	SHARD_KEY_MAX := new(big.Int).Exp(big.NewInt(256), big.NewInt(4), big.NewInt(0))
+	TOKEN_ID_MAX, _ := new(big.Int).SetString("4873763662273663091", 10)
 	evmTx2 := NewEvmTransaction(
-		math.MaxUint64-1,
+		TT256.Uint64(),
 		acc1.Recipient,
-		big.NewInt(math.MaxInt64-1),
-		math.MaxUint64-1,
-		big.NewInt(math.MaxInt64-1),
-		uint32(math.Pow(256, 4)-1),
-		uint32(math.Pow(256, 4)-1),
+		TT256,
+		TT256.Uint64(),
+		TT256,
+		uint32(SHARD_KEY_MAX.Uint64()),
+		uint32(SHARD_KEY_MAX.Uint64()),
 		1,
 		0,
-		[]byte{},
-		4873763662273663091,
-		4873763662273663091,
+		[]byte{0},
+		TOKEN_ID_MAX.Uint64(),
+		TOKEN_ID_MAX.Uint64(),
 	)
 
 	evmTx2, err = SignTx(evmTx2, signer, prvKey)
@@ -265,5 +267,5 @@ func TestTxSize(t *testing.T) {
 	}
 
 	check("EvmTransaction min len", len(txBytes), 120)
-	check("EvmTransaction max len", len(txBytes2), 162)
+	check("EvmTransaction max len", len(txBytes2), 210)
 }

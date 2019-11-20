@@ -89,6 +89,7 @@ func TestRootBlockEncoding(t *testing.T) {
 	check("serialize", common.Bytes2Hex(bytes), common.Bytes2Hex(blockEnc))
 
 }
+
 func TestDataSize(t *testing.T) {
 	check := func(f string, got, want interface{}) {
 		if !reflect.DeepEqual(got, want) {
@@ -115,6 +116,18 @@ func TestDataSize(t *testing.T) {
 	check("RootBlockHeader", len(rootBlockHeaderBytes), 249)
 	check("MinorBlockHeader", len(minorBlockHeaderBytes), 479)
 	check("MinorBlockMeta", len(minorBlockMetaBytes), 216)
+}
+
+func TestRootBlockHeaderSignature(t *testing.T) {
+	check := func(f string, got, want interface{}) {
+		if !reflect.DeepEqual(got, want) {
+			t.Errorf("%s mismatch: got %v, want %v", f, got, want)
+		}
+	}
+	var rootBlockHeader RootBlockHeader
+	check("rootBlockHeader Signature ", rootBlockHeader.Signature, [65]byte{})
+	check("rootBlockHeader IsSigned", rootBlockHeader.IsSigned(), false)
+
 }
 
 /*

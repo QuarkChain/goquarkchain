@@ -96,6 +96,7 @@ func TestBranch(t *testing.T) {
 	}
 	fmt.Println("TestBranch:success test num:", count)
 }
+
 func TestCreatBranch(t *testing.T) {
 	b, err := CreatBranch(3, 8, 6)
 	if err != nil {

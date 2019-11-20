@@ -76,6 +76,18 @@ func (b *RootBlockHeader) GetCoinbaseAmount() *TokenBalances {
 	return NewEmptyTokenBalances()
 }
 
+func (b *RootBlockHeader) IsSigned() bool {
+
+	if b.Signature != [65]byte{} {
+		return true
+	} else {
+		return false
+	}
+
+}
+func (b *RootBlockHeader) VerifySignature() bool {
+	return true
+}
 func (h *RootBlockHeader) GetMixDigest() common.Hash { return h.MixDigest }
 
 func (h *RootBlockHeader) NumberU64() uint64  { return uint64(h.Number) }
