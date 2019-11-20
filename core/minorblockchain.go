@@ -318,7 +318,7 @@ func (m *MinorBlockChain) SetHead(head uint64) error {
 
 func (m *MinorBlockChain) setHead(head uint64) error {
 	log.Warn("Rewinding blockchain", "target", head)
-	defer log.Warn("Rewinding blockchain-end", "curr", m.CurrentBlock().NumberU64())
+	defer log.Warn("Rewinding blockchain-end", "target number", head)
 	// Rewind the header chain, deleting all block bodies until then
 	delFn := func(db rawdb.DatabaseDeleter, hash common.Hash) {
 		rawdb.DeleteMinorBlock(db, hash)
