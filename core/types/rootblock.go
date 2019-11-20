@@ -6,7 +6,6 @@ import (
 	"bytes"
 	"crypto/ecdsa"
 	"math/big"
-	"reflect"
 	"sync/atomic"
 	"time"
 	"unsafe"
@@ -75,31 +74,6 @@ func (b *RootBlockHeader) GetCoinbaseAmount() *TokenBalances {
 		return NewTokenBalancesWithMap(b.CoinbaseAmount.GetBalanceMap())
 	}
 	return NewEmptyTokenBalances()
-}
-
-func (b *RootBlockHeader) IsSigned() bool {
-
-	if b.Signature != [65]byte{} {
-		return true
-	} else {
-		return false
-	}
-
-}
-
-func (b *RootBlockHeader) VerifySignature() bool {
-	return true
-}
-
-func (b *RootBlockHeader) GetHashForMining() (hash common.Hash) {
-	byte := []byte{}
-	excludeList := make(map[string]bool)
-	excludeList["Nonce"] = true
-	excludeList["MixDigest"] = true
-	excludeList["Signature"] = true
-	serialize.SerializeStructWithout(reflect.ValueOf(*b), &byte, excludeList)
-	return sha3_256(byte)
-
 }
 
 func (h *RootBlockHeader) GetMixDigest() common.Hash { return h.MixDigest }

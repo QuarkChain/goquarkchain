@@ -125,8 +125,8 @@ func TestRootBlockHeaderSignature(t *testing.T) {
 		}
 	}
 	var rootBlockHeader RootBlockHeader
+
 	check("rootBlockHeader Signature ", rootBlockHeader.Signature, [65]byte{})
-	check("rootBlockHeader IsSigned", rootBlockHeader.IsSigned(), false)
 
 }
 
