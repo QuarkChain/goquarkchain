@@ -78,8 +78,7 @@ func (b *RootBlockHeader) GetCoinbaseAmount() *TokenBalances {
 
 func (b *RootBlockHeader) VerifySignature(key ecdsa.PublicKey) bool {
 
-	pubkey := crypto.CompressPubkey(&key)
-	isSigned := crypto.VerifySignature(pubkey, b.SealHash().Bytes(), b.Signature[:64])
+	isSigned := crypto.VerifySignature(crypto.CompressPubkey(&key), b.SealHash().Bytes(), b.Signature[:64])
 	if isSigned {
 		return true
 	} else {
