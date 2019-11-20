@@ -79,7 +79,7 @@ Cluster 0 runs its master service alone in one of its 9 hosts, and 64 slave serv
 Cluster 1 runs its master service with 8 slaves in one of its 4 hosts, and other 24 slave services on another 3 hosts with 8 slaves each.
 Cluster 2 has the same structure as cluster 1.
 
-So, totally we have 64+32+32=128 slaves deployed. Notice the slave number of each cluster is a power of 2. 
+So, cluster 0, 1, 2 have 64, 32, 32 slaves deployed respectively. Notice the slave number of each cluster is a power of 2. 
 
 ## Deploy and Run Clusters
 
