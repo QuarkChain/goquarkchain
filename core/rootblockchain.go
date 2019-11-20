@@ -951,6 +951,66 @@ func (bc *RootBlockChain) GetHeader(hash common.Hash) types.IHeader {
 	return block.IHeader()
 }
 
+// GetBlockHashesFromHash retrieves a number of block hashes starting at a given
+// hash, fetching towards the genesis block.
+func (bc *RootBlockChain) GetBlockHashesFromHash(hash common.Hash, max uint64) []common.Hash {
+	// Get the origin header from which to fetch
+	block := bc.GetBlock(hash)
+	if qkccom.IsNil(block) {
+		return nil
+	}
+	// Iterate the Headers until enough is collected or the genesis reached
+	chain := make([]common.Hash, 0, max)
+	for i := uint64(0); i < max; i++ {
+		next := block.ParentHash()
+		if block = bc.GetBlock(next); block == nil {
+			break
+		}
+		chain = append(chain, next)
+		if block.NumberU64() == 0 {
+			break
+		}
+	}
+	return chain
+}
+
+// GetAncestor retrieves the Nth ancestor of a given block. It assumes that either the given block or
+// a close ancestor of it is canonical. maxNonCanonical points to a downwards counter limiting the
+// number of blocks to be individually checked before we reach the canonical chain.
+//
+// Note: ancestor == 0 returns the same block, 1 returns its parent and so on.
+func (bc *RootBlockChain) GetAncestor(hash common.Hash, number, ancestor uint64, maxNonCanonical *uint64) (common.Hash, uint64) {
+	if ancestor > number {
+		return common.Hash{}, 0
+	}
+	if ancestor == 1 {
+		// in this case it is cheaper to just read the header
+		if block := bc.GetBlock(hash); block != nil {
+			return block.ParentHash(), number - 1
+		} else {
+			return common.Hash{}, 0
+		}
+	}
+	for ancestor != 0 {
+		if rawdb.ReadCanonicalHash(bc.db, rawdb.ChainTypeRoot, number) == hash {
+			number -= ancestor
+			return rawdb.ReadCanonicalHash(bc.db, rawdb.ChainTypeRoot, number), number
+		}
+		if *maxNonCanonical == 0 {
+			return common.Hash{}, 0
+		}
+		*maxNonCanonical--
+		ancestor--
+		block := bc.GetBlock(hash)
+		if block == nil {
+			return common.Hash{}, 0
+		}
+		hash = block.ParentHash()
+		number--
+	}
+	return hash, number
+}
+
 func (bc *RootBlockChain) GetParentHashByHash(hash common.Hash) common.Hash {
 	if b := bc.GetBlock(hash); b == nil {
 		return common.Hash{}
