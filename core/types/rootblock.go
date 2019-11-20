@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"crypto/ecdsa"
 	"math/big"
+	"reflect"
 	"sync/atomic"
 	"time"
 	"unsafe"
@@ -85,12 +86,26 @@ func (b *RootBlockHeader) IsSigned() bool {
 	}
 
 }
+
 func (b *RootBlockHeader) VerifySignature() bool {
 	return true
 }
+
+func (b *RootBlockHeader) GetHashForMining() (hash common.Hash) {
+	byte := []byte{}
+	excludeList := make(map[string]bool)
+	excludeList["Nonce"] = true
+	excludeList["MixDigest"] = true
+	excludeList["Signature"] = true
+	serialize.SerializeStructWithout(reflect.ValueOf(*b), &byte, excludeList)
+	return sha3_256(byte)
+
+}
+
 func (h *RootBlockHeader) GetMixDigest() common.Hash { return h.MixDigest }
 
-func (h *RootBlockHeader) NumberU64() uint64  { return uint64(h.Number) }
+func (h *RootBlockHeader) NumberU64() uint64 { return uint64(h.Number) }
+
 func (h *RootBlockHeader) GetVersion() uint32 { return h.Version }
 
 func (h *RootBlockHeader) SetExtra(data []byte) {
