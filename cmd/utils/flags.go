@@ -128,7 +128,7 @@ var (
 	}
 	ServiceFlag = cli.StringFlag{
 		Name:  "service",
-		Usage: "svrvice type,if has eight slaves,fill like(S0,S2,...S7)",
+		Usage: "service type,if has eight slaves,fill like(S0,S2,...S7)",
 		Value: "master",
 	}
 	CheckDBFlag = cli.BoolFlag{
