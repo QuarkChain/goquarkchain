@@ -1441,11 +1441,11 @@ func (bc *RootBlockChain) PoSWInfo(header *types.RootBlockHeader) (*rpc.PoSWInfo
 	if header.Number == 0 {
 		return nil, nil
 	}
-	var stakes *big.Int
-	if bc.posw.IsPoSWEnabled(header) {
-		stakes, _ = bc.getSignedPoSWStakes(header)
+	if !bc.posw.IsPoSWEnabled(header) {
+		return nil, nil
 	}
-	diff, mineable, mined, _ := bc.posw.GetPoSWInfo(header, stakes)
+	stakes, _ := bc.getSignedPoSWStakes(header)
+	diff, mineable, mined, _ := bc.posw.GetPoSWInfo(header, stakes, header.Coinbase.Recipient)
 	return &rpc.PoSWInfo{
 		EffectiveDifficulty: diff,
 		PoswMinedBlocks:     mined + 1,
