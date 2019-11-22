@@ -38,21 +38,46 @@ type ConnManager struct {
 	mu                 sync.Mutex
 }
 
-// TODO need to be called in somowhere
-func (s *ConnManager) AddConnectToSlave(info *rpc.SlaveInfo) bool {
-	var (
-		target = fmt.Sprintf("%s:%d", info.Host, info.Port)
-	)
-
-	conn := NewToSlaveConn(target, string(info.Id), info.ChainMaskList)
-	log.Info("slave conn manager, add connect to slave", "add target", target)
-
-	// Tell the remote slave who I am.
-	if ok := conn.SendPing(); ok {
-		s.addSlaveConnection(target, conn)
-		return true
+func (s *ConnManager) addSlaveConnection(target string, conn *SlaveConn) {
+	fullShardIdList := s.qkcCfg.GetGenesisShardIds()
+	for _, id := range fullShardIdList {
+		if conn.HasShard(id) {
+			flag := true
+			for i, client := range s.fullShardIdToSlaves[id] {
+				if client.target == conn.target {
+					flag = false
+					s.fullShardIdToSlaves[id][i] = conn
+					break
+				}
+			}
+			if flag {
+				s.fullShardIdToSlaves[id] = append(s.fullShardIdToSlaves[id], conn)
+			}
+		}
 	}
-	return false
+	s.slavesConn[target] = conn
+}
+
+func (s *ConnManager) SetConnectToMasterAndSlaves(mInfo *rpc.MasterInfo, cfgs []*config.SlaveConfig) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if mInfo != nil {
+		s.ModifyTarget(fmt.Sprintf("%s:%d", mInfo.Ip, mInfo.Port))
+	}
+
+	s.slavesConn = make(map[string]*SlaveConn)
+	s.fullShardIdToSlaves = make(map[uint32][]*SlaveConn)
+	for _, cfg := range cfgs {
+		target := fmt.Sprintf("%s:%d", cfg.IP, cfg.Port)
+		conn := NewToSlaveConn(target, string(cfg.ID), cfg.ChainMaskList)
+		log.Info("slave conn manager, add connect to slave", "add target", target)
+
+		// Tell the remote slave who I am.
+		if ok := conn.SendPing(); ok {
+			s.addSlaveConnection(target, conn)
+		}
+		log.Info("slave conn manager, add connect to slave", "add target", target)
+	}
 }
 
 func (s *ConnManager) GetConnectionsByFullShardId(id uint32) []*SlaveConn {
@@ -191,17 +216,6 @@ func (s *ConnManager) getBranchToAddXshardTxListRequest(blockHash common.Hash,
 		xshardTxListRequest[account.Branch{Value: branch}] = &request
 	}
 	return xshardTxListRequest, nil
-}
-
-// TODO need to check
-func (s *ConnManager) addSlaveConnection(target string, conn *SlaveConn) {
-	fullShardIdList := s.qkcCfg.GetGenesisShardIds()
-	for _, id := range fullShardIdList {
-		if conn.HasShard(id) {
-			s.fullShardIdToSlaves[id] = append(s.fullShardIdToSlaves[id], conn)
-		}
-	}
-	s.slavesConn[target] = conn
 }
 
 func NewToSlaveConnManager(cfg *config.ClusterConfig, slave *SlaveBackend) *ConnManager {
