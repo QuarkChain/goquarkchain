@@ -61,9 +61,7 @@ func (s *ConnManager) addSlaveConnection(target string, conn *SlaveConn) {
 func (s *ConnManager) SetConnectToMasterAndSlaves(mInfo *rpc.MasterInfo, cfgs []*config.SlaveConfig) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if mInfo != nil {
-		s.ModifyTarget(fmt.Sprintf("%s:%d", mInfo.Ip, mInfo.Port))
-	}
+	s.ModifyTarget(fmt.Sprintf("%s:%d", mInfo.Ip, mInfo.Port))
 
 	s.slavesConn = make(map[string]*SlaveConn)
 	s.fullShardIdToSlaves = make(map[uint32][]*SlaveConn)
