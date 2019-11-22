@@ -49,62 +49,62 @@ var (
 	}
 
 	tx = []map[string]string{
-		map[string]string{
+		{
 			"type":  "uint256",
 			"name":  "nonce",
 			"value": "0x0d",
 		},
-		map[string]string{
+		{
 			"type":  "uint256",
 			"name":  "gasPrice",
 			"value": "0x02540be400",
 		},
-		map[string]string{
+		{
 			"type":  "uint256",
 			"name":  "gasLimit",
 			"value": "0x7530",
 		},
-		map[string]string{
+		{
 			"type":  "uint160",
 			"name":  "to",
 			"value": "0x314b2cd22c6d26618ce051a58c65af1253aecbb8",
 		},
-		map[string]string{
+		{
 			"type":  "uint256",
 			"name":  "value",
 			"value": "0x056bc75e2d63100000",
 		},
-		map[string]string{
+		{
 			"type":  "bytes",
 			"name":  "data",
 			"value": "0x",
 		},
-		map[string]string{
+		{
 			"type":  "uint256",
 			"name":  "networkId",
 			"value": "0x03",
 		},
-		map[string]string{
+		{
 			"type":  "uint32",
 			"name":  "fromFullShardKey",
 			"value": "0xc47decfd",
 		},
-		map[string]string{
+		{
 			"type":  "uint32",
 			"name":  "toFullShardKey",
 			"value": "0xc49c1950",
 		},
-		map[string]string{
+		{
 			"type":  "uint64",
 			"name":  "gasTokenId",
 			"value": "0x0111",
 		},
-		map[string]string{
+		{
 			"type":  "uint64",
 			"name":  "transferTokenId",
 			"value": "0x0222",
 		},
-		map[string]string{
+		{
 			"type":  "string",
 			"name":  "qkcDomain",
 			"value": "bottom-quark",

@@ -2706,10 +2706,10 @@ func TestGetRootChainStakes(t *testing.T) {
 	shardConfig := env.clusterConfig.Quarkchain.GetShardConfigByFullShardID(1)
 	balance := map[string]*big.Int{env.clusterConfig.Quarkchain.GenesisToken: big.NewInt(10000000)}
 	shardConfig.Genesis.Alloc = map[account.Address]config.Allocation{
-		account.Address{Recipient: contractAddr, FullShardKey: 0}: {
+		{Recipient: contractAddr, FullShardKey: 0}: {
 			Code: contractCode,
 		},
-		account.Address{Recipient: acc1.Recipient, FullShardKey: 0}: {
+		{Recipient: acc1.Recipient, FullShardKey: 0}: {
 			Balances: balance,
 		},
 	}
