@@ -143,8 +143,8 @@ func (p *PoSW) getCoinbaseAddressUntilBlock(headerHash common.Hash) ([]account.R
 	return addrs, nil
 }
 
-func (p *PoSW) GetPoSWInfo(header types.IHeader, stakes *big.Int) (effectiveDiff *big.Int, mineable, mined uint64, err error) {
-	blockCnt, err := p.countCoinbaseBlockUntil(header.Hash(), header.GetCoinbase().Recipient)
+func (p *PoSW) GetPoSWInfo(header types.IHeader, stakes *big.Int, address account.Recipient) (effectiveDiff *big.Int, mineable, mined uint64, err error) {
+	blockCnt, err := p.countCoinbaseBlockUntil(header.Hash(), address)
 	if err != nil {
 		return header.GetDifficulty(), 0, 0, err
 	}

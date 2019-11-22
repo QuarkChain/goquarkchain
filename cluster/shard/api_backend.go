@@ -165,14 +165,6 @@ func (s *ShardBackend) GetHeaderByNumber(height qrpc.BlockNumber) (*types.MinorB
 	return iHeader.(*types.MinorBlockHeader), nil
 }
 
-func (s *ShardBackend) GetHeaderByHash(blockHash common.Hash) (*types.MinorBlockHeader, error) {
-	iHeader := s.MinorBlockChain.GetHeaderByHash(blockHash)
-	if qcom.IsNil(iHeader) {
-		return nil, fmt.Errorf(EmptyErrTemplate, "GetHeaderByNumber", blockHash.Hex())
-	}
-	return iHeader.(*types.MinorBlockHeader), nil
-}
-
 func (s *ShardBackend) HandleNewTip(rBHeader *types.RootBlockHeader, mBHeader *types.MinorBlockHeader, peerID string) error {
 	s.wg.Add(1)
 	defer s.wg.Done()
@@ -181,7 +173,7 @@ func (s *ShardBackend) HandleNewTip(rBHeader *types.RootBlockHeader, mBHeader *t
 		return nil
 	}
 	if s.MinorBlockChain.CurrentBlock().Number() >= mBHeader.Number {
-		log.Info(s.logInfo, "no need t sync curr height", s.MinorBlockChain.CurrentBlock().Number(), "tipHeight", mBHeader.Number)
+		log.Debug(s.logInfo, "no need t sync curr height", s.MinorBlockChain.CurrentBlock().Number(), "tipHeight", mBHeader.Number)
 		return nil
 	}
 	if s.mBPool.getBlockInPool(mBHeader.Hash()) != nil {
@@ -192,8 +184,6 @@ func (s *ShardBackend) HandleNewTip(rBHeader *types.RootBlockHeader, mBHeader *t
 	if err != nil {
 		log.Error("Failed to add minor chain task,", "hash", mBHeader.Hash(), "height", mBHeader.Number)
 	}
-
-	log.Info("Handle new tip received new tip with height", "branch", mBHeader.Branch, "shard height", mBHeader.Number, "hash", mBHeader.Hash().String())
 	return nil
 }
 
@@ -230,7 +220,7 @@ func (s *ShardBackend) NewMinorBlock(peerId string, block *types.MinorBlock) (er
 		return
 	}
 	if s.MinorBlockChain.HasBlock(block.Hash()) {
-		log.Info("add minor block, Known minor block", "branch", block.Branch(), "height", block.Number())
+		log.Debug("add minor block, Known minor block", "branch", block.Branch(), "height", block.Number())
 		return
 	}
 
