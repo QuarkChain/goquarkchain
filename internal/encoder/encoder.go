@@ -176,7 +176,7 @@ func MinorBlockEncoder(block *types.MinorBlock, includeTransaction bool, extraIn
 
 	if includeTransaction {
 		txForDisplay := make([]map[string]interface{}, 0)
-		for txIndex, _ := range block.Transactions() {
+		for txIndex := range block.Transactions() {
 			temp, err := TxEncoder(block, txIndex)
 			if err != nil {
 				return nil, err

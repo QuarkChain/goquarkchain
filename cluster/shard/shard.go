@@ -32,7 +32,7 @@ type BlockCommitCode int
 
 const (
 	BLOCK_UNCOMMITTED BlockCommitCode = iota
-	BLOCK_COMMITTING   // TODO not support yet,need discuss
+	BLOCK_COMMITTING                  // TODO not support yet,need discuss
 	BLOCK_COMMITTED
 )
 

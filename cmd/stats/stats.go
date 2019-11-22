@@ -142,19 +142,19 @@ func queryAddress(client jsonrpc.RPCClient, interval *uint, address, token *stri
 }
 
 func queryBalance(client jsonrpc.RPCClient, addr, token string) {
-	accBytes,err :=hexutil.Decode("0x"+addr)
+	accBytes, err := hexutil.Decode("0x" + addr)
 	if err != nil {
 		fmt.Println(err.Error())
 		return
 	}
-	acc, err:=account.CreatAddressFromBytes(accBytes)
+	acc, err := account.CreatAddressFromBytes(accBytes)
 	if err != nil {
 		fmt.Println(err.Error())
 		return
 	}
-	acc.FullShardKey=0
+	acc.FullShardKey = 0
 	includeShards := true
-	response, err := client.Call("getAccountData", qkcapi.GetAccountDataArgs{ Address: acc, IncludeShards: &includeShards})
+	response, err := client.Call("getAccountData", qkcapi.GetAccountDataArgs{Address: acc, IncludeShards: &includeShards})
 	if err != nil {
 		fmt.Println(err.Error())
 		return

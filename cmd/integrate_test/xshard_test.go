@@ -759,10 +759,10 @@ func TestPoSWOnRootChain(t *testing.T) {
 	balance := map[string]*big.Int{quarkChain.GenesisToken: big.NewInt(100000000)}
 	shardCfg := quarkChain.GetShardConfigByFullShardID(1)
 	shardCfg.Genesis.Alloc = map[account.Address]config.Allocation{
-		account.Address{Recipient: contractAddr, FullShardKey: 0}: {
+		{Recipient: contractAddr, FullShardKey: 0}: {
 			Code: contractCode,
 		},
-		account.Address{Recipient: stakerAddr.Recipient, FullShardKey: 0}: {
+		{Recipient: stakerAddr.Recipient, FullShardKey: 0}: {
 			Balances: balance,
 		},
 	}
