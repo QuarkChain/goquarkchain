@@ -3,6 +3,7 @@ package slave
 import (
 	"errors"
 	"fmt"
+	"github.com/QuarkChain/goquarkchain/cluster/sync"
 	"math/big"
 
 	"github.com/QuarkChain/goquarkchain/account"
@@ -18,11 +19,6 @@ import (
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
 	"golang.org/x/sync/errgroup"
-)
-
-var (
-	MINOR_BLOCK_HEADER_LIST_LIMIT = uint32(100)
-	MINOR_BLOCK_BATCH_SIZE        = 50
 )
 
 func (s *SlaveBackend) GetUnconfirmedHeaderList() ([]*rpc.HeadersInfo, error) {
@@ -378,7 +374,7 @@ func (s *SlaveBackend) GetMinorBlockListByHashList(mHashList []common.Hash, bran
 		minorList = make([]*types.MinorBlock, 0, len(mHashList))
 	)
 
-	if len(mHashList) > 2*MINOR_BLOCK_BATCH_SIZE {
+	if len(mHashList) > 2*sync.MinorBlockBatchSize {
 		return nil, errors.New("Bad number of minor blocks requested")
 	}
 
