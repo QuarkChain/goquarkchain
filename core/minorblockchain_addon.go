@@ -1678,7 +1678,7 @@ func (m *MinorBlockChain) PoswInfo(mBlock *types.MinorBlock) (*rpc.PoSWInfo, err
 		return nil, err
 	}
 	stakes := evmState.GetBalance(header.Coinbase.Recipient, m.clusterConfig.Quarkchain.GetDefaultChainTokenID())
-	diff, minable, mined, _ := m.posw.GetPoSWInfo(header, stakes)
+	diff, minable, mined, _ := m.posw.GetPoSWInfo(header, stakes, header.Coinbase.Recipient)
 	return &rpc.PoSWInfo{
 		EffectiveDifficulty: diff,
 		PoswMineableBlocks:  minable,
@@ -1702,7 +1702,7 @@ func (m *MinorBlockChain) CommitMinorBlockByHash(h common.Hash) {
 }
 
 func (m *MinorBlockChain) GetMiningInfo(address account.Recipient, stake *types.TokenBalances) (mineable, mined uint64, err error) {
-	_, mineable, mined, err = m.posw.GetPoSWInfo(m.CurrentHeader(), stake.GetTokenBalance(m.Config().GetDefaultChainTokenID()))
+	_, mineable, mined, err = m.posw.GetPoSWInfo(m.CurrentHeader(), stake.GetTokenBalance(m.Config().GetDefaultChainTokenID()), address)
 	return
 }
 
