@@ -130,7 +130,7 @@ func (w worker) work() {
 			}
 			// Start finding the nonce
 			if err := w.pow.FindNonce(adjustedWork, resultsCh, abortWorkCh); err != nil {
-				panic(err) // TODO: Send back err in an error channel
+				panic(err)
 			}
 			currWork = &work
 			w.log("INFO", "started new work, height:\t %d", work.Number)

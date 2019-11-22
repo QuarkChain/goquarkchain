@@ -457,23 +457,21 @@ func (pm *ProtocolManager) HandleNewMinorTip(branch uint32, tip *p2p.Tip, peer *
 	if len(clients) == 0 {
 		return fmt.Errorf("invalid branch %d for rpc request from peer %v", branch, peer.id)
 	}
-	// todo make the client call in Parallelized
-	for _, client := range clients {
-		req := &rpc.HandleNewTipRequest{
+	var (
+		g   errgroup.Group
+		req = &rpc.HandleNewTipRequest{
 			RootBlockHeader:      tip.RootBlockHeader,
 			MinorBlockHeaderList: tip.MinorBlockHeaderList,
 			PeerID:               peer.id,
 		}
-		result, err := client.HandleNewTip(req)
-		if err != nil {
-			return fmt.Errorf("branch %d handle NewTipMsg message failed with error: %v", branch, err.Error())
-		}
-		if !result {
-			return fmt.Errorf("HandleNewRootTip for branch %d with height %d return false",
-				branch, tip.MinorBlockHeaderList[0].NumberU64())
-		}
+	)
+	for _, client := range clients {
+		conn := client
+		g.Go(func() error {
+			return conn.HandleNewTip(req)
+		})
 	}
-	return nil
+	return g.Wait()
 }
 
 func (pm *ProtocolManager) HandleGetRootBlockHeaderListRequest(req *p2p.GetRootBlockHeaderListRequest) (*p2p.GetRootBlockHeaderListResponse, error) {

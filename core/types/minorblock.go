@@ -179,7 +179,9 @@ type extminorblock struct {
 func NewMinorBlock(header *MinorBlockHeader, meta *MinorBlockMeta, txs []*Transaction, receipts []*Receipt, trackingdata []byte) *MinorBlock {
 	b := &MinorBlock{header: CopyMinorBlockHeader(header), meta: CopyMinorBlockMeta(meta), td: new(big.Int)}
 
-	// TODO: panic if len(txs) != len(receipts)
+	if len(txs) != len(receipts) {
+		panic("txs count don't match receipts count.")
+	}
 	if len(txs) == 0 {
 		b.meta.TxHash = EmptyHash
 	} else {
