@@ -50,13 +50,16 @@ func (s *SlaveServerSideOp) MasterInfo(ctx context.Context, req *rpc.Request) (*
 	if gReq.RootTip == nil {
 		return nil, errors.New("handle masterInfo err:rootTip is nil")
 	}
+
+	s.slave.connManager.ModifyTarget(fmt.Sprintf("%s:%d", gReq.Ip, gReq.Port))
+
 	//createShards
 	if err = s.slave.CreateShards(gReq.RootTip, true); err != nil {
 		return nil, err
 	}
 
 	//ping with other slaves
-	s.slave.connManager.SetConnectToMasterAndSlaves(&gReq, s.slave.clstrCfg.SlaveList)
+	s.slave.connManager.SetConnectToMasterAndSlaves(s.slave.clstrCfg.SlaveList)
 
 	log.Info("slave master info response", "master endpoint", s.slave.connManager.masterClient.target)
 
