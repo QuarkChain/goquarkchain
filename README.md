@@ -262,7 +262,7 @@ to describe the task you are planning to do. For small fixes (a few lines of cha
 free to open pull requests directly.
 
 ## FAQ
-###Q: Is CentOS supported?
+### Q: Is CentOS supported?
 
 A: We will support as many platforms as we can in the future, but currently only Ubuntu is fully tested, so it is recommended that you use Docker.  
 However for CentOS specifically, you can try the following steps:
