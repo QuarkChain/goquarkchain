@@ -337,17 +337,19 @@ func (s *ShardBackend) AddMinorBlock(block *types.MinorBlock) error {
 // This function only adds blocks to local and propagate xshard list to other shards.
 // It does NOT notify master because the master should already have the minor header list,
 // and will add them once this function returns successfully.
-func (s *ShardBackend) AddBlockListForSync(blockLst []*types.MinorBlock) (map[common.Hash]*types.TokenBalances, error) {
+
+func (s *ShardBackend) AddBlockListForSync(blockLst []*types.MinorBlock) error {
 	s.wg.Add(1)
 	defer s.wg.Done()
-	blockHashToXShardList := make(map[common.Hash]*XshardListTuple)
 
-	coinbaseAmountList := make(map[common.Hash]*types.TokenBalances, 0)
 	if len(blockLst) == 0 {
-		return coinbaseAmountList, nil
+		return nil
 	}
 
-	uncommittedBlockHeaderList := make([]*types.MinorBlockHeader, 0)
+	var (
+		blockHashToXShardList      = make(map[common.Hash]*XshardListTuple)
+		uncommittedBlockHeaderList = make([]*types.MinorBlockHeader, 0, len(blockLst))
+	)
 	for _, block := range blockLst {
 		blockHash := block.Hash()
 		if block.Branch().Value != s.branch.Value {
@@ -357,15 +359,14 @@ func (s *ShardBackend) AddBlockListForSync(blockLst []*types.MinorBlock) (map[co
 			continue
 		}
 		//TODO:support BLOCK_COMMITTING
-		coinbaseAmountList[block.Hash()] = block.CoinbaseAmount()
 		_, xshardLst, err := s.MinorBlockChain.InsertChainForDeposits([]types.IBlock{block}, false)
 		if err != nil {
 			log.Error("Failed to add minor block", "err", err)
-			return nil, err
+			return err
 		}
 		if len(xshardLst) != 1 {
 			log.Warn("already have this block", "number", block.NumberU64(), "hash", block.Hash().String())
-			return nil, nil
+			return nil
 		}
 		s.mBPool.delBlockInPool(block.Hash())
 		prevRootHeight := s.MinorBlockChain.GetRootBlockByHash(block.PrevRootBlockHash())
@@ -374,20 +375,20 @@ func (s *ShardBackend) AddBlockListForSync(blockLst []*types.MinorBlock) (map[co
 	}
 	// interrupt the current miner and restart
 	if err := s.conn.BatchBroadcastXshardTxList(blockHashToXShardList, blockLst[0].Branch()); err != nil {
-		return nil, err
+		return err
 	}
 
 	req := &rpc.AddMinorBlockHeaderListRequest{
 		MinorBlockHeaderList: uncommittedBlockHeaderList,
 	}
 	if err := s.conn.SendMinorBlockHeaderListToMaster(req); err != nil {
-		return nil, err
+		return err
 	}
 	for _, header := range uncommittedBlockHeaderList {
 		s.MinorBlockChain.CommitMinorBlockByHash(header.Hash())
 		s.mBPool.delBlockInPool(header.Hash())
 	}
-	return coinbaseAmountList, nil
+	return nil
 }
 
 // ######################## miner Methods ##############################

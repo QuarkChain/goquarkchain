@@ -127,7 +127,7 @@ func (s *SlaveBackend) AddBlockListForSync(mHashList []common.Hash, peerId strin
 		if len(bList) != hLen {
 			return nil, errors.New("Failed to add minor blocks for syncing root block: length of downloaded block list is incorrect")
 		}
-		if _, err := shard.AddBlockListForSync(bList); err != nil { //TODO?need fix?
+		if err := shard.AddBlockListForSync(bList); err != nil {
 			return nil, err
 		}
 		hashList = hashList[hLen:]
