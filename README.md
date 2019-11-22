@@ -261,6 +261,34 @@ All the help from community is appreciated! If you are interested in working on 
 to describe the task you are planning to do. For small fixes (a few lines of change) feel
 free to open pull requests directly.
 
+## FAQ
+###Q: Is CentOS supported?
+
+A: We will support as many platforms as we can in the future, but currently only Ubuntu is fully tested, so it is recommended that you use Docker.  
+However for CentOS specifically, you can try the following steps:
+ ```bash
+ #install rocksdb:
+ 	sudo yum install -y git build-essential make g++ swig
+ 	sudo yum install -y snappy snappy-devel zlib zlib-devel bzip2 bzip2-devel lz4-devel libasan
+ 	git clone -b v6.1.2 https://github.com/facebook/rocksdb.git
+ 	cd rocksdb
+ 	sudo make shared_lib
+ 	sudo make install-shared
+ 	
+ #install gcc:
+ 	wget http://ftp.gnu.org/gnu/gcc/gcc-7.4.0/gcc-7.4.0.tar.gz
+ 	tar -xvzf gcc-7.4.0.tar.gz
+ 	cd gcc-7.4.0 && ./contrib/download_prerequisites
+ 	mkdir -p build_gcc_4.8.1 && cd &_
+ 	../gcc-7.4.0/configure --enable-checking=release --enable-languages=c,c++ --disable-multilib && make && make install
+ 	
+ #install goquarkchain:
+ 	mkdir -p $GOPATH/src/github.com/QuarkChain && cd $_
+ 	git clone https://github.com/QuarkChain/goquarkchain.git
+ 	cd $GOPATH/src/github.com/QuarkChain/goquarkchain/consensus/qkchash/native/ && g++ -shared -o libqkchash.so -fPIC qkchash.cpp -O3 -std=gnu++11
+ 	cd ../../../cmd/cluster && go build -v
+``` 
+
 ## Developer Community
 Join our developer community on [Discourse](https://community.quarkchain.io/) and [Discord](http://discord.me/quarkchain).
 

@@ -156,6 +156,7 @@ func (t *ToolManager) SendFileToCluster() {
 
 			v.RunCmdIgnoreErr("docker stop $(docker ps -a|grep bjqkc |awk '{print $1}')")
 			v.RunCmdIgnoreErr("docker  rm $(docker ps -a|grep bjqkc |awk '{print $1}')")
+			log.Debug("==== begin pulling Docker image...")
 			v.RunCmd("docker pull " + t.LocalConfig.DockerName)
 			v.RunCmd("docker run -itd --name bjqkc --network=host " + t.LocalConfig.DockerName)
 
