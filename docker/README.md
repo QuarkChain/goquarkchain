@@ -39,7 +39,7 @@ cd /go/src/github.com/QuarkChain/goquarkchain/cmd/cluster
 # note this is only a sample mining program. feel free to change `goqkcminer`
 $ sudo docker ps  # find container ID
 # you can specify the full shard keys which you want to mine, the command should be:
-$ sudo docker exec -it <container ID> go run /go/src/github.com/QuarkChain/goquarkchain/cmd/miner.go -config ../../mainnet/singularity/cluster_config_template.json -shards <full shard key>
+$ sudo docker exec -it <container ID> go run /go/src/github.com/QuarkChain/goquarkchain/cmd/miner/main.go -config ../../mainnet/singularity/cluster_config_template.json -shards <full shard key>
 ```
 
 * To monitor the current state of the network (e.g. chain height, account balance) refer to [stats tool](../cmd/stats).
