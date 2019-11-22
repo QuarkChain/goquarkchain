@@ -14,7 +14,6 @@ import (
 // Implements consensus.Pow
 type QKCHash struct {
 	*consensus.CommonEngine
-	// TODO: in the future cache may depend on block height
 	cache *cacheSeed
 	// A flag indicating which impl (c++ native or go) to use
 	useNative      bool
