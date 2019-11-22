@@ -98,7 +98,7 @@ If you do not have one, please create one from our online [testnet](http://devne
 
 ## Mainnet mining configuration
 
-For specifying shards in goqkcminer (--shards)
+For specifying shards in goqkcminer (-shards)
 
 |Chain |Shard |Hash Algo|Parameter for goqkcminer|Block Interval| QKC Per Block |
 | ---      | ---     |---  | --- | --- | --- |
