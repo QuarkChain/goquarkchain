@@ -277,6 +277,7 @@ func (s *ShardBackend) AddMinorBlock(block *types.MinorBlock) error {
 		log.Error("Failed to add minor block", "err", err, "len", len(xshardLst))
 		return err
 	}
+
 	if len(xshardLst) != 1 {
 		log.Warn("already have this block", "number", block.NumberU64(), "hash", block.Hash().String())
 		return nil
