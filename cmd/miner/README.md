@@ -33,7 +33,7 @@ Usage of goqkcminer:
   -threads int
         Use how many threads to mine in a worker
   -timeout int
-        timeout in seconds for RPC calls (default 500)
+        timeout in seconds for RPC calls (default 10)
 ```
 
 Misc:
