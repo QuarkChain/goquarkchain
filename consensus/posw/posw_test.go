@@ -417,7 +417,7 @@ func tryAddTx(blockchain *core.MinorBlockChain, tx *types.Transaction) error {
 
 func TestPoSWValidateMinorBlockSeal(t *testing.T) {
 	accb := make([]byte, 20)
-	for i, _ := range accb {
+	for i := range accb {
 		accb[i] = 1
 	}
 	reci := account.BytesToIdentityRecipient(accb)
@@ -482,7 +482,7 @@ func TestPoSWValidateMinorBlockSeal(t *testing.T) {
 
 func TestPoSWWindowEdgeCases(t *testing.T) {
 	accb := make([]byte, 20)
-	for i, _ := range accb {
+	for i := range accb {
 		accb[i] = 1
 	}
 	reci := account.BytesToIdentityRecipient(accb)

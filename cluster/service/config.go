@@ -61,8 +61,8 @@ type Config struct {
 	// exposed.
 	HTTPModules []string `toml:",omitempty"`
 
-	HTTPPrivModules []string `toml:",omitempty"`
-	HTTPPrivEndpoint string `toml:",omitempty"`
+	HTTPPrivModules  []string `toml:",omitempty"`
+	HTTPPrivEndpoint string   `toml:",omitempty"`
 
 	// HTTPTimeouts allows for customization of the timeout values used by the HTTP RPC
 	// interface.

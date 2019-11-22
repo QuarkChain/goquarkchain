@@ -230,7 +230,7 @@ func (b *TokenBalances) DecodeRLP(s *rlp.Stream) error {
 func (b *TokenBalances) Serialize(w *[]byte) error {
 	keys := make([]uint64, 0, b.Len())
 	num := uint32(0)
-	for k, _ := range b.balances {
+	for k := range b.balances {
 		keys = append(keys, k)
 		num++
 	}

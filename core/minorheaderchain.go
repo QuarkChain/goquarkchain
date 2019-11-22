@@ -220,7 +220,7 @@ func (hc *HeaderChain) ValidateHeaderChain(chain []*types.MinorBlockHeader, chec
 	defer close(abort)
 
 	// Iterate over the Headers and ensure they all check out
-	for i, _ := range chain {
+	for i := range chain {
 		// If the chain is terminating, stop processing blocks
 		if hc.procInterrupt() {
 			log.Debug("Premature abort during Headers verification")

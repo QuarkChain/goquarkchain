@@ -693,7 +693,7 @@ func (m *MinorBlockChain) Stop() {
 		if m.rootTip != nil {
 			log.Info("need stored tire", "number", m.rootTip.Number)
 
-			for hash, _ := range m.rootHeightToHashes[m.rootTip.NumberU64()] {
+			for hash := range m.rootHeightToHashes[m.rootTip.NumberU64()] {
 				heightDiff = m.getNeedStoreHeight(hash, heightDiff)
 			}
 			heightDiff = qkcCommon.RemoveDuplicate(heightDiff)
