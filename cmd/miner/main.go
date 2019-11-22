@@ -6,8 +6,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"github.com/QuarkChain/goquarkchain/cluster/config"
-	"github.com/QuarkChain/goquarkchain/consensus/ethash"
 	"io/ioutil"
 	"log"
 	"math/big"
@@ -15,8 +13,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/consensus/doublesha256"
+	"github.com/QuarkChain/goquarkchain/consensus/ethash"
 	"github.com/QuarkChain/goquarkchain/consensus/qkchash"
 	"github.com/QuarkChain/goquarkchain/rpc"
 	"github.com/ethereum/go-ethereum/common"
@@ -130,7 +130,8 @@ func (w worker) work() {
 			}
 			// Start finding the nonce
 			if err := w.pow.FindNonce(adjustedWork, resultsCh, abortWorkCh); err != nil {
-				panic(err)
+				ethlog.Error("Block sealing failed", "err", err)
+				continue
 			}
 			currWork = &work
 			w.log("INFO", "started new work, height:\t %d", work.Number)
