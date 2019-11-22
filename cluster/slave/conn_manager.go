@@ -42,17 +42,7 @@ func (s *ConnManager) addSlaveConnection(target string, conn *SlaveConn) {
 	fullShardIdList := s.qkcCfg.GetGenesisShardIds()
 	for _, id := range fullShardIdList {
 		if conn.HasShard(id) {
-			flag := true
-			for i, client := range s.fullShardIdToSlaves[id] {
-				if client.target == conn.target {
-					flag = false
-					s.fullShardIdToSlaves[id][i] = conn
-					break
-				}
-			}
-			if flag {
-				s.fullShardIdToSlaves[id] = append(s.fullShardIdToSlaves[id], conn)
-			}
+			s.fullShardIdToSlaves[id] = append(s.fullShardIdToSlaves[id], conn)
 		}
 	}
 	s.slavesConn[target] = conn
@@ -67,6 +57,9 @@ func (s *ConnManager) SetConnectToMasterAndSlaves(mInfo *rpc.MasterInfo, cfgs []
 	s.fullShardIdToSlaves = make(map[uint32][]*SlaveConn)
 	for _, cfg := range cfgs {
 		target := fmt.Sprintf("%s:%d", cfg.IP, cfg.Port)
+		if _, ok := s.slavesConn[target]; ok {
+			continue
+		}
 		conn := NewToSlaveConn(target, string(cfg.ID), cfg.ChainMaskList)
 		log.Info("slave conn manager, add connect to slave", "add target", target)
 
