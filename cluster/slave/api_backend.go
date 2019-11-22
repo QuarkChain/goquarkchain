@@ -429,7 +429,7 @@ func (s *SlaveBackend) getMinorBlockHeadersWithSkip(gReq *p2p.GetMinorBlockHeade
 		mTip   = shrd.MinorBlockChain.CurrentBlock()
 	)
 	if gReq.Type == qcom.SkipHash {
-		iHeader := shrd.MinorBlockChain.GetHeaderByHash(gReq.GetHash())
+		iHeader := shrd.MinorBlockChain.GetHeader(gReq.GetHash())
 		if qcom.IsNil(iHeader) {
 			return nil, fmt.Errorf("failed to get minor block header by hash, minor hash: %s", gReq.GetHash().String())
 		}

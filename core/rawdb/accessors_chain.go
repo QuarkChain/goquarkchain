@@ -278,7 +278,6 @@ func ReadMinorBlock(db DatabaseReader, hash common.Hash) *types.MinorBlock {
 
 // WriteMinorBlock storea a block body into the database.
 func WriteMinorBlock(db DatabaseWriter, block *types.MinorBlock) {
-	WriteMinorBlockHeader(db, block.Header())
 	data, err := serialize.SerializeToBytes(block)
 	if err != nil {
 		log.Crit("Failed to serialize body", "err", err)
@@ -378,7 +377,6 @@ func DeleteReceipts(db DatabaseDeleter, hash common.Hash) {
 // DeleteBlock removes all block data associated with a hash.
 func DeleteMinorBlock(db DatabaseDeleter, hash common.Hash) {
 	DeleteReceipts(db, hash)
-	DeleteMinorBlockHeader(db, hash)
 	DeleteBlock(db, hash)
 	DeleteMinorBlockCommitStatus(db, hash)
 }

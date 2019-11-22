@@ -685,12 +685,10 @@ func (s *SlaveServerSideOp) AddTransactions(ctx context.Context, req *rpc.Reques
 		return nil, fmt.Errorf("too many txs in one command, tx count: %d\n", len(txs.TransactionList))
 	}
 	addTxList := func(branch uint32, txs []*types.Transaction) error {
-		ts := time.Now()
 		err := s.slave.AddTxList(gReq.PeerID, branch, txs)
 		if err != nil {
 			return err
 		}
-		log.Info("AddTxs duration", "t", time.Now().Sub(ts).Seconds(), "time", time.Now().Sub(ts).Nanoseconds(), "len", len(txs))
 		return nil
 	}
 
