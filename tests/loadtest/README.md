@@ -14,6 +14,7 @@ Key parameters in cluster config json file for loadtest:
 - CHAINS/CONSENSUS_CONFIG/TARGET_BLOCK_TIME: minor block interval
 - CHAINS/GENESIS/GAS_LIMIT: minor block gas limit
 - CHAINS/SHARD_SIZE: number of shards per chain
+- GENESIS_DIR: location of account data; should be "../../tests/loadtest/accounts" if you start cluster under goquarkchain/cmd/cluster
 
 ## Start Mining
 

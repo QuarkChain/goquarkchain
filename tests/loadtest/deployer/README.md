@@ -109,3 +109,9 @@ You can find master.log and shard logs such as `S0.log` from `$GOPATH/src/github
 ## Back to Loadtest
 
 Now that you have running clusters, you can continue with loadtest from [here](../README.md#start-mining).
+
+## FAQ
+
+### Console hangs when running the deployer?
+It takes some time to pull the Docker image from Docker hub to the hosts for the first time. 
+You may consider to do the pulling directly on the remote hosts beforehand where you can see the downloading process.

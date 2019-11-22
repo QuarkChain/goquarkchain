@@ -149,13 +149,14 @@ func (t *ToolManager) SendFileToCluster() {
 	for _, session := range t.SSHSession[t.ClusterIndex] {
 		v := session
 		g.Go(func() error {
-			v.RunCmd("apt-get update")
+			v.RunCmdIgnoreErr("apt-get update")
 			v.RunCmd("apt-get install docker.io -y")
 			v.RunCmd("rm -rf  /tmp/QKC")
 			v.RunCmd("mkdir /tmp/QKC")
 
 			v.RunCmdIgnoreErr("docker stop $(docker ps -a|grep bjqkc |awk '{print $1}')")
 			v.RunCmdIgnoreErr("docker  rm $(docker ps -a|grep bjqkc |awk '{print $1}')")
+			log.Debug("==== begin pulling Docker image...")
 			v.RunCmd("docker pull " + t.LocalConfig.DockerName)
 			v.RunCmd("docker run -itd --name bjqkc --network=host " + t.LocalConfig.DockerName)
 
