@@ -273,10 +273,15 @@ func (s *ShardBackend) AddMinorBlock(block *types.MinorBlock) error {
 	//TODO support BLOCK_COMMITTING
 	currHead := s.MinorBlockChain.CurrentBlock().Header()
 	_, xshardLst, err := s.MinorBlockChain.InsertChainForDeposits([]types.IBlock{block}, false)
-	if err != nil || len(xshardLst) != 1 {
+	if err != nil {
 		log.Error("Failed to add minor block", "err", err, "len", len(xshardLst))
 		return err
 	}
+	if len(xshardLst) != 1 {
+		log.Warn("already have this block", "number", block.NumberU64(), "hash", block.Hash().String())
+		return nil
+	}
+
 	// only remove from pool if the block successfully added to state,
 	// this may cache failed blocks but prevents them being broadcasted more than needed
 	s.mBPool.delBlockInPool(block.Hash())
@@ -353,9 +358,13 @@ func (s *ShardBackend) AddBlockListForSync(blockLst []*types.MinorBlock) (map[co
 		//TODO:support BLOCK_COMMITTING
 		coinbaseAmountList[block.Hash()] = block.CoinbaseAmount()
 		_, xshardLst, err := s.MinorBlockChain.InsertChainForDeposits([]types.IBlock{block}, false)
-		if err != nil || len(xshardLst) != 1 {
+		if err != nil {
 			log.Error("Failed to add minor block", "err", err)
 			return nil, err
+		}
+		if len(xshardLst) != 1 {
+			log.Warn("already have this block", "number", block.NumberU64(), "hash", block.Hash().String())
+			return nil, nil
 		}
 		s.mBPool.delBlockInPool(block.Hash())
 		prevRootHeight := s.MinorBlockChain.GetRootBlockByHash(block.PrevRootBlockHash())
