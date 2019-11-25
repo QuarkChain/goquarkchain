@@ -215,7 +215,7 @@ func (t *ToolManager) StartClusters() {
 	for index := 0; index < len(t.LocalConfig.Hosts); index++ {
 		log.Info("============begin start cluster============", "ClusterID", index)
 		log.Info("==== begin gen config")
-		t.GenClusterConfig(ClusterConfigPath)
+		t.GenClusterConfig(clusterConfigPath)
 		log.Info("==== begin send file to others cluster")
 		t.SendFileToCluster()
 		log.Info("==== begin start cluster")
