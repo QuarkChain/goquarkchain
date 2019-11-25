@@ -117,11 +117,12 @@ It takes some time to pull the Docker image from Docker hub to the hosts for the
 You may consider to do the pulling directly on the remote hosts beforehand where you can see the downloading process.
 
 ## I'd like to deploy the clusters myself, but can you help me with the cluster configurations?
-Sure. Describe you clusters in `deployConfig.json`, and run the deployer with flag `--genconf`:
+Sure. Describe your clusters in `deployConfig.json`, and run the deployer with flag `--genconf`:
 
 ```bash
 # suppose your working directory is "$GOPATH/src/github.com/QuarkChain/goquarkchain/tests/loadtest/deployer"
 go run deploy_cluster.go --genconf
 ```
-And you will get cluster configuration files named cluster_config_${ClusterID}.json, with ${ClusterID} replaced by real ClusterIDs in `deployConfig.json`.
+And you will get cluster configuration files named cluster_config_${ClusterID}.json in current directory, with ${ClusterID} replaced by real ClusterIDs in `deployConfig.json`.
 Also, the `PRIV_KEY` is specified for cluster_config_0.json , and the corresponding `BOOT_NODES` is set to others.
+NOTE with `--genconf` flag, the deployer will not actually do deploy work, but create cluster configuration files.
