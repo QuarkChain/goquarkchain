@@ -144,7 +144,7 @@ Now you are inside Docker container and are ready to start cluster services with
 ```bash
 root@<container ID>:/go/src/github.com/QuarkChain/goquarkchain/cmd/cluster#./cluster --cluster_config ../../tests/testnet/egconfig/cluster_config_template.json  --service S0 >> s0.log 2>&1 &
 root@<container ID>:/go/src/github.com/QuarkChain/goquarkchain/cmd/cluster#./cluster --cluster_config ../../tests/testnet/egconfig/cluster_config_template.json  --service S1 >> s1.log 2>&1 &
-root@<container ID>:/go/src/github.com/QuarkChain/goquarkchain/cmd/cluster#./cluster --cluster_config ../../tests/testnet/egconfig/cluster_config_template.json  master.log 2>&1 &
+root@<container ID>:/go/src/github.com/QuarkChain/goquarkchain/cmd/cluster#./cluster --cluster_config ../../tests/testnet/egconfig/cluster_config_template.json  >> master.log 2>&1 &
 ```
 Check logs to see if the cluster is running successfully.
 
