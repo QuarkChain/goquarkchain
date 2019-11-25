@@ -40,6 +40,7 @@ ENV GO111MODULE on
 
 # install goquarkchain
 WORKDIR $GOPATH/src/github.com/QuarkChain
+RUN rm -rf ./*
 RUN git clone https://github.com/QuarkChain/goquarkchain.git
 WORKDIR $GOPATH/src/github.com/QuarkChain/goquarkchain/consensus/qkchash/native
 RUN g++ -shared -o libqkchash.so -fPIC qkchash.cpp -O3 -std=gnu++17 && make

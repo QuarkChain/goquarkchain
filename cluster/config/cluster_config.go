@@ -40,7 +40,6 @@ type ClusterConfig struct {
 	CheckDBRBlockFrom        int
 	CheckDBRBlockTo          int
 	CheckDBRBlockBatch       int
-	// TODO KafkaSampleLogger
 }
 
 func NewClusterConfig() *ClusterConfig {
@@ -438,7 +437,7 @@ func (q *QuarkChainConfig) SetAllowedToken() {
 	q.allowTokenIDs[common.TokenIDEncode(q.GenesisToken)] = true
 	for _, shard := range q.shards {
 		for _, alloc := range shard.Genesis.Alloc {
-			for tokenID, _ := range alloc.Balances {
+			for tokenID := range alloc.Balances {
 				q.allowTokenIDs[common.TokenIDEncode(tokenID)] = true
 			}
 		}

@@ -88,9 +88,7 @@ func newMinorCanonical(cacheConfig *CacheConfig, engine consensus.Engine, n int,
 		_, err := blockchain.InsertChain(toMinorBlocks(blocks), false)
 		return db, blockchain, err
 	}
-	// Header-only chain requested
-	headers := makeHeaderChain(genesis.Header(), genesis.Meta(), n, engine, db, canonicalSeed)
-	_, err = blockchain.InsertHeaderChain(ToHeaders(headers), 1)
+
 	return db, blockchain, err
 }
 
@@ -118,17 +116,11 @@ func testMinorFork(t *testing.T, blockchain *MinorBlockChain, i, n int, full boo
 	}
 	// Extend the newly created chain
 	var (
-		blockChainB  []*types.MinorBlock
-		headerChainB []*types.MinorBlockHeader
+		blockChainB []*types.MinorBlock
 	)
 	if full {
 		blockChainB = makeBlockChain(blockchain2.CurrentBlock(), n, engine, db, forkSeed)
 		if _, err := blockchain2.InsertChain(toMinorBlocks(blockChainB), false); err != nil {
-			t.Fatalf("failed to insert forking chain: %v", err)
-		}
-	} else {
-		headerChainB = makeHeaderChain(blockchain2.hc.CurrentHeader().(*types.MinorBlockHeader), blockchain2.CurrentBlock().Meta(), n, engine, db, forkSeed)
-		if _, err := blockchain2.InsertHeaderChain(ToHeaders(headerChainB), 1); err != nil {
 			t.Fatalf("failed to insert forking chain: %v", err)
 		}
 	}
@@ -224,8 +216,7 @@ func TestMinorLastBlock(t *testing.T) {
 
 //TestMinors that given a starting canonical chain of a given size, it can be extended
 //with various length chains.
-func TestMinorExtendCanonicalHeaders(t *testing.T) { testMinorExtendCanonical(t, false) }
-func TestMinorExtendCanonicalBlocks(t *testing.T)  { testMinorExtendCanonical(t, true) }
+func TestMinorExtendCanonicalBlocks(t *testing.T) { testMinorExtendCanonical(t, true) }
 
 func testMinorExtendCanonical(t *testing.T, full bool) {
 	length := 5
@@ -252,8 +243,7 @@ func testMinorExtendCanonical(t *testing.T, full bool) {
 
 //TestMinors that given a starting canonical chain of a given size, creating shorter
 //forks do not take canonical ownership.
-func TestMinorShorterForkHeaders(t *testing.T) { testMinorShorterFork(t, false) }
-func TestMinorShorterForkBlocks(t *testing.T)  { testMinorShorterFork(t, true) }
+func TestMinorShorterForkBlocks(t *testing.T) { testMinorShorterFork(t, true) }
 
 func testMinorShorterFork(t *testing.T, full bool) {
 	length := 10
@@ -282,8 +272,7 @@ func testMinorShorterFork(t *testing.T, full bool) {
 
 //TestMinors that given a starting canonical chain of a given size, creating longer
 //forks do take canonical ownership.
-func TestMinorLongerForkHeaders(t *testing.T) { testMinorLongerFork(t, false) }
-func TestMinorLongerForkBlocks(t *testing.T)  { testMinorLongerFork(t, true) }
+func TestMinorLongerForkBlocks(t *testing.T) { testMinorLongerFork(t, true) }
 
 func testMinorLongerFork(t *testing.T, full bool) {
 	length := 10
@@ -313,8 +302,7 @@ func testMinorLongerFork(t *testing.T, full bool) {
 //
 //TestMinors that given a starting canonical chain of a given size, creating equal
 //forks do take canonical ownership.
-func TestMinorEqualForkHeaders(t *testing.T) { testMinorEqualFork(t, false) }
-func TestMinorEqualForkBlocks(t *testing.T)  { testMinorEqualFork(t, true) }
+func TestMinorEqualForkBlocks(t *testing.T) { testMinorEqualFork(t, true) }
 
 func testMinorEqualFork(t *testing.T, full bool) {
 	length := 10
@@ -343,8 +331,7 @@ func testMinorEqualFork(t *testing.T, full bool) {
 }
 
 // TestMinors that chains missing links do not get accepted by the processor.
-func TestMinorBrokenHeaderChain(t *testing.T) { testMinorBrokenChain(t, false) }
-func TestMinorBrokenBlockChain(t *testing.T)  { testMinorBrokenChain(t, true) }
+func TestMinorBrokenBlockChain(t *testing.T) { testMinorBrokenChain(t, true) }
 
 func testMinorBrokenChain(t *testing.T, full bool) {
 	// Make chain starting from genesis
@@ -364,7 +351,7 @@ func testMinorBrokenChain(t *testing.T, full bool) {
 			t.Errorf("broken block chain not reported")
 		}
 	} else {
-		chain := makeHeaderChain(blockchain.hc.CurrentHeader().(*types.MinorBlockHeader), blockchain.CurrentBlock().Meta(), 5, engine, db, forkSeed)[1:]
+		chain := makeHeaderChain(blockchain.CurrentHeader().(*types.MinorBlockHeader), blockchain.CurrentBlock().Meta(), 5, engine, db, forkSeed)[1:]
 		if err := testMinorHeaderChainImport(chain, blockchain); err == nil {
 			t.Errorf("broken header chain not reported")
 		}
@@ -374,31 +361,10 @@ func testMinorBrokenChain(t *testing.T, full bool) {
 //
 //TestMinors that reorganising a long difficult chain after a short easy one
 //overwrites the canonical numbers and links in the database.
-func TestMinorReorgLongHeaders(t *testing.T) { testMinorReorgLong(t, false) }
-func TestMinorReorgLongBlocks(t *testing.T)  { testMinorReorgLong(t, true) }
+func TestMinorReorgLongBlocks(t *testing.T) { testMinorReorgLong(t, true) }
 
 func testMinorReorgLong(t *testing.T, full bool) {
 	testMinorReorg(t, []uint64{10000, 10000, 10000}, []uint64{10000, 10000, 10000, 10000}, 40000, full)
-}
-
-//TestMinors that reorganising a short difficult chain after a long easy one
-//overwrites the canonical numbers and links in the database.
-func TestMinorReorgShortHeaders(t *testing.T) { testMinorReorgShort(t, false) }
-func TestMinorReorgShortBlocks(t *testing.T)  { testMinorReorgShort(t, true) }
-
-func testMinorReorgShort(t *testing.T, full bool) {
-	// Create a long easy chain vs. a short heavy one. Due to difficulty adjustment
-	// we need a fairly long chain of blocks with different difficulties for a short
-	// one to become heavyer than a long one. The 96 is an empirical value.
-	easy := make([]uint64, 96)
-	for i := 0; i < len(easy); i++ {
-		easy[i] = 10000
-	}
-	diff := make([]uint64, len(easy)-1)
-	for i := 0; i < len(diff); i++ {
-		diff[i] = 100000
-	}
-	testMinorReorg(t, easy, diff, 960000, full)
 }
 
 func testMinorReorg(t *testing.T, first, second []uint64, td int64, full bool) {
@@ -432,13 +398,6 @@ func testMinorReorg(t *testing.T, first, second []uint64, td int64, full bool) {
 		for i, block := range diffBlocks {
 			diffHeaders[i] = block.Header()
 		}
-		if _, err := blockchain.InsertHeaderChain(ToHeaders(easyHeaders), 1); err != nil {
-			t.Fatalf("failed to insert easy chain: %v", err)
-		}
-
-		if _, err := blockchain.InsertHeaderChain(ToHeaders(diffHeaders), 1); err != nil {
-			t.Fatalf("failed to insert difficult chain: %v", err)
-		}
 	}
 	// Check that the chain is valid number and link wise
 	if full {
@@ -449,8 +408,8 @@ func testMinorReorg(t *testing.T, first, second []uint64, td int64, full bool) {
 			}
 		}
 	} else {
-		prev := blockchain.hc.CurrentHeader()
-		for header := blockchain.GetHeaderByNumber(blockchain.hc.CurrentHeader().NumberU64() - 1); header.NumberU64() != 0; prev, header = header, blockchain.GetHeaderByNumber(header.NumberU64()-1) {
+		prev := blockchain.CurrentHeader()
+		for header := blockchain.GetHeaderByNumber(blockchain.CurrentHeader().NumberU64() - 1); header.NumberU64() != 0; prev, header = header, blockchain.GetHeaderByNumber(header.NumberU64()-1) {
 			if prev.GetParentHash() != header.Hash() {
 				t.Errorf("parent header hash mismatch: have %x, want %x", prev.GetParentHash(), header.Hash())
 			}
@@ -459,8 +418,7 @@ func testMinorReorg(t *testing.T, first, second []uint64, td int64, full bool) {
 }
 
 // TestMinors chain insertions in the face of one entity containing an invalid nonce.
-func TestMinorHeadersInsertNonceError(t *testing.T) { testMinorInsertNonceError(t, false) }
-func TestMinorBlocksInsertNonceError(t *testing.T)  { testMinorInsertNonceError(t, true) }
+func TestMinorBlocksInsertNonceError(t *testing.T) { testMinorInsertNonceError(t, true) }
 
 func testMinorInsertNonceError(t *testing.T, full bool) {
 	for i := 1; i < 10 && !t.Failed(); i++ {
@@ -500,8 +458,6 @@ func testMinorInsertNonceError(t *testing.T, full bool) {
 			failNum = headers[failAt].Number
 			engine.NumberToFail = failNum
 			engine.Err = errors.New("fack engine expected fail")
-			blockchain.hc.engine = blockchain.engine
-			failRes, err = blockchain.InsertHeaderChain(ToHeaders(headers), 1)
 		}
 		// Check that the returned error indicates the failure
 		if failRes != failAt {
@@ -589,17 +545,22 @@ func TestMinorFastVsFullChains(t *testing.T) {
 	if n, err := archive.InsertChain(toMinorBlocks(blocks), false); err != nil {
 		t.Fatalf("failed to process block %d: %v", n, err)
 	}
+
 	// Fast import the chain as a non-archive node to testMinor
 	fastDb := ethdb.NewMemDatabase()
 	gspec.MustCommitMinorBlock(fastDb, nil, config.NewClusterConfig().Quarkchain.Chains[0].ShardSize|0)
 	fast, _ := NewMinorBlockChain(fastDb, nil, chainConfig, config.NewClusterConfig(), engine, vm.Config{}, nil, clusterConfig.Quarkchain.Chains[0].ShardSize|0)
 	defer fast.Stop()
-
+	genesis, err = fast.InitGenesisState(rootBlock)
+	if err != nil {
+		panic(err)
+	}
 	headers := make([]*types.MinorBlockHeader, len(blocks))
 	for i, block := range blocks {
 		headers[i] = block.Header()
 	}
-	if n, err := fast.InsertHeaderChain(ToHeaders(headers), 1); err != nil {
+
+	if n, err := fast.InsertChain(toMinorBlocks(blocks), false); err != nil {
 		t.Fatalf("failed to insert header %d: %v", n, err)
 	}
 	if n, err := fast.InsertReceiptChain(toMinorBlocks(blocks), receipts); err != nil {
@@ -609,7 +570,7 @@ func TestMinorFastVsFullChains(t *testing.T) {
 	for i := 0; i < len(blocks); i++ {
 		num, hash := blocks[i].NumberU64(), blocks[i].Hash()
 
-		if fheader, aheader := fast.GetHeaderByHash(hash), archive.GetHeaderByHash(hash); fheader.Hash() != aheader.Hash() {
+		if fheader, aheader := fast.GetHeader(hash), archive.GetHeader(hash); fheader.Hash() != aheader.Hash() {
 			t.Errorf("block #%d [%x]: header mismatch: have %v, want %v", num, hash, fheader, aheader)
 		}
 		if fblock, ablock := fast.GetMinorBlock(hash), archive.GetMinorBlock(hash); fblock.Hash() != ablock.Hash() {
@@ -648,7 +609,7 @@ func TestMinorLightVsFastVsFullChainHeads(t *testing.T) {
 	clusterConfig.Quarkchain.SkipRootDifficultyCheck = true
 	height := uint64(1024)
 	engine := &consensus.FakeEngine{}
-	blocks, receipts := GenerateMinorBlockChain(params.TestChainConfig, clusterConfig.Quarkchain, genesis, engine, gendb, int(height), nil)
+	blocks, _ := GenerateMinorBlockChain(params.TestChainConfig, clusterConfig.Quarkchain, genesis, engine, gendb, int(height), nil)
 
 	// Configure a subchain to roll back
 	remove := []common.Hash{}
@@ -663,7 +624,7 @@ func TestMinorLightVsFastVsFullChainHeads(t *testing.T) {
 		//if num := chain.CurrentFastBlock().(); num != fast {
 		//	t.Errorf("%s head fast-block mismatch: have #%v, want #%v", kind, num, fast)
 		//}
-		if num := chain.hc.CurrentHeader().NumberU64(); num != header {
+		if num := chain.CurrentBlock().NumberU64(); num != header {
 			t.Errorf("%s head header mismatch: have #%v, want #%v", kind, num, header)
 		}
 	}
@@ -699,33 +660,6 @@ func TestMinorLightVsFastVsFullChainHeads(t *testing.T) {
 	for i, block := range blocks {
 		headers[i] = block.Header()
 	}
-	if n, err := fast.InsertHeaderChain(ToHeaders(headers), 1); err != nil {
-		t.Fatalf("failed to insert header %d: %v", n, err)
-	}
-	if n, err := fast.InsertReceiptChain(toMinorBlocks(blocks), receipts); err != nil {
-		t.Fatalf("failed to insert receipt %d: %v", n, err)
-	}
-	assert(t, "fast", fast, height, height, 0)
-	fast.Rollback(remove)
-	assert(t, "fast", fast, height/2, height/2, 0)
-
-	// Import the chain as a light node and ensure all pointers are updated
-	lightDb := ethdb.NewMemDatabase()
-	gspec.MustCommitMinorBlock(lightDb, rootBlock, clusterConfig.Quarkchain.Chains[0].ShardSize|0)
-
-	light, _ := NewMinorBlockChain(lightDb, nil, params.TestChainConfig, clusterConfig, engine, vm.Config{}, nil, config.NewClusterConfig().Quarkchain.Chains[0].ShardSize|0)
-	_, err = light.InitGenesisState(rootBlock)
-	if err != nil {
-		panic(err)
-	}
-	if n, err := light.InsertHeaderChain(ToHeaders(headers), 1); err != nil {
-		t.Fatalf("failed to insert header %d: %v", n, err)
-	}
-	defer light.Stop()
-
-	assert(t, "light", light, height, 0, 0)
-	light.Rollback(remove)
-	assert(t, "light", light, height/2, 0, 0)
 }
 
 // TestMinors that chain reorganisations handle transaction removals and reinsertions.

@@ -6,8 +6,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"github.com/QuarkChain/goquarkchain/cluster/config"
-	"github.com/QuarkChain/goquarkchain/consensus/ethash"
 	"io/ioutil"
 	"log"
 	"math/big"
@@ -15,8 +13,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/consensus/doublesha256"
+	"github.com/QuarkChain/goquarkchain/consensus/ethash"
 	"github.com/QuarkChain/goquarkchain/consensus/qkchash"
 	"github.com/QuarkChain/goquarkchain/rpc"
 	"github.com/ethereum/go-ethereum/common"
@@ -38,7 +38,7 @@ var (
 	host            = flag.String("host", "localhost", "remote host of a quarkchain cluster")
 	port            = flag.Int("port", 38391, "remote JSONRPC port of a quarkchain cluster")
 	preThreads      = flag.Int("threads", 0, "Use how many threads to mine in a worker")
-	rpcTimeout      = flag.Int("timeout", 500, "timeout in seconds for RPC calls")
+	rpcTimeout      = flag.Int("timeout", 10, "timeout in seconds for RPC calls")
 	gethlogLvl      = flag.String("gethloglvl", "info", "log level of geth")
 	coinbaseAddress = flag.String("coinbase", "", "coinbase for miner")
 )
@@ -130,7 +130,8 @@ func (w worker) work() {
 			}
 			// Start finding the nonce
 			if err := w.pow.FindNonce(adjustedWork, resultsCh, abortWorkCh); err != nil {
-				panic(err) // TODO: Send back err in an error channel
+				ethlog.Error("Block sealing failed", "err", err)
+				continue
 			}
 			currWork = &work
 			w.log("INFO", "started new work, height:\t %d", work.Number)

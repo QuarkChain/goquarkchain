@@ -47,23 +47,19 @@ func (s *SlaveServerSideOp) MasterInfo(ctx context.Context, req *rpc.Request) (*
 		return nil, err
 	}
 
-	s.slave.connManager.ModifyTarget(fmt.Sprintf("%s:%d", gReq.Ip, gReq.Port))
-
 	if gReq.RootTip == nil {
 		return nil, errors.New("handle masterInfo err:rootTip is nil")
 	}
+
+	s.slave.connManager.ModifyTarget(fmt.Sprintf("%s:%d", gReq.Ip, gReq.Port))
+
 	//createShards
 	if err = s.slave.CreateShards(gReq.RootTip, true); err != nil {
 		return nil, err
 	}
 
 	//ping with other slaves
-	for _, slv := range s.slave.clstrCfg.SlaveList {
-		if slv.ID == s.slave.config.ID {
-			continue
-		}
-		s.slave.connManager.AddConnectToSlave(&rpc.SlaveInfo{Id: slv.ID, Host: slv.IP, Port: slv.Port, ChainMaskList: slv.ChainMaskList})
-	}
+	s.slave.connManager.SetConnectToMasterAndSlaves(s.slave.clstrCfg.SlaveList)
 
 	log.Info("slave master info response", "master endpoint", s.slave.connManager.masterClient.target)
 
@@ -685,12 +681,10 @@ func (s *SlaveServerSideOp) AddTransactions(ctx context.Context, req *rpc.Reques
 		return nil, fmt.Errorf("too many txs in one command, tx count: %d\n", len(txs.TransactionList))
 	}
 	addTxList := func(branch uint32, txs []*types.Transaction) error {
-		ts := time.Now()
 		err := s.slave.AddTxList(gReq.PeerID, branch, txs)
 		if err != nil {
 			return err
 		}
-		log.Info("AddTxs duration", "t", time.Now().Sub(ts).Seconds(), "time", time.Now().Sub(ts).Nanoseconds(), "len", len(txs))
 		return nil
 	}
 

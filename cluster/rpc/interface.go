@@ -34,7 +34,7 @@ type ISlaveConn interface {
 	GetMinorBlocks(request *P2PRedirectRequest) ([]byte, error)
 	GetMinorBlockHeaderList(req *P2PRedirectRequest) ([]byte, error)
 	GetMinorBlockHeaderListWithSkip(req *P2PRedirectRequest) ([]byte, error)
-	HandleNewTip(request *HandleNewTipRequest) (bool, error)
+	HandleNewTip(request *HandleNewTipRequest) error
 	HandleNewMinorBlock(request *P2PRedirectRequest) error
 	AddBlockListForSync(request *AddBlockListForSyncRequest) (*ShardStatus, error)
 	GetSlaveID() string

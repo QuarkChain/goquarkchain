@@ -969,6 +969,11 @@ func (pool *TxPool) reset(oldBlock, newBlock *types.MinorBlock) {
 				}
 				return
 			}
+			if add == nil {
+				log.Error("txpool issue: add is nil", "old_Number", oldHead.Number, "old_hash", oldHead.Hash().String(),
+					"new_Number", newHead.Number, "new_Hash", newHead.Hash().String())
+				return
+			}
 			for rem.NumberU64() > add.NumberU64() {
 				discarded = append(discarded, rem.Transactions()...)
 				if rem = pool.chain.GetMinorBlock(rem.ParentHash()); rem == nil {

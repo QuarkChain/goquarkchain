@@ -137,7 +137,7 @@ func (r *rootChainTask) PeerID() string {
 }
 
 func (r *rootChainTask) downloadBlockHeaderListAndCheck(start uint32, skip,
-limit uint32) ([]*types.RootBlockHeader, error) {
+	limit uint32) ([]*types.RootBlockHeader, error) {
 	req := &p2p.GetRootBlockHeaderListWithSkipRequest{
 		Skip:      skip,
 		Limit:     limit,

@@ -3,6 +3,8 @@
 Here we provide a deploy tool based on pre-built Docker image(`quarkchaindocker/goquarkchain`). With this tool you can deploy multiple clusters to build 
 and start a private QuarkChain network in one line command. 
 
+Here is a quick [demo video](https://www.youtube.com/watch?v=0_aME3vUILQ).
+
 You can also build your own Docker image, starting from [this Dockerfile](../../../docker/Dockerfile), or if you are 
 interested in build everything without Docker, start from [here](../../../README.md#development-setup). 
 
@@ -14,6 +16,7 @@ will be done across network during the deploy process.
 To use `deployer` to run Docker image, it is required for the hosts that:
 
    - Ubuntu 18.04, 
+   - ssh server installed and running,
    - root account is enabled, 
    - Docker version >= 18.09.7, and
    - 38291, 38391, 38491, [48000, 48000 + host number] ports opened.
@@ -27,6 +30,7 @@ Run the following commands to pull the Docker image and start a container:
 
 ```bash
 # replace docker image name if a custom image is used
+# specify a version tag if needed; use 'latest' for latest code 
 sudo docker pull quarkchaindocker/goquarkchain:<version tag>
 sudo docker run -it quarkchaindocker/goquarkchain:<version tag> /bin/bash 
 ```
@@ -64,8 +68,18 @@ started as a bootstrap node
 - `CHAIN_SIZE` defines the number of chains in each cluster, where each chain has a number of shards; CHAIN_SIZE must be bigger or equal to the number of slaves.
 - `SHARD_SIZE` defines the number of shards of each chain (must be a power of 2)
 - `TargetRootBlockTime` refers to ROOT/CONSENSUS_CONFIG/TARGET_BLOCK_TIME in cluster config that defines the target block interval of root chain in seconds, since "POW_SIMULATE" is used for consensus
-- `TargetMinorBlockTime` refers to CHAINS/CONSENSUS_CONFIG/TARGET_BLOCK_TIME in cluster config that defines the target block interval of each shard
+- `TargetMinorBlockTime` refers to CHAINS/CONSENSUS_CONFIG/TARGET_BLOCK_TIME in cluster config that defines the target block interval of each shard in seconds
 - `GasLimit` refers to CHAINS/GENESIS/GAS_LIMIT in cluster config that defines the gas limit for a block; note that in-shard transactions uses 50% of the total gas limit in a block
+
+[This sample config in the repo](./deployConfig-sample.json) illustrates how 3 clusters running 256 shards
+(64 chains * 4 shards per chain) can be deployed to 17 hosts.
+
+In this example, cluster 0, 1, 2 are deployed on 9, 4, 4 hosts respectively. 
+Cluster 0 runs its master service alone in one of its 9 hosts, and 64 slave services on another 8 hosts with 8 slaves each.
+Cluster 1 runs its master service with 8 slaves in one of its 4 hosts, and other 24 slave services on another 3 hosts with 8 slaves each.
+Cluster 2 has the same structure as cluster 1.
+
+So, cluster 0, 1, 2 have 64, 32, 32 slaves deployed respectively. Notice the slave number of each cluster is a power of 2. 
 
 ## Deploy and Run Clusters
 
@@ -95,3 +109,9 @@ You can find master.log and shard logs such as `S0.log` from `$GOPATH/src/github
 ## Back to Loadtest
 
 Now that you have running clusters, you can continue with loadtest from [here](../README.md#start-mining).
+
+## FAQ
+
+### Console hangs when running the deployer?
+It takes some time to pull the Docker image from Docker hub to the hosts for the first time. 
+You may consider to do the pulling directly on the remote hosts beforehand where you can see the downloading process.
