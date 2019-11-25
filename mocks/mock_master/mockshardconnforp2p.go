@@ -210,12 +210,11 @@ func (mr *MockISlaveConnMockRecorder) GetMinorBlockHeaderListWithSkip(req interf
 }
 
 // HandleNewTip mocks base method
-func (m *MockISlaveConn) HandleNewTip(request *rpc.HandleNewTipRequest) (bool, error) {
+func (m *MockISlaveConn) HandleNewTip(request *rpc.HandleNewTipRequest) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "HandleNewTip", request)
-	ret0, _ := ret[0].(bool)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
+	ret0, _ := ret[0].(error)
+	return ret0
 }
 
 // HandleNewTip indicates an expected call of HandleNewTip

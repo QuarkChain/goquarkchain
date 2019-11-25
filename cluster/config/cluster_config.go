@@ -40,7 +40,6 @@ type ClusterConfig struct {
 	CheckDBRBlockFrom        int
 	CheckDBRBlockTo          int
 	CheckDBRBlockBatch       int
-	// TODO KafkaSampleLogger
 }
 
 func NewClusterConfig() *ClusterConfig {
