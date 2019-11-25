@@ -499,6 +499,7 @@ func (s *SlaveServerSideOp) BatchAddXshardTxList(ctx context.Context, req *rpc.R
 
 	return response, nil
 }
+
 func (s *SlaveServerSideOp) GetRootChainStakes(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
 	var (
 		gReq     rpc.GetRootChainStakesRequest

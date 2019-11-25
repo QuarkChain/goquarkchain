@@ -572,6 +572,12 @@ func (pm *ProtocolManager) HandleGetRootBlockHeaderListWithSkipRequest(peerId st
 			height += request.Skip + 1
 		}
 	}
+	if request.Direction == qkcom.DirectionToGenesis {
+		hLen := len(headerlist)
+		for i := 0; i < hLen/2; i++ {
+			headerlist[i], headerlist[hLen-i-1] = headerlist[hLen-i-1], headerlist[i]
+		}
+	}
 
 	return &p2p.GetRootBlockHeaderListResponse{RootTip: rTip, BlockHeaderList: headerlist}, nil
 }
