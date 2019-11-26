@@ -149,7 +149,7 @@ func (t *ToolManager) InstallDocker() {
 		for _, session := range t.SSHSession[t.ClusterIndex] {
 			v := session
 			v.SendFile("./deploy/install_docker.sh", "/tmp")
-			v.RunCmd("chmod +x /tmp/install_docker.sh && ./tmp/install_docker.sh")
+			v.RunCmd("chmod +x /tmp/install_docker.sh && /tmp/install_docker.sh")
 		}
 		t.ClusterIndex++
 	}
