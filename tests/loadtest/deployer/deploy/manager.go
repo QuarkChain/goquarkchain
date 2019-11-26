@@ -144,13 +144,23 @@ func (t *ToolManager) GenClusterConfig(configPath string) {
 	WriteConfigToFile(clusterConfig, configPath)
 }
 
+func (t *ToolManager) InstallDocker() {
+	for index := 0; index < len(t.LocalConfig.Hosts); index++ {
+		for _, session := range t.SSHSession[t.ClusterIndex] {
+			v := session
+			v.SendFile("../install_docker.sh", "/tmp")
+			v.RunCmd("chmod +x /tmp/install_docker.sh && sh /tmp/install_docker.sh")
+		}
+		t.ClusterIndex++
+	}
+	t.ClusterIndex = 0
+}
+
 func (t *ToolManager) SendFileToCluster() {
 	var g errgroup.Group
 	for _, session := range t.SSHSession[t.ClusterIndex] {
 		v := session
 		g.Go(func() error {
-			v.RunCmdIgnoreErr("apt-get update")
-			v.RunCmd("apt-get install docker.io -y")
 			v.RunCmd("rm -rf  /tmp/QKC")
 			v.RunCmd("mkdir /tmp/QKC")
 

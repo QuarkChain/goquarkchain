@@ -19,7 +19,8 @@ var (
 	glogger *log.GlogHandler
 )
 var (
-	initConf = flag.Bool("genconf", false, "only gen config , not run cluster")
+	initConf      = flag.Bool("genconf", false, "only gen config , not run cluster")
+	installDocker = flag.Bool("install_docker", false, "install docker")
 )
 
 func init() {
@@ -41,13 +42,17 @@ func getToolManager() *deploy.ToolManager {
 
 func main() {
 	flag.Parse()
+	toolManager := getToolManager()
 	if *initConf {
-		toolManager := getToolManager()
 		toolManager.GenAllClusterConfig()
 		return
 	}
 
-	toolManager := getToolManager()
+	if *installDocker {
+		log.Info("ready to install docker")
+		toolManager.InstallDocker()
+		return
+	}
 	toolManager.StartClusters()
 	log.Info("ready to check status")
 	toolManager.CheckPeerStatus()
