@@ -150,7 +150,8 @@ func (t *ToolManager) InstallDocker() {
 			v := session
 			v.SendFile("./deploy/install_docker.sh", "/tmp")
 			v.RunCmdIgnoreErr("chmod +x /tmp/install_docker.sh && /tmp/install_docker.sh")
-			v.RunCmdAndGetOutPut("docker -v")
+			versionInfo := v.RunCmdAndGetOutPut("docker -v")
+			log.Info("version", "host", session.host, "version info", versionInfo)
 		}
 		t.ClusterIndex++
 	}
