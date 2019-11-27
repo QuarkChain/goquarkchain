@@ -453,12 +453,6 @@ func (s *SlaveBackend) getMinorBlockHeadersWithSkip(gReq *p2p.GetMinorBlockHeade
 		}
 	}
 
-	if gReq.Direction == qcom.DirectionToGenesis {
-		hLen := len(headerlist)
-		for i := 0; i < hLen/2; i++ {
-			headerlist[i], headerlist[hLen-i-1] = headerlist[hLen-i-1], headerlist[i]
-		}
-	}
 	return headerlist, nil
 }
 
