@@ -22,7 +22,7 @@ Check out the [Wiki](https://github.com/QuarkChain/pyquarkchain/wiki) to underst
 
 ## Development Setup
 
-The following instructions are based on clean Ubuntu 18.04. 
+The following instructions are based on clean Ubuntu 18.04. For other operating systems, please refer to [this FAQ](#q-is-centos-supported).
 If you prefer to use Docker, you can [run a cluster inside Docker container](#run-a-cluster-inside-docker).
 
 ###  Setup Go Environment
