@@ -95,7 +95,7 @@ func (s *SSHSession) RunCmdAndGetOutPut(cmd string) string {
 	if stdErr.String() != "" {
 		log.Error("run cmd err", "cmd", cmd, "err", stdErr.String())
 	}
-	return "????????/"
+	return ""
 }
 
 func SSHConnect(user, password, host string, port int) (*ssh.Session, error) {
