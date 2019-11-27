@@ -157,7 +157,7 @@ func (t *ToolManager) InstallDocker() {
 			log.Warn("ready to install docker and pull images", "host", v.host)
 			v.installDocker()
 
-			log.Debug("==== begin pulling Docker image...")
+			log.Debug("==== begin pulling Docker image...", "host", v.host)
 			v.RunCmd("docker pull " + t.LocalConfig.DockerName)
 			dockerInfo = v.RunCmdAndGetOutPut(checkDockerCmd)
 			if strings.Contains(dockerInfo, t.LocalConfig.DockerName) {
@@ -181,7 +181,6 @@ func (t *ToolManager) SendFileToCluster() {
 
 		v.RunCmdIgnoreErr("docker stop $(docker ps -a|grep bjqkc |awk '{print $1}')")
 		v.RunCmdIgnoreErr("docker  rm $(docker ps -a|grep bjqkc |awk '{print $1}')")
-		v.RunCmd("docker pull " + t.LocalConfig.DockerName)
 		v.RunCmd("docker run -itd --name bjqkc --network=host " + t.LocalConfig.DockerName)
 
 		v.SendFile(clusterPath, "/tmp/QKC")

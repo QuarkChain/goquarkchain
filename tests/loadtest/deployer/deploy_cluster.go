@@ -50,8 +50,8 @@ func main() {
 	log.Info("ready to set Environment!!!")
 	toolManager.InstallDocker()
 	log.Info("Environment set successfully!!!!")
-	//toolManager.StartClusters()
-	//log.Info("ready to check status")
-	//toolManager.CheckPeerStatus()
+	toolManager.StartClusters()
+	log.Info("ready to check status")
+	toolManager.CheckPeerStatus()
 
 }
