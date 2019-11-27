@@ -21,7 +21,7 @@
       "IP": "167.172.201.206",
       "Port": 22,
       "User": "root",
-      "Password": "123456",
+      "Password": "goquarkchain",
       "IsMaster":true,
       "SlaveNumber": 2,
       "ClusterID": 2
