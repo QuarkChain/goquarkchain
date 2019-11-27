@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"net"
+	"strings"
 	"time"
 
 	"github.com/ethereum/go-ethereum/log"
@@ -17,6 +18,19 @@ type SSHSession struct {
 
 func NewSSHConnect(user, password, host string, port int) *SSHSession {
 	return &SSHSession{user, password, host, port}
+}
+
+func (s *SSHSession) installDocker() {
+	osInfo := s.RunCmdAndGetOutPut("cat /etc/os-release | grep ID=")
+	if strings.Contains(osInfo, "ubuntu") {
+		log.Info("ubuntu:ready to install docker", "host", s.host)
+		s.RunCmd("apt-get update && apt-get install docker.io")
+	} else if strings.Contains(osInfo, "centos") {
+		log.Info("centos:ready to install docker", "host", s.host)
+		s.RunCmd("yum update && yum -y install docker && systemctl start docker")
+	} else {
+		log.Error("Other os", "info", osInfo)
+	}
 }
 
 func (s *SSHSession) RunCmdIgnoreErr(cmd string) {
