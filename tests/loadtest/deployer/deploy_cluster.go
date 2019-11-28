@@ -41,13 +41,15 @@ func getToolManager() *deploy.ToolManager {
 
 func main() {
 	flag.Parse()
+	toolManager := getToolManager()
 	if *initConf {
-		toolManager := getToolManager()
 		toolManager.GenAllClusterConfig()
 		return
 	}
 
-	toolManager := getToolManager()
+	log.Info("ready to set Environment!!!")
+	toolManager.InstallDocker()
+	log.Info("Environment set successfully!!!!")
 	toolManager.StartClusters()
 	log.Info("ready to check status")
 	toolManager.CheckPeerStatus()
