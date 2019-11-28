@@ -40,6 +40,10 @@
 [Copy the complete output from `stats` here. It should capture the cluster configuration and at least 10 minute continuous samples (60 rows) with at least one sample showing the TPS claimed above.]
 ```
 
+**Cluster Configurations**
+[Provide the link to the cluster config file (cluster_config_template.json, checked in to your forked repo) used in your clusters. 
+If deployer is used, please provide deployConfig.json as well (password is not needed).]
+
 **Additional Comment**
 
 [If you have special setup, e.g., running a single cluster over multiple machines, the above questionnaire might not fit. Note down
