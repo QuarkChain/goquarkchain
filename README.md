@@ -297,7 +297,7 @@ However for macOS specifically, you can try the following steps:
           /usr/bin/ruby -e “$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)”
 
  #install gcc rocksdb swig:
-            brew install rocksdb gcc
+            brew install rocksdb gcc swig
 
  #install golang:
           brew install go
