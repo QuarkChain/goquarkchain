@@ -124,7 +124,7 @@ func (t *ToolManager) GetSlaveIPList() []string {
 	return ipList
 }
 
-func (t *ToolManager) GenClusterConfig() {
+func (t *ToolManager) GenClusterConfig(configPath string) {
 	clusterConfig := GenConfigDependInitConfig(t.LocalConfig.ChainSize, t.LocalConfig.ShardSize, t.GetSlaveIPList(), t.LocalConfig.ExtraClusterConfig)
 
 	if t.BootNode == "" {
@@ -141,7 +141,7 @@ func (t *ToolManager) GenClusterConfig() {
 		clusterConfig.P2P.BootNodes = t.BootNode + "@" + t.GetMasterIP() + ":38291"
 		t.ClusterIndex = tIndex
 	}
-	WriteConfigToFile(clusterConfig, clusterConfigPath)
+	WriteConfigToFile(clusterConfig, configPath)
 }
 
 func (t *ToolManager) SendFileToCluster() {
@@ -215,12 +215,21 @@ func (t *ToolManager) StartClusters() {
 	for index := 0; index < len(t.LocalConfig.Hosts); index++ {
 		log.Info("============begin start cluster============", "ClusterID", index)
 		log.Info("==== begin gen config")
-		t.GenClusterConfig()
+		t.GenClusterConfig(clusterConfigPath)
 		log.Info("==== begin send file to others cluster")
 		t.SendFileToCluster()
 		log.Info("==== begin start cluster")
 		t.StartCluster(index)
 		log.Info("============end start cluster============", "ClusterID", index)
+		t.ClusterIndex++
+	}
+}
+
+func (t *ToolManager) GenAllClusterConfig() {
+	for index := 0; index < len(t.LocalConfig.Hosts); index++ {
+		configPath := fmt.Sprintf("./cluster_config_template_%d.json", index)
+		log.Warn("genClusterConfig succ", "path", configPath)
+		t.GenClusterConfig(configPath)
 		t.ClusterIndex++
 	}
 }
