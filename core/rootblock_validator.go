@@ -86,11 +86,10 @@ func (v *RootBlockValidator) ValidateBlock(block types.IBlock, force bool) error
 		}
 		actualCoinbaseAmount := header.CoinbaseAmount
 		if !compareCoinbaseAmountMap(expectedCoinbaseAmount.GetBalanceMap(), actualCoinbaseAmount.GetBalanceMap()) {
-			fmt.Println("block", block.NumberU64(), block.IHeader().GetCoinbaseAmount().GetBalanceMap())
-			return fmt.Errorf("bad coinbase amount for root block %v. expect %v but got %v.",
+			return fmt.Errorf("bad coinbase amount for root block %v. expect %d but got %d.",
 				rootBlock.Hash().String(),
-				expectedCoinbaseAmount.GetBalanceMap(),
-				rootBlock.Header().GetCoinbaseAmount().GetBalanceMap())
+				expectedCoinbaseAmount,
+				rootBlock.Header().GetCoinbaseAmount())
 		}
 	}
 
