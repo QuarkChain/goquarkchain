@@ -93,7 +93,7 @@ type stateObject struct {
 
 // empty returns whether the account is considered empty.
 func (s *stateObject) empty() bool {
-	return s.data.Nonce == 0 && s.data.TokenBalances.IsEmpty() && bytes.Equal(s.data.CodeHash, emptyCodeHash)
+	return s.data.Nonce == 0 && s.data.TokenBalances.IsBlank() && bytes.Equal(s.data.CodeHash, emptyCodeHash)
 }
 
 // Account is the Ethereum consensus representation of accounts.
@@ -135,9 +135,9 @@ func newObject(db *StateDB, address common.Address, data Account) *stateObject {
 		FullShardKey: data.FullShardKey,
 	}
 	if data.TokenBalances == nil {
-		newData.TokenBalances, _ = types.NewTokenBalances([]byte{})
+		newData.TokenBalances, _ = types.NewTokenBalances([]byte{}, db.db.TrieDB())
 	} else {
-		newData.TokenBalances = data.TokenBalances.Copy()
+		newData.TokenBalances = data.TokenBalances.CopyWithDB()
 	}
 	if data.CodeHash == nil {
 		newData.CodeHash = emptyCodeHash
@@ -266,6 +266,7 @@ func (self *stateObject) updateTrie(db Database) Trie {
 		v, _ := rlp.EncodeToBytes(bytes.TrimLeft(value[:], "\x00"))
 		self.setError(tr.TryUpdate(key[:], v))
 	}
+	self.data.TokenBalances.Commit()
 	return tr
 }
 

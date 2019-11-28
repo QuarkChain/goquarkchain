@@ -1271,7 +1271,9 @@ func (bc *RootBlockChain) CalculateRootBlockCoinBase(rootBlock *types.RootBlock)
 	}
 	genesisToken := bc.Config().GetDefaultChainTokenID()
 	genesisTokenBalance := rewardTokenMap.GetTokenBalance(genesisToken)
+
 	genesisTokenBalance.Add(genesisTokenBalance, bc.getCoinbaseAmount(rootBlock.NumberU64()))
+
 	rewardTokenMap.SetValue(genesisTokenBalance, genesisToken)
 	return rewardTokenMap, nil
 
