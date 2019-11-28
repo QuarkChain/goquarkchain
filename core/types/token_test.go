@@ -1,6 +1,7 @@
 package types
 
 import (
+	"bytes"
 	"math/big"
 	"reflect"
 	"testing"
@@ -83,4 +84,71 @@ func TestEncodingInTrie(t *testing.T) {
 	data, err := b1.SerializeToBytes()
 	assert.NoError(t, err)
 	assert.Equal(t, data, encoding)
+}
+
+func TestEncodeChangeFromDictToTrie(t *testing.T) {
+	db := trie.NewDatabase(ethdb.NewMemDatabase())
+	b, err := NewTokenBalances(nil, db)
+	assert.NoError(t, err)
+	mapping := make(map[uint64]*big.Int, 0)
+	for index := 0; index < 16; index++ {
+		mapping[qCommon.TokenIDEncode("Q"+string(byte(65+index)))] = new(big.Int).SetUint64(uint64(index*1000 + 42))
+	}
+	b.Add(mapping)
+	b.Commit()
+	sData, err := b.SerializeToBytes()
+	assert.NoError(t, err)
+	assert.True(t, bytes.HasPrefix(sData, []byte{0}))
+	assert.True(t, b.tokenTrie == nil)
+
+	newToken := qCommon.TokenIDEncode("QKC")
+	b.SetValue(new(big.Int).SetUint64(123), newToken)
+	assert.Equal(t, b.GetTokenBalance(newToken), new(big.Int).SetUint64(123))
+	b.Commit()
+	assert.True(t, b.tokenTrie != nil)
+	sData, err = b.SerializeToBytes()
+	assert.NoError(t, err)
+	assert.True(t, bytes.HasPrefix(sData, []byte{1}))
+	root1 := b.tokenTrie.Hash()
+
+	for tokenID, _ := range mapping {
+		b.SetValue(new(big.Int), tokenID)
+	}
+
+	assert.True(t, b.GetTokenBalance(qCommon.TokenIDEncode("QA")).Uint64() == 0)
+	b.Commit()
+	serialized, err := b.SerializeToBytes()
+	assert.NoError(t, err)
+	root2 := b.tokenTrie.Hash()
+	assert.True(t, bytes.Equal(serialized, append([]byte{1}, root2.Bytes()...)))
+	assert.True(t, root2.String() != root1.String())
+
+	assert.True(t, len(b.balances) == 0)
+	assert.True(t, b.GetTokenBalance(qCommon.TokenIDEncode("QB")).Uint64() == 0)
+	assert.True(t, len(b.balances) == 1)
+	assert.True(t, !b.IsBlank(), true)
+
+	b.SetValue(new(big.Int), newToken)
+	b.Commit()
+	assert.True(t, b.tokenTrie.Hash().String() == new(trie.Trie).Hash().String())
+	assert.True(t, len(b.balances) == 0)
+}
+
+func TestResetBalanceInTrieAndRevert(t *testing.T) {
+	db := trie.NewDatabase(ethdb.NewMemDatabase())
+	b, err := NewTokenBalances(nil, db)
+	assert.NoError(t, err)
+	mapping := make(map[uint64]*big.Int, 0)
+	for index := 0; index < 17; index++ {
+		mapping[qCommon.TokenIDEncode("Q"+string(byte(65+index)))] = new(big.Int).SetUint64(uint64(index*1000 + 42))
+	}
+	b.Add(mapping)
+	b.Commit()
+
+	b.SetValue(new(big.Int).SetUint64(999), 999)
+	assert.True(t, b.GetTokenBalance(999).Uint64() == 999)
+
+	//TODO test revert?
+	//py handle revert in token_balances
+	//go handle revert in token_balances's caller
 }

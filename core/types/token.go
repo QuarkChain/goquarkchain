@@ -174,8 +174,10 @@ func (t *TokenBalances) GetTokenBalance(tokenID uint64) *big.Int {
 	if t.tokenTrie != nil {
 		v := t.tokenTrie.Get(qCommon.EncodeInt32(tokenID))
 		ret := new(big.Int)
-		if err := rlp.DecodeBytes(v, ret); err != nil {
-			panic(err)
+		if len(v) != 0 {
+			if err := rlp.DecodeBytes(v, ret); err != nil {
+				panic(err)
+			}
 		}
 		t.balances[tokenID] = ret
 		return ret
