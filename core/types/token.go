@@ -107,7 +107,7 @@ func NewTokenBalances(data []byte, db *trie.Database) (*TokenBalances, error) {
 		}
 	case byte(1):
 		var err error
-		tokenBalances.tokenTrie, err = trie.NewSecure(common.Hash{}, db, 0)
+		tokenBalances.tokenTrie, err = trie.NewSecure(common.BytesToHash(data[1:]), db, 0)
 		if err != nil {
 			return nil, err
 		}
@@ -130,7 +130,7 @@ func (t *TokenBalances) Commit() {
 		}
 	}
 	for tokenID, bal := range t.balances {
-		k := qCommon.Uint32ToBytes(uint32(tokenID))
+		k := qCommon.EncodeInt32(tokenID)
 		if bal.Cmp(common.Big0) > 0 {
 			val, err := rlp.EncodeToBytes(bal)
 			if err != nil {
@@ -141,6 +141,10 @@ func (t *TokenBalances) Commit() {
 			t.tokenTrie.Delete(k)
 		}
 	}
+	if _, err := t.tokenTrie.Commit(nil); err != nil {
+		panic(err)
+	}
+	t.balances = make(map[uint64]*big.Int, 0)
 }
 
 func (t *TokenBalances) Add(other map[uint64]*big.Int) {
@@ -168,8 +172,11 @@ func (t *TokenBalances) GetTokenBalance(tokenID uint64) *big.Int {
 	}
 
 	if t.tokenTrie != nil {
-		v := t.tokenTrie.Get(qCommon.Uint32ToBytes(uint32(tokenID)))
-		ret := new(big.Int).SetBytes(v)
+		v := t.tokenTrie.Get(qCommon.EncodeInt32(tokenID))
+		ret := new(big.Int)
+		if err := rlp.DecodeBytes(v, ret); err != nil {
+			panic(err)
+		}
 		t.balances[tokenID] = ret
 		return ret
 	}

@@ -4,12 +4,13 @@ import (
 	"bytes"
 	"encoding/binary"
 	"encoding/gob"
-	ethCommon "github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/log"
 	"math/big"
 	"math/bits"
 	"net"
 	"reflect"
+
+	ethCommon "github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/log"
 )
 
 const (
@@ -131,6 +132,12 @@ func BytesToUint32(byte []byte) uint32 {
 	var x uint32
 	binary.Read(bytesBuffer, binary.BigEndian, &x)
 	return x
+}
+
+func EncodeInt32(data uint64) []byte {
+	ret := make([]byte, 24, 24)
+	ret = append(ret, Uint64ToBytes(data)...)
+	return ret
 }
 
 func Has0xPrefix(input string) bool {
