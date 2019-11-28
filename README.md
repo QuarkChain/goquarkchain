@@ -288,6 +288,31 @@ However for CentOS specifically, you can try the following steps:
  	cd $GOPATH/src/github.com/QuarkChain/goquarkchain/consensus/qkchash/native/ && g++ -shared -o libqkchash.so -fPIC qkchash.cpp -O3 -std=gnu++11
  	cd ../../../cmd/cluster && go build -v
 ``` 
+### Q: Is macOS supported?
+
+A: We will support as many platforms as we can in the future, but currently only Ubuntu is fully tested, so it is recommended that you use Docker.  
+However for macOS specifically, you can try the following steps:
+ ```bash
+ #install brew:
+          /usr/bin/ruby -e “$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)”
+
+ #install gcc rocksdb swig:
+            brew install rocksdb gcc
+
+ #install golang:
+          brew install go
+          vim ~/.bash_profile
+          export GOPATH=/usr/local/Cellar/go/1.11.4
+          export GOBIN=$GOPATH/bin
+          export PATH=$PATH:$GOBIN
+          source ~/.bash_profile
+          
+ #install goquarkchain:
+ 	mkdir -p $GOPATH/src/github.com/QuarkChain && cd $_
+ 	git clone https://github.com/QuarkChain/goquarkchain.git
+ 	cd $GOPATH/src/github.com/QuarkChain/goquarkchain/consensus/qkchash/native/ && g++ -shared -o libqkchash.so -fPIC qkchash.cpp -O3 -std=gnu++11
+ 	cd ../../../cmd/cluster && go build -v
+``` 
 
 ## Developer Community
 Join our developer community on [Discourse](https://community.quarkchain.io/) and [Discord](http://discord.me/quarkchain).
