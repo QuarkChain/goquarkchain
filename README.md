@@ -126,7 +126,11 @@ Start master in a third terminal
 cd $GOPATH/src/github.com/QuarkChain/goquarkchain/cmd/cluster
 ./cluster --cluster_config ../../tests/testnet/egconfig/cluster_config_template.json
 ```
-
+Or, instead of running above 3 commands, use the following command to run the processes in background:
+```bash
+cd $GOPATH/src/github.com/QuarkChain/goquarkchain/cmd/cluster
+./run_cluster.sh  ../../tests/testnet/egconfig/cluster_config_template.json
+```
 ## Run a Cluster Inside Docker 
 
 Using pre-built Docker image(quarkchaindocker/goquarkchain), you can run a cluster inside Docker container without setting up environment step by step.
@@ -142,9 +146,7 @@ sudo docker run -it quarkchaindocker/goquarkchain:<version tag>
 ```
 Now you are inside Docker container and are ready to start cluster services with a sample cluster config:
 ```bash
-root@<container ID>:/go/src/github.com/QuarkChain/goquarkchain/cmd/cluster#./cluster --cluster_config ../../tests/testnet/egconfig/cluster_config_template.json  --service S0 >> s0.log 2>&1 &
-root@<container ID>:/go/src/github.com/QuarkChain/goquarkchain/cmd/cluster#./cluster --cluster_config ../../tests/testnet/egconfig/cluster_config_template.json  --service S1 >> s1.log 2>&1 &
-root@<container ID>:/go/src/github.com/QuarkChain/goquarkchain/cmd/cluster#./cluster --cluster_config ../../tests/testnet/egconfig/cluster_config_template.json  >> master.log 2>&1 &
+root@<container ID>:/go/src/github.com/QuarkChain/goquarkchain/cmd/cluster#./run_cluster.sh  ../../tests/testnet/egconfig/cluster_config_template.json
 ```
 Check logs to see if the cluster is running successfully.
 
