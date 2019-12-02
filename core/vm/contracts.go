@@ -21,19 +21,16 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"errors"
-	math2 "math"
-	"math/big"
-	"strings"
-
-	"github.com/ethereum/go-ethereum/core"
-
 	qkcParams "github.com/QuarkChain/goquarkchain/params"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/math"
+	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/crypto/bn256"
 	"github.com/ethereum/go-ethereum/params"
 	"golang.org/x/crypto/ripemd160"
+	math2 "math"
+	"math/big"
 )
 
 var (
@@ -48,6 +45,7 @@ var (
 	currentMntIDGas                        = uint64(3)
 	transferMntGas                         = uint64(3)
 	deployRootChainPoSWStakingContractGas  = uint64(3)
+	mintMNTRet                             = common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000001")
 
 	SystemContracts = []SystemContract{
 		{},
@@ -612,16 +610,19 @@ func (m *mintMNT) Run(input []byte, evm *EVM, contract *Contract) ([]byte, error
 	valueBytes := getData(input, 64, 32)
 	value := new(big.Int).SetBytes(valueBytes)
 	if big.NewInt(0).Cmp(value) == 0 {
+		contract.Gas = 0
 		return nil, nil
 	}
 	if !evm.StateDB.Exist(minter) && !contract.UseGas(params.CallNewAccountGas) {
+		contract.Gas = 0
 		return nil, ErrOutOfGas
 	}
 	allowedSender := SystemContracts[NON_RESERVED_NATIVE_TOKEN].Address()
 	//  # Only system contract has access to minting new token
 	if !bytes.Equal(allowedSender.Bytes(), contract.CallerAddress.Bytes()) {
+		contract.Gas = 0
 		return nil, core.ErrInvalidSender
 	}
 	evm.StateDB.AddBalance(minter, value, mnt.Uint64())
-	return common.Hex2Bytes(strings.Repeat("0", 31) + "1"), nil
+	return mintMNTRet, nil
 }

@@ -3,10 +3,12 @@ package core
 import (
 	"encoding/hex"
 	"errors"
+	"github.com/QuarkChain/goquarkchain/core/state"
 	"io/ioutil"
 	"math/big"
 	"os"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -2873,4 +2875,53 @@ func TestSigToAddr(t *testing.T) {
 	assert.Equal(t, signerId.GetRecipient(), *recovered)
 	_, err = state0.AddRootBlock(rootBlock)
 	assert.NoError(t, err)
+}
+
+func TestProcMintMNT(t *testing.T) {
+	mintMNTAddr := common.HexToAddress("000000000000000000000000000000514b430004")
+	minter := common.HexToAddress(strings.Repeat("00", 19) + "34")
+	tokenIDB := common.Hex2Bytes(strings.Repeat("00", 28) + strings.Repeat("11", 4))
+	tokenID := new(big.Int).SetBytes(tokenIDB).Uint64()
+	amount := common.Hex2Bytes(strings.Repeat("00", 30) + strings.Repeat("22", 2))
+	data := common.Hex2Bytes(strings.Repeat("00", 12))
+	data = append(data, minter.Bytes()...)
+	data = append(data, tokenIDB...)
+	data = append(data, amount...)
+
+	runContract := func(codeAddr common.Address, statedb *state.StateDB) (ret []byte, gasRemained uint64, balance *big.Int, err error) {
+		contract := vm.NewContract(vm.AccountRef(codeAddr), vm.AccountRef(codeAddr), new(big.Int), 34001)
+		evm := vm.NewEVM(vm.Context{}, statedb, &params.DefaultConstantinople, vm.Config{})
+		ret, err = vm.RunPrecompiledContract(vm.PrecompiledContractsByzantium[mintMNTAddr], data, contract, evm)
+		gasRemained = contract.Gas
+		balance = evm.StateDB.GetBalance(minter, tokenID)
+		return
+	}
+	statedb, err := state.New(common.Hash{}, state.NewDatabase(ethdb.NewMemDatabase()))
+	assert.NoError(t, err)
+	sysContractAddr := common.HexToAddress(vm.NonReservedNativeTokenContractAddr)
+	ret, gasRemained, balance, err := runContract(sysContractAddr, statedb)
+	assert.NoError(t, err)
+	assert.Equal(t, 34001-34000, int(gasRemained))
+	assert.Equal(t, 32, len(ret))
+	assert.Equal(t, 1, int(new(big.Int).SetBytes(ret).Uint64()))
+	assert.Equal(t, new(big.Int).SetBytes(amount), balance)
+
+	//# Mint again with exactly the same parameters
+	ret, gasRemained, balance, err = runContract(sysContractAddr, statedb)
+	assert.NoError(t, err)
+	assert.Equal(t, 34001-9000, int(gasRemained))
+	assert.Equal(t, 32, len(ret))
+	assert.Equal(t, 1, int(new(big.Int).SetBytes(ret).Uint64()))
+	assert.Equal(t, new(big.Int).Mul(new(big.Int).SetBytes(amount), new(big.Int).SetUint64(2)), balance)
+
+	randomAcc, err := account.CreatRandomAccountWithoutFullShardKey()
+	assert.NoError(t, err)
+	randomAddr := randomAcc.Recipient
+	statedb, err = state.New(common.Hash{}, state.NewDatabase(ethdb.NewMemDatabase()))
+	ret, gasRemained, balance, err = runContract(randomAddr, statedb)
+
+	assert.EqualError(t, err, "invalid sender")
+	assert.Equal(t, 0, int(gasRemained))
+	assert.Equal(t, 0, len(ret))
+	assert.Equal(t, new(big.Int), balance)
 }
