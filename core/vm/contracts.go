@@ -574,13 +574,15 @@ func (r *deploySystemContract) Run(input []byte, evm *EVM, contract *Contract) (
 		contractIndex = index
 	}
 	if int(contractIndex) >= len(SystemContracts) {
-		return nil, nil
+		contract.Gas = 0
+		return nil, ErrInvalidSystemContractIndex
 	}
 	targetAddr := SystemContracts[contractIndex].Address()
 	bytecode := SystemContracts[contractIndex].bytecode
 	// Use predetermined contract address
 	_, addr, leftover, err := evm.Create(contract.self, bytecode, contract.Gas, big.NewInt(0), &targetAddr)
 	if err != nil {
+		contract.Gas = 0
 		return nil, err
 	}
 	contract.Gas = leftover
@@ -611,7 +613,7 @@ func (m *mintMNT) Run(input []byte, evm *EVM, contract *Contract) ([]byte, error
 	value := new(big.Int).SetBytes(valueBytes)
 	if big.NewInt(0).Cmp(value) == 0 {
 		contract.Gas = 0
-		return nil, nil
+		return nil, ErrMintZeroAmountMNT
 	}
 	if !evm.StateDB.Exist(minter) && !contract.UseGas(params.CallNewAccountGas) {
 		contract.Gas = 0
