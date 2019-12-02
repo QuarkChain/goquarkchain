@@ -5,7 +5,9 @@ import (
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/serialize"
 	"github.com/stretchr/testify/assert"
+	"io/ioutil"
 	"math/big"
+	"os"
 
 	//"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/common"
@@ -19,6 +21,11 @@ var (
 )
 
 func TestNativeTokenTransfer(t *testing.T) {
+	dirname, err := ioutil.TempDir(os.TempDir(), "qkcdb_test_")
+	if err != nil {
+		panic("failed to create test file: " + err.Error())
+	}
+	testDBPath[1] = dirname
 	QETH := common.TokenIDEncode("QETH")
 	QKC := common.TokenIDEncode("QKC")
 	id1, _ := account.CreatRandomIdentity()
@@ -52,9 +59,19 @@ func TestNativeTokenTransfer(t *testing.T) {
 	assert.Equal(t, tokenBalance3.GetTokenBalance(QKC), afterTax(reward, shardState))
 	tTxList, _, err := shardState.GetTransactionByAddress(acc1, nil, nil, 0)
 	if err != nil {
-		//t.Errorf("GetTransactionByAddress error :%v", err) tTxList is nil  that not true
-		t.Log(tTxList)
+		t.Errorf("GetTransactionByAddress error :%v", err)
 	}
+	assert.Equal(t, len(tTxList), 1)
+	assert.Equal(t, tTxList[0].Value, serialize.Uint256{Value: big.NewInt(12345)})
+	assert.Equal(t, tTxList[0].GasTokenID, QKC)
+	assert.Equal(t, tTxList[0].TransferTokenID, QETH)
+	tTxList, _, err = shardState.GetTransactionByAddress(acc2, nil, nil, 0)
+	if err != nil {
+		t.Errorf("GetTransactionByAddress error :%v", err)
+	}
+	assert.Equal(t, tTxList[0].Value, serialize.Uint256{Value: big.NewInt(12345)})
+	assert.Equal(t, tTxList[0].GasTokenID, QKC)
+	assert.Equal(t, tTxList[0].TransferTokenID, QETH)
 }
 
 func TestNativeTokenTransferValueSuccess(t *testing.T) {
