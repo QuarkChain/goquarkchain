@@ -297,29 +297,29 @@ First,you should download xcode through the app store
 and then open  terminal  
  ```bash
  #install brew:
-          /usr/bin/ruby -e “$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)”
+         /usr/bin/ruby -e “$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)”
 
  #install gcc rocksdb swig:
-            brew install rocksdb gcc swig
+         brew install rocksdb gcc swig
 
  #install golang:
-          brew install go@1.12
-          vim ~/.bash_profile
+         brew install go@1.12
+         vim ~/.bash_profile
 
  #add the following content to .bash_profile file:
-          export GOPATH=/usr/local/Cellar/go/1.12.13
-          export GOBIN=$GOPATH/bin
-          export PATH=$PATH:$GOBIN
+         export GOPATH=/usr/local/Cellar/go/1.12.13
+         export GOBIN=$GOPATH/bin
+         export PATH=$PATH:$GOBIN
 
  #save .bash_profile file:
-          source ~/.bash_profile
+         source ~/.bash_profile
          
  #install goquarkchain:
- 	mkdir -p $GOPATH/src/github.com/QuarkChain && cd $_
- 	git clone https://github.com/QuarkChain/goquarkchain.git
- 	cd $GOPATH/src/github.com/QuarkChain/goquarkchain/consensus/qkchash/native/ 
-    sudo g++ -shared -o libqkchash.so -fPIC qkchash.cpp -O3 -std=gnu++17 && make
- 	cd ../../../cmd/cluster && go build -v
+         mkdir -p $GOPATH/src/github.com/QuarkChain && cd $_
+         git clone https://github.com/QuarkChain/goquarkchain.git
+         cd $GOPATH/src/github.com/QuarkChain/goquarkchain/consensus/qkchash/native/ 
+         sudo g++ -shared -o libqkchash.so -fPIC qkchash.cpp -O3 -std=gnu++17 && make
+         cd ../../../cmd/cluster && go build -v
 ``` 
 
 ## Developer Community
