@@ -227,8 +227,12 @@ func TestXshardNativeTokenReceived(t *testing.T) {
 	b2, _ := shardState0.CreateBlockToMine(nil, &acc3, nil, nil, nil)
 	shardState0.FinalizeAndAddBlock(b2)
 	balance1, _ := shardState0.GetBalance(acc1.Recipient, nil)
+	balance3, _ := shardState0.GetBalance(acc1.Recipient, nil)
 	assert.Equal(t, balance1.GetTokenBalance(QETHXX), new(big.Int).Add(big.NewInt(999999), big.NewInt(888888)))
+	reward := new(big.Int).Add(testShardCoinbaseAmount, big.NewInt(18000)).Uint64()
+	assert.Equal(t, balance3.GetTokenBalance(QKC), afterTax(reward, shardState0))
 	evmState, _ := shardState0.State()
+	//X-shard gas used
 	assert.Equal(t, evmState.GetGasUsed(), big.NewInt(9000))
 }
 
