@@ -5,7 +5,7 @@ Suppose your current working directory is `goquarkchain/cmd/stats`.
 ## Monitor TPS
 
 ```bash 
-go run stats.go --ip 127.0.0.1
+go run stats.go --ip 127.0.0.1 --s
 ============================
 QuarkChain Cluster Stats
 ============================
@@ -42,5 +42,7 @@ go run stats.go --a 0x5c01452896371fa085a890ec2557116cf0476a7900010000
 --a 0x5c01452896371fa085a890ec2557116cf0476a7900010000 #quarkchain address of 48 bytes long
 
 --t QI #query account balance for a specific token; default to QKC
+
+--s #Query height of all shards
 
 ```
