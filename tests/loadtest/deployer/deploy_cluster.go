@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"io"
 	"os"
 
@@ -16,6 +17,9 @@ var (
 var (
 	ostream log.Handler
 	glogger *log.GlogHandler
+)
+var (
+	initConf = flag.Bool("genconf", false, "only gen config , not run cluster")
 )
 
 func init() {
@@ -36,7 +40,16 @@ func getToolManager() *deploy.ToolManager {
 }
 
 func main() {
+	flag.Parse()
 	toolManager := getToolManager()
+	if *initConf {
+		toolManager.GenAllClusterConfig()
+		return
+	}
+
+	log.Info("ready to set Environment!!!")
+	toolManager.InstallDocker()
+	log.Info("Environment set successfully!!!!")
 	toolManager.StartClusters()
 	log.Info("ready to check status")
 	toolManager.CheckPeerStatus()

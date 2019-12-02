@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/QuarkChain/goquarkchain/common"
@@ -15,7 +16,6 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/p2p/enode"
-	"golang.org/x/sync/errgroup"
 )
 
 var (
@@ -124,7 +124,7 @@ func (t *ToolManager) GetSlaveIPList() []string {
 	return ipList
 }
 
-func (t *ToolManager) GenClusterConfig() {
+func (t *ToolManager) GenClusterConfig(configPath string) {
 	clusterConfig := GenConfigDependInitConfig(t.LocalConfig.ChainSize, t.LocalConfig.ShardSize, t.GetSlaveIPList(), t.LocalConfig.ExtraClusterConfig)
 
 	if t.BootNode == "" {
@@ -141,36 +141,55 @@ func (t *ToolManager) GenClusterConfig() {
 		clusterConfig.P2P.BootNodes = t.BootNode + "@" + t.GetMasterIP() + ":38291"
 		t.ClusterIndex = tIndex
 	}
-	WriteConfigToFile(clusterConfig, clusterConfigPath)
+	WriteConfigToFile(clusterConfig, configPath)
+}
+
+func (t *ToolManager) InstallDocker() {
+	for index := 0; index < len(t.LocalConfig.Hosts); index++ {
+		for _, v := range t.SSHSession[t.ClusterIndex] {
+			checkDockerCmd := "docker images | grep " + t.LocalConfig.DockerName
+			dockerInfo := v.RunCmdAndGetOutPut(checkDockerCmd)
+			if strings.Contains(dockerInfo, t.LocalConfig.DockerName) {
+				log.Debug("already have images", "host", v.host, "images name", t.LocalConfig.DockerName)
+				continue
+			}
+
+			log.Warn("ready to install docker and pull images", "host", v.host)
+			v.installDocker()
+
+			log.Debug("==== begin pulling Docker image...", "host", v.host)
+			v.RunCmd("docker pull " + t.LocalConfig.DockerName)
+			dockerInfo = v.RunCmdAndGetOutPut(checkDockerCmd)
+			if strings.Contains(dockerInfo, t.LocalConfig.DockerName) {
+				log.Debug("pulling images successfully", "images name", t.LocalConfig.DockerName)
+				continue
+			} else {
+				//log.Error("----------", "host", v.host, "dockername", t.LocalConfig.DockerName)
+				panic(fmt.Errorf("host:%v images:%v install failed", v.host, t.LocalConfig.DockerName))
+			}
+		}
+		t.ClusterIndex++
+	}
+	t.ClusterIndex = 0
 }
 
 func (t *ToolManager) SendFileToCluster() {
-	var g errgroup.Group
 	for _, session := range t.SSHSession[t.ClusterIndex] {
 		v := session
-		g.Go(func() error {
-			v.RunCmdIgnoreErr("apt-get update")
-			v.RunCmd("apt-get install docker.io -y")
-			v.RunCmd("rm -rf  /tmp/QKC")
-			v.RunCmd("mkdir /tmp/QKC")
+		v.RunCmd("rm -rf  /tmp/QKC")
+		v.RunCmd("mkdir /tmp/QKC")
 
-			v.RunCmdIgnoreErr("docker stop $(docker ps -a|grep bjqkc |awk '{print $1}')")
-			v.RunCmdIgnoreErr("docker  rm $(docker ps -a|grep bjqkc |awk '{print $1}')")
-			log.Debug("==== begin pulling Docker image...")
-			v.RunCmd("docker pull " + t.LocalConfig.DockerName)
-			v.RunCmd("docker run -itd --name bjqkc --network=host " + t.LocalConfig.DockerName)
+		v.RunCmdIgnoreErr("docker stop $(docker ps -a|grep bjqkc |awk '{print $1}')")
+		v.RunCmdIgnoreErr("docker  rm $(docker ps -a|grep bjqkc |awk '{print $1}')")
+		v.RunCmd("docker run -itd --name bjqkc --network=host " + t.LocalConfig.DockerName)
 
-			v.SendFile(clusterPath, "/tmp/QKC")
-			v.SendFile(clusterConfigPath, "/tmp/QKC")
+		v.SendFile(clusterPath, "/tmp/QKC")
+		v.SendFile(clusterConfigPath, "/tmp/QKC")
 
-			v.RunCmd("docker exec -itd bjqkc  /bin/bash -c  'mkdir /tmp/QKC/'")
-			v.RunCmd("docker cp /tmp/QKC/cluster bjqkc:/tmp/QKC")
-			v.RunCmd("docker cp /tmp/QKC/cluster_config_template.json bjqkc:/tmp/QKC")
-			return nil
-		})
+		v.RunCmd("docker exec -itd bjqkc  /bin/bash -c  'mkdir /tmp/QKC/'")
+		v.RunCmd("docker cp /tmp/QKC/cluster bjqkc:/tmp/QKC")
+		v.RunCmd("docker cp /tmp/QKC/cluster_config_template.json bjqkc:/tmp/QKC")
 	}
-	err := g.Wait()
-	CheckErr(err)
 }
 
 type SlaveInfo struct {
@@ -193,7 +212,7 @@ func (t *ToolManager) StartCluster(clusterIndex int) {
 	}
 
 	t.startSlave(slaveIpLists)
-	time.Sleep(5 * time.Second)
+	time.Sleep(10 * time.Second)
 	t.startMaster(masterIp)
 
 }
@@ -215,12 +234,21 @@ func (t *ToolManager) StartClusters() {
 	for index := 0; index < len(t.LocalConfig.Hosts); index++ {
 		log.Info("============begin start cluster============", "ClusterID", index)
 		log.Info("==== begin gen config")
-		t.GenClusterConfig()
+		t.GenClusterConfig(clusterConfigPath)
 		log.Info("==== begin send file to others cluster")
 		t.SendFileToCluster()
 		log.Info("==== begin start cluster")
 		t.StartCluster(index)
 		log.Info("============end start cluster============", "ClusterID", index)
+		t.ClusterIndex++
+	}
+}
+
+func (t *ToolManager) GenAllClusterConfig() {
+	for index := 0; index < len(t.LocalConfig.Hosts); index++ {
+		configPath := fmt.Sprintf("./cluster_config_template_%d.json", index)
+		log.Warn("genClusterConfig succ", "path", configPath)
+		t.GenClusterConfig(configPath)
 		t.ClusterIndex++
 	}
 }
