@@ -307,7 +307,7 @@ and then open  terminal
           vim ~/.bash_profile
 
  #add the following content to .bash_profile file:
-          export GOPATH=/usr/local/Cellar/go/1.11.4
+          export GOPATH=/usr/local/Cellar/go/1.12.13
           export GOBIN=$GOPATH/bin
           export PATH=$PATH:$GOBIN
 
