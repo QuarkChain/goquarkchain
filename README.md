@@ -306,7 +306,7 @@ and then open  terminal
           brew install go
           vim ~/.bash_profile
 
- #add the following content to .bash_profile file:
+ #if go version is 1.11.4,and add the following content to .bash_profile file:
           export GOPATH=/usr/local/Cellar/go/1.11.4
           export GOBIN=$GOPATH/bin
           export PATH=$PATH:$GOBIN
