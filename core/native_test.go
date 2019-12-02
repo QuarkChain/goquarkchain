@@ -20,6 +20,7 @@ var (
 
 func TestNativeTokenTransfer(t *testing.T) {
 	QETH := common.TokenIDEncode("QETH")
+	QKC := common.TokenIDEncode("QKC")
 	id1, _ := account.CreatRandomIdentity()
 	acc1 := account.CreatAddressFromIdentity(id1, 0)
 	acc2 := account.CreatEmptyAddress(0)
@@ -40,6 +41,15 @@ func TestNativeTokenTransfer(t *testing.T) {
 	assert.Equal(t, len(b1.Transactions()), 1)
 	shardState.FinalizeAndAddBlock(b1)
 	assert.Equal(t, shardState.CurrentHeader(), b1.Header())
+	tokenBalance, _ := shardState.GetBalance(id1.GetRecipient(), nil)
+	tokenBalance2, _ := shardState.GetBalance(acc2.Recipient, nil)
+	tokenBalance3, _ := shardState.GetBalance(acc2.Recipient, nil)
+	qkcb := tokenBalance.GetTokenBalance(QKC)
+	assert.Equal(t, qkcb, big.NewInt(10000000-21000))
+	assert.Equal(t, tokenBalance.GetTokenBalance(QETH), big.NewInt(99999-12345))
+	assert.Equal(t, tokenBalance2.GetTokenBalance(QETH), big.NewInt(12345))
+	reward := new(big.Int).Add(testShardCoinbaseAmount, big.NewInt(21000)).Uint64()
+	assert.Equal(t, tokenBalance3.GetTokenBalance(QKC), afterTax(reward, shardState))
 	tTxList, _, err := shardState.GetTransactionByAddress(acc1, nil, nil, 0)
 	if err != nil {
 		//t.Errorf("GetTransactionByAddress error :%v", err)
