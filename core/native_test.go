@@ -270,7 +270,7 @@ func TestXshardNativeTokenReceived(t *testing.T) {
 	acc3Should = new(big.Int).Div(acc3Should, new(big.Int).SetUint64(2))
 	assert.Equal(t, acc3Should.String(), acc3Value.String())
 	//X-shard gas used
-	assert.Equal(t, shardState0.currentEvmState.GetXShardReceiveGasUsed().Uint64(), big.NewInt(9000))
+	assert.Equal(t, shardState0.currentEvmState.GetXShardReceiveGasUsed().Uint64(), uint64(9000))
 }
 
 func TestXshardNativeTokenGasSent(t *testing.T) {
