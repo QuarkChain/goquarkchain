@@ -109,7 +109,7 @@ func TestNativeTokenTransferValueSuccess(t *testing.T) {
 	t2 := types.NewTokenBalancesWithMap(map[uint64]*big.Int{
 		QKC: big.NewInt(10000000 - 21000),
 	})
-	assert.NotEqual(t, b2, t2)
+	assert.Equal(t, b2, t2)
 }
 
 func TestDisallowedUnknownToken(t *testing.T) {
