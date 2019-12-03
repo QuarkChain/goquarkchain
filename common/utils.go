@@ -134,9 +134,9 @@ func BytesToUint32(byte []byte) uint32 {
 	return x
 }
 
-func EncodeInt32(data uint64) []byte {
-	ret := make([]byte, 24, 24)
-	ret = append(ret, Uint64ToBytes(data)...)
+func EncodeToByte32(data uint64) []byte {
+	ret := make([]byte, 32)
+	binary.BigEndian.PutUint64(ret[24:], data)
 	return ret
 }
 

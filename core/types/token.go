@@ -1,6 +1,7 @@
 package types
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -130,7 +131,7 @@ func (t *TokenBalances) Commit() {
 		}
 	}
 	for tokenID, bal := range t.balances {
-		k := qCommon.EncodeInt32(tokenID)
+		k := qCommon.EncodeToByte32(tokenID)
 		if bal.Cmp(common.Big0) > 0 {
 			val, err := rlp.EncodeToBytes(bal)
 			if err != nil {
@@ -172,7 +173,7 @@ func (t *TokenBalances) GetTokenBalance(tokenID uint64) *big.Int {
 	}
 
 	if t.tokenTrie != nil {
-		v := t.tokenTrie.Get(qCommon.EncodeInt32(tokenID))
+		v := t.tokenTrie.Get(qCommon.EncodeToByte32(tokenID))
 		ret := new(big.Int)
 		if len(v) != 0 {
 			if err := rlp.DecodeBytes(v, ret); err != nil {
@@ -243,17 +244,16 @@ func (t *TokenBalances) SerializeToBytes() ([]byte, error) {
 	if !readyBeforeSer() {
 		return nil, errors.New("bug here")
 	}
-	w := make([]byte, 0)
 	if t.tokenTrie != nil {
-		w = append(w, byte(1))
-		w = append(w, t.tokenTrie.Hash().Bytes()...)
+		w := make([]byte, 33)
+		w[0] = byte(1)
+		copy(w[1:], t.tokenTrie.Hash().Bytes())
 		return w, nil
 	}
 
 	if t.Len() == 0 {
 		return nil, nil
 	}
-	w = append(w, byte(0))
 	list := make([]*TokenBalancePair, 0)
 	for k, v := range t.balances {
 		if v.Cmp(common.Big0) == 0 {
@@ -265,12 +265,13 @@ func (t *TokenBalances) SerializeToBytes() ([]byte, error) {
 		})
 	}
 	sort.Slice(list, func(i, j int) bool { return list[i].TokenID < (list[j].TokenID) })
-	rlpData, err := rlp.EncodeToBytes(list)
+	rlpData := new(bytes.Buffer)
+	rlpData.WriteByte(byte(0))
+	err := rlp.Encode(rlpData, list)
 	if err != nil {
 		return nil, err
 	}
-	w = append(w, rlpData...)
-	return w, nil
+	return rlpData.Bytes(), nil
 }
 
 func (t *TokenBalances) EncodeRLP(w io.Writer) error {

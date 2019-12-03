@@ -20,8 +20,6 @@ import (
 	"bytes"
 	"fmt"
 
-	"github.com/QuarkChain/goquarkchain/core/types"
-
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/trie"
@@ -106,8 +104,7 @@ func (it *NodeIterator) step() error {
 		return nil
 	}
 	// Otherwise we've reached an account node, initiate data iteration
-	var account Account
-	account.TokenBalances, _ = types.NewTokenBalances(nil, it.state.db.TrieDB())
+	account := NewAccount(it.state.db.TrieDB())
 	if err := rlp.Decode(bytes.NewReader(it.stateIt.LeafBlob()), &account); err != nil {
 		return err
 	}

@@ -28,6 +28,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/rlp"
+	"github.com/ethereum/go-ethereum/trie"
 )
 
 var emptyCodeHash = crypto.Keccak256(nil)
@@ -105,6 +106,12 @@ type Account struct {
 	CodeHash      []byte
 	FullShardKey  *types.Uint32
 	Optial        []byte
+}
+
+func NewAccount(db *trie.Database) Account {
+	data := Account{}
+	data.TokenBalances, _ = types.NewTokenBalances(nil, db)
+	return data
 }
 
 type MockAccount struct {
