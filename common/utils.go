@@ -125,8 +125,9 @@ func Uint64ToBytes(n uint64) []byte {
 	binary.BigEndian.PutUint64(Bytes, n)
 	return Bytes
 }
-func Uint64To4Bytes(n uint64) []byte {
-	Bytes := make([]byte, 4)
+
+func Uint64To32Bytes(n uint64) []byte {
+	Bytes := make([]byte, 32)
 	binary.BigEndian.PutUint64(Bytes, n)
 	return Bytes
 }
@@ -137,6 +138,7 @@ func BytesToUint32(byte []byte) uint32 {
 	binary.Read(bytesBuffer, binary.BigEndian, &x)
 	return x
 }
+
 func BytesToUint8(byte []byte) uint8 {
 	bytesBuffer := bytes.NewBuffer(byte)
 	var x uint8

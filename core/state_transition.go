@@ -414,16 +414,16 @@ func (st *StateTransition) transferFailureByPoSWBalanceCheck() bool {
 func (st *StateTransition) PayNativeTokenAsGas(tokenID, gas uint64, gasPriceInNativeToken *big.Int) (uint8, *big.Int, error) {
 	//# Call the `payAsGas` function
 	data := common.Hex2Bytes("5ae8f7f1")
-	data = append(data, qkcCmn.Uint64To4Bytes(tokenID)...)
-	data = append(data, qkcCmn.Uint64To4Bytes(gas)...)
-	data = append(data, qkcCmn.Uint64To4Bytes(gasPriceInNativeToken.Uint64())...)
+	data = append(data, qkcCmn.Uint64To32Bytes(tokenID)...)
+	data = append(data, qkcCmn.Uint64To32Bytes(gas)...)
+	data = append(data, qkcCmn.Uint64To32Bytes(gasPriceInNativeToken.Uint64())...)
 	return st.callGeneralNativeTokenManager(data)
 }
 func (st *StateTransition) GetGasUtilityInfo(tokenID uint64, gasPriceInNativeToken *big.Int) (uint8, *big.Int, error) {
 	//# Call the `calculateGasPrice` function
 	data := common.Hex2Bytes("ce9e8c47")
-	data = append(data, qkcCmn.Uint64To4Bytes(tokenID)...)
-	data = append(data, qkcCmn.Uint64To4Bytes(gasPriceInNativeToken.Uint64())...)
+	data = append(data, qkcCmn.Uint64To32Bytes(tokenID)...)
+	data = append(data, qkcCmn.Uint64To32Bytes(gasPriceInNativeToken.Uint64())...)
 	return st.callGeneralNativeTokenManager(data)
 }
 
