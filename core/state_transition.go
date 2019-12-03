@@ -72,6 +72,7 @@ type Message interface {
 	To() *common.Address
 
 	GasPrice() *big.Int
+	SetGasPrice(data *big.Int)
 	Gas() uint64
 	Value() *big.Int
 
@@ -144,6 +145,9 @@ func NewStateTransition(evm *vm.EVM, msg Message, gp *GasPool) *StateTransition 
 // indicates a core error meaning that the message would always fail for that particular
 // state and would never be accepted within a block.
 func ApplyMessage(evm *vm.EVM, msg Message, gp *GasPool) ([]byte, uint64, bool, error) {
+	if msg.GasTokenID() != evm.StateDB.GetQuarkChainConfig().GetDefaultChainTokenID() {
+		return nil, 0, false, errors.New("gas token should always be converted to genesis token")
+	}
 	return NewStateTransition(evm, msg, gp).TransitionDb()
 }
 
@@ -274,6 +278,13 @@ func (st *StateTransition) refundGas(vmerr error) {
 	// Return ETH for remaining gas, exchanged at the original rate.
 	remaining := new(big.Int).Mul(new(big.Int).SetUint64(st.gas), st.gasPrice)
 	st.state.AddBalance(st.msg.From(), remaining, st.msg.GasTokenID())
+
+	toRefund := st.gas * uint64(st.evm.Refund) / 100
+	toburn := st.gas - toRefund
+	st.state.AddBalance(st.msg.From(), remaining, st.msg.GasTokenID())
+	if toburn >= 0 {
+		st.state.AddBalance(common.Address{}, new(big.Int).SetUint64(toburn), st.msg.GasTokenID())
+	}
 
 	// Also return remaining gas to the block gas counter so it is
 	// available for the next transaction.

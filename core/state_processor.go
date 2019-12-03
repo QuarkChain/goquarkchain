@@ -28,6 +28,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/core/vm"
 	qkcParam "github.com/QuarkChain/goquarkchain/params"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/params"
 )
 
@@ -129,10 +130,6 @@ func ValidateTransaction(state vm.StateDB, tx *types.Transaction, fromAddress *a
 		return fmt.Errorf("token %v is not allowed ", tx.EvmTx.TransferTokenID())
 	}
 
-	if ok := state.GetQuarkChainConfig().IsAllowedTokenID(tx.EvmTx.GasTokenID()); !ok {
-		return fmt.Errorf("token %v is not allowed ", tx.EvmTx.GasTokenID())
-	}
-
 	if tx.EvmTx.TransferTokenID() == tx.EvmTx.GasTokenID() {
 		totalCost := new(big.Int).Mul(tx.EvmTx.GasPrice(), new(big.Int).SetUint64(tx.EvmTx.Gas()))
 		totalCost = new(big.Int).Add(totalCost, tx.EvmTx.Value())
@@ -158,14 +155,38 @@ func ValidateTransaction(state vm.StateDB, tx *types.Transaction, fromAddress *a
 	return nil
 }
 
+func PayNativeTokenAsGas(state *state.StateDB, tokenID uint64, gas uint64, gasPriceInNativeToken *big.Int) (uint8, *big.Int) {
+	return 100, gasPriceInNativeToken //TODO @DL
+}
+
+func GetContralcAdd() common.Address {
+	return common.Address{} //TODO @DL
+}
+
 // ApplyTransaction apply tx
 func ApplyTransaction(config *params.ChainConfig, bc ChainContext, gp *GasPool, statedb *state.StateDB, header types.IHeader, tx *types.Transaction, usedGas *uint64, cfg vm.Config) ([]byte, *types.Receipt, uint64, error) {
+	statedbGensisToken := statedb.GetQuarkChainConfig().GetDefaultChainTokenID()
+	gasPrice, refundRate := tx.EvmTx.GasPrice(), uint8(100)
+	convertedGenesisTokenGasPeice := new(big.Int)
+	if tx.EvmTx.GasTokenID() != statedbGensisToken {
+		refundRate, convertedGenesisTokenGasPeice = PayNativeTokenAsGas(statedb, tx.EvmTx.GasTokenID(), tx.EvmTx.GasTokenID(), tx.EvmTx.GasPrice())
+		if convertedGenesisTokenGasPeice.Cmp(new(big.Int).SetUint64(0)) <= 0 {
+			return nil, nil, 0, fmt.Errorf("convertedGenesisTokenGasPeice %v shoud >0", convertedGenesisTokenGasPeice)
+		}
+		gasPrice = convertedGenesisTokenGasPeice
+		contractAddr := GetContralcAdd()
+		statedb.SubBalance(contractAddr, new(big.Int).Mul(new(big.Int).SetUint64(tx.EvmTx.Gas()), convertedGenesisTokenGasPeice), statedbGensisToken)
+		statedb.AddBalance(contractAddr, new(big.Int).Mul(new(big.Int).SetUint64(tx.EvmTx.Gas()), tx.EvmTx.GasPrice()), tx.EvmTx.GasTokenID())
+	}
+
 	statedb.SetFullShardKey(tx.EvmTx.ToFullShardKey())
 	msg, err := tx.EvmTx.AsMessage(types.MakeSigner(tx.EvmTx.NetworkId()), tx.Hash())
 	if err != nil {
 		return nil, nil, 0, err
 	}
-	context := NewEVMContext(msg, header, bc)
+	msg.SetGasPrice(gasPrice)
+
+	context := NewEVMContext(msg, header, bc, refundRate)
 	vmenv := vm.NewEVM(context, statedb, config, cfg)
 
 	ret, gas, failed, err := ApplyMessage(vmenv, msg, gp)
@@ -232,11 +253,12 @@ func ApplyCrossShardDeposit(config *params.ChainConfig, bc ChainContext, header 
 	}
 
 	evmState.SetFullShardKey(tx.To.FullShardKey)
+	evmState.g
 	evmState.AddBalance(tx.From.Recipient, tx.Value.Value, tx.TransferTokenID)
 	msg := types.NewMessage(tx.From.Recipient, &tx.To.Recipient, 0, tx.Value.Value,
 		tx.GasRemained.Value.Uint64(), tx.GasPrice.Value, tx.MessageData, false,
 		tx.From.FullShardKey, &tx.To.FullShardKey, tx.TransferTokenID, tx.GasTokenID)
-	context := NewEVMContext(msg, header, bc)
+	context := NewEVMContext(msg, header, bc, tx.RefundRate)
 	context.IsApplyXShard = true
 	context.XShardGasUsedStart = gasUsedStart
 	if tx.CreateContract {

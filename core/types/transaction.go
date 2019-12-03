@@ -6,6 +6,10 @@ import (
 	"container/heap"
 	"errors"
 	"fmt"
+	"io"
+	"math/big"
+	"sync/atomic"
+
 	"github.com/QuarkChain/goquarkchain/account"
 	qkcCommon "github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/serialize"
@@ -13,9 +17,6 @@ import (
 	"github.com/ethereum/go-ethereum/crypto/sha3"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rlp"
-	"io"
-	"math/big"
-	"sync/atomic"
 )
 
 const (
@@ -588,6 +589,7 @@ type CrossShardTransactionDeposit struct {
 	GasRemained     *serialize.Uint256
 	MessageData     []byte `bytesizeofslicelen:"4"`
 	CreateContract  bool
+	RefundRate      uint8
 }
 
 type CrossShardTransactionDepositList struct {
@@ -633,9 +635,12 @@ func NewMessage(from common.Address, to *common.Address, nonce uint64, amount *b
 	}
 }
 
-func (m Message) From() common.Address     { return m.from }
-func (m Message) To() *common.Address      { return m.to }
-func (m Message) GasPrice() *big.Int       { return m.gasPrice }
+func (m Message) From() common.Address { return m.from }
+func (m Message) To() *common.Address  { return m.to }
+func (m Message) GasPrice() *big.Int   { return m.gasPrice }
+func (m Message) SetGasPrice(data *big.Int) {
+	m.gasPrice = data
+}
 func (m Message) Value() *big.Int          { return m.amount }
 func (m Message) Gas() uint64              { return m.gasLimit }
 func (m Message) Nonce() uint64            { return m.nonce }
