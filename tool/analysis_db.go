@@ -24,20 +24,23 @@ func rangeDB(db *qkcdb.RDBDatabase) {
 	it := db.NewIterator()
 	it.SeekToFirst()
 	for it.Valid() {
+		size := it.Value().Size()
+		firstByte := it.Key().Data()[0]
+
 		sumCal.Num++
-		sumCal.Length += it.Value().Size()
-		if (it.Key().Data()[0] >= 'a' && it.Key().Data()[0] <= 'z') || (it.Key().Data()[0] >= 'A' && it.Key().Data()[0] <= 'Z') {
+		sumCal.Length += size
+		if (firstByte >= 'a' && firstByte <= 'z') || (firstByte >= 'A' && firstByte <= 'Z') {
 			characterCal.Num++
-			characterCal.Length += it.Value().Size()
-			if _, ok := calMap[it.Key().Data()[0]]; !ok {
-				calMap[it.Key().Data()[0]] = new(Cal)
+			characterCal.Length += size
+			if _, ok := calMap[firstByte]; !ok {
+				calMap[firstByte] = new(Cal)
 			}
-			calMap[it.Key().Data()[0]].Num++
-			calMap[it.Key().Data()[0]].Length += it.Value().Size()
+			calMap[firstByte].Num++
+			calMap[firstByte].Length += size
 		}
 		it.Next()
 		if sumCal.Num%1000000 == 0 {
-			fmt.Println("currIndexSum", sumCal.Num, "currIndex", it.Key().Data()[0])
+			fmt.Println("currIndexSum", sumCal.Num, "currIndex", firstByte)
 		}
 	}
 
