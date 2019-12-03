@@ -26,6 +26,7 @@ const (
 	PoWSimulate = "POW_SIMULATE"
 	// PoWQkchash is the consensus type running qkchash algorithm.
 	PoWQkchash = "POW_QKCHASH"
+	POWPOA     = "POW_POA"
 
 	DefaultGrpcPort    uint16 = 38191
 	DefaultP2PPort     uint16 = 38291

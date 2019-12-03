@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/QuarkChain/goquarkchain/account"
+	"github.com/QuarkChain/goquarkchain/consensus/clique"
 	"github.com/QuarkChain/goquarkchain/consensus/simulate"
 	"math/big"
 	"sync"
@@ -174,6 +175,9 @@ func createConsensusEngine(qkcHashXHeight uint64, cfg *config.ShardConfig) (cons
 		return qkchash.New(true, &diffCalculator, cfg.ConsensusConfig.RemoteMine, pubKey, qkcHashXHeight), nil
 	case config.PoWDoubleSha256:
 		return doublesha256.New(&diffCalculator, cfg.ConsensusConfig.RemoteMine, pubKey), nil
+	case config.POWPOA:
+		return clique.New()
+
 	}
 	return nil, fmt.Errorf("Failed to create consensus engine consensus type %s ", cfg.ConsensusType)
 }
