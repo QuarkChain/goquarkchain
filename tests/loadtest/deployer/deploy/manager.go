@@ -34,8 +34,10 @@ type ToolManager struct {
 	LocalConfig *LocalConfig
 	BootNode    string
 
-	SSHSession   []map[string]*SSHSession
-	ClusterIndex int
+	SSHSession     []map[string]*SSHSession
+	ClusterIndex   int
+	firstMachine   string
+	localHasImages string
 }
 
 func NewToolManager(config *LocalConfig) *ToolManager {
@@ -51,6 +53,9 @@ func NewToolManager(config *LocalConfig) *ToolManager {
 func (t *ToolManager) check() {
 	clusterLen := len(t.LocalConfig.Hosts)
 	for index := 0; index < clusterLen; index++ {
+		if index == 0 {
+			t.firstMachine = t.GetMasterIP()
+		}
 		if _, ok := t.LocalConfig.Hosts[index]; !ok {
 			panic(fmt.Errorf("need clusterID %v", index))
 		}
@@ -144,9 +149,40 @@ func (t *ToolManager) GenClusterConfig(configPath string) {
 	WriteConfigToFile(clusterConfig, configPath)
 }
 
+func (t *ToolManager) PullImages(session *SSHSession) {
+	hostWithFullImages := t.SSHSession[0][t.firstMachine]
+	fileStatus := hostWithFullImages.RunCmdAndGetOutPut("ls qkc.img")
+	if !strings.Contains(fileStatus, "qkc.img") {
+		saveCmd := "docker save > qkc.img " + t.LocalConfig.DockerName
+		hostWithFullImages.RunCmd(saveCmd)
+	}
+	if t.localHasImages == "" {
+		session.RunCmd("docker ")
+		t.localHasImages = true
+		hostWithFullImages.GetFile("./", "./qkc.img")
+	}
+
+	session.SendFile("./qkcimg", "")
+	session.RunCmd("docker load < qkc.img ")
+	imagesIDCmd := "docker images | grep " + t.LocalConfig.DockerName + " | awk '{print $3}'"
+	t.localHasImages = session.RunCmdAndGetOutPut(imagesIDCmd)
+	if t.localHasImages == "" {
+		panic(fmt.Errorf("remote host %v not have %v", session.host, t.LocalConfig.DockerName))
+	}
+}
+
 func (t *ToolManager) InstallDocker() {
 	for index := 0; index < len(t.LocalConfig.Hosts); index++ {
 		for _, v := range t.SSHSession[t.ClusterIndex] {
+			checkDockerVersion := "docker version --format '{{.Server.Version}}'"
+			dockerversion := v.RunCmdAndGetOutPut(checkDockerVersion)
+			if !strings.Contains(dockerversion, "18") {
+				v.installDocker()
+			}
+			if !strings.Contains(dockerversion, "18") {
+				panic(fmt.Errorf("current host:%v,docker version : %v .(suggest to check docker version)", v.host, dockerversion))
+			}
+
 			checkDockerCmd := "docker images | grep " + t.LocalConfig.DockerName
 			dockerInfo := v.RunCmdAndGetOutPut(checkDockerCmd)
 			if strings.Contains(dockerInfo, t.LocalConfig.DockerName) {
@@ -154,17 +190,12 @@ func (t *ToolManager) InstallDocker() {
 				continue
 			}
 
-			log.Warn("ready to install docker and pull images", "host", v.host)
-			v.installDocker()
-
-			log.Debug("==== begin pulling Docker image...", "host", v.host)
-			v.RunCmd("docker pull " + t.LocalConfig.DockerName)
+			t.PullImages(v)
 			dockerInfo = v.RunCmdAndGetOutPut(checkDockerCmd)
 			if strings.Contains(dockerInfo, t.LocalConfig.DockerName) {
 				log.Debug("pulling images successfully", "images name", t.LocalConfig.DockerName)
 				continue
 			} else {
-				//log.Error("----------", "host", v.host, "dockername", t.LocalConfig.DockerName)
 				panic(fmt.Errorf("host:%v images:%v install failed", v.host, t.LocalConfig.DockerName))
 			}
 		}

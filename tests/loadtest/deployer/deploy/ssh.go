@@ -27,10 +27,26 @@ func (s *SSHSession) installDocker() {
 		s.RunCmd("apt-get update && apt-get install docker.io")
 	} else if strings.Contains(osInfo, "centos") {
 		log.Info("centos:ready to install docker", "host", s.host)
-		s.RunCmd("yum update && yum -y install docker && systemctl start docker")
+		s.RunCmd("yum remove docker  docker-client  docker-client-latest  docker-common  docker-latest  docker-latest-logrotate  docker-logrotate  docker-selinux  docker-engine-selinux  docker-engine docker-ce -y")
+		s.RunCmd("rm -rf /var/lib/docker")
+		s.RunCmd("yum install -y yum-utils device-mapper-persistent-data lvm2")
+		s.RunCmd("yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo")
+		s.RunCmd("yum-config-manager --add-repo http://mirrors.aliyun.com/docker-ce/linux/centos/docker-ce.repo")
+		s.RunCmd("yum install docker-ce-18.06.1.ce -y")
+		s.RunCmd("systemctl start docker")
 	} else {
 		log.Error("Other os", "info", osInfo)
 	}
+}
+
+func (s *SSHSession) pullImages(hostWithFullImages *SSHSession, imagesName string) {
+	fileStatus := hostWithFullImages.RunCmdAndGetOutPut("ls qkc.img")
+	if !strings.Contains(fileStatus, "qkc.img") {
+		saveCmd := "docker save > qkc.img " + imagesName
+		hostWithFullImages.RunCmd(saveCmd)
+	}
+	hostWithFullImages.RunCmd("")
+
 }
 
 func (s *SSHSession) RunCmdIgnoreErr(cmd string) {
