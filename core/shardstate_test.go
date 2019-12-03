@@ -2874,3 +2874,373 @@ func TestSigToAddr(t *testing.T) {
 	_, err = state0.AddRootBlock(rootBlock)
 	assert.NoError(t, err)
 }
+
+func TestBlocksWithIncorrectVersion(t *testing.T) {
+	env := getTestEnv(nil, nil, nil, nil, nil, nil)
+	shardState := createDefaultShardState(env, nil, nil, nil, nil)
+	rootBlock := shardState.GetRootTip().CreateBlockToAppend(nil, nil, nil, nil, nil)
+	rootBlock.Header().Version = 1
+	_, err := shardState.AddRootBlock(rootBlock.Finalize(nil, nil, common.Hash{}))
+	if err != nil {
+		t.Errorf("incorrect minor block version err:%v", err)
+	}
+	rootBlock.Header().Version = 0
+	_, err = shardState.AddRootBlock(rootBlock.Finalize(nil, nil, common.Hash{}))
+	if err != nil {
+		t.Errorf("incorrect minor block version err:%v", err)
+	}
+	shardBlock, _ := shardState.CreateBlockToMine(nil, nil, nil, nil, nil)
+	shardBlock.Header().Version = 1
+	_, _, err = shardState.FinalizeAndAddBlock(shardBlock)
+	if err != nil {
+		t.Errorf("incorrect minor block version err:%v", err)
+	}
+	shardBlock.Header().Version = 0
+	_, _, err = shardState.FinalizeAndAddBlock(shardBlock)
+	if err != nil {
+		t.Errorf("incorrect minor block version err:%v", err)
+	}
+}
+
+func TestEnablEvmTimestampWithContractCall(t *testing.T) {
+	id1, _ := account.CreatRandomIdentity()
+	acc1 := account.CreatAddressFromIdentity(id1, 0)
+	acc2 := account.CreatEmptyAddress(0)
+	a := big.NewInt(10000000).Uint64()
+	env := getTestEnv(&acc1, &a, nil, nil, nil, nil)
+	shardState := createDefaultShardState(env, nil, nil, nil, nil)
+	rootBlock := shardState.GetRootTip().CreateBlockToAppend(nil, nil, nil, nil, nil).Finalize(nil, nil, common.Hash{})
+	shardState.AddRootBlock(rootBlock)
+	val := big.NewInt(12345)
+	gas := uint64(50000)
+	tx1 := createTransferTransaction(shardState, id1.GetKey().Bytes(), acc1, acc2, val, &gas, nil, nil, []byte("1234"), nil, nil)
+	error := shardState.AddTx(tx1)
+	if error != nil {
+		t.Errorf("addTx error: %v", error)
+	}
+	b1, _ := shardState.CreateBlockToMine(nil, nil, nil, nil, nil)
+	assert.Equal(t, len(b1.Transactions()), 1)
+	env.clusterConfig.Quarkchain.EnableEvmTimeStamp = b1.Header().GetTime() + uint64(100)
+	b2, _ := shardState.CreateBlockToMine(nil, nil, nil, nil, nil)
+	assert.Equal(t, len(b2.Transactions()), 0)
+
+	_, _, err := shardState.FinalizeAndAddBlock(b1)
+	if err != nil {
+		t.Logf("smart contract tx is not allowed before evm is enabled ")
+	}
+}
+
+func TestEnableEvmTimestampWithContractCreate(t *testing.T) {
+	id1, _ := account.CreatRandomIdentity()
+	acc1 := account.CreatAddressFromIdentity(id1, 0)
+	a := big.NewInt(10000000).Uint64()
+	env := getTestEnv(&acc1, &a, nil, nil, nil, nil)
+	shardState := createDefaultShardState(env, nil, nil, nil, nil)
+	rootBlock := shardState.GetRootTip().CreateBlockToAppend(nil, nil, nil, nil, nil).Finalize(nil, nil, common.Hash{})
+	shardState.AddRootBlock(rootBlock)
+	tx, err := CreateContract(shardState, id1.GetKey(), acc1, 0, "")
+	if err != nil {
+		t.Errorf("CreateContract err:%v", err)
+	}
+	assert.NoError(t, shardState.AddTx(tx))
+	b1, _ := shardState.CreateBlockToMine(nil, nil, nil, nil, nil)
+	assert.Equal(t, len(b1.Transactions()), 1)
+	env.clusterConfig.Quarkchain.EnableEvmTimeStamp = b1.Header().GetTime() + uint64(100)
+	b2, _ := shardState.CreateBlockToMine(nil, nil, nil, nil, nil)
+	assert.Equal(t, len(b2.Transactions()), 0)
+	_, _, err = shardState.FinalizeAndAddBlock(b1)
+	if err != nil {
+		t.Logf("smart contract tx is not allowed before evm is enabled ")
+	}
+}
+
+func TestEnableTxTimestamp(t *testing.T) {
+	id1, _ := account.CreatRandomIdentity()
+	acc1 := account.CreatAddressFromIdentity(id1, 0)
+	id2, _ := account.CreatRandomIdentity()
+	acc2 := account.CreatAddressFromIdentity(id2, 0)
+	acc3 := account.CreatEmptyAddress(0)
+	a := big.NewInt(10000000).Uint64()
+	env := getTestEnv(&acc1, &a, nil, nil, nil, nil)
+	shardState := createDefaultShardState(env, nil, nil, nil, nil)
+	rootBlock := shardState.GetRootTip().CreateBlockToAppend(nil, nil, nil, nil, nil).Finalize(nil, nil, common.Hash{})
+	shardState.AddRootBlock(rootBlock)
+	val := big.NewInt(5000000)
+	gas := uint64(50000)
+	tx := createTransferTransaction(shardState, id1.GetKey().Bytes(), acc1, acc2, val, &gas, nil, nil, []byte("1234"), nil, nil)
+	error := shardState.AddTx(tx)
+	if error != nil {
+		t.Errorf("addTx error: %v", error)
+	}
+	b1, _ := shardState.CreateBlockToMine(nil, nil, nil, nil, nil)
+	assert.Equal(t, len(b1.Transactions()), 1)
+	env.clusterConfig.Quarkchain.EnableEvmTimeStamp = b1.Header().GetTime() + uint64(100)
+	b2, _ := shardState.CreateBlockToMine(nil, nil, nil, nil, nil)
+	assert.Equal(t, len(b2.Transactions()), 1)
+	_, _, err := shardState.FinalizeAndAddBlock(b1)
+	if err != nil {
+		t.Logf("smart contract tx is not allowed before evm is enabled ")
+	}
+	val2 := big.NewInt(12345)
+	gas2 := uint64(50000)
+	tx2 := createTransferTransaction(shardState, id2.GetKey().Bytes(), acc2, acc3, val2, &gas2, nil, nil, []byte("1234"), nil, nil)
+	env.clusterConfig.Quarkchain.EnableEvmTimeStamp = 0
+	error = shardState.AddTx(tx2)
+	if error != nil {
+		t.Errorf("addTx error: %v", error)
+	}
+	b3, _ := shardState.CreateBlockToMine(nil, nil, nil, nil, nil)
+	assert.Equal(t, len(b3.Transactions()), 1)
+	env.clusterConfig.Quarkchain.EnableEvmTimeStamp = b1.Header().GetTime() + uint64(100)
+	b4, _ := shardState.CreateBlockToMine(nil, nil, nil, nil, nil)
+	assert.Equal(t, len(b4.Transactions()), 1)
+	_, _, err = shardState.FinalizeAndAddBlock(b4)
+	if err != nil {
+		t.Logf("unwhitelisted senders not allowed before tx is enabled")
+	}
+}
+
+func TestFailedTransactionGas(t *testing.T) {
+	id1, _ := account.CreatRandomIdentity()
+	acc1 := account.CreatAddressFromIdentity(id1, 0)
+	acc2 := account.CreatEmptyAddress(0)
+	testGenesisMinorTokenBalance["QKC"] = testShardCoinbaseAmount2
+	env := getTestEnv(&acc1, nil, nil, nil, nil, nil)
+	shardState := createDefaultShardState(env, nil, nil, nil, nil)
+	//Create failed contract with revert operation
+	/**
+	pragma solidity ^0.5.1;
+	        contract RevertContract {
+	            constructor() public {
+	                revert();
+	            }
+	        }
+	*/
+	//FAILED_TRANSACTION_COST := 54416
+
+	tx, _ := CreateContract(shardState, id1.GetKey(), acc1, acc1.FullShardKey, "6080604052348015600f57600080fd5b50600080fdfe")
+	assert.NoError(t, shardState.AddTx(tx))
+	b1, _ := shardState.CreateBlockToMine(nil, &acc2, nil, nil, nil)
+	assert.Equal(t, len(b1.Transactions()), 1)
+	_, _, err := shardState.FinalizeAndAddBlock(b1)
+	if err != nil {
+		t.Logf("smart contract tx is not allowed before evm is enabled ")
+	}
+	assert.Equal(t, shardState.CurrentHeader(), b1.Header())
+	//Check receipts and make sure the transaction is failed
+	//evmState, _ := shardState.State()
+	//state.evm_state.receipts  ?
+
+}
+
+func TestIncorrectCoinbaseAmount(t *testing.T) {
+	QKC := qkcCommon.TokenIDEncode("QKC")
+	env := getTestEnv(nil, nil, nil, nil, nil, nil)
+	shardState := createDefaultShardState(env, nil, nil, nil, nil)
+	rootBlock := shardState.GetRootTip().CreateBlockToAppend(nil, nil, nil, nil, nil).Finalize(nil, nil, common.Hash{})
+	shardState.AddRootBlock(rootBlock)
+	b, _ := shardState.CreateBlockToMine(nil, nil, nil, nil, nil)
+	evmState, _, _, _, _, _ := shardState.runBlock(b)
+	b.Finalize(nil, emptyHash, evmState.GetGasUsed(), evmState.GetXShardReceiveGasUsed(), shardState.getCoinbaseAmount(b.Header().Number), evmState.GetTxCursorInfo())
+	shardState.AddBlock(b)
+	b, _ = shardState.CreateBlockToMine(nil, nil, nil, nil, nil)
+	wrong_coinbase := shardState.getCoinbaseAmount(b.Header().Number)
+	m := make(map[uint64]*big.Int)
+	m[QKC] = new(big.Int).Add(new(big.Int).SetUint64(QKC), big.NewInt(1))
+	b.Finalize(nil, emptyHash, evmState.GetGasUsed(), evmState.GetXShardReceiveGasUsed(), wrong_coinbase, evmState.GetTxCursorInfo())
+	err := shardState.AddBlock(b)
+	if err != nil {
+		t.Errorf("AddBlock err:%v", err)
+	}
+}
+
+func TestShardCoinbaseDecay(t *testing.T) {
+	env := getTestEnv(nil, nil, nil, nil, nil, nil)
+	QKC := qkcCommon.TokenIDEncode(env.clusterConfig.Quarkchain.GenesisToken)
+	shardState := createDefaultShardState(env, nil, nil, nil, nil)
+	coinbase := shardState.getCoinbaseAmount(shardState.shardConfig.EpochInterval)
+	m := make(map[uint64]*big.Int)
+	a := new(big.Rat).Mul(env.clusterConfig.Quarkchain.BlockRewardDecayFactor, env.clusterConfig.Quarkchain.RewardTaxRate)
+	m[QKC] = new(big.Int).Mul(shardState.shardConfig.CoinbaseAmount, a.Num())
+	assert.Equal(t, m, coinbase.GetBalanceMap())
+	coinbase = shardState.getCoinbaseAmount(shardState.shardConfig.EpochInterval + 1)
+	m1 := make(map[uint64]*big.Int)
+	a1 := new(big.Rat).Mul(env.clusterConfig.Quarkchain.BlockRewardDecayFactor, env.clusterConfig.Quarkchain.RewardTaxRate)
+	m[QKC] = new(big.Int).Mul(shardState.shardConfig.CoinbaseAmount, a1.Num())
+	assert.Equal(t, m1, coinbase.GetBalanceMap())
+	coinbase = shardState.getCoinbaseAmount(shardState.shardConfig.EpochInterval * 2)
+	m2 := make(map[uint64]*big.Int)
+	sq := new(big.Rat).Mul(env.clusterConfig.Quarkchain.BlockRewardDecayFactor, env.clusterConfig.Quarkchain.BlockRewardDecayFactor)
+	a2 := new(big.Rat).Mul(sq, env.clusterConfig.Quarkchain.RewardTaxRate)
+	m[QKC] = new(big.Int).Mul(shardState.shardConfig.CoinbaseAmount, a2.Num())
+	assert.Equal(t, m2, coinbase.GetBalanceMap())
+}
+func (m *MinorBlockChain) getTip() *types.MinorBlock {
+	return m.GetMinorBlock(m.CurrentHeader().Hash())
+}
+func TestShardReorgByAddingRootBlock(t *testing.T) {
+	id1, _ := account.CreatRandomIdentity()
+	acc1 := account.CreatAddressFromIdentity(id1, 0)
+	id2, _ := account.CreatRandomIdentity()
+	acc2 := account.CreatAddressFromIdentity(id2, 0)
+	a := big.NewInt(10000000).Uint64()
+	env := getTestEnv(&acc1, &a, nil, nil, nil, nil)
+	shardState := createDefaultShardState(env, nil, nil, nil, nil)
+	genesis := shardState.GetMinorTip()
+	b1 := shardState.getTip().CreateBlockToAppend(nil, nil, &acc1, nil, nil, nil, nil, nil, nil)
+	b2 := shardState.getTip().CreateBlockToAppend(nil, nil, &acc2, nil, nil, nil, nil, nil, nil)
+	rootBlock := shardState.GetRootTip().CreateBlockToAppend(nil, nil, nil, nil, nil)
+	rootBlock.AddMinorBlockHeader(b1.Header())
+	rootBlock.AddMinorBlockHeader(genesis)
+	rootBlock.Finalize(nil, nil, emptyHash)
+	rootBlock2 := shardState.GetRootTip().CreateBlockToAppend(nil, nil, nil, nil, nil)
+	rootBlock2.AddMinorBlockHeader(b2.Header())
+	rootBlock2.AddMinorBlockHeader(genesis)
+	rootBlock2.Finalize(nil, nil, emptyHash)
+	shardState.FinalizeAndAddBlock(b1)
+	shardState.AddRootBlock(rootBlock)
+	assert.Equal(t, b1.Header(), shardState.CurrentHeader())
+	shardState.FinalizeAndAddBlock(b2)
+	assert.Equal(t, b1.Header(), shardState.CurrentHeader())
+	rootBlock2.Header().ToTalDifficulty = new(big.Int).Add(rootBlock2.Header().Difficulty, rootBlock2.Header().ToTalDifficulty)
+	rootBlock2.Header().Difficulty = new(big.Int).Mul(rootBlock2.Header().Difficulty, big.NewInt(2))
+	_, err := shardState.AddRootBlock(rootBlock)
+	if err != nil {
+		t.Errorf("AddRootBlock err:%v", err)
+	}
+	assert.Equal(t, shardState.CurrentHeader(), b2.Header())
+	//shardState MinorBlockMeta?
+	assert.Equal(t, shardState.rootTip, rootBlock2.Header())
+	//self.assertEqual(state0.evm_state.trie.root_hash, b1.meta.hash_evm_state_root)  ?
+}
+
+func TestSkipUnderPricedTxToBlock(t *testing.T) {
+	id1, _ := account.CreatRandomIdentity()
+	acc1 := account.CreatAddressFromIdentity(id1, 0)
+	acc2 := account.CreatEmptyAddress(0)
+	a := big.NewInt(10000000).Uint64()
+	env := getTestEnv(&acc1, &a, nil, nil, nil, nil)
+	env.clusterConfig.Quarkchain.MinMiningGasPrice = big.NewInt(10)
+	shardState := createDefaultShardState(env, nil, nil, nil, nil)
+	// Add a root block to have all the shards initialized
+	rootBlock := shardState.GetRootTip().CreateBlockToAppend(nil, nil, nil, nil, nil).Finalize(nil, nil, emptyHash)
+	shardState.AddRootBlock(rootBlock)
+	//Under-priced
+	gas := big.NewInt(50000).Uint64()
+	val := big.NewInt(12345)
+	tx := createTransferTransaction(shardState, id1.GetKey().Bytes(), acc1, acc2, val, &gas, nil, nil, []byte("1234"), nil, nil)
+	error := shardState.AddTx(tx)
+	if error != nil {
+		t.Errorf("addTx error: %v", error)
+	}
+	b1, _ := shardState.CreateBlockToMine(nil, nil, nil, nil, nil)
+	assert.Equal(t, len(b1.Transactions()), 1)
+	//self.assertEqual(len(state.tx_queue), 0)   ???
+
+	//# Qualified
+	gasPrice := big.NewInt(11).Uint64()
+	tx1 := createTransferTransaction(shardState, id1.GetKey().Bytes(), acc1, acc2, val, &gas, &gasPrice, nil, []byte("1234"), nil, nil)
+	error = shardState.AddTx(tx1)
+	if error != nil {
+		t.Errorf("addTx error: %v", error)
+	}
+	b2, _ := shardState.CreateBlockToMine(nil, nil, nil, nil, nil)
+	assert.Equal(t, len(b2.Transactions()), 1)
+	//self.assertEqual(len(state.tx_queue), 1)  ???
+}
+
+func TestXshardGasLimitFromMultipleShards(t *testing.T) {
+	QKC := qkcCommon.TokenIDEncode("QKC")
+	id1, _ := account.CreatRandomIdentity()
+	acc1 := account.CreatAddressFromIdentity(id1, 0)
+	acc2 := account.CreatAddressFromIdentity(id1, 16)
+	acc3 := account.CreatAddressFromIdentity(id1, 8)
+	a := big.NewInt(10000000).Uint64()
+	shardSize := uint32(64)
+	env0 := getTestEnv(&acc1, &a, nil, &shardSize, nil, nil)
+	env1 := getTestEnv(&acc1, &a, nil, &shardSize, nil, nil)
+	shardId0 := uint32(0)
+	shardState0 := createDefaultShardState(env0, &shardId0, nil, nil, nil)
+	shardId1 := uint32(16)
+	shardState1 := createDefaultShardState(env1, &shardId1, nil, nil, nil)
+	shardId2 := uint32(8)
+	shardState2 := createDefaultShardState(env1, &shardId2, nil, nil, nil)
+
+	// Add
+	//	Add a root block to allow later minor blocks referencing this root block to
+	//	be broadcasted
+	rootBlock := shardState0.GetRootTip().CreateBlockToAppend(nil, nil, nil, nil, nil)
+	rootBlock.AddMinorBlockHeader(shardState0.CurrentBlock().Header())
+	rootBlock.AddMinorBlockHeader(shardState1.CurrentBlock().Header())
+	rootBlock.AddMinorBlockHeader(shardState2.CurrentBlock().Header())
+	rootBlock.Finalize(nil, nil, emptyHash)
+	shardState0.AddRootBlock(rootBlock)
+	shardState1.AddRootBlock(rootBlock)
+	shardState2.AddRootBlock(rootBlock)
+	//	Add one block in shard 1 with 2 x-shard txs
+	b1 := shardState0.getTip().CreateBlockToAppend(nil, nil, nil, nil, nil, nil, nil, nil, nil)
+	b1.Header().PrevRootBlockHash = rootBlock.Header().Hash()
+	val := big.NewInt(888888)
+	gas := new(big.Int).Add(big.NewInt(21000), big.NewInt(9000)).Uint64()
+	gasPrice := uint64(2)
+	tx0 := createTransferTransaction(shardState1, id1.GetKey().Bytes(), acc1, acc2, val, &gas, &gasPrice, nil, []byte("1234"), nil, nil)
+	b1.AddTx(tx0)
+	val1 := big.NewInt(111111)
+	gas1 := new(big.Int).Add(big.NewInt(21000), big.NewInt(9000)).Uint64()
+	gasPrice1 := uint64(2)
+	tx1 := createTransferTransaction(shardState1, id1.GetKey().Bytes(), acc2, acc1, val1, &gas1, &gasPrice1, nil, []byte("1234"), nil, nil)
+	b1.AddTx(tx1)
+	//	# Add a x-shard tx from remote peer
+	deposit := types.CrossShardTransactionDeposit{TxHash: tx0.Hash(), From: acc2, To: acc1, Value: &serialize.Uint256{Value: big.NewInt(888888)}, GasPrice: &serialize.Uint256{Value: big.NewInt(2)}, GasTokenID: QKC, TransferTokenID: QKC}
+	deposit2 := types.CrossShardTransactionDeposit{TxHash: tx1.Hash(), From: acc2, To: acc1, Value: &serialize.Uint256{Value: big.NewInt(111111)}, GasPrice: &serialize.Uint256{Value: big.NewInt(2)}, GasTokenID: QKC, TransferTokenID: QKC}
+	txL := make([]*types.CrossShardTransactionDeposit, 0)
+	txL = append(txL, &deposit, &deposit2)
+	txList := types.CrossShardTransactionDepositList{TXList: txL}
+	shardState0.AddCrossShardTxListByMinorBlockHash(b1.Header().Hash(), txList)
+	//	# Add one block in shard 1 with 2 x-shard txs
+	b2 := shardState2.getTip().CreateBlockToAppend(nil, nil, nil, nil, nil, nil, nil, nil, nil)
+	b2.Header().PrevRootBlockHash = rootBlock.Header().Hash()
+	val2 := big.NewInt(12345)
+	gas2 := new(big.Int).Add(big.NewInt(21000), big.NewInt(9000)).Uint64()
+	gasPrice2 := uint64(2)
+	tx3 := createTransferTransaction(shardState1, id1.GetKey().Bytes(), acc2, acc1, val2, &gas2, &gasPrice2, nil, []byte("1234"), nil, nil)
+	b2.AddTx(tx3)
+	//	# Add a x-shard tx from remote peer
+	deposit = types.CrossShardTransactionDeposit{TxHash: tx3.Hash(), From: acc3, To: acc1, Value: &serialize.Uint256{Value: big.NewInt(12345)}, GasPrice: &serialize.Uint256{Value: big.NewInt(2)}, GasTokenID: QKC, TransferTokenID: QKC}
+	txL = make([]*types.CrossShardTransactionDeposit, 0)
+	txL = append(txL, &deposit)
+	txList = types.CrossShardTransactionDepositList{TXList: txL}
+	shardState0.AddCrossShardTxListByMinorBlockHash(b2.Header().Hash(), txList)
+	//	# Create a root block containing the block with the x-shard tx
+	rootBlock = shardState0.GetRootTip().CreateBlockToAppend(nil, nil, nil, nil, nil)
+	rootBlock.AddMinorBlockHeader(shardState1.CurrentBlock().Header())
+	rootBlock.AddMinorBlockHeader(shardState2.CurrentBlock().Header())
+	coinbase := types.NewEmptyTokenBalances()
+	coinbase.SetValue(big.NewInt(1000000), qkcCommon.TokenIDEncode("QKC"))
+	rootBlock.Finalize(coinbase, &acc1, emptyHash)
+	shardState0.AddRootBlock(rootBlock)
+	//	# Add b0 and make sure one x-shard tx's are added
+	xShardGasLimit := big.NewInt(9000)
+	b2, _ = shardState0.CreateBlockToMine(nil, nil, nil, xShardGasLimit, nil)
+	shardState0.FinalizeAndAddBlock(b2)
+	//	# Root block coinbase does not consume xshard gas
+	tb, _ := shardState0.GetBalance(acc1.Recipient, &emptyHash)
+	assert.Equal(t, tb.GetTokenBalance(QKC), big.NewInt(10000000+1000000+12345))
+	//	# X-shard gas used
+	evmState0 := shardState0.currentEvmState
+	assert.Equal(t, evmState0.GetXShardReceiveGasUsed(), big.NewInt(9000))
+	//	# Add b2 and make sure all x-shard tx's are added
+	xShardGasLimit1 := big.NewInt(9000)
+	b2, _ = shardState0.CreateBlockToMine(nil, nil, nil, xShardGasLimit1, nil)
+	shardState0.FinalizeAndAddBlock(b2)
+	//	# Root block coinbase does not consume xshard gas
+	tb, _ = shardState0.GetBalance(acc1.Recipient, &emptyHash)
+	assert.Equal(t, tb.GetTokenBalance(QKC), big.NewInt(10000000+1000000+12345+888888))
+	//	# Add b3 and make sure no x-shard tx's are added
+	xShardGasLimit1 = big.NewInt(9000)
+	b3, _ := shardState0.CreateBlockToMine(nil, nil, nil, xShardGasLimit1, nil)
+	shardState0.FinalizeAndAddBlock(b3)
+	//	# Root block coinbase does not consume xshard gas
+	tb, _ = shardState0.GetBalance(acc1.Recipient, &emptyHash)
+	assert.Equal(t, tb.GetTokenBalance(QKC), big.NewInt(10000000+1000000+12345+888888+111111))
+}
