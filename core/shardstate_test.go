@@ -2898,7 +2898,7 @@ func TestProcMintMNT(t *testing.T) {
 	}
 	statedb, err := state.New(common.Hash{}, state.NewDatabase(ethdb.NewMemDatabase()))
 	assert.NoError(t, err)
-	sysContractAddr := common.HexToAddress(vm.NonReservedNativeTokenContractAddr)
+	sysContractAddr := common.HexToAddress("514b430000000000000000000000000000000002")
 	ret, gasRemained, balance, err := runContract(sysContractAddr, statedb)
 	assert.NoError(t, err)
 	assert.Equal(t, 34001-34000, int(gasRemained))
