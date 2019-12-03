@@ -8,6 +8,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/cluster/service"
 	"github.com/QuarkChain/goquarkchain/cmd/utils"
+	"github.com/QuarkChain/goquarkchain/core/vm"
 	"github.com/QuarkChain/goquarkchain/params"
 	"github.com/naoina/toml"
 	"gopkg.in/urfave/cli.v1"
@@ -67,6 +68,14 @@ func makeConfigNode(ctx *cli.Context) (*service.Node, qkcConfig) {
 	cfg := qkcConfig{
 		Cluster: *config.NewClusterConfig(),
 		Service: defaultNodeConfig(),
+	}
+	for _, v := range params.PrecompliedContractsAfterEvmEnabled {
+		if vm.PrecompiledContractsByzantium[v] != nil {
+			vm.PrecompiledContractsByzantium[v].SetEnableTime(cfg.Cluster.Quarkchain.EnableEvmTimeStamp)
+		}
+	}
+	if cfg.Cluster.Quarkchain.EnableMntAuctionTimestamp != nil {
+		vm.SystemContracts[vm.NON_RESERVED_NATIVE_TOKEN].SetTimestamp(cfg.Cluster.Quarkchain.EnableMntAuctionTimestamp)
 	}
 
 	// Load cluster config file.

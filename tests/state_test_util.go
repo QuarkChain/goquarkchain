@@ -88,12 +88,18 @@ type stPostState struct {
 
 //go:generate gencodec -type stEnv -field-override stEnvMarshaling -out gen_stenv.go
 
+type override struct {
+	Address   common.Address `json:"address"`
+	Timestamp uint64         `json:"timestamp"`
+}
+
 type stEnv struct {
 	Coinbase   common.Address `json:"currentCoinbase"   gencodec:"required"`
 	Difficulty *big.Int       `json:"currentDifficulty" gencodec:"required"`
 	GasLimit   uint64         `json:"currentGasLimit"   gencodec:"required"`
 	Number     uint64         `json:"currentNumber"     gencodec:"required"`
 	Timestamp  uint64         `json:"currentTimestamp"  gencodec:"required"`
+	Overrides  map[string][]override
 }
 
 type stEnvMarshaling struct {
@@ -166,6 +172,13 @@ func (t *StateTest) Run(subtest StateSubtest, vmconfig vm.Config, useMock bool) 
 	header := TransFromBlock(block)
 	statedb := MakePreState(ethdb.NewMemDatabase(), t.json.Pre, useMock)
 	statedb.SetTimeStamp(header.Time)
+	if t.json.Env.Overrides != nil && t.json.Env.Overrides["specialContractTimestamp"] != nil {
+		for _, override := range t.json.Env.Overrides["specialContractTimestamp"] {
+			if c, ok := vm.PrecompiledContractsByzantium[override.Address]; ok {
+				c.SetEnableTime(override.Timestamp)
+			}
+		}
+	}
 
 	post := t.json.Post[subtest.Fork][subtest.Index]
 	msg, err := t.json.Tx.toMessage(post, useMock)
