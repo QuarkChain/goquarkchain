@@ -2969,12 +2969,11 @@ func TestEnableTxTimestamp(t *testing.T) {
 	gas := uint64(50000)
 	tx := createTransferTransaction(shardState, id1.GetKey().Bytes(), acc1, acc2, val, &gas, nil, nil, []byte("1234"), nil, nil)
 	error := shardState.AddTx(tx)
-	if error != nil {
-		t.Errorf("addTx error: %v", error)
-	}
+	checkErr(error)
 	b1, _ := shardState.CreateBlockToMine(nil, nil, nil, nil, nil)
 	assert.Equal(t, len(b1.Transactions()), 1)
 	env.clusterConfig.Quarkchain.EnableEvmTimeStamp = b1.Header().GetTime() + uint64(100)
+	// env.quark_chain_config.TX_WHITELIST_SENDERS = [acc1.recipient.hex()]
 	b2, _ := shardState.CreateBlockToMine(nil, nil, nil, nil, nil)
 	assert.Equal(t, len(b2.Transactions()), 1)
 	_, _, err := shardState.FinalizeAndAddBlock(b1)
