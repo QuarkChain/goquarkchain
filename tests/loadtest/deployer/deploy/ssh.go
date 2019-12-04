@@ -39,16 +39,6 @@ func (s *SSHSession) installDocker() {
 	}
 }
 
-func (s *SSHSession) pullImages(hostWithFullImages *SSHSession, imagesName string) {
-	fileStatus := hostWithFullImages.RunCmdAndGetOutPut("ls qkc.img")
-	if !strings.Contains(fileStatus, "qkc.img") {
-		saveCmd := "docker save > qkc.img " + imagesName
-		hostWithFullImages.RunCmd(saveCmd)
-	}
-	hostWithFullImages.RunCmd("")
-
-}
-
 func (s *SSHSession) RunCmdIgnoreErr(cmd string) {
 	var stdOut, stdErr bytes.Buffer
 	session, err := SSHConnect(s.user, s.password, s.host, s.port)
