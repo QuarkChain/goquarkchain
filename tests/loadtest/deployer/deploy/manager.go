@@ -177,6 +177,7 @@ func (t *ToolManager) InstallDocker() {
 	var g errgroup.Group
 	for index := 0; index < len(t.LocalConfig.Hosts); index++ {
 		for _, v := range t.SSHSession[index] {
+			v:=v
 			g.Go(func() error {
 				checkDockerVersion := "docker version --format '{{.Server.Version}}'"
 				dockerversion := v.RunCmdAndGetOutPut(checkDockerVersion)
