@@ -188,13 +188,17 @@ func (t *ToolManager) initDocker() {
 }
 
 func (t *ToolManager) sendIMG() {
+	var g errgroup.Group
 	for index := 0; index < len(t.LocalConfig.Hosts); index++ {
 		for _, v := range t.SSHSession[index] {
-			v.SendFile("./qkc.tar.bz2", "./")
-			log.Debug("send end", "host", v.host)
-
+			g.Go(func() error {
+				v.SendFile("./qkc.tar.bz2", "./")
+				log.Debug("send end", "host", v.host)
+				return nil
+			})
 		}
 	}
+	g.Wait()
 }
 
 func (t *ToolManager) loadIMG() {
