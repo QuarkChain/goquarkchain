@@ -8,14 +8,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/QuarkChain/goquarkchain/common"
-
-	"github.com/ybbus/jsonrpc"
-
 	"github.com/QuarkChain/goquarkchain/cluster/config"
+	"github.com/QuarkChain/goquarkchain/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/p2p/enode"
+	"github.com/ybbus/jsonrpc"
+	"golang.org/x/sync/errgroup"
 )
 
 var (
@@ -36,6 +35,7 @@ type ToolManager struct {
 
 	SSHSession   []map[string]*SSHSession
 	ClusterIndex int
+	firstMachine string
 }
 
 func NewToolManager(config *LocalConfig) *ToolManager {
@@ -67,6 +67,11 @@ func (t *ToolManager) check() {
 		}
 		if !common.IsP2(uint32(lenSlave)) {
 			panic(fmt.Errorf("slave's count %d must be power of 2", lenSlave))
+		}
+
+		if index == 0 {
+			t.firstMachine = t.LocalConfig.Hosts[0][0].IP
+			log.Info("full images docker", "host", t.LocalConfig.Hosts[0][0].IP)
 		}
 	}
 	t.ClusterIndex = 0
@@ -144,32 +149,75 @@ func (t *ToolManager) GenClusterConfig(configPath string) {
 	WriteConfigToFile(clusterConfig, configPath)
 }
 
-func (t *ToolManager) InstallDocker() {
+func (t *ToolManager) initDocker() {
+	var g errgroup.Group
 	for index := 0; index < len(t.LocalConfig.Hosts); index++ {
-		for _, v := range t.SSHSession[t.ClusterIndex] {
-			checkDockerCmd := "docker images | grep " + t.LocalConfig.DockerName
-			dockerInfo := v.RunCmdAndGetOutPut(checkDockerCmd)
-			if strings.Contains(dockerInfo, t.LocalConfig.DockerName) {
-				log.Debug("already have images", "host", v.host, "images name", t.LocalConfig.DockerName)
-				continue
-			}
-
-			log.Warn("ready to install docker and pull images", "host", v.host)
-			v.installDocker()
-
-			log.Debug("==== begin pulling Docker image...", "host", v.host)
-			v.RunCmd("docker pull " + t.LocalConfig.DockerName)
-			dockerInfo = v.RunCmdAndGetOutPut(checkDockerCmd)
-			if strings.Contains(dockerInfo, t.LocalConfig.DockerName) {
-				log.Debug("pulling images successfully", "images name", t.LocalConfig.DockerName)
-				continue
-			} else {
-				//log.Error("----------", "host", v.host, "dockername", t.LocalConfig.DockerName)
-				panic(fmt.Errorf("host:%v images:%v install failed", v.host, t.LocalConfig.DockerName))
-			}
+		for _, v := range t.SSHSession[index] {
+			v := v
+			g.Go(func() error {
+				v.installDocker()
+				return nil
+			})
 		}
-		t.ClusterIndex++
 	}
+	g.Wait()
+}
+
+func (t *ToolManager) sendIMG() {
+	var g errgroup.Group
+	for index := 0; index < len(t.LocalConfig.Hosts); index++ {
+		for _, v := range t.SSHSession[index] {
+			g.Go(func() error {
+				v.SendFile("./qkc.tar.bz2", "./")
+				log.Debug("send end", "host", v.host)
+				return nil
+			})
+		}
+	}
+	g.Wait()
+}
+
+func (t *ToolManager) loadIMG() {
+	var g errgroup.Group
+	for index := 0; index < len(t.LocalConfig.Hosts); index++ {
+		for _, v := range t.SSHSession[index] {
+			v := v
+			g.Go(func() error {
+				v.RunCmd("tar -jvxf qkc.tar.bz2")
+				v.RunCmd("docker load < qkc.img ")
+				imagesIDCmd := "docker images | grep " + t.LocalConfig.DockerName + " | awk '{print $1}'"
+				if !strings.Contains(imagesIDCmd, t.LocalConfig.DockerName) {
+					panic(fmt.Errorf("host:%v not have image %v", v.host, t.LocalConfig.DockerName))
+				}
+				return nil
+			})
+
+		}
+	}
+	g.Wait()
+}
+
+func (t *ToolManager) saveImg() {
+	saveCmd := "docker save > ./qkc.img " + t.LocalConfig.DockerName
+
+	hostWithFullImages := t.SSHSession[0][t.firstMachine]
+	hostWithFullImages.RunCmd(saveCmd)
+	hostWithFullImages.RunCmdAndGetOutPut("tar -jvcf qkc.tar.bz2 qkc.img")
+
+	hostWithFullImages.GetFile("./", "./qkc.tar.bz2")
+}
+func (t *ToolManager) InitEnv() {
+	t.initDocker()
+	log.Info("======install docker end======")
+
+	t.saveImg()
+	log.Info("======save img end======")
+
+	t.sendIMG()
+	log.Info("======send img end======")
+
+	t.loadIMG()
+	log.Info("======load img end======")
 	t.ClusterIndex = 0
 }
 
