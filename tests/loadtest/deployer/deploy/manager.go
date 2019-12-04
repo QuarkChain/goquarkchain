@@ -155,15 +155,15 @@ func (t *ToolManager) PullImages(session *SSHSession) {
 	hostWithFullImages := t.SSHSession[0][t.firstMachine]
 	fileStatus := hostWithFullImages.RunCmdAndGetOutPut("ls qkc.img")
 	if !strings.Contains(fileStatus, "qkc.img") {
-		saveCmd := "docker save > /tmp/qkc.img " + t.LocalConfig.DockerName
+		saveCmd := "docker save > ./qkc.img " + t.LocalConfig.DockerName
 		hostWithFullImages.RunCmd(saveCmd)
 	}
 	if t.localHasImages == "" {
-		hostWithFullImages.GetFile("./", "/tmp/qkc.img")
+		hostWithFullImages.GetFile("./", "./qkc.img")
 		time.Sleep(5*time.Second)
 	}
 
-	session.SendFile("./qkc.img", "/tmp/qkc.img")
+	session.SendFile("./qkc.img", "./qkc.img")
 	session.RunCmd("docker load < qkc.img ")
 	imagesIDCmd := "docker images | grep " + t.LocalConfig.DockerName + " | awk '{print $3}'"
 	t.localHasImages = session.RunCmdAndGetOutPut(imagesIDCmd)
