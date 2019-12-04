@@ -159,7 +159,7 @@ func (t *ToolManager) PullImages(session *SSHSession) {
 		hostWithFullImages.RunCmd(saveCmd)
 	}
 	if t.localHasImages == "" {
-		hostWithFullImages.GetFile("./", "./qkc.img")
+		hostWithFullImages.GetFile("./", "/tmp/qkc.img")
 	}
 
 	session.SendFile("./qkcimg", "/tmp/qkc.img")
