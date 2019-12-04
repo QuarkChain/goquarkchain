@@ -180,9 +180,11 @@ func (t *ToolManager) InstallDocker() {
 			if !strings.Contains(dockerversion, "18") {
 				log.Info("host",v.host,"docker version",dockerversion,"begin install docker ......")
 				v.installDocker()
-			}
-			if !strings.Contains(dockerversion, "18") {
-				panic(fmt.Errorf("current host:%v,docker version : %v .(suggest to check docker version)", v.host, dockerversion))
+
+				dockerversion = v.RunCmdAndGetOutPut(checkDockerVersion)
+				if !strings.Contains(dockerversion, "18") {
+					panic(fmt.Errorf("current host:%v,docker version : %v .(suggest to check docker version)", v.host, dockerversion))
+				}
 			}
 
 			checkDockerCmd := "docker images | grep " + t.LocalConfig.DockerName
