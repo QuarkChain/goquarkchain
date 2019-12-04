@@ -188,16 +188,13 @@ func (t *ToolManager) initDocker() {
 }
 
 func (t *ToolManager) sendIMG() {
-	var g errgroup.Group
+
 	for index := 0; index < len(t.LocalConfig.Hosts); index++ {
 		for _, v := range t.SSHSession[index] {
-			g.Go(func() error {
-				v.SendFile("./qkc.img", "./")
-				return nil
-			})
+			v.SendFile("./qkc.img", "./")
+
 		}
 	}
-	g.Wait()
 }
 
 func (t *ToolManager) loadIMG() {
@@ -228,16 +225,16 @@ func (t *ToolManager) saveImg() {
 }
 func (t *ToolManager) InitEnv() {
 	t.initDocker()
-	log.Info("install docker end")
+	log.Info("======install docker end======")
 
 	t.saveImg()
-	log.Info("save img end")
+	log.Info("======save img end======")
 
 	t.sendIMG()
-	log.Info("send img end")
+	log.Info("======send img end======")
 
 	t.loadIMG()
-	log.Info("log img end")
+	log.Info("======load img end======")
 	t.ClusterIndex = 0
 }
 
