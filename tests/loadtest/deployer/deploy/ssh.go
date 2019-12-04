@@ -24,7 +24,7 @@ func (s *SSHSession) installDocker() {
 	osInfo := s.RunCmdAndGetOutPut("cat /etc/os-release | grep ID=")
 	if strings.Contains(osInfo, "ubuntu") {
 		log.Info("ubuntu:ready to install docker", "host", s.host)
-		s.RunCmd("apt-get update && apt-get install docker.io")
+		s.RunCmd("apt-get update && apt-get install docker.io -y")
 	} else if strings.Contains(osInfo, "centos") {
 		log.Info("centos:ready to install docker", "host", s.host)
 		s.RunCmd("yum remove docker  docker-client  docker-client-latest  docker-common  docker-latest  docker-latest-logrotate  docker-logrotate  docker-selinux  docker-engine-selinux  docker-engine docker-ce -y")
