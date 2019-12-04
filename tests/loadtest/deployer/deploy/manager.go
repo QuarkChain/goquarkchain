@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/QuarkChain/goquarkchain/common"
-
+	"golang.org/x/sync/errgroup"
 	"github.com/ybbus/jsonrpc"
 
 	"github.com/QuarkChain/goquarkchain/cluster/config"
@@ -174,36 +174,41 @@ func (t *ToolManager) PullImages(session *SSHSession) {
 }
 
 func (t *ToolManager) InstallDocker() {
+	var g errgroup.Group
 	for index := 0; index < len(t.LocalConfig.Hosts); index++ {
 		for _, v := range t.SSHSession[t.ClusterIndex] {
-			checkDockerVersion := "docker version --format '{{.Server.Version}}'"
-			dockerversion := v.RunCmdAndGetOutPut(checkDockerVersion)
-			if !strings.Contains(dockerversion, "18") {
-				log.Info("host",v.host,"docker version",dockerversion,"begin install docker ......")
-				v.installDocker()
-
-				dockerversion = v.RunCmdAndGetOutPut(checkDockerVersion)
+			g.Go(func() error {
+				checkDockerVersion := "docker version --format '{{.Server.Version}}'"
+				dockerversion := v.RunCmdAndGetOutPut(checkDockerVersion)
 				if !strings.Contains(dockerversion, "18") {
-					panic(fmt.Errorf("current host:%v,docker version : %v .(suggest to check docker version)", v.host, dockerversion))
+					log.Info("host",v.host,"docker version",dockerversion,"begin install docker ......")
+					v.installDocker()
+
+					dockerversion = v.RunCmdAndGetOutPut(checkDockerVersion)
+					if !strings.Contains(dockerversion, "18") {
+						panic(fmt.Errorf("current host:%v,docker version : %v .(suggest to check docker version)", v.host, dockerversion))
+					}
 				}
-			}
 
-			checkDockerCmd := "docker images | grep " + t.LocalConfig.DockerName
-			dockerInfo := v.RunCmdAndGetOutPut(checkDockerCmd)
-			if strings.Contains(dockerInfo, t.LocalConfig.DockerName) {
-				log.Debug("already have images", "host", v.host, "images name", t.LocalConfig.DockerName)
-				continue
-			}
+				checkDockerCmd := "docker images | grep " + t.LocalConfig.DockerName
+				dockerInfo := v.RunCmdAndGetOutPut(checkDockerCmd)
+				if strings.Contains(dockerInfo, t.LocalConfig.DockerName) {
+					log.Debug("already have images", "host", v.host, "images name", t.LocalConfig.DockerName)
+					return nil
+				}
 
-			t.PullImages(v)
-			dockerInfo = v.RunCmdAndGetOutPut(checkDockerCmd)
-			if strings.Contains(dockerInfo, t.LocalConfig.DockerName) {
-				log.Debug("pulling images successfully", "images name", t.LocalConfig.DockerName)
-				continue
-			} else {
-				panic(fmt.Errorf("host:%v images:%v install failed", v.host, t.LocalConfig.DockerName))
-			}
+				t.PullImages(v)
+				dockerInfo = v.RunCmdAndGetOutPut(checkDockerCmd)
+				if strings.Contains(dockerInfo, t.LocalConfig.DockerName) {
+					log.Debug("pulling images successfully", "images name", t.LocalConfig.DockerName)
+					return nil
+				} else {
+					panic(fmt.Errorf("host:%v images:%v install failed", v.host, t.LocalConfig.DockerName))
+				}
+			})
+
 		}
+		g.Wait()
 		t.ClusterIndex++
 	}
 	t.ClusterIndex = 0
