@@ -2,7 +2,7 @@
   "DockerName": "quarkchaindocker/goquarkchain",
   "Hosts": [
     {
-      "IP": "172.19.72.210",
+      "IP": "172.19.72.213",
       "Port": 22,
       "User": "root",
       "Password": "123qkcQKC",
@@ -11,7 +11,7 @@
       "ClusterID": 0
     },
     {
-      "IP": "172.19.72.209",
+      "IP": "172.19.72.211",
       "Port": 22,
       "User": "root",
       "Password": "123qkcQKC",
@@ -20,7 +20,7 @@
       "ClusterID": 0
     },
     {
-      "IP": "172.19.72.207",
+      "IP": "172.19.72.214",
       "Port": 22,
       "User": "root",
       "Password": "123qkcQKC",
@@ -28,7 +28,7 @@
       "SlaveNumber": 4,
       "ClusterID": 1
     },{
-      "IP": "172.19.72.208",
+      "IP": "172.19.72.212",
       "Port": 22,
       "User": "root",
       "Password": "123qkcQKC",
