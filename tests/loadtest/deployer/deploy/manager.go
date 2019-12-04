@@ -204,16 +204,19 @@ func (t *ToolManager) CheckDockerInfo(v *SSHSession) error {
 
 func (t *ToolManager) InstallDocker() {
 
-	for index := 0; index < len(t.LocalConfig.Hosts); index++ {
-		for _, v := range t.SSHSession[index] {
-			t.CheckDockerInfo(v)
-			if t.localHasImages != "" {
-				fmt.Println("解决了一个", v.host)
-				return
+	initDockerInfo := func() {
+		for index := 0; index < len(t.LocalConfig.Hosts); index++ {
+			for _, v := range t.SSHSession[index] {
+				t.CheckDockerInfo(v)
+				if t.localHasImages != "" {
+					fmt.Println("解决了一个", v.host)
+					return
+				}
 			}
 		}
 	}
 
+	initDockerInfo()
 	var g errgroup.Group
 	for index := 0; index < len(t.LocalConfig.Hosts); index++ {
 		for _, v := range t.SSHSession[index] {
