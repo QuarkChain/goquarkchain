@@ -34,10 +34,9 @@ type ToolManager struct {
 	LocalConfig *LocalConfig
 	BootNode    string
 
-	SSHSession     []map[string]*SSHSession
-	ClusterIndex   int
-	firstMachine   string
-	localHasImages string
+	SSHSession   []map[string]*SSHSession
+	ClusterIndex int
+	firstMachine string
 }
 
 func NewToolManager(config *LocalConfig) *ToolManager {
@@ -149,28 +148,6 @@ func (t *ToolManager) GenClusterConfig(configPath string) {
 		t.ClusterIndex = tIndex
 	}
 	WriteConfigToFile(clusterConfig, configPath)
-}
-
-func (t *ToolManager) PullImages(session *SSHSession) {
-	hostWithFullImages := t.SSHSession[0][t.firstMachine]
-	fileStatus := hostWithFullImages.RunCmdAndGetOutPut("ls qkc.img")
-	if !strings.Contains(fileStatus, "qkc.img") {
-		saveCmd := "docker save > ./qkc.img " + t.LocalConfig.DockerName
-		hostWithFullImages.RunCmd(saveCmd)
-	}
-	if t.localHasImages == "" {
-		hostWithFullImages.GetFile("./", "./qkc.img")
-		time.Sleep(5 * time.Second)
-	}
-
-	session.SendFile("./qkc.img", "./")
-	session.RunCmd("docker load < qkc.img ")
-	imagesIDCmd := "docker images | grep " + t.LocalConfig.DockerName + " | awk '{print $3}'"
-	t.localHasImages = session.RunCmdAndGetOutPut(imagesIDCmd)
-	log.Info("scfffffffff", "images name", t.localHasImages)
-	if t.localHasImages == "" {
-		panic(fmt.Errorf("remote host %v not have %v", session.host, t.LocalConfig.DockerName))
-	}
 }
 
 func (t *ToolManager) initDocker() {

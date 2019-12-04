@@ -2,13 +2,12 @@ package deploy
 
 import (
 	"fmt"
+	"github.com/pkg/sftp"
+	"golang.org/x/crypto/ssh"
 	"io/ioutil"
 	"os"
 	"path"
 	"time"
-
-	"github.com/pkg/sftp"
-	"golang.org/x/crypto/ssh"
 )
 
 func sftpConnect(user, password, host string, port int) (*sftp.Client, error) {
@@ -52,7 +51,6 @@ func UploadFile(sftpClient *sftp.Client, localFilePath string, remotePath string
 	var remoteFileName = path.Base(localFilePath)
 
 	dstFile, err := sftpClient.Create(path.Join(remotePath, remoteFileName))
-
 	CheckErr(err)
 	defer dstFile.Close()
 
@@ -63,7 +61,6 @@ func UploadFile(sftpClient *sftp.Client, localFilePath string, remotePath string
 
 func GetfileFromRemote(sftpClient *sftp.Client, localDir string, remotePath string) {
 	srcFile, err := sftpClient.Open(remotePath)
-	srcFile.Chmod(os.ModePerm)
 	CheckErr(err)
 	defer srcFile.Close()
 
