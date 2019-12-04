@@ -162,7 +162,7 @@ func (t *ToolManager) PullImages(session *SSHSession) {
 		hostWithFullImages.GetFile("./", "/tmp/qkc.img")
 	}
 
-	session.SendFile("./qkcimg", "/tmp/qkc.img")
+	session.SendFile("./qkc.img", "/tmp/qkc.img")
 	session.RunCmd("docker load < qkc.img ")
 	imagesIDCmd := "docker images | grep " + t.LocalConfig.DockerName + " | awk '{print $3}'"
 	t.localHasImages = session.RunCmdAndGetOutPut(imagesIDCmd)
