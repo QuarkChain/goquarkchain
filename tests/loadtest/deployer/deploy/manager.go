@@ -176,7 +176,7 @@ func (t *ToolManager) PullImages(session *SSHSession) {
 func (t *ToolManager) InstallDocker() {
 	var g errgroup.Group
 	for index := 0; index < len(t.LocalConfig.Hosts); index++ {
-		for _, v := range t.SSHSession[t.ClusterIndex] {
+		for _, v := range t.SSHSession[index] {
 			g.Go(func() error {
 				checkDockerVersion := "docker version --format '{{.Server.Version}}'"
 				dockerversion := v.RunCmdAndGetOutPut(checkDockerVersion)
@@ -208,9 +208,8 @@ func (t *ToolManager) InstallDocker() {
 			})
 
 		}
-		g.Wait()
-		t.ClusterIndex++
 	}
+	g.Wait()
 	t.ClusterIndex = 0
 }
 
