@@ -935,13 +935,12 @@ func (m *MinorBlockChain) WriteBlockWithState(block *types.MinorBlock, receipts 
 				triedb.Cap(limit - ethdb.IdealBatchSize)
 			}
 			// Find the next state trie we need to commit
-			header := m.GetHeaderByNumber(current - triesInMemory)
-			preBlockInterface := m.GetBlockByNumber(current - triesInMemory)
-			if qkcCommon.IsNil(preBlockInterface) {
+			block := m.GetBlockByNumber(current - triesInMemory)
+			if qkcCommon.IsNil(block) {
 				log.Error("minorBlock not found", "height", current-triesInMemory)
 			}
-			preBlock := preBlockInterface.(*types.MinorBlock)
-			chosen := header.NumberU64()
+			mBlock := block.(*types.MinorBlock)
+			chosen := mBlock.NumberU64()
 
 			// If we exceeded out time allowance, flush an entire trie to disk
 			if m.gcproc > m.cacheConfig.TrieTimeLimit {
@@ -951,7 +950,7 @@ func (m *MinorBlockChain) WriteBlockWithState(block *types.MinorBlock, receipts 
 					log.Info("State in memory for too long, committing", "time", m.gcproc, "allowance", m.cacheConfig.TrieTimeLimit, "optimum", float64(chosen-lastWrite)/triesInMemory)
 				}
 				// Flush an entire trie and restart the counters
-				triedb.Commit(preBlock.GetMetaData().Root, true)
+				triedb.Commit(mBlock.GetMetaData().Root, true)
 				lastWrite = chosen
 				m.gcproc = 0
 			}
