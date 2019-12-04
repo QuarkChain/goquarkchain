@@ -8,13 +8,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/QuarkChain/goquarkchain/common"
-	"github.com/ybbus/jsonrpc"
-
 	"github.com/QuarkChain/goquarkchain/cluster/config"
+	"github.com/QuarkChain/goquarkchain/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/p2p/enode"
+	"github.com/ybbus/jsonrpc"
 	"golang.org/x/sync/errgroup"
 )
 
