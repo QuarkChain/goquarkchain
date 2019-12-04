@@ -191,6 +191,7 @@ func (t *ToolManager) sendIMG() {
 	for index := 0; index < len(t.LocalConfig.Hosts); index++ {
 		for _, v := range t.SSHSession[index] {
 			v.SendFile("./qkc.img", "./")
+			log.Debug("send end", "host", v.host)
 
 		}
 	}
