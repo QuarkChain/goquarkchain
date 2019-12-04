@@ -53,9 +53,6 @@ func NewToolManager(config *LocalConfig) *ToolManager {
 func (t *ToolManager) check() {
 	clusterLen := len(t.LocalConfig.Hosts)
 	for index := 0; index < clusterLen; index++ {
-		if index == 0 {
-			t.firstMachine = t.GetMasterIP()
-		}
 		if _, ok := t.LocalConfig.Hosts[index]; !ok {
 			panic(fmt.Errorf("need clusterID %v", index))
 		}
@@ -72,6 +69,11 @@ func (t *ToolManager) check() {
 		}
 		if !common.IsP2(uint32(lenSlave)) {
 			panic(fmt.Errorf("slave's count %d must be power of 2", lenSlave))
+		}
+
+		if index == 0 {
+			t.firstMachine = t.LocalConfig.Hosts[0][0].IP
+			log.Info("full images docker","host",t.LocalConfig.Hosts[0][0].IP)
 		}
 	}
 	t.ClusterIndex = 0
@@ -153,19 +155,18 @@ func (t *ToolManager) PullImages(session *SSHSession) {
 	hostWithFullImages := t.SSHSession[0][t.firstMachine]
 	fileStatus := hostWithFullImages.RunCmdAndGetOutPut("ls qkc.img")
 	if !strings.Contains(fileStatus, "qkc.img") {
-		saveCmd := "docker save > qkc.img " + t.LocalConfig.DockerName
+		saveCmd := "docker save > /tmp/qkc.img " + t.LocalConfig.DockerName
 		hostWithFullImages.RunCmd(saveCmd)
 	}
 	if t.localHasImages == "" {
-		session.RunCmd("docker ")
-		t.localHasImages = true
 		hostWithFullImages.GetFile("./", "./qkc.img")
 	}
 
-	session.SendFile("./qkcimg", "")
+	session.SendFile("./qkcimg", "/tmp/qkc.img")
 	session.RunCmd("docker load < qkc.img ")
 	imagesIDCmd := "docker images | grep " + t.LocalConfig.DockerName + " | awk '{print $3}'"
 	t.localHasImages = session.RunCmdAndGetOutPut(imagesIDCmd)
+	log.Info("scfffffffff","images name",t.localHasImages)
 	if t.localHasImages == "" {
 		panic(fmt.Errorf("remote host %v not have %v", session.host, t.LocalConfig.DockerName))
 	}
@@ -177,6 +178,7 @@ func (t *ToolManager) InstallDocker() {
 			checkDockerVersion := "docker version --format '{{.Server.Version}}'"
 			dockerversion := v.RunCmdAndGetOutPut(checkDockerVersion)
 			if !strings.Contains(dockerversion, "18") {
+				log.Info("host",v.host,"docker version",dockerversion,"begin install docker ......")
 				v.installDocker()
 			}
 			if !strings.Contains(dockerversion, "18") {
