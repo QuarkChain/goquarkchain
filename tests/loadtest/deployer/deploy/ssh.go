@@ -24,10 +24,16 @@ func (s *SSHSession) installDocker() {
 	osInfo := s.RunCmdAndGetOutPut("cat /etc/os-release | grep ID=")
 	if strings.Contains(osInfo, "ubuntu") {
 		log.Info("ubuntu:ready to install docker", "host", s.host)
-		s.RunCmd("apt-get update && apt-get install docker.io")
+		s.RunCmd("apt-get update && apt-get install docker.io -y")
 	} else if strings.Contains(osInfo, "centos") {
 		log.Info("centos:ready to install docker", "host", s.host)
-		s.RunCmd("yum update && yum -y install docker && systemctl start docker")
+		s.RunCmd("yum remove docker  docker-client  docker-client-latest  docker-common  docker-latest  docker-latest-logrotate  docker-logrotate  docker-selinux  docker-engine-selinux  docker-engine docker-ce -y")
+		s.RunCmd("rm -rf /var/lib/docker")
+		s.RunCmd("yum install -y yum-utils device-mapper-persistent-data lvm2")
+		s.RunCmd("yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo")
+		s.RunCmd("yum-config-manager --add-repo http://mirrors.aliyun.com/docker-ce/linux/centos/docker-ce.repo")
+		s.RunCmd("yum install docker-ce-18.06.1.ce -y")
+		s.RunCmd("systemctl start docker")
 	} else {
 		log.Error("Other os", "info", osInfo)
 	}
@@ -118,7 +124,7 @@ func SSHConnect(user, password, host string, port int) (*ssh.Session, error) {
 	clientConfig = &ssh.ClientConfig{
 		User:            user,
 		Auth:            auth,
-		Timeout:         30 * time.Second,
+		Timeout:         180 * time.Second,
 		HostKeyCallback: hostKeyCallbk,
 	}
 

@@ -50,21 +50,24 @@ func basic(clt jsonrpc.RPCClient, ip string) string {
 	return msg
 }
 
-func queryStats(client jsonrpc.RPCClient, interval *uint) {
-	titles := []string{"Timestamp\t", "Syncing", "TPS", "Pend.TX", "Conf.TX", "BPS", "SBPS", "CPU", "ROOT", "CHAIN/SHARD-HEIGHT"}
+func queryStats(client jsonrpc.RPCClient, interval *uint, shards bool) {
+	titles := []string{"Timestamp\t", "Syncing", "TPS", "Pend.TX", "Conf.TX", "BPS", "SBPS", "CPU", "ROOT"}
+	if shards {
+		titles = append(titles, "CHAIN/SHARD-HEIGHT")
+	}
 	fmt.Println(strings.Join(titles, "\t"))
 	intv := time.Duration(*interval)
 	ticker := time.NewTicker(intv * time.Second)
-	fmt.Println(stats(client))
+	fmt.Println(stats(client, shards))
 	for {
 		select {
 		case <-ticker.C:
-			fmt.Println(stats(client))
+			fmt.Println(stats(client, shards))
 		}
 	}
 }
 
-func stats(client jsonrpc.RPCClient) string {
+func stats(client jsonrpc.RPCClient, shardsIn bool) string {
 	response, err := client.Call("getStats")
 	if err != nil {
 		return err.Error()
@@ -106,14 +109,16 @@ func stats(client jsonrpc.RPCClient) string {
 	rh, _ := res["rootHeight"].(json.Number).Int64()
 	msg += fmt.Sprintf("%d", rh)
 
-	msg += "\t"
-	shardsi := res["shards"].([]interface{})
-	shards := make([]string, len(shardsi))
-	for i, p := range shardsi {
-		shard := p.(map[string]interface{})
-		shards[i] = fmt.Sprintf("%s/%s-%s", shard["chainId"], shard["shardId"], shard["height"])
+	if shardsIn {
+		msg += "\t"
+		shardsi := res["shards"].([]interface{})
+		shards := make([]string, len(shardsi))
+		for i, p := range shardsi {
+			shard := p.(map[string]interface{})
+			shards[i] = fmt.Sprintf("%s/%s-%s", shard["chainId"], shard["shardId"], shard["height"])
+		}
+		msg += strings.Join(shards, " ")
 	}
-	msg += strings.Join(shards, " ")
 	return msg
 }
 
@@ -203,6 +208,7 @@ func main() {
 	interval := flag.Uint("i", 10, "Query interval in second")
 	address := flag.String("a", "", "Query account balance if a QKC address is provided")
 	token := flag.String("t", "QKC", "Query account balance for a specific token")
+	shards := flag.Bool("s", false, "Query height of all shards")
 	flag.Parse()
 	privateEndPoint := jsonrpc.NewClient(fmt.Sprintf("http://%s:38491", *ip))
 	publicEndPoint := jsonrpc.NewClient(fmt.Sprintf("http://%s:38391", *ip))
@@ -210,6 +216,6 @@ func main() {
 	if len(*address) > 0 {
 		queryAddress(publicEndPoint, interval, address, token)
 	} else {
-		queryStats(privateEndPoint, interval)
+		queryStats(privateEndPoint, interval, *shards)
 	}
 }
