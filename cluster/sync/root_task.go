@@ -49,7 +49,10 @@ func NewRootChainTask(
 		name:             "root",
 		header:           header,
 		maxSyncStaleness: 22500,
-		batchSize:        RootBlockBatchSize,
+		// if the shard size is large (like 1024), the block size would be large
+		// and multi root block will exceed the p2p up limit
+		// change the batch size to 3 for tps test
+		batchSize: 3, // RootBlockBatchSize,
 		findAncestor: func(bc blockchain) (types.IHeader, error) {
 
 			if bc.HasBlock(rTask.header.Hash()) {
