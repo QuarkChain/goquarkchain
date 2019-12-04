@@ -61,6 +61,7 @@ func UploadFile(sftpClient *sftp.Client, localFilePath string, remotePath string
 
 func GetfileFromRemote(sftpClient *sftp.Client, localDir string, remotePath string) {
 	srcFile, err := sftpClient.Open(remotePath)
+	srcFile.Chmod(os.ModePerm)
 	CheckErr(err)
 	defer srcFile.Close()
 
