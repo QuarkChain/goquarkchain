@@ -190,7 +190,7 @@ func (t *ToolManager) initDocker() {
 func (t *ToolManager) sendIMG() {
 	for index := 0; index < len(t.LocalConfig.Hosts); index++ {
 		for _, v := range t.SSHSession[index] {
-			v.SendFile("./qkc.img", "./")
+			v.SendFile("./qkc.tar.bz2", "./")
 			log.Debug("send end", "host", v.host)
 
 		}
@@ -203,6 +203,7 @@ func (t *ToolManager) loadIMG() {
 		for _, v := range t.SSHSession[index] {
 			v := v
 			g.Go(func() error {
+				v.RunCmd("tar -jvxf qkc.tar.bz2")
 				v.RunCmd("docker load < qkc.img ")
 				imagesIDCmd := "docker images | grep " + t.LocalConfig.DockerName + " | awk '{print $1}'"
 				if !strings.Contains(imagesIDCmd, t.LocalConfig.DockerName) {
@@ -221,7 +222,9 @@ func (t *ToolManager) saveImg() {
 
 	hostWithFullImages := t.SSHSession[0][t.firstMachine]
 	hostWithFullImages.RunCmd(saveCmd)
-	hostWithFullImages.GetFile("./", "./qkc.img")
+	hostWithFullImages.RunCmdAndGetOutPut("tar -jvcf qkc.tar.bz2 qkc.img")
+
+	hostWithFullImages.GetFile("./", "./qkc.tar.bz2")
 }
 func (t *ToolManager) InitEnv() {
 	t.initDocker()
