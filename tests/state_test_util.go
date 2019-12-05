@@ -21,10 +21,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/QuarkChain/goquarkchain/account"
-	"github.com/QuarkChain/goquarkchain/serialize"
 	"math/big"
 	"strings"
+
+	"github.com/QuarkChain/goquarkchain/account"
+	"github.com/QuarkChain/goquarkchain/serialize"
 
 	qkcConfig "github.com/QuarkChain/goquarkchain/cluster/config"
 	qkcCommon "github.com/QuarkChain/goquarkchain/common"
@@ -334,7 +335,7 @@ func (tx *stTransaction) toMessage(ps stPostState, useMock bool) (*types.Message
 	if useMock {
 		toFullShardKey = nil
 	}
-	msg := types.NewMessage(fromRecipient, toRecipient, tx.Nonce, value, gasLimit, tx.GasPrice, data, true, 0, toFullShardKey, transferTokenID, testQKCID)
+	msg := types.NewMessage(fromRecipient, toRecipient, tx.Nonce, value, gasLimit, tx.GasPrice, data, true, 0, toFullShardKey, transferTokenID, testQKCID, 100)
 	return &msg, nil
 }
 

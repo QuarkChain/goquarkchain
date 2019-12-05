@@ -83,6 +83,11 @@ func (e *EvmTransaction) SetVRS(v, r, s *big.Int) {
 	e.updated = true
 }
 
+func (e *EvmTransaction) SetSender(addr account.Recipient) {
+	signer := NewEIP155Signer(e.NetworkId())
+	e.from.Store(sigCache{signer: signer, from: addr})
+}
+
 func NewEvmContractCreation(nonce uint64, amount *big.Int, gasLimit uint64, gasPrice *big.Int, fromFullShardKey uint32, toFullShardKey uint32, networkId uint32, version uint32, data []byte, gasTokenID, transferTokenID uint64) *EvmTransaction {
 	return newEvmTransaction(nonce, nil, amount, gasLimit, gasPrice, fromFullShardKey, toFullShardKey, networkId, version, data, gasTokenID, transferTokenID)
 }
@@ -270,7 +275,7 @@ func (tx *EvmTransaction) Size() common.StorageSize {
 // AsMessage returns the transaction as a core.Message.
 // AsMessage requires a signer to derive the sender.
 // XXX Rename message to something less arbitrary?
-func (tx *EvmTransaction) AsMessage(s Signer, txHash common.Hash) (Message, error) {
+func (tx *EvmTransaction) AsMessage(s Signer, txHash common.Hash, gasPrice *big.Int, gasTokenID uint64, refundRate uint8) (Message, error) {
 	msgTo := new(common.Address)
 	if tx.data.Recipient != nil {
 		msgTo.SetBytes(tx.data.Recipient.Bytes())
@@ -282,7 +287,7 @@ func (tx *EvmTransaction) AsMessage(s Signer, txHash common.Hash) (Message, erro
 	msg := Message{
 		nonce:            tx.data.AccountNonce,
 		gasLimit:         tx.data.GasLimit,
-		gasPrice:         new(big.Int).Set(tx.data.Price),
+		gasPrice:         new(big.Int).Set(gasPrice),
 		to:               msgTo,
 		amount:           tx.data.Amount,
 		data:             tx.data.Payload,
@@ -292,7 +297,8 @@ func (tx *EvmTransaction) AsMessage(s Signer, txHash common.Hash) (Message, erro
 		txHash:           txHash,
 		isCrossShard:     tx.IsCrossShard(),
 		transferTokenID:  tx.data.TransferTokenID,
-		gasTokenID:       tx.data.GasTokenID,
+		gasTokenID:       gasTokenID,
+		refundRate:       refundRate,
 	}
 
 	msgFrom, err := Sender(s, tx)
@@ -618,7 +624,7 @@ type Message struct {
 }
 
 func NewMessage(from common.Address, to *common.Address, nonce uint64, amount *big.Int, gasLimit uint64, gasPrice *big.Int,
-	data []byte, checkNonce bool, fromFullShardKey uint32, toFullShardKey *uint32, transferTokenID, gasTokenID uint64) Message {
+	data []byte, checkNonce bool, fromFullShardKey uint32, toFullShardKey *uint32, transferTokenID, gasTokenID uint64, refundRate uint8) Message {
 
 	return Message{
 		from:             from,
@@ -633,16 +639,13 @@ func NewMessage(from common.Address, to *common.Address, nonce uint64, amount *b
 		toFullShardKey:   toFullShardKey,
 		transferTokenID:  transferTokenID,
 		gasTokenID:       gasTokenID,
-		refundRate:       100,
+		refundRate:       refundRate,
 	}
 }
 
-func (m Message) From() common.Address { return m.from }
-func (m Message) To() *common.Address  { return m.to }
-func (m Message) GasPrice() *big.Int   { return m.gasPrice }
-func (m Message) SetGasPrice(data *big.Int) {
-	m.gasPrice = data
-}
+func (m Message) From() common.Address     { return m.from }
+func (m Message) To() *common.Address      { return m.to }
+func (m Message) GasPrice() *big.Int       { return m.gasPrice }
 func (m Message) Value() *big.Int          { return m.amount }
 func (m Message) Gas() uint64              { return m.gasLimit }
 func (m Message) Nonce() uint64            { return m.nonce }
@@ -653,11 +656,5 @@ func (m Message) FromFullShardKey() uint32 { return m.fromFullShardKey }
 func (m Message) ToFullShardKey() *uint32  { return m.toFullShardKey }
 func (m Message) TxHash() common.Hash      { return m.txHash }
 func (m Message) GasTokenID() uint64       { return m.gasTokenID }
-func (m Message) SetGasTokenID(data uint64) {
-	m.gasTokenID = data
-}
-func (m Message) TransferTokenID() uint64 { return m.transferTokenID }
-func (m Message) SetRefundRate(data uint8) {
-	m.refundRate = data
-}
-func (m Message) RefundRate() uint8 { return m.refundRate }
+func (m Message) TransferTokenID() uint64  { return m.transferTokenID }
+func (m Message) RefundRate() uint8        { return m.refundRate }

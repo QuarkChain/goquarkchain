@@ -18,6 +18,7 @@ package core
 
 import (
 	"errors"
+	"fmt"
 	"math"
 	"math/big"
 
@@ -72,7 +73,6 @@ type Message interface {
 	To() *common.Address
 
 	GasPrice() *big.Int
-	SetGasPrice(data *big.Int)
 	Gas() uint64
 	Value() *big.Int
 
@@ -84,10 +84,8 @@ type Message interface {
 	ToFullShardKey() *uint32
 	TxHash() common.Hash
 	GasTokenID() uint64
-	SetGasTokenID(data uint64)
 	TransferTokenID() uint64
 	RefundRate() uint8
-	SetRefundRate(data uint8)
 }
 
 // IntrinsicGas computes the 'intrinsic gas' for a message with the given data.
@@ -149,7 +147,7 @@ func NewStateTransition(evm *vm.EVM, msg Message, gp *GasPool) *StateTransition 
 // state and would never be accepted within a block.
 func ApplyMessage(evm *vm.EVM, msg Message, gp *GasPool) ([]byte, uint64, bool, error) {
 	if msg.GasTokenID() != evm.StateDB.GetQuarkChainConfig().GetDefaultChainTokenID() {
-		return nil, 0, false, errors.New("gas token should always be converted to genesis token")
+		return nil, 0, false, fmt.Errorf("gas token %v should always be converted to genesis token %v", msg.GasTokenID(), evm.StateDB.GetQuarkChainConfig().GetDefaultChainTokenID())
 	}
 	return NewStateTransition(evm, msg, gp).TransitionDb()
 }
@@ -279,12 +277,10 @@ func (st *StateTransition) refundGas(vmerr error) {
 	st.state.SubRefund(st.state.GetRefund())
 
 	// Return ETH for remaining gas, exchanged at the original rate.
-	remaining := new(big.Int).Mul(new(big.Int).SetUint64(st.gas), st.gasPrice)
-	st.state.AddBalance(st.msg.From(), remaining, st.msg.GasTokenID())
 
 	toRefund := st.gas * uint64(st.msg.RefundRate()) / 100
 	toburn := st.gas - toRefund
-	st.state.AddBalance(st.msg.From(), remaining, st.msg.GasTokenID())
+	st.state.AddBalance(st.msg.From(), new(big.Int).SetUint64(toRefund), st.msg.GasTokenID())
 	if toburn >= 0 {
 		st.state.AddBalance(common.Address{}, new(big.Int).SetUint64(toburn), st.msg.GasTokenID())
 	}

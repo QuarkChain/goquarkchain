@@ -1733,7 +1733,7 @@ func (m *MinorBlockChain) GetRootChainStakes(coinbase account.Recipient, lastMin
 	nonce := evmState.GetNonce(mockSender)
 	toFullShardKey := uint32(0)
 	msg := types.NewMessage(mockSender, &contractAddress, nonce, new(big.Int), 1000000, new(big.Int), data,
-		false, 0, &toFullShardKey, m.GetGenesisToken(), m.GetGenesisToken())
+		false, 0, &toFullShardKey, m.GetGenesisToken(), m.GetGenesisToken(), 100)
 	context := NewEVMContext(msg, last.Header(), m)
 	evmState.SetQuarkChainConfig(m.clusterConfig.Quarkchain)
 	vmenv := vm.NewEVM(context, evmState, m.ethChainConfig, *m.GetVMConfig())

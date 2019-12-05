@@ -156,6 +156,7 @@ func (m *MinorBlockChain) validateTx(tx *types.Transaction, evmState *state.Stat
 			evmTxGas = *gas
 		}
 		evmTx.SetGas(evmTxGas)
+		evmTx.SetSender(fromAddress.Recipient)
 	}
 	toShardSize, err := m.clusterConfig.Quarkchain.GetShardSizeByChainId(tx.EvmTx.ToChainID())
 	if err != nil {
@@ -1101,7 +1102,6 @@ func (m *MinorBlockChain) EstimateGas(tx *types.Transaction, fromAddress account
 
 		gp := new(GasPool).AddGas(evmState.GetGasLimit().Uint64())
 		gasUsed := new(uint64)
-
 		_, _, _, err = ApplyTransaction(m.ethChainConfig, m, gp, evmState, m.CurrentHeader(), evmTx, gasUsed, *m.GetVMConfig())
 		return err
 	}

@@ -165,28 +165,27 @@ func GetContralcAdd() common.Address {
 
 // ApplyTransaction apply tx
 func ApplyTransaction(config *params.ChainConfig, bc ChainContext, gp *GasPool, statedb *state.StateDB, header types.IHeader, tx *types.Transaction, usedGas *uint64, cfg vm.Config) ([]byte, *types.Receipt, uint64, error) {
+	//fmt.Println("apply_transatcion")
 	statedbGensisToken := statedb.GetQuarkChainConfig().GetDefaultChainTokenID()
 	gasPrice, refundRate := tx.EvmTx.GasPrice(), uint8(100)
 	convertedGenesisTokenGasPeice := new(big.Int)
+
 	if tx.EvmTx.GasTokenID() != statedbGensisToken {
 		refundRate, convertedGenesisTokenGasPeice = PayNativeTokenAsGas(statedb, tx.EvmTx.GasTokenID(), tx.EvmTx.GasTokenID(), tx.EvmTx.GasPrice())
-		if convertedGenesisTokenGasPeice.Cmp(new(big.Int).SetUint64(0)) <= 0 {
-			return nil, nil, 0, fmt.Errorf("convertedGenesisTokenGasPeice %v shoud >0", convertedGenesisTokenGasPeice)
-		}
+		//if convertedGenesisTokenGasPeice.Cmp(new(big.Int).SetUint64(0)) <= 0 {
+		//	return nil, nil, 0, fmt.Errorf("convertedGenesisTokenGasPeice %v shoud >0", convertedGenesisTokenGasPeice)
+		//}
 		gasPrice = convertedGenesisTokenGasPeice
 		contractAddr := GetContralcAdd()
-		statedb.SubBalance(contractAddr, new(big.Int).Mul(new(big.Int).SetUint64(tx.EvmTx.Gas()), convertedGenesisTokenGasPeice), statedbGensisToken)
+		//TODO need fix
+		//statedb.SubBalance(contractAddr, new(big.Int).Mul(new(big.Int).SetUint64(tx.EvmTx.Gas()), convertedGenesisTokenGasPeice), statedbGensisToken)
 		statedb.AddBalance(contractAddr, new(big.Int).Mul(new(big.Int).SetUint64(tx.EvmTx.Gas()), tx.EvmTx.GasPrice()), tx.EvmTx.GasTokenID())
 	}
 	statedb.SetFullShardKey(tx.EvmTx.ToFullShardKey())
-	msg, err := tx.EvmTx.AsMessage(types.MakeSigner(tx.EvmTx.NetworkId()), tx.Hash())
+	msg, err := tx.EvmTx.AsMessage(types.NewEIP155Signer(tx.EvmTx.NetworkId()), tx.Hash(), gasPrice, statedbGensisToken, refundRate)
 	if err != nil {
 		return nil, nil, 0, err
 	}
-	msg.SetGasPrice(gasPrice)
-	msg.SetGasTokenID(statedbGensisToken)
-	msg.SetRefundRate(refundRate)
-
 	context := NewEVMContext(msg, header, bc)
 	vmenv := vm.NewEVM(context, statedb, config, cfg)
 
@@ -258,7 +257,7 @@ func ApplyCrossShardDeposit(config *params.ChainConfig, bc ChainContext, header 
 	evmState.AddBalance(tx.From.Recipient, tx.Value.Value, tx.TransferTokenID)
 	msg := types.NewMessage(tx.From.Recipient, &tx.To.Recipient, 0, tx.Value.Value,
 		tx.GasRemained.Value.Uint64(), tx.GasPrice.Value, tx.MessageData, false,
-		tx.From.FullShardKey, &tx.To.FullShardKey, tx.TransferTokenID, tx.GasTokenID)
+		tx.From.FullShardKey, &tx.To.FullShardKey, tx.TransferTokenID, tx.GasTokenID, tx.RefundRate)
 	context := NewEVMContext(msg, header, bc)
 	context.IsApplyXShard = true
 	context.XShardGasUsedStart = gasUsedStart
