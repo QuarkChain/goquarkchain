@@ -146,14 +146,4 @@ func TestQKCHashPow(t *testing.T) {
 	header.Nonce = block.IHeader().GetNonce() - 1
 	err = q.VerifySeal(nil, header, big.NewInt(10))
 	assert.Error(err, "should have error because of the wrong nonce")
-	//In the same epoch
-	header.Nonce = block.IHeader().GetNonce()
-	header.Number = 3000
-	err = q.VerifySeal(nil, header, big.NewInt(10))
-	assert.NoError(err)
-	//wrong epoch
-	header.Nonce = block.IHeader().GetNonce()
-	header.Number = 30001
-	err = q.VerifySeal(nil, header, big.NewInt(10))
-	assert.Error(err, "invalid proof-of-work")
 }
