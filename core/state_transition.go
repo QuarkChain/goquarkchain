@@ -280,7 +280,7 @@ func (st *StateTransition) refundGas(vmerr error) {
 
 	toRefund := st.gas * uint64(st.msg.RefundRate()) / 100
 	toburn := st.gas - toRefund
-	st.state.AddBalance(st.msg.From(), new(big.Int).SetUint64(toRefund), st.msg.GasTokenID())
+	st.state.AddBalance(st.msg.From(),new(big.Int).Mul(st.msg.GasPrice(), new(big.Int).SetUint64(toRefund)), st.msg.GasTokenID())
 	if toburn >= 0 {
 		st.state.AddBalance(common.Address{}, new(big.Int).SetUint64(toburn), st.msg.GasTokenID())
 	}
