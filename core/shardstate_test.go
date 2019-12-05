@@ -2879,7 +2879,7 @@ func TestSigToAddr(t *testing.T) {
 }
 
 func TestProcMintMNT(t *testing.T) {
-	mintMNTAddr := common.HexToAddress("000000000000000000000000000000514b430004")
+	mintMNTAddr := common.HexToAddress(vm.MintMNTAddr)
 	minter := common.HexToAddress(strings.Repeat("00", 19) + "34")
 	tokenIDB := common.Hex2Bytes(strings.Repeat("00", 28) + strings.Repeat("11", 4))
 	tokenID := new(big.Int).SetBytes(tokenIDB).Uint64()
@@ -2899,7 +2899,7 @@ func TestProcMintMNT(t *testing.T) {
 	}
 	statedb, err := state.New(common.Hash{}, state.NewDatabase(ethdb.NewMemDatabase()))
 	assert.NoError(t, err)
-	sysContractAddr := common.HexToAddress("514b430000000000000000000000000000000002")
+	sysContractAddr := common.HexToAddress(vm.NonReservedNativeTokenContractAddr)
 	ret, gasRemained, balance, err := runContract(sysContractAddr, statedb)
 	assert.NoError(t, err)
 	assert.Equal(t, 34001-34000, int(gasRemained))
