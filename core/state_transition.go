@@ -278,11 +278,13 @@ func (st *StateTransition) refundGas(vmerr error) {
 
 	// Return ETH for remaining gas, exchanged at the original rate.
 
-	toRefund := st.gas * uint64(st.msg.RefundRate()) / 100
-	toburn := st.gas - toRefund
-	st.state.AddBalance(st.msg.From(),new(big.Int).Mul(st.msg.GasPrice(), new(big.Int).SetUint64(toRefund)), st.msg.GasTokenID())
-	if toburn >= 0 {
-		st.state.AddBalance(common.Address{}, new(big.Int).SetUint64(toburn), st.msg.GasTokenID())
+	toRefund := new(big.Int).Mul(new(big.Int).SetUint64(st.gas ),new(big.Int).SetUint64(uint64(st.msg.RefundRate())))
+	toRefund.Div(toRefund,new(big.Int).SetUint64(100))
+
+	toburn := new(big.Int).Sub(new(big.Int).SetUint64(st.gas), toRefund)
+	st.state.AddBalance(st.msg.From(),new(big.Int).Mul(st.msg.GasPrice(), toRefund), st.msg.GasTokenID())
+	if toburn.Cmp(common.Big0) >= 0 {
+		st.state.AddBalance(common.Address{}, toburn, st.msg.GasTokenID())
 	}
 
 	// Also return remaining gas to the block gas counter so it is
