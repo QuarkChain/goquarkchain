@@ -84,7 +84,10 @@ type Message interface {
 	ToFullShardKey() *uint32
 	TxHash() common.Hash
 	GasTokenID() uint64
+	SetGasTokenID(data uint64)
 	TransferTokenID() uint64
+	RefundRate() uint8
+	SetRefundRate(data uint8)
 }
 
 // IntrinsicGas computes the 'intrinsic gas' for a message with the given data.
@@ -279,7 +282,7 @@ func (st *StateTransition) refundGas(vmerr error) {
 	remaining := new(big.Int).Mul(new(big.Int).SetUint64(st.gas), st.gasPrice)
 	st.state.AddBalance(st.msg.From(), remaining, st.msg.GasTokenID())
 
-	toRefund := st.gas * uint64(st.evm.Refund) / 100
+	toRefund := st.gas * uint64(st.msg.RefundRate()) / 100
 	toburn := st.gas - toRefund
 	st.state.AddBalance(st.msg.From(), remaining, st.msg.GasTokenID())
 	if toburn >= 0 {
@@ -344,6 +347,7 @@ func (st *StateTransition) AddCrossShardTxDeposit(intrinsicGas uint64) (ret []by
 			GasPrice:        crossShardGasPrice,
 			MessageData:     msg.Data(),
 			CreateContract:  true,
+			RefundRate:      st.msg.RefundRate(),
 		}
 		state.AppendXShardList(crossShardData)
 		failed = false
@@ -372,13 +376,15 @@ func (st *StateTransition) AddCrossShardTxDeposit(intrinsicGas uint64) (ret []by
 				Recipient:    account.Recipient(*msg.To()),
 				FullShardKey: *msg.ToFullShardKey(),
 			},
-			Value:           crossShardValue,
-			GasTokenID:      msg.GasTokenID(),
+			Value:      crossShardValue,
+			GasTokenID: msg.GasTokenID(),
+			//convert to genesis token and use converted gas price
 			TransferTokenID: msg.TransferTokenID(),
 			GasRemained:     crossShardGas,
 			GasPrice:        crossShardGasPrice,
 			MessageData:     msg.Data(),
 			CreateContract:  false,
+			RefundRate:      st.msg.RefundRate(),
 		}
 		state.AppendXShardList(crossShardData)
 		failed = false

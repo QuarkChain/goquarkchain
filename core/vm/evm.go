@@ -93,7 +93,6 @@ type Context struct {
 	IsApplyXShard      bool
 	XShardGasUsedStart uint64
 	ContractAddress    *common.Address
-	Refund uint8
 }
 
 // EVM is the Ethereum Virtual Machine base object and provides

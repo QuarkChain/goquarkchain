@@ -178,15 +178,16 @@ func ApplyTransaction(config *params.ChainConfig, bc ChainContext, gp *GasPool, 
 		statedb.SubBalance(contractAddr, new(big.Int).Mul(new(big.Int).SetUint64(tx.EvmTx.Gas()), convertedGenesisTokenGasPeice), statedbGensisToken)
 		statedb.AddBalance(contractAddr, new(big.Int).Mul(new(big.Int).SetUint64(tx.EvmTx.Gas()), tx.EvmTx.GasPrice()), tx.EvmTx.GasTokenID())
 	}
-
 	statedb.SetFullShardKey(tx.EvmTx.ToFullShardKey())
 	msg, err := tx.EvmTx.AsMessage(types.MakeSigner(tx.EvmTx.NetworkId()), tx.Hash())
 	if err != nil {
 		return nil, nil, 0, err
 	}
 	msg.SetGasPrice(gasPrice)
+	msg.SetGasTokenID(statedbGensisToken)
+	msg.SetRefundRate(refundRate)
 
-	context := NewEVMContext(msg, header, bc, refundRate)
+	context := NewEVMContext(msg, header, bc)
 	vmenv := vm.NewEVM(context, statedb, config, cfg)
 
 	ret, gas, failed, err := ApplyMessage(vmenv, msg, gp)
@@ -253,12 +254,12 @@ func ApplyCrossShardDeposit(config *params.ChainConfig, bc ChainContext, header 
 	}
 
 	evmState.SetFullShardKey(tx.To.FullShardKey)
-	evmState.g
+
 	evmState.AddBalance(tx.From.Recipient, tx.Value.Value, tx.TransferTokenID)
 	msg := types.NewMessage(tx.From.Recipient, &tx.To.Recipient, 0, tx.Value.Value,
 		tx.GasRemained.Value.Uint64(), tx.GasPrice.Value, tx.MessageData, false,
 		tx.From.FullShardKey, &tx.To.FullShardKey, tx.TransferTokenID, tx.GasTokenID)
-	context := NewEVMContext(msg, header, bc, tx.RefundRate)
+	context := NewEVMContext(msg, header, bc)
 	context.IsApplyXShard = true
 	context.XShardGasUsedStart = gasUsedStart
 	if tx.CreateContract {

@@ -15,7 +15,6 @@ import (
 	"github.com/QuarkChain/goquarkchain/core/rawdb"
 	"github.com/QuarkChain/goquarkchain/core/state"
 	"github.com/QuarkChain/goquarkchain/core/types"
-	"github.com/QuarkChain/goquarkchain/core/vm"
 	"github.com/QuarkChain/goquarkchain/qkcdb"
 	qrpc "github.com/QuarkChain/goquarkchain/rpc"
 	"github.com/QuarkChain/goquarkchain/serialize"
@@ -573,18 +572,8 @@ func (m *MinorBlockChain) ExecuteTx(tx *types.Transaction, fromAddress *account.
 		return nil, err
 	}
 	gp := new(GasPool).AddGas(mBlock.GasLimit().Uint64())
-
-	to := evmTx.EvmTx.To()
-	toFullShardKey := tx.EvmTx.ToFullShardKey()
-	msg := types.NewMessage(fromAddress.Recipient, to, evmTx.EvmTx.Nonce(), evmTx.EvmTx.Value(), evmTx.EvmTx.Gas(),
-		evmTx.EvmTx.GasPrice(), evmTx.EvmTx.Data(), false, tx.EvmTx.FromFullShardKey(), &toFullShardKey,
-		tx.EvmTx.TransferTokenID(), tx.EvmTx.GasTokenID())
-	state.SetFullShardKey(tx.EvmTx.ToFullShardKey())
-	state.SetQuarkChainConfig(m.clusterConfig.Quarkchain)
-
-	context := NewEVMContext(msg, m.CurrentBlock().IHeader().(*types.MinorBlockHeader), m)
-	evmEnv := vm.NewEVM(context, state, m.ethChainConfig, m.vmConfig)
-	ret, _, _, err := ApplyMessage(evmEnv, msg, gp)
+	gasUsed := new(uint64)
+	ret, _, _, err := ApplyTransaction(m.ethChainConfig, m, gp, state, m.CurrentHeader(), evmTx, gasUsed, *m.GetVMConfig())
 	return ret, err
 
 }
@@ -1111,16 +1100,9 @@ func (m *MinorBlockChain) EstimateGas(tx *types.Transaction, fromAddress account
 		}
 
 		gp := new(GasPool).AddGas(evmState.GetGasLimit().Uint64())
-		to := evmTx.EvmTx.To()
-		toFullShardKey := tx.EvmTx.ToFullShardKey()
-		msg := types.NewMessage(fromAddress.Recipient, to, evmTx.EvmTx.Nonce(), evmTx.EvmTx.Value(), evmTx.EvmTx.Gas(),
-			evmTx.EvmTx.GasPrice(), evmTx.EvmTx.Data(), false, tx.EvmTx.FromFullShardKey(), &toFullShardKey,
-			tx.EvmTx.TransferTokenID(), tx.EvmTx.GasTokenID())
-		evmState.SetFullShardKey(tx.EvmTx.ToFullShardKey())
-		context := NewEVMContext(msg, m.CurrentBlock().IHeader().(*types.MinorBlockHeader), m)
-		evmEnv := vm.NewEVM(context, evmState, m.ethChainConfig, m.vmConfig)
+		gasUsed := new(uint64)
 
-		_, _, _, err = ApplyMessage(evmEnv, msg, gp)
+		_, _, _, err = ApplyTransaction(m.ethChainConfig, m, gp, evmState, m.CurrentHeader(), evmTx, gasUsed, *m.GetVMConfig())
 		return err
 	}
 

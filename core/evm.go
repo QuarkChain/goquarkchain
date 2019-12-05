@@ -37,7 +37,7 @@ type ChainContext interface {
 	GetHeader(common.Hash) types.IHeader
 }
 
-func NewEVMContext(msg types.Message, mheader types.IHeader, chain ChainContext, refund uint8) vm.Context {
+func NewEVMContext(msg types.Message, mheader types.IHeader, chain ChainContext) vm.Context {
 	header := mheader.(*types.MinorBlockHeader)
 	return vm.Context{
 		CanTransfer:     CanTransfer,
@@ -53,7 +53,6 @@ func NewEVMContext(msg types.Message, mheader types.IHeader, chain ChainContext,
 		ToFullShardKey:  msg.ToFullShardKey(),
 		GasTokenID:      msg.GasTokenID(),
 		TransferTokenID: msg.TransferTokenID(),
-		Refund:          refund,
 	}
 }
 

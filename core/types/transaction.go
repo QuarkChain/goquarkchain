@@ -614,6 +614,7 @@ type Message struct {
 	isCrossShard     bool
 	transferTokenID  uint64
 	gasTokenID       uint64
+	refundRate       uint8
 }
 
 func NewMessage(from common.Address, to *common.Address, nonce uint64, amount *big.Int, gasLimit uint64, gasPrice *big.Int,
@@ -632,6 +633,7 @@ func NewMessage(from common.Address, to *common.Address, nonce uint64, amount *b
 		toFullShardKey:   toFullShardKey,
 		transferTokenID:  transferTokenID,
 		gasTokenID:       gasTokenID,
+		refundRate:       100,
 	}
 }
 
@@ -651,4 +653,11 @@ func (m Message) FromFullShardKey() uint32 { return m.fromFullShardKey }
 func (m Message) ToFullShardKey() *uint32  { return m.toFullShardKey }
 func (m Message) TxHash() common.Hash      { return m.txHash }
 func (m Message) GasTokenID() uint64       { return m.gasTokenID }
-func (m Message) TransferTokenID() uint64  { return m.transferTokenID }
+func (m Message) SetGasTokenID(data uint64) {
+	m.gasTokenID = data
+}
+func (m Message) TransferTokenID() uint64 { return m.transferTokenID }
+func (m Message) SetRefundRate(data uint8) {
+	m.refundRate = data
+}
+func (m Message) RefundRate() uint8 { return m.refundRate }
