@@ -1,9 +1,9 @@
 package core
 
 import (
+	"bytes"
 	"encoding/hex"
 	"errors"
-	"github.com/QuarkChain/goquarkchain/core/state"
 	"io/ioutil"
 	"math/big"
 	"os"
@@ -17,6 +17,7 @@ import (
 	qkcCommon "github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/core/rawdb"
+	"github.com/QuarkChain/goquarkchain/core/state"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/core/vm"
 	"github.com/QuarkChain/goquarkchain/params"
@@ -2924,4 +2925,83 @@ func TestProcMintMNT(t *testing.T) {
 	assert.Equal(t, 0, int(gasRemained))
 	assert.Equal(t, 0, len(ret))
 	assert.Equal(t, new(big.Int), balance)
+}
+
+func TestPayAsGasUtility(t *testing.T) {
+	id1, err := account.CreatRandomIdentity()
+	assert.NoError(t, err)
+	acc1 := account.CreatAddressFromIdentity(id1, 0)
+	genesis := uint64(10000000)
+	shardSize := uint32(2)
+	shardId0 := uint32(0)
+	env1 := setUp(&acc1, &genesis, &shardSize)
+	shardState := createDefaultShardState(env1, &shardId0, nil, nil, nil)
+	defer shardState.Stop()
+
+	evmState := shardState.currentEvmState
+	evmState.SetQuarkChainConfig(env1.clusterConfig.Quarkchain)
+	//# contract not deployed yet
+	ctx := vm.Context{
+		CanTransfer:     CanTransfer,
+		Transfer:        Transfer,
+		TransferTokenID: shardState.GetGenesisToken(),
+		BlockNumber:     new(big.Int),
+	}
+	st := &StateTransition{evm: vm.NewEVM(ctx, evmState, shardState.ethChainConfig, vm.Config{})}
+	tokenID := uint64(123)
+	refundPercentage, gasPrice, err := st.GetGasUtilityInfo(tokenID, new(big.Int).SetUint64(1))
+	assert.Equal(t, errContractNotFound, err)
+	assert.Equal(t, 0, int(refundPercentage))
+	assert.Nil(t, gasPrice)
+	runtimeBytecode := common.Hex2Bytes(vm.GeneralNativeTokenContractBytecode)
+	runtimeStart := bytes.LastIndex(runtimeBytecode, common.Hex2Bytes("608060405260"))
+	// # get rid of the constructor argument
+	runtimeBytecode = runtimeBytecode[runtimeStart : len(runtimeBytecode)-32]
+	contractAddr := vm.SystemContracts[vm.GENERAL_NATIVE_TOKEN].Address()
+	evmState.SetCode(contractAddr, runtimeBytecode)
+	//# Set caller
+	evmState.SetState(contractAddr, common.BigToHash(big.NewInt(0)), common.BytesToHash(contractAddr.Bytes()))
+	//# Set supervisor
+	evmState.SetState(contractAddr, common.BigToHash(big.NewInt(1)), common.BytesToHash(acc1.Recipient.Bytes()))
+	//# Set min gas reserve for maintenance
+	evmState.SetState(contractAddr, common.BigToHash(big.NewInt(3)), common.BigToHash(big.NewInt(1)))
+	//# Set min starting gas for use as gas
+	evmState.SetState(contractAddr, common.BigToHash(big.NewInt(4)), common.BigToHash(big.NewInt(1)))
+	_, err = evmState.Commit(true)
+	assert.NoError(t, err)
+	call := func(data string, value *big.Int) ([]byte, error) {
+		ret, _, err := st.evm.Call(vm.AccountRef(acc1.Recipient), contractAddr, common.Hex2Bytes(data), 1000000, value)
+		return ret, err
+	}
+	toStr := func(input uint64) string {
+		b := qkcCommon.Uint64To32Bytes(input)
+		return common.Bytes2Hex(b)
+	}
+	formattedTokenID := toStr(tokenID)
+	//# propose a new exchange rate for token id 123 with ratio 1 / 30000
+	_, err = call("735e0e19"+formattedTokenID+toStr(1)+toStr(30000), big.NewInt(10000))
+	assert.NoError(t, err)
+	//# set the refund rate to 60
+	_, err = call("6d27af8c"+formattedTokenID+toStr(60), new(big.Int))
+	assert.NoError(t, err)
+	//# should be able to use the gas utility
+	_, err = evmState.Commit(true)
+	assert.NoError(t, err)
+
+	//# get the gas utility information by calling the get_gas_utility_info function
+	refundPercentage, gasPrice, err = st.GetGasUtilityInfo(tokenID, big.NewInt(60000))
+	assert.Equal(t, uint8(60), refundPercentage)
+	assert.Equal(t, big.NewInt(2), gasPrice)
+	//# exchange the Qkc with the native token
+	refundPercentage, gasPrice, err = st.PayNativeTokenAsGas(tokenID, 3, big.NewInt(60000))
+	assert.Equal(t, uint8(60), refundPercentage)
+	assert.Equal(t, big.NewInt(2), gasPrice)
+	// # check the balance of the gas reserve. amount of native token (60000) * exchange rate (1 / 30000) = 2 QKC
+	ret, err := call("13dee215"+formattedTokenID+strings.Repeat("0", 24)+common.Bytes2Hex(acc1.Recipient.Bytes()), new(big.Int))
+	assert.NoError(t, err)
+	assert.Equal(t, new(big.Int).SetBytes(ret).Uint64(), uint64(10000-3*2))
+	// # check the balance of native token.
+	ret, err = call("21a2b36e"+formattedTokenID+strings.Repeat("0", 24)+common.Bytes2Hex(acc1.Recipient.Bytes()), new(big.Int))
+	assert.NoError(t, err)
+	assert.Equal(t, new(big.Int).SetBytes(ret).Uint64(), uint64(60000*3))
 }

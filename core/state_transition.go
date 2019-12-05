@@ -429,7 +429,7 @@ func (st *StateTransition) GetGasUtilityInfo(tokenID uint64, gasPriceInNativeTok
 
 func (st *StateTransition) callGeneralNativeTokenManager(data []byte) (uint8, *big.Int, error) {
 	contractAddr := vm.SystemContracts[vm.GENERAL_NATIVE_TOKEN].Address()
-	code := st.state.GetCode(contractAddr)
+	code := st.evm.StateDB.GetCode(contractAddr)
 	if len(code) == 0 {
 		return 0, nil, errContractNotFound
 	}
@@ -439,7 +439,7 @@ func (st *StateTransition) callGeneralNativeTokenManager(data []byte) (uint8, *b
 	if err != nil {
 		return 0, nil, err
 	}
-	refundRate := qkcCmn.BytesToUint8(ret[:32])
+	refundRate := int(ret[:32][31])
 	convertedGasPrice := new(big.Int).SetBytes(ret[32:64])
-	return refundRate, convertedGasPrice, nil
+	return uint8(refundRate), convertedGasPrice, nil
 }
