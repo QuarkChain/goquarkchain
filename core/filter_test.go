@@ -114,7 +114,6 @@ func TestGetLog(t *testing.T) {
 	address := make([]common.Address, 0)
 	address = append(address, contractAddr)
 	filter := NewRangeFilter(shardState, 0, 2, address, nil) //address is match
-
 	logs, err := filter.Logs()
 	assert.NoError(t, err)
 	assert.Equal(t, len(logs), 1)
