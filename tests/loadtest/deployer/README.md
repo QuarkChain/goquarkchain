@@ -83,6 +83,11 @@ So, cluster 0, 1, 2 have 64, 32, 32 slaves deployed respectively. Notice the sla
 
 ## Deploy and Run Clusters
 
+(Optional) If Docker is not installed in your hosts, you can install Docker with following command: 
+```bash
+# suppose your working directory is "$GOPATH/src/github.com/QuarkChain/goquarkchain/tests/loadtest/deployer"
+go run deploy_cluster.go --init_env
+```
 The following command will parse `deployConfig.json`, generate cluster configuration file accordingly, deploy the clusters to remote Docker 
 containers, and start the services of each cluster:
 
