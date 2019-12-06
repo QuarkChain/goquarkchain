@@ -1102,7 +1102,7 @@ func (m *MinorBlockChain) EstimateGas(tx *types.Transaction, fromAddress account
 
 		gp := new(GasPool).AddGas(evmState.GetGasLimit().Uint64())
 		gasUsed := new(uint64)
-		_, _, _, err = ApplyTransaction(m.ethChainConfig, m, gp, evmState, m.CurrentHeader(), evmTx, gasUsed, *m.GetVMConfig())
+		_, _, _, err = ApplyTransaction(m.ethChainConfig, m, gp, evmState, m.CurrentHeader(), evmTx, gasUsed,m.vmConfig)
 		return err
 	}
 

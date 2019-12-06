@@ -172,13 +172,12 @@ func ApplyTransaction(config *params.ChainConfig, bc ChainContext, gp *GasPool, 
 
 	if tx.EvmTx.GasTokenID() != statedbGensisToken {
 		refundRate, convertedGenesisTokenGasPeice = PayNativeTokenAsGas(statedb, tx.EvmTx.GasTokenID(), tx.EvmTx.GasTokenID(), tx.EvmTx.GasPrice())
-		//if convertedGenesisTokenGasPeice.Cmp(new(big.Int).SetUint64(0)) <= 0 {
-		//	return nil, nil, 0, fmt.Errorf("convertedGenesisTokenGasPeice %v shoud >0", convertedGenesisTokenGasPeice)
-		//}
+		if convertedGenesisTokenGasPeice.Cmp(new(big.Int).SetUint64(0)) <= 0 {
+			return nil, nil, 0, fmt.Errorf("convertedGenesisTokenGasPeice %v shoud >0", convertedGenesisTokenGasPeice)
+		}
 		gasPrice = convertedGenesisTokenGasPeice
 		contractAddr := GetContralcAdd()
-		//TODO need fix
-		//statedb.SubBalance(contractAddr, new(big.Int).Mul(new(big.Int).SetUint64(tx.EvmTx.Gas()), convertedGenesisTokenGasPeice), statedbGensisToken)
+		statedb.SubBalance(contractAddr, new(big.Int).Mul(new(big.Int).SetUint64(tx.EvmTx.Gas()), convertedGenesisTokenGasPeice), statedbGensisToken)
 		statedb.AddBalance(contractAddr, new(big.Int).Mul(new(big.Int).SetUint64(tx.EvmTx.Gas()), tx.EvmTx.GasPrice()), tx.EvmTx.GasTokenID())
 	}
 	statedb.SetFullShardKey(tx.EvmTx.ToFullShardKey())

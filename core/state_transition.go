@@ -266,6 +266,16 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 }
 
 func (st *StateTransition) refundGas(vmerr error) {
+	bigIntMulUint8 := func(data *big.Int, u uint8) *big.Int {
+		return new(big.Int).Mul(data, new(big.Int).SetUint64(uint64(u)))
+	}
+	bigIntDivUint8 := func(data *big.Int, u uint8) *big.Int {
+		return new(big.Int).Div(data, new(big.Int).SetUint64(uint64(u)))
+	}
+	bigIntMulBitInt := func(a *big.Int, b *big.Int) *big.Int {
+		return new(big.Int).Mul(a, b)
+	}
+
 	// Apply refund counter, capped to half of the used gas.
 	if vmerr == nil {
 		refund := st.gasUsed() / 2
@@ -278,13 +288,14 @@ func (st *StateTransition) refundGas(vmerr error) {
 
 	// Return ETH for remaining gas, exchanged at the original rate.
 
-	toRefund := new(big.Int).Mul(new(big.Int).SetUint64(st.gas ),new(big.Int).SetUint64(uint64(st.msg.RefundRate())))
-	toRefund.Div(toRefund,new(big.Int).SetUint64(100))
+	toRefund := bigIntMulUint8(new(big.Int).SetUint64(st.gas), st.msg.RefundRate())
+	toRefund = bigIntDivUint8(toRefund, 100)
 
 	toburn := new(big.Int).Sub(new(big.Int).SetUint64(st.gas), toRefund)
-	st.state.AddBalance(st.msg.From(),new(big.Int).Mul(st.msg.GasPrice(), toRefund), st.msg.GasTokenID())
+
+	st.state.AddBalance(st.msg.From(), bigIntMulBitInt(st.msg.GasPrice(), toRefund), st.msg.GasTokenID())
 	if toburn.Cmp(common.Big0) >= 0 {
-		st.state.AddBalance(common.Address{}, toburn, st.msg.GasTokenID())
+		st.state.AddBalance(common.Address{}, bigIntMulBitInt(st.msg.GasPrice(), toburn), st.msg.GasTokenID())
 	}
 
 	// Also return remaining gas to the block gas counter so it is
