@@ -3,6 +3,8 @@ package main
 import (
 	"flag"
 	"fmt"
+	"os"
+	"path/filepath"
 
 	"github.com/QuarkChain/goquarkchain/qkcdb"
 )
@@ -55,6 +57,21 @@ func rangeDB(db *qkcdb.RDBDatabase) {
 	fmt.Println("Character", "key num", characterCal.Num, "value all length", characterCal.Length)
 }
 
+func DirSizeB(path string) {
+	var size int64
+	err := filepath.Walk(path, func(_ string, info os.FileInfo, err error) error {
+		if !info.IsDir() {
+			size += info.Size()
+		}
+		return err
+	})
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Println("path:", path, "size-B:", size, "size-KB:", size/1024, "size-MB:", size/1024/1024, "size-GB:", size/1024/1024/1024)
+}
+
 // eg: go run analysis_db.go --path=/mnt/hgfs/GOPATH/UbuntuTest/MainnetTest/qkc-data/mainnet/S0/shard-1/db
 // eg: go run analysis_db.go --path=/mnt/hgfs/GOPATH/UbuntuTest/MainnetTest/qkc-data/mainnet/master/db
 func main() {
@@ -69,4 +86,5 @@ func main() {
 		panic(db)
 	}
 	rangeDB(db)
+	DirSizeB(*dbPath)
 }
