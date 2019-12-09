@@ -1,15 +1,25 @@
 package types
 
 import (
+	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
+	"math/big"
+	"runtime/debug"
+	"sort"
+	"strings"
+
+	qCommon "github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/serialize"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/rlp"
-	"io"
-	"math/big"
-	"sort"
-	"strings"
+	"github.com/ethereum/go-ethereum/trie"
+)
+
+const (
+	TokenTrieThreshold = 16
 )
 
 type TokenBalancePair struct {
@@ -18,10 +28,9 @@ type TokenBalancePair struct {
 }
 
 type TokenBalances struct {
-	//TODO:store token balances in trie when TOKEN_TRIE_THRESHOLD is crossed
-	balances map[uint64]*big.Int
-	Enum     byte
-	//TODO need to lock balances?
+	db        *trie.Database
+	tokenTrie *trie.SecureTrie
+	balances  map[uint64]*big.Int
 }
 
 type TokenBalancesAlias TokenBalances
@@ -71,25 +80,23 @@ func (t *TokenBalances) UnmarshalJSON(input []byte) error {
 func NewEmptyTokenBalances() *TokenBalances {
 	return &TokenBalances{
 		balances: make(map[uint64]*big.Int),
-		Enum:     byte(0),
 	}
 }
 
 func NewTokenBalancesWithMap(data map[uint64]*big.Int) *TokenBalances {
 	t := &TokenBalances{
 		balances: data,
-		Enum:     byte(0),
 	}
 	return t
 }
 
-func NewTokenBalances(data []byte) (*TokenBalances, error) {
+func NewTokenBalances(data []byte, db *trie.Database) (*TokenBalances, error) {
 	tokenBalances := NewEmptyTokenBalances()
+	tokenBalances.db = db
 	if len(data) == 0 {
 		return tokenBalances, nil
 	}
 
-	tokenBalances.Enum = data[0]
 	switch data[0] {
 	case byte(0):
 		balanceList := make([]*TokenBalancePair, 0)
@@ -100,7 +107,11 @@ func NewTokenBalances(data []byte) (*TokenBalances, error) {
 			tokenBalances.balances[v.TokenID] = v.Balance
 		}
 	case byte(1):
-		return nil, fmt.Errorf("Token balance trie is not yet implemented")
+		var err error
+		tokenBalances.tokenTrie, err = trie.NewSecure(common.BytesToHash(data[1:]), db, 0)
+		if err != nil {
+			return nil, err
+		}
 	default:
 		return nil, fmt.Errorf("Unknown enum byte in token_balances:%v", data[0])
 
@@ -108,96 +119,163 @@ func NewTokenBalances(data []byte) (*TokenBalances, error) {
 	return tokenBalances, nil
 }
 
-func (b *TokenBalances) Add(other map[uint64]*big.Int) {
-	for k, v := range other {
-		if data, ok := b.balances[k]; ok {
-			b.balances[k] = new(big.Int).Add(v, data)
+func (t *TokenBalances) Commit() {
+	if t.notUsingTrie() {
+		return
+	}
+	if t.tokenTrie == nil {
+		var err error
+		t.tokenTrie, err = trie.NewSecure(common.Hash{}, t.db, 0)
+		if err != nil {
+			panic(err)
+		}
+	}
+	for tokenID, bal := range t.balances {
+		k := qCommon.EncodeToByte32(tokenID)
+		if bal.Cmp(common.Big0) > 0 {
+			val, err := rlp.EncodeToBytes(bal)
+			if err != nil {
+				panic(err)
+			}
+			t.tokenTrie.Update(k, val)
 		} else {
-			b.balances[k] = new(big.Int).Set(v)
+			t.tokenTrie.Delete(k)
+		}
+	}
+	if _, err := t.tokenTrie.Commit(nil); err != nil {
+		panic(err)
+	}
+	t.balances = make(map[uint64]*big.Int, 0)
+}
+
+func (t *TokenBalances) Add(other map[uint64]*big.Int) {
+	//TODO only for test? need to delete
+	for k, v := range other {
+		if data, ok := t.balances[k]; ok {
+			t.balances[k] = new(big.Int).Add(v, data)
+		} else {
+			t.balances[k] = new(big.Int).Set(v)
 		}
 	}
 }
 
-func (b *TokenBalances) SetValue(amount *big.Int, tokenID uint64) {
+func (t *TokenBalances) SetValue(amount *big.Int, tokenID uint64) {
 	if amount.Cmp(new(big.Int)) < 0 {
 		panic("serious bug !!!!!!!!!!!!!")
 	}
-	b.balances[tokenID] = amount
+	t.balances[tokenID] = amount
 }
 
-func (b *TokenBalances) GetTokenBalance(tokenID uint64) *big.Int {
-	data, ok := b.balances[tokenID]
-	if !ok {
-		return new(big.Int)
+func (t *TokenBalances) GetTokenBalance(tokenID uint64) *big.Int {
+	data, ok := t.balances[tokenID]
+	if ok {
+		return data
 	}
-	return data
+
+	if t.tokenTrie != nil {
+		v := t.tokenTrie.Get(qCommon.EncodeToByte32(tokenID))
+		ret := new(big.Int)
+		if len(v) != 0 {
+			if err := rlp.DecodeBytes(v, ret); err != nil {
+				panic(err)
+			}
+		}
+		t.balances[tokenID] = ret
+		return ret
+	}
+	return new(big.Int)
 }
 
-func (b *TokenBalances) GetBalanceMap() map[uint64]*big.Int {
-	data := b.Copy()
+func (t *TokenBalances) GetBalanceMap() map[uint64]*big.Int {
+	data := t.Copy()
 	return data.balances
 }
 
-func (b *TokenBalances) Len() int {
-	return len(b.balances)
+func (t *TokenBalances) Len() int {
+	return len(t.balances)
 }
 
-func (b *TokenBalances) IsEmpty() bool {
-	flag := true
-	for _, v := range b.balances {
-		if v.Cmp(new(big.Int)) != 0 {
-			return false
+func (t *TokenBalances) nonZeroEntriesInBalancesCache() int {
+	sum := 0
+	for _, v := range t.balances {
+		if v.Cmp(common.Big0) > 0 {
+			sum++
 		}
 	}
-	return flag
+	return sum
 }
 
-func (b *TokenBalances) Copy() *TokenBalances {
+func (t *TokenBalances) IsBlank() bool {
+	return t.tokenTrie == nil && t.nonZeroEntriesInBalancesCache() == 0
+}
+
+func (t *TokenBalances) CopyWithDB() *TokenBalances {
+	data := t.Copy()
+	data.db = t.db
+	data.tokenTrie = t.tokenTrie
+	return data
+}
+
+func (t *TokenBalances) Copy() *TokenBalances {
 	balancesCopy := make(map[uint64]*big.Int)
-	for k, v := range b.balances {
+	for k, v := range t.balances {
 		balancesCopy[k] = v
 	}
 	return &TokenBalances{
 		balances: balancesCopy,
-		Enum:     b.Enum,
 	}
 }
 
-func (b *TokenBalances) SerializeToBytes() ([]byte, error) {
-	w := make([]byte, 0)
-	if b.Len() == 0 {
+func (t *TokenBalances) notUsingTrie() bool {
+	return t.tokenTrie == nil && t.nonZeroEntriesInBalancesCache() <= TokenTrieThreshold
+}
+
+func (t *TokenBalances) SerializeToBytes() ([]byte, error) {
+	readyBeforeSer := func() bool {
+		if t.notUsingTrie() {
+			return true
+		}
+
+		if t.tokenTrie != nil && len(t.balances) == 0 {
+			return true
+		}
+		return false
+	}
+	if !readyBeforeSer() {
+		return nil, errors.New("bug here")
+	}
+	if t.tokenTrie != nil {
+		w := make([]byte, 33)
+		w[0] = byte(1)
+		copy(w[1:], t.tokenTrie.Hash().Bytes())
+		return w, nil
+	}
+
+	if t.Len() == 0 {
 		return nil, nil
 	}
-	w = append(w, b.Enum)
-	switch b.Enum {
-	case byte(0):
-		list := make([]*TokenBalancePair, 0)
-		for k, v := range b.balances {
-			if v.Cmp(common.Big0) == 0 {
-				continue
-			}
-			list = append(list, &TokenBalancePair{
-				TokenID: k,
-				Balance: v,
-			})
+	list := make([]*TokenBalancePair, 0)
+	for k, v := range t.balances {
+		if v.Cmp(common.Big0) == 0 {
+			continue
 		}
-		sort.Slice(list, func(i, j int) bool { return list[i].TokenID < (list[j].TokenID) })
-		rlpData, err := rlp.EncodeToBytes(list)
-		if err != nil {
-			return nil, err
-		}
-		w = append(w, rlpData...)
-	case byte(1):
-		return nil, fmt.Errorf("Token balance trie is not yet implemented")
-	default:
-		return nil, fmt.Errorf("Unknown enum byte in token_balances")
-
+		list = append(list, &TokenBalancePair{
+			TokenID: k,
+			Balance: v,
+		})
 	}
-	return w, nil
+	sort.Slice(list, func(i, j int) bool { return list[i].TokenID < (list[j].TokenID) })
+	rlpData := new(bytes.Buffer)
+	rlpData.WriteByte(byte(0))
+	err := rlp.Encode(rlpData, list)
+	if err != nil {
+		return nil, err
+	}
+	return rlpData.Bytes(), nil
 }
 
-func (b *TokenBalances) EncodeRLP(w io.Writer) error {
-	dataSer, err := b.SerializeToBytes()
+func (t *TokenBalances) EncodeRLP(w io.Writer) error {
+	dataSer, err := t.SerializeToBytes()
 	if err != nil {
 		return err
 	}
@@ -209,7 +287,7 @@ func (b *TokenBalances) EncodeRLP(w io.Writer) error {
 	return err
 }
 
-func (b *TokenBalances) DecodeRLP(s *rlp.Stream) error {
+func (t *TokenBalances) DecodeRLP(s *rlp.Stream) error {
 	dataRawBytes, err := s.Raw()
 	if err != nil {
 		return err
@@ -219,18 +297,23 @@ func (b *TokenBalances) DecodeRLP(s *rlp.Stream) error {
 	if err != nil {
 		panic(err)
 	}
-	t, err := NewTokenBalances(*dataRlp)
+	if t.db == nil {
+		debug.PrintStack()
+		panic("bug here")
+	}
+	//!!!need to set db before decode
+	b, err := NewTokenBalances(*dataRlp, t.db)
 	if err != nil {
 		return err
 	}
-	(*b).balances = (*t).balances
-	(*b).Enum = (*t).Enum
+	(*t).balances = (*b).balances
 	return err
 }
-func (b *TokenBalances) Serialize(w *[]byte) error {
-	keys := make([]uint64, 0, b.Len())
+
+func (t *TokenBalances) Serialize(w *[]byte) error {
+	keys := make([]uint64, 0, t.Len())
 	num := uint32(0)
-	for k := range b.balances {
+	for k := range t.balances {
 		keys = append(keys, k)
 		num++
 	}
@@ -239,7 +322,7 @@ func (b *TokenBalances) Serialize(w *[]byte) error {
 		return err
 	}
 	for _, key := range keys {
-		v := b.balances[key]
+		v := t.balances[key]
 		if err := serialize.Serialize(w, new(big.Int).SetUint64(key)); err != nil {
 			return err
 		}
@@ -250,8 +333,8 @@ func (b *TokenBalances) Serialize(w *[]byte) error {
 	return nil
 }
 
-func (b *TokenBalances) Deserialize(bb *serialize.ByteBuffer) error {
-	b.balances = make(map[uint64]*big.Int)
+func (t *TokenBalances) Deserialize(bb *serialize.ByteBuffer) error {
+	t.balances = make(map[uint64]*big.Int)
 	num, err := bb.GetUInt32()
 	if err != nil {
 		return err
@@ -269,7 +352,7 @@ func (b *TokenBalances) Deserialize(bb *serialize.ByteBuffer) error {
 		if v.Cmp(common.Big0) == 0 {
 			continue
 		}
-		b.balances[k.Uint64()] = v
+		t.balances[k.Uint64()] = v
 	}
 	return nil
 }

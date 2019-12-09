@@ -407,7 +407,7 @@ func (s *StateDB) Suicide(addr common.Address) bool {
 		prevbalance: stateObject.data.TokenBalances.GetBalanceMap(),
 	})
 	stateObject.markSuicided()
-	stateObject.data.TokenBalances, _ = types.NewTokenBalances([]byte{})
+	stateObject.data.TokenBalances, _ = types.NewTokenBalances([]byte{}, s.db.TrieDB())
 
 	return true
 }
@@ -457,7 +457,7 @@ func (s *StateDB) getStateObject(addr common.Address) (stateObject *stateObject)
 		s.setError(err)
 		return nil
 	}
-	var data Account
+	data := NewAccount(s.db.TrieDB())
 	if s.useMock {
 		var mockAccount MockAccount
 		if err := rlp.DecodeBytes(enc, &mockAccount); err != nil {
@@ -475,6 +475,7 @@ func (s *StateDB) getStateObject(addr common.Address) (stateObject *stateObject)
 			FullShardKey:  &fullShardKey,
 		}
 	} else {
+		//need db to make token trie
 		if err := rlp.DecodeBytes(enc, &data); err != nil {
 			log.Error("Failed to decode state object", "addr", addr, "err", err)
 			return nil
@@ -504,7 +505,7 @@ func (s *StateDB) GetOrNewStateObject(addr common.Address) *stateObject {
 // the given address, it is overwritten and returned as the second return value.
 func (s *StateDB) createObject(addr common.Address) (newobj, prev *stateObject) {
 	prev = s.getStateObject(addr)
-	newobj = newObject(s, addr, Account{})
+	newobj = newObject(s, addr, NewAccount(s.db.TrieDB()))
 	newobj.setNonce(0) // sets the object to dirty
 	newobj.SetFullShardKey(s.fullShardKey)
 	if prev == nil {
@@ -717,7 +718,7 @@ func (s *StateDB) Commit(deleteEmptyObjects bool) (root common.Hash, err error) 
 	}
 	// Write trie changes.
 	root, err = s.trie.Commit(func(leaf []byte, parent common.Hash) error {
-		var account Account
+		account := NewAccount(s.db.TrieDB())
 		if err := rlp.DecodeBytes(leaf, &account); err != nil {
 			return nil
 		}

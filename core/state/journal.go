@@ -154,7 +154,7 @@ func (ch suicideChange) revert(s *StateDB) {
 	obj := s.getStateObject(*ch.account)
 	if obj != nil {
 		obj.suicided = ch.prev
-		obj.SetBalances(ch.prevbalance)
+		obj.setBalances(ch.prevbalance)
 	}
 }
 
