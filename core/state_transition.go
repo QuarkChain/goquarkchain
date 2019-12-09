@@ -34,7 +34,6 @@ import (
 
 var (
 	errInsufficientBalanceForGas = errors.New("insufficient balance to pay for gas")
-	errContractNotFound          = errors.New("contract not found")
 )
 
 /*

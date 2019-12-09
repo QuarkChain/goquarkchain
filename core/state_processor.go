@@ -293,7 +293,7 @@ func callGeneralNativeTokenManager(evmState *state.StateDB, config *params.Chain
 	contractAddr := vm.SystemContracts[vm.GENERAL_NATIVE_TOKEN].Address()
 	code := evmState.GetCode(contractAddr)
 	if len(code) == 0 {
-		return 0, nil, errContractNotFound
+		return 0, nil, ErrContractNotFound
 	}
 	ctx := vm.Context{
 		CanTransfer: CanTransfer,

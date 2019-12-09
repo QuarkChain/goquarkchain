@@ -2952,7 +2952,7 @@ func TestPayAsGasUtility(t *testing.T) {
 	st := &StateTransition{evm: vm.NewEVM(ctx, evmState, shardState.ethChainConfig, vm.Config{})}
 	tokenID := uint64(123)
 	refundPercentage, gasPrice, err := GetGasUtilityInfo(evmState, shardState.ethChainConfig, tokenID, new(big.Int).SetUint64(1))
-	assert.Equal(t, errContractNotFound, err)
+	assert.Equal(t, ErrContractNotFound, err)
 	assert.Equal(t, 0, int(refundPercentage))
 	assert.Nil(t, gasPrice)
 	runtimeBytecode := common.Hex2Bytes(vm.GeneralNativeTokenContractBytecode)
