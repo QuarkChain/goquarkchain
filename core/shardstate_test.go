@@ -2691,14 +2691,16 @@ func TestGetRootChainStakes(t *testing.T) {
 	id1, err := account.CreatRandomIdentity()
 	assert.NoError(t, err)
 	acc1 := account.CreatAddressFromIdentity(id1, 0)
-	contractCode := common.Hex2Bytes(`60806040526004361061007b5760003560e01c8063853828b61161004e578063853828b6146101b5578063a69df4b5146101ca578063f83d08ba146101df578063fd8c4646146101e75761007b565b806316934fc4146100d85780632e1a7d4d1461013c578063485d3834146101685780636c19e7831461018f575b336000908152602081905260409020805460ff16156100cb5760405162461bcd60e51b815260040180806020018281038252602681526020018061062e6026913960400191505060405180910390fd5b6100d5813461023b565b50005b3480156100e457600080fd5b5061010b600480360360208110156100fb57600080fd5b50356001600160a01b031661029b565b6040805194151585526020850193909352838301919091526001600160a01b03166060830152519081900360800190f35b34801561014857600080fd5b506101666004803603602081101561015f57600080fd5b50356102cf565b005b34801561017457600080fd5b5061017d61034a565b60408051918252519081900360200190f35b610166600480360360208110156101a557600080fd5b50356001600160a01b0316610351565b3480156101c157600080fd5b506101666103c8565b3480156101d657600080fd5b50610166610436565b6101666104f7565b3480156101f357600080fd5b5061021a6004803603602081101561020a57600080fd5b50356001600160a01b0316610558565b604080519283526001600160a01b0390911660208301528051918290030190f35b8015610297576002820154808201908111610291576040805162461bcd60e51b81526020600482015260116024820152706164646974696f6e206f766572666c6f7760781b604482015290519081900360640190fd5b60028301555b5050565b600060208190529081526040902080546001820154600283015460039093015460ff9092169290916001600160a01b031684565b336000908152602081905260409020805460ff1680156102f3575080600101544210155b6102fc57600080fd5b806002015482111561030d57600080fd5b6002810180548390039055604051339083156108fc029084906000818181858888f19350505050158015610345573d6000803e3d6000fd5b505050565b6203f48081565b336000908152602081905260409020805460ff16156103a15760405162461bcd60e51b81526004018080602001828103825260268152602001806106546026913960400191505060405180910390fd5b6003810180546001600160a01b0319166001600160a01b038416179055610297813461023b565b6103d06105fa565b5033600090815260208181526040918290208251608081018452815460ff16151581526001820154928101929092526002810154928201839052600301546001600160a01b031660608201529061042657600080fd5b61043381604001516102cf565b50565b336000908152602081905260409020805460ff16156104865760405162461bcd60e51b815260040180806020018281038252602b8152602001806106a1602b913960400191505060405180910390fd5b60008160020154116104df576040805162461bcd60e51b815260206004820152601b60248201527f73686f756c642068617665206578697374696e67207374616b65730000000000604482015290519081900360640190fd5b805460ff191660019081178255426203f48001910155565b336000908152602081905260409020805460ff166105465760405162461bcd60e51b815260040180806020018281038252602781526020018061067a6027913960400191505060405180910390fd5b805460ff19168155610433813461023b565b6000806105636105fa565b506001600160a01b03808416600090815260208181526040918290208251608081018452815460ff161580158252600183015493820193909352600282015493810193909352600301549092166060820152906105c75750600091508190506105f5565b60608101516000906001600160a01b03166105e35750836105ea565b5060608101515b604090910151925090505b915091565b6040518060800160405280600015158152602001600081526020016000815260200160006001600160a01b03168152509056fe73686f756c64206f6e6c7920616464207374616b657320696e206c6f636b656420737461746573686f756c64206f6e6c7920736574207369676e657220696e206c6f636b656420737461746573686f756c64206e6f74206c6f636b20616c72656164792d6c6f636b6564206163636f756e747373686f756c64206e6f7420756e6c6f636b20616c72656164792d756e6c6f636b6564206163636f756e7473a265627a7a72315820f2c044ad50ee08e7e49c575b49e8de27cac8322afdb97780b779aa1af44e40d364736f6c634300050b0032`)
 	contractAddr := vm.SystemContracts[vm.ROOT_CHAIN_POSW].Address()
-
+	contractCode := common.Hex2Bytes(vm.RootChainPoSWContractBytecode)
 	env := &fakeEnv{
 		db:            ethdb.NewMemDatabase(),
 		clusterConfig: config.NewClusterConfig(),
 	}
 
+	runtimeStart := bytes.LastIndex(contractCode, common.Hex2Bytes("608060405260"))
+	// # get rid of the constructor argument
+	contractCode = contractCode[runtimeStart : len(contractCode)-32]
 	env.clusterConfig.Quarkchain.NetworkID = 3
 	var chainSize, shardSize uint32 = 2, 1
 	env.clusterConfig.Quarkchain.RootChainPoSWContractBytecodeHash = crypto.Keccak256Hash(contractCode)
@@ -3004,4 +3006,119 @@ func TestPayAsGasUtility(t *testing.T) {
 	ret, err = call("21a2b36e"+formattedTokenID+strings.Repeat("0", 24)+common.Bytes2Hex(acc1.Recipient.Bytes()), new(big.Int))
 	assert.NoError(t, err)
 	assert.Equal(t, new(big.Int).SetBytes(ret).Uint64(), uint64(60000*3))
+}
+
+func TestMintNewNativeToken(t *testing.T) {
+	id1, err := account.CreatRandomIdentity()
+	assert.NoError(t, err)
+	acc1 := account.CreatAddressFromIdentity(id1, 0)
+	shardSize := uint32(2)
+	shardId0 := uint32(0)
+	env1 := setUp(&acc1, nil, &shardSize)
+	ids := env1.clusterConfig.Quarkchain.GetGenesisShardIds()
+	for _, v := range ids {
+		shardConfig := env1.clusterConfig.Quarkchain.GetShardConfigByFullShardID(v)
+		balance := make(map[string]*big.Int)
+		balance[env1.clusterConfig.Quarkchain.GenesisToken] = new(big.Int).Mul(big.NewInt(100),
+			config.QuarkashToJiaozi)
+		alloc := config.Allocation{Balances: balance}
+		adalloc := make(map[account.Address]config.Allocation)
+		addr := acc1.AddressInShard(v)
+		adalloc[addr] = alloc
+		shardConfig.Genesis.Alloc = adalloc
+	}
+	env1.clusterConfig.Quarkchain.SetAllowedToken()
+	shardState := createDefaultShardState(env1, &shardId0, nil, nil, nil)
+	defer shardState.Stop()
+
+	evmState := shardState.currentEvmState
+	evmState.SetQuarkChainConfig(env1.clusterConfig.Quarkchain)
+	runtimeBytecode := common.Hex2Bytes(vm.NonReservedNativeTokenContractBytecode)
+	runtimeStart := bytes.LastIndex(runtimeBytecode, common.Hex2Bytes("608060405260"))
+	// # get rid of the constructor argument
+	runtimeBytecode = runtimeBytecode[runtimeStart : len(runtimeBytecode)-64]
+	contractAddr := vm.SystemContracts[vm.NON_RESERVED_NATIVE_TOKEN].Address()
+	evmState.SetCode(contractAddr, runtimeBytecode)
+	evmState.SetState(contractAddr, common.BigToHash(big.NewInt(0)), common.BytesToHash(acc1.Recipient.Bytes()))
+	_, err = evmState.Commit(true)
+	assert.NoError(t, err)
+	ctx := vm.Context{
+		CanTransfer:     CanTransfer,
+		Transfer:        Transfer,
+		TransferTokenID: shardState.GetGenesisToken(),
+		BlockNumber:     new(big.Int),
+		Time:            new(big.Int).SetUint64(evmState.GetTimeStamp()),
+	}
+	evm := vm.NewEVM(ctx, evmState, shardState.ethChainConfig, vm.Config{})
+	call := func(data string) ([]byte, error) {
+		ret, _, err := evm.Call(vm.AccountRef(acc1.Recipient), contractAddr, common.Hex2Bytes(data), 1000000, new(big.Int))
+		return ret, err
+	}
+	exec := func(data string, value *big.Int, delay uint64) bool {
+		evm := vm.NewEVM(ctx, evmState, shardState.ethChainConfig, vm.Config{})
+		evm.Time.SetUint64(evm.Time.Uint64() + delay)
+		_, _, err := evm.Call(vm.AccountRef(acc1.Recipient), contractAddr, common.Hex2Bytes(data), 1000000, value)
+		return err == nil
+	}
+	toStr := func(input uint64) string {
+		b := qkcCommon.Uint64To32Bytes(input)
+		return common.Bytes2Hex(b)
+	}
+	big2Str := func(bi *big.Int) string {
+		b := common.LeftPadBytes(bi.Bytes(), 32)
+		return common.Bytes2Hex(b)
+	}
+	bytes2Uint64 := func(b []byte) uint64 {
+		return new(big.Int).SetBytes(b).Uint64()
+	}
+	getAuctionState := func() (tokenId, round, endTime uint64, newPrice *big.Int, bidder common.Address) {
+		ret, err := call("08bfc300")
+		assert.NoError(t, err)
+		tokenId = bytes2Uint64(ret[:32])
+		newPrice = new(big.Int).SetBytes(ret[32:64])
+		bidder = common.BytesToAddress(ret[64:96])
+		round = bytes2Uint64(ret[96:128])
+		endTime = bytes2Uint64(ret[128:])
+		return
+	}
+	//# set auction parameters: minimum bid price: 20 QKC, minimum increment: 5%, duration: one week
+	_, err = call("3c69e3d2" + toStr(20) + toStr(5) + toStr(3600*24*7))
+	assert.NoError(t, err)
+	//	resume_auction
+	succ := exec("32353fbd", new(big.Int), 1)
+	assert.True(t, succ)
+	_, _, endTime, _, _ := getAuctionState()
+	assert.Equal(t, 3600*24*7, int(endTime))
+	// # token id to bid and win
+	tokenID := toStr(uint64(9999999))
+	//bid_new_token
+	price := new(big.Int).Mul(big.NewInt(25), config.QuarkashToJiaozi)
+	succ = exec("6aecd9d7"+tokenID+big2Str(price)+toStr(0), new(big.Int).Mul(big.NewInt(26), config.QuarkashToJiaozi), 1)
+	assert.True(t, succ)
+	tokenId, round, _, newPrice, bidder := getAuctionState()
+	assert.Equal(t, 9999999, int(tokenId))
+	assert.Equal(t, 0, int(round))
+	assert.Equal(t, price, newPrice)
+	assert.Equal(t, acc1.Recipient, bidder)
+	//# End before ending time, should fail
+	succ = exec("fe67a54b", new(big.Int), 3600*24*3)
+	assert.False(t, succ)
+	//# 7 days passed, this round of auction ends
+	succ = exec("fe67a54b", new(big.Int), 3600*24*7)
+	assert.True(t, succ)
+	tokenId, _, _, _, _ = getAuctionState()
+	assert.Equal(t, 0, int(tokenId))
+	//get_native_token_info
+	output, err := call("9ea41be7" + tokenID)
+	assert.NoError(t, err)
+	assert.NotEqual(t, uint64(0), new(big.Int).SetBytes(output[:32]).Uint64())
+	assert.Equal(t, common.Bytes2Hex(acc1.Recipient.Bytes()), common.Bytes2Hex(output[44:64]))
+	assert.Equal(t, uint64(0), new(big.Int).SetBytes(output[64:96]).Uint64())
+	//mint_new_token
+	amount := uint64(1000)
+	_, err = call("0f2dc31a" + tokenID + toStr(amount))
+	assert.NoError(t, err)
+	output, err = call("9ea41be7" + tokenID)
+	assert.NoError(t, err)
+	assert.Equal(t, amount, new(big.Int).SetBytes(output[64:96]).Uint64())
 }

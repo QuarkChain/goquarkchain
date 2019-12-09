@@ -128,9 +128,7 @@ func Uint64ToBytes(n uint64) []byte {
 
 func Uint64To32Bytes(n uint64) []byte {
 	Bytes := Uint64ToBytes(n)
-	result := make([]byte, 24)
-	result = append(result, Bytes...)
-	return result
+	return ethCommon.LeftPadBytes(Bytes, 32)
 }
 
 func BytesToUint32(byte []byte) uint32 {
