@@ -25,7 +25,6 @@ import (
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/serialize"
 
-	qkcCmn "github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/core/vm"
 	qkcParam "github.com/QuarkChain/goquarkchain/params"
 	"github.com/ethereum/go-ethereum/common"
@@ -409,37 +408,4 @@ func (st *StateTransition) transferFailureByPoSWBalanceCheck() bool {
 		}
 	}
 	return false
-}
-
-func (st *StateTransition) PayNativeTokenAsGas(tokenID, gas uint64, gasPriceInNativeToken *big.Int) (uint8, *big.Int, error) {
-	//# Call the `payAsGas` function
-	data := common.Hex2Bytes("5ae8f7f1")
-	data = append(data, qkcCmn.Uint64To32Bytes(tokenID)...)
-	data = append(data, qkcCmn.Uint64To32Bytes(gas)...)
-	data = append(data, qkcCmn.Uint64To32Bytes(gasPriceInNativeToken.Uint64())...)
-	return st.callGeneralNativeTokenManager(data)
-}
-func (st *StateTransition) GetGasUtilityInfo(tokenID uint64, gasPriceInNativeToken *big.Int) (uint8, *big.Int, error) {
-	//# Call the `calculateGasPrice` function
-	data := common.Hex2Bytes("ce9e8c47")
-	data = append(data, qkcCmn.Uint64To32Bytes(tokenID)...)
-	data = append(data, qkcCmn.Uint64To32Bytes(gasPriceInNativeToken.Uint64())...)
-	return st.callGeneralNativeTokenManager(data)
-}
-
-func (st *StateTransition) callGeneralNativeTokenManager(data []byte) (uint8, *big.Int, error) {
-	contractAddr := vm.SystemContracts[vm.GENERAL_NATIVE_TOKEN].Address()
-	code := st.evm.StateDB.GetCode(contractAddr)
-	if len(code) == 0 {
-		return 0, nil, errContractNotFound
-	}
-	//# Only contract itself can invoke payment
-	sender := vm.SystemContracts[vm.GENERAL_NATIVE_TOKEN]
-	ret, _, err := st.evm.Call(&sender, contractAddr, data, 1000000, new(big.Int))
-	if err != nil {
-		return 0, nil, err
-	}
-	refundRate := int(ret[:32][31])
-	convertedGasPrice := new(big.Int).SetBytes(ret[32:64])
-	return uint8(refundRate), convertedGasPrice, nil
 }

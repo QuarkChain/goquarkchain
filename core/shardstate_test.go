@@ -2951,7 +2951,7 @@ func TestPayAsGasUtility(t *testing.T) {
 	}
 	st := &StateTransition{evm: vm.NewEVM(ctx, evmState, shardState.ethChainConfig, vm.Config{})}
 	tokenID := uint64(123)
-	refundPercentage, gasPrice, err := st.GetGasUtilityInfo(tokenID, new(big.Int).SetUint64(1))
+	refundPercentage, gasPrice, err := GetGasUtilityInfo(evmState, shardState.ethChainConfig, tokenID, new(big.Int).SetUint64(1))
 	assert.Equal(t, errContractNotFound, err)
 	assert.Equal(t, 0, int(refundPercentage))
 	assert.Nil(t, gasPrice)
@@ -2991,11 +2991,11 @@ func TestPayAsGasUtility(t *testing.T) {
 	assert.NoError(t, err)
 
 	//# get the gas utility information by calling the get_gas_utility_info function
-	refundPercentage, gasPrice, err = st.GetGasUtilityInfo(tokenID, big.NewInt(60000))
+	refundPercentage, gasPrice, err = GetGasUtilityInfo(evmState, shardState.ethChainConfig, tokenID, big.NewInt(60000))
 	assert.Equal(t, uint8(60), refundPercentage)
 	assert.Equal(t, big.NewInt(2), gasPrice)
 	//# exchange the Qkc with the native token
-	refundPercentage, gasPrice, err = st.PayNativeTokenAsGas(tokenID, 3, big.NewInt(60000))
+	refundPercentage, gasPrice, err = PayNativeTokenAsGas(evmState, shardState.ethChainConfig, tokenID, 3, big.NewInt(60000))
 	assert.Equal(t, uint8(60), refundPercentage)
 	assert.Equal(t, big.NewInt(2), gasPrice)
 	// # check the balance of the gas reserve. amount of native token (60000) * exchange rate (1 / 30000) = 2 QKC
