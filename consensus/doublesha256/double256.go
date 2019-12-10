@@ -49,7 +49,7 @@ func hashAlgo(cache *consensus.ShareCache) error {
 	return nil
 }
 
-func verifySeal(chain consensus.ChainReader, header types.IHeader, adjustedDiff *big.Int) error {
+func verifySeal(chain consensus.ChainReader, header types.IHeader, parents []types.IHeader, adjustedDiff *big.Int) error {
 	if header.GetDifficulty().Sign() <= 0 {
 		return consensus.ErrInvalidDifficulty
 	}

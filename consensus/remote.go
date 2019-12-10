@@ -3,16 +3,16 @@ package consensus
 import (
 	"errors"
 	"fmt"
-	"github.com/QuarkChain/goquarkchain/account"
-	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/hashicorp/golang-lru"
 	"math/big"
 	"sync"
 	"time"
 
+	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/hashicorp/golang-lru"
 )
 
 const (
@@ -109,7 +109,7 @@ func (c *CommonEngine) remote() {
 		}
 
 		start := time.Now()
-		if err := c.spec.VerifySeal(nil, solution.IHeader(), adjustedDiff); err != nil {
+		if err := c.spec.VerifySeal(nil, solution.IHeader(), nil, adjustedDiff); err != nil {
 			log.Warn("Invalid proof-of-work submitted", "sealhash", sealhash.Hex(), "elapsed", time.Since(start), "err", err)
 			return false
 		}

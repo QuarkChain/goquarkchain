@@ -16,7 +16,7 @@ var (
 	errNoMiningWork = errors.New("no mining work available yet")
 )
 
-func (q *QKCHash) verifySeal(chain consensus.ChainReader, header types.IHeader, adjustedDiff *big.Int) error {
+func (q *QKCHash) verifySeal(chain consensus.ChainReader, header types.IHeader, parents []types.IHeader, adjustedDiff *big.Int) error {
 	if header.GetDifficulty().Sign() <= 0 {
 		return consensus.ErrInvalidDifficulty
 	}

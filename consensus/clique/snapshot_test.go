@@ -19,13 +19,16 @@ package clique
 import (
 	"bytes"
 	"crypto/ecdsa"
+	"github.com/QuarkChain/goquarkchain/cluster/config"
+	"github.com/QuarkChain/goquarkchain/consensus"
+	"github.com/stretchr/testify/assert"
 	"sort"
 	"testing"
 
+	"github.com/QuarkChain/goquarkchain/core"
+	"github.com/QuarkChain/goquarkchain/core/types"
+	"github.com/QuarkChain/goquarkchain/core/vm"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core"
-	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/params"
@@ -46,14 +49,14 @@ func newTesterAccountPool() *testerAccountPool {
 
 // checkpoint creates a Clique checkpoint signer section from the provided list
 // of authorized signers and embeds it into the provided header.
-func (ap *testerAccountPool) checkpoint(header *types.Header, signers []string) {
+func (ap *testerAccountPool) checkpoint(header types.IHeader, signers []string) {
 	auths := make([]common.Address, len(signers))
 	for i, signer := range signers {
 		auths[i] = ap.address(signer)
 	}
 	sort.Sort(signersAscending(auths))
 	for i, auth := range auths {
-		copy(header.Extra[extraVanity+i*common.AddressLength:], auth.Bytes())
+		copy(header.GetExtra()[extraVanity+i*common.AddressLength:], auth.Bytes())
 	}
 }
 
@@ -74,14 +77,14 @@ func (ap *testerAccountPool) address(account string) common.Address {
 
 // sign calculates a Clique digital signature for the given block and embeds it
 // back into the header.
-func (ap *testerAccountPool) sign(header *types.Header, signer string) {
+func (ap *testerAccountPool) sign(header types.IHeader, signer string) {
 	// Ensure we have a persistent key for the signer
 	if ap.accounts[signer] == nil {
 		ap.accounts[signer], _ = crypto.GenerateKey()
 	}
 	// Sign the header and embed the signature in extra data
 	sig, _ := crypto.Sign(sigHash(header).Bytes(), ap.accounts[signer])
-	copy(header.Extra[len(header.Extra)-extraSeal:], sig)
+	copy(header.GetExtra()[len(header.GetExtra())-extraSeal:], sig)
 }
 
 // testerVote represents a single block signed by a parcitular account, where
@@ -92,6 +95,44 @@ type testerVote struct {
 	auth       bool
 	checkpoint []string
 	newbatch   bool
+}
+
+func fakeClusterConfig() *config.ClusterConfig {
+	fakeClusterConfig := config.NewClusterConfig()
+	fakeClusterConfig.Quarkchain.SkipMinorDifficultyCheck = true
+	fakeClusterConfig.Quarkchain.SkipRootDifficultyCheck = true
+	fakeClusterConfig.Quarkchain.SkipRootCoinbaseCheck = true
+	return fakeClusterConfig
+}
+
+func cresteMinorBlocks(size int, db ethdb.Database, signers []common.Address, engine consensus.Engine) ([]*types.MinorBlock, error) {
+	cfg := fakeClusterConfig()
+	curShardId := cfg.Quarkchain.GetGenesisShardIds()[0]
+
+	genesis := core.NewGenesis(cfg.Quarkchain)
+	mGenesis := genesis.MustCommitMinorBlock(db, genesis.CreateRootBlock(), curShardId)
+
+	mGHeader := mGenesis.Header()
+	mGHeader.Extra = make([]byte, extraVanity+common.AddressLength*len(signers)+extraSeal)
+	for j, signer := range signers {
+		copy(mGHeader.Extra[extraVanity+j*common.AddressLength:], signer[:])
+	}
+
+	genesis.MustCommitMinorBlock(db, genesis.CreateRootBlock(), curShardId)
+
+	mBlocks, _ := core.GenerateMinorBlockChain(params.TestChainConfig, cfg.Quarkchain, mGenesis, engine, db, size, nil)
+	return mBlocks, nil
+}
+
+func newMinorCanonical(db ethdb.Database, engine consensus.Engine) (*core.MinorBlockChain, error) {
+	var (
+		fakeClusterConfig = fakeClusterConfig()
+		fakeFullShardID   = fakeClusterConfig.Quarkchain.Chains[0].ShardSize | 0
+	)
+	// Initialize a fresh chain with only a genesis block
+	blockchain, _ := core.NewMinorBlockChain(db, nil, params.TestChainConfig, fakeClusterConfig, engine, vm.Config{}, nil, fakeFullShardID)
+
+	return blockchain, nil
 }
 
 // Tests that Clique signer voting is evaluated correctly for various simple and
@@ -392,17 +433,8 @@ func TestClique(t *testing.T) {
 				}
 			}
 		}
-		// Create the genesis block with the initial set of signers
-		genesis := &core.Genesis{
-			ExtraData: make([]byte, extraVanity+common.AddressLength*len(signers)+extraSeal),
-		}
-		for j, signer := range signers {
-			copy(genesis.ExtraData[extraVanity+j*common.AddressLength:], signer[:])
-		}
-		// Create a pristine blockchain with the genesis injected
-		db := ethdb.NewMemDatabase()
-		genesis.Commit(db)
 
+		db := ethdb.NewMemDatabase()
 		// Assemble a chain of headers from the cast votes
 		config := *params.TestChainConfig
 		config.Clique = &params.CliqueConfig{
@@ -412,15 +444,9 @@ func TestClique(t *testing.T) {
 		engine := New(config.Clique, db)
 		engine.fakeDiff = true
 
-		blocks, _ := core.GenerateChain(&config, genesis.ToBlock(db), engine, db, len(tt.votes), func(j int, gen *core.BlockGen) {
-			// Cast the vote contained in this block
-			gen.SetCoinbase(accounts.address(tt.votes[j].voted))
-			if tt.votes[j].auth {
-				var nonce types.BlockNonce
-				copy(nonce[:], nonceAuthVote)
-				gen.SetNonce(nonce)
-			}
-		})
+		blocks, err := cresteMinorBlocks(len(tt.votes), db, signers, engine)
+		assert.NoError(t, err)
+
 		// Iterate through the blocks and seal them individually
 		for j, block := range blocks {
 			// Geth the header and prepare it for signing
@@ -440,7 +466,7 @@ func TestClique(t *testing.T) {
 			blocks[j] = block.WithSeal(header)
 		}
 		// Split the blocks up into individual import batches (cornercase testing)
-		batches := [][]*types.Block{nil}
+		batches := [][]types.IBlock{nil}
 		for j, block := range blocks {
 			if tt.votes[j].newbatch {
 				batches = append(batches, nil)
@@ -448,14 +474,14 @@ func TestClique(t *testing.T) {
 			batches[len(batches)-1] = append(batches[len(batches)-1], block)
 		}
 		// Pass all the headers through clique and ensure tallying succeeds
-		chain, err := core.NewBlockChain(db, nil, &config, engine, vm.Config{}, nil)
+		chain, err := newMinorCanonical(db, engine)
 		if err != nil {
 			t.Errorf("test %d: failed to create test chain: %v", i, err)
 			continue
 		}
 		failed := false
 		for j := 0; j < len(batches)-1; j++ {
-			if k, err := chain.InsertChain(batches[j]); err != nil {
+			if k, err := chain.InsertChain(batches[j], false); err != nil {
 				t.Errorf("test %d: failed to import batch %d, block %d: %v", i, j, k, err)
 				failed = true
 				break
@@ -464,7 +490,7 @@ func TestClique(t *testing.T) {
 		if failed {
 			continue
 		}
-		if _, err = chain.InsertChain(batches[len(batches)-1]); err != tt.failure {
+		if _, err = chain.InsertChain(batches[len(batches)-1], false); err != tt.failure {
 			t.Errorf("test %d: failure mismatch: have %v, want %v", i, err, tt.failure)
 		}
 		if tt.failure != nil {

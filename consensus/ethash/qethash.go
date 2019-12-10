@@ -28,7 +28,7 @@ func (q *QEthash) hashAlgo(shareCache *consensus.ShareCache) (err error) {
 
 // verifySeal implements consensus.Engine, checking whether the given block satisfies
 // the PoW difficulty requirements.
-func (q *QEthash) verifySeal(chain consensus.ChainReader, header types.IHeader, adjustedDiff *big.Int) error {
+func (q *QEthash) verifySeal(chain consensus.ChainReader, header types.IHeader, parants []types.IHeader, adjustedDiff *big.Int) error {
 	// Ensure that we have a valid difficulty for the block
 	if header.GetDifficulty().Sign() <= 0 {
 		return errInvalidDifficulty

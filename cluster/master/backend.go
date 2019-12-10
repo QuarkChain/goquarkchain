@@ -10,6 +10,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/cluster/service"
 	Synchronizer "github.com/QuarkChain/goquarkchain/cluster/sync"
 	"github.com/QuarkChain/goquarkchain/consensus"
+	"github.com/QuarkChain/goquarkchain/consensus/clique"
 	"github.com/QuarkChain/goquarkchain/consensus/doublesha256"
 	"github.com/QuarkChain/goquarkchain/consensus/ethash"
 	"github.com/QuarkChain/goquarkchain/consensus/qkchash"
@@ -25,6 +26,7 @@ import (
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/params"
 	"github.com/shirou/gopsutil/cpu"
 	"golang.org/x/sync/errgroup"
 	"gopkg.in/karalabe/cookiejar.v1/collections/deque"
@@ -105,7 +107,7 @@ func New(ctx *service.ServiceContext, cfg *config.ClusterConfig) (*QKCMasterBack
 		return nil, err
 	}
 
-	if mstr.engine, err = createConsensusEngine(cfg.Quarkchain.Root, cfg.Quarkchain.GuardianPublicKey, cfg.Quarkchain.EnableQkcHashXHeight); err != nil {
+	if mstr.engine, err = createConsensusEngine(cfg.Quarkchain.Root, cfg.Quarkchain.GuardianPublicKey, cfg.Quarkchain.EnableQkcHashXHeight, mstr.chainDb); err != nil {
 		return nil, err
 	}
 
@@ -143,7 +145,7 @@ func createDB(ctx *service.ServiceContext, name string, clean bool, isReadOnly b
 	return db, nil
 }
 
-func createConsensusEngine(cfg *config.RootConfig, pubKey []byte, qkcHashXHeight uint64) (consensus.Engine, error) {
+func createConsensusEngine(cfg *config.RootConfig, pubKey []byte, qkcHashXHeight uint64, db ethdb.Database) (consensus.Engine, error) {
 	diffCalculator := consensus.EthDifficultyCalculator{
 		MinimumDifficulty: big.NewInt(int64(cfg.Genesis.Difficulty)),
 		AdjustmentCutoff:  cfg.DifficultyAdjustmentCutoffTime,
@@ -158,6 +160,9 @@ func createConsensusEngine(cfg *config.RootConfig, pubKey []byte, qkcHashXHeight
 		return qkchash.New(true, &diffCalculator, cfg.ConsensusConfig.RemoteMine, pubKey, qkcHashXHeight), nil
 	case config.PoWDoubleSha256:
 		return doublesha256.New(&diffCalculator, cfg.ConsensusConfig.RemoteMine, pubKey), nil
+	case config.POSPoa:
+		return clique.New(&params.CliqueConfig{}, db), nil
+
 	}
 	return nil, fmt.Errorf("Failed to create consensus engine consensus type %s ", cfg.ConsensusType)
 }

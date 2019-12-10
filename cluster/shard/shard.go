@@ -33,7 +33,7 @@ type BlockCommitCode int
 
 const (
 	BLOCK_UNCOMMITTED BlockCommitCode = iota
-	BLOCK_COMMITTING                  // TODO not support yet,need discuss
+	BLOCK_COMMITTING   // TODO not support yet,need discuss
 	BLOCK_COMMITTED
 )
 
@@ -95,7 +95,7 @@ func New(ctx *service.ServiceContext, rBlock *types.RootBlock, conn ConnManager,
 
 	shard.txGenerator = NewTxGenerator(cfg.GenesisDir, shard.branch.Value, cfg.Quarkchain)
 
-	shard.engine, err = createConsensusEngine(cfg.Quarkchain.EnableQkcHashXHeight, shard.Config)
+	shard.engine, err = createConsensusEngine(cfg.Quarkchain.EnableQkcHashXHeight, shard.Config, shard.chainDb)
 	if err != nil {
 		shard.chainDb.Close()
 		return nil, err
@@ -158,7 +158,7 @@ func createDB(ctx *service.ServiceContext, name string, clean bool, isReadOnly b
 	return db, nil
 }
 
-func createConsensusEngine(qkcHashXHeight uint64, cfg *config.ShardConfig) (consensus.Engine, error) {
+func createConsensusEngine(qkcHashXHeight uint64, cfg *config.ShardConfig, db ethdb.Database) (consensus.Engine, error) {
 	difficulty := new(big.Int)
 	diffCalculator := consensus.EthDifficultyCalculator{
 		MinimumDifficulty: difficulty.SetUint64(cfg.Genesis.Difficulty),
@@ -175,8 +175,8 @@ func createConsensusEngine(qkcHashXHeight uint64, cfg *config.ShardConfig) (cons
 		return qkchash.New(true, &diffCalculator, cfg.ConsensusConfig.RemoteMine, pubKey, qkcHashXHeight), nil
 	case config.PoWDoubleSha256:
 		return doublesha256.New(&diffCalculator, cfg.ConsensusConfig.RemoteMine, pubKey), nil
-	case config.POWPOA:
-		return clique.New()
+	case config.POSPoa:
+		return clique.New(&params.CliqueConfig{}, db), nil
 
 	}
 	return nil, fmt.Errorf("Failed to create consensus engine consensus type %s ", cfg.ConsensusType)

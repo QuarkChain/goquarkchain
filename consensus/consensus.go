@@ -17,7 +17,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
-	lru "github.com/hashicorp/golang-lru"
+	"github.com/hashicorp/golang-lru"
 )
 
 var (
@@ -86,7 +86,7 @@ type MiningResult struct {
 type MiningSpec struct {
 	Name       string
 	HashAlgo   func(result *ShareCache) error
-	VerifySeal func(chain ChainReader, header types.IHeader, adjustedDiff *big.Int) error
+	VerifySeal func(chain ChainReader, header types.IHeader, parents []types.IHeader, adjustedDiff *big.Int) error
 }
 
 // CommonEngine contains the common parts for consensus engines, where engine-specific
@@ -190,7 +190,7 @@ func (c *CommonEngine) VerifySeal(chain ChainReader, header types.IHeader, adjus
 			return nil
 		}
 	}
-	err := c.spec.VerifySeal(chain, header, adjustedDiff)
+	err := c.spec.VerifySeal(chain, header, nil, adjustedDiff)
 	if err == nil {
 		c.sealVerifiedCache.Add(header.Hash(), adjustedDiff)
 	}
