@@ -19,12 +19,11 @@ package clique
 import (
 	"bytes"
 	"crypto/ecdsa"
-	"github.com/QuarkChain/goquarkchain/cluster/config"
-	"github.com/QuarkChain/goquarkchain/consensus"
-	"github.com/stretchr/testify/assert"
 	"sort"
 	"testing"
 
+	"github.com/QuarkChain/goquarkchain/cluster/config"
+	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/core"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/core/vm"
@@ -32,6 +31,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/params"
+	"github.com/stretchr/testify/assert"
 )
 
 // testerAccountPool is a pool to maintain currently active tester accounts,
@@ -426,13 +426,9 @@ func TestClique(t *testing.T) {
 		for j, signer := range tt.signers {
 			signers[j] = accounts.address(signer)
 		}
-		for j := 0; j < len(signers); j++ {
-			for k := j + 1; k < len(signers); k++ {
-				if bytes.Compare(signers[j][:], signers[k][:]) > 0 {
-					signers[j], signers[k] = signers[k], signers[j]
-				}
-			}
-		}
+		sort.Slice(signers, func(i, j int) bool {
+			return bytes.Compare(signers[i][:], signers[j][:]) < 0
+		})
 
 		db := ethdb.NewMemDatabase()
 		// Assemble a chain of headers from the cast votes
@@ -498,6 +494,10 @@ func TestClique(t *testing.T) {
 		}
 		// No failure was produced or requested, generate the final voting snapshot
 		head := blocks[len(blocks)-1]
+
+		for i := 0;i < len(tt.votes);i++ {
+			hd := chain.GetHeaderByNumber(uint64(i))
+		}
 
 		snap, err := engine.snapshot(chain, head.NumberU64(), head.Hash(), nil)
 		if err != nil {
