@@ -169,7 +169,7 @@ func NewMinorBlockChain(
 			TrieCleanLimit: 128,
 			TrieDirtyLimit: 128,
 			TrieTimeLimit:  5 * time.Minute,
-			Disabled:       true,
+			Disabled:       false,
 		}
 	}
 	receiptsCache, _ := lru.New(receiptsCacheLimit)
@@ -691,7 +691,7 @@ func (m *MinorBlockChain) Stop() {
 			heightDiff = []uint64{0, 1, triesInMemory - 1}
 		)
 		if m.rootTip != nil {
-			log.Info("need stored tire", "number", m.rootTip.Number)
+			log.Info("need stored tire", "root tip number", m.rootTip.Number, "minor tip number", m.CurrentBlock().Number())
 
 			for hash := range m.rootHeightToHashes[m.rootTip.NumberU64()] {
 				heightDiff = m.getNeedStoreHeight(hash, heightDiff)
@@ -708,7 +708,7 @@ func (m *MinorBlockChain) Stop() {
 				recent := recentBlockInterface.(*types.MinorBlock)
 
 				log.Info("Writing cached state to disk", "block", recent.NumberU64(), "hash", recent.Hash(), "root", recent.GetMetaData().Root)
-				if err := triedb.Commit(recent.GetMetaData().Root, true); err != nil {
+				if err := triedb.Commit(recent.GetMetaData().Root, false); err != nil {
 					log.Error("Failed to commit recent state trie", "err", err)
 				}
 			}
