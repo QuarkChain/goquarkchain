@@ -579,11 +579,9 @@ func (bc *RootBlockChain) insertChain(chain []types.IBlock, verifySeals bool) (i
 		headers[i] = block.IHeader()
 		seals[i] = verifySeals
 	}
-	abort, results := bc.engine.VerifyHeaders(bc, headers, seals)
-	defer close(abort)
 
 	// Peek the error for the first block to decide the directing import logic
-	it := newInsertIterator(chain, results, bc.Validator(), bc.isCheckDB)
+	it := newInsertIterator(chain, bc.Validator(), bc.isCheckDB)
 
 	block, err := it.next()
 	switch {

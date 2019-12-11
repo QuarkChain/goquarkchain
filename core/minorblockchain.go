@@ -1099,11 +1099,9 @@ func (m *MinorBlockChain) insertChain(chain []types.IBlock, verifySeals bool, is
 		headers[i] = block.IHeader()
 		seals[i] = verifySeals
 	}
-	abort, results := m.engine.VerifyHeaders(m, headers, seals)
-	defer close(abort)
 
 	// Peek the error for the first block to decide the directing import logic
-	it := newInsertIterator(chain, results, m.Validator(), isCheckDB)
+	it := newInsertIterator(chain, m.Validator(), isCheckDB)
 	block, err := it.next()
 	switch {
 	// First block is pruned, insert as sidechain and reorg only if TD grows enough

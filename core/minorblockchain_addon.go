@@ -408,10 +408,12 @@ func (m *MinorBlockChain) InitFromRootBlock(rBlock *types.RootBlock) error {
 	var err error
 	if _, err = m.StateAt(block.Root()); err != nil {
 		log.Warn("miss trie", "block", block.NumberU64(), "block.hash", block.Hash().String())
+		ts := time.Now()
 		if err := m.reRunBlockWithState(block); err != nil {
 			log.Error("reRunBlockWithState err", "err", err)
 			return err
 		}
+		log.Warn("miss trie", "reRun time", time.Now().Sub(ts).Seconds())
 	}
 	m.currentEvmState, err = m.StateAt(block.Root())
 	if err != nil {
