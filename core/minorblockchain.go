@@ -169,7 +169,7 @@ func NewMinorBlockChain(
 			TrieCleanLimit: 128,
 			TrieDirtyLimit: 128,
 			TrieTimeLimit:  5 * time.Minute,
-			Disabled:       false,
+			Disabled:       clusterConfig.NoPruning,
 		}
 	}
 	receiptsCache, _ := lru.New(receiptsCacheLimit)
@@ -233,7 +233,6 @@ func NewMinorBlockChain(
 	}
 	DefaultTxPoolConfig.NetWorkID = bc.clusterConfig.Quarkchain.NetworkID
 	bc.posw = consensus.CreatePoSWCalculator(bc, bc.shardConfig.PoswConfig)
-	bc.txPool = NewTxPool(DefaultTxPoolConfig, bc)
 	// Take ownership of this particular state
 	go bc.update()
 	return bc, nil
@@ -282,9 +281,9 @@ func (m *MinorBlockChain) loadLastState() error {
 	if _, err := m.StateAt(currentBlock.GetMetaData().Root); err != nil {
 		// Dangling block without a state associated, init from scratch
 		log.Warn("Head state missing, repairing chain", "number", currentBlock.NumberU64(), "hash", currentBlock.Hash())
-		if err := m.repair(&currentBlock); err != nil {
-			return err
-		}
+		//if err := m.repair(&currentBlock); err != nil {
+		//	return err
+		//}
 	}
 	// Everything seems to be fine, set as the head block
 	m.currentBlock.Store(currentBlock)
@@ -943,14 +942,15 @@ func (m *MinorBlockChain) WriteBlockWithState(block *types.MinorBlock, receipts 
 			chosen := mBlock.NumberU64()
 
 			// If we exceeded out time allowance, flush an entire trie to disk
-			if m.gcproc > m.cacheConfig.TrieTimeLimit {
+			if mBlock.NumberU64()%triesInMemory == 0 {
 				// If we're exceeding limits but haven't reached a large enough memory gap,
 				// warn the user that the system is becoming unstable.
 				if chosen < lastWrite+triesInMemory && m.gcproc >= 2*m.cacheConfig.TrieTimeLimit {
 					log.Info("State in memory for too long, committing", "time", m.gcproc, "allowance", m.cacheConfig.TrieTimeLimit, "optimum", float64(chosen-lastWrite)/triesInMemory)
 				}
 				// Flush an entire trie and restart the counters
-				triedb.Commit(mBlock.GetMetaData().Root, true)
+				triedb.Commit(mBlock.GetMetaData().Root, false)
+				fmt.Println("Commit-------", mBlock.Branch().Value, mBlock.NumberU64(), mBlock.Hash().String(), mBlock.GetMetaData().Root.String())
 				lastWrite = chosen
 				m.gcproc = 0
 			}
