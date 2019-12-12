@@ -89,7 +89,6 @@ type MinorBlockChain struct {
 
 	db     ethdb.Database // Low level persistent database to store final content in
 	triegc *prque.Prque   // Priority queue mapping block numbers to tries to gc
-	gcproc time.Duration  // Accumulates canonical block processing for trie dumping
 
 	rmLogsFeed    event.Feed
 	chainFeed     event.Feed
@@ -943,16 +942,9 @@ func (m *MinorBlockChain) WriteBlockWithState(block *types.MinorBlock, receipts 
 
 			// If we exceeded out time allowance, flush an entire trie to disk
 			if mBlock.NumberU64()%triesInMemory == 0 {
-				// If we're exceeding limits but haven't reached a large enough memory gap,
-				// warn the user that the system is becoming unstable.
-				if chosen < lastWrite+triesInMemory && m.gcproc >= 2*m.cacheConfig.TrieTimeLimit {
-					log.Info("State in memory for too long, committing", "time", m.gcproc, "allowance", m.cacheConfig.TrieTimeLimit, "optimum", float64(chosen-lastWrite)/triesInMemory)
-				}
 				// Flush an entire trie and restart the counters
 				triedb.Commit(mBlock.GetMetaData().Root, false)
-				fmt.Println("Commit-------", mBlock.Branch().Value, mBlock.NumberU64(), mBlock.Hash().String(), mBlock.GetMetaData().Root.String())
-				lastWrite = chosen
-				m.gcproc = 0
+				log.Info(m.logInfo, "commit trie number", mBlock.NumberU64(), "hash", mBlock.Hash().String(), "root", mBlock.GetMetaData().Root.String())
 			}
 			// Garbage collect anything below our required write retention
 			for !m.triegc.Empty() {
@@ -1171,7 +1163,6 @@ func (m *MinorBlockChain) insertChain(chain []types.IBlock, verifySeals bool, is
 			m.reportBlock(block, receipts, err)
 			return it.index, events, coalescedLogs, xShardList, err
 		}
-		proctime := time.Since(start)
 
 		if isCheckDB {
 			xShardList = append(xShardList, state.GetXShardList())
@@ -1196,9 +1187,6 @@ func (m *MinorBlockChain) insertChain(chain []types.IBlock, verifySeals bool, is
 			coalescedLogs = append(coalescedLogs, logs...)
 			events = append(events, MinorChainEvent{mBlock, mBlock.Hash(), logs})
 			lastCanon = block
-
-			// Only count canonical blocks for GC processing time
-			m.gcproc += proctime
 
 		case SideStatTy:
 			log.Debug("Inserted forked block", "number", mBlock.NumberU64(), "hash", mBlock.Hash(),

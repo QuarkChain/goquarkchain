@@ -427,8 +427,6 @@ func (bc *RootBlockChain) Rollback(chain []common.Hash) {
 	}
 }
 
-var lastWrite uint64
-
 // WriteBlockWithoutState writes only the block and its metadata to the database,
 // but does not write any state. This is used to construct competing side forks
 // up to the point where they exceed the canonical total difficulty.
