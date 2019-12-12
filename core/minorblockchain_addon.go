@@ -1102,7 +1102,7 @@ func (m *MinorBlockChain) EstimateGas(tx *types.Transaction, fromAddress account
 
 		gp := new(GasPool).AddGas(evmState.GetGasLimit().Uint64())
 		gasUsed := new(uint64)
-		_, _, _, err = ApplyTransaction(m.ethChainConfig, m, gp, evmState, m.CurrentHeader(), evmTx, gasUsed,m.vmConfig)
+		_, _, _, err = ApplyTransaction(m.ethChainConfig, m, gp, evmState, m.CurrentHeader(), evmTx, gasUsed, m.vmConfig)
 		return err
 	}
 
@@ -1122,10 +1122,6 @@ func (m *MinorBlockChain) EstimateGas(tx *types.Transaction, fromAddress account
 
 // GasPrice gas price
 func (m *MinorBlockChain) GasPrice(tokenID uint64) (uint64, error) {
-	if !m.clusterConfig.Quarkchain.IsAllowedTokenID(tokenID) {
-		return 0, fmt.Errorf("no support tokenID %v", tokenID)
-	}
-
 	currHead := m.CurrentBlock().Hash()
 	if data, ok := m.gasPriceSuggestionOracle.cache.Get(gasPriceKey{
 		currHead: currHead,
