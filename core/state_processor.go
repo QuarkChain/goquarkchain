@@ -141,7 +141,12 @@ func ValidateTransaction(state vm.StateDB, tx *types.Transaction, fromAddress *a
 
 	cost := make(map[uint64]*big.Int)
 	cost[tx.EvmTx.TransferTokenID()] = tx.EvmTx.Value()
-	cost[tx.EvmTx.GasTokenID()] = new(big.Int).Mul(tx.EvmTx.GasPrice(), new(big.Int).SetUint64(tx.EvmTx.Gas()))
+	gasCost := new(big.Int).Mul(tx.EvmTx.GasPrice(), new(big.Int).SetUint64(tx.EvmTx.Gas()))
+	if tx.EvmTx.TransferTokenID() == tx.EvmTx.GasTokenID() {
+		cost[tx.EvmTx.TransferTokenID()] = new(big.Int).Add(gasCost, cost[tx.EvmTx.TransferTokenID()])
+	} else {
+		cost[tx.EvmTx.GasTokenID()] = gasCost
+	}
 
 	for tokenID, value := range bal {
 		if value.Cmp(cost[tokenID]) < 0 {
