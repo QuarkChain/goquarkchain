@@ -37,8 +37,6 @@ func New(ctx *service.ServiceContext, clusterCfg *config.ClusterConfig, cfg *con
 		eventMux:      ctx.EventMux,
 		logInfo:       "SlaveBackend",
 	}
-
-	slave.clstrCfg.Quarkchain.SetAllowedToken()
 	fullShardIds := slave.clstrCfg.Quarkchain.GetGenesisShardIds()
 	for _, id := range fullShardIds {
 		if !slave.coverShardId(id) {

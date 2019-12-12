@@ -112,7 +112,6 @@ type QuarkChainConfig struct {
 	chainIdToShardSize                map[uint32]uint32
 	chainIdToShardIds                 map[uint32][]uint32
 	defaultChainTokenID               uint64
-	allowTokenIDs                     map[uint64]bool
 	EnableEvmTimeStamp                uint64 `json:"ENABLE_EVM_TIMESTAMP"`
 	EnableQkcHashXHeight              uint64 `json:"ENABLE_QKCHASHX_HEIGHT"`
 	EnableMntAuctionTimestamp         *uint64
@@ -410,7 +409,6 @@ func NewQuarkChainConfig() *QuarkChainConfig {
 		}
 	}
 	ret.initAndValidate()
-	ret.SetAllowedToken()
 	return &ret
 }
 
@@ -426,28 +424,6 @@ func (q *QuarkChainConfig) GetDefaultChainTokenID() uint64 {
 	return q.defaultChainTokenID
 }
 
-func (q *QuarkChainConfig) allowedTokenIds() map[uint64]bool {
-	if len(q.allowTokenIDs) == 0 {
-		panic("allow tokenId should >0")
-	}
-	return q.allowTokenIDs
-}
-
-func (q *QuarkChainConfig) SetAllowedToken() {
-	q.allowTokenIDs = make(map[uint64]bool, 0)
-	q.allowTokenIDs[common.TokenIDEncode(q.GenesisToken)] = true
-	for _, shard := range q.shards {
-		for _, alloc := range shard.Genesis.Alloc {
-			for tokenID := range alloc.Balances {
-				q.allowTokenIDs[common.TokenIDEncode(tokenID)] = true
-			}
-		}
-	}
-}
-func (q *QuarkChainConfig) IsAllowedTokenID(tokenID uint64) bool {
-	_, ok := q.allowedTokenIds()[tokenID]
-	return ok
-}
 func (q *QuarkChainConfig) GasLimit(fullShardID uint32) (*big.Int, error) {
 	data, ok := q.shards[fullShardID]
 	if !ok {

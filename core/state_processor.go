@@ -126,24 +126,43 @@ func ValidateTransaction(state vm.StateDB, tx *types.Transaction, fromAddress *a
 		return ErrIntrinsicGas
 	}
 
-	if ok := state.GetQuarkChainConfig().IsAllowedTokenID(tx.EvmTx.TransferTokenID()); !ok {
-		return fmt.Errorf("token %v is not allowed ", tx.EvmTx.TransferTokenID())
+	defaultChainToken := state.GetQuarkChainConfig().GetDefaultChainTokenID()
+	bal := make(map[uint64]*big.Int)
+	bal[tx.EvmTx.TransferTokenID()] = state.GetBalance(*from, tx.EvmTx.TransferTokenID())
+	if tx.EvmTx.TransferTokenID() != tx.EvmTx.GasTokenID() {
+		bal[tx.EvmTx.GasTokenID()] = state.GetBalance(*from, tx.EvmTx.GasTokenID())
 	}
 
-	if tx.EvmTx.TransferTokenID() == tx.EvmTx.GasTokenID() {
-		totalCost := new(big.Int).Mul(tx.EvmTx.GasPrice(), new(big.Int).SetUint64(tx.EvmTx.Gas()))
-		totalCost = new(big.Int).Add(totalCost, tx.EvmTx.Value())
-		if state.GetBalance(*from, tx.EvmTx.TransferTokenID()).Cmp(totalCost) < 0 {
-			return fmt.Errorf("money is low: token:%v balance %v,totalCost %v", tx.EvmTx.TransferTokenID(), state.GetBalance(*from, tx.EvmTx.TransferTokenID()), totalCost)
+	for _, tokenID := range []uint64{tx.EvmTx.TransferTokenID(), tx.EvmTx.GasTokenID()} {
+		if tokenID != defaultChainToken && bal[tokenID].Cmp(common.Big0) == 0 {
+			return fmt.Errorf("{%v}: non-default token {%v} has zero balance", tx.Hash().String(), tokenID)
 		}
-	} else {
-		if state.GetBalance(*from, tx.EvmTx.TransferTokenID()).Cmp(tx.EvmTx.Value()) < 0 {
-			return fmt.Errorf("money is low: token:%v balance %v, value:%v", tx.EvmTx.TransferTokenID(), state.GetBalance(*from, tx.EvmTx.TransferTokenID()), tx.EvmTx.Value())
+	}
+
+	cost := make(map[uint64]*big.Int)
+	cost[tx.EvmTx.TransferTokenID()] = tx.EvmTx.Value()
+	cost[tx.EvmTx.GasTokenID()] = new(big.Int).Mul(tx.EvmTx.GasPrice(), new(big.Int).SetUint64(tx.EvmTx.Gas()))
+
+	for tokenID, value := range bal {
+		if value.Cmp(cost[tokenID]) < 0 {
+			return fmt.Errorf("InsufficientBalance tokenID:%v,value:%v,costValue:%v", tokenID, value, cost[tokenID])
 		}
-		gasCost := new(big.Int).Mul(tx.EvmTx.GasPrice(), new(big.Int).SetUint64(tx.EvmTx.Gas()))
-		if state.GetBalance(*from, tx.EvmTx.GasTokenID()).Cmp(gasCost) < 0 {
-			return fmt.Errorf("money is low: token %v balance %v value %v", tx.EvmTx.GasTokenID(), state.GetBalance(*from, tx.EvmTx.GasTokenID()), gasCost)
+	}
+
+	if tx.EvmTx.GasPrice().Cmp(common.Big0) != 0 && tx.EvmTx.GasTokenID() != defaultChainToken {
+		snapshot := state.Snapshot()
+		_, gengisTokenGasPrice := PayNativeTokenAsGas(state, tx.EvmTx.GasTokenID(), tx.EvmTx.Gas(), tx.EvmTx.GasPrice())
+		state.RevertToSnapshot(snapshot)
+
+		if gengisTokenGasPrice.Cmp(common.Big0) == 0 {
+			return fmt.Errorf("{%v}: non-default gas token {%v} not ready for being used to pay gas", tx.Hash().String(), tx.EvmTx.GasTokenID())
 		}
+		balGasReserve := state.GetBalance(GetContralcAdd(), defaultChainToken)
+
+		if balGasReserve.Cmp(new(big.Int).Mul(gengisTokenGasPrice, new(big.Int).SetUint64(tx.EvmTx.Gas()))) < 0 {
+			return fmt.Errorf("{%v}: non-default gas token {%v} not enough reserve balance for conversion", tx.Hash().String(), tx.EvmTx.GasTokenID())
+		}
+
 	}
 
 	blockLimit := new(big.Int).Add(state.GetGasUsed(), new(big.Int).SetUint64(tx.EvmTx.Gas()))
@@ -155,7 +174,7 @@ func ValidateTransaction(state vm.StateDB, tx *types.Transaction, fromAddress *a
 	return nil
 }
 
-func PayNativeTokenAsGas(state *state.StateDB, tokenID uint64, gas uint64, gasPriceInNativeToken *big.Int) (uint8, *big.Int) {
+func PayNativeTokenAsGas(state vm.StateDB, tokenID uint64, gas uint64, gasPriceInNativeToken *big.Int) (uint8, *big.Int) {
 	return 100, gasPriceInNativeToken //TODO @DL
 }
 
@@ -177,6 +196,13 @@ func ApplyTransaction(config *params.ChainConfig, bc ChainContext, gp *GasPool, 
 		}
 		gasPrice = convertedGenesisTokenGasPeice
 		contractAddr := GetContralcAdd()
+
+		contractBal := statedb.GetBalance(contractAddr, statedbGensisToken)
+		txGasBal := new(big.Int).Mul(new(big.Int).SetUint64(tx.EvmTx.Gas()), convertedGenesisTokenGasPeice)
+		if contractBal.Cmp(txGasBal) < 0 {
+			return nil, nil, 0, fmt.Errorf("contract balance:%v < tx gas balance:%v", contractBal, txGasBal)
+		}
+
 		statedb.SubBalance(contractAddr, new(big.Int).Mul(new(big.Int).SetUint64(tx.EvmTx.Gas()), convertedGenesisTokenGasPeice), statedbGensisToken)
 		statedb.AddBalance(contractAddr, new(big.Int).Mul(new(big.Int).SetUint64(tx.EvmTx.Gas()), tx.EvmTx.GasPrice()), tx.EvmTx.GasTokenID())
 	}

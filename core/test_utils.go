@@ -126,7 +126,6 @@ func getTestEnv(genesisAccount *account.Address, genesisMinorQuarkHash *uint64, 
 		alloc = config.Allocation{Balances: temp}
 		shardConfig.Genesis.Alloc[addr] = alloc
 	}
-	env.clusterConfig.Quarkchain.SetAllowedToken()
 	return env
 }
 
