@@ -2929,7 +2929,7 @@ func TestProcMintMNT(t *testing.T) {
 	assert.Equal(t, new(big.Int), balance)
 }
 
-func TestPayAsGasUtility(t *testing.T) {
+func TestPayNativeTokenAsGasContractAPI(t *testing.T) {
 	id1, err := account.CreatRandomIdentity()
 	assert.NoError(t, err)
 	acc1 := account.CreatAddressFromIdentity(id1, 0)
@@ -2966,7 +2966,7 @@ func TestPayAsGasUtility(t *testing.T) {
 	//# Set supervisor
 	evmState.SetState(contractAddr, common.BigToHash(big.NewInt(1)), common.BytesToHash(acc1.Recipient.Bytes()))
 	//# Set min gas reserve for maintenance
-	evmState.SetState(contractAddr, common.BigToHash(big.NewInt(3)), common.BigToHash(big.NewInt(1)))
+	evmState.SetState(contractAddr, common.BigToHash(big.NewInt(3)), common.BigToHash(big.NewInt(30000)))
 	//# Set min starting gas for use as gas
 	evmState.SetState(contractAddr, common.BigToHash(big.NewInt(4)), common.BigToHash(big.NewInt(1)))
 	_, err = evmState.Commit(true)
@@ -2980,32 +2980,54 @@ func TestPayAsGasUtility(t *testing.T) {
 		return common.Bytes2Hex(b)
 	}
 	formattedTokenID := toStr(tokenID)
-	//# propose a new exchange rate for token id 123 with ratio 1 / 30000
-	_, err = call("735e0e19"+formattedTokenID+toStr(1)+toStr(30000), big.NewInt(10000))
+	//# propose a new exchange rate for token id 123 with ratio 1 / 30000, which will fail because no registration
+	supply := int64(100000)
+	_, err = call("735e0e19"+formattedTokenID+toStr(1)+toStr(30000), big.NewInt(supply))
+	assert.Error(t, err)
+	// # register and re-propose, should succeed
+	tk := st.evm.TransferTokenID
+	st.evm.TransferTokenID = tokenID
+	st.evm.StateDB.AddBalance(acc1.Recipient, new(big.Int).SetUint64(1), tokenID)
+	_, err = call("bf03314a", new(big.Int).SetUint64(1))
+	assert.NoError(t, err)
+	st.evm.TransferTokenID = tk
+	_, err = call("735e0e19"+formattedTokenID+toStr(1)+toStr(30000), big.NewInt(supply))
 	assert.NoError(t, err)
 	//# set the refund rate to 60
 	_, err = call("6d27af8c"+formattedTokenID+toStr(60), new(big.Int))
 	assert.NoError(t, err)
-	//# should be able to use the gas utility
-	_, err = evmState.Commit(true)
-	assert.NoError(t, err)
 
 	//# get the gas utility information by calling the get_gas_utility_info function
-	refundPercentage, gasPrice, err = GetGasUtilityInfo(evmState, shardState.ethChainConfig, tokenID, big.NewInt(60000))
+	gasPriceInNativeToken := big.NewInt(60000)
+	refundPercentage, gasPrice, err = GetGasUtilityInfo(evmState, shardState.ethChainConfig, tokenID, gasPriceInNativeToken)
 	assert.Equal(t, uint8(60), refundPercentage)
 	assert.Equal(t, big.NewInt(2), gasPrice)
 	//# exchange the Qkc with the native token
-	refundPercentage, gasPrice, err = PayNativeTokenAsGas(evmState, shardState.ethChainConfig, tokenID, 3, big.NewInt(60000))
+	refundPercentage, gasPrice, err = PayNativeTokenAsGas(evmState, shardState.ethChainConfig, tokenID, 3, gasPriceInNativeToken)
 	assert.Equal(t, uint8(60), refundPercentage)
 	assert.Equal(t, big.NewInt(2), gasPrice)
 	// # check the balance of the gas reserve. amount of native token (60000) * exchange rate (1 / 30000) = 2 QKC
 	ret, err := call("13dee215"+formattedTokenID+strings.Repeat("0", 24)+common.Bytes2Hex(acc1.Recipient.Bytes()), new(big.Int))
 	assert.NoError(t, err)
-	assert.Equal(t, new(big.Int).SetBytes(ret).Uint64(), uint64(10000-3*2))
+	assert.Equal(t, uint64(supply-3*2), new(big.Int).SetBytes(ret).Uint64())
 	// # check the balance of native token.
 	ret, err = call("21a2b36e"+formattedTokenID+strings.Repeat("0", 24)+common.Bytes2Hex(acc1.Recipient.Bytes()), new(big.Int))
 	assert.NoError(t, err)
-	assert.Equal(t, new(big.Int).SetBytes(ret).Uint64(), uint64(60000*3))
+	gasPriceInNativeTokenMul3Add1 := new(big.Int).Add(new(big.Int).Mul(gasPriceInNativeToken, new(big.Int).SetUint64(3)), new(big.Int).SetUint64(1))
+	assert.Equal(t, gasPriceInNativeTokenMul3Add1, new(big.Int).SetBytes(ret))
+	//# give the contract real native token and withdrawing should work
+	st.evm.StateDB.AddBalance(contractAddr, new(big.Int).Mul(gasPriceInNativeToken, new(big.Int).SetUint64(3)), tokenID)
+	//withdraw_native_token
+	_, err = call("f9c94eb7"+formattedTokenID, new(big.Int))
+	assert.NoError(t, err)
+	suBalance := st.evm.StateDB.GetBalance(acc1.Recipient, tokenID)
+	assert.Equal(t, gasPriceInNativeTokenMul3Add1, suBalance)
+	coBalance := st.evm.StateDB.GetBalance(contractAddr, tokenID)
+	assert.Equal(t, 0, int(coBalance.Uint64()))
+	//# check again the balance of native token.
+	ret, err = call("21a2b36e"+formattedTokenID+strings.Repeat("0", 24)+common.Bytes2Hex(acc1.Recipient.Bytes()), new(big.Int))
+	assert.NoError(t, err)
+	assert.Equal(t, 0, int(new(big.Int).SetBytes(ret).Uint64()))
 }
 
 func TestMintNewNativeToken(t *testing.T) {
