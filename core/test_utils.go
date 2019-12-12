@@ -29,6 +29,7 @@ var (
 	testShardCoinbaseAmount      = new(big.Int).Mul(new(big.Int).SetUint64(5), jiaozi)
 	testGenesisTokenID           = common.TokenIDEncode("QKC")
 	testGenesisMinorTokenBalance = make(map[string]*big.Int)
+	addContractAddrBalance       bool
 )
 
 type fakeEnv struct {
@@ -111,19 +112,22 @@ func getTestEnv(genesisAccount *account.Address, genesisMinorQuarkHash *uint64, 
 	for _, v := range ids {
 		addr := genesisAccount.AddressInShard(v)
 		shardConfig := fakeClusterConfig.Quarkchain.GetShardConfigByFullShardID(v)
-		generalNativeTokenAddr := account.Address{} //TODO use real addr
-		temp := make(map[string]*big.Int)
-		temp["QKC"] = new(big.Int).Set(qParam.DenomsValue.Ether)
-		alloc := config.Allocation{Balances: temp}
-		shardConfig.Genesis.Alloc[generalNativeTokenAddr] = alloc
+
+		if addContractAddrBalance {
+			generalNativeTokenAddr := account.Address{} //TODO use real addr
+			temp := make(map[string]*big.Int)
+			temp["QKC"] = new(big.Int).Set(qParam.DenomsValue.Ether)
+			alloc := config.Allocation{Balances: temp}
+			shardConfig.Genesis.Alloc[generalNativeTokenAddr] = alloc
+		}
 
 		if len(testGenesisMinorTokenBalance) != 0 {
 			shardConfig.Genesis.Alloc[addr] = config.Allocation{Balances: testGenesisMinorTokenBalance}
 			continue
 		}
-		temp = make(map[string]*big.Int)
+		temp := make(map[string]*big.Int)
 		temp["QKC"] = new(big.Int).SetUint64(*genesisMinorQuarkHash)
-		alloc = config.Allocation{Balances: temp}
+		alloc := config.Allocation{Balances: temp}
 		shardConfig.Genesis.Alloc[addr] = alloc
 	}
 	return env
