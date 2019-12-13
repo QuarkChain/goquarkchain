@@ -189,13 +189,12 @@ func GetContralcAdd() common.Address {
 
 // ApplyTransaction apply tx
 func ApplyTransaction(config *params.ChainConfig, bc ChainContext, gp *GasPool, statedb *state.StateDB, header types.IHeader, tx *types.Transaction, usedGas *uint64, cfg vm.Config) ([]byte, *types.Receipt, uint64, error) {
-	//fmt.Println("apply_transatcion")
 	statedbGensisToken := statedb.GetQuarkChainConfig().GetDefaultChainTokenID()
 	gasPrice, refundRate := tx.EvmTx.GasPrice(), uint8(100)
 	convertedGenesisTokenGasPeice := new(big.Int)
 
 	if tx.EvmTx.GasTokenID() != statedbGensisToken {
-		refundRate, convertedGenesisTokenGasPeice = PayNativeTokenAsGas(statedb, tx.EvmTx.GasTokenID(), tx.EvmTx.GasTokenID(), tx.EvmTx.GasPrice())
+		refundRate, convertedGenesisTokenGasPeice = PayNativeTokenAsGas(statedb, tx.EvmTx.GasTokenID(), tx.EvmTx.Gas(), tx.EvmTx.GasPrice())
 		if convertedGenesisTokenGasPeice.Cmp(new(big.Int).SetUint64(0)) <= 0 {
 			return nil, nil, 0, fmt.Errorf("convertedGenesisTokenGasPeice %v shoud >0", convertedGenesisTokenGasPeice)
 		}

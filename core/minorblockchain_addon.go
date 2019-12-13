@@ -156,6 +156,7 @@ func (m *MinorBlockChain) validateTx(tx *types.Transaction, evmState *state.Stat
 			evmTxGas = *gas
 		}
 		evmTx.SetGas(evmTxGas)
+		// only used by  ExecuteTx and EstimateGas
 		evmTx.SetSender(fromAddress.Recipient)
 	}
 	toShardSize, err := m.clusterConfig.Quarkchain.GetShardSizeByChainId(tx.EvmTx.ToChainID())
