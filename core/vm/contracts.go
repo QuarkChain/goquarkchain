@@ -538,6 +538,19 @@ func (c *transferMnt) Run(input []byte, evm *EVM, contract *Contract) ([]byte, e
 	valueBytes := getData(input, 64, 32)
 	value := new(big.Int).SetBytes(valueBytes)
 
+	if !evm.StateDB.Exist(toAddr) && big.NewInt(0).Cmp(value) < 0 {
+		if !contract.UseGas(params.CallNewAccountGas) {
+			contract.Gas = 0
+			return nil, ErrOutOfGas
+		}
+	}
+	if big.NewInt(0).Cmp(value) < 0 {
+		if !contract.UseGas(params.CallValueTransferGas) {
+			contract.Gas = 0
+			return nil, ErrOutOfGas
+		}
+	}
+
 	data := getData(input, 96, uint64(len(input)-96))
 	t := evm.TransferTokenID
 	evm.TransferTokenID = mnt.Uint64()
