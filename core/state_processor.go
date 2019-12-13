@@ -273,9 +273,9 @@ func PayNativeTokenAsGas(evmState vm.StateDB, config *params.ChainConfig, tokenI
 
 	//# Call the `payAsGas` function
 	data := common.Hex2Bytes("5ae8f7f1")
-	data = append(data, qkcCmn.Uint64To32Bytes(tokenID)...)
-	data = append(data, qkcCmn.Uint64To32Bytes(gas)...)
-	data = append(data, qkcCmn.Uint64To32Bytes(gasPriceInNativeToken.Uint64())...)
+	data = append(data, qkcCmn.EncodeToByte32(tokenID)...)
+	data = append(data, qkcCmn.EncodeToByte32(gas)...)
+	data = append(data, qkcCmn.EncodeToByte32(gasPriceInNativeToken.Uint64())...)
 	return callGeneralNativeTokenManager(evmState, config, data)
 }
 
@@ -284,8 +284,8 @@ func GetGasUtilityInfo(evmState vm.StateDB, config *params.ChainConfig, tokenID 
 
 	//# Call the `calculateGasPrice` function
 	data := common.Hex2Bytes("ce9e8c47")
-	data = append(data, qkcCmn.Uint64To32Bytes(tokenID)...)
-	data = append(data, qkcCmn.Uint64To32Bytes(gasPriceInNativeToken.Uint64())...)
+	data = append(data, qkcCmn.EncodeToByte32(tokenID)...)
+	data = append(data, qkcCmn.EncodeToByte32(gasPriceInNativeToken.Uint64())...)
 	return callGeneralNativeTokenManager(evmState, config, data)
 }
 
@@ -307,7 +307,7 @@ func callGeneralNativeTokenManager(evmState vm.StateDB, config *params.ChainConf
 	if err != nil {
 		return 0, nil, err
 	}
-	refundRate := int(ret[:32][31])
+	refundRate := int(ret[31])
 	convertedGasPrice := new(big.Int).SetBytes(ret[32:64])
 	return uint8(refundRate), convertedGasPrice, nil
 }

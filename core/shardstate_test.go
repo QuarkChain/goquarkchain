@@ -2977,7 +2977,7 @@ func TestPayNativeTokenAsGasContractAPI(t *testing.T) {
 		return ret, err
 	}
 	toStr := func(input uint64) string {
-		b := qkcCommon.Uint64To32Bytes(input)
+		b := qkcCommon.EncodeToByte32(input)
 		return common.Bytes2Hex(b)
 	}
 	formattedTokenID := toStr(tokenID)
@@ -3091,7 +3091,7 @@ func TestPayNativeTokenAsGasEndToEnd(t *testing.T) {
 		return ret, err
 	}
 	toStr := func(input uint64) string {
-		b := qkcCommon.Uint64To32Bytes(input)
+		b := qkcCommon.EncodeToByte32(input)
 		return common.Bytes2Hex(b)
 	}
 	formattedTokenID := toStr(tokenID)
@@ -3197,7 +3197,7 @@ func TestMintNewNativeToken(t *testing.T) {
 		return err == nil
 	}
 	toStr := func(input uint64) string {
-		b := qkcCommon.Uint64To32Bytes(input)
+		b := qkcCommon.EncodeToByte32(input)
 		return common.Bytes2Hex(b)
 	}
 	big2Str := func(bi *big.Int) string {

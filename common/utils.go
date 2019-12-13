@@ -127,11 +127,6 @@ func Uint64ToBytes(n uint64) []byte {
 	return Bytes
 }
 
-func Uint64To32Bytes(n uint64) []byte {
-	Bytes := Uint64ToBytes(n)
-	return ethCommon.LeftPadBytes(Bytes, 32)
-}
-
 func BytesToUint32(byte []byte) uint32 {
 	bytesBuffer := bytes.NewBuffer(byte)
 	var x uint32
