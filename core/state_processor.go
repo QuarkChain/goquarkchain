@@ -268,7 +268,7 @@ func ApplyCrossShardDeposit(config *params.ChainConfig, bc ChainContext, header 
 	return nil, nil
 }
 
-func PayNativeTokenAsGas(evmState *state.StateDB, config *params.ChainConfig, tokenID, gas uint64,
+func PayNativeTokenAsGas(evmState vm.StateDB, config *params.ChainConfig, tokenID, gas uint64,
 	gasPriceInNativeToken *big.Int) (uint8, *big.Int, error) {
 
 	//# Call the `payAsGas` function
@@ -279,7 +279,7 @@ func PayNativeTokenAsGas(evmState *state.StateDB, config *params.ChainConfig, to
 	return callGeneralNativeTokenManager(evmState, config, data)
 }
 
-func GetGasUtilityInfo(evmState *state.StateDB, config *params.ChainConfig, tokenID uint64,
+func GetGasUtilityInfo(evmState vm.StateDB, config *params.ChainConfig, tokenID uint64,
 	gasPriceInNativeToken *big.Int) (uint8, *big.Int, error) {
 
 	//# Call the `calculateGasPrice` function
@@ -289,7 +289,7 @@ func GetGasUtilityInfo(evmState *state.StateDB, config *params.ChainConfig, toke
 	return callGeneralNativeTokenManager(evmState, config, data)
 }
 
-func callGeneralNativeTokenManager(evmState *state.StateDB, config *params.ChainConfig, data []byte) (uint8, *big.Int, error) {
+func callGeneralNativeTokenManager(evmState vm.StateDB, config *params.ChainConfig, data []byte) (uint8, *big.Int, error) {
 	contractAddr := vm.SystemContracts[vm.GENERAL_NATIVE_TOKEN].Address()
 	code := evmState.GetCode(contractAddr)
 	if len(code) == 0 {

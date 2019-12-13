@@ -2942,15 +2942,8 @@ func TestPayNativeTokenAsGasContractAPI(t *testing.T) {
 
 	evmState := shardState.currentEvmState
 	evmState.SetQuarkChainConfig(env1.clusterConfig.Quarkchain)
-	//# contract not deployed yet
-	ctx := vm.Context{
-		CanTransfer:     CanTransfer,
-		Transfer:        Transfer,
-		TransferTokenID: shardState.GetGenesisToken(),
-		BlockNumber:     new(big.Int),
-	}
-	st := &StateTransition{evm: vm.NewEVM(ctx, evmState, shardState.ethChainConfig, vm.Config{})}
 	tokenID := uint64(123)
+	//# contract not deployed yet
 	refundPercentage, gasPrice, err := GetGasUtilityInfo(evmState, shardState.ethChainConfig, tokenID, new(big.Int).SetUint64(1))
 	assert.Equal(t, ErrContractNotFound, err)
 	assert.Equal(t, 0, int(refundPercentage))
@@ -2971,8 +2964,16 @@ func TestPayNativeTokenAsGasContractAPI(t *testing.T) {
 	evmState.SetState(contractAddr, common.BigToHash(big.NewInt(4)), common.BigToHash(big.NewInt(1)))
 	_, err = evmState.Commit(true)
 	assert.NoError(t, err)
+
+	ctx := vm.Context{
+		CanTransfer:     CanTransfer,
+		Transfer:        Transfer,
+		TransferTokenID: shardState.GetGenesisToken(),
+		BlockNumber:     new(big.Int),
+	}
+	evm := vm.NewEVM(ctx, evmState, shardState.ethChainConfig, vm.Config{})
 	call := func(data string, value *big.Int) ([]byte, error) {
-		ret, _, err := st.evm.Call(vm.AccountRef(acc1.Recipient), contractAddr, common.Hex2Bytes(data), 1000000, value)
+		ret, _, err := evm.Call(vm.AccountRef(acc1.Recipient), contractAddr, common.Hex2Bytes(data), 1000000, value)
 		return ret, err
 	}
 	toStr := func(input uint64) string {
@@ -2985,12 +2986,12 @@ func TestPayNativeTokenAsGasContractAPI(t *testing.T) {
 	_, err = call("735e0e19"+formattedTokenID+toStr(1)+toStr(30000), big.NewInt(supply))
 	assert.Error(t, err)
 	// # register and re-propose, should succeed
-	tk := st.evm.TransferTokenID
-	st.evm.TransferTokenID = tokenID
-	st.evm.StateDB.AddBalance(acc1.Recipient, new(big.Int).SetUint64(1), tokenID)
+	tk := evm.TransferTokenID
+	evm.TransferTokenID = tokenID
+	evm.StateDB.AddBalance(acc1.Recipient, new(big.Int).SetUint64(1), tokenID)
 	_, err = call("bf03314a", new(big.Int).SetUint64(1))
 	assert.NoError(t, err)
-	st.evm.TransferTokenID = tk
+	evm.TransferTokenID = tk
 	_, err = call("735e0e19"+formattedTokenID+toStr(1)+toStr(30000), big.NewInt(supply))
 	assert.NoError(t, err)
 	//# set the refund rate to 60
@@ -3016,18 +3017,131 @@ func TestPayNativeTokenAsGasContractAPI(t *testing.T) {
 	gasPriceInNativeTokenMul3Add1 := new(big.Int).Add(new(big.Int).Mul(gasPriceInNativeToken, new(big.Int).SetUint64(3)), new(big.Int).SetUint64(1))
 	assert.Equal(t, gasPriceInNativeTokenMul3Add1, new(big.Int).SetBytes(ret))
 	//# give the contract real native token and withdrawing should work
-	st.evm.StateDB.AddBalance(contractAddr, new(big.Int).Mul(gasPriceInNativeToken, new(big.Int).SetUint64(3)), tokenID)
+	evm.StateDB.AddBalance(contractAddr, new(big.Int).Mul(gasPriceInNativeToken, new(big.Int).SetUint64(3)), tokenID)
 	//withdraw_native_token
 	_, err = call("f9c94eb7"+formattedTokenID, new(big.Int))
 	assert.NoError(t, err)
-	suBalance := st.evm.StateDB.GetBalance(acc1.Recipient, tokenID)
+	suBalance := evm.StateDB.GetBalance(acc1.Recipient, tokenID)
 	assert.Equal(t, gasPriceInNativeTokenMul3Add1, suBalance)
-	coBalance := st.evm.StateDB.GetBalance(contractAddr, tokenID)
+	coBalance := evm.StateDB.GetBalance(contractAddr, tokenID)
 	assert.Equal(t, 0, int(coBalance.Uint64()))
 	//# check again the balance of native token.
 	ret, err = call("21a2b36e"+formattedTokenID+strings.Repeat("0", 24)+common.Bytes2Hex(acc1.Recipient.Bytes()), new(big.Int))
 	assert.NoError(t, err)
 	assert.Equal(t, 0, int(new(big.Int).SetBytes(ret).Uint64()))
+}
+
+func TestPayNativeTokenAsGasEndToEnd(t *testing.T) {
+	//TODO remove skip
+	t.Skip("wait for ApplyTransaction update checked in.")
+	id1, err := account.CreatRandomIdentity()
+	assert.NoError(t, err)
+	acc1 := account.CreatAddressFromIdentity(id1, 0)
+	shardSize := uint32(2)
+	shardId0 := uint32(0)
+	env1 := setUp(&acc1, nil, &shardSize)
+	ids := env1.clusterConfig.Quarkchain.GetGenesisShardIds()
+	genesisBalance := new(big.Int).Mul(big.NewInt(100), config.QuarkashToJiaozi)
+	for _, v := range ids {
+		shardConfig := env1.clusterConfig.Quarkchain.GetShardConfigByFullShardID(v)
+		balance := make(map[string]*big.Int)
+		balance[env1.clusterConfig.Quarkchain.GenesisToken] = genesisBalance
+		balance["QI"] = genesisBalance
+		alloc := config.Allocation{Balances: balance}
+		adalloc := make(map[account.Address]config.Allocation)
+		addr := acc1.AddressInShard(v)
+		adalloc[addr] = alloc
+		shardConfig.Genesis.Alloc = adalloc
+	}
+	shardState := createDefaultShardState(env1, &shardId0, nil, nil, nil)
+	defer shardState.Stop()
+
+	evmState := shardState.currentEvmState
+	accCoinbase, err := account.CreatRandomAccountWithFullShardKey(0)
+	assert.NoError(t, err)
+	evmState.SetBlockCoinbase(accCoinbase.Recipient)
+	evmState.SetQuarkChainConfig(env1.clusterConfig.Quarkchain)
+	tokenID := qkcCommon.TokenIDEncode("QI")
+	runtimeBytecode := common.Hex2Bytes(vm.GeneralNativeTokenContractBytecode)
+	runtimeStart := bytes.LastIndex(runtimeBytecode, common.Hex2Bytes("608060405260"))
+	// # get rid of the constructor argument
+	runtimeBytecode = runtimeBytecode[runtimeStart : len(runtimeBytecode)-32]
+	contractAddr := vm.SystemContracts[vm.GENERAL_NATIVE_TOKEN].Address()
+	evmState.SetCode(contractAddr, runtimeBytecode)
+	//# Set caller
+	evmState.SetState(contractAddr, common.BigToHash(big.NewInt(0)), common.BytesToHash(contractAddr.Bytes()))
+	//# Set supervisor
+	evmState.SetState(contractAddr, common.BigToHash(big.NewInt(1)), common.BytesToHash(acc1.Recipient.Bytes()))
+	//# Set min gas reserve for maintenance
+	evmState.SetState(contractAddr, common.BigToHash(big.NewInt(3)), common.BigToHash(big.NewInt(30000)))
+	//# Set min starting gas for use as gas
+	evmState.SetState(contractAddr, common.BigToHash(big.NewInt(4)), common.BigToHash(big.NewInt(1)))
+	_, err = evmState.Commit(true)
+	assert.NoError(t, err)
+
+	ctx := vm.Context{
+		CanTransfer:     CanTransfer,
+		Transfer:        Transfer,
+		TransferTokenID: shardState.GetGenesisToken(),
+		BlockNumber:     new(big.Int),
+	}
+	evm := vm.NewEVM(ctx, evmState, shardState.ethChainConfig, vm.Config{})
+	call := func(data string, value *big.Int) ([]byte, error) {
+		ret, _, err := evm.Call(vm.AccountRef(acc1.Recipient), contractAddr, common.Hex2Bytes(data), 1000000, value)
+		return ret, err
+	}
+	toStr := func(input uint64) string {
+		b := qkcCommon.Uint64To32Bytes(input)
+		return common.Bytes2Hex(b)
+	}
+	formattedTokenID := toStr(tokenID)
+	//unrequire_registered_token
+	_, err = call("764a27ef"+toStr(0), new(big.Int))
+	assert.NoError(t, err)
+	//# propose a new exchange rate (1/2) with 1 ether of QKC as reserve
+	supply := config.QuarkashToJiaozi
+	_, err = call("735e0e19"+formattedTokenID+toStr(1)+toStr(2), supply)
+	assert.NoError(t, err)
+	//# set the refund rate to 80
+	_, err = call("6d27af8c"+formattedTokenID+toStr(80), new(big.Int))
+	assert.NoError(t, err)
+
+	//# 1) craft a tx using native token for gas, with gas price as 10
+	gas := uint64(1000000)
+	gasPrice := uint64(10)
+	nonce := uint64(0)
+	tx := createTransferTransaction(shardState, id1.GetKey().Bytes(), acc1, acc1, new(big.Int), &gas, &gasPrice, &nonce,
+		nil, &tokenID, &genesisTokenID)
+	_, receipt, _, err := ApplyTransaction(shardState.ethChainConfig, shardState, new(GasPool).AddGas(shardState.GasLimit()),
+		evmState, shardState.CurrentHeader(), tx, new(uint64), *shardState.GetVMConfig())
+	assert.NoError(t, err)
+	assert.Equal(t, uint64(1), receipt.Status)
+	//# native token balance should update accordingly
+	b := evmState.GetBalance(acc1.Recipient, tokenID)
+	assert.Equal(t, new(big.Int).Sub(genesisBalance, new(big.Int).SetUint64(gas*gasPrice)), b)
+	b = evmState.GetBalance(contractAddr, tokenID)
+	assert.Equal(t, new(big.Int).SetUint64(gas*gasPrice), b)
+	ret, err := call("21a2b36e"+formattedTokenID+strings.Repeat("0", 24)+common.Bytes2Hex(acc1.Recipient.Bytes()), new(big.Int))
+	assert.NoError(t, err)
+	assert.Equal(t, new(big.Int).SetUint64(gas*gasPrice), new(big.Int).SetBytes(ret))
+	//# qkc balance should update accordingly:
+	//# should have 100 ether - 1 ether + refund
+	senderBalance := new(big.Int).Add(new(big.Int).Sub(genesisBalance, supply), new(big.Int).SetUint64((gas-21000)*(gasPrice/2)*8/10))
+	assert.Equal(t, senderBalance, evmState.GetBalance(acc1.Recipient, genesisTokenID))
+	contractRemainingQKC := new(big.Int).Sub(supply, new(big.Int).SetUint64(gas*(gasPrice/2)))
+	assert.Equal(t, contractRemainingQKC, evmState.GetBalance(contractAddr, genesisTokenID))
+	//query_gas_reserve_balance
+	ret, err = call("13dee215"+formattedTokenID+strings.Repeat("0", 24)+common.Bytes2Hex(acc1.Recipient.Bytes()), new(big.Int))
+	assert.NoError(t, err)
+	assert.Equal(t, contractRemainingQKC, new(big.Int).SetBytes(ret))
+	//# burned QKC for gas conversion
+	assert.Equal(t, new(big.Int).SetUint64((gas-21000)*(gasPrice/2)*2/10), evmState.GetBalance(common.BytesToAddress([]byte{0}), genesisTokenID))
+	//# miner fee with 50% tax
+	assert.Equal(t, new(big.Int).SetUint64(21000*(gasPrice/2)/2), evmState.GetBalance(accCoinbase.Recipient, genesisTokenID))
+	//# 2) craft a tx that will use up gas reserve, should fail validation
+	gasPrice = 2000000000000
+	tx = createTransferTransaction(shardState, id1.GetKey().Bytes(), acc1, acc1, new(big.Int), &gas, &gasPrice, &nonce, nil, &tokenID, &genesisTokenID)
+	assert.Error(t, ValidateTransaction(evmState, tx, &acc1))
 }
 
 func TestMintNewNativeToken(t *testing.T) {
