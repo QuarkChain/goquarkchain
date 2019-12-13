@@ -583,25 +583,6 @@ func (t *TransactionsByPriceAndNonce) Pop() {
 	heap.Pop(&t.heads)
 }
 
-type CrossShardTransactionDeposit struct {
-	TxHash          common.Hash
-	From            account.Address
-	To              account.Address
-	Value           *serialize.Uint256
-	GasPrice        *serialize.Uint256
-	GasTokenID      uint64
-	TransferTokenID uint64
-	IsFromRootChain bool
-	GasRemained     *serialize.Uint256
-	MessageData     []byte `bytesizeofslicelen:"4"`
-	CreateContract  bool
-	RefundRate      uint8
-}
-
-type CrossShardTransactionDepositList struct {
-	TXList []*CrossShardTransactionDeposit `bytesizeofslicelen:"4"`
-}
-
 // Message is a fully derived transaction and implements core.Message
 //
 // NOTE: In a future PR this will be removed.
