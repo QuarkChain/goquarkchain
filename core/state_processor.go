@@ -23,6 +23,7 @@ import (
 	"math/big"
 
 	"github.com/QuarkChain/goquarkchain/account"
+	qkcCmn "github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/core/state"
 	"github.com/QuarkChain/goquarkchain/core/types"
@@ -315,4 +316,48 @@ func ApplyCrossShardDeposit(config *params.ChainConfig, bc ChainContext, header 
 		return receipt, nil
 	}
 	return nil, nil
+}
+
+func PayNativeTokenAsGas(evmState vm.StateDB, config *params.ChainConfig, tokenID, gas uint64,
+	gasPriceInNativeToken *big.Int) (uint8, *big.Int, error) {
+
+	//# Call the `payAsGas` function
+	data := common.Hex2Bytes("5ae8f7f1")
+	data = append(data, qkcCmn.EncodeToByte32(tokenID)...)
+	data = append(data, qkcCmn.EncodeToByte32(gas)...)
+	data = append(data, qkcCmn.EncodeToByte32(gasPriceInNativeToken.Uint64())...)
+	return callGeneralNativeTokenManager(evmState, config, data)
+}
+
+func GetGasUtilityInfo(evmState vm.StateDB, config *params.ChainConfig, tokenID uint64,
+	gasPriceInNativeToken *big.Int) (uint8, *big.Int, error) {
+
+	//# Call the `calculateGasPrice` function
+	data := common.Hex2Bytes("ce9e8c47")
+	data = append(data, qkcCmn.EncodeToByte32(tokenID)...)
+	data = append(data, qkcCmn.EncodeToByte32(gasPriceInNativeToken.Uint64())...)
+	return callGeneralNativeTokenManager(evmState, config, data)
+}
+
+func callGeneralNativeTokenManager(evmState vm.StateDB, config *params.ChainConfig, data []byte) (uint8, *big.Int, error) {
+	contractAddr := vm.SystemContracts[vm.GENERAL_NATIVE_TOKEN].Address()
+	code := evmState.GetCode(contractAddr)
+	if len(code) == 0 {
+		return 0, nil, ErrContractNotFound
+	}
+	ctx := vm.Context{
+		CanTransfer: CanTransfer,
+		Transfer:    Transfer,
+		BlockNumber: new(big.Int).SetUint64(evmState.GetBlockNumber()),
+	}
+	evm := vm.NewEVM(ctx, evmState, config, vm.Config{})
+	//# Only contract itself can invoke payment
+	sender := vm.AccountRef(contractAddr)
+	ret, _, err := evm.Call(&sender, contractAddr, data, 1000000, new(big.Int))
+	if err != nil {
+		return 0, nil, err
+	}
+	refundRate := int(ret[31])
+	convertedGasPrice := new(big.Int).SetBytes(ret[32:64])
+	return uint8(refundRate), convertedGasPrice, nil
 }
