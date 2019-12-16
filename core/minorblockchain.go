@@ -280,9 +280,6 @@ func (m *MinorBlockChain) loadLastState() error {
 	if _, err := m.StateAt(currentBlock.GetMetaData().Root); err != nil {
 		// Dangling block without a state associated, init from scratch
 		log.Warn("Head state missing, repairing chain", "number", currentBlock.NumberU64(), "hash", currentBlock.Hash())
-		//if err := m.repair(&currentBlock); err != nil {
-		//	return err
-		//}
 	}
 	// Everything seems to be fine, set as the head block
 	m.currentBlock.Store(currentBlock)
@@ -462,28 +459,6 @@ func (m *MinorBlockChain) ResetWithGenesisBlock(genesis *types.MinorBlock) error
 	m.currentBlock.Store(m.genesisBlock)
 
 	return nil
-}
-
-// repair tries to repair the current blockchain by rolling back the current block
-// until one with associated state is found. This is needed to fix incomplete db
-// writes caused either by crashes/power outages, or simply non-committed tries.
-//
-// This method only rolls back the current block. The current header and current
-// fast block are left intact.
-func (m *MinorBlockChain) repair(head **types.MinorBlock) error {
-	for {
-		// Abort if we've rewound to a head block that does have associated state
-		if _, err := m.StateAt((*head).Root()); err == nil {
-			log.Info("Rewound blockchain to past state", "number", (*head).Number(), "hash", (*head).Hash())
-			return nil
-		}
-		// Otherwise rewind one block and recheck state availability there
-		block := m.GetBlock((*head).ParentHash())
-		if qkcCommon.IsNil(block) {
-			return fmt.Errorf("missing block %d [%x]", (*head).NumberU64()-1, (*head).ParentHash())
-		}
-		(*head) = block.(*types.MinorBlock)
-	}
 }
 
 // Export writes the active chain to the given writer.

@@ -42,7 +42,7 @@ const (
 	receiptsCacheLimit        = 32
 	maxFutureBlocks           = 32
 	maxTimeFutureBlocks       = 30
-	triesInMemory             = 128
+	triesInMemory             = 256
 	validatedMinorBlockHashes = 128
 )
 
