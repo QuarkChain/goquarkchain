@@ -10,8 +10,12 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestReadV0(t *testing.T) {
-	c0 := CrossShardTransactionDepositListV0{
+type crossShardTransactionDepositListV0ForTest struct {
+	TXList []*CrossShardTransactionDepositV0 `bytesizeofslicelen:"4"`
+}
+
+func TestReadCrossShardTransactionDepositListV0(t *testing.T) {
+	c0 := crossShardTransactionDepositListV0ForTest{
 		TXList: make([]*CrossShardTransactionDepositV0, 0),
 	}
 	for index := uint64(0); index < 100; index++ {
@@ -41,7 +45,7 @@ func TestReadV0(t *testing.T) {
 	data, err := serialize.SerializeToBytes(c0)
 	assert.NoError(t, err)
 
-	d0 := new(CrossShardTransactionDepositListV0)
+	d0 := new(crossShardTransactionDepositListV0ForTest)
 	err = serialize.DeserializeFromBytes(data, d0)
 	assert.NoError(t, err)
 	for k, v := range c0.TXList {
@@ -77,7 +81,7 @@ func TestReadV0(t *testing.T) {
 	}
 }
 
-func TestReadVCurrent(t *testing.T) {
+func TestReadCrossShardTransactionDepositList(t *testing.T) {
 	c1 := NewCrossShardTransactionDepositList(nil)
 	for index := uint64(0); index < 100; index++ {
 		u256 := new(serialize.Uint256)

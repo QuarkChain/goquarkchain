@@ -8,6 +8,8 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 )
 
+const MaxUint24 = uint32(1<<24 - 1)
+
 type CrossShardTransactionDepositV0 struct {
 	TxHash          common.Hash
 	From            account.Address
@@ -25,10 +27,6 @@ type CrossShardTransactionDepositV0 struct {
 type CrossShardTransactionDeposit struct {
 	CrossShardTransactionDepositV0
 	RefundRate uint8
-}
-
-type CrossShardTransactionDepositListV0 struct {
-	TXList []*CrossShardTransactionDepositV0 `bytesizeofslicelen:"4"`
 }
 
 type crossShardTransactionDepositListV1 struct {
@@ -65,8 +63,7 @@ func (c *CrossShardTransactionDepositList) Deserialize(bb *serialize.ByteBuffer)
 		return err
 	}
 	version := size >> 24
-	size = size << 8
-	size = size >> 8
+	size = size & MaxUint24
 	txList := make([]*CrossShardTransactionDeposit, size)
 	switch version {
 	case 0:
