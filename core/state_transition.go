@@ -265,6 +265,11 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 }
 
 func (st *StateTransition) refund(total *big.Int) {
+	if st.msg.RefundRate() == 100 {
+		st.state.AddBalance(st.msg.From(), total, st.msg.GasTokenID())
+		return
+	}
+
 	bigIntMulUint8 := func(data *big.Int, u uint8) *big.Int {
 		return new(big.Int).Mul(data, new(big.Int).SetUint64(uint64(u)))
 	}
