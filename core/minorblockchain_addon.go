@@ -362,7 +362,7 @@ func (m *MinorBlockChain) putConfirmedCrossShardTransactionDepositList(hash comm
 	if !m.clusterConfig.EnableTransactionHistory {
 		return nil
 	}
-	data := types.CrossShardTransactionDepositList{TXList: xShardReceiveTxList}
+	data := &types.CrossShardTransactionDepositList{TXList: xShardReceiveTxList}
 	rawdb.WriteConfirmedCrossShardTxList(m.db, hash, data)
 	return nil
 }
@@ -828,7 +828,7 @@ func (m *MinorBlockChain) CreateBlockToMine(createTime *uint64, address *account
 
 // AddCrossShardTxListByMinorBlockHash add crossShardTxList by slave
 func (m *MinorBlockChain) AddCrossShardTxListByMinorBlockHash(h common.Hash, txList types.CrossShardTransactionDepositList) {
-	rawdb.WriteCrossShardTxList(m.db, h, txList)
+	rawdb.WriteCrossShardTxList(m.db, h, &txList)
 }
 
 // AddRootBlock add root block for minorBlockChain
