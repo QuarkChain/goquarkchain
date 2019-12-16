@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"math/big"
 	"sort"
 
@@ -113,10 +114,10 @@ type QuarkChainConfig struct {
 	chainIdToShardIds                 map[uint32][]uint32
 	defaultChainTokenID               uint64
 	allowTokenIDs                     map[uint64]bool
-	EnableEvmTimeStamp                uint64 `json:"ENABLE_EVM_TIMESTAMP"`
-	EnableQkcHashXHeight              uint64 `json:"ENABLE_QKCHASHX_HEIGHT"`
-	EnableMntAuctionTimestamp         *uint64
-	EnableGeneralNativeTokenTimestamp *uint64
+	EnableEvmTimeStamp                uint64      `json:"ENABLE_EVM_TIMESTAMP"`
+	EnableQkcHashXHeight              uint64      `json:"ENABLE_QKCHASHX_HEIGHT"`
+	EnableMntAuctionTimestamp         uint64      `json:"ENABLE_MNT_AUCTION_TIMESTAMP"`
+	EnableGeneralNativeTokenTimestamp uint64      `json:"ENABLE_GENERAL_NATIVE_TOKEN_TIMESTAMP"`
 	DisablePowCheck                   bool        `json:"DISABLE_POW_CHECK"`
 	XShardGasDDOSFixRootHeight        uint64      `json:"XSHARD_GAS_DDOS_FIX_ROOT_HEIGHT"`
 	MinTXPoolGasPrice                 *big.Int    `json:"MIN_TX_POOL_GAS_PRICE"`
@@ -380,6 +381,8 @@ func NewQuarkChainConfig() *QuarkChainConfig {
 		GRPCHost:                          grpchost,
 		GRPCPort:                          DefaultGrpcPort,
 		EnableEvmTimeStamp:                1569567600,
+		EnableMntAuctionTimestamp:         math.MaxUint64,
+		EnableGeneralNativeTokenTimestamp: math.MaxUint64,
 		RootChainPoSWContractBytecodeHash: ethcom.HexToHash("0000000000000000000000000000000000000000000000000000000000000000"),
 	}
 
