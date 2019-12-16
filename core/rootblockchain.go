@@ -427,8 +427,6 @@ func (bc *RootBlockChain) Rollback(chain []common.Hash) {
 	}
 }
 
-var lastWrite uint64
-
 // WriteBlockWithoutState writes only the block and its metadata to the database,
 // but does not write any state. This is used to construct competing side forks
 // up to the point where they exceed the canonical total difficulty.
@@ -579,11 +577,9 @@ func (bc *RootBlockChain) insertChain(chain []types.IBlock, verifySeals bool) (i
 		headers[i] = block.IHeader()
 		seals[i] = verifySeals
 	}
-	abort, results := bc.engine.VerifyHeaders(bc, headers, seals)
-	defer close(abort)
 
 	// Peek the error for the first block to decide the directing import logic
-	it := newInsertIterator(chain, results, bc.Validator(), bc.isCheckDB)
+	it := newInsertIterator(chain, bc.Validator(), bc.isCheckDB)
 
 	block, err := it.next()
 	switch {

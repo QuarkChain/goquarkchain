@@ -49,6 +49,7 @@ var (
 		utils.BootnodesFlag,
 		utils.UpnpFlag,
 		utils.PrivkeyFlag,
+		utils.GCModeFlag,
 	}
 
 	rpcFlags = []cli.Flag{
