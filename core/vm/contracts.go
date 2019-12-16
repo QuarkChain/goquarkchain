@@ -54,15 +54,15 @@ var (
 		{
 			address:   common.HexToAddress(rootChainPoSWContractAddr),
 			bytecode:  common.Hex2Bytes(RootChainPoSWContractBytecode),
-			timestamp: new(uint64),
+			timestamp: 0,
 		}, {
 			address:   common.HexToAddress(NonReservedNativeTokenContractAddr),
 			bytecode:  common.Hex2Bytes(NonReservedNativeTokenContractBytecode),
-			timestamp: nil,
+			timestamp: math2.MaxUint64,
 		}, {
 			address:   common.HexToAddress(generalNativeTokenContractAddr),
 			bytecode:  common.Hex2Bytes(GeneralNativeTokenContractBytecode),
-			timestamp: nil,
+			timestamp: math2.MaxUint64,
 		},
 	}
 )
@@ -76,14 +76,14 @@ const (
 type SystemContract struct {
 	address   common.Address
 	bytecode  []byte
-	timestamp *uint64
+	timestamp uint64
 }
 
 func (s *SystemContract) Address() common.Address {
 	return s.address
 }
 
-func (s *SystemContract) SetTimestamp(timestamp *uint64) {
+func (s *SystemContract) SetTimestamp(timestamp uint64) {
 	s.timestamp = timestamp
 }
 
@@ -600,7 +600,7 @@ func (r *deploySystemContract) Run(input []byte, evm *EVM, contract *Contract) (
 	targetAddr := SystemContracts[contractIndex].Address()
 	bytecode := SystemContracts[contractIndex].bytecode
 	ts := SystemContracts[contractIndex].timestamp
-	if ts == nil || evm.Time.Uint64() < *ts {
+	if evm.Time.Uint64() < ts {
 		contract.Gas = 0
 		return nil, ErrTimestampNotMatch
 	}
