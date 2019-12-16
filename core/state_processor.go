@@ -187,29 +187,30 @@ func ValidateTransaction(state vm.StateDB, chainConfig *params.ChainConfig, tx *
 func ApplyTransaction(config *params.ChainConfig, bc ChainContext, gp *GasPool, statedb *state.StateDB, header types.IHeader, tx *types.Transaction, usedGas *uint64, cfg vm.Config) ([]byte, *types.Receipt, uint64, error) {
 	statedbGensisToken := statedb.GetQuarkChainConfig().GetDefaultChainTokenID()
 	gasPrice, refundRate := tx.EvmTx.GasPrice(), uint8(100)
-	convertedGenesisTokenGasPeice := new(big.Int)
+	convertedGenesisTokenGasPrice := new(big.Int)
 
 	var err error
 
 	if tx.EvmTx.GasTokenID() != statedbGensisToken {
-		refundRate, convertedGenesisTokenGasPeice, err = PayNativeTokenAsGas(statedb, config, tx.EvmTx.GasTokenID(), tx.EvmTx.Gas(), tx.EvmTx.GasPrice())
-		if convertedGenesisTokenGasPeice.Cmp(new(big.Int).SetUint64(0)) <= 0 {
-			return nil, nil, 0, fmt.Errorf("convertedGenesisTokenGasPeice %v shoud >0", convertedGenesisTokenGasPeice)
+		refundRate, convertedGenesisTokenGasPrice, err = PayNativeTokenAsGas(statedb, config, tx.EvmTx.GasTokenID(), tx.EvmTx.Gas(), tx.EvmTx.GasPrice())
+		if convertedGenesisTokenGasPrice.Cmp(common.Big0) <= 0 {
+			return nil, nil, 0, fmt.Errorf("convertedGenesisTokenGasPeice %v shoud >0", convertedGenesisTokenGasPrice)
 		}
-		gasPrice = convertedGenesisTokenGasPeice
+		gasPrice = convertedGenesisTokenGasPrice
 		contractAddr := vm.SystemContracts[vm.GENERAL_NATIVE_TOKEN].Address()
 
 		contractBal := statedb.GetBalance(contractAddr, statedbGensisToken)
-		txGasBal := new(big.Int).Mul(new(big.Int).SetUint64(tx.EvmTx.Gas()), convertedGenesisTokenGasPeice)
+		txGasLimit := new(big.Int).SetUint64(tx.EvmTx.Gas())
+		txGasBal := new(big.Int).Mul(txGasLimit, convertedGenesisTokenGasPrice)
 		if contractBal.Cmp(txGasBal) < 0 {
 			return nil, nil, 0, fmt.Errorf("contract balance:%v < tx gas balance:%v", contractBal, txGasBal)
 		}
 
-		statedb.SubBalance(contractAddr, new(big.Int).Mul(new(big.Int).SetUint64(tx.EvmTx.Gas()), convertedGenesisTokenGasPeice), statedbGensisToken)
-		statedb.AddBalance(contractAddr, new(big.Int).Mul(new(big.Int).SetUint64(tx.EvmTx.Gas()), tx.EvmTx.GasPrice()), tx.EvmTx.GasTokenID())
+		statedb.SubBalance(contractAddr, new(big.Int).Mul(txGasLimit, convertedGenesisTokenGasPrice), statedbGensisToken)
+		statedb.AddBalance(contractAddr, new(big.Int).Mul(txGasLimit, tx.EvmTx.GasPrice()), tx.EvmTx.GasTokenID())
 	}
 	statedb.SetFullShardKey(tx.EvmTx.ToFullShardKey())
-	msg, err := tx.EvmTx.AsMessage(types.NewEIP155Signer(tx.EvmTx.NetworkId()), tx.Hash(), gasPrice, statedbGensisToken, refundRate)
+	msg, err := tx.EvmTx.AsMessage(types.MakeSigner(tx.EvmTx.NetworkId()), tx.Hash(), gasPrice, statedbGensisToken, refundRate)
 	if err != nil {
 		return nil, nil, 0, err
 	}

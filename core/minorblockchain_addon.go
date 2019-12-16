@@ -232,7 +232,7 @@ func (m *MinorBlockChain) validateTx(tx *types.Transaction, evmState *state.Stat
 		return tx, nil
 	}
 	evmState.SetQuarkChainConfig(m.clusterConfig.Quarkchain)
-	if err := ValidateTransaction(evmState, m.ethChainConfig, tx, fromAddress); err != nil {
+	if err := ValidateTransaction(evmState, m.ChainConfig(), tx, fromAddress); err != nil {
 		return nil, err
 	}
 	return tx, nil
@@ -575,7 +575,7 @@ func (m *MinorBlockChain) ExecuteTx(tx *types.Transaction, fromAddress *account.
 	}
 	gp := new(GasPool).AddGas(mBlock.GasLimit().Uint64())
 	gasUsed := new(uint64)
-	ret, _, _, err := ApplyTransaction(m.ethChainConfig, m, gp, state, m.CurrentHeader(), evmTx, gasUsed, *m.GetVMConfig())
+	ret, _, _, err := ApplyTransaction(m.ChainConfig(), m, gp, state, m.CurrentHeader(), evmTx, gasUsed, *m.GetVMConfig())
 	return ret, err
 
 }
@@ -691,7 +691,7 @@ func (m *MinorBlockChain) addTransactionToBlock(block *types.MinorBlock, evmStat
 
 		}
 		stateT.Prepare(tx.Hash(), block.Hash(), txIndex)
-		_, receipt, _, err := ApplyTransaction(m.ethChainConfig, m, gp, stateT, block.IHeader().(*types.MinorBlockHeader), tx, usedGas, *m.GetVMConfig())
+		_, receipt, _, err := ApplyTransaction(m.ChainConfig(), m, gp, stateT, block.IHeader().(*types.MinorBlockHeader), tx, usedGas, *m.GetVMConfig())
 		switch err {
 		case ErrGasLimitReached:
 			txs.Pop()
@@ -1103,7 +1103,7 @@ func (m *MinorBlockChain) EstimateGas(tx *types.Transaction, fromAddress account
 
 		gp := new(GasPool).AddGas(evmState.GetGasLimit().Uint64())
 		gasUsed := new(uint64)
-		_, _, _, err = ApplyTransaction(m.ethChainConfig, m, gp, evmState, m.CurrentHeader(), evmTx, gasUsed, m.vmConfig)
+		_, _, _, err = ApplyTransaction(m.ChainConfig(), m, gp, evmState, m.CurrentHeader(), evmTx, gasUsed, m.vmConfig)
 		return err
 	}
 
@@ -1615,7 +1615,7 @@ func (m *MinorBlockChain) RunCrossShardTxWithCursor(evmState *state.StateDB,
 		}
 		checkIsFromRootChain := cursor.rBlock.Header().NumberU64() >= m.clusterConfig.Quarkchain.XShardGasDDOSFixRootHeight
 		txIndex := 0
-		receipt, err := ApplyCrossShardDeposit(m.ethChainConfig, m, mBlock.Header(),
+		receipt, err := ApplyCrossShardDeposit(m.ChainConfig(), m, mBlock.Header(),
 			*m.GetVMConfig(), evmState, xShardDepositTx, gasUsed, checkIsFromRootChain, txIndex)
 		if err != nil {
 			return nil, nil, nil, err

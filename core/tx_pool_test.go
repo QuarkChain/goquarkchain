@@ -85,6 +85,7 @@ func (bc *testBlockChain) Config() *config.QuarkChainConfig {
 func (bc *testBlockChain) ChainConfig() *params.ChainConfig {
 	return nil
 }
+
 func (m *testBlockChain) validateTx(tx *types.Transaction, evmState *state.StateDB, fromAddress *account.Address, gas, xShardGas *uint64) (*types.Transaction, error) {
 	return tx, nil
 }
