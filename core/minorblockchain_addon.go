@@ -232,7 +232,7 @@ func (m *MinorBlockChain) validateTx(tx *types.Transaction, evmState *state.Stat
 		return tx, nil
 	}
 	evmState.SetQuarkChainConfig(m.clusterConfig.Quarkchain)
-	if err := ValidateTransaction(evmState, tx, fromAddress); err != nil {
+	if err := ValidateTransaction(evmState, m.ethChainConfig, tx, fromAddress); err != nil {
 		return nil, err
 	}
 	return tx, nil

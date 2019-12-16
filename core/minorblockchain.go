@@ -1604,6 +1604,8 @@ func (m *MinorBlockChain) GetHeaderByNumber(number uint64) types.IHeader {
 // Config retrieves the blockchain's chain configuration.
 func (m *MinorBlockChain) Config() *config.QuarkChainConfig { return m.clusterConfig.Quarkchain }
 
+func (m *MinorBlockChain) ChainConfig() *params.ChainConfig { return m.ethChainConfig }
+
 // Engine retrieves the blockchain's consensus engine.
 func (m *MinorBlockChain) Engine() consensus.Engine { return m.engine }
 

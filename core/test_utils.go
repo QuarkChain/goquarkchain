@@ -114,11 +114,15 @@ func getTestEnv(genesisAccount *account.Address, genesisMinorQuarkHash *uint64, 
 		shardConfig := fakeClusterConfig.Quarkchain.GetShardConfigByFullShardID(v)
 
 		if addContractAddrBalance {
-			generalNativeTokenAddr := account.Address{} //TODO use real addr
+			generalNativeTokenAddr := vm.SystemContracts[vm.GENERAL_NATIVE_TOKEN].Address()
 			temp := make(map[string]*big.Int)
 			temp["QKC"] = new(big.Int).Set(qParam.DenomsValue.Ether)
 			alloc := config.Allocation{Balances: temp}
-			shardConfig.Genesis.Alloc[generalNativeTokenAddr] = alloc
+			addr1 := &account.Address{
+				Recipient:    generalNativeTokenAddr,
+				FullShardKey: 0,
+			}
+			shardConfig.Genesis.Alloc[addr1.AddressInShard(v)] = alloc
 		}
 
 		if len(testGenesisMinorTokenBalance) != 0 {

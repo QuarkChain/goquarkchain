@@ -12,8 +12,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/QuarkChain/goquarkchain/core/state"
-
+	"bou.ke/monkey"
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	qkcCommon "github.com/QuarkChain/goquarkchain/common"
@@ -91,6 +90,10 @@ func TestInitGenesisState(t *testing.T) {
 }
 
 func TestGasPrice(t *testing.T) {
+	monkey.Patch(PayNativeTokenAsGas, func(a vm.StateDB, b *ethParams.ChainConfig, c uint64, d uint64, gasPrice *big.Int) (uint8, *big.Int, error) {
+		return 100, gasPrice, nil
+	})
+	defer monkey.UnpatchAll()
 	addContractAddrBalance = true
 	defer func() {
 		addContractAddrBalance = false
@@ -3147,7 +3150,7 @@ func TestPayNativeTokenAsGasEndToEnd(t *testing.T) {
 	//# 2) craft a tx that will use up gas reserve, should fail validation
 	gasPrice = 2000000000000
 	tx = createTransferTransaction(shardState, id1.GetKey().Bytes(), acc1, acc1, new(big.Int), &gas, &gasPrice, &nonce, nil, &tokenID, &genesisTokenID)
-	assert.Error(t, ValidateTransaction(evmState, tx, &acc1))
+	assert.Error(t, ValidateTransaction(evmState, shardState.ethChainConfig, tx, &acc1))
 }
 
 func TestMintNewNativeToken(t *testing.T) {
@@ -3169,7 +3172,6 @@ func TestMintNewNativeToken(t *testing.T) {
 		adalloc[addr] = alloc
 		shardConfig.Genesis.Alloc = adalloc
 	}
-	env1.clusterConfig.Quarkchain.SetAllowedToken()
 	shardState := createDefaultShardState(env1, &shardId0, nil, nil, nil)
 	defer shardState.Stop()
 
