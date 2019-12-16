@@ -77,6 +77,9 @@ func makeConfigNode(ctx *cli.Context) (*service.Node, qkcConfig) {
 	if cfg.Cluster.Quarkchain.EnableMntAuctionTimestamp != nil {
 		vm.SystemContracts[vm.NON_RESERVED_NATIVE_TOKEN].SetTimestamp(cfg.Cluster.Quarkchain.EnableMntAuctionTimestamp)
 	}
+	if cfg.Cluster.Quarkchain.EnableGeneralNativeTokenTimestamp != nil {
+		vm.SystemContracts[vm.GENERAL_NATIVE_TOKEN].SetTimestamp(cfg.Cluster.Quarkchain.EnableGeneralNativeTokenTimestamp)
+	}
 
 	// Load cluster config file.
 	if file := ctx.GlobalString(ClusterConfigFlag.Name); file != "" {

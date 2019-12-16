@@ -30,4 +30,5 @@ var (
 	ErrPoSWSenderNotAllowed       = errors.New("sender not allowed due to PoSW")
 	ErrInvalidSystemContractIndex = errors.New("invalid system contract index")
 	ErrMintZeroAmountMNT          = errors.New("mint 0 amount MNT")
+	ErrTimestampNotMatch          = errors.New("timestamp not match")
 )

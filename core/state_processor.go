@@ -23,6 +23,7 @@ import (
 	"math/big"
 
 	"github.com/QuarkChain/goquarkchain/account"
+	qkcCmn "github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/core/state"
 	"github.com/QuarkChain/goquarkchain/core/types"
@@ -98,7 +99,7 @@ func (p *StateProcessor) Process(block *types.MinorBlock, statedb *state.StateDB
 }
 
 // ValidateTransaction validateTx before applyTx
-func ValidateTransaction(state vm.StateDB, tx *types.Transaction, fromAddress *account.Address) error {
+func ValidateTransaction(state vm.StateDB, chainConfig *params.ChainConfig, tx *types.Transaction, fromAddress *account.Address) error {
 	from := new(account.Recipient)
 	if fromAddress == nil {
 		tempFrom, err := tx.Sender(types.MakeSigner(tx.EvmTx.NetworkId()))
@@ -156,13 +157,16 @@ func ValidateTransaction(state vm.StateDB, tx *types.Transaction, fromAddress *a
 
 	if tx.EvmTx.GasPrice().Cmp(common.Big0) != 0 && tx.EvmTx.GasTokenID() != defaultChainToken {
 		snapshot := state.Snapshot()
-		_, gengisTokenGasPrice := PayNativeTokenAsGas(state, tx.EvmTx.GasTokenID(), tx.EvmTx.Gas(), tx.EvmTx.GasPrice())
+		_, gengisTokenGasPrice, err := PayNativeTokenAsGas(state, chainConfig, tx.EvmTx.GasTokenID(), tx.EvmTx.Gas(), tx.EvmTx.GasPrice())
+		if err != nil {
+			return err
+		}
 		state.RevertToSnapshot(snapshot)
 
 		if gengisTokenGasPrice.Cmp(common.Big0) == 0 {
 			return fmt.Errorf("{%v}: non-default gas token {%v} not ready for being used to pay gas", tx.Hash().String(), tx.EvmTx.GasTokenID())
 		}
-		balGasReserve := state.GetBalance(GetContralcAdd(), defaultChainToken)
+		balGasReserve := state.GetBalance(vm.SystemContracts[vm.GENERAL_NATIVE_TOKEN].Address(), defaultChainToken)
 
 		if balGasReserve.Cmp(new(big.Int).Mul(gengisTokenGasPrice, new(big.Int).SetUint64(tx.EvmTx.Gas()))) < 0 {
 			return fmt.Errorf("{%v}: non-default gas token {%v} not enough reserve balance for conversion", tx.Hash().String(), tx.EvmTx.GasTokenID())
@@ -179,27 +183,21 @@ func ValidateTransaction(state vm.StateDB, tx *types.Transaction, fromAddress *a
 	return nil
 }
 
-func PayNativeTokenAsGas(state vm.StateDB, tokenID uint64, gas uint64, gasPriceInNativeToken *big.Int) (uint8, *big.Int) {
-	return 100, gasPriceInNativeToken //TODO @DL
-}
-
-func GetContralcAdd() common.Address {
-	return common.Address{} //TODO @DL
-}
-
 // ApplyTransaction apply tx
 func ApplyTransaction(config *params.ChainConfig, bc ChainContext, gp *GasPool, statedb *state.StateDB, header types.IHeader, tx *types.Transaction, usedGas *uint64, cfg vm.Config) ([]byte, *types.Receipt, uint64, error) {
 	statedbGensisToken := statedb.GetQuarkChainConfig().GetDefaultChainTokenID()
 	gasPrice, refundRate := tx.EvmTx.GasPrice(), uint8(100)
 	convertedGenesisTokenGasPeice := new(big.Int)
 
+	var err error
+
 	if tx.EvmTx.GasTokenID() != statedbGensisToken {
-		refundRate, convertedGenesisTokenGasPeice = PayNativeTokenAsGas(statedb, tx.EvmTx.GasTokenID(), tx.EvmTx.Gas(), tx.EvmTx.GasPrice())
+		refundRate, convertedGenesisTokenGasPeice, err = PayNativeTokenAsGas(statedb, config, tx.EvmTx.GasTokenID(), tx.EvmTx.Gas(), tx.EvmTx.GasPrice())
 		if convertedGenesisTokenGasPeice.Cmp(new(big.Int).SetUint64(0)) <= 0 {
 			return nil, nil, 0, fmt.Errorf("convertedGenesisTokenGasPeice %v shoud >0", convertedGenesisTokenGasPeice)
 		}
 		gasPrice = convertedGenesisTokenGasPeice
-		contractAddr := GetContralcAdd()
+		contractAddr := vm.SystemContracts[vm.GENERAL_NATIVE_TOKEN].Address()
 
 		contractBal := statedb.GetBalance(contractAddr, statedbGensisToken)
 		txGasBal := new(big.Int).Mul(new(big.Int).SetUint64(tx.EvmTx.Gas()), convertedGenesisTokenGasPeice)
@@ -315,4 +313,48 @@ func ApplyCrossShardDeposit(config *params.ChainConfig, bc ChainContext, header 
 		return receipt, nil
 	}
 	return nil, nil
+}
+
+func PayNativeTokenAsGas(evmState vm.StateDB, config *params.ChainConfig, tokenID, gas uint64,
+	gasPriceInNativeToken *big.Int) (uint8, *big.Int, error) {
+
+	//# Call the `payAsGas` function
+	data := common.Hex2Bytes("5ae8f7f1")
+	data = append(data, qkcCmn.EncodeToByte32(tokenID)...)
+	data = append(data, qkcCmn.EncodeToByte32(gas)...)
+	data = append(data, qkcCmn.EncodeToByte32(gasPriceInNativeToken.Uint64())...)
+	return callGeneralNativeTokenManager(evmState, config, data)
+}
+
+func GetGasUtilityInfo(evmState vm.StateDB, config *params.ChainConfig, tokenID uint64,
+	gasPriceInNativeToken *big.Int) (uint8, *big.Int, error) {
+
+	//# Call the `calculateGasPrice` function
+	data := common.Hex2Bytes("ce9e8c47")
+	data = append(data, qkcCmn.EncodeToByte32(tokenID)...)
+	data = append(data, qkcCmn.EncodeToByte32(gasPriceInNativeToken.Uint64())...)
+	return callGeneralNativeTokenManager(evmState, config, data)
+}
+
+func callGeneralNativeTokenManager(evmState vm.StateDB, config *params.ChainConfig, data []byte) (uint8, *big.Int, error) {
+	contractAddr := vm.SystemContracts[vm.GENERAL_NATIVE_TOKEN].Address()
+	code := evmState.GetCode(contractAddr)
+	if len(code) == 0 {
+		return 0, nil, ErrContractNotFound
+	}
+	ctx := vm.Context{
+		CanTransfer: CanTransfer,
+		Transfer:    Transfer,
+		BlockNumber: new(big.Int).SetUint64(evmState.GetBlockNumber()),
+	}
+	evm := vm.NewEVM(ctx, evmState, config, vm.Config{})
+	//# Only contract itself can invoke payment
+	sender := vm.AccountRef(contractAddr)
+	ret, _, err := evm.Call(&sender, contractAddr, data, 1000000, new(big.Int))
+	if err != nil {
+		return 0, nil, err
+	}
+	refundRate := int(ret[31])
+	convertedGasPrice := new(big.Int).SetBytes(ret[32:64])
+	return uint8(refundRate), convertedGasPrice, nil
 }
