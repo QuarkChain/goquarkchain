@@ -206,8 +206,8 @@ func ApplyTransaction(config *params.ChainConfig, bc ChainContext, gp *GasPool, 
 			return nil, nil, 0, fmt.Errorf("contract balance:%v < tx gas balance:%v", contractBal, txGasBal)
 		}
 
-		statedb.SubBalance(contractAddr, new(big.Int).Mul(new(big.Int).SetUint64(tx.EvmTx.Gas()), convertedGenesisTokenGasPrice), statedbGensisToken)
-		statedb.AddBalance(contractAddr, new(big.Int).Mul(new(big.Int).SetUint64(tx.EvmTx.Gas()), tx.EvmTx.GasPrice()), tx.EvmTx.GasTokenID())
+		statedb.SubBalance(contractAddr, new(big.Int).Mul(txGasLimit, convertedGenesisTokenGasPrice), statedbGensisToken)
+		statedb.AddBalance(contractAddr, new(big.Int).Mul(txGasLimit, tx.EvmTx.GasPrice()), tx.EvmTx.GasTokenID())
 	}
 	statedb.SetFullShardKey(tx.EvmTx.ToFullShardKey())
 	msg, err := tx.EvmTx.AsMessage(types.MakeSigner(tx.EvmTx.NetworkId()), tx.Hash(), gasPrice, statedbGensisToken, refundRate)
