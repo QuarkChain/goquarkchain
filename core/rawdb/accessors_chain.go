@@ -499,7 +499,7 @@ func ReadGenesis(db DatabaseReader, hash common.Hash) *types.MinorBlock {
 	return res
 }
 
-func WriteConfirmedCrossShardTxList(db DatabaseWriter, hash common.Hash, list types.CrossShardTransactionDepositList) {
+func WriteConfirmedCrossShardTxList(db DatabaseWriter, hash common.Hash, list *types.CrossShardTransactionDepositList) {
 	data, err := serialize.SerializeToBytes(list)
 	if err != nil {
 		log.Crit("can not serialize CrossShardTransactionDepositList")
@@ -522,7 +522,7 @@ func ReadConfirmedCrossShardTxList(db DatabaseReader, hash common.Hash) *types.C
 	return list
 }
 
-func WriteCrossShardTxList(db DatabaseWriter, hash common.Hash, list types.CrossShardTransactionDepositList) {
+func WriteCrossShardTxList(db DatabaseWriter, hash common.Hash, list *types.CrossShardTransactionDepositList) {
 	data, err := serialize.SerializeToBytes(list)
 	if err != nil {
 		log.Crit("can not serialize CrossShardTransactionDepositList")

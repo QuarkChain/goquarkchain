@@ -345,23 +345,25 @@ func (st *StateTransition) AddCrossShardTxDeposit(intrinsicGas uint64) (ret []by
 
 		fromFullShardKey := msg.FromFullShardKey()
 		crossShardData := &types.CrossShardTransactionDeposit{
-			TxHash: msg.TxHash(),
-			From: account.Address{
-				Recipient:    account.Recipient(msg.From()),
-				FullShardKey: msg.FromFullShardKey(),
+			CrossShardTransactionDepositV0: types.CrossShardTransactionDepositV0{
+				TxHash: msg.TxHash(),
+				From: account.Address{
+					Recipient:    account.Recipient(msg.From()),
+					FullShardKey: msg.FromFullShardKey(),
+				},
+				To: account.Address{
+					Recipient:    vm.CreateAddress(msg.From(), &fromFullShardKey, state.GetNonce(msg.From())),
+					FullShardKey: *msg.ToFullShardKey(),
+				},
+				Value:           crossShardValue,
+				GasTokenID:      msg.GasTokenID(),
+				TransferTokenID: msg.TransferTokenID(),
+				GasRemained:     crossShardGas,
+				GasPrice:        crossShardGasPrice,
+				MessageData:     msg.Data(),
+				CreateContract:  true,
 			},
-			To: account.Address{
-				Recipient:    vm.CreateAddress(msg.From(), &fromFullShardKey, state.GetNonce(msg.From())),
-				FullShardKey: *msg.ToFullShardKey(),
-			},
-			Value:           crossShardValue,
-			GasTokenID:      msg.GasTokenID(),
-			TransferTokenID: msg.TransferTokenID(),
-			GasRemained:     crossShardGas,
-			GasPrice:        crossShardGasPrice,
-			MessageData:     msg.Data(),
-			CreateContract:  true,
-			RefundRate:      st.msg.RefundRate(),
+			RefundRate: st.msg.RefundRate(),
 		}
 		state.AppendXShardList(crossShardData)
 		failed = false
@@ -381,24 +383,26 @@ func (st *StateTransition) AddCrossShardTxDeposit(intrinsicGas uint64) (ret []by
 		}
 
 		crossShardData := &types.CrossShardTransactionDeposit{
-			TxHash: msg.TxHash(),
-			From: account.Address{
-				Recipient:    account.Recipient(msg.From()),
-				FullShardKey: msg.FromFullShardKey(),
+			CrossShardTransactionDepositV0: types.CrossShardTransactionDepositV0{
+				TxHash: msg.TxHash(),
+				From: account.Address{
+					Recipient:    account.Recipient(msg.From()),
+					FullShardKey: msg.FromFullShardKey(),
+				},
+				To: account.Address{
+					Recipient:    account.Recipient(*msg.To()),
+					FullShardKey: *msg.ToFullShardKey(),
+				},
+				Value:      crossShardValue,
+				GasTokenID: msg.GasTokenID(),
+				//convert to genesis token and use converted gas price
+				TransferTokenID: msg.TransferTokenID(),
+				GasRemained:     crossShardGas,
+				GasPrice:        crossShardGasPrice,
+				MessageData:     msg.Data(),
+				CreateContract:  false,
 			},
-			To: account.Address{
-				Recipient:    account.Recipient(*msg.To()),
-				FullShardKey: *msg.ToFullShardKey(),
-			},
-			Value:      crossShardValue,
-			GasTokenID: msg.GasTokenID(),
-			//convert to genesis token and use converted gas price
-			TransferTokenID: msg.TransferTokenID(),
-			GasRemained:     crossShardGas,
-			GasPrice:        crossShardGasPrice,
-			MessageData:     msg.Data(),
-			CreateContract:  false,
-			RefundRate:      st.msg.RefundRate(),
+			RefundRate: st.msg.RefundRate(),
 		}
 		state.AppendXShardList(crossShardData)
 		failed = false
