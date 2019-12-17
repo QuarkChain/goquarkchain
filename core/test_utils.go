@@ -15,6 +15,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/consensus/posw"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/core/vm"
+	qParam "github.com/QuarkChain/goquarkchain/params"
 	"github.com/QuarkChain/goquarkchain/qkcdb"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethdb"
@@ -28,6 +29,7 @@ var (
 	testShardCoinbaseAmount      = new(big.Int).Mul(new(big.Int).SetUint64(5), jiaozi)
 	testGenesisTokenID           = common.TokenIDEncode("QKC")
 	testGenesisMinorTokenBalance = make(map[string]*big.Int)
+	addContractAddrBalance       bool
 )
 
 type fakeEnv struct {
@@ -110,6 +112,19 @@ func getTestEnv(genesisAccount *account.Address, genesisMinorQuarkHash *uint64, 
 	for _, v := range ids {
 		addr := genesisAccount.AddressInShard(v)
 		shardConfig := fakeClusterConfig.Quarkchain.GetShardConfigByFullShardID(v)
+
+		if addContractAddrBalance {
+			generalNativeTokenAddr := vm.SystemContracts[vm.GENERAL_NATIVE_TOKEN].Address()
+			temp := make(map[string]*big.Int)
+			temp["QKC"] = new(big.Int).Set(qParam.DenomsValue.Ether)
+			alloc := config.Allocation{Balances: temp}
+			addr1 := &account.Address{
+				Recipient:    generalNativeTokenAddr,
+				FullShardKey: 0,
+			}
+			shardConfig.Genesis.Alloc[addr1.AddressInShard(v)] = alloc
+		}
+
 		if len(testGenesisMinorTokenBalance) != 0 {
 			shardConfig.Genesis.Alloc[addr] = config.Allocation{Balances: testGenesisMinorTokenBalance}
 			continue
@@ -119,7 +134,6 @@ func getTestEnv(genesisAccount *account.Address, genesisMinorQuarkHash *uint64, 
 		alloc := config.Allocation{Balances: temp}
 		shardConfig.Genesis.Alloc[addr] = alloc
 	}
-	env.clusterConfig.Quarkchain.SetAllowedToken()
 	return env
 }
 

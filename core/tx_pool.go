@@ -31,6 +31,7 @@ import (
 	"github.com/ethereum/go-ethereum/common/prque"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/params"
 
 	"github.com/QuarkChain/goquarkchain/core/state"
 	"github.com/QuarkChain/goquarkchain/core/types"
@@ -101,6 +102,7 @@ type minorBlockChain interface {
 	GetMinorBlock(hash common.Hash) *types.MinorBlock
 	stateAtWithSenderDisallowMap(minorBlock *types.MinorBlock, coinbase *account.Recipient) (*state.StateDB, error)
 	Config() *config.QuarkChainConfig
+	ChainConfig() *params.ChainConfig
 	SubscribeChainHeadEvent(ch chan<- MinorChainHeadEvent) event.Subscription
 	validateTx(tx *types.Transaction, evmState *state.StateDB, fromAddress *account.Address, gas, xShardGasLimit *uint64) (*types.Transaction, error)
 }
@@ -445,7 +447,7 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 		fmt.Println("err", err)
 		return ErrInvalidSender
 	}
-	return ValidateTransaction(pool.currentState, tx, nil)
+	return ValidateTransaction(pool.currentState, pool.chain.ChainConfig(), tx, nil)
 }
 
 // add validates a transaction and inserts it into the non-executable queue for later

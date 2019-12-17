@@ -18,6 +18,7 @@ package core
 
 import (
 	"errors"
+	"fmt"
 	"math"
 	"math/big"
 
@@ -83,6 +84,7 @@ type Message interface {
 	TxHash() common.Hash
 	GasTokenID() uint64
 	TransferTokenID() uint64
+	RefundRate() uint8
 }
 
 // IntrinsicGas computes the 'intrinsic gas' for a message with the given data.
@@ -143,6 +145,9 @@ func NewStateTransition(evm *vm.EVM, msg Message, gp *GasPool) *StateTransition 
 // indicates a core error meaning that the message would always fail for that particular
 // state and would never be accepted within a block.
 func ApplyMessage(evm *vm.EVM, msg Message, gp *GasPool) ([]byte, uint64, bool, error) {
+	if msg.GasTokenID() != evm.StateDB.GetQuarkChainConfig().GetDefaultChainTokenID() {
+		return nil, 0, false, fmt.Errorf("gas token %v should always be converted to genesis token %v", msg.GasTokenID(), evm.StateDB.GetQuarkChainConfig().GetDefaultChainTokenID())
+	}
 	return NewStateTransition(evm, msg, gp).TransitionDb()
 }
 
@@ -259,7 +264,32 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 	return ret, st.gasUsed(), vmerr != nil, err
 }
 
+func (st *StateTransition) refund(total *big.Int) {
+	if st.msg.RefundRate() == 100 {
+		st.state.AddBalance(st.msg.From(), total, st.msg.GasTokenID())
+		return
+	}
+
+	bigIntMulUint8 := func(data *big.Int, u uint8) *big.Int {
+		return new(big.Int).Mul(data, new(big.Int).SetUint64(uint64(u)))
+	}
+	bigIntDivUint8 := func(data *big.Int, u uint8) *big.Int {
+		return new(big.Int).Div(data, new(big.Int).SetUint64(uint64(u)))
+	}
+
+	toRefund := bigIntMulUint8(total, st.msg.RefundRate())
+	toRefund = bigIntDivUint8(toRefund, 100)
+
+	toburn := new(big.Int).Sub(total, toRefund)
+
+	st.state.AddBalance(st.msg.From(), toRefund, st.msg.GasTokenID())
+	if toburn.Cmp(common.Big0) >= 0 {
+		st.state.AddBalance(common.Address{}, toburn, st.msg.GasTokenID())
+	}
+}
+
 func (st *StateTransition) refundGas(vmerr error) {
+
 	// Apply refund counter, capped to half of the used gas.
 	if vmerr == nil {
 		refund := st.gasUsed() / 2
@@ -272,8 +302,7 @@ func (st *StateTransition) refundGas(vmerr error) {
 
 	// Return ETH for remaining gas, exchanged at the original rate.
 	remaining := new(big.Int).Mul(new(big.Int).SetUint64(st.gas), st.gasPrice)
-	st.state.AddBalance(st.msg.From(), remaining, st.msg.GasTokenID())
-
+	st.refund(remaining)
 	// Also return remaining gas to the block gas counter so it is
 	// available for the next transaction.
 	st.gp.AddGas(st.gas)
@@ -316,22 +345,25 @@ func (st *StateTransition) AddCrossShardTxDeposit(intrinsicGas uint64) (ret []by
 
 		fromFullShardKey := msg.FromFullShardKey()
 		crossShardData := &types.CrossShardTransactionDeposit{
-			TxHash: msg.TxHash(),
-			From: account.Address{
-				Recipient:    account.Recipient(msg.From()),
-				FullShardKey: msg.FromFullShardKey(),
+			CrossShardTransactionDepositV0: types.CrossShardTransactionDepositV0{
+				TxHash: msg.TxHash(),
+				From: account.Address{
+					Recipient:    account.Recipient(msg.From()),
+					FullShardKey: msg.FromFullShardKey(),
+				},
+				To: account.Address{
+					Recipient:    vm.CreateAddress(msg.From(), &fromFullShardKey, state.GetNonce(msg.From())),
+					FullShardKey: *msg.ToFullShardKey(),
+				},
+				Value:           crossShardValue,
+				GasTokenID:      msg.GasTokenID(),
+				TransferTokenID: msg.TransferTokenID(),
+				GasRemained:     crossShardGas,
+				GasPrice:        crossShardGasPrice,
+				MessageData:     msg.Data(),
+				CreateContract:  true,
 			},
-			To: account.Address{
-				Recipient:    vm.CreateAddress(msg.From(), &fromFullShardKey, state.GetNonce(msg.From())),
-				FullShardKey: *msg.ToFullShardKey(),
-			},
-			Value:           crossShardValue,
-			GasTokenID:      msg.GasTokenID(),
-			TransferTokenID: msg.TransferTokenID(),
-			GasRemained:     crossShardGas,
-			GasPrice:        crossShardGasPrice,
-			MessageData:     msg.Data(),
-			CreateContract:  true,
+			RefundRate: st.msg.RefundRate(),
 		}
 		state.AppendXShardList(crossShardData)
 		failed = false
@@ -351,22 +383,26 @@ func (st *StateTransition) AddCrossShardTxDeposit(intrinsicGas uint64) (ret []by
 		}
 
 		crossShardData := &types.CrossShardTransactionDeposit{
-			TxHash: msg.TxHash(),
-			From: account.Address{
-				Recipient:    account.Recipient(msg.From()),
-				FullShardKey: msg.FromFullShardKey(),
+			CrossShardTransactionDepositV0: types.CrossShardTransactionDepositV0{
+				TxHash: msg.TxHash(),
+				From: account.Address{
+					Recipient:    account.Recipient(msg.From()),
+					FullShardKey: msg.FromFullShardKey(),
+				},
+				To: account.Address{
+					Recipient:    account.Recipient(*msg.To()),
+					FullShardKey: *msg.ToFullShardKey(),
+				},
+				Value:      crossShardValue,
+				GasTokenID: msg.GasTokenID(),
+				//convert to genesis token and use converted gas price
+				TransferTokenID: msg.TransferTokenID(),
+				GasRemained:     crossShardGas,
+				GasPrice:        crossShardGasPrice,
+				MessageData:     msg.Data(),
+				CreateContract:  false,
 			},
-			To: account.Address{
-				Recipient:    account.Recipient(*msg.To()),
-				FullShardKey: *msg.ToFullShardKey(),
-			},
-			Value:           crossShardValue,
-			GasTokenID:      msg.GasTokenID(),
-			TransferTokenID: msg.TransferTokenID(),
-			GasRemained:     crossShardGas,
-			GasPrice:        crossShardGasPrice,
-			MessageData:     msg.Data(),
-			CreateContract:  false,
+			RefundRate: st.msg.RefundRate(),
 		}
 		state.AppendXShardList(crossShardData)
 		failed = false
@@ -375,7 +411,7 @@ func (st *StateTransition) AddCrossShardTxDeposit(intrinsicGas uint64) (ret []by
 	//refund: gasRemained is always 0?
 	gasRemained := msg.Gas() - localGasUsed - remoteGasReserved
 	fund := new(big.Int).Mul(new(big.Int).SetUint64(gasRemained), st.gasPrice)
-	state.AddBalance(msg.From(), fund, st.msg.GasTokenID())
+	st.refund(fund)
 	if !failed {
 		//reserve part of the gas for the target shard miner for fee
 		localGasUsed -= qkcParam.GtxxShardCost.Uint64()

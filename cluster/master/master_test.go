@@ -1,8 +1,12 @@
 package master
 
 import (
-	"bou.ke/monkey"
 	"errors"
+	"math/big"
+	"testing"
+	"time"
+
+	"bou.ke/monkey"
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
@@ -18,9 +22,6 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/stretchr/testify/assert"
-	"math/big"
-	"testing"
-	"time"
 )
 
 var (
@@ -279,6 +280,7 @@ func initEnvWithConsensusType(t *testing.T, chanOp chan uint32, consensusType st
 	monkey.Patch(createDB, func(ctx *service.ServiceContext, name string, clean bool, isReadOnly bool) (ethdb.Database, error) {
 		return service.NewQkcMemoryDB(isReadOnly), nil
 	})
+	defer monkey.UnpatchAll()
 
 	ctx := &service.ServiceContext{}
 	clusterConfig := config.NewClusterConfig()
