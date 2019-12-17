@@ -9,6 +9,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
 	"github.com/QuarkChain/goquarkchain/cluster/shard"
 	"github.com/QuarkChain/goquarkchain/cluster/slave/filters"
+	"github.com/QuarkChain/goquarkchain/cluster/sync"
 	qcom "github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/core/types"
@@ -18,11 +19,6 @@ import (
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
 	"golang.org/x/sync/errgroup"
-)
-
-var (
-	MINOR_BLOCK_HEADER_LIST_LIMIT = uint32(100)
-	MINOR_BLOCK_BATCH_SIZE        = 50
 )
 
 func (s *SlaveBackend) GetUnconfirmedHeaderList() ([]*rpc.HeadersInfo, error) {
@@ -100,7 +96,7 @@ func (s *SlaveBackend) AddBlockListForSync(mHashList []common.Hash, peerId strin
 		return nil, ErrMsg("AddBlockListForSync")
 	}
 
-	hashList := make([]common.Hash, 0)
+	hashList := make([]common.Hash, 0, len(mHashList))
 	for _, hash := range mHashList {
 		if !shard.MinorBlockChain.HasBlock(hash) {
 			hashList = append(hashList, hash)
@@ -127,7 +123,7 @@ func (s *SlaveBackend) AddBlockListForSync(mHashList []common.Hash, peerId strin
 		if len(bList) != hLen {
 			return nil, errors.New("Failed to add minor blocks for syncing root block: length of downloaded block list is incorrect")
 		}
-		if _, err := shard.AddBlockListForSync(bList); err != nil { //TODO?need fix?
+		if err := shard.AddBlockListForSync(bList); err != nil {
 			return nil, err
 		}
 		hashList = hashList[hLen:]
@@ -156,26 +152,33 @@ func (s *SlaveBackend) AddTx(tx *types.Transaction) (err error) {
 	return ErrMsg("AddTx")
 }
 
-func (s *SlaveBackend) AddTxList(txs []*types.Transaction, peerID string) (err error) {
+func (s *SlaveBackend) AddTxList(peerID string, branch uint32, txs []*types.Transaction) error {
 	if len(txs) == 0 {
 		return nil
 	}
 
-	tx := txs[0]
-	fromShardSize, err := s.clstrCfg.Quarkchain.GetShardSizeByChainId(tx.EvmTx.FromChainID())
-	if err != nil {
-		return err
-	}
-	if err := tx.EvmTx.SetFromShardSize(fromShardSize); err != nil {
-		return err
-	}
-	fromFullShardId := tx.EvmTx.FromFullShardId()
-
-	shard, ok := s.shards[fromFullShardId]
+	shard, ok := s.shards[branch]
 	if !ok {
-		return fmt.Errorf("fullShardID:%v not found", fromFullShardId)
+		return fmt.Errorf("fullShardID:%v not found", branch)
 	}
-	return shard.AddTxList(txs, peerID)
+	errList := shard.MinorBlockChain.AddTxList(txs)
+	if len(errList) != len(txs) {
+		return errors.New("errList != txList")
+	}
+
+	trans := make([]*types.Transaction, 0, len(errList))
+	for idx, err := range errList {
+		if err == nil {
+			trans = append(trans, txs[idx])
+		}
+	}
+	go func() {
+		if err := s.connManager.BroadcastTransactions(peerID, branch, trans); err != nil {
+			log.Error(s.logInfo, "failed to boadcasttransactions in AddTxList func", "err", err)
+		}
+	}()
+
+	return nil
 }
 
 func (s *SlaveBackend) ExecuteTx(tx *types.Transaction, address *account.Address, height *uint64) ([]byte, error) {
@@ -288,16 +291,12 @@ func (s *SlaveBackend) GetLogs(args *qrpc.FilterQuery) ([]*types.Log, error) {
 }
 
 func (s *SlaveBackend) EstimateGas(tx *types.Transaction, address *account.Address) (uint32, error) {
-	fromShardSize, err := s.clstrCfg.Quarkchain.GetShardSizeByChainId(tx.EvmTx.FromChainID())
+	fullShardId, err := s.clstrCfg.Quarkchain.GetFullShardIdByFullShardKey(address.FullShardKey)
 	if err != nil {
 		return 0, err
 	}
-	if err := tx.EvmTx.SetFromShardSize(fromShardSize); err != nil {
-		return 0, err
-	}
-	branch := account.NewBranch(tx.EvmTx.FromFullShardId()).Value
-	if shard, ok := s.shards[branch]; ok {
-		return shard.MinorBlockChain.EstimateGas(tx, *address)
+	if shrd, ok := s.shards[fullShardId]; ok {
+		return shrd.MinorBlockChain.EstimateGas(tx, *address)
 	}
 	return 0, ErrMsg("EstimateGas")
 }
@@ -375,7 +374,7 @@ func (s *SlaveBackend) GetMinorBlockListByHashList(mHashList []common.Hash, bran
 		minorList = make([]*types.MinorBlock, 0, len(mHashList))
 	)
 
-	if len(mHashList) > 2*MINOR_BLOCK_BATCH_SIZE {
+	if len(mHashList) > 2*sync.MinorBlockBatchSize {
 		return nil, errors.New("Bad number of minor blocks requested")
 	}
 
@@ -422,26 +421,26 @@ func (s *SlaveBackend) getMinorBlockHeadersWithSkip(gReq *p2p.GetMinorBlockHeade
 	}
 
 	var (
-		height     uint64
-		headerlist = make([]*types.MinorBlockHeader, 0, gReq.Limit)
-		mTip       = shrd.MinorBlockChain.CurrentBlock()
+		height uint64
+		mTip   = shrd.MinorBlockChain.CurrentBlock()
 	)
 	if gReq.Type == qcom.SkipHash {
-		iHeader := shrd.MinorBlockChain.GetHeaderByHash(gReq.GetHash())
+		iHeader := shrd.MinorBlockChain.GetHeader(gReq.GetHash())
 		if qcom.IsNil(iHeader) {
-			return headerlist, nil
+			return nil, fmt.Errorf("failed to get minor block header by hash, minor hash: %s", gReq.GetHash().String())
 		}
 		mHeader := iHeader.(*types.MinorBlockHeader)
+		height = mHeader.Number
 		iHeader = shrd.MinorBlockChain.GetHeaderByNumber(height)
 		if qcom.IsNil(iHeader) || mHeader.Hash() != iHeader.Hash() {
-			return headerlist, nil
+			return nil, fmt.Errorf("failed to get minor block header by number or hash dont match, minor number: %d", height)
 		}
-		height = mHeader.Number
 	} else {
 		height = *gReq.GetHeight()
 	}
 
-	for len(headerlist) < cap(headerlist) && height >= 0 && height < mTip.NumberU64() {
+	headerlist := make([]*types.MinorBlockHeader, 0, gReq.Limit)
+	for len(headerlist) < cap(headerlist) && height >= 0 && height <= mTip.NumberU64() {
 		iHeader := shrd.MinorBlockChain.GetHeaderByNumber(height)
 		if qcom.IsNil(iHeader) {
 			break
@@ -481,14 +480,14 @@ func (s *SlaveBackend) HandleNewTip(req *rpc.HandleNewTipRequest) error {
 	return ErrMsg("HandleNewTip")
 }
 
-func (s *SlaveBackend) NewMinorBlock(block *types.MinorBlock) error {
+func (s *SlaveBackend) NewMinorBlock(peerId string, block *types.MinorBlock) error {
 	if shard, ok := s.shards[block.Branch().Value]; ok {
-		return shard.NewMinorBlock(block)
+		return shard.NewMinorBlock(peerId, block)
 	}
 	return ErrMsg("NewMinorBlock")
 }
 
-func (s *SlaveBackend) GenTx(genTxs *rpc.GenTxRequest) error {
+func (s *SlaveBackend) GenTx(genTxs rpc.GenTxRequest) error {
 	for _, shard := range s.shards {
 		if !shard.AccountForTPSReady() {
 			return errors.New("account for tps not ready")

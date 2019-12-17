@@ -5,11 +5,12 @@ package types
 import (
 	"bytes"
 	"crypto/ecdsa"
-	"github.com/ethereum/go-ethereum/crypto"
 	"math/big"
 	"sync/atomic"
 	"time"
 	"unsafe"
+
+	"github.com/ethereum/go-ethereum/crypto"
 
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/serialize"
@@ -75,9 +76,21 @@ func (b *RootBlockHeader) GetCoinbaseAmount() *TokenBalances {
 	return NewEmptyTokenBalances()
 }
 
+func (b *RootBlockHeader) VerifySignature(key ecdsa.PublicKey) bool {
+
+	isSigned := crypto.VerifySignature(crypto.CompressPubkey(&key), b.SealHash().Bytes(), b.Signature[:64])
+	if isSigned {
+		return true
+	} else {
+		return false
+	}
+
+}
+
 func (h *RootBlockHeader) GetMixDigest() common.Hash { return h.MixDigest }
 
-func (h *RootBlockHeader) NumberU64() uint64  { return uint64(h.Number) }
+func (h *RootBlockHeader) NumberU64() uint64 { return uint64(h.Number) }
+
 func (h *RootBlockHeader) GetVersion() uint32 { return h.Version }
 
 func (h *RootBlockHeader) SetExtra(data []byte) {
@@ -385,9 +398,15 @@ func (b *RootBlock) Finalize(coinbaseAmount *TokenBalances, coinbaseAddress *acc
 	b.hash.Store(b.header.Hash())
 	return b
 }
+
 func (b *RootBlock) AddMinorBlockHeader(header *MinorBlockHeader) {
 	b.minorBlockHeaders = append(b.minorBlockHeaders, header)
 }
-func (b *RootBlock) ExtendMinorBlockHeaderList(headers []*MinorBlockHeader) {
-	b.minorBlockHeaders = append(b.minorBlockHeaders, headers...)
+
+func (b *RootBlock) ExtendMinorBlockHeaderList(headers []*MinorBlockHeader, createTime uint64) {
+	for _, header := range headers {
+		if header.Time <= createTime {
+			b.minorBlockHeaders = append(b.minorBlockHeaders, header)
+		}
+	}
 }

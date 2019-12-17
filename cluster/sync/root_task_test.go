@@ -191,7 +191,7 @@ func newRootBlockChain(sz int) blockchain {
 	qkcconfig.SkipRootCoinbaseCheck = true
 	db := ethdb.NewMemDatabase()
 	genesisBlock := genesis.MustCommitRootBlock(db)
-	blockchain, err := core.NewRootBlockChain(db, qkcconfig, engine, nil)
+	blockchain, err := core.NewRootBlockChain(db, qkcconfig, engine)
 	if err != nil {
 		panic(fmt.Sprintf("failed to generate root blockchain: %v", err))
 	}
@@ -309,7 +309,7 @@ func TestSyncMinorBlocks(t *testing.T) {
 
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
-	shardConns := getShardConnForP2P(1, ctrl)
+	shardConns := newFakeConnManager(1, ctrl)
 	for _, block := range blocks {
 		for _, header := range block.MinorBlockHeaders() {
 			if rbc.IsMinorBlockValidated(header.Hash()) {
@@ -336,13 +336,11 @@ func TestSyncMinorBlocks(t *testing.T) {
 			}, nil
 		}
 
-		for _, conn := range shardConns {
-			conn.(*mock_master.MockShardConnForP2P).EXPECT().AddBlockListForSync(gomock.Any()).DoAndReturn(AddBlockListForSyncFunc).Times(1)
+		for _, conn := range shardConns.GetSlaveConns() {
+			conn.(*mock_master.MockISlaveConn).EXPECT().AddBlockListForSync(gomock.Any()).DoAndReturn(AddBlockListForSyncFunc).Times(1)
 		}
 
-		var rt = NewRootChainTask(&mockpeer{name: "chunfeng"}, nil, nil, statusChan, func(fullShardId uint32) []rpc.ShardConnForP2P {
-			return shardConns
-		})
+		var rt = NewRootChainTask(&mockpeer{name: "chunfeng"}, nil, nil, statusChan, shardConns)
 		rTask := rt.(*rootChainTask)
 		err := rTask.syncMinorBlocks(bc.(rootblockchain), block)
 		assert.NoError(t, err)
@@ -362,15 +360,33 @@ func TestSyncMinorBlocks(t *testing.T) {
 	}
 }
 
-func getShardConnForP2P(n int, ctrl *gomock.Controller) []rpc.ShardConnForP2P {
-	shardConns := make([]rpc.ShardConnForP2P, 0, n)
+type fakeConnManager struct {
+	conns []rpc.ISlaveConn
+}
+
+func newFakeConnManager(n int, ctrl *gomock.Controller) *fakeConnManager {
+	conns := make([]rpc.ISlaveConn, 0, n)
 	for i := 0; i < n; i++ {
-		sc := mock_master.NewMockShardConnForP2P(ctrl)
-		shardConns = append(shardConns, sc)
+		sc := mock_master.NewMockISlaveConn(ctrl)
+		conns = append(conns, sc)
 	}
 
-	return shardConns
+	return &fakeConnManager{conns: conns}
 }
+
+func (f *fakeConnManager) GetOneSlaveConnById(fullShardId uint32) rpc.ISlaveConn {
+	return f.conns[0]
+}
+
+func (f *fakeConnManager) GetSlaveConnsById(fullShardId uint32) []rpc.ISlaveConn {
+	return f.conns
+}
+
+func (f *fakeConnManager) GetSlaveConns() []rpc.ISlaveConn {
+	return f.conns
+}
+
+func (f *fakeConnManager) ConnCount() int { return len(f.conns) }
 
 /*
  Test helpers.

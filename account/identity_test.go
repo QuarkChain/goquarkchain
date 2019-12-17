@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"github.com/ethereum/go-ethereum/crypto"
 	"math/big"
+	"reflect"
 	"testing"
 )
 
@@ -119,4 +120,23 @@ func TestBytesToIdentityKey(t *testing.T) {
 
 	}
 
+}
+
+func TestCreatIdentity(t *testing.T) {
+	check := func(f string, got, want interface{}) {
+		if !reflect.DeepEqual(got, want) {
+			t.Errorf("%s mismatch: got %v, want %v", f, got, want)
+		}
+	}
+	id1, err := CreatRandomIdentity()
+	if err != nil {
+		t.Fatal("CreatRandomIdentity error: ", err)
+	}
+	id2, err := CreatIdentityFromKey(id1.key)
+	if err != nil {
+		t.Fatal("CreatIdentityFromKey error: ", err)
+	}
+
+	check("GetRecipient", id1.GetRecipient(), id2.GetRecipient())
+	check("GetKey", id1.GetKey(), id2.GetKey())
 }

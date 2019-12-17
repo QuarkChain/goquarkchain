@@ -2,6 +2,7 @@ package p2p
 
 import (
 	"github.com/QuarkChain/goquarkchain/serialize"
+	"github.com/stretchr/testify/assert"
 	"math/rand"
 	"reflect"
 	"testing"
@@ -147,7 +148,9 @@ func verifySerializeData(t *testing.T, decodeMsg QKCMsg, v codeC) error {
 func TestEncryptAndDecode(t *testing.T) {
 	caseList := getTestCodeCTest()
 	for _, v := range caseList {
-		dataEncrypt, err := Encrypt(v.metaData, v.op, v.rpcID, v.data)
+		cmdBytes, err := serialize.SerializeToBytes(v.data)
+		assert.NoError(t, err)
+		dataEncrypt, err := Encrypt(v.metaData, v.op, v.rpcID, cmdBytes)
 		if err != nil {
 			t.Fatal("Encrypt err", err)
 		}

@@ -1,36 +1,53 @@
 # Loadtest Instruction
 
-## Development Setup
-First of all, follow the [instruction](../../README.md#development-setup) to set up development environment for goquarkchain.
+## Environment Setup
+
+In order to run loadtest, you need to [run your own GoQuarkChain clusters](../../README.md#running-multiple-clusters-with-p2p-network-on-different-machines).
+
+A convenient option is to [Use Deploy Tool to Start Clusters](./deployer/README.md#use-deploy-tool-to-start-goquarkchain-clusters).
+
+## Cluster Configuration
+
+Key parameters in cluster config json file for loadtest:
+
+- ROOT/CONSENSUS_CONFIG/TARGET_BLOCK_TIME: root block interval
+- CHAINS/CONSENSUS_CONFIG/TARGET_BLOCK_TIME: minor block interval
+- CHAINS/GENESIS/GAS_LIMIT: minor block gas limit
+- CHAINS/SHARD_SIZE: number of shards per chain
+- GENESIS_DIR: location of account data; should be "../../tests/loadtest/accounts" if you start cluster under goquarkchain/cmd/cluster
+
+## Start Mining
+
+Your clusters need to keep mining while loadtest is ongoing. 
+
+Run the following command to start mining, replacing 127.0.0.1 with the host IP where the master service is deployed if not execute locally:
+
+```bash
+curl -X POST -H 'content-type: application/json' --data '{"jsonrpc":"2.0","method":"setMining","params":[true],"id":0}' http://127.0.0.1:38491
+```
+If need to stop mining,
+```bash
+curl -X POST -H 'content-type: application/json' --data '{"jsonrpc":"2.0","method":"setMining","params":[false],"id":0}' http://127.0.0.1:38491
+```
+## Generate Transactions
+
+Trigger loadtest through `createTransactions` which requests the cluster to generate transactions on each shard. 
+Remember to replace 127.0.0.1 with the host IP where the master service is deployed if not execute locally:
+
+```bash
+curl -X POST -H 'content-type: application/json' --data '{"jsonrpc": "2.0","method": "createTransactions","params": [{ "numTxPerShard": 10000,"xShardPercent": 0}],"id": 1}' http://127.0.0.1:38491
+```
+NOTE if xShardPercent > 0, make sure to mine at least one root block before send transactions, because the network should 
+have at least one root block been mined before cross shard transaction can be handled, according to the default config.
+
+## Monitoring
+
+Now you can monitor the TPS using the [stats tool](../../cmd/stats).
+
+## FAQ
+
+### Got "account for tps not ready" when generating Transactions?
  
-## Running a Cluster
-Before loadtest, try to start a local cluster successfully follow the [instruction](../../README.md#running-a-single-cluster-for-local-testing).
-
-## Loadtest
-
-1. Trigger loadtest through `createTransactions ` JSON RPC which requests the cluster to generate transactions on each shard. `numTxPerShard` <= 12000, `xShardPercent` <= 100
-
-   ```bash
-   curl -X POST --data '{"jsonrpc":"2.0","method":"createTransactions","params":{"numTxPerShard":10000, "xShardPercent":10},"id":0}' http://localhost:38491
-   ```
-2. At your virtual environment, [monitor](../../README.md#monitoring-clusters) the TPS using the stats tool.
-
-## Code Pointers
-**Loadtest Accounts**
-
- [12,000 loadtest accounts](../testdata/genesis_data/loadtest.json) are [loaded into genesis alloc config](../../cluster/config/config.go#L285) for each shard.
-
-**JSON RPC**
-
-JSON RPCs are defined in [`rpc.proto`](../../cluster/rpc/rpc.proto). Note that there are two JSON RPC ports. By default they are 38491 for private RPCs and 38391 for public RPCs. Since you are running your own clusters you get access to both.
-
-**Command Line Flags**
-
-Command line flags are defined in [`flags.go`](../../cmd/utils/flags.go#L77). Some interesting ones regarding loadtest:
-
-- `--num_shards` (default 8) defines the number of shards in the cluster (must be power of 2)
-- `--num_slaves` (default 4) defines the number of slave servers in the cluster. Each slave server can serve one or more shards. Since each slave server is an independent process, you may want to make this equal to `--num_shards` to utilize as many CPU cores as possible.
-- `--root_block_interval_sec` (default 10) defines the target block interval of root chain
-- `--minor_block_interval_sec` (default 3) defines the target block interval on each shard
-- `--mine` enables mining as soon as the cluster starts. Mining can also be toggled at runtime through `setMining` JSON RPC.
-- `--clean` clears any existing data to start a fresh cluster from genesis
+Please check `GENESIS_DIR` in cluster_config_template.json that the path to loadtest.json is correctly set.
+If you start cluster under goquarkchain/cmd/cluster, "../../tests/loadtest/accounts" would work for you. 
+Usually it takes a few seconds for the cluster to load accounts, so please make sure it is fully started before creating transactions and mining.

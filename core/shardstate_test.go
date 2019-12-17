@@ -1356,7 +1356,7 @@ func TestShardStateAddRootBlockTooManyMinorBlocks(t *testing.T) {
 	}
 
 	rootBlock := shardState.rootTip.CreateBlockToAppend(nil, nil, nil, nil, nil)
-	rootBlock.ExtendMinorBlockHeaderList(headers)
+	rootBlock.ExtendMinorBlockHeaderList(headers, uint64(time.Now().Unix()+9999))
 	rootBlock.Finalize(nil, nil, common.Hash{})
 
 	// Too many blocks
@@ -1505,7 +1505,7 @@ func TestShardStateRecoveryFromRootBlock(t *testing.T) {
 	assert.Equal(t, DBb1.Time(), b11Header.Time)
 
 	rootBlock := shardState.rootTip.CreateBlockToAppend(nil, nil, nil, nil, nil)
-	rootBlock.ExtendMinorBlockHeaderList(blockHeaders[:5])
+	rootBlock.ExtendMinorBlockHeaderList(blockHeaders[:5], uint64(time.Now().Unix()+9999))
 	rootBlock.Finalize(nil, nil, common.Hash{})
 	_, err = shardState.AddRootBlock(rootBlock)
 	checkErr(err)
@@ -2706,10 +2706,10 @@ func TestGetRootChainStakes(t *testing.T) {
 	shardConfig := env.clusterConfig.Quarkchain.GetShardConfigByFullShardID(1)
 	balance := map[string]*big.Int{env.clusterConfig.Quarkchain.GenesisToken: big.NewInt(10000000)}
 	shardConfig.Genesis.Alloc = map[account.Address]config.Allocation{
-		account.Address{Recipient: contractAddr, FullShardKey: 0}: {
+		{Recipient: contractAddr, FullShardKey: 0}: {
 			Code: contractCode,
 		},
-		account.Address{Recipient: acc1.Recipient, FullShardKey: 0}: {
+		{Recipient: acc1.Recipient, FullShardKey: 0}: {
 			Balances: balance,
 		},
 	}

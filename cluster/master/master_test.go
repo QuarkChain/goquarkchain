@@ -297,7 +297,6 @@ func initEnvWithConsensusType(t *testing.T, chanOp chan uint32, consensusType st
 }
 func TestMasterBackend_InitCluster(t *testing.T) {
 	initEnv(t, nil)
-
 }
 
 func TestMasterBackend_HeartBeat(t *testing.T) {
@@ -324,11 +323,11 @@ func TestMasterBackend_HeartBeat(t *testing.T) {
 func TestGetSlaveConnByBranch(t *testing.T) {
 	master := initEnv(t, nil)
 	for _, v := range master.clusterConfig.Quarkchain.GetGenesisShardIds() {
-		conn := master.getOneSlaveConnection(account.Branch{Value: v})
+		conn := master.GetOneSlaveConnById(v)
 		assert.NotNil(t, conn)
 	}
 	fakeFullShardID := uint32(99999)
-	conn := master.getOneSlaveConnection(account.Branch{Value: fakeFullShardID})
+	conn := master.GetOneSlaveConnById(fakeFullShardID)
 	assert.Nil(t, conn)
 }
 
@@ -570,7 +569,11 @@ func TestEstimateGas(t *testing.T) {
 	}
 	data, err := master.EstimateGas(tx, &add1)
 	assert.NoError(t, err)
-	assert.Equal(t, data, uint32(123))
+	if !tx.EvmTx.IsCrossShard() {
+		assert.Equal(t, data, uint32(123))
+	} else {
+		assert.Equal(t, data, uint32(123+9000))
+	}
 
 	evmTx = types.NewEvmTransaction(0, id1.GetRecipient(), new(big.Int), 0, new(big.Int), 2222222, 2, 1, 0, []byte{}, 0, 0)
 	tx = &types.Transaction{

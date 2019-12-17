@@ -642,6 +642,10 @@ func (pool *TxPool) addTxs(txs []*types.Transaction, local, sync bool) []error {
 	if len(news) == 0 {
 		return errs
 	}
+	// Cache senders in transactions before obtaining lock (pool.signer is immutable)
+	for _, tx := range news {
+		types.Sender(pool.signer, tx.EvmTx)
+	}
 	// Process all the new transaction and merge any errors into the original slice
 	pool.mu.Lock()
 	newErrs, dirtyAddrs := pool.addTxsLocked(news, local)
@@ -930,7 +934,7 @@ func (pool *TxPool) reset(oldBlock, newBlock *types.MinorBlock) {
 	} else {
 		newHead = newBlock.Header()
 	}
-	if oldHead != nil && oldHead.Hash() != newHead.ParentHash {
+	if newHead != nil && oldHead != nil && oldHead.Hash() != newHead.ParentHash {
 		// If the reorg is too deep, avoid doing it (will happen during fast sync)
 		oldNum := oldHead.Number
 		newNum := newHead.Number
@@ -944,6 +948,11 @@ func (pool *TxPool) reset(oldBlock, newBlock *types.MinorBlock) {
 				rem = pool.chain.GetMinorBlock(oldHead.Hash())
 				add = pool.chain.GetMinorBlock(newHead.Hash())
 			)
+			if rem == nil && add == nil {
+				log.Error("txpool issue:rem and add is nil", "old_Number", oldHead.Number, "old_hash", oldHead.Hash().String(),
+					"new_Number", newHead.Number, "new_Hash", newHead.Hash().String())
+				return
+			}
 			if rem == nil {
 				// This can happen if a setHead is performed, where we simply discard the old
 				// head from the chain.
@@ -958,6 +967,11 @@ func (pool *TxPool) reset(oldBlock, newBlock *types.MinorBlock) {
 					log.Warn("Transaction pool reset with missing oldhead",
 						"old", oldHead.Hash(), "oldnum", oldNum, "new", newHead.Hash(), "newnum", newNum)
 				}
+				return
+			}
+			if add == nil {
+				log.Error("txpool issue: add is nil", "old_Number", oldHead.Number, "old_hash", oldHead.Hash().String(),
+					"new_Number", newHead.Number, "new_Hash", newHead.Hash().String())
 				return
 			}
 			for rem.NumberU64() > add.NumberU64() {

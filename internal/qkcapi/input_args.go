@@ -1,26 +1,40 @@
 package qkcapi
 
 import (
+	"encoding/json"
 	"errors"
-	"github.com/QuarkChain/goquarkchain/rpc"
 	"math/big"
 
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
+	"github.com/QuarkChain/goquarkchain/common/hexutil"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/params"
+	"github.com/QuarkChain/goquarkchain/rpc"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/common/hexutil"
 )
 
 // CallArgs represents the arguments for a call.
 type EthCallArgs struct {
-	From     common.Address  `json:"from"`
-	To       *common.Address `json:"to"`
-	Gas      hexutil.Uint64  `json:"gas"`
-	GasPrice hexutil.Big     `json:"gasPrice"`
-	Value    hexutil.Big     `json:"value"`
-	Data     hexutil.Bytes   `json:"data"`
+	From     account.Address  `json:"from"`
+	To       *account.Address `json:"to"`
+	Gas      hexutil.Uint64   `json:"gas"`
+	GasPrice hexutil.Big      `json:"gasPrice"`
+	Value    hexutil.Big      `json:"value"`
+	Data     hexutil.Bytes    `json:"data"`
+}
+
+func (e *EthCallArgs) UnmarshalJSON(data []byte) error {
+	var args EthCallArgs
+	if err := json.Unmarshal(data, &args); err != nil {
+		return err
+	}
+	if args.To == nil {
+		to := account.CreatEmptyAddress(args.From.FullShardKey)
+		args.To = &to
+	}
+	e = &args
+	return nil
 }
 
 // CallArgs represents the arguments for a call.
@@ -40,12 +54,19 @@ type GetAccount struct {
 	BlockNr       *rpc.BlockNumber `json:"block_nr"`
 }
 
+type GetAccountDataArgs struct {
+	Address       account.Address  `json:"address"`
+	IncludeShards *bool            `json:"include_shards"`
+	BlockHeight   *rpc.BlockNumber `json:"block_height"`
+}
+
 func (c *CallArgs) setDefaults() {
 	if c.From == nil {
 		temp := account.CreatEmptyAddress(c.To.FullShardKey)
 		c.From = &temp
 	}
 }
+
 func (c *CallArgs) toTx(config *config.QuarkChainConfig) (*types.Transaction, error) {
 	gasTokenID, transferTokenID := config.GetDefaultChainTokenID(), config.GetDefaultChainTokenID()
 	if c.GasTokenID != nil {

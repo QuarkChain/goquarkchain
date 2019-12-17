@@ -751,7 +751,7 @@ running:
 					p.events = &srv.peerFeed
 				}
 				name := truncateName(c.name)
-				srv.log.Debug("Adding p2p peer", "name", name, "addr", c.fd.RemoteAddr(), "peers", len(peers)+1)
+				srv.log.Info("Adding p2p peer", "name", name, "addr", c.fd.RemoteAddr(), "peers", len(peers)+1)
 				go srv.runPeer(p)
 				peers[c.node.ID()] = p
 				if p.Inbound() {
@@ -817,7 +817,7 @@ func (srv *Server) protoHandshakeChecks(peers map[enode.ID]*Peer, inboundCount i
 
 func (srv *Server) encHandshakeChecks(peers map[enode.ID]*Peer, inboundCount int, c *conn) error {
 	switch {
-	case !c.is(trustedConn | staticDialedConn) && len(peers) >= srv.MaxPeers:
+	case !c.is(trustedConn|staticDialedConn) && len(peers) >= srv.MaxPeers:
 		return DiscTooManyPeers
 	case !c.is(trustedConn) && c.is(inboundConn) && inboundCount >= srv.maxInboundConns():
 		return DiscTooManyPeers

@@ -16,6 +16,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
+	qkccom "github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/consensus/posw"
 	"github.com/QuarkChain/goquarkchain/core/rawdb"
@@ -29,7 +30,7 @@ import (
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
-	"github.com/hashicorp/golang-lru"
+	lru "github.com/hashicorp/golang-lru"
 )
 
 var (
@@ -75,7 +76,7 @@ type RootBlockChain struct {
 	triegc *prque.Prque   // Priority queue mapping block numbers to tries to gc
 	gcproc time.Duration  // Accumulates canonical block processing for trie dumping
 
-	headerChain              *RootHeaderChain
+	//	headerChain              *RootHeaderChain
 	validatedMinorBlockCache *lru.Cache // Cache for the most recent validated Minor Block hash
 	rmLogsFeed               event.Feed
 	chainFeed                event.Feed
@@ -105,7 +106,6 @@ type RootBlockChain struct {
 	engine    consensus.Engine
 	validator Validator // block and state validator interface
 
-	shouldPreserve      func(block *types.RootBlock) bool // Function used to determine whether should preserve the given block.
 	countMinorBlocks    bool
 	addBlockAndBroad    func(block *types.RootBlock) error
 	isCheckDB           bool
@@ -116,7 +116,7 @@ type RootBlockChain struct {
 // NewBlockChain returns a fully initialized block chain using information
 // available in the database. It initializes the default Ethereum Validator and
 // Processor.
-func NewRootBlockChain(db ethdb.Database, chainConfig *config.QuarkChainConfig, engine consensus.Engine, shouldPreserve func(block *types.RootBlock) bool) (*RootBlockChain, error) {
+func NewRootBlockChain(db ethdb.Database, chainConfig *config.QuarkChainConfig, engine consensus.Engine) (*RootBlockChain, error) {
 	blockCache, _ := lru.New(blockCacheLimit)
 	futureBlocks, _ := lru.New(maxFutureBlocks)
 	validatedMinorBlockHashCache, _ := lru.New(validatedMinorBlockHashes)
@@ -126,7 +126,6 @@ func NewRootBlockChain(db ethdb.Database, chainConfig *config.QuarkChainConfig, 
 		db:                       db,
 		triegc:                   prque.New(nil),
 		quit:                     make(chan struct{}),
-		shouldPreserve:           shouldPreserve,
 		blockCache:               blockCache,
 		coinbaseAmountCache:      make(map[uint64]*big.Int),
 		futureBlocks:             futureBlocks,
@@ -137,7 +136,6 @@ func NewRootBlockChain(db ethdb.Database, chainConfig *config.QuarkChainConfig, 
 	bc.SetValidator(NewRootBlockValidator(chainConfig, bc, engine))
 	bc.posw = posw.NewPoSW(bc, chainConfig.Root.PoSWConfig)
 	var err error
-	bc.headerChain, err = NewHeaderChain(db, chainConfig, engine, bc.getProcInterrupt)
 	if err != nil {
 		return nil, err
 	}
@@ -187,22 +185,6 @@ func (bc *RootBlockChain) loadLastState() error {
 	}
 	// Everything seems to be fine, set as the head block
 	bc.currentBlock.Store(currentBlock)
-
-	// Restore the last known head header
-	currentHeader := currentBlock.IHeader()
-	if head := rawdb.ReadHeadHeaderHash(bc.db); head != (common.Hash{}) {
-		if header := bc.GetHeader(head); header != nil {
-			currentHeader = header
-		}
-	}
-	bc.headerChain.SetCurrentHeader(currentHeader.(*types.RootBlockHeader))
-
-	headerTd := bc.GetTd(currentHeader.Hash())
-	blockTd := bc.GetTd(currentBlock.Hash())
-
-	log.Info("Loaded most recent local header", "number", currentHeader.NumberU64(), "hash", currentHeader.Hash(), "td", headerTd, "age", common.PrettyAge(time.Unix(int64(currentHeader.GetTime()), 0)))
-	log.Info("Loaded most recent local full block", "number", currentBlock.NumberU64(), "hash", currentBlock.Hash(), "td", blockTd, "age", common.PrettyAge(time.Unix(int64(currentBlock.Time()), 0)))
-
 	return nil
 }
 
@@ -216,29 +198,23 @@ func (bc *RootBlockChain) SetHead(head uint64) error {
 	bc.mu.Lock()
 	defer bc.mu.Unlock()
 
-	// Rewind the header chain, deleting all block bodies until then
-	delFn := func(db rawdb.DatabaseDeleter, hash common.Hash) {
-		rawdb.DeleteBlock(db, hash)
+	batch := bc.db.NewBatch()
+	for block := bc.CurrentBlock(); !qkccom.IsNil(block) && block.NumberU64() > head; block = bc.CurrentBlock() {
+		rawdb.DeleteRootBlock(batch, block.Hash())
+		rawdb.DeleteCanonicalHash(batch, rawdb.ChainTypeRoot, block.NumberU64())
+		bc.currentBlock.Store(bc.GetBlock(block.ParentHash()))
 	}
-	bc.headerChain.SetHead(head, delFn)
-	currentHeader := bc.headerChain.CurrentHeader()
-
+	batch.Write()
 	// Clear out any stale content from the caches
 	bc.blockCache.Purge()
 	bc.futureBlocks.Purge()
 
-	// Rewind the block chain, ensuring we don't end up with a stateless head block
-	if currentBlock := bc.CurrentBlock(); currentBlock != nil && currentHeader.NumberU64() < currentBlock.NumberU64() {
-		bc.currentBlock.Store(bc.GetBlock(currentHeader.Hash()))
-	}
-
 	// If either blocks reached nil, reset to the genesis state
-	if currentBlock := bc.CurrentBlock(); currentBlock == nil {
+	if currentBlock := bc.CurrentBlock(); qkccom.IsNil(currentBlock) {
 		bc.currentBlock.Store(bc.genesisBlock)
 	}
-	currentBlock := bc.CurrentBlock()
 
-	rawdb.WriteHeadBlockHash(bc.db, currentBlock.Hash())
+	rawdb.WriteHeadBlockHash(bc.db, bc.CurrentBlock().Hash())
 
 	return bc.loadLastState()
 }
@@ -278,17 +254,10 @@ func (bc *RootBlockChain) ResetWithGenesisBlock(genesis *types.RootBlock) error 
 	bc.mu.Lock()
 	defer bc.mu.Unlock()
 
-	// Prepare the genesis block and reinitialise the chain
-	if err := bc.headerChain.WriteTd(genesis.Hash(), genesis.Difficulty()); err != nil {
-		log.Crit("Failed to write genesis block TD", "err", err)
-	}
 	rawdb.WriteRootBlock(bc.db, genesis)
-
 	bc.genesisBlock = genesis
 	bc.insert(bc.genesisBlock)
 	bc.currentBlock.Store(bc.genesisBlock)
-	bc.headerChain.SetGenesis(bc.genesisBlock.Header())
-	bc.headerChain.SetCurrentHeader(bc.genesisBlock.Header())
 
 	return nil
 }
@@ -351,22 +320,14 @@ func (bc *RootBlockChain) ExportN(w io.Writer, first uint64, last uint64) error 
 //
 // Note, this function assumes that the `mu` mutex is held!
 func (bc *RootBlockChain) insert(block *types.RootBlock) {
-	// If the block is on a side chain or an unknown one, force other heads onto it too
-	updateHeads := rawdb.ReadCanonicalHash(bc.db, rawdb.ChainTypeRoot, block.NumberU64()) != block.Hash()
-
 	// Add the block to the canonical chain number scheme and mark as the head
 	if err := bc.PutRootBlockIndex(block); err != nil {
 		//TODO need delete later?
 		panic(err)
 	}
+
 	rawdb.WriteHeadBlockHash(bc.db, block.Hash())
-
 	bc.currentBlock.Store(block)
-
-	// If the block is better than our head or is on a different chain, force update heads
-	if updateHeads {
-		bc.headerChain.SetCurrentHeader(block.Header())
-	}
 }
 
 // Genesis retrieves the chain's genesis block.
@@ -458,10 +419,6 @@ func (bc *RootBlockChain) Rollback(chain []common.Hash) {
 	for i := len(chain) - 1; i >= 0; i-- {
 		hash := chain[i]
 
-		currentHeader := bc.headerChain.CurrentHeader()
-		if currentHeader.Hash() == hash {
-			bc.headerChain.SetCurrentHeader(bc.GetHeader(currentHeader.GetParentHash()).(*types.RootBlockHeader))
-		}
 		if currentBlock := bc.CurrentBlock(); currentBlock.Hash() == hash {
 			newBlock := bc.GetBlock(currentBlock.ParentHash())
 			bc.currentBlock.Store(newBlock)
@@ -470,18 +427,12 @@ func (bc *RootBlockChain) Rollback(chain []common.Hash) {
 	}
 }
 
-var lastWrite uint64
-
 // WriteBlockWithoutState writes only the block and its metadata to the database,
 // but does not write any state. This is used to construct competing side forks
 // up to the point where they exceed the canonical total difficulty.
-func (bc *RootBlockChain) WriteBlockWithoutState(block types.IBlock, td *big.Int) (err error) {
+func (bc *RootBlockChain) WriteBlockWithoutState(block types.IBlock) (err error) {
 	bc.wg.Add(1)
 	defer bc.wg.Done()
-
-	if err := bc.headerChain.WriteTd(block.Hash(), td); err != nil {
-		return err
-	}
 	rawdb.WriteRootBlock(bc.db, block.(*types.RootBlock))
 
 	return nil
@@ -493,20 +444,14 @@ func (bc *RootBlockChain) WriteBlockWithState(block *types.RootBlock) (status Wr
 	bc.wg.Add(1)
 	defer bc.wg.Done()
 
-	// Calculate the total difficulty of the block
-	ptd := bc.GetBlock(block.ParentHash()).IHeader().GetTotalDifficulty()
 	// Make sure no inconsistent state is leaked during insertion
 	bc.mu.Lock()
 	defer bc.mu.Unlock()
 
 	currentBlock := bc.CurrentBlock()
 	localTd := currentBlock.TotalDifficulty()
-	externTd := new(big.Int).Add(block.Difficulty(), ptd)
+	externTd := block.TotalDifficulty()
 
-	// Irrelevant of the canonical status, write the block itself to the database
-	if err := bc.headerChain.WriteTd(block.Hash(), externTd); err != nil {
-		return NonStatTy, err
-	}
 	rawdb.WriteRootBlock(bc.db, block)
 
 	// Write other block data using a batch.
@@ -522,12 +467,6 @@ func (bc *RootBlockChain) WriteBlockWithState(block *types.RootBlock) (status Wr
 		// the block generated by the local miner as the canonical block.
 		if block.NumberU64() < currentBlock.NumberU64() {
 			reorg = true
-		} else if block.NumberU64() == currentBlock.NumberU64() {
-			var currentPreserve, blockPreserve bool
-			if bc.shouldPreserve != nil {
-				currentPreserve, blockPreserve = bc.shouldPreserve(currentBlock), bc.shouldPreserve(block)
-			}
-			reorg = !currentPreserve && blockPreserve
 		}
 	}
 	if reorg {
@@ -638,11 +577,9 @@ func (bc *RootBlockChain) insertChain(chain []types.IBlock, verifySeals bool) (i
 		headers[i] = block.IHeader()
 		seals[i] = verifySeals
 	}
-	abort, results := bc.engine.VerifyHeaders(bc, headers, seals)
-	defer close(abort)
 
 	// Peek the error for the first block to decide the directing import logic
-	it := newInsertIterator(chain, results, bc.Validator(), bc.isCheckDB)
+	it := newInsertIterator(chain, bc.Validator(), bc.isCheckDB)
 
 	block, err := it.next()
 	switch {
@@ -790,14 +727,11 @@ func (bc *RootBlockChain) insertSidechain(it *insertIterator) (int, []interface{
 				return it.index, nil, errors.New("sidechain ghost-state attack")
 			}
 		}
-		if externTd == nil {
-			externTd = bc.GetTd(block.ParentHash())
-		}
-		externTd = new(big.Int).Add(externTd, block.IHeader().GetDifficulty())
+		externTd = block.IHeader().GetTotalDifficulty()
 
 		if !bc.HasBlock(block.Hash()) {
 			start := time.Now()
-			if err := bc.WriteBlockWithoutState(block, externTd); err != nil {
+			if err := bc.WriteBlockWithoutState(block); err != nil {
 				return it.index, nil, err
 			}
 			log.Debug("Inserted sidechain block", "number", block.NumberU64(), "hash", block.Hash(),
@@ -811,7 +745,7 @@ func (bc *RootBlockChain) insertSidechain(it *insertIterator) (int, []interface{
 	//
 	// If the externTd was larger than our local TD, we now need to reimport the previous
 	// blocks to regenerate the required state
-	localTd := bc.GetTd(bc.CurrentBlock().Hash())
+	localTd := bc.CurrentBlock().TotalDifficulty()
 	if localTd.Cmp(externTd) > 0 {
 		log.Info("Sidechain written to disk", "start", it.first().NumberU64(), "end", it.previous().NumberU64(), "sidetd", externTd, "localtd", localTd)
 		return it.index, nil, err
@@ -997,86 +931,43 @@ Error: %v
 `, bc.chainConfig, block.NumberU64(), block.Hash(), err))
 }
 
-// InsertHeaderChain attempts to insert the given header chain in to the local
-// chain, possibly creating a reorg. If an error is returned, it will return the
-// index number of the failing header as well an error describing what went wrong.
-//
-// The verify parameter can be used to fine tune whether nonce verification
-// should be done or not. The reason behind the optional check is because some
-// of the header retrieval mechanisms already need to verify nonces, as well as
-// because nonces can be verified sparsely, not needing to check each.
-func (bc *RootBlockChain) InsertHeaderChain(chain []*types.RootBlockHeader, checkFreq int) (int, error) {
-	start := time.Now()
-	if i, err := bc.headerChain.ValidateHeaderChain(chain, checkFreq); err != nil {
-		return i, err
-	}
-
-	// Make sure only one thread manipulates the chain at once
-	bc.chainmu.Lock()
-	defer bc.chainmu.Unlock()
-
-	bc.wg.Add(1)
-	defer bc.wg.Done()
-
-	whFunc := func(header *types.RootBlockHeader) error {
-		bc.mu.Lock()
-		defer bc.mu.Unlock()
-
-		_, err := bc.headerChain.WriteHeader(header)
-		return err
-	}
-
-	return bc.headerChain.InsertHeaderChain(chain, whFunc, start)
-}
-
-// writeHeader writes a header into the local chain, given that its parent is
-// already known. If the total difficulty of the newly inserted header becomes
-// greater than the current known TD, the canonical chain is re-routed.
-//
-// Note: This method is not concurrent-safe with inserting blocks simultaneously
-// into the chain, as side effects caused by reorganisations cannot be emulated
-// without the real blocks. Hence, writing Headers directly should only be done
-// in two scenarios: pure-header mode of operation (light clients), or properly
-// separated header/block phases (non-archive clients).
-func (bc *RootBlockChain) writeHeader(header *types.RootBlockHeader) error {
-	bc.wg.Add(1)
-	defer bc.wg.Done()
-
-	bc.mu.Lock()
-	defer bc.mu.Unlock()
-
-	_, err := bc.headerChain.WriteHeader(header)
-	return err
-}
-
 // CurrentHeader retrieves the current head header of the canonical chain. The
 // header is retrieved from the RootHeaderChain's internal cache.
 func (bc *RootBlockChain) CurrentHeader() types.IHeader {
-	return bc.headerChain.CurrentHeader()
-}
-
-// GetTd retrieves a block's total difficulty in the canonical chain from the
-// database by hash and number, caching it if found.
-func (bc *RootBlockChain) GetTd(hash common.Hash) *big.Int {
-	return bc.headerChain.GetTd(hash)
+	return bc.CurrentBlock().IHeader()
 }
 
 // GetHeader retrieves a block header from the database by hash and number,
 // caching it if found.
 func (bc *RootBlockChain) GetHeader(hash common.Hash) types.IHeader {
-	return bc.headerChain.GetHeader(hash)
-}
-
-// HasHeader checks if a block header is present in the database or not, caching
-// it if present.
-func (bc *RootBlockChain) HasHeader(hash common.Hash) bool {
-	return bc.headerChain.HasHeader(hash)
+	block := bc.GetBlock(hash)
+	if qkccom.IsNil(block) {
+		return nil
+	}
+	return block.IHeader()
 }
 
 // GetBlockHashesFromHash retrieves a number of block hashes starting at a given
 // hash, fetching towards the genesis block.
 func (bc *RootBlockChain) GetBlockHashesFromHash(hash common.Hash, max uint64) []common.Hash {
-	return bc.headerChain.GetBlockHashesFromHash(hash, max)
+	// Get the origin header from which to fetch
+	block := bc.GetBlock(hash)
+	if qkccom.IsNil(block) {
+		return nil
+	}
+	// Iterate the Headers until enough is collected or the genesis reached
+	chain := make([]common.Hash, 0, max)
+	for i := uint64(0); i < max; i++ {
+		next := block.ParentHash()
+		if block = bc.GetBlock(next); block == nil {
+			break
+		}
+		chain = append(chain, next)
+		if block.NumberU64() == 0 {
+			break
+		}
+	}
+	return chain
 }
 
 // GetAncestor retrieves the Nth ancestor of a given block. It assumes that either the given block or
@@ -1085,10 +976,35 @@ func (bc *RootBlockChain) GetBlockHashesFromHash(hash common.Hash, max uint64) [
 //
 // Note: ancestor == 0 returns the same block, 1 returns its parent and so on.
 func (bc *RootBlockChain) GetAncestor(hash common.Hash, number, ancestor uint64, maxNonCanonical *uint64) (common.Hash, uint64) {
-	bc.chainmu.Lock()
-	defer bc.chainmu.Unlock()
-
-	return bc.headerChain.GetAncestor(hash, number, ancestor, maxNonCanonical)
+	if ancestor > number {
+		return common.Hash{}, 0
+	}
+	if ancestor == 1 {
+		// in this case it is cheaper to just read the header
+		if block := bc.GetBlock(hash); block != nil {
+			return block.ParentHash(), number - 1
+		} else {
+			return common.Hash{}, 0
+		}
+	}
+	for ancestor != 0 {
+		if rawdb.ReadCanonicalHash(bc.db, rawdb.ChainTypeRoot, number) == hash {
+			number -= ancestor
+			return rawdb.ReadCanonicalHash(bc.db, rawdb.ChainTypeRoot, number), number
+		}
+		if *maxNonCanonical == 0 {
+			return common.Hash{}, 0
+		}
+		*maxNonCanonical--
+		ancestor--
+		block := bc.GetBlock(hash)
+		if block == nil {
+			return common.Hash{}, 0
+		}
+		hash = block.ParentHash()
+		number--
+	}
+	return hash, number
 }
 
 func (bc *RootBlockChain) GetParentHashByHash(hash common.Hash) common.Hash {
@@ -1129,7 +1045,11 @@ func (bc *RootBlockChain) SetLatestMinorBlockHeaders(hash common.Hash, headerMap
 // GetHeaderByNumber retrieves a block header from the database by number,
 // caching it (associated with its hash) if found.
 func (bc *RootBlockChain) GetHeaderByNumber(number uint64) types.IHeader {
-	return bc.headerChain.GetHeaderByNumber(number)
+	block := bc.GetBlockByNumber(number)
+	if qkccom.IsNil(block) {
+		return nil
+	}
+	return block.IHeader()
 }
 
 // Config retrieves the blockchain's chain configuration.
@@ -1295,7 +1215,7 @@ func (bc *RootBlockChain) CreateBlockToMine(mHeaderList []*types.MinorBlockHeade
 		return nil, err
 	}
 	block := bc.CurrentBlock().Header().CreateBlockToAppend(createTime, difficulty, address, nil, nil)
-	block.ExtendMinorBlockHeaderList(mHeaderList)
+	block.ExtendMinorBlockHeaderList(mHeaderList, *createTime)
 	coinbaseToken, err := bc.CalculateRootBlockCoinBase(block)
 	if err != nil {
 		return nil, err
@@ -1327,6 +1247,7 @@ func (bc *RootBlockChain) CreateBlockToMine(mHeaderList []*types.MinorBlockHeade
 func (bc *RootBlockChain) CalculateRootBlockCoinBase(rootBlock *types.RootBlock) (*types.TokenBalances, error) {
 	for _, header := range rootBlock.MinorBlockHeaders() {
 		if !bc.ContainMinorBlockByHash(header.Hash()) {
+			log.Error("not contain minorBlock", "number", header.Number, "branch", header.Branch.Value, "hash", header.Hash().String())
 			return nil, fmt.Errorf("rootBlockChain not contain minorBlock hash:%v", header.Hash().String())
 		}
 	}
@@ -1516,11 +1437,11 @@ func (bc *RootBlockChain) PoSWInfo(header *types.RootBlockHeader) (*rpc.PoSWInfo
 	if header.Number == 0 {
 		return nil, nil
 	}
-	var stakes *big.Int
-	if bc.posw.IsPoSWEnabled(header) {
-		stakes, _ = bc.getSignedPoSWStakes(header)
+	if !bc.posw.IsPoSWEnabled(header) {
+		return nil, nil
 	}
-	diff, mineable, mined, _ := bc.posw.GetPoSWInfo(header, stakes)
+	stakes, _ := bc.getSignedPoSWStakes(header)
+	diff, mineable, mined, _ := bc.posw.GetPoSWInfo(header, stakes, header.Coinbase.Recipient)
 	return &rpc.PoSWInfo{
 		EffectiveDifficulty: diff,
 		PoswMinedBlocks:     mined + 1,

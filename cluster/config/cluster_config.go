@@ -40,7 +40,7 @@ type ClusterConfig struct {
 	CheckDBRBlockFrom        int
 	CheckDBRBlockTo          int
 	CheckDBRBlockBatch       int
-	// TODO KafkaSampleLogger
+	NoPruning                bool
 }
 
 func NewClusterConfig() *ClusterConfig {
@@ -324,6 +324,18 @@ func (q *QuarkChainConfig) GetShardConfigByFullShardID(fullShardID uint32) *Shar
 	return q.shards[fullShardID]
 }
 
+func (q *QuarkChainConfig) IsSameFullShard(key1, key2 uint32) bool {
+	id1, err := q.GetFullShardIdByFullShardKey(key1)
+	if err != nil {
+		return false
+	}
+	id2, err := q.GetFullShardIdByFullShardKey(key2)
+	if err != nil {
+		return false
+	}
+	return id1 == id2
+}
+
 func (q *QuarkChainConfig) GetFullShardIdByFullShardKey(fullShardKey uint32) (uint32, error) {
 	chainID := fullShardKey >> 16
 	shardSize, err := q.GetShardSizeByChainId(chainID)
@@ -398,6 +410,7 @@ func NewQuarkChainConfig() *QuarkChainConfig {
 		}
 	}
 	ret.initAndValidate()
+	ret.SetAllowedToken()
 	return &ret
 }
 
@@ -414,28 +427,23 @@ func (q *QuarkChainConfig) GetDefaultChainTokenID() uint64 {
 }
 
 func (q *QuarkChainConfig) allowedTokenIds() map[uint64]bool {
-	if q.allowTokenIDs == nil {
-		q.allowTokenIDs = make(map[uint64]bool, 0)
-		q.allowTokenIDs[common.TokenIDEncode(q.GenesisToken)] = true
-		for _, shard := range q.shards {
-			for _, alloc := range shard.Genesis.Alloc {
-				for tokenID, _ := range alloc.Balances {
-					q.allowTokenIDs[common.TokenIDEncode(tokenID)] = true
-				}
-			}
-		}
+	if len(q.allowTokenIDs) == 0 {
+		panic("allow tokenId should >0")
 	}
 	return q.allowTokenIDs
 }
 
-func (q *QuarkChainConfig) AllowedTransferTokenIDs() map[uint64]bool {
-	return q.allowedTokenIds()
+func (q *QuarkChainConfig) SetAllowedToken() {
+	q.allowTokenIDs = make(map[uint64]bool, 0)
+	q.allowTokenIDs[common.TokenIDEncode(q.GenesisToken)] = true
+	for _, shard := range q.shards {
+		for _, alloc := range shard.Genesis.Alloc {
+			for tokenID := range alloc.Balances {
+				q.allowTokenIDs[common.TokenIDEncode(tokenID)] = true
+			}
+		}
+	}
 }
-
-func (q *QuarkChainConfig) AllowedGasTokenIDs() map[uint64]bool {
-	return q.allowedTokenIds()
-}
-
 func (q *QuarkChainConfig) IsAllowedTokenID(tokenID uint64) bool {
 	_, ok := q.allowedTokenIds()[tokenID]
 	return ok

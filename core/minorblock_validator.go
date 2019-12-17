@@ -19,6 +19,9 @@ package core
 import (
 	"errors"
 	"fmt"
+	"math/big"
+	"time"
+
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/common"
@@ -26,8 +29,6 @@ import (
 	"github.com/QuarkChain/goquarkchain/core/state"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/log"
-	"math/big"
-	"time"
 )
 
 // MinorBlockValidator is responsible for validating block Headers, uncles and
@@ -68,6 +69,11 @@ func (v *MinorBlockValidator) ValidateBlock(mBlock types.IBlock, force bool) err
 		return ErrInvalidMinorBlock
 	}
 
+	if err := v.engine.VerifyHeader(v.bc, block.Header(), true); err != nil {
+		log.Error(v.logInfo, "verify header err", err)
+		return err
+	}
+
 	if block.Version() != 0 {
 		return errors.New("incorrect minor block version")
 	}
@@ -80,7 +86,7 @@ func (v *MinorBlockValidator) ValidateBlock(mBlock types.IBlock, force bool) err
 	}
 	// Check whether the block's known, and if not, that it's linkable
 	if v.bc.HasBlockAndState(block.Hash()) && !force {
-		log.Error(v.logInfo, "already have this block err", ErrKnownBlock, "height", block.NumberU64(), "hash", block.Hash().String())
+		log.Warn(v.logInfo, "already have this block err", ErrKnownBlock, "height", block.NumberU64(), "hash", block.Hash().String())
 		return ErrKnownBlock
 	}
 
@@ -224,7 +230,7 @@ func (v *MinorBlockValidator) ValidateSeal(mHeader types.IHeader, usePowsDiff bo
 	} else {
 		shardConfig := v.bc.shardConfig.PoswConfig
 		if shardConfig.Enabled {
-			adjustedDiff = header.Difficulty.Div(header.Difficulty, new(big.Int).SetUint64(shardConfig.DiffDivider))
+			adjustedDiff.Div(adjustedDiff, new(big.Int).SetUint64(shardConfig.DiffDivider))
 		}
 	}
 	return v.engine.VerifySeal(v.bc, header, adjustedDiff)

@@ -126,3 +126,24 @@ func sealBlock(t *testing.T, q *QKCHash, h *types.RootBlockHeader) {
 	h.Nonce = block.IHeader().GetNonce()
 	h.MixDigest = block.IHeader().GetMixDigest()
 }
+
+func TestQKCHashPow(t *testing.T) {
+	assert := assert.New(t)
+	diffCalculator := consensus.EthDifficultyCalculator{AdjustmentCutoff: 1, AdjustmentFactor: 1, MinimumDifficulty: big.NewInt(10)}
+	header := &types.RootBlockHeader{Number: 10, Difficulty: big.NewInt(10)}
+	q := New(true, &diffCalculator, false, []byte{}, 0)
+	rootBlock := types.NewRootBlockWithHeader(header)
+	resultsCh := make(chan types.IBlock)
+	err := q.Seal(nil, rootBlock, big.NewInt(10), 1, resultsCh, nil)
+	assert.NoError(err, "should have no problem sealing the block")
+	block := <-resultsCh
+	// Correct
+	header.Nonce = block.IHeader().GetNonce()
+	header.MixDigest = block.IHeader().GetMixDigest()
+	err = q.VerifySeal(nil, header, big.NewInt(10))
+	assert.NoError(err, "should have correct nonce / mix digest")
+	// Wrong
+	header.Nonce = block.IHeader().GetNonce() - 1
+	err = q.VerifySeal(nil, header, big.NewInt(10))
+	assert.Error(err, "should have error because of the wrong nonce")
+}

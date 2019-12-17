@@ -3,13 +3,15 @@ package types
 import (
 	"bytes"
 	"crypto/ecdsa"
+	"encoding/hex"
 	"github.com/QuarkChain/goquarkchain/account"
-	"math/big"
-	"testing"
-
+	"github.com/QuarkChain/goquarkchain/serialize"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/rlp"
+	"math/big"
+	"reflect"
+	"testing"
 )
 
 // The values in those tests are from the EvmTransaction Tests
@@ -184,4 +186,86 @@ func TestTransactionPriceNonceSort(t *testing.T) {
 			}
 		}
 	}
+}
+func TestTxSize(t *testing.T) {
+
+	id1, err := account.CreatRandomIdentity()
+	if err != nil {
+		t.Fatal("CreatIdentityFromKey error: ", err)
+	}
+	defaultFullShardKey, err := id1.GetDefaultFullShardKey()
+	if err != nil {
+		t.Fatal("GetDefaultFullShardKey error: ", err)
+	}
+	acc1 := account.CreatAddressFromIdentity(id1, defaultFullShardKey)
+	check := func(f string, got, want interface{}) {
+		if !reflect.DeepEqual(got, want) {
+			t.Errorf("%s mismatch: got %v, want %v", f, got, want)
+		}
+	}
+	evmTx := NewEvmTransaction(
+		0,
+		acc1.Recipient,
+		big.NewInt(0),
+		30000,
+		big.NewInt(0),
+		0xFFFF,
+		0xFFFF,
+		1,
+		0,
+		nil,
+		12345,
+		1234,
+	)
+	signer := NewEIP155Signer(1)
+	prvKey, err := crypto.HexToECDSA(hex.EncodeToString(id1.GetKey().Bytes()))
+	if err != nil {
+		t.Fatal("prvKey error: ", err)
+	}
+	evmTx, err = SignTx(evmTx, signer, prvKey)
+	if err != nil {
+		t.Fatal("SignTx error: ", err)
+	}
+	tx := &Transaction{
+		EvmTx:  evmTx,
+		TxType: EvmTx,
+	}
+	txBytes, err := serialize.SerializeToBytes(&tx)
+	if err != nil {
+		t.Fatal("Serialize error: ", err)
+	}
+
+	TT256 := new(big.Int).Sub(new(big.Int).Exp(big.NewInt(2), big.NewInt(256), big.NewInt(0)), big.NewInt(1))
+	SHARD_KEY_MAX := new(big.Int).Exp(big.NewInt(256), big.NewInt(4), big.NewInt(0))
+	TOKEN_ID_MAX, _ := new(big.Int).SetString("4873763662273663091", 10)
+	evmTx2 := NewEvmTransaction(
+		TT256.Uint64(),
+		acc1.Recipient,
+		TT256,
+		TT256.Uint64(),
+		TT256,
+		uint32(SHARD_KEY_MAX.Uint64()),
+		uint32(SHARD_KEY_MAX.Uint64()),
+		1,
+		0,
+		[]byte{0},
+		TOKEN_ID_MAX.Uint64(),
+		TOKEN_ID_MAX.Uint64(),
+	)
+
+	evmTx2, err = SignTx(evmTx2, signer, prvKey)
+	if err != nil {
+		t.Fatal("SignTx error: ", err)
+	}
+	tx2 := &Transaction{
+		EvmTx:  evmTx2,
+		TxType: EvmTx,
+	}
+	txBytes2, err := serialize.SerializeToBytes(&tx2)
+	if err != nil {
+		t.Fatal("Serialize error: ", err)
+	}
+
+	check("EvmTransaction min len", len(txBytes), 120)
+	check("EvmTransaction max len", len(txBytes2), 210)
 }

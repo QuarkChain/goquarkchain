@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
+	qsync "github.com/QuarkChain/goquarkchain/cluster/sync"
+	qcom "github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/p2p"
@@ -14,6 +16,7 @@ import (
 	qrpc "github.com/QuarkChain/goquarkchain/rpc"
 	"github.com/QuarkChain/goquarkchain/serialize"
 	"github.com/ethereum/go-ethereum/log"
+	"golang.org/x/sync/errgroup"
 )
 
 type SlaveServerSideOp struct {
@@ -44,23 +47,19 @@ func (s *SlaveServerSideOp) MasterInfo(ctx context.Context, req *rpc.Request) (*
 		return nil, err
 	}
 
-	s.slave.connManager.ModifyTarget(fmt.Sprintf("%s:%d", gReq.Ip, gReq.Port))
-
 	if gReq.RootTip == nil {
 		return nil, errors.New("handle masterInfo err:rootTip is nil")
 	}
+
+	s.slave.connManager.ModifyTarget(fmt.Sprintf("%s:%d", gReq.Ip, gReq.Port))
+
 	//createShards
 	if err = s.slave.CreateShards(gReq.RootTip, true); err != nil {
 		return nil, err
 	}
 
 	//ping with other slaves
-	for _, slv := range s.slave.clstrCfg.SlaveList {
-		if slv.ID == s.slave.config.ID {
-			continue
-		}
-		s.slave.connManager.AddConnectToSlave(&rpc.SlaveInfo{Id: slv.ID, Host: slv.IP, Port: slv.Port, ChainMaskList: slv.ChainMaskList})
-	}
+	s.slave.connManager.SetConnectToMasterAndSlaves(s.slave.clstrCfg.SlaveList)
 
 	log.Info("slave master info response", "master endpoint", s.slave.connManager.masterClient.target)
 
@@ -93,7 +92,7 @@ func (s *SlaveServerSideOp) GenTx(ctx context.Context, req *rpc.Request) (*rpc.R
 	if err = serialize.DeserializeFromBytes(req.Data, &gReq); err != nil {
 		return nil, err
 	}
-	if err = s.slave.GenTx(&gReq); err != nil {
+	if err = s.slave.GenTx(gReq); err != nil {
 		return nil, err
 	}
 	return response, nil
@@ -545,16 +544,59 @@ func (s *SlaveServerSideOp) AddMinorBlockListForSync(ctx context.Context, req *r
 // p2p apis.
 func (s *SlaveServerSideOp) GetMinorBlockList(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
 	var (
-		gReq     rpc.GetMinorBlockListRequest
+		gReq     rpc.P2PRedirectRequest
 		gRes     rpc.GetMinorBlockListResponse
+		hashList p2p.GetMinorBlockListRequest
 		response = &rpc.Response{RpcId: req.RpcId}
 		err      error
 	)
 	if err = serialize.DeserializeFromBytes(req.Data, &gReq); err != nil {
 		return nil, err
 	}
+	if err = serialize.DeserializeFromBytes(gReq.Data, &hashList); err != nil {
+		return nil, err
+	}
+	if len(hashList.MinorBlockHashList) > 2*qsync.MinorBlockBatchSize {
+		return nil, fmt.Errorf("bad number of minor blocks requested. branch: %d; limit: %d; expected limit: %d",
+			gReq.Branch, len(hashList.MinorBlockHashList), qsync.MinorBlockBatchSize)
+	}
 
-	if gRes.MinorBlockList, err = s.slave.GetMinorBlockListByHashList(gReq.MinorBlockHashList, gReq.Branch); err != nil {
+	if gRes.MinorBlockList, err = s.slave.GetMinorBlockListByHashList(hashList.MinorBlockHashList, gReq.Branch); err != nil {
+		return nil, err
+	}
+
+	if response.Data, err = serialize.SerializeToBytes(gRes); err != nil {
+		return nil, err
+	}
+	return response, nil
+}
+
+func (s *SlaveServerSideOp) GetMinorBlockHeaderListWithSkip(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
+	var (
+		gReq     rpc.P2PRedirectRequest
+		gRes     p2p.GetMinorBlockHeaderListResponse
+		reqSkip  p2p.GetMinorBlockHeaderListWithSkipRequest
+		response = &rpc.Response{RpcId: req.RpcId}
+		err      error
+	)
+	if err = serialize.DeserializeFromBytes(req.Data, &gReq); err != nil {
+		return nil, err
+	}
+	if err = serialize.DeserializeFromBytes(gReq.Data, &reqSkip); err != nil {
+		return nil, err
+	}
+	if reqSkip.Limit <= 0 || uint64(reqSkip.Limit) > 2*qsync.MinorBlockHeaderListLimit {
+		return nil, fmt.Errorf("bad limit. branch: %d; limit: %d; expected limit: %d",
+			gReq.Branch, reqSkip.Limit, qsync.MinorBlockHeaderListLimit)
+	}
+	if reqSkip.Direction != qcom.DirectionToGenesis && reqSkip.Direction != qcom.DirectionToTip {
+		return nil, errors.New("Bad direction")
+	}
+	if reqSkip.Type != qcom.SkipHash && reqSkip.Type != qcom.SkipHeight {
+		return nil, errors.New("Bad type value")
+	}
+
+	if gRes.BlockHeaderList, err = s.slave.GetMinorBlockHeaderList(&reqSkip); err != nil {
 		return nil, err
 	}
 
@@ -566,16 +608,33 @@ func (s *SlaveServerSideOp) GetMinorBlockList(ctx context.Context, req *rpc.Requ
 
 func (s *SlaveServerSideOp) GetMinorBlockHeaderList(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
 	var (
-		gReq     p2p.GetMinorBlockHeaderListWithSkipRequest
+		gReq     rpc.P2PRedirectRequest
 		gRes     p2p.GetMinorBlockHeaderListResponse
+		mHeader  p2p.GetMinorBlockHeaderListRequest
 		response = &rpc.Response{RpcId: req.RpcId}
 		err      error
 	)
 	if err = serialize.DeserializeFromBytes(req.Data, &gReq); err != nil {
 		return nil, err
 	}
+	if err = serialize.DeserializeFromBytes(gReq.Data, &mHeader); err != nil {
+		return nil, err
+	}
+	if mHeader.Limit <= 0 || uint64(mHeader.Limit) > 2*qsync.MinorBlockHeaderListLimit {
+		return nil, fmt.Errorf("bad limit. branch: %d; limit: %d; expected limit: %d", gReq.Branch, mHeader.Limit, qsync.MinorBlockHeaderListLimit)
+	}
+	if mHeader.Direction != qcom.DirectionToGenesis {
+		return nil, fmt.Errorf("Bad direction. branch: %d; ", gReq.Branch)
+	}
 
-	if gRes.BlockHeaderList, err = s.slave.GetMinorBlockHeaderList(&gReq); err != nil {
+	if gRes.BlockHeaderList, err = s.slave.GetMinorBlockHeaderList(&p2p.GetMinorBlockHeaderListWithSkipRequest{
+		Type:      qcom.SkipHash,
+		Data:      mHeader.BlockHash,
+		Limit:     mHeader.Limit,
+		Skip:      0,
+		Direction: mHeader.Direction,
+		Branch:    mHeader.Branch,
+	}); err != nil {
 		return nil, err
 	}
 
@@ -604,49 +663,92 @@ func (s *SlaveServerSideOp) HandleNewTip(ctx context.Context, req *rpc.Request) 
 }
 
 func (s *SlaveServerSideOp) AddTransactions(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
-	ts := time.Now()
 	var (
-		gReq     rpc.NewTransactionList
-		gRes     rpc.HashList
-		response = &rpc.Response{RpcId: req.RpcId}
-		err      error
+		gReq rpc.P2PRedirectRequest
+		txs  p2p.NewTransactionList
+		err  error
 	)
 
 	if err = serialize.DeserializeFromBytes(req.Data, &gReq); err != nil {
 		return nil, err
 	}
-	if len(gReq.TransactionList) > params.NEW_TRANSACTION_LIST_LIMIT {
-		return nil, errors.New("too many txs in one command")
-	}
 
-	if err := s.slave.AddTxList(gReq.TransactionList, gReq.PeerID); err != nil {
+	err = serialize.DeserializeFromBytes(gReq.Data, &txs)
+	if err != nil {
 		return nil, err
 	}
-
-	for _, tx := range gReq.TransactionList {
-		gRes.Hashes = append(gRes.Hashes, tx.Hash())
+	if len(txs.TransactionList) > params.NEW_TRANSACTION_LIST_LIMIT {
+		return nil, fmt.Errorf("too many txs in one command, tx count: %d\n", len(txs.TransactionList))
+	}
+	addTxList := func(branch uint32, txs []*types.Transaction) error {
+		err := s.slave.AddTxList(gReq.PeerID, branch, txs)
+		if err != nil {
+			return err
+		}
+		return nil
 	}
 
-	if response.Data, err = serialize.SerializeToBytes(gRes); err != nil {
-		return nil, err
+	if gReq.Branch != 0 {
+		err := addTxList(gReq.Branch, txs.TransactionList)
+		return new(rpc.Response), err
 	}
-	log.Info("AddTxs duration", "t", time.Now().Sub(ts).Seconds(), "time", time.Now().Sub(ts).Nanoseconds(), "len", len(gReq.TransactionList))
-	return response, nil
+
+	var (
+		txList       = make(map[uint32][]*types.Transaction)
+		fullShardIds = s.slave.fullShardList
+	)
+
+	for _, tx := range txs.TransactionList {
+		fromShardSize, err := s.slave.clstrCfg.Quarkchain.GetShardSizeByChainId(tx.EvmTx.FromChainID())
+		if err != nil {
+			return nil, err
+		}
+		tx.EvmTx.SetFromShardSize(fromShardSize)
+		fId := tx.EvmTx.FromFullShardId()
+		for _, id := range fullShardIds {
+			if fId != id {
+				continue
+			}
+			if _, ok := txList[id]; !ok {
+				txList[id] = make([]*types.Transaction, 0, len(txs.TransactionList))
+			}
+			txList[id] = append(txList[id], tx)
+		}
+	}
+
+	var (
+		g errgroup.Group
+	)
+	for branch, txs := range txList {
+		branch, txs := branch, txs
+		g.Go(func() error {
+			return addTxList(branch, txs)
+		})
+	}
+
+	return new(rpc.Response), g.Wait()
 }
 
 func (s *SlaveServerSideOp) HandleNewMinorBlock(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
 	var (
-		gReq     types.MinorBlock
-		response = &rpc.Response{RpcId: req.RpcId}
-		err      error
+		gReq   rpc.P2PRedirectRequest
+		mblock p2p.NewBlockMinor
+		err    error
 	)
 	if err = serialize.DeserializeFromBytes(req.Data, &gReq); err != nil {
 		return nil, err
 	}
-	if err = s.slave.NewMinorBlock(&gReq); err != nil {
+	if err = serialize.DeserializeFromBytes(gReq.Data, &mblock); err != nil {
 		return nil, err
 	}
-	return response, nil
+	if gReq.Branch != mblock.Block.Branch().Value {
+		return nil, fmt.Errorf("invalid NewBlockMinor Request: mismatch branch value from peer %v. in request meta: %d, in minor header: %d",
+			gReq.PeerID, gReq.Branch, mblock.Block.Branch().Value)
+	}
+	if err = s.slave.NewMinorBlock(gReq.PeerID, mblock.Block); err != nil {
+		return nil, err
+	}
+	return &rpc.Response{}, nil
 }
 
 func (s *SlaveServerSideOp) SetMining(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {

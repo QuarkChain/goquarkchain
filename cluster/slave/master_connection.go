@@ -2,7 +2,9 @@ package slave
 
 import (
 	"errors"
+
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
+	qcom "github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/p2p"
 	"github.com/QuarkChain/goquarkchain/serialize"
@@ -45,11 +47,9 @@ func (s *ConnManager) SendMinorBlockHeaderListToMaster(request *rpc.AddMinorBloc
 	}
 	return err
 }
-func (s *ConnManager) BroadcastNewTip(mHeaderLst []*types.MinorBlockHeader,
-	rHeader *types.RootBlockHeader, branch uint32) error {
-	var (
-		gReq = rpc.BroadcastNewTip{MinorBlockHeaderList: mHeaderLst, RootBlockHeader: rHeader, Branch: branch}
-	)
+
+func (s *ConnManager) BroadcastNewTip(mHeaderLst []*types.MinorBlockHeader, rHeader *types.RootBlockHeader, branch uint32) error {
+	gReq := rpc.BroadcastNewTip{MinorBlockHeaderList: mHeaderLst, RootBlockHeader: rHeader, Branch: branch}
 	data, err := serialize.SerializeToBytes(gReq)
 	if err != nil {
 		return err
@@ -58,23 +58,32 @@ func (s *ConnManager) BroadcastNewTip(mHeaderLst []*types.MinorBlockHeader,
 	return err
 }
 
-func (s *ConnManager) BroadcastTransactions(txs []*types.Transaction, branch uint32, peerID string) error {
-	var (
-		gReq = rpc.BroadcastTransactions{Txs: txs, Branch: branch, PeerID: peerID}
-	)
+func (s *ConnManager) BroadcastTransactions(peerId string, branch uint32, txs []*types.Transaction) error {
+	raw, err := serialize.SerializeToBytes(&p2p.NewTransactionList{TransactionList: txs})
+	if err != nil {
+		return err
+	}
+	gReq := rpc.P2PRedirectRequest{PeerID: peerId, Branch: branch, Data: raw}
 	data, err := serialize.SerializeToBytes(gReq)
 	if err != nil {
 		return err
 	}
-
 	_, err = s.masterClient.client.Call(s.masterClient.target, &rpc.Request{Op: rpc.OpBroadcastTransactions, Data: data})
 	return err
 }
 
-func (s *ConnManager) BroadcastMinorBlock(minorBlock *types.MinorBlock, branch uint32) error {
+func (s *ConnManager) BroadcastMinorBlock(peerId string, minorBlock *types.MinorBlock) error {
+	if minorBlock == nil {
+		return errors.New("block is nil or branch mismatch")
+	}
 	var (
-		gReq = rpc.BroadcastMinorBlock{MinorBlock: minorBlock, Branch: branch}
+		gReq = rpc.P2PRedirectRequest{PeerID: peerId, Branch: minorBlock.Branch().Value}
+		err  error
 	)
+	gReq.Data, err = serialize.SerializeToBytes(p2p.NewBlockMinor{Block: minorBlock})
+	if err != nil {
+		return err
+	}
 	data, err := serialize.SerializeToBytes(gReq)
 	if err != nil {
 		return err
@@ -86,16 +95,20 @@ func (s *ConnManager) BroadcastMinorBlock(minorBlock *types.MinorBlock, branch u
 
 func (s *ConnManager) GetMinorBlocks(mHeaderList []common.Hash, peerId string, branch uint32) ([]*types.MinorBlock, error) {
 	var (
-		gReq = rpc.GetMinorBlockListRequest{MinorBlockHashList: mHeaderList, PeerId: peerId, Branch: branch}
+		gReq = rpc.P2PRedirectRequest{PeerID: peerId, Branch: branch}
 		gRep rpc.GetMinorBlockListResponse
-		res  *rpc.Response
+		err  error
 	)
+	gReq.Data, err = serialize.SerializeToBytes(p2p.GetMinorBlockListRequest{MinorBlockHashList: mHeaderList})
+	if err != nil {
+		return nil, err
+	}
 	data, err := serialize.SerializeToBytes(gReq)
 	if err != nil {
 		return nil, err
 	}
 
-	res, err = s.masterClient.client.Call(s.masterClient.target, &rpc.Request{Op: rpc.OpGetMinorBlockList, Data: data})
+	res, err := s.masterClient.client.Call(s.masterClient.target, &rpc.Request{Op: rpc.OpGetMinorBlockList, Data: data})
 	if err != nil {
 		return nil, err
 	}
@@ -110,14 +123,36 @@ func (s *ConnManager) GetMinorBlocks(mHeaderList []common.Hash, peerId string, b
 func (s *ConnManager) GetMinorBlockHeaderList(gReq *rpc.GetMinorBlockHeaderListWithSkipRequest) ([]*types.MinorBlockHeader, error) {
 	var (
 		gRep p2p.GetMinorBlockHeaderListResponse
-		res  *rpc.Response
+		data []byte
+		op   uint32
+		err  error
 	)
-	data, err := serialize.SerializeToBytes(gReq)
-	if err != nil {
-		return nil, err
-	}
 
-	res, err = s.masterClient.client.Call(s.masterClient.target, &rpc.Request{Op: rpc.OpGetMinorBlockHeaderList, Data: data})
+	if gReq.Type == qcom.SkipHash && gReq.Direction == qcom.DirectionToGenesis {
+		data, err = serialize.SerializeToBytes(&p2p.GetMinorBlockHeaderListRequest{
+			BlockHash: gReq.GetHash(),
+			Branch:    gReq.Branch,
+			Limit:     gReq.Limit,
+			Direction: gReq.Direction,
+		})
+		if err != nil {
+			return nil, err
+		}
+		op = rpc.OpGetMinorBlockHeaderList
+	} else {
+		data, err = serialize.SerializeToBytes(&gReq.GetMinorBlockHeaderListWithSkipRequest)
+		if err != nil {
+			return nil, err
+		}
+		op = rpc.OpGetMinorBlockHeaderListWithSkip
+	}
+	rawReq, err := serialize.SerializeToBytes(&rpc.P2PRedirectRequest{
+		PeerID: gReq.PeerID,
+		Branch: gReq.Branch.Value,
+		Data:   data,
+	})
+
+	res, err := s.masterClient.client.Call(s.masterClient.target, &rpc.Request{Op: op, Data: rawReq})
 	if err != nil {
 		return nil, err
 	}

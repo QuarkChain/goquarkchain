@@ -12,6 +12,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/p2p"
 	qrpc "github.com/QuarkChain/goquarkchain/rpc"
+	"github.com/QuarkChain/goquarkchain/serialize"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"golang.org/x/sync/errgroup"
@@ -60,8 +61,8 @@ func (s *QKCMasterBackend) AddTransaction(tx *types.Transaction) error {
 	if err := tx.EvmTx.SetFromShardSize(fromShardSize); err != nil {
 		return errors.New(fmt.Sprintf("Failed to set fromShardSize, fromShardSize: %d, err: %v", fromShardSize, err))
 	}
-	branch := account.Branch{Value: evmTx.FromFullShardId()}
-	slaves := s.getAllSlaveConnection(branch.Value)
+	fullShardId := evmTx.FromFullShardId()
+	slaves := s.GetSlaveConnsById(fullShardId)
 	if len(slaves) == 0 {
 		return ErrNoBranchConn
 	}
@@ -76,7 +77,11 @@ func (s *QKCMasterBackend) AddTransaction(tx *types.Transaction) error {
 	if err != nil {
 		return err
 	}
-	go s.protocolManager.BroadcastTransactions(branch.Value, []*types.Transaction{tx}, "")
+	data, err := serialize.SerializeToBytes(&p2p.NewTransactionList{TransactionList: []*types.Transaction{tx}})
+	if err != nil {
+		return err
+	}
+	go s.protocolManager.BroadcastTransactions(&rpc.P2PRedirectRequest{Branch: fullShardId, Data: data}, "")
 	return nil
 }
 
@@ -89,8 +94,7 @@ func (s *QKCMasterBackend) ExecuteTransaction(tx *types.Transaction, address *ac
 	if err := tx.EvmTx.SetFromShardSize(fromShardSize); err != nil {
 		return nil, errors.New(fmt.Sprintf("Failed to set fromShardSize, fromShardSize: %d, err: %v", fromShardSize, err))
 	}
-	branch := account.Branch{Value: evmTx.FromFullShardId()}
-	slaves := s.getAllSlaveConnection(branch.Value)
+	slaves := s.GetSlaveConnsById(evmTx.FromFullShardId())
 	if len(slaves) == 0 {
 		return nil, ErrNoBranchConn
 	}
@@ -119,7 +123,7 @@ func (s *QKCMasterBackend) ExecuteTransaction(tx *types.Transaction, address *ac
 }
 
 func (s *QKCMasterBackend) GetMinorBlockByHash(blockHash common.Hash, branch account.Branch, needExtraInfo bool) (*types.MinorBlock, *rpc.PoSWInfo, error) {
-	slaveConn := s.getOneSlaveConnection(branch)
+	slaveConn := s.GetOneSlaveConnById(branch.Value)
 	if slaveConn == nil {
 		return nil, nil, ErrNoBranchConn
 	}
@@ -127,7 +131,7 @@ func (s *QKCMasterBackend) GetMinorBlockByHash(blockHash common.Hash, branch acc
 }
 
 func (s *QKCMasterBackend) GetMinorBlockByHeight(height *uint64, branch account.Branch, needExtraInfo bool) (*types.MinorBlock, *rpc.PoSWInfo, error) {
-	slaveConn := s.getOneSlaveConnection(branch)
+	slaveConn := s.GetOneSlaveConnById(branch.Value)
 	if slaveConn == nil {
 		return nil, nil, ErrNoBranchConn
 	}
@@ -144,7 +148,7 @@ func (s *QKCMasterBackend) GetMinorBlockByHeight(height *uint64, branch account.
 }
 
 func (s *QKCMasterBackend) GetTransactionByHash(txHash common.Hash, branch account.Branch) (*types.MinorBlock, uint32, error) {
-	slaveConn := s.getOneSlaveConnection(branch)
+	slaveConn := s.GetOneSlaveConnById(branch.Value)
 	if slaveConn == nil {
 		return nil, 0, ErrNoBranchConn
 	}
@@ -152,7 +156,7 @@ func (s *QKCMasterBackend) GetTransactionByHash(txHash common.Hash, branch accou
 }
 
 func (s *QKCMasterBackend) GetTransactionReceipt(txHash common.Hash, branch account.Branch) (*types.MinorBlock, uint32, *types.Receipt, error) {
-	slaveConn := s.getOneSlaveConnection(branch)
+	slaveConn := s.GetOneSlaveConnById(branch.Value)
 	if slaveConn == nil {
 		return nil, 0, nil, ErrNoBranchConn
 	}
@@ -164,7 +168,7 @@ func (s *QKCMasterBackend) GetTransactionsByAddress(address *account.Address, st
 	if err != nil {
 		return nil, nil, err
 	}
-	slaveConn := s.getOneSlaveConnection(account.Branch{Value: fullShardID})
+	slaveConn := s.GetOneSlaveConnById(fullShardID)
 	if slaveConn == nil {
 		return nil, nil, ErrNoBranchConn
 	}
@@ -172,7 +176,7 @@ func (s *QKCMasterBackend) GetTransactionsByAddress(address *account.Address, st
 }
 
 func (s *QKCMasterBackend) GetAllTx(branch account.Branch, start []byte, limit uint32) ([]*rpc.TransactionDetail, []byte, error) {
-	slaveConn := s.getOneSlaveConnection(branch)
+	slaveConn := s.GetOneSlaveConnById(branch.Value)
 	if slaveConn == nil {
 		return nil, nil, ErrNoBranchConn
 	}
@@ -181,7 +185,7 @@ func (s *QKCMasterBackend) GetAllTx(branch account.Branch, start []byte, limit u
 
 func (s *QKCMasterBackend) GetLogs(args *qrpc.FilterQuery) ([]*types.Log, error) {
 	// not support earlist and pending
-	slaveConn := s.getOneSlaveConnection(account.Branch{Value: args.FullShardId})
+	slaveConn := s.GetOneSlaveConnById(args.FullShardId)
 	if slaveConn == nil {
 		return nil, ErrNoBranchConn
 	}
@@ -197,11 +201,19 @@ func (s *QKCMasterBackend) EstimateGas(tx *types.Transaction, fromAddress *accou
 	if err := tx.EvmTx.SetFromShardSize(fromShardSize); err != nil {
 		return 0, errors.New(fmt.Sprintf("Failed to set fromShardSize, fromShardSize: %d, err: %v", fromShardSize, err))
 	}
-	slaveConn := s.getOneSlaveConnection(account.Branch{Value: evmTx.FromFullShardId()})
+	slaveConn := s.GetOneSlaveConnById(evmTx.FromFullShardId())
 	if slaveConn == nil {
 		return 0, ErrNoBranchConn
 	}
-	return slaveConn.EstimateGas(tx, fromAddress)
+	if !evmTx.IsCrossShard() {
+		return slaveConn.EstimateGas(tx, fromAddress)
+	}
+	fAddr := account.Address{Recipient: fromAddress.Recipient, FullShardKey: evmTx.ToFullShardKey()}
+	res, err := slaveConn.EstimateGas(tx, &fAddr)
+	if err != nil {
+		return 0, err
+	}
+	return res + 9000, nil
 }
 
 func (s *QKCMasterBackend) GetStorageAt(address *account.Address, key common.Hash, height *uint64) (common.Hash, error) {
@@ -209,7 +221,7 @@ func (s *QKCMasterBackend) GetStorageAt(address *account.Address, key common.Has
 	if err != nil {
 		return common.Hash{}, err
 	}
-	slaveConn := s.getOneSlaveConnection(account.Branch{Value: fullShardID})
+	slaveConn := s.GetOneSlaveConnById(fullShardID)
 	if slaveConn == nil {
 		return common.Hash{}, ErrNoBranchConn
 	}
@@ -221,7 +233,7 @@ func (s *QKCMasterBackend) GetCode(address *account.Address, height *uint64) ([]
 	if err != nil {
 		return nil, err
 	}
-	slaveConn := s.getOneSlaveConnection(account.Branch{Value: fullShardID})
+	slaveConn := s.GetOneSlaveConnById(fullShardID)
 	if slaveConn == nil {
 		return nil, ErrNoBranchConn
 	}
@@ -229,7 +241,7 @@ func (s *QKCMasterBackend) GetCode(address *account.Address, height *uint64) ([]
 }
 
 func (s *QKCMasterBackend) GasPrice(branch account.Branch, tokenID uint64) (uint64, error) {
-	slaveConn := s.getOneSlaveConnection(branch)
+	slaveConn := s.GetOneSlaveConnById(branch.Value)
 	if slaveConn == nil {
 		return 0, ErrNoBranchConn
 	}
@@ -252,7 +264,7 @@ func (s *QKCMasterBackend) GetWork(fullShardId *uint32, addr *common.Address) (*
 	}
 
 	branch := account.Branch{Value: *fullShardId}
-	slaveConn := s.getOneSlaveConnection(branch)
+	slaveConn := s.GetOneSlaveConnById(branch.Value)
 	if slaveConn == nil {
 		return nil, ErrNoBranchConn
 	}
@@ -266,7 +278,7 @@ func (s *QKCMasterBackend) SubmitWork(fullShardId *uint32, headerHash common.Has
 	}
 
 	branch := account.NewBranch(*fullShardId)
-	slaveConn := s.getOneSlaveConnection(branch)
+	slaveConn := s.GetOneSlaveConnById(branch.Value)
 	if slaveConn == nil {
 		return false, ErrNoBranchConn
 	}
@@ -302,7 +314,7 @@ func (s *QKCMasterBackend) GetRootBlockByHash(hash common.Hash, needExtraInfo bo
 }
 
 func (s *QKCMasterBackend) getPoswInfo(header *types.RootBlockHeader) (*rpc.PoSWInfo, error) {
-	poswInfo, err := s.rootBlockChain.PoSWInfo(header) //TODO @DL to fix https://github.com/QuarkChain/goquarkchain/issues/408
+	poswInfo, err := s.rootBlockChain.PoSWInfo(header)
 	if err != nil && !strings.Contains(err.Error(), core.ErrPoswOnRootChainIsNotFound.Error()) {
 		return nil, err
 	}
@@ -357,17 +369,21 @@ func (s *QKCMasterBackend) InsertMinedBlock(block types.IBlock) error {
 }
 
 func (s *QKCMasterBackend) AddMinorBlock(branch uint32, mBlock *types.MinorBlock) error {
-	clients := s.getShardConnForP2P(branch)
+	clients := s.GetSlaveConnsById(branch)
 	if len(clients) == 0 {
 		return errors.New(fmt.Sprintf("slave is not exist, branch: %d", branch))
 	}
 	var (
 		g errgroup.Group
 	)
+	data, err := serialize.SerializeToBytes(&p2p.NewBlockMinor{Block: mBlock})
+	if err != nil {
+		return err
+	}
 	for _, cli := range clients {
 		cli := cli
 		g.Go(func() error {
-			_, err := cli.HandleNewMinorBlock(&p2p.NewBlockMinor{Block: mBlock})
+			err := cli.HandleNewMinorBlock(&rpc.P2PRedirectRequest{Branch: branch, Data: data})
 			return err
 		})
 	}
@@ -378,13 +394,25 @@ func (s *QKCMasterBackend) GetTip() uint64 {
 	return s.rootBlockChain.CurrentBlock().NumberU64()
 }
 
-func (s *QKCMasterBackend) IsSyncIng() bool {
-	return s.synchronizer.IsSyncing()
-}
-
 func (s *QKCMasterBackend) GetKadRoutingTable() ([]string, error) {
 	if s.srvr != nil {
 		return s.srvr.GetKadRoutingTable(), nil
 	}
 	return nil, errors.New("p2p server is not running")
+}
+
+func (s *QKCMasterBackend) IsSyncing() bool {
+	return s.synchronizer.IsSyncing()
+}
+
+func (s *QKCMasterBackend) IsMining() bool {
+	return s.miner.IsMining()
+}
+
+func (s *QKCMasterBackend) CurrentBlock() *types.RootBlock {
+	return s.rootBlockChain.CurrentBlock()
+}
+
+func (s *QKCMasterBackend) GetSlavePoolLen() int {
+	return s.ConnCount()
 }

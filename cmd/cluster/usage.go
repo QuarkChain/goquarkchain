@@ -2,12 +2,13 @@
 package main
 
 import (
-	"github.com/QuarkChain/goquarkchain/cmd/utils"
-	"github.com/QuarkChain/goquarkchain/internal/debug"
-	"gopkg.in/urfave/cli.v1"
 	"io"
 	"sort"
 	"strings"
+
+	"github.com/QuarkChain/goquarkchain/cmd/utils"
+	"github.com/QuarkChain/goquarkchain/internal/debug"
+	"gopkg.in/urfave/cli.v1"
 )
 
 // AppHelpTemplate is the test template for the default, global app help topic.
@@ -54,13 +55,7 @@ var AppHelpFlagGroups = []flagGroup{
 			utils.CacheFlag,
 			utils.StartSimulatedMiningFlag,
 			utils.GenesisDirFlag,
-			utils.NumShardsFlag,
-			utils.NumChainsFlag,
-			utils.RootBlockIntervalSecFlag,
-			utils.MinorBlockIntervalSecFlag,
 			utils.NetworkIdFlag,
-			utils.NumSlavesFlag,
-			utils.PortStartFlag,
 			utils.DbPathRootFlag,
 			utils.GRPCAddrFlag,
 			utils.GRPCPortFlag,
@@ -69,6 +64,7 @@ var AppHelpFlagGroups = []flagGroup{
 			utils.CheckDBRBlockFromFlag,
 			utils.CheckDBRBlockToFlag,
 			utils.CheckDBRBlockBatchFlag,
+			utils.GCModeFlag,
 		},
 	},
 	{

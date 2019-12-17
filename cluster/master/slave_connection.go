@@ -8,15 +8,74 @@ import (
 	"time"
 
 	"github.com/QuarkChain/goquarkchain/account"
+	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/core/types"
-	"github.com/QuarkChain/goquarkchain/p2p"
 	qrpc "github.com/QuarkChain/goquarkchain/rpc"
 	"github.com/QuarkChain/goquarkchain/serialize"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
 )
+
+type SlaveConnManager struct {
+	count              int
+	clientPool         []rpc.ISlaveConn
+	branchToSlaveConns map[uint32][]rpc.ISlaveConn
+	logInfo            string
+}
+
+func (s *SlaveConnManager) InitConnManager(cfg *config.ClusterConfig) error {
+	s.clientPool = make([]rpc.ISlaveConn, 0, len(cfg.SlaveList))
+	s.branchToSlaveConns = make(map[uint32][]rpc.ISlaveConn)
+	s.logInfo = "slave connection manager"
+
+	fullShardIds := cfg.Quarkchain.GetGenesisShardIds()
+	for _, cfg := range cfg.SlaveList {
+		target := fmt.Sprintf("%s:%d", cfg.IP, cfg.Port)
+		client := NewSlaveConn(target, cfg.ChainMaskList, cfg.ID)
+		s.clientPool = append(s.clientPool, client)
+
+		id, chainMaskList, err := client.SendPing()
+		if err != nil {
+			return err
+		}
+		if err := checkPing(client, id, chainMaskList); err != nil {
+			return err
+		}
+		for _, fullShardID := range fullShardIds {
+			if client.HasShard(fullShardID) {
+				s.branchToSlaveConns[fullShardID] = append(s.branchToSlaveConns[fullShardID], client)
+				log.Info(s.logInfo, "branch:", fullShardID, "is run by slave", client.GetSlaveID())
+			}
+		}
+	}
+	s.count = len(s.clientPool)
+
+	return nil
+}
+
+func (c *SlaveConnManager) GetOneSlaveConnById(fullShardId uint32) rpc.ISlaveConn {
+	if conns, ok := c.branchToSlaveConns[fullShardId]; ok {
+		return conns[0]
+	}
+	return nil
+}
+
+func (c *SlaveConnManager) GetSlaveConnsById(fullShardId uint32) []rpc.ISlaveConn {
+	if conns, ok := c.branchToSlaveConns[fullShardId]; ok {
+		return conns
+	}
+	return nil
+}
+
+func (c *SlaveConnManager) GetSlaveConns() []rpc.ISlaveConn {
+	return c.clientPool
+}
+
+func (c *SlaveConnManager) ConnCount() int {
+	return c.count
+}
 
 type SlaveConnection struct {
 	target        string
@@ -520,86 +579,73 @@ func (s *SlaveConnection) GenTx(numTxPerShard, xShardPercent uint32, tx *types.T
 	return nil
 }
 
-func (s *SlaveConnection) AddTransactions(request *rpc.NewTransactionList) (*rpc.HashList, error) {
-	var (
-		rsp = new(rpc.HashList)
-		res = new(rpc.Response)
-	)
+func (s *SlaveConnection) AddTransactions(request *rpc.P2PRedirectRequest) error {
+	bytes, err := serialize.SerializeToBytes(request)
+	if err != nil {
+		return err
+	}
+	_, err = s.client.Call(s.target, &rpc.Request{Op: rpc.OpAddTransactions, Data: bytes})
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *SlaveConnection) GetMinorBlocks(request *rpc.P2PRedirectRequest) ([]byte, error) {
 	bytes, err := serialize.SerializeToBytes(request)
 	if err != nil {
 		return nil, err
 	}
-	res, err = s.client.Call(s.target, &rpc.Request{Op: rpc.OpAddTransactions, Data: bytes})
+	res, err := s.client.Call(s.target, &rpc.Request{Op: rpc.OpGetMinorBlockList, Data: bytes})
 	if err != nil {
 		return nil, err
 	}
-	if err = serialize.DeserializeFromBytes(res.Data, rsp); err != nil {
-		return nil, err
-	}
-	return rsp, nil
+	return res.Data, nil
 }
 
-func (s *SlaveConnection) GetMinorBlocks(request *rpc.GetMinorBlockListRequest) (*p2p.GetMinorBlockListResponse, error) {
-	var (
-		rsp = new(p2p.GetMinorBlockListResponse)
-		res = new(rpc.Response)
-	)
-	bytes, err := serialize.SerializeToBytes(request)
-	if err != nil {
-		return nil, err
-	}
-	res, err = s.client.Call(s.target, &rpc.Request{Op: rpc.OpGetMinorBlockList, Data: bytes})
-	if err != nil {
-		return nil, err
-	}
-	if err = serialize.DeserializeFromBytes(res.Data, rsp); err != nil {
-		return nil, err
-	}
-	return rsp, nil
-}
-
-func (s *SlaveConnection) GetMinorBlockHeaderList(req *p2p.GetMinorBlockHeaderListWithSkipRequest) (*p2p.GetMinorBlockHeaderListResponse, error) {
-	var (
-		rsp = new(p2p.GetMinorBlockHeaderListResponse)
-		res = new(rpc.Response)
-	)
+func (s *SlaveConnection) GetMinorBlockHeaderListWithSkip(req *rpc.P2PRedirectRequest) ([]byte, error) {
 	bytes, err := serialize.SerializeToBytes(req)
 	if err != nil {
 		return nil, err
 	}
-	res, err = s.client.Call(s.target, &rpc.Request{Op: rpc.OpGetMinorBlockHeaderList, Data: bytes})
+	res, err := s.client.Call(s.target, &rpc.Request{Op: rpc.OpGetMinorBlockHeaderListWithSkip, Data: bytes})
 	if err != nil {
 		return nil, err
 	}
-	if err = serialize.DeserializeFromBytes(res.Data, rsp); err != nil {
-		return nil, err
-	}
-	return rsp, nil
+	return res.Data, nil
 }
 
-func (s *SlaveConnection) HandleNewTip(request *rpc.HandleNewTipRequest) (bool, error) {
+func (s *SlaveConnection) GetMinorBlockHeaderList(req *rpc.P2PRedirectRequest) ([]byte, error) {
+	bytes, err := serialize.SerializeToBytes(req)
+	if err != nil {
+		return nil, err
+	}
+	res, err := s.client.Call(s.target, &rpc.Request{Op: rpc.OpGetMinorBlockHeaderList, Data: bytes})
+	if err != nil {
+		return nil, err
+	}
+	return res.Data, nil
+}
+
+func (s *SlaveConnection) HandleNewTip(request *rpc.HandleNewTipRequest) error {
 	bytes, err := serialize.SerializeToBytes(request)
 	if err != nil {
-		return false, err
+		return err
 	}
 	_, err = s.client.Call(s.target, &rpc.Request{Op: rpc.OpHandleNewTip, Data: bytes})
-	if err != nil {
-		return false, err
-	}
-
-	return true, nil
+	return err
 }
 
-func (s *SlaveConnection) HandleNewMinorBlock(request *p2p.NewBlockMinor) (bool, error) {
-	blockData, err := serialize.SerializeToBytes(request.Block)
+func (s *SlaveConnection) HandleNewMinorBlock(req *rpc.P2PRedirectRequest) error {
+	data, err := serialize.SerializeToBytes(req)
 	if err != nil {
-		return false, err
+		return err
 	}
-	_, err = s.client.Call(s.target, &rpc.Request{Op: rpc.OpHandleNewMinorBlock, Data: blockData})
+	_, err = s.client.Call(s.target, &rpc.Request{Op: rpc.OpHandleNewMinorBlock, Data: data})
 	if err != nil {
-		return false, err
+		return err
 	}
-	return true, nil
+	return nil
 }
 
 func (s *SlaveConnection) AddBlockListForSync(request *rpc.AddBlockListForSyncRequest) (*rpc.ShardStatus, error) {

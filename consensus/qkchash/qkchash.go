@@ -14,7 +14,6 @@ import (
 // Implements consensus.Pow
 type QKCHash struct {
 	*consensus.CommonEngine
-	// TODO: in the future cache may depend on block height
 	cache *cacheSeed
 	// A flag indicating which impl (c++ native or go) to use
 	useNative      bool
@@ -34,7 +33,7 @@ func (q *QKCHash) Finalize(chain consensus.ChainReader, header types.IHeader, st
 
 func (q *QKCHash) hashAlgo(cache *consensus.ShareCache) (err error) {
 	c := q.cache.getCacheFromHeight(cache.Height, q.useNative)
-	copy(cache.Seed,cache.Hash)
+	copy(cache.Seed, cache.Hash)
 	binary.LittleEndian.PutUint64(cache.Seed[32:], cache.Nonce)
 	if q.useNative {
 		cache.Digest, cache.Result, err = qkcHashNative(cache.Seed, c, cache.Height >= q.qkcHashXHeight)

@@ -19,8 +19,8 @@ type ConnManager interface {
 	BatchBroadcastXshardTxList(blokHshToXLstAdPrvRotHg map[common.Hash]*XshardListTuple, sorBrch account.Branch) error
 	// p2p interface
 	BroadcastNewTip(mHeaderLst []*types.MinorBlockHeader, rHeader *types.RootBlockHeader, branch uint32) error
-	BroadcastTransactions(txs []*types.Transaction, branch uint32, peerID string) error
-	BroadcastMinorBlock(minorBlock *types.MinorBlock, branch uint32) error
+	BroadcastTransactions(peerId string, branch uint32, txs []*types.Transaction) error
+	BroadcastMinorBlock(peerId string, minorBlock *types.MinorBlock) error
 	GetMinorBlocks(mHeaderList []common.Hash, peerId string, branch uint32) ([]*types.MinorBlock, error)
 	GetMinorBlockHeaderList(gReq *rpc.GetMinorBlockHeaderListWithSkipRequest) ([]*types.MinorBlockHeader, error)
 }

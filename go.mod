@@ -31,14 +31,16 @@ require (
 	github.com/naoina/toml v0.1.1
 	github.com/pborman/uuid v1.2.0
 	github.com/pkg/errors v0.8.1
+	github.com/pkg/sftp v1.10.1
 	github.com/prometheus/prometheus v1.8.1
 	github.com/rs/cors v1.6.0
 	github.com/shirou/gopsutil v2.18.12+incompatible
-	github.com/stretchr/testify v1.3.0
+	github.com/stretchr/testify v1.4.0
 	github.com/syndtr/goleveldb v1.0.0 // indirect
 	github.com/tecbot/gorocksdb v0.0.0-20181010114359-8752a9433481
-	golang.org/x/crypto v0.0.0-20190227175134-215aa809caaf
-	golang.org/x/net v0.0.0-20190227160552-c95aed5357e7
+	github.com/ybbus/jsonrpc v2.1.2+incompatible
+	golang.org/x/crypto v0.0.0-20190820162420-60c769a6c586
+	golang.org/x/net v0.0.0-20190404232315-eb5bcb51f2a3
 	golang.org/x/sync v0.0.0-20190227155943-e225da77a7e6
 	google.golang.org/grpc v1.19.1
 	gopkg.in/check.v1 v1.0.0-20180628173108-788fd7840127
@@ -46,5 +48,3 @@ require (
 	gopkg.in/natefinch/npipe.v2 v2.0.0-20160621034901-c1b8fa8bdcce
 	gopkg.in/urfave/cli.v1 v1.20.0
 )
-
-go 1.13

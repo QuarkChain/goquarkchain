@@ -124,18 +124,8 @@ func (hc *RootHeaderChain) WriteHeader(header *types.RootBlockHeader) (status Wr
 		hash   = header.Hash()
 		number = header.NumberU64()
 	)
-	// Calculate the total difficulty of the header
-	ptd := hc.GetTd(header.ParentHash)
-	if ptd == nil {
-		return NonStatTy, consensus.ErrInvalidDifficulty //todo
-	}
-	localTd := hc.GetTd(hc.currentHeaderHash)
-	externTd := new(big.Int).Add(header.Difficulty, ptd)
-
-	// Irrelevant of the canonical status, write the td and header to the database
-	if err := hc.WriteTd(hash, externTd); err != nil {
-		log.Crit("Failed to write header total difficulty", "err", err)
-	}
+	localTd := hc.CurrentHeader().GetTotalDifficulty()
+	externTd := header.ToTalDifficulty
 	rawdb.WriteRootBlockHeader(hc.chainDb, header)
 
 	// If the total difficulty is higher than our known, add it to the canonical chain
@@ -223,7 +213,7 @@ func (hc *RootHeaderChain) ValidateHeaderChain(chain []*types.RootBlockHeader, c
 	defer close(abort)
 
 	// Iterate over the Headers and ensure they all check out
-	for i, _ := range chain {
+	for i := range chain {
 		// If the chain is terminating, stop processing blocks
 		if hc.procInterrupt() {
 			log.Debug("Premature abort during Headers verification")
@@ -345,22 +335,6 @@ func (hc *RootHeaderChain) GetAncestor(hash common.Hash, number, ancestor uint64
 	return hash, number
 }
 
-// GetTd retrieves a block's total difficulty in the canonical chain from the
-// database by hash and number, caching it if found.
-func (hc *RootHeaderChain) GetTd(hash common.Hash) *big.Int {
-	// Short circuit if the td's already in the cache, retrieve otherwise
-	if cached, ok := hc.tdCache.Get(hash); ok {
-		return cached.(*big.Int)
-	}
-	td := rawdb.ReadTd(hc.chainDb, hash)
-	if td == nil {
-		return nil
-	}
-	// Cache the found body for next time and return
-	hc.tdCache.Add(hash, td)
-	return td
-}
-
 func (m *RootHeaderChain) SkipDifficultyCheck() bool {
 	return m.Config().SkipRootDifficultyCheck
 }
@@ -368,14 +342,6 @@ func (m *RootHeaderChain) SkipDifficultyCheck() bool {
 func (m *RootHeaderChain) GetAdjustedDifficulty(header types.IHeader) (*big.Int, uint64, error) {
 	// todo add logic or move the header chain later
 	return header.GetDifficulty(), 1, nil
-}
-
-// WriteTd stores a block's total difficulty into the database, also caching it
-// along the way.
-func (hc *RootHeaderChain) WriteTd(hash common.Hash, td *big.Int) error {
-	rawdb.WriteTd(hc.chainDb, hash, td)
-	hc.tdCache.Add(hash, new(big.Int).Set(td))
-	return nil
 }
 
 // GetHeader retrieves a block header from the database by hash and number,
@@ -445,7 +411,6 @@ func (hc *RootHeaderChain) SetHead(head uint64, delFn DeleteCallback) {
 			delFn(batch, hash)
 		}
 		rawdb.DeleteRootBlockHeader(batch, hash)
-		rawdb.DeleteTd(batch, hash)
 
 		hc.currentHeader.Store(hc.GetHeader(hdr.GetParentHash()))
 	}

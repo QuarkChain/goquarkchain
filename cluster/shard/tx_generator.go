@@ -90,8 +90,7 @@ func (t *TxGenerator) sign(evmTx *types.EvmTransaction, key *ecdsa.PrivateKey) (
 	return types.SignTx(evmTx, t.sender, key)
 }
 
-func (t *TxGenerator) Generate(genTxs *rpc.GenTxRequest, addTxList func(txs []*types.Transaction, peerID string) error) error {
-	ts := time.Now()
+func (t *TxGenerator) Generate(genTxs rpc.GenTxRequest, addTxList func(txs []*types.Transaction) error) error {
 	tsa := time.Now()
 	var (
 		batchScale    = 4000
@@ -123,12 +122,11 @@ func (t *TxGenerator) Generate(genTxs *rpc.GenTxRequest, addTxList func(txs []*t
 		index++
 
 		if index >= batchScale {
-			if err := addTxList(txList, ""); err != nil {
+			if err := addTxList(txList); err != nil {
 				return err
 			}
-			log.Info("addTxList end", "total", total, "numTx", numTx, "durtion", time.Now().Sub(ts).Seconds())
 			index = 0
-			ts = time.Now()
+			txList = make([]*types.Transaction, batchScale)
 		}
 
 		t.accountIndex++
@@ -139,7 +137,7 @@ func (t *TxGenerator) Generate(genTxs *rpc.GenTxRequest, addTxList func(txs []*t
 	}
 
 	if len(txList) != 0 {
-		if err := addTxList(txList[:index], ""); err != nil {
+		if err := addTxList(txList[:index]); err != nil {
 			return err
 		}
 	}
@@ -178,8 +176,9 @@ func (t *TxGenerator) createTransaction(prvKey *ecdsa.PrivateKey, nonce uint64,
 	if fromFullShardKey != toFullShardKey {
 		gasLimit = params.DefaultCrossShardTxGasLimit.Uint64()
 	}
+	gasPrice := new(big.Int).SetUint64(1000000000)
 	evmTx := types.NewEvmTransaction(nonce, recipient, value, gasLimit,
-		sampleTx.EvmTx.GasPrice(), fromFullShardKey, toFullShardKey, t.cfg.NetworkID, 0, sampleTx.EvmTx.Data(), qkcCommon.TokenIDEncode("QKC"), qkcCommon.TokenIDEncode("QKC"))
+		gasPrice, fromFullShardKey, toFullShardKey, t.cfg.NetworkID, 0, sampleTx.EvmTx.Data(), qkcCommon.TokenIDEncode("QKC"), qkcCommon.TokenIDEncode("QKC"))
 
 	return types.SignTx(evmTx, t.sender, prvKey)
 }

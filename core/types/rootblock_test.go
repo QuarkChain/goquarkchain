@@ -18,6 +18,7 @@ func TestRootBlockEncoding(t *testing.T) {
 	}
 
 	bytes, err := serialize.SerializeToBytes(&blockHeader)
+
 	if err != nil {
 		t.Fatal("Serialize error: ", err)
 	}
@@ -86,6 +87,60 @@ func TestRootBlockEncoding(t *testing.T) {
 	check("Signature", common.Bytes2Hex(blockHeader.Signature[:]), "c758a15769202219b1fce50049eeac1af1dddb28bc282c1fb79a2208fa24f763308b1b191d656a5123ac979067a6c941867f3000d978a5d34810fe6c194dc38101")
 	check("blockhash", common.Bytes2Hex(block.Hash().Bytes()), "725576c58f70f22166767d41d50fd1e22d2913524f967bf1a7fc020cb0e19b10")
 	check("serialize", common.Bytes2Hex(bytes), common.Bytes2Hex(blockEnc))
+
+}
+
+func TestDataSize(t *testing.T) {
+	check := func(f string, got, want interface{}) {
+		if !reflect.DeepEqual(got, want) {
+			t.Errorf("%s mismatch: got %v, want %v", f, got, want)
+		}
+	}
+	var rootBlockHeader RootBlockHeader
+	rootBlockHeaderBytes, err := serialize.SerializeToBytes(&rootBlockHeader)
+
+	if err != nil {
+		t.Fatal("Serialize error: ", err)
+	}
+	var minorBlockHeader MinorBlockHeader
+	minorBlockHeaderBytes, err := serialize.SerializeToBytes(&minorBlockHeader)
+	if err != nil {
+		t.Fatal("Serialize error: ", err)
+	}
+	var minorBlockMeta MinorBlockMeta
+	minorBlockMetaBytes, err := serialize.SerializeToBytes(&minorBlockMeta)
+	if err != nil {
+		t.Fatal("Serialize error: ", err)
+	}
+
+	check("RootBlockHeader", len(rootBlockHeaderBytes), 249)
+	check("MinorBlockHeader", len(minorBlockHeaderBytes), 479)
+	check("MinorBlockMeta", len(minorBlockMetaBytes), 216)
+}
+
+func TestRootBlockHeaderSignature(t *testing.T) {
+	check := func(f string, got, want interface{}) {
+		if !reflect.DeepEqual(got, want) {
+			t.Errorf("%s mismatch: got %v, want %v", f, got, want)
+		}
+	}
+	checkErr := func(f string, got, want interface{}) {
+		if reflect.DeepEqual(got, want) {
+			t.Errorf("%s mismatch: got %v, want %v", f, got, want)
+		}
+	}
+	privateKey, err := crypto.GenerateKey()
+	if err != nil {
+		t.Errorf("GenerateKey err:%v", err)
+	}
+
+	var rootBlockHeader RootBlockHeader
+	rootBlock := NewRootBlockWithHeader(&rootBlockHeader)
+	check("rootBlockHeader Signature ", rootBlockHeader.Signature, [65]byte{})
+	checkErr("", rootBlockHeader.VerifySignature(privateKey.PublicKey), true)
+	rootBlock.SignWithPrivateKey(privateKey)
+	checkErr("rootBlockHeader Signature ", rootBlock.header.Signature, [65]byte{})
+	check("", rootBlock.header.VerifySignature(privateKey.PublicKey), true)
 
 }
 

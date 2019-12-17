@@ -5,10 +5,10 @@ import (
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
 	"github.com/QuarkChain/goquarkchain/common"
+	"github.com/QuarkChain/goquarkchain/common/hexutil"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/serialize"
 	ethCommon "github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/common/hexutil"
 )
 
 func IDEncoder(hashByte []byte, fullShardKey uint32) hexutil.Bytes {
@@ -176,7 +176,7 @@ func MinorBlockEncoder(block *types.MinorBlock, includeTransaction bool, extraIn
 
 	if includeTransaction {
 		txForDisplay := make([]map[string]interface{}, 0)
-		for txIndex, _ := range block.Transactions() {
+		for txIndex := range block.Transactions() {
 			temp, err := TxEncoder(block, txIndex)
 			if err != nil {
 				return nil, err

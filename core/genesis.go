@@ -182,8 +182,8 @@ func SetupGenesisRootBlock(db ethdb.Database, genesis *Genesis) (*config.QuarkCh
 
 	// Check config compatibility and write the config. Compatibility errors
 	// are returned to the caller unless we're already at block zero.
-	height := rawdb.ReadHeaderNumber(db, rawdb.ReadHeadHeaderHash(db))
-	if height == nil {
+	block := rawdb.ReadRootBlock(db, rawdb.ReadHeadBlockHash(db))
+	if block == nil {
 		return storedcfg, stored, fmt.Errorf("missing block number for head header hash")
 	}
 	return storedcfg, stored, nil
@@ -221,8 +221,8 @@ func SetupGenesisMinorBlock(db ethdb.Database, genesis *Genesis, rootBlock *type
 
 	// Check config compatibility and write the config. Compatibility errors
 	// are returned to the caller unless we're already at block zero.
-	height := rawdb.ReadHeaderNumber(db, rawdb.ReadHeadHeaderHash(db))
-	if height == nil {
+	block = rawdb.ReadMinorBlock(db, rawdb.ReadHeadBlockHash(db))
+	if block == nil {
 		return storedcfg, stored, fmt.Errorf("missing block number for head header hash")
 	}
 	return storedcfg, stored, nil
@@ -235,7 +235,6 @@ func (g *Genesis) CommitRootBlock(db ethdb.Database) (*types.RootBlock, error) {
 	if block.Number() != 0 {
 		return nil, fmt.Errorf("can't commit genesis block with number > 0")
 	}
-	rawdb.WriteTd(db, block.Hash(), block.Difficulty())
 	rawdb.WriteRootBlock(db, block)
 	rawdb.WriteCanonicalHash(db, rawdb.ChainTypeRoot, block.Hash(), block.NumberU64())
 	rawdb.WriteHeadBlockHash(db, block.Hash())
@@ -262,7 +261,6 @@ func (g *Genesis) CommitMinorBlock(db ethdb.Database, rootBlock *types.RootBlock
 	if block.Number() != 0 {
 		return nil, fmt.Errorf("can't commit genesis block with number > 0")
 	}
-	rawdb.WriteTd(db, block.Hash(), block.Difficulty())
 	rawdb.WriteMinorBlock(db, block)
 	rawdb.WriteReceipts(db, block.Hash(), nil)
 	rawdb.WriteCanonicalHash(db, rawdb.ChainTypeMinor, block.Hash(), block.Number())

@@ -7,10 +7,10 @@ How to run (from source):
 $ pwd  #-> root directory at `goquarkchain`
 $ cd consensus/qkchash/native && make && cd -
 $ cd cmd/miner
-$ go run main.go -shards 5,6 -host <ip>
+$ go run main.go -config ../../mainnet/singularity/cluster_config_template.json -shards 1,393217 -host <ip>
 # Or build the binary
 $ go build -o goqkcminer
-$ ./goqkcminer -shards 5,6 -host <ip>
+$ ./goqkcminer -config ../../mainnet/singularity/cluster_config_template.json -shards 1,393217 -host <ip>
 ```
 
 Commandline options:
@@ -18,16 +18,22 @@ Commandline options:
 ```text
 $ goqkcminer -h
 Usage of goqkcminer:
+  -coinbase string
+        coinbase for miner
+  -config string
+        cluster config file
   -gethloglvl string
-    	log level of geth (default "info")
+        log level of geth (default "info")
   -host string
-    	remote host of a quarkchain cluster (default "localhost")
+        remote host of a quarkchain cluster (default "localhost")
   -port int
-    	remote JSONRPC port of a quarkchain cluster (default 38391)
+        remote JSONRPC port of a quarkchain cluster (default 38391)
   -shards string
-    	comma-separated string indicating shards
+        comma-separated string indicating shards (default "R")
+  -threads int
+        Use how many threads to mine in a worker
   -timeout int
-    	timeout in seconds for RPC calls (default 10)
+        timeout in seconds for RPC calls (default 10)
 ```
 
 Misc:

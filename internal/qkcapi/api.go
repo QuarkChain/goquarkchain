@@ -3,17 +3,18 @@ package qkcapi
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"math/big"
 	"sort"
 
 	"github.com/QuarkChain/goquarkchain/account"
 	qrpc "github.com/QuarkChain/goquarkchain/cluster/rpc"
 	qcom "github.com/QuarkChain/goquarkchain/common"
+	"github.com/QuarkChain/goquarkchain/common/hexutil"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/internal/encoder"
 	"github.com/QuarkChain/goquarkchain/rpc"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rlp"
 )
@@ -32,6 +33,10 @@ func (c *CommonAPI) callOrEstimateGas(args *CallArgs, height *uint64, isCall boo
 		return nil, err
 	}
 	if isCall {
+		isSameChain := clusterCfg.Quarkchain.IsSameFullShard(args.From.FullShardKey, args.To.FullShardKey)
+		if !isSameChain {
+			return nil, fmt.Errorf("Call cross-shard tx not supported yet\n")
+		}
 		res, err := c.b.ExecuteTransaction(tx, args.From, height)
 		if err != nil {
 			return nil, err
@@ -194,10 +199,8 @@ func (p *PublicBlockChainAPI) GetBalances(address account.Address, blockNr *rpc.
 	return fields, nil
 }
 
-func (p *PublicBlockChainAPI) GetAccountData(getAccount GetAccount) (map[string]interface{}, error) {
-	address := account.Address{getAccount.Address.Recipient, getAccount.Address.FullShardKey}
-	blockNr := getAccount.BlockNr
-	includeShards := getAccount.IncludeShards
+func (p *PublicBlockChainAPI) GetAccountData(address account.Address, blockHeight *rpc.BlockNumber, includeShards *bool) (map[string]interface{}, error) {
+	blockNr := blockHeight
 	if includeShards != nil && blockNr != nil {
 		return nil, errors.New("do not allow specify height if client wants info on all shards")
 	}
@@ -810,7 +813,7 @@ func (e *EthBlockChainAPI) GetCode(address common.Address, fullShardKey *hexutil
 }
 
 func (e *EthBlockChainAPI) Call(data EthCallArgs, fullShardKey *hexutil.Uint) (hexutil.Bytes, error) {
-	args, err := convertEthCallData(&data, fullShardKey)
+	args, err := convertEthCallData(&data)
 	if err != nil {
 		return nil, err
 	}
@@ -818,7 +821,7 @@ func (e *EthBlockChainAPI) Call(data EthCallArgs, fullShardKey *hexutil.Uint) (h
 }
 
 func (e *EthBlockChainAPI) EstimateGas(data EthCallArgs, fullShardKey *hexutil.Uint) ([]byte, error) {
-	args, err := convertEthCallData(&data, fullShardKey)
+	args, err := convertEthCallData(&data)
 	if err != nil {
 		return nil, err
 	}

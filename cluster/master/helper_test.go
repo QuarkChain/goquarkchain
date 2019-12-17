@@ -29,6 +29,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/core"
 	"github.com/QuarkChain/goquarkchain/core/types"
+	"github.com/QuarkChain/goquarkchain/mocks/mock_master"
 	"github.com/QuarkChain/goquarkchain/p2p"
 	"github.com/QuarkChain/goquarkchain/serialize"
 	"github.com/ethereum/go-ethereum/common"
@@ -36,6 +37,7 @@ import (
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/p2p/enode"
+	"github.com/golang/mock/gomock"
 	"math/big"
 	"sort"
 	"sync"
@@ -51,13 +53,14 @@ var (
 // newTestProtocolManager creates a new protocol manager for testing purposes,
 // with the given number of blocks already known, and potential notification
 // channels for different events.
-func newTestProtocolManager(blocks int, generator func(int, *core.RootBlockGen), synchronizer synchronizer.Synchronizer, getShardConnFunc func(fullShardId uint32) []rpc.ShardConnForP2P) (*ProtocolManager, *ethdb.MemDatabase, error) {
+func newTestProtocolManager(blocks int, generator func(int, *core.RootBlockGen),
+	synchronizer synchronizer.Synchronizer, slaveConns rpc.ConnManager) (*ProtocolManager, *ethdb.MemDatabase, error) {
 	var (
 		engine        = new(consensus.FakeEngine)
 		db            = ethdb.NewMemDatabase()
 		genesis       = core.NewGenesis(qkcconfig)
 		genesisBlock  = genesis.MustCommitRootBlock(db)
-		blockChain, _ = core.NewRootBlockChain(db, qkcconfig, engine, nil)
+		blockChain, _ = core.NewRootBlockChain(db, qkcconfig, engine)
 	)
 	qkcconfig.SkipRootCoinbaseCheck = true
 	clusterconfig.P2P.PrivKey = privKey
@@ -66,7 +69,7 @@ func newTestProtocolManager(blocks int, generator func(int, *core.RootBlockGen),
 		panic(err)
 	}
 
-	pm, err := NewProtocolManager(*clusterconfig, blockChain, nil, synchronizer, getShardConnFunc)
+	pm, err := NewProtocolManager(*clusterconfig, blockChain, nil, synchronizer, slaveConns)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -78,8 +81,9 @@ func newTestProtocolManager(blocks int, generator func(int, *core.RootBlockGen),
 // with the given number of blocks already known, and potential notification
 // channels for different events. In case of an error, the constructor force-
 // fails the test.
-func newTestProtocolManagerMust(t *testing.T, blocks int, generator func(int, *core.RootBlockGen), synchronizer synchronizer.Synchronizer, getShardConnFunc func(fullShardId uint32) []rpc.ShardConnForP2P) (*ProtocolManager, *ethdb.MemDatabase) {
-	pm, db, err := newTestProtocolManager(blocks, generator, synchronizer, getShardConnFunc)
+func newTestProtocolManagerMust(t *testing.T, blocks int, generator func(int, *core.RootBlockGen),
+	synchronizer synchronizer.Synchronizer, slaveConns rpc.ConnManager) (*ProtocolManager, *ethdb.MemDatabase) {
+	pm, db, err := newTestProtocolManager(blocks, generator, synchronizer, slaveConns)
 	if err != nil {
 		t.Fatalf("Failed to create protocol manager: %v", err)
 	}
@@ -129,19 +133,24 @@ func (p *testTxPool) SubscribeNewTxsEvent(ch chan<- core.NewTxsEvent) event.Subs
 	return p.txFeed.Subscribe(ch)
 }
 
-func newTestTransactionList(count int) []*types.Transaction {
+func newTestTransactionList(count int) (*rpc.P2PRedirectRequest, error) {
 	key, _ := crypto.HexToECDSA("45a915e4d060149eb4365960e6a7a45f334393093061116b197e3240065ff2d8")
 	txs := make([]*types.Transaction, 0, count)
 	for i := 0; i < count; i++ {
 		tx := newTestTransaction(key, uint64(i), 100)
 		txs = append(txs, tx)
 	}
-	return txs
+	data, err := serialize.SerializeToBytes(&p2p.NewTransactionList{TransactionList: txs})
+	if err != nil {
+		return nil, err
+	}
+	return &rpc.P2PRedirectRequest{Branch: 0, Data: data}, nil
 }
 
 // newTestTransaction create a new dummy transaction.
 func newTestTransaction(from *ecdsa.PrivateKey, nonce uint64, datasize int) *types.Transaction {
-	tx := types.NewEvmTransaction(nonce, account.Recipient{}, big.NewInt(0), 100000, big.NewInt(0), 0, 1, 0, 1, make([]byte, datasize), 0, 0)
+	tx := types.NewEvmTransaction(nonce, account.Recipient{}, big.NewInt(0), 100000,
+		big.NewInt(0), 0, 1, 0, 1, make([]byte, datasize), 0, 0)
 	tx, _ = types.SignTx(tx, types.MakeSigner(tx.NetworkId()), from)
 	return &types.Transaction{EvmTx: tx, TxType: types.EvmTx}
 }
@@ -287,3 +296,31 @@ func (s *fakeSynchronizer) AddTask(task synchronizer.Task) error {
 func (s *fakeSynchronizer) Close() error {
 	return nil
 }
+
+type fakeConnManager struct {
+	conns []rpc.ISlaveConn
+}
+
+func newFakeConnManager(n int, ctrl *gomock.Controller) *fakeConnManager {
+	conns := make([]rpc.ISlaveConn, 0, n)
+	for i := 0; i < n; i++ {
+		sc := mock_master.NewMockISlaveConn(ctrl)
+		conns = append(conns, sc)
+	}
+
+	return &fakeConnManager{conns: conns}
+}
+
+func (f *fakeConnManager) GetOneSlaveConnById(fullShardId uint32) rpc.ISlaveConn {
+	return f.conns[0]
+}
+
+func (f *fakeConnManager) GetSlaveConnsById(fullShardId uint32) []rpc.ISlaveConn {
+	return f.conns
+}
+
+func (f *fakeConnManager) GetSlaveConns() []rpc.ISlaveConn {
+	return f.conns
+}
+
+func (f *fakeConnManager) ConnCount() int { return len(f.conns) }
