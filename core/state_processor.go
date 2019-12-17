@@ -187,16 +187,15 @@ func ValidateTransaction(state vm.StateDB, chainConfig *params.ChainConfig, tx *
 func ApplyTransaction(config *params.ChainConfig, bc ChainContext, gp *GasPool, statedb *state.StateDB, header types.IHeader, tx *types.Transaction, usedGas *uint64, cfg vm.Config) ([]byte, *types.Receipt, uint64, error) {
 	statedbGensisToken := statedb.GetQuarkChainConfig().GetDefaultChainTokenID()
 	gasPrice, refundRate := tx.EvmTx.GasPrice(), uint8(100)
-	convertedGenesisTokenGasPrice := new(big.Int)
+	convertedGenesisTokenGasPrice := gasPrice
 
 	var err error
 
 	if tx.EvmTx.GasTokenID() != statedbGensisToken {
 		refundRate, convertedGenesisTokenGasPrice, err = PayNativeTokenAsGas(statedb, config, tx.EvmTx.GasTokenID(), tx.EvmTx.Gas(), tx.EvmTx.GasPrice())
-		if convertedGenesisTokenGasPrice.Cmp(common.Big0) <= 0 {
+		if convertedGenesisTokenGasPrice == nil || convertedGenesisTokenGasPrice.Cmp(common.Big0) <= 0 {
 			return nil, nil, 0, fmt.Errorf("convertedGenesisTokenGasPeice %v shoud >0", convertedGenesisTokenGasPrice)
 		}
-		gasPrice = convertedGenesisTokenGasPrice
 		contractAddr := vm.SystemContracts[vm.GENERAL_NATIVE_TOKEN].Address()
 
 		contractBal := statedb.GetBalance(contractAddr, statedbGensisToken)
@@ -210,7 +209,7 @@ func ApplyTransaction(config *params.ChainConfig, bc ChainContext, gp *GasPool, 
 		statedb.AddBalance(contractAddr, new(big.Int).Mul(txGasLimit, tx.EvmTx.GasPrice()), tx.EvmTx.GasTokenID())
 	}
 	statedb.SetFullShardKey(tx.EvmTx.ToFullShardKey())
-	msg, err := tx.EvmTx.AsMessage(types.MakeSigner(tx.EvmTx.NetworkId()), tx.Hash(), gasPrice, statedbGensisToken, refundRate)
+	msg, err := tx.EvmTx.AsMessage(types.MakeSigner(tx.EvmTx.NetworkId()), tx.Hash(), convertedGenesisTokenGasPrice, gasPrice, tx.EvmTx.GasTokenID(), refundRate)
 	if err != nil {
 		return nil, nil, 0, err
 	}
@@ -284,7 +283,7 @@ func ApplyCrossShardDeposit(config *params.ChainConfig, bc ChainContext, header 
 
 	evmState.AddBalance(tx.From.Recipient, tx.Value.Value, tx.TransferTokenID)
 	msg := types.NewMessage(tx.From.Recipient, &tx.To.Recipient, 0, tx.Value.Value,
-		tx.GasRemained.Value.Uint64(), tx.GasPrice.Value, tx.MessageData, false,
+		tx.GasRemained.Value.Uint64(), tx.GasPrice.Value, nil, tx.MessageData, false,
 		tx.From.FullShardKey, &tx.To.FullShardKey, tx.TransferTokenID, tx.GasTokenID, tx.RefundRate)
 	context := NewEVMContext(msg, header, bc)
 	context.IsApplyXShard = true
@@ -352,6 +351,7 @@ func callGeneralNativeTokenManager(evmState vm.StateDB, config *params.ChainConf
 	//# Only contract itself can invoke payment
 	sender := vm.AccountRef(contractAddr)
 	ret, _, err := evm.Call(&sender, contractAddr, data, 1000000, new(big.Int))
+	//evmState.SubRefund(evmState.GetRefund())
 	if err != nil {
 		return 0, nil, err
 	}

@@ -334,7 +334,7 @@ func (tx *stTransaction) toMessage(ps stPostState, useMock bool) (*types.Message
 	if useMock {
 		toFullShardKey = nil
 	}
-	msg := types.NewMessage(fromRecipient, toRecipient, tx.Nonce, value, gasLimit, tx.GasPrice, data, true, 0, toFullShardKey, transferTokenID, testQKCID, 100)
+	msg := types.NewMessage(fromRecipient, toRecipient, tx.Nonce, value, gasLimit, tx.GasPrice, tx.GasPrice, data, true, 0, toFullShardKey, transferTokenID, testQKCID, 100)
 	return &msg, nil
 }
 
