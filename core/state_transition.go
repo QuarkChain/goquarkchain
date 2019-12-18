@@ -18,7 +18,6 @@ package core
 
 import (
 	"errors"
-	"fmt"
 	"math"
 	"math/big"
 
@@ -145,9 +144,6 @@ func NewStateTransition(evm *vm.EVM, msg Message, gp *GasPool) *StateTransition 
 // indicates a core error meaning that the message would always fail for that particular
 // state and would never be accepted within a block.
 func ApplyMessage(evm *vm.EVM, msg Message, gp *GasPool) ([]byte, uint64, bool, error) {
-	if msg.GasTokenID() != evm.StateDB.GetQuarkChainConfig().GetDefaultChainTokenID() {
-		return nil, 0, false, fmt.Errorf("gas token %v should always be converted to genesis token %v", msg.GasTokenID(), evm.StateDB.GetQuarkChainConfig().GetDefaultChainTokenID())
-	}
 	return NewStateTransition(evm, msg, gp).TransitionDb()
 }
 
@@ -169,7 +165,7 @@ func (st *StateTransition) useGas(amount uint64) error {
 }
 
 func (st *StateTransition) buyGas() error {
-	mgval := new(big.Int).Mul(new(big.Int).SetUint64(st.msg.Gas()), st.gasPrice)
+	mgval := new(big.Int).Mul(new(big.Int).SetUint64(st.msg.Gas()), st.evm.GasPriceInGasToken)
 	if st.state.GetBalance(st.msg.From(), st.evm.GasTokenID).Cmp(mgval) < 0 {
 		return errInsufficientBalanceForGas
 	}
@@ -265,8 +261,9 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 }
 
 func (st *StateTransition) refund(total *big.Int) {
+	gasTokenId := st.evm.StateDB.GetQuarkChainConfig().GetDefaultChainTokenID()
 	if st.msg.RefundRate() == 100 {
-		st.state.AddBalance(st.msg.From(), total, st.msg.GasTokenID())
+		st.state.AddBalance(st.msg.From(), total, gasTokenId)
 		return
 	}
 
@@ -282,9 +279,9 @@ func (st *StateTransition) refund(total *big.Int) {
 
 	toburn := new(big.Int).Sub(total, toRefund)
 
-	st.state.AddBalance(st.msg.From(), toRefund, st.msg.GasTokenID())
+	st.state.AddBalance(st.msg.From(), toRefund, gasTokenId)
 	if toburn.Cmp(common.Big0) >= 0 {
-		st.state.AddBalance(common.Address{}, toburn, st.msg.GasTokenID())
+		st.state.AddBalance(common.Address{}, toburn, gasTokenId)
 	}
 }
 
@@ -424,9 +421,10 @@ func (st *StateTransition) chargeFee(gasUsed uint64) {
 	fee := new(big.Int).Mul(new(big.Int).SetUint64(gasUsed), st.gasPrice)
 	rateFee := new(big.Int).Mul(fee, st.state.GetQuarkChainConfig().LocalFeeRate.Num())
 	rateFee = new(big.Int).Div(rateFee, st.state.GetQuarkChainConfig().LocalFeeRate.Denom())
-	st.state.AddBalance(st.evm.Coinbase, rateFee, st.msg.GasTokenID())
+	gasTokenId := st.evm.StateDB.GetQuarkChainConfig().GetDefaultChainTokenID()
+	st.state.AddBalance(st.evm.Coinbase, rateFee, gasTokenId)
 	blockFee := make(map[uint64]*big.Int)
-	blockFee[st.msg.GasTokenID()] = rateFee
+	blockFee[gasTokenId] = rateFee
 	st.state.AddBlockFee(blockFee)
 	if st.state.GetTimeStamp() >= st.state.GetQuarkChainConfig().EnableEvmTimeStamp {
 		st.state.AddGasUsed(new(big.Int).SetUint64(gasUsed))
