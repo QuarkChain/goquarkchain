@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/common/hexutil"
-	"github.com/QuarkChain/goquarkchain/internal/qkcapi"
 	"github.com/shirou/gopsutil/mem"
 	"github.com/ybbus/jsonrpc"
 	"math/big"
@@ -158,8 +157,9 @@ func queryBalance(client jsonrpc.RPCClient, addr, token string) {
 		return
 	}
 	acc.FullShardKey = 0
-	includeShards := true
-	response, err := client.Call("getAccountData", qkcapi.GetAccountDataArgs{Address: acc, IncludeShards: &includeShards})
+	//includeShards := true
+	//response, err := client.Call("getAccountData", qkcapi.GetAccountDataArgs{Address: acc, IncludeShards: &includeShards})
+	response, err := client.Call("getAccountData", acc, nil, true)
 	if err != nil {
 		fmt.Println(err.Error())
 		return
