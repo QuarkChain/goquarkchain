@@ -185,7 +185,7 @@ func (t *StateTest) Run(subtest StateSubtest, vmconfig vm.Config, useMock bool) 
 	if err != nil {
 		return nil, err
 	}
-	context := qkcCore.NewEVMContext(*msg, header, nil)
+	context := qkcCore.NewEVMContext(*msg, header, nil, msg.GasPrice())
 	evm := vm.NewEVM(context, statedb, config, vmconfig)
 	gaspool := new(qkcCore.GasPool)
 	gaspool.AddGas(block.GasLimit())
