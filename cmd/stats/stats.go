@@ -157,8 +157,6 @@ func queryBalance(client jsonrpc.RPCClient, addr, token string) {
 		return
 	}
 	acc.FullShardKey = 0
-	//includeShards := true
-	//response, err := client.Call("getAccountData", qkcapi.GetAccountDataArgs{Address: acc, IncludeShards: &includeShards})
 	response, err := client.Call("getAccountData", acc, nil, true)
 	if err != nil {
 		fmt.Println(err.Error())
@@ -170,12 +168,14 @@ func queryBalance(client jsonrpc.RPCClient, addr, token string) {
 	}
 	res := response.Result.(map[string]interface{})
 	shardsi := res["shards"].([]interface{})
-	shardsQKCStr := make([]string, 0)
+	shardsQKCStr := make([]string, len(shardsi))
+	for i := range shardsQKCStr {
+		shardsQKCStr[i] = "0"
+	}
 	total := big.NewInt(0)
 	for _, p := range shardsi {
 		shardMap := p.(map[string]interface{})
 		balanceMaps := shardMap["balances"].([]interface{})
-		//fmt.Println("chainId", shardMap["chainId"])
 		if len(balanceMaps) > 0 {
 			for _, s := range balanceMaps {
 				balanceMap := s.(map[string]interface{})
@@ -184,11 +184,10 @@ func queryBalance(client jsonrpc.RPCClient, addr, token string) {
 					balanceWei, _ := new(big.Int).SetString(balanceMap["balance"].(string)[2:], 16)
 					total = total.Add(total, balanceWei)
 					balance := balanceWei.Div(balanceWei, big.NewInt(1000000000000000000))
-					shardsQKCStr = append(shardsQKCStr, balance.String())
+					id := hexutil.MustDecodeUint64(shardMap["chainId"].(string))
+					shardsQKCStr[id] = balance.String()
 				}
 			}
-		} else {
-			shardsQKCStr = append(shardsQKCStr, "0")
 		}
 	}
 	total = total.Div(total, big.NewInt(1000000000000000000))
@@ -205,13 +204,15 @@ func queryBalance(client jsonrpc.RPCClient, addr, token string) {
 func main() {
 
 	ip := flag.String("ip", "localhost", "Cluster IP")
+	prv_port := flag.Int("prv_port", 38491, "Private service port")
+	pub_port := flag.Int("pub_port", 38391, "Public service port")
 	interval := flag.Uint("i", 10, "Query interval in second")
 	address := flag.String("a", "", "Query account balance if a QKC address is provided")
 	token := flag.String("t", "QKC", "Query account balance for a specific token")
 	shards := flag.Bool("s", false, "Query height of all shards")
 	flag.Parse()
-	privateEndPoint := jsonrpc.NewClient(fmt.Sprintf("http://%s:38491", *ip))
-	publicEndPoint := jsonrpc.NewClient(fmt.Sprintf("http://%s:38391", *ip))
+	privateEndPoint := jsonrpc.NewClient(fmt.Sprintf("http://%s:%v", *ip, *prv_port))
+	publicEndPoint := jsonrpc.NewClient(fmt.Sprintf("http://%s:%v", *ip, *pub_port))
 	fmt.Println(basic(privateEndPoint, *ip))
 	if len(*address) > 0 {
 		queryAddress(publicEndPoint, interval, address, token)
