@@ -10,6 +10,7 @@ import (
 	"github.com/ybbus/jsonrpc"
 	"math/big"
 	"runtime"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -173,7 +174,8 @@ func queryBalance(client jsonrpc.RPCClient, addr, token string) {
 	for _, p := range shardsi {
 		shardMap := p.(map[string]interface{})
 		balanceMaps := shardMap["balances"].([]interface{})
-		fullShardId := shardMap["fullShardId"].(string)
+		shardId, _ := strconv.ParseInt(shardMap["shardId"].(string), 0, 64)
+		chainId, _ := strconv.ParseInt(shardMap["chainId"].(string), 0, 64)
 		if len(balanceMaps) > 0 {
 			for _, s := range balanceMaps {
 				balanceMap := s.(map[string]interface{})
@@ -182,7 +184,7 @@ func queryBalance(client jsonrpc.RPCClient, addr, token string) {
 					balanceWei, _ := new(big.Int).SetString(balanceMap["balance"].(string)[2:], 16)
 					total = total.Add(total, balanceWei)
 					balance := balanceWei.Div(balanceWei, big.NewInt(1000000000000000000))
-					item := fullShardId + ":" + balance.String()
+					item := fmt.Sprintf("%d/%d:%s", chainId, shardId, balance.String())
 					shardsQKCStr = append(shardsQKCStr, item)
 				}
 			}
