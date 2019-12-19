@@ -168,14 +168,12 @@ func queryBalance(client jsonrpc.RPCClient, addr, token string) {
 	}
 	res := response.Result.(map[string]interface{})
 	shardsi := res["shards"].([]interface{})
-	shardsQKCStr := make([]string, len(shardsi))
-	for i := range shardsQKCStr {
-		shardsQKCStr[i] = "0"
-	}
+	shardsQKCStr := make([]string, 0)
 	total := big.NewInt(0)
 	for _, p := range shardsi {
 		shardMap := p.(map[string]interface{})
 		balanceMaps := shardMap["balances"].([]interface{})
+		fullShardId := shardMap["fullShardId"].(string)
 		if len(balanceMaps) > 0 {
 			for _, s := range balanceMaps {
 				balanceMap := s.(map[string]interface{})
@@ -184,8 +182,8 @@ func queryBalance(client jsonrpc.RPCClient, addr, token string) {
 					balanceWei, _ := new(big.Int).SetString(balanceMap["balance"].(string)[2:], 16)
 					total = total.Add(total, balanceWei)
 					balance := balanceWei.Div(balanceWei, big.NewInt(1000000000000000000))
-					id := hexutil.MustDecodeUint64(shardMap["chainId"].(string))
-					shardsQKCStr[id] = balance.String()
+					item := fullShardId + ":" + balance.String()
+					shardsQKCStr = append(shardsQKCStr, item)
 				}
 			}
 		}
