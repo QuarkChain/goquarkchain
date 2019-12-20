@@ -270,8 +270,7 @@ func ApplyCrossShardDeposit(config *params.ChainConfig, bc ChainContext, header 
 		*usedGas += gasUsedStart
 
 		xShardFee := new(big.Int).Mul(tx.GasPrice.Value, qkcParam.GtxxShardCost)
-		xShardFee = new(big.Int).Mul(xShardFee, quarkChainConfig.LocalFeeRate.Num())
-		xShardFee = new(big.Int).Div(xShardFee, quarkChainConfig.LocalFeeRate.Denom())
+		xShardFee = qkcCmn.BigIntMulBigRat(xShardFee, quarkChainConfig.LocalFeeRate)
 
 		evmState.AddBlockFee(map[uint64]*big.Int{
 			tx.GasTokenID: xShardFee,

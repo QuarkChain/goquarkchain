@@ -22,6 +22,7 @@ import (
 	"math/big"
 
 	"github.com/QuarkChain/goquarkchain/account"
+	qkcCommon "github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/core/vm"
 	qkcParam "github.com/QuarkChain/goquarkchain/params"
@@ -419,8 +420,7 @@ func (st *StateTransition) AddCrossShardTxDeposit(intrinsicGas uint64) (ret []by
 
 func (st *StateTransition) chargeFee(gasUsed uint64) {
 	fee := new(big.Int).Mul(new(big.Int).SetUint64(gasUsed), st.gasPrice)
-	rateFee := new(big.Int).Mul(fee, st.state.GetQuarkChainConfig().LocalFeeRate.Num())
-	rateFee = new(big.Int).Div(rateFee, st.state.GetQuarkChainConfig().LocalFeeRate.Denom())
+	rateFee := qkcCommon.BigIntMulBigRat(fee, st.state.GetQuarkChainConfig().LocalFeeRate)
 	gasTokenId := st.evm.StateDB.GetQuarkChainConfig().GetDefaultChainTokenID()
 	st.state.AddBalance(st.evm.Coinbase, rateFee, gasTokenId)
 	blockFee := make(map[uint64]*big.Int)

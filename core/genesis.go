@@ -95,7 +95,8 @@ func (g *Genesis) CreateMinorBlock(rootBlock *types.RootBlock, fullShardId uint3
 	}
 
 	coinbaseAmountTokens := types.NewEmptyTokenBalances()
-	coinbaseAmountTokens.SetValue(qkcCommon.BigIntMulBigRat(shardConfig.CoinbaseAmount, g.qkcConfig.LocalFeeRate), g.qkcConfig.GetDefaultChainTokenID())
+	coinbaseAmount := qkcCommon.BigIntMulBigRat(shardConfig.CoinbaseAmount, g.qkcConfig.LocalFeeRate)
+	coinbaseAmountTokens.SetValue(coinbaseAmount, g.qkcConfig.GetDefaultChainTokenID())
 
 	gasLimit := new(serialize.Uint256)
 	gasLimit.Value = new(big.Int).SetUint64(genesis.GasLimit)

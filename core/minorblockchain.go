@@ -208,7 +208,7 @@ func NewMinorBlockChain(
 			CheckBlocks: 5,
 			Percentile:  50,
 		},
-		logInfo: fmt.Sprintf("shard:%d", fullShardID),
+		logInfo: fmt.Sprintf("shard:%x", fullShardID),
 	}
 	var err error
 	bc.gasLimit, err = bc.clusterConfig.Quarkchain.GasLimit(bc.branch.Value)
@@ -231,9 +231,10 @@ func NewMinorBlockChain(
 	if err := bc.loadLastState(); err != nil {
 		return nil, err
 	}
-	DefaultTxPoolConfig.NetWorkID = bc.clusterConfig.Quarkchain.NetworkID
+	txPoolConfig := DefaultTxPoolConfig
+	txPoolConfig.NetWorkID = bc.clusterConfig.Quarkchain.NetworkID
 	bc.posw = consensus.CreatePoSWCalculator(bc, bc.shardConfig.PoswConfig)
-	bc.txPool = NewTxPool(DefaultTxPoolConfig, bc)
+	bc.txPool = NewTxPool(txPoolConfig, bc)
 	// Take ownership of this particular state
 	go bc.update()
 	return bc, nil
@@ -304,8 +305,8 @@ func (m *MinorBlockChain) SetHead(head uint64) error {
 }
 
 func (m *MinorBlockChain) setHead(head uint64) error {
-	log.Warn("Rewinding blockchain", "target", head)
-	defer log.Warn("Rewinding blockchain-end", "target number", head)
+	log.Warn(m.logInfo+" Rewinding blockchain", "target", head)
+	defer log.Warn(m.logInfo+" Rewinding blockchain-end", "target number", head)
 	// Rewind the header chain, deleting all block bodies until then
 	batch := m.db.NewBatch()
 	for block := m.CurrentBlock(); block != nil && block.NumberU64() > head; block = m.CurrentBlock() {
@@ -1438,7 +1439,7 @@ func (m *MinorBlockChain) reorg(oldBlock, newBlock types.IBlock) error {
 
 	} else {
 		// we support reorg block from same chain,because we should delete and add tx index
-		log.Warn("reorg", "same chain curr", m.CurrentBlock().NumberU64(), "curr.Hash", m.CurrentBlock().Hash().String(),
+		log.Warn(m.logInfo+" reorg", "same chain curr", m.CurrentBlock().NumberU64(), "curr.Hash", m.CurrentBlock().Hash().String(),
 			"newBlock", newBlockNumber, "newBlock's hash", newBlockHash, "newBlock", m.GetMinorBlock(newBlockHash) == nil)
 		if err := m.setHead(newBlockNumber); err != nil {
 			return err

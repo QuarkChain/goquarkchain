@@ -274,12 +274,12 @@ func (s *ShardBackend) AddMinorBlock(block *types.MinorBlock) error {
 	currHead := s.MinorBlockChain.CurrentBlock().Header()
 	_, xshardLst, err := s.MinorBlockChain.InsertChainForDeposits([]types.IBlock{block}, false)
 	if err != nil {
-		log.Error("Failed to add minor block", "err", err, "len", len(xshardLst))
+		log.Error(s.logInfo+" Failed to add minor block", "err", err, "len", len(xshardLst))
 		return err
 	}
 
 	if len(xshardLst) != 1 {
-		log.Warn("already have this block", "number", block.NumberU64(), "hash", block.Hash().String())
+		log.Warn(s.logInfo+" already have this block", "number", block.NumberU64(), "hash", block.Hash().String())
 		return nil
 	}
 
@@ -288,7 +288,7 @@ func (s *ShardBackend) AddMinorBlock(block *types.MinorBlock) error {
 	s.mBPool.delBlockInPool(block.Hash())
 
 	if xshardLst[0] == nil {
-		log.Info("add minor block has been added...", "branch", s.branch.Value, "height", block.Number())
+		log.Info(s.logInfo+" add minor block has been added...", "branch", s.branch.Value, "height", block.Number())
 		return nil
 	}
 
@@ -361,11 +361,11 @@ func (s *ShardBackend) AddBlockListForSync(blockLst []*types.MinorBlock) error {
 		//TODO:support BLOCK_COMMITTING
 		_, xshardLst, err := s.MinorBlockChain.InsertChainForDeposits([]types.IBlock{block}, false)
 		if err != nil {
-			log.Error("Failed to add minor block", "err", err)
+			log.Error(s.logInfo+" Failed to add minor block", "err", err)
 			return err
 		}
 		if len(xshardLst) != 1 {
-			log.Warn("already have this block", "number", block.NumberU64(), "hash", block.Hash().String())
+			log.Warn(s.logInfo+" already have this block", "number", block.NumberU64(), "hash", block.Hash().String())
 			return nil
 		}
 		s.mBPool.delBlockInPool(block.Hash())

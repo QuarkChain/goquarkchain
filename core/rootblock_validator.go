@@ -6,13 +6,13 @@ import (
 	"math/big"
 	"reflect"
 
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/crypto"
-
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/core/state"
 	"github.com/QuarkChain/goquarkchain/core/types"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/log"
 )
 
 // RootBlockValidator implements Validator.
@@ -97,6 +97,7 @@ func (v *RootBlockValidator) ValidateBlock(block types.IBlock, force bool) error
 	var parentHeader *types.MinorBlockHeader
 	prevRootBlockHashList := make(map[common.Hash]bool, 0)
 	var shardIdToMinorHeadersMap = make(map[uint32][]*types.MinorBlockHeader)
+	m := make(map[uint32]uint64, 0)
 	for _, mheader := range rootBlock.MinorBlockHeaders() {
 		if !v.blockChain.ContainMinorBlockByHash(mheader.Hash()) {
 			return fmt.Errorf("minor block is not validated. %v-%d",
@@ -123,7 +124,10 @@ func (v *RootBlockValidator) ValidateBlock(block types.IBlock, force bool) error
 		parentHeader = mheader
 		shardIdToMinorHeadersMap[fullShardId] = append(shardIdToMinorHeadersMap[fullShardId], mheader)
 	}
-
+	for k, v := range shardIdToMinorHeadersMap {
+		m[k>>16] = v[len(v)-1].Number
+	}
+	log.Debug("root", "number", rootBlock.Header().Number, "top minors included", m)
 	for key := range prevRootBlockHashList {
 		if v.blockChain.GetHeader(key) == nil {
 			return fmt.Errorf("root block not found: key=%x", key)

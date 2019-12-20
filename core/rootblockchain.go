@@ -1265,9 +1265,8 @@ func (bc *RootBlockChain) CalculateRootBlockCoinBase(rootBlock *types.RootBlock)
 	ratio := bc.Config().RewardCalculateRate
 	tempToken := rewardTokenMap.GetBalanceMap()
 	for token, value := range tempToken {
-		value = value.Mul(value, ratio.Denom())
-		value = value.Div(value, ratio.Num())
-		rewardTokenMap.SetValue(value, token)
+		newValue := qkccom.BigIntMulBigRat(value, ratio)
+		rewardTokenMap.SetValue(newValue, token)
 	}
 	genesisToken := bc.Config().GetDefaultChainTokenID()
 	genesisTokenBalance := rewardTokenMap.GetTokenBalance(genesisToken)
@@ -1282,7 +1281,7 @@ func (bc *RootBlockChain) getCoinbaseAmount(height uint64) *big.Int {
 	coinbaseAmount, ok := bc.coinbaseAmountCache[epoch]
 	if !ok {
 		numerator := powerBigInt(bc.Config().BlockRewardDecayFactor.Num(), epoch)
-		denominator := powerBigInt(bc.Config().BlockRewardDecayFactor.Denom(), epoch)
+		denominator := powerBigInt(new(big.Rat).Set(bc.Config().BlockRewardDecayFactor).Denom(), epoch)
 		coinbaseAmount = new(big.Int).Mul(bc.Config().Root.CoinbaseAmount, numerator)
 		coinbaseAmount = coinbaseAmount.Div(coinbaseAmount, denominator)
 		bc.mu.Lock()

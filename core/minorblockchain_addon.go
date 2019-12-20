@@ -73,10 +73,9 @@ func (m *MinorBlockChain) getCoinbaseAmount(height uint64) *types.TokenBalances 
 	balances, ok := m.coinbaseAmountCache[epoch]
 	if !ok {
 		decayNumerator := powerBigInt(m.clusterConfig.Quarkchain.BlockRewardDecayFactor.Num(), epoch)
-		decayDenominator := powerBigInt(m.clusterConfig.Quarkchain.BlockRewardDecayFactor.Denom(), epoch)
-		coinbaseAmount := new(big.Int).Mul(m.shardConfig.CoinbaseAmount, m.clusterConfig.Quarkchain.LocalFeeRate.Num())
+		decayDenominator := powerBigInt(new(big.Rat).Set(m.clusterConfig.Quarkchain.BlockRewardDecayFactor).Denom(), epoch)
+		coinbaseAmount := qkcCommon.BigIntMulBigRat(m.shardConfig.CoinbaseAmount, m.clusterConfig.Quarkchain.LocalFeeRate)
 		coinbaseAmount = new(big.Int).Mul(coinbaseAmount, decayNumerator)
-		coinbaseAmount = new(big.Int).Div(coinbaseAmount, m.clusterConfig.Quarkchain.LocalFeeRate.Denom())
 		coinbaseAmount = new(big.Int).Div(coinbaseAmount, decayDenominator)
 		data := make(map[uint64]*big.Int)
 		data[m.clusterConfig.Quarkchain.GetDefaultChainTokenID()] = coinbaseAmount
@@ -899,6 +898,7 @@ func (m *MinorBlockChain) AddRootBlock(rBlock *types.RootBlock) (bool, error) {
 	} else {
 		shardHeader = lastMinorHeaderInPrevRootBlock
 	}
+	//m.mu.Lock()
 	m.putRootBlock(rBlock, shardHeader)
 	if shardHeader != nil {
 		if !m.isSameRootChain(rBlock.Header(), m.getRootBlockHeaderByHash(shardHeader.PrevRootBlockHash)) {
@@ -945,14 +945,14 @@ func (m *MinorBlockChain) AddRootBlock(rBlock *types.RootBlock) (bool, error) {
 				panic(errors.New("get genesis block is nil"))
 			}
 			m.genesisBlock = newGenesis
-			log.Warn(m.logInfo, "ready to resrt genesis number", m.genesisBlock.Number(), "hash", m.genesisBlock.Hash().String())
+			log.Warn(m.logInfo+" ready to reset genesis", "number", m.genesisBlock.Number(), "hash", m.genesisBlock.Hash().String())
 			if err := m.Reset(); err != nil {
 				return false, err
 			}
 			break
 		}
 		preBlock := m.GetMinorBlock(m.CurrentBlock().ParentHash())
-		log.Warn(m.logInfo, "ready to set currentHeader height", preBlock.Number(), "hash", preBlock.Hash().String())
+		log.Warn(m.logInfo+" ready to set currentHeader", "height", preBlock.Number(), "hash", preBlock.Hash().String())
 		m.currentBlock.Store(preBlock)
 	}
 
@@ -960,7 +960,7 @@ func (m *MinorBlockChain) AddRootBlock(rBlock *types.RootBlock) (bool, error) {
 		headerTipHash := m.CurrentBlock().Hash()
 		origBlock := m.GetMinorBlock(origHeaderTip.Hash())
 		newBlock := m.GetMinorBlock(headerTipHash)
-		log.Warn("reWrite", "orig_number", origBlock.Number(), "orig_hash", origBlock.Hash().String(), "new_number", newBlock.Number(), "new_hash", newBlock.Hash().String())
+		log.Warn(m.logInfo+" reWrite", "orig_number", origBlock.Number(), "orig_hash", origBlock.Hash().String(), "new_number", newBlock.Number(), "new_hash", newBlock.Hash().String())
 		var err error
 		if err = m.reWriteBlockIndexTo(origBlock, newBlock); err != nil {
 			return false, err

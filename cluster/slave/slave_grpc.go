@@ -30,7 +30,9 @@ func NewServerSideOp(slave *SlaveBackend) *SlaveServerSideOp {
 }
 
 func (s *SlaveServerSideOp) HeartBeat(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
+	//s.slave.lock.Lock()
 	s.slave.ctx.Timestamp = time.Now()
+	//s.slave.lock.Unlock()
 	if len(s.slave.shards) == 0 {
 		return nil, errors.New("shards uninitialized")
 	}

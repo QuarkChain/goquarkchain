@@ -74,6 +74,8 @@ func (m *Miner) interrupt() {
 }
 
 func (m *Miner) allowMining() bool {
+	//m.mu.Lock()
+	//defer m.mu.Unlock()
 	if !m.IsMining() ||
 		time.Now().Sub(*m.timestamp).Seconds() > deadtime {
 		return false
