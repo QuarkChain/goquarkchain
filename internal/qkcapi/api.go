@@ -658,6 +658,15 @@ func (p *PublicBlockChainAPI) NetVersion() hexutil.Uint {
 	return hexutil.Uint(clusterCfg.Quarkchain.NetworkID)
 }
 
+func (p *PublicBlockChainAPI) GetFullShardIds() ([]hexutil.Uint64, error) {
+	ids := clusterCfg.Quarkchain.GetGenesisShardIds()
+	res := make([]hexutil.Uint64, len(ids))
+	for i, id := range ids {
+		res[i] = hexutil.Uint64(id)
+	}
+	return res, nil
+}
+
 type PrivateBlockChainAPI struct {
 	b Backend
 }
