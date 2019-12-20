@@ -21,7 +21,7 @@ var (
 var (
 	initConf = flag.Bool("genconf", false, "only gen config , not run cluster")
 	initEnv  = flag.Bool("init_env", false, "only init env")
-	genLog  = flag.Bool("genlog", false, "only gen log")
+	genLog  = flag.Bool("log", false, "only gen log")
 )
 
 func init() {
