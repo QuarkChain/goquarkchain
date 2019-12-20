@@ -20,7 +20,8 @@ var (
 )
 var (
 	initConf = flag.Bool("genconf", false, "only gen config , not run cluster")
-	initEnv  = flag.Bool("init_env", false, "only gen config , not run cluster")
+	initEnv  = flag.Bool("init_env", false, "only init env")
+	genLog  = flag.Bool("genlog", false, "only gen log")
 )
 
 func init() {
@@ -45,6 +46,11 @@ func main() {
 	toolManager := getToolManager()
 	if *initConf {
 		toolManager.GenAllClusterConfig()
+		return
+	}
+
+	if *genLog {
+		toolManager.StartGenLog()
 		return
 	}
 
