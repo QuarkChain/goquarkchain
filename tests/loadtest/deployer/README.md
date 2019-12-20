@@ -81,13 +81,15 @@ Cluster 2 has the same structure as cluster 1.
 
 So, cluster 0, 1, 2 have 64, 32, 32 slaves deployed respectively. Notice the slave number of each cluster is a power of 2. 
 
-## Deploy and Run Clusters
+## Install Docker
 
 (Optional) If Docker is not installed in your hosts, you can install Docker with following command: 
 ```bash
 # suppose your working directory is "$GOPATH/src/github.com/QuarkChain/goquarkchain/tests/loadtest/deployer"
 go run deploy_cluster.go --init_env
 ```
+## Deploy and Run Clusters
+
 The following command will parse `deployConfig.json`, generate cluster configuration file accordingly, deploy the clusters to remote Docker 
 containers, and start the services of each cluster:
 
@@ -114,6 +116,15 @@ You can find master.log and shard logs such as `S0.log` from `$GOPATH/src/github
 ## Back to Loadtest
 
 Now that you have running clusters, you can continue with loadtest from [here](../README.md#start-mining).
+
+## Collect Logs
+
+After done loadtest, you can collect logs using following command: 
+```bash
+# suppose your working directory is "$GOPATH/src/github.com/QuarkChain/goquarkchain/tests/loadtest/deployer"
+go run deploy_cluster.go --log
+```
+A file named log.tar will be generated in current directory.
 
 ## FAQ
 

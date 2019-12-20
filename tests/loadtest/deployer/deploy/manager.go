@@ -301,6 +301,61 @@ func (t *ToolManager) GenAllClusterConfig() {
 	}
 }
 
+func (t *ToolManager)StartGenLog()  {
+	for index := 0; index < len(t.LocalConfig.Hosts); index++ {
+		t.ClusterIndex=index
+		configPath := fmt.Sprintf("./cluster_config_template.json")
+		t.GenClusterConfig(configPath)
+		t.genLog()
+	}
+	firstSession:=t.SSHSession[0][t.firstMachine]
+	firstSession.RunCmd("cd /tmp && tar cvf log.tar cluster-*")
+	firstSession.GetFile("./","/tmp/log.tar")
+}
+
+func (t *ToolManager)genLog()  {
+	masterIp := t.GetMasterIP()
+	slaveIpLists := make([]*SlaveInfo, 0)
+	cfg := config.NewClusterConfig()
+	err := LoadClusterConfig(clusterConfigPath, cfg)
+	CheckErr(err)
+
+	for _, v := range cfg.SlaveList {
+		slaveIpLists = append(slaveIpLists, &SlaveInfo{
+			IP:          v.IP,
+			ServiceName: v.ID,
+		})
+	}
+	t.startGenMasterLog(masterIp,slaveIpLists)
+}
+
+func (t *ToolManager) startGenMasterLog(ip string,ipList []*SlaveInfo) {
+	firstSession:=t.SSHSession[0][t.firstMachine]
+	clusterID:=fmt.Sprintf("cluster-%d",t.ClusterIndex)
+	firstSession.RunCmd("rm -rf /tmp/"+clusterID)
+	firstSession.RunCmd("mkdir /tmp/"+clusterID)
+
+
+	session := t.SSHSession[t.ClusterIndex][ip]
+	cmd:="docker cp bjqkc:/go/src/github.com/QuarkChain/goquarkchain/cmd/cluster/master.log"+" ./"
+	session.RunCmd(cmd)
+	session.GetFile("/tmp","./master.log")
+	firstSession.SendFile("/tmp/master.log","/tmp/"+clusterID)
+
+	for _, v := range ipList {
+		session := t.SSHSession[t.ClusterIndex][v.IP]
+		cmd:="docker cp bjqkc:/go/src/github.com/QuarkChain/goquarkchain/cmd/cluster/"+v.ServiceName+".log"+" ./"
+		session.RunCmd(cmd)
+
+		t.SSHSession[t.ClusterIndex][v.IP].GetFile("/tmp/","./"+v.ServiceName+".log")
+
+
+		firstSession.SendFile("/tmp/"+v.ServiceName+".log","/tmp/"+clusterID)
+	}
+
+}
+
+
 func (t *ToolManager) CheckPeerStatus() {
 	for true {
 		time.Sleep(10 * time.Second)
