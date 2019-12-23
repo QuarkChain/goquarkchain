@@ -32,28 +32,28 @@ type Miner struct {
 	api    MinerAPI
 	engine consensus.Engine
 
-	resultCh  chan types.IBlock
-	workCh    chan workAdjusted
-	startCh   chan struct{}
-	exitCh    chan struct{}
-	mu        sync.RWMutex
-	timestamp *time.Time
-	isMining  bool
-	stopCh    chan struct{}
-	logInfo   string
+	resultCh chan types.IBlock
+	workCh   chan workAdjusted
+	startCh  chan struct{}
+	exitCh   chan struct{}
+	mu       sync.RWMutex
+	ctx      *service.ServiceContext
+	isMining bool
+	stopCh   chan struct{}
+	logInfo  string
 }
 
 func New(ctx *service.ServiceContext, api MinerAPI, engine consensus.Engine) *Miner {
 	miner := &Miner{
-		api:       api,
-		engine:    engine,
-		timestamp: &ctx.Timestamp,
-		resultCh:  make(chan types.IBlock, 1),
-		workCh:    make(chan workAdjusted, 1),
-		startCh:   make(chan struct{}, 1),
-		exitCh:    make(chan struct{}),
-		stopCh:    make(chan struct{}),
-		logInfo:   "miner",
+		api:      api,
+		engine:   engine,
+		ctx:      ctx,
+		resultCh: make(chan types.IBlock, 1),
+		workCh:   make(chan workAdjusted, 1),
+		startCh:  make(chan struct{}, 1),
+		exitCh:   make(chan struct{}),
+		stopCh:   make(chan struct{}),
+		logInfo:  "miner",
 	}
 	miner.engine.SetThreads(1)
 	go miner.mainLoop()
@@ -74,10 +74,10 @@ func (m *Miner) interrupt() {
 }
 
 func (m *Miner) allowMining() bool {
-	//m.mu.Lock()
-	//defer m.mu.Unlock()
+	m.ctx.LockTimestamp()
+	defer m.ctx.UnlockTimestamp()
 	if !m.IsMining() ||
-		time.Now().Sub(*m.timestamp).Seconds() > deadtime {
+		time.Now().Sub(m.ctx.Timestamp).Seconds() > deadtime {
 		return false
 	}
 	return true

@@ -392,9 +392,9 @@ func (s *QKCMasterBackend) Heartbeat() {
 				break
 			default:
 				timeGap := time.Now()
-				//s.lock.Lock()
+				s.ctx.LockTimestamp()
 				s.ctx.Timestamp = timeGap
-				//s.lock.Unlock()
+				s.ctx.UnlockTimestamp()
 				for _, conn := range s.GetSlaveConns() {
 					normal = conn.HeartBeat()
 					if !normal {

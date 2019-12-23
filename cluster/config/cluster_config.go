@@ -371,6 +371,7 @@ func NewQuarkChainConfig() *QuarkChainConfig {
 		SkipRootCoinbaseCheck:             false,
 		SkipMinorDifficultyCheck:          false,
 		GenesisToken:                      DefaultToken,
+		defaultChainTokenID:               common.TokenIDEncode(DefaultToken),
 		RewardTaxRate:                     new(big.Rat).SetFloat64(0.5),
 		BlockRewardDecayFactor:            new(big.Rat).SetFloat64(0.5),
 		Root:                              NewRootConfig(),
@@ -422,9 +423,6 @@ func (q *QuarkChainConfig) SetShardsAndValidate(shards map[uint32]*ShardConfig) 
 }
 
 func (q *QuarkChainConfig) GetDefaultChainTokenID() uint64 {
-	if q.defaultChainTokenID == 0 {
-		q.defaultChainTokenID = common.TokenIDEncode(q.GenesisToken)
-	}
 	return q.defaultChainTokenID
 }
 

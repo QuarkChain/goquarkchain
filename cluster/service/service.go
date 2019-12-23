@@ -9,6 +9,7 @@ import (
 	"github.com/ethereum/go-ethereum/event"
 	"os"
 	"reflect"
+	"sync"
 	"time"
 )
 
@@ -20,7 +21,15 @@ type ServiceContext struct {
 	services  map[reflect.Type]Service // Index of the already constructed services
 	Shutdown  chan os.Signal
 	Timestamp time.Time
+	mu        sync.Mutex
 	EventMux  *event.TypeMux // Event multiplexer used for decoupled notifications
+}
+
+func (ctx *ServiceContext) LockTimestamp() {
+	ctx.mu.Lock()
+}
+func (ctx *ServiceContext) UnlockTimestamp() {
+	ctx.mu.Unlock()
 }
 
 func (ctx *ServiceContext) WSIsAlive() bool {
