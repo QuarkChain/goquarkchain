@@ -28,10 +28,11 @@ var (
 type Account struct {
 	Address account.Address
 	Privkey *ecdsa.PrivateKey
-	IdNonce map[uint32]uint64
+	IdNonce map[uint32]uint64 // fullShardId: nonce
 	mu      sync.RWMutex
 }
 
+// ids:	fullShardId list, in the shards
 func NewAccount(addr string, privkey string, ids []uint32) (*Account, error) {
 	address, err := account.CreatAddressFromBytes(common.FromHex(addr))
 	if err != nil {
@@ -57,6 +58,7 @@ func NewAccount(addr string, privkey string, ids []uint32) (*Account, error) {
 	return acc, nil
 }
 
+// rectify the nonce in fullShardId shard when the nonce in sending tx is not right.
 func (a *Account) RectifyNonce(fullShardId uint32) error {
 	a.mu.Lock()
 	defer a.mu.Unlock()
@@ -69,6 +71,7 @@ func (a *Account) RectifyNonce(fullShardId uint32) error {
 	return nil
 }
 
+// create tx about fullShardId shard and the nonce will increase.
 func (a *Account) CreateTransaction(fullShardId uint32) (tx *clt.EvmTransaction, err error) {
 	once.Do(func() {
 		networkId, err = client.NetworkID()
@@ -86,7 +89,7 @@ func (a *Account) CreateTransaction(fullShardId uint32) (tx *clt.EvmTransaction,
 		clt.TokenIDEncode("QKC"),
 		networkId, 0, nil)
 	a.mu.Lock()
-	a.IdNonce[fullShardId]++
+	a.IdNonce[fullShardId]++ // increase nonce about fullShardId shard.
 	a.mu.Unlock()
 	return clt.SignTx(tx, a.Privkey)
 }
@@ -96,6 +99,7 @@ type GenesisAddress struct {
 	PrivKey string `json:"key"`
 }
 
+// load test accounts func, return address and privatekey
 func loadGenesisAddrs(file string) ([]GenesisAddress, error) {
 	if _, err := os.Stat(file); err != nil {
 		return nil, nil
@@ -118,13 +122,20 @@ func loadGenesisAddrs(file string) ([]GenesisAddress, error) {
 }
 
 func main() {
+	// get all fullShardIds
+	fullshardids, err := client.GetFullShardIds()
+	if err != nil {
+		panic(err)
+	}
+	log.Info("fullshardId list", fullshardids)
+
 	var (
 		stopCh  = make(chan struct{})
 		acCount = 8000
-		accsCh  = make(chan *account.Address, acCount*2)
+		accsCh  = make(chan *account.Address, acCount*len(fullshardids))
 		errsCh  = make(chan *account.Address, acCount*2)
-		runsCh  = make(chan bool, runtime.NumCPU()*2)
 
+		// all acCount number of accounts.
 		accTxs = make(map[common.Address]*Account)
 		txsCh  = make(chan *struct {
 			Tx      *clt.EvmTransaction
@@ -134,22 +145,13 @@ func main() {
 
 		wg sync.WaitGroup
 	)
-	for i := 0; i < runtime.NumCPU()*2; i++ {
-		runsCh <- true
-	}
-
-	var (
-		fullshardids []uint32
-		err          error
-	)
-	// fullshardids, err = client.GetFullShardIds()
-	log.Info("fullshardId list", fullshardids)
 
 	addresses, err := loadGenesisAddrs("./accounts/loadtest.json")
 	if err != nil {
 		panic(err)
 	}
 
+	// creation tx loop
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
@@ -176,6 +178,7 @@ func main() {
 		}
 	}()
 
+	// rectify nonce loop
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
@@ -194,6 +197,7 @@ func main() {
 		}
 	}()
 
+	// create acCount number of accounts
 	for i := 0; i < acCount; i++ {
 		acc, err := NewAccount(addresses[i].Address, addresses[i].PrivKey, fullshardids)
 		if err != nil {
@@ -206,8 +210,8 @@ func main() {
 	}
 
 	var (
-		txTime  int64
-		txCount int
+		txTime  int64 // The time of send successful txs.
+		txCount int   // all successful txs counts.
 	)
 	for i := 0; i < runtime.NumCPU(); i++ {
 		wg.Add(1)
