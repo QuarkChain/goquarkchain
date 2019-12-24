@@ -69,13 +69,6 @@ func makeConfigNode(ctx *cli.Context) (*service.Node, qkcConfig) {
 		Cluster: *config.NewClusterConfig(),
 		Service: defaultNodeConfig(),
 	}
-	for _, v := range params.PrecompliedContractsAfterEvmEnabled {
-		if vm.PrecompiledContractsByzantium[v] != nil {
-			vm.PrecompiledContractsByzantium[v].SetEnableTime(cfg.Cluster.Quarkchain.EnableEvmTimeStamp)
-		}
-	}
-	vm.SystemContracts[vm.NON_RESERVED_NATIVE_TOKEN].SetTimestamp(cfg.Cluster.Quarkchain.EnableMntAuctionTimestamp)
-	vm.SystemContracts[vm.GENERAL_NATIVE_TOKEN].SetTimestamp(cfg.Cluster.Quarkchain.EnableGeneralNativeTokenTimestamp)
 
 	// Load cluster config file.
 	if file := ctx.GlobalString(ClusterConfigFlag.Name); file != "" {
@@ -122,6 +115,15 @@ func makeConfigNode(ctx *cli.Context) (*service.Node, qkcConfig) {
 	if err != nil {
 		utils.Fatalf("Failed to create the protocol stack: %v", err)
 	}
+
+	for _, v := range params.PrecompliedContractsAfterEvmEnabled {
+		if vm.PrecompiledContractsByzantium[v] != nil {
+			vm.PrecompiledContractsByzantium[v].SetEnableTime(cfg.Cluster.Quarkchain.EnableEvmTimeStamp)
+		}
+	}
+	vm.SystemContracts[vm.NON_RESERVED_NATIVE_TOKEN].SetTimestamp(cfg.Cluster.Quarkchain.EnableMntAuctionTimestamp)
+	vm.SystemContracts[vm.GENERAL_NATIVE_TOKEN].SetTimestamp(cfg.Cluster.Quarkchain.EnableGeneralNativeTokenTimestamp)
+
 	return stack, cfg
 }
 
