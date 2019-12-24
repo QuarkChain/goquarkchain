@@ -150,6 +150,8 @@ func (tab *Table) GetKadRoutingTable() []string {
 }
 
 func (tab *Table) SetChkBlackListFunc(chkDialOutFunc func(string) bool) {
+	tab.mutex.Lock()
+	defer tab.mutex.Unlock()
 	if chkDialOutFunc != nil {
 		tab.checkDialBlackList = chkDialOutFunc
 	}
@@ -475,13 +477,13 @@ func (tab *Table) doRevalidate(done chan<- struct{}) {
 		return
 	}
 
+	tab.mutex.Lock()
 	inBlackList := false
 	if tab.checkDialBlackList(last.IP().String()) {
 		log.Warn("black node", "b", bi, "id", last.ID(), "address", last.addr().String())
 		inBlackList = true
 	}
 
-	tab.mutex.Lock()
 	defer tab.mutex.Unlock()
 	b := tab.buckets[bi]
 	if !inBlackList {

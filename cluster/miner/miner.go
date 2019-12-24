@@ -121,11 +121,13 @@ func (m *Miner) mainLoop() {
 
 		case work := <-m.workCh: //to discuss:need this?
 			log.Debug(m.logInfo, "ready to seal height", work.block.NumberU64(), "coinbase", work.block.Coinbase().ToHex())
+			m.mu.Lock()
 			if err := m.engine.Seal(nil, work.block, work.adjustedDifficulty, work.optionalDivider, m.resultCh, m.stopCh); err != nil {
 				log.Error(m.logInfo, "Seal block to mine err", err)
 				coinbase := work.block.Coinbase()
 				m.commit(&coinbase)
 			}
+			m.mu.Unlock()
 
 		case block := <-m.resultCh:
 			log.Debug(m.logInfo, "seal succ number", block.NumberU64(), "hash", block.Hash().String())
@@ -151,6 +153,8 @@ func (m *Miner) Stop() {
 
 // TODO when p2p is syncing block how to stop miner.
 func (m *Miner) SetMining(mining bool) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	m.isMining = mining
 	if mining {
 		m.startCh <- struct{}{}

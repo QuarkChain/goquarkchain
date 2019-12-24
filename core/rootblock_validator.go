@@ -127,7 +127,7 @@ func (v *RootBlockValidator) ValidateBlock(block types.IBlock, force bool) error
 	for k, v := range shardIdToMinorHeadersMap {
 		m[k>>16] = v[len(v)-1].Number
 	}
-	log.Debug("root", "number", rootBlock.Header().Number, "top minors included", m)
+	log.Warn("root", "number", rootBlock.Header().Number, "top minors included", m)
 	for key := range prevRootBlockHashList {
 		if v.blockChain.GetHeader(key) == nil {
 			return fmt.Errorf("root block not found: key=%x", key)

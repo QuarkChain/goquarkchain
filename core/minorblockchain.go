@@ -1536,7 +1536,7 @@ func (m *MinorBlockChain) reportBlock(block types.IBlock, receipts types.Receipt
 	}
 	log.Error(fmt.Sprintf(`
 ########## BAD BLOCK #########
-Chain config: %v
+Chain config: %#v
 
 Number: %v
 Hash: 0x%x

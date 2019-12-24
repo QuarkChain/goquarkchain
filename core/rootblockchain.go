@@ -925,7 +925,7 @@ func (bc *RootBlockChain) reportBlock(block types.IBlock, err error) {
 
 	log.Error(fmt.Sprintf(`
 ########## BAD BLOCK #########
-Chain config: %v
+Chain config: %#v
 
 Number: %v
 Hash: 0x%x

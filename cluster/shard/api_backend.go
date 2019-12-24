@@ -254,7 +254,7 @@ func (s *ShardBackend) NewMinorBlock(peerId string, block *types.MinorBlock) (er
 
 	s.mBPool.setBlockInPool(block.Header())
 	go func() {
-		if err = s.conn.BroadcastMinorBlock(peerId, block); err != nil {
+		if err := s.conn.BroadcastMinorBlock(peerId, block); err != nil {
 			log.Error("failed to broadcast new minor block", "err", err)
 		}
 	}()
