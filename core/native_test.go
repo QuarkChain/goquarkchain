@@ -3,7 +3,6 @@ package core
 import (
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/core/types"
-	"github.com/QuarkChain/goquarkchain/params"
 	"github.com/QuarkChain/goquarkchain/serialize"
 	"github.com/stretchr/testify/assert"
 	"io/ioutil"
@@ -35,6 +34,9 @@ func TestNativeTokenTransfer(t *testing.T) {
 	acc3 := account.CreatEmptyAddress(0)
 	testGenesisMinorTokenBalance["QKC"] = big.NewInt(10000000)
 	testGenesisMinorTokenBalance["QETH"] = big.NewInt(99999)
+	defer func() {
+		testGenesisMinorTokenBalance=make(map[string]*big.Int)
+	}()
 	env := getTestEnv(&acc1, nil, nil, nil, nil, nil)
 	shardState := createDefaultShardState(env, nil, nil, nil, nil)
 	val := big.NewInt(12345)
@@ -82,6 +84,9 @@ func TestNativeTokenTransferValueSuccess(t *testing.T) {
 	acc3 := account.CreatEmptyAddress(0)
 	testGenesisMinorTokenBalance["QKC"] = big.NewInt(10000000)
 	testGenesisMinorTokenBalance["MALICIOUS0"] = big.NewInt(0)
+	defer func() {
+		testGenesisMinorTokenBalance=make(map[string]*big.Int)
+	}()
 	env := getTestEnv(&acc1, nil, nil, nil, nil, nil)
 	shardState := createDefaultShardState(env, nil, nil, nil, nil)
 	val := big.NewInt(0)
@@ -118,16 +123,17 @@ func TestDisallowedUnknownToken(t *testing.T) {
 	id1, _ := account.CreatRandomIdentity()
 	acc1 := account.CreatAddressFromIdentity(id1, 0)
 	testGenesisMinorTokenBalance["QKC"] = big.NewInt(10000000)
+	defer func() {
+		testGenesisMinorTokenBalance=make(map[string]*big.Int)
+	}()
 	env := getTestEnv(&acc1, nil, nil, nil, nil, nil)
 	shardState := createDefaultShardState(env, nil, nil, nil, nil)
 	val := big.NewInt(0)
 	gas := uint64(21000)
 	gasPrice := uint64(1)
 	tx1 := createTransferTransaction(shardState, id1.GetKey().Bytes(), acc1, acc1, val, &gas, &gasPrice, nil, nil, nil, &MALICIOUS0)
-	err := shardState.AddTx(tx1)
-	if err != nil {
-		t.Errorf("AddTx err:%v", err)
-	}
+	assert.Error(t,shardState.AddTx(tx1))
+
 	tx2 := createTransferTransaction(shardState, id1.GetKey().Bytes(), acc1, acc1, val, &gas, &gasPrice, nil, nil, nil, &MALICIOUS1)
 	assert.Error(t, shardState.AddTx(tx2))
 }
@@ -140,6 +146,9 @@ func TestNativeTokenGas(t *testing.T) {
 	acc3 := account.CreatEmptyAddress(0)
 	testGenesisMinorTokenBalance["QETH"] = big.NewInt(10000000)
 	testGenesisMinorTokenBalance["QKC"] = big.NewInt(10000000)
+	defer func() {
+		testGenesisMinorTokenBalance=make(map[string]*big.Int)
+	}()
 	env := getTestEnv(&acc1, nil, nil, nil, nil, nil)
 	shardState := createDefaultShardState(env, nil, nil, nil, nil)
 	val := big.NewInt(12345)
@@ -165,6 +174,9 @@ func TestXshardNativeTokenSent(t *testing.T) {
 	acc3 := account.CreatEmptyAddress(0)
 	testGenesisMinorTokenBalance["QETHXX"] = big.NewInt(999999)
 	testGenesisMinorTokenBalance["QKC"] = big.NewInt(10000000)
+	defer func() {
+		testGenesisMinorTokenBalance=make(map[string]*big.Int)
+	}()
 	env := getTestEnv(&acc1, nil, nil, nil, nil, nil)
 	shardState := createDefaultShardState(env, nil, nil, nil, nil)
 	genesisMinorQuarkHash := big.NewInt(10000000).Uint64()
@@ -205,6 +217,9 @@ func TestXshardNativeTokenReceived(t *testing.T) {
 	acc3, _ := account.CreatRandomAccountWithFullShardKey(0)
 	testGenesisMinorTokenBalance["QETHXX"] = big.NewInt(999999)
 	testGenesisMinorTokenBalance["QKC"] = big.NewInt(10000000)
+	defer func() {
+		testGenesisMinorTokenBalance=make(map[string]*big.Int)
+	}()
 	shardSize := uint32(64)
 	env0 := getTestEnv(&acc1, nil, nil, &shardSize, nil, nil)
 	env1 := getTestEnv(&acc1, nil, nil, &shardSize, nil, nil)
@@ -226,16 +241,14 @@ func TestXshardNativeTokenReceived(t *testing.T) {
 	checkErr(err)
 	b0, _, err = shardState0.FinalizeAndAddBlock(b0)
 	b1 := shardState1.CurrentBlock().CreateBlockToAppend(nil, nil, nil, nil, nil, nil, nil, nil, nil)
-	b1.Header().PrevRootBlockHash = rootBlock.Hash()
-	b1 = types.NewMinorBlock(b1.Header(), b1.Meta(), b1.Transactions(), nil, nil)
+	b1Header:=b1.Header()
+	b1Header.PrevRootBlockHash=rootBlock.Hash()
+	b1=types.NewMinorBlockWithHeader(b1Header,b1.Meta())
 	val := new(big.Int).SetUint64(888888)
 	gas := uint64(30000)
 	gasPrice := uint64(2)
 	tx := createTransferTransaction(shardState1, id1.GetKey().Bytes(), acc2, acc1, val, &gas, &gasPrice, nil, nil, &QKC, &QETHXX)
 	b1.AddTx(tx)
-	crossShardGas := new(serialize.Uint256)
-	intrinsic := uint64(21000) + params.GtxxShardCost.Uint64()
-	crossShardGas.Value = new(big.Int).SetUint64(tx.EvmTx.Gas() - intrinsic)
 	// Add a x-shard tx from remote peer
 	deposit := types.CrossShardTransactionDeposit{
 		TxHash:          tx.Hash(),
@@ -243,20 +256,20 @@ func TestXshardNativeTokenReceived(t *testing.T) {
 		To:              acc1,
 		Value:           &serialize.Uint256{Value: val},
 		GasPrice:        &serialize.Uint256{Value: big.NewInt(2)},
-		GasRemained:     crossShardGas,
-		TransferTokenID: tx.EvmTx.TransferTokenID(),
-		GasTokenID:      tx.EvmTx.GasTokenID(),
+		TransferTokenID:QETHXX,
+		GasTokenID:      shardState0.GetGenesisToken(),
 	}
 	txL := types.CrossShardTransactionDepositList{}
 	txL.TXList = append(txL.TXList, &deposit)
 	shardState0.AddCrossShardTxListByMinorBlockHash(b1.Header().Hash(), txL)
 	//Create a root block containing the block with the x-shard tx
 	rootBlock = shardState0.GetRootTip().CreateBlockToAppend(nil, nil, nil, nil, nil)
-	rootBlock.AddMinorBlockHeader(shardState0.CurrentBlock().Header())
-	rootBlock.AddMinorBlockHeader(shardState1.CurrentBlock().Header())
+	rootBlock.AddMinorBlockHeader(b0.Header())
+	rootBlock.AddMinorBlockHeader(b1.Header())
 	rootBlock.Finalize(nil, nil, common.EmptyHash)
 	_, err = shardState0.AddRootBlock(rootBlock)
 	checkErr(err)
+
 	//Add b0 and make sure all x-shard tx's are added
 	b2, err := shardState0.CreateBlockToMine(nil, &acc3, nil, nil, nil)
 	checkErr(err)
@@ -280,12 +293,15 @@ func TestXshardNativeTokenGasSent(t *testing.T) {
 	acc1 := account.CreatAddressFromIdentity(id1, 0)
 	acc2 := account.CreatAddressFromIdentity(id1, 1)
 	acc3 := account.CreatEmptyAddress(0)
-	testGenesisMinorTokenBalance["QETHXX"] = big.NewInt(999999)
-	testGenesisMinorTokenBalance["QKC"] = big.NewInt(10000000)
+	testGenesisMinorTokenBalance["QETHXX"] = big.NewInt(9999999)
+	testGenesisMinorTokenBalance["QKC"] = big.NewInt(9999999)
 	env := getTestEnv(&acc1, nil, nil, nil, nil, nil)
 	shardId := uint32(0)
 	shardState := createDefaultShardState(env, &shardId, nil, nil, nil)
 	testGenesisMinorTokenBalance = make(map[string]*big.Int)
+	defer func() {
+		testGenesisMinorTokenBalance=make(map[string]*big.Int)
+	}()
 	env1 := getTestEnv(&acc1, nil, nil, nil, nil, nil)
 	shardId1 := uint32(1)
 	shardState1 := createDefaultShardState(env1, &shardId1, nil, nil, nil)
@@ -294,10 +310,11 @@ func TestXshardNativeTokenGasSent(t *testing.T) {
 	rootBlock.AddMinorBlockHeader(shardState1.CurrentBlock().Header())
 	rootBlock.Finalize(nil, nil, common.EmptyHash)
 	shardState.AddRootBlock(rootBlock)
-	val := big.NewInt(888888)
+	val := big.NewInt(8888888)
 	gas := new(big.Int).Add(big.NewInt(9000), big.NewInt(21000)).Uint64()
 	tx := createTransferTransaction(shardState, id1.GetKey().Bytes(), acc1, acc2, val, &gas, nil, nil, nil, &QETHXX, &QETHXX)
 	shardState.AddTx(tx)
+	shardState.GetTransactionCount(acc1.Recipient,nil)
 	b1, _ := shardState.CreateBlockToMine(nil, &acc3, nil, nil, nil)
 	assert.Equal(t, len(b1.Transactions()), 1)
 	evmState, _ := shardState.State()
@@ -305,12 +322,14 @@ func TestXshardNativeTokenGasSent(t *testing.T) {
 	shardState.FinalizeAndAddBlock(b1)
 	evmState, _ = shardState.State()
 	assert.Equal(t, len(evmState.GetXShardList()), 1)
-	deposit := types.CrossShardTransactionDeposit{TxHash: tx.Hash(), From: acc1, To: acc2, Value: &serialize.Uint256{Value: val}, GasPrice: &serialize.Uint256{Value: big.NewInt(1)}, GasTokenID: QETHXX, TransferTokenID: QETHXX}
+	deposit := &types.CrossShardTransactionDeposit{TxHash: tx.Hash(), From: acc1, To: acc2, Value: &serialize.Uint256{Value: val}, GasPrice: &serialize.Uint256{Value: big.NewInt(1)}, GasRemained:&serialize.Uint256{Value: big.NewInt(0)},GasTokenID: QETHXX, TransferTokenID: QETHXX}
 	assert.Equal(t, evmState.GetXShardList()[0], deposit)
+
+
 	balance, _ := shardState.GetBalance(acc1.Recipient, nil)
 	balance3, _ := shardState.GetBalance(acc3.Recipient, nil)
 	assert.Equal(t, balance.GetTokenBalance(QETHXX), big.NewInt(9999999-8888888-21000-9000))
-	assert.Equal(t, evmState.GetGasUsed(), big.NewInt(21000+9000))
+	assert.Equal(t, evmState.GetGasUsed(), big.NewInt(21000))
 	assert.Equal(t, balance3.GetTokenBalance(QKC), afterTax(testShardCoinbaseAmount.Uint64(), shardState))
 	assert.Equal(t, balance3.GetTokenBalance(QETHXX), afterTax(big.NewInt(21000).Uint64(), shardState))
 }
@@ -321,9 +340,12 @@ func TestXshardNativeTokenGasReceived(t *testing.T) {
 	id1, _ := account.CreatRandomIdentity()
 	acc1 := account.CreatAddressFromIdentity(id1, 0)
 	acc2 := account.CreatAddressFromIdentity(id1, 16)
-	acc3 := account.CreatEmptyAddress(0)
+	acc3 ,_:= account.CreatRandomAccountWithoutFullShardKey()
 	testGenesisMinorTokenBalance["QETHXX"] = big.NewInt(999999)
 	testGenesisMinorTokenBalance["QKC"] = big.NewInt(10000000)
+	defer func() {
+		testGenesisMinorTokenBalance=make(map[string]*big.Int)
+	}()
 	shardSize := uint32(64)
 	env0 := getTestEnv(&acc1, nil, nil, &shardSize, nil, nil)
 	env1 := getTestEnv(&acc1, nil, nil, &shardSize, nil, nil)
@@ -336,10 +358,13 @@ func TestXshardNativeTokenGasReceived(t *testing.T) {
 	rootBlock.AddMinorBlockHeader(shardState1.CurrentBlock().Header())
 	rootBlock.Finalize(nil, nil, common.EmptyHash)
 	shardState0.AddRootBlock(rootBlock)
+	shardState1.AddRootBlock(rootBlock)
 	b0, _ := shardState0.CreateBlockToMine(nil, nil, nil, nil, nil)
 	shardState0.FinalizeAndAddBlock(b0)
 	b1 := shardState1.CurrentBlock().CreateBlockToAppend(nil, nil, nil, nil, nil, nil, nil, nil, nil)
-	b1.Header().ParentHash = rootBlock.Header().Hash()
+	b1Header:=b1.Header()
+	b1Header.PrevRootBlockHash=rootBlock.Hash()
+	b1=types.NewMinorBlockWithHeader(b1Header,b1.Meta())
 	val := big.NewInt(888888)
 	gas := new(big.Int).Add(big.NewInt(9000), big.NewInt(21000)).Uint64()
 	gasPrice := uint64(2)
@@ -374,6 +399,9 @@ func TestContractSuicide(t *testing.T) {
 	acc3 := account.CreatEmptyAddress(0)
 	testGenesisMinorTokenBalance["QETHXX"] = big.NewInt(999999)
 	testGenesisMinorTokenBalance["QKC"] = testShardCoinbaseAmount2
+	defer func() {
+		testGenesisMinorTokenBalance=make(map[string]*big.Int)
+	}()
 	env := getTestEnv(&acc1, nil, nil, nil, nil, nil)
 	shardState := createDefaultShardState(env, nil, nil, nil, nil)
 	// 1. create contract
