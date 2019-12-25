@@ -112,7 +112,6 @@ type QuarkChainConfig struct {
 	BlockRewardDecayFactor            *big.Rat                `json:"-"`
 	chainIdToShardSize                map[uint32]uint32
 	chainIdToShardIds                 map[uint32][]uint32
-	defaultChainTokenID               uint64
 	EnableEvmTimeStamp                uint64      `json:"ENABLE_EVM_TIMESTAMP"`
 	EnableQkcHashXHeight              uint64      `json:"ENABLE_QKCHASHX_HEIGHT"`
 	EnableMntAuctionTimestamp         uint64      `json:"ENABLE_MNT_AUCTION_TIMESTAMP"`
@@ -371,7 +370,6 @@ func NewQuarkChainConfig() *QuarkChainConfig {
 		SkipRootCoinbaseCheck:             false,
 		SkipMinorDifficultyCheck:          false,
 		GenesisToken:                      DefaultToken,
-		defaultChainTokenID:               common.TokenIDEncode(DefaultToken),
 		RewardTaxRate:                     new(big.Rat).SetFloat64(0.5),
 		BlockRewardDecayFactor:            new(big.Rat).SetFloat64(0.5),
 		Root:                              NewRootConfig(),
@@ -423,7 +421,7 @@ func (q *QuarkChainConfig) SetShardsAndValidate(shards map[uint32]*ShardConfig) 
 }
 
 func (q *QuarkChainConfig) GetDefaultChainTokenID() uint64 {
-	return q.defaultChainTokenID
+	return common.TokenIDEncode(q.GenesisToken)
 }
 
 func (q *QuarkChainConfig) GasLimit(fullShardID uint32) (*big.Int, error) {
