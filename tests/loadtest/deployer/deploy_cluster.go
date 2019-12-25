@@ -20,6 +20,8 @@ var (
 )
 var (
 	initConf = flag.Bool("genconf", false, "only gen config , not run cluster")
+	initEnv  = flag.Bool("init_env", false, "only init env")
+	genLog  = flag.Bool("log", false, "only gen log")
 )
 
 func init() {
@@ -47,9 +49,17 @@ func main() {
 		return
 	}
 
-	log.Info("ready to set Environment!!!")
-	toolManager.InstallDocker()
-	log.Info("Environment set successfully!!!!")
+	if *genLog {
+		toolManager.StartGenLog()
+		return
+	}
+
+	if *initEnv {
+		log.Info("ready to set Environment!!!")
+		toolManager.InitEnv()
+		log.Info("Environment set successfully!!!!")
+		return
+	}
 	toolManager.StartClusters()
 	log.Info("ready to check status")
 	toolManager.CheckPeerStatus()
