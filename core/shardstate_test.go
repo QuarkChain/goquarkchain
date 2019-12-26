@@ -2953,6 +2953,7 @@ func TestEnableEvmTimestampWithContractCreate(t *testing.T) {
 		t.Logf("smart contract tx is not allowed before evm is enabled ")
 	}
 }
+
 // no need to test_enable_tx_timestamp
 // go not support account whiteList
 
@@ -3011,7 +3012,7 @@ func TestIncorrectCoinbaseAmount(t *testing.T) {
 	m := make(map[uint64]*big.Int)
 	m[QKC] = new(big.Int).Add(new(big.Int).SetUint64(QKC), big.NewInt(1))
 	b.Finalize(nil, emptyHash, evmState.GetGasUsed(), evmState.GetXShardReceiveGasUsed(), wrong_coinbase, evmState.GetTxCursorInfo())
-	_,_,err := shardState.FinalizeAndAddBlock(b)
+	_, _, err := shardState.FinalizeAndAddBlock(b)
 	if err != nil {
 		t.Errorf("AddBlock err:%v", err)
 	}
@@ -3025,7 +3026,7 @@ func TestShardCoinbaseDecay(t *testing.T) {
 	m := make(map[uint64]*big.Int)
 	a := new(big.Rat).Mul(env.clusterConfig.Quarkchain.BlockRewardDecayFactor, env.clusterConfig.Quarkchain.RewardTaxRate)
 	m[QKC] = new(big.Int).Mul(shardState.shardConfig.CoinbaseAmount, a.Num())
-	m[QKC] = new(big.Int).Div(m[QKC] , a.Denom())
+	m[QKC] = new(big.Int).Div(m[QKC], a.Denom())
 	assert.Equal(t, m, coinbase.GetBalanceMap())
 	coinbase = shardState.getCoinbaseAmount(shardState.shardConfig.EpochInterval + 1)
 	m1 := make(map[uint64]*big.Int)
@@ -3069,12 +3070,10 @@ func TestShardReorgByAddingRootBlock(t *testing.T) {
 	assert.Equal(t, b1.Header(), shardState.CurrentHeader())
 	assert.Equal(t, b1.Header(), shardState.CurrentHeader())
 
-
-	r2Header:=rootBlock2.Header()
-	r2Header.ToTalDifficulty=new(big.Int).Add(r2Header.ToTalDifficulty,r2Header.Difficulty)
-	r2Header.Difficulty=new(big.Int).Mul(r2Header.Difficulty,new(big.Int).SetUint64(2))
-	rootBlock22:=types.NewRootBlock(r2Header,rootBlock2.MinorBlockHeaders(),nil)
-
+	r2Header := rootBlock2.Header()
+	r2Header.ToTalDifficulty = new(big.Int).Add(r2Header.ToTalDifficulty, r2Header.Difficulty)
+	r2Header.Difficulty = new(big.Int).Mul(r2Header.Difficulty, new(big.Int).SetUint64(2))
+	rootBlock22 := types.NewRootBlock(r2Header, rootBlock2.MinorBlockHeaders(), nil)
 
 	_, err := shardState.AddRootBlock(rootBlock22)
 	if err != nil {
@@ -3082,7 +3081,7 @@ func TestShardReorgByAddingRootBlock(t *testing.T) {
 	}
 	assert.Equal(t, shardState.CurrentHeader().Hash(), b2.Header().Hash())
 	assert.Equal(t, shardState.rootTip.Hash(), rootBlock22.Header().Hash())
-	assert.Equal(t,shardState.currentEvmState.IntermediateRoot(false).String(), b2.Meta().Root.String())
+	assert.Equal(t, shardState.currentEvmState.IntermediateRoot(false).String(), b2.Meta().Root.String())
 
 }
 
@@ -3149,9 +3148,9 @@ func TestXshardGasLimitFromMultipleShards(t *testing.T) {
 	shardState2.AddRootBlock(rootBlock)
 	//	Add one block in shard 1 with 2 x-shard txs
 	b1_ := shardState1.getTip().CreateBlockToAppend(nil, nil, nil, nil, nil, nil, nil, nil, nil)
-	b1_header:=b1_.Header()
-	b1_header.PrevRootBlockHash=rootBlock.Header().Hash()
-	b1:=types.NewMinorBlockWithHeader(b1_header,b1_.Meta())
+	b1_header := b1_.Header()
+	b1_header.PrevRootBlockHash = rootBlock.Header().Hash()
+	b1 := types.NewMinorBlockWithHeader(b1_header, b1_.Meta())
 	val := big.NewInt(888888)
 	gas := new(big.Int).Add(big.NewInt(21000), big.NewInt(9000)).Uint64()
 	gasPrice := uint64(2)
@@ -3171,9 +3170,9 @@ func TestXshardGasLimitFromMultipleShards(t *testing.T) {
 	shardState0.AddCrossShardTxListByMinorBlockHash(b1.Header().Hash(), txList)
 	//	# Add one block in shard 1 with 2 x-shard txs
 	b2_ := shardState2.getTip().CreateBlockToAppend(nil, nil, nil, nil, nil, nil, nil, nil, nil)
-	b2_header:=b2_.Header()
-	b2_header.PrevRootBlockHash=rootBlock.Header().Hash()
-	b2:=types.NewMinorBlockWithHeader(b2_header,b2_.Meta())
+	b2_header := b2_.Header()
+	b2_header.PrevRootBlockHash = rootBlock.Header().Hash()
+	b2 := types.NewMinorBlockWithHeader(b2_header, b2_.Meta())
 	val2 := big.NewInt(12345)
 	gas2 := new(big.Int).Add(big.NewInt(21000), big.NewInt(9000)).Uint64()
 	gasPrice2 := uint64(2)
@@ -3197,7 +3196,7 @@ func TestXshardGasLimitFromMultipleShards(t *testing.T) {
 	//	# Add b0 and make sure one x-shard tx's are added
 	xShardGasLimit := big.NewInt(9000)
 	b2, _ = shardState0.CreateBlockToMine(nil, nil, nil, xShardGasLimit, nil)
-	shardState0.xShardGasLimit=new(big.Int).Set(xShardGasLimit)
+	shardState0.xShardGasLimit = new(big.Int).Set(xShardGasLimit)
 	shardState0.FinalizeAndAddBlock(b2)
 	//	# Root block coinbase does not consume xshard gas
 	tb := shardState0.currentEvmState.GetBalance(acc1.Recipient, shardState0.GetGenesisToken())
@@ -3211,13 +3210,13 @@ func TestXshardGasLimitFromMultipleShards(t *testing.T) {
 	b2, _ = shardState0.CreateBlockToMine(nil, nil, nil, xShardGasLimit1, nil)
 	shardState0.FinalizeAndAddBlock(b2)
 	//	# Root block coinbase does not consume xshard gas
-	tb= shardState0.currentEvmState.GetBalance(acc1.Recipient,  shardState0.GetGenesisToken())
+	tb = shardState0.currentEvmState.GetBalance(acc1.Recipient, shardState0.GetGenesisToken())
 	assert.Equal(t, tb, big.NewInt(10000000+1000000+12345+888888))
 	//	# Add b3 and make sure no x-shard tx's are added
 	xShardGasLimit1 = big.NewInt(9000)
 	b3, _ := shardState0.CreateBlockToMine(nil, nil, nil, xShardGasLimit1, nil)
 	shardState0.FinalizeAndAddBlock(b3)
 	//	# Root block coinbase does not consume xshard gas
-	tb=shardState0.currentEvmState.GetBalance(acc1.Recipient,shardState0.GetGenesisToken())
+	tb = shardState0.currentEvmState.GetBalance(acc1.Recipient, shardState0.GetGenesisToken())
 	assert.Equal(t, tb, big.NewInt(10000000+1000000+12345+888888+111111))
 }
