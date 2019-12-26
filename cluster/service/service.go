@@ -20,16 +20,21 @@ type ServiceContext struct {
 	config    *Config
 	services  map[reflect.Type]Service // Index of the already constructed services
 	Shutdown  chan os.Signal
-	Timestamp time.Time
+	timestamp time.Time
 	mu        sync.Mutex
 	EventMux  *event.TypeMux // Event multiplexer used for decoupled notifications
 }
 
-func (ctx *ServiceContext) LockTimestamp() {
+func (ctx *ServiceContext) SetTimestamp(timestamp time.Time) {
 	ctx.mu.Lock()
-}
-func (ctx *ServiceContext) UnlockTimestamp() {
+	ctx.timestamp = timestamp
 	ctx.mu.Unlock()
+}
+
+func (ctx *ServiceContext) GetTimestamp() time.Time {
+	ctx.mu.Lock()
+	defer ctx.mu.Unlock()
+	return ctx.timestamp
 }
 
 func (ctx *ServiceContext) WSIsAlive() bool {

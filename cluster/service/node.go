@@ -150,7 +150,7 @@ func (n *Node) Start() error {
 			config:    n.config,
 			services:  make(map[reflect.Type]Service),
 			Shutdown:  n.sigc,
-			Timestamp: time.Now(),
+			timestamp: time.Now(),
 			EventMux:  n.eventmux,
 		}
 		for kind, s := range services { // copy needed for threaded access

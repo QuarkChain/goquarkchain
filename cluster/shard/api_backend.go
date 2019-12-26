@@ -212,8 +212,8 @@ func (s *ShardBackend) GetMinorBlock(mHash common.Hash, height *uint64) (mBlock 
 func (s *ShardBackend) NewMinorBlock(peerId string, block *types.MinorBlock) (err error) {
 	s.wg.Add(1)
 	defer s.wg.Done()
-	log.Debug(s.logInfo, "NewMinorBlock height", block.NumberU64(), "hash", block.Hash().String())
-	defer log.Debug(s.logInfo, "NewMinorBlock", "end")
+	log.Debug(s.logInfo+" NewMinorBlock", "height", block.NumberU64(), "hash", block.Hash().String())
+	defer log.Debug(s.logInfo+" NewMinorBlock end", "height", block.NumberU64())
 	// TODO synchronizer.running
 	mHash := block.Hash()
 	if s.mBPool.getBlockInPool(mHash) != nil {
@@ -249,6 +249,7 @@ func (s *ShardBackend) NewMinorBlock(peerId string, block *types.MinorBlock) (er
 	}
 
 	if err := s.MinorBlockChain.Validator().ValidateBlock(block, false); err != nil {
+		log.Warn(s.logInfo+" ValidateBlock", "err", err)
 		return err
 	}
 
@@ -265,6 +266,9 @@ func (s *ShardBackend) NewMinorBlock(peerId string, block *types.MinorBlock) (er
 // Returns true if block is successfully added. False on any error.
 // called by 1. local miner (will not run if syncing) 2. SyncTask
 func (s *ShardBackend) AddMinorBlock(block *types.MinorBlock) error {
+	log.Debug(s.logInfo+" AddMinorBlock", "height", block.NumberU64(), "hash", block.Hash().String())
+	defer log.Debug(s.logInfo+" AddMinorBlock end", "height", block.NumberU64())
+
 	s.wg.Add(1)
 	defer s.wg.Done()
 	if commitStatus := s.getBlockCommitStatusByHash(block.Hash()); commitStatus == BLOCK_COMMITTED {
@@ -272,6 +276,7 @@ func (s *ShardBackend) AddMinorBlock(block *types.MinorBlock) error {
 	}
 	//TODO support BLOCK_COMMITTING
 	currHead := s.MinorBlockChain.CurrentBlock().Header()
+	log.Debug(s.logInfo, "currHead", currHead.Number)
 	_, xshardLst, err := s.MinorBlockChain.InsertChainForDeposits([]types.IBlock{block}, false)
 	if err != nil {
 		log.Error(s.logInfo+" Failed to add minor block", "err", err, "len", len(xshardLst))
@@ -319,6 +324,8 @@ func (s *ShardBackend) AddMinorBlock(block *types.MinorBlock) error {
 	s.mBPool.delBlockInPool(block.Hash())
 	if s.MinorBlockChain.CurrentBlock().Hash() != currHead.Hash() {
 		go s.miner.HandleNewTip()
+	} else {
+		log.Warn(s.logInfo+" No HandleNewTip()", "currHead=s.MinorBlockChain.CurrentBlock()", currHead.Number)
 	}
 	// block has been added to local state, broadcast tip so that peers can sync if needed
 	if currHead.Hash() != s.MinorBlockChain.CurrentBlock().Hash() {
