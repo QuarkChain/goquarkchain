@@ -12,8 +12,6 @@ import (
 )
 
 func (s *ConnManager) SendMinorBlockHeaderToMaster(request *rpc.AddMinorBlockHeaderRequest) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
 	var (
 		gRsp rpc.AddMinorBlockHeaderResponse
 	)
@@ -34,7 +32,9 @@ func (s *ConnManager) SendMinorBlockHeaderToMaster(request *rpc.AddMinorBlockHea
 	if err := serialize.DeserializeFromBytes(res.Data, &gRsp); err != nil {
 		return err
 	}
+	s.mu.Lock()
 	s.artificialTxConfig = gRsp.ArtificialTxConfig
+	s.mu.Unlock()
 	return nil
 }
 
@@ -90,9 +90,7 @@ func (s *ConnManager) BroadcastMinorBlock(peerId string, minorBlock *types.Minor
 	if err != nil {
 		return err
 	}
-	//s.mu.Lock()
 	_, err = s.masterClient.client.Call(s.masterClient.target, &rpc.Request{Op: rpc.OpBroadcastNewMinorBlock, Data: data})
-	//s.mu.Unlock()
 	return err
 }
 

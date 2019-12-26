@@ -324,8 +324,6 @@ func (s *ShardBackend) AddMinorBlock(block *types.MinorBlock) error {
 	s.mBPool.delBlockInPool(block.Hash())
 	if s.MinorBlockChain.CurrentBlock().Hash() != currHead.Hash() {
 		go s.miner.HandleNewTip()
-	} else {
-		log.Warn(s.logInfo+" No HandleNewTip()", "currHead=s.MinorBlockChain.CurrentBlock()", currHead.Number)
 	}
 	// block has been added to local state, broadcast tip so that peers can sync if needed
 	if currHead.Hash() != s.MinorBlockChain.CurrentBlock().Hash() {

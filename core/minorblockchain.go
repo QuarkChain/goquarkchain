@@ -1052,11 +1052,13 @@ func (m *MinorBlockChain) InsertChainForDeposits(chain []types.IBlock, isCheckDB
 	m.wg.Done()
 
 	m.PostChainEvents(events, logs)
+	m.mu.Lock()
 	confirmed := m.confirmedHeaderTip
+	m.mu.Unlock()
 	if confirmed == nil {
-		log.Warn("confirmed is nil")
+		log.Warn(m.logInfo+" insert chain", "confirmed", nil)
 	} else {
-		log.Debug(m.logInfo, "tip", m.CurrentBlock().NumberU64(), "tipHash", m.CurrentBlock().Hash().String(), "to add", chain[0].NumberU64(), "hash", chain[0].NumberU64(), "confirmed", confirmed.Number)
+		log.Debug(m.logInfo+" insert chain", "tip", m.CurrentBlock().NumberU64(), "tipHash", m.CurrentBlock().Hash().TerminalString(), "to add", chain[0].NumberU64(), "hash", chain[0].Hash().TerminalString(), "confirmed", confirmed.Number)
 	}
 
 	return n, xShardList, err
@@ -1192,7 +1194,7 @@ func (m *MinorBlockChain) insertChain(chain []types.IBlock, verifySeals bool, is
 		}
 		switch status {
 		case CanonStatTy:
-			log.Debug("Inserted new block", "number", mBlock.NumberU64(), "hash", mBlock.Hash(),
+			log.Debug(m.logInfo+" Inserted new block", "number", mBlock.NumberU64(), "hash", mBlock.Hash().TerminalString(),
 				"txs", len(mBlock.GetTransactions()), "gas", mBlock.GetMetaData().GasUsed.Value.Uint64(),
 				"elapsed", common.PrettyDuration(time.Since(start)),
 				"root", mBlock.GetMetaData().Root)
@@ -1205,9 +1207,9 @@ func (m *MinorBlockChain) insertChain(chain []types.IBlock, verifySeals bool, is
 			m.gcproc += proctime
 
 		case SideStatTy:
-			log.Debug("Inserted forked block", "number", mBlock.NumberU64(), "hash", mBlock.Hash(),
+			log.Debug(m.logInfo+" Inserted forked block", "number", mBlock.NumberU64(), "hash", mBlock.Hash().TerminalString(),
 				"diff", mBlock.Difficulty(), "elapsed", common.PrettyDuration(time.Since(start)),
-				"txs", len(mBlock.GetTransactions()), "gas", mBlock.GetMetaData().GasUsed,
+				"txs", len(mBlock.GetTransactions()), "gas", mBlock.GetMetaData().GasUsed.Value.Uint64(),
 				"root", mBlock.GetMetaData().Root)
 			events = append(events, MinorChainSideEvent{mBlock})
 		}
@@ -1431,7 +1433,7 @@ func (m *MinorBlockChain) reorg(oldBlock, newBlock types.IBlock) error {
 			logFn = log.Warn
 		}
 		if commonBlock != nil {
-			logFn("Chain split detected", "number", commonBlock.NumberU64(), "hash", commonBlock.Hash(),
+			logFn(m.logInfo+" Chain split detected", "number", commonBlock.NumberU64(), "hash", commonBlock.Hash(),
 				"drop", len(oldChain), "dropfrom", oldChain[0].Hash(), "add", len(newChain), "addfrom", newChain[0].Hash())
 		} else {
 			log.Warn("ChainRevert genesis", "drop", len(oldChain), "dropfrom", oldChain[0].Hash(), "add", len(newChain), "addfrom", newChain[0].Hash())

@@ -116,7 +116,8 @@ func (m *MinorBlockChain) updateTip(state *state.StateDB, block *types.MinorBloc
 	if preRootHeader == nil {
 		return false, errors.New("missing prev block")
 	}
-
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	tipPrevRootHeader := m.getRootBlockHeaderByHash(m.CurrentBlock().PrevRootBlockHash())
 	// Don't update tip if the block depends on a root block that is not root_tip or root_tip's ancestor
 	if !m.isSameRootChain(m.rootTip, preRootHeader) {
@@ -323,7 +324,7 @@ func (m *MinorBlockChain) isNeighbor(remoteBranch account.Branch, rootHeight *ui
 }
 
 func (m *MinorBlockChain) putRootBlock(rBlock *types.RootBlock, minorHeader *types.MinorBlockHeader) {
-	log.Debug(m.logInfo, "putRootBlock number", rBlock.Number(), "hash", rBlock.Hash().String(), "lenMinor", len(rBlock.MinorBlockHeaders()))
+	log.Debug(m.logInfo+" putRootBlock", "rNumber", rBlock.Number(), "lenMinor", len(rBlock.MinorBlockHeaders()))
 	rBlockHash := rBlock.Hash()
 	var mHash common.Hash
 	if minorHeader != nil {
@@ -336,7 +337,7 @@ func (m *MinorBlockChain) putRootBlock(rBlock *types.RootBlock, minorHeader *typ
 		m.rootHeightToHashes[rBlock.NumberU64()] = make(map[common.Hash]common.Hash)
 	}
 	m.rootHeightToHashes[rBlock.NumberU64()][rBlock.Hash()] = mHash
-	log.Debug("putRootBlock", "rBlock", rBlock.NumberU64(), "rHash", rBlock.Hash().String(), "mHash", mHash.String())
+	log.Debug(m.logInfo+" putRootBlock done", "rNumber", rBlock.NumberU64(), "rHash", rBlock.Hash().TerminalString(), "mHash", mHash.TerminalString())
 }
 
 func (m *MinorBlockChain) putTotalTxCount(mBlock *types.MinorBlock) error {
@@ -744,7 +745,7 @@ func (m *MinorBlockChain) checkTxBeforeApply(stateT *state.StateDB, tx *types.Tr
 // CreateBlockToMine create block to mine
 func (m *MinorBlockChain) CreateBlockToMine(createTime *uint64, address *account.Address, gasLimit, xShardGasLimit *big.Int,
 	includeTx *bool) (*types.MinorBlock, error) {
-
+	log.Debug(m.logInfo+" CreateBlockToMine", "current", m.CurrentBlock().Number())
 	if includeTx == nil {
 		t := true
 		includeTx = &t
@@ -895,10 +896,15 @@ func (m *MinorBlockChain) AddRootBlock(rBlock *types.RootBlock) (bool, error) {
 		} else {
 			return false, errors.New("master should assure this check will not fail")
 		}
+		if shardHeader != nil {
+			log.Debug(m.logInfo, "shardHeader", shardHeader.Number)
+		}
 	} else {
 		shardHeader = lastMinorHeaderInPrevRootBlock
+		if shardHeader != nil {
+			log.Debug(m.logInfo, "shardHeader=lastMinorHeaderInPrevRootBlock", shardHeader.Number)
+		}
 	}
-	//m.mu.Lock()
 	m.putRootBlock(rBlock, shardHeader)
 	if shardHeader != nil {
 		if !m.isSameRootChain(rBlock.Header(), m.getRootBlockHeaderByHash(shardHeader.PrevRootBlockHash)) {
@@ -917,12 +923,17 @@ func (m *MinorBlockChain) AddRootBlock(rBlock *types.RootBlock) (bool, error) {
 	m.mu.Lock()
 	m.rootTip = rBlock.Header()
 	m.confirmedHeaderTip = shardHeader
+	if shardHeader != nil {
+		log.Debug(m.logInfo+" AddRootBlock", "set m.confirmedHeaderTip", shardHeader.Number)
+	}
 	m.mu.Unlock()
 	origHeaderTip := m.CurrentBlock()
 	if shardHeader != nil {
 		origBlock := m.GetBlockByNumber(shardHeader.Number)
 		if qkcCommon.IsNil(origBlock) || origBlock.Hash() != shardHeader.Hash() {
-			log.Warn(m.logInfo, "ready to set current header height", shardHeader.Number, "hash", shardHeader.Hash().String(), "status", qkcCommon.IsNil(origBlock), "curr", qkcCommon.IsNil(m.GetBlock(shardHeader.Hash()).(*types.MinorBlock)))
+			//# TODO: shardHeader might not be the tip of the longest chain
+			//# need to switch to the tip of the longest chain
+			log.Warn(m.logInfo+" ready to set current header", "height", shardHeader.Number, "hash", shardHeader.Hash().TerminalString(), "status", qkcCommon.IsNil(origBlock), "curr", qkcCommon.IsNil(m.GetBlock(shardHeader.Hash()).(*types.MinorBlock)))
 			m.currentBlock.Store(m.GetBlock(shardHeader.Hash()).(*types.MinorBlock))
 		}
 	}
@@ -952,7 +963,7 @@ func (m *MinorBlockChain) AddRootBlock(rBlock *types.RootBlock) (bool, error) {
 			break
 		}
 		preBlock := m.GetMinorBlock(m.CurrentBlock().ParentHash())
-		log.Warn(m.logInfo+" ready to set currentHeader", "height", preBlock.Number(), "hash", preBlock.Hash().String())
+		log.Warn(m.logInfo+" ready to set currentHeader", "height", preBlock.Number(), "hash", preBlock.Hash().TerminalString())
 		m.currentBlock.Store(preBlock)
 	}
 
@@ -960,7 +971,7 @@ func (m *MinorBlockChain) AddRootBlock(rBlock *types.RootBlock) (bool, error) {
 		headerTipHash := m.CurrentBlock().Hash()
 		origBlock := m.GetMinorBlock(origHeaderTip.Hash())
 		newBlock := m.GetMinorBlock(headerTipHash)
-		log.Warn(m.logInfo+" reWrite", "orig_number", origBlock.Number(), "orig_hash", origBlock.Hash().String(), "new_number", newBlock.Number(), "new_hash", newBlock.Hash().String())
+		log.Warn(m.logInfo+" reWrite", "orig_number", origBlock.Number(), "orig_hash", origBlock.Hash().TerminalString(), "new_number", newBlock.Number(), "new_hash", newBlock.Hash().TerminalString())
 		var err error
 		if err = m.reWriteBlockIndexTo(origBlock, newBlock); err != nil {
 			return false, err
