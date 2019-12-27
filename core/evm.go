@@ -106,6 +106,7 @@ func TransferFailureByPoswBalanceCheck(db vm.StateDB, addr common.Address, amoun
 	//panic("sb")
 	if v, ok := db.GetSenderDisallowMap()[addr]; ok {
 		if new(big.Int).Add(amount, v).Cmp(db.GetBalance(addr, db.GetQuarkChainConfig().GetDefaultChainTokenID())) == 1 {
+			fmt.Println("????????????????????????????", new(big.Int).Add(amount, v), db.GetBalance(addr, db.GetQuarkChainConfig().GetDefaultChainTokenID()))
 			return true
 		}
 	}
