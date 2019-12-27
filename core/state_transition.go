@@ -242,7 +242,7 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 			ret, st.gas, vmerr = nil, 0, vm.ErrPoSWSenderNotAllowed
 		} else {
 			ret, st.gas, vmerr = evm.Call(sender, st.to(), st.data, st.gas, st.value)
-			fmt.Println("Call", ret, st.gasPrice, vmerr)
+			fmt.Println("Call", ret, st.gas, vmerr)
 		}
 	}
 
