@@ -831,7 +831,7 @@ func opDelegateCall(pc *uint64, interpreter *EVMInterpreter, contract *Contract,
 	// Get arguments from the memory.
 	args := memory.Get(inOffset.Int64(), inSize.Int64())
 
-	ret, returnGas, err := interpreter.evm.DelegateCall(contract, toAddr, args, gas)
+	ret, returnGas, err := interpreter.evm.DelegateCall(contract, toAddr, args, gas, contract.value)
 	if err != nil {
 		stack.push(interpreter.intPool.getZero())
 	} else {
@@ -857,7 +857,7 @@ func opStaticCall(pc *uint64, interpreter *EVMInterpreter, contract *Contract, m
 	// Get arguments from the memory.
 	args := memory.Get(inOffset.Int64(), inSize.Int64())
 
-	ret, returnGas, err := interpreter.evm.StaticCall(contract, toAddr, args, gas)
+	ret, returnGas, err := interpreter.evm.StaticCall(contract, toAddr, args, gas, contract.value)
 	if err != nil {
 		stack.push(interpreter.intPool.getZero())
 	} else {

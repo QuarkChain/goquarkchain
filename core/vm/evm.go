@@ -207,8 +207,7 @@ func (evm *EVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 		return nil, gas, ErrInsufficientBalance
 	}
 	if evm.Context.TransferFailureByPoswBalanceCheck(evm.StateDB, caller.Address(), value) {
-		fmt.Println("TTTTTTTTTTTTTTTT")
-		//return nil, gas, ErrPoSWSenderNotAllowed
+		return nil, gas, ErrPoSWSenderNotAllowed
 	}
 	fmt.Println("11111111", gas)
 	var (
@@ -287,7 +286,9 @@ func (evm *EVM) CallCode(caller ContractRef, addr common.Address, input []byte, 
 	if !evm.CanTransfer(evm.StateDB, caller.Address(), value, evm.TransferTokenID) {
 		return nil, gas, ErrInsufficientBalance
 	}
-
+	if evm.Context.TransferFailureByPoswBalanceCheck(evm.StateDB, caller.Address(), value) {
+		return nil, gas, ErrPoSWSenderNotAllowed
+	}
 	var (
 		snapshot = evm.StateDB.Snapshot()
 		to       = AccountRef(caller.Address())
@@ -314,7 +315,7 @@ func (evm *EVM) CallCode(caller ContractRef, addr common.Address, input []byte, 
 //
 // DelegateCall differs from CallCode in the sense that it executes the given address'
 // code with the caller as context and the caller is set to the caller of the caller.
-func (evm *EVM) DelegateCall(caller ContractRef, addr common.Address, input []byte, gas uint64) (ret []byte, leftOverGas uint64, err error) {
+func (evm *EVM) DelegateCall(caller ContractRef, addr common.Address, input []byte, gas uint64, value *big.Int) (ret []byte, leftOverGas uint64, err error) {
 	if evm.vmConfig.NoRecursion && evm.depth > 0 {
 		return nil, gas, nil
 	}
@@ -322,7 +323,9 @@ func (evm *EVM) DelegateCall(caller ContractRef, addr common.Address, input []by
 	if evm.depth > int(params.CallCreateDepth) {
 		return nil, gas, ErrDepth
 	}
-
+	if evm.Context.TransferFailureByPoswBalanceCheck(evm.StateDB, caller.Address(), value) {
+		return nil, gas, ErrPoSWSenderNotAllowed
+	}
 	var (
 		snapshot = evm.StateDB.Snapshot()
 		to       = AccountRef(caller.Address())
@@ -348,7 +351,7 @@ func (evm *EVM) DelegateCall(caller ContractRef, addr common.Address, input []by
 // as parameters while disallowing any modifications to the state during the call.
 // Opcodes that attempt to perform such modifications will result in exceptions
 // instead of performing the modifications.
-func (evm *EVM) StaticCall(caller ContractRef, addr common.Address, input []byte, gas uint64) (ret []byte, leftOverGas uint64, err error) {
+func (evm *EVM) StaticCall(caller ContractRef, addr common.Address, input []byte, gas uint64, value *big.Int) (ret []byte, leftOverGas uint64, err error) {
 	if evm.vmConfig.NoRecursion && evm.depth > 0 {
 		return nil, gas, nil
 	}
@@ -356,7 +359,9 @@ func (evm *EVM) StaticCall(caller ContractRef, addr common.Address, input []byte
 	if evm.depth > int(params.CallCreateDepth) {
 		return nil, gas, ErrDepth
 	}
-
+	if evm.Context.TransferFailureByPoswBalanceCheck(evm.StateDB, caller.Address(), value) {
+		return nil, gas, ErrPoSWSenderNotAllowed
+	}
 	var (
 		to       = AccountRef(addr)
 		snapshot = evm.StateDB.Snapshot()
