@@ -204,10 +204,10 @@ func (evm *EVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 	}
 	// Fail if we're trying to transfer more than the available balance
 	if !evm.Context.CanTransfer(evm.StateDB, caller.Address(), value, evm.TransferTokenID) {
-		return nil, 0, ErrInsufficientBalance
+		return nil, gas, ErrInsufficientBalance
 	}
 	if evm.Context.TransferFailureByPoswBalanceCheck(evm.StateDB, caller.Address(), value) {
-		return nil, gas, ErrPoSWSenderNotAllowed
+		return nil, 0, ErrPoSWSenderNotAllowed
 	}
 	fmt.Println("11111111", gas)
 	var (
