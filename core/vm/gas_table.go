@@ -17,6 +17,8 @@
 package vm
 
 import (
+	"fmt"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/params"
@@ -396,6 +398,7 @@ func gasCall(gt params.GasTable, evm *EVM, contract *Contract, stack *Stack, mem
 		address        = common.BigToAddress(stack.Back(1))
 		eip158         = evm.ChainConfig().IsEIP158(evm.BlockNumber)
 	)
+	fmt.Println("1111", gas)
 	if eip158 {
 		if transfersValue && evm.StateDB.Empty(address) {
 			gas += params.CallNewAccountGas
@@ -403,25 +406,30 @@ func gasCall(gt params.GasTable, evm *EVM, contract *Contract, stack *Stack, mem
 	} else if !evm.StateDB.Exist(address) {
 		gas += params.CallNewAccountGas
 	}
+	fmt.Println("222", gas)
 	if transfersValue {
 		gas += params.CallValueTransferGas
 	}
+	fmt.Println("222--3", gas)
 	memoryGas, err := memoryGasCost(mem, memorySize)
 	if err != nil {
 		return 0, err
 	}
+	fmt.Println("222-5", gas)
 	var overflow bool
 	if gas, overflow = math.SafeAdd(gas, memoryGas); overflow {
 		return 0, errGasUintOverflow
 	}
-
+	fmt.Println("222-6", gas)
 	evm.callGasTemp, err = callGas(gt, contract.Gas, gas, stack.Back(0))
 	if err != nil {
 		return 0, err
 	}
+	fmt.Println("222-7", gas)
 	if gas, overflow = math.SafeAdd(gas, evm.callGasTemp); overflow {
 		return 0, errGasUintOverflow
 	}
+	fmt.Println("222-8", gas)
 	return gas, nil
 }
 
