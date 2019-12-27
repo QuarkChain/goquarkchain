@@ -34,7 +34,8 @@ var emptyCodeHash = crypto.Keccak256Hash(nil)
 
 type (
 	// CanTransferFunc is the signature of a transfer guard function
-	CanTransferFunc func(StateDB, common.Address, *big.Int, uint64) bool
+	CanTransferFunc                   func(StateDB, common.Address, *big.Int, uint64) bool
+	TransferFailureByPoswBalanceCheck func(StateDB, common.Address, *big.Int) bool
 	// TransferFunc is the signature of a transfer function
 	TransferFunc func(StateDB, common.Address, common.Address, *big.Int, uint64)
 	// GetHashFunc returns the nth block hash in the blockchain
@@ -74,7 +75,8 @@ type Context struct {
 	// sufficient ether to transfer the value
 	CanTransfer CanTransferFunc
 	// Transfer transfers ether from one account to the other
-	Transfer TransferFunc
+	Transfer                          TransferFunc
+	TransferFailureByPoswBalanceCheck TransferFailureByPoswBalanceCheck
 	// GetHash returns the hash corresponding to n
 	GetHash GetHashFunc
 
@@ -203,6 +205,9 @@ func (evm *EVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 	// Fail if we're trying to transfer more than the available balance
 	if !evm.Context.CanTransfer(evm.StateDB, caller.Address(), value, evm.TransferTokenID) {
 		return nil, gas, ErrInsufficientBalance
+	}
+	if evm.Context.TransferFailureByPoswBalanceCheck(evm.StateDB, caller.Address(), value) {
+		fmt.Println("hHHHHHHHHHHHH")
 	}
 	fmt.Println("11111111", gas)
 	var (
