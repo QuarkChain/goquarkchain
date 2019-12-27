@@ -773,7 +773,9 @@ func opCall(pc *uint64, interpreter *EVMInterpreter, contract *Contract, memory 
 	if value.Sign() != 0 {
 		gas += params.CallStipend
 	}
+	fmt.Println("ready to call", gas)
 	ret, returnGas, err := interpreter.evm.Call(contract, toAddr, args, gas, value)
+	fmt.Println("end to call", gas, returnGas)
 	if err != nil {
 		stack.push(interpreter.intPool.getZero())
 	} else {
