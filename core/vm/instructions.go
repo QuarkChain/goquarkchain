@@ -782,7 +782,7 @@ func opCall(pc *uint64, interpreter *EVMInterpreter, contract *Contract, memory 
 	if err == nil || err == errExecutionReverted {
 		memory.Set(retOffset.Uint64(), retSize.Uint64(), ret)
 	}
-	fmt.Println("!!!!!!!!", contract.Gas)
+	fmt.Println("!!!!!!!!", returnGas, contract.Gas)
 	contract.Gas += returnGas
 	ModifyTokenIDQueried(contract, toAddr)
 	interpreter.intPool.put(addr, value, inOffset, inSize, retOffset, retSize)

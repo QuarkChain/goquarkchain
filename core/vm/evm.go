@@ -17,6 +17,7 @@
 package vm
 
 import (
+	"fmt"
 	"math/big"
 	"sync/atomic"
 	"time"
@@ -203,7 +204,7 @@ func (evm *EVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 	if !evm.Context.CanTransfer(evm.StateDB, caller.Address(), value, evm.TransferTokenID) {
 		return nil, gas, ErrInsufficientBalance
 	}
-
+	fmt.Println("11111111", gas)
 	var (
 		to       = AccountRef(addr)
 		snapshot = evm.StateDB.Snapshot()
@@ -225,7 +226,7 @@ func (evm *EVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 		}
 		evm.StateDB.CreateAccount(addr)
 	}
-
+	fmt.Println("22222")
 	evm.Transfer(evm.StateDB, caller.Address(), to.Address(), value, evm.TransferTokenID)
 
 	// Initialise a new contract and set the code that is to be used by the EVM.
@@ -235,7 +236,7 @@ func (evm *EVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 
 	// Even if the account has no code, we need to continue because it might be a precompile
 	start := time.Now()
-
+	fmt.Println("333")
 	// Capture the tracer start/end events in debug mode
 	if evm.vmConfig.Debug && evm.depth == 0 {
 		evm.vmConfig.Tracer.CaptureStart(caller.Address(), addr, false, input, gas, value)
@@ -244,7 +245,7 @@ func (evm *EVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 			evm.vmConfig.Tracer.CaptureEnd(ret, gas-contract.Gas, time.Since(start), err)
 		}()
 	}
-
+	fmt.Println("444")
 	ret, err = run(evm, contract, input, false)
 	err = checkTokenIDQueried(err, contract, evm.TransferTokenID, evm.StateDB.GetQuarkChainConfig().GetDefaultChainTokenID())
 	// When an error was returned by the EVM or when setting the creation code
@@ -256,6 +257,7 @@ func (evm *EVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 			contract.UseGas(contract.Gas)
 		}
 	}
+	fmt.Println("555", contract.Gas)
 	return ret, contract.Gas, err
 }
 
