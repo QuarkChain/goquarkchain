@@ -477,14 +477,14 @@ func (tab *Table) doRevalidate(done chan<- struct{}) {
 		return
 	}
 
-	tab.mutex.Lock()
 	inBlackList := false
+	tab.mutex.Lock()
 	if tab.checkDialBlackList(last.IP().String()) {
 		log.Warn("black node", "b", bi, "id", last.ID(), "address", last.addr().String())
 		inBlackList = true
 	}
-
 	defer tab.mutex.Unlock()
+
 	b := tab.buckets[bi]
 	if !inBlackList {
 		// Ping the selected node and wait for a pong.

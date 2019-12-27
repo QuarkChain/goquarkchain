@@ -1441,7 +1441,7 @@ func (m *MinorBlockChain) reorg(oldBlock, newBlock types.IBlock) error {
 
 	} else {
 		// we support reorg block from same chain,because we should delete and add tx index
-		log.Warn(m.logInfo+" reorg", "same chain curr", m.CurrentBlock().NumberU64(), "curr.Hash", m.CurrentBlock().Hash().String(),
+		log.Warn(m.logInfo+" reorg", "same chain curr", m.CurrentBlock().NumberU64(), "curr.Hash", m.CurrentBlock().Hash().TerminalString(),
 			"newBlock", newBlockNumber, "newBlock's hash", newBlockHash, "newBlock", m.GetMinorBlock(newBlockHash) == nil)
 		if err := m.setHead(newBlockNumber); err != nil {
 			return err

@@ -90,6 +90,7 @@ func (s *ConnManager) BroadcastMinorBlock(peerId string, minorBlock *types.Minor
 	if err != nil {
 		return err
 	}
+
 	_, err = s.masterClient.client.Call(s.masterClient.target, &rpc.Request{Op: rpc.OpBroadcastNewMinorBlock, Data: data})
 	return err
 }

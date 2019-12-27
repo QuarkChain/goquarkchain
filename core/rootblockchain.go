@@ -804,6 +804,8 @@ func (bc *RootBlockChain) insertSidechain(it *insertIterator) (int, []interface{
 // to be part of the new canonical chain and accumulates potential missing transactions and post an
 // event about them
 func (bc *RootBlockChain) reorg(oldBlock, newBlock types.IBlock) error {
+	log.Debug("reorg", "oldBlock", oldBlock.NumberU64(), "newBlock", newBlock.NumberU64())
+	log.Debug("reorg done")
 	var (
 		newChain       []types.IBlock
 		oldChain       []types.IBlock
