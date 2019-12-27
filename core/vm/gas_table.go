@@ -398,7 +398,7 @@ func gasCall(gt params.GasTable, evm *EVM, contract *Contract, stack *Stack, mem
 		address        = common.BigToAddress(stack.Back(1))
 		eip158         = evm.ChainConfig().IsEIP158(evm.BlockNumber)
 	)
-	fmt.Println("1111", gas)
+	fmt.Println("1111", gas, "back2", stack.Back(2), stack.Back(2).Sign())
 	if eip158 {
 		if transfersValue && evm.StateDB.Empty(address) {
 			gas += params.CallNewAccountGas
