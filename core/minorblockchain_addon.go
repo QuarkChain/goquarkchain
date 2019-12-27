@@ -485,7 +485,7 @@ func (m *MinorBlockChain) setEvmStateWithHeader(evmState *state.StateDB, header 
 }
 func (m *MinorBlockChain) runBlock(block *types.MinorBlock) (*state.StateDB, types.Receipts, []*types.Log, uint64,
 	[]*types.CrossShardTransactionDeposit, error) {
-	fmt.Println("RunBlock", block.Number(), block.Hash().String(), block.Branch().Value)
+
 	parent := m.GetMinorBlock(block.ParentHash())
 	if qkcCommon.IsNil(parent) {
 		log.Error(m.logInfo, "err-runBlock", ErrRootBlockIsNil, "parentHash", block.ParentHash().String())
@@ -497,9 +497,7 @@ func (m *MinorBlockChain) runBlock(block *types.MinorBlock) (*state.StateDB, typ
 		return nil, nil, nil, 0, nil, err
 	}
 	evmState := preEvmState.Copy()
-	fmt.Println("runCross", evmState.GetGasUsed())
 	xTxList, txCursorInfo, xShardReceipts, err := m.RunCrossShardTxWithCursor(evmState, block)
-	fmt.Println("runCross-end", evmState.GetGasUsed())
 	if err != nil {
 		return nil, nil, nil, 0, nil, err
 	}
@@ -1682,7 +1680,6 @@ func (m *MinorBlockChain) RunCrossShardTxWithCursor(evmState *state.StateDB,
 		}
 		checkIsFromRootChain := cursor.rBlock.Header().NumberU64() >= m.clusterConfig.Quarkchain.XShardGasDDOSFixRootHeight
 		txIndex := 0
-		fmt.Println("appy_cross-shard", xShardDepositTx.TxHash.String())
 		receipt, err := ApplyCrossShardDeposit(m.ethChainConfig, m, mBlock.Header(),
 			*m.GetVMConfig(), evmState, xShardDepositTx, gasUsed, checkIsFromRootChain, txIndex)
 		if err != nil {

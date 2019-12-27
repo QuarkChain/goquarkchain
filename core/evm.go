@@ -17,7 +17,6 @@
 package core
 
 import (
-	"fmt"
 	"math/big"
 
 	"github.com/QuarkChain/goquarkchain/cluster/config"
@@ -97,21 +96,10 @@ func Transfer(db vm.StateDB, sender, recipient common.Address, amount *big.Int, 
 }
 
 func TransferFailureByPoswBalanceCheck(db vm.StateDB, addr common.Address, amount *big.Int) bool {
-	v, ok := db.GetSenderDisallowMap()[addr]
-	for k, v := range db.GetSenderDisallowMap() {
-		fmt.Println("vvvvvv", k.String(), v.String())
-	}
-	fmt.Println("!!!!!!!!!!!!!!!!!!", addr.String(), amount, db.GetSenderDisallowMap(), db.GetBalance(addr, db.GetQuarkChainConfig().GetDefaultChainTokenID()))
-	fmt.Println("vok", v, ok)
-	//panic("sb")
 	if v, ok := db.GetSenderDisallowMap()[addr]; ok {
 		if new(big.Int).Add(amount, v).Cmp(db.GetBalance(addr, db.GetQuarkChainConfig().GetDefaultChainTokenID())) == 1 {
-			fmt.Println("????????????????????????????", new(big.Int).Add(amount, v), db.GetBalance(addr, db.GetQuarkChainConfig().GetDefaultChainTokenID()))
 			return true
 		}
 	}
 	return false
-}
-func transfer_failure_by_posw_balance_check() {
-
 }

@@ -759,7 +759,6 @@ func ModifyTokenIDQueried(contract *Contract, toAddr common.Address) {
 	}
 }
 func opCall(pc *uint64, interpreter *EVMInterpreter, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
-	fmt.Println("SSSSSSSSSSSSSSSSSSSSSSSSSs")
 	// Pop gas. The actual gas in interpreter.evm.callGasTemp.
 	interpreter.intPool.put(stack.pop())
 	gas := interpreter.evm.callGasTemp
@@ -773,9 +772,7 @@ func opCall(pc *uint64, interpreter *EVMInterpreter, contract *Contract, memory 
 	if value.Sign() != 0 {
 		gas += params.CallStipend
 	}
-	fmt.Println("ready to call", gas)
 	ret, returnGas, err := interpreter.evm.Call(contract, toAddr, args, gas, value)
-	fmt.Println("end to call", gas, returnGas)
 	if err != nil {
 		stack.push(interpreter.intPool.getZero())
 	} else {
@@ -784,11 +781,9 @@ func opCall(pc *uint64, interpreter *EVMInterpreter, contract *Contract, memory 
 	if err == nil || err == errExecutionReverted {
 		memory.Set(retOffset.Uint64(), retSize.Uint64(), ret)
 	}
-	fmt.Println("!!!!!!!!", returnGas, contract.Gas)
 	contract.Gas += returnGas
 	ModifyTokenIDQueried(contract, toAddr)
 	interpreter.intPool.put(addr, value, inOffset, inSize, retOffset, retSize)
-	fmt.Println("EEEEEEEEEEEEEEEEEEEEE", ret, contract.Gas)
 	return ret, nil
 }
 
