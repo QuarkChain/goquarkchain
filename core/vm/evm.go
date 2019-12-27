@@ -204,7 +204,7 @@ func (evm *EVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 	}
 	// Fail if we're trying to transfer more than the available balance
 	if !evm.Context.CanTransfer(evm.StateDB, caller.Address(), value, evm.TransferTokenID) {
-		return nil, gas, ErrInsufficientBalance
+		return nil, 0, ErrInsufficientBalance
 	}
 	if evm.Context.TransferFailureByPoswBalanceCheck(evm.StateDB, caller.Address(), value) {
 		return nil, gas, ErrPoSWSenderNotAllowed
@@ -287,7 +287,7 @@ func (evm *EVM) CallCode(caller ContractRef, addr common.Address, input []byte, 
 		return nil, gas, ErrInsufficientBalance
 	}
 	if evm.Context.TransferFailureByPoswBalanceCheck(evm.StateDB, caller.Address(), value) {
-		return nil, gas, ErrPoSWSenderNotAllowed
+		return nil, 0, ErrPoSWSenderNotAllowed
 	}
 	var (
 		snapshot = evm.StateDB.Snapshot()
@@ -324,7 +324,7 @@ func (evm *EVM) DelegateCall(caller ContractRef, addr common.Address, input []by
 		return nil, gas, ErrDepth
 	}
 	if evm.Context.TransferFailureByPoswBalanceCheck(evm.StateDB, caller.Address(), value) {
-		return nil, gas, ErrPoSWSenderNotAllowed
+		return nil, 0, ErrPoSWSenderNotAllowed
 	}
 	var (
 		snapshot = evm.StateDB.Snapshot()
@@ -360,7 +360,7 @@ func (evm *EVM) StaticCall(caller ContractRef, addr common.Address, input []byte
 		return nil, gas, ErrDepth
 	}
 	if evm.Context.TransferFailureByPoswBalanceCheck(evm.StateDB, caller.Address(), value) {
-		return nil, gas, ErrPoSWSenderNotAllowed
+		return nil, 0, ErrPoSWSenderNotAllowed
 	}
 	var (
 		to       = AccountRef(addr)
