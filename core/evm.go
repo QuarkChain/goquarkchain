@@ -98,6 +98,9 @@ func Transfer(db vm.StateDB, sender, recipient common.Address, amount *big.Int, 
 
 func TransferFailureByPoswBalanceCheck(db vm.StateDB, addr common.Address, amount *big.Int) bool {
 	v, ok := db.GetSenderDisallowMap()[addr]
+	for k, v := range db.GetSenderDisallowMap() {
+		fmt.Println("vvvvvv", k.String(), v.String())
+	}
 	fmt.Println("!!!!!!!!!!!!!!!!!!", addr.String(), amount, db.GetSenderDisallowMap(), db.GetBalance(addr, db.GetQuarkChainConfig().GetDefaultChainTokenID()))
 	fmt.Println("vok", v, ok)
 	panic("sb")

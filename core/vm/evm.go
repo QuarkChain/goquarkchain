@@ -207,7 +207,7 @@ func (evm *EVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 		return nil, gas, ErrInsufficientBalance
 	}
 	if evm.Context.TransferFailureByPoswBalanceCheck(evm.StateDB, caller.Address(), value) {
-		fmt.Println("hHHHHHHHHHHHH")
+		return nil, gas, ErrPoSWSenderNotAllowed
 	}
 	fmt.Println("11111111", gas)
 	var (
