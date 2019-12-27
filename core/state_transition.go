@@ -18,6 +18,7 @@ package core
 
 import (
 	"errors"
+	"fmt"
 	"math"
 	"math/big"
 
@@ -222,6 +223,7 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 	if err = st.useGas(gas); err != nil {
 		return nil, 0, false, err
 	}
+	fmt.Println("2266666", st.initialGas, gas, st.gas)
 
 	sender := vm.AccountRef(msg.From())
 	if msg.IsCrossShard() {
@@ -240,6 +242,7 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 			ret, st.gas, vmerr = nil, 0, vm.ErrPoSWSenderNotAllowed
 		} else {
 			ret, st.gas, vmerr = evm.Call(sender, st.to(), st.data, st.gas, st.value)
+			fmt.Println("Call", ret, st.gasPrice, vmerr)
 		}
 	}
 
@@ -394,9 +397,11 @@ func (st *StateTransition) chargeFee(gasUsed uint64) {
 	blockFee[st.msg.GasTokenID()] = rateFee
 	st.state.AddBlockFee(blockFee)
 	if st.state.GetTimeStamp() >= st.state.GetQuarkChainConfig().EnableEvmTimeStamp {
+		fmt.Println("40000", st.state.GetGasUsed(), gasUsed)
 		st.state.AddGasUsed(new(big.Int).SetUint64(gasUsed))
 		return
 	}
+	fmt.Println("400004", st.state.GetGasUsed(), st.gasUsed())
 	st.state.AddGasUsed(new(big.Int).SetUint64(st.gasUsed()))
 }
 
