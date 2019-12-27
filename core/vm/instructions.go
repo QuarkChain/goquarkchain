@@ -20,8 +20,9 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"github.com/QuarkChain/goquarkchain/account"
 	"math/big"
+
+	"github.com/QuarkChain/goquarkchain/account"
 
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/common"
@@ -758,6 +759,7 @@ func ModifyTokenIDQueried(contract *Contract, toAddr common.Address) {
 	}
 }
 func opCall(pc *uint64, interpreter *EVMInterpreter, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
+	fmt.Println("SSSSSSSSSSSSSSSSSSSSSSSSSs")
 	// Pop gas. The actual gas in interpreter.evm.callGasTemp.
 	interpreter.intPool.put(stack.pop())
 	gas := interpreter.evm.callGasTemp
@@ -783,6 +785,7 @@ func opCall(pc *uint64, interpreter *EVMInterpreter, contract *Contract, memory 
 	contract.Gas += returnGas
 	ModifyTokenIDQueried(contract, toAddr)
 	interpreter.intPool.put(addr, value, inOffset, inSize, retOffset, retSize)
+	fmt.Println("EEEEEEEEEEEEEEEEEEEEE", ret)
 	return ret, nil
 }
 
