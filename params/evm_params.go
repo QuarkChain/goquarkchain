@@ -52,3 +52,9 @@ var (
 		common.HexToAddress("000000000000000000000000000000514b430003"),
 	}
 )
+
+var (
+	PrecompliedContractMintMnt = []common.Address{
+		common.HexToAddress("000000000000000000000000000000514b430004"),
+	}
+)

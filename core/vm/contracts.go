@@ -21,6 +21,9 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"errors"
+	math2 "math"
+	"math/big"
+
 	qkcParams "github.com/QuarkChain/goquarkchain/params"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/math"
@@ -29,8 +32,6 @@ import (
 	"github.com/ethereum/go-ethereum/crypto/bn256"
 	"github.com/ethereum/go-ethereum/params"
 	"golang.org/x/crypto/ripemd160"
-	math2 "math"
-	"math/big"
 )
 
 var (
