@@ -6,6 +6,10 @@ import (
 	"container/heap"
 	"errors"
 	"fmt"
+	"io"
+	"math/big"
+	"sync/atomic"
+
 	"github.com/QuarkChain/goquarkchain/account"
 	qkcCommon "github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/serialize"
@@ -13,9 +17,6 @@ import (
 	"github.com/ethereum/go-ethereum/crypto/sha3"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rlp"
-	"io"
-	"math/big"
-	"sync/atomic"
 )
 
 const (
@@ -80,6 +81,11 @@ func (e *EvmTransaction) SetVRS(v, r, s *big.Int) {
 	e.data.R = r
 	e.data.S = s
 	e.updated = true
+}
+
+func (e *EvmTransaction) SetSender(addr account.Recipient) {
+	signer := NewEIP155Signer(e.NetworkId())
+	e.from.Store(sigCache{signer: signer, from: addr})
 }
 
 func NewEvmContractCreation(nonce uint64, amount *big.Int, gasLimit uint64, gasPrice *big.Int, fromFullShardKey uint32, toFullShardKey uint32, networkId uint32, version uint32, data []byte, gasTokenID, transferTokenID uint64) *EvmTransaction {
@@ -269,7 +275,7 @@ func (tx *EvmTransaction) Size() common.StorageSize {
 // AsMessage returns the transaction as a core.Message.
 // AsMessage requires a signer to derive the sender.
 // XXX Rename message to something less arbitrary?
-func (tx *EvmTransaction) AsMessage(s Signer, txHash common.Hash) (Message, error) {
+func (tx *EvmTransaction) AsMessage(s Signer, txHash common.Hash, gasPrice *big.Int, gasTokenID uint64, refundRate uint8) (Message, error) {
 	msgTo := new(common.Address)
 	if tx.data.Recipient != nil {
 		msgTo.SetBytes(tx.data.Recipient.Bytes())
@@ -281,7 +287,7 @@ func (tx *EvmTransaction) AsMessage(s Signer, txHash common.Hash) (Message, erro
 	msg := Message{
 		nonce:            tx.data.AccountNonce,
 		gasLimit:         tx.data.GasLimit,
-		gasPrice:         new(big.Int).Set(tx.data.Price),
+		gasPrice:         new(big.Int).Set(gasPrice),
 		to:               msgTo,
 		amount:           tx.data.Amount,
 		data:             tx.data.Payload,
@@ -291,7 +297,8 @@ func (tx *EvmTransaction) AsMessage(s Signer, txHash common.Hash) (Message, erro
 		txHash:           txHash,
 		isCrossShard:     tx.IsCrossShard(),
 		transferTokenID:  tx.data.TransferTokenID,
-		gasTokenID:       tx.data.GasTokenID,
+		gasTokenID:       gasTokenID,
+		refundRate:       refundRate,
 	}
 
 	msgFrom, err := Sender(s, tx)
@@ -576,24 +583,6 @@ func (t *TransactionsByPriceAndNonce) Pop() {
 	heap.Pop(&t.heads)
 }
 
-type CrossShardTransactionDeposit struct {
-	TxHash          common.Hash
-	From            account.Address
-	To              account.Address
-	Value           *serialize.Uint256
-	GasPrice        *serialize.Uint256
-	GasTokenID      uint64
-	TransferTokenID uint64
-	IsFromRootChain bool
-	GasRemained     *serialize.Uint256
-	MessageData     []byte `bytesizeofslicelen:"4"`
-	CreateContract  bool
-}
-
-type CrossShardTransactionDepositList struct {
-	TXList []*CrossShardTransactionDeposit `bytesizeofslicelen:"4"`
-}
-
 // Message is a fully derived transaction and implements core.Message
 //
 // NOTE: In a future PR this will be removed.
@@ -612,10 +601,11 @@ type Message struct {
 	isCrossShard     bool
 	transferTokenID  uint64
 	gasTokenID       uint64
+	refundRate       uint8
 }
 
 func NewMessage(from common.Address, to *common.Address, nonce uint64, amount *big.Int, gasLimit uint64, gasPrice *big.Int,
-	data []byte, checkNonce bool, fromFullShardKey uint32, toFullShardKey *uint32, transferTokenID, gasTokenID uint64) Message {
+	data []byte, checkNonce bool, fromFullShardKey uint32, toFullShardKey *uint32, transferTokenID, gasTokenID uint64, refundRate uint8) Message {
 
 	return Message{
 		from:             from,
@@ -630,6 +620,7 @@ func NewMessage(from common.Address, to *common.Address, nonce uint64, amount *b
 		toFullShardKey:   toFullShardKey,
 		transferTokenID:  transferTokenID,
 		gasTokenID:       gasTokenID,
+		refundRate:       refundRate,
 	}
 }
 
@@ -647,3 +638,4 @@ func (m Message) ToFullShardKey() *uint32  { return m.toFullShardKey }
 func (m Message) TxHash() common.Hash      { return m.txHash }
 func (m Message) GasTokenID() uint64       { return m.gasTokenID }
 func (m Message) TransferTokenID() uint64  { return m.transferTokenID }
+func (m Message) RefundRate() uint8        { return m.refundRate }

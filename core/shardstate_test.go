@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"bou.ke/monkey"
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	qkcCommon "github.com/QuarkChain/goquarkchain/common"
@@ -89,6 +90,14 @@ func TestInitGenesisState(t *testing.T) {
 }
 
 func TestGasPrice(t *testing.T) {
+	monkey.Patch(PayNativeTokenAsGas, func(a vm.StateDB, b *ethParams.ChainConfig, c uint64, d uint64, gasPrice *big.Int) (uint8, *big.Int, error) {
+		return 100, gasPrice, nil
+	})
+	defer monkey.UnpatchAll()
+	addContractAddrBalance = true
+	defer func() {
+		addContractAddrBalance = false
+	}()
 	idList := make([]account.Identity, 0)
 	for index := 0; index < 5; index++ {
 		temp, err := account.CreatRandomIdentity()
@@ -161,7 +170,7 @@ func TestGasPrice(t *testing.T) {
 				accList[randomIndex], new(big.Int).SetUint64(0), nil, &fakeGasPrice, &fakeNonce,
 				nil, &fakeToken, nil)
 			err = shardState.AddTx(tempTx)
-			checkErr(err)
+			//checkErr(err)
 		}
 		b, err := shardState.CreateBlockToMine(nil, &accList[1], nil, nil, nil)
 		checkErr(err)
@@ -211,7 +220,7 @@ func TestGasPrice(t *testing.T) {
 	assert.Equal(t, gasPrice, uint64(0))
 
 	gasPrice, err = shardState.GasPrice(1)
-	assert.Error(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, gasPrice, uint64(0))
 
 }
@@ -933,14 +942,17 @@ func TestXShardTxReceived(t *testing.T) {
 	intrinsic := uint64(21000) + params.GtxxShardCost.Uint64()
 	crossShardGas.Value = new(big.Int).SetUint64(tx.EvmTx.Gas() - intrinsic)
 	txList.TXList = append(txList.TXList, &types.CrossShardTransactionDeposit{
-		TxHash:          tx.Hash(),
-		From:            acc2,
-		To:              acc1,
-		Value:           &serialize.Uint256{Value: value},
-		GasPrice:        &serialize.Uint256{Value: new(big.Int).SetUint64(fakeGasPrice)},
-		GasRemained:     crossShardGas,
-		TransferTokenID: tx.EvmTx.TransferTokenID(),
-		GasTokenID:      tx.EvmTx.GasTokenID(),
+		CrossShardTransactionDepositV0: types.CrossShardTransactionDepositV0{
+			TxHash:          tx.Hash(),
+			From:            acc2,
+			To:              acc1,
+			Value:           &serialize.Uint256{Value: value},
+			GasPrice:        &serialize.Uint256{Value: new(big.Int).SetUint64(fakeGasPrice)},
+			GasRemained:     crossShardGas,
+			TransferTokenID: tx.EvmTx.TransferTokenID(),
+			GasTokenID:      tx.EvmTx.GasTokenID(),
+		},
+		RefundRate: 100,
 	})
 	// Add a x-shard tx from remote peer
 	shardState0.AddCrossShardTxListByMinorBlockHash(b1.Hash(), txList) // write db
@@ -1071,14 +1083,16 @@ func TestXShardForTwoRootBlocks(t *testing.T) {
 	crossShardGas.Value = new(big.Int).SetUint64(tx.EvmTx.Gas() - intrinsic)
 	txList := types.CrossShardTransactionDepositList{}
 	txList.TXList = append(txList.TXList, &types.CrossShardTransactionDeposit{
-		TxHash:          tx.Hash(),
-		From:            acc2,
-		To:              acc1,
-		Value:           &serialize.Uint256{Value: new(big.Int).SetUint64(888888)},
-		GasPrice:        &serialize.Uint256{Value: new(big.Int).SetUint64(2)},
-		GasRemained:     crossShardGas,
-		TransferTokenID: tx.EvmTx.TransferTokenID(),
-		GasTokenID:      tx.EvmTx.GasTokenID(),
+		CrossShardTransactionDepositV0: types.CrossShardTransactionDepositV0{
+			TxHash:          tx.Hash(),
+			From:            acc2,
+			To:              acc1,
+			Value:           &serialize.Uint256{Value: new(big.Int).SetUint64(888888)},
+			GasPrice:        &serialize.Uint256{Value: new(big.Int).SetUint64(2)},
+			GasRemained:     crossShardGas,
+			TransferTokenID: tx.EvmTx.TransferTokenID(),
+			GasTokenID:      tx.EvmTx.GasTokenID(),
+		}, RefundRate: 100,
 	})
 	// Add a x-shard tx from state1
 	shardState0.AddCrossShardTxListByMinorBlockHash(b1.Hash(), txList)
@@ -1101,14 +1115,16 @@ func TestXShardForTwoRootBlocks(t *testing.T) {
 
 	txList = types.CrossShardTransactionDepositList{}
 	txList.TXList = append(txList.TXList, &types.CrossShardTransactionDeposit{
-		TxHash:          common.Hash{},
-		From:            acc2,
-		To:              acc1,
-		Value:           &serialize.Uint256{Value: new(big.Int).SetUint64(385723)},
-		GasPrice:        &serialize.Uint256{Value: new(big.Int).SetUint64(3)},
-		GasRemained:     crossShardGas,
-		TransferTokenID: tx.EvmTx.TransferTokenID(),
-		GasTokenID:      tx.EvmTx.GasTokenID(),
+		CrossShardTransactionDepositV0: types.CrossShardTransactionDepositV0{
+			TxHash:          common.Hash{},
+			From:            acc2,
+			To:              acc1,
+			Value:           &serialize.Uint256{Value: new(big.Int).SetUint64(385723)},
+			GasPrice:        &serialize.Uint256{Value: new(big.Int).SetUint64(3)},
+			GasRemained:     crossShardGas,
+			TransferTokenID: tx.EvmTx.TransferTokenID(),
+			GasTokenID:      tx.EvmTx.GasTokenID(),
+		}, RefundRate: 100,
 	})
 	// Add a x-shard tx from state1
 	shardState0.AddCrossShardTxListByMinorBlockHash(b3.Hash(), txList)
@@ -2139,7 +2155,7 @@ func TestXShardGasLimit(t *testing.T) {
 	crossShardGas.Value = new(big.Int).SetUint64(gas - intrinsic)
 	shardState1.AddCrossShardTxListByMinorBlockHash(b1.Hash(), types.CrossShardTransactionDepositList{
 		TXList: []*types.CrossShardTransactionDeposit{
-			{
+			{CrossShardTransactionDepositV0: types.CrossShardTransactionDepositV0{
 				TxHash:          tx0.Hash(),
 				From:            acc2,
 				To:              acc1,
@@ -2148,8 +2164,9 @@ func TestXShardGasLimit(t *testing.T) {
 				GasRemained:     crossShardGas,
 				TransferTokenID: tx0.EvmTx.TransferTokenID(),
 				GasTokenID:      tx0.EvmTx.GasTokenID(),
+			}, RefundRate: 100,
 			},
-			{
+			{CrossShardTransactionDepositV0: types.CrossShardTransactionDepositV0{
 				TxHash:          tx1.Hash(),
 				From:            acc2,
 				To:              acc1,
@@ -2158,7 +2175,7 @@ func TestXShardGasLimit(t *testing.T) {
 				GasRemained:     crossShardGas,
 				TransferTokenID: tx1.EvmTx.TransferTokenID(),
 				GasTokenID:      tx1.EvmTx.GasTokenID(),
-			},
+			}, RefundRate: 100},
 		}})
 
 	//Create a root block containing the block with the x-shard tx
@@ -2315,7 +2332,7 @@ func TestXShardTxReceivedDDOSFix(t *testing.T) {
 	crossShardGas.Value = new(big.Int).SetUint64(gas - intrinsic)
 	state0.AddCrossShardTxListByMinorBlockHash(b1.Hash(), types.CrossShardTransactionDepositList{
 		TXList: []*types.CrossShardTransactionDeposit{
-			{
+			{CrossShardTransactionDepositV0: types.CrossShardTransactionDepositV0{
 				TxHash:          tx.Hash(),
 				From:            acc2,
 				To:              acc1,
@@ -2324,6 +2341,7 @@ func TestXShardTxReceivedDDOSFix(t *testing.T) {
 				GasRemained:     crossShardGas,
 				TransferTokenID: tx.EvmTx.TransferTokenID(),
 				GasTokenID:      tx.EvmTx.GasTokenID(),
+			}, RefundRate: 100,
 			},
 		}})
 
@@ -2530,14 +2548,16 @@ func TestGetTxForJsonRpc(t *testing.T) {
 	intrinsic := uint64(21000) + params.GtxxShardCost.Uint64()
 	crossShardGas.Value = new(big.Int).SetUint64(tx.EvmTx.Gas() - intrinsic)
 	txList.TXList = append(txList.TXList, &types.CrossShardTransactionDeposit{
-		TxHash:          tx.Hash(),
-		From:            acc2,
-		To:              acc1,
-		Value:           &serialize.Uint256{Value: value},
-		GasPrice:        &serialize.Uint256{Value: new(big.Int).SetUint64(fakeGasPrice)},
-		GasRemained:     crossShardGas,
-		TransferTokenID: tx.EvmTx.TransferTokenID(),
-		GasTokenID:      tx.EvmTx.GasTokenID(),
+		CrossShardTransactionDepositV0: types.CrossShardTransactionDepositV0{
+			TxHash:          tx.Hash(),
+			From:            acc2,
+			To:              acc1,
+			Value:           &serialize.Uint256{Value: value},
+			GasPrice:        &serialize.Uint256{Value: new(big.Int).SetUint64(fakeGasPrice)},
+			GasRemained:     crossShardGas,
+			TransferTokenID: tx.EvmTx.TransferTokenID(),
+			GasTokenID:      tx.EvmTx.GasTokenID(),
+		}, RefundRate: 100,
 	})
 	// Add a x-shard tx from remote peer
 	shardState0.AddCrossShardTxListByMinorBlockHash(b1.Hash(), txList) // write db
@@ -3032,8 +3052,6 @@ func TestPayNativeTokenAsGasContractAPI(t *testing.T) {
 }
 
 func TestPayNativeTokenAsGasEndToEnd(t *testing.T) {
-	//TODO remove skip
-	t.Skip("wait for ApplyTransaction update checked in.")
 	id1, err := account.CreatRandomIdentity()
 	assert.NoError(t, err)
 	acc1 := account.CreatAddressFromIdentity(id1, 0)
@@ -3057,9 +3075,6 @@ func TestPayNativeTokenAsGasEndToEnd(t *testing.T) {
 	defer shardState.Stop()
 
 	evmState := shardState.currentEvmState
-	accCoinbase, err := account.CreatRandomAccountWithFullShardKey(0)
-	assert.NoError(t, err)
-	evmState.SetBlockCoinbase(accCoinbase.Recipient)
 	evmState.SetQuarkChainConfig(env1.clusterConfig.Quarkchain)
 	tokenID := qkcCommon.TokenIDEncode("QI")
 	runtimeBytecode := common.Hex2Bytes(vm.GeneralNativeTokenContractBytecode)
@@ -3088,6 +3103,7 @@ func TestPayNativeTokenAsGasEndToEnd(t *testing.T) {
 	evm := vm.NewEVM(ctx, evmState, shardState.ethChainConfig, vm.Config{})
 	call := func(data string, value *big.Int) ([]byte, error) {
 		ret, _, err := evm.Call(vm.AccountRef(acc1.Recipient), contractAddr, common.Hex2Bytes(data), 1000000, value)
+		evmState.SubRefund(evmState.GetRefund())
 		return ret, err
 	}
 	toStr := func(input uint64) string {
@@ -3112,6 +3128,12 @@ func TestPayNativeTokenAsGasEndToEnd(t *testing.T) {
 	nonce := uint64(0)
 	tx := createTransferTransaction(shardState, id1.GetKey().Bytes(), acc1, acc1, new(big.Int), &gas, &gasPrice, &nonce,
 		nil, &tokenID, &genesisTokenID)
+	accCoinbase, err := account.CreatRandomAccountWithFullShardKey(0)
+	assert.NoError(t, err)
+	block, err := shardState.CreateBlockToMine(nil, &accCoinbase, nil, nil, nil)
+	assert.NoError(t, err)
+	_, _, err = shardState.FinalizeAndAddBlock(block)
+	assert.NoError(t, err)
 	_, receipt, _, err := ApplyTransaction(shardState.ethChainConfig, shardState, new(GasPool).AddGas(shardState.GasLimit()),
 		evmState, shardState.CurrentHeader(), tx, new(uint64), *shardState.GetVMConfig())
 	assert.NoError(t, err)
@@ -3121,6 +3143,7 @@ func TestPayNativeTokenAsGasEndToEnd(t *testing.T) {
 	assert.Equal(t, new(big.Int).Sub(genesisBalance, new(big.Int).SetUint64(gas*gasPrice)), b)
 	b = evmState.GetBalance(contractAddr, tokenID)
 	assert.Equal(t, new(big.Int).SetUint64(gas*gasPrice), b)
+	//query_native_token_balance
 	ret, err := call("21a2b36e"+formattedTokenID+strings.Repeat("0", 24)+common.Bytes2Hex(acc1.Recipient.Bytes()), new(big.Int))
 	assert.NoError(t, err)
 	assert.Equal(t, new(big.Int).SetUint64(gas*gasPrice), new(big.Int).SetBytes(ret))
@@ -3141,7 +3164,7 @@ func TestPayNativeTokenAsGasEndToEnd(t *testing.T) {
 	//# 2) craft a tx that will use up gas reserve, should fail validation
 	gasPrice = 2000000000000
 	tx = createTransferTransaction(shardState, id1.GetKey().Bytes(), acc1, acc1, new(big.Int), &gas, &gasPrice, &nonce, nil, &tokenID, &genesisTokenID)
-	assert.Error(t, ValidateTransaction(evmState, tx, &acc1))
+	assert.Error(t, ValidateTransaction(evmState, shardState.ethChainConfig, tx, &acc1))
 }
 
 func TestMintNewNativeToken(t *testing.T) {
@@ -3163,7 +3186,6 @@ func TestMintNewNativeToken(t *testing.T) {
 		adalloc[addr] = alloc
 		shardConfig.Genesis.Alloc = adalloc
 	}
-	env1.clusterConfig.Quarkchain.SetAllowedToken()
 	shardState := createDefaultShardState(env1, &shardId0, nil, nil, nil)
 	defer shardState.Stop()
 

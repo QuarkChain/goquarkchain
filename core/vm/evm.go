@@ -78,9 +78,9 @@ type Context struct {
 	GetHash GetHashFunc
 
 	// Message information
-	Origin   common.Address // Provides information for ORIGIN
-	GasPrice *big.Int       // Provides information for GASPRICE
-
+	Origin             common.Address // Provides information for ORIGIN
+	GasPrice           *big.Int       // Provides information for GASPRICE
+	GasPriceInGasToken *big.Int
 	// Block information
 	Coinbase           common.Address // Provides information for COINBASE
 	GasLimit           uint64         // Provides information for GASLIMIT

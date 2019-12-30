@@ -15,7 +15,6 @@ import (
 	"github.com/QuarkChain/goquarkchain/core/rawdb"
 	"github.com/QuarkChain/goquarkchain/core/state"
 	"github.com/QuarkChain/goquarkchain/core/types"
-	"github.com/QuarkChain/goquarkchain/core/vm"
 	"github.com/QuarkChain/goquarkchain/qkcdb"
 	qrpc "github.com/QuarkChain/goquarkchain/rpc"
 	"github.com/QuarkChain/goquarkchain/serialize"
@@ -157,6 +156,8 @@ func (m *MinorBlockChain) validateTx(tx *types.Transaction, evmState *state.Stat
 			evmTxGas = *gas
 		}
 		evmTx.SetGas(evmTxGas)
+		// only used by  ExecuteTx and EstimateGas
+		evmTx.SetSender(fromAddress.Recipient)
 	}
 	toShardSize, err := m.clusterConfig.Quarkchain.GetShardSizeByChainId(tx.EvmTx.ToChainID())
 	if err != nil {
@@ -231,7 +232,7 @@ func (m *MinorBlockChain) validateTx(tx *types.Transaction, evmState *state.Stat
 		return tx, nil
 	}
 	evmState.SetQuarkChainConfig(m.clusterConfig.Quarkchain)
-	if err := ValidateTransaction(evmState, tx, fromAddress); err != nil {
+	if err := ValidateTransaction(evmState, m.ChainConfig(), tx, fromAddress); err != nil {
 		return nil, err
 	}
 	return tx, nil
@@ -361,7 +362,7 @@ func (m *MinorBlockChain) putConfirmedCrossShardTransactionDepositList(hash comm
 	if !m.clusterConfig.EnableTransactionHistory {
 		return nil
 	}
-	data := types.CrossShardTransactionDepositList{TXList: xShardReceiveTxList}
+	data := &types.CrossShardTransactionDepositList{TXList: xShardReceiveTxList}
 	rawdb.WriteConfirmedCrossShardTxList(m.db, hash, data)
 	return nil
 }
@@ -573,18 +574,8 @@ func (m *MinorBlockChain) ExecuteTx(tx *types.Transaction, fromAddress *account.
 		return nil, err
 	}
 	gp := new(GasPool).AddGas(mBlock.GasLimit().Uint64())
-
-	to := evmTx.EvmTx.To()
-	toFullShardKey := tx.EvmTx.ToFullShardKey()
-	msg := types.NewMessage(fromAddress.Recipient, to, evmTx.EvmTx.Nonce(), evmTx.EvmTx.Value(), evmTx.EvmTx.Gas(),
-		evmTx.EvmTx.GasPrice(), evmTx.EvmTx.Data(), false, tx.EvmTx.FromFullShardKey(), &toFullShardKey,
-		tx.EvmTx.TransferTokenID(), tx.EvmTx.GasTokenID())
-	state.SetFullShardKey(tx.EvmTx.ToFullShardKey())
-	state.SetQuarkChainConfig(m.clusterConfig.Quarkchain)
-
-	context := NewEVMContext(msg, m.CurrentBlock().IHeader().(*types.MinorBlockHeader), m)
-	evmEnv := vm.NewEVM(context, state, m.ethChainConfig, m.vmConfig)
-	ret, _, _, err := ApplyMessage(evmEnv, msg, gp)
+	gasUsed := new(uint64)
+	ret, _, _, err := ApplyTransaction(m.ChainConfig(), m, gp, state, m.CurrentHeader(), evmTx, gasUsed, *m.GetVMConfig())
 	return ret, err
 
 }
@@ -700,7 +691,7 @@ func (m *MinorBlockChain) addTransactionToBlock(block *types.MinorBlock, evmStat
 
 		}
 		stateT.Prepare(tx.Hash(), block.Hash(), txIndex)
-		_, receipt, _, err := ApplyTransaction(m.ethChainConfig, m, gp, stateT, block.IHeader().(*types.MinorBlockHeader), tx, usedGas, *m.GetVMConfig())
+		_, receipt, _, err := ApplyTransaction(m.ChainConfig(), m, gp, stateT, block.IHeader().(*types.MinorBlockHeader), tx, usedGas, *m.GetVMConfig())
 		switch err {
 		case ErrGasLimitReached:
 			txs.Pop()
@@ -837,7 +828,7 @@ func (m *MinorBlockChain) CreateBlockToMine(createTime *uint64, address *account
 
 // AddCrossShardTxListByMinorBlockHash add crossShardTxList by slave
 func (m *MinorBlockChain) AddCrossShardTxListByMinorBlockHash(h common.Hash, txList types.CrossShardTransactionDepositList) {
-	rawdb.WriteCrossShardTxList(m.db, h, txList)
+	rawdb.WriteCrossShardTxList(m.db, h, &txList)
 }
 
 // AddRootBlock add root block for minorBlockChain
@@ -1111,16 +1102,8 @@ func (m *MinorBlockChain) EstimateGas(tx *types.Transaction, fromAddress account
 		}
 
 		gp := new(GasPool).AddGas(evmState.GetGasLimit().Uint64())
-		to := evmTx.EvmTx.To()
-		toFullShardKey := tx.EvmTx.ToFullShardKey()
-		msg := types.NewMessage(fromAddress.Recipient, to, evmTx.EvmTx.Nonce(), evmTx.EvmTx.Value(), evmTx.EvmTx.Gas(),
-			evmTx.EvmTx.GasPrice(), evmTx.EvmTx.Data(), false, tx.EvmTx.FromFullShardKey(), &toFullShardKey,
-			tx.EvmTx.TransferTokenID(), tx.EvmTx.GasTokenID())
-		evmState.SetFullShardKey(tx.EvmTx.ToFullShardKey())
-		context := NewEVMContext(msg, m.CurrentBlock().IHeader().(*types.MinorBlockHeader), m)
-		evmEnv := vm.NewEVM(context, evmState, m.ethChainConfig, m.vmConfig)
-
-		_, _, _, err = ApplyMessage(evmEnv, msg, gp)
+		gasUsed := new(uint64)
+		_, _, _, err = ApplyTransaction(m.ChainConfig(), m, gp, evmState, m.CurrentHeader(), evmTx, gasUsed, m.vmConfig)
 		return err
 	}
 
@@ -1140,10 +1123,6 @@ func (m *MinorBlockChain) EstimateGas(tx *types.Transaction, fromAddress account
 
 // GasPrice gas price
 func (m *MinorBlockChain) GasPrice(tokenID uint64) (uint64, error) {
-	if !m.clusterConfig.Quarkchain.IsAllowedTokenID(tokenID) {
-		return 0, fmt.Errorf("no support tokenID %v", tokenID)
-	}
-
 	currHead := m.CurrentBlock().Hash()
 	if data, ok := m.gasPriceSuggestionOracle.cache.Get(gasPriceKey{
 		currHead: currHead,
@@ -1636,7 +1615,7 @@ func (m *MinorBlockChain) RunCrossShardTxWithCursor(evmState *state.StateDB,
 		}
 		checkIsFromRootChain := cursor.rBlock.Header().NumberU64() >= m.clusterConfig.Quarkchain.XShardGasDDOSFixRootHeight
 		txIndex := 0
-		receipt, err := ApplyCrossShardDeposit(m.ethChainConfig, m, mBlock.Header(),
+		receipt, err := ApplyCrossShardDeposit(m.ChainConfig(), m, mBlock.Header(),
 			*m.GetVMConfig(), evmState, xShardDepositTx, gasUsed, checkIsFromRootChain, txIndex)
 		if err != nil {
 			return nil, nil, nil, err
