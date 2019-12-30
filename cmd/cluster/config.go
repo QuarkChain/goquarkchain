@@ -121,7 +121,7 @@ func makeConfigNode(ctx *cli.Context) (*service.Node, qkcConfig) {
 			vm.PrecompiledContractsByzantium[v].SetEnableTime(cfg.Cluster.Quarkchain.EnableEvmTimeStamp)
 		}
 	}
-	vm.SystemContracts[vm.NON_RESERVED_NATIVE_TOKEN].SetTimestamp(cfg.Cluster.Quarkchain.EnableMntAuctionTimestamp)
+	vm.SystemContracts[vm.NON_RESERVED_NATIVE_TOKEN].SetTimestamp(cfg.Cluster.Quarkchain.EnableNonReservedNativeTokenTimestamp)
 	vm.SystemContracts[vm.GENERAL_NATIVE_TOKEN].SetTimestamp(cfg.Cluster.Quarkchain.EnableGeneralNativeTokenTimestamp)
 
 	return stack, cfg
