@@ -5,6 +5,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/ioutil"
+	"reflect"
+	"strconv"
+	"unicode"
+
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/cluster/service"
 	"github.com/QuarkChain/goquarkchain/cmd/utils"
@@ -12,10 +17,6 @@ import (
 	"github.com/QuarkChain/goquarkchain/params"
 	"github.com/naoina/toml"
 	"gopkg.in/urfave/cli.v1"
-	"io/ioutil"
-	"reflect"
-	"strconv"
-	"unicode"
 )
 
 var (
@@ -121,7 +122,12 @@ func makeConfigNode(ctx *cli.Context) (*service.Node, qkcConfig) {
 			vm.PrecompiledContractsByzantium[v].SetEnableTime(cfg.Cluster.Quarkchain.EnableEvmTimeStamp)
 		}
 	}
-	vm.SystemContracts[vm.NON_RESERVED_NATIVE_TOKEN].SetTimestamp(cfg.Cluster.Quarkchain.EnableMntAuctionTimestamp)
+	for _, v := range params.PrecompliedContractMintMnt {
+		if vm.PrecompiledContractsByzantium[v] != nil {
+			vm.PrecompiledContractsByzantium[v].SetEnableTime(cfg.Cluster.Quarkchain.EnableNonReservedNativeTokenTimestamp)
+		}
+	}
+	vm.SystemContracts[vm.NON_RESERVED_NATIVE_TOKEN].SetTimestamp(cfg.Cluster.Quarkchain.EnableNonReservedNativeTokenTimestamp)
 	vm.SystemContracts[vm.GENERAL_NATIVE_TOKEN].SetTimestamp(cfg.Cluster.Quarkchain.EnableGeneralNativeTokenTimestamp)
 
 	return stack, cfg
