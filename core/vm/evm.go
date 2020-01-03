@@ -33,7 +33,8 @@ var emptyCodeHash = crypto.Keccak256Hash(nil)
 
 type (
 	// CanTransferFunc is the signature of a transfer guard function
-	CanTransferFunc func(StateDB, common.Address, *big.Int, uint64) bool
+	CanTransferFunc                   func(StateDB, common.Address, *big.Int, uint64) bool
+	TransferFailureByPoswBalanceCheck func(StateDB, common.Address, *big.Int) bool
 	// TransferFunc is the signature of a transfer function
 	TransferFunc func(StateDB, common.Address, common.Address, *big.Int, uint64)
 	// GetHashFunc returns the nth block hash in the blockchain
@@ -73,7 +74,8 @@ type Context struct {
 	// sufficient ether to transfer the value
 	CanTransfer CanTransferFunc
 	// Transfer transfers ether from one account to the other
-	Transfer TransferFunc
+	Transfer                          TransferFunc
+	TransferFailureByPoswBalanceCheck TransferFailureByPoswBalanceCheck
 	// GetHash returns the hash corresponding to n
 	GetHash GetHashFunc
 
@@ -203,7 +205,9 @@ func (evm *EVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 	if !evm.Context.CanTransfer(evm.StateDB, caller.Address(), value, evm.TransferTokenID) {
 		return nil, gas, ErrInsufficientBalance
 	}
-
+	if evm.Context.TransferFailureByPoswBalanceCheck(evm.StateDB, caller.Address(), value) {
+		return nil, 0, ErrPoSWSenderNotAllowed
+	}
 	var (
 		to       = AccountRef(addr)
 		snapshot = evm.StateDB.Snapshot()
@@ -279,7 +283,9 @@ func (evm *EVM) CallCode(caller ContractRef, addr common.Address, input []byte, 
 	if !evm.CanTransfer(evm.StateDB, caller.Address(), value, evm.TransferTokenID) {
 		return nil, gas, ErrInsufficientBalance
 	}
-
+	if evm.Context.TransferFailureByPoswBalanceCheck(evm.StateDB, caller.Address(), value) {
+		return nil, 0, ErrPoSWSenderNotAllowed
+	}
 	var (
 		snapshot = evm.StateDB.Snapshot()
 		to       = AccountRef(caller.Address())
@@ -314,7 +320,6 @@ func (evm *EVM) DelegateCall(caller ContractRef, addr common.Address, input []by
 	if evm.depth > int(params.CallCreateDepth) {
 		return nil, gas, ErrDepth
 	}
-
 	var (
 		snapshot = evm.StateDB.Snapshot()
 		to       = AccountRef(caller.Address())
@@ -323,7 +328,9 @@ func (evm *EVM) DelegateCall(caller ContractRef, addr common.Address, input []by
 	// Initialise a new contract and make initialise the delegate values
 	contract := NewContract(caller, to, nil, gas).AsDelegate()
 	contract.SetCallCode(&addr, evm.StateDB.GetCodeHash(addr), evm.StateDB.GetCode(addr))
-
+	if evm.Context.TransferFailureByPoswBalanceCheck(evm.StateDB, caller.Address(), contract.value) {
+		return nil, 0, ErrPoSWSenderNotAllowed
+	}
 	ret, err = run(evm, contract, input, false)
 
 	err = checkTokenIDQueried(err, contract, evm.TransferTokenID, evm.StateDB.GetQuarkChainConfig().GetDefaultChainTokenID())
@@ -348,7 +355,6 @@ func (evm *EVM) StaticCall(caller ContractRef, addr common.Address, input []byte
 	if evm.depth > int(params.CallCreateDepth) {
 		return nil, gas, ErrDepth
 	}
-
 	var (
 		to       = AccountRef(addr)
 		snapshot = evm.StateDB.Snapshot()
@@ -358,7 +364,9 @@ func (evm *EVM) StaticCall(caller ContractRef, addr common.Address, input []byte
 	// only.
 	contract := NewContract(caller, to, new(big.Int), gas)
 	contract.SetCallCode(&addr, evm.StateDB.GetCodeHash(addr), evm.StateDB.GetCode(addr))
-
+	if evm.Context.TransferFailureByPoswBalanceCheck(evm.StateDB, caller.Address(), contract.value) {
+		return nil, 0, ErrPoSWSenderNotAllowed
+	}
 	// We do an AddBalance of zero here, just in order to trigger a touch.
 	// This doesn't matter on Mainnet, where all empties are gone at the time of Byzantium,
 	// but is the correct thing to do and matters on other networks, in tests, and potential
