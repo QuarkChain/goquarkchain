@@ -130,7 +130,7 @@ func (s *Server) serveRequest(ctx context.Context, codec ServerCodec, singleShot
 			const size = 64 << 10
 			buf := make([]byte, size)
 			buf = buf[:runtime.Stack(buf, false)]
-			log.Error("serveRequest", err)
+			log.Error("serveRequest", "err", err)
 			log.Error(string(buf))
 		}
 		s.codecsMu.Lock()

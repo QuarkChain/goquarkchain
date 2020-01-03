@@ -321,7 +321,6 @@ func (s *ShardBackend) AddMinorBlock(block *types.MinorBlock) error {
 		return err
 	}
 	s.MinorBlockChain.CommitMinorBlockByHash(block.Hash())
-	s.mBPool.delBlockInPool(block.Hash())
 	if s.MinorBlockChain.CurrentBlock().Hash() != currHead.Hash() {
 		go s.miner.HandleNewTip()
 	}

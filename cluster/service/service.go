@@ -21,7 +21,7 @@ type ServiceContext struct {
 	services  map[reflect.Type]Service // Index of the already constructed services
 	Shutdown  chan os.Signal
 	timestamp time.Time
-	mu        sync.Mutex
+	mu        sync.RWMutex
 	EventMux  *event.TypeMux // Event multiplexer used for decoupled notifications
 }
 
@@ -32,8 +32,8 @@ func (ctx *ServiceContext) SetTimestamp(timestamp time.Time) {
 }
 
 func (ctx *ServiceContext) GetTimestamp() time.Time {
-	ctx.mu.Lock()
-	defer ctx.mu.Unlock()
+	ctx.mu.RLock()
+	defer ctx.mu.RUnlock()
 	return ctx.timestamp
 }
 
