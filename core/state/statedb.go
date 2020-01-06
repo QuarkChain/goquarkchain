@@ -508,6 +508,9 @@ func (s *StateDB) createObject(addr common.Address) (newobj, prev *stateObject) 
 	newobj = newObject(s, addr, NewAccount(s.db.TrieDB()))
 	newobj.setNonce(0) // sets the object to dirty
 	newobj.SetFullShardKey(s.fullShardKey)
+	if prev != nil {
+		newobj.SetFullShardKey(prev.FullShardKey())
+	}
 	if prev == nil {
 		s.journal.append(createObjectChange{account: &addr})
 	} else {

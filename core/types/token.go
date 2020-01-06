@@ -307,6 +307,7 @@ func (t *TokenBalances) DecodeRLP(s *rlp.Stream) error {
 		return err
 	}
 	(*t).balances = (*b).balances
+	(*t).tokenTrie = (*b).tokenTrie
 	return err
 }
 
