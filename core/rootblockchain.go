@@ -148,7 +148,6 @@ func NewRootBlockChain(db ethdb.Database, chainConfig *config.QuarkChainConfig, 
 	if err := bc.loadLastState(); err != nil {
 		return nil, err
 	}
-	bc.SetHead(bc.CurrentBlock().NumberU64() - 10)
 	// Take ownership of this particular state
 	go bc.update()
 	return bc, nil

@@ -442,7 +442,7 @@ func (m *MinorBlockChain) setEvmStateWithHeader(evmState *state.StateDB, header 
 }
 func (m *MinorBlockChain) runBlock(block *types.MinorBlock) (*state.StateDB, types.Receipts, []*types.Log, uint64,
 	[]*types.CrossShardTransactionDeposit, error) {
-	fmt.Println("run block ", block.Hash().String())
+
 	parent := m.GetMinorBlock(block.ParentHash())
 	if qkcCommon.IsNil(parent) {
 		log.Error(m.logInfo, "err-runBlock", ErrRootBlockIsNil, "parentHash", block.ParentHash().String())
@@ -470,7 +470,6 @@ func (m *MinorBlockChain) runBlock(block *types.MinorBlock) (*state.StateDB, typ
 		return nil, nil, nil, 0, nil, err
 	}
 	receipts = append(receipts, xShardReceipts...)
-	fmt.Println("run block end")
 	return evmState, receipts, logs, usedGas, xShardReceiveTxList, nil
 }
 

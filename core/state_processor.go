@@ -75,9 +75,7 @@ func (p *StateProcessor) Process(block *types.MinorBlock, statedb *state.StateDB
 
 	// Iterate over and process the individual transactions
 	for i, tx := range block.GetTransactions() {
-		fmt.Println("valuidate_tx", tx.Hash().String())
 		evmTx, err := p.bc.validateTx(tx, statedb, nil, nil, &xGas)
-		fmt.Println("validate_end", tx.Hash().String(), err)
 		if err != nil {
 			return nil, nil, 0, err
 		}
@@ -96,7 +94,6 @@ func (p *StateProcessor) Process(block *types.MinorBlock, statedb *state.StateDB
 	for k, v := range bMap {
 		statedb.AddBalance(block.Coinbase().Recipient, v, k)
 	}
-	//fmt.Println("CCCCCCCCCCCCC", block.Hash().String())
 	statedb.Finalise(true)
 	return receipts, allLogs, *usedGas, nil
 }
