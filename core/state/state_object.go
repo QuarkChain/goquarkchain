@@ -394,7 +394,6 @@ func (self *stateObject) setCode(codeHash common.Hash, code []byte) {
 }
 
 func (self *stateObject) SetNonce(nonce uint64) {
-	fmt.Println("SSSSSSSSSSSSeeee", self.address.String(), nonce)
 	self.db.journal.append(nonceChange{
 		account: &self.address,
 		prev:    self.data.Nonce,

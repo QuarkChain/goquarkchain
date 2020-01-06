@@ -17,7 +17,6 @@
 package vm
 
 import (
-	"fmt"
 	"math/big"
 	"sync/atomic"
 	"time"
@@ -511,7 +510,6 @@ func (evm *EVM) Create(caller ContractRef, code []byte, gas uint64, value *big.I
 	} else {
 		contractAddr = CreateAddress(caller.Address(), evm.Context.ToFullShardKey, evm.StateDB.GetNonce(caller.Address()))
 	}
-	fmt.Println("5122222")
 	return evm.create(caller, &codeAndHash{code: code}, gas, value, contractAddr)
 }
 

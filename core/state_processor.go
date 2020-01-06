@@ -70,7 +70,7 @@ func (p *StateProcessor) Process(block *types.MinorBlock, statedb *state.StateDB
 		gp       = new(GasPool).AddGas(block.GasLimit().Uint64())
 		xGas     = block.GetXShardGasLimit().Uint64()
 	)
-	fmt.Println("RRRRRRRRRRRRRRRR", block.NumberU64(), block.Hash().String())
+
 	// Iterate over and process the individual transactions
 	for i, tx := range block.GetTransactions() {
 		evmTx, err := p.bc.validateTx(tx, statedb, nil, nil, &xGas)
@@ -78,7 +78,6 @@ func (p *StateProcessor) Process(block *types.MinorBlock, statedb *state.StateDB
 			return nil, nil, 0, err
 		}
 		statedb.Prepare(tx.Hash(), block.Hash(), i)
-		fmt.Println("apppp----")
 		_, receipt, _, err := ApplyTransaction(p.config, p.bc, gp, statedb, header, evmTx, usedGas, cfg)
 		if err != nil {
 			return nil, nil, 0, err
@@ -93,7 +92,6 @@ func (p *StateProcessor) Process(block *types.MinorBlock, statedb *state.StateDB
 	for k, v := range bMap {
 		statedb.AddBalance(block.Coinbase().Recipient, v, k)
 	}
-	fmt.Println("FFFFFFFFFFF")
 	statedb.Finalise(true)
 	return receipts, allLogs, *usedGas, nil
 }
