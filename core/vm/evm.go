@@ -413,6 +413,10 @@ func (evm *EVM) create(caller ContractRef, codeAndHash *codeAndHash, gas uint64,
 		return nil, common.Address{}, gas, ErrInsufficientBalance
 	}
 
+	if evm.Context.TransferFailureByPoswBalanceCheck(evm.StateDB, caller.Address(), value) {
+		return nil, common.Address{}, 0, ErrPoSWSenderNotAllowed
+	}
+
 	if !evm.IsApplyXShard {
 		nonce := evm.StateDB.GetNonce(caller.Address())
 		evm.StateDB.SetNonce(caller.Address(), nonce+1)
