@@ -431,6 +431,14 @@ func (s *StateDB) updateStateObject(stateObject *stateObject) {
 			panic(err)
 		}
 	}
+	//fmt.Println("addr", addr.String())
+	//fmt.Println("nonce", stateObject.data.Nonce)
+	//dd, err := stateObject.data.TokenBalances.SerializeToBytes()
+	//fmt.Println("balance", hex.EncodeToString(dd), err)
+	//print("storage", hex.EncodeToString(stateObject.data.Root.Bytes()))
+	//fmt.Println("codeHash", hex.EncodeToString(stateObject.data.CodeHash))
+	//fmt.Println("fullShardKey", stateObject.data.FullShardKey.GetValue())
+	//fmt.Println("dataaaaa", hex.EncodeToString(data))
 	s.setError(s.trie.TryUpdate(addr[:], data))
 }
 
@@ -507,7 +515,12 @@ func (s *StateDB) createObject(addr common.Address) (newobj, prev *stateObject) 
 	prev = s.getStateObject(addr)
 	newobj = newObject(s, addr, NewAccount(s.db.TrieDB()))
 	newobj.setNonce(0) // sets the object to dirty
+
 	newobj.SetFullShardKey(s.fullShardKey)
+	if prev != nil {
+		newobj.SetFullShardKey(prev.FullShardKey())
+	}
+	//fmt.Println("ccccccccccccc", addr.String(), s.fullShardKey)
 	if prev == nil {
 		s.journal.append(createObjectChange{account: &addr})
 	} else {
@@ -640,6 +653,7 @@ func (s *StateDB) GetRefund() uint64 {
 // Finalise finalises the state by removing the self destructed objects
 // and clears the journal as well as the refunds.
 func (s *StateDB) Finalise(deleteEmptyObjects bool) {
+	//fmt.Println("FFFFFFFFFFFFFFF")
 	for addr := range s.journal.dirties {
 		stateObject, exist := s.stateObjects[addr]
 		if !exist {
