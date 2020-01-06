@@ -372,6 +372,7 @@ func (s *StateDB) SetBalance(addr common.Address, amount *big.Int, tokenID uint6
 }
 
 func (s *StateDB) SetNonce(addr common.Address, nonce uint64) {
+	fmt.Println("SSSSSSSSSSSS", addr.String(), nonce)
 	stateObject := s.GetOrNewStateObject(addr)
 	if stateObject != nil {
 		stateObject.SetNonce(nonce)
