@@ -78,6 +78,7 @@ func (p *StateProcessor) Process(block *types.MinorBlock, statedb *state.StateDB
 			return nil, nil, 0, err
 		}
 		statedb.Prepare(tx.Hash(), block.Hash(), i)
+		fmt.Println("apppp----")
 		_, receipt, _, err := ApplyTransaction(p.config, p.bc, gp, statedb, header, evmTx, usedGas, cfg)
 		if err != nil {
 			return nil, nil, 0, err

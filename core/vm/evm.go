@@ -17,6 +17,7 @@
 package vm
 
 import (
+	"fmt"
 	"math/big"
 	"sync/atomic"
 	"time"
@@ -413,10 +414,6 @@ func (evm *EVM) create(caller ContractRef, codeAndHash *codeAndHash, gas uint64,
 		return nil, common.Address{}, gas, ErrInsufficientBalance
 	}
 
-	if evm.Context.TransferFailureByPoswBalanceCheck(evm.StateDB, caller.Address(), value) {
-		return nil, common.Address{}, 0, ErrPoSWSenderNotAllowed
-	}
-
 	if !evm.IsApplyXShard {
 		nonce := evm.StateDB.GetNonce(caller.Address())
 		evm.StateDB.SetNonce(caller.Address(), nonce+1)
@@ -427,6 +424,11 @@ func (evm *EVM) create(caller ContractRef, codeAndHash *codeAndHash, gas uint64,
 	if evm.StateDB.GetNonce(address) != 0 || (contractHash != (common.Hash{}) && contractHash != emptyCodeHash) {
 		return nil, common.Address{}, 0, ErrContractAddressCollision
 	}
+
+	if evm.Context.TransferFailureByPoswBalanceCheck(evm.StateDB, caller.Address(), value) {
+		return nil, common.Address{}, 0, ErrPoSWSenderNotAllowed
+	}
+
 	// Create a new account on the state
 	snapshot := evm.StateDB.Snapshot()
 	evm.StateDB.CreateAccount(address)
@@ -509,6 +511,7 @@ func (evm *EVM) Create(caller ContractRef, code []byte, gas uint64, value *big.I
 	} else {
 		contractAddr = CreateAddress(caller.Address(), evm.Context.ToFullShardKey, evm.StateDB.GetNonce(caller.Address()))
 	}
+	fmt.Println("5122222")
 	return evm.create(caller, &codeAndHash{code: code}, gas, value, contractAddr)
 }
 

@@ -18,6 +18,7 @@ package core
 
 import (
 	"errors"
+	"fmt"
 	"math"
 	"math/big"
 
@@ -229,6 +230,7 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 		return st.AddCrossShardTxDeposit(gas)
 	}
 	if contractCreation || evm.ContractAddress != nil {
+		fmt.Println("231-----")
 		ret, _, st.gas, vmerr = evm.Create(sender, st.data, st.gas, st.value, evm.ContractAddress)
 	} else {
 		// Increment the nonce for the next transaction
