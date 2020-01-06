@@ -70,7 +70,7 @@ func (p *StateProcessor) Process(block *types.MinorBlock, statedb *state.StateDB
 		gp       = new(GasPool).AddGas(block.GasLimit().Uint64())
 		xGas     = block.GetXShardGasLimit().Uint64()
 	)
-
+	fmt.Println("RRRRRRRRRRRRRRRR", block.NumberU64(), block.Hash().String())
 	// Iterate over and process the individual transactions
 	for i, tx := range block.GetTransactions() {
 		evmTx, err := p.bc.validateTx(tx, statedb, nil, nil, &xGas)
