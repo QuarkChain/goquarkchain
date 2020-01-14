@@ -80,7 +80,7 @@ func New(ctx *service.ServiceContext, rBlock *types.RootBlock, conn ConnManager,
 			mBPool:            newBlockPool{BlockPool: make(map[common.Hash]*types.MinorBlockHeader)},
 			gspec:             core.NewGenesis(cfg.Quarkchain),
 			eventMux:          ctx.EventMux,
-			logInfo:           fmt.Sprintf("shard:%d", fullshardId),
+			logInfo:           fmt.Sprintf("shard:%x", fullshardId),
 			running:           true,
 		}
 		err error

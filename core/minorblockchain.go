@@ -208,7 +208,7 @@ func NewMinorBlockChain(
 			CheckBlocks: 5,
 			Percentile:  50,
 		},
-		logInfo: fmt.Sprintf("shard:%d", fullShardID),
+		logInfo: fmt.Sprintf("shard:%x", fullShardID),
 	}
 	var err error
 	bc.gasLimit, err = bc.clusterConfig.Quarkchain.GasLimit(bc.branch.Value)
@@ -231,9 +231,10 @@ func NewMinorBlockChain(
 	if err := bc.loadLastState(); err != nil {
 		return nil, err
 	}
-	DefaultTxPoolConfig.NetWorkID = bc.clusterConfig.Quarkchain.NetworkID
+	txPoolConfig := DefaultTxPoolConfig
+	txPoolConfig.NetWorkID = bc.clusterConfig.Quarkchain.NetworkID
 	bc.posw = consensus.CreatePoSWCalculator(bc, bc.shardConfig.PoswConfig)
-	bc.txPool = NewTxPool(DefaultTxPoolConfig, bc)
+	bc.txPool = NewTxPool(txPoolConfig, bc)
 	// Take ownership of this particular state
 	go bc.update()
 	return bc, nil
@@ -304,8 +305,8 @@ func (m *MinorBlockChain) SetHead(head uint64) error {
 }
 
 func (m *MinorBlockChain) setHead(head uint64) error {
-	log.Warn("Rewinding blockchain", "target", head)
-	defer log.Warn("Rewinding blockchain-end", "target number", head)
+	log.Warn(m.logInfo+" Rewinding blockchain", "target", head)
+	defer log.Warn(m.logInfo+" Rewinding blockchain-end", "target number", head)
 	// Rewind the header chain, deleting all block bodies until then
 	batch := m.db.NewBatch()
 	for block := m.CurrentBlock(); block != nil && block.NumberU64() > head; block = m.CurrentBlock() {
@@ -1051,11 +1052,13 @@ func (m *MinorBlockChain) InsertChainForDeposits(chain []types.IBlock, isCheckDB
 	m.wg.Done()
 
 	m.PostChainEvents(events, logs)
+	m.mu.Lock()
 	confirmed := m.confirmedHeaderTip
+	m.mu.Unlock()
 	if confirmed == nil {
-		log.Warn("confirmed is nil")
+		log.Warn(m.logInfo+" insert chain", "confirmed", nil)
 	} else {
-		log.Debug(m.logInfo, "tip", m.CurrentBlock().NumberU64(), "tipHash", m.CurrentBlock().Hash().String(), "to add", chain[0].NumberU64(), "hash", chain[0].NumberU64(), "confirmed", confirmed.Number)
+		log.Debug(m.logInfo+" insert chain", "tip", m.CurrentBlock().NumberU64(), "tipHash", m.CurrentBlock().Hash().TerminalString(), "to add", chain[0].NumberU64(), "hash", chain[0].Hash().TerminalString(), "confirmed", confirmed.Number)
 	}
 
 	return n, xShardList, err
@@ -1191,7 +1194,7 @@ func (m *MinorBlockChain) insertChain(chain []types.IBlock, verifySeals bool, is
 		}
 		switch status {
 		case CanonStatTy:
-			log.Debug("Inserted new block", "number", mBlock.NumberU64(), "hash", mBlock.Hash(),
+			log.Debug(m.logInfo+" Inserted new block", "number", mBlock.NumberU64(), "hash", mBlock.Hash().TerminalString(),
 				"txs", len(mBlock.GetTransactions()), "gas", mBlock.GetMetaData().GasUsed.Value.Uint64(),
 				"elapsed", common.PrettyDuration(time.Since(start)),
 				"root", mBlock.GetMetaData().Root)
@@ -1204,9 +1207,9 @@ func (m *MinorBlockChain) insertChain(chain []types.IBlock, verifySeals bool, is
 			m.gcproc += proctime
 
 		case SideStatTy:
-			log.Debug("Inserted forked block", "number", mBlock.NumberU64(), "hash", mBlock.Hash(),
+			log.Debug(m.logInfo+" Inserted forked block", "number", mBlock.NumberU64(), "hash", mBlock.Hash().TerminalString(),
 				"diff", mBlock.Difficulty(), "elapsed", common.PrettyDuration(time.Since(start)),
-				"txs", len(mBlock.GetTransactions()), "gas", mBlock.GetMetaData().GasUsed,
+				"txs", len(mBlock.GetTransactions()), "gas", mBlock.GetMetaData().GasUsed.Value.Uint64(),
 				"root", mBlock.GetMetaData().Root)
 			events = append(events, MinorChainSideEvent{mBlock})
 		}
@@ -1430,7 +1433,7 @@ func (m *MinorBlockChain) reorg(oldBlock, newBlock types.IBlock) error {
 			logFn = log.Warn
 		}
 		if commonBlock != nil {
-			logFn("Chain split detected", "number", commonBlock.NumberU64(), "hash", commonBlock.Hash(),
+			logFn(m.logInfo+" Chain split detected", "number", commonBlock.NumberU64(), "hash", commonBlock.Hash(),
 				"drop", len(oldChain), "dropfrom", oldChain[0].Hash(), "add", len(newChain), "addfrom", newChain[0].Hash())
 		} else {
 			log.Warn("ChainRevert genesis", "drop", len(oldChain), "dropfrom", oldChain[0].Hash(), "add", len(newChain), "addfrom", newChain[0].Hash())
@@ -1438,7 +1441,7 @@ func (m *MinorBlockChain) reorg(oldBlock, newBlock types.IBlock) error {
 
 	} else {
 		// we support reorg block from same chain,because we should delete and add tx index
-		log.Warn("reorg", "same chain curr", m.CurrentBlock().NumberU64(), "curr.Hash", m.CurrentBlock().Hash().String(),
+		log.Warn(m.logInfo+" reorg", "same chain curr", m.CurrentBlock().NumberU64(), "curr.Hash", m.CurrentBlock().Hash().TerminalString(),
 			"newBlock", newBlockNumber, "newBlock's hash", newBlockHash, "newBlock", m.GetMinorBlock(newBlockHash) == nil)
 		if err := m.setHead(newBlockNumber); err != nil {
 			return err
@@ -1535,7 +1538,7 @@ func (m *MinorBlockChain) reportBlock(block types.IBlock, receipts types.Receipt
 	}
 	log.Error(fmt.Sprintf(`
 ########## BAD BLOCK #########
-Chain config: %v
+Chain config: %#v
 
 Number: %v
 Hash: 0x%x
