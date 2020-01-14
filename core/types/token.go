@@ -179,8 +179,8 @@ func (t *TokenBalances) GetTokenBalance(tokenID uint64) *big.Int {
 			if err := rlp.DecodeBytes(v, ret); err != nil {
 				panic(err)
 			}
+			t.balances[tokenID] = ret
 		}
-		t.balances[tokenID] = ret
 		return ret
 	}
 	return new(big.Int)

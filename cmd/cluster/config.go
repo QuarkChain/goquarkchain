@@ -117,12 +117,12 @@ func makeConfigNode(ctx *cli.Context) (*service.Node, qkcConfig) {
 		utils.Fatalf("Failed to create the protocol stack: %v", err)
 	}
 
-	for _, v := range params.PrecompliedContractsAfterEvmEnabled {
+	for _, v := range params.PrecompiledContractsAfterEvmEnabled {
 		if vm.PrecompiledContractsByzantium[v] != nil {
 			vm.PrecompiledContractsByzantium[v].SetEnableTime(cfg.Cluster.Quarkchain.EnableEvmTimeStamp)
 		}
 	}
-	for _, v := range params.PrecompliedContractMintMnt {
+	for _, v := range params.PrecompiledContractsMnt {
 		if vm.PrecompiledContractsByzantium[v] != nil {
 			vm.PrecompiledContractsByzantium[v].SetEnableTime(cfg.Cluster.Quarkchain.EnableNonReservedNativeTokenTimestamp)
 		}

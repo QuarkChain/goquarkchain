@@ -46,7 +46,7 @@ var (
 )
 
 var (
-	PrecompliedContractsAfterEvmEnabled = []common.Address{
+	PrecompiledContractsAfterEvmEnabled = []common.Address{
 		common.HexToAddress("000000000000000000000000000000514b430001"),
 		common.HexToAddress("000000000000000000000000000000514b430002"),
 		common.HexToAddress("000000000000000000000000000000514b430003"),
@@ -54,7 +54,8 @@ var (
 )
 
 var (
-	PrecompliedContractMintMnt = []common.Address{
+	PrecompiledContractsMnt = []common.Address{
 		common.HexToAddress("000000000000000000000000000000514b430004"),
+		common.HexToAddress("000000000000000000000000000000514b430005"),
 	}
 )
