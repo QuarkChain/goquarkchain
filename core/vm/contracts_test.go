@@ -18,8 +18,13 @@ package vm
 
 import (
 	"fmt"
+	"github.com/QuarkChain/goquarkchain/account"
+	"github.com/QuarkChain/goquarkchain/core/state"
 	"github.com/QuarkChain/goquarkchain/params"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/vm"
+	"github.com/ethereum/go-ethereum/ethdb"
+	gethParam "github.com/ethereum/go-ethereum/params"
 	"github.com/stretchr/testify/assert"
 	"math"
 	"math/big"
@@ -503,4 +508,68 @@ func TestPrecompiledCurrentMntID(t *testing.T) {
 	res, err := RunPrecompiledContract(p, in, contract, evm)
 	assert.NoError(t, err)
 	assert.Equal(t, new(big.Int).SetBytes(res).Uint64(), evm.TransferTokenID)
+}
+
+func TestProcBalanceMnt(t *testing.T) {
+	defaultAddr, tokenId := common.HexToAddress("0000000000000000000000000000000000000034"), uint64(1234567)
+	mint := func(state StateDB, addr common.Address, tokenId, amount uint64) error {
+		addrBytes := common.LeftPadBytes(addr.Bytes(), 32)
+		tokenIdBytes := common.LeftPadBytes(new(big.Int).SetUint64(tokenId).Bytes(), 32)
+		amountBytes := common.LeftPadBytes(new(big.Int).SetUint64(amount).Bytes(), 32)
+		data := append(addrBytes, tokenIdBytes...)
+		data = append(data, amountBytes...)
+		pc := PrecompiledContractsByzantium[common.HexToAddress(MintMNTAddr)]
+		gas := gethParam.CallNewAccountGas + pc.RequiredGas(data)
+		codeAddr := common.HexToAddress(NonReservedNativeTokenContractAddr)
+		contract := NewContract(vm.AccountRef(codeAddr), vm.AccountRef(codeAddr), new(big.Int), gas)
+		evm := NewEVM(Context{}, state, &params.DefaultConstantinople, Config{})
+		_, err := RunPrecompiledContract(pc, data, contract, evm)
+		return err
+	}
+	balance := func(state StateDB, addr common.Address, tokenId, gas uint64) (*big.Int, uint64, error) {
+		addrBytes := common.LeftPadBytes(addr.Bytes(), 32)
+		tokenIdBytes := common.LeftPadBytes(new(big.Int).SetUint64(tokenId).Bytes(), 32)
+		data := append(addrBytes, tokenIdBytes...)
+		pc := PrecompiledContractsByzantium[common.HexToAddress(BalanceMNTAddr)]
+		evm := NewEVM(Context{}, state, &params.DefaultConstantinople, Config{})
+		contract := NewContract(vm.AccountRef(addr), vm.AccountRef(addr), new(big.Int), gas)
+		ret, err := RunPrecompiledContract(pc, data, contract, evm)
+		if err != nil {
+			return nil, contract.Gas, err
+		}
+		return new(big.Int).SetBytes(ret), contract.Gas, nil
+	}
+
+	statedb, _ := state.New(common.Hash{}, state.NewDatabase(ethdb.NewMemDatabase()))
+	amount := uint64(2020)
+	err := mint(statedb, defaultAddr, tokenId, amount)
+	assert.NoError(t, err)
+	blc := statedb.GetBalance(defaultAddr, tokenId)
+	assert.Equal(t, amount, blc.Uint64())
+
+	_, _, err = balance(statedb, defaultAddr, tokenId, 399)
+	assert.EqualError(t, err, ErrOutOfGas.Error())
+	randAcc, _ := account.CreatRandomAccountWithoutFullShardKey()
+	tests := []struct {
+		addr    common.Address
+		tokenId uint64
+		balance *big.Int
+	}{
+		{
+			defaultAddr, tokenId, new(big.Int).SetUint64(amount),
+		},
+		{
+			defaultAddr, 54321, common.Big0,
+		},
+
+		{randAcc.Recipient, tokenId, common.Big0},
+	}
+	pc := PrecompiledContractsByzantium[common.HexToAddress(BalanceMNTAddr)]
+	gasRemain := 500 - pc.RequiredGas(nil)
+	for _, test := range tests {
+		b, g, e := balance(statedb, test.addr, test.tokenId, 500)
+		assert.NoError(t, e)
+		assert.Equal(t, gasRemain, g)
+		assert.Equal(t, test.balance, b)
+	}
 }

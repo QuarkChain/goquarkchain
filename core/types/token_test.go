@@ -125,7 +125,8 @@ func TestEncodeChangeFromDictToTrie(t *testing.T) {
 
 	assert.True(t, len(b.balances) == 0)
 	assert.True(t, b.GetTokenBalance(qCommon.TokenIDEncode("QB")).Uint64() == 0)
-	assert.True(t, len(b.balances) == 1)
+	//# balance map truncated, entries with 0 value will be ignored
+	assert.True(t, len(b.balances) == 0)
 	assert.True(t, !b.IsBlank(), true)
 
 	b.SetValue(new(big.Int), newToken)

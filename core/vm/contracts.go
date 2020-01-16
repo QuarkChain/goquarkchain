@@ -45,9 +45,11 @@ var (
 	transferMntAddr                        = "000000000000000000000000000000514b430002"
 	deploySystemContractAddr               = "000000000000000000000000000000514b430003"
 	MintMNTAddr                            = "000000000000000000000000000000514b430004"
+	BalanceMNTAddr                         = "000000000000000000000000000000514b430005"
 	currentMntIDGas                        = uint64(3)
 	transferMntGas                         = uint64(3)
 	deployRootChainPoSWStakingContractGas  = uint64(3)
+	balanceMNTGas                          = uint64(400)
 	mintMNTSuccess                         = common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000001")
 
 	SystemContracts = []SystemContract{
@@ -122,6 +124,7 @@ var PrecompiledContractsByzantium = map[common.Address]PrecompiledContract{
 	common.HexToAddress(transferMntAddr):          &transferMnt{},
 	common.HexToAddress(deploySystemContractAddr): &deploySystemContract{},
 	common.HexToAddress(MintMNTAddr):              &mintMNT{math2.MaxUint64},
+	common.HexToAddress(BalanceMNTAddr):           &balanceMNT{math2.MaxUint64},
 }
 
 // RunPrecompiledContract runs and evaluates the output of a precompiled contract.
@@ -653,4 +656,27 @@ func (m *mintMNT) Run(input []byte, evm *EVM, contract *Contract) ([]byte, error
 	}
 	evm.StateDB.AddBalance(minter, value, mnt.Uint64())
 	return mintMNTSuccess, nil
+}
+
+type balanceMNT struct {
+	enableTime uint64
+}
+
+func (m *balanceMNT) GetEnableTime() uint64 {
+	return m.enableTime
+}
+func (m *balanceMNT) SetEnableTime(data uint64) {
+	m.enableTime = data
+}
+func (m *balanceMNT) RequiredGas(input []byte) uint64 {
+	return balanceMNTGas
+}
+
+func (m *balanceMNT) Run(input []byte, evm *EVM, contract *Contract) ([]byte, error) {
+	addrBytes := getData(input, 0, 32)
+	addr := common.BytesToAddress(addrBytes)
+	mntBytes := getData(input, 32, 32)
+	mnt := new(big.Int).SetBytes(mntBytes)
+	balance := evm.StateDB.GetBalance(addr, mnt.Uint64())
+	return balance.Bytes(), nil
 }
