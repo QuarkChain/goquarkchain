@@ -586,8 +586,10 @@ func (p *PublicBlockChainAPI) GetWork(fullShardKey *hexutil.Uint, coinbaseAddres
 		}
 		fullShardId = &id
 	}
-
+	fmt.Println("Ready to get work",fullShardId,coinbaseAddress.String())
 	work, err := p.b.GetWork(fullShardId, coinbaseAddress)
+	fmt.Println("End to get work",fullShardId,coinbaseAddress.String())
+
 	if err != nil {
 		return nil, err
 	}

@@ -268,7 +268,10 @@ func (s *QKCMasterBackend) GetWork(fullShardId *uint32, addr *common.Address) (*
 	if slaveConn == nil {
 		return nil, ErrNoBranchConn
 	}
-	return slaveConn.GetWork(branch, coinbaseAddr)
+	fmt.Println("master->slave start")
+	data,err:= slaveConn.GetWork(branch, coinbaseAddr)
+	fmt.Println("master->slave end")
+	return data,err
 }
 
 // submit root chain work if branch is nil

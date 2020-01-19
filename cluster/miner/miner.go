@@ -1,6 +1,7 @@
 package miner
 
 import (
+	"fmt"
 	"math/big"
 	"runtime"
 	"sync"
@@ -158,24 +159,30 @@ func (m *Miner) SetMining(mining bool) {
 }
 
 func (m *Miner) GetWork(coinbaseAddr *account.Address) (*consensus.MiningWork, error) {
+	fmt.Println("MMMMMMMMMMMMMMMM",coinbaseAddr.FullShardKey,coinbaseAddr.ToHex())
 	addrForGetWork := m.api.GetDefaultCoinbaseAddress()
 	if coinbaseAddr != nil && !account.IsSameAddress(*coinbaseAddr, m.api.GetDefaultCoinbaseAddress()) {
 		addrForGetWork = *coinbaseAddr
 	}
-
+	fmt.Println("MMMMMMMMMMMMMMMM-1",coinbaseAddr.FullShardKey,coinbaseAddr.ToHex())
 	work, err := m.engine.GetWork(addrForGetWork)
 	if err != nil {
+		fmt.Println("MMMMMMMMMMMMMMMM-2",coinbaseAddr.FullShardKey,coinbaseAddr.ToHex(),err)
 		if err == consensus.ErrNoMiningWork {
+			fmt.Println("MMMMMMMMMMMMMMMM-3",coinbaseAddr.FullShardKey,coinbaseAddr.ToHex())
 			block, diff, optionalDivider, err := m.api.CreateBlockToMine(&addrForGetWork)
 			if err == nil {
 				m.workCh <- workAdjusted{block, diff, optionalDivider}
 				return &consensus.MiningWork{HeaderHash: block.IHeader().SealHash(), Number: block.NumberU64(),
 					OptionalDivider: optionalDivider, Difficulty: diff}, nil
 			}
+			fmt.Println("MMMMMMMMMMMMMMMM-4",coinbaseAddr.FullShardKey,coinbaseAddr.ToHex())
 			return nil, err
 		}
+		fmt.Println("MMMMMMMMMMMMMMMM-5",coinbaseAddr.FullShardKey,coinbaseAddr.ToHex())
 		return nil, err
 	}
+	fmt.Println("MMMMMMMMMMMMMMMM-6",coinbaseAddr.FullShardKey,coinbaseAddr.ToHex())
 	return work, nil
 }
 
