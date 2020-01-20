@@ -588,7 +588,7 @@ func (p *PublicBlockChainAPI) GetWork(fullShardKey *hexutil.Uint, coinbaseAddres
 		}
 		fullShardId = &id
 	}
-	fmt.Println("Ready to get work",fullShardId,coinbaseAddress.String())
+	fmt.Println("Ready to get work",fullShardId,coinbaseAddress.String(),time.Now().Second())
 	work, err := p.b.GetWork(fullShardId, coinbaseAddress)
 	fmt.Println("End to get work",fullShardId,coinbaseAddress.String())
 
@@ -603,7 +603,7 @@ func (p *PublicBlockChainAPI) GetWork(fullShardKey *hexutil.Uint, coinbaseAddres
 	if work.OptionalDivider > 1 {
 		val = append(val, common.BytesToHash(qcom.Uint64ToBytes(work.OptionalDivider)))
 	}
-	fmt.Println("End to get work-rrrrrrrrrrr",fullShardId,coinbaseAddress.String(),time.Now().Sub(ts).Seconds())
+	fmt.Println("End to get work-rrrrrrrrrrr",fullShardId,coinbaseAddress.String(),time.Now().Sub(ts).Seconds(),time.Now().Second())
 	return val, nil
 }
 
