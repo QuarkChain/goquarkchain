@@ -171,8 +171,11 @@ func (m *Miner) GetWork(coinbaseAddr *account.Address) (*consensus.MiningWork, e
 		if err == consensus.ErrNoMiningWork {
 			fmt.Println("MMMMMMMMMMMMMMMM-3",coinbaseAddr.FullShardKey,coinbaseAddr.ToHex())
 			block, diff, optionalDivider, err := m.api.CreateBlockToMine(&addrForGetWork)
+			fmt.Println("MMMMMMMMMMMMMMMM-3.5",coinbaseAddr.FullShardKey,coinbaseAddr.ToHex())
 			if err == nil {
+				fmt.Println("MMMMMMMMMMMMMMMM-3.6",coinbaseAddr.FullShardKey,coinbaseAddr.ToHex())
 				m.workCh <- workAdjusted{block, diff, optionalDivider}
+				fmt.Println("MMMMMMMMMMMMMMMM-3.7",coinbaseAddr.FullShardKey,coinbaseAddr.ToHex())
 				return &consensus.MiningWork{HeaderHash: block.IHeader().SealHash(), Number: block.NumberU64(),
 					OptionalDivider: optionalDivider, Difficulty: diff}, nil
 			}
