@@ -484,6 +484,7 @@ func (s *ShardBackend) GetDefaultCoinbaseAddress() account.Address {
 
 // miner api
 func (s *ShardBackend) CreateBlockToMine(addr *account.Address) (types.IBlock, *big.Int, uint64, error) {
+	fmt.Println("CCCCCCCc-1")
 	coinbaseAddress := s.Config.CoinbaseAddress
 	if addr != nil {
 		coinbaseAddress = *addr
@@ -492,6 +493,7 @@ func (s *ShardBackend) CreateBlockToMine(addr *account.Address) (types.IBlock, *
 	if err != nil {
 		return nil, nil, 0, err
 	}
+	fmt.Println("CCCCCCCc-2")
 	diff := minorBlock.Difficulty()
 	header := minorBlock.Header()
 	if s.posw.IsPoSWEnabled(header) {
@@ -499,14 +501,17 @@ func (s *ShardBackend) CreateBlockToMine(addr *account.Address) (types.IBlock, *
 		if err != nil {
 			return nil, nil, 0, err
 		}
+		fmt.Println("CCCCCCCc-3")
 		balance := balances.GetTokenBalance(s.MinorBlockChain.GetGenesisToken())
 		adjustedDifficulty, err := s.posw.PoSWDiffAdjust(header, balance)
 		if err != nil {
 			log.Error("PoSW", "failed to compute PoSW difficulty", err)
 			return nil, nil, 0, err
 		}
+		fmt.Println("CCCCCCCc-4")
 		return minorBlock, adjustedDifficulty, 1, nil
 	}
+	fmt.Println("CCCCCCCc-5")
 	return minorBlock, diff, 1, nil
 }
 
