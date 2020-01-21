@@ -70,6 +70,10 @@ func (e *EvmTransaction) SetGas(data uint64) {
 	e.updated = true
 }
 
+func (e *EvmTransaction)SetFromFullShardKey(data Uint32)  {
+	e.data.FromFullShardKey=&data
+}
+
 func (e *EvmTransaction) SetNonce(data uint64) {
 	e.data.AccountNonce = data
 	e.updated = true
