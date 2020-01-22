@@ -135,10 +135,6 @@ func NewRootBlockChain(db ethdb.Database, chainConfig *config.QuarkChainConfig, 
 	}
 	bc.SetValidator(NewRootBlockValidator(chainConfig, bc, engine))
 	bc.posw = posw.NewPoSW(bc, chainConfig.Root.PoSWConfig)
-	var err error
-	if err != nil {
-		return nil, err
-	}
 	genesisBlock := bc.GetBlockByNumber(0)
 	if genesisBlock == nil {
 		return nil, ErrNoGenesis
@@ -146,6 +142,14 @@ func NewRootBlockChain(db ethdb.Database, chainConfig *config.QuarkChainConfig, 
 	bc.genesisBlock = genesisBlock.(*types.RootBlock)
 
 	if err := bc.loadLastState(); err != nil {
+		return nil, err
+	}
+	head := uint64(bc.CurrentBlock().Number() - 2)
+	if head < 0 {
+		head = 0
+	}
+	err := bc.SetHead(head)
+	if err != nil {
 		return nil, err
 	}
 	// Take ownership of this particular state

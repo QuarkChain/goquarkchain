@@ -13,8 +13,9 @@ var (
 
 func isSameChain(getParentHash func(common.Hash) common.Hash, longerChainHeader, shorterChainHeader types.IHeader) bool {
 	if longerChainHeader.NumberU64() < shorterChainHeader.NumberU64() {
+		longerChainHeader, shorterChainHeader = shorterChainHeader, longerChainHeader
 		debug.PrintStack()
-		log.Crit("wrong parameter order", "long.Number", longerChainHeader.NumberU64(), "long.Hash", longerChainHeader.Hash().String(), "short.Number", shorterChainHeader.NumberU64(), "short.hash", shorterChainHeader.Hash().String())
+		log.Warn("wrong parameter order", "long.Number", longerChainHeader.NumberU64(), "long.Hash", longerChainHeader.Hash().String(), "short.Number", shorterChainHeader.NumberU64(), "short.hash", shorterChainHeader.Hash().String())
 	}
 	if shorterChainHeader.NumberU64() == longerChainHeader.NumberU64() {
 		return shorterChainHeader.Hash() == longerChainHeader.Hash()
