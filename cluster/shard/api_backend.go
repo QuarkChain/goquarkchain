@@ -265,6 +265,8 @@ func (s *ShardBackend) NewMinorBlock(peerId string, block *types.MinorBlock) (er
 // Returns true if block is successfully added. False on any error.
 // called by 1. local miner (will not run if syncing) 2. SyncTask
 func (s *ShardBackend) AddMinorBlock(block *types.MinorBlock) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	s.wg.Add(1)
 	defer s.wg.Done()
 	if commitStatus := s.getBlockCommitStatusByHash(block.Hash()); commitStatus == BLOCK_COMMITTED {
@@ -339,6 +341,8 @@ func (s *ShardBackend) AddMinorBlock(block *types.MinorBlock) error {
 // and will add them once this function returns successfully.
 
 func (s *ShardBackend) AddBlockListForSync(blockLst []*types.MinorBlock) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	s.wg.Add(1)
 	defer s.wg.Done()
 
