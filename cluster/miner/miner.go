@@ -174,7 +174,12 @@ func (m *Miner) GetWork(coinbaseAddr *account.Address) (*consensus.MiningWork, e
 			fmt.Println("MMMMMMMMMMMMMMMM-3.5",coinbaseAddr.FullShardKey,coinbaseAddr.ToHex())
 			if err == nil {
 				fmt.Println("MMMMMMMMMMMMMMMM-3.6",coinbaseAddr.FullShardKey,coinbaseAddr.ToHex())
-				m.workCh <- workAdjusted{block, diff, optionalDivider}
+				work:= workAdjusted{block, diff, optionalDivider}
+				go func(){	if err := m.engine.Seal(nil, work.block, work.adjustedDifficulty, work.optionalDivider, m.resultCh, m.stopCh); err != nil {
+									log.Error(m.logInfo, "Seal block to mine err", err)
+													coinbase := work.block.Coinbase()
+																	m.commit(&coinbase)
+																				}}()
 				fmt.Println("MMMMMMMMMMMMMMMM-3.7",coinbaseAddr.FullShardKey,coinbaseAddr.ToHex())
 				return &consensus.MiningWork{HeaderHash: block.IHeader().SealHash(), Number: block.NumberU64(),
 					OptionalDivider: optionalDivider, Difficulty: diff}, nil
