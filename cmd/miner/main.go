@@ -182,7 +182,7 @@ func fetchWorkRPC(shardID *uint32, addr *string) (work consensus.MiningWork, err
 	if shardID != nil {
 		shardIDArg = "0x" + strconv.FormatUint(uint64(*shardID), 16)
 	}
-	fmt.Println("ready to call",time.Now().Second())
+
 	ret := make([]string, 4)
 	err = cli.CallContext(
 		ctx,
@@ -191,11 +191,9 @@ func fetchWorkRPC(shardID *uint32, addr *string) (work consensus.MiningWork, err
 		shardIDArg,
 		addr,
 	)
-	fmt.Println("end to call",err,time.Now().Second())
 	if err != nil {
 		return work, err
 	}
-
 
 	headerHash := common.HexToHash(ret[0])
 	if headerHash == (common.Hash{}) {

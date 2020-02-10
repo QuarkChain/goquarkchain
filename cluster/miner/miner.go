@@ -1,7 +1,6 @@
 package miner
 
 import (
-	"fmt"
 	"math/big"
 	"runtime"
 	"sync"
@@ -120,11 +119,13 @@ func (m *Miner) mainLoop() {
 
 		case work := <-m.workCh: //to discuss:need this?
 			log.Debug(m.logInfo, "ready to seal height", work.block.NumberU64(), "coinbase", work.block.Coinbase().ToHex())
-		go func(){	if err := m.engine.Seal(nil, work.block, work.adjustedDifficulty, work.optionalDivider, m.resultCh, m.stopCh); err != nil {
+		go func(){
+			if err := m.engine.Seal(nil, work.block, work.adjustedDifficulty, work.optionalDivider, m.resultCh, m.stopCh); err != nil {
 				log.Error(m.logInfo, "Seal block to mine err", err)
 				coinbase := work.block.Coinbase()
 				m.commit(&coinbase)
-			}}()
+			}
+		}()
 
 		case block := <-m.resultCh:
 			log.Debug(m.logInfo, "seal succ number", block.NumberU64(), "hash", block.Hash().String())
@@ -159,38 +160,32 @@ func (m *Miner) SetMining(mining bool) {
 }
 
 func (m *Miner) GetWork(coinbaseAddr *account.Address) (*consensus.MiningWork, error) {
-	fmt.Println("MMMMMMMMMMMMMMMM",coinbaseAddr.FullShardKey,coinbaseAddr.ToHex())
 	addrForGetWork := m.api.GetDefaultCoinbaseAddress()
 	if coinbaseAddr != nil && !account.IsSameAddress(*coinbaseAddr, m.api.GetDefaultCoinbaseAddress()) {
 		addrForGetWork = *coinbaseAddr
 	}
-	fmt.Println("MMMMMMMMMMMMMMMM-1",coinbaseAddr.FullShardKey,coinbaseAddr.ToHex())
+
 	work, err := m.engine.GetWork(addrForGetWork)
 	if err != nil {
-		fmt.Println("MMMMMMMMMMMMMMMM-2",coinbaseAddr.FullShardKey,coinbaseAddr.ToHex(),err)
 		if err == consensus.ErrNoMiningWork {
-			fmt.Println("MMMMMMMMMMMMMMMM-3",coinbaseAddr.FullShardKey,coinbaseAddr.ToHex())
 			block, diff, optionalDivider, err := m.api.CreateBlockToMine(&addrForGetWork)
-			fmt.Println("MMMMMMMMMMMMMMMM-3.5",coinbaseAddr.FullShardKey,coinbaseAddr.ToHex())
 			if err == nil {
-				fmt.Println("MMMMMMMMMMMMMMMM-3.6",coinbaseAddr.FullShardKey,coinbaseAddr.ToHex())
 				work:= workAdjusted{block, diff, optionalDivider}
-				go func(){	if err := m.engine.Seal(nil, work.block, work.adjustedDifficulty, work.optionalDivider, m.resultCh, m.stopCh); err != nil {
-									log.Error(m.logInfo, "Seal block to mine err", err)
-													coinbase := work.block.Coinbase()
-																	m.commit(&coinbase)
-																				}}()
-				fmt.Println("MMMMMMMMMMMMMMMM-3.7",coinbaseAddr.FullShardKey,coinbaseAddr.ToHex())
+				go func(){
+					if err := m.engine.Seal(nil, work.block, work.adjustedDifficulty, work.optionalDivider,
+						m.resultCh, m.stopCh); err != nil {
+						log.Error(m.logInfo, "Seal block to mine err", err)
+						coinbase := work.block.Coinbase()
+						m.commit(&coinbase)
+						}
+				}()
 				return &consensus.MiningWork{HeaderHash: block.IHeader().SealHash(), Number: block.NumberU64(),
 					OptionalDivider: optionalDivider, Difficulty: diff}, nil
 			}
-			fmt.Println("MMMMMMMMMMMMMMMM-4",coinbaseAddr.FullShardKey,coinbaseAddr.ToHex())
 			return nil, err
 		}
-		fmt.Println("MMMMMMMMMMMMMMMM-5",coinbaseAddr.FullShardKey,coinbaseAddr.ToHex())
 		return nil, err
 	}
-	fmt.Println("MMMMMMMMMMMMMMMM-6",coinbaseAddr.FullShardKey,coinbaseAddr.ToHex())
 	return work, nil
 }
 

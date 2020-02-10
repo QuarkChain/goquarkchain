@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"math/big"
 	"sort"
-	"time"
 
 	"github.com/QuarkChain/goquarkchain/account"
 	qrpc "github.com/QuarkChain/goquarkchain/cluster/rpc"
@@ -579,7 +578,6 @@ func (p *PublicBlockChainAPI) SubmitWork(fullShardKey *hexutil.Uint, headHash co
 }
 
 func (p *PublicBlockChainAPI) GetWork(fullShardKey *hexutil.Uint, coinbaseAddress *common.Address) ([]common.Hash, error) {
-	ts:=time.Now()
 	var fullShardId *uint32
 	if fullShardKey != nil {
 		id, err := getFullShardId(fullShardKey)
@@ -588,10 +586,8 @@ func (p *PublicBlockChainAPI) GetWork(fullShardKey *hexutil.Uint, coinbaseAddres
 		}
 		fullShardId = &id
 	}
-	fmt.Println("Ready to get work",fullShardId,coinbaseAddress.String(),time.Now().Second())
-	work, err := p.b.GetWork(fullShardId, coinbaseAddress)
-	fmt.Println("End to get work",fullShardId,coinbaseAddress.String())
 
+	work, err := p.b.GetWork(fullShardId, coinbaseAddress)
 	if err != nil {
 		return nil, err
 	}
@@ -603,7 +599,6 @@ func (p *PublicBlockChainAPI) GetWork(fullShardKey *hexutil.Uint, coinbaseAddres
 	if work.OptionalDivider > 1 {
 		val = append(val, common.BytesToHash(qcom.Uint64ToBytes(work.OptionalDivider)))
 	}
-	fmt.Println("End to get work-rrrrrrrrrrr",fullShardId,coinbaseAddress.String(),time.Now().Sub(ts).Seconds(),time.Now().Second())
 	return val, nil
 }
 

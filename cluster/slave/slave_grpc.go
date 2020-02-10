@@ -430,7 +430,7 @@ func (s *SlaveServerSideOp) GetWork(ctx context.Context, req *rpc.Request) (*rpc
 	if err = serialize.DeserializeFromBytes(req.Data, &gReq); err != nil {
 		return nil, err
 	}
-	fmt.Println("slavre recevie")
+
 	if work, err = s.slave.GetWork(gReq.Branch, gReq.CoinbaseAddr); err != nil {
 		return nil, err
 	}
@@ -438,7 +438,6 @@ func (s *SlaveServerSideOp) GetWork(ctx context.Context, req *rpc.Request) (*rpc
 	if response.Data, err = serialize.SerializeToBytes(work); err != nil {
 		return nil, err
 	}
-	fmt.Println("slave five response")
 	return response, nil
 }
 
