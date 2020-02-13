@@ -399,8 +399,12 @@ func (p *PublicBlockChainAPI) Call(data CallArgs, blockNr *rpc.BlockNumber) (hex
 
 }
 
-func (p *PublicBlockChainAPI) EstimateGas(data CallArgs) ([]byte, error) {
-	return p.CommonAPI.callOrEstimateGas(&data, nil, false)
+func (p *PublicBlockChainAPI) EstimateGas(data CallArgs) (hexutil.Uint, error) {
+	gas, err := p.CommonAPI.callOrEstimateGas(&data, nil, false)
+	if err != nil {
+		return 0, err
+	}
+	return hexutil.Uint(qcom.BytesToUint32(gas)), nil
 }
 
 func (p *PublicBlockChainAPI) GetLogs(args *rpc.FilterQuery, fullShardKey hexutil.Uint) ([]map[string]interface{}, error) {
@@ -658,6 +662,15 @@ func (p *PublicBlockChainAPI) NetVersion() hexutil.Uint {
 	return hexutil.Uint(clusterCfg.Quarkchain.NetworkID)
 }
 
+func (p *PublicBlockChainAPI) GetFullShardIds() ([]hexutil.Uint64, error) {
+	ids := clusterCfg.Quarkchain.GetGenesisShardIds()
+	res := make([]hexutil.Uint64, len(ids))
+	for i, id := range ids {
+		res[i] = hexutil.Uint64(id)
+	}
+	return res, nil
+}
+
 type PrivateBlockChainAPI struct {
 	b Backend
 }
@@ -820,12 +833,16 @@ func (e *EthBlockChainAPI) Call(data EthCallArgs, fullShardKey *hexutil.Uint) (h
 	return e.CommonAPI.callOrEstimateGas(args, nil, true)
 }
 
-func (e *EthBlockChainAPI) EstimateGas(data EthCallArgs, fullShardKey *hexutil.Uint) ([]byte, error) {
+func (e *EthBlockChainAPI) EstimateGas(data EthCallArgs, fullShardKey *hexutil.Uint) (hexutil.Uint, error) {
 	args, err := convertEthCallData(&data)
 	if err != nil {
-		return nil, err
+		return 0, err
 	}
-	return e.CommonAPI.callOrEstimateGas(args, nil, false)
+	gas, err := e.CommonAPI.callOrEstimateGas(args, nil, false)
+	if err != nil {
+		return 0, err
+	}
+	return hexutil.Uint(qcom.BytesToUint32(gas)), nil
 }
 
 func (e *EthBlockChainAPI) GetStorageAt(address common.Address, key common.Hash, fullShardKey *hexutil.Uint) (hexutil.Bytes, error) {

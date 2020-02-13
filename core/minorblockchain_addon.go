@@ -272,6 +272,7 @@ func (m *MinorBlockChain) InitGenesisState(rBlock *types.RootBlock) (*types.Mino
 	}
 
 	m.initialized = true
+	m.txPool = NewTxPool(DefaultTxPoolConfig, m)
 	return gBlock, nil
 }
 
@@ -406,11 +407,54 @@ func (m *MinorBlockChain) InitFromRootBlock(rBlock *types.RootBlock) error {
 	log.Info(m.logInfo, "tipMinor", block.Number(), "hash", block.Hash().String(),
 		"mete.root", block.Root().String(), "rootBlock", rBlock.NumberU64(), "rootTip", m.rootTip.Number)
 	var err error
+	if _, err = m.StateAt(block.Root()); err != nil {
+		log.Warn(m.logInfo, "miss trie block", block.NumberU64(), "block.hash", block.Hash().String(), "currNumber", m.CurrentBlock().NumberU64(), "currHash", m.CurrentBlock().Hash().String())
+		ts := time.Now()
+		// Note:run block with state until currentBlock instead of confirmedHeaderTip because of pows
+		if err := m.reRunBlockWithState(m.CurrentBlock()); err != nil {
+			log.Error(m.logInfo, "reRunBlockWithState ", err)
+			return err
+		}
+		log.Warn(m.logInfo, "miss trie reRun time", time.Now().Sub(ts).Seconds(), "currentBlock", m.CurrentBlock().NumberU64(), "currHash", m.CurrentBlock().Hash().String())
+	}
 	m.currentEvmState, err = m.StateAt(block.Root())
 	if err != nil {
+		log.Error("unexpected err:should have state here", "err", err)
 		return err
 	}
-	return m.reWriteBlockIndexTo(nil, block)
+	err = m.reWriteBlockIndexTo(nil, block)
+	log.Info(m.logInfo, "init from root block end", m.CurrentBlock().NumberU64())
+	m.txPool = NewTxPool(DefaultTxPoolConfig, m)
+	return err
+}
+
+func reverseList(block []types.IBlock) {
+	start := 0
+	end := len(block) - 1
+	for start < end {
+		block[start], block[end] = block[end], block[start]
+		start++
+		end--
+	}
+}
+
+func (m *MinorBlockChain) reRunBlockWithState(block *types.MinorBlock) error {
+	blockWithoutState := make([]types.IBlock, 0)
+	for {
+		if _, err := m.StateAt(block.Meta().Root); err == nil {
+			log.Info("reRunBlockWithState blockchain to past state", "number", block.Number(), "hash", block.Hash().String())
+			break
+		}
+		blockWithoutState = append(blockWithoutState, block)
+		block = m.GetMinorBlock(block.ParentHash())
+		if qkcCommon.IsNil(block) {
+			return fmt.Errorf("missing block %d [%x]", block.NumberU64(), block.Hash().String())
+		}
+	}
+
+	reverseList(blockWithoutState)
+	_, err := m.InsertChain(blockWithoutState, false)
+	return err
 }
 
 // getEvmStateForNewBlock get evmState for new block.should have locked

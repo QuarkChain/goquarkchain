@@ -69,6 +69,11 @@ func (v *MinorBlockValidator) ValidateBlock(mBlock types.IBlock, force bool) err
 		return ErrInvalidMinorBlock
 	}
 
+	if err := v.engine.VerifyHeader(v.bc, block.Header(), true); err != nil {
+		log.Error(v.logInfo, "verify header err", err)
+		return err
+	}
+
 	if block.Version() != 0 {
 		return errors.New("incorrect minor block version")
 	}

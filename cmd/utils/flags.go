@@ -3,7 +3,6 @@ package utils
 
 import (
 	"fmt"
-	"github.com/QuarkChain/goquarkchain/cluster/slave"
 	"os"
 	"path/filepath"
 	"strings"
@@ -11,6 +10,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/cluster/master"
 	"github.com/QuarkChain/goquarkchain/cluster/service"
+	"github.com/QuarkChain/goquarkchain/cluster/slave"
 	"github.com/QuarkChain/goquarkchain/p2p"
 	"github.com/QuarkChain/goquarkchain/params"
 	"github.com/ethereum/go-ethereum/log"
@@ -235,6 +235,12 @@ var (
 		Usage: "websocket rpc port",
 		Value: int(config.DefaultWSPort),
 	}
+
+	GCModeFlag = cli.StringFlag{
+		Name:  "gcmode",
+		Usage: `Blockchain garbage collection mode ("full", "archive")`,
+		Value: "full",
+	}
 )
 
 // setBootstrapNodes creates a list of bootstrap nodes from the command line
@@ -434,6 +440,11 @@ func SetClusterConfig(ctx *cli.Context, cfg *config.ClusterConfig) {
 	if ctx.GlobalBool(UpnpFlag.Name) {
 		cfg.P2P.UPnP = true
 	}
+
+	if gcmode := ctx.GlobalString(GCModeFlag.Name); gcmode != "full" && gcmode != "archive" {
+		Fatalf("--%s must be either 'full' or 'archive'", GCModeFlag.Name)
+	}
+	cfg.NoPruning = ctx.GlobalString(GCModeFlag.Name) == "archive"
 }
 
 // SetNodeConfig applies node-related command line flags to the config.
