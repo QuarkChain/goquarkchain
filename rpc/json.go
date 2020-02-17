@@ -326,7 +326,8 @@ func parsePositionalArguments(rawArgs json.RawMessage, types []reflect.Type) ([]
 	args := make([]reflect.Value,  len(types))
 
 	mp:=make(map[int]bool)
-	a := strings.Split(string(rawArgs), ",")
+	ss:=string(rawArgs)
+	a := strings.Split(ss[1:len(ss)-1], ",")
 	for index:=0;index<len(a);index++{
 		fmt.Println("typesss",types[index].Kind(),a[index])
 		if types[index].Kind() == reflect.Ptr {
