@@ -260,6 +260,7 @@ func (s *QKCMasterBackend) GetWork(fullShardId *uint32, addr *common.Address) (*
 		coinbaseAddr = nil
 	}
 	if fullShardId == nil {
+		fmt.Println("S--master",coinbaseAddr.String())
 		return s.miner.GetWork(coinbaseAddr)
 	}
 
