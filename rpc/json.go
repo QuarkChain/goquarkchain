@@ -322,7 +322,6 @@ func parsePositionalArguments(rawArgs json.RawMessage, types []reflect.Type) ([]
 		return nil, &invalidParamsError{"non-array args"}
 	}
 
-
 	// Read args.
 	args := make([]reflect.Value,  len(types))
 
@@ -336,7 +335,6 @@ func parsePositionalArguments(rawArgs json.RawMessage, types []reflect.Type) ([]
 			}
 		}
 	}
-
 
 	for i := 0; dec.More(); i++ {
 		if i >= len(types) {

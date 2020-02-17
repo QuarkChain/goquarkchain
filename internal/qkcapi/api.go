@@ -578,6 +578,17 @@ func (p *PublicBlockChainAPI) SubmitWork(fullShardKey *hexutil.Uint, headHash co
 }
 
 func (p *PublicBlockChainAPI) GetWork(fullShardKey *hexutil.Uint, coinbaseAddress *common.Address) ([]common.Hash, error) {
+	if fullShardKey==nil{
+		fmt.Println("fullshardKey==nil")
+	}else{
+		fmt.Println("fullShardkey!=nil",*fullShardKey)
+	}
+
+	if coinbaseAddress==nil{
+		fmt.Println("coinbaseAddress==nil")
+	}else{
+		fmt.Println("coinbaseAddress!=nil",(*coinbaseAddress).String())
+	}
 	var fullShardId *uint32
 	if fullShardKey != nil {
 		id, err := getFullShardId(fullShardKey)
