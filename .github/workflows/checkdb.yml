@@ -1,0 +1,35 @@
+name: checkdb
+on: [push]
+jobs:
+  download-snapshot-and-checkdb:
+    runs-on: self-hosted
+    container: quarkchaindocker/goquarkchain
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Install Dependencies and Build
+        run: |
+          echo "Install Dependencies and Build"
+      - name: Download DB snapshot
+        run: |
+          cd cmd/cluster
+          mkdir  qkc-data
+          curl https://qkcmainnet-go.s3.amazonaws.com/data/`curl https://qkcmainnet-go.s3.amazonaws.com/data/LATEST`.tar.gz --output data.tar.gz
+          tar xvfz data.tar.gz
+          rm data.tar.gz && mv mainnet qkc-data
+
+      - name: Check DB
+        run: |
+          cd consensus/qkchash/native && make && cd -
+          cd cmd/cluster
+          go build
+          chmod +x cluster
+          cd - && cd cmd/cluster
+          ./cluster --cluster_config ../../mainnet/singularity/cluster_config_template.json --service S0>> S0.log 2>&1 &
+          ./cluster --cluster_config ../../mainnet/singularity/cluster_config_template.json --service S1>> S1.log 2>&1 &
+          ./cluster --cluster_config ../../mainnet/singularity/cluster_config_template.json --service S2>> S2.log 2>&1 &
+          ./cluster --cluster_config ../../mainnet/singularity/cluster_config_template.json --service S3>> S3.log 2>&1 &
+          sleep 3
+          cd - && cd cmd/cluster
+          ./cluster --cluster_config ../../mainnet/singularity/cluster_config_template.json --check_db
