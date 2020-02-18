@@ -32,4 +32,4 @@ jobs:
           ./cluster --cluster_config ../../mainnet/singularity/cluster_config_template.json --service S3>> S3.log 2>&1 &
           sleep 3
           cd - && cd cmd/cluster
-          ./cluster --cluster_config ../../mainnet/singularity/cluster_config_template.json --check_db
+          ./cluster --cluster_config ../../mainnet/singularity/cluster_config_template.json --check_db --check_db_rblock_to=400000
