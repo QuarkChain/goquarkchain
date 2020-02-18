@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math/big"
 	"sort"
+	"strings"
 
 	"github.com/QuarkChain/goquarkchain/account"
 	qrpc "github.com/QuarkChain/goquarkchain/cluster/rpc"
@@ -557,9 +558,12 @@ func (p *PublicBlockChainAPI) SubmitWork(fullShardKey *hexutil.Uint, headHash co
 			return false, err
 		}
 		fullShardId = &id
-		if fullShardKey.String() == "0x9999" {
+		k := strings.ToLower(fullShardKey.String())
+		if k == "0x9999" || k == "null" {
 			fullShardId = nil
 		}
+	} else {
+		fullShardId = nil
 	}
 
 	if signature != nil && len(*signature) != 65 {
@@ -588,9 +592,12 @@ func (p *PublicBlockChainAPI) GetWork(fullShardKey *hexutil.Uint, coinbaseAddres
 			return nil, err
 		}
 		fullShardId = &id
-		if fullShardKey.String() == "0x9999" {
+		k := strings.ToLower(fullShardKey.String())
+		if k == "0x9999" || k == "null" {
 			fullShardId = nil
 		}
+	} else {
+		fullShardId = nil
 	}
 
 	work, err := p.b.GetWork(fullShardId, coinbaseAddress)
