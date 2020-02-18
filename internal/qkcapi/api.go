@@ -577,7 +577,7 @@ func (p *PublicBlockChainAPI) SubmitWork(fullShardKey *hexutil.Uint, headHash co
 	return submit, nil
 }
 
-func (p *PublicBlockChainAPI) GetWork(fullShardKey *hexutil.Uint, coinbaseAddress *common.Address) ([]string, error) {
+func (p *PublicBlockChainAPI) GetWork(fullShardKey *hexutil.Uint, coinbaseAddress *common.Address) ([]common.Hash, error) {
 	if fullShardKey==nil{
 		fmt.Println("fullshardKey==nil")
 	}else{
@@ -603,13 +603,13 @@ func (p *PublicBlockChainAPI) GetWork(fullShardKey *hexutil.Uint, coinbaseAddres
 		return nil, err
 	}
 	height := new(big.Int).SetUint64(work.Number)
-	var val = make([]string, 0, 3)
-	val = append(val, work.HeaderHash.String())
-	val = append(val, encoder.DataEncoder(height.Bytes()))
-	val = append(val, encoder.DataEncoder(work.Difficulty.Bytes))
-	if work.OptionalDivider > 1 {
+	var val = make([]common.Hash, 0, 3)
+	val = append(val, work.HeaderHash)
+	val = append(val, common.BytesToHash(height.Bytes()))
+	val = append(val, common.BytesToHash(work.Difficulty.Bytes()))
+	if work.OptionalDivider >= 1 {
 		fmt.Println("611111")
-		val = append(val, encoder.DataEncoder(qcom.Uint64ToBytes(work.OptionalDivider)))
+		val = append(val, common.BytesToHash(qcom.Uint64ToBytes(work.OptionalDivider)))
 	}
 	fmt.Println("diff",work.Difficulty,"optime",work.OptionalDivider,len(val))
 	fmt.Println("end get work",val)
