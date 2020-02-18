@@ -323,11 +323,11 @@ func parsePositionalArguments(rawArgs json.RawMessage, types []reflect.Type) ([]
 	}
 
 	// Read args.
-	args := make([]reflect.Value,  len(types))
 
 	mp:=make(map[int]bool)
 	ss:=string(rawArgs)
 	a := strings.Split(ss[1:len(ss)-1], ",")
+	args := make([]reflect.Value,  len(a))
 	for index:=0;index<len(a);index++{
 		fmt.Println("typesss",types[index].Kind(),a[index])
 		if types[index].Kind() == reflect.Ptr {
@@ -361,10 +361,11 @@ func parsePositionalArguments(rawArgs json.RawMessage, types []reflect.Type) ([]
 		return nil, &invalidParamsError{err.Error()}
 	}
 	// Set any missing args to nil.
-	for i := len(args); i < len(types); i++ {
+	for i := len(a); i < len(types); i++ {
 		if types[i].Kind() != reflect.Ptr {
 			return nil, &invalidParamsError{fmt.Sprintf("missing value for required argument %d", i)}
 		}
+		fmt.Println("368----")
 		args = append(args, reflect.Zero(types[i]))
 	}
 	return args, nil
