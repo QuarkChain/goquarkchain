@@ -550,7 +550,7 @@ func (p *PublicBlockChainAPI) GasPrice(fullShardKey hexutil.Uint, tokenID *hexut
 }
 
 func (p *PublicBlockChainAPI) SubmitWork(fullShardKey *hexutil.Uint, headHash common.Hash, nonce hexutil.Uint64, mixHash common.Hash, signature *hexutil.Bytes) (bool, error) {
-	fmt.Println("Submit",fullShardKey)
+	fmt.Println("Submit",fullShardKey,headHash.String(),nonce,mixHash.String(),signature)
 	var fullShardId *uint32
 	if fullShardKey != nil {
 		id, err := getFullShardId(fullShardKey)
