@@ -613,7 +613,7 @@ func (p *PublicBlockChainAPI) GetWork(fullShardKey *hexutil.Uint, coinbaseAddres
 		val = append(val, common.BytesToHash(qcom.Uint64ToBytes(work.OptionalDivider)))
 	}
 	fmt.Println("diff",work.Difficulty,"optime",work.OptionalDivider,len(val))
-	fmt.Println("end get work",val)
+	fmt.Println("end get work",work.HeaderHash.String())
 	return val, nil
 }
 

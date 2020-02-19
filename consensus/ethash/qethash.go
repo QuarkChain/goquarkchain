@@ -2,6 +2,7 @@ package ethash
 
 import (
 	"bytes"
+	"fmt"
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"math/big"
 	"runtime"
@@ -63,6 +64,7 @@ func (q *QEthash) verifySeal(chain consensus.ChainReader, header types.IHeader, 
 		diff = big.NewInt(1)
 	}
 	target := new(big.Int).Div(two256, diff)
+	fmt.Println("diff",diff)
 	if new(big.Int).SetBytes(result).Cmp(target) > 0 {
 		return errInvalidPoW
 	}
