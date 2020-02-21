@@ -411,7 +411,7 @@ func (m *MinorBlockChain) InitFromRootBlock(rBlock *types.RootBlock) error {
 		log.Warn(m.logInfo, "miss trie block", block.NumberU64(), "block.hash", block.Hash().String(), "currNumber", m.CurrentBlock().NumberU64(), "currHash", m.CurrentBlock().Hash().String())
 		ts := time.Now()
 		stt1:=isSameChain(m.GetParentHashByHash,m.CurrentBlock().Header(),block.Header())
-		fmt.Println("sttt",stt1)
+		fmt.Println("sttt1",stt1)
 		// Note:run block with state until currentBlock instead of confirmedHeaderTip because of pows
 		if err := m.reRunBlockWithState(m.CurrentBlock()); err != nil {
 			log.Error(m.logInfo, "reRunBlockWithState ", err)
@@ -420,7 +420,7 @@ func (m *MinorBlockChain) InitFromRootBlock(rBlock *types.RootBlock) error {
 		log.Warn(m.logInfo, "miss trie reRun time", time.Now().Sub(ts).Seconds(), "currentBlock", m.CurrentBlock().NumberU64(), "currHash", m.CurrentBlock().Hash().String())
 	}
 	stt:=isSameChain(m.GetParentHashByHash,m.CurrentBlock().Header(),block.Header())
-	fmt.Println("sttt",stt)
+	fmt.Println("sttt2",stt)
 	m.currentEvmState, err = m.StateAt(block.Root())
 	if err != nil {
 		log.Error("unexpected err:should have state here", "err", err)
