@@ -369,9 +369,6 @@ func (m *MinorBlockChain) putConfirmedCrossShardTransactionDepositList(hash comm
 
 // InitFromRootBlock init minorBlockChain from rootBlock
 func (m *MinorBlockChain) InitFromRootBlock(rBlock *types.RootBlock) error {
-	if m.branch.Value!=1{
-		return nil
-	}
 	log.Info(m.logInfo, "InitFromRootBlock number", rBlock.Number(), "hash", rBlock.Hash().String())
 	defer log.Info(m.logInfo, "InitFromRootBlock", "end")
 	if rBlock.Number() <= uint32(m.clusterConfig.Quarkchain.GetGenesisRootHeight(m.branch.Value)) {
@@ -417,6 +414,11 @@ func (m *MinorBlockChain) InitFromRootBlock(rBlock *types.RootBlock) error {
 		fmt.Println("sttt1",stt1)
 		// Note:run block with state until currentBlock instead of confirmedHeaderTip because of pows
 		if err := m.reRunBlockWithState(m.CurrentBlock()); err != nil {
+			log.Error(m.logInfo, "reRunBlockWithState ", err)
+			return err
+		}
+		//for get currentEvm
+		if err := m.reRunBlockWithState(block); err != nil {
 			log.Error(m.logInfo, "reRunBlockWithState ", err)
 			return err
 		}
