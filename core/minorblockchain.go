@@ -887,7 +887,7 @@ func (m *MinorBlockChain) WriteBlockWithState(block *types.MinorBlock, receipts 
 		return NonStatTy, err
 	}
 	triedb := m.stateCache.TrieDB()
-	fmt.Println(m.logInfo,"root",root.String(),block.NumberU64(),block.Header().Hash().String())
+
 	// If we're running an archive node, always flush
 	if m.cacheConfig.Disabled {
 		if err := triedb.Commit(root, false); err != nil {

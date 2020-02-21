@@ -410,8 +410,6 @@ func (m *MinorBlockChain) InitFromRootBlock(rBlock *types.RootBlock) error {
 	if _, err = m.StateAt(block.Root()); err != nil {
 		log.Warn(m.logInfo, "miss trie block", block.NumberU64(), "block.hash", block.Hash().String(), "currNumber", m.CurrentBlock().NumberU64(), "currHash", m.CurrentBlock().Hash().String())
 		ts := time.Now()
-		stt1:=isSameChain(m.GetParentHashByHash,m.CurrentBlock().Header(),block.Header())
-		fmt.Println("sttt1",stt1)
 		// Note:run block with state until currentBlock instead of confirmedHeaderTip because of pows
 		if err := m.reRunBlockWithState(m.CurrentBlock()); err != nil {
 			log.Error(m.logInfo, "reRunBlockWithState ", err)
@@ -424,8 +422,6 @@ func (m *MinorBlockChain) InitFromRootBlock(rBlock *types.RootBlock) error {
 		}
 		log.Warn(m.logInfo, "miss trie reRun time", time.Now().Sub(ts).Seconds(), "currentBlock", m.CurrentBlock().NumberU64(), "currHash", m.CurrentBlock().Hash().String())
 	}
-	stt:=isSameChain(m.GetParentHashByHash,m.CurrentBlock().Header(),block.Header())
-	fmt.Println("sttt2",m.logInfo,stt,block.NumberU64(),block.Root().String())
 	m.currentEvmState, err = m.StateAt(block.Root())
 	if err != nil {
 		log.Error("unexpected err:should have state here", "err", err)
@@ -451,7 +447,7 @@ func (m *MinorBlockChain) reRunBlockWithState(block *types.MinorBlock) error {
 	blockWithoutState := make([]types.IBlock, 0)
 	for {
 		if _, err := m.StateAt(block.Meta().Root); err == nil {
-			log.Info("reRunBlockWithState blockchain to past state", "shard",m.logInfo,"number", block.Number(), "hash", block.Hash().String())
+			log.Info("reRunBlockWithState blockchain to past state", "number", block.Number(), "hash", block.Hash().String())
 			break
 		}
 		blockWithoutState = append(blockWithoutState, block)
