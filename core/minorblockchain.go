@@ -1586,11 +1586,11 @@ func (m *MinorBlockChain) SubscribeChainSideEvent(ch chan<- MinorChainSideEvent)
 }
 
 // SubscribeLogsEvent registers a subscription of []*types.Log.
-func (m *MinorBlockChain) SubscribeLogsEvent(ch chan<- LoglistEvent) event.Subscription {
+func (m *MinorBlockChain) SubscribeLogsEvent(ch chan<- []*types.Log) event.Subscription {
 	return m.scope.Track(m.logsFeed.Subscribe(ch))
 }
 
-// SubReorgLogsEvent registers a subscription of LoglistEvent
+// SubscribeLogsEvent registers a subscription of LoglistEvent
 func (m *MinorBlockChain) SubReorgLogsEvent(ch chan<- LoglistEvent) event.Subscription {
 	return m.scope.Track(m.subLogsFeed.Subscribe(ch))
 }
@@ -1676,14 +1676,12 @@ func (m *MinorBlockChain) GetRootChainStakes(coinbase account.Recipient, lastMin
 	}
 	evmState, err := m.getEvmStateByBlock(last)
 	if err != nil {
-		log.Error("GetRootChainStakes MinorBlockChain getEvmStateByBlock", "err", err)
 		return nil, nil, err
 	}
 	evmState.SetGasUsed(big.NewInt(0))
 	contractAddress := vm.SystemContracts[vm.ROOT_CHAIN_POSW].Address()
 	code := evmState.GetCode(contractAddress)
 	if code == nil {
-		log.Error(ErrPoswOnRootChainIsNotFound.Error(), "contractAddress", contractAddress.Hex())
 		return nil, nil, ErrPoswOnRootChainIsNotFound
 	}
 	codeHash := crypto.Keccak256Hash(code)
