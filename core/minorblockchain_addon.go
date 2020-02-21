@@ -417,7 +417,7 @@ func (m *MinorBlockChain) InitFromRootBlock(rBlock *types.RootBlock) error {
 		}
 		log.Warn(m.logInfo, "miss trie reRun time", time.Now().Sub(ts).Seconds(), "currentBlock", m.CurrentBlock().NumberU64(), "currHash", m.CurrentBlock().Hash().String())
 	}
-	stt:=isSameChain(m.GetParentHashByHash,block.Header(),m.CurrentBlock().Header)
+	stt:=isSameChain(m.GetParentHashByHash,block.Header(),m.CurrentBlock().Header())
 	fmt.Println("sttt",stt)
 	m.currentEvmState, err = m.StateAt(block.Root())
 	if err != nil {
