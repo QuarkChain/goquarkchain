@@ -410,6 +410,8 @@ func (m *MinorBlockChain) InitFromRootBlock(rBlock *types.RootBlock) error {
 	if _, err = m.StateAt(block.Root()); err != nil {
 		log.Warn(m.logInfo, "miss trie block", block.NumberU64(), "block.hash", block.Hash().String(), "currNumber", m.CurrentBlock().NumberU64(), "currHash", m.CurrentBlock().Hash().String())
 		ts := time.Now()
+		stt1:=isSameChain(m.GetParentHashByHash,m.CurrentBlock().Header(),block.Header())
+		fmt.Println("sttt",stt1)
 		// Note:run block with state until currentBlock instead of confirmedHeaderTip because of pows
 		if err := m.reRunBlockWithState(m.CurrentBlock()); err != nil {
 			log.Error(m.logInfo, "reRunBlockWithState ", err)
