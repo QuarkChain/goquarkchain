@@ -322,51 +322,33 @@ func parsePositionalArguments(rawArgs json.RawMessage, types []reflect.Type) ([]
 	if tok, _ := dec.Token(); tok != json.Delim('[') {
 		return nil, &invalidParamsError{"non-array args"}
 	}
-
 	// Read args.
-
-	mp:=make(map[int]bool)
-	ss:=string(rawArgs)
-	a := strings.Split(ss[1:len(ss)-1], ",")
-	args := make([]reflect.Value,  len(a))
-	for index:=0;index<len(a);index++{
-		//fmt.Println("typesss",types[index].Kind(),a[index])
-		if types[index].Kind() == reflect.Ptr {
-			realStr:=a[index][1:len(a[index])-1]
-			if realStr==""||realStr=="null"{
-				args[index]=reflect.Zero(types[index])
-				mp[index]=true
-				//fmt.Println("TTTTTTTTTTTTTTTTT")
-			}
-		}
-	}
-
+	args := make([]reflect.Value, 0, len(types))
 	for i := 0; dec.More(); i++ {
 		if i >= len(types) {
 			return nil, &invalidParamsError{fmt.Sprintf("too many arguments, want at most %d", len(types))}
 		}
 		argval := reflect.New(types[i])
+		buf := make([]byte, 2)
+		t1,err:=dec.Buffered().Read(buf)
+		fmt.Println("t1",string(buf),err,t1)
 		if err := dec.Decode(argval.Interface()); err != nil {
-			if mp[i] && types[i].Kind() == reflect.Ptr{
-				continue
-			}
 			return nil, &invalidParamsError{fmt.Sprintf("invalid argument %d: %v", i, err)}
 		}
 		if argval.IsNil() && types[i].Kind() != reflect.Ptr {
 			return nil, &invalidParamsError{fmt.Sprintf("missing value for required argument %d", i)}
 		}
-		args[i]=argval.Elem()
+		args = append(args, argval.Elem())
 	}
 	// Read end of args array.
 	if _, err := dec.Token(); err != nil {
 		return nil, &invalidParamsError{err.Error()}
 	}
 	// Set any missing args to nil.
-	for i := len(a); i < len(types); i++ {
+	for i := len(args); i < len(types); i++ {
 		if types[i].Kind() != reflect.Ptr {
 			return nil, &invalidParamsError{fmt.Sprintf("missing value for required argument %d", i)}
 		}
-		//fmt.Println("368----")
 		args = append(args, reflect.Zero(types[i]))
 	}
 	return args, nil

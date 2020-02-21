@@ -609,7 +609,6 @@ func (p *PublicBlockChainAPI) GetWork(fullShardKey *hexutil.Uint, coinbaseAddres
 	val = append(val, common.BytesToHash(height.Bytes()))
 	val = append(val, common.BytesToHash(work.Difficulty.Bytes()))
 	if work.OptionalDivider > 1 {
-		fmt.Println("611111")
 		val = append(val, common.BytesToHash(qcom.Uint64ToBytes(work.OptionalDivider)))
 	}
 	fmt.Println("diff",work.Difficulty,"optime",work.OptionalDivider,len(val))
