@@ -334,7 +334,7 @@ func parsePositionalArguments(rawArgs json.RawMessage, types []reflect.Type) ([]
 			buf := make([]byte, 6)
 			_,err:=dec.Buffered().Read(buf)
 			fmt.Println("buff",string(buf),err)
-			if bytes.Equal(buf,[]byte{'"','"'})||bytes.Equal(buf,[]byte{'"','n','u','l','l','"'}){
+			if bytes.Equal(buf[:2],[]byte{'"','"'})||bytes.Equal(buf,[]byte{'"','n','u','l','l','"'}){
 				fmt.Println("sssssssssssss",string(buf),types[i])
 				flag=true
 			}
