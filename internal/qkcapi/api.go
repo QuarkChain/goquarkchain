@@ -551,6 +551,7 @@ func (p *PublicBlockChainAPI) GasPrice(fullShardKey hexutil.Uint, tokenID *hexut
 }
 
 func (p *PublicBlockChainAPI) SubmitWork(fullShardKey *hexutil.Uint, headHash common.Hash, nonce hexutil.Uint64, mixHash common.Hash, signature *hexutil.Bytes) (bool, error) {
+	fmt.Println("Submit",fullShardKey,headHash.String(),nonce,mixHash.String(),signature)
 	var fullShardId *uint32
 	if fullShardKey != nil {
 		id, err := getFullShardId(fullShardKey)
@@ -585,6 +586,17 @@ func (p *PublicBlockChainAPI) SubmitWork(fullShardKey *hexutil.Uint, headHash co
 }
 
 func (p *PublicBlockChainAPI) GetWork(fullShardKey *hexutil.Uint, coinbaseAddress *common.Address) ([]common.Hash, error) {
+	if fullShardKey==nil{
+		fmt.Println("fullshardKey==nil")
+	}else{
+		fmt.Println("fullShardkey!=nil",*fullShardKey)
+	}
+
+	if coinbaseAddress==nil{
+		fmt.Println("coinbaseAddress==nil")
+	}else{
+		fmt.Println("coinbaseAddress!=nil",(*coinbaseAddress).String())
+	}
 	var fullShardId *uint32
 	if fullShardKey != nil {
 		id, err := getFullShardId(fullShardKey)
@@ -612,6 +624,8 @@ func (p *PublicBlockChainAPI) GetWork(fullShardKey *hexutil.Uint, coinbaseAddres
 	if work.OptionalDivider > 1 {
 		val = append(val, common.BytesToHash(qcom.Uint64ToBytes(work.OptionalDivider)))
 	}
+	fmt.Println("diff",work.Difficulty,"optime",work.OptionalDivider,len(val))
+	fmt.Println("end get work",work.HeaderHash.String())
 	return val, nil
 }
 
