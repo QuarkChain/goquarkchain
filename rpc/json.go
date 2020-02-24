@@ -317,7 +317,6 @@ func (c *jsonCodec) ParseRequestArguments(argTypes []reflect.Type, params interf
 // parsed. Missing optional arguments are returned as reflect.Zero values.
 func parsePositionalArguments(rawArgs json.RawMessage, types []reflect.Type) ([]reflect.Value, Error) {
 	// Read beginning of the args array.
-	fmt.Println("parsePositionalArguments",string(rawArgs))
 	dec := json.NewDecoder(bytes.NewReader(rawArgs))
 	if tok, _ := dec.Token(); tok != json.Delim('[') {
 		return nil, &invalidParamsError{"non-array args"}
@@ -329,23 +328,21 @@ func parsePositionalArguments(rawArgs json.RawMessage, types []reflect.Type) ([]
 			return nil, &invalidParamsError{fmt.Sprintf("too many arguments, want at most %d", len(types))}
 		}
 		argval := reflect.New(types[i])
-		flag:=false
-		if types[i].Kind()==reflect.Ptr{
+		flag := false
+		if types[i].Kind() == reflect.Ptr {
 			buf := make([]byte, 6)
-			_,err:=dec.Buffered().Read(buf)
-			fmt.Println("buff",string(buf),err)
-			if bytes.Equal(buf[:2],[]byte{'"','"'})||bytes.Equal(buf,[]byte{'"','n','u','l','l','"'}){
-				fmt.Println("sssssssssssss",string(buf[:2]),types[i])
-				flag=true
+			_, err := dec.Buffered().Read(buf)
+			fmt.Println("buff", string(buf), err)
+			if bytes.Equal(buf[:2], []byte{'"', '"'}) || bytes.Equal(buf, []byte{'"', 'n', 'u', 'l', 'l', '"'}) {
+				flag = true
 			}
 		}
 
 		err := dec.Decode(argval.Interface())
-		if flag{
+		if flag {
 			args = append(args, reflect.Zero(types[i]))
-			fmt.Println("QQQQQQQQQQQQQQQQQQ",types[i])
 			continue
-		}else if err!=nil{
+		} else if err != nil {
 			return nil, &invalidParamsError{fmt.Sprintf("invalid argument %d: %v", i, err)}
 		}
 
