@@ -223,7 +223,7 @@ var (
 	}
 	WSEnableFlag = cli.BoolFlag{
 		Name:  "ws",
-		Usage: "disable the websocket rpc server",
+		Usage: "Enable the websocket rpc server",
 	}
 	WSRPCHostFlag = cli.StringFlag{
 		Name:  "ws_host",

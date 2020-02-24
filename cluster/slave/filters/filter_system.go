@@ -179,20 +179,11 @@ func (es *EventSystem) subscribe(sub *subscription) *Subscription {
 // given criteria to the given logs channel. Default value for the from and to
 // block is "latest". If the fromBlock > toBlock an error is returned.
 func (es *EventSystem) SubscribeLogs(crit qrpc.FilterQuery, logs chan core.LoglistEvent) (*Subscription, error) {
-	shrd, err := es.backend.GetShardFilter(crit.FullShardId)
-	if err != nil {
-		return nil, err
+	if crit.FromBlock == nil {
+		crit.FromBlock = new(big.Int).SetInt64(qrpc.LatestBlockNumber.Int64())
 	}
-	header, err := shrd.GetHeaderByNumber(qrpc.LatestBlockNumber)
-	if err != nil {
-		return nil, err
-	}
-
-	if crit.FromBlock == nil || crit.FromBlock.Int64() == qrpc.LatestBlockNumber.Int64() {
-		crit.FromBlock = big.NewInt(int64(header.Number))
-	}
-	if crit.ToBlock == nil || crit.ToBlock.Int64() == qrpc.LatestBlockNumber.Int64() {
-		crit.FromBlock = big.NewInt(int64(header.Number))
+	if crit.ToBlock == nil {
+		crit.ToBlock = new(big.Int).SetInt64(qrpc.LatestBlockNumber.Int64())
 	}
 	return es.subscribeLogs(crit, logs), nil
 }
