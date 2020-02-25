@@ -167,7 +167,7 @@ func (m *Miner) GetWork(coinbaseAddr *account.Address) (*consensus.MiningWork, e
 	if coinbaseAddr != nil && !account.IsSameAddress(*coinbaseAddr, m.api.GetDefaultCoinbaseAddress()) {
 		addrForGetWork = *coinbaseAddr
 	}
-
+	fmt.Println("170000",addrForGetWork.ToHex())
 	work, err := m.engine.GetWork(addrForGetWork)
 	fmt.Println("171111",err,work.Difficulty,work.OptionalDivider)
 	if err != nil {
