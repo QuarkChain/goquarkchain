@@ -16,6 +16,8 @@ import (
 
 const (
 	deadtime = 120
+	// resultQueueSize is the size of channel listening to sealing result.
+	resultQueueSize = 10
 )
 
 var (
@@ -48,7 +50,7 @@ func New(ctx *service.ServiceContext, api MinerAPI, engine consensus.Engine) *Mi
 		api:       api,
 		engine:    engine,
 		timestamp: &ctx.Timestamp,
-		resultCh:  make(chan types.IBlock, 1),
+		resultCh:  make(chan types.IBlock, 10),
 		workCh:    make(chan workAdjusted, 1),
 		startCh:   make(chan struct{}, 1),
 		exitCh:    make(chan struct{}),
