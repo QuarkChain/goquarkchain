@@ -260,6 +260,7 @@ func (s *QKCMasterBackend) GetWork(fullShardId *uint32, addr *common.Address) (*
 		coinbaseAddr = nil
 	}
 	if fullShardId == nil {
+		fmt.Println("mmmmmmmm--",coinbaseAddr.ToHex())
 		return s.miner.GetWork(coinbaseAddr)
 	}
 
@@ -357,6 +358,7 @@ func (s *QKCMasterBackend) CreateBlockToMine(addr *account.Address) (types.IBloc
 		return nil, nil, 0, err
 	}
 	diff, optionalDivider, err := s.rootBlockChain.GetAdjustedDifficultyToMine(block.Header())
+	fmt.Println("CreateBlockToMine",diff,optionalDivider,block.Header().Coinbase.ToHex())
 	if err != nil {
 		return nil, nil, 0, err
 	}

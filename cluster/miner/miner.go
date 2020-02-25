@@ -1,6 +1,7 @@
 package miner
 
 import (
+	"fmt"
 	"math/big"
 	"runtime"
 	"sync"
@@ -168,6 +169,7 @@ func (m *Miner) GetWork(coinbaseAddr *account.Address) (*consensus.MiningWork, e
 	}
 
 	work, err := m.engine.GetWork(addrForGetWork)
+	fmt.Println("171111",err,work.Difficulty,work.OptionalDivider)
 	if err != nil {
 		if err == consensus.ErrNoMiningWork {
 			block, diff, optionalDivider, err := m.api.CreateBlockToMine(&addrForGetWork)
@@ -181,6 +183,7 @@ func (m *Miner) GetWork(coinbaseAddr *account.Address) (*consensus.MiningWork, e
 						m.commit(&coinbase)
 						}
 				}()
+				fmt.Println("diffff-errrr",diff,optionalDivider)
 				return &consensus.MiningWork{HeaderHash: block.IHeader().SealHash(), Number: block.NumberU64(),
 					OptionalDivider: optionalDivider, Difficulty: diff}, nil
 			}

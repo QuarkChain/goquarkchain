@@ -332,10 +332,10 @@ func parsePositionalArguments(rawArgs json.RawMessage, types []reflect.Type) ([]
 		flag:=false
 		if types[i].Kind()==reflect.Ptr{
 			buf := make([]byte, 6)
-			_,err:=dec.Buffered().Read(buf)
-			fmt.Println("buff",string(buf),err)
+			dec.Buffered().Read(buf)
+			//fmt.Println("buff",string(buf),err)
 			if bytes.Equal(buf[:2],[]byte{'"','"'})||bytes.Equal(buf,[]byte{'"','n','u','l','l','"'}){
-				fmt.Println("sssssssssssss",string(buf[:2]),types[i])
+				//fmt.Println("sssssssssssss",string(buf[:2]),types[i])
 				flag=true
 			}
 		}
@@ -343,7 +343,7 @@ func parsePositionalArguments(rawArgs json.RawMessage, types []reflect.Type) ([]
 		err := dec.Decode(argval.Interface())
 		if flag{
 			args = append(args, reflect.Zero(types[i]))
-			fmt.Println("QQQQQQQQQQQQQQQQQQ",types[i])
+			//fmt.Println("QQQQQQQQQQQQQQQQQQ",types[i])
 			continue
 		}else if err!=nil{
 			return nil, &invalidParamsError{fmt.Sprintf("invalid argument %d: %v", i, err)}
