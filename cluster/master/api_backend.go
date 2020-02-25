@@ -358,7 +358,7 @@ func (s *QKCMasterBackend) CreateBlockToMine(addr *account.Address) (types.IBloc
 		return nil, nil, 0, err
 	}
 	diff, optionalDivider, err := s.rootBlockChain.GetAdjustedDifficultyToMine(block.Header())
-	fmt.Println("CreateBlockToMine",diff,optionalDivider,block.Header().Coinbase.ToHex())
+	fmt.Println("CreateBlockToMine",diff,optionalDivider,block.Header().Coinbase.ToHex(),block.NumberU64())
 	if err != nil {
 		return nil, nil, 0, err
 	}

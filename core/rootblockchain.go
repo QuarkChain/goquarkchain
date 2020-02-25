@@ -1067,23 +1067,30 @@ func (bc *RootBlockChain) GetAdjustedDifficultyToMine(header types.IHeader) (*bi
 	rHeader := header.(*types.RootBlockHeader)
 	if crypto.VerifySignature(bc.Config().GuardianPublicKey, rHeader.SealHash().Bytes(), rHeader.Signature[:64]) {
 		guardianAdjustedDiff := new(big.Int).Div(rHeader.GetDifficulty(), new(big.Int).SetUint64(1000))
+		fmt.Println("1070---",guardianAdjustedDiff)
 		return guardianAdjustedDiff, 1, nil
 	}
 	if bc.posw.IsPoSWEnabled(header) {
+		fmt.Println("1073---isposwenable",header.NumberU64(),header.GetCoinbase())
 		stakes, err := bc.getPoSWStakes(header)
+		fmt.Println("stakes",stakes.String(),err)
 		if err != nil {
 			log.Debug("get PoSW stakes", "err", err, "coinbase", header.GetCoinbase().ToHex())
 		}
 		poswAdjusted, err := bc.posw.PoSWDiffAdjust(header, stakes)
+		fmt.Println("1081",poswAdjusted,err)
 		if err != nil {
 			log.Debug("PoSW diff adjust", "err", err, "coinbase", header.GetCoinbase().ToHex())
 		}
+		fmt.Println("108555",poswAdjusted,rHeader.Difficulty)
 		if poswAdjusted != nil && poswAdjusted.Cmp(rHeader.Difficulty) == -1 {
 			log.Debug("PoSW applied", "from", rHeader.Difficulty, "to", poswAdjusted, "coinbase", header.GetCoinbase().ToHex())
+			fmt.Println("?????",header.GetDifficulty(),bc.Config().Root.PoSWConfig.DiffDivider)
 			return header.GetDifficulty(), bc.Config().Root.PoSWConfig.DiffDivider, nil
 		}
 		log.Debug("PoSW not satisfied", "stakes", stakes, "coinbase", header.GetCoinbase().ToHex())
 	}
+	fmt.Println("NNNNNNNNNN-1093")
 	return rHeader.GetDifficulty(), 1, nil
 }
 
