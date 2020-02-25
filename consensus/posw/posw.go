@@ -43,8 +43,10 @@ func (p *PoSW) PoSWDiffAdjust(header types.IHeader, stakes *big.Int) (*big.Int, 
 	if stakes == nil {
 		return diff, nil
 	}
+	fmt.Println("ppppppp",diff)
 	// Evaluate stakes before the to-be-added block
 	blockThreshold := new(big.Int).Div(stakes, p.config.TotalStakePerBlock).Uint64()
+	fmt.Println("ppppp-blockThreshold",blockThreshold)
 	if blockThreshold == uint64(0) {
 		return diff, nil
 	}
@@ -58,10 +60,13 @@ func (p *PoSW) PoSWDiffAdjust(header types.IHeader, stakes *big.Int) (*big.Int, 
 	if err != nil {
 		return nil, err
 	}
+	fmt.Println("ppppp-blockCnt",blockCnt,blockThreshold)
 	log.Debug("PoSWDiffAdjust", "blockCnt", blockCnt, "blockThreshold", blockThreshold, "coinbase", header.GetCoinbase().ToHex())
 	if blockCnt < blockThreshold {
+		fmt.Println("6666",diff,p.config.DiffDivider)
 		diff = new(big.Int).Div(diff, big.NewInt(int64(p.config.DiffDivider)))
 	}
+	fmt.Println("ppppp-=end",diff)
 	return diff, nil
 }
 
