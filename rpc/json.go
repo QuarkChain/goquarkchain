@@ -37,6 +37,10 @@ const (
 	notificationMethodSuffix = "_subscription"
 )
 
+var (
+	nullBytesForCheck = []byte{'"', 'n', 'u', 'l', 'l', '"'}
+)
+
 type jsonRequest struct {
 	Method  string          `json:"method"`
 	Version string          `json:"jsonrpc"`
@@ -328,9 +332,29 @@ func parsePositionalArguments(rawArgs json.RawMessage, types []reflect.Type) ([]
 			return nil, &invalidParamsError{fmt.Sprintf("too many arguments, want at most %d", len(types))}
 		}
 		argval := reflect.New(types[i])
-		if err := dec.Decode(argval.Interface()); err != nil {
+		flag := false
+		if types[i].Kind() == reflect.Ptr {
+			buf := make([]byte, 2)
+			dec.Buffered().Read(buf)
+			if bytes.Equal(buf[:2], []byte{'"', '"'}) {
+				flag = true
+			}
+
+			buf = make([]byte, 6)
+			dec.Buffered().Read(buf)
+			if bytes.Equal(buf, nullBytesForCheck) {
+				flag = true
+			}
+		}
+
+		err := dec.Decode(argval.Interface())
+		if flag {
+			args = append(args, reflect.Zero(types[i]))
+			continue
+		} else if err != nil {
 			return nil, &invalidParamsError{fmt.Sprintf("invalid argument %d: %v", i, err)}
 		}
+
 		if argval.IsNil() && types[i].Kind() != reflect.Ptr {
 			return nil, &invalidParamsError{fmt.Sprintf("missing value for required argument %d", i)}
 		}
