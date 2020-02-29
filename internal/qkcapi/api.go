@@ -551,15 +551,12 @@ func (p *PublicBlockChainAPI) GasPrice(fullShardKey hexutil.Uint, tokenID *hexut
 
 func (p *PublicBlockChainAPI) SubmitWork(fullShardKey *hexutil.Uint, headHash common.Hash, nonce hexutil.Uint64, mixHash common.Hash, signature *hexutil.Bytes) (bool, error) {
 	var fullShardId *uint32
-	if fullShardKey != nil {
+	if fullShardKey != nil && fullShardKey.String() != "0x9999" {
 		id, err := getFullShardId(fullShardKey)
 		if err != nil {
 			return false, err
 		}
 		fullShardId = &id
-		if fullShardKey.String() == "0x9999" {
-			fullShardId = nil
-		}
 	}
 
 	if signature != nil && len(*signature) != 65 {
@@ -582,15 +579,12 @@ func (p *PublicBlockChainAPI) SubmitWork(fullShardKey *hexutil.Uint, headHash co
 
 func (p *PublicBlockChainAPI) GetWork(fullShardKey *hexutil.Uint, coinbaseAddress *common.Address) ([]common.Hash, error) {
 	var fullShardId *uint32
-	if fullShardKey != nil {
+	if fullShardKey != nil && fullShardKey.String() != "0x9999" {
 		id, err := getFullShardId(fullShardKey)
 		if err != nil {
 			return nil, err
 		}
 		fullShardId = &id
-		if fullShardKey.String() == "0x9999" {
-			fullShardId = nil
-		}
 	}
 
 	work, err := p.b.GetWork(fullShardId, coinbaseAddress)
