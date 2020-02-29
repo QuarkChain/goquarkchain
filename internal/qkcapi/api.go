@@ -560,8 +560,6 @@ func (p *PublicBlockChainAPI) SubmitWork(fullShardKey *hexutil.Uint, headHash co
 		if fullShardKey.String() == "0x9999" {
 			fullShardId = nil
 		}
-	} else {
-		fullShardId = nil
 	}
 
 	if signature != nil && len(*signature) != 65 {
@@ -593,8 +591,6 @@ func (p *PublicBlockChainAPI) GetWork(fullShardKey *hexutil.Uint, coinbaseAddres
 		if fullShardKey.String() == "0x9999" {
 			fullShardId = nil
 		}
-	} else {
-		fullShardId = nil
 	}
 
 	work, err := p.b.GetWork(fullShardId, coinbaseAddress)
