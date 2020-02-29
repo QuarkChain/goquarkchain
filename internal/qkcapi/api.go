@@ -4,6 +4,9 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"math/big"
+	"sort"
+
 	"github.com/QuarkChain/goquarkchain/account"
 	qrpc "github.com/QuarkChain/goquarkchain/cluster/rpc"
 	qcom "github.com/QuarkChain/goquarkchain/common"
@@ -14,8 +17,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rlp"
-	"math/big"
-	"sort"
 )
 
 type CommonAPI struct {
