@@ -37,6 +37,10 @@ const (
 	notificationMethodSuffix = "_subscription"
 )
 
+var (
+	nullBytesForCheck = []byte{'"', 'n', 'u', 'l', 'l', '"'}
+)
+
 type jsonRequest struct {
 	Method  string          `json:"method"`
 	Version string          `json:"jsonrpc"`
@@ -330,10 +334,15 @@ func parsePositionalArguments(rawArgs json.RawMessage, types []reflect.Type) ([]
 		argval := reflect.New(types[i])
 		flag := false
 		if types[i].Kind() == reflect.Ptr {
-			buf := make([]byte, 6)
-			_, err := dec.Buffered().Read(buf)
-			fmt.Println("buff", string(buf), err)
-			if bytes.Equal(buf[:2], []byte{'"', '"'}) || bytes.Equal(buf, []byte{'"', 'n', 'u', 'l', 'l', '"'}) {
+			buf := make([]byte, 2)
+			dec.Buffered().Read(buf)
+			if bytes.Equal(buf[:2], []byte{'"', '"'}) {
+				flag = true
+			}
+
+			buf = make([]byte, 6)
+			dec.Buffered().Read(buf)
+			if bytes.Equal(buf, nullBytesForCheck) {
 				flag = true
 			}
 		}

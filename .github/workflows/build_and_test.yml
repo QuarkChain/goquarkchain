@@ -1,0 +1,14 @@
+name: go-test
+on: [push]
+jobs:
+  build_and_test:
+    runs-on: ubuntu-latest
+    container: quarkchaindocker/goquarkchain
+
+    steps:
+      - uses: actions/checkout@v2
+      - name: daily-test
+        run: |
+          cd consensus/qkchash/native && make && cd -
+          go vet ./...
+          go test -timeout 1m ./... -gcflags=-l
