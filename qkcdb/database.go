@@ -46,10 +46,9 @@ func NewRDBDatabase(file string, clean, isReadOnly bool) (*RDBDatabase, error) {
 	// sets the target file size for compaction.
 	opts.SetTargetFileSizeBase(67108864)
 	opts.SetCreateIfMissing(true)
-	opts.SetCompression(gorocksdb.SnappyCompression)
-	opts.SetMaxOpenFiles(10)
+	opts.SetMaxOpenFiles(100000)
 	opts.SetWriteBufferSize(int(cache) * 1024 * 1024)
-
+	opts.SetCompression(gorocksdb.SnappyCompression)
 	// Open the db and recover any potential corruptions
 	db, err := gorocksdb.OpenDb(opts, file)
 	// check for errors and abort if opening of the db failed
