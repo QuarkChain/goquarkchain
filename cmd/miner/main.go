@@ -187,7 +187,7 @@ func fetchWorkRPC(shardID *uint32, addr *string) (work consensus.MiningWork, err
 	err = cli.CallContext(
 		ctx,
 		&ret,
-		"qkc_getWork",
+		"getWork",
 		shardIDArg,
 		addr,
 	)
@@ -232,7 +232,7 @@ func submitWorkRPC(shardID *uint32, work consensus.MiningWork, res consensus.Min
 		err = cli.CallContext(
 			ctx,
 			&success,
-			"qkc_submitWork",
+			"submitWork",
 			shardIDArg,
 			work.HeaderHash.Hex(),
 			"0x"+strconv.FormatUint(res.Nonce, 16),
@@ -243,7 +243,7 @@ func submitWorkRPC(shardID *uint32, work consensus.MiningWork, res consensus.Min
 		err = cli.CallContext(
 			ctx,
 			&success,
-			"qkc_submitWork",
+			"submitWork",
 			shardIDArg,
 			work.HeaderHash.Hex(),
 			"0x"+strconv.FormatUint(res.Nonce, 16),

@@ -415,6 +415,11 @@ func (m *MinorBlockChain) InitFromRootBlock(rBlock *types.RootBlock) error {
 			log.Error(m.logInfo, "reRunBlockWithState ", err)
 			return err
 		}
+		//for get currentEvm
+		if err := m.reRunBlockWithState(block); err != nil {
+			log.Error(m.logInfo, "reRunBlockWithState ", err)
+			return err
+		}
 		log.Warn(m.logInfo, "miss trie reRun time", time.Now().Sub(ts).Seconds(), "currentBlock", m.CurrentBlock().NumberU64(), "currHash", m.CurrentBlock().Hash().String())
 	}
 	m.currentEvmState, err = m.StateAt(block.Root())

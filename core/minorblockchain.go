@@ -1456,6 +1456,9 @@ func (m *MinorBlockChain) PostChainEvents(events []interface{}, logs []*types.Lo
 	// post event logs for further processing
 	if logs != nil {
 		m.logsFeed.Send(logs)
+		var logss [][]*types.Log
+		logss = append(logss, logs)
+		m.subLogsFeed.Send(LoglistEvent{Logs: logss, IsRemoved: false})
 	}
 	for _, event := range events {
 		switch ev := event.(type) {

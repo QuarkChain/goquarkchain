@@ -1220,16 +1220,6 @@ func (bc *RootBlockChain) CreateBlockToMine(mHeaderList []*types.MinorBlockHeade
 	if err != nil {
 		return nil, err
 	}
-	if len(bc.chainConfig.RootSignerPrivateKey) > 0 {
-		prvKey, err := crypto.ToECDSA(bc.chainConfig.RootSignerPrivateKey)
-		if err != nil {
-			return nil, err
-		}
-		err = block.SignWithPrivateKey(prvKey)
-		if err != nil {
-			return nil, err
-		}
-	}
 	block.Finalize(coinbaseToken, address, common.Hash{})
 	if len(bc.chainConfig.RootSignerPrivateKey) > 0 {
 		prvKey, err := crypto.ToECDSA(bc.chainConfig.RootSignerPrivateKey)
