@@ -46,5 +46,3 @@ jobs:
                 echo "Not Sunday:checkdb until 0 "
                 ./cluster --cluster_config ../../mainnet/singularity/cluster_config_template.json --check_db
           fi
-
-          ./cluster --cluster_config ../../mainnet/singularity/cluster_config_template.json --check_db --check_db_rblock_to=400000
