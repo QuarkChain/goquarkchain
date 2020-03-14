@@ -58,7 +58,9 @@ func New(ctx *service.ServiceContext, api MinerAPI, engine consensus.Engine) *Mi
 		logInfo:   "miner",
 	}
 	miner.engine.SetThreads(1)
-	go miner.mainLoop()
+	go miner.commitLoop()
+	go miner.sealLoop()
+	go miner.resultLoop()
 	return miner
 }
 func (m *Miner) getTip() uint64 {
@@ -112,23 +114,43 @@ func (m *Miner) commit(addr *account.Address) {
 	m.workCh <- workAdjusted{block, diff, optionalDivider}
 }
 
-func (m *Miner) mainLoop() {
+func (m *Miner) commitLoop() {
 
 	for {
 		select {
 		case <-m.startCh:
 			m.commit(nil)
 
+		case <-m.exitCh:
+			log.Error("commitLoop exit")
+			return
+		}
+	}
+}
+
+func (m *Miner) sealLoop() {
+
+	for {
+		select {
 		case work := <-m.workCh: //to discuss:need this?
 			log.Debug(m.logInfo, "ready to seal height", work.block.NumberU64(), "coinbase", work.block.Coinbase().ToHex())
-			go func() {
-				if err := m.engine.Seal(nil, work.block, work.adjustedDifficulty, work.optionalDivider, m.resultCh, m.stopCh); err != nil {
-					log.Error(m.logInfo, "Seal block to mine err", err)
-					coinbase := work.block.Coinbase()
-					m.commit(&coinbase)
-				}
-			}()
+			if err := m.engine.Seal(nil, work.block, work.adjustedDifficulty, work.optionalDivider, m.resultCh, m.stopCh); err != nil {
+				log.Error(m.logInfo, "Seal block to mine err", err)
+				coinbase := work.block.Coinbase()
+				m.commit(&coinbase)
+			}
 
+		case <-m.exitCh:
+			log.Error("sealLoop exit")
+			return
+		}
+	}
+}
+
+func (m *Miner) resultLoop() {
+
+	for {
+		select {
 		case block := <-m.resultCh:
 			log.Debug(m.logInfo, "seal succ number", block.NumberU64(), "hash", block.Hash().String())
 			if err := m.api.InsertMinedBlock(block); err != nil {
@@ -139,6 +161,7 @@ func (m *Miner) mainLoop() {
 			}
 
 		case <-m.exitCh:
+			log.Error("resultLoop exit")
 			return
 		}
 	}

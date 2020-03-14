@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"reflect"
+	"strings"
 	"sync"
 	"time"
 
@@ -241,7 +242,11 @@ func (pm *ProtocolManager) handleMsg(peer *Peer) error {
 		go func() {
 			err = pm.HandleNewMinorBlock(peer.id, qkcMsg.MetaData.Branch, qkcMsg.Data)
 			if err != nil {
-				peer.handleMsgErr = err
+				if strings.Contains(err.Error(), core.ErrKnownBlock.Error()) {
+
+				} else {
+					peer.handleMsgErr = err
+				}
 			}
 		}()
 
@@ -387,11 +392,11 @@ func (pm *ProtocolManager) HandleNewRootTip(tip *p2p.Tip, peer *Peer) error {
 		return errors.New("minor block header list must not be empty")
 	}
 	head := peer.RootHead()
-	if head != nil && tip.RootBlockHeader.NumberU64() < head.NumberU64() {
-		return fmt.Errorf("root block height is decreasing %d < %d", tip.RootBlockHeader.NumberU64(), head.NumberU64())
+	if head != nil && tip.RootBlockHeader.ToTalDifficulty.Cmp(head.ToTalDifficulty) < 0 {
+		return fmt.Errorf("root block total difficulty is decreasing %d < %d", tip.RootBlockHeader.ToTalDifficulty, head.ToTalDifficulty)
 	}
-	if head != nil && tip.RootBlockHeader.NumberU64() == head.NumberU64() && tip.RootBlockHeader.Hash() != head.Hash() {
-		return fmt.Errorf("root block header changed with same height %d", tip.RootBlockHeader.NumberU64())
+	if head != nil && tip.RootBlockHeader.ToTalDifficulty.Cmp(head.ToTalDifficulty) == 0 && tip.RootBlockHeader.Hash() != head.Hash() {
+		return fmt.Errorf("root block header changed with same height %d total difficulty %d", tip.RootBlockHeader.NumberU64(), head.ToTalDifficulty)
 	}
 	peer.SetRootHead(tip.RootBlockHeader)
 	if tip.RootBlockHeader.NumberU64() > pm.rootBlockChain.CurrentBlock().NumberU64() {
