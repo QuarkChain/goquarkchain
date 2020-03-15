@@ -242,9 +242,7 @@ func (pm *ProtocolManager) handleMsg(peer *Peer) error {
 		go func() {
 			err = pm.HandleNewMinorBlock(peer.id, qkcMsg.MetaData.Branch, qkcMsg.Data)
 			if err != nil {
-				if strings.Contains(err.Error(), core.ErrKnownBlock.Error()) {
-
-				} else {
+				if !strings.Contains(err.Error(), core.ErrKnownBlock.Error()) {
 					peer.handleMsgErr = err
 				}
 			}
