@@ -1,5 +1,7 @@
 module github.com/QuarkChain/goquarkchain
 
+go 1.14
+
 require (
 	bou.ke/monkey v1.0.1
 	github.com/QuarkChain/goqkcclient v0.0.0-20191220040322-0b8ed7eb66e8
