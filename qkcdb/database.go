@@ -102,10 +102,10 @@ func (db *RDBDatabase) Get(key []byte) ([]byte, error) {
 		return nil, errors.New("failed to get data from database, key can't be empty")
 	}
 	dat, err := db.db.Get(db.ro, key)
-	defer dat.Free()
 	if err != nil {
 		return nil, err
 	}
+	defer dat.Free()
 	if dat.Size() == 0 {
 		return nil, errors.New("failed to get data from rocksdb, return empty data")
 	}
