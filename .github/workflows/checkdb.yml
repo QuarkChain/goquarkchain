@@ -1,7 +1,7 @@
 name: checkdb
 on:
   schedule:
-    - cron: '1 8 * * *'
+    - cron: '0 13 * * *'
 jobs:
   download-snapshot-and-checkdb:
     runs-on: self-hosted
@@ -38,7 +38,7 @@ jobs:
 
           WEEK_DAY=$(date +%w)
           date
-          if [ $WEEK_DAY -eq 5 ];then
+          if [ $WEEK_DAY -eq 6 ];then
                 echo "Friday:checkdb until 0 "
                 ./cluster --cluster_config ../../mainnet/singularity/cluster_config_template.json --check_db
           else

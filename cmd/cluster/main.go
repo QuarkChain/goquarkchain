@@ -101,7 +101,7 @@ func init() {
 		// Ensure Go's GC ignores the database cache for trigger percentage
 		cache := ctx.GlobalInt(utils.CacheFlag.Name)
 		gogc := math.Max(10, math.Min(90, 100*(float64(cache)/float64(allowance))))
-		log.Debug("Sanitizing Go's GC trigger", "percent", int(gogc))
+		log.Info("Sanitizing Go's GC trigger", "cache", cache, "allowance", allowance, "percent", int(gogc))
 		godebug.SetGCPercent(int(gogc))
 
 		return nil
