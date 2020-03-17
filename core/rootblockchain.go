@@ -569,14 +569,6 @@ func (bc *RootBlockChain) insertChain(chain []types.IBlock, verifySeals bool) (i
 		events    = make([]interface{}, 0, len(chain))
 		lastCanon *types.RootBlock
 	)
-	// Start the parallel header verifier
-	headers := make([]types.IHeader, len(chain))
-	seals := make([]bool, len(chain))
-
-	for i, block := range chain {
-		headers[i] = block.IHeader()
-		seals[i] = verifySeals
-	}
 
 	// Peek the error for the first block to decide the directing import logic
 	it := newInsertIterator(chain, bc.Validator(), bc.isCheckDB)
@@ -639,7 +631,7 @@ func (bc *RootBlockChain) insertChain(chain []types.IBlock, verifySeals bool) (i
 			bc.reportBlock(block, err)
 			return it.index, events, err
 		}
-		if !bc.isCheckDB && absUint64(bc.CurrentBlock().Header().NumberU64(), block.NumberU64()) > bc.Config().Root.MaxStaleRootBlockHeightDiff {
+		if !bc.isCheckDB && absUint64(bc.CurrentBlock().NumberU64(), block.NumberU64()) > bc.Config().Root.MaxStaleRootBlockHeightDiff {
 			log.Warn("Insert Root Block", "drop block height", block.NumberU64(), "tip height", bc.CurrentBlock().NumberU64())
 			return it.index, events, fmt.Errorf("block is too old %v %v", block.NumberU64(), bc.CurrentBlock().NumberU64())
 		}
@@ -1015,7 +1007,7 @@ func (bc *RootBlockChain) GetParentHashByHash(hash common.Hash) common.Hash {
 	}
 }
 
-func (bc *RootBlockChain) isSameChain(longerChainHeader, shorterChainHeader *types.RootBlockHeader) bool {
+func (bc *RootBlockChain) isSameChain(longerChainHeader, shorterChainHeader types.IBlock) bool {
 	return isSameChain(bc.GetParentHashByHash, longerChainHeader, shorterChainHeader)
 }
 
@@ -1069,12 +1061,12 @@ func (bc *RootBlockChain) GetAdjustedDifficultyToMine(header types.IHeader) (*bi
 		guardianAdjustedDiff := new(big.Int).Div(rHeader.GetDifficulty(), new(big.Int).SetUint64(1000))
 		return guardianAdjustedDiff, 1, nil
 	}
-	if bc.posw.IsPoSWEnabled(header) {
+	if bc.posw.IsPoSWEnabled(header.GetTime(), header.NumberU64()) {
 		stakes, err := bc.getPoSWStakes(header)
 		if err != nil {
 			log.Debug("get PoSW stakes", "err", err, "coinbase", header.GetCoinbase().ToHex())
 		}
-		poswAdjusted, err := bc.posw.PoSWDiffAdjust(header, stakes)
+		poswAdjusted, err := bc.posw.PoSWDiffAdjust(header.GetDifficulty(), header.GetParentHash(), header.GetCoinbase().Recipient, stakes)
 		if err != nil {
 			log.Debug("PoSW diff adjust", "err", err, "coinbase", header.GetCoinbase().ToHex())
 		}
@@ -1107,7 +1099,7 @@ func (bc *RootBlockChain) GetAdjustedDifficulty(header types.IHeader) (*big.Int,
 		guardianAdjustedDiff := new(big.Int).Div(rHeader.GetDifficulty(), new(big.Int).SetUint64(1000))
 		return guardianAdjustedDiff, 1, nil
 	}
-	if bc.posw.IsPoSWEnabled(header) {
+	if bc.posw.IsPoSWEnabled(header.GetTime(), header.NumberU64()) {
 		poswAdjusted, err := bc.getPoSWAdjustedDiff(header)
 		if err != nil {
 			log.Debug("PoSW not applied", "reason", err, "coinbase", header.GetCoinbase().ToHex())
@@ -1126,7 +1118,7 @@ func (bc *RootBlockChain) getPoSWAdjustedDiff(header types.IHeader) (*big.Int, e
 	if err != nil {
 		return nil, err
 	}
-	return bc.posw.PoSWDiffAdjust(header, stakes)
+	return bc.posw.PoSWDiffAdjust(header.GetDifficulty(), header.GetParentHash(), header.GetCoinbase().Recipient, stakes)
 }
 
 func (bc *RootBlockChain) getSignedPoSWStakes(header types.IHeader) (*big.Int, error) {
@@ -1210,7 +1202,7 @@ func (bc *RootBlockChain) CreateBlockToMine(mHeaderList []*types.MinorBlockHeade
 		}
 		createTime = &ts
 	}
-	difficulty, err := bc.engine.CalcDifficulty(bc, *createTime, bc.CurrentHeader())
+	difficulty, err := bc.engine.CalcDifficulty(bc, *createTime, bc.CurrentBlock())
 	if err != nil {
 		return nil, err
 	}
@@ -1290,7 +1282,7 @@ func (bc *RootBlockChain) GetNextDifficulty(create *uint64) (*big.Int, error) {
 		}
 		create = &ts
 	}
-	return bc.engine.CalcDifficulty(bc, *create, bc.CurrentBlock().Header())
+	return bc.engine.CalcDifficulty(bc, *create, bc.CurrentBlock())
 }
 
 func (bc *RootBlockChain) WriteCommittingHash(hash common.Hash) {
@@ -1423,15 +1415,15 @@ func (bc *RootBlockChain) GetRootChainStakesFunc() func(address account.Address,
 	return bc.rootChainStakesFunc
 }
 
-func (bc *RootBlockChain) PoSWInfo(header *types.RootBlockHeader) (*rpc.PoSWInfo, error) {
-	if header.Number == 0 {
+func (bc *RootBlockChain) PoSWInfo(header *types.RootBlock) (*rpc.PoSWInfo, error) {
+	if header.NumberU64() == 0 {
 		return nil, nil
 	}
-	if !bc.posw.IsPoSWEnabled(header) {
+	if !bc.posw.IsPoSWEnabled(header.Time(), header.NumberU64()) {
 		return nil, nil
 	}
-	stakes, _ := bc.getSignedPoSWStakes(header)
-	diff, mineable, mined, _ := bc.posw.GetPoSWInfo(header, stakes, header.Coinbase.Recipient)
+	stakes, _ := bc.getSignedPoSWStakes(header.Header())
+	diff, mineable, mined, _ := bc.posw.GetPoSWInfo(header, stakes, header.Coinbase().Recipient)
 	return &rpc.PoSWInfo{
 		EffectiveDifficulty: diff,
 		PoswMinedBlocks:     mined + 1,

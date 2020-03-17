@@ -15,15 +15,15 @@ type blockchain interface {
 	GetBranch() account.Branch
 	GetGenesisRootHeight() uint32
 	GetRootBlockByHash(hash common.Hash) *types.RootBlock
-	GetRootBlockHeaderByHeight(h common.Hash, height uint64) *types.RootBlockHeader
+	GetRootBlockHeaderByHeight(h common.Hash, height uint64) *types.RootBlock
 	ReadCrossShardTxList(hash common.Hash) *types.CrossShardTransactionDepositList
 	isNeighbor(remoteBranch account.Branch, rootHeight *uint32) bool
 }
 
 type XShardTxCursor struct {
 	bc                 blockchain
-	mBlockHeader       *types.MinorBlockHeader
-	maxRootBlockHeader *types.RootBlockHeader
+	mBlockHeader       *types.MinorBlock
+	maxRootBlockHeader *types.RootBlock
 	mBlockIndex        uint64
 	xShardDepositIndex uint64
 	xTxList            *types.CrossShardTransactionDepositList
@@ -40,14 +40,14 @@ type XShardTxCursor struct {
    # - EOF
    # - A valid x-shard transaction deposit
 */
-func NewXShardTxCursor(bc blockchain, mBlockHeader *types.MinorBlockHeader, cursorInfo *types.XShardTxCursorInfo) *XShardTxCursor {
+func NewXShardTxCursor(bc blockchain, mBlockHeader *types.MinorBlock, cursorInfo *types.XShardTxCursorInfo) *XShardTxCursor {
 	c := &XShardTxCursor{
 		bc:           bc,
 		mBlockHeader: mBlockHeader,
 	}
 	// Recover cursor
-	c.maxRootBlockHeader = bc.GetRootBlockByHash(mBlockHeader.PrevRootBlockHash).Header()
-	rBlockHeader := bc.GetRootBlockHeaderByHeight(mBlockHeader.PrevRootBlockHash, cursorInfo.RootBlockHeight)
+	c.maxRootBlockHeader = bc.GetRootBlockByHash(mBlockHeader.PrevRootBlockHash())
+	rBlockHeader := bc.GetRootBlockHeaderByHeight(mBlockHeader.PrevRootBlockHash(), cursorInfo.RootBlockHeight)
 	c.mBlockIndex = cursorInfo.MinorBlockIndex
 	c.xShardDepositIndex = cursorInfo.XShardDepositIndex
 	// Recover rblock and xtx_list if it is processing tx from peer-shard
@@ -80,8 +80,8 @@ func (x *XShardTxCursor) getCurrentTx() (*types.CrossShardTransactionDeposit, er
 			// Perform x-shard from root chain coinbase
 			return &types.CrossShardTransactionDeposit{
 				TxHash:          x.rBlock.Hash(),
-				From:            x.rBlock.Header().Coinbase,
-				To:              x.rBlock.Header().Coinbase,
+				From:            x.rBlock.Coinbase(),
+				To:              x.rBlock.Coinbase(),
 				Value:           &serialize.Uint256{Value: new(big.Int).Set(coinbaseAmount)},
 				GasPrice:        &serialize.Uint256{Value: new(big.Int)},
 				GasRemained:     &serialize.Uint256{Value: new(big.Int)},
@@ -120,7 +120,8 @@ func (x *XShardTxCursor) getNextTx() (*types.CrossShardTransactionDeposit, error
 	for x.mBlockIndex <= uint64(len(x.rBlock.MinorBlockHeaders())) {
 		// If it is not neighbor, move to next minor block
 		mBlockHeader := x.rBlock.MinorBlockHeaders()[x.mBlockIndex-1]
-		if mBlockHeader.Branch == x.bc.GetBranch() || !x.bc.isNeighbor(mBlockHeader.Branch, &x.rBlock.Header().Number) {
+		t := x.rBlock.Number()
+		if mBlockHeader.Branch == x.bc.GetBranch() || !x.bc.isNeighbor(mBlockHeader.Branch, &t) {
 			if x.xShardDepositIndex != 0 {
 				return nil, errors.New("xShardDepositIndex should 0")
 			}
@@ -155,7 +156,7 @@ func (x *XShardTxCursor) getNextTx() (*types.CrossShardTransactionDeposit, error
 	}
 
 	// Move to next root block
-	rBlockHeader := x.bc.GetRootBlockHeaderByHeight(x.maxRootBlockHeader.Hash(), x.rBlock.Header().NumberU64()+1)
+	rBlockHeader := x.bc.GetRootBlockHeaderByHeight(x.maxRootBlockHeader.Hash(), x.rBlock.NumberU64()+1)
 	if rBlockHeader == nil {
 		// EOF
 		x.rBlock = nil

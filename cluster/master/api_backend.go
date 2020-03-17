@@ -5,6 +5,11 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"math/big"
+	"net"
+	"reflect"
+	"strings"
+
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
 	"github.com/QuarkChain/goquarkchain/consensus"
@@ -16,10 +21,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"golang.org/x/sync/errgroup"
-	"math/big"
-	"net"
-	"reflect"
-	"strings"
 )
 
 func ip2uint32(ip string) uint32 {
@@ -295,7 +296,7 @@ func (s *QKCMasterBackend) GetRootBlockByNumber(blockNumber *uint64, needExtraIn
 		return nil, nil, errors.New("rootBlock is nil")
 	}
 	if needExtraInfo {
-		p, err := s.getPoswInfo(block.Header())
+		p, err := s.getPoswInfo(block)
 		return block, p, err
 	}
 	return block, nil, nil
@@ -307,13 +308,13 @@ func (s *QKCMasterBackend) GetRootBlockByHash(hash common.Hash, needExtraInfo bo
 		return nil, nil, errors.New("rootBlock is nil")
 	}
 	if needExtraInfo {
-		p, err := s.getPoswInfo(block.Header())
+		p, err := s.getPoswInfo(block)
 		return block, p, err
 	}
 	return block, nil, nil
 }
 
-func (s *QKCMasterBackend) getPoswInfo(header *types.RootBlockHeader) (*rpc.PoSWInfo, error) {
+func (s *QKCMasterBackend) getPoswInfo(header *types.RootBlock) (*rpc.PoSWInfo, error) {
 	poswInfo, err := s.rootBlockChain.PoSWInfo(header)
 	if err != nil && !strings.Contains(err.Error(), core.ErrPoswOnRootChainIsNotFound.Error()) {
 		return nil, err

@@ -124,7 +124,7 @@ func (c *CommonEngine) Author(header types.IHeader) (account.Address, error) {
 
 // CalcDifficulty is the difficulty adjustment algorithm. It returns the difficulty
 // that a new block should have.
-func (c *CommonEngine) CalcDifficulty(chain ChainReader, time uint64, parent types.IHeader) (*big.Int, error) {
+func (c *CommonEngine) CalcDifficulty(chain ChainReader, time uint64, parent types.IBlock) (*big.Int, error) {
 	return c.diffCalc.CalculateDifficulty(parent, time)
 }
 
@@ -146,7 +146,7 @@ func (c *CommonEngine) VerifyHeader(
 			//return nil
 		}
 	*/
-	parent := chain.GetHeader(header.GetParentHash())
+	parent := chain.GetBlock(header.GetParentHash())
 	if parent == nil {
 		return ErrUnknownAncestor
 	}
@@ -157,9 +157,9 @@ func (c *CommonEngine) VerifyHeader(
 		return fmt.Errorf("extra-data too long: %d > %d", len(header.GetExtra()), chain.Config().BlockExtraDataSizeLimit)
 	}
 
-	if header.GetTime() <= parent.GetTime() {
+	if header.GetTime() <= parent.Time() {
 		return fmt.Errorf("incorrect create time tip time %d, new block time %d",
-			header.GetTime(), parent.GetTime())
+			header.GetTime(), parent.Time())
 	}
 
 	if !chain.SkipDifficultyCheck() {

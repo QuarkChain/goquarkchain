@@ -87,7 +87,7 @@ func (g *Genesis) CreateMinorBlock(rootBlock *types.RootBlock, fullShardId uint3
 		GasUsed:           &serialize.Uint256{Value: new(big.Int)},
 		CrossShardGasUsed: &serialize.Uint256{Value: new(big.Int)},
 		XShardTxCursorInfo: &types.XShardTxCursorInfo{
-			RootBlockHeight:    rootBlock.Header().NumberU64(),
+			RootBlockHeight:    rootBlock.NumberU64(),
 			MinorBlockIndex:    0,
 			XShardDepositIndex: 0,
 		},

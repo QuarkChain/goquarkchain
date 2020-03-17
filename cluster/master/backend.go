@@ -3,6 +3,14 @@ package master
 import (
 	"errors"
 	"fmt"
+	"math/big"
+	"net"
+	"os"
+	"sort"
+	"sync"
+	"syscall"
+	"time"
+
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/cluster/miner"
@@ -28,13 +36,6 @@ import (
 	"github.com/shirou/gopsutil/cpu"
 	"golang.org/x/sync/errgroup"
 	"gopkg.in/karalabe/cookiejar.v1/collections/deque"
-	"math/big"
-	"net"
-	"os"
-	"sort"
-	"sync"
-	"syscall"
-	"time"
 )
 
 const (
@@ -549,7 +550,7 @@ func (s *QKCMasterBackend) SendMiningConfigToSlaves(mining bool) error {
 
 // AddRootBlock add root block to all slaves
 func (s *QKCMasterBackend) AddRootBlock(rootBlock *types.RootBlock) error {
-	header := s.rootBlockChain.CurrentBlock().Header()
+	header := s.rootBlockChain.CurrentBlock()
 	s.rootBlockChain.WriteCommittingHash(rootBlock.Hash())
 	_, err := s.rootBlockChain.InsertChain([]types.IBlock{rootBlock})
 	if err != nil {

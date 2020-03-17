@@ -1,12 +1,13 @@
 package consensus
 
 import (
+	"math/big"
+	"time"
+
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/core/state"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/common"
-	"math/big"
-	"time"
 )
 
 type FakeEngine struct {
@@ -85,10 +86,10 @@ func (e *FakeEngine) Seal(chain ChainReader, block types.IBlock, diff *big.Int, 
 
 // CalcDifficulty is the difficulty adjustment algorithm. It returns the difficulty
 // that a new block should have.
-func (e *FakeEngine) CalcDifficulty(chain ChainReader, time uint64, parent types.IHeader) (*big.Int, error) {
+func (e *FakeEngine) CalcDifficulty(chain ChainReader, time uint64, parent types.IBlock) (*big.Int, error) {
 	if e.diffCal == nil {
 		if e.Difficulty == nil || e.Difficulty.Cmp(big.NewInt(0)) < 0 {
-			return parent.GetDifficulty(), nil
+			return parent.Difficulty(), nil
 		}
 		return e.Difficulty, nil
 	}

@@ -38,6 +38,8 @@ type IBlock interface {
 	ParentHash() common.Hash
 	Coinbase() account.Address
 	Time() uint64
+	Difficulty() *big.Int
+	//SealHash() common.Hash
 }
 
 type IHashable interface {
