@@ -157,8 +157,8 @@ func (m *MinorBlockChain) validateTx(tx *types.Transaction, evmState *state.Stat
 			evmTxGas = *gas
 		}
 		evmTx.SetGas(evmTxGas)
-		fromFullShardKey:=fromAddress.FullShardKey
-		evmTx.SetFromFullShardKey(types.Uint32(fromFullShardKey))
+		fromFullShardKey := fromAddress.FullShardKey
+		evmTx.SetFromFullShardKey(fromFullShardKey)
 	}
 	toShardSize, err := m.clusterConfig.Quarkchain.GetShardSizeByChainId(tx.EvmTx.ToChainID())
 	if err != nil {
