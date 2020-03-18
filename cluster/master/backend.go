@@ -550,7 +550,7 @@ func (s *QKCMasterBackend) SendMiningConfigToSlaves(mining bool) error {
 
 // AddRootBlock add root block to all slaves
 func (s *QKCMasterBackend) AddRootBlock(rootBlock *types.RootBlock) error {
-	header := s.rootBlockChain.CurrentBlock()
+	block := s.rootBlockChain.CurrentBlock()
 	s.rootBlockChain.WriteCommittingHash(rootBlock.Hash())
 	_, err := s.rootBlockChain.InsertChain([]types.IBlock{rootBlock})
 	if err != nil {
@@ -560,7 +560,7 @@ func (s *QKCMasterBackend) AddRootBlock(rootBlock *types.RootBlock) error {
 		return err
 	}
 	s.rootBlockChain.ClearCommittingHash()
-	if header.Hash() != s.rootBlockChain.CurrentBlock().Hash() {
+	if block.Hash() != s.rootBlockChain.CurrentBlock().Hash() {
 		go s.miner.HandleNewTip()
 	}
 	return nil

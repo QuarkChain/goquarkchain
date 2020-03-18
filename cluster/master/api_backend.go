@@ -314,8 +314,8 @@ func (s *QKCMasterBackend) GetRootBlockByHash(hash common.Hash, needExtraInfo bo
 	return block, nil, nil
 }
 
-func (s *QKCMasterBackend) getPoswInfo(header *types.RootBlock) (*rpc.PoSWInfo, error) {
-	poswInfo, err := s.rootBlockChain.PoSWInfo(header)
+func (s *QKCMasterBackend) getPoswInfo(block *types.RootBlock) (*rpc.PoSWInfo, error) {
+	poswInfo, err := s.rootBlockChain.PoSWInfo(block)
 	if err != nil && !strings.Contains(err.Error(), core.ErrPoswOnRootChainIsNotFound.Error()) {
 		return nil, err
 	}

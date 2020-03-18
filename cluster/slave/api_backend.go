@@ -425,14 +425,13 @@ func (s *SlaveBackend) getMinorBlockHeadersWithSkip(gReq *p2p.GetMinorBlockHeade
 		mTip   = shrd.MinorBlockChain.CurrentBlock()
 	)
 	if gReq.Type == qcom.SkipHash {
-		iHeader := shrd.MinorBlockChain.GetBlock(gReq.GetHash())
-		if qcom.IsNil(iHeader) {
+		iBlock := shrd.MinorBlockChain.GetBlock(gReq.GetHash())
+		if qcom.IsNil(iBlock) {
 			return nil, fmt.Errorf("failed to get minor block header by hash, minor hash: %s", gReq.GetHash().String())
 		}
-		mHeaderHash := iHeader.Hash()
-		height = iHeader.NumberU64()
-		iHeader = shrd.MinorBlockChain.GetBlockByNumber(height)
-		if qcom.IsNil(iHeader) || mHeaderHash != iHeader.Hash() {
+		height = iBlock.NumberU64()
+		hash, err := shrd.MinorBlockChain.GetHashByHeight(&height)
+		if err != nil || hash != iBlock.Hash() {
 			return nil, fmt.Errorf("failed to get minor block header by number or hash dont match, minor number: %d", height)
 		}
 	} else {

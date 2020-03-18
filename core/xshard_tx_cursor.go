@@ -15,14 +15,14 @@ type blockchain interface {
 	GetBranch() account.Branch
 	GetGenesisRootHeight() uint32
 	GetRootBlockByHash(hash common.Hash) *types.RootBlock
-	GetRootBlockHeaderByHeight(h common.Hash, height uint64) *types.RootBlock
+	GetRootBlockByHeight(h common.Hash, height uint64) *types.RootBlock
 	ReadCrossShardTxList(hash common.Hash) *types.CrossShardTransactionDepositList
 	isNeighbor(remoteBranch account.Branch, rootHeight *uint32) bool
 }
 
 type XShardTxCursor struct {
 	bc                 blockchain
-	mBlockHeader       *types.MinorBlock
+	minorBlock         *types.MinorBlock
 	maxRootBlockHeader *types.RootBlock
 	mBlockIndex        uint64
 	xShardDepositIndex uint64
@@ -40,14 +40,14 @@ type XShardTxCursor struct {
    # - EOF
    # - A valid x-shard transaction deposit
 */
-func NewXShardTxCursor(bc blockchain, mBlockHeader *types.MinorBlock, cursorInfo *types.XShardTxCursorInfo) *XShardTxCursor {
+func NewXShardTxCursor(bc blockchain, minorBlock *types.MinorBlock, cursorInfo *types.XShardTxCursorInfo) *XShardTxCursor {
 	c := &XShardTxCursor{
-		bc:           bc,
-		mBlockHeader: mBlockHeader,
+		bc:         bc,
+		minorBlock: minorBlock,
 	}
 	// Recover cursor
-	c.maxRootBlockHeader = bc.GetRootBlockByHash(mBlockHeader.PrevRootBlockHash())
-	rBlockHeader := bc.GetRootBlockHeaderByHeight(mBlockHeader.PrevRootBlockHash(), cursorInfo.RootBlockHeight)
+	c.maxRootBlockHeader = bc.GetRootBlockByHash(minorBlock.PrevRootBlockHash())
+	rBlockHeader := bc.GetRootBlockByHeight(minorBlock.PrevRootBlockHash(), cursorInfo.RootBlockHeight)
 	c.mBlockIndex = cursorInfo.MinorBlockIndex
 	c.xShardDepositIndex = cursorInfo.XShardDepositIndex
 	// Recover rblock and xtx_list if it is processing tx from peer-shard
@@ -156,7 +156,7 @@ func (x *XShardTxCursor) getNextTx() (*types.CrossShardTransactionDeposit, error
 	}
 
 	// Move to next root block
-	rBlockHeader := x.bc.GetRootBlockHeaderByHeight(x.maxRootBlockHeader.Hash(), x.rBlock.NumberU64()+1)
+	rBlockHeader := x.bc.GetRootBlockByHeight(x.maxRootBlockHeader.Hash(), x.rBlock.NumberU64()+1)
 	if rBlockHeader == nil {
 		// EOF
 		x.rBlock = nil

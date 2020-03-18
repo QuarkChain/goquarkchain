@@ -414,7 +414,7 @@ func (m *MinorBlockChain) SkipDifficultyCheck() bool {
 
 func (m *MinorBlockChain) GetAdjustedDifficulty(header types.IHeader) (*big.Int, uint64, error) {
 	diff := header.GetDifficulty()
-	if m.posw.IsPoSWEnabled(header.GetTime(), header.NumberU64()) {
+	if m.posw.IsPoSWEnabled(header) {
 		preHash := header.GetParentHash()
 		balance, err := m.GetBalance(header.GetCoinbase().Recipient, &preHash)
 		if err != nil {
@@ -1604,14 +1604,14 @@ func (m *MinorBlockChain) GetRootBlockByHash(hash common.Hash) *types.RootBlock 
 	return nil
 }
 
-func (m *MinorBlockChain) GetRootBlockHeaderByHeight(h common.Hash, height uint64) *types.RootBlock {
+func (m *MinorBlockChain) GetRootBlockByHeight(h common.Hash, height uint64) *types.RootBlock {
 	rHeader := m.GetRootBlockByHash(h)
 	if rHeader == nil || height > rHeader.NumberU64() {
 		return nil
 	}
 	for height != rHeader.NumberU64() {
 		if rHeader = m.GetRootBlockByHash(rHeader.ParentHash()); rHeader == nil {
-			log.Crit("bug should fix", "GetRootBlockHeaderByHeight rootBlock is nil hash", rHeader.ParentHash, "currNumber", rHeader.NumberU64(), "currHash", rHeader.Hash().String())
+			log.Crit("bug should fix", "GetRootBlockByHeight rootBlock is nil hash", rHeader.ParentHash, "currNumber", rHeader.NumberU64(), "currHash", rHeader.Hash().String())
 		}
 	}
 	return rHeader

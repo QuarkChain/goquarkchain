@@ -88,10 +88,9 @@ func (p *PoSW) BuildSenderDisallowMap(headerHash common.Hash, coinbase *account.
 	return disallowMap, nil
 }
 
-func (p *PoSW) IsPoSWEnabled(time uint64, height uint64) bool {
-	return p.config.Enabled && time >= p.config.EnableTimestamp && height > 0
+func (p *PoSW) IsPoSWEnabled(header types.IHeader) bool {
+	return p.config.Enabled && header.GetTime() >= p.config.EnableTimestamp && header.NumberU64() > 0
 }
-
 func (p *PoSW) countCoinbaseBlockUntil(headerHash common.Hash, coinbase account.Recipient) (uint64, error) {
 	coinbases, err := p.getCoinbaseAddressUntilBlock(headerHash)
 	if err != nil {
@@ -120,14 +119,14 @@ func revertArr(arr []account.Recipient) []account.Recipient {
 }
 
 func (p *PoSW) getCoinbaseAddressUntilBlock(headerHash common.Hash) ([]account.Recipient, error) {
-	header := p.hReader.GetBlock(headerHash)
-	if qkcCommon.IsNil(header) {
+	block := p.hReader.GetBlock(headerHash)
+	if qkcCommon.IsNil(block) {
 		return nil, fmt.Errorf("curr block not found: hash %x", headerHash)
 	}
 	length := int(p.config.WindowSize) - 1
 	addrs := make([]account.Recipient, 0, length+10)
-	height := header.NumberU64()
-	prevHash := header.ParentHash()
+	height := block.NumberU64()
+	prevHash := block.ParentHash()
 	if p.coinbaseAddrCache.Contains(prevHash) {
 		ha, _ := p.coinbaseAddrCache.Get(prevHash)
 		haddrs := ha.(heightAndAddrs)
@@ -135,15 +134,15 @@ func (p *PoSW) getCoinbaseAddressUntilBlock(headerHash common.Hash) ([]account.R
 		if len(addrs) == length {
 			addrs = addrs[1:]
 		}
-		addrs = append(addrs, header.Coinbase().Recipient)
+		addrs = append(addrs, block.Coinbase().Recipient)
 	} else { //miss, iterating DB
 		for i := 0; i < length; i++ {
-			addrs = append(addrs, header.Coinbase().Recipient)
-			if header.NumberU64() == 0 {
+			addrs = append(addrs, block.Coinbase().Recipient)
+			if block.NumberU64() == 0 {
 				break
 			}
-			if header = p.hReader.GetBlock(header.ParentHash()); qkcCommon.IsNil(header) {
-				return nil, fmt.Errorf("mysteriously missing block %x", header.ParentHash())
+			if block = p.hReader.GetBlock(block.ParentHash()); qkcCommon.IsNil(block) {
+				return nil, fmt.Errorf("mysteriously missing block %x", block.ParentHash())
 			}
 		}
 		addrs = revertArr(addrs)
@@ -155,19 +154,19 @@ func (p *PoSW) getCoinbaseAddressUntilBlock(headerHash common.Hash) ([]account.R
 	return addrs, nil
 }
 
-func (p *PoSW) GetPoSWInfo(header types.IBlock, stakes *big.Int, address account.Recipient) (effectiveDiff *big.Int, mineable, mined uint64, err error) {
-	blockCnt, err := p.countCoinbaseBlockUntil(header.Hash(), address)
+func (p *PoSW) GetPoSWInfo(block types.IBlock, stakes *big.Int, address account.Recipient) (effectiveDiff *big.Int, mineable, mined uint64, err error) {
+	blockCnt, err := p.countCoinbaseBlockUntil(block.Hash(), address)
 	if err != nil {
-		return header.Difficulty(), 0, 0, err
+		return block.Difficulty(), 0, 0, err
 	}
-	if !p.IsPoSWEnabled(header.Time(), header.NumberU64()) || stakes == nil {
-		return header.Difficulty(), 0, blockCnt, nil
+	if !p.IsPoSWEnabled(block.IHeader()) || stakes == nil {
+		return block.Difficulty(), 0, blockCnt, nil
 	}
 	blockThreshold := new(big.Int).Div(stakes, p.config.TotalStakePerBlock).Uint64()
 	if blockThreshold > p.config.WindowSize {
 		blockThreshold = p.config.WindowSize
 	}
-	diff := header.Difficulty()
+	diff := block.Difficulty()
 	if blockCnt < blockThreshold {
 		diff = new(big.Int).Div(diff, big.NewInt(int64(p.config.DiffDivider)))
 	}

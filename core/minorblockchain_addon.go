@@ -114,14 +114,14 @@ func (m *MinorBlockChain) putMinorBlock(mBlock *types.MinorBlock, xShardReceiveT
 }
 
 func (m *MinorBlockChain) updateTip(state *state.StateDB, block *types.MinorBlock) (bool, error) {
-	preRootHeader := m.GetRootBlockByHash(block.PrevRootBlockHash())
-	if preRootHeader == nil {
+	preRootBlock := m.GetRootBlockByHash(block.PrevRootBlockHash())
+	if preRootBlock == nil {
 		return false, errors.New("missing prev block")
 	}
 
 	tipPrevRootHeader := m.GetRootBlockByHash(m.CurrentBlock().PrevRootBlockHash())
 	// Don't update tip if the block depends on a root block that is not root_tip or root_tip's ancestor
-	if !m.isSameRootChain(m.rootTip, preRootHeader) {
+	if !m.isSameRootChain(m.rootTip, preRootBlock) {
 		return false, nil
 	}
 	updateTip := false
@@ -132,7 +132,7 @@ func (m *MinorBlockChain) updateTip(state *state.StateDB, block *types.MinorBloc
 		if block.NumberU64() > currentTip.NumberU64() {
 			updateTip = true
 		} else if block.NumberU64() == currentTip.NumberU64() {
-			updateTip = preRootHeader.NumberU64() > tipPrevRootHeader.NumberU64()
+			updateTip = preRootBlock.NumberU64() > tipPrevRootHeader.NumberU64()
 		}
 	}
 	if updateTip {
@@ -1726,7 +1726,7 @@ func (m *MinorBlockChain) PoswInfo(mBlock *types.MinorBlock) (*rpc.PoSWInfo, err
 		return nil, errors.New("get powInfo err:mBlock is full")
 	}
 
-	if !m.posw.IsPoSWEnabled(mBlock.Time(), mBlock.NumberU64()) {
+	if !m.posw.IsPoSWEnabled(mBlock.Header()) {
 		return nil, nil
 	}
 	evmState, err := m.getEvmStateForNewBlock(mBlock, true)
