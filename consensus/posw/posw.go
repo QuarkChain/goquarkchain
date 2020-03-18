@@ -39,7 +39,8 @@ func NewPoSW(headReader headReader, config *config.POSWConfig) *PoSW {
 }
 
 /*PoSWDiffAdjust PoSW diff calc,already locked by insertChain*/
-func (p *PoSW) PoSWDiffAdjust(diff *big.Int, parentHash common.Hash, coinbase account.Recipient, stakes *big.Int) (*big.Int, error) {
+func (p *PoSW) PoSWDiffAdjust(header types.IHeader, stakes *big.Int) (*big.Int, error) {
+	diff := header.GetDifficulty()
 	if stakes == nil {
 		return diff, nil
 	}
@@ -54,11 +55,11 @@ func (p *PoSW) PoSWDiffAdjust(diff *big.Int, parentHash common.Hash, coinbase ac
 	// The func is inclusive, so need to fetch block counts until prev block
 	// Also only fetch prev window_size - 1 block counts because the
 	// new window should count the current block
-	blockCnt, err := p.countCoinbaseBlockUntil(parentHash, coinbase)
+	blockCnt, err := p.countCoinbaseBlockUntil(header.GetParentHash(), header.GetCoinbase().Recipient)
 	if err != nil {
 		return nil, err
 	}
-	log.Debug("PoSWDiffAdjust", "blockCnt", blockCnt, "blockThreshold", blockThreshold, "coinbase", coinbase)
+	log.Debug("PoSWDiffAdjust", "blockCnt", blockCnt, "blockThreshold", blockThreshold, "coinbase", header.GetCoinbase().ToHex())
 	if blockCnt < blockThreshold {
 		diff = new(big.Int).Div(diff, big.NewInt(int64(p.config.DiffDivider)))
 	}

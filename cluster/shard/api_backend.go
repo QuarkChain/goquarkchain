@@ -497,13 +497,14 @@ func (s *ShardBackend) CreateBlockToMine(addr *account.Address) (types.IBlock, *
 		return nil, nil, 0, err
 	}
 	diff := minorBlock.Difficulty()
-	if s.posw.IsPoSWEnabled(minorBlock.Header()) {
-		balances, err := s.MinorBlockChain.GetBalance(minorBlock.Coinbase().Recipient, nil)
+	header := minorBlock.Header()
+	if s.posw.IsPoSWEnabled(header) {
+		balances, err := s.MinorBlockChain.GetBalance(header.GetCoinbase().Recipient, nil)
 		if err != nil {
 			return nil, nil, 0, err
 		}
 		balance := balances.GetTokenBalance(s.MinorBlockChain.GetGenesisToken())
-		adjustedDifficulty, err := s.posw.PoSWDiffAdjust(minorBlock.Difficulty(), minorBlock.ParentHash(), minorBlock.Coinbase().Recipient, balance)
+		adjustedDifficulty, err := s.posw.PoSWDiffAdjust(header, balance)
 		if err != nil {
 			log.Error("PoSW", "failed to compute PoSW difficulty", err)
 			return nil, nil, 0, err

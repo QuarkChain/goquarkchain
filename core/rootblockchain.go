@@ -1066,7 +1066,7 @@ func (bc *RootBlockChain) GetAdjustedDifficultyToMine(header types.IHeader) (*bi
 		if err != nil {
 			log.Debug("get PoSW stakes", "err", err, "coinbase", header.GetCoinbase().ToHex())
 		}
-		poswAdjusted, err := bc.posw.PoSWDiffAdjust(header.GetDifficulty(), header.GetParentHash(), header.GetCoinbase().Recipient, stakes)
+		poswAdjusted, err := bc.posw.PoSWDiffAdjust(header, stakes)
 		if err != nil {
 			log.Debug("PoSW diff adjust", "err", err, "coinbase", header.GetCoinbase().ToHex())
 		}
@@ -1118,7 +1118,7 @@ func (bc *RootBlockChain) getPoSWAdjustedDiff(header types.IHeader) (*big.Int, e
 	if err != nil {
 		return nil, err
 	}
-	return bc.posw.PoSWDiffAdjust(header.GetDifficulty(), header.GetParentHash(), header.GetCoinbase().Recipient, stakes)
+	return bc.posw.PoSWDiffAdjust(header, stakes)
 }
 
 func (bc *RootBlockChain) getSignedPoSWStakes(header types.IHeader) (*big.Int, error) {
