@@ -180,7 +180,7 @@ func TestXshardNativeTokenSent(t *testing.T) {
 	env1 := getTestEnv(&acc1, &genesisMinorQuarkHash, nil, nil, nil, nil)
 	shardId := uint32(1)
 	shardState1 := createDefaultShardState(env1, &shardId, nil, nil, nil)
-	rootBlock := shardState.GetRootTip().CreateBlockToAppend(nil, nil, nil, nil, nil)
+	rootBlock := shardState.GetRootTip().Header().CreateBlockToAppend(nil, nil, nil, nil, nil)
 	rootBlock.AddMinorBlockHeader(shardState.CurrentBlock().Header())
 	rootBlock.AddMinorBlockHeader(shardState1.CurrentBlock().Header())
 	shardState.AddRootBlock(rootBlock)
@@ -225,7 +225,7 @@ func TestXshardNativeTokenReceived(t *testing.T) {
 	shardState1 := createDefaultShardState(env1, &shardID, nil, nil, nil)
 	// Add a root block to allow later minor blocks referencing this root block to
 	// be broadcasted
-	rootBlock := shardState0.GetRootTip().CreateBlockToAppend(nil, nil, nil, nil, nil)
+	rootBlock := shardState0.GetRootTip().Header().CreateBlockToAppend(nil, nil, nil, nil, nil)
 	rootBlock.AddMinorBlockHeader(shardState0.CurrentBlock().Header())
 	rootBlock.AddMinorBlockHeader(shardState1.CurrentBlock().Header())
 	rootBlock.Finalize(nil, nil, common.EmptyHash)
@@ -260,7 +260,7 @@ func TestXshardNativeTokenReceived(t *testing.T) {
 	txL.TXList = append(txL.TXList, &deposit)
 	shardState0.AddCrossShardTxListByMinorBlockHash(b1.Header().Hash(), txL)
 	//Create a root block containing the block with the x-shard tx
-	rootBlock = shardState0.GetRootTip().CreateBlockToAppend(nil, nil, nil, nil, nil)
+	rootBlock = shardState0.GetRootTip().Header().CreateBlockToAppend(nil, nil, nil, nil, nil)
 	rootBlock.AddMinorBlockHeader(b0.Header())
 	rootBlock.AddMinorBlockHeader(b1.Header())
 	rootBlock.Finalize(nil, nil, common.EmptyHash)
@@ -302,7 +302,7 @@ func TestXshardNativeTokenGasSent(t *testing.T) {
 	env1 := getTestEnv(&acc1, nil, nil, nil, nil, nil)
 	shardId1 := uint32(1)
 	shardState1 := createDefaultShardState(env1, &shardId1, nil, nil, nil)
-	rootBlock := shardState.GetRootTip().CreateBlockToAppend(nil, nil, nil, nil, nil)
+	rootBlock := shardState.GetRootTip().Header().CreateBlockToAppend(nil, nil, nil, nil, nil)
 	rootBlock.AddMinorBlockHeader(shardState.CurrentBlock().Header())
 	rootBlock.AddMinorBlockHeader(shardState1.CurrentBlock().Header())
 	rootBlock.Finalize(nil, nil, common.EmptyHash)
@@ -349,7 +349,7 @@ func TestXshardNativeTokenGasReceived(t *testing.T) {
 	shardState0 := createDefaultShardState(env0, &shardId, nil, nil, nil)
 	shardId1 := uint32(16)
 	shardState1 := createDefaultShardState(env1, &shardId1, nil, nil, nil)
-	rootBlock := shardState0.GetRootTip().CreateBlockToAppend(nil, nil, nil, nil, nil)
+	rootBlock := shardState0.GetRootTip().Header().CreateBlockToAppend(nil, nil, nil, nil, nil)
 	rootBlock.AddMinorBlockHeader(shardState0.CurrentBlock().Header())
 	rootBlock.AddMinorBlockHeader(shardState1.CurrentBlock().Header())
 	rootBlock.Finalize(nil, nil, common.EmptyHash)
@@ -371,7 +371,7 @@ func TestXshardNativeTokenGasReceived(t *testing.T) {
 	txL = append(txL, &deposit)
 	txList := types.CrossShardTransactionDepositList{TXList: txL}
 	shardState0.AddCrossShardTxListByMinorBlockHash(b1.Header().Hash(), txList)
-	rootBlock = shardState0.GetRootTip().CreateBlockToAppend(nil, nil, nil, nil, nil)
+	rootBlock = shardState0.GetRootTip().Header().CreateBlockToAppend(nil, nil, nil, nil, nil)
 	rootBlock.AddMinorBlockHeader(b0.Header())
 	rootBlock.AddMinorBlockHeader(b1.Header())
 	rootBlock.Finalize(nil, nil, common.EmptyHash)

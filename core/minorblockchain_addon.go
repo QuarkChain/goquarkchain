@@ -981,7 +981,12 @@ func (m *MinorBlockChain) AddRootBlock(rBlock *types.RootBlock) (bool, error) {
 
 	m.mu.Lock()
 	m.rootTip = rBlock
-	m.confirmedHeaderTip = m.GetMinorBlock(shardHeader.Hash())
+	if shardHeader == nil {
+		m.confirmedHeaderTip = nil
+	} else {
+		m.confirmedHeaderTip = m.GetMinorBlock(shardHeader.Hash())
+	}
+
 	m.mu.Unlock()
 	origHeaderTip := m.CurrentBlock()
 	if shardHeader != nil {
