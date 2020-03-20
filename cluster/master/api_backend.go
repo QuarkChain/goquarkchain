@@ -201,7 +201,17 @@ func (s *QKCMasterBackend) EstimateGas(tx *types.Transaction, fromAddress *accou
 	if err := tx.EvmTx.SetFromShardSize(fromShardSize); err != nil {
 		return 0, errors.New(fmt.Sprintf("Failed to set fromShardSize, fromShardSize: %d, err: %v", fromShardSize, err))
 	}
-	slaveConn := s.GetOneSlaveConnById(evmTx.FromFullShardId())
+
+
+	toShardSize, err := s.clusterConfig.Quarkchain.GetShardSizeByChainId(tx.EvmTx.ToChainID())
+	if err != nil {
+		return 0, err
+	}
+	if err := tx.EvmTx.SetToShardSize(toShardSize); err != nil {
+		return 0, errors.New(fmt.Sprintf("Failed to set toShardSize, toShardSize: %d, err: %v", toShardSize, err))
+	}
+
+	slaveConn := s.GetOneSlaveConnById(evmTx.ToFullShardId())
 	if slaveConn == nil {
 		return 0, ErrNoBranchConn
 	}

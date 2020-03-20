@@ -6,6 +6,10 @@ import (
 	"container/heap"
 	"errors"
 	"fmt"
+	"io"
+	"math/big"
+	"sync/atomic"
+
 	"github.com/QuarkChain/goquarkchain/account"
 	qkcCommon "github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/serialize"
@@ -13,9 +17,6 @@ import (
 	"github.com/ethereum/go-ethereum/crypto/sha3"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rlp"
-	"io"
-	"math/big"
-	"sync/atomic"
 )
 
 const (
@@ -68,6 +69,11 @@ func NewEvmTransaction(nonce uint64, to account.Recipient, amount *big.Int, gasL
 func (e *EvmTransaction) SetGas(data uint64) {
 	e.data.GasLimit = data
 	e.updated = true
+}
+
+func (e *EvmTransaction) SetFromFullShardKey(data uint32) {
+	t := Uint32(data)
+	e.data.FromFullShardKey = &t
 }
 
 func (e *EvmTransaction) SetNonce(data uint64) {
