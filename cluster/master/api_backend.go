@@ -296,7 +296,7 @@ func (s *QKCMasterBackend) GetRootBlockByNumber(blockNumber *uint64, needExtraIn
 		return nil, nil, errors.New("rootBlock is nil")
 	}
 	if needExtraInfo {
-		p, err := s.getPoswInfo(block)
+		p, err := s.getPoswInfo(block.Header())
 		return block, p, err
 	}
 	return block, nil, nil
@@ -308,14 +308,14 @@ func (s *QKCMasterBackend) GetRootBlockByHash(hash common.Hash, needExtraInfo bo
 		return nil, nil, errors.New("rootBlock is nil")
 	}
 	if needExtraInfo {
-		p, err := s.getPoswInfo(block)
+		p, err := s.getPoswInfo(block.Header())
 		return block, p, err
 	}
 	return block, nil, nil
 }
 
-func (s *QKCMasterBackend) getPoswInfo(block *types.RootBlock) (*rpc.PoSWInfo, error) {
-	poswInfo, err := s.rootBlockChain.PoSWInfo(block)
+func (s *QKCMasterBackend) getPoswInfo(header *types.RootBlockHeader) (*rpc.PoSWInfo, error) {
+	poswInfo, err := s.rootBlockChain.PoSWInfo(header)
 	if err != nil && !strings.Contains(err.Error(), core.ErrPoswOnRootChainIsNotFound.Error()) {
 		return nil, err
 	}

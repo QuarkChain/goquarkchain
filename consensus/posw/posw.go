@@ -89,8 +89,8 @@ func (p *PoSW) BuildSenderDisallowMap(headerHash common.Hash, coinbase *account.
 	return disallowMap, nil
 }
 
-func (p *PoSW) IsPoSWEnabled(header types.IHeader) bool {
-	return p.config.Enabled && header.GetTime() >= p.config.EnableTimestamp && header.NumberU64() > 0
+func (p *PoSW) IsPoSWEnabled(time uint64, height uint64) bool {
+	return p.config.Enabled && time >= p.config.EnableTimestamp && height > 0
 }
 func (p *PoSW) countCoinbaseBlockUntil(headerHash common.Hash, coinbase account.Recipient) (uint64, error) {
 	coinbases, err := p.getCoinbaseAddressUntilBlock(headerHash)
@@ -155,19 +155,19 @@ func (p *PoSW) getCoinbaseAddressUntilBlock(headerHash common.Hash) ([]account.R
 	return addrs, nil
 }
 
-func (p *PoSW) GetPoSWInfo(block types.IBlock, stakes *big.Int, address account.Recipient) (effectiveDiff *big.Int, mineable, mined uint64, err error) {
-	blockCnt, err := p.countCoinbaseBlockUntil(block.Hash(), address)
+func (p *PoSW) GetPoSWInfo(header types.IHeader, stakes *big.Int, address account.Recipient) (effectiveDiff *big.Int, mineable, mined uint64, err error) {
+	blockCnt, err := p.countCoinbaseBlockUntil(header.Hash(), address)
 	if err != nil {
-		return block.Difficulty(), 0, 0, err
+		return header.GetDifficulty(), 0, 0, err
 	}
-	if !p.IsPoSWEnabled(block.IHeader()) || stakes == nil {
-		return block.Difficulty(), 0, blockCnt, nil
+	if !p.IsPoSWEnabled(header.GetTime(), header.NumberU64()) || stakes == nil {
+		return header.GetDifficulty(), 0, blockCnt, nil
 	}
 	blockThreshold := new(big.Int).Div(stakes, p.config.TotalStakePerBlock).Uint64()
 	if blockThreshold > p.config.WindowSize {
 		blockThreshold = p.config.WindowSize
 	}
-	diff := block.Difficulty()
+	diff := header.GetDifficulty()
 	if blockCnt < blockThreshold {
 		diff = new(big.Int).Div(diff, big.NewInt(int64(p.config.DiffDivider)))
 	}

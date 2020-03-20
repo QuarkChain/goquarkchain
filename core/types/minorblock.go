@@ -2,11 +2,12 @@
 package types
 
 import (
-	"github.com/QuarkChain/goquarkchain/params"
 	"math/big"
 	"sync/atomic"
 	"time"
 	"unsafe"
+
+	"github.com/QuarkChain/goquarkchain/params"
 
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/serialize"
@@ -307,6 +308,12 @@ func (b *MinorBlock) Extra() []byte                  { return common.CopyBytes(b
 func (b *MinorBlock) Bloom() Bloom                   { return b.header.Bloom }
 func (b *MinorBlock) MixDigest() common.Hash         { return b.header.MixDigest }
 func (b *MinorBlock) CoinbaseAmount() *TokenBalances { return b.header.GetCoinbaseAmount() }
+func (b *MinorBlock) SealHash() common.Hash {
+	return b.header.SealHash()
+}
+func (b *MinorBlock) Signature() [65]byte {
+	panic("minor block not support signature")
+}
 
 //meta properties
 func (b *MinorBlock) Root() common.Hash        { return b.meta.Root }

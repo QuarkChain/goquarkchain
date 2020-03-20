@@ -414,7 +414,7 @@ func (m *MinorBlockChain) SkipDifficultyCheck() bool {
 
 func (m *MinorBlockChain) GetAdjustedDifficulty(header types.IHeader) (*big.Int, uint64, error) {
 	diff := header.GetDifficulty()
-	if m.posw.IsPoSWEnabled(header) {
+	if m.posw.IsPoSWEnabled(header.GetTime(), header.NumberU64()) {
 		preHash := header.GetParentHash()
 		balance, err := m.GetBalance(header.GetCoinbase().Recipient, &preHash)
 		if err != nil {

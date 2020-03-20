@@ -1061,7 +1061,7 @@ func (bc *RootBlockChain) GetAdjustedDifficultyToMine(header types.IHeader) (*bi
 		guardianAdjustedDiff := new(big.Int).Div(rHeader.GetDifficulty(), new(big.Int).SetUint64(1000))
 		return guardianAdjustedDiff, 1, nil
 	}
-	if bc.posw.IsPoSWEnabled(header) {
+	if bc.posw.IsPoSWEnabled(header.GetTime(), header.NumberU64()) {
 		stakes, err := bc.getPoSWStakes(header)
 		if err != nil {
 			log.Debug("get PoSW stakes", "err", err, "coinbase", header.GetCoinbase().ToHex())
@@ -1099,7 +1099,7 @@ func (bc *RootBlockChain) GetAdjustedDifficulty(header types.IHeader) (*big.Int,
 		guardianAdjustedDiff := new(big.Int).Div(rHeader.GetDifficulty(), new(big.Int).SetUint64(1000))
 		return guardianAdjustedDiff, 1, nil
 	}
-	if bc.posw.IsPoSWEnabled(header) {
+	if bc.posw.IsPoSWEnabled(header.GetTime(), header.NumberU64()) {
 		poswAdjusted, err := bc.getPoSWAdjustedDiff(header)
 		if err != nil {
 			log.Debug("PoSW not applied", "reason", err, "coinbase", header.GetCoinbase().ToHex())
@@ -1415,15 +1415,15 @@ func (bc *RootBlockChain) GetRootChainStakesFunc() func(address account.Address,
 	return bc.rootChainStakesFunc
 }
 
-func (bc *RootBlockChain) PoSWInfo(block *types.RootBlock) (*rpc.PoSWInfo, error) {
-	if block.NumberU64() == 0 {
+func (bc *RootBlockChain) PoSWInfo(header *types.RootBlockHeader) (*rpc.PoSWInfo, error) {
+	if header.Number == 0 {
 		return nil, nil
 	}
-	if !bc.posw.IsPoSWEnabled(block.Header()) {
+	if !bc.posw.IsPoSWEnabled(header.Time, header.NumberU64()) {
 		return nil, nil
 	}
-	stakes, _ := bc.getSignedPoSWStakes(block.Header())
-	diff, mineable, mined, _ := bc.posw.GetPoSWInfo(block, stakes, block.Coinbase().Recipient)
+	stakes, _ := bc.getSignedPoSWStakes(header)
+	diff, mineable, mined, _ := bc.posw.GetPoSWInfo(header, stakes, header.Coinbase.Recipient)
 	return &rpc.PoSWInfo{
 		EffectiveDifficulty: diff,
 		PoswMinedBlocks:     mined + 1,

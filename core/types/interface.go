@@ -39,7 +39,8 @@ type IBlock interface {
 	Coinbase() account.Address
 	Time() uint64
 	Difficulty() *big.Int
-	//SealHash() common.Hash
+	SealHash() common.Hash
+	Signature() [65]byte
 }
 
 type IHashable interface {

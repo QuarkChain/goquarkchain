@@ -1730,16 +1730,16 @@ func (m *MinorBlockChain) PoswInfo(mBlock *types.MinorBlock) (*rpc.PoSWInfo, err
 	if mBlock == nil {
 		return nil, errors.New("get powInfo err:mBlock is full")
 	}
-
-	if !m.posw.IsPoSWEnabled(mBlock.Header()) {
+	header := mBlock.Header()
+	if !m.posw.IsPoSWEnabled(header.Time, header.NumberU64()) {
 		return nil, nil
 	}
 	evmState, err := m.getEvmStateForNewBlock(mBlock, true)
 	if err != nil {
 		return nil, err
 	}
-	stakes := evmState.GetBalance(mBlock.Coinbase().Recipient, m.clusterConfig.Quarkchain.GetDefaultChainTokenID())
-	diff, minable, mined, _ := m.posw.GetPoSWInfo(mBlock, stakes, mBlock.Coinbase().Recipient)
+	stakes := evmState.GetBalance(header.Coinbase.Recipient, m.clusterConfig.Quarkchain.GetDefaultChainTokenID())
+	diff, minable, mined, _ := m.posw.GetPoSWInfo(header, stakes, header.Coinbase.Recipient)
 	return &rpc.PoSWInfo{
 		EffectiveDifficulty: diff,
 		PoswMineableBlocks:  minable,
@@ -1763,7 +1763,7 @@ func (m *MinorBlockChain) CommitMinorBlockByHash(h common.Hash) {
 }
 
 func (m *MinorBlockChain) GetMiningInfo(address account.Recipient, stake *types.TokenBalances) (mineable, mined uint64, err error) {
-	_, mineable, mined, err = m.posw.GetPoSWInfo(m.CurrentBlock(), stake.GetTokenBalance(m.Config().GetDefaultChainTokenID()), address)
+	_, mineable, mined, err = m.posw.GetPoSWInfo(m.CurrentBlock().Header(), stake.GetTokenBalance(m.Config().GetDefaultChainTokenID()), address)
 	return
 }
 

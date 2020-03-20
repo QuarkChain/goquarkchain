@@ -498,7 +498,7 @@ func (s *ShardBackend) CreateBlockToMine(addr *account.Address) (types.IBlock, *
 	}
 	diff := minorBlock.Difficulty()
 	header := minorBlock.Header()
-	if s.posw.IsPoSWEnabled(header) {
+	if s.posw.IsPoSWEnabled(header.Time, header.NumberU64()) {
 		balances, err := s.MinorBlockChain.GetBalance(header.GetCoinbase().Recipient, nil)
 		if err != nil {
 			return nil, nil, 0, err
