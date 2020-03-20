@@ -2868,7 +2868,7 @@ func TestSigToAddr(t *testing.T) {
 	rootBlock = rootBlock.Finalize(nil, nil, common.Hash{})
 	err = rootBlock.SignWithPrivateKey(prvKey)
 	assert.NoError(t, err)
-	recovered, err = sigToAddr(rootBlock.Header().SealHash().Bytes(), rootBlock.Signature())
+	recovered, err = sigToAddr(rootBlock.Header().SealHash().Bytes(), rootBlock.Header().Signature)
 	assert.NoError(t, err)
 	assert.Equal(t, signerId.GetRecipient(), *recovered)
 	_, err = state0.AddRootBlock(rootBlock)
