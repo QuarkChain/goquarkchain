@@ -69,9 +69,9 @@ func (v *RootBlockValidator) ValidateBlock(block types.IBlock, force bool) error
 	}
 
 	mheaderHash := types.CalculateMerkleRoot(rootBlock.MinorBlockHeaders())
-	if mheaderHash != rootBlock.Header().MinorHeaderHash {
+	if mheaderHash != rootBlock.MinorHeaderHash() {
 		return fmt.Errorf("incorrect merkle root %v - %v ",
-			rootBlock.Header().MinorHeaderHash.String(),
+			rootBlock.MinorHeaderHash().String(),
 			mheaderHash.String())
 	}
 
@@ -89,7 +89,7 @@ func (v *RootBlockValidator) ValidateBlock(block types.IBlock, force bool) error
 			return fmt.Errorf("bad coinbase amount for root block %v. expect %d but got %d.",
 				rootBlock.Hash().String(),
 				expectedCoinbaseAmount,
-				rootBlock.Header().GetCoinbaseAmount())
+				rootBlock.CoinbaseAmount())
 		}
 	}
 
@@ -125,10 +125,10 @@ func (v *RootBlockValidator) ValidateBlock(block types.IBlock, force bool) error
 	}
 
 	for key := range prevRootBlockHashList {
-		if v.blockChain.GetHeader(key) == nil {
+		if v.blockChain.GetBlock(key) == nil {
 			return fmt.Errorf("root block not found: key=%x", key)
 		}
-		if !v.blockChain.isSameChain(rootBlock.Header(), v.blockChain.GetHeader(key).(*types.RootBlockHeader)) {
+		if !v.blockChain.isSameChain(rootBlock, v.blockChain.GetBlock(key)) {
 			return errors.New("minor block's prev root block must be in the same chain")
 		}
 	}

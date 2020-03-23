@@ -3,11 +3,10 @@ package shard
 import (
 	"errors"
 	"fmt"
-	"github.com/QuarkChain/goquarkchain/account"
-	"github.com/QuarkChain/goquarkchain/consensus/simulate"
 	"math/big"
 	"sync"
 
+	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/cluster/miner"
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
@@ -17,6 +16,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/consensus/doublesha256"
 	"github.com/QuarkChain/goquarkchain/consensus/ethash"
 	"github.com/QuarkChain/goquarkchain/consensus/qkchash"
+	"github.com/QuarkChain/goquarkchain/consensus/simulate"
 	"github.com/QuarkChain/goquarkchain/core"
 	"github.com/QuarkChain/goquarkchain/core/rawdb"
 	"github.com/QuarkChain/goquarkchain/core/types"
@@ -77,7 +77,7 @@ func New(ctx *service.ServiceContext, rBlock *types.RootBlock, conn ConnManager,
 			genesisRootHeight: cfg.Quarkchain.GetShardConfigByFullShardID(fullshardId).Genesis.RootHeight,
 			Config:            cfg.Quarkchain.GetShardConfigByFullShardID(fullshardId),
 			conn:              conn,
-			mBPool:            newBlockPool{BlockPool: make(map[common.Hash]*types.MinorBlockHeader)},
+			mBPool:            newBlockPool{BlockPool: make(map[common.Hash]bool)},
 			gspec:             core.NewGenesis(cfg.Quarkchain),
 			eventMux:          ctx.EventMux,
 			logInfo:           fmt.Sprintf("shard:%d", fullshardId),
@@ -225,19 +225,19 @@ func (s *ShardBackend) getBlockCommitStatusByHash(blockHash common.Hash) BlockCo
 // minor block pool
 type newBlockPool struct {
 	Mu        sync.RWMutex
-	BlockPool map[common.Hash]*types.MinorBlockHeader
+	BlockPool map[common.Hash]bool
 }
 
-func (n *newBlockPool) getBlockInPool(hash common.Hash) *types.MinorBlockHeader {
+func (n *newBlockPool) getBlockInPool(hash common.Hash) bool {
 	n.Mu.RLock()
 	defer n.Mu.RUnlock()
 	return n.BlockPool[hash]
 }
 
-func (n *newBlockPool) setBlockInPool(header *types.MinorBlockHeader) {
+func (n *newBlockPool) setBlockInPool(hash common.Hash) {
 	n.Mu.Lock()
 	defer n.Mu.Unlock()
-	n.BlockPool[header.Hash()] = header
+	n.BlockPool[hash] = true
 }
 
 func (n *newBlockPool) delBlockInPool(hash common.Hash) {

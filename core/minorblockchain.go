@@ -131,8 +131,8 @@ type MinorBlockChain struct {
 	txPool                   *TxPool
 	branch                   account.Branch
 	shardConfig              *config.ShardConfig
-	rootTip                  *types.RootBlockHeader
-	confirmedHeaderTip       *types.MinorBlockHeader
+	rootTip                  *types.RootBlock
+	confirmedHeaderTip       *types.MinorBlock
 	initialized              bool
 	rewardCalc               *qkcCommon.ConstMinorBlockRewardCalculator
 	gasPriceSuggestionOracle *gasPriceSuggestionOracle
@@ -404,7 +404,7 @@ func (m *MinorBlockChain) stateAtWithSenderDisallowMap(minorBlock *types.MinorBl
 		return nil, err
 	}
 	evmState.SetSenderDisallowMap(senderDisallowMap)
-	m.setEvmStateWithHeader(evmState, minorBlock.Header())
+	m.setEvmStateWithBlock(evmState, minorBlock)
 	return evmState, nil
 }
 
@@ -414,7 +414,7 @@ func (m *MinorBlockChain) SkipDifficultyCheck() bool {
 
 func (m *MinorBlockChain) GetAdjustedDifficulty(header types.IHeader) (*big.Int, uint64, error) {
 	diff := header.GetDifficulty()
-	if m.posw.IsPoSWEnabled(header) {
+	if m.posw.IsPoSWEnabled(header.GetTime(), header.NumberU64()) {
 		preHash := header.GetParentHash()
 		balance, err := m.GetBalance(header.GetCoinbase().Recipient, &preHash)
 		if err != nil {
@@ -620,17 +620,17 @@ func (m *MinorBlockChain) getNeedStoreHeight(rootHash common.Hash, heightDiff []
 		currNumber = m.CurrentBlock().NumberU64()
 	)
 	headerTip := m.getLastConfirmedMinorBlockHeaderAtRootBlock(rootHash)
-	if headerTip != nil && headerTip.Number < currNumber {
+	if headerTip != nil && headerTip.NumberU64() < currNumber {
 		log.Info("trie", "tip", headerTip.Number, "rootHash", rootHash.String())
-		heightDiff = append(heightDiff, currNumber-headerTip.Number)
-		if headerTip.Number >= 1 {
-			heightDiff = append(heightDiff, currNumber-(headerTip.Number-1))
+		heightDiff = append(heightDiff, currNumber-headerTip.NumberU64())
+		if headerTip.NumberU64() >= 1 {
+			heightDiff = append(heightDiff, currNumber-(headerTip.NumberU64()-1))
 		}
-		if headerTip.Number >= triesInMemory {
-			heightDiff = append(heightDiff, currNumber-(headerTip.Number-triesInMemory))
+		if headerTip.NumberU64() >= triesInMemory {
+			heightDiff = append(heightDiff, currNumber-(headerTip.NumberU64()-triesInMemory))
 		}
 		currBlockNumber := m.CurrentBlock().Number()
-		for index := headerTip.Number; index <= currBlockNumber; index++ {
+		for index := headerTip.NumberU64(); index <= currBlockNumber; index++ {
 			heightDiff = append(heightDiff, currBlockNumber-index)
 		}
 
@@ -1058,14 +1058,6 @@ func (m *MinorBlockChain) insertChain(chain []types.IBlock, verifySeals bool, is
 		lastCanon     types.IBlock
 		coalescedLogs []*types.Log
 	)
-	// Start the parallel header verifier
-	headers := make([]types.IHeader, len(chain))
-	seals := make([]bool, len(chain))
-
-	for i, block := range chain {
-		headers[i] = block.IHeader()
-		seals[i] = verifySeals
-	}
 
 	// Peek the error for the first block to decide the directing import logic
 	it := newInsertIterator(chain, m.Validator(), isCheckDB)
@@ -1599,19 +1591,6 @@ func (m *MinorBlockChain) SubscribeNewTxsEvent(ch chan<- NewTxsEvent) event.Subs
 	return m.txPool.SubscribeNewTxsEvent(ch)
 }
 
-func (m *MinorBlockChain) getRootBlockHeaderByHash(hash common.Hash) *types.RootBlockHeader {
-	if data, ok := m.rootBlockCache.Get(hash); ok {
-		return data.(*types.RootBlock).Header()
-	}
-	data := rawdb.ReadRootBlock(m.db, hash)
-	if data != nil {
-		m.rootBlockCache.Add(hash, data)
-		return data.Header()
-	}
-
-	return nil
-}
-
 // GetRootBlockByHash get rootBlock by hash in minorBlockChain
 func (m *MinorBlockChain) GetRootBlockByHash(hash common.Hash) *types.RootBlock {
 	if data, ok := m.rootBlockCache.Get(hash); ok {
@@ -1625,21 +1604,21 @@ func (m *MinorBlockChain) GetRootBlockByHash(hash common.Hash) *types.RootBlock 
 	return nil
 }
 
-func (m *MinorBlockChain) GetRootBlockHeaderByHeight(h common.Hash, height uint64) *types.RootBlockHeader {
-	rHeader := m.getRootBlockHeaderByHash(h)
+func (m *MinorBlockChain) GetRootBlockByHeight(h common.Hash, height uint64) *types.RootBlock {
+	rHeader := m.GetRootBlockByHash(h)
 	if rHeader == nil || height > rHeader.NumberU64() {
 		return nil
 	}
 	for height != rHeader.NumberU64() {
-		if rHeader = m.getRootBlockHeaderByHash(rHeader.ParentHash); rHeader == nil {
-			log.Crit("bug should fix", "GetRootBlockHeaderByHeight rootBlock is nil hash", rHeader.ParentHash, "currNumber", rHeader.NumberU64(), "currHash", rHeader.Hash().String())
+		if rHeader = m.GetRootBlockByHash(rHeader.ParentHash()); rHeader == nil {
+			log.Crit("bug should fix", "GetRootBlockByHeight rootBlock is nil hash", rHeader.ParentHash, "currNumber", rHeader.NumberU64(), "currHash", rHeader.Hash().String())
 		}
 	}
 	return rHeader
 }
 
 func (m *MinorBlockChain) ContainRootBlockByHash(h common.Hash) bool {
-	if m.getRootBlockHeaderByHash(h) == nil {
+	if m.GetRootBlockByHash(h) == nil {
 		return false
 	}
 	return true

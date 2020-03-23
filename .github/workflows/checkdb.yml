@@ -39,9 +39,9 @@ jobs:
           WEEK_DAY=$(date +%w)
           date
           if [ $WEEK_DAY -eq 6 ];then
-                echo "Friday:checkdb until 0 "
+                echo "Sunday:checkdb until 0 "
                 ./cluster --cluster_config ../../mainnet/singularity/cluster_config_template.json --check_db
           else
-                echo "Not Friday:checkdb until 40w"
+                echo "Not Sunday:checkdb until 40w"
                 ./cluster --cluster_config ../../mainnet/singularity/cluster_config_template.json --check_db --check_db_rblock_to=400000
           fi

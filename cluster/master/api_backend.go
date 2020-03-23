@@ -5,6 +5,11 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"math/big"
+	"net"
+	"reflect"
+	"strings"
+
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
 	"github.com/QuarkChain/goquarkchain/consensus"
@@ -16,10 +21,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"golang.org/x/sync/errgroup"
-	"math/big"
-	"net"
-	"reflect"
-	"strings"
 )
 
 func ip2uint32(ip string) uint32 {

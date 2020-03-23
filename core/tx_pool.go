@@ -921,23 +921,23 @@ func (pool *TxPool) runReorg(done chan struct{}, reset *txpoolResetRequest, dirt
 func (pool *TxPool) reset(oldBlock, newBlock *types.MinorBlock) {
 	// If we're reorging an old state, reinject all dropped transactions
 	var reinject types.Transactions
-	var oldHead *types.MinorBlockHeader
-	var newHead *types.MinorBlockHeader
+	var oldHead *types.MinorBlock
+	var newHead *types.MinorBlock
 	if oldBlock == nil {
 		oldHead = nil
 	} else {
-		oldHead = oldBlock.Header()
+		oldHead = oldBlock
 	}
 
 	if newBlock == nil {
 		newHead = nil
 	} else {
-		newHead = newBlock.Header()
+		newHead = newBlock
 	}
-	if newHead != nil && oldHead != nil && oldHead.Hash() != newHead.ParentHash {
+	if newHead != nil && oldHead != nil && oldHead.Hash() != newHead.ParentHash() {
 		// If the reorg is too deep, avoid doing it (will happen during fast sync)
-		oldNum := oldHead.Number
-		newNum := newHead.Number
+		oldNum := oldHead.NumberU64()
+		newNum := newHead.NumberU64()
 
 		if depth := uint64(math.Abs(float64(oldNum) - float64(newNum))); depth > 64 {
 			log.Debug("Skipping deep transaction reorg", "depth", depth)
@@ -1015,7 +1015,7 @@ func (pool *TxPool) reset(oldBlock, newBlock *types.MinorBlock) {
 	pool.currentState = statedb
 	pool.currentState.SetQuarkChainConfig(pool.chain.Config())
 	pool.pendingNonces = newTxNoncer(statedb)
-	pool.currentMaxGas = newBlock.Header().GasLimit.Value.Uint64()
+	pool.currentMaxGas = newBlock.GasLimit().Uint64()
 
 	// Inject any transactions discarded due to reorgs
 	log.Debug("Reinjecting stale transactions", "count", len(reinject))
