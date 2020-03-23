@@ -291,6 +291,7 @@ func (b *RootBlock) TotalDifficulty() *big.Int      { return new(big.Int).Set(b.
 func (b *RootBlock) Nonce() uint64                  { return b.header.Nonce }
 func (b *RootBlock) Extra() []byte                  { return common.CopyBytes(b.header.Extra) }
 func (b *RootBlock) MixDigest() common.Hash         { return b.header.MixDigest }
+func (b *RootBlock) Signature() [65]byte            { return b.header.Signature }
 
 func (b *RootBlock) Header() *RootBlockHeader { return CopyRootBlockHeader(b.header) }
 func (b *RootBlock) Content() []IHashable {
