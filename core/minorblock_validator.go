@@ -197,9 +197,9 @@ func (v *MinorBlockValidator) ValidateBlock(mBlock types.IBlock, force bool) err
 	}
 
 	if !v.bc.isSameRootChain(v.bc.GetRootBlockByHash(block.PrevRootBlockHash()),
-		v.bc.GetRootBlockByHash(prevBlock.IHeader().(*types.MinorBlockHeader).GetPrevRootBlockHash())) {
+		v.bc.GetRootBlockByHash(prevBlock.(*types.MinorBlock).PrevRootBlockHash())) {
 		errMustBeOneRootChain := errors.New("prev root blocks are not on the same chain")
-		log.Error(v.logInfo, "err", errMustBeOneRootChain, "long", block.PrevRootBlockHash().String(), "short", prevBlock.IHeader().(*types.MinorBlockHeader).GetPrevRootBlockHash().String())
+		log.Error(v.logInfo, "err", errMustBeOneRootChain, "long", block.PrevRootBlockHash().String(), "short", prevBlock.(*types.MinorBlock).PrevRootBlockHash().String())
 		return errMustBeOneRootChain
 	}
 	if !v.bc.clusterConfig.Quarkchain.DisablePowCheck {

@@ -466,13 +466,13 @@ func (m *MinorBlockChain) reRunBlockWithState(block *types.MinorBlock) error {
 }
 
 // getEvmStateForNewBlock get evmState for new block.should have locked
-func (m *MinorBlockChain) getEvmStateForNewBlock(mHeader *types.MinorBlock, ephemeral bool) (*state.StateDB, error) {
-	prevHash := mHeader.ParentHash()
+func (m *MinorBlockChain) getEvmStateForNewBlock(minorBlock *types.MinorBlock, ephemeral bool) (*state.StateDB, error) {
+	prevHash := minorBlock.ParentHash()
 	preMinorBlock := m.GetMinorBlock(prevHash)
 	if preMinorBlock == nil {
 		return nil, ErrMinorBlockIsNil
 	}
-	recipient := mHeader.Coinbase().Recipient
+	recipient := minorBlock.Coinbase().Recipient
 	evmState, err := m.stateAtWithSenderDisallowMap(preMinorBlock, &recipient)
 	if err != nil {
 		return nil, err
@@ -480,15 +480,15 @@ func (m *MinorBlockChain) getEvmStateForNewBlock(mHeader *types.MinorBlock, ephe
 	if ephemeral {
 		evmState = evmState.Copy()
 	}
-	m.setEvmStateWithHeader(evmState, mHeader)
+	m.setEvmStateWithBlock(evmState, minorBlock)
 	return evmState, nil
 }
 
-func (m *MinorBlockChain) setEvmStateWithHeader(evmState *state.StateDB, header *types.MinorBlock) {
-	evmState.SetTimeStamp(header.Time())
-	evmState.SetBlockNumber(header.NumberU64())
-	evmState.SetBlockCoinbase(header.Coinbase().Recipient)
-	evmState.SetGasLimit(header.GasLimit())
+func (m *MinorBlockChain) setEvmStateWithBlock(evmState *state.StateDB, block *types.MinorBlock) {
+	evmState.SetTimeStamp(block.Time())
+	evmState.SetBlockNumber(block.NumberU64())
+	evmState.SetBlockCoinbase(block.Coinbase().Recipient)
+	evmState.SetGasLimit(block.GasLimit())
 	evmState.SetQuarkChainConfig(m.clusterConfig.Quarkchain)
 }
 func (m *MinorBlockChain) runBlock(block *types.MinorBlock) (*state.StateDB, types.Receipts, []*types.Log, uint64,
@@ -923,11 +923,11 @@ func (m *MinorBlockChain) AddRootBlock(rBlock *types.RootBlock) (bool, error) {
 			shardHeaders = append(shardHeaders, mHeader)
 			continue
 		}
-		prevRootHeader := m.GetRootBlockByHash(mHeader.PrevRootBlockHash)
+		prevRootBlock := m.GetRootBlockByHash(mHeader.PrevRootBlockHash)
 
 		// prev_root_header can be None when the shard is not created at root height 0
-		t := prevRootHeader.Number()
-		if prevRootHeader == nil || prevRootHeader.Number() == uint32(m.clusterConfig.Quarkchain.GetGenesisRootHeight(m.branch.Value)) || !m.isNeighbor(mHeader.Branch, &t) {
+		t := prevRootBlock.Number()
+		if prevRootBlock == nil || prevRootBlock.Number() == uint32(m.clusterConfig.Quarkchain.GetGenesisRootHeight(m.branch.Value)) || !m.isNeighbor(mHeader.Branch, &t) {
 			if data := m.ReadCrossShardTxList(h); data != nil {
 				errXshardListAlreadyHave := errors.New("already have")
 				log.Error(m.logInfo, "addrootBlock err-1", errXshardListAlreadyHave)

@@ -7,9 +7,8 @@ import (
 	"time"
 	"unsafe"
 
-	"github.com/QuarkChain/goquarkchain/params"
-
 	"github.com/QuarkChain/goquarkchain/account"
+	"github.com/QuarkChain/goquarkchain/params"
 	"github.com/QuarkChain/goquarkchain/serialize"
 	"github.com/ethereum/go-ethereum/common"
 )

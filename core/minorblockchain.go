@@ -404,7 +404,7 @@ func (m *MinorBlockChain) stateAtWithSenderDisallowMap(minorBlock *types.MinorBl
 		return nil, err
 	}
 	evmState.SetSenderDisallowMap(senderDisallowMap)
-	m.setEvmStateWithHeader(evmState, minorBlock)
+	m.setEvmStateWithBlock(evmState, minorBlock)
 	return evmState, nil
 }
 
