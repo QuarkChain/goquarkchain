@@ -76,7 +76,7 @@ type Engine interface {
 
 	// CalcDifficulty is the difficulty adjustment algorithm. It returns the difficulty
 	// that a new block should have.
-	CalcDifficulty(chain ChainReader, time uint64, parent types.IHeader) (*big.Int, error)
+	CalcDifficulty(chain ChainReader, time uint64, parent types.IBlock) (*big.Int, error)
 
 	GetWork(address account.Address) (*MiningWork, error)
 
@@ -102,6 +102,6 @@ type PoW interface {
 type PoSWCalculator interface {
 	BuildSenderDisallowMap(headerHash common.Hash, recipient *account.Recipient) (map[account.Recipient]*big.Int, error)
 	PoSWDiffAdjust(header types.IHeader, balance *big.Int) (*big.Int, error)
-	IsPoSWEnabled(header types.IHeader) bool
+	IsPoSWEnabled(time uint64, height uint64) bool
 	GetPoSWInfo(header types.IHeader, stakes *big.Int, address account.Recipient) (*big.Int, uint64, uint64, error)
 }

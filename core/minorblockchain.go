@@ -89,7 +89,6 @@ type MinorBlockChain struct {
 
 	db     ethdb.Database // Low level persistent database to store final content in
 	triegc *prque.Prque   // Priority queue mapping block numbers to tries to gc
-	gcproc time.Duration  // Accumulates canonical block processing for trie dumping
 
 	rmLogsFeed    event.Feed
 	chainFeed     event.Feed
@@ -132,8 +131,8 @@ type MinorBlockChain struct {
 	txPool                   *TxPool
 	branch                   account.Branch
 	shardConfig              *config.ShardConfig
-	rootTip                  *types.RootBlockHeader
-	confirmedHeaderTip       *types.MinorBlockHeader
+	rootTip                  *types.RootBlock
+	confirmedHeaderTip       *types.MinorBlock
 	initialized              bool
 	rewardCalc               *qkcCommon.ConstMinorBlockRewardCalculator
 	gasPriceSuggestionOracle *gasPriceSuggestionOracle
@@ -169,7 +168,7 @@ func NewMinorBlockChain(
 			TrieCleanLimit: 128,
 			TrieDirtyLimit: 128,
 			TrieTimeLimit:  5 * time.Minute,
-			Disabled:       true,
+			Disabled:       clusterConfig.NoPruning,
 		}
 	}
 	receiptsCache, _ := lru.New(receiptsCacheLimit)
@@ -283,9 +282,6 @@ func (m *MinorBlockChain) loadLastState() error {
 	if _, err := m.StateAt(currentBlock.GetMetaData().Root); err != nil {
 		// Dangling block without a state associated, init from scratch
 		log.Warn("Head state missing, repairing chain", "number", currentBlock.NumberU64(), "hash", currentBlock.Hash())
-		if err := m.repair(&currentBlock); err != nil {
-			return err
-		}
 	}
 	// Everything seems to be fine, set as the head block
 	m.currentBlock.Store(currentBlock)
@@ -410,7 +406,7 @@ func (m *MinorBlockChain) stateAtWithSenderDisallowMap(minorBlock *types.MinorBl
 		return nil, err
 	}
 	evmState.SetSenderDisallowMap(senderDisallowMap)
-	m.setEvmStateWithHeader(evmState, minorBlock.Header())
+	m.setEvmStateWithBlock(evmState, minorBlock)
 	return evmState, nil
 }
 
@@ -420,7 +416,7 @@ func (m *MinorBlockChain) SkipDifficultyCheck() bool {
 
 func (m *MinorBlockChain) GetAdjustedDifficulty(header types.IHeader) (*big.Int, uint64, error) {
 	diff := header.GetDifficulty()
-	if m.posw.IsPoSWEnabled(header) {
+	if m.posw.IsPoSWEnabled(header.GetTime(), header.NumberU64()) {
 		preHash := header.GetParentHash()
 		balance, err := m.GetBalance(header.GetCoinbase().Recipient, &preHash)
 		if err != nil {
@@ -465,28 +461,6 @@ func (m *MinorBlockChain) ResetWithGenesisBlock(genesis *types.MinorBlock) error
 	m.currentBlock.Store(m.genesisBlock)
 
 	return nil
-}
-
-// repair tries to repair the current blockchain by rolling back the current block
-// until one with associated state is found. This is needed to fix incomplete db
-// writes caused either by crashes/power outages, or simply non-committed tries.
-//
-// This method only rolls back the current block. The current header and current
-// fast block are left intact.
-func (m *MinorBlockChain) repair(head **types.MinorBlock) error {
-	for {
-		// Abort if we've rewound to a head block that does have associated state
-		if _, err := m.StateAt((*head).Root()); err == nil {
-			log.Info("Rewound blockchain to past state", "number", (*head).Number(), "hash", (*head).Hash())
-			return nil
-		}
-		// Otherwise rewind one block and recheck state availability there
-		block := m.GetBlock((*head).ParentHash())
-		if qkcCommon.IsNil(block) {
-			return fmt.Errorf("missing block %d [%x]", (*head).NumberU64()-1, (*head).ParentHash())
-		}
-		(*head) = block.(*types.MinorBlock)
-	}
 }
 
 // Export writes the active chain to the given writer.
@@ -648,17 +622,17 @@ func (m *MinorBlockChain) getNeedStoreHeight(rootHash common.Hash, heightDiff []
 		currNumber = m.CurrentBlock().NumberU64()
 	)
 	headerTip := m.getLastConfirmedMinorBlockHeaderAtRootBlock(rootHash)
-	if headerTip != nil && headerTip.Number < currNumber {
+	if headerTip != nil && headerTip.NumberU64() < currNumber {
 		log.Info("trie", "tip", headerTip.Number, "rootHash", rootHash.String())
-		heightDiff = append(heightDiff, currNumber-headerTip.Number)
-		if headerTip.Number >= 1 {
-			heightDiff = append(heightDiff, currNumber-(headerTip.Number-1))
+		heightDiff = append(heightDiff, currNumber-headerTip.NumberU64())
+		if headerTip.NumberU64() >= 1 {
+			heightDiff = append(heightDiff, currNumber-(headerTip.NumberU64()-1))
 		}
-		if headerTip.Number >= triesInMemory {
-			heightDiff = append(heightDiff, currNumber-(headerTip.Number-triesInMemory))
+		if headerTip.NumberU64() >= triesInMemory {
+			heightDiff = append(heightDiff, currNumber-(headerTip.NumberU64()-triesInMemory))
 		}
 		currBlockNumber := m.CurrentBlock().Number()
-		for index := headerTip.Number; index <= currBlockNumber; index++ {
+		for index := headerTip.NumberU64(); index <= currBlockNumber; index++ {
 			heightDiff = append(heightDiff, currBlockNumber-index)
 		}
 
@@ -692,7 +666,7 @@ func (m *MinorBlockChain) Stop() {
 			heightDiff = []uint64{0, 1, triesInMemory - 1}
 		)
 		if m.rootTip != nil {
-			log.Info("need stored tire", "number", m.rootTip.Number)
+			log.Info("need stored tire", "root tip number", m.rootTip.Number, "minor tip number", m.CurrentBlock().Number())
 
 			for hash := range m.rootHeightToHashes[m.rootTip.NumberU64()] {
 				heightDiff = m.getNeedStoreHeight(hash, heightDiff)
@@ -709,7 +683,7 @@ func (m *MinorBlockChain) Stop() {
 				recent := recentBlockInterface.(*types.MinorBlock)
 
 				log.Info("Writing cached state to disk", "block", recent.NumberU64(), "hash", recent.Hash(), "root", recent.GetMetaData().Root)
-				if err := triedb.Commit(recent.GetMetaData().Root, true); err != nil {
+				if err := triedb.Commit(recent.GetMetaData().Root, false); err != nil {
 					log.Error("Failed to commit recent state trie", "err", err)
 				}
 			}
@@ -936,25 +910,18 @@ func (m *MinorBlockChain) WriteBlockWithState(block *types.MinorBlock, receipts 
 				triedb.Cap(limit - ethdb.IdealBatchSize)
 			}
 			// Find the next state trie we need to commit
-			header := m.GetHeaderByNumber(current - triesInMemory)
-			preBlockInterface := m.GetBlockByNumber(current - triesInMemory)
-			if qkcCommon.IsNil(preBlockInterface) {
+			block := m.GetBlockByNumber(current - triesInMemory)
+			if qkcCommon.IsNil(block) {
 				log.Error("minorBlock not found", "height", current-triesInMemory)
 			}
-			preBlock := preBlockInterface.(*types.MinorBlock)
-			chosen := header.NumberU64()
+			mBlock := block.(*types.MinorBlock)
+			chosen := mBlock.NumberU64()
 
 			// If we exceeded out time allowance, flush an entire trie to disk
-			if m.gcproc > m.cacheConfig.TrieTimeLimit {
-				// If we're exceeding limits but haven't reached a large enough memory gap,
-				// warn the user that the system is becoming unstable.
-				if chosen < lastWrite+triesInMemory && m.gcproc >= 2*m.cacheConfig.TrieTimeLimit {
-					log.Info("State in memory for too long, committing", "time", m.gcproc, "allowance", m.cacheConfig.TrieTimeLimit, "optimum", float64(chosen-lastWrite)/triesInMemory)
-				}
+			if mBlock.NumberU64()%triesInMemory == 0 {
 				// Flush an entire trie and restart the counters
-				triedb.Commit(preBlock.GetMetaData().Root, true)
-				lastWrite = chosen
-				m.gcproc = 0
+				triedb.Commit(mBlock.GetMetaData().Root, false)
+				log.Info(m.logInfo, "commit trie number", mBlock.NumberU64(), "hash", mBlock.Hash().String(), "root", mBlock.GetMetaData().Root.String())
 			}
 			// Garbage collect anything below our required write retention
 			for !m.triegc.Empty() {
@@ -1095,19 +1062,9 @@ func (m *MinorBlockChain) insertChain(chain []types.IBlock, verifySeals bool, is
 		lastCanon     types.IBlock
 		coalescedLogs []*types.Log
 	)
-	// Start the parallel header verifier
-	headers := make([]types.IHeader, len(chain))
-	seals := make([]bool, len(chain))
-
-	for i, block := range chain {
-		headers[i] = block.IHeader()
-		seals[i] = verifySeals
-	}
-	abort, results := m.engine.VerifyHeaders(m, headers, seals)
-	defer close(abort)
 
 	// Peek the error for the first block to decide the directing import logic
-	it := newInsertIterator(chain, results, m.Validator(), isCheckDB)
+	it := newInsertIterator(chain, m.Validator(), isCheckDB)
 	block, err := it.next()
 	switch {
 	// First block is pruned, insert as sidechain and reorg only if TD grows enough
@@ -1177,7 +1134,6 @@ func (m *MinorBlockChain) insertChain(chain []types.IBlock, verifySeals bool, is
 			m.reportBlock(block, receipts, err)
 			return it.index, events, coalescedLogs, xShardList, err
 		}
-		proctime := time.Since(start)
 
 		if isCheckDB {
 			xShardList = append(xShardList, state.GetXShardList())
@@ -1202,9 +1158,6 @@ func (m *MinorBlockChain) insertChain(chain []types.IBlock, verifySeals bool, is
 			coalescedLogs = append(coalescedLogs, logs...)
 			events = append(events, MinorChainEvent{mBlock, mBlock.Hash(), logs})
 			lastCanon = block
-
-			// Only count canonical blocks for GC processing time
-			m.gcproc += proctime
 
 		case SideStatTy:
 			log.Debug(m.logInfo+" Inserted forked block", "number", mBlock.NumberU64(), "hash", mBlock.Hash().TerminalString(),
@@ -1499,6 +1452,9 @@ func (m *MinorBlockChain) PostChainEvents(events []interface{}, logs []*types.Lo
 	// post event logs for further processing
 	if logs != nil {
 		m.logsFeed.Send(logs)
+		var logss [][]*types.Log
+		logss = append(logss, logs)
+		m.subLogsFeed.Send(LoglistEvent{Logs: logss, IsRemoved: false})
 	}
 	for _, event := range events {
 		switch ev := event.(type) {
@@ -1641,19 +1597,6 @@ func (m *MinorBlockChain) SubscribeNewTxsEvent(ch chan<- NewTxsEvent) event.Subs
 	return m.txPool.SubscribeNewTxsEvent(ch)
 }
 
-func (m *MinorBlockChain) getRootBlockHeaderByHash(hash common.Hash) *types.RootBlockHeader {
-	if data, ok := m.rootBlockCache.Get(hash); ok {
-		return data.(*types.RootBlock).Header()
-	}
-	data := rawdb.ReadRootBlock(m.db, hash)
-	if data != nil {
-		m.rootBlockCache.Add(hash, data)
-		return data.Header()
-	}
-
-	return nil
-}
-
 // GetRootBlockByHash get rootBlock by hash in minorBlockChain
 func (m *MinorBlockChain) GetRootBlockByHash(hash common.Hash) *types.RootBlock {
 	if data, ok := m.rootBlockCache.Get(hash); ok {
@@ -1667,21 +1610,21 @@ func (m *MinorBlockChain) GetRootBlockByHash(hash common.Hash) *types.RootBlock 
 	return nil
 }
 
-func (m *MinorBlockChain) GetRootBlockHeaderByHeight(h common.Hash, height uint64) *types.RootBlockHeader {
-	rHeader := m.getRootBlockHeaderByHash(h)
+func (m *MinorBlockChain) GetRootBlockByHeight(h common.Hash, height uint64) *types.RootBlock {
+	rHeader := m.GetRootBlockByHash(h)
 	if rHeader == nil || height > rHeader.NumberU64() {
 		return nil
 	}
 	for height != rHeader.NumberU64() {
-		if rHeader = m.getRootBlockHeaderByHash(rHeader.ParentHash); rHeader == nil {
-			log.Crit("bug should fix", "GetRootBlockHeaderByHeight rootBlock is nil hash", rHeader.ParentHash, "currNumber", rHeader.NumberU64(), "currHash", rHeader.Hash().String())
+		if rHeader = m.GetRootBlockByHash(rHeader.ParentHash()); rHeader == nil {
+			log.Crit("bug should fix", "GetRootBlockByHeight rootBlock is nil hash", rHeader.ParentHash, "currNumber", rHeader.NumberU64(), "currHash", rHeader.Hash().String())
 		}
 	}
 	return rHeader
 }
 
 func (m *MinorBlockChain) ContainRootBlockByHash(h common.Hash) bool {
-	if m.getRootBlockHeaderByHash(h) == nil {
+	if m.GetRootBlockByHash(h) == nil {
 		return false
 	}
 	return true

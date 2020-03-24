@@ -43,3 +43,11 @@ have at least one root block been mined before cross shard transaction can be ha
 ## Monitoring
 
 Now you can monitor the TPS using the [stats tool](../../cmd/stats).
+
+## FAQ
+
+### Got "account for tps not ready" when generating Transactions?
+ 
+Please check `GENESIS_DIR` in cluster_config_template.json that the path to loadtest.json is correctly set.
+If you start cluster under goquarkchain/cmd/cluster, "../../tests/loadtest/accounts" would work for you. 
+Usually it takes a few seconds for the cluster to load accounts, so please make sure it is fully started before creating transactions and mining.

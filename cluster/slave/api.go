@@ -132,7 +132,7 @@ func (api *PublicFilterAPI) NewHeads(ctx context.Context, fullShardId hexutil.Ui
 }
 
 // Logs creates a subscription that fires for all new log that match the given filter criteria.
-func (api *PublicFilterAPI) Logs(ctx context.Context, crit rpc.FilterQuery, fullShardId hexutil.Uint) (*rpc.Subscription, error) {
+func (api *PublicFilterAPI) Logs(ctx context.Context, fullShardId hexutil.Uint, crit rpc.FilterQuery) (*rpc.Subscription, error) {
 	notifier, supported := rpc.NotifierFromContext(ctx)
 	if !supported {
 		return &rpc.Subscription{}, rpc.ErrNotificationsUnsupported

@@ -2,13 +2,14 @@ package qkchash
 
 import (
 	"encoding/binary"
+	"math/big"
+	"testing"
+
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/consensus/qkchash/native"
 	"github.com/QuarkChain/goquarkchain/mocks/mock_consensus"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
-	"math/big"
-	"testing"
 
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/core/types"
@@ -75,6 +76,8 @@ func TestVerifyHeaderAndHeaders(t *testing.T) {
 			ParentHash:      parent.Hash(),
 			ToTalDifficulty: big.NewInt(6),
 		}
+		block := types.NewRootBlock(header, nil, nil)
+		parentBlock := types.NewRootBlock(parent, nil, nil)
 		sealBlock(t, q, header)
 
 		cr := mock_consensus.NewMockChainReader(ctrl)
@@ -82,6 +85,8 @@ func TestVerifyHeaderAndHeaders(t *testing.T) {
 		cr.EXPECT().Config().Return(config.NewQuarkChainConfig()).AnyTimes()
 		cr.EXPECT().GetHeader(header.Hash()).Return(nil).AnyTimes()
 		cr.EXPECT().GetHeader(parent.Hash()).Return(parent).AnyTimes()
+		cr.EXPECT().GetBlock(header.Hash()).Return(block).AnyTimes()
+		cr.EXPECT().GetBlock(parent.Hash()).Return(parentBlock).AnyTimes()
 		cr.EXPECT().SkipDifficultyCheck().Return(true).AnyTimes()
 		cr.EXPECT().GetAdjustedDifficulty(gomock.Any()).Return(header.Difficulty, uint64(1), nil).AnyTimes()
 		err := q.VerifyHeader(cr, header, true)
@@ -125,4 +130,25 @@ func sealBlock(t *testing.T, q *QKCHash, h *types.RootBlockHeader) {
 	close(stop)
 	h.Nonce = block.IHeader().GetNonce()
 	h.MixDigest = block.IHeader().GetMixDigest()
+}
+
+func TestQKCHashPow(t *testing.T) {
+	assert := assert.New(t)
+	diffCalculator := consensus.EthDifficultyCalculator{AdjustmentCutoff: 1, AdjustmentFactor: 1, MinimumDifficulty: big.NewInt(10)}
+	header := &types.RootBlockHeader{Number: 10, Difficulty: big.NewInt(10)}
+	q := New(true, &diffCalculator, false, []byte{}, 0)
+	rootBlock := types.NewRootBlockWithHeader(header)
+	resultsCh := make(chan types.IBlock)
+	err := q.Seal(nil, rootBlock, big.NewInt(10), 1, resultsCh, nil)
+	assert.NoError(err, "should have no problem sealing the block")
+	block := <-resultsCh
+	// Correct
+	header.Nonce = block.IHeader().GetNonce()
+	header.MixDigest = block.IHeader().GetMixDigest()
+	err = q.VerifySeal(nil, header, big.NewInt(10))
+	assert.NoError(err, "should have correct nonce / mix digest")
+	// Wrong
+	header.Nonce = block.IHeader().GetNonce() - 1
+	err = q.VerifySeal(nil, header, big.NewInt(10))
+	assert.Error(err, "should have error because of the wrong nonce")
 }

@@ -20,6 +20,8 @@ var (
 )
 var (
 	initConf = flag.Bool("genconf", false, "only gen config , not run cluster")
+	initEnv  = flag.Bool("init_env", false, "only init env")
+	genLog  = flag.Bool("log", false, "only gen log")
 )
 
 func init() {
@@ -41,13 +43,23 @@ func getToolManager() *deploy.ToolManager {
 
 func main() {
 	flag.Parse()
+	toolManager := getToolManager()
 	if *initConf {
-		toolManager := getToolManager()
 		toolManager.GenAllClusterConfig()
 		return
 	}
 
-	toolManager := getToolManager()
+	if *genLog {
+		toolManager.StartGenLog()
+		return
+	}
+
+	if *initEnv {
+		log.Info("ready to set Environment!!!")
+		toolManager.InitEnv()
+		log.Info("Environment set successfully!!!!")
+		return
+	}
 	toolManager.StartClusters()
 	log.Info("ready to check status")
 	toolManager.CheckPeerStatus()
