@@ -3568,8 +3568,8 @@ func TestXshardGasLimitFromMultipleShards(t *testing.T) {
 	tx1 := createTransferTransaction(shardState1, id1.GetKey().Bytes(), acc2, acc1, val1, &gas1, &gasPrice1, nil, nil, nil, nil)
 	b1.AddTx(tx1)
 	//	# Add a x-shard tx from remote peer
-	deposit := types.CrossShardTransactionDeposit{TxHash: tx0.Hash(), From: acc2, To: acc1, Value: &serialize.Uint256{Value: big.NewInt(888888)}, GasPrice: &serialize.Uint256{Value: big.NewInt(2)}, GasTokenID: QKC, TransferTokenID: QKC}
-	deposit2 := types.CrossShardTransactionDeposit{TxHash: tx1.Hash(), From: acc2, To: acc1, Value: &serialize.Uint256{Value: big.NewInt(111111)}, GasPrice: &serialize.Uint256{Value: big.NewInt(2)}, GasTokenID: QKC, TransferTokenID: QKC}
+	deposit := types.CrossShardTransactionDeposit{CrossShardTransactionDepositV0: types.CrossShardTransactionDepositV0{TxHash: tx0.Hash(), From: acc2, To: acc1, Value: &serialize.Uint256{Value: big.NewInt(888888)}, GasPrice: &serialize.Uint256{Value: big.NewInt(2)}, GasTokenID: QKC, TransferTokenID: QKC}}
+	deposit2 := types.CrossShardTransactionDeposit{CrossShardTransactionDepositV0: types.CrossShardTransactionDepositV0{TxHash: tx1.Hash(), From: acc2, To: acc1, Value: &serialize.Uint256{Value: big.NewInt(111111)}, GasPrice: &serialize.Uint256{Value: big.NewInt(2)}, GasTokenID: QKC, TransferTokenID: QKC}}
 	txL := make([]*types.CrossShardTransactionDeposit, 0)
 	txL = append(txL, &deposit, &deposit2)
 	txList := types.CrossShardTransactionDepositList{TXList: txL}
@@ -3585,7 +3585,7 @@ func TestXshardGasLimitFromMultipleShards(t *testing.T) {
 	tx3 := createTransferTransaction(shardState1, id1.GetKey().Bytes(), acc2, acc1, val2, &gas2, &gasPrice2, nil, []byte("1234"), nil, nil)
 	b2.AddTx(tx3)
 	//	# Add a x-shard tx from remote peer
-	deposit = types.CrossShardTransactionDeposit{TxHash: tx3.Hash(), From: acc3, To: acc1, Value: &serialize.Uint256{Value: big.NewInt(12345)}, GasPrice: &serialize.Uint256{Value: big.NewInt(2)}, GasTokenID: QKC, TransferTokenID: QKC}
+	deposit = types.CrossShardTransactionDeposit{CrossShardTransactionDepositV0: types.CrossShardTransactionDepositV0{TxHash: tx3.Hash(), From: acc3, To: acc1, Value: &serialize.Uint256{Value: big.NewInt(12345)}, GasPrice: &serialize.Uint256{Value: big.NewInt(2)}, GasTokenID: QKC, TransferTokenID: QKC}}
 	txL = make([]*types.CrossShardTransactionDeposit, 0)
 	txL = append(txL, &deposit)
 	txList = types.CrossShardTransactionDepositList{TXList: txL}

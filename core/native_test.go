@@ -196,7 +196,7 @@ func TestXshardNativeTokenSent(t *testing.T) {
 	shardState.FinalizeAndAddBlock(b1)
 	evmState, _ = shardState.State()
 	assert.Equal(t, len(evmState.GetXShardList()), 1)
-	deposit := &types.CrossShardTransactionDeposit{TxHash: tx.Hash(), From: acc1, To: acc2, Value: &serialize.Uint256{Value: val}, GasPrice: &serialize.Uint256{Value: big.NewInt(1)}, GasTokenID: QKC, TransferTokenID: QETHXX}
+	deposit := &types.CrossShardTransactionDeposit{CrossShardTransactionDepositV0: types.CrossShardTransactionDepositV0{TxHash: tx.Hash(), From: acc1, To: acc2, Value: &serialize.Uint256{Value: val}, GasPrice: &serialize.Uint256{Value: big.NewInt(1)}, GasTokenID: QKC, TransferTokenID: QETHXX}}
 	assert.NotEqual(t, evmState.GetXShardList()[0], deposit)
 	balance, _ := shardState.GetBalance(acc1.Recipient, nil)
 	balance.GetTokenBalance(QKC)
@@ -247,7 +247,7 @@ func TestXshardNativeTokenReceived(t *testing.T) {
 	tx := createTransferTransaction(shardState1, id1.GetKey().Bytes(), acc2, acc1, val, &gas, &gasPrice, nil, nil, &QKC, &QETHXX)
 	b1.AddTx(tx)
 	// Add a x-shard tx from remote peer
-	deposit := types.CrossShardTransactionDeposit{
+	deposit := types.CrossShardTransactionDeposit{CrossShardTransactionDepositV0: types.CrossShardTransactionDepositV0{
 		TxHash:          tx.Hash(),
 		From:            acc2,
 		To:              acc1,
@@ -255,7 +255,7 @@ func TestXshardNativeTokenReceived(t *testing.T) {
 		GasPrice:        &serialize.Uint256{Value: big.NewInt(2)},
 		TransferTokenID: QETHXX,
 		GasTokenID:      shardState0.GetGenesisToken(),
-	}
+	}}
 	txL := types.CrossShardTransactionDepositList{}
 	txL.TXList = append(txL.TXList, &deposit)
 	shardState0.AddCrossShardTxListByMinorBlockHash(b1.Header().Hash(), txL)
@@ -319,7 +319,7 @@ func TestXshardNativeTokenGasSent(t *testing.T) {
 	shardState.FinalizeAndAddBlock(b1)
 	evmState, _ = shardState.State()
 	assert.Equal(t, len(evmState.GetXShardList()), 1)
-	deposit := &types.CrossShardTransactionDeposit{TxHash: tx.Hash(), From: acc1, To: acc2, Value: &serialize.Uint256{Value: val}, GasPrice: &serialize.Uint256{Value: big.NewInt(1)}, GasRemained: &serialize.Uint256{Value: big.NewInt(0)}, GasTokenID: QETHXX, TransferTokenID: QETHXX}
+	deposit := &types.CrossShardTransactionDeposit{CrossShardTransactionDepositV0: types.CrossShardTransactionDepositV0{TxHash: tx.Hash(), From: acc1, To: acc2, Value: &serialize.Uint256{Value: val}, GasPrice: &serialize.Uint256{Value: big.NewInt(1)}, GasRemained: &serialize.Uint256{Value: big.NewInt(0)}, GasTokenID: QETHXX, TransferTokenID: QETHXX}}
 	assert.Equal(t, evmState.GetXShardList()[0], deposit)
 
 	balance, _ := shardState.GetBalance(acc1.Recipient, nil)
@@ -366,7 +366,7 @@ func TestXshardNativeTokenGasReceived(t *testing.T) {
 	gasPrice := uint64(2)
 	tx := createTransferTransaction(shardState1, id1.GetKey().Bytes(), acc2, acc1, val, &gas, &gasPrice, nil, nil, &QETHXX, &QETHXX)
 	b1.AddTx(tx)
-	deposit := types.CrossShardTransactionDeposit{TxHash: tx.Hash(), From: acc1, To: acc2, Value: &serialize.Uint256{Value: val}, GasPrice: &serialize.Uint256{Value: big.NewInt(2)}, GasTokenID: QETHXX, TransferTokenID: QETHXX}
+	deposit := types.CrossShardTransactionDeposit{CrossShardTransactionDepositV0: types.CrossShardTransactionDepositV0{TxHash: tx.Hash(), From: acc1, To: acc2, Value: &serialize.Uint256{Value: val}, GasPrice: &serialize.Uint256{Value: big.NewInt(2)}, GasTokenID: QETHXX, TransferTokenID: QETHXX}}
 	txL := make([]*types.CrossShardTransactionDeposit, 0)
 	txL = append(txL, &deposit)
 	txList := types.CrossShardTransactionDepositList{TXList: txL}
