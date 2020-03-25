@@ -2986,10 +2986,11 @@ func TestPayNativeTokenAsGasContractAPI(t *testing.T) {
 	assert.NoError(t, err)
 
 	ctx := vm.Context{
-		CanTransfer:     CanTransfer,
-		Transfer:        Transfer,
-		TransferTokenID: shardState.GetGenesisToken(),
-		BlockNumber:     new(big.Int),
+		CanTransfer:                       CanTransfer,
+		Transfer:                          Transfer,
+		TransferFailureByPoswBalanceCheck: TransferFailureByPoswBalanceCheck,
+		TransferTokenID:                   shardState.GetGenesisToken(),
+		BlockNumber:                       new(big.Int),
 	}
 	evm := vm.NewEVM(ctx, evmState, shardState.ethChainConfig, vm.Config{})
 	call := func(data string, value *big.Int) ([]byte, error) {
@@ -3095,10 +3096,11 @@ func TestPayNativeTokenAsGasEndToEnd(t *testing.T) {
 	assert.NoError(t, err)
 
 	ctx := vm.Context{
-		CanTransfer:     CanTransfer,
-		Transfer:        Transfer,
-		TransferTokenID: shardState.GetGenesisToken(),
-		BlockNumber:     new(big.Int),
+		CanTransfer:                       CanTransfer,
+		Transfer:                          Transfer,
+		TransferFailureByPoswBalanceCheck: TransferFailureByPoswBalanceCheck,
+		TransferTokenID:                   shardState.GetGenesisToken(),
+		BlockNumber:                       new(big.Int),
 	}
 	evm := vm.NewEVM(ctx, evmState, shardState.ethChainConfig, vm.Config{})
 	call := func(data string, value *big.Int) ([]byte, error) {
@@ -3201,11 +3203,12 @@ func TestMintNewNativeToken(t *testing.T) {
 	_, err = evmState.Commit(true)
 	assert.NoError(t, err)
 	ctx := vm.Context{
-		CanTransfer:     CanTransfer,
-		Transfer:        Transfer,
-		TransferTokenID: shardState.GetGenesisToken(),
-		BlockNumber:     new(big.Int),
-		Time:            new(big.Int).SetUint64(evmState.GetTimeStamp()),
+		CanTransfer:                       CanTransfer,
+		Transfer:                          Transfer,
+		TransferFailureByPoswBalanceCheck: TransferFailureByPoswBalanceCheck,
+		TransferTokenID:                   shardState.GetGenesisToken(),
+		BlockNumber:                       new(big.Int),
+		Time:                              new(big.Int).SetUint64(evmState.GetTimeStamp()),
 	}
 	evm := vm.NewEVM(ctx, evmState, shardState.ethChainConfig, vm.Config{})
 	call := func(data string) ([]byte, error) {
