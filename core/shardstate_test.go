@@ -3282,7 +3282,7 @@ func TestMintNewNativeToken(t *testing.T) {
 }
 
 func TestBlocksWithIncorrectVersion(t *testing.T) {
-	env := getTestEnv(nil, nil, nil, nil, nil, nil)
+	env := getTestEnv(nil, nil, nil, nil, nil, nil, nil)
 	shardState := createDefaultShardState(env, nil, nil, nil, nil)
 	rootBlock := shardState.GetRootTip().Header().CreateBlockToAppend(nil, nil, nil, nil, nil)
 	rootBlock.Header().Version = 1
@@ -3313,7 +3313,7 @@ func TestEnablEvmTimestampWithContractCall(t *testing.T) {
 	acc1 := account.CreatAddressFromIdentity(id1, 0)
 	acc2 := account.CreatEmptyAddress(0)
 	a := big.NewInt(10000000).Uint64()
-	env := getTestEnv(&acc1, &a, nil, nil, nil, nil)
+	env := getTestEnv(&acc1, &a, nil, nil, nil, nil, nil)
 	shardState := createDefaultShardState(env, nil, nil, nil, nil)
 	rootBlock := shardState.GetRootTip().Header().CreateBlockToAppend(nil, nil, nil, nil, nil).Finalize(nil, nil, common.Hash{})
 	shardState.AddRootBlock(rootBlock)
@@ -3340,7 +3340,7 @@ func TestEnableEvmTimestampWithContractCreate(t *testing.T) {
 	id1, _ := account.CreatRandomIdentity()
 	acc1 := account.CreatAddressFromIdentity(id1, 0)
 	a := big.NewInt(10000000).Uint64()
-	env := getTestEnv(&acc1, &a, nil, nil, nil, nil)
+	env := getTestEnv(&acc1, &a, nil, nil, nil, nil, nil)
 	shardState := createDefaultShardState(env, nil, nil, nil, nil)
 	rootBlock := shardState.GetRootTip().Header().CreateBlockToAppend(nil, nil, nil, nil, nil).Finalize(nil, nil, common.Hash{})
 	shardState.AddRootBlock(rootBlock)
@@ -3375,7 +3375,7 @@ func TestFailedTransactionGas(t *testing.T) {
 	defer func() {
 		testGenesisMinorTokenBalance = make(map[string]*big.Int)
 	}()
-	env := getTestEnv(&acc1, nil, nil, nil, nil, nil)
+	env := getTestEnv(&acc1, nil, nil, nil, nil, nil, nil)
 	shardState := createDefaultShardState(env, nil, nil, nil, nil)
 	//Create failed contract with revert operation
 	/**
@@ -3405,7 +3405,7 @@ func TestFailedTransactionGas(t *testing.T) {
 
 func TestIncorrectCoinbaseAmount(t *testing.T) {
 	QKC := qkcCommon.TokenIDEncode("QKC")
-	env := getTestEnv(nil, nil, nil, nil, nil, nil)
+	env := getTestEnv(nil, nil, nil, nil, nil, nil, nil)
 	shardState := createDefaultShardState(env, nil, nil, nil, nil)
 	rootBlock := shardState.GetRootTip().Header().CreateBlockToAppend(nil, nil, nil, nil, nil).Finalize(nil, nil, common.Hash{})
 	shardState.AddRootBlock(rootBlock)
@@ -3425,7 +3425,7 @@ func TestIncorrectCoinbaseAmount(t *testing.T) {
 }
 
 func TestShardCoinbaseDecay(t *testing.T) {
-	env := getTestEnv(nil, nil, nil, nil, nil, nil)
+	env := getTestEnv(nil, nil, nil, nil, nil, nil, nil)
 	QKC := qkcCommon.TokenIDEncode(env.clusterConfig.Quarkchain.GenesisToken)
 	shardState := createDefaultShardState(env, nil, nil, nil, nil)
 	coinbase := shardState.getCoinbaseAmount(shardState.shardConfig.EpochInterval)
@@ -3457,7 +3457,7 @@ func TestShardReorgByAddingRootBlock(t *testing.T) {
 	id2, _ := account.CreatRandomIdentity()
 	acc2 := account.CreatAddressFromIdentity(id2, 0)
 	a := big.NewInt(10000000).Uint64()
-	env := getTestEnv(&acc1, &a, nil, nil, nil, nil)
+	env := getTestEnv(&acc1, &a, nil, nil, nil, nil, nil)
 	shardState := createDefaultShardState(env, nil, nil, nil, nil)
 	genesis := shardState.CurrentBlock().Header()
 	b1 := shardState.getTip().CreateBlockToAppend(nil, nil, &acc1, nil, nil, nil, nil, nil, nil)
@@ -3496,7 +3496,7 @@ func TestSkipUnderPricedTxToBlock(t *testing.T) {
 	acc1 := account.CreatAddressFromIdentity(id1, 0)
 	acc2 := account.CreatEmptyAddress(0)
 	a := big.NewInt(10000000).Uint64()
-	env := getTestEnv(&acc1, &a, nil, nil, nil, nil)
+	env := getTestEnv(&acc1, &a, nil, nil, nil, nil, nil)
 	env.clusterConfig.Quarkchain.MinMiningGasPrice = big.NewInt(10)
 	shardState := createDefaultShardState(env, nil, nil, nil, nil)
 	// Add a root block to have all the shards initialized
@@ -3532,8 +3532,8 @@ func TestXshardGasLimitFromMultipleShards(t *testing.T) {
 	acc3 := account.CreatAddressFromIdentity(id1, 8)
 	a := big.NewInt(10000000).Uint64()
 	shardSize := uint32(64)
-	env0 := getTestEnv(&acc1, &a, nil, &shardSize, nil, nil)
-	env1 := getTestEnv(&acc1, &a, nil, &shardSize, nil, nil)
+	env0 := getTestEnv(&acc1, &a, nil, &shardSize, nil, nil, nil)
+	env1 := getTestEnv(&acc1, &a, nil, &shardSize, nil, nil, nil)
 	shardId0 := uint32(0)
 	shardState0 := createDefaultShardState(env0, &shardId0, nil, nil, nil)
 	shardId1 := uint32(16)
