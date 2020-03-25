@@ -64,7 +64,7 @@ func powerBigInt(data *big.Int, p uint64) *big.Int {
 		return new(big.Int).SetUint64(1)
 	}
 	for index := 0; index < int(p)-1; index++ {
-		t.Mul(t, t)
+		t.Mul(t, data)
 	}
 	return t
 }
