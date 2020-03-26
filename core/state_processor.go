@@ -359,3 +359,13 @@ func callGeneralNativeTokenManager(evmState vm.StateDB, config *params.ChainConf
 	convertedGasPrice := new(big.Int).SetBytes(ret[32:64])
 	return uint8(refundRate), convertedGasPrice, nil
 }
+
+func ConvertToDefaultChainTokenGasPrice(state vm.StateDB, paramConfig *params.ChainConfig, tokenID uint64, gasprice *big.Int) (*big.Int, error) {
+	if tokenID == state.GetQuarkChainConfig().GetDefaultChainTokenID() {
+		return gasprice, nil
+	}
+	snapshot := state.Snapshot()
+	_, data, err := GetGasUtilityInfo(state, paramConfig, tokenID, gasprice)
+	state.RevertToSnapshot(snapshot)
+	return data, err
+}

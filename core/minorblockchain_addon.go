@@ -783,7 +783,12 @@ func (m *MinorBlockChain) checkTxBeforeApply(stateT *state.StateDB, tx *types.Tr
 	if tx.EvmTx.Gas() > diff.Uint64() {
 		return ErrorTxContinue
 	}
-	if tx.EvmTx.GasPrice().Cmp(m.clusterConfig.Quarkchain.MinMiningGasPrice) < 0 {
+
+	defaultGasPrice, err := ConvertToDefaultChainTokenGasPrice(stateT, m.ChainConfig(), tx.EvmTx.GasTokenID(), tx.EvmTx.GasPrice())
+	if err != nil {
+		return ErrorTxContinue
+	}
+	if defaultGasPrice.Cmp(m.clusterConfig.Quarkchain.MinMiningGasPrice) < 0 {
 		return ErrorTxContinue
 	}
 	if header.Time < m.clusterConfig.Quarkchain.EnableEvmTimeStamp {
