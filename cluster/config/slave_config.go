@@ -51,7 +51,7 @@ func (s *SlaveConfig) UnmarshalJSON(input []byte) error {
 		}
 	} else if jsonConfig.ChainMaskListJson != nil {
 		//handle it after call SlaveConfig.UnmarshalJSON
-		// can not get ClusterConfig.QuarkChain.Chains
+		// can not get ClusterConfig.QuarkChain.Chains config
 		s.FullShardList = nil
 		s.ChainMaskListForBackward = make([]uint32, len(*jsonConfig.ChainMaskListJson))
 		for k, v := range *jsonConfig.ChainMaskListJson {

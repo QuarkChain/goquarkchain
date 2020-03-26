@@ -13,7 +13,6 @@ import (
 
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/ethereum/go-ethereum/common"
-
 	"github.com/naoina/toml"
 	"github.com/stretchr/testify/assert"
 )

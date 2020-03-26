@@ -336,7 +336,7 @@ func (s *QKCMasterBackend) getSlaveInfoListFromClusterConfig() []*rpc.SlaveInfo 
 			Id:            slave.ID,
 			Host:          slave.IP,
 			Port:          slave.Port,
-			ChainMaskList: slave.FullShardList,
+			FullShardList: slave.FullShardList,
 		})
 	}
 	return slaveInfos

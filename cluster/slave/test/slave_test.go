@@ -68,7 +68,7 @@ func casesData(t *testing.T, slv *slave.SlaveBackend) map[int]*grpc.Request {
 	dt[grpc.OpPing].Data, err = serialize.SerializeToBytes(
 		grpc.Ping{
 			Id:            []byte(slv.GetConfig().ID),
-			ChainMaskList: slv.GetConfig().FullShardList,
+			FullShardList: slv.GetConfig().FullShardList,
 		},
 	)
 	if err != nil {

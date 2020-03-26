@@ -82,7 +82,7 @@ func (c *fakeRpcClient) Call(hostport string, req *rpc.Request) (*rpc.Response, 
 	case rpc.OpPing:
 		rsp := new(rpc.Pong)
 		rsp.Id = []byte(c.slaveID)
-		rsp.ChainMaskList = c.chainMaskLst
+		rsp.FullShardList = c.chainMaskLst
 		data, err := serialize.SerializeToBytes(rsp)
 		if err != nil {
 			return nil, err

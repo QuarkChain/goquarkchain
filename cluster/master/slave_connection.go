@@ -35,7 +35,7 @@ func (s *SlaveConnManager) InitConnManager(cfg *config.ClusterConfig) error {
 		target := fmt.Sprintf("%s:%d", cfg.IP, cfg.Port)
 		client := NewSlaveConn(target, cfg.FullShardList, cfg.ID)
 		s.clientPool = append(s.clientPool, client)
-		fmt.Println("fullShardIds", fullShardIds, cfg.FullShardList)
+
 		id, chainMaskList, err := client.SendPing()
 		if err != nil {
 			return err
@@ -106,10 +106,6 @@ func (s *SlaveConnection) GetShardMaskList() []uint32 {
 	return s.shardMaskList
 }
 
-func (s *SlaveConnection) hasOverlap(chainMask uint32) bool {
-	panic("sb")
-}
-
 func (s *SlaveConnection) HeartBeat() bool {
 	var tryTimes = 3
 	for tryTimes > 0 {
@@ -160,7 +156,7 @@ func (s *SlaveConnection) SendPing() ([]byte, []uint32, error) {
 	if err != nil {
 		return nil, nil, err
 	}
-	return pongMsg.Id, pongMsg.ChainMaskList, nil
+	return pongMsg.Id, pongMsg.FullShardList, nil
 }
 
 func (s *SlaveConnection) SendConnectToSlaves(slaveInfoLst []*rpc.SlaveInfo) error {

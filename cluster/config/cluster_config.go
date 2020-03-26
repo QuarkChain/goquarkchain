@@ -73,13 +73,13 @@ func NewClusterConfig() *ClusterConfig {
 		slave := NewDefaultSlaveConfig()
 		slave.Port = slavePort + uint16(i)
 		slave.ID = fmt.Sprintf("S%d", i)
-		slave.FullShardList = append(slave.FullShardList, getCompareFullShardIDs(fullShardIds, DefaultNumSlaves, i)...)
+		slave.FullShardList = append(slave.FullShardList, getFullShardIdListFromSlaveIndex(fullShardIds, DefaultNumSlaves, i)...)
 		ret.SlaveList = append(ret.SlaveList, slave)
 	}
 	return &ret
 }
 
-func getCompareFullShardIDs(list []uint32, slaveNumber int, slaveIndex int) []uint32 {
+func getFullShardIdListFromSlaveIndex(list []uint32, slaveNumber int, slaveIndex int) []uint32 {
 	ans := make([]uint32, 0)
 	for index := 0; index < len(list); index++ {
 		if index%slaveNumber == slaveIndex {
@@ -372,7 +372,6 @@ func (q *QuarkChainConfig) initAndValidate() {
 }
 
 func (q *QuarkChainConfig) GetShardConfigByFullShardID(fullShardID uint32) *ShardConfig {
-	//fmt.Println("QQQQQQQQ", q.shards)
 	return q.shards[fullShardID]
 }
 

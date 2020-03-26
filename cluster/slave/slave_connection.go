@@ -27,7 +27,7 @@ func NewToSlaveConn(target, id string, chainMaskList []uint32) *SlaveConn {
 
 func (s *SlaveConn) SendPing() bool {
 	var (
-		gReq = rpc.Ping{Id: []byte(s.id), ChainMaskList: s.chainMaskList}
+		gReq = rpc.Ping{Id: []byte(s.id), FullShardList: s.chainMaskList}
 		gRes rpc.Pong
 		err  error
 	)
@@ -51,8 +51,8 @@ func (s *SlaveConn) SendPing() bool {
 		return false
 	}
 
-	if !s.EqualChainMask(gRes.ChainMaskList) {
-		log.Error("Chain_mask_list doesn't match", "target list", s.chainMaskList, "actual list", gRes.ChainMaskList)
+	if !s.EqualChainMask(gRes.FullShardList) {
+		log.Error("Chain_mask_list doesn't match", "target list", s.chainMaskList, "actual list", gRes.FullShardList)
 		return false
 	}
 
