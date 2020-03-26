@@ -31,6 +31,7 @@ func NewRDBDatabase(file string, clean, isReadOnly bool) (*RDBDatabase, error) {
 	if err := os.MkdirAll(file, 0700); err != nil {
 		return nil, err
 	}
+
 	opts := gorocksdb.NewDefaultOptions()
 	if clean {
 		if err := gorocksdb.DestroyDb(file, opts); err != nil {
@@ -38,18 +39,16 @@ func NewRDBDatabase(file string, clean, isReadOnly bool) (*RDBDatabase, error) {
 		}
 	}
 	// ubuntu 16.04 max files descriptors 524288
-	opts.SetMaxFileOpeningThreads(handles)
+	//opts.SetMaxFileOpeningThreads(handles)
 	// 128 MiB
-	opts.SetMaxTotalWalSize(uint64(cache * 1024 * 1024))
 	// sets the maximum number of write buffers that are built up in memory.
 	opts.SetMaxWriteBufferNumber(3)
 	// sets the target file size for compaction.
-	opts.SetTargetFileSizeBase(6710886)
+	opts.SetTargetFileSizeBase(67108864)
 	opts.SetCreateIfMissing(true)
-	opts.IncreaseParallelism(3)
-	opts.SetMaxBackgroundFlushes(1)
+	opts.SetMaxOpenFiles(100000)
+	opts.SetWriteBufferSize(int(cache) * 1024 * 1024)
 	opts.SetCompression(gorocksdb.SnappyCompression)
-
 	// Open the db and recover any potential corruptions
 	db, err := gorocksdb.OpenDb(opts, file)
 	// check for errors and abort if opening of the db failed
@@ -109,9 +108,8 @@ func (db *RDBDatabase) Get(key []byte) ([]byte, error) {
 	if dat.Size() == 0 {
 		return nil, errors.New("failed to get data from rocksdb, return empty data")
 	}
-	rawData := dat.Data()
-	result := make([]byte, len(rawData))
-	copy(result, rawData)
+	result := make([]byte, len(dat.Data()))
+	copy(result, dat.Data())
 	return result, nil
 }
 

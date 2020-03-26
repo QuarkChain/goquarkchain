@@ -16,6 +16,8 @@ import (
 
 const (
 	deadtime = 120
+	// resultQueueSize is the size of channel listening to sealing result.
+	resultQueueSize = 10
 )
 
 var (
@@ -48,7 +50,7 @@ func New(ctx *service.ServiceContext, api MinerAPI, engine consensus.Engine) *Mi
 		api:      api,
 		engine:   engine,
 		ctx:      ctx,
-		resultCh: make(chan types.IBlock, 1),
+		resultCh: make(chan types.IBlock, resultQueueSize),
 		workCh:   make(chan workAdjusted, 1),
 		startCh:  make(chan struct{}, 1),
 		exitCh:   make(chan struct{}),
@@ -56,7 +58,9 @@ func New(ctx *service.ServiceContext, api MinerAPI, engine consensus.Engine) *Mi
 		logInfo:  "miner",
 	}
 	miner.engine.SetThreads(1)
-	go miner.mainLoop()
+	go miner.commitLoop()
+	go miner.sealLoop()
+	go miner.resultLoop()
 	return miner
 }
 func (m *Miner) getTip() uint64 {
@@ -110,13 +114,24 @@ func (m *Miner) commit(addr *account.Address) {
 	m.workCh <- workAdjusted{block, diff, optionalDivider}
 }
 
-func (m *Miner) mainLoop() {
+func (m *Miner) commitLoop() {
 
 	for {
 		select {
 		case <-m.startCh:
 			m.commit(nil)
 
+		case <-m.exitCh:
+			log.Error("commitLoop exit")
+			return
+		}
+	}
+}
+
+func (m *Miner) sealLoop() {
+
+	for {
+		select {
 		case work := <-m.workCh: //to discuss:need this?
 			log.Debug(m.logInfo, "ready to seal height", work.block.NumberU64(), "coinbase", work.block.Coinbase().ToHex())
 			m.mu.Lock()
@@ -127,6 +142,17 @@ func (m *Miner) mainLoop() {
 			}
 			m.mu.Unlock()
 
+		case <-m.exitCh:
+			log.Error("sealLoop exit")
+			return
+		}
+	}
+}
+
+func (m *Miner) resultLoop() {
+
+	for {
+		select {
 		case block := <-m.resultCh:
 			log.Debug(m.logInfo, "seal succ number", block.NumberU64(), "hash", block.Hash().String())
 			if err := m.api.InsertMinedBlock(block); err != nil {
@@ -137,6 +163,7 @@ func (m *Miner) mainLoop() {
 			}
 
 		case <-m.exitCh:
+			log.Error("resultLoop exit")
 			return
 		}
 	}
@@ -172,7 +199,15 @@ func (m *Miner) GetWork(coinbaseAddr *account.Address) (*consensus.MiningWork, e
 		if err == consensus.ErrNoMiningWork {
 			block, diff, optionalDivider, err := m.api.CreateBlockToMine(&addrForGetWork)
 			if err == nil {
-				m.workCh <- workAdjusted{block, diff, optionalDivider}
+				work := workAdjusted{block, diff, optionalDivider}
+				go func() {
+					if err := m.engine.Seal(nil, work.block, work.adjustedDifficulty, work.optionalDivider,
+						m.resultCh, m.stopCh); err != nil {
+						log.Error(m.logInfo, "Seal block to mine err", err)
+						coinbase := work.block.Coinbase()
+						m.commit(&coinbase)
+					}
+				}()
 				return &consensus.MiningWork{HeaderHash: block.IHeader().SealHash(), Number: block.NumberU64(),
 					OptionalDivider: optionalDivider, Difficulty: diff}, nil
 			}

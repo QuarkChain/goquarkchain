@@ -81,6 +81,13 @@ Cluster 2 has the same structure as cluster 1.
 
 So, cluster 0, 1, 2 have 64, 32, 32 slaves deployed respectively. Notice the slave number of each cluster is a power of 2. 
 
+## Install Docker
+
+(Optional) If Docker is not installed in your hosts, you can install Docker with following command: 
+```bash
+# suppose your working directory is "$GOPATH/src/github.com/QuarkChain/goquarkchain/tests/loadtest/deployer"
+go run deploy_cluster.go --init_env
+```
 ## Deploy and Run Clusters
 
 The following command will parse `deployConfig.json`, generate cluster configuration file accordingly, deploy the clusters to remote Docker 
@@ -110,8 +117,35 @@ You can find master.log and shard logs such as `S0.log` from `$GOPATH/src/github
 
 Now that you have running clusters, you can continue with loadtest from [here](../README.md#start-mining).
 
+## Collect Logs
+
+After done loadtest, you can collect logs using following command: 
+```bash
+# suppose your working directory is "$GOPATH/src/github.com/QuarkChain/goquarkchain/tests/loadtest/deployer"
+go run deploy_cluster.go --log
+```
+A file named log.tar will be generated in current directory.
+
 ## FAQ
 
 ### Console hangs when running the deployer?
 It takes some time to pull the Docker image from Docker hub to the hosts for the first time. 
 You may consider to do the pulling directly on the remote hosts beforehand where you can see the downloading process.
+
+### I'd like to deploy the clusters myself, but can you help me with the cluster configurations?
+Sure. Describe your clusters in `deployConfig.json`, and run the deployer with flag `--genconf`:
+
+```bash
+# suppose your working directory is "$GOPATH/src/github.com/QuarkChain/goquarkchain/tests/loadtest/deployer"
+go run deploy_cluster.go --genconf
+```
+And you will get cluster configuration files named cluster_config_${ClusterID}.json in current directory, with ${ClusterID} replaced by real ClusterIDs in `deployConfig.json`.
+Also, the `PRIV_KEY` is specified for cluster_config_0.json , and the corresponding `BOOT_NODES` is set to others.
+NOTE with `--genconf` flag, the deployer will not actually do deploy work, but create cluster configuration files.
+
+### Problem install the dependencies when running deployer?
+In Docker the `deployer` executable is built for you:
+```bash
+# suppose your working directory is "$GOPATH/src/github.com/QuarkChain/goquarkchain/tests/loadtest/deployer"
+./deployer
+```

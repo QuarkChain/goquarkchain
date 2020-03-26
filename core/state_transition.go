@@ -318,10 +318,10 @@ func (st *StateTransition) preFill() {
 
 func (st *StateTransition) AddCrossShardTxDeposit(intrinsicGas uint64) (ret []byte, usedGas uint64,
 	failed bool, err error) {
-
 	evm := st.evm
 	msg := st.msg
 	state := evm.StateDB
+	gensisToken := state.GetQuarkChainConfig().GetDefaultChainTokenID()
 	if !evm.CanTransfer(state, msg.From(), st.value, st.msg.TransferTokenID()) {
 		return nil, st.gas, false, vm.ErrInsufficientBalance
 	}
@@ -354,7 +354,7 @@ func (st *StateTransition) AddCrossShardTxDeposit(intrinsicGas uint64) (ret []by
 					FullShardKey: *msg.ToFullShardKey(),
 				},
 				Value:           crossShardValue,
-				GasTokenID:      msg.GasTokenID(),
+				GasTokenID:      gensisToken,
 				TransferTokenID: msg.TransferTokenID(),
 				GasRemained:     crossShardGas,
 				GasPrice:        crossShardGasPrice,
@@ -391,9 +391,9 @@ func (st *StateTransition) AddCrossShardTxDeposit(intrinsicGas uint64) (ret []by
 					Recipient:    account.Recipient(*msg.To()),
 					FullShardKey: *msg.ToFullShardKey(),
 				},
-				Value:      crossShardValue,
-				GasTokenID: msg.GasTokenID(),
+				Value: crossShardValue,
 				//convert to genesis token and use converted gas price
+				GasTokenID:      gensisToken,
 				TransferTokenID: msg.TransferTokenID(),
 				GasRemained:     crossShardGas,
 				GasPrice:        crossShardGasPrice,

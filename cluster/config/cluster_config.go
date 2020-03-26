@@ -41,6 +41,7 @@ type ClusterConfig struct {
 	CheckDBRBlockFrom        int
 	CheckDBRBlockTo          int
 	CheckDBRBlockBatch       int
+	NoPruning                bool
 }
 
 func NewClusterConfig() *ClusterConfig {

@@ -176,7 +176,7 @@ func (s *ShardBackend) HandleNewTip(rBHeader *types.RootBlockHeader, mBHeader *t
 		log.Debug(s.logInfo, "no need t sync curr height", s.MinorBlockChain.CurrentBlock().Number(), "tipHeight", mBHeader.Number)
 		return nil
 	}
-	if s.mBPool.getBlockInPool(mBHeader.Hash()) != nil {
+	if s.mBPool.getBlockInPool(mBHeader.Hash()) {
 		return nil
 	}
 	peer := &peer{cm: s.conn, peerID: peerID}
@@ -216,7 +216,7 @@ func (s *ShardBackend) NewMinorBlock(peerId string, block *types.MinorBlock) (er
 	defer log.Debug(s.logInfo+" NewMinorBlock end", "height", block.NumberU64())
 	// TODO synchronizer.running
 	mHash := block.Hash()
-	if s.mBPool.getBlockInPool(mHash) != nil {
+	if s.mBPool.getBlockInPool(mHash) {
 		return
 	}
 	if s.MinorBlockChain.HasBlock(block.Hash()) {
@@ -253,7 +253,7 @@ func (s *ShardBackend) NewMinorBlock(peerId string, block *types.MinorBlock) (er
 		return err
 	}
 
-	s.mBPool.setBlockInPool(block.Header())
+	s.mBPool.setBlockInPool(block.Hash())
 	go func() {
 		if err := s.conn.BroadcastMinorBlock(peerId, block); err != nil {
 			log.Error("failed to broadcast new minor block", "err", err)
@@ -269,6 +269,8 @@ func (s *ShardBackend) AddMinorBlock(block *types.MinorBlock) error {
 	log.Debug(s.logInfo+" AddMinorBlock", "height", block.NumberU64(), "hash", block.Hash().String())
 	defer log.Debug(s.logInfo+" AddMinorBlock end", "height", block.NumberU64())
 
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	s.wg.Add(1)
 	defer s.wg.Done()
 	if commitStatus := s.getBlockCommitStatusByHash(block.Hash()); commitStatus == BLOCK_COMMITTED {
@@ -343,6 +345,8 @@ func (s *ShardBackend) AddMinorBlock(block *types.MinorBlock) error {
 // and will add them once this function returns successfully.
 
 func (s *ShardBackend) AddBlockListForSync(blockLst []*types.MinorBlock) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	s.wg.Add(1)
 	defer s.wg.Done()
 
@@ -444,7 +448,7 @@ func (s *ShardBackend) broadcastNewTip() (err error) {
 		minorTip = s.MinorBlockChain.CurrentBlock().Header()
 	)
 
-	err = s.conn.BroadcastNewTip([]*types.MinorBlockHeader{minorTip}, rootTip, s.branch.Value)
+	err = s.conn.BroadcastNewTip([]*types.MinorBlockHeader{minorTip}, rootTip.Header(), s.branch.Value)
 	return
 }
 
@@ -498,7 +502,7 @@ func (s *ShardBackend) CreateBlockToMine(addr *account.Address) (types.IBlock, *
 	}
 	diff := minorBlock.Difficulty()
 	header := minorBlock.Header()
-	if s.posw.IsPoSWEnabled(header) {
+	if s.posw.IsPoSWEnabled(header.Time, header.NumberU64()) {
 		balances, err := s.MinorBlockChain.GetBalance(header.GetCoinbase().Recipient, nil)
 		if err != nil {
 			return nil, nil, 0, err

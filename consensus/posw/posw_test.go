@@ -91,7 +91,7 @@ func TestPoSWCoinBaseSendUnderLimit(t *testing.T) {
 
 	//Add a root block to have all the shards initialized, also include the genesis from
 	// another shard to allow x-shard tx TO that shard
-	rootBlk := blockchain.GetRootTip().CreateBlockToAppend(nil, nil, nil, nil, nil)
+	rootBlk := blockchain.GetRootTip().Header().CreateBlockToAppend(nil, nil, nil, nil, nil)
 	var sId uint32 = 1
 	blockchain2, err := core.CreateFakeMinorCanonicalPoSW(acc1, &sId, nil)
 	if err != nil {
@@ -247,7 +247,7 @@ func TestPoSWCoinbaseSendEqualLocked(t *testing.T) {
 
 	//Add a root block to have all the shards initialized, also include the genesis from
 	// another shard to allow x-shard tx TO that shard
-	rootBlk := blockchain.GetRootTip().CreateBlockToAppend(nil, nil, nil, nil,
+	rootBlk := blockchain.GetRootTip().Header().CreateBlockToAppend(nil, nil, nil, nil,
 		nil)
 	var sId uint32 = 1
 	blockchain2, err := core.CreateFakeMinorCanonicalPoSW(acc1, &sId, nil)
@@ -329,7 +329,7 @@ func TestPoSWCoinbaseSendAboveLocked(t *testing.T) {
 
 	//Add a root block to have all the shards initialized, also include the genesis from
 	// another shard to allow x-shard tx TO that shard
-	rootBlk := blockchain.GetRootTip().CreateBlockToAppend(nil, nil, nil, nil,
+	rootBlk := blockchain.GetRootTip().Header().CreateBlockToAppend(nil, nil, nil, nil,
 		nil)
 	var sId uint32 = 1
 	blockchain2, err := core.CreateFakeMinorCanonicalPoSW(acc1, &sId, nil)

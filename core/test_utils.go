@@ -44,7 +44,9 @@ func getOneDBPath() (int, string) {
 	panic("unexcepted err")
 }
 
-func getTestEnv(genesisAccount *account.Address, genesisMinorQuarkHash *uint64, chainSize *uint32, shardSize *uint32, genesisRootHeights *map[uint32]uint32, remoteMining *bool) *fakeEnv {
+func getTestEnv(genesisAccount *account.Address, genesisMinorQuarkHash *uint64, chainSize *uint32, shardSize *uint32,
+	genesisRootHeights *map[uint32]uint32, remoteMining *bool, chargeGasReserve *bool) *fakeEnv {
+
 	if genesisAccount == nil {
 		temp := account.CreatEmptyAddress(0)
 		genesisAccount = &temp
@@ -68,6 +70,10 @@ func getTestEnv(genesisAccount *account.Address, genesisMinorQuarkHash *uint64, 
 	if remoteMining == nil {
 		temp := false
 		remoteMining = &temp
+	}
+	if chargeGasReserve == nil {
+		temp := false
+		chargeGasReserve = &temp
 	}
 
 	if !common.IsP2(*shardSize) {
@@ -113,7 +119,7 @@ func getTestEnv(genesisAccount *account.Address, genesisMinorQuarkHash *uint64, 
 		addr := genesisAccount.AddressInShard(v)
 		shardConfig := fakeClusterConfig.Quarkchain.GetShardConfigByFullShardID(v)
 
-		if addContractAddrBalance {
+		if addContractAddrBalance || *chargeGasReserve {
 			generalNativeTokenAddr := vm.SystemContracts[vm.GENERAL_NATIVE_TOKEN].Address()
 			temp := make(map[string]*big.Int)
 			temp["QKC"] = new(big.Int).Set(qParam.DenomsValue.Ether)
@@ -187,7 +193,7 @@ func createDefaultShardState(env *fakeEnv, shardID *uint32, diffCalc consensus.D
 }
 
 func setUp(genesisAccount *account.Address, genesisMinotQuarkash *uint64, shardSize *uint32) *fakeEnv {
-	env := getTestEnv(genesisAccount, genesisMinotQuarkash, nil, shardSize, nil, nil)
+	env := getTestEnv(genesisAccount, genesisMinotQuarkash, nil, shardSize, nil, nil, nil)
 	return env
 }
 

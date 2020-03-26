@@ -20,8 +20,9 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"github.com/QuarkChain/goquarkchain/account"
 	"math/big"
+
+	"github.com/QuarkChain/goquarkchain/account"
 
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/common"

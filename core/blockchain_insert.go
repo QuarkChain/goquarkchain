@@ -17,11 +17,12 @@
 package core
 
 import (
+	"time"
+
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/mclock"
 	"github.com/ethereum/go-ethereum/log"
-	"time"
 )
 
 // insertStats tracks and reports on block insertion.
@@ -86,10 +87,9 @@ type insertIterator struct {
 
 // newInsertIterator creates a new iterator based on the given blocks, which are
 // assumed to be a contiguous chain.
-func newInsertIterator(chain []types.IBlock, results <-chan error, validator Validator, force bool) *insertIterator {
+func newInsertIterator(chain []types.IBlock, validator Validator, force bool) *insertIterator {
 	return &insertIterator{
 		chain:     chain,
-		results:   results,
 		index:     -1,
 		validator: validator,
 		force:     force,
@@ -104,9 +104,6 @@ func (it *insertIterator) next() (types.IBlock, error) {
 		return nil, nil
 	}
 	it.index++
-	if err := <-it.results; err != nil {
-		return it.chain[it.index], err
-	}
 	return it.chain[it.index], it.validator.ValidateBlock(it.chain[it.index], it.force)
 }
 

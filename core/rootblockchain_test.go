@@ -359,13 +359,13 @@ func TestIsSameChain(t *testing.T) {
 
 	blockchain.InsertChain(ToBlocks(firstBlocks))
 	blockchain.InsertChain(ToBlocks(secondBlocks))
-	if !blockchain.isSameChain(firstBlocks[9].Header(), firstBlocks[3].Header()) ||
-		!blockchain.isSameChain(secondBlocks[9].Header(), secondBlocks[3].Header()) {
+	if !blockchain.isSameChain(firstBlocks[9], firstBlocks[3]) ||
+		!blockchain.isSameChain(secondBlocks[9], secondBlocks[3]) {
 		t.Fatalf("isSameChain result is false, want true")
 	}
 
-	if blockchain.isSameChain(firstBlocks[9].Header(), secondBlocks[3].Header()) ||
-		blockchain.isSameChain(secondBlocks[9].Header(), firstBlocks[3].Header()) {
+	if blockchain.isSameChain(firstBlocks[9], secondBlocks[3]) ||
+		blockchain.isSameChain(secondBlocks[9], firstBlocks[3]) {
 		t.Fatalf("isSameChain result is true, want false")
 	}
 }

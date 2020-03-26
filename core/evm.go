@@ -17,9 +17,10 @@
 package core
 
 import (
+	"math/big"
+
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/consensus"
-	"math/big"
 
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/core/vm"
@@ -39,20 +40,21 @@ type ChainContext interface {
 func NewEVMContext(msg types.Message, mheader types.IHeader, chain ChainContext, gasPriceInGasToken *big.Int) vm.Context {
 	header := mheader.(*types.MinorBlockHeader)
 	return vm.Context{
-		CanTransfer:        CanTransfer,
-		Transfer:           Transfer,
-		GetHash:            GetHashFn(header, chain),
-		Origin:             msg.From(),
-		Coinbase:           header.GetCoinbase().Recipient,
-		BlockNumber:        new(big.Int).SetUint64(header.NumberU64()),
-		Time:               new(big.Int).SetUint64(header.GetTime()),
-		Difficulty:         new(big.Int).Set(header.GetDifficulty()),
-		GasLimit:           header.GasLimit.Value.Uint64(),
-		GasPrice:           new(big.Int).Set(msg.GasPrice()),
-		GasPriceInGasToken: new(big.Int).Set(gasPriceInGasToken),
-		ToFullShardKey:     msg.ToFullShardKey(),
-		GasTokenID:         msg.GasTokenID(),
-		TransferTokenID:    msg.TransferTokenID(),
+		CanTransfer:                       CanTransfer,
+		Transfer:                          Transfer,
+		TransferFailureByPoswBalanceCheck: TransferFailureByPoswBalanceCheck,
+		GetHash:                           GetHashFn(header, chain),
+		Origin:                            msg.From(),
+		Coinbase:                          header.GetCoinbase().Recipient,
+		BlockNumber:                       new(big.Int).SetUint64(header.NumberU64()),
+		Time:                              new(big.Int).SetUint64(header.GetTime()),
+		Difficulty:                        new(big.Int).Set(header.GetDifficulty()),
+		GasLimit:                          header.GasLimit.Value.Uint64(),
+		GasPrice:                          new(big.Int).Set(msg.GasPrice()),
+		GasPriceInGasToken:                new(big.Int).Set(gasPriceInGasToken),
+		ToFullShardKey:                    msg.ToFullShardKey(),
+		GasTokenID:                        msg.GasTokenID(),
+		TransferTokenID:                   msg.TransferTokenID(),
 	}
 }
 
@@ -92,4 +94,13 @@ func CanTransfer(db vm.StateDB, addr common.Address, amount *big.Int, tokenID ui
 func Transfer(db vm.StateDB, sender, recipient common.Address, amount *big.Int, tokenID uint64) {
 	db.SubBalance(sender, amount, tokenID)
 	db.AddBalance(recipient, amount, tokenID)
+}
+
+func TransferFailureByPoswBalanceCheck(db vm.StateDB, addr common.Address, amount *big.Int) bool {
+	if v, ok := db.GetSenderDisallowMap()[addr]; ok {
+		if new(big.Int).Add(amount, v).Cmp(db.GetBalance(addr, db.GetQuarkChainConfig().GetDefaultChainTokenID())) == 1 {
+			return true
+		}
+	}
+	return false
 }
