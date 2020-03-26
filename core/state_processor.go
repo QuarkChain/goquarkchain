@@ -343,9 +343,10 @@ func callGeneralNativeTokenManager(evmState vm.StateDB, config *params.ChainConf
 		return 0, nil, ErrContractNotFound
 	}
 	ctx := vm.Context{
-		CanTransfer: CanTransfer,
-		Transfer:    Transfer,
-		BlockNumber: new(big.Int).SetUint64(evmState.GetBlockNumber()),
+		CanTransfer:                       CanTransfer,
+		Transfer:                          Transfer,
+		TransferFailureByPoswBalanceCheck: TransferFailureByPoswBalanceCheck,
+		BlockNumber:                       new(big.Int).SetUint64(evmState.GetBlockNumber()),
 	}
 	evm := vm.NewEVM(ctx, evmState, config, vm.Config{})
 	//# Only contract itself can invoke payment
