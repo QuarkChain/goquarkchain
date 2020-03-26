@@ -5,6 +5,9 @@
 package mock_master
 
 import (
+	big "math/big"
+	reflect "reflect"
+
 	account "github.com/QuarkChain/goquarkchain/account"
 	rpc "github.com/QuarkChain/goquarkchain/cluster/rpc"
 	consensus "github.com/QuarkChain/goquarkchain/consensus"
@@ -12,8 +15,6 @@ import (
 	rpc0 "github.com/QuarkChain/goquarkchain/rpc"
 	common "github.com/ethereum/go-ethereum/common"
 	gomock "github.com/golang/mock/gomock"
-	big "math/big"
-	reflect "reflect"
 )
 
 // MockConnManager is a mock of ConnManager interface
@@ -267,10 +268,10 @@ func (mr *MockISlaveConnMockRecorder) GetSlaveID() *gomock.Call {
 }
 
 // GetShardMaskList mocks base method
-func (m *MockISlaveConn) GetShardMaskList() []*types.ChainMask {
+func (m *MockISlaveConn) GetShardMaskList() []uint32 {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetShardMaskList")
-	ret0, _ := ret[0].([]*types.ChainMask)
+	ret0, _ := ret[0].([]uint32)
 	return ret0
 }
 
@@ -309,11 +310,11 @@ func (mr *MockISlaveConnMockRecorder) HasShard(fullShardID interface{}) *gomock.
 }
 
 // SendPing mocks base method
-func (m *MockISlaveConn) SendPing() ([]byte, []*types.ChainMask, error) {
+func (m *MockISlaveConn) SendPing() ([]byte, []uint32, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "SendPing")
 	ret0, _ := ret[0].([]byte)
-	ret1, _ := ret[1].([]*types.ChainMask)
+	ret1, _ := ret[1].([]uint32)
 	ret2, _ := ret[2].(error)
 	return ret0, ret1, ret2
 }

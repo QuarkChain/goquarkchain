@@ -54,8 +54,8 @@ func (s *SlaveBackend) GetFullShardList() []uint32 {
 }
 
 func (s *SlaveBackend) coverShardId(id uint32) bool {
-	for _, msk := range s.config.ChainMaskList {
-		if msk.ContainFullShardId(id) {
+	for _, msk := range s.config.FullShardList {
+		if msk == id {
 			return true
 		}
 	}

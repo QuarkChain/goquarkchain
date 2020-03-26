@@ -2,11 +2,11 @@ package test
 
 import (
 	"fmt"
+	"math/big"
+
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/cluster/service"
-	"github.com/QuarkChain/goquarkchain/core/types"
-	"math/big"
 )
 
 func defaultNodeConfig() *service.Config {
@@ -116,7 +116,7 @@ func defaultClusterConfig(chainSize, shardSize, slaveSize uint32, geneRHeights m
 		slave := config.NewDefaultSlaveConfig()
 		slave.Port = 38000 + uint16(i)
 		slave.ID = fmt.Sprintf("S%d", i)
-		slave.ChainMaskList = append(slave.ChainMaskList, types.NewChainMask(uint32(i|int(slaveSize))))
+		slave.FullShardList = append(slave.FullShardList, uint32(i<<16+1))
 		cfg.SlaveList = append(cfg.SlaveList, slave)
 	}
 

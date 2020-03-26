@@ -76,7 +76,11 @@ func makeConfigNode(ctx *cli.Context) (*service.Node, qkcConfig) {
 		if err := loadConfig(file, &cfg.Cluster); err != nil {
 			utils.Fatalf("%v", err)
 		}
+		if err := cfg.Cluster.BackWardChainMaskList(); err != nil {
+			utils.Fatalf("%v", err)
+		}
 	}
+
 	utils.SetClusterConfig(ctx, &cfg.Cluster)
 
 	ServiceName := ctx.GlobalString(utils.ServiceFlag.Name)

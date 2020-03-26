@@ -33,9 +33,9 @@ func (s *SlaveConnManager) InitConnManager(cfg *config.ClusterConfig) error {
 	fullShardIds := cfg.Quarkchain.GetGenesisShardIds()
 	for _, cfg := range cfg.SlaveList {
 		target := fmt.Sprintf("%s:%d", cfg.IP, cfg.Port)
-		client := NewSlaveConn(target, cfg.ChainMaskList, cfg.ID)
+		client := NewSlaveConn(target, cfg.FullShardList, cfg.ID)
 		s.clientPool = append(s.clientPool, client)
-
+		fmt.Println("fullShardIds", fullShardIds, cfg.FullShardList)
 		id, chainMaskList, err := client.SendPing()
 		if err != nil {
 			return err
@@ -79,7 +79,7 @@ func (c *SlaveConnManager) ConnCount() int {
 
 type SlaveConnection struct {
 	target        string
-	shardMaskList []*types.ChainMask
+	shardMaskList []uint32
 	client        rpc.Client
 	slaveID       string
 	logInfo       string
@@ -87,7 +87,7 @@ type SlaveConnection struct {
 }
 
 // create slave connection manager
-func NewSlaveConn(target string, shardMaskList []*types.ChainMask, slaveID string) *SlaveConnection {
+func NewSlaveConn(target string, shardMaskList []uint32, slaveID string) *SlaveConnection {
 	client := rpc.NewClient(rpc.SlaveServer)
 	return &SlaveConnection{
 		target:        target,
@@ -102,17 +102,12 @@ func (s *SlaveConnection) GetSlaveID() string {
 	return s.slaveID
 }
 
-func (s *SlaveConnection) GetShardMaskList() []*types.ChainMask {
+func (s *SlaveConnection) GetShardMaskList() []uint32 {
 	return s.shardMaskList
 }
 
-func (s *SlaveConnection) hasOverlap(chainMask *types.ChainMask) bool {
-	for _, localChainMask := range s.shardMaskList {
-		if localChainMask.HasOverlap(chainMask.GetMask()) {
-			return true
-		}
-	}
-	return false
+func (s *SlaveConnection) hasOverlap(chainMask uint32) bool {
+	panic("sb")
 }
 
 func (s *SlaveConnection) HeartBeat() bool {
@@ -146,7 +141,7 @@ func (s *SlaveConnection) MasterInfo(ip string, port uint16, rootTip *types.Root
 	return err
 }
 
-func (s *SlaveConnection) SendPing() ([]byte, []*types.ChainMask, error) {
+func (s *SlaveConnection) SendPing() ([]byte, []uint32, error) {
 	req := new(rpc.Ping)
 
 	bytes, err := serialize.SerializeToBytes(req)
@@ -197,8 +192,8 @@ func (s *SlaveConnection) SendConnectToSlaves(slaveInfoLst []*rpc.SlaveInfo) err
 }
 
 func (s *SlaveConnection) HasShard(fullShardID uint32) bool {
-	for _, chainMask := range s.shardMaskList {
-		if chainMask.ContainFullShardId(fullShardID) {
+	for _, v := range s.shardMaskList {
+		if v == fullShardID {
 			return true
 		}
 	}

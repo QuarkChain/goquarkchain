@@ -60,10 +60,10 @@
     ],
     "ROOT": {
       "MAX_STALE_ROOT_BLOCK_HEIGHT_DIFF": 22500,
-      "CONSENSUS_TYPE": "POW_ETHASH",
+      "CONSENSUS_TYPE": "POW_SIMULATE",
       "CONSENSUS_CONFIG": {
         "TARGET_BLOCK_TIME": 60,
-        "REMOTE_MINE": true
+        "REMOTE_MINE": false
       },
       "GENESIS": {
         "VERSION": 0,
@@ -78,7 +78,7 @@
       "COINBASE_AMOUNT": 156000000000000000000,
       "DIFFICULTY_ADJUSTMENT_CUTOFF_TIME": 40,
       "DIFFICULTY_ADJUSTMENT_FACTOR": 1024,
-      "EPOCH_INTERVAL": 525600,
+      "EPOCH_INTERVAL": 10,
       "POSW_CONFIG": {
         "ENABLED": true,
         "ENABLE_TIMESTAMP": 1569567600,
@@ -92,10 +92,10 @@
         "CHAIN_ID": 0,
         "SHARD_SIZE": 1,
         "DEFAULT_CHAIN_TOKEN": "QKC",
-        "CONSENSUS_TYPE": "POW_ETHASH",
+        "CONSENSUS_TYPE": "POW_SIMULATE",
         "CONSENSUS_CONFIG": {
           "TARGET_BLOCK_TIME": 10,
-          "REMOTE_MINE": true
+          "REMOTE_MINE": false
         },
         "GENESIS": {
           "ROOT_HEIGHT": 0,
@@ -131,16 +131,16 @@
           "WINDOW_SIZE": 256,
           "TOTAL_STAKE_PER_BLOCK": 0
         },
-        "EPOCH_INTERVAL": 3153600
+        "EPOCH_INTERVAL": 60
       },
       {
         "CHAIN_ID": 1,
         "SHARD_SIZE": 1,
         "DEFAULT_CHAIN_TOKEN": "QKC",
-        "CONSENSUS_TYPE": "POW_ETHASH",
+        "CONSENSUS_TYPE": "POW_SIMULATE",
         "CONSENSUS_CONFIG": {
           "TARGET_BLOCK_TIME": 10,
-          "REMOTE_MINE": true
+          "REMOTE_MINE": false
         },
         "GENESIS": {
           "ROOT_HEIGHT": 0,
@@ -176,16 +176,16 @@
           "WINDOW_SIZE": 256,
           "TOTAL_STAKE_PER_BLOCK": 20000000000000000000000
         },
-        "EPOCH_INTERVAL": 3153600
+        "EPOCH_INTERVAL": 60
       },
       {
         "CHAIN_ID": 2,
         "SHARD_SIZE": 1,
         "DEFAULT_CHAIN_TOKEN": "QKC",
-        "CONSENSUS_TYPE": "POW_ETHASH",
+        "CONSENSUS_TYPE": "POW_SIMULATE",
         "CONSENSUS_CONFIG": {
           "TARGET_BLOCK_TIME": 10,
-          "REMOTE_MINE": true
+          "REMOTE_MINE": false
         },
         "GENESIS": {
           "ROOT_HEIGHT": 0,
@@ -221,16 +221,16 @@
           "WINDOW_SIZE": 256,
           "TOTAL_STAKE_PER_BLOCK": 40000000000000000000000
         },
-        "EPOCH_INTERVAL": 3153600
+        "EPOCH_INTERVAL": 60
       },
       {
         "CHAIN_ID": 3,
         "SHARD_SIZE": 1,
         "DEFAULT_CHAIN_TOKEN": "QKC",
-        "CONSENSUS_TYPE": "POW_ETHASH",
+        "CONSENSUS_TYPE": "POW_SIMULATE",
         "CONSENSUS_CONFIG": {
           "TARGET_BLOCK_TIME": 10,
-          "REMOTE_MINE": true
+          "REMOTE_MINE": false
         },
         "GENESIS": {
           "ROOT_HEIGHT": 0,
@@ -266,16 +266,16 @@
           "WINDOW_SIZE": 256,
           "TOTAL_STAKE_PER_BLOCK": 80000000000000000000000
         },
-        "EPOCH_INTERVAL": 3153600
+        "EPOCH_INTERVAL": 60
       },
       {
         "CHAIN_ID": 4,
         "SHARD_SIZE": 1,
         "DEFAULT_CHAIN_TOKEN": "QKC",
-        "CONSENSUS_TYPE": "POW_ETHASH",
+        "CONSENSUS_TYPE": "POW_SIMULATE",
         "CONSENSUS_CONFIG": {
           "TARGET_BLOCK_TIME": 10,
-          "REMOTE_MINE": true
+          "REMOTE_MINE": false
         },
         "GENESIS": {
           "ROOT_HEIGHT": 0,
@@ -311,16 +311,16 @@
           "WINDOW_SIZE": 256,
           "TOTAL_STAKE_PER_BLOCK": 160000000000000000000000
         },
-        "EPOCH_INTERVAL": 3153600
+        "EPOCH_INTERVAL": 60
       },
       {
         "CHAIN_ID": 5,
         "SHARD_SIZE": 1,
         "DEFAULT_CHAIN_TOKEN": "QKC",
-        "CONSENSUS_TYPE": "POW_ETHASH",
+        "CONSENSUS_TYPE": "POW_SIMULATE",
         "CONSENSUS_CONFIG": {
           "TARGET_BLOCK_TIME": 10,
-          "REMOTE_MINE": true
+          "REMOTE_MINE": false
         },
         "GENESIS": {
           "ROOT_HEIGHT": 0,
@@ -356,16 +356,16 @@
           "WINDOW_SIZE": 256,
           "TOTAL_STAKE_PER_BLOCK": 320000000000000000000000
         },
-        "EPOCH_INTERVAL": 3153600
+        "EPOCH_INTERVAL": 60
       },
       {
         "CHAIN_ID": 6,
         "SHARD_SIZE": 1,
         "DEFAULT_CHAIN_TOKEN": "QKC",
-        "CONSENSUS_TYPE": "POW_QKCHASH",
+        "CONSENSUS_TYPE": "POW_SIMULATE",
         "CONSENSUS_CONFIG": {
           "TARGET_BLOCK_TIME": 10,
-          "REMOTE_MINE": true
+          "REMOTE_MINE": false
         },
         "GENESIS": {
           "ROOT_HEIGHT": 0,
@@ -401,16 +401,16 @@
           "WINDOW_SIZE": 256,
           "TOTAL_STAKE_PER_BLOCK": 40000000000000000000000
         },
-        "EPOCH_INTERVAL": 3153600
+        "EPOCH_INTERVAL": 60
       },
       {
         "CHAIN_ID": 7,
         "SHARD_SIZE": 1,
         "DEFAULT_CHAIN_TOKEN": "QKC",
-        "CONSENSUS_TYPE": "POW_QKCHASH",
+        "CONSENSUS_TYPE": "POW_SIMULATE",
         "CONSENSUS_CONFIG": {
           "TARGET_BLOCK_TIME": 10,
-          "REMOTE_MINE": true
+          "REMOTE_MINE": false
         },
         "GENESIS": {
           "ROOT_HEIGHT": 0,
@@ -446,7 +446,7 @@
           "WINDOW_SIZE": 256,
           "TOTAL_STAKE_PER_BLOCK": 160000000000000000000000
         },
-        "EPOCH_INTERVAL": 3153600
+        "EPOCH_INTERVAL": 60
       }
     ],
     "REWARD_TAX_RATE": 0.5,
@@ -461,40 +461,39 @@
       "HOST": "127.0.0.1",
       "PORT": 38000,
       "ID": "S0",
-      "FULL_SHARD_ID_LIST": [
-        "0x1", "0x00040001"
+      "CHAIN_MASK_LIST": [
+        4
       ]
     },
     {
       "HOST": "127.0.0.1",
       "PORT": 38001,
       "ID": "S1",
-      "FULL_SHARD_ID_LIST": [
-        "0x00010001", "0x00050001"
+      "CHAIN_MASK_LIST": [
+        5
       ]
     },
     {
       "HOST": "127.0.0.1",
       "PORT": 38002,
       "ID": "S2",
-      "FULL_SHARD_ID_LIST": [
-        "0x00020001", "0x00060001"
+      "CHAIN_MASK_LIST": [
+        6
       ]
     },
     {
       "HOST": "127.0.0.1",
       "PORT": 38003,
       "ID": "S3",
-      "FULL_SHARD_ID_LIST": [
-        "0x00030001", "0x00070001"
+      "CHAIN_MASK_LIST": [
+        7
       ]
     }
   ],
   "P2P": {
     "NEW_MODULE": true,
     "MAX_PEERS": 30,
-    "BOOT_NODES": "enode://438d9a2349037e231ae7975f646a32c5b3d2032190a067762b35b8a039568fbb81981e4e2e43f1923a113834a4675919ed27fad68ca48203b4001fee049a9276@35.243.210.122:38291,enode://c093dee29400c0d114c3af600df80a7ad285e8b430f6768749600d55726d4b1562f624526c596b968e4520eaeadaa0d8be98940da065ac710a76d8fac58d5c00@35.246.213.180:38291,enode://48e1af232c290add043118edca45608589ef305f19a2d6d8a6126677ba573c1d5984c15962e8593b32e6ae2f1a89237f9691178e527cba0b07818ad5b01a13dc@52.34.48.64:38291,enode://69a887846c4f6540958c20d654b191b08c39e5624b93d8e94ec8e37da2ae7c0572c0741775e34cd17affa7e68532910e152e16361d22198f04aae2cceb105a03@13.124.15.123:38291,enode://5f81aac576814cac04701d418d9f127903cf75ed26c0433b9b1b35774efe7e2630e377baae156023d2448055e32678a472f6a25f5ead8a690f8cec1e7c9176e6@68.183.247.182:38291,enode://80a7f0960732dae69fa470cf950be636352166b9f016605b79bae4286f06a3fb0361f1293d6ea43df9b87f6e6397498e82c23d913464e2724e5c3adcce796e0d@165.227.240.113:38291",
-    "PRIV_KEY": "",
+    "PRIV_KEY": "1111111111111111111111111111111111111111111111111111111111111111",
     "UPNP": true
   },
   "MONITORING": {

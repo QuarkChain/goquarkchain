@@ -4,14 +4,15 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/QuarkChain/goquarkchain/account"
-	"github.com/ethereum/go-ethereum/common"
 	"io/ioutil"
 	"math/big"
 	"reflect"
 	"strings"
 	"testing"
 	"unicode"
+
+	"github.com/QuarkChain/goquarkchain/account"
+	"github.com/ethereum/go-ethereum/common"
 
 	"github.com/naoina/toml"
 	"github.com/stretchr/testify/assert"
@@ -100,16 +101,16 @@ func TestSlaveConfig(t *testing.T) {
 		"IP": "1.2.3.4",
 		"PORT": 123,
 		"ID": "S1",
-		"CHAIN_MASK_LIST": [4]
+		"FULL_SHARD_ID_LIST": ["0x00000004"]
 	}`)
 
 	var sc SlaveConfig
 	assert.NoError(t, json.Unmarshal(s, &sc))
-	assert.Equal(t, uint32(4), sc.ChainMaskList[0].GetMask())
+	assert.Equal(t, uint32(4), sc.FullShardList[0])
 
 	jsonConfig, err := json.Marshal(&sc)
 	assert.NoError(t, err)
-	assert.True(t, strings.Contains(string(jsonConfig), "MASK_LIST\":[4]"))
+	assert.True(t, strings.Contains(string(jsonConfig), "FULL_SHARD_ID_LIST\":[\"0x4\"]"))
 }
 
 func TestLoadClusterConfig(t *testing.T) {

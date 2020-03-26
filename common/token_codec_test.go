@@ -2,8 +2,9 @@ package common
 
 import (
 	"fmt"
-	"math/rand"
 	"testing"
+
+	"github.com/QuarkChain/goquarkchain/common/hexutil"
 )
 
 func TestTokenCharEncode(t *testing.T) {
@@ -26,18 +27,14 @@ func TestTokenCharEncode(t *testing.T) {
 }
 
 func TestRandomToken(t *testing.T) {
-	count := 100000
-	for index := 0; index < count; index++ {
-		data := rand.Intn(int(TOKENIDMAX))
+	data, err := hexutil.DecodeUint64("0x40001")
+	fmt.Println("data", data, err, 0<<16+1)
+	fmt.Println("data", data, err, 1<<16+1)
+	fmt.Println("data", data, err, 2<<16+1)
+	fmt.Println("data", data, err, 3<<16+1)
+	fmt.Println("data", data, err, 4<<16+1)
+	fmt.Println("data", data, err, 5<<16+1)
+	fmt.Println("data", data, err, 6<<16+1)
+	fmt.Println("data", data, err, 7<<16+1)
 
-		deData, err := TokenIdDecode(uint64(data))
-		if err != nil {
-			fmt.Println("data", data)
-			panic(err)
-		}
-		newData := TokenIDEncode(deData)
-		if newData != uint64(data) {
-			t.Fatalf("data:%v newData:%v", data, newData)
-		}
-	}
 }

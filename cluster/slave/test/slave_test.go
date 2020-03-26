@@ -2,6 +2,9 @@ package test
 
 import (
 	"fmt"
+	"math/big"
+	"testing"
+
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	grpc "github.com/QuarkChain/goquarkchain/cluster/rpc"
@@ -11,8 +14,6 @@ import (
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/rpc"
 	"github.com/QuarkChain/goquarkchain/serialize"
-	"math/big"
-	"testing"
 )
 
 type testCase struct {
@@ -67,7 +68,7 @@ func casesData(t *testing.T, slv *slave.SlaveBackend) map[int]*grpc.Request {
 	dt[grpc.OpPing].Data, err = serialize.SerializeToBytes(
 		grpc.Ping{
 			Id:            []byte(slv.GetConfig().ID),
-			ChainMaskList: slv.GetConfig().ChainMaskList,
+			ChainMaskList: slv.GetConfig().FullShardList,
 		},
 	)
 	if err != nil {

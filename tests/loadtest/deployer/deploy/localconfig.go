@@ -9,7 +9,6 @@ import (
 
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/cmd/utils"
-	"github.com/QuarkChain/goquarkchain/core/types"
 )
 
 type NodeInfo struct {
@@ -142,7 +141,7 @@ func updateSlaves(cfg *config.ClusterConfig, ipList []string) {
 		slaveCfg.Port = uint16(48000 + i)
 		slaveCfg.ID = fmt.Sprintf("S%d", i)
 		slaveCfg.WSPort = uint16(49000 + i)
-		slaveCfg.ChainMaskList = append(slaveCfg.ChainMaskList, types.NewChainMask(uint32(i|numSlaves)))
+		slaveCfg.FullShardList = append(slaveCfg.FullShardList, uint32(i<<16+1))
 		cfg.SlaveList = append(cfg.SlaveList, slaveCfg)
 	}
 }
