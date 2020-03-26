@@ -20,8 +20,9 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"github.com/QuarkChain/goquarkchain/core/vm"
 	"testing"
+
+	"github.com/QuarkChain/goquarkchain/core/vm"
 )
 
 func TestState(t *testing.T) {
@@ -65,6 +66,7 @@ var testVMConfig = func() vm.Config {
 	vmconfig := vm.Config{}
 	//flag.StringVar(&vmconfig.EVMInterpreter, utils.EVMInterpreterFlag.Name, utils.EVMInterpreterFlag.Value, utils.EVMInterpreterFlag.Usage)
 	//flag.StringVar(&vmconfig.EWASMInterpreter, utils.EWASMInterpreterFlag.Name, utils.EWASMInterpreterFlag.Value, utils.EWASMInterpreterFlag.Usage)
+	testing.Init()
 	flag.Parse()
 	return vmconfig
 }()
