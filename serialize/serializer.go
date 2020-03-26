@@ -161,7 +161,7 @@ func writeListLen(w *[]byte, len int, byteSizeOfSliceLen int) error {
 func serializeByteSlice(val reflect.Value, w *[]byte, ts Tags) error {
 	err := writeListLen(w, val.Len(), ts.ByteSizeOfSliceLen)
 	if err != nil {
-		return nil
+		return err
 	}
 
 	bytes := val.Bytes()
