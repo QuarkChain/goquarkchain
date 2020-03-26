@@ -93,6 +93,9 @@ func TestGasPrice(t *testing.T) {
 	monkey.Patch(PayNativeTokenAsGas, func(a vm.StateDB, b *ethParams.ChainConfig, c uint64, d uint64, gasPrice *big.Int) (uint8, *big.Int, error) {
 		return 100, gasPrice, nil
 	})
+	monkey.Patch(GetGasUtilityInfo, func(a vm.StateDB, b *ethParams.ChainConfig, c uint64, gasPrice *big.Int) (uint8, *big.Int, error) {
+		return 100, gasPrice, nil
+	})
 	defer monkey.UnpatchAll()
 	addContractAddrBalance = true
 	defer func() {
