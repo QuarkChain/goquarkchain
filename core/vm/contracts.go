@@ -21,9 +21,11 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	math2 "math"
 	"math/big"
 
+	qCommon "github.com/QuarkChain/goquarkchain/common"
 	qkcParams "github.com/QuarkChain/goquarkchain/params"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/math"
@@ -47,7 +49,7 @@ var (
 	MintMNTAddr                            = "000000000000000000000000000000514b430004"
 	BalanceMNTAddr                         = "000000000000000000000000000000514b430005"
 	currentMntIDGas                        = uint64(3)
-	transferMntGas                         = uint64(3)
+	transferMntGas                         = uint64(0)
 	deployRootChainPoSWStakingContractGas  = uint64(3)
 	balanceMNTGas                          = uint64(400)
 	mintMNTSuccess                         = common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000001")
@@ -544,34 +546,73 @@ func (c *transferMnt) Run(input []byte, evm *EVM, contract *Contract) ([]byte, e
 	toAddr := common.BytesToAddress(toBytes)
 
 	mntBytes := getData(input, 32, 32)
-	mnt := new(big.Int).SetBytes(mntBytes)
+	tokenID := new(big.Int).SetBytes(mntBytes)
 
 	valueBytes := getData(input, 64, 32)
 	value := new(big.Int).SetBytes(valueBytes)
 
-	if !evm.StateDB.Exist(toAddr) && big.NewInt(0).Cmp(value) < 0 {
-		if !contract.UseGas(params.CallNewAccountGas) {
-			contract.Gas = 0
-			return nil, ErrOutOfGas
-		}
+	data := getData(input, 96, uint64(len(input)-96))
+
+	//if !evm.StateDB.Exist(toAddr) && big.NewInt(0).Cmp(value) < 0 {
+	//	if !contract.UseGas(params.CallNewAccountGas) {
+	//		contract.Gas = 0
+	//		return nil, ErrOutOfGas
+	//	}
+	//}
+	//if big.NewInt(0).Cmp(value) < 0 {
+	//	if !contract.UseGas(params.CallValueTransferGas) {
+	//		contract.Gas = 0
+	//		return nil, ErrOutOfGas
+	//	}
+	//}
+	// TODO : need discuss
+	//https://github.com/QuarkChain/pyquarkchain/pull/791
+
+	// Token ID should be within range
+	if tokenID.Uint64() > qCommon.TOKENIDMAX {
+		return nil, fmt.Errorf("tokenid %v > TOKENIDMAX %v", tokenID, qCommon.TOKENIDMAX)
 	}
-	if big.NewInt(0).Cmp(value) < 0 {
-		if !contract.UseGas(params.CallValueTransferGas) {
-			contract.Gas = 0
-			return nil, ErrOutOfGas
+
+	// Doesn't allow target address to be this precompiled contract itself
+	if toAddr.String() == common.HexToAddress(transferMntAddr).String() {
+		return nil, fmt.Errorf("re call toAddr %v", toAddr.String())
+	}
+
+	gasCost := uint64(0)
+	if value.Cmp(new(big.Int)) > 0 {
+		gasCost += params.CallValueTransferGas
+		if !evm.StateDB.Exist(toAddr) {
+			gasCost += params.CallNewAccountGas
 		}
 	}
 
-	data := getData(input, 96, uint64(len(input)-96))
+	//Out of gas
+	if contract.Gas < gasCost {
+		return nil, fmt.Errorf("run transferMnt failed contracr.gas %v < gasCost %v", contract.Gas, gasCost)
+	}
+
+	//Handle insufficient balance or exceeding max call depth
+	if evm.StateDB.GetBalance(contract.Caller(), tokenID.Uint64()).Cmp(value) < 0 || evm.depth >= int(params.CallCreateDepth) {
+		contract.UseGas(gasCost)
+		return nil, errExecutionReverted
+	}
+
+	if evm.depth >= int(params.CallCreateDepth) {
+		return nil, fmt.Errorf("evm.depth %v <= CallCreateDepth %v", evm.depth, params.CallCreateDepth)
+	}
+
 	t := evm.TransferTokenID
-	evm.TransferTokenID = mnt.Uint64()
-	ret, remainedGas, err := evm.Call(contract.caller, toAddr, data, contract.Gas, value)
+	evm.TransferTokenID = tokenID.Uint64()
+	gasToCall := contract.Gas - gasCost
+	if value.Sign() > 0 {
+		gasToCall += params.CallStipend
+	}
+	contract.UseGas(gasCost)
+	ret, remainedGas, err := evm.Call(contract.caller, toAddr, data, gasToCall, value)
 	err = checkTokenIDQueried(err, contract, evm.TransferTokenID, evm.StateDB.GetQuarkChainConfig().GetDefaultChainTokenID())
 	evm.TransferTokenID = t
-	gasUsed := contract.Gas - remainedGas
-	if ok := contract.UseGas(gasUsed); !ok {
-		return nil, ErrOutOfGas
-	}
+
+	contract.Gas = remainedGas
 	return ret, err
 }
 
@@ -644,6 +685,12 @@ func (m *mintMNT) Run(input []byte, evm *EVM, contract *Contract) ([]byte, error
 		contract.Gas = 0
 		return nil, ErrMintZeroAmountMNT
 	}
+
+	// Token ID should be within range
+	if mnt.Uint64() > qCommon.TOKENIDMAX {
+		return nil, fmt.Errorf("tokenid %v > TOKENIDMAX %v", mnt, qCommon.TOKENIDMAX)
+	}
+
 	if !evm.StateDB.Exist(minter) && !contract.UseGas(params.CallNewAccountGas) {
 		contract.Gas = 0
 		return nil, ErrOutOfGas
@@ -677,6 +724,11 @@ func (m *balanceMNT) Run(input []byte, evm *EVM, contract *Contract) ([]byte, er
 	addr := common.BytesToAddress(addrBytes)
 	mntBytes := getData(input, 32, 32)
 	mnt := new(big.Int).SetBytes(mntBytes)
+	// Token ID should be within range
+	if mnt.Uint64() > qCommon.TOKENIDMAX {
+		return nil, fmt.Errorf("tokenid %v > TOKENIDMAX %v", mnt, qCommon.TOKENIDMAX)
+	}
+
 	balance := evm.StateDB.GetBalance(addr, mnt.Uint64())
 	return balance.Bytes(), nil
 }
