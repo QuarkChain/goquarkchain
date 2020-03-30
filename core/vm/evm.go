@@ -364,6 +364,7 @@ func (evm *EVM) StaticCall(caller ContractRef, addr common.Address, input []byte
 	// only.
 	contract := NewContract(caller, to, new(big.Int), gas)
 	contract.SetCallCode(&addr, evm.StateDB.GetCodeHash(addr), evm.StateDB.GetCode(addr))
+	contract.SetIsStaticCall(true)
 	if evm.Context.TransferFailureByPoswBalanceCheck(evm.StateDB, caller.Address(), contract.value) {
 		return nil, 0, ErrPoSWSenderNotAllowed
 	}

@@ -542,6 +542,10 @@ func (c *transferMnt) Run(input []byte, evm *EVM, contract *Contract) ([]byte, e
 		return nil, errors.New("should 96")
 	}
 
+	if contract.IsStaticCall {
+		return nil, errors.New("transferMnt Run: static call not allowed ")
+	}
+
 	toBytes := getData(input, 0, 32)
 	toAddr := common.BytesToAddress(toBytes)
 
