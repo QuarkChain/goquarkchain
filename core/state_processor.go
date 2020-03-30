@@ -111,6 +111,11 @@ func ValidateTransaction(state vm.StateDB, chainConfig *params.ChainConfig, tx *
 		from = &fromAddress.Recipient
 	}
 
+	// not need to check gas(uint64)
+	if qkcCmn.BiggerThanUint128Max(tx.EvmTx.GasPrice()) || tx.EvmTx.GasTokenID() > qkcCmn.TOKENIDMAX ||
+		tx.EvmTx.TransferTokenID() > qkcCmn.TOKENIDMAX {
+		return fmt.Errorf("startgas, gasprice, and token_id must <= UINT128_MAX")
+	}
 	reqNonce := state.GetNonce(*from)
 	if bytes.Equal(from.Bytes(), account.Recipient{}.Bytes()) {
 		reqNonce = 0
@@ -317,6 +322,10 @@ func ApplyCrossShardDeposit(config *params.ChainConfig, bc ChainContext, header 
 
 func PayNativeTokenAsGas(evmState vm.StateDB, config *params.ChainConfig, tokenID, gas uint64,
 	gasPriceInNativeToken *big.Int) (uint8, *big.Int, error) {
+	// not need to check gas(uint64)
+	if tokenID > qkcCmn.TOKENIDMAX || qkcCmn.BiggerThanUint128Max(gasPriceInNativeToken) {
+		return 0, nil, fmt.Errorf("PayNativeTokenAsGas : tokenid %v > TOKENIDMAX %v gasPriceInNativeToken %v > Uint128Max ", tokenID, qkcCmn.TOKENIDMAX, gasPriceInNativeToken)
+	}
 
 	//# Call the `payAsGas` function
 	data := common.Hex2Bytes("5ae8f7f1")
