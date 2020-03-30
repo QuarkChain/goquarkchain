@@ -102,7 +102,7 @@ func (s *SlaveConnection) GetSlaveID() string {
 	return s.slaveID
 }
 
-func (s *SlaveConnection) GetShardMaskList() []uint32 {
+func (s *SlaveConnection) GetFullShardList() []uint32 {
 	return s.shardMaskList
 }
 

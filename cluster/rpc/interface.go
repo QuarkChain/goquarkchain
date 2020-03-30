@@ -39,7 +39,7 @@ type ISlaveConn interface {
 	HandleNewMinorBlock(request *P2PRedirectRequest) error
 	AddBlockListForSync(request *AddBlockListForSyncRequest) (*ShardStatus, error)
 	GetSlaveID() string
-	GetShardMaskList() []uint32
+	GetFullShardList() []uint32
 	MasterInfo(ip string, port uint16, rootTip *types.RootBlock) error
 	HasShard(fullShardID uint32) bool
 	SendPing() ([]byte, []uint32, error)

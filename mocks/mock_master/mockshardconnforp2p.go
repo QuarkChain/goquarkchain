@@ -267,18 +267,18 @@ func (mr *MockISlaveConnMockRecorder) GetSlaveID() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSlaveID", reflect.TypeOf((*MockISlaveConn)(nil).GetSlaveID))
 }
 
-// GetShardMaskList mocks base method
-func (m *MockISlaveConn) GetShardMaskList() []uint32 {
+// GetFullShardList mocks base method
+func (m *MockISlaveConn) GetFullShardList() []uint32 {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetShardMaskList")
+	ret := m.ctrl.Call(m, "GetFullShardList")
 	ret0, _ := ret[0].([]uint32)
 	return ret0
 }
 
-// GetShardMaskList indicates an expected call of GetShardMaskList
+// GetFullShardList indicates an expected call of GetFullShardList
 func (mr *MockISlaveConnMockRecorder) GetShardMaskList() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetShardMaskList", reflect.TypeOf((*MockISlaveConn)(nil).GetShardMaskList))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetFullShardList", reflect.TypeOf((*MockISlaveConn)(nil).GetFullShardList))
 }
 
 // MasterInfo mocks base method

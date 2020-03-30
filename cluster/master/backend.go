@@ -413,13 +413,13 @@ func checkPing(slaveConn rpc.ISlaveConn, id []byte, chainMaskList []uint32) erro
 	if slaveConn.GetSlaveID() != string(id) {
 		return errors.New("slaveID is not match")
 	}
-	if len(chainMaskList) != len(slaveConn.GetShardMaskList()) {
+	if len(chainMaskList) != len(slaveConn.GetFullShardList()) {
 		return errors.New("chainMaskList is not match")
 	}
 	lenChainMaskList := len(chainMaskList)
 
 	for index := 0; index < lenChainMaskList; index++ {
-		if chainMaskList[index] != slaveConn.GetShardMaskList()[index] {
+		if chainMaskList[index] != slaveConn.GetFullShardList()[index] {
 			return errors.New("chainMaskList index is not match")
 		}
 	}

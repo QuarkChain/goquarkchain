@@ -14,19 +14,19 @@ import (
 
 type Ping struct {
 	Id            []byte   `json:"id" bytesizeofslicelen:"4"`
-	FullShardList []uint32 `json:"chain_mask_list" bytesizeofslicelen:"4"`
+	FullShardList []uint32 `json:"full_shard_list" bytesizeofslicelen:"4"`
 }
 
 type Pong struct {
 	Id            []byte   `json:"id" gencodec:"required" bytesizeofslicelen:"4"`
-	FullShardList []uint32 `json:"chain_mask_list" gencodec:"required" bytesizeofslicelen:"4"`
+	FullShardList []uint32 `json:"full_shard_list" gencodec:"required" bytesizeofslicelen:"4"`
 }
 
 type SlaveInfo struct {
 	Id            string   `json:"id" gencodec:"required"`
 	Host          string   `json:"host" gencodec:"required"`
 	Port          uint16   `json:"port" gencodec:"required"`
-	FullShardList []uint32 `json:"chain_mask_list" gencodec:"required" bytesizeofslicelen:"4"`
+	FullShardList []uint32 `json:"full_shard_list" gencodec:"required" bytesizeofslicelen:"4"`
 }
 
 // ShardStatus shard status for api
