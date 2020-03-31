@@ -22,6 +22,11 @@ package master
 import (
 	"crypto/ecdsa"
 	"crypto/rand"
+	"math/big"
+	"sort"
+	"sync"
+	"testing"
+
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
@@ -38,10 +43,6 @@ import (
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/golang/mock/gomock"
-	"math/big"
-	"sort"
-	"sync"
-	"testing"
 )
 
 var (
@@ -245,7 +246,7 @@ func generateMinorBlocks(n int) []*types.MinorBlock {
 	)
 	blocks := make([]*types.MinorBlock, n)
 	genblock := func(i int, parent *types.MinorBlock) *types.MinorBlock {
-		difficulty, _ := engine.CalcDifficulty(nil, parent.Time(), parent.Header())
+		difficulty, _ := engine.CalcDifficulty(nil, parent.Time(), parent)
 		header := &types.MinorBlockHeader{
 			ParentHash: parent.Hash(),
 			Branch:     account.Branch{Value: 2},

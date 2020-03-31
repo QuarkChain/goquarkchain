@@ -5,6 +5,11 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"math/big"
+	"net"
+	"reflect"
+	"strings"
+
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
 	"github.com/QuarkChain/goquarkchain/consensus"
@@ -16,10 +21,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"golang.org/x/sync/errgroup"
-	"math/big"
-	"net"
-	"reflect"
-	"strings"
 )
 
 func ip2uint32(ip string) uint32 {
@@ -201,7 +202,17 @@ func (s *QKCMasterBackend) EstimateGas(tx *types.Transaction, fromAddress *accou
 	if err := tx.EvmTx.SetFromShardSize(fromShardSize); err != nil {
 		return 0, errors.New(fmt.Sprintf("Failed to set fromShardSize, fromShardSize: %d, err: %v", fromShardSize, err))
 	}
-	slaveConn := s.GetOneSlaveConnById(evmTx.FromFullShardId())
+
+
+	toShardSize, err := s.clusterConfig.Quarkchain.GetShardSizeByChainId(tx.EvmTx.ToChainID())
+	if err != nil {
+		return 0, err
+	}
+	if err := tx.EvmTx.SetToShardSize(toShardSize); err != nil {
+		return 0, errors.New(fmt.Sprintf("Failed to set toShardSize, toShardSize: %d, err: %v", toShardSize, err))
+	}
+
+	slaveConn := s.GetOneSlaveConnById(evmTx.ToFullShardId())
 	if slaveConn == nil {
 		return 0, ErrNoBranchConn
 	}

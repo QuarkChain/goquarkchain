@@ -550,6 +550,7 @@ func (p *PublicBlockChainAPI) GasPrice(fullShardKey hexutil.Uint, tokenID *hexut
 }
 
 func (p *PublicBlockChainAPI) SubmitWork(fullShardKey *hexutil.Uint, headHash common.Hash, nonce hexutil.Uint64, mixHash common.Hash, signature *hexutil.Bytes) (bool, error) {
+	log.Info("ready submit work", "fullShardKey", fullShardKey, "headHash", headHash.String())
 	var fullShardId *uint32
 	if fullShardKey != nil && fullShardKey.String() != "0x9999" {
 		id, err := getFullShardId(fullShardKey)
@@ -574,6 +575,7 @@ func (p *PublicBlockChainAPI) SubmitWork(fullShardKey *hexutil.Uint, headHash co
 		log.Error("Submit remote minered block", "err", err)
 		return false, err
 	}
+	log.Info("Submit Work", "submit status", submit, "err", err)
 	return submit, nil
 }
 
@@ -599,6 +601,8 @@ func (p *PublicBlockChainAPI) GetWork(fullShardKey *hexutil.Uint, coinbaseAddres
 	if work.OptionalDivider > 1 {
 		val = append(val, common.BytesToHash(qcom.Uint64ToBytes(work.OptionalDivider)))
 	}
+	log.Info("End GetWork", "height", height, "HeadHash", work.HeaderHash.String(),
+		"difficulty", work.Difficulty, "optionalDivider", work.OptionalDivider)
 	return val, nil
 }
 

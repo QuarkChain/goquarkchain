@@ -2,13 +2,14 @@ package qkchash
 
 import (
 	"encoding/binary"
+	"math/big"
+	"testing"
+
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/consensus/qkchash/native"
 	"github.com/QuarkChain/goquarkchain/mocks/mock_consensus"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
-	"math/big"
-	"testing"
 
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/core/types"
@@ -75,6 +76,8 @@ func TestVerifyHeaderAndHeaders(t *testing.T) {
 			ParentHash:      parent.Hash(),
 			ToTalDifficulty: big.NewInt(6),
 		}
+		block := types.NewRootBlock(header, nil, nil)
+		parentBlock := types.NewRootBlock(parent, nil, nil)
 		sealBlock(t, q, header)
 
 		cr := mock_consensus.NewMockChainReader(ctrl)
@@ -82,6 +85,8 @@ func TestVerifyHeaderAndHeaders(t *testing.T) {
 		cr.EXPECT().Config().Return(config.NewQuarkChainConfig()).AnyTimes()
 		cr.EXPECT().GetHeader(header.Hash()).Return(nil).AnyTimes()
 		cr.EXPECT().GetHeader(parent.Hash()).Return(parent).AnyTimes()
+		cr.EXPECT().GetBlock(header.Hash()).Return(block).AnyTimes()
+		cr.EXPECT().GetBlock(parent.Hash()).Return(parentBlock).AnyTimes()
 		cr.EXPECT().SkipDifficultyCheck().Return(true).AnyTimes()
 		cr.EXPECT().GetAdjustedDifficulty(gomock.Any()).Return(header.Difficulty, uint64(1), nil).AnyTimes()
 		err := q.VerifyHeader(cr, header, true)

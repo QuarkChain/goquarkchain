@@ -6,6 +6,7 @@ jobs:
   download-snapshot-and-checkdb:
     runs-on: self-hosted
     container: quarkchaindocker/goquarkchain
+    timeout-minutes: 1440
 
     steps:
       - uses: actions/checkout@v2
@@ -34,4 +35,13 @@ jobs:
           ./cluster --cluster_config ../../mainnet/singularity/cluster_config_template.json --service S3>> S3.log 2>&1 &
           sleep 3
           cd - && cd cmd/cluster
-          ./cluster --cluster_config ../../mainnet/singularity/cluster_config_template.json --check_db --check_db_rblock_to=400000
+
+          WEEK_DAY=$(date +%w)
+          date
+          if [ $WEEK_DAY -eq 6 ];then
+                echo "Sunday:checkdb until 0 "
+                ./cluster --cluster_config ../../mainnet/singularity/cluster_config_template.json --check_db
+          else
+                echo "Not Sunday:checkdb until 40w"
+                ./cluster --cluster_config ../../mainnet/singularity/cluster_config_template.json --check_db --check_db_rblock_to=400000
+          fi
