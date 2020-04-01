@@ -63,11 +63,11 @@ var (
 		}, {
 			address:   common.HexToAddress(NonReservedNativeTokenContractAddr),
 			bytecode:  common.Hex2Bytes(NonReservedNativeTokenContractBytecode),
-			timestamp: math2.MaxUint64,
+			timestamp: 1588291200, // At Friday, May 1, 2020 12:00:00 AM GMT.
 		}, {
 			address:   common.HexToAddress(generalNativeTokenContractAddr),
 			bytecode:  common.Hex2Bytes(GeneralNativeTokenContractBytecode),
-			timestamp: math2.MaxUint64,
+			timestamp: 1588291200,
 		},
 	}
 )
