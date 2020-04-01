@@ -557,21 +557,6 @@ func (c *transferMnt) Run(input []byte, evm *EVM, contract *Contract) ([]byte, e
 
 	data := getData(input, 96, uint64(len(input)-96))
 
-	//if !evm.StateDB.Exist(toAddr) && big.NewInt(0).Cmp(value) < 0 {
-	//	if !contract.UseGas(params.CallNewAccountGas) {
-	//		contract.Gas = 0
-	//		return nil, ErrOutOfGas
-	//	}
-	//}
-	//if big.NewInt(0).Cmp(value) < 0 {
-	//	if !contract.UseGas(params.CallValueTransferGas) {
-	//		contract.Gas = 0
-	//		return nil, ErrOutOfGas
-	//	}
-	//}
-	// TODO : need discuss
-	//https://github.com/QuarkChain/pyquarkchain/pull/791
-
 	// Token ID should be within range
 	if tokenID.Uint64() > qCommon.TOKENIDMAX {
 		return nil, fmt.Errorf("tokenid %v > TOKENIDMAX %v", tokenID, qCommon.TOKENIDMAX)
@@ -599,10 +584,6 @@ func (c *transferMnt) Run(input []byte, evm *EVM, contract *Contract) ([]byte, e
 	if evm.StateDB.GetBalance(contract.Caller(), tokenID.Uint64()).Cmp(value) < 0 || evm.depth >= int(params.CallCreateDepth) {
 		contract.UseGas(gasCost)
 		return nil, errExecutionReverted
-	}
-
-	if evm.depth >= int(params.CallCreateDepth) {
-		return nil, fmt.Errorf("evm.depth %v <= CallCreateDepth %v", evm.depth, params.CallCreateDepth)
 	}
 
 	t := evm.TransferTokenID
