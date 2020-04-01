@@ -539,10 +539,12 @@ func (c *transferMnt) RequiredGas(input []byte) uint64 {
 }
 func (c *transferMnt) Run(input []byte, evm *EVM, contract *Contract) ([]byte, error) {
 	if len(input) < 96 {
+		contract.Gas = 0
 		return nil, errors.New("should 96")
 	}
 
 	if contract.IsStaticCall {
+		contract.Gas = 0
 		return nil, errors.New("transferMnt Run: static call not allowed ")
 	}
 
@@ -559,11 +561,13 @@ func (c *transferMnt) Run(input []byte, evm *EVM, contract *Contract) ([]byte, e
 
 	// Token ID should be within range
 	if tokenID.Uint64() > qCommon.TOKENIDMAX {
+		contract.Gas = 0
 		return nil, fmt.Errorf("tokenid %v > TOKENIDMAX %v", tokenID, qCommon.TOKENIDMAX)
 	}
 
 	// Doesn't allow target address to be this precompiled contract itself
 	if toAddr.String() == common.HexToAddress(transferMntAddr).String() {
+		contract.Gas = 0
 		return nil, fmt.Errorf("re call toAddr %v", toAddr.String())
 	}
 
@@ -577,6 +581,7 @@ func (c *transferMnt) Run(input []byte, evm *EVM, contract *Contract) ([]byte, e
 
 	//Out of gas
 	if contract.Gas < gasCost {
+		contract.Gas = 0
 		return nil, fmt.Errorf("run transferMnt failed contracr.gas %v < gasCost %v", contract.Gas, gasCost)
 	}
 
