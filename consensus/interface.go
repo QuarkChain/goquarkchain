@@ -101,7 +101,7 @@ type PoW interface {
 
 type PoSWCalculator interface {
 	BuildSenderDisallowMap(headerHash common.Hash, recipient *account.Recipient) (map[account.Recipient]*big.Int, error)
-	PoSWDiffAdjust(header types.IHeader, balance *big.Int, stakePreBlock *big.Int) (*big.Int, error)
+	PoSWDiffAdjust(header types.IHeader, balance *big.Int, stakePreBlock big.Int) (*big.Int, error)
 	IsPoSWEnabled(time uint64, height uint64) bool
-	GetPoSWInfo(header types.IHeader, stakes *big.Int, address account.Recipient, stakePreBlock *big.Int) (*big.Int, uint64, uint64, error)
+	GetPoSWInfo(header types.IHeader, stakes *big.Int, address account.Recipient, stakePreBlock big.Int) (*big.Int, uint64, uint64, error)
 }

@@ -70,7 +70,7 @@ type gasPriceSuggestionOracle struct {
 
 type CoinbaseAmountAboutHeight struct {
 	CoinbaseAmount *types.TokenBalances
-	StakePreBlock  *big.Int
+	StakePreBlock  big.Int
 }
 
 // MinorBlockChain represents the canonical chain given a database with a genesis

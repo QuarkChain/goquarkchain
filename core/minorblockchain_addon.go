@@ -79,7 +79,7 @@ func (m *MinorBlockChain) getCoinbaseAmount(height uint64) *types.TokenBalances 
 	return cache.CoinbaseAmount.Copy()
 }
 
-func (m *MinorBlockChain) DecayByHeight(height uint64) *big.Int {
+func (m *MinorBlockChain) DecayByHeight(height uint64) big.Int {
 	epoch := height / m.shardConfig.EpochInterval
 	cache, ok := m.coinbaseAmountCache[epoch]
 	if ok {
@@ -106,7 +106,7 @@ func (m *MinorBlockChain) calcCoinbaseAmountByHeight(epoch uint64) {
 
 	m.coinbaseAmountCache[epoch] = CoinbaseAmountAboutHeight{
 		CoinbaseAmount: balances,
-		StakePreBlock:  delayData,
+		StakePreBlock:  *delayData,
 	}
 }
 
