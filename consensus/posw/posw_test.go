@@ -28,7 +28,7 @@ func appendNewBlock(blockchain *core.MinorBlockChain, acc1 account.Address, t *t
 	if balance, err := blockchain.GetBalance(newBlock.Coinbase().Recipient, nil); err != nil {
 		t.Fatalf("failed to get balance: %v", err)
 	} else {
-		stakePreBlock := blockchain.DecayByEpoch(blockchain.Config().GetShardConfigByFullShardID(blockchain.GetBranch().Value).PoswConfig.TotalStakePerBlock, newBlock.NumberU64())
+		stakePreBlock := blockchain.DecayByHeight(newBlock.NumberU64())
 		adjustedDiff, err := core.GetPoSW(blockchain).PoSWDiffAdjust(newBlock.Header(), balance.GetTokenBalance(testGenesisTokenID), stakePreBlock)
 		if err != nil {
 			t.Fatalf("failed to adjust posw diff: %v", err)

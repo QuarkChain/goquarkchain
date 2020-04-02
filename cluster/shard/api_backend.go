@@ -508,7 +508,7 @@ func (s *ShardBackend) CreateBlockToMine(addr *account.Address) (types.IBlock, *
 			return nil, nil, 0, err
 		}
 		balance := balances.GetTokenBalance(s.MinorBlockChain.GetGenesisToken())
-		stakePreBlock := s.MinorBlockChain.DecayByEpoch(s.Config.PoswConfig.TotalStakePerBlock, minorBlock.NumberU64())
+		stakePreBlock := s.MinorBlockChain.DecayByHeight(minorBlock.NumberU64())
 		adjustedDifficulty, err := s.posw.PoSWDiffAdjust(header, balance, stakePreBlock)
 		if err != nil {
 			log.Error("PoSW", "failed to compute PoSW difficulty", err)

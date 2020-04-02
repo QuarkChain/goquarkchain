@@ -68,6 +68,11 @@ type gasPriceSuggestionOracle struct {
 	Percentile  uint64
 }
 
+type CoinbaseAmountAboutHeight struct {
+	CoinbaseAmount *types.TokenBalances
+	StakePreBlock  *big.Int
+}
+
 // MinorBlockChain represents the canonical chain given a database with a genesis
 // block. The Blockchain manages chain imports, reverts, chain reorganisations.
 //
@@ -113,7 +118,7 @@ type MinorBlockChain struct {
 	crossShardTxListCache *lru.Cache
 	rootBlockCache        *lru.Cache
 	lastConfirmCache      *lru.Cache
-	coinbaseAmountCache   map[uint64]*types.TokenBalances
+	coinbaseAmountCache   map[uint64]CoinbaseAmountAboutHeight
 
 	quit    chan struct{} // blockchain quit channel
 	running int32         // running must be called atomically
@@ -193,7 +198,7 @@ func NewMinorBlockChain(
 		crossShardTxListCache:    crossShardCache,
 		rootBlockCache:           rootBlockCache,
 		lastConfirmCache:         lastConfimCache,
-		coinbaseAmountCache:      make(map[uint64]*types.TokenBalances),
+		coinbaseAmountCache:      make(map[uint64]CoinbaseAmountAboutHeight),
 		engine:                   engine,
 		vmConfig:                 vmConfig,
 		heightToMinorBlockHashes: make(map[uint64]map[common.Hash]struct{}),
@@ -423,7 +428,7 @@ func (m *MinorBlockChain) GetAdjustedDifficulty(header types.IHeader) (*big.Int,
 			log.Error(m.logInfo, "PoSW: failed to get coinbase balance", err)
 			return nil, 0, err
 		}
-		stakePreBlock := m.DecayByEpoch(m.clusterConfig.Quarkchain.GetShardConfigByFullShardID(m.branch.Value).PoswConfig.TotalStakePerBlock, header.NumberU64())
+		stakePreBlock := m.DecayByHeight(header.NumberU64())
 		poswAdjusted, err := m.posw.PoSWDiffAdjust(header, balance.GetTokenBalance(m.clusterConfig.Quarkchain.GetDefaultChainTokenID()), stakePreBlock)
 		if err != nil {
 			log.Error(m.logInfo, "PoSW: err", err)
