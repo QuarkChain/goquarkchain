@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"encoding/gob"
+	"math"
 	"math/big"
 	"math/bits"
 	"net"
@@ -22,8 +23,19 @@ const (
 )
 
 var (
-	EmptyHash = ethCommon.Hash{}
+	EmptyHash  = ethCommon.Hash{}
+	uint128Max = GetUint128Max()
 )
+
+func GetUint128Max() *big.Int {
+	pow2_64 := new(big.Int).Add(new(big.Int).SetUint64(math.MaxUint64), ethCommon.Big1)
+	pow2_128 := new(big.Int).Mul(pow2_64, pow2_64)
+	return new(big.Int).Sub(pow2_128, ethCommon.Big1)
+}
+
+func BiggerThanUint128Max(data *big.Int) bool {
+	return data.Cmp(uint128Max) > 0
+}
 
 /*
 	0b101, 0b11 -> True
