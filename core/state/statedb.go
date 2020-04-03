@@ -761,8 +761,13 @@ func (s *StateDB) GetXShardList() []*types.CrossShardTransactionDeposit {
 	}
 	return s.xShardList
 }
+
 func (s *StateDB) SetFullShardKey(fullShardKey uint32) {
 	s.fullShardKey = fullShardKey
+}
+
+func (s *StateDB) GetChainID() uint32 {
+	return s.fullShardKey >> 16
 }
 
 func (s *StateDB) GetFullShardKey(addr common.Address) uint32 {

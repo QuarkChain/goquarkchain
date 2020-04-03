@@ -17,11 +17,12 @@
 package vm
 
 import (
+	"math/big"
+
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/common"
-	"math/big"
 )
 
 // StateDB is an EVM database for full state querying.
@@ -71,6 +72,7 @@ type StateDB interface {
 	SetXShardReceiveGasUsed(*big.Int)
 	AppendXShardList(data *types.CrossShardTransactionDeposit)
 	GetXShardList() []*types.CrossShardTransactionDeposit
+	GetChainID() uint32
 	SetFullShardKey(uint32)
 	GetFullShardKey(common.Address) uint32
 	AddBlockFee(map[uint64]*big.Int)
