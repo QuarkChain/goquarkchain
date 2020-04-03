@@ -93,6 +93,9 @@ func TestGasPrice(t *testing.T) {
 	monkey.Patch(PayNativeTokenAsGas, func(a vm.StateDB, b *ethParams.ChainConfig, c uint64, d uint64, gasPrice *big.Int) (uint8, *big.Int, error) {
 		return 100, gasPrice, nil
 	})
+	monkey.Patch(GetGasUtilityInfo, func(a vm.StateDB, b *ethParams.ChainConfig, c uint64, gasPrice *big.Int) (uint8, *big.Int, error) {
+		return 100, gasPrice, nil
+	})
 	defer monkey.UnpatchAll()
 	addContractAddrBalance = true
 	defer func() {
@@ -3024,6 +3027,11 @@ func TestPayNativeTokenAsGasContractAPI(t *testing.T) {
 	refundPercentage, gasPrice, err = GetGasUtilityInfo(evmState, shardState.ethChainConfig, tokenID, gasPriceInNativeToken)
 	assert.Equal(t, uint8(60), refundPercentage)
 	assert.Equal(t, big.NewInt(2), gasPrice)
+
+	data, err := ConvertToDefaultChainTokenGasPrice(evmState, shardState.ethChainConfig, tokenID, new(big.Int).SetInt64(60000))
+	assert.NoError(t, err)
+	assert.Equal(t, data.Uint64(), uint64(2))
+
 	//# exchange the Qkc with the native token
 	refundPercentage, gasPrice, err = PayNativeTokenAsGas(evmState, shardState.ethChainConfig, tokenID, 3, gasPriceInNativeToken)
 	assert.Equal(t, uint8(60), refundPercentage)

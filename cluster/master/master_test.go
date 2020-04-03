@@ -429,7 +429,7 @@ func TestAddTransaction(t *testing.T) {
 		TxType: types.EvmTx,
 	}
 	err = master.AddTransaction(tx)
-	assert.Error(t, err)
+	assert.NoError(t, err)
 
 	evmTx = types.NewEvmTransaction(0, id1.GetRecipient(), new(big.Int), 0, new(big.Int).SetUint64(1000000000), 2, 2, 1, 0, []byte{}, 0, 0)
 	tx = &types.Transaction{
