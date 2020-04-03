@@ -703,6 +703,7 @@ func (m *mintMNT) Run(input []byte, evm *EVM, contract *Contract) ([]byte, error
 	}
 
 	if evm.StateDB.GetChainID() != 0 {
+		contract.Gas = 0
 		return nil, fmt.Errorf("deploySystemContract chainID %v should 0", evm.StateDB.GetChainID())
 	}
 
