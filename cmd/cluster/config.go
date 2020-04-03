@@ -76,7 +76,11 @@ func makeConfigNode(ctx *cli.Context) (*service.Node, qkcConfig) {
 		if err := loadConfig(file, &cfg.Cluster); err != nil {
 			utils.Fatalf("%v", err)
 		}
+		if err := cfg.Cluster.BackWardChainMaskList(); err != nil {
+			utils.Fatalf("%v", err)
+		}
 	}
+
 	utils.SetClusterConfig(ctx, &cfg.Cluster)
 
 	ServiceName := ctx.GlobalString(utils.ServiceFlag.Name)
@@ -122,12 +126,19 @@ func makeConfigNode(ctx *cli.Context) (*service.Node, qkcConfig) {
 			vm.PrecompiledContractsByzantium[v].SetEnableTime(cfg.Cluster.Quarkchain.EnableEvmTimeStamp)
 		}
 	}
+	if cfg.Cluster.Quarkchain.EnableNonReservedNativeTokenTimestamp == 0 && cfg.Cluster.Quarkchain.NetworkID == 1 {
+		cfg.Cluster.Quarkchain.EnableNonReservedNativeTokenTimestamp = params.MAINNET_ENABLE_NON_RESERVED_NATIVE_TOKEN_CONTRACT_TIMESTAMP
+	}
+	vm.SystemContracts[vm.NON_RESERVED_NATIVE_TOKEN].SetTimestamp(cfg.Cluster.Quarkchain.EnableNonReservedNativeTokenTimestamp)
 	for _, v := range params.PrecompiledContractsMnt {
 		if vm.PrecompiledContractsByzantium[v] != nil {
 			vm.PrecompiledContractsByzantium[v].SetEnableTime(cfg.Cluster.Quarkchain.EnableNonReservedNativeTokenTimestamp)
 		}
 	}
-	vm.SystemContracts[vm.NON_RESERVED_NATIVE_TOKEN].SetTimestamp(cfg.Cluster.Quarkchain.EnableNonReservedNativeTokenTimestamp)
+
+	if cfg.Cluster.Quarkchain.EnableGeneralNativeTokenTimestamp == 0 && cfg.Cluster.Quarkchain.NetworkID == 1 {
+		cfg.Cluster.Quarkchain.EnableGeneralNativeTokenTimestamp = params.MAINNET_ENABLE_GENERAL_NATIVE_TOKEN_CONTRACT_TIMESTAMP
+	}
 	vm.SystemContracts[vm.GENERAL_NATIVE_TOKEN].SetTimestamp(cfg.Cluster.Quarkchain.EnableGeneralNativeTokenTimestamp)
 
 	return stack, cfg

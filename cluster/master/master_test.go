@@ -30,14 +30,14 @@ var (
 
 type fakeRpcClient struct {
 	target       string
-	chainMaskLst []*types.ChainMask
+	chainMaskLst []uint32
 	slaveID      string
 	chanOP       chan uint32
 	config       *config.ClusterConfig
 	branchs      []*account.Branch
 }
 
-func NewFakeRPCClient(chanOP chan uint32, target string, shardMaskLst []*types.ChainMask, slaveID string, config *config.ClusterConfig) *fakeRpcClient {
+func NewFakeRPCClient(chanOP chan uint32, target string, shardMaskLst []uint32, slaveID string, config *config.ClusterConfig) *fakeRpcClient {
 	f := &fakeRpcClient{
 		chanOP:       chanOP,
 		target:       target,
@@ -64,7 +64,7 @@ func (c *fakeRpcClient) Close() {}
 
 func (c *fakeRpcClient) coverShardID(fullShardID uint32) bool {
 	for _, chainMask := range c.chainMaskLst {
-		if chainMask.ContainFullShardId(fullShardID) {
+		if chainMask == fullShardID {
 			return true
 		}
 	}
@@ -82,7 +82,7 @@ func (c *fakeRpcClient) Call(hostport string, req *rpc.Request) (*rpc.Response, 
 	case rpc.OpPing:
 		rsp := new(rpc.Pong)
 		rsp.Id = []byte(c.slaveID)
-		rsp.ChainMaskList = c.chainMaskLst
+		rsp.FullShardList = c.chainMaskLst
 		data, err := serialize.SerializeToBytes(rsp)
 		if err != nil {
 			return nil, err
@@ -268,7 +268,7 @@ func initEnv(t *testing.T, chanOp chan uint32) *QKCMasterBackend {
 }
 
 func initEnvWithConsensusType(t *testing.T, chanOp chan uint32, consensusType string, pubKey string) *QKCMasterBackend {
-	monkey.Patch(NewSlaveConn, func(target string, shardMaskLst []*types.ChainMask, slaveID string) *SlaveConnection {
+	monkey.Patch(NewSlaveConn, func(target string, shardMaskLst []uint32, slaveID string) *SlaveConnection {
 		client := NewFakeRPCClient(chanOp, target, shardMaskLst, slaveID, config.NewClusterConfig())
 		return &SlaveConnection{
 			target:        target,
@@ -292,6 +292,7 @@ func initEnvWithConsensusType(t *testing.T, chanOp chan uint32, consensusType st
 	if err != nil {
 		panic(err)
 	}
+
 	if err := master.Init(nil); err != nil {
 		assert.NoError(t, err)
 	}
@@ -428,7 +429,7 @@ func TestAddTransaction(t *testing.T) {
 		TxType: types.EvmTx,
 	}
 	err = master.AddTransaction(tx)
-	assert.Error(t, err)
+	assert.NoError(t, err)
 
 	evmTx = types.NewEvmTransaction(0, id1.GetRecipient(), new(big.Int), 0, new(big.Int).SetUint64(1000000000), 2, 2, 1, 0, []byte{}, 0, 0)
 	tx = &types.Transaction{

@@ -469,6 +469,13 @@ func (pool *TxPool) add(tx *types.Transaction, local bool) (replaced bool, err e
 		log.Trace("Discarding invalid transaction", "hash", hash, "err", err)
 		return false, err
 	}
+	defaultGasPrice, err := ConvertToDefaultChainTokenGasPrice(pool.currentState, pool.chain.ChainConfig(), tx.EvmTx.GasTokenID(), tx.EvmTx.GasPrice())
+	if err != nil {
+		return false, err
+	}
+	if defaultGasPrice.Cmp(pool.chain.Config().MinTXPoolGasPrice) < 0 {
+		return false, fmt.Errorf("defaultGasPrice %v is small than minTxPoolGasPrice %v", defaultGasPrice, pool.chain.Config().MinTXPoolGasPrice)
+	}
 	// If the transaction pool is full, discard underpriced transactions
 	if uint64(pool.all.Count()) >= pool.config.GlobalSlots+pool.config.GlobalQueue {
 		// If the new transaction is underpriced, don't accept it

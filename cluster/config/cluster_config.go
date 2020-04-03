@@ -11,7 +11,6 @@ import (
 
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/common"
-	"github.com/QuarkChain/goquarkchain/core/types"
 	ethcom "github.com/ethereum/go-ethereum/common"
 )
 
@@ -68,14 +67,26 @@ func NewClusterConfig() *ClusterConfig {
 		CheckDBRBlockBatch:       10,
 	}
 
+	fullShardIds := ret.Quarkchain.GetGenesisShardIds()
+
 	for i := 0; i < DefaultNumSlaves; i++ {
 		slave := NewDefaultSlaveConfig()
 		slave.Port = slavePort + uint16(i)
 		slave.ID = fmt.Sprintf("S%d", i)
-		slave.ChainMaskList = append(slave.ChainMaskList, types.NewChainMask(uint32(i|DefaultNumSlaves)))
+		slave.FullShardList = append(slave.FullShardList, getFullShardIdListFromSlaveIndex(fullShardIds, DefaultNumSlaves, i)...)
 		ret.SlaveList = append(ret.SlaveList, slave)
 	}
 	return &ret
+}
+
+func getFullShardIdListFromSlaveIndex(list []uint32, slaveNumber int, slaveIndex int) []uint32 {
+	ans := make([]uint32, 0)
+	for index := 0; index < len(list); index++ {
+		if index%slaveNumber == slaveIndex {
+			ans = append(ans, list[index])
+		}
+	}
+	return ans
 }
 
 func (c *ClusterConfig) GetSlaveConfig(id string) (*SlaveConfig, error) {
@@ -89,6 +100,44 @@ func (c *ClusterConfig) GetSlaveConfig(id string) (*SlaveConfig, error) {
 	}
 	return nil, fmt.Errorf("slave %s is not in cluster config", id)
 }
+
+func (c *ClusterConfig) BackWardChainMaskList() error {
+	setFullShardFromChainMask := true
+	for _, slave := range c.SlaveList {
+		for _, vv := range slave.FullShardList {
+			if vv != 0 {
+				setFullShardFromChainMask = false
+			}
+		}
+	}
+	if !setFullShardFromChainMask {
+		return nil
+	}
+	for _, v := range c.Quarkchain.Chains {
+		if v.ShardSize != 1 {
+			return errors.New("CHAIN_MASK_LIST:only works if every chain has 1 shard only")
+		}
+	}
+	for _, v := range c.SlaveList {
+		for _, m := range v.ChainMaskListForBackward {
+			bitMask := uint32(1<<(common.IntLeftMostBit(m)-1) - 1)
+			v.FullShardList = make([]uint32, 0)
+			for _, chainConfig := range c.Quarkchain.Chains {
+				if chainConfig.ChainID&bitMask == m&bitMask {
+					v.FullShardList = append(v.FullShardList, chainConfig.ChainID<<16+1)
+				}
+			}
+		}
+		sort.Sort(fullShardList(v.FullShardList))
+	}
+	return nil
+}
+
+type fullShardList []uint32
+
+func (a fullShardList) Len() int           { return len(a) }
+func (a fullShardList) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+func (a fullShardList) Less(i, j int) bool { return a[i] < a[j] }
 
 type QuarkChainConfig struct {
 	ChainSize                             uint32      `json:"CHAIN_SIZE"`

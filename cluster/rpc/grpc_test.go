@@ -14,7 +14,7 @@ func testSlaveConfig(idx uint16) *config.SlaveConfig {
 		IP:            "127.0.0.1",
 		Port:          38000 + idx,
 		ID:            fmt.Sprintf("S%d", idx),
-		ChainMaskList: nil,
+		FullShardList: nil,
 	}
 }
 

@@ -1,13 +1,14 @@
 package core
 
 import (
-	"bou.ke/monkey"
-	"github.com/QuarkChain/goquarkchain/params"
-	ethParams "github.com/ethereum/go-ethereum/params"
 	"io/ioutil"
 	"math/big"
 	"os"
 	"testing"
+
+	"bou.ke/monkey"
+	"github.com/QuarkChain/goquarkchain/params"
+	ethParams "github.com/ethereum/go-ethereum/params"
 
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/common"
@@ -120,6 +121,9 @@ func TestDisallowedUnknownToken(t *testing.T) {
 
 func TestNativeTokenGas(t *testing.T) {
 	monkey.Patch(PayNativeTokenAsGas, func(a vm.StateDB, b *ethParams.ChainConfig, c uint64, d uint64, gasPrice *big.Int) (uint8, *big.Int, error) {
+		return 100, gasPrice, nil
+	})
+	monkey.Patch(GetGasUtilityInfo, func(a vm.StateDB, b *ethParams.ChainConfig, c uint64, gasPrice *big.Int) (uint8, *big.Int, error) {
 		return 100, gasPrice, nil
 	})
 	defer monkey.UnpatchAll()
@@ -295,6 +299,9 @@ func TestXshardNativeTokenReceived(t *testing.T) {
 
 func TestXshardNativeTokenGasSent(t *testing.T) {
 	monkey.Patch(PayNativeTokenAsGas, func(a vm.StateDB, b *ethParams.ChainConfig, c uint64, d uint64, gasPrice *big.Int) (uint8, *big.Int, error) {
+		return 100, gasPrice, nil
+	})
+	monkey.Patch(GetGasUtilityInfo, func(a vm.StateDB, b *ethParams.ChainConfig, c uint64, gasPrice *big.Int) (uint8, *big.Int, error) {
 		return 100, gasPrice, nil
 	})
 	defer monkey.UnpatchAll()
