@@ -70,19 +70,44 @@ func powerBigInt(data *big.Int, p uint64) *big.Int {
 
 func (m *MinorBlockChain) getCoinbaseAmount(height uint64) *types.TokenBalances {
 	epoch := height / m.shardConfig.EpochInterval
-	balances, ok := m.coinbaseAmountCache[epoch]
-	if !ok {
-		decayNumerator := powerBigInt(m.clusterConfig.Quarkchain.BlockRewardDecayFactor.Num(), epoch)
-		decayDenominator := powerBigInt(new(big.Rat).Set(m.clusterConfig.Quarkchain.BlockRewardDecayFactor).Denom(), epoch)
-		coinbaseAmount := qkcCommon.BigIntMulBigRat(m.shardConfig.CoinbaseAmount, m.clusterConfig.Quarkchain.LocalFeeRate)
-		coinbaseAmount = new(big.Int).Mul(coinbaseAmount, decayNumerator)
-		coinbaseAmount = new(big.Int).Div(coinbaseAmount, decayDenominator)
-		data := make(map[uint64]*big.Int)
-		data[m.clusterConfig.Quarkchain.GetDefaultChainTokenID()] = coinbaseAmount
-		balances = types.NewTokenBalancesWithMap(data)
-		m.coinbaseAmountCache[epoch] = balances
+	cache, ok := m.coinbaseAmountCache[epoch]
+	if ok {
+		return cache.CoinbaseAmount.Copy()
 	}
-	return balances.Copy()
+	m.calcCoinbaseAmountByHeight(epoch)
+	cache, _ = m.coinbaseAmountCache[epoch]
+	return cache.CoinbaseAmount.Copy()
+}
+
+func (m *MinorBlockChain) DecayByHeight(height uint64) big.Int {
+	epoch := height / m.shardConfig.EpochInterval
+	cache, ok := m.coinbaseAmountCache[epoch]
+	if ok {
+		return cache.StakePreBlock
+	}
+	m.calcCoinbaseAmountByHeight(epoch)
+	cache, _ = m.coinbaseAmountCache[epoch]
+	return cache.StakePreBlock
+}
+
+func (m *MinorBlockChain) calcCoinbaseAmountByHeight(epoch uint64) {
+	decayNumerator := powerBigInt(m.clusterConfig.Quarkchain.BlockRewardDecayFactor.Num(), epoch)
+	decayDenominator := powerBigInt(new(big.Rat).Set(m.clusterConfig.Quarkchain.BlockRewardDecayFactor).Denom(), epoch)
+	coinbaseAmount := qkcCommon.BigIntMulBigRat(m.shardConfig.CoinbaseAmount, m.clusterConfig.Quarkchain.LocalFeeRate)
+	coinbaseAmount = new(big.Int).Mul(coinbaseAmount, decayNumerator)
+	coinbaseAmount = new(big.Int).Div(coinbaseAmount, decayDenominator)
+	data := make(map[uint64]*big.Int)
+	data[m.clusterConfig.Quarkchain.GetDefaultChainTokenID()] = coinbaseAmount
+	balances := types.NewTokenBalancesWithMap(data)
+
+	value := m.clusterConfig.Quarkchain.GetShardConfigByFullShardID(m.branch.Value).PoswConfig.TotalStakePerBlock
+	delayData := new(big.Int).Mul(value, decayNumerator)
+	delayData = new(big.Int).Div(delayData, decayDenominator)
+
+	m.coinbaseAmountCache[epoch] = CoinbaseAmountAboutHeight{
+		CoinbaseAmount: balances,
+		StakePreBlock:  *delayData,
+	}
 }
 
 func (m *MinorBlockChain) putMinorBlock(mBlock *types.MinorBlock, xShardReceiveTxList []*types.CrossShardTransactionDeposit) error {
@@ -1730,7 +1755,8 @@ func (m *MinorBlockChain) PoswInfo(mBlock *types.MinorBlock) (*rpc.PoSWInfo, err
 		return nil, err
 	}
 	stakes := evmState.GetBalance(header.Coinbase.Recipient, m.clusterConfig.Quarkchain.GetDefaultChainTokenID())
-	diff, minable, mined, _ := m.posw.GetPoSWInfo(header, stakes, header.Coinbase.Recipient)
+	stakePreBlock := m.DecayByHeight(mBlock.NumberU64())
+	diff, minable, mined, _ := m.posw.GetPoSWInfo(header, stakes, header.Coinbase.Recipient, stakePreBlock)
 	return &rpc.PoSWInfo{
 		EffectiveDifficulty: diff,
 		PoswMineableBlocks:  minable,
@@ -1754,7 +1780,8 @@ func (m *MinorBlockChain) CommitMinorBlockByHash(h common.Hash) {
 }
 
 func (m *MinorBlockChain) GetMiningInfo(address account.Recipient, stake *types.TokenBalances) (mineable, mined uint64, err error) {
-	_, mineable, mined, err = m.posw.GetPoSWInfo(m.CurrentBlock().Header(), stake.GetTokenBalance(m.Config().GetDefaultChainTokenID()), address)
+	stakePreBlock := m.DecayByHeight(m.CurrentBlock().NumberU64())
+	_, mineable, mined, err = m.posw.GetPoSWInfo(m.CurrentBlock().Header(), stake.GetTokenBalance(m.Config().GetDefaultChainTokenID()), address, stakePreBlock)
 	return
 }
 

@@ -60,6 +60,7 @@ type Contract struct {
 	Gas            uint64
 	value          *big.Int
 	TokenIDQueried bool
+	IsStaticCall   bool // transferMnt not support static call
 }
 
 // NewContract returns a new contract environment for the execution of EVM.
@@ -182,4 +183,8 @@ func (c *Contract) SetCodeOptionalHash(addr *common.Address, codeAndHash *codeAn
 	c.Code = codeAndHash.code
 	c.CodeHash = codeAndHash.hash
 	c.CodeAddr = addr
+}
+
+func (c *Contract) SetIsStaticCall(isStaticCall bool) {
+	c.IsStaticCall = isStaticCall
 }
