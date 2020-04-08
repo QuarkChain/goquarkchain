@@ -331,7 +331,7 @@ func PayNativeTokenAsGas(evmState vm.StateDB, config *params.ChainConfig, tokenI
 	data := common.Hex2Bytes("5ae8f7f1")
 	data = append(data, qkcCmn.EncodeToByte32(tokenID)...)
 	data = append(data, qkcCmn.EncodeToByte32(gas)...)
-	data = append(data, qkcCmn.EncodeToByte32(gasPriceInNativeToken.Uint64())...)
+	data = append(data, qkcCmn.BigToByte32(gasPriceInNativeToken)...)
 	return callGeneralNativeTokenManager(evmState, config, data)
 }
 
