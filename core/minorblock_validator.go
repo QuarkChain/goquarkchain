@@ -19,7 +19,6 @@ package core
 import (
 	"errors"
 	"fmt"
-	"github.com/QuarkChain/goquarkchain/common/hexutil"
 	"math/big"
 	"time"
 
@@ -283,7 +282,6 @@ func (v *MinorBlockValidator) ValidateState(mBlock, parent types.IBlock, statedb
 	if block.GasUsed().Cmp(statedb.GetGasUsed()) != 0 {
 		return fmt.Errorf("invalid gas used (remote: %d local: %d)", block.GasUsed().Uint64(), statedb.GetGasUsed())
 	}
-	fmt.Println("validate minor block",block.NumberU64(),block.Branch().Value,block.Hash().String())
 	// Validate the received block's bloom with the one derived from the generated receipts.
 	// For valid blocks this should always validate to true.
 	bloom := types.CreateBloom(receipts)
@@ -295,19 +293,7 @@ func (v *MinorBlockValidator) ValidateState(mBlock, parent types.IBlock, statedb
 		return fmt.Errorf("cross-hard transaction cursor info mismatches! %v %v", statedb.GetTxCursorInfo(), block.Meta().XShardTxCursorInfo)
 	}
 
-
-	fmt.Println("len(receipts)",len(receipts))
-	for _,v:=range receipts{
-		fmt.Println("PostState",hexutil.Encode(v.PostState))
-		fmt.Println("CumulativeGasUsed",v.CumulativeGasUsed)
-		fmt.Println("Bloom",v.Bloom.Big().String())
-		fmt.Println("Logs",len(v.Logs))
-		fmt.Println("ContractAddress",v.ContractAddress.String())
-		fmt.Println("ContractFullShardKey",v.ContractFullShardKey)
-		fmt.Println("=====")
-	}
 	receiptSha := types.DeriveSha(receipts)
-	fmt.Println("receiptSha",receiptSha.String(),"block's detail",block.ReceiptHash().String())
 	if receiptSha != block.ReceiptHash() {
 		return fmt.Errorf("invalid receipt root hash (remote: %x local: %x)", block.ReceiptHash(), receiptSha)
 	}
@@ -315,10 +301,8 @@ func (v *MinorBlockValidator) ValidateState(mBlock, parent types.IBlock, statedb
 		return ErrGasUsed
 	}
 	coinbaseAmount := v.bc.getCoinbaseAmount(block.NumberU64())
-	fmt.Println("coinbase",coinbaseAmount.GetBalanceMap(),statedb.GetBlockFee())
 	coinbaseAmount.Add(statedb.GetBlockFee())
 	if !compareCoinbaseAmountMap(coinbaseAmount.GetBalanceMap(), block.CoinbaseAmount().GetBalanceMap()) {
-		fmt.Println("CCCCCCCCC",coinbaseAmount.GetBalanceMap(),block.CoinbaseAmount().GetBalanceMap())
 		return ErrCoinbaseAmount
 	}
 

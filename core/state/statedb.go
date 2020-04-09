@@ -20,7 +20,6 @@ package state
 import (
 	"errors"
 	"fmt"
-	"github.com/QuarkChain/goquarkchain/common/hexutil"
 	"math/big"
 	"sort"
 
@@ -432,12 +431,6 @@ func (s *StateDB) updateStateObject(stateObject *stateObject) {
 			panic(err)
 		}
 	}
-	fmt.Println("update==",addr.String(),hexutil.Encode(data))
-	fmt.Println("Root", stateObject.data.Root.String())
-	fmt.Println("Nonce", stateObject.data.Nonce)
-	fmt.Println("TokenBalances", stateObject.data.TokenBalances.GetBalanceMap())
-	fmt.Println("CodeHash", hexutil.Encode(stateObject.data.CodeHash))
-	fmt.Println("FullShardKey", stateObject.data.FullShardKey.GetValue())
 	s.setError(s.trie.TryUpdate(addr[:], data))
 }
 
@@ -784,7 +777,6 @@ func (s *StateDB) GetFullShardKey(addr common.Address) uint32 {
 }
 
 func (s *StateDB) AddBlockFee(fee map[uint64]*big.Int) {
-	fmt.Println("AAAAAAAAAAAA",fee)
 	if s.blockFee == nil {
 		s.blockFee = fee
 		return

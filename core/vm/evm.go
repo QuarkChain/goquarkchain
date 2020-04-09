@@ -18,7 +18,6 @@ package vm
 
 import (
 	"errors"
-	"fmt"
 	"math/big"
 	"sync/atomic"
 	"time"
@@ -411,7 +410,6 @@ func (evm *EVM) create(caller ContractRef, codeAndHash *codeAndHash, gas uint64,
 	// Depth check execution. Fail if we're trying to execute above the
 	// limit.
 	if evm.TransferTokenID != evm.StateDB.GetQuarkChainConfig().GetDefaultChainTokenID() {
-		fmt.Println("dddddddd",evm.TransferTokenID,evm.StateDB.GetQuarkChainConfig().GetDefaultChainTokenID())
 		return nil, common.Address{}, gas, errors.New("only support default token id")
 	}
 	if evm.depth > int(params.CallCreateDepth) {
