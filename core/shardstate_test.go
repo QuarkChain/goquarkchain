@@ -3257,8 +3257,7 @@ func TestMintNewNativeToken(t *testing.T) {
 	//	resume_auction
 	succ := exec("32353fbd", new(big.Int), 1)
 	assert.True(t, succ)
-	_, _, endTime, _, _ := getAuctionState()
-	assert.Equal(t, 3600*24*7, int(endTime))
+
 	// # token id to bid and win
 	tokenID := toStr(uint64(9999999))
 	//bid_new_token
