@@ -2917,6 +2917,7 @@ func TestProcMintMNT(t *testing.T) {
 	runContract := func(codeAddr common.Address, statedb *state.StateDB) (ret []byte, gasRemained uint64, balance *big.Int, err error) {
 		contract := vm.NewContract(vm.AccountRef(codeAddr), vm.AccountRef(codeAddr), new(big.Int), 34001)
 		evm := vm.NewEVM(vm.Context{}, statedb, &params.DefaultConstantinople, vm.Config{})
+		evm.StateDB.SetQuarkChainConfig(config.NewQuarkChainConfig())
 		ret, err = vm.RunPrecompiledContract(vm.PrecompiledContractsByzantium[mintMNTAddr], data, contract, evm)
 		gasRemained = contract.Gas
 		balance = evm.StateDB.GetBalance(minter, tokenID)
@@ -3256,8 +3257,7 @@ func TestMintNewNativeToken(t *testing.T) {
 	//	resume_auction
 	succ := exec("32353fbd", new(big.Int), 1)
 	assert.True(t, succ)
-	_, _, endTime, _, _ := getAuctionState()
-	assert.Equal(t, 3600*24*7, int(endTime))
+
 	// # token id to bid and win
 	tokenID := toStr(uint64(9999999))
 	//bid_new_token

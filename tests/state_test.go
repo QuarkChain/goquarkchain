@@ -20,8 +20,9 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"github.com/QuarkChain/goquarkchain/core/vm"
 	"testing"
+
+	"github.com/QuarkChain/goquarkchain/core/vm"
 )
 
 func TestState(t *testing.T) {

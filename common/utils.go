@@ -153,6 +153,17 @@ func EncodeToByte32(data uint64) []byte {
 	return ret
 }
 
+func BigToByte32(data *big.Int)[]byte  {
+	dataBytes:=data.Bytes()
+	lenData:=len(dataBytes)
+	if lenData>32{
+		panic("data's len should <= 32")
+	}
+	ret:=make([]byte,32)
+	copy(ret[(32-lenData):],dataBytes)
+	return ret
+}
+
 func Has0xPrefix(input string) bool {
 	return len(input) >= 2 && input[0] == '0' && (input[1] == 'x' || input[1] == 'X')
 }

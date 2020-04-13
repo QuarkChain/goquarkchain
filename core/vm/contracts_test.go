@@ -18,7 +18,12 @@ package vm
 
 import (
 	"fmt"
+	"math"
+	"math/big"
+	"testing"
+
 	"github.com/QuarkChain/goquarkchain/account"
+	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/core/state"
 	"github.com/QuarkChain/goquarkchain/params"
 	"github.com/ethereum/go-ethereum/common"
@@ -26,9 +31,6 @@ import (
 	"github.com/ethereum/go-ethereum/ethdb"
 	gethParam "github.com/ethereum/go-ethereum/params"
 	"github.com/stretchr/testify/assert"
-	"math"
-	"math/big"
-	"testing"
 )
 
 // precompiledTest defines the input/output pairs for precompiled contract tests.
@@ -541,6 +543,7 @@ func TestProcBalanceMnt(t *testing.T) {
 	}
 
 	statedb, _ := state.New(common.Hash{}, state.NewDatabase(ethdb.NewMemDatabase()))
+	statedb.SetQuarkChainConfig(config.NewQuarkChainConfig())
 	amount := uint64(2020)
 	err := mint(statedb, defaultAddr, tokenId, amount)
 	assert.NoError(t, err)
