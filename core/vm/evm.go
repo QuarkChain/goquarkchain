@@ -17,6 +17,7 @@
 package vm
 
 import (
+	"fmt"
 	"math/big"
 	"sync/atomic"
 	"time"
@@ -402,11 +403,9 @@ func (c *codeAndHash) Hash() common.Hash {
 
 // create creates a new contract using code as deployment code.
 func (evm *EVM) create(caller ContractRef, codeAndHash *codeAndHash, gas uint64, value *big.Int, address common.Address) ([]byte, common.Address, uint64, error) {
+
 	// Depth check execution. Fail if we're trying to execute above the
 	// limit.
-	if evm.TransferTokenID != evm.StateDB.GetQuarkChainConfig().GetDefaultChainTokenID() {
-		return nil, common.Address{}, gas, nil
-	}
 	if evm.depth > int(params.CallCreateDepth) {
 		return nil, common.Address{}, gas, ErrDepth
 	}
@@ -418,6 +417,11 @@ func (evm *EVM) create(caller ContractRef, codeAndHash *codeAndHash, gas uint64,
 		nonce := evm.StateDB.GetNonce(caller.Address())
 		evm.StateDB.SetNonce(caller.Address(), nonce+1)
 	}
+	
+	if evm.TransferTokenID != evm.StateDB.GetQuarkChainConfig().GetDefaultChainTokenID() {
+		return nil, common.Address{}, gas, fmt.Errorf("evm:create only support defalut token id %v",evm.StateDB.GetQuarkChainConfig().GetDefaultChainTokenID())
+	}
+
 
 	// Ensure there's no existing contract already at the designated address
 	contractHash := evm.StateDB.GetCodeHash(address)
