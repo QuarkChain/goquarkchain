@@ -5,11 +5,11 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"github.com/QuarkChain/goquarkchain/cluster/config"
-	"github.com/QuarkChain/goquarkchain/cmd/utils"
-	"github.com/QuarkChain/goquarkchain/core/types"
 	"io/ioutil"
 	"strings"
+
+	"github.com/QuarkChain/goquarkchain/cluster/config"
+	"github.com/QuarkChain/goquarkchain/cmd/utils"
 )
 
 const (
@@ -96,7 +96,7 @@ func updateSlaves(cfg *config.ClusterConfig, numSlaves int, slaveIpList string) 
 		slaveCfg.Port = uint16(38000 + i)
 		slaveCfg.ID = fmt.Sprintf("S%d", i)
 		slaveCfg.IP = ipList[i%len(ipList)]
-		slaveCfg.ChainMaskList = append(slaveCfg.ChainMaskList, types.NewChainMask(uint32(i|numSlaves)))
+		slaveCfg.FullShardList = append(slaveCfg.FullShardList, uint32(i<<16+1))
 		cfg.SlaveList = append(cfg.SlaveList, slaveCfg)
 	}
 }

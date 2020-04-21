@@ -68,6 +68,11 @@ type gasPriceSuggestionOracle struct {
 	Percentile  uint64
 }
 
+type CoinbaseAmountAboutHeight struct {
+	CoinbaseAmount *types.TokenBalances
+	StakePreBlock  big.Int
+}
+
 // MinorBlockChain represents the canonical chain given a database with a genesis
 // block. The Blockchain manages chain imports, reverts, chain reorganisations.
 //
@@ -113,7 +118,7 @@ type MinorBlockChain struct {
 	crossShardTxListCache *lru.Cache
 	rootBlockCache        *lru.Cache
 	lastConfirmCache      *lru.Cache
-	coinbaseAmountCache   map[uint64]*types.TokenBalances
+	coinbaseAmountCache   map[uint64]CoinbaseAmountAboutHeight
 
 	quit    chan struct{} // blockchain quit channel
 	running int32         // running must be called atomically
@@ -193,7 +198,7 @@ func NewMinorBlockChain(
 		crossShardTxListCache:    crossShardCache,
 		rootBlockCache:           rootBlockCache,
 		lastConfirmCache:         lastConfimCache,
-		coinbaseAmountCache:      make(map[uint64]*types.TokenBalances),
+		coinbaseAmountCache:      make(map[uint64]CoinbaseAmountAboutHeight),
 		engine:                   engine,
 		vmConfig:                 vmConfig,
 		heightToMinorBlockHashes: make(map[uint64]map[common.Hash]struct{}),
@@ -207,7 +212,7 @@ func NewMinorBlockChain(
 			CheckBlocks: 5,
 			Percentile:  50,
 		},
-		logInfo: fmt.Sprintf("shard:%d", fullShardID),
+		logInfo: fmt.Sprintf("shard:%x", fullShardID),
 	}
 	var err error
 	bc.gasLimit, err = bc.clusterConfig.Quarkchain.GasLimit(bc.branch.Value)
@@ -230,8 +235,10 @@ func NewMinorBlockChain(
 	if err := bc.loadLastState(); err != nil {
 		return nil, err
 	}
-	DefaultTxPoolConfig.NetWorkID = bc.clusterConfig.Quarkchain.NetworkID
+	txPoolConfig := DefaultTxPoolConfig
+	txPoolConfig.NetWorkID = bc.clusterConfig.Quarkchain.NetworkID
 	bc.posw = consensus.CreatePoSWCalculator(bc, bc.shardConfig.PoswConfig)
+	bc.txPool = NewTxPool(txPoolConfig, bc)
 	// Take ownership of this particular state
 	go bc.update()
 	return bc, nil
@@ -299,8 +306,8 @@ func (m *MinorBlockChain) SetHead(head uint64) error {
 }
 
 func (m *MinorBlockChain) setHead(head uint64) error {
-	log.Warn("Rewinding blockchain", "target", head)
-	defer log.Warn("Rewinding blockchain-end", "target number", head)
+	log.Warn(m.logInfo+" Rewinding blockchain", "target", head)
+	defer log.Warn(m.logInfo+" Rewinding blockchain-end", "target number", head)
 	// Rewind the header chain, deleting all block bodies until then
 	batch := m.db.NewBatch()
 	for block := m.CurrentBlock(); block != nil && block.NumberU64() > head; block = m.CurrentBlock() {
@@ -421,7 +428,8 @@ func (m *MinorBlockChain) GetAdjustedDifficulty(header types.IHeader) (*big.Int,
 			log.Error(m.logInfo, "PoSW: failed to get coinbase balance", err)
 			return nil, 0, err
 		}
-		poswAdjusted, err := m.posw.PoSWDiffAdjust(header, balance.GetTokenBalance(m.clusterConfig.Quarkchain.GetDefaultChainTokenID()))
+		stakePreBlock := m.DecayByHeight(header.NumberU64())
+		poswAdjusted, err := m.posw.PoSWDiffAdjust(header, balance.GetTokenBalance(m.clusterConfig.Quarkchain.GetDefaultChainTokenID()), stakePreBlock)
 		if err != nil {
 			log.Error(m.logInfo, "PoSW: err", err)
 			return nil, 0, err
@@ -1017,11 +1025,13 @@ func (m *MinorBlockChain) InsertChainForDeposits(chain []types.IBlock, isCheckDB
 	m.wg.Done()
 
 	m.PostChainEvents(events, logs)
+	m.mu.Lock()
 	confirmed := m.confirmedHeaderTip
+	m.mu.Unlock()
 	if confirmed == nil {
-		log.Warn("confirmed is nil")
+		log.Warn(m.logInfo+" insert chain", "confirmed", nil)
 	} else {
-		log.Debug(m.logInfo, "tip", m.CurrentBlock().NumberU64(), "tipHash", m.CurrentBlock().Hash().String(), "to add", chain[0].NumberU64(), "hash", chain[0].NumberU64(), "confirmed", confirmed.Number)
+		log.Debug(m.logInfo+" insert chain", "tip", m.CurrentBlock().NumberU64(), "tipHash", m.CurrentBlock().Hash().TerminalString(), "to add", chain[0].NumberU64(), "hash", chain[0].Hash().TerminalString(), "confirmed", confirmed.Number)
 	}
 
 	return n, xShardList, err
@@ -1146,7 +1156,7 @@ func (m *MinorBlockChain) insertChain(chain []types.IBlock, verifySeals bool, is
 		}
 		switch status {
 		case CanonStatTy:
-			log.Debug("Inserted new block", "number", mBlock.NumberU64(), "hash", mBlock.Hash(),
+			log.Debug(m.logInfo+" Inserted new block", "number", mBlock.NumberU64(), "hash", mBlock.Hash().TerminalString(),
 				"txs", len(mBlock.GetTransactions()), "gas", mBlock.GetMetaData().GasUsed.Value.Uint64(),
 				"elapsed", common.PrettyDuration(time.Since(start)),
 				"root", mBlock.GetMetaData().Root)
@@ -1156,9 +1166,9 @@ func (m *MinorBlockChain) insertChain(chain []types.IBlock, verifySeals bool, is
 			lastCanon = block
 
 		case SideStatTy:
-			log.Debug("Inserted forked block", "number", mBlock.NumberU64(), "hash", mBlock.Hash(),
+			log.Debug(m.logInfo+" Inserted forked block", "number", mBlock.NumberU64(), "hash", mBlock.Hash().TerminalString(),
 				"diff", mBlock.Difficulty(), "elapsed", common.PrettyDuration(time.Since(start)),
-				"txs", len(mBlock.GetTransactions()), "gas", mBlock.GetMetaData().GasUsed,
+				"txs", len(mBlock.GetTransactions()), "gas", mBlock.GetMetaData().GasUsed.Value.Uint64(),
 				"root", mBlock.GetMetaData().Root)
 			events = append(events, MinorChainSideEvent{mBlock})
 		}
@@ -1382,7 +1392,7 @@ func (m *MinorBlockChain) reorg(oldBlock, newBlock types.IBlock) error {
 			logFn = log.Warn
 		}
 		if commonBlock != nil {
-			logFn("Chain split detected", "number", commonBlock.NumberU64(), "hash", commonBlock.Hash(),
+			logFn(m.logInfo+" Chain split detected", "number", commonBlock.NumberU64(), "hash", commonBlock.Hash(),
 				"drop", len(oldChain), "dropfrom", oldChain[0].Hash(), "add", len(newChain), "addfrom", newChain[0].Hash())
 		} else {
 			log.Warn("ChainRevert genesis", "drop", len(oldChain), "dropfrom", oldChain[0].Hash(), "add", len(newChain), "addfrom", newChain[0].Hash())
@@ -1390,7 +1400,7 @@ func (m *MinorBlockChain) reorg(oldBlock, newBlock types.IBlock) error {
 
 	} else {
 		// we support reorg block from same chain,because we should delete and add tx index
-		log.Warn("reorg", "same chain curr", m.CurrentBlock().NumberU64(), "curr.Hash", m.CurrentBlock().Hash().String(),
+		log.Warn(m.logInfo+" reorg", "same chain curr", m.CurrentBlock().NumberU64(), "curr.Hash", m.CurrentBlock().Hash().TerminalString(),
 			"newBlock", newBlockNumber, "newBlock's hash", newBlockHash, "newBlock", m.GetMinorBlock(newBlockHash) == nil)
 		if err := m.setHead(newBlockNumber); err != nil {
 			return err
@@ -1490,7 +1500,7 @@ func (m *MinorBlockChain) reportBlock(block types.IBlock, receipts types.Receipt
 	}
 	log.Error(fmt.Sprintf(`
 ########## BAD BLOCK #########
-Chain config: %v
+Chain config: %#v
 
 Number: %v
 Hash: 0x%x
@@ -1558,6 +1568,8 @@ func (m *MinorBlockChain) GetHeaderByNumber(number uint64) types.IHeader {
 
 // Config retrieves the blockchain's chain configuration.
 func (m *MinorBlockChain) Config() *config.QuarkChainConfig { return m.clusterConfig.Quarkchain }
+
+func (m *MinorBlockChain) ChainConfig() *params.ChainConfig { return m.ethChainConfig }
 
 // Engine retrieves the blockchain's consensus engine.
 func (m *MinorBlockChain) Engine() consensus.Engine { return m.engine }
@@ -1675,10 +1687,10 @@ func (m *MinorBlockChain) GetRootChainStakes(coinbase account.Recipient, lastMin
 	nonce := evmState.GetNonce(mockSender)
 	toFullShardKey := uint32(0)
 	msg := types.NewMessage(mockSender, &contractAddress, nonce, new(big.Int), 1000000, new(big.Int), data,
-		false, 0, &toFullShardKey, m.GetGenesisToken(), m.GetGenesisToken())
-	context := NewEVMContext(msg, last.Header(), m)
+		false, 0, &toFullShardKey, m.GetGenesisToken(), m.GetGenesisToken(), 100)
+	context := NewEVMContext(msg, last.Header(), m, msg.GasPrice())
 	evmState.SetQuarkChainConfig(m.clusterConfig.Quarkchain)
-	vmenv := vm.NewEVM(context, evmState, m.ethChainConfig, *m.GetVMConfig())
+	vmenv := vm.NewEVM(context, evmState, m.ChainConfig(), m.vmConfig)
 	gp := new(GasPool).AddGas(evmState.GetGasLimit().Uint64())
 	output, _, failed, err := ApplyMessage(vmenv, msg, gp)
 	if err != nil || output == nil || failed {

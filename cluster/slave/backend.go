@@ -7,9 +7,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/cluster/service"
 	"github.com/QuarkChain/goquarkchain/cluster/shard"
-	"github.com/QuarkChain/goquarkchain/core/vm"
 	"github.com/QuarkChain/goquarkchain/p2p"
-	"github.com/QuarkChain/goquarkchain/params"
 	"github.com/QuarkChain/goquarkchain/rpc"
 	"github.com/ethereum/go-ethereum/event"
 )
@@ -39,8 +37,6 @@ func New(ctx *service.ServiceContext, clusterCfg *config.ClusterConfig, cfg *con
 		eventMux:      ctx.EventMux,
 		logInfo:       "SlaveBackend",
 	}
-
-	slave.clstrCfg.Quarkchain.SetAllowedToken()
 	fullShardIds := slave.clstrCfg.Quarkchain.GetGenesisShardIds()
 	for _, id := range fullShardIds {
 		if !slave.coverShardId(id) {
@@ -50,16 +46,7 @@ func New(ctx *service.ServiceContext, clusterCfg *config.ClusterConfig, cfg *con
 	}
 
 	slave.connManager = NewToSlaveConnManager(slave.clstrCfg, slave)
-	slave.setPrecompiledContractsEnableTime(clusterCfg.Quarkchain.EnableEvmTimeStamp)
 	return slave, nil
-}
-
-func (s *SlaveBackend) setPrecompiledContractsEnableTime(enableEvmTime uint64) {
-	for _, v := range params.PrecompliedContractsAfterEvmEnabled {
-		if vm.PrecompiledContractsByzantium[v] != nil {
-			vm.PrecompiledContractsByzantium[v].SetEnableTime(enableEvmTime)
-		}
-	}
 }
 
 func (s *SlaveBackend) GetFullShardList() []uint32 {
@@ -67,8 +54,8 @@ func (s *SlaveBackend) GetFullShardList() []uint32 {
 }
 
 func (s *SlaveBackend) coverShardId(id uint32) bool {
-	for _, msk := range s.config.ChainMaskList {
-		if msk.ContainFullShardId(id) {
+	for _, msk := range s.config.FullShardList {
+		if msk == id {
 			return true
 		}
 	}

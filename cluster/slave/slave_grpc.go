@@ -30,7 +30,7 @@ func NewServerSideOp(slave *SlaveBackend) *SlaveServerSideOp {
 }
 
 func (s *SlaveServerSideOp) HeartBeat(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
-	s.slave.ctx.Timestamp = time.Now()
+	s.slave.ctx.SetTimestamp(time.Now())
 	if len(s.slave.shards) == 0 {
 		return nil, errors.New("shards uninitialized")
 	}
@@ -73,7 +73,7 @@ func (s *SlaveServerSideOp) Ping(ctx context.Context, req *rpc.Request) (*rpc.Re
 		err      error
 	)
 
-	gRes.Id, gRes.ChainMaskList = []byte(s.slave.config.ID), s.slave.config.ChainMaskList
+	gRes.Id, gRes.FullShardList = []byte(s.slave.config.ID), s.slave.config.FullShardList
 	log.Info("slave ping response", "request op", req.Op)
 
 	if response.Data, err = serialize.SerializeToBytes(gRes); err != nil {

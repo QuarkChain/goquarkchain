@@ -20,12 +20,15 @@ import "errors"
 
 // List execution errors
 var (
-	ErrOutOfGas                 = errors.New("out of gas")
-	ErrCodeStoreOutOfGas        = errors.New("contract creation code storage out of gas")
-	ErrDepth                    = errors.New("max call depth exceeded")
-	ErrTraceLimitReached        = errors.New("the number of logs reached the specified limit")
-	ErrInsufficientBalance      = errors.New("insufficient balance for transfer")
-	ErrContractAddressCollision = errors.New("contract address collision")
-	ErrNoCompatibleInterpreter  = errors.New("no compatible interpreter")
-	ErrPoSWSenderNotAllowed     = errors.New("sender not allowed due to PoSW")
+	ErrOutOfGas                   = errors.New("out of gas")
+	ErrCodeStoreOutOfGas          = errors.New("contract creation code storage out of gas")
+	ErrDepth                      = errors.New("max call depth exceeded")
+	ErrTraceLimitReached          = errors.New("the number of logs reached the specified limit")
+	ErrInsufficientBalance        = errors.New("insufficient balance for transfer")
+	ErrContractAddressCollision   = errors.New("contract address collision")
+	ErrNoCompatibleInterpreter    = errors.New("no compatible interpreter")
+	ErrPoSWSenderNotAllowed       = errors.New("sender not allowed due to PoSW")
+	ErrInvalidSystemContractIndex = errors.New("invalid system contract index")
+	ErrMintZeroAmountMNT          = errors.New("mint 0 amount MNT")
+	ErrTimestampNotMatch          = errors.New("timestamp not match")
 )

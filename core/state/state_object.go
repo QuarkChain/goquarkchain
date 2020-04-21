@@ -28,6 +28,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/rlp"
+	"github.com/ethereum/go-ethereum/trie"
 )
 
 var emptyCodeHash = crypto.Keccak256(nil)
@@ -93,7 +94,7 @@ type stateObject struct {
 
 // empty returns whether the account is considered empty.
 func (s *stateObject) empty() bool {
-	return s.data.Nonce == 0 && s.data.TokenBalances.IsEmpty() && bytes.Equal(s.data.CodeHash, emptyCodeHash)
+	return s.data.Nonce == 0 && s.data.TokenBalances.IsBlank() && bytes.Equal(s.data.CodeHash, emptyCodeHash)
 }
 
 // Account is the Ethereum consensus representation of accounts.
@@ -105,6 +106,12 @@ type Account struct {
 	CodeHash      []byte
 	FullShardKey  *types.Uint32
 	Optial        []byte
+}
+
+func NewAccount(db *trie.Database) Account {
+	data := Account{}
+	data.TokenBalances, _ = types.NewTokenBalances(nil, db)
+	return data
 }
 
 type MockAccount struct {
@@ -135,9 +142,9 @@ func newObject(db *StateDB, address common.Address, data Account) *stateObject {
 		FullShardKey: data.FullShardKey,
 	}
 	if data.TokenBalances == nil {
-		newData.TokenBalances, _ = types.NewTokenBalances([]byte{})
+		newData.TokenBalances, _ = types.NewTokenBalances([]byte{}, db.db.TrieDB())
 	} else {
-		newData.TokenBalances = data.TokenBalances.Copy()
+		newData.TokenBalances = data.TokenBalances.CopyWithDB()
 	}
 	if data.CodeHash == nil {
 		newData.CodeHash = emptyCodeHash
@@ -266,6 +273,7 @@ func (self *stateObject) updateTrie(db Database) Trie {
 		v, _ := rlp.EncodeToBytes(bytes.TrimLeft(value[:], "\x00"))
 		self.setError(tr.TryUpdate(key[:], v))
 	}
+	self.data.TokenBalances.Commit()
 	return tr
 }
 

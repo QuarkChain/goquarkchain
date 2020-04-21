@@ -336,7 +336,7 @@ func (s *QKCMasterBackend) getSlaveInfoListFromClusterConfig() []*rpc.SlaveInfo 
 			Id:            slave.ID,
 			Host:          slave.IP,
 			Port:          slave.Port,
-			ChainMaskList: slave.ChainMaskList,
+			FullShardList: slave.FullShardList,
 		})
 	}
 	return slaveInfos
@@ -393,7 +393,7 @@ func (s *QKCMasterBackend) Heartbeat() {
 				break
 			default:
 				timeGap := time.Now()
-				s.ctx.Timestamp = timeGap
+				s.ctx.SetTimestamp(timeGap)
 				for _, conn := range s.GetSlaveConns() {
 					normal = conn.HeartBeat()
 					if !normal {
@@ -409,17 +409,17 @@ func (s *QKCMasterBackend) Heartbeat() {
 	}(true)
 }
 
-func checkPing(slaveConn rpc.ISlaveConn, id []byte, chainMaskList []*types.ChainMask) error {
+func checkPing(slaveConn rpc.ISlaveConn, id []byte, chainMaskList []uint32) error {
 	if slaveConn.GetSlaveID() != string(id) {
 		return errors.New("slaveID is not match")
 	}
-	if len(chainMaskList) != len(slaveConn.GetShardMaskList()) {
+	if len(chainMaskList) != len(slaveConn.GetFullShardList()) {
 		return errors.New("chainMaskList is not match")
 	}
 	lenChainMaskList := len(chainMaskList)
 
 	for index := 0; index < lenChainMaskList; index++ {
-		if chainMaskList[index].GetMask() != slaveConn.GetShardMaskList()[index].GetMask() {
+		if chainMaskList[index] != slaveConn.GetFullShardList()[index] {
 			return errors.New("chainMaskList index is not match")
 		}
 	}

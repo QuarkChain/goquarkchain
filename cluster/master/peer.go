@@ -227,9 +227,9 @@ func (p *Peer) SendNewTip(branch uint32, tip *p2p.Tip) error {
 func (p *Peer) AsyncSendNewTip(branch uint32, tip *p2p.Tip) {
 	select {
 	case p.queuedTip <- newTip{branch: branch, tip: tip}:
-		p.Log().Debug("Add new tip to broadcast queue", "", tip.RootBlockHeader.NumberU64(), "branch", branch)
+		p.Log().Debug("Add new tip to broadcast queue", "", tip.RootBlockHeader.NumberU64(), "branch", fmt.Sprintf("%x", branch))
 	default:
-		p.Log().Debug("Dropping new tip", "", tip.RootBlockHeader.NumberU64(), "branch", branch)
+		p.Log().Debug("Dropping new tip", "", tip.RootBlockHeader.NumberU64(), "branch", fmt.Sprintf("%x", branch))
 	}
 }
 
@@ -247,9 +247,9 @@ func (p *Peer) SendNewMinorBlock(branch uint32, data []byte) error {
 func (p *Peer) AsyncSendNewMinorBlock(res *rpc.P2PRedirectRequest) {
 	select {
 	case p.queuedMinorBlock <- res:
-		p.Log().Debug("add minor block to broadcast queue", "branch", res.Branch)
+		p.Log().Debug("add minor block to broadcast queue", "branch", fmt.Sprintf("%x", res.Branch))
 	default:
-		p.Log().Debug("Dropping block propagation", "branch", res.Branch)
+		p.Log().Debug("Dropping block propagation", "branch", fmt.Sprintf("%x", res.Branch))
 	}
 }
 

@@ -30,13 +30,11 @@ ENV LD_LIBRARY_PATH=/usr/local/lib
 
 # install golang
 WORKDIR /code
-RUN curl -sSL https://storage.googleapis.com/golang/go1.12.10.linux-amd64.tar.gz \
+RUN curl -sSL https://storage.googleapis.com/golang/go1.14.1.linux-amd64.tar.gz \
 		| tar -v -C /usr/local -xz
-ENV GOROOT /usr/local/go
 ENV GOPATH $HOME/go
-ENV PATH $GOPATH/bin:$GOROOT/bin:$PATH
+ENV PATH $PATH:/usr/local/go/bin
 ENV GOPROXY https://goproxy.io
-ENV GO111MODULE on
 
 # install goquarkchain
 WORKDIR $GOPATH/src/github.com/QuarkChain

@@ -26,11 +26,11 @@ The following instructions are based on clean Ubuntu 18.04. For other operating 
 If you prefer to use Docker, you can [run a cluster inside Docker container](#run-a-cluster-inside-docker).
 
 ###  Setup Go Environment
-Goquarkchain requires golang sdk >= 1.12. You can skip this step if your environment meets the condition.
+Goquarkchain requires golang sdk >= 1.13. You can skip this step if your environment meets the condition.
 ```bash
-# take go1.12.10 for example:
-wget https://studygolang.com/dl/golang/go1.12.10.linux-amd64.tar.gz
-sudo tar xvzf go1.12.10.linux-amd64.tar.gz -C /usr/local
+# take go1.14.1 for example:
+wget https://studygolang.com/dl/golang/go1.14.1.linux-amd64.tar.gz
+sudo tar xvzf go1.14.1.linux-amd64.tar.gz -C /usr/local
 ```
 Append the following environment variables to ~/.profile. NOTE goproxy and go.mod are used.
 ```bash
@@ -46,7 +46,7 @@ source ~/.profile
 ```
 Check Go installation
 ```bash
-go version #go version go1.12.10 linux/amd64
+go version #go version go1.14.1 linux/amd64
 ```
 ### Setup RocksDB Environment
 Before install RocksDB, you'll need to install the following dependency packages.
@@ -305,7 +305,7 @@ and then open  terminal
          brew install rocksdb gcc swig
 
  #install golang:
-         brew install go@1.12
+         brew install go@1.14
          vim ~/.bash_profile
 
  #add the following content to .bash_profile file:

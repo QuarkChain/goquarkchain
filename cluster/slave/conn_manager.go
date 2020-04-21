@@ -59,7 +59,7 @@ func (s *ConnManager) SetConnectToMasterAndSlaves(cfgs []*config.SlaveConfig) {
 		if _, ok := s.slavesConn[target]; ok {
 			continue
 		}
-		conn := NewToSlaveConn(target, string(cfg.ID), cfg.ChainMaskList)
+		conn := NewToSlaveConn(target, string(cfg.ID), cfg.FullShardList)
 		log.Info("slave conn manager, add connect to slave", "add target", target)
 
 		// Tell the remote slave who I am.

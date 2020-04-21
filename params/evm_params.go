@@ -46,9 +46,21 @@ var (
 )
 
 var (
-	PrecompliedContractsAfterEvmEnabled = []common.Address{
+	PrecompiledContractsAfterEvmEnabled = []common.Address{
 		common.HexToAddress("000000000000000000000000000000514b430001"),
 		common.HexToAddress("000000000000000000000000000000514b430002"),
 		common.HexToAddress("000000000000000000000000000000514b430003"),
 	}
+)
+
+var (
+	PrecompiledContractsMnt = []common.Address{
+		common.HexToAddress("000000000000000000000000000000514b430004"),
+		common.HexToAddress("000000000000000000000000000000514b430005"),
+	}
+)
+
+var (
+	MAINNET_ENABLE_NON_RESERVED_NATIVE_TOKEN_CONTRACT_TIMESTAMP = uint64(1588291200)
+	MAINNET_ENABLE_GENERAL_NATIVE_TOKEN_CONTRACT_TIMESTAMP      = uint64(1588291200)
 )

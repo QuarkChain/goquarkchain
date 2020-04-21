@@ -50,7 +50,7 @@ func NewBlockValidator(quarkChainConfig *config.QuarkChainConfig, blockchain *Mi
 		engine:           engine,
 		bc:               blockchain,
 		branch:           branch,
-		logInfo:          fmt.Sprintf("shard %d", branch.GetFullShardID()),
+		logInfo:          fmt.Sprintf("shard %x", branch.GetFullShardID()),
 	}
 	return validator
 }

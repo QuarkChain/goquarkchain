@@ -2,8 +2,8 @@ package slave
 
 import (
 	"fmt"
+
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
-	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/serialize"
 	"github.com/ethereum/go-ethereum/log"
 )
@@ -12,11 +12,11 @@ import (
 type SlaveConn struct {
 	target        string
 	id            string
-	chainMaskList []*types.ChainMask
+	chainMaskList []uint32
 	client        rpc.Client
 }
 
-func NewToSlaveConn(target, id string, chainMaskList []*types.ChainMask) *SlaveConn {
+func NewToSlaveConn(target, id string, chainMaskList []uint32) *SlaveConn {
 	return &SlaveConn{
 		target:        target,
 		id:            id,
@@ -27,7 +27,7 @@ func NewToSlaveConn(target, id string, chainMaskList []*types.ChainMask) *SlaveC
 
 func (s *SlaveConn) SendPing() bool {
 	var (
-		gReq = rpc.Ping{Id: []byte(s.id), ChainMaskList: s.chainMaskList}
+		gReq = rpc.Ping{Id: []byte(s.id), FullShardList: s.chainMaskList}
 		gRes rpc.Pong
 		err  error
 	)
@@ -51,8 +51,8 @@ func (s *SlaveConn) SendPing() bool {
 		return false
 	}
 
-	if !s.EqualChainMask(gRes.ChainMaskList) {
-		log.Error("Chain_mask_list doesn't match", "target list", s.chainMaskList, "actual list", gRes.ChainMaskList)
+	if !s.EqualChainMask(gRes.FullShardList) {
+		log.Error("Chain_mask_list doesn't match", "target list", s.chainMaskList, "actual list", gRes.FullShardList)
 		return false
 	}
 
@@ -80,12 +80,12 @@ func (s *SlaveConn) BatchAddXshardTxList(xshardReqs []*rpc.AddXshardTxListReques
 	return err
 }
 
-func (s *SlaveConn) EqualChainMask(chainMask []*types.ChainMask) bool {
+func (s *SlaveConn) EqualChainMask(chainMask []uint32) bool {
 	if len(chainMask) != len(s.chainMaskList) {
 		return false
 	}
 	for i, id := range s.chainMaskList {
-		if chainMask[i].GetMask() != id.GetMask() {
+		if chainMask[i] != id {
 			return false
 		}
 	}
@@ -94,7 +94,7 @@ func (s *SlaveConn) EqualChainMask(chainMask []*types.ChainMask) bool {
 
 func (s *SlaveConn) HasShard(fullshardId uint32) bool {
 	for _, id := range s.chainMaskList {
-		if id.ContainFullShardId(fullshardId) {
+		if id == fullshardId {
 			return true
 		}
 	}

@@ -31,6 +31,7 @@ import (
 	"github.com/ethereum/go-ethereum/common/prque"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/params"
 
 	"github.com/QuarkChain/goquarkchain/core/state"
 	"github.com/QuarkChain/goquarkchain/core/types"
@@ -101,6 +102,7 @@ type minorBlockChain interface {
 	GetMinorBlock(hash common.Hash) *types.MinorBlock
 	stateAtWithSenderDisallowMap(minorBlock *types.MinorBlock, coinbase *account.Recipient) (*state.StateDB, error)
 	Config() *config.QuarkChainConfig
+	ChainConfig() *params.ChainConfig
 	SubscribeChainHeadEvent(ch chan<- MinorChainHeadEvent) event.Subscription
 	validateTx(tx *types.Transaction, evmState *state.StateDB, fromAddress *account.Address, gas, xShardGasLimit *uint64) (*types.Transaction, error)
 }
@@ -445,7 +447,7 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 		fmt.Println("err", err)
 		return ErrInvalidSender
 	}
-	return ValidateTransaction(pool.currentState, tx, nil)
+	return ValidateTransaction(pool.currentState, pool.chain.ChainConfig(), tx, nil)
 }
 
 // add validates a transaction and inserts it into the non-executable queue for later
@@ -466,6 +468,13 @@ func (pool *TxPool) add(tx *types.Transaction, local bool) (replaced bool, err e
 	if err := pool.validateTx(tx, local); err != nil {
 		log.Trace("Discarding invalid transaction", "hash", hash, "err", err)
 		return false, err
+	}
+	defaultGasPrice, err := ConvertToDefaultChainTokenGasPrice(pool.currentState, pool.chain.ChainConfig(), tx.EvmTx.GasTokenID(), tx.EvmTx.GasPrice())
+	if err != nil {
+		return false, err
+	}
+	if defaultGasPrice.Cmp(pool.chain.Config().MinTXPoolGasPrice) < 0 {
+		return false, fmt.Errorf("defaultGasPrice %v is small than minTxPoolGasPrice %v", defaultGasPrice, pool.chain.Config().MinTXPoolGasPrice)
 	}
 	// If the transaction pool is full, discard underpriced transactions
 	if uint64(pool.all.Count()) >= pool.config.GlobalSlots+pool.config.GlobalQueue {

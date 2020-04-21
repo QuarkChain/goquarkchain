@@ -4,12 +4,14 @@ import (
 	"bytes"
 	"encoding/binary"
 	"encoding/gob"
-	ethCommon "github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/log"
+	"math"
 	"math/big"
 	"math/bits"
 	"net"
 	"reflect"
+
+	ethCommon "github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/log"
 )
 
 const (
@@ -21,8 +23,19 @@ const (
 )
 
 var (
-	EmptyHash = ethCommon.Hash{}
+	EmptyHash  = ethCommon.Hash{}
+	uint128Max = GetUint128Max()
 )
+
+func GetUint128Max() *big.Int {
+	pow2_64 := new(big.Int).Add(new(big.Int).SetUint64(math.MaxUint64), ethCommon.Big1)
+	pow2_128 := new(big.Int).Mul(pow2_64, pow2_64)
+	return new(big.Int).Sub(pow2_128, ethCommon.Big1)
+}
+
+func BiggerThanUint128Max(data *big.Int) bool {
+	return data.Cmp(uint128Max) > 0
+}
 
 /*
 	0b101, 0b11 -> True
@@ -108,8 +121,9 @@ func (c *ConstMinorBlockRewardCalculator) GetBlockReward() *big.Int {
 }
 
 func BigIntMulBigRat(bigInt *big.Int, bigRat *big.Rat) *big.Int {
-	ans := new(big.Int).Mul(bigInt, bigRat.Num())
-	ans.Div(ans, bigRat.Denom())
+	bigRat1 := new(big.Rat).Set(bigRat)
+	ans := new(big.Int).Mul(bigInt, bigRat1.Num())
+	ans.Div(ans, bigRat1.Denom())
 	return ans
 }
 
@@ -131,6 +145,23 @@ func BytesToUint32(byte []byte) uint32 {
 	var x uint32
 	binary.Read(bytesBuffer, binary.BigEndian, &x)
 	return x
+}
+
+func EncodeToByte32(data uint64) []byte {
+	ret := make([]byte, 32)
+	binary.BigEndian.PutUint64(ret[24:], data)
+	return ret
+}
+
+func BigToByte32(data *big.Int)[]byte  {
+	dataBytes:=data.Bytes()
+	lenData:=len(dataBytes)
+	if lenData>32{
+		panic("data's len should <= 32")
+	}
+	ret:=make([]byte,32)
+	copy(ret[(32-lenData):],dataBytes)
+	return ret
 }
 
 func Has0xPrefix(input string) bool {
