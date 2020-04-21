@@ -751,5 +751,5 @@ func (m *balanceMNT) Run(input []byte, evm *EVM, contract *Contract) ([]byte, er
 	}
 
 	balance := evm.StateDB.GetBalance(addr, mnt.Uint64())
-	return balance.Bytes(), nil
+	return qCommon.BigToByte32(balance), nil
 }

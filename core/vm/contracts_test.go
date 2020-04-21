@@ -573,6 +573,6 @@ func TestProcBalanceMnt(t *testing.T) {
 		b, g, e := balance(statedb, test.addr, test.tokenId, 500)
 		assert.NoError(t, e)
 		assert.Equal(t, gasRemain, g)
-		assert.Equal(t, test.balance, b)
+		assert.Equal(t, test.balance.Uint64(), b.Uint64())
 	}
 }
