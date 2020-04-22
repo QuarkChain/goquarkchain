@@ -167,6 +167,7 @@ type QuarkChainConfig struct {
 	EnableQkcHashXHeight                  uint64      `json:"ENABLE_QKCHASHX_HEIGHT"`
 	EnableNonReservedNativeTokenTimestamp uint64      `json:"ENABLE_NON_RESERVED_NATIVE_TOKEN_TIMESTAMP"`
 	EnableGeneralNativeTokenTimestamp     uint64      `json:"ENABLE_GENERAL_NATIVE_TOKEN_TIMESTAMP"`
+	EnablePoswStakingDecayTimestamp       uint64      `json:"ENABLE_POSW_STAKING_DECAY_TIMESTAMP"`
 	DisablePowCheck                       bool        `json:"DISABLE_POW_CHECK"`
 	XShardGasDDOSFixRootHeight            uint64      `json:"XSHARD_GAS_DDOS_FIX_ROOT_HEIGHT"`
 	MinTXPoolGasPrice                     *big.Int    `json:"MIN_TX_POOL_GAS_PRICE"`

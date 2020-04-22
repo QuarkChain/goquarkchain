@@ -79,7 +79,10 @@ func (m *MinorBlockChain) getCoinbaseAmount(height uint64) *types.TokenBalances 
 	return cache.CoinbaseAmount.Copy()
 }
 
-func (m *MinorBlockChain) DecayByHeight(height uint64) big.Int {
+func (m *MinorBlockChain) DecayByHeightAndTime(height uint64, time uint64) big.Int {
+	if m.clusterConfig.Quarkchain.EnablePoswStakingDecayTimestamp == 0 || time < m.clusterConfig.Quarkchain.EnablePoswStakingDecayTimestamp {
+		return *m.shardConfig.PoswConfig.TotalStakePerBlock
+	}
 	epoch := height / m.shardConfig.EpochInterval
 	cache, ok := m.coinbaseAmountCache[epoch]
 	if ok {
@@ -1755,7 +1758,7 @@ func (m *MinorBlockChain) PoswInfo(mBlock *types.MinorBlock) (*rpc.PoSWInfo, err
 		return nil, err
 	}
 	stakes := evmState.GetBalance(header.Coinbase.Recipient, m.clusterConfig.Quarkchain.GetDefaultChainTokenID())
-	stakePreBlock := m.DecayByHeight(mBlock.NumberU64())
+	stakePreBlock := m.DecayByHeightAndTime(mBlock.NumberU64(), mBlock.Time())
 	diff, minable, mined, _ := m.posw.GetPoSWInfo(header, stakes, header.Coinbase.Recipient, stakePreBlock)
 	return &rpc.PoSWInfo{
 		EffectiveDifficulty: diff,
@@ -1780,7 +1783,7 @@ func (m *MinorBlockChain) CommitMinorBlockByHash(h common.Hash) {
 }
 
 func (m *MinorBlockChain) GetMiningInfo(address account.Recipient, stake *types.TokenBalances) (mineable, mined uint64, err error) {
-	stakePreBlock := m.DecayByHeight(m.CurrentBlock().NumberU64())
+	stakePreBlock := m.DecayByHeightAndTime(m.CurrentBlock().NumberU64(), m.CurrentBlock().Time())
 	_, mineable, mined, err = m.posw.GetPoSWInfo(m.CurrentBlock().Header(), stake.GetTokenBalance(m.Config().GetDefaultChainTokenID()), address, stakePreBlock)
 	return
 }

@@ -428,7 +428,7 @@ func (m *MinorBlockChain) GetAdjustedDifficulty(header types.IHeader) (*big.Int,
 			log.Error(m.logInfo, "PoSW: failed to get coinbase balance", err)
 			return nil, 0, err
 		}
-		stakePreBlock := m.DecayByHeight(header.NumberU64())
+		stakePreBlock := m.DecayByHeightAndTime(header.NumberU64(), header.GetTime())
 		poswAdjusted, err := m.posw.PoSWDiffAdjust(header, balance.GetTokenBalance(m.clusterConfig.Quarkchain.GetDefaultChainTokenID()), stakePreBlock)
 		if err != nil {
 			log.Error(m.logInfo, "PoSW: err", err)
