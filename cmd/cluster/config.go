@@ -141,6 +141,9 @@ func makeConfigNode(ctx *cli.Context) (*service.Node, qkcConfig) {
 	}
 	vm.SystemContracts[vm.GENERAL_NATIVE_TOKEN].SetTimestamp(cfg.Cluster.Quarkchain.EnableGeneralNativeTokenTimestamp)
 
+	if cfg.Cluster.Quarkchain.EnablePoswStakingDecayTimestamp == 0 && cfg.Cluster.Quarkchain.NetworkID == 1 {
+		cfg.Cluster.Quarkchain.EnablePoswStakingDecayTimestamp = params.MAINNET_ENABLE_POSW_STAKING_DECAY_TIMESTAMP
+	}
 	return stack, cfg
 }
 
