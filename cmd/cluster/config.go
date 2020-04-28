@@ -5,16 +5,18 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/QuarkChain/goquarkchain/cluster/config"
-	"github.com/QuarkChain/goquarkchain/cluster/service"
-	"github.com/QuarkChain/goquarkchain/cmd/utils"
-	"github.com/QuarkChain/goquarkchain/params"
-	"github.com/naoina/toml"
-	"gopkg.in/urfave/cli.v1"
 	"io/ioutil"
 	"reflect"
 	"strconv"
 	"unicode"
+
+	"github.com/QuarkChain/goquarkchain/cluster/config"
+	"github.com/QuarkChain/goquarkchain/cluster/service"
+	"github.com/QuarkChain/goquarkchain/cmd/utils"
+	"github.com/QuarkChain/goquarkchain/core/vm"
+	"github.com/QuarkChain/goquarkchain/params"
+	"github.com/naoina/toml"
+	"gopkg.in/urfave/cli.v1"
 )
 
 var (
@@ -74,7 +76,11 @@ func makeConfigNode(ctx *cli.Context) (*service.Node, qkcConfig) {
 		if err := loadConfig(file, &cfg.Cluster); err != nil {
 			utils.Fatalf("%v", err)
 		}
+		if err := cfg.Cluster.BackWardChainMaskList(); err != nil {
+			utils.Fatalf("%v", err)
+		}
 	}
+
 	utils.SetClusterConfig(ctx, &cfg.Cluster)
 
 	ServiceName := ctx.GlobalString(utils.ServiceFlag.Name)
@@ -113,6 +119,30 @@ func makeConfigNode(ctx *cli.Context) (*service.Node, qkcConfig) {
 	stack.SetIsMaster(ServiceName == clientIdentifier)
 	if err != nil {
 		utils.Fatalf("Failed to create the protocol stack: %v", err)
+	}
+
+	for _, v := range params.PrecompiledContractsAfterEvmEnabled {
+		if vm.PrecompiledContractsByzantium[v] != nil {
+			vm.PrecompiledContractsByzantium[v].SetEnableTime(cfg.Cluster.Quarkchain.EnableEvmTimeStamp)
+		}
+	}
+	if cfg.Cluster.Quarkchain.EnableNonReservedNativeTokenTimestamp == 0 && cfg.Cluster.Quarkchain.NetworkID == 1 {
+		cfg.Cluster.Quarkchain.EnableNonReservedNativeTokenTimestamp = params.MAINNET_ENABLE_NON_RESERVED_NATIVE_TOKEN_CONTRACT_TIMESTAMP
+	}
+	vm.SystemContracts[vm.NON_RESERVED_NATIVE_TOKEN].SetTimestamp(cfg.Cluster.Quarkchain.EnableNonReservedNativeTokenTimestamp)
+	for _, v := range params.PrecompiledContractsMnt {
+		if vm.PrecompiledContractsByzantium[v] != nil {
+			vm.PrecompiledContractsByzantium[v].SetEnableTime(cfg.Cluster.Quarkchain.EnableNonReservedNativeTokenTimestamp)
+		}
+	}
+
+	if cfg.Cluster.Quarkchain.EnableGeneralNativeTokenTimestamp == 0 && cfg.Cluster.Quarkchain.NetworkID == 1 {
+		cfg.Cluster.Quarkchain.EnableGeneralNativeTokenTimestamp = params.MAINNET_ENABLE_GENERAL_NATIVE_TOKEN_CONTRACT_TIMESTAMP
+	}
+	vm.SystemContracts[vm.GENERAL_NATIVE_TOKEN].SetTimestamp(cfg.Cluster.Quarkchain.EnableGeneralNativeTokenTimestamp)
+
+	if cfg.Cluster.Quarkchain.EnablePoswStakingDecayTimestamp == 0 && cfg.Cluster.Quarkchain.NetworkID == 1 {
+		cfg.Cluster.Quarkchain.EnablePoswStakingDecayTimestamp = params.MAINNET_ENABLE_POSW_STAKING_DECAY_TIMESTAMP
 	}
 	return stack, cfg
 }

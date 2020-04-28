@@ -32,7 +32,9 @@ func (s *ConnManager) SendMinorBlockHeaderToMaster(request *rpc.AddMinorBlockHea
 	if err := serialize.DeserializeFromBytes(res.Data, &gRsp); err != nil {
 		return err
 	}
+	s.mu.Lock()
 	s.artificialTxConfig = gRsp.ArtificialTxConfig
+	s.mu.Unlock()
 	return nil
 }
 

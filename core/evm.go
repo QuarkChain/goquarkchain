@@ -37,12 +37,12 @@ type ChainContext interface {
 	GetHeader(common.Hash) types.IHeader
 }
 
-func NewEVMContext(msg types.Message, mheader types.IHeader, chain ChainContext) vm.Context {
+func NewEVMContext(msg types.Message, mheader types.IHeader, chain ChainContext, gasPriceInGasToken *big.Int) vm.Context {
 	header := mheader.(*types.MinorBlockHeader)
 	return vm.Context{
 		CanTransfer:                       CanTransfer,
-		TransferFailureByPoswBalanceCheck: TransferFailureByPoswBalanceCheck,
 		Transfer:                          Transfer,
+		TransferFailureByPoswBalanceCheck: TransferFailureByPoswBalanceCheck,
 		GetHash:                           GetHashFn(header, chain),
 		Origin:                            msg.From(),
 		Coinbase:                          header.GetCoinbase().Recipient,
@@ -51,6 +51,7 @@ func NewEVMContext(msg types.Message, mheader types.IHeader, chain ChainContext)
 		Difficulty:                        new(big.Int).Set(header.GetDifficulty()),
 		GasLimit:                          header.GasLimit.Value.Uint64(),
 		GasPrice:                          new(big.Int).Set(msg.GasPrice()),
+		GasPriceInGasToken:                new(big.Int).Set(gasPriceInGasToken),
 		ToFullShardKey:                    msg.ToFullShardKey(),
 		GasTokenID:                        msg.GasTokenID(),
 		TransferTokenID:                   msg.TransferTokenID(),

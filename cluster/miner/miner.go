@@ -34,28 +34,28 @@ type Miner struct {
 	api    MinerAPI
 	engine consensus.Engine
 
-	resultCh  chan types.IBlock
-	workCh    chan workAdjusted
-	startCh   chan struct{}
-	exitCh    chan struct{}
-	mu        sync.RWMutex
-	timestamp *time.Time
-	isMining  bool
-	stopCh    chan struct{}
-	logInfo   string
+	resultCh chan types.IBlock
+	workCh   chan workAdjusted
+	startCh  chan struct{}
+	exitCh   chan struct{}
+	mu       sync.RWMutex
+	ctx      *service.ServiceContext
+	isMining bool
+	stopCh   chan struct{}
+	logInfo  string
 }
 
 func New(ctx *service.ServiceContext, api MinerAPI, engine consensus.Engine) *Miner {
 	miner := &Miner{
-		api:       api,
-		engine:    engine,
-		timestamp: &ctx.Timestamp,
-		resultCh:  make(chan types.IBlock, resultQueueSize),
-		workCh:    make(chan workAdjusted, 1),
-		startCh:   make(chan struct{}, 1),
-		exitCh:    make(chan struct{}),
-		stopCh:    make(chan struct{}),
-		logInfo:   "miner",
+		api:      api,
+		engine:   engine,
+		ctx:      ctx,
+		resultCh: make(chan types.IBlock, resultQueueSize),
+		workCh:   make(chan workAdjusted, 1),
+		startCh:  make(chan struct{}, 1),
+		exitCh:   make(chan struct{}),
+		stopCh:   make(chan struct{}),
+		logInfo:  "miner",
 	}
 	miner.engine.SetThreads(1)
 	go miner.commitLoop()
@@ -79,7 +79,7 @@ func (m *Miner) interrupt() {
 
 func (m *Miner) allowMining() bool {
 	if !m.IsMining() ||
-		time.Now().Sub(*m.timestamp).Seconds() > deadtime {
+		time.Now().Sub(m.ctx.GetTimestamp()).Seconds() > deadtime {
 		return false
 	}
 	return true
@@ -134,11 +134,13 @@ func (m *Miner) sealLoop() {
 		select {
 		case work := <-m.workCh: //to discuss:need this?
 			log.Debug(m.logInfo, "ready to seal height", work.block.NumberU64(), "coinbase", work.block.Coinbase().ToHex())
+			m.mu.Lock()
 			if err := m.engine.Seal(nil, work.block, work.adjustedDifficulty, work.optionalDivider, m.resultCh, m.stopCh); err != nil {
 				log.Error(m.logInfo, "Seal block to mine err", err)
 				coinbase := work.block.Coinbase()
 				m.commit(&coinbase)
 			}
+			m.mu.Unlock()
 
 		case <-m.exitCh:
 			log.Error("sealLoop exit")
@@ -176,6 +178,8 @@ func (m *Miner) Stop() {
 
 // TODO when p2p is syncing block how to stop miner.
 func (m *Miner) SetMining(mining bool) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	m.isMining = mining
 	if mining {
 		m.startCh <- struct{}{}

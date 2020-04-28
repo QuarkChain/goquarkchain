@@ -212,8 +212,8 @@ func (s *ShardBackend) GetMinorBlock(mHash common.Hash, height *uint64) (mBlock 
 func (s *ShardBackend) NewMinorBlock(peerId string, block *types.MinorBlock) (err error) {
 	s.wg.Add(1)
 	defer s.wg.Done()
-	log.Debug(s.logInfo, "NewMinorBlock height", block.NumberU64(), "hash", block.Hash().String())
-	defer log.Debug(s.logInfo, "NewMinorBlock", "end")
+	log.Debug(s.logInfo+" NewMinorBlock", "height", block.NumberU64(), "hash", block.Hash().String())
+	defer log.Debug(s.logInfo+" NewMinorBlock end", "height", block.NumberU64())
 	// TODO synchronizer.running
 	mHash := block.Hash()
 	if s.mBPool.getBlockInPool(mHash) {
@@ -249,12 +249,13 @@ func (s *ShardBackend) NewMinorBlock(peerId string, block *types.MinorBlock) (er
 	}
 
 	if err := s.MinorBlockChain.Validator().ValidateBlock(block, false); err != nil {
+		log.Warn(s.logInfo+" ValidateBlock", "err", err)
 		return err
 	}
 
 	s.mBPool.setBlockInPool(block.Hash())
 	go func() {
-		if err = s.conn.BroadcastMinorBlock(peerId, block); err != nil {
+		if err := s.conn.BroadcastMinorBlock(peerId, block); err != nil {
 			log.Error("failed to broadcast new minor block", "err", err)
 		}
 	}()
@@ -265,6 +266,9 @@ func (s *ShardBackend) NewMinorBlock(peerId string, block *types.MinorBlock) (er
 // Returns true if block is successfully added. False on any error.
 // called by 1. local miner (will not run if syncing) 2. SyncTask
 func (s *ShardBackend) AddMinorBlock(block *types.MinorBlock) error {
+	log.Debug(s.logInfo+" AddMinorBlock", "height", block.NumberU64(), "hash", block.Hash().String())
+	defer log.Debug(s.logInfo+" AddMinorBlock end", "height", block.NumberU64())
+
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.wg.Add(1)
@@ -274,14 +278,15 @@ func (s *ShardBackend) AddMinorBlock(block *types.MinorBlock) error {
 	}
 	//TODO support BLOCK_COMMITTING
 	currHead := s.MinorBlockChain.CurrentBlock().Header()
+	log.Debug(s.logInfo, "currHead", currHead.Number)
 	_, xshardLst, err := s.MinorBlockChain.InsertChainForDeposits([]types.IBlock{block}, false)
 	if err != nil {
-		log.Error("Failed to add minor block", "err", err, "len", len(xshardLst))
+		log.Error(s.logInfo+" Failed to add minor block", "err", err, "len", len(xshardLst))
 		return err
 	}
 
 	if len(xshardLst) != 1 {
-		log.Warn("already have this block", "number", block.NumberU64(), "hash", block.Hash().String())
+		log.Warn(s.logInfo+" already have this block", "number", block.NumberU64(), "hash", block.Hash().String())
 		return nil
 	}
 
@@ -290,7 +295,7 @@ func (s *ShardBackend) AddMinorBlock(block *types.MinorBlock) error {
 	s.mBPool.delBlockInPool(block.Hash())
 
 	if xshardLst[0] == nil {
-		log.Info("add minor block has been added...", "branch", s.branch.Value, "height", block.Number())
+		log.Info(s.logInfo+" add minor block has been added...", "branch", s.branch.Value, "height", block.Number())
 		return nil
 	}
 
@@ -318,7 +323,6 @@ func (s *ShardBackend) AddMinorBlock(block *types.MinorBlock) error {
 		return err
 	}
 	s.MinorBlockChain.CommitMinorBlockByHash(block.Hash())
-	s.mBPool.delBlockInPool(block.Hash())
 	if s.MinorBlockChain.CurrentBlock().Hash() != currHead.Hash() {
 		go s.miner.HandleNewTip()
 	}
@@ -365,11 +369,11 @@ func (s *ShardBackend) AddBlockListForSync(blockLst []*types.MinorBlock) error {
 		//TODO:support BLOCK_COMMITTING
 		_, xshardLst, err := s.MinorBlockChain.InsertChainForDeposits([]types.IBlock{block}, false)
 		if err != nil {
-			log.Error("Failed to add minor block", "err", err)
+			log.Error(s.logInfo+" Failed to add minor block", "err", err)
 			return err
 		}
 		if len(xshardLst) != 1 {
-			log.Warn("already have this block", "number", block.NumberU64(), "hash", block.Hash().String())
+			log.Warn(s.logInfo+" already have this block", "number", block.NumberU64(), "hash", block.Hash().String())
 			return nil
 		}
 		s.mBPool.delBlockInPool(block.Hash())
@@ -504,7 +508,8 @@ func (s *ShardBackend) CreateBlockToMine(addr *account.Address) (types.IBlock, *
 			return nil, nil, 0, err
 		}
 		balance := balances.GetTokenBalance(s.MinorBlockChain.GetGenesisToken())
-		adjustedDifficulty, err := s.posw.PoSWDiffAdjust(header, balance)
+		stakePreBlock := s.MinorBlockChain.DecayByHeightAndTime(minorBlock.NumberU64(), minorBlock.Time())
+		adjustedDifficulty, err := s.posw.PoSWDiffAdjust(header, balance, stakePreBlock)
 		if err != nil {
 			log.Error("PoSW", "failed to compute PoSW difficulty", err)
 			return nil, nil, 0, err

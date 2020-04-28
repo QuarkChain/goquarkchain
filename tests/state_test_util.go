@@ -21,23 +21,23 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/QuarkChain/goquarkchain/account"
-	"github.com/QuarkChain/goquarkchain/serialize"
 	"math/big"
 	"strings"
+
+	"github.com/QuarkChain/goquarkchain/account"
+	"github.com/QuarkChain/goquarkchain/serialize"
 
 	qkcConfig "github.com/QuarkChain/goquarkchain/cluster/config"
 	qkcCommon "github.com/QuarkChain/goquarkchain/common"
 	qkcCore "github.com/QuarkChain/goquarkchain/core"
 	"github.com/QuarkChain/goquarkchain/core/state"
 	"github.com/QuarkChain/goquarkchain/core/types"
+	"github.com/QuarkChain/goquarkchain/core/vm"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/core"
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
-
-	"github.com/QuarkChain/goquarkchain/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/params"
@@ -88,12 +88,18 @@ type stPostState struct {
 
 //go:generate gencodec -type stEnv -field-override stEnvMarshaling -out gen_stenv.go
 
+type override struct {
+	Address   common.Address `json:"address"`
+	Timestamp uint64         `json:"timestamp"`
+}
+
 type stEnv struct {
 	Coinbase   common.Address `json:"currentCoinbase"   gencodec:"required"`
 	Difficulty *big.Int       `json:"currentDifficulty" gencodec:"required"`
 	GasLimit   uint64         `json:"currentGasLimit"   gencodec:"required"`
 	Number     uint64         `json:"currentNumber"     gencodec:"required"`
 	Timestamp  uint64         `json:"currentTimestamp"  gencodec:"required"`
+	Overrides  map[string][]override
 }
 
 type stEnvMarshaling struct {
@@ -166,13 +172,20 @@ func (t *StateTest) Run(subtest StateSubtest, vmconfig vm.Config, useMock bool) 
 	header := TransFromBlock(block)
 	statedb := MakePreState(ethdb.NewMemDatabase(), t.json.Pre, useMock)
 	statedb.SetTimeStamp(header.Time)
+	if t.json.Env.Overrides != nil && t.json.Env.Overrides["specialContractTimestamp"] != nil {
+		for _, override := range t.json.Env.Overrides["specialContractTimestamp"] {
+			if c, ok := vm.PrecompiledContractsByzantium[override.Address]; ok {
+				c.SetEnableTime(override.Timestamp)
+			}
+		}
+	}
 
 	post := t.json.Post[subtest.Fork][subtest.Index]
 	msg, err := t.json.Tx.toMessage(post, useMock)
 	if err != nil {
 		return nil, err
 	}
-	context := qkcCore.NewEVMContext(*msg, header, nil)
+	context := qkcCore.NewEVMContext(*msg, header, nil, msg.GasPrice())
 	evm := vm.NewEVM(context, statedb, config, vmconfig)
 	gaspool := new(qkcCore.GasPool)
 	gaspool.AddGas(block.GasLimit())
@@ -321,7 +334,7 @@ func (tx *stTransaction) toMessage(ps stPostState, useMock bool) (*types.Message
 	if useMock {
 		toFullShardKey = nil
 	}
-	msg := types.NewMessage(fromRecipient, toRecipient, tx.Nonce, value, gasLimit, tx.GasPrice, data, true, 0, toFullShardKey, transferTokenID, testQKCID)
+	msg := types.NewMessage(fromRecipient, toRecipient, tx.Nonce, value, gasLimit, tx.GasPrice, data, true, 0, toFullShardKey, transferTokenID, testQKCID, 100)
 	return &msg, nil
 }
 

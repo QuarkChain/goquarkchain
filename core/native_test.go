@@ -6,9 +6,14 @@ import (
 	"os"
 	"testing"
 
+	"bou.ke/monkey"
+	"github.com/QuarkChain/goquarkchain/params"
+	ethParams "github.com/ethereum/go-ethereum/params"
+
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/core/types"
+	"github.com/QuarkChain/goquarkchain/core/vm"
 	"github.com/QuarkChain/goquarkchain/serialize"
 	"github.com/stretchr/testify/assert"
 )
@@ -34,7 +39,7 @@ func TestNativeTokenTransfer(t *testing.T) {
 	defer func() {
 		testGenesisMinorTokenBalance = make(map[string]*big.Int)
 	}()
-	env := getTestEnv(&acc1, nil, nil, nil, nil, nil)
+	env := getTestEnv(&acc1, nil, nil, nil, nil, nil, nil)
 	shardState := createDefaultShardState(env, nil, nil, nil, nil)
 	val := big.NewInt(12345)
 	gas := uint64(21000)
@@ -78,40 +83,19 @@ func TestNativeTokenTransferValueSuccess(t *testing.T) {
 	MALICIOUS0 := common.TokenIDEncode("MALICIOUS0")
 	id1, _ := account.CreatRandomIdentity()
 	acc1 := account.CreatAddressFromIdentity(id1, 0)
-	acc3 := account.CreatEmptyAddress(0)
 	testGenesisMinorTokenBalance["QKC"] = big.NewInt(10000000)
 	testGenesisMinorTokenBalance["MALICIOUS0"] = big.NewInt(0)
 	defer func() {
 		testGenesisMinorTokenBalance = make(map[string]*big.Int)
 	}()
-	env := getTestEnv(&acc1, nil, nil, nil, nil, nil)
+	env := getTestEnv(&acc1, nil, nil, nil, nil, nil, nil)
 	shardState := createDefaultShardState(env, nil, nil, nil, nil)
 	val := big.NewInt(0)
 	gas := uint64(21000)
 	gasPrice := uint64(1)
 	tx1 := createTransferTransaction(shardState, id1.GetKey().Bytes(), acc1, acc1, val, &gas, &gasPrice, nil, nil, nil, &MALICIOUS0)
 	error := shardState.AddTx(tx1)
-	if error != nil {
-		t.Errorf("addTx error: %v", error)
-	}
-	b1, _ := shardState.CreateBlockToMine(nil, &acc3, nil, nil, nil)
-	assert.Equal(t, len(b1.Transactions()), 1)
-	shardState.FinalizeAndAddBlock(b1)
-	assert.Equal(t, shardState.CurrentHeader(), b1.Header())
-	bl, _ := shardState.GetBalance(id1.GetRecipient(), nil)
-	QKC := common.TokenIDEncode("QKC")
-	assert.Equal(t, bl.GetTokenBalance(QKC), big.NewInt(10000000-21000))
-	b2, _ := shardState.GetBalance(acc1.Recipient, nil)
-	assert.Equal(t, b2.GetTokenBalance(MALICIOUS0), big.NewInt(0))
-	t1 := types.NewTokenBalancesWithMap(map[uint64]*big.Int{
-		MALICIOUS0: big.NewInt(0),
-		QKC:        big.NewInt(10000000 - 21000),
-	})
-	assert.NotEqual(t, b2, t1)
-	t2 := types.NewTokenBalancesWithMap(map[uint64]*big.Int{
-		QKC: big.NewInt(10000000 - 21000),
-	})
-	assert.Equal(t, b2, t2)
+	assert.Error(t, error)
 }
 
 func TestDisallowedUnknownToken(t *testing.T) {
@@ -123,7 +107,7 @@ func TestDisallowedUnknownToken(t *testing.T) {
 	defer func() {
 		testGenesisMinorTokenBalance = make(map[string]*big.Int)
 	}()
-	env := getTestEnv(&acc1, nil, nil, nil, nil, nil)
+	env := getTestEnv(&acc1, nil, nil, nil, nil, nil, nil)
 	shardState := createDefaultShardState(env, nil, nil, nil, nil)
 	val := big.NewInt(0)
 	gas := uint64(21000)
@@ -136,31 +120,61 @@ func TestDisallowedUnknownToken(t *testing.T) {
 }
 
 func TestNativeTokenGas(t *testing.T) {
-	QETH := common.TokenIDEncode("QETH")
+	monkey.Patch(PayNativeTokenAsGas, func(a vm.StateDB, b *ethParams.ChainConfig, c uint64, d uint64, gasPrice *big.Int) (uint8, *big.Int, error) {
+		return 100, gasPrice, nil
+	})
+	monkey.Patch(GetGasUtilityInfo, func(a vm.StateDB, b *ethParams.ChainConfig, c uint64, gasPrice *big.Int) (uint8, *big.Int, error) {
+		return 100, gasPrice, nil
+	})
+	defer monkey.UnpatchAll()
+	dirname, err := ioutil.TempDir(os.TempDir(), "qkcdb_test_")
+	if err != nil {
+		panic("failed to create test file: " + err.Error())
+	}
+	testDBPath[1] = dirname
+	qeth := common.TokenIDEncode("QETH")
 	id1, _ := account.CreatRandomIdentity()
 	acc1 := account.CreatAddressFromIdentity(id1, 0)
-	acc2 := account.CreatEmptyAddress(0)
-	acc3 := account.CreatEmptyAddress(0)
+	id2, _ := account.CreatRandomIdentity()
+	acc2 := account.CreatAddressFromIdentity(id2, 0)
+	// Miner
+	id3, _ := account.CreatRandomIdentity()
+	acc3 := account.CreatAddressFromIdentity(id3, 0)
 	testGenesisMinorTokenBalance["QETH"] = big.NewInt(10000000)
 	testGenesisMinorTokenBalance["QKC"] = big.NewInt(10000000)
 	defer func() {
 		testGenesisMinorTokenBalance = make(map[string]*big.Int)
 	}()
-	env := getTestEnv(&acc1, nil, nil, nil, nil, nil)
+	tru := true
+	env := getTestEnv(&acc1, nil, nil, nil, nil, nil, &tru)
 	shardState := createDefaultShardState(env, nil, nil, nil, nil)
 	val := big.NewInt(12345)
 	gas := uint64(21000)
-	tx1 := createTransferTransaction(shardState, id1.GetKey().Bytes(), acc1, acc2, val, &gas, nil, nil, nil, &QETH, &QETH)
+	tx1 := createTransferTransaction(shardState, id1.GetKey().Bytes(), acc1, acc2, val, &gas, nil, nil, nil, &qeth, &qeth)
 	assert.NoError(t, shardState.AddTx(tx1))
-	b1, _ := shardState.CreateBlockToMine(nil, &acc3, nil, nil, nil)
-	assert.Equal(t, len(b1.Transactions()), 1)
-	shardState.FinalizeAndAddBlock(b1)
-	assert.Equal(t, shardState.CurrentHeader(), b1.Header())
-	bl, _ := shardState.GetBalance(acc1.Recipient, nil)
+	block, _ := shardState.CreateBlockToMine(nil, &acc3, nil, nil, nil)
+	assert.Equal(t, len(block.Transactions()), 1)
+	_, _, _ = shardState.FinalizeAndAddBlock(block)
+	assert.Equal(t, shardState.CurrentHeader(), block.Header())
+	b1, _ := shardState.GetBalance(acc1.Recipient, nil)
 	b2, _ := shardState.GetBalance(acc2.Recipient, nil)
 	bb := new(big.Int).Sub(big.NewInt(10000000), big.NewInt(12345))
-	assert.Equal(t, bl.GetTokenBalance(QETH), new(big.Int).Sub(bb, big.NewInt(21000)))
-	assert.NotEqual(t, b2.GetTokenBalance(QETH), big.NewInt(12345))
+	assert.Equal(t, b1.GetTokenBalance(qeth), new(big.Int).Sub(bb, big.NewInt(21000)))
+	assert.Equal(t, b2.GetTokenBalance(qeth), big.NewInt(12345))
+	//after-tax coinbase + tx fee should only be in QKC
+	b3, _ := shardState.GetBalance(acc3.Recipient, nil)
+	at := afterTax(new(big.Int).Add(shardState.shardConfig.CoinbaseAmount, params.DefaultInShardTxGasLimit).Uint64(), shardState)
+	assert.Equal(t, b3.GetTokenBalance(env.clusterConfig.Quarkchain.GetDefaultChainTokenID()), at)
+	txList, _, err := shardState.GetTransactionByAddress(acc1, nil, nil, 0)
+	assert.NoError(t, err)
+	assert.Equal(t, uint64(12345), txList[0].Value.Value.Uint64())
+	assert.Equal(t, qeth, txList[0].GasTokenID)
+	assert.Equal(t, qeth, txList[0].TransferTokenID)
+	txList, _, err = shardState.GetTransactionByAddress(acc2, nil, nil, 0)
+	assert.NoError(t, err)
+	assert.Equal(t, uint64(12345), txList[0].Value.Value.Uint64())
+	assert.Equal(t, qeth, txList[0].GasTokenID)
+	assert.Equal(t, qeth, txList[0].TransferTokenID)
 }
 
 func TestXshardNativeTokenSent(t *testing.T) {
@@ -174,10 +188,10 @@ func TestXshardNativeTokenSent(t *testing.T) {
 	defer func() {
 		testGenesisMinorTokenBalance = make(map[string]*big.Int)
 	}()
-	env := getTestEnv(&acc1, nil, nil, nil, nil, nil)
+	env := getTestEnv(&acc1, nil, nil, nil, nil, nil, nil)
 	shardState := createDefaultShardState(env, nil, nil, nil, nil)
 	genesisMinorQuarkHash := big.NewInt(10000000).Uint64()
-	env1 := getTestEnv(&acc1, &genesisMinorQuarkHash, nil, nil, nil, nil)
+	env1 := getTestEnv(&acc1, &genesisMinorQuarkHash, nil, nil, nil, nil, nil)
 	shardId := uint32(1)
 	shardState1 := createDefaultShardState(env1, &shardId, nil, nil, nil)
 	rootBlock := shardState.GetRootTip().Header().CreateBlockToAppend(nil, nil, nil, nil, nil)
@@ -196,7 +210,7 @@ func TestXshardNativeTokenSent(t *testing.T) {
 	shardState.FinalizeAndAddBlock(b1)
 	evmState, _ = shardState.State()
 	assert.Equal(t, len(evmState.GetXShardList()), 1)
-	deposit := &types.CrossShardTransactionDeposit{TxHash: tx.Hash(), From: acc1, To: acc2, Value: &serialize.Uint256{Value: val}, GasPrice: &serialize.Uint256{Value: big.NewInt(1)}, GasTokenID: QKC, TransferTokenID: QETHXX}
+	deposit := &types.CrossShardTransactionDeposit{CrossShardTransactionDepositV0: types.CrossShardTransactionDepositV0{TxHash: tx.Hash(), From: acc1, To: acc2, Value: &serialize.Uint256{Value: val}, GasPrice: &serialize.Uint256{Value: big.NewInt(1)}, GasTokenID: QKC, TransferTokenID: QETHXX}}
 	assert.NotEqual(t, evmState.GetXShardList()[0], deposit)
 	balance, _ := shardState.GetBalance(acc1.Recipient, nil)
 	balance.GetTokenBalance(QKC)
@@ -218,8 +232,8 @@ func TestXshardNativeTokenReceived(t *testing.T) {
 		testGenesisMinorTokenBalance = make(map[string]*big.Int)
 	}()
 	shardSize := uint32(64)
-	env0 := getTestEnv(&acc1, nil, nil, &shardSize, nil, nil)
-	env1 := getTestEnv(&acc1, nil, nil, &shardSize, nil, nil)
+	env0 := getTestEnv(&acc1, nil, nil, &shardSize, nil, nil, nil)
+	env1 := getTestEnv(&acc1, nil, nil, &shardSize, nil, nil, nil)
 	shardID := uint32(16)
 	shardState0 := createDefaultShardState(env0, nil, nil, nil, nil)
 	shardState1 := createDefaultShardState(env1, &shardID, nil, nil, nil)
@@ -247,7 +261,7 @@ func TestXshardNativeTokenReceived(t *testing.T) {
 	tx := createTransferTransaction(shardState1, id1.GetKey().Bytes(), acc2, acc1, val, &gas, &gasPrice, nil, nil, &QKC, &QETHXX)
 	b1.AddTx(tx)
 	// Add a x-shard tx from remote peer
-	deposit := types.CrossShardTransactionDeposit{
+	deposit := types.CrossShardTransactionDeposit{CrossShardTransactionDepositV0: types.CrossShardTransactionDepositV0{
 		TxHash:          tx.Hash(),
 		From:            acc2,
 		To:              acc1,
@@ -255,7 +269,7 @@ func TestXshardNativeTokenReceived(t *testing.T) {
 		GasPrice:        &serialize.Uint256{Value: big.NewInt(2)},
 		TransferTokenID: QETHXX,
 		GasTokenID:      shardState0.GetGenesisToken(),
-	}
+	}}
 	txL := types.CrossShardTransactionDepositList{}
 	txL.TXList = append(txL.TXList, &deposit)
 	shardState0.AddCrossShardTxListByMinorBlockHash(b1.Header().Hash(), txL)
@@ -284,22 +298,30 @@ func TestXshardNativeTokenReceived(t *testing.T) {
 }
 
 func TestXshardNativeTokenGasSent(t *testing.T) {
-	QETHXX := common.TokenIDEncode("QETHXX")
-	QKC := common.TokenIDEncode("QKC")
+	monkey.Patch(PayNativeTokenAsGas, func(a vm.StateDB, b *ethParams.ChainConfig, c uint64, d uint64, gasPrice *big.Int) (uint8, *big.Int, error) {
+		return 100, gasPrice, nil
+	})
+	monkey.Patch(GetGasUtilityInfo, func(a vm.StateDB, b *ethParams.ChainConfig, c uint64, gasPrice *big.Int) (uint8, *big.Int, error) {
+		return 100, gasPrice, nil
+	})
+	defer monkey.UnpatchAll()
+	qeth := common.TokenIDEncode("QETHXX")
+	qkc := common.TokenIDEncode("QKC")
 	id1, _ := account.CreatRandomIdentity()
 	acc1 := account.CreatAddressFromIdentity(id1, 0)
 	acc2 := account.CreatAddressFromIdentity(id1, 1)
 	acc3 := account.CreatEmptyAddress(0)
 	testGenesisMinorTokenBalance["QETHXX"] = big.NewInt(9999999)
 	testGenesisMinorTokenBalance["QKC"] = big.NewInt(9999999)
-	env := getTestEnv(&acc1, nil, nil, nil, nil, nil)
+	tru := true
+	env := getTestEnv(&acc1, nil, nil, nil, nil, nil, &tru)
 	shardId := uint32(0)
 	shardState := createDefaultShardState(env, &shardId, nil, nil, nil)
 	testGenesisMinorTokenBalance = make(map[string]*big.Int)
 	defer func() {
 		testGenesisMinorTokenBalance = make(map[string]*big.Int)
 	}()
-	env1 := getTestEnv(&acc1, nil, nil, nil, nil, nil)
+	env1 := getTestEnv(&acc1, nil, nil, nil, nil, nil, nil)
 	shardId1 := uint32(1)
 	shardState1 := createDefaultShardState(env1, &shardId1, nil, nil, nil)
 	rootBlock := shardState.GetRootTip().Header().CreateBlockToAppend(nil, nil, nil, nil, nil)
@@ -309,7 +331,7 @@ func TestXshardNativeTokenGasSent(t *testing.T) {
 	shardState.AddRootBlock(rootBlock)
 	val := big.NewInt(8888888)
 	gas := new(big.Int).Add(big.NewInt(9000), big.NewInt(21000)).Uint64()
-	tx := createTransferTransaction(shardState, id1.GetKey().Bytes(), acc1, acc2, val, &gas, nil, nil, nil, &QETHXX, &QETHXX)
+	tx := createTransferTransaction(shardState, id1.GetKey().Bytes(), acc1, acc2, val, &gas, nil, nil, nil, &qeth, &qeth)
 	shardState.AddTx(tx)
 	shardState.GetTransactionCount(acc1.Recipient, nil)
 	b1, _ := shardState.CreateBlockToMine(nil, &acc3, nil, nil, nil)
@@ -319,15 +341,17 @@ func TestXshardNativeTokenGasSent(t *testing.T) {
 	shardState.FinalizeAndAddBlock(b1)
 	evmState, _ = shardState.State()
 	assert.Equal(t, len(evmState.GetXShardList()), 1)
-	deposit := &types.CrossShardTransactionDeposit{TxHash: tx.Hash(), From: acc1, To: acc2, Value: &serialize.Uint256{Value: val}, GasPrice: &serialize.Uint256{Value: big.NewInt(1)}, GasRemained: &serialize.Uint256{Value: big.NewInt(0)}, GasTokenID: QETHXX, TransferTokenID: QETHXX}
-	assert.Equal(t, evmState.GetXShardList()[0], deposit)
-
+	deposit := &types.CrossShardTransactionDeposit{CrossShardTransactionDepositV0: types.CrossShardTransactionDepositV0{
+		TxHash: tx.Hash(), From: acc1, To: acc2, Value: &serialize.Uint256{Value: val}, GasPrice: &serialize.Uint256{Value: big.NewInt(1)},
+		GasRemained: &serialize.Uint256{Value: big.NewInt(0)}, GasTokenID: qkc, TransferTokenID: qeth}, RefundRate: 100}
+	assert.Equal(t, deposit, evmState.GetXShardList()[0])
 	balance, _ := shardState.GetBalance(acc1.Recipient, nil)
 	balance3, _ := shardState.GetBalance(acc3.Recipient, nil)
-	assert.Equal(t, balance.GetTokenBalance(QETHXX), big.NewInt(9999999-8888888-21000-9000))
+	assert.Equal(t, balance.GetTokenBalance(qeth), big.NewInt(9999999-8888888-21000-9000))
+	//Make sure the xshard gas is not used by local block
 	assert.Equal(t, evmState.GetGasUsed(), big.NewInt(21000))
-	assert.Equal(t, balance3.GetTokenBalance(QKC), afterTax(testShardCoinbaseAmount.Uint64(), shardState))
-	assert.Equal(t, balance3.GetTokenBalance(QETHXX), afterTax(big.NewInt(21000).Uint64(), shardState))
+	//block coinbase for mining is still in genesis_token + xshard fee
+	assert.Equal(t, balance3.GetTokenBalance(qkc), afterTax(shardState.shardConfig.CoinbaseAmount.Uint64()+params.DefaultInShardTxGasLimit.Uint64(), shardState))
 }
 
 func TestXshardNativeTokenGasReceived(t *testing.T) {
@@ -343,8 +367,8 @@ func TestXshardNativeTokenGasReceived(t *testing.T) {
 		testGenesisMinorTokenBalance = make(map[string]*big.Int)
 	}()
 	shardSize := uint32(64)
-	env0 := getTestEnv(&acc1, nil, nil, &shardSize, nil, nil)
-	env1 := getTestEnv(&acc1, nil, nil, &shardSize, nil, nil)
+	env0 := getTestEnv(&acc1, nil, nil, &shardSize, nil, nil, nil)
+	env1 := getTestEnv(&acc1, nil, nil, &shardSize, nil, nil, nil)
 	shardId := uint32(0)
 	shardState0 := createDefaultShardState(env0, &shardId, nil, nil, nil)
 	shardId1 := uint32(16)
@@ -366,7 +390,8 @@ func TestXshardNativeTokenGasReceived(t *testing.T) {
 	gasPrice := uint64(2)
 	tx := createTransferTransaction(shardState1, id1.GetKey().Bytes(), acc2, acc1, val, &gas, &gasPrice, nil, nil, &QETHXX, &QETHXX)
 	b1.AddTx(tx)
-	deposit := types.CrossShardTransactionDeposit{TxHash: tx.Hash(), From: acc1, To: acc2, Value: &serialize.Uint256{Value: val}, GasPrice: &serialize.Uint256{Value: big.NewInt(2)}, GasTokenID: QETHXX, TransferTokenID: QETHXX}
+	deposit := types.CrossShardTransactionDeposit{CrossShardTransactionDepositV0: types.CrossShardTransactionDepositV0{TxHash: tx.Hash(),
+		From: acc1, To: acc2, Value: &serialize.Uint256{Value: val}, GasPrice: &serialize.Uint256{Value: big.NewInt(2)}, GasTokenID: QKC, TransferTokenID: QETHXX}}
 	txL := make([]*types.CrossShardTransactionDeposit, 0)
 	txL = append(txL, &deposit)
 	txList := types.CrossShardTransactionDepositList{TXList: txL}
@@ -382,10 +407,9 @@ func TestXshardNativeTokenGasReceived(t *testing.T) {
 	assert.Equal(t, balance1.GetTokenBalance(QETHXX), new(big.Int).Add(big.NewInt(999999), big.NewInt(888888)))
 	evmState, _ := shardState0.State()
 	assert.Equal(t, evmState.GetGasUsed(), big.NewInt(9000))
-	//Half collected by root
+	//Half coinbase collected by root + tx fee
 	balance3, _ := shardState0.GetBalance(acc3.Recipient, nil)
-	assert.Equal(t, balance3.GetTokenBalance(QKC), afterTax(testShardCoinbaseAmount.Uint64(), shardState0))
-	assert.Equal(t, balance3.GetTokenBalance(QETHXX), afterTax(uint64(18000), shardState0))
+	assert.Equal(t, balance3.GetTokenBalance(QKC), afterTax(testShardCoinbaseAmount.Uint64()+params.GtxxShardCost.Uint64()*2, shardState0))
 }
 
 func TestContractSuicide(t *testing.T) {
@@ -398,7 +422,7 @@ func TestContractSuicide(t *testing.T) {
 	defer func() {
 		testGenesisMinorTokenBalance = make(map[string]*big.Int)
 	}()
-	env := getTestEnv(&acc1, nil, nil, nil, nil, nil)
+	env := getTestEnv(&acc1, nil, nil, nil, nil, nil, nil)
 	shardState := createDefaultShardState(env, nil, nil, nil, nil)
 	// 1. create contract
 	BYTECODE := "6080604052348015600f57600080fd5b5060948061001e6000396000f3fe6080604052600436106039576000357c01000000000000000000000000000000000000000000000000000000009004806341c0e1b514603b575b005b348015604657600080fd5b50604d604f565b005b3373ffffffffffffffffffffffffffffffffffffffff16fffea165627a7a7230582034cc4e996685dcadcc12db798751d2913034a3e963356819f2293c3baea4a18c0029"

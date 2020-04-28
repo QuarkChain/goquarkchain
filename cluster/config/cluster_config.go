@@ -5,12 +5,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"math/big"
 	"sort"
 
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/common"
-	"github.com/QuarkChain/goquarkchain/core/types"
 	ethcom "github.com/ethereum/go-ethereum/common"
 )
 
@@ -67,14 +67,26 @@ func NewClusterConfig() *ClusterConfig {
 		CheckDBRBlockBatch:       10,
 	}
 
+	fullShardIds := ret.Quarkchain.GetGenesisShardIds()
+
 	for i := 0; i < DefaultNumSlaves; i++ {
 		slave := NewDefaultSlaveConfig()
 		slave.Port = slavePort + uint16(i)
 		slave.ID = fmt.Sprintf("S%d", i)
-		slave.ChainMaskList = append(slave.ChainMaskList, types.NewChainMask(uint32(i|DefaultNumSlaves)))
+		slave.FullShardList = append(slave.FullShardList, getFullShardIdListFromSlaveIndex(fullShardIds, DefaultNumSlaves, i)...)
 		ret.SlaveList = append(ret.SlaveList, slave)
 	}
 	return &ret
+}
+
+func getFullShardIdListFromSlaveIndex(list []uint32, slaveNumber int, slaveIndex int) []uint32 {
+	ans := make([]uint32, 0)
+	for index := 0; index < len(list); index++ {
+		if index%slaveNumber == slaveIndex {
+			ans = append(ans, list[index])
+		}
+	}
+	return ans
 }
 
 func (c *ClusterConfig) GetSlaveConfig(id string) (*SlaveConfig, error) {
@@ -89,40 +101,80 @@ func (c *ClusterConfig) GetSlaveConfig(id string) (*SlaveConfig, error) {
 	return nil, fmt.Errorf("slave %s is not in cluster config", id)
 }
 
+func (c *ClusterConfig) BackWardChainMaskList() error {
+	setFullShardFromChainMask := true
+	for _, slave := range c.SlaveList {
+		for _, vv := range slave.FullShardList {
+			if vv != 0 {
+				setFullShardFromChainMask = false
+			}
+		}
+	}
+	if !setFullShardFromChainMask {
+		return nil
+	}
+	for _, v := range c.Quarkchain.Chains {
+		if v.ShardSize != 1 {
+			return errors.New("CHAIN_MASK_LIST:only works if every chain has 1 shard only")
+		}
+	}
+	for _, v := range c.SlaveList {
+		for _, m := range v.ChainMaskListForBackward {
+			bitMask := uint32(1<<(common.IntLeftMostBit(m)-1) - 1)
+			v.FullShardList = make([]uint32, 0)
+			for _, chainConfig := range c.Quarkchain.Chains {
+				if chainConfig.ChainID&bitMask == m&bitMask {
+					v.FullShardList = append(v.FullShardList, chainConfig.ChainID<<16+1)
+				}
+			}
+		}
+		sort.Sort(fullShardList(v.FullShardList))
+	}
+	return nil
+}
+
+type fullShardList []uint32
+
+func (a fullShardList) Len() int           { return len(a) }
+func (a fullShardList) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+func (a fullShardList) Less(i, j int) bool { return a[i] < a[j] }
+
 type QuarkChainConfig struct {
-	ChainSize                         uint32      `json:"CHAIN_SIZE"`
-	MaxNeighbors                      uint32      `json:"MAX_NEIGHBORS"`
-	NetworkID                         uint32      `json:"NETWORK_ID"`
-	TransactionQueueSizeLimitPerShard uint64      `json:"TRANSACTION_QUEUE_SIZE_LIMIT_PER_SHARD"`
-	BlockExtraDataSizeLimit           uint32      `json:"BLOCK_EXTRA_DATA_SIZE_LIMIT"`
-	GuardianPublicKey                 []byte      `json:"-"`
-	RootSignerPrivateKey              []byte      `json:"_"`
-	P2PProtocolVersion                uint32      `json:"P2P_PROTOCOL_VERSION"`
-	P2PCommandSizeLimit               uint32      `json:"P2P_COMMAND_SIZE_LIMIT"`
-	SkipRootDifficultyCheck           bool        `json:"SKIP_ROOT_DIFFICULTY_CHECK"`
-	SkipRootCoinbaseCheck             bool        `json:"SKIP_ROOT_COINBASE_CHECK"`
-	SkipMinorDifficultyCheck          bool        `json:"SKIP_MINOR_DIFFICULTY_CHECK"`
-	GenesisToken                      string      `json:"GENESIS_TOKEN"`
-	Root                              *RootConfig `json:"ROOT"`
-	shards                            map[uint32]*ShardConfig
-	Chains                            map[uint32]*ChainConfig `json:"-"`
-	RewardTaxRate                     *big.Rat                `json:"-"`
-	LocalFeeRate                      *big.Rat                `json:"-"`
-	RewardCalculateRate               *big.Rat                `json:"-"`
-	BlockRewardDecayFactor            *big.Rat                `json:"-"`
-	chainIdToShardSize                map[uint32]uint32
-	chainIdToShardIds                 map[uint32][]uint32
-	defaultChainTokenID               uint64
-	allowTokenIDs                     map[uint64]bool
-	EnableEvmTimeStamp                uint64      `json:"ENABLE_EVM_TIMESTAMP"`
-	EnableQkcHashXHeight              uint64      `json:"ENABLE_QKCHASHX_HEIGHT"`
-	DisablePowCheck                   bool        `json:"DISABLE_POW_CHECK"`
-	XShardGasDDOSFixRootHeight        uint64      `json:"XSHARD_GAS_DDOS_FIX_ROOT_HEIGHT"`
-	MinTXPoolGasPrice                 *big.Int    `json:"MIN_TX_POOL_GAS_PRICE"`
-	MinMiningGasPrice                 *big.Int    `json:"MIN_MINING_GAS_PRICE"`
-	GRPCHost                          string      `json:"-"`
-	GRPCPort                          uint16      `json:"-"`
-	RootChainPoSWContractBytecodeHash ethcom.Hash `json:"-"`
+	ChainSize                             uint32      `json:"CHAIN_SIZE"`
+	MaxNeighbors                          uint32      `json:"MAX_NEIGHBORS"`
+	NetworkID                             uint32      `json:"NETWORK_ID"`
+	TransactionQueueSizeLimitPerShard     uint64      `json:"TRANSACTION_QUEUE_SIZE_LIMIT_PER_SHARD"`
+	BlockExtraDataSizeLimit               uint32      `json:"BLOCK_EXTRA_DATA_SIZE_LIMIT"`
+	GuardianPublicKey                     []byte      `json:"-"`
+	RootSignerPrivateKey                  []byte      `json:"_"`
+	P2PProtocolVersion                    uint32      `json:"P2P_PROTOCOL_VERSION"`
+	P2PCommandSizeLimit                   uint32      `json:"P2P_COMMAND_SIZE_LIMIT"`
+	SkipRootDifficultyCheck               bool        `json:"SKIP_ROOT_DIFFICULTY_CHECK"`
+	SkipRootCoinbaseCheck                 bool        `json:"SKIP_ROOT_COINBASE_CHECK"`
+	SkipMinorDifficultyCheck              bool        `json:"SKIP_MINOR_DIFFICULTY_CHECK"`
+	GenesisToken                          string      `json:"GENESIS_TOKEN"`
+	Root                                  *RootConfig `json:"ROOT"`
+	shards                                map[uint32]*ShardConfig
+	Chains                                map[uint32]*ChainConfig `json:"-"`
+	RewardTaxRate                         *big.Rat                `json:"-"`
+	LocalFeeRate                          *big.Rat                `json:"-"`
+	RewardCalculateRate                   *big.Rat                `json:"-"`
+	BlockRewardDecayFactor                *big.Rat                `json:"-"`
+	chainIdToShardSize                    map[uint32]uint32
+	chainIdToShardIds                     map[uint32][]uint32
+	defaultChainTokenID                   uint64
+	EnableEvmTimeStamp                    uint64      `json:"ENABLE_EVM_TIMESTAMP"`
+	EnableQkcHashXHeight                  uint64      `json:"ENABLE_QKCHASHX_HEIGHT"`
+	EnableNonReservedNativeTokenTimestamp uint64      `json:"ENABLE_NON_RESERVED_NATIVE_TOKEN_TIMESTAMP"`
+	EnableGeneralNativeTokenTimestamp     uint64      `json:"ENABLE_GENERAL_NATIVE_TOKEN_TIMESTAMP"`
+	EnablePoswStakingDecayTimestamp       uint64      `json:"ENABLE_POSW_STAKING_DECAY_TIMESTAMP"`
+	DisablePowCheck                       bool        `json:"DISABLE_POW_CHECK"`
+	XShardGasDDOSFixRootHeight            uint64      `json:"XSHARD_GAS_DDOS_FIX_ROOT_HEIGHT"`
+	MinTXPoolGasPrice                     *big.Int    `json:"MIN_TX_POOL_GAS_PRICE"`
+	MinMiningGasPrice                     *big.Int    `json:"MIN_MINING_GAS_PRICE"`
+	GRPCHost                              string      `json:"-"`
+	GRPCPort                              uint16      `json:"-"`
+	RootChainPoSWContractBytecodeHash     ethcom.Hash `json:"-"`
 }
 
 type QuarkChainConfigAlias QuarkChainConfig
@@ -357,29 +409,30 @@ func (q *QuarkChainConfig) GetShardSizeByChainId(ID uint32) (uint32, error) {
 func NewQuarkChainConfig() *QuarkChainConfig {
 	grpchost, _ := common.GetIPV4Addr()
 	var ret = QuarkChainConfig{
-		ChainSize:                         3,
-		MaxNeighbors:                      32,
-		NetworkID:                         3,
-		TransactionQueueSizeLimitPerShard: 10000,
-		BlockExtraDataSizeLimit:           1024,
-		GuardianPublicKey:                 ethcom.FromHex("04ab856abd0983a82972021e454fcf66ed5940ed595b0898bcd75cbe2d0a51a00f5358b566df22395a2a8bf6c022c1d51a2c3defe654e91a8d244947783029694d"),
-		RootSignerPrivateKey:              nil,
-		P2PProtocolVersion:                0,
-		P2PCommandSizeLimit:               DefaultP2PCmddSizeLimit,
-		SkipRootDifficultyCheck:           false,
-		SkipRootCoinbaseCheck:             false,
-		SkipMinorDifficultyCheck:          false,
-		GenesisToken:                      DefaultToken,
-		RewardTaxRate:                     new(big.Rat).SetFloat64(0.5),
-		BlockRewardDecayFactor:            new(big.Rat).SetFloat64(0.5),
-		Root:                              NewRootConfig(),
-		MinTXPoolGasPrice:                 new(big.Int).SetUint64(1000000000),
-		MinMiningGasPrice:                 new(big.Int).SetUint64(1000000000),
-		XShardGasDDOSFixRootHeight:        90000,
-		GRPCHost:                          grpchost,
-		GRPCPort:                          DefaultGrpcPort,
-		EnableEvmTimeStamp:                1569567600,
-		RootChainPoSWContractBytecodeHash: ethcom.HexToHash("0000000000000000000000000000000000000000000000000000000000000000"),
+		ChainSize:                             3,
+		MaxNeighbors:                          32,
+		NetworkID:                             3,
+		TransactionQueueSizeLimitPerShard:     10000,
+		BlockExtraDataSizeLimit:               1024,
+		GuardianPublicKey:                     ethcom.FromHex("04ab856abd0983a82972021e454fcf66ed5940ed595b0898bcd75cbe2d0a51a00f5358b566df22395a2a8bf6c022c1d51a2c3defe654e91a8d244947783029694d"),
+		RootSignerPrivateKey:                  nil,
+		P2PProtocolVersion:                    0,
+		P2PCommandSizeLimit:                   DefaultP2PCmddSizeLimit,
+		SkipRootDifficultyCheck:               false,
+		SkipRootCoinbaseCheck:                 false,
+		SkipMinorDifficultyCheck:              false,
+		GenesisToken:                          DefaultToken,
+		RewardTaxRate:                         new(big.Rat).SetFloat64(0.5),
+		BlockRewardDecayFactor:                new(big.Rat).SetFloat64(0.5),
+		Root:                                  NewRootConfig(),
+		MinTXPoolGasPrice:                     new(big.Int).SetUint64(1000000000),
+		MinMiningGasPrice:                     new(big.Int).SetUint64(1000000000),
+		XShardGasDDOSFixRootHeight:            90000,
+		GRPCHost:                              grpchost,
+		EnableEvmTimeStamp:                    1569567600,
+		EnableNonReservedNativeTokenTimestamp: math.MaxUint64,
+		EnableGeneralNativeTokenTimestamp:     math.MaxUint64,
+		RootChainPoSWContractBytecodeHash:     ethcom.HexToHash("0000000000000000000000000000000000000000000000000000000000000000"),
 	}
 
 	ret.Root.ConsensusType = PoWSimulate
@@ -410,7 +463,6 @@ func NewQuarkChainConfig() *QuarkChainConfig {
 		}
 	}
 	ret.initAndValidate()
-	ret.SetAllowedToken()
 	return &ret
 }
 
@@ -426,28 +478,6 @@ func (q *QuarkChainConfig) GetDefaultChainTokenID() uint64 {
 	return q.defaultChainTokenID
 }
 
-func (q *QuarkChainConfig) allowedTokenIds() map[uint64]bool {
-	if len(q.allowTokenIDs) == 0 {
-		panic("allow tokenId should >0")
-	}
-	return q.allowTokenIDs
-}
-
-func (q *QuarkChainConfig) SetAllowedToken() {
-	q.allowTokenIDs = make(map[uint64]bool, 0)
-	q.allowTokenIDs[common.TokenIDEncode(q.GenesisToken)] = true
-	for _, shard := range q.shards {
-		for _, alloc := range shard.Genesis.Alloc {
-			for tokenID := range alloc.Balances {
-				q.allowTokenIDs[common.TokenIDEncode(tokenID)] = true
-			}
-		}
-	}
-}
-func (q *QuarkChainConfig) IsAllowedTokenID(tokenID uint64) bool {
-	_, ok := q.allowedTokenIds()[tokenID]
-	return ok
-}
 func (q *QuarkChainConfig) GasLimit(fullShardID uint32) (*big.Int, error) {
 	data, ok := q.shards[fullShardID]
 	if !ok {

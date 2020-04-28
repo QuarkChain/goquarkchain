@@ -1,12 +1,13 @@
 package rpc
 
 import (
+	"math/big"
+
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/rpc"
 	"github.com/ethereum/go-ethereum/common"
-	"math/big"
 )
 
 type NetworkError struct {
@@ -38,10 +39,10 @@ type ISlaveConn interface {
 	HandleNewMinorBlock(request *P2PRedirectRequest) error
 	AddBlockListForSync(request *AddBlockListForSyncRequest) (*ShardStatus, error)
 	GetSlaveID() string
-	GetShardMaskList() []*types.ChainMask
+	GetFullShardList() []uint32
 	MasterInfo(ip string, port uint16, rootTip *types.RootBlock) error
 	HasShard(fullShardID uint32) bool
-	SendPing() ([]byte, []*types.ChainMask, error)
+	SendPing() ([]byte, []uint32, error)
 	HeartBeat() bool
 	GetUnconfirmedHeaders() (*GetUnconfirmedHeadersResponse, error)
 	GetAccountData(address *account.Address, height *uint64) (*GetAccountDataResponse, error)

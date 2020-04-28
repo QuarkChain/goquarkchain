@@ -2,28 +2,30 @@ package config
 
 import (
 	"encoding/json"
+	"errors"
 
-	"github.com/QuarkChain/goquarkchain/core/types"
+	"github.com/QuarkChain/goquarkchain/common/hexutil"
 )
 
 type SlaveConfig struct {
-	IP            string             `json:"HOST"` // DEFAULT_HOST
-	Port          uint16             `json:"PORT"` // 38392
-	ID            string             `json:"ID"`
-	WSPort        uint16             `json:"WEBSOCKET_JSON_RPC_PORT"`
-	ChainMaskList []*types.ChainMask `json:"-"`
+	IP                       string   `json:"HOST"` // DEFAULT_HOST
+	Port                     uint16   `json:"PORT"` // 38392
+	ID                       string   `json:"ID"`
+	WSPort                   uint16   `json:"WEBSOCKET_JSON_RPC_PORT"`
+	FullShardList            []uint32 `json:"-"`
+	ChainMaskListForBackward []uint32 `json:"-"`
 }
 
 type SlaveConfigAlias SlaveConfig
 
 func (s *SlaveConfig) MarshalJSON() ([]byte, error) {
-	shardMaskList := make([]uint32, len(s.ChainMaskList))
-	for i, m := range s.ChainMaskList {
-		shardMaskList[i] = m.GetMask()
+	shardMaskList := make([]hexutil.Uint, len(s.FullShardList))
+	for i, m := range s.FullShardList {
+		shardMaskList[i] = hexutil.Uint(m)
 	}
 	jsonConfig := struct {
 		SlaveConfigAlias
-		ShardMaskList []uint32 `json:"CHAIN_MASK_LIST"`
+		ShardMaskList []hexutil.Uint `json:"FULL_SHARD_ID_LIST"`
 	}{SlaveConfigAlias(*s), shardMaskList}
 	return json.Marshal(jsonConfig)
 }
@@ -31,16 +33,32 @@ func (s *SlaveConfig) MarshalJSON() ([]byte, error) {
 func (s *SlaveConfig) UnmarshalJSON(input []byte) error {
 	var jsonConfig struct {
 		SlaveConfigAlias
-		ChainMaskList []uint32 `json:"CHAIN_MASK_LIST"`
+		ChainMaskListJson *[]uint32       `json:"CHAIN_MASK_LIST"`
+		FullShardListJson *[]hexutil.Uint `json:"FULL_SHARD_ID_LIST"`
 	}
 	if err := json.Unmarshal(input, &jsonConfig); err != nil {
 		return err
 	}
 	*s = SlaveConfig(jsonConfig.SlaveConfigAlias)
 	s.WSPort = DefaultWSPort
-	s.ChainMaskList = make([]*types.ChainMask, len(jsonConfig.ChainMaskList))
-	for i, value := range jsonConfig.ChainMaskList {
-		s.ChainMaskList[i] = types.NewChainMask(value)
+
+	if jsonConfig.ChainMaskListJson != nil && jsonConfig.FullShardListJson != nil {
+		return errors.New("Can only have either FULL_SHARD_ID_LIST or CHAIN_MASK_LIST")
+	} else if jsonConfig.FullShardListJson != nil {
+		s.FullShardList = make([]uint32, len(*jsonConfig.FullShardListJson))
+		for k, v := range *jsonConfig.FullShardListJson {
+			s.FullShardList[k] = uint32(v)
+		}
+	} else if jsonConfig.ChainMaskListJson != nil {
+		//handle it after call SlaveConfig.UnmarshalJSON
+		// can not get ClusterConfig.QuarkChain.Chains config
+		s.FullShardList = nil
+		s.ChainMaskListForBackward = make([]uint32, len(*jsonConfig.ChainMaskListJson))
+		for k, v := range *jsonConfig.ChainMaskListJson {
+			s.ChainMaskListForBackward[k] = v
+		}
+	} else {
+		return errors.New("Missing FULL_SHARD_ID_LIST (or CHAIN_MASK_LIST as legacy config)")
 	}
 	return nil
 }

@@ -79,15 +79,17 @@ func (x *XShardTxCursor) getCurrentTx() (*types.CrossShardTransactionDeposit, er
 			genesisToken := x.bc.GetGenesisToken()
 			// Perform x-shard from root chain coinbase
 			return &types.CrossShardTransactionDeposit{
-				TxHash:          x.rBlock.Hash(),
-				From:            x.rBlock.Coinbase(),
-				To:              x.rBlock.Coinbase(),
-				Value:           &serialize.Uint256{Value: new(big.Int).Set(coinbaseAmount)},
-				GasPrice:        &serialize.Uint256{Value: new(big.Int)},
-				GasRemained:     &serialize.Uint256{Value: new(big.Int)},
-				GasTokenID:      genesisToken,
-				TransferTokenID: genesisToken,
-				IsFromRootChain: true,
+				CrossShardTransactionDepositV0: types.CrossShardTransactionDepositV0{
+					TxHash:          x.rBlock.Hash(),
+					From:            x.rBlock.Coinbase(),
+					To:              x.rBlock.Coinbase(),
+					Value:           &serialize.Uint256{Value: new(big.Int).Set(coinbaseAmount)},
+					GasPrice:        &serialize.Uint256{Value: new(big.Int)},
+					GasRemained:     &serialize.Uint256{Value: new(big.Int)},
+					GasTokenID:      genesisToken,
+					TransferTokenID: genesisToken,
+					IsFromRootChain: true,
+				}, RefundRate: 100,
 			}, nil
 		}
 

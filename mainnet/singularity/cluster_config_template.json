@@ -26,6 +26,9 @@
     "ENABLE_TX_TIMESTAMP": 1561791600,
     "ENABLE_EVM_TIMESTAMP": 1569567600,
     "ENABLE_QKCHASHX_HEIGHT": 1480000,
+    "ENABLE_NON_RESERVED_NATIVE_TOKEN_TIMESTAMP": 1588291200,
+    "ENABLE_GENERAL_NATIVE_TOKEN_TIMESTAMP": 1588291200,
+    "ENABLE_POSW_STAKING_DECAY_TIMESTAMP": 1588291200,
     "TX_WHITELIST_SENDERS": [
       "b8C082828F51343299c9A4deEb2503AaC3bA074f",
       "3391A1796cB98D79A2Fde326F375DF900C959Ed0",
@@ -461,32 +464,32 @@
       "HOST": "127.0.0.1",
       "PORT": 38000,
       "ID": "S0",
-      "CHAIN_MASK_LIST": [
-        4
+      "FULL_SHARD_ID_LIST": [
+        "0x1", "0x00040001"
       ]
     },
     {
       "HOST": "127.0.0.1",
       "PORT": 38001,
       "ID": "S1",
-      "CHAIN_MASK_LIST": [
-        5
+      "FULL_SHARD_ID_LIST": [
+        "0x00010001", "0x00050001"
       ]
     },
     {
       "HOST": "127.0.0.1",
       "PORT": 38002,
       "ID": "S2",
-      "CHAIN_MASK_LIST": [
-        6
+      "FULL_SHARD_ID_LIST": [
+        "0x00020001", "0x00060001"
       ]
     },
     {
       "HOST": "127.0.0.1",
       "PORT": 38003,
       "ID": "S3",
-      "CHAIN_MASK_LIST": [
-        7
+      "FULL_SHARD_ID_LIST": [
+        "0x00030001", "0x00070001"
       ]
     }
   ],

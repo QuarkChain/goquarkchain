@@ -9,7 +9,6 @@ import (
 
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/cmd/utils"
-	"github.com/QuarkChain/goquarkchain/core/types"
 )
 
 type NodeInfo struct {
@@ -136,15 +135,26 @@ func updateChains(cfg *config.ClusterConfig, ChainSize uint32, shardSizePerChain
 func updateSlaves(cfg *config.ClusterConfig, ipList []string) {
 	numSlaves := len(ipList)
 	cfg.SlaveList = make([]*config.SlaveConfig, 0, numSlaves)
+	genesisShards := cfg.Quarkchain.GetGenesisShardIds()
 	for i := 0; i < numSlaves; i++ {
 		slaveCfg := config.NewDefaultSlaveConfig()
 		slaveCfg.IP = ipList[i%len(ipList)]
 		slaveCfg.Port = uint16(48000 + i)
 		slaveCfg.ID = fmt.Sprintf("S%d", i)
 		slaveCfg.WSPort = uint16(49000 + i)
-		slaveCfg.ChainMaskList = append(slaveCfg.ChainMaskList, types.NewChainMask(uint32(i|numSlaves)))
+		slaveCfg.FullShardList = append(slaveCfg.FullShardList, getFullShardIdListFromSlaveIndex(genesisShards, numSlaves, i)...)
 		cfg.SlaveList = append(cfg.SlaveList, slaveCfg)
 	}
+}
+
+func getFullShardIdListFromSlaveIndex(list []uint32, slaveNumber int, slaveIndex int) []uint32 {
+	ans := make([]uint32, 0)
+	for index := 0; index < len(list); index++ {
+		if index%slaveNumber == slaveIndex {
+			ans = append(ans, list[index])
+		}
+	}
+	return ans
 }
 
 func GenConfigDependInitConfig(chainSize uint32, shardSizePerChain uint32, ipList []string, extraClusterConfig *ExtraClusterConfig) *config.ClusterConfig {

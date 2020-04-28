@@ -6,13 +6,12 @@ import (
 	"math/big"
 	"reflect"
 
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/crypto"
-
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/core/state"
 	"github.com/QuarkChain/goquarkchain/core/types"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
 )
 
 // RootBlockValidator implements Validator.
@@ -88,8 +87,8 @@ func (v *RootBlockValidator) ValidateBlock(block types.IBlock, force bool) error
 		if !compareCoinbaseAmountMap(expectedCoinbaseAmount.GetBalanceMap(), actualCoinbaseAmount.GetBalanceMap()) {
 			return fmt.Errorf("bad coinbase amount for root block %v. expect %d but got %d.",
 				rootBlock.Hash().String(),
-				expectedCoinbaseAmount,
-				rootBlock.CoinbaseAmount())
+				expectedCoinbaseAmount.GetBalanceMap(),
+				rootBlock.CoinbaseAmount().GetBalanceMap())
 		}
 	}
 
@@ -123,7 +122,6 @@ func (v *RootBlockValidator) ValidateBlock(block types.IBlock, force bool) error
 		parentHeader = mheader
 		shardIdToMinorHeadersMap[fullShardId] = append(shardIdToMinorHeadersMap[fullShardId], mheader)
 	}
-
 	for key := range prevRootBlockHashList {
 		if v.blockChain.GetBlock(key) == nil {
 			return fmt.Errorf("root block not found: key=%x", key)

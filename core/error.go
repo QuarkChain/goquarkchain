@@ -59,4 +59,5 @@ var (
 	ErrNotNeighbor               = errors.New("is not a neighbor")
 	ErrNotSameRootChain          = errors.New("is not same root chain")
 	ErrPoswOnRootChainIsNotFound = errors.New("PoSW-on-root-chain contract is not found")
+	ErrContractNotFound          = errors.New("contract not found")
 )

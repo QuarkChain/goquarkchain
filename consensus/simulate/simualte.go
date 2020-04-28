@@ -5,6 +5,7 @@ import (
 	"errors"
 	"math"
 	"math/big"
+	mrand "math/rand"
 	"time"
 
 	"github.com/QuarkChain/goquarkchain/cluster/config"
@@ -32,9 +33,13 @@ func (p *PowSimulate) RefreshWork(tip uint64) {
 }
 
 func (p *PowSimulate) hashAlgo(cache *consensus.ShareCache) error {
-	timeAfterCreateTime := uint64(time.Now().Add(500*time.Millisecond).Unix()) - cache.BlockTime
+	s1 := mrand.NewSource(time.Now().UnixNano())
+	diff := mrand.New(s1).Intn(1000)
+	diffDuration := time.Duration(diff) * time.Millisecond
+	timeAfterCreateTime := uint64(time.Now().Add(diffDuration).Unix()) - cache.BlockTime
 	if p.blockInterval > 2*timeAfterCreateTime {
-		time.Sleep(time.Duration(p.blockInterval-2*timeAfterCreateTime) * time.Second)
+		sleepTime := time.Duration(p.blockInterval-2*timeAfterCreateTime)*time.Second + diffDuration - 500*time.Millisecond
+		time.Sleep(sleepTime)
 	}
 
 	cache.Result = make([]byte, 0)
