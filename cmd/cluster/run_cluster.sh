@@ -13,16 +13,18 @@ slaveInfo=`grep -Po 'ID[" :]+\K[^"]+' $configPath | grep S`
 # start slave
 for value in $slaveInfo
 do
-	 cmd="./cluster --cluster_config "${configPath}" --service "${value}">> "${value}".log 2>&1 &"
+   sLog=`pwd`/${value}.log
+	 cmd="./cluster --cluster_config "${configPath}" --service "${value}">> "$sLog" 2>&1 &"
 	 eval $cmd
 	 pid=$!
-	 echo "Start "${value}" successfull pid="$pid" logFile="${value}.log
+	 echo "Start "${value}"     successfull pid="$pid" logFile=$sLog"
 done
 
 sleep 5s
 
 # start master
-cmd="./cluster --cluster_config "${configPath}" >>master.log 2>&1 &"
+mLog=`pwd`/master.log
+cmd="./cluster --cluster_config "${configPath}" >>$mLog 2>&1 &"
 eval $cmd
 pid=$!
-echo "Start master successfull pid="$pid" logFile=master.log"
+echo "Start master successfull pid="$pid" logFile=$mLog"
