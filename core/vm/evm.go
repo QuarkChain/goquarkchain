@@ -17,6 +17,7 @@
 package vm
 
 import (
+	"bytes"
 	"fmt"
 	"math/big"
 	"sync/atomic"
@@ -413,15 +414,14 @@ func (evm *EVM) create(caller ContractRef, codeAndHash *codeAndHash, gas uint64,
 		return nil, common.Address{}, gas, ErrInsufficientBalance
 	}
 
-	if !evm.IsApplyXShard {
+	if !evm.IsApplyXShard || !bytes.Equal(evm.Origin.Bytes(), caller.Address().Bytes()) {
 		nonce := evm.StateDB.GetNonce(caller.Address())
 		evm.StateDB.SetNonce(caller.Address(), nonce+1)
 	}
-	
-	if evm.TransferTokenID != evm.StateDB.GetQuarkChainConfig().GetDefaultChainTokenID() {
-		return nil, common.Address{}, gas, fmt.Errorf("evm:create only support defalut token id %v",evm.StateDB.GetQuarkChainConfig().GetDefaultChainTokenID())
-	}
 
+	if evm.TransferTokenID != evm.StateDB.GetQuarkChainConfig().GetDefaultChainTokenID() {
+		return nil, common.Address{}, gas, fmt.Errorf("evm:create only support defalut token id %v", evm.StateDB.GetQuarkChainConfig().GetDefaultChainTokenID())
+	}
 
 	// Ensure there's no existing contract already at the designated address
 	contractHash := evm.StateDB.GetCodeHash(address)
