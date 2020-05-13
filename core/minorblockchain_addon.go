@@ -1706,6 +1706,7 @@ func (m *MinorBlockChain) RunCrossShardTxWithCursor(evmState *state.StateDB,
 	txList := make([]*types.CrossShardTransactionDeposit, 0)
 	evmState.SetQuarkChainConfig(m.clusterConfig.Quarkchain)
 	gasUsed := new(uint64)
+	txIndex := 0
 	for true {
 		xShardDepositTx, err := cursor.getNextTx()
 		if err != nil {
@@ -1715,7 +1716,6 @@ func (m *MinorBlockChain) RunCrossShardTxWithCursor(evmState *state.StateDB,
 			break
 		}
 		checkIsFromRootChain := cursor.rBlock.NumberU64() >= m.clusterConfig.Quarkchain.XShardGasDDOSFixRootHeight
-		txIndex := 0
 		receipt, err := ApplyCrossShardDeposit(m.ChainConfig(), m, mBlock.Header(),
 			*m.GetVMConfig(), evmState, xShardDepositTx, gasUsed, checkIsFromRootChain, txIndex)
 		if err != nil {
