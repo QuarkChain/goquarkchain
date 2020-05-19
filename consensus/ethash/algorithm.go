@@ -34,9 +34,8 @@ const (
 )
 
 // cacheSize returns the size of the ethash verification cache that belongs to a certain
-// block number.
-func cacheSize(block uint64) uint64 {
-	epoch := int(block / epochLength)
+// epoch number.
+func cacheSize(epoch uint64) uint64 {
 	if epoch < maxEpoch {
 		return cacheSizes[epoch]
 	}
@@ -46,8 +45,8 @@ func cacheSize(block uint64) uint64 {
 // calcCacheSize calculates the cache size for epoch. The cache size grows linearly,
 // however, we always take the highest prime below the linearly growing threshold in order
 // to reduce the risk of accidental regularities leading to cyclic behavior.
-func calcCacheSize(epoch int) uint64 {
-	size := cacheInitBytes + cacheGrowthBytes*uint64(epoch) - hashBytes
+func calcCacheSize(epoch uint64) uint64 {
+	size := cacheInitBytes + cacheGrowthBytes*epoch - hashBytes
 	for !new(big.Int).SetUint64(size / hashBytes).ProbablyPrime(1) { // Always accurate for n < 2^64
 		size -= 2 * hashBytes
 	}
@@ -55,9 +54,8 @@ func calcCacheSize(epoch int) uint64 {
 }
 
 // datasetSize returns the size of the ethash mining dataset that belongs to a certain
-// block number.
-func datasetSize(block uint64) uint64 {
-	epoch := int(block / epochLength)
+// epoch number.
+func datasetSize(epoch uint64) uint64 {
 	if epoch < maxEpoch {
 		return datasetSizes[epoch]
 	}
@@ -67,8 +65,8 @@ func datasetSize(block uint64) uint64 {
 // calcDatasetSize calculates the dataset size for epoch. The dataset size grows linearly,
 // however, we always take the highest prime below the linearly growing threshold in order
 // to reduce the risk of accidental regularities leading to cyclic behavior.
-func calcDatasetSize(epoch int) uint64 {
-	size := datasetInitBytes + datasetGrowthBytes*uint64(epoch) - mixBytes
+func calcDatasetSize(epoch uint64) uint64 {
+	size := datasetInitBytes + datasetGrowthBytes*epoch - mixBytes
 	for !new(big.Int).SetUint64(size / mixBytes).ProbablyPrime(1) { // Always accurate for n < 2^64
 		size -= 2 * mixBytes
 	}
@@ -103,16 +101,35 @@ func makeHasher(h hash.Hash) hasher {
 
 // seedHash is the seed to use for generating a verification cache and the mining
 // dataset.
-func seedHash(block uint64) []byte {
+func seedHash(epoch uint64) []byte {
+	initonce.Do(initSeedCache)
+	index := int(epoch) - len(seedCache) + 1
+	if index > 64 {
+		fillInSeedCache(len(seedCache), index)
+	} else if index > 0 {
+		fillInSeedCache(len(seedCache), 64)
+	}
+
+	return seedCache[epoch]
+}
+
+func initSeedCache() {
 	seed := make([]byte, 32)
-	if block < epochLength {
-		return seed
+	seedCache = append(seedCache, seed)
+	fillInSeedCache(1, maxEpoch)
+}
+
+func fillInSeedCache(start, count int) {
+	if start > len(seedCache) {
+		panic("fill in seedCache fail.")
 	}
+	seed := seedCache[start-1]
 	keccak256 := makeHasher(sha3.NewKeccak256())
-	for i := 0; i < int(block/epochLength); i++ {
-		keccak256(seed, seed)
+	for i := 0; i < count; i++ {
+		s := make([]byte, 32)
+		keccak256(s, seed)
+		seedCache = append(seedCache, s)
 	}
-	return seed
 }
 
 // generateCache creates a verification cache of a given size for an input seed.
@@ -1131,3 +1148,8 @@ var cacheSizes = [maxEpoch]uint64{
 	283377344, 283508416, 283639744, 283770304, 283901504, 284032576,
 	284163136, 284294848, 284426176, 284556992, 284687296, 284819264,
 	284950208, 285081536}
+
+// seedCache is a lookup table for the ethash seed for epochs (i.e. 61440000 blocks).
+var seedCache = make([][]byte, 0, maxEpoch)
+
+var initonce sync.Once

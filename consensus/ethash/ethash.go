@@ -209,8 +209,8 @@ func newCache(epoch uint64) interface{} {
 // generate ensures that the cache content is generated before use.
 func (c *cache) generate(dir string, limit int, test bool) {
 	c.once.Do(func() {
-		size := cacheSize(c.epoch*epochLength + 1)
-		seed := seedHash(c.epoch*epochLength + 1)
+		size := cacheSize(c.epoch)
+		seed := seedHash(c.epoch)
 		if test {
 			size = 1024
 		}
@@ -251,7 +251,7 @@ func (c *cache) generate(dir string, limit int, test bool) {
 		}
 		// Iterate over all previous instances and delete old ones
 		for ep := int(c.epoch) - limit; ep >= 0; ep-- {
-			seed := seedHash(uint64(ep)*epochLength + 1)
+			seed := seedHash(uint64(ep))
 			path := filepath.Join(dir, fmt.Sprintf("cache-R%d-%x%s", algorithmRevision, seed[:8], endian))
 			os.Remove(path)
 		}
@@ -289,9 +289,9 @@ func (d *dataset) generate(dir string, limit int, test bool) {
 		// Mark the dataset generated after we're done. This is needed for remote
 		defer atomic.StoreUint32(&d.done, 1)
 
-		csize := cacheSize(d.epoch*epochLength + 1)
-		dsize := datasetSize(d.epoch*epochLength + 1)
-		seed := seedHash(d.epoch*epochLength + 1)
+		csize := cacheSize(d.epoch)
+		dsize := datasetSize(d.epoch)
+		seed := seedHash(d.epoch)
 		if test {
 			csize = 1024
 			dsize = 32 * 1024
@@ -340,7 +340,7 @@ func (d *dataset) generate(dir string, limit int, test bool) {
 		}
 		// Iterate over all previous instances and delete old ones
 		for ep := int(d.epoch) - limit; ep >= 0; ep-- {
-			seed := seedHash(uint64(ep)*epochLength + 1)
+			seed := seedHash(uint64(ep))
 			path := filepath.Join(dir, fmt.Sprintf("full-R%d-%x%s", algorithmRevision, seed[:8], endian))
 			os.Remove(path)
 		}
@@ -497,5 +497,5 @@ func (ethash *Ethash) dataset(block uint64, async bool) *dataset {
 // SeedHash is the seed to use for generating a verification cache and the mining
 // dataset.
 func SeedHash(block uint64) []byte {
-	return seedHash(block)
+	return seedHash(block / epochLength)
 }

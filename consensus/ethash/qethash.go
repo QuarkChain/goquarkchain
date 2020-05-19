@@ -18,7 +18,7 @@ type QEthash struct {
 
 func (q *QEthash) hashAlgo(shareCache *consensus.ShareCache) (err error) {
 	cache := q.cache(shareCache.Height)
-	size := datasetSize(shareCache.Height)
+	size := datasetSize(shareCache.Height / epochLength)
 	if q.config.PowMode == ModeTest {
 		size = 32 * 1024
 	}
@@ -42,7 +42,7 @@ func (q *QEthash) verifySeal(chain consensus.ChainReader, header types.IHeader, 
 	)
 	cache := q.cache(number)
 
-	size := datasetSize(number)
+	size := datasetSize(number / epochLength)
 	if q.config.PowMode == ModeTest {
 		size = 32 * 1024
 	}
