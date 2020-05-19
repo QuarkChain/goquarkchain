@@ -675,15 +675,7 @@ func (p *PublicBlockChainAPI) GetFullShardIds() ([]hexutil.Uint64, error) {
 	return res, nil
 }
 
-type PrivateBlockChainAPI struct {
-	b Backend
-}
-
-func NewPrivateBlockChainAPI(b Backend) *PrivateBlockChainAPI {
-	return &PrivateBlockChainAPI{b}
-}
-
-func (p *PrivateBlockChainAPI) GetPeers() map[string]interface{} {
+func (p *PublicBlockChainAPI) GetPeers() map[string]interface{} {
 	fields := make(map[string]interface{})
 
 	list := make([]map[string]interface{}, 0)
@@ -697,6 +689,14 @@ func (p *PrivateBlockChainAPI) GetPeers() map[string]interface{} {
 	}
 	fields["peers"] = list
 	return fields
+}
+
+type PrivateBlockChainAPI struct {
+	b Backend
+}
+
+func NewPrivateBlockChainAPI(b Backend) *PrivateBlockChainAPI {
+	return &PrivateBlockChainAPI{b}
 }
 
 func (p *PrivateBlockChainAPI) GetSyncStats() {
