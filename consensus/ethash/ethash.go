@@ -444,8 +444,7 @@ func NewTester() *Ethash {
 // cache tries to retrieve a verification cache for the specified block number
 // by first checking against a list of in-memory caches, then against caches
 // stored on disk, and finally generating one if none can be found.
-func (ethash *Ethash) cache(block uint64) *cache {
-	epoch := block / epochLength
+func (ethash *Ethash) cache(epoch uint64) *cache {
 	currentI, futureI := ethash.caches.get(epoch)
 	current := currentI.(*cache)
 
