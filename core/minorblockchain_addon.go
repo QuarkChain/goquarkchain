@@ -114,10 +114,10 @@ func (m *MinorBlockChain) calcCoinbaseAmountByHeight(epoch uint64) {
 }
 
 func (m *MinorBlockChain) putMinorBlock(mBlock *types.MinorBlock, xShardReceiveTxList []*types.CrossShardTransactionDeposit) error {
-	if _, ok := m.heightToMinorBlockHashes[mBlock.NumberU64()]; !ok {
-		m.heightToMinorBlockHashes[mBlock.NumberU64()] = make(map[common.Hash]struct{})
-	}
-	m.heightToMinorBlockHashes[mBlock.NumberU64()][mBlock.Hash()] = struct{}{}
+	/*	if _, ok := m.heightToMinorBlockHashes[mBlock.NumberU64()]; !ok {
+			m.heightToMinorBlockHashes[mBlock.NumberU64()] = make(map[common.Hash]struct{})
+		}
+		m.heightToMinorBlockHashes[mBlock.NumberU64()][mBlock.Hash()] = struct{}{}*/
 	if !m.HasBlock(mBlock.Hash()) {
 		rawdb.WriteMinorBlock(m.db, mBlock)
 		m.blockCache.Add(mBlock.Hash(), mBlock)
@@ -1284,6 +1284,7 @@ func (m *MinorBlockChain) reWriteBlockIndexTo(oldBlock *types.MinorBlock, newBlo
 	}
 	return m.reorg(oldBlock, newBlock)
 }
+
 func (m *MinorBlockChain) GetBranch() account.Branch {
 	return m.branch
 }
@@ -1352,7 +1353,6 @@ func encodeAllTxKey(height uint64, index int, crossShard bool) []byte {
 	rs = append(rs, crossShardBytes...)
 	rs = append(rs, indexBytes...)
 	return rs
-
 }
 
 func (m *MinorBlockChain) putTxIndexFromBlock(batch rawdb.DatabaseWriter, block types.IBlock) error {
