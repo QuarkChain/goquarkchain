@@ -128,6 +128,7 @@ func fillInSeedCache(start, count int) {
 	for i := 0; i < count; i++ {
 		s := make([]byte, 32)
 		keccak256(s, seed)
+		seed = s
 		seedCache = append(seedCache, s)
 	}
 }
