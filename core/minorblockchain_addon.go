@@ -49,6 +49,7 @@ func (m *MinorBlockChain) ReadLastConfirmedMinorBlockHeaderAtRootBlock(hash comm
 
 	return data
 }
+
 func (m *MinorBlockChain) getLastConfirmedMinorBlockHeaderAtRootBlock(hash common.Hash) *types.MinorBlock {
 	rMinorHeaderHash := m.ReadLastConfirmedMinorBlockHeaderAtRootBlock(hash)
 	if rMinorHeaderHash == qkcCommon.EmptyHash {
@@ -114,10 +115,21 @@ func (m *MinorBlockChain) calcCoinbaseAmountByHeight(epoch uint64) {
 }
 
 func (m *MinorBlockChain) putMinorBlock(mBlock *types.MinorBlock, xShardReceiveTxList []*types.CrossShardTransactionDeposit) error {
-	/*	if _, ok := m.heightToMinorBlockHashes[mBlock.NumberU64()]; !ok {
-			m.heightToMinorBlockHashes[mBlock.NumberU64()] = make(map[common.Hash]struct{})
+	if _, ok := m.heightToMinorBlockHashes[mBlock.NumberU64()]; !ok {
+		m.heightToMinorBlockHashes[mBlock.NumberU64()] = make(map[common.Hash]struct{})
+	}
+	m.heightToMinorBlockHashes[mBlock.NumberU64()][mBlock.Hash()] = struct{}{}
+	if len(m.heightToMinorBlockHashes) > maxCacheCountHeight2Hash {
+		minNumber := mBlock.NumberU64() - maxCacheCountHeight2Hash/2
+		for number, hashes := range m.heightToMinorBlockHashes {
+			if len(hashes) > 1 {
+				m.heightToMBlockHashCount[number] = len(hashes)
+			}
+			if number < minNumber {
+				delete(m.heightToMinorBlockHashes, number)
+			}
 		}
-		m.heightToMinorBlockHashes[mBlock.NumberU64()][mBlock.Hash()] = struct{}{}*/
+	}
 	if !m.HasBlock(mBlock.Hash()) {
 		rawdb.WriteMinorBlock(m.db, mBlock)
 		m.blockCache.Add(mBlock.Hash(), mBlock)
@@ -267,6 +279,7 @@ func (m *MinorBlockChain) validateTx(tx *types.Transaction, evmState *state.Stat
 	}
 	return tx, nil
 }
+
 func (m *MinorBlockChain) InitGenesisState(rBlock *types.RootBlock) (*types.MinorBlock, error) {
 	log.Info(m.logInfo, "InitGenesisState number", rBlock.Number(), "hash", rBlock.Hash().String())
 	defer log.Info(m.logInfo, "InitGenesisState", "end")
@@ -346,6 +359,7 @@ func (m *MinorBlockChain) isMinorBlockLinkedToRootTip(mBlock *types.MinorBlock) 
 	}
 	return isSameChain(m.GetParentHashByHash, mBlock, confirmed)
 }
+
 func (m *MinorBlockChain) isNeighbor(remoteBranch account.Branch, rootHeight *uint32) bool {
 	if rootHeight == nil {
 		t := m.rootTip.Number()
@@ -516,6 +530,7 @@ func (m *MinorBlockChain) setEvmStateWithBlock(evmState *state.StateDB, block *t
 	evmState.SetGasLimit(block.GasLimit())
 	evmState.SetQuarkChainConfig(m.clusterConfig.Quarkchain)
 }
+
 func (m *MinorBlockChain) runBlock(block *types.MinorBlock) (*state.StateDB, types.Receipts, []*types.Log, uint64,
 	[]*types.CrossShardTransactionDeposit, error) {
 
@@ -1261,14 +1276,21 @@ func (m *MinorBlockChain) GasPrice(tokenID uint64) (uint64, error) {
 	return price, nil
 }
 
-func (m *MinorBlockChain) getBlockCountByHeight(height uint64) uint64 {
+func (m *MinorBlockChain) getBlockCountByHeight(height uint64) int {
 	m.mu.RLock() //to lock heightToMinorBlockHashes
 	defer m.mu.RUnlock()
-	rs, ok := m.heightToMinorBlockHashes[height]
-	if !ok {
+	if height > m.CurrentBlock().NumberU64() {
 		return 0
 	}
-	return uint64(len(rs))
+	rs, ok := m.heightToMinorBlockHashes[height]
+	if ok {
+		return len(rs)
+	}
+	count, ok := m.heightToMBlockHashCount[height]
+	if ok {
+		return count
+	}
+	return 1
 }
 
 // reWriteBlockIndexTo : already locked
@@ -1392,6 +1414,7 @@ func bytesSubOne(data []byte) []byte {
 	bigData := new(big.Int).SetBytes(data)
 	return bigData.Sub(bigData, new(big.Int).SetUint64(1)).Bytes()
 }
+
 func bytesAddOne(data []byte) []byte {
 	bigData := new(big.Int).SetBytes(data)
 	return bigData.Add(bigData, new(big.Int).SetUint64(1)).Bytes()
@@ -1610,9 +1633,11 @@ func (m *MinorBlockChain) putTxIndexDB(key []byte) error {
 	err := m.db.Put(key, []byte("1")) //TODO????
 	return err
 }
+
 func (m *MinorBlockChain) deleteTxIndexDB(key []byte) error {
 	return m.db.Delete(key)
 }
+
 func (m *MinorBlockChain) updateTxHistoryIndex(tx *types.Transaction, height uint64, index int, f func(key []byte) error) error {
 	if !m.clusterConfig.EnableTransactionHistory {
 		return nil
@@ -1640,9 +1665,11 @@ func (m *MinorBlockChain) updateTxHistoryIndex(tx *types.Transaction, height uin
 	}
 	return nil
 }
+
 func (m *MinorBlockChain) putTxHistoryIndex(tx *types.Transaction, height uint64, index int) error {
 	return m.updateTxHistoryIndex(tx, height, index, m.putTxIndexDB)
 }
+
 func (m *MinorBlockChain) removeTxHistoryIndex(db rawdb.DatabaseDeleter, tx *types.Transaction, height uint64, index int) error {
 	rawdb.DeleteBlockContentLookupEntry(db, tx.Hash())
 	return m.updateTxHistoryIndex(tx, height, index, m.deleteTxIndexDB)
@@ -1671,9 +1698,11 @@ func (m *MinorBlockChain) updateTxHistoryIndexFromBlock(block *types.MinorBlock,
 	}
 	return nil
 }
+
 func (m *MinorBlockChain) putTxHistoryIndexFromBlock(block *types.MinorBlock) error {
 	return m.updateTxHistoryIndexFromBlock(block, m.putTxIndexDB)
 }
+
 func (m *MinorBlockChain) removeTxHistoryIndexFromBlock(block *types.MinorBlock) error {
 	return m.updateTxHistoryIndexFromBlock(block, m.deleteTxIndexDB)
 }

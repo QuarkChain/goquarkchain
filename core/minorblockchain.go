@@ -52,16 +52,18 @@ import (
 )
 
 const (
-	maxCrossShardLimit    = 256
-	maxRootBlockLimit     = 128
-	maxLastConfirmLimit   = 256
-	maxGasPriceCacheLimit = 128
+	maxCrossShardLimit       = 256
+	maxRootBlockLimit        = 128
+	maxLastConfirmLimit      = 256
+	maxGasPriceCacheLimit    = 128
+	maxCacheCountHeight2Hash = 1024
 )
 
 type gasPriceKey struct {
 	currHead common.Hash
 	tokenID  uint64
 }
+
 type gasPriceSuggestionOracle struct {
 	cache       *lru.Cache
 	CheckBlocks uint64
@@ -142,6 +144,7 @@ type MinorBlockChain struct {
 	rewardCalc               *qkcCommon.ConstMinorBlockRewardCalculator
 	gasPriceSuggestionOracle *gasPriceSuggestionOracle
 	heightToMinorBlockHashes map[uint64]map[common.Hash]struct{}
+	heightToMBlockHashCount  map[uint64]int
 	currentEvmState          *state.StateDB
 	logInfo                  string
 	addMinorBlockAndBroad    func(block *types.MinorBlock) error
@@ -201,6 +204,7 @@ func NewMinorBlockChain(
 		engine:                   engine,
 		vmConfig:                 vmConfig,
 		heightToMinorBlockHashes: make(map[uint64]map[common.Hash]struct{}),
+		heightToMBlockHashCount:  make(map[uint64]int),
 		currentEvmState:          new(state.StateDB),
 		branch:                   account.Branch{Value: fullShardID},
 		shardConfig:              clusterConfig.Quarkchain.GetShardConfigByFullShardID(fullShardID),
