@@ -143,6 +143,7 @@ type MinorBlockChain struct {
 	initialized              bool
 	rewardCalc               *qkcCommon.ConstMinorBlockRewardCalculator
 	gasPriceSuggestionOracle *gasPriceSuggestionOracle
+	minRecordMinorBlock      uint64
 	heightToMinorBlockHashes map[uint64]map[common.Hash]struct{}
 	heightToMBlockHashCount  map[uint64]int
 	currentEvmState          *state.StateDB
@@ -203,6 +204,7 @@ func NewMinorBlockChain(
 		coinbaseAmountCache:      make(map[uint64]CoinbaseAmountAboutHeight),
 		engine:                   engine,
 		vmConfig:                 vmConfig,
+		minRecordMinorBlock:      uint64(0xFFFFFFFFFFFFFFFF),
 		heightToMinorBlockHashes: make(map[uint64]map[common.Hash]struct{}),
 		heightToMBlockHashCount:  make(map[uint64]int),
 		currentEvmState:          new(state.StateDB),

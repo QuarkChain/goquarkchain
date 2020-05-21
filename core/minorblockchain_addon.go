@@ -117,6 +117,9 @@ func (m *MinorBlockChain) calcCoinbaseAmountByHeight(epoch uint64) {
 func (m *MinorBlockChain) putMinorBlock(mBlock *types.MinorBlock, xShardReceiveTxList []*types.CrossShardTransactionDeposit) error {
 	if _, ok := m.heightToMinorBlockHashes[mBlock.NumberU64()]; !ok {
 		m.heightToMinorBlockHashes[mBlock.NumberU64()] = make(map[common.Hash]struct{})
+		if m.minRecordMinorBlock > mBlock.NumberU64() {
+			m.minRecordMinorBlock = mBlock.NumberU64()
+		}
 	}
 	m.heightToMinorBlockHashes[mBlock.NumberU64()][mBlock.Hash()] = struct{}{}
 	if len(m.heightToMinorBlockHashes) > maxCacheCountHeight2Hash {
@@ -1279,7 +1282,7 @@ func (m *MinorBlockChain) GasPrice(tokenID uint64) (uint64, error) {
 func (m *MinorBlockChain) getBlockCountByHeight(height uint64) int {
 	m.mu.RLock() //to lock heightToMinorBlockHashes
 	defer m.mu.RUnlock()
-	if height > m.CurrentBlock().NumberU64() {
+	if height > m.CurrentBlock().NumberU64() || height < m.minRecordMinorBlock {
 		return 0
 	}
 	rs, ok := m.heightToMinorBlockHashes[height]
