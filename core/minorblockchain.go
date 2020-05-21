@@ -142,7 +142,6 @@ type MinorBlockChain struct {
 	rewardCalc               *qkcCommon.ConstMinorBlockRewardCalculator
 	gasPriceSuggestionOracle *gasPriceSuggestionOracle
 	heightToMinorBlockHashes map[uint64]map[common.Hash]struct{}
-	rootHeightToHashes       map[uint64]map[common.Hash]common.Hash // [rootBlockHeight][rootBlockHash][confirmedMinorHash]
 	currentEvmState          *state.StateDB
 	logInfo                  string
 	addMinorBlockAndBroad    func(block *types.MinorBlock) error
@@ -202,7 +201,6 @@ func NewMinorBlockChain(
 		engine:                   engine,
 		vmConfig:                 vmConfig,
 		heightToMinorBlockHashes: make(map[uint64]map[common.Hash]struct{}),
-		rootHeightToHashes:       make(map[uint64]map[common.Hash]common.Hash),
 		currentEvmState:          new(state.StateDB),
 		branch:                   account.Branch{Value: fullShardID},
 		shardConfig:              clusterConfig.Quarkchain.GetShardConfigByFullShardID(fullShardID),
@@ -669,14 +667,6 @@ func (m *MinorBlockChain) Stop() {
 			currNumber = m.CurrentBlock().NumberU64()
 			heightDiff = []uint64{0, 1, triesInMemory - 1}
 		)
-		if m.rootTip != nil {
-			log.Info("need stored tire", "root tip number", m.rootTip.Number, "minor tip number", m.CurrentBlock().Number())
-
-			for hash := range m.rootHeightToHashes[m.rootTip.NumberU64()] {
-				heightDiff = m.getNeedStoreHeight(hash, heightDiff)
-			}
-			heightDiff = qkcCommon.RemoveDuplicate(heightDiff)
-		}
 		for _, offset := range heightDiff {
 			if currNumber > offset {
 				recentBlockInterface := m.GetBlockByNumber(currNumber - offset)
