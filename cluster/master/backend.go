@@ -6,6 +6,7 @@ import (
 	"math/big"
 	"net"
 	"os"
+	"runtime"
 	"sort"
 	"sync"
 	"syscall"
@@ -306,8 +307,9 @@ func (s *QKCMasterBackend) SetMining(mining bool) {
 		log.Error("Set slave mining failed", "err", err)
 		return
 	}
-
-	s.miner.SetMining(mining)
+	runtime.GC()
+	fmt.Println("MMMMMM gc")
+	//s.miner.SetMining(mining)
 }
 
 // InitCluster init cluster :
