@@ -309,7 +309,7 @@ func (s *QKCMasterBackend) SetMining(mining bool) {
 	}
 	runtime.GC()
 	fmt.Println("MMMMMM gc")
-	//s.miner.SetMining(mining)
+	s.miner.SetMining(mining)
 }
 
 // InitCluster init cluster :
