@@ -2,15 +2,16 @@
 package service
 
 import (
-	"github.com/QuarkChain/goquarkchain/p2p"
-	"github.com/QuarkChain/goquarkchain/qkcdb"
-	"github.com/QuarkChain/goquarkchain/rpc"
-	"github.com/ethereum/go-ethereum/ethdb"
-	"github.com/ethereum/go-ethereum/event"
+	"fmt"
 	"os"
 	"reflect"
 	"sync"
 	"time"
+
+	"github.com/QuarkChain/goquarkchain/p2p"
+	"github.com/QuarkChain/goquarkchain/rpc"
+	"github.com/ethereum/go-ethereum/ethdb"
+	"github.com/ethereum/go-ethereum/event"
 )
 
 // ServiceContext is a collection of service independent options inherited from
@@ -48,10 +49,15 @@ func (ctx *ServiceContext) OpenDatabase(name string, clean bool, isReadOnly bool
 	if ctx.config == nil || ctx.config.DataDir == "" {
 		return NewQkcMemoryDB(isReadOnly), nil
 	}
-	db, err := qkcdb.NewRDBDatabase(ctx.config.ResolvePath(name), clean, isReadOnly)
+	//db, err := qkcdb.NewRDBDatabase(ctx.config.ResolvePath(name), clean, isReadOnly)
+	//if err != nil {
+	//	return nil, err
+	//}
+	db, err := ethdb.NewLDBDatabase(ctx.config.ResolvePath(name), 16, 16)
 	if err != nil {
 		return nil, err
 	}
+	fmt.Println("NewLDBDatabase", name, ctx.config.ResolvePath(name))
 	return db, nil
 }
 
