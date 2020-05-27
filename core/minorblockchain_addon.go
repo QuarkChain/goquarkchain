@@ -125,11 +125,11 @@ func (m *MinorBlockChain) putMinorBlock(mBlock *types.MinorBlock, xShardReceiveT
 	if len(m.heightToMinorBlockHashes) > maxCacheCountHeight2Hash {
 		minNumber := mBlock.NumberU64() - maxCacheCountHeight2Hash/2
 		for number, hashes := range m.heightToMinorBlockHashes {
-			if len(hashes) > 1 {
-				m.heightToMBlockHashCount[number] = len(hashes)
-			}
 			if number < minNumber {
 				delete(m.heightToMinorBlockHashes, number)
+				if len(hashes) > 1 {
+					m.heightToMBlockHashCount[number] = len(hashes)
+				}
 			}
 		}
 	}
