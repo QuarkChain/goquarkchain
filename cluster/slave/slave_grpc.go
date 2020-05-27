@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"runtime"
 	"time"
 
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
@@ -761,9 +760,7 @@ func (s *SlaveServerSideOp) SetMining(ctx context.Context, req *rpc.Request) (*r
 	if err = serialize.DeserializeFromBytes(req.Data, &mining); err != nil {
 		return nil, err
 	}
-	//s.slave.SetMining(mining)
-	runtime.GC()
-	fmt.Println("GGGGGGGGGGGGG", s.slave.config.IP, s.slave.config.Port)
+	s.slave.SetMining(mining)
 	return response, nil
 }
 
