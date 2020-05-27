@@ -1,3 +1,5 @@
+//+build rdb
+
 package qkcdb_test
 
 import (
@@ -9,16 +11,16 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/QuarkChain/goquarkchain/qkcdb"
+	"github.com/QuarkChain/goquarkchain-union/qkcdb"
 	"github.com/stretchr/testify/assert"
 )
 
-func newTestRDB() (*qkcdb.RDBDatabase, func()) {
+func newTestRDB() (*qkcdb.QKCDataBase, func()) {
 	dirname, err := ioutil.TempDir(os.TempDir(), "qkcdb_test_")
 	if err != nil {
 		panic("failed to create test file: " + err.Error())
 	}
-	db, err := qkcdb.NewRDBDatabase(dirname, false, false)
+	db, err := qkcdb.NewDatabase(dirname, false, false)
 	if err != nil {
 		panic("failed to create test database: " + err.Error())
 	}
@@ -208,7 +210,7 @@ func TestNewDBWithClean(t *testing.T) {
 	if err != nil {
 		panic("failed to create test file: " + err.Error())
 	}
-	db, err := qkcdb.NewRDBDatabase(dirname, false, false)
+	db, err := qkcdb.NewDatabase(dirname, false, false)
 	if err != nil {
 		panic("failed to create test database: " + err.Error())
 	}
@@ -225,7 +227,7 @@ func TestNewDBWithClean(t *testing.T) {
 	db.Close()
 
 	//not clean
-	dbNotClean, err := qkcdb.NewRDBDatabase(dirname, false, false)
+	dbNotClean, err := qkcdb.NewDatabase(dirname, false, false)
 	if err != nil {
 		panic("failed to create test database: " + err.Error())
 	}
@@ -236,7 +238,7 @@ func TestNewDBWithClean(t *testing.T) {
 	dbNotClean.Close()
 
 	//clean
-	dbClean, err := qkcdb.NewRDBDatabase(dirname, true, false)
+	dbClean, err := qkcdb.NewDatabase(dirname, true, false)
 	if err != nil {
 		panic("failed to create test database: " + err.Error())
 	}

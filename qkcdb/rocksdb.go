@@ -1,3 +1,5 @@
+//+build rdb
+
 package qkcdb
 
 import (
@@ -9,12 +11,7 @@ import (
 	"github.com/tecbot/gorocksdb"
 )
 
-const (
-	cache   uint64 = 128
-	handles        = 256
-)
-
-type RDBDatabase struct {
+type QKCDataBase struct {
 	fn         string        // filename for reporting
 	db         *gorocksdb.DB // RocksDB instance
 	ro         *gorocksdb.ReadOptions
@@ -24,14 +21,14 @@ type RDBDatabase struct {
 	log        log.Logger // Contextual logger tracking the database path
 }
 
-// NewRDBDatabase returns a rocksdb wrapped object.
-func NewRDBDatabase(file string, clean, isReadOnly bool) (*RDBDatabase, error) {
+// NewDatabase returns a rocksdb wrapped object.
+func NewDatabase(file string, clean, isReadOnly bool) (*QKCDataBase, error) {
+	log.Info("create db", "db type", "rocksdb", "file", file)
 	logger := log.New("database", file)
 
 	if err := os.MkdirAll(file, 0700); err != nil {
 		return nil, err
 	}
-
 	opts := gorocksdb.NewDefaultOptions()
 	if clean {
 		if err := gorocksdb.DestroyDb(file, opts); err != nil {
@@ -61,7 +58,7 @@ func NewRDBDatabase(file string, clean, isReadOnly bool) (*RDBDatabase, error) {
 
 	logger.Info("Allocated cache and file handles", "cache", cache, "handles", handles)
 
-	return &RDBDatabase{
+	return &QKCDataBase{
 		fn:         file,
 		db:         db,
 		ro:         ro,
@@ -72,12 +69,12 @@ func NewRDBDatabase(file string, clean, isReadOnly bool) (*RDBDatabase, error) {
 }
 
 // Path returns the path to the database directory.
-func (db *RDBDatabase) Path() string {
+func (db *QKCDataBase) Path() string {
 	return db.fn
 }
 
 // Put puts the given key / value to the queue
-func (db *RDBDatabase) Put(key []byte, value []byte) error {
+func (db *QKCDataBase) Put(key []byte, value []byte) error {
 	if db.isReadOnly {
 		return nil
 	}
@@ -87,7 +84,7 @@ func (db *RDBDatabase) Put(key []byte, value []byte) error {
 	return db.db.Put(db.wo, key, value)
 }
 
-func (db *RDBDatabase) Has(key []byte) (bool, error) {
+func (db *QKCDataBase) Has(key []byte) (bool, error) {
 	_, err := db.Get(key)
 	if err != nil {
 		return false, err
@@ -96,7 +93,7 @@ func (db *RDBDatabase) Has(key []byte) (bool, error) {
 }
 
 // Get returns the given key if it's present.
-func (db *RDBDatabase) Get(key []byte) ([]byte, error) {
+func (db *QKCDataBase) Get(key []byte) ([]byte, error) {
 	if len(key) == 0 {
 		return nil, errors.New("failed to get data from database, key can't be empty")
 	}
@@ -114,28 +111,23 @@ func (db *RDBDatabase) Get(key []byte) ([]byte, error) {
 }
 
 // Delete deletes the key from the queue and database
-func (db *RDBDatabase) Delete(key []byte) error {
+func (db *QKCDataBase) Delete(key []byte) error {
 	return db.db.Delete(db.wo, key)
 }
 
-func (db *RDBDatabase) NewIterator() *gorocksdb.Iterator {
-	return db.db.NewIterator(db.ro)
+func (db *QKCDataBase) NewIterator() *QKCIterator {
+	return &QKCIterator{
+		db.db.NewIterator(db.ro),
+	}
 }
 
-// NewIteratorWithPrefix returns a iterator to iterate over subset of database content with a particular prefix.
-func (db *RDBDatabase) NewIteratorWithPrefix(prefix []byte) *gorocksdb.Iterator {
-	it := db.NewIterator()
-	it.Seek(prefix)
-	return it
-}
-
-func (db *RDBDatabase) Close() {
+func (db *QKCDataBase) Close() {
 	db.closeOnce.Do(func() {
 		db.db.Close()
 	})
 }
 
-func (db *RDBDatabase) NewBatch() Batch {
+func (db *QKCDataBase) NewBatch() Batch {
 	return &rdbBatch{db: db.db /*ro: db.ro,*/, wo: db.wo, w: gorocksdb.NewWriteBatch()}
 }
 
@@ -166,4 +158,24 @@ func (b *rdbBatch) ValueSize() int {
 
 func (b *rdbBatch) Reset() {
 	b.w.Clear()
+}
+
+type QKCIterator struct {
+	it *gorocksdb.Iterator
+}
+
+func (q *QKCIterator) Key() []byte {
+	return q.it.Key().Data()
+}
+
+func (q *QKCIterator) Next() {
+	q.it.Next()
+}
+
+func (q *QKCIterator) Valid() bool {
+	return q.it.Valid()
+}
+
+func (q *QKCIterator) Seek(b []byte) {
+	q.it.Seek(b)
 }

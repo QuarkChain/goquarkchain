@@ -2,11 +2,12 @@
 package service
 
 import (
-	"fmt"
 	"os"
 	"reflect"
 	"sync"
 	"time"
+
+	"github.com/QuarkChain/goquarkchain/qkcdb"
 
 	"github.com/QuarkChain/goquarkchain/p2p"
 	"github.com/QuarkChain/goquarkchain/rpc"
@@ -49,15 +50,10 @@ func (ctx *ServiceContext) OpenDatabase(name string, clean bool, isReadOnly bool
 	if ctx.config == nil || ctx.config.DataDir == "" {
 		return NewQkcMemoryDB(isReadOnly), nil
 	}
-	//db, err := qkcdb.NewRDBDatabase(ctx.config.ResolvePath(name), clean, isReadOnly)
-	//if err != nil {
-	//	return nil, err
-	//}
-	db, err := ethdb.NewLDBDatabase(ctx.config.ResolvePath(name), 16, 16)
+	db, err := qkcdb.NewDatabase(ctx.config.ResolvePath(name), clean, isReadOnly)
 	if err != nil {
 		return nil, err
 	}
-	fmt.Println("NewLDBDatabase", name, ctx.config.ResolvePath(name))
 	return db, nil
 }
 

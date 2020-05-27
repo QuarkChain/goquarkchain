@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
-	"net/http"
 	"reflect"
 	"strconv"
 	"unicode"
@@ -112,30 +111,6 @@ func makeConfigNode(ctx *cli.Context) (*service.Node, qkcConfig) {
 		if err := config.UpdateGenesisAlloc(&cfg.Cluster); err != nil {
 			utils.Fatalf("Update genesis alloc err: %v", err)
 		}
-		if ServiceName == "S0" {
-			go func() {
-				http.ListenAndServe("0.0.0.0:5060", nil)
-			}()
-		}
-		if ServiceName == "S1" {
-			go func() {
-				http.ListenAndServe("0.0.0.0:5061", nil)
-			}()
-		}
-		if ServiceName == "S2" {
-			go func() {
-				http.ListenAndServe("0.0.0.0:5062", nil)
-			}()
-		}
-		if ServiceName == "S3" {
-			go func() {
-				http.ListenAndServe("0.0.0.0:5063", nil)
-			}()
-		}
-	} else {
-		go func() {
-			http.ListenAndServe("0.0.0.0:5066", nil)
-		}()
 	}
 	// Load default cluster config.
 	utils.SetNodeConfig(ctx, &cfg.Service, &cfg.Cluster)
