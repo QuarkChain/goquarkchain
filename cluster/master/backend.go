@@ -306,6 +306,7 @@ func (s *QKCMasterBackend) SetMining(mining bool) {
 		log.Error("Set slave mining failed", "err", err)
 		return
 	}
+
 	s.miner.SetMining(mining)
 }
 
