@@ -231,7 +231,6 @@ func (m *Miner) HandleNewTip() {
 	if !m.api.IsRemoteMining() {
 		m.commit(nil)
 	}
-
 }
 
 func (m *Miner) IsMining() bool {

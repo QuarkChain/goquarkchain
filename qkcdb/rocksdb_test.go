@@ -11,7 +11,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/QuarkChain/goquarkchain-union/qkcdb"
+	"github.com/QuarkChain/goquarkchain/qkcdb"
 	"github.com/stretchr/testify/assert"
 )
 
