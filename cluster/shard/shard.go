@@ -126,6 +126,10 @@ func (s *ShardBackend) IsSyncing() bool {
 	return s.synchronizer.IsSyncing()
 }
 
+func (s *ShardBackend) IsRemoteMining() bool {
+	return s.Config.ConsensusConfig.RemoteMine
+}
+
 func (s *ShardBackend) Stop() {
 	s.mu.Lock()
 	defer s.mu.Unlock()

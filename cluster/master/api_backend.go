@@ -413,6 +413,10 @@ func (s *QKCMasterBackend) IsSyncing() bool {
 	return s.synchronizer.IsSyncing()
 }
 
+func (s *QKCMasterBackend) IsRemoteMining() bool {
+	return s.clusterConfig.Quarkchain.Root.ConsensusConfig.RemoteMine
+}
+
 func (s *QKCMasterBackend) IsMining() bool {
 	return s.miner.IsMining()
 }

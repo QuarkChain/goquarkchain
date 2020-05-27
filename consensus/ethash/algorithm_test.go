@@ -24,12 +24,12 @@ func prepare(dest []uint32, src []byte) {
 func TestSizeCalculations(t *testing.T) {
 	// Verify all the cache and dataset sizes from the lookup table.
 	for epoch, want := range cacheSizes {
-		if size := calcCacheSize(epoch); size != want {
+		if size := calcCacheSize(uint64(epoch)); size != want {
 			t.Errorf("cache %d: cache size mismatch: have %d, want %d", epoch, size, want)
 		}
 	}
 	for epoch, want := range datasetSizes {
-		if size := calcDatasetSize(epoch); size != want {
+		if size := calcDatasetSize(uint64(epoch)); size != want {
 			t.Errorf("dataset %d: dataset size mismatch: have %d, want %d", epoch, size, want)
 		}
 	}
@@ -87,7 +87,7 @@ func TestCacheGeneration(t *testing.T) {
 	}
 	for i, tt := range tests {
 		cache := make([]uint32, tt.size/4)
-		generateCache(cache, tt.epoch, seedHash(tt.epoch*epochLength+1))
+		generateCache(cache, tt.epoch, seedHash(tt.epoch))
 
 		want := make([]uint32, tt.size/4)
 		prepare(want, tt.cache)
@@ -627,7 +627,7 @@ func TestDatasetGeneration(t *testing.T) {
 	}
 	for i, tt := range tests {
 		cache := make([]uint32, tt.cacheSize/4)
-		generateCache(cache, tt.epoch, seedHash(tt.epoch*epochLength+1))
+		generateCache(cache, tt.epoch, seedHash(tt.epoch))
 
 		dataset := make([]uint32, tt.datasetSize/4)
 		generateDataset(dataset, tt.epoch, cache)
@@ -703,7 +703,7 @@ func BenchmarkHashimotoLight(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		hashimotoLight(datasetSize(1), cache, hash, 0)
+		hashimotoLight(datasetSize(1/epochLength), cache, hash, 0)
 	}
 }
 
