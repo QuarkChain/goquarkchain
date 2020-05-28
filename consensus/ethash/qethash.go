@@ -6,7 +6,6 @@ import (
 	"runtime"
 
 	"github.com/QuarkChain/goquarkchain/consensus"
-
 	"github.com/QuarkChain/goquarkchain/core/state"
 	"github.com/QuarkChain/goquarkchain/core/types"
 )

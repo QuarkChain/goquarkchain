@@ -125,11 +125,11 @@ func (m *MinorBlockChain) putMinorBlock(mBlock *types.MinorBlock, xShardReceiveT
 	if len(m.heightToMinorBlockHashes) > maxCacheCountHeight2Hash {
 		minNumber := mBlock.NumberU64() - maxCacheCountHeight2Hash/2
 		for number, hashes := range m.heightToMinorBlockHashes {
-			if len(hashes) > 1 {
-				m.heightToMBlockHashCount[number] = len(hashes)
-			}
 			if number < minNumber {
 				delete(m.heightToMinorBlockHashes, number)
+				if len(hashes) > 1 {
+					m.heightToMBlockHashCount[number] = len(hashes)
+				}
 			}
 		}
 	}
@@ -1469,7 +1469,7 @@ func (m *MinorBlockChain) getPendingTxByAddress(address account.Address, transfe
 }
 
 func (m *MinorBlockChain) getTransactionDetails(start, end []byte, limit uint32, getTxType GetTxDetailType, skipCoinbaseRewards bool, transferTokenID *uint64) ([]*rpc.TransactionDetail, []byte, error) {
-	qkcDB, ok := m.db.(*qkcdb.RDBDatabase)
+	qkcDB, ok := m.db.(*qkcdb.QKCDataBase)
 	if !ok {
 		return nil, nil, errors.New("only support qkcdb now")
 	}
@@ -1495,16 +1495,15 @@ func (m *MinorBlockChain) getTransactionDetails(start, end []byte, limit uint32,
 		index      uint32
 		txHashes   = make(map[common.Hash]struct{})
 	)
-
-	it.SeekForPrev(start)
+	it.Seek(end)
 	for it.Valid() {
-		if bytes.Compare(it.Key().Data(), end) < 0 {
+		if bytes.Compare(it.Key(), start) > 0 {
 			break
 		}
 		if getTxType == GetTxFromAddress {
-			height, crossShard, index, err = decodeTxKey(it.Key().Data(), len(addressTxKey), 20)
+			height, crossShard, index, err = decodeTxKey(it.Key(), len(addressTxKey), 20)
 		} else if getTxType == GetAllTransaction {
-			height, crossShard, index, err = decodeTxKey(it.Key().Data(), len(allTxKey), 0)
+			height, crossShard, index, err = decodeTxKey(it.Key(), len(allTxKey), 0)
 		} else {
 			return nil, nil, errors.New("not support yet")
 		}
@@ -1582,11 +1581,11 @@ func (m *MinorBlockChain) getTransactionDetails(start, end []byte, limit uint32,
 			}
 
 		}
-		next = bytesSubOne(it.Key().Data())
+		next = bytesSubOne(it.Key())
 		if limit == 0 {
 			break
 		}
-		it.Prev()
+		it.Next()
 	}
 	return txList, next, nil
 }

@@ -18,16 +18,16 @@ type Cal struct {
 	Length int
 }
 
-func rangeDB(db *qkcdb.RDBDatabase) {
+func rangeDB(db *qkcdb.QKCDataBase) {
 	calMap := make(map[byte]*Cal, 0)
 	characterCal := new(Cal)
 	sumCal := new(Cal)
 
 	it := db.NewIterator()
-	it.SeekToFirst()
+	it.Seek([]byte{})
 	for it.Valid() {
-		size := it.Value().Size()
-		firstByte := it.Key().Data()[0]
+		size := len(it.Key())
+		firstByte := it.Key()[0]
 
 		sumCal.Num++
 		sumCal.Length += size
@@ -81,7 +81,7 @@ func main() {
 	if dbfile == "" {
 		panic("please set right dbfile")
 	}
-	db, err := qkcdb.NewRDBDatabase(dbfile, false, false)
+	db, err := qkcdb.NewDatabase(dbfile, false, false)
 	if err != nil {
 		panic(db)
 	}
