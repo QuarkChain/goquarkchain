@@ -19,8 +19,8 @@ $ sudo docker run -v /path/to/data:/go/src/github.com/QuarkChain/goquarkchain/cm
 # once you start your cluster using the downloaded database your cluster only need to sync
 # the blocks mined in the past 24 hours or less.
 curl https://qkcmainnet-go.s3.amazonaws.com/data/`curl https://qkcmainnet-go.s3.amazonaws.com/data/LATEST`.tar.gz --output data.tar.gz
-# if you are in China, use the following instead
-# curl https://s3.cn-north-1.amazonaws.com.cn/qkcmainnet-go-cn/data/`curl https://s3.cn-north-1.amazonaws.com.cn/qkcmainnet-go-cn/data/LATEST`.tar.gz --output data.tar.gz
+# if use rocksdb 
+# curl https://qkcmainnet-go.s3.amazonaws.com/data/qkc_rocksdb.tar.gz --output data.tar.gz (not suggest,not update,rootBlock's height:59w)
 # then should unzip to the right path
 
 # INSIDE the container
@@ -29,6 +29,8 @@ curl https://qkcmainnet-go.s3.amazonaws.com/data/`curl https://qkcmainnet-go.s3.
 # make sure the config file has been updated your specified coinbase address
 # start cluster:
 cd /go/src/github.com/QuarkChain/goquarkchain/cmd/cluster
+go build
+# if use rocksdb : go build -tags rdb
 ./cluster --cluster_config ../../mainnet/singularity/cluster_config_template.json --service S0 >> s0.log 2>&1 &
 ./cluster --cluster_config ../../mainnet/singularity/cluster_config_template.json --service S1 >> s1.log 2>&1 &
 ./cluster --cluster_config ../../mainnet/singularity/cluster_config_template.json --service S2 >> s2.log 2>&1 &
