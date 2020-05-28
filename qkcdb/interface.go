@@ -16,3 +16,8 @@ type Database = ethdb.Database
 // Batch is a write-only database that commits changes to its host database
 // when Write is called. Batch cannot be used concurrently.
 type Batch = ethdb.Batch
+
+const (
+	cache   int = 128
+	handles     = 256
+)

@@ -52,16 +52,18 @@ import (
 )
 
 const (
-	maxCrossShardLimit    = 256
-	maxRootBlockLimit     = 128
-	maxLastConfirmLimit   = 256
-	maxGasPriceCacheLimit = 128
+	maxCrossShardLimit       = 256
+	maxRootBlockLimit        = 128
+	maxLastConfirmLimit      = 256
+	maxGasPriceCacheLimit    = 128
+	maxCacheCountHeight2Hash = 1024
 )
 
 type gasPriceKey struct {
 	currHead common.Hash
 	tokenID  uint64
 }
+
 type gasPriceSuggestionOracle struct {
 	cache       *lru.Cache
 	CheckBlocks uint64
@@ -141,8 +143,9 @@ type MinorBlockChain struct {
 	initialized              bool
 	rewardCalc               *qkcCommon.ConstMinorBlockRewardCalculator
 	gasPriceSuggestionOracle *gasPriceSuggestionOracle
+	minRecordMinorBlock      uint64
 	heightToMinorBlockHashes map[uint64]map[common.Hash]struct{}
-	rootHeightToHashes       map[uint64]map[common.Hash]common.Hash // [rootBlockHeight][rootBlockHash][confirmedMinorHash]
+	heightToMBlockHashCount  map[uint64]int
 	currentEvmState          *state.StateDB
 	logInfo                  string
 	addMinorBlockAndBroad    func(block *types.MinorBlock) error
@@ -201,8 +204,9 @@ func NewMinorBlockChain(
 		coinbaseAmountCache:      make(map[uint64]CoinbaseAmountAboutHeight),
 		engine:                   engine,
 		vmConfig:                 vmConfig,
+		minRecordMinorBlock:      uint64(0xFFFFFFFFFFFFFFFF),
 		heightToMinorBlockHashes: make(map[uint64]map[common.Hash]struct{}),
-		rootHeightToHashes:       make(map[uint64]map[common.Hash]common.Hash),
+		heightToMBlockHashCount:  make(map[uint64]int),
 		currentEvmState:          new(state.StateDB),
 		branch:                   account.Branch{Value: fullShardID},
 		shardConfig:              clusterConfig.Quarkchain.GetShardConfigByFullShardID(fullShardID),
@@ -669,14 +673,6 @@ func (m *MinorBlockChain) Stop() {
 			currNumber = m.CurrentBlock().NumberU64()
 			heightDiff = []uint64{0, 1, triesInMemory - 1}
 		)
-		if m.rootTip != nil {
-			log.Info("need stored tire", "root tip number", m.rootTip.Number, "minor tip number", m.CurrentBlock().Number())
-
-			for hash := range m.rootHeightToHashes[m.rootTip.NumberU64()] {
-				heightDiff = m.getNeedStoreHeight(hash, heightDiff)
-			}
-			heightDiff = qkcCommon.RemoveDuplicate(heightDiff)
-		}
 		for _, offset := range heightDiff {
 			if currNumber > offset {
 				recentBlockInterface := m.GetBlockByNumber(currNumber - offset)

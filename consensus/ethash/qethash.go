@@ -2,10 +2,10 @@ package ethash
 
 import (
 	"bytes"
-	"github.com/QuarkChain/goquarkchain/consensus"
 	"math/big"
 	"runtime"
 
+	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/core/state"
 	"github.com/QuarkChain/goquarkchain/core/types"
 )
@@ -17,8 +17,9 @@ type QEthash struct {
 }
 
 func (q *QEthash) hashAlgo(shareCache *consensus.ShareCache) (err error) {
-	cache := q.cache(shareCache.Height)
-	size := datasetSize(shareCache.Height)
+	epoch := shareCache.Height / epochLength
+	cache := q.cache(epoch)
+	size := datasetSize(epoch)
 	if q.config.PowMode == ModeTest {
 		size = 32 * 1024
 	}
@@ -34,15 +35,15 @@ func (q *QEthash) verifySeal(chain consensus.ChainReader, header types.IHeader, 
 		return errInvalidDifficulty
 	}
 	// Recompute the digest and PoW values
-	number := header.NumberU64()
+	epoch := header.NumberU64() / epochLength
 
 	var (
 		digest []byte
 		result []byte
 	)
-	cache := q.cache(number)
+	cache := q.cache(epoch)
 
-	size := datasetSize(number)
+	size := datasetSize(epoch)
 	if q.config.PowMode == ModeTest {
 		size = 32 * 1024
 	}

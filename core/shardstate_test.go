@@ -814,10 +814,10 @@ func TestStaleBlockCount(t *testing.T) {
 
 	_, _, err = shardState.FinalizeAndAddBlock(b1)
 	checkErr(err)
-	assert.Equal(t, shardState.getBlockCountByHeight(1), uint64(1))
+	assert.Equal(t, shardState.getBlockCountByHeight(1), 1)
 	_, _, err = shardState.FinalizeAndAddBlock(b22)
 	checkErr(err)
-	assert.Equal(t, shardState.getBlockCountByHeight(1), uint64(2))
+	assert.Equal(t, shardState.getBlockCountByHeight(1), 2)
 }
 
 func TestXShardTxSent(t *testing.T) {

@@ -434,6 +434,7 @@ func (bc *RootBlockChain) WriteBlockWithoutState(block types.IBlock) (err error)
 	bc.wg.Add(1)
 	defer bc.wg.Done()
 	rawdb.WriteRootBlock(bc.db, block.(*types.RootBlock))
+	bc.blockCache.Add(block.Hash(), block)
 
 	return nil
 }
@@ -453,6 +454,7 @@ func (bc *RootBlockChain) WriteBlockWithState(block *types.RootBlock) (status Wr
 	externTd := block.TotalDifficulty()
 
 	rawdb.WriteRootBlock(bc.db, block)
+	bc.blockCache.Add(block.Hash(), block)
 
 	// Write other block data using a batch.
 	batch := bc.db.NewBatch()
