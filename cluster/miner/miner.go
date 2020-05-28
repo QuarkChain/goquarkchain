@@ -228,10 +228,9 @@ func (m *Miner) SubmitWork(nonce uint64, hash, digest common.Hash, signature *[6
 func (m *Miner) HandleNewTip() {
 	log.Debug(m.logInfo, "handle new tip: height", m.getTip())
 	m.engine.RefreshWork(m.api.GetTip())
-	if !m.api.IsRemoteMining() {
-		m.commit(nil)
+	if m.api.IsSyncing() == false {
+		m.startCh <- struct{}{}
 	}
-
 }
 
 func (m *Miner) IsMining() bool {
