@@ -86,7 +86,7 @@ func getTestEnv(genesisAccount *account.Address, genesisMinorQuarkHash *uint64, 
 	var err error
 	if len(testDBPath) != 0 {
 		index, fileName := getOneDBPath()
-		fakeDb, err = qkcdb.NewRDBDatabase(fileName, true, false)
+		fakeDb, err = qkcdb.NewDatabase(fileName, true, false)
 		delete(testDBPath, index)
 		checkErr(err)
 	} else {
