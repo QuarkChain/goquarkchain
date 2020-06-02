@@ -124,9 +124,9 @@ jobs:
 
       - name: mkdir folder
         run: |
-          cp -rf  /home/runner/work/goquarkchain/goquarkchain/cmd/cluster/centos8 cluster_binary
-          cp -rf  /home/runner/work/goquarkchain/goquarkchain/cmd/cluster/ubuntu18 cluster_binary
-          cp -rf  /home/runner/work/goquarkchain/goquarkchain/cmd/cluster/windows cluster_binary
+          cp -rf  /home/runner/work/goquarkchain/goquarkchain/cmd/cluster/ubuntu18/ cluster_binary/
+          cp -rf  /home/runner/work/goquarkchain/goquarkchain/cmd/cluster/windows/ cluster_binary/
+          cp -rf  /home/runner/work/goquarkchain/goquarkchain/cmd/cluster/centos8/ cluster_binary/
           zip -r cluster_binary.zip cluster_binary
 
       - name: Create Release
