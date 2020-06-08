@@ -135,24 +135,24 @@ type MinorBlockChain struct {
 
 	shouldPreserve func(*types.MinorBlock) bool // Function used to determine whether should preserve the given block.
 
-	txPool                    *TxPool
-	branch                    account.Branch
-	shardConfig               *config.ShardConfig
-	rootTip                   *types.RootBlock
-	lastDereferenceRootHeight uint64
-	confirmedHeaderTip        *types.MinorBlock
-	initialized               bool
-	rewardCalc                *qkcCommon.ConstMinorBlockRewardCalculator
-	gasPriceSuggestionOracle  *gasPriceSuggestionOracle
-	minRecordMinorBlock       uint64
-	heightToMinorBlockHashes  map[uint64]map[common.Hash]struct{}
-	heightToMBlockHashCount   map[uint64]int
-	currentEvmState           *state.StateDB
-	logInfo                   string
-	addMinorBlockAndBroad     func(block *types.MinorBlock) error
-	posw                      consensus.PoSWCalculator
-	gasLimit                  *big.Int
-	xShardGasLimit            *big.Int
+	txPool                   *TxPool
+	branch                   account.Branch
+	shardConfig              *config.ShardConfig
+	rootTip                  *types.RootBlock
+	lastDereferenceRoot      common.Hash
+	confirmedHeaderTip       *types.MinorBlock
+	initialized              bool
+	rewardCalc               *qkcCommon.ConstMinorBlockRewardCalculator
+	gasPriceSuggestionOracle *gasPriceSuggestionOracle
+	minRecordMinorBlock      uint64
+	heightToMinorBlockHashes map[uint64]map[common.Hash]struct{}
+	heightToMBlockHashCount  map[uint64]int
+	currentEvmState          *state.StateDB
+	logInfo                  string
+	addMinorBlockAndBroad    func(block *types.MinorBlock) error
+	posw                     consensus.PoSWCalculator
+	gasLimit                 *big.Int
+	xShardGasLimit           *big.Int
 }
 
 // NewMinorBlockChain returns a fully initialised block chain using information
@@ -901,7 +901,7 @@ func (m *MinorBlockChain) WriteBlockWithState(block *types.MinorBlock, receipts 
 		triedb.Reference(root, common.Hash{}) // metadata reference to keep trie alive
 		m.triegc.Push(root, -int64(block.NumberU64()))
 
-		if current := block.NumberU64(); current > triesInMemory {
+		if current := block.NumberU64(); m.rootTip.NumberU64() >= triesInRootBlock && current > triesInMemory {
 			// If we exceeded our memory allowance, flush matured singleton nodes to disk
 			var (
 				nodes, imgs = triedb.Size()
@@ -924,12 +924,14 @@ func (m *MinorBlockChain) WriteBlockWithState(block *types.MinorBlock, receipts 
 				log.Info(m.logInfo, "commit trie number", mBlock.NumberU64(), "hash", mBlock.Hash().String(), "root", mBlock.GetMetaData().Root.String())
 			}
 
-			if m.rootTip.NumberU64() >= triesInRootBlock && m.rootTip.NumberU64() != m.lastDereferenceRootHeight && m.rootTip.NumberU64()%triesInRootBlock == 0 {
-				m.lastDereferenceRootHeight = m.rootTip.NumberU64()
-
+			if m.rootTip.NumberU64()%triesInRootBlock == 0 && m.rootTip.Hash() != m.lastDereferenceRoot {
+				m.lastDereferenceRoot = m.rootTip.Hash()
 				preRootBlock := m.GetRootBlockByHeight(m.rootTip.Hash(), m.rootTip.NumberU64()-triesInRootBlock)
 				preRootBlockConfirmedMinorBlock := m.GetMinorBlock(m.ReadLastConfirmedMinorBlockHeaderAtRootBlock(preRootBlock.Hash()))
 				chosen := preRootBlockConfirmedMinorBlock.NumberU64()
+				if chosen > current-triesInMemory {
+					chosen = current - triesInMemory
+				}
 				// Garbage collect anything below our required write retention
 				for !m.triegc.Empty() {
 					root, number := m.triegc.Pop()

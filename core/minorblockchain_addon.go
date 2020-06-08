@@ -305,7 +305,7 @@ func (m *MinorBlockChain) InitGenesisState(rBlock *types.RootBlock) (*types.Mino
 	if err := m.putMinorBlock(gBlock, []*types.CrossShardTransactionDeposit{}); err != nil {
 		return nil, err
 	}
-	m.putRootBlock(rBlock, nil)
+	m.putRootBlock(rBlock, m.CurrentBlock().Header())
 	rawdb.WriteGenesisBlock(m.db, rBlock.Hash(), gBlock) // key:rootBlockHash value:minorBlock
 	m.CommitMinorBlockByHash(gBlock.Hash())
 	if m.initialized {
