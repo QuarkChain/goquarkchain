@@ -901,7 +901,7 @@ func (m *MinorBlockChain) WriteBlockWithState(block *types.MinorBlock, receipts 
 		triedb.Reference(root, common.Hash{}) // metadata reference to keep trie alive
 		m.triegc.Push(root, -int64(block.NumberU64()))
 
-		if current := block.NumberU64(); m.rootTip.NumberU64() >= triesInRootBlock && current > triesInMemory {
+		if current := block.NumberU64(); m.rootTip.NumberU64() > triesInRootBlock && current > triesInMemory {
 			// If we exceeded our memory allowance, flush matured singleton nodes to disk
 			var (
 				nodes, imgs = triedb.Size()
