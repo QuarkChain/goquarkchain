@@ -124,10 +124,10 @@ jobs:
 
       - name: mkdir folder
         run: |
-          cp -rf  /home/runner/work/goquarkchain/goquarkchain/cmd/cluster/ubuntu18/ cluster_binary/
-          cp -rf  /home/runner/work/goquarkchain/goquarkchain/cmd/cluster/windows/ cluster_binary/
-          cp -rf  /home/runner/work/goquarkchain/goquarkchain/cmd/cluster/centos8/ cluster_binary/
-          zip -r cluster_binary.zip cluster_binary
+          cp -rf  /home/runner/work/goquarkchain/goquarkchain/cmd/cluster/ubuntu18/ release/
+          cp -rf  /home/runner/work/goquarkchain/goquarkchain/cmd/cluster/windows/ release/
+          cp -rf  /home/runner/work/goquarkchain/goquarkchain/cmd/cluster/centos8/ release/
+          zip -r release.zip release
 
       - name: Create Release
         id: create_release
@@ -147,6 +147,51 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }} # This pulls from the CREATE RELEASE step above, referencing it's ID to get its outputs object, which include a `upload_url`. See this blog post for more info: https://jasonet.co/posts/new-features-of-github-actions/#passing-data-to-future-steps
-          asset_path: ./cluster_binary.zip
-          asset_name: cluster_binary.zip
+          asset_path: ./release.zip
+          asset_name: release.zip
           asset_content_type: application/zip
+  s3:
+    name: Upload S3
+    needs: [build_centos, build_ubuntu,build_windows]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v1
+      - name: Download cluster_centos artifact
+        uses: actions/download-artifact@master
+        with:
+          name: cluster_centos
+          path: /home/runner/work/goquarkchain/goquarkchain/cmd/cluster/centos8
+
+
+      - name: Download cluster_ubuntu artifact
+        uses: actions/download-artifact@master
+        with:
+          name: cluster_ubuntu
+          path: /home/runner/work/goquarkchain/goquarkchain/cmd/cluster/ubuntu18
+
+      - name: Download cluster_windows artifact
+        uses: actions/download-artifact@master
+        with:
+          name: cluster_windows
+          path: /home/runner/work/goquarkchain/goquarkchain/cmd/cluster/windows
+
+      - name: mkdir folder
+        run: |
+          ans=${{ github.ref }}
+          mkdir -p release/${ans:10}/
+          cp -rf  /home/runner/work/goquarkchain/goquarkchain/cmd/cluster/ubuntu18/ release/${ans:10}/
+          cp -rf  /home/runner/work/goquarkchain/goquarkchain/cmd/cluster/centos8/ release/${ans:10}/
+          cp -rf  /home/runner/work/goquarkchain/goquarkchain/cmd/cluster/windows/ release/${ans:10}/
+          ans=${{ github.ref }}
+          echo ${ans:10} > release/LATEST
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+      - name: Deploy static site to S3 bucket
+        run: |
+          sudo apt-get install awscli
+          aws s3 sync release/ s3://qkcmainnet-go/data/release --acl public-read
