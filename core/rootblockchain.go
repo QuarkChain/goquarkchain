@@ -43,6 +43,7 @@ const (
 	maxFutureBlocks           = 32
 	maxTimeFutureBlocks       = 30
 	triesInMemory             = 256
+	triesInRootBlock          = uint64(32)
 	validatedMinorBlockHashes = 128
 )
 
