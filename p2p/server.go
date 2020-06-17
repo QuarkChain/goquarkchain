@@ -22,14 +22,12 @@ import (
 	"crypto/ecdsa"
 	"encoding/hex"
 	"errors"
-	"fmt"
+	"github.com/QuarkChain/goquarkchain/p2p/nodefilter"
 	"net"
 	"sort"
 	"sync"
 	"sync/atomic"
 	"time"
-
-	"github.com/QuarkChain/goquarkchain/p2p/nodefilter"
 
 	"github.com/QuarkChain/goquarkchain/p2p/discover"
 	"github.com/ethereum/go-ethereum/common"
@@ -680,7 +678,6 @@ running:
 		case <-ticker.C:
 			scheduleTasks()
 			periodicallyUnblacklist()
-			fmt.Println("CCCCCCCCC-1")
 
 		case n := <-srv.addstatic:
 			// This channel is used by AddPeer to add to the
