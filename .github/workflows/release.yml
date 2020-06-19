@@ -1,0 +1,197 @@
+name: release
+on:
+  push:
+    tags:
+      - mainnet*
+
+
+jobs:
+  build_centos:
+    runs-on: ubuntu-latest
+    container: sunchunfeng/goqkc_centos8
+
+    steps:
+      - uses: actions/checkout@v2
+      - name: centos8_build
+        run: |
+          cd consensus/qkchash/native && make && cd -
+          cd cmd/cluster && go build -o ./centos8/cluster
+
+      - name: upload cluster_centos
+        uses: actions/upload-artifact@v1
+        with:
+          name: cluster_centos
+          path: ./cmd/cluster/centos8/cluster
+
+
+  build_ubuntu:
+    runs-on: ubuntu-latest
+    container: quarkchaindocker/goquarkchain
+
+    steps:
+      - uses: actions/checkout@v2
+      - name: ubuntu18-build
+        run: |
+          cd consensus/qkchash/native && make && cd -
+          cd cmd/cluster && go build -o ./ubuntu18/cluster
+
+      - name: upload cluster ubuntu
+        uses: actions/upload-artifact@v1
+        with:
+          name: cluster_ubuntu
+          path: ./cmd/cluster/ubuntu18/cluster
+
+
+  build_windows:
+    runs-on: ${{ matrix.os }}
+
+    env:
+      CMAKE_GENERATOR: Ninja
+      ASAN_OPTIONS: strict_string_checks=true:detect_odr_violation=2:detect_stack_use_after_return=true:check_initialization_order=true:strict_init_order=true
+      TSAN_OPTIONS: force_seq_cst_atomics=1
+      CTEST_OUTPUT_ON_FAILURE: ON
+      CTEST_PARALLEL_LEVEL: 2
+
+    strategy:
+      fail-fast: false
+      matrix:
+        name: [
+          windows-2019-gcc,
+        ]
+
+        include:
+          - name: windows-2019-gcc
+            os: windows-2019
+            compiler: gcc
+
+    steps:
+      - uses: actions/checkout@v1
+
+      - name: Install (Windows)
+        shell: powershell
+        run: |
+          Invoke-Expression (New-Object System.Net.WebClient).DownloadString('https://get.scoop.sh')
+          scoop install ninja --global
+          scoop install swig --global
+          scoop install gcc --global
+          echo "::set-env name=CC::gcc"
+          echo "::set-env name=CXX::g++"
+
+          # Scoop modifies the PATH so we make the modified PATH global.
+          echo "::set-env name=PATH::$env:PATH"
+
+      - name: Configure x64
+        run: .github\workflows\vsenv.bat -arch=x64 -host_arch=x64
+
+      - name: windows-build
+        run: |
+          cd consensus/qkchash/native && make && cd -
+          go version
+          cd cmd/cluster && pwd && go build -o ./windows/cluster.exe
+
+
+      - name: upload cluster windows
+        uses: actions/upload-artifact@v1
+        with:
+          name: cluster_windows
+          path: ./cmd/cluster/windows/cluster.exe
+
+  build:
+    name: Upload Release Asset
+    needs: [build_centos, build_ubuntu,build_windows]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v1
+      - name: Download cluster_centos artifact
+        uses: actions/download-artifact@master
+        with:
+          name: cluster_centos
+          path: /home/runner/work/goquarkchain/goquarkchain/cmd/cluster/centos8
+
+
+      - name: Download cluster_ubuntu artifact
+        uses: actions/download-artifact@master
+        with:
+          name: cluster_ubuntu
+          path: /home/runner/work/goquarkchain/goquarkchain/cmd/cluster/ubuntu18
+
+      - name: Download cluster_windows artifact
+        uses: actions/download-artifact@master
+        with:
+          name: cluster_windows
+          path: /home/runner/work/goquarkchain/goquarkchain/cmd/cluster/windows
+
+      - name: mkdir folder
+        run: |
+          cp -rf  /home/runner/work/goquarkchain/goquarkchain/cmd/cluster/ubuntu18/ release/
+          cp -rf  /home/runner/work/goquarkchain/goquarkchain/cmd/cluster/windows/ release/
+          cp -rf  /home/runner/work/goquarkchain/goquarkchain/cmd/cluster/centos8/ release/
+          zip -r release.zip release
+
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: Release ${{ github.ref }}
+          draft: false
+          prerelease: false
+
+      - name: Upload Release Asset
+        id: upload-release-asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }} # This pulls from the CREATE RELEASE step above, referencing it's ID to get its outputs object, which include a `upload_url`. See this blog post for more info: https://jasonet.co/posts/new-features-of-github-actions/#passing-data-to-future-steps
+          asset_path: ./release.zip
+          asset_name: release.zip
+          asset_content_type: application/zip
+  s3:
+    name: Upload S3
+    needs: [build_centos, build_ubuntu,build_windows]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v1
+      - name: Download cluster_centos artifact
+        uses: actions/download-artifact@master
+        with:
+          name: cluster_centos
+          path: /home/runner/work/goquarkchain/goquarkchain/cmd/cluster/centos8
+
+
+      - name: Download cluster_ubuntu artifact
+        uses: actions/download-artifact@master
+        with:
+          name: cluster_ubuntu
+          path: /home/runner/work/goquarkchain/goquarkchain/cmd/cluster/ubuntu18
+
+      - name: Download cluster_windows artifact
+        uses: actions/download-artifact@master
+        with:
+          name: cluster_windows
+          path: /home/runner/work/goquarkchain/goquarkchain/cmd/cluster/windows
+
+      - name: mkdir folder
+        run: |
+          ans=${{ github.ref }}
+          mkdir -p release/${ans:10}/
+          cp -rf  /home/runner/work/goquarkchain/goquarkchain/cmd/cluster/ubuntu18/ release/${ans:10}/
+          cp -rf  /home/runner/work/goquarkchain/goquarkchain/cmd/cluster/centos8/ release/${ans:10}/
+          cp -rf  /home/runner/work/goquarkchain/goquarkchain/cmd/cluster/windows/ release/${ans:10}/
+          ans=${{ github.ref }}
+          echo ${ans:10} > release/LATEST
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+      - name: Deploy static site to S3 bucket
+        run: |
+          sudo apt-get install awscli
+          aws s3 sync release/ s3://qkcmainnet-go/data/release --acl public-read
