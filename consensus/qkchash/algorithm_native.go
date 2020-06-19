@@ -1,4 +1,4 @@
-//+build !nt
+//+build nt
 
 package qkchash
 
@@ -7,12 +7,12 @@ import (
 	"sort"
 	"sync"
 
+	"github.com/QuarkChain/goquarkchain/consensus/qkchash/native"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 )
 
 const (
-	accessRound     = 64
 	cacheEntryCnt   = 1024 * 64
 	cacheAheadRound = 64 // 64*30000
 )
@@ -55,15 +55,8 @@ func (c *cacheSeed) getCacheFromHeight(block uint64) qkcCache {
 // qkcCache is the union type of cache for qkchash algo.
 // Note in Go impl, `nativeCache` will be empty.
 type qkcCache struct {
-	ls   []uint64
-	set  map[uint64]struct{}
-	seed []byte
-}
-
-// fnv64 is an algorithm inspired by the FNV hash, which in some cases is used as
-// a non-associative substitute for XOR. This is 64-bit version.
-func fnv64(a, b uint64) uint64 {
-	return a*0x100000001b3 ^ b
+	nativeCache native.Cache
+	seed        []byte
 }
 
 // generateCache generates cache for qkchash. Will also generate underlying cache
@@ -85,64 +78,32 @@ func generateCache(cnt int, seed []byte) qkcCache {
 		}
 	}
 	sort.Slice(ls, func(i, j int) bool { return ls[i] < ls[j] })
-	return qkcCache{ls, set, seed}
+	return qkcCache{native.NewCache(ls), seed}
 }
 
-// qkcHashGo is the Go implementation.
+// qkcHashNative calls the native c++ implementation through SWIG.
 func qkcHashX(seed []byte, cache qkcCache, useX bool) (digest []byte, result []byte, err error) {
-	const mixBytes = 128
-	// Copy the cache since modification is needed
-	tree := NewLLRB()
-	for _, v := range cache.ls {
-		tree.ReplaceOrInsert(v)
-	}
-
+	// Combine header+nonce into a seed
 	seed = crypto.Keccak512(seed)
-	seedHead := binary.LittleEndian.Uint64(seed)
-
-	// Start the mix with replicated seed
-	mix := make([]uint64, mixBytes/8)
-	for i := 0; i < len(mix); i++ {
-		mix[i] = binary.LittleEndian.Uint64(seed[i%8*8:])
+	var seedArray [8]uint64
+	for i := 0; i < 8; i++ {
+		seedArray[i] = binary.LittleEndian.Uint64(seed[i*8:])
 	}
-
-	// TODO: can be improved using balanced tree
-	for i := 0; i < accessRound; i++ {
-		newData := make([]uint64, mixBytes/8)
-		p := fnv64(uint64(i)^seedHead, mix[i%len(mix)])
-		for j := 0; j < len(mix); j++ {
-			idx := p % uint64(tree.Len())
-
-			v := tree.DeleteAt(int(idx))
-			newData[j] = v
-
-			// Generate a random item and insert
-			p = fnv64(p, v)
-			tree.ReplaceOrInsert(p)
-			// Continue next search
-			p = fnv64(p, v)
-		}
-
-		for j := 0; j < len(mix); j++ {
-			mix[j] = fnv64(mix[j], newData[j])
-		}
-	}
-
-	// Compress mix
-	for i := 0; i < len(mix); i += 4 {
-		mix[i/4] = fnv64(fnv64(fnv64(mix[i], mix[i+1]), mix[i+2]), mix[i+3])
-	}
-	mix = mix[:len(mix)/4]
-
+	var (
+		hashRes [4]uint64
+	)
 	if useX {
-		stats := tree.GetRotationStats()
-		for i := 0; i < len(stats); i++ {
-			mix[i] ^= stats[i]
-		}
+		hashRes, err = native.HashWithRotationStats(cache.nativeCache, seedArray)
+	} else {
+		hashRes, err = native.Hash(cache.nativeCache, seedArray)
+	}
+
+	if err != nil {
+		return nil, nil, err
 	}
 
 	digest = make([]byte, common.HashLength)
-	for i, val := range mix {
+	for i, val := range hashRes {
 		binary.LittleEndian.PutUint64(digest[i*8:], val)
 	}
 	result = crypto.Keccak256(append(seed, digest...))

@@ -2,6 +2,7 @@ package qkchash
 
 import (
 	"encoding/binary"
+
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/core/state"
@@ -14,9 +15,7 @@ import (
 // Implements consensus.Pow
 type QKCHash struct {
 	*consensus.CommonEngine
-	cache *cacheSeed
-	// A flag indicating which impl (c++ native or go) to use
-	useNative      bool
+	cache          *cacheSeed
 	qkcHashXHeight uint64
 }
 
@@ -32,31 +31,22 @@ func (q *QKCHash) Finalize(chain consensus.ChainReader, header types.IHeader, st
 }
 
 func (q *QKCHash) hashAlgo(cache *consensus.ShareCache) (err error) {
-	c := q.cache.getCacheFromHeight(cache.Height, q.useNative)
+	c := q.cache.getCacheFromHeight(cache.Height)
 	copy(cache.Seed, cache.Hash)
 	binary.LittleEndian.PutUint64(cache.Seed[32:], cache.Nonce)
-	if q.useNative {
-		cache.Digest, cache.Result, err = qkcHashNative(cache.Seed, c, cache.Height >= q.qkcHashXHeight)
-	} else {
-		if cache.Height >= q.qkcHashXHeight {
-			panic("qkcHashX go not implement")
-		}
-
-		// TODO:not use this func
-		cache.Digest, cache.Result, err = qkcHashGo(cache.Seed, c)
-	}
+	cache.Digest, cache.Result, err = qkcHashX(cache.Seed, c, cache.Height >= q.qkcHashXHeight)
 	return
 }
+
 func (q *QKCHash) RefreshWork(tip uint64) {
 	q.CommonEngine.RefreshWork(tip)
 }
 
 // New returns a QKCHash scheme.
-func New(useNative bool, diffCalculator consensus.DifficultyCalculator, remote bool, pubKey []byte, qkcHashXHeight uint64) *QKCHash {
+func New(diffCalculator consensus.DifficultyCalculator, remote bool, pubKey []byte, qkcHashXHeight uint64) *QKCHash {
 	q := &QKCHash{
-		useNative: useNative,
 		// TODO: cache may depend on block, so a LRU-stype cache could be helpful
-		cache:          NewcacheSeed(useNative),
+		cache:          NewcacheSeed(),
 		qkcHashXHeight: qkcHashXHeight,
 	}
 	spec := consensus.MiningSpec{

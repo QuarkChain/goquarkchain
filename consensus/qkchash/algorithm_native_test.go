@@ -1,4 +1,4 @@
-//+build !nt
+//+build nt
 
 package qkchash
 
@@ -12,29 +12,17 @@ import (
 
 func TestGenerateCache(t *testing.T) {
 	cache := generateCache(cacheEntryCnt, nil)
-	assert.Equal(t, cacheEntryCnt, len(cache.ls))
-	for i := 1; i < len(cache.ls); i++ {
-		assert.True(t, cache.ls[i-1] < cache.ls[i])
-	}
-	assert.Equal(t, uint64(71869947341538), cache.ls[0])
+	assert.NotNil(t, cache.nativeCache)
 }
 
 func TestQKCHash(t *testing.T) {
-	fakeQkcHashGo := func(a []byte, b qkcCache, c bool) ([]byte, []byte, error) {
-		return qkcHashX(a, b, false)
-	}
 	assert := assert.New(t)
 
-	// Failure case, mismatched native flag and hash algo
-	cache := generateCache(cacheEntryCnt, nil)
-	seed := make([]byte, 40)
-
 	// Successful test cases
+	cache := generateCache(cacheEntryCnt, nil)
 
-	cache = generateCache(cacheEntryCnt, nil)
-
-	seed = make([]byte, 40)
-	digest, result, err := fakeQkcHashGo(seed, cache, false)
+	seed := make([]byte, 40)
+	digest, result, err := qkcHashX(seed, cache, false)
 	assert.NoError(err)
 	assert.Equal(
 		"22da7bf17b573e402c71211a9c96e5631dafcbeda1fc5b7812a2d6529408b207",
@@ -47,7 +35,7 @@ func TestQKCHash(t *testing.T) {
 
 	seed = make([]byte, 40)
 	copy(seed, []byte("Hello World!"))
-	digest, result, err = fakeQkcHashGo(seed, cache, false)
+	digest, result, err = qkcHashX(seed, cache, false)
 	assert.NoError(err)
 	assert.Equal(
 		"37e6b7575e9bcf572bb9f4f60baacb738a75d0f1692f3be6c526488d30fe198f",
@@ -57,7 +45,6 @@ func TestQKCHash(t *testing.T) {
 		"bf36c170967632ce8d55c6bb7f2dafbe1d1a5d94fa542a671362e17f803940ce",
 		fmt.Sprintf("%x", result),
 	)
-
 }
 
 func TestGetSeedFromBlockNumber(t *testing.T) {
@@ -94,16 +81,7 @@ func BenchmarkGenerateCacheGo(b *testing.B) {
 	benchCache = cache
 }
 
-func BenchmarkGenerateCacheNative(b *testing.B) {
-	var cache qkcCache
-	for i := 0; i < b.N; i++ {
-		cache = generateCache(cacheEntryCnt, nil)
-		// Note native cache is not destroyed
-	}
-	benchCache = cache
-}
-
-func BenchmarkQKCHashXGo(b *testing.B) {
+func BenchmarkQKCHashX(b *testing.B) {
 	cache := generateCache(cacheEntryCnt, nil)
 	var err error
 	b.ResetTimer()
@@ -115,7 +93,7 @@ func BenchmarkQKCHashXGo(b *testing.B) {
 	benchErr = err
 }
 
-func BenchmarkQKCHashXGo_UseX(b *testing.B) {
+func BenchmarkQKCHashX_UseX(b *testing.B) {
 	cache := generateCache(cacheEntryCnt, nil)
 	var err error
 	b.ResetTimer()
