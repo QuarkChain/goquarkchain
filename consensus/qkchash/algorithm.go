@@ -92,9 +92,9 @@ func generateCache(cnt int, seed []byte) qkcCache {
 func qkcHashX(seed []byte, cache qkcCache, useX bool) (digest []byte, result []byte, err error) {
 	const mixBytes = 128
 	// Copy the cache since modification is needed
-	tree := NewLLRB()
+	tree := new(llrb)
 	for _, v := range cache.ls {
-		tree.ReplaceOrInsert(v)
+		tree.Insert(v)
 	}
 
 	seed = crypto.Keccak512(seed)
@@ -111,14 +111,14 @@ func qkcHashX(seed []byte, cache qkcCache, useX bool) (digest []byte, result []b
 		newData := make([]uint64, mixBytes/8)
 		p := fnv64(uint64(i)^seedHead, mix[i%len(mix)])
 		for j := 0; j < len(mix); j++ {
-			idx := p % uint64(tree.Len())
+			idx := p % uint64(tree.Size())
 
 			v := tree.DeleteAt(int(idx))
 			newData[j] = v
 
 			// Generate a random item and insert
 			p = fnv64(p, v)
-			tree.ReplaceOrInsert(p)
+			tree.Insert(p)
 			// Continue next search
 			p = fnv64(p, v)
 		}

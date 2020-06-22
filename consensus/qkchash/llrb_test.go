@@ -10,54 +10,54 @@ import (
 )
 
 func TestCases(t *testing.T) {
-	tree := NewLLRB()
-	tree.ReplaceOrInsert(uint64(1))
-	tree.ReplaceOrInsert(uint64(1))
-	if tree.Len() != 1 {
+	tree := new(llrb)
+	tree.Insert(uint64(1))
+	tree.Insert(uint64(1))
+	if tree.Size() != 1 {
 		t.Errorf("expecting len 1")
 	}
-	if !tree.Has(uint64(1)) {
+	if tree.Get(1) == nil {
 		t.Errorf("expecting to find key=1")
 	}
 
 	tree.Delete(uint64(1))
-	if tree.Len() != 0 {
+	if tree.Size() != 0 {
 		t.Errorf("expecting len 0")
 	}
-	if tree.Has(uint64(1)) {
+	if tree.Get(1) != nil {
 		t.Errorf("not expecting to find key=1")
 	}
 
 	tree.Delete(uint64(1))
-	if tree.Len() != 0 {
+	if tree.Size() != 0 {
 		t.Errorf("expecting len 0")
 	}
-	if tree.Has(uint64(1)) {
+	if tree.Get(1) != nil {
 		t.Errorf("not expecting to find key=1")
 	}
 }
 
 func TestRandomReplace(t *testing.T) {
-	tree := NewLLRB()
+	tree := new(llrb)
 	n := 100
 	perm := rand.Perm(n)
 	for i := 0; i < n; i++ {
-		tree.ReplaceOrInsert(uint64(perm[i]))
+		tree.Insert(uint64(perm[i]))
 	}
 	perm = rand.Perm(n)
 	for i := 0; i < n; i++ {
-		if replaced := tree.ReplaceOrInsert(uint64(perm[i])); replaced == Null_Value || replaced != uint64(perm[i]) {
+		if replaced := tree.Insert(uint64(perm[i])); replaced == Null_Value || replaced != uint64(perm[i]) {
 			t.Errorf("error replacing")
 		}
 	}
 }
 
 func TestRandomInsertSequentialDelete(t *testing.T) {
-	tree := NewLLRB()
+	tree := new(llrb)
 	n := 1000
 	perm := rand.Perm(n)
 	for i := 0; i < n; i++ {
-		tree.ReplaceOrInsert(uint64(perm[i]))
+		tree.Insert(uint64(perm[i]))
 	}
 	for i := 0; i < n; i++ {
 		tree.Delete(uint64(i))
@@ -65,11 +65,11 @@ func TestRandomInsertSequentialDelete(t *testing.T) {
 }
 
 func TestRandomInsertDeleteNonExistent(t *testing.T) {
-	tree := NewLLRB()
+	tree := new(llrb)
 	n := 100
 	perm := rand.Perm(n)
 	for i := 0; i < n; i++ {
-		tree.ReplaceOrInsert(uint64(perm[i]))
+		tree.Insert(uint64(perm[i]))
 	}
 	if tree.Delete(uint64(200)) != Null_Value {
 		t.Errorf("deleted non-existent item")
@@ -91,32 +91,20 @@ func TestRandomInsertDeleteNonExistent(t *testing.T) {
 }
 
 func BenchmarkInsert(b *testing.B) {
-	tree := NewLLRB()
+	tree := new(llrb)
 	for i := 0; i < b.N; i++ {
-		tree.ReplaceOrInsert(uint64(b.N - i))
+		tree.Insert(uint64(b.N - i))
 	}
 }
 
 func BenchmarkDelete(b *testing.B) {
 	b.StopTimer()
-	tree := NewLLRB()
+	tree := new(llrb)
 	for i := 0; i < b.N; i++ {
-		tree.ReplaceOrInsert(uint64(b.N - i))
+		tree.Insert(uint64(b.N - i))
 	}
 	b.StartTimer()
 	for i := 0; i < b.N; i++ {
 		tree.Delete(uint64(i))
-	}
-}
-
-func BenchmarkDeleteMin(b *testing.B) {
-	b.StopTimer()
-	tree := NewLLRB()
-	for i := 0; i < b.N; i++ {
-		tree.ReplaceOrInsert(uint64(b.N - i))
-	}
-	b.StartTimer()
-	for i := 0; i < b.N; i++ {
-		tree.DeleteMin()
 	}
 }
