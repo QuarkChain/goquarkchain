@@ -4,6 +4,7 @@ package qkchash
 
 import (
 	"encoding/binary"
+	"fmt"
 	"sort"
 	"sync"
 
@@ -56,7 +57,6 @@ func (c *cacheSeed) getCacheFromHeight(block uint64) qkcCache {
 // Note in Go impl, `nativeCache` will be empty.
 type qkcCache struct {
 	ls   []uint64
-	set  map[uint64]struct{}
 	seed []byte
 }
 
@@ -85,23 +85,45 @@ func generateCache(cnt int, seed []byte) qkcCache {
 		}
 	}
 	sort.Slice(ls, func(i, j int) bool { return ls[i] < ls[j] })
-	return qkcCache{ls, set, seed}
+	return qkcCache{ls, seed}
+}
+
+// qkcHashX is the Go implementation.
+func qkcHashX(seed []byte, cache qkcCache, useX bool) (digest []byte, result []byte, err error) {
+	// Combine header+nonce into a seed
+	seed = crypto.Keccak512(seed)
+	hashRes, err := HashWithRotationStats(cache.ls, seed, useX)
+
+	if err != nil {
+		return nil, nil, err
+	}
+
+	digest = make([]byte, common.HashLength)
+	for i, val := range hashRes {
+		binary.LittleEndian.PutUint64(digest[i*8:], val)
+	}
+	result = crypto.Keccak256(append(seed, digest...))
+	return digest, result, nil
 }
 
 // qkcHashGo is the Go implementation.
-func qkcHashX(seed []byte, cache qkcCache, useX bool) (digest []byte, result []byte, err error) {
+func HashWithRotationStats(ls []uint64, seed []byte, useX bool) (ret [4]uint64, err error) {
+	if len(seed) != 64 {
+		return ret, fmt.Errorf("invoking native qkchash on invalid seed %v", len(seed))
+	}
+
 	const mixBytes = 128
 	// Copy the cache since modification is needed
 	tree := new(llrb)
-	for _, v := range cache.ls {
+	for _, v := range ls {
 		tree.Insert(v)
 	}
 
-	seed = crypto.Keccak512(seed)
 	seedHead := binary.LittleEndian.Uint64(seed)
 
 	// Start the mix with replicated seed
 	mix := make([]uint64, mixBytes/8)
+	var hashRes [4]uint64
 	for i := 0; i < len(mix); i++ {
 		mix[i] = binary.LittleEndian.Uint64(seed[i%8*8:])
 	}
@@ -130,21 +152,15 @@ func qkcHashX(seed []byte, cache qkcCache, useX bool) (digest []byte, result []b
 
 	// Compress mix
 	for i := 0; i < len(mix); i += 4 {
-		mix[i/4] = fnv64(fnv64(fnv64(mix[i], mix[i+1]), mix[i+2]), mix[i+3])
+		hashRes[i/4] = fnv64(fnv64(fnv64(mix[i], mix[i+1]), mix[i+2]), mix[i+3])
 	}
-	mix = mix[:len(mix)/4]
 
 	if useX {
 		stats := tree.GetRotationStats()
 		for i := 0; i < len(stats); i++ {
-			mix[i] ^= stats[i]
+			hashRes[i] ^= stats[i]
 		}
 	}
 
-	digest = make([]byte, common.HashLength)
-	for i, val := range mix {
-		binary.LittleEndian.PutUint64(digest[i*8:], val)
-	}
-	result = crypto.Keccak256(append(seed, digest...))
-	return digest, result, nil
+	return hashRes, nil
 }
