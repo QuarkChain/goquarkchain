@@ -1236,12 +1236,27 @@ func TestMinorTrieForkGC(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
+	fakeNonce := uint64(1)
+	for index := 1; index <= int(triesInRootBlock*2); index++ {
+		rootBlock1 := chain.rootTip.Header().CreateBlockToAppend(nil, nil, nil, &fakeNonce, nil)
+		rootBlock1.Finalize(nil, nil, common.Hash{})
+		chain.AddRootBlock(rootBlock1)
+	}
+
 	for i := 0; i < len(blocks); i++ {
 		if _, err := chain.InsertChain(toMinorBlocks(blocks[i:i+1]), false); err != nil {
 			t.Fatalf("block %d: failed to insert into chain: %v", i, err)
 		}
+
 		if _, err := chain.InsertChain(toMinorBlocks(forks[i:i+1]), false); err != nil {
 			t.Fatalf("fork %d: failed to insert into chain: %v", i, err)
+		}
+
+		if blocks[i : i+1][0].NumberU64() == triesInMemory {
+			rawdb.WriteLastConfirmedMinorBlockHeaderAtRootBlock(chain.db, chain.GetRootBlockByHeight(chain.rootTip.Hash(), triesInRootBlock).Hash(), chain.GetBlockByNumber(triesInMemory).Hash())
+		}
+		if i == len(blocks)-2 {
+			chain.lastDereferenceRoot = common.Hash{}
 		}
 	}
 	// Dereference all the recent tries and ensure no past trie is left in
@@ -1304,7 +1319,20 @@ func TestMinorLargeReorgTrieGC(t *testing.T) {
 		t.Fatalf("failed to insert shared chain: %v", err)
 	}
 
-	if _, err := chain.InsertChain(toMinorBlocks(original), false); err != nil {
+	if _, err := chain.InsertChain(toMinorBlocks(original[:len(original)-1]), false); err != nil {
+		t.Fatalf("failed to insert original chain: %v", err)
+	}
+
+	fakeNonce := uint64(1)
+	for index := 1; index <= int(triesInRootBlock*2); index++ {
+		rootBlock1 := chain.rootTip.Header().CreateBlockToAppend(nil, nil, nil, &fakeNonce, nil)
+		rootBlock1.Finalize(nil, nil, common.Hash{})
+		chain.AddRootBlock(rootBlock1)
+	}
+
+	rawdb.WriteLastConfirmedMinorBlockHeaderAtRootBlock(chain.db, chain.GetRootBlockByHeight(chain.rootTip.Hash(), triesInRootBlock).Hash(), shared[len(shared)-1].Hash())
+	chain.lastDereferenceRoot = common.Hash{}
+	if _, err := chain.InsertChain(toMinorBlocks(original[(len(original)-1):]), false); err != nil {
 		t.Fatalf("failed to insert original chain: %v", err)
 	}
 
@@ -1329,7 +1357,7 @@ func TestMinorLargeReorgTrieGC(t *testing.T) {
 		t.Fatalf("failed to finalize competitor chain: %v", err)
 	}
 	for i, block := range competitor[:len(competitor)-triesInMemory] {
-		if node, _ := chain.stateCache.TrieDB().Node(block.Root()); node != nil {
+		if node, _ := chain.stateCache.TrieDB().Node(block.Root()); node == nil {
 			t.Fatalf("competitor %d: competing chain state missing", i)
 		}
 	}

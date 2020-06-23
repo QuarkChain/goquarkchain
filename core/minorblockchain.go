@@ -139,6 +139,7 @@ type MinorBlockChain struct {
 	branch                   account.Branch
 	shardConfig              *config.ShardConfig
 	rootTip                  *types.RootBlock
+	lastDereferenceRoot      common.Hash
 	confirmedHeaderTip       *types.MinorBlock
 	initialized              bool
 	rewardCalc               *qkcCommon.ConstMinorBlockRewardCalculator
@@ -900,7 +901,7 @@ func (m *MinorBlockChain) WriteBlockWithState(block *types.MinorBlock, receipts 
 		triedb.Reference(root, common.Hash{}) // metadata reference to keep trie alive
 		m.triegc.Push(root, -int64(block.NumberU64()))
 
-		if current := block.NumberU64(); current > triesInMemory {
+		if current := block.NumberU64(); m.rootTip.NumberU64() > triesInRootBlock && current > triesInMemory {
 			// If we exceeded our memory allowance, flush matured singleton nodes to disk
 			var (
 				nodes, imgs = triedb.Size()
@@ -915,7 +916,6 @@ func (m *MinorBlockChain) WriteBlockWithState(block *types.MinorBlock, receipts 
 				log.Error("minorBlock not found", "height", current-triesInMemory)
 			}
 			mBlock := block.(*types.MinorBlock)
-			chosen := mBlock.NumberU64()
 
 			// If we exceeded out time allowance, flush an entire trie to disk
 			if mBlock.NumberU64()%triesInMemory == 0 {
@@ -923,15 +923,26 @@ func (m *MinorBlockChain) WriteBlockWithState(block *types.MinorBlock, receipts 
 				triedb.Commit(mBlock.GetMetaData().Root, false)
 				log.Info(m.logInfo, "commit trie number", mBlock.NumberU64(), "hash", mBlock.Hash().String(), "root", mBlock.GetMetaData().Root.String())
 			}
-			// Garbage collect anything below our required write retention
-			for !m.triegc.Empty() {
-				root, number := m.triegc.Pop()
-				if uint64(-number) > chosen {
-					m.triegc.Push(root, number)
-					break
+
+			if m.rootTip.NumberU64()%triesInRootBlock == 0 && m.rootTip.Hash() != m.lastDereferenceRoot {
+				m.lastDereferenceRoot = m.rootTip.Hash()
+				preRootBlock := m.GetRootBlockByHeight(m.rootTip.Hash(), m.rootTip.NumberU64()-triesInRootBlock)
+				preRootBlockConfirmedMinorBlock := m.GetMinorBlock(m.ReadLastConfirmedMinorBlockHeaderAtRootBlock(preRootBlock.Hash()))
+				chosen := preRootBlockConfirmedMinorBlock.NumberU64()
+				if chosen > current-triesInMemory {
+					chosen = current - triesInMemory
 				}
-				triedb.Dereference(root.(common.Hash))
+				// Garbage collect anything below our required write retention
+				for !m.triegc.Empty() {
+					root, number := m.triegc.Pop()
+					if uint64(-number) > chosen {
+						m.triegc.Push(root, number)
+						break
+					}
+					triedb.Dereference(root.(common.Hash))
+				}
 			}
+
 		}
 	}
 
