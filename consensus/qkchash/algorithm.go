@@ -5,56 +5,16 @@ package qkchash
 import (
 	"encoding/binary"
 	"fmt"
-	"sort"
-	"sync"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 )
 
 const (
-	accessRound     = 64
-	cacheEntryCnt   = 1024 * 64
-	cacheAheadRound = 64 // 64*30000
+	accessRound = 64
 )
-
-var (
-	EpochLength = uint64(30000) //blocks pre epoch
-)
-
-type cacheSeed struct {
-	mu     sync.RWMutex
-	caches []qkcCache
-}
-
-func NewcacheSeed() *cacheSeed {
-	firstCache := generateCache(cacheEntryCnt, common.Hash{}.Bytes())
-	caches := make([]qkcCache, 0)
-	caches = append(caches, firstCache)
-	return &cacheSeed{
-		caches: caches,
-	}
-}
-
-func (c *cacheSeed) getCacheFromHeight(block uint64) qkcCache {
-	epoch := int(block / EpochLength)
-	lenCaches := len(c.caches)
-	if epoch < lenCaches {
-		return c.caches[epoch]
-	}
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	needAddCnt := epoch - lenCaches + cacheAheadRound
-	seed := c.caches[len(c.caches)-1].seed
-	for i := 0; i < needAddCnt; i++ {
-		seed = crypto.Keccak256(seed)
-		c.caches = append(c.caches, generateCache(cacheEntryCnt, seed))
-	}
-	return c.caches[epoch]
-}
 
 // qkcCache is the union type of cache for qkchash algo.
-// Note in Go impl, `nativeCache` will be empty.
 type qkcCache struct {
 	ls   []uint64
 	seed []byte
@@ -66,25 +26,7 @@ func fnv64(a, b uint64) uint64 {
 	return a*0x100000001b3 ^ b
 }
 
-// generateCache generates cache for qkchash. Will also generate underlying cache
-// in native c++ impl if needed.
-func generateCache(cnt int, seed []byte) qkcCache {
-	ls := []uint64{}
-	set := make(map[uint64]struct{})
-	for i := uint32(0); i < uint32(cnt/8); i++ {
-		iBytes := make([]byte, 4)
-		binary.BigEndian.PutUint32(iBytes, i)
-		bs := crypto.Keccak512(append(seed, iBytes...))
-		// Read 8 bytes as uint64
-		for j := 0; j < len(bs); j += 8 {
-			ele := binary.LittleEndian.Uint64(bs[j:])
-			if _, ok := set[ele]; !ok {
-				ls = append(ls, ele)
-				set[ele] = struct{}{}
-			}
-		}
-	}
-	sort.Slice(ls, func(i, j int) bool { return ls[i] < ls[j] })
+func newCache(seed []byte, ls []uint64) qkcCache {
 	return qkcCache{ls, seed}
 }
 
@@ -109,7 +51,7 @@ func qkcHashX(seed []byte, cache qkcCache, useX bool) (digest []byte, result []b
 // qkcHashGo is the Go implementation.
 func HashWithRotationStats(ls []uint64, seed []byte, useX bool) (ret [4]uint64, err error) {
 	if len(seed) != 64 {
-		return ret, fmt.Errorf("invoking native qkchash on invalid seed %v", len(seed))
+		return ret, fmt.Errorf("invoking qkchash on invalid seed %v", len(seed))
 	}
 
 	const mixBytes = 128

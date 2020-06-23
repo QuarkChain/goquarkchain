@@ -73,7 +73,7 @@ var (
 	benchCache qkcCache
 )
 
-func BenchmarkGenerateCacheGo(b *testing.B) {
+func BenchmarkGenerateCache(b *testing.B) {
 	var cache qkcCache
 	for i := 0; i < b.N; i++ {
 		cache = generateCache(cacheEntryCnt, nil)

@@ -25,7 +25,6 @@ func TestQKCHash(t *testing.T) {
 	}
 	assert := assert.New(t)
 
-	// Failure case, mismatched native flag and hash algo
 	cache := generateCache(cacheEntryCnt, nil)
 	seed := make([]byte, 40)
 
@@ -86,7 +85,7 @@ var (
 	benchCache qkcCache
 )
 
-func BenchmarkGenerateCacheGo(b *testing.B) {
+func BenchmarkGenerateCache(b *testing.B) {
 	var cache qkcCache
 	for i := 0; i < b.N; i++ {
 		cache = generateCache(cacheEntryCnt, nil)
@@ -94,16 +93,7 @@ func BenchmarkGenerateCacheGo(b *testing.B) {
 	benchCache = cache
 }
 
-func BenchmarkGenerateCacheNative(b *testing.B) {
-	var cache qkcCache
-	for i := 0; i < b.N; i++ {
-		cache = generateCache(cacheEntryCnt, nil)
-		// Note native cache is not destroyed
-	}
-	benchCache = cache
-}
-
-func BenchmarkQKCHashXGo(b *testing.B) {
+func BenchmarkQKCHashX(b *testing.B) {
 	cache := generateCache(cacheEntryCnt, nil)
 	var err error
 	b.ResetTimer()
@@ -115,7 +105,7 @@ func BenchmarkQKCHashXGo(b *testing.B) {
 	benchErr = err
 }
 
-func BenchmarkQKCHashXGo_UseX(b *testing.B) {
+func BenchmarkQKCHashX_UseX(b *testing.B) {
 	cache := generateCache(cacheEntryCnt, nil)
 	var err error
 	b.ResetTimer()
