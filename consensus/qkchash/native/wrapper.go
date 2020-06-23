@@ -27,12 +27,28 @@ func NewCache(rawCache []uint64) Cache {
 	return ret
 }
 
-// Hashx wraps the native qkchashx algorithm.
-func HashWithRotationStats(cache Cache, seed []byte, useX bool) (ret [4]uint64, err error) {
+// Hash wraps the native qkchash algorithm.
+func Hash(cache Cache, seed [8]uint64) (ret [4]uint64, err error) {
 	if cache == nil || cache.ptr == nil {
 		return ret, errors.New("invoking native qkchash on empty cache")
 	}
 
+	Qkc_hash(*cache.ptr, seed[:], ret[:])
+	return ret, nil
+}
+
+// HashX wraps the native qkchashx algorithm.
+func HashX(cache Cache, seed [8]uint64) (ret [4]uint64, err error) {
+	if cache == nil || cache.ptr == nil {
+		return ret, errors.New("invoking native qkchash on empty cache")
+	}
+
+	Qkc_hash_with_rotation_stats(*cache.ptr, seed[:], ret[:])
+	return ret, nil
+}
+
+// HashWithRotationStats wraps the native qkchashx algorithm.
+func HashWithRotationStats(cache Cache, seed []byte, useX bool) (ret [4]uint64, err error) {
 	if len(seed) != 64 {
 		return ret, fmt.Errorf("invoking native qkchash on invalid seed %v", len(seed))
 	}
@@ -41,11 +57,10 @@ func HashWithRotationStats(cache Cache, seed []byte, useX bool) (ret [4]uint64, 
 	for i := 0; i < 8; i++ {
 		seedArray[i] = binary.LittleEndian.Uint64(seed[i*8:])
 	}
-	if useX {
-		Qkc_hash_with_rotation_stats(*cache.ptr, seedArray[:], ret[:])
-	} else {
-		Qkc_hash(*cache.ptr, seedArray[:], ret[:])
-	}
 
-	return ret, nil
+	if useX {
+		return HashX(cache, seedArray)
+	} else {
+		return Hash(cache, seedArray)
+	}
 }

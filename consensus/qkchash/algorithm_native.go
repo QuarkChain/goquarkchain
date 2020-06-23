@@ -85,7 +85,7 @@ func generateCache(cnt int, seed []byte) qkcCache {
 func qkcHashX(seed []byte, cache qkcCache, useX bool) (digest []byte, result []byte, err error) {
 	// Combine header+nonce into a seed
 	seed = crypto.Keccak512(seed)
-	hashRes, err := native.HashWithRotationStats(cache.nativeCache, seed, useX)
+	hashRes, err := native.HashX(cache.nativeCache, seed, useX)
 
 	if err != nil {
 		return nil, nil, err

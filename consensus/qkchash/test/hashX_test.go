@@ -1,15 +1,17 @@
-package main
+package test
 
 import (
 	"encoding/binary"
 	"fmt"
 	"sort"
+	"testing"
 	"time"
 
 	"github.com/QuarkChain/goquarkchain/consensus/qkchash"
 	"github.com/QuarkChain/goquarkchain/consensus/qkchash/native"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/stretchr/testify/assert"
 )
 
 const (
@@ -64,7 +66,7 @@ func generateCache(cnt int, seed []byte) cache {
 	return cache{native.NewCache(ls), ls, seed}
 }
 
-func main() {
+func TestQkcHashXCompare(t *testing.T) {
 	ux := []bool{false, true}
 	firstCache := generateCache(cacheEntryCnt, common.Hash{}.Bytes())
 	caches = make([]cache, 0)
@@ -77,8 +79,8 @@ func main() {
 		seed = crypto.Keccak512(seed)
 		for _, usex := range ux {
 			if err := CompareQkcHashBetweenGoAndNative(seed, cache, usex); err != nil {
-				fmt.Printf("compare error for round %d; \r\n\tseed: %v;"+
-					"\r\n\tcache: %v; \r\n\tusex: %v;\r\n\terror: %v", i, seed, cache.ls, usex, err.Error())
+				assert.NoError(t, err, fmt.Sprintf("compare error for round %d; \r\n\tseed: %v;"+
+					"\r\n\tcache: %v; \r\n\tusex: %v;\r\n\terror: %v", i, seed, cache.ls, usex, err.Error()))
 				return
 			}
 		}
