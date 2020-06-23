@@ -70,7 +70,6 @@ func HashWithRotationStats(ls []uint64, seed []byte, useX bool) (ret [4]uint64, 
 		mix[i] = binary.LittleEndian.Uint64(seed[i%8*8:])
 	}
 
-	// TODO: can be improved using balanced tree
 	for i := 0; i < accessRound; i++ {
 		newData := make([]uint64, mixBytes/8)
 		p := fnv64(uint64(i)^seedHead, mix[i%len(mix)])
