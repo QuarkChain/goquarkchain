@@ -73,9 +73,9 @@ func TestQkcHashXCompare(t *testing.T) {
 	caches = append(caches, firstCache)
 	seed := make([]byte, 40)
 	tm := time.Now()
-	round := uint64(1000)
+	round := uint64(500)
 	for i := uint64(0); i < round; i++ {
-		cache := getCacheFromHeight(i)
+		cache := getCacheFromHeight(i * 10)
 		seed = crypto.Keccak512(seed)
 		for _, usex := range ux {
 			if err := CompareQkcHashBetweenGoAndNative(seed, cache, usex); err != nil {
