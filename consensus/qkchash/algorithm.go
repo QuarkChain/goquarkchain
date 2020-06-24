@@ -26,12 +26,23 @@ func fnv64(a, b uint64) uint64 {
 	return a*0x100000001b3 ^ b
 }
 
-func newCache(seed []byte, ls []uint64) qkcCache {
-	return qkcCache{ls, seed}
+func newCache(seed []byte, ls []uint64) *qkcCache {
+	return &qkcCache{ls, seed}
+}
+
+func shrinkCache(cache *qkcCache) {
+	cache.ls = nil
+}
+
+func checkCache(cache *qkcCache) *qkcCache {
+	if cache.ls == nil {
+		cache.ls = Generatels(cacheEntryCnt, cache.seed)
+	}
+	return cache
 }
 
 // qkcHashX is the Go implementation.
-func qkcHashX(seed []byte, cache qkcCache, useX bool) (digest []byte, result []byte, err error) {
+func qkcHashX(seed []byte, cache *qkcCache, useX bool) (digest []byte, result []byte, err error) {
 	// Combine header+nonce into a seed
 	seed = crypto.Keccak512(seed)
 	hashRes, err := HashWithRotationStats(cache.ls, seed, useX)
@@ -48,7 +59,6 @@ func qkcHashX(seed []byte, cache qkcCache, useX bool) (digest []byte, result []b
 	return digest, result, nil
 }
 
-// qkcHashGo is the Go implementation.
 func HashWithRotationStats(ls []uint64, seed []byte, useX bool) (ret [4]uint64, err error) {
 	if len(seed) != 64 {
 		return ret, fmt.Errorf("invoking qkchash on invalid seed %v", len(seed))

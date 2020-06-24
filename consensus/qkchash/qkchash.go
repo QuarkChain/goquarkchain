@@ -24,23 +24,23 @@ var (
 
 type cacheSeed struct {
 	mu     sync.RWMutex
-	caches []qkcCache
+	caches []*qkcCache
 }
 
 func NewcacheSeed() *cacheSeed {
 	firstCache := generateCache(cacheEntryCnt, common.Hash{}.Bytes())
-	caches := make([]qkcCache, 0)
+	caches := make([]*qkcCache, 0)
 	caches = append(caches, firstCache)
 	return &cacheSeed{
 		caches: caches,
 	}
 }
 
-func (c *cacheSeed) getCacheFromHeight(block uint64) qkcCache {
+func (c *cacheSeed) getCacheFromHeight(block uint64) *qkcCache {
 	epoch := int(block / EpochLength)
 	lenCaches := len(c.caches)
 	if epoch < lenCaches {
-		return c.caches[epoch]
+		return checkCache(c.caches[epoch])
 	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -50,11 +50,21 @@ func (c *cacheSeed) getCacheFromHeight(block uint64) qkcCache {
 		seed = crypto.Keccak256(seed)
 		c.caches = append(c.caches, generateCache(cacheEntryCnt, seed))
 	}
+	if needAddCnt > 2*cacheAheadRound {
+		for i := 0; i < needAddCnt-2*cacheAheadRound; i++ {
+			shrinkCache(c.caches[i])
+		}
+	}
 	return c.caches[epoch]
 }
 
 // generateCache generates cache for qkchash. Will also generate underlying cache
-func generateCache(cnt int, seed []byte) qkcCache {
+func generateCache(cnt int, seed []byte) *qkcCache {
+	ls := Generatels(cnt, seed)
+	return newCache(seed, ls)
+}
+
+func Generatels(cnt int, seed []byte) []uint64 {
 	ls := []uint64{}
 	set := make(map[uint64]struct{})
 	for i := uint32(0); i < uint32(cnt/8); i++ {
@@ -71,7 +81,7 @@ func generateCache(cnt int, seed []byte) qkcCache {
 		}
 	}
 	sort.Slice(ls, func(i, j int) bool { return ls[i] < ls[j] })
-	return newCache(seed, ls)
+	return ls
 }
 
 // QKCHash is a consensus engine implementing PoW with qkchash algo.

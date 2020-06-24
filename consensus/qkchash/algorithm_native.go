@@ -16,15 +16,27 @@ type qkcCache struct {
 	seed        []byte
 }
 
-func newCache(seed []byte, ls []uint64) qkcCache {
-	return qkcCache{native.NewCache(ls), seed}
+func newCache(seed []byte, ls []uint64) *qkcCache {
+	return &qkcCache{native.NewCache(ls), seed}
+}
+
+func shrinkCache(cache *qkcCache) {
+	cache.nativeCache = nil
+}
+
+func checkCache(cache *qkcCache) *qkcCache {
+	if cache.nativeCache == nil {
+		cache.nativeCache = native.NewCache(Generatels(cacheEntryCnt, cache.seed))
+	}
+
+	return cache
 }
 
 // qkcHashX calls the native c++ implementation through SWIG.
-func qkcHashX(seed []byte, cache qkcCache, useX bool) (digest []byte, result []byte, err error) {
+func qkcHashX(seed []byte, cache *qkcCache, useX bool) (digest []byte, result []byte, err error) {
 	// Combine header+nonce into a seed
 	seed = crypto.Keccak512(seed)
-	hashRes, err := native.HashX(cache.nativeCache, seed, useX)
+	hashRes, err := native.HashWithRotationStats(cache.nativeCache, seed, useX)
 
 	if err != nil {
 		return nil, nil, err

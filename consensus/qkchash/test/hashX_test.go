@@ -1,9 +1,7 @@
 package test
 
 import (
-	"encoding/binary"
 	"fmt"
-	"sort"
 	"testing"
 	"time"
 
@@ -21,7 +19,7 @@ const (
 
 var (
 	EpochLength = uint64(100) //blocks pre epoch
-	caches      []cache
+	caches      []*cache
 )
 
 // cache is the union type of cache for qkchash algo.
@@ -32,7 +30,7 @@ type cache struct {
 	seed        []byte
 }
 
-func getCacheFromHeight(block uint64) cache {
+func getCacheFromHeight(block uint64) *cache {
 	epoch := int(block / EpochLength)
 	lenCaches := len(caches)
 	if epoch < lenCaches {
@@ -47,29 +45,16 @@ func getCacheFromHeight(block uint64) cache {
 	return caches[epoch]
 }
 
-func generateCache(cnt int, seed []byte) cache {
-	ls := []uint64{}
-	set := make(map[uint64]struct{})
-	for i := uint32(0); i < uint32(cnt/8); i++ {
-		iBytes := make([]byte, 4)
-		binary.BigEndian.PutUint32(iBytes, i)
-		bs := crypto.Keccak512(append(seed, iBytes...))
-		for j := 0; j < len(bs); j += 8 {
-			ele := binary.LittleEndian.Uint64(bs[j:])
-			if _, ok := set[ele]; !ok {
-				ls = append(ls, ele)
-				set[ele] = struct{}{}
-			}
-		}
-	}
-	sort.Slice(ls, func(i, j int) bool { return ls[i] < ls[j] })
-	return cache{native.NewCache(ls), ls, seed}
+// generateCache generates cache for qkchash. Will also generate underlying cache
+func generateCache(cnt int, seed []byte) *cache {
+	ls := qkchash.Generatels(cnt, seed)
+	return &cache{native.NewCache(ls), ls, seed}
 }
 
 func TestQkcHashXCompare(t *testing.T) {
 	ux := []bool{false, true}
 	firstCache := generateCache(cacheEntryCnt, common.Hash{}.Bytes())
-	caches = make([]cache, 0)
+	caches = make([]*cache, 0)
 	caches = append(caches, firstCache)
 	seed := make([]byte, 40)
 	tm := time.Now()
@@ -88,7 +73,7 @@ func TestQkcHashXCompare(t *testing.T) {
 	fmt.Printf("test done, using %v seconds for %d round", time.Now().Sub(tm).Seconds(), round)
 }
 
-func CompareQkcHashBetweenGoAndNative(seed []byte, cache cache, useX bool) error {
+func CompareQkcHashBetweenGoAndNative(seed []byte, cache *cache, useX bool) error {
 	resultN, errN := native.HashWithRotationStats(cache.nativeCache, seed, useX)
 	resultG, errG := qkchash.HashWithRotationStats(cache.ls, seed, useX)
 	if errN != nil {

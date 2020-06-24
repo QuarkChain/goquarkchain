@@ -20,7 +20,7 @@ func TestGenerateCache(t *testing.T) {
 }
 
 func TestQKCHash(t *testing.T) {
-	fakeQkcHashGo := func(a []byte, b qkcCache, c bool) ([]byte, []byte, error) {
+	fakeQkcHashGo := func(a []byte, b *qkcCache, c bool) ([]byte, []byte, error) {
 		return qkcHashX(a, b, false)
 	}
 	assert := assert.New(t)
@@ -82,11 +82,11 @@ func TestGetSeedFromBlockNumber(t *testing.T) {
 // Use following to avoid compiler optimization
 var (
 	benchErr   error
-	benchCache qkcCache
+	benchCache *qkcCache
 )
 
 func BenchmarkGenerateCache(b *testing.B) {
-	var cache qkcCache
+	var cache *qkcCache
 	for i := 0; i < b.N; i++ {
 		cache = generateCache(cacheEntryCnt, nil)
 	}

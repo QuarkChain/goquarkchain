@@ -70,11 +70,11 @@ func TestGetSeedFromBlockNumber(t *testing.T) {
 // Use following to avoid compiler optimization
 var (
 	benchErr   error
-	benchCache qkcCache
+	benchCache *qkcCache
 )
 
 func BenchmarkGenerateCache(b *testing.B) {
-	var cache qkcCache
+	var cache *qkcCache
 	for i := 0; i < b.N; i++ {
 		cache = generateCache(cacheEntryCnt, nil)
 	}
