@@ -39,7 +39,7 @@ import (
 )
 
 const (
-	disPlayPeerInfoInterval = time.Duration(10 * time.Second)
+	disPlayPeerInfoInterval = time.Duration(10 * time.Minute)
 )
 
 var (
