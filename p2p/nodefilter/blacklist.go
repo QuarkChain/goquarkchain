@@ -1,9 +1,10 @@
 package nodefilter
 
 import (
-	"github.com/ethereum/go-ethereum/p2p/enode"
 	"sync"
 	"time"
+
+	"github.com/ethereum/go-ethereum/p2p/enode"
 )
 
 const (
@@ -64,12 +65,6 @@ func (pm *blackNodes) GetDialBlackList() (map[string]int64, map[string]int64) {
 	pm.mu.RLock()
 	defer pm.mu.RUnlock()
 	return pm.dialinBlacklist, pm.dialoutBlacklist
-}
-
-func (pm *blackNodes) GetDialInBlockList() map[string]int64 {
-	pm.mu.RLock()
-	defer pm.mu.RUnlock()
-	return pm.dialoutBlacklist
 }
 
 func (pm *blackNodes) ChkDialoutBlacklist(ip string) bool {
