@@ -50,8 +50,8 @@ func (c *cacheSeed) getCacheFromHeight(block uint64) *qkcCache {
 		seed = crypto.Keccak256(seed)
 		c.caches = append(c.caches, generateCache(cacheEntryCnt, seed))
 	}
-	if needAddCnt > 2*cacheAheadRound {
-		for i := 0; i < needAddCnt-2*cacheAheadRound; i++ {
+	if len(c.caches) > 2*cacheAheadRound {
+		for i := 0; i < len(c.caches)-2*cacheAheadRound; i++ {
 			shrinkCache(c.caches[i])
 		}
 	}
