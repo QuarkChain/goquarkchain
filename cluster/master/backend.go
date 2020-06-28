@@ -39,7 +39,7 @@ import (
 )
 
 const (
-	disPlayPeerInfoInterval = time.Duration(5 * time.Second)
+	disPlayPeerInfoInterval = time.Duration(10 * time.Second)
 )
 
 var (
@@ -324,7 +324,7 @@ func (s *QKCMasterBackend) Start() error {
 	if s.clusterConfig.Quarkchain.Root.ConsensusConfig.RemoteMine {
 		s.SetMining(true)
 	}
-
+	s.disPlayPeers()
 	log.Info("Start cluster successful", "slaveSize", s.ConnCount())
 	return nil
 }
@@ -765,15 +765,13 @@ func (s *QKCMasterBackend) GetStats() (map[string]interface{}, error) {
 	}, nil
 }
 
-//TODO need delete later
 func (s *QKCMasterBackend) disPlayPeers() {
 	go func() {
 		for true {
 			time.Sleep(disPlayPeerInfoInterval)
 			peers := s.protocolManager.peers.Peers()
-			for _, v := range peers {
-				log.Info(s.logInfo, "remote addr", v.RemoteAddr().String())
-			}
+			inBlackList, outBlackList := s.srvr.GetBlackList()
+			log.Info(s.logInfo, "peer number", len(peers), "inBlockList", inBlackList, "outBlackList", outBlackList)
 		}
 	}()
 
