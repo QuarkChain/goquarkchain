@@ -60,11 +60,11 @@ func (c *cacheSeed) getCacheFromHeight(block uint64) *qkcCache {
 
 // generateCache generates cache for qkchash. Will also generate underlying cache
 func generateCache(cnt int, seed []byte) *qkcCache {
-	ls := Generatels(cnt, seed)
+	ls := generatels(cnt, seed)
 	return newCache(seed, ls)
 }
 
-func Generatels(cnt int, seed []byte) []uint64 {
+func generatels(cnt int, seed []byte) []uint64 {
 	ls := []uint64{}
 	set := make(map[uint64]struct{})
 	for i := uint32(0); i < uint32(cnt/8); i++ {

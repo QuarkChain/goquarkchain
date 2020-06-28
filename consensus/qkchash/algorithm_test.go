@@ -6,7 +6,10 @@ import (
 	"encoding/hex"
 	"fmt"
 	"testing"
+	"time"
 
+	"github.com/QuarkChain/goquarkchain/consensus/qkchash/native"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -139,4 +142,60 @@ func TestQKCHashXResult_UseX(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, digest, digestX)
 	assert.Equal(t, result, resultX)
+}
+
+func TestQkcHashXCompare(t *testing.T) {
+	ux := []bool{false, true}
+	c := NewcacheSeed()
+	tm := time.Now()
+	round := uint64(200)
+	for i := uint64(0); i < round; i++ {
+		cache := c.getCacheFromHeight(i * EpochLength / 2)
+		for _, usex := range ux {
+			if err := compareQkcHashBetweenGoAndNative(cache, usex); err != nil {
+				assert.NoError(t, err, fmt.Sprintf("comparison error for index %d; \r\n\tseed: %v;"+
+					"\r\n\tcache: %v; \r\n\tusex: %v;\r\n\terror: %v", i, cache.seed, cache.ls, usex, err.Error()))
+				return
+			}
+		}
+	}
+	len := uint64(len(c.caches))
+	for i := uint64(0); i < len; i++ {
+		if i+2*cacheAheadRound < len {
+			assert.Nil(t, c.caches[i].ls, "cache should be shrunk")
+		} else {
+			assert.NotNil(t, c.caches[i].ls, "cache should not be shrunk")
+		}
+	}
+	for i := uint64(0); i < round; i++ {
+		cache := c.getCacheFromHeight(i * EpochLength / 2)
+		for _, usex := range ux {
+			if err := compareQkcHashBetweenGoAndNative(cache, usex); err != nil {
+				assert.NoError(t, err,
+					fmt.Sprintf("Second round of comparison error for index %d; \r\n\tseed: %v;"+
+						"\r\n\tcache: %v; \r\n\tusex: %v;\r\n\terror: %v",
+						i, cache.seed, cache.ls, usex, err.Error()))
+				return
+			}
+		}
+	}
+	fmt.Printf("test done, using %v seconds for %d round", time.Now().Sub(tm).Seconds(), round)
+}
+
+func compareQkcHashBetweenGoAndNative(cache *qkcCache, useX bool) error {
+	seed := crypto.Keccak512(cache.seed)
+	resultN, errN := native.HashWithRotationStats(native.NewCache(cache.ls), seed, useX)
+	resultG, errG := HashWithRotationStats(cache.ls, seed, useX)
+	if errN != nil {
+		return fmt.Errorf("errN: %v", errN.Error())
+	}
+	if errG != nil {
+		return fmt.Errorf("errG: %v", errG.Error())
+	}
+	for i := 0; i < 4; i++ {
+		if resultG[i] != resultN[i] {
+			return fmt.Errorf("diff : %v vs %v", resultN, resultG)
+		}
+	}
+	return nil
 }

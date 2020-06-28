@@ -36,7 +36,7 @@ func shrinkCache(cache *qkcCache) {
 
 func checkCache(cache *qkcCache) *qkcCache {
 	if cache.ls == nil {
-		cache.ls = Generatels(cacheEntryCnt, cache.seed)
+		cache.ls = generatels(cacheEntryCnt, cache.seed)
 	}
 	return cache
 }

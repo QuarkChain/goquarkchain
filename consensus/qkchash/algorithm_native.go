@@ -26,7 +26,7 @@ func shrinkCache(cache *qkcCache) {
 
 func checkCache(cache *qkcCache) *qkcCache {
 	if cache.nativeCache == nil {
-		cache.nativeCache = native.NewCache(Generatels(cacheEntryCnt, cache.seed))
+		cache.nativeCache = native.NewCache(generatels(cacheEntryCnt, cache.seed))
 	}
 
 	return cache
