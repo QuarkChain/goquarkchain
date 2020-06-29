@@ -40,7 +40,13 @@ func (c *cacheSeed) getCacheFromHeight(block uint64) *qkcCache {
 	epoch := int(block / EpochLength)
 	lenCaches := len(c.caches)
 	if epoch < lenCaches {
-		return checkCache(c.caches[epoch])
+		cache := c.caches[epoch]
+		if shrunk(cache) {
+			c.mu.Lock()
+			fillInCache(cache)
+			c.mu.Unlock()
+		}
+		return cache
 	}
 	c.mu.Lock()
 	defer c.mu.Unlock()

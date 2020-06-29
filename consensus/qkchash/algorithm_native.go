@@ -24,12 +24,12 @@ func shrinkCache(cache *qkcCache) {
 	cache.nativeCache = nil
 }
 
-func checkCache(cache *qkcCache) *qkcCache {
-	if cache.nativeCache == nil {
-		cache.nativeCache = native.NewCache(generatels(cacheEntryCnt, cache.seed))
-	}
+func shrunk(cache *qkcCache) bool {
+	return cache.nativeCache == nil
+}
 
-	return cache
+func fillInCache(cache *qkcCache) {
+	cache.nativeCache = native.NewCache(generatels(cacheEntryCnt, cache.seed))
 }
 
 // qkcHashX calls the native c++ implementation through SWIG.

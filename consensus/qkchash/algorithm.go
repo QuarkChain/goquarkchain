@@ -34,11 +34,12 @@ func shrinkCache(cache *qkcCache) {
 	cache.ls = nil
 }
 
-func checkCache(cache *qkcCache) *qkcCache {
-	if cache.ls == nil {
-		cache.ls = generatels(cacheEntryCnt, cache.seed)
-	}
-	return cache
+func shrunk(cache *qkcCache) bool {
+	return cache.ls == nil
+}
+
+func fillInCache(cache *qkcCache) {
+	cache.ls = generatels(cacheEntryCnt, cache.seed)
 }
 
 // qkcHashX is the Go implementation.
