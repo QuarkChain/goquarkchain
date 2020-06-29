@@ -1,13 +1,13 @@
 package qkchash
 
 import (
-	"github.com/QuarkChain/goquarkchain/account"
-	"github.com/QuarkChain/goquarkchain/consensus"
-	"github.com/ethereum/go-ethereum/common"
 	"math/big"
 	"testing"
 
+	"github.com/QuarkChain/goquarkchain/account"
+	"github.com/QuarkChain/goquarkchain/consensus"
 	"github.com/QuarkChain/goquarkchain/core/types"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -16,25 +16,23 @@ func TestSealAndVerifySeal(t *testing.T) {
 	diffCalculator := consensus.EthDifficultyCalculator{AdjustmentCutoff: 7, AdjustmentFactor: 512, MinimumDifficulty: big.NewInt(100000)}
 
 	header := &types.RootBlockHeader{Number: 1, Difficulty: big.NewInt(10)}
-	for _, qkcHashNativeFlag := range []bool{true, false} {
-		q := New(qkcHashNativeFlag, &diffCalculator, false, []byte{}, 100)
-		rootBlock := types.NewRootBlockWithHeader(header)
-		resultsCh := make(chan types.IBlock)
-		err := q.Seal(nil, rootBlock, nil, 1, resultsCh, nil)
-		assert.NoError(err, "should have no problem sealing the block")
-		block := <-resultsCh
+	q := New(&diffCalculator, false, []byte{}, 100)
+	rootBlock := types.NewRootBlockWithHeader(header)
+	resultsCh := make(chan types.IBlock)
+	err := q.Seal(nil, rootBlock, nil, 1, resultsCh, nil)
+	assert.NoError(err, "should have no problem sealing the block")
+	block := <-resultsCh
 
-		// Correct
-		header.Nonce = block.IHeader().GetNonce()
-		header.MixDigest = block.IHeader().GetMixDigest()
-		err = q.VerifySeal(nil, header, big.NewInt(0))
-		assert.NoError(err, "should have correct nonce / mix digest")
+	// Correct
+	header.Nonce = block.IHeader().GetNonce()
+	header.MixDigest = block.IHeader().GetMixDigest()
+	err = q.VerifySeal(nil, header, big.NewInt(0))
+	assert.NoError(err, "should have correct nonce / mix digest")
 
-		// Wrong
-		header.Nonce = block.IHeader().GetNonce() - 1
-		err = q.VerifySeal(nil, header, big.NewInt(0))
-		assert.Error(err, "should have error because of the wrong nonce")
-	}
+	// Wrong
+	header.Nonce = block.IHeader().GetNonce() - 1
+	err = q.VerifySeal(nil, header, big.NewInt(0))
+	assert.Error(err, "should have error because of the wrong nonce")
 }
 
 func TestRemoteSealer(t *testing.T) {
@@ -42,7 +40,7 @@ func TestRemoteSealer(t *testing.T) {
 	header := &types.RootBlockHeader{Number: 1, Difficulty: big.NewInt(100)}
 	block := types.NewRootBlockWithHeader(header)
 
-	qkc := New(true, &diffCalculator, true, []byte{}, 100)
+	qkc := New(&diffCalculator, true, []byte{}, 100)
 	if _, err := qkc.GetWork(account.Address{}); err.Error() != errNoMiningWork.Error() {
 		t.Error("expect to return an error indicate there is no mining work")
 	}
@@ -66,7 +64,7 @@ func TestStaleSubmission(t *testing.T) {
 
 	diffCalculator := consensus.EthDifficultyCalculator{AdjustmentCutoff: 7, AdjustmentFactor: 512, MinimumDifficulty: big.NewInt(100000)}
 
-	qkchash := New(true, &diffCalculator, false, []byte{}, 100)
+	qkchash := New(&diffCalculator, false, []byte{}, 100)
 	testcases := []struct {
 		headers     []*types.RootBlockHeader
 		submitIndex int
@@ -125,13 +123,14 @@ func TestStaleSubmission(t *testing.T) {
 		}
 	}
 }
+
 func TestTestGetWorkWithDifferentAddr(t *testing.T) {
 	diffCalculator := consensus.EthDifficultyCalculator{AdjustmentCutoff: 7, AdjustmentFactor: 512, MinimumDifficulty: big.NewInt(100000)}
 	header := &types.RootBlockHeader{Number: 1, Difficulty: big.NewInt(100)}
 	block := types.NewRootBlockWithHeader(header)
 	oldHash := block.Header().SealHash()
 
-	qkc := New(true, &diffCalculator, true, []byte{}, 100)
+	qkc := New(&diffCalculator, true, []byte{}, 100)
 	if _, err := qkc.GetWork(account.Address{}); err.Error() != errNoMiningWork.Error() {
 		t.Error("expect to return an error indicate there is no mining work")
 	}

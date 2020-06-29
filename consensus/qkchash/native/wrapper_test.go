@@ -62,7 +62,7 @@ func TestHashWithRotationStats(t *testing.T) {
 		seed[i] = uint64(i + 1)
 	}
 
-	ret, err := HashWithRotationStats(c, seed)
+	ret, err := HashX(c, seed)
 	// Verified with cpp-py version
 	expected := [4]uint64{14348660804448840641, 11581950883383832930, 8979665141729890106, 1502951661196207235}
 	assert.NoError(err)

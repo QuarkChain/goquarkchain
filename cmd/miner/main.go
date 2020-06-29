@@ -276,7 +276,7 @@ func createMiner(consensusType string, diffCalculator *consensus.EthDifficultyCa
 	case config.PoWEthash:
 		return ethash.New(ethash.Config{CachesInMem: 3, CachesOnDisk: 10, CacheDir: "", PowMode: ethash.ModeNormal}, diffCalculator, false, pubKey)
 	case config.PoWQkchash:
-		return qkchash.New(true, diffCalculator, false, pubKey, qkcHashXHeight)
+		return qkchash.New(diffCalculator, false, pubKey, qkcHashXHeight)
 	case config.PoWDoubleSha256:
 		return doublesha256.New(diffCalculator, false, pubKey)
 	default:

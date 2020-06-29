@@ -1,4 +1,4 @@
-//+build !nt
+//+build nt
 
 package qkchash
 
@@ -6,37 +6,23 @@ import (
 	"encoding/hex"
 	"fmt"
 	"testing"
-	"time"
 
-	"github.com/QuarkChain/goquarkchain/consensus/qkchash/native"
-	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestGenerateCache(t *testing.T) {
 	cache := generateCache(cacheEntryCnt, nil)
-	assert.Equal(t, cacheEntryCnt, len(cache.ls))
-	for i := 1; i < len(cache.ls); i++ {
-		assert.True(t, cache.ls[i-1] < cache.ls[i])
-	}
-	assert.Equal(t, uint64(71869947341538), cache.ls[0])
+	assert.NotNil(t, cache.nativeCache)
 }
 
 func TestQKCHash(t *testing.T) {
-	fakeQkcHashGo := func(a []byte, b *qkcCache, c bool) ([]byte, []byte, error) {
-		return qkcHashX(a, b, false)
-	}
 	assert := assert.New(t)
 
-	cache := generateCache(cacheEntryCnt, nil)
-	seed := make([]byte, 40)
-
 	// Successful test cases
+	cache := generateCache(cacheEntryCnt, nil)
 
-	cache = generateCache(cacheEntryCnt, nil)
-
-	seed = make([]byte, 40)
-	digest, result, err := fakeQkcHashGo(seed, cache, false)
+	seed := make([]byte, 40)
+	digest, result, err := qkcHashX(seed, cache, false)
 	assert.NoError(err)
 	assert.Equal(
 		"22da7bf17b573e402c71211a9c96e5631dafcbeda1fc5b7812a2d6529408b207",
@@ -49,7 +35,7 @@ func TestQKCHash(t *testing.T) {
 
 	seed = make([]byte, 40)
 	copy(seed, []byte("Hello World!"))
-	digest, result, err = fakeQkcHashGo(seed, cache, false)
+	digest, result, err = qkcHashX(seed, cache, false)
 	assert.NoError(err)
 	assert.Equal(
 		"37e6b7575e9bcf572bb9f4f60baacb738a75d0f1692f3be6c526488d30fe198f",
@@ -59,7 +45,6 @@ func TestQKCHash(t *testing.T) {
 		"bf36c170967632ce8d55c6bb7f2dafbe1d1a5d94fa542a671362e17f803940ce",
 		fmt.Sprintf("%x", result),
 	)
-
 }
 
 func TestGetSeedFromBlockNumber(t *testing.T) {
@@ -142,60 +127,4 @@ func TestQKCHashXResult_UseX(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, digest, digestX)
 	assert.Equal(t, result, resultX)
-}
-
-func TestQkcHashXCompare(t *testing.T) {
-	ux := []bool{false, true}
-	c := NewcacheSeed()
-	tm := time.Now()
-	round := uint64(200)
-	for i := uint64(0); i < round; i++ {
-		cache := c.getCacheFromHeight(i * EpochLength / 2)
-		for _, usex := range ux {
-			if err := compareQkcHashBetweenGoAndNative(cache, usex); err != nil {
-				assert.NoError(t, err, fmt.Sprintf("comparison error for index %d; \r\n\tseed: %v;"+
-					"\r\n\tcache: %v; \r\n\tusex: %v;\r\n\terror: %v", i, cache.seed, cache.ls, usex, err.Error()))
-				return
-			}
-		}
-	}
-	len := uint64(len(c.caches))
-	for i := uint64(0); i < len; i++ {
-		if i+2*cacheAheadRound < len {
-			assert.Nil(t, c.caches[i].ls, "cache should be shrunk")
-		} else {
-			assert.NotNil(t, c.caches[i].ls, "cache should not be shrunk")
-		}
-	}
-	for i := uint64(0); i < round; i++ {
-		cache := c.getCacheFromHeight(i * EpochLength / 2)
-		for _, usex := range ux {
-			if err := compareQkcHashBetweenGoAndNative(cache, usex); err != nil {
-				assert.NoError(t, err,
-					fmt.Sprintf("Second round of comparison error for index %d; \r\n\tseed: %v;"+
-						"\r\n\tcache: %v; \r\n\tusex: %v;\r\n\terror: %v",
-						i, cache.seed, cache.ls, usex, err.Error()))
-				return
-			}
-		}
-	}
-	fmt.Printf("test done, using %v seconds for %d round", time.Now().Sub(tm).Seconds(), round)
-}
-
-func compareQkcHashBetweenGoAndNative(cache *qkcCache, useX bool) error {
-	seed := crypto.Keccak512(cache.seed)
-	resultN, errN := native.HashWithRotationStats(native.NewCache(cache.ls), seed, useX)
-	resultG, errG := HashWithRotationStats(cache.ls, seed, useX)
-	if errN != nil {
-		return fmt.Errorf("errN: %v", errN.Error())
-	}
-	if errG != nil {
-		return fmt.Errorf("errG: %v", errG.Error())
-	}
-	for i := 0; i < 4; i++ {
-		if resultG[i] != resultN[i] {
-			return fmt.Errorf("diff : %v vs %v", resultN, resultG)
-		}
-	}
-	return nil
 }
