@@ -20,10 +20,6 @@ func newCache(seed []byte, ls []uint64) *qkcCache {
 	return &qkcCache{native.NewCache(ls), seed}
 }
 
-func shrinkCache(cache *qkcCache) {
-	cache.nativeCache = nil
-}
-
 func shrunk(cache *qkcCache) bool {
 	return cache.nativeCache == nil
 }

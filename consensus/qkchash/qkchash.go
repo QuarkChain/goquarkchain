@@ -23,7 +23,7 @@ var (
 )
 
 type cacheSeed struct {
-	mu     sync.RWMutex
+	mu     sync.Mutex
 	caches []*qkcCache
 }
 
@@ -36,20 +36,19 @@ func NewcacheSeed() *cacheSeed {
 	}
 }
 
+// getCacheFromHeight returns immutable cache.
 func (c *cacheSeed) getCacheFromHeight(block uint64) *qkcCache {
 	epoch := int(block / EpochLength)
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	lenCaches := len(c.caches)
 	if epoch < lenCaches {
 		cache := c.caches[epoch]
 		if shrunk(cache) {
-			c.mu.Lock()
 			fillInCache(cache)
-			c.mu.Unlock()
 		}
 		return cache
 	}
-	c.mu.Lock()
-	defer c.mu.Unlock()
 	needAddCnt := epoch - lenCaches + cacheAheadRound
 	seed := c.caches[len(c.caches)-1].seed
 	for i := 0; i < needAddCnt; i++ {
@@ -58,7 +57,9 @@ func (c *cacheSeed) getCacheFromHeight(block uint64) *qkcCache {
 	}
 	if len(c.caches) > 2*cacheAheadRound {
 		for i := 0; i < len(c.caches)-2*cacheAheadRound; i++ {
-			shrinkCache(c.caches[i])
+			// new a cache to make sure the old cache will be
+			// changed after return.
+			c.caches[i] = newCache(c.caches[i].seed, nil)
 		}
 	}
 	return c.caches[epoch]
