@@ -57,7 +57,7 @@ func (c *cacheSeed) getCacheFromHeight(block uint64) *qkcCache {
 	}
 	if len(c.caches) > 2*cacheAheadRound {
 		for i := 0; i < len(c.caches)-2*cacheAheadRound; i++ {
-			// new a cache to make sure the old cache will be
+			// new a cache to make sure the old cache will not be
 			// changed after return.
 			c.caches[i] = newCache(c.caches[i].seed, nil)
 		}
