@@ -1100,3 +1100,7 @@ func (srv *Server) PeersInfo() []*PeerInfo {
 func (srv *Server) GetKadRoutingTable() []string {
 	return srv.ntab.GetKadRoutingTable()
 }
+
+func (srv *Server) GetBlackList() (map[string]int64, map[string]int64) {
+	return srv.blackNodeFilter.GetDialBlackList()
+}

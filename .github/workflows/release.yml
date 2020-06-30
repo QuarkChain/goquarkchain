@@ -178,13 +178,14 @@ jobs:
 
       - name: mkdir folder
         run: |
-          ans=${{ github.ref }}
-          mkdir -p release/${ans:10}/
-          cp -rf  /home/runner/work/goquarkchain/goquarkchain/cmd/cluster/ubuntu18/ release/${ans:10}/
-          cp -rf  /home/runner/work/goquarkchain/goquarkchain/cmd/cluster/centos8/ release/${ans:10}/
-          cp -rf  /home/runner/work/goquarkchain/goquarkchain/cmd/cluster/windows/ release/${ans:10}/
-          ans=${{ github.ref }}
-          echo ${ans:10} > release/LATEST
+          ref=${{ github.ref }}
+          rep=${{ github.repository }}
+          folder=release/$rep/${ref:10}/
+          mkdir -p $folder
+          cp -rf  /home/runner/work/goquarkchain/goquarkchain/cmd/cluster/ubuntu18/ $folder
+          cp -rf  /home/runner/work/goquarkchain/goquarkchain/cmd/cluster/centos8/ $folder
+          cp -rf  /home/runner/work/goquarkchain/goquarkchain/cmd/cluster/windows/ $folder
+          echo ${ref:10} > release/$rep/LATEST
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v1
         with:
