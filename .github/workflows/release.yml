@@ -107,29 +107,29 @@ jobs:
         uses: actions/download-artifact@master
         with:
           name: cluster_centos
-          path: /home/runner/work/goquarkchain/goquarkchain/cmd/cluster/centos8
+          path: ./cmd/cluster/centos8
 
 
       - name: Download cluster_ubuntu artifact
         uses: actions/download-artifact@master
         with:
           name: cluster_ubuntu
-          path: /home/runner/work/goquarkchain/goquarkchain/cmd/cluster/ubuntu18
+          path: ./cmd/cluster/ubuntu18
 
       - name: Download cluster_windows artifact
         uses: actions/download-artifact@master
         with:
           name: cluster_windows
-          path: /home/runner/work/goquarkchain/goquarkchain/cmd/cluster/windows
+          path: ./cmd/cluster/windows
 
       - name: mkdir folder
         run: |
           mkdir -p release
-          cp -rf  /home/runner/work/goquarkchain/goquarkchain/cmd/cluster/ubuntu18/ release/
-          cp -rf  /home/runner/work/goquarkchain/goquarkchain/cmd/cluster/windows/ release/
-          cp -rf  /home/runner/work/goquarkchain/goquarkchain/cmd/cluster/centos8/ release/
-          cp -rf  /home/runner/work/goquarkchain/goquarkchain/mainnet/singularity/cluster_config_template.json  release/
-          cp -rf  /home/runner/work/goquarkchain/goquarkchain/cmd/cluster/run_cluster.sh release/
+          cp -rf  ./cmd/cluster/ubuntu18/ release/
+          cp -rf  ./cmd/cluster/windows/ release/
+          cp -rf  ./cmd/cluster/centos8/ release/
+          cp -rf  ./mainnet/singularity/cluster_config_template.json  release/
+          cp -rf  ./cmd/cluster/run_cluster.sh release/
           zip -r release.zip release
 
       - name: Create Release
@@ -164,20 +164,20 @@ jobs:
         uses: actions/download-artifact@master
         with:
           name: cluster_centos
-          path: /home/runner/work/goquarkchain/goquarkchain/cmd/cluster/centos8
+          path: ./cmd/cluster/centos8
 
 
       - name: Download cluster_ubuntu artifact
         uses: actions/download-artifact@master
         with:
           name: cluster_ubuntu
-          path: /home/runner/work/goquarkchain/goquarkchain/cmd/cluster/ubuntu18
+          path: ./cmd/cluster/ubuntu18
 
       - name: Download cluster_windows artifact
         uses: actions/download-artifact@master
         with:
           name: cluster_windows
-          path: /home/runner/work/goquarkchain/goquarkchain/cmd/cluster/windows
+          path: ./cmd/cluster/windows
 
       - name: mkdir folder
         run: |
@@ -186,19 +186,19 @@ jobs:
           folder=release/$rep/
 
           mkdir -p $folder
-          cp -rf  /home/runner/work/goquarkchain/goquarkchain/mainnet/singularity/cluster_config_template.json /home/runner/work/goquarkchain/goquarkchain/cmd/cluster/ubuntu18/
-          cp -rf  /home/runner/work/goquarkchain/goquarkchain/mainnet/singularity/cluster_config_template.json /home/runner/work/goquarkchain/goquarkchain/cmd/cluster/centos8/
-          cp -rf  /home/runner/work/goquarkchain/goquarkchain/mainnet/singularity/cluster_config_template.json /home/runner/work/goquarkchain/goquarkchain/cmd/cluster/windows/
-          cp -rf  /home/runner/work/goquarkchain/goquarkchain/cmd/cluster/run_cluster.sh /home/runner/work/goquarkchain/goquarkchain/cmd/cluster/ubuntu18/
-          cp -rf  /home/runner/work/goquarkchain/goquarkchain/cmd/cluster/run_cluster.sh /home/runner/work/goquarkchain/goquarkchain/cmd/cluster/centos8/
-          cp -rf  /home/runner/work/goquarkchain/goquarkchain/cmd/cluster/run_cluster.sh /home/runner/work/goquarkchain/goquarkchain/cmd/cluster/windows/
+          cp -rf  ./mainnet/singularity/cluster_config_template.json ./cmd/cluster/ubuntu18/
+          cp -rf  ./mainnet/singularity/cluster_config_template.json ./cmd/cluster/centos8/
+          cp -rf  ./mainnet/singularity/cluster_config_template.json ./cmd/cluster/windows/
+          cp -rf  ./cmd/cluster/run_cluster.sh ./cmd/cluster/ubuntu18/
+          cp -rf  ./cmd/cluster/run_cluster.sh ./cmd/cluster/centos8/
+          cp -rf  ./cmd/cluster/run_cluster.sh ./cmd/cluster/windows/
 
-          chmod -R 0755 /home/runner/work/goquarkchain/goquarkchain/cmd/cluster/ubuntu18/
-          chmod -R 0755 /home/runner/work/goquarkchain/goquarkchain/cmd/cluster/centos8/
-          chmod -R 0755 /home/runner/work/goquarkchain/goquarkchain/cmd/cluster/windows/
+          chmod -R 0755 ./cmd/cluster/ubuntu18/
+          chmod -R 0755 ./cmd/cluster/centos8/
+          chmod -R 0755 ./cmd/cluster/windows/
 
-          cd /home/runner/work/goquarkchain/goquarkchain/cmd/cluster/ && zip -r ${ref:10}.zip ubuntu18/ centos8/  windows/ && cd -
-          cp /home/runner/work/goquarkchain/goquarkchain/cmd/cluster/${ref:10}.zip  release/$rep/
+          cd ./cmd/cluster/ && zip -r ${ref:10}.zip ubuntu18/ centos8/  windows/ && cd -
+          cp ./cmd/cluster/${ref:10}.zip  release/$rep/
           echo ${ref:10} > release/$rep/LATEST
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v1
@@ -208,5 +208,5 @@ jobs:
           aws-region: us-east-1
       - name: Deploy static site to S3 bucket
         run: |
-          sudo apt-get install awscli
+          sudo apt-get update && sudo apt-get install awscli -y
           aws s3 sync release/ s3://qkcmainnet-go/data/release --acl public-read
