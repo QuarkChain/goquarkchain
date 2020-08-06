@@ -1055,13 +1055,13 @@ func (pool *TxPool) promoteExecutables(accounts []common.Address) []*types.Trans
 			pool.all.Remove(hash)
 			log.Trace("Removed old queued transaction", "hash", hash)
 		}
-		// Drop all transactions that are too costly (low balance or out of gas)
-		drops, _ := list.Filter(pool.currentState.GetBalance(addr, pool.chain.Config().GetDefaultChainTokenID()), pool.currentMaxGas)
-		for _, tx := range drops {
-			hash := tx.Hash()
-			pool.all.Remove(hash)
-			log.Trace("Removed unpayable queued transaction", "hash", hash)
-		}
+		//// Drop all transactions that are too costly (low balance or out of gas)
+		//drops, _ := list.Filter(pool.currentState.GetBalance(addr, pool.chain.Config().GetDefaultChainTokenID()), pool.currentMaxGas)
+		//for _, tx := range drops {
+		//	hash := tx.Hash()
+		//	pool.all.Remove(hash)
+		//	log.Trace("Removed unpayable queued transaction", "hash", hash)
+		//}
 
 		// Gather all executable transactions and promote them
 		readies := list.Ready(pool.pendingNonces.get(addr))
@@ -1084,7 +1084,7 @@ func (pool *TxPool) promoteExecutables(accounts []common.Address) []*types.Trans
 			}
 		}
 		// Mark all the items dropped as removed
-		pool.priced.Removed(len(forwards) + len(drops) + len(caps))
+		pool.priced.Removed(len(forwards) + 0 + len(caps))
 
 		// Delete the entire queue entry if it became empty.
 		if list.Empty() {
@@ -1232,14 +1232,14 @@ func (pool *TxPool) demoteUnexecutables() {
 			pool.all.Remove(hash)
 			log.Trace("Removed old pending transaction", "hash", hash)
 		}
-		// Drop all transactions that are too costly (low balance or out of gas), and queue any invalids back for later
-		drops, invalids := list.Filter(pool.currentState.GetBalance(addr, pool.chain.Config().GetDefaultChainTokenID()), pool.currentMaxGas)
-		for _, tx := range drops {
-			hash := tx.Hash()
-			log.Trace("Removed unpayable pending transaction", "hash", hash)
-			pool.all.Remove(hash)
-		}
-		pool.priced.Removed(len(olds) + len(drops))
+		//// Drop all transactions that are too costly (low balance or out of gas), and queue any invalids back for later
+		//drops, invalids := list.Filter(pool.currentState.GetBalance(addr, pool.chain.Config().GetDefaultChainTokenID()), pool.currentMaxGas)
+		//for _, tx := range drops {
+		//	hash := tx.Hash()
+		//	log.Trace("Removed unpayable pending transaction", "hash", hash)
+		//	pool.all.Remove(hash)
+		//}
+		pool.priced.Removed(len(olds) + 0)
 
 		for _, tx := range invalids {
 			hash := tx.Hash()
