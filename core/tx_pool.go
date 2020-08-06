@@ -1241,11 +1241,11 @@ func (pool *TxPool) demoteUnexecutables() {
 		//}
 		pool.priced.Removed(len(olds) + 0)
 
-		for _, tx := range invalids {
-			hash := tx.Hash()
-			log.Trace("Demoting pending transaction", "hash", hash)
-			pool.enqueueTx(hash, tx)
-		}
+		//for _, tx := range invalids {
+		//	hash := tx.Hash()
+		//	log.Trace("Demoting pending transaction", "hash", hash)
+		//	pool.enqueueTx(hash, tx)
+		//}
 
 		// If there's a gap in front, alert (should never happen) and postpone all transactions
 		if list.Len() > 0 && list.txs.Get(nonce) == nil {
