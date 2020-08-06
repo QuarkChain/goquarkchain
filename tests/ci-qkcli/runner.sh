@@ -29,7 +29,7 @@ echo "111"
 docker exec -i $container /bin/bash -c \
   'chmod +x ./start_go_devent.sh && ./start_go_devent.sh'
 docker exec -i $container /bin/bash -c \
-  'mv ../../core/vm/contracts_back.go ../../core/vm/contracts.go'
+  'mv ../../core/vm/contracts.go_back ../../core/vm/contracts.go'
 
 #docker run --name $container -d -p 38391 $IMAGE bash -c \
 #  'git pull origin master && \
