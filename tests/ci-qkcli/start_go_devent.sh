@@ -1,7 +1,7 @@
 
 cd ../../consensus/qkchash/native && make && cd -
 
-cp ../../tests/ci-qkcli/cluster_config.json ./ 
+cp ../../tests/ci-qkcli/cluster_config.json ./
 mv ../../core/vm/contracts.go_back ../../core/vm/contracts.go
 
 
