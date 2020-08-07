@@ -1,5 +1,10 @@
 
 cd ../../consensus/qkchash/native && make && cd -
+
+cp ../../tests/ci-qkcli/cluster_config.json ./
+mv ../../core/vm/contracts.go_back ../../core/vm/contracts.go
+
+
 go build && chmod +x cluster
 chmod +x ./run_cluster.sh  && ./run_cluster.sh ./cluster_config.json
 sleep 5

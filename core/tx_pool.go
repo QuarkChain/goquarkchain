@@ -1239,7 +1239,7 @@ func (pool *TxPool) demoteUnexecutables() {
 			log.Trace("Removed unpayable pending transaction", "hash", hash)
 			pool.all.Remove(hash)
 		}
-		pool.priced.Removed(len(olds) + 0)
+		pool.priced.Removed(len(olds) + len(drops))
 
 		for _, tx := range invalids {
 			hash := tx.Hash()
