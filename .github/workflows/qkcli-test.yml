@@ -22,4 +22,5 @@ jobs:
           cd goquarkchain && git checkout remotes/origin/users/chunfengSun/add-qkc-cli-test && cd -
 
           cp goquarkchain/tests/ci-qkcli/runner.sh qkcli/tester/runner.sh
+          cd qkcli && go build  && go install &&cd tester   && chmod +x ./runner.sh
           chmod +x parallel_executor.sh && ./parallel_executor.sh
