@@ -387,7 +387,6 @@ func (p *PublicBlockChainAPI) GetTransactionById(txID hexutil.Bytes) (map[string
 	if minorBlock == nil {
 		return nil, err
 	}
-	fmt.Println("minorBlock==nil", minorBlock == nil, index, err)
 	if len(minorBlock.Transactions()) <= int(index) {
 		return nil, errors.New("index bigger than block's tx")
 	}
