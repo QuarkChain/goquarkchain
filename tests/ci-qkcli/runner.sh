@@ -21,7 +21,7 @@ docker pull $IMAGE
 # then trim the file extension
 container=$(echo "qkc-${testcase#*-}" | cut -f 1 -d '.')
 
-docker run --name $container -d -p 38391 $IMAGE
+docker run --name $container -itd -p 38391 $IMAGE
 docker exec  -i $container   bash -c \
   'cp ../../tests/ci-qkcli/start_go_devent.sh ./ && chmod +x ./start_go_devent.sh && ./start_go_devent.sh'
 port=$(docker port $container | awk -F':' '{print $2}')
