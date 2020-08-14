@@ -73,8 +73,11 @@ func (g *Genesis) CreateMinorBlock(rootBlock *types.RootBlock, fullShardId uint3
 		for k, v := range allocation.Balances {
 			statedb.AddBalance(*recipient, v, qkcCommon.TokenIDEncode(k))
 		}
-		statedb.SetCode(*recipient, allocation.Code)
-		//TODO need setNonce?
+		if len(allocation.Code) != 0 {
+			statedb.SetCode(*recipient, allocation.Code)
+			statedb.SetNonce(*recipient, 1)
+		}
+
 		for k, v := range allocation.Storage {
 			statedb.SetState(*recipient, k, v)
 		}
