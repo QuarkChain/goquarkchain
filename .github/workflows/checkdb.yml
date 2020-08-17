@@ -6,7 +6,7 @@ jobs:
   download-snapshot-and-checkdb:
     runs-on: self-hosted
     container: quarkchaindocker/goquarkchain
-    timeout-minutes: 1440
+    timeout-minutes: 2880
 
     steps:
       - uses: actions/checkout@v2
