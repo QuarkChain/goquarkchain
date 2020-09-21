@@ -20,7 +20,7 @@ require (
 	github.com/go-ole/go-ole v1.2.4 // indirect
 	github.com/go-stack/stack v1.8.0 // indirect
 	github.com/golang/mock v1.4.3
-	github.com/golang/protobuf v1.3.0
+	github.com/golang/protobuf v1.4.1
 	github.com/golang/snappy v0.0.1
 	github.com/hashicorp/golang-lru v0.5.1
 	github.com/huin/goupnp v1.0.0 // indirect
@@ -44,7 +44,8 @@ require (
 	golang.org/x/net v0.0.0-20190404232315-eb5bcb51f2a3
 	golang.org/x/sync v0.0.0-20190423024810-112230192c58
 	golang.org/x/text v0.3.2 // indirect
-	google.golang.org/grpc v1.19.1
+	google.golang.org/grpc v1.27.0
+	google.golang.org/protobuf v1.25.0
 	gopkg.in/check.v1 v1.0.0-20180628173108-788fd7840127
 	gopkg.in/karalabe/cookiejar.v1 v1.0.0-20141109175019-e1490cae028c
 	gopkg.in/natefinch/npipe.v2 v2.0.0-20160621034901-c1b8fa8bdcce
