@@ -6,7 +6,7 @@ jobs:
   download-snapshot-and-checkdb:
     runs-on: self-hosted
     container: quarkchaindocker/goquarkchain
-    timeout-minutes: 1440
+    timeout-minutes: 2880
 
     steps:
       - uses: actions/checkout@v2
@@ -43,5 +43,5 @@ jobs:
                 ./cluster --cluster_config ../../mainnet/singularity/cluster_config_template.json --check_db
           else
                 echo "Not Sunday:checkdb until 40w"
-                ./cluster --cluster_config ../../mainnet/singularity/cluster_config_template.json --check_db --check_db_rblock_to=400000
+                ./cluster --cluster_config ../../mainnet/singularity/cluster_config_template.json --check_db --check_db_rblock_to=600000
           fi

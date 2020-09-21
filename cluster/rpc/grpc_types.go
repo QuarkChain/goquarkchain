@@ -155,7 +155,7 @@ type GetTransactionRequest struct {
 }
 
 type GetTransactionResponse struct {
-	MinorBlock *types.MinorBlock `json:"minor_block" gencodec:"required"`
+	MinorBlock *types.MinorBlock `json:"minor_block" gencodec:"required" ser:"nil"`
 	Index      uint32            `json:"index" gencodec:"required"`
 }
 
@@ -175,9 +175,9 @@ type GetTransactionReceiptRequest struct {
 }
 
 type GetTransactionReceiptResponse struct {
-	MinorBlock *types.MinorBlock `json:"minor_block" gencodec:"required"`
+	MinorBlock *types.MinorBlock `json:"minor_block" gencodec:"required" ser:"nil"`
 	Index      uint32            `json:"index" gencodec:"required"`
-	Receipt    *types.Receipt    `json:"receipt" gencodec:"required" bytesizeofslicelen:"4"`
+	Receipt    *types.Receipt    `json:"receipt" gencodec:"required" bytesizeofslicelen:"4" ser:"nil"`
 }
 
 type GetTransactionListByAddressRequest struct {

@@ -1056,7 +1056,7 @@ func (pool *TxPool) promoteExecutables(accounts []common.Address) []*types.Trans
 			log.Trace("Removed old queued transaction", "hash", hash)
 		}
 		// Drop all transactions that are too costly (low balance or out of gas)
-		drops, _ := list.Filter(pool.currentState.GetBalance(addr, pool.chain.Config().GetDefaultChainTokenID()), pool.currentMaxGas)
+		drops, _ := list.Filter(pool.currentState.GetBalances(addr).GetBalanceMap(), pool.currentMaxGas)
 		for _, tx := range drops {
 			hash := tx.Hash()
 			pool.all.Remove(hash)
@@ -1233,7 +1233,7 @@ func (pool *TxPool) demoteUnexecutables() {
 			log.Trace("Removed old pending transaction", "hash", hash)
 		}
 		// Drop all transactions that are too costly (low balance or out of gas), and queue any invalids back for later
-		drops, invalids := list.Filter(pool.currentState.GetBalance(addr, pool.chain.Config().GetDefaultChainTokenID()), pool.currentMaxGas)
+		drops, invalids := list.Filter(pool.currentState.GetBalances(addr).GetBalanceMap(), pool.currentMaxGas)
 		for _, tx := range drops {
 			hash := tx.Hash()
 			log.Trace("Removed unpayable pending transaction", "hash", hash)

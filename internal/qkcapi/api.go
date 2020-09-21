@@ -81,6 +81,9 @@ func (c *CommonAPI) GetTransactionReceipt(txID hexutil.Bytes) (map[string]interf
 	if err != nil {
 		return nil, err
 	}
+	if minorBlock == nil {
+		return nil, nil
+	}
 	ret, err := encoder.ReceiptEncoder(minorBlock, int(index), receipt)
 	if ret["transactionId"].(string) == "" {
 		ret["transactionId"] = txID.String()
@@ -379,6 +382,9 @@ func (p *PublicBlockChainAPI) GetTransactionById(txID hexutil.Bytes) (map[string
 	branch := account.Branch{Value: fullShardIDByConfig}
 	minorBlock, index, err := p.b.GetTransactionByHash(txHash, branch)
 	if err != nil {
+		return nil, err
+	}
+	if minorBlock == nil {
 		return nil, err
 	}
 	if len(minorBlock.Transactions()) <= int(index) {
