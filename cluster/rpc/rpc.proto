@@ -1,6 +1,7 @@
 syntax = "proto3";
 
 package rpc;
+
 // master operation
 service MasterServerSideOp {
     rpc AddMinorBlockHeader (Request) returns (Response) {
