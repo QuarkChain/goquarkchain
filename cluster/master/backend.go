@@ -1,12 +1,14 @@
 package master
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"math/big"
 	"net"
 	"os"
 	"sort"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -557,6 +559,9 @@ func (s *QKCMasterBackend) AddRootBlock(rootBlock *types.RootBlock) error {
 		return err
 	}
 	if err := s.broadcastRootBlockToSlaves(rootBlock); err != nil {
+		if strings.Contains(err.Error(), context.DeadlineExceeded.Error()) {
+			panic("should panic here")
+		}
 		return err
 	}
 	s.rootBlockChain.ClearCommittingHash()
