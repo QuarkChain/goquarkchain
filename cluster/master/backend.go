@@ -560,7 +560,7 @@ func (s *QKCMasterBackend) AddRootBlock(rootBlock *types.RootBlock) error {
 	}
 	if err := s.broadcastRootBlockToSlaves(rootBlock); err != nil {
 		if strings.Contains(err.Error(), context.DeadlineExceeded.Error()) {
-			panic("should panic here")
+			panic(fmt.Errorf("broadcast root block timeout height:%d", rootBlock.Number()))
 		}
 		return err
 	}
