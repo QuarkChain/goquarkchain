@@ -1467,6 +1467,7 @@ func (m *MinorBlockChain) getPendingTxByAddress(address account.Address, transfe
 				GasTokenID:      tx.EvmTx.GasTokenID(),
 				TransferTokenID: tx.EvmTx.TransferTokenID(),
 				IsFromRootChain: false,
+				Nonce:           tx.EvmTx.Nonce(),
 			})
 		}
 
@@ -1542,6 +1543,7 @@ func (m *MinorBlockChain) getTransactionDetails(start, end []byte, limit uint32,
 					GasTokenID:      tx.GasTokenID,
 					TransferTokenID: tx.TransferTokenID,
 					IsFromRootChain: tx.IsFromRootChain,
+					Nonce:           0,
 				})
 			}
 		} else {
@@ -1583,6 +1585,7 @@ func (m *MinorBlockChain) getTransactionDetails(start, end []byte, limit uint32,
 					GasTokenID:      evmTx.GasTokenID(),
 					TransferTokenID: evmTx.TransferTokenID(),
 					IsFromRootChain: false,
+					Nonce:           evmTx.Nonce(),
 				})
 			}
 
