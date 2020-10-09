@@ -541,7 +541,18 @@ func (s *SlaveConnection) AddRootBlock(rootBlock *types.RootBlock, expectSwitch 
 	if err != nil {
 		return err
 	}
-	res, err = s.client.Call(s.target, &rpc.Request{Op: rpc.OpAddRootBlock, Data: bytes})
+
+	tryCnt := 3
+	for tryCnt > 0 {
+		tryCnt--
+		res, err = s.client.Call(s.target, &rpc.Request{Op: rpc.OpAddRootBlock, Data: bytes})
+		if err == nil {
+			break
+		}
+		log.Info("SlaveConnection AddRootBlock", "reTryCnt", 3-tryCnt, "height", rootBlock.NumberU64(), "err", err)
+
+	}
+
 	if err != nil {
 		return err
 	}
