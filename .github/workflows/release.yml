@@ -43,48 +43,22 @@ jobs:
 
 
   build_windows:
-    runs-on: ${{ matrix.os }}
-
-    env:
-      CMAKE_GENERATOR: Ninja
-      ASAN_OPTIONS: strict_string_checks=true:detect_odr_violation=2:detect_stack_use_after_return=true:check_initialization_order=true:strict_init_order=true
-      TSAN_OPTIONS: force_seq_cst_atomics=1
-      CTEST_OUTPUT_ON_FAILURE: ON
-      CTEST_PARALLEL_LEVEL: 2
-
-    strategy:
-      fail-fast: false
-      matrix:
-        name: [
-          windows-2019-gcc,
-        ]
-
-        include:
-          - name: windows-2019-gcc
-            os: windows-2019
-            compiler: gcc
-
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
     steps:
-      - uses: actions/checkout@v1
-
-      - name: Install (Windows)
-        shell: powershell
-        run: |
-          Invoke-Expression (New-Object System.Net.WebClient).DownloadString('https://get.scoop.sh')
-          scoop install ninja --global
-          scoop install swig --global
-          scoop install gcc --global
-          echo "::set-env name=CC::gcc"
-          echo "::set-env name=CXX::g++"
-
-          # Scoop modifies the PATH so we make the modified PATH global.
-          echo "::set-env name=PATH::$env:PATH"
-
-      - name: Configure x64
-        run: .github\workflows\vsenv.bat -arch=x64 -host_arch=x64
-
+      - uses: actions/checkout@v2
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: mingw-w64-x86_64-toolchain swig gcc make
       - name: windows-build
         run: |
+          pacman -S --noconfirm mingw-w64-x86_64-go
+          export GOROOT=/mingw64/lib/go
+          export GOPATH=/mingw64
           cd consensus/qkchash/native && make && cd -
           go version
           cd cmd/cluster && pwd && go build -o ./windows/cluster.exe
