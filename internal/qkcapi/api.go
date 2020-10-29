@@ -490,6 +490,7 @@ func txDetailEncode(tx *qrpc.TransactionDetail) (map[string]interface{}, error) 
 		"timestamp":        hexutil.Uint(tx.Timestamp),
 		"success":          tx.Success,
 		"isFromRootChain":  tx.IsFromRootChain,
+		"nonce":            tx.Nonce,
 	}, nil
 }
 

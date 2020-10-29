@@ -198,6 +198,7 @@ type TransactionDetail struct {
 	GasTokenID      uint64            `json:"gas_token_id" gencodec:"required"`
 	TransferTokenID uint64            `json:"transfer_token_id" gencodec:"required"`
 	IsFromRootChain bool              `json:"is_from_root_chain" gencodec:"required"`
+	Nonce           uint64            `json:"nonce" gencodec:"required"`
 }
 
 type GetTxDetailResponse struct {
