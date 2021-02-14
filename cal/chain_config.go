@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/binary"
 	"fmt"
+	"math/big"
 	"strings"
 
 	"github.com/QuarkChain/goquarkchain/qkcdb"
@@ -66,8 +67,8 @@ func main() {
 	for idx, path := range paths {
 		m := GetBalances(idx, path)
 		for acc, _ := range m {
-			m[acc], _ = client.GetBalance(&QkcAddress{acc, uint32(idx)})
-			fmt.Println(acc, m[acc])
+			m[acc], _ = client.GetBalance(&QkcAddress{acc, uint32(idx*65536 + 1)})
+			fmt.Println(hexutil.Encode(acc.Bytes()), m[acc])
 		}
 	}
 }
@@ -86,7 +87,11 @@ func (c *Client) GetBalance(qkcAddr *QkcAddress) (balance uint64, err error) {
 		bInfo := m.(map[string]interface{})
 		token := (bInfo["tokenStr"]).(string)
 		if strings.ToLower(token) == "qkc" {
-			return hexutil.DecodeUint64(bInfo["balance"].(string))
+			bi, err := hexutil.DecodeBig(bInfo["balance"].(string))
+			if err != nil {
+				fmt.Println(err)
+			}
+			return bi.Div(bi, big.NewInt(10^18)).Uint64(), nil
 		}
 	}
 	return 0, nil
