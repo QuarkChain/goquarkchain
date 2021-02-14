@@ -54,29 +54,28 @@ func NewClient(host string) *Client {
 }
 
 func main() {
-	paths := make([]string, 2)
+	paths := make([]string, 8)
 	paths[0] = "/home/gocode/src/github.com/QuarkChain/goquarkchain/cmd/cluster/qkc-data/mainnet/S0/shard-1/db"
 	paths[1] = "/home/gocode/src/github.com/QuarkChain/goquarkchain/cmd/cluster/qkc-data/mainnet/S1/shard-65537/db"
-	// paths[2] = "/home/gocode/src/github.com/QuarkChain/goquarkchain/cmd/cluster/qkc-data/mainnet/S2/shard-131073/db"
-	// paths[3] = "/home/gocode/src/github.com/QuarkChain/goquarkchain/cmd/cluster/qkc-data/mainnet/S3/shard-196609/db"
-	// paths[4] = "/home/gocode/src/github.com/QuarkChain/goquarkchain/cmd/cluster/qkc-data/mainnet/S0/shard-262145/db"
-	// paths[5] = "/home/gocode/src/github.com/QuarkChain/goquarkchain/cmd/cluster/qkc-data/mainnet/S1/shard-327681/db"
-	// paths[6] = "/home/gocode/src/github.com/QuarkChain/goquarkchain/cmd/cluster/qkc-data/mainnet/S2/shard-393217/db"
-	// paths[7] = "/home/gocode/src/github.com/QuarkChain/goquarkchain/cmd/cluster/qkc-data/mainnet/S3/shard-458753/db"
+	paths[2] = "/home/gocode/src/github.com/QuarkChain/goquarkchain/cmd/cluster/qkc-data/mainnet/S2/shard-131073/db"
+	paths[3] = "/home/gocode/src/github.com/QuarkChain/goquarkchain/cmd/cluster/qkc-data/mainnet/S3/shard-196609/db"
+	paths[4] = "/home/gocode/src/github.com/QuarkChain/goquarkchain/cmd/cluster/qkc-data/mainnet/S0/shard-262145/db"
+	paths[5] = "/home/gocode/src/github.com/QuarkChain/goquarkchain/cmd/cluster/qkc-data/mainnet/S1/shard-327681/db"
+	paths[6] = "/home/gocode/src/github.com/QuarkChain/goquarkchain/cmd/cluster/qkc-data/mainnet/S2/shard-393217/db"
+	paths[7] = "/home/gocode/src/github.com/QuarkChain/goquarkchain/cmd/cluster/qkc-data/mainnet/S3/shard-458753/db"
 
-	fmt.Println(10 ^ 10)
 	client := NewClient("http://34.222.230.172:38391")
 	for idx, path := range paths {
 		m := GetBalances(idx, path)
 		count := 0
 		for acc, _ := range m {
 			m[acc], _ = client.GetBalance(&QkcAddress{acc, uint32(idx*65536 + 1)})
-			if m[acc] > 1000 {
+			if m[acc] > 10000 {
 				fmt.Println(hexutil.Encode(acc.Bytes()), m[acc])
 				count++
 			}
 		}
-		fmt.Println("count:", count)
+		fmt.Println("index: ", idx, "count: ", count)
 	}
 }
 
