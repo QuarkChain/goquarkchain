@@ -52,7 +52,7 @@ func NewClient(host string) *Client {
 }
 
 func main() {
-	paths := make([]string, 8)
+	paths := make([]string, 2)
 	paths[0] = "/home/gocode/src/github.com/QuarkChain/goquarkchain/cmd/cluster/qkc-data/mainnet/S0/shard-1/db"
 	paths[1] = "/home/gocode/src/github.com/QuarkChain/goquarkchain/cmd/cluster/qkc-data/mainnet/S1/shard-65537/db"
 	// paths[2] = "/home/gocode/src/github.com/QuarkChain/goquarkchain/cmd/cluster/qkc-data/mainnet/S2/shard-131073/db"
@@ -67,6 +67,7 @@ func main() {
 		m := GetBalances(idx, path)
 		for acc, _ := range m {
 			m[acc], _ = client.GetBalance(&QkcAddress{acc, uint32(idx)})
+			fmt.Println(acc, m[acc])
 		}
 	}
 }
