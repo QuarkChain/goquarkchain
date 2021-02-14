@@ -71,7 +71,7 @@ func main() {
 		count := 0
 		for acc, _ := range m {
 			m[acc], _ = client.GetBalance(&QkcAddress{acc, uint32(idx*65536 + 1)})
-			if m[acc] != 0 {
+			if m[acc] > 1000 {
 				fmt.Println(hexutil.Encode(acc.Bytes()), m[acc])
 				count++
 			}
