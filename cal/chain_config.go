@@ -1,61 +1,118 @@
 package main
 
 import (
-	"encoding/hex"
+	"encoding/binary"
 	"fmt"
+	"strings"
 
-	"github.com/QuarkChain/goquarkchain/core/state"
 	"github.com/QuarkChain/goquarkchain/qkcdb"
-	"github.com/QuarkChain/goquarkchain/serialize"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/ybbus/jsonrpc"
 )
+
+// Address include recipient and fullShardKey
+type QkcAddress struct {
+	Recipient    common.Address
+	FullShardKey uint32
+}
+
+// ToHex return bytes included recipient and fullShardKey
+func (Self QkcAddress) ToHex() string {
+	address := Self.ToBytes()
+	return hexutil.Encode(address)
+}
+
+func (Self QkcAddress) ToBytes() []byte {
+	address := Self.Recipient.Bytes()
+	shardKey := Uint32ToBytes(Self.FullShardKey)
+	address = append(address, shardKey...)
+	return address
+}
+
+func (Self QkcAddress) FullShardKeyToHex() string {
+	return hexutil.Encode(Uint32ToBytes(Self.FullShardKey))
+}
+
+// Uint32ToBytes trans uint32 num to bytes
+func Uint32ToBytes(n uint32) []byte {
+	Bytes := make([]byte, 4)
+	binary.BigEndian.PutUint32(Bytes, n)
+	return Bytes
+}
+
+type Client struct {
+	client jsonrpc.RPCClient
+}
+
+// NewClient creates a client that uses the given RPC client.
+func NewClient(host string) *Client {
+	client := jsonrpc.NewClient(host)
+	return &Client{client: client}
+}
 
 func main() {
 	paths := make([]string, 8)
 	paths[0] = "/home/gocode/src/github.com/QuarkChain/goquarkchain/cmd/cluster/qkc-data/mainnet/S0/shard-1/db"
 	paths[1] = "/home/gocode/src/github.com/QuarkChain/goquarkchain/cmd/cluster/qkc-data/mainnet/S1/shard-65537/db"
-	paths[2] = "/home/gocode/src/github.com/QuarkChain/goquarkchain/cmd/cluster/qkc-data/mainnet/S2/shard-131073/db"
-	paths[3] = "/home/gocode/src/github.com/QuarkChain/goquarkchain/cmd/cluster/qkc-data/mainnet/S3/shard-196609/db"
-	paths[4] = "/home/gocode/src/github.com/QuarkChain/goquarkchain/cmd/cluster/qkc-data/mainnet/S0/shard-262145/db"
-	paths[5] = "/home/gocode/src/github.com/QuarkChain/goquarkchain/cmd/cluster/qkc-data/mainnet/S1/shard-327681/db"
-	paths[6] = "/home/gocode/src/github.com/QuarkChain/goquarkchain/cmd/cluster/qkc-data/mainnet/S2/shard-393217/db"
-	paths[7] = "/home/gocode/src/github.com/QuarkChain/goquarkchain/cmd/cluster/qkc-data/mainnet/S3/shard-458753/db"
+	// paths[2] = "/home/gocode/src/github.com/QuarkChain/goquarkchain/cmd/cluster/qkc-data/mainnet/S2/shard-131073/db"
+	// paths[3] = "/home/gocode/src/github.com/QuarkChain/goquarkchain/cmd/cluster/qkc-data/mainnet/S3/shard-196609/db"
+	// paths[4] = "/home/gocode/src/github.com/QuarkChain/goquarkchain/cmd/cluster/qkc-data/mainnet/S0/shard-262145/db"
+	// paths[5] = "/home/gocode/src/github.com/QuarkChain/goquarkchain/cmd/cluster/qkc-data/mainnet/S1/shard-327681/db"
+	// paths[6] = "/home/gocode/src/github.com/QuarkChain/goquarkchain/cmd/cluster/qkc-data/mainnet/S2/shard-393217/db"
+	// paths[7] = "/home/gocode/src/github.com/QuarkChain/goquarkchain/cmd/cluster/qkc-data/mainnet/S3/shard-458753/db"
 
+	client := NewClient("http://34.222.230.172:38391")
 	for idx, path := range paths {
-		GetBalances(idx, path)
+		m := GetBalances(idx, path)
+		for acc, _ := range m {
+			m[acc], _ = client.GetBalance(&QkcAddress{acc, uint32(idx)})
+		}
 	}
 }
 
-func GetBalances(idx int, path string) {
-	fmt.Println("--------", idx)
+func (c *Client) GetBalance(qkcAddr *QkcAddress) (balance uint64, err error) {
+	resp, err := c.client.Call("getBalances", []string{qkcAddr.ToHex()})
+	if err != nil {
+		return
+	}
+	if resp.Error != nil {
+		fmt.Println("getBalances error: ", resp.Error.Error())
+		return
+	}
+	balances := resp.Result.(map[string]interface{})["balances"]
+	for _, m := range balances.([]interface{}) {
+		bInfo := m.(map[string]interface{})
+		token := (bInfo["tokenStr"]).(string)
+		if strings.ToLower(token) == "qkc" {
+			return hexutil.DecodeUint64(bInfo["balance"].(string))
+		}
+	}
+	return 0, nil
+}
+
+func GetBalances(idx int, path string) map[common.Address]uint64 {
+	fmt.Println("--------", idx, "---------")
+	accounts := make(map[common.Address]uint64)
 	db, err := qkcdb.NewDatabase(path, false, false)
 	if err != nil {
 		panic(err)
 	}
-	fmt.Println("11---")
 	it := db.NewIterator()
 	it.Seek([]byte{})
-	fmt.Println("seek", it.Key(), len(it.Key()), it.Valid())
-	distribute := make(map[int]int)
 	for it.Valid() {
-		//fmt.Println("22")
 		size := len(it.Key())
-		distribute[size]++
-		if size == 20 {
+		if size == 43 {
 			value, err := db.Get(it.Key())
 			if err != nil {
 				panic(err)
 			}
-			acc := new(state.Account)
-			err1 := serialize.DeserializeFromBytes(value, acc)
-			if err1 != nil {
-				panic(err1)
+			if len(value) == 20 {
+				addr := common.BytesToAddress(value)
+				accounts[addr] = 0
 			}
-			fmt.Println("acc", hex.EncodeToString(it.Key()), acc.TokenBalances.GetBalanceMap())
 		}
 		it.Next()
 	}
-	fmt.Println("map len", len(distribute))
-	for key, value := range distribute {
-		fmt.Println(key, value)
-	}
+	return accounts
 }
