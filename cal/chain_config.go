@@ -6,10 +6,11 @@ import (
 	"math/big"
 	"strings"
 
-	"github.com/QuarkChain/goquarkchain/qkcdb"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ybbus/jsonrpc"
+
+	"github.com/QuarkChain/goquarkchain/qkcdb"
 )
 
 // Address include recipient and fullShardKey
@@ -63,13 +64,19 @@ func main() {
 	// paths[6] = "/home/gocode/src/github.com/QuarkChain/goquarkchain/cmd/cluster/qkc-data/mainnet/S2/shard-393217/db"
 	// paths[7] = "/home/gocode/src/github.com/QuarkChain/goquarkchain/cmd/cluster/qkc-data/mainnet/S3/shard-458753/db"
 
+	fmt.Println(10 ^ 10)
 	client := NewClient("http://34.222.230.172:38391")
 	for idx, path := range paths {
 		m := GetBalances(idx, path)
+		count := 0
 		for acc, _ := range m {
 			m[acc], _ = client.GetBalance(&QkcAddress{acc, uint32(idx*65536 + 1)})
-			fmt.Println(hexutil.Encode(acc.Bytes()), m[acc])
+			if m[acc] != 0 {
+				fmt.Println(hexutil.Encode(acc.Bytes()), m[acc])
+				count++
+			}
 		}
+		fmt.Println("count:", count)
 	}
 }
 
@@ -91,7 +98,7 @@ func (c *Client) GetBalance(qkcAddr *QkcAddress) (balance uint64, err error) {
 			if err != nil {
 				fmt.Println(err)
 			}
-			return bi.Div(bi, big.NewInt(10^18)).Uint64(), nil
+			return bi.Div(bi, big.NewInt(1000000000000000000)).Uint64(), nil
 		}
 	}
 	return 0, nil
