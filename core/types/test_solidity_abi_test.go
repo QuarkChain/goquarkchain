@@ -2,12 +2,13 @@ package types
 
 import (
 	"encoding/hex"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/stretchr/testify/assert"
 	"math/big"
 	"strconv"
 	"strings"
 	"testing"
+
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/stretchr/testify/assert"
 )
 
 func bytesToUint64(data string) uint64 {
@@ -143,7 +144,7 @@ func TestTypedSignatureHash(t *testing.T) {
 func TestRecover(t *testing.T) {
 	rawTx.EvmTx.SetVRS(bytesToBigInt("0x1b"), bytesToBigInt("0xb5145678e43df2b7ea8e0e969e51dbf72c956dd52e234c95393ad68744394855"), bytesToBigInt("0x44515b465dbbf746a484239c11adb98f967e35347e17e71b84d850d8e5c38a6a"))
 
-	sender, err := Sender(NewEIP155Signer(rawTx.EvmTx.NetworkId()), rawTx.EvmTx)
+	sender, err := Sender(NewEIP155Signer(rawTx.EvmTx.NetworkId(), 0), rawTx.EvmTx)
 	assert.NoError(t, err)
 	assert.Equal(t, strings.ToLower(sender.String()[2:]), "2e6144d0a4786e6f62892eee59c24d1e81e33272")
 }

@@ -4,6 +4,10 @@ import (
 	"crypto/ecdsa"
 	"encoding/json"
 	"fmt"
+	"math/big"
+	"testing"
+	"time"
+
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/sync"
 	"github.com/QuarkChain/goquarkchain/core/types"
@@ -11,9 +15,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/assert"
-	"math/big"
-	"testing"
-	"time"
 )
 
 func TestNewHeads(t *testing.T) {
@@ -125,7 +126,7 @@ func newAddress(fullShardKey uint32) (*ecdsa.PrivateKey, *account.Address, error
 }
 
 func signTx(tx *types.EvmTransaction, prv *ecdsa.PrivateKey) (*types.EvmTransaction, error) {
-	signer := types.MakeSigner(1)
+	signer := types.NewEIP155Signer(1, 0)
 	h := signer.Hash(tx)
 	sig, err := crypto.Sign(h[:], prv)
 	if err != nil {
@@ -139,7 +140,7 @@ func TestNewPendingTransactions(t *testing.T) {
 	assert.NoError(t, err)
 	defer bak.stop()
 
-	privkey, address, err := newAddress(0)
+	privkey, address, err := newAddress(bak.config.Quarkchain.GetGenesisShardIds()[0])
 	assert.NoError(t, err)
 
 	var (

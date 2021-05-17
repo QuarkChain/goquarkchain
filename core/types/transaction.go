@@ -88,8 +88,8 @@ func (e *EvmTransaction) SetVRS(v, r, s *big.Int) {
 	e.updated = true
 }
 
-func (e *EvmTransaction) SetSender(addr account.Recipient) {
-	signer := NewEIP155Signer(e.NetworkId())
+func (e *EvmTransaction) SetSender(addr account.Recipient, chainID uint64) {
+	signer := NewEIP155Signer(e.NetworkId(), chainID)
 	e.from.Store(sigCache{signer: signer, from: addr})
 }
 
@@ -175,6 +175,18 @@ func (tx *EvmTransaction) getUnsignedHash() common.Hash {
 		NetworkId:        tx.data.NetworkId,
 	}
 	return rlpHash(unsigntx)
+}
+
+func (tx *EvmTransaction) getMetaMaskUnsignedhash(chainId uint32) common.Hash {
+	return rlpHash([]interface{}{
+		tx.data.AccountNonce,
+		tx.data.Price,
+		tx.data.GasLimit,
+		tx.data.Recipient,
+		tx.data.Amount,
+		tx.data.Payload,
+		chainId, uint(0), uint(0),
+	})
 }
 
 func (tx *EvmTransaction) typedHash() (common.Hash, error) {

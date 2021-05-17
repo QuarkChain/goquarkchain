@@ -192,7 +192,7 @@ func NewTxPool(config TxPoolConfig, chain minorBlockChain) *TxPool {
 	pool := &TxPool{
 		config:          config,
 		chain:           chain,
-		signer:          types.NewEIP155Signer(chain.Config().NetworkID),
+		signer:          types.NewEIP155Signer(chain.Config().NetworkID, chain.ChainConfig().ChainID.Uint64()),
 		pending:         make(map[common.Address]*txList),
 		queue:           make(map[common.Address]*txList),
 		beats:           make(map[common.Address]time.Time),

@@ -71,6 +71,10 @@ func newTestBackend() (*testBackend, error) {
 	return bak, nil
 }
 
+func (t *testBackend)	GetClusterConfig() *config.ClusterConfig  {
+	return t.config
+}
+
 func (t *testBackend) stop() {
 	close(t.exitCh)
 	t.handler.Stop()

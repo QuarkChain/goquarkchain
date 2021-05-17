@@ -1,6 +1,8 @@
 package qkcapi
 
 import (
+	"github.com/ethereum/go-ethereum/common/hexutil"
+
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	qrpc "github.com/QuarkChain/goquarkchain/cluster/rpc"
@@ -49,6 +51,7 @@ type Backend interface {
 }
 
 func GetAPIs(apiBackend Backend) []rpc.API {
+	networkId := apiBackend.NetWorkInfo()["networkId"].(hexutil.Uint)
 	once.Do(func() {
 		clusterCfg = apiBackend.GetClusterConfig()
 	})
@@ -66,9 +69,9 @@ func GetAPIs(apiBackend Backend) []rpc.API {
 			Public:    false,
 		},
 		{
-			Namespace: "eth",
+			Namespace: "net",
 			Version:   "1.0",
-			Service:   NewEthAPI(apiBackend),
+			Service:   NewPublicNetAPI(uint(networkId)),
 			Public:    true,
 		},
 	}

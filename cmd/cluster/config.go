@@ -144,6 +144,10 @@ func makeConfigNode(ctx *cli.Context) (*service.Node, qkcConfig) {
 	if cfg.Cluster.Quarkchain.EnablePoswStakingDecayTimestamp == 0 && cfg.Cluster.Quarkchain.NetworkID == 1 {
 		cfg.Cluster.Quarkchain.EnablePoswStakingDecayTimestamp = params.MAINNET_ENABLE_POSW_STAKING_DECAY_TIMESTAMP
 	}
+
+	if cfg.Cluster.Quarkchain.EnableEIP155SignerTimestamp == 0 && cfg.Cluster.Quarkchain.NetworkID == 1 {
+		cfg.Cluster.Quarkchain.EnableEIP155SignerTimestamp = params.MAINNET_ENABLE_EIP155_SIGNER_TIMESTAMP
+	}
 	return stack, cfg
 }
 
