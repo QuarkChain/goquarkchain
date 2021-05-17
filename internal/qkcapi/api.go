@@ -775,6 +775,10 @@ func NewEthAPI(b Backend) *EthBlockChainAPI {
 	return &EthBlockChainAPI{b: b, CommonAPI: CommonAPI{b}}
 }
 
+func (e *EthBlockChainAPI) ChainId() (hexutil.Uint64, error) {
+	return hexutil.Uint64(666), nil
+}
+
 func (e *EthBlockChainAPI) GasPrice(fullShardKey *hexutil.Uint) (hexutil.Uint64, error) {
 	fullShardId, err := getFullShardId(fullShardKey)
 	if err != nil {
