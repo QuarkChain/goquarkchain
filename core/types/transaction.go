@@ -177,6 +177,18 @@ func (tx *EvmTransaction) getUnsignedHash() common.Hash {
 	return rlpHash(unsigntx)
 }
 
+func (tx *EvmTransaction) getMetaMaskUnsignedhash(chainId uint32) common.Hash {
+	return rlpHash([]interface{}{
+		tx.data.AccountNonce,
+		tx.data.Price,
+		tx.data.GasLimit,
+		tx.data.Recipient,
+		tx.data.Amount,
+		tx.data.Payload,
+		chainId, 0, 0,
+	})
+}
+
 func (tx *EvmTransaction) typedHash() (common.Hash, error) {
 	sigHash, err := typedSignatureHash(evmTxToTypedData(tx))
 	if err != nil {

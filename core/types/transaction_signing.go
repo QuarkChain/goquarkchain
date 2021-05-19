@@ -6,10 +6,11 @@ import (
 	"crypto/ecdsa"
 	"errors"
 	"fmt"
+	"math/big"
+
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
-	"math/big"
 )
 
 var (
@@ -107,6 +108,10 @@ func (s EIP155Signer) Sender(tx *EvmTransaction) (account.Recipient, error) {
 			return account.Recipient{}, err
 		}
 		return recoverPlain(hashTyped, tx.data.R, tx.data.S, tx.data.V, true)
+	} else if tx.data.Version == 2 {
+		sender, err := recoverPlain(tx.getMetaMaskUnsignedhash(666), tx.data.R, tx.data.S, tx.data.V, true)
+		fmt.Println("calSender", sender.String(), err)
+		return sender, err
 	} else {
 		return account.Recipient{}, fmt.Errorf("Version %d is not suppot", tx.data.Version)
 	}
