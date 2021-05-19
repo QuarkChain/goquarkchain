@@ -16,6 +16,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/internal/encoder"
 	"github.com/QuarkChain/goquarkchain/rpc"
 	"github.com/ethereum/go-ethereum/common"
+	ethTypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rlp"
 )
@@ -905,7 +906,7 @@ func (e *EthBlockChainAPI) GetCode(address common.Address, blockNr rpc.BlockNumb
 
 func (s *EthBlockChainAPI) SendRawTransaction(encodedTx hexutil.Bytes) (common.Hash, error) {
 	fmt.Println("SSSSSSSSSSSSSSSSS", encodedTx.String())
-	evmTx := new(types.EvmTransaction)
+	evmTx := new(ethTypes.Transaction)
 	if err := rlp.DecodeBytes(encodedTx, evmTx); err != nil {
 		fmt.Println("err", err)
 		return common.Hash{}, err
