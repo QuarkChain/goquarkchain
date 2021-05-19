@@ -864,9 +864,9 @@ func (e *EthBlockChainAPI) BlockNumber() hexutil.Uint64 {
 	}
 	shards := stats["shards"].([]map[string]interface{})
 	for _, shard := range shards {
-		fullShardId := decodeStringToInt64(shard["fullShardId"].(string))
+		fullShardId := shard["fullShardId"].(uint32)
 		if fullShardId == 1 {
-			return hexutil.Uint64(decodeStringToInt64(shard["height"].(string)))
+			return hexutil.Uint64(shard["height"].(uint32))
 		}
 	}
 	panic("bug here-")
