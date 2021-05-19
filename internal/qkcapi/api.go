@@ -769,11 +769,11 @@ func (p *PrivateBlockChainAPI) GetKadRoutingTable() ([]string, error) {
 }
 
 type PublicNetAPI struct {
-	networkVersion uint64
+	networkVersion uint
 }
 
 // NewPublicNetAPI creates a new net API instance.
-func NewPublicNetAPI(networkVersion uint64) *PublicNetAPI {
+func NewPublicNetAPI(networkVersion uint) *PublicNetAPI {
 	return &PublicNetAPI{networkVersion: networkVersion}
 }
 

@@ -392,6 +392,7 @@ func (s *Server) readRequest(codec ServerCodec) ([]*serverRequest, bool, Error) 
 
 		if r.err != nil {
 			requests[i] = &serverRequest{id: r.id, err: r.err}
+			fmt.Println("395----", r.err)
 			continue
 		}
 
@@ -403,11 +404,13 @@ func (s *Server) readRequest(codec ServerCodec) ([]*serverRequest, bool, Error) 
 			} else {
 				requests[i].err = &invalidParamsError{err.Error()}
 			}
+			fmt.Println("407----", r.err)
 			continue
 		}
 
 		if svc, ok = s.services[r.service]; !ok { // rpc method isn't available
 			requests[i] = &serverRequest{id: r.id, err: &methodNotFoundError{r.service, r.method}}
+			fmt.Println("413-------------", s.services[r.service], r.service)
 			continue
 		}
 
