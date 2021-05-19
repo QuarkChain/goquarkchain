@@ -927,6 +927,7 @@ func (s *EthBlockChainAPI) SendRawTransaction(encodedTx hexutil.Bytes) (common.H
 	//	return EmptyTxID, err
 	//}
 	//return encoder.IDEncoder(tx.Hash().Bytes(), tx.EvmTx.FromFullShardKey()), nil
+	return common.Hash{}, nil
 }
 func (e *EthBlockChainAPI) Call(data EthCallArgs, fullShardKey *hexutil.Uint) (hexutil.Bytes, error) {
 	args, err := convertEthCallData(&data)
