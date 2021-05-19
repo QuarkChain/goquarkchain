@@ -16,7 +16,7 @@ import (
 var DefaultConfig = Config{
 	DataDir:         DefaultDataDir(),
 	GRPCModules:     []string{"grpc"},
-	HTTPModules:     []string{"qkc", "eth"},
+	HTTPModules:     []string{"qkc", "eth", "net"},
 	HTTPPrivModules: []string{"qkc"},
 	WSModules:       []string{"ws"},
 	WSOrigins:       []string{"*"},
