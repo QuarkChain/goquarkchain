@@ -186,6 +186,7 @@ func (p *PublicBlockChainAPI) GetTransactionCount(address account.Address, block
 }
 
 func (p *PublicBlockChainAPI) GetBalances(address account.Address, blockNr *rpc.BlockNumber) (map[string]interface{}, error) {
+	fmt.Println("189----PublicBlockChainAPI", address.ToHex(), blockNr)
 	data, err := p.getPrimaryAccountData(address, blockNr)
 	if err != nil {
 		return nil, err
@@ -804,6 +805,7 @@ func (e *EthBlockChainAPI) GetBlockByNumber(heightInput *hexutil.Uint64) (map[st
 }
 
 func (e *EthBlockChainAPI) GetBalance(address common.Address, fullShardKey *hexutil.Uint) (*hexutil.Big, error) {
+	fmt.Println("EthBlockChainAPI 888800000", address.String(), fullShardKey.String())
 	fullShardId, err := getFullShardId(fullShardKey)
 	if err != nil {
 		return nil, err
