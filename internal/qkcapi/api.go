@@ -911,6 +911,13 @@ func (s *EthBlockChainAPI) SendRawTransaction(encodedTx hexutil.Bytes) (common.H
 		fmt.Println("err", err)
 		return common.Hash{}, err
 	}
+	evmTx := types.NewEvmTransaction(tx.Nonce(), *tx.To(), tx.Value(), tx.Gas(), tx.GasPrice(), 1, 1, 1, 3, tx.Data(), 35760, 35760)
+	evmTx.SetVRS(tx.RawSignatureValues())
+
+	txQkc := &types.Transaction{
+		TxType: types.EvmTx,
+		EvmTx:  evmTx,
+	}
 	fmt.Println("tx.Nonce", tx.Nonce())
 	fmt.Println("tx.GasPrice", tx.GasPrice())
 	fmt.Println("tx.Gas", tx.Gas())
@@ -918,6 +925,11 @@ func (s *EthBlockChainAPI) SendRawTransaction(encodedTx hexutil.Bytes) (common.H
 	fmt.Println("tx.Value", tx.Value())
 	fmt.Println("tx.Data", len(tx.Data()))
 	fmt.Println("??????????????????????????")
+
+	if err := s.b.AddTransaction(txQkc); err != nil {
+		fmt.Println("eeeeeeeeeAddtx", err)
+		return common.Hash{}, nil
+	}
 	//tx := &types.Transaction{
 	//	EvmTx:  evmTx,
 	//	TxType: types.EvmTx,
@@ -926,8 +938,8 @@ func (s *EthBlockChainAPI) SendRawTransaction(encodedTx hexutil.Bytes) (common.H
 	//if err := c.b.AddTransaction(tx); err != nil {
 	//	return EmptyTxID, err
 	//}
-	//return encoder.IDEncoder(tx.Hash().Bytes(), tx.EvmTx.FromFullShardKey()), nil
-	return common.Hash{}, nil
+	fmt.Println("????????????????", tx.Hash().String())
+	return common.BytesToHash(encoder.IDEncoder(tx.Hash().Bytes(), txQkc.EvmTx.FromFullShardKey())), nil
 }
 func (e *EthBlockChainAPI) Call(data EthCallArgs, fullShardKey *hexutil.Uint) (hexutil.Bytes, error) {
 	args, err := convertEthCallData(&data)
