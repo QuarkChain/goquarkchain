@@ -849,6 +849,14 @@ func (e *EthBlockChainAPI) GetBalance(address common.Address, blockNrOrHash rpc.
 	return (*hexutil.Big)(balance), nil
 }
 
+func (e *EthBlockChainAPI) BlockNumber() hexutil.Uint64 {
+	stats, err := e.b.GetStats()
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println("stats", stats)
+	fmt.Println("stats", stats["shards"])
+}
 func (e *EthBlockChainAPI) GetTransactionCount(address common.Address, fullShardKey *hexutil.Uint) (hexutil.Uint64, error) {
 	fullShardId, err := getFullShardId(fullShardKey)
 	if err != nil {

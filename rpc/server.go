@@ -25,7 +25,7 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/deckarep/golang-set"
+	mapset "github.com/deckarep/golang-set"
 	"github.com/ethereum/go-ethereum/log"
 )
 
@@ -374,6 +374,11 @@ func (s *Server) execBatch(ctx context.Context, codec ServerCodec, requests []*s
 // error when the request could not be read/parsed.
 func (s *Server) readRequest(codec ServerCodec) ([]*serverRequest, bool, Error) {
 	reqs, batch, err := codec.ReadRequestHeaders()
+
+	fmt.Println("readRequset", len(reqs), batch, err)
+	for k, v := range reqs {
+		fmt.Println("k", v.id, k, v.method, v.params)
+	}
 	if err != nil {
 		return nil, batch, err
 	}
