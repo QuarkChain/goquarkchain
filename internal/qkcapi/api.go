@@ -807,6 +807,7 @@ func (e *EthBlockChainAPI) GetBlockByNumber(heightInput *hexutil.Uint64) (map[st
 func (e *EthBlockChainAPI) getHeightFromBlockNumberOrHash(blockNrOrHash rpc.BlockNumberOrHash) (*uint64, error) {
 	fmt.Println("????", blockNrOrHash)
 	if blockNr, ok := blockNrOrHash.Number(); ok {
+		fmt.Println("????-810", blockNr.Int64())
 		if blockNr.Int64() == 0 {
 			zero := uint64(0)
 			return &zero, nil
@@ -815,19 +816,20 @@ func (e *EthBlockChainAPI) getHeightFromBlockNumberOrHash(blockNrOrHash rpc.Bloc
 		} else if blockNr.Int64() == -2 {
 			panic("not support yet")
 		} else {
-		t:
-			return blockNr.Uint64(), nil
+			t:=blockNr.Uint64()
+			return &t, nil
 		}
 	}
 	if hash, ok := blockNrOrHash.Hash(); ok {
 		block, _, err := e.b.GetMinorBlockByHash(hash, account.Branch{Value: 1}, false)
 		if err != nil {
-			return 0, err
+			return nil, err
 		}
 		fmt.Println("818---", block.NumberU64())
-		return block.NumberU64(), nil
+		tt:=block.NumberU64()
+		return &tt, nil
 	}
-	return 0, errors.New("invalid arguments; neither block nor hash specified")
+	return nil, errors.New("invalid arguments; neither block nor hash specified")
 }
 
 func (e *EthBlockChainAPI) GetBalance(address common.Address, blockNrOrHash rpc.BlockNumberOrHash) (*hexutil.Big, error) {
@@ -839,7 +841,7 @@ func (e *EthBlockChainAPI) GetBalance(address common.Address, blockNrOrHash rpc.
 	if err != nil {
 		return nil, err
 	}
-	data, err := e.b.GetPrimaryAccountData(&addr, &height)
+	data, err := e.b.GetPrimaryAccountData(&addr, height)
 	if err != nil {
 		return nil, err
 	}
@@ -895,6 +897,4 @@ func (e *EthBlockChainAPI) GetStorageAt(address common.Address, key common.Hash,
 		return nil, err
 	}
 	addr := account.NewAddress(address, fullShardId)
-	hash, err := e.b.GetStorageAt(&addr, key, nil)
-	return hash.Bytes(), err
-}
+	hash, err := e.b.
