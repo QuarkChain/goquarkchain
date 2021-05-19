@@ -849,6 +849,9 @@ func (e *EthBlockChainAPI) GetBalance(address common.Address, blockNrOrHash rpc.
 	return (*hexutil.Big)(balance), nil
 }
 
+func decodeStringToUint64(data string) uint64 {
+	dastrconv.ParseUint(data, 10, 64)
+}
 func (e *EthBlockChainAPI) BlockNumber() hexutil.Uint64 {
 	stats, err := e.b.GetStats()
 	if err != nil {
@@ -861,6 +864,10 @@ func (e *EthBlockChainAPI) BlockNumber() hexutil.Uint64 {
 	fmt.Println("===============")
 	fmt.Println("LLLLLLLLLLLLLLLLLL", len(shards), stats["shards"])
 	for _, shard := range shards {
+		fullShardId := shard["fullShardId"].(string)
+		if shards["fullShardId"].(string) == "1" {
+
+		}
 		fmt.Println("ssss", shard["fullShardId"], shard["height"])
 	}
 	return 123
