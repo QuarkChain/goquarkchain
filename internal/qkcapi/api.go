@@ -805,6 +805,7 @@ func (e *EthBlockChainAPI) GetBlockByNumber(heightInput *hexutil.Uint64) (map[st
 }
 
 func (e *EthBlockChainAPI) getHeightFromBlockNumberOrHash(blockNrOrHash rpc.BlockNumberOrHash) (uint64, error) {
+	fmt.Println("????", blockNrOrHash)
 	if blockNr, ok := blockNrOrHash.Number(); ok {
 		return blockNr.Uint64(), nil
 	}
