@@ -886,6 +886,19 @@ func (e *EthBlockChainAPI) BlockNumber() hexutil.Uint64 {
 	}
 	panic("bug here-")
 }
+
+func (e *PublicBlockChainAPI) GetBlockByNumber(blockNr rpc.BlockNumber, fullTx bool) (map[string]interface{}, error) {
+	height := blockNr.Uint64()
+	minorBlock, _, err := e.b.GetMinorBlockByHeight(&height, account.Branch{1}, fullTx)
+	if err != nil {
+		return nil, err
+	}
+	if minorBlock == nil {
+		return nil, errors.New("minor block is nil")
+	}
+	return encoder.MinorBlockEncoder(minorBlock, false, nil)
+}
+
 func (e *EthBlockChainAPI) GetTransactionCount(address common.Address, fullShardKey *hexutil.Uint) (hexutil.Uint64, error) {
 	fullShardId, err := getFullShardId(fullShardKey)
 	if err != nil {
