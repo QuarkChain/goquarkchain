@@ -834,7 +834,6 @@ func (e *EthBlockChainAPI) getHeightFromBlockNumberOrHash(blockNrOrHash rpc.Bloc
 }
 
 func (e *EthBlockChainAPI) GetBalance(address common.Address, blockNrOrHash rpc.BlockNumberOrHash) (*hexutil.Big, error) {
-	fmt.Println("EthBlockChainAPI 888800000", address.String(), blockNrOrHash)
 	fullShardId := uint32(1)
 
 	addr := account.NewAddress(address, fullShardId)
@@ -884,16 +883,15 @@ func (e *EthBlockChainAPI) GetBlockByNumber(blockNr rpc.BlockNumber, fullTx bool
 	return encoder.MinorBlockEncoder(minorBlock, false, nil)
 }
 
-func (e *EthBlockChainAPI) GetTransactionCount(address common.Address, fullShardKey *hexutil.Uint) (hexutil.Uint64, error) {
-	fullShardId, err := getFullShardId(fullShardKey)
-	if err != nil {
-		return hexutil.Uint64(0), err
-	}
-	addr := account.NewAddress(address, fullShardId)
-	data, err := e.b.GetPrimaryAccountData(&addr, nil)
+func (e *EthBlockChainAPI) GetTransactionCount(address common.Address, blockNr rpc.BlockNumber) (hexutil.Uint64, error) {
+
+	addr := account.NewAddress(address, 1)
+	height := blockNr.Uint64()
+	data, err := e.b.GetPrimaryAccountData(&addr, &height)
 	if err != nil {
 		return 0, err
 	}
+	fmt.Println("FGGGGGGGGGGGGGGGGGGGGGGGGG", address.String(), blockNr.Uint64(), data.TransactionCount)
 	return hexutil.Uint64(data.TransactionCount), nil
 }
 
