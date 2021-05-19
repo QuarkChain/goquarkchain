@@ -856,6 +856,7 @@ func (e *EthBlockChainAPI) BlockNumber() hexutil.Uint64 {
 	}
 	fmt.Println("stats", stats)
 	fmt.Println("stats", stats["shards"])
+	return 123
 }
 func (e *EthBlockChainAPI) GetTransactionCount(address common.Address, fullShardKey *hexutil.Uint) (hexutil.Uint64, error) {
 	fullShardId, err := getFullShardId(fullShardKey)
