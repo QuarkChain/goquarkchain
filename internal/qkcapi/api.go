@@ -805,21 +805,6 @@ func (e *EthBlockChainAPI) GasPrice(fullShardKey *hexutil.Uint) (hexutil.Uint64,
 	return hexutil.Uint64(data), nil
 }
 
-func (e *EthBlockChainAPI) GetBlockByNumber(heightInput *hexutil.Uint64) (map[string]interface{}, error) {
-	height, err := transHexutilUint64ToUint64(heightInput)
-	if err != nil {
-		return nil, err
-	}
-	minorBlock, extraData, err := e.b.GetMinorBlockByHeight(height, account.Branch{Value: 0}, false)
-	if err != nil {
-		return nil, err
-	}
-	if minorBlock == nil {
-		return nil, errors.New("minor block is nil")
-	}
-	return encoder.MinorBlockEncoder(minorBlock, true, extraData)
-}
-
 func (e *EthBlockChainAPI) getHeightFromBlockNumberOrHash(blockNrOrHash rpc.BlockNumberOrHash) (*uint64, error) {
 	fmt.Println("????", blockNrOrHash)
 	if blockNr, ok := blockNrOrHash.Number(); ok {
@@ -887,7 +872,7 @@ func (e *EthBlockChainAPI) BlockNumber() hexutil.Uint64 {
 	panic("bug here-")
 }
 
-func (e *PublicBlockChainAPI) GetBlockByNumber(blockNr rpc.BlockNumber, fullTx bool) (map[string]interface{}, error) {
+func (e *EthBlockChainAPI) GetBlockByNumber(blockNr rpc.BlockNumber, fullTx bool) (map[string]interface{}, error) {
 	height := blockNr.Uint64()
 	minorBlock, _, err := e.b.GetMinorBlockByHeight(&height, account.Branch{1}, fullTx)
 	if err != nil {
