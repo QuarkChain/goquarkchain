@@ -804,11 +804,20 @@ func (e *EthBlockChainAPI) GetBlockByNumber(heightInput *hexutil.Uint64) (map[st
 	return encoder.MinorBlockEncoder(minorBlock, true, extraData)
 }
 
-func (e *EthBlockChainAPI) getHeightFromBlockNumberOrHash(blockNrOrHash rpc.BlockNumberOrHash) (uint64, error) {
+func (e *EthBlockChainAPI) getHeightFromBlockNumberOrHash(blockNrOrHash rpc.BlockNumberOrHash) (*uint64, error) {
 	fmt.Println("????", blockNrOrHash)
 	if blockNr, ok := blockNrOrHash.Number(); ok {
-		fmt.Println("810000", blockNr.Uint64())
-		return blockNr.Uint64(), nil
+		if blockNr.Int64() == 0 {
+			zero := uint64(0)
+			return &zero, nil
+		} else if blockNr.Int64() == -1 {
+			return nil, nil
+		} else if blockNr.Int64() == -2 {
+			panic("not support yet")
+		} else {
+		t:
+			return blockNr.Uint64(), nil
+		}
 	}
 	if hash, ok := blockNrOrHash.Hash(); ok {
 		block, _, err := e.b.GetMinorBlockByHash(hash, account.Branch{Value: 1}, false)
