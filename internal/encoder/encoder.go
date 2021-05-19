@@ -2,7 +2,6 @@ package encoder
 
 import (
 	"errors"
-	"fmt"
 
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
@@ -199,7 +198,7 @@ func MinorBlockEncoder(block *types.MinorBlock, includeTransaction bool, extraIn
 		field["poswMinedBlocks"] = (hexutil.Uint64)(extraInfo.PoswMinedBlocks)
 		field["stakingApplied"] = extraInfo.EffectiveDifficulty.Cmp(header.Difficulty) < 0
 	}
-	fmt.Println("fffffffffffffff", field)
+	//fmt.Println("fffffffffffffff", field)
 	return field, nil
 }
 

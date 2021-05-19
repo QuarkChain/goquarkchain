@@ -806,9 +806,9 @@ func (e *EthBlockChainAPI) GasPrice(fullShardKey *hexutil.Uint) (hexutil.Uint64,
 }
 
 func (e *EthBlockChainAPI) getHeightFromBlockNumberOrHash(blockNrOrHash rpc.BlockNumberOrHash) (*uint64, error) {
-	fmt.Println("????", blockNrOrHash)
+	//fmt.Println("????", blockNrOrHash)
 	if blockNr, ok := blockNrOrHash.Number(); ok {
-		fmt.Println("????-810", blockNr.Int64())
+		//fmt.Println("????-810", blockNr.Int64())
 		if blockNr.Int64() == 0 {
 			zero := uint64(0)
 			return &zero, nil
@@ -826,7 +826,7 @@ func (e *EthBlockChainAPI) getHeightFromBlockNumberOrHash(blockNrOrHash rpc.Bloc
 		if err != nil {
 			return nil, err
 		}
-		fmt.Println("818---", block.NumberU64())
+		//fmt.Println("818---", block.NumberU64())
 		tt := block.NumberU64()
 		return &tt, nil
 	}
@@ -897,13 +897,11 @@ func (e *EthBlockChainAPI) GetTransactionCount(address common.Address, fullShard
 	return hexutil.Uint64(data.TransactionCount), nil
 }
 
-func (e *EthBlockChainAPI) GetCode(address common.Address, fullShardKey *hexutil.Uint) (hexutil.Bytes, error) {
-	fullShardId, err := getFullShardId(fullShardKey)
-	if err != nil {
-		return nil, err
-	}
-	addr := account.NewAddress(address, fullShardId)
-	return e.b.GetCode(&addr, nil)
+func (e *EthBlockChainAPI) GetCode(address common.Address, blockNr rpc.BlockNumber) (hexutil.Bytes, error) {
+	fmt.Println("?????cxccccc", address.String(), blockNr)
+	addr := account.NewAddress(address, 1)
+	height := blockNr.Uint64()
+	return e.b.GetCode(&addr, &height)
 }
 
 func (e *EthBlockChainAPI) Call(data EthCallArgs, fullShardKey *hexutil.Uint) (hexutil.Bytes, error) {
