@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math/big"
 	"sort"
+	"strconv"
 
 	"github.com/QuarkChain/goquarkchain/account"
 	qrpc "github.com/QuarkChain/goquarkchain/cluster/rpc"
@@ -849,28 +850,26 @@ func (e *EthBlockChainAPI) GetBalance(address common.Address, blockNrOrHash rpc.
 	return (*hexutil.Big)(balance), nil
 }
 
-func decodeStringToUint64(data string) uint64 {
-	dastrconv.ParseUint(data, 10, 64)
+func decodeStringToInt64(data string) int64 {
+	ans, err := strconv.ParseInt(data, 10, 64)
+	if err != nil {
+		panic(err)
+	}
+	return ans
 }
 func (e *EthBlockChainAPI) BlockNumber() hexutil.Uint64 {
 	stats, err := e.b.GetStats()
 	if err != nil {
 		panic(err)
 	}
-	//fmt.Println("stats", stats)
-	//fmt.Println("stats", stats["shards"])
 	shards := stats["shards"].([]map[string]interface{})
-	fmt.Println("statsss", stats)
-	fmt.Println("===============")
-	fmt.Println("LLLLLLLLLLLLLLLLLL", len(shards), stats["shards"])
 	for _, shard := range shards {
-		fullShardId := shard["fullShardId"].(string)
-		if shards["fullShardId"].(string) == "1" {
-
+		fullShardId := decodeStringToInt64(shard["fullShardId"].(string))
+		if fullShardId == 1 {
+			return hexutil.Uint64(decodeStringToInt64(shard["height"].(string)))
 		}
-		fmt.Println("ssss", shard["fullShardId"], shard["height"])
 	}
-	return 123
+	panic("bug here-")
 }
 func (e *EthBlockChainAPI) GetTransactionCount(address common.Address, fullShardKey *hexutil.Uint) (hexutil.Uint64, error) {
 	fullShardId, err := getFullShardId(fullShardKey)
@@ -912,14 +911,4 @@ func (e *EthBlockChainAPI) EstimateGas(data EthCallArgs, fullShardKey *hexutil.U
 		return 0, err
 	}
 	return hexutil.Uint(qcom.BytesToUint32(gas)), nil
-}
-
-func (e *EthBlockChainAPI) GetStorageAt(address common.Address, key common.Hash, fullShardKey *hexutil.Uint) (hexutil.Bytes, error) {
-	fullShardId, err := getFullShardId(fullShardKey)
-	if err != nil {
-		return nil, err
-	}
-	addr := account.NewAddress(address, fullShardId)
-	hash, err := e.b.GetStorageAt(&addr, key, nil)
-	return hash.Bytes(), err
 }
