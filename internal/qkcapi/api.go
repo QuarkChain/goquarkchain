@@ -857,6 +857,9 @@ func (e *EthBlockChainAPI) BlockNumber() hexutil.Uint64 {
 	//fmt.Println("stats", stats)
 	//fmt.Println("stats", stats["shards"])
 	shards := stats["shards"].([]map[string]interface{})
+	fmt.Println("statsss", stats)
+	fmt.Println("===============")
+	fmt.Println("LLLLLLLLLLLLLLLLLL", len(shards), stats["shards"])
 	for _, shard := range shards {
 		fmt.Println("ssss", shard["fullShardId"], shard["height"])
 	}
