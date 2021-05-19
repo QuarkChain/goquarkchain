@@ -1,6 +1,9 @@
 package qkcapi
 
 import (
+	"fmt"
+	"reflect"
+
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	qrpc "github.com/QuarkChain/goquarkchain/cluster/rpc"
@@ -49,6 +52,7 @@ type Backend interface {
 }
 
 func GetAPIs(apiBackend Backend) []rpc.API {
+	fmt.Println("app", apiBackend.NetWorkInfo()["networkId"], reflect.TypeOf(apiBackend.NetWorkInfo()["networkId"]))
 	once.Do(func() {
 		clusterCfg = apiBackend.GetClusterConfig()
 	})
@@ -69,6 +73,12 @@ func GetAPIs(apiBackend Backend) []rpc.API {
 			Namespace: "eth",
 			Version:   "1.0",
 			Service:   NewEthAPI(apiBackend),
+			Public:    true,
+		},
+		{
+			Namespace: "net",
+			Version:   "1.0",
+			Service:   NewPublicNetAPI(123456),
 			Public:    true,
 		},
 	}

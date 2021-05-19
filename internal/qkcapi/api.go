@@ -768,6 +768,21 @@ func (p *PrivateBlockChainAPI) GetKadRoutingTable() ([]string, error) {
 	return p.b.GetKadRoutingTable()
 }
 
+type PublicNetAPI struct {
+	networkVersion uint64
+}
+
+// NewPublicNetAPI creates a new net API instance.
+func NewPublicNetAPI(networkVersion uint64) *PublicNetAPI {
+	return &PublicNetAPI{networkVersion: networkVersion}
+}
+
+// Version returns the current ethereum protocol version.
+func (s *PublicNetAPI) Version() string {
+	fmt.Println("vvvvvvvvvvvvvvvv", s.networkVersion)
+	return fmt.Sprintf("%d", s.networkVersion)
+}
+
 type EthBlockChainAPI struct {
 	CommonAPI
 	b Backend
