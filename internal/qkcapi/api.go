@@ -854,8 +854,13 @@ func (e *EthBlockChainAPI) BlockNumber() hexutil.Uint64 {
 	if err != nil {
 		panic(err)
 	}
-	fmt.Println("stats", stats)
-	fmt.Println("stats", stats["shards"])
+	//fmt.Println("stats", stats)
+	//fmt.Println("stats", stats["shards"])
+	shards := stats["shards"].([]interface{})
+	for _, shard := range shards {
+		s := shard.(map[string]interface{})
+		fmt.Println("ssss", s["fullShardId"], s["height"])
+	}
 	return 123
 }
 func (e *EthBlockChainAPI) GetTransactionCount(address common.Address, fullShardKey *hexutil.Uint) (hexutil.Uint64, error) {
