@@ -902,22 +902,28 @@ func (e *EthBlockChainAPI) GetCode(address common.Address, blockNr rpc.BlockNumb
 	return e.b.GetCode(&addr, &height)
 }
 
+func (s *EthBlockChainAPI) SendRawTransaction(encodedTx hexutil.Bytes) (common.Hash, error) {
+	fmt.Println("SSSSSSSSSSSSSSSSS", encodedTx.String())
+	evmTx := new(types.EvmTransaction)
+	if err := rlp.DecodeBytes(encodedTx, evmTx); err != nil {
+		fmt.Println("err", err)
+		return common.Hash{}, err
+	}
+	panic("sb")
+	//tx := &types.Transaction{
+	//	EvmTx:  evmTx,
+	//	TxType: types.EvmTx,
+	//}
+
+	//if err := c.b.AddTransaction(tx); err != nil {
+	//	return EmptyTxID, err
+	//}
+	//return encoder.IDEncoder(tx.Hash().Bytes(), tx.EvmTx.FromFullShardKey()), nil
+}
 func (e *EthBlockChainAPI) Call(data EthCallArgs, fullShardKey *hexutil.Uint) (hexutil.Bytes, error) {
 	args, err := convertEthCallData(&data)
 	if err != nil {
 		return nil, err
 	}
 	return e.CommonAPI.callOrEstimateGas(args, nil, true)
-}
-
-func (e *EthBlockChainAPI) EstimateGas(data EthCallArgs, fullShardKey *hexutil.Uint) (hexutil.Uint, error) {
-	args, err := convertEthCallData(&data)
-	if err != nil {
-		return 0, err
-	}
-	gas, err := e.CommonAPI.callOrEstimateGas(args, nil, false)
-	if err != nil {
-		return 0, err
-	}
-	return hexutil.Uint(qcom.BytesToUint32(gas)), nil
 }
