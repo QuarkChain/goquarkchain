@@ -109,7 +109,9 @@ func (s EIP155Signer) Sender(tx *EvmTransaction) (account.Recipient, error) {
 		}
 		return recoverPlain(hashTyped, tx.data.R, tx.data.S, tx.data.V, true)
 	} else if tx.data.Version == 2 {
-		sender, err := recoverPlain(tx.getMetaMaskUnsignedhash(666), tx.data.R, tx.data.S, tx.data.V, true)
+		vv := tx.data.V
+		vv.Sub(vv, big.NewInt(8))
+		sender, err := recoverPlain(tx.getMetaMaskUnsignedhash(666), tx.data.R, tx.data.S, vv, true)
 		fmt.Println("calSender", sender.String(), err)
 		return sender, err
 	} else {
