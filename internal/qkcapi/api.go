@@ -816,7 +816,7 @@ func (e *EthBlockChainAPI) getHeightFromBlockNumberOrHash(blockNrOrHash rpc.Bloc
 		} else if blockNr.Int64() == -2 {
 			panic("not support yet")
 		} else {
-			t:=blockNr.Uint64()
+			t := blockNr.Uint64()
 			return &t, nil
 		}
 	}
@@ -826,7 +826,7 @@ func (e *EthBlockChainAPI) getHeightFromBlockNumberOrHash(blockNrOrHash rpc.Bloc
 			return nil, err
 		}
 		fmt.Println("818---", block.NumberU64())
-		tt:=block.NumberU64()
+		tt := block.NumberU64()
 		return &tt, nil
 	}
 	return nil, errors.New("invalid arguments; neither block nor hash specified")
@@ -897,4 +897,6 @@ func (e *EthBlockChainAPI) GetStorageAt(address common.Address, key common.Hash,
 		return nil, err
 	}
 	addr := account.NewAddress(address, fullShardId)
-	hash, err := e.b.
+	hash, err := e.b.GetStorageAt(&addr, key, nil)
+	return hash.Bytes(), err
+}
