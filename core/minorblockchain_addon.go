@@ -184,6 +184,9 @@ func (m *MinorBlockChain) updateTip(state *state.StateDB, block *types.MinorBloc
 }
 
 func (m *MinorBlockChain) validateTx(tx *types.Transaction, evmState *state.StateDB, fromAddress *account.Address, gas, xShardGasLimit *uint64) (*types.Transaction, error) {
+	if tx.EvmTx.Version() == 2 && evmState.GetTimeStamp() < m.clusterConfig.Quarkchain.EnableEIP155SignerTimestamp {
+		return nil, fmt.Errorf("currTimeStamp %v < enableEIP155TimeStamp %v", evmState.GetTimeStamp(), m.clusterConfig.Quarkchain.EnableEIP155SignerTimestamp)
+	}
 	if evmState == nil && fromAddress != nil {
 		return nil, errors.New("validateTx params err")
 	}
@@ -200,7 +203,7 @@ func (m *MinorBlockChain) validateTx(tx *types.Transaction, evmState *state.Stat
 		}
 		evmTx.SetGas(evmTxGas)
 		// only used by  ExecuteTx and EstimateGas
-		evmTx.SetSender(fromAddress.Recipient)
+		evmTx.SetSender(fromAddress.Recipient, m.ChainConfig().ChainID.Uint64())
 		fromFullShardKey := fromAddress.FullShardKey
 		evmTx.SetFromFullShardKey(fromFullShardKey)
 	}
@@ -260,7 +263,7 @@ func (m *MinorBlockChain) validateTx(tx *types.Transaction, evmState *state.Stat
 	}
 	var sender account.Recipient
 	if fromAddress == nil {
-		sender, err = tx.Sender(types.NewEIP155Signer(m.clusterConfig.Quarkchain.NetworkID))
+		sender, err = tx.Sender(m.singer)
 		if err != nil {
 			return nil, err
 		}
@@ -765,7 +768,7 @@ func (m *MinorBlockChain) addTransactionToBlock(block *types.MinorBlock, evmStat
 	if err != nil {
 		return nil, nil, err
 	}
-	txs, err := types.NewTransactionsByPriceAndNonce(types.NewEIP155Signer(uint32(m.Config().NetworkID)), pending)
+	txs, err := types.NewTransactionsByPriceAndNonce(m.singer, pending)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -1224,7 +1227,12 @@ func (m *MinorBlockChain) EstimateGas(tx *types.Transaction, fromAddress account
 
 		gp := new(GasPool).AddGas(evmState.GetGasLimit().Uint64())
 		gasUsed := new(uint64)
-		_, _, _, err = ApplyTransaction(m.ChainConfig(), m, gp, evmState, m.CurrentHeader(), evmTx, gasUsed, m.vmConfig)
+		receipt := new(types.Receipt)
+		_, receipt, _, err = ApplyTransaction(m.ChainConfig(), m, gp, evmState, m.CurrentHeader(), evmTx, gasUsed, m.vmConfig)
+
+		if receipt.Status == types.ReceiptStatusFailed {
+			return errors.New("failed")
+		}
 		return err
 	}
 
@@ -1444,7 +1452,7 @@ func (m *MinorBlockChain) getPendingTxByAddress(address account.Address, transfe
 
 	//TODO: could also show incoming pending tx????? need check later
 	for _, tx := range txs {
-		sender, err := types.Sender(types.MakeSigner(m.clusterConfig.Quarkchain.NetworkID), tx.EvmTx)
+		sender, err := types.Sender(m.singer, tx.EvmTx)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -1554,7 +1562,7 @@ func (m *MinorBlockChain) getTransactionDetails(start, end []byte, limit uint32,
 			if !ok && !skipTx(evmTx) {
 				limit--
 				receipt, _, _ := rawdb.ReadReceipt(m.db, tx.Hash())
-				sender, err := types.Sender(types.MakeSigner(m.clusterConfig.Quarkchain.NetworkID), evmTx)
+				sender, err := types.Sender(m.singer, evmTx)
 				if err != nil {
 					return nil, nil, err
 				}
@@ -1659,7 +1667,7 @@ func (m *MinorBlockChain) updateTxHistoryIndex(tx *types.Transaction, height uin
 		return err
 	}
 
-	sender, err := types.Sender(types.MakeSigner(m.clusterConfig.Quarkchain.NetworkID), evmtx)
+	sender, err := types.Sender(m.singer, evmtx)
 	if err != nil {
 		return err
 	}

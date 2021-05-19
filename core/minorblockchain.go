@@ -153,6 +153,7 @@ type MinorBlockChain struct {
 	posw                     consensus.PoSWCalculator
 	gasLimit                 *big.Int
 	xShardGasLimit           *big.Int
+	singer                   types.Signer
 }
 
 // NewMinorBlockChain returns a fully initialised block chain using information
@@ -219,6 +220,8 @@ func NewMinorBlockChain(
 		},
 		logInfo: fmt.Sprintf("shard:%x", fullShardID),
 	}
+	bc.ethChainConfig.ChainID = new(big.Int).SetUint64(uint64(clusterConfig.Quarkchain.BaseEthChainID + 1 + bc.shardConfig.ChainID))
+	bc.singer = types.NewEIP155Signer(clusterConfig.Quarkchain.NetworkID, bc.ChainConfig().ChainID.Uint64())
 	var err error
 	bc.gasLimit, err = bc.clusterConfig.Quarkchain.GasLimit(bc.branch.Value)
 	if err != nil {
@@ -733,12 +736,11 @@ func (m *MinorBlockChain) Rollback(chain []common.Hash) {
 }
 
 // SetReceiptsData computes all the non-consensus fields of the receipts
-func SetReceiptsData(config *config.QuarkChainConfig, mBlock types.IBlock, receipts types.Receipts) error {
+func (m *MinorBlockChain) SetReceiptsData(config *config.QuarkChainConfig, mBlock types.IBlock, receipts types.Receipts) error {
 	if qkcCommon.IsNil(mBlock) {
 		return ErrMinorBlockIsNil
 	}
 	block := mBlock.(*types.MinorBlock)
-	signer := types.MakeSigner(uint32(config.NetworkID))
 
 	transactions, logIndex := block.GetTransactions(), uint32(0)
 	if len(transactions) != len(receipts) {
@@ -752,7 +754,7 @@ func SetReceiptsData(config *config.QuarkChainConfig, mBlock types.IBlock, recei
 		// The contract address can be derived from the transaction itself
 		if transactions[j].EvmTx.To() == nil {
 			// Deriving the signer is expensive, only do if it's actually needed
-			from, _ := types.Sender(signer, transactions[j].EvmTx)
+			from, _ := types.Sender(m.singer, transactions[j].EvmTx)
 			toFullShardKey := transactions[j].EvmTx.ToFullShardKey()
 			receipts[j].ContractAddress = account.BytesToIdentityRecipient(vm.CreateAddress(from, &toFullShardKey, transactions[j].EvmTx.Nonce()).Bytes())
 		}
@@ -813,7 +815,7 @@ func (m *MinorBlockChain) InsertReceiptChain(blockChain []types.IBlock, receiptC
 			continue
 		}
 		// Compute all the non-consensus fields of the receipts
-		if err := SetReceiptsData(m.clusterConfig.Quarkchain, block, receipts); err != nil {
+		if err := m.SetReceiptsData(m.clusterConfig.Quarkchain, block, receipts); err != nil {
 			return i, fmt.Errorf("failed to set receipts data: %v", err)
 		}
 		// Write all the data out into the database
@@ -1062,7 +1064,7 @@ func (m *MinorBlockChain) insertChain(chain []types.IBlock, verifySeals bool, is
 		headersToRecover = append(headersToRecover, v.(*types.MinorBlock))
 	}
 	// Start a parallel signature recovery (signer will fluke on fork transition, minimal perf loss)
-	senderCacher.recoverFromBlocks(types.MakeSigner(uint32(m.Config().NetworkID)), headersToRecover)
+	senderCacher.recoverFromBlocks(m.singer, headersToRecover)
 
 	// A queued approach to delivering events. This is generally
 	// faster than direct delivery and requires much less mutex

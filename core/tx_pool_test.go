@@ -95,7 +95,7 @@ func transaction(nonce uint64, gaslimit uint64, key *ecdsa.PrivateKey) *types.Tr
 }
 
 func pricedTransaction(nonce uint64, gaslimit uint64, gasprice *big.Int, key *ecdsa.PrivateKey) *types.Transaction {
-	tx, _ := types.SignTx(types.NewEvmTransaction(nonce, account.BytesToIdentityRecipient(common.Address{}.Bytes()), big.NewInt(100), gaslimit, gasprice, 0, 0, 3, 0, []byte{}, testGenesisTokenID, testGenesisTokenID), types.MakeSigner(3), key)
+	tx, _ := types.SignTx(types.NewEvmTransaction(nonce, account.BytesToIdentityRecipient(common.Address{}.Bytes()), big.NewInt(100), gaslimit, gasprice, 0, 0, 3, 0, []byte{}, testGenesisTokenID, testGenesisTokenID), types.NewEIP155Signer(3, 0), key)
 	return &types.Transaction{
 		TxType: types.EvmTx,
 		EvmTx:  tx,
@@ -171,7 +171,7 @@ func validateEvents(events chan NewTxsEvent, count int) error {
 }
 
 func deriveSender(tx *types.Transaction) (common.Address, error) {
-	addr, err := types.Sender(types.MakeSigner(tx.EvmTx.NetworkId()), tx.EvmTx)
+	addr, err := types.Sender(types.NewEIP155Signer(tx.EvmTx.NetworkId(), 0), tx.EvmTx)
 	return addr, err
 }
 
@@ -401,7 +401,7 @@ func TestTransactionDoubleNonce(t *testing.T) {
 	}
 	resetState()
 
-	signer := types.MakeSigner(0)
+	signer := types.NewEIP155Signer(0, 0)
 	tx1, _ := types.SignTx(types.NewEvmTransaction(0, account.BytesToIdentityRecipient(common.Address{}.Bytes()), big.NewInt(100), 100000, big.NewInt(1), 0, 0, 3, 0, nil, genesisTokenID, genesisTokenID), signer, key)
 	tx2, _ := types.SignTx(types.NewEvmTransaction(0, account.BytesToIdentityRecipient(common.Address{}.Bytes()), big.NewInt(100), 1000000, big.NewInt(2), 0, 0, 3, 0, nil, genesisTokenID, genesisTokenID), signer, key)
 	tx3, _ := types.SignTx(types.NewEvmTransaction(0, account.BytesToIdentityRecipient(common.Address{}.Bytes()), big.NewInt(100), 1000000, big.NewInt(1), 0, 0, 3, 0, nil, genesisTokenID, genesisTokenID), signer, key)

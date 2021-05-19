@@ -2,6 +2,9 @@ package encoder
 
 import (
 	"errors"
+
+	"github.com/QuarkChain/goquarkchain/cluster/config"
+
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
 	"github.com/QuarkChain/goquarkchain/common"
@@ -140,7 +143,7 @@ func MinorBlockHeaderEncoder(header *types.MinorBlockHeader) (map[string]interfa
 	}, nil
 }
 
-func MinorBlockEncoder(block *types.MinorBlock, includeTransaction bool, extraInfo *rpc.PoSWInfo) (map[string]interface{}, error) {
+func MinorBlockEncoder(block *types.MinorBlock, includeTransaction bool, extraInfo *rpc.PoSWInfo, cfg *config.ClusterConfig) (map[string]interface{}, error) {
 	serData, err := serialize.SerializeToBytes(block)
 	if err != nil {
 		return nil, err
@@ -177,7 +180,7 @@ func MinorBlockEncoder(block *types.MinorBlock, includeTransaction bool, extraIn
 	if includeTransaction {
 		txForDisplay := make([]map[string]interface{}, 0)
 		for txIndex := range block.Transactions() {
-			temp, err := TxEncoder(block, txIndex)
+			temp, err := TxEncoder(block, txIndex, cfg)
 			if err != nil {
 				return nil, err
 			}
@@ -200,12 +203,12 @@ func MinorBlockEncoder(block *types.MinorBlock, includeTransaction bool, extraIn
 	return field, nil
 }
 
-func TxEncoder(block *types.MinorBlock, i int) (map[string]interface{}, error) {
+func TxEncoder(block *types.MinorBlock, i int, cfg *config.ClusterConfig) (map[string]interface{}, error) {
 	header := block.Header()
 	tx := block.Transactions()[i]
 	evmtx := tx.EvmTx
 	v, r, s := evmtx.RawSignatureValues()
-	sender, err := types.Sender(types.MakeSigner(evmtx.NetworkId()), evmtx)
+	sender, err := types.Sender(types.NewEIP155Signer(evmtx.NetworkId(), uint64(cfg.Quarkchain.BaseEthChainID+1+cfg.Quarkchain.GetShardConfigByFullShardID(tx.EvmTx.FromFullShardId()).ChainID)), evmtx)
 	if err != nil {
 		return nil, err
 	}

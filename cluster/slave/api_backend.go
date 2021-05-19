@@ -207,7 +207,7 @@ func (s *SlaveBackend) GetAccountData(address *account.Address, height *uint64) 
 		}
 		hash, err := shard.MinorBlockChain.GetHashByHeight(height)
 		if err != nil {
-			return nil, err
+			continue
 		}
 		if data.TransactionCount, err = shard.MinorBlockChain.GetTransactionCount(address.Recipient, &hash); err != nil {
 			return nil, err

@@ -102,7 +102,7 @@ func (p *StateProcessor) Process(block *types.MinorBlock, statedb *state.StateDB
 func ValidateTransaction(state vm.StateDB, chainConfig *params.ChainConfig, tx *types.Transaction, fromAddress *account.Address) error {
 	from := new(account.Recipient)
 	if fromAddress == nil {
-		tempFrom, err := tx.Sender(types.MakeSigner(tx.EvmTx.NetworkId()))
+		tempFrom, err := tx.Sender(types.NewEIP155Signer(tx.EvmTx.NetworkId(), chainConfig.ChainID.Uint64()))
 		if err != nil {
 			return err
 		}
@@ -215,7 +215,7 @@ func ApplyTransaction(config *params.ChainConfig, bc ChainContext, gp *GasPool, 
 		statedb.AddBalance(contractAddr, new(big.Int).Mul(txGasLimit, tx.EvmTx.GasPrice()), tx.EvmTx.GasTokenID())
 	}
 	statedb.SetFullShardKey(tx.EvmTx.ToFullShardKey())
-	msg, err := tx.EvmTx.AsMessage(types.MakeSigner(tx.EvmTx.NetworkId()), tx.Hash(), gasPrice, tx.EvmTx.GasTokenID(), refundRate)
+	msg, err := tx.EvmTx.AsMessage(types.NewEIP155Signer(tx.EvmTx.NetworkId(), config.ChainID.Uint64()), tx.Hash(), gasPrice, tx.EvmTx.GasTokenID(), refundRate)
 	if err != nil {
 		return nil, nil, 0, err
 	}

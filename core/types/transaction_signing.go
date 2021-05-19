@@ -6,10 +6,11 @@ import (
 	"crypto/ecdsa"
 	"errors"
 	"fmt"
+	"math/big"
+
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
-	"math/big"
 )
 
 var (
@@ -21,11 +22,6 @@ var (
 type sigCache struct {
 	signer Signer
 	from   account.Recipient
-}
-
-// MakeSigner returns a Signer based on the given chain config and block number.
-func MakeSigner(networkId uint32) Signer {
-	return NewEIP155Signer(networkId)
 }
 
 // SignTx signs the transaction using the given signer and private key
@@ -80,12 +76,16 @@ type Signer interface {
 
 // EIP155Transaction implements Signer using the EIP155 rules.
 type EIP155Signer struct {
-	networkId uint32
+	networkId           uint32
+	chainID, chainIDMul *big.Int
 }
 
-func NewEIP155Signer(networkId uint32) EIP155Signer {
+func NewEIP155Signer(networkId uint32, chainID uint64) EIP155Signer {
+	cc := new(big.Int).SetUint64(chainID)
 	return EIP155Signer{
-		networkId: networkId,
+		networkId:  networkId,
+		chainID:    new(big.Int).Set(cc),
+		chainIDMul: new(big.Int).Mul(cc, big.NewInt(2)),
 	}
 }
 
@@ -107,6 +107,11 @@ func (s EIP155Signer) Sender(tx *EvmTransaction) (account.Recipient, error) {
 			return account.Recipient{}, err
 		}
 		return recoverPlain(hashTyped, tx.data.R, tx.data.S, tx.data.V, true)
+	} else if tx.data.Version == 2 {
+		V := new(big.Int).Sub(tx.data.V, s.chainIDMul)
+		V.Sub(V, big.NewInt(8))
+		sender, err := recoverPlain(tx.getMetaMaskUnsignedhash(uint32(s.chainID.Uint64())), tx.data.R, tx.data.S, V, true)
+		return sender, err
 	} else {
 		return account.Recipient{}, fmt.Errorf("Version %d is not suppot", tx.data.Version)
 	}

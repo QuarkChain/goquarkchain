@@ -163,18 +163,22 @@ type QuarkChainConfig struct {
 	chainIdToShardSize                    map[uint32]uint32
 	chainIdToShardIds                     map[uint32][]uint32
 	defaultChainTokenID                   uint64
-	EnableEvmTimeStamp                    uint64      `json:"ENABLE_EVM_TIMESTAMP"`
-	EnableQkcHashXHeight                  uint64      `json:"ENABLE_QKCHASHX_HEIGHT"`
-	EnableNonReservedNativeTokenTimestamp uint64      `json:"ENABLE_NON_RESERVED_NATIVE_TOKEN_TIMESTAMP"`
-	EnableGeneralNativeTokenTimestamp     uint64      `json:"ENABLE_GENERAL_NATIVE_TOKEN_TIMESTAMP"`
-	EnablePoswStakingDecayTimestamp       uint64      `json:"ENABLE_POSW_STAKING_DECAY_TIMESTAMP"`
-	DisablePowCheck                       bool        `json:"DISABLE_POW_CHECK"`
-	XShardGasDDOSFixRootHeight            uint64      `json:"XSHARD_GAS_DDOS_FIX_ROOT_HEIGHT"`
-	MinTXPoolGasPrice                     *big.Int    `json:"MIN_TX_POOL_GAS_PRICE"`
-	MinMiningGasPrice                     *big.Int    `json:"MIN_MINING_GAS_PRICE"`
-	GRPCHost                              string      `json:"-"`
-	GRPCPort                              uint16      `json:"-"`
-	RootChainPoSWContractBytecodeHash     ethcom.Hash `json:"-"`
+	EnableEvmTimeStamp                    uint64 `json:"ENABLE_EVM_TIMESTAMP"`
+	EnableQkcHashXHeight                  uint64 `json:"ENABLE_QKCHASHX_HEIGHT"`
+	EnableNonReservedNativeTokenTimestamp uint64 `json:"ENABLE_NON_RESERVED_NATIVE_TOKEN_TIMESTAMP"`
+	EnableGeneralNativeTokenTimestamp     uint64 `json:"ENABLE_GENERAL_NATIVE_TOKEN_TIMESTAMP"`
+	EnablePoswStakingDecayTimestamp       uint64 `json:"ENABLE_POSW_STAKING_DECAY_TIMESTAMP"`
+	EnableEIP155SignerTimestamp           uint64 `json:"ENABLE_EIP155_SIGNER_TIMESTAMP"`
+
+	BaseEthChainID uint32 `json:"BASE_ETH_CHAIN_ID"`
+
+	DisablePowCheck                   bool        `json:"DISABLE_POW_CHECK"`
+	XShardGasDDOSFixRootHeight        uint64      `json:"XSHARD_GAS_DDOS_FIX_ROOT_HEIGHT"`
+	MinTXPoolGasPrice                 *big.Int    `json:"MIN_TX_POOL_GAS_PRICE"`
+	MinMiningGasPrice                 *big.Int    `json:"MIN_MINING_GAS_PRICE"`
+	GRPCHost                          string      `json:"-"`
+	GRPCPort                          uint16      `json:"-"`
+	RootChainPoSWContractBytecodeHash ethcom.Hash `json:"-"`
 }
 
 type QuarkChainConfigAlias QuarkChainConfig
