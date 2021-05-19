@@ -906,12 +906,18 @@ func (e *EthBlockChainAPI) GetCode(address common.Address, blockNr rpc.BlockNumb
 
 func (s *EthBlockChainAPI) SendRawTransaction(encodedTx hexutil.Bytes) (common.Hash, error) {
 	fmt.Println("SSSSSSSSSSSSSSSSS", encodedTx.String())
-	evmTx := new(ethTypes.Transaction)
-	if err := rlp.DecodeBytes(encodedTx, evmTx); err != nil {
+	tx := new(ethTypes.Transaction)
+	if err := rlp.DecodeBytes(encodedTx, tx); err != nil {
 		fmt.Println("err", err)
 		return common.Hash{}, err
 	}
-	panic("sb")
+	fmt.Println("tx.Nonce", tx.Nonce())
+	fmt.Println("tx.GasPrice", tx.GasPrice())
+	fmt.Println("tx.Gas", tx.Gas())
+	fmt.Println("tx.To", tx.To())
+	fmt.Println("tx.Value", tx.Value())
+	fmt.Println("tx.Data", len(tx.Data()))
+	fmt.Println("??????????????????????????")
 	//tx := &types.Transaction{
 	//	EvmTx:  evmTx,
 	//	TxType: types.EvmTx,
