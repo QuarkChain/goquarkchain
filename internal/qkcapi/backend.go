@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/QuarkChain/goquarkchain/common/hexutil"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
