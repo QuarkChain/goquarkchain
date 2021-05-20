@@ -929,24 +929,38 @@ func (s *EthBlockChainAPI) SendRawTransaction(encodedTx hexutil.Bytes) (common.H
 		fmt.Println("eeeeeeeeeAddtx", err)
 		return common.Hash{}, nil
 	}
-	//tx := &types.Transaction{
-	//	EvmTx:  evmTx,
-	//	TxType: types.EvmTx,
-	//}
-
-	//if err := c.b.AddTransaction(tx); err != nil {
-	//	return EmptyTxID, err
-	//}
 	fmt.Println("????????????????", txQkc.Hash().String())
 	return txQkc.Hash(), nil
-	return common.BytesToHash(encoder.IDEncoder(tx.Hash().Bytes(), txQkc.EvmTx.FromFullShardKey())), nil
 }
-func (e *EthBlockChainAPI) Call(data EthCallArgs, fullShardKey *hexutil.Uint) (hexutil.Bytes, error) {
-	args, err := convertEthCallData(&data)
-	if err != nil {
-		return nil, err
+func (e *EthBlockChainAPI) Call(mdata MetaCallArgs, blockNr rpc.BlockNumber) (hexutil.Bytes, error) {
+
+	fmt.Println("calll----", mdata)
+
+	defaultToken := hexutil.Uint64(35760)
+	tt := account.Recipient{}
+	if mdata.To != nil {
+		tt = *mdata.To
 	}
-	return e.CommonAPI.callOrEstimateGas(args, nil, true)
+
+	data := &CallArgs{
+		From: &account.Address{
+			Recipient:    *mdata.From,
+			FullShardKey: 0,
+		},
+		To: &account.Address{
+			Recipient:    tt,
+			FullShardKey: 0,
+		},
+		Gas:             mdata.Gas,
+		GasPrice:        mdata.GasPrice,
+		Value:           mdata.Value,
+		Data:            mdata.Data,
+		GasTokenID:      &defaultToken,
+		TransferTokenID: &defaultToken,
+	}
+	ans, err := e.CommonAPI.callOrEstimateGas(data, nil, true)
+	fmt.Println("call---end", ans.String(), err)
+	return ans, err
 }
 
 // MetaCallArgs represents the arguments for a call.
