@@ -948,3 +948,11 @@ func (e *EthBlockChainAPI) Call(data EthCallArgs, fullShardKey *hexutil.Uint) (h
 	}
 	return e.CommonAPI.callOrEstimateGas(args, nil, true)
 }
+
+func (p *EthBlockChainAPI) EstimateGas(data CallArgs) (hexutil.Uint, error) {
+	gas, err := p.CommonAPI.callOrEstimateGas(&data, nil, false)
+	if err != nil {
+		return 0, err
+	}
+	return hexutil.Uint(qcom.BytesToUint32(gas)), nil
+}
