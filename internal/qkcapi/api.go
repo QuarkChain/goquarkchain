@@ -911,7 +911,7 @@ func (s *EthBlockChainAPI) SendRawTransaction(encodedTx hexutil.Bytes) (common.H
 		fmt.Println("err", err)
 		return common.Hash{}, err
 	}
-	evmTx := types.NewEvmTransaction(tx.Nonce(), *tx.To(), tx.Value(), tx.Gas(), tx.GasPrice(), 1, 1, 1, 2, tx.Data(), 35760, 35760)
+	evmTx := types.NewEvmTransaction(tx.Nonce(), *tx.To(), tx.Value(), tx.Gas(), tx.GasPrice(), 1, 1, clusterCfg.Quarkchain.NetworkID, 2, tx.Data(), 35760, 35760)
 	evmTx.SetVRS(tx.RawSignatureValues())
 
 	txQkc := &types.Transaction{
