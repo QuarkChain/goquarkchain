@@ -68,6 +68,41 @@ func (c *CommonAPI) SendRawTransaction(encodedTx hexutil.Bytes) (hexutil.Bytes, 
 	return encoder.IDEncoder(tx.Hash().Bytes(), tx.EvmTx.FromFullShardKey()), nil
 }
 
+func MetaMaskReceipt(block *types.MinorBlock, i int, receipt *types.Receipt) (map[string]interface{}, error) {
+	if block == nil {
+		return nil, errors.New("block is nil")
+	}
+	txHash := ""
+	if len(block.Transactions()) > i {
+		tx := block.Transactions()[i]
+		txHash = tx.Hash().String()
+	}
+	if receipt == nil {
+		return nil, errors.New("receipt is nil")
+	}
+	header := block.Header()
+
+	field := map[string]interface{}{
+		"blockHash":         header.Hash(),
+		"blockNumber":       hexutil.Uint64(header.Number),
+		"cumulativeGasUsed": hexutil.Uint64(receipt.CumulativeGasUsed),
+		"from":              block.Transactions()[i].Sender(types.NewEIP155Signer(clusterCfg.Quarkchain.NetworkID)),
+		"gasUsed":           hexutil.Uint64(receipt.GasUsed - receipt.GetPrevGasUsed()),
+		"logsBloom":         receipt.Bloom,
+		"status":            hexutil.Uint64(receipt.Status),
+		"timestamp":         hexutil.Uint64(block.Time()),
+		"to":                block.Transactions()[i].EvmTx.To(),
+		"transactionHash":   txHash,
+		"transactionIndex":  hexutil.Uint64(i),
+	}
+	if receipt.ContractAddress.Big().Uint64() == 0 {
+		field["contractAddress"] = nil
+	} else {
+		field["contractAddress"] = receipt.ContractAddress.String()
+	}
+	return field, nil
+}
+
 func (c *CommonAPI) GetTransactionReceipt(txID common.Hash) (map[string]interface{}, error) {
 	fmt.Println("GetTransactionReceipt", txID.String())
 	fullShardId, err := clusterCfg.Quarkchain.GetFullShardIdByFullShardKey(1)
@@ -82,12 +117,8 @@ func (c *CommonAPI) GetTransactionReceipt(txID common.Hash) (map[string]interfac
 	if minorBlock == nil {
 		return nil, nil
 	}
-	ret, err := encoder.ReceiptEncoder(minorBlock, int(index), receipt)
-	if ret["transactionId"].(string) == "" {
-		ret["transactionId"] = txID.String()
-		ret["transactionHash"] = txID.String()
-	}
-	fmt.Println("retttttttttt", ret)
+	ret, err := MetaMaskReceipt(minorBlock, int(index), receipt)
+	fmt.Println("retttttttttt", err, ret)
 	return ret, err
 }
 
