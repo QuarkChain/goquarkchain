@@ -69,6 +69,7 @@ func (c *CommonAPI) SendRawTransaction(encodedTx hexutil.Bytes) (hexutil.Bytes, 
 }
 
 func (c *CommonAPI) GetTransactionReceipt(txID hexutil.Bytes) (map[string]interface{}, error) {
+	fmt.Println("GetTransactionReceipt txId", txID.String())
 	txHash, fullShardKey, err := encoder.IDDecoder(txID)
 	if err != nil {
 		return nil, err
@@ -91,6 +92,7 @@ func (c *CommonAPI) GetTransactionReceipt(txID hexutil.Bytes) (map[string]interf
 		ret["transactionId"] = txID.String()
 		ret["transactionHash"] = txHash.String()
 	}
+	fmt.Println("retttttttttt", ret)
 	return ret, err
 }
 
