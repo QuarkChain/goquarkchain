@@ -949,8 +949,39 @@ func (e *EthBlockChainAPI) Call(data EthCallArgs, fullShardKey *hexutil.Uint) (h
 	return e.CommonAPI.callOrEstimateGas(args, nil, true)
 }
 
-func (p *EthBlockChainAPI) EstimateGas(data CallArgs) (hexutil.Uint, error) {
-	gas, err := p.CommonAPI.callOrEstimateGas(&data, nil, false)
+// MetaCallArgs represents the arguments for a call.
+type MetaCallArgs struct {
+	From            *account.Recipient `json:"from"`
+	To              *account.Recipient `json:"to"`
+	Gas             hexutil.Big        `json:"gas"`
+	GasPrice        hexutil.Big        `json:"gasPrice"`
+	Value           hexutil.Big        `json:"value"`
+	Data            hexutil.Bytes      `json:"data"`
+	GasTokenID      *hexutil.Uint64    `json:"gasTokenId"`
+	TransferTokenID *hexutil.Uint64    `json:"transferTokenId"`
+}
+
+func (p *EthBlockChainAPI) EstimateGas(mdata MetaCallArgs) (hexutil.Uint, error) {
+	fmt.Println("???????????????", mdata)
+	defaultToken := hexutil.Uint64(35760)
+	data := &CallArgs{
+		From: &account.Address{
+			Recipient:    *mdata.From,
+			FullShardKey: 0,
+		},
+		To: &account.Address{
+			Recipient:    *mdata.To,
+			FullShardKey: 0,
+		},
+		Gas:             mdata.Gas,
+		GasPrice:        mdata.GasPrice,
+		Value:           mdata.Value,
+		Data:            mdata.Data,
+		GasTokenID:      &defaultToken,
+		TransferTokenID: &defaultToken,
+	}
+
+	gas, err := p.CommonAPI.callOrEstimateGas(data, nil, false)
 	if err != nil {
 		return 0, err
 	}
