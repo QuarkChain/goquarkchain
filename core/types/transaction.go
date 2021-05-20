@@ -185,7 +185,7 @@ func (tx *EvmTransaction) getMetaMaskUnsignedhash(chainId uint32) common.Hash {
 		tx.data.Recipient,
 		tx.data.Amount,
 		tx.data.Payload,
-		chainId, 0, 0,
+		chainId, uint(0), uint(0),
 	})
 }
 
