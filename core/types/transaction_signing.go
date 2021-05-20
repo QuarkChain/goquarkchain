@@ -81,12 +81,16 @@ type Signer interface {
 
 // EIP155Transaction implements Signer using the EIP155 rules.
 type EIP155Signer struct {
-	networkId uint32
+	networkId           uint32
+	chainID, chainIDMul *big.Int
 }
 
 func NewEIP155Signer(networkId uint32) EIP155Signer {
+	chainID := new(big.Int).SetUint64(666)
 	return EIP155Signer{
-		networkId: networkId,
+		networkId:  networkId,
+		chainID:    chainID,
+		chainIDMul: new(big.Int).Mul(chainID, big.NewInt(2)),
 	}
 }
 
@@ -109,11 +113,11 @@ func (s EIP155Signer) Sender(tx *EvmTransaction) (account.Recipient, error) {
 		}
 		return recoverPlain(hashTyped, tx.data.R, tx.data.S, tx.data.V, true)
 	} else if tx.data.Version == 2 {
-		vv := tx.data.V
-		fmt.Println("---", tx.data.V.BitLen())
-		vv.Sub(vv, big.NewInt(8))
-		fmt.Println("????", vv, tx.data.V, vv.BitLen())
-		sender, err := recoverPlain(tx.getMetaMaskUnsignedhash(666), tx.data.R, tx.data.S, vv, true)
+		fmt.Println("---", tx.data.V, tx.data.V.BitLen())
+		V := new(big.Int).Sub(tx.data.V, s.chainIDMul)
+		V.Sub(V, big.NewInt(8))
+		fmt.Println("????", V, V.BitLen())
+		sender, err := recoverPlain(tx.getMetaMaskUnsignedhash(666), tx.data.R, tx.data.S, V, true)
 		fmt.Println("calSender", sender.String(), err)
 		return sender, err
 	} else {
