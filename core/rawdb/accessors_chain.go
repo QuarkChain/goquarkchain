@@ -288,7 +288,7 @@ func WriteMinorBlock(db DatabaseWriter, block *types.MinorBlock) {
 		fmt.Println("index", k, v.EvmTx.Value(), v.EvmTx.Nonce())
 	}
 	if err := db.Put(blockKey(block.Hash()), data); err != nil {
-		log.Crit("Failed to store minor block body", "err", err)
+		log.Crit("Failed to store minor b   lock body", "err", err)
 	}
 }
 
