@@ -933,24 +933,26 @@ func (s *EthBlockChainAPI) SendRawTransaction(encodedTx hexutil.Bytes) (common.H
 	return txQkc.Hash(), nil
 }
 func (e *EthBlockChainAPI) Call(mdata MetaCallArgs, blockNr rpc.BlockNumber) (hexutil.Bytes, error) {
-
 	fmt.Println("calll----", mdata)
-
 	defaultToken := hexutil.Uint64(35760)
-	tt := account.Recipient{}
-	if mdata.To != nil {
-		tt = *mdata.To
+	ttFrom := new(account.Address)
+	if mdata.From == nil {
+		ttFrom = nil
+	} else {
+		ttFrom.Recipient = *mdata.From
+		ttFrom.FullShardKey = 1
+	}
+	ttTo := new(account.Address)
+	if mdata.To == nil {
+		ttTo = nil
+	} else {
+		ttTo.Recipient = *mdata.To
+		ttTo.FullShardKey = 1
 	}
 
 	data := &CallArgs{
-		From: &account.Address{
-			Recipient:    *mdata.From,
-			FullShardKey: 0,
-		},
-		To: &account.Address{
-			Recipient:    tt,
-			FullShardKey: 0,
-		},
+		From:            ttFrom,
+		To:              ttTo,
 		Gas:             mdata.Gas,
 		GasPrice:        mdata.GasPrice,
 		Value:           mdata.Value,
