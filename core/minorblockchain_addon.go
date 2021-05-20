@@ -762,11 +762,14 @@ func (m *MinorBlockChain) GetUnconfirmedHeadersCoinbaseAmount() uint64 {
 func (m *MinorBlockChain) addTransactionToBlock(block *types.MinorBlock, evmState *state.StateDB) (*types.MinorBlock, types.Receipts, error) {
 	// have locked by upper call
 	pending, err := m.txPool.Pending() // txpool already locked
+	fmt.Println("pppppppppppppp", len(pending))
 	if err != nil {
+		fmt.Println("767---", err)
 		return nil, nil, err
 	}
 	txs, err := types.NewTransactionsByPriceAndNonce(types.NewEIP155Signer(uint32(m.Config().NetworkID)), pending)
 	if err != nil {
+		fmt.Println("772---", err)
 		return nil, nil, err
 	}
 	gp := new(GasPool).AddGas(block.GasLimit().Uint64())
@@ -782,6 +785,7 @@ func (m *MinorBlockChain) addTransactionToBlock(block *types.MinorBlock, evmStat
 		// Pop skip all txs about this account
 		//Shift skip this tx ,goto next tx about this account
 		if err := m.checkTxBeforeApply(stateT, tx, block.Header()); err != nil {
+			fmt.Println("Cccccccccccccc", err)
 			if err == ErrorTxBreak {
 				break
 			} else if err == ErrorTxContinue {
@@ -910,6 +914,7 @@ func (m *MinorBlockChain) CreateBlockToMine(createTime *uint64, address *account
 		evmState.SetGasLimit(new(big.Int).Sub(evmState.GetGasLimit(), left))
 	}
 	receipts := make(types.Receipts, 0)
+	fmt.Println("ccccccccccccccccc", *includeTx)
 	if *includeTx {
 		block, receipts, err = m.addTransactionToBlock(block, evmState)
 		if err != nil {
