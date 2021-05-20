@@ -534,6 +534,7 @@ func (s *QKCMasterBackend) GetPrimaryAccountData(address *account.Address, block
 			return accountBranchData, nil
 		}
 	}
+	fmt.Println("rsp", rsp.AccountBranchDataList, fullShardID, address.FullShardKey)
 	return nil, errors.New("no such data")
 }
 
