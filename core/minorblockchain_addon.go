@@ -762,7 +762,7 @@ func (m *MinorBlockChain) GetUnconfirmedHeadersCoinbaseAmount() uint64 {
 func (m *MinorBlockChain) addTransactionToBlock(block *types.MinorBlock, evmState *state.StateDB) (*types.MinorBlock, types.Receipts, error) {
 	// have locked by upper call
 	pending, err := m.txPool.Pending() // txpool already locked
-	fmt.Println("pppppppppppppp", len(pending))
+	fmt.Println("pppppppppppppp", len(pending), len(m.txPool.queue))
 	if err != nil {
 		fmt.Println("767---", err)
 		return nil, nil, err
