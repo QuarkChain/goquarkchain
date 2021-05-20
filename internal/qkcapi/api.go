@@ -964,13 +964,18 @@ type MetaCallArgs struct {
 func (p *EthBlockChainAPI) EstimateGas(mdata MetaCallArgs) (hexutil.Uint, error) {
 	fmt.Println("???????????????", mdata)
 	defaultToken := hexutil.Uint64(35760)
+	tt := account.Recipient{}
+	if mdata.To != nil {
+		tt = *mdata.To
+	}
+
 	data := &CallArgs{
 		From: &account.Address{
 			Recipient:    *mdata.From,
 			FullShardKey: 0,
 		},
 		To: &account.Address{
-			Recipient:    *mdata.To,
+			Recipient:    tt,
 			FullShardKey: 0,
 		},
 		Gas:             mdata.Gas,
