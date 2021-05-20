@@ -866,6 +866,7 @@ func (e *EthBlockChainAPI) BlockNumber() hexutil.Uint64 {
 	for _, shard := range shards {
 		fullShardId := shard["fullShardId"].(uint32)
 		if fullShardId == 1 {
+			fmt.Println("BlockNumber 8699999999999999999", hexutil.Uint64(shard["height"].(uint64)))
 			return hexutil.Uint64(shard["height"].(uint64))
 		}
 	}
