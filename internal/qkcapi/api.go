@@ -937,7 +937,7 @@ func (s *EthBlockChainAPI) SendRawTransaction(encodedTx hexutil.Bytes) (common.H
 	//if err := c.b.AddTransaction(tx); err != nil {
 	//	return EmptyTxID, err
 	//}
-	fmt.Println("????????????????", tx.Hash().String())
+	fmt.Println("????????????????", txQkc.Hash().String())
 	return tx.Hash(), nil
 	return common.BytesToHash(encoder.IDEncoder(tx.Hash().Bytes(), txQkc.EvmTx.FromFullShardKey())), nil
 }
