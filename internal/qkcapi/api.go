@@ -68,19 +68,14 @@ func (c *CommonAPI) SendRawTransaction(encodedTx hexutil.Bytes) (hexutil.Bytes, 
 	return encoder.IDEncoder(tx.Hash().Bytes(), tx.EvmTx.FromFullShardKey()), nil
 }
 
-func (c *CommonAPI) GetTransactionReceipt(txID hexutil.Bytes) (map[string]interface{}, error) {
-	fmt.Println("GetTransactionReceipt txId", txID.String())
-	txHash, fullShardKey, err := encoder.IDDecoder(txID)
-	if err != nil {
-		return nil, err
-	}
-
-	fullShardId, err := clusterCfg.Quarkchain.GetFullShardIdByFullShardKey(fullShardKey)
+func (c *CommonAPI) GetTransactionReceipt(txID common.Hash) (map[string]interface{}, error) {
+	fmt.Println("GetTransactionReceipt", txID.String())
+	fullShardId, err := clusterCfg.Quarkchain.GetFullShardIdByFullShardKey(1)
 	if err != nil {
 		return nil, err
 	}
 	branch := account.Branch{Value: fullShardId}
-	minorBlock, index, receipt, err := c.b.GetTransactionReceipt(txHash, branch)
+	minorBlock, index, receipt, err := c.b.GetTransactionReceipt(txID, branch)
 	if err != nil {
 		return nil, err
 	}
@@ -90,7 +85,7 @@ func (c *CommonAPI) GetTransactionReceipt(txID hexutil.Bytes) (map[string]interf
 	ret, err := encoder.ReceiptEncoder(minorBlock, int(index), receipt)
 	if ret["transactionId"].(string) == "" {
 		ret["transactionId"] = txID.String()
-		ret["transactionHash"] = txHash.String()
+		ret["transactionHash"] = txID.String()
 	}
 	fmt.Println("retttttttttt", ret)
 	return ret, err
@@ -943,6 +938,7 @@ func (s *EthBlockChainAPI) SendRawTransaction(encodedTx hexutil.Bytes) (common.H
 	//	return EmptyTxID, err
 	//}
 	fmt.Println("????????????????", tx.Hash().String())
+	return tx.Hash(), nil
 	return common.BytesToHash(encoder.IDEncoder(tx.Hash().Bytes(), txQkc.EvmTx.FromFullShardKey())), nil
 }
 func (e *EthBlockChainAPI) Call(data EthCallArgs, fullShardKey *hexutil.Uint) (hexutil.Bytes, error) {
