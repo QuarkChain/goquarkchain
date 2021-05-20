@@ -129,6 +129,7 @@ func ValidateTransaction(state vm.StateDB, chainConfig *params.ChainConfig, tx *
 		return err
 	}
 	if tx.EvmTx.Gas() < totalGas {
+		fmt.Println("????????????", tx.EvmTx.Gas(), totalGas)
 		return ErrIntrinsicGas
 	}
 
