@@ -81,12 +81,15 @@ func MetaMaskReceipt(block *types.MinorBlock, i int, receipt *types.Receipt) (ma
 		return nil, errors.New("receipt is nil")
 	}
 	header := block.Header()
-
+	from, err := block.Transactions()[i].Sender(types.NewEIP155Signer(clusterCfg.Quarkchain.NetworkID))
+	if err != nil {
+		return nil, err
+	}
 	field := map[string]interface{}{
 		"blockHash":         header.Hash(),
 		"blockNumber":       hexutil.Uint64(header.Number),
 		"cumulativeGasUsed": hexutil.Uint64(receipt.CumulativeGasUsed),
-		"from":              block.Transactions()[i].Sender(types.NewEIP155Signer(clusterCfg.Quarkchain.NetworkID)),
+		"from":              from,
 		"gasUsed":           hexutil.Uint64(receipt.GasUsed - receipt.GetPrevGasUsed()),
 		"logsBloom":         receipt.Bloom,
 		"status":            hexutil.Uint64(receipt.Status),
