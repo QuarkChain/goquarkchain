@@ -888,6 +888,7 @@ func (e *EthBlockChainAPI) GetTransactionCount(address common.Address, blockNr r
 
 	addr := account.NewAddress(address, 1)
 	height := blockNr.Uint64()
+	fmt.Println("GetTransactionCount", address.String(), height)
 	data, err := e.b.GetPrimaryAccountData(&addr, &height)
 	if err != nil {
 		fmt.Println("DFFFFFFFFFFFFFFF", err)

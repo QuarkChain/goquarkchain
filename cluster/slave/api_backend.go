@@ -201,7 +201,7 @@ func (s *SlaveBackend) GetAccountData(address *account.Address, height *uint64) 
 		bt      []byte
 		err     error
 	)
-	fmt.Println("??????", address.ToHex(), height)
+	fmt.Println("??????", address.ToHex(), *height)
 	for branch, shard := range s.shards {
 		fmt.Println("bbbbbbbbb", branch, shard.MinorBlockChain.CurrentBlock().NumberU64())
 		data := rpc.AccountBranchData{
