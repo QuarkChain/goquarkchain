@@ -1013,5 +1013,6 @@ func (p *EthBlockChainAPI) EstimateGas(mdata MetaCallArgs) (hexutil.Uint, error)
 		return 0, err
 	}
 	fmt.Println("eeeeeeeeeeeeeeeeeeeeeeeeeee", gas)
+	return hexutil.Uint(4051056), nil
 	return hexutil.Uint(qcom.BytesToUint32(gas)), nil
 }
