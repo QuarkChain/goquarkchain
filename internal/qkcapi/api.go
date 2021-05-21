@@ -917,11 +917,19 @@ func (e *EthBlockChainAPI) GetBlockByNumber(blockNr rpc.BlockNumber, fullTx bool
 }
 
 func (e *EthBlockChainAPI) GetTransactionCount(address common.Address, blockNr rpc.BlockNumber) (hexutil.Uint64, error) {
-
 	addr := account.NewAddress(address, 1)
-	height := blockNr.Uint64()
+	height := new(uint64)
+	if blockNr == -1 {
+		height = nil
+	} else if blockNr == -2 {
+		panic("sb")
+	} else {
+		tmp := blockNr.Uint64()
+		height = &tmp
+	}
+
 	fmt.Println("GetTransactionCount", address.String(), blockNr)
-	data, err := e.b.GetPrimaryAccountData(&addr, &height)
+	data, err := e.b.GetPrimaryAccountData(&addr, height)
 	if err != nil {
 		fmt.Println("DFFFFFFFFFFFFFFF", err)
 		return 0, err
