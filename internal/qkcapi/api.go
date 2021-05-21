@@ -928,7 +928,7 @@ func (e *EthBlockChainAPI) GetTransactionCount(address common.Address, blockNr r
 		height = &tmp
 	}
 
-	fmt.Println("GetTransactionCount", address.String(), blockNr)
+	fmt.Println("GetTransactionCount", address.String(), blockNr, height)
 	data, err := e.b.GetPrimaryAccountData(&addr, height)
 	if err != nil {
 		fmt.Println("DFFFFFFFFFFFFFFF", err)
