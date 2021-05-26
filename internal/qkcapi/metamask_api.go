@@ -24,6 +24,14 @@ func NewMetaMaskEthAPI(fullShardKey uint32, client jsonrpc.RPCClient) *MetaMaskE
 	return &MetaMaskEthBlockChainAPI{fullShardKey: fullShardKey, c: client}
 }
 
+func (e *MetaMaskEthBlockChainAPI) Version() hexutil.Uint64 {
+	resp, err := e.c.Call("version")
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println("resp", resp.Result)
+	return 0
+}
 func (e *MetaMaskEthBlockChainAPI) ChainId() (hexutil.Uint64, error) {
 	resp, err := e.c.Call("chainId")
 	if err != nil {
