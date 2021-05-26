@@ -2,6 +2,7 @@ package qkcapi
 
 import (
 	"fmt"
+	"reflect"
 	"strings"
 
 	"github.com/ybbus/jsonrpc"
@@ -33,7 +34,7 @@ func (e *MetaMaskEthBlockChainAPI) ChainId() (hexutil.Uint64, error) {
 	} else {
 		fmt.Println("3333--")
 	}
-	fmt.Println("chainID", resp.Result, resp.Result.(hexutil.Uint64))
+	fmt.Println("chainID", resp.Result, reflect.TypeOf(resp.Result))
 	return resp.Result.(hexutil.Uint64), nil
 }
 
