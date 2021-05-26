@@ -46,6 +46,7 @@ func (e *MetaMaskEthBlockChainAPI) GasPrice(fullShardKey *hexutil.Uint) (hexutil
 
 func (e *MetaMaskEthBlockChainAPI) GetBalance(address common.Address, blockNrOrHash rpc.BlockNumber) (*hexutil.Big, error) {
 	qkcAddr := account.NewAddress(address, e.fullShardKey)
+	fmt.Println("GetBalance", qkcAddr.ToHex())
 	resp, err := e.c.Call("getBalances", qkcAddr.ToHex())
 	if err != nil {
 		return nil, err
@@ -81,8 +82,10 @@ func (e *MetaMaskEthBlockChainAPI) BlockNumber() hexutil.Uint64 {
 func (e *MetaMaskEthBlockChainAPI) GetBlockByNumber(blockNr rpc.BlockNumber, fullTx bool) (map[string]interface{}, error) {
 	resp, err := e.c.Call("getMinorBlockByHeight", hexutil.EncodeUint64(uint64(e.fullShardKey)))
 	if err != nil {
+		fmt.Println("err", err)
 		return nil, err
 	}
+	fmt.Println("resp", resp.Result)
 	return resp.Result.(map[string]interface{}), nil
 }
 
