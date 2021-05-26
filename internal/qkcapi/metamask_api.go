@@ -56,8 +56,9 @@ func (e *MetaMaskEthBlockChainAPI) ChainId() (hexutil.Uint64, error) {
 
 func (e *MetaMaskEthBlockChainAPI) GasPrice() (hexutil.Uint64, error) {
 	resp, err := e.c.Call("gasPrice", hexutil.EncodeUint64(uint64(e.fullShardKey)))
-	fmt.Println("resp", resp.Result, err)
-	panic("not support")
+	gasPrice, err := hexutil.DecodeUint64(resp.Result.(string))
+	fmt.Println("resp", resp.Result, err, gasPrice)
+	return hexutil.Uint64(gasPrice), err
 }
 
 func (e *MetaMaskEthBlockChainAPI) GetBalance(address common.Address, blockNrOrHash rpc.BlockNumber) (*hexutil.Big, error) {
