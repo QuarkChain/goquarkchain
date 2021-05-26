@@ -15,6 +15,23 @@ import (
 	"github.com/ethereum/go-ethereum/rlp"
 )
 
+type MetaMaskNetApi struct {
+	c jsonrpc.RPCClient
+}
+
+func NewMetaMaskNetApi(c jsonrpc.RPCClient) *MetaMaskNetApi {
+	return &MetaMaskNetApi{c: c}
+}
+
+func (e *MetaMaskNetApi) Version() hexutil.Uint64 {
+	resp, err := e.c.Call("version")
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println("resp", resp.Result)
+	return 0
+}
+
 type MetaMaskEthBlockChainAPI struct {
 	fullShardKey uint32
 	c            jsonrpc.RPCClient
@@ -24,14 +41,6 @@ func NewMetaMaskEthAPI(fullShardKey uint32, client jsonrpc.RPCClient) *MetaMaskE
 	return &MetaMaskEthBlockChainAPI{fullShardKey: fullShardKey, c: client}
 }
 
-func (e *MetaMaskEthBlockChainAPI) Version() hexutil.Uint64 {
-	resp, err := e.c.Call("version")
-	if err != nil {
-		panic(err)
-	}
-	fmt.Println("resp", resp.Result)
-	return 0
-}
 func (e *MetaMaskEthBlockChainAPI) ChainId() (hexutil.Uint64, error) {
 	resp, err := e.c.Call("chainId")
 	if err != nil {

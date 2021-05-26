@@ -21,8 +21,14 @@ func main() {
 		Service:   qkcapi.NewMetaMaskEthAPI(1, client),
 		Public:    true,
 	})
-	_, _, err := rpc.StartHTTPEndpoint(endPoint, apis, []string{"eth"}, nil, nil, rpc.DefaultHTTPTimeouts)
+
+	apis = append(apis, rpc.API{
+		Namespace: "net",
+		Version:   "1.0",
+		Service:   qkcapi.NewMetaMaskNetApi(client),
+		Public:    true,
+	})
+	_, _, err := rpc.StartHTTPEndpoint(endPoint, apis, []string{"eth", "net"}, nil, nil, rpc.DefaultHTTPTimeouts)
 	fmt.Println("err", err)
 	time.Sleep(1000000000 * time.Second)
-
 }
