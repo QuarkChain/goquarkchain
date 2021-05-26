@@ -55,7 +55,7 @@ func (e *MetaMaskEthBlockChainAPI) ChainId() (hexutil.Uint64, error) {
 }
 
 func (e *MetaMaskEthBlockChainAPI) GasPrice() (hexutil.Uint64, error) {
-	resp, err := e.c.Call("gasPrice", hexutil.EncodeUint64(uint64(e.fullShardKey))
+	resp, err := e.c.Call("gasPrice", hexutil.EncodeUint64(uint64(e.fullShardKey)))
 	fmt.Println("resp", resp.Result, err)
 	panic("not support")
 }
