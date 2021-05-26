@@ -63,7 +63,7 @@ func (e *MetaMaskEthBlockChainAPI) GasPrice() (hexutil.Uint64, error) {
 
 func (e *MetaMaskEthBlockChainAPI) GetBalance(address common.Address, blockNrOrHash rpc.BlockNumber) (*hexutil.Big, error) {
 	qkcAddr := account.NewAddress(address, e.fullShardKey)
-	fmt.Println("GetBalance", qkcAddr.ToHex())
+	//fmt.Println("GetBalance", qkcAddr.ToHex())
 	resp, err := e.c.Call("getBalances", qkcAddr.ToHex())
 	if err != nil {
 		return nil, err
@@ -74,25 +74,25 @@ func (e *MetaMaskEthBlockChainAPI) GetBalance(address common.Address, blockNrOrH
 		if strings.ToUpper((bInfo["tokenStr"]).(string)) == DefaultTokenID {
 			b, err := hexutil.DecodeBig(bInfo["balance"].(string))
 			if err != nil {
-				fmt.Println("GetBalance balance err", err)
+				//fmt.Println("GetBalance balance err", err)
 				return nil, err
 			}
-			fmt.Println("GetBalance balance", b)
+			//fmt.Println("GetBalance balance", b)
 			return (*hexutil.Big)(b), nil
 		}
 	}
-	fmt.Println("GetBalance balance", "nnnnnnnnnnull")
+	//fmt.Println("GetBalance balance", "nnnnnnnnnnull")
 	return nil, nil
 }
 
 func (e *MetaMaskEthBlockChainAPI) BlockNumber() hexutil.Uint64 {
-	fmt.Println("BBBBBBBBBBBBBBBBBBBBBBBBBBBlockNumber----")
+	//fmt.Println("BBBBBBBBBBBBBBBBBBBBBBBBBBBlockNumber----")
 	resp, err := e.c.Call("getMinorBlockByHeight", hexutil.EncodeUint64(uint64(e.fullShardKey)))
 	if err != nil {
 		fmt.Println("err", err)
 		return 0
 	}
-	fmt.Println("", resp.Result.(map[string]interface{})["height"])
+	//fmt.Println("", resp.Result.(map[string]interface{})["height"])
 	height, _ := hexutil.DecodeUint64(resp.Result.(map[string]interface{})["height"].(string))
 	fmt.Println("BLockNumber", height)
 	return hexutil.Uint64(height)
