@@ -79,16 +79,11 @@ func (e *MetaMaskEthBlockChainAPI) BlockNumber() hexutil.Uint64 {
 }
 
 func (e *MetaMaskEthBlockChainAPI) GetBlockByNumber(blockNr rpc.BlockNumber, fullTx bool) (map[string]interface{}, error) {
-	//height := blockNr.Uint64()
-	//minorBlock, _, err := e.b.GetMinorBlockByHeight(&height, account.Branch{1}, fullTx)
-	//if err != nil {
-	//	return nil, err
-	//}
-	//if minorBlock == nil {
-	//	return nil, errors.New("minor block is nil")
-	//}
-	//return encoder.MinorBlockEncoder(minorBlock, false, nil)
-	panic("GetBlockByNumber")
+	resp, err := e.c.Call("getMinorBlockByHeight", hexutil.EncodeUint64(uint64(e.fullShardKey)))
+	if err != nil {
+		return nil, err
+	}
+	return resp.Result.(map[string]interface{}), nil
 }
 
 func (e *MetaMaskEthBlockChainAPI) GetTransactionCount(address common.Address, blockNr rpc.BlockNumber) (hexutil.Uint64, error) {
