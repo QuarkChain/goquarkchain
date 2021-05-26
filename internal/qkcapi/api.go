@@ -580,6 +580,7 @@ func makeGetTransactionRes(txs []*qrpc.TransactionDetail, next []byte) (map[stri
 }
 
 func (p *PublicBlockChainAPI) GasPrice(fullShardKey hexutil.Uint, tokenID *hexutil.Uint64) (hexutil.Uint64, error) {
+	fmt.Println("PublicBlockChainAPI- gasPrice", fullShardKey, tokenID)
 	fullShardId, err := getFullShardId(&fullShardKey)
 	if err != nil {
 		return hexutil.Uint64(0), err
