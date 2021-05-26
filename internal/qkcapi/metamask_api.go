@@ -25,7 +25,7 @@ func NewMetaMaskEthAPI(fullShardKey uint32, client jsonrpc.RPCClient) *MetaMaskE
 }
 
 func (e *MetaMaskEthBlockChainAPI) ChainId() (hexutil.Uint64, error) {
-	resp, err := e.c.Call("chainId")
+	resp, err := e.c.Call("eth_chainId")
 	if err != nil {
 		return 0, err
 	}
@@ -46,7 +46,7 @@ func (e *MetaMaskEthBlockChainAPI) GasPrice(fullShardKey *hexutil.Uint) (hexutil
 
 func (e *MetaMaskEthBlockChainAPI) GetBalance(address common.Address, blockNrOrHash rpc.BlockNumber) (*hexutil.Big, error) {
 	qkcAddr := account.NewAddress(address, e.fullShardKey)
-	resp, err := e.c.Call("getBalances", qkcAddr.ToHex())
+	resp, err := e.c.Call("eth_getBalances", qkcAddr.ToHex())
 	if err != nil {
 		return nil, err
 	}
@@ -65,7 +65,7 @@ func (e *MetaMaskEthBlockChainAPI) GetBalance(address common.Address, blockNrOrH
 }
 
 func (e *MetaMaskEthBlockChainAPI) BlockNumber() hexutil.Uint64 {
-	resp, err := e.c.Call("getMinorBlockByHeight", hexutil.EncodeUint64(uint64(e.fullShardKey)))
+	resp, err := e.c.Call("eth_getMinorBlockByHeight", hexutil.EncodeUint64(uint64(e.fullShardKey)))
 	if err != nil {
 		return 0
 	}
@@ -88,7 +88,7 @@ func (e *MetaMaskEthBlockChainAPI) GetBlockByNumber(blockNr rpc.BlockNumber, ful
 
 func (e *MetaMaskEthBlockChainAPI) GetTransactionCount(address common.Address, blockNr rpc.BlockNumber) (hexutil.Uint64, error) {
 	qkcAddr := account.NewAddress(address, e.fullShardKey)
-	resp, err := e.c.Call("getTransactionCount", qkcAddr.ToHex())
+	resp, err := e.c.Call("eth_getTransactionCount", qkcAddr.ToHex())
 	if err != nil {
 		return 0, err
 	}
@@ -99,7 +99,7 @@ func (e *MetaMaskEthBlockChainAPI) GetTransactionCount(address common.Address, b
 func (e *MetaMaskEthBlockChainAPI) GetCode(address common.Address, blockNr rpc.BlockNumber) (hexutil.Bytes, error) {
 	qkcAddr := account.NewAddress(address, e.fullShardKey)
 
-	resp, err := e.c.Call("getCode", qkcAddr.ToHex())
+	resp, err := e.c.Call("eth_getCode", qkcAddr.ToHex())
 	if err != nil {
 		return nil, err
 	}
@@ -131,7 +131,7 @@ func (s *MetaMaskEthBlockChainAPI) SendRawTransaction(encodedTx hexutil.Bytes) (
 		return common.Hash{}, err
 	}
 
-	resp, err := s.c.Call("sendRawTransaction", rlpTxBytes)
+	resp, err := s.c.Call("eth_sendRawTransaction", rlpTxBytes)
 	if err != nil {
 		return common.Hash{}, nil
 	}
@@ -167,7 +167,7 @@ func (e *MetaMaskEthBlockChainAPI) Call(mdata MetaCallArgs, blockNr rpc.BlockNum
 		TransferTokenID: &defaultToken,
 	}
 
-	resp, err := e.c.Call("call", data)
+	resp, err := e.c.Call("eth_call", data)
 	if err != nil {
 		panic(err)
 	}
@@ -199,7 +199,7 @@ func (p *MetaMaskEthBlockChainAPI) EstimateGas(mdata MetaCallArgs) (hexutil.Uint
 		TransferTokenID: &defaultToken,
 	}
 
-	resp, err := p.c.Call("estimateGas", data)
+	resp, err := p.c.Call("eth_estimateGas", data)
 	if err != nil {
 		panic(err)
 	}
