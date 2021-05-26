@@ -80,7 +80,7 @@ func (e *MetaMaskEthBlockChainAPI) BlockNumber() hexutil.Uint64 {
 }
 
 func (e *MetaMaskEthBlockChainAPI) GetBlockByNumber(blockNr rpc.BlockNumber, fullTx bool) (map[string]interface{}, error) {
-	resp, err := e.c.Call("eth_getMinorBlockByHeight", hexutil.EncodeUint64(uint64(e.fullShardKey)))
+	resp, err := e.c.Call("eth_getBlockByNumber", hexutil.EncodeUint64(uint64(e.fullShardKey)), false)
 	if err != nil {
 		fmt.Println("err", err)
 		return nil, err

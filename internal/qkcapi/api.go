@@ -902,6 +902,7 @@ func (e *EthBlockChainAPI) BlockNumber() hexutil.Uint64 {
 }
 
 func (e *EthBlockChainAPI) GetBlockByNumber(blockNr rpc.BlockNumber, fullTx bool) (map[string]interface{}, error) {
+	fmt.Println("ETH vgetMinorBlockByHeight")
 	height := blockNr.Uint64()
 	minorBlock, _, err := e.b.GetMinorBlockByHeight(&height, account.Branch{1}, fullTx)
 	if err != nil {
