@@ -30,7 +30,8 @@ func (e *MetaMaskNetApi) Version() hexutil.Uint64 {
 		panic(err)
 	}
 	fmt.Println("resp", resp.Result)
-	return 0
+	v, _ := hexutil.DecodeUint64(resp.Result.(string))
+	return hexutil.Uint64(v)
 }
 
 type MetaMaskEthBlockChainAPI struct {
