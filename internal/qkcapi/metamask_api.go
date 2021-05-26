@@ -115,7 +115,10 @@ func (e *MetaMaskEthBlockChainAPI) GetTransactionCount(address common.Address, b
 		return 0, err
 	}
 	fmt.Println("GetTransaction", resp.Result)
-	panic("GetTransactionCount")
+	nonce, err := hexutil.DecodeUint64(resp.Result.(string))
+	return hexutil.Uint64(nonce), err
+
+	//panic("GetTransactionCount")
 }
 
 func (e *MetaMaskEthBlockChainAPI) GetCode(address common.Address, blockNr rpc.BlockNumber) (hexutil.Bytes, error) {
@@ -126,11 +129,10 @@ func (e *MetaMaskEthBlockChainAPI) GetCode(address common.Address, blockNr rpc.B
 		return nil, err
 	}
 	fmt.Println("GetCode", resp.Result)
-	panic("GetCode")
+	return hexutil.Decode(resp.Result.(string))
 }
 
 func (s *MetaMaskEthBlockChainAPI) SendRawTransaction(encodedTx hexutil.Bytes) (common.Hash, error) {
-
 	fmt.Println("SSSSSSSSSSSSSSSS", encodedTx.String())
 	tx := new(ethTypes.Transaction)
 	if err := rlp.DecodeBytes(encodedTx, tx); err != nil {
