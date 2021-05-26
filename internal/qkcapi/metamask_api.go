@@ -24,7 +24,7 @@ func NewMetaMaskNetApi(c jsonrpc.RPCClient) *MetaMaskNetApi {
 	return &MetaMaskNetApi{c: c}
 }
 
-func (e *MetaMaskNetApi) Version() hexutil.Uint64 {
+func (e *MetaMaskNetApi) Version() string {
 	resp, err := e.c.Call("net_version")
 	fmt.Println("call-vaerison", err)
 	if err != nil {
@@ -33,7 +33,7 @@ func (e *MetaMaskNetApi) Version() hexutil.Uint64 {
 	fmt.Println("resp", resp.Result)
 	v, err := hexutil.DecodeUint64(resp.Result.(string))
 	fmt.Println("vvv", v, err, reflect.TypeOf(resp.Result))
-	return hexutil.Uint64(v)
+	return resp.Result.(string)
 }
 
 type MetaMaskEthBlockChainAPI struct {
