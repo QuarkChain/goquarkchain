@@ -54,14 +54,10 @@ func (e *MetaMaskEthBlockChainAPI) ChainId() (hexutil.Uint64, error) {
 	return hexutil.Uint64(result), err
 }
 
-func (e *MetaMaskEthBlockChainAPI) GasPrice(fullShardKey *hexutil.Uint) (hexutil.Uint64, error) {
-	//fullShardId, err := getFullShardId(fullShardKey)
-	//if err != nil {
-	//	return hexutil.Uint64(0), err
-	//}
-	//data, err := e.b.GasPrice(account.Branch{Value: fullShardId}, qcom.TokenIDEncode(DefaultTokenID))
-	//return hexutil.Uint64(data), nil
-
+func (e *MetaMaskEthBlockChainAPI) GasPrice() (hexutil.Uint64, error) {
+	resp, err := e.c.Call("gasPrice", e.fullShardKey)
+	fmt.Println("resp", resp.Result, err)
+	fmt.Println("resp", resp.Result, err)
 	panic("not support")
 }
 
