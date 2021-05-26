@@ -29,8 +29,8 @@ func (e *MetaMaskEthBlockChainAPI) ChainId() (hexutil.Uint64, error) {
 	if err != nil {
 		return 0, err
 	}
-	fmt.Println("chainID", resp.Result)
-	panic("ChainID")
+	fmt.Println("chainID", resp.Result, resp.Result.(hexutil.Uint64))
+	return resp.Result.(hexutil.Uint64), nil
 }
 
 func (e *MetaMaskEthBlockChainAPI) GasPrice(fullShardKey *hexutil.Uint) (hexutil.Uint64, error) {

@@ -170,7 +170,6 @@ func (p *PublicBlockChainAPI) EchoData(data hexutil.Big) *hexutil.Big {
 }
 
 func (p *PublicBlockChainAPI) ChainId() (hexutil.Uint64, error) {
-	fmt.Println("PPPPPPPPP", "ChainID")
 	return hexutil.Uint64(666), nil
 }
 
