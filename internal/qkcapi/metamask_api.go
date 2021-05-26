@@ -2,7 +2,6 @@ package qkcapi
 
 import (
 	"fmt"
-	"reflect"
 	"strings"
 
 	"github.com/ybbus/jsonrpc"
@@ -31,11 +30,9 @@ func (e *MetaMaskEthBlockChainAPI) ChainId() (hexutil.Uint64, error) {
 	if err != nil {
 		fmt.Println("222---", err)
 		return 0, err
-	} else {
-		fmt.Println("3333--")
 	}
-	fmt.Println("chainID", resp.Result, reflect.TypeOf(resp.Result))
-	return resp.Result.(hexutil.Uint64), nil
+	result, err := hexutil.DecodeUint64(resp.Result.(string))
+	return hexutil.Uint64(result), err
 }
 
 func (e *MetaMaskEthBlockChainAPI) GasPrice(fullShardKey *hexutil.Uint) (hexutil.Uint64, error) {
