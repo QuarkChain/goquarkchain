@@ -24,7 +24,8 @@ func NewMetaMaskNetApi(c jsonrpc.RPCClient) *MetaMaskNetApi {
 }
 
 func (e *MetaMaskNetApi) Version() hexutil.Uint64 {
-	resp, err := e.c.Call("version")
+	resp, err := e.c.Call("net_version")
+	fmt.Println("call-vaerison", err)
 	if err != nil {
 		panic(err)
 	}
