@@ -72,12 +72,12 @@ func GetAPIs(apiBackend Backend) []rpc.API {
 			Service:   NewPrivateBlockChainAPI(apiBackend),
 			Public:    false,
 		},
-		{
-			Namespace: "eth",
-			Version:   "1.0",
-			Service:   NewEthAPI(apiBackend),
-			Public:    true,
-		},
+		//{
+		//	Namespace: "eth",
+		//	Version:   "1.0",
+		//	Service:   NewEthAPI(apiBackend),
+		//	Public:    true,
+		//},
 		{
 			Namespace: "net",
 			Version:   "1.0",

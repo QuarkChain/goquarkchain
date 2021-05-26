@@ -169,6 +169,10 @@ func (p *PublicBlockChainAPI) EchoData(data hexutil.Big) *hexutil.Big {
 	return &data
 }
 
+func (p *PublicBlockChainAPI) ChainId() (hexutil.Uint64, error) {
+	return hexutil.Uint64(666), nil
+}
+
 func (p *PublicBlockChainAPI) NetworkInfo() map[string]interface{} {
 
 	type ChainIdToShardSize struct {

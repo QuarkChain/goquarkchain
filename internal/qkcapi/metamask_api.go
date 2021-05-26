@@ -1,14 +1,14 @@
 package qkcapi
 
 import (
-	"errors"
 	"fmt"
+	"strings"
+
+	"github.com/ybbus/jsonrpc"
 
 	"github.com/QuarkChain/goquarkchain/account"
-	qcom "github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/common/hexutil"
 	"github.com/QuarkChain/goquarkchain/core/types"
-	"github.com/QuarkChain/goquarkchain/internal/encoder"
 	"github.com/QuarkChain/goquarkchain/rpc"
 	"github.com/ethereum/go-ethereum/common"
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
@@ -16,16 +16,21 @@ import (
 )
 
 type MetaMaskEthBlockChainAPI struct {
-	CommonAPI
-	b Backend
+	fullShardKey uint32
+	c            jsonrpc.RPCClient
 }
 
-func NewMetaMaskEthAPI(b Backend) *MetaMaskEthBlockChainAPI {
-	return &MetaMaskEthBlockChainAPI{b: b, CommonAPI: CommonAPI{b}}
+func NewMetaMaskEthAPI(fullShardKey uint32, client jsonrpc.RPCClient) *MetaMaskEthBlockChainAPI {
+	return &MetaMaskEthBlockChainAPI{fullShardKey: fullShardKey, c: client}
 }
 
 func (e *MetaMaskEthBlockChainAPI) ChainId() (hexutil.Uint64, error) {
-	return hexutil.Uint64(666), nil
+	resp, err := e.c.Call("chainId")
+	if err != nil {
+		return 0, err
+	}
+	fmt.Println("chainID", resp.Result)
+	panic("ChainID")
 }
 
 func (e *MetaMaskEthBlockChainAPI) GasPrice(fullShardKey *hexutil.Uint) (hexutil.Uint64, error) {
@@ -39,97 +44,67 @@ func (e *MetaMaskEthBlockChainAPI) GasPrice(fullShardKey *hexutil.Uint) (hexutil
 	panic("not support")
 }
 
-func (e *MetaMaskEthBlockChainAPI) getHeightFromBlockNumberOrHash(blockNrOrHash rpc.BlockNumberOrHash) (*uint64, error) {
-	if blockNr, ok := blockNrOrHash.Number(); ok {
-		if blockNr.Int64() == 0 {
-			zero := uint64(0)
-			return &zero, nil
-		} else if blockNr.Int64() == -1 {
-			return nil, nil
-		} else if blockNr.Int64() == -2 {
-			panic("not support yet")
-		} else {
-			t := blockNr.Uint64()
-			return &t, nil
-		}
-	}
-	if hash, ok := blockNrOrHash.Hash(); ok {
-		block, _, err := e.b.GetMinorBlockByHash(hash, account.Branch{Value: 1}, false)
-		if err != nil {
-			return nil, err
-		}
-		tt := block.NumberU64()
-		return &tt, nil
-	}
-	return nil, errors.New("invalid arguments; neither block nor hash specified")
-}
-
-func (e *MetaMaskEthBlockChainAPI) GetBalance(address common.Address, blockNrOrHash rpc.BlockNumberOrHash) (*hexutil.Big, error) {
-	fullShardId := uint32(1)
-
-	addr := account.NewAddress(address, fullShardId)
-	height, err := e.getHeightFromBlockNumberOrHash(blockNrOrHash)
+func (e *MetaMaskEthBlockChainAPI) GetBalance(address common.Address, blockNrOrHash rpc.BlockNumber) (*hexutil.Big, error) {
+	qkcAddr := account.NewAddress(address, e.fullShardKey)
+	resp, err := e.c.Call("getBalances", qkcAddr.ToHex())
 	if err != nil {
 		return nil, err
 	}
-	data, err := e.b.GetPrimaryAccountData(&addr, height)
-	if err != nil {
-		return nil, err
+	balances := resp.Result.(map[string]interface{})["balances"]
+	for _, m := range balances.([]interface{}) {
+		bInfo := m.(map[string]interface{})
+		if strings.ToUpper((bInfo["tokenStr"]).(string)) == DefaultTokenID {
+			b, err := hexutil.DecodeBig(bInfo["balance"].(string))
+			if err != nil {
+				return nil, err
+			}
+			return (*hexutil.Big)(b), nil
+		}
 	}
-	balance := data.Balance.GetTokenBalance(qcom.TokenIDEncode(DefaultTokenID))
-	return (*hexutil.Big)(balance), nil
+	return nil, nil
 }
 
 func (e *MetaMaskEthBlockChainAPI) BlockNumber() hexutil.Uint64 {
-	stats, err := e.b.GetStats()
+	resp, err := e.c.Call("getMinorBlockByHeight", hexutil.EncodeUint64(uint64(e.fullShardKey)))
 	if err != nil {
-		panic(err)
+		return 0
 	}
-	shards := stats["shards"].([]map[string]interface{})
-	for _, shard := range shards {
-		fullShardId := shard["fullShardId"].(uint32)
-		if fullShardId == 1 {
-			return hexutil.Uint64(shard["height"].(uint64))
-		}
-	}
-	panic("bug here-")
+	fmt.Println("", resp.Result)
+	panic("BlockNumber")
 }
 
 func (e *MetaMaskEthBlockChainAPI) GetBlockByNumber(blockNr rpc.BlockNumber, fullTx bool) (map[string]interface{}, error) {
-	height := blockNr.Uint64()
-	minorBlock, _, err := e.b.GetMinorBlockByHeight(&height, account.Branch{1}, fullTx)
-	if err != nil {
-		return nil, err
-	}
-	if minorBlock == nil {
-		return nil, errors.New("minor block is nil")
-	}
-	return encoder.MinorBlockEncoder(minorBlock, false, nil)
+	//height := blockNr.Uint64()
+	//minorBlock, _, err := e.b.GetMinorBlockByHeight(&height, account.Branch{1}, fullTx)
+	//if err != nil {
+	//	return nil, err
+	//}
+	//if minorBlock == nil {
+	//	return nil, errors.New("minor block is nil")
+	//}
+	//return encoder.MinorBlockEncoder(minorBlock, false, nil)
+	panic("GetBlockByNumber")
 }
 
 func (e *MetaMaskEthBlockChainAPI) GetTransactionCount(address common.Address, blockNr rpc.BlockNumber) (hexutil.Uint64, error) {
-	addr := account.NewAddress(address, 1)
-	height := new(uint64)
-	if blockNr == -1 {
-		height = nil
-	} else if blockNr == -2 {
-		panic("sb")
-	} else {
-		tmp := blockNr.Uint64()
-		height = &tmp
-	}
-
-	data, err := e.b.GetPrimaryAccountData(&addr, height)
+	qkcAddr := account.NewAddress(address, e.fullShardKey)
+	resp, err := e.c.Call("getTransactionCount", qkcAddr.ToHex())
 	if err != nil {
 		return 0, err
 	}
-	return hexutil.Uint64(data.TransactionCount), nil
+	fmt.Println("GetTransaction", resp.Result)
+	panic("GetTransactionCount")
 }
 
 func (e *MetaMaskEthBlockChainAPI) GetCode(address common.Address, blockNr rpc.BlockNumber) (hexutil.Bytes, error) {
-	addr := account.NewAddress(address, 1)
-	height := blockNr.Uint64()
-	return e.b.GetCode(&addr, &height)
+	qkcAddr := account.NewAddress(address, e.fullShardKey)
+
+	resp, err := e.c.Call("getCode", qkcAddr.ToHex())
+	if err != nil {
+		return nil, err
+	}
+	fmt.Println("GetCode", resp.Result)
+	panic("GetCode")
 }
 
 func (s *MetaMaskEthBlockChainAPI) SendRawTransaction(encodedTx hexutil.Bytes) (common.Hash, error) {
@@ -151,10 +126,17 @@ func (s *MetaMaskEthBlockChainAPI) SendRawTransaction(encodedTx hexutil.Bytes) (
 		EvmTx:  evmTx,
 	}
 
-	if err := s.b.AddTransaction(txQkc); err != nil {
+	rlpTxBytes, err := rlp.EncodeToBytes(txQkc)
+	if err != nil {
 		return common.Hash{}, err
 	}
-	fmt.Println("????????????????", txQkc.Hash().String())
+
+	resp, err := s.c.Call("sendRawTransaction", rlpTxBytes)
+	if err != nil {
+		return common.Hash{}, nil
+	}
+	fmt.Println("resp", resp.Result)
+	panic("SendRawTransaction")
 	return txQkc.Hash(), nil
 }
 func (e *MetaMaskEthBlockChainAPI) Call(mdata MetaCallArgs, blockNr rpc.BlockNumber) (hexutil.Bytes, error) {
@@ -184,8 +166,13 @@ func (e *MetaMaskEthBlockChainAPI) Call(mdata MetaCallArgs, blockNr rpc.BlockNum
 		GasTokenID:      &defaultToken,
 		TransferTokenID: &defaultToken,
 	}
-	ans, err := e.CommonAPI.callOrEstimateGas(data, nil, true)
-	return ans, err
+
+	resp, err := e.c.Call("call", data)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println("resp", resp.Result)
+	panic("CALLL")
 }
 
 func (p *MetaMaskEthBlockChainAPI) EstimateGas(mdata MetaCallArgs) (hexutil.Uint, error) {
@@ -212,10 +199,10 @@ func (p *MetaMaskEthBlockChainAPI) EstimateGas(mdata MetaCallArgs) (hexutil.Uint
 		TransferTokenID: &defaultToken,
 	}
 
-	gas, err := p.CommonAPI.callOrEstimateGas(data, nil, false)
+	resp, err := p.c.Call("estimateGas", data)
 	if err != nil {
-		return 0, err
+		panic(err)
 	}
-	return hexutil.Uint(4051056), nil
-	return hexutil.Uint(qcom.BytesToUint32(gas)), nil
+	fmt.Println("resp", resp.Result)
+	panic("EstimateGas")
 }
