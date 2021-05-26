@@ -437,8 +437,10 @@ func (s *Server) readRequest(codec ServerCodec) ([]*serverRequest, bool, Error) 
 			requests[i] = &serverRequest{id: r.id, svcname: svc.name, callb: callb}
 			if r.params != nil && len(callb.argTypes) > 0 {
 				if args, err := codec.ParseRequestArguments(callb.argTypes, r.params); err == nil {
+					fmt.Println("440----")
 					requests[i].args = args
 				} else {
+					fmt.Println("443---")
 					requests[i].err = &invalidParamsError{err.Error()}
 				}
 			}
@@ -449,5 +451,6 @@ func (s *Server) readRequest(codec ServerCodec) ([]*serverRequest, bool, Error) 
 		requests[i] = &serverRequest{id: r.id, err: &methodNotFoundError{r.service, r.method}}
 	}
 
+	fmt.Println("final-454", "", len(requests))
 	return requests, batch, nil
 }
