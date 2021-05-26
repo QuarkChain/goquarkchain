@@ -77,8 +77,10 @@ func (e *MetaMaskEthBlockChainAPI) GetBalance(address common.Address, blockNrOrH
 }
 
 func (e *MetaMaskEthBlockChainAPI) BlockNumber() hexutil.Uint64 {
+	fmt.Println("BBBBBBBBBBBBBBBBBBBBBBBBBBBlockNumber----")
 	resp, err := e.c.Call("getMinorBlockByHeight", hexutil.EncodeUint64(uint64(e.fullShardKey)))
 	if err != nil {
+		fmt.Println("err", err)
 		return 0
 	}
 	fmt.Println("", resp.Result.(map[string]interface{})["height"])
