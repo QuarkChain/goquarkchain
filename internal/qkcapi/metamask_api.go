@@ -30,6 +30,8 @@ func (e *MetaMaskEthBlockChainAPI) ChainId() (hexutil.Uint64, error) {
 	if err != nil {
 		fmt.Println("222---", err)
 		return 0, err
+	} else {
+		fmt.Println("3333--")
 	}
 	fmt.Println("chainID", resp.Result, resp.Result.(hexutil.Uint64))
 	return resp.Result.(hexutil.Uint64), nil
