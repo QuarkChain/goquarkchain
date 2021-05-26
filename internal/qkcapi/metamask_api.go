@@ -2,6 +2,7 @@ package qkcapi
 
 import (
 	"fmt"
+	"reflect"
 	"strings"
 
 	"github.com/ybbus/jsonrpc"
@@ -30,7 +31,8 @@ func (e *MetaMaskNetApi) Version() hexutil.Uint64 {
 		panic(err)
 	}
 	fmt.Println("resp", resp.Result)
-	v, _ := hexutil.DecodeUint64(resp.Result.(string))
+	v, err := hexutil.DecodeUint64(resp.Result.(string))
+	fmt.Println("vvv", v, err, reflect.TypeOf(resp.Result))
 	return hexutil.Uint64(v)
 }
 
