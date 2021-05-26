@@ -16,7 +16,7 @@ func main() {
 
 	apis := make([]rpc.API, 0)
 	apis = append(apis, rpc.API{
-		Namespace: "qkc",
+		Namespace: "eth",
 		Version:   "1.0",
 		Service:   qkcapi.NewMetaMaskEthAPI(1, client),
 		Public:    true,
