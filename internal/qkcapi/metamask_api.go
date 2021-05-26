@@ -26,9 +26,7 @@ func NewMetaMaskEthAPI(fullShardKey uint32, client jsonrpc.RPCClient) *MetaMaskE
 
 func (e *MetaMaskEthBlockChainAPI) ChainId() (hexutil.Uint64, error) {
 	resp, err := e.c.Call("chainId")
-	fmt.Println("ChainId???---1", err)
 	if err != nil {
-		fmt.Println("222---", err)
 		return 0, err
 	}
 	result, err := hexutil.DecodeUint64(resp.Result.(string))
@@ -58,11 +56,14 @@ func (e *MetaMaskEthBlockChainAPI) GetBalance(address common.Address, blockNrOrH
 		if strings.ToUpper((bInfo["tokenStr"]).(string)) == DefaultTokenID {
 			b, err := hexutil.DecodeBig(bInfo["balance"].(string))
 			if err != nil {
+				fmt.Println("GetBalance balance err", err)
 				return nil, err
 			}
+			fmt.Println("GetBalance balance", b)
 			return (*hexutil.Big)(b), nil
 		}
 	}
+	fmt.Println("GetBalance balance", "nnnnnnnnnnull")
 	return nil, nil
 }
 
@@ -71,8 +72,10 @@ func (e *MetaMaskEthBlockChainAPI) BlockNumber() hexutil.Uint64 {
 	if err != nil {
 		return 0
 	}
-	fmt.Println("", resp.Result)
-	panic("BlockNumber")
+	fmt.Println("", resp.Result.(map[string]interface{})["height"])
+	height, _ := hexutil.DecodeUint64(resp.Result.(map[string]interface{})["height"].(string))
+	fmt.Println("BLockNumber", height)
+	return hexutil.Uint64(height)
 }
 
 func (e *MetaMaskEthBlockChainAPI) GetBlockByNumber(blockNr rpc.BlockNumber, fullTx bool) (map[string]interface{}, error) {
