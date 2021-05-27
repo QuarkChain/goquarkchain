@@ -252,11 +252,11 @@ func (p *MetaMaskEthBlockChainAPI) EstimateGas(mdata MetaCallArgs) (hexutil.Uint
 	data := &CallArgs{
 		From: &account.Address{
 			Recipient:    *mdata.From,
-			FullShardKey: 0,
+			FullShardKey: p.fullShardKey,
 		},
 		To: &account.Address{
 			Recipient:    tt,
-			FullShardKey: 0,
+			FullShardKey: p.fullShardKey,
 		},
 		Gas:             mdata.Gas,
 		GasPrice:        mdata.GasPrice,
