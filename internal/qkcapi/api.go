@@ -53,8 +53,10 @@ func (c *CommonAPI) callOrEstimateGas(args *CallArgs, height *uint64, isCall boo
 }
 
 func (c *CommonAPI) SendRawTransaction(encodedTx hexutil.Bytes) (hexutil.Bytes, error) {
+	fmt.Println("CCCCCCCCCCCCCC", "SendRawTransaction")
 	evmTx := new(types.EvmTransaction)
 	if err := rlp.DecodeBytes(encodedTx, evmTx); err != nil {
+		fmt.Println("err", err)
 		return nil, err
 	}
 	tx := &types.Transaction{
@@ -62,9 +64,12 @@ func (c *CommonAPI) SendRawTransaction(encodedTx hexutil.Bytes) (hexutil.Bytes, 
 		TxType: types.EvmTx,
 	}
 
+	fmt.Println("addTranadsadsa", tx.Hash().String())
 	if err := c.b.AddTransaction(tx); err != nil {
+		fmt.Println("errrr", err)
 		return EmptyTxID, err
 	}
+	fmt.Println("SendRawTransaction resp", encoder.IDEncoder(tx.Hash().Bytes(), tx.EvmTx.FromFullShardKey()).String())
 	return encoder.IDEncoder(tx.Hash().Bytes(), tx.EvmTx.FromFullShardKey()), nil
 }
 
