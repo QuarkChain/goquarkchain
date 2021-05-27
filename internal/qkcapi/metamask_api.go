@@ -139,31 +139,33 @@ func (s *MetaMaskEthBlockChainAPI) SendRawTransaction(encodedTx hexutil.Bytes) (
 		fmt.Println("EEEEEEEEEEEEEEEEEEE", err)
 		return common.Hash{}, err
 	}
+	fmt.Println("ssss-1")
 	evmTx := new(types.EvmTransaction)
 	if tx.To() != nil {
 		evmTx = types.NewEvmTransaction(tx.Nonce(), *tx.To(), tx.Value(), tx.Gas(), tx.GasPrice(), 1, 1, clusterCfg.Quarkchain.NetworkID, 2, tx.Data(), 35760, 35760)
 	} else {
 		evmTx = types.NewEvmContractCreation(tx.Nonce(), tx.Value(), tx.Gas(), tx.GasPrice(), 1, 1, clusterCfg.Quarkchain.NetworkID, 2, tx.Data(), 35760, 35760)
 	}
-
+	fmt.Println("ssss-2")
 	evmTx.SetVRS(tx.RawSignatureValues())
 
 	txQkc := &types.Transaction{
 		TxType: types.EvmTx,
 		EvmTx:  evmTx,
 	}
-
+	fmt.Println("ssss-3")
 	rlpTxBytes, err := rlp.EncodeToBytes(txQkc)
 	if err != nil {
 		fmt.Println("dasdasdsadsa", err)
 		return common.Hash{}, err
 	}
-
+	fmt.Println("ssss-4")
 	resp, err := s.c.Call("sendRawTransaction", rlpTxBytes)
 	if err != nil {
 		fmt.Println("1611111111", err)
 		return common.Hash{}, nil
 	}
+	fmt.Println("ssss-5")
 	fmt.Println(" SendRawTransaction resp", resp.Result)
 	panic("SendRawTransaction")
 	return txQkc.Hash(), nil
