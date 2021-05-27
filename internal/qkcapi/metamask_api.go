@@ -212,6 +212,19 @@ func (c *MetaMaskEthBlockChainAPI) GetTransactionReceipt(hash common.Hash) (map[
 	fmt.Println("GetTrancRe end", resp.Result)
 	return resp.Result.(map[string]interface{}), nil
 }
+
+// MetaCallArgs represents the arguments for a call.
+type MetaCallArgs struct {
+	From            *account.Recipient `json:"from"`
+	To              *account.Recipient `json:"to"`
+	Gas             hexutil.Big        `json:"gas"`
+	GasPrice        hexutil.Big        `json:"gasPrice"`
+	Value           hexutil.Big        `json:"value"`
+	Data            hexutil.Bytes      `json:"data"`
+	GasTokenID      *hexutil.Uint64    `json:"gasTokenId"`
+	TransferTokenID *hexutil.Uint64    `json:"transferTokenId"`
+}
+
 func (e *MetaMaskEthBlockChainAPI) Call(mdata MetaCallArgs, blockNr rpc.BlockNumber) (hexutil.Bytes, error) {
 	fmt.Println("MMMMMMMMM--call")
 	defaultToken := hexutil.Uint64(35760)
