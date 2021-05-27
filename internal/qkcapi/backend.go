@@ -1,9 +1,6 @@
 package qkcapi
 
 import (
-	"fmt"
-	"reflect"
-
 	"github.com/ethereum/go-ethereum/common/hexutil"
 
 	"github.com/QuarkChain/goquarkchain/account"

@@ -2,7 +2,6 @@ package qkcapi
 
 import (
 	"bytes"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"math/big"
