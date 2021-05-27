@@ -181,14 +181,14 @@ func (c *MetaMaskEthBlockChainAPI) GetTransactionReceipt(hash common.Hash) (map[
 	txID := make([]byte, 0)
 	txID = append(txID, hash.Bytes()...)
 	txID = append(txID, Uint32ToBytes(c.fullShardKey)...)
-	fmt.Println("GetTransactionReceipt", hash.String(), common.ToHex(txID))
+	fmt.Println("GetTransactionReceipt", hash.String())
 	resp, err := c.c.Call("getTransactionReceipt", common.ToHex(txID))
 	if err != nil {
 		fmt.Println("errrr", err)
 		return nil, err
 	}
 
-	fmt.Println("GetTransactionReceipt end", resp.Result)
+	fmt.Println("GetTransactionReceipt end")
 	return resp.Result.(map[string]interface{}), nil
 }
 
@@ -235,7 +235,7 @@ func (e *MetaMaskEthBlockChainAPI) Call(mdata MetaCallArgs, blockNr rpc.BlockNum
 
 	fmt.Println("ready call", data.From, data.To)
 	resp, err := e.c.Call("call", data)
-	fmt.Println("Call-end", mdata, data, err, resp)
+	fmt.Println("Call-end", err, resp.Result)
 	if err != nil {
 		panic(err)
 	}
@@ -273,6 +273,5 @@ func (p *MetaMaskEthBlockChainAPI) EstimateGas(mdata MetaCallArgs) (hexutil.Uint
 	fmt.Println("resp", resp.Result)
 	fmt.Println("MMMMMMMMM--EstimateGas", resp.Result)
 	ans, err := hexutil.DecodeUint64(resp.Result.(string))
-	return hexutil.Uint(4051056), err
 	return hexutil.Uint(ans), err
 }
