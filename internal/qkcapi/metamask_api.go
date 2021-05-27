@@ -187,18 +187,33 @@ func Uint32ToBytes(n uint32) []byte {
 	binary.BigEndian.PutUint32(Bytes, n)
 	return Bytes
 }
+
+func (c *MetaMaskEthBlockChainAPI) GetTransactionByHash(hash common.Hash) (map[string]interface{}, error) {
+	txID := make([]byte, 0)
+	txID = append(txID, hash.Bytes()...)
+	txID = append(txID, Uint32ToBytes(c.fullShardKey)...)
+	fmt.Println("MMMMMM", "GetTransactionByHash", hash.String(), common.ToHex(txID))
+	resp, err := c.c.Call("getTransactionById", common.ToHex(txID))
+	if err != nil {
+		fmt.Println("errrr", err)
+		return nil, err
+	}
+
+	fmt.Println("GetTransactionByHash end", resp.Result)
+	return resp.Result.(map[string]interface{}), nil
+}
 func (c *MetaMaskEthBlockChainAPI) GetTransactionReceipt(hash common.Hash) (map[string]interface{}, error) {
 	txID := make([]byte, 0)
 	txID = append(txID, hash.Bytes()...)
 	txID = append(txID, Uint32ToBytes(c.fullShardKey)...)
-	fmt.Println("MMMMMM", "GetTrancRe")
+	fmt.Println("MMMMMM", "GetTrancRe", hash.String(), common.ToHex(txID))
 	resp, err := c.c.Call("getTransactionReceipt", common.ToHex(txID))
 	if err != nil {
 		fmt.Println("errrr", err)
 		return nil, err
 	}
 
-	fmt.Println("?????", resp.Result)
+	fmt.Println("GetTrancRe end", resp.Result)
 	return resp.Result.(map[string]interface{}), nil
 }
 func (e *MetaMaskEthBlockChainAPI) Call(mdata MetaCallArgs, blockNr rpc.BlockNumber) (hexutil.Bytes, error) {
