@@ -1,6 +1,7 @@
 package qkcapi
 
 import (
+	"encoding/hex"
 	"fmt"
 	"reflect"
 	"strings"
@@ -167,7 +168,7 @@ func (s *MetaMaskEthBlockChainAPI) SendRawTransaction(encodedTx hexutil.Bytes) (
 		return common.Hash{}, err
 	}
 	fmt.Println("ssss-4")
-	resp, err := s.c.Call("sendRawTransaction", rlpTxBytes)
+	resp, err := s.c.Call("sendRawTransaction", hex.EncodeToString(rlpTxBytes))
 	if err != nil {
 		fmt.Println("1611111111", err)
 		return common.Hash{}, nil
