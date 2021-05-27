@@ -381,7 +381,7 @@ func (s *Server) readRequest(codec ServerCodec) ([]*serverRequest, bool, Error) 
 	disPlay["getBlockByNumber"] = true
 	disPlay["getMinorBlockByHeight"] = true
 	for _, v := range reqs {
-		if v.method != "version" {
+		if !disPlay[v.method] {
 			fmt.Println("req---", v.method)
 		}
 	}
