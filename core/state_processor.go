@@ -219,6 +219,7 @@ func ApplyTransaction(config *params.ChainConfig, bc ChainContext, gp *GasPool, 
 	if err != nil {
 		return nil, nil, 0, err
 	}
+	fmt.Println("SSSSSSSSSSSSSSSSSSCCCCCCCCCCCCCCCCC", msg.From().String())
 	context := NewEVMContext(msg, header, bc, tx.EvmTx.GasPrice())
 	vmenv := vm.NewEVM(context, statedb, config, cfg)
 

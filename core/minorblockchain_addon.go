@@ -669,6 +669,7 @@ func (m *MinorBlockChain) ExecuteTx(tx *types.Transaction, fromAddress *account.
 	}
 	gp := new(GasPool).AddGas(mBlock.GasLimit().Uint64())
 	gasUsed := new(uint64)
+	fmt.Println("")
 	ret, receipt, _, err := ApplyTransaction(m.ChainConfig(), m, gp, state, m.CurrentHeader(), evmTx, gasUsed, *m.GetVMConfig())
 	if err != nil {
 		return nil, err
