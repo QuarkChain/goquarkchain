@@ -139,7 +139,9 @@ func (s *MetaMaskEthBlockChainAPI) SendRawTransaction(encodedTx hexutil.Bytes) (
 		fmt.Println("EEEEEEEEEEEEEEEEEEE", err)
 		return common.Hash{}, err
 	}
-	fmt.Println("ssss-1")
+	fmt.Println("ssss-1", tx.To(), tx.To() != nil)
+	fmt.Println("ssss-1", tx.To() != nil)
+	fmt.Println("ssss-1", *tx.To())
 	evmTx := new(types.EvmTransaction)
 	if tx.To() != nil {
 		evmTx = types.NewEvmTransaction(tx.Nonce(), *tx.To(), tx.Value(), tx.Gas(), tx.GasPrice(), 1, 1, clusterCfg.Quarkchain.NetworkID, 2, tx.Data(), 35760, 35760)
