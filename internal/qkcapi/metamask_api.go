@@ -235,7 +235,7 @@ func (e *MetaMaskEthBlockChainAPI) Call(mdata MetaCallArgs, blockNr rpc.BlockNum
 
 	fmt.Println("ready call", data.From, data.To)
 	resp, err := e.c.Call("call", data)
-	fmt.Println("Call-end", err, resp.Result)
+	fmt.Println("Call-end", err)
 	if err != nil {
 		panic(err)
 	}
