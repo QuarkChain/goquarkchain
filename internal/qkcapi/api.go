@@ -24,6 +24,7 @@ type CommonAPI struct {
 }
 
 func (c *CommonAPI) callOrEstimateGas(args *CallArgs, height *uint64, isCall bool) (hexutil.Bytes, error) {
+	fmt.Println("callOrEstimateGas")
 	if args.To == nil {
 		return nil, errors.New("missing to")
 	}
@@ -33,11 +34,13 @@ func (c *CommonAPI) callOrEstimateGas(args *CallArgs, height *uint64, isCall boo
 		return nil, err
 	}
 	if isCall {
+		fmt.Println("callOrEstimateGas-isCall")
 		isSameChain := clusterCfg.Quarkchain.IsSameFullShard(args.From.FullShardKey, args.To.FullShardKey)
 		if !isSameChain {
 			return nil, fmt.Errorf("Call cross-shard tx not supported yet\n")
 		}
 		res, err := c.b.ExecuteTransaction(tx, args.From, height)
+		fmt.Println("txxxxxx", tx.EvmTx.To().String(), args.From.ToHex(), height, err, res)
 		if err != nil {
 			return nil, err
 		}
@@ -422,6 +425,7 @@ func (p *PublicBlockChainAPI) GetTransactionById(txID hexutil.Bytes) (map[string
 }
 
 func (p *PublicBlockChainAPI) Call(data CallArgs, blockNr *rpc.BlockNumber) (hexutil.Bytes, error) {
+	fmt.Println("??????--call", data, blockNr)
 	if blockNr == nil {
 		return p.CommonAPI.callOrEstimateGas(&data, nil, true)
 	}
