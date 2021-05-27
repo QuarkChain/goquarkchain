@@ -3,7 +3,6 @@ package qkcapi
 import (
 	"encoding/binary"
 	"fmt"
-	"reflect"
 	"strings"
 
 	"github.com/ybbus/jsonrpc"
@@ -35,9 +34,9 @@ func (e *MetaMaskNetApi) Version() string {
 	if err != nil {
 		panic(err)
 	}
-	fmt.Println("resp", resp.Result)
-	v, err := hexutil.DecodeUint64(resp.Result.(string))
-	fmt.Println("vvv", v, err, reflect.TypeOf(resp.Result))
+	//fmt.Println("resp", resp.Result)
+	//v, err := hexutil.DecodeUint64(resp.Result.(string))
+	//fmt.Println("vvv", v, err, reflect.TypeOf(resp.Result))
 	return resp.Result.(string)
 }
 
@@ -148,12 +147,12 @@ func (s *MetaMaskEthBlockChainAPI) SendRawTransaction(encodedTx hexutil.Bytes) (
 	}
 	fmt.Println("ssss-1", tx.To(), tx.To() != nil)
 	fmt.Println("ssss-1", tx.To() != nil)
-	fmt.Println("ssss-1", *tx.To())
 	evmTx := new(types.EvmTransaction)
 	if tx.To() != nil {
 		evmTx = types.NewEvmTransaction(tx.Nonce(), *tx.To(), tx.Value(), tx.Gas(), tx.GasPrice(), 1, 1, netWorkID, 2, tx.Data(), 35760, 35760)
 		fmt.Println("??????")
 	} else {
+		fmt.Println("---")
 		evmTx = types.NewEvmContractCreation(tx.Nonce(), tx.Value(), tx.Gas(), tx.GasPrice(), 1, 1, netWorkID, 2, tx.Data(), 35760, 35760)
 	}
 	fmt.Println("ssss-2")
@@ -235,11 +234,12 @@ func (e *MetaMaskEthBlockChainAPI) Call(mdata MetaCallArgs, blockNr rpc.BlockNum
 	if err != nil {
 		panic(err)
 	}
-	fmt.Println("resp", resp.Result)
-	panic("CALLL")
+	fmt.Println("MMMMMMMMM--call-resp", resp.Result)
+	return hexutil.Decode(resp.Result.(string))
 }
 
 func (p *MetaMaskEthBlockChainAPI) EstimateGas(mdata MetaCallArgs) (hexutil.Uint, error) {
+	fmt.Println("MMMMMMMMM--EstimateGas")
 	defaultToken := hexutil.Uint64(35760)
 	tt := account.Recipient{}
 	if mdata.To != nil {
@@ -268,5 +268,7 @@ func (p *MetaMaskEthBlockChainAPI) EstimateGas(mdata MetaCallArgs) (hexutil.Uint
 		panic(err)
 	}
 	fmt.Println("resp", resp.Result)
-	panic("EstimateGas")
+	fmt.Println("MMMMMMMMM--EstimateGas", resp.Result)
+	ans, err := hexutil.DecodeUint64(resp.Result.(string))
+	return hexutil.Uint(ans), err
 }
