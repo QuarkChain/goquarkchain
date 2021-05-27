@@ -270,6 +270,6 @@ func (p *MetaMaskEthBlockChainAPI) EstimateGas(mdata MetaCallArgs) (hexutil.Uint
 	fmt.Println("resp", resp.Result)
 	fmt.Println("MMMMMMMMM--EstimateGas", resp.Result)
 	ans, err := hexutil.DecodeUint64(resp.Result.(string))
-	return hexutil.Uint(600000), err
+	return hexutil.Uint(4051056), err
 	return hexutil.Uint(ans), err
 }
