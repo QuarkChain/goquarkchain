@@ -441,6 +441,7 @@ func (st *StateTransition) chargeFee(gasUsed uint64) {
 }
 
 func (st *StateTransition) transferFailureByPoSWBalanceCheck() bool {
+	fmt.Println("lllllllll trancf check", len(st.state.GetSenderDisallowMap()))
 	if v, ok := st.state.GetSenderDisallowMap()[st.msg.From()]; ok {
 		fmt.Println("????????", st.msg.From().String(), st.state.GetSenderDisallowMap())
 
