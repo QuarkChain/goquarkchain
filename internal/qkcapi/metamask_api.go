@@ -160,7 +160,7 @@ func (s *MetaMaskEthBlockChainAPI) SendRawTransaction(encodedTx hexutil.Bytes) (
 		TxType: types.EvmTx,
 		EvmTx:  evmTx,
 	}
-	fmt.Println("ssss-3")
+	fmt.Println("ssss-3", txQkc.EvmTx.GasPrice())
 	rlpTxBytes, err := rlp.EncodeToBytes(txQkc)
 	if err != nil {
 		fmt.Println("dasdasdsadsa", err)
