@@ -2,6 +2,7 @@ package qkcapi
 
 import (
 	"bytes"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"math/big"
@@ -34,7 +35,7 @@ func (c *CommonAPI) callOrEstimateGas(args *CallArgs, height *uint64, isCall boo
 		return nil, err
 	}
 	if isCall {
-		fmt.Println("callOrEstimateGas-isCall")
+		fmt.Println("callOrEstimateGas-isCall", hex.EncodeToString(tx.EvmTx.Data()), tx.EvmTx.To(), tx.EvmTx.Gas(), tx.EvmTx.GasPrice())
 		isSameChain := clusterCfg.Quarkchain.IsSameFullShard(args.From.FullShardKey, args.To.FullShardKey)
 		if !isSameChain {
 			return nil, fmt.Errorf("Call cross-shard tx not supported yet\n")
