@@ -233,6 +233,7 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 	}
 	if contractCreation || evm.ContractAddress != nil {
 		ret, _, st.gas, vmerr = evm.Create(sender, st.data, st.gas, st.value, evm.ContractAddress)
+		fmt.Println("236--err", vmerr)
 	} else {
 		// Increment the nonce for the next transaction
 		if !st.evm.IsApplyXShard {
@@ -241,8 +242,10 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 
 		if st.transferFailureByPoSWBalanceCheck() {
 			ret, st.gas, vmerr = nil, 0, vm.ErrPoSWSenderNotAllowed
+			fmt.Println("245--err", vmerr)
 		} else {
 			ret, st.gas, vmerr = evm.Call(sender, st.to(), st.data, st.gas, st.value)
+			fmt.Println("248--err", vmerr)
 		}
 	}
 
