@@ -92,6 +92,7 @@ func (e *MetaMaskEthBlockChainAPI) GetBalance(address common.Address, blockNrOrH
 
 func (e *MetaMaskEthBlockChainAPI) BlockNumber() hexutil.Uint64 {
 	//fmt.Println("BBBBBBBBBBBBBBBBBBBBBBBBBBBlockNumber----")
+	fmt.Println("BLockNumber start")
 	resp, err := e.c.Call("getMinorBlockByHeight", hexutil.EncodeUint64(uint64(e.fullShardKey)))
 	if err != nil {
 		fmt.Println("err", err)
@@ -99,18 +100,18 @@ func (e *MetaMaskEthBlockChainAPI) BlockNumber() hexutil.Uint64 {
 	}
 	//fmt.Println("", resp.Result.(map[string]interface{})["height"])
 	height, _ := hexutil.DecodeUint64(resp.Result.(map[string]interface{})["height"].(string))
-	fmt.Println("BLockNumber", height)
+	fmt.Println("BLockNumber resp", height)
 	return hexutil.Uint64(height)
 }
 
 func (e *MetaMaskEthBlockChainAPI) GetBlockByNumber(blockNr rpc.BlockNumber, fullTx bool) (map[string]interface{}, error) {
 	fmt.Println("GetBlockByNumber", blockNr)
-	resp, err := e.c.Call("eth_getBlockByNumber", hexutil.EncodeUint64(uint64(e.fullShardKey)), false)
+	resp, err := e.c.Call("getBlockByNumber", hexutil.EncodeUint64(uint64(e.fullShardKey)), false)
 	if err != nil {
 		fmt.Println("err", err)
 		return nil, err
 	}
-	fmt.Println("resp", resp.Result)
+	fmt.Println("GetBlockByNumber resp", resp.Result)
 	return resp.Result.(map[string]interface{}), nil
 }
 

@@ -392,7 +392,7 @@ func (s *Server) readRequest(codec ServerCodec) ([]*serverRequest, bool, Error) 
 
 		if r.err != nil {
 			requests[i] = &serverRequest{id: r.id, err: r.err}
-			fmt.Println("395----", r.err)
+			//fmt.Println("395----", r.err)
 			continue
 		}
 
@@ -404,7 +404,7 @@ func (s *Server) readRequest(codec ServerCodec) ([]*serverRequest, bool, Error) 
 			} else {
 				requests[i].err = &invalidParamsError{err.Error()}
 			}
-			fmt.Println("407----", r.err)
+			//fmt.Println("407----", r.err)
 			continue
 		}
 
@@ -429,7 +429,7 @@ func (s *Server) readRequest(codec ServerCodec) ([]*serverRequest, bool, Error) 
 			} else {
 				requests[i] = &serverRequest{id: r.id, err: &methodNotFoundError{r.service, r.method}}
 			}
-			fmt.Println("432---------")
+			//fmt.Println("432---------")
 			continue
 		}
 
@@ -437,20 +437,20 @@ func (s *Server) readRequest(codec ServerCodec) ([]*serverRequest, bool, Error) 
 			requests[i] = &serverRequest{id: r.id, svcname: svc.name, callb: callb}
 			if r.params != nil && len(callb.argTypes) > 0 {
 				if args, err := codec.ParseRequestArguments(callb.argTypes, r.params); err == nil {
-					fmt.Println("440----")
+					//fmt.Println("440----")
 					requests[i].args = args
 				} else {
-					fmt.Println("443---")
+					//fmt.Println("443---")
 					requests[i].err = &invalidParamsError{err.Error()}
 				}
 			}
-			fmt.Println("445------")
+			//fmt.Println("445------")
 			continue
 		}
 
 		requests[i] = &serverRequest{id: r.id, err: &methodNotFoundError{r.service, r.method}}
 	}
 
-	fmt.Println("final-454", "", len(requests))
+	//fmt.Println("final-454", "", len(requests))
 	return requests, batch, nil
 }
