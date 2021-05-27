@@ -30,13 +30,9 @@ func NewMetaMaskNetApi(c jsonrpc.RPCClient) *MetaMaskNetApi {
 
 func (e *MetaMaskNetApi) Version() string {
 	resp, err := e.c.Call("net_version")
-	fmt.Println("call-vaerison", err)
 	if err != nil {
 		panic(err)
 	}
-	//fmt.Println("resp", resp.Result)
-	//v, err := hexutil.DecodeUint64(resp.Result.(string))
-	//fmt.Println("vvv", v, err, reflect.TypeOf(resp.Result))
 	return resp.Result.(string)
 }
 
@@ -217,7 +213,7 @@ func (c *MetaMaskEthBlockChainAPI) GetTransactionReceipt(hash common.Hash) (map[
 	return resp.Result.(map[string]interface{}), nil
 }
 func (e *MetaMaskEthBlockChainAPI) Call(mdata MetaCallArgs, blockNr rpc.BlockNumber) (hexutil.Bytes, error) {
-	fmt.Println("MMMMMMMMM--call", mdata)
+	fmt.Println("MMMMMMMMM--call")
 	defaultToken := hexutil.Uint64(35760)
 	ttFrom := new(account.Address)
 	if mdata.From == nil {
@@ -249,7 +245,7 @@ func (e *MetaMaskEthBlockChainAPI) Call(mdata MetaCallArgs, blockNr rpc.BlockNum
 	if err != nil {
 		panic(err)
 	}
-	fmt.Println("MMMMMMMMM--call-resp", resp.Result)
+	//fmt.Println("MMMMMMMMM--call-resp", resp.Result)
 	return hexutil.Decode(resp.Result.(string))
 }
 

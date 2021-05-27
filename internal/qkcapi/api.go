@@ -409,20 +409,25 @@ func (p *PublicBlockChainAPI) GetMinorBlockByHeight(fullShardKey hexutil.Uint, h
 }
 
 func (p *PublicBlockChainAPI) GetTransactionById(txID hexutil.Bytes) (map[string]interface{}, error) {
+	fmt.Println("getTransactionById", txID.String())
 	txHash, fullShardKey, err := encoder.IDDecoder(txID)
 	if err != nil {
+		fmt.Println("getTransactionById err-1", err)
 		return nil, err
 	}
 	fullShardIDByConfig, err := clusterCfg.Quarkchain.GetFullShardIdByFullShardKey(fullShardKey)
 	if err != nil {
+		fmt.Println("getTransactionById err-2", err)
 		return nil, err
 	}
 	branch := account.Branch{Value: fullShardIDByConfig}
 	minorBlock, index, err := p.b.GetTransactionByHash(txHash, branch)
 	if err != nil {
+		fmt.Println("getTransactionById err-3", err)
 		return nil, err
 	}
 	if minorBlock == nil {
+
 		return nil, err
 	}
 	if len(minorBlock.Transactions()) <= int(index) {
