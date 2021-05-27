@@ -128,6 +128,7 @@ func ValidateTransaction(state vm.StateDB, chainConfig *params.ChainConfig, tx *
 	if err != nil {
 		return err
 	}
+	fmt.Println("ttttttttttttttttttt", totalGas, tx.EvmTx.Gas(), len(tx.EvmTx.Data()), tx.EvmTx.To() == nil, tx.EvmTx.ToFullShardId(), tx.EvmTx.FromFullShardId())
 	if tx.EvmTx.Gas() < totalGas {
 		return ErrIntrinsicGas
 	}

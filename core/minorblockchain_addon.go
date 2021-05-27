@@ -1176,7 +1176,7 @@ func (m *MinorBlockChain) GetPendingCount() int {
 
 // EstimateGas estimate gas for this tx
 func (m *MinorBlockChain) EstimateGas(tx *types.Transaction, fromAddress account.Address) (uint32, error) {
-	fmt.Println("begin Estimatgas", m.branch.Value)
+	fmt.Println("begin Estimatgas", m.branch.Value, tx.EvmTx.FromFullShardKey(), tx.EvmTx.ToFullShardKey())
 	// no need to locks
 	if tx.EvmTx.Gas() > math.MaxUint32 {
 		return 0, errors.New("gas > maxInt31")

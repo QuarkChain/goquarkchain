@@ -18,6 +18,7 @@ package core
 
 import (
 	"errors"
+	"fmt"
 	"math"
 	"math/big"
 
@@ -215,6 +216,7 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 		if err = st.preCheck(); err != nil {
 			return
 		}
+		fmt.Println("????????????---", len(st.data), contractCreation, msg.IsCrossShard())
 		gas, err = IntrinsicGas(st.data, contractCreation, msg.IsCrossShard())
 		if err != nil {
 			return nil, 0, false, err
