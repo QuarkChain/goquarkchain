@@ -139,7 +139,7 @@ func (e *MetaMaskEthBlockChainAPI) GetCode(address common.Address, blockNr rpc.B
 }
 
 func (s *MetaMaskEthBlockChainAPI) SendRawTransaction(encodedTx hexutil.Bytes) (common.Hash, error) {
-	fmt.Println("SSSSSSSSSSSSSSSS", encodedTx.String())
+	fmt.Println("SSSSSSSSSSSSSSSS")
 	tx := new(ethTypes.Transaction)
 	if err := rlp.DecodeBytes(encodedTx, tx); err != nil {
 		fmt.Println("EEEEEEEEEEEEEEEEEEE", err)
@@ -202,7 +202,7 @@ func (c *MetaMaskEthBlockChainAPI) GetTransactionReceipt(hash common.Hash) (map[
 	return resp.Result.(map[string]interface{}), nil
 }
 func (e *MetaMaskEthBlockChainAPI) Call(mdata MetaCallArgs, blockNr rpc.BlockNumber) (hexutil.Bytes, error) {
-	fmt.Println("MMMMMMMMM--call")
+	fmt.Println("MMMMMMMMM--call", mdata)
 	defaultToken := hexutil.Uint64(35760)
 	ttFrom := new(account.Address)
 	if mdata.From == nil {
@@ -270,5 +270,6 @@ func (p *MetaMaskEthBlockChainAPI) EstimateGas(mdata MetaCallArgs) (hexutil.Uint
 	fmt.Println("resp", resp.Result)
 	fmt.Println("MMMMMMMMM--EstimateGas", resp.Result)
 	ans, err := hexutil.DecodeUint64(resp.Result.(string))
+	return hexutil.Uint(600000), err
 	return hexutil.Uint(ans), err
 }
