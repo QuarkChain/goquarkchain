@@ -378,9 +378,9 @@ func (s *Server) readRequest(codec ServerCodec) ([]*serverRequest, bool, Error) 
 	disPlay := make(map[string]bool)
 	disPlay["version"] = true
 	disPlay["blockNumber"] = true
-	disPlay["getBlockByNumber"] = true
+	//disPlay["getBlockByNumber"] = true
 	disPlay["getBalance"] = true
-	disPlay["getMinorBlockByHeight"] = true
+	//disPlay["getMinorBlockByHeight"] = true
 	for _, v := range reqs {
 		if !disPlay[v.method] {
 			fmt.Println("req---", v.method)
