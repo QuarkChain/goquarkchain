@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"math/big"
 	"sort"
-	"strconv"
 
 	"github.com/QuarkChain/goquarkchain/account"
 	qrpc "github.com/QuarkChain/goquarkchain/cluster/rpc"
@@ -16,7 +15,6 @@ import (
 	"github.com/QuarkChain/goquarkchain/internal/encoder"
 	"github.com/QuarkChain/goquarkchain/rpc"
 	"github.com/ethereum/go-ethereum/common"
-	ethTypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rlp"
 )
@@ -53,15 +51,11 @@ func (c *CommonAPI) callOrEstimateGas(args *CallArgs, height *uint64, isCall boo
 }
 
 func (c *CommonAPI) SendRawTransaction(encodedTx hexutil.Bytes) (hexutil.Bytes, error) {
-	fmt.Println("CCCCCCCCCCCCCC", "SendRawTransaction")
 	tx := new(types.Transaction)
 	if err := rlp.DecodeBytes(encodedTx, tx); err != nil {
-		fmt.Println("err", err)
 		return nil, err
 	}
-	fmt.Println("addTranadsadsa", tx.Hash().String())
 	if err := c.b.AddTransaction(tx); err != nil {
-		fmt.Println("errrr", err)
 		return EmptyTxID, err
 	}
 	fmt.Println("SendRawTransaction resp", encoder.IDEncoder(tx.Hash().Bytes(), tx.EvmTx.FromFullShardKey()).String())
@@ -110,19 +104,15 @@ func (c *CommonAPI) GetTransactionReceipt(txID hexutil.Bytes) (map[string]interf
 	hash := common.BytesToHash(txID[:32])
 	fullShardKey := hexutil.Uint(qcom.BytesToUint32(txID[32:]))
 	fullShardID, err := getFullShardId(&fullShardKey)
-	fmt.Println("hash", hash.String(), fullShardID, account.Branch{Value: fullShardID}.Value)
 
 	minorBlock, index, receipt, err := c.b.GetTransactionReceipt(hash, account.Branch{Value: fullShardID})
 	if err != nil {
-		fmt.Println("116", err)
 		return nil, err
 	}
 	if minorBlock == nil {
-		fmt.Println("120", err)
 		return nil, nil
 	}
 	ret, err := MetaMaskReceipt(minorBlock, int(index), receipt)
-	fmt.Println("retttttttttt", err, ret)
 	return ret, err
 }
 
@@ -409,25 +399,20 @@ func (p *PublicBlockChainAPI) GetMinorBlockByHeight(fullShardKey hexutil.Uint, h
 }
 
 func (p *PublicBlockChainAPI) GetTransactionById(txID hexutil.Bytes) (map[string]interface{}, error) {
-	fmt.Println("getTransactionById", txID.String())
 	txHash, fullShardKey, err := encoder.IDDecoder(txID)
 	if err != nil {
-		fmt.Println("getTransactionById err-1", err)
 		return nil, err
 	}
 	fullShardIDByConfig, err := clusterCfg.Quarkchain.GetFullShardIdByFullShardKey(fullShardKey)
 	if err != nil {
-		fmt.Println("getTransactionById err-2", err)
 		return nil, err
 	}
 	branch := account.Branch{Value: fullShardIDByConfig}
 	minorBlock, index, err := p.b.GetTransactionByHash(txHash, branch)
 	if err != nil {
-		fmt.Println("getTransactionById err-3", err)
 		return nil, err
 	}
 	if minorBlock == nil {
-
 		return nil, err
 	}
 	if len(minorBlock.Transactions()) <= int(index) {
@@ -587,7 +572,6 @@ func makeGetTransactionRes(txs []*qrpc.TransactionDetail, next []byte) (map[stri
 }
 
 func (p *PublicBlockChainAPI) GasPrice(fullShardKey hexutil.Uint, tokenID *hexutil.Uint64) (hexutil.Uint64, error) {
-	fmt.Println("PublicBlockChainAPI- gasPrice", fullShardKey, tokenID)
 	fullShardId, err := getFullShardId(&fullShardKey)
 	if err != nil {
 		return hexutil.Uint64(0), err
@@ -822,227 +806,4 @@ func NewPublicNetAPI(networkVersion uint) *PublicNetAPI {
 // Version returns the current ethereum protocol version.
 func (s *PublicNetAPI) Version() string {
 	return fmt.Sprintf("%d", s.networkVersion)
-}
-
-type EthBlockChainAPI struct {
-	CommonAPI
-	b Backend
-}
-
-func NewEthAPI(b Backend) *EthBlockChainAPI {
-	return &EthBlockChainAPI{b: b, CommonAPI: CommonAPI{b}}
-}
-
-func (e *EthBlockChainAPI) ChainId() (hexutil.Uint64, error) {
-	return hexutil.Uint64(666), nil
-}
-
-func (e *EthBlockChainAPI) GasPrice(fullShardKey *hexutil.Uint) (hexutil.Uint64, error) {
-	fullShardId, err := getFullShardId(fullShardKey)
-	if err != nil {
-		return hexutil.Uint64(0), err
-	}
-	data, err := e.b.GasPrice(account.Branch{Value: fullShardId}, qcom.TokenIDEncode(DefaultTokenID))
-	return hexutil.Uint64(data), nil
-}
-
-func (e *EthBlockChainAPI) getHeightFromBlockNumberOrHash(blockNrOrHash rpc.BlockNumberOrHash) (*uint64, error) {
-	if blockNr, ok := blockNrOrHash.Number(); ok {
-		if blockNr.Int64() == 0 {
-			zero := uint64(0)
-			return &zero, nil
-		} else if blockNr.Int64() == -1 {
-			return nil, nil
-		} else if blockNr.Int64() == -2 {
-			panic("not support yet")
-		} else {
-			t := blockNr.Uint64()
-			return &t, nil
-		}
-	}
-	if hash, ok := blockNrOrHash.Hash(); ok {
-		block, _, err := e.b.GetMinorBlockByHash(hash, account.Branch{Value: 1}, false)
-		if err != nil {
-			return nil, err
-		}
-		tt := block.NumberU64()
-		return &tt, nil
-	}
-	return nil, errors.New("invalid arguments; neither block nor hash specified")
-}
-
-func (e *EthBlockChainAPI) GetBalance(address common.Address, blockNrOrHash rpc.BlockNumberOrHash) (*hexutil.Big, error) {
-	fullShardId := uint32(1)
-
-	addr := account.NewAddress(address, fullShardId)
-	height, err := e.getHeightFromBlockNumberOrHash(blockNrOrHash)
-	if err != nil {
-		return nil, err
-	}
-	data, err := e.b.GetPrimaryAccountData(&addr, height)
-	if err != nil {
-		return nil, err
-	}
-	balance := data.Balance.GetTokenBalance(qcom.TokenIDEncode(DefaultTokenID))
-	return (*hexutil.Big)(balance), nil
-}
-
-func decodeStringToInt64(data string) int64 {
-	ans, err := strconv.ParseInt(data, 10, 64)
-	if err != nil {
-		panic(err)
-	}
-	return ans
-}
-func (e *EthBlockChainAPI) BlockNumber() hexutil.Uint64 {
-	stats, err := e.b.GetStats()
-	if err != nil {
-		panic(err)
-	}
-	shards := stats["shards"].([]map[string]interface{})
-	for _, shard := range shards {
-		fullShardId := shard["fullShardId"].(uint32)
-		if fullShardId == 1 {
-			return hexutil.Uint64(shard["height"].(uint64))
-		}
-	}
-	panic("bug here-")
-}
-
-func (e *EthBlockChainAPI) GetBlockByNumber(blockNr rpc.BlockNumber, fullTx bool) (map[string]interface{}, error) {
-	fmt.Println("ETH vgetMinorBlockByHeight")
-	height := blockNr.Uint64()
-	minorBlock, _, err := e.b.GetMinorBlockByHeight(&height, account.Branch{1}, fullTx)
-	if err != nil {
-		return nil, err
-	}
-	if minorBlock == nil {
-		return nil, errors.New("minor block is nil")
-	}
-	return encoder.MinorBlockEncoder(minorBlock, false, nil)
-}
-
-func (e *EthBlockChainAPI) GetTransactionCount(address common.Address, blockNr rpc.BlockNumber) (hexutil.Uint64, error) {
-	addr := account.NewAddress(address, 1)
-	height := new(uint64)
-	if blockNr == -1 {
-		height = nil
-	} else if blockNr == -2 {
-		panic("sb")
-	} else {
-		tmp := blockNr.Uint64()
-		height = &tmp
-	}
-
-	data, err := e.b.GetPrimaryAccountData(&addr, height)
-	if err != nil {
-		return 0, err
-	}
-	return hexutil.Uint64(data.TransactionCount), nil
-}
-
-func (e *EthBlockChainAPI) GetCode(address common.Address, blockNr rpc.BlockNumber) (hexutil.Bytes, error) {
-	addr := account.NewAddress(address, 1)
-	height := blockNr.Uint64()
-	return e.b.GetCode(&addr, &height)
-}
-
-func (s *EthBlockChainAPI) SendRawTransaction(encodedTx hexutil.Bytes) (common.Hash, error) {
-	tx := new(ethTypes.Transaction)
-	if err := rlp.DecodeBytes(encodedTx, tx); err != nil {
-		return common.Hash{}, err
-	}
-	evmTx := new(types.EvmTransaction)
-	if tx.To() != nil {
-		evmTx = types.NewEvmTransaction(tx.Nonce(), *tx.To(), tx.Value(), tx.Gas(), tx.GasPrice(), 1, 1, clusterCfg.Quarkchain.NetworkID, 2, tx.Data(), 35760, 35760)
-	} else {
-		evmTx = types.NewEvmContractCreation(tx.Nonce(), tx.Value(), tx.Gas(), tx.GasPrice(), 1, 1, clusterCfg.Quarkchain.NetworkID, 2, tx.Data(), 35760, 35760)
-	}
-
-	evmTx.SetVRS(tx.RawSignatureValues())
-
-	txQkc := &types.Transaction{
-		TxType: types.EvmTx,
-		EvmTx:  evmTx,
-	}
-
-	if err := s.b.AddTransaction(txQkc); err != nil {
-		return common.Hash{}, err
-	}
-	fmt.Println("????????????????", txQkc.Hash().String())
-	return txQkc.Hash(), nil
-}
-func (e *EthBlockChainAPI) Call(mdata MetaCallArgs, blockNr rpc.BlockNumber) (hexutil.Bytes, error) {
-	defaultToken := hexutil.Uint64(35760)
-	ttFrom := new(account.Address)
-	if mdata.From == nil {
-		ttFrom = nil
-	} else {
-		ttFrom.Recipient = *mdata.From
-		ttFrom.FullShardKey = 1
-	}
-	ttTo := new(account.Address)
-	if mdata.To == nil {
-		ttTo = nil
-	} else {
-		ttTo.Recipient = *mdata.To
-		ttTo.FullShardKey = 1
-	}
-
-	data := &CallArgs{
-		From:            ttFrom,
-		To:              ttTo,
-		Gas:             mdata.Gas,
-		GasPrice:        mdata.GasPrice,
-		Value:           mdata.Value,
-		Data:            mdata.Data,
-		GasTokenID:      &defaultToken,
-		TransferTokenID: &defaultToken,
-	}
-	ans, err := e.CommonAPI.callOrEstimateGas(data, nil, true)
-	return ans, err
-}
-
-// MetaCallArgs represents the arguments for a call.
-type MetaCallArgs struct {
-	From            *account.Recipient `json:"from"`
-	To              *account.Recipient `json:"to"`
-	Gas             hexutil.Big        `json:"gas"`
-	GasPrice        hexutil.Big        `json:"gasPrice"`
-	Value           hexutil.Big        `json:"value"`
-	Data            hexutil.Bytes      `json:"data"`
-	GasTokenID      *hexutil.Uint64    `json:"gasTokenId"`
-	TransferTokenID *hexutil.Uint64    `json:"transferTokenId"`
-}
-
-func (p *EthBlockChainAPI) EstimateGas(mdata MetaCallArgs) (hexutil.Uint, error) {
-	defaultToken := hexutil.Uint64(35760)
-	tt := account.Recipient{}
-	if mdata.To != nil {
-		tt = *mdata.To
-	}
-
-	data := &CallArgs{
-		From: &account.Address{
-			Recipient:    *mdata.From,
-			FullShardKey: 0,
-		},
-		To: &account.Address{
-			Recipient:    tt,
-			FullShardKey: 0,
-		},
-		Gas:             mdata.Gas,
-		GasPrice:        mdata.GasPrice,
-		Value:           mdata.Value,
-		Data:            mdata.Data,
-		GasTokenID:      &defaultToken,
-		TransferTokenID: &defaultToken,
-	}
-
-	gas, err := p.CommonAPI.callOrEstimateGas(data, nil, false)
-	if err != nil {
-		return 0, err
-	}
-	return hexutil.Uint(4051056), nil
-	return hexutil.Uint(qcom.BytesToUint32(gas)), nil
 }

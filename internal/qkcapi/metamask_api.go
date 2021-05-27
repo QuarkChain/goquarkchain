@@ -106,7 +106,7 @@ func (e *MetaMaskEthBlockChainAPI) GetBlockByNumber(blockNr rpc.BlockNumber, ful
 		fmt.Println("err", err)
 		return nil, err
 	}
-	fmt.Println("GetBlockByNumber resp", resp.Result == nil)
+	fmt.Println("GetBlockByNumber resp", resp.Result != nil)
 	return resp.Result.(map[string]interface{}), nil
 }
 
