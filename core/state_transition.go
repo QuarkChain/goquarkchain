@@ -17,7 +17,9 @@
 package core
 
 import (
+	"encoding/hex"
 	"errors"
+	"fmt"
 	"math"
 	"math/big"
 
@@ -255,7 +257,9 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 	}
 	st.refundGas(vmerr)
 	st.chargeFee(st.gasUsed())
+	fmt.Println("vmerr", hex.EncodeToString(ret), vmerr, err)
 	if vmerr == vm.ErrPoSWSenderNotAllowed {
+
 		return nil, st.gasUsed(), true, nil
 	}
 	return ret, st.gasUsed(), vmerr != nil, err
