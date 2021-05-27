@@ -74,39 +74,30 @@ func (e *MetaMaskEthBlockChainAPI) GetBalance(address common.Address, blockNrOrH
 		if strings.ToUpper((bInfo["tokenStr"]).(string)) == DefaultTokenID {
 			b, err := hexutil.DecodeBig(bInfo["balance"].(string))
 			if err != nil {
-				//fmt.Println("GetBalance balance err", err)
 				return nil, err
 			}
-			//fmt.Println("GetBalance balance", b)
 			return (*hexutil.Big)(b), nil
 		}
 	}
-	//fmt.Println("GetBalance balance", "nnnnnnnnnnull")
 	return nil, nil
 }
 
 func (e *MetaMaskEthBlockChainAPI) BlockNumber() hexutil.Uint64 {
-	//fmt.Println("BBBBBBBBBBBBBBBBBBBBBBBBBBBlockNumber----")
-	fmt.Println("BLockNumber start")
 	resp, err := e.c.Call("getMinorBlockByHeight", hexutil.EncodeUint64(uint64(e.fullShardKey)))
 	if err != nil {
 		fmt.Println("err", err)
 		return 0
 	}
-	//fmt.Println("", resp.Result.(map[string]interface{})["height"])
 	height, _ := hexutil.DecodeUint64(resp.Result.(map[string]interface{})["height"].(string))
-	fmt.Println("BLockNumber resp", height)
 	return hexutil.Uint64(height)
 }
 
 func (e *MetaMaskEthBlockChainAPI) GetBlockByNumber(blockNr rpc.BlockNumber, fullTx bool) (map[string]interface{}, error) {
-	fmt.Println("GetBlockByNumber", blockNr)
 	resp, err := e.c.Call("getMinorBlockByHeight", hexutil.EncodeUint64(uint64(e.fullShardKey)), nil, false)
 	if err != nil {
 		fmt.Println("err", err)
 		return nil, err
 	}
-	fmt.Println("GetBlockByNumber resp", resp.Result != nil)
 	return resp.Result.(map[string]interface{}), nil
 }
 
@@ -119,8 +110,6 @@ func (e *MetaMaskEthBlockChainAPI) GetTransactionCount(address common.Address, b
 	fmt.Println("GetTransaction", resp.Result)
 	nonce, err := hexutil.DecodeUint64(resp.Result.(string))
 	return hexutil.Uint64(nonce), err
-
-	//panic("GetTransactionCount")
 }
 
 func (e *MetaMaskEthBlockChainAPI) GetCode(address common.Address, blockNr rpc.BlockNumber) (hexutil.Bytes, error) {
@@ -141,36 +130,26 @@ func (s *MetaMaskEthBlockChainAPI) SendRawTransaction(encodedTx hexutil.Bytes) (
 		fmt.Println("EEEEEEEEEEEEEEEEEEE", err)
 		return common.Hash{}, err
 	}
-	fmt.Println("ssss-1", tx.To(), tx.To() != nil)
-	fmt.Println("ssss-1", tx.To() != nil)
 	evmTx := new(types.EvmTransaction)
 	if tx.To() != nil {
 		evmTx = types.NewEvmTransaction(tx.Nonce(), *tx.To(), tx.Value(), tx.Gas(), tx.GasPrice(), 1, 1, netWorkID, 2, tx.Data(), 35760, 35760)
-		fmt.Println("??????")
 	} else {
-		fmt.Println("---")
 		evmTx = types.NewEvmContractCreation(tx.Nonce(), tx.Value(), tx.Gas(), tx.GasPrice(), 1, 1, netWorkID, 2, tx.Data(), 35760, 35760)
 	}
-	fmt.Println("ssss-2")
 	evmTx.SetVRS(tx.RawSignatureValues())
 
 	txQkc := &types.Transaction{
 		TxType: types.EvmTx,
 		EvmTx:  evmTx,
 	}
-	fmt.Println("ssss-3", txQkc.EvmTx.GasPrice())
 	rlpTxBytes, err := rlp.EncodeToBytes(txQkc)
 	if err != nil {
-		fmt.Println("dasdasdsadsa", err)
 		return common.Hash{}, err
 	}
-	fmt.Println("ssss-4", common.ToHex(rlpTxBytes))
 	resp, err := s.c.Call("sendRawTransaction", common.ToHex(rlpTxBytes))
 	if err != nil {
-		fmt.Println("1611111111", err)
 		return common.Hash{}, nil
 	}
-	fmt.Println("ssss-5", resp)
 	fmt.Println(" SendRawTransaction resp", resp.Result, txQkc.Hash().String())
 	return txQkc.Hash(), nil
 }
@@ -202,14 +181,14 @@ func (c *MetaMaskEthBlockChainAPI) GetTransactionReceipt(hash common.Hash) (map[
 	txID := make([]byte, 0)
 	txID = append(txID, hash.Bytes()...)
 	txID = append(txID, Uint32ToBytes(c.fullShardKey)...)
-	fmt.Println("MMMMMM", "GetTrancRe", hash.String(), common.ToHex(txID))
+	fmt.Println("MMMMMM", "GetTransactionReceipt", hash.String(), common.ToHex(txID))
 	resp, err := c.c.Call("getTransactionReceipt", common.ToHex(txID))
 	if err != nil {
 		fmt.Println("errrr", err)
 		return nil, err
 	}
 
-	fmt.Println("GetTrancRe end", resp.Result)
+	fmt.Println("GetTransactionReceipt end", resp.Result)
 	return resp.Result.(map[string]interface{}), nil
 }
 
@@ -258,12 +237,10 @@ func (e *MetaMaskEthBlockChainAPI) Call(mdata MetaCallArgs, blockNr rpc.BlockNum
 	if err != nil {
 		panic(err)
 	}
-	//fmt.Println("MMMMMMMMM--call-resp", resp.Result)
 	return hexutil.Decode(resp.Result.(string))
 }
 
 func (p *MetaMaskEthBlockChainAPI) EstimateGas(mdata MetaCallArgs) (hexutil.Uint, error) {
-	fmt.Println("MMMMMMMMM--EstimateGas")
 	defaultToken := hexutil.Uint64(35760)
 	tt := account.Recipient{}
 	if mdata.To != nil {

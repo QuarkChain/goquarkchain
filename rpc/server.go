@@ -375,9 +375,15 @@ func (s *Server) execBatch(ctx context.Context, codec ServerCodec, requests []*s
 func (s *Server) readRequest(codec ServerCodec) ([]*serverRequest, bool, Error) {
 	reqs, batch, err := codec.ReadRequestHeaders()
 
-	//fmt.Println("readRequset", len(reqs), batch, err)
+	disPlay := make(map[string]bool)
+	disPlay["version"] = true
+	disPlay["blockNumber"] = true
+	disPlay["getBlockByNumber"] = true
+	disPlay["getMinorBlockByHeight"] = true
 	for _, v := range reqs {
-		fmt.Println("req---", v.method)
+		if v.method != "version" {
+			fmt.Println("req---", v.method)
+		}
 	}
 	if err != nil {
 		return nil, batch, err
