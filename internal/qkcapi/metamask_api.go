@@ -245,6 +245,7 @@ func (e *MetaMaskEthBlockChainAPI) Call(mdata MetaCallArgs, blockNr rpc.BlockNum
 func (p *MetaMaskEthBlockChainAPI) EstimateGas(mdata MetaCallArgs) (hexutil.Uint, error) {
 	defaultToken := hexutil.Uint64(35760)
 	ttFrom := new(account.Address)
+	fmt.Println("EEEEEEEEEEEEEEEE", mdata.From, mdata.To)
 	if mdata.From == nil {
 		ttFrom = nil
 	} else {
