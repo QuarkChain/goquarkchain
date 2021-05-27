@@ -57,6 +57,7 @@ func main() {
 			Service:   qkcapi.NewMetaMaskNetApi(qkcClient),
 			Public:    true,
 		})
+		apis = append(apis, api)
 	}
 	for index, api := range apis {
 		_, _, err := rpc.StartHTTPEndpoint(config.Shards[index].RPC, api, []string{"eth", "net"}, nil, nil, rpc.DefaultHTTPTimeouts)
