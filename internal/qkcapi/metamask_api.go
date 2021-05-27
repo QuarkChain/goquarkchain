@@ -244,20 +244,23 @@ func (e *MetaMaskEthBlockChainAPI) Call(mdata MetaCallArgs, blockNr rpc.BlockNum
 
 func (p *MetaMaskEthBlockChainAPI) EstimateGas(mdata MetaCallArgs) (hexutil.Uint, error) {
 	defaultToken := hexutil.Uint64(35760)
-	tt := account.Recipient{}
-	if mdata.To != nil {
-		tt = *mdata.To
+	ttFrom := new(account.Address)
+	if mdata.From == nil {
+		ttFrom = nil
+	} else {
+		ttFrom.Recipient = *mdata.From
+		ttFrom.FullShardKey = p.fullShardKey
 	}
-
+	ttTo := new(account.Address)
+	if mdata.To == nil {
+		ttTo = nil
+	} else {
+		ttTo.Recipient = *mdata.To
+		ttTo.FullShardKey = p.fullShardKey
+	}
 	data := &CallArgs{
-		From: &account.Address{
-			Recipient:    *mdata.From,
-			FullShardKey: p.fullShardKey,
-		},
-		To: &account.Address{
-			Recipient:    tt,
-			FullShardKey: p.fullShardKey,
-		},
+		From:            ttFrom,
+		To:              ttTo,
 		Gas:             mdata.Gas,
 		GasPrice:        mdata.GasPrice,
 		Value:           mdata.Value,
