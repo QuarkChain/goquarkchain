@@ -108,10 +108,11 @@ func MetaMaskReceipt(block *types.MinorBlock, i int, receipt *types.Receipt) (ma
 
 func (c *CommonAPI) GetTransactionReceipt(txID hexutil.Bytes) (map[string]interface{}, error) {
 	hash := common.BytesToHash(txID[:32])
-	branch := qcom.BytesToUint32(txID[32:])
-	fmt.Println("hash", hash.String(), branch, account.Branch{Value: branch}.Value)
+	fullShardKey := hexutil.Uint(qcom.BytesToUint32(txID[32:]))
+	fullShardID, err := getFullShardId(&fullShardKey)
+	fmt.Println("hash", hash.String(), fullShardID, account.Branch{Value: fullShardID}.Value)
 
-	minorBlock, index, receipt, err := c.b.GetTransactionReceipt(hash, account.Branch{Value: branch})
+	minorBlock, index, receipt, err := c.b.GetTransactionReceipt(hash, account.Branch{Value: fullShardID})
 	if err != nil {
 		fmt.Println("116", err)
 		return nil, err
