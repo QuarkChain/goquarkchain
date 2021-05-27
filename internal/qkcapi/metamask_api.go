@@ -16,6 +16,10 @@ import (
 	"github.com/ethereum/go-ethereum/rlp"
 )
 
+var (
+	netWorkID = uint32(3813)
+)
+
 type MetaMaskNetApi struct {
 	c jsonrpc.RPCClient
 }
@@ -144,9 +148,10 @@ func (s *MetaMaskEthBlockChainAPI) SendRawTransaction(encodedTx hexutil.Bytes) (
 	fmt.Println("ssss-1", *tx.To())
 	evmTx := new(types.EvmTransaction)
 	if tx.To() != nil {
-		evmTx = types.NewEvmTransaction(tx.Nonce(), *tx.To(), tx.Value(), tx.Gas(), tx.GasPrice(), 1, 1, clusterCfg.Quarkchain.NetworkID, 2, tx.Data(), 35760, 35760)
+		evmTx = types.NewEvmTransaction(tx.Nonce(), *tx.To(), tx.Value(), tx.Gas(), tx.GasPrice(), 1, 1, netWorkID, 2, tx.Data(), 35760, 35760)
+		fmt.Println("??????")
 	} else {
-		evmTx = types.NewEvmContractCreation(tx.Nonce(), tx.Value(), tx.Gas(), tx.GasPrice(), 1, 1, clusterCfg.Quarkchain.NetworkID, 2, tx.Data(), 35760, 35760)
+		evmTx = types.NewEvmContractCreation(tx.Nonce(), tx.Value(), tx.Gas(), tx.GasPrice(), 1, 1, netWorkID, 2, tx.Data(), 35760, 35760)
 	}
 	fmt.Println("ssss-2")
 	evmTx.SetVRS(tx.RawSignatureValues())
