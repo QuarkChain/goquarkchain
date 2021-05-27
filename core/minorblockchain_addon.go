@@ -1221,12 +1221,14 @@ func (m *MinorBlockChain) EstimateGas(tx *types.Transaction, fromAddress account
 		uint64Gas := uint64(gas)
 		evmTx, err := m.validateTx(tx, evmState, &fromAddress, &uint64Gas, nil)
 		if err != nil {
+			fmt.Println("===gas", err)
 			return err
 		}
 
 		gp := new(GasPool).AddGas(evmState.GetGasLimit().Uint64())
 		gasUsed := new(uint64)
 		_, _, _, err = ApplyTransaction(m.ChainConfig(), m, gp, evmState, m.CurrentHeader(), evmTx, gasUsed, m.vmConfig)
+		fmt.Println(">>>>>>", gas, err)
 		return err
 	}
 
