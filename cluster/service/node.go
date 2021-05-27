@@ -378,7 +378,7 @@ func (n *Node) startHTTP(apis []rpc.API, modules []string, timeouts rpc.HTTPTime
 		publicApis = n.apiFilter(apis, true, modules)
 		eptParams  []string
 	)
-	fmt.Println("???", n.config.HTTPEndpoint, "---", publicApis, "---", modules, "---", eptParams, "---", eptParams, "---", timeouts)
+	//fmt.Println("???", n.config.HTTPEndpoint, "---", publicApis, "---", modules, "---", eptParams, "---", eptParams, "---", timeouts)
 	listener, handler, err := rpc.StartHTTPEndpoint(n.config.HTTPEndpoint, publicApis, modules, eptParams, eptParams, timeouts)
 	if err != nil {
 		return err
