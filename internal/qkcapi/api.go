@@ -106,17 +106,18 @@ func MetaMaskReceipt(block *types.MinorBlock, i int, receipt *types.Receipt) (ma
 	return field, nil
 }
 
-func (c *CommonAPI) GetTransactionReceipt(txID common.Hash) (map[string]interface{}, error) {
-	fullShardId, err := clusterCfg.Quarkchain.GetFullShardIdByFullShardKey(1)
+func (c *CommonAPI) GetTransactionReceipt(txID hexutil.Bytes) (map[string]interface{}, error) {
+	hash := common.BytesToHash(txID[:32])
+	branch := new(big.Int).SetBytes(txID[32:])
+	fmt.Println("hash", hash.String(), branch)
+
+	minorBlock, index, receipt, err := c.b.GetTransactionReceipt(hash, account.Branch{Value: uint32(branch.Uint64())})
 	if err != nil {
-		return nil, err
-	}
-	branch := account.Branch{Value: fullShardId}
-	minorBlock, index, receipt, err := c.b.GetTransactionReceipt(txID, branch)
-	if err != nil {
+		fmt.Println("116", err)
 		return nil, err
 	}
 	if minorBlock == nil {
+		fmt.Println("120", err)
 		return nil, nil
 	}
 	ret, err := MetaMaskReceipt(minorBlock, int(index), receipt)

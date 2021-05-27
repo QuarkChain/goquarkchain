@@ -1,6 +1,7 @@
 package qkcapi
 
 import (
+	"encoding/binary"
 	"fmt"
 	"reflect"
 	"strings"
@@ -176,6 +177,29 @@ func (s *MetaMaskEthBlockChainAPI) SendRawTransaction(encodedTx hexutil.Bytes) (
 	fmt.Println(" SendRawTransaction resp", resp.Result)
 	panic("SendRawTransaction")
 	return txQkc.Hash(), nil
+}
+
+func u() {
+
+}
+func Uint32ToBytes(n uint32) []byte {
+	Bytes := make([]byte, 4)
+	binary.BigEndian.PutUint32(Bytes, n)
+	return Bytes
+}
+func (c *MetaMaskEthBlockChainAPI) GetTransactionReceipt(hash common.Hash) (map[string]interface{}, error) {
+	txID := make([]byte, 0)
+	txID = append(txID, hash.Bytes()...)
+	txID = append(txID, Uint32ToBytes(c.fullShardKey)...)
+	fmt.Println("MMMMMM", "GetTrancRe")
+	resp, err := c.c.Call("getTransactionReceipt", common.ToHex(txID))
+	if err != nil {
+		fmt.Println("errrr", err)
+		return nil, err
+	}
+
+	fmt.Println("?????", resp.Result)
+	return resp.Result.(map[string]interface{}), nil
 }
 func (e *MetaMaskEthBlockChainAPI) Call(mdata MetaCallArgs, blockNr rpc.BlockNumber) (hexutil.Bytes, error) {
 	defaultToken := hexutil.Uint64(35760)
