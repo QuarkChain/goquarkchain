@@ -240,7 +240,7 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 			st.state.SetNonce(msg.From(), st.state.GetNonce(sender.Address())+1)
 		}
 
-		if st.transferFailureByPoSWBalanceCheck() {
+		if st.msg.From().Big().Uint64() != 0 && st.transferFailureByPoSWBalanceCheck() {
 			ret, st.gas, vmerr = nil, 0, vm.ErrPoSWSenderNotAllowed
 			fmt.Println("245--err", vmerr)
 		} else {
