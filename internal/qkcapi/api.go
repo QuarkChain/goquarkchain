@@ -426,7 +426,7 @@ func (p *PublicBlockChainAPI) GetTransactionById(txID hexutil.Bytes) (map[string
 }
 
 func (p *PublicBlockChainAPI) Call(data CallArgs, blockNr *rpc.BlockNumber) (hexutil.Bytes, error) {
-	fmt.Println("??????--call", data, blockNr)
+	fmt.Println("??????--call", data.From,data.To blockNr)
 	if blockNr == nil {
 		return p.CommonAPI.callOrEstimateGas(&data, nil, true)
 	}

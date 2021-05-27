@@ -233,6 +233,7 @@ func (e *MetaMaskEthBlockChainAPI) Call(mdata MetaCallArgs, blockNr rpc.BlockNum
 		TransferTokenID: &defaultToken,
 	}
 
+	fmt.Println("ready call", data.From, data.To)
 	resp, err := e.c.Call("call", data)
 	fmt.Println("Call-end", mdata, data, err, resp)
 	if err != nil {
