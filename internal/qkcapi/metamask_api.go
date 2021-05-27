@@ -119,7 +119,7 @@ func (e *MetaMaskEthBlockChainAPI) GetCode(address common.Address, blockNr rpc.B
 	if err != nil {
 		return nil, err
 	}
-	fmt.Println("GetCode", resp.Result)
+	fmt.Println("GetCode", "end")
 	return hexutil.Decode(resp.Result.(string))
 }
 
@@ -181,7 +181,7 @@ func (c *MetaMaskEthBlockChainAPI) GetTransactionReceipt(hash common.Hash) (map[
 	txID := make([]byte, 0)
 	txID = append(txID, hash.Bytes()...)
 	txID = append(txID, Uint32ToBytes(c.fullShardKey)...)
-	fmt.Println("MMMMMM", "GetTransactionReceipt", hash.String(), common.ToHex(txID))
+	fmt.Println("GetTransactionReceipt", hash.String(), common.ToHex(txID))
 	resp, err := c.c.Call("getTransactionReceipt", common.ToHex(txID))
 	if err != nil {
 		fmt.Println("errrr", err)
@@ -212,14 +212,14 @@ func (e *MetaMaskEthBlockChainAPI) Call(mdata MetaCallArgs, blockNr rpc.BlockNum
 		ttFrom = nil
 	} else {
 		ttFrom.Recipient = *mdata.From
-		ttFrom.FullShardKey = 1
+		ttFrom.FullShardKey = e.fullShardKey
 	}
 	ttTo := new(account.Address)
 	if mdata.To == nil {
 		ttTo = nil
 	} else {
 		ttTo.Recipient = *mdata.To
-		ttTo.FullShardKey = 1
+		ttTo.FullShardKey = e.fullShardKey
 	}
 
 	data := &CallArgs{
