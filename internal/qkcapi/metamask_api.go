@@ -168,14 +168,13 @@ func (s *MetaMaskEthBlockChainAPI) SendRawTransaction(encodedTx hexutil.Bytes) (
 		return common.Hash{}, err
 	}
 	fmt.Println("ssss-4", common.ToHex(rlpTxBytes))
-	resp, err := s.c.Call("qkc_sendRawTransaction", common.ToHex(rlpTxBytes))
+	resp, err := s.c.Call("sendRawTransaction", common.ToHex(rlpTxBytes))
 	if err != nil {
 		fmt.Println("1611111111", err)
 		return common.Hash{}, nil
 	}
-	fmt.Println("ssss-5")
-	fmt.Println(" SendRawTransaction resp", resp.Result)
-	panic("SendRawTransaction")
+	fmt.Println("ssss-5", resp)
+	fmt.Println(" SendRawTransaction resp", resp.Result, txQkc.Hash().String())
 	return txQkc.Hash(), nil
 }
 
