@@ -669,13 +669,11 @@ func (m *MinorBlockChain) ExecuteTx(tx *types.Transaction, fromAddress *account.
 	}
 	gp := new(GasPool).AddGas(mBlock.GasLimit().Uint64())
 	gasUsed := new(uint64)
-	fmt.Println("")
 	ret, receipt, _, err := ApplyTransaction(m.ChainConfig(), m, gp, state, m.CurrentHeader(), evmTx, gasUsed, *m.GetVMConfig())
 	if err != nil {
 		return nil, err
 	}
 	if receipt.Status == types.ReceiptStatusFailed {
-		fmt.Println("??????????????????--------------")
 		return nil, errors.New("tx is apply failed")
 	}
 	return ret, err
@@ -764,14 +762,11 @@ func (m *MinorBlockChain) GetUnconfirmedHeadersCoinbaseAmount() uint64 {
 func (m *MinorBlockChain) addTransactionToBlock(block *types.MinorBlock, evmState *state.StateDB) (*types.MinorBlock, types.Receipts, error) {
 	// have locked by upper call
 	pending, err := m.txPool.Pending() // txpool already locked
-	fmt.Println("pppppppppppppp", len(pending), len(m.txPool.queue))
 	if err != nil {
-		fmt.Println("767---", err)
 		return nil, nil, err
 	}
 	txs, err := types.NewTransactionsByPriceAndNonce(types.NewEIP155Signer(uint32(m.Config().NetworkID)), pending)
 	if err != nil {
-		fmt.Println("772---", err)
 		return nil, nil, err
 	}
 	gp := new(GasPool).AddGas(block.GasLimit().Uint64())
@@ -787,7 +782,6 @@ func (m *MinorBlockChain) addTransactionToBlock(block *types.MinorBlock, evmStat
 		// Pop skip all txs about this account
 		//Shift skip this tx ,goto next tx about this account
 		if err := m.checkTxBeforeApply(stateT, tx, block.Header()); err != nil {
-			fmt.Println("Cccccccccccccc", err)
 			if err == ErrorTxBreak {
 				break
 			} else if err == ErrorTxContinue {
@@ -835,22 +829,18 @@ func (m *MinorBlockChain) checkTxBeforeApply(stateT *state.StateDB, tx *types.Tr
 	}
 	diff := new(big.Int).Sub(stateT.GetGasLimit(), stateT.GetGasUsed())
 	if tx.EvmTx.Gas() > diff.Uint64() {
-		fmt.Println("836---", tx.EvmTx.Gas(), diff.Uint64())
 		return ErrorTxContinue
 	}
 
 	defaultGasPrice, err := ConvertToDefaultChainTokenGasPrice(stateT, m.ChainConfig(), tx.EvmTx.GasTokenID(), tx.EvmTx.GasPrice())
 	if err != nil {
-		fmt.Println("842---", err)
 		return ErrorTxContinue
 	}
 	if defaultGasPrice.Cmp(m.clusterConfig.Quarkchain.MinMiningGasPrice) < 0 {
-		fmt.Println("????", defaultGasPrice, m.clusterConfig.Quarkchain.MinMiningGasPrice)
 		return ErrorTxContinue
 	}
 	if header.Time < m.clusterConfig.Quarkchain.EnableEvmTimeStamp {
 		if tx.EvmTx.To() == nil || len(tx.EvmTx.Data()) != 0 {
-			fmt.Println("?????", tx.EvmTx.To() == nil, len(tx.EvmTx.Data()) != 0, header.Time, m.clusterConfig.Quarkchain.EnableEvmTimeStamp)
 			return ErrorTxContinue
 		}
 	}
@@ -920,7 +910,6 @@ func (m *MinorBlockChain) CreateBlockToMine(createTime *uint64, address *account
 		evmState.SetGasLimit(new(big.Int).Sub(evmState.GetGasLimit(), left))
 	}
 	receipts := make(types.Receipts, 0)
-	fmt.Println("ccccccccccccccccc", *includeTx)
 	if *includeTx {
 		block, receipts, err = m.addTransactionToBlock(block, evmState)
 		if err != nil {

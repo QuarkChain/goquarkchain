@@ -284,11 +284,8 @@ func WriteMinorBlock(db DatabaseWriter, block *types.MinorBlock) {
 		log.Crit("Failed to serialize body", "err", err)
 	}
 	log.Info(DBLOG+" Write MinorBlock", "branch", fmt.Sprintf("%x", block.Branch().Value), "height", block.NumberU64(), "hash", block.Hash().TerminalString(), "len(tx)", len(block.Transactions()))
-	for k, v := range block.Transactions() {
-		fmt.Println("index", block.NumberU64(), k, v.Hash().String(), v.EvmTx.Value(), v.EvmTx.Nonce())
-	}
 	if err := db.Put(blockKey(block.Hash()), data); err != nil {
-		log.Crit("Failed to store minor b   lock body", "err", err)
+		log.Crit("Failed to store minor block body", "err", err)
 	}
 }
 

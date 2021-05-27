@@ -3,13 +3,6 @@ package service
 
 import (
 	"fmt"
-	"net"
-	"os"
-	"path/filepath"
-	"reflect"
-	"sync"
-	"time"
-
 	qkcrpc "github.com/QuarkChain/goquarkchain/cluster/rpc"
 	"github.com/QuarkChain/goquarkchain/p2p"
 	"github.com/QuarkChain/goquarkchain/rpc"
@@ -17,6 +10,12 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/prometheus/prometheus/util/flock"
 	"google.golang.org/grpc"
+	"net"
+	"os"
+	"path/filepath"
+	"reflect"
+	"sync"
+	"time"
 )
 
 // Node is a container on which services can be registered.
@@ -378,7 +377,6 @@ func (n *Node) startHTTP(apis []rpc.API, modules []string, timeouts rpc.HTTPTime
 		publicApis = n.apiFilter(apis, true, modules)
 		eptParams  []string
 	)
-	//fmt.Println("???", n.config.HTTPEndpoint, "---", publicApis, "---", modules, "---", eptParams, "---", eptParams, "---", timeouts)
 	listener, handler, err := rpc.StartHTTPEndpoint(n.config.HTTPEndpoint, publicApis, modules, eptParams, eptParams, timeouts)
 	if err != nil {
 		return err

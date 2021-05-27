@@ -17,9 +17,7 @@
 package core
 
 import (
-	"encoding/hex"
 	"errors"
-	"fmt"
 	"math"
 	"math/big"
 
@@ -233,7 +231,6 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 	}
 	if contractCreation || evm.ContractAddress != nil {
 		ret, _, st.gas, vmerr = evm.Create(sender, st.data, st.gas, st.value, evm.ContractAddress)
-		fmt.Println("236--err", vmerr)
 	} else {
 		// Increment the nonce for the next transaction
 		if !st.evm.IsApplyXShard {
@@ -242,10 +239,8 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 
 		if st.transferFailureByPoSWBalanceCheck() {
 			ret, st.gas, vmerr = nil, 0, vm.ErrPoSWSenderNotAllowed
-			fmt.Println("245--err", vmerr)
 		} else {
 			ret, st.gas, vmerr = evm.Call(sender, st.to(), st.data, st.gas, st.value)
-			fmt.Println("248--err", vmerr)
 		}
 	}
 
@@ -260,9 +255,7 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 	}
 	st.refundGas(vmerr)
 	st.chargeFee(st.gasUsed())
-	fmt.Println("vmerr", hex.EncodeToString(ret), vmerr, err)
 	if vmerr == vm.ErrPoSWSenderNotAllowed {
-
 		return nil, st.gasUsed(), true, nil
 	}
 	return ret, st.gasUsed(), vmerr != nil, err
@@ -441,16 +434,7 @@ func (st *StateTransition) chargeFee(gasUsed uint64) {
 }
 
 func (st *StateTransition) transferFailureByPoSWBalanceCheck() bool {
-	fmt.Println("lllllllll trancf check", len(st.state.GetSenderDisallowMap()))
 	if v, ok := st.state.GetSenderDisallowMap()[st.msg.From()]; ok {
-		fmt.Println("????????", st.msg.From().String(), st.state.GetSenderDisallowMap())
-
-		tt := st.state.GetSenderDisallowMap()
-		for _, v := range tt {
-			fmt.Println("origin", v.String())
-		}
-
-		fmt.Println("????", st.msg.Value(), v, st.state.GetBalance(st.msg.From(), st.evm.StateDB.GetQuarkChainConfig().GetDefaultChainTokenID()))
 		if new(big.Int).Add(st.msg.Value(), v).Cmp(st.state.GetBalance(st.msg.From(), st.evm.StateDB.GetQuarkChainConfig().GetDefaultChainTokenID())) == 1 {
 			return true
 		}

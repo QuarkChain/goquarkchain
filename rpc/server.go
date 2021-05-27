@@ -25,7 +25,7 @@ import (
 	"sync"
 	"sync/atomic"
 
-	mapset "github.com/deckarep/golang-set"
+	"github.com/deckarep/golang-set"
 	"github.com/ethereum/go-ethereum/log"
 )
 
@@ -374,18 +374,6 @@ func (s *Server) execBatch(ctx context.Context, codec ServerCodec, requests []*s
 // error when the request could not be read/parsed.
 func (s *Server) readRequest(codec ServerCodec) ([]*serverRequest, bool, Error) {
 	reqs, batch, err := codec.ReadRequestHeaders()
-
-	disPlay := make(map[string]bool)
-	disPlay["version"] = true
-	disPlay["blockNumber"] = true
-	//disPlay["getBlockByNumber"] = true
-	disPlay["getBalance"] = true
-	//disPlay["getMinorBlockByHeight"] = true
-	for _, v := range reqs {
-		if !disPlay[v.method] {
-			fmt.Println("req---", v.method)
-		}
-	}
 	if err != nil {
 		return nil, batch, err
 	}
@@ -399,7 +387,6 @@ func (s *Server) readRequest(codec ServerCodec) ([]*serverRequest, bool, Error) 
 
 		if r.err != nil {
 			requests[i] = &serverRequest{id: r.id, err: r.err}
-			//fmt.Println("395----", r.err)
 			continue
 		}
 
@@ -411,13 +398,11 @@ func (s *Server) readRequest(codec ServerCodec) ([]*serverRequest, bool, Error) 
 			} else {
 				requests[i].err = &invalidParamsError{err.Error()}
 			}
-			//fmt.Println("407----", r.err)
 			continue
 		}
 
 		if svc, ok = s.services[r.service]; !ok { // rpc method isn't available
 			requests[i] = &serverRequest{id: r.id, err: &methodNotFoundError{r.service, r.method}}
-			//fmt.Println("413-------------", s.services[r.service], r.service, s.services)
 			continue
 		}
 
@@ -436,7 +421,6 @@ func (s *Server) readRequest(codec ServerCodec) ([]*serverRequest, bool, Error) 
 			} else {
 				requests[i] = &serverRequest{id: r.id, err: &methodNotFoundError{r.service, r.method}}
 			}
-			//fmt.Println("432---------")
 			continue
 		}
 
@@ -444,20 +428,16 @@ func (s *Server) readRequest(codec ServerCodec) ([]*serverRequest, bool, Error) 
 			requests[i] = &serverRequest{id: r.id, svcname: svc.name, callb: callb}
 			if r.params != nil && len(callb.argTypes) > 0 {
 				if args, err := codec.ParseRequestArguments(callb.argTypes, r.params); err == nil {
-					//fmt.Println("440----")
 					requests[i].args = args
 				} else {
-					//fmt.Println("443---")
 					requests[i].err = &invalidParamsError{err.Error()}
 				}
 			}
-			//fmt.Println("445------")
 			continue
 		}
 
 		requests[i] = &serverRequest{id: r.id, err: &methodNotFoundError{r.service, r.method}}
 	}
 
-	//fmt.Println("final-454", "", len(requests))
 	return requests, batch, nil
 }

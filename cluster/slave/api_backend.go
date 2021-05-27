@@ -190,7 +190,6 @@ func (s *SlaveBackend) ExecuteTx(tx *types.Transaction, address *account.Address
 		return nil, err
 	}
 	if shard, ok := s.shards[tx.EvmTx.FromFullShardId()]; ok {
-		fmt.Println("-----")
 		return shard.MinorBlockChain.ExecuteTx(tx, address, height)
 	}
 	return nil, ErrMsg("ExecuteTx")
@@ -202,29 +201,23 @@ func (s *SlaveBackend) GetAccountData(address *account.Address, height *uint64) 
 		bt      []byte
 		err     error
 	)
-	//fmt.Println("??????", address.ToHex(), *height)
 	for branch, shard := range s.shards {
-		fmt.Println("bbbbbbbbb", branch, shard.MinorBlockChain.CurrentBlock().NumberU64())
 		data := rpc.AccountBranchData{
 			Branch: branch,
 		}
 		hash, err := shard.MinorBlockChain.GetHashByHeight(height)
 		if err != nil {
-			fmt.Println("errrrr", err)
 			continue
 		}
 		if data.TransactionCount, err = shard.MinorBlockChain.GetTransactionCount(address.Recipient, &hash); err != nil {
-			fmt.Println("eerr-1", err)
 			return nil, err
 		}
 		tokenBalances, err := shard.MinorBlockChain.GetBalance(address.Recipient, &hash)
 		if err != nil {
-			fmt.Println("eerr-2", err)
 			return nil, err
 		}
 		data.Balance = tokenBalances.Copy()
 		if bt, err = shard.MinorBlockChain.GetCode(address.Recipient, &hash); err != nil {
-			fmt.Println("eerr-3", err)
 			return nil, err
 		}
 		data.IsContract = len(bt) > 0
@@ -235,7 +228,6 @@ func (s *SlaveBackend) GetAccountData(address *account.Address, height *uint64) 
 		}
 		results = append(results, &data)
 	}
-	fmt.Println("ans-1", results, err)
 	return results, err
 }
 

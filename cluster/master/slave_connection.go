@@ -46,7 +46,7 @@ func (s *SlaveConnManager) InitConnManager(cfg *config.ClusterConfig) error {
 		for _, fullShardID := range fullShardIds {
 			if client.HasShard(fullShardID) {
 				s.branchToSlaveConns[fullShardID] = append(s.branchToSlaveConns[fullShardID], client)
-				log.Info(s.logInfo, "branch:", fmt.Sprintf("%d", fullShardID), "is run by slave", client.GetSlaveID())
+				log.Info(s.logInfo, "branch:", fmt.Sprintf("%x", fullShardID), "is run by slave", client.GetSlaveID())
 			}
 		}
 	}
@@ -56,7 +56,6 @@ func (s *SlaveConnManager) InitConnManager(cfg *config.ClusterConfig) error {
 }
 
 func (c *SlaveConnManager) GetOneSlaveConnById(fullShardId uint32) rpc.ISlaveConn {
-	//fmt.Println("fullShardID", fullShardId, c.branchToSlaveConns)
 	if conns, ok := c.branchToSlaveConns[fullShardId]; ok {
 		return conns[0]
 	}

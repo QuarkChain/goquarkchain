@@ -54,7 +54,6 @@ type Backend interface {
 }
 
 func GetAPIs(apiBackend Backend) []rpc.API {
-	fmt.Println("app", apiBackend.NetWorkInfo()["networkId"], reflect.TypeOf(apiBackend.NetWorkInfo()["networkId"]))
 	networkId := apiBackend.NetWorkInfo()["networkId"].(hexutil.Uint)
 	once.Do(func() {
 		clusterCfg = apiBackend.GetClusterConfig()
@@ -72,12 +71,6 @@ func GetAPIs(apiBackend Backend) []rpc.API {
 			Service:   NewPrivateBlockChainAPI(apiBackend),
 			Public:    false,
 		},
-		//{
-		//Namespace: "eth",
-		//Version:   "1.0",
-		//Service:   NewEthAPI(apiBackend),
-		//Public:    true,
-		//},
 		{
 			Namespace: "net",
 			Version:   "1.0",
