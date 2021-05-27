@@ -1221,7 +1221,7 @@ func (m *MinorBlockChain) EstimateGas(tx *types.Transaction, fromAddress account
 		uint64Gas := uint64(gas)
 		evmTx, err := m.validateTx(tx, evmState, &fromAddress, &uint64Gas, nil)
 		if err != nil {
-			fmt.Println("===gas", err)
+			fmt.Println("===gas", gas, err)
 			return err
 		}
 
