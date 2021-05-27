@@ -190,6 +190,7 @@ func (s *SlaveBackend) ExecuteTx(tx *types.Transaction, address *account.Address
 		return nil, err
 	}
 	if shard, ok := s.shards[tx.EvmTx.FromFullShardId()]; ok {
+		fmt.Println("-----")
 		return shard.MinorBlockChain.ExecuteTx(tx, address, height)
 	}
 	return nil, ErrMsg("ExecuteTx")

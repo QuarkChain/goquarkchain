@@ -674,6 +674,7 @@ func (m *MinorBlockChain) ExecuteTx(tx *types.Transaction, fromAddress *account.
 		return nil, err
 	}
 	if receipt.Status == types.ReceiptStatusFailed {
+		fmt.Println("??????????????????--------------")
 		return nil, errors.New("tx is apply failed")
 	}
 	return ret, err
