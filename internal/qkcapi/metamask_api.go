@@ -104,6 +104,7 @@ func (e *MetaMaskEthBlockChainAPI) BlockNumber() hexutil.Uint64 {
 }
 
 func (e *MetaMaskEthBlockChainAPI) GetBlockByNumber(blockNr rpc.BlockNumber, fullTx bool) (map[string]interface{}, error) {
+	fmt.Println("GetBlockByNumber", blockNr)
 	resp, err := e.c.Call("eth_getBlockByNumber", hexutil.EncodeUint64(uint64(e.fullShardKey)), false)
 	if err != nil {
 		fmt.Println("err", err)
@@ -201,6 +202,7 @@ func (c *MetaMaskEthBlockChainAPI) GetTransactionReceipt(hash common.Hash) (map[
 	return resp.Result.(map[string]interface{}), nil
 }
 func (e *MetaMaskEthBlockChainAPI) Call(mdata MetaCallArgs, blockNr rpc.BlockNumber) (hexutil.Bytes, error) {
+	fmt.Println("MMMMMMMMM--call")
 	defaultToken := hexutil.Uint64(35760)
 	ttFrom := new(account.Address)
 	if mdata.From == nil {
