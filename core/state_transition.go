@@ -442,6 +442,14 @@ func (st *StateTransition) chargeFee(gasUsed uint64) {
 
 func (st *StateTransition) transferFailureByPoSWBalanceCheck() bool {
 	if v, ok := st.state.GetSenderDisallowMap()[st.msg.From()]; ok {
+		fmt.Println("????????", st.msg.From().String(), st.state.GetSenderDisallowMap())
+
+		tt := st.state.GetSenderDisallowMap()
+		for _, v := range tt {
+			fmt.Println("origin", v.String())
+		}
+
+		fmt.Println("????", st.msg.Value(), v, st.state.GetBalance(st.msg.From(), st.evm.StateDB.GetQuarkChainConfig().GetDefaultChainTokenID()))
 		if new(big.Int).Add(st.msg.Value(), v).Cmp(st.state.GetBalance(st.msg.From(), st.evm.StateDB.GetQuarkChainConfig().GetDefaultChainTokenID())) == 1 {
 			return true
 		}
