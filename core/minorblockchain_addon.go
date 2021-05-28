@@ -1227,7 +1227,12 @@ func (m *MinorBlockChain) EstimateGas(tx *types.Transaction, fromAddress account
 
 		gp := new(GasPool).AddGas(evmState.GetGasLimit().Uint64())
 		gasUsed := new(uint64)
-		_, _, _, err = ApplyTransaction(m.ChainConfig(), m, gp, evmState, m.CurrentHeader(), evmTx, gasUsed, m.vmConfig)
+		receipt := new()
+		_, receipt, _, err = ApplyTransaction(m.ChainConfig(), m, gp, evmState, m.CurrentHeader(), evmTx, gasUsed, m.vmConfig)
+
+		if receipt.Status == types.ReceiptStatusFailed {
+			return errors.New("failed")
+		}
 		fmt.Println(">>>>>>", gas, err)
 		return err
 	}
