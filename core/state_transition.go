@@ -17,7 +17,6 @@
 package core
 
 import (
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"math"
@@ -236,7 +235,7 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 	if contractCreation || evm.ContractAddress != nil {
 		fmt.Println("236===============", len(st.data), st.gas, evm.ContractAddress)
 		ret, _, st.gas, vmerr = evm.Create(sender, st.data, st.gas, st.value, evm.ContractAddress)
-		fmt.Println("236-----------end", ret, st.gas, vmerr)
+		fmt.Println("236-----------end", st.gas, vmerr)
 	} else {
 		// Increment the nonce for the next transaction
 		if !st.evm.IsApplyXShard {
@@ -261,7 +260,7 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 	}
 	st.refundGas(vmerr)
 	st.chargeFee(st.gasUsed())
-	fmt.Println("VVVVVVVVV", hex.EncodeToString(ret), vmerr, err)
+	fmt.Println("VVVVVVVVV", vmerr, err)
 	if vmerr == vm.ErrPoSWSenderNotAllowed {
 		return nil, st.gasUsed(), true, nil
 	}
