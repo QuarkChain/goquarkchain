@@ -18,7 +18,6 @@ package core
 
 import (
 	"errors"
-	"fmt"
 	"math"
 	"math/big"
 
@@ -216,7 +215,6 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 		if err = st.preCheck(); err != nil {
 			return
 		}
-		fmt.Println("????????????---", len(st.data), contractCreation, msg.IsCrossShard())
 		gas, err = IntrinsicGas(st.data, contractCreation, msg.IsCrossShard())
 		if err != nil {
 			return nil, 0, false, err
@@ -231,11 +229,8 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 		st.state.SetNonce(msg.From(), st.state.GetNonce(sender.Address())+1)
 		return st.AddCrossShardTxDeposit(gas)
 	}
-	fmt.Println("=================", contractCreation, evm.ContractAddress)
 	if contractCreation || evm.ContractAddress != nil {
-		fmt.Println("236===============", len(st.data), st.gas, evm.ContractAddress)
 		ret, _, st.gas, vmerr = evm.Create(sender, st.data, st.gas, st.value, evm.ContractAddress)
-		fmt.Println("236-----------end", st.gas, vmerr)
 	} else {
 		// Increment the nonce for the next transaction
 		if !st.evm.IsApplyXShard {
@@ -260,7 +255,6 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 	}
 	st.refundGas(vmerr)
 	st.chargeFee(st.gasUsed())
-	fmt.Println("VVVVVVVVV", vmerr, err)
 	if vmerr == vm.ErrPoSWSenderNotAllowed {
 		return nil, st.gasUsed(), true, nil
 	}

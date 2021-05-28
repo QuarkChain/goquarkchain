@@ -1176,7 +1176,6 @@ func (m *MinorBlockChain) GetPendingCount() int {
 
 // EstimateGas estimate gas for this tx
 func (m *MinorBlockChain) EstimateGas(tx *types.Transaction, fromAddress account.Address) (uint32, error) {
-	fmt.Println("begin Estimatgas", m.branch.Value, tx.EvmTx.FromFullShardKey(), tx.EvmTx.ToFullShardKey())
 	// no need to locks
 	if tx.EvmTx.Gas() > math.MaxUint32 {
 		return 0, errors.New("gas > maxInt31")
@@ -1205,7 +1204,6 @@ func (m *MinorBlockChain) EstimateGas(tx *types.Transaction, fromAddress account
 		hi = evmTxStartGas
 	}
 	cap := hi
-	fmt.Println("hihihihihihih", hi)
 
 	runTx := func(gas uint32) error {
 		evmState := currentState.Copy()
@@ -1221,7 +1219,6 @@ func (m *MinorBlockChain) EstimateGas(tx *types.Transaction, fromAddress account
 		uint64Gas := uint64(gas)
 		evmTx, err := m.validateTx(tx, evmState, &fromAddress, &uint64Gas, nil)
 		if err != nil {
-			fmt.Println("===gas", gas, err)
 			return err
 		}
 
@@ -1233,7 +1230,6 @@ func (m *MinorBlockChain) EstimateGas(tx *types.Transaction, fromAddress account
 		if receipt.Status == types.ReceiptStatusFailed {
 			return errors.New("failed")
 		}
-		fmt.Println(">>>>>>", gas, err)
 		return err
 	}
 
@@ -1244,7 +1240,6 @@ func (m *MinorBlockChain) EstimateGas(tx *types.Transaction, fromAddress account
 		} else {
 			lo = mid
 		}
-		fmt.Println("gigigigigig", hi)
 	}
 	if hi == cap && runTx(hi) == nil {
 		return 0, nil
