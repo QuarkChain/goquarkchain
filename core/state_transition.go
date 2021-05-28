@@ -231,7 +231,9 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 		st.state.SetNonce(msg.From(), st.state.GetNonce(sender.Address())+1)
 		return st.AddCrossShardTxDeposit(gas)
 	}
+	fmt.Println("=================")
 	if contractCreation || evm.ContractAddress != nil {
+		fmt.Println("236===============", len(st.data), st.gas)
 		ret, _, st.gas, vmerr = evm.Create(sender, st.data, st.gas, st.value, evm.ContractAddress)
 	} else {
 		// Increment the nonce for the next transaction
