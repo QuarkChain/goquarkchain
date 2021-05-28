@@ -231,10 +231,11 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 		st.state.SetNonce(msg.From(), st.state.GetNonce(sender.Address())+1)
 		return st.AddCrossShardTxDeposit(gas)
 	}
-	fmt.Println("=================")
+	fmt.Println("=================", contractCreation, evm.ContractAddress)
 	if contractCreation || evm.ContractAddress != nil {
-		fmt.Println("236===============", len(st.data), st.gas)
+		fmt.Println("236===============", len(st.data), st.gas, evm.ContractAddress)
 		ret, _, st.gas, vmerr = evm.Create(sender, st.data, st.gas, st.value, evm.ContractAddress)
+		fmt.Println("236-----------end", ret, st.gas, vmerr)
 	} else {
 		// Increment the nonce for the next transaction
 		if !st.evm.IsApplyXShard {
