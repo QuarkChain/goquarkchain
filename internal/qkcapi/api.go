@@ -24,17 +24,19 @@ type CommonAPI struct {
 }
 
 func (c *CommonAPI) callOrEstimateGas(args *CallArgs, height *uint64, isCall bool) (hexutil.Bytes, error) {
-	fmt.Println("callOrEstimateGas")
+	fmt.Println("callOrEstimateGas", args.To == nil)
 	if args.To == nil {
 		return nil, errors.New("missing to")
 	}
 	args.setDefaults()
 	tx, err := args.toTx(c.b.GetClusterConfig().Quarkchain)
+	fmt.Println("toTx", err)
 	if err != nil {
 		return nil, err
 	}
 	if isCall {
 		isSameChain := clusterCfg.Quarkchain.IsSameFullShard(args.From.FullShardKey, args.To.FullShardKey)
+		fmt.Println("isSameChain")
 		if !isSameChain {
 			return nil, fmt.Errorf("Call cross-shard tx not supported yet\n")
 		}
