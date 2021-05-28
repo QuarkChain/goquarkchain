@@ -257,6 +257,7 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 	}
 	st.refundGas(vmerr)
 	st.chargeFee(st.gasUsed())
+	fmt.Println("VVVVVVVVV", ret, vmerr, err)
 	if vmerr == vm.ErrPoSWSenderNotAllowed {
 		return nil, st.gasUsed(), true, nil
 	}
