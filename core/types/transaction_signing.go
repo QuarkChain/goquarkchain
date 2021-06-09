@@ -24,11 +24,6 @@ type sigCache struct {
 	from   account.Recipient
 }
 
-// MakeSigner returns a Signer based on the given chain config and block number.
-func MakeSigner(networkId uint32) Signer {
-	return NewEIP155Signer(networkId)
-}
-
 // SignTx signs the transaction using the given signer and private key
 func SignTx(tx *EvmTransaction, s Signer, prv *ecdsa.PrivateKey) (*EvmTransaction, error) {
 	h := s.Hash(tx)
@@ -85,12 +80,12 @@ type EIP155Signer struct {
 	chainID, chainIDMul *big.Int
 }
 
-func NewEIP155Signer(networkId uint32) EIP155Signer {
-	chainID := new(big.Int).SetUint64(666)
+func NewEIP155Signer(networkId uint32, chainID uint64) EIP155Signer {
+	cc := new(big.Int).SetUint64(chainID)
 	return EIP155Signer{
 		networkId:  networkId,
-		chainID:    chainID,
-		chainIDMul: new(big.Int).Mul(chainID, big.NewInt(2)),
+		chainID:    new(big.Int).Set(cc),
+		chainIDMul: new(big.Int).Mul(cc, big.NewInt(2)),
 	}
 }
 
@@ -115,7 +110,7 @@ func (s EIP155Signer) Sender(tx *EvmTransaction) (account.Recipient, error) {
 	} else if tx.data.Version == 2 {
 		V := new(big.Int).Sub(tx.data.V, s.chainIDMul)
 		V.Sub(V, big.NewInt(8))
-		sender, err := recoverPlain(tx.getMetaMaskUnsignedhash(666), tx.data.R, tx.data.S, V, true)
+		sender, err := recoverPlain(tx.getMetaMaskUnsignedhash(uint32(s.chainID.Uint64())), tx.data.R, tx.data.S, V, true)
 		return sender, err
 	} else {
 		return account.Recipient{}, fmt.Errorf("Version %d is not suppot", tx.data.Version)

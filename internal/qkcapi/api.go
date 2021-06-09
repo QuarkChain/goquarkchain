@@ -24,10 +24,6 @@ type CommonAPI struct {
 }
 
 func (c *CommonAPI) callOrEstimateGas(args *CallArgs, height *uint64, isCall bool) (hexutil.Bytes, error) {
-	fmt.Println("callOrEstimateGas", args.To == nil)
-	//if args.To == nil {
-	//	return nil, errors.New("missing to")
-	//}
 	args.setDefaults()
 	tx, err := args.toTx(c.b.GetClusterConfig().Quarkchain)
 	fmt.Println("toTx", err)
@@ -64,6 +60,7 @@ func (c *CommonAPI) SendRawTransaction(encodedTx hexutil.Bytes) (hexutil.Bytes, 
 	}
 	fmt.Println("SendRawTransaction resp", encoder.IDEncoder(tx.Hash().Bytes(), tx.EvmTx.FromFullShardKey()).String())
 	return encoder.IDEncoder(tx.Hash().Bytes(), tx.EvmTx.FromFullShardKey()), nil
+
 }
 
 func MetaMaskReceipt(block *types.MinorBlock, i int, receipt *types.Receipt) (map[string]interface{}, error) {
@@ -79,7 +76,9 @@ func MetaMaskReceipt(block *types.MinorBlock, i int, receipt *types.Receipt) (ma
 		return nil, errors.New("receipt is nil")
 	}
 	header := block.Header()
-	from, err := block.Transactions()[i].Sender(types.NewEIP155Signer(clusterCfg.Quarkchain.NetworkID))
+	from, err := block.Transactions()[i].Sender(types.NewEIP155Signer(clusterCfg.Quarkchain.NetworkID,
+		uint64(clusterCfg.Quarkchain.BaseEthChainID+1+
+			clusterCfg.Quarkchain.GetShardConfigByFullShardID(block.Transactions()[i].EvmTx.FromFullShardId()).ChainID)))
 	if err != nil {
 		return nil, err
 	}
@@ -99,7 +98,10 @@ func MetaMaskReceipt(block *types.MinorBlock, i int, receipt *types.Receipt) (ma
 	if receipt.ContractAddress.Big().Uint64() == 0 {
 		field["contractAddress"] = nil
 	} else {
-		field["contractAddress"] = receipt.ContractAddress.String()
+		field["contractAddress"] = account.Address{
+			Recipient:    receipt.ContractAddress,
+			FullShardKey: block.Branch().Value,
+		}.ToHex()
 	}
 	return field, nil
 }
@@ -370,7 +372,7 @@ func (p *PublicBlockChainAPI) GetMinorBlockById(blockID hexutil.Bytes, includeTx
 	if minorBlock == nil {
 		return nil, errors.New("minor block is nil")
 	}
-	return encoder.MinorBlockEncoder(minorBlock, *includeTxs, extra)
+	return encoder.MinorBlockEncoder(minorBlock, *includeTxs, extra, clusterCfg)
 
 }
 
@@ -399,7 +401,7 @@ func (p *PublicBlockChainAPI) GetMinorBlockByHeight(fullShardKey hexutil.Uint, h
 	if minorBlock == nil {
 		return nil, errors.New("minor block is nil")
 	}
-	return encoder.MinorBlockEncoder(minorBlock, *includeTxs, extraData)
+	return encoder.MinorBlockEncoder(minorBlock, *includeTxs, extraData, clusterCfg)
 }
 
 func (p *PublicBlockChainAPI) GetTransactionById(txID hexutil.Bytes) (map[string]interface{}, error) {
@@ -422,7 +424,7 @@ func (p *PublicBlockChainAPI) GetTransactionById(txID hexutil.Bytes) (map[string
 	if len(minorBlock.Transactions()) <= int(index) {
 		return nil, errors.New("index bigger than block's tx")
 	}
-	return encoder.TxEncoder(minorBlock, int(index))
+	return encoder.TxEncoder(minorBlock, int(index), clusterCfg)
 }
 
 func (p *PublicBlockChainAPI) Call(data CallArgs, blockNr *rpc.BlockNumber) (hexutil.Bytes, error) {
@@ -590,7 +592,7 @@ func (p *PublicBlockChainAPI) GasPrice(fullShardKey hexutil.Uint, tokenID *hexut
 }
 
 func (p *PublicBlockChainAPI) SubmitWork(fullShardKey *hexutil.Uint, headHash common.Hash, nonce hexutil.Uint64, mixHash common.Hash, signature *hexutil.Bytes) (bool, error) {
-	log.Info("ready submit work", "fullShardKey", fullShardKey, "headHash", headHash.String())
+	log.Info("ready submit work", "fullShardID", fullShardKey, "headHash", headHash.String())
 	var fullShardId *uint32
 	if fullShardKey != nil && fullShardKey.String() != "0x9999" {
 		id, err := getFullShardId(fullShardKey)

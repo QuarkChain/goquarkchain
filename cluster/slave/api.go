@@ -3,9 +3,10 @@ package slave
 
 import (
 	"context"
-	"github.com/QuarkChain/goquarkchain/core"
 	"sync"
 	"time"
+
+	"github.com/QuarkChain/goquarkchain/core"
 
 	"github.com/QuarkChain/goquarkchain/cluster/slave/filters"
 	qsync "github.com/QuarkChain/goquarkchain/cluster/sync"
@@ -75,7 +76,7 @@ func (api *PublicFilterAPI) NewPendingTransactions(ctx context.Context, fullShar
 						log.Error("failed to call getTransactionByHash when subscription pending transactions", "err", err)
 						continue
 					}
-					data, err := encoder.TxEncoder(mBlock, int(idx))
+					data, err := encoder.TxEncoder(mBlock, int(idx), api.backend.GetClusterConfig())
 					if err != nil {
 						log.Error("failed to encode tx when subscription pending transactions", "err", err)
 						continue

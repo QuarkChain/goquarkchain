@@ -53,7 +53,7 @@ func TestGetLog(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
-	evmtx, err = types.SignTx(evmtx, types.MakeSigner(3), prvKey)
+	evmtx, err = types.SignTx(evmtx, types.NewEIP155Signer(3, 0), prvKey)
 	if err != nil {
 		panic(err)
 	}
@@ -85,7 +85,7 @@ func TestGetLog(t *testing.T) {
 	data = common.FromHex("26121ff0")
 	evmtx = types.NewEvmTransaction(1, contractAddr, new(big.Int), 1000000, new(big.Int).SetUint64(10000000000), 0, 0, 3, 0, data, genesisTokenID, genesisTokenID)
 
-	evmtx, err = types.SignTx(evmtx, types.MakeSigner(3), prvKey)
+	evmtx, err = types.SignTx(evmtx, types.NewEIP155Signer(3, 0), prvKey)
 	if err != nil {
 		panic(err)
 	}

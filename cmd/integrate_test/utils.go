@@ -2,6 +2,10 @@ package test
 
 import (
 	"crypto/ecdsa"
+	"math/big"
+	"net"
+	"strings"
+
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cmd/utils"
 	qkcCommon "github.com/QuarkChain/goquarkchain/common"
@@ -10,9 +14,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/p2p/enode"
-	"math/big"
-	"net"
-	"strings"
 )
 
 var (
@@ -110,7 +111,7 @@ func createTx(acc account.Address, to *account.Address) *types.Transaction {
 }
 
 func sign(evmTx *types.EvmTransaction) (*types.EvmTransaction, error) {
-	return types.SignTx(evmTx, types.MakeSigner(evmTx.NetworkId()), privKeyList[0])
+	return types.SignTx(evmTx, types.NewEIP155Signer(evmTx.NetworkId(), 0), privKeyList[0])
 }
 
 func newkey() *ecdsa.PrivateKey {

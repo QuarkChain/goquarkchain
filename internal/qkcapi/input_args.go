@@ -45,8 +45,8 @@ type CallArgs struct {
 	GasPrice        hexutil.Big      `json:"gasPrice"`
 	Value           hexutil.Big      `json:"value"`
 	Data            hexutil.Bytes    `json:"data"`
-	GasTokenID      *hexutil.Uint64  `json:"gasTokenId"`
-	TransferTokenID *hexutil.Uint64  `json:"transferTokenId"`
+	GasTokenID      *hexutil.Uint64  `json:"gas_token_id"`
+	TransferTokenID *hexutil.Uint64  `json:"transfer_token_id"`
 }
 
 type GetAccountDataArgs struct {

@@ -88,8 +88,8 @@ func (e *EvmTransaction) SetVRS(v, r, s *big.Int) {
 	e.updated = true
 }
 
-func (e *EvmTransaction) SetSender(addr account.Recipient) {
-	signer := NewEIP155Signer(e.NetworkId())
+func (e *EvmTransaction) SetSender(addr account.Recipient, chainID uint64) {
+	signer := NewEIP155Signer(e.NetworkId(), chainID)
 	e.from.Store(sigCache{signer: signer, from: addr})
 }
 
