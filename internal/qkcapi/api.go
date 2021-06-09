@@ -26,15 +26,18 @@ type CommonAPI struct {
 func (c *CommonAPI) callOrEstimateGas(args *CallArgs, height *uint64, isCall bool) (hexutil.Bytes, error) {
 	args.setDefaults()
 	tx, err := args.toTx(c.b.GetClusterConfig().Quarkchain)
+	fmt.Println("toTx", err)
 	if err != nil {
 		return nil, err
 	}
 	if isCall {
 		isSameChain := clusterCfg.Quarkchain.IsSameFullShard(args.From.FullShardKey, args.To.FullShardKey)
+		fmt.Println("isSameChain", isSameChain)
 		if !isSameChain {
 			return nil, fmt.Errorf("Call cross-shard tx not supported yet\n")
 		}
 		res, err := c.b.ExecuteTransaction(tx, args.From, height)
+		fmt.Println("tttt", err, tx.EvmTx.FromFullShardKey(), tx.EvmTx.ToFullShardKey(), res)
 		if err != nil {
 			return nil, err
 		}
@@ -48,18 +51,14 @@ func (c *CommonAPI) callOrEstimateGas(args *CallArgs, height *uint64, isCall boo
 }
 
 func (c *CommonAPI) SendRawTransaction(encodedTx hexutil.Bytes) (hexutil.Bytes, error) {
-	evmTx := new(types.EvmTransaction)
-	if err := rlp.DecodeBytes(encodedTx, evmTx); err != nil {
+	tx := new(types.Transaction)
+	if err := rlp.DecodeBytes(encodedTx, tx); err != nil {
 		return nil, err
 	}
-	tx := &types.Transaction{
-		EvmTx:  evmTx,
-		TxType: types.EvmTx,
-	}
-
 	if err := c.b.AddTransaction(tx); err != nil {
 		return EmptyTxID, err
 	}
+	fmt.Println("SendRawTransaction resp", encoder.IDEncoder(tx.Hash().Bytes(), tx.EvmTx.FromFullShardKey()).String())
 	return encoder.IDEncoder(tx.Hash().Bytes(), tx.EvmTx.FromFullShardKey()), nil
 
 }
@@ -77,7 +76,9 @@ func MetaMaskReceipt(block *types.MinorBlock, i int, receipt *types.Receipt) (ma
 		return nil, errors.New("receipt is nil")
 	}
 	header := block.Header()
-	from, err := block.Transactions()[i].Sender(types.NewEIP155Signer(clusterCfg.Quarkchain.NetworkID, uint64(clusterCfg.Quarkchain.BaseEthChainID+1+clusterCfg.Quarkchain.GetShardConfigByFullShardID(block.Transactions()[i].EvmTx.FromFullShardId()).ChainID)))
+	from, err := block.Transactions()[i].Sender(types.NewEIP155Signer(clusterCfg.Quarkchain.NetworkID,
+		uint64(clusterCfg.Quarkchain.BaseEthChainID+1+
+			clusterCfg.Quarkchain.GetShardConfigByFullShardID(block.Transactions()[i].EvmTx.FromFullShardId()).ChainID)))
 	if err != nil {
 		return nil, err
 	}
@@ -164,6 +165,10 @@ func (p *PublicBlockChainAPI) Echoquantity(data hexutil.Big) *hexutil.Big {
 // EchoData echo data for test
 func (p *PublicBlockChainAPI) EchoData(data hexutil.Big) *hexutil.Big {
 	return &data
+}
+
+func (p *PublicBlockChainAPI) ChainId() (hexutil.Uint64, error) {
+	return hexutil.Uint64(666), nil
 }
 
 func (p *PublicBlockChainAPI) NetworkInfo() map[string]interface{} {
@@ -423,6 +428,7 @@ func (p *PublicBlockChainAPI) GetTransactionById(txID hexutil.Bytes) (map[string
 }
 
 func (p *PublicBlockChainAPI) Call(data CallArgs, blockNr *rpc.BlockNumber) (hexutil.Bytes, error) {
+	fmt.Println("??????--call", data.From, data.To, blockNr)
 	if blockNr == nil {
 		return p.CommonAPI.callOrEstimateGas(&data, nil, true)
 	}
