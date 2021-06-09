@@ -2,7 +2,6 @@ package qkcapi
 
 import (
 	"encoding/binary"
-	"fmt"
 	"strings"
 
 	"github.com/ybbus/jsonrpc"
@@ -77,13 +76,11 @@ func (e *MetaMaskEthBlockChainAPI) GetBalance(address common.Address, blockNrOrH
 }
 
 func (e *MetaMaskEthBlockChainAPI) BlockNumber() hexutil.Uint64 {
-	fmt.Println("Start:", "getMinorBlockByHeight")
 	resp, err := e.c.Call("getMinorBlockByHeight", hexutil.EncodeUint64(uint64(e.fullShardID)))
 	if err != nil {
 		return 0
 	}
 	height, _ := hexutil.DecodeUint64(resp.Result.(map[string]interface{})["height"].(string))
-	fmt.Println("End: getMinorBlockByHeight", height)
 	return hexutil.Uint64(height)
 }
 
@@ -140,7 +137,6 @@ func (s *MetaMaskEthBlockChainAPI) SendRawTransaction(encodedTx hexutil.Bytes) (
 		TxType: types.EvmTx,
 		EvmTx:  evmTx,
 	}
-	fmt.Println("????????????????????????SSSSSSSSSS", txQkc.Hash().String())
 	return txQkc.Hash(), nil
 }
 
@@ -168,13 +164,11 @@ func (c *MetaMaskEthBlockChainAPI) GetTransactionReceipt(hash common.Hash) (map[
 	txID = append(txID, hash.Bytes()...)
 	txID = append(txID, Uint32ToBytes(c.fullShardID)...)
 	resp, err := c.c.Call("getTransactionReceipt", common.ToHex(txID))
-	fmt.Println("resp", resp, err)
 	if err != nil {
 		return nil, err
 	}
 	ans := resp.Result.(map[string]interface{})
-
-	if len(ans["contractAddress"].(string)) != 0 {
+	if ans["contractAddress"] != nil {
 		ans["contractAddress"] = ans["contractAddress"].(string)[:42]
 	}
 	return ans, nil
@@ -238,7 +232,6 @@ func (e *MetaMaskEthBlockChainAPI) toCallJsonArg(iscall bool, mdata MetaCallArgs
 
 func (e *MetaMaskEthBlockChainAPI) Call(mdata MetaCallArgs, blockNr rpc.BlockNumber) (hexutil.Bytes, error) {
 	resp, err := e.c.Call("call", e.toCallJsonArg(true, mdata), hexutil.Uint64(blockNr.Uint64()))
-	fmt.Println("call-----", mdata, blockNr.Uint64(), e.toCallJsonArg(true, mdata))
 	if err != nil {
 		panic(err)
 	}
@@ -246,7 +239,6 @@ func (e *MetaMaskEthBlockChainAPI) Call(mdata MetaCallArgs, blockNr rpc.BlockNum
 }
 func (p *MetaMaskEthBlockChainAPI) EstimateGas(mdata MetaCallArgs) (hexutil.Uint, error) {
 	resp, err := p.c.Call("estimateGas", p.toCallJsonArg(false, mdata))
-	fmt.Println("estimate err", err, p.toCallJsonArg(false, mdata))
 	if err != nil {
 		panic(err)
 	}

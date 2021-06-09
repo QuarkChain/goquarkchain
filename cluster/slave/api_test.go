@@ -140,7 +140,7 @@ func TestNewPendingTransactions(t *testing.T) {
 	assert.NoError(t, err)
 	defer bak.stop()
 
-	privkey, address, err := newAddress(0)
+	privkey, address, err := newAddress(bak.config.Quarkchain.GetGenesisShardIds()[0])
 	assert.NoError(t, err)
 
 	var (
