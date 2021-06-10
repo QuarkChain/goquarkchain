@@ -183,9 +183,27 @@ func (m *MinorBlockChain) updateTip(state *state.StateDB, block *types.MinorBloc
 	return updateTip, nil
 }
 
+func (m *MinorBlockChain) checkTxWithVersion2(tx *types.Transaction, evmState *state.StateDB) error {
+	if evmState.GetTimeStamp() < m.clusterConfig.Quarkchain.EnableEIP155SignerTimestamp {
+		return fmt.Errorf("currTimeStamp %v < enableEIP155TimeStamp %v", evmState.GetTimeStamp(), m.clusterConfig.Quarkchain.EnableEIP155SignerTimestamp)
+	}
+	if tx.EvmTx.FromChainID() != tx.EvmTx.ToChainID() {
+		return fmt.Errorf("fromChainID:%v != toChainID:%v", tx.EvmTx.FromChainID(), tx.EvmTx.ToChainID())
+	}
+	if tx.EvmTx.FromShardID() != tx.EvmTx.ToShardID() {
+		return fmt.Errorf("fromShardID:%v != toShardID:%v", tx.EvmTx.FromShardID(), tx.EvmTx.ToShardID())
+	}
+	if tx.EvmTx.NetworkId() != uint32(m.ethChainConfig.ChainID.Uint64()) {
+		return fmt.Errorf("networkID:%v != ethChainID:%v", tx.EvmTx.NetworkId(), m.ethChainConfig.ChainID)
+	}
+	return nil
+}
+
 func (m *MinorBlockChain) validateTx(tx *types.Transaction, evmState *state.StateDB, fromAddress *account.Address, gas, xShardGasLimit *uint64) (*types.Transaction, error) {
-	if tx.EvmTx.Version() == 2 && evmState.GetTimeStamp() < m.clusterConfig.Quarkchain.EnableEIP155SignerTimestamp {
-		return nil, fmt.Errorf("currTimeStamp %v < enableEIP155TimeStamp %v", evmState.GetTimeStamp(), m.clusterConfig.Quarkchain.EnableEIP155SignerTimestamp)
+	if tx.EvmTx.Version() == 2 {
+		if err := m.checkTxWithVersion2(tx, evmState); err != nil {
+			return nil, err
+		}
 	}
 	if evmState == nil && fromAddress != nil {
 		return nil, errors.New("validateTx params err")
