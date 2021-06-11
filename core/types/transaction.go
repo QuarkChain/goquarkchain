@@ -32,10 +32,11 @@ var (
 type EvmTransaction struct {
 	data txdata
 	// caches
-	updated       bool
-	hash          atomic.Value
-	size          atomic.Value
-	from          atomic.Value
+	updated bool
+	hash    atomic.Value
+	size    atomic.Value
+	from    atomic.Value
+
 	FromShardsize uint32
 	ToShardsize   uint32
 }

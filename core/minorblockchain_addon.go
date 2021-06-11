@@ -9,6 +9,8 @@ import (
 	"sort"
 	"time"
 
+	"github.com/QuarkChain/goquarkchain/internal/qkcapi"
+
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
 	qkcCommon "github.com/QuarkChain/goquarkchain/common"
@@ -186,6 +188,12 @@ func (m *MinorBlockChain) updateTip(state *state.StateDB, block *types.MinorBloc
 func (m *MinorBlockChain) checkTxWithVersion2(tx *types.Transaction, evmState *state.StateDB) error {
 	if evmState.GetTimeStamp() < m.clusterConfig.Quarkchain.EnableEIP155SignerTimestamp {
 		return fmt.Errorf("currTimeStamp %v < enableEIP155TimeStamp %v", evmState.GetTimeStamp(), m.clusterConfig.Quarkchain.EnableEIP155SignerTimestamp)
+	}
+	if tx.EvmTx.TransferTokenID() != qkcCommon.TokenIDEncode(qkcapi.DefaultTokenID) {
+		return fmt.Errorf("wrong transferTokenID:%v in version=2", tx.EvmTx.TransferTokenID())
+	}
+	if tx.EvmTx.GasTokenID() != qkcCommon.TokenIDEncode(qkcapi.DefaultTokenID) {
+		return fmt.Errorf("wrong gasTokenID:%v in version=2", tx.EvmTx.GasTokenID())
 	}
 	if tx.EvmTx.FromChainID() != tx.EvmTx.ToChainID() {
 		return fmt.Errorf("fromChainID:%v != toChainID:%v", tx.EvmTx.FromChainID(), tx.EvmTx.ToChainID())
