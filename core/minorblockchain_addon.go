@@ -208,6 +208,7 @@ func (m *MinorBlockChain) checkTxWithVersion2(tx *types.Transaction, evmState *s
 }
 
 func (m *MinorBlockChain) validateTx(tx *types.Transaction, evmState *state.StateDB, fromAddress *account.Address, gas, xShardGasLimit *uint64) (*types.Transaction, error) {
+	tx.EvmTx.SetQuarkChainConfig(m.clusterConfig.Quarkchain)
 	if tx.EvmTx.Version() == 2 {
 		if err := m.checkTxWithVersion2(tx, evmState); err != nil {
 			return nil, err
@@ -232,20 +233,6 @@ func (m *MinorBlockChain) validateTx(tx *types.Transaction, evmState *state.Stat
 		evmTx.SetSender(fromAddress.Recipient, m.ChainConfig().ChainID.Uint64())
 		fromFullShardKey := fromAddress.FullShardKey
 		evmTx.SetFromFullShardKey(fromFullShardKey)
-	}
-	toShardSize, err := m.clusterConfig.Quarkchain.GetShardSizeByChainId(tx.EvmTx.ToChainID())
-	if err != nil {
-		return nil, err
-	}
-	if err := tx.EvmTx.SetToShardSize(toShardSize); err != nil {
-		return nil, err
-	}
-	fromShardSize, err := m.clusterConfig.Quarkchain.GetShardSizeByChainId(tx.EvmTx.FromChainID())
-	if err != nil {
-		return nil, err
-	}
-	if err := tx.EvmTx.SetFromShardSize(fromShardSize); err != nil {
-		return nil, err
 	}
 
 	if evmTx.NetworkId() != m.clusterConfig.Quarkchain.NetworkID {
@@ -289,6 +276,7 @@ func (m *MinorBlockChain) validateTx(tx *types.Transaction, evmState *state.Stat
 	}
 	var sender account.Recipient
 	if fromAddress == nil {
+		var err error
 		sender, err = tx.Sender(m.singer)
 		if err != nil {
 			return nil, err
@@ -1478,6 +1466,7 @@ func (m *MinorBlockChain) getPendingTxByAddress(address account.Address, transfe
 
 	//TODO: could also show incoming pending tx????? need check later
 	for _, tx := range txs {
+		tx.EvmTx.SetQuarkChainConfig(m.clusterConfig.Quarkchain)
 		sender, err := types.Sender(m.singer, tx.EvmTx)
 		if err != nil {
 			return nil, nil, err
@@ -1588,6 +1577,7 @@ func (m *MinorBlockChain) getTransactionDetails(start, end []byte, limit uint32,
 			if !ok && !skipTx(evmTx) {
 				limit--
 				receipt, _, _ := rawdb.ReadReceipt(m.db, tx.Hash())
+				evmTx.SetQuarkChainConfig(m.clusterConfig.Quarkchain)
 				sender, err := types.Sender(m.singer, evmTx)
 				if err != nil {
 					return nil, nil, err
@@ -1693,6 +1683,7 @@ func (m *MinorBlockChain) updateTxHistoryIndex(tx *types.Transaction, height uin
 		return err
 	}
 
+	evmtx.SetQuarkChainConfig(m.clusterConfig.Quarkchain)
 	sender, err := types.Sender(m.singer, evmtx)
 	if err != nil {
 		return err

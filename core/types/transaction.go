@@ -10,8 +10,9 @@ import (
 	"math/big"
 	"sync/atomic"
 
+	config2 "github.com/QuarkChain/goquarkchain/cluster/config"
+
 	"github.com/QuarkChain/goquarkchain/account"
-	qkcCommon "github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/serialize"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto/sha3"
@@ -36,9 +37,7 @@ type EvmTransaction struct {
 	hash    atomic.Value
 	size    atomic.Value
 	from    atomic.Value
-
-	FromShardsize uint32
-	ToShardsize   uint32
+	config  *config2.QuarkChainConfig
 }
 
 type txdata struct {
@@ -90,7 +89,7 @@ func (e *EvmTransaction) SetVRS(v, r, s *big.Int) {
 }
 
 func (e *EvmTransaction) SetSender(addr account.Recipient, chainID uint64) {
-	signer := NewEIP155Signer(e.NetworkId(), chainID)
+	signer := NewEIP155Signer(e.NetworkId())
 	e.from.Store(sigCache{signer: signer, from: addr})
 }
 
@@ -227,24 +226,27 @@ func (tx *EvmTransaction) ToFullShardKey() uint32   { return tx.data.ToFullShard
 func (tx *EvmTransaction) FromChainID() uint32      { return tx.data.FromFullShardKey.GetValue() >> 16 }
 func (tx *EvmTransaction) ToChainID() uint32        { return tx.data.ToFullShardKey.GetValue() >> 16 }
 func (tx *EvmTransaction) FromShardSize() uint32 {
-	return tx.FromShardsize
+	fromShardSize, err := tx.config.GetShardSizeByChainId(tx.FromChainID())
+	if err != nil {
+		panic(err)
+	}
+	return fromShardSize
 }
+
 func (tx *EvmTransaction) ToShardSize() uint32 {
-	return tx.ToShardsize
-}
-func (tx *EvmTransaction) SetFromShardSize(shardSize uint32) error {
-	if !qkcCommon.IsP2(shardSize) || shardSize == 0 {
-		return errors.New("shardSize is not Usable")
+	toShardSize, err := tx.config.GetShardSizeByChainId(tx.ToChainID())
+	if err != nil {
+		panic(err)
 	}
-	tx.FromShardsize = shardSize
-	return nil
+	return toShardSize
 }
-func (tx *EvmTransaction) SetToShardSize(shardSize uint32) error {
-	if !qkcCommon.IsP2(shardSize) || shardSize == 0 {
-		return errors.New("shardSize is not Usable")
-	}
-	tx.ToShardsize = shardSize
-	return nil
+
+func (tx *EvmTransaction) EthChainID() uint32 {
+	return tx.config.BaseEthChainID + 1 + tx.FromChainID()
+}
+
+func (tx *EvmTransaction) SetQuarkChainConfig(c *config2.QuarkChainConfig) {
+	tx.config = c
 }
 
 func (tx *EvmTransaction) FromShardID() uint32 {

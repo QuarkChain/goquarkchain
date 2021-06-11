@@ -52,13 +52,8 @@ func (s *QKCMasterBackend) GetPeerInfolist() []rpc.PeerInfoForDisPlay {
 
 func (s *QKCMasterBackend) AddTransaction(tx *types.Transaction) error {
 	evmTx := tx.EvmTx
-	fromShardSize, err := s.clusterConfig.Quarkchain.GetShardSizeByChainId(tx.EvmTx.FromChainID())
-	if err != nil {
-		return err
-	}
-	if err := tx.EvmTx.SetFromShardSize(fromShardSize); err != nil {
-		return errors.New(fmt.Sprintf("Failed to set fromShardSize, fromShardSize: %d, err: %v", fromShardSize, err))
-	}
+
+	evmTx.SetQuarkChainConfig(s.clusterConfig.Quarkchain)
 	fullShardId := evmTx.FromFullShardId()
 	slaves := s.GetSlaveConnsById(fullShardId)
 	if len(slaves) == 0 {
@@ -72,8 +67,7 @@ func (s *QKCMasterBackend) AddTransaction(tx *types.Transaction) error {
 			return slaves[i].AddTransaction(tx)
 		})
 	}
-	err = g.Wait() //TODO?? peer broadcast
-	if err != nil {
+	if err := g.Wait(); err != nil {
 		return err
 	}
 	data, err := serialize.SerializeToBytes(&p2p.NewTransactionList{TransactionList: []*types.Transaction{tx}})
@@ -85,15 +79,8 @@ func (s *QKCMasterBackend) AddTransaction(tx *types.Transaction) error {
 }
 
 func (s *QKCMasterBackend) ExecuteTransaction(tx *types.Transaction, address *account.Address, height *uint64) ([]byte, error) {
-	evmTx := tx.EvmTx
-	fromShardSize, err := s.clusterConfig.Quarkchain.GetShardSizeByChainId(tx.EvmTx.FromChainID())
-	if err != nil {
-		return nil, err
-	}
-	if err := tx.EvmTx.SetFromShardSize(fromShardSize); err != nil {
-		return nil, errors.New(fmt.Sprintf("Failed to set fromShardSize, fromShardSize: %d, err: %v", fromShardSize, err))
-	}
-	slaves := s.GetSlaveConnsById(evmTx.FromFullShardId())
+	tx.EvmTx.SetQuarkChainConfig(s.clusterConfig.Quarkchain)
+	slaves := s.GetSlaveConnsById(tx.EvmTx.FromFullShardId())
 	if len(slaves) == 0 {
 		return nil, ErrNoBranchConn
 	}
@@ -193,21 +180,7 @@ func (s *QKCMasterBackend) GetLogs(args *qrpc.FilterQuery) ([]*types.Log, error)
 
 func (s *QKCMasterBackend) EstimateGas(tx *types.Transaction, fromAddress *account.Address) (uint32, error) {
 	evmTx := tx.EvmTx
-	fromShardSize, err := s.clusterConfig.Quarkchain.GetShardSizeByChainId(tx.EvmTx.FromChainID())
-	if err != nil {
-		return 0, err
-	}
-	if err := tx.EvmTx.SetFromShardSize(fromShardSize); err != nil {
-		return 0, errors.New(fmt.Sprintf("Failed to set fromShardSize, fromShardSize: %d, err: %v", fromShardSize, err))
-	}
-
-	toShardSize, err := s.clusterConfig.Quarkchain.GetShardSizeByChainId(tx.EvmTx.ToChainID())
-	if err != nil {
-		return 0, err
-	}
-	if err := tx.EvmTx.SetToShardSize(toShardSize); err != nil {
-		return 0, errors.New(fmt.Sprintf("Failed to set toShardSize, toShardSize: %d, err: %v", toShardSize, err))
-	}
+	evmTx.SetQuarkChainConfig(s.clusterConfig.Quarkchain)
 
 	slaveConn := s.GetOneSlaveConnById(evmTx.ToFullShardId())
 	if slaveConn == nil {

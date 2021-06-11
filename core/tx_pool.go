@@ -192,7 +192,7 @@ func NewTxPool(config TxPoolConfig, chain minorBlockChain) *TxPool {
 	pool := &TxPool{
 		config:          config,
 		chain:           chain,
-		signer:          types.NewEIP155Signer(chain.Config().NetworkID, chain.ChainConfig().ChainID.Uint64()),
+		signer:          types.NewEIP155Signer(chain.Config().NetworkID),
 		pending:         make(map[common.Address]*txList),
 		queue:           make(map[common.Address]*txList),
 		beats:           make(map[common.Address]time.Time),
@@ -634,6 +634,9 @@ func (pool *TxPool) AddRemote(tx *types.Transaction) error {
 
 // addTxs attempts to queue a batch of transactions if they are valid.
 func (pool *TxPool) addTxs(txs []*types.Transaction, local, sync bool) []error {
+	for _, tx := range txs {
+		tx.EvmTx.SetQuarkChainConfig(pool.quarkConfig)
+	}
 	// Filter out known ones without obtaining the pool lock or recovering signatures
 	var (
 		errs = make([]error, len(txs))
@@ -1028,6 +1031,9 @@ func (pool *TxPool) reset(oldBlock, newBlock *types.MinorBlock) {
 
 	// Inject any transactions discarded due to reorgs
 	log.Debug("Reinjecting stale transactions", "count", len(reinject))
+	for _, tx := range reinject {
+		tx.EvmTx.SetQuarkChainConfig(pool.quarkConfig)
+	}
 	senderCacher.recover(pool.signer, reinject)
 	pool.addTxsLocked(reinject, false)
 	if pool.fakeChanForReset != nil {

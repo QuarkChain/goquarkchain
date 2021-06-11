@@ -65,7 +65,7 @@ func NewTxGenerator(genesisDir string, fullShardId uint32, cfg *config.QuarkChai
 			lenAccounts:     interval,
 			accountIndex:    0,
 			turn:            0,
-			sender:          types.NewEIP155Signer(cfg.NetworkID, 0),
+			sender:          types.NewEIP155Signer(cfg.NetworkID),
 			fullShardIDList: make([]uint32, 0),
 		}
 		for _, v := range cfg.GetGenesisShardIds() {

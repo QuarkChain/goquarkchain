@@ -4,15 +4,14 @@ import (
 	"bytes"
 	"crypto/ecdsa"
 	"encoding/hex"
-	"math/big"
-	"reflect"
-	"testing"
-
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/serialize"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/rlp"
+	"math/big"
+	"reflect"
+	"testing"
 )
 
 // The values in those tests are from the EvmTransaction Tests
@@ -39,13 +38,13 @@ var (
 		nil, 0, 0,
 	)
 	signTx, _ = rightvrsTx.WithSignature(
-		NewEIP155Signer(1, 0),
+		NewEIP155Signer(1),
 		common.Hex2Bytes("98ff921201554726367d2be8c804a7ff89ccf285ebc57dff8ae4c44b9c19ac4a8887321be575c8095f789dd4c743dfe42c1820f9231f98a962b210e3ac2452a301"),
 	)
 )
 
 func TestTransactionSigHash(t *testing.T) {
-	var signer = NewEIP155Signer(1, 0)
+	var signer = NewEIP155Signer(1)
 	//hash unsigned
 	if signer.Hash(emptyEvmTx) != common.HexToHash("15e523e4a18884f01753358af140664007e19b2c67cfa6618cadb85de14f3bd0") {
 		t.Errorf("empty transaction unsigned hash mismatch, got %x, expect %x", signer.Hash(emptyEvmTx), common.HexToHash("297d6ae9803346cdb059a671dea7e37b684dcabfa767f2d872026ad0a3aba495"))
@@ -102,7 +101,7 @@ func TestRecipientEmpty(t *testing.T) {
 		t.FailNow()
 	}
 
-	from, err := Sender(NewEIP155Signer(tx.NetworkId(), 0), tx)
+	from, err := Sender(NewEIP155Signer(tx.NetworkId()), tx)
 	if err != nil {
 		t.Error(err)
 		t.FailNow()
@@ -121,7 +120,7 @@ func TestRecipientNormal(t *testing.T) {
 		t.FailNow()
 	}
 
-	from, err := Sender(NewEIP155Signer(1, 0), tx)
+	from, err := Sender(NewEIP155Signer(1), tx)
 	if err != nil {
 		t.Error(err)
 		t.FailNow()
@@ -142,7 +141,7 @@ func TestTransactionPriceNonceSort(t *testing.T) {
 		keys[i], _ = crypto.GenerateKey()
 	}
 
-	signer := NewEIP155Signer(1, 0)
+	signer := NewEIP155Signer(1)
 	// Generate a batch of transactions with overlapping values, but shifted nonces
 	groups := map[account.Recipient]Transactions{}
 	for start, key := range keys {
@@ -218,7 +217,7 @@ func TestTxSize(t *testing.T) {
 		12345,
 		1234,
 	)
-	signer := NewEIP155Signer(1, 0)
+	signer := NewEIP155Signer(1)
 	prvKey, err := crypto.HexToECDSA(hex.EncodeToString(id1.GetKey().Bytes()))
 	if err != nil {
 		t.Fatal("prvKey error: ", err)

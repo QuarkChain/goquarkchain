@@ -2,11 +2,10 @@ package types
 
 import (
 	"encoding/hex"
+	"github.com/QuarkChain/goquarkchain/serialize"
 	"math/big"
 	"reflect"
 	"testing"
-
-	"github.com/QuarkChain/goquarkchain/serialize"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -101,7 +100,7 @@ func TestMinorBlockHeaderSerializing(t *testing.T) {
 	check("evm_xshard_gas_limit", blockMeta.XShardGasLimit.Value.Uint64(), uint64(400))
 	check("bmserialize", bytes, blocMetaEnc)
 
-	signer := NewEIP155Signer(1, 0)
+	signer := NewEIP155Signer(1)
 	key, _ := crypto.HexToECDSA("45a915e4d060149eb4365960e6a7a45f334393093061116b197e3240065ff2d8")
 	transactionsEnc := common.FromHex("00000002000000006df86b80808094b94f5374fce5edbc8e2a8697c15331677e6ebf0b808001840000000084000000008080801ba0d7265f92d763da5e2ea5016b837bf56f5bf42d22aead9ad5e7be2ddf01efcc68a07159634972d77349a76108c6db0634ea7b65768881b152c656deca190df6e427000000006ff86d03018207d094b94f5374fce5edbc8e2a8697c15331677e6ebf0b0a8001840000000084000000008080801ba01e681d99a80f28640faa7e224823dd133ffbd59731e3c7009f4375134a4bd58ea0089addb6d4ca918d12471682a9e5f9d03f0738358a72e493a075519cb07cf34f")
 	var trans Transactions

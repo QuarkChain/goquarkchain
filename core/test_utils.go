@@ -234,7 +234,7 @@ func createTransferTransaction(
 	if err != nil {
 		panic(err)
 	}
-	tx, err := types.SignTx(tempTx, types.NewEIP155Signer(fakeNetworkID, 0), prvKey)
+	tx, err := types.SignTx(tempTx, types.MakeSigner(fakeNetworkID), prvKey)
 	if err != nil {
 		panic(err)
 	}
@@ -376,7 +376,7 @@ func CreateContract(mBlockChain *MinorBlockChain, key account.Key, fromAddress a
 	if err != nil {
 		return nil, err
 	}
-	evmTx, err = types.SignTx(evmTx, types.NewEIP155Signer(evmTx.NetworkId(), 0), prvKey)
+	evmTx, err = types.SignTx(evmTx, types.MakeSigner(evmTx.NetworkId()), prvKey)
 	if err != nil {
 		return nil, err
 	}

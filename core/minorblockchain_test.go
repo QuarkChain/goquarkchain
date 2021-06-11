@@ -520,7 +520,7 @@ func TestMinorFastVsFullChains(t *testing.T) {
 		// If the block number is multiple of 3, send a few bonus transactions to the miner
 		if i%3 == 2 {
 			for j := 0; j < i%4+1; j++ {
-				tx, err := types.SignTx(types.NewEvmTransaction(block.TxNonce(addr1.Recipient), account.Recipient, big.NewInt(1000), params.TxGas, nil, 0, 0, 3, 0, nil, genesisTokenID, genesisTokenID), types.NewEIP155Signer(0, 0), prvKey1)
+				tx, err := types.SignTx(types.NewEvmTransaction(block.TxNonce(addr1.Recipient), account.Recipient, big.NewInt(1000), params.TxGas, nil, 0, 0, 3, 0, nil, genesisTokenID, genesisTokenID), types.MakeSigner(0), prvKey1)
 				if err != nil {
 					panic(err)
 				}
@@ -677,7 +677,7 @@ func TestMinorChainTxReorgs(t *testing.T) {
 			qkcConfig: clusterConfig.Quarkchain,
 		}
 		rootBlock = gspec.CreateRootBlock()
-		signer    = types.NewEIP155Signer(uint32(gspec.qkcConfig.NetworkID), 0)
+		signer    = types.NewEIP155Signer(uint32(gspec.qkcConfig.NetworkID))
 	)
 
 	prvKey1, err := crypto.HexToECDSA(hex.EncodeToString(id1.GetKey().Bytes()))
@@ -828,7 +828,7 @@ func TestMinorLogReorgs(t *testing.T) {
 			qkcConfig: clusterConfig.Quarkchain,
 		}
 		rootBlock = gspec.CreateRootBlock()
-		signer    = types.NewEIP155Signer(uint32(gspec.qkcConfig.NetworkID), 0)
+		signer    = types.NewEIP155Signer(uint32(gspec.qkcConfig.NetworkID))
 	)
 	prvKey1, err := crypto.HexToECDSA(hex.EncodeToString(id1.GetKey().Bytes()))
 	if err != nil {
@@ -889,7 +889,7 @@ func TestMinorReorgSideEvent(t *testing.T) {
 			qkcConfig: clusterConfig.Quarkchain,
 		}
 		rootBlock = gspec.CreateRootBlock()
-		signer    = types.NewEIP155Signer(uint32(gspec.qkcConfig.NetworkID), 0)
+		signer    = types.NewEIP155Signer(uint32(gspec.qkcConfig.NetworkID))
 	)
 
 	prvKey1, err := crypto.HexToECDSA(hex.EncodeToString(id1.GetKey().Bytes()))
@@ -1084,7 +1084,7 @@ func TestMinorEIP161AccountRemoval(t *testing.T) {
 		var (
 			tx     *types.EvmTransaction
 			err    error
-			signer = types.NewEIP155Signer(uint32(gspec.qkcConfig.NetworkID), 0)
+			signer = types.NewEIP155Signer(uint32(gspec.qkcConfig.NetworkID))
 		)
 		switch i {
 		case 0:

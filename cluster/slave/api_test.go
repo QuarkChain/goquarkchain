@@ -126,7 +126,7 @@ func newAddress(fullShardKey uint32) (*ecdsa.PrivateKey, *account.Address, error
 }
 
 func signTx(tx *types.EvmTransaction, prv *ecdsa.PrivateKey) (*types.EvmTransaction, error) {
-	signer := types.NewEIP155Signer(1, 0)
+	signer := types.MakeSigner(1)
 	h := signer.Hash(tx)
 	sig, err := crypto.Sign(h[:], prv)
 	if err != nil {

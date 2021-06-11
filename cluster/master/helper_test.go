@@ -120,7 +120,7 @@ func (p *testTxPool) Pending() (map[common.Address]types.Transactions, error) {
 
 	batches := make(map[common.Address]types.Transactions)
 	for _, tx := range p.pool {
-		signer := types.NewEIP155Signer(tx.EvmTx.NetworkId(), 0)
+		signer := types.MakeSigner(tx.EvmTx.NetworkId())
 		from, _ := types.Sender(signer, tx.EvmTx)
 		batches[from] = append(batches[from], tx)
 	}
@@ -152,7 +152,7 @@ func newTestTransactionList(count int) (*rpc.P2PRedirectRequest, error) {
 func newTestTransaction(from *ecdsa.PrivateKey, nonce uint64, datasize int) *types.Transaction {
 	tx := types.NewEvmTransaction(nonce, account.Recipient{}, big.NewInt(0), 100000,
 		big.NewInt(0), 0, 1, 0, 1, make([]byte, datasize), 0, 0)
-	tx, _ = types.SignTx(tx, types.NewEIP155Signer(tx.NetworkId(), 0), from)
+	tx, _ = types.SignTx(tx, types.MakeSigner(tx.NetworkId()), from)
 	return &types.Transaction{EvmTx: tx, TxType: types.EvmTx}
 }
 
