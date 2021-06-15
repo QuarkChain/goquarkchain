@@ -810,6 +810,9 @@ func (m *MinorBlockChain) addTransactionToBlock(block *types.MinorBlock, evmStat
 
 		}
 		stateT.Prepare(tx.Hash(), block.Hash(), txIndex)
+		if err := tx.EvmTx.SetQuarkChainConfig(m.clusterConfig.Quarkchain); err != nil {
+			break
+		}
 		_, receipt, _, err := ApplyTransaction(m.ChainConfig(), m, gp, stateT, block.IHeader().(*types.MinorBlockHeader), tx, usedGas, *m.GetVMConfig())
 		switch err {
 		case ErrGasLimitReached:

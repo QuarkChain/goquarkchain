@@ -386,7 +386,6 @@ func (pool *TxPool) Pending() (map[common.Address]types.Transactions, error) {
 	for addr, list := range pool.pending {
 		pending[addr] = list.Flatten()
 	}
-	fmt.Println("pending", len(pool.pending), len(pool.queue))
 	return pending, nil
 }
 
@@ -458,6 +457,9 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 // whitelisted, preventing any associated transaction from being dropped out of the pool
 // due to pricing constraints.
 func (pool *TxPool) add(tx *types.Transaction, local bool) (replaced bool, err error) {
+	if err := tx.EvmTx.SetQuarkChainConfig(pool.quarkConfig); err != nil {
+		return false, err
+	}
 	// If the transaction is already known, discard it
 	hash := tx.Hash()
 	if pool.all.Get(hash) != nil {
