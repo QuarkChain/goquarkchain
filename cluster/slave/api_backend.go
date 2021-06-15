@@ -132,6 +132,7 @@ func (s *SlaveBackend) AddBlockListForSync(mHashList []common.Hash, peerId strin
 }
 
 func (s *SlaveBackend) AddTx(tx *types.Transaction) (err error) {
+	tx.EvmTx.SetQuarkChainConfig(s.clstrCfg.Quarkchain)
 	if shard, ok := s.shards[tx.EvmTx.FromFullShardId()]; ok {
 		return shard.MinorBlockChain.AddTx(tx)
 	}
