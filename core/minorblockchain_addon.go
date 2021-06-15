@@ -1225,7 +1225,7 @@ func (m *MinorBlockChain) EstimateGas(tx *types.Transaction, fromAddress account
 	cap := hi
 
 	if err := tx.EvmTx.SetQuarkChainConfig(m.clusterConfig.Quarkchain); err != nil {
-		return err
+		return 0, err
 	}
 	runTx := func(gas uint32) error {
 		evmState := currentState.Copy()
