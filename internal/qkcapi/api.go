@@ -78,7 +78,9 @@ func MetaMaskReceipt(block *types.MinorBlock, i int, receipt *types.Receipt) (ma
 	}
 	header := block.Header()
 	tx := block.Transactions()[i]
-	tx.EvmTx.SetQuarkChainConfig(clusterCfg.Quarkchain)
+	if err := tx.EvmTx.SetQuarkChainConfig(clusterCfg.Quarkchain); err != nil {
+		return nil, err
+	}
 	from, err := tx.Sender(types.NewEIP155Signer(clusterCfg.Quarkchain.NetworkID))
 	if err != nil {
 		return nil, err

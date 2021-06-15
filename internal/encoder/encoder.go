@@ -207,7 +207,9 @@ func TxEncoder(block *types.MinorBlock, i int, cfg *config.ClusterConfig) (map[s
 	tx := block.Transactions()[i]
 	evmtx := tx.EvmTx
 	v, r, s := evmtx.RawSignatureValues()
-	evmtx.SetQuarkChainConfig(cfg.Quarkchain)
+	if err := evmtx.SetQuarkChainConfig(cfg.Quarkchain); err != nil {
+		return nil, err
+	}
 	sender, err := types.Sender(types.NewEIP155Signer(evmtx.NetworkId()), evmtx)
 	if err != nil {
 		return nil, err
