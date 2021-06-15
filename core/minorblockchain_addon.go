@@ -213,6 +213,10 @@ func (m *MinorBlockChain) validateTx(tx *types.Transaction, evmState *state.Stat
 		if err := m.checkTxWithVersion2(tx, evmState); err != nil {
 			return nil, err
 		}
+	} else {
+		if tx.EvmTx.NetworkId() != m.clusterConfig.Quarkchain.NetworkID {
+			return nil, ErrNetWorkID
+		}
 	}
 	if evmState == nil && fromAddress != nil {
 		return nil, errors.New("validateTx params err")
@@ -235,9 +239,6 @@ func (m *MinorBlockChain) validateTx(tx *types.Transaction, evmState *state.Stat
 		evmTx.SetFromFullShardKey(fromFullShardKey)
 	}
 
-	if evmTx.NetworkId() != m.clusterConfig.Quarkchain.NetworkID {
-		return nil, ErrNetWorkID
-	}
 	if !m.branch.IsInBranch(evmTx.FromFullShardId()) {
 		return nil, ErrBranch
 	}
