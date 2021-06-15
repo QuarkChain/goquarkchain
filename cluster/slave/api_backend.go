@@ -150,6 +150,7 @@ func (s *SlaveBackend) AddTxList(peerID string, branch uint32, txs []*types.Tran
 	}
 	fmt.Println("slavebaskcda", branch)
 	errList := shard.MinorBlockChain.AddTxList(txs)
+	fmt.Println("errList", errList)
 	if len(errList) != len(txs) {
 		return errors.New("errList != txList")
 	}
