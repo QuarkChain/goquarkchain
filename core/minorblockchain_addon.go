@@ -1223,6 +1223,7 @@ func (m *MinorBlockChain) EstimateGas(tx *types.Transaction, fromAddress account
 	}
 	cap := hi
 
+	tx.EvmTx.SetQuarkChainConfig(m.clusterConfig.Quarkchain)
 	runTx := func(gas uint32) error {
 		evmState := currentState.Copy()
 		if tx.EvmTx.IsCrossShard() && tx.EvmTx.ToFullShardId() == m.branch.Value {
