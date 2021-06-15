@@ -753,7 +753,9 @@ func (m *MinorBlockChain) SetReceiptsData(config *config.QuarkChainConfig, mBloc
 
 		// The contract address can be derived from the transaction itself
 		if transactions[j].EvmTx.To() == nil {
-			transactions[j].EvmTx.SetQuarkChainConfig(m.clusterConfig.Quarkchain)
+			if err := transactions[j].EvmTx.SetQuarkChainConfig(m.clusterConfig.Quarkchain); err != nil {
+				return err
+			}
 			// Deriving the signer is expensive, only do if it's actually needed
 			from, _ := types.Sender(m.singer, transactions[j].EvmTx)
 			toFullShardKey := transactions[j].EvmTx.ToFullShardKey()
@@ -1065,7 +1067,9 @@ func (m *MinorBlockChain) insertChain(chain []types.IBlock, verifySeals bool, is
 		headersToRecover = append(headersToRecover, v.(*types.MinorBlock))
 	}
 	// Start a parallel signature recovery (signer will fluke on fork transition, minimal perf loss)
-	senderCacher.recoverFromBlocks(m.singer, headersToRecover, m.clusterConfig.Quarkchain)
+	if err := senderCacher.recoverFromBlocks(m.singer, headersToRecover, m.clusterConfig.Quarkchain); err != nil {
+		return 0, nil, nil, nil, err
+	}
 
 	// A queued approach to delivering events. This is generally
 	// faster than direct delivery and requires much less mutex

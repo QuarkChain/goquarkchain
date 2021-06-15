@@ -1,8 +1,6 @@
 package qkcapi
 
 import (
-	"github.com/ethereum/go-ethereum/common/hexutil"
-
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	qrpc "github.com/QuarkChain/goquarkchain/cluster/rpc"
@@ -10,6 +8,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/rpc"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 )
 
 type Backend interface {

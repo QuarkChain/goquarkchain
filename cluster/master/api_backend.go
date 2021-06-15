@@ -53,7 +53,9 @@ func (s *QKCMasterBackend) GetPeerInfolist() []rpc.PeerInfoForDisPlay {
 func (s *QKCMasterBackend) AddTransaction(tx *types.Transaction) error {
 	evmTx := tx.EvmTx
 
-	evmTx.SetQuarkChainConfig(s.clusterConfig.Quarkchain)
+	if err := evmTx.SetQuarkChainConfig(s.clusterConfig.Quarkchain); err != nil {
+		return err
+	}
 	fullShardId := evmTx.FromFullShardId()
 	slaves := s.GetSlaveConnsById(fullShardId)
 	if len(slaves) == 0 {
@@ -79,7 +81,9 @@ func (s *QKCMasterBackend) AddTransaction(tx *types.Transaction) error {
 }
 
 func (s *QKCMasterBackend) ExecuteTransaction(tx *types.Transaction, address *account.Address, height *uint64) ([]byte, error) {
-	tx.EvmTx.SetQuarkChainConfig(s.clusterConfig.Quarkchain)
+	if err := tx.EvmTx.SetQuarkChainConfig(s.clusterConfig.Quarkchain); err != nil {
+		return nil, err
+	}
 	slaves := s.GetSlaveConnsById(tx.EvmTx.FromFullShardId())
 	if len(slaves) == 0 {
 		return nil, ErrNoBranchConn
@@ -180,7 +184,9 @@ func (s *QKCMasterBackend) GetLogs(args *qrpc.FilterQuery) ([]*types.Log, error)
 
 func (s *QKCMasterBackend) EstimateGas(tx *types.Transaction, fromAddress *account.Address) (uint32, error) {
 	evmTx := tx.EvmTx
-	evmTx.SetQuarkChainConfig(s.clusterConfig.Quarkchain)
+	if err := evmTx.SetQuarkChainConfig(s.clusterConfig.Quarkchain); err != nil {
+		return 0, err
+	}
 
 	slaveConn := s.GetOneSlaveConnById(evmTx.ToFullShardId())
 	if slaveConn == nil {

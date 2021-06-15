@@ -3,9 +3,8 @@ package encoder
 import (
 	"errors"
 
-	"github.com/QuarkChain/goquarkchain/cluster/config"
-
 	"github.com/QuarkChain/goquarkchain/account"
+	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
 	"github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/common/hexutil"
@@ -208,7 +207,9 @@ func TxEncoder(block *types.MinorBlock, i int, cfg *config.ClusterConfig) (map[s
 	tx := block.Transactions()[i]
 	evmtx := tx.EvmTx
 	v, r, s := evmtx.RawSignatureValues()
-	evmtx.SetQuarkChainConfig(cfg.Quarkchain)
+	if err := evmtx.SetQuarkChainConfig(cfg.Quarkchain); err != nil {
+		return nil, err
+	}
 	sender, err := types.Sender(types.NewEIP155Signer(evmtx.NetworkId()), evmtx)
 	if err != nil {
 		return nil, err

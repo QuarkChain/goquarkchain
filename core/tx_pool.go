@@ -27,14 +27,13 @@ import (
 
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
+	"github.com/QuarkChain/goquarkchain/core/state"
+	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/prque"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
-
-	"github.com/QuarkChain/goquarkchain/core/state"
-	"github.com/QuarkChain/goquarkchain/core/types"
 )
 
 const (
@@ -458,6 +457,9 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 // whitelisted, preventing any associated transaction from being dropped out of the pool
 // due to pricing constraints.
 func (pool *TxPool) add(tx *types.Transaction, local bool) (replaced bool, err error) {
+	if err := tx.EvmTx.SetQuarkChainConfig(pool.quarkConfig); err != nil {
+		return false, err
+	}
 	// If the transaction is already known, discard it
 	hash := tx.Hash()
 	if pool.all.Get(hash) != nil {
@@ -634,15 +636,16 @@ func (pool *TxPool) AddRemote(tx *types.Transaction) error {
 
 // addTxs attempts to queue a batch of transactions if they are valid.
 func (pool *TxPool) addTxs(txs []*types.Transaction, local, sync bool) []error {
-	for _, tx := range txs {
-		tx.EvmTx.SetQuarkChainConfig(pool.quarkConfig)
-	}
 	// Filter out known ones without obtaining the pool lock or recovering signatures
 	var (
 		errs = make([]error, len(txs))
 		news = make([]*types.Transaction, 0, len(txs))
 	)
 	for i, tx := range txs {
+		if err := tx.EvmTx.SetQuarkChainConfig(pool.quarkConfig); err != nil {
+			errs[i] = err
+			continue
+		}
 		// If the transaction is known, pre-set the error slot
 		if pool.all.Get(tx.Hash()) != nil {
 			errs[i] = fmt.Errorf("known transaction: %x", tx.Hash())

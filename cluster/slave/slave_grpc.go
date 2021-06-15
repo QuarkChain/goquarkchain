@@ -699,7 +699,9 @@ func (s *SlaveServerSideOp) AddTransactions(ctx context.Context, req *rpc.Reques
 	)
 
 	for _, tx := range txs.TransactionList {
-		tx.EvmTx.SetQuarkChainConfig(s.slave.clstrCfg.Quarkchain)
+		if err := tx.EvmTx.SetQuarkChainConfig(s.slave.clstrCfg.Quarkchain); err != nil {
+			return nil, err
+		}
 		fId := tx.EvmTx.FromFullShardId()
 		for _, id := range fullShardIds {
 			if fId != id {

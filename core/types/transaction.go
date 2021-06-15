@@ -10,9 +10,8 @@ import (
 	"math/big"
 	"sync/atomic"
 
-	config2 "github.com/QuarkChain/goquarkchain/cluster/config"
-
 	"github.com/QuarkChain/goquarkchain/account"
+	config2 "github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/serialize"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto/sha3"
@@ -245,8 +244,16 @@ func (tx *EvmTransaction) EthChainID() uint32 {
 	return tx.config.BaseEthChainID + 1 + tx.FromChainID()
 }
 
-func (tx *EvmTransaction) SetQuarkChainConfig(c *config2.QuarkChainConfig) {
+func (tx *EvmTransaction) SetQuarkChainConfig(c *config2.QuarkChainConfig) error {
 	tx.config = c
+	if _, err := tx.config.GetShardSizeByChainId(tx.FromChainID()); err != nil {
+		return err
+	}
+
+	if _, err := tx.config.GetShardSizeByChainId(tx.ToChainID()); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (tx *EvmTransaction) FromShardID() uint32 {

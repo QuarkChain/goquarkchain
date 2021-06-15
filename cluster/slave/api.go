@@ -6,10 +6,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/QuarkChain/goquarkchain/core"
-
 	"github.com/QuarkChain/goquarkchain/cluster/slave/filters"
 	qsync "github.com/QuarkChain/goquarkchain/cluster/sync"
+	"github.com/QuarkChain/goquarkchain/core"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/internal/encoder"
 	"github.com/QuarkChain/goquarkchain/rpc"

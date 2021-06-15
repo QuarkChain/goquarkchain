@@ -93,7 +93,7 @@ func (cacher *txSenderCacher) recover(signer types.Signer, txs []*types.Transact
 // recoverFromBlocks recovers the senders from a batch of blocks and caches them
 // back into the same data structures. There is no validation being done, nor
 // any reaction to invalid signatures. That is up to calling code later.
-func (cacher *txSenderCacher) recoverFromBlocks(signer types.Signer, blocks []*types.MinorBlock, config *config2.QuarkChainConfig) {
+func (cacher *txSenderCacher) recoverFromBlocks(signer types.Signer, blocks []*types.MinorBlock, config *config2.QuarkChainConfig) error {
 	count := 0
 	for _, block := range blocks {
 		count += len(block.Transactions())
@@ -103,7 +103,10 @@ func (cacher *txSenderCacher) recoverFromBlocks(signer types.Signer, blocks []*t
 		txs = append(txs, block.Transactions()...)
 	}
 	for _, tx := range txs {
-		tx.EvmTx.SetQuarkChainConfig(config)
+		if err := tx.EvmTx.SetQuarkChainConfig(config); err != nil {
+			return err
+		}
 	}
 	cacher.recover(signer, txs)
+	return nil
 }
