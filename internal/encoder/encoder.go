@@ -3,9 +3,8 @@ package encoder
 import (
 	"errors"
 
-	"github.com/QuarkChain/goquarkchain/cluster/config"
-
 	"github.com/QuarkChain/goquarkchain/account"
+	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
 	"github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/common/hexutil"

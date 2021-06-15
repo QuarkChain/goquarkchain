@@ -10,9 +10,8 @@ import (
 	"math/big"
 	"sync/atomic"
 
-	config2 "github.com/QuarkChain/goquarkchain/cluster/config"
-
 	"github.com/QuarkChain/goquarkchain/account"
+	config2 "github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/serialize"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto/sha3"

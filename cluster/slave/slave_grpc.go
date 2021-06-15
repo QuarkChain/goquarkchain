@@ -669,7 +669,6 @@ func (s *SlaveServerSideOp) AddTransactions(ctx context.Context, req *rpc.Reques
 		err  error
 	)
 
-	fmt.Println("slave addrx")
 	if err = serialize.DeserializeFromBytes(req.Data, &gReq); err != nil {
 		return nil, err
 	}
@@ -682,7 +681,6 @@ func (s *SlaveServerSideOp) AddTransactions(ctx context.Context, req *rpc.Reques
 		return nil, fmt.Errorf("too many txs in one command, tx count: %d\n", len(txs.TransactionList))
 	}
 	addTxList := func(branch uint32, txs []*types.Transaction) error {
-		fmt.Println("685--------")
 		err := s.slave.AddTxList(gReq.PeerID, branch, txs)
 		if err != nil {
 			return err

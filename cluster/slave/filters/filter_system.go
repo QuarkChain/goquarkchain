@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/QuarkChain/goquarkchain/cluster/config"
-
 	qsync "github.com/QuarkChain/goquarkchain/cluster/sync"
 	"github.com/QuarkChain/goquarkchain/core"
 	"github.com/QuarkChain/goquarkchain/core/types"
