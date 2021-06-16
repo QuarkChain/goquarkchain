@@ -200,7 +200,6 @@ func (s *QKCMasterBackend) EstimateGas(tx *types.Transaction, fromAddress *accou
 		return 0, errors.New(fmt.Sprintf("Failed to set fromShardSize, fromShardSize: %d, err: %v", fromShardSize, err))
 	}
 
-
 	toShardSize, err := s.clusterConfig.Quarkchain.GetShardSizeByChainId(tx.EvmTx.ToChainID())
 	if err != nil {
 		return 0, err
@@ -268,6 +267,7 @@ func (s *QKCMasterBackend) GetWork(fullShardId *uint32, addr *common.Address) (*
 		coinbaseAddr = nil
 	}
 	if fullShardId == nil {
+		fmt.Println("master getwork", coinbaseAddr)
 		return s.miner.GetWork(coinbaseAddr)
 	}
 
@@ -360,11 +360,14 @@ func (s *QKCMasterBackend) CreateBlockToMine(addr *account.Address) (types.IBloc
 	if addr != nil {
 		coinbaseAddr = *addr
 	}
+	fmt.Println("createBlockToMine", addr, coinbaseAddr)
 	block, err := s.createRootBlockToMine(coinbaseAddr)
 	if err != nil {
 		return nil, nil, 0, err
 	}
+	fmt.Println("begin cal diff", block.Coinbase().ToHex())
 	diff, optionalDivider, err := s.rootBlockChain.GetAdjustedDifficultyToMine(block.Header())
+	fmt.Println("diff", diff, optionalDivider, err)
 	if err != nil {
 		return nil, nil, 0, err
 	}

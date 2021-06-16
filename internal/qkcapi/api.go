@@ -608,8 +608,14 @@ func (p *PublicBlockChainAPI) GetWork(fullShardKey *hexutil.Uint, coinbaseAddres
 	if work.OptionalDivider > 1 {
 		val = append(val, common.BytesToHash(qcom.Uint64ToBytes(work.OptionalDivider)))
 	}
-	log.Info("End GetWork", "height", height, "HeadHash", work.HeaderHash.String(),
-		"difficulty", work.Difficulty, "optionalDivider", work.OptionalDivider)
+	if coinbaseAddress == nil {
+		log.Info("End GetWork", "height", height, "HeadHash", work.HeaderHash.String(),
+			"difficulty", work.Difficulty, "optionalDivider", work.OptionalDivider, "coinbase==nil")
+	} else {
+		log.Info("End GetWork", "height", height, "HeadHash", work.HeaderHash.String(),
+			"difficulty", work.Difficulty, "optionalDivider", work.OptionalDivider, "coinbase", coinbaseAddress.String())
+	}
+
 	return val, nil
 }
 
