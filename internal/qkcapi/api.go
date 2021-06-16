@@ -587,6 +587,7 @@ func (p *PublicBlockChainAPI) SubmitWork(fullShardKey *hexutil.Uint, headHash co
 }
 
 func (p *PublicBlockChainAPI) GetWork(fullShardKey *hexutil.Uint, coinbaseAddress *common.Address) ([]common.Hash, error) {
+	fmt.Println("fffffffff", fullShardKey, coinbaseAddress)
 	var fullShardId *uint32
 	if fullShardKey != nil && fullShardKey.String() != "0x9999" {
 		id, err := getFullShardId(fullShardKey)
@@ -608,6 +609,7 @@ func (p *PublicBlockChainAPI) GetWork(fullShardKey *hexutil.Uint, coinbaseAddres
 	if work.OptionalDivider > 1 {
 		val = append(val, common.BytesToHash(qcom.Uint64ToBytes(work.OptionalDivider)))
 	}
+
 	if coinbaseAddress == nil {
 		log.Info("End GetWork", "height", height, "HeadHash", work.HeaderHash.String(),
 			"difficulty", work.Difficulty, "optionalDivider", work.OptionalDivider, "coinbase==nil")
