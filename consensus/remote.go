@@ -117,7 +117,9 @@ func (c *CommonEngine) remote() {
 		if solution.NumberU64()+staleThreshold > currentHeight {
 			select {
 			case results <- solution:
-				log.Info("Work submit is acceptable", "number", solution.NumberU64(), "sealhash", sealhash, "coinbase", block.Coinbase().ToHex(), "diff", block.Difficulty(), "work.diff", work.Difficulty, "work.div", work.OptionalDivider)
+				if block.Difficulty().Cmp(work.Difficulty) == 0 {
+					log.Info("Work submit is acceptable", "number", solution.NumberU64(), "sealhash", sealhash, "coinbase", block.Coinbase().ToHex(), "diff", block.Difficulty(), "work.div", new(big.Int).Div(block.Difficulty(), work.Difficulty))
+				}
 				return true
 			default:
 				log.Warn("Sealing result is not read by miner", "mode", "remote", "sealhash", sealhash)
