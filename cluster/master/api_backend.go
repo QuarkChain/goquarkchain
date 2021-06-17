@@ -200,7 +200,6 @@ func (s *QKCMasterBackend) EstimateGas(tx *types.Transaction, fromAddress *accou
 		return 0, errors.New(fmt.Sprintf("Failed to set fromShardSize, fromShardSize: %d, err: %v", fromShardSize, err))
 	}
 
-
 	toShardSize, err := s.clusterConfig.Quarkchain.GetShardSizeByChainId(tx.EvmTx.ToChainID())
 	if err != nil {
 		return 0, err
@@ -290,7 +289,9 @@ func (s *QKCMasterBackend) SubmitWork(fullShardId *uint32, headerHash common.Has
 	if slaveConn == nil {
 		return false, ErrNoBranchConn
 	}
-	return slaveConn.SubmitWork(&rpc.SubmitWorkRequest{Branch: branch.Value, HeaderHash: headerHash, Nonce: nonce, MixHash: mixHash})
+	stats, err := slaveConn.SubmitWork(&rpc.SubmitWorkRequest{Branch: branch.Value, HeaderHash: headerHash, Nonce: nonce, MixHash: mixHash})
+	//fmt.Println("SUBMIT", fullShardId)
+	return stats, err
 }
 
 func (s *QKCMasterBackend) GetRootBlockByNumber(blockNumber *uint64, needExtraInfo bool) (*types.RootBlock, *rpc.PoSWInfo, error) {

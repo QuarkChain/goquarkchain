@@ -3,12 +3,13 @@ package consensus
 import (
 	"errors"
 	"fmt"
-	"github.com/QuarkChain/goquarkchain/account"
-	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/hashicorp/golang-lru"
 	"math/big"
 	"sync"
 	"time"
+
+	"github.com/QuarkChain/goquarkchain/account"
+	"github.com/ethereum/go-ethereum/crypto"
+	lru "github.com/hashicorp/golang-lru"
 
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/common"
@@ -116,7 +117,7 @@ func (c *CommonEngine) remote() {
 		if solution.NumberU64()+staleThreshold > currentHeight {
 			select {
 			case results <- solution:
-				log.Debug("Work submitted is acceptable", "number", solution.NumberU64(), "sealhash", sealhash, "hash", solution.Hash())
+				log.Info("Work submit is acceptable", "number", solution.NumberU64(), "sealhash", sealhash, "coinbase", block.Coinbase().ToHex(), "diff", block.Difficulty(), "work.diff", work.Difficulty, "work.div", work.OptionalDivider)
 				return true
 			default:
 				log.Warn("Sealing result is not read by miner", "mode", "remote", "sealhash", sealhash)
