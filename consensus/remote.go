@@ -119,6 +119,7 @@ func (c *CommonEngine) remote() {
 			case results <- solution:
 				if block.Difficulty().Cmp(work.Difficulty) == 0 {
 					log.Info("Work submit is acceptable", "number", solution.NumberU64(), "sealhash", sealhash, "coinbase", block.Coinbase().ToHex(), "diff", block.Difficulty(), "work.div", new(big.Int).Div(block.Difficulty(), work.Difficulty))
+					log.Info("CCCCCCCCCCC", "coinbase", block.Coinbase().ToHex())
 				}
 				return true
 			default:
