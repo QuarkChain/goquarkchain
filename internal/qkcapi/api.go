@@ -612,7 +612,7 @@ func (p *PublicBlockChainAPI) GetWork(fullShardKey *hexutil.Uint, coinbaseAddres
 
 	if coinbaseAddress == nil {
 		log.Info("End GetWork", "height", height, "HeadHash", work.HeaderHash.String(),
-			"difficulty", work.Difficulty, "optionalDivider", work.OptionalDivider, "coinbase==nil")
+			"difficulty", work.Difficulty, "optionalDivider", work.OptionalDivider, "coinbase", "==nil")
 	} else {
 		log.Info("End GetWork", "height", height, "HeadHash", work.HeaderHash.String(),
 			"difficulty", work.Difficulty, "optionalDivider", work.OptionalDivider, "coinbase", coinbaseAddress.String())
