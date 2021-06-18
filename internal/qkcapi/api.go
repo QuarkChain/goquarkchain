@@ -29,7 +29,6 @@ func (c *CommonAPI) callOrEstimateGas(args *CallArgs, height *uint64, isCall boo
 	if err != nil {
 		return nil, err
 	}
-	fmt.Println("callorEsta", tx.EvmTx.FromFullShardKey(), tx.EvmTx.ToFullShardKey())
 	if isCall {
 		isSameChain := clusterCfg.Quarkchain.IsSameFullShard(args.From.FullShardKey, args.To.FullShardKey)
 		if !isSameChain {
