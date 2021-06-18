@@ -24,12 +24,12 @@ func getMetaConfig() *MetaMaskConfig {
 		ShardConfigs: []ShardConfig{
 			{
 				ShardRPC:    "0.0.0.0:39001",
-				FullShardID: 1,
+				FullShardID: 0,
 				EthChainID:  110001,
 			},
 			{
 				ShardRPC:    "0.0.0.0:39002",
-				FullShardID: 65537,
+				FullShardID: 65536,
 				EthChainID:  110002,
 			},
 		},

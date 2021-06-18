@@ -114,9 +114,9 @@ func (s *ShardAPI) SendRawTransaction(encodedTx hexutil.Bytes) (common.Hash, err
 	}
 	evmTx := new(types.EvmTransaction)
 	if tx.To() != nil {
-		evmTx = types.NewEvmTransaction(tx.Nonce(), *tx.To(), tx.Value(), tx.Gas(), tx.GasPrice(), 0, 0, s.chainID, 2, tx.Data(), 35760, 35760)
+		evmTx = types.NewEvmTransaction(tx.Nonce(), *tx.To(), tx.Value(), tx.Gas(), tx.GasPrice(), s.fullShardID, s.fullShardID, s.chainID, 2, tx.Data(), 35760, 35760)
 	} else {
-		evmTx = types.NewEvmContractCreation(tx.Nonce(), tx.Value(), tx.Gas(), tx.GasPrice(), 0, 0, s.chainID, 2, tx.Data(), 35760, 35760)
+		evmTx = types.NewEvmContractCreation(tx.Nonce(), tx.Value(), tx.Gas(), tx.GasPrice(), s.fullShardID, s.fullShardID, s.chainID, 2, tx.Data(), 35760, 35760)
 	}
 	evmTx.SetVRS(tx.RawSignatureValues())
 	rlpTxBytes, err := rlp.EncodeToBytes(evmTx)
