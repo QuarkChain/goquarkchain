@@ -132,7 +132,18 @@ func (s *SlaveBackend) AddBlockListForSync(mHashList []common.Hash, peerId strin
 }
 
 func (s *SlaveBackend) AddTx(tx *types.Transaction) (err error) {
-	if err := tx.EvmTx.SetQuarkChainConfig(s.clstrCfg.Quarkchain); err != nil {
+	toShardSize, err := s.clstrCfg.Quarkchain.GetShardSizeByChainId(tx.EvmTx.ToChainID())
+	if err != nil {
+		return err
+	}
+	if err := tx.EvmTx.SetToShardSize(toShardSize); err != nil {
+		return err
+	}
+	fromShardSize, err := s.clstrCfg.Quarkchain.GetShardSizeByChainId(tx.EvmTx.FromChainID())
+	if err != nil {
+		return err
+	}
+	if err := tx.EvmTx.SetFromShardSize(fromShardSize); err != nil {
 		return err
 	}
 	if shard, ok := s.shards[tx.EvmTx.FromFullShardId()]; ok {
@@ -171,7 +182,11 @@ func (s *SlaveBackend) AddTxList(peerID string, branch uint32, txs []*types.Tran
 }
 
 func (s *SlaveBackend) ExecuteTx(tx *types.Transaction, address *account.Address, height *uint64) ([]byte, error) {
-	if err := tx.EvmTx.SetQuarkChainConfig(s.clstrCfg.Quarkchain); err != nil {
+	fromShardSize, err := s.clstrCfg.Quarkchain.GetShardSizeByChainId(tx.EvmTx.FromChainID())
+	if err != nil {
+		return nil, err
+	}
+	if err := tx.EvmTx.SetFromShardSize(fromShardSize); err != nil {
 		return nil, err
 	}
 	if shard, ok := s.shards[tx.EvmTx.FromFullShardId()]; ok {

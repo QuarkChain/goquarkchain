@@ -27,13 +27,14 @@ import (
 
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
-	"github.com/QuarkChain/goquarkchain/core/state"
-	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/prque"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
+
+	"github.com/QuarkChain/goquarkchain/core/state"
+	"github.com/QuarkChain/goquarkchain/core/types"
 )
 
 const (
@@ -191,7 +192,7 @@ func NewTxPool(config TxPoolConfig, chain minorBlockChain) *TxPool {
 	pool := &TxPool{
 		config:          config,
 		chain:           chain,
-		signer:          types.MakeSigner(chain.Config().NetworkID),
+		signer:          types.NewEIP155Signer(chain.Config().NetworkID),
 		pending:         make(map[common.Address]*txList),
 		queue:           make(map[common.Address]*txList),
 		beats:           make(map[common.Address]time.Time),
@@ -457,9 +458,6 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 // whitelisted, preventing any associated transaction from being dropped out of the pool
 // due to pricing constraints.
 func (pool *TxPool) add(tx *types.Transaction, local bool) (replaced bool, err error) {
-	if err := tx.EvmTx.SetQuarkChainConfig(pool.quarkConfig); err != nil {
-		return false, err
-	}
 	// If the transaction is already known, discard it
 	hash := tx.Hash()
 	if pool.all.Get(hash) != nil {
@@ -642,10 +640,6 @@ func (pool *TxPool) addTxs(txs []*types.Transaction, local, sync bool) []error {
 		news = make([]*types.Transaction, 0, len(txs))
 	)
 	for i, tx := range txs {
-		if err := tx.EvmTx.SetQuarkChainConfig(pool.quarkConfig); err != nil {
-			errs[i] = err
-			continue
-		}
 		// If the transaction is known, pre-set the error slot
 		if pool.all.Get(tx.Hash()) != nil {
 			errs[i] = fmt.Errorf("known transaction: %x", tx.Hash())
@@ -1034,9 +1028,6 @@ func (pool *TxPool) reset(oldBlock, newBlock *types.MinorBlock) {
 
 	// Inject any transactions discarded due to reorgs
 	log.Debug("Reinjecting stale transactions", "count", len(reinject))
-	for _, tx := range reinject {
-		tx.EvmTx.SetQuarkChainConfig(pool.quarkConfig)
-	}
 	senderCacher.recover(pool.signer, reinject)
 	pool.addTxsLocked(reinject, false)
 	if pool.fakeChanForReset != nil {

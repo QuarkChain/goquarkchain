@@ -221,7 +221,7 @@ func NewMinorBlockChain(
 		logInfo: fmt.Sprintf("shard:%x", fullShardID),
 	}
 	bc.ethChainConfig.ChainID = new(big.Int).SetUint64(uint64(clusterConfig.Quarkchain.BaseEthChainID + 1 + bc.shardConfig.ChainID))
-	bc.singer = types.MakeSigner(clusterConfig.Quarkchain.NetworkID)
+	bc.singer = types.NewEIP155Signer(clusterConfig.Quarkchain.NetworkID)
 	var err error
 	bc.gasLimit, err = bc.clusterConfig.Quarkchain.GasLimit(bc.branch.Value)
 	if err != nil {
@@ -753,9 +753,6 @@ func (m *MinorBlockChain) SetReceiptsData(config *config.QuarkChainConfig, mBloc
 
 		// The contract address can be derived from the transaction itself
 		if transactions[j].EvmTx.To() == nil {
-			if err := transactions[j].EvmTx.SetQuarkChainConfig(m.clusterConfig.Quarkchain); err != nil {
-				return err
-			}
 			// Deriving the signer is expensive, only do if it's actually needed
 			from, _ := types.Sender(m.singer, transactions[j].EvmTx)
 			toFullShardKey := transactions[j].EvmTx.ToFullShardKey()
@@ -1067,10 +1064,7 @@ func (m *MinorBlockChain) insertChain(chain []types.IBlock, verifySeals bool, is
 		headersToRecover = append(headersToRecover, v.(*types.MinorBlock))
 	}
 	// Start a parallel signature recovery (signer will fluke on fork transition, minimal perf loss)
-	if err := senderCacher.recoverFromBlocks(m.singer, headersToRecover, m.clusterConfig.Quarkchain); err != nil {
-		return 0, nil, nil, nil, err
-	}
-
+	senderCacher.recoverFromBlocks(m.singer, headersToRecover)
 	// A queued approach to delivering events. This is generally
 	// faster than direct delivery and requires much less mutex
 	// acquiring.

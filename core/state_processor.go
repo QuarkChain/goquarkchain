@@ -21,7 +21,6 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
-	"reflect"
 
 	"github.com/QuarkChain/goquarkchain/account"
 	qkcCmn "github.com/QuarkChain/goquarkchain/common"
@@ -81,9 +80,6 @@ func (p *StateProcessor) Process(block *types.MinorBlock, statedb *state.StateDB
 			return nil, nil, 0, err
 		}
 		statedb.Prepare(tx.Hash(), block.Hash(), i)
-		if err := evmTx.EvmTx.SetQuarkChainConfig(p.bc.clusterConfig.Quarkchain); err != nil {
-			return nil, nil, 0, err
-		}
 		_, receipt, _, err := ApplyTransaction(p.config, p.bc, gp, statedb, header, evmTx, usedGas, cfg)
 		if err != nil {
 			return nil, nil, 0, err
@@ -194,11 +190,6 @@ func ValidateTransaction(state vm.StateDB, chainConfig *params.ChainConfig, tx *
 
 // ApplyTransaction apply tx
 func ApplyTransaction(config *params.ChainConfig, bc ChainContext, gp *GasPool, statedb *state.StateDB, header types.IHeader, tx *types.Transaction, usedGas *uint64, cfg vm.Config) ([]byte, *types.Receipt, uint64, error) {
-	if !reflect.ValueOf(bc).IsNil() { //chain_makers.go
-		if err := tx.EvmTx.SetQuarkChainConfig(bc.Config()); err != nil {
-			return nil, nil, 0, err
-		}
-	}
 	statedbGensisToken := statedb.GetQuarkChainConfig().GetDefaultChainTokenID()
 	gasPrice, refundRate := tx.EvmTx.GasPrice(), uint8(100)
 	convertedGenesisTokenGasPrice := new(big.Int)
@@ -228,7 +219,6 @@ func ApplyTransaction(config *params.ChainConfig, bc ChainContext, gp *GasPool, 
 	if err != nil {
 		return nil, nil, 0, err
 	}
-
 	context := NewEVMContext(msg, header, bc, tx.EvmTx.GasPrice())
 	vmenv := vm.NewEVM(context, statedb, config, cfg)
 

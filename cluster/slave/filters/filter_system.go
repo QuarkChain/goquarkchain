@@ -7,7 +7,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/QuarkChain/goquarkchain/cluster/config"
 	qsync "github.com/QuarkChain/goquarkchain/cluster/sync"
 	"github.com/QuarkChain/goquarkchain/core"
 	"github.com/QuarkChain/goquarkchain/core/types"
@@ -63,7 +62,6 @@ type SlaveFilter interface {
 	GetTransactionByHash(txHash common.Hash, branch uint32) (*types.MinorBlock, uint32, error)
 	GetShardFilter(fullShardId uint32) (ShardFilter, error)
 	GetFullShardList() []uint32
-	GetClusterConfig() *config.ClusterConfig
 }
 
 type ShardFilter interface {

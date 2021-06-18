@@ -53,10 +53,6 @@ func (s *SlaveBackend) GetFullShardList() []uint32 {
 	return s.fullShardList
 }
 
-func (s *SlaveBackend) GetClusterConfig() *config.ClusterConfig {
-	return s.clstrCfg
-}
-
 func (s *SlaveBackend) coverShardId(id uint32) bool {
 	for _, msk := range s.config.FullShardList {
 		if msk == id {

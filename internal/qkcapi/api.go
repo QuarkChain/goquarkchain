@@ -29,6 +29,7 @@ func (c *CommonAPI) callOrEstimateGas(args *CallArgs, height *uint64, isCall boo
 	if err != nil {
 		return nil, err
 	}
+	fmt.Println("callorEsta", tx.EvmTx.FromFullShardKey(), tx.EvmTx.ToFullShardKey())
 	if isCall {
 		isSameChain := clusterCfg.Quarkchain.IsSameFullShard(args.From.FullShardKey, args.To.FullShardKey)
 		if !isSameChain {
@@ -61,6 +62,7 @@ func (c *CommonAPI) SendRawTransaction(encodedTx hexutil.Bytes) (hexutil.Bytes, 
 		return EmptyTxID, err
 	}
 	return encoder.IDEncoder(tx.Hash().Bytes(), tx.EvmTx.FromFullShardKey()), nil
+
 }
 
 func MetaMaskReceipt(block *types.MinorBlock, i int, receipt *types.Receipt) (map[string]interface{}, error) {
@@ -77,10 +79,7 @@ func MetaMaskReceipt(block *types.MinorBlock, i int, receipt *types.Receipt) (ma
 	}
 	header := block.Header()
 	tx := block.Transactions()[i]
-	if err := tx.EvmTx.SetQuarkChainConfig(clusterCfg.Quarkchain); err != nil {
-		return nil, err
-	}
-	from, err := tx.Sender(types.MakeSigner(clusterCfg.Quarkchain.NetworkID))
+	from, err := tx.Sender(types.NewEIP155Signer(clusterCfg.Quarkchain.NetworkID))
 	if err != nil {
 		return nil, err
 	}
@@ -370,7 +369,7 @@ func (p *PublicBlockChainAPI) GetMinorBlockById(blockID hexutil.Bytes, includeTx
 	if minorBlock == nil {
 		return nil, errors.New("minor block is nil")
 	}
-	return encoder.MinorBlockEncoder(minorBlock, *includeTxs, extra, clusterCfg)
+	return encoder.MinorBlockEncoder(minorBlock, *includeTxs, extra)
 
 }
 
@@ -399,7 +398,7 @@ func (p *PublicBlockChainAPI) GetMinorBlockByHeight(fullShardKey hexutil.Uint, h
 	if minorBlock == nil {
 		return nil, errors.New("minor block is nil")
 	}
-	return encoder.MinorBlockEncoder(minorBlock, *includeTxs, extraData, clusterCfg)
+	return encoder.MinorBlockEncoder(minorBlock, *includeTxs, extraData)
 }
 
 func (p *PublicBlockChainAPI) GetTransactionById(txID hexutil.Bytes) (map[string]interface{}, error) {
@@ -422,7 +421,7 @@ func (p *PublicBlockChainAPI) GetTransactionById(txID hexutil.Bytes) (map[string
 	if len(minorBlock.Transactions()) <= int(index) {
 		return nil, errors.New("index bigger than block's tx")
 	}
-	return encoder.TxEncoder(minorBlock, int(index), clusterCfg)
+	return encoder.TxEncoder(minorBlock, int(index))
 }
 
 func (p *PublicBlockChainAPI) Call(data CallArgs, blockNr *rpc.BlockNumber) (hexutil.Bytes, error) {
