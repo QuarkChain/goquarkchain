@@ -698,6 +698,7 @@ func (m *MinorBlockChain) ExecuteTx(tx *types.Transaction, fromAddress *account.
 	}
 	evmTx, err := m.validateTx(tx, state, fromAddress, &gas, nil)
 	if err != nil {
+		fmt.Println("err--701", err)
 		return nil, err
 	}
 	gp := new(GasPool).AddGas(mBlock.GasLimit().Uint64())
