@@ -586,7 +586,6 @@ func (s *SlaveConnection) AddTransactions(request *rpc.P2PRedirectRequest) error
 	if err != nil {
 		return err
 	}
-	fmt.Println("slave AddTranc")
 	_, err = s.client.Call(s.target, &rpc.Request{Op: rpc.OpAddTransactions, Data: bytes})
 	if err != nil {
 		return err

@@ -2,7 +2,6 @@ package qkcapi
 
 import (
 	"encoding/binary"
-	"fmt"
 	"strings"
 
 	"github.com/QuarkChain/goquarkchain/account"
@@ -216,9 +215,7 @@ func (s *ShardAPI) toCallJsonArg(isCall bool, mdata MetaCallArgs) interface{} {
 }
 
 func (s *ShardAPI) Call(mdata MetaCallArgs, blockNr rpc.BlockNumber) (hexutil.Bytes, error) {
-	fmt.Println("call", s.toCallJsonArg(true, mdata))
 	resp, err := s.c.Call("call", s.toCallJsonArg(true, mdata), hexutil.Uint64(blockNr.Uint64()))
-	fmt.Println("call ans", resp, err)
 	if err != nil {
 		panic(err)
 	}

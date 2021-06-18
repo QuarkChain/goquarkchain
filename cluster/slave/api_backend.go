@@ -147,8 +147,7 @@ func (s *SlaveBackend) AddTx(tx *types.Transaction) (err error) {
 		return err
 	}
 	if shard, ok := s.shards[tx.EvmTx.FromFullShardId()]; ok {
-		err := shard.MinorBlockChain.AddTx(tx)
-		fmt.Println("txxxx", err)
+		return shard.MinorBlockChain.AddTx(tx)
 	}
 	return ErrMsg("AddTx")
 }
@@ -162,9 +161,7 @@ func (s *SlaveBackend) AddTxList(peerID string, branch uint32, txs []*types.Tran
 	if !ok {
 		return fmt.Errorf("fullShardID:%v not found", branch)
 	}
-	fmt.Println("slavebaskcda", branch)
 	errList := shard.MinorBlockChain.AddTxList(txs)
-	fmt.Println("errList", errList)
 	if len(errList) != len(txs) {
 		return errors.New("errList != txList")
 	}

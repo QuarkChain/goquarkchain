@@ -369,7 +369,7 @@ func (p *PublicBlockChainAPI) GetMinorBlockById(blockID hexutil.Bytes, includeTx
 	if minorBlock == nil {
 		return nil, errors.New("minor block is nil")
 	}
-	return encoder.MinorBlockEncoder(minorBlock, *includeTxs, extra, clusterCfg)
+	return encoder.MinorBlockEncoder(minorBlock, *includeTxs, extra)
 
 }
 
@@ -398,7 +398,7 @@ func (p *PublicBlockChainAPI) GetMinorBlockByHeight(fullShardKey hexutil.Uint, h
 	if minorBlock == nil {
 		return nil, errors.New("minor block is nil")
 	}
-	return encoder.MinorBlockEncoder(minorBlock, *includeTxs, extraData, clusterCfg)
+	return encoder.MinorBlockEncoder(minorBlock, *includeTxs, extraData)
 }
 
 func (p *PublicBlockChainAPI) GetTransactionById(txID hexutil.Bytes) (map[string]interface{}, error) {

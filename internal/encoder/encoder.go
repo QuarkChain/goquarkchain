@@ -2,9 +2,7 @@ package encoder
 
 import (
 	"errors"
-
 	"github.com/QuarkChain/goquarkchain/account"
-	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
 	"github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/common/hexutil"
@@ -142,7 +140,7 @@ func MinorBlockHeaderEncoder(header *types.MinorBlockHeader) (map[string]interfa
 	}, nil
 }
 
-func MinorBlockEncoder(block *types.MinorBlock, includeTransaction bool, extraInfo *rpc.PoSWInfo, cfg *config.ClusterConfig) (map[string]interface{}, error) {
+func MinorBlockEncoder(block *types.MinorBlock, includeTransaction bool, extraInfo *rpc.PoSWInfo) (map[string]interface{}, error) {
 	serData, err := serialize.SerializeToBytes(block)
 	if err != nil {
 		return nil, err
@@ -207,7 +205,7 @@ func TxEncoder(block *types.MinorBlock, i int) (map[string]interface{}, error) {
 	tx := block.Transactions()[i]
 	evmtx := tx.EvmTx
 	v, r, s := evmtx.RawSignatureValues()
-	sender, err := types.Sender(types.NewEIP155Signer(evmtx.NetworkId()), evmtx)
+	sender, err := types.Sender(types.MakeSigner(evmtx.NetworkId()), evmtx)
 	if err != nil {
 		return nil, err
 	}
