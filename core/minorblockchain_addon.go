@@ -203,7 +203,7 @@ func (m *MinorBlockChain) checkTxWithVersion2(tx *types.Transaction, evmState *s
 	if tx.EvmTx.NetworkId() != uint32(m.ethChainConfig.ChainID.Uint64()) {
 		return fmt.Errorf("networkID:%v != ethChainID:%v", tx.EvmTx.NetworkId(), m.ethChainConfig.ChainID)
 	}
-	if tx.EvmTx.FromFullShardKey() != 0 || tx.EvmTx.ToFullShardKey() != 0 {
+	if tx.EvmTx.FromFullShardKey()&65535 != 0 || tx.EvmTx.ToFullShardKey()&65535 != 0 {
 		return fmt.Errorf("fullShardKey should equal zero fromFullShardKey:%v toFullShardKey:%v", tx.EvmTx.FromFullShardKey(), tx.EvmTx.ToFullShardKey())
 	}
 	return nil
