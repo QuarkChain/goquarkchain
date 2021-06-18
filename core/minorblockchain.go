@@ -221,7 +221,7 @@ func NewMinorBlockChain(
 		logInfo: fmt.Sprintf("shard:%x", fullShardID),
 	}
 	bc.ethChainConfig.ChainID = new(big.Int).SetUint64(uint64(clusterConfig.Quarkchain.BaseEthChainID + 1 + bc.shardConfig.ChainID))
-	bc.singer = types.NewEIP155Signer(clusterConfig.Quarkchain.NetworkID)
+	bc.singer = types.MakeSigner(clusterConfig.Quarkchain.NetworkID)
 	var err error
 	bc.gasLimit, err = bc.clusterConfig.Quarkchain.GasLimit(bc.branch.Value)
 	if err != nil {

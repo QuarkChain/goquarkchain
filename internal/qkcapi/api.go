@@ -61,7 +61,6 @@ func (c *CommonAPI) SendRawTransaction(encodedTx hexutil.Bytes) (hexutil.Bytes, 
 		return EmptyTxID, err
 	}
 	return encoder.IDEncoder(tx.Hash().Bytes(), tx.EvmTx.FromFullShardKey()), nil
-
 }
 
 func MetaMaskReceipt(block *types.MinorBlock, i int, receipt *types.Receipt) (map[string]interface{}, error) {
@@ -81,7 +80,7 @@ func MetaMaskReceipt(block *types.MinorBlock, i int, receipt *types.Receipt) (ma
 	if err := tx.EvmTx.SetQuarkChainConfig(clusterCfg.Quarkchain); err != nil {
 		return nil, err
 	}
-	from, err := tx.Sender(types.NewEIP155Signer(clusterCfg.Quarkchain.NetworkID))
+	from, err := tx.Sender(types.MakeSigner(clusterCfg.Quarkchain.NetworkID))
 	if err != nil {
 		return nil, err
 	}

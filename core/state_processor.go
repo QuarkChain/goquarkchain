@@ -224,7 +224,7 @@ func ApplyTransaction(config *params.ChainConfig, bc ChainContext, gp *GasPool, 
 		statedb.AddBalance(contractAddr, new(big.Int).Mul(txGasLimit, tx.EvmTx.GasPrice()), tx.EvmTx.GasTokenID())
 	}
 	statedb.SetFullShardKey(tx.EvmTx.ToFullShardKey())
-	msg, err := tx.EvmTx.AsMessage(types.NewEIP155Signer(tx.EvmTx.NetworkId()), tx.Hash(), gasPrice, tx.EvmTx.GasTokenID(), refundRate)
+	msg, err := tx.EvmTx.AsMessage(types.MakeSigner(tx.EvmTx.NetworkId()), tx.Hash(), gasPrice, tx.EvmTx.GasTokenID(), refundRate)
 	if err != nil {
 		return nil, nil, 0, err
 	}

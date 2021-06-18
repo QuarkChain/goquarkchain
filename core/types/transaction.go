@@ -32,11 +32,12 @@ var (
 type EvmTransaction struct {
 	data txdata
 	// caches
-	updated bool
-	hash    atomic.Value
-	size    atomic.Value
-	from    atomic.Value
-	config  *config2.QuarkChainConfig
+	updated    bool
+	hash       atomic.Value
+	size       atomic.Value
+	from       atomic.Value
+	config     *config2.QuarkChainConfig
+	ethChainId atomic.Value
 }
 
 type txdata struct {
@@ -88,7 +89,7 @@ func (e *EvmTransaction) SetVRS(v, r, s *big.Int) {
 }
 
 func (e *EvmTransaction) SetSender(addr account.Recipient, chainID uint64) {
-	signer := NewEIP155Signer(e.NetworkId())
+	signer := MakeSigner(e.NetworkId())
 	e.from.Store(sigCache{signer: signer, from: addr})
 }
 
@@ -241,7 +242,12 @@ func (tx *EvmTransaction) ToShardSize() uint32 {
 }
 
 func (tx *EvmTransaction) EthChainID() uint32 {
-	return tx.config.BaseEthChainID + 1 + tx.FromChainID()
+	if chainId := tx.ethChainId.Load(); chainId != nil {
+		return chainId.(uint32)
+	}
+	v := tx.config.BaseEthChainID + 1 + tx.FromChainID()
+	tx.ethChainId.Store(v)
+	return v
 }
 
 func (tx *EvmTransaction) SetQuarkChainConfig(c *config2.QuarkChainConfig) error {
@@ -260,6 +266,7 @@ func (tx *EvmTransaction) FromShardID() uint32 {
 	shardMask := tx.FromShardSize() - 1
 	return tx.data.FromFullShardKey.GetValue() & shardMask
 }
+
 func (tx *EvmTransaction) ToShardID() uint32 {
 	shardMask := tx.ToShardSize() - 1
 	return tx.data.ToFullShardKey.GetValue() & shardMask
