@@ -147,7 +147,8 @@ func (s *SlaveBackend) AddTx(tx *types.Transaction) (err error) {
 		return err
 	}
 	if shard, ok := s.shards[tx.EvmTx.FromFullShardId()]; ok {
-		return shard.MinorBlockChain.AddTx(tx)
+		err := shard.MinorBlockChain.AddTx(tx)
+		fmt.Println("txxxx", err)
 	}
 	return ErrMsg("AddTx")
 }

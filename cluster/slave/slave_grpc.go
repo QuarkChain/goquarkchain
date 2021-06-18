@@ -170,6 +170,7 @@ func (s *SlaveServerSideOp) AddTransaction(ctx context.Context, req *rpc.Request
 		return nil, err
 	}
 
+	fmt.Println("addt x")
 	if err = s.slave.AddTx(gReq.Tx); err != nil {
 		return nil, err
 	}
