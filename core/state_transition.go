@@ -17,7 +17,9 @@
 package core
 
 import (
+	"encoding/hex"
 	"errors"
+	"fmt"
 	"math"
 	"math/big"
 
@@ -227,6 +229,7 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 	sender := vm.AccountRef(msg.From())
 	if msg.IsCrossShard() {
 		st.state.SetNonce(msg.From(), st.state.GetNonce(sender.Address())+1)
+		fmt.Println("sn????????????", msg.IsCrossShard())
 		return st.AddCrossShardTxDeposit(gas)
 	}
 	if contractCreation || evm.ContractAddress != nil {
@@ -256,8 +259,10 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 	st.refundGas(vmerr)
 	st.chargeFee(st.gasUsed())
 	if vmerr == vm.ErrPoSWSenderNotAllowed {
+		fmt.Println("vvvvvvvvvvvvvvvvvvvvvv", vmerr)
 		return nil, st.gasUsed(), true, nil
 	}
+	fmt.Println("264-------", hex.EncodeToString(ret), vmerr, err)
 	return ret, st.gasUsed(), vmerr != nil, err
 }
 
