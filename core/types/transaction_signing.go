@@ -109,7 +109,7 @@ func (s EIP155Signer) Sender(tx *EvmTransaction) (account.Recipient, error) {
 		}
 		return recoverPlain(hashTyped, tx.data.R, tx.data.S, tx.data.V, true)
 	} else if tx.data.Version == 2 {
-		chainID := tx.EthChainID()
+		chainID := tx.NetworkId()
 		chainIDMul := new(big.Int).Mul(big.NewInt(int64(chainID)), big.NewInt(2))
 		V := new(big.Int).Sub(tx.data.V, chainIDMul)
 		V.Sub(V, big.NewInt(8))

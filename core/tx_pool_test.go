@@ -83,7 +83,7 @@ func (bc *testBlockChain) Config() *config.QuarkChainConfig {
 }
 
 func (bc *testBlockChain) ChainConfig() *params.ChainConfig {
-	return params.TestChainConfig
+	return nil
 }
 
 func (m *testBlockChain) validateTx(tx *types.Transaction, evmState *state.StateDB, fromAddress *account.Address, gas, xShardGas *uint64) (*types.Transaction, error) {
@@ -877,10 +877,8 @@ func testTransactionQueueGlobalLimiting(t *testing.T, nolocals bool) {
 //
 // This logic should not hold for local transactions, unless the local tracking
 // mechanism is disabled.
-func TestTransactionQueueTimeLimiting(t *testing.T) { testTransactionQueueTimeLimiting(t, false) }
-func TestTransactionQueueTimeLimitingNoLocals(t *testing.T) {
-	testTransactionQueueTimeLimiting(t, true)
-}
+func TestTransactionQueueTimeLimiting(t *testing.T)         { testTransactionQueueTimeLimiting(t, false) }
+func TestTransactionQueueTimeLimitingNoLocals(t *testing.T) { testTransactionQueueTimeLimiting(t, true) }
 
 func testTransactionQueueTimeLimiting(t *testing.T, nolocals bool) {
 	// Reduce the eviction interval to a testable amount

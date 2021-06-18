@@ -2,9 +2,6 @@ package slave
 
 import (
 	"context"
-	"net"
-	"time"
-
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/cluster/slave/filters"
 	"github.com/QuarkChain/goquarkchain/cluster/sync"
@@ -17,6 +14,8 @@ import (
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/params"
+	"net"
+	"time"
 )
 
 type testBackend struct {
@@ -70,10 +69,6 @@ func newTestBackend() (*testBackend, error) {
 	go rpc.NewWSServer([]string{"*"}, bak.handler).Serve(bak.listener)
 
 	return bak, nil
-}
-
-func (t *testBackend) GetClusterConfig() *config.ClusterConfig {
-	return t.config
 }
 
 func (t *testBackend) stop() {

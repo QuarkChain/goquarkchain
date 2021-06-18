@@ -78,9 +78,6 @@ func MetaMaskReceipt(block *types.MinorBlock, i int, receipt *types.Receipt) (ma
 	}
 	header := block.Header()
 	tx := block.Transactions()[i]
-	if err := tx.EvmTx.SetQuarkChainConfig(clusterCfg.Quarkchain); err != nil {
-		return nil, err
-	}
 	from, err := tx.Sender(types.NewEIP155Signer(clusterCfg.Quarkchain.NetworkID))
 	if err != nil {
 		return nil, err
@@ -423,7 +420,7 @@ func (p *PublicBlockChainAPI) GetTransactionById(txID hexutil.Bytes) (map[string
 	if len(minorBlock.Transactions()) <= int(index) {
 		return nil, errors.New("index bigger than block's tx")
 	}
-	return encoder.TxEncoder(minorBlock, int(index), clusterCfg)
+	return encoder.TxEncoder(minorBlock, int(index))
 }
 
 func (p *PublicBlockChainAPI) Call(data CallArgs, blockNr *rpc.BlockNumber) (hexutil.Bytes, error) {

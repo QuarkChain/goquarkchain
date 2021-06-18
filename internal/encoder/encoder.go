@@ -179,7 +179,7 @@ func MinorBlockEncoder(block *types.MinorBlock, includeTransaction bool, extraIn
 	if includeTransaction {
 		txForDisplay := make([]map[string]interface{}, 0)
 		for txIndex := range block.Transactions() {
-			temp, err := TxEncoder(block, txIndex, cfg)
+			temp, err := TxEncoder(block, txIndex)
 			if err != nil {
 				return nil, err
 			}
@@ -202,14 +202,11 @@ func MinorBlockEncoder(block *types.MinorBlock, includeTransaction bool, extraIn
 	return field, nil
 }
 
-func TxEncoder(block *types.MinorBlock, i int, cfg *config.ClusterConfig) (map[string]interface{}, error) {
+func TxEncoder(block *types.MinorBlock, i int) (map[string]interface{}, error) {
 	header := block.Header()
 	tx := block.Transactions()[i]
 	evmtx := tx.EvmTx
 	v, r, s := evmtx.RawSignatureValues()
-	if err := evmtx.SetQuarkChainConfig(cfg.Quarkchain); err != nil {
-		return nil, err
-	}
 	sender, err := types.Sender(types.NewEIP155Signer(evmtx.NetworkId()), evmtx)
 	if err != nil {
 		return nil, err
