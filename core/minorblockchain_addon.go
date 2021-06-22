@@ -198,6 +198,7 @@ func (m *MinorBlockChain) checkTxWithVersion2(tx *types.Transaction, evmState *s
 		return fmt.Errorf("fromChainID:%v != toChainID:%v", tx.EvmTx.FromChainID(), tx.EvmTx.ToChainID())
 	}
 	if tx.EvmTx.FromShardID() != tx.EvmTx.ToShardID() {
+		fmt.Println("???????????--", tx.EvmTx.FromFullShardKey(), tx.EvmTx.ToFullShardKey())
 		return fmt.Errorf("fromShardID:%v != toShardID:%v", tx.EvmTx.FromShardID(), tx.EvmTx.ToShardID())
 	}
 	if tx.EvmTx.NetworkId() != uint32(m.ethChainConfig.ChainID.Uint64()) {
