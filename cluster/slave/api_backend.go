@@ -132,6 +132,7 @@ func (s *SlaveBackend) AddBlockListForSync(mHashList []common.Hash, peerId strin
 }
 
 func (s *SlaveBackend) AddTx(tx *types.Transaction) (err error) {
+	fmt.Println("slave add tx")
 	toShardSize, err := s.clstrCfg.Quarkchain.GetShardSizeByChainId(tx.EvmTx.ToChainID())
 	if err != nil {
 		return err
@@ -147,7 +148,9 @@ func (s *SlaveBackend) AddTx(tx *types.Transaction) (err error) {
 		return err
 	}
 	if shard, ok := s.shards[tx.EvmTx.FromFullShardId()]; ok {
-		return shard.MinorBlockChain.AddTx(tx)
+		err := shard.MinorBlockChain.AddTx(tx)
+		fmt.Println("Shard。Aaaddtx", err)
+		return err
 	}
 	return ErrMsg("AddTx")
 }
