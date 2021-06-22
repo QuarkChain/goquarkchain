@@ -161,6 +161,7 @@ func (s *SlaveServerSideOp) GetAccountData(ctx context.Context, req *rpc.Request
 }
 
 func (s *SlaveServerSideOp) AddTransaction(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
+	fmt.Println("SSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS--", s.slave.logInfo)
 	var (
 		gReq     rpc.AddTransactionRequest
 		response = &rpc.Response{RpcId: req.RpcId}
