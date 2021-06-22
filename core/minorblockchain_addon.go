@@ -816,6 +816,7 @@ func (m *MinorBlockChain) addTransactionToBlock(block *types.MinorBlock, evmStat
 		// Pop skip all txs about this account
 		//Shift skip this tx ,goto next tx about this account
 		if err := m.checkTxBeforeApply(stateT, tx, block.Header()); err != nil {
+			fmt.Println("errrrrrr", err)
 			if err == ErrorTxBreak {
 				break
 			} else if err == ErrorTxContinue {
