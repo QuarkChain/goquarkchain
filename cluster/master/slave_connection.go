@@ -583,10 +583,12 @@ func (s *SlaveConnection) GenTx(numTxPerShard, xShardPercent uint32, tx *types.T
 
 func (s *SlaveConnection) AddTransactions(request *rpc.P2PRedirectRequest) error {
 	bytes, err := serialize.SerializeToBytes(request)
+	fmt.Println("586--err", err)
 	if err != nil {
 		return err
 	}
 	_, err = s.client.Call(s.target, &rpc.Request{Op: rpc.OpAddTransactions, Data: bytes})
+	fmt.Println("591---call", err)
 	if err != nil {
 		return err
 	}
