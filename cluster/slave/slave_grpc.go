@@ -664,6 +664,7 @@ func (s *SlaveServerSideOp) HandleNewTip(ctx context.Context, req *rpc.Request) 
 }
 
 func (s *SlaveServerSideOp) AddTransactions(ctx context.Context, req *rpc.Request) (*rpc.Response, error) {
+	fmt.Println("SSSSSSSSSSSSSSSSSSSSSSS-----")
 	var (
 		gReq rpc.P2PRedirectRequest
 		txs  p2p.NewTransactionList
@@ -689,6 +690,7 @@ func (s *SlaveServerSideOp) AddTransactions(ctx context.Context, req *rpc.Reques
 		return nil
 	}
 
+	fmt.Println("grep.benach", gReq.Branch)
 	if gReq.Branch != 0 {
 		err := addTxList(gReq.Branch, txs.TransactionList)
 		return new(rpc.Response), err
