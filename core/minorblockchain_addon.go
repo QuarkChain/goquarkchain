@@ -9,9 +9,6 @@ import (
 	"sort"
 	"time"
 
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/log"
-
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
 	qkcCommon "github.com/QuarkChain/goquarkchain/common"
@@ -22,6 +19,8 @@ import (
 	"github.com/QuarkChain/goquarkchain/qkcdb"
 	qrpc "github.com/QuarkChain/goquarkchain/rpc"
 	"github.com/QuarkChain/goquarkchain/serialize"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/log"
 )
 
 var (
@@ -215,7 +214,7 @@ func (m *MinorBlockChain) checkTxWithVersion2(tx *types.Transaction, evmState *s
 	if tx.EvmTx.GasTokenID() != qkcCommon.TokenIDEncode(qkcapi.DefaultTokenID) {
 		return fmt.Errorf("Wrong gasTokenID:%v in version=2.", tx.EvmTx.GasTokenID())
 	}
-	if tx.EvmTx.NetworkId() != uint32(m.ethChainConfig.ChainID.Uint64()) {
+	if tx.EvmTx.NetworkId() != uint32(m.EthChainID().Uint64()) {
 		return fmt.Errorf("networkID:%v != ethChainID:%v", tx.EvmTx.NetworkId(), m.ethChainConfig.ChainID)
 	}
 	return nil
@@ -709,7 +708,6 @@ func (m *MinorBlockChain) ExecuteTx(tx *types.Transaction, fromAddress *account.
 	}
 	evmTx, err := m.validateTx(tx, state, fromAddress, &gas, nil)
 	if err != nil {
-		fmt.Println("err--701", err)
 		return nil, err
 	}
 	gp := new(GasPool).AddGas(mBlock.GasLimit().Uint64())

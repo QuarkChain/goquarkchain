@@ -580,7 +580,6 @@ func (pm *ProtocolManager) HandleGetRootBlockHeaderListWithSkipRequest(peerId st
 }
 
 func (pm *ProtocolManager) HandleNewTransactionListRequest(peerId string, rpcId uint64, branch uint32, data []byte) error {
-	fmt.Println("HandleNewTransactionListRequest", branch)
 	req := &rpc.P2PRedirectRequest{
 		Branch: branch,
 		Data:   data,
