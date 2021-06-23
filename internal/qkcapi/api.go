@@ -61,64 +61,36 @@ func (c *CommonAPI) SendRawTransaction(encodedTx hexutil.Bytes) (hexutil.Bytes, 
 		return EmptyTxID, err
 	}
 	return encoder.IDEncoder(tx.Hash().Bytes(), tx.EvmTx.FromFullShardKey()), nil
-
-}
-
-func MetaMaskReceipt(block *types.MinorBlock, i int, receipt *types.Receipt) (map[string]interface{}, error) {
-	if block == nil {
-		return nil, errors.New("block is nil")
-	}
-	txHash := ""
-	if len(block.Transactions()) > i {
-		tx := block.Transactions()[i]
-		txHash = tx.Hash().String()
-	}
-	if receipt == nil {
-		return nil, errors.New("receipt is nil")
-	}
-	header := block.Header()
-	tx := block.Transactions()[i]
-	from, err := tx.Sender(types.MakeSigner(clusterCfg.Quarkchain.NetworkID))
-	if err != nil {
-		return nil, err
-	}
-	field := map[string]interface{}{
-		"blockHash":         header.Hash(),
-		"blockNumber":       hexutil.Uint64(header.Number),
-		"cumulativeGasUsed": hexutil.Uint64(receipt.CumulativeGasUsed),
-		"from":              from,
-		"gasUsed":           hexutil.Uint64(receipt.GasUsed - receipt.GetPrevGasUsed()),
-		"logsBloom":         receipt.Bloom,
-		"status":            hexutil.Uint64(receipt.Status),
-		"timestamp":         hexutil.Uint64(block.Time()),
-		"to":                block.Transactions()[i].EvmTx.To(),
-		"transactionHash":   txHash,
-		"transactionIndex":  hexutil.Uint64(i),
-	}
-	if receipt.ContractAddress.Big().Uint64() == 0 {
-		field["contractAddress"] = nil
-	} else {
-		field["contractAddress"] = account.Address{
-			Recipient:    receipt.ContractAddress,
-			FullShardKey: block.Branch().Value,
-		}.ToHex()
-	}
-	return field, nil
 }
 
 func (c *CommonAPI) GetTransactionReceipt(txID hexutil.Bytes) (map[string]interface{}, error) {
-	hash := common.BytesToHash(txID[:32])
-	fullShardKey := hexutil.Uint(qcom.BytesToUint32(txID[32:]))
-	fullShardID, err := getFullShardId(&fullShardKey)
+	txHash, fullShardKey, err := encoder.IDDecoder(txID)
+	if err != nil {
+		return nil, err
+	}
 
-	minorBlock, index, receipt, err := c.b.GetTransactionReceipt(hash, account.Branch{Value: fullShardID})
+	fullShardId, err := clusterCfg.Quarkchain.GetFullShardIdByFullShardKey(fullShardKey)
+	if err != nil {
+		return nil, err
+	}
+	branch := account.Branch{Value: fullShardId}
+	minorBlock, index, receipt, err := c.b.GetTransactionReceipt(txHash, branch)
 	if err != nil {
 		return nil, err
 	}
 	if minorBlock == nil {
 		return nil, nil
 	}
-	ret, err := MetaMaskReceipt(minorBlock, int(index), receipt)
+	ret, err := encoder.ReceiptEncoder(minorBlock, int(index), receipt)
+	if receipt.ContractAddress.Big().Uint64() == 0 {
+		ret["contractAddress"] = nil
+	} else {
+		ret["contractAddress"] = account.Address{
+			Recipient:    receipt.ContractAddress,
+			FullShardKey: minorBlock.Branch().Value,
+		}.ToHex()
+	}
+
 	return ret, err
 }
 
@@ -378,7 +350,7 @@ func (p *PublicBlockChainAPI) GetMinorBlockByHeight(fullShardKey hexutil.Uint, h
 		return nil, err
 	}
 	if needExtraInfo == nil {
-		temp := false
+		temp := true
 		needExtraInfo = &temp
 	}
 	if includeTxs == nil {
