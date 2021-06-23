@@ -304,7 +304,7 @@ func (m *MinorBlockChain) validateTx(tx *types.Transaction, evmState *state.Stat
 	var sender account.Recipient
 	if fromAddress == nil {
 		var err error
-		sender, err = tx.Sender(m.singer)
+		sender, err = tx.Sender(m.signer)
 		if err != nil {
 			return nil, err
 		}
@@ -810,7 +810,7 @@ func (m *MinorBlockChain) addTransactionToBlock(block *types.MinorBlock, evmStat
 	if err != nil {
 		return nil, nil, err
 	}
-	txs, err := types.NewTransactionsByPriceAndNonce(m.singer, pending)
+	txs, err := types.NewTransactionsByPriceAndNonce(m.signer, pending)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -1494,7 +1494,7 @@ func (m *MinorBlockChain) getPendingTxByAddress(address account.Address, transfe
 
 	//TODO: could also show incoming pending tx????? need check later
 	for _, tx := range txs {
-		sender, err := types.Sender(m.singer, tx.EvmTx)
+		sender, err := types.Sender(m.signer, tx.EvmTx)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -1604,7 +1604,7 @@ func (m *MinorBlockChain) getTransactionDetails(start, end []byte, limit uint32,
 			if !ok && !skipTx(evmTx) {
 				limit--
 				receipt, _, _ := rawdb.ReadReceipt(m.db, tx.Hash())
-				sender, err := types.Sender(m.singer, evmTx)
+				sender, err := types.Sender(m.signer, evmTx)
 				if err != nil {
 					return nil, nil, err
 				}
@@ -1708,7 +1708,7 @@ func (m *MinorBlockChain) updateTxHistoryIndex(tx *types.Transaction, height uin
 	if err := f(key); err != nil {
 		return err
 	}
-	sender, err := types.Sender(m.singer, evmtx)
+	sender, err := types.Sender(m.signer, evmtx)
 	if err != nil {
 		return err
 	}

@@ -153,7 +153,7 @@ type MinorBlockChain struct {
 	posw                     consensus.PoSWCalculator
 	gasLimit                 *big.Int
 	xShardGasLimit           *big.Int
-	singer                   types.Signer
+	signer                   types.Signer
 }
 
 // NewMinorBlockChain returns a fully initialised block chain using information
@@ -221,7 +221,7 @@ func NewMinorBlockChain(
 		logInfo: fmt.Sprintf("shard:%x", fullShardID),
 	}
 	bc.ethChainConfig.ChainID = new(big.Int).SetUint64(uint64(clusterConfig.Quarkchain.BaseEthChainID + 1 + bc.shardConfig.ChainID))
-	bc.singer = types.MakeSigner(clusterConfig.Quarkchain.NetworkID)
+	bc.signer = types.MakeSigner(clusterConfig.Quarkchain.NetworkID)
 	var err error
 	bc.gasLimit, err = bc.clusterConfig.Quarkchain.GasLimit(bc.branch.Value)
 	if err != nil {
@@ -754,7 +754,7 @@ func (m *MinorBlockChain) SetReceiptsData(config *config.QuarkChainConfig, mBloc
 		// The contract address can be derived from the transaction itself
 		if transactions[j].EvmTx.To() == nil {
 			// Deriving the signer is expensive, only do if it's actually needed
-			from, _ := types.Sender(m.singer, transactions[j].EvmTx)
+			from, _ := types.Sender(m.signer, transactions[j].EvmTx)
 			toFullShardKey := transactions[j].EvmTx.ToFullShardKey()
 			receipts[j].ContractAddress = account.BytesToIdentityRecipient(vm.CreateAddress(from, &toFullShardKey, transactions[j].EvmTx.Nonce()).Bytes())
 		}
@@ -1064,7 +1064,7 @@ func (m *MinorBlockChain) insertChain(chain []types.IBlock, verifySeals bool, is
 		headersToRecover = append(headersToRecover, v.(*types.MinorBlock))
 	}
 	// Start a parallel signature recovery (signer will fluke on fork transition, minimal perf loss)
-	senderCacher.recoverFromBlocks(m.singer, headersToRecover)
+	senderCacher.recoverFromBlocks(m.signer, headersToRecover)
 	// A queued approach to delivering events. This is generally
 	// faster than direct delivery and requires much less mutex
 	// acquiring.

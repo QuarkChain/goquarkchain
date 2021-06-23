@@ -350,7 +350,7 @@ func (p *PublicBlockChainAPI) GetMinorBlockByHeight(fullShardKey hexutil.Uint, h
 		return nil, err
 	}
 	if needExtraInfo == nil {
-		temp := false
+		temp := true
 		needExtraInfo = &temp
 	}
 	if includeTxs == nil {
