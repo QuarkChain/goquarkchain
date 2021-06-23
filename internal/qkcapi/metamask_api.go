@@ -135,12 +135,6 @@ func (s *ShardAPI) SendRawTransaction(encodedTx hexutil.Bytes) (common.Hash, err
 	return txQkc.Hash(), nil
 }
 
-func Uint32ToBytes(n uint32) []byte {
-	Bytes := make([]byte, 4)
-	binary.BigEndian.PutUint32(Bytes, n)
-	return Bytes
-}
-
 func (s *ShardAPI) getTxIDInShard(h common.Hash) []byte {
 	fullShardIDBytes := make([]byte, 4)
 	binary.BigEndian.PutUint32(fullShardIDBytes, s.fullShardID)
@@ -158,6 +152,7 @@ func (s *ShardAPI) GetTransactionByHash(hash common.Hash) (map[string]interface{
 	}
 	return resp.Result.(map[string]interface{}), nil
 }
+
 func (s *ShardAPI) GetTransactionReceipt(hash common.Hash) (map[string]interface{}, error) {
 	resp, err := s.c.Call("getTransactionReceipt", common.ToHex(s.getTxIDInShard(hash)))
 	if err != nil {
@@ -221,6 +216,7 @@ func (s *ShardAPI) Call(mdata MetaCallArgs, blockNr rpc.BlockNumber) (hexutil.By
 	}
 	return hexutil.Decode(resp.Result.(string))
 }
+
 func (s *ShardAPI) EstimateGas(mdata MetaCallArgs) (hexutil.Uint, error) {
 	resp, err := s.c.Call("estimateGas", s.toCallJsonArg(false, mdata))
 	if err != nil {

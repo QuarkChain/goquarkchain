@@ -113,7 +113,7 @@ func (s EIP155Signer) Sender(tx *EvmTransaction) (account.Recipient, error) {
 		chainIDMul := new(big.Int).Mul(big.NewInt(int64(chainID)), big.NewInt(2))
 		V := new(big.Int).Sub(tx.data.V, chainIDMul)
 		V.Sub(V, big.NewInt(8))
-		sender, err := recoverPlain(tx.getMetaMaskUnsignedhash(chainID), tx.data.R, tx.data.S, V, true)
+		sender, err := recoverPlain(tx.getUnsignedHashForEip155(chainID), tx.data.R, tx.data.S, V, true)
 		return sender, err
 	} else {
 		return account.Recipient{}, fmt.Errorf("Version %d is not suppot", tx.data.Version)

@@ -29,7 +29,6 @@ func (c *CommonAPI) callOrEstimateGas(args *CallArgs, height *uint64, isCall boo
 	if err != nil {
 		return nil, err
 	}
-	fmt.Println("callorEsta", tx.EvmTx.FromFullShardKey(), tx.EvmTx.ToFullShardKey())
 	if isCall {
 		isSameChain := clusterCfg.Quarkchain.IsSameFullShard(args.From.FullShardKey, args.To.FullShardKey)
 		if !isSameChain {
@@ -79,7 +78,7 @@ func MetaMaskReceipt(block *types.MinorBlock, i int, receipt *types.Receipt) (ma
 	}
 	header := block.Header()
 	tx := block.Transactions()[i]
-	from, err := tx.Sender(types.NewEIP155Signer(clusterCfg.Quarkchain.NetworkID))
+	from, err := tx.Sender(types.MakeSigner(clusterCfg.Quarkchain.NetworkID))
 	if err != nil {
 		return nil, err
 	}
