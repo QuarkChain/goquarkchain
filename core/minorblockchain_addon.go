@@ -15,6 +15,7 @@ import (
 	"github.com/QuarkChain/goquarkchain/core/rawdb"
 	"github.com/QuarkChain/goquarkchain/core/state"
 	"github.com/QuarkChain/goquarkchain/core/types"
+	"github.com/QuarkChain/goquarkchain/internal/qkcapi"
 	"github.com/QuarkChain/goquarkchain/qkcdb"
 	qrpc "github.com/QuarkChain/goquarkchain/rpc"
 	"github.com/QuarkChain/goquarkchain/serialize"
@@ -183,6 +184,42 @@ func (m *MinorBlockChain) updateTip(state *state.StateDB, block *types.MinorBloc
 	return updateTip, nil
 }
 
+// checkTxWithVersion2
+// When tx.version == 2 (EIP155 tx), check
+// 0. EIP155_SIGNER enable
+// 1. tx.v == tx.network_id * 2 + 35 (+ 1)
+// 2. GasTokenID & TransferTokenID should equal to default_token_id (like qkc)
+// 3. tx.FromChainID == tx.ToChainID  && (tx.FromShardKey = 0 & tx.ToShardKey = 0)
+// 4. tx.NetworkId == chain_config.ETH_CHAIN_ID, where chain_config is derived from tx.from_chain_id
+func (m *MinorBlockChain) checkTxWithVersion2(tx *types.Transaction, evmState *state.StateDB) error {
+	if evmState.GetTimeStamp() < m.clusterConfig.Quarkchain.EnableEIP155SignerTimestamp {
+		return fmt.Errorf("currTimeStamp %v < enableEIP155TimeStamp %v",
+			evmState.GetTimeStamp(), m.clusterConfig.Quarkchain.EnableEIP155SignerTimestamp)
+	}
+	v, _, _ := tx.EvmTx.RawSignatureValues()
+	if v.Int64() != 35+int64(tx.EvmTx.NetworkId())*2 &&
+		v.Int64() != 35+int64(tx.EvmTx.NetworkId())*2+1 {
+		return fmt.Errorf("evm tx network id mismatch. expect %v but got %v.", v, tx.EvmTx.NetworkId())
+	}
+	if tx.EvmTx.FromChainID() != tx.EvmTx.ToChainID() {
+		return fmt.Errorf("EIP155 Signer do not support cross shard transaction. expect %v but got %v.",
+			tx.EvmTx.FromChainID(), tx.EvmTx.ToChainID())
+	}
+	if tx.EvmTx.FromShardKey() != 0 || tx.EvmTx.ToShardKey() != 0 {
+		return fmt.Errorf("fromShardKey:%v != toShardKey:%v", tx.EvmTx.FromShardKey(), tx.EvmTx.ToShardKey())
+	}
+	if tx.EvmTx.TransferTokenID() != qkcCommon.TokenIDEncode(qkcapi.DefaultTokenID) {
+		return fmt.Errorf("Wrong transferTokenID:%v in version=2.", tx.EvmTx.TransferTokenID())
+	}
+	if tx.EvmTx.GasTokenID() != qkcCommon.TokenIDEncode(qkcapi.DefaultTokenID) {
+		return fmt.Errorf("Wrong gasTokenID:%v in version=2.", tx.EvmTx.GasTokenID())
+	}
+	if tx.EvmTx.NetworkId() != uint32(m.ethChainConfig.ChainID.Uint64()) {
+		return fmt.Errorf("networkID:%v != ethChainID:%v", tx.EvmTx.NetworkId(), m.ethChainConfig.ChainID)
+	}
+	return nil
+}
+
 func (m *MinorBlockChain) validateTx(tx *types.Transaction, evmState *state.StateDB, fromAddress *account.Address, gas, xShardGasLimit *uint64) (*types.Transaction, error) {
 	if evmState == nil && fromAddress != nil {
 		return nil, errors.New("validateTx params err")
@@ -218,9 +255,14 @@ func (m *MinorBlockChain) validateTx(tx *types.Transaction, evmState *state.Stat
 	if err := tx.EvmTx.SetFromShardSize(fromShardSize); err != nil {
 		return nil, err
 	}
-
-	if evmTx.NetworkId() != m.clusterConfig.Quarkchain.NetworkID {
-		return nil, ErrNetWorkID
+	if tx.EvmTx.Version() == 2 {
+		if err := m.checkTxWithVersion2(tx, evmState); err != nil {
+			return nil, err
+		}
+	} else {
+		if tx.EvmTx.NetworkId() != m.clusterConfig.Quarkchain.NetworkID {
+			return nil, ErrNetWorkID
+		}
 	}
 	if !m.branch.IsInBranch(evmTx.FromFullShardId()) {
 		return nil, ErrBranch
@@ -260,7 +302,8 @@ func (m *MinorBlockChain) validateTx(tx *types.Transaction, evmState *state.Stat
 	}
 	var sender account.Recipient
 	if fromAddress == nil {
-		sender, err = tx.Sender(types.NewEIP155Signer(m.clusterConfig.Quarkchain.NetworkID))
+		var err error
+		sender, err = tx.Sender(m.signer)
 		if err != nil {
 			return nil, err
 		}
@@ -765,7 +808,7 @@ func (m *MinorBlockChain) addTransactionToBlock(block *types.MinorBlock, evmStat
 	if err != nil {
 		return nil, nil, err
 	}
-	txs, err := types.NewTransactionsByPriceAndNonce(types.NewEIP155Signer(uint32(m.Config().NetworkID)), pending)
+	txs, err := types.NewTransactionsByPriceAndNonce(m.signer, pending)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -1224,7 +1267,12 @@ func (m *MinorBlockChain) EstimateGas(tx *types.Transaction, fromAddress account
 
 		gp := new(GasPool).AddGas(evmState.GetGasLimit().Uint64())
 		gasUsed := new(uint64)
-		_, _, _, err = ApplyTransaction(m.ChainConfig(), m, gp, evmState, m.CurrentHeader(), evmTx, gasUsed, m.vmConfig)
+		receipt := new(types.Receipt)
+		_, receipt, _, err = ApplyTransaction(m.ChainConfig(), m, gp, evmState, m.CurrentHeader(), evmTx, gasUsed, m.vmConfig)
+
+		if receipt.Status == types.ReceiptStatusFailed {
+			return errors.New("failed")
+		}
 		return err
 	}
 
@@ -1444,7 +1492,7 @@ func (m *MinorBlockChain) getPendingTxByAddress(address account.Address, transfe
 
 	//TODO: could also show incoming pending tx????? need check later
 	for _, tx := range txs {
-		sender, err := types.Sender(types.MakeSigner(m.clusterConfig.Quarkchain.NetworkID), tx.EvmTx)
+		sender, err := types.Sender(m.signer, tx.EvmTx)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -1554,7 +1602,7 @@ func (m *MinorBlockChain) getTransactionDetails(start, end []byte, limit uint32,
 			if !ok && !skipTx(evmTx) {
 				limit--
 				receipt, _, _ := rawdb.ReadReceipt(m.db, tx.Hash())
-				sender, err := types.Sender(types.MakeSigner(m.clusterConfig.Quarkchain.NetworkID), evmTx)
+				sender, err := types.Sender(m.signer, evmTx)
 				if err != nil {
 					return nil, nil, err
 				}
@@ -1658,8 +1706,7 @@ func (m *MinorBlockChain) updateTxHistoryIndex(tx *types.Transaction, height uin
 	if err := f(key); err != nil {
 		return err
 	}
-
-	sender, err := types.Sender(types.MakeSigner(m.clusterConfig.Quarkchain.NetworkID), evmtx)
+	sender, err := types.Sender(m.signer, evmtx)
 	if err != nil {
 		return err
 	}

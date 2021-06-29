@@ -17,8 +17,9 @@
 package core
 
 import (
-	"github.com/QuarkChain/goquarkchain/core/types"
 	"runtime"
+
+	"github.com/QuarkChain/goquarkchain/core/types"
 )
 
 // senderCacher is a concurrent transaction sender recoverer anc cacher.

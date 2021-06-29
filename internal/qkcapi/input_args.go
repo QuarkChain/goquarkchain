@@ -3,6 +3,8 @@ package qkcapi
 import (
 	"encoding/json"
 	"errors"
+	"math/big"
+
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/common/hexutil"
@@ -10,7 +12,6 @@ import (
 	"github.com/QuarkChain/goquarkchain/params"
 	"github.com/QuarkChain/goquarkchain/rpc"
 	"github.com/ethereum/go-ethereum/common"
-	"math/big"
 )
 
 // CallArgs represents the arguments for a call.
@@ -44,8 +45,8 @@ type CallArgs struct {
 	GasPrice        hexutil.Big      `json:"gasPrice"`
 	Value           hexutil.Big      `json:"value"`
 	Data            hexutil.Bytes    `json:"data"`
-	GasTokenID      *hexutil.Uint64  `json:"gasTokenId"`
-	TransferTokenID *hexutil.Uint64  `json:"transferTokenId"`
+	GasTokenID      *hexutil.Uint64  `json:"gas_token_id"`
+	TransferTokenID *hexutil.Uint64  `json:"transfer_token_id"`
 }
 
 type GetAccountDataArgs struct {
@@ -69,8 +70,13 @@ func (c *CallArgs) toTx(config *config.QuarkChainConfig) (*types.Transaction, er
 	if c.TransferTokenID != nil {
 		transferTokenID = uint64(*c.TransferTokenID)
 	}
-	evmTx := types.NewEvmTransaction(0, c.To.Recipient, c.Value.ToInt(), c.Gas.ToInt().Uint64(),
-		c.GasPrice.ToInt(), c.From.FullShardKey, c.To.FullShardKey, config.NetworkID, 0, c.Data, gasTokenID, transferTokenID)
+	evmTx := new(types.EvmTransaction)
+	if c.To == nil {
+		evmTx = types.NewEvmContractCreation(0, c.Value.ToInt(), c.Gas.ToInt().Uint64(), c.GasPrice.ToInt(), c.From.FullShardKey, c.From.FullShardKey, config.NetworkID, 0, c.Data, gasTokenID, transferTokenID)
+	} else {
+		evmTx = types.NewEvmTransaction(0, c.To.Recipient, c.Value.ToInt(), c.Gas.ToInt().Uint64(),
+			c.GasPrice.ToInt(), c.From.FullShardKey, c.To.FullShardKey, config.NetworkID, 0, c.Data, gasTokenID, transferTokenID)
+	}
 	tx := &types.Transaction{
 		EvmTx:  evmTx,
 		TxType: types.EvmTx,

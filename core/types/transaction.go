@@ -89,7 +89,7 @@ func (e *EvmTransaction) SetVRS(v, r, s *big.Int) {
 }
 
 func (e *EvmTransaction) SetSender(addr account.Recipient) {
-	signer := NewEIP155Signer(e.NetworkId())
+	signer := MakeSigner(e.NetworkId())
 	e.from.Store(sigCache{signer: signer, from: addr})
 }
 
@@ -177,6 +177,18 @@ func (tx *EvmTransaction) getUnsignedHash() common.Hash {
 	return rlpHash(unsigntx)
 }
 
+func (tx *EvmTransaction) getUnsignedHashForEip155(chainId uint32) common.Hash {
+	return rlpHash([]interface{}{
+		tx.data.AccountNonce,
+		tx.data.Price,
+		tx.data.GasLimit,
+		tx.data.Recipient,
+		tx.data.Amount,
+		tx.data.Payload,
+		chainId, uint(0), uint(0),
+	})
+}
+
 func (tx *EvmTransaction) typedHash() (common.Hash, error) {
 	sigHash, err := typedSignatureHash(evmTxToTypedData(tx))
 	if err != nil {
@@ -232,6 +244,16 @@ func (tx *EvmTransaction) SetToShardSize(shardSize uint32) error {
 	}
 	tx.ToShardsize = shardSize
 	return nil
+}
+
+func (tx *EvmTransaction) FromShardKey() uint32 {
+	shardMask := uint32(65535)
+	return tx.data.FromFullShardKey.GetValue() & shardMask
+}
+
+func (tx *EvmTransaction) ToShardKey() uint32 {
+	shardMask := uint32(65535)
+	return tx.data.ToFullShardKey.GetValue() & shardMask
 }
 
 func (tx *EvmTransaction) FromShardID() uint32 {
