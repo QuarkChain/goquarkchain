@@ -214,7 +214,7 @@ func (m *MinorBlockChain) checkTxWithVersion2(tx *types.Transaction, evmState *s
 	if tx.EvmTx.GasTokenID() != qkcCommon.TokenIDEncode(qkcapi.DefaultTokenID) {
 		return fmt.Errorf("Wrong gasTokenID:%v in version=2.", tx.EvmTx.GasTokenID())
 	}
-	if tx.EvmTx.NetworkId() != uint32(m.ethChainConfig.ChainID.Uint64()) {
+	if tx.EvmTx.NetworkId() != uint32(m.EthChainID().Uint64()) {
 		return fmt.Errorf("networkID:%v != ethChainID:%v", tx.EvmTx.NetworkId(), m.ethChainConfig.ChainID)
 	}
 	return nil
