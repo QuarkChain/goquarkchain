@@ -46,6 +46,11 @@ func (b Bytes) MarshalText() ([]byte, error) {
 
 // UnmarshalJSON implements json.Unmarshaler.
 func (b *Bytes) UnmarshalJSON(input []byte) error {
+	if string(input) == "null" {
+		dec := make([]byte, 0)
+		*b = dec
+		return nil
+	}
 	if !isString(input) {
 		return errNonString(bytesT)
 	}
