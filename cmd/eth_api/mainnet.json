@@ -4,42 +4,42 @@
         {
             "ShardRPC": "0.0.0.0:39000",
             "FullShardID": "0x0", 
-            "EthChainID": 110001
+            "EthChainID": 100001
         }, 
         {
             "ShardRPC": "0.0.0.0:39001",
             "FullShardID": "0x10000",
-            "EthChainID": 110002
+            "EthChainID": 100002
         }, 
         {
             "ShardRPC": "0.0.0.0:39002",
             "FullShardID": "0x20000",
-            "EthChainID": 110003
+            "EthChainID": 100003
         }, 
         {
             "ShardRPC": "0.0.0.0:39003",
             "FullShardID": "0x30000",
-            "EthChainID": 110004
+            "EthChainID": 100004
         }, 
         {
             "ShardRPC": "0.0.0.0:39004",
             "FullShardID": "0x40000",
-            "EthChainID": 110005
+            "EthChainID": 100005
         }, 
         {
             "ShardRPC": "0.0.0.0:39005",
             "FullShardID": "0x50000",
-            "EthChainID": 110006
+            "EthChainID": 100006
         }, 
         {
             "ShardRPC": "0.0.0.0:39006",
             "FullShardID": "0x60000",
-            "EthChainID": 110007
+            "EthChainID": 100007
         }, 
         {
             "ShardRPC": "0.0.0.0:39007",
             "FullShardID": "0x70000",
-            "EthChainID": 110008
+            "EthChainID": 100008
         }
     ]
 }
