@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"flag"
 	"io/ioutil"
 
 	"github.com/QuarkChain/goquarkchain/common/hexutil"
@@ -9,6 +10,8 @@ import (
 	"github.com/QuarkChain/goquarkchain/rpc"
 	"github.com/ybbus/jsonrpc"
 )
+
+var metaMaskConfig = flag.String("config", "", "metaMask config file")
 
 type ShardConfig struct {
 	ShardRPC    string
@@ -35,7 +38,8 @@ func getMetaConfig(file string) *MetaMaskConfig {
 }
 
 func main() {
-	config := getMetaConfig("./eth_api.json")
+	flag.Parse()
+	config := getMetaConfig(*metaMaskConfig)
 	qkcClient := jsonrpc.NewClient(config.QkcRPC)
 
 	apis := make([][]rpc.API, 0)
