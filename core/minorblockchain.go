@@ -220,7 +220,6 @@ func NewMinorBlockChain(
 		},
 		logInfo: fmt.Sprintf("shard:%x", fullShardID),
 	}
-	bc.ethChainConfig.ChainID = new(big.Int).SetUint64(uint64(clusterConfig.Quarkchain.BaseEthChainID + 1 + bc.shardConfig.ChainID))
 	bc.signer = types.MakeSigner(clusterConfig.Quarkchain.NetworkID)
 	var err error
 	bc.gasLimit, err = bc.clusterConfig.Quarkchain.GasLimit(bc.branch.Value)
@@ -248,6 +247,10 @@ func NewMinorBlockChain(
 	// Take ownership of this particular state
 	go bc.update()
 	return bc, nil
+}
+
+func (m *MinorBlockChain) EthChainID() *big.Int {
+	return new(big.Int).SetUint64(uint64(m.clusterConfig.Quarkchain.BaseEthChainID + 1 + m.shardConfig.ChainID))
 }
 
 func (m *MinorBlockChain) SetBroadcastMinorBlockFunc(f func(block *types.MinorBlock) error) {

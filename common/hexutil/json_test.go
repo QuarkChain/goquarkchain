@@ -62,7 +62,6 @@ var errJSONEOF = errors.New("unexpected end of JSON input")
 var unmarshalBytesTests = []unmarshalTest{
 	// invalid encoding
 	{input: "", wantErr: errJSONEOF},
-	{input: "null", wantErr: errNonString(bytesT)},
 	{input: "10", wantErr: errNonString(bytesT)},
 	{input: `"0"`, wantErr: wrapTypeError(ErrMissingPrefix, bytesT)},
 	{input: `"0x0"`, wantErr: wrapTypeError(ErrOddLength, bytesT)},
