@@ -21,6 +21,7 @@ type ShardConfig struct {
 
 type MetaMaskConfig struct {
 	QkcRPC       string
+	VHost        []string
 	ShardConfigs []ShardConfig
 }
 
@@ -60,7 +61,7 @@ func main() {
 		apis = append(apis, api)
 	}
 	for index, api := range apis {
-		if _, _, err := rpc.StartHTTPEndpoint(config.ShardConfigs[index].ShardRPC, api, []string{"eth", "net"}, nil, nil, rpc.DefaultHTTPTimeouts); err != nil {
+		if _, _, err := rpc.StartHTTPEndpoint(config.ShardConfigs[index].ShardRPC, api, []string{"eth", "net"}, nil, config.VHost, rpc.DefaultHTTPTimeouts); err != nil {
 			panic(err)
 		}
 	}
