@@ -70,7 +70,7 @@ func (s *ShardAPI) GetBalance(address common.Address, blockNrOrHash rpc.BlockNum
 			return (*hexutil.Big)(b), nil
 		}
 	}
-	return nil, nil
+	return &hexutil.Big{}, nil
 }
 
 func (s *ShardAPI) BlockNumber() (hexutil.Uint64, error) {
