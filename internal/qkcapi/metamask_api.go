@@ -2,10 +2,12 @@ package qkcapi
 
 import (
 	"encoding/binary"
+	"fmt"
 	"strings"
 
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/common/hexutil"
+	qCommon "github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/rpc"
 	"github.com/ethereum/go-ethereum/common"
@@ -90,6 +92,7 @@ func (s *ShardAPI) GetBlockByNumber(blockNr rpc.BlockNumber, fullTx bool) (map[s
 	return resp.Result.(map[string]interface{}), nil
 }
 
+
 func (s *ShardAPI) GetTransactionCount(address common.Address, blockNr rpc.BlockNumber) (hexutil.Uint64, error) {
 	resp, err := s.c.Call("getTransactionCount", account.NewAddress(address, s.fullShardID).ToHex())
 	if err != nil {
@@ -105,6 +108,19 @@ func (s *ShardAPI) GetCode(address common.Address, blockNr rpc.BlockNumber) (hex
 		return nil, err
 	}
 	return hexutil.Decode(resp.Result.(string))
+}
+
+func (s *ShardAPI)GetBlockByHash( hash common.Hash, fullTx bool) (map[string]interface{}, error) {
+	blockID:=make([]byte,0)
+	blockID = append(hash.Bytes(), qCommon.Uint32ToBytes(s.fullShardID)...)
+
+	resp, err := s.c.Call("getMinorBlockById", common.ToHex(blockID))
+	if err != nil {
+		fmt.Println("GetBlockByHash -err",err)
+		return nil, err
+	}
+	fmt.Println("GetBlockByHash",hash.String(),common.ToHex(blockID),resp.Result)
+	return resp.Result.(map[string]interface{}), nil
 }
 
 func (s *ShardAPI) SendRawTransaction(encodedTx hexutil.Bytes) (common.Hash, error) {
@@ -148,20 +164,24 @@ func (s *ShardAPI) getTxIDInShard(h common.Hash) []byte {
 func (s *ShardAPI) GetTransactionByHash(hash common.Hash) (map[string]interface{}, error) {
 	resp, err := s.c.Call("getTransactionById", common.ToHex(s.getTxIDInShard(hash)))
 	if err != nil {
+		fmt.Println("Err-GetTransactionByHash",err)
 		return nil, err
 	}
+	fmt.Println("GetTransactionByHash---",resp.Result)
 	return resp.Result.(map[string]interface{}), nil
 }
 
 func (s *ShardAPI) GetTransactionReceipt(hash common.Hash) (map[string]interface{}, error) {
 	resp, err := s.c.Call("getTransactionReceipt", common.ToHex(s.getTxIDInShard(hash)))
 	if err != nil {
+		fmt.Println("GetTransactionReceipt",err)
 		return nil, err
 	}
 	ans := resp.Result.(map[string]interface{})
 	if ans["contractAddress"] != nil {
 		ans["contractAddress"] = ans["contractAddress"].(string)[:42]
 	}
+	fmt.Println("GetTransactionReceipt",ans)
 	return ans, nil
 }
 

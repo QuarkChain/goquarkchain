@@ -4,6 +4,8 @@ package rawdb
 
 import (
 	"bytes"
+	"encoding/hex"
+	"fmt"
 	"math/big"
 	"testing"
 
@@ -253,4 +255,10 @@ func TestBlockReceiptStorage(t *testing.T) {
 	if rs := ReadReceipts(db, hash); len(rs) != 0 {
 		t.Fatalf("deleted receipts returned: %v", rs)
 	}
+}
+
+func TestAsd(t *testing.T)  {
+	ans:=makeMinorCount(1,123)
+	fmt.Println("ans",hex.EncodeToString(ans))
+	fmt.Println("ans",string(ans))
 }
