@@ -25,7 +25,7 @@ func rangeDB(db *qkcdb.QKCDataBase) {
 	sumCal := new(Cal)
 
 	it := db.NewIteratorWithPrefix([]byte("cntM"))
-	for it.Valid() {
+	for it.Next() {
 		size := len(it.Key())
 		firstByte := it.Key()[0]
 		size+=len(it.Value())
@@ -41,7 +41,6 @@ func rangeDB(db *qkcdb.QKCDataBase) {
 			calMap[firstByte].Num++
 			calMap[firstByte].Length += size
 		}
-		it.Next()
 		//if sumCal.Num%1000000 == 0 {
 			fmt.Println("currIndexSum", sumCal.Num, "currIndex ",len(it.Key()), string(firstByte),hex.EncodeToString(it.Key()),sumCal.Length)
 		//}
