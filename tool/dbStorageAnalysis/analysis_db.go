@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/hex"
 	"flag"
 	"fmt"
 	"os"
@@ -24,7 +25,7 @@ func rangeDB(db *qkcdb.QKCDataBase) {
 	sumCal := new(Cal)
 
 	it := db.NewIterator()
-	it.Seek([]byte{})
+	it.Seek([]byte("cntM"))
 	for it.Valid() {
 		size := len(it.Key())
 		firstByte := it.Key()[0]
@@ -43,7 +44,7 @@ func rangeDB(db *qkcdb.QKCDataBase) {
 		}
 		it.Next()
 		if sumCal.Num%1000000 == 0 {
-			fmt.Println("currIndexSum", sumCal.Num, "currIndex ", firstByte)
+			fmt.Println("currIndexSum", sumCal.Num, "currIndex ",len(it.Key()), string(firstByte),hex.EncodeToString(it.Key()),sumCal.Length)
 		}
 	}
 
