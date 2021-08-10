@@ -42,7 +42,7 @@ func rangeDB(db *qkcdb.QKCDataBase) {
 			calMap[firstByte].Length += size
 		}
 		//if sumCal.Num%1000000 == 0 {
-			fmt.Println( sumCal.Num,sumCal.Length,len(it.Key()), string(firstByte),hex.EncodeToString(it.Key()),hex.EncodeToString(it.Value()))
+			fmt.Println( sumCal.Num,sumCal.Length,len(it.Key()),len(it.Value()), string(firstByte),hex.EncodeToString(it.Key()))
 		//}
 	}
 
