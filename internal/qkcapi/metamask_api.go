@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/QuarkChain/goquarkchain/account"
+	qCommon "github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/common/hexutil"
 	"github.com/QuarkChain/goquarkchain/core/types"
 	"github.com/QuarkChain/goquarkchain/rpc"
@@ -105,6 +106,14 @@ func (s *ShardAPI) GetCode(address common.Address, blockNr rpc.BlockNumber) (hex
 		return nil, err
 	}
 	return hexutil.Decode(resp.Result.(string))
+}
+
+func (s *ShardAPI)GetBlockByHash( hash common.Hash, fullTx bool) (map[string]interface{}, error) {
+	resp, err := s.c.Call("getMinorBlockById", common.ToHex(append(hash.Bytes(), qCommon.Uint32ToBytes(s.fullShardID)...)),fullTx)
+	if err!=nil{
+		return nil, err
+	}
+	return resp.Result.(map[string]interface{}), nil
 }
 
 func (s *ShardAPI) SendRawTransaction(encodedTx hexutil.Bytes) (common.Hash, error) {
