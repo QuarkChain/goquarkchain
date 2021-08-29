@@ -191,7 +191,6 @@ func (s *QKCMasterBackend) GetLogs(args *qrpc.FilterQuery) ([]*types.Log, error)
 }
 
 func (s *QKCMasterBackend) EstimateGas(tx *types.Transaction, fromAddress *account.Address) (uint32, error) {
-	fmt.Println("QKMASterrdsada",tx,fromAddress.ToHex())
 	evmTx := tx.EvmTx
 	fromShardSize, err := s.clusterConfig.Quarkchain.GetShardSizeByChainId(tx.EvmTx.FromChainID())
 	if err != nil {
@@ -215,13 +214,10 @@ func (s *QKCMasterBackend) EstimateGas(tx *types.Transaction, fromAddress *accou
 		return 0, ErrNoBranchConn
 	}
 	if !evmTx.IsCrossShard() {
-		res,err:= slaveConn.EstimateGas(tx, fromAddress)
-		fmt.Println("resss",res,err)
-		return res,err
+		return slaveConn.EstimateGas(tx, fromAddress)
 	}
 	fAddr := account.Address{Recipient: fromAddress.Recipient, FullShardKey: evmTx.ToFullShardKey()}
 	res, err := slaveConn.EstimateGas(tx, &fAddr)
-	fmt.Println("221--",res,err)
 	if err != nil {
 		return 0, err
 	}

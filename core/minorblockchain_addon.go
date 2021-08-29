@@ -1248,7 +1248,6 @@ func (m *MinorBlockChain) EstimateGas(tx *types.Transaction, fromAddress account
 	}
 	cap := hi
 
-	fmt.Println("begin",hi)
 	runTx := func(gas uint32) error {
 		evmState := currentState.Copy()
 		if tx.EvmTx.IsCrossShard() && tx.EvmTx.ToFullShardId() == m.branch.Value {
@@ -1263,7 +1262,6 @@ func (m *MinorBlockChain) EstimateGas(tx *types.Transaction, fromAddress account
 		uint64Gas := uint64(gas)
 		evmTx, err := m.validateTx(tx, evmState, &fromAddress, &uint64Gas, nil)
 		if err != nil {
-			fmt.Println("gas",gas,err)
 			return err
 		}
 
@@ -1273,10 +1271,8 @@ func (m *MinorBlockChain) EstimateGas(tx *types.Transaction, fromAddress account
 		_, receipt, _, err = ApplyTransaction(m.ChainConfig(), m, gp, evmState, m.CurrentHeader(), evmTx, gasUsed, m.vmConfig)
 
 		if receipt.Status == types.ReceiptStatusFailed {
-			fmt.Println("gas",gas,"failed",err)
 			return errors.New("failed")
 		}
-		fmt.Println("gas",gas,err)
 		return err
 	}
 

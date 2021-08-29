@@ -223,7 +223,6 @@ func ApplyTransaction(config *params.ChainConfig, bc ChainContext, gp *GasPool, 
 	vmenv := vm.NewEVM(context, statedb, config, cfg)
 
 	ret, gas, failed, err := ApplyMessage(vmenv, msg, gp)
-	//fmt.Println("APply---",failed,err)
 	if err != nil {
 		return nil, nil, 0, err
 	}
