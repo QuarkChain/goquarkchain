@@ -226,6 +226,11 @@ func (s *ShardAPI) Call(mdata MetaCallArgs, blockNr rpc.BlockNumber) (hexutil.By
 	if err != nil {
 		return nil,err
 	}
+
+	_,ok:=resp.Result.(string)
+	if !ok{
+		return nil,nil
+	}
 	return hexutil.Decode(resp.Result.(string))
 }
 
