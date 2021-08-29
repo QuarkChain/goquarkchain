@@ -215,7 +215,9 @@ func (s *QKCMasterBackend) EstimateGas(tx *types.Transaction, fromAddress *accou
 		return 0, ErrNoBranchConn
 	}
 	if !evmTx.IsCrossShard() {
-		return slaveConn.EstimateGas(tx, fromAddress)
+		res,err:= slaveConn.EstimateGas(tx, fromAddress)
+		fmt.Println("resss",res,err)
+		return res,err
 	}
 	fAddr := account.Address{Recipient: fromAddress.Recipient, FullShardKey: evmTx.ToFullShardKey()}
 	res, err := slaveConn.EstimateGas(tx, &fAddr)
