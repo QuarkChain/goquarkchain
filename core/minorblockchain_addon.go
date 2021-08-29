@@ -1284,8 +1284,8 @@ func (m *MinorBlockChain) EstimateGas(tx *types.Transaction, fromAddress account
 			lo = mid
 		}
 	}
-	if hi == cap && runTx(hi) == nil {
-		return 0, nil
+	if hi == cap && runTx(hi) !=nil{
+		return 0, errors.New("failed to apply")
 	}
 	return hi, nil
 }
