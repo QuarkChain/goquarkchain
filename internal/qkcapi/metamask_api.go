@@ -3,7 +3,6 @@ package qkcapi
 import (
 	"encoding/binary"
 	"errors"
-	"fmt"
 	"strings"
 
 	"github.com/QuarkChain/goquarkchain/account"
