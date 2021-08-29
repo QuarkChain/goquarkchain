@@ -35,6 +35,7 @@ func (c *CommonAPI) callOrEstimateGas(args *CallArgs, height *uint64, isCall boo
 			return nil, fmt.Errorf("Call cross-shard tx not supported yet\n")
 		}
 		res, err := c.b.ExecuteTransaction(tx, args.From, height)
+		fmt.Println("Call----",hexutil.Bytes(res).String(),err)
 		if err != nil {
 			return nil, err
 		}
@@ -409,6 +410,7 @@ func (p *PublicBlockChainAPI) Call(data CallArgs, blockNr *rpc.BlockNumber) (hex
 
 func (p *PublicBlockChainAPI) EstimateGas(data CallArgs) (hexutil.Uint, error) {
 	gas, err := p.CommonAPI.callOrEstimateGas(&data, nil, false)
+	fmt.Println("EstimateGas",err,gas,data)
 	if err != nil {
 		return 0, err
 	}
