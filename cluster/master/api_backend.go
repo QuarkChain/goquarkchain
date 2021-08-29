@@ -191,6 +191,7 @@ func (s *QKCMasterBackend) GetLogs(args *qrpc.FilterQuery) ([]*types.Log, error)
 }
 
 func (s *QKCMasterBackend) EstimateGas(tx *types.Transaction, fromAddress *account.Address) (uint32, error) {
+	fmt.Println("QKMASterrdsada",tx,fromAddress.ToHex())
 	evmTx := tx.EvmTx
 	fromShardSize, err := s.clusterConfig.Quarkchain.GetShardSizeByChainId(tx.EvmTx.FromChainID())
 	if err != nil {
