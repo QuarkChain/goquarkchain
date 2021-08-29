@@ -33,7 +33,6 @@ func rangeDB(db *qkcdb.QKCDataBase) {
 	for it.Next() {
 		size := len(it.Key())
 		firstByte := it.Key()[0]
-		size+=len(it.Value())
 
 
 
@@ -107,5 +106,5 @@ func main() {
 		panic(db)
 	}
 	rangeDB(db)
-	//DirSizeB(*dbPath)
+	DirSizeB(*dbPath)
 }
