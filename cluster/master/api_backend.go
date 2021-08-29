@@ -218,6 +218,7 @@ func (s *QKCMasterBackend) EstimateGas(tx *types.Transaction, fromAddress *accou
 	}
 	fAddr := account.Address{Recipient: fromAddress.Recipient, FullShardKey: evmTx.ToFullShardKey()}
 	res, err := slaveConn.EstimateGas(tx, &fAddr)
+	fmt.Println("221--",res,err)
 	if err != nil {
 		return 0, err
 	}
