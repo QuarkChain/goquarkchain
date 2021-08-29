@@ -195,7 +195,6 @@ func parseRequest(incomingMsg json.RawMessage) ([]rpcRequest, bool, Error) {
 		in.Payload = data
 	}
 
-	fmt.Println("parseRequest",in.Method,string(in.Payload))
 	if err := checkReqId(in.Id); err != nil {
 		return nil, false, &invalidMessageError{err.Error()}
 	}

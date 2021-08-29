@@ -1,14 +1,10 @@
 package main
 
 import (
-	"encoding/hex"
 	"flag"
 	"fmt"
-	"github.com/QuarkChain/goquarkchain/account"
-	"github.com/QuarkChain/goquarkchain/serialize"
 	"os"
 	"path/filepath"
-	"time"
 
 	"github.com/QuarkChain/goquarkchain/qkcdb"
 )
@@ -27,29 +23,12 @@ func rangeDB(db *qkcdb.QKCDataBase) {
 	characterCal := new(Cal)
 	sumCal := new(Cal)
 
-	preLen:=0
-
-	it := db.NewIteratorWithPrefix([]byte("cntM"))
-	for it.Next() {
+	it := db.NewIterator()
+	it.Seek([]byte{})
+	for it.Valid() {
 		size := len(it.Key())
 		firstByte := it.Key()[0]
-		size+=len(it.Value())
 
-
-
-		if len(it.Value())!=preLen{
-			preLen=len(it.Value())
-			infoList := new(account.CoinbaseStatses)
-			if err := serialize.DeserializeFromBytes(it.Value(), infoList); err != nil {
-				panic(err) //TODO delete later unexpected err
-			}
-			fmt.Println("====-start")
-			for _,v:=range infoList.CoinbaseStatsList{
-				fmt.Println("vvv",v.Addr.String(),v.Cnt,hex.EncodeToString(it.Key()))
-			}
-			fmt.Println("====-end")
-			time.Sleep(3*time.Second)
-		}
 		sumCal.Num++
 		sumCal.Length += size
 		if (firstByte >= 'a' && firstByte <= 'z') || (firstByte >= 'A' && firstByte <= 'Z') {
@@ -61,10 +40,10 @@ func rangeDB(db *qkcdb.QKCDataBase) {
 			calMap[firstByte].Num++
 			calMap[firstByte].Length += size
 		}
-		//if sumCal.Num%1000000 == 0 {
-			fmt.Println( sumCal.Num,sumCal.Length,len(it.Key()),len(it.Value()), string(firstByte),hex.EncodeToString(it.Key()))
-		//}
-
+		it.Next()
+		if sumCal.Num%1000000 == 0 {
+			fmt.Println("currIndexSum", sumCal.Num, "currIndex ", firstByte)
+		}
 	}
 
 	for index := 'a'; index <= 'z'; index++ {
@@ -107,5 +86,5 @@ func main() {
 		panic(db)
 	}
 	rangeDB(db)
-	//DirSizeB(*dbPath)
+	DirSizeB(*dbPath)
 }
