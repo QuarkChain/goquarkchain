@@ -1273,7 +1273,7 @@ func (m *MinorBlockChain) EstimateGas(tx *types.Transaction, fromAddress account
 		_, receipt, _, err = ApplyTransaction(m.ChainConfig(), m, gp, evmState, m.CurrentHeader(), evmTx, gasUsed, m.vmConfig)
 
 		if receipt.Status == types.ReceiptStatusFailed {
-			fmt.Println("gas",gas,"failed")
+			fmt.Println("gas",gas,"failed",err)
 			return errors.New("failed")
 		}
 		fmt.Println("gas",gas,err)
