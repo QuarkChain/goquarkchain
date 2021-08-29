@@ -234,7 +234,7 @@ func (s *ShardAPI) EstimateGas(mdata MetaCallArgs) (hexutil.Uint, error) {
 	if err != nil {
 		return hexutil.Uint(0),err
 	}
-	fmt.Println("-==================",resp.Result)
+	fmt.Println("-==================",resp.Result,err)
 	ans, err := hexutil.DecodeUint64(resp.Result.(string))
 	fmt.Println("EEEEEEEE",ans,err)
 	return hexutil.Uint(ans), err
