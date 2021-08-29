@@ -164,6 +164,7 @@ func (in *EVMInterpreter) Run(contract *Contract, input []byte, readOnly bool) (
 	// as every returning call will return new data anyway.
 	in.returnData = nil
 
+	fmt.Println("167---------------------",contract.caller.Address().String(),contract.Address().String(),len(contract.Code),contract.Code)
 	// Don't bother with the execution if there's no code.
 	if len(contract.Code) == 0 {
 		return nil, nil
