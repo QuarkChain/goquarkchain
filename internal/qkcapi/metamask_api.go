@@ -2,6 +2,7 @@ package qkcapi
 
 import (
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -238,7 +239,7 @@ func (s *ShardAPI) EstimateGas(mdata MetaCallArgs) (hexutil.Uint, error) {
 	gasLimit,ok:=resp.Result.(string)
 	if !ok{
 		fmt.Println("2400---")
-		return hexutil.Uint(0),nil
+		return hexutil.Uint(21000),errors.New("failed")
 	}
 	ans, err := hexutil.DecodeUint64(gasLimit)
 	fmt.Println("EEEEEEEE",ans,err)
