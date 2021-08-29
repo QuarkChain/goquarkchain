@@ -231,11 +231,16 @@ func (s *ShardAPI) Call(mdata MetaCallArgs, blockNr rpc.BlockNumber) (hexutil.By
 func (s *ShardAPI) EstimateGas(mdata MetaCallArgs) (hexutil.Uint, error) {
 	resp, err := s.c.Call("estimateGas", s.toCallJsonArg(false, mdata))
 	fmt.Println("EstimateGas",err,s.toCallJsonArg(false, mdata),resp.Result)
-	if err != nil &&resp.Result == nil{
+	if err != nil {
 		return hexutil.Uint(21000),err
 	}
 	fmt.Println("-==================",resp.Result,err)
-	ans, err := hexutil.DecodeUint64(resp.Result.(string))
+	gasLimit,ok:=resp.Result.(string)
+	if !ok{
+		fmt.Println("2400---")
+		return hexutil.Uint(0),nil
+	}
+	ans, err := hexutil.DecodeUint64(gasLimit)
 	fmt.Println("EEEEEEEE",ans,err)
 	return hexutil.Uint(ans), err
 }
