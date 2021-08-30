@@ -109,12 +109,16 @@ func (s *ShardAPI) GetCode(address common.Address, blockNr rpc.BlockNumber) (hex
 	return hexutil.Decode(resp.Result.(string))
 }
 
-func (s *ShardAPI)GetBlockByHash( hash common.Hash, fullTx bool) (map[string]interface{}, error) {
-	resp, err := s.c.Call("getMinorBlockById", common.ToHex(append(hash.Bytes(), qCommon.Uint32ToBytes(s.fullShardID)...)),fullTx)
-	if err!=nil{
+func (s *ShardAPI) GetBlockByHash(hash common.Hash, fullTx bool) (map[string]interface{}, error) {
+	resp, err := s.c.Call("getMinorBlockById", common.ToHex(append(hash.Bytes(), qCommon.Uint32ToBytes(s.fullShardID)...)), fullTx)
+	if err != nil {
 		return nil, err
 	}
-	return resp.Result.(map[string]interface{}), nil
+	block, ok := resp.Result.(map[string]interface{})
+	if !ok {
+		return nil, errors.New("GetBlockByHash failed")
+	}
+	return block, nil
 }
 
 func (s *ShardAPI) SendRawTransaction(encodedTx hexutil.Bytes) (common.Hash, error) {
@@ -222,12 +226,12 @@ func (s *ShardAPI) toCallJsonArg(isCall bool, mdata MetaCallArgs) interface{} {
 func (s *ShardAPI) Call(mdata MetaCallArgs, blockNr rpc.BlockNumber) (hexutil.Bytes, error) {
 	resp, err := s.c.Call("call", s.toCallJsonArg(true, mdata), hexutil.Uint64(blockNr.Uint64()))
 	if err != nil {
-		return nil,err
+		return nil, err
 	}
 
-	_,ok:=resp.Result.(string)
-	if !ok{
-		return nil,nil
+	_, ok := resp.Result.(string)
+	if !ok {
+		return nil, errors.New("call failed")
 	}
 	return hexutil.Decode(resp.Result.(string))
 }
@@ -235,11 +239,11 @@ func (s *ShardAPI) Call(mdata MetaCallArgs, blockNr rpc.BlockNumber) (hexutil.By
 func (s *ShardAPI) EstimateGas(mdata MetaCallArgs) (hexutil.Uint, error) {
 	resp, err := s.c.Call("estimateGas", s.toCallJsonArg(false, mdata))
 	if err != nil {
-		return hexutil.Uint(21000),err
+		return hexutil.Uint(21000), err
 	}
-	gasLimit,ok:=resp.Result.(string)
-	if !ok{
-		return hexutil.Uint(21000),errors.New("failed")
+	gasLimit, ok := resp.Result.(string)
+	if !ok {
+		return hexutil.Uint(21000), errors.New("estimateGas failed")
 	}
 	ans, err := hexutil.DecodeUint64(gasLimit)
 	return hexutil.Uint(ans), err
