@@ -38,7 +38,7 @@ ENV GOPROXY https://goproxy.io
 
 # install goquarkchain
 WORKDIR $GOPATH/src/github.com/QuarkChain
-RUN git clone https://github.com/QuarkChain/goquarkchain.git
+RUN git clone --branch mainnet1.5.0 https://github.com/QuarkChain/goquarkchain.git
 WORKDIR $GOPATH/src/github.com/QuarkChain/goquarkchain/consensus/qkchash/native
 RUN g++ -shared -o libqkchash.so -fPIC qkchash.cpp -O3 -std=gnu++17 && make
 WORKDIR $GOPATH/src/github.com/QuarkChain/goquarkchain/tests/loadtest/deployer
