@@ -919,14 +919,15 @@ func (m *MinorBlockChain) WriteBlockWithState(block *types.MinorBlock, receipts 
 			block := m.GetBlockByNumber(current - triesInMemory)
 			if qkcCommon.IsNil(block) {
 				log.Error("minorBlock not found", "height", current-triesInMemory)
-			}
-			mBlock := block.(*types.MinorBlock)
+			} else {
+				mBlock := block.(*types.MinorBlock)
 
-			// If we exceeded out time allowance, flush an entire trie to disk
-			if mBlock.NumberU64()%triesInMemory == 0 {
-				// Flush an entire trie and restart the counters
-				triedb.Commit(mBlock.GetMetaData().Root, false)
-				log.Info(m.logInfo, "commit trie number", mBlock.NumberU64(), "hash", mBlock.Hash().String(), "root", mBlock.GetMetaData().Root.String())
+				// If we exceeded out time allowance, flush an entire trie to disk
+				if mBlock.NumberU64()%triesInMemory == 0 {
+					// Flush an entire trie and restart the counters
+					triedb.Commit(mBlock.GetMetaData().Root, false)
+					log.Info(m.logInfo, "commit trie number", mBlock.NumberU64(), "hash", mBlock.Hash().String(), "root", mBlock.GetMetaData().Root.String())
+				}
 			}
 
 			if m.rootTip.NumberU64()%triesInRootBlock == 0 && m.rootTip.Hash() != m.lastDereferenceRoot {
@@ -947,7 +948,6 @@ func (m *MinorBlockChain) WriteBlockWithState(block *types.MinorBlock, receipts 
 					triedb.Dereference(root.(common.Hash))
 				}
 			}
-
 		}
 	}
 
