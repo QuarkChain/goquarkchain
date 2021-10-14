@@ -84,12 +84,29 @@ func (s *ShardAPI) BlockNumber() (hexutil.Uint64, error) {
 	return hexutil.Uint64(height), err
 }
 
+func reWriteBlockResult(block map[string]interface{}) map[string]interface{} {
+	if block["id"] != nil {
+		block["id"] = block["id"].(string)[:66]
+	}
+	if block["idPrevMinorBlock"] != nil {
+		block["idPrevMinorBlock"] = block["idPrevMinorBlock"].(string)[:66]
+	}
+	if block["miner"] != nil {
+		block["miner"] = block["miner"].(string)[:42]
+	}
+	return block
+}
+
 func (s *ShardAPI) GetBlockByNumber(blockNr rpc.BlockNumber, fullTx bool) (map[string]interface{}, error) {
 	resp, err := s.c.Call("getMinorBlockByHeight", hexutil.EncodeUint64(uint64(s.fullShardID)), nil, false)
 	if err != nil {
 		return nil, err
 	}
-	return resp.Result.(map[string]interface{}), nil
+	block, ok := resp.Result.(map[string]interface{})
+	if !ok {
+		return nil, errors.New("GetBlockByNumber failed")
+	}
+	return reWriteBlockResult(block), nil
 }
 
 func (s *ShardAPI) GetTransactionCount(address common.Address, blockNr rpc.BlockNumber) (hexutil.Uint64, error) {
@@ -118,7 +135,7 @@ func (s *ShardAPI) GetBlockByHash(hash common.Hash, fullTx bool) (map[string]int
 	if !ok {
 		return nil, errors.New("GetBlockByHash failed")
 	}
-	return block, nil
+	return reWriteBlockResult(block), nil
 }
 
 func (s *ShardAPI) SendRawTransaction(encodedTx hexutil.Bytes) (common.Hash, error) {
@@ -139,7 +156,7 @@ func (s *ShardAPI) SendRawTransaction(encodedTx hexutil.Bytes) (common.Hash, err
 	}
 	_, err = s.c.Call("sendRawTransaction", common.ToHex(rlpTxBytes))
 	if err != nil {
-		return common.Hash{}, nil
+		return common.Hash{}, err
 	}
 
 	txQkc := &types.Transaction{

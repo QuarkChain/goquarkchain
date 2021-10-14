@@ -1,5 +1,5 @@
 {
-    "QkcRPC": "http://50.112.62.65:38391",
+    "QkcRPC": "http://jrpc.devnet.quarkchain.io:38391",
     "VHost":["eth-jrpc.devnet.quarkchain.io","eth-jrpc.mainnet.quarkchain.io"],
     "ShardConfigs": [
         {
