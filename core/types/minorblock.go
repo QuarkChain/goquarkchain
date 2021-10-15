@@ -40,8 +40,8 @@ type MinorBlockMeta struct {
 	ReceiptHash        common.Hash         `json:"receiptsRoot"               gencodec:"required"`
 	GasUsed            *serialize.Uint256  `json:"gasUsed"                    gencodec:"required"`
 	CrossShardGasUsed  *serialize.Uint256  `json:"crossShardGasUsed"          gencodec:"required"`
-	XShardTxCursorInfo *XShardTxCursorInfo `json:"xShardTxCursorInfo"          gencodec:"required"`
-	XShardGasLimit     *serialize.Uint256  `json:"xShardGasLimit"          gencodec:"required"`
+	XShardTxCursorInfo *XShardTxCursorInfo `json:"xShardTxCursorInfo"         gencodec:"required"`
+	XShardGasLimit     *serialize.Uint256  `json:"xShardGasLimit"             gencodec:"required"`
 }
 
 type XShardTxCursorInfo struct {
