@@ -84,6 +84,7 @@ func (s *ShardAPI) BlockNumber() (hexutil.Uint64, error) {
 }
 
 func reWriteBlockResult(block map[string]interface{}) map[string]interface{} {
+	// Truncate fields which contain full shard id
 	if block["id"] != nil {
 		block["id"] = block["id"].(string)[:66]
 	}
@@ -92,6 +93,13 @@ func reWriteBlockResult(block map[string]interface{}) map[string]interface{} {
 	}
 	if block["miner"] != nil {
 		block["miner"] = block["miner"].(string)[:42]
+	}
+	// rename fields
+	if block["height"] != nil {
+		block["number"] = block["height"]
+	}
+	if block["hashPrevMinorBlock"] != nil {
+		block["parentHash"] = block["hashPrevMinorBlock"]
 	}
 	return block
 }
