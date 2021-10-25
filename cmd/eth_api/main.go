@@ -5,10 +5,11 @@ import (
 	"flag"
 	"io/ioutil"
 
+	"github.com/ybbus/jsonrpc"
+
 	"github.com/QuarkChain/goquarkchain/common/hexutil"
 	"github.com/QuarkChain/goquarkchain/internal/qkcapi"
 	"github.com/QuarkChain/goquarkchain/rpc"
-	"github.com/ybbus/jsonrpc"
 )
 
 var metaMaskConfig = flag.String("config", "", "metaMask config file")

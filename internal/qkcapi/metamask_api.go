@@ -9,7 +9,6 @@ import (
 	qCommon "github.com/QuarkChain/goquarkchain/common"
 	"github.com/QuarkChain/goquarkchain/common/hexutil"
 	"github.com/QuarkChain/goquarkchain/core/types"
-	"github.com/QuarkChain/goquarkchain/rpc"
 	"github.com/ethereum/go-ethereum/common"
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/rlp"
@@ -56,8 +55,8 @@ func (s *ShardAPI) GasPrice() (hexutil.Uint64, error) {
 	return hexutil.Uint64(gasPrice), err
 }
 
-func (s *ShardAPI) GetBalance(address common.Address, blockNrOrHash rpc.BlockNumber) (*hexutil.Big, error) {
-	resp, err := s.c.Call("getBalances", account.NewAddress(address, s.fullShardID).ToHex())
+func (s *ShardAPI) GetBalance(address common.Address, blockNrOrHash string) (*hexutil.Big, error) {
+	resp, err := s.c.Call("getBalances", account.NewAddress(address, s.fullShardID).ToHex(), blockNrOrHash)
 	if err != nil {
 		return nil, err
 	}
@@ -84,16 +83,41 @@ func (s *ShardAPI) BlockNumber() (hexutil.Uint64, error) {
 	return hexutil.Uint64(height), err
 }
 
-func (s *ShardAPI) GetBlockByNumber(blockNr rpc.BlockNumber, fullTx bool) (map[string]interface{}, error) {
-	resp, err := s.c.Call("getMinorBlockByHeight", hexutil.EncodeUint64(uint64(s.fullShardID)), nil, false)
+func reWriteBlockResult(block map[string]interface{}) map[string]interface{} {
+	// Truncate fields which contain full shard id
+	if block["id"] != nil {
+		block["id"] = block["id"].(string)[:66]
+	}
+	if block["idPrevMinorBlock"] != nil {
+		block["idPrevMinorBlock"] = block["idPrevMinorBlock"].(string)[:66]
+	}
+	if block["miner"] != nil {
+		block["miner"] = block["miner"].(string)[:42]
+	}
+	// rename fields
+	if block["height"] != nil {
+		block["number"] = block["height"]
+	}
+	if block["hashPrevMinorBlock"] != nil {
+		block["parentHash"] = block["hashPrevMinorBlock"]
+	}
+	return block
+}
+
+func (s *ShardAPI) GetBlockByNumber(blockNr *hexutil.Uint64, fullTx bool) (map[string]interface{}, error) {
+	resp, err := s.c.Call("getMinorBlockByHeight", hexutil.EncodeUint64(uint64(s.fullShardID)), blockNr, false)
 	if err != nil {
 		return nil, err
 	}
-	return resp.Result.(map[string]interface{}), nil
+	block, ok := resp.Result.(map[string]interface{})
+	if !ok {
+		return nil, errors.New("GetBlockByNumber failed")
+	}
+	return reWriteBlockResult(block), nil
 }
 
-func (s *ShardAPI) GetTransactionCount(address common.Address, blockNr rpc.BlockNumber) (hexutil.Uint64, error) {
-	resp, err := s.c.Call("getTransactionCount", account.NewAddress(address, s.fullShardID).ToHex())
+func (s *ShardAPI) GetTransactionCount(address common.Address, blockNr string) (hexutil.Uint64, error) {
+	resp, err := s.c.Call("getTransactionCount", account.NewAddress(address, s.fullShardID).ToHex(), blockNr)
 	if err != nil {
 		return 0, err
 	}
@@ -101,8 +125,8 @@ func (s *ShardAPI) GetTransactionCount(address common.Address, blockNr rpc.Block
 	return hexutil.Uint64(nonce), err
 }
 
-func (s *ShardAPI) GetCode(address common.Address, blockNr rpc.BlockNumber) (hexutil.Bytes, error) {
-	resp, err := s.c.Call("getCode", account.NewAddress(address, s.fullShardID).ToHex())
+func (s *ShardAPI) GetCode(address common.Address, blockNr string) (hexutil.Bytes, error) {
+	resp, err := s.c.Call("getCode", account.NewAddress(address, s.fullShardID).ToHex(), blockNr)
 	if err != nil {
 		return nil, err
 	}
@@ -118,7 +142,7 @@ func (s *ShardAPI) GetBlockByHash(hash common.Hash, fullTx bool) (map[string]int
 	if !ok {
 		return nil, errors.New("GetBlockByHash failed")
 	}
-	return block, nil
+	return reWriteBlockResult(block), nil
 }
 
 func (s *ShardAPI) SendRawTransaction(encodedTx hexutil.Bytes) (common.Hash, error) {
@@ -139,7 +163,7 @@ func (s *ShardAPI) SendRawTransaction(encodedTx hexutil.Bytes) (common.Hash, err
 	}
 	_, err = s.c.Call("sendRawTransaction", common.ToHex(rlpTxBytes))
 	if err != nil {
-		return common.Hash{}, nil
+		return common.Hash{}, err
 	}
 
 	txQkc := &types.Transaction{
@@ -223,8 +247,8 @@ func (s *ShardAPI) toCallJsonArg(isCall bool, mdata MetaCallArgs) interface{} {
 	return estimates
 }
 
-func (s *ShardAPI) Call(mdata MetaCallArgs, blockNr rpc.BlockNumber) (hexutil.Bytes, error) {
-	resp, err := s.c.Call("call", s.toCallJsonArg(true, mdata), hexutil.Uint64(blockNr.Uint64()))
+func (s *ShardAPI) Call(mdata MetaCallArgs, blockNr string) (hexutil.Bytes, error) {
+	resp, err := s.c.Call("call", s.toCallJsonArg(true, mdata), blockNr)
 	if err != nil {
 		return nil, err
 	}
