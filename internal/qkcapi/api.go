@@ -82,7 +82,7 @@ func (c *CommonAPI) GetTransactionReceipt(txID hexutil.Bytes) (map[string]interf
 		return nil, nil
 	}
 	ret, err := encoder.ReceiptEncoder(minorBlock, int(index), receipt)
-	if receipt.ContractAddress.Big().Uint64() == 0 {
+	if receipt.ContractAddress != (common.Address{}) {
 		ret["contractAddress"] = nil
 	} else {
 		ret["contractAddress"] = account.Address{

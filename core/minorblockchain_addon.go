@@ -1284,7 +1284,7 @@ func (m *MinorBlockChain) EstimateGas(tx *types.Transaction, fromAddress account
 			lo = mid
 		}
 	}
-	if hi == cap && runTx(hi) !=nil{
+	if hi == cap && runTx(hi) != nil {
 		return 0, errors.New("failed to apply")
 	}
 	return hi, nil
@@ -1740,7 +1740,7 @@ func (m *MinorBlockChain) updateTxHistoryIndexFromBlock(block *types.MinorBlock,
 	xShardReceiveTxList := rawdb.ReadConfirmedCrossShardTxList(m.db, block.Hash())
 	for index, tx := range xShardReceiveTxList.TXList {
 		//ignore dummy coinbase reward deposits
-		if tx.IsFromRootChain && tx.Value.Value.Uint64() == 0 {
+		if tx.IsFromRootChain && (tx.Value.Value == nil || tx.Value.Value.Cmp(new(big.Int)) == 0) {
 			continue
 		}
 		key := encodeAddressTxKey(tx.To.Recipient, block.Number(), index, true)
