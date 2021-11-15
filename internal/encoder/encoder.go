@@ -2,6 +2,7 @@ package encoder
 
 import (
 	"errors"
+
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
 	"github.com/QuarkChain/goquarkchain/common"
@@ -314,7 +315,7 @@ func ReceiptEncoder(block *types.MinorBlock, i int, receipt *types.Receipt) (map
 		"logs":              LogListEncoder(receipt.Logs, false),
 		"timestamp":         hexutil.Uint64(block.Time()),
 	}
-	if receipt.ContractAddress.Big().Uint64() == 0 {
+	if receipt.ContractAddress != (ethCommon.Address{}) {
 		field["contractAddress"] = nil
 	} else {
 		addr := account.Address{

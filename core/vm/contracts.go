@@ -211,6 +211,7 @@ func (c *sha256hash) SetEnableTime(data uint64) {
 func (c *sha256hash) RequiredGas(input []byte) uint64 {
 	return uint64(len(input)+31)/32*params.Sha256PerWordGas + params.Sha256BaseGas
 }
+
 func (c *sha256hash) Run(input []byte, evm *EVM, contract *Contract) ([]byte, error) {
 	h := sha256.Sum256(input)
 	return h[:], nil
@@ -236,6 +237,7 @@ func (c *ripemd160hash) SetEnableTime(data uint64) {
 func (c *ripemd160hash) RequiredGas(input []byte) uint64 {
 	return uint64(len(input)+31)/32*params.Ripemd160PerWordGas + params.Ripemd160BaseGas
 }
+
 func (c *ripemd160hash) Run(input []byte, evm *EVM, contract *Contract) ([]byte, error) {
 	ripemd := ripemd160.New()
 	ripemd.Write(input)
@@ -260,6 +262,7 @@ func (c *dataCopy) SetEnableTime(data uint64) {
 func (c *dataCopy) RequiredGas(input []byte) uint64 {
 	return uint64(len(input)+31)/32*params.IdentityPerWordGas + params.IdentityBaseGas
 }
+
 func (c *dataCopy) Run(in []byte, evm *EVM, contract *Contract) ([]byte, error) {
 	return in, nil
 }
@@ -520,6 +523,7 @@ func (c *currentMntID) GetEnableTime() uint64 {
 func (c *currentMntID) SetEnableTime(data uint64) {
 	c.enableTime = data
 }
+
 func (c *currentMntID) RequiredGas(input []byte) uint64 {
 	return currentMntIDGas
 }
@@ -547,6 +551,7 @@ func (c *transferMnt) SetEnableTime(data uint64) {
 func (c *transferMnt) RequiredGas(input []byte) uint64 {
 	return transferMntGas
 }
+
 func (c *transferMnt) Run(input []byte, evm *EVM, contract *Contract) ([]byte, error) {
 	if len(input) < 96 {
 		contract.Gas = 0
@@ -570,7 +575,7 @@ func (c *transferMnt) Run(input []byte, evm *EVM, contract *Contract) ([]byte, e
 	data := getData(input, 96, uint64(len(input)-96))
 
 	// Token ID should be within range
-	if tokenID.Uint64() > qCommon.TOKENIDMAX {
+	if tokenID.Cmp(new(big.Int).SetUint64(qCommon.TOKENIDMAX)) > 0 {
 		contract.Gas = 0
 		return nil, fmt.Errorf("tokenid %v > TOKENIDMAX %v", tokenID, qCommon.TOKENIDMAX)
 	}
@@ -677,9 +682,11 @@ type mintMNT struct {
 func (m *mintMNT) GetEnableTime() uint64 {
 	return m.enableTime
 }
+
 func (m *mintMNT) SetEnableTime(data uint64) {
 	m.enableTime = data
 }
+
 func (m *mintMNT) RequiredGas(input []byte) uint64 {
 	return qkcParams.GCallValueTransfer.Uint64()
 }
@@ -733,9 +740,11 @@ type balanceMNT struct {
 func (m *balanceMNT) GetEnableTime() uint64 {
 	return m.enableTime
 }
+
 func (m *balanceMNT) SetEnableTime(data uint64) {
 	m.enableTime = data
 }
+
 func (m *balanceMNT) RequiredGas(input []byte) uint64 {
 	return balanceMNTGas
 }

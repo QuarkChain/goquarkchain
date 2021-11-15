@@ -184,7 +184,8 @@ func (evm *EVM) Interpreter() Interpreter {
 }
 
 func checkTokenIDQueried(err error, contract *Contract, txansferTokenID, defaultTokenID uint64) error {
-	if err == nil && len(contract.Code) != 0 && !contract.TokenIDQueried && txansferTokenID != defaultTokenID && contract.value.Uint64() != 0 {
+	if err == nil && len(contract.Code) != 0 && !contract.TokenIDQueried && txansferTokenID != defaultTokenID &&
+		contract.value.Cmp(new(big.Int)) != 0 {
 		err = errExecutionReverted
 	}
 	return err
