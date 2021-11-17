@@ -27,6 +27,7 @@ import (
 
 func TestState(t *testing.T) {
 	t.Parallel()
+	//	testEVMStateWithFeature(t, debugDir, false)
 	testEVMStateWithFeature(t, qkcStateTestDir, false)
 	testEVMStateWithFeature(t, ethStateTestDir, true)
 }
@@ -59,7 +60,7 @@ func testEVMStateWithFeature(t *testing.T, dir string, useMock bool) {
 }
 
 // Transactions with gasLimit above this value will not get a VM trace on failure.
-const traceErrorLimit = 400000
+const traceErrorLimit = 4000000
 
 // The VM config for state tests that accepts --vm.* command line arguments.
 var testVMConfig = func() vm.Config {

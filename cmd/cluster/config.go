@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"reflect"
-	"strconv"
 	"unicode"
 
 	"github.com/QuarkChain/goquarkchain/cluster/config"
@@ -96,15 +95,21 @@ func makeConfigNode(ctx *cli.Context) (*service.Node, qkcConfig) {
 
 		// set websocket endpoint
 		if ctx.GlobalBool(utils.WSEnableFlag.Name) {
-			sufPort, _ := strconv.Atoi(slv.ID[1:])
-			ip, port := slv.IP, slv.WSPort+uint16(sufPort)
+			//	sufPort, _ := strconv.Atoi(slv.ID[1:])
+			ip := slv.IP
 			if ctx.GlobalIsSet(utils.WSRPCHostFlag.Name) {
 				ip = ctx.GlobalString(utils.WSRPCHostFlag.Name)
 			}
-			if ctx.GlobalIsSet(utils.WSRPCPortFlag.Name) {
+			/*if ctx.GlobalIsSet(utils.WSRPCPortFlag.Name) {
 				port = uint16(ctx.GlobalInt(utils.WSRPCPortFlag.Name))
+			}*/
+			if len(slv.FullShardList) != len(slv.WSPortList) {
+				panic("FullShardList len != WSPortList len in slave config")
 			}
-			cfg.Service.WSEndpoint = fmt.Sprintf("%s:%d", ip, port)
+			cfg.Service.WSEndpoints = make(map[uint32]string)
+			for i, fullShardId := range slv.FullShardList {
+				cfg.Service.WSEndpoints[fullShardId] = fmt.Sprintf("%s:%d", ip, slv.WSPortList[i])
+			}
 		}
 
 		// load genesis accounts

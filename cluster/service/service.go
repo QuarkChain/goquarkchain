@@ -39,7 +39,7 @@ func (ctx *ServiceContext) GetTimestamp() time.Time {
 }
 
 func (ctx *ServiceContext) WSIsAlive() bool {
-	return ctx.config.WSEndpoint != ""
+	return len(ctx.config.WSEndpoints) != 0
 }
 
 // OpenDatabase opens an existing database with the given name (or creates one

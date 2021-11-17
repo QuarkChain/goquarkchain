@@ -39,11 +39,13 @@ type PublicFilterAPI struct {
 	quit      chan struct{}
 	events    *filters.EventSystem
 	filtersMu sync.Mutex
+	shardId   uint32 // as default shardId
 }
 
 // NewPublicFilterAPI returns a new PublicFilterAPI instance.
-func NewPublicFilterAPI(backend filters.SlaveFilter) *PublicFilterAPI {
+func NewPublicFilterAPI(backend filters.SlaveFilter, shardId uint32) *PublicFilterAPI {
 	api := &PublicFilterAPI{
+		shardId: shardId,
 		backend: backend,
 		events:  filters.NewEventSystem(backend),
 	}
@@ -53,13 +55,16 @@ func NewPublicFilterAPI(backend filters.SlaveFilter) *PublicFilterAPI {
 
 // NewPendingTransactions creates a subscription that is triggered each time a transaction
 // enters the transaction pool and was signed from one of the transactions this nodes manages.
-func (api *PublicFilterAPI) NewPendingTransactions(ctx context.Context, fullShardId hexutil.Uint) (*rpc.Subscription, error) {
+func (api *PublicFilterAPI) NewPendingTransactions(ctx context.Context, fullShardId *hexutil.Uint) (*rpc.Subscription, error) {
 	notifier, supported := rpc.NotifierFromContext(ctx)
 	if !supported {
 		return &rpc.Subscription{}, rpc.ErrNotificationsUnsupported
 	}
 
-	id := uint32(fullShardId)
+	id := api.shardId
+	if fullShardId != nil {
+		id = uint32(*fullShardId)
+	}
 	rpcSub := notifier.CreateSubscription()
 
 	go func() {
@@ -96,17 +101,21 @@ func (api *PublicFilterAPI) NewPendingTransactions(ctx context.Context, fullShar
 }
 
 // NewHeads send a notification each time a new (header) block is appended to the chain.
-func (api *PublicFilterAPI) NewHeads(ctx context.Context, fullShardId hexutil.Uint) (*rpc.Subscription, error) {
+func (api *PublicFilterAPI) NewHeads(ctx context.Context, fullShardId *hexutil.Uint) (*rpc.Subscription, error) {
 	notifier, supported := rpc.NotifierFromContext(ctx)
 	if !supported {
 		return &rpc.Subscription{}, rpc.ErrNotificationsUnsupported
 	}
 
 	rpcSub := notifier.CreateSubscription()
+	id := api.shardId
+	if fullShardId != nil {
+		id = uint32(*fullShardId)
+	}
 
 	go func() {
 		headers := make(chan *types.MinorBlockHeader, filters.ChainEvChanSize)
-		headersSub := api.events.SubscribeNewHeads(headers, uint32(fullShardId))
+		headersSub := api.events.SubscribeNewHeads(headers, id)
 
 		for {
 			select {
@@ -132,7 +141,7 @@ func (api *PublicFilterAPI) NewHeads(ctx context.Context, fullShardId hexutil.Ui
 }
 
 // Logs creates a subscription that fires for all new log that match the given filter criteria.
-func (api *PublicFilterAPI) Logs(ctx context.Context, fullShardId hexutil.Uint, crit rpc.FilterQuery) (*rpc.Subscription, error) {
+func (api *PublicFilterAPI) Logs(ctx context.Context, crit rpc.FilterQuery, fullShardId *hexutil.Uint) (*rpc.Subscription, error) {
 	notifier, supported := rpc.NotifierFromContext(ctx)
 	if !supported {
 		return &rpc.Subscription{}, rpc.ErrNotificationsUnsupported
@@ -142,7 +151,11 @@ func (api *PublicFilterAPI) Logs(ctx context.Context, fullShardId hexutil.Uint, 
 		rpcSub      = notifier.CreateSubscription()
 		matchedLogs = make(chan core.LoglistEvent, filters.LogsChanSize)
 	)
-	crit.FullShardId = uint32(fullShardId)
+	if fullShardId != nil {
+		crit.FullShardId = uint32(*fullShardId)
+	} else {
+		crit.FullShardId = api.shardId
+	}
 
 	logsSub, err := api.events.SubscribeLogs(crit, matchedLogs)
 	if err != nil {
@@ -171,7 +184,8 @@ func (api *PublicFilterAPI) Logs(ctx context.Context, fullShardId hexutil.Uint, 
 	return rpcSub, nil
 }
 
-func (api *PublicFilterAPI) Syncing(ctx context.Context, fullShardId hexutil.Uint) (*rpc.Subscription, error) {
+// Syncing provides information when this node starts synchronising with the Ethereum network and when it's finished.
+func (api *PublicFilterAPI) Syncing(ctx context.Context, fullShardId *hexutil.Uint) (*rpc.Subscription, error) {
 	notifier, supported := rpc.NotifierFromContext(ctx)
 	if !supported {
 		return &rpc.Subscription{}, rpc.ErrNotificationsUnsupported
@@ -180,10 +194,14 @@ func (api *PublicFilterAPI) Syncing(ctx context.Context, fullShardId hexutil.Uin
 	var (
 		rpcSub = notifier.CreateSubscription()
 	)
+	id := api.shardId
+	if fullShardId != nil {
+		id = uint32(*fullShardId)
+	}
 
 	go func() {
 		statuses := make(chan *qsync.SyncingResult, filters.SyncSize)
-		sub := api.events.SubscribeSyncing(statuses, uint32(fullShardId))
+		sub := api.events.SubscribeSyncing(statuses, id)
 		for {
 			select {
 			case status := <-statuses:
