@@ -156,7 +156,7 @@ func MinorBlockHeaderEncoder(header *types.MinorBlockHeader) (map[string]interfa
 	return map[string]interface{}{
 		"id":                 IDEncoder(header.Hash().Bytes(), header.Branch.GetFullShardID()),
 		"height":             hexutil.Uint64(header.Number),
-		"number":             new(big.Int).SetUint64(header.Number),
+		"number":             hexutil.Uint64(header.Number),
 		"hash":               header.Hash(),
 		"fullShardId":        hexutil.Uint64(header.Branch.GetFullShardID()),
 		"chainId":            hexutil.Uint64(header.Branch.GetChainID()),
@@ -172,6 +172,7 @@ func MinorBlockHeaderEncoder(header *types.MinorBlockHeader) (map[string]interfa
 		"extraData":          hexutil.Bytes(header.Extra),
 		"gasLimit":           (*hexutil.Big)(header.GasLimit.Value),
 		"timestamp":          hexutil.Uint64(header.Time),
+		"logsBloom":          header.Bloom,
 		"sha3Uncles":         types.EmptyUncleHash,
 		"transactionsRoot":   common.EmptyHash,
 		"stateRoot":          common.EmptyHash,
