@@ -3,6 +3,7 @@ package encoder
 import (
 	"encoding/binary"
 	"errors"
+	"math/big"
 
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
@@ -154,7 +155,7 @@ func MinorBlockHeaderEncoder(header *types.MinorBlockHeader) (map[string]interfa
 	return map[string]interface{}{
 		"id":                 IDEncoder(header.Hash().Bytes(), header.Branch.GetFullShardID()),
 		"height":             hexutil.Uint64(header.Number),
-		"number":             EncodeNonce(header.Number),
+		"number":             new(big.Int).SetUint64(header.Number),
 		"hash":               header.Hash(),
 		"fullShardId":        hexutil.Uint64(header.Branch.GetFullShardID()),
 		"chainId":            hexutil.Uint64(header.Branch.GetChainID()),
@@ -163,7 +164,7 @@ func MinorBlockHeaderEncoder(header *types.MinorBlockHeader) (map[string]interfa
 		"parentHash":         header.ParentHash,
 		"idPrevMinorBlock":   IDEncoder(header.ParentHash.Bytes(), header.Branch.GetFullShardID()),
 		"hashPrevRootBlock":  header.PrevRootBlockHash,
-		"nonce":              hexutil.Uint64(header.Nonce),
+		"nonce":              EncodeNonce(header.Nonce),
 		"miner":              DataEncoder(minerData),
 		"coinbase":           (BalancesEncoder)(header.CoinbaseAmount),
 		"difficulty":         (*hexutil.Big)(header.Difficulty),
