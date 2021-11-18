@@ -124,11 +124,13 @@ func MinorBlockHeaderEncoder(header *types.MinorBlockHeader) (map[string]interfa
 	return map[string]interface{}{
 		"id":                 IDEncoder(header.Hash().Bytes(), header.Branch.GetFullShardID()),
 		"height":             hexutil.Uint64(header.Number),
+		"number":             hexutil.Uint64(header.Number),
 		"hash":               header.Hash(),
 		"fullShardId":        hexutil.Uint64(header.Branch.GetFullShardID()),
 		"chainId":            hexutil.Uint64(header.Branch.GetChainID()),
 		"shardId":            hexutil.Uint64(header.Branch.GetShardID()),
 		"hashPrevMinorBlock": header.ParentHash,
+		"parentHash":         header.ParentHash,
 		"idPrevMinorBlock":   IDEncoder(header.ParentHash.Bytes(), header.Branch.GetFullShardID()),
 		"hashPrevRootBlock":  header.PrevRootBlockHash,
 		"nonce":              hexutil.Uint64(header.Nonce),
@@ -148,32 +150,21 @@ func MinorBlockEncoder(block *types.MinorBlock, includeTransaction bool, extraIn
 	}
 	header := block.Header()
 	meta := block.Meta()
-	minerData, err := serialize.SerializeToBytes(header.Coinbase)
 	if err != nil {
 		return nil, err
 	}
-	field := map[string]interface{}{
-		"id":                 IDEncoder(header.Hash().Bytes(), header.Branch.GetFullShardID()),
-		"height":             hexutil.Uint64(header.Number),
-		"hash":               header.Hash(),
-		"fullShardId":        hexutil.Uint64(header.Branch.GetFullShardID()),
-		"chainId":            hexutil.Uint64(header.Branch.GetChainID()),
-		"shardId":            hexutil.Uint64(header.Branch.GetShardID()),
-		"hashPrevMinorBlock": header.ParentHash,
-		"idPrevMinorBlock":   IDEncoder(header.ParentHash.Bytes(), header.Branch.GetFullShardID()),
-		"hashPrevRootBlock":  header.PrevRootBlockHash,
-		"nonce":              hexutil.Uint64(header.Nonce),
-		"hashMerkleRoot":     meta.TxHash,
-		"hashEvmStateRoot":   meta.Root,
-		"miner":              DataEncoder(minerData),
-		"coinbase":           (BalancesEncoder)(header.CoinbaseAmount),
-		"difficulty":         (*hexutil.Big)(header.Difficulty),
-		"extraData":          hexutil.Bytes(header.Extra),
-		"gasLimit":           (*hexutil.Big)(header.GasLimit.Value),
-		"gasUsed":            (*hexutil.Big)(meta.GasUsed.Value),
-		"timestamp":          hexutil.Uint64(header.Time),
-		"size":               hexutil.Uint64(len(serData)),
+	field, err := MinorBlockHeaderEncoder(header)
+	if err != nil {
+		return nil, err
 	}
+
+	field["hashMerkleRoot"] = meta.TxHash
+	field["transactionsRoot"] = meta.TxHash
+	field["hashEvmStateRoot"] = meta.Root
+	field["stateRoot"] = meta.Root
+	field["receiptsRoot"] = meta.ReceiptHash
+	field["size"] = hexutil.Uint64(len(serData))
+	field["gasUsed"] = (*hexutil.Big)(meta.GasUsed.Value)
 
 	if includeTransaction {
 		txForDisplay := make([]map[string]interface{}, 0)
