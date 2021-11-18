@@ -27,7 +27,6 @@ import (
 
 func TestState(t *testing.T) {
 	t.Parallel()
-	//	testEVMStateWithFeature(t, debugDir, false)
 	testEVMStateWithFeature(t, qkcStateTestDir, false)
 	testEVMStateWithFeature(t, ethStateTestDir, true)
 }
