@@ -140,6 +140,7 @@ func RootBlockEncoder(rootBlock *types.RootBlock, extraInfo *rpc.PoSWInfo) (map[
 			"timestamp":          hexutil.Uint64(header.Time),
 			"extraData":          hexutil.Bytes(header.Extra),
 			"gasLimit":           hexutil.Big(*header.GasLimit.Value),
+			"sha3Uncles":         types.EmptyHash,
 		}
 		minorHeaders = append(minorHeaders, h)
 	}
@@ -171,6 +172,7 @@ func MinorBlockHeaderEncoder(header *types.MinorBlockHeader) (map[string]interfa
 		"extraData":          hexutil.Bytes(header.Extra),
 		"gasLimit":           (*hexutil.Big)(header.GasLimit.Value),
 		"timestamp":          hexutil.Uint64(header.Time),
+		"sha3Uncles":         types.EmptyUncleHash,
 	}, nil
 }
 
