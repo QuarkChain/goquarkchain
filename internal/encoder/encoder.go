@@ -173,6 +173,10 @@ func MinorBlockHeaderEncoder(header *types.MinorBlockHeader) (map[string]interfa
 		"gasLimit":           (*hexutil.Big)(header.GasLimit.Value),
 		"timestamp":          hexutil.Uint64(header.Time),
 		"sha3Uncles":         types.EmptyUncleHash,
+		"transactionsRoot":   common.EmptyHash,
+		"stateRoot":          common.EmptyHash,
+		"receiptsRoot":       common.EmptyHash,
+		"gasUsed":            (*hexutil.Big)(new(big.Int)),
 	}, nil
 }
 
