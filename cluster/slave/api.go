@@ -124,6 +124,7 @@ func (api *PublicFilterAPI) NewHeads(ctx context.Context, fullShardId *hexutil.U
 				if err != nil {
 					log.Error("encode MinorBlockHeader error", "err", err)
 				} else {
+					hd["miner"] = h.Coinbase.Recipient
 					notifier.Notify(rpcSub.ID, hd)
 				}
 
