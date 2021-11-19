@@ -114,25 +114,25 @@ func (api *PublicFilterAPI) NewHeads(ctx context.Context, fullShardId *hexutil.U
 	}
 
 	go func() {
-		headers := make(chan *types.MinorBlockHeader, filters.ChainEvChanSize)
-		headersSub := api.events.SubscribeNewHeads(headers, id)
+		blocks := make(chan *types.MinorBlock, filters.ChainEvChanSize)
+		blocksSub := api.events.SubscribeNewHeads(blocks, id)
 
 		for {
 			select {
-			case h := <-headers:
-				hd, err := encoder.MinorBlockHeaderEncoder(h)
+			case b := <-blocks:
+				hd, err := encoder.MinorBlockHeaderEncoder(b.Header(), b.Meta())
 				if err != nil {
 					log.Error("encode MinorBlockHeader error", "err", err)
 				} else {
-					hd["miner"] = h.Coinbase.Recipient
+					hd["miner"] = b.Header().Coinbase.Recipient
 					notifier.Notify(rpcSub.ID, hd)
 				}
 
 			case <-rpcSub.Err():
-				headersSub.Unsubscribe()
+				blocksSub.Unsubscribe()
 				return
 			case <-notifier.Closed():
-				headersSub.Unsubscribe()
+				blocksSub.Unsubscribe()
 				return
 			}
 		}
