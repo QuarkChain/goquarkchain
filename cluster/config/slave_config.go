@@ -40,7 +40,8 @@ func (s *SlaveConfig) UnmarshalJSON(input []byte) error {
 		return err
 	}
 	*s = SlaveConfig(jsonConfig.SlaveConfigAlias)
-	if s.WSPortList == nil {
+	if len(s.WSPortList) == 0 {
+		s.WSPortList = make([]uint16, len(s.FullShardList))
 		for i, shard := range s.FullShardList {
 			s.WSPortList[i] = DefaultWSPort + uint16(shard>>16)
 		}

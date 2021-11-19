@@ -3,7 +3,6 @@ package encoder
 import (
 	"encoding/binary"
 	"errors"
-	"math/big"
 
 	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/rpc"
@@ -148,7 +147,7 @@ func RootBlockEncoder(rootBlock *types.RootBlock, extraInfo *rpc.PoSWInfo) (map[
 	return fields, nil
 }
 
-func MinorBlockHeaderEncoder(header *types.MinorBlockHeader) (map[string]interface{}, error) {
+func MinorBlockHeaderEncoder(header *types.MinorBlockHeader, meta *types.MinorBlockMeta) (map[string]interface{}, error) {
 	minerData, err := serialize.SerializeToBytes(header.Coinbase)
 	if err != nil {
 		return nil, err
@@ -174,10 +173,12 @@ func MinorBlockHeaderEncoder(header *types.MinorBlockHeader) (map[string]interfa
 		"timestamp":          hexutil.Uint64(header.Time),
 		"logsBloom":          header.Bloom,
 		"sha3Uncles":         types.EmptyUncleHash,
-		"transactionsRoot":   common.EmptyHash,
-		"stateRoot":          common.EmptyHash,
-		"receiptsRoot":       common.EmptyHash,
-		"gasUsed":            (*hexutil.Big)(new(big.Int)),
+		"hashMerkleRoot":     meta.TxHash,
+		"transactionsRoot":   meta.TxHash,
+		"hashEvmStateRoot":   meta.Root,
+		"stateRoot":          meta.Root,
+		"receiptsRoot":       meta.ReceiptHash,
+		"gasUsed":            (*hexutil.Big)(meta.GasUsed.Value),
 	}, nil
 }
 
@@ -191,18 +192,12 @@ func MinorBlockEncoder(block *types.MinorBlock, includeTransaction bool, extraIn
 	if err != nil {
 		return nil, err
 	}
-	field, err := MinorBlockHeaderEncoder(header)
+	field, err := MinorBlockHeaderEncoder(header, meta)
 	if err != nil {
 		return nil, err
 	}
 
-	field["hashMerkleRoot"] = meta.TxHash
-	field["transactionsRoot"] = meta.TxHash
-	field["hashEvmStateRoot"] = meta.Root
-	field["stateRoot"] = meta.Root
-	field["receiptsRoot"] = meta.ReceiptHash
 	field["size"] = hexutil.Uint64(len(serData))
-	field["gasUsed"] = (*hexutil.Big)(meta.GasUsed.Value)
 
 	if includeTransaction {
 		txForDisplay := make([]map[string]interface{}, 0)

@@ -84,7 +84,7 @@ type subscription struct {
 	logsCrit    qrpc.FilterQuery
 	logsCh      chan core.LoglistEvent
 	txlistCh    chan []*types.Transaction
-	headersCh   chan *types.MinorBlockHeader
+	blocksCh    chan *types.MinorBlock
 	syncCh      chan *qsync.SyncingResult
 	installed   chan struct{} // closed when the filter is installed
 	err         chan error    // closed when the filter is uninstalled
@@ -151,8 +151,8 @@ func (sub *Subscription) Unsubscribe() {
 			default:
 				if sub.f.logsCh != nil {
 					<-sub.f.logsCh
-				} else if sub.f.headersCh != nil {
-					<-sub.f.headersCh
+				} else if sub.f.blocksCh != nil {
+					<-sub.f.blocksCh
 				} else if sub.f.txlistCh != nil {
 					<-sub.f.txlistCh
 				} else if sub.f.syncCh != nil {
@@ -236,13 +236,13 @@ func (es *EventSystem) subscribePendingLogs(crit qrpc.FilterQuery, logs chan cor
 
 // SubscribeNewHeads creates a subscription that writes the header of a block that is
 // imported in the chain.
-func (es *EventSystem) SubscribeNewHeads(headers chan *types.MinorBlockHeader, fullShardId uint32) *Subscription {
+func (es *EventSystem) SubscribeNewHeads(blocks chan *types.MinorBlock, fullShardId uint32) *Subscription {
 	sub := &subscription{
 		id:          rpc.NewID(),
 		fullShardId: fullShardId,
 		typ:         BlocksSubscription,
 		created:     time.Now(),
-		headersCh:   headers,
+		blocksCh:    blocks,
 		installed:   make(chan struct{}),
 		err:         make(chan error),
 	}
@@ -308,9 +308,9 @@ func (es *EventSystem) broadcast(filters filterIndex, ev interface{}) {
 			f.txlistCh <- e
 		}
 
-	case *types.MinorBlockHeader:
+	case *types.MinorBlock:
 		for _, f := range filters[BlocksSubscription] {
-			f.headersCh <- e
+			f.blocksCh <- e
 		}
 
 	case *qsync.SyncingResult:
