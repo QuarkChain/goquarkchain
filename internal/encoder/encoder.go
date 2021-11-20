@@ -1,6 +1,7 @@
 package encoder
 
 import (
+	"encoding/binary"
 	"errors"
 
 	"github.com/QuarkChain/goquarkchain/account"
@@ -11,6 +12,33 @@ import (
 	"github.com/QuarkChain/goquarkchain/serialize"
 	ethCommon "github.com/ethereum/go-ethereum/common"
 )
+
+// A BlockNonce is a 64-bit hash which proves (combined with the
+// mix-hash) that a sufficient amount of computation has been carried
+// out on a block.
+type BlockNonce [8]byte
+
+// EncodeNonce converts the given integer to a block nonce.
+func EncodeNonce(i uint64) BlockNonce {
+	var n BlockNonce
+	binary.BigEndian.PutUint64(n[:], i)
+	return n
+}
+
+// Uint64 returns the integer value of a block nonce.
+func (n BlockNonce) Uint64() uint64 {
+	return binary.BigEndian.Uint64(n[:])
+}
+
+// MarshalText encodes n as a hex string with 0x prefix.
+func (n BlockNonce) MarshalText() ([]byte, error) {
+	return hexutil.Bytes(n[:]).MarshalText()
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (n *BlockNonce) UnmarshalText(input []byte) error {
+	return hexutil.UnmarshalFixedText("BlockNonce", input, n[:])
+}
 
 func IDEncoder(hashByte []byte, fullShardKey uint32) hexutil.Bytes {
 	hashByte = append(hashByte, common.Uint32ToBytes(fullShardKey)...)
@@ -65,6 +93,7 @@ func RootBlockEncoder(rootBlock *types.RootBlock, extraInfo *rpc.PoSWInfo) (map[
 	fields := map[string]interface{}{
 		"id":                header.Hash(),
 		"height":            hexutil.Uint64(header.Number),
+		"number":            EncodeNonce(uint64(header.Number)),
 		"hash":              header.Hash(),
 		"sealHash":          header.SealHash(),
 		"hashPrevBlock":     header.ParentHash,
@@ -95,6 +124,7 @@ func RootBlockEncoder(rootBlock *types.RootBlock, extraInfo *rpc.PoSWInfo) (map[
 		h := map[string]interface{}{
 			"id":                 IDEncoder(header.Hash().Bytes(), header.Branch.GetFullShardID()),
 			"height":             hexutil.Uint64(header.Number),
+			"number":             EncodeNonce(header.Number),
 			"hash":               header.Hash(),
 			"fullShardId":        hexutil.Uint64(header.Branch.GetFullShardID()),
 			"chainId":            hexutil.Uint64(header.Branch.GetChainID()),
@@ -109,6 +139,7 @@ func RootBlockEncoder(rootBlock *types.RootBlock, extraInfo *rpc.PoSWInfo) (map[
 			"timestamp":          hexutil.Uint64(header.Time),
 			"extraData":          hexutil.Bytes(header.Extra),
 			"gasLimit":           hexutil.Big(*header.GasLimit.Value),
+			"sha3Uncles":         types.EmptyHash,
 		}
 		minorHeaders = append(minorHeaders, h)
 	}
@@ -116,7 +147,7 @@ func RootBlockEncoder(rootBlock *types.RootBlock, extraInfo *rpc.PoSWInfo) (map[
 	return fields, nil
 }
 
-func MinorBlockHeaderEncoder(header *types.MinorBlockHeader) (map[string]interface{}, error) {
+func MinorBlockHeaderEncoder(header *types.MinorBlockHeader, meta *types.MinorBlockMeta) (map[string]interface{}, error) {
 	minerData, err := serialize.SerializeToBytes(header.Coinbase)
 	if err != nil {
 		return nil, err
@@ -124,20 +155,30 @@ func MinorBlockHeaderEncoder(header *types.MinorBlockHeader) (map[string]interfa
 	return map[string]interface{}{
 		"id":                 IDEncoder(header.Hash().Bytes(), header.Branch.GetFullShardID()),
 		"height":             hexutil.Uint64(header.Number),
+		"number":             hexutil.Uint64(header.Number),
 		"hash":               header.Hash(),
 		"fullShardId":        hexutil.Uint64(header.Branch.GetFullShardID()),
 		"chainId":            hexutil.Uint64(header.Branch.GetChainID()),
 		"shardId":            hexutil.Uint64(header.Branch.GetShardID()),
 		"hashPrevMinorBlock": header.ParentHash,
+		"parentHash":         header.ParentHash,
 		"idPrevMinorBlock":   IDEncoder(header.ParentHash.Bytes(), header.Branch.GetFullShardID()),
 		"hashPrevRootBlock":  header.PrevRootBlockHash,
-		"nonce":              hexutil.Uint64(header.Nonce),
+		"nonce":              EncodeNonce(header.Nonce),
 		"miner":              DataEncoder(minerData),
 		"coinbase":           (BalancesEncoder)(header.CoinbaseAmount),
 		"difficulty":         (*hexutil.Big)(header.Difficulty),
 		"extraData":          hexutil.Bytes(header.Extra),
 		"gasLimit":           (*hexutil.Big)(header.GasLimit.Value),
 		"timestamp":          hexutil.Uint64(header.Time),
+		"logsBloom":          header.Bloom,
+		"sha3Uncles":         types.EmptyUncleHash,
+		"hashMerkleRoot":     meta.TxHash,
+		"transactionsRoot":   meta.TxHash,
+		"hashEvmStateRoot":   meta.Root,
+		"stateRoot":          meta.Root,
+		"receiptsRoot":       meta.ReceiptHash,
+		"gasUsed":            (*hexutil.Big)(meta.GasUsed.Value),
 	}, nil
 }
 
@@ -148,32 +189,15 @@ func MinorBlockEncoder(block *types.MinorBlock, includeTransaction bool, extraIn
 	}
 	header := block.Header()
 	meta := block.Meta()
-	minerData, err := serialize.SerializeToBytes(header.Coinbase)
 	if err != nil {
 		return nil, err
 	}
-	field := map[string]interface{}{
-		"id":                 IDEncoder(header.Hash().Bytes(), header.Branch.GetFullShardID()),
-		"height":             hexutil.Uint64(header.Number),
-		"hash":               header.Hash(),
-		"fullShardId":        hexutil.Uint64(header.Branch.GetFullShardID()),
-		"chainId":            hexutil.Uint64(header.Branch.GetChainID()),
-		"shardId":            hexutil.Uint64(header.Branch.GetShardID()),
-		"hashPrevMinorBlock": header.ParentHash,
-		"idPrevMinorBlock":   IDEncoder(header.ParentHash.Bytes(), header.Branch.GetFullShardID()),
-		"hashPrevRootBlock":  header.PrevRootBlockHash,
-		"nonce":              hexutil.Uint64(header.Nonce),
-		"hashMerkleRoot":     meta.TxHash,
-		"hashEvmStateRoot":   meta.Root,
-		"miner":              DataEncoder(minerData),
-		"coinbase":           (BalancesEncoder)(header.CoinbaseAmount),
-		"difficulty":         (*hexutil.Big)(header.Difficulty),
-		"extraData":          hexutil.Bytes(header.Extra),
-		"gasLimit":           (*hexutil.Big)(header.GasLimit.Value),
-		"gasUsed":            (*hexutil.Big)(meta.GasUsed.Value),
-		"timestamp":          hexutil.Uint64(header.Time),
-		"size":               hexutil.Uint64(len(serData)),
+	field, err := MinorBlockHeaderEncoder(header, meta)
+	if err != nil {
+		return nil, err
 	}
+
+	field["size"] = hexutil.Uint64(len(serData))
 
 	if includeTransaction {
 		txForDisplay := make([]map[string]interface{}, 0)

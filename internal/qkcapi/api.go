@@ -113,8 +113,8 @@ func (c *CommonAPI) GetLogs(args *rpc.FilterQuery, fullShardKey *hexutil.Uint) (
 
 	args.FullShardId = fullShardID
 
-	log, err := c.b.GetLogs(args)
-	return encoder.LogListEncoder(log, false), nil
+	logs, err := c.b.GetLogs(args)
+	return encoder.LogListEncoder(logs, false), nil
 }
 
 // It offers only methods that operate on public data that is freely available to anyone.
@@ -140,7 +140,6 @@ func (p *PublicBlockChainAPI) EchoData(data hexutil.Big) *hexutil.Big {
 }
 
 func (p *PublicBlockChainAPI) NetworkInfo() map[string]interface{} {
-
 	type ChainIdToShardSize struct {
 		chainID   uint32
 		shardSize uint32
@@ -154,6 +153,7 @@ func (p *PublicBlockChainAPI) NetworkInfo() map[string]interface{} {
 	for _, v := range ChainIdToShardSizeList {
 		shardSize = append(shardSize, hexutil.Uint(v.shardSize))
 	}
+
 	return map[string]interface{}{
 		"networkId":        hexutil.Uint(clusterCfg.Quarkchain.NetworkID),
 		"chainSize":        hexutil.Uint(clusterCfg.Quarkchain.ChainSize),
@@ -162,7 +162,6 @@ func (p *PublicBlockChainAPI) NetworkInfo() map[string]interface{} {
 		"mining":           p.b.IsMining(),
 		"shardServerCount": p.b.GetSlavePoolLen(),
 	}
-
 }
 
 func (p *PublicBlockChainAPI) getPrimaryAccountData(address account.Address, blockNr *rpc.BlockNumber) (data *qrpc.AccountBranchData, err error) {
@@ -261,11 +260,11 @@ func (p *PublicBlockChainAPI) GetAccountData(address account.Address, blockHeigh
 			primary["poswMineableBlocks"] = hexutil.Uint64(accountBranchData.PoswMineableBlocks)
 		}
 	}
+
 	return map[string]interface{}{
 		"primary": primary,
 		"shards":  shards,
 	}, nil
-
 }
 
 func (p *PublicBlockChainAPI) SendTransaction(args SendTxArgs) (hexutil.Bytes, error) {
@@ -341,7 +340,6 @@ func (p *PublicBlockChainAPI) GetMinorBlockById(blockID hexutil.Bytes, includeTx
 		return nil, errors.New("minor block is nil")
 	}
 	return encoder.MinorBlockEncoder(minorBlock, *includeTxs, extra)
-
 }
 
 func (p *PublicBlockChainAPI) GetMinorBlockByHeight(fullShardKey hexutil.Uint, heightInput *hexutil.Uint64, includeTxs *bool, needExtraInfo *bool) (map[string]interface{}, error) {
@@ -404,7 +402,6 @@ func (p *PublicBlockChainAPI) Call(data CallArgs, blockNr *rpc.BlockNumber) (hex
 		return nil, err
 	}
 	return p.CommonAPI.callOrEstimateGas(&data, blockNumber, true)
-
 }
 
 func (p *PublicBlockChainAPI) EstimateGas(data CallArgs) (hexutil.Uint, error) {
@@ -527,7 +524,6 @@ func (p *PublicBlockChainAPI) GetAllTransaction(fullShardKey hexutil.Uint, start
 		return nil, err
 	}
 	return makeGetTransactionRes(txs, next)
-
 }
 
 func makeGetTransactionRes(txs []*qrpc.TransactionDetail, next []byte) (map[string]interface{}, error) {
@@ -668,7 +664,6 @@ func (p *PublicBlockChainAPI) GetTransactionConfirmedByNumberRootBlocks(txID hex
 	}
 	tip := p.b.CurrentBlock()
 	return hexutil.Uint(tip.NumberU64() - confirmingHeight + 1), nil
-
 }
 
 func (p *PublicBlockChainAPI) NetVersion() hexutil.Uint {

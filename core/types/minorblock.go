@@ -11,9 +11,14 @@ import (
 	"github.com/QuarkChain/goquarkchain/params"
 	"github.com/QuarkChain/goquarkchain/serialize"
 	"github.com/ethereum/go-ethereum/common"
+	comtypes "github.com/ethereum/go-ethereum/core/types"
 )
 
 //go:generate gencodec -type Header -field-override headerMarshaling -out gen_header_json.go
+
+var (
+	EmptyUncleHash = rlpHash([]*comtypes.Header(nil))
+)
 
 // MinorBlockHeaderList represents a minor block header in the QuarkChain.
 type MinorBlockHeader struct {

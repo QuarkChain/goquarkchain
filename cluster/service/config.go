@@ -78,7 +78,7 @@ type Config struct {
 	// exposed.
 	WSModules []string `toml:",omitempty"`
 
-	WSEndpoint string
+	WSEndpoints map[uint32]string
 
 	// Logger is a custom logger to use with the p2p.Server.
 	Logger log.Logger `toml:",omitempty"`

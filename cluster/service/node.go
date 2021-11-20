@@ -3,6 +3,13 @@ package service
 
 import (
 	"fmt"
+	"net"
+	"os"
+	"path/filepath"
+	"reflect"
+	"sync"
+	"time"
+
 	qkcrpc "github.com/QuarkChain/goquarkchain/cluster/rpc"
 	"github.com/QuarkChain/goquarkchain/p2p"
 	"github.com/QuarkChain/goquarkchain/rpc"
@@ -10,12 +17,6 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/prometheus/prometheus/util/flock"
 	"google.golang.org/grpc"
-	"net"
-	"os"
-	"path/filepath"
-	"reflect"
-	"sync"
-	"time"
 )
 
 // Node is a container on which services can be registered.
@@ -48,8 +49,8 @@ type Node struct {
 	grpcListener net.Listener // GRPC listener socket to server API requests
 	grpcHandler  *grpc.Server // GRPC request handler to process the API requests
 
-	wsListener net.Listener // Websocket RPC listener socket to server API requests
-	wsHandler  *rpc.Server  // Websocket RPC request handler to process the API requests
+	wsListenerList []net.Listener // Websocket RPC listener socket to server API requests
+	wsHandlerList  []*rpc.Server  // Websocket RPC request handler to process the API requests
 
 	stop chan struct{} // Channel to wait for termination notifications
 	lock sync.RWMutex
@@ -337,33 +338,45 @@ func (n *Node) stopGRPC() {
 // startWS initializes and starts the websocket RPC endpoint.
 func (n *Node) startWS(apis []rpc.API, modules []string, wsOrigins []string) error {
 	// Short circuit if the WS endpoint isn't being exposed
-	if n.config.WSEndpoint == "" {
+	if len(n.config.WSEndpoints) == 0 {
 		return nil
 	}
-	publicApis := n.apiFilter(apis, true, modules)
-	listener, handler, err := rpc.StartWSEndpoint(n.config.WSEndpoint, publicApis, modules, wsOrigins, false)
-	if err != nil {
-		return err
+	for shard, wsEndpoint := range n.config.WSEndpoints {
+		ms := make([]string, len(modules))
+		for i, m := range modules {
+			ms[i] = m
+		}
+		ms = append(ms, fmt.Sprintf("ws_%d", shard))
+		publicApis := n.apiFilter(apis, true, ms)
+		listener, handler, err := rpc.StartWSEndpoint(wsEndpoint, publicApis, ms, wsOrigins, false)
+		if err != nil {
+			return err
+		}
+		n.log.Info("WebSocket endpoint opened", "url", fmt.Sprintf("ws://%s", listener.Addr()))
+		// All listeners booted successfully
+		n.wsListenerList = append(n.wsListenerList, listener)
+		n.wsHandlerList = append(n.wsHandlerList, handler)
 	}
-	n.log.Info("WebSocket endpoint opened", "url", fmt.Sprintf("ws://%s", listener.Addr()))
-	// All listeners booted successfully
-	n.wsListener = listener
-	n.wsHandler = handler
 
 	return nil
 }
 
 // stopWS terminates the websocket RPC endpoint.
 func (n *Node) stopWS() {
-	if n.wsListener != nil {
-		n.wsListener.Close()
-		n.wsListener = nil
-
-		n.log.Info("WebSocket endpoint closed", "url", fmt.Sprintf("ws://%s", n.config.WSEndpoint))
+	for _, listener := range n.wsListenerList {
+		if listener == nil {
+			continue
+		}
+		n.log.Info("WebSocket endpoint closed", "url", fmt.Sprintf("ws://%s", listener.Addr()))
+		listener.Close()
+		listener = nil
 	}
-	if n.wsHandler != nil {
-		n.wsHandler.Stop()
-		n.wsHandler = nil
+	for _, handler := range n.wsHandlerList {
+		if handler == nil {
+			continue
+		}
+		handler.Stop()
+		handler = nil
 	}
 }
 

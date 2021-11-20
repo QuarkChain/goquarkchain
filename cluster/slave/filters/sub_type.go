@@ -57,16 +57,16 @@ func (s *subLogsEvent) getch() error {
 	}
 }
 
-type subMinorBlockHeadersEvent struct {
+type subMinorBlocksEvent struct {
 	ch chan core.MinorChainHeadEvent
 	subBaseEvent
 }
 
-func (s *subMinorBlockHeadersEvent) getch() error {
+func (s *subMinorBlocksEvent) getch() error {
 	for {
 		select {
 		case ev := <-s.ch:
-			s.broadcast(ev.Block.Header())
+			s.broadcast(ev.Block)
 		case err := <-s.sub.Err():
 			return err
 		default:
@@ -116,10 +116,10 @@ func (s *subscribe) newSubEvent(shrd ShardFilter, tp Type, broadcast func(interf
 			},
 		}
 	case BlocksSubscription:
-		headersCh := make(chan core.MinorChainHeadEvent, ChainEvChanSize)
-		sub := shrd.SubscribeChainHeadEvent(headersCh)
-		return &subMinorBlockHeadersEvent{
-			ch: headersCh,
+		blocksCh := make(chan core.MinorChainHeadEvent, ChainEvChanSize)
+		sub := shrd.SubscribeChainHeadEvent(blocksCh)
+		return &subMinorBlocksEvent{
+			ch: blocksCh,
 			subBaseEvent: subBaseEvent{
 				sub:       sub,
 				broadcast: broadcast,

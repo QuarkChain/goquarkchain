@@ -25,7 +25,7 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/deckarep/golang-set"
+	mapset "github.com/deckarep/golang-set"
 	"github.com/ethereum/go-ethereum/log"
 )
 
@@ -103,8 +103,8 @@ func (s *Server) RegisterName(name string, rcvr interface{}) error {
 		for _, m := range methods {
 			regsvc.callbacks[formatName(m.method.Name)] = m
 		}
-		for _, s := range subscriptions {
-			regsvc.subscriptions[formatName(s.method.Name)] = s
+		for _, sub := range subscriptions {
+			regsvc.subscriptions[formatName(sub.method.Name)] = sub
 		}
 		return nil
 	}

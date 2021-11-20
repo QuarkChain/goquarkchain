@@ -2,6 +2,9 @@ package slave
 
 import (
 	"context"
+	"net"
+	"time"
+
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/cluster/slave/filters"
 	"github.com/QuarkChain/goquarkchain/cluster/sync"
@@ -14,8 +17,6 @@ import (
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/params"
-	"net"
-	"time"
 )
 
 type testBackend struct {
@@ -56,7 +57,7 @@ func newTestBackend() (*testBackend, error) {
 	bak.config.Quarkchain.SkipMinorDifficultyCheck = true
 	bak.config.Quarkchain.SkipRootCoinbaseCheck = true
 
-	err := bak.handler.RegisterName("qkc", NewPublicFilterAPI(bak))
+	err := bak.handler.RegisterName("qkc", NewPublicFilterAPI(bak, 1))
 	if err != nil {
 		return nil, err
 	}

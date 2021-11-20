@@ -1,6 +1,7 @@
 package slave
 
 import (
+	"fmt"
 	"sync"
 
 	"github.com/QuarkChain/goquarkchain/account"
@@ -96,13 +97,15 @@ func (s *SlaveBackend) APIs() []rpc.API {
 		},
 	}
 	if s.ctx.WSIsAlive() {
-		apis = append(apis,
-			rpc.API{
-				Namespace: "ws",
-				Version:   "3.0",
-				Service:   NewPublicFilterAPI(s), // Private slave api
-				Public:    true,
-			})
+		for _, shardId := range s.config.FullShardList {
+			apis = append(apis,
+				rpc.API{
+					Namespace: fmt.Sprint("ws_", shardId),
+					Version:   "3.0",
+					Service:   NewPublicFilterAPI(s, shardId), // Private slave api
+					Public:    true,
+				})
+		}
 	}
 	return apis
 }

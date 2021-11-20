@@ -141,7 +141,6 @@ func updateSlaves(cfg *config.ClusterConfig, ipList []string) {
 		slaveCfg.IP = ipList[i%len(ipList)]
 		slaveCfg.Port = uint16(48000 + i)
 		slaveCfg.ID = fmt.Sprintf("S%d", i)
-		slaveCfg.WSPort = uint16(49000 + i)
 		slaveCfg.FullShardList = append(slaveCfg.FullShardList, getFullShardIdListFromSlaveIndex(genesisShards, numSlaves, i)...)
 		cfg.SlaveList = append(cfg.SlaveList, slaveCfg)
 	}

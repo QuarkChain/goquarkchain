@@ -11,7 +11,7 @@ type SlaveConfig struct {
 	IP                       string   `json:"HOST"` // DEFAULT_HOST
 	Port                     uint16   `json:"PORT"` // 38392
 	ID                       string   `json:"ID"`
-	WSPort                   uint16   `json:"WEBSOCKET_JSON_RPC_PORT"`
+	WSPortList               []uint16 `json:"WEBSOCKET_JSON_RPC_PORT_LIST"`
 	FullShardList            []uint32 `json:"-"`
 	ChainMaskListForBackward []uint32 `json:"-"`
 }
@@ -40,7 +40,12 @@ func (s *SlaveConfig) UnmarshalJSON(input []byte) error {
 		return err
 	}
 	*s = SlaveConfig(jsonConfig.SlaveConfigAlias)
-	s.WSPort = DefaultWSPort
+	if len(s.WSPortList) == 0 {
+		s.WSPortList = make([]uint16, len(s.FullShardList))
+		for i, shard := range s.FullShardList {
+			s.WSPortList[i] = DefaultWSPort + uint16(shard>>16)
+		}
+	}
 
 	if jsonConfig.ChainMaskListJson != nil && jsonConfig.FullShardListJson != nil {
 		return errors.New("Can only have either FULL_SHARD_ID_LIST or CHAIN_MASK_LIST")
@@ -65,9 +70,8 @@ func (s *SlaveConfig) UnmarshalJSON(input []byte) error {
 
 func NewDefaultSlaveConfig() *SlaveConfig {
 	slaveConfig := SlaveConfig{
-		IP:     DefaultHost,
-		Port:   slavePort,
-		WSPort: DefaultWSPort,
+		IP:   DefaultHost,
+		Port: slavePort,
 	}
 	return &slaveConfig
 }
