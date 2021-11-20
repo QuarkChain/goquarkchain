@@ -42,7 +42,6 @@ var (
 	vmTestDir          = filepath.Join(baseDir, "VMTests")
 	rlpTestDir         = filepath.Join(baseDir, "RLPTests")
 	difficultyTestDir  = filepath.Join(baseDir, "BasicTests")
-	debugDir           = filepath.Join(baseDir, "debugTests")
 )
 
 func readJSON(reader io.Reader, value interface{}) error {
