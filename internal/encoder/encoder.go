@@ -124,7 +124,7 @@ func RootBlockEncoder(rootBlock *types.RootBlock, extraInfo *rpc.PoSWInfo) (map[
 		h := map[string]interface{}{
 			"id":                 IDEncoder(header.Hash().Bytes(), header.Branch.GetFullShardID()),
 			"height":             hexutil.Uint64(header.Number),
-			"number":             EncodeNonce(header.Number),
+			"number":             hexutil.Uint64(header.Number),
 			"hash":               header.Hash(),
 			"fullShardId":        hexutil.Uint64(header.Branch.GetFullShardID()),
 			"chainId":            hexutil.Uint64(header.Branch.GetChainID()),
@@ -132,7 +132,7 @@ func RootBlockEncoder(rootBlock *types.RootBlock, extraInfo *rpc.PoSWInfo) (map[
 			"hashPrevMinorBlock": header.ParentHash,
 			"idPrevMinorBlock":   IDEncoder(header.ParentHash.Bytes(), header.Branch.GetFullShardID()),
 			"hashPrevRootBlock":  header.PrevRootBlockHash,
-			"nonce":              hexutil.Uint64(header.Nonce),
+			"nonce":              EncodeNonce(header.Nonce),
 			"difficulty":         (*hexutil.Big)(header.Difficulty),
 			"miner":              DataEncoder(minerData),
 			"coinbase":           BalancesEncoder(header.CoinbaseAmount),
