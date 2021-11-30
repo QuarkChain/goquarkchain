@@ -68,6 +68,10 @@ type ShardFilter interface {
 	GetHeaderByNumber(height qrpc.BlockNumber) (*types.MinorBlockHeader, error)
 	GetReceiptsByHash(hash common.Hash) (types.Receipts, error)
 	GetLogs(hash common.Hash) ([][]*types.Log, error)
+	GetMinorBlock(mHash common.Hash, height *uint64) (mBlock *types.MinorBlock, err error)
+	AddTransaction(tx *types.Transaction) error
+	GetEthChainID() uint32
+	GetTransactionByHash(hash common.Hash) (*types.MinorBlock, uint32)
 
 	SubscribeChainHeadEvent(ch chan<- core.MinorChainHeadEvent) event.Subscription
 	SubscribeLogsEvent(chan<- core.LoglistEvent) event.Subscription

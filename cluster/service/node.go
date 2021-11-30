@@ -363,24 +363,20 @@ func (n *Node) startWS(apis []rpc.API, modules []string, wsOrigins []string) err
 
 // stopWS terminates the websocket RPC endpoint.
 func (n *Node) stopWS() {
-	if len(n.wsListenerList) > 0 {
-		for _, listener := range n.wsListenerList {
-			if listener == nil {
-				continue
-			}
-			n.log.Info("WebSocket endpoint closed", "url", fmt.Sprintf("ws://%s", listener.Addr()))
-			listener.Close()
-			listener = nil
+	for _, listener := range n.wsListenerList {
+		if listener == nil {
+			continue
 		}
+		n.log.Info("WebSocket endpoint closed", "url", fmt.Sprintf("ws://%s", listener.Addr()))
+		listener.Close()
+		listener = nil
 	}
-	if len(n.wsHandlerList) > 0 {
-		for _, handler := range n.wsHandlerList {
-			if handler == nil {
-				continue
-			}
-			handler.Stop()
-			handler = nil
+	for _, handler := range n.wsHandlerList {
+		if handler == nil {
+			continue
 		}
+		handler.Stop()
+		handler = nil
 	}
 }
 
