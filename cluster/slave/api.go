@@ -49,18 +49,24 @@ type PublicFilterAPI struct {
 
 // NewPublicFilterAPI returns a new PublicFilterAPI instance.
 func NewPublicFilterAPI(backend filters.SlaveFilter, shardId uint32) *PublicFilterAPI {
-	shardFilter, err := backend.GetShardFilter(shardId)
-	if err != nil {
-		panic(fmt.Sprint("Shard %d is not support for filter API", shardId))
-	}
 	api := &PublicFilterAPI{
-		shardId:     shardId,
-		backend:     backend,
-		events:      filters.NewEventSystem(backend),
-		shardFilter: shardFilter,
+		shardId: shardId,
+		backend: backend,
+		events:  filters.NewEventSystem(backend),
 	}
 
 	return api
+}
+
+func (api *PublicFilterAPI) getShardFilter() filters.ShardFilter {
+	if api.shardFilter == nil {
+		shardFilter, err := api.backend.GetShardFilter(api.shardId)
+		if err != nil {
+			panic(fmt.Sprintf("Shard %d is not support for filter API", api.shardId))
+		}
+		api.shardFilter = shardFilter
+	}
+	return api.shardFilter
 }
 
 // NewPendingTransactions creates a subscription that is triggered each time a transaction
@@ -238,10 +244,10 @@ func (api *PublicFilterAPI) SendRawTransaction(ctx context.Context, encodedTx he
 	evmTx := new(types.EvmTransaction)
 	if ethtx.To() != nil {
 		evmTx = types.NewEvmTransaction(ethtx.Nonce(), *ethtx.To(), ethtx.Value(), ethtx.Gas(), ethtx.GasPrice(), api.shardId,
-			api.shardId, api.shardFilter.GetEthChainID(), 2, ethtx.Data(), 35760, 35760)
+			api.shardId, api.getShardFilter().GetEthChainID(), 2, ethtx.Data(), 35760, 35760)
 	} else {
 		evmTx = types.NewEvmContractCreation(ethtx.Nonce(), ethtx.Value(), ethtx.Gas(), ethtx.GasPrice(), api.shardId,
-			api.shardId, api.shardFilter.GetEthChainID(), 2, ethtx.Data(), 35760, 35760)
+			api.shardId, api.getShardFilter().GetEthChainID(), 2, ethtx.Data(), 35760, 35760)
 	}
 	evmTx.SetVRS(ethtx.RawSignatureValues())
 	tx := &types.Transaction{
@@ -249,7 +255,7 @@ func (api *PublicFilterAPI) SendRawTransaction(ctx context.Context, encodedTx he
 		EvmTx:  evmTx,
 	}
 
-	err := api.shardFilter.AddTransaction(tx)
+	err := api.getShardFilter().AddTransaction(tx)
 	if err != nil {
 		return common.Hash{}, err
 	}
@@ -258,13 +264,13 @@ func (api *PublicFilterAPI) SendRawTransaction(ctx context.Context, encodedTx he
 }
 
 func (api *PublicFilterAPI) ChainID(ctx context.Context) (*big.Int, error) {
-	chainID := api.shardFilter.GetEthChainID()
+	chainID := api.getShardFilter().GetEthChainID()
 	return new(big.Int).SetUint64(uint64(chainID)), nil
 }
 
 func (api *PublicFilterAPI) GetHeaderByNumber(ctx context.Context, number rpc.BlockNumber) (map[string]interface{}, error) {
 	height := number.Uint64()
-	block, err := api.shardFilter.GetMinorBlock(common.Hash{}, &height)
+	block, err := api.getShardFilter().GetMinorBlock(common.Hash{}, &height)
 	if err != nil {
 		return nil, err
 	}
@@ -278,7 +284,7 @@ func (api *PublicFilterAPI) GetHeaderByNumber(ctx context.Context, number rpc.Bl
 //   only the transaction hash is returned.
 func (api *PublicFilterAPI) GetBlockByNumber(ctx context.Context, number rpc.BlockNumber, fullTx bool) (map[string]interface{}, error) {
 	height := number.Uint64()
-	block, err := api.shardFilter.GetMinorBlock(common.Hash{}, &height)
+	block, err := api.getShardFilter().GetMinorBlock(common.Hash{}, &height)
 	if err != nil {
 		return nil, err
 	}
@@ -291,7 +297,7 @@ func (api *PublicFilterAPI) GetBlockByNumber(ctx context.Context, number rpc.Blo
 // * When fullTx is true all transactions in the block are returned, otherwise
 //   only the transaction hash is returned.
 func (api *PublicFilterAPI) GetBlockByHash(ctx context.Context, hash common.Hash, fullTx bool) (map[string]interface{}, error) {
-	block, err := api.shardFilter.GetMinorBlock(hash, nil)
+	block, err := api.getShardFilter().GetMinorBlock(hash, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -299,14 +305,14 @@ func (api *PublicFilterAPI) GetBlockByHash(ctx context.Context, hash common.Hash
 }
 
 func (api *PublicFilterAPI) BlockNumber(ctx context.Context) hexutil.Uint64 {
-	header, _ := api.shardFilter.GetHeaderByNumber(rpc.LatestBlockNumber) // latest header should always be available
+	header, _ := api.getShardFilter().GetHeaderByNumber(rpc.LatestBlockNumber) // latest header should always be available
 	return hexutil.Uint64(header.NumberU64())
 }
 
 // GetTransactionByHash returns the transaction for the given hash
 func (api *PublicFilterAPI) GetTransactionByHash(ctx context.Context, hash common.Hash) (*encoder.RPCTransaction, error) {
 	// Try to return an already finalized transaction
-	block, index := api.shardFilter.GetTransactionByHash(hash)
+	block, index := api.getShardFilter().GetTransactionByHash(hash)
 	if block == nil {
 		return nil, nil
 	}
@@ -320,7 +326,7 @@ func (api *PublicFilterAPI) GetTransactionByHash(ctx context.Context, hash commo
 
 // GetTransactionReceipt returns the transaction receipt for the given transaction hash.
 func (api *PublicFilterAPI) GetTransactionReceipt(ctx context.Context, hash common.Hash) (map[string]interface{}, error) {
-	block, index := api.shardFilter.GetTransactionByHash(hash)
+	block, index := api.getShardFilter().GetTransactionByHash(hash)
 	if block == nil {
 		return nil, nil
 	}
@@ -328,7 +334,7 @@ func (api *PublicFilterAPI) GetTransactionReceipt(ctx context.Context, hash comm
 		return nil, nil
 	}
 	tx := block.GetTransactions()[index]
-	receipts, err := api.shardFilter.GetReceiptsByHash(block.Hash())
+	receipts, err := api.getShardFilter().GetReceiptsByHash(block.Hash())
 	if err != nil {
 		return nil, err
 	}
