@@ -124,6 +124,10 @@ func (s *ShardBackend) GetReceiptsByHash(hash common.Hash) (types.Receipts, erro
 	return receipts, nil
 }
 
+func (s *ShardBackend) GetTransactionByHash(hash common.Hash) (*types.MinorBlock, uint32) {
+	return s.MinorBlockChain.GetTransactionByHash(hash)
+}
+
 // ######################## root block Methods #########################
 // Either recover state from local db or create genesis state based on config
 func (s *ShardBackend) InitFromRootBlock(rBlock *types.RootBlock) error {
@@ -163,6 +167,14 @@ func (s *ShardBackend) GetHeaderByNumber(height qrpc.BlockNumber) (*types.MinorB
 		return nil, fmt.Errorf(EmptyErrTemplate, "GetHeaderByNumber", height)
 	}
 	return iHeader.(*types.MinorBlockHeader), nil
+}
+
+func (s *ShardBackend) AddTransaction(tx *types.Transaction) error {
+	return s.MinorBlockChain.AddTx(tx)
+}
+
+func (s ShardBackend) GetEthChainID() uint32 {
+	return s.MinorBlockChain.EthChainID()
 }
 
 func (s *ShardBackend) HandleNewTip(rBHeader *types.RootBlockHeader, mBHeader *types.MinorBlockHeader, peerID string) error {
@@ -343,7 +355,6 @@ func (s *ShardBackend) AddMinorBlock(block *types.MinorBlock) error {
 // This function only adds blocks to local and propagate xshard list to other shards.
 // It does NOT notify master because the master should already have the minor header list,
 // and will add them once this function returns successfully.
-
 func (s *ShardBackend) AddBlockListForSync(blockLst []*types.MinorBlock) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()

@@ -249,8 +249,8 @@ func NewMinorBlockChain(
 	return bc, nil
 }
 
-func (m *MinorBlockChain) EthChainID() *big.Int {
-	return new(big.Int).SetUint64(uint64(m.clusterConfig.Quarkchain.BaseEthChainID + 1 + m.shardConfig.ChainID))
+func (m *MinorBlockChain) EthChainID() uint32 {
+	return m.clusterConfig.Quarkchain.BaseEthChainID + 1 + m.shardConfig.ChainID
 }
 
 func (m *MinorBlockChain) SetBroadcastMinorBlockFunc(f func(block *types.MinorBlock) error) {

@@ -3,6 +3,8 @@ package slave
 
 import (
 	"context"
+	"fmt"
+	"math/big"
 	"sync"
 	"time"
 
@@ -14,7 +16,9 @@ import (
 	"github.com/QuarkChain/goquarkchain/rpc"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	ethTypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/rlp"
 )
 
 var (
@@ -35,19 +39,25 @@ type filter struct {
 // PublicFilterAPI offers support to create and manage filters. This will allow external clients to retrieve various
 // information related to the Ethereum protocol such als blocks, transactions and logs.
 type PublicFilterAPI struct {
-	backend   filters.SlaveFilter
-	quit      chan struct{}
-	events    *filters.EventSystem
-	filtersMu sync.Mutex
-	shardId   uint32 // as default shardId
+	backend     filters.SlaveFilter
+	quit        chan struct{}
+	events      *filters.EventSystem
+	filtersMu   sync.Mutex
+	shardId     uint32 // as default shardId
+	shardFilter filters.ShardFilter
 }
 
 // NewPublicFilterAPI returns a new PublicFilterAPI instance.
 func NewPublicFilterAPI(backend filters.SlaveFilter, shardId uint32) *PublicFilterAPI {
+	shardFilter, err := backend.GetShardFilter(shardId)
+	if err != nil {
+		panic(fmt.Sprint("Shard %d is not support for filter API", shardId))
+	}
 	api := &PublicFilterAPI{
-		shardId: shardId,
-		backend: backend,
-		events:  filters.NewEventSystem(backend),
+		shardId:     shardId,
+		backend:     backend,
+		events:      filters.NewEventSystem(backend),
+		shardFilter: shardFilter,
 	}
 
 	return api
@@ -218,4 +228,145 @@ func (api *PublicFilterAPI) Syncing(ctx context.Context, fullShardId *hexutil.Ui
 	}()
 
 	return rpcSub, nil
+}
+
+func (api *PublicFilterAPI) SendRawTransaction(ctx context.Context, encodedTx hexutil.Bytes) (common.Hash, error) {
+	ethtx := new(ethTypes.Transaction)
+	if err := rlp.DecodeBytes(encodedTx, ethtx); err != nil {
+		return common.Hash{}, err
+	}
+	evmTx := new(types.EvmTransaction)
+	if ethtx.To() != nil {
+		evmTx = types.NewEvmTransaction(ethtx.Nonce(), *ethtx.To(), ethtx.Value(), ethtx.Gas(), ethtx.GasPrice(), api.shardId,
+			api.shardId, api.shardFilter.GetEthChainID(), 2, ethtx.Data(), 35760, 35760)
+	} else {
+		evmTx = types.NewEvmContractCreation(ethtx.Nonce(), ethtx.Value(), ethtx.Gas(), ethtx.GasPrice(), api.shardId,
+			api.shardId, api.shardFilter.GetEthChainID(), 2, ethtx.Data(), 35760, 35760)
+	}
+	evmTx.SetVRS(ethtx.RawSignatureValues())
+	tx := &types.Transaction{
+		TxType: types.EvmTx,
+		EvmTx:  evmTx,
+	}
+
+	err := api.shardFilter.AddTransaction(tx)
+	if err != nil {
+		return common.Hash{}, err
+	}
+
+	return tx.Hash(), nil
+}
+
+func (api *PublicFilterAPI) ChainID(ctx context.Context) (*big.Int, error) {
+	chainID := api.shardFilter.GetEthChainID()
+	return new(big.Int).SetUint64(uint64(chainID)), nil
+}
+
+func (api *PublicFilterAPI) GetHeaderByNumber(ctx context.Context, number rpc.BlockNumber) (map[string]interface{}, error) {
+	height := number.Uint64()
+	block, err := api.shardFilter.GetMinorBlock(common.Hash{}, &height)
+	if err != nil {
+		return nil, err
+	}
+	return encoder.MinorBlockHeaderEncoder(block.Header(), block.Meta())
+}
+
+// GetBlockByNumber returns the requested canonical block.
+// * When blockNr is -1 the chain head is returned.
+// * When blockNr is -2 the pending chain head is returned.
+// * When fullTx is true all transactions in the block are returned, otherwise
+//   only the transaction hash is returned.
+func (api *PublicFilterAPI) GetBlockByNumber(ctx context.Context, number rpc.BlockNumber, fullTx bool) (map[string]interface{}, error) {
+	height := number.Uint64()
+	block, err := api.shardFilter.GetMinorBlock(common.Hash{}, &height)
+	if err != nil {
+		return nil, err
+	}
+	return encoder.MinorBlockEncoderForEthClient(block, true, fullTx)
+}
+
+// GetBlockByNumber returns the requested canonical block.
+// * When blockNr is -1 the chain head is returned.
+// * When blockNr is -2 the pending chain head is returned.
+// * When fullTx is true all transactions in the block are returned, otherwise
+//   only the transaction hash is returned.
+func (api *PublicFilterAPI) GetBlockByHash(ctx context.Context, hash common.Hash, fullTx bool) (map[string]interface{}, error) {
+	block, err := api.shardFilter.GetMinorBlock(hash, nil)
+	if err != nil {
+		return nil, err
+	}
+	return encoder.MinorBlockEncoderForEthClient(block, true, fullTx)
+}
+
+func (api *PublicFilterAPI) BlockNumber(ctx context.Context) hexutil.Uint64 {
+	header, _ := api.shardFilter.GetHeaderByNumber(rpc.LatestBlockNumber) // latest header should always be available
+	return hexutil.Uint64(header.NumberU64())
+}
+
+// GetTransactionByHash returns the transaction for the given hash
+func (api *PublicFilterAPI) GetTransactionByHash(ctx context.Context, hash common.Hash) (*encoder.RPCTransaction, error) {
+	// Try to return an already finalized transaction
+	block, index := api.shardFilter.GetTransactionByHash(hash)
+	if block == nil {
+		return nil, nil
+	}
+	if len(block.GetTransactions()) <= int(index) {
+		return nil, fmt.Errorf("GetTransactionByHash error %s", hash)
+	}
+	tx := block.GetTransactions()[index]
+	// Transaction unknown, return as such
+	return encoder.NewRPCTransaction(tx, block.Hash(), block.Number(), uint64(index)), nil
+}
+
+// GetTransactionReceipt returns the transaction receipt for the given transaction hash.
+func (api *PublicFilterAPI) GetTransactionReceipt(ctx context.Context, hash common.Hash) (map[string]interface{}, error) {
+	block, index := api.shardFilter.GetTransactionByHash(hash)
+	if block == nil {
+		return nil, nil
+	}
+	if len(block.GetTransactions()) <= int(index) {
+		return nil, nil
+	}
+	tx := block.GetTransactions()[index]
+	receipts, err := api.shardFilter.GetReceiptsByHash(block.Hash())
+	if err != nil {
+		return nil, err
+	}
+	if len(receipts) <= int(index) {
+		return nil, nil
+	}
+	receipt := receipts[index]
+
+	signer := types.NewEIP155Signer(tx.EvmTx.NetworkId())
+
+	from, _ := types.Sender(signer, tx.EvmTx)
+
+	fields := map[string]interface{}{
+		"blockHash":         block.Hash(),
+		"blockNumber":       hexutil.Uint64(block.NumberU64()),
+		"transactionHash":   hash,
+		"transactionIndex":  hexutil.Uint64(index),
+		"from":              from,
+		"to":                tx.EvmTx.To(),
+		"gasUsed":           hexutil.Uint64(receipt.GasUsed),
+		"cumulativeGasUsed": hexutil.Uint64(receipt.CumulativeGasUsed),
+		"contractAddress":   nil,
+		"logs":              receipt.Logs,
+		"logsBloom":         receipt.Bloom,
+	}
+
+	// Assign receipt status or post state.
+	if len(receipt.PostState) > 0 {
+		fields["root"] = hexutil.Bytes(receipt.PostState)
+	} else {
+		fields["status"] = hexutil.Uint(receipt.Status)
+	}
+	if receipt.Logs == nil {
+		fields["logs"] = [][]*types.Log{}
+	}
+	// If the ContractAddress is 20 0x0 bytes, assume it is not a contract creation
+	if receipt.ContractAddress != (common.Address{}) {
+		fields["contractAddress"] = receipt.ContractAddress
+	}
+	return fields, nil
 }

@@ -48,10 +48,10 @@ type txdata struct {
 	Amount           *big.Int           `json:"value"              gencodec:"required"`
 	Payload          []byte             `json:"input"              gencodec:"required"`
 	NetworkId        uint32             `json:"networkId"          gencodec:"required"`
-	FromFullShardKey *Uint32            `json:"fromfullshardkey"    gencodec:"required"`
-	ToFullShardKey   *Uint32            `json:"tofullshardkey"      gencodec:"required"`
-	GasTokenID       uint64             `json:"gas_token_id"    gencodec:"required"`
-	TransferTokenID  uint64             `json:"transfer_token_id"    gencodec:"required"`
+	FromFullShardKey *Uint32            `json:"fromfullshardkey"   gencodec:"required"`
+	ToFullShardKey   *Uint32            `json:"tofullshardkey"     gencodec:"required"`
+	GasTokenID       uint64             `json:"gas_token_id"       gencodec:"required"`
+	TransferTokenID  uint64             `json:"transfer_token_id"  gencodec:"required"`
 	Version          uint32             `json:"version"            gencodec:"required"`
 	// Signature values
 	V *big.Int `json:"v"             gencodec:"required"`

@@ -325,6 +325,27 @@ func (b *MinorBlock) CrossShardGasUsed() *big.Int {
 func (b *MinorBlock) Header() *MinorBlockHeader { return CopyMinorBlockHeader(b.header) }
 func (b *MinorBlock) Meta() *MinorBlockMeta     { return CopyMinorBlockMeta(b.meta) }
 
+func (b *MinorBlock) EthHeader() *comtypes.Header {
+	header := comtypes.Header{
+		ParentHash:  b.ParentHash(),
+		UncleHash:   EmptyUncleHash,
+		Coinbase:    b.Coinbase().Recipient,
+		Root:        b.Meta().Root,
+		TxHash:      b.Meta().TxHash,
+		ReceiptHash: b.Meta().ReceiptHash,
+		Bloom:       comtypes.BytesToBloom(b.Bloom().Bytes()),
+		Difficulty:  b.Difficulty(),
+		Number:      new(big.Int).SetUint64(b.header.Number),
+		GasLimit:    b.GasLimit().Uint64(),
+		GasUsed:     b.GasUsed().Uint64(),
+		Time:        new(big.Int).SetUint64(b.Time()),
+		Extra:       b.Extra(),
+		MixDigest:   b.MixDigest(),
+		Nonce:       comtypes.EncodeNonce(b.Nonce()),
+	}
+	return &header
+}
+
 // Size returns the true RLP encoded storage size of the block, either by encoding
 // and returning it, or returning a previsouly cached value.
 func (b *MinorBlock) Size() common.StorageSize {
