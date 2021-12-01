@@ -150,6 +150,8 @@ root@<container ID>:/go/src/github.com/QuarkChain/goquarkchain/cmd/cluster#./run
 ```
 Check logs to see if the cluster is running successfully.
 
+NOTE if you need to start the service with websocket, you can need to start the cluster using `./run_cluster_with_websocket.sh` instead of using `./run_cluster.sh`. 
+
 Next you can try to start a simulate [mining](#mining).
 
 NOTE if you need the services available outside of the Docker host, you can publish the related ports using `-p` flag when start Docker:
@@ -157,9 +159,18 @@ NOTE if you need the services available outside of the Docker host, you can publ
 ```bash
 sudo docker run -it -p 38291:38291 -p 38391:38391 -p 38491:38491 -p 38291:38291/udp quarkchaindocker/goquarkchain
 ```
+NOTE if websocket service is needed, add `-p 38590-38597:38590-38597` to docker ports mapping.
+
 And config rpc listening to `0.0.0.0` when start `master` service:
 ```bash
 ./cluster --cluster_config $CLUSTER_CONFIG_FILE --json_rpc_host 0.0.0.0 --json_rpc_private_host 0.0.0.0
+```
+
+### Start Metamask API Service
+
+If you want to use metamask to connect your node, you need to start metamask_ 
+```bash
+<goquarkchain>/cmd/eth_api# go run main.go --config ./mainnet.json
 ```
 
 ### Join QuarkChain Network
