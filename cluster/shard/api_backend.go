@@ -131,14 +131,24 @@ func (s *ShardBackend) GetTransactionByHash(hash common.Hash) (*types.MinorBlock
 // GetTransactionCount returns the number of transactions the given address has sent for the given block number
 func (s *ShardBackend) GetTransactionCount(address common.Address, blockNrOrHash qrpc.BlockNumberOrHash) (*uint64, error) {
 	// Ask transaction pool for the nonce which includes pending transactions
-	if blockNr, ok := blockNrOrHash.Number(); ok && blockNr == qrpc.PendingBlockNumber {
-		nonce, err := s.MinorBlockChain.GetPoolNonce(address)
-		if err != nil {
-			return nil, err
+	hash := blockNrOrHash.BlockHash
+	if blockNr, ok := blockNrOrHash.Number(); ok {
+		if blockNr == qrpc.PendingBlockNumber {
+			nonce, err := s.MinorBlockChain.GetPoolNonce(address)
+			if err != nil {
+				return nil, err
+			}
+			return &nonce, nil
 		}
-		return &nonce, nil
+
+		header := s.MinorBlockChain.GetHeaderByNumber(blockNr.Uint64())
+		if header == nil {
+			return nil, errors.New("block not found")
+		}
+		*hash = header.Hash()
 	}
-	nonce, err := s.MinorBlockChain.GetTransactionCount(address, blockNrOrHash.BlockHash)
+
+	nonce, err := s.MinorBlockChain.GetTransactionCount(address, hash)
 	return &nonce, err
 }
 
