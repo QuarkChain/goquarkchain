@@ -275,9 +275,9 @@ func (api *PublicFilterAPI) SendRawTransaction(ctx context.Context, encodedTx he
 	return tx.Hash(), nil
 }
 
-func (api *PublicFilterAPI) ChainID(ctx context.Context) (*big.Int, error) {
+func (api *PublicFilterAPI) ChainId(ctx context.Context) (*hexutil.Big, error) {
 	chainID := api.getShardFilter().GetEthChainID()
-	return new(big.Int).SetUint64(uint64(chainID)), nil
+	return (*hexutil.Big)(new(big.Int).SetUint64(uint64(chainID))), nil
 }
 
 func (api *PublicFilterAPI) GetHeaderByNumber(ctx context.Context, number rpc.BlockNumber) (map[string]interface{}, error) {

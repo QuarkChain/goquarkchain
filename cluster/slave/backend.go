@@ -110,7 +110,7 @@ func (s *SlaveBackend) APIs() []rpc.API {
 			rpc.API{
 				Namespace: "net",
 				Version:   "3.0",
-				Service:   NewNetApi(string(s.clstrCfg.Quarkchain.NetworkID)),
+				Service:   NewNetApi(fmt.Sprintf("%d", s.clstrCfg.Quarkchain.NetworkID)),
 				Public:    true,
 			})
 	}
