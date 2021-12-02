@@ -25,6 +25,18 @@ var (
 	deadline = 5 * time.Minute // consider a filter inactive if it has not been polled for within deadline
 )
 
+type NetApi struct {
+	version string
+}
+
+func NewNetApi(version string) *NetApi {
+	return &NetApi{version: version}
+}
+
+func (e *NetApi) Version() string {
+	return e.version
+}
+
 // filter is a helper struct that holds meta information over the filter type
 // and associated subscription in the event system.
 type filter struct {

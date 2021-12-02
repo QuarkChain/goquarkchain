@@ -62,7 +62,7 @@ func StartWSEndpoint(endpoint string, apis []API, modules []string, wsOrigins []
 	handler := NewServer()
 	for _, api := range apis {
 		if exposeAll || whitelist[api.Namespace] || (len(whitelist) == 0 && api.Public) {
-			if err := handler.RegisterName(MetadataApi, api.Service); err != nil {
+			if err := handler.RegisterName(api.Namespace, api.Service); err != nil {
 				return nil, nil, err
 			}
 			// add eth websocket support
