@@ -39,7 +39,7 @@ func NewWeb3Api(c jsonrpc.RPCClient) *Web3Api {
 }
 
 func (e *Web3Api) ClientVersion() string {
-	return "Geth/v1.8.15-omnibus-255989da/linux-amd64/go1.15.4"
+	return "GoQuarkChain/release:mainnet1.5.2"
 }
 
 type ShardAPI struct {
