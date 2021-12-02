@@ -128,6 +128,30 @@ func (s *ShardBackend) GetTransactionByHash(hash common.Hash) (*types.MinorBlock
 	return s.MinorBlockChain.GetTransactionByHash(hash)
 }
 
+// GetTransactionCount returns the number of transactions the given address has sent for the given block number
+func (s *ShardBackend) GetTransactionCount(address common.Address, blockNrOrHash qrpc.BlockNumberOrHash) (*uint64, error) {
+	// Ask transaction pool for the nonce which includes pending transactions
+	hash := blockNrOrHash.BlockHash
+	if blockNr, ok := blockNrOrHash.Number(); ok {
+		if blockNr == qrpc.PendingBlockNumber {
+			nonce, err := s.MinorBlockChain.GetPoolNonce(address)
+			if err != nil {
+				return nil, err
+			}
+			return &nonce, nil
+		}
+
+		header := s.MinorBlockChain.GetHeaderByNumber(blockNr.Uint64())
+		if header == nil {
+			return nil, errors.New("block not found")
+		}
+		*hash = header.Hash()
+	}
+
+	nonce, err := s.MinorBlockChain.GetTransactionCount(address, hash)
+	return &nonce, err
+}
+
 // ######################## root block Methods #########################
 // Either recover state from local db or create genesis state based on config
 func (s *ShardBackend) InitFromRootBlock(rBlock *types.RootBlock) error {

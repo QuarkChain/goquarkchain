@@ -376,3 +376,9 @@ func (api *PublicFilterAPI) GetTransactionReceipt(ctx context.Context, hash comm
 	}
 	return fields, nil
 }
+
+// GetTransactionCount returns the number of transactions the given address has sent for the given block number
+func (api *PublicFilterAPI) GetTransactionCount(ctx context.Context, address common.Address, blockNrOrHash rpc.BlockNumberOrHash) (*hexutil.Uint64, error) {
+	nonce, err := api.getShardFilter().GetTransactionCount(address, blockNrOrHash)
+	return (*hexutil.Uint64)(nonce), err
+}

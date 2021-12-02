@@ -72,6 +72,7 @@ type ShardFilter interface {
 	AddTransaction(tx *types.Transaction) error
 	GetEthChainID() uint32
 	GetTransactionByHash(hash common.Hash) (*types.MinorBlock, uint32)
+	GetTransactionCount(address common.Address, blockNrOrHash qrpc.BlockNumberOrHash) (*uint64, error)
 
 	SubscribeChainHeadEvent(ch chan<- core.MinorChainHeadEvent) event.Subscription
 	SubscribeLogsEvent(chan<- core.LoglistEvent) event.Subscription

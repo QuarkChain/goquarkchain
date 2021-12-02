@@ -655,6 +655,10 @@ func (m *MinorBlockChain) getNeedStoreHeight(rootHash common.Hash, heightDiff []
 	return heightDiff
 }
 
+func (m *MinorBlockChain) GetPoolNonce(addr common.Address) (uint64, error) {
+	return m.txPool.Nonce(addr), nil
+}
+
 // Stop stops the blockchain service. If any imports are currently in progress
 // it will abort them using the procInterrupt.
 func (m *MinorBlockChain) Stop() {
