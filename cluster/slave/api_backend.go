@@ -259,8 +259,8 @@ func (s *SlaveBackend) GetTransactionByHash(txHash common.Hash, branch uint32) (
 
 func (s *SlaveBackend) GetTransactionReceipt(txHash common.Hash, branch uint32) (*types.MinorBlock, uint32, *types.Receipt, error) {
 	if shard, ok := s.shards[branch]; ok {
-		block, index, receipts := shard.MinorBlockChain.GetTransactionReceipt(txHash)
-		return block, index, receipts, nil
+		block, index, receipt := shard.MinorBlockChain.GetTransactionReceipt(txHash)
+		return block, index, receipt, nil
 	}
 	return nil, 0, nil, ErrMsg("GetTransactionReceipt")
 }
