@@ -71,6 +71,7 @@ type ShardFilter interface {
 	GetMinorBlock(mHash common.Hash, height *uint64) (mBlock *types.MinorBlock, err error)
 	AddTransaction(tx *types.Transaction) error
 	GetEthChainID() uint32
+	GetNetworkId() uint32
 	GetTransactionByHash(hash common.Hash) (*types.MinorBlock, uint32)
 	GetTransactionCount(address common.Address, blockNrOrHash qrpc.BlockNumberOrHash) (*uint64, error)
 

@@ -201,6 +201,10 @@ func (s ShardBackend) GetEthChainID() uint32 {
 	return s.MinorBlockChain.EthChainID()
 }
 
+func (s ShardBackend) GetNetworkId() uint32 {
+	return s.MinorBlockChain.Config().NetworkID
+}
+
 func (s *ShardBackend) HandleNewTip(rBHeader *types.RootBlockHeader, mBHeader *types.MinorBlockHeader, peerID string) error {
 	s.wg.Add(1)
 	defer s.wg.Done()

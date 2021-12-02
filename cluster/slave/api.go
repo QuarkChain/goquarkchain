@@ -382,3 +382,8 @@ func (api *PublicFilterAPI) GetTransactionCount(ctx context.Context, address com
 	nonce, err := api.getShardFilter().GetTransactionCount(address, blockNrOrHash)
 	return (*hexutil.Uint64)(nonce), err
 }
+
+func (api *PublicFilterAPI) Net_version() string {
+	networkId := api.getShardFilter().GetNetworkId()
+	return string(networkId)
+}
