@@ -31,6 +31,17 @@ func (e *NetApi) Version() string {
 	return resp.Result.(string)
 }
 
+type Web3Api struct {
+}
+
+func NewWeb3Api(c jsonrpc.RPCClient) *Web3Api {
+	return &Web3Api{}
+}
+
+func (e *Web3Api) ClientVersion() string {
+	return "Geth/v1.8.15-omnibus-255989da/linux-amd64/go1.15.4"
+}
+
 type ShardAPI struct {
 	fullShardID uint32
 	chainID     uint32
@@ -271,4 +282,8 @@ func (s *ShardAPI) EstimateGas(mdata MetaCallArgs) (hexutil.Uint, error) {
 	}
 	ans, err := hexutil.DecodeUint64(gasLimit)
 	return hexutil.Uint(ans), err
+}
+
+func (s *ShardAPI) ClientVersion() string {
+	return "goquarckchain/mainnet1.5.2"
 }
