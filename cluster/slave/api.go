@@ -253,6 +253,7 @@ func (api *PublicFilterAPI) SendRawTransaction(ctx context.Context, encodedTx he
 	if err := rlp.DecodeBytes(encodedTx, ethtx); err != nil {
 		return common.Hash{}, err
 	}
+	log.Info("SendRawTransaction: get ethtx", "hash", common.Bytes2Hex(ethtx.Hash().Bytes()))
 	evmTx := new(types.EvmTransaction)
 	shardId := api.shardId - (api.shardId & 65535)
 	if ethtx.To() != nil {
@@ -267,7 +268,7 @@ func (api *PublicFilterAPI) SendRawTransaction(ctx context.Context, encodedTx he
 		TxType: types.EvmTx,
 		EvmTx:  evmTx,
 	}
-
+	log.Info("SendRawTransaction: get ethtx", "hash", common.Bytes2Hex(evmTx.Hash().Bytes()))
 	err := api.getShardFilter().AddTransaction(tx)
 	if err != nil {
 		return common.Hash{}, err
@@ -325,6 +326,7 @@ func (api *PublicFilterAPI) BlockNumber(ctx context.Context) hexutil.Uint64 {
 // GetTransactionByHash returns the transaction for the given hash
 func (api *PublicFilterAPI) GetTransactionByHash(ctx context.Context, hash common.Hash) (*encoder.RPCTransaction, error) {
 	// Try to return an already finalized transaction
+	log.Info("GetTransactionByHash:", "hash", common.Bytes2Hex(hash.Bytes()))
 	block, index := api.getShardFilter().GetTransactionByHash(hash)
 	if block == nil {
 		return nil, nil
@@ -393,5 +395,6 @@ func (api *PublicFilterAPI) GetTransactionReceipt(ctx context.Context, hash comm
 // GetTransactionCount returns the number of transactions the given address has sent for the given block number
 func (api *PublicFilterAPI) GetTransactionCount(ctx context.Context, address common.Address, blockNrOrHash rpc.BlockNumberOrHash) (*hexutil.Uint64, error) {
 	nonce, err := api.getShardFilter().GetTransactionCount(address, blockNrOrHash)
+	log.Info("GetTransactionCount: ", "nonce", nonce)
 	return (*hexutil.Uint64)(nonce), err
 }
