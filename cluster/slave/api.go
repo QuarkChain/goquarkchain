@@ -254,12 +254,13 @@ func (api *PublicFilterAPI) SendRawTransaction(ctx context.Context, encodedTx he
 		return common.Hash{}, err
 	}
 	evmTx := new(types.EvmTransaction)
+	shardId := api.shardId - (api.shardId & 65535)
 	if ethtx.To() != nil {
-		evmTx = types.NewEvmTransaction(ethtx.Nonce(), *ethtx.To(), ethtx.Value(), ethtx.Gas(), ethtx.GasPrice(), api.shardId,
-			api.shardId, api.getShardFilter().GetEthChainID(), 2, ethtx.Data(), 35760, 35760)
+		evmTx = types.NewEvmTransaction(ethtx.Nonce(), *ethtx.To(), ethtx.Value(), ethtx.Gas(), ethtx.GasPrice(), shardId,
+			shardId, api.getShardFilter().GetEthChainID(), 2, ethtx.Data(), 35760, 35760)
 	} else {
-		evmTx = types.NewEvmContractCreation(ethtx.Nonce(), ethtx.Value(), ethtx.Gas(), ethtx.GasPrice(), api.shardId,
-			api.shardId, api.getShardFilter().GetEthChainID(), 2, ethtx.Data(), 35760, 35760)
+		evmTx = types.NewEvmContractCreation(ethtx.Nonce(), ethtx.Value(), ethtx.Gas(), ethtx.GasPrice(), shardId,
+			shardId, api.getShardFilter().GetEthChainID(), 2, ethtx.Data(), 35760, 35760)
 	}
 	evmTx.SetVRS(ethtx.RawSignatureValues())
 	tx := &types.Transaction{
@@ -393,9 +394,4 @@ func (api *PublicFilterAPI) GetTransactionReceipt(ctx context.Context, hash comm
 func (api *PublicFilterAPI) GetTransactionCount(ctx context.Context, address common.Address, blockNrOrHash rpc.BlockNumberOrHash) (*hexutil.Uint64, error) {
 	nonce, err := api.getShardFilter().GetTransactionCount(address, blockNrOrHash)
 	return (*hexutil.Uint64)(nonce), err
-}
-
-func (api *PublicFilterAPI) Net_version() string {
-	networkId := api.getShardFilter().GetNetworkId()
-	return string(networkId)
 }
