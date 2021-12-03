@@ -270,7 +270,8 @@ func (api *PublicFilterAPI) SendRawTransaction(ctx context.Context, encodedTx he
 		TxType: types.EvmTx,
 		EvmTx:  evmTx,
 	}
-	log.Info("SendRawTransaction: get tx", "hash", common.Bytes2Hex(evmTx.Hash().Bytes()))
+	log.Info("SendRawTransaction: get evmtx", "hash", common.Bytes2Hex(evmTx.Hash().Bytes()))
+	log.Info("SendRawTransaction: get tx", "hash", common.Bytes2Hex(tx.Hash().Bytes()))
 	err := api.getShardFilter().AddTransaction(tx)
 	if err != nil {
 		return common.Hash{}, err
@@ -333,7 +334,7 @@ func (api *PublicFilterAPI) GetTransactionByHash(ctx context.Context, ethhash co
 		hash = ethhash
 	}
 	// Try to return an already finalized transaction
-	log.Info("GetTransactionByHash:", "hash", common.Bytes2Hex(hash.Bytes()))
+	log.Info("GetTransactionByHash:", "ethhash", common.Bytes2Hex(ethhash.Bytes()), "hash", common.Bytes2Hex(hash.Bytes()))
 	block, index := api.getShardFilter().GetTransactionByHash(hash)
 	if block == nil {
 		return nil, nil
@@ -342,6 +343,10 @@ func (api *PublicFilterAPI) GetTransactionByHash(ctx context.Context, ethhash co
 		return nil, fmt.Errorf("GetTransactionByHash error %s", hash)
 	}
 	tx := block.GetTransactions()[index]
+	log.Info("GetTransactionByHash: get block and tx", "index", index)
+	if block.NumberU64() == 0 {
+		return encoder.NewRPCTransaction(tx, common.Hash{}, 0, uint64(index)), nil
+	}
 	// Transaction unknown, return as such
 	return encoder.NewRPCTransaction(tx, block.Hash(), block.Number(), uint64(index)), nil
 }
