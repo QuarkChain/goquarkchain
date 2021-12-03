@@ -57,6 +57,7 @@ type PublicFilterAPI struct {
 	filtersMu   sync.Mutex
 	shardId     uint32 // as default shardId
 	shardFilter filters.ShardFilter
+	hashMap     map[common.Hash]common.Hash
 }
 
 // NewPublicFilterAPI returns a new PublicFilterAPI instance.
@@ -65,6 +66,7 @@ func NewPublicFilterAPI(backend filters.SlaveFilter, shardId uint32) *PublicFilt
 		shardId: shardId,
 		backend: backend,
 		events:  filters.NewEventSystem(backend),
+		hashMap: make(map[common.Hash]common.Hash),
 	}
 
 	return api
@@ -268,11 +270,12 @@ func (api *PublicFilterAPI) SendRawTransaction(ctx context.Context, encodedTx he
 		TxType: types.EvmTx,
 		EvmTx:  evmTx,
 	}
-	log.Info("SendRawTransaction: get ethtx", "hash", common.Bytes2Hex(evmTx.Hash().Bytes()))
+	log.Info("SendRawTransaction: get tx", "hash", common.Bytes2Hex(evmTx.Hash().Bytes()))
 	err := api.getShardFilter().AddTransaction(tx)
 	if err != nil {
 		return common.Hash{}, err
 	}
+	api.hashMap[ethtx.Hash()] = tx.Hash()
 
 	return tx.Hash(), nil
 }
@@ -324,7 +327,11 @@ func (api *PublicFilterAPI) BlockNumber(ctx context.Context) hexutil.Uint64 {
 }
 
 // GetTransactionByHash returns the transaction for the given hash
-func (api *PublicFilterAPI) GetTransactionByHash(ctx context.Context, hash common.Hash) (*encoder.RPCTransaction, error) {
+func (api *PublicFilterAPI) GetTransactionByHash(ctx context.Context, ethhash common.Hash) (*encoder.RPCTransaction, error) {
+	hash, ok := api.hashMap[ethhash]
+	if !ok {
+		hash = ethhash
+	}
 	// Try to return an already finalized transaction
 	log.Info("GetTransactionByHash:", "hash", common.Bytes2Hex(hash.Bytes()))
 	block, index := api.getShardFilter().GetTransactionByHash(hash)
@@ -340,7 +347,11 @@ func (api *PublicFilterAPI) GetTransactionByHash(ctx context.Context, hash commo
 }
 
 // GetTransactionReceipt returns the transaction receipt for the given transaction hash.
-func (api *PublicFilterAPI) GetTransactionReceipt(ctx context.Context, hash common.Hash) (map[string]interface{}, error) {
+func (api *PublicFilterAPI) GetTransactionReceipt(ctx context.Context, ethhash common.Hash) (map[string]interface{}, error) {
+	hash, ok := api.hashMap[ethhash]
+	if !ok {
+		hash = ethhash
+	}
 	block, index := api.getShardFilter().GetTransactionByHash(hash)
 	if block == nil {
 		return nil, nil
