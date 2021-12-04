@@ -633,6 +633,11 @@ func (m *MinorBlockChain) AddTx(tx *types.Transaction) error {
 	return m.txPool.AddLocal(tx)
 }
 
+func (m *MinorBlockChain) AddTxList(txs []*types.Transaction) []error {
+	errList := m.txPool.AddLocals(txs)
+	return errList
+}
+
 func (m *MinorBlockChain) getEvmStateByHash(hash *common.Hash) (*state.StateDB, error) {
 	if hash == nil {
 		t := m.CurrentBlock().Hash()
@@ -1869,9 +1874,4 @@ func (m *MinorBlockChain) GetMiningInfo(address account.Recipient, stake *types.
 	stakePreBlock := m.DecayByHeightAndTime(m.CurrentBlock().NumberU64(), m.CurrentBlock().Time())
 	_, mineable, mined, err = m.posw.GetPoSWInfo(m.CurrentBlock().Header(), stake.GetTokenBalance(m.Config().GetDefaultChainTokenID()), address, stakePreBlock)
 	return
-}
-
-func (m *MinorBlockChain) AddTxList(txs []*types.Transaction) []error {
-	errList := m.txPool.AddLocals(txs)
-	return errList
 }
