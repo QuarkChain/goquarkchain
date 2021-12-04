@@ -285,6 +285,7 @@ func MinorBlockHeaderEncoderForEthClient(header *types.MinorBlockHeader, meta *t
 		"timestamp":        hexutil.Uint64(header.Time),
 		"logsBloom":        header.Bloom,
 		"sha3Uncles":       types.EmptyUncleHash,
+		"uncles":           types.EmptyUncleHash,
 		"transactionsRoot": meta.TxHash,
 		"stateRoot":        meta.Root,
 		"receiptsRoot":     meta.ReceiptHash,
