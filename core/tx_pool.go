@@ -466,7 +466,7 @@ func (pool *TxPool) add(tx *types.Transaction, local bool) (replaced bool, err e
 	}
 	// If the transaction fails basic validation, discard it
 	if err := pool.validateTx(tx, local); err != nil {
-		log.Trace("Discarding invalid transaction", "hash", hash, "err", err)
+		log.Info("Discarding invalid transaction", "hash", hash, "err", err)
 		return false, err
 	}
 	defaultGasPrice, err := ConvertToDefaultChainTokenGasPrice(pool.currentState, pool.chain.ChainConfig(), tx.EvmTx.GasTokenID(), tx.EvmTx.GasPrice())
@@ -506,7 +506,7 @@ func (pool *TxPool) add(tx *types.Transaction, local bool) (replaced bool, err e
 		pool.all.Add(tx)
 		pool.priced.Put(tx)
 		pool.queueTxEvent(tx)
-		log.Trace("Pooled new executable transaction", "hash", hash, "from", from, "to", tx.EvmTx.To())
+		log.Info("Pooled new executable transaction", "hash", hash, "from", from, "to", tx.EvmTx.To())
 		return old != nil, nil
 	}
 	// New transaction isn't replacing a pending one, push into queue
@@ -521,7 +521,7 @@ func (pool *TxPool) add(tx *types.Transaction, local bool) (replaced bool, err e
 			pool.locals.add(from)
 		}
 	}
-	log.Trace("Pooled new future transaction", "hash", hash, "from", from, "to", tx.EvmTx.To())
+	log.Info("Pooled new future transaction", "hash", hash, "from", from, "to", tx.EvmTx.To())
 	return replaced, nil
 }
 
