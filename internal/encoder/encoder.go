@@ -270,6 +270,28 @@ func NewRPCTransaction(tx *types.Transaction, blockHash ethCommon.Hash, blockNum
 	return result
 }
 
+func MinorBlockHeaderEncoderForEthClient(header *types.MinorBlockHeader, meta *types.MinorBlockMeta) (map[string]interface{}, error) {
+	return map[string]interface{}{
+		"number":           hexutil.Uint64(header.Number),
+		"hash":             header.Hash(),
+		"parentHash":       header.ParentHash,
+		"nonce":            EncodeNonce(header.Nonce),
+		"mixHash":          header.MixDigest,
+		"miner":            header.Coinbase.Recipient,
+		"coinbase":         (BalancesEncoder)(header.CoinbaseAmount),
+		"difficulty":       (*hexutil.Big)(header.Difficulty),
+		"extraData":        hexutil.Bytes(header.Extra),
+		"gasLimit":         (*hexutil.Big)(header.GasLimit.Value),
+		"timestamp":        hexutil.Uint64(header.Time),
+		"logsBloom":        header.Bloom,
+		"sha3Uncles":       types.EmptyUncleHash,
+		"transactionsRoot": meta.TxHash,
+		"stateRoot":        meta.Root,
+		"receiptsRoot":     meta.ReceiptHash,
+		"gasUsed":          (*hexutil.Big)(meta.GasUsed.Value),
+	}, nil
+}
+
 func MinorBlockEncoderForEthClient(block *types.MinorBlock, includeTransaction bool, fullTx bool) (map[string]interface{}, error) {
 	serData, err := serialize.SerializeToBytes(block)
 	if err != nil {
@@ -277,7 +299,7 @@ func MinorBlockEncoderForEthClient(block *types.MinorBlock, includeTransaction b
 	}
 	header := block.Header()
 	meta := block.Meta()
-	fields, err := MinorBlockHeaderEncoder(header, meta)
+	fields, err := MinorBlockHeaderEncoderForEthClient(header, meta)
 	if err != nil {
 		return nil, err
 	}
