@@ -345,7 +345,7 @@ func (api *PublicFilterAPI) GetTransactionByHash(ctx context.Context, ethhash co
 	tx := block.GetTransactions()[index]
 	log.Info("GetTransactionByHash: get block and tx", "index", index)
 	if block.NumberU64() == 0 {
-		return encoder.NewRPCTransaction(tx, common.Hash{}, 0, uint64(index)), nil
+		return encoder.NewRPCTransaction(tx, common.Hash{}, 0, 0), nil
 	}
 	// Transaction unknown, return as such
 	return encoder.NewRPCTransaction(tx, block.Hash(), block.Number(), uint64(index)), nil
