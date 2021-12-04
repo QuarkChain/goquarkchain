@@ -197,6 +197,16 @@ func (s *ShardBackend) AddTransaction(tx *types.Transaction) error {
 	return s.MinorBlockChain.AddTx(tx)
 }
 
+func (s *ShardBackend) AddTransactionAndBroadcast(tx *types.Transaction) error {
+	err := s.MinorBlockChain.AddTx(tx)
+	go func() {
+		if err := s.conn.BroadcastTransactions("", s.branch.Value, []*types.Transaction{tx}); err != nil {
+			log.Error(s.logInfo, "broadcastTransaction err", err)
+		}
+	}()
+	return err
+}
+
 func (s ShardBackend) GetEthChainID() uint32 {
 	return s.MinorBlockChain.EthChainID()
 }

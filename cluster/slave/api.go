@@ -272,7 +272,7 @@ func (api *PublicFilterAPI) SendRawTransaction(ctx context.Context, encodedTx he
 	}
 	log.Info("SendRawTransaction: get evmtx", "hash", common.Bytes2Hex(evmTx.Hash().Bytes()))
 	log.Info("SendRawTransaction: get tx", "hash", common.Bytes2Hex(tx.Hash().Bytes()))
-	err := api.getShardFilter().AddTransaction(tx)
+	err := api.getShardFilter().AddTransactionAndBroadcast(tx)
 	if err != nil {
 		return common.Hash{}, err
 	}
