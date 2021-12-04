@@ -150,7 +150,7 @@ func (api *PublicFilterAPI) NewHeads(ctx context.Context, fullShardId *hexutil.U
 		for {
 			select {
 			case b := <-blocks:
-				hd, err := encoder.MinorBlockHeaderEncoder(b.Header(), b.Meta())
+				hd, err := encoder.MinorBlockHeaderEncoderForEthClient(b.Header(), b.Meta())
 				if err != nil {
 					log.Error("encode MinorBlockHeader error", "err", err)
 				} else {
@@ -292,7 +292,7 @@ func (api *PublicFilterAPI) GetHeaderByNumber(ctx context.Context, number rpc.Bl
 	if err != nil {
 		return nil, err
 	}
-	return encoder.MinorBlockHeaderEncoder(block.Header(), block.Meta())
+	return encoder.MinorBlockHeaderEncoderForEthClient(block.Header(), block.Meta())
 }
 
 // GetBlockByNumber returns the requested canonical block.
