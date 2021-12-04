@@ -59,7 +59,6 @@ var (
 )
 
 type SlaveFilter interface {
-	GetTransactionByHash(txHash common.Hash, branch uint32) (*types.MinorBlock, uint32, error)
 	GetShardFilter(fullShardId uint32) (ShardFilter, error)
 	GetFullShardList() []uint32
 }
