@@ -177,7 +177,13 @@ func (b *testBackend) GetNetworkId() uint32 {
 	panic("not implemented")
 }
 
-func (b *testBackend) GetTransactionByHash(hash common.Hash) (*types.MinorBlock, uint32) {
+func (b *testBackend) GetTransactionByHash(txHash common.Hash) (*types.MinorBlock, uint32) {
+	txs := b.mBlock.GetTransactions()
+	for idx, tx := range txs {
+		if tx.Hash() == txHash {
+			return b.mBlock, uint32(idx)
+		}
+	}
 	panic("not implemented")
 }
 
