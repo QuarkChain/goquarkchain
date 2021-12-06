@@ -283,7 +283,3 @@ func (s *ShardAPI) EstimateGas(mdata MetaCallArgs) (hexutil.Uint, error) {
 	ans, err := hexutil.DecodeUint64(gasLimit)
 	return hexutil.Uint(ans), err
 }
-
-func (s *ShardAPI) ClientVersion() string {
-	return "goquarckchain/mainnet1.5.2"
-}
