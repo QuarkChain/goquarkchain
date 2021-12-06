@@ -57,13 +57,13 @@ func (s *ShardAPI) ChainId() hexutil.Uint64 {
 	return hexutil.Uint64(s.chainID)
 }
 
-func (s *ShardAPI) GasPrice() (hexutil.Uint64, error) {
+func (s *ShardAPI) GasPrice() (*hexutil.Big, error) {
 	resp, err := s.c.Call("gasPrice", hexutil.EncodeUint64(uint64(s.fullShardID)))
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
-	gasPrice, err := hexutil.DecodeUint64(resp.Result.(string))
-	return hexutil.Uint64(gasPrice), err
+	gasPrice, err := hexutil.DecodeBig(resp.Result.(string))
+	return (*hexutil.Big)(gasPrice), nil
 }
 
 func (s *ShardAPI) GetBalance(address common.Address, blockNrOrHash string) (*hexutil.Big, error) {
