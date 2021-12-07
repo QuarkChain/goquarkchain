@@ -45,12 +45,13 @@ func (e *Web3Api) ClientVersion() string {
 type ShardAPI struct {
 	fullShardID uint32
 	chainID     uint32
+	hashMap     map[common.Hash]common.Hash
 
 	c jsonrpc.RPCClient
 }
 
 func NewShardAPI(fullShardID uint32, chainID uint32, client jsonrpc.RPCClient) *ShardAPI {
-	return &ShardAPI{fullShardID: fullShardID, chainID: chainID, c: client}
+	return &ShardAPI{fullShardID: fullShardID, chainID: chainID, hashMap: make(map[common.Hash]common.Hash), c: client}
 }
 
 func (s *ShardAPI) ChainId() hexutil.Uint64 {
@@ -181,6 +182,7 @@ func (s *ShardAPI) SendRawTransaction(encodedTx hexutil.Bytes) (common.Hash, err
 		TxType: types.EvmTx,
 		EvmTx:  evmTx,
 	}
+	s.hashMap[tx.Hash()] = txQkc.Hash()
 	return txQkc.Hash(), nil
 }
 
@@ -194,7 +196,11 @@ func (s *ShardAPI) getTxIDInShard(h common.Hash) []byte {
 	return txID
 }
 
-func (s *ShardAPI) GetTransactionByHash(hash common.Hash) (map[string]interface{}, error) {
+func (s *ShardAPI) GetTransactionByHash(ethhash common.Hash) (map[string]interface{}, error) {
+	hash, ok := s.hashMap[ethhash]
+	if !ok {
+		hash = ethhash
+	}
 	resp, err := s.c.Call("getTransactionById", common.ToHex(s.getTxIDInShard(hash)))
 	if err != nil {
 		return nil, err
@@ -202,7 +208,11 @@ func (s *ShardAPI) GetTransactionByHash(hash common.Hash) (map[string]interface{
 	return resp.Result.(map[string]interface{}), nil
 }
 
-func (s *ShardAPI) GetTransactionReceipt(hash common.Hash) (map[string]interface{}, error) {
+func (s *ShardAPI) GetTransactionReceipt(ethhash common.Hash) (map[string]interface{}, error) {
+	hash, ok := s.hashMap[ethhash]
+	if !ok {
+		hash = ethhash
+	}
 	resp, err := s.c.Call("getTransactionReceipt", common.ToHex(s.getTxIDInShard(hash)))
 	if err != nil {
 		return nil, err
