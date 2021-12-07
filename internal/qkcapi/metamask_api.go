@@ -205,7 +205,14 @@ func (s *ShardAPI) GetTransactionByHash(ethhash common.Hash) (map[string]interfa
 	if err != nil {
 		return nil, err
 	}
-	return resp.Result.(map[string]interface{}), nil
+	ans := resp.Result.(map[string]interface{})
+	if ans["from"] != nil {
+		ans["from"] = ans["from"].(string)[:42]
+	}
+	if ans["to"] != nil {
+		ans["to"] = ans["to"].(string)[:42]
+	}
+	return ans, nil
 }
 
 func (s *ShardAPI) GetTransactionReceipt(ethhash common.Hash) (map[string]interface{}, error) {

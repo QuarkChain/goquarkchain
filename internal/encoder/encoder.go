@@ -248,6 +248,8 @@ func TxEncoder(block *types.MinorBlock, i int) (map[string]interface{}, error) {
 		return nil, err
 	}
 	field := map[string]interface{}{
+		"blockHash":        block.Hash(),
+		"blockNumber":      block.NumberU64(),
 		"id":               IDEncoder(tx.Hash().Bytes(), evmtx.FromFullShardKey()),
 		"hash":             tx.Hash(),
 		"nonce":            hexutil.Uint64(evmtx.Nonce()),
@@ -265,6 +267,7 @@ func TxEncoder(block *types.MinorBlock, i int) (map[string]interface{}, error) {
 		"value":            (*hexutil.Big)(evmtx.Value()),
 		"gasPrice":         (*hexutil.Big)(evmtx.GasPrice()),
 		"gas":              hexutil.Uint64(evmtx.Gas()),
+		"input":            hexutil.Bytes(evmtx.Data()),
 		"data":             hexutil.Bytes(evmtx.Data()),
 		"networkId":        hexutil.Uint64(evmtx.NetworkId()),
 		"transferTokenId":  hexutil.Uint64(evmtx.TransferTokenID()),
