@@ -168,7 +168,7 @@ And config rpc listening to `0.0.0.0` when start `master` service:
 
 ### Start Metamask API Service
 
-If you want to use metamask to connect your node, you need to start metamask_ 
+If you want to use metamask to connect your node, you need to start service under folder `/cmd/eth_api` using following command.
 ```bash
 <goquarkchain>/cmd/eth_api# go run main.go --config ./mainnet.json
 ```
