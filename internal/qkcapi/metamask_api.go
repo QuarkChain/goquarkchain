@@ -242,10 +242,10 @@ func (s *ShardAPI) GetTransactionByHash(ethhash common.Hash) (map[string]interfa
 	if ans["data"] != nil {
 		ans["input"] = ans["data"]
 	}
-	if ans["blockHash"] != nil {
+	if ans["blockId"] != nil {
 		ans["blockHash"] = ans["blockId"].(string)[:66]
 	}
-	if ans["blockNumber"] != nil {
+	if ans["blockHeight"] != nil {
 		ans["blockNumber"] = ans["blockHeight"]
 	}
 	return ans, nil
