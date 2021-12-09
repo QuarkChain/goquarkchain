@@ -207,11 +207,11 @@ func (s *ShardBackend) AddTransactionAndBroadcast(tx *types.Transaction) error {
 	return err
 }
 
-func (s ShardBackend) GetEthChainID() uint32 {
+func (s *ShardBackend) GetEthChainID() uint32 {
 	return s.MinorBlockChain.EthChainID()
 }
 
-func (s ShardBackend) GetNetworkId() uint32 {
+func (s *ShardBackend) GetNetworkId() uint32 {
 	return s.MinorBlockChain.Config().NetworkID
 }
 
