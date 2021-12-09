@@ -3,6 +3,7 @@ package qkcapi
 import (
 	"encoding/binary"
 	"errors"
+	"math/big"
 	"strings"
 
 	"github.com/QuarkChain/goquarkchain/account"
@@ -64,6 +65,9 @@ func (s *ShardAPI) GasPrice() (*hexutil.Big, error) {
 		return nil, err
 	}
 	gasPrice, err := hexutil.DecodeBig(resp.Result.(string))
+	if gasPrice.Cmp(new(big.Int).SetUint64(0)) == 0 {
+		gasPrice = new(big.Int).SetUint64(1)
+	}
 	return (*hexutil.Big)(gasPrice), nil
 }
 
@@ -116,8 +120,17 @@ func reWriteBlockResult(block map[string]interface{}) map[string]interface{} {
 	return block
 }
 
-func (s *ShardAPI) GetBlockByNumber(blockNr *hexutil.Uint64, fullTx bool) (map[string]interface{}, error) {
-	resp, err := s.c.Call("getMinorBlockByHeight", hexutil.EncodeUint64(uint64(s.fullShardID)), blockNr, false)
+func (s *ShardAPI) GetBlockByNumber(blockNr string, fullTx bool) (map[string]interface{}, error) {
+	var (
+		resp *jsonrpc.RPCResponse
+		err  error
+	)
+	if blockNr == "latest" {
+		resp, err = s.c.Call("getMinorBlockByHeight", hexutil.EncodeUint64(uint64(s.fullShardID)), nil, fullTx)
+	} else {
+		resp, err = s.c.Call("getMinorBlockByHeight", hexutil.EncodeUint64(uint64(s.fullShardID)), blockNr, fullTx)
+	}
+
 	if err != nil {
 		return nil, err
 	}
@@ -129,7 +142,16 @@ func (s *ShardAPI) GetBlockByNumber(blockNr *hexutil.Uint64, fullTx bool) (map[s
 }
 
 func (s *ShardAPI) GetTransactionCount(address common.Address, blockNr string) (hexutil.Uint64, error) {
-	resp, err := s.c.Call("getTransactionCount", account.NewAddress(address, s.fullShardID).ToHex(), blockNr)
+	var (
+		resp *jsonrpc.RPCResponse
+		err  error
+	)
+	if blockNr == "pending" {
+		resp, err = s.c.Call("getTransactionCount", account.NewAddress(address, s.fullShardID).ToHex(), nil)
+	} else {
+		resp, err = s.c.Call("getTransactionCount", account.NewAddress(address, s.fullShardID).ToHex(), blockNr)
+	}
+
 	if err != nil {
 		return 0, err
 	}
@@ -210,7 +232,12 @@ func (s *ShardAPI) GetTransactionByHash(ethhash common.Hash) (map[string]interfa
 		ans["from"] = ans["from"].(string)[:42]
 	}
 	if ans["to"] != nil {
-		ans["to"] = ans["to"].(string)[:42]
+		to := ans["to"].(string)
+		if len(to) > 42 {
+			ans["to"] = to[:42]
+		} else if len(to) <= 2 {
+			delete(ans, "to")
+		}
 	}
 	if ans["data"] != nil {
 		ans["input"] = ans["data"]
@@ -233,9 +260,15 @@ func (s *ShardAPI) GetTransactionReceipt(ethhash common.Hash) (map[string]interf
 	if err != nil {
 		return nil, err
 	}
-	ans := resp.Result.(map[string]interface{})
+	ans, ok := resp.Result.(map[string]interface{})
 	if ans["contractAddress"] != nil {
-		ans["contractAddress"] = ans["contractAddress"].(string)[:42]
+		contractAddress := ans["contractAddress"].(string)
+		if len(contractAddress) > 42 {
+			ans["contractAddress"] = contractAddress[:42]
+		}
+	}
+	if ans["logsBloom"] == nil {
+		ans["logsBloom"] = common.ToHex(make([]byte, types.BloomByteLength))
 	}
 	return ans, nil
 }
