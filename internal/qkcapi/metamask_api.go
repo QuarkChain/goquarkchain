@@ -100,6 +100,9 @@ func (s *ShardAPI) BlockNumber() (hexutil.Uint64, error) {
 }
 
 func reWriteBlockResult(block map[string]interface{}) map[string]interface{} {
+	if block == nil {
+		return nil
+	}
 	// Truncate fields which contain full shard id
 	if block["id"] != nil {
 		block["id"] = block["id"].(string)[:66]
@@ -227,6 +230,9 @@ func (s *ShardAPI) GetTransactionByHash(ethhash common.Hash) (map[string]interfa
 	if err != nil {
 		return nil, err
 	}
+	if resp.Result == nil {
+		return nil, nil
+	}
 	ans := resp.Result.(map[string]interface{})
 	if ans["from"] != nil {
 		ans["from"] = ans["from"].(string)[:42]
@@ -235,7 +241,7 @@ func (s *ShardAPI) GetTransactionByHash(ethhash common.Hash) (map[string]interfa
 		to := ans["to"].(string)
 		if len(to) > 42 {
 			ans["to"] = to[:42]
-		} else if len(to) <= 2 {
+		} else if len(to) <= 2 { // remove to if it is empty (0x)
 			delete(ans, "to")
 		}
 	}
@@ -260,7 +266,10 @@ func (s *ShardAPI) GetTransactionReceipt(ethhash common.Hash) (map[string]interf
 	if err != nil {
 		return nil, err
 	}
-	ans, ok := resp.Result.(map[string]interface{})
+	if resp.Result == nil {
+		return nil, nil
+	}
+	ans := resp.Result.(map[string]interface{})
 	if ans["contractAddress"] != nil {
 		contractAddress := ans["contractAddress"].(string)
 		if len(contractAddress) > 42 {
