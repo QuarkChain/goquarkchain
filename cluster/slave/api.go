@@ -23,7 +23,8 @@ import (
 )
 
 var (
-	deadline = 5 * time.Minute // consider a filter inactive if it has not been polled for within deadline
+	deadline     = 5 * time.Minute // consider a filter inactive if it has not been polled for within deadline
+	defaultToken = uint64(35760)
 )
 
 type NetApi struct {
@@ -52,24 +53,22 @@ type filter struct {
 // PublicFilterAPI offers support to create and manage filters. This will allow external clients to retrieve various
 // information related to the Ethereum protocol such als blocks, transactions and logs.
 type PublicFilterAPI struct {
-	backend      filters.SlaveFilter
-	quit         chan struct{}
-	events       *filters.EventSystem
-	filtersMu    sync.Mutex
-	shardId      uint32 // as default shardId
-	shardFilter  filters.ShardFilter
-	hashMap      map[common.Hash]common.Hash
-	defaultToken uint64
+	backend     filters.SlaveFilter
+	quit        chan struct{}
+	events      *filters.EventSystem
+	filtersMu   sync.Mutex
+	shardId     uint32 // as default shardId
+	shardFilter filters.ShardFilter
+	hashMap     map[common.Hash]common.Hash
 }
 
 // NewPublicFilterAPI returns a new PublicFilterAPI instance.
 func NewPublicFilterAPI(backend filters.SlaveFilter, shardId uint32) *PublicFilterAPI {
 	api := &PublicFilterAPI{
-		shardId:      shardId,
-		backend:      backend,
-		events:       filters.NewEventSystem(backend),
-		hashMap:      make(map[common.Hash]common.Hash),
-		defaultToken: uint64(35760),
+		shardId: shardId,
+		backend: backend,
+		events:  filters.NewEventSystem(backend),
+		hashMap: make(map[common.Hash]common.Hash),
 	}
 
 	return api
@@ -471,7 +470,7 @@ func (api *PublicFilterAPI) EstimateGas(mdata MetaCallArgs) (hexutil.Uint, error
 }
 
 func (api *PublicFilterAPI) GasPrice() (hexutil.Uint64, error) {
-	gasPrice, err := api.shardFilter.GasPrice(api.defaultToken)
+	gasPrice, err := api.shardFilter.GasPrice(defaultToken)
 	if err != nil {
 		return 1, err
 	}
