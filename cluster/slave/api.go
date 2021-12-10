@@ -468,7 +468,24 @@ func toTransaction(a *MetaCallArgs, shardId uint32, networkID uint32) *types.Tra
 	return tx
 }
 
+func toCallJsonArg(mdata MetaCallArgs) interface{} {
+	arg := make(map[string]interface{})
+	if mdata.From != nil {
+		arg["from"] = common.ToHex(mdata.From.Bytes())
+	}
+	if mdata.To != nil {
+		arg["to"] = common.ToHex(mdata.To.Bytes())
+	}
+
+	arg["gas"] = mdata.Gas
+	arg["gasPrice"] = mdata.GasPrice
+	arg["value"] = mdata.Value
+	arg["data"] = mdata.Data
+	return arg
+}
+
 func (api *PublicFilterAPI) Call(mdata MetaCallArgs, blockNr *rpc.BlockNumber) (hexutil.Bytes, error) {
+	log.Info("Call: ", "mdata", toCallJsonArg(mdata), "blockNr", blockNr)
 	tx := toTransaction(&mdata, api.shardId, api.getShardFilter().GetNetworkId())
 	var (
 		result []byte
@@ -489,8 +506,12 @@ func (api *PublicFilterAPI) Call(mdata MetaCallArgs, blockNr *rpc.BlockNumber) (
 }
 
 func (api *PublicFilterAPI) EstimateGas(mdata MetaCallArgs) (hexutil.Uint, error) {
+	log.Info("EstimateGas: ", "mdata", toCallJsonArg(mdata))
 	tx := toTransaction(&mdata, api.shardId, api.getShardFilter().GetNetworkId())
 	result, err := api.getShardFilter().EstimateGas(tx, &account.Address{*mdata.From, api.shardId})
+	if err != nil {
+		log.Info("EstimateGas: ", "err", err.Error())
+	}
 	return hexutil.Uint(result), err
 }
 
