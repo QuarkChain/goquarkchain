@@ -508,10 +508,9 @@ func (api *PublicFilterAPI) Call(mdata MetaCallArgs, blockNr *rpc.BlockNumber) (
 func (api *PublicFilterAPI) EstimateGas(mdata MetaCallArgs) (hexutil.Uint, error) {
 	log.Info("EstimateGas: ", "mdata", toCallJsonArg(mdata))
 	tx := toTransaction(&mdata, api.shardId, api.getShardFilter().GetNetworkId())
+	log.Info("EstimateGas: ", "hash", tx.Hash())
 	result, err := api.getShardFilter().EstimateGas(tx, &account.Address{*mdata.From, api.shardId})
-	if err != nil {
-		log.Info("EstimateGas: ", "err", err.Error())
-	}
+	log.Info("EstimateGas: ", "result", result, "err", err.Error())
 	return hexutil.Uint(result), err
 }
 
