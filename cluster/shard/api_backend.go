@@ -273,7 +273,7 @@ func (s *ShardBackend) GetMinorBlock(mHash common.Hash, height *uint64) (mBlock 
 			mBlock = block.(*types.MinorBlock)
 		}
 	} else {
-		return nil, errors.New("invalied params in GetMinorBlock")
+		mBlock = s.MinorBlockChain.CurrentBlock()
 	}
 	if mBlock != nil {
 		return
