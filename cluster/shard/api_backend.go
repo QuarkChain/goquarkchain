@@ -160,6 +160,20 @@ func (s *ShardBackend) EstimateGas(tx *types.Transaction, fromAddress *account.A
 	return s.MinorBlockChain.EstimateGas(tx, fromAddress)
 }
 
+func (s *ShardBackend) GasPrice(tokenID uint64) (uint64, error) {
+	return s.MinorBlockChain.GasPrice(tokenID)
+}
+
+func (s *ShardBackend) GetCode(recipient account.Recipient, height *uint64) ([]byte, error) {
+	var hash *common.Hash = nil
+	header := s.MinorBlockChain.GetHeaderByNumber(*height)
+	if header != nil {
+		return nil, errors.New(fmt.Sprintf("Cannot get %d", *height))
+	}
+	*hash = header.Hash()
+	return s.MinorBlockChain.GetCode(recipient, hash)
+}
+
 // ######################## root block Methods #########################
 // Either recover state from local db or create genesis state based on config
 func (s *ShardBackend) InitFromRootBlock(rBlock *types.RootBlock) error {

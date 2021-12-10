@@ -52,22 +52,24 @@ type filter struct {
 // PublicFilterAPI offers support to create and manage filters. This will allow external clients to retrieve various
 // information related to the Ethereum protocol such als blocks, transactions and logs.
 type PublicFilterAPI struct {
-	backend     filters.SlaveFilter
-	quit        chan struct{}
-	events      *filters.EventSystem
-	filtersMu   sync.Mutex
-	shardId     uint32 // as default shardId
-	shardFilter filters.ShardFilter
-	hashMap     map[common.Hash]common.Hash
+	backend      filters.SlaveFilter
+	quit         chan struct{}
+	events       *filters.EventSystem
+	filtersMu    sync.Mutex
+	shardId      uint32 // as default shardId
+	shardFilter  filters.ShardFilter
+	hashMap      map[common.Hash]common.Hash
+	defaultToken uint64
 }
 
 // NewPublicFilterAPI returns a new PublicFilterAPI instance.
 func NewPublicFilterAPI(backend filters.SlaveFilter, shardId uint32) *PublicFilterAPI {
 	api := &PublicFilterAPI{
-		shardId: shardId,
-		backend: backend,
-		events:  filters.NewEventSystem(backend),
-		hashMap: make(map[common.Hash]common.Hash),
+		shardId:      shardId,
+		backend:      backend,
+		events:       filters.NewEventSystem(backend),
+		hashMap:      make(map[common.Hash]common.Hash),
+		defaultToken: uint64(35760),
 	}
 
 	return api
@@ -427,7 +429,6 @@ type MetaCallArgs struct {
 }
 
 func toTransaction(a *MetaCallArgs, shardId uint32, networkID uint32) *types.Transaction {
-	defaultToken := uint64(35760)
 	evmTx := new(types.EvmTransaction)
 	if a.To == nil {
 		evmTx = types.NewEvmContractCreation(0, a.Value.ToInt(), a.Gas.ToInt().Uint64(), a.GasPrice.ToInt(),
@@ -467,4 +468,30 @@ func (api *PublicFilterAPI) EstimateGas(mdata MetaCallArgs) (hexutil.Uint, error
 	tx := toTransaction(&mdata, api.shardId, api.getShardFilter().GetNetworkId())
 	result, err := api.shardFilter.EstimateGas(tx, &account.Address{*mdata.From, api.shardId})
 	return hexutil.Uint(result), err
+}
+
+func (api *PublicFilterAPI) GasPrice() (hexutil.Uint64, error) {
+	gasPrice, err := api.shardFilter.GasPrice(api.defaultToken)
+	if err != nil {
+		return 1, err
+	}
+	return hexutil.Uint64(gasPrice), err
+}
+
+func (api *PublicFilterAPI) GetCode(address common.Address, blockNr rpc.BlockNumber) (hexutil.Bytes, error) {
+	var (
+		code []byte
+		err  error
+	)
+	if blockNr.Int64() > 0 {
+		number := blockNr.Uint64()
+		code, err = api.shardFilter.GetCode(address, &number)
+	} else {
+		code, err = api.shardFilter.GetCode(address, nil)
+	}
+
+	if err != nil {
+		return nil, err
+	}
+	return hexutil.Bytes(code), err
 }

@@ -200,6 +200,14 @@ func (s *testBackend) EstimateGas(tx *types.Transaction, fromAddress *account.Ad
 	panic("not implemented")
 }
 
+func (s *testBackend) GasPrice(tokenID uint64) (uint64, error) {
+	panic("not implemented")
+}
+
+func (s *testBackend) GetCode(recipient account.Recipient, height *uint64) ([]byte, error) {
+	panic("not implemented")
+}
+
 func (b *testBackend) SubscribeChainHeadEvent(ch chan<- core.MinorChainHeadEvent) event.Subscription {
 	return b.chainHeadFeed.Subscribe(ch)
 }

@@ -150,7 +150,8 @@ func (bn *BlockNumber) UnmarshalJSON(data []byte) error {
 		*bn = LatestBlockNumber
 		return nil
 	case "pending":
-		return errors.New("not support pending")
+		*bn = PendingBlockNumber
+		return nil
 	}
 
 	blckNum, err := hexutil.DecodeUint64(input)

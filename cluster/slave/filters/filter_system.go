@@ -77,6 +77,8 @@ type ShardFilter interface {
 	GetTransactionCount(address common.Address, blockNrOrHash qrpc.BlockNumberOrHash) (*uint64, error)
 	ExecuteTx(tx *types.Transaction, fromAddress *account.Address, height *uint64) ([]byte, error)
 	EstimateGas(tx *types.Transaction, fromAddress *account.Address) (uint32, error)
+	GasPrice(tokenID uint64) (uint64, error)
+	GetCode(recipient account.Recipient, height *uint64) ([]byte, error)
 
 	SubscribeChainHeadEvent(ch chan<- core.MinorChainHeadEvent) event.Subscription
 	SubscribeLogsEvent(chan<- core.LoglistEvent) event.Subscription
