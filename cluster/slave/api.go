@@ -107,7 +107,7 @@ func (api *PublicFilterAPI) NewPendingTransactions(ctx context.Context, fullShar
 			select {
 			case txs := <-txlist:
 				for _, tx := range txs {
-					mBlock, idx := api.shardFilter.GetTransactionByHash(tx.Hash())
+					mBlock, idx := api.getShardFilter().GetTransactionByHash(tx.Hash())
 					if mBlock == nil {
 						log.Error("failed to call getTransactionByHash when subscription pending transactions", "err", "emtpy block")
 						continue
@@ -272,7 +272,6 @@ func (api *PublicFilterAPI) SendRawTransaction(ctx context.Context, encodedTx he
 		TxType: types.EvmTx,
 		EvmTx:  evmTx,
 	}
-	log.Info("SendRawTransaction: get evmtx", "hash", common.Bytes2Hex(evmTx.Hash().Bytes()))
 	log.Info("SendRawTransaction: get tx", "hash", common.Bytes2Hex(tx.Hash().Bytes()))
 	err := api.getShardFilter().AddTransactionAndBroadcast(tx)
 	if err != nil {
@@ -288,15 +287,23 @@ func (api *PublicFilterAPI) ChainId(ctx context.Context) (*hexutil.Big, error) {
 	return (*hexutil.Big)(new(big.Int).SetUint64(uint64(chainID))), nil
 }
 
-func (api *PublicFilterAPI) GetHeaderByNumber(ctx context.Context, number rpc.BlockNumber) (map[string]interface{}, error) {
-	log.Info("GetHeaderByNumber:", "number", number)
-	height := number.Uint64()
-	block, err := api.getShardFilter().GetMinorBlock(common.Hash{}, &height)
+func (api *PublicFilterAPI) GetHeaderByNumber(ctx context.Context, blockNr rpc.BlockNumber) (map[string]interface{}, error) {
+	log.Info("GetHeaderByNumber:", "number", blockNr)
+	var (
+		block *types.MinorBlock
+		err   error
+	)
+	if blockNr.Int64() > 0 {
+		number := blockNr.Uint64()
+		block, err = api.getShardFilter().GetMinorBlock(common.Hash{}, &number)
+	} else {
+		block, err = api.getShardFilter().GetMinorBlock(common.Hash{}, nil)
+	}
 	if err != nil {
-		log.Info("GetHeaderByNumber:", "number", number, "err", err.Error())
+		log.Info("GetHeaderByNumber:", "number", blockNr, "err", err.Error())
 		return nil, err
 	}
-	log.Info("GetHeaderByNumber success:", "number", number, "hash", block.Hash())
+	log.Info("GetHeaderByNumber success:", "number", blockNr, "hash", block.Hash())
 	return encoder.MinorBlockHeaderEncoderForEthClient(block.Header(), block.Meta())
 }
 
@@ -305,15 +312,23 @@ func (api *PublicFilterAPI) GetHeaderByNumber(ctx context.Context, number rpc.Bl
 // * When blockNr is -2 the pending chain head is returned.
 // * When fullTx is true all transactions in the block are returned, otherwise
 //   only the transaction hash is returned.
-func (api *PublicFilterAPI) GetBlockByNumber(ctx context.Context, number rpc.BlockNumber, fullTx bool) (map[string]interface{}, error) {
-	log.Info("GetBlockByNumber:", "number", number, "fullTX", fullTx)
-	height := number.Uint64()
-	block, err := api.getShardFilter().GetMinorBlock(common.Hash{}, &height)
+func (api *PublicFilterAPI) GetBlockByNumber(ctx context.Context, blockNr rpc.BlockNumber, fullTx bool) (map[string]interface{}, error) {
+	log.Info("GetBlockByNumber:", "number", blockNr, "fullTX", fullTx)
+	var (
+		block *types.MinorBlock
+		err   error
+	)
+	if blockNr.Int64() > 0 {
+		number := blockNr.Uint64()
+		block, err = api.getShardFilter().GetMinorBlock(common.Hash{}, &number)
+	} else {
+		block, err = api.getShardFilter().GetMinorBlock(common.Hash{}, nil)
+	}
 	if err != nil {
-		log.Info("GetBlockByNumber:", "number", number, "err", err.Error())
+		log.Info("GetBlockByNumber:", "number", blockNr, "err", err.Error())
 		return nil, err
 	}
-	log.Info("GetHeaderByNumber success:", "number", number, "hash", block.Hash())
+	log.Info("GetHeaderByNumber success:", "number", blockNr, "hash", block.Hash())
 	return encoder.MinorBlockEncoderForEthClient(block, true, fullTx)
 }
 
@@ -460,10 +475,10 @@ func (api *PublicFilterAPI) Call(mdata MetaCallArgs, blockNr *rpc.BlockNumber) (
 		err    error
 	)
 	if blockNr == nil || blockNr.Int64() < 0 {
-		result, err = api.shardFilter.ExecuteTx(tx, &account.Address{*mdata.From, api.shardId}, nil)
+		result, err = api.getShardFilter().ExecuteTx(tx, &account.Address{*mdata.From, api.shardId}, nil)
 	} else {
 		number := blockNr.Uint64()
-		result, err = api.shardFilter.ExecuteTx(tx, &account.Address{*mdata.From, api.shardId}, &number)
+		result, err = api.getShardFilter().ExecuteTx(tx, &account.Address{*mdata.From, api.shardId}, &number)
 	}
 
 	if err != nil {
@@ -475,12 +490,12 @@ func (api *PublicFilterAPI) Call(mdata MetaCallArgs, blockNr *rpc.BlockNumber) (
 
 func (api *PublicFilterAPI) EstimateGas(mdata MetaCallArgs) (hexutil.Uint, error) {
 	tx := toTransaction(&mdata, api.shardId, api.getShardFilter().GetNetworkId())
-	result, err := api.shardFilter.EstimateGas(tx, &account.Address{*mdata.From, api.shardId})
+	result, err := api.getShardFilter().EstimateGas(tx, &account.Address{*mdata.From, api.shardId})
 	return hexutil.Uint(result), err
 }
 
 func (api *PublicFilterAPI) GasPrice() (hexutil.Uint64, error) {
-	gasPrice, err := api.shardFilter.GasPrice(defaultToken)
+	gasPrice, err := api.getShardFilter().GasPrice(defaultToken)
 	if err != nil {
 		return 1, err
 	}
@@ -494,9 +509,9 @@ func (api *PublicFilterAPI) GetCode(address common.Address, blockNr rpc.BlockNum
 	)
 	if blockNr.Int64() > 0 {
 		number := blockNr.Uint64()
-		code, err = api.shardFilter.GetCode(address, &number)
+		code, err = api.getShardFilter().GetCode(address, &number)
 	} else {
-		code, err = api.shardFilter.GetCode(address, nil)
+		code, err = api.getShardFilter().GetCode(address, nil)
 	}
 
 	if err != nil {
