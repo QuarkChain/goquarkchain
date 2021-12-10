@@ -289,11 +289,14 @@ func (api *PublicFilterAPI) ChainId(ctx context.Context) (*hexutil.Big, error) {
 }
 
 func (api *PublicFilterAPI) GetHeaderByNumber(ctx context.Context, number rpc.BlockNumber) (map[string]interface{}, error) {
+	log.Info("GetHeaderByNumber:", "number", number)
 	height := number.Uint64()
 	block, err := api.getShardFilter().GetMinorBlock(common.Hash{}, &height)
 	if err != nil {
+		log.Info("GetHeaderByNumber:", "number", number, "err", err.Error())
 		return nil, err
 	}
+	log.Info("GetHeaderByNumber success:", "number", number, "hash", block.Hash())
 	return encoder.MinorBlockHeaderEncoderForEthClient(block.Header(), block.Meta())
 }
 
@@ -303,11 +306,14 @@ func (api *PublicFilterAPI) GetHeaderByNumber(ctx context.Context, number rpc.Bl
 // * When fullTx is true all transactions in the block are returned, otherwise
 //   only the transaction hash is returned.
 func (api *PublicFilterAPI) GetBlockByNumber(ctx context.Context, number rpc.BlockNumber, fullTx bool) (map[string]interface{}, error) {
+	log.Info("GetBlockByNumber:", "number", number, "fullTX", fullTx)
 	height := number.Uint64()
 	block, err := api.getShardFilter().GetMinorBlock(common.Hash{}, &height)
 	if err != nil {
+		log.Info("GetBlockByNumber:", "number", number, "err", err.Error())
 		return nil, err
 	}
+	log.Info("GetHeaderByNumber success:", "number", number, "hash", block.Hash())
 	return encoder.MinorBlockEncoderForEthClient(block, true, fullTx)
 }
 
@@ -317,15 +323,19 @@ func (api *PublicFilterAPI) GetBlockByNumber(ctx context.Context, number rpc.Blo
 // * When fullTx is true all transactions in the block are returned, otherwise
 //   only the transaction hash is returned.
 func (api *PublicFilterAPI) GetBlockByHash(ctx context.Context, hash common.Hash, fullTx bool) (map[string]interface{}, error) {
+	log.Info("GetBlockByHash:", "hash", common.ToHex(hash.Bytes()), "fullTX", fullTx)
 	block, err := api.getShardFilter().GetMinorBlock(hash, nil)
 	if err != nil {
+		log.Info("GetBlockByHash:", "hash", common.ToHex(hash.Bytes()), "err", err.Error())
 		return nil, err
 	}
+	log.Info("GetHeaderByNumber success:", "number", block.NumberU64(), "hash", block.Hash())
 	return encoder.MinorBlockEncoderForEthClient(block, true, fullTx)
 }
 
 func (api *PublicFilterAPI) BlockNumber(ctx context.Context) hexutil.Uint64 {
 	header, _ := api.getShardFilter().GetHeaderByNumber(rpc.LatestBlockNumber) // latest header should always be available
+	log.Info("BlockNumber:", "number", header.NumberU64(), "hash", header.Hash())
 	return hexutil.Uint64(header.NumberU64())
 }
 
