@@ -152,6 +152,14 @@ func (s *ShardBackend) GetTransactionCount(address common.Address, blockNrOrHash
 	return &nonce, err
 }
 
+func (s *ShardBackend) ExecuteTx(tx *types.Transaction, fromAddress *account.Address, height *uint64) ([]byte, error) {
+	return s.MinorBlockChain.ExecuteTx(tx, fromAddress, height)
+}
+
+func (s *ShardBackend) EstimateGas(tx *types.Transaction, fromAddress *account.Address) (uint32, error) {
+	return s.MinorBlockChain.EstimateGas(tx, fromAddress)
+}
+
 // ######################## root block Methods #########################
 // Either recover state from local db or create genesis state based on config
 func (s *ShardBackend) InitFromRootBlock(rBlock *types.RootBlock) error {

@@ -1223,7 +1223,7 @@ func (m *MinorBlockChain) GetPendingCount() int {
 }
 
 // EstimateGas estimate gas for this tx
-func (m *MinorBlockChain) EstimateGas(tx *types.Transaction, fromAddress account.Address) (uint32, error) {
+func (m *MinorBlockChain) EstimateGas(tx *types.Transaction, fromAddress *account.Address) (uint32, error) {
 	// no need to locks
 	if tx.EvmTx.Gas() > math.MaxUint32 {
 		return 0, errors.New("gas > maxInt31")
@@ -1265,7 +1265,7 @@ func (m *MinorBlockChain) EstimateGas(tx *types.Transaction, fromAddress account
 
 		evmState.SetGasUsed(new(big.Int).SetUint64(0))
 		uint64Gas := uint64(gas)
-		evmTx, err := m.validateTx(tx, evmState, &fromAddress, &uint64Gas, nil)
+		evmTx, err := m.validateTx(tx, evmState, fromAddress, &uint64Gas, nil)
 		if err != nil {
 			return err
 		}

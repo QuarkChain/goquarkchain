@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/QuarkChain/goquarkchain/account"
 	qsync "github.com/QuarkChain/goquarkchain/cluster/sync"
 	"github.com/QuarkChain/goquarkchain/core"
 	"github.com/QuarkChain/goquarkchain/core/types"
@@ -74,6 +75,8 @@ type ShardFilter interface {
 	GetNetworkId() uint32
 	GetTransactionByHash(hash common.Hash) (*types.MinorBlock, uint32)
 	GetTransactionCount(address common.Address, blockNrOrHash qrpc.BlockNumberOrHash) (*uint64, error)
+	ExecuteTx(tx *types.Transaction, fromAddress *account.Address, height *uint64) ([]byte, error)
+	EstimateGas(tx *types.Transaction, fromAddress *account.Address) (uint32, error)
 
 	SubscribeChainHeadEvent(ch chan<- core.MinorChainHeadEvent) event.Subscription
 	SubscribeLogsEvent(chan<- core.LoglistEvent) event.Subscription

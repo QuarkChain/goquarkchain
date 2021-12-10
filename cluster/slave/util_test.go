@@ -5,6 +5,7 @@ import (
 	"net"
 	"time"
 
+	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/config"
 	"github.com/QuarkChain/goquarkchain/cluster/slave/filters"
 	"github.com/QuarkChain/goquarkchain/cluster/sync"
@@ -188,6 +189,14 @@ func (b *testBackend) GetTransactionByHash(txHash common.Hash) (*types.MinorBloc
 }
 
 func (b *testBackend) GetTransactionCount(address common.Address, blockNrOrHash qrpc.BlockNumberOrHash) (*uint64, error) {
+	panic("not implemented")
+}
+
+func (s *testBackend) ExecuteTx(tx *types.Transaction, fromAddress *account.Address, height *uint64) ([]byte, error) {
+	panic("not implemented")
+}
+
+func (s *testBackend) EstimateGas(tx *types.Transaction, fromAddress *account.Address) (uint32, error) {
 	panic("not implemented")
 }
 

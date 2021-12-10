@@ -296,7 +296,7 @@ func (s *SlaveBackend) EstimateGas(tx *types.Transaction, address *account.Addre
 		return 0, err
 	}
 	if shrd, ok := s.shards[fullShardId]; ok {
-		return shrd.MinorBlockChain.EstimateGas(tx, *address)
+		return shrd.MinorBlockChain.EstimateGas(tx, address)
 	}
 	return 0, ErrMsg("EstimateGas")
 }

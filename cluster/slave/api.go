@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/QuarkChain/goquarkchain/account"
 	"github.com/QuarkChain/goquarkchain/cluster/slave/filters"
 	qsync "github.com/QuarkChain/goquarkchain/cluster/sync"
 	"github.com/QuarkChain/goquarkchain/core"
@@ -413,4 +414,57 @@ func (api *PublicFilterAPI) GetTransactionCount(ctx context.Context, address com
 	nonce, err := api.getShardFilter().GetTransactionCount(address, blockNrOrHash)
 	log.Info("GetTransactionCount: ", "nonce", nonce)
 	return (*hexutil.Uint64)(nonce), err
+}
+
+// MetaCallArgs represents the arguments for a call.
+type MetaCallArgs struct {
+	From     *account.Recipient `json:"from"`
+	To       *account.Recipient `json:"to"`
+	Gas      hexutil.Big        `json:"gas"`
+	GasPrice hexutil.Big        `json:"gasPrice"`
+	Value    hexutil.Big        `json:"value"`
+	Data     hexutil.Bytes      `json:"data"`
+}
+
+func toTransaction(a *MetaCallArgs, shardId uint32, networkID uint32) *types.Transaction {
+	defaultToken := uint64(35760)
+	evmTx := new(types.EvmTransaction)
+	if a.To == nil {
+		evmTx = types.NewEvmContractCreation(0, a.Value.ToInt(), a.Gas.ToInt().Uint64(), a.GasPrice.ToInt(),
+			shardId, shardId, networkID, 0, a.Data, defaultToken, defaultToken)
+	} else {
+		evmTx = types.NewEvmTransaction(0, *a.To, a.Value.ToInt(), a.Gas.ToInt().Uint64(), a.GasPrice.ToInt(),
+			shardId, shardId, networkID, 0, a.Data, defaultToken, defaultToken)
+	}
+	tx := &types.Transaction{
+		EvmTx:  evmTx,
+		TxType: types.EvmTx,
+	}
+	return tx
+}
+
+func (api *PublicFilterAPI) Call(mdata MetaCallArgs, blockNr *rpc.BlockNumber) (hexutil.Bytes, error) {
+	tx := toTransaction(&mdata, api.shardId, api.getShardFilter().GetEthChainID())
+	var (
+		result []byte
+		err    error
+	)
+	if blockNr == nil || blockNr.Int64() < 0 {
+		result, err = api.shardFilter.ExecuteTx(tx, &account.Address{*mdata.From, api.shardId}, nil)
+	} else {
+		number := blockNr.Uint64()
+		result, err = api.shardFilter.ExecuteTx(tx, &account.Address{*mdata.From, api.shardId}, &number)
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	return hexutil.Bytes(result), nil
+}
+
+func (api *PublicFilterAPI) EstimateGas(mdata MetaCallArgs) (hexutil.Uint, error) {
+	tx := toTransaction(&mdata, api.shardId, api.getShardFilter().GetEthChainID())
+	result, err := api.shardFilter.EstimateGas(tx, &account.Address{*mdata.From, api.shardId})
+	return hexutil.Uint(result), err
 }
