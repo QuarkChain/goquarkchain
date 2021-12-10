@@ -444,7 +444,7 @@ func toTransaction(a *MetaCallArgs, shardId uint32, networkID uint32) *types.Tra
 }
 
 func (api *PublicFilterAPI) Call(mdata MetaCallArgs, blockNr *rpc.BlockNumber) (hexutil.Bytes, error) {
-	tx := toTransaction(&mdata, api.shardId, api.getShardFilter().GetEthChainID())
+	tx := toTransaction(&mdata, api.shardId, api.getShardFilter().GetNetworkId())
 	var (
 		result []byte
 		err    error
