@@ -464,7 +464,7 @@ func (api *PublicFilterAPI) Call(mdata MetaCallArgs, blockNr *rpc.BlockNumber) (
 }
 
 func (api *PublicFilterAPI) EstimateGas(mdata MetaCallArgs) (hexutil.Uint, error) {
-	tx := toTransaction(&mdata, api.shardId, api.getShardFilter().GetEthChainID())
+	tx := toTransaction(&mdata, api.shardId, api.getShardFilter().GetNetworkId())
 	result, err := api.shardFilter.EstimateGas(tx, &account.Address{*mdata.From, api.shardId})
 	return hexutil.Uint(result), err
 }
