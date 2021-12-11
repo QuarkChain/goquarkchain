@@ -283,6 +283,7 @@ func (api *PublicFilterAPI) SendRawTransaction(ctx context.Context, encodedTx he
 }
 
 func (api *PublicFilterAPI) ChainId(ctx context.Context) (*hexutil.Big, error) {
+	log.Info("ChainId:")
 	chainID := api.getShardFilter().GetEthChainID()
 	return (*hexutil.Big)(new(big.Int).SetUint64(uint64(chainID))), nil
 }
@@ -360,8 +361,8 @@ func (api *PublicFilterAPI) GetTransactionByHash(ctx context.Context, ethhash co
 	if !ok {
 		hash = ethhash
 	}
+	log.Info("GetTransactionReceipt: ", "ethhash", common.ToHex(ethhash.Bytes()), "hash", common.ToHex(hash.Bytes()))
 	// Try to return an already finalized transaction
-	log.Info("GetTransactionByHash:", "ethhash", common.Bytes2Hex(ethhash.Bytes()), "hash", common.Bytes2Hex(hash.Bytes()))
 	block, index := api.getShardFilter().GetTransactionByHash(hash)
 	if block == nil {
 		return nil, nil
@@ -380,10 +381,12 @@ func (api *PublicFilterAPI) GetTransactionByHash(ctx context.Context, ethhash co
 
 // GetTransactionReceipt returns the transaction receipt for the given transaction hash.
 func (api *PublicFilterAPI) GetTransactionReceipt(ctx context.Context, ethhash common.Hash) (map[string]interface{}, error) {
+	log.Info("GetTransactionReceipt: ", "ethhash", common.ToHex(ethhash.Bytes()))
 	hash, ok := api.hashMap[ethhash]
 	if !ok {
 		hash = ethhash
 	}
+	log.Info("GetTransactionReceipt hash map: ", "ethhash", common.ToHex(ethhash.Bytes()), "hash", common.ToHex(hash.Bytes()))
 	block, index := api.getShardFilter().GetTransactionByHash(hash)
 	if block == nil {
 		return nil, nil
@@ -394,9 +397,11 @@ func (api *PublicFilterAPI) GetTransactionReceipt(ctx context.Context, ethhash c
 	tx := block.GetTransactions()[index]
 	receipts, err := api.getShardFilter().GetReceiptsByHash(block.Hash())
 	if err != nil {
+		log.Info("GetTransactionReceipt: ", "err", err.Error())
 		return nil, err
 	}
 	if len(receipts) <= int(index) {
+		log.Info("GetTransactionReceipt: ", "ethhash", common.ToHex(ethhash.Bytes()))
 		return nil, nil
 	}
 	receipt := receipts[index]
@@ -514,14 +519,17 @@ func (api *PublicFilterAPI) EstimateGas(mdata MetaCallArgs) (hexutil.Uint, error
 }
 
 func (api *PublicFilterAPI) GasPrice() (hexutil.Uint64, error) {
+	log.Info("GasPrice")
 	gasPrice, err := api.getShardFilter().GasPrice(defaultToken)
 	if err != nil {
+		log.Info("GasPrice", "err", err.Error())
 		return 1, err
 	}
 	return hexutil.Uint64(gasPrice), err
 }
 
 func (api *PublicFilterAPI) GetCode(address common.Address, blockNr rpc.BlockNumber) (hexutil.Bytes, error) {
+	log.Info("GetCode: ", "address", common.ToHex(address.Bytes()), "blockNr", blockNr)
 	var (
 		code []byte
 		err  error
@@ -534,6 +542,7 @@ func (api *PublicFilterAPI) GetCode(address common.Address, blockNr rpc.BlockNum
 	}
 
 	if err != nil {
+		log.Info("GetCode", "err", err.Error())
 		return nil, err
 	}
 	return hexutil.Bytes(code), err
