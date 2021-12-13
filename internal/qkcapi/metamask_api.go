@@ -3,6 +3,8 @@ package qkcapi
 import (
 	"encoding/binary"
 	"errors"
+	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/QuarkChain/goquarkchain/account"
@@ -100,6 +102,13 @@ func reWriteBlockResult(block map[string]interface{}) map[string]interface{} {
 	}
 	if block["hashPrevMinorBlock"] != nil {
 		block["parentHash"] = block["hashPrevMinorBlock"]
+	}
+	if block["nonce"] != nil {
+		nonce, _ := strconv.ParseUint(block["nonce"].(string)[2:], 16, 32)
+		block["nonce"] = fmt.Sprintf("0x%016x\n", nonce)
+	}
+	if block["sha3Uncles"] != nil {
+		block["sha3Uncles"] = types.EmptyUncleHash
 	}
 	return block
 }
